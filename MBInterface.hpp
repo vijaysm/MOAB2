@@ -426,6 +426,13 @@ public:
                                         const int num_handles,
                                         MBRange &connectivity, 
                                         bool topological_connectivity = false) const =0;
+
+    //! Gets the connectivity for elements
+    /** Same as vector-based version except range is returned (unordered!)
+    */
+  virtual MBErrorCode get_connectivity( const MBRange& entity_handles, 
+                                        MBRange &connectivity, 
+                                        bool topological_connectivity = false) const =0;
  
     //! Gets the connectivity for a vector of elements
     /** Corner vertices or all vertices (including higher-order nodes, if any) are returned.

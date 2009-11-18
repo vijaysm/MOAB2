@@ -1242,8 +1242,9 @@ MBErrorCode MBCore::get_adjacencies( const MBEntityHandle *from_entities,
     return MB_FAILURE;
 }
 
-MBErrorCode MBCore::get_vertices( const MBRange& from_entities,
-                                  MBRange& adj_entities )
+MBErrorCode MBCore::get_connectivity( const MBRange& from_entities,
+                                      MBRange& adj_entities,
+                                      bool corners_only ) const
 {
   const size_t DEFAULT_MAX_BLOCKS_SIZE = 4000;
   const size_t MAX_OUTER_ITERATIONS = 100;
@@ -1271,21 +1272,10 @@ MBErrorCode MBCore::get_vertices( const MBRange& from_entities,
     remaining -= count;
     temp_vec.clear();
     for (size_t j = 0; j < count; ++i, ++j) {
-      tmp_result = get_connectivity( *i, conn, conn_len, false, &storage );
+      tmp_result = get_connectivity( *i, conn, conn_len, corners_only, &storage );
       if (MB_SUCCESS != tmp_result) {
         result = tmp_result;
         continue;
-      }
-
-      if (TYPE_FROM_HANDLE(*i) == MBPOLYHEDRON) {
-        storage.clear();
-        tmp_result = get_connectivity( conn, conn_len, storage );
-        if (MB_SUCCESS != tmp_result) {
-          result = tmp_result;
-          continue;
-        }
-        conn_len = storage.size();
-        conn = &storage[0];
       }
 
       const size_t oldsize = temp_vec.size();
@@ -1305,6 +1295,32 @@ MBErrorCode MBCore::get_vertices( const MBRange& from_entities,
     }
   }
   return result;
+}
+
+MBErrorCode MBCore::get_vertices( const MBRange& from_entities,
+                                  MBRange& vertices )
+{
+  MBRange range;
+  MBErrorCode rval = get_connectivity( from_entities, range );
+  
+    // If input contained polyhedra, connectivity will contain faces.
+    // Get vertices from faces.
+  if (MB_SUCCESS == rval && !range.all_of_dimension(0)) {
+    MBRange::iterator it = range.upper_bound(MBVERTEX);
+    MBRange polygons;
+    polygons.merge( it, range.end() );
+    range.erase( it, range.end() );
+    rval = get_connectivity( polygons, range );
+  }
+  
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  if (vertices.empty())
+    vertices.swap( range );
+  else  
+    vertices.merge( range );
+  return MB_SUCCESS;
 }
 
 MBErrorCode MBCore::get_adjacencies(const MBRange &from_entities,

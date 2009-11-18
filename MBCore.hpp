@@ -212,6 +212,13 @@ public:
                                         const int num_handles,
                                         MBRange &connectivity, 
                                         bool topological_connectivity = false) const;
+
+    //! Gets the connectivity for elements
+    /** Same as vector-based version except range is returned (unordered!)
+    */
+  virtual MBErrorCode get_connectivity( const MBRange& entity_handles, 
+                                        MBRange &connectivity, 
+                                        bool topological_connectivity = false) const;
  
     //! Gets a pointer to constant connectivity data of <em>entity_handle</em> 
       /** Sets <em>number_nodes</em> equal to the number of nodes of the <em> 
