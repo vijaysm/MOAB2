@@ -189,7 +189,7 @@ int main( int argc, char* argv[] )
     // skin the mesh
   MBRange forward_lower, reverse_lower;
   MBSkinner tool( iface );
-  result = tool.find_skin( skin_ents, forward_lower, reverse_lower );
+  result = tool.find_skin( skin_ents, false, forward_lower, &reverse_lower );
   MBRange boundary;
   boundary.merge( forward_lower );
   boundary.merge( reverse_lower );

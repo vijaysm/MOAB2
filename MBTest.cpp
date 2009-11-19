@@ -28,6 +28,7 @@
 #endif
 
 #include <iostream>
+#include <fstream>
 #include <algorithm>
 #include <cstdio>
 #include <time.h>
@@ -4598,7 +4599,7 @@ MBErrorCode mb_merge_test(MBInterface *MB)
       //get Hexes from model
   }
   result = MB->get_entities_by_type(0, MBHEX, entities);
-  MBSkinner_Obj.find_skin(entities,forward_lower,reverse_lower);
+  MBSkinner_Obj.find_skin(entities,false,forward_lower,&reverse_lower);
   cout <<"num hexes = "<<entities.size()<<"\n";
   cout <<"fl = "<<forward_lower.size()<<" rl = "<<reverse_lower.size()<<"\n";
   
@@ -6562,7 +6563,7 @@ MBErrorCode mb_skin_volume_test( MBInterface* )
 
 MBErrorCode mb_skin_volume_adj_test( MBInterface* )
   { return mb_skin_volume_test_common( true ); }
-  
+
 MBErrorCode mb_skin_curve_test_common( bool use_adj )
 {
   MBErrorCode rval;
@@ -6884,6 +6885,774 @@ static void _run_test( TestFunc func, const char* func_str )
 }
 
 
+// Test basic skinning using vert-to-elem adjacencies
+MBErrorCode mb_skin_verts_common( unsigned dim, bool skin_elems );
+
+MBErrorCode mb_skin_surf_verts_test( MBInterface* )
+  { return mb_skin_verts_common( 2, false ); }
+
+MBErrorCode mb_skin_vol_verts_test( MBInterface* )
+  { return mb_skin_verts_common( 3, false ); }
+
+MBErrorCode mb_skin_surf_verts_elems_test( MBInterface* )
+  { return mb_skin_verts_common( 2, true ); }
+
+MBErrorCode mb_skin_vol_verts_elems_test( MBInterface* )
+  { return mb_skin_verts_common( 3, true ); }
+
+MBErrorCode mb_skin_verts_common( unsigned dim, bool skin_elems )
+{
+  const int INT = 10; // intervals+1
+  const char* tmp_file = "structured.vtk";
+  std::ofstream str(tmp_file);
+  if (!str) {
+    std::cerr << tmp_file << ": filed to create temp file" << std::endl;
+    return MB_FAILURE;
+  }
+  str << "#vtk DataFile Version 2.0" << std::endl
+      << "mb_skin_verts_common temp file" << std::endl
+      << "ASCII" << std::endl
+      << "DATASET STRUCTURED_POINTS" << std::endl
+      << "DIMENSIONS " << INT << " " << (dim > 1 ? INT : 1) << " "  << (dim > 2 ? INT : 1) << std::endl
+      << "ORIGIN 0 0 0" << std::endl
+      << "SPACING 1 1 1" << std::endl;
+  str.close();
+  
+  MBCore moab;
+  MBInterface& mb = moab;
+  MBErrorCode rval;
+  
+  rval = mb.load_file( tmp_file );
+  remove( tmp_file );
+  if (MB_SUCCESS != rval) 
+    return rval;
+  
+  MBRange ents;
+  rval = mb.get_entities_by_dimension( 0, dim, ents );
+  if (MB_SUCCESS != rval)
+    return rval;
+  if (ents.empty())
+    return MB_FAILURE;
+  
+  MBSkinner tool( &mb );
+  
+   // mesh is a structured quad/hex mesh, so we can
+   // determine skin vertices from the number of
+   // adjacent elements.
+  unsigned interior_adj = 1;
+  for (unsigned i = 0; i < dim; ++i)
+    interior_adj *= 2;
+  MBRange expected, verts;
+  rval = mb.get_entities_by_dimension( 0, 0, verts );
+  if (MB_SUCCESS != rval)
+    return rval;
+  MBRange::iterator h = expected.begin();
+  std::vector<MBEntityHandle> adj;
+  for (MBRange::iterator v = verts.begin(); v != verts.end(); ++v) {
+    adj.clear();
+    rval = mb.get_adjacencies( &*v, 1, dim, false, adj );
+    if (MB_SUCCESS != rval)
+      return rval;
+    if (adj.size() < interior_adj)
+      h = expected.insert( h, *v );
+  }
+  
+    // Get skin vertices using skinner
+  MBRange actual;
+  rval = tool.find_skin( ents, !skin_elems, actual );
+  if (MB_SUCCESS != rval)
+    return rval;
+ 
+  MBRange extra, missing;
+  if (!skin_elems) {
+      // Check that we got expected result
+    extra = subtract( actual, expected );
+    missing = subtract( expected, actual );
+    if (!extra.empty() || !missing.empty()) {
+      std::cout << "Extra vertices returned: " << extra << std::endl
+                << "Missing vertices: " << missing << std::endl;
+      return MB_FAILURE;
+    }
+    return MB_SUCCESS;
+  }
+  
+    // test that no extra elements we're created
+  extra.clear();
+  rval = mb.get_entities_by_dimension( 0, dim-1, extra );
+  if (MB_SUCCESS != rval)
+    return rval;
+  extra = subtract( extra, actual );
+  if (!extra.empty()) {
+    std::cout << "Extra/non-returned elements created: " << extra << std::endl;
+    return MB_FAILURE;
+  }
+    
+    // check that each skin vertex has the correct number of adjacent quads
+  missing.clear(); extra.clear();
+  for (MBRange::iterator i = expected.begin(); i != expected.end(); ++i) {
+    std::vector<MBEntityHandle> elem, side;
+    rval = mb.get_adjacencies( &*i, 1, dim, false, elem );
+    if (MB_SUCCESS != rval) return rval;
+    rval = mb.get_adjacencies( &*i, 1, dim-1, false, side );
+    if (MB_SUCCESS != rval) return rval;
+    if (elem.size() == 1) {
+      if (side.size() < dim)
+        missing.insert( *i );
+      else if(side.size() > dim)
+        extra.insert( *i );
+    }
+    else if (elem.size() == interior_adj) {
+      if (!side.empty())
+        extra.insert( *i );
+    }
+    else {
+      if (side.size() < interior_adj/2)
+        missing.insert( *i );
+      else if (side.size() > interior_adj/2)
+        extra.insert( *i );
+    }
+  }
+  if (!missing.empty() || !extra.empty()) {
+    std::cout << "Skin elements missing at vertices: " << missing << std::endl
+              << "Extra skin elements at vertices: " << extra << std::endl;
+    return MB_FAILURE;
+  }
+  
+    // check that all returned elements are actually on the skin
+  extra.clear();
+  for (MBRange::iterator i = actual.begin(); i != actual.end(); ++i) {
+    MBRange verts;
+    rval = mb.get_adjacencies( &*i, 1, 0, false, verts );
+    if (MB_SUCCESS != rval)
+      return rval;
+    verts = subtract( verts, expected );
+    if (!verts.empty())
+      extra.insert( *i );
+  }
+  if (!extra.empty()) {
+    std::cout << "Skinner returned elements not on skin: " << extra << std::endl;
+    return MB_FAILURE;
+  }
+  
+  return MB_SUCCESS;    
+}
+
+// Test that skinning of polyhedra works
+MBErrorCode mb_skin_poly_test( MBInterface* )
+{
+  /* Create a mesh composed of 8 hexagonal prisms and 
+     two hexahedra by extruding the following cross section
+     two steps in the Z direction.
+  
+             0-----1
+            /  (0)  \
+       (11)/         \(1)
+          /           \
+        11             2
+        / \     Y     / \
+   (10)/   \(12)^(13)/   \(2)
+      /     \   |   /     \
+    10      12-----13      3
+     |       |  |  |       |
+  (9)|       |  +--|-->X   |(3)
+     |       |     |       |
+     9      15-----14      4
+      \     /       \     /
+    (8)\   /(15) (14)\   /(4)
+        \ /           \ /
+         8             5
+          \           /
+        (7)\         /(5)
+            \  (6)  /
+             7-----6
+  */
+
+  const double coords2D[][2] = { {-1, 5}, // 0
+                                 { 1, 5},
+                                 { 3, 3},
+                                 { 5, 1},
+                                 { 5,-1},
+                                 { 3,-3}, // 5
+                                 { 1,-5},
+                                 {-1,-5},
+                                 {-3,-3},
+                                 {-5,-1},
+                                 {-5, 1}, // 10
+                                 {-3, 3},
+                                 {-1, 1},
+                                 { 1, 1},
+                                 { 1,-1},
+                                 {-1,-1}  // 15
+                                 };
+  const int polyconn[4][6] = { { 0,  1,  2, 13, 12, 11 },
+                               { 2,  3,  4,  5, 14, 13 },
+                               { 5,  6,  7,  8, 15, 14 },
+                               { 8,  9, 10, 11, 12, 15 } };
+  const int polyside[4][6] = { { 0,  1, 13, 16, 12, 11 },
+                               { 2,  3,  4, 14, 17, 13 },
+                               { 5,  6,  7, 15, 18, 14 },
+                               { 8,  9, 10, 12, 19, 15 } };
+
+  MBErrorCode rval;
+  MBCore moab;
+  MBInterface& mb = moab;
+  MBRange regions, faces, interior_faces;
+
+    // create 48 vertices
+  MBEntityHandle verts[3][16];
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 16; ++j) {
+      double coords[3] = { coords2D[j][0], coords2D[j][1], 2*i };
+      rval = mb.create_vertex( coords, verts[i][j] );
+      if (MB_SUCCESS != rval) return rval;
+    }
+  }
+  
+    // create two hexahedra
+  MBEntityHandle hexes[2];
+  for (int i = 0; i < 2; ++i) {
+    MBEntityHandle conn[8] = { verts[i  ][15],
+                               verts[i  ][14],
+                               verts[i  ][13],
+                               verts[i  ][12],
+                               verts[i+1][15],
+                               verts[i+1][14],
+                               verts[i+1][13],
+                               verts[i+1][12] };
+    rval = mb.create_element( MBHEX, conn, 8, hexes[i] );
+    if (MB_SUCCESS != rval) return rval;
+    regions.insert(hexes[i]);
+  }
+  
+    // create hexagonal faces
+  MBEntityHandle hexagons[3][4];
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 4; ++j) {
+      MBEntityHandle conn[6];
+      for (int k = 0; k < 6; ++k) 
+        conn[k] = verts[i][polyconn[j][k]];
+      rval = mb.create_element( MBPOLYGON, conn, 6, hexagons[i][j] );
+      if (MB_SUCCESS != rval) return rval;
+      faces.insert( hexagons[i][j] );
+      if (i == 1)
+        interior_faces.insert( hexagons[i][j] );
+    }
+  }
+  
+    // create quadrilateral faces
+  MBEntityHandle quads[2][20];
+  for (int i = 0; i < 2; ++i) {
+    for (int j = 0; j < 20; ++j) {
+      int c1, c2;
+      if (j < 12) {
+        c1 = j; c2 = (j+1)%12;
+      }
+      else if (j < 16) {
+        c1 = j; c2 = 2 + 3*((j-9)%4);
+      }
+      else {
+        c1 = j-4; c2 = 12 + (j-15)%4;
+      }
+      MBEntityHandle conn[4] = { verts[i  ][c1],
+                                 verts[i  ][c2],
+                                 verts[i+1][c2],
+                                 verts[i+1][c1] };
+      rval = mb.create_element( MBQUAD, conn, 4, quads[i][j] );
+      if (MB_SUCCESS != rval) return rval;
+      faces.insert( quads[i][j] );
+      if (j > 11)
+        interior_faces.insert( quads[i][j] );
+    }
+  }
+  
+    // create polyhedra
+  MBEntityHandle poly[2][4];
+  for (int i = 0; i < 2; ++i) {
+    for (int j = 0; j < 4; ++j) {
+      MBEntityHandle conn[8];
+      for (int k = 0; k < 6; ++k) 
+        conn[k] = quads[i][polyside[j][k]];
+      conn[6] = hexagons[  i][j];
+      conn[7] = hexagons[i+1][j];
+      rval = mb.create_element( MBPOLYHEDRON, conn, 8, poly[i][j] );
+      if (MB_SUCCESS != rval) return rval;
+      regions.insert( poly[i][j] );
+    }
+  }
+  
+  MBRange interior_verts;
+  interior_verts.insert( verts[1][12] );
+  interior_verts.insert( verts[1][13] );
+  interior_verts.insert( verts[1][14] );
+  interior_verts.insert( verts[1][15] );
+  
+  MBSkinner tool(&mb);
+  MBRange skin;
+  rval = tool.find_skin( regions, true, skin, 0, true, false );
+  if (MB_SUCCESS != rval) {
+    std::cout << "Vertex skinning failed with: " << mb.get_error_string(rval) << std::endl;
+    return rval;
+  }
+  
+  MBRange all_verts, all_faces;
+  rval = mb.get_entities_by_dimension( 0, 0, all_verts );
+  if (MB_SUCCESS != rval) return rval;
+  rval = mb.get_entities_by_dimension( 0, 2, all_faces );
+  if (MB_SUCCESS != rval) return rval;
+  
+  MBRange expected = subtract( all_verts, interior_verts );
+  if (expected != skin) {
+    std::cout << "Skinner returned incorrect vertices." << std::endl;
+    return MB_FAILURE;
+  }
+  if (all_faces != faces) {
+    std::cout << "Skinner created/deleted faces for vertex-only skinning" << std::endl;
+    return MB_FAILURE;
+  }
+  
+  skin.clear();
+  rval = tool.find_skin( regions, false, skin, 0, true, false );
+  if (MB_SUCCESS != rval) {
+    std::cout << "Non-create face skinning failed with: " << mb.get_error_string(rval) << std::endl;
+    return rval;
+  }
+  expected = subtract( all_faces, interior_faces );
+  if (expected != skin) {
+    std::cout << "Skinner returned incorrect faces." << std::endl;
+    return MB_FAILURE;
+  }
+  if (all_faces != faces) {
+    std::cout << "Skinner created/deleted faces for no-create skinning" << std::endl;
+    return MB_FAILURE;
+  }
+  
+  skin.clear();
+  rval = tool.find_skin( regions, false, skin, 0, true, true );
+  if (MB_SUCCESS != rval) {
+    std::cout << "Create face skinning failed with: " << mb.get_error_string(rval) << std::endl;
+    return rval;
+  }
+  MBRange all_faces2;
+  rval = mb.get_entities_by_dimension( 0, 2, all_faces2 );
+  if (MB_SUCCESS != rval) return rval;
+  MBRange difference = subtract( all_faces2, all_faces );
+  if (difference.size() != 2) { // should have created two quads for hex top/bottom
+    std::cout << "Skinner failed to create new quads or created to many." << std::endl;
+    return MB_FAILURE;
+  }
+  expected.merge(difference);
+  if (expected != skin) {
+    std::cout << "Skinner returned incorrect faces." << std::endl;
+    return MB_FAILURE;
+  }
+    // check that new faces are correct
+  MBEntityHandle expected_conn[2][4] = {
+    { verts[0][12],verts[0][13],verts[0][14],verts[0][15] },
+    { verts[2][12],verts[2][13],verts[2][14],verts[2][15] } };
+  MBEntityHandle nq[2] = { difference.front(), difference.back() };
+  for (int i = 0; i < 2; ++i) {
+    const MBEntityHandle* conn;
+    int len;
+    bool found = false;
+    for (int j = 0; !found && j < 2; ++j) {
+      rval = mb.get_connectivity( nq[j], conn, len );
+      if (MB_SUCCESS != rval) return rval;
+      int idx1 = std::find(conn,conn+len,expected_conn[i][0])-conn;
+      if (idx1 == len) continue;
+      found = true;
+      for (int k = 1; k < 4; ++k)
+        if (conn[(idx1+k)%4] != expected_conn[i][k])
+          found = false;
+      if (!found) {
+        found = true;
+        for (int k = 1; k < 4; ++k)
+          if (conn[(idx1+4-k)%4] != expected_conn[i][k])
+            found = false;
+      }
+    }
+    if (!found) {
+      std::cerr << "Skinner did not create & return expected quad " << i << std::endl;
+      return MB_FAILURE;
+    }
+  }
+  
+  return MB_SUCCESS;
+}
+
+// Test that skinning of higher-order elements works
+MBErrorCode mb_skin_higher_order_faces_common( bool use_adj )
+{
+  /* Create mesh:
+   
+     0---1---2---3---4
+     |       |      /
+     |       |     /
+     5   6   7  8 9
+     |       |   /
+     |       |  /
+     10--11--12
+  */
+
+  MBErrorCode rval;
+  MBCore moab;
+  MBInterface& mb = moab;
+  
+  double coords[13][3] = { 
+   {0,4,0}, {2,4,0}, {4,4,0}, {6,4,0}, {8,4,0},
+   {0,2,0}, {2,2,0}, {4,2,0}, {5,2,0}, {6,2,0},
+   {0,0,0}, {2,0,0}, {4,0,0} };
+  MBEntityHandle verts[13];
+  for (int i = 0; i < 13; ++i) {
+    rval = mb.create_vertex( coords[i], verts[i] );
+    if (MB_SUCCESS != rval) return rval;
+  }
+  
+  MBEntityHandle qconn[9] = {
+    verts[0], verts[2], verts[12], verts[10],
+    verts[1], verts[7], verts[11], verts[5],
+    verts[6] };
+  MBEntityHandle tconn[7] = {
+    verts[2], verts[4], verts[12],
+    verts[3], verts[9], verts[7],
+    verts[8] };
+  MBEntityHandle quad, tri;
+  rval = mb.create_element( MBQUAD, qconn, 9, quad );
+  if (MB_SUCCESS != rval) return rval;
+  rval = mb.create_element( MBTRI, tconn, 7, tri );
+  if (MB_SUCCESS != rval) return rval;
+  
+  MBRange faces;
+  faces.insert(quad);
+  faces.insert(tri);
+  
+  MBRange skin_verts;
+  const int skin_vert_idx[] = { 0, 1, 2, 3, 4, 5, 9, 10, 11, 12 };
+  for (size_t i = 0; i < sizeof(skin_vert_idx)/sizeof(skin_vert_idx[0]); ++i)
+    skin_verts.insert( verts[skin_vert_idx[i]] );
+  
+  MBSkinner tool(&mb);
+  MBRange skin;
+  
+  rval = tool.find_skin( faces, true, skin, 0, use_adj, false );
+  if (MB_SUCCESS != rval) {
+    std::cout << "Vertex skinning failed with: " << mb.get_error_string(rval) << std::endl;
+    return rval;
+  }
+  if (skin != skin_verts) {
+    std::cout << "Skinner returned incorrect vertices." << std::endl;
+    return MB_FAILURE;
+  }
+  
+  const int skin_edges[5][3] = {
+    {0,1,2}, {2,3,4}, {4,9,12}, {12,11,10}, {10,5,0} };
+  skin.clear();
+  rval = tool.find_skin( faces, false, skin, 0, use_adj, true );
+  if (MB_SUCCESS != rval) {
+    std::cout << "Edge skinning failed with: " << mb.get_error_string(rval) << std::endl;
+    return rval;
+  }
+  if (skin.size() != 5u) {
+    std::cout << "Skinner returned " << skin.size() << " vertices.  Expected 5" << std::endl;
+    return MB_FAILURE;
+  }
+  int num_quadratic = 0;
+  const MBEntityHandle* conn;
+  int len;
+  for (MBRange::iterator i = skin.begin(); i != skin.end(); ++i) {
+    rval = mb.get_connectivity( *i, conn, len, false );
+    if (MB_SUCCESS != rval) return rval;
+    if (len == 3)
+      num_quadratic++;
+    else if(len != 2) {
+      std::cerr << "Skinner created edge with " << len << " vertices" << std::endl;
+      return MB_FAILURE;
+    }
+  }
+  if (num_quadratic != 5) {
+    std::cerr << num_quadratic << " of 5 created edges were quadratic" << std::endl;
+    return MB_FAILURE;
+  }
+  
+  for (int i = 0; i < 5; ++i) {
+    bool found = false;
+    for (MBRange::iterator j = skin.begin(); j != skin.end(); ++j) {
+      mb.get_connectivity( *j, conn, len, false );
+      if (conn[2] == verts[skin_edges[i][1]]) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      std::cerr << "One or more skin edges is incorrect" << std::endl;
+      return MB_FAILURE;
+    }
+    if ((conn[0] != verts[skin_edges[i][0]] || conn[1] != verts[skin_edges[i][2]])
+     && (conn[0] != verts[skin_edges[i][2]] || conn[1] != verts[skin_edges[i][0]])) {
+      std::cerr << "Invalid skin edge connectivity" << std::endl;
+      return MB_FAILURE;
+    }
+  }
+   
+  return MB_SUCCESS;
+}
+MBErrorCode mb_skin_higher_order_faces_test( MBInterface* )
+  { return mb_skin_higher_order_faces_common( false ); }
+MBErrorCode mb_skin_adj_higher_order_faces_test( MBInterface* )
+  { return mb_skin_higher_order_faces_common( true ); }
+
+// Test that skinning of higher-order elements works
+MBErrorCode mb_skin_higher_order_regions_common( bool use_adj )
+{
+  // create mesh containing two 27-node hexes
+  /*
+     0,2---1,2---2,2---3,2---4,2
+      |           |           |
+      |           |           |
+     0,1   1,1   2,1   3,1   4,1
+      |           |           |
+      |           |           |
+     0,0---1,0---2,0---3,0---4,0
+  */
+
+  MBErrorCode rval;
+  MBCore moab;
+  MBInterface& mb = moab;
+  MBRange hexes;
+  
+  
+  MBEntityHandle verts[5][3][3];
+  for (int i = 0; i < 5; ++i) 
+    for (int j = 0; j < 3; ++j)
+      for (int k = 0; k < 3; ++k) {
+        double coords[] = { i, j, k };
+        rval = mb.create_vertex( coords, verts[i][j][k] );
+        if (MB_SUCCESS != rval) return rval;
+      }
+  
+  int hex_conn[][3] = {  // corners
+                        {0,0,0}, {2,0,0}, {2,2,0}, {0,2,0},
+                        {0,0,2}, {2,0,2}, {2,2,2}, {0,2,2},
+                         // mid-edge
+                        {1,0,0}, {2,1,0}, {1,2,0}, {0,1,0},
+                        {0,0,1}, {2,0,1}, {2,2,1}, {0,2,1},
+                        {1,0,2}, {2,1,2}, {1,2,2}, {0,1,2},
+                        // mid-face
+                        {1,0,1}, {2,1,1}, {1,2,1}, {0,1,1},
+                        {1,1,0}, {1,1,2},
+                        // mid-volume
+                        {1,1,1} };
+ 
+  MBEntityHandle hexverts[2][27];
+  for (int i = 0; i < 2; ++i) {
+    MBEntityHandle h;
+    for (int j = 0; j < 27; ++j)
+      hexverts[i][j] = verts[ 2*i+hex_conn[j][0] ][ hex_conn[j][1] ][ hex_conn[j][2] ];
+    rval = mb.create_element( MBHEX, hexverts[i], 27, h );
+    if (MB_SUCCESS != rval)
+      return rval;
+    hexes.insert( h );
+  }
+  
+  MBRange interior_verts;
+  interior_verts.insert( verts[1][1][1] ); // mid-node of hex 1
+  interior_verts.insert( verts[3][1][1] ); // mid-node of hex 2
+  interior_verts.insert( verts[2][1][1] ); // mid-node of shared face
+  
+  MBSkinner tool(&mb);
+  MBRange skin;
+
+  rval = tool.find_skin( hexes, true, skin, 0, use_adj, false );
+  if (MB_SUCCESS != rval) {
+    std::cout << "Vertex skinning failed with: " << mb.get_error_string(rval) 
+              << std::endl;
+    return rval;
+  }
+  MBRange extra = intersect( skin, interior_verts );
+  if (!extra.empty()) {
+    std::cout << "Skinner returned " << extra.size() << " interior vertices" 
+              << std::endl;
+    std::cout << extra << std::endl;
+    return MB_FAILURE;
+  }
+  int num_vtx;
+  mb.get_number_entities_by_dimension( 0, 0, num_vtx );
+  size_t num_skin = num_vtx - interior_verts.size();
+  if (skin.size() != num_skin) {
+    std::cout << "Skinner returned " << skin.size() << " of " 
+              << num_skin << " skin vertices" <<std::endl;
+    return MB_FAILURE;
+  }
+  
+  skin.clear();
+  rval = tool.find_skin( hexes, false, skin, 0, use_adj, true );
+  if (MB_SUCCESS != rval) {
+    std::cout << "Element skinning failed with: " << mb.get_error_string(rval) << std::endl;
+    return rval;
+  }
+  
+  if (skin.size() > 10u) {
+    std::cout << "Skinner created too many faces" << std::endl;
+    return MB_FAILURE;
+  }
+  
+  bool all_okay = true;
+  bool faces[2][6] = { {0,0,0,0,0,0},{0,0,0,0,0,0} };
+  const MBEntityHandle *conn;
+  int len;
+  for (MBRange::iterator it = skin.begin(); it != skin.end(); ++it) {
+    rval = mb.get_connectivity( *it, conn, len );
+    if (MB_SUCCESS != rval) return rval;
+    if (len != 9) {
+      std::cout << "Skinner created face with " << len << " nodes" << std::endl;
+      all_okay = false;
+      continue;
+    }
+    
+    int valid, side, sense, offset;
+    for (int h = 0; h < 2; ++h) {
+      valid = MBCN::SideNumber( MBHEX, hexverts[h], conn, 4, 2, side, sense, offset );
+      if (valid != 0)
+        continue;
+      if (sense != 1) {
+        std::cout << "Skinner created reversed face for hex " 
+                  << h << " side " << side << std::endl;
+        all_okay = false;
+        continue;
+      }
+      
+      int idx[9], len2;
+      MBEntityType sidetype;
+      MBCN::SubEntityNodeIndices( MBHEX, 27, 2, side, sidetype, len2, idx );
+      assert(sidetype == MBQUAD);
+      assert(len2 == 9);
+      if ( conn[   offset     ] != hexverts[h][idx[0]] ||
+           conn[  (offset+1)%4] != hexverts[h][idx[1]] ||
+           conn[  (offset+2)%4] != hexverts[h][idx[2]] ||
+           conn[  (offset+3)%4] != hexverts[h][idx[3]] ||
+           conn[4+ offset     ] != hexverts[h][idx[4]] ||
+           conn[4+(offset+1)%4] != hexverts[h][idx[5]] ||
+           conn[4+(offset+2)%4] != hexverts[h][idx[6]] ||
+           conn[4+(offset+3)%4] != hexverts[h][idx[7]] ||
+           conn[ 8            ] != hexverts[h][idx[8]]) {
+        std::cout << "Side " << side << " of hex " << h 
+                  << " has invalid connectivity" << std::endl;
+        all_okay = false;
+      }
+           
+      
+      faces[h][side] = true;
+    }
+  }
+  
+  for (int h = 0; h < 2; ++h) {
+    for (int i = 0; i < 6; ++i) {
+      if ((h == 0 && i == 1) || (h == 1 && i == 3)) {
+        if (faces[h][i]) {
+          std::cout << "Skinner created interior face for side " 
+                    << i << " of hex " << h << std::endl;
+          all_okay = false;
+        }
+      }
+      else if (!faces[h][i]) {
+        std::cout << "Skinner failed to create side " 
+                  << i << " of hex " << h << std::endl;
+        all_okay = false;
+      }
+    }
+  }
+
+  return all_okay ? MB_SUCCESS : MB_FAILURE;
+}
+
+MBErrorCode mb_skin_higher_order_regions_test( MBInterface* )
+  { return mb_skin_higher_order_regions_common(false); }
+MBErrorCode mb_skin_adj_higher_order_regions_test( MBInterface* )
+  { return mb_skin_higher_order_regions_common(true); }
+
+
+MBErrorCode mb_skin_reversed_common( int dim, bool use_adj )
+{
+  MBEntityType type, subtype;
+  switch (dim) { 
+    case 2: type = MBTRI; subtype = MBEDGE; break;
+    case 3: type = MBTET; subtype = MBTRI;  break;
+    default: assert(false); return MB_FAILURE;
+  }
+  
+  /*      3
+         /|\
+        / | \
+       /  |  \
+      /   |   \
+     0----1----2
+  */
+
+  MBErrorCode rval;
+  MBCore moab;
+  MBInterface& mb = moab;
+  MBRange hexes;
+   
+  double coords[][3] = { { 0, 0, 0 },
+                         { 1, 0, 0 },
+                         { 2, 0, 0 },
+                         { 1, 2, 0 },
+                         { 1, 2, 2 } };
+  MBEntityHandle verts[5];
+  const int nvtx = 2+dim;
+  for (int i = 0; i < nvtx; ++i) {
+    rval = mb.create_vertex( coords[i], verts[i] );
+    if (MB_SUCCESS != rval) return rval;
+  }
+    // NOTE: order connectivity such that side 1 is shared!
+  MBEntityHandle conn[2][4] = { 
+    { verts[0], verts[1], verts[3], verts[4] },
+    { verts[2], verts[3], verts[1], verts[4] } };
+  const int conn_len = dim+1;
+  MBRange elems;
+  for (int i = 0; i < 2; ++i) {
+    MBEntityHandle h;
+    rval = mb.create_element( type, conn[i], conn_len, h );
+    if (MB_SUCCESS != rval) return rval;
+    elems.insert(h);
+  }
+  
+    // create one reversed side
+  MBEntityHandle side_conn[3];
+  int side_indices[3] = {0,0,0};
+  MBCN::SubEntityVertexIndices(type, dim-1, 0, side_indices );
+  side_conn[0] = conn[0][side_indices[1]];
+  side_conn[1] = conn[0][side_indices[0]];
+  side_conn[2] = conn[0][side_indices[2]];
+  MBEntityHandle side;
+  rval = mb.create_element( subtype, side_conn, dim, side );
+  if (MB_SUCCESS != rval) return rval;
+  
+  MBRange forward, reverse;
+  MBSkinner tool(&mb);
+  rval = tool.find_skin( elems, false, forward, &reverse, use_adj, true );
+  if (MB_SUCCESS != rval) {
+    std::cout << "Skinner failed." << std::endl;
+    return rval;
+  }
+  
+    // expect all faces created by the skinner to be forward,
+    // so the only reversed side should be the one created above.
+  if (reverse.size() != 1 || reverse.front() != side) {
+    std::cout << "Expected 1 reversed side, got: " << reverse.size() << std::endl;
+    return MB_FAILURE;
+  }
+  
+  return MB_SUCCESS;
+}
+MBErrorCode mb_skin_faces_reversed_test( MBInterface* )
+  { return mb_skin_reversed_common( 2, false ); }
+MBErrorCode mb_skin_adj_faces_reversed_test( MBInterface* )
+  { return mb_skin_reversed_common( 2, true ); }
+MBErrorCode mb_skin_regions_reversed_test( MBInterface* )
+  { return mb_skin_reversed_common( 3, false ); }
+MBErrorCode mb_skin_adj_regions_reversed_test( MBInterface* )
+  { return mb_skin_reversed_common( 3, true ); }
+
 static void usage(const char* exe) {
   cerr << "Usage: " << exe << " [-nostress] [-d input_file_dir]\n";
   exit (1);
@@ -6972,6 +7741,19 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_skin_surface_adj_test );
   RUN_TEST( mb_skin_volume_test );
   RUN_TEST( mb_skin_volume_adj_test );
+  RUN_TEST( mb_skin_surf_verts_test );
+  RUN_TEST( mb_skin_vol_verts_test );
+  RUN_TEST( mb_skin_surf_verts_elems_test );
+  RUN_TEST( mb_skin_vol_verts_elems_test );
+  RUN_TEST( mb_skin_poly_test );
+  RUN_TEST( mb_skin_higher_order_faces_test );
+  RUN_TEST( mb_skin_higher_order_regions_test );
+  RUN_TEST( mb_skin_adj_higher_order_faces_test );
+  RUN_TEST( mb_skin_adj_higher_order_regions_test );
+  RUN_TEST( mb_skin_faces_reversed_test );
+  RUN_TEST( mb_skin_adj_faces_reversed_test );
+  RUN_TEST( mb_skin_regions_reversed_test );
+  RUN_TEST( mb_skin_adj_regions_reversed_test );
   RUN_TEST( mb_read_fail_test );
   RUN_TEST( mb_enum_string_test );
   RUN_TEST( mb_merge_update_test );

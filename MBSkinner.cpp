@@ -13,7 +13,7 @@
  * 
  */
 
-#ifdef WIN32
+#ifdef __MFC_VER
 #pragma warning(disable:4786)
 #endif
 
@@ -29,20 +29,14 @@
 #include "MBUtil.hpp"
 #include "MBInternals.hpp"
 #include "MBTagConventions.hpp"
-
-#ifndef IS_BUILDING_MB
-#define IS_BUILDING_MB
-#define I_CREATED_BUILDING
-#endif
 #include "MBCore.hpp"
 #include "AEntityFactory.hpp"
-#ifdef I_CREATED_BUILDING
-#undef IS_BUILDING_MB
-#undef I_CREATED_BUILDING
+
+#ifdef M_PI
+#  define SKINNER_PI M_PI
+#else
+#  define SKINNER_PI 3.1415926535897932384626
 #endif
-
-#define SKINNER_PI 3.1415926535897932384626
-
 
 
 
@@ -236,10 +230,86 @@ MBErrorCode MBSkinner::find_geometric_skin(MBRange &forward_target_entities)
   return result;
 }
 
-MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
+MBErrorCode MBSkinner::find_skin( const MBRange& source_entities,
+                                  bool get_vertices,
+                                  MBRange& output_handles,
+                                  MBRange* output_reverse_handles,
+                                  bool create_vert_elem_adjs,
+                                  bool create_skin_elements )
+{
+  if (source_entities.empty())
+    return MB_SUCCESS;
+
+  MBCore* this_core = dynamic_cast<MBCore*>(thisMB);
+  if (this_core && create_vert_elem_adjs && 
+      !this_core->a_entity_factory()->vert_elem_adjacencies())
+    this_core->a_entity_factory()->create_vert_elem_adjacencies();
+    
+  if (this_core && this_core->a_entity_factory()->vert_elem_adjacencies())
+    return find_skin_vertices( source_entities, 
+                               get_vertices ? &output_handles : 0,
+                               get_vertices ? 0 : &output_handles,
+                               output_reverse_handles,
+                               create_skin_elements );
+  
+  MBRange forward, reverse;
+  MBRange prev;
+  const int d = MBCN::Dimension(TYPE_FROM_HANDLE(source_entities.front()));
+  if (!source_entities.all_of_dimension(d))
+    return MB_TYPE_OUT_OF_RANGE;
+  
+  MBErrorCode rval = thisMB->get_entities_by_dimension( 0, d-1, prev );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  rval = find_skin_noadj( source_entities, forward, reverse );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  if (get_vertices && !output_reverse_handles) {
+    forward.merge( reverse );
+    reverse.clear();
+  }
+  
+  if (get_vertices) {
+    rval = thisMB->get_connectivity( forward, output_handles );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  
+  if (!create_skin_elements) {
+    MBRange new_skin;
+    rval = thisMB->get_entities_by_dimension( 0, d-1, new_skin);
+    if (MB_SUCCESS != rval)
+      return rval;
+    new_skin = subtract( new_skin, prev );
+    forward = subtract( forward, new_skin );
+    reverse = subtract( reverse, new_skin );
+    rval = thisMB->delete_entities( new_skin );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  
+  if (!get_vertices) {
+    if (output_handles.empty())
+      output_handles.swap( forward );
+    else
+      output_handles.merge( forward );
+    if (output_reverse_handles) {
+      if (output_reverse_handles->empty())
+        output_reverse_handles->swap( reverse );
+      else
+        output_reverse_handles->merge( reverse );
+    }
+  }
+  
+  return MB_SUCCESS;  
+}
+
+MBErrorCode MBSkinner::find_skin_noadj(const MBRange &source_entities,
                                  MBRange &forward_target_entities,
-                                 MBRange &reverse_target_entities,
-                                 bool create_vert_elem_adjs)
+                                 MBRange &reverse_target_entities/*,
+                                 bool create_vert_elem_adjs*/)
 {
   if(source_entities.empty())
     return MB_FAILURE;
@@ -253,16 +323,17 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
   if(mTargetDim < 0 || source_dim > 3)
     return MB_FAILURE;
 
-  MBCore *this_core = dynamic_cast<MBCore*>(thisMB);
-  bool use_adjs = false;
-  if (!this_core->a_entity_factory()->vert_elem_adjacencies() &&
-    create_vert_elem_adjs)
-    this_core->a_entity_factory()->create_vert_elem_adjacencies();
-
-  if (this_core->a_entity_factory()->vert_elem_adjacencies())
-    use_adjs = true;
-  
-  else initialize();
+  //MBCore *this_core = dynamic_cast<MBCore*>(thisMB);
+  //bool use_adjs = false;
+  //if (!this_core->a_entity_factory()->vert_elem_adjacencies() &&
+  //  create_vert_elem_adjs)
+  //  this_core->a_entity_factory()->create_vert_elem_adjacencies();
+  //
+  //if (this_core->a_entity_factory()->vert_elem_adjacencies())
+  //  use_adjs = true;
+  //
+  //else 
+  initialize();
 
   MBRange::const_iterator iter, end_iter;
   end_iter = source_entities.end();
@@ -300,61 +371,61 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
       for(int j=0; j<num_sub_nodes; j++)
         sub_conn[j] = conn[sub_indices[j]];
       
-      if (use_adjs) {
-        dum_elems.clear();
-        result = thisMB->get_adjacencies(sub_conn, num_sub_nodes, source_dim, false,
-                                         dum_elems);
-        if (MB_SUCCESS != result) return result;
-        dum_elems = intersect( dum_elems, source_entities );
-        if (dum_elems.empty()) {
-          assert(false);  // should never happen
-          return MB_FAILURE;
-        }
-        // if (dum_elems.size() > 2) { 
-          // source entities do not form a valid source-dim patch (t-junction).
-          // do we care?
-        // }
-        
-        if (1 == dum_elems.size()) {
-            // this sub_element is on the skin
-
-            // check for existing entity
-          dum_sub_elems.clear();
-          result = thisMB->get_adjacencies(sub_conn, num_sub_nodes, mTargetDim, false,
-                                           dum_sub_elems);
-          if (MB_SUCCESS != result) return result;
-          if (dum_sub_elems.empty()) {
-              // need to create one
-            MBEntityHandle tmphndl=0;
-            int indices[MB_MAX_SUB_ENTITY_VERTICES];
-            MBEntityType new_type;
-            int num_new_nodes;
-            MBCN::SubEntityNodeIndices( type, num_nodes, mTargetDim, i, new_type, num_new_nodes, indices );
-            for(int j=0; j<num_new_nodes; j++)
-              sub_conn[j] = conn[indices[j]];
-        
-            result = thisMB->create_element(new_type, sub_conn,  
-                                            num_new_nodes, tmphndl);
-            forward_target_entities.insert(tmphndl);
-          }
-          else {
-              // else find the relative sense of this entity to the source_entity in this set
-            int side_no, sense = 0, offset;
-            if (source_entities.find(*dum_elems.begin()) == source_entities.end()) {
-              result = thisMB->side_number(*dum_elems.rbegin(), *dum_sub_elems.begin(),
-                                           side_no, sense, offset);
-            }
-            else {
-              result = thisMB->side_number(*dum_elems.begin(), *dum_sub_elems.begin(),
-                                           side_no, sense, offset);
-            }
-            if (-1 == sense) reverse_target_entities.insert(*dum_sub_elems.begin());
-            else if (1 == sense) forward_target_entities.insert(*dum_sub_elems.begin());
-            else return MB_FAILURE;
-          }
-        }
-      }
-      else {
+//      if (use_adjs) {
+//        dum_elems.clear();
+//        result = thisMB->get_adjacencies(sub_conn, num_sub_nodes, source_dim, false,
+//                                         dum_elems);
+//        if (MB_SUCCESS != result) return result;
+//        dum_elems = intersect( dum_elems, source_entities );
+//        if (dum_elems.empty()) {
+//          assert(false);  // should never happen
+//          return MB_FAILURE;
+//        }
+//        // if (dum_elems.size() > 2) { 
+//          // source entities do not form a valid source-dim patch (t-junction).
+//          // do we care?
+//        // }
+//        
+//        if (1 == dum_elems.size()) {
+//            // this sub_element is on the skin
+//
+//            // check for existing entity
+//          dum_sub_elems.clear();
+//          result = thisMB->get_adjacencies(sub_conn, num_sub_nodes, mTargetDim, false,
+//                                           dum_sub_elems);
+//          if (MB_SUCCESS != result) return result;
+//          if (dum_sub_elems.empty()) {
+//              // need to create one
+//            MBEntityHandle tmphndl=0;
+//            int indices[MB_MAX_SUB_ENTITY_VERTICES];
+//            MBEntityType new_type;
+//            int num_new_nodes;
+//            MBCN::SubEntityNodeIndices( type, num_nodes, mTargetDim, i, new_type, num_new_nodes, indices );
+//            for(int j=0; j<num_new_nodes; j++)
+//              sub_conn[j] = conn[indices[j]];
+//        
+//            result = thisMB->create_element(new_type, sub_conn,  
+//                                            num_new_nodes, tmphndl);
+//            forward_target_entities.insert(tmphndl);
+//          }
+//          else {
+//              // else find the relative sense of this entity to the source_entity in this set
+//            int side_no, sense = 0, offset;
+//            if (source_entities.find(*dum_elems.begin()) == source_entities.end()) {
+//              result = thisMB->side_number(*dum_elems.rbegin(), *dum_sub_elems.begin(),
+//                                           side_no, sense, offset);
+//            }
+//            else {
+//              result = thisMB->side_number(*dum_elems.begin(), *dum_sub_elems.begin(),
+//                                           side_no, sense, offset);
+//            }
+//            if (-1 == sense) reverse_target_entities.insert(*dum_sub_elems.begin());
+//            else if (1 == sense) forward_target_entities.insert(*dum_sub_elems.begin());
+//            else return MB_FAILURE;
+//          }
+//        }
+//      }
+//      else {
         
           // see if we can match this connectivity with
           // an existing entity
@@ -384,7 +455,7 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
           {
             forward_target_entities.erase(seek_iter);
             remove_adjacency(match);
-            if(!use_adjs && entity_deletable(match))
+            if(/*!use_adjs &&*/ entity_deletable(match))
             {
               result = thisMB->delete_entities(&match, 1);
               assert(MB_SUCCESS == result);
@@ -394,7 +465,7 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
           {
             reverse_target_entities.erase(seek_iter);
             remove_adjacency(match);
-            if(!use_adjs && entity_deletable(match))
+            if(/*!use_adjs &&*/ entity_deletable(match))
             {
               result = thisMB->delete_entities(&match, 1);
               assert(MB_SUCCESS == result);
@@ -412,7 +483,7 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
             }
           }
         }
-      }
+      //}
     }
   }
 
@@ -912,23 +983,786 @@ MBErrorCode MBSkinner::find_skin(const MBRange &entities,
                                  MBRange &skin_entities,
                                  bool create_vert_elem_adjs) 
 {
-  if (MBCN::Dimension(TYPE_FROM_HANDLE(*entities.begin())) !=
-      MBCN::Dimension(TYPE_FROM_HANDLE(*entities.rbegin())))
-    return MB_FAILURE;
+  MBRange tmp_skin;
+  MBErrorCode result = find_skin(entities, (dim==0), tmp_skin, 0, 
+                                 create_vert_elem_adjs, true);
+  if (MB_SUCCESS != result || tmp_skin.empty()) return result;
   
-  MBRange tmp_skin_for, tmp_skin_rev;
-  MBErrorCode result = find_skin(entities, tmp_skin_for, tmp_skin_rev, 
-                                 create_vert_elem_adjs);
-  if (MB_SUCCESS != result) return result;
-  
-  tmp_skin_for.merge(tmp_skin_rev);
-  if (MBCN::Dimension(TYPE_FROM_HANDLE(*tmp_skin_for.begin())) != dim ||
-      MBCN::Dimension(TYPE_FROM_HANDLE(*tmp_skin_for.rbegin())) != dim)
-    result = thisMB->get_adjacencies(tmp_skin_for, dim, true, skin_entities,
-                                     MBInterface::UNION);
-  else
-    skin_entities.swap(tmp_skin_for);
+  if (tmp_skin.all_of_dimension(dim)) {
+    if (skin_entities.empty())
+      skin_entities.swap(tmp_skin);
+    else
+      skin_entities.merge(tmp_skin);
+  }
+  else {
+    result = thisMB->get_adjacencies( tmp_skin, dim, true, skin_entities, 
+                                      MBInterface::UNION );
+  }
   
   return result;
 }
 
+// Bit tag uses less memory, but is slower.  Probably
+// because we have to query one entity at a time.
+// -- j.kraftcheck 2009-11-10
+const bool use_bit_tag = false;
+
+MBErrorCode MBSkinner::find_skin_vertices( const MBRange& entities,
+                                           MBRange* skin_verts,
+                                           MBRange* skin_elems,
+                                           MBRange* skin_rev_elems,
+                                           bool create_skin_elems,
+                                           bool corners_only )
+{
+  MBErrorCode rval;
+  if (entities.empty())
+    return MB_SUCCESS;
+  
+  const int dim = MBCN::Dimension(TYPE_FROM_HANDLE(entities.front()));
+  if (dim < 1 || dim > 3 || !entities.all_of_dimension(dim))
+    return MB_TYPE_OUT_OF_RANGE;
+  
+    // create a bit tag for use in a) tagging skin vertices, and 
+    // b) fast intersection with input entities range. 
+  MBTag tag;
+  char bit = 0;
+  rval = thisMB->tag_create( NULL, 1, use_bit_tag ? MB_TAG_BIT : MB_TAG_DENSE, tag, &bit );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+    // tag all entities in input range
+  if (use_bit_tag) {
+    bit = '\001';
+    for (MBRange::const_iterator it = entities.begin(); it != entities.end(); ++it) {
+      rval = thisMB->tag_set_data( tag, &*it, 1, &bit );
+      if (MB_SUCCESS != rval) {
+        thisMB->tag_delete(tag);
+        return rval;
+      }
+    }
+  }
+  else {
+    size_t count = entities.size();
+    char* vect = new char[count];
+    memset( vect, 1, count );
+    rval = thisMB->tag_set_data( tag, entities, vect );
+    delete [] vect;
+    if (MB_SUCCESS != rval) {
+      thisMB->tag_delete(tag);
+      return rval;
+    }
+  }
+  
+  switch (dim) {
+    case 1:
+      if (skin_verts)
+        rval = find_skin_vertices_1D( tag, entities, *skin_verts );
+      else if (skin_elems)
+        rval = find_skin_vertices_1D( tag, entities, *skin_elems );
+      else
+        rval = MB_SUCCESS;
+      break;
+    case 2:
+      rval = find_skin_vertices_2D( tag, entities, skin_verts, 
+                                    skin_elems, skin_rev_elems, 
+                                    create_skin_elems, corners_only );
+      break;
+    case 3:
+      rval = find_skin_vertices_3D( tag, entities, skin_verts, 
+                                    skin_elems, skin_rev_elems, 
+                                    create_skin_elems, corners_only );
+      break;
+    default:
+      rval = MB_TYPE_OUT_OF_RANGE;
+      break;
+  }
+  
+  thisMB->tag_delete(tag);
+  return rval;
+}
+
+MBErrorCode MBSkinner::find_skin_vertices_1D( MBTag tag,
+                                              const MBRange& edges,
+                                              MBRange& skin_verts )
+{
+  MBErrorCode rval;
+  std::vector<MBEntityHandle>::iterator i;
+  MBRange::iterator hint = skin_verts.begin();
+  
+  if (!edges.all_of_dimension(1))
+    return MB_TYPE_OUT_OF_RANGE;
+  
+    // get all the vertices
+  MBRange verts;
+  rval = thisMB->get_connectivity( edges, verts, true );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  std::vector<char> tag_vals;
+  std::vector<MBEntityHandle> adj;
+  int count;
+  char bit;
+  for (MBRange::const_iterator it = verts.begin(); it != verts.end(); ++it) {
+    adj.clear();
+    rval = thisMB->get_adjacencies( &*it, 1, 1, false, adj );
+    if (MB_SUCCESS != rval) return rval;
+    if (adj.empty())
+      continue;
+
+        // remove those not in the input list
+    if (use_bit_tag) {
+      count = 0;
+      for (i = adj.begin(); i != adj.end(); ++i) {
+        rval = thisMB->tag_get_data( tag, &*i, 1, &bit );
+        if (MB_SUCCESS != rval) return rval;
+        if (bit) 
+          ++count;
+      }
+    }
+    else {
+      tag_vals.resize( adj.size() );
+      rval = thisMB->tag_get_data( tag, &adj[0], adj.size(), &tag_vals[0] );
+      if (MB_SUCCESS != rval) return rval;
+      count = std::count( tag_vals.begin(), tag_vals.end(), '\001' );
+    }
+    
+    if (count == 1) {
+      hint = skin_verts.insert( hint, *it );
+    }
+  }
+  
+  return MB_SUCCESS;
+}
+
+
+// A Container for storing a list of element sides adjacent
+// to a vertex.  The template parameter is the number of 
+// corners for the side.
+template <unsigned CORNERS> 
+class AdjSides 
+{
+public:
+  struct Side {
+    MBEntityHandle handles[CORNERS-1];
+    MBEntityHandle adj_elem;
+    bool skin() const { return 0 != adj_elem; }
+    
+    Side( const MBEntityHandle* array, int idx,
+          MBEntityHandle adj, unsigned short  ) 
+      : adj_elem(adj) /*, elem_side(side)*/ 
+    {
+      switch (CORNERS) {
+        default:
+          assert(false);
+          break;
+        case 4: handles[2] = array[(idx+3)%CORNERS];
+        case 3: handles[1] = array[(idx+2)%CORNERS];
+        case 2: handles[0] = array[(idx+1)%CORNERS];
+      }
+      if (CORNERS == 3 && handles[1] > handles[0])
+        std::swap( handles[0], handles[1] );
+      if (CORNERS == 4 && handles[2] > handles[0])
+        std::swap( handles[0], handles[2] );
+    }
+    
+    Side( const MBEntityHandle* array,  int idx,
+          MBEntityHandle adj, unsigned short ,
+          const short* indices ) 
+      : adj_elem(adj) /*, elem_side(side)*/ 
+    {
+      switch (CORNERS) {
+        default:
+          assert(false);
+          break;
+        case 4: handles[2] = array[indices[(idx+3)%CORNERS]];
+        case 3: handles[1] = array[indices[(idx+2)%CORNERS]];
+        case 2: handles[0] = array[indices[(idx+1)%CORNERS]];
+      }
+      if (CORNERS == 3 && handles[1] > handles[0])
+        std::swap( handles[0], handles[1] );
+      if (CORNERS == 4 && handles[2] > handles[0])
+        std::swap( handles[0], handles[2] );
+    }
+   
+    bool operator==( const Side& other ) const 
+    {
+      switch (CORNERS) {
+        default:
+          assert(false);
+          return false;
+        case 4:
+          return handles[0] == other.handles[0] 
+              && handles[1] == other.handles[1]
+              && handles[2] == other.handles[2];
+        case 3:
+          return handles[0] == other.handles[0] 
+              && handles[1] == other.handles[1];
+        case 2:
+          return handles[0] == other.handles[0];
+      }
+    }
+  };
+
+private:
+
+  std::vector<Side> data;
+  size_t skin_count;
+  
+public:
+
+  typedef typename std::vector<Side>::iterator iterator;
+  typedef typename std::vector<Side>::const_iterator const_iterator;
+  const_iterator begin() const { return data.begin(); }
+  const_iterator end() const { return data.end(); }
+  
+  void clear() { data.clear(); skin_count = 0; }
+  bool empty() const { return data.empty(); }
+  
+  AdjSides() : skin_count(0) {}
+  
+  size_t num_skin() const { return skin_count; }
+  
+  void insert( const MBEntityHandle* handles, int skip_idx,
+               MBEntityHandle adj_elem, unsigned short elem_side )
+  {
+    Side side( handles, skip_idx, adj_elem, elem_side );
+    iterator p = std::find( data.begin(), data.end(), side );
+    if (p == data.end()) {
+      data.push_back( side );
+      ++skin_count;
+    }
+    else if (p->adj_elem) {
+      p->adj_elem = 0;
+      --skin_count;
+    }
+  }
+  
+  void insert( const MBEntityHandle* handles,  int skip_idx,
+               MBEntityHandle adj_elem, unsigned short elem_side,
+               const short* indices )
+  {
+    Side side( handles, skip_idx, adj_elem, elem_side, indices );
+    iterator p = std::find( data.begin(), data.end(), side );
+    if (p == data.end()) {
+      data.push_back( side );
+      ++skin_count;
+    }
+    else if (p->adj_elem) {
+      p->adj_elem = 0;
+      --skin_count;
+    }
+  }
+  
+  bool find_and_unmark( const MBEntityHandle* other, int skip_index, MBEntityHandle& elem_out ) 
+  {
+    Side s( other, skip_index, 0, 0 );
+    iterator p = std::find( data.begin(), data.end(), s );
+    if (p == data.end() || !p->adj_elem)
+      return false;
+    else {
+      elem_out = p->adj_elem;
+      p->adj_elem = 0;
+      --skin_count;
+      return true;
+    }
+  }
+};
+
+MBErrorCode MBSkinner::create_side( MBEntityHandle elem,
+                                    MBEntityType side_type,
+                                    const MBEntityHandle* side_conn,
+                                    MBEntityHandle& side_elem )
+{
+  const int max_side = 9;
+  const MBEntityHandle* conn;
+  int len, side_len, side, sense, offset, indices[max_side];
+  MBErrorCode rval;
+  MBEntityType type = TYPE_FROM_HANDLE(elem), tmp_type;
+  const int ncorner = MBCN::VerticesPerEntity( side_type );
+  const int d = MBCN::Dimension(side_type);
+  
+  rval = thisMB->get_connectivity( elem, conn, len, false );
+  if (MB_SUCCESS != rval) return rval;
+ 
+  MBCN::SideNumber( type, conn, side_conn, ncorner, d, side, sense, offset );
+  MBCN::SubEntityNodeIndices( type, len, d, side, tmp_type, side_len, indices );
+  assert(side_len <= max_side);
+  assert(side_type == tmp_type);
+  
+  //NOTE: re-create conn array even when no higher-order nodes
+  //      because we want it to always be forward with respect
+  //      to the side ordering.
+  MBEntityHandle side_conn_full[max_side];
+  for (int i = 0; i < side_len; ++i)
+    side_conn_full[i] = conn[indices[i]];
+  
+  return thisMB->create_element( side_type, side_conn_full, side_len, side_elem );
+}
+
+bool MBSkinner::edge_reversed( MBEntityHandle face,
+                               const MBEntityHandle* edge_ends )
+{
+  const MBEntityHandle* conn;
+  int len, idx;
+  MBErrorCode rval = thisMB->get_connectivity( face, conn, len, true );
+  if (MB_SUCCESS != rval) {
+    assert(false);
+    return false;
+  }
+  idx = std::find( conn, conn+len, edge_ends[0] ) - conn;
+  if (idx == len) {
+    assert(false);
+    return false;
+  }
+  return (edge_ends[1] == conn[(idx+len-1)%len]);
+}
+
+bool MBSkinner::face_reversed( MBEntityHandle region,
+                               const MBEntityHandle* face_corners,
+                               MBEntityType face_type )
+{
+  const MBEntityHandle* conn;
+  int len, side, sense, offset;
+  MBErrorCode rval = thisMB->get_connectivity( region, conn, len, true );
+  if (MB_SUCCESS != rval) {
+    assert(false);
+    return false;
+  }
+  short r = MBCN::SideNumber( TYPE_FROM_HANDLE(region), conn, face_corners, 
+                              MBCN::VerticesPerEntity(face_type),
+                              MBCN::Dimension(face_type),
+                              side, sense, offset );
+  assert(0 == r);
+  return (!r && sense == -1);
+}
+
+MBErrorCode MBSkinner::find_skin_vertices_2D( MBTag tag,
+                                              const MBRange& faces,
+                                              MBRange* skin_verts,
+                                              MBRange* skin_edges,
+                                              MBRange* reversed_edges,
+                                              bool create_edges,
+                                              bool corners_only )
+{
+  MBErrorCode rval;
+  std::vector<MBEntityHandle>::iterator i, j;
+  MBRange::iterator hint;
+  if (skin_verts)
+    hint = skin_verts->begin();
+  std::vector<MBEntityHandle> storage;
+  const MBEntityHandle *conn;
+  int len;
+  char bit;
+  bool find_edges = skin_edges || create_edges;
+  MBEntityHandle face;
+  
+  if (!faces.all_of_dimension(2))
+    return MB_TYPE_OUT_OF_RANGE;
+  
+    // get all the vertices
+  MBRange verts;
+  rval = thisMB->get_connectivity( faces, verts, true );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  std::vector<char> tag_vals;
+  std::vector<MBEntityHandle> adj;
+  AdjSides<2> adj_edges;
+  for (MBRange::const_iterator it = verts.begin(); it != verts.end(); ++it) {
+    bool higher_order = false;
+  
+      // get all adjacent faces
+    adj.clear();
+    rval = thisMB->get_adjacencies( &*it, 1, 2, false, adj );
+    if (MB_SUCCESS != rval) return rval;
+    if (adj.empty())
+      continue;
+
+      // remove those not in the input list
+    i = j = adj.begin();
+    if (use_bit_tag) {
+      for (; i != adj.end(); ++i) {
+        rval = thisMB->tag_get_data( tag, &*i, 1, &bit );
+        if (MB_SUCCESS != rval) return rval;
+        if (bit) 
+          *(j++) = *i;
+      }
+      adj.erase( j, adj.end() );
+    }
+    else {
+      tag_vals.resize( adj.size() );
+      rval = thisMB->tag_get_data( tag, &adj[0], adj.size(), &tag_vals[0] );
+      if (MB_SUCCESS != rval) return rval;
+      
+      i = j = adj.begin();
+      for (; i != adj.end(); ++i) 
+        if (tag_vals[i - adj.begin()])
+          *(j++) = *i;
+      adj.erase( j, adj.end() );
+    } 
+    
+      // For each adjacent face, check the edges adjacent to the current vertex
+    adj_edges.clear();    // other vertex for adjacent edges
+    for (i = adj.begin(); i != adj.end(); ++i) {
+      rval = thisMB->get_connectivity( *i, conn, len, false, &storage );
+      if (MB_SUCCESS != rval) return rval;
+      
+      MBEntityHandle prev, next; // vertices of two adjacent edge-sides
+      const int idx = std::find(conn, conn+len, *it) - conn;
+      assert(idx != len);
+
+      if (TYPE_FROM_HANDLE(*i) == MBTRI && len > 3) {
+        len = 3;
+        higher_order = true;
+        if (idx > 2) // skip higher-order nodes for now
+          continue;
+      }
+      else if (TYPE_FROM_HANDLE(*i) == MBQUAD && len > 4) {
+        len = 4;
+        higher_order = true;
+        if (idx > 3) // skip higher-order nodes for now
+          continue;
+      }
+
+      const int prev_idx = (idx + len - 1)%len;
+      prev = conn[prev_idx];
+      next = conn[(idx+1)%len];
+      adj_edges.insert( &prev, 1, *i, prev_idx );
+      adj_edges.insert( &next, 1, *i, idx );
+    }
+    
+      // If vertex is not on skin, advance to next vertex
+    if (0 == adj_edges.num_skin())
+      continue;
+    
+      // Put skin vertex in output list
+    if (skin_verts) {
+      hint = skin_verts->insert( hint, *it );
+ 
+        // Add mid edge nodes to vertex list
+      if (!corners_only && higher_order) {
+        for (AdjSides<2>::const_iterator p = adj_edges.begin(); p != adj_edges.end(); ++p) {
+          if (p->skin()) {
+            face = p->adj_elem;
+            MBEntityType type = TYPE_FROM_HANDLE(face);
+
+            rval = thisMB->get_connectivity( face, conn, len, false );
+            if (MB_SUCCESS != rval) return rval;
+            if (!MBCN::HasMidEdgeNodes( type, len ))
+              continue;
+
+            MBEntityHandle ec[2] = { *it, p->handles[0] };
+            int side, sense, offset;
+            MBCN::SideNumber( type, conn, ec, 2, 1, side, sense, offset );
+            offset = MBCN::HONodeIndex( type, len, 1, side );
+            assert(offset >= 0 && offset < len);
+            skin_verts->insert( conn[offset] );
+          }
+        }
+      }
+    }
+ 
+    if (find_edges) {
+        // Search list of adjacent edges for any that are on the skin
+      adj.clear();
+      rval = thisMB->get_adjacencies( &*it, 1, 1, false, adj );
+      if (MB_SUCCESS != rval) return rval;
+      for (i = adj.begin(); i != adj.end(); ++i) {
+        rval = thisMB->get_connectivity( *i, conn, len, true );
+        if (MB_SUCCESS != rval) return rval;
+
+          // bool equalality expression will be evaluate to the 
+          // index of *it in the conn array.  Note that the order
+          // of the terms in the if statement is important.  We want
+          // to unmark any existing skin edges even if we aren't returning
+          // them.  Otherwise we'll end up creating duplicates if create_edges
+          // is true.
+        if (adj_edges.find_and_unmark( conn, (conn[1] == *it), face ) && skin_edges) {
+          if (reversed_edges && edge_reversed( face, conn ))
+            reversed_edges->insert( *i );
+          else
+            skin_edges->insert( *i );
+        }
+      }
+    }
+    
+    if (create_edges && adj_edges.num_skin()) {
+        // Create any skin edges that don't exist
+      for (AdjSides<2>::const_iterator p = adj_edges.begin(); p != adj_edges.end(); ++p) {
+        if (p->skin()) {
+          MBEntityHandle edge, ec[] = { *it, p->handles[0] };
+          rval = create_side( p->adj_elem, MBEDGE, ec, edge );
+          if (MB_SUCCESS != rval) return rval;
+          if (skin_edges)
+            skin_edges->insert( edge );
+        }
+      }
+    }
+
+  } // end for each vertex
+  
+  return MB_SUCCESS;
+}
+  
+
+MBErrorCode MBSkinner::find_skin_vertices_3D( MBTag tag,
+                                              const MBRange& entities,
+                                              MBRange* skin_verts,
+                                              MBRange* skin_faces,
+                                              MBRange* reversed_faces,
+                                              bool create_faces,
+                                              bool corners_only )
+{
+  MBErrorCode rval;
+  std::vector<MBEntityHandle>::iterator i, j;
+  MBRange::iterator hint;
+  if (skin_verts)
+    hint = skin_verts->begin();
+  std::vector<MBEntityHandle> storage, storage2;
+  const MBEntityHandle *conn, *conn2;
+  int len, len2;
+  char bit;
+  bool find_faces = skin_faces || create_faces;
+  int clen, side, sense, offset, indices[9];
+  MBEntityType face_type;
+  MBEntityHandle elem;
+  
+  if (!entities.all_of_dimension(3))
+    return MB_TYPE_OUT_OF_RANGE;
+  
+  MBRange verts;
+  rval = thisMB->get_adjacencies( entities, 0, false, verts, MBInterface::UNION );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  AdjSides<4> adj_quads;
+  AdjSides<3> adj_tris;  
+  AdjSides<2> adj_poly;  
+  std::vector<char> tag_vals;
+  std::vector<MBEntityHandle> adj;
+  for (MBRange::const_iterator it = verts.begin(); it != verts.end(); ++it) {
+    bool higher_order = false;
+  
+      // get all adjacent elements
+    adj.clear();
+    rval = thisMB->get_adjacencies( &*it, 1, 3, false, adj );
+    if (MB_SUCCESS != rval) return rval;
+    if (adj.empty())
+      continue;
+      
+      // remove those not in the input list
+    i = j = adj.begin();
+    if (use_bit_tag) {
+      for (; i != adj.end(); ++i) {
+        rval = thisMB->tag_get_data( tag, &*i, 1, &bit );
+        if (MB_SUCCESS != rval) return rval;
+        if (bit) 
+          *(j++) = *i;
+      }
+      adj.erase( j, adj.end() );
+    }
+    else {
+      tag_vals.resize( adj.size() );
+      rval = thisMB->tag_get_data( tag, &adj[0], adj.size(), &tag_vals[0] );
+      if (MB_SUCCESS != rval) return rval;
+      for (; i != adj.end(); ++i) 
+        if (tag_vals[i - adj.begin()])
+          *(j++) = *i;
+      adj.erase( j, adj.end() );
+    } 
+      
+      // Build lists of sides of 3D element adjacent to the current vertex
+    adj_quads.clear(); // store three other vertices for each adjacent quad face
+    adj_tris.clear();  // store two other vertices for each adjacent tri face
+    adj_poly.clear();  // store handle of each adjacent polygonal face
+    int idx;
+    for (i = adj.begin(); i != adj.end(); ++i) {
+      const MBEntityType type = TYPE_FROM_HANDLE(*i);
+      
+        // Special case for POLYHEDRA
+      if (type == MBPOLYHEDRON) {
+        rval = thisMB->get_connectivity( *i, conn, len );
+        if (MB_SUCCESS != rval) return rval;
+        for (int k = 0; k < len; ++k) {
+          rval = thisMB->get_connectivity( conn[k], conn2, len2, true, &storage2 );
+          if (MB_SUCCESS != rval) return rval;
+          idx = std::find( conn2, conn2+len2, *it) - conn2;
+          if (idx == len2) // vertex not in this face
+            continue;
+          
+            // Treat 3- and 4-vertex faces specially, so that
+            // if the mesh contains both elements and polyhedra,
+            // we don't miss one type adjacent to the other.
+          switch (len2) {
+            case 3:
+              adj_tris.insert( conn2, idx, *i, k );
+              break;
+            case 4:
+              adj_quads.insert( conn2, idx, *i, k );
+              break;
+            default:
+              adj_poly.insert( conn+k, 1, *i, k );
+              break;
+            }
+        }
+      }
+      else {
+        rval = thisMB->get_connectivity( *i, conn, len, false, &storage );
+        if (MB_SUCCESS != rval) return rval;
+
+        idx = std::find(conn, conn+len, *it) - conn;
+        assert(idx != len);
+        
+        if (len > MBCN::VerticesPerEntity( type )) {
+          higher_order =true;
+            // skip higher-order nodes for now
+          if (idx >= MBCN::VerticesPerEntity( type )) 
+            continue;
+        }
+
+        const int num_faces = MBCN::NumSubEntities( type, 2 );
+        for (int f = 0; f < num_faces; ++f) {
+          int num_vtx;
+          const short* face_indices = MBCN::SubEntityVertexIndices(type, 2, f, face_type, num_vtx );
+          const short face_idx = std::find(face_indices, face_indices+num_vtx, (short)idx) - face_indices;
+          if (face_idx == num_vtx)
+            continue; // current vertex not in this face
+
+          assert(num_vtx <= 4);
+          switch (face_type) {
+            case MBTRI:
+              adj_tris.insert( conn, face_idx, *i, f, face_indices );
+              break;
+            case MBQUAD:
+              adj_quads.insert( conn, face_idx, *i, f, face_indices );
+              break;
+            default:
+              return MB_TYPE_OUT_OF_RANGE;
+          }
+        }
+      }
+    } // end for (adj[3])
+    
+      // If vertex is not on skin, advance to next vertex
+    if (0 == (adj_tris.num_skin() + adj_quads.num_skin() + adj_poly.num_skin()))
+      continue;
+    
+      // Put skin vertex in output list
+    if (skin_verts) {
+      hint = skin_verts->insert( hint, *it );
+ 
+        // Add mid-edge and mid-face nodes to vertex list
+      if (!corners_only && higher_order) {
+        for (AdjSides<3>::const_iterator t = adj_tris.begin(); t != adj_tris.end(); ++t) {
+          if (t->skin()) {
+            elem = t->adj_elem;
+            MBEntityType type = TYPE_FROM_HANDLE(elem);
+
+            rval = thisMB->get_connectivity( elem, conn, len, false );
+            if (MB_SUCCESS != rval) return rval;
+            if (!MBCN::HasMidNodes( type, len ))
+              continue;
+
+            MBEntityHandle ec[3] = { *it, t->handles[0], t->handles[1] };
+            MBCN::SideNumber( type, conn, ec, 3, 2, side, sense, offset );
+            MBCN::SubEntityNodeIndices( type, len, 2, side, face_type, clen, indices );
+            assert(MBTRI == face_type);
+            for (int k = 3; k < clen; ++k)
+              skin_verts->insert( conn[indices[k]] );
+          }
+        }
+        for (AdjSides<4>::const_iterator q = adj_quads.begin(); q != adj_quads.end(); ++q) {
+          if (q->skin()) {
+            elem = q->adj_elem;
+            MBEntityType type = TYPE_FROM_HANDLE(elem);
+
+            rval = thisMB->get_connectivity( elem, conn, len, false );
+            if (MB_SUCCESS != rval) return rval;
+            if (!MBCN::HasMidNodes( type, len ))
+              continue;
+
+            MBEntityHandle ec[4] = { *it, q->handles[0], q->handles[1], q->handles[2] };
+            MBCN::SideNumber( type, conn, ec, 4, 2, side, sense, offset );
+            MBCN::SubEntityNodeIndices( type, len, 2, side, face_type, clen, indices );
+            assert(MBQUAD == face_type);
+            for (int k = 4; k < clen; ++k)
+              skin_verts->insert( conn[indices[k]] );
+          }
+        }
+      }
+    }
+
+    if (find_faces) {
+        // Search list of adjacent faces for any that are on the skin
+      adj.clear();
+      rval = thisMB->get_adjacencies( &*it, 1, 2, false, adj );
+      if (MB_SUCCESS != rval) return rval;
+
+      for (i = adj.begin(); i != adj.end(); ++i) {
+        rval = thisMB->get_connectivity( *i, conn, len, true );
+        if (MB_SUCCESS != rval) return rval;
+        const int idx = std::find( conn, conn+len, *it ) - conn;
+        assert(idx != len);
+          // Note that the order of the terms in the if statements below
+          // is important.  We want to unmark any existing skin faces even 
+          // if we aren't returning them.  Otherwise we'll end up creating 
+          // duplicates if create_faces is true.
+        if (3 == len) {
+          if (adj_tris.find_and_unmark( conn, idx, elem ) && skin_faces) {
+            if (reversed_faces && face_reversed( elem, conn, MBTRI ))
+              reversed_faces->insert( *i );
+            else
+              skin_faces->insert( *i );
+          }
+        }
+        else if (4 == len) {
+          if (adj_quads.find_and_unmark( conn, idx, elem ) && skin_faces) {
+            if (reversed_faces && face_reversed( elem, conn, MBQUAD ))
+              reversed_faces->insert( *i );
+            else
+              skin_faces->insert( *i );
+          }
+        }
+        else {
+          if (adj_poly.find_and_unmark( &*i, 1, elem ) && skin_faces)
+            skin_faces->insert( *i );
+        }
+      }
+    }
+
+    if (!create_faces)
+      continue;
+
+      // Polyhedra always have explictly defined faces, so
+      // there is no way we could need to create such a face.
+    assert(0 == adj_poly.num_skin());
+    
+      // Create any skin tris that don't exist
+    if (adj_tris.num_skin()) {
+      for (AdjSides<3>::const_iterator t = adj_tris.begin(); t != adj_tris.end(); ++t) {
+        if (t->skin()) {
+          MBEntityHandle tri, c[3] = { *it, t->handles[0], t->handles[1] };
+          rval = create_side( t->adj_elem, MBTRI, c, tri );
+          if (MB_SUCCESS != rval) return rval;
+          if (skin_faces)
+            skin_faces->insert( tri );
+        }
+      }
+    }
+    
+      // Create any skin quads that don't exist
+    if (adj_quads.num_skin()) {
+      for (AdjSides<4>::const_iterator q = adj_quads.begin(); q != adj_quads.end(); ++q) {
+        if (q->skin()) {
+          MBEntityHandle quad, c[4] = { *it, q->handles[0], q->handles[1], q->handles[2] };
+          rval = create_side( q->adj_elem, MBQUAD, c, quad );
+          if (MB_SUCCESS != rval) return rval;
+          if (skin_faces)
+            skin_faces->insert( quad );
+        }
+      }
+    }
+  } // end for each vertex
+  
+  return MB_SUCCESS;
+}

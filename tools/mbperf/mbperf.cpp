@@ -51,12 +51,9 @@ double LENGTH = 1.0;
 const int DEFAULT_INTERVALS = 50;
 
 
-void testA(const int nelem);
-void testB(const int nelem);
-void testC(const int nelem);
-void skin_time(const int intervals);
-void skin_adj(const int intervals);
-void skin_vert(const int intervals);
+void testA(const int nelem, const int );
+void testB(const int nelem, const int );
+void testC(const int nelem, const int );
 void print_time(const bool print_em, double &tot_time, double &utime, double &stime,
                 double &mem);
 void query_vert_to_elem(MBInterface*);
@@ -65,6 +62,14 @@ void query_struct_elem_to_vert(MBInterface*);
 void get_time_mem(double &tot_time, double &user_time,
                   double &sys_time, double &tot_mem);
 void bulk_construct_mesh( MBInterface* gMB, const int nelem );
+void create_regular_mesh( int interval, int dimension );
+void skin_common( int interval, int dim, bool use_adj );
+void skin(const int intervals, const int dim) 
+  { std::cout << "Skinning w/out adjacencies:" << std::endl;
+    skin_common( intervals, dim, false ); }
+void skin_adj(const int intervals, const int dim)
+  { std::cout << "Skinning with adjacencies:" << std::endl;
+    skin_common( intervals, dim, true ); }
 
 void compute_edge(double *start, const int nelem,  const double xint,
                   const int stride) 
@@ -280,7 +285,7 @@ void build_connect(const int nelem, const MBEntityHandle vstart, MBEntityHandle 
   }
 }
 
-typedef void (*test_func_t)( int );
+typedef void (*test_func_t)( const int, const int );
 const struct {
   std::string testName;
   test_func_t testFunc;
@@ -289,20 +294,20 @@ const struct {
  { "struct",    &testA,     "Conn. and adj. query time for structured mesh" },
  { "bulk",      &testB,     "Conn. and adj. query time for bulk-created mesh" },
  { "indiv",     &testC,     "Conn. and adj. query time for per-entity created mesh" },
- { "skin",      &skin_time, "Test time to get skin quads" },
- { "skin_adj",  &skin_adj,  "Test skin quads using vert-to-elem adjacencies" },
- { "skin_vert", &skin_vert, "Test time to get skin verts" },
+ { "skin",      &skin,      "Test time to get skin mesh w/out adjacencies" },
+ { "skin_adj",  &skin_adj,  "Test time to get skin mesh with adjacencies" },
 };
 const int TestListSize = sizeof(TestList)/sizeof(TestList[0]); 
 
 void usage( const char* argv0, bool error = true )
 {
   std::ostream& str = error ? std::cerr : std::cout;
-  str << "Usage: " << argv0 << " -i <ints_per_side> <test_name> [<test_name2> ...]" << std::endl;
+  str << "Usage: " << argv0 << " -i <ints_per_side> -d <dimension> <test_name> [<test_name2> ...]" << std::endl;
   str << "       " << argv0 << " [-h|-l]" << std::endl;
   if (error)
     return;
   str << "  -i  : specify interverals per side (num hex = ints^3, default: " << DEFAULT_INTERVALS << std::endl;
+  str << "  -d  : specify element dimension (INGORED BY SOME TESTS), default: 3" << std::endl;
   str << "  -h  : print this help text." << std::endl;
   str << "  -l  : list available tests"  << std::endl;
 }
@@ -329,9 +334,10 @@ void list_tests( )
 int main(int argc, char* argv[])
 {
   int intervals = DEFAULT_INTERVALS;
+  int dimension = 3;
   std::vector<test_func_t> test_list;
   bool did_help = false;
-  bool expect_ints = false;
+  bool expect_ints = false, expect_dim = false;
   for (int i = 1; i < argc; ++i) {
     if (expect_ints) {
       expect_ints = false;
@@ -343,10 +349,21 @@ int main(int argc, char* argv[])
         return 1;
       }
     }
+    else if (expect_dim) {
+      expect_dim = false;
+      char* endptr;
+      dimension = strtol( argv[i], &endptr, 0 );
+      if (dimension < 1 || dimension > 3) {
+        usage(argv[0]);
+        std::cerr << "Invalid dimension: " << dimension << std::endl;
+        return 1;
+      }
+    }
     else if (*argv[i] == '-') { // flag
       for (int j = 1; argv[i][j]; ++j) {
         switch (argv[i][j]) {
           case 'i': expect_ints = true; break;
+          case 'd': expect_dim  = true; break;
           case 'h': did_help = true; usage(argv[0],false); break;
           case 'l': did_help = true; list_tests(); break;
           default:
@@ -380,7 +397,7 @@ int main(int argc, char* argv[])
     // now run the tests
   for (std::vector<test_func_t>::iterator i = test_list.begin(); i != test_list.end(); ++i) {
     test_func_t fptr = *i;
-    fptr(intervals);
+    fptr(intervals,dimension);
   }
   
   return 0;
@@ -512,7 +529,7 @@ void get_time_mem(double &tot_time, double &user_time,
 }
 #endif
 
-void testA( int nelem ) 
+void testA( const int nelem, const int  ) 
 {
   MBCore moab;
   MBInterface* gMB = &moab;
@@ -616,7 +633,7 @@ void bulk_construct_mesh( MBInterface* gMB, const int nelem )
   assert(MB_SUCCESS == result);
 }
 
-void testB(const int nelem) 
+void testB(const int nelem, const int ) 
 {
   MBCore moab;
   MBInterface* gMB = &moab;
@@ -649,7 +666,7 @@ void testB(const int nelem)
             << std::endl;
 }
 
-void testC(const int nelem) 
+void testC(const int nelem, const int ) 
 {
   MBCore moab;
   MBInterface* gMB = &moab;
@@ -722,68 +739,166 @@ void testC(const int nelem)
             << std::endl;
 }
 
-void skin_time( const int nelem ) 
+
+void create_regular_mesh( MBInterface* gMB, int interval, int dim )
 {
-  MBCore moab;
-  MBInterface* gMB = &moab;
-  MBErrorCode rval;
-
-  bulk_construct_mesh( gMB, nelem );
-
-  MBRange skin, hexes;
-  rval = gMB->get_entities_by_dimension( 0, 3, hexes );
-  assert(MB_SUCCESS == rval); assert(!hexes.empty());
-
-  MBSkinner tool(gMB);
-  clock_t t = clock();
-  rval = tool.find_skin( hexes, 2, skin, false );
-  double d = ((double)(clock() - t))/CLOCKS_PER_SEC;
-  assert(MB_SUCCESS == rval);
+  if (dim < 1 || dim > 3 || interval < 1) {
+    std::cerr << "Invalid arguments" << std::endl;
+    exit(1);
+  }
   
-  std::cout << "Got 2D skin in " << d << " seconds w/out vertex-to-element adjacencies" << std::endl;
-}
+  const int nvi = interval+1;
+  const int dims[3] = { nvi, dim > 1 ? nvi : 1, dim > 2 ? nvi : 1 };
+  int num_vert = dims[0] * dims[1] * dims[2];
 
-void skin_adj( const int nelem ) 
-{
-  MBCore moab;
-  MBInterface* gMB = &moab;
-  MBErrorCode rval;
-
-  bulk_construct_mesh( gMB, nelem );
-
-  MBRange skin, verts, hexes;
-    // force creation of adjacencies
-  rval = gMB->get_entities_by_dimension( 0, 0, verts );
-  assert(MB_SUCCESS == rval); assert(!verts.empty());
-  rval = gMB->get_adjacencies( verts, 3, false, hexes, MBInterface::UNION );
-  assert(MB_SUCCESS == rval); assert(!hexes.empty());
-
-  MBSkinner tool(gMB);
-  clock_t t = clock();
-  rval = tool.find_skin( hexes, 2, skin, true );
-  double d = ((double)(clock() - t))/CLOCKS_PER_SEC;
-  assert(MB_SUCCESS == rval);
-
-  std::cout << "Got 2D skin in " << d << " seconds with vertex-to-element adjacencies" << std::endl;
-}
-
-void skin_vert( const int nelem ) 
-{
-  MBCore moab;
-  MBInterface* gMB = &moab;
-  MBErrorCode rval;
-
-  bulk_construct_mesh( gMB, nelem );
-
-  MBRange skin, hexes;
-  rval = gMB->get_entities_by_dimension( 0, 3, hexes );
-  assert(MB_SUCCESS == rval); assert(!hexes.empty());
-
-  MBSkinner tool(gMB);
-  clock_t t = clock();
-  rval = tool.find_skin( hexes, 0, skin, false );
-  double d = ((double)(clock() - t))/CLOCKS_PER_SEC;
-  assert(MB_SUCCESS == rval);
+  void *ptr = 0;
+  // get the read interface
+  gMB->query_interface("MBReadUtilIface", &ptr);
+  MBReadUtilIface* readMeshIface = static_cast<MBReadUtilIface*>(ptr);
   
-  std::cout << "Got 0D skin in " << d << " seconds w/out vertex-to-element adjacencies" << std::endl;
+  MBEntityHandle vstart;
+  std::vector<double*> arrays;
+  MBErrorCode rval = readMeshIface->get_node_arrays(3, num_vert, 1, vstart, arrays);
+  if (MB_SUCCESS != rval || arrays.size() < 3) {
+    std::cerr << "Vertex creation failed" << std::endl;
+    exit(2);
+  }
+  double *x = arrays[0], *y = arrays[1], *z = arrays[2];
+  
+    // Calculate vertex coordinates
+  for (int k = 0; k < dims[2]; ++k)
+    for (int j = 0; j < dims[1]; ++j)
+      for (int i = 0; i < dims[0]; ++i)
+      {
+        *x = i; ++x;
+        *y = j; ++y;
+        *z = k; ++z;
+      }
+  
+  const long vert_per_elem = 1 << dim; // 2^dim
+  const long intervals[3] = { interval, dim>1?interval:1, dim>2?interval:1 };
+  const long num_elem = intervals[0]*intervals[1]*intervals[2];
+  const MBEntityType type = (dim == 1) ? MBEDGE : (dim == 2) ? MBQUAD : MBHEX;
+  
+  MBEntityHandle estart, *conn = 0;
+  rval = readMeshIface->get_element_array( num_elem, vert_per_elem, type, 0, estart, conn );
+  if (MB_SUCCESS != rval || !conn) {
+    std::cerr << "Element creation failed" << std::endl;
+    exit(2);
+  }
+  
+  
+    // Offsets of element vertices in grid relative to corner closest to origin 
+  long c = dims[0]*dims[1];
+  const long corners[8] = { 0, 1, 1+dims[0], dims[0], c, c+1, c+1+dims[0], c+dims[0] };
+                             
+    // Populate element list
+  MBEntityHandle* iter = conn;
+  for (long z = 0; z < intervals[2]; ++z)
+    for (long y = 0; y < intervals[1]; ++y)
+      for (long x = 0; x < intervals[0]; ++x)
+      {
+        const long index = x + y*dims[0] + z*(dims[0]*dims[1]);
+        for (long j = 0; j < vert_per_elem; ++j, ++iter)
+          *iter = index + corners[j] + vstart;
+      }
+  
+    // notify MOAB of the new elements
+  rval = readMeshIface->update_adjacencies(estart, num_elem, vert_per_elem, conn);
+  if (MB_SUCCESS != rval) {
+    std::cerr << "Element update failed" << std::endl;
+    exit(2);
+  }
+}  
+
+void skin_common( int interval, int dim, bool use_adj ) 
+{
+  MBCore moab;
+  MBInterface* gMB = &moab;
+  MBErrorCode rval;
+  double d;
+  clock_t t, tt;
+
+  create_regular_mesh( gMB, interval, dim );
+
+  MBRange skin, verts, elems;
+  rval = gMB->get_entities_by_dimension( 0, dim, elems );
+  assert(MB_SUCCESS == rval); assert(!elems.empty());
+
+  MBSkinner tool(gMB);
+  
+  t = clock();
+  rval = tool.find_skin( elems, true, verts, 0, use_adj, false );
+  t = clock() - t;
+  if (MB_SUCCESS != rval) {
+    std::cerr << "Search for skin vertices failed" << std::endl;
+    exit(2);
+  }
+  d = ((double)t)/CLOCKS_PER_SEC;
+  std::cout << "Got " << verts.size() << " skin vertices in " << d << " seconds." << std::endl;
+  
+  t = 0;
+  long blocksize = elems.size() / 1000;
+  if (!blocksize) blocksize = 1;
+  long numblocks = elems.size()/blocksize;
+  MBRange::iterator it = elems.begin();
+  for (long i = 0; i < numblocks; ++i) {
+    verts.clear();
+    MBRange::iterator end = it + blocksize;
+    MBRange blockelems;
+    blockelems.merge( it, end );
+    it = end;
+    tt = clock();
+    rval = tool.find_skin( blockelems, true, verts, 0, use_adj, false );
+    t += clock() - tt;
+    if (MB_SUCCESS != rval) {
+      std::cerr << "Search for skin vertices failed" << std::endl;
+      exit(2);
+    }
+  }
+  d = ((double)t)/CLOCKS_PER_SEC;
+  std::cout << "Got skin vertices for " << numblocks << " blocks of " 
+            << blocksize << " elements in " << d << " seconds." << std::endl;
+ 
+  for (int e = 0; e < 2; ++e) { // do this twice 
+    if (e == 1) {
+        // create all interior faces
+      skin.clear();
+      t = clock();
+      gMB->get_adjacencies( elems, dim-1, true, skin, MBInterface::UNION );
+      t = clock() - t;
+      d = ((double)t)/CLOCKS_PER_SEC;
+      std::cout << "Created " << skin.size() << " entities of dimension-1 in " << d << " seconds" << std::endl;
+    }
+  
+    t = clock();
+    rval = tool.find_skin( elems, false, skin, 0, use_adj, true );
+    t = clock() - t;
+    if (MB_SUCCESS != rval) {
+      std::cerr << "Search for skin vertices failed" << std::endl;
+      exit(2);
+    }
+    d = ((double)t)/CLOCKS_PER_SEC;
+    std::cout << "Got " << skin.size() << " skin elements in " << d << " seconds." << std::endl;
+
+    t = 0;
+    it = elems.begin();
+    for (long i = 0; i < numblocks; ++i) {
+      skin.clear();
+      MBRange::iterator end = it + blocksize;
+      MBRange blockelems;
+      blockelems.merge( it, end );
+      it = end;
+      tt = clock();
+      rval = tool.find_skin( blockelems, false, skin, 0, use_adj, true );
+      t += clock() - tt;
+      if (MB_SUCCESS != rval) {
+        std::cerr << "Search for skin elements failed" << std::endl;
+        exit(2);
+      }
+    }
+    d = ((double)t)/CLOCKS_PER_SEC;
+    std::cout << "Got skin elements for " << numblocks << " blocks of " 
+              << blocksize << " elements in " << d << " seconds." << std::endl;
+  }
 }

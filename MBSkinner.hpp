@@ -46,15 +46,35 @@ public:
   // will accept entities all of one dimension
   // and return entities of n-1 dimension
   MBErrorCode find_skin( const MBRange &entities,
-                         MBRange &forward_lower_entities,
-                         MBRange &reverse_lower_entities,
-                         bool create_vert_elem_adjs = false);
+                         bool get_vertices,
+                         MBRange &output_handles,
+                         MBRange *output_reverse_handles = 0,
+                         bool create_vert_elem_adjs = false,
+                         bool create_skin_elements = true);
 
     // get skin entities of prescribed dimension
   MBErrorCode find_skin(const MBRange &entities,
                         int dim,
                         MBRange &skin_entities,
                         bool create_vert_elem_adjs = false);
+
+    /**\brief Find vertices on the skin of a set of mesh entities.
+     *\param entities The elements for which to find the skin.  Range
+     *                may NOT contain vertices, polyhedra, or entity sets.
+     *                All elements in range must be of the same dimension.
+     *\param skin_verts Output: the vertices on the skin.
+     *\param skin_elems Optional output: elements representing sides of entities 
+     *                    that are on the skin
+     *\param create_if_missing If skin_elemts is non-null and this is true, 
+     *                    create new elements representing the sides of 
+     *                    entities on the skin.  If this is false, skin_elems
+     *                    will contain only those skin elements that already
+     *                    exist.
+     */
+  MBErrorCode find_skin_vertices( const MBRange& entities,
+                                  MBRange& skin_verts,
+                                  MBRange* skin_elems = 0,
+                                  bool create_if_missing = true );
 
   MBErrorCode classify_2d_boundary( const MBRange &boundary,
                                      const MBRange &bar_elements,
@@ -79,6 +99,10 @@ protected:
   void initialize();
   
   void deinitialize();
+
+  MBErrorCode find_skin_noadj( const MBRange &source_entities,
+                               MBRange &forward_target_entities,
+                               MBRange &reverse_target_entities );
 
   void add_adjacency(MBEntityHandle entity);
   
@@ -109,6 +133,99 @@ protected:
                        MBEntityHandle &entity2,
                        double reference_angle_cosine);
 
+
+    /**\brief Find vertices on the skin of a set of mesh entities.
+     *\param entities The elements for which to find the skin.  Range
+     *                may NOT contain vertices, polyhedra, or entity sets.
+     *                All elements in range must be of the same dimension.
+     *\param skin_verts Output: the vertices on the skin.
+     *\param skin_elems Optional output: elements representing sides of entities 
+     *                    that are on the skin
+     *\param create_if_missing If skin_elemts is non-null and this is true, 
+     *                    create new elements representing the sides of 
+     *                    entities on the skin.  If this is false, skin_elems
+     *                    will contain only those skin elements that already
+     *                    exist.
+     */
+  MBErrorCode find_skin_vertices( const MBRange& entities,
+                                  MBRange* skin_verts = 0,
+                                  MBRange* skin_elems = 0,
+                                  MBRange* rev_elems = 0,
+                                  bool create_if_missing = true,
+                                  bool corners_only = false );
+
+  /**\brief Skin edges
+   *
+   * Return any vertices adjacent to exactly one of the input edges.
+   */
+  MBErrorCode find_skin_vertices_1D( MBTag tag,
+                                     const MBRange& edges,
+                                     MBRange& skin_verts );
+                                     
+  /**\brief Skin faces
+   *
+   * For the set of face sides (logical edges), return 
+   * vertices on such sides and/or edges equivalent to such sides.
+   *\param faces  Set of toplogically 2D entities to skin.
+   *\param skin_verts If non-NULL, skin vertices will be added to this container.
+   *\param skin_edges If non-NULL, skin edges will be added to this container
+   *\param reverse_edges If skin_edges is not NULL and this is not NULL, then
+   *                  any existing skin edges that are reversed with respect
+   *                  to the skin side will be placed in this range instead of
+   *                  skin_edges.  Note: this argument is ignored if skin_edges
+   *                  is NULL.
+   *\param create_edges If true, edges equivalent to face sides on the skin
+   *                  that don't already exist will be created.  Note: this
+   *                  parameter is honored regardless of whether or not skin
+   *                  edges or vertices are returned.
+   *\param corners_only If true, only skin vertices that correspond to the
+   *                  corners of sides will be returned (i.e. no higher-order
+   *                  nodes.)  This argument is ignored if skin_verts is NULL.
+   */
+  MBErrorCode find_skin_vertices_2D( MBTag tag,
+                                     const MBRange& faces,
+                                     MBRange* skin_verts = 0,
+                                     MBRange* skin_edges = 0,
+                                     MBRange* reverse_edges = 0,
+                                     bool create_edges = false,
+                                     bool corners_only = false );
+                                     
+  /**\brief Skin volume mesh
+   *
+   * For the set of element sides (logical faces), return 
+   * vertices on such sides and/or faces equivalent to such sides.
+   *\param entities  Set of toplogically 3D entities to skin.
+   *\param skin_verts If non-NULL, skin vertices will be added to this container.
+   *\param skin_faces If non-NULL, skin faces will be added to this container
+   *\param reverse_faces If skin_faces is not NULL and this is not NULL, then
+   *                  any existing skin faces that are reversed with respect
+   *                  to the skin side will be placed in this range instead of
+   *                  skin_faces.  Note: this argument is ignored if skin_faces
+   *                  is NULL.
+   *\param create_faces If true, face equivalent to sides on the skin
+   *                  that don't already exist will be created.  Note: this
+   *                  parameter is honored regardless of whether or not skin
+   *                  faces or vertices are returned.
+   *\param corners_only If true, only skin vertices that correspond to the
+   *                  corners of sides will be returned (i.e. no higher-order
+   *                  nodes.)  This argument is ignored if skin_verts is NULL.
+   */
+  MBErrorCode find_skin_vertices_3D( MBTag tag,
+                                     const MBRange& entities,
+                                     MBRange* skin_verts = 0,
+                                     MBRange* skin_faces = 0,
+                                     MBRange* reverse_faces = 0,
+                                     bool create_faces = false,
+                                     bool corners_only = false );
+
+  MBErrorCode create_side( MBEntityHandle element,
+                           MBEntityType side_type,
+                           const MBEntityHandle* side_corners,
+                           MBEntityHandle& side_elem_handle_out );
+                           
+  bool edge_reversed( MBEntityHandle face, const MBEntityHandle edge_ends[2] );
+  bool face_reversed( MBEntityHandle region, const MBEntityHandle* face_conn, 
+                      MBEntityType face_type );
 };
 
 
