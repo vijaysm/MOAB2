@@ -497,7 +497,8 @@ bool MBSkinner::connectivity_match( const MBEntityHandle *conn1,
   
   if(they_match == true)
   {
-    direct = FORWARD;
+    // need to check for reversed edges here
+    direct = (num_verts == 2 && j) ? REVERSE : FORWARD;
     return true;
   }
   
