@@ -7653,6 +7653,228 @@ MBErrorCode mb_skin_regions_reversed_test( MBInterface* )
 MBErrorCode mb_skin_adj_regions_reversed_test( MBInterface* )
   { return mb_skin_reversed_common( 3, true ); }
 
+
+MBErrorCode mb_skin_subset_common( int dimension, bool use_adj )
+{
+  MBEntityType type;
+  switch (dimension) { 
+    case 2: type = MBTRI; break;
+    case 3: type = MBPRISM; break;
+    default: assert(false); return MB_FAILURE;
+  }
+  
+
+  /*      0
+         /|\
+        / | \
+       5  |  1
+       |\ | /|
+       | \|/ |
+       |  6  |
+       | /|\ |
+       |/ | \|
+       4  |  2
+        \ | /
+         \|/
+          3
+   */
+
+  MBErrorCode rval;
+  MBCore moab;
+  MBInterface& mb = moab;
+  MBRange expected_verts;
+
+  const double coords2D[7][2] = { {0,2}, {1,1}, {1,-1}, {0,-2}, {-1,-1}, {-1,1}, {0,0} };
+  MBEntityHandle verts[2][7] = { {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0} };
+  for (int d = 1; d < dimension; ++d) {
+    for (int i = 0; i < 7; ++i) {
+      double coords[3] = { coords2D[i][0], coords2D[i][1], d-1 };
+      rval = mb.create_vertex( coords, verts[d-1][i] );
+      if (MB_SUCCESS != rval) return rval;
+      if (i != 4 && i != 5)
+        expected_verts.insert( verts[d-1][i] );
+    }
+  }
+  
+  MBEntityHandle elems[6];
+  for (int i = 0; i < 6; ++i) {
+    MBEntityHandle conn[6] = { verts[0][6], verts[0][(i+1)%6], verts[0][i],
+                               verts[1][6], verts[1][(i+1)%6], verts[1][i] };
+    rval = mb.create_element( type, conn, MBCN::VerticesPerEntity(type), elems[i] );
+    if (MB_SUCCESS != rval) return rval;
+  }
+  
+  MBRange input;
+  input.insert( elems[0] );
+  input.insert( elems[1] );
+  input.insert( elems[2] );
+  
+  MBRange skin;
+  MBSkinner tool(&mb);
+  rval = tool.find_skin( input, true, skin, 0, use_adj, false );
+  if (MB_SUCCESS != rval) {
+    std::cout << "Skinner failed to find skin vertices" << std::endl;
+    return MB_FAILURE;
+  }
+  if (skin != expected_verts) {
+    std::cout << "Skinner returned incorrect skin vertices" << std::endl;
+    return MB_FAILURE;
+  }
+  int n = 0;
+  mb.get_number_entities_by_dimension( 0, dimension-1, n );
+  if (n > 0) {
+    std::cout << "Skinner created lower-dimension entities for vertex-only skinning" << std::endl;
+    return MB_FAILURE;
+  }
+    
+  std::vector<MBEntityHandle> sv( skin.begin(), skin.end() );
+  std::vector<int> counts( sv.size(), 0 );
+  skin.clear();
+  rval = tool.find_skin( input, false, skin, 0, use_adj, true );
+  if (MB_SUCCESS != rval) {
+    std::cout << "Skinner failed to find skin elements" << std::endl;
+    return MB_FAILURE;
+  }
+  for (MBRange::iterator i = skin.begin(); i != skin.end(); ++i) {
+    const MBEntityHandle *conn;
+    int len;
+    rval = mb.get_connectivity( *i, conn, len );
+    if (MB_SUCCESS != rval) return rval;
+    for (int j = 0; j < len; ++j) {
+      size_t idx = std::find(sv.begin(), sv.end(), conn[j]) - sv.begin();
+      if (idx == sv.size()) {
+        std::cout << "Skinner returned non-skin element" << std::endl;
+        return MB_FAILURE;
+      }
+      counts[idx]++;
+    }
+  }
+  for (size_t i = 0; i < counts.size(); ++i) {
+    if (counts[i] < dimension) { // 2 for dim==2, {3,4,5} for dim==3
+      std::cout << "Skinner did not return all skin elements" << std::endl;
+      return MB_FAILURE;
+    }
+  }
+  mb.get_number_entities_by_dimension( 0, dimension-1, n );
+  if ((size_t)n != skin.size()) {
+    std::cout << "Skinner created extra lower-dimension entities" << std::endl;
+    return MB_FAILURE;
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode mb_skin_faces_subset_test( MBInterface* )
+  { return mb_skin_subset_common( 2, false ); }
+MBErrorCode mb_skin_adj_faces_subset_test( MBInterface* )
+  { return mb_skin_subset_common( 2, true ); }
+MBErrorCode mb_skin_regions_subset_test( MBInterface* )
+  { return mb_skin_subset_common( 3, false ); }
+MBErrorCode mb_skin_adj_regions_subset_test( MBInterface* )
+  { return mb_skin_subset_common( 3, true ); }
+  
+  
+    
+ 
+MBErrorCode mb_skin_full_common( int dimension, bool use_adj )
+{
+  MBEntityType type;
+  switch (dimension) { 
+    case 2: type = MBQUAD; break;
+    case 3: type = MBHEX; break;
+    default: assert(false); return MB_FAILURE;
+  }
+  
+
+  /*  
+      3----4----5
+      |    |    |
+      |    |    |
+      0----1----2
+  */
+  
+  MBErrorCode rval;
+  MBCore moab;
+  MBInterface& mb = moab;
+ 
+    // create vertices
+  const double coords2D[6][2] = { {0,0}, {1,0}, {2,0}, {0,1}, {1,1}, {2,1} };
+  MBEntityHandle v[2][6] = { {0,0,0,0,0,0}, {0,0,0,0,0,0} };
+  for (int d = 1; d < dimension; ++d) {
+    for (int i = 0; i < 6; ++i) {
+      double coords[3] = { coords2D[i][0], coords2D[i][1], d-1 };
+      rval = mb.create_vertex( coords, v[d-1][i] );
+      if (MB_SUCCESS != rval) return rval;
+    }
+  }
+  
+    // create elements
+  MBRange input;
+  MBEntityHandle elems[2], econn[2][8];;
+  for (int i = 0; i < 2; ++i) {
+    MBEntityHandle conn[8] = { v[0][i], v[0][i+1], v[0][i+4], v[0][i+3],
+                               v[1][i], v[1][i+1], v[1][i+4], v[1][i+3] };
+    memcpy( econn[i], conn, sizeof(conn) );
+    rval = mb.create_element( type, conn, MBCN::VerticesPerEntity(type), elems[i] );
+    if (MB_SUCCESS != rval) return rval;
+    input.insert( elems[i] );
+  }
+  
+    // create sides
+    // NOTE: Shared side is element 0 side 1 and element 1 side 3
+  MBRange expected;
+  for (int i = 0; i < MBCN::NumSubEntities( type, dimension-1 ); ++i) {
+    MBEntityType subtype;
+    int len;
+    const short* indices = MBCN::SubEntityVertexIndices( type, dimension-1,
+                                                         i, subtype, len );
+    MBEntityHandle conn[4];
+    assert((size_t)len <= sizeof(conn)/sizeof(conn[0]));
+    for (int j = 0; j < 2; ++j) {
+      if (j == 1 && i == 3) // don't create shared face twice
+        continue;
+      for (int k = 0; k < len; ++k)
+        conn[k] = econn[j][indices[k]];
+      MBEntityHandle h;
+      rval = mb.create_element( subtype, conn, len, h );
+      if (MB_SUCCESS != rval) return rval;
+      if (j != 0 || i != 1) // don't insert shared face
+        expected.insert(h);
+    }
+  }
+  
+  MBRange skin;
+  MBSkinner tool(&mb);
+  rval = tool.find_skin( input, false, skin, 0, use_adj, true );
+  if (MB_SUCCESS != rval) {
+    std::cout << "Skinner failed to find skin elements" << std::endl;
+    return MB_FAILURE;
+  }
+  if (skin != expected) {
+    std::cout << "Skinner returned incorrect skin elements" << std::endl;
+    return MB_FAILURE;
+  }
+
+  int n = 0;
+  mb.get_number_entities_by_dimension( 0, dimension-1, n );
+  if ((size_t)n != expected.size()+1) {
+    std::cout << "Skinner created extra lower-dimension entities" << std::endl;
+    return MB_FAILURE;
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode mb_skin_faces_full_test( MBInterface* )
+  { return mb_skin_full_common( 2, false ); }
+MBErrorCode mb_skin_adj_faces_full_test( MBInterface* )
+  { return mb_skin_full_common( 2, true ); }
+MBErrorCode mb_skin_regions_full_test( MBInterface* )
+  { return mb_skin_full_common( 3, false ); }
+MBErrorCode mb_skin_adj_regions_full_test( MBInterface* )
+  { return mb_skin_full_common( 3, true ); }
+        
+
 static void usage(const char* exe) {
   cerr << "Usage: " << exe << " [-nostress] [-d input_file_dir]\n";
   exit (1);
@@ -7754,6 +7976,14 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_skin_adj_faces_reversed_test );
   RUN_TEST( mb_skin_regions_reversed_test );
   RUN_TEST( mb_skin_adj_regions_reversed_test );
+  RUN_TEST( mb_skin_faces_subset_test );
+  RUN_TEST( mb_skin_adj_faces_subset_test );
+  RUN_TEST( mb_skin_regions_subset_test );
+  RUN_TEST( mb_skin_adj_regions_subset_test );
+  RUN_TEST( mb_skin_faces_full_test );
+  RUN_TEST( mb_skin_adj_faces_full_test );
+  RUN_TEST( mb_skin_regions_full_test );
+  RUN_TEST( mb_skin_adj_regions_full_test );
   RUN_TEST( mb_read_fail_test );
   RUN_TEST( mb_enum_string_test );
   RUN_TEST( mb_merge_update_test );
