@@ -79,6 +79,7 @@ cfg_DATA = iMesh-Defs.inc
 install-data-hook:
 	echo "IMESH_DIR=${cfgdir}/.." >> $(DESTDIR)$(cfgdir)/iMesh-SIDL-Defs.inc
 	echo "IMESH_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
+	echo "IMESH_INCLUDEDIR2=" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 	echo "IMESH_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 

@@ -9,7 +9,7 @@ IMESH_FCFLAGS = @FCFLAGS@
 
 IMESH_FCDEFS = @DEFS@
 
-IMESH_INCLUDES = -I$(IMESH_INCLUDEDIR) -I@abs_top_builddir@
+IMESH_INCLUDES = -I$(IMESH_INCLUDEDIR) $(IMESH_INCLUDEDIR2)
 
 IMESH_LIBS = $(IMESH_LDFLAGS) -L$(MOAB_LIBDIR) \
              -L$(IMESH_LIBDIR) -liMesh -lMOAB \
@@ -17,6 +17,7 @@ IMESH_LIBS = $(IMESH_LDFLAGS) -L$(MOAB_LIBDIR) \
              $(IMESH_CXX_LDFLAGS) $(IMESH_CXX_LIBS) \
              @CGM_LDFLAGS@ @CGM_LIBS@
 
-IMESH_INCLUDEDIR = @abs_srcdir@
+IMESH_INCLUDEDIR1 = @abs_srcdir@
+IMESH_INCLUDEDIR2 = -I@abs_top_builddir@
 IMESH_LIBDIR = @abs_builddir@/.libs
 MOAB_LIBDIR = @abs_builddir@/../../.libs
