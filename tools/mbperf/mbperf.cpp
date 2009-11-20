@@ -871,6 +871,7 @@ void skin_common( int interval, int dim, bool use_adj )
       std::cout << "Created " << skin.size() << " entities of dimension-1 in " << d << " seconds" << std::endl;
     }
   
+    skin.clear();
     t = clock();
     rval = tool.find_skin( elems, false, skin, 0, use_adj, true );
     t = clock() - t;
