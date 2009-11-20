@@ -2807,8 +2807,8 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBEntityHandle this_set,
 
     // find the skin
   MBSkinner skinner(mbImpl);
-  result = skinner.find_skin(skin_ents[skin_dim+1], skin_ents[skin_dim],
-                             skin_ents[skin_dim], true);
+  result = skinner.find_skin(skin_ents[skin_dim+1], false, skin_ents[skin_dim],
+                             0, true);
   RRA("Failed to find skin.");
   if (debug) std::cerr << "Found skin, now resolving." << std::endl;
 
@@ -3028,7 +3028,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBParallelComm **pc,
     MBRange part_ents, skin_ents;
     rval = pc[p]->get_moab()->get_entities_by_dimension(0, part_dim, part_ents);
     if (MB_SUCCESS != rval) return rval;
-    rval = skinner.find_skin(part_ents, skin_ents, skin_ents, true);
+    rval = skinner.find_skin(part_ents, false, skin_ents, 0, true);
     if (MB_SUCCESS != rval) return rval;
     rval = pc[p]->get_moab()->get_adjacencies(skin_ents, 0, true, verts[p],
                                               MBInterface::UNION);
@@ -3249,8 +3249,8 @@ MBErrorCode MBParallelComm::create_interface_sets(int resolve_dim, int shared_di
   MBRange skin_ents[4];
   result = mbImpl->get_entities_by_dimension(0, resolve_dim, skin_ents[resolve_dim]);
   RRA("");
-  result = skinner.find_skin(skin_ents[resolve_dim], skin_ents[resolve_dim-1], 
-                             skin_ents[resolve_dim-1], true);
+  result = skinner.find_skin(skin_ents[resolve_dim], false, 
+                             skin_ents[resolve_dim-1], 0, true);
   RRA("Failed to find skin.");
   if (shared_dim > 1) {
     result = mbImpl->get_adjacencies(skin_ents[resolve_dim-1], resolve_dim-2, true,
