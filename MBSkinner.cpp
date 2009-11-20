@@ -1002,11 +1002,6 @@ MBErrorCode MBSkinner::find_skin(const MBRange &entities,
   return result;
 }
 
-// Bit tag uses less memory, but is slower.  Probably
-// because we have to query one entity at a time.
-// -- j.kraftcheck 2009-11-10
-const bool use_bit_tag = false;
-
 MBErrorCode MBSkinner::find_skin_vertices( const MBRange& entities,
                                            MBRange* skin_verts,
                                            MBRange* skin_elems,
@@ -1022,23 +1017,33 @@ MBErrorCode MBSkinner::find_skin_vertices( const MBRange& entities,
   if (dim < 1 || dim > 3 || !entities.all_of_dimension(dim))
     return MB_TYPE_OUT_OF_RANGE;
   
-    // create a bit tag for use in a) tagging skin vertices, and 
-    // b) fast intersection with input entities range. 
+    // are we skinning all entities
+  size_t count = entities.size();
+  int num_total;
+  rval = thisMB->get_number_entities_by_dimension( 0, dim, num_total );
+  if (MB_SUCCESS != rval)
+    return rval;
+  bool all = (count == (size_t)num_total);
+  
+    // Create a bit tag for fast intersection with input entities range. 
+    // If we're skinning all the entities in the mesh, we really don't
+    // need the tag.  To save memory, just create it with a default value
+    // of one and don't set it.  That way MOAB will return 1 for all 
+    // entities.
   MBTag tag;
-  char bit = 0;
-  rval = thisMB->tag_create( NULL, 1, use_bit_tag ? MB_TAG_BIT : MB_TAG_DENSE, tag, &bit );
+  char bit = all ? 1 : 0;
+  rval = thisMB->tag_create( NULL, 1, MB_TAG_BIT, tag, &bit );
   if (MB_SUCCESS != rval)
     return rval;
   
     // tag all entities in input range
-  size_t count = entities.size();
-  char* vect = new char[count];
-  memset( vect, 1, count );
-  rval = thisMB->tag_set_data( tag, entities, vect );
-  delete [] vect;
-  if (MB_SUCCESS != rval) {
-    thisMB->tag_delete(tag);
-    return rval;
+  if (!all) {
+    std::vector<unsigned char> vect(count, 1);
+    rval = thisMB->tag_set_data( tag, entities, &vect[0] );
+    if (MB_SUCCESS != rval) {
+      thisMB->tag_delete(tag);
+      return rval;
+    }
   }
   
   switch (dim) {
