@@ -3038,18 +3038,8 @@ MBErrorCode ReadHDF5::read_sparse_tag( MBTag tag_handle,
           return error(rval);
       }
       
-/*** FIX ME - need to do one at a time for BIT tags!  This is stupid. ***/
-      if (mbtype == MB_TYPE_BIT)
-      {
-        rval = MB_SUCCESS;
-        for ( ; MB_SUCCESS == rval && i < j; ++i)
-          rval = iFace->tag_set_data( tag_handle, idbuf + i, 1, databuf + i );
-      }
-      else
-      {
-        rval = iFace->tag_set_data( tag_handle, idbuf + i, j - i, databuf + i*read_size );
-        i = j;
-      }
+      rval = iFace->tag_set_data( tag_handle, idbuf + i, j - i, databuf + i*read_size );
+      i = j;
       if (MB_SUCCESS != rval)
         return error(rval);
     } // for(ever)

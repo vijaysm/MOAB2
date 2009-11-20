@@ -64,6 +64,221 @@ MBErrorCode MBBitServer::reserve_tag_id(int num_bits, MBTagId tag_id)
   return MB_SUCCESS;
 }
 
+  
+MBErrorCode MBBitPage::get_entities_with_value( unsigned char value, 
+                                                int offset, 
+                                                int count, 
+                                                int num_bits_per_flag,
+                                                MBEntityHandle first,
+                                                MBRange& results ) const
+{
+  if (mBitArray) {
+    MBRange::iterator hint = results.begin();
+    for (int i = 0; i < count; ++i) 
+      if (value == MBBitManipulator::get_bits( (offset+i)*num_bits_per_flag, 
+                                               num_bits_per_flag, mBitArray))
+        hint = results.insert( hint, first + i );
+  }
+  return MB_SUCCESS;
+}
+
+void MBBitPage::alloc_array( int num_bits_per_flag, 
+                             const unsigned char* default_value )
+{
+  assert(!mBitArray);
+  
+  mBitArray = new unsigned char[mPageSize];
+    // Modifed by J.Kraftcheck : 31 Jan, 2008:
+    //  Need to initialize to default value to ensure that we return
+    //  the default value for unset entities.  
+
+    // Zero memory if no default value.  Also, if default value is
+    // zero, we can zero all the memory w/out worring about the
+    // number of bits per entity.
+  if (!default_value || !*default_value)
+    memset(mBitArray, 0, mPageSize);
+    // Otherwise initialize memory using default value
+  else {
+      // Mask unused bits of default value so that we can set
+      // individual bits using bitwise-OR w/out having to worry
+      // about masking unwanted stuff.
+    unsigned char defval = (*default_value) & ((1u << num_bits_per_flag) - 1);
+
+    switch (num_bits_per_flag) {
+      // If number of bits is a power of two (a byte contains a whole
+      // number of tag bit values) then use memset to initialize the memory.
+      // Note fall-through for switch cases:  for 1-bit tags we first
+      // copy the lsb into the adjacent bit, then fall through to 2-bit
+      // case, copying last two bits into next two, and so on.
+      case 1: defval |= (defval << 1);
+      case 2: defval |= (defval << 2);
+      case 4: defval |= (defval << 4);
+      case 8: memset( mBitArray, defval, mPageSize );
+        break;
+      // If num_bits_per_flag is not a power of two, then values do
+      // not align with byte boundaries.  Need to initialize values
+      // individually.
+      default:
+        memset(mBitArray, 0, mPageSize);
+        // Subtract 1 from mPageSize because last byte is unused, allowing
+        // questionable MBBitManipulator code to read/write 1 past end 
+        // of array.
+        for (int i = 0; i < 8 * (mPageSize-1); i += num_bits_per_flag)
+          MBBitManipulator::set_bits( i, num_bits_per_flag, defval, mBitArray );
+    }
+  }
+}
+
+
+MBErrorCode MBBitPageGroup::get_bits( MBEntityHandle start, 
+                                      MBEntityID count,
+                                      unsigned char* bits,
+                                      const unsigned char* def_val)
+{
+  MBErrorCode result = MB_SUCCESS, tmp_result;
+  
+  
+  MBEntityID id = ID_FROM_HANDLE(start);
+  MBEntityHandle page = id/mOffsetFactor;
+  MBEntityID offset = id%mOffsetFactor;
+  MBEntityID pcount = mOffsetFactor - offset;
+  while (count) {
+    if (pcount > count)
+      pcount = count;
+    
+    if (page >= mBitPagesSize) {
+      memset( bits, def_val ? *def_val : 0, count );
+      break;
+    }
+    
+    tmp_result = mBitPages[page]->get_bits( offset, pcount, mBitsPerFlag, bits, def_val);
+    if (MB_SUCCESS != tmp_result) {
+      memset( bits, 0, pcount );
+      result = tmp_result;
+    }
+    
+    count -= pcount;
+    bits += pcount;
+    ++page;
+    offset = 0;
+    pcount = mOffsetFactor;
+  }
+  
+  return result;
+}
+
+MBErrorCode MBBitPageGroup::set_bits( MBEntityHandle start, 
+                                      MBEntityID count,
+                                      const unsigned char* bits,
+                                      const unsigned char* def_val)
+{
+  MBErrorCode result = MB_SUCCESS, tmp_result;
+  MBEntityID id = ID_FROM_HANDLE(start);
+  MBEntityHandle page = id/mOffsetFactor;
+  MBEntityID offset = id%mOffsetFactor;
+  MBEntityID pcount = mOffsetFactor - offset;
+  while (count) {
+    if (pcount > count)
+      pcount = count;
+    
+    if (page >= mBitPagesSize) {
+      for(int j = page - mBitPagesSize +1; j--;)
+        mBitPages.push_back(new MBBitPage());
+      mBitPagesSize = mBitPages.size();
+    }
+
+    tmp_result = mBitPages[page]->set_bits( offset, pcount, mBitsPerFlag, bits, def_val);
+    if (MB_SUCCESS != tmp_result) {
+      result = tmp_result;
+    }
+    
+    count -= pcount;
+    bits += pcount;
+    ++page;
+    offset = 0;
+    pcount = mOffsetFactor;
+  }
+  
+  return result;
+}
+
+  
+MBErrorCode MBBitPageGroup::get_entities_with_value( unsigned char value,
+                                                     MBEntityHandle first,
+                                                     MBEntityHandle last,
+                                                     MBRange& results )
+{
+  MBErrorCode rval;
+  assert(last >= first);
+  MBEntityID count = last - first + 1;
+  
+  MBEntityID id = ID_FROM_HANDLE(first);
+  MBEntityHandle page = id/mOffsetFactor;
+  MBEntityID offset = id%mOffsetFactor;
+  MBEntityID pcount = mOffsetFactor - offset;
+  while (count && page < mBitPagesSize) {
+    if (pcount > count)
+      pcount = count;
+    
+    rval = mBitPages[page]->get_entities_with_value( value, offset, pcount, mBitsPerFlag, first, results );
+    if (MB_SUCCESS != rval)
+      return rval;
+    
+    first += pcount;
+    count -= pcount;
+    ++page;
+    offset = 0;
+    pcount = mOffsetFactor;
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode MBBitServer::set_bits( MBTagId tag_id, 
+                                   const MBRange& handles,
+                                   const unsigned char* data,
+                                   const unsigned char* default_val)
+{
+  --tag_id; // First ID is 1.
+  if(tag_id >= mBitPageGroups[0].size() || mBitPageGroups[0][tag_id] == NULL)
+    return MB_TAG_NOT_FOUND;
+
+  MBErrorCode rval;
+  MBRange::const_pair_iterator i;
+  for (i = handles.const_pair_begin(); i != handles.const_pair_end(); ++i) {
+    MBEntityType type = TYPE_FROM_HANDLE(i->first);
+    assert(TYPE_FROM_HANDLE(i->second) == type); // should be true because id of zero is never used
+    MBEntityID count = i->second - i->first + 1;
+    rval = mBitPageGroups[type][tag_id]->set_bits(i->first, count, data, default_val);
+    if (MB_SUCCESS != rval)
+      return rval;
+    data += count;
+  }
+  return MB_SUCCESS;
+}
+
+MBErrorCode MBBitServer::get_bits( MBTagId tag_id, 
+                                   const MBRange& handles,
+                                   unsigned char* data,
+                                   const unsigned char* default_val)
+{
+  --tag_id; // First ID is 1.
+  if(tag_id >= mBitPageGroups[0].size() || mBitPageGroups[0][tag_id] == NULL)
+    return MB_TAG_NOT_FOUND;
+
+  MBErrorCode rval;
+  MBRange::const_pair_iterator i;
+  for (i = handles.const_pair_begin(); i != handles.const_pair_end(); ++i) {
+    MBEntityType type = TYPE_FROM_HANDLE(i->first);
+    assert(TYPE_FROM_HANDLE(i->second) == type); // should be true because id of zero is never used
+    MBEntityID count = i->second - i->first + 1;
+    rval = mBitPageGroups[type][tag_id]->get_bits(i->first, count, data, default_val);
+    if (MB_SUCCESS != rval)
+      return rval;
+    data += count;
+  }
+  return MB_SUCCESS;
+}
 
 /*! give back a tag id that was used to set and get bits */
 MBErrorCode MBBitServer::release_tag_id(MBTagId tag_id)
@@ -192,51 +407,50 @@ MBErrorCode MBBitServer::get_entities(const MBRange &range, MBTagId tag_id, MBEn
   return result;
 }
 
-MBErrorCode MBBitServer::get_entities_with_tag_value(MBTagId tag_id, 
-                                                       MBEntityType type,
-                                                       MBRange& entities, 
-                                                       const unsigned char bits)
+MBErrorCode MBBitServer::get_entities_with_tag_value( MBTagId tag_id, 
+                                                      MBEntityType type,
+                                                      MBRange& entities, 
+                                                      const unsigned char bits)
 {
-  MBRange possibles;
-  MBErrorCode result = get_entities(tag_id, type, possibles);
-  if (MB_SUCCESS != result || possibles.empty()) return result;
-  MBErrorCode tmp_result;
-  unsigned char dum = 0;
-  for (MBRange::iterator it = possibles.begin(); it != possibles.end(); it++) {
-    tmp_result = get_bits(tag_id, *it, dum);
-    if (dum == bits) entities.insert(*it);
-    if (tmp_result != MB_SUCCESS) result = tmp_result;
-  }
-  
-  return result;
+  --tag_id; // First ID is 1.
+  if(tag_id >= mBitPageGroups[type].size() || mBitPageGroups[type][tag_id] == NULL)
+    return MB_TAG_NOT_FOUND;
+
+  return mBitPageGroups[type][tag_id]->
+    get_entities_with_value( bits, FIRST_HANDLE(type), LAST_HANDLE(type), entities );
 }
 
-MBErrorCode MBBitServer::get_entities_with_tag_value(const MBRange &range,
-                                                       MBTagId tag_id, MBEntityType type, 
-                                                       MBRange& entities,
-                                                       const unsigned char bits)
+MBErrorCode MBBitServer::get_entities_with_tag_value( const MBRange &range,
+                                                      MBTagId tag_id, 
+                                                      MBEntityType type, 
+                                                      MBRange& entities,
+                                                      const unsigned char bits)
 {
-  MBRange temp1, temp2;
-  MBErrorCode result = get_entities(tag_id, type, temp1);
-  if (MB_SUCCESS != result) return result;
-  std::set_intersection(range.begin(), range.end(),
-                        temp1.begin(), temp1.end(), mb_range_inserter(temp2));
-  if (temp2.empty()) return result;
-  
-  unsigned char dum = 0;
-  MBErrorCode tmp_result;
-  for (MBRange::iterator it = temp2.begin(); it != temp2.end(); it++) {
-    tmp_result = get_bits(tag_id, *it, dum);
-    if (dum == bits) entities.insert(*it);
-    if (tmp_result != MB_SUCCESS) result = tmp_result;
+  --tag_id; // First ID is 1.
+  if(tag_id >= mBitPageGroups[0].size() || mBitPageGroups[0][tag_id] == NULL)
+    return MB_TAG_NOT_FOUND;
+
+  MBErrorCode rval;
+  MBRange::const_pair_iterator i;
+  for (i = range.const_pair_begin(); i != range.const_pair_end(); ++i) {
+    MBEntityType this_type = TYPE_FROM_HANDLE(i->first);
+    assert(TYPE_FROM_HANDLE(i->second) == this_type); // should be true because id of zero is never used
+    if (type < this_type)
+      continue;
+    if (type > this_type)
+      break;
+      
+    rval = mBitPageGroups[type][tag_id]->
+      get_entities_with_value( bits, i->first, i->second, entities );
+    if (MB_SUCCESS != rval)
+      return rval;
   }
-  
-  return result;
+  return MB_SUCCESS;
 }
 
 MBErrorCode MBBitServer::get_number_entities( const MBTagId tag_id,
-                                                const MBEntityType type,
-                                                int& num_entities) 
+                                              const MBEntityType type,
+                                              int& num_entities) 
 {
   MBRange dum_range;
   MBErrorCode result = get_entities(tag_id, type, dum_range);

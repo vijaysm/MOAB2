@@ -1143,8 +1143,11 @@ public:
 
     //! Get the value of the indicated tag on the specified entities in the specified vector
     /** Get the value of the indicated tag on the specified entities; <em>tag_data</em> must contain
-        enough space (i.e. tag_size*num_entities bytes or bits) to hold all tag data.  MB does <em>not</em>
+        enough space (i.e. tag_size*num_entities bytes) to hold all tag data.  MOAB does <em>not</em>
         check whether this space is available before writing to it.
+        \note For bit tags, tag_data must contain one byte per entity.  For each
+              entity, the corresponding byte will contain the tag bits in the
+              lower bit positions and zero bits in the higher.
         \param tag_handle Tag whose values are being queried.
         \param entity_handles 1d vector of entity handles whose tag values are being queried
         \param num_entities Number of entities in 1d vector of entity handles
@@ -1168,6 +1171,9 @@ public:
     //! Set the value of the indicated tag on the specified entities in the specified vector
     /** Set the value of the indicated tag on the specified entities; <em>tag_data</em> contains the
         values, <em>one value per entity in <em>entity_handles</em></em>.
+        \note For bit tags, tag_data must contain one byte per entity.  For each
+              entity, the tag bits will be read from the lower bits of the 
+              corresponding byte.
         \param tag_handle Tag whose values are being set
         \param entity_handles 1d vector of entity handles whose tag values are being set
         \param num_entities Number of entities in 1d vector of entity handles
@@ -1192,6 +1198,7 @@ public:
     /**\brief Get pointers to tag data
      *
      * For a tag, get the values for a list of passed entity handles.
+     *\note  This function may not be used for bit tags.
      *\param tag_handle     The tag
      *\param entity_handles An array of entity handles for which to retreive tag values.
      *\param num_entities   The length of the 'entity_handles' array.
@@ -1211,6 +1218,7 @@ public:
     /**\brief Get pointers to tag data
      *
      * For a tag, get the values for a list of passed entity handles.
+     *\note  This function may not be used for bit tags.
      *\param tag_handle     The tag
      *\param entity_handles The entity handles for which to retreive tag values.
      *\param tag_data       An array of 'const void*'.  Array is populated (output)
@@ -1227,6 +1235,7 @@ public:
     /**\brief Set tag data given an array of pointers to tag values.
      *
      * For a tag, set the values for a list of passed entity handles.
+     *\note  This function may not be used for bit tags.
      *\param tag_handle     The tag
      *\param entity_handles An array of entity handles for which to set tag values.
      *\param num_entities   The length of the 'entity_handles' array.
@@ -1246,6 +1255,7 @@ public:
     /**\brief Set tag data given an array of pointers to tag values.
      *
      * For a tag, set the values for a list of passed entity handles.
+     *\note  This function may not be used for bit tags.
      *\param tag_handle     The tag
      *\param entity_handles The entity handles for which to set tag values.
      *\param tag_data       An array of 'const void*'.  Array is expected to

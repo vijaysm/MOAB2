@@ -1031,26 +1031,14 @@ MBErrorCode MBSkinner::find_skin_vertices( const MBRange& entities,
     return rval;
   
     // tag all entities in input range
-  if (use_bit_tag) {
-    bit = '\001';
-    for (MBRange::const_iterator it = entities.begin(); it != entities.end(); ++it) {
-      rval = thisMB->tag_set_data( tag, &*it, 1, &bit );
-      if (MB_SUCCESS != rval) {
-        thisMB->tag_delete(tag);
-        return rval;
-      }
-    }
-  }
-  else {
-    size_t count = entities.size();
-    char* vect = new char[count];
-    memset( vect, 1, count );
-    rval = thisMB->tag_set_data( tag, entities, vect );
-    delete [] vect;
-    if (MB_SUCCESS != rval) {
-      thisMB->tag_delete(tag);
-      return rval;
-    }
+  size_t count = entities.size();
+  char* vect = new char[count];
+  memset( vect, 1, count );
+  rval = thisMB->tag_set_data( tag, entities, vect );
+  delete [] vect;
+  if (MB_SUCCESS != rval) {
+    thisMB->tag_delete(tag);
+    return rval;
   }
   
   switch (dim) {
@@ -1101,7 +1089,6 @@ MBErrorCode MBSkinner::find_skin_vertices_1D( MBTag tag,
   std::vector<char> tag_vals;
   std::vector<MBEntityHandle> adj;
   int count;
-  char bit;
   for (MBRange::const_iterator it = verts.begin(); it != verts.end(); ++it) {
     adj.clear();
     rval = thisMB->get_adjacencies( &*it, 1, 1, false, adj );
@@ -1110,21 +1097,10 @@ MBErrorCode MBSkinner::find_skin_vertices_1D( MBTag tag,
       continue;
 
         // remove those not in the input list
-    if (use_bit_tag) {
-      count = 0;
-      for (i = adj.begin(); i != adj.end(); ++i) {
-        rval = thisMB->tag_get_data( tag, &*i, 1, &bit );
-        if (MB_SUCCESS != rval) return rval;
-        if (bit) 
-          ++count;
-      }
-    }
-    else {
-      tag_vals.resize( adj.size() );
-      rval = thisMB->tag_get_data( tag, &adj[0], adj.size(), &tag_vals[0] );
-      if (MB_SUCCESS != rval) return rval;
-      count = std::count( tag_vals.begin(), tag_vals.end(), '\001' );
-    }
+    tag_vals.resize( adj.size() );
+    rval = thisMB->tag_get_data( tag, &adj[0], adj.size(), &tag_vals[0] );
+    if (MB_SUCCESS != rval) return rval;
+    count = std::count( tag_vals.begin(), tag_vals.end(), '\001' );
     
     if (count == 1) {
       hint = skin_verts.insert( hint, *it );
@@ -1352,7 +1328,6 @@ MBErrorCode MBSkinner::find_skin_vertices_2D( MBTag tag,
   std::vector<MBEntityHandle> storage;
   const MBEntityHandle *conn;
   int len;
-  char bit;
   bool find_edges = skin_edges || create_edges;
   MBEntityHandle face;
   
@@ -1380,26 +1355,15 @@ MBErrorCode MBSkinner::find_skin_vertices_2D( MBTag tag,
 
       // remove those not in the input list
     i = j = adj.begin();
-    if (use_bit_tag) {
-      for (; i != adj.end(); ++i) {
-        rval = thisMB->tag_get_data( tag, &*i, 1, &bit );
-        if (MB_SUCCESS != rval) return rval;
-        if (bit) 
-          *(j++) = *i;
-      }
-      adj.erase( j, adj.end() );
-    }
-    else {
-      tag_vals.resize( adj.size() );
-      rval = thisMB->tag_get_data( tag, &adj[0], adj.size(), &tag_vals[0] );
-      if (MB_SUCCESS != rval) return rval;
-      
-      i = j = adj.begin();
-      for (; i != adj.end(); ++i) 
-        if (tag_vals[i - adj.begin()])
-          *(j++) = *i;
-      adj.erase( j, adj.end() );
-    } 
+    tag_vals.resize( adj.size() );
+    rval = thisMB->tag_get_data( tag, &adj[0], adj.size(), &tag_vals[0] );
+    if (MB_SUCCESS != rval) return rval;
+
+    i = j = adj.begin();
+    for (; i != adj.end(); ++i) 
+      if (tag_vals[i - adj.begin()])
+        *(j++) = *i;
+    adj.erase( j, adj.end() );
     
       // For each adjacent face, check the edges adjacent to the current vertex
     adj_edges.clear();    // other vertex for adjacent edges
@@ -1521,7 +1485,6 @@ MBErrorCode MBSkinner::find_skin_vertices_3D( MBTag tag,
   std::vector<MBEntityHandle> storage, storage2;
   const MBEntityHandle *conn, *conn2;
   int len, len2;
-  char bit;
   bool find_faces = skin_faces || create_faces;
   int clen, side, sense, offset, indices[9];
   MBEntityType face_type;
@@ -1552,24 +1515,13 @@ MBErrorCode MBSkinner::find_skin_vertices_3D( MBTag tag,
       
       // remove those not in the input list
     i = j = adj.begin();
-    if (use_bit_tag) {
-      for (; i != adj.end(); ++i) {
-        rval = thisMB->tag_get_data( tag, &*i, 1, &bit );
-        if (MB_SUCCESS != rval) return rval;
-        if (bit) 
-          *(j++) = *i;
-      }
-      adj.erase( j, adj.end() );
-    }
-    else {
-      tag_vals.resize( adj.size() );
-      rval = thisMB->tag_get_data( tag, &adj[0], adj.size(), &tag_vals[0] );
-      if (MB_SUCCESS != rval) return rval;
-      for (; i != adj.end(); ++i) 
-        if (tag_vals[i - adj.begin()])
-          *(j++) = *i;
-      adj.erase( j, adj.end() );
-    } 
+    tag_vals.resize( adj.size() );
+    rval = thisMB->tag_get_data( tag, &adj[0], adj.size(), &tag_vals[0] );
+    if (MB_SUCCESS != rval) return rval;
+    for (; i != adj.end(); ++i) 
+      if (tag_vals[i - adj.begin()])
+        *(j++) = *i;
+    adj.erase( j, adj.end() );
       
       // Build lists of sides of 3D element adjacent to the current vertex
     adj_quads.clear(); // store three other vertices for each adjacent quad face

@@ -3420,6 +3420,55 @@ MBErrorCode mb_bit_tags_test(MBInterface* MB)
     if(bits != ((*iter) & 0x7))
       return MB_FAILURE;
   }
+  
+  // test range-based query for all vertices
+  std::vector<unsigned char> data(entities.size());
+  success = MB->tag_get_data( bit_tag, entities, &data[0] );
+  if (MB_SUCCESS != success) return success;
+  std::vector<unsigned char>::iterator i = data.begin();
+  for (iter = entities.begin(); iter != entities.end(); ++iter, ++i) 
+    if (*i != ((*iter) & 0x7))
+      return MB_FAILURE;
+
+  // test vector-based query for all vertices
+  std::vector<MBEntityHandle> verts(entities.begin(), entities.end());
+  success = MB->tag_get_data( bit_tag, &verts[0], verts.size(), &data[0] );
+  if (MB_SUCCESS != success) return success;
+  i = data.begin();
+  for (iter = entities.begin(); iter != entities.end(); ++iter, ++i) 
+    if (*i != ((*iter) & 0x7))
+      return MB_FAILURE;
+  
+  // test default value
+  const unsigned char default_bits = '\005'; // 0000 0101
+  MBTag tag2;
+  success = MB->tag_create( "bit with default", 4, MB_TAG_BIT, tag2, &default_bits );
+  if (MB_SUCCESS != success) {
+    cout << "Failed to create bit tag with default value" << std::endl;
+    return success;
+  }
+  
+  // set value to zero on a single vertex
+  bits = 0;
+  MBEntityHandle zh = verts[verts.size()/2];
+  success = MB->tag_set_data( tag2, &zh, 1, &bits );
+  if (MB_SUCCESS != success)
+    return success;
+  
+  // get tag values for all entities
+  data.clear();
+  data.resize( verts.size(), 0x7A ); // initialize with 0111 1010
+  success = MB->tag_get_data( tag2, entities, &data[0] );
+  if (MB_SUCCESS != success)
+    return success;
+  
+  // check values
+  i = data.begin();
+  for (iter = entities.begin(); iter != entities.end(); ++iter, ++i) 
+    if (*iter == zh && *i) // the one we set to zero
+      return MB_FAILURE;
+    else if (*iter != zh && *i != default_bits)
+      return MB_FAILURE;
 
   return MB_SUCCESS;
 }

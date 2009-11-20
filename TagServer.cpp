@@ -223,37 +223,6 @@ MBErrorCode TagServer::reset_data(MBEntityHandle entity_handle)
 }
 
 
-//! set the value of a tag
-MBErrorCode TagServer::set_bits(const MBTag tag_handle, const MBEntityHandle entity_handle, unsigned char data )
-{
-  if(TYPE_FROM_HANDLE(entity_handle) >= MBMAXTYPE)
-    return MB_TYPE_OUT_OF_RANGE;
-  const TagInfo* info = get_tag_info( tag_handle );
-  if (!info)
-    return MB_TAG_NOT_FOUND;
-  return mBitServer->set_bits(ID_FROM_TAG_HANDLE(tag_handle), entity_handle, data,
-                              reinterpret_cast<const unsigned char*>(info->default_value()));
-}
-
-//! get the value of a tag
-MBErrorCode TagServer::get_bits(const MBTag tag_handle, const MBEntityHandle entity_handle, unsigned char& data )
-{
-  if(TYPE_FROM_HANDLE(entity_handle) >= MBMAXTYPE)
-    return MB_TYPE_OUT_OF_RANGE;
-  MBErrorCode rval = mBitServer->get_bits(ID_FROM_TAG_HANDLE(tag_handle), entity_handle, data);
-  if (MB_TAG_NOT_FOUND == rval) {
-    const TagInfo* info = get_tag_info( tag_handle );
-    if (!info)
-      return MB_FAILURE;
-    if (info->default_value())
-      data = *reinterpret_cast<const unsigned char*>(info->default_value());
-    else 
-      data = '\0';
-    return MB_SUCCESS;
-  }
-  return rval;    
-}
-
 MBErrorCode TagServer::set_mesh_data( const MBTag tag_handle,
                                       const void* data,
                                       int size )
@@ -301,12 +270,14 @@ MBErrorCode TagServer::set_data( const MBTag tag_handle,
       break;
       
     case MB_TAG_BIT:
-      if (num_entities == 1)
-        rval = sequenceManager->check_valid_entities( entity_handles, num_entities );
+      if (!(tag_info = get_tag_info( tag_id, tag_type )))
+        rval = MB_TAG_NOT_FOUND;
       else
-        rval = MB_FAILURE;
+        rval = sequenceManager->check_valid_entities( entity_handles, num_entities );
       if (MB_SUCCESS == rval)
-        rval = set_bits( tag_handle, *entity_handles, *reinterpret_cast<const unsigned char*>(data) );
+        rval= mBitServer->set_bits( tag_id, entity_handles, num_entities, 
+                                    reinterpret_cast<const unsigned char*>(data),
+                                    reinterpret_cast<const unsigned char*>(tag_info->default_value()));
       break;
     
     default:
@@ -340,12 +311,14 @@ MBErrorCode TagServer::set_data( const MBTag tag_handle,
       break;
     
     case MB_TAG_BIT:
-      if (entity_handles.size() == 1)
-        rval = sequenceManager->check_valid_entities( entity_handles );
+      if (!(tag_info = get_tag_info( tag_id, tag_type )))
+        rval = MB_TAG_NOT_FOUND;
       else
-        rval = MB_FAILURE;
+        rval = sequenceManager->check_valid_entities( entity_handles );
       if (MB_SUCCESS == rval)
-        rval = set_bits( tag_handle, entity_handles.front(), *reinterpret_cast<const unsigned char*>(data) );
+        rval= mBitServer->set_bits( tag_id, entity_handles, 
+                                    reinterpret_cast<const unsigned char*>(data),
+                                    reinterpret_cast<const unsigned char*>(tag_info->default_value()));
       break;
     
     default:
@@ -386,12 +359,7 @@ MBErrorCode TagServer::set_data( const MBTag tag_handle,
       break;
     
     case MB_TAG_BIT:
-      if (num_entities == 1)
-        rval = sequenceManager->check_valid_entities( entity_handles, num_entities );
-      else
-        rval = MB_FAILURE;
-      if (MB_SUCCESS == rval)
-        rval = set_bits( tag_handle, *entity_handles, *reinterpret_cast<const unsigned char*>(*data) );
+      rval = MB_FAILURE;
       break;
     
     default:
@@ -431,12 +399,7 @@ MBErrorCode TagServer::set_data( const MBTag tag_handle,
       break;
     
     case MB_TAG_BIT:
-      if (entity_handles.size() == 1)
-        rval = sequenceManager->check_valid_entities( entity_handles );
-      else
-        rval = MB_FAILURE;
-      if (MB_SUCCESS == rval)
-        rval = set_bits( tag_handle, entity_handles.front(), *reinterpret_cast<const unsigned char*>(*data) );
+      rval = MB_FAILURE;
       break;
     
     default:
@@ -517,11 +480,9 @@ MBErrorCode TagServer::get_data( const MBTag tag_handle,
     case MB_TAG_SPARSE:
       return mSparseData->get_data( tag_id, entity_handles, num_entities, data, default_val );
     case MB_TAG_BIT:
-      if (num_entities == 1)
-        return get_bits( tag_handle, *entity_handles, *reinterpret_cast<unsigned char*>(data) );
-      else
-        return MB_FAILURE;
-    
+      return mBitServer->get_bits( tag_id, entity_handles, num_entities, 
+                                   reinterpret_cast<unsigned char*>(data),
+                                   reinterpret_cast<const unsigned char*>(default_val));
     default:
       return MB_TAG_NOT_FOUND;
   }
@@ -543,11 +504,9 @@ MBErrorCode TagServer::get_data( const MBTag tag_handle,
     case MB_TAG_SPARSE:
       return mSparseData->get_data( tag_id, entity_handles, data, default_val );
     case MB_TAG_BIT:
-      if (entity_handles.size() == 1)
-        return get_bits( tag_handle, entity_handles.front(), *reinterpret_cast<unsigned char*>(data) );
-      else
-        return MB_FAILURE;
-    
+      return mBitServer->get_bits( tag_id, entity_handles,
+                                   reinterpret_cast<unsigned char*>(data),
+                                   reinterpret_cast<const unsigned char*>(default_val));
     default:
       return MB_TAG_NOT_FOUND;
   }
@@ -572,11 +531,7 @@ MBErrorCode TagServer::get_data( const MBTag tag_handle,
     case MB_TAG_SPARSE:
       return mSparseData->get_data( tag_id, entity_handles, num_entities, data, lengths, default_val, def_val_len );
     case MB_TAG_BIT:
-      if (num_entities == 1)
-        return get_bits( tag_handle, *entity_handles, *reinterpret_cast<unsigned char*>(data) );
-      else
-        return MB_FAILURE;
-    
+      return MB_FAILURE;
     default:
       return MB_TAG_NOT_FOUND;
   }
@@ -600,11 +555,7 @@ MBErrorCode TagServer::get_data( const MBTag tag_handle,
     case MB_TAG_SPARSE:
       return mSparseData->get_data( tag_id, entity_handles, data, lengths, default_val, def_val_len );
     case MB_TAG_BIT:
-      if (entity_handles.size() == 1)
-        return get_bits( tag_handle, entity_handles.front(), *reinterpret_cast<unsigned char*>(data) );
-      else
-        return MB_FAILURE;
-    
+      return MB_FAILURE;
     default:
       return MB_TAG_NOT_FOUND;
   }

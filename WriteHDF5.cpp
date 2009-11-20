@@ -1845,20 +1845,7 @@ DEBUGOUT((std::string("Tag: ") + name + "\n").c_str());
     iter = stop;
     assert(range.size() == (unsigned)count);
  
- /** Fix me - stupid API requires we get these one at a time for BIT tags */
-    if (mb_type == MB_TAG_BIT)
-    {
-      rval = MB_SUCCESS;
-      char* buf_iter = tag_buffer;
-      for (MBRange::const_iterator it = range.begin(); 
-           MB_SUCCESS == rval && it != range.end(); 
-           ++it, buf_iter += mb_size)
-        rval = iFace->tag_get_data( tag_data.tag_id, &*it, 1, buf_iter );
-    }
-    else
-    {
-      rval = iFace->tag_get_data( tag_data.tag_id, range, tag_buffer );
-    }
+    rval = iFace->tag_get_data( tag_data.tag_id, range, tag_buffer );
     if (MB_SUCCESS != rval) {
       mhdf_closeData( filePtr, tables[1], &status );
       if (value_type && value_type != id_type)

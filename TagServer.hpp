@@ -222,12 +222,6 @@ public:
                         const MBRange& entity_handles, 
                         const void** data,
                         int* lengths = 0 );
-  
-  //! set the value of a tag
-  MBErrorCode set_bits(const MBTag tag_handle, const MBEntityHandle entity_handle, unsigned char data );
-
-  //! get the value of a tag
-  MBErrorCode get_bits(const MBTag tag_handle, const MBEntityHandle entity_handle, unsigned char& data );
 
   //! remove global/mesh value of tag
   MBErrorCode remove_mesh_data( const MBTag tag_handle );
