@@ -126,7 +126,10 @@ void iRel_getAssociatedInterfaces (
     CHECK_SIZE(iBase_Instance, interfaces, interfaces_allocated, 
                (int)tmp_ifaces.size());
     *interfaces_size = tmp_ifaces.size();
-    std::copy(tmp_ifaces.begin(), tmp_ifaces.end(), *interfaces);
+    for (size_t i=0; i<tmp_ifaces.size(); ++i) {
+        size_t other = (tmp_ifaces[i]->iface_instance(0) == instance);
+        *interfaces[i] = tmp_ifaces[i]->iface_instance(other);
+    }
   }
   RETURN(iRel_LAST_ERROR.error_type);
 }
@@ -839,12 +842,12 @@ void iRel_createVtxAndAssociate (
 
 void iRel_createEntAndAssociate (
   iRel_Instance instance,
-  iMesh_EntityTopology new_entity_topology,
+  int new_entity_topology,
   iBase_EntityHandle *lower_order_entity_handles,
   int lower_order_entity_handles_size,
   iBase_EntityHandle associatedGeomEnt,
   iBase_EntityHandle *new_entity_handle,
-  iBase_CreationStatus *status,
+  int *status,
   int *ierr)
 {
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
@@ -857,7 +860,7 @@ void iRel_createEntAndAssociate (
   
     // first create the vtx
   int result = 
-    this_pair->create_mesh_entity(new_entity_topology,
+    this_pair->create_mesh_entity((iMesh_EntityTopology)new_entity_topology,
                                   lower_order_entity_handles,
                                   lower_order_entity_handles_size,
                                   *new_entity_handle,
@@ -876,10 +879,11 @@ void iRel_createEntAndAssociate (
 void iRel_createVtxArrAndAssociate (
   iRel_Instance instance,
   int num_verts,
-  iBase_StorageOrder storage_order,
+  int storage_order,
   double *new_coords,
   int new_coords_size,
   iBase_EntityHandle *associatedGeomEnts,
+  int num_geom_ents,
   iBase_EntityHandle **new_vertex_handles,
   int *new_vertex_handles_allocated,
   int *new_vertex_handles_size,
@@ -951,7 +955,7 @@ void iRel_createEntArrAndAssociate (
                                offsets[i+1]-offsets[i],
                                associatedGeomEnts[i],
                                *new_entity_handles+i,
-                               (iBase_CreationStatus*)*status+i,
+                               *status+i,
                                &tmp_result);
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
@@ -1186,7 +1190,6 @@ void iRel_inferEntAssociations (
   iRel_Instance instance,
   iRel_RelationHandle rel,    
   iBase_EntityHandle entity,
-  int is_set,
   int iface_no,
   int *ierr)
 {

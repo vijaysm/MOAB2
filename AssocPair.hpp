@@ -12,6 +12,8 @@ public:
   friend class Lasso;
   
   IfaceType iface_type(const int iface_no);
+
+  virtual iBase_Instance iface_instance(const int iface_no) = 0;
   
   int ent_or_set(const int iface_no);
 

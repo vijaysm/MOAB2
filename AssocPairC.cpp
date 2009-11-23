@@ -66,6 +66,11 @@ AssocPairC::~AssocPairC()
   }
 }
 
+iBase_Instance AssocPairC::iface_instance(const int iface_no)
+{
+    return ifaceInstances[iface_no];
+}
+
 bool AssocPairC::equivalent(iBase_Instance iface0, 
                             iBase_Instance iface1,
                             bool *order_switched) 

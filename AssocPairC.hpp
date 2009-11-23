@@ -14,6 +14,8 @@ public:
              IfaceType type1,
              Lasso *lasso);
 
+  virtual iBase_Instance iface_instance(const int iface_no);
+
   virtual bool equivalent(iBase_Instance iface0, iBase_Instance iface1,
                           bool *order_switched = NULL);
   
