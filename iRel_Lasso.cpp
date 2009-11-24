@@ -127,7 +127,7 @@ void iRel_getAssociatedInterfaces (
                (int)tmp_ifaces.size());
     *interfaces_size = tmp_ifaces.size();
     for (size_t i=0; i<tmp_ifaces.size(); ++i) {
-        size_t other = (tmp_ifaces[i]->iface_instance(0) == instance);
+        size_t other = (tmp_ifaces[i]->iface_instance(0) == iface);
         *interfaces[i] = tmp_ifaces[i]->iface_instance(other);
     }
   }
