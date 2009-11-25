@@ -27,6 +27,154 @@
 // Owner         : Paul Wilson
 //-------------------------------------------------------------------------
 
+/** Implementation of ABAQUS mesh hierarchy and meta-data on MOAB
+
+
+This reader processes data written by the ABAQUS computer-aided engineering
+front-end.  While that tool writes binary files in its own proprietary format,
+it also writes an ASCII input file that is the fundamental input to the
+ABAQUS solver itself.  A published syntax for this format is available from Simulia.
+
+This reader only supports a subset of the mesh syntax necessary to support 
+a basic thermal analysis of solid systems.
+
+An ABAQUS mesh makes use of the common paradigms of building a
+geometry as an "assembly" of "instances" of "parts".
+
+A "part" is defined as a set of "nodes" and "elements" connecting
+those nodes. The nodes and elements can be arranged in "node sets" and
+"element sets" and specific "materials" can be assigned to "element
+sets" other features of parts are not currently used by applications
+and are not implemented.
+
+
+Overview of supported sructure
+
+* File:
+   * Heading
+   * Part
+      * Nodes
+      * Elements
+      * Node Sets
+      * Element Sets
+      * Solid Sections
+   * Assembly
+      * Instance
+      * Node Sets
+
+
+An "instance" is a full copy of a "part" with a linear geometric
+transformation. To create a full copy:
+• a duplicate set of nodes is created by copying the coordinates of
+  the part nodes and applying a linear geometric transformation - the
+  new coords are used to define the new nodes
+• a new node set is created for each node set in the part and the set
+  of nodes among the duplicates are assigned to the new node set
+• a duplicate set of elements is defined by creating a new element
+  with a connectivity made up of the duplicate nodes that correspond
+  to the appropriate original element
+• a new element set is created for each element set in the part and
+  the set of elements among the duplicates are assigned to the new
+  element set; the corresponding material is also assigned go the new
+  element sets
+
+In order to provide convenient access to the data and mesh structures
+the following data model is used:
+
+• MBEntitySet file_set
+   • tags
+       • NONE
+   • members
+       • all nodes of all parts and all instances
+       • all elements of all parts and all instances
+       • all assembly_sets
+       • all part_sets
+• MBEntitySet part_set
+   • tags
+       • mSetNameTag (opaque=char*)
+         name of entitity set
+   • members
+       • part nodes
+       • part elements
+       • part node sets
+       • part element sets
+• MBEntitySet assembly_set
+   • tags
+       • mSetNameTag (opaque=char*)
+         name of entitity set
+   • members
+      • instance_sets
+      • instanec element_sets
+      • instance node_sets  
+      • instance nodes
+      • instance elements
+• MBEntitySet instance_set
+   • tags
+       • mSetNameTag (opaque=char*)
+         name of entitity set
+       • mPartHandleTag (handle)
+         pointer to part from which this instance was generated
+       • mAssemblyHandleTag (handle)
+         pointer to assembly in which this instance exists
+       • mInstancePIDTag (int)
+         ordinal number indicating which instance of this part
+       • mInstanceGIDTag (int)
+         ordinal number indicating which instance in this assembly
+   • members
+      • instance nodes
+      • instance elements
+      • instance node_sets  
+      • instanec element_sets
+• MBEntitySet node_set
+   • tags
+       • mSetNameTag (opaque=char*)
+         name of entitity set
+       • mPartHandleTag (handle)
+         pointer to part in which this node set exists
+       • mInstanceHandleTag (handle)
+         pointer back to instance set in which this node set exists
+         (NULL if this node_set is not in an instance)
+       • mAssemblyHandleTag (handle)
+         pointer to assembly in which this node set exists
+         (NULL if this node_set is not in an assembly)
+   • members
+      • nodes
+• MBEntitySet element_set
+   • tags
+       • mSetNameTag (opaque=char*)
+         name of entitity set
+       • mPartHandleTag (handle)
+         pointer to part in which this element set exists
+       • mInstanceHandleTag (handle)
+         pointer back to instance set in which this element set exists
+         (NULL if this node_set is not in an instance)
+       • mAssemblyHandleTag (handle)
+         pointer to assembly in which this element set exists
+         (NULL if this node_set is not in an assembly)
+       • mMatNameTag (opaque=char*)
+         name of material in these elements
+       • mMaterialSetTag (integer)
+         material id in these elements
+   • members
+      • elements
+• MBEntity node
+   • tags
+       • mLocalIDTag (int)
+         numerical ID of node in local scope (part, instance)
+       • mInstanceHandleTag (handle)
+         pointer back to instance set in which this node exists
+         (NULL if this node is not in an instance)
+• MBEntity element
+   • tags
+       • mLocalIDTag (int)
+         numerical ID of element in local scope (part, instance)
+       • mInstanceHandleTag (handle)
+         pointer back to instance set in which this element exists
+         (NULL if this element is not in an instance)
+
+
+ **/
+
 #ifndef READABAQUS_HPP
 #define READABAQUS_HPP
 
