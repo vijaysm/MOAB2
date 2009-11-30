@@ -1261,8 +1261,9 @@ MBErrorCode MBSkinner::create_side( MBEntityHandle elem,
   MBEntityType type = TYPE_FROM_HANDLE(elem), tmp_type;
   const int ncorner = MBCN::VerticesPerEntity( side_type );
   const int d = MBCN::Dimension(side_type);
+  std::vector<MBEntityHandle> storage;
   
-  rval = thisMB->get_connectivity( elem, conn, len, false );
+  rval = thisMB->get_connectivity( elem, conn, len, false, &storage );
   if (MB_SUCCESS != rval) return rval;
  
   MBCN::SideNumber( type, conn, side_conn, ncorner, d, side, sense, offset );

@@ -83,6 +83,7 @@
 #define PSTATUS_SHARED 0x2
 #define PSTATUS_MULTISHARED 0x4
 #define PSTATUS_INTERFACE 0x8
+// note, these numbers are in hex, so 0x10 is the 4th bit, or 2^4.
 #define PSTATUS_GHOST 0x10
 
 #define PSTATUS_AND 0x1

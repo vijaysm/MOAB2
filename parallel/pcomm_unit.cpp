@@ -92,8 +92,6 @@ void pack_unpack_noremoteh( MBCore& moab, MBRange& entities )
   }
   
   MBParallelComm *pcomm = new MBParallelComm( &moab );
-  int size = 0;
-  std::vector<unsigned char> buff;
   std::vector<int> addl_procs;
 
     // get the necessary vertices too
@@ -103,9 +101,12 @@ void pack_unpack_noremoteh( MBCore& moab, MBRange& entities )
   CHECK_ERR(rval);
   entities.merge(tmp_range);
   
+  MBParallelComm::Buffer buff(MBParallelComm::INITIAL_BUFF_SIZE);
+  buff.reset_ptr(sizeof(int));
   rval = pcomm->pack_buffer( entities, false, true, false, 
-                             -1, buff, size);
+                             -1, &buff);
   CHECK_ERR(rval);
+  buff.set_stored_size();
   
   delete pcomm;
   moab.~MBCore();
@@ -118,8 +119,9 @@ void pack_unpack_noremoteh( MBCore& moab, MBRange& entities )
   std::vector<std::vector<int> > L1p;
   std::vector<MBEntityHandle> L2hloc, L2hrem;
   std::vector<unsigned int> L2p;
-  rval = pcomm->unpack_buffer( &buff[0], false, -1, -1, L1hloc, L1hrem, L1p, L2hloc, 
-                               L2hrem, L2p, entities);
+  buff.reset_ptr(sizeof(int));
+  rval = pcomm->unpack_buffer(buff.buff_ptr, false, -1, -1, L1hloc, L1hrem, L1p, L2hloc, 
+                              L2hrem, L2p, entities);
   CHECK_ERR(rval);
 
   delete pcomm;

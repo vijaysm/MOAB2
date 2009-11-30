@@ -684,7 +684,8 @@ int test_load( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, PartMap& map, 
   
   iBase_EntitySetHandle root_set;
   iMesh_getRootSet( imesh, &root_set, &ierr );
-  iMeshP_loadAll( imesh, prtn, root_set, FILENAME, 0, &ierr, strlen(FILENAME), 0 );
+  const char *opt = ";;PARTITION=PARALLEL_PARTITION";
+  iMeshP_loadAll( imesh, prtn, root_set, FILENAME, opt, &ierr, strlen(FILENAME), strlen(opt) );
   PCHECK;
 
   

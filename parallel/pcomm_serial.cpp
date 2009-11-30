@@ -7,6 +7,11 @@
 #include "TestUtil.hpp"
 #include <vector>
 
+void print_usage(char *argv) 
+{
+  std::cout << "Usage: " << argv << " nprocs filename" << std::endl;
+}
+  
 int main( int argc, char* argv[] )
 {
 #ifdef USE_MPI
@@ -14,9 +19,10 @@ int main( int argc, char* argv[] )
 #endif
 
   if (1 < argc && !strcmp(argv[1], "-h")) {
-    std::cout << "Usage: " << argv[0] << " nprocs filename" << std::endl;
+    print_usage(argv[0]);
     return 0;
   }
+  
   int nprocs = 2;
   std::string ptag_name("GEOM_DIMENSION");
   std::vector<int> partition_tag_vals;
@@ -34,6 +40,11 @@ int main( int argc, char* argv[] )
     if (argc > 4) partition_tag_vals.push_back(atoi(argv[4]));
   }
   else partition_tag_vals.push_back(3);
+
+  if (0 == nprocs) {
+    print_usage(argv[0]); 
+    return 1;
+  }
   
   MBErrorCode rval;
   MBCore *moab = new MBCore[nprocs]();
@@ -74,7 +85,7 @@ int main( int argc, char* argv[] )
   CHECK_ERR(rval);
   
     // now 1 layer of hex ghosts
-  rval = MBParallelComm::exchange_ghost_cells(&pc[0], nprocs, 3, 0, 1, true);
+  rval = MBParallelComm::exchange_ghost_cells(&pc[0], nprocs, 3, 2, 1, true);
   CHECK_ERR(rval);
 
   for (int i = 0; i < nprocs; i++)

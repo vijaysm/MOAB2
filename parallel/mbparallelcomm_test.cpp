@@ -401,10 +401,8 @@ MBErrorCode test_packing(MBInterface *mbImpl, const char *filename)
   
   MBParallelComm *pcomm = new MBParallelComm(mbImpl);
 
-  std::vector<unsigned char> buff(1024);
-  int buff_size;
-  result = pcomm->pack_buffer(ents, false, true, false, -1,
-                                   buff, buff_size);
+  MBParallelComm::Buffer buff;
+  result = pcomm->pack_buffer(ents, false, true, false, -1, &buff);
   RRA("Packing buffer count (non-stored handles) failed.");
 
   std::vector<std::vector<MBEntityHandle> > L1hloc, L1hrem;
@@ -412,7 +410,8 @@ MBErrorCode test_packing(MBInterface *mbImpl, const char *filename)
   std::vector<MBEntityHandle> L2hloc, L2hrem;
   std::vector<unsigned int> L2p;
   
-  result = pcomm->unpack_buffer(&buff[0], false, -1, -1, L1hloc, L1hrem, L1p, L2hloc, 
+  buff.reset_ptr();
+  result = pcomm->unpack_buffer(buff.buff_ptr, false, -1, -1, L1hloc, L1hrem, L1p, L2hloc, 
                          L2hrem, L2p, new_ents);
   RRA("Unpacking buffer (non-stored handles) failed.");
 

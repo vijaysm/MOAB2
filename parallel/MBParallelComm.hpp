@@ -32,6 +32,9 @@
 #include <map>
 #include <set>
 #include <vector>
+#include <iostream>
+#include <fstream>
+#include <assert.h>
 #include "math.h"
 #include "MBmpi.h"
 
@@ -484,14 +487,31 @@ public:
   
   MBInterface* get_moab() const { return mbImpl; }
 
+  class Buffer {
+  public:
+    unsigned char *mem_ptr;
+    unsigned char *buff_ptr;
+    unsigned int alloc_size;
+    
+    Buffer(unsigned int sz = 0);
+    Buffer(const Buffer &);
+    ~Buffer();
+    void reset_buffer(size_t buff_pos = 0) {reset_ptr(buff_pos); reserve(INITIAL_BUFF_SIZE);}
+    void reset_ptr(size_t buff_pos = 0) {assert((!mem_ptr && !buff_pos)|| (alloc_size >= buff_pos)); buff_ptr = mem_ptr + buff_pos;}
+    void reserve(unsigned int new_size);
+    void set_stored_size() {*((int*)mem_ptr) = (int)(buff_ptr - mem_ptr);}
+    int get_stored_size() {return *((int*)mem_ptr);}
+          
+    void check_space(unsigned int addl_space);
+  };
+
     //! public 'cuz we want to unit test these externally
   MBErrorCode pack_buffer(MBRange &orig_ents, 
                           const bool adjacencies,
                           const bool tags,
                           const bool store_remote_handles,
                           const int to_proc,
-                          std::vector<unsigned char> &buff,
-                          int &buff_size);
+                          Buffer *buff);
   
   MBErrorCode unpack_buffer(unsigned char *buff_ptr,
                             const bool store_remote_handles,
@@ -506,8 +526,7 @@ public:
                             MBRange &new_ents);
   
   MBErrorCode pack_entities(MBRange &entities,
-                            std::vector<unsigned char> &buff,
-                            unsigned char *&buff_ptr,
+                            Buffer *buff,
                             const bool store_remote_handles,
                             const int to_proc,
                             const bool is_iface,
@@ -580,13 +599,14 @@ public:
                                   std::vector<MBEntityHandle> &L1hrem,
                                   std::vector<int> &procs,
                                   unsigned int to_proc,
-                                  std::vector<unsigned char> &buff,
-                                  unsigned char *&buff_ptr);
+                                  Buffer *buff);
   
   MBErrorCode list_entities(const MBEntityHandle *ents, int num_ents);
   
   MBErrorCode list_entities(const MBRange &ents);
   
+  static const unsigned int INITIAL_BUFF_SIZE;
+
 private:
 
     // common initialization code, called from various constructors
@@ -651,19 +671,34 @@ private:
   
     //! send the indicated buffer, possibly sending size first
   MBErrorCode send_buffer(const unsigned int to_proc,
-                          const unsigned char *send_buff,
-                          const unsigned int buff_size,
-                          const int msg_type,
-                          MPI_Request &send_req1,
-                          MPI_Request &send_req2);
+                          Buffer *send_buff,
+                          const int msg_tag,
+                          MPI_Request &send_req,
+                          MPI_Request &ack_recv_req,
+                          int *ack_buff,
+                          int &this_incoming,
+                          int next_mesg_tag = -1,
+                          Buffer *next_recv_buff = NULL,
+                          MPI_Request *next_recv_req = NULL,
+                          int *next_incoming = NULL);
   
-    //! use integer size in buffer to resize buffer, then post an
-    //! Irecv to get message
+    //! process incoming message; if longer than the initial size, post
+    //! recv for next part then send ack; if ack, send second part; else
+    //! indicate that we're done and buffer is ready for processing
   MBErrorCode recv_buffer(int mesg_tag_expected,
                           const MPI_Status &mpi_status,
-                          std::vector<unsigned char> &recv_buff,
-                          MPI_Request &recv_req,
-                          bool &done);
+                          Buffer *recv_buff,
+                          MPI_Request &recv_2nd_req,
+                          MPI_Request &ack_req,
+                          int &this_incoming,
+                          Buffer *send_buff,
+                          MPI_Request &send_req,
+                          MPI_Request &sent_ack_req,
+                          bool &done,
+                          Buffer *next_buff = NULL,
+                          int next_tag = -1,
+                          MPI_Request *next_req = NULL,
+                          int *next_incoming = NULL);
   
     //! pack a range of entities with equal # verts per entity, along with
     //! the range on the sending proc
@@ -672,8 +707,7 @@ private:
                               const int to_proc,
                               MBRange &these_ents,
                               MBRange &entities,
-                              std::vector<unsigned char> &buff,
-                              unsigned char *&buff_ptr);
+                              Buffer *buff);
   
   MBErrorCode print_buffer(unsigned char *buff_ptr, int mesg_type, int from_proc,
                            bool sent);
@@ -686,8 +720,7 @@ private:
                                     std::vector<MBEntityHandle> &recd_ents);
   
   MBErrorCode pack_sets(MBRange &entities,
-                        std::vector<unsigned char> &buff,
-                        unsigned char *&buff_ptr,
+                        Buffer *buff,
                         const bool store_handles,
                         const int to_proc);
   
@@ -806,8 +839,7 @@ private:
                         const std::vector<MBTag> &src_tags,
                         const std::vector<MBTag> &dst_tags,
                         const std::vector<MBRange> &tag_ranges,
-                        std::vector<unsigned char> &buff,
-                        unsigned char *&buff_ptr,
+                        Buffer *buff,
                         const bool store_handles,
                         const int to_proc);
 
@@ -849,8 +881,7 @@ private:
                         MBTag destination_tag,
                         const MBRange &entities,
                         const MBRange &whole_range,
-                        std::vector<unsigned char> &buff,
-                        unsigned char *&buff_ptr,
+                        Buffer *buff,
                         const bool store_remote_handles,
                         const int to_proc );
 
@@ -999,10 +1030,16 @@ private:
   SequenceManager *sequenceManager;
   
     //! more data buffers, proc-specific
-  std::vector<std::vector<unsigned char> > ownerSBuffs, ghostRBuffs;
+  std::vector<Buffer*> localOwnedBuffs, remoteOwnedBuffs;
+
+    //! reset message buffers to their initial state
+  void reset_all_buffers();
+
+    //! delete all buffers, freeing up any memory held by them
+  void delete_all_buffers();
 
     //! request objects, may be used if store_remote_handles is used
-  MPI_Request sendReqs[2*MAX_SHARING_PROCS];
+  std::vector<MPI_Request> sendReqs;
 
     //! processor rank for each buffer index
   std::vector<unsigned int> buffProcs;
@@ -1020,9 +1057,94 @@ private:
   int globalPartCount; //!< Cache of global part count
   
   MBEntityHandle partitioningSet; //!< entity set containing all parts
+
+  std::ofstream myFile;
   
   int pcommID;
+
 };
+
+inline MBParallelComm::Buffer::Buffer(const Buffer &other_buff) 
+{
+  alloc_size = other_buff.alloc_size;
+  mem_ptr = (unsigned char *)malloc(alloc_size);
+  memcpy(mem_ptr, other_buff.mem_ptr, alloc_size);
+  buff_ptr = mem_ptr + (other_buff.buff_ptr - other_buff.mem_ptr);
+}
+
+inline MBParallelComm::Buffer::Buffer(unsigned int new_size) 
+        : mem_ptr(NULL), buff_ptr(NULL), alloc_size(0)
+{
+  if (new_size) this->reserve(new_size);
+}
+
+inline MBParallelComm::Buffer::~Buffer() 
+{
+  if (mem_ptr) {
+    free(mem_ptr);
+    mem_ptr = NULL;
+  }
+}
+
+#define DEBUG_BUFFER 1
+
+inline void MBParallelComm::Buffer::reserve(unsigned int new_size) {
+  
+#ifdef DEBUG_BUFFER
+  int tmp_pos = 0;
+  if (mem_ptr) {
+    tmp_pos = buff_ptr - mem_ptr;
+  }
+  buff_ptr = (unsigned char *)malloc(new_size);
+  assert(0 <= tmp_pos && tmp_pos <= (int)alloc_size);  
+  if (tmp_pos) memcpy(buff_ptr, mem_ptr, tmp_pos);
+  if (mem_ptr) free(mem_ptr);
+  mem_ptr = buff_ptr;
+  alloc_size = new_size;
+  buff_ptr = mem_ptr + tmp_pos;
+#else    
+  if (mem_ptr && alloc_size < new_size) {
+    size_t tmp_pos = mem_ptr ? buff_ptr - mem_ptr : 0;
+    mem_ptr = (unsigned char *)realloc(mem_ptr, new_size);
+    alloc_size = new_size;
+    buff_ptr = mem_ptr + tmp_pos;
+  }
+  else if (!mem_ptr) {
+    mem_ptr = (unsigned char *)malloc(new_size);
+    alloc_size = new_size;
+    buff_ptr = mem_ptr;
+  } 
+#endif
+}
+
+inline void MBParallelComm::Buffer::check_space(unsigned int addl_space )
+{
+  assert(buff_ptr >= mem_ptr && buff_ptr <= mem_ptr+alloc_size);
+  unsigned int new_size = buff_ptr - mem_ptr + addl_space;
+  if (new_size > alloc_size) 
+    reserve(1.5*new_size);
+}
+
+inline void MBParallelComm::reset_all_buffers() 
+{
+  std::vector<Buffer*>::iterator vit;
+  for (vit = localOwnedBuffs.begin(); vit != localOwnedBuffs.end(); vit++)
+    (*vit)->reset_buffer();
+  for (vit = remoteOwnedBuffs.begin(); vit != remoteOwnedBuffs.end(); vit++)
+    (*vit)->reset_buffer();
+}
+
+inline void MBParallelComm::delete_all_buffers() 
+{
+  std::vector<Buffer*>::iterator vit;
+  for (vit = localOwnedBuffs.begin(); vit != localOwnedBuffs.end(); vit++)
+    delete (*vit);
+  localOwnedBuffs.clear();
+  
+  for (vit = remoteOwnedBuffs.begin(); vit != remoteOwnedBuffs.end(); vit++)
+    delete (*vit);
+  remoteOwnedBuffs.clear();
+}
 
 inline std::vector<unsigned int> &MBParallelComm::buff_procs() 
 {
