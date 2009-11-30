@@ -45,7 +45,7 @@
 class MBRange;
 class SparseTagSuperCollection;
 class SequenceManager;
-class MBBitServer;
+class BitTagServer;
 
 //! SparseTagServer class which associates tag data with entities
 class TagServer
@@ -327,7 +327,7 @@ private:
   SequenceManager* sequenceManager;
 
   //! manager for the bit data
-  MBBitServer* mBitServer;
+  BitTagServer* mBitServer;
 
 };
 

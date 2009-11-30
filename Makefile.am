@@ -112,6 +112,8 @@ install-data-hook:
 libMOAB_la_SOURCES = \
   AEntityFactory.cpp \
   AEntityFactory.hpp \
+  BitTagServer.cpp \
+  BitTagServer.hpp \
   DualTool.cpp \
   ElementSequence.hpp \
   EntitySequence.cpp \
@@ -135,8 +137,6 @@ libMOAB_la_SOURCES = \
   MBAlloc.hpp \
   MBAxisBox.cpp \
   MBAxisBox.hpp \
-  MBBits.cpp \
-  MBBits.hpp \
   MBBSPTree.cpp \
   MBCN.cpp \
   MBCNArrays.hpp \

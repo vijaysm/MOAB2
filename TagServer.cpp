@@ -41,7 +41,7 @@
 #include "TagServer.hpp"
 #include "MBRange.hpp"
 #include "SparseTagSuperCollection.hpp"
-#include "MBBits.hpp"
+#include "BitTagServer.hpp"
 #include "MBInterface.hpp"
 #include "SequenceManager.hpp"
 #include "TagCompare.hpp"
@@ -65,7 +65,7 @@ TagServer::TagServer( SequenceManager* seqman )
   : sequenceManager(seqman)
 {
   mSparseData = new SparseTagSuperCollection;
-  mBitServer = new MBBitServer;
+  mBitServer = new BitTagServer;
 }
 
 TagServer::~TagServer()
@@ -207,8 +207,9 @@ MBErrorCode TagServer::reset_data(MBEntityHandle entity_handle)
 
   for (tag_id = 1; tag_id <= mTagTable[MB_TAG_BIT].size(); ++tag_id) 
     if (mTagTable[MB_TAG_BIT][tag_id-1].is_valid())
-        // default data for bits is zero
-      mBitServer->weak_set_bits( tag_id, entity_handle, 0 );
+      mBitServer->clear_bits( tag_id, &entity_handle, 1,
+                              reinterpret_cast<const unsigned char*>
+                              (mTagTable[MB_TAG_DENSE][tag_id-1].default_value()) );
 
   for (tag_id = 1; tag_id <= mTagTable[MB_TAG_SPARSE].size(); ++tag_id) 
     if (mTagTable[MB_TAG_SPARSE][tag_id-1].is_valid())
@@ -677,7 +678,7 @@ MBErrorCode TagServer::remove_data( const MBTag tag_handle, const MBEntityHandle
     case MB_TAG_SPARSE:
       return mSparseData->remove_data(tag_id, entity_handle);
     case MB_TAG_BIT:
-      return mBitServer->clear_bits( tag_id, entity_handle, 
+      return mBitServer->clear_bits( tag_id, &entity_handle, 1,
                                 static_cast<const unsigned char*>(defval) );
     case MB_TAG_MESH:
       return MB_FAILURE;
