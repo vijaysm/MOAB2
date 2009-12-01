@@ -248,6 +248,7 @@ class BitTag
     std::swap( inUse, other.inUse );
     std::swap( storedBitsPerEntity, other.storedBitsPerEntity );
     std::swap( requestedBitsPerEntity, other.requestedBitsPerEntity );
+    std::swap( pageShift, other.pageShift );
     for (MBEntityType t = (MBEntityType)0; t != MBMAXTYPE; ++t)
       pageList[t].swap( other.pageList[t] );
   }
