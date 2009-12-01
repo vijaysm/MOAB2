@@ -175,7 +175,7 @@ MBErrorCode BitTag::get_bits( const MBRange& handles,
     }
     
     while (count) {
-      size_t pcount = std::min( (MBEntityID)per_page, count );
+      size_t pcount = std::min( (MBEntityID)(per_page - offset), count );
       if (pageList[type][page])
         pageList[type][page]->get_bits( offset, pcount, storedBitsPerEntity, data );
       else
@@ -210,7 +210,7 @@ MBErrorCode BitTag::set_bits( const MBRange& handles,
       if (!pageList[type][page])
         pageList[type][page] = new BitPage( storedBitsPerEntity, def );
 
-      size_t pcount = std::min( (MBEntityID)per_page, count );
+      size_t pcount = std::min( (MBEntityID)(per_page - offset), count );
       pageList[type][page]->set_bits( offset, pcount, storedBitsPerEntity, data );
       data += pcount;
       count -= pcount; 
@@ -236,7 +236,7 @@ MBErrorCode BitTag::clear_bits( const MBRange& handles,
     count = i->second - i->first + 1;
     
     while (count) {
-      size_t pcount = std::min( (MBEntityID)per_page, count );
+      size_t pcount = std::min( (MBEntityID)(per_page - offset), count );
       if (page < pageList[type].size() && pageList[type][page])
         pageList[type][page]->set_bits( offset, pcount, storedBitsPerEntity, val );
       count -= pcount; 

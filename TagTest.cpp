@@ -29,6 +29,7 @@ void test_get_set_variable_length_sparse();
 void test_get_set_variable_length_dense();
 void test_get_set_variable_length_mesh();
 void test_get_ents_with_default_value();
+void test_bit_tag_big();
 
 void regression_one_entity_by_var_tag();
 void regression_tag_on_nonexistent_entity();
@@ -62,6 +63,7 @@ int main()
   failures += RUN_TEST( test_get_set_variable_length_dense );
   failures += RUN_TEST( test_get_set_variable_length_mesh );  
   failures += RUN_TEST( test_get_ents_with_default_value );  
+  failures += RUN_TEST( test_bit_tag_big );  
   failures += RUN_TEST( regression_one_entity_by_var_tag );
   failures += RUN_TEST( regression_tag_on_nonexistent_entity );
   
@@ -1674,6 +1676,48 @@ void test_get_ents_with_default_value()
   CHECK_ERR(rval);
   CHECK_EQUAL( edge, result.back() );
 }
+
+void test_bit_tag_big()
+{
+  MBCore moab;
+  MBInterface &mb = moab;
+  MBErrorCode rval;
+  const size_t NUM_VTX = 30000;
+
+    // create a lot of vertices
+  std::vector<double> coords(3*NUM_VTX,0.0);
+  MBRange verts;
+  rval = mb.create_vertices( &coords[0], NUM_VTX, verts );
+  CHECK_ERR( rval );
+  CHECK_EQUAL( NUM_VTX, (size_t)verts.size() );
+
+    // create a bit tag
+  MBTag tag = test_create_tag( mb, "bb", 4, MB_TAG_BIT, MB_TYPE_BIT, 0);
+    // for each vertex, store last four bits of handle as tag value
+  std::vector<unsigned char> values(NUM_VTX);
+  std::vector<unsigned char>::iterator it = values.begin();
+  for (MBRange::iterator j = verts.begin(); j != verts.end(); ++j, ++it)
+    *it = (unsigned char)(*j & 0xF);
+  rval = mb.tag_set_data( tag, verts, &values[0] );
+  CHECK_ERR( rval );
+  
+    // retreive values
+  std::vector<unsigned char> values2( NUM_VTX, 0 );
+  rval = mb.tag_get_data( tag, verts, &values2[0] );
+  CHECK_EQUAL( values, values2 );
+  
+    // retreive entities
+  unsigned char value = 0xC;
+  MBRange expected, results;
+  for (MBRange::reverse_iterator j = verts.rbegin(); j != verts.rend(); ++j)
+    if ((unsigned char)(*j & 0xF) == value)
+      expected.insert(*j);
+  const void* vals[] = { &value };
+  rval = mb.get_entities_by_type_and_tag( 0, MBVERTEX, &tag, vals, 1, results );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( expected, results );
+}
+
 
 void setup_mesh( MBInterface& mb )
 {
