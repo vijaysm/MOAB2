@@ -116,7 +116,7 @@ if test "xno" != "x$HDF5_ARG"; then
     fi
     if test -d "${HDF5_ARG}/include"; then
       HDF5_CPPFLAGS="$HDF5_CPPFLAGS -I${HDF5_ARG}/include"
-      if test "x$GXX" = "xyes"; then
+      if test "x$GXX" = "xyes" && test "x$GCC" = "xyes"; then
         HDF5_CPPFLAGS="$HDF5_CPPFLAGS -isystem ${HDF5_ARG}/include"
       fi
     else
