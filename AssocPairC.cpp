@@ -11,13 +11,15 @@
 #define iRel_processError(a, b) {sprintf(iRel_LAST_ERROR.description, "%s", b); iRel_LAST_ERROR.error_type = a;}
 #define PROCESS_GERROR  if (iBase_SUCCESS != result) {\
           char this_descr[120];\
+          int err;\
           iGeom_getDescription((iGeom_Instance)ifaceInstances[iface_no], this_descr, \
-                               &result, 120);\
+                               &err 120);\
           iRel_processError(result, this_descr);}
 #define PROCESS_MERROR  if (iBase_SUCCESS != result) {\
           char this_descr[120];\
+          int err;\
           iMesh_getDescription((iMesh_Instance)ifaceInstances[iface_no], this_descr, \
-                               &result, 120);\
+                               &err, 120);\
           iRel_processError(result, this_descr);}
 
 
