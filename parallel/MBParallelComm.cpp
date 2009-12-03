@@ -1609,9 +1609,49 @@ MBErrorCode MBParallelComm::print_buffer(unsigned char *buff_ptr,
 
   }
   else if (mesg_tag == MB_MESG_TAGS_SIZE || mesg_tag == MB_MESG_TAGS_LARGE) {
-    std::cerr << "Printed as ints: " << std::endl;
-    for (int i = 0; i < msg_length; i+= sizeof(int)) 
-      std::cerr << *((int*)buff_ptr[i]) << std::endl;
+    int num_tags, dum1, num_ents, data_type, tag_size;
+    UNPACK_INT(buff_ptr, num_tags);
+    std::cerr << "Number of tags = " << num_tags << std::endl;
+    for (int i = 0; i < num_tags; i++) {
+      std::cerr << "Tag " << i << ":" << std::endl;
+      UNPACK_INT(buff_ptr, tag_size);
+      UNPACK_INT(buff_ptr, dum1);
+      UNPACK_INT(buff_ptr, data_type);
+      std::cerr << "Tag size, type, data type = " << tag_size << ", " 
+                << dum1 << ", " << data_type << std::endl;
+      UNPACK_INT(buff_ptr, dum1);
+      std::cerr << "Default value size = " << dum1 << std::endl;
+      buff_ptr += dum1;
+      UNPACK_INT(buff_ptr, dum1);
+      std::cerr << "Tag name = " << (char*) buff_ptr << std::endl;
+      buff_ptr += dum1;
+      UNPACK_INT(buff_ptr, num_ents);
+      std::cerr << "Number of ents = " << num_ents << std::endl;
+      unsigned char *tmp_buff = buff_ptr;
+      buff_ptr += num_ents*sizeof(MBEntityHandle);
+      int tot_length = 0;
+      for (int i = 0; i < num_ents; i++) {
+        MBEntityType etype = TYPE_FROM_HANDLE(*((MBEntityHandle*)tmp_buff));
+        std::cerr << MBCN::EntityTypeName(etype) << " " 
+                  << ID_FROM_HANDLE(*((MBEntityHandle*)tmp_buff))
+                  << ", tag = ";
+        if (tag_size == MB_VARIABLE_LENGTH) {
+          UNPACK_INT(buff_ptr, dum1);
+          tot_length += dum1;
+          std::cerr << "(variable, length = " << dum1 << ")" << std::endl;
+        }
+        else if (data_type == MB_TYPE_DOUBLE) std::cerr << *((double*)buff_ptr) << std::endl;
+        else if (data_type == MB_TYPE_INTEGER) std::cerr << *((int*)buff_ptr) << std::endl;
+        else if (data_type == MB_TYPE_OPAQUE) std::cerr << "(opaque)" << std::endl;
+        else if (data_type == MB_TYPE_HANDLE) 
+          std::cerr <<  (MBEntityHandle)*buff_ptr << std::endl;
+        else if (data_type == MB_TYPE_BIT) std::cerr << "(bit)" << std::endl;
+        tmp_buff += sizeof(MBEntityHandle);
+        buff_ptr += tag_size;
+      }
+
+      if (tag_size == MB_VARIABLE_LENGTH) buff_ptr += tot_length;
+    }
   }
   else {
     assert(false);
@@ -2614,9 +2654,14 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
     int num_ents;
     UNPACK_INT(buff_ptr, num_ents);
     MBEntityHandle *handle_vec = (MBEntityHandle*)buff_ptr;
-    result = get_local_handles(handle_vec, num_ents, entities);
-    RRA("Failed to get local handles for tagged entities.");
     buff_ptr += num_ents * sizeof(MBEntityHandle);
+
+    if (!store_remote_handles) {
+        // in this case handles are indices into new entity range; need to convert
+        // to local handles
+      result = get_local_handles(handle_vec, num_ents, entities);
+      RRA("Unable to convert to local handles.");
+    }
 
       // if it's a handle type, also convert tag vals in-place in buffer
     if (MB_TYPE_HANDLE == tag_type) {
@@ -4743,6 +4788,10 @@ MBErrorCode MBParallelComm::exchange_tags(std::vector<MBTag> &src_tags,
   MBErrorCode result;
   int success;
 
+#ifdef DEBUG_COMM
+  std::cerr << "Entering exchange_tags" << std::endl; std::cerr.flush();
+#endif
+
     // get all procs interfacing to this proc
   std::set<unsigned int> exch_procs;
   result = get_comm_procs(exch_procs);  
@@ -4765,7 +4814,7 @@ MBErrorCode MBParallelComm::exchange_tags(std::vector<MBTag> &src_tags,
     success = MPI_Irecv(remoteOwnedBuffs[ind]->mem_ptr, INITIAL_BUFF_SIZE,
                         MPI_UNSIGNED_CHAR, *sit,
                         MB_MESG_TAGS_SIZE, procConfig.proc_comm(), 
-                        &recv_tag_reqs[ind]);
+                        &recv_tag_reqs[2*ind]);
     if (success != MPI_SUCCESS) {
       result = MB_FAILURE;
       RRA("Failed to post irecv in ghost exchange.");
@@ -4845,19 +4894,18 @@ MBErrorCode MBParallelComm::exchange_tags(std::vector<MBTag> &src_tags,
     
     bool done = false;
     MBRange dum_range;
-    
     result = recv_buffer(MB_MESG_TAGS_SIZE,
                          status,
                          remoteOwnedBuffs[ind/2],
-                         recv_tag_reqs[ind], recv_tag_reqs[ind+1],
+                         recv_tag_reqs[ind/2 * 2], recv_tag_reqs[ind/2 * 2 + 1],
                          incoming,
-                         localOwnedBuffs[ind/2], sendReqs[ind], sendReqs[ind+1],
+                         localOwnedBuffs[ind/2], sendReqs[ind/2*2], sendReqs[ind/2*2+1],
                          done);
     RRA("Failed to resize recv buffer.");
     if (done) {
-      remoteOwnedBuffs[ind]->reset_ptr(sizeof(int));
-      result = unpack_tags(remoteOwnedBuffs[ind]->buff_ptr,
-                           dum_range, true, buffProcs[ind]);
+      remoteOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
+      result = unpack_tags(remoteOwnedBuffs[ind/2]->buff_ptr,
+                           dum_range, true, buffProcs[ind/2]);
       RRA("Failed to recv-unpack-tag message.");
     }
   }
@@ -4874,6 +4922,10 @@ MBErrorCode MBParallelComm::exchange_tags(std::vector<MBTag> &src_tags,
     RRA("Failure in waitall in tag exchange.");
   }
   
+#ifdef DEBUG_COMM
+  std::cerr << "Exiting exchange_tags" << std::endl; std::cerr.flush();
+#endif
+
   return MB_SUCCESS;
 }
 
