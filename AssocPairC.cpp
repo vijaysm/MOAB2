@@ -13,7 +13,7 @@
           char this_descr[120];\
           int err;\
           iGeom_getDescription((iGeom_Instance)ifaceInstances[iface_no], this_descr, \
-                               &err 120);\
+                               &err, 120);\
           iRel_processError(result, this_descr);}
 #define PROCESS_MERROR  if (iBase_SUCCESS != result) {\
           char this_descr[120];\
