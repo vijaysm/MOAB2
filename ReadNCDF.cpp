@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <cmath>
 #include <memory>
+#include <sstream>
 
 #include "MBCN.hpp"
 #include "MBRange.hpp"
@@ -37,6 +38,8 @@
 #include "MBReadUtilIface.hpp"
 #include "exodus_order.h"
 #include "FileOptions.hpp"
+#include "MBAdaptiveKDTree.hpp"
+#include "MBCartVect.hpp"
 
 #define INS_ID(stringvar, prefix, id) \
           sprintf(stringvar, prefix, id)
@@ -281,7 +284,7 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
   std::string s;
   rval = opts.get_str_option("tdata", s ); 
   if(MB_SUCCESS == rval && !s.empty())
-    return update(exodus_file_name, opts); 
+    return update(exodus_file_name, opts, num_blocks, blocks_to_load); 
 
   reset();
 
@@ -333,7 +336,7 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
     status = read_qa_records(*file_set);
     if (MB_FAILURE == status) return status;
   }
-  
+
     // what about properties???
 
   ncFile = 0;
@@ -1580,7 +1583,8 @@ MBErrorCode ReadNCDF::read_qa_string(char *temp_string,
 }
 
 MBErrorCode ReadNCDF::update(const char *exodus_file_name, 
-                             const FileOptions& opts)
+                             const FileOptions& opts, 
+                             const int num_blocks, const int *blocks_to_load)
 {
   //Function : updating current database from new exodus_file. 
   //Creator:   Jane Hu
@@ -1664,6 +1668,19 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
   rval = read_exodus_header();
   if (MB_SUCCESS != rval)
     return rval;
+
+  // check to make sure that the requested time step exists
+  NcDim *ncdim = ncFile->get_dim("time_step");
+  if (!ncdim->is_valid()) {
+    std::cout << "ReadNCDF: could not get number of time steps" << std::endl;
+    return MB_FAILURE;
+  }
+  const int max_time_steps = ncdim->size();
+  std::cout << "max_time_steps=" << max_time_steps << std::endl;
+  if(max_time_steps < time_step) {
+    std::cout << "ReadNCDF: time step is greater than max_time_steps" << std::endl;
+    return MB_FAILURE;
+  }
   
   //read in the node_num_map .
   std::vector<int> ptr(numberNodes_loading);
@@ -1699,7 +1716,7 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
       (numberDimensions_loading == 3 && (NULL == coordz || !coordz->is_valid())) ) {
      readMeshIface->report_error("MBCN:: Problem getting coords variable.");
      return MB_FAILURE;
-   }
+  }
 
   NcBool status = coordx->set_cur(time_step-1, 0);
   if (0 == status) {
@@ -1772,34 +1789,214 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
 
   if( strcmp (op, "set") && strcmp (op, " set"))
     return MB_NOT_IMPLEMENTED;
-  
-  MBTag *globalId = &mGlobalIdTag; 
-  MBEntityHandle entity_h = 0;
-  MBRange entities;
-  for(int i = 0; i < numberNodes_loading; i++)
-  {
-    int id = ptr[i];
-    void * data[1] = {&id};
-    double coords[3] = {0., 0., 0.};
 
-    entities.clear();
-    mdbImpl->get_entities_by_type_and_tag(entity_h, MBVERTEX, globalId, data, 1, entities);
-    if(entities.empty())
-      continue;
-    else if(entities.size() > 1)
-    {
-      readMeshIface->report_error("ReadNCDF:: Multiple nodes share the same id.");
-      return MB_FAILURE;
-    } 
+  // Some accounting
+  int found = 0;
+  int lost = 0;
 
-    //update the coordinates for this entity.
-    coords[0] = orig_coords[0][i] + deformed_arrays[0][i];
-    coords[1] = orig_coords[1][i] + deformed_arrays[1][i];
-    if(numberDimensions_loading == 3 )
-      coords[2] = orig_coords[2][i] + deformed_arrays[2][i];
+  // Place cub verts in a kdtree.
+  MBRange cub_verts;
+  rval = mdbImpl->get_entities_by_type( 0, MBVERTEX, cub_verts );
+  if(MB_SUCCESS != rval) return rval;
+  std::cout << "found " << cub_verts.size() << " cub verts" << std::endl;
+  MBAdaptiveKDTree kdtree( mdbImpl, true );
+  MBEntityHandle root;
+  MBAdaptiveKDTree::Settings settings;
+  settings.maxEntPerLeaf = 1;                                   
+  settings.candidateSplitsPerDir = 1;                
+  settings.candidatePlaneSet = MBAdaptiveKDTree::SUBDIVISION;                                        
+  rval = kdtree.build_tree( cub_verts, root, &settings );                                      
+  if(MB_SUCCESS != rval) return rval;
+  MBAdaptiveKDTreeIter tree_iter;                                                     
+  rval = kdtree.get_tree_iterator( root, tree_iter );
+  if(MB_SUCCESS != rval) return rval;
 
-    mdbImpl->set_coords(entities, coords);
+  double max_magnitude = 0;
+  double average_magnitude = 0;
+
+  // For each exo vert find the closest cub vert. Use proximity because kd-tree
+  // search is O(logn) but MOAB tag search is O(n). For 150k nodes this 
+  // is 5 minutes faster.
+  const double GEOMETRY_RESABS = 1e-6;
+  std::cout << "found " << numberNodes_loading << " exo verts" << std::endl;
+  for(int i=0; i<numberNodes_loading; ++i) {
+    MBEntityHandle cub_vert = 0;
+    std::vector<MBEntityHandle> leaves;
+    int exo_id = ptr[i];
+    MBCartVect exo_coords( orig_coords[0][i], orig_coords[1][i], orig_coords[2][i] );
+    rval = kdtree.leaves_within_distance( root, exo_coords.array(), GEOMETRY_RESABS, leaves );    
+    if(MB_SUCCESS != rval) return rval;
+    for(std::vector<MBEntityHandle>::const_iterator j=leaves.begin(); 
+      j!=leaves.end(); ++j) {
+      if(0 != cub_vert) break;
+      std::vector<MBEntityHandle> leaf_verts;
+      rval = mdbImpl->get_entities_by_type( *j, MBVERTEX, leaf_verts );
+      if(MB_SUCCESS != rval) return rval;
+      // Find the matching cub vert by id, then do a sanity check on distance
+      for(std::vector<MBEntityHandle>::const_iterator k=leaf_verts.begin(); 
+        k!=leaf_verts.end(); ++k) {
+        int cub_id;
+        rval = mdbImpl->tag_get_data( mGlobalIdTag, &(*k), 1, &cub_id );
+        if(MB_SUCCESS != rval) return rval;
+        if(exo_id == cub_id) {
+          cub_vert = *k;
+          break;
+        }
+      }
+    }
+    // If a cub vert is found, update it with the deformed coords from the exo file.
+    if(0 != cub_vert) {
+      MBCartVect updated_exo_coords;
+      updated_exo_coords[0] = orig_coords[0][i] + deformed_arrays[0][i];
+      updated_exo_coords[1] = orig_coords[1][i] + deformed_arrays[1][i];
+      if(numberDimensions_loading == 3 )
+        updated_exo_coords[2] = orig_coords[2][i] + deformed_arrays[2][i];
+      rval = mdbImpl->set_coords( &cub_vert, 1, updated_exo_coords.array() );
+      if(MB_SUCCESS != rval) return rval;
+      ++found;
+      double magnitude = sqrt(deformed_arrays[0][i]*deformed_arrays[0][i] +
+                     deformed_arrays[1][i]*deformed_arrays[1][i] +
+                     deformed_arrays[2][i]*deformed_arrays[2][i]);
+      if(magnitude>max_magnitude) max_magnitude = magnitude;
+      average_magnitude += magnitude;
+    } else {
+      ++lost;
+      //std::cout << "cannot match exo vert=" << exo_coords << std::endl;
+    }
   }
+  
+  std::cout << "verts lost=" << lost << " verts found=" << found << std::endl;
+  std::cout << "max_magnitude=" << max_magnitude << " average_magnitude="
+          << average_magnitude/found << std::endl;
+
+  // How many element variables are in the file?
+  ncdim = ncFile->get_dim("num_elem_var");
+  if (!ncdim->is_valid()) {
+    readMeshIface->report_error("ReadNCDF: Problem getting the number of element variable names.");
+    return MB_FAILURE;
+  }
+  const int n_elem_var = ncdim->size();
+
+  // Get element variable names
+  varid = -1;
+  cstatus = nc_inq_varid(ncFile->id(), "name_elem_var", &varid);
+  char names[n_elem_var][max_str_length];
+  if (cstatus!=NC_NOERR || varid == -1) {
+    std::cout << "ReadNCDF: name_elem_var does not exist" << std::endl;
+    return MB_FAILURE;
+  }
+  NcVar *temp_var = ncFile->get_var("name_elem_var");
+  if (NULL == temp_var || !temp_var->is_valid()) {
+    readMeshIface->report_error("ReadNCDF:: Problem getting element variable variable.");
+    return MB_FAILURE;
+  }
+  status = temp_var->get(&names[0][0], n_elem_var, max_str_length);
+  if (0 == status) {
+    readMeshIface->report_error("ReadNCDF: Problem getting element variable names.");
+    return MB_FAILURE;
+  }
+
+  // Is one of the element variable names "death_status"? If so, get its index
+  // in the element variable array.
+  int death_index;
+  bool found_death_index = false;
+  for(int i=0; i<n_elem_var; ++i) {
+    std::string temp(names[i]);
+    std::string::size_type pos = temp.find("death_status");
+    if(std::string::npos != pos) {
+      found_death_index = true;
+      death_index = i+1; // NetCDF variables start with 1
+      break;
+    }
+  }
+  if(!found_death_index) {
+    readMeshIface->report_error("ReadNCDF:: Problem getting index of death_status variable.");
+    return MB_FAILURE;
+  }
+    
+  // The exodus header has already been read. This contains the number of element
+  // blocks.
+
+  // Dead elements are listed by block. Read the block headers to determine how
+  // many elements are in each block.
+  rval = read_block_headers(blocks_to_load, num_blocks);
+  if (MB_FAILURE == rval) return rval;
+
+  // Get the element id map. The ids in the map are from the elementsin the blocks.
+  // elem_num_map( blk1 elem ids, blk2 elem ids, blk3 elem ids, ... )
+  std::vector<int> elem_ids(numberNodes_loading);
+  temp_var = ncFile->get_var("elem_num_map");
+  if (NULL == temp_var || !temp_var->is_valid()) {
+    readMeshIface->report_error("ReadNCDF:: Problem getting element number map variable.");
+    return MB_FAILURE;
+  }
+  status = temp_var->get(&elem_ids[0], numberElements_loading);
+  if (0 == status) {
+    readMeshIface->report_error("ReadNCDF:: Problem getting element number map data.");
+    return MB_FAILURE;
+  }
+
+  // For each block, get the death_status at the correct time step.
+  int first_elem_id_in_block = 0;
+  int block_count = 1; // NetCDF variables start with 1
+  for(std::vector<ReadBlockData>::iterator i=blocksLoading.begin();
+      i!=blocksLoading.end(); ++i) {
+    std::vector<double> death_status(i->numElements); // it seems wrong, but it uses doubles
+    std::string array_name("vals_elem_var");
+    std::stringstream temp;
+    temp << death_index;
+    array_name += temp.str();
+    array_name += "eb";
+    temp.str(""); // stringstream won't clear by temp.clear()
+    temp << block_count;
+    array_name += temp.str();
+    array_name += "\0";
+    temp_var = ncFile->get_var(array_name.c_str());
+    if (NULL == temp_var || !temp_var->is_valid()) {
+      std::cout << "ReadNCDF:: Problem getting death_status variable." << std::endl;;
+      return MB_FAILURE;
+    }
+    status = temp_var->set_cur(time_step-1, 0);
+    if (0 == status) {
+      readMeshIface->report_error("ReadNCDF:: Problem setting time step for death_status.");
+      return MB_FAILURE;
+    }
+    status = temp_var->get(&death_status[0], 1, i->numElements);
+    if (0 == status) {
+      readMeshIface->report_error("ReadNCDF:: Problem getting death_status array.");
+      return MB_FAILURE;
+    }
+    // Look for dead elements
+    int dead_elem_counter = 0;
+    for (int j=0; j<i->numElements; ++j) {
+      if (1 != death_status[j]) {
+        // get dead element's id
+        int elem_id = elem_ids[first_elem_id_in_block+j];
+        void *id[] = {&elem_id};
+        // assume hex elems!!!!!!!!
+        MBRange cub_elem;
+        rval = mdbImpl->get_entities_by_type_and_tag(0, MBHEX, &mGlobalIdTag, id, 1, cub_elem);
+        if(MB_SUCCESS != rval) return rval;
+        if(1 != cub_elem.size()) {
+	  std::cout << "ReadNCDF: Should have found 1 element, but instead found " 
+                    << cub_elem.size() << std::endl;
+          return MB_FAILURE;
+        }
+        rval = mdbImpl->delete_entities( cub_elem );
+        if(MB_SUCCESS != rval) return rval;
+        ++dead_elem_counter;
+      }
+    }
+    // Print some statistics
+    temp.str("");
+    temp << i->blockId;
+    std::cout << "block " << temp.str() << " had " << dead_elem_counter << "/"
+              << i->numElements << " dead elements" << std::endl; 
+    // advance the pointers into element ids and block_count
+    first_elem_id_in_block += i->numElements;
+    ++block_count;
+  }
+
   return MB_SUCCESS;
 }
  
