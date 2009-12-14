@@ -1,0 +1,59 @@
+\documentclass{report}
+\usepackage{graphicx}
+
+\title{MOAB Entity Storage}
+\author{Jason Kraftcheck}
+\date{November 12, 2007}
+
+\begin{document}
+\section{\texttt{EntitySequence} \& \texttt{SequenceData}}
+
+The \texttt{SequenceData} class manages as set of arrays of per-entity values.  Each \texttt{SequenceData} has a start and end handle denoting the block of entities for which the arrays contain data.  The arrays managed by a \texttt{SequenceData} instance are divided into three groups:
+\begin{itemize}
+\item Type-specific data (connectivity, coordinates, etc.): zero or more arrays.
+\item Adjacency data: zero or one array.
+\item Dense tag data: zero or more arrays.
+\end{itemize}
+
+The abstract \texttt{EntitySequence} class is a non-strict subset of a \texttt{SequenceData}.  It contains a pointer to a \texttt{SequenceData}
+and the start and end handles to indicate the subset of the referenced \texttt{SequenceData}.  The \texttt{EntitySequence} class is used to represent the regions of valid (or allocated) handles in a \texttt{SequenceData}.  A \texttt{SequenceData} is expected to be referenced by one or more \texttt{EntitySequence} instances.
+
+Initial \texttt{EntitySequence} and \texttt{SequenceData} pairs are typically created in one of two configurations.  When reading from a file, a \texttt{SequenceData} will be created to represent all of a single type of entity contained in a file.  As all entries in the \texttt{SequenceData} correspond to valid handles (entities read from the file) a single \texttt{EntitySequence} instance corresponding to the entire \texttt{SequenceData} is initially created.  The second configuration arises when allocating a single entity.  If no entities have been allocated yet, a new \texttt{SequenceData} must be created to store the entity data.  It is created with a constant size (e.g. 4k entities).  The new \texttt{EntitySequence} corresponds to only the first entity in the \texttt{SequenceData}: the one allocated entity.  As subsequent entities are allocated, the \texttt{EntitySequence} is extended to cover more of the corresponding \texttt{SequenceData}. 
+
+Concrete subclasses of the \texttt{EntitySequence} class are responsible for representing specific types of entities using the array storage provided by the \texttt{SequenceData} class.  They also handle allocating \texttt{SequenceData} instances with appropriate arrays for storing a particular type of entity.  Each concrete subclass typically provides two constructors corresponding to the two initial allocation configurations described in the previous paragraph.  \texttt{EntitySequence} implementations also provide a \texttt{split} method, which is a type of factory method.  It modifies the called sequence and creates a new sequence such that the range of entities represented by the original sequence is split.  
+
+The \texttt{VertexSequence} class provides an \texttt{EntitySequence} for storing vertex data.  It references a \texttt{SequenceData} containing three arrays of doubles for storing the blocked vertex coordinate data.  The \texttt{ElementSequence} class extends the \texttt{EntitySequence} interface with element-specific functionality.  The \texttt{UnstructuredElemSeq} class is the concrete implementation of \texttt{ElementSequence} used to represent unstructured elements, polygons, and polyhedra.  \texttt{MeshSetSequence} is the \texttt{EntitySequence} used for storing entity sets.
+
+Each \texttt{EntitySequence} implementation also provides an implementation of the \texttt{values\_per\_entity} method.  This value is used to determine if an existing \texttt{SequenceData} that has available entities is suitable for storing a particular entity.  For example, \texttt{UnstructuredElemSeq} returns the number of nodes per element from \texttt{values\_per\_entity}.  When allocating a new element with a specific number of nodes, this value is used to determine if that element may be stored in a specific \texttt{SequenceData}.  For vertices, this value is always zero.  This could be changed to the number of coordinates per vertex, allowing representation of mixed-dimension data. However, API changes would be required to utilize such a feature.  Sequences for which the corresponding data cannot be used to store new entities (e.g. structured mesh discussed in a later section) will return -1 or some other invalid value.
+
+
+\section{\texttt{TypeSequenceManager} \& \texttt{SequenceManager}}
+
+The \texttt{TypeSequenceManager} class maintains an organized set of \texttt{EntitySequence} instances and corresponding \texttt{SequenceData} instances. It is used to manage all such instances for entities of a single \texttt{MBEntityType}.  \texttt{TypeSequenceManager} enforces the following four rules on its contained data:
+\begin{enumerate}
+\item No two \texttt{SequenceData} instances may overlap.
+\item No two \texttt{EntitySequence} instances may overlap.
+\item Every \texttt{EntitySequence} must be a subset of a \texttt{SequenceData}.
+\item Any pair of \texttt{EntitySequence} instances referencing the same \texttt{SequenceData} must be separated by at least one unallocated handle.
+\end{enumerate}
+
+The first three rules are required for the validity of the data model.  The fourth rule avoids unnecessary inefficiency.  It is implemented by merging such adjacent sequences.  In some cases, other classes (e.g. \texttt{SequenceManager}) can modify an \texttt{EntitySequence} such that the fourth rule is violated.  In such cases, the \texttt{TypeSequenceManager::notify\_prepended} or \texttt{TypeSequenceManager::notify\_appended} method must be called to maintain the integrity of the data\footnote{This source of potential error can be eliminated with changes to the entity set representation.  This is discussed in a later section.}.  The above rules (including the fourth) are assumed in many other methods of the \texttt{TypeSequenceManager} class, such that those methods will fail or behave unexpectedly if the managed data does not conform to the rules.
+
+\texttt{TypeSequenceManager} contains three principal data structures.  The first is a \texttt{std::set} of \texttt{EntitySequence} pointers sorted using a custom comparison operator that queries the start and end handles of the referenced sequences.  The comparison operation is defined as: \verb|a->end_handle() < b->start_handle()|. This method of comparison has the advantage that a sequence corresponding to a specific handle can be located by searching the set for a ``sequence'' beginning and ending with the search value.  The \texttt{lower\_bound} and \texttt{find} methods provided by the library are guaranteed to return the sequence, if it exists.  Using such a comparison operator will result in undefined behavior if the set contains overlapping sequences.  This is acceptable, as rule two above prohibits such a configuration.  However, some care must be taken in writing and modifying methods in \texttt{TypeSequenceManager} so as to avoid having overlapping sequences as a transitory state of some operation.
+
+The second important data member of \texttt{TypeSequenceManager} is a pointer to the last referenced \texttt{EntitySequence}.  This ``cached'' value is used to speed up searches by entity handle.  This pointer is never null unless the sequence is empty.  This rule is maintained to avoid unnecessary branches in fast query paths.  In cases where the last referenced sequence is deleted, \texttt{TypeSequenceManager} will typically assign an arbitrary sequence (e.g. the first one) to the last referenced pointer.
+
+The third data member of \texttt{TypeSequenceManager} is a \texttt{std::set} of \texttt{SequenceData} instances that are not completely covered by a \texttt{EntitySequence} instance\footnote{Given rule four for the data managed by a \texttt{TypeSequenceManager}, any \texttt{SequenceData} for which all handles are allocated will be referenced by exactly one \texttt{EntitySequence}.}.  This list is searched when allocating new handles.  \texttt{TypeSequenceManager} also embeds in each \texttt{SequenceData} instance a reference to the first corresponding \texttt{EntitySequence} so that it may be located quickly from only the \texttt{SequenceData} pointer.
+
+The \texttt{SequenceManager} class contains an array of \texttt{TypeSequenceManager} instances, one for each \texttt{MBEntityType}.  It also provides all type-specific operations such as allocating the correct \texttt{EntitySequence} subtype for a given \texttt{MBEntityType}.  
+
+
+\section{Structured Mesh}
+
+Structured mesh storage is implemented using subclasses of \texttt{SequenceData}: \texttt{ScdElementData} and \texttt{ScdVertexData}. The \texttt{StructuredElementSeq} class is used to access the structured element connectivity.  A standard \texttt{VertexSequence} instance is used to access the \texttt{ScdVertexData} because the vertex data storage is the same as for unstructured mesh.
+
+\section{\texttt{MeshSetSequence}}
+
+The representation of mesh sets within a \texttt{MeshSetSequence} results in significant complication of the code for working with the data model described in this document.  Much common code for allocating handles, sequences, etc. could be moved from type-specific functions in \texttt{SequenceManager} to general purpose methods in \texttt{TypeSequenceManager}, where such general purpose methods would rely on factory/clone methods provided by \texttt{EntitySequence} implementations to handle tasks such as creating new sequences or new data instances.  However, the current entity set representation requires that the \texttt{MeshSetSequence} know the type of any mesh sets (vector vs. range) when the corresponding handle is allocated.  This necessitates an separate code path for entity sets for all handle allocation tasks.  A new representation for entity sets that utilized a common, simple data structure as opposed to the current \texttt{std::vector} and \texttt{MBRange} storage mechanisms could defer the handling of the set type until a later time (after handle allocation), eliminating the special handling of entity sets during handle allocation.
+
+\end{document}
