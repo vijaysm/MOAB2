@@ -1210,7 +1210,8 @@ MBErrorCode MBBSPTreeBoxIter::get_neighbors(
 
 MBErrorCode MBBSPTreeBoxIter::calculate_polyhedron( BSPTreePoly& poly_out ) const
 {
-  return poly_out.set( reinterpret_cast<const MBCartVect*>(leafCoords) );
+  const MBCartVect* ptr = reinterpret_cast<const MBCartVect*>(leafCoords);
+  return poly_out.set( ptr );
 }
 
 MBErrorCode MBBSPTree::leaf_containing_point( MBEntityHandle tree_root,

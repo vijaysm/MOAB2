@@ -14,7 +14,6 @@ bool keep_file = false;
 
 void read_write_file( MBInterface& output, MBInterface& input, MBEntityHandle* input_set = 0 )
 {
-  MBEntityHandle file;
   MBErrorCode rval;
   rval = output.write_file( filename );
   CHECK_ERR(rval);

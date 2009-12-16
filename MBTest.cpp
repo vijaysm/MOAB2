@@ -6844,10 +6844,19 @@ MBErrorCode mb_skin_volume_test_common( bool use_adj )
 const char* argv0 = 0;
 MBErrorCode mb_read_fail_test(MBInterface* mb)
 {
+  const char BAD_FILE_NAME[] = "non-existant-file.txt";
   MBErrorCode rval;
   
+  FILE* fptr = fopen(BAD_FILE_NAME,"r");
+  if (fptr) {
+    fclose(fptr);
+    std::cout << "Test cannot proceed while file exists: " << BAD_FILE_NAME << std::endl;
+    return MB_FAILURE;
+  }
+  
     // try reading a non-existant file
-  rval = mb->load_file( tmpnam(0) );
+  
+  rval = mb->load_file( BAD_FILE_NAME );
   if (MB_FILE_DOES_NOT_EXIST != rval)
     return MB_FAILURE;
   

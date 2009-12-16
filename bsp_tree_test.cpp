@@ -1963,7 +1963,7 @@ static MBEntityHandle build_tree( const double points[], int num_points, MBBSPTr
         ptr = &tmp_coords;
       }
       
-      size_t pt1, pt2;
+      size_t pt1 = 0, pt2 = 0;
       double lsqr = -1;
       for (size_t i = 0; i < ptr->size(); ++i) {
         for (size_t j = 0; j < ptr->size();++j) {
