@@ -146,8 +146,8 @@ void BSPTreePoly::reset_debug_ids() {
 #endif
 }
 
-static void merge_edges( BSPTreePoly::Edge* keep_edge,
-                         BSPTreePoly::Edge* dead_edge );
+//static void merge_edges( BSPTreePoly::Edge* keep_edge,
+//                         BSPTreePoly::Edge* dead_edge );
 
 static BSPTreePoly::Edge* split_edge( BSPTreePoly::Vertex* new_vtx,
                                        BSPTreePoly::Edge* into_edge );
@@ -455,7 +455,7 @@ void BSPTreePoly::set_vertex_marks( int value )
     } while (edge && edge != face->usePtr);
   }
 }
-
+/*
 static void merge_edges( BSPTreePoly::Edge* keep_edge,
                          BSPTreePoly::Edge* dead_edge )
 {
@@ -479,7 +479,7 @@ static void merge_edges( BSPTreePoly::Edge* keep_edge,
   // (including removing dead edge from face loops)
   delete dead_edge;
 }
-
+*/
 static BSPTreePoly::Edge* split_edge( BSPTreePoly::Vertex* new_vtx,
                                        BSPTreePoly::Edge* into_edge )
 {

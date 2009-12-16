@@ -65,7 +65,6 @@ MBErrorCode ReadIDEAS::load_file(const char* fname,
     file.getline(line, 10000);
     s = line;
 
-    MBErrorCode rval;
     unsigned int header_id = (unsigned int) strtol(line, NULL, 10);
     switch (header_id) {
       case VERTEX_LIST :

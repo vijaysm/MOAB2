@@ -320,7 +320,8 @@ extern "C" {
   
     const MBEntityHandle* file_set = 0;
     if (handle != 0 /*root_set*/) {
-      file_set = reinterpret_cast<const MBEntityHandle*>(&handle);
+      const iBase_EntitySetHandle* ptr = &handle;
+      file_set = reinterpret_cast<const MBEntityHandle*>(ptr);
     }
   
     result = MBI->load_file(tmp_filename.c_str(), file_set, opts.c_str());
