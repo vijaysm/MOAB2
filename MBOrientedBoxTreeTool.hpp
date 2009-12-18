@@ -188,6 +188,7 @@ class MBOrientedBoxTreeTool
      */
     MBErrorCode ray_intersect_sets( std::vector<double>& distances_out,
                                     std::vector<MBEntityHandle>& sets_out,
+                                    std::vector<MBEntityHandle>& facets_out,
                                     MBEntityHandle root_set,
                                     double tolerance,
                                     unsigned min_tolerace_intersections,

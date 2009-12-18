@@ -795,11 +795,12 @@ class RayIntersectSets : public MBOrientedBoxTreeTool::Op
     const double tol;
     std::vector<double>& intersections;
     std::vector<MBEntityHandle>& sets;
-    
-    MBEntityHandle lastSet;
+    std::vector<MBEntityHandle>& facets;    
+
+  MBEntityHandle lastSet;
     int lastSetDepth;
     
-    void add_intersection( double t );
+  void add_intersection( double t, MBEntityHandle facet );
     
   public:
     RayIntersectSets( MBOrientedBoxTreeTool* tool_ptr,
@@ -809,12 +810,13 @@ class RayIntersectSets : public MBOrientedBoxTreeTool::Op
                    double tolerance,
                    unsigned min_tol_intersections,
                    std::vector<double>& intersections,
-                   std::vector<MBEntityHandle>& surfaces )
+		   std::vector<MBEntityHandle>& surfaces,
+		   std::vector<MBEntityHandle>& facets )
       : tool(tool_ptr), minTolInt(min_tol_intersections),
         b(ray_point), m(unit_ray_dir),
         len(ray_length), tol(tolerance),
         intersections(intersections),
-        sets(surfaces), lastSet(0)
+        sets(surfaces), facets(facets), lastSet(0)
       { }
   
     virtual MBErrorCode visit( MBEntityHandle node,
@@ -900,12 +902,12 @@ MBErrorCode RayIntersectSets::leaf( MBEntityHandle node )
         // NOTE: add_intersection may modify the 'len' member, which
         //       will affect subsequent calls to ray_tri_intersect in 
         //       this loop.
-      add_intersection( td );
+      add_intersection( td, *t );
   }
   return MB_SUCCESS;
 }
 
-void RayIntersectSets::add_intersection( double t )
+void RayIntersectSets::add_intersection( double t, MBEntityHandle facet )
 {
     // Check if the 'len' pointer is pointing into the intersection
     // list.  If this is the case, then the list contains, at that
@@ -925,6 +927,7 @@ void RayIntersectSets::add_intersection( double t )
       if (intersections.size() >= minTolInt) {
         intersections[len_idx] = t;
         sets[len_idx] = lastSet;
+        facets[len_idx] = facet;
           // From now on, we want only intersections within the tolerance,
           // so update length accordingly
         len = &tol;
@@ -933,6 +936,7 @@ void RayIntersectSets::add_intersection( double t )
       else {
         intersections.push_back(t);
         sets.push_back(lastSet);
+        facets.push_back(facet);
         len = &intersections[len_idx];
       }
     }
@@ -940,6 +944,7 @@ void RayIntersectSets::add_intersection( double t )
     else {
       intersections.push_back(t);
       sets.push_back(lastSet);
+      facets.push_back(facet);
         // If we have all the intersections we want, set
         // length such that we will only find further intersections
         // within the tolerance
@@ -954,6 +959,7 @@ void RayIntersectSets::add_intersection( double t )
     if (t <= *len) {
       intersections[len_idx] = t;
       sets[len_idx] = lastSet;
+      facets[len_idx] = facet;
     }
   }
     // Otherwise if we want an intersection outside the tolerance
@@ -961,6 +967,7 @@ void RayIntersectSets::add_intersection( double t )
   else if (intersections.size() < minTolInt) {
     intersections.push_back( t );
     sets.push_back( lastSet );
+    facets.push_back(facet);
       // udpate length.  this is currently the closest intersection, so
       // only want further intersections that are closer than this one.
     len = &intersections.back();
@@ -971,6 +978,7 @@ void RayIntersectSets::add_intersection( double t )
 MBErrorCode MBOrientedBoxTreeTool::ray_intersect_sets( 
                                     std::vector<double>& distances_out,
                                     std::vector<MBEntityHandle>& sets_out,
+                                    std::vector<MBEntityHandle>& facets_out,
                                     MBEntityHandle root_set,
                                     double tolerance,
                                     unsigned min_tolerace_intersections,
@@ -979,7 +987,7 @@ MBErrorCode MBOrientedBoxTreeTool::ray_intersect_sets(
                                     const double* ray_length )
 {
   RayIntersectSets op( this, ray_point, unit_ray_dir, ray_length, tolerance, 
-                       min_tolerace_intersections, distances_out, sets_out );
+                       min_tolerace_intersections, distances_out, sets_out, facets_out );
   return preorder_traverse( root_set, op );
 }
 
