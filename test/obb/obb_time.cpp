@@ -163,7 +163,7 @@ int main( int argc, char* argv[] )
   
   const unsigned cached = 1000;
   std::vector<double> intersections;
-  std::vector<MBEntityHandle> sets;
+  std::vector<MBEntityHandle> sets, facets;
   MBCartVect point, dir;
   std::vector<MBCartVect> randrays;
   randrays.reserve( cached );
@@ -197,7 +197,8 @@ int main( int argc, char* argv[] )
     intersections.clear();
     if (do_sets) {
       sets.clear();
-      rval = tool.ray_intersect_sets( intersections, sets, root, 1e-6, 1, point.array(), dir.array() );
+      facets.clear();
+      rval = tool.ray_intersect_sets( intersections, sets, facets, root, 1e-6, 1, point.array(), dir.array() );
     }
     else {
       rval = tool.ray_intersect_triangles( intersections, root, 1e-6, point.array(), dir.array() );

@@ -954,8 +954,8 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
     
     const int NUM_NON_TOL_INT = 1;
     std::vector<double> intersections2;
-    std::vector<MBEntityHandle> surf_handles;
-    rval = tool.ray_intersect_sets( intersections2, surf_handles, root_set, tolerance, NUM_NON_TOL_INT, tests[i].point.array(), tests[i].direction.array(), 0 );
+    std::vector<MBEntityHandle> surf_handles, facet_handles;
+    rval = tool.ray_intersect_sets( intersections2, surf_handles, facet_handles, root_set, tolerance, NUM_NON_TOL_INT, tests[i].point.array(), tests[i].direction.array(), 0 );
     if (MB_SUCCESS != rval) {
       if (verbosity)
         std::cout << "  Call to MBOrientedBoxTreeTool::ray_intersect_sets failed." << std::endl;
@@ -1076,9 +1076,8 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
     }
     else {
       std::vector<double> intersections;
-      std::vector<MBEntityHandle> surfaces;
-
-      rval = tool.ray_intersect_sets( intersections, surfaces, root_set, tolerance, 1000, rays[i].array(), rays[i+1].array(), 0 );
+      std::vector<MBEntityHandle> surfaces, facets;
+      rval = tool.ray_intersect_sets( intersections, surfaces, facets, root_set, tolerance, 1000, rays[i].array(), rays[i+1].array(), 0 );
       if (MB_SUCCESS != rval) {
         std::cout << "FAILED" << std::endl;
         result = false;
