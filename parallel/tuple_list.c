@@ -59,7 +59,7 @@ void tuple_list_sort(tuple_list *tl, unsigned key, buffer *buf)
   work = buf->ptr;
   if(key<mi)
     index_sort     ((uint *)&tl->vi[key   ],tl->n,mi, work, (void*)work);
-  else if (key < mi+mul)
+  else if (key < mi+ml)
     index_sort_long((ulong*)&tl->vl[key-mi],tl->n,ml, work, (void*)work);
   else 
     index_sort_long((ulong*)&tl->vul[key-mi-ml],tl->n,mul, work, (void*)work);
