@@ -284,7 +284,7 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
   std::string s;
   rval = opts.get_str_option("tdata", s ); 
   if(MB_SUCCESS == rval && !s.empty())
-    return update(exodus_file_name, opts, num_blocks, blocks_to_load); 
+    return update(exodus_file_name, opts, num_blocks, blocks_to_load, *file_set); 
 
   reset();
 
@@ -1582,9 +1582,14 @@ MBErrorCode ReadNCDF::read_qa_string(char *temp_string,
   return MB_SUCCESS;
 }
 
+// The cub_file_set contains the mesh to be updated. There could exist other
+// file sets that should be kept separate, such as the geometry file set from
+// ReadCGM.
 MBErrorCode ReadNCDF::update(const char *exodus_file_name, 
                              const FileOptions& opts, 
-                             const int num_blocks, const int *blocks_to_load)
+                             const int num_blocks, 
+                             const int *blocks_to_load,
+                             const MBEntityHandle cub_file_set)
 {
   //Function : updating current database from new exodus_file. 
   //Creator:   Jane Hu
@@ -1608,6 +1613,7 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
   //3. In exodus file, get node_num_map
   //4. loop through the node_num_map, use it to find the node in the cub file.
   //5. Replace coord[0][n] with coordx[m]+vals_nod_var1(time_step, m) for all directions for matching nodes.   
+  // Test: try to get hexes
   
   MBErrorCode rval;
   std::string s;
@@ -1676,7 +1682,7 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
     return MB_FAILURE;
   }
   const int max_time_steps = ncdim->size();
-  std::cout << "max_time_steps=" << max_time_steps << std::endl;
+  std::cout << "  Maximum time step=" << max_time_steps << std::endl;
   if(max_time_steps < time_step) {
     std::cout << "ReadNCDF: time step is greater than max_time_steps" << std::endl;
     return MB_FAILURE;
@@ -1796,16 +1802,17 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
 
   // Place cub verts in a kdtree.
   MBRange cub_verts;
-  rval = mdbImpl->get_entities_by_type( 0, MBVERTEX, cub_verts );
+  rval = mdbImpl->get_entities_by_type( cub_file_set, MBVERTEX, cub_verts );
   if(MB_SUCCESS != rval) return rval;
-  std::cout << "found " << cub_verts.size() << " cub verts" << std::endl;
+  std::cout << "  cub_file_set contains " << cub_verts.size() << " nodes." 
+            << std::endl;
   MBAdaptiveKDTree kdtree( mdbImpl, true );
   MBEntityHandle root;
   MBAdaptiveKDTree::Settings settings;
   settings.maxEntPerLeaf = 1;                                   
   settings.candidateSplitsPerDir = 1;                
-  settings.candidatePlaneSet = MBAdaptiveKDTree::SUBDIVISION;                                        
-  rval = kdtree.build_tree( cub_verts, root, &settings );                                      
+  settings.candidatePlaneSet = MBAdaptiveKDTree::SUBDIVISION;
+  rval = kdtree.build_tree( cub_verts, root, &settings );      
   if(MB_SUCCESS != rval) return rval;
   MBAdaptiveKDTreeIter tree_iter;                                                     
   rval = kdtree.get_tree_iterator( root, tree_iter );
@@ -1818,7 +1825,8 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
   // search is O(logn) but MOAB tag search is O(n). For 150k nodes this 
   // is 5 minutes faster.
   const double GEOMETRY_RESABS = 1e-6;
-  std::cout << "found " << numberNodes_loading << " exo verts" << std::endl;
+  std::cout << "  exodus file contains " << numberNodes_loading << " nodes." 
+            << std::endl;
   for(int i=0; i<numberNodes_loading; ++i) {
     MBEntityHandle cub_vert = 0;
     std::vector<MBEntityHandle> leaves;
@@ -1865,9 +1873,14 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
     }
   }
   
-  std::cout << "verts lost=" << lost << " verts found=" << found << std::endl;
-  std::cout << "max_magnitude=" << max_magnitude << " average_magnitude="
-          << average_magnitude/found << std::endl;
+  std::cout << "  " << found 
+            << " nodes from the exodus file were matched by id in the cub_file_set." 
+            << std::endl;
+  std::cout << "  " << lost << " nodes from the exodus file could not be matched." 
+            << std::endl;
+  std::cout << "  maximum node displacement magnitude=" << max_magnitude << std::endl;
+  std::cout << "  average node displacement magnitude=" << average_magnitude/found 
+            << std::endl;
 
   // How many element variables are in the file?
   ncdim = ncFile->get_dim("num_elem_var");
@@ -1966,7 +1979,10 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
       readMeshIface->report_error("ReadNCDF:: Problem getting death_status array.");
       return MB_FAILURE;
     }
-    // Look for dead elements
+
+    // Look for dead elements. If there is too many dead elements and this starts
+    // to take too long, I should put the elems in a kd-tree for more efficient 
+    // searching. Alternatively I could get the exo connectivity and match nodes.
     int dead_elem_counter = 0;
     for (int j=0; j<i->numElements; ++j) {
       if (1 != death_status[j]) {
@@ -1975,13 +1991,19 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
         void *id[] = {&elem_id};
         // assume hex elems!!!!!!!!
         MBRange cub_elem;
-        rval = mdbImpl->get_entities_by_type_and_tag(0, MBHEX, &mGlobalIdTag, id, 1, cub_elem);
+        rval = mdbImpl->get_entities_by_type_and_tag( cub_file_set, MBHEX, 
+						      &mGlobalIdTag, id, 1, cub_elem, 
+                                                      MBInterface::INTERSECT );
         if(MB_SUCCESS != rval) return rval;
         if(1 != cub_elem.size()) {
 	  std::cout << "ReadNCDF: Should have found 1 element, but instead found " 
                     << cub_elem.size() << std::endl;
           return MB_FAILURE;
         }
+        // Delete the dead element from the cub file. It will be removed from sets
+        // ONLY if they are tracking meshsets.
+        rval = mdbImpl->remove_entities( cub_file_set, cub_elem );
+        if(MB_SUCCESS != rval) return rval;
         rval = mdbImpl->delete_entities( cub_elem );
         if(MB_SUCCESS != rval) return rval;
         ++dead_elem_counter;
@@ -1990,8 +2012,8 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
     // Print some statistics
     temp.str("");
     temp << i->blockId;
-    std::cout << "block " << temp.str() << " had " << dead_elem_counter << "/"
-              << i->numElements << " dead elements" << std::endl; 
+    std::cout << "  Block " << temp.str() << " has " << dead_elem_counter << "/"
+              << i->numElements << " dead elements." << std::endl; 
     // advance the pointers into element ids and block_count
     first_elem_id_in_block += i->numElements;
     ++block_count;

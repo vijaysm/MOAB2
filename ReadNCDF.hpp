@@ -91,7 +91,8 @@ public:
 
   //update the coords for deformed mesh according to FileOptions
   MBErrorCode update(const char *exodus_file_name, const FileOptions& opts,
-                     const int num_blocks, const int *blocks_to_load);
+                     const int num_blocks, const int *blocks_to_load,
+                     const MBEntityHandle file_set );
 
 private:
 

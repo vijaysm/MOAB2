@@ -40,6 +40,21 @@ MBErrorCode make_tris_from_quad( MBInterface *MBI,
   return MB_SUCCESS;
 }
 
+MBErrorCode make_tris_from_quads( MBInterface *MBI,
+                                  const MBRange quads,
+                                  MBRange &tris ) {
+  MBErrorCode result;
+  tris.clear();
+  for(MBRange::const_iterator i=quads.begin(); i!=quads.end(); ++i) {
+    MBEntityHandle tri0, tri1;
+    result = make_tris_from_quad( MBI, *i, tri0, tri1 );
+    assert(MB_SUCCESS == result);
+    tris.insert( tri0 );
+    tris.insert( tri1 );
+  }
+  return MB_SUCCESS;
+}  
+
 MBErrorCode quads_to_tris( MBInterface *MBI, MBEntityHandle input_meshset ) {
 
   // create a geometry tag to find the surfaces with

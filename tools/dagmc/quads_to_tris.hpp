@@ -15,4 +15,6 @@ MBErrorCode make_tris_from_quad( MBInterface *MBI,
                                  MBEntityHandle &tri0, /* output */
 				 MBEntityHandle &tri1  /* output */);
 
+MBErrorCode make_tris_from_quads( MBInterface *MBI, const MBRange quads, MBRange &tris ) ;
+
 MBErrorCode quads_to_tris( MBInterface *MBI, MBEntityHandle input_meshset );
