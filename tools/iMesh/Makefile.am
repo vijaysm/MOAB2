@@ -40,7 +40,7 @@ if PARALLEL
   libiMesh_la_include_HEADERS += iMeshP.h iMeshP_f.h iMeshP_protos.h
   INCLUDES += -I$(top_srcdir)/parallel
 
-  check_PROGRAMS += partest iMeshP_unit_tests
+  check_PROGRAMS += partest # iMeshP_unit_tests
 
 #  check_PROGRAMS += ftest
 #  ftest_SOURCES = ftest.F
