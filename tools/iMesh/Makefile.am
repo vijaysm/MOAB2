@@ -55,8 +55,8 @@ testc_cbind_SOURCES = testc_cbind.c
 testc_cbind_DEPENDENCIES = $(TESTDEPS)
 partest_SOURCES = partest.cpp
 partest_DEPENDENCIES = $(TESTDEPS)
-iMeshP_unit_tests_SOURCES = iMeshP_unit_tests.cpp
-iMeshP_unit_tests_DEPENDENCIES = $(TESTDEPS)
+# iMeshP_unit_tests_SOURCES = iMeshP_unit_tests.cpp
+# iMeshP_unit_tests_DEPENDENCIES = $(TESTDEPS)
 
 lib_LTLIBRARIES = libiMesh.la
 
