@@ -96,7 +96,7 @@ endif
 # in $(libdir).  Define a $(cfgdir) to get around automake's
 # check that only libraries are going in $(libdir)
 cfgdir = $(libdir)
-cfg_DATA = moab.make
+cfg_DATA = moab.make moab.config
 
 # By default, moab.make will define these to $(srcdir).  We
 # want to override that during the INSTALL of the file so
@@ -107,6 +107,18 @@ install-data-hook:
 	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/moab.make
 	echo "MOAB_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/moab.make
 
+
+# Generate a file to be installed in $libdir containing the configuration
+# options used for this MOAB build.
+# Note: If you modify this, verify that it works correctly for option
+#       values containing spaces.
+# First line: get unformatted data from config.status
+# Second line: extract just the list of options
+# Third line: put individual options on separate lines
+moab.config: config.status Makefile.am
+	./config.status --version | \
+	  sed -e 's/.*options "\(.*\)"/\1/p' -e 'd' | \
+	  sed -e "s/'[[:space:]]'/'\n'/g" >$@
 
 # The list of source files, and any header files that do not need to be installed
 libMOAB_la_SOURCES = \
