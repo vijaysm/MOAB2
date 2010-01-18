@@ -336,9 +336,6 @@ public:
 
   Tqdcfr(MBInterface *impl);
 
-  static std::string BLOCK_NODESET_OFFSET_TAG_NAME;
-  static std::string BLOCK_SIDESET_OFFSET_TAG_NAME;
-  
   MBErrorCode create_set( MBEntityHandle& h, unsigned int flags = MESHSET_SET );
 
 private:

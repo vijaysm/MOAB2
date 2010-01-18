@@ -16,12 +16,16 @@
 #include "Tqdcfr.hpp"
 #include "MBCore.hpp"
 #include "MBRange.hpp"
+#include "FileOptions.hpp"
+#include <iostream>
+
+#ifndef TEST_TQDCFR
+
 #include "MBReadUtilIface.hpp"
 #include "GeomTopoTool.hpp"
 #include "MBTagConventions.hpp"
 #include "MBCN.hpp"
 #include "MBInternals.hpp"
-#include "FileOptions.hpp"
 #include "HigherOrderFactory.hpp"
 #include "exodus_order.h"
 
@@ -29,7 +33,6 @@
 #include "MBmpi.h"
 #endif
 
-#include <iostream>
 #include <sstream>
 #include <assert.h>
 
@@ -91,8 +94,8 @@ const int Tqdcfr::cub_elem_num_verts[] = {
 // moab_conn[ cub_hex27_order[i] ] = cubit_conn[ i ];
 const int* const* const* const cub_elem_order_map = exodus_elem_order_map;
 
-std::string Tqdcfr::BLOCK_NODESET_OFFSET_TAG_NAME = "BLOCK_NODESET_OFFSET";
-std::string Tqdcfr::BLOCK_SIDESET_OFFSET_TAG_NAME = "BLOCK_SIDESET_OFFSET";
+const char *const BLOCK_NODESET_OFFSET_TAG_NAME = "BLOCK_NODESET_OFFSET";
+const char *const BLOCK_SIDESET_OFFSET_TAG_NAME = "BLOCK_SIDESET_OFFSET";
 
 #define RR if (MB_SUCCESS != result) return result
 
@@ -400,7 +403,7 @@ MBErrorCode Tqdcfr::convert_nodesets_sidesets()
     // set, we don't need to convert
   unsigned int nodeset_offset, sideset_offset;
   MBTag tmp_tag;
-  MBErrorCode result = mdbImpl->tag_get_handle(BLOCK_NODESET_OFFSET_TAG_NAME.c_str(),
+  MBErrorCode result = mdbImpl->tag_get_handle(BLOCK_NODESET_OFFSET_TAG_NAME,
                                                tmp_tag);
   if (MB_SUCCESS != result) nodeset_offset = 0;
   else {
@@ -408,7 +411,7 @@ MBErrorCode Tqdcfr::convert_nodesets_sidesets()
     if (MB_SUCCESS != result) return result;
   }
 
-  result = mdbImpl->tag_get_handle(BLOCK_SIDESET_OFFSET_TAG_NAME.c_str(),
+  result = mdbImpl->tag_get_handle(BLOCK_SIDESET_OFFSET_TAG_NAME,
                                    tmp_tag);
   if (MB_SUCCESS != result) sideset_offset = 0;
   else {
@@ -2571,7 +2574,8 @@ MBErrorCode Tqdcfr::create_set( MBEntityHandle& h, unsigned int flags )
   return mdbImpl->create_meshset( flags, h );
 }
 
-#ifdef TEST_TQDCFR
+// #ifdef TEST_TQDCFR
+#else
 #include "MBCore.hpp"
 #include "testdir.h"
 
