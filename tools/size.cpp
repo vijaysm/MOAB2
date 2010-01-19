@@ -101,6 +101,7 @@ struct stat_set
 struct set_stats {
   stat_set stats[MBMAXTYPE];
   stat_set edge_uses;
+  size_t nodes;
   
   void add( const set_stats& other )
   {
@@ -122,6 +123,11 @@ struct set_stats {
 MBErrorCode gather_set_stats( MBEntityHandle set, set_stats& stats )
 {
   MBErrorCode rval = MB_SUCCESS;
+  
+  int count;
+  rval = moab.get_number_entities_by_type( set, MBVERTEX, count );
+  if (MB_SUCCESS != rval) return rval;
+  stats.nodes = count;
   
   int edge_vtx_idx[2];
   std::vector<MBEntityHandle> conn;
@@ -176,6 +182,7 @@ const char* dashes( unsigned count )
 void print_stats( set_stats& stats )
 {
   const char* edge_use_name = "1D Side";
+  const char* vertex_name = "Vertex";
   
   bool have_some = stats.edge_uses.count > 0;
   for (int i = 0; i < MBMAXTYPE; ++i)
@@ -189,12 +196,17 @@ void print_stats( set_stats& stats )
   }
   
     // get field widths
-  unsigned type_width = strlen( edge_use_name );
+  unsigned type_width = std::max( strlen(vertex_name), strlen( edge_use_name ) );
   unsigned count_width = 5;
   unsigned total_width = 5;
   unsigned total_prec = 2;
   unsigned precision = 5;
   int total_log = -10000;
+  
+  unsigned node_count_width = (unsigned)(ceil(log10(stats.nodes))) + 1;
+  if (count_width < node_count_width)
+    count_width = node_count_width;
+  
   for (MBEntityType i = MBEDGE; i < MBMAXTYPE; ++i)
   {
     stat_set& s = (i == MBMAXTYPE) ? stats.edge_uses : stats.stats[i];
@@ -299,6 +311,7 @@ void print_stats( set_stats& stats )
             sqrt(tmp_dbl)
           );
   }
+  printf( "%*s %*lu\n", type_width, vertex_name, count_width, (unsigned long)stats.nodes );
   
   puts("");
 }
