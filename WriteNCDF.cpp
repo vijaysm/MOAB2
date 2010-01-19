@@ -340,8 +340,6 @@ MBErrorCode WriteNCDF::gather_mesh_information(
   vector_iter= blocks.begin();
   end_vector_iter = blocks.end();
 
-  mesh_info.num_elementblocks = blocks.size();
-
   std::vector<MBEntityHandle> parent_meshsets;
 
   // clean out the bits for the element mark
@@ -482,6 +480,8 @@ MBErrorCode WriteNCDF::gather_mesh_information(
     }
   }
  
+
+  mesh_info.num_elementblocks = block_info.size();
 
   //if user hasn't entered dimension, we figure it out
   if( mesh_info.num_dim == 0 )
