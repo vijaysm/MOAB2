@@ -369,6 +369,9 @@ MBErrorCode WriteNCDF::gather_mesh_information(
     if (MB_SUCCESS != rval)
       return rval;
 
+    // skip empty blocks
+    if (dummy_range.empty())
+      continue;
 
     // wait a minute, we are doing some filtering here that doesn't make sense at this level  CJS
 
