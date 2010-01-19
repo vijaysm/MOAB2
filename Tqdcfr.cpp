@@ -2111,6 +2111,7 @@ MBErrorCode Tqdcfr::parse_acis_attribs(const unsigned int entity_rec_num,
   unsigned int num_read;
   std::vector<std::string> attrib_vec;
   char temp_name[80];
+  char name_tag_val[NAME_TAG_SIZE];
   std::string name_tag;
   int id = -1;
   int uid = -1;
@@ -2222,7 +2223,10 @@ MBErrorCode Tqdcfr::parse_acis_attribs(const unsigned int entity_rec_num,
     }
     if (0 == entityNameTag) return MB_FAILURE;
 
-    result = mdbImpl->tag_set_data(entityNameTag, &(records[entity_rec_num].entity), 1, name_tag.c_str());
+    size_t len = name_tag.size();
+    memcpy( name_tag_val, name_tag.c_str(), len );
+    memset( name_tag_val+len, '\0', NAME_TAG_SIZE-len );
+    result = mdbImpl->tag_set_data(entityNameTag, &(records[entity_rec_num].entity), 1, name_tag_val);
     if (MB_SUCCESS != result) return result;
   }
 
