@@ -1,8 +1,11 @@
 #include <iostream>
+#include <set>
+#include <limits>
 #include <time.h>
 #include <vector>
 #include <cstdlib>
 #include <cstdio>
+#include <assert.h>
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <unistd.h>
 #include <sys/types.h>
@@ -14,6 +17,8 @@
 #include "MBCore.hpp"
 #include "MBRange.hpp"
 #include "MBSkinner.hpp"
+#include "MBAdaptiveKDTree.hpp"
+#include "MBCN.hpp"
 
 void get_time_mem(double &tot_time, double &tot_mem);
 
@@ -28,74 +33,118 @@ extern "C" int getrusage(int, struct rusage *);
 #endif
 #endif
 
-const char FIXED_TAG[] = "fixed"; 
+const char DEFAULT_FIXED_TAG[] = "fixed"; 
+const int MIN_EDGE_LEN_DENOM = 4;
 
 #define CHKERROR( A ) do { if (MB_SUCCESS != (A)) { \
  std::cerr << "Internal error at line " << __LINE__ << std::endl; \
  return 3; } } while(false)
 
+MBErrorCode merge_duplicate_vertices( MBInterface&, double epsilon );
+MBErrorCode min_edge_length( MBInterface&, double& result );
+
+void usage( const char* argv0, bool help = false ) 
+{
+  std::ostream& str = help ? std::cout : std::cerr;
+
+  str << "Usage: " << argv0 
+      << " [-b <block_num> [-b ...] ] [-p] [-s <sideset_num>] [-t|-T <name>] [-w] [-v|-V <n>]"
+      << " <input_file> [<output_file>]" << std::endl;
+  str << "Help : " << argv0 << " -h" << std::endl;
+  if (!help)
+    exit(1);
+    
+  str << "Options: " << std::endl;
+  str << "-a : Compute skin using vert-elem adjacencies (more memory, less time)." << std::endl;
+  str << "-b <block_num> : Compute skin only for material set/block <block_num>." << std::endl;
+  str << "-p : Print cpu & memory performance." << std::endl;
+  str << "-s <sideset_num> : Put skin in neumann set/sideset <sideset_num>." << std::endl;
+  str << "-t : Set '" << DEFAULT_FIXED_TAG << "' tag on skin vertices." << std::endl;
+  str << "-T <name> : Create tag with specified name and set to 1 on skin vertices." << std::endl;
+  str << "-w : Write out whole mesh (otherwise just writes skin)." << std::endl;
+  str << "-m : consolidate duplicate vertices" << std::endl;
+  str << "-M <n> : consolidate duplicate vertices with specified tolerance. "
+          "(Default: min_edge_length/" << MIN_EDGE_LEN_DENOM << ")" << std::endl;
+
+  exit(0);
+}
+
+
 int main( int argc, char* argv[] )
 {
-  if (argc < 3)
-  {
-    std::cerr << "Usage: " << argv[0] 
-              << " [-b <block_num> [-b ...] ] [-p] [-s <sideset_num>] [-t] [-w]"
-              << " <input_file> [<output_file>]" << std::endl;
-    std::cerr << "Options: " << std::endl;
-    std::cerr << "-a : Compute skin using vert-elem adjacencies (more memory, less time)." << std::endl;
-    std::cerr << "-b <block_num> : Compute skin only for material set/block <block_num>." << std::endl;
-    std::cerr << "-p : Print cpu & memory performance." << std::endl;
-    std::cerr << "-s <sideset_num> : Put skin in neumann set/sideset <sideset_num>." << std::endl;
-    std::cerr << "-t : Set 'FIXED' tag on skin vertices." << std::endl;
-    std::cerr << "-w : Write out whole mesh (otherwise just writes skin)." << std::endl;
-    
-    return 1;
-  }
-
   int i = 1;
   std::vector<int> matsets;
   int neuset_num = -1;
   bool write_tag = false, write_whole_mesh = false;
   bool print_perf = false;
   bool use_vert_elem_adjs = false;
+  bool merge_vertices = false;
+  double merge_epsilon = -1;
+  const char* fixed_tag = DEFAULT_FIXED_TAG;
+  const char *input_file = 0, *output_file = 0;
   
+  bool no_more_flags = false;
+  char* endptr = 0;
+  long block;
   while (i < argc) {
-    if (!strcmp(argv[i], "-a")) {
-      i++;
-      use_vert_elem_adjs = true;
+    if (!no_more_flags && argv[i][0] == '-') {
+      const int f = i++;
+      for (int j = 1; argv[f][j]; ++j) {
+        switch (argv[f][j]) {
+          case 'a': use_vert_elem_adjs = true; break;
+          case 'p': print_perf = true;         break;
+          case 't': write_tag = true;          break;
+          case 'w': write_whole_mesh = true;   break;
+          case 'm': merge_vertices = true;     break;
+          case '-': no_more_flags = true;      break;
+          case 'h': usage( argv[0], true );    break;
+          case 'b': 
+            if (i == argc || 0 >= (block = strtol(argv[i],&endptr,0)) || *endptr) {
+              std::cerr << "Expected positive integer following '-b' flag" << std::endl;
+              usage(argv[0]);
+            }
+            matsets.push_back((int)block);
+            ++i;
+            break;
+          case 'T':
+            if (i == argc || argv[i][0] == '-') {
+              std::cerr << "Expected tag name following '-T' flag" << std::endl;
+              usage(argv[0]);
+            }
+            fixed_tag = argv[i++];
+            break;
+          case 'M':  
+            if (i == argc || 0.0 > (merge_epsilon = strtod(argv[i],&endptr)) || *endptr) {
+              std::cerr << "Expected positive numeric value following '-M' flag" << std::endl;
+              usage(argv[0]);
+            }
+            merge_vertices = true;
+            ++i;
+            break;
+          default:
+            std::cerr << "Unrecognized flag: '" << argv[i][j] << "'" << std::endl;
+            usage(argv[0]);
+            break;
+        }
+      }
     }
-    else if (!strcmp(argv[i], "-b")) {
-      i++;
-      matsets.push_back(atoi(argv[i]));
-      i++;
+    else if (input_file && output_file) {
+      std::cerr << "Extra argument: " << argv[i] << std::endl;
+      usage(argv[0]);
     }
-    else if (!strcmp(argv[i], "-p")) {
-      i++;
-      print_perf = true;
-    }
-    else if (!strcmp(argv[i], "-s")) {
-      i++;
-      neuset_num = atoi(argv[i]);
-      i++;
-    }
-    else if (!strcmp(argv[i], "-t")) {
-      i++;
-      write_tag = true;
-    }
-    
-    else if (!strcmp(argv[i], "-w")) {
-      i++;
-      write_whole_mesh = true;
+    else if (input_file) {
+      output_file = argv[i++];
     }
     else {
-      break;
+      input_file = argv[i++];
     }
   }
-  
-  const char* input_file = argv[i++];
-  const char* output_file = NULL;
-  if (i < argc) 
-    output_file = argv[i++];
+
+  if (!input_file) {
+    std::cerr << "No input file specified" << std::endl;
+    usage(argv[0]);
+  }
+
   
   MBErrorCode result;
   MBCore mbimpl;
@@ -121,6 +170,20 @@ int main( int argc, char* argv[] )
     get_time_mem(tmp_time2, tmp_mem2);
     std::cout << "After reading: cpu time = " << tmp_time2 << ", memory = " 
               << tmp_mem2/1.0e6 << "MB." << std::endl;
+  }
+  
+  if (merge_vertices) {
+    if (merge_epsilon < 0.0) {
+      if (MB_SUCCESS != min_edge_length( *iface, merge_epsilon )) {
+        std::cerr << "Error determining minimum edge length" << std::endl;
+        return 1;
+      }
+      merge_epsilon /= MIN_EDGE_LEN_DENOM;
+    }
+    if (MB_SUCCESS != merge_duplicate_vertices( *iface, merge_epsilon )) {
+      std::cerr << "Error merging duplicate vertices" << std::endl;
+      return 1;
+    }
   }
   
     // get entities of largest dimension
@@ -202,7 +265,7 @@ int main( int argc, char* argv[] )
   if (write_tag) {
       // get tag handle
     MBTag tag;
-    result = iface->tag_get_handle( FIXED_TAG, tag );
+    result = iface->tag_get_handle( fixed_tag, tag );
     if (result == MB_SUCCESS)
     {
       int size;
@@ -212,14 +275,14 @@ int main( int argc, char* argv[] )
     
       if (size != sizeof(int) || type != MB_TYPE_INTEGER)
       {
-        std::cerr << '"' << FIXED_TAG << "\" tag defined with incorrect size or type" << std::endl;
+        std::cerr << '"' << fixed_tag << "\" tag defined with incorrect size or type" << std::endl;
         return 3;
       }
     }
     else if (result == MB_TAG_NOT_FOUND)
     {
       int zero = 0;
-      result = iface->tag_create( FIXED_TAG, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &zero );
+      result = iface->tag_create( fixed_tag, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &zero );
       CHKERROR(result);
     }
     else
@@ -396,4 +459,129 @@ void get_time_mem(double &tot_time, double &tot_mem)
   
   
   
+MBErrorCode min_edge_length( MBInterface& moab, double& result )
+{
+  double sqr_result = std::numeric_limits<double>::max();
+  
+  MBErrorCode rval;
+  MBRange entities;
+  rval = moab.get_entities_by_handle( 0, entities );
+  if (MB_SUCCESS != rval) return rval;
+  MBRange::iterator i = entities.upper_bound( MBVERTEX );
+  entities.erase( entities.begin(), i );
+  i = entities.lower_bound( MBENTITYSET );
+  entities.erase( i, entities.end() );
+  
+  std::vector<MBEntityHandle> storage;
+  for (i = entities.begin(); i != entities.end(); ++i) {
+    MBEntityType t = moab.type_from_handle( *i );
+    const MBEntityHandle* conn;
+    int conn_len, indices[2];
+    rval = moab.get_connectivity( *i, conn, conn_len, true, &storage );
+    if (MB_SUCCESS != rval) return rval;
+    
+    int num_edges = MBCN::NumSubEntities( t, 1 );
+    for (int j = 0; j < num_edges; ++j) {
+      MBCN::SubEntityVertexIndices( t, 1, j, indices );
+      MBEntityHandle v[2] = { conn[indices[0]], conn[indices[1]] };
+      if (v[0] == v[1])
+        continue;
+      
+      double c[6];
+      rval = moab.get_coords( v, 2, c );
+      if (MB_SUCCESS != rval) return rval;
+      
+      c[0] -= c[3];
+      c[1] -= c[4];
+      c[2] -= c[5];
+      double len_sqr = c[0]*c[0] + c[1]*c[1] + c[2]*c[2];
+      if (len_sqr < sqr_result)
+        sqr_result = len_sqr;
+    }
+  }
+  
+  result = sqrt(sqr_result);
+  return MB_SUCCESS;
+}
+  
+  
+  
+MBErrorCode merge_duplicate_vertices( MBInterface& moab, const double epsilon )
+{
+  MBErrorCode rval;
+  MBRange verts;
+  rval = moab.get_entities_by_type( 0, MBVERTEX, verts );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  MBAdaptiveKDTree tree( &moab );
+  MBEntityHandle root;
+  rval = tree.build_tree( verts, root );
+  if (MB_SUCCESS != rval) {
+    fprintf(stderr,"Failed to build kD-tree.\n");
+    return rval;
+  }
+  
+  std::set<MBEntityHandle> dead_verts;
+  std::vector<MBEntityHandle> leaves;
+  for (MBRange::iterator i = verts.begin(); i != verts.end(); ++i) {
+    double coords[3];
+    rval = moab.get_coords( &*i, 1, coords );
+    if (MB_SUCCESS != rval) return rval;
+    
+    leaves.clear();;
+    rval = tree.leaves_within_distance( root, coords, epsilon, leaves );
+    if (MB_SUCCESS != rval) return rval;
+    
+    MBRange near;
+    for (std::vector<MBEntityHandle>::iterator j = leaves.begin(); j != leaves.end(); ++j) {
+      MBRange tmp;
+      rval = moab.get_entities_by_type( *j, MBVERTEX, tmp );
+      if (MB_SUCCESS != rval)
+        return rval;
+      near.merge( tmp.begin(), tmp.end() );
+    }
+    
+    MBRange::iterator v = near.find( *i );
+    assert( v != near.end() );
+    near.erase( v );
+    
+    MBEntityHandle merge = 0;
+    for (MBRange::iterator j = near.begin(); j != near.end(); ++j) {
+      if (*j < *i && dead_verts.find( *j ) != dead_verts.end())
+        continue;
+      
+      double coords2[3];
+      rval = moab.get_coords( &*j, 1, coords2 );
+      if (MB_SUCCESS != rval) return rval;
+      
+      coords2[0] -= coords[0];
+      coords2[1] -= coords[1];
+      coords2[2] -= coords[2];
+      double dsqr = coords2[0]*coords2[0] +
+                    coords2[1]*coords2[1] +
+                    coords2[2]*coords2[2];
+      if (dsqr <= epsilon*epsilon) {
+        merge = *j;
+        break;
+      }
+    }
+    
+    if (merge) {
+      dead_verts.insert(*i);
+      rval = moab.merge_entities( merge, *i, false, true );
+      if (MB_SUCCESS != rval) return rval;
+    }
+  }
+  
+  if (dead_verts.empty()) 
+    std::cout << "No duplicate/coincident vertices." << std::endl;
+  else
+    std::cout << "Merged and deleted " << dead_verts.size() << " vertices "
+              << "coincident within " << epsilon << std::endl;
+  
+  return MB_SUCCESS;
+}
+
+    
 
