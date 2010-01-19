@@ -400,7 +400,7 @@ bsp_tree_poly_test_SOURCES = bsp_tree_poly_test.cpp
 
 # Other files to clean up (e.g. output from tests)
 DISTCLEANFILES = MBCN_FCDefs.h
-MOSTLYCLEANFILES = dumped_acis.sat tree.h5m
+MOSTLYCLEANFILES = dumped_acis.sat tree.h5m moab.config
 
 test/mb_big_test.g: $(top_srcdir)/test/mb_big_test.g.gz
 	$(ZCAT) $(top_srcdir)/test/mb_big_test.g.gz > test/mb_big_test.g
