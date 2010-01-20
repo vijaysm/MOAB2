@@ -85,7 +85,7 @@ MBErrorCode BitTag::reserve( unsigned bits )
   // pageShift = log2( ents_per_page() )
   //           = log2( 8 * pageSize / storedBitsPerEntity )
   //           = log2(8) + log2(pageSize) - log2(storedBitsPerEntity)
-  //           = 3 * Ln2PageSize - ln2storedbits;
+  //           = 3 + Ln2PageSize - ln2storedbits;
   pageShift = 3 + Ln2PageSize - ln2storedbits;
 
   return MB_SUCCESS;
