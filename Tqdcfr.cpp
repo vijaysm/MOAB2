@@ -19,6 +19,10 @@
 #include "FileOptions.hpp"
 #include <iostream>
 
+#ifdef USE_MPI
+#include "MBmpi.h"
+#endif
+
 #ifndef TEST_TQDCFR
 
 #include "MBReadUtilIface.hpp"
@@ -28,10 +32,6 @@
 #include "MBInternals.hpp"
 #include "HigherOrderFactory.hpp"
 #include "exodus_order.h"
-
-#ifdef USE_MPI
-#include "MBmpi.h"
-#endif
 
 #include <sstream>
 #include <assert.h>
