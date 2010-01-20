@@ -1742,7 +1742,18 @@ void test_bit_tag_big()
     CHECK_ERR( rval );
     CHECK_EQUAL( 1, (int)value );
   }
-  
+    // clear values individually
+  for (MBRange::iterator j = verts.begin(); j != verts.end(); ++j)
+  {
+    char value = '\0';
+    rval = mb.tag_set_data( tag1, &*j, 1, &value );
+    CHECK_ERR( rval );
+  }
+    // retrieve values using range
+  rval = mb.tag_get_data( tag1, verts, &values[0] );
+  CHECK_ERR(rval);
+  size_t first_one = std::find(values.begin(), values.end(), '\001') - values.begin();
+  CHECK_EQUAL( values.size(), first_one );
 }
 
 void setup_mesh( MBInterface& mb )
