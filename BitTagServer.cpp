@@ -76,10 +76,17 @@ MBErrorCode BitTag::reserve( unsigned bits )
     // store smallest power of two greater than or 
     // equal to the number of bits
   storedBitsPerEntity = 1;
-  pageShift = Ln2PageSize+1;
+  unsigned ln2storedbits = 0;
   while (storedBitsPerEntity < bits) {
     storedBitsPerEntity *= 2;
+    ++ln2storedbits;
   }
+  
+  // pageShift = log2( ents_per_page() )
+  //           = log2( 8 * pageSize / storedBitsPerEntity )
+  //           = log2(8) + log2(pageSize) - log2(storedBitsPerEntity)
+  //           = 3 * Ln2PageSize - ln2storedbits;
+  pageShift = 3 + Ln2PageSize - ln2storedbits;
 
   return MB_SUCCESS;
 }

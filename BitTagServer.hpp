@@ -259,7 +259,7 @@ class BitTag
   std::vector<BitPage*> pageList[MBMAXTYPE]; //!< Array of BitPage instances storing actual data.
   unsigned int requestedBitsPerEntity; //!< user-requested bits per entity
   unsigned int storedBitsPerEntity;    //!< allocated bits per entity (power of 2)
-  unsigned int pageShift;              //!< Ln2PageSize + log2(storedBitsPerEntity)
+  unsigned int pageShift;              //!< log2( ents_per_page() )
   
   /**\brief Get indices from handle 
    *
@@ -271,8 +271,8 @@ class BitTag
     { 
       type = TYPE_FROM_HANDLE(h);
       h = ID_FROM_HANDLE(h);
-      page = ((size_t)h) >> pageShift;   // h / (offset*storedBitsPerEntity)
-      offset = h & ((1u<<pageShift)-1u); // h % (offset*storedBitsPerEntity)
+      page = ((size_t)h) >> pageShift;   // h / ents_per_page()
+      offset = h & ((1u<<pageShift)-1u); // h % ends_per_page()
     }
     
   /**\brief Get the number of tag values that are stored in each BitPage */
