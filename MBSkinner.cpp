@@ -1078,10 +1078,23 @@ MBErrorCode MBSkinner::find_skin_vertices_1D( MBTag tag,
                                               const MBRange& edges,
                                               MBRange& skin_verts )
 {
+  // This rather simple algorithm is provided for completeness
+  // (not sure how often one really wants the 'skin' of a chain
+  // or tangle of edges.)
+  //
+  // A vertex is on the skin of the edges if it is contained in exactly
+  // one of the edges *in the input range*.  
+  //
+  // This function expects the caller to have tagged all edges in the
+  // input range with a value of one for the passed bit tag, and all
+  // other edges with a value of zero.  This allows us to do a faster
+  // intersection with the input range and the edges adjacent to a vertex.
+
   MBErrorCode rval;
   std::vector<MBEntityHandle>::iterator i;
   MBRange::iterator hint = skin_verts.begin();
   
+  // All input entities must be edges.
   if (!edges.all_of_dimension(1))
     return MB_TYPE_OUT_OF_RANGE;
   
@@ -1091,22 +1104,25 @@ MBErrorCode MBSkinner::find_skin_vertices_1D( MBTag tag,
   if (MB_SUCCESS != rval)
     return rval;
   
+    // Test how many edges each input vertex is adjacent to.
   std::vector<char> tag_vals;
   std::vector<MBEntityHandle> adj;
   int count;
   for (MBRange::const_iterator it = verts.begin(); it != verts.end(); ++it) {
+      // get edges adjacent to vertex
     adj.clear();
     rval = thisMB->get_adjacencies( &*it, 1, 1, false, adj );
     if (MB_SUCCESS != rval) return rval;
     if (adj.empty())
       continue;
 
-        // remove those not in the input list
+      // Intersect adjacent edges with the input list of edges
     tag_vals.resize( adj.size() );
     rval = thisMB->tag_get_data( tag, &adj[0], adj.size(), &tag_vals[0] );
     if (MB_SUCCESS != rval) return rval;
     count = std::count( tag_vals.begin(), tag_vals.end(), '\001' );
     
+      // If adjacent to only one input edge, then vertex is on skin
     if (count == 1) {
       hint = skin_verts.insert( hint, *it );
     }
@@ -1123,11 +1139,39 @@ template <unsigned CORNERS>
 class AdjSides 
 {
 public:
+  
+  /**
+   * This struct is used to for a reduced representation of element
+   * "sides" adjacent to a give vertex.  As such, it 
+   * a) does not store the initial vertex that all sides are adjacent to
+   * b) orders the remaining vertices in a specific way for fast comparison.
+   * 
+   * For edge elements, only the opposite vertex is stored.
+   * For triangle elements, only the other two vertices are stored,
+   *   and they are stored with the smaller of those two handles first.
+   * For quad elements, only the other three vertices are stored.
+   *  They are stored such that the vertex opposite the implicit (not
+   *  stored) vertex is always in slot 1.  The other two vertices 
+   *  (in slots 0 and 2) are ordered such that the handle of the one in 
+   *  slot 0 is smaller than the handle in slot 2.
+   *
+   * For each side, the adj_elem field is used to store the element that
+   * it is a side of as long as the element is considered to be on the skin.
+   * The adj_elem field is cleared (set to zero) to indicate that this
+   * side is no longer considered to be on the skin (and is the side of
+   * more than one element.)
+   */
   struct Side {
-    MBEntityHandle handles[CORNERS-1];
-    MBEntityHandle adj_elem;
+    MBEntityHandle handles[CORNERS-1]; //!< side vertices, except for implicit one
+    MBEntityHandle adj_elem;           //!< element that this is a side of, or zero
     bool skin() const { return 0 != adj_elem; }
     
+    /** construct from connectivity of side
+     *\param array The connectivity of the element side.
+     *\param idx   The index of the implicit vertex (contained
+     *             in all sides in the list.)
+     *\param adj   The element that this is a side of.
+     */
     Side( const MBEntityHandle* array, int idx,
           MBEntityHandle adj, unsigned short  ) 
       : adj_elem(adj) /*, elem_side(side)*/ 
@@ -1146,6 +1190,15 @@ public:
         std::swap( handles[0], handles[2] );
     }
     
+    /** construct from connectivity of parent element
+     *\param array The connectivity of the parent element
+     *\param idx   The index of the implicit vertex (contained
+     *             in all sides in the list.)  This is an index
+     *             into 'indices', not 'array'.
+     *\param adj   The element that this is a side of.
+     *\param indices  The indices into 'array' at which the vertices
+     *             representing the side occur.
+     */
     Side( const MBEntityHandle* array,  int idx,
           MBEntityHandle adj, unsigned short ,
           const short* indices ) 
@@ -1165,6 +1218,8 @@ public:
         std::swap( handles[0], handles[2] );
     }
    
+    // Compare two side instances.  Relies in the ordering of 
+    // vertex handles as described above.
     bool operator==( const Side& other ) const 
     {
       switch (CORNERS) {
@@ -1186,8 +1241,8 @@ public:
 
 private:
 
-  std::vector<Side> data;
-  size_t skin_count;
+  std::vector<Side> data; //!< List of sides
+  size_t skin_count;      //!< Cached count of sides that are skin
   
 public:
 
@@ -1203,6 +1258,18 @@ public:
   
   size_t num_skin() const { return skin_count; }
   
+    /** \brief insert side, specifying side connectivity
+     *
+     * Either insert a new side, or if the side is already in the
+     * list, mark it as not on the skin.
+     *
+     *\param handles The connectivity of the element side.
+     *\param skip_idx The index of the implicit vertex (contained
+     *             in all sides in the list.)
+     *\param adj_elem The element that this is a side of.
+     *\param elem_side Which side of adj_elem are we storing
+     *             (MBCN side number.)
+     */
   void insert( const MBEntityHandle* handles, int skip_idx,
                MBEntityHandle adj_elem, unsigned short elem_side )
   {
@@ -1210,14 +1277,30 @@ public:
     iterator p = std::find( data.begin(), data.end(), side );
     if (p == data.end()) {
       data.push_back( side );
-      ++skin_count;
+      ++skin_count; // not in list yet, so skin side (so far)
     }
     else if (p->adj_elem) {
-      p->adj_elem = 0;
-      --skin_count;
+      p->adj_elem = 0; // mark as not on skin
+      --skin_count; // decrement cached count of skin elements
     }
   }
   
+    /** \brief insert side, specifying list of indices into parent element
+     * connectivity.
+     *
+     * Either insert a new side, or if the side is already in the
+     * list, mark it as not on the skin.
+     *
+     *\param handles The connectivity of the parent element
+     *\param skip_idx The index of the implicit vertex (contained
+     *             in all sides in the list.)  This is an index
+     *             into 'indices', not 'handles'.
+     *\param adj_elem The element that this is a side of (parent handle).
+     *\param indices  The indices into 'handles' at which the vertices
+     *             representing the side occur.
+     *\param elem_side Which side of adj_elem are we storing
+     *             (MBCN side number.)
+     */
   void insert( const MBEntityHandle* handles,  int skip_idx,
                MBEntityHandle adj_elem, unsigned short elem_side,
                const short* indices )
@@ -1226,14 +1309,26 @@ public:
     iterator p = std::find( data.begin(), data.end(), side );
     if (p == data.end()) {
       data.push_back( side );
-      ++skin_count;
+      ++skin_count; // not in list yet, so skin side (so far)
     }
     else if (p->adj_elem) {
-      p->adj_elem = 0;
-      --skin_count;
+      p->adj_elem = 0; // mark as not on skin
+      --skin_count; // decrement cached count of skin elements
     }
   }
   
+  /**\brief Search list for a given side, and if found, mark as not skin.
+   *
+   *\param other   Connectivity of side
+   *\param skip_index Index in 'other' at which implicit vertex occurs.
+   *\param elem_out If return value is true, the element that the side is a
+   *                side of.  If return value is false, not set.
+   *\return true if found and marked not-skin, false if not found.
+   *
+   * Given the connectivity of some existing element, check if it occurs
+   * in the list.  If it does, clear the "is skin" state of the side so
+   * that we know that we don't need to later create the side element.
+   */
   bool find_and_unmark( const MBEntityHandle* other, int skip_index, MBEntityHandle& elem_out ) 
   {
     Side s( other, skip_index, 0, 0 );
@@ -1242,13 +1337,30 @@ public:
       return false;
     else {
       elem_out = p->adj_elem;
-      p->adj_elem = 0;
-      --skin_count;
+      p->adj_elem = 0; // clear "is skin" state for side
+      --skin_count;    // decrement cached count of skin sides
       return true;
     }
   }
 };
 
+// Utiltiy function used by find_skin_vertices_2D and
+// find_skin_vertices_3D to create elements representing
+// the skin side of a higher-dimension element if one
+// does not already exist.  
+//
+// Some arguments may seem redundant, but they are used
+// to create the correct order of element when the input
+// element contains higher-order nodes.
+//
+// This function always creates elements that have a "forward"
+// orientation with respect to the parent element (have
+// nodes ordered the same as MBCN returns for the "side").
+//
+// elem - The higher-dimension element for which to create
+//        a lower-dim element representing the side.
+// side_type - The MBEntityType of the desired side.
+// side_conn - The connectivity of the new side.
 MBErrorCode MBSkinner::create_side( MBEntityHandle elem,
                                     MBEntityType side_type,
                                     const MBEntityHandle* side_conn,
@@ -1263,9 +1375,12 @@ MBErrorCode MBSkinner::create_side( MBEntityHandle elem,
   const int d = MBCN::Dimension(side_type);
   std::vector<MBEntityHandle> storage;
   
+  // Get the connectivity of the parent element
   rval = thisMB->get_connectivity( elem, conn, len, false, &storage );
   if (MB_SUCCESS != rval) return rval;
  
+  // Find which side we are creating and get indices of all nodes
+  // (including higher-order, if any.)
   MBCN::SideNumber( type, conn, side_conn, ncorner, d, side, sense, offset );
   MBCN::SubEntityNodeIndices( type, len, d, side, tmp_type, side_len, indices );
   assert(side_len <= max_side);
@@ -1281,6 +1396,8 @@ MBErrorCode MBSkinner::create_side( MBEntityHandle elem,
   return thisMB->create_element( side_type, side_conn_full, side_len, side_elem );
 }
 
+// Test if an edge is reversed with respect MBCN's ordering
+// for the "side" of a face.
 bool MBSkinner::edge_reversed( MBEntityHandle face,
                                const MBEntityHandle* edge_ends )
 {
@@ -1299,6 +1416,9 @@ bool MBSkinner::edge_reversed( MBEntityHandle face,
   return (edge_ends[1] == conn[(idx+len-1)%len]);
 }
 
+// Test if a 2D element representing the side or face of a
+// volume element is reversed with respect to the MBCN node
+// ordering for the corresponding region element side.
 bool MBSkinner::face_reversed( MBEntityHandle region,
                                const MBEntityHandle* face_corners,
                                MBEntityType face_type )
@@ -1326,6 +1446,21 @@ MBErrorCode MBSkinner::find_skin_vertices_2D( MBTag tag,
                                               bool create_edges,
                                               bool corners_only )
 {
+  // This function iterates over all the vertices contained in the
+  // input face list.  For each such vertex, it then iterates over
+  // all of the sides of the face elements adjacent to the vertex.
+  // If an adjacent side is the side of only one of the input
+  // faces, then that side is on the skin.  
+  //
+  // This algorithm will visit each skin vertex exactly once.  It
+  // will visit each skin side once for each vertex in the side.
+  //
+  // This function expects the caller to have created the passed bit
+  // tag and set it to one only for the faces in the passed range.  This
+  // tag is used to do a fast intersection of the faces adjacent to a 
+  // vertex with the faces in the input range (discard any for which the
+  // tag is not set to one.)
+
   MBErrorCode rval;
   std::vector<MBEntityHandle>::iterator i, j;
   MBRange::iterator hint;
@@ -1359,12 +1494,12 @@ MBErrorCode MBSkinner::find_skin_vertices_2D( MBTag tag,
     if (adj.empty())
       continue;
 
-      // remove those not in the input list
+      // remove those not in the input list (intersect with input list)
     i = j = adj.begin();
     tag_vals.resize( adj.size() );
     rval = thisMB->tag_get_data( tag, &adj[0], adj.size(), &tag_vals[0] );
     if (MB_SUCCESS != rval) return rval;
-
+      // remove non-tagged entries
     i = j = adj.begin();
     for (; i != adj.end(); ++i) 
       if (tag_vals[i - adj.begin()])
@@ -1377,6 +1512,10 @@ MBErrorCode MBSkinner::find_skin_vertices_2D( MBTag tag,
       rval = thisMB->get_connectivity( *i, conn, len, false, &storage );
       if (MB_SUCCESS != rval) return rval;
       
+        // For a single face element adjacent to this vertex, there
+        // will be exactly two sides (edges) adjacent to the vertex.
+        // Find the other vertex for each of the two edges.
+        
       MBEntityHandle prev, next; // vertices of two adjacent edge-sides
       const int idx = std::find(conn, conn+len, *it) - conn;
       assert(idx != len);
@@ -1397,16 +1536,22 @@ MBErrorCode MBSkinner::find_skin_vertices_2D( MBTag tag,
       const int prev_idx = (idx + len - 1)%len;
       prev = conn[prev_idx];
       next = conn[(idx+1)%len];
+      
+        // Insert sides (edges) in our list of candidate skin sides
       adj_edges.insert( &prev, 1, *i, prev_idx );
       adj_edges.insert( &next, 1, *i, idx );
     }
     
-      // If vertex is not on skin, advance to next vertex
+      // If vertex is not on skin, advance to next vertex.
+      // adj_edges handled checking for duplicates on insertion.
+      // If every candidate skin edge occurred more than once (was
+      // not in fact on the skin), then we're done with this vertex.
     if (0 == adj_edges.num_skin())
       continue;
     
-      // Put skin vertex in output list
+      // If user requested MBRange of *vertices* on the skin...
     if (skin_verts) {
+        // Put skin vertex in output list
       hint = skin_verts->insert( hint, *it );
  
         // Add mid edge nodes to vertex list
@@ -1432,8 +1577,9 @@ MBErrorCode MBSkinner::find_skin_vertices_2D( MBTag tag,
       }
     }
  
+      // If user requested MBRange of *edges* on the skin...
     if (find_edges) {
-        // Search list of adjacent edges for any that are on the skin
+        // Search list of existing adjacent edges for any that are on the skin
       adj.clear();
       rval = thisMB->get_adjacencies( &*it, 1, 1, false, adj );
       if (MB_SUCCESS != rval) return rval;
@@ -1441,12 +1587,13 @@ MBErrorCode MBSkinner::find_skin_vertices_2D( MBTag tag,
         rval = thisMB->get_connectivity( *i, conn, len, true );
         if (MB_SUCCESS != rval) return rval;
 
-          // bool equalality expression will be evaluate to the 
-          // index of *it in the conn array.  Note that the order
-          // of the terms in the if statement is important.  We want
-          // to unmark any existing skin edges even if we aren't returning
-          // them.  Otherwise we'll end up creating duplicates if create_edges
-          // is true.
+          // bool equality expression within find_and_unmark call
+          // will be evaluate to the index of *it in the conn array. 
+          //
+          // Note that the order of the terms in the if statement is important.
+          // We want to unmark any existing skin edges even if we aren't 
+          // returning them.  Otherwise we'll end up creating duplicates 
+          // if create_edges is true and skin_edges is not.
         if (adj_edges.find_and_unmark( conn, (conn[1] == *it), face ) && skin_edges) {
           if (reversed_edges && edge_reversed( face, conn ))
             reversed_edges->insert( *i );
@@ -1456,6 +1603,9 @@ MBErrorCode MBSkinner::find_skin_vertices_2D( MBTag tag,
       }
     }
     
+      // If the user requested that we create new edges for sides
+      // on the skin for which there is no existing edge, and there
+      // are still skin sides for which no corresponding edge was found...
     if (create_edges && adj_edges.num_skin()) {
         // Create any skin edges that don't exist
       for (AdjSides<2>::const_iterator p = adj_edges.begin(); p != adj_edges.end(); ++p) {
@@ -1483,12 +1633,43 @@ MBErrorCode MBSkinner::find_skin_vertices_3D( MBTag tag,
                                               bool create_faces,
                                               bool corners_only )
 {
+  // This function iterates over all the vertices contained in the
+  // input vol elem list.  For each such vertex, it then iterates over
+  // all of the sides of the vol elements adjacent to the vertex.
+  // If an adjacent side is the side of only one of the input
+  // elements, then that side is on the skin.  
+  //
+  // This algorithm will visit each skin vertex exactly once.  It
+  // will visit each skin side once for each vertex in the side.
+  //
+  // This function expects the caller to have created the passed bit
+  // tag and set it to one only for the elements in the passed range.  This
+  // tag is used to do a fast intersection of the elements adjacent to a 
+  // vertex with the elements in the input range (discard any for which the
+  // tag is not set to one.)
+  //
+  // For each vertex, iterate over each adjacent element.  Construct
+  // lists of the sides of each adjacent element that contain the vertex.
+  //
+  // A list of three-vertex sides is kept for all triangular faces,
+  // included three-vertex faces of type MBPOLYGON.  Putting polygons
+  // in the same list ensures that we find polyhedron and non-polyhedron
+  // elements that are adjacent.
+  //
+  // A list of four-vertex sides is kept for all quadrilateral faces,
+  // including four-vertex faces of type MBPOLYGON.
+  //
+  // Sides with more than four vertices must have an explicit MBPOLYGON
+  // element representing them because MBPOLYHEDRON connectivity is a
+  // list of faces rather than vertices.  So the third list (vertices>=5),
+  // need contain only the handle of the face rather than the vertex handles.
+
   MBErrorCode rval;
   std::vector<MBEntityHandle>::iterator i, j;
   MBRange::iterator hint;
   if (skin_verts)
     hint = skin_verts->begin();
-  std::vector<MBEntityHandle> storage, storage2;
+  std::vector<MBEntityHandle> storage, storage2; // temp storage for conn lists
   const MBEntityHandle *conn, *conn2;
   int len, len2;
   bool find_faces = skin_faces || create_faces;
@@ -1499,14 +1680,17 @@ MBErrorCode MBSkinner::find_skin_vertices_3D( MBTag tag,
   if (!entities.all_of_dimension(3))
     return MB_TYPE_OUT_OF_RANGE;
   
+  // get all the vertices
   MBRange verts;
   rval = thisMB->get_adjacencies( entities, 0, false, verts, MBInterface::UNION );
   if (MB_SUCCESS != rval)
     return rval;
   
-  AdjSides<4> adj_quads;
-  AdjSides<3> adj_tris;  
-  AdjSides<2> adj_poly;  
+  AdjSides<4> adj_quads; // 4-node sides adjacent to a vertex
+  AdjSides<3> adj_tris;  // 3-node sides adjacent to a vertex
+  AdjSides<2> adj_poly;  // n-node sides (n>5) adjacent to vertex
+                         // (must have an explicit polygon, so store
+                         // polygon handle rather than vertices.)
   std::vector<char> tag_vals;
   std::vector<MBEntityHandle> adj;
   for (MBRange::const_iterator it = verts.begin(); it != verts.end(); ++it) {
@@ -1519,7 +1703,7 @@ MBErrorCode MBSkinner::find_skin_vertices_3D( MBTag tag,
     if (adj.empty())
       continue;
       
-      // remove those not in the input list
+      // remove those not tagged (intersect with input range)
     i = j = adj.begin();
     tag_vals.resize( adj.size() );
     rval = thisMB->tag_get_data( tag, &adj[0], adj.size(), &tag_vals[0] );
@@ -1578,15 +1762,17 @@ MBErrorCode MBSkinner::find_skin_vertices_3D( MBTag tag,
             continue;
         }
 
+          // For each side of the element...
         const int num_faces = MBCN::NumSubEntities( type, 2 );
         for (int f = 0; f < num_faces; ++f) {
           int num_vtx;
           const short* face_indices = MBCN::SubEntityVertexIndices(type, 2, f, face_type, num_vtx );
           const short face_idx = std::find(face_indices, face_indices+num_vtx, (short)idx) - face_indices;
+            // skip sides that do not contain vertex from outer loop
           if (face_idx == num_vtx)
             continue; // current vertex not in this face
 
-          assert(num_vtx <= 4);
+          assert(num_vtx <= 4); // polyhedra handled above
           switch (face_type) {
             case MBTRI:
               adj_tris.insert( conn, face_idx, *i, f, face_indices );
@@ -1605,8 +1791,9 @@ MBErrorCode MBSkinner::find_skin_vertices_3D( MBTag tag,
     if (0 == (adj_tris.num_skin() + adj_quads.num_skin() + adj_poly.num_skin()))
       continue;
     
-      // Put skin vertex in output list
+      // If user requested that skin *vertices* be passed back...
     if (skin_verts) {
+        // Put skin vertex in output list
       hint = skin_verts->insert( hint, *it );
  
         // Add mid-edge and mid-face nodes to vertex list
@@ -1650,6 +1837,8 @@ MBErrorCode MBSkinner::find_skin_vertices_3D( MBTag tag,
       }
     }
 
+      // If user requested that we pass back the list of 2D elements
+      // representing the skin of the mesh...
     if (find_faces) {
         // Search list of adjacent faces for any that are on the skin
       adj.clear();
@@ -1688,6 +1877,10 @@ MBErrorCode MBSkinner::find_skin_vertices_3D( MBTag tag,
       }
     }
 
+      // If user does not want use to create new faces representing
+      // sides for which there is currently no explicit element, 
+      // skip the remaining code and advance the outer loop to the 
+      // next vertex.
     if (!create_faces)
       continue;
 
