@@ -1701,12 +1701,22 @@ void test_bit_tag_big()
   rval = mb.tag_set_data( tag, verts, &values[0] );
   CHECK_ERR( rval );
   
-    // retreive values
+    // retrieve values
   std::vector<unsigned char> values2( NUM_VTX, 0 );
   rval = mb.tag_get_data( tag, verts, &values2[0] );
   CHECK_EQUAL( values, values2 );
   
-    // retreive entities
+    // retrieve individual values
+  it = values.begin();
+  for (MBRange::iterator j = verts.begin(); j != verts.end(); ++j, ++it)
+  {
+    char value;
+    rval = mb.tag_get_data( tag, &*j, 1, &value );
+    CHECK_ERR( rval );
+    CHECK_EQUAL( *it, value );
+  }
+  
+    // retrieve entities
   unsigned char value = 0xC;
   MBRange expected, results;
   for (MBRange::reverse_iterator j = verts.rbegin(); j != verts.rend(); ++j)
@@ -1716,8 +1726,24 @@ void test_bit_tag_big()
   rval = mb.get_entities_by_type_and_tag( 0, MBVERTEX, &tag, vals, 1, results );
   CHECK_ERR(rval);
   CHECK_EQUAL( expected, results );
+  
+    // test singe-bit tag
+  MBTag tag1 = test_create_tag( mb, "bb1", 1, MB_TAG_BIT, MB_TYPE_BIT, 0 );
+    // set tag to 1 on all vertices
+  values.clear();
+  values.resize( NUM_VTX, '\001' );
+  rval = mb.tag_set_data( tag1, verts, &values[0] );
+  CHECK_ERR(rval);
+    // retrieve values individually
+  for (MBRange::iterator j = verts.begin(); j != verts.end(); ++j)
+  {
+    char value;
+    rval = mb.tag_get_data( tag1, &*j, 1, &value );
+    CHECK_ERR( rval );
+    CHECK_EQUAL( 1, (int)value );
+  }
+  
 }
-
 
 void setup_mesh( MBInterface& mb )
 {
