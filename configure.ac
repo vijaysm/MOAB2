@@ -11,14 +11,17 @@ AC_CHECK_PROG( [SED], [sed], [sed], [true] )
 
 
 ################################################################################
-#                           iMesh
+#                           iMesh Part 1 of 3
 ################################################################################
+
 CONFIGURE_FORTRAN=no
+FORCE_ENABLE_IMESH=no
 AC_ARG_ENABLE( [imesh],
 [AC_HELP_STRING([--enable-imesh(=nofortran)],[Build iMesh interface.  If optional
 'nofortran' argument is given, support for FORTRAN name mangling will be disabled.])
 AC_HELP_STRING([--disable-imesh],[Don't build support for iMesh interface.])],
-[DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-imesh=\"${enableval}\""],
+[FORCE_ENABLE_IMESH=yes
+ DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-imesh=\"${enableval}\""],
 [enableval=yes] )
 
 case $enableval in
@@ -36,10 +39,6 @@ case $enableval in
     AC_MSG_ERROR([Invalid argument to --enable-imesh : $enableval])
     ;;
 esac
-AC_MSG_CHECKING([if iMesh support is to be built])
-AC_MSG_RESULT([$ENABLE_imesh])
-AM_CONDITIONAL([ENABLE_imesh],[test "xyes" = "x$ENABLE_imesh"])
-
 
 ################################################################################
 #                           Compilers
@@ -75,6 +74,83 @@ if test "xno" != "x$CONFIGURE_FORTRAN"; then
   fi
 fi
 
+
+################################################################################
+#                              HANDLE SIZE
+################################################################################
+AC_CHECK_HEADER([inttypes.h], [AC_DEFINE(MOAB_HAVE_INTTYPES_H,  [], [MOAB qualified HAVE_INTTYPES_H]) ])
+AC_CHECK_HEADER([stdint.h],   [AC_DEFINE(MOAB_HAVE_STDINT_H,    [], [MOAB qualified HAVE_STDINT_H])   ])
+AC_CHECK_HEADER([sys/types.h],[AC_DEFINE(MOAB_HAVE_SYS_TYPES_H, [], [MOAB qualified HAVE_SYS_TYPES_H])])
+AC_CHECK_HEADER([stddef.h],   [AC_DEFINE(MOAB_HAVE_STDDEF_H,    [], [MOAB qualified HAVE_STDDEF_H])   ])
+AC_CHECK_HEADER([stdlib.h],   [AC_DEFINE(MOAB_HAVE_STDLIB_H,    [], [MOAB qualified HAVE_STDLIB_H])   ])
+SIZEOF_MBENTITYHANDLE=0
+AC_CHECK_SIZEOF(void *)
+SIZEOF_VOID_P=$ac_cv_sizeof_void_p
+AC_ARG_ENABLE([64bit-handles],
+  [AC_HELP_STRING([--enable-64bit-handles],[Force MBEntityHandle to be 64 bits])],
+  [AC_CHECK_TYPE([uint64_t],
+    [AC_DEFINE(MOAB_FORCE_64_BIT_HANDLES,[],[Use int64_t for handles])
+     SIZEOF_MBENTITYHANDLE=8
+     DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-64bit-handles"],
+    [AC_MSG_ERROR([Platform does not have uint64_t. Cannot force 64-bit handles])])
+])
+AC_ARG_ENABLE([32bit-handles],
+  [AC_HELP_STRING([--enable-32bit-handles],[Force MBEntityHandle to be 32 bits])],
+  [AC_CHECK_TYPE([uint32_t],
+    [AC_DEFINE(MOAB_FORCE_32_BIT_HANDLES,[],[Use int32_t for handles])
+     SIZEOF_MBENTITYHANDLE=4
+     DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-32bit-handles"],
+    [AC_MSG_ERROR([Platform does not have uint32_t. Cannot force 32-bit handles])])
+])
+if test "x$SIZEOF_MBENTITYHANDLE" = "x0"; then
+  SIZEOF_MBENTITYHANDLE=$SIZEOF_VOID_P
+  AC_CHECK_TYPE([size_t], 
+   [AC_DEFINE(MOAB_HAVE_SIZE_T,[],[System provides size_t typedef])],
+   [AC_CHECK_SIZEOF(unsigned long)
+    if test "$SIZEOF_UNSIGNED_LONG" -ne "$SIZEOF_VOID_P"; then
+      AC_MSG_ERROR([Cannot define handle with sizeof void*: size_t not found and long is of incorrect size.])
+    fi]
+  )
+  AC_CHECK_TYPE([ptrdiff_t], 
+   [AC_DEFINE(MOAB_HAVE_PTRDIFF_T,[],[System provides ptrdiff_t typedef])],
+   [AC_CHECK_SIZEOF(long)
+    AC_CHECK_SIZEOF(void *)
+    if test "$SIZEOF_LONG" -ne "$SIZEOF_VOID_P"; then
+      AC_MSG_ERROR([Cannot define handle with sizeof void*: ptrdiff_t not found and long is of incorrect size.])
+    fi]
+  )
+fi
+
+
+################################################################################
+#                           iMesh Part 2 of 3
+################################################################################
+
+# The iMesh option must be checked before configuring the compilers
+# so that we know if we need Fortran.  This stuff has to be done
+# after configuring the compilers so that we know what size of 
+# various types are.
+
+AC_MSG_CHECKING([size of MBEntityHandle])
+AC_MSG_RESULT([$SIZEOF_MBENTITYHANDLE])
+IMESH_VALID_HANDLE_SIZE=yes
+if test $SIZEOF_VOID_P -ne $SIZEOF_MBENTITYHANDLE; then
+  IMESH_VALID_HANDLE_SIZE=no
+  AC_MSG_WARN([Cannot build iMesh API because sizeof(MBEntityHandle) != sizeof(void*)])
+  if test "x$FORCE_ENABLE_IMESH" = "xno"; then
+    ENABLE_imesh=no
+  fi
+fi
+
+AC_MSG_CHECKING([if iMesh support is to be built])
+AC_MSG_RESULT([$ENABLE_imesh])
+AM_CONDITIONAL([ENABLE_imesh],[test "xyes" = "x$ENABLE_imesh"])
+if test "x$ENABLE_imesh" = "xyes"; then
+  if test "x$IMESH_VALID_HANDLE_SIZE" != "xyes"; then
+    AC_MSG_ERROR([Cannot build iMesh API with sizeof(MBEntityHandle) != sizeof(void*)])
+  fi
+fi
+
 ################################################################################
 #                              Version Stuff
 ################################################################################
@@ -105,39 +181,6 @@ ITAPS_LIBTOOL_VAR( [CXX], [compiler_lib_search_path], [MOAB_CXX_LINKFLAGS])
 ITAPS_LIBTOOL_VAR( [CXX], [postdeps], [MOAB_CXX_LIBS])
 AC_SUBST(MOAB_CXX_LINKFLAGS)
 AC_SUBST(MOAB_CXX_LIBS)
-
-################################################################################
-#                              HANDLE SIZE
-################################################################################
-AC_CHECK_HEADER([inttypes.h], [AC_DEFINE(MOAB_HAVE_INTTYPES_H,  [], [MOAB qualified HAVE_INTTYPES_H]) ])
-AC_CHECK_HEADER([stdint.h],   [AC_DEFINE(MOAB_HAVE_STDINT_H,    [], [MOAB qualified HAVE_STDINT_H])   ])
-AC_CHECK_HEADER([sys/types.h],[AC_DEFINE(MOAB_HAVE_SYS_TYPES_H, [], [MOAB qualified HAVE_SYS_TYPES_H])])
-AC_CHECK_HEADER([stddef.h],   [AC_DEFINE(MOAB_HAVE_STDDEF_H,    [], [MOAB qualified HAVE_STDDEF_H])   ])
-AC_CHECK_HEADER([stdlib.h],   [AC_DEFINE(MOAB_HAVE_STDLIB_H,    [], [MOAB qualified HAVE_STDLIB_H])   ])
-AC_ARG_ENABLE([64bit-handles],
-  [AC_HELP_STRING([--enable-64bit-handles],[Force MBEntityHandle to be 64 bits])],
-  [AC_CHECK_TYPE([uint64_t],
-    [AC_DEFINE(MOAB_FORCE_64_BIT_HANDLES,[],[Use int64_t for handles])
-     DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-64bit-handles"],
-    [AC_MSG_ERROR([Platform does not have uint64_t. Cannot force 64-bit handles])])
-])
-AC_ARG_ENABLE([32bit-handles],
-  [AC_HELP_STRING([--enable-32bit-handles],[Force MBEntityHandle to be 32 bits])],
-  [AC_CHECK_TYPE([uint32_t],
-    [AC_DEFINE(MOAB_FORCE_32_BIT_HANDLES,[],[Use int32_t for handles])
-     DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-32bit-handles"],
-    [AC_MSG_ERROR([Platform does not have uint32_t. Cannot force 32-bit handles])])
-])
-if test "x$HANDLE_TYPE" = "x"; then
-  AC_CHECK_TYPE([size_t], 
-   [AC_DEFINE(MOAB_HAVE_SIZE_T,[],[System provides size_t typedef])],
-   [AC_MSG_WARN([size_t not defined, assuming sizeof(void*) == sizeof(long)])]
-  )
-  AC_CHECK_TYPE([ptrdiff_t], 
-   [AC_DEFINE(MOAB_HAVE_PTRDIFF_T,[],[System provides ptrdiff_t typedef])],
-   [AC_MSG_WARN([ptrdiff_t not defined, assuming sizeof(void*) == sizeof(long)])]
-  )
-fi
 
 ################################################################################
 #                             System Headers
@@ -979,7 +1022,7 @@ AC_SUBST(CGM_LIBS)
 AM_CONDITIONAL( HAVE_CGM, [test "x$CGM_MISSING" = "xno"] )
 
 ################################################################################
-#                           iMesh Babel
+#                           iMesh Part 3 of 3 (Babel)
 ################################################################################
 if test "x$ENABLE_imesh" = "xyes"; then
   AC_ARG_WITH(babel, 
