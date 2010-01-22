@@ -21,7 +21,8 @@ bool debug = false;
     if (MB_SUCCESS != result) {\
       std::string tmp_str;\
       std::cout << "Failure; message:" << std::endl;\
-      std::cout << mbImpl->get_last_error(tmp_str) << std::endl;\
+      mbImpl->get_last_error(tmp_str);\
+      std::cout << tmp_str << std::endl;\
       MPI_Finalize();                                     \
       return result;\
     }
