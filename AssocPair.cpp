@@ -208,5 +208,22 @@ IfaceType AssocPair::iface_type(const int iface_no)
 {
   return ifaceTypes[iface_no];
 }
-
   
+bool AssocPair::equivalent(IfaceType type1, 
+                           IfaceType type2,
+                           bool *order_switched) 
+{
+  bool equiv = false;
+  if (type1 == ifaceTypes[0] && 
+      type2 == ifaceTypes[1]) {
+    if (NULL != order_switched) *order_switched = false;
+    equiv = true;
+  }
+  else if (type1 == ifaceTypes[1] && 
+           type2 == ifaceTypes[0]) {
+    equiv = true;
+    if (NULL != order_switched) *order_switched = true;
+  }
+
+  return equiv;
+}

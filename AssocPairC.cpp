@@ -32,18 +32,10 @@ AssocPairC::AssocPairC(iBase_Instance iface0,
                        Lasso *lasso) 
     : AssocPair(ent_or_set0, ent_or_set1, lasso)
 {
-  if (type0 < type1) {
-    ifaceInstances[0] = iface0;
-    ifaceInstances[1] = iface1;
-    ifaceTypes[0] = type0;
-    ifaceTypes[1] = type1;    
-  }
-  else {
-    ifaceInstances[0] = iface1;
-    ifaceInstances[1] = iface0;
-    ifaceTypes[0] = type1;
-    ifaceTypes[1] = type0;
-  }
+  ifaceInstances[0] = iface0;
+  ifaceInstances[1] = iface1;
+  ifaceTypes[0] = type0;
+  ifaceTypes[1] = type1;    
 
     // finally, create the tags we'll need
   create_tags();

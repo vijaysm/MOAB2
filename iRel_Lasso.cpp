@@ -794,7 +794,6 @@ void iRel_getSetArrSetArrAssociation(
     // get assocpair so we can check whether ents are associated to
     // entities or sets or both
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  bool switched = false;
   AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == this_pair) {
     iRel_processError(iBase_FAILURE, "Didn't find association pair.");
@@ -819,8 +818,10 @@ void iRel_createVtxAndAssociate (
   iBase_EntityHandle *new_entity_handle,
   int *ierr)
 {
+  bool switched;
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = lasso->find_pair(iRel_IGEOM_IFACE, iRel_IMESH_IFACE);
+  AssocPair *this_pair = lasso->find_pair(iRel_IGEOM_IFACE, iRel_IMESH_IFACE,
+                                          &switched);
   if (NULL == this_pair) {
     iRel_processError(iBase_FAILURE,
                       "Didn't find a geometry-mesh association.");
@@ -836,7 +837,11 @@ void iRel_createVtxAndAssociate (
   }
   
     // now associate
-  result = this_pair->set_assoc_tags(associatedGeomEnt, *new_entity_handle);
+  if (switched) {
+    result = this_pair->set_assoc_tags(*new_entity_handle, associatedGeomEnt);
+  } else {
+    result = this_pair->set_assoc_tags(associatedGeomEnt, *new_entity_handle);
+  }
   RETURN(result);
 }
 
@@ -850,8 +855,10 @@ void iRel_createEntAndAssociate (
   int *status,
   int *ierr)
 {
+  bool switched;
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = lasso->find_pair(iRel_IGEOM_IFACE, iRel_IMESH_IFACE);
+  AssocPair *this_pair = lasso->find_pair(iRel_IGEOM_IFACE, iRel_IMESH_IFACE,
+                                          &switched);
   if (NULL == this_pair) {
     iRel_processError(iBase_FAILURE,
                       "Didn't find a geometry-mesh association.");
@@ -871,7 +878,11 @@ void iRel_createEntAndAssociate (
   }
   
     // now associate
-  result = this_pair->set_assoc_tags(associatedGeomEnt, *new_entity_handle);
+  if (switched) {
+    result = this_pair->set_assoc_tags(*new_entity_handle, associatedGeomEnt);
+  } else {
+    result = this_pair->set_assoc_tags(associatedGeomEnt, *new_entity_handle);
+  }
   RETURN(result);
 //
 }
@@ -898,6 +909,7 @@ void iRel_createVtxArrAndAssociate (
   CHECK_SIZE(iBase_EntityHandle, new_vertex_handles,
              new_vertex_handles_allocated,
              num_verts);
+  *new_vertex_handles_size = num_verts;
 
   int result = iBase_SUCCESS;
   for (int i = 0; i < num_verts; i++) {
@@ -1430,19 +1442,11 @@ AssocPair *Lasso::find_pair(void *iface0, void *iface1, bool *switched)
 }
 
   //! find a pair with the right types
-AssocPair *Lasso::find_pair(IfaceType type1, IfaceType type2) 
+AssocPair *Lasso::find_pair(IfaceType type1, IfaceType type2, bool *switched) 
 {
-  if (type1 > type2) {
-    IfaceType tmp_type = type1;
-    type1 = type2;
-    type2 = tmp_type;
-  }
-  
   for (std::vector<AssocPair*>::iterator vit = assocPairs.begin();
        vit != assocPairs.end(); vit++) {
-    if ((*vit)->ifaceTypes[0] == type1 && 
-        (*vit)->ifaceTypes[0] == type2)
-      return *vit;
+    if ((*vit)->equivalent(type1, type2, switched)) return *vit;
   }
   
   return NULL;

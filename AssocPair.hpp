@@ -17,6 +17,9 @@ public:
   
   int ent_or_set(const int iface_no);
 
+  bool equivalent(IfaceType type1, IfaceType type2,
+                  bool *order_switched = NULL);
+
   virtual bool equivalent(iBase_Instance iface1, iBase_Instance iface2,
                           bool *order_switched = NULL) = 0;
   
