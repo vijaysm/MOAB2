@@ -1030,6 +1030,7 @@ AC_CONFIG_FILES([Makefile
                  testdir.h
                  parallel/Makefile
                  mhdf/Makefile
+                 benchmarks/Makefile
                  test/Makefile
                  test/h5file/Makefile
                  test/dual/Makefile

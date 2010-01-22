@@ -11,9 +11,9 @@ if HDF5_FILE
   SUBDIRS += mhdf
 endif
 if PARALLEL
-  SUBDIRS += parallel
+  SUBDIRS += parallel 
 endif
-SUBDIRS += . test tools doc doxygen 
+SUBDIRS += . test tools benchmarks doc doxygen 
 
 BUILT_SOURCES = MBCN_protos.h
 
