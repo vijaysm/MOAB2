@@ -30,6 +30,7 @@
 #include "ReadSms.hpp"
 #include "Tqdcfr.hpp"
 #include "ReadTetGen.hpp"
+#include "ReadSmf.hpp"
 #ifdef CGM
 #  include "ReadCGM.hpp"
 #endif
@@ -39,6 +40,7 @@
 #include "WriteGMV.hpp"
 #include "WriteSTL.hpp"
 #include "WriteGmsh.hpp"
+#include "WriteSmf.hpp"
 
 #ifdef NETCDF_FILE
 #  include "ReadNCDF.hpp"
@@ -90,6 +92,8 @@ MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
   register_factory( ReadSms::factory, NULL, "RPI SMS", "sms", "SMS" );
   
   register_factory( Tqdcfr::factory, NULL, "Cubit", "cub", "CUBIT" );
+  
+  register_factory( ReadSmf::factory, WriteSmf::factory , "QSlim format", "smf", "SMF");
 
 #ifdef CGM
   const char* acis_sufxs[] = { "sat", "sab", NULL };
