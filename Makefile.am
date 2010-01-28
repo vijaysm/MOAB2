@@ -191,6 +191,10 @@ libMOAB_la_SOURCES = \
   ReadSTL.hpp \
   ReadVtk.cpp \
   ReadVtk.hpp \
+  ReadSmf.hpp \
+  ReadSmf.cpp \
+  SMF_State.cpp \
+  SMF_State.hpp \
   ReadIDEAS.cpp \
   ReadIDEAS.hpp \
   ReadMCNP5.cpp \
@@ -248,6 +252,8 @@ libMOAB_la_SOURCES = \
   WriteTemplate.cpp \
   WriteVtk.cpp \
   WriteVtk.hpp \
+  WriteSmf.cpp \
+  WriteSmf.hpp \
   $(MOAB_EXTRA_SRCS)
 
 #  MBMem.cpp
