@@ -404,6 +404,27 @@ MBErrorCode MBCore::load_file( const char* file_name,
   return rval;
 }
 
+void MBCore::clean_up_failed_read( const MBRange& initial_ents,
+                                   std::vector<MBTag> initial_tags )
+{
+  MBRange new_ents;
+  get_entities_by_handle( 0, new_ents );
+  new_ents = subtract( new_ents, initial_ents );
+  delete_entities( new_ents );
+
+  std::vector<MBTag> all_tags, new_tags;
+  tag_get_tags( all_tags );
+  std::sort( initial_tags.begin(), initial_tags.end() );
+  std::sort( all_tags.begin(), all_tags.end() );
+  std::set_difference( all_tags.begin(), all_tags.end(),
+                       initial_tags.begin(), initial_tags.end(),
+                       std::back_inserter( new_tags ) );
+  while (!new_tags.empty()) {
+    tag_delete( new_tags.back() );
+    new_tags.pop_back();
+  }
+}
+
 MBErrorCode MBCore::serial_load_file( const char* file_name,
                                       const MBEntityHandle* file_set,
                                       const FileOptions& opts,
@@ -420,6 +441,11 @@ MBErrorCode MBCore::serial_load_file( const char* file_name,
   
   MBRange initial_ents;
   rval = get_entities_by_handle( 0, initial_ents );
+  if (MB_SUCCESS != rval)
+    return rval;
+    
+  std::vector<MBTag> initial_tags;
+  rval = tag_get_tags( initial_tags );
   if (MB_SUCCESS != rval)
     return rval;
 
@@ -443,17 +469,18 @@ MBErrorCode MBCore::serial_load_file( const char* file_name,
         delete reader;
         if (MB_SUCCESS == rval)
           break;
+        clean_up_failed_read( initial_ents, initial_tags );
       }
     }
   }
   
-  MBRange new_ents;
-  get_entities_by_handle( 0, new_ents );
-  new_ents = subtract( new_ents, initial_ents );
   if (MB_SUCCESS != rval) {
-    delete_entities( new_ents );
+    clean_up_failed_read( initial_ents, initial_tags );
   }
   else if (file_set) {
+    MBRange new_ents;
+    get_entities_by_handle( 0, new_ents );
+    new_ents = subtract( new_ents, initial_ents );
     rval = add_entities( *file_set, new_ents );
   }
   

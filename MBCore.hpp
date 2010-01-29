@@ -1165,6 +1165,14 @@ private:
     //! return the entity set representing the whole mesh
   MBEntityHandle get_root_set();
   
+  
+    //!\brief Clean up after a file reader returns failure.
+    //!
+    //! Delete all entities not contained in initial_entities
+    //! and all tags not contained in initial_tags.
+  void clean_up_failed_read( const MBRange& initial_entities,
+                             std::vector<MBTag> initial_tags );
+  
     // other interfaces for MB
   MBWriteUtil* mMBWriteUtil;
   MBReadUtil* mMBReadUtil;
