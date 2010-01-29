@@ -84,7 +84,7 @@ protected:
     void mmult(std::vector<std::string> &);
     void mload(std::vector<std::string> &);
 
-    void parse_line(char *line);
+    MBErrorCode parse_line(char *line);
 private:
 
   MBReadUtilIface* readMeshIface;

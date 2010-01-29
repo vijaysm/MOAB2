@@ -113,11 +113,6 @@ MBErrorCode ReadSmf::load_file( const char *filename,
                                 const MBTag* file_id_tag) 
 {
   MBErrorCode result;
-
-  int major, minor;
-  char vendor_string[257];
-  std::vector<MBRange> element_list;
-  MBRange vertices;
   
   if (subset_list && subset_list_length) {
     readMeshIface->report_error( "Reading subset of files not supported for VTK." );
@@ -131,9 +126,8 @@ MBErrorCode ReadSmf::load_file( const char *filename,
   if ( result == MB_SUCCESS )
     mPartitionTagName = partition_tag_name;
 
-  std::ifstream smfFile;
-    //smfFile.open( filename , std::ifstream::in);
-  if (!smfFile.is_open())
+  std::ifstream smfFile ( filename );
+  if (!smfFile)
   {
     return MB_FILE_DOES_NOT_EXIST;
   }
@@ -143,7 +137,11 @@ MBErrorCode ReadSmf::load_file( const char *filename,
   while( !smfFile.eof() )
     {
 	if( smfFile.getline(line, SMF_MAXLINE, '\n').good() )
-	    parse_line(line);
+        {
+	    result = parse_line(line);
+            if (MB_SUCCESS != result)
+    		return result;
+	}
     }
 
   // at this point we have _numNodesInFile vertices and _numElementsInFile triangles
@@ -261,7 +259,7 @@ void ReadSmf::annotation(char *cmd,  std::vector<std::string> & argv)
     
 }
 
-void ReadSmf::parse_line(char *line)
+MBErrorCode ReadSmf::parse_line(char *line)
 {
     char *cmd,*s;
     std::vector<std::string>  argv;
@@ -269,10 +267,10 @@ void ReadSmf::parse_line(char *line)
     while( *line==' ' || *line=='\t' ) line++;  // skip initial white space
 
     // Ignore empty lines
-    if( line[0]=='\n' || line[0]=='\0' ) return;
+    if( line[0]=='\n' || line[0]=='\0' ) return MB_SUCCESS;
 
     // Ignore comments
-    if( line[0]=='#' && line[1]!='$' ) return;
+    if( line[0]=='#' && line[1]!='$' ) return MB_SUCCESS;
 
     //
     // First, split the line into tokens
@@ -306,9 +304,10 @@ void ReadSmf::parse_line(char *line)
 	{
 	    // Invalid command:
 	    std::cerr << "SMF: Illegal command [" << cmd << "]" << std::endl;
-	    exit(1);
+	    return MB_UNSUPPORTED_OPERATION;
 	}
     }
+    return MB_SUCCESS;
 }
 
 
