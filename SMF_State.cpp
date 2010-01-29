@@ -1,8 +1,10 @@
 
 
 #include "SMF_State.hpp"
+#include <cstring>
+#include <cstdlib>
 
-inline int streq(const char *a,const char *b) { return std::strcmp(a,b)==0; }
+inline int streq(const char *a,const char *b) { return strcmp(a,b)==0; }
 
 
 SMF_State::SMF_State(const SMF_ivars& ivar, SMF_State *link)

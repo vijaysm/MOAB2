@@ -375,6 +375,23 @@ if test "xno" != "x$HAVE_HDF5_PARALLEL"; then
 fi
 
 ################################################################################
+#                             CCMIO OPTIONS
+################################################################################
+
+old_LDFLAGS="$LDFLAGS"
+LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
+FATHOM_CHECK_CCMIO
+LDFLAGS="$old_LDFLAGS"
+if test "xno" != "x$HAVE_CCMIO"; then
+  DEFINES="$DEFINES -DCCMIO_FILE"
+fi
+AM_CONDITIONAL(CCMIO_FILE, [test "xno" != "x$HAVE_CCMIO"])
+AM_CPPFLAGS="$CCMIO_CPPFLAGS $AM_CPPFLAGS"
+EXPORT_LDFLAGS="$CCMIO_LDFLAGS $EXPORT_LDFLAGS"
+AC_SUBST(CCMIO_LIBS)
+
+
+################################################################################
 #                             NetCDF OPTIONS
 ################################################################################
 

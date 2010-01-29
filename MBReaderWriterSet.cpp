@@ -48,6 +48,11 @@
 #  include "WriteSLAC.hpp"
 #endif
 
+#ifdef CCMIO_FILE
+#  include "WriteCCMIO.hpp"
+#  include "ReadCCMIO.hpp"
+#endif
+
 #ifdef HDF5_FILE
 #  include "ReadHDF5.hpp"
 #  ifdef HDF5_PARALLEL
@@ -108,6 +113,12 @@ MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
 
 #ifdef NETCDF_FILE  
   register_factory( NULL, WriteSLAC::factory, "SLAC", "slac", "SLAC" );
+#endif
+
+#ifdef CCMIO_FILE  
+  const char* ccmio_sufxs[] = { "ccm", "ccmg", NULL };
+  register_factory( NULL, WriteCCMIO::factory, "CCMIO files", ccmio_sufxs, "CCMIO");
+  register_factory( ReadCCMIO::factory, NULL, "CCMIO files", ccmio_sufxs, "CCMIO");
 #endif
 
   register_factory( NULL, WriteGMV::factory, "GMV", "gmv", "GMV" );

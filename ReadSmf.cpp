@@ -132,7 +132,7 @@ MBErrorCode ReadSmf::load_file( const char *filename,
     mPartitionTagName = partition_tag_name;
 
   std::ifstream smfFile;
-  smfFile.open( filename , std::ifstream::in);
+    //smfFile.open( filename , std::ifstream::in);
   if (!smfFile.is_open())
   {
     return MB_FILE_DOES_NOT_EXIST;

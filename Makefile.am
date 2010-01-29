@@ -78,6 +78,10 @@ if HDF5_FILE
   INCLUDES += -I$(srcdir)/mhdf/include
   MOAB_EXTRA_SRCS += ReadHDF5.cpp ReadHDF5.hpp WriteHDF5.cpp WriteHDF5.hpp
 endif
+if CCMIO_FILE
+  MOAB_EXTRA_SRCS += WriteCCMIO.cpp WriteCCMIO.hpp ReadCCMIO.cpp ReadCCMIO.hpp
+  libMOAB_la_LIBADD += $(CCMIO_LIBS)
+endif
 
 if PARALLEL
   libMOAB_la_LIBADD += $(top_builddir)/parallel/libMOABpar.la
