@@ -117,8 +117,7 @@ MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
 
 #ifdef CCMIO_FILE  
   const char* ccmio_sufxs[] = { "ccm", "ccmg", NULL };
-  register_factory( NULL, WriteCCMIO::factory, "CCMIO files", ccmio_sufxs, "CCMIO");
-  register_factory( ReadCCMIO::factory, NULL, "CCMIO files", ccmio_sufxs, "CCMIO");
+  register_factory( ReadCCMIO::factory, WriteCCMIO::factory, "CCMIO files", ccmio_sufxs, "CCMIO");
 #endif
 
   register_factory( NULL, WriteGMV::factory, "GMV", "gmv", "GMV" );
@@ -147,12 +146,20 @@ MBErrorCode MBReaderWriterSet::register_factory( reader_factory_t reader,
 {
   if (!reader && !writer)
     return MB_FAILURE;
+    
+    // check for duplicate names
+  iterator h = handler_by_name( name );
+  if (h != end()) {
+    mbError->set_last_error( "Conflicting string name for file formats: \"%s\"",
+                             name );
+    return MB_FAILURE;
+  }
   
     // count extensions and check for duplicates
   const char* const* iter;
   for (iter = extensions; *iter; ++iter)
   {
-    iterator h = handler_from_extension( *iter );
+    h = handler_from_extension( *iter );
     if (h != end())
     {
       if (NULL != reader && h->have_reader())
@@ -245,8 +252,8 @@ MBReaderWriterSet::handler_from_extension( const std::string& ext,
     // try case-insensitive compare
   for (iter = begin(); iter != end(); ++iter)
   {
-    if ((with_reader && iter->have_reader()) ||
-        (with_writer && iter->have_writer()))
+    if ((with_reader && !iter->have_reader()) ||
+        (with_writer && !iter->have_writer()))
       continue;
  
     for (siter = iter->mExtensions.begin(); siter != iter->mExtensions.end(); ++siter)
