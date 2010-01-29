@@ -1,5 +1,0 @@
-[build_ext]
-include-dirs = /path/to/include
-imesh-dir    = /path/to/imesh
-[perf_build]
-imesh-dir    = /path/to/imesh

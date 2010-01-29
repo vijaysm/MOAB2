@@ -7,12 +7,6 @@ else
   babel_DIR = 
 endif
 
-if ENABLE_pytaps
-  pytaps_DIR = python
-else
-  pytaps_DIR = 
-endif
-
 SUBDIRS = . $(babel_DIR) $(pytaps_DIR)
 
 INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I.
