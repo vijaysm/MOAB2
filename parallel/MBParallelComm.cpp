@@ -2809,8 +2809,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBEntityHandle this_set,
   RRA("Failed to find skin.");
   if (debug) std::cerr << "Found skin, now resolving." << std::endl;
 
-    // get entities adjacent to skin ents from shared_dim down to
-    // zero; don't create them if they don't exist already
+    // get entities adjacent to skin ents from shared_dim down to zero
   for (int this_dim = skin_dim-1; this_dim >= 0; this_dim--) {
     result = mbImpl->get_adjacencies(skin_ents[skin_dim], this_dim,
                                      true, skin_ents[this_dim],
