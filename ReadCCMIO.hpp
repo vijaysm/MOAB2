@@ -45,33 +45,39 @@ public:
 
 private:
   
-  MBErrorCode read_processor(CCMIOID rootID, CCMIOID processorID, CCMIOSize_t proc);
+  MBErrorCode read_processor(CCMIOID rootID, CCMIOID problemID,
+                             CCMIOID processorID, CCMIOSize_t proc,
+                             MBRange *new_ents);
 
 
   MBErrorCode read_cells(CCMIOSize_t proc, CCMIOID processorID,
                          CCMIOID verticesID, CCMIOID topologyID,
                          CCMIOID solutionID, bool has_solution,
-                         TupleList &vert_map);
+                         TupleList &vert_map, MBRange *new_cells);
 
 
   MBErrorCode construct_cells(TupleList &face_map, 
 #ifndef TUPLE_LIST
                               SenseList &sense_map,
 #endif
-                              TupleList &vert_map, MBRange &new_cells);
+                              TupleList &vert_map, 
+                              std::vector<MBEntityHandle> &new_cells);
 
 
   MBErrorCode create_cell_from_faces(std::vector<MBEntityHandle> &facehs,
                                      std::vector<int> &senses,
                                      MBEntityHandle &cell);
 
+  MBErrorCode read_gids_and_types(CCMIOID problemID,
+                                  CCMIOID topologyID,
+                                  std::vector<MBEntityHandle> &cells);
 
   MBErrorCode read_all_faces(CCMIOID topologyID, TupleList &vert_map, 
                              TupleList &face_map
 #ifndef TUPLE_LIST
                              ,SenseList &sense_map
 #endif
-                             );
+                             , MBRange *new_faces);
 
 
   MBErrorCode read_faces(CCMIOID faceID, CCMIOEntity bdy_or_int,
@@ -80,7 +86,7 @@ private:
 #ifndef TUPLE_LIST
                          ,SenseList &sense_map
 #endif
-                         );
+                         , MBRange *new_faces);
 
   MBErrorCode make_faces(int *farray, 
                          TupleList &vert_map,
@@ -88,7 +94,7 @@ private:
 
   MBErrorCode read_vertices(CCMIOSize_t proc, CCMIOID processorID, CCMIOID verticesID,
                             CCMIOID topologyID, CCMIOID solutionID, bool has_solution,
-                            MBRange &verts, TupleList &vert_map);
+                            MBRange *verts, TupleList &vert_map);
 
 
   MBErrorCode get_processors(CCMIOID stateID, CCMIOID &processorID,
@@ -105,6 +111,14 @@ private:
                                        const IDTag* subset_list = 0,
                                        int subset_list_length = 0 );
   
+  MBErrorCode load_matset_data(CCMIOID problemID);
+  
+  MBErrorCode load_metadata(CCMIOID rootID, CCMIOID problemID, 
+                            const MBEntityHandle *file_set);
+  
+  MBErrorCode create_matset_tags(MBTag &matNameTag, MBTag &matPorosityTag, 
+                                 MBTag &matSpinTag, MBTag &matGroupTag);
+
     //! Cached tags for reading.  Note that all these tags are defined when the
     //! core is initialized.
   MBTag mMaterialSetTag;
@@ -117,6 +131,8 @@ private:
 
   MBReadUtilIface* readMeshIface;
 
+  MBRange newMatsets;
+  
   bool hasSolution;
 };
 
