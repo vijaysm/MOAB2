@@ -181,7 +181,7 @@ MBErrorCode MBOrientedBoxTreeTool::join_trees( const MBRange& sets,
 }
   
 
-/**\brief Split trianges by which side of a plane they are on
+/**\brief Split triangles by which side of a plane they are on
  *
  * Given a plane specified as a bisecting plane normal to one
  * of the axes of a box, split triangles based on which side
@@ -514,7 +514,7 @@ MBErrorCode MBOrientedBoxTreeTool::preorder_traverse( MBEntityHandle set,
   return MB_SUCCESS;
 }
 
-/********************** General Sphere/Triangel Intersection ***************/
+/********************** General Sphere/Triangle Intersection ***************/
 
 MBErrorCode MBOrientedBoxTreeTool::sphere_intersect_triangles( 
                                         const double* center_v,
@@ -625,7 +625,7 @@ MBErrorCode MBOrientedBoxTreeTool::sphere_intersect_triangles(
       
 
 
-/********************** General Ray/Tree and Ray/Triangel Intersection ***************/
+/********************** General Ray/Tree and Ray/Triangle Intersection ***************/
 
 
 class RayIntersector : public MBOrientedBoxTreeTool::Op
@@ -810,8 +810,8 @@ class RayIntersectSets : public MBOrientedBoxTreeTool::Op
                    double tolerance,
                    unsigned min_tol_intersections,
                    std::vector<double>& intersections,
-		   std::vector<MBEntityHandle>& surfaces,
-		   std::vector<MBEntityHandle>& facets )
+                   std::vector<MBEntityHandle>& surfaces,
+                   std::vector<MBEntityHandle>& facets )
       : tool(tool_ptr), minTolInt(min_tol_intersections),
         b(ray_point), m(unit_ray_dir),
         len(ray_length), tol(tolerance),
@@ -968,7 +968,7 @@ void RayIntersectSets::add_intersection( double t, MBEntityHandle facet )
     intersections.push_back( t );
     sets.push_back( lastSet );
     facets.push_back(facet);
-      // udpate length.  this is currently the closest intersection, so
+      // update length.  this is currently the closest intersection, so
       // only want further intersections that are closer than this one.
     len = &intersections.back();
   }

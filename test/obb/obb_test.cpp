@@ -43,7 +43,7 @@ static void usage( const char* error, const char* opt )
     str << " If no file is specified the defautl test files will be used" << std::endl
         << " -h  print help text. " << std::endl
         << " -v  verbose output (may be specified multiple times) " << std::endl
-        << " -q  quite (minimal output) " << std::endl
+        << " -q  quiet (minimal output) " << std::endl
         << " -f <x>:<y>:<z>:<i>:<j>:<k> Do ray fire" << std::endl
         << " -c  write box geometry to Cubit journal file." << std::endl
         << " -k  write leaf contents to vtk files." << std::endl
@@ -57,7 +57,7 @@ static void usage( const char* error, const char* opt )
         << " -s force construction of surface tree" << std::endl
         << " -S do not build surface tree." << std::endl
         << "    (Default: surface tree if file contains multiple surfaces" << std::endl
-        << " -u  use unorderd (MBRange) meshsets for tree nodes" << std::endl
+        << " -u  use unordered (MBRange) meshsets for tree nodes" << std::endl
         << " -U  use ordered (vector) meshsets for tree nodes" << std::endl
         << " Verbosity (-q sets to 0, each -v increments, default is 1):" << std::endl
         << "  0 - no output" << std::endl
@@ -66,7 +66,7 @@ static void usage( const char* error, const char* opt )
         << "  3 - output errors for each node" << std::endl
         << "  4 - print tree" << std::endl
         << "  5 - print tree w/ contents of each node" << std::endl
-        << " See documentation for MMOrientedBoxTreeTool::Settings for " << std::endl
+        << " See documentation for MBOrientedBoxTreeTool::Settings for " << std::endl
         << " a description of tree generation settings." << std::endl
       ;
   exit( !!error );
@@ -1292,7 +1292,7 @@ static bool do_closest_point_test( MBOrientedBoxTreeTool& tool,
       continue;
     }
     
-      // find closest point usnig tree
+      // find closest point using tree
     rval = tool.closest_to_location( points[i].array(), 
                                      root_set,
                                      t_result.array(),

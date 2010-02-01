@@ -38,8 +38,8 @@ class MBOrientedBoxTreeTool
      * Available settings for controlling when and how nodes in the tree
      * are split.  The constructor will initialize to the default
      * settings.  All settings except best_split_ratio control when
-     * a node is subdivied.  best_split_ratio influences the choice
-     * of how the node is subdivied.
+     * a node is subdivided.  best_split_ratio influences the choice
+     * of how the node is subdivided.
      *
      * A calculated ratio is used in the determination of when and how
      * to split a node.  The ratio is calculated as:
@@ -55,8 +55,8 @@ class MBOrientedBoxTreeTool
      *  - Node must contain more than max_leaf_entities entities.
      *  - The 'ratio' must be less than worst_split_ratio
      *
-     * The node will be subdivied using a plane normal to one of the
-     * box axis and containg the box center.  The planes are tested 
+     * The node will be subdivided using a plane normal to one of the
+     * box axis and containing the box center.  The planes are tested 
      * beginning with the one orthogonal to the longest box axis and
      * finishing with the one orthogonal to the shortest box axis.  The
      * search will stop at the first plane for which the 'ratio' is
@@ -105,13 +105,13 @@ class MBOrientedBoxTreeTool
     /**\brief Build a tree of sets, where each set contains triangles.
      *
      * Build a tree of sets.  Each set must contain at least one triangle
-     * to define it's geometry.  Each passed set will become a leaf of
+     * to define its geometry.  Each passed set will become a leaf of
      * the OBB tree.  Settings controlling tree depth are ignored by
      * this method.  The tree will be as deep as it needs to be for each
      * input set to be a leaf.
      *
      * To build a tree representing the surfaces of a geometric volume,
-     * 1) Build and OBB tree for each surface using the 'build' method
+     * 1) Build an OBB tree for each surface using the 'build' method
      * 2) Add each surface to the contents of the resulting OBB tree root set
      * 3) Build a tree from all the surface OBB tree root sets using this
      *    method to get a combined tree for the volume.
@@ -333,7 +333,7 @@ class MBOrientedBoxTreeTool
                        // virtual function but no virtual destructor.
     };
     
-    /**\brief Visistor pattern - do operation for each tree node
+    /**\brief Visitor pattern - do operation for each tree node
      *
      * Do a preorder traversal of the tree, calling the method
      * in the passed operation instance for each node in the tree.
