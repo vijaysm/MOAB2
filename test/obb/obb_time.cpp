@@ -20,6 +20,7 @@ static void usage( )
       << "  -i - Specify total intersecting rays to fire." << std::endl
       << "       Zero implies unbounded. Default: " << NUM_XSCT << std::endl
       << "  -s - Use set-based tree." << std::endl
+      << "  -p - Measure and report traversal performance statistics" << std::endl
       << "  The input file should be generated using the '-s'" << std::endl
       << "  option with 'obb_test'" << std::endl;
   exit(1);
@@ -77,6 +78,7 @@ int num_rays = NUM_RAYS;
 int num_xsct = NUM_XSCT;
 const char* filename = 0;
 bool do_sets = false;
+bool do_trv_stats = false;
 
 // global to make accessable to signal handler
 int rays = 0, xsct = 0, gen = 0;
@@ -131,6 +133,9 @@ int main( int argc, char* argv[] )
     else if (!strcmp( argv[i], "-s")) {
       do_sets = true;
     }
+    else if (!strcmp( argv[i], "-p")) {
+      do_trv_stats = true;
+    }
     else if (filename) {
       std::cerr << "Invalid options or multiple file names specified." << std::endl;
         usage();
@@ -159,6 +164,11 @@ int main( int argc, char* argv[] )
   if (MB_SUCCESS != rval) {
     std::cerr << "Corrupt tree.  Cannot get box for root node." << std::endl;
     return 3;
+  }
+
+  MBOrientedBoxTreeTool::TrvStats* stats = NULL;
+  if( do_trv_stats ){
+    stats = new MBOrientedBoxTreeTool::TrvStats;
   }
   
   const unsigned cached = 1000;
@@ -198,10 +208,10 @@ int main( int argc, char* argv[] )
     if (do_sets) {
       sets.clear();
       facets.clear();
-      rval = tool.ray_intersect_sets( intersections, sets, facets, root, 1e-6, 1, point.array(), dir.array() );
+      rval = tool.ray_intersect_sets( intersections, sets, facets, root, 1e-6, 1, point.array(), dir.array(), 0,  stats );
     }
     else {
-      rval = tool.ray_intersect_triangles( intersections, root, 1e-6, point.array(), dir.array() );
+      rval = tool.ray_intersect_triangles( intersections, root, 1e-6, point.array(), dir.array(), 0, stats );
     }
     if (MB_SUCCESS != rval) {
       std::cerr << "Rayfire #" << rays << " failed." << std::endl;
@@ -225,6 +235,11 @@ int main( int argc, char* argv[] )
             << xsct << " intersecting fires" << std::endl
             << (double)t/CLOCKS_PER_SEC << " seconds" << std::endl;
   
+  if( do_trv_stats ){
+    std::cout << "Traversal statistics: " << std::endl;
+    stats->print( std::cout );
+  }
+
   return 0;
 }
 

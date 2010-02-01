@@ -920,6 +920,8 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
    { "skew miss",                 0, box.center + box.dimensions(),          box.dimensions() * box.axis[2] }
    };
   
+  MBOrientedBoxTreeTool::TrvStats stats;
+
   bool result = true;
   const size_t num_test = sizeof(tests)/sizeof(tests[0]);
   for (size_t i = 0; i < num_test; ++i) {
@@ -928,7 +930,7 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
       std::cout << "  " << tests[i].description << " " << tests[i].point << " " << tests[i].direction << std::endl;
     
     std::vector<double> intersections;
-    rval = tool.ray_intersect_triangles( intersections, root_set, tolerance, tests[i].point.array(), tests[i].direction.array(), 0 );
+    rval = tool.ray_intersect_triangles( intersections, root_set, tolerance, tests[i].point.array(), tests[i].direction.array(), 0, &stats );
     if (MB_SUCCESS != rval) {
       if (verbosity)
         std::cout << "  Call to MBOrientedBoxTreeTool::ray_intersect_triangles failed." << std::endl;
@@ -955,7 +957,7 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
     const int NUM_NON_TOL_INT = 1;
     std::vector<double> intersections2;
     std::vector<MBEntityHandle> surf_handles, facet_handles;
-    rval = tool.ray_intersect_sets( intersections2, surf_handles, facet_handles, root_set, tolerance, NUM_NON_TOL_INT, tests[i].point.array(), tests[i].direction.array(), 0 );
+    rval = tool.ray_intersect_sets( intersections2, surf_handles, facet_handles, root_set, tolerance, NUM_NON_TOL_INT, tests[i].point.array(), tests[i].direction.array(), 0, &stats );
     if (MB_SUCCESS != rval) {
       if (verbosity)
         std::cout << "  Call to MBOrientedBoxTreeTool::ray_intersect_sets failed." << std::endl;
@@ -1027,7 +1029,7 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
     if (!haveSurfTree) {
       MBRange leaves;
       std::vector<double> intersections;
-      rval = tool.ray_intersect_boxes( leaves, root_set, tolerance, rays[i].array(), rays[i+1].array(), 0 );
+      rval = tool.ray_intersect_boxes( leaves, root_set, tolerance, rays[i].array(), rays[i+1].array(), 0, &stats );
       if (MB_SUCCESS != rval) {
         std::cout << "FAILED" << std::endl;
         result = false;
@@ -1077,7 +1079,7 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
     else {
       std::vector<double> intersections;
       std::vector<MBEntityHandle> surfaces, facets;
-      rval = tool.ray_intersect_sets( intersections, surfaces, facets, root_set, tolerance, 1000, rays[i].array(), rays[i+1].array(), 0 );
+      rval = tool.ray_intersect_sets( intersections, surfaces, facets, root_set, tolerance, 1000, rays[i].array(), rays[i+1].array(), 0, &stats );
       if (MB_SUCCESS != rval) {
         std::cout << "FAILED" << std::endl;
         result = false;
@@ -1143,6 +1145,11 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
     }
   }
   
+  if( verbosity > 1 ){
+    std::cout << "Traversal statistics for ray fire tests: " << std::endl;
+    stats.print(std::cout);
+  }
+
   return result;
 }
 
@@ -1252,6 +1259,9 @@ static bool do_closest_point_test( MBOrientedBoxTreeTool& tool,
                                    MBEntityHandle root_set,
                                    bool have_surface_tree )
 {
+  if (verbosity > 1)
+    std::cout << "beginning closest point tests" << std::endl;
+
   MBErrorCode rval;
   MBInterface* moab = tool.get_moab_instance();
   MBEntityHandle set;
@@ -1265,6 +1275,8 @@ static bool do_closest_point_test( MBOrientedBoxTreeTool& tool,
     if (verbosity) std::cerr << "Invalid tree in do_closest_point_test\n";
     return false;
   }
+
+  MBOrientedBoxTreeTool::TrvStats stats;
   
     // chose some points to test
   MBCartVect points[] = { box.center + box.scaled_axis(0),
@@ -1297,7 +1309,8 @@ static bool do_closest_point_test( MBOrientedBoxTreeTool& tool,
                                      root_set,
                                      t_result.array(),
                                      t_tri,
-                                     set_ptr );
+                                     set_ptr,
+                                     &stats );
     if (MB_SUCCESS != rval) {
       if (verbosity)
         std::cout << "MBOrientedBoxTreeTool:: closest_to_location( " << points[i] << " ) FAILED!" << std::endl;
@@ -1341,6 +1354,11 @@ static bool do_closest_point_test( MBOrientedBoxTreeTool& tool,
       result = false;
       continue;
     }
+  }
+
+  if( verbosity > 1 ){
+    std::cout << "Traversal statistics for closest point tests: " << std::endl;
+    stats.print(std::cout);
   }
   
   return result;

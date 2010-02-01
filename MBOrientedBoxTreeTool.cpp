@@ -470,19 +470,27 @@ MBErrorCode MBOrientedBoxTreeTool::delete_tree( MBEntityHandle set )
 
 struct Data { MBEntityHandle set; int depth; };
 MBErrorCode MBOrientedBoxTreeTool::preorder_traverse( MBEntityHandle set,
-                                                      Op& operation )
+                                                      Op& operation, 
+                                                      TrvStats* accum )
 {
   MBErrorCode rval;
   std::vector<MBEntityHandle> children;
   std::vector<Data> the_stack;
   Data data = { set, 0 };
   the_stack.push_back( data );
+  int max_depth = -1;
   
   while (!the_stack.empty())
   {
     data = the_stack.back();
     the_stack.pop_back();
     
+    // increment traversal statistics
+    if( accum ){
+      accum->increment( data.depth );
+      max_depth = std::max( max_depth, data.depth );
+    }
+
     bool descend = true;
     rval = operation.visit( data.set, data.depth, descend );
     if (MB_SUCCESS != rval)
@@ -511,17 +519,30 @@ MBErrorCode MBOrientedBoxTreeTool::preorder_traverse( MBEntityHandle set,
       return MB_MULTIPLE_ENTITIES_FOUND;
   }
   
+  if( accum ){
+    accum->end_traversal( max_depth );
+  }
+
   return MB_SUCCESS;
 }
 
 /********************** General Sphere/Triangle Intersection ***************/
+
+struct MBOBBTreeSITFrame { 
+  MBOBBTreeSITFrame( MBEntityHandle n, MBEntityHandle s, int dp )
+    : node(n), surf(s), depth(dp) {}
+  MBEntityHandle node;
+  MBEntityHandle surf;
+  int depth;
+};
 
 MBErrorCode MBOrientedBoxTreeTool::sphere_intersect_triangles( 
                                         const double* center_v,
                                         double radius,
                                         MBEntityHandle tree_root,
                                         std::vector<MBEntityHandle>& facets_out,
-                                        std::vector<MBEntityHandle>* sets_out )
+                                        std::vector<MBEntityHandle>* sets_out, 
+                                        TrvStats* accum )
 {
   const double radsqr = radius * radius;
   MBOrientedBox b;
@@ -539,13 +560,25 @@ MBErrorCode MBOrientedBoxTreeTool::sphere_intersect_triangles(
   std::vector<MBEntityHandle>::const_iterator t;
 #endif
   
-  std::vector<MBEntityHandle> stack, children;
-  stack.reserve(60);
-  stack.push_back(tree_root);
-  stack.push_back(0);
+  std::vector<MBOBBTreeSITFrame> stack;
+  std::vector<MBEntityHandle> children;
+  stack.reserve(30);
+  stack.push_back( MBOBBTreeSITFrame( tree_root, 0, 0 ) );
+
+  int max_depth = -1;
+
   while (!stack.empty()) {
-    MBEntityHandle surf = stack.back(); stack.pop_back();
-    MBEntityHandle node = stack.back(); stack.pop_back();
+    MBEntityHandle surf = stack.back().surf; 
+    MBEntityHandle node = stack.back().node;
+    int current_depth   = stack.back().depth;
+    stack.pop_back();
+    
+      // increment traversal statistics.  
+    if( accum ){
+      accum->increment( current_depth );
+      max_depth = std::max( max_depth, current_depth );
+    }
+
     if (!surf && sets_out) {
       rval = get_moab_instance()->get_entities_by_type( node, MBENTITYSET, sets );
       if (!sets.empty())
@@ -569,10 +602,8 @@ MBErrorCode MBOrientedBoxTreeTool::sphere_intersect_triangles(
       return rval;
     if (!children.empty()) {
       assert(children.size() == 2);
-      stack.push_back( children[0] );
-      stack.push_back( surf );
-      stack.push_back( children[1] );
-      stack.push_back( surf );
+      stack.push_back( MBOBBTreeSITFrame( children[0], surf, current_depth + 1 ) );
+      stack.push_back( MBOBBTreeSITFrame( children[1], surf, current_depth + 1 ) );
       continue;
     }
     
@@ -618,6 +649,10 @@ MBErrorCode MBOrientedBoxTreeTool::sphere_intersect_triangles(
           sets_out->push_back( surf );
       }
     }
+  }
+
+  if( accum ){
+    accum->end_traversal( max_depth );
   }
   
   return MB_SUCCESS;
@@ -737,12 +772,13 @@ MBErrorCode MBOrientedBoxTreeTool::ray_intersect_triangles(
                           double tolerance,
                           const double ray_point[3],
                           const double unit_ray_dir[3],
-                          const double* ray_length )
+                          const double* ray_length, 
+                          TrvStats* accum )
 {
   MBRange boxes;
   MBErrorCode rval;
   
-  rval = ray_intersect_boxes( boxes, root_set, tolerance, ray_point, unit_ray_dir, ray_length );
+  rval = ray_intersect_boxes( boxes, root_set, tolerance, ray_point, unit_ray_dir, ray_length, accum );
   if (MB_SUCCESS != rval)
     return rval;
     
@@ -755,10 +791,11 @@ MBErrorCode MBOrientedBoxTreeTool::ray_intersect_boxes(
                           double tolerance,
                           const double ray_point[3],
                           const double unit_ray_dir[3],
-                          const double* ray_length )
+                          const double* ray_length, 
+                          TrvStats* accum )
 {
   RayIntersector op( this, ray_point, unit_ray_dir, ray_length, tolerance, boxes_out );
-  return preorder_traverse( root_set, op );
+  return preorder_traverse( root_set, op, accum );
 }
 
 MBErrorCode RayIntersector::visit( MBEntityHandle node,
@@ -984,11 +1021,12 @@ MBErrorCode MBOrientedBoxTreeTool::ray_intersect_sets(
                                     unsigned min_tolerace_intersections,
                                     const double ray_point[3],
                                     const double unit_ray_dir[3],
-                                    const double* ray_length )
+                                    const double* ray_length, 
+                                    TrvStats* accum )
 {
   RayIntersectSets op( this, ray_point, unit_ray_dir, ray_length, tolerance, 
-                       min_tolerace_intersections, distances_out, sets_out, facets_out );
-  return preorder_traverse( root_set, op );
+                       min_tolerace_intersections, distances_out, sets_out, facets_out ); 
+  return preorder_traverse( root_set, op, accum );
 }
 
 
@@ -996,11 +1034,12 @@ MBErrorCode MBOrientedBoxTreeTool::ray_intersect_sets(
 /********************** Closest Point code ***************/
 
 struct MBOBBTreeCPFrame {
-  MBOBBTreeCPFrame( double d, MBEntityHandle n, MBEntityHandle s )
-    : dist_sqr(d), node(n), mset(s) {}
+  MBOBBTreeCPFrame( double d, MBEntityHandle n, MBEntityHandle s, int dp )
+    : dist_sqr(d), node(n), mset(s), depth(dp) {}
   double dist_sqr;
   MBEntityHandle node;
   MBEntityHandle mset;
+  int depth;
 };
 
 MBErrorCode MBOrientedBoxTreeTool::closest_to_location( 
@@ -1008,7 +1047,8 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location(
                                      MBEntityHandle root,
                                      double* point_out,
                                      MBEntityHandle& facet_out,
-                                     MBEntityHandle* set_out ) 
+                                     MBEntityHandle* set_out,
+                                     TrvStats* accum ) 
 {
   MBErrorCode rval;
   const MBCartVect loc( point );
@@ -1019,8 +1059,9 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location(
   std::vector<MBEntityHandle> children(2);
   std::vector<double> coords;
   std::vector<MBOBBTreeCPFrame> stack;
-    
-  stack.push_back( MBOBBTreeCPFrame(0.0, root, current_set) );
+  int max_depth = -1;
+
+  stack.push_back( MBOBBTreeCPFrame(0.0, root, current_set, 0) );
   
   while( !stack.empty() ) {
 
@@ -1028,11 +1069,18 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location(
     MBEntityHandle node = stack.back().node;
     double dist_sqr = stack.back().dist_sqr;
     current_set = stack.back().mset;
+    int current_depth = stack.back().depth;
     stack.pop_back();
 
       // If current best result is closer than the box, skip this tree node.
     if (dist_sqr > smallest_dist_sqr)
       continue;
+
+      // increment traversal statistics.  
+    if( accum ){
+      accum->increment( current_depth );
+      max_depth = std::max( max_depth, current_depth );
+    }
 
       // Check if this node has a set associated with it
     if (set_out && !current_set) {
@@ -1076,12 +1124,12 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location(
       
         // push children on tree such that closer one is on top
       if (dsqr1 < dsqr2) {
-        stack.push_back( MBOBBTreeCPFrame(dsqr2, children[1], current_set ) );
-        stack.push_back( MBOBBTreeCPFrame(dsqr1, children[0], current_set ) );
+        stack.push_back( MBOBBTreeCPFrame(dsqr2, children[1], current_set, current_depth+1 ) );
+        stack.push_back( MBOBBTreeCPFrame(dsqr1, children[0], current_set, current_depth+1 ) );
       }
       else {
-        stack.push_back( MBOBBTreeCPFrame(dsqr1, children[0], current_set ) );
-        stack.push_back( MBOBBTreeCPFrame(dsqr2, children[1], current_set ) );
+        stack.push_back( MBOBBTreeCPFrame(dsqr1, children[0], current_set, current_depth+1 ) );
+        stack.push_back( MBOBBTreeCPFrame(dsqr2, children[1], current_set, current_depth+1 ) );
       }
     }
     else { // LEAF NODE
@@ -1120,6 +1168,10 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location(
       }
     } // LEAF NODE
   }
+
+  if( accum ){
+    accum->end_traversal( max_depth );
+  }
   
   return MB_SUCCESS;
 }
@@ -1128,7 +1180,8 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location( const double* point,
                                      MBEntityHandle root,
                                      double tolerance,
                                      std::vector<MBEntityHandle>& facets_out,
-                                     std::vector<MBEntityHandle>* sets_out )
+                                     std::vector<MBEntityHandle>* sets_out, 
+                                     TrvStats* accum )
 {
   MBErrorCode rval;
   const MBCartVect loc( point );
@@ -1140,8 +1193,9 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location( const double* point,
   std::vector<MBEntityHandle> children(2);
   std::vector<double> coords;
   std::vector<MBOBBTreeCPFrame> stack;
-    
-  stack.push_back( MBOBBTreeCPFrame(0.0, root, current_set) );
+  int max_depth = -1;
+
+  stack.push_back( MBOBBTreeCPFrame(0.0, root, current_set, 0) );
   
   while( !stack.empty() ) {
 
@@ -1149,11 +1203,18 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location( const double* point,
     MBEntityHandle node = stack.back().node;
     double dist_sqr = stack.back().dist_sqr;
     current_set = stack.back().mset;
+    int current_depth = stack.back().depth;
     stack.pop_back();
 
       // If current best result is closer than the box, skip this tree node.
     if (dist_sqr > smallest_dist_sqr + tolerance)
       continue;
+
+      // increment traversal statistics.  
+    if( accum ){
+      accum->increment( current_depth );
+      max_depth = std::max( max_depth, current_depth );
+    }
 
       // Check if this node has a set associated with it
     if (sets_out && !current_set) {
@@ -1197,12 +1258,12 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location( const double* point,
       
         // push children on tree such that closer one is on top
       if (dsqr1 < dsqr2) {
-        stack.push_back( MBOBBTreeCPFrame(dsqr2, children[1], current_set ) );
-        stack.push_back( MBOBBTreeCPFrame(dsqr1, children[0], current_set ) );
+        stack.push_back( MBOBBTreeCPFrame(dsqr2, children[1], current_set, current_depth+1 ) );
+        stack.push_back( MBOBBTreeCPFrame(dsqr1, children[0], current_set, current_depth+1 ) );
       }
       else {
-        stack.push_back( MBOBBTreeCPFrame(dsqr1, children[0], current_set ) );
-        stack.push_back( MBOBBTreeCPFrame(dsqr2, children[1], current_set ) );
+        stack.push_back( MBOBBTreeCPFrame(dsqr1, children[0], current_set, current_depth+1 ) );
+        stack.push_back( MBOBBTreeCPFrame(dsqr2, children[1], current_set, current_depth+1 ) );
       }
     }
     else { // LEAF NODE
@@ -1254,6 +1315,10 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location( const double* point,
         }
       }
     } // LEAF NODE
+  }
+
+  if( accum ){
+    accum->end_traversal( max_depth );
   }
   
   return MB_SUCCESS;
@@ -1526,6 +1591,55 @@ void MBOrientedBoxTreeTool::print( MBEntityHandle set, std::ostream& str, bool l
   }
 }
 
+
+/********************* Traversal Metrics Code  **************************/
+
+void MBOrientedBoxTreeTool::TrvStats::reset(){
+  nodes_visited_count.clear();
+  traversals_ended_count.clear();
+}
+
+void MBOrientedBoxTreeTool::TrvStats::increment( unsigned depth ){
+
+  while( nodes_visited_count.size() <= depth ){
+    nodes_visited_count.push_back(0);
+    traversals_ended_count.push_back(0);
+  }
+  nodes_visited_count[depth] += 1;
+}
+
+void MBOrientedBoxTreeTool::TrvStats::end_traversal( unsigned depth ){
+  // assume safe depth, because increment is always called on a given 
+  // tree level first
+  traversals_ended_count[depth] += 1;
+}
+
+void MBOrientedBoxTreeTool::TrvStats::print( std::ostream& str ) const {
+
+  const std::string h1 = "OBBTree Depth";
+  const std::string h2 = " - NodesVisited";
+  const std::string h3 = " - TraversalsEnded";
+
+  str << h1 << h2 << h3 << std::endl;
+
+  unsigned num_visited = 0, num_traversals = 0;
+  for( unsigned i = 0; i < traversals_ended_count.size(); ++i){
+
+    num_visited    += nodes_visited_count[i];
+    num_traversals += traversals_ended_count[i];
+   
+    str << std::setw(h1.length()) << i 
+        << std::setw(h2.length()) << nodes_visited_count[i] 
+        << std::setw(h3.length()) << traversals_ended_count[i] 
+        << std::endl;
+  }
+  
+  str << std::setw(h1.length()) << "---- Totals:" 
+      << std::setw(h2.length()) << num_visited 
+      << std::setw(h3.length()) << num_traversals 
+      << std::endl;
+
+}
 
 /********************** Tree Statistics Code ****************************/
 

@@ -25,6 +25,7 @@
 
 #include <iosfwd>
 #include <list>
+#include <vector>
 
 class MBRange;
 class MBOrientedBox;
@@ -120,6 +121,43 @@ class MBOrientedBoxTreeTool
                             MBEntityHandle& root_set_out,
                             const Settings* settings = 0 );
 
+    /**\brief Traversal statistics structure
+     *
+     * Structure to accumulate statistics on traversal performance. Passed optionally
+     * to query functions, this structure contains the count of nodes visited at each
+     * level in a tree, and the count of traversals that ended at each level.
+     * One TrvStats structure can be used with multiple OBB trees or multiple queries,
+     * or used on only a single tree or a single query.
+     *
+     * Note that these traversal statistics are not related to the stats() query below,
+     * which calculates static information about a tree.  These statistics relate
+     * to a tree's dynamic behavior on particular operations.
+     */
+    class TrvStats{ 
+      public:
+
+        //! return counts of nodes visited, indexed by tree depth
+        const std::vector< unsigned >& nodes_visited() const ;
+        //! return counts of traversals ended, indexed by tree depth
+        const std::vector< unsigned >& traversals_ended() const ;
+        //! reset all counters on this structure
+        void reset();
+        //! print the contents of this structure to given stream
+        void print( std::ostream& str ) const ;
+
+      private: 
+      
+        std::vector< unsigned > nodes_visited_count;
+        std::vector< unsigned > traversals_ended_count;
+        
+        void increment( unsigned depth );
+        void end_traversal( unsigned depth );
+
+      friend class MBOrientedBoxTreeTool;
+
+    };
+
+
     /**\brief Intersect a ray with the triangles contained within the tree
      *
      * Intersect a ray with the triangles contained in the tree and return
@@ -136,7 +174,8 @@ class MBOrientedBoxTreeTool
                                          double tolerance,
                                          const double ray_point[3],
                                          const double unit_ray_dir[3],
-                                         const double* ray_length = 0 );
+                                         const double* ray_length = 0,
+                                         TrvStats* accum = 0 );
     
     /**\brief Intersect ray with tree
      *
@@ -153,7 +192,8 @@ class MBOrientedBoxTreeTool
                                      double tolerance,
                                      const double ray_point[3],
                                      const double unit_ray_dir[3],
-                                     const double* ray_length = 0 );
+                                     const double* ray_length = 0,
+                                     TrvStats* accum = 0 );
 
     /**\brief Intersect ray with triangles contained in passed MBENTITYSETs */
     MBErrorCode ray_intersect_triangles( 
@@ -194,7 +234,8 @@ class MBOrientedBoxTreeTool
                                     unsigned min_tolerace_intersections,
                                     const double ray_point[3],
                                     const double unit_ray_dir[3],
-                                    const double* ray_length = 0 );
+                                    const double* ray_length = 0,
+                                    TrvStats* accum = 0 );
     
     /**\brief Find closest surface, facet in surface, and location on facet
      *
@@ -209,7 +250,8 @@ class MBOrientedBoxTreeTool
                                      MBEntityHandle tree_root,
                                      double* point_out,
                                      MBEntityHandle& facet_out,
-                                     MBEntityHandle* set_out = 0);
+                                     MBEntityHandle* set_out = 0, 
+                                     TrvStats* accum = 0 );
                                      
     /**\brief Find closest facet(s) to input position.
      *
@@ -222,7 +264,8 @@ class MBOrientedBoxTreeTool
                                      MBEntityHandle tree_root,
                                      double tolerance,
                                      std::vector<MBEntityHandle>& facets_out,
-                                     std::vector<MBEntityHandle>* sets_out = 0 );
+                                     std::vector<MBEntityHandle>* sets_out = 0, 
+                                     TrvStats* accum = 0 );
     
     /**\brief Find facets intersected by a sphere 
      *
@@ -239,7 +282,8 @@ class MBOrientedBoxTreeTool
                                         double radius,
                                         MBEntityHandle tree_root,
                                         std::vector<MBEntityHandle>& facets_out,
-                                        std::vector<MBEntityHandle>* sets_out = 0 );
+                                        std::vector<MBEntityHandle>* sets_out = 0, 
+                                        TrvStats* accum = 0 );
     
     /**\brief Get oriented box at node in tree
      *
@@ -342,7 +386,8 @@ class MBOrientedBoxTreeTool
      * traversal will not descend to the children of the current node.
      */
     MBErrorCode preorder_traverse( MBEntityHandle root_set,
-                                   Op& operation );
+                                   Op& operation, 
+                                   TrvStats* accum = 0 );
   
     MBInterface* get_moab_instance() const { return instance; }
   
