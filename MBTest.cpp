@@ -7989,19 +7989,24 @@ MBErrorCode mb_skin_adjacent_surf_patches( MBInterface* )
   
     // Define the results we expect for each group as a loop
     // of vertex indices
-  const int Askin[] = { 0, 1, 2, 8, 9, 15, 14, 13, 19, 18, 12, 6 };
+  const int Askin[] =   { 0, 1, 2, 8, 9, 15, 14, 13, 19, 18, 12, 6 };
+  const int Ashared[] = {-1,-1, 1, 1, 1,  3,  2,  2,  2, -1, -1,-1 };
   const int Askin_size = sizeof(Askin)/sizeof(Askin[0]);
-  const int Bskin[] = { 2, 3, 4, 5, 11, 17, 16, 15, 9, 8 };
+  const int Bskin[] =   { 2, 3, 4, 5, 11, 17, 16, 15, 9, 8 };
+  const int Bshared[] = {-1,-1,-1,-1, -1,  3,  3,  0, 0, 0 };
   const int Bskin_size = sizeof(Bskin)/sizeof(Bskin[0]);
-  const int Cskin[] = { 18, 19, 13, 14, 20, 21, 27, 26, 25, 24 };
+  const int Cskin[] =   { 18, 19, 13, 14, 20, 21, 27, 26, 25, 24 };
+  const int Cshared[] = {  0,  0,  0,  3,  3,  3, -1, -1, -1, -1 };
   const int Cskin_size = sizeof(Cskin)/sizeof(Cskin[0]);
-  const int Dskin[] = { 14, 15, 16, 17, 23, 29, 28, 27, 21, 20 };
+  const int Dskin[] =   { 14, 15, 16, 17, 23, 29, 28, 27, 21, 20 };
+  const int Dshared[] = {  0,  1,  1, -1, -1, -1, -1,  2,  2,  2 };
   const int Dskin_size = sizeof(Dskin)/sizeof(Dskin[0]);
   
     // Make the above stuff indexable for easier looping
   const int* const gquads[4] = { Aquads, Bquads, Cquads, Dquads };
   const int gquads_size[4] = { Aquads_size, Bquads_size, Cquads_size, Dquads_size };
   const int* const skin[4] = { Askin, Bskin, Cskin, Dskin };
+  const int* const shared[4] = { Ashared, Bshared, Cshared, Dshared };
   const int skin_size[4] = { Askin_size, Bskin_size, Cskin_size, Dskin_size };
   
     // Create an MBRange for each group of quads
@@ -8023,16 +8028,16 @@ MBErrorCode mb_skin_adjacent_surf_patches( MBInterface* )
   for (int run = 0; run < 4; ++run) {
     const bool use_adj = run > 1;
     if (run == 3) {
-      MBRange edges;
-      mb.get_entities_by_type( 0, MBEDGE, edges );
-      mb.delete_entities( edges );
+      MBRange dead;
+      mb.get_entities_by_type( 0, MBEDGE, dead );
+      mb.delete_entities( dead );
     }
     
       // test each group
+    MBRange edges[4];
     for (int grp = 0; grp < 4; ++grp) {
         // get the skin edges
-      MBRange edges;
-      rval = tool.find_skin( ranges[grp], 1, edges, use_adj );
+      rval = tool.find_skin( ranges[grp], 1, edges[grp], use_adj );
       if (MB_SUCCESS != rval) {
         std::cout << "Skinner failed for run " << run << " group " << grp << std::endl;
         return rval;
@@ -8040,7 +8045,7 @@ MBErrorCode mb_skin_adjacent_surf_patches( MBInterface* )
       
         // check that we have the expected result
       std::vector<bool> seen(skin_size[grp], false);
-      for (MBRange::iterator e = edges.begin(); e != edges.end(); ++e) {
+      for (MBRange::iterator e = edges[grp].begin(); e != edges[grp].end(); ++e) {
         const MBEntityHandle* conn;
         int len;
         rval = mb.get_connectivity( *e, conn, len );
@@ -8072,6 +8077,18 @@ MBErrorCode mb_skin_adjacent_surf_patches( MBInterface* )
           ++error_count;
         }
         seen[pos] = true;
+        
+        int shared_with = shared[grp][pos];
+        if (shared_with < 0) // not shared with another group
+          continue;
+        if (shared_with > grp) // didn't skin other group yet
+          continue;
+        if (edges[shared_with].find(*e) == edges[shared_with].end()) {
+          std::cout << "Skin edge duplicated for run " << run << " group " << grp << std::endl;
+          std::cout << "idx1 = " << idx1 << ", idx2 = " << idx2 
+                    << " not in skin for group " << shared_with << std::endl;
+          ++error_count;
+        }
       }
       
       int missing = std::count( seen.begin(), seen.end(), false );
