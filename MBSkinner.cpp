@@ -295,12 +295,12 @@ MBErrorCode MBSkinner::find_skin( const MBRange& source_entities,
       output_handles.swap( forward );
     else
       output_handles.merge( forward );
-    if (output_reverse_handles) {
-      if (output_reverse_handles->empty())
-        output_reverse_handles->swap( reverse );
-      else
-        output_reverse_handles->merge( reverse );
-    }
+    if (!output_reverse_handles)
+      output_handles.merge( reverse );
+    else if (output_reverse_handles->empty())
+      output_reverse_handles->swap( reverse );
+    else
+      output_reverse_handles->merge( reverse );
   }
   
   return MB_SUCCESS;  
