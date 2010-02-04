@@ -7932,7 +7932,160 @@ MBErrorCode mb_skin_regions_full_test( MBInterface* )
 MBErrorCode mb_skin_adj_regions_full_test( MBInterface* )
   { return mb_skin_full_common( 3, true ); }
         
-
+MBErrorCode mb_skin_adjacent_surf_patches( MBInterface* )
+{
+  MBCore moab;
+  MBInterface& mb = moab;
+  MBErrorCode rval;
+  MBSkinner tool(&mb);
+  
+  /* Mesh with vertices and quads numbered. 
+     Groups are indicated by letters {A,B,C,D}
+  
+     0----1----2----3----4----5
+     | (0)| (1)| (2)| (3)| (4)|
+     |  A |  A |  B |  B |  B |
+     6----7----8----9---10---11
+     | (5)| (6)| (7)| (8)| (9)|
+     |  A |  A |  A |  B |  B |
+    12---13---14---15---16---17
+     |(10)|(11)|(12)|(13)|(14)|
+     |  A |  C |  D |  D |  D |
+    18---19---20---21---22---23          
+     |(15)|(16)|(17)|(18)|(19)|
+     |  C |  C |  C |  D |  D |
+    24---25---26---27---28---29
+  */
+  
+  const int num_vtx = 30;
+  MBEntityHandle vtx[num_vtx];
+  for (int i = 0; i < 6; ++i) {
+    for (int j = 0; j < 5; ++j) {
+      double coords[3] = {i, j, 0};
+      rval = mb.create_vertex( coords, vtx[6*j+i] );
+      if (MB_SUCCESS != rval) return rval;
+    }
+  }
+  
+  MBEntityHandle quads[20];
+  for (int i = 0; i < 5; ++i) {
+    for (int j = 0; j < 4; ++j) {
+      int v = 6*j+i;
+      MBEntityHandle conn[4] = { vtx[v+6], vtx[v+7], vtx[v+1], vtx[v+0] };
+      rval = mb.create_element( MBQUAD, conn, 4, quads[5*j+i] );
+      if (MB_SUCCESS != rval) return rval;
+    }
+  }
+  
+    // Define four groups of quads (as labeled above)
+  const int Aquads[] = { 0, 1, 5, 6, 7, 10 };
+  const int Aquads_size = sizeof(Aquads)/sizeof(Aquads[0]);
+  const int Bquads[] = { 2, 3, 4, 8, 9 };
+  const int Bquads_size = sizeof(Bquads)/sizeof(Bquads[0]);
+  const int Cquads[] = { 11, 15, 16, 17 };
+  const int Cquads_size = sizeof(Cquads)/sizeof(Cquads[0]);
+  const int Dquads[] = { 12, 13, 14, 18, 19 };
+  const int Dquads_size = sizeof(Dquads)/sizeof(Dquads[0]);
+  
+    // Define the results we expect for each group as a loop
+    // of vertex indices
+  const int Askin[] = { 0, 1, 2, 8, 9, 15, 14, 13, 19, 18, 12, 6 };
+  const int Askin_size = sizeof(Askin)/sizeof(Askin[0]);
+  const int Bskin[] = { 2, 3, 4, 5, 11, 17, 16, 15, 9, 8 };
+  const int Bskin_size = sizeof(Bskin)/sizeof(Bskin[0]);
+  const int Cskin[] = { 18, 19, 13, 14, 20, 21, 27, 26, 25, 24 };
+  const int Cskin_size = sizeof(Cskin)/sizeof(Cskin[0]);
+  const int Dskin[] = { 14, 15, 16, 17, 23, 29, 28, 27, 21, 20 };
+  const int Dskin_size = sizeof(Dskin)/sizeof(Dskin[0]);
+  
+    // Make the above stuff indexable for easier looping
+  const int* const gquads[4] = { Aquads, Bquads, Cquads, Dquads };
+  const int gquads_size[4] = { Aquads_size, Bquads_size, Cquads_size, Dquads_size };
+  const int* const skin[4] = { Askin, Bskin, Cskin, Dskin };
+  const int skin_size[4] = { Askin_size, Bskin_size, Cskin_size, Dskin_size };
+  
+    // Create an MBRange for each group of quads
+  MBRange ranges[4];
+  for (int grp = 0; grp < 4; ++grp) 
+    for (int i = 0; i < gquads_size[grp]; ++i)
+      ranges[grp].insert( quads[gquads[grp][i]] );
+  
+    // run test 4 times, one for each of:
+    // o no adjacencies, no edges
+    // o no adjacencies, edges
+    // o adjacencies, edges
+    // o adjacencies, no edges
+    //
+    // Be careful here: once we specify use_adj, we can't
+    // unspecify it (the adjacencies will exist so the skinner
+    // will use them, regardless of the passed flag.)
+  int error_count = 0;
+  for (int run = 0; run < 4; ++run) {
+    const bool use_adj = run > 1;
+    if (run == 3) {
+      MBRange edges;
+      mb.get_entities_by_type( 0, MBEDGE, edges );
+      mb.delete_entities( edges );
+    }
+    
+      // test each group
+    for (int grp = 0; grp < 4; ++grp) {
+        // get the skin edges
+      MBRange edges;
+      rval = tool.find_skin( ranges[grp], 1, edges, use_adj );
+      if (MB_SUCCESS != rval) {
+        std::cout << "Skinner failed for run " << run << " group " << grp << std::endl;
+        return rval;
+      }
+      
+        // check that we have the expected result
+      std::vector<bool> seen(skin_size[grp], false);
+      for (MBRange::iterator e = edges.begin(); e != edges.end(); ++e) {
+        const MBEntityHandle* conn;
+        int len;
+        rval = mb.get_connectivity( *e, conn, len );
+        if (MB_SUCCESS != rval) return rval;
+        if (len != 2) return MB_FAILURE;
+        const int idx1 = std::find( vtx, vtx+num_vtx, conn[0] ) - vtx;
+        const int idx2 = std::find( vtx, vtx+num_vtx, conn[1] ) - vtx;
+        int pos = std::find( skin[grp], skin[grp]+skin_size[grp], idx1 ) - skin[grp];
+        if (pos == skin_size[grp]) {
+          std::cout << "Non-skin vertex in skin for run " << run << " group " << grp << std::endl;
+          std::cout << "idx1 = " << idx1 << ", idx2 = " << idx2 << std::endl;
+          ++error_count;
+          continue;
+        }
+        
+        
+        if (skin[grp][(pos+skin_size[grp]-1)%skin_size[grp]] == idx2)
+          pos = (pos + skin_size[grp] - 1)%skin_size[grp];
+        else if (skin[grp][(pos+1)%skin_size[grp]] != idx2) {
+          std::cout << "Non-skin edge in skin for run " << run << " group " << grp << std::endl;
+          std::cout << "idx1 = " << idx1 << ", idx2 = " << idx2 << std::endl;
+          ++error_count;
+          continue;
+        }
+        
+        if (seen[pos]) {
+          std::cout << "Duplicate edge in skin for run " << run << " group " << grp << std::endl;
+          std::cout << "idx1 = " << idx1 << ", idx2 = " << idx2 << std::endl;
+          ++error_count;
+        }
+        seen[pos] = true;
+      }
+      
+      int missing = std::count( seen.begin(), seen.end(), false );
+      if (missing) {
+        std::cout << "Missking " << missing << " skin edges for run " << run << " group " << grp << std::endl;
+        error_count += missing;
+      }
+    }
+  }
+  
+  return error_count ? MB_FAILURE : MB_SUCCESS;
+}
+    
+  
 static void usage(const char* exe) {
   cerr << "Usage: " << exe << " [-nostress] [-d input_file_dir]\n";
   exit (1);
@@ -8042,6 +8195,7 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_skin_adj_faces_full_test );
   RUN_TEST( mb_skin_regions_full_test );
   RUN_TEST( mb_skin_adj_regions_full_test );
+  RUN_TEST( mb_skin_adjacent_surf_patches );
   RUN_TEST( mb_read_fail_test );
   RUN_TEST( mb_enum_string_test );
   RUN_TEST( mb_merge_update_test );
