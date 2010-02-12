@@ -86,8 +86,96 @@ MBErrorCode GeomTopoTool::get_sense( MBEntityHandle surface,
   return MB_SUCCESS;
 }
 
-
+MBErrorCode GeomTopoTool::find_geomsets(MBRange *ranges) 
+{
+  //MBTag geom_tag;
+  MBErrorCode result = mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4, 
+                                           MB_TAG_SPARSE, geomTag, NULL);
+  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result)
+    return result;
   
+    // get all sets with this tag
+  MBRange geom_sets;
+  result = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &geomTag, NULL, 1,
+                                                 geom_sets);
+  if (MB_SUCCESS != result || geom_sets.empty()) 
+    return result;
+
+  result = separate_by_dimension(geom_sets, geomRanges, geomTag);
+  if (MB_SUCCESS != result)
+    return result;
+
+  if (ranges) {
+    for (int i = 0; i < 4; i++) ranges[i] = geomRanges[i];
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode GeomTopoTool::construct_obb_trees()
+{
+  // get all surfaces and volumes
+  MBRange surfs, vols;
+  const int three = 3;
+  const void* const three_val[] = {&three};
+  MBErrorCode rval = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &geomTag, 
+							   three_val, 1, vols);
+  if (MB_SUCCESS != rval) return rval;
+
+  const int two = 2;
+  const void* const two_val[] = {&two};
+  rval = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &geomTag, 
+					       two_val, 1, surfs);
+  if (MB_SUCCESS != rval) return rval;
+
+  // surf/vol offsets are just first handles
+  setOffset = (*surfs.begin() < *vols.begin() ? *surfs.begin() : *vols.begin());
+
+  // for surface
+  MBEntityHandle root;
+  rootSets.resize(surfs.size() + vols.size());
+  for (MBRange::iterator i = surfs.begin(); i != surfs.end(); ++i) {
+    MBRange tris;
+    rval = mdbImpl->get_entities_by_dimension( *i, 2, tris );
+    if (MB_SUCCESS != rval) return rval;
+    
+    if (tris.empty()) {
+      std::cerr << "WARNING: Surface has no facets." << std::endl;
+    }
+
+    rval = obbTree.build( tris, root );
+    if (MB_SUCCESS != rval) return rval;
+
+    rval = mdbImpl->add_entities( root, &*i, 1 );
+    if (MB_SUCCESS != rval) return rval;
+
+    rootSets[*i - setOffset] = root;
+  }
+  
+  // for volumes
+  for (MBRange::iterator i = vols.begin(); i != vols.end(); ++i) {
+    // get all surfaces in volume
+    MBRange tmp_surfs;
+    rval = mdbImpl->get_child_meshsets( *i, tmp_surfs );
+    if (MB_SUCCESS != rval) return rval;
+    
+    // get OBB trees for each surface
+    MBRange trees;
+    for (MBRange::iterator j = tmp_surfs.begin();  j != tmp_surfs.end(); ++j) {
+      rval = get_root(*j, root);
+      if (MB_SUCCESS != rval || !root) return MB_FAILURE;
+      trees.insert( root );
+    }
+    
+    // build OBB tree for volume
+    rval = obbTree.join_trees( trees, root );
+    if (MB_SUCCESS != rval) return rval;
+
+    rootSets[*i - setOffset] = root;
+  }
+
+  return MB_SUCCESS;
+} 
   
     //! Restore parent/child links between GEOM_TOPO mesh sets
 MBErrorCode GeomTopoTool::restore_topology() 
@@ -274,6 +362,5 @@ MBErrorCode GeomTopoTool::construct_vertex_ranges(const MBRange &geom_sets,
   
   return result;
 }
-
-  
+ 
   

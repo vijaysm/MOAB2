@@ -41,6 +41,34 @@ case $enableval in
 esac
 
 ################################################################################
+#                           iGeom Part 1 of 3
+################################################################################
+
+CONFIGURE_FORTRAN=no
+FORCE_ENABLE_IGEOM=no
+AC_ARG_ENABLE( [igeom],
+[AC_HELP_STRING([--enable-igeom(=nofortran)],[Build iGeom interface.  If optional
+'nofortran' argument is given, support for FORTRAN name mangling will be disabled.])
+AC_HELP_STRING([--disable-igeom],[Don't build support for iGeom interface (default).])],
+[enableval="$enableval"],[enableval=no] )
+
+case $enableval in
+  yes)
+    ENABLE_igeom=yes
+    CONFIGURE_FORTRAN=yes
+    ;;
+  nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
+    ENABLE_igeom=yes
+    ;;
+  no)
+    ENABLE_igeom=no
+    ;;
+  *)
+    AC_MSG_ERROR([Invalid argument to --enable-igeom : $enableval])
+    ;;
+esac
+
+################################################################################
 #                           Compilers
 ################################################################################
 
@@ -148,6 +176,35 @@ AM_CONDITIONAL([ENABLE_imesh],[test "xyes" = "x$ENABLE_imesh"])
 if test "x$ENABLE_imesh" = "xyes"; then
   if test "x$IMESH_VALID_HANDLE_SIZE" != "xyes"; then
     AC_MSG_ERROR([Cannot build iMesh API with sizeof(MBEntityHandle) != sizeof(void*)])
+  fi
+fi
+
+################################################################################
+#                           iGeom Part 2 of 3
+################################################################################
+
+# The iGeom option must be checked before configuring the compilers
+# so that we know if we need Fortran.  This stuff has to be done
+# after configuring the compilers so that we know what size of 
+# various types are.
+
+AC_MSG_CHECKING([size of MBEntityHandle])
+AC_MSG_RESULT([$SIZEOF_MBENTITYHANDLE])
+IGEOM_VALID_HANDLE_SIZE=yes
+if test $SIZEOF_VOID_P -ne $SIZEOF_MBENTITYHANDLE; then
+  IMESH_VALID_HANDLE_SIZE=no
+  AC_MSG_WARN([Cannot build iMesh API because sizeof(MBEntityHandle) != sizeof(void*)])
+  if test "x$FORCE_ENABLE_IGEOM" = "xno"; then
+    ENABLE_igeom=no
+  fi
+fi
+
+AC_MSG_CHECKING([if iGeom support is to be built])
+AC_MSG_RESULT([$ENABLE_igeom])
+AM_CONDITIONAL([ENABLE_igeom],[test "xyes" = "x$ENABLE_igeom"])
+if test "x$ENABLE_igeom" = "xyes"; then
+  if test "x$IGEOM_VALID_HANDLE_SIZE" != "xyes"; then
+    AC_MSG_ERROR([Cannot build iGeom API with sizeof(MBEntityHandle) != sizeof(void*)])
   fi
 fi
 
@@ -973,6 +1030,8 @@ AC_CONFIG_FILES([Makefile
                  tools/iMesh/SIDL/iMesh-SIDL-Defs.inc
                  tools/iMesh/SIDL/Makefile
                  tools/iMesh/SIDL/common.make
+		 tools/iGeom/Makefile
+                 tools/iGeom/iGeom-Defs.inc
                  tools/mbperf/Makefile
                  tools/mbchaco/Makefile
                  tools/mbcoupler/Makefile
