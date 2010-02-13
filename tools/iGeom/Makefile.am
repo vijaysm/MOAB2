@@ -47,8 +47,5 @@ install-data-hook:
 	echo "IGEOM_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iGeom-Defs.inc
 	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iGeom-Defs.inc
 
-iGeom_protos.h: iGeom.h mkprotos.sh
-	$(srcdir)/mkprotos.sh iGeom MBCN $< $@ MBCN_FCDefs.h
-
-iGeom_FCDefs.h: iBase_FCDefs.h
-	cd ../.. && ./config.status tools/iGeom/iGeom_FCDefs.h
+iGeom_protos.h: iGeom.h mkprotos.sh Makefile.am
+	$(srcdir)/mkprotos.sh iGeom MBCN $< $@ iGeom_FCDefs.h

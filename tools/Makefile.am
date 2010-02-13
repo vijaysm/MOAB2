@@ -115,7 +115,14 @@ else
   imesh_DIR = 
 endif 
 
+if ENABLE_igeom
+  igeom_DIR = iGeom
+else
+  igeom_DIR = 
+endif 
+
 SUBDIRS = $(imesh_DIR) \
+          $(igeom_DIR) \
           $(mbchaco_DIR) \
           $(mbcoupler_DIR) \
           $(mbzoltan_DIR) \

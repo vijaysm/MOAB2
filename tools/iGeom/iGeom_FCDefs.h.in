@@ -1,0 +1,7 @@
+
+/* Fortran-mangle iGeom symbol names */
+#undef IGEOM_FORTRAN
+
+#ifdef IGEOM_FORTRAN
+# include "MBCN_FCDefs.h"
+#endif

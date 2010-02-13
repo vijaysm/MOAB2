@@ -15,12 +15,12 @@ AC_CHECK_PROG( [SED], [sed], [sed], [true] )
 ################################################################################
 
 CONFIGURE_FORTRAN=no
-FORCE_ENABLE_IMESH=no
+FORCE_IMESH=no
 AC_ARG_ENABLE( [imesh],
 [AC_HELP_STRING([--enable-imesh(=nofortran)],[Build iMesh interface.  If optional
 'nofortran' argument is given, support for FORTRAN name mangling will be disabled.])
 AC_HELP_STRING([--disable-imesh],[Don't build support for iMesh interface.])],
-[FORCE_ENABLE_IMESH=yes
+[FORCE_IMESH=yes
  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-imesh=\"${enableval}\""],
 [enableval=yes] )
 
@@ -28,9 +28,11 @@ case $enableval in
   yes)
     ENABLE_imesh=yes
     CONFIGURE_FORTRAN=yes
+    AC_DEFINE([IMESH_FORTRAN],[1],[Fortran-mangle iMesh symbol names])
     ;;
   nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
     ENABLE_imesh=yes
+    IMESH_FORTRAN=no
     ;;
   no)
     ENABLE_imesh=no
@@ -44,18 +46,18 @@ esac
 #                           iGeom Part 1 of 3
 ################################################################################
 
-CONFIGURE_FORTRAN=no
-FORCE_ENABLE_IGEOM=no
+FORCE_IGEOM=no
 AC_ARG_ENABLE( [igeom],
 [AC_HELP_STRING([--enable-igeom(=nofortran)],[Build iGeom interface.  If optional
 'nofortran' argument is given, support for FORTRAN name mangling will be disabled.])
 AC_HELP_STRING([--disable-igeom],[Don't build support for iGeom interface (default).])],
-[enableval="$enableval"],[enableval=no] )
+[FORCE_IGEOM=yes],[enableval=no] )
 
 case $enableval in
   yes)
     ENABLE_igeom=yes
     CONFIGURE_FORTRAN=yes
+    AC_DEFINE([IGEOM_FORTRAN],[1],[Fortran-mangle iGeom symbol names])
     ;;
   nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
     ENABLE_igeom=yes
@@ -151,7 +153,7 @@ fi
 
 
 ################################################################################
-#                           iMesh Part 2 of 3
+#                           iMesh/iGeom Part 2 of 3
 ################################################################################
 
 # The iMesh option must be checked before configuring the compilers
@@ -161,12 +163,15 @@ fi
 
 AC_MSG_CHECKING([size of MBEntityHandle])
 AC_MSG_RESULT([$SIZEOF_MBENTITYHANDLE])
-IMESH_VALID_HANDLE_SIZE=yes
+ITAPS_VALID_HANDLE_SIZE=yes
 if test $SIZEOF_VOID_P -ne $SIZEOF_MBENTITYHANDLE; then
-  IMESH_VALID_HANDLE_SIZE=no
-  AC_MSG_WARN([Cannot build iMesh API because sizeof(MBEntityHandle) != sizeof(void*)])
-  if test "x$FORCE_ENABLE_IMESH" = "xno"; then
+  ITAPS_VALID_HANDLE_SIZE=no
+  AC_MSG_WARN([Cannot build iMesh or iGeom API because sizeof(MBEntityHandle) != sizeof(void*)])
+  if test "x$FORCE_IMESH" = "xno"; then
     ENABLE_imesh=no
+  fi
+  if test "x$FORCE_IGEOM" = "xno"; then
+    ENABLE_igeom=no
   fi
 fi
 
@@ -174,28 +179,8 @@ AC_MSG_CHECKING([if iMesh support is to be built])
 AC_MSG_RESULT([$ENABLE_imesh])
 AM_CONDITIONAL([ENABLE_imesh],[test "xyes" = "x$ENABLE_imesh"])
 if test "x$ENABLE_imesh" = "xyes"; then
-  if test "x$IMESH_VALID_HANDLE_SIZE" != "xyes"; then
+  if test "x$ITAPS_VALID_HANDLE_SIZE" != "xyes"; then
     AC_MSG_ERROR([Cannot build iMesh API with sizeof(MBEntityHandle) != sizeof(void*)])
-  fi
-fi
-
-################################################################################
-#                           iGeom Part 2 of 3
-################################################################################
-
-# The iGeom option must be checked before configuring the compilers
-# so that we know if we need Fortran.  This stuff has to be done
-# after configuring the compilers so that we know what size of 
-# various types are.
-
-AC_MSG_CHECKING([size of MBEntityHandle])
-AC_MSG_RESULT([$SIZEOF_MBENTITYHANDLE])
-IGEOM_VALID_HANDLE_SIZE=yes
-if test $SIZEOF_VOID_P -ne $SIZEOF_MBENTITYHANDLE; then
-  IMESH_VALID_HANDLE_SIZE=no
-  AC_MSG_WARN([Cannot build iMesh API because sizeof(MBEntityHandle) != sizeof(void*)])
-  if test "x$FORCE_ENABLE_IGEOM" = "xno"; then
-    ENABLE_igeom=no
   fi
 fi
 
@@ -203,7 +188,7 @@ AC_MSG_CHECKING([if iGeom support is to be built])
 AC_MSG_RESULT([$ENABLE_igeom])
 AM_CONDITIONAL([ENABLE_igeom],[test "xyes" = "x$ENABLE_igeom"])
 if test "x$ENABLE_igeom" = "xyes"; then
-  if test "x$IGEOM_VALID_HANDLE_SIZE" != "xyes"; then
+  if test "x$ITAPS_VALID_HANDLE_SIZE" != "xyes"; then
     AC_MSG_ERROR([Cannot build iGeom API with sizeof(MBEntityHandle) != sizeof(void*)])
   fi
 fi
@@ -1013,7 +998,7 @@ AC_SUBST([DISTCHECK_CONFIGURE_FLAGS])
 AC_ARG_VAR([FC], [FORTRAN compiler command])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_HEADERS([MBVersion.h MBEntityHandle.h parallel/MBmpi_config.h])
-AC_CONFIG_HEADERS([iBase_FCDefs.h])
+AC_CONFIG_HEADERS([iBase_FCDefs.h tools/iMesh/iMesh_FCDefs.h tools/iGeom/iGeom_FCDefs.h])
 AC_CONFIG_FILES([Makefile 
                  moab.make 
                  testdir.h
