@@ -26,6 +26,7 @@ libiMesh_la_include_HEADERS = iMesh.h \
                              iMesh_extensions_protos.h \
                              iMesh_f.h \
                              iMesh_protos.h \
+                             iMesh_FCDefs.h \
                              iBase.h \
                              iBase_f.h 
 
