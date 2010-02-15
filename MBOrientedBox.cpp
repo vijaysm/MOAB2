@@ -477,16 +477,24 @@ bool MBOrientedBox::intersect_ray( const MBCartVect& b,
   const MBCartVect cx = center - b;
   double dist_s = cx % m;
   double dist_sq = cx % cx - (dist_s*dist_s);
-  double max_diagsq = outer_radius_squared();
+  double max_diagsq = outer_radius_squared(reps);
   
     // if greater than the longest diagonal, we don't hit
-  if (dist_sq > max_diagsq+reps)
+  if (dist_sq > max_diagsq)
     return false;
-  if (len && dist_s - max_diagsq > *len)
-    return false;
-  
+
+  // If the closest possible hit is farther than len, we don't want the hit.
+  // Problem: the previous method was wrong because max_diagsq will be greater
+  // than max_diag if max_diag>1 but less than max_diag if max_diag<1.
+  // Be careful with absolute value, squaring distances, and subtracting squared
+  // distances.
+  if (len) {
+    const double temp = fabs(dist_s) - *len;
+    if(0.0<temp && temp*temp>max_diagsq) return false;
+  } 
+
     // if smaller than shortest diagonal, we do hit
-  if (dist_sq < inner_radius_squared() - reps && dist_s >= 0.0)
+  if (dist_sq < inner_radius_squared(reps) && dist_s >= 0.0)
     return true;
     
     // get transpose of axes

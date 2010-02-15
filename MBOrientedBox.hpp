@@ -53,8 +53,8 @@ public:
 
   inline double inner_radius() const; //!< radius of inscribed sphere
   inline double outer_radius() const; //!< radius of circumscribed sphere
-  inline double outer_radius_squared() const; //!< square of radius of circumsphere
-  inline double inner_radius_squared() const; //!< square of radius if inscribed sphere
+  inline double outer_radius_squared(const double reps) const; //!< square of (radius+at least epsilon) of circumsphere
+  inline double inner_radius_squared(const double reps) const; //!< square of (radius-epsilon) of inscribed sphere
   inline double volume() const;               //!< volume of box
   inline MBCartVect dimensions() const;       //!< number of dimensions for which box is not flat
   inline double area() const;                 //!< largest side area
@@ -176,24 +176,30 @@ double MBOrientedBox::outer_radius() const
 #endif
 }
 
-double MBOrientedBox::outer_radius_squared() const
+// Add at least epsilon to the radius, before squaring it.
+double MBOrientedBox::outer_radius_squared(const double reps) const
 {
 #if MB_ORIENTED_BOX_OUTER_RADIUS
-  return radius * radius;
+  return (radius+reps)*(radius+reps);
 #elif MB_ORIENTED_BOX_UNIT_VECTORS
-  return length % length;
+  MBCartVect tmp(length[0]+reps,length[1]+reps,length[2]+reps);
+  return tmp % tmp;
 #else
-  const MBCartVect half_diag = axis[0] + axis[1] + axis[2];
+  MBCartVect half_diag = axis[0] + axis[1] + axis[2];
+  half_diag += MBCartVect(reps,reps,reps);
   return half_diag % half_diag;
 #endif
 }
 
-double MBOrientedBox::inner_radius_squared() const
+// Subtract epsilon from the length of the shortest axis, before squaring it.
+double MBOrientedBox::inner_radius_squared(const double reps) const
 {
 #if MB_ORIENTED_BOX_UNIT_VECTORS
-  return length[0] * length[0];
+  return (length[0]-reps) * (length[0]-reps);
 #else
-  return axis[0] % axis[0];
+  MBCartVect tmp = axis[0];
+  tmp -= MBCartVect(reps,reps,reps);
+  return (tmp % tmp);
 #endif
 }
 
