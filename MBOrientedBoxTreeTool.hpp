@@ -137,9 +137,11 @@ class MBOrientedBoxTreeTool
       public:
 
         //! return counts of nodes visited, indexed by tree depth
-        const std::vector< unsigned >& nodes_visited() const ;
+        const std::vector< unsigned >& nodes_visited() const
+        { return nodes_visited_count; }
         //! return counts of traversals ended, indexed by tree depth
-        const std::vector< unsigned >& traversals_ended() const ;
+        const std::vector< unsigned >& traversals_ended() const 
+        { return traversals_ended_count; }        
         //! reset all counters on this structure
         void reset();
         //! print the contents of this structure to given stream
