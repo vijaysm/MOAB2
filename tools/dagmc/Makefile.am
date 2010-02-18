@@ -13,7 +13,9 @@ INCLUDES += $(CGM_INCLUDES)
 CPPFLAGS += $(CGM_CPPFLAGS) -DCGM $(MOAB_CGM_DEFINES)
 CXXFLAGS += $(CGM_CXXFLAGS)
 
-noinst_PROGRAMS = update_coords quads_to_tris
+if NETCDF_FILE
+  noinst_PROGRAMS = update_coords quads_to_tris
+endif
 bin_PROGRAMS = cgm2moab
 cgm2moab_SOURCES = main.cc cubfile.c
 cgm2moab_LDFLAGS = $(CGM_LTFLAGS) $(CGM_LDLFAGS)
@@ -36,8 +38,10 @@ quads_to_tris_LDADD = $(top_builddir)/libMOAB.la
 test_geom_SOURCES = test_geom.cc
 test_geom_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS)  $(CGM_LDFLAGS) $(CGM_LIBS)
 
-update_coords_SOURCES = cub2h5m.cc quads_to_tris.cpp quads_to_tris.hpp
-update_coords_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS) $(CGM_LDFLAGS) $(CGM_LIBS)
+if NETCDF_FILE
+  update_coords_SOURCES = cub2h5m.cc quads_to_tris.cpp quads_to_tris.hpp
+  update_coords_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS) $(CGM_LDFLAGS) $(CGM_LIBS)
+endif
 
 pt_vol_test_SOURCES = pt_vol_test.cc
 pt_vol_test_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS)  $(CGM_LDFLAGS) $(CGM_LIBS)
