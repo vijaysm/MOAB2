@@ -21,8 +21,12 @@ cgm2moab_SOURCES = main.cc cubfile.c
 cgm2moab_LDFLAGS = $(CGM_LTFLAGS) $(CGM_LDLFAGS)
 cgm2moab_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LIBS)
 cgm2moab_DEPENDENCIES = libdagmc.la $(top_builddir)/libMOAB.la
-dist_man1_MANS = cgm2moab.man
+cgm2moabman = cgm2moab.man
+else
+cgm2moabman=
 endif
+
+man1_MANS = $(cgm2moabman)
                    
 CGM_CPPFLAGS = @CGM_CPPFLAGS@
 CGM_LDFLAGS = @CGM_LDFLAGS@
