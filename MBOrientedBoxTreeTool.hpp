@@ -136,9 +136,13 @@ class MBOrientedBoxTreeTool
     class TrvStats{ 
       public:
 
-        //! return counts of nodes visited, indexed by tree depth
+        //! return counts of nodes visited, indexed by tree depth.  
+        //! the counts include both leaves and interior nodes
         const std::vector< unsigned >& nodes_visited() const
         { return nodes_visited_count; }
+        //! return counts of tree leaves visited, indexed by tree depth
+        const std::vector< unsigned >& leaves_visited() const
+        { return leaves_visited_count; }
         //! return counts of traversals ended, indexed by tree depth
         const std::vector< unsigned >& traversals_ended() const 
         { return traversals_ended_count; }        
@@ -150,9 +154,11 @@ class MBOrientedBoxTreeTool
       private: 
       
         std::vector< unsigned > nodes_visited_count;
+        std::vector< unsigned > leaves_visited_count;
         std::vector< unsigned > traversals_ended_count;
         
         void increment( unsigned depth );
+        void increment_leaf( unsigned depth );
         void end_traversal( unsigned depth );
 
       friend class MBOrientedBoxTreeTool;

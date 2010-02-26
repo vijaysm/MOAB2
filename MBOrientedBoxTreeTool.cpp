@@ -504,6 +504,7 @@ MBErrorCode MBOrientedBoxTreeTool::preorder_traverse( MBEntityHandle set,
     if (MB_SUCCESS != rval)
       return rval;
     if (children.empty()) {
+      if( accum ){ accum->increment_leaf( data.depth ); }
       rval = operation.leaf( data.set );
       if (MB_SUCCESS != rval)
         return rval;
@@ -607,6 +608,7 @@ MBErrorCode MBOrientedBoxTreeTool::sphere_intersect_triangles(
       continue;
     }
     
+    if(accum){ accum->increment_leaf( current_depth ); }
       // if leaf, intersect sphere with triangles
 #ifndef MB_OBB_USE_VECTOR_QUERIES
 # ifdef MB_OBB_USE_TYPE_QUERIES
@@ -1133,6 +1135,8 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location(
       }
     }
     else { // LEAF NODE
+      if( accum ){ accum->increment_leaf( current_depth ); }
+
       MBRange facets;
       rval = instance->get_entities_by_dimension( node, 2, facets );
       if (MB_SUCCESS != rval)
@@ -1267,6 +1271,8 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location( const double* point,
       }
     }
     else { // LEAF NODE
+      if( accum ){ accum->increment_leaf( current_depth ); }
+
       MBRange facets;
       rval = instance->get_entities_by_dimension( node, 2, facets );
       if (MB_SUCCESS != rval)
@@ -1596,6 +1602,7 @@ void MBOrientedBoxTreeTool::print( MBEntityHandle set, std::ostream& str, bool l
 
 void MBOrientedBoxTreeTool::TrvStats::reset(){
   nodes_visited_count.clear();
+  leaves_visited_count.clear();
   traversals_ended_count.clear();
 }
 
@@ -1603,9 +1610,15 @@ void MBOrientedBoxTreeTool::TrvStats::increment( unsigned depth ){
 
   while( nodes_visited_count.size() <= depth ){
     nodes_visited_count.push_back(0);
+    leaves_visited_count.push_back(0);
     traversals_ended_count.push_back(0);
   }
   nodes_visited_count[depth] += 1;
+}
+
+void MBOrientedBoxTreeTool::TrvStats::increment_leaf( unsigned depth ){
+  //assume safe depth, because increment is called first
+  leaves_visited_count[depth] += 1;
 }
 
 void MBOrientedBoxTreeTool::TrvStats::end_traversal( unsigned depth ){
@@ -1618,25 +1631,29 @@ void MBOrientedBoxTreeTool::TrvStats::print( std::ostream& str ) const {
 
   const std::string h1 = "OBBTree Depth";
   const std::string h2 = " - NodesVisited";
-  const std::string h3 = " - TraversalsEnded";
+  const std::string h3 = " - LeavesVisited";
+  const std::string h4 = " - TraversalsEnded";
 
-  str << h1 << h2 << h3 << std::endl;
+  str << h1 << h2 << h3 << h4 << std::endl;
 
-  unsigned num_visited = 0, num_traversals = 0;
+  unsigned num_visited = 0, num_leaves = 0, num_traversals = 0;
   for( unsigned i = 0; i < traversals_ended_count.size(); ++i){
 
     num_visited    += nodes_visited_count[i];
+    num_leaves     += leaves_visited_count[i];
     num_traversals += traversals_ended_count[i];
    
     str << std::setw(h1.length()) << i 
         << std::setw(h2.length()) << nodes_visited_count[i] 
-        << std::setw(h3.length()) << traversals_ended_count[i] 
+        << std::setw(h3.length()) << leaves_visited_count[i]
+        << std::setw(h4.length()) << traversals_ended_count[i] 
         << std::endl;
   }
   
   str << std::setw(h1.length()) << "---- Totals:" 
       << std::setw(h2.length()) << num_visited 
-      << std::setw(h3.length()) << num_traversals 
+      << std::setw(h3.length()) << num_leaves
+      << std::setw(h4.length()) << num_traversals 
       << std::endl;
 
 }
