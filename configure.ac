@@ -345,6 +345,89 @@ AC_SUBST([DOXYGEN])
 AM_CONDITIONAL([ENABLE_DOXYGEN],[test "x$ENABLE_DOXYGEN" != "xno"])
 
 
+################################################################################
+#                           Zoltan - Part 1 of 2
+################################################################################
+WITH_ZOLTAN=no
+ZOLTAN_DIR=
+ZOLTAN_ARCH=
+WITH_PARAMETIS=no
+PARMETIS_DIR=
+
+ZOLTAN_LIBS=
+ZOLTAN_LIB_FLAGS=
+ZOLTAN_INC_FLAGS=
+
+# If user specified zoltan-arch, but not zoltan, assume
+# they want zoltan support, otherwise assume no zoltan
+ZOLTAN_DEFAULT=no
+
+# Some versions of Zoltan put libraries in directories such as Obj_Linux,
+# where the part after the Obj_ prefix is the zoltan architecture.  Here
+# we allow the user to specify this architecture.  We try to avoid requiring
+# this option, but we allow the user to specify it in case something is 
+# going wrong with the logic to choose one automatically.  The 'choose one
+# automatically' logic is basically to add everything that matches Obj_*
+# to the search path, with the assumption that the linker will ignore libraries
+# for other architectures.
+AC_ARG_WITH( [zoltan-arch],
+             [AC_HELP_STRING([--with-zoltan-arch=OS],[Specify zoltan architecture])],
+             [case "x$withval" in
+               xyes|xno)
+                 AC_MSG_ERROR([Expeted value for --with-zoltan-arch])
+                 ;;
+               x*)
+                 ZOLTAN_ARCH="$withval"
+                 ZOLTAN_DEFAULT=yes
+                 ;;
+               esac])
+
+# Enable support for Zoltan, and optionally specify directory in which
+# to search for Zoltan libs and headers.  Specifying this also enables
+# mbzoltan unless it is explicitly disabled.
+AC_ARG_WITH( [zoltan], 
+             [AC_HELP_STRING([--with-zoltan=DIR],[Enable Zoltan support, and optionally specify Zoltan location])],
+             [case "x$withval" in
+               xyes)
+                 WITH_ZOLTAN=yes
+                 ;;
+               xno)
+                 WITH_ZOLTAN=no
+                 ;;
+               x*)
+                 WITH_ZOLTAN=yes
+                 ZOLTAN_DIR="$withval"
+                 test -d "$withval" || AC_MSG_ERROR([Not a directory: with-zoltan=$withval])
+                 if test -d "$withval/include"; then
+                   ZOLTAN_INC_FLAGS="-I$withval/include"
+                 else
+                   ZOLTAN_INC_FLAGS="-I$withval"
+                 fi
+                 ;;
+               esac],[WITH_ZOLTAN=$ZOLTAN_DEFAULT] )
+
+# If user specified with-parmetis, then assume they are trying
+# to add an additional library search directory in which to check
+# for the parmetis library.  We always check if zoltan requires
+# parmetis, so the only thing the user would really need to tell
+# us is if we need to look in some special place for it. 
+AC_ARG_WITH([parmetis], 
+            [AC_HELP_STRING([--with-parmetis=DIR],[Directory containing Parmetis library for Zoltan])],
+             [case "x$withval" in
+               xyes|xno)
+                 # do nothing
+                 ;;
+               x*)
+                 PARMETIS_DIR="$withval"
+                 test -d "$withval" || AC_MSG_ERROR([Not a directory: with-parmetis=$withval])
+                 if test -d "$withval/lib"; then
+                   ZOLTAN_LIB_FLAGS="-L$withval/lib"
+                 else
+                   ZOLTAN_LIB_FLAGS="-L$withval"
+                 fi
+                 ;;
+               esac] )
+
 
 ###############################################################################
 #                           Optional Tools
@@ -389,110 +472,73 @@ MB_OPTIONAL_TOOL([mcnpmit],      [no])
 MB_OPTIONAL_TOOL([mbcoupler],    [$ENABLE_mcnpmit] )
 MB_OPTIONAL_TOOL([spheredecomp], [yes])
 MB_OPTIONAL_TOOL([mbsurfplot],   [yes])
-MB_OPTIONAL_TOOL([mbzoltan],     [no] )
+MB_OPTIONAL_TOOL([mbzoltan],     [${WITH_ZOLTAN}] )
 MB_OPTIONAL_TOOL([dagmc],        [yes])
 MB_OPTIONAL_TOOL([gsets],        [yes])
 MB_OPTIONAL_TOOL([mbdepth],      [yes])
 
 
 ################################################################################
-#                           Zoltan
+#                           Zoltan - Part 2 of 2
 ################################################################################
-if test $ENABLE_mbzoltan = yes; then
-  if test "x$WITH_MPI" = "xno"; then
-     AC_MSG_ERROR([--enable-mbzoltan requires MPI, try specifying --with-mpi])
-  fi
-  
 
-  ZOLTAN_LIB_FLAGS=
-  ZOLTAN_INC_FLAGS=
-  ZOLTAN_LIBS=
-  ZOLTAN_ARCH=
-  ZOLTAN_DIR=
+if test "xyes" = "x$ENABLE_mbzoltan"; then
+  WITH_ZOLTAN=yes
+else
+  WITH_ZOLTAN=no
+fi
 
-  AC_ARG_WITH( [zoltan], 
-               [AC_HELP_STRING([--with-zoltan=DIR],[Specify Zoltan build directory])],
-               [if test "xyes" = "$withval"; then 
-                  AC_MSG_WARN([Ingoring --with-zoltan flag w/out value])
-                elif test -d $withval/$include; then
-                  ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval/include"
-                  ZOLTAN_DIR="$withval"
-                else
-                  AC_MSG_ERROR("$withval/include : not a directory")
-                fi
-                DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-zoltan=\"${withval}\""
-               ])
+# If user requested Zoltan support, verify that we can
+# find the library and headers, and set the necessary
+# build variables.
+if test "xyes" = "x$WITH_ZOLTAN"; then
 
-  AC_ARG_WITH([zoltan-arch],
-   [AC_HELP_STRING([--with-zoltan-arch=OS],[Specify zoltan architecture])],
-   [if test "xyes" = "x$withval"; then
-      AC_MSG_ERROR([--with-zoltan-arch flag requires a value])
-    elif test "x" = "x$ZOLTAN_DIR"; then
-      AC_MSG_WARN([Ingoring --with-zoltan-arch without --with-zoltan])
-    elif test -d "$ZOLTAN_DIR/Obj_$withval"; then
-      ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR/Obj_$withval"
-    else
-      AC_MSG_ERROR("$ZOLTAN_DIR/Obj_$withval : not a directory")
-    fi],
-   [if test "x" != "x$ZOLTAN_DIR"; then
-      AC_MSG_WARN([Expect --with-zoltan-arch with --with-zoltan])
-      if test -d $ZOLTAN_DIR/lib; then
-        AC_MSG_WARN("Guessing '$ZOLTAN_DIR/lib'")
-        ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR/lib"
-      else
-        # if only one Obj_$ARCH dir, then us it
-        found=no
-        for dir in $ZOLTAN_DIR/Obj_*; do
-          if test -d $dir; then
-            if test "xyes" = "x$found"; then
-              AC_MSG_ERROR("Multiple Zoltan Obj_$ARCH dirs.  --with-zoltan-arch required.")
-            fi
-            ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$dir"
-            found=yes
-          fi
-        done
-        if test "xno" = "x$found"; then
-          AC_MSG_ERROR('No Zoltan Obj_$ARCH dir found.  --with-zoltan-arch required.')
-        fi
-      fi
-    fi
-   ])
-
-  AC_ARG_WITH([parmetis], 
-              [AC_HELP_STRING([--with-parmetis=DIR], 
-                [Directory containing Parmetis library for Zoltan])],
-              [if test "xyes" = "$withval"; then 
-                 AC_MSG_WARN([Ingoring --with-parmetis flag w/out value])
-               elif test -d "$withval"; then
-                 ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval"
-               else
-                 AC_MSG_ERROR("$withval: not a directory")
-               fi]
-               DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-parmetis=\"${withval}\""
-             )
-
+    # Test for zoltan headers
+  AC_LANG_PUSH([C++])
   old_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $ZOLTAN_INC_FLAGS -DMPICH_IGNORE_CXX_SEEK"
-  AC_LANG_PUSH([C++])
-  AC_CHECK_HEADER([zoltan_cpp.h],[],[AC_MSG_ERROR("mbzoltan requires zoltan")])
-  AC_LANG_POP([C++])
+  AC_CHECK_HEADER([zoltan_cpp.h],,[AC_MSG_ERROR([zoltan_cpp.h: header not found in $ZOLTAN_INC_FLAGS .])])
   CPPFLAGS="$old_CPPFLAGS"
+  AC_LANG_POP([C++])
   
+    # Build LDFLAGS for Zoltan
+  found=no
+  if test "x" != "x$ZOLTAN_DIR"; then
+    if test "x" != "x$ZOLTAN_ARCH" && test -d "$ZOLTAN_DIR/Obj_$ZOLTAN_ARCH"; then
+      ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR/Obj_$ZOLTAN_ARCH"
+      found=yes
+    elif test -d "$ZOLTAN_DIR/lib"; then
+      ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR/lib"
+      found=yes
+    else
+      for d in $ZOLTAN_DIR/Obj_*; do
+        if test -d "$d"; then
+          found=yes
+          ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$d"
+        fi
+      done
+    fi
+    if test "no" = "$found"; then
+      ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR"
+    fi
+  fi
+  
+    # Test for Zoltan library, possibly requiring parmetis
   old_LDFLAGS="$LDFLAGS"
   LDFLAGS="$LDFLAGS $ZOLTAN_LIB_FLAGS"
   AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],[ZOLTAN_LIBS='-lzoltan'],
     [unset ac_cv_lib_zoltan_Zoltan_LB_Partition
      AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],
                   [ZOLTAN_LIBS="-lzoltan -lparmetis -lmetis"],
-                  [AC_MSG_ERROR("mbzoltan requires zoltan")],
+                  [AC_MSG_ERROR("libzoltan not found in $ZOLTAN_LIB_FLAGS")],
                   [-lparmetis -lmetis])])
   LDFLAGS="$old_LDFLAGS"
   
-
-  AC_SUBST(ZOLTAN_LIBS)
-  AC_SUBST(ZOLTAN_LIB_FLAGS)
-  AC_SUBST(ZOLTAN_INC_FLAGS)
 fi
+
+AC_SUBST(ZOLTAN_LIBS)
+AC_SUBST(ZOLTAN_LIB_FLAGS)
+AC_SUBST(ZOLTAN_INC_FLAGS)
 
 ################################################################################
 #                           Chaco
