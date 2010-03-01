@@ -28,6 +28,7 @@
 #include <cmath>
 #include <memory>
 #include <sstream>
+#include <map>
 
 #include "MBCN.hpp"
 #include "MBRange.hpp"
@@ -1614,7 +1615,10 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
   //4. loop through the node_num_map, use it to find the node in the cub file.
   //5. Replace coord[0][n] with coordx[m]+vals_nod_var1(time_step, m) for all directions for matching nodes.   
   // Test: try to get hexes
-  
+
+  // *******************************************************************
+  // Move nodes to their deformed locations.
+  // *******************************************************************  
   MBErrorCode rval;
   std::string s;
   rval = opts.get_str_option("tdata", s ); 
@@ -1821,10 +1825,18 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
   double max_magnitude = 0;
   double average_magnitude = 0;
 
+  // Find the matching cub node by id or proximity
+  const bool match_node_ids = true;
+
+  // We should not use cub verts unless they have been matched. Place in a map
+  // for fast handle_by_id lookup.
+  std::map<int,MBEntityHandle> matched_cub_vert_id_map;
+
   // For each exo vert find the closest cub vert. Use proximity because kd-tree
   // search is O(logn) but MOAB tag search is O(n). For 150k nodes this 
-  // is 5 minutes faster.
-  const double GEOMETRY_RESABS = 1e-6;
+  // is 5 minutes faster. The MAX_NODE_DIST is the farthest that we will search
+  // for a node. Note that the exodus file is single precision.
+  const double MAX_NODE_DIST = 1e-3;
   std::cout << "  exodus file contains " << numberNodes_loading << " nodes." 
             << std::endl;
   for(int i=0; i<numberNodes_loading; ++i) {
@@ -1832,29 +1844,46 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
     std::vector<MBEntityHandle> leaves;
     int exo_id = ptr[i];
     MBCartVect exo_coords( orig_coords[0][i], orig_coords[1][i], orig_coords[2][i] );
-    rval = kdtree.leaves_within_distance( root, exo_coords.array(), GEOMETRY_RESABS, leaves );    
+
+    double min_dist = MAX_NODE_DIST;
+
+    rval = kdtree.leaves_within_distance( root, exo_coords.array(), MAX_NODE_DIST, leaves );    
     if(MB_SUCCESS != rval) return rval;
     for(std::vector<MBEntityHandle>::const_iterator j=leaves.begin(); 
       j!=leaves.end(); ++j) {
-      if(0 != cub_vert) break;
+      //if(0 != cub_vert) break;
       std::vector<MBEntityHandle> leaf_verts;
       rval = mdbImpl->get_entities_by_type( *j, MBVERTEX, leaf_verts );
       if(MB_SUCCESS != rval) return rval;
-      // Find the matching cub vert by id, then do a sanity check on distance
+
+      // Find the matching cub node by id or proximity
       for(std::vector<MBEntityHandle>::const_iterator k=leaf_verts.begin(); 
         k!=leaf_verts.end(); ++k) {
-        int cub_id;
-        rval = mdbImpl->tag_get_data( mGlobalIdTag, &(*k), 1, &cub_id );
-        if(MB_SUCCESS != rval) return rval;
-        if(exo_id == cub_id) {
-          cub_vert = *k;
-          break;
-        }
+        if(match_node_ids) {
+          int cub_id;
+          rval = mdbImpl->tag_get_data( mGlobalIdTag, &(*k), 1, &cub_id );
+          if(MB_SUCCESS != rval) return rval;
+          if(exo_id == cub_id) {
+            cub_vert = *k;
+            break;
+          }
+        } else {
+          MBCartVect orig_cub_coords, difference;
+          rval = mdbImpl->get_coords( &(*k), 1, orig_cub_coords.array() );
+          if(MB_SUCCESS != rval) return rval;
+          difference = orig_cub_coords - exo_coords;
+          double dist = difference.length();
+          if(dist < min_dist) {
+            min_dist = dist;
+            cub_vert = *k;
+          }
+	}
       }
     }
     // If a cub vert is found, update it with the deformed coords from the exo file.
     if(0 != cub_vert) {
       MBCartVect updated_exo_coords;
+      matched_cub_vert_id_map[exo_id] = cub_vert;
       updated_exo_coords[0] = orig_coords[0][i] + deformed_arrays[0][i];
       updated_exo_coords[1] = orig_coords[1][i] + deformed_arrays[1][i];
       if(numberDimensions_loading == 3 )
@@ -1874,13 +1903,27 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
   }
   
   std::cout << "  " << found 
-            << " nodes from the exodus file were matched by id in the cub_file_set." 
-            << std::endl;
-  std::cout << "  " << lost << " nodes from the exodus file could not be matched." 
-            << std::endl;
-  std::cout << "  maximum node displacement magnitude=" << max_magnitude << std::endl;
-  std::cout << "  average node displacement magnitude=" << average_magnitude/found 
-            << std::endl;
+            << " nodes from the exodus file were matched in the cub_file_set ";
+  if(match_node_ids) {
+    std::cout << "by id." << std::endl;
+  } else {
+    std::cout << "by proximity." << std::endl;
+  }
+
+  // Fail if all of the nodes could not be matched.
+  if(0 != lost) {
+    std::cout << "Error:  " << lost << " nodes from the exodus file could not be matched." 
+              << std::endl;
+    return MB_FAILURE;
+  }
+  std::cout << "  maximum node displacement magnitude: " << max_magnitude 
+            << " cm" << std::endl;
+  std::cout << "  average node displacement magnitude: " << average_magnitude/found 
+            << " cm" << std::endl;
+
+  // *******************************************************************
+  // Remove dead elements from the MOAB instance.
+  // *******************************************************************
 
   // How many element variables are in the file?
   ncdim = ncFile->get_dim("num_elem_var");
@@ -1915,15 +1958,17 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
   bool found_death_index = false;
   for(int i=0; i<n_elem_var; ++i) {
     std::string temp(names[i]);
-    std::string::size_type pos = temp.find("death_status");
-    if(std::string::npos != pos) {
+    std::string::size_type pos0 = temp.find("death_status");
+    std::string::size_type pos1 = temp.find("Death_Status");
+    std::string::size_type pos2 = temp.find("DEATH_STATUS");
+    if(std::string::npos!=pos0 || std::string::npos!=pos1 || std::string::npos!=pos2) {
       found_death_index = true;
       death_index = i+1; // NetCDF variables start with 1
       break;
     }
   }
   if(!found_death_index) {
-    readMeshIface->report_error("ReadNCDF:: Problem getting index of death_status variable.");
+    std::cout << "ReadNCDF: Problem getting index of death_status variable." << std::endl;
     return MB_FAILURE;
   }
     
@@ -1933,87 +1978,189 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
   // Dead elements are listed by block. Read the block headers to determine how
   // many elements are in each block.
   rval = read_block_headers(blocks_to_load, num_blocks);
-  if (MB_FAILURE == rval) return rval;
+  if (MB_FAILURE == rval) {
+    std::cout << "ReadNCDF: Problem reading block headers." << std::endl;
+    return rval;
+  }
+
+  // Dead elements from the Exodus file can be located in the cub_file_set by id
+  // or by connectivity. Currently, finding elements by id requires careful book
+  // keeping when constructing the model in Cubit. To avoid this, one can match
+  // elements by connectivity instead.
+  const bool match_elems_by_connectivity = true;
 
   // Get the element id map. The ids in the map are from the elementsin the blocks.
   // elem_num_map( blk1 elem ids, blk2 elem ids, blk3 elem ids, ... )
   std::vector<int> elem_ids(numberNodes_loading);
-  temp_var = ncFile->get_var("elem_num_map");
-  if (NULL == temp_var || !temp_var->is_valid()) {
-    readMeshIface->report_error("ReadNCDF:: Problem getting element number map variable.");
-    return MB_FAILURE;
-  }
-  status = temp_var->get(&elem_ids[0], numberElements_loading);
-  if (0 == status) {
-    readMeshIface->report_error("ReadNCDF:: Problem getting element number map data.");
-    return MB_FAILURE;
+  if(!match_elems_by_connectivity) {
+    temp_var = ncFile->get_var("elem_num_map");
+    if (NULL == temp_var || !temp_var->is_valid()) {
+      std::cout << "ReadNCDF: Problem getting element number map variable." << std::endl;
+      return MB_FAILURE;
+    }
+    status = temp_var->get(&elem_ids[0], numberElements_loading);
+    if (0 == status) {
+      std::cout << "ReadNCDF: Problem getting element number map data." << std::endl;
+      return MB_FAILURE;
+    }
   }
 
-  // For each block, get the death_status at the correct time step.
+  // For each block
   int first_elem_id_in_block = 0;
   int block_count = 1; // NetCDF variables start with 1
   for(std::vector<ReadBlockData>::iterator i=blocksLoading.begin();
       i!=blocksLoading.end(); ++i) {
+
+    // get the ncdf connect variable
+    std::string temp_string("connect");
+    std::stringstream temp_ss;
+    temp_ss << block_count;
+    temp_string += temp_ss.str();
+    temp_string += "\0";
+    temp_var = ncFile->get_var(temp_string.c_str());
+    if (NULL == temp_var || !temp_var->is_valid()) {
+      std::cout << "MBCN: Problem getting connect variable." << std::endl;
+      return MB_FAILURE;
+    }
+    // the element type is an attribute of the connectivity variable
+    NcAtt *temp_att = temp_var->get_att("elem_type");
+    if (NULL == temp_att || !temp_att->is_valid()) {
+      std::cout << "MBCN:: Problem getting elem type attribute." << std::endl;
+      return MB_FAILURE;
+    }
+    // Get the MOAB element type from the Exodus attribute type
+    char *dum_str = temp_att->as_string(0);
+    ExoIIElementType elem_type = ExoIIUtil::static_element_name_to_type(dum_str);
+    delete [] dum_str;
+    (*i).elemType = elem_type;
+    const MBEntityType mb_type = ExoIIUtil::ExoIIElementMBEntity[(*i).elemType];
+
+    // Get the number of nodes per element
+    unsigned int nodes_per_element = ExoIIUtil::VerticesPerElement[(*i).elemType];
+    
+    // read the connectivity into that memory,  this will take only part of the array
+    // 1/2 if sizeof(MBEntityHandle) == 64 bits.
+    int exo_conn[i->numElements][nodes_per_element];
+    NcBool status = temp_var->get( &exo_conn[0][0], i->numElements, nodes_per_element);
+    if (0 == status) {
+      std::cout << "MBCN: Problem getting connectivity." << std::endl;
+      return MB_FAILURE;
+    }
+
+    // get the death_status at the correct time step.
     std::vector<double> death_status(i->numElements); // it seems wrong, but it uses doubles
     std::string array_name("vals_elem_var");
-    std::stringstream temp;
-    temp << death_index;
-    array_name += temp.str();
+    temp_ss.str(""); // stringstream won't clear by temp.clear() 
+    temp_ss << death_index;
+    array_name += temp_ss.str();
     array_name += "eb";
-    temp.str(""); // stringstream won't clear by temp.clear()
-    temp << block_count;
-    array_name += temp.str();
+    temp_ss.str(""); // stringstream won't clear by temp.clear()
+    temp_ss << block_count;
+    array_name += temp_ss.str();
     array_name += "\0";
     temp_var = ncFile->get_var(array_name.c_str());
     if (NULL == temp_var || !temp_var->is_valid()) {
-      std::cout << "ReadNCDF:: Problem getting death_status variable." << std::endl;;
+      std::cout << "ReadNCDF: Problem getting death_status variable." << std::endl;;
       return MB_FAILURE;
     }
     status = temp_var->set_cur(time_step-1, 0);
     if (0 == status) {
-      readMeshIface->report_error("ReadNCDF:: Problem setting time step for death_status.");
+      std::cout << "ReadNCDF: Problem setting time step for death_status." << std::endl;
       return MB_FAILURE;
     }
     status = temp_var->get(&death_status[0], 1, i->numElements);
     if (0 == status) {
-      readMeshIface->report_error("ReadNCDF:: Problem getting death_status array.");
+      std::cout << "ReadNCDF: Problem getting death_status array." << std::endl;
       return MB_FAILURE;
     }
 
     // Look for dead elements. If there is too many dead elements and this starts
     // to take too long, I should put the elems in a kd-tree for more efficient 
     // searching. Alternatively I could get the exo connectivity and match nodes.
-    int dead_elem_counter = 0;
+    int dead_elem_counter = 0, missing_elem_counter = 0;
     for (int j=0; j<i->numElements; ++j) {
       if (1 != death_status[j]) {
-        // get dead element's id
-        int elem_id = elem_ids[first_elem_id_in_block+j];
-        void *id[] = {&elem_id};
-        // assume hex elems!!!!!!!!
-        MBRange cub_elem;
-        rval = mdbImpl->get_entities_by_type_and_tag( cub_file_set, MBHEX, 
-						      &mGlobalIdTag, id, 1, cub_elem, 
-                                                      MBInterface::INTERSECT );
-        if(MB_SUCCESS != rval) return rval;
-        if(1 != cub_elem.size()) {
-	  std::cout << "ReadNCDF: Should have found 1 element, but instead found " 
+
+        MBRange cub_elem, cub_nodes;
+        if(match_elems_by_connectivity) {
+          // get exodus nodes for the element
+	  std::vector<int> elem_conn(nodes_per_element);
+          for(unsigned int k=0; k<nodes_per_element; ++k) {
+            elem_conn[k] = exo_conn[j][k];
+	  }
+          // get the ids of the nodes (assume we are matching by id)
+          // Remember that the exodus array locations start with 1 (not 0).
+	  std::vector<int> elem_conn_node_ids(nodes_per_element);
+          for(unsigned int k=0; k<nodes_per_element; ++k) {
+            elem_conn_node_ids[k] = ptr[ elem_conn[k]-1 ];
+          }
+          // get the cub_file_set nodes by id
+          // The map is a log search and takes almost no time. 
+          // MOAB's linear tag search takes 5-10 minutes.
+          for(unsigned int k=0; k<nodes_per_element; ++k) {
+	    std::map<int,MBEntityHandle>::iterator k_iter;
+            k_iter = matched_cub_vert_id_map.find( elem_conn_node_ids[k] );
+            
+            if(k_iter == matched_cub_vert_id_map.end()) {
+	      std::cout << "ReadNCDF: Found no cub node with id=" << elem_conn_node_ids[k] 
+                        << ", but expected to find only 1." << std::endl;
+              break;
+            }
+            cub_nodes.insert( k_iter->second ); 
+          }
+
+          if(nodes_per_element != cub_nodes.size()) {
+	    std::cout << "ReadNCDF: nodes_per_elemenet != cub_nodes.size()" << std::endl;
+            return MB_INVALID_SIZE;
+          }
+
+          // get the cub_file_set element with the same nodes
+          int to_dim = MBCN::Dimension(mb_type);
+          rval = mdbImpl->get_adjacencies( cub_nodes, to_dim, false, cub_elem);
+          if(MB_SUCCESS != rval) return rval;
+
+          // Pronto/Presto renumbers elements, so matching cub and exo elements by
+          // id is not possible at this time.
+        } else {
+
+          // get dead element's id
+          int elem_id = elem_ids[first_elem_id_in_block+j];
+          void *id[] = {&elem_id};
+          // get the element by id
+          rval = mdbImpl->get_entities_by_type_and_tag( cub_file_set, mb_type, 
+		  				        &mGlobalIdTag, id, 1, cub_elem, 
+                                                        MBInterface::INTERSECT );
+          if(MB_SUCCESS != rval) return rval;
+        }
+
+        if(1 == cub_elem.size()) {
+          // Delete the dead element from the cub file. It will be removed from sets
+          // ONLY if they are tracking meshsets.
+          rval = mdbImpl->remove_entities( cub_file_set, cub_elem );
+          if(MB_SUCCESS != rval) return rval;
+          rval = mdbImpl->delete_entities( cub_elem );
+          if(MB_SUCCESS != rval) return rval;
+        } else {
+      	  std::cout << "ReadNCDF: Should have found 1 element with  type=" 
+                    << mb_type << " in cub_file_set, but instead found " 
                     << cub_elem.size() << std::endl;
+          rval = mdbImpl->list_entities( cub_nodes );
+          ++missing_elem_counter;      
           return MB_FAILURE;
         }
-        // Delete the dead element from the cub file. It will be removed from sets
-        // ONLY if they are tracking meshsets.
-        rval = mdbImpl->remove_entities( cub_file_set, cub_elem );
-        if(MB_SUCCESS != rval) return rval;
-        rval = mdbImpl->delete_entities( cub_elem );
-        if(MB_SUCCESS != rval) return rval;
         ++dead_elem_counter;
       }
     }
     // Print some statistics
-    temp.str("");
-    temp << i->blockId;
-    std::cout << "  Block " << temp.str() << " has " << dead_elem_counter << "/"
-              << i->numElements << " dead elements." << std::endl; 
+    temp_ss.str("");
+    temp_ss << i->blockId;
+    std::cout << "  Block " << temp_ss.str() << " has " << dead_elem_counter << "/"
+              << i->numElements << " dead elements." << std::endl;
+    if(0 != missing_elem_counter) {
+      std::cout << "    " << missing_elem_counter 
+                << " dead elements in this block were not found in the cub_file_set. " << std::endl;
+    }
+ 
     // advance the pointers into element ids and block_count
     first_elem_id_in_block += i->numElements;
     ++block_count;
