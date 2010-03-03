@@ -20,9 +20,10 @@ libiGeomMOAB_la_include_HEADERS = \
 	iGeom.h \
 	iGeom_protos.h \
 	iBase_f.h \
-	iGeom_f.h
+	iGeom_f.h \
+	iGeom_FCDefs.h
 
-# stuff for c test program
+# stuff for test program
 check_PROGRAMS = testgeom
 testgeom_SOURCES = testgeom.cc
 testgeom_DEPENDENCIES = libiGeomMOAB.la $(IMESH_DIR)/libiMesh.la $(top_builddir)/libMOAB.la
@@ -46,6 +47,7 @@ install-data-hook:
 	echo "IGEOM_INCLUDEDIR2=" >> $(DESTDIR)$(cfgdir)/iGeom-Defs.inc
 	echo "IGEOM_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iGeom-Defs.inc
 	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iGeom-Defs.inc
+	echo "IGEOM_LIBS=-L${libdir} -liGeomMOAB" >> $(DESTDIR)$(cfgdir)/iGeom-Defs.inc
 
 iGeom_protos.h: iGeom.h $(top_srcdir)/tools/iMesh/mkprotos.sh Makefile.am
 	$(top_srcdir)/tools/iMesh/mkprotos.sh iGeom MBCN $< $@ iGeom_FCDefs.h

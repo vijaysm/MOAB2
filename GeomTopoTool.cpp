@@ -129,7 +129,18 @@ MBErrorCode GeomTopoTool::construct_obb_trees()
   if (MB_SUCCESS != rval) return rval;
 
   // surf/vol offsets are just first handles
-  setOffset = (*surfs.begin() < *vols.begin() ? *surfs.begin() : *vols.begin());
+  setOffset = (*surfs.begin() < *vols.begin() ? *surfs.begin() : *vols.begin())
+;
+
+  if (vols.empty() && !surfs.empty()) {
+    setOffset = surfs.front();
+  }
+  else if (!vols.empty() && surfs.empty()) {
+    setOffset = vols.front();
+  }
+  else {
+    setOffset = (surfs.front() < vols.front() ? surfs.front() : vols.front());
+  }
 
   // for surface
   MBEntityHandle root;

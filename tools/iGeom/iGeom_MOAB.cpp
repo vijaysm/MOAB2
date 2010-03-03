@@ -1,3 +1,5 @@
+#include <iostream>
+#include <map>
 #include "iGeom_MOAB.hpp"
 #include "iMesh.h"
 #include "MBInterface.hpp"
@@ -12,14 +14,12 @@ bool t_created = false;
 MBRange _my_gsets[4];
 GeomTopoTool* _my_geomTopoTool = NULL;
 
-//int treeOffset = 0; // if obb tree is created, set to the first root set
-//MBRange _my_treeRootSets;
-//MBOrientedBoxTreeTool _my_obbTree;
+bool debug_igeom = false;
 
 #define COPY_RANGE(r, vec) {                      \
     MBEntityHandle *tmp_ptr = reinterpret_cast<MBEntityHandle*>(vec);	\
     std::copy(r.begin(), r.end(), tmp_ptr);}
- 
+
 static inline void
 iGeom_processError(iBase_ErrorType code, const char* desc);
 
@@ -28,6 +28,8 @@ iGeom_get_adjacent_entities(iGeom_Instance instance,
 			    const MBEntityHandle from, 
 			    const int to_dim,
 			    MBRange &adj_ents, int* err);
+
+double get_edge_length(double* p1, double* p2);
 
 void iGeom_getDescription( iGeom_Instance instance,
                            char* descr,
@@ -94,6 +96,38 @@ void iGeom_load( iGeom_Instance instance,
   GETGTT(instance);
   MBErrorCode rval = _my_geomTopoTool->find_geomsets(_my_gsets);
   MBERRORR("Failure to keep geometry list.");
+
+  if (debug_igeom) {
+    iBase_EntityHandle *entities;
+    int entities_alloc, entities_size;
+    for (int i = 0; i < iMesh_ALL_TOPOLOGIES; i++) {
+      entities = NULL;
+      entities_alloc = 0;
+      iMesh_getEntities(IMESH_INSTANCE(instance), NULL, iBase_ALL_TYPES,
+			i, &entities, &entities_alloc, 
+			&entities_size, err);
+      ERRORR("Failed to get entities\n");
+      std::cout << "type_geom=" << i << ", number=" << entities_size << std::endl;
+    }
+    
+    iBase_EntitySetHandle *esets = NULL;
+    int esets_alloc = 0, esets_size;
+    iMesh_getEntSets(IMESH_INSTANCE(instance), NULL, 1, &esets, &esets_alloc, &esets_size, err);
+    ERRORR("Failed to get entity sets\n");
+    std::cout << "entity_geom set number=" << esets_size << std::endl;
+
+    entities = NULL;
+    entities_alloc = 0;
+    iMesh_getEntities(IMESH_INSTANCE(instance), reinterpret_cast<iBase_EntitySetHandle>(*(_my_gsets[0].begin())),
+		      iBase_ALL_TYPES,
+		      0, &entities, &entities_alloc, 
+		      &entities_size, err);
+    ERRORR("Failed to get entities\n");
+    
+    double x, y, z;
+    iMesh_getVtxCoord(IMESH_INSTANCE(instance), entities[0], &x, &y, &z, err);
+    std::cout << "vertex coords=" << x << ", " << y << ", " << z << std::endl;
+  }
 
   RETURN(iBase_SUCCESS);
 }
@@ -241,8 +275,9 @@ void iGeom_getEntAdj( iGeom_Instance instance,
   ERRORR("Failed to get adjacent entities in iGeom_getEntAdj.");
   
   // copy adjacent entities
+  *adj_entities_size = adjs.size();
   CHECK_SIZE(*adj_entities, *adj_entities_allocated,
-	     (int) adjs.size(), iBase_EntityHandle, NULL);
+	     *adj_entities_size, iBase_EntityHandle, NULL);
   COPY_RANGE(adjs, *adj_entities);
 
   RETURN(iBase_SUCCESS);
@@ -491,7 +526,7 @@ void iGeom_getEntClosestPt( iGeom_Instance instance,
     double point[3] = {near_x, near_y, near_z};
     double point_out[3];
     MBEntityHandle root, facet_out;
-    _my_geomTopoTool->get_root(MBH_cast(entity_handle), root);
+    rval = _my_geomTopoTool->get_root(MBH_cast(entity_handle), root);
     MBERRORR("Failed to get tree root in iGeom_getEntClosestPt.");
     rval = _my_geomTopoTool->obb_tree()->closest_to_location(point, root,
 							     point_out,
@@ -572,7 +607,7 @@ void iGeom_getEntNrmlXYZ( iGeom_Instance instance,
 
   // get facet normal
   const MBEntityHandle* conn;
-  int len, sense;
+  int len;
   MBCartVect coords[3], normal;
   rval = MBI->get_connectivity(facet_out, conn, len);
   MBERRORR("Failed to get triangle connectivity in iGeom_getEntNrmlXYZ.");
@@ -662,7 +697,6 @@ void iGeom_getArrNrmlXYZ( iGeom_Instance instance,
 			norm_x, norm_y, norm_z, err);
     ERRORR("Failed to get entity normal of point.");
 
-    //entities += ent_step;
     index += ent_step;
     coord_x += coord_step;
     coord_y += coord_step;
@@ -715,7 +749,7 @@ void iGeom_getEntNrmlPlXYZ( iGeom_Instance instance,
 
   // get facet normal
   const MBEntityHandle* conn;
-  int len, sense;
+  int len;
   MBCartVect coords[3], normal;
   rval = MBI->get_connectivity(facet_out, conn, len);
   MBERRORR("Failed to get triangle connectivity in iGeom_getEntNrmlPlXYZ.");
@@ -988,10 +1022,8 @@ void iGeom_getVtxCoord( iGeom_Instance instance,
 
   iBase_EntityHandle *verts = NULL;
   int verts_alloc = 0, verts_size;
-  double *vert_coords = NULL;
-  int vert_coords_alloc = 0, vert_coords_size;
   iMesh_getEntities(IMESH_INSTANCE(instance), reinterpret_cast<iBase_EntitySetHandle> (vertex_handle),
-		    iBase_VERTEX, iMesh_POINT, &verts, &verts_alloc, &verts_size, err);
+		    iBase_ALL_TYPES, iMesh_POINT, &verts, &verts_alloc, &verts_size, err);
   ERRORR("Failed to get vertices.");
 
   if (verts_size != 1) {
@@ -1128,13 +1160,83 @@ void iGeom_getEgVtxArrSense( iGeom_Instance,
                              int* sense_allocated,
                              int* sense_size,
                              int* err ){ }
-void iGeom_measure( iGeom_Instance,
+void iGeom_measure( iGeom_Instance instance,
                     iBase_EntityHandle const* entity_handles,
                     int entity_handles_size,
                     double** measures,
                     int* measures_allocated,
                     int* measures_size,
-                    int* err ){ }
+                    int* err )
+{
+  CHECK_SIZE(*measures, *measures_allocated, entity_handles_size, double, NULL);
+  for (int i = 0; i < entity_handles_size; i++) {
+    (*measures)[i] = 0.;
+  
+    int type;
+    iGeom_getEntType(instance, entity_handles[0], &type, err);
+    ERRORR("Failed to get entity type in iGeom_measure.");
+    
+    if (type == 1) { // edge
+      iBase_EntityHandle *edges = NULL;
+      int edges_alloc = 0, edges_size;
+      iMesh_getEntities(IMESH_INSTANCE(instance), reinterpret_cast<iBase_EntitySetHandle> (entity_handles[i]),
+			iBase_ALL_TYPES, iMesh_LINE_SEGMENT, &edges, &edges_alloc, &edges_size, err);
+      ERRORR("Failed to get edges.");
+      
+      iBase_EntityHandle *adj = NULL;
+      int adj_alloc = 0,adj_size;
+      int* offset = NULL;
+      int offset_alloc, offset_size;
+      iMesh_getEntArrAdj(IMESH_INSTANCE(instance), edges, edges_size, iBase_VERTEX,
+			 &adj, &adj_alloc, &adj_size, &offset, &offset_alloc, &offset_size, err);
+      ERRORR("Failed to get entity adjacencies in iGeom_measure.");
+
+      for (int j = 0; j < edges_size; j++) {
+	double p1[3], p2[3];
+	iMesh_getVtxCoord(IMESH_INSTANCE(instance), adj[offset[j]], &p1[0], &p1[1], &p1[2], err);
+	ERRORR("Failed to get vertex coordinates in iGeom_measure.");
+	iMesh_getVtxCoord(IMESH_INSTANCE(instance), adj[offset[j] + 1], &p2[0], &p2[1], &p2[2], err);
+	ERRORR("Failed to get vertex coordinates in iGeom_measure.");
+	(*measures)[i] += get_edge_length(p1, p2);
+      }
+    }
+    if (type == 2) { // surface
+      // get triangles in surface
+      iBase_EntityHandle *tris = NULL;
+      int tris_alloc = 0, tris_size;
+      iMesh_getEntities(IMESH_INSTANCE(instance), reinterpret_cast<iBase_EntitySetHandle> (entity_handles[i]),
+			iBase_ALL_TYPES, iMesh_TRIANGLE, &tris, &tris_alloc, &tris_size, err);
+      ERRORR("Failed to get triangles in iGeom_measure.");
+      
+      iBase_EntityHandle *adj = NULL;
+      int adj_alloc = 0,adj_size;
+      int* offset = NULL;
+      int offset_alloc, offset_size;
+      iMesh_getEntArrAdj(IMESH_INSTANCE(instance), tris, tris_size, iBase_VERTEX,
+			 &adj, &adj_alloc, &adj_size, &offset, &offset_alloc, &offset_size, err);
+      ERRORR("Failed to get triangle adjacencies in iGeom_measure.");
+      
+      // calculate sum of area of triangles
+      double* p;
+      MBCartVect coords[3];
+      for (int j = 0; j < tris_size; j++) {
+	for (int k = 0; k < 3; k++) {
+	  p = coords[k].array();
+	  iMesh_getVtxCoord(IMESH_INSTANCE(instance), adj[offset[j] + k], p, p + 1, p + 2, err);
+	  ERRORR("Failed to get vertex coordinates in iGeom_measure.");
+	}
+	coords[1] -= coords[0];
+	coords[2] -= coords[0];
+	coords[0] = coords[1] * coords[2];
+	(*measures)[i] += coords[0].length();
+      }
+      (*measures)[i] *= .5;
+    }
+  }
+
+  RETURN(iBase_SUCCESS);
+}
+
 void iGeom_getFaceType( iGeom_Instance,
                         iBase_EntityHandle face_handle,
                         char* face_type,
@@ -1154,6 +1256,468 @@ void iGeom_isArrParametric( iGeom_Instance,
                             int* is_parametric_allocated,
                             int* is_parametric_size,
                             int* err ){ }
+void iGeom_getEntUVtoXYZ( iGeom_Instance,
+                            iBase_EntityHandle entity_handle,
+                            double u,
+                            double v,
+                            double* x,
+                            double* y,
+                            double* z,
+			  int* err ){}
+  void iGeom_getArrUVtoXYZ( iGeom_Instance,
+                            iBase_EntityHandle const* entity_handles,
+                            int entity_handles_size,
+                            int storage_order,
+                            double const* uv,
+                            int uv_size,
+                            double** coordinates,
+                            int* coordinates_allocated,
+                            int* coordinates_size,
+                            int* err ){}
+
+void iGeom_getEntUtoXYZ( iGeom_Instance instance,
+			 iBase_EntityHandle entity_handle,
+			 double u,
+			 double* x, 
+			 double* y,
+			 double* z,
+			 int* err )
+{
+  int type, i, j;
+  double tot_length = 0., old_length;
+  iGeom_getEntType(instance, entity_handle, &type, err);
+  ERRORR("Failed to get entity type in iGeom_getEntUtoXYZ.");
+  
+  if (type == 1) { // edge
+    // get edges and verticies of this geometry
+    iBase_EntityHandle *edges = NULL;
+    int edges_alloc = 0, edges_size;
+    iMesh_getEntities(IMESH_INSTANCE(instance), reinterpret_cast<iBase_EntitySetHandle> (entity_handle),
+		      iBase_ALL_TYPES, iMesh_LINE_SEGMENT, &edges, &edges_alloc, &edges_size, err);
+    ERRORR("Failed to get edges in iGeom_getEntUtoXYZ.");
+    
+    iBase_EntityHandle *verts = NULL;
+    int verts_alloc = 0, verts_size;
+    int* offset = NULL;
+    int offset_alloc, offset_size;
+    iMesh_getEntArrAdj(IMESH_INSTANCE(instance), edges, edges_size, iBase_VERTEX,
+		       &verts, &verts_alloc, &verts_size, &offset, &offset_alloc, &offset_size, err);
+    ERRORR("Failed to get entity adjacencies in iGeom_getEntUtoXYZ.");
+    
+    // make vertex loop
+    std::vector<iBase_EntityHandle> loop_verts;
+    std::map<iBase_EntityHandle, int> edge_map;
+    std::map<iBase_EntityHandle, int>::iterator iter;
+    for (i = 1; i < edges_size; i++) {
+      edge_map[edges[i]] = i;
+    }
+    iBase_EntityHandle start_vertex = verts[offset[0]];
+    iBase_EntityHandle end_vertex = verts[offset[0] + 1];
+    for (i = 0; i < edges_size; i++) {
+      loop_verts.push_back(start_vertex);
+      //edge_map.erase(edges[i]);
+      
+      iBase_EntityHandle *adj_edges = NULL;
+      int adj_edges_alloc = 0, adj_edges_size;
+      iMesh_getEntAdj(IMESH_INSTANCE(instance), end_vertex, iBase_EDGE,
+		      &adj_edges, &adj_edges_alloc, &adj_edges_size, err);
+      ERRORR("Failed to get entity adjacencies in iGeom_getEntUtoXYZ.");
+
+      for (j = 0; j < adj_edges_size; j++) {
+	iter = edge_map.find(adj_edges[j]);
+	if (iter != edge_map.end()) {
+	  if (end_vertex == verts[offset[iter->second]]) {
+	    start_vertex = end_vertex;
+	    end_vertex = verts[offset[iter->second] + 1];
+	    edge_map.erase(iter->first);
+	    break;
+	  }
+	  else if (end_vertex == verts[offset[iter->second] + 1]) {
+	    start_vertex = end_vertex;
+	    end_vertex = verts[offset[iter->second]];
+	    edge_map.erase(iter->first);
+	    break;
+	  }
+	}
+      }
+    }
+
+    if (debug_igeom) {
+      iBase_EntitySetHandle set;
+      iMesh_createEntSet(IMESH_INSTANCE(instance), true, &set, err);
+      ERRORR("Problem creating geometry entityset.\n");
+      iMesh_addEntArrToSet(IMESH_INSTANCE(instance), &loop_verts[0],
+			   loop_verts.size(), set, err);
+      ERRORR("Failed to add vertex in entity set\n");
+
+      iBase_EntityHandle *ver = NULL;
+      int ver_alloc = 0, ver_size;
+      iMesh_getEntities(IMESH_INSTANCE(instance), set,
+			iBase_ALL_TYPES, iMesh_POINT, &ver, &ver_alloc, &ver_size, err);
+      ERRORR("Failed to get vertex.");
+      std::cout << "ver_size=" << ver_size << std::endl;
+      iMesh_save(IMESH_INSTANCE(instance), set, "loop.vtk", 0, err, 8, 0);
+    }
+
+    // find proper point in vertex loop with u
+    int n_verts = loop_verts.size();
+    if (n_verts == edges_size) {
+      for (i = 0; i < n_verts; i++) {
+	double p1[3], p2[3];
+	iMesh_getVtxCoord(IMESH_INSTANCE(instance), loop_verts[i%n_verts], &p1[0], &p1[1], &p1[2], err);
+	ERRORR("Failed to get vertex coordinates in iGeom_getEntUtoXYZ.");
+	iMesh_getVtxCoord(IMESH_INSTANCE(instance), loop_verts[(i + 1)%n_verts], &p2[0], &p2[1], &p2[2], err);
+	ERRORR("Failed to get vertex coordinates in iGeom_getEntUtoXYZ.");
+	old_length = tot_length;
+	tot_length += get_edge_length(p1, p2);
+	if (tot_length > u) {
+	  double portion = (u - old_length)/(tot_length - old_length);
+	  *x = p1[0] + portion*(p2[0] - p1[0]);
+	  *y = p1[1] + portion*(p2[1] - p1[1]);
+	  *z = p1[2] + portion*(p2[2] - p1[2]);
+	  RETURN(iBase_SUCCESS);
+	}
+      }
+    }
+    *err = iBase_FAILURE;
+    ERRORR("Failed to xyz point for u.");
+  }
+  else RETURN(iBase_NOT_SUPPORTED);
+}
+
+  void iGeom_getArrUtoXYZ( iGeom_Instance,
+                           iBase_EntityHandle const* entity_handles,
+                           int entity_handles_size,
+                           double const* u,
+                           int u_size,
+                           int storage_order,
+                           double** on_coords,
+                           int* on_coords_allocated,
+                           int* on_coords_size,
+                           int* err ){}
+  void iGeom_getEntXYZtoUV( iGeom_Instance,
+                            iBase_EntityHandle entity_handle,
+                            double x,
+                            double y,
+                            double z,
+                            double* u,
+                            double* v, 
+                            int* err ){}
+  void iGeom_getEntXYZtoU( iGeom_Instance,
+                           iBase_EntityHandle entity_handle,
+                           double x,
+                           double y,
+                           double z,
+                           double* u,
+                           int* err ){}
+  void iGeom_getArrXYZtoUV( iGeom_Instance,
+                            iBase_EntityHandle const* entity_handles,
+                            int entity_handles_size,
+                            int storage_order,
+                            double const* coordinates,
+                            int coordinates_size,
+                            double** uv,
+                            int* uv_allocated,
+                            int* uv_size,
+                            int* err ){}
+  void iGeom_getArrXYZtoU( iGeom_Instance,
+                           iBase_EntityHandle const* entity_handles,
+                           int entity_handles_size,
+                           int storage_order,
+                           double const* coordinates,
+                           int coordinates_size,
+                           double** u,
+                           int* u_allocated,
+                           int* u_size,
+                           int* err ){}
+  void iGeom_getEntXYZtoUVHint( iGeom_Instance,
+                                iBase_EntityHandle entity_handle,
+                                double x,
+                                double y,
+                                double z,
+                                double* u,
+                                double* v,
+                                int* err ){}
+  void iGeom_getArrXYZtoUVHint( iGeom_Instance,
+                                iBase_EntityHandle const* entity_handles,
+                                int entity_handles_size,
+                                int storage_order,
+                                double const* coords,
+                                int coords_size,
+                                double** uv,
+                                int* uv_allocated,
+                                int* uv_size,
+                                int* err ){}
+  void iGeom_getEntUVRange( iGeom_Instance,
+                            iBase_EntityHandle entity_handle,
+                            double* u_min,
+                            double* v_min,
+                            double* u_max,
+                            double* v_max,
+                            int* err ){}
+
+void iGeom_getEntURange( iGeom_Instance instance,
+			 iBase_EntityHandle entity_handle,
+			 double* u_min,
+			 double* u_max,
+			 int* err )
+{
+  int type;
+  iGeom_getEntType(instance, entity_handle, &type, err);
+  ERRORR("Failed to get entity type in iGeom_getEntURange.");
+
+  if (type == 1) { // edge
+    iBase_EntityHandle *edges = NULL;
+    int edges_alloc = 0, edges_size;
+    iMesh_getEntities(IMESH_INSTANCE(instance), reinterpret_cast<iBase_EntitySetHandle> (entity_handle),
+		      iBase_ALL_TYPES, iMesh_LINE_SEGMENT, &edges, &edges_alloc, &edges_size, err);
+    ERRORR("Failed to get edges in iGeom_getEntURange.");
+    
+    iBase_EntityHandle *adj = NULL;
+    int adj_alloc = 0,adj_size;
+    int* offset = NULL;
+    int offset_alloc, offset_size;
+    iMesh_getEntArrAdj(IMESH_INSTANCE(instance), edges, edges_size, iBase_VERTEX,
+		       &adj, &adj_alloc, &adj_size, &offset, &offset_alloc, &offset_size, err);
+    ERRORR("Failed to get entity adjacencies in iGeom_getEntURange.");
+    
+    *u_min = *u_max = 0.;
+    for (int j = 0; j < edges_size; j++) {
+      double p1[3], p2[3];
+      iMesh_getVtxCoord(IMESH_INSTANCE(instance), adj[offset[j]], &p1[0], &p1[1], &p1[2], err);
+      ERRORR("Failed to get vertex coordinates in iGeom_getEntURange.");
+      iMesh_getVtxCoord(IMESH_INSTANCE(instance), adj[offset[j] + 1], &p2[0], &p2[1], &p2[2], err);
+      ERRORR("Failed to get vertex coordinates in iGeom_getEntURange.");
+      *u_max += get_edge_length(p1, p2);
+    }
+  }
+  else RETURN(iBase_NOT_SUPPORTED);
+
+  RETURN(iBase_SUCCESS);
+}
+
+  void iGeom_getArrUVRange( iGeom_Instance,
+                            iBase_EntityHandle const* entity_handles,
+                            int entity_handles_size,
+                            int storage_order,
+                            double** uv_min,
+                            int* uv_min_allocated,
+                            int* uv_min_size,
+                            double** uv_max,
+                            int* uv_max_allocated,
+                            int* uv_max_size,
+                            int* err ){}
+  void iGeom_getArrURange( iGeom_Instance,
+                           iBase_EntityHandle const* entity_handles,
+                           int entity_handles_size,
+                           double** u_min,
+                           int* u_min_allocated,
+                           int* u_min_size,
+                           double** u_max,
+                           int* u_max_allocated,
+                           int* u_max_size,
+                           int* err ){}
+  void iGeom_getEntUtoUV( iGeom_Instance,
+                          iBase_EntityHandle edge_handle,
+                          iBase_EntityHandle face_handle,
+                          double in_u,
+                          double* u,
+                          double* v,
+                          int* err ){}
+  void iGeom_getVtxToUV( iGeom_Instance,
+                         iBase_EntityHandle vertex_handle,
+                         iBase_EntityHandle face_handle,
+                         double* u,
+                         double* v,
+                         int* err ){}
+  void iGeom_getVtxToU( iGeom_Instance,
+                        iBase_EntityHandle vertex_handle,
+                        iBase_EntityHandle edge_handle,
+                        double* u,
+                        int* err ){}
+  void iGeom_getArrUtoUV( iGeom_Instance,
+                          iBase_EntityHandle const* edge_handles,
+                          int edge_handles_size,
+                          iBase_EntityHandle const* face_handles,
+                          int face_handles_size,
+                          double const* u_in,
+                          int u_in_size,
+                          int storage_order,
+                          double** uv,
+                          int* uv_allocated,
+                          int* uv_size,
+                          int* err ){}
+  void iGeom_getVtxArrToUV( iGeom_Instance,
+                            iBase_EntityHandle const* vertex_handles,
+                            int vertex_handles_size,
+                            iBase_EntityHandle const* face_handles,
+                            int face_handles_size,
+                            int storage_order,
+                            double** uv,
+                            int* uv_allocated,
+                            int* uv_size,
+                            int* err ){}
+  void iGeom_getVtxArrToU( iGeom_Instance,
+                           iBase_EntityHandle const* vertex_handles,
+                           int vertex_handles_size,
+                           iBase_EntityHandle const* edge_handles,
+                           int edge_handles_size,
+                           double** u,
+                           int* u_allocated,
+                           int* u_size,
+                           int* err ){}
+  void iGeom_getEntNrmlUV( iGeom_Instance,
+                           iBase_EntityHandle entity_handle,
+                           double u,
+                           double v,
+                           double* nrml_i,
+                           double* nrml_j,
+                           double* nrml_k,
+                           int* err ){}
+  void iGeom_getArrNrmlUV( iGeom_Instance,
+                           iBase_EntityHandle const* face_handles,
+                           int face_handles_size,
+                           int storage_order,
+                           double const* parameters,
+                           int parameters_size,
+                           double** normals,
+                           int* normals_allocated,
+                           int* normals_size,
+                           int* err ){}
+  void iGeom_getEntTgntU( iGeom_Instance,
+                          iBase_EntityHandle entity_handle,
+                          double u,
+                          double* tgnt_i,
+                          double* tgnt_j,
+                          double* tgnt_k,
+                          int* err ){}
+  void iGeom_getArrTgntU( iGeom_Instance,
+                          iBase_EntityHandle const* edge_handles,
+                          int edge_handles_size,
+                          int storage_order,
+                          double const* parameters,
+                          int parameters_size,
+                          double** tangents,
+                          int* tangents_allocated,
+                          int* tangents_size,
+                          int* err ){}
+  void iGeom_getEnt1stDrvt( iGeom_Instance,
+                            iBase_EntityHandle entity_handle,
+                            double u,
+                            double v,
+                            double** drvt_u,
+                            int* drvt_u_allocated,
+                            int* drvt_u_size,
+                            double** drvt_v,
+                            int* dvrt_v_allocated,
+                            int* dvrt_v_size,
+                            int* err ){}
+  void iGeom_getArr1stDrvt( iGeom_Instance,
+                            iBase_EntityHandle const* entity_handles,
+                            int entity_handles_size,
+                            int storage_order,
+                            double const* uv,
+                            int uv_size,
+                            double** dvtr_u,
+                            int* dvrt_u_allocated,
+                            int* dvrt_u_size,
+                            int** u_offset,
+                            int* u_offset_allocated,
+                            int* u_offset_size,
+                            double** dvrt_v,
+                            int* dvrt_v_allocated,
+                            int* dvrt_v_size,
+                            int** v_offset,
+                            int* v_offset_allocated,
+                            int* v_offset_size,
+                            int* err ){}
+  void iGeom_getEnt2ndDrvt( iGeom_Instance,
+                            iBase_EntityHandle entity_handle,
+                            double u,
+                            double v,
+                            double** drvt_uu,
+                            int* drvt_uu_allocated,
+                            int* drvt_uu_size,
+                            double** drvt_vv,
+                            int* dvrt_vv_allocated,
+                            int* dvrt_vv_size,
+                            double** drvt_uv,
+                            int* dvrt_uv_allocated,
+                            int* dvrt_uv_size,
+                            int* err ){}
+  void iGeom_getArr2ndDrvt( iGeom_Instance,
+                            iBase_EntityHandle const* entity_handles,
+                            int entity_handles_size,
+                            int storage_order,
+                            double const* uv,
+                            int uv_size,
+                            double** dvtr_uu,
+                            int* dvrt_uu_allocated,
+                            int* dvrt_uu_size,
+                            int** uu_offset,
+                            int* uu_offset_allocated,
+                            int* uu_offset_size,
+                            double** dvtr_vv,
+                            int* dvrt_vv_allocated,
+                            int* dvrt_vv_size,
+                            int** vv_offset,
+                            int* vv_offset_allocated,
+                            int* vv_offset_size,
+                            double** dvrt_uv,
+                            int* dvrt_uv_allocated,
+                            int* dvrt_uv_size,
+                            int** uv_offset,
+                            int* uv_offset_allocated,
+                            int* uv_offset_size,
+                            int* err ){}
+  void iGeom_getFcCvtrUV( iGeom_Instance,
+                          iBase_EntityHandle entity_handle,
+                          double u,
+                          double v,
+                          double* cvtr1_i,
+                          double* cvtr1_j,
+                          double* cvtr1_k,
+                          double* cvtr2_i,
+                          double* cvtr2_j,
+                          double* cvtr2_k,
+                          int* err ){}
+  void iGeom_getFcArrCvtrUV( iGeom_Instance,
+                             iBase_EntityHandle const* face_handles,
+                             int face_handles_size,
+                             int storage_order,
+                             double const* uv,
+                             int uv_size,
+                             double** cvtr_1,
+                             int* cvtr_1_allocated,
+                             int* cvtr_1_size,
+                             double** cvtr_2,
+                             int* cvtr_2_allocated,
+                             int* cvtr_2_size,
+                             int* err ){}
+  void iGeom_isEntPeriodic( iGeom_Instance,
+                            iBase_EntityHandle entity_handle,
+                            int* in_u,
+                            int* in_v,
+                            int* err ){}
+  void iGeom_isArrPeriodic( iGeom_Instance,
+                            iBase_EntityHandle const* entity_handles,
+                            int entity_handles_size,
+                            int** in_uv,
+                            int* in_uv_allocated,
+                            int* in_uv_size,
+                            int* err ){}
+  void iGeom_isFcDegenerate( iGeom_Instance,
+                             iBase_EntityHandle face_handle,
+                             int* is_degenerate,
+                             int* err ){}
+  void iGeom_isFcArrDegenerate( iGeom_Instance,
+                                iBase_EntityHandle const* face_handles,
+                                int face_handles_size,
+                                int** degenerate,
+                                int* degenerate_allocated,
+                                int* degenerate_size,
+                                int* err ){}
+
 void iGeom_getArrTolerance( iGeom_Instance,
                             iBase_EntityHandle const* entity_handles,
                             int entity_handles_size,
@@ -2070,7 +2634,7 @@ iGeom_get_adjacent_entities(iGeom_Instance instance,
       break;
     }
   }
-  
+
   // check target dimension
   if (-1 == this_dim) {
     iGeom_processError(iBase_FAILURE, "Entity not a geometry entity.");
@@ -2086,14 +2650,27 @@ iGeom_get_adjacent_entities(iGeom_Instance instance,
   }
   
   MBErrorCode rval;
+  adjs.clear();
   if (to_dim > this_dim) {
+    int number;
+    rval = MBI->num_parent_meshsets(from, &number, 0);
+    rval = MBI->get_parent_meshsets(from, adjs);
+    adjs.clear();
     rval = MBI->get_parent_meshsets(from, adjs, to_dim - this_dim);
   }
   else {
-    rval = MBI->get_child_meshsets(from, adjs, to_dim - this_dim);
+    int number;
+    rval = MBI->num_child_meshsets(from, &number, 0);
+    rval = MBI->get_child_meshsets(from, adjs);
+    adjs.clear();
+    rval = MBI->get_child_meshsets(from, adjs, this_dim - to_dim);
   }
 
   RETURN(iBase_SUCCESS);
 }
 
+double get_edge_length(double* p1, double* p2)
+{
+  return std::sqrt((p1[0] - p2[0])*(p1[0] - p2[0]) + (p1[1] - p2[1])*(p1[1] - p2[1]) + (p1[2] - p2[2])*(p1[2] - p2[2]));
+}
 
