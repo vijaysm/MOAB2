@@ -993,7 +993,7 @@ MBErrorCode Tqdcfr::get_mesh_entities(const unsigned int this_type,
     if (MB_SUCCESS != result) return result;
     if (tmp_ents.empty() && 0 != id_buf_size) return MB_FAILURE;
   
-    std::vector<int> cub_ids(id_buf_size);
+    std::vector<int> cub_ids(tmp_ents.size());
     result = mdbImpl->tag_get_data(globalIdTag, tmp_ents, &cub_ids[0]);
     if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) return result;
   
