@@ -140,40 +140,9 @@ iBase_TagHandle itaps_tag_cast( MBTag t )
 
 /********************* ITAPS arrays **************************/
 
-// Access this method using ALLOCATE_ARRAY macro, rather than callind directly.
-template <typename ArrType> inline bool
-allocate_itaps_array( ArrType*& array, int& allocated, int& size, int requested )
-{
-  size = requested;
-  if (allocated) {
-    return (allocated >= requested);
-  }
-  else {
-    array = (ArrType*)malloc( requested * sizeof(ArrType) );
-    allocated = requested;
-    return (array != 0);
-  }
-}
-
-// For use by ALLOCATE_ARRAY macro
-inline int allocate_itaps_array_failed()
-{
-  strcpy( iMesh_LAST_ERROR.description, 
-          "Insufficient allocated array size or insufficient "
-          "memory to allocate array." );
-  iMesh_LAST_ERROR.error_type = iBase_MEMORY_ALLOCATION_FAILED;
-  return iBase_MEMORY_ALLOCATION_FAILED;
-}
-
-// If ITAPS array is NULL, allocate it to the requested size, otherwise
-// verify that it can hold at least SIZE values.
-#define ALLOCATE_ARRAY( NAME, SIZE ) \
-  if (!allocate_itaps_array( *NAME, *NAME##_allocated, *NAME##_size, (SIZE) )) \
-    RETURN(allocate_itaps_array_failed())
-
 // Handle returning MBRange in ITAPS array (do ALLOCATE_ARRAY and copy).
 #define MBRANGE_TO_ITAPS_ARRAY( RANGE, NAME ) do { \
-  ALLOCATE_ARRAY( NAME, (RANGE).size() ); \
+  ALLOC_CHECK_ARRAY_NOFAIL( NAME, (RANGE).size() ); \
   std::copy( (RANGE).begin(), (RANGE).end(), itaps_cast<MBEntityHandle*>(*(NAME)) ); \
   } while (false)
 
@@ -342,13 +311,14 @@ void iMeshP_getPartIdsFromPartHandlesArr(
 {
   MBErrorCode rval;
   MBParallelComm* pcomm = PCOMM;
-  ALLOCATE_ARRAY( part_ids, part_handles_size );
+  ALLOC_CHECK_ARRAY( part_ids, part_handles_size );
   for (int i = 0; i < part_handles_size; ++i) {
     int id;
     rval = pcomm->get_part_id( itaps_cast<MBEntityHandle>(part_handles[i]), id );
     (*part_ids)[i] = id;
     CHKERR(rval,"error getting part id");
   }
+  KEEP_ARRAY(part_ids);
   RETURN(iBase_SUCCESS);
 }
 
@@ -364,13 +334,14 @@ void iMeshP_getPartHandlesFromPartsIdsArr(
 {
   MBErrorCode rval;
   MBParallelComm* pcomm = PCOMM;
-  ALLOCATE_ARRAY( part_handles, part_ids_size );
+  ALLOC_CHECK_ARRAY( part_handles, part_ids_size );
   for (int i = 0; i < part_ids_size; ++i) {
     MBEntityHandle handle;
     rval = pcomm->get_part_handle( part_ids[i], handle );
     CHKERR(rval,"error getting part handle");
     (*part_handles)[i] = itaps_cast<iMeshP_PartHandle>(handle);
   }
+  KEEP_ARRAY(part_handles);
   RETURN(iBase_SUCCESS);
 }
 
@@ -430,7 +401,7 @@ void iMeshP_getPartitions( iMesh_Instance instance,
   for (i = pcomms.begin(); i != pcomms.end(); ++i)
     if ((*i)->get_partitioning())
       ++count;
-  ALLOCATE_ARRAY( partition_handle, count );
+  ALLOC_CHECK_ARRAY_NOFAIL( partition_handle, count );
   
   *partition_handle_size = 0;
   for (i = pcomms.begin(); i != pcomms.end(); ++i)
@@ -507,12 +478,13 @@ void iMeshP_getRankOfPartArr( iMesh_Instance instance,
   if (!pcomm)
     ERROR (iBase_FAILURE,"No PComm");
   
-  ALLOCATE_ARRAY( rank, part_ids_size );
+  ALLOC_CHECK_ARRAY( rank, part_ids_size );
   MBErrorCode rval = MB_SUCCESS;
   for (int i = 0; i < part_ids_size; ++i) {
     rval = pcomm->get_part_owner( part_ids[i], (*rank)[i] );
     CHKERR(rval,"PComm::get_part_owner failed");
   }
+  KEEP_ARRAY(rank);
   RETURN(iBase_SUCCESS);
 }
 
@@ -635,7 +607,7 @@ void iMeshP_getNumPartNborsArr( iMesh_Instance instance,
   if (!pcomm) 
     ERROR (iBase_FAILURE,"No PComm");
 
-  ALLOCATE_ARRAY( num_part_nbors, part_handles_size );
+  ALLOC_CHECK_ARRAY( num_part_nbors, part_handles_size );
   
   int n, neighbors[MAX_SHARING_PROCS];
   MBErrorCode rval;
@@ -646,6 +618,7 @@ void iMeshP_getNumPartNborsArr( iMesh_Instance instance,
     (*num_part_nbors)[i] = n;
   }
   
+  KEEP_ARRAY(num_part_nbors);
   RETURN(iBase_SUCCESS);
 }
 
@@ -685,7 +658,7 @@ void iMeshP_getPartNborsArr( iMesh_Instance instance,
   if (!pcomm) 
     ERROR (iBase_FAILURE,"No PComm");
 
-  ALLOCATE_ARRAY( num_part_nbors, part_handles_size );
+  ALLOC_CHECK_ARRAY( num_part_nbors, part_handles_size );
   
   std::vector<int> all_neighbors;
   int n, pnbor[MAX_SHARING_PROCS];
@@ -698,9 +671,10 @@ void iMeshP_getPartNborsArr( iMesh_Instance instance,
     std::copy( pnbor, pnbor+n, std::back_inserter(all_neighbors) );
   }
   
-  ALLOCATE_ARRAY( nbor_part_ids, all_neighbors.size() );
+  ALLOC_CHECK_ARRAY_NOFAIL( nbor_part_ids, all_neighbors.size() );
   memcpy( *nbor_part_ids, &all_neighbors[0], sizeof(int)*all_neighbors.size() );
   
+  KEEP_ARRAY(num_part_nbors);
   RETURN(iBase_SUCCESS);
 }
 
@@ -1059,8 +1033,8 @@ void iMeshP_getAdjEntities( iMesh_Instance instance,
   }
   
     // get adjacencies
-  ALLOCATE_ARRAY( adj_entity_handles, num_adj );
-  ALLOCATE_ARRAY( offset, r.size() );
+  ALLOC_CHECK_ARRAY( adj_entity_handles, num_adj );
+  ALLOC_CHECK_ARRAY( offset, r.size() );
   int arr_pos = 0;
   int* offset_iter = *offset;
   for (MBRange::iterator i = r.begin(); i != r.end(); ++i)  {
@@ -1085,6 +1059,11 @@ void iMeshP_getAdjEntities( iMesh_Instance instance,
                            in_entity_set_allocated,
                            in_entity_set_size,
                            err );
+  
+  if (iBase_SUCCESS == *err) {
+    KEEP_ARRAY(adj_entity_handles);
+    KEEP_ARRAY(offset);
+  }
 }
 
 void iMeshP_initEntIter( iMesh_Instance instance,
@@ -1153,7 +1132,7 @@ void iMeshP_getEntOwnerPartArr( iMesh_Instance instance,
     ERROR (iBase_FAILURE,"No PComm");
   
   int id;
-  ALLOCATE_ARRAY( part_ids, entity_handles_size );
+  ALLOC_CHECK_ARRAY( part_ids, entity_handles_size );
   MBErrorCode rval = MB_SUCCESS;
   for (int i = 0; i < entity_handles_size; ++i) {
     MBEntityHandle h = itaps_cast<MBEntityHandle>(entity_handles[i]);
@@ -1161,6 +1140,7 @@ void iMeshP_getEntOwnerPartArr( iMesh_Instance instance,
     (*part_ids)[i] = id;
     CHKERR(rval,"Failet get part owner");
   }
+  KEEP_ARRAY(part_ids);
   RETURN(iBase_SUCCESS);
 }
   
@@ -1197,7 +1177,7 @@ void iMeshP_isEntOwnerArr( iMesh_Instance instance,
   rval = pcomm->get_part_id( itaps_cast<MBEntityHandle>(part_handle), id );
   CHKERR(rval,"error getting part id");
   
-  ALLOCATE_ARRAY( is_owner, entity_handles_size );
+  ALLOC_CHECK_ARRAY( is_owner, entity_handles_size );
   *is_owner_size = entity_handles_size;
   
   int owner;
@@ -1207,6 +1187,7 @@ void iMeshP_isEntOwnerArr( iMesh_Instance instance,
     (*is_owner)[i] = (owner == id);
   }
   
+  KEEP_ARRAY(is_owner);
   RETURN(iBase_SUCCESS);
 }
 
@@ -1245,7 +1226,7 @@ void iMeshP_getEntStatusArr(iMesh_Instance instance,
                                          &pstatus[0]); 
   CHKERR(result,"error getting pstatus_tag");
 
-  ALLOCATE_ARRAY( par_status, entity_handles_size );
+  ALLOC_CHECK_ARRAY( par_status, entity_handles_size );
   for (int i = 0; i < entity_handles_size; i++) {
     if (!pstatus[i]) 
       (*par_status)[i] = iMeshP_INTERNAL;
@@ -1255,6 +1236,7 @@ void iMeshP_getEntStatusArr(iMesh_Instance instance,
       (*par_status)[i] = iMeshP_BOUNDARY;
   }
 
+  KEEP_ARRAY(par_status);
   RETURN(iBase_SUCCESS);
 }
 
@@ -1293,7 +1275,7 @@ void iMeshP_getCopyParts( iMesh_Instance instance,
                               itaps_cast<MBEntityHandle>(entity_handle),
                               ids, num_ids ); 
   CHKERR(rval,"MBParallelComm::get_sharing_parts failed");
-  ALLOCATE_ARRAY( part_ids, num_ids );
+  ALLOC_CHECK_ARRAY_NOFAIL( part_ids, num_ids );
   std::copy( ids, ids+num_ids, *part_ids );
   RETURN (iBase_SUCCESS);
 }
@@ -1321,8 +1303,8 @@ void iMeshP_getCopies( iMesh_Instance instance,
                               itaps_cast<MBEntityHandle>(entity_handle),
                               ids, num_ids, handles ); 
   CHKERR(rval,"MBParallelComm::get_sharing_parts failed");
-  ALLOCATE_ARRAY( part_ids, num_ids );
-  ALLOCATE_ARRAY( copies_entity_handles, num_ids );
+  ALLOC_CHECK_ARRAY_NOFAIL( part_ids, num_ids );
+  ALLOC_CHECK_ARRAY_NOFAIL( copies_entity_handles, num_ids );
   for (int i = 0; i < num_ids; ++i) {
     (*part_ids)[i] = ids[i];
     (*copies_entity_handles)[i] = itaps_cast<iBase_EntityHandle>(handles[i]);
@@ -1730,7 +1712,7 @@ void iMeshP_saveAll( iMesh_Instance instance,
 
     MBRange part_sets;
   
-    ALLOCATE_ARRAY( part_handles, pc->partition_sets().size() );
+    ALLOC_CHECK_ARRAY_NOFAIL( part_handles, pc->partition_sets().size() );
     MBRange::iterator rit;
     int i;
     for (i = 0, rit = pc->partition_sets().begin(); 

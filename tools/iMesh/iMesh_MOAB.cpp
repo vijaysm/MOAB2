@@ -52,34 +52,6 @@ MBErrorCode MBiMesh::delete_entities( const MBRange& r )
 MBErrorCode create_int_ents(MBInterface *instance,
                             MBRange &from_ents,
                             const MBEntityHandle* in_set = 0);
-
-#define CHECK_SIZE(array, allocated, size, type, retval)  \
-  if (0 != allocated && NULL != array && allocated < (size)) {\
-    iMesh_processError(iBase_MEMORY_ALLOCATION_FAILED, \
-          "Allocated array not large enough to hold returned contents.");\
-    RETURN(iBase_MEMORY_ALLOCATION_FAILED);\
-  }\
-  if ((size) && ((allocated) == 0 || NULL == (array))) {\
-    array = (type*)malloc((size)*sizeof(type));\
-    allocated=(size);\
-    if (NULL == array) {iMesh_processError(iBase_MEMORY_ALLOCATION_FAILED, \
-          "Couldn't allocate array.");RETURN(iBase_MEMORY_ALLOCATION_FAILED); }\
-  }
-// TAG_CHECK_SIZE is like CHECK_SIZE except it checks for and makes the allocated memory
-// size a multiple of sizeof(void*), and the pointer is assumed to be type char*
-#define TAG_CHECK_SIZE(array, allocated, size)  \
-  if (0 != allocated && NULL != array && allocated < (size)) {\
-    iMesh_processError(iBase_MEMORY_ALLOCATION_FAILED, \
-          "Allocated array not large enough to hold returned contents.");\
-    RETURN(iBase_MEMORY_ALLOCATION_FAILED);\
-  }\
-  if ((size) && (NULL == (array) || (allocated) == 0)) {\
-    allocated=(size); \
-    if (allocated%sizeof(void*) != 0) allocated=((size)/sizeof(void*)+1)*sizeof(void*);\
-    array = (char*)malloc(allocated); \
-    if (NULL == array) {iMesh_processError(iBase_MEMORY_ALLOCATION_FAILED, \
-          "Couldn't allocate array.");RETURN(iBase_MEMORY_ALLOCATION_FAILED); }\
-  }
 #define HANDLE_ARRAY_PTR(array) reinterpret_cast<MBEntityHandle*>(array)
 #define CONST_HANDLE_ARRAY_PTR(array) reinterpret_cast<const MBEntityHandle*>(array)
 #define TAG_HANDLE(handle) reinterpret_cast<MBTag>(handle)
@@ -388,9 +360,7 @@ extern "C" {
                           /*inout*/ int* adjacency_table_allocated, 
                           /*out*/ int* adjacency_table_size, int *err)
   {
-    *adjacency_table_size = 16;
-    CHECK_SIZE(*adjacency_table, *adjacency_table_allocated,
-               *adjacency_table_size, int, iBase_MEMORY_ALLOCATION_FAILED);
+    ALLOC_CHECK_ARRAY_NOFAIL(adjacency_table, 16);
     memcpy(*adjacency_table, MBimesh->AdjTable, 16*sizeof(int));
     RETURN(iBase_SUCCESS);
   }
@@ -465,7 +435,7 @@ extern "C" {
   {
 
       // make sure we can hold them all
-    CHECK_SIZE(*coords, *coords_allocated, 3*vertex_handles_size, double, iBase_MEMORY_ALLOCATION_FAILED);
+    ALLOC_CHECK_ARRAY(coords, 3*vertex_handles_size);
   
       // now get all the coordinates
       // coords will come back interleaved by default
@@ -493,9 +463,8 @@ extern "C" {
         *z = *c_iter; ++z; ++c_iter;
       }
     }
-
-    *coords_size = 3*vertex_handles_size;
   
+    KEEP_ARRAY(coords);
     RETURN(iBase_SUCCESS);
   }
 
@@ -552,8 +521,7 @@ extern "C" {
       // check the size of the destination array
     int expected_size = (this_it->requestedSize < (int)this_it->iteratorRange.size() ? 
                          this_it->requestedSize : this_it->iteratorRange.size());
-    CHECK_SIZE(*entity_handles, *entity_handles_allocated, expected_size,
-               iBase_EntityHandle, false);
+    ALLOC_CHECK_ARRAY_NOFAIL(entity_handles, expected_size);
   
     int i = 0;
     while (i < this_it->requestedSize && this_it->currentPos != this_it->iteratorRange.end())
@@ -599,8 +567,7 @@ extern "C" {
                            /*out*/ int* topology_size, int *err) 
   {
       // go through each entity and look up its type
-    CHECK_SIZE(*topology, *topology_allocated, entity_handles_size, 
-               int, iBase_MEMORY_ALLOCATION_FAILED);
+    ALLOC_CHECK_ARRAY_NOFAIL(topology, entity_handles_size);
 
     for (int i = 0; i < entity_handles_size; i++)
       (*topology)[i] = 
@@ -619,8 +586,7 @@ extern "C" {
                            /*out*/ int* etype_size, int *err) 
   {
       // go through each entity and look up its type
-    CHECK_SIZE(*etype, *etype_allocated, entity_handles_size, 
-               int, iBase_MEMORY_ALLOCATION_FAILED);
+    ALLOC_CHECK_ARRAY_NOFAIL(etype, entity_handles_size);
 
     for (int i = 0; i < entity_handles_size; i++)
       (*etype)[i] = 
@@ -644,8 +610,7 @@ extern "C" {
   {
     MBErrorCode result = MB_SUCCESS;
 
-    CHECK_SIZE(*offset, *offset_allocated, entity_handles_size+1, 
-               int, iBase_MEMORY_ALLOCATION_FAILED);
+    ALLOC_CHECK_ARRAY(offset, entity_handles_size+1);
   
     const MBEntityHandle* entity_iter = (const MBEntityHandle*)entity_handles;
     const MBEntityHandle* const entity_end = entity_iter + entity_handles_size;
@@ -677,7 +642,11 @@ extern "C" {
       if (iBase_VERTEX == entity_type_requested &&
           TYPE_FROM_HANDLE(*entity_iter) != MBPOLYHEDRON) {
         result = MBI->get_connectivity(*entity_iter, connect, num_connect, false, &conn_storage);
-        CHKERR(result, "iMesh_getEntArrAdj: trouble getting adjacency list.");
+        if (MB_SUCCESS != result) {
+          if (allocated_array)
+            free(array);
+          ERROR(result, "iMesh_getEntArrAdj: trouble getting adjacency list.");
+        }
       }
       else if (iBase_ALL_TYPES == entity_type_requested) {
         adj_ents.clear();
@@ -685,7 +654,11 @@ extern "C" {
           if (MBCN::Dimension(TYPE_FROM_HANDLE(*entity_iter)) == dim)
             continue;
           result = MBI->get_adjacencies( entity_iter, 1, dim, false, adj_ents, MBInterface::UNION );
-          CHKERR(result, "iMesh_getEntArrAdj: trouble getting adjacency list.");
+          if (MB_SUCCESS != result) {
+            if (allocated_array)
+              free(array);
+            ERROR(result, "iMesh_getEntArrAdj: trouble getting adjacency list.");
+          }
         }
         connect = &adj_ents[0];
         num_connect = adj_ents.size();
@@ -694,7 +667,11 @@ extern "C" {
         adj_ents.clear();
         result = MBI->get_adjacencies( entity_iter, 1, 
                                        entity_type_requested, false, adj_ents );
-        CHKERR(result, "iMesh_getEntArrAdj: trouble getting adjacency list.");
+        if (MB_SUCCESS != result) {
+          if (allocated_array)
+            free(array);
+          ERROR(result, "iMesh_getEntArrAdj: trouble getting adjacency list.");
+        }
         connect = &adj_ents[0];
         num_connect = adj_ents.size();
       }
@@ -726,7 +703,6 @@ extern "C" {
       prev_off += num_connect;
     }
     *off_iter = prev_off;
-    *offset_size = entity_handles_size+1;
     *adjacentEntityHandles_size = prev_off;
 
     if (*adjacentEntityHandles_size > array_alloc) {
@@ -737,6 +713,7 @@ extern "C" {
       *adjacentEntityHandles_allocated = array_alloc;
     }
 
+    KEEP_ARRAY(offset);
     RETURN(iBase_SUCCESS);
   }
 
@@ -755,8 +732,7 @@ extern "C" {
   {
     MBErrorCode result = MB_SUCCESS;
 
-    CHECK_SIZE(*offset, *offset_allocated, entity_handles_size+1, 
-               int, iBase_MEMORY_ALLOCATION_FAILED);
+    ALLOC_CHECK_ARRAY(offset, entity_handles_size+1 );
   
     const MBEntityHandle* entity_iter = (const MBEntityHandle*)entity_handles;
     const MBEntityHandle* const entity_end = entity_iter + entity_handles_size;
@@ -782,14 +758,11 @@ extern "C" {
     }
     *off_iter = prev_off;
 
-    CHECK_SIZE(*adj_entity_handles, *adj_entity_handles_allocated, 
-               (int)all_adj_ents.size(), 
-               iBase_EntityHandle, iBase_MEMORY_ALLOCATION_FAILED);
+    ALLOC_CHECK_ARRAY_NOFAIL(adj_entity_handles, all_adj_ents.size() );
     memcpy(*adj_entity_handles, &all_adj_ents[0], 
            sizeof(MBEntityHandle)*all_adj_ents.size() );
 
-    *adj_entity_handles_size = all_adj_ents.size();
-    *offset_size = entity_handles_size+1;
+    KEEP_ARRAY(offset);
     RETURN(iBase_SUCCESS);
   }
 
@@ -1006,8 +979,7 @@ extern "C" {
                                                     sets, 
                                                     std::max( num_hops, 0 ) );
     CHKERR(rval, "iMesh_entitysetGetEntitySets: problem getting entities by type.");
-    CHECK_SIZE(*contained_entset_handles, *contained_entset_handles_allocated,
-               (int)sets.size(), iBase_EntitySetHandle, iBase_MEMORY_ALLOCATION_FAILED);
+    ALLOC_CHECK_ARRAY_NOFAIL(contained_entset_handles, sets.size() );
 
     std::copy( sets.begin(), sets.end(), (MBEntityHandle*)*contained_entset_handles );
     *contained_entset_handles_size = sets.size();
@@ -1104,8 +1076,7 @@ extern "C" {
 
   {
     MBEntityHandle set = ENTITY_HANDLE(containing_set);
-    CHECK_SIZE(*is_contained, *is_contained_allocated,
-               (int)num_entity_handles, int, iBase_MEMORY_ALLOCATION_FAILED);
+    ALLOC_CHECK_ARRAY_NOFAIL(is_contained, num_entity_handles);
     *is_contained_size = num_entity_handles;
     
     if (containing_set) {
@@ -1218,14 +1189,11 @@ extern "C" {
       (ENTITY_HANDLE(from_entity_set), children, num_hops);
 
     CHKERR(result,"ERROR getChildren failed.");
-    CHECK_SIZE(*entity_set_handles, *entity_set_handles_allocated,
-               (int)children.size(), iBase_EntitySetHandle, iBase_MEMORY_ALLOCATION_FAILED);
+    ALLOC_CHECK_ARRAY_NOFAIL(entity_set_handles, children.size());
 
     MBEntityHandle *ents = HANDLE_ARRAY_PTR(*entity_set_handles);
       // use a memcpy for efficiency
     memcpy(ents, &children[0], children.size()*sizeof(MBEntityHandle));
-
-    *entity_set_handles_size = children.size();
 
     RETURN(iBase_SUCCESS);
   }
@@ -1244,14 +1212,11 @@ extern "C" {
 
     CHKERR(result,"ERROR getParents failed.");
 
-    CHECK_SIZE(*entity_set_handles, *entity_set_handles_allocated,
-               (int)parents.size(), iBase_EntitySetHandle, iBase_MEMORY_ALLOCATION_FAILED);
+    ALLOC_CHECK_ARRAY_NOFAIL(entity_set_handles, parents.size());
 
     MBEntityHandle *ents = HANDLE_ARRAY_PTR(*entity_set_handles);
       // use a memcpy for efficiency
     memcpy(ents, &parents[0], parents.size()*sizeof(MBEntityHandle));
-
-    *entity_set_handles_size = parents.size();
 
     RETURN(iBase_SUCCESS);
   }
@@ -1298,8 +1263,7 @@ extern "C" {
     }
 
       // if there aren't any elements in the array, allocate it
-    CHECK_SIZE(*new_vertex_handles, *new_vertex_handles_allocated,
-               num_verts, iBase_EntityHandle, iBase_MEMORY_ALLOCATION_FAILED);
+    ALLOC_CHECK_ARRAY(new_vertex_handles, num_verts);
   
       // make the entities
     MBEntityHandle *new_verts = HANDLE_ARRAY_PTR(*new_vertex_handles);
@@ -1309,8 +1273,7 @@ extern "C" {
       CHKERR(result, "iMesh_createVtxArr: couldn't create vertex.");
     }  
 
-    *new_vertex_handles_size = new_coords_size/3;
-
+    KEEP_ARRAY(new_vertex_handles);
     RETURN(iBase_SUCCESS);
   }
                                                    
@@ -1347,11 +1310,11 @@ extern "C" {
     }
 
       // if there aren't any elements in the array, allocate it
-    CHECK_SIZE(*new_entity_handles, *new_entity_handles_allocated,
-               num_ents, iBase_EntityHandle, iBase_MEMORY_ALLOCATION_FAILED);
-  
-    CHECK_SIZE(*status, *status_allocated, num_ents, 
-               int, iBase_MEMORY_ALLOCATION_FAILED);
+      
+      // This function is poorly defined.  We have to return allocated
+      // arrays even if we fail.
+    ALLOC_CHECK_ARRAY_NOFAIL(new_entity_handles, num_ents);
+    ALLOC_CHECK_ARRAY_NOFAIL(status, num_ents);
   
       // make the entities
     MBEntityHandle *new_ents = HANDLE_ARRAY_PTR(*new_entity_handles);
@@ -1644,19 +1607,15 @@ extern "C" {
     MBErrorCode result = MBI->tag_get_size(tag, tag_size);
     CHKERR(result, "iMesh_getEntSetData: couldn't get tag size.");
  
-    TAG_CHECK_SIZE(*tag_value, *tag_value_allocated, tag_size);
-
+    ALLOC_CHECK_TAG_ARRAY(tag_value, tag_size);
+ 
     if (eh == 0)
       result = MBI->tag_get_data(tag, NULL, 0, *tag_value);
     else
       result = MBI->tag_get_data(tag, &eh, 1, *tag_value);
 
-    if (MB_SUCCESS != result) {
-      ERROR(result, "iMesh_getEntSetData didn't succeed.");
-    }
-    else
-      *tag_value_size = tag_size;
-  
+    CHKERR(result, "iMesh_getEntSetData didn't succeed.");
+    KEEP_ARRAY(tag_value);
     RETURN(iBase_SUCCESS);
   }
 
@@ -1717,8 +1676,7 @@ extern "C" {
     CHKERR(result, "iMesh_entitysetGetAllTagHandles failed.");
  
       // now put those tag handles into sidl array
-    CHECK_SIZE(*tag_handles, *tag_handles_allocated, 
-               (int)all_tags.size(), iBase_TagHandle, iBase_MEMORY_ALLOCATION_FAILED);
+    ALLOC_CHECK_ARRAY_NOFAIL(tag_handles, all_tags.size());
     memcpy(*tag_handles, &all_tags[0], all_tags.size()*sizeof(MBTag));
 
     *tag_handles_size = (int) all_tags.size();
@@ -1829,8 +1787,7 @@ extern "C" {
       RETURN(iBase_SUCCESS);
     }
   
-    TAG_CHECK_SIZE(*tag_values, *tag_values_allocated, 
-                   tag_size * entity_handles_size);
+    ALLOC_CHECK_TAG_ARRAY(tag_values, tag_size * entity_handles_size);
 
     result = MBI->tag_get_data(tag, ents, entity_handles_size,
                                *tag_values);
@@ -1851,7 +1808,7 @@ extern "C" {
       ERROR(result, message.c_str());
     }
 
-    *tag_values_size = tag_size * entity_handles_size;
+    KEEP_ARRAY(tag_values);
     RETURN(iBase_SUCCESS);
   }
 
@@ -2137,8 +2094,7 @@ extern "C" {
     CHKERR(result, "iMesh_getAllTags failed.");
     
       // now put those tag handles into sidl array
-    CHECK_SIZE(*tag_handles, *tag_handles_allocated,
-               (int)all_tags.size(), iBase_TagHandle, iBase_MEMORY_ALLOCATION_FAILED);
+    ALLOC_CHECK_ARRAY_NOFAIL(tag_handles, all_tags.size());
     memcpy(*tag_handles, &all_tags[0], all_tags.size()*sizeof(MBTag));
     *tag_handles_size = all_tags.size();
 
@@ -2379,8 +2335,7 @@ extern "C" {
 
     int num_ents = out_entities.size();
     
-    CHECK_SIZE(*entity_handles, *entity_handles_allocated, 
-               num_ents, iBase_EntityHandle, iBase_MEMORY_ALLOCATION_FAILED);
+    ALLOC_CHECK_ARRAY_NOFAIL(entity_handles, num_ents);
   
     int k = 0;
 
@@ -2576,8 +2531,7 @@ extern "C" {
 
     CHKERR(result,"iMesh_GetEntities:ERROR getting entities.");
 
-    CHECK_SIZE(*entity_handles, *entity_handles_allocated, 
-               (int)out_entities.size(), iBase_EntityHandle, iBase_MEMORY_ALLOCATION_FAILED);
+    ALLOC_CHECK_ARRAY_NOFAIL(entity_handles, out_entities.size());
   
     MBRange::iterator iter = out_entities.begin();
     MBRange::iterator end_iter = out_entities.end();
@@ -2622,14 +2576,9 @@ extern "C" {
                                                MBInterface::INTERSECT, recursive);
     CHKERR(result,"ERROR getting entities.");
 
-    CHECK_SIZE(*set_handles, *set_handles_allocated, 
-               (int)out_entities.size(), iBase_EntitySetHandle, iBase_MEMORY_ALLOCATION_FAILED);
-
+    ALLOC_CHECK_ARRAY_NOFAIL(set_handles, out_entities.size());
+               
     std::copy(out_entities.begin(), out_entities.end(), ((MBEntityHandle*) *set_handles));
-  
-      // now it's safe to set the size; set it to k, not out_entities.size(), to
-      // account for sets which might have been removed
-    *set_handles_size = out_entities.size();
 
     RETURN(iBase_SUCCESS);
   }
