@@ -74,7 +74,7 @@ iMesh_processError( int code, const char* desc )
 }
 
 #define ERROR(CODE,MSG) do { iMesh_setLastError( MBI, (CODE), (MSG) ); RETURN((CODE)); } while(false)
-#define IBASE_ERROR(CODE,MSG) iMesh_processError( (CODE), (MSG) )
+#define IBASE_ERROR(CODE,MSG) iMesh_processError( *err = (CODE), (MSG) )
 
 static inline void iMesh_setLastError( MBInterface*, int code, const char* msg )
   { iMesh_processError( code, msg ); }  

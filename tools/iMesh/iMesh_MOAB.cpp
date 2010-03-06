@@ -281,6 +281,7 @@ extern "C" {
     *instance = reinterpret_cast<iMesh_Instance>(core);
     if (0 == *instance) {
       IBASE_ERROR(iBase_FAILURE, "Failed to instantiate mesh instance.");
+      return;
     }
   
     RETURN(iBase_SUCCESS);
