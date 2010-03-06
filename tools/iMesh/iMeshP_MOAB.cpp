@@ -242,18 +242,18 @@ static void set_intersection_query( iMesh_Instance instance,
   
   if (!set1) {
     rval = get_entities( MBI, itaps_cast<MBEntityHandle>(set2), type, topo, result );
-    CHKERR(rval);
+    CHKERR(rval,"Invalid Part handle");
   }
   else if (!set2) {
     rval = get_entities( MBI, itaps_cast<MBEntityHandle>(set1), type, topo, result );
-    CHKERR(rval);
+    CHKERR(rval,"Invalid set handle");
   }
   else {
     MBRange r1, r2;
     rval = get_entities( MBI, itaps_cast<MBEntityHandle>(set1), type, topo, r1 );
-    CHKERR(rval);
+    CHKERR(rval,"Invalid Part handle");
     rval = get_entities( MBI, itaps_cast<MBEntityHandle>(set2), type, topo, r2 );
-    CHKERR(rval);
+    CHKERR(rval,"Invalid set handle");
     result.merge( intersect( r1, r2) );
   }
   
@@ -282,10 +282,10 @@ void iMeshP_createPartitionAll( iMesh_Instance instance,
                                       MB_TYPE_INTEGER, 
                                       prtn_tag, 
                                       0, 
-                                      true ); CHKERR(rval);
+                                      true ); CHKERR(rval,"tag creation failed");
   
   MBEntityHandle handle;
-  rval = MBI->create_meshset( MESHSET_SET, handle ); CHKERR(rval);
+  rval = MBI->create_meshset( MESHSET_SET, handle ); CHKERR(rval,"set creation failed");
   MBParallelComm* pcomm = MBParallelComm::get_pcomm( MBI, handle, &communicator );
   if (!pcomm) {
     MBI->delete_entities( &handle, 1 );
@@ -304,7 +304,7 @@ void iMeshP_destroyPartitionAll( iMesh_Instance instance,
   if (pcomm)
     delete pcomm;
   MBEntityHandle handle = itaps_cast<MBEntityHandle>(partition_handle);
-  MBErrorCode rval = MBI->delete_entities( &handle, 1 ); CHKERR(rval);
+  MBErrorCode rval = MBI->delete_entities( &handle, 1 ); CHKERR(rval,"entity deletion failed");
   RETURN (iBase_SUCCESS);
 }
 
@@ -347,7 +347,7 @@ void iMeshP_getPartIdsFromPartHandlesArr(
     int id;
     rval = pcomm->get_part_id( itaps_cast<MBEntityHandle>(part_handles[i]), id );
     (*part_ids)[i] = id;
-    CHKERR(rval);
+    CHKERR(rval,"error getting part id");
   }
   RETURN(iBase_SUCCESS);
 }
@@ -368,7 +368,7 @@ void iMeshP_getPartHandlesFromPartsIdsArr(
   for (int i = 0; i < part_ids_size; ++i) {
     MBEntityHandle handle;
     rval = pcomm->get_part_handle( part_ids[i], handle );
-    CHKERR(rval);
+    CHKERR(rval,"error getting part handle");
     (*part_handles)[i] = itaps_cast<iMeshP_PartHandle>(handle);
   }
   RETURN(iBase_SUCCESS);
@@ -392,8 +392,10 @@ void iMeshP_syncPartitionAll( iMesh_Instance instance,
 {
   MBParallelComm* pcomm = PCOMM;
   if (!pcomm)
-    RETURN (iBase_FAILURE);
-  MBRTN (pcomm ? pcomm->collective_sync_partition() : MB_FAILURE );  
+    ERROR (iBase_FAILURE,"No PComm");
+  MBErrorCode rval = pcomm->collective_sync_partition();
+  CHKERR(rval,"collective sync failed");
+  RETURN(iBase_SUCCESS);
 }
 
 void iMeshP_getNumPartitions( iMesh_Instance instance,
@@ -402,7 +404,7 @@ void iMeshP_getNumPartitions( iMesh_Instance instance,
 {
   std::vector<MBParallelComm*> pcomms;
   MBErrorCode rval = MBParallelComm::get_all_pcomm( MBI, pcomms );
-  CHKERR(rval);
+  CHKERR(rval,"Internal error retreiving PComms");
   
   std::vector<MBParallelComm*>::iterator i;
   *num_partitions_out = 0;
@@ -421,7 +423,7 @@ void iMeshP_getPartitions( iMesh_Instance instance,
 {
   std::vector<MBParallelComm*> pcomms;
   MBErrorCode rval = MBParallelComm::get_all_pcomm( MBI, pcomms );
-  CHKERR(rval);
+  CHKERR(rval,"Internal error retreiving PComms");
   
   std::vector<MBParallelComm*>::iterator i;
   int count = 0;
@@ -446,10 +448,11 @@ void iMeshP_getNumGlobalParts( iMesh_Instance instance,
 {
   MBParallelComm* pcomm = PCOMM;
   if (!pcomm) 
-    RETURN (iBase_FAILURE);
+    ERROR (iBase_FAILURE,"No PComm");
   
   MBErrorCode rval = pcomm->get_global_part_count( *num_global_part );
-  MBRTN (rval);
+  CHKERR (rval,"PComm::get_global_part_count failed");
+  RETURN(iBase_SUCCESS);
 }
 
 void iMeshP_getNumLocalParts(iMesh_Instance instance,
@@ -459,7 +462,7 @@ void iMeshP_getNumLocalParts(iMesh_Instance instance,
 {
   MBParallelComm* pcomm = PCOMM;
   if (!pcomm) 
-    RETURN (iBase_FAILURE);
+    ERROR (iBase_FAILURE,"No PComm");
   
   *num_local_part = pcomm->partition_sets().size();
   RETURN (iBase_SUCCESS);
@@ -474,7 +477,7 @@ void iMeshP_getLocalParts( iMesh_Instance instance,
 {
   MBParallelComm* pcomm = PCOMM;
   if (!pcomm)
-    RETURN (iBase_FAILURE);
+    ERROR (iBase_FAILURE,"No PComm");
   
   MBRANGE_TO_ITAPS_ARRAY( pcomm->partition_sets(), part_handles );
   RETURN (iBase_SUCCESS);
@@ -502,13 +505,15 @@ void iMeshP_getRankOfPartArr( iMesh_Instance instance,
 {
   MBParallelComm* pcomm = PCOMM;
   if (!pcomm)
-    RETURN (iBase_FAILURE);
+    ERROR (iBase_FAILURE,"No PComm");
   
   ALLOCATE_ARRAY( rank, part_ids_size );
   MBErrorCode rval = MB_SUCCESS;
-  for (int i = 0; i < part_ids_size && MB_SUCCESS == rval; ++i)
+  for (int i = 0; i < part_ids_size; ++i) {
     rval = pcomm->get_part_owner( part_ids[i], (*rank)[i] );
-  MBRTN (rval);
+    CHKERR(rval,"PComm::get_part_owner failed");
+  }
+  RETURN(iBase_SUCCESS);
 }
 
 void iMeshP_getNumOfTypeAll( iMesh_Instance instance,
@@ -520,7 +525,7 @@ void iMeshP_getNumOfTypeAll( iMesh_Instance instance,
 {
   MBParallelComm* pcomm = PCOMM;
   if (!pcomm)
-    RETURN (iBase_FAILURE);
+    ERROR (iBase_FAILURE,"No PComm");
   
   MBRange entities;
   MBErrorCode rval = get_entities( MBI,
@@ -551,7 +556,7 @@ void iMeshP_getNumOfTopoAll( iMesh_Instance instance,
 {
   MBParallelComm* pcomm = PCOMM;
   if (!pcomm)
-    RETURN (iBase_FAILURE);
+    ERROR (iBase_FAILURE,"No PComm");
   
   MBRange entities;
   MBErrorCode rval = get_entities( MBI,
@@ -580,12 +585,12 @@ void iMeshP_createPart( iMesh_Instance instance,
 {
   MBParallelComm* pcomm = PCOMM;
   if (!pcomm)
-    RETURN (iBase_FAILURE);
+    ERROR (iBase_FAILURE,"No PComm");
   
   MBEntityHandle h;
   MBErrorCode rval = pcomm->create_part( h );
+  CHKERR(rval,"Part creation failed");
   *part_handle = itaps_cast<iMeshP_PartHandle>(h);
-  MBRTN(rval);
 }
 
 void iMeshP_destroyPart( iMesh_Instance instance,
@@ -595,9 +600,11 @@ void iMeshP_destroyPart( iMesh_Instance instance,
 {
   MBParallelComm* pcomm = PCOMM;
   if (!pcomm)
-    RETURN (iBase_FAILURE);
+    ERROR (iBase_FAILURE,"No PComm");
   
-  MBRTN( pcomm->destroy_part( itaps_cast<MBEntityHandle>(part_handle) ) );
+  MBErrorCode rval = pcomm->destroy_part( itaps_cast<MBEntityHandle>(part_handle) );
+  CHKERR(rval,"Part destruction failed");
+  RETURN(iBase_SUCCESS);
 }
 
 void iMeshP_getNumPartNbors( iMesh_Instance instance,
@@ -625,7 +632,8 @@ void iMeshP_getNumPartNborsArr( iMesh_Instance instance,
                                 int *err )
 {
   MBParallelComm* pcomm = PCOMM;
-  if (!pcomm) RETURN(iBase_FAILURE);
+  if (!pcomm) 
+    ERROR (iBase_FAILURE,"No PComm");
 
   ALLOCATE_ARRAY( num_part_nbors, part_handles_size );
   
@@ -633,7 +641,8 @@ void iMeshP_getNumPartNborsArr( iMesh_Instance instance,
   MBErrorCode rval;
   for (int i = 0; i < part_handles_size; ++i) {
     MBEntityHandle h = itaps_cast<MBEntityHandle>(part_handles[i]);
-    rval = pcomm->get_part_neighbor_ids( h, neighbors, n ); CHKERR(rval);
+    rval = pcomm->get_part_neighbor_ids( h, neighbors, n ); 
+    CHKERR(rval,"error getting neighbor ids");
     (*num_part_nbors)[i] = n;
   }
   
@@ -673,7 +682,8 @@ void iMeshP_getPartNborsArr( iMesh_Instance instance,
                              int *err ) 
 {
   MBParallelComm* pcomm = PCOMM;
-  if (!pcomm) RETURN(iBase_FAILURE);
+  if (!pcomm) 
+    ERROR (iBase_FAILURE,"No PComm");
 
   ALLOCATE_ARRAY( num_part_nbors, part_handles_size );
   
@@ -682,7 +692,8 @@ void iMeshP_getPartNborsArr( iMesh_Instance instance,
   MBErrorCode rval;
   for (int i = 0; i < part_handles_size; ++i) {
     MBEntityHandle h = itaps_cast<MBEntityHandle>(part_handles[i]);
-    rval = pcomm->get_part_neighbor_ids( h, pnbor, n ); CHKERR(rval);
+    rval = pcomm->get_part_neighbor_ids( h, pnbor, n ); 
+    CHKERR(rval,"error getting neighbor ids");
     (*num_part_nbors)[i] = n;
     std::copy( pnbor, pnbor+n, std::back_inserter(all_neighbors) );
   }
@@ -734,8 +745,9 @@ void iMeshP_getNumPartBdryEnts( iMesh_Instance instance,
                                             entity_topology,
                                             target_part_id,
                                             entities );
+  CHKERR(rval,"failed to get boundary entities");
   *num_entities = entities.size();
-  MBRTN(rval);
+  RETURN(iBase_SUCCESS);
 }
 
 void iMeshP_getPartBdryEnts( iMesh_Instance instance,
@@ -756,8 +768,9 @@ void iMeshP_getPartBdryEnts( iMesh_Instance instance,
                                             entity_topology,
                                             target_part_id,
                                             entities );
+  CHKERR(rval,"failed to get boundary entities");
   MBRANGE_TO_ITAPS_ARRAY( entities, entity_handles );
-  MBRTN(rval);
+  RETURN(iBase_SUCCESS);
 }
 
 void iMeshP_initPartBdryEntIter( iMesh_Instance instance,
@@ -775,7 +788,8 @@ void iMeshP_initPartBdryEntIter( iMesh_Instance instance,
                                             entity_type,
                                             entity_topology,
                                             nbor_part_id,
-                                            entities ); CHKERR(rval);
+                                            entities ); 
+  CHKERR(rval,"error getting boundary");
   *entity_iterator = create_itaps_iterator( entities );
   RETURN( entity_iterator ? iBase_SUCCESS : iBase_FAILURE );
 }
@@ -796,7 +810,8 @@ void iMeshP_initPartBdryEntArrIter( iMesh_Instance instance,
                                             entity_type,
                                             entity_topology,
                                             nbor_part_id,
-                                            entities ); CHKERR(rval);
+                                            entities ); 
+  CHKERR(rval,"error getting boundary");
   *entity_iterator = (iMesh_EntityArrIterator) create_itaps_iterator( entities, array_size );
   RETURN( entity_iterator ? iBase_SUCCESS : iBase_FAILURE );
 }
@@ -1033,12 +1048,12 @@ void iMeshP_getAdjEntities( iMesh_Instance instance,
     if (entity_type_requested || TYPE_FROM_HANDLE(*i) == MBPOLYHEDRON) {
       tmp_storage.clear();
       rval = MBI->get_adjacencies( &*i, 1, entity_type_requested, false, tmp_storage );
-      CHKERR(rval);
+      CHKERR(rval,"get_adjacencies failed");
       num_adj += tmp_storage.size();
     }
     else {
       rval = MBI->get_connectivity( *i, conn_ptr, num_conn, false, &tmp_storage );
-      CHKERR(rval);
+      CHKERR(rval,"get_connectivity failed");
       num_adj += num_conn;
     }
   }
@@ -1054,7 +1069,7 @@ void iMeshP_getAdjEntities( iMesh_Instance instance,
 
     tmp_storage.clear();
     rval = MBI->get_adjacencies( &*i, 1, entity_type_requested, false, tmp_storage );
-    CHKERR(rval);
+    CHKERR(rval,"get_adjacencies failed");
     for (std::vector<MBEntityHandle>::iterator j = tmp_storage.begin(); j != tmp_storage.end(); ++j) {
       (*adj_entity_handles)[arr_pos] = itaps_cast<iBase_EntityHandle>(*j);
       ++arr_pos;
@@ -1134,18 +1149,19 @@ void iMeshP_getEntOwnerPartArr( iMesh_Instance instance,
                                 int* err )
 {
   MBParallelComm* pcomm = PCOMM;
-  if (!pcomm)
-    RETURN(iBase_FAILURE);
+  if (!pcomm) 
+    ERROR (iBase_FAILURE,"No PComm");
   
   int id;
   ALLOCATE_ARRAY( part_ids, entity_handles_size );
   MBErrorCode rval = MB_SUCCESS;
-  for (int i = 0; i < entity_handles_size && MB_SUCCESS == rval; ++i) {
+  for (int i = 0; i < entity_handles_size; ++i) {
     MBEntityHandle h = itaps_cast<MBEntityHandle>(entity_handles[i]);
     rval = pcomm->get_owning_part( h, id );
     (*part_ids)[i] = id;
+    CHKERR(rval,"Failet get part owner");
   }
-  MBRTN(rval);
+  RETURN(iBase_SUCCESS);
 }
   
 void iMeshP_isEntOwner( iMesh_Instance instance,
@@ -1174,12 +1190,12 @@ void iMeshP_isEntOwnerArr( iMesh_Instance instance,
 {
   MBErrorCode rval;
   MBParallelComm* pcomm = PCOMM;
-  if (!pcomm)
-    RETURN(iBase_FAILURE);
+  if (!pcomm) 
+    ERROR (iBase_FAILURE,"No PComm");
   
   int id;
   rval = pcomm->get_part_id( itaps_cast<MBEntityHandle>(part_handle), id );
-  CHKERR(rval);
+  CHKERR(rval,"error getting part id");
   
   ALLOCATE_ARRAY( is_owner, entity_handles_size );
   *is_owner_size = entity_handles_size;
@@ -1187,7 +1203,7 @@ void iMeshP_isEntOwnerArr( iMesh_Instance instance,
   int owner;
   for (int i = 0; i < entity_handles_size; ++i) {
     rval = pcomm->get_owner( itaps_cast<MBEntityHandle>(entity_handles[i]), owner );
-    CHKERR(rval);
+    CHKERR(rval,"error getting owner");
     (*is_owner)[i] = (owner == id);
   }
   
@@ -1219,14 +1235,15 @@ void iMeshP_getEntStatusArr(iMesh_Instance instance,
                             int *err) 
 {
   MBParallelComm* pcomm = PCOMM;
-  if (!pcomm)
-    RETURN (iBase_FAILURE);
+  if (!pcomm) 
+    ERROR (iBase_FAILURE,"No PComm");
 
   std::vector<unsigned char> pstatus(entity_handles_size);
   MBErrorCode result = MBI->tag_get_data(pcomm->pstatus_tag(), 
                                          itaps_cast<const MBEntityHandle*>(entity_handles), 
                                          entity_handles_size,
-                                         &pstatus[0]); CHKERR(result);
+                                         &pstatus[0]); 
+  CHKERR(result,"error getting pstatus_tag");
 
   ALLOCATE_ARRAY( par_status, entity_handles_size );
   for (int i = 0; i < entity_handles_size; i++) {
@@ -1248,14 +1265,15 @@ void iMeshP_getNumCopies( iMesh_Instance instance,
                           int *err )
 {
   MBParallelComm* pcomm = PCOMM;
-  if (!pcomm)
-    RETURN (iBase_FAILURE);
+  if (!pcomm) 
+    ERROR (iBase_FAILURE,"No PComm");
 
   int ids[MAX_SHARING_PROCS];
   MBErrorCode rval = pcomm->get_sharing_parts( 
                               itaps_cast<MBEntityHandle>(entity_handle),
                               ids, *num_copies_ent );
-  MBRTN(rval);
+  CHKERR(rval,"MBParallelComm::get_sharing_parts failed");
+  RETURN(iBase_SUCCESS);
 }
 
 void iMeshP_getCopyParts( iMesh_Instance instance,
@@ -1267,13 +1285,14 @@ void iMeshP_getCopyParts( iMesh_Instance instance,
                           int *err )
 {
   MBParallelComm* pcomm = PCOMM;
-  if (!pcomm)
-    RETURN (iBase_FAILURE);
+  if (!pcomm) 
+    ERROR (iBase_FAILURE,"No PComm");
 
   int ids[MAX_SHARING_PROCS], num_ids;
   MBErrorCode rval = pcomm->get_sharing_parts( 
                               itaps_cast<MBEntityHandle>(entity_handle),
-                              ids, num_ids ); CHKERR(rval);
+                              ids, num_ids ); 
+  CHKERR(rval,"MBParallelComm::get_sharing_parts failed");
   ALLOCATE_ARRAY( part_ids, num_ids );
   std::copy( ids, ids+num_ids, *part_ids );
   RETURN (iBase_SUCCESS);
@@ -1293,14 +1312,15 @@ void iMeshP_getCopies( iMesh_Instance instance,
                        int *err )
 {
   MBParallelComm* pcomm = PCOMM;
-  if (!pcomm)
-    RETURN (iBase_FAILURE);
+  if (!pcomm) 
+    ERROR (iBase_FAILURE,"No PComm");
 
   int ids[MAX_SHARING_PROCS], num_ids;
   MBEntityHandle handles[MAX_SHARING_PROCS];
   MBErrorCode rval = pcomm->get_sharing_parts( 
                               itaps_cast<MBEntityHandle>(entity_handle),
-                              ids, num_ids, handles ); CHKERR(rval);
+                              ids, num_ids, handles ); 
+  CHKERR(rval,"MBParallelComm::get_sharing_parts failed");
   ALLOCATE_ARRAY( part_ids, num_ids );
   ALLOCATE_ARRAY( copies_entity_handles, num_ids );
   for (int i = 0; i < num_ids; ++i) {
@@ -1318,14 +1338,15 @@ void iMeshP_getCopyOnPart( iMesh_Instance instance,
                            int *err )
 {
   MBParallelComm* pcomm = PCOMM;
-  if (!pcomm)
-    RETURN (iBase_FAILURE);
+  if (!pcomm) 
+    ERROR (iBase_FAILURE,"No PComm");
 
   int ids[MAX_SHARING_PROCS], num_ids;
   MBEntityHandle handles[MAX_SHARING_PROCS];
   MBErrorCode rval = pcomm->get_sharing_parts( 
                               itaps_cast<MBEntityHandle>(entity_handle),
-                              ids, num_ids, handles ); CHKERR(rval);
+                              ids, num_ids, handles ); 
+  CHKERR(rval,"MBParallelComm::get_sharing_parts failed");
   int idx = std::find( ids, ids+num_ids, part_id ) - ids;
   if (idx == num_ids)
     RETURN (iBase_FAILURE);
@@ -1343,17 +1364,18 @@ void iMeshP_getOwnerCopy( iMesh_Instance instance,
                           int *err )
 { 
   MBParallelComm* pcomm = PCOMM;
-  if (!pcomm)
-    RETURN (iBase_FAILURE);
+  if (!pcomm) 
+    ERROR (iBase_FAILURE,"No PComm");
 
   int id;
   MBEntityHandle h;
   MBErrorCode rval = pcomm->get_owning_part( 
                           itaps_cast<MBEntityHandle>(entity_handle),
                           id, &h );  
+  CHKERR(rval,"Failed to get owner");
   *owner_part_id = id;
   *owner_entity_handle = itaps_cast<iBase_EntityHandle>(h);
-  MBRTN(rval);
+  RETURN(iBase_SUCCESS);
 }
 
 void iMeshP_waitForAnyRequest( iMesh_Instance instance,
@@ -1456,7 +1478,7 @@ void iMeshP_syncMeshAll( iMesh_Instance instance,
   
   MBParallelComm* pcomm = PCOMM;
   MBErrorCode rval = pcomm->update_shared_mesh();
-  CHKERR(rval);
+  CHKERR(rval,"update failed");
   RETURN (iBase_SUCCESS);
 }
 		            
@@ -1488,11 +1510,11 @@ void iMeshP_pushTags( iMesh_Instance instance,
   for (MBEntityType t = types.first; t <= types.second; ++t) {
     rval = MBI->get_entities_by_type_and_tag( 0, t, &src_tags[0], 0, 1, 
                                               entities, MBInterface::UNION );
-    CHKERR(rval);
+    CHKERR(rval,"error getting entities to push");
   }
   
   rval = pcomm->exchange_tags( src_tags, dst_tags, entities );
-  CHKERR(rval);
+  CHKERR(rval,"tag data communication failed");
   RETURN (iBase_SUCCESS);
 }
 
@@ -1513,7 +1535,7 @@ void iMeshP_pushTagsEnt( iMesh_Instance instance,
   std::vector<MBTag> dst_tags(1, itaps_cast<MBTag>(dest_tag));
   MBParallelComm* pcomm = PCOMM;
   MBErrorCode rval = pcomm->exchange_tags( src_tags, dst_tags, range );
-  CHKERR(rval);
+  CHKERR(rval,"tag data communication failed");
   RETURN (iBase_SUCCESS);
 }
 
@@ -1552,7 +1574,7 @@ void iMeshP_createGhostEntsAll( iMesh_Instance instance,
   MBParallelComm* pcomm = PCOMM;
   MBErrorCode rval;
   rval = pcomm->exchange_ghost_cells( ghost_dim, bridge_dim, num_layers, true );
-  CHKERR(rval);
+  CHKERR(rval,"ghost exchange failed");
   RETURN(iBase_SUCCESS);
 }
 
@@ -1642,7 +1664,7 @@ void iMeshP_loadAll( iMesh_Instance instance,
   }
   else {
     rval = MBI->create_meshset( MESHSET_SET, partitioning );
-    CHKERR(rval);
+    CHKERR(rval,"failed to create meshset");
   }
   
     // get MBParallelComm for partition
@@ -1666,7 +1688,8 @@ void iMeshP_loadAll( iMesh_Instance instance,
   if (*err) return;
   
   rval = pcomm->collective_sync_partition();
-  MBRTN(rval);
+  CHKERR(rval,"collective sync failed");
+  RETURN(iBase_SUCCESS);
 }
 
 void iMeshP_saveAll( iMesh_Instance instance,
