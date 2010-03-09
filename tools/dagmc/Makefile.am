@@ -1,7 +1,5 @@
-AUTOMAKE_OPTIONS = foreign
-
-DEFS = $(DEFINES)
-INCLUDES += -I$(top_srcdir) -I$(top_builddir) 
+AM_CPPFLAGS += -I$(top_srcdir)/src -I$(top_builddir)/src \
+               -I$(top_srcdir)/src/moab -I$(top_builddir)/src/moab
 
 lib_LTLIBRARIES = libdagmc.la
 libdagmc_la_SOURCES = DagMC.cpp
@@ -9,9 +7,8 @@ libdagmc_la_includedir = $(includedir)
 libdagmc_la_include_HEADERS = cubfile.h DagMC.hpp
 
 if HAVE_CGM
-INCLUDES += $(CGM_INCLUDES)
-CPPFLAGS += $(CGM_CPPFLAGS) -DCGM $(MOAB_CGM_DEFINES)
-CXXFLAGS += $(CGM_CXXFLAGS)
+AM_CPPFLAGS += $(CGM_INCLUDES) $(CGM_CPPFLAGS) -DCGM $(MOAB_CGM_DEFINES)
+AM_CXXFLAGS += $(CGM_CXXFLAGS)
 
 if NETCDF_FILE
   noinst_PROGRAMS = update_coords quads_to_tris
@@ -19,8 +16,8 @@ endif
 bin_PROGRAMS = cgm2moab
 cgm2moab_SOURCES = main.cc cubfile.c
 cgm2moab_LDFLAGS = $(CGM_LTFLAGS) $(CGM_LDLFAGS)
-cgm2moab_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LIBS)
-cgm2moab_DEPENDENCIES = libdagmc.la $(top_builddir)/libMOAB.la
+cgm2moab_LDADD = $(LDADD) 
+cgm2moab_DEPENDENCIES = libdagmc.la $(top_builddir)/src/libMOAB.la
 cgm2moabman = cgm2moab.man
 else
 cgm2moabman=
@@ -33,22 +30,18 @@ CGM_LDFLAGS = @CGM_LDFLAGS@
 CGM_LTFLAGS = @CGM_LTFLAGS@
 CGM_LIBS = @CGM_LIBS@
 
+LDADD = libdagmc.la $(top_builddir)/src/libMOAB.la  $(CGM_LDFLAGS) $(CGM_LIBS)
+
 TESTS = test_geom 
 check_PROGRAMS = $(TESTS) pt_vol_test ray_fire_test
 
 quads_to_tris_SOURCES = quads_to_tris_driver.cpp quads_to_tris.cpp
-quads_to_tris_LDADD = $(top_builddir)/libMOAB.la
+quads_to_tris_LDADD = $(top_builddir)/src/libMOAB.la
 
 test_geom_SOURCES = test_geom.cc
-test_geom_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS)  $(CGM_LDFLAGS) $(CGM_LIBS)
 
-if NETCDF_FILE
-  update_coords_SOURCES = cub2h5m.cc quads_to_tris.cpp quads_to_tris.hpp
-  update_coords_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS) $(CGM_LDFLAGS) $(CGM_LIBS)
-endif
+update_coords_SOURCES = cub2h5m.cc quads_to_tris.cpp quads_to_tris.hpp
 
 pt_vol_test_SOURCES = pt_vol_test.cc
-pt_vol_test_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS)  $(CGM_LDFLAGS) $(CGM_LIBS)
 
 ray_fire_test_SOURCES = ray_fire_test.cc
-ray_fire_test_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS)  $(CGM_LDFLAGS) $(CGM_LIBS)
