@@ -7,7 +7,8 @@ project( MOAB )
   # Always build tests
   enable_testing()
 
-  include( ${MOAB_SOURCE_DIR}/cmake/GetAcInitVersion.cmake )
+  list (APPEND CMAKE_MODULE_PATH "${MOAB_SOURCE_DIR}/config")
+
   get_ac_init_version()
   set ( MOAB_VERSION_MAJOR  "${MAJOR_VERSION}"  )
   set ( MOAB_VERSION_MINOR  "${MINOR_VERSION}"  )
@@ -23,7 +24,6 @@ project( MOAB )
     endif ( MOAB_VERSION_MINOR EQUAL 99 )
   endif ( DEFINED PATCH_VERSION )
 
-  set ( CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${MOAB_SOURCE_DIR}/cmake" )
   set ( EXECUTABLE_OUTPUT_PATH ${MOAB_BINARY_DIR}/bin CACHE PATH "Path to executables" FORCE )
   set ( LIBRARY_OUTPUT_PATH    ${MOAB_BINARY_DIR}/bin CACHE PATH "Path to libraries"   FORCE )
   mark_as_advanced(
@@ -320,9 +320,6 @@ project( MOAB )
   file( WRITE ${MOAB_BINARY_DIR}/MBCN_protos.h "" )
 
 # Testing
-  # Point to the input decks for the tests
-  configure_file( ${MOAB_SOURCE_DIR}/cmake/TestingConfig.h.in ${MOAB_BINARY_DIR}/testdir.h )
-
   add_executable( moab_test MBTest.cpp )
   target_link_libraries( moab_test MOAB )
   add_test( TestMOAB ${EXECUTABLE_OUTPUT_PATH}/moab_test -nostress )

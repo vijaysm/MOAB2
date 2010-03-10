@@ -10,7 +10,7 @@
 
 typedef struct { uint n; buffer buf; } crystal_buf;
 
-typedef struct {
+typedef struct crystal_data {
   crystal_buf buffers[3];
   crystal_buf *all, *keep, *send;
   MPI_Comm comm;

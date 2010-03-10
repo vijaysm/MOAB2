@@ -1,39 +1,30 @@
-AUTOMAKE_OPTIONS = foreign
 BUILT_SOURCES = iMesh_protos.h iMeshP_protos.h iMesh_extensions_protos.h
 
-if USE_BABEL
-  babel_DIR = SIDL
-else
-  babel_DIR = 
-endif
-
-SUBDIRS = . $(babel_DIR) $(pytaps_DIR)
-
-INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I.
-
-DEFS += $(DEFINES) -DSRCDIR=$(srcdir)
+AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
+               -I$(srcdir)/.. \
+               -I$(top_srcdir)/src \
+               -I$(top_builddir)/src \
+               -I$(top_srcdir)/src/moab \
+               -I$(top_builddir)/src/moab 
 
 # stuff for c test program
 check_PROGRAMS = testc_cbind
-EXTRA_DIST = brick.vtk quad9.cub mkprotos.sh
+EXTRA_DIST = brick.vtk quad9.cub
 
 libiMesh_la_SOURCES = \
 	iMesh_MOAB.cpp \
 	iMesh_MOAB.hpp
 
 libiMesh_la_include_HEADERS = iMesh.h \
-                             iMesh_extensions.h \
-                             iMesh_extensions_protos.h \
-                             iMesh_f.h \
-                             iMesh_protos.h \
-                             iMesh_FCDefs.h \
-                             iBase.h \
-                             iBase_f.h 
+                              iMesh_extensions.h \
+                              iMesh_extensions_protos.h \
+                              iMesh_f.h \
+                              iMesh_protos.h
 
 if PARALLEL
   libiMesh_la_SOURCES += iMeshP_MOAB.cpp
   libiMesh_la_include_HEADERS += iMeshP.h iMeshP_f.h iMeshP_protos.h
-  INCLUDES += -I$(top_srcdir)/parallel
+  AM_CPPFLAGS += -I$(top_srcdir)/src/parallel -I$(top_srcdir)/src/parallel/moab
 
   check_PROGRAMS += partest # iMeshP_unit_tests
 
@@ -43,8 +34,8 @@ if PARALLEL
 endif
 
 TESTS = $(check_PROGRAMS)
-LDADD = libiMesh.la $(top_builddir)/libMOAB.la ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
-TESTDEPS = libiMesh.la $(top_builddir)/libMOAB.la
+LDADD = libiMesh.la $(top_builddir)/src/libMOAB.la ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
+TESTDEPS = libiMesh.la $(top_builddir)/src/libMOAB.la
 
 testc_cbind_SOURCES = testc_cbind.c
 testc_cbind_DEPENDENCIES = $(TESTDEPS)
@@ -57,7 +48,7 @@ lib_LTLIBRARIES = libiMesh.la
 
 libiMesh_la_includedir = $(includedir)
 
-libiMesh_la_LIBADD = $(top_builddir)/libMOAB.la
+libiMesh_la_LIBADD = $(top_builddir)/src/libMOAB.la
 
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put 
@@ -78,11 +69,11 @@ install-data-hook:
 	echo "IMESH_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 
-iMesh_protos.h: iMesh.h mkprotos.sh Makefile.am
-	$(srcdir)/mkprotos.sh iMesh MBCN $< $@ iMesh_FCDefs.h
+iMesh_protos.h: iMesh.h ../mkprotos.sh Makefile.am
+	$(srcdir)/../mkprotos.sh iMesh MOAB $< $@ MOAB_FCDefs.h
 
-iMesh_extensions_protos.h: iMesh_extensions.h mkprotos.sh
-	$(srcdir)/mkprotos.sh iMesh MBCN $< $@ iMesh_FCDefs.h
+iMesh_extensions_protos.h: iMesh_extensions.h ../mkprotos.sh
+	$(srcdir)/../mkprotos.sh iMesh MOAB $< $@ MOAB_FCDefs.h
 
-iMeshP_protos.h: iMeshP.h mkprotos.sh
-	$(srcdir)/mkprotos.sh iMeshP MBCN $< $@ iMesh_FCDefs.h
+iMeshP_protos.h: iMeshP.h ../mkprotos.sh
+	$(srcdir)/../mkprotos.sh iMeshP MOAB $< $@ MOAB_FCDefs.h

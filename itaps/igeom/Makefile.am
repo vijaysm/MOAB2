@@ -1,10 +1,14 @@
-AUTOMAKE_OPTIONS = foreign
 BUILT_SOURCES = iGeom_protos.h
 
-IMESH_DIR = $(top_srcdir)/tools/iMesh
-INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I. -I$(IMESH_DIR)
+AM_CPPFLAGS = -DSRCDIR=$(srcdir) \
+              -I$(top_srcdir)/src \
+              -I$(top_builddir)/src \
+              -I$(top_srcdir)/src/moab \
+              -I$(top_builddir)/src/moab \
+              -I. -I$(srcdir)/.. \
+              -I$(top_srcdir)/itaps/imesh \
+              -I$(top_builddir)/itaps/imesh 
 
-DEFS += $(DEFINES) -DSRCDIR=$(srcdir)
 
 lib_LTLIBRARIES = libiGeomMOAB.la
 
@@ -13,6 +17,7 @@ libiGeomMOAB_la_includedir = $(includedir)
 #libiGeomMOAB_la_LIBADD = $(top_builddir)/libMOAB.la
 
 libiGeomMOAB_la_SOURCES = \
+        iGeom_MOAB.hpp \
 	iGeom_MOAB.cpp 
 
 libiGeomMOAB_la_include_HEADERS = \
@@ -20,14 +25,18 @@ libiGeomMOAB_la_include_HEADERS = \
 	iGeom.h \
 	iGeom_protos.h \
 	iBase_f.h \
-	iGeom_f.h \
-	iGeom_FCDefs.h
+	iGeom_f.h
 
 # stuff for test program
 check_PROGRAMS = testgeom
 testgeom_SOURCES = testgeom.cc
-testgeom_DEPENDENCIES = libiGeomMOAB.la $(IMESH_DIR)/libiMesh.la $(top_builddir)/libMOAB.la
-testgeom_LDADD = libiGeomMOAB.la $(IMESH_DIR)/libiMesh.la $(top_builddir)/libMOAB.la ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
+testgeom_DEPENDENCIES = libiGeomMOAB.la \
+                        $(top_builddir)/itaps/imesh/libiMesh.la \
+                        $(top_builddir)/src/libMOAB.la 
+testgeom_LDADD = libiGeomMOAB.la \
+                 $(top_builddir)/itaps/imesh/libiMesh.la \
+                 $(top_builddir)/src/libMOAB.la \
+                 ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
 
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put 
@@ -49,5 +58,5 @@ install-data-hook:
 	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iGeom-Defs.inc
 	echo "IGEOM_LIBS=-L${libdir} -liGeomMOAB" >> $(DESTDIR)$(cfgdir)/iGeom-Defs.inc
 
-iGeom_protos.h: iGeom.h $(top_srcdir)/tools/iMesh/mkprotos.sh Makefile.am
-	$(top_srcdir)/tools/iMesh/mkprotos.sh iGeom MBCN $< $@ iGeom_FCDefs.h
+iGeom_protos.h: iGeom.h $(top_srcdir)/itaps/mkprotos.sh Makefile.am
+	$(top_srcdir)/itaps/mkprotos.sh iGeom MOAB $< $@ MOAB_FCDefs.h

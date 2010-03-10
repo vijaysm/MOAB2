@@ -13,9 +13,9 @@
  *  http://people.sc.fsu.edu/~burkardt/data/stla/stla.html
  */
 #ifdef SRCDIR
-static const char sample[] = STRINGIFY(SRCDIR) "/test/sample.stl";
+static const char sample[] = STRINGIFY(SRCDIR) "/sample.stl";
 #else
-static const char sample[] = "test/sample.stl";
+static const char sample[] = "sample.stl";
 #endif
 
 const char* tmp_file = "test.stl";

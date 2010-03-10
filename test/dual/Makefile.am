@@ -1,8 +1,8 @@
 
-DEFS = $(DEFINES)
-INCLUDES += -I$(top_srcdir) -I$(top_builddir)
+AM_CPPFLAGS += -I$(top_srcdir)/src -I$(top_builddir)/src \
+               -I$(top_srcdir)/src/moab -I$(top_builddir)/src/moab
 check_PROGRAMS = dual_test
 dual_test_SOURCES = dual_test.cpp
-LDADD = $(top_builddir)/libMOAB.la
-dual_test_DEPENDENCIES = $(top_builddir)/libMOAB.la
+LDADD = $(top_builddir)/src/libMOAB.la
+dual_test_DEPENDENCIES = $(LDADD)
 TESTS = dual_test 

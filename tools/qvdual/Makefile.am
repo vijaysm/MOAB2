@@ -1,7 +1,5 @@
-AUTOMAKE_OPTIONS = foreign
-
-DEFS = $(DEFINES)
-INCLUDES += -I$(top_srcdir) -I$(top_builddir) $(QVDUAL_INCLUDES)
+AM_CPPFLAGS += -I$(top_srcdir)/src -I$(top_builddir)/src $(QVDUAL_INCLUDES) \
+               -I$(top_srcdir)/src/moab -I$(top_builddir)/src/moab
 bin_PROGRAMS = qvdual
 qvdual_SOURCES = \
   CropTool.cpp \
@@ -29,9 +27,9 @@ extra_depends = \
   moc_SheetDiagramPopup.o
 
 
-LDADD = $(extra_depends) $(QVDUAL_LIBS) $(top_builddir)/libMOAB.la 
+LDADD = $(extra_depends) $(QVDUAL_LIBS) $(top_builddir)/src/libMOAB.la 
 AM_LDFLAGS = -R $(VTK_LIB_DIR)
-qvdual_DEPENDENCIES = $(extra_depends) $(top_builddir)/libMOAB.la
+qvdual_DEPENDENCIES = $(extra_depends) $(top_builddir)/src/libMOAB.la
 
 uiQVDual.cpp: uiQVDual.h uiQVDual.ui 
 	$(UIC) -impl uiQVDual.h -o $@ uiQVDual.ui 

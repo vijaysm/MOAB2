@@ -7,6 +7,8 @@
 #include "MBOrientedBox.hpp"
 #include "MBOrientedBoxTreeTool.hpp"
 #include "MBCartVect.hpp"
+#include <stdlib.h>
+#include <cstring>
 
 iBase_Error iGeom_LAST_ERROR;
 bool i_created = false; // if interface is created

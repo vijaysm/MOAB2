@@ -23,18 +23,13 @@ class MBInterface;
 
 
 #ifdef USE_MPI
-#include "MBmpi.h"
-extern "C" 
-{
-#include "types.h"
-#include "errmem.h"
-#include "crystal.h"
-}
+#  include "MBmpi.h"
 #else
-typedef int MPI_Comm;
-#define MPI_COMM_WORLD 0
-typedef void* crystal_data;
+  typedef int MPI_Comm;
+# define MPI_COMM_WORLD 0
 #endif
+
+struct crystal_data;
 
 /**\brief Multi-CPU information for parallel MOAB */
 class MBProcConfig {
@@ -73,12 +68,9 @@ private:
   
     //! number of processors
   unsigned procSize;
-
-    //! whether the crystal router's been initialized or not
-  bool crystalInit;
   
     //! crystal router for this parallel job
-  crystal_data crystalData;
+  crystal_data* crystalData;
   
 };
 

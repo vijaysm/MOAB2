@@ -14,11 +14,20 @@
  */
 
 #include "MBProcConfig.hpp"
+extern "C" {
+#ifdef USE_MPI
+#  include "types.h"
+#  include "errmem.h"
+#  include "crystal.h"
+#else
+   struct crystal_data {};
+#endif
+} // extern "C"
 
 //! Constructor
 MBProcConfig::MBProcConfig(MPI_Comm proc_comm) 
     : procComm(proc_comm),
-      crystalInit(false)
+      crystalData(0)
 {
 #ifdef USE_MPI
   int rank, size;
@@ -34,21 +43,24 @@ MBProcConfig::MBProcConfig(MPI_Comm proc_comm)
 
 crystal_data *MBProcConfig::crystal_router(bool construct_if_missing)
 {
-  if (!crystalInit && construct_if_missing)
 #ifdef USE_MPI
-    crystal_init(&crystalData, procComm), crystalInit = true;
-#else
-  ;
+  if (!crystalData && construct_if_missing) {
+    crystalData = new crystal_data;
+    crystal_init(crystalData, procComm);
+  }
 #endif
 
-  return &crystalData;
+  return crystalData;
 }
 
 MBProcConfig::~MBProcConfig() 
 {
+  if (crystalData) {
 #ifdef USE_MPI
-  if (crystalInit) 
-    crystal_free(&crystalData), crystalInit = false;
+    crystal_free(crystalData);
 #endif
+    delete crystalData;
+    crystalData = 0;
+  }
 }
 

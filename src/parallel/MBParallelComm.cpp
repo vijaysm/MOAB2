@@ -29,12 +29,13 @@ const bool debug = false;
 #include <assert.h>
 
 
+
 extern "C" 
 {
+#include "types.h"
 #include "minmax.h"
 #include "gs.h"
 #include "errmem.h"
-#include "types.h"
 #include "sort.h"
 #include "tuple_list.h"
 }

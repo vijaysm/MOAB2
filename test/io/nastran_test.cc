@@ -2,6 +2,7 @@
 #include "MBCore.hpp"
 #include "MBTagConventions.hpp"
 #include "MBCN.hpp"
+#define IS_BUILDING_MB
 #include "ReadNASTRAN.hpp"
 #include "MBRange.hpp"
 #include "FileOptions.hpp"
@@ -9,9 +10,9 @@
 #include <algorithm>
 
 #ifdef SRCDIR
-static const char example[] = STRINGIFY(SRCDIR) "/test/test.nas";
+static const char example[] = STRINGIFY(SRCDIR) "/test.nas";
 #else
-static const char example[] = "test/test.nas";
+static const char example[] = "test.nas";
 #endif
 
 void read_file( MBInterface& moab, const char* input_file );

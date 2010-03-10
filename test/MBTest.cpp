@@ -55,8 +55,13 @@
 
 using namespace std;
 
-#include "testdir.h"
-string TestDir( TEST_DIR );
+#define STRINGIFY_(A) #A
+#define STRINGIFY(A) STRINGIFY_(A)
+#ifdef SRCDIR
+string TestDir( STRINGIFY(SRCDIR) );
+#else
+string TestDir( "." );
+#endif
 
 #define CHKERR(A) do { if (MB_SUCCESS != (A)) { \
   std::cerr << "Failure (error code " << (A) << ") at " __FILE__ ":" \
@@ -2856,7 +2861,7 @@ MBErrorCode mb_meshset_tracking_test( MBInterface *MB )
 
 MBErrorCode mb_write_mesh_test(MBInterface *MB)
 {
-  std::string file_name = "test/mb_write.g";
+  std::string file_name = "mb_write.g";
 
     // no need to get lists, write out the whole mesh
   MBErrorCode result = MB->write_mesh(file_name.c_str());
@@ -3228,7 +3233,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
 
     // no need to get lists, write out the whole mesh
-  file_name = "test/mb_write2.g";
+  file_name = "mb_write2.g";
   std::vector<MBEntityHandle> output_list;
   output_list.push_back( block_ms );
   output_list.push_back( sideset_ms );
@@ -3846,7 +3851,7 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
 
   MB->convert_entities(meshset, false, false, true, &function_object);
 
-  file_name = "test/hex_mid_volume_nodes.g";
+  file_name = "hex_mid_volume_nodes.g";
   error = MB->write_mesh(file_name.c_str());
   if (error != MB_SUCCESS)
     return error;
@@ -3879,7 +3884,7 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
   MB->add_entities(meshset, entities);
   MB->convert_entities(meshset, true, true, true);
 
-  file_name = "test/hex_mid_edge_face_vol_nodes.g";
+  file_name = "hex_mid_edge_face_vol_nodes.g";
   error = MB->write_mesh(file_name.c_str());
   if (error != MB_SUCCESS)
     return error;
@@ -3915,7 +3920,7 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
   MB->add_entities(meshset, entities);
   MB->convert_entities(meshset, true, false, false);
 
-  file_name = "test/hex_mid_edge_nodes.g";
+  file_name = "hex_mid_edge_nodes.g";
   error = MB->write_mesh(file_name.c_str());
   if (error != MB_SUCCESS)
     return error;
@@ -3956,7 +3961,7 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
   MB->add_entities(meshset, entities);
   MB->convert_entities(meshset, true, false, false);
 
-  file_name = "test/tet_mid_edge_nodes.g";
+  file_name = "tet_mid_edge_nodes.g";
   error = MB->write_mesh(file_name.c_str());
   if (error != MB_SUCCESS)
     return error;
@@ -3987,7 +3992,7 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
   MB->add_entities(meshset, entities);
   MB->convert_entities(meshset, false, true, false);
 
-  file_name = "test/tet_mid_face_nodes.g";
+  file_name = "tet_mid_face_nodes.g";
   error = MB->write_mesh(file_name.c_str());
   if (error != MB_SUCCESS)
     return error;
@@ -4022,7 +4027,7 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
   MB->add_entities(meshset, entities);
   MB->convert_entities(meshset, true, true, false);
 
-  file_name = "test/tet_mid_edge_face_nodes.g";
+  file_name = "tet_mid_edge_face_nodes.g";
   error = MB->write_mesh(file_name.c_str());
   if (error != MB_SUCCESS)
     return error;
@@ -4116,7 +4121,7 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
   }
 
     // output the skin
-  file_name = "test/tri_mid_edge_face_nodes.g";
+  file_name = "tri_mid_edge_face_nodes.g";
   error = MB->write_mesh(file_name.c_str(), &export_meshset, 1);
   if (error != MB_SUCCESS)
     return error;
@@ -4602,8 +4607,8 @@ MBErrorCode mb_merge_test(MBInterface *MB)
   MBErrorCode result;
   MBSkinner MBSkinner_Obj(MB);
 
-  std::string test_files[] = {std::string("test/cell1.gen"),
-                              std::string("test/cell2.gen")};
+  std::string test_files[] = {std::string("cell1.gen"),
+                              std::string("cell2.gen")};
     /*  			      std::string("cell3.gen"),
     			      std::string("cell4.gen"),
 			      std::string("cell5.gen"),
@@ -4698,7 +4703,7 @@ MBErrorCode mb_merge_test(MBInterface *MB)
        0 != num_ents) ||
       (MB_SUCCESS == MB->get_number_entities_by_dimension(0, 2, num_ents) &&
        0 != num_ents))
-    result = MB->write_mesh("test/merge_test.ncdf");
+    result = MB->write_mesh("merge_test.ncdf");
   ;
   
 
@@ -4844,7 +4849,7 @@ MBErrorCode mb_stress_test(MBInterface *MB)
   clock_t total_start = clock();
 
     //read in a file so you have some data in the database
-  std::string file_name = "test/mb_big_test.g";
+  std::string file_name = "mb_big_test.g";
   error = MB->load_mesh(file_name.c_str(), NULL, 0);
   if (error != MB_SUCCESS)
     return error;
@@ -4953,7 +4958,7 @@ MBErrorCode mb_stress_test(MBInterface *MB)
   std::vector<MBEntityHandle> output_list;
   output_list.push_back(mesh_set);
 
-  file_name = "test/mb_stress_out.g";
+  file_name = "mb_stress_out.g";
   error = MB->write_mesh(file_name.c_str(), &output_list[0], output_list.size());
   if (error != MB_SUCCESS)
     return error;

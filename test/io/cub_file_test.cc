@@ -76,11 +76,11 @@
  * adjacent corner vertices of the element.
  */
 #ifdef SRCDIR
-static const char input_file_1[] = STRINGIFY(SRCDIR) "/test/test.cub";
-static const char ho_file[] = STRINGIFY(SRCDIR) "/test/ho_test.cub";
+static const char input_file_1[] = STRINGIFY(SRCDIR) "/test.cub";
+static const char ho_file[] = STRINGIFY(SRCDIR) "/ho_test.cub";
 #else
-static const char input_file_1[] = "test/test.cub";
-static const char ho_file[] = "test/ho_test.cub";
+static const char input_file_1[] = "test.cub";
+static const char ho_file[] = "ho_test.cub";
 #endif
 
 void read_file( MBInterface& moab, const char* input_file );

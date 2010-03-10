@@ -304,26 +304,8 @@ WARN_LOGFILE           =
 # directories like "/usr/src/myproject". Separate the files or directories 
 # with spaces.
 
-INPUT                  = ../DualTool.hpp \
-                         ../ExoIIInterface.hpp \
-                         ../HigherOrderFactory.hpp \
-                         ../HomXform.hpp \
-                         ../MBCN.hpp \
-                         ../MBInterface.hpp \
-                         ../MBParallelConventions.h \
-                         ../MBRange.hpp \
-                         ../MBReadUtilIface.hpp \
-                         ../MBReaderIface.hpp \
-                         ../MBReaderWriterSet.hpp \
-                         ../MBSkinner.hpp \
-                         ../MBTagConventions.hpp \
-                         ../MBUnknownInterface.h \
-                         ../MBUtil.hpp \
-                         ../MBWriteUtilIface.hpp \
-                         ../MBWriterIface.hpp \
-                         ../MeshTopoUtil.hpp \
-                         ../ReadWriteDefines.h \
-                         ../WriteTemplate.hpp 
+INPUT                  = @top_srcdir@/src/moab \
+                         @top_srcdir@/src/parallel/moab 
 
 # If the value of the INPUT tag contains directories, you can use the 
 # FILE_PATTERNS tag to specify one or more wildcard pattern (like *.cpp 

@@ -1,4 +1,5 @@
 #include "MBCore.hpp"
+#include "MBRange.hpp"
 #include <iostream>
 #define MCNP mc_instance()
 #define BOXMIN_TAG "BOXMIN_TAG"

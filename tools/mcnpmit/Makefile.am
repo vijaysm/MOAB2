@@ -1,9 +1,9 @@
-AUTOMAKE_OPTIONS = foreign
-DEFS = $(DEFINES)
+LDADD = $(top_builddir)/src/libMOAB.la \
+        $(top_builddir)/tools/mbcoupler/libmbcoupler.la
 
-LDADD = $(top_builddir)/libMOAB.la $(top_builddir)/tools/mbcoupler/libmbcoupler.la
+AM_CPPFLAGS += -I$(top_srcdir)/src -I$(top_builddir)/src -I$(top_srcdir)/tools/mbcoupler \
+               -I$(top_srcdir)/src/moab -I$(top_builddir)/src/moab
 
-INCLUDES += -I$(top_srcdir) -I$(top_builddir) -I$(top_srcdir)/tools/mbcoupler
 bin_PROGRAMS = mcnpmit
 mcnpmit_SOURCES = mcnpmit.hpp mcnpmit.cpp main.cpp
-mcnpmit_DEPENDENCIES = $(top_builddir)/libMOAB.la $(top_builddir)/tools/mbcoupler/libmbcoupler.la
+mcnpmit_DEPENDENCIES = ../../src/libMOAB.la ../mbcoupler/libmbcoupler.la

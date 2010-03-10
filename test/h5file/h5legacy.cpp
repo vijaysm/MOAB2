@@ -1,5 +1,4 @@
 #include "MBCore.hpp"
-#include "testdir.h"
 #include "TestUtil.hpp"
 #include "MBRange.hpp"
 
@@ -36,7 +35,7 @@ void test_moab_v3_poly_format()
   MBErrorCode rval;
   
     // load file containing a dodecahedron
-  rval = mb.load_mesh( "../../" TEST_DIR "/v3_dodec.h5m" );
+  rval = mb.load_mesh( STRINGIFY(SRCDIR) "/v3_dodec.h5m" );
   CHECK_ERR(rval);
   
     // get entities from file

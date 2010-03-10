@@ -2,6 +2,7 @@
 #include "MBCore.hpp"
 #include "MBTagConventions.hpp"
 #include "MBCN.hpp"
+#define IS_BUILDING_MB
 #include "ReadNCDF.hpp"
 #include "WriteNCDF.hpp"
 #include "FileOptions.hpp"
@@ -17,9 +18,9 @@
  * adjacent corner vertices of the element.
  */
 #ifdef SRCDIR
-static const char ho_file[] = STRINGIFY(SRCDIR) "/test/ho_test.g";
+static const char ho_file[] = STRINGIFY(SRCDIR) "/ho_test.g";
 #else
-static const char ho_file[] = "test/ho_test.g";
+static const char ho_file[] = "ho_test.g";
 #endif
 
 void read_file( MBInterface& moab, 

@@ -35,6 +35,7 @@
 #include <iostream>
 #include <fstream>
 #include <assert.h>
+#include <stdlib.h>
 #include "math.h"
 #include "MBmpi.h"
 
