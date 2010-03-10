@@ -8,6 +8,9 @@ project( MOAB )
   enable_testing()
 
   list (APPEND CMAKE_MODULE_PATH "${MOAB_SOURCE_DIR}/config")
+  include (config/GetAcInitVersion.cmake)
+
+  # enable_language( Fortran )
 
   get_ac_init_version()
   set ( MOAB_VERSION_MAJOR  "${MAJOR_VERSION}"  )
@@ -81,7 +84,7 @@ project( MOAB )
     set ( MOAB_HAVE_PTRDIFF_T ${HAVE_PTRDIFF_T} )
   endif ( NOT MOAB_FORCE_64_BIT_HANDLES AND NOT MOAB_FORCE_32_BIT_HANDLES )
 
-  try_compile( TEMPLATE_DEFS_INCLUDED ${MOAB_BINARY_DIR} ${MOAB_SOURCE_DIR}/cmake/TemplateSpecialization.cxx OUTPUT_VARIABLE BLORT )
+  try_compile( TEMPLATE_DEFS_INCLUDED ${MOAB_BINARY_DIR} ${MOAB_SOURCE_DIR}/config/TemplateSpecialization.cxx OUTPUT_VARIABLE BLORT )
   if ( TEMPLATE_DEFS_INCLUDED )
     set ( MOAB_DEFINES "${MOAB_DEFINES} -DTEMPLATE_DEFS_INCLUDED" )
   endif ( TEMPLATE_DEFS_INCLUDED )
@@ -93,266 +96,11 @@ project( MOAB )
   option ( MOAB_USE_MPI    "Should MOAB be compiled with MPI support?"       OFF )
   option ( MOAB_USE_HDF    "Include HDF I/O in the build?"                   OFF )
   option ( MOAB_USE_NETCDF "Include NetCDF support (ExodusII) in the build?" OFF )
-  
-  # Documentation
-  # Optional tools
-  option ( MOAB_BUILD_MBCONVERT    "Build the MOAB mesh converter tool?"  ON )
-  option ( MOAB_BUILD_HEXMODOPS    "Build the hexahedral modops tool?"    ON )
-  option ( MOAB_BUILD_MBCHACO      "Build MOAB Chaco interface?"          OFF )
-  option ( MOAB_BUILD_MBPERF       "Build the MOAB performance tool?"     ON )
-  option ( MOAB_BUILD_QVDUAL       "Build the qvdual application?"        OFF )
-  option ( MOAB_BUILD_MBSIZE       "Build the mbsize tool?"               ON )
-  option ( MOAB_BUILD_MBSKIN       "Build the mbskin tool?"               ON )
-  option ( MOAB_BUILD_MBTAGPROP    "Build the mbtagprop tool?"            ON )
-  option ( MOAB_BUILD_SPHEREDECOMP "Build the sphere decomposition tool?" ON )
-  option ( MOAB_BUILD_MBSURFPLOT   "Build the mbsurfplot application?"    ON )
-  option ( MOAB_BUILD_MBZOLTAN     "Build the mbzoltan partitioner?"      OFF )
-  option ( MOAB_BUILD_DAGMC        "Build the dagmc tool?"                ON )
-  option ( MOAB_BUILD_MBCOUPLER    "Build the mesh coupler tool?"         ON )
 
   # iMesh
   option ( MOAB_BUILD_IMESH        "Build the iMesh interface?"           ON )
 
-  # MOAB Library
-  set ( MOAB_LIB_SRCS
-    AEntityFactory.cpp
-    BSPTreePoly.cpp
-    DualTool.cpp
-    EntitySequence.cpp
-    ExoIIUtil.cpp
-    FileOptions.cpp
-    FileTokenizer.cpp
-    GeomTopoTool.cpp
-    GmshUtil.cpp
-    HigherOrderFactory.cpp
-    HomXform.cpp
-    MBAdaptiveKDTree.cpp
-    MBAffineXform.cpp
-    MBAlloc.cpp
-    MBAxisBox.cpp
-    MBBits.cpp
-    MBBSPTree.cpp
-    MBCN.cpp
-    MBCartVect.cpp
-    MBMatrix3.cpp
-    MBCore.cpp
-    MBFactory.cpp
-    MBGeomUtil.cpp
-    MBMeshSet.cpp
-    MBOrientedBox.cpp
-    MBOrientedBoxTreeTool.cpp
-    MBRange.cpp
-    MBRangeSeqIntersectIter.cpp
-    MBReadUtil.cpp
-    MBReaderWriterSet.cpp
-    MBSkinner.cpp
-    MBSysUtil.cpp
-    MBUtil.cpp
-    MBWriteUtil.cpp
-    MeshSetSequence.cpp
-    MeshTopoUtil.cpp
-    PolyElementSeq.cpp
-    ReadABAQUS.cpp
-    ReadGmsh.cpp
-    ReadIDEAS.cpp
-    ReadMCNP5.cpp
-    ReadNASTRAN.cpp
-    ReadSms.cpp
-    ReadSTL.cpp
-    ReadTetGen.cpp
-    ReadVtk.cpp
-    ScdElementData.cpp
-    ScdVertexData.cpp
-    SequenceData.cpp
-    SequenceManager.cpp
-    SparseTagSuperCollection.cpp
-    SparseTagCollection.cpp
-    StructuredElementSeq.cpp
-    SweptElementData.cpp
-    SweptElementSeq.cpp
-    SweptVertexData.cpp
-    TagInfo.cpp
-    TagServer.cpp
-    Tqdcfr.cpp
-    TypeSequenceManager.cpp
-    UnstructuredElemSeq.cpp
-    VertexSequence.cpp
-    VtkUtil.cpp
-    WriteAns.cpp
-    WriteGMV.cpp
-    WriteGmsh.cpp
-    WriteSTL.cpp
-    WriteTemplate.cpp
-    WriteVtk.cpp
-  )
-  include_directories(
-    ${MOAB_SOURCE_DIR}
-    ${MOAB_BINARY_DIR}
-  )
-
-  if ( MOAB_USE_NETCDF )
-    find_package( NetCDF )
-    if ( NetCDF_FOUND )
-      set ( MOAB_DEFINES "${MOAB_DEFINES} -DNETCDF_FILE" )
-      set ( MOAB_LIB_SRCS
-        ${MOAB_LIB_SRCS}
-        ReadNCDF.cpp
-        WriteNCDF.cpp
-        WriteSLAC.cpp
-      )
-      include_directories(
-        ${NetCDF_INCLUDE_DIRECTORIES}
-      )
-    endif ( NetCDF_FOUND )
-  endif ( MOAB_USE_NETCDF )
-
-  if ( MOAB_USE_HDF )
-    # HDF5
-    find_package( HDF5 )
-    if ( HDF5_FOUND )
-      set ( MOAB_DEFINES "${MOAB_DEFINES} -DHDF5_FILE" )
-      check_function_exists( H5Pset_fapl_mpio MOAB_HDF_HAVE_PARALLEL )
-      set ( MOAB_LIB_SRCS
-        ${MOAB_LIB_SRCS}
-        ReadHDF5.cpp
-        WriteHDF5.cpp
-      )
-      include_directories(
-        ${HDF5_INCLUDE_DIRECTORIES}
-        ${MOAB_SOURCE_DIR}/mhdf/include
-      )
-      add_subdirectory( mhdf )
-    endif ( HDF5_FOUND )
-  endif ( MOAB_USE_HDF )
-
-  if ( MOAB_USE_MPI )
-    find_package( MPI )
-    # CMake FindMPI script is sorely lacking:
-    if ( MPI_LIBRARY AND MPI_INCLUDE_PATH )
-      set( MPI_FOUND 1 )
-    endif ( MPI_LIBRARY AND MPI_INCLUDE_PATH )
-
-    if ( MPI_FOUND )
-      set ( MOAB_DEFINES "${MOAB_DEFINES} -DUSE_MPI" )
-      include_directories(
-        ${MPI_INCLUDE_PATH}
-        ${MOAB_SOURCE_DIR}/parallel
-      )
-    endif ( MPI_FOUND )
-  endif ( MOAB_USE_MPI )
-
-  set_source_files_properties( ${MOAB_LIB_SRCS}
-    COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}"
-  )
-  add_library( MOAB
-    ${MOAB_LIB_SRCS}
-  )
-
-  if ( MOAB_USE_MPI AND MPI_FOUND )
-    add_subdirectory( refiner )
-    include_directories( ${MOAB_SOURCE_DIR}/refiner )
-    target_link_libraries( MOAB MOABrefiner )
-  endif ( MOAB_USE_MPI AND MPI_FOUND )
-
-  if ( MOAB_USE_HDF AND HDF5_FOUND )
-    target_link_libraries( MOAB
-      mhdf
-      ${HDF5_LIBRARIES}
-    )
-  endif ( MOAB_USE_HDF AND HDF5_FOUND )
-
-  if ( MOAB_USE_MPI AND MPI_FOUND )
-    add_subdirectory( parallel )
-    target_link_libraries( MOAB MOABpar )
-  endif ( MOAB_USE_MPI AND MPI_FOUND )
-
-  if ( MOAB_USE_NETCDF AND NetCDF_FOUND )
-    target_link_libraries( MOAB
-      ${NetCDF_LIBRARIES}
-    )
-  endif ( MOAB_USE_NETCDF AND NetCDF_FOUND )
-  ## Tools/libraries dependent on MOAB:
-
-  # Zoltan
-  # Chaco
-
-  # QVDual
-  if ( MOAB_BUILD_QVDUAL )
-    add_subdirectory( tools/qvdual )
-  endif ( MOAB_BUILD_QVDUAL )
-
-  # CGM
-  if ( MOAB_BUILD_DAGMC )
-    add_subdirectory( tools/dagmc )
-  endif ( MOAB_BUILD_DAGMC )
-
-  # MBCoupler
-  if ( MOAB_USE_MPI AND MPI_FOUND AND MOAB_BUILD_MBCOUPLER )
-    add_subdirectory( tools/mbcoupler )
-  endif ( MOAB_USE_MPI AND MPI_FOUND AND MOAB_BUILD_MBCOUPLER )
-
-  # iMesh Babel
-  if ( MOAB_BUILD_IMESH )
-    option( MOAB_IMESH_FORTRAN "Should MOAB include iMesh FORTRAN bindings?" OFF )
-    add_subdirectory( tools/iMesh )
-  endif ( MOAB_BUILD_IMESH )
-
-  if ( MOAB_IMESH_FORTRAN )
-    enable_language( Fortran )
-    # This determines FORTRAN calling conventions and defines FC_FUNC and FC_FUNC_
-    # to macros which can be used from C to call FORTRAN.
-    #include( ${MOAB_SOURCE_DIR}/cmake/FortranCallingConvention.cmake)
-  endif ( MOAB_IMESH_FORTRAN )
+  add_subdirectory( src )
+  add_subdirectory( tools )
+  add_subdirectory( test )
   
-
-  include( ${MOAB_SOURCE_DIR}/cmake/AutoconfHeader.cmake )
-  # Define some more variables so they will be substituted properly in the autoconf files.
-  set( MB_VERSION        "\"${MOAB_VERSION}\"" )
-  set( MB_VERSION_MAJOR  ${MOAB_VERSION_MAJOR} )
-  set( MB_VERSION_MINOR  ${MOAB_VERSION_MINOR} )
-  if ( DEFINED MOAB_VERSION_PATCH )
-    set( MB_VERSION_PATCH  ${MOAB_VERSION_PATCH} )
-  endif ( DEFINED MOAB_VERSION_PATCH )
-  set( MB_VERSION_STRING "\"${MOAB_VERSION_STRING}\"" )
-
-  autoconf_header( ${MOAB_SOURCE_DIR}/MBVersion.h.in ${MOAB_BINARY_DIR}/MBVersion.h )
-  autoconf_header( ${MOAB_SOURCE_DIR}/MBEntityHandle.h.in ${MOAB_BINARY_DIR}/MBEntityHandle.h )
-  file( WRITE ${MOAB_BINARY_DIR}/MBCN_protos.h "" )
-
-# Testing
-  add_executable( moab_test MBTest.cpp )
-  target_link_libraries( moab_test MOAB )
-  add_test( TestMOAB ${EXECUTABLE_OUTPUT_PATH}/moab_test -nostress )
-  # FIXME: moab_test depends on: test/mb_big_test.g test/cell1.gen test/cell2.gen
-
-  add_executable( seq_man_test TestTypeSequenceManager.cpp )
-  target_link_libraries( seq_man_test MOAB )
-  set_source_files_properties( TestTypeSequenceManager.cpp
-    COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}" )
-   add_test( TestTypeSequenceManager ${EXECUTABLE_OUTPUT_PATH}/seq_man_test )
-
-  add_executable( homxform_test HomXform.cpp )
-  set_source_files_properties( HomXform.cpp
-    COMPILE_FLAGS "-DTEST ${MOAB_DEFINES}" )
-  target_link_libraries( homxform_test MOAB )
-  add_test( TestHomXform ${EXECUTABLE_OUTPUT_PATH}/homxform_test )
-
-  add_executable( scdseq_test scdseq_test.cpp )
-  set_source_files_properties( scdseq_test.cpp
-    COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}" )
-  target_link_libraries( scdseq_test MOAB )
-  add_test( TestSCDSeq ${EXECUTABLE_OUTPUT_PATH}/scdseq_test )
-
-  add_executable( tqdcfr Tqdcfr.cpp )
-  set_source_files_properties( Tqdcfr.cpp
-    COMPILE_FLAGS "-DTEST -DIS_BUILDING_MB ${MOAB_DEFINES}" )
-  target_link_libraries( tqdcfr MOAB )
-  add_test( TestTQDCFR ${EXECUTABLE_OUTPUT_PATH}/tqdcfr )
-
-  add_executable( bsp_tree_test bsp_tree_test.cpp )
-  set_source_files_properties( bsp_tree_test.cpp
-    COMPILE_FLAGS "-DTEST ${MOAB_DEFINES}" )
-  target_link_libraries( bsp_tree_test MOAB )
-  add_test( TestBSPTree ${EXECUTABLE_OUTPUT_PATH}/bsp_tree_test )
-
-
