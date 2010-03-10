@@ -2,9 +2,8 @@
 #                           Standard Stuff
 ################################################################################
 AC_INIT(MOAB, 3.99)
-AC_CONFIG_SRCDIR([moab.make.in])
-AC_CONFIG_MACRO_DIR([config])
-AC_CONFIG_AUX_DIR([config])
+AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_AUX_DIR([.])
 AC_CANONICAL_SYSTEM
 AM_INIT_AUTOMAKE
 
@@ -12,11 +11,71 @@ AC_CHECK_PROG( [SED], [sed], [sed], [true] )
 
 
 ################################################################################
+#                           iMesh Part 1 of 3
+################################################################################
+
+CONFIGURE_FORTRAN=no
+FORCE_IMESH=no
+AC_ARG_ENABLE( [imesh],
+[AC_HELP_STRING([--enable-imesh(=nofortran)],[Build iMesh interface.  If optional
+'nofortran' argument is given, support for FORTRAN name mangling will be disabled.])
+AC_HELP_STRING([--disable-imesh],[Don't build support for iMesh interface.])],
+[FORCE_IMESH=yes
+ DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-imesh=\"${enableval}\""],
+[enableval=yes] )
+
+case $enableval in
+  yes)
+    ENABLE_imesh=yes
+    CONFIGURE_FORTRAN=yes
+    AC_DEFINE([IMESH_FORTRAN],[1],[Fortran-mangle iMesh symbol names])
+    ;;
+  nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
+    ENABLE_imesh=yes
+    IMESH_FORTRAN=no
+    ;;
+  no)
+    ENABLE_imesh=no
+    ;;
+  *)
+    AC_MSG_ERROR([Invalid argument to --enable-imesh : $enableval])
+    ;;
+esac
+
+################################################################################
+#                           iGeom Part 1 of 3
+################################################################################
+
+FORCE_IGEOM=no
+AC_ARG_ENABLE( [igeom],
+[AC_HELP_STRING([--enable-igeom(=nofortran)],[Build iGeom interface.  If optional
+'nofortran' argument is given, support for FORTRAN name mangling will be disabled.])
+AC_HELP_STRING([--disable-igeom],[Don't build support for iGeom interface (default).])],
+[FORCE_IGEOM=yes],[enableval=no] )
+
+case $enableval in
+  yes)
+    ENABLE_igeom=yes
+    CONFIGURE_FORTRAN=yes
+    AC_DEFINE([IGEOM_FORTRAN],[1],[Fortran-mangle iGeom symbol names])
+    ;;
+  nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
+    ENABLE_igeom=yes
+    ;;
+  no)
+    ENABLE_igeom=no
+    ;;
+  *)
+    AC_MSG_ERROR([Invalid argument to --enable-igeom : $enableval])
+    ;;
+esac
+
+################################################################################
 #                           Compilers
 ################################################################################
 
 EXTRA_GNU_FLAGS='-Wall -pipe'
-FATHOM_CHECK_COMPILERS([yes],[yes],[yes])
+FATHOM_CHECK_COMPILERS([yes],[yes],[$CONFIGURE_FORTRAN])
 AM_CONDITIONAL(PARALLEL,[test "x$WITH_MPI" != "xno"])
 LIBS="-lm"
 
@@ -37,10 +96,12 @@ AM_CONDITIONAL([HAVE_ZCAT],[test "x" = "x$ZCAT"])
 
 FATHOM_TEMPLATE_SPECIALIZATION
 FATHOM_TEMPLATE_FUNC_SPECIALIZATION
-AM_CPPFLAGS="$AM_CPPFLAGS $TEMPLATE_SPECIALIZATION $TEMPLATE_FUNC_SPECIALIZATION"
+DEFINES="$DEFINES $TEMPLATE_SPECIALIZATION $TEMPLATE_FUNC_SPECIALIZATION"
 
-if test "x" != "x$FC"; then
-  AC_FC_WRAPPERS
+if test "xno" != "x$CONFIGURE_FORTRAN"; then
+  if test "x" != "x$FC"; then
+    AC_FC_WRAPPERS
+  fi
 fi
 
 
@@ -92,56 +153,7 @@ fi
 
 
 ################################################################################
-#                           iMesh Part 1 of 2
-################################################################################
-
-FORCE_IMESH=no
-AC_ARG_ENABLE( [imesh],
-[AC_HELP_STRING([--disable-imesh],[Do no build support for iMesh interface.])],
-[FORCE_IMESH=yes],
-[enableval=yes] )
-
-case $enableval in
-  yes)
-    ENABLE_imesh=yes
-    ;;
-  nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
-    AC_MSG_ERROR([Depricated value for --enable-imesh: \"$enableval\".  Try \"FC= F77=\"])
-    ;;
-  no)
-    ENABLE_imesh=no
-    ;;
-  *)
-    AC_MSG_ERROR([Invalid argument to --enable-imesh : $enableval])
-    ;;
-esac
-
-################################################################################
-#                           iGeom Part 1 of 2
-################################################################################
-
-FORCE_IGEOM=no
-AC_ARG_ENABLE( [igeom],
-[AC_HELP_STRING([--enable-igeom],[Build mesh-based iGeom implementation])],
-[FORCE_IGEOM=yes],[enableval=no] )
-
-case $enableval in
-  yes)
-    ENABLE_igeom=yes
-    ;;
-  nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
-    AC_MSG_ERROR([Depricated value for --enable-igeom: \"$enableval\".  Try \"FC= F77=\"])
-    ;;
-  no)
-    ENABLE_igeom=no
-    ;;
-  *)
-    AC_MSG_ERROR([Invalid argument to --enable-igeom : $enableval])
-    ;;
-esac
-
-################################################################################
-#                           iMesh/iGeom Part 2 of 2
+#                           iMesh/iGeom Part 2 of 3
 ################################################################################
 
 # The iMesh option must be checked before configuring the compilers
@@ -215,7 +227,7 @@ AC_SUBST(MOAB_CXX_LIBS)
 ################################################################################
 #                             System Headers
 ################################################################################
-AC_CHECK_HEADER([ieeefp.h],[AM_CPPFLAGS="$AM_CPPFLAGS -DHAVE_IEEEFP_H"] )
+AC_CHECK_HEADER([ieeefp.h],[DEFINES="$DEFINES -DHAVE_IEEEFP_H"] )
 if test "xyes" = "x$enable_debug"; then
   AC_CHECK_HEADER( [valgrind/memcheck.h], [CPPFLAGS="$CPPFLAGS -DVALGRIND"] )
 fi
@@ -233,7 +245,7 @@ MK_CHECK_UNORDERED_MAP([CPPFLAGS="$CPPFLAGS -DUNORDERED_MAP_NS=$result -DHAVE_UN
 
 FATHOM_CHECK_MPI
 FATHOM_CONFIG_MPI_EXEC
-test "xyes" != "x$WITH_MPI" || AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_MPI"
+test "xyes" != "x$WITH_MPI" || DEFINES="$DEFINES -DUSE_MPI"
 AM_CONDITIONAL(USE_MPI, [test "xno" != "x$WITH_MPI"])
 # Used to generate MBmpi.h
 if test "xyes" = "x$MPI_CXX_HELP_NEEDED"; then
@@ -252,7 +264,7 @@ FATHOM_CHECK_HDF5
 if test "xno" = "x$HAVE_HDF5"; then
   AC_MSG_WARN([Support for native HDF5 file format disabled])
 else
-  AM_CPPFLAGS="$AM_CPPFLAGS -DHDF5_FILE"
+  DEFINES="$DEFINES -DHDF5_FILE"
 fi
 AM_CONDITIONAL(HDF5_FILE, [test "xno" != "x$HAVE_HDF5"])
 AM_CPPFLAGS="$HDF5_CPPFLAGS $AM_CPPFLAGS"
@@ -273,7 +285,7 @@ if test "xno" != "x$HAVE_HDF5"; then
 fi
 AM_CONDITIONAL(PARALLEL_HDF5, [test "xno" != "x$HAVE_HDF5_PARALLEL"])
 if test "xno" != "x$HAVE_HDF5_PARALLEL"; then
-  AM_CPPFLAGS="$AM_CPPFLAGS -DHDF5_PARALLEL"
+  DEFINES="$DEFINES -DHDF5_PARALLEL"
 fi
 
 ################################################################################
@@ -285,7 +297,7 @@ LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
 FATHOM_CHECK_CCMIO
 LDFLAGS="$old_LDFLAGS"
 if test "xno" != "x$HAVE_CCMIO"; then
-  AM_CPPFLAGS="$AM_CPPFLAGS -DCCMIO_FILE"
+  DEFINES="$DEFINES -DCCMIO_FILE"
 fi
 AM_CONDITIONAL(CCMIO_FILE, [test "xno" != "x$HAVE_CCMIO"])
 AM_CPPFLAGS="$CCMIO_CPPFLAGS $AM_CPPFLAGS"
@@ -304,7 +316,7 @@ LDFLAGS="$old_LDFLAGS"
 if test "xno" = "x$HAVE_NETCDF"; then
   AC_MSG_WARN([Support for ExodusII file format disabled])
 else
-  AM_CPPFLAGS="$AM_CPPFLAGS -DNETCDF_FILE"
+  DEFINES="$DEFINES -DNETCDF_FILE"
 fi
 AM_CONDITIONAL(NETCDF_FILE, [test "xno" != "x$HAVE_NETCDF"])
 AM_CPPFLAGS="$NETCDF_CPPFLAGS $AM_CPPFLAGS"
@@ -935,10 +947,10 @@ case "x$CGM_DIR" in
     CGM_MAKE=
     AC_CHECK_FILE([${CGM_DIR}/lib/cgm.make],
                   [CGM_MAKE="${CGM_DIR}/lib/cgm.make";
-                   AM_CPPFLAGS="$AM_CPPFLAGS -DCGM"],
+                   DEFINES="$DEFINES -DCGM"],
                   [AC_CHECK_FILE([${CGM_DIR}/cgm.make],
                                  [CGM_MAKE="${CGM_DIR}/cgm.make";
-                   AM_CPPFLAGS="$AM_CPPFLAGS -DCGM"],
+                   DEFINES="$DEFINES -DCGM"],
                                  [AC_MSG_WARN([$CGM_DIR : not a configured CGM]); 
                                   CGM_MISSING=yes])
                   ])
@@ -987,8 +999,39 @@ AC_SUBST(CGM_LIBS)
 AM_CONDITIONAL( HAVE_CGM, [test "x$CGM_MISSING" = "xno"] )
 
 ################################################################################
+#                           iMesh Part 3 of 3 (Babel)
+################################################################################
+if test "x$ENABLE_imesh" = "xyes"; then
+  AC_ARG_WITH(babel, 
+  [AC_HELP_STRING([--with-babel=DIR], [Specify directory containing babel])],
+  [BABEL_DIR=$withval
+   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-babel=\"${withval}\""
+   ], [BABEL_DIR=no])
+  case "x$BABEL_DIR" in
+    xno)
+      BABEL_DIR=
+      USE_BABEL=no
+      ;;
+    xyes|x)
+      BABEL_DIR=/usr/local
+      AC_CHECK_FILE([${BABEL_DIR}/bin/babel], [USE_BABEL=yes], [USE_BABEL=no])
+      ;;
+    *)
+      AC_CHECK_FILE([${BABEL_DIR}/bin/babel], [USE_BABEL=yes], [USE_BABEL=no])
+      ;;
+  esac
+  AC_SUBST(BABEL_DIR)
+  AC_SUBST(USE_BABEL)
+else
+  USE_BABEL=no
+fi
+AM_CONDITIONAL(USE_BABEL, [test "xno" != "x$USE_BABEL"])
+
+################################################################################
 #                           Output Files
 ################################################################################
+AC_SUBST([INCLUDES])
+AC_SUBST([DEFINES])
 AC_SUBST([AM_CPPFLAGS])
 AM_LDFLAGS="$AM_LDFLAGS $EXPORT_LTFLAGS $EXPORT_LDFLAGS"
 AC_SUBST([AM_LDFLAGS])
@@ -1000,29 +1043,26 @@ AC_SUBST([DISTCHECK_CONFIGURE_FLAGS])
 
 AC_ARG_VAR([FC], [FORTRAN compiler command])
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_HEADERS([src/moab/MBVersion.h 
-                   src/moab/MBEntityHandle.h 
-                   src/parallel/moab/MBmpi_config.h
-                   src/FCDefs.h])
+AC_CONFIG_HEADERS([MBVersion.h MBEntityHandle.h parallel/MBmpi_config.h])
+AC_CONFIG_HEADERS([iBase_FCDefs.h tools/iMesh/iMesh_FCDefs.h tools/iGeom/iGeom_FCDefs.h])
 AC_CONFIG_FILES([Makefile 
-                 moab.make                  
-                 src/Makefile
-                 src/io/Makefile
-                 src/io/mhdf/Makefile
-                 src/parallel/Makefile
+                 moab.make 
+                 testdir.h
+                 parallel/Makefile
+                 mhdf/Makefile
                  test/Makefile
                  test/h5file/Makefile
                  test/dual/Makefile
                  test/obb/Makefile
                  test/perf/Makefile
-                 test/io/Makefile
-                 test/parallel/Makefile
-                 itaps/Makefile
-                 itaps/imesh/Makefile
-                 itaps/imesh/iMesh-Defs.inc
-		 itaps/igeom/Makefile
-                 itaps/igeom/iGeom-Defs.inc
                  tools/Makefile
+                 tools/iMesh/Makefile
+                 tools/iMesh/iMesh-Defs.inc
+                 tools/iMesh/SIDL/iMesh-SIDL-Defs.inc
+                 tools/iMesh/SIDL/Makefile
+                 tools/iMesh/SIDL/common.make
+		 tools/iGeom/Makefile
+                 tools/iGeom/iGeom-Defs.inc
                  tools/mbperf/Makefile
                  tools/mbchaco/Makefile
                  tools/mbcoupler/Makefile
@@ -1032,16 +1072,16 @@ AC_CONFIG_FILES([Makefile
                  tools/qvdual/Makefile
                  tools/dagmc/Makefile
                  doc/Makefile
-                 doc/user.dox
+                 doxygen/Makefile
                  ])
-AC_CONFIG_COMMANDS([src/MOAB_FCDefs.h],
-  [sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h])
+AC_CONFIG_COMMANDS([MBCN_FCDefs.h],
+  [sed -e "s/FC_FUNC/MBCN_FC_FUNC/" iBase_FCDefs.h >MBCN_FCDefs.h])
 
 AC_OUTPUT
 
 AC_MSG_RESULT([C:   $CC $CFLAGS $CPPFLAGS])
 AC_MSG_RESULT([C++: $CXX $CXXFLAGS $CPPFLAGS])
-if test "x" != "x$FC"; then
+if test "xno" != "x$CONFIGURE_FORTRAN"; then
   AC_MSG_RESULT([Fortran: $FC $FCFLAGS])
 fi
 

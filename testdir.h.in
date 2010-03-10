@@ -1,0 +1,3 @@
+#ifndef TEST_DIR
+# define TEST_DIR "@top_srcdir@/test"
+#endif

@@ -1,0 +1,138 @@
+#include "MBParallelComm.hpp"
+#include "MBParallelConventions.h"
+#include "ReadParallel.hpp"
+#include "FileOptions.hpp"
+#include "MBTagConventions.hpp"
+#include "MBCore.hpp"
+#include "MBmpi.h"
+#include <iostream>
+#include <algorithm>
+#include <sstream>
+#include <assert.h>
+#if !defined(_MSC_VER) && !defined(__MINGW32__)
+#include <unistd.h>
+#endif
+
+
+#define STRINGIFY_(X) #X
+#define STRINGIFY(X) STRINGIFY_(X)
+
+
+#define CHKERR(a) do { \
+  MBErrorCode val = (a); \
+  if (MB_SUCCESS != val) { \
+    std::cerr << "Error code  " << val << " at " << __FILE__ << ":" << __LINE__ << std::endl;\
+    return val; \
+  } \
+} while (false) 
+
+#define PCHECK(A) if (is_any_proc_error(!(A))) return report_error(__FILE__,__LINE__)
+
+MBErrorCode report_error( const char* file, int line )
+{
+  std::cerr << "Failure at " << file << ':' << line << std::endl;
+  return MB_FAILURE;
+}
+
+MBErrorCode test_read(const char *filename, const char *option);
+
+#define RUN_TEST(A, B, C) run_test( &A, #A, B, C)
+
+int is_any_proc_error( int is_my_error )
+{
+  int result = 0;
+  int err = MPI_Allreduce( &is_my_error, &result, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD );
+  return err || result;
+}
+
+int run_test( MBErrorCode (*func)(const char*, const char*), 
+              const char* func_name,
+              const char* file_name,
+              const char *option)
+{
+  MBErrorCode result = (*func)(file_name, option);
+  int is_err = is_any_proc_error( (MB_SUCCESS != result) );
+  int rank;
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  if (rank == 0) {
+    if (is_err) 
+      std::cout << func_name << " : FAILED!!" << std::endl;
+    else
+      std::cout << func_name << " : success" << std::endl;
+  }
+  
+  return is_err;
+}
+
+int main( int argc, char* argv[] )
+{
+  int rank, size;
+  MPI_Init(&argc, &argv);
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  MPI_Comm_size( MPI_COMM_WORLD, &size );
+  int num_errors = 0;
+
+  const char* filename, *option;
+  if (1 < argc) 
+    filename = argv[1];
+  else {
+#ifdef SRCDIR
+    filename = STRINGIFY(SRCDIR) "/../test/64bricks_512hex.h5m";
+#else
+    filename = "../test/64bricks_512hex.h5m";
+#endif
+  }
+  
+    //=========== read_delete, geom_dimension, resolve_shared
+  option = "PARALLEL=READ_DELETE;PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;";
+  num_errors += RUN_TEST( test_read, filename, option );
+
+    //=========== read_delete, material_set, resolve_shared
+  option = "PARALLEL=READ_DELETE;PARTITION=MATERIAL_SET;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;";
+  num_errors += RUN_TEST( test_read, filename, option );
+
+    //=========== bcast_delete, geom_dimension, resolve_shared
+  option = "PARALLEL=READ_DELETE;PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;";
+  num_errors += RUN_TEST( test_read, filename, option );
+
+    //=========== bcast_delete, material_set, resolve_shared
+  option = "PARALLEL=READ_DELETE;PARTITION=MATERIAL_SET;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;";
+  num_errors += RUN_TEST( test_read, filename, option );
+
+    //=========== read_delete, geom_dimension, resolve_shared, exch ghost
+  option = "PARALLEL=READ_DELETE;PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1;";
+  num_errors += RUN_TEST( test_read, filename, option );
+
+    //=========== read_delete, material_set, resolve_shared, exch ghost
+  option = "PARALLEL=READ_DELETE;PARTITION=MATERIAL_SET;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1;";
+  num_errors += RUN_TEST( test_read, filename, option );
+
+    //=========== bcast_delete, geom_dimension, resolve_shared, exch ghost
+  option = "PARALLEL=READ_DELETE;PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1;";
+  num_errors += RUN_TEST( test_read, filename, option );
+
+    //=========== bcast_delete, material_set, resolve_shared, exch ghost
+  option = "PARALLEL=READ_DELETE;PARTITION=MATERIAL_SET;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1;";
+  num_errors += RUN_TEST( test_read, filename, option );
+
+  MPI_Finalize();
+
+  return num_errors;
+}
+
+MBErrorCode test_read(const char *filename, const char *option) 
+{
+  MBCore mb_instance;
+  MBInterface& moab = mb_instance;
+  MBErrorCode rval;
+
+  rval = moab.load_file( filename, 0, option);
+  CHKERR(rval);
+
+  MBParallelComm* pcomm = MBParallelComm::get_pcomm(&moab, 0);
+
+  rval = pcomm->check_all_shared_handles();
+  CHKERR(rval);
+
+  return MB_SUCCESS;
+}

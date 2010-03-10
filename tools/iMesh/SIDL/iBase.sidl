@@ -1,0 +1,386 @@
+/**
+ * Copyright 2006 Sandia Corporation.  Under the terms of Contract
+ * DE-AC04-94AL85000 with Sandia Coroporation, the U.S. Government
+ * retains certain rights in this software.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ */
+//========================================================
+// iBase PACKAGE --
+// ITAPS UTITLIES COMMON ACROSS INTERFACES
+//   ERRORS, TAGS
+//========================================================
+
+package iBase version 0.8
+{
+   enum EntityType {       
+      VERTEX, 
+      EDGE, 
+      FACE, 
+      REGION,
+      ALL_TYPES
+   };
+
+
+   enum StorageOrder {
+      BLOCKED,
+      INTERLEAVED
+   };
+
+   enum CreationStatus {	
+      NEW,               
+      ALREADY_EXISTED,   
+      CREATED_DUPLICATE,
+      CREATION_FAILED
+   };
+
+
+   //====================================================
+   //  ERROR FUNCTIONALITY
+   //====================================================
+
+   enum ErrorActions {
+      SILENT,                 // does nothing, not recommended
+      WARN_ONLY,	      // prints something, but nothing else
+      THROW_ERROR             // throws an exception
+   };
+
+
+   enum ErrorType {
+      SUCCESS,	
+      DATA_ALREADY_LOADED,	
+      NO_DATA,	
+      FILE_NOT_FOUND,	
+      FILE_ACCESS_ERROR,	
+      NIL_ARRAY,	     // array was supposed to be initialized and have data
+      BAD_ARRAY_SIZE,	
+      BAD_ARRAY_DIMENSION,   // all tstt arrays should be 1D
+      INVALID_ENTITY_HANDLE,	
+      INVALID_ENTITY_COUNT,	
+      INVALID_ENTITY_TYPE,	
+      INVALID_ENTITY_TOPOLOGY,
+      BAD_TYPE_AND_TOPO,	
+      ENTITY_CREATION_ERROR,
+      INVALID_TAG_HANDLE,
+      TAG_NOT_FOUND,	
+      TAG_ALREADY_EXISTS,
+      TAG_IN_USE,
+      INVALID_ENTITYSET_HANDLE,	
+      INVALID_ITERATOR_HANDLE,	
+      INVALID_ARGUMENT,	
+      ARGUMENT_OUT_OF_RANGE,
+      MEMORY_ALLOCATION_FAILED,
+      NOT_SUPPORTED,	
+      ENTITY_IN_USE,
+      FAILURE	
+   }; 
+
+
+   class Error extends sidl.SIDLException {
+      void set(in ErrorType error, in string description);
+     void getErrorType(out ErrorType err_type);
+      void get(out ErrorType err, out string description);
+     void getDescription(out string description);
+      void echo(in string label);   // prints label and then description string to stderr 
+   };
+
+   //====================================================
+   // TAGS
+   //====================================================
+
+   enum TagValueType {
+      INTEGER,
+      DOUBLE,
+      ENTITY_HANDLE,
+      BYTES
+   };
+
+
+   //====================================================
+   //  BASIC TAG FUNCTIONALITY
+   //====================================================
+
+   // be careful about size arguments 
+   // createTag takes number of values of type tag_type
+
+   interface Tag {
+      void createTag(in string tag_name, in int number_of_values,
+                     in TagValueType tag_type,
+                     out opaque tag_handle) throws iBase.Error;
+      void destroyTag(in opaque tag_handle, in bool forced) throws iBase.Error;
+      void getTagName(in opaque tag_handle, out string tag_name) throws iBase.Error;
+
+      void getTagSizeValues(in opaque tag_handle,
+                            out int size_values) throws iBase.Error;    // number of values
+      void getTagSizeBytes(in opaque tag_handle,
+                           out int size_bytes) throws iBase.Error;     // total number of bytes
+
+      void getTagHandle(in string tag_name,
+                        out opaque tag_handle) throws iBase.Error;
+      void getTagType(in opaque tag_handle,
+                      out TagValueType tag_data_type) throws iBase.Error;
+   };
+
+
+   //====================================================
+   //  ENTITY TAGS
+   //====================================================
+   interface EntTag extends Tag {
+      void getData( in opaque entity_handle, 
+                    in opaque tag_handle,
+                    inout array<char> tag_value,
+                    out int tag_value_size) throws iBase.Error; // in bytes - number of things in the array
+      void getIntData( in opaque entity_handle, 
+                       in opaque tag_handle,
+                       out int int_data) throws iBase.Error;
+      void getDblData( in opaque entity_handle, 
+                       in opaque tag_handle,
+                       out double dbl_data) throws iBase.Error;
+      void getEHData( in opaque entity_handle, 
+                        in opaque tag_handle,
+                      out opaque eh_data) throws iBase.Error;
+      void setData( in opaque entity_handle, in opaque tag_handle, 
+                    in array<char> tag_value, in int tag_value_size) throws iBase.Error; 
+      void setIntData( in opaque entity_handle, in opaque tag_handle, 
+                       in int tag_value) throws iBase.Error; 
+      void setDblData( in opaque entity_handle, in opaque tag_handle, 
+                       in double tag_value) throws iBase.Error; 
+      void setEHData( in opaque entity_handle, in opaque tag_handle,
+                      in opaque tag_value) throws iBase.Error;
+      void getAllTags( in opaque entity_handle, 
+                       inout array<opaque> tag_handles,
+                       out int tag_handles_size) throws iBase.Error;
+      void rmvTag( in opaque entity_handle,
+                   in opaque tag_handle) throws iBase.Error;
+   };
+
+   //====================================================
+   //  ENTITY ARRAY TAGS
+   //====================================================
+
+   // the value_array_size is the total number of characters 
+   //  value_array_size = number of entity_handles*size of each tag's value in bytes
+   //                   = entity_handles_size * tag value size
+   // in units of elements in the array - value_array_size
+   // on array tags - if you request an int tag on 100 entities and not all of them
+   //    have the tag - the behavior is: throw an error; array contents are undefined
+   //                   error is TAG_NOT_FOUND
+   // on removing tags on array of entities - if the entity doesn't have the tag
+   // just skip over it - do not throw an error and delete tags on the rest of the ents
+
+   interface ArrTag extends Tag {
+      void getArrData( in array<opaque> entity_handles, 
+                        in int entity_handles_size,
+                        in opaque tag_handle,
+                        inout array<char> value_array,
+                        out int value_array_size) throws iBase.Error;
+      void getIntArrData( in array<opaque> entity_handles, 
+                          in int entity_handles_size,
+                          in opaque tag_handle,
+                          inout array<int> value_array,
+                          out int value_array_size) throws iBase.Error;
+      void getDblArrData( in array<opaque> entity_handles, 
+                          in int entity_handles_size,
+                          in opaque tag_handle,
+                          inout array<double> value_array,
+                          out int value_array_size) throws iBase.Error;
+      void getEHArrData( in array<opaque> entity_handles,
+                         in int entity_handles_size, 
+                         in opaque tag_handle,
+                         inout array<opaque> value_array,
+                         out int value_array_size) throws iBase.Error;
+      void setArrData( in array<opaque> entity_handles, 
+                       in int entity_handles_size,
+                       in opaque tag_handle, 
+                       in array<char> value_array, 
+                       in int value_array_size) throws iBase.Error;
+      void setIntArrData( in array<opaque> entity_handles, 
+                          in int entity_handles_size,
+                          in opaque tag_handle, 
+                          in array<int> value_array, 
+                          in int value_array_size) throws iBase.Error;
+      void setDblArrData( in array<opaque> entity_handles, 
+                          in int entity_handles_size,
+                          in opaque tag_handle, 
+                          in array<double> value_array, 
+                          in int value_array_size) throws iBase.Error;
+      void setEHArrData( in array<opaque> entity_handles,
+                         in int entity_handles_size, 
+                         in opaque tag_handle,
+                         in array<opaque> value_array, 
+                         in int value_array_size) throws iBase.Error;
+      void rmvArrTag( in array<opaque> entity_handles,
+                      in int entity_handles_size,
+                      in opaque tag_handle) throws iBase.Error;
+   };
+
+
+   //===================================================
+   // ENTITY SET TAGS
+   //===================================================
+
+   interface SetTag extends Tag {
+      //tags 
+        void setEntSetData( in opaque entity_set,
+                            in opaque tag_handle, inout array<char> tag_value, 
+                            in int tag_value_size) throws iBase.Error;
+      void setEntSetIntData( in opaque entity_set,
+                             in opaque tag_handle, in int tag_value)
+            throws iBase.Error;
+      void setEntSetDblData( in opaque entity_set,
+                             in opaque tag_handle, in double tag_value) 
+            throws iBase.Error;
+      void setEntSetEHData( in opaque entity_set, 
+                            in opaque tag_handle, in opaque tag_value) 
+            throws iBase.Error;
+      void getEntSetData( in opaque entity_set,
+                          in opaque tag_handle, inout array<char> tag_value, 
+                          out int tag_value_size) throws iBase.Error;
+      void getEntSetIntData( in opaque entity_set, 
+                            in opaque tag_handle,
+                             out int int_data) throws iBase.Error;
+      void getEntSetDblData( in opaque entity_set, 
+                               in opaque tag_handle,
+                             out double dbl_data) throws iBase.Error;
+      void getEntSetEHData( in opaque entity_set, 
+                              in opaque tag_handle,
+                            out opaque eh_data) throws iBase.Error;
+
+      void getAllEntSetTags( in opaque entity_set, 
+                             inout array<opaque> tag_handles,
+                             out int tag_handles_size) throws iBase.Error;
+      void rmvEntSetTag( in opaque entity_set, 
+                         in opaque tag_handle) throws iBase.Error;
+   };
+
+
+   interface EntSet {
+
+      // create/destroy 
+      void createEntSet( in bool isList,
+                         out opaque entity_set) throws iBase.Error;
+
+      void destroyEntSet( in opaque entity_set) throws iBase.Error;
+
+      // is this set ordered?
+      void isList(in opaque entity_set,
+                  out int is_list) throws iBase.Error;
+
+      // get the entity sets
+      // num_hops of >=0 is recurse down that many levels (=0 is that ESet only)
+      // num_hops < 0 is recurse forever
+      void getNumEntSets( in opaque entity_set, 
+                         in int num_hops,
+                          out int num_sets) throws iBase.Error;
+
+      void getEntSets ( in opaque entity_set, in int num_hops,
+                        inout array<opaque> contained_entset_handles,
+                        out int contained_entset_handles_size) throws iBase.Error;
+
+      // add and remove entities 
+      void addEntToSet(in opaque entity_handle,
+                       in opaque entity_set) throws iBase.Error;
+
+      // if the entity isn't in the set, don't throw an error
+      void rmvEntFromSet( in opaque entity_handle,
+                          in opaque entity_set) throws iBase.Error;
+
+      void addEntArrToSet( in array<opaque> entity_handles,
+                           in int entity_handles_size,
+                           in opaque entity_set) throws iBase.Error;
+
+      // if the entity isn't in the set, don't throw an error
+      void rmvEntArrFromSet( in array<opaque> entity_handles,
+                             in int entity_handles_size,
+                             in opaque entity_set) throws iBase.Error;
+
+      // all entity sets are contained in root set
+      // root set is contained in no other sets
+      // root set cannot be removed - throw an error
+      // can't remove anthing from root set - throw an error - use destroy 
+
+      // add/remove entity sets
+      void addEntSet( in opaque entity_set_to_add, 
+                      in opaque entity_set_handle) 
+                      throws iBase.Error;
+
+      // if the entity set isn't in the set, don't throw an error
+      void rmvEntSet( in opaque entity_set_to_remove, 
+                      in opaque entity_set_handle) 
+                      throws iBase.Error;
+
+      // check whether an entity is contained in the entity set
+      void isEntContained(in opaque containing_entity_set,
+                          in opaque entity_handle,
+                          out int is_contained) throws iBase.Error;
+
+      // check whether entities are contained in the entity set
+      void isEntArrContained( in opaque containing_set,
+                              in array<opaque> entity_handles,
+                              in int entity_handles_size,
+                              inout array<int> is_contained,
+                              out int is_contained_size );
+                              
+      // check whether an entity set is contained in another
+      void isEntSetContained(in opaque containing_entity_set,
+                             in opaque contained_entity_set,
+                             out int is_contained) throws iBase.Error;
+   };
+
+
+
+   interface SetRelation extends EntSet {
+
+      // Root set cannot be a child or parent
+
+      // don't throw error if parent/child already exists
+      void addPrntChld( in opaque parent_entity_set, 
+			                  in opaque child_entity_set) throws iBase.Error;
+
+      // don't throw error if parent/child link doesn't exist
+      void rmvPrntChld( in opaque parent_entity_set, 
+			                  in opaque child_entity_set) throws iBase.Error;
+
+      void isChildOf( in opaque parent_entity_set, 
+                      in opaque child_entity_set,
+                      out int is_child) throws iBase.Error;
+
+      void getNumChld( in opaque entity_set, in int num_hops,
+                       out int num_child) 
+        throws iBase.Error;
+      void  getNumPrnt( in opaque entity_set, in int num_hops,
+                        out int num_parent) 
+        throws iBase.Error;
+
+      void getChldn( in opaque from_entity_set, in int num_hops, 
+                     inout array<opaque> child_handles,
+                     out int child_handles_size) throws iBase.Error;
+      void getPrnts( in opaque from_entity_set, in int num_hops, 
+                     inout array<opaque> parent_handles,
+                     out int parent_handles_size) throws iBase.Error;
+   };
+
+
+   interface SetBoolOps extends EntSet {
+      // Having root set as entity_set_1 gives the complement of entity_set_2
+      // behavior for contained sets 
+      // explicitly lay out what happens when there are multiple copies of something
+
+      void subtract( in opaque entity_set_1, 
+                     in opaque entity_set_2,
+                     out opaque result_entity_set) throws iBase.Error;
+
+      void intersect( in opaque entity_set_1, 
+                      in opaque entity_set_2,
+                      out opaque result_entity_set) throws iBase.Error;
+
+      void unite( in opaque entity_set_1, 
+                  in opaque entity_set_2,
+                  out opaque result_entity_set) throws iBase.Error;
+   };
+
+}  // END iBase

@@ -1,13 +1,10 @@
-AM_CPPFLAGS += -I$(top_srcdir)/src \
-               -I$(top_builddir)/src \
-               -I$(top_srcdir)/src/parallel \
-               -I$(top_srcdir)/src/moab \
-               -I$(top_builddir)/src/moab \
-               -I$(top_srcdir)/src/parallel/moab \
-               -I$(top_srcdir)/test
+AUTOMAKE_OPTIONS = foreign
+
+DEFS = $(DEFINES)
+INCLUDES += -I$(top_srcdir) -I$(top_builddir) -I$(top_srcdir)/parallel
 
 lib_LTLIBRARIES = libmbcoupler.la
-libmbcoupler_la_LIBADD = $(top_builddir)/src/libMOAB.la
+libmbcoupler_la_LIBADD = $(top_builddir)/libMOAB.la
 
 LDADD = libmbcoupler.la 
 
@@ -43,12 +40,12 @@ check_PROGRAMS = $(TESTS)
 findpt_test_SOURCES = findpt_test.cpp
 elem_util_test_SOURCES = ElemUtilTest.cpp
 
-noinst_PROGRAMS = 
+bin_PROGRAMS = 
 if PARALLEL
 #  TESTS += mbcoupler_test
 #  check_PROGRAMS += mbcoupler_test
-  noinst_PROGRAMS += mbcoupler_test
+  bin_PROGRAMS += mbcoupler_test
   mbcoupler_test_SOURCES = mbcoupler_test.cpp
-  AM_CPPFLAGS += -I$(srcdir)/parallel
+  INCLUDES += -I$(srcdir)/parallel
 endif
 

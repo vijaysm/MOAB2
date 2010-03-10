@@ -4,6 +4,7 @@
 #include "MBRange.hpp"
 #include "MeshTopoUtil.hpp"
 #include "DualTool.hpp"
+#include "WriteGMV.hpp"
 #include <iostream>
 #include <string>
 
@@ -107,6 +108,9 @@ int main(int argc, char* argv[])
   }
 
     // write GMV file
-  gMB->write_file( argv[1], "GMV" );
+  WriteGMV *wgmv = new WriteGMV(gMB);
+  wgmv->write_file(argv[1], 0, 3);
+  delete wgmv;
+  
   delete gMB;
 }

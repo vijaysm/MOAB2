@@ -1,43 +1,5 @@
-SUBDIRS = dual obb perf io 
-if HDF5_FILE
-  SUBDIRS += h5file
-endif
-if PARALLEL
-  SUBDIRS += parallel
-endif
 
-LDADD = $(top_builddir)/src/libMOAB.la
-
-AM_CPPFLAGS += -DIS_BUILDING_MB \
-               -DSRCDIR=$(srcdir) \
-               -I$(top_builddir)/src \
-               -I$(top_srcdir)/src \
-               -I$(top_builddir)/src/moab \
-               -I$(top_srcdir)/src/moab
-
-TESTS = moab_test \
-        homxform_test \
-        scdseq_test \
-        test_adj \
-        seq_man_test \
-        geom_util_test \
-        xform_test \
-        obb_test \
-	adaptive_kd_tree_tests \
-	bsp_tree_test \
-	file_options_test \
-        kd_tree_test \
-        var_len_test var_len_test_no_template \
-	tag_test \
-	mesh_set_test \
-        mbcn_test \
-        bsp_tree_poly_test
-#                 merge_test \         # input files no longer exist?
-#                 test_tag_server \    # fails
-
-check_PROGRAMS = $(TESTS) \
-		 kd_tree_tool \
-		 kd_tree_time
+SUBDIRS = dual h5file obb perf
 
 EXTRA_DIST  = 125hex.g \
               1hex.g \
@@ -47,7 +9,11 @@ EXTRA_DIST  = 125hex.g \
               3k-tri-sphere.vtk \
               4k-tri-plane.vtk \
               4tet.g \
+              64bricks_512hex.h5m \
               8hex.g \
+              brick_cubit10.1.cub \
+              brick_cubit10.2.cub \
+              brick_cubit10.cub \
               cell1.gen.gz \
               cell2.gen.gz \
               mb_big_test.g.gz \
@@ -57,7 +23,14 @@ EXTRA_DIST  = 125hex.g \
               test.g \
               testquad-cyl.g \
               testquad.g \
-              testtet.g 
+              testtet.g \
+	      v3_dodec.h5m \
+              ho_test.g \
+              test.cub \
+              ho_test.cub \
+	      sample.stl \
+	      gmsh2.msh \
+              test.nas
 
 CLEANFILES = mb_big_test.g \
              cell1.gen \
@@ -73,90 +46,5 @@ MOSTLYCLEANFILES = mb_write.g \
                    tet_mid_edge_face_nodes.g \
                    tri_mid_edge_face_nodes.g \
                    mb_stress_out.g \
-                   merge_test.ncdf \
-                   tree.h5m
+                   merge_test.ncdf
 
-# Tests and such
-
-moab_test_SOURCES = MBTest.cpp
-moab_test_DEPENDENCIES = mb_big_test.g cell1.gen cell2.gen $(LDADD)
-
-homxform_test_SOURCES = $(top_srcdir)/src/HomXform.cpp
-homxform_test_CPPFLAGS = -DTEST $(AM_CPPFLAGS) $(CPPFLAGS)
-homxform_test_DEPENDENCIES = $(LDADD)
-
-scdseq_test_SOURCES = scdseq_test.cpp
-scdseq_test_DEPENDENCIES = $(LDADD)
-
-#scdseq_timing_SOURCES = scdseq_timing.cpp
-#scdseq_timing_DEPENDENCIES = $(LDADD)
-
-#merge_test_SOURCES = merge_test.cpp
-#merge_test_DEPENDENCIES = $(LDADD)
-
-#test_exo_SOURCES = test_exo.cpp
-#test_exo_DEPENDENCIES = $(LDADD)
-
-#test_tag_server_SOURCES = $(top_srcdir)/src/TagServer.cpp
-#test_tag_server_CPPFLAGS = -DTEST $(CPPFLAGS)
-#test_tag_server_DEPENDENCIES = $(LDADD)
-
-test_adj_SOURCES = test_adj.cpp
-test_adj_DEPENDENCIES = $(LDADD)
-
-seq_man_test_SOURCES = TestUtil.hpp TestTypeSequenceManager.cpp 
-
-mesh_set_test_SOURCES = Test_MBMeshSet.cpp TestUtil.hpp
-
-geom_util_test_SOURCES = TestUtil.hpp GeomUtilTests.cpp 
-geom_util_test_DEPENDENCIES = $(LDADD)
-
-xform_test_SOURCES = $(top_srcdir)/src/MBAffineXform.cpp
-xform_test_CPPFLAGS = -DTEST $(AM_CPPFLAGS) $(CPPFLAGS)
-xform_test_DEPENDENCIES = $(LDADD)
-
-obb_test_SOURCES = OBBTest.cpp
-obb_test_DEPENDENCIES = $(LDADD)
-
-adaptive_kd_tree_tests_SOURCES = adaptive_kd_tree_tests.cpp
-adaptive_kd_tree_tests_DEPENDENCIES = $(LDADD)
-
-kd_tree_tool_SOURCES = kd_tree_tool.cpp
-kd_tree_tool_DEPENDENCIES = $(LDADD)
-
-kd_tree_time_SOURCES = kd_tree_time.cpp
-kd_tree_time_DEPENDENCIES = $(LDADD)
-
-kd_tree_test_SOURCES = kd_tree_test.cpp
-
-bsp_tree_test_SOURCES = bsp_tree_test.cpp
-
-file_options_test_SOURCES = TestUtil.hpp $(top_srcdir)/src/FileOptions.cpp 
-file_options_test_CPPFLAGS = -DTEST $(AM_CPPFLAGS) $(CPPFLAGS)
-file_options_test_LDADD = 
-
-var_len_test_SOURCES = TestUtil.hpp VarLenTagTest.cpp
-var_len_test_no_template_SOURCES = $(var_len_test_SOURCES)
-var_len_test_no_template_CPPFLAGS = -UTEMPLATE_SPECIALIZATION $(AM_CPPFLAGS) $(CPPFLAGS)
-
-tag_test_SOURCES = TestUtil.hpp TagTest.cpp
-
-mbcn_test_SOURCES = $(top_srcdir)/src/moab/MBCN.hpp \
-                    $(top_srcdir)/src/MBCN.cpp \
-                    mbcn_test.cc
-
-bsp_tree_poly_test_SOURCES = bsp_tree_poly_test.cpp
-
-mb_big_test.g: mb_big_test.g.gz
-	$(ZCAT) $< > $@
-
-cell1.gen: cell1.gen.gz
-	$(ZCAT) $< > $@
-
-cell2.gen: cell2.gen.gz
-	$(ZCAT) $< > $@
-
-
-# Utility target: build but don't run tests
-build-check:
-	$(MAKE) 'TESTS_ENVIRONMENT=: ' check

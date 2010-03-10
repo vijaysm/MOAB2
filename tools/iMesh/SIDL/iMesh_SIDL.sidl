@@ -1,0 +1,20 @@
+import iBase;
+import iMesh;
+
+package iMesh_SIDL version 0.002 {
+  class MeshSidl implements-all 
+    iBase.EntTag,
+    iBase.ArrTag,
+    iBase.SetTag,
+    iBase.SetRelation,
+    iBase.SetBoolOps,
+    iMesh.Entity,
+    iMesh.Arr,
+    iMesh.Modify,
+    iMesh.ArrMod
+  {};
+          
+} // END iMesh_MOAB
+
+
+

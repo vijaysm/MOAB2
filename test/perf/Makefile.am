@@ -1,11 +1,12 @@
 
-AM_CPPFLAGS += -I$(top_srcdir)/src \
-               -I$(top_srcdir)/src/io/mhdf/include \
-               -I$(top_builddir)/src \
-               -I$(top_srcdir)/src/moab \
-               -I$(top_builddir)/src/moab
+DEFS = $(DEFINES)
+INCLUDES += -I$(top_srcdir) \
+            -I$(top_srcdir)/mhdf/include \
+            -I$(top_builddir) \
+            -I$(top_srcdir)/tools/iMesh \
+            -I$(top_builddir)/tools/iMesh
             
-LDADD = $(top_builddir)/src/libMOAB.la
+LDADD = $(top_builddir)/libMOAB.la
 
 check_PROGRAMS = perf seqperf adj_time
 noinst_PROGRAMS = point_in_elem

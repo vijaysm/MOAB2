@@ -30,7 +30,7 @@
 #include "MBRange.hpp"
 #include "MBWriteUtilIface.hpp"
 #include "MeshTopoUtil.hpp"
-#include "MBParallelComm.hpp"
+#include "parallel/MBParallelComm.hpp"
 #include "MBTagConventions.hpp"
 #include "MBCN.hpp"
 

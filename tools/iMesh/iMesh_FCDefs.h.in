@@ -1,0 +1,7 @@
+
+/* Fortran-mangle iMesh symbol names */
+#undef IMESH_FORTRAN
+
+#ifdef IMESH_FORTRAN
+# include "MBCN_FCDefs.h"
+#endif

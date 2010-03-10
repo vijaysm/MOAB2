@@ -148,10 +148,10 @@ int main(int argc, char **argv) {
   }
   else {
 
-    meshset = 0;
-    MBresult = MBI->load_file( CAD_filename.c_str(), &meshset );
+    MBresult = MBI->create_meshset( MESHSET_SET, meshset );
     assert( MB_SUCCESS == MBresult );
-    assert( 0 != meshset );
+    MBresult = MBI->load_file( CAD_filename.c_str(), meshset );
+    assert( MB_SUCCESS == MBresult );
 
     MBRange cfd_verts;
     MBresult = MBI->get_entities_by_type( meshset, MBVERTEX, cfd_verts, true);

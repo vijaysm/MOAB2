@@ -13,14 +13,13 @@
 #include <cstdio>
 #include <set>
 #include <map>
-#define STRINGIFY_(A) #A
-#define STRINGIFY(A) STRINGIFY_(A)
 
+#include "testdir.h"
 const char* NAME = "obb_test";
-const char* DEFAULT_FILES[] = { STRINGIFY(SRCDIR) "/../3k-tri-sphere.vtk",
-                              //  STRINGIFY(SRCDIR) "../4k-tri-plane.vtk",
+const char* DEFAULT_FILES[] = { "../../" TEST_DIR "/3k-tri-sphere.vtk",
+                                //"../../" TEST_DIR "/4k-tri-plane.vtk",
 #ifdef HDF5_FILE
-                                STRINGIFY(SRCDIR) "/../3k-tri-cube.h5m",
+                                "../../" TEST_DIR "/3k-tri-cube.h5m",
 #endif
                                 0 };
 

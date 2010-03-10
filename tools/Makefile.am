@@ -1,14 +1,10 @@
 AUTOMAKE_OPTIONS = foreign
-AM_CPPFLAGS += -I$(top_srcdir)/src \
-               -I$(top_builddir)/src \
-               -I$(top_srcdir)/src/parallel \
-               -I$(top_builddir)/src/parallel \
-               -I$(top_srcdir)/src/moab \
-               -I$(top_builddir)/src/moab \
-               -I$(top_srcdir)/src/parallel/moab \
-               -I$(top_builddir)/src/parallel/moab 
-
-LDADD = $(top_builddir)/src/libMOAB.la
+DEFS = $(DEFINES)
+INCLUDES += -I$(top_srcdir) \
+            -I$(top_builddir) \
+            -I$(top_srcdir)/parallel \
+            -I$(top_builddir)/parallel
+LDADD = $(top_builddir)/libMOAB.la
 
 # For old (pre 1.10.x) versions of Automake
 docdir = @docdir@
@@ -113,7 +109,21 @@ else
   dagmc_DIR = 
 endif 
 
-SUBDIRS = $(mbchaco_DIR) \
+if ENABLE_imesh
+  imesh_DIR = iMesh
+else
+  imesh_DIR = 
+endif 
+
+if ENABLE_igeom
+  igeom_DIR = iGeom
+else
+  igeom_DIR = 
+endif 
+
+SUBDIRS = $(imesh_DIR) \
+          $(igeom_DIR) \
+          $(mbchaco_DIR) \
           $(mbcoupler_DIR) \
           $(mbzoltan_DIR) \
           $(mbperf_DIR) \
@@ -122,28 +132,28 @@ SUBDIRS = $(mbchaco_DIR) \
           $(dagmc_DIR)
 
 mbconvert_SOURCES = convert.cpp
-mbconvert_DEPENDENCIES = $(LDADD)
+mbconvert_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 mbgsets_SOURCES = gsets.cc
-mbgsets_DEPENDENCIES = $(LDADD)
+mbgsets_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 hexmodops_SOURCES = makeops.cpp
-hexmodops_DEPENDENCIES = $(LDADD)
+hexmodops_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 mbsize_SOURCES = measure.cpp measure.hpp size.cpp
-mbsize_DEPENDENCIES = $(LDADD)
+mbsize_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 mbskin_SOURCES = skin.cpp
-mbskin_DEPENDENCIES = $(LDADD)
+mbskin_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 mbdepth_SOURCES = depth.cpp
-mbdepth_DEPENDENCIES = $(LDADD)
+mbdepth_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 spheredecomp_SOURCES = SphereDecomp.hpp SphereDecomp.cpp main.cpp
-spheredecomp_DEPENDENCIES = $(LDADD)
+spheredecomp_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 mbsurfplot_SOURCES = surfplot.cpp
-mbsurfplot_DEPENDENCIES = $(LDADD)
+mbsurfplot_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 mbtagprop_SOURCES = parse.cpp parse.hpp propagate_tags.cpp
-mbtagprop_DEPENDENCIES = $(LDADD)
+mbtagprop_DEPENDENCIES = $(top_builddir)/libMOAB.la

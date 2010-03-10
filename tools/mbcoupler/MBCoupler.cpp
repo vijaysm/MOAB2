@@ -13,7 +13,6 @@ extern "C"
 #include "minmax.h"
 #include "sort.h"
 #include "tuple_list.h"
-#include "crystal.h"
 #include "transfer.h"
 }
 
