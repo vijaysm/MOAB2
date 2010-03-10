@@ -34,6 +34,7 @@ libMOAB_la_SOURCES = \
   AEntityFactory.hpp \
   BitTagServer.cpp \
   BitTagServer.hpp \
+  BSPTreePoly.cpp \
   DualTool.cpp \
   ElementSequence.hpp \
   EntitySequence.cpp \
@@ -64,7 +65,6 @@ libMOAB_la_SOURCES = \
   MBOrientedBox.cpp \
   MBOrientedBox.hpp \
   MBOrientedBoxTreeTool.cpp \
-  BSPTreePoly.cpp \
   MBRange.cpp \
   MBRangeSeqIntersectIter.cpp \
   MBRangeSeqIntersectIter.hpp \
