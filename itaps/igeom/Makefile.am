@@ -5,7 +5,7 @@ AM_CPPFLAGS = -DSRCDIR=$(srcdir) \
               -I$(top_builddir)/src \
               -I$(top_srcdir)/src/moab \
               -I$(top_builddir)/src/moab \
-              -I. -I$(srcdir)/.. \
+              -I.. -I$(srcdir)/.. \
               -I$(top_srcdir)/itaps/imesh \
               -I$(top_builddir)/itaps/imesh 
 
@@ -21,10 +21,8 @@ libiGeomMOAB_la_SOURCES = \
 	iGeom_MOAB.cpp 
 
 libiGeomMOAB_la_include_HEADERS = \
-	iBase.h \
 	iGeom.h \
 	iGeom_protos.h \
-	iBase_f.h \
 	iGeom_f.h
 
 # stuff for test program
