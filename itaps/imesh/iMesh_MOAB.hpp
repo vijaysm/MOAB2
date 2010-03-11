@@ -66,27 +66,27 @@ public:
 #define MBimesh reinterpret_cast<MBiMesh*>(MBI)
 
 
-static inline void
+static inline int
 iMesh_processError( int code, const char* desc ) 
 {
   std::strncpy( iMesh_LAST_ERROR.description, desc,
                 sizeof(iMesh_LAST_ERROR.description) );
   iMesh_LAST_ERROR.description[sizeof(iMesh_LAST_ERROR.description)-1] = '\0';
-  iMesh_LAST_ERROR.error_type = (iBase_ErrorType)code;
+  return (iMesh_LAST_ERROR.error_type = (iBase_ErrorType)code);
 }
 
-#define ERROR(CODE,MSG) do { iMesh_setLastError( MBI, *err = (CODE), (MSG) ); return; } while(false)
-#define IBASE_ERROR(CODE,MSG) do { iMesh_processError( *err = (CODE), (MSG) ); return; } while(false)
+#define ERROR(CODE,MSG) do { *err = iMesh_setLastError( MBI, (CODE), (MSG) ); return; } while(false)
+#define IBASE_ERROR(CODE,MSG) do { *err = iMesh_processError( (CODE), (MSG) ); return; } while(false)
 
-static inline void iMesh_setLastError( MBInterface*, int code, const char* msg )
-  { iMesh_processError( code, msg ); }  
-static inline void iMesh_setLastError( MBInterface* mbi, MBErrorCode code, const char* msg )
+static inline int iMesh_setLastError( MBInterface*, int code, const char* msg )
+  { return iMesh_processError( code, msg ); }  
+static inline int iMesh_setLastError( MBInterface* mbi, MBErrorCode code, const char* msg )
   { 
     std::string message(msg);
     message += "  (MOAB Error Code: ";
     message += mbi->get_error_string(code);
     message += ")";
-    iMesh_processError( iBase_ERROR_MAP[code], message.c_str() ); 
+    return iMesh_processError( iBase_ERROR_MAP[code], message.c_str() ); 
   }
 
 #define CHKERR(CODE,MSG) \
