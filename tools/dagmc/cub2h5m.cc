@@ -4,9 +4,7 @@
 #include "MBCore.hpp"
 #include "MBCartVect.hpp"
 #include "cubfile.h"
-#include "Tqdcfr.hpp"
 #include "FileOptions.hpp"
-#include "ReadNCDF.hpp"
 #include "MBSkinner.hpp"
 #include "quads_to_tris.hpp"
 #include <limits>
@@ -1087,15 +1085,16 @@ int main( int argc, char* argv[] )
   // Assume dead elements exist until I think of something better.
   bool dead_elements_exist = true;
   if(update_coords) {
-    ReadNCDF my_ex_reader(MBI);
+    //ReadNCDF my_ex_reader(MBI);
     char exo_options[120] = "tdata=coord,";
     strcat(exo_options, time_step);
     strcat(exo_options,",set");
-    FileOptions exo_opts(exo_options)  ;
+    //FileOptions exo_opts(exo_options)  ;
     //opts = "tdata=coord, 100, sum, temp.exo";
     //result =  my_ex_reader.load_file(exo_name, cgm_file_set, exo_opts, NULL, 0 , 0);
     //result =  my_ex_reader.load_file(exo_name, cub_file_set, exo_opts, NULL, 0 , 0);
-    result = my_ex_reader.load_file(exo_name, &cub_file_set, exo_opts, NULL, 0 , 0);
+    //result = my_ex_reader.load_file(exo_name, &cub_file_set, exo_opts, NULL, 0 , 0);
+    MBI->load_file( exo_name, 0, exo_options );
     if(MB_SUCCESS != result) {
       std::string last_error;
       MBI->get_last_error(last_error); 
