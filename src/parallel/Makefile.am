@@ -10,7 +10,9 @@ noinst_LTLIBRARIES = libMOABpar.la
 # Some variables
 AM_CPPFLAGS += -DIS_BUILDING_MB -DSRCDIR=$(srcdir) \
                -I$(srcdir)/.. -I.. -I$(srcdir)/../io \
-               -I$(srcdir)/../moab -I../moab  -I$(srcdir)/moab
+               -I$(srcdir)/../io/mhdf/include  \
+               -I$(builddir)/../moab -I../moab  \
+               -I$(srcdir)/moab -Imoab
 
 # The directory in which to install headers
 libMOABpar_la_includedir = $(includedir)
@@ -49,7 +51,6 @@ if PARALLEL
 
 if PARALLEL_HDF5
 #  libMOABpar_la_LIBADD = $(top_builddir)/mhdf/libmhdf.la
-  AM_CPPFLAGS += -I$(srcdir)/../mhdf/inc
   MOAB_PARALLEL_SRCS += WriteHDF5Parallel.cpp 
   MOAB_PARALLEL_HDRS += WriteHDF5Parallel.hpp
 endif
