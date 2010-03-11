@@ -24,7 +24,6 @@ TESTS = pcomm_unit \
         $(HDF5_TESTS)
 
 if PARALLEL_HDF5
-  AM_CPPFLAGS += -I$(top_srcdir)/mhdf/include
   HDF5_TESTS = parallel_hdf5_test mhdf_parallel parallel_write_test
 else
   HDF5_TESTS = 
@@ -35,6 +34,7 @@ check_PROGRAMS = $(TESTS) mbparallelcomm_test
 pcomm_unit_SOURCES = pcomm_unit.cpp
 parallel_hdf5_test_SOURCES = parallel_hdf5_test.cc
 mhdf_parallel_SOURCES = mhdf_parallel.c
+mhdf_parallel_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS) -I$(top_srcdir)/src/io/mhdf/include
 parallel_unit_tests_SOURCES = parallel_unit_tests.cpp
 parallel_write_test_SOURCES = parallel_write_test.cc
 uber_parallel_test_SOURCES = uber_parallel_test.cpp
