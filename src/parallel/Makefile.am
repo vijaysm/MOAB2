@@ -11,7 +11,7 @@ noinst_LTLIBRARIES = libMOABpar.la
 AM_CPPFLAGS += -DIS_BUILDING_MB -DSRCDIR=$(srcdir) \
                -I$(srcdir)/.. -I.. -I$(srcdir)/../io \
                -I$(srcdir)/../io/mhdf/include  \
-               -I$(builddir)/../moab -I../moab  \
+               -I$(srcdir)/../moab -I../moab \
                -I$(srcdir)/moab -Imoab
 
 # The directory in which to install headers
