@@ -71,11 +71,12 @@ iMesh_processError( int code, const char* desc )
 {
   std::strncpy( iMesh_LAST_ERROR.description, desc,
                 sizeof(iMesh_LAST_ERROR.description) );
+  iMesh_LAST_ERROR.description[sizeof(iMesh_LAST_ERROR.description)-1] = '\0';
   iMesh_LAST_ERROR.error_type = (iBase_ErrorType)code;
 }
 
-#define ERROR(CODE,MSG) do { iMesh_setLastError( MBI, (CODE), (MSG) ); RETURN((CODE)); } while(false)
-#define IBASE_ERROR(CODE,MSG) iMesh_processError( *err = (CODE), (MSG) )
+#define ERROR(CODE,MSG) do { iMesh_setLastError( MBI, *err = (CODE), (MSG) ); return; } while(false)
+#define IBASE_ERROR(CODE,MSG) do { iMesh_processError( *err = (CODE), (MSG) ); return; } while(false)
 
 static inline void iMesh_setLastError( MBInterface*, int code, const char* msg )
   { iMesh_processError( code, msg ); }  

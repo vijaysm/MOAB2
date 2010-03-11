@@ -645,7 +645,7 @@ extern "C" {
         if (MB_SUCCESS != result) {
           if (allocated_array)
             free(array);
-          ERROR(iBase_ERROR_MAP[result], "iMesh_getEntArrAdj: trouble getting adjacency list.");
+          ERROR(result, "iMesh_getEntArrAdj: trouble getting adjacency list.");
         }
       }
       else if (iBase_ALL_TYPES == entity_type_requested) {
@@ -657,7 +657,7 @@ extern "C" {
           if (MB_SUCCESS != result) {
             if (allocated_array)
               free(array);
-            ERROR(iBase_ERROR_MAP[result], "iMesh_getEntArrAdj: trouble getting adjacency list.");
+            ERROR(result, "iMesh_getEntArrAdj: trouble getting adjacency list.");
           }
         }
         connect = &adj_ents[0];
@@ -670,7 +670,7 @@ extern "C" {
         if (MB_SUCCESS != result) {
           if (allocated_array)
             free(array);
-          ERROR(iBase_ERROR_MAP[result], "iMesh_getEntArrAdj: trouble getting adjacency list.");
+          ERROR(result, "iMesh_getEntArrAdj: trouble getting adjacency list.");
         }
         connect = &adj_ents[0];
         num_connect = adj_ents.size();
@@ -1408,7 +1408,7 @@ extern "C" {
         msg += "Failed to create tag with name: \"";
       msg += tag_name;
       msg += "\".";
-      ERROR(iBase_ERROR_MAP[result],msg.c_str());
+      ERROR(result,msg.c_str());
     }
 
     *tag_handle = (iBase_TagHandle) new_tag;
@@ -1445,7 +1445,7 @@ extern "C" {
       // ok, good to go - either forced or no entities with this tag
     MBErrorCode result = MBI->tag_delete(TAG_HANDLE(tag_handle));
     if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result)
-      ERROR(iBase_ERROR_MAP[result], "iMesh_destroyTag: problem deleting tag.");
+      ERROR(result, "iMesh_destroyTag: problem deleting tag.");
 
     RETURN(iBase_ERROR_MAP[result]);
   }
@@ -1525,7 +1525,7 @@ extern "C" {
       std::string msg("iMesh_getTagHandle: problem getting handle for tag named '");
       msg += std::string(tag_name) + std::string("'");
       *tag_handle = 0;
-      ERROR(iBase_ERROR_MAP[result], msg.c_str());
+      ERROR(result, msg.c_str());
     }
 
     RETURN(iBase_SUCCESS);
@@ -1780,7 +1780,7 @@ extern "C" {
       iMesh_getTagName(instance, tag_handle, tagn, &nerr, sizeof(tagn));
       snprintf(msg, sizeof(msg), "iMesh_getArrData: couldn't get size for tag \"%s\"",
                nerr==0?tagn:"unknown");
-      ERROR(iBase_ERROR_MAP[result], msg);
+      ERROR(result, msg);
     }
 
     if (0 == entity_handles_size) {
@@ -1805,7 +1805,7 @@ extern "C" {
         message += name;
         message += "\".";
       }
-      ERROR(iBase_ERROR_MAP[result], message.c_str());
+      ERROR(result, message.c_str());
     }
 
     KEEP_ARRAY(tag_values);
