@@ -15,14 +15,14 @@ BUILT_SOURCES = MBCN_protos.h
 
 # Some variables
 AM_CPPFLAGS += -DIS_BUILDING_MB \
-               -I$(builddir) \
+               -I. \
                -I$(srcdir)/io \
                -I$(srcdir)/io/moab \
                -I$(srcdir)/io/mhdf/include \
-               -I$(builddir)/moab \
+               -I./moab \
                -I$(srcdir)/moab \
                -I$(srcdir)/parallel/moab \
-               -I$(builddir)/parallel/moab
+               -I./parallel/moab
 
 # The directory in which to install headers
 libMOAB_la_includedir = $(includedir)

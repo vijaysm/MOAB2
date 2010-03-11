@@ -1,7 +1,7 @@
 LDADD = $(top_builddir)/src/libMOAB.la
 AM_CPPFLAGS += -DIS_BUILDING_MB \
                -DSRCDIR=$(srcdir) \
-               -I$(builddir) \
+               -I. \
                -I.. -I$(srcdir)/.. \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src \
