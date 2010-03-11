@@ -259,13 +259,14 @@ AM_CPPFLAGS="$HDF5_CPPFLAGS $AM_CPPFLAGS"
 EXPORT_LDFLAGS="$EXPORT_LDFLAGS $HDF5_LDFLAGS"
 AC_SUBST(HDF5_LIBS)
 
+WARN_PARALLEL_HDF5=no
 HAVE_HDF5_PARALLEL=no
 if test "xno" != "x$HAVE_HDF5"; then
   if test "xno" != "x$WITH_MPI"; then
     old_LDFLAGS="$LDFLAGS"
     LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
     AC_CHECK_LIB( [hdf5], [H5Pset_fapl_mpio], [HAVE_HDF5_PARALLEL=yes],
-      [AC_MSG_WARN("libhdf5 library does not include parallel support.  Parallel HDF5 I/O disabled")],
+      [WARN_PARALLEL_HDF5=yes; AC_MSG_WARN("libhdf5 library does not include parallel support.  Parallel HDF5 I/O disabled")],
       [$HDF5_LIBS]
       )
     LDFLAGS="$old_LDFLAGS"
@@ -1072,6 +1073,15 @@ if test "x$HAVE_NETCDF" = "xno"; then
 *************************************************************************
 *           MOAB has been configured w/out the NetCDF library.
 *     Support for ExodusII/Genesis and other file formats is disabled!
+*************************************************************************])
+fi
+
+if test "x$WARN_PARALLEL_HDF5" = "xyes"; then
+  AC_MSG_WARN([
+*************************************************************************
+*        MOAB has been configured with parallel and HDF5 support
+*     but the configured HDF5 library does not support parallel IO.
+*            Some parallel IO capabilities will be disabled.
 *************************************************************************])
 fi
 
