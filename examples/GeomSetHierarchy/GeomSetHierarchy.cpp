@@ -3,7 +3,12 @@
 #include "moab/MBCN.hpp"
 #include <iostream>
 
-int main(int, char **argv) {
+int main(int argc, char **argv) {
+  if (1 == argc) {
+    std::cout << "Usage: " << argv[0] << " <filename>" << std::endl;
+    return 0;
+  }
+  
     // instantiate & load a file
   MBInterface *mb = new MBCore();
   MBErrorCode rval = mb->load_file(argv[1]);

@@ -2,7 +2,12 @@
 #include "moab/MBRange.hpp"
 #include <iostream>
 
-int main(int, char **argv) {
+int main(int argc, char **argv) {
+  if (1 == argc) {
+    std::cout << "Usage: " << argv[0] << " <filename>" << std::endl;
+    return 0;
+  }
+
     // instantiate & load a mesh from a file
   MBCore *mb = new MBCore();
   MBErrorCode rval = mb->load_mesh(argv[1]);

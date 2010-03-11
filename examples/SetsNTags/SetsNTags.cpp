@@ -2,7 +2,12 @@
 #include "moab/MBRange.hpp"
 #include <iostream>
 
-int main(int, char **argv) {
+int main(int argc, char **argv) {
+  if (1 == argc) {
+    std::cout << "Usage: " << argv[0] << " <filename>" << std::endl;
+    return 0;
+  }
+
     // get the material set tag handle
   MBTag mtag;
   MBErrorCode rval;
