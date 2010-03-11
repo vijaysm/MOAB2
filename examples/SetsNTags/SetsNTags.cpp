@@ -41,6 +41,7 @@ int main(int argc, char **argv) {
 
       std::cout << tag_nms[i] << " " << set_id << " has " 
                 << set_ents.size() << " entities." << std::endl;
+      set_ents.clear();
     }
   }
 }
