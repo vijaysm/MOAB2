@@ -929,7 +929,7 @@ case "x$CGM_DIR" in
     ;;
   *)
     if ! test -d "$CGM_DIR"; then
-      AC_MSG_WARN([$CGM_DIR : not a directory.])
+      AC_MSG_ERROR([$CGM_DIR : not a directory.])
     fi
     CGM_MISSING=no
     CGM_MAKE=
@@ -939,7 +939,7 @@ case "x$CGM_DIR" in
                   [AC_CHECK_FILE([${CGM_DIR}/cgm.make],
                                  [CGM_MAKE="${CGM_DIR}/cgm.make";
                    AM_CPPFLAGS="$AM_CPPFLAGS -DCGM"],
-                                 [AC_MSG_WARN([$CGM_DIR : not a configured CGM]); 
+                                 [AC_MSG_ERROR([$CGM_DIR : not a configured CGM]); 
                                   CGM_MISSING=yes])
                   ])
     ;;
