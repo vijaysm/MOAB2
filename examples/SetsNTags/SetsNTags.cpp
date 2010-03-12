@@ -24,6 +24,7 @@ int main(int argc, char **argv) {
     rval = mb->tag_get_handle(tag_nms[i], mtag);
 
       // get all the sets of that type in the mesh
+    sets.clear();
     rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, &mtag,
                                             NULL, 1, sets);
 
