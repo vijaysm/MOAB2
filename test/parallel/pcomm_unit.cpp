@@ -1,8 +1,8 @@
-#include "MBParallelComm.hpp"
-#include "MBParallelConventions.h"
-#include "MBTagConventions.hpp"
-#include "MBCore.hpp"
-#include "MeshTopoUtil.hpp"
+#include "moab/ParallelComm.hpp"
+#include "moab/MBParallelConventions.h"
+#include "moab/MBTagConventions.hpp"
+#include "moab/Core.hpp"
+#include "moab/MeshTopoUtil.hpp"
 #include "ReadParallel.hpp"
 #include "FileOptions.hpp"
 #include "TestUtil.hpp"
@@ -11,8 +11,10 @@
 #include <set>
 #include <sstream>
 
+using namespace moab;
+
 #ifdef USE_MPI
-#  include "MBmpi.h"
+#  include "moab_mpi.h"
 #endif
 
 #define STRINGIFY_(X) #X
@@ -83,25 +85,25 @@ int main( int argc, char* argv[] )
 }
 
 /* Utility method: pack mesh data, clear moab instance, and unpack */
-void pack_unpack_noremoteh( MBCore& moab, MBRange& entities )
+void pack_unpack_noremoteh( Core& moab, Range& entities )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   if (entities.empty()) {
     rval = moab.get_entities_by_handle( 0, entities );
     CHECK_ERR(rval);
   }
   
-  MBParallelComm *pcomm = new MBParallelComm( &moab );
+  ParallelComm *pcomm = new ParallelComm( &moab );
   std::vector<int> addl_procs;
 
     // get the necessary vertices too
-  MBRange tmp_range = entities.subset_by_type(MBENTITYSET);
+  Range tmp_range = entities.subset_by_type(MBENTITYSET);
   entities = subtract( entities, tmp_range);
-  rval = moab.get_adjacencies(entities, 0, false, entities, MBInterface::UNION);
+  rval = moab.get_adjacencies(entities, 0, false, entities, Interface::UNION);
   CHECK_ERR(rval);
   entities.merge(tmp_range);
   
-  MBParallelComm::Buffer buff(MBParallelComm::INITIAL_BUFF_SIZE);
+  ParallelComm::Buffer buff(ParallelComm::INITIAL_BUFF_SIZE);
   buff.reset_ptr(sizeof(int));
   rval = pcomm->pack_buffer( entities, false, true, false, 
                              -1, &buff);
@@ -109,15 +111,15 @@ void pack_unpack_noremoteh( MBCore& moab, MBRange& entities )
   buff.set_stored_size();
   
   delete pcomm;
-  moab.~MBCore();
+  moab.~Core();
 
-  new (&moab) MBCore();
-  pcomm = new MBParallelComm( &moab);
+  new (&moab) Core();
+  pcomm = new ParallelComm( &moab);
   
   entities.clear();
-  std::vector<std::vector<MBEntityHandle> > L1hloc, L1hrem;
+  std::vector<std::vector<EntityHandle> > L1hloc, L1hrem;
   std::vector<std::vector<int> > L1p;
-  std::vector<MBEntityHandle> L2hloc, L2hrem;
+  std::vector<EntityHandle> L2hloc, L2hrem;
   std::vector<unsigned int> L2p;
   buff.reset_ptr(sizeof(int));
   rval = pcomm->unpack_buffer(buff.buff_ptr, false, -1, -1, L1hloc, L1hrem, L1p, L2hloc, 
@@ -126,14 +128,14 @@ void pack_unpack_noremoteh( MBCore& moab, MBRange& entities )
 
   delete pcomm;
 }
-void pack_unpack_noremoteh( MBCore& moab )
+void pack_unpack_noremoteh( Core& moab )
 {
-  MBRange empty;
+  Range empty;
   pack_unpack_noremoteh( moab, empty );
 }
 
 /* Utility method -- check expected sizes */
-void check_sizes( MBInterface& moab,
+void check_sizes( Interface& moab,
                   int num_vtx,
                   int num_edge,
                   int num_tri,
@@ -147,7 +149,7 @@ void check_sizes( MBInterface& moab,
                   int num_polyhedron )
 {
   int count;
-  MBErrorCode rval;
+  ErrorCode rval;
   
   rval = moab.get_number_entities_by_type( 0, MBVERTEX, count );
   CHECK_ERR(rval);
@@ -195,15 +197,15 @@ void check_sizes( MBInterface& moab,
 }
 
 /* Create a simple mesh for use in tests */
-void create_simple_grid( MBInterface& moab, unsigned x, unsigned y, unsigned z );
-void create_simple_grid( MBInterface& moab, unsigned xyz = 3 )
+void create_simple_grid( Interface& moab, unsigned x, unsigned y, unsigned z );
+void create_simple_grid( Interface& moab, unsigned xyz = 3 )
 {
   create_simple_grid( moab, xyz, xyz, xyz );
 }
-void create_simple_grid( MBInterface& moab, unsigned x, unsigned y, unsigned z )
+void create_simple_grid( Interface& moab, unsigned x, unsigned y, unsigned z )
 {
-  MBErrorCode rval;
-  MBEntityHandle *verts = new MBEntityHandle[x*y*z];
+  ErrorCode rval;
+  EntityHandle *verts = new EntityHandle[x*y*z];
   for (unsigned k = 0; k < z; ++k)
     for (unsigned j = 0; j < y; ++j)
       for (unsigned i = 0; i < x; ++i) {
@@ -212,12 +214,12 @@ void create_simple_grid( MBInterface& moab, unsigned x, unsigned y, unsigned z )
         CHECK_ERR(rval);
       }
   
-  MBEntityHandle *elems = new MBEntityHandle[(x-1)*(y-1)*(z-1)];
+  EntityHandle *elems = new EntityHandle[(x-1)*(y-1)*(z-1)];
   for (unsigned k = 0; k < (z-1); ++k)
     for (unsigned j = 0; j < (y-1); ++j)
       for (unsigned i = 0; i < (x-1); ++i) {
         const size_t idx = (size_t)i + (size_t)j*x + (size_t)k*x*y; 
-        const MBEntityHandle conn[8] = { verts[idx        ],
+        const EntityHandle conn[8] = { verts[idx        ],
                                          verts[idx      +1],
                                          verts[idx    +x+1],
                                          verts[idx    +x  ],
@@ -232,13 +234,13 @@ void create_simple_grid( MBInterface& moab, unsigned x, unsigned y, unsigned z )
   delete [] elems;
 }
 
-MBErrorCode create_patch(MBInterface *moab, MBRange &verts, MBRange &quads,
+ErrorCode create_patch(Interface *moab, Range &verts, Range &quads,
                          unsigned int n, double *xyz, int *gids) 
 {
     // create vertices/quads in square array
-  MBErrorCode result = moab->create_vertices(xyz, n*n, verts);
+  ErrorCode result = moab->create_vertices(xyz, n*n, verts);
   if (MB_SUCCESS != result) return result;
-  std::vector<MBEntityHandle> connect;
+  std::vector<EntityHandle> connect;
   for (unsigned int j = 0; j < n-1; j++) {
     for (unsigned int i = 0; i < n-1; i++) {
       connect.push_back(verts[n*j+i]);
@@ -250,14 +252,14 @@ MBErrorCode create_patch(MBInterface *moab, MBRange &verts, MBRange &quads,
   
   unsigned int nquads = (n-1)*(n-1);
   for (unsigned int i = 0; i < nquads; i++) {
-    MBEntityHandle dum_quad;
+    EntityHandle dum_quad;
     result = moab->create_element(MBQUAD, &connect[4*i], 4, dum_quad);
     if (MB_SUCCESS != result) return result;
     quads.insert(dum_quad);
   }
   
     // global ids
-  MBTag gid_tag;
+  Tag gid_tag;
   int dum_default = -1;
   result = moab->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE,
                            MB_TYPE_INTEGER, gid_tag, &dum_default, true);
@@ -268,7 +270,7 @@ MBErrorCode create_patch(MBInterface *moab, MBRange &verts, MBRange &quads,
   return result;
 }
 
-MBErrorCode create_shared_grid_2d(MBParallelComm **pc, MBRange *verts, MBRange *quads) 
+ErrorCode create_shared_grid_2d(ParallelComm **pc, Range *verts, Range *quads) 
 {
 //          
 //        P2______
@@ -319,13 +321,13 @@ MBErrorCode create_shared_grid_2d(MBParallelComm **pc, MBRange *verts, MBRange *
     create_patch(pc[i]->get_moab(), verts[i], quads[i], 3, xyztmp, &gids[9*i]);
   }
 
-  MBErrorCode rval = MBParallelComm::resolve_shared_ents(pc, 4, 2);
+  ErrorCode rval = ParallelComm::resolve_shared_ents(pc, 4, 2);
   CHECK_ERR(rval);
 
   return rval;
 }
 
-MBErrorCode create_shared_grid_3d(MBParallelComm **pc, MBRange *verts, MBRange *hexes) 
+ErrorCode create_shared_grid_3d(ParallelComm **pc, Range *verts, Range *hexes) 
 {
 //    
 //   4 _____   _____ 
@@ -364,8 +366,8 @@ MBErrorCode create_shared_grid_3d(MBParallelComm **pc, MBRange *verts, MBRange *
     
   std::vector<int> gids;
   std::vector<double> xyz;
-  MBErrorCode rval;
-  MBTag gid_tag;
+  ErrorCode rval;
+  Tag gid_tag;
   int dum_default = -1;
 
   for (p = 0; p < P; p++) {
@@ -403,7 +405,7 @@ MBErrorCode create_shared_grid_3d(MBParallelComm **pc, MBRange *verts, MBRange *
 
       // make elements
     nv = 0;
-    MBEntityHandle connect[8], dum_hex;
+    EntityHandle connect[8], dum_hex;
     for (k = ijkmin[p][2]; k < ijkmax[p][2]; k++) 
       for (j = ijkmin[p][1]; j < ijkmax[p][1]; j++) 
         for (i = ijkmin[p][0]; i < ijkmax[p][0]; i++) {
@@ -428,16 +430,16 @@ MBErrorCode create_shared_grid_3d(MBParallelComm **pc, MBRange *verts, MBRange *
     rval = pc[p]->get_moab()->write_file(fname.str().c_str());
     if (MB_SUCCESS != rval) return rval;
   }
-  rval = MBParallelComm::resolve_shared_ents(pc, 4, 3);
+  rval = ParallelComm::resolve_shared_ents(pc, 4, 3);
   CHECK_ERR(rval);
   return rval;
 }
 
 void test_pack_vertices()
 {
-  MBCore moab;
-  MBErrorCode rval;
-  MBRange verts;
+  Core moab;
+  ErrorCode rval;
+  Range verts;
   
   const size_t num_verts = 4;
   const double coords[3*num_verts] = { -0.5, -1./3, 0.0,
@@ -471,13 +473,13 @@ void test_pack_vertices()
 
 void test_pack_elements()
 {
-  MBCore moab;
-  MBErrorCode rval;
-  MBRange elems;
+  Core moab;
+  ErrorCode rval;
+  Range elems;
   
     // define some vertices
   const size_t num_verts = 12;
-  MBEntityHandle verts[num_verts];
+  EntityHandle verts[num_verts];
   const double hex_corners[3*num_verts] = { -1, -1, -1,
                                              1, -1, -1,
                                              1,  1, -1,
@@ -497,7 +499,7 @@ void test_pack_elements()
   
     // define two adjacent hexes
   const size_t num_hex = 2;
-  MBEntityHandle hexes[num_hex];
+  EntityHandle hexes[num_hex];
   rval = moab.create_element( MBHEX, verts, 8, hexes[0] );
   CHECK_ERR(rval);
   elems.insert( hexes[0] );
@@ -507,15 +509,15 @@ void test_pack_elements()
   
     // define a single quad on the adjacent sides of the hexes
   const size_t num_quad = 1;
-  MBEntityHandle quad;
+  EntityHandle quad;
   rval = moab.create_element( MBQUAD, verts+4, 4, quad );
   CHECK_ERR(rval);
   elems.insert( quad );
   
     // define a decomposition of the first hex into 5 tets
   const size_t num_tet = 5;
-  MBEntityHandle tets[num_tet];
-  MBEntityHandle tet_conn[num_tet][4] = 
+  EntityHandle tets[num_tet];
+  EntityHandle tet_conn[num_tet][4] = 
                                { { verts[0], verts[1], verts[3], verts[4] },
                                  { verts[1], verts[2], verts[3], verts[6] },
                                  { verts[1], verts[3], verts[4], verts[6] },
@@ -540,8 +542,8 @@ void test_pack_elements()
     // define the 4 shared faces of the above tets as tris
     // (the faces of the 3rd tet)
   const size_t num_tri = 4;
-  MBEntityHandle tris[num_tri];
-  MBEntityHandle tri_conn[num_tri][3] = { { verts[3], verts[1], verts[4] },
+  EntityHandle tris[num_tri];
+  EntityHandle tri_conn[num_tri][3] = { { verts[3], verts[1], verts[4] },
                                           { verts[1], verts[6], verts[4] },
                                           { verts[1], verts[3], verts[6] },
                                           { verts[3], verts[4], verts[6] } };
@@ -560,8 +562,8 @@ void test_pack_elements()
   
     // define a decomposition of the second hex into two wedges
   const size_t num_wedge = 2;
-  MBEntityHandle wedges[num_wedge];
-  MBEntityHandle wedge_conn[num_wedge][6] = {
+  EntityHandle wedges[num_wedge];
+  EntityHandle wedge_conn[num_wedge][6] = {
     { verts[4], verts[5], verts[7], verts[8], verts[9], verts[11] },
     { verts[5], verts[6], verts[7], verts[9], verts[10],verts[11] } };
   rval = moab.create_element( MBPRISM, wedge_conn[0], 6, wedges[0] );
@@ -572,7 +574,7 @@ void test_pack_elements()
   elems.insert( wedges[1] );
   
     // define a pyramid
-  MBEntityHandle pyr;
+  EntityHandle pyr;
   rval = moab.create_element( MBPYRAMID, verts, 5, pyr );
   CHECK_ERR(rval);
   elems.insert( pyr );
@@ -585,8 +587,8 @@ void test_pack_elements()
                      num_tet, 1, num_wedge, 0, num_hex, 0 );
 
     // get connectivity for two hexes and a quad
-  MBRange range;
-  const MBEntityHandle *conn1, *conn2, *conn3;
+  Range range;
+  const EntityHandle *conn1, *conn2, *conn3;
   int len1, len2, len3;
   rval = moab.get_entities_by_type( 0, MBHEX, range );
   CHECK_ERR(rval);
@@ -621,7 +623,7 @@ void test_pack_elements()
   CHECK_EQUAL( conn1[6], conn3[2] );
   CHECK_EQUAL( conn1[7], conn3[3] );
     // Check coordinates
-  const MBEntityHandle combined[12] = { conn1[0], conn1[1], conn1[2], conn1[3],
+  const EntityHandle combined[12] = { conn1[0], conn1[1], conn1[2], conn1[3],
                                         conn3[0], conn3[1], conn3[2], conn3[3],
                                         conn2[4], conn2[5], conn2[6], conn2[7] };
   double coords[36];
@@ -634,9 +636,9 @@ void test_pack_elements()
 
 void test_pack_higher_order()
 {
-  MBCore moab;
-  MBErrorCode rval;
-  MBRange elems;
+  Core moab;
+  ErrorCode rval;
+  Range elems;
   
     // define coordinates for a pyramid decomposed
     // into two 10-node tets
@@ -655,7 +657,7 @@ void test_pack_higher_order()
                                       .5, -.5, .5,
                                       .5,  .5, .5,
                                      -.5,  .5, .5 };
-  MBEntityHandle verts[num_vert];
+  EntityHandle verts[num_vert];
   for (size_t i = 0; i < num_vert; ++i) {
     rval = moab.create_vertex( coords + 3*i, verts[i] );
     CHECK_ERR(rval);
@@ -663,7 +665,7 @@ void test_pack_higher_order()
   
     // define two tets
   const size_t num_tet = 2;
-  MBEntityHandle tet_conn[2][10] = {
+  EntityHandle tet_conn[2][10] = {
    { verts[ 0], verts[ 4], verts[ 9], verts[2],
      verts[ 8], verts[12], verts[10],
      verts[ 1], verts[ 3], verts[11] }, 
@@ -671,7 +673,7 @@ void test_pack_higher_order()
      verts[10], verts[12], verts[ 8],
      verts[ 7], verts[13], verts[ 5] } };
      
-  MBEntityHandle tets[num_tet];
+  EntityHandle tets[num_tet];
   rval = moab.create_element( MBTET, tet_conn[0], 10, tets[0] );
   CHECK_ERR(rval);
   elems.insert( tets[0] );
@@ -681,10 +683,10 @@ void test_pack_higher_order()
    
     // define interior tri face
   const size_t num_tri = 1;
-  MBEntityHandle tri_conn[6] = 
+  EntityHandle tri_conn[6] = 
     { verts[0], verts[4], verts[9],
       verts[8], verts[12],verts[10] };
-  MBEntityHandle tri;
+  EntityHandle tri;
   rval = moab.create_element( MBTRI, tri_conn, 6, tri );
   CHECK_ERR(rval);
   elems.insert( tri );
@@ -696,8 +698,8 @@ void test_pack_higher_order()
   check_sizes( moab, num_vert, 0, num_tri, 0, 0, num_tet, 0, 0, 0, 0, 0 );
 
     // get connectivity for two tets and a tri
-  MBRange range;
-  const MBEntityHandle *conn1, *conn2, *conn3;
+  Range range;
+  const EntityHandle *conn1, *conn2, *conn3;
   int len1, len2, len3;
   rval = moab.get_entities_by_type( 0, MBTET, range );
   CHECK_ERR(rval);
@@ -737,7 +739,7 @@ void test_pack_higher_order()
   CHECK_EQUAL( conn1[6], conn3[5] );
   
     // order vertex handles corresponding to original coordinate list
-  const MBEntityHandle combined[num_vert] = {
+  const EntityHandle combined[num_vert] = {
     conn1[0], 
     conn1[7],
     conn1[3],
@@ -765,9 +767,9 @@ void test_pack_higher_order()
 
 void test_pack_poly()
 {
-  MBCore moab;
-  MBErrorCode rval;
-  MBRange elems;
+  Core moab;
+  ErrorCode rval;
+  Range elems;
   
     // define a pyramid w/ a octagonal base
   const double a = 0.5;
@@ -783,7 +785,7 @@ void test_pack_poly()
     -b,  a, 0,
     -b, -a, 0,
      0,  0, 1 };
-  MBEntityHandle verts[num_vert];
+  EntityHandle verts[num_vert];
   for (size_t i = 0; i < num_vert; ++i) {
     rval = moab.create_vertex( coords + 3*i, verts[i] );
     CHECK_ERR(rval);
@@ -791,23 +793,23 @@ void test_pack_poly()
   
     // define octagonal base
   const size_t num_polygon = 1;
-  MBEntityHandle octagon;
+  EntityHandle octagon;
   rval = moab.create_element( MBPOLYGON, verts, 8, octagon );
   CHECK_ERR(rval);
   
     // define triangular sides
   const size_t num_tri = num_vert-1;
-  MBEntityHandle tri[num_tri];
+  EntityHandle tri[num_tri];
   for (size_t i = 0; i < num_tri; ++i) {
-    const MBEntityHandle conn[3] = { verts[i], verts[(i+1)%num_tri], verts[num_tri] };
+    const EntityHandle conn[3] = { verts[i], verts[(i+1)%num_tri], verts[num_tri] };
     rval = moab.create_element( MBTRI, conn, 3, tri[i] );
     CHECK_ERR(rval);
   }
   
     // define the octagon-based pyramid
   const size_t num_polyhedron = 1;
-  MBEntityHandle polyhedron;
-  MBEntityHandle all_faces[num_vert];
+  EntityHandle polyhedron;
+  EntityHandle all_faces[num_vert];
   all_faces[0] = octagon;
   std::copy( tri, tri+num_tri, all_faces+1 );
   rval = moab.create_element( MBPOLYHEDRON, all_faces, num_vert, polyhedron );
@@ -817,7 +819,7 @@ void test_pack_poly()
   elems.clear();
   elems.insert( polyhedron );
   elems.insert( octagon );
-  std::copy( tri, tri+num_tri, mb_range_inserter(elems) );
+  std::copy( tri, tri+num_tri, range_inserter(elems) );
   pack_unpack_noremoteh( moab, elems );
   
     // check counts
@@ -825,7 +827,7 @@ void test_pack_poly()
                      0, 0, 0, 0, 0, num_polyhedron );
   
     // get entities
-  MBRange range;
+  Range range;
   rval = moab.get_entities_by_type( 0, MBPOLYHEDRON, range );
   CHECK_ERR(rval);
   CHECK_EQUAL( num_polyhedron, range.size() );
@@ -843,7 +845,7 @@ void test_pack_poly()
   CHECK_EQUAL( num_tri, range.size() );
   
     // check coords of octagon vertices
-  const MBEntityHandle* oct_conn;
+  const EntityHandle* oct_conn;
   int eight = 0;
   rval = moab.get_connectivity( octagon, oct_conn, eight );
   CHECK_ERR(rval);
@@ -856,24 +858,24 @@ void test_pack_poly()
   }
   
     // check faces of polyhedron
-  std::vector<MBEntityHandle> volconn;
+  std::vector<EntityHandle> volconn;
   rval = moab.get_connectivity( &polyhedron, 1, volconn );
   CHECK_ERR(rval);
   CHECK_EQUAL( num_tri + 1, volconn.size() );
   CHECK_EQUAL( volconn[0], octagon );
-  for (MBRange::iterator i = range.begin(); i != range.end(); ++i) {
+  for (Range::iterator i = range.begin(); i != range.end(); ++i) {
     CHECK( std::find(volconn.begin(), volconn.end(), *i) != volconn.end() );
   }
 }
 
 void test_pack_sets_simple()
 {
-  MBCore moab;
-  MBErrorCode rval;
+  Core moab;
+  ErrorCode rval;
   create_simple_grid( moab, 3 );  
 
     // delete any existing sets
-  MBRange sets;
+  Range sets;
   rval = moab.get_entities_by_type( 0, MBENTITYSET, sets );
   CHECK_ERR(rval);
   if (!sets.empty()) {
@@ -882,11 +884,11 @@ void test_pack_sets_simple()
   }
   
     // get all entities
-  MBRange entities;
+  Range entities;
   rval = moab.get_entities_by_handle( 0, entities );
   CHECK_ERR(rval);
     // expect 8 elements and 27 vertices
-  CHECK_EQUAL( (MBEntityHandle)35, entities.size() );
+  CHECK_EQUAL( (EntityHandle)35, entities.size() );
   CHECK_EQUAL( 27u, entities.num_of_type( MBVERTEX ) );
   CHECK_EQUAL( 8u, entities.num_of_type( MBHEX ) );
   
@@ -897,7 +899,7 @@ void test_pack_sets_simple()
     // 3) one with the other half of the elements, 
     // 4) one with a single vertex, 
     // 5) an empty set, 
-  MBEntityHandle all_set, half1_set, half2_set, vertex_set, empty_set;
+  EntityHandle all_set, half1_set, half2_set, vertex_set, empty_set;
   const unsigned int all_opt = MESHSET_SET | MESHSET_TRACK_OWNER,
                      half1_opt = MESHSET_SET,
                      half2_opt = MESHSET_SET,
@@ -919,7 +921,7 @@ void test_pack_sets_simple()
   CHECK_ERR(rval);
   entities.insert( empty_set );
 
-  MBRange elems, verts, half;
+  Range elems, verts, half;
   rval = moab.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
   rval = moab.get_entities_by_type( 0, MBHEX, elems );
@@ -936,7 +938,7 @@ void test_pack_sets_simple()
   half.merge( elems.begin() += elems.size() / 2, elems.end() );
   rval = moab.add_entities( half2_set, half );
   CHECK_ERR(rval);
-  MBEntityHandle vert = verts.front();
+  EntityHandle vert = verts.front();
   rval = moab.add_entities( vertex_set, &vert, 1 );
   CHECK_ERR(rval);
   
@@ -954,13 +956,13 @@ void test_pack_sets_simple()
   rval = moab.get_entities_by_type( 0, MBENTITYSET, sets );
   CHECK_ERR(rval);
   
-  CHECK_EQUAL( (MBEntityHandle)27, verts.size() );
-  CHECK_EQUAL( (MBEntityHandle)8, elems.size() );
-  CHECK_EQUAL( (MBEntityHandle)5, sets.size() );
+  CHECK_EQUAL( (EntityHandle)27, verts.size() );
+  CHECK_EQUAL( (EntityHandle)8, elems.size() );
+  CHECK_EQUAL( (EntityHandle)5, sets.size() );
   
     // guess which is which
   empty_set = all_set = vertex_set = half1_set = half2_set = 0;
-  for (MBRange::iterator i = sets.begin(); i != sets.end(); ++i) {
+  for (Range::iterator i = sets.begin(); i != sets.end(); ++i) {
     int num_vtx, num_elem;
     rval = moab.get_number_entities_by_type( *i, MBVERTEX, num_vtx );
     CHECK_ERR(rval);
@@ -968,26 +970,26 @@ void test_pack_sets_simple()
     CHECK_ERR(rval);
     if (num_vtx == 0) {
       if (num_elem == 0) {
-        CHECK_EQUAL( (MBEntityHandle)0, empty_set );
+        CHECK_EQUAL( (EntityHandle)0, empty_set );
         empty_set = *i;
       }
       else if (!half1_set) {
         half1_set = *i;
       }
       else {
-        CHECK_EQUAL( (MBEntityHandle)0, half2_set );
+        CHECK_EQUAL( (EntityHandle)0, half2_set );
         half2_set = *i;
       }
     }
     else if (num_vtx == 1) {
       CHECK_EQUAL( 0, num_elem );
-      CHECK_EQUAL( (MBEntityHandle)0, vertex_set );
+      CHECK_EQUAL( (EntityHandle)0, vertex_set );
       vertex_set = *i;
     }
     else {
       CHECK_EQUAL( 8, num_elem );
       CHECK_EQUAL( 27, num_vtx );
-      CHECK_EQUAL( (MBEntityHandle)0, all_set );
+      CHECK_EQUAL( (EntityHandle)0, all_set );
       all_set = *i;
     }
   }
@@ -1013,12 +1015,12 @@ void test_pack_sets_simple()
 
 void test_pack_set_contents()
 {
-  MBCore moab;
-  MBErrorCode rval;
+  Core moab;
+  ErrorCode rval;
   create_simple_grid( moab, 3 );  
 
     // delete any existing sets
-  MBRange sets;
+  Range sets;
   rval = moab.get_entities_by_type( 0, MBENTITYSET, sets );
   CHECK_ERR(rval);
   if (!sets.empty()) {
@@ -1027,12 +1029,12 @@ void test_pack_set_contents()
   }
   
     // get all vertices
-  MBRange vertices;
+  Range vertices;
   rval = moab.get_entities_by_type( 0, MBVERTEX, vertices );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (MBEntityHandle)27, vertices.size() );
+  CHECK_EQUAL( (EntityHandle)27, vertices.size() );
     // create meshset containing vertices
-  MBEntityHandle set;
+  EntityHandle set;
   rval = moab.create_meshset( MESHSET_SET, set );
   CHECK_ERR(rval);
   rval = moab.add_entities( set, vertices );
@@ -1040,7 +1042,7 @@ void test_pack_set_contents()
   
     // pack and unpack range containing only set handle.
     // Will fail unless we also pass in set contents explicitly
-  MBRange entities( vertices );
+  Range entities( vertices );
   entities.insert( set );
   pack_unpack_noremoteh( moab, entities );
   
@@ -1048,29 +1050,29 @@ void test_pack_set_contents()
   entities.clear();
   rval = moab.get_entities_by_type( 0, MBENTITYSET, entities );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (MBEntityHandle)1, entities.size() );
+  CHECK_EQUAL( (EntityHandle)1, entities.size() );
   set = entities.front();
   
     // expect 27 vertices in mesh
   vertices.clear();
   rval = moab.get_entities_by_type( 0, MBVERTEX, vertices );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (MBEntityHandle)27, vertices.size() );
+  CHECK_EQUAL( (EntityHandle)27, vertices.size() );
   
     // expect set to contain all 27 vertices
   vertices.clear();
   rval = moab.get_entities_by_type( set, MBVERTEX, vertices );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (MBEntityHandle)27, vertices.size() );
+  CHECK_EQUAL( (EntityHandle)27, vertices.size() );
 }
 
 void test_pack_sets_of_sets()
 {
-  MBCore moab;
-  MBErrorCode rval;
+  Core moab;
+  ErrorCode rval;
  
     // delete any existing sets
-  MBRange sets;
+  Range sets;
   rval = moab.get_entities_by_type( 0, MBENTITYSET, sets );
   CHECK_ERR(rval);
   if (!sets.empty()) {
@@ -1080,7 +1082,7 @@ void test_pack_sets_of_sets()
  
     // create three sets such that set2 contains set1, and set3 contains
     // both set1 and set2
-  MBEntityHandle set1, set2, set3;
+  EntityHandle set1, set2, set3;
   sets.clear();
   rval = moab.create_meshset( MESHSET_ORDERED, set1 );
   CHECK_ERR(rval);
@@ -1103,26 +1105,26 @@ void test_pack_sets_of_sets()
   sets.clear();
   rval = moab.get_entities_by_type( 0, MBENTITYSET, sets );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (MBEntityHandle)3, sets.size() );
+  CHECK_EQUAL( (EntityHandle)3, sets.size() );
   
     // figure out which is which
   set1 = set2 = set3 = 0;
-  for (MBRange::iterator i = sets.begin(); i != sets.end(); ++i) {
+  for (Range::iterator i = sets.begin(); i != sets.end(); ++i) {
     int count;
     rval = moab.get_number_entities_by_type( *i, MBENTITYSET, count );
     CHECK_ERR(rval);
     CHECK( count >= 0 && count <= 2 );
     switch (count) {
       case 0:
-        CHECK_EQUAL( (MBEntityHandle)0, set1 );
+        CHECK_EQUAL( (EntityHandle)0, set1 );
         set1 = *i;
         break;
       case 1:
-        CHECK_EQUAL( (MBEntityHandle)0, set2 );
+        CHECK_EQUAL( (EntityHandle)0, set2 );
         set2 = *i;
         break;
       case 2:
-        CHECK_EQUAL( (MBEntityHandle)0, set3 );
+        CHECK_EQUAL( (EntityHandle)0, set3 );
         set3 = *i;
         break;
     }
@@ -1131,13 +1133,13 @@ void test_pack_sets_of_sets()
     // check that set2 contains set1
   sets.clear();
   rval = moab.get_entities_by_type( set2, MBENTITYSET, sets );
-  CHECK_EQUAL( (MBEntityHandle)1, sets.size() );
+  CHECK_EQUAL( (EntityHandle)1, sets.size() );
   CHECK_EQUAL( set1, sets.front() );
   
     // check that set3 contains set1 and set2
   sets.clear();
   rval = moab.get_entities_by_type( set3, MBENTITYSET, sets );
-  CHECK_EQUAL( (MBEntityHandle)2, sets.size() );
+  CHECK_EQUAL( (EntityHandle)2, sets.size() );
   if (sets.front() == set1) {
     CHECK_EQUAL( set2, sets.back() );
   }
@@ -1149,11 +1151,11 @@ void test_pack_sets_of_sets()
 
 void test_pack_set_parent_child()
 {
-  MBCore moab;
-  MBErrorCode rval;
+  Core moab;
+  ErrorCode rval;
  
     // delete any existing sets
-  MBRange sets;
+  Range sets;
   rval = moab.get_entities_by_type( 0, MBENTITYSET, sets );
   CHECK_ERR(rval);
   if (!sets.empty()) {
@@ -1164,7 +1166,7 @@ void test_pack_set_parent_child()
     // create three sets such that set3 has a child link to
     // set1, set2 has a parent link to set1, and such that set3 and
     // set2 are parent and child, respectively.
-  MBEntityHandle set1, set2, set3;
+  EntityHandle set1, set2, set3;
   sets.clear();
   rval = moab.create_meshset( MESHSET_ORDERED, set1 );
   CHECK_ERR(rval);
@@ -1205,11 +1207,11 @@ void test_pack_set_parent_child()
   sets.clear();
   rval = moab.get_entities_by_type( 0, MBENTITYSET, sets );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (MBEntityHandle)3, sets.size() );
+  CHECK_EQUAL( (EntityHandle)3, sets.size() );
   
     // look for a set with two child links (set3)
   set1 = set2 = set3 = 0;
-  for (MBRange::iterator i = sets.begin(); i != sets.end(); ++i) {
+  for (Range::iterator i = sets.begin(); i != sets.end(); ++i) {
     int count;
     rval = moab.num_child_meshsets( *i, &count );
     CHECK_ERR(rval);
@@ -1221,10 +1223,10 @@ void test_pack_set_parent_child()
   CHECK( 0 != set3 );
   
     // check set relations
-  std::vector<MBEntityHandle> parents, children;
+  std::vector<EntityHandle> parents, children;
   rval = moab.get_child_meshsets( set3, children );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (std::vector<MBEntityHandle>::size_type)2, children.size() );
+  CHECK_EQUAL( (std::vector<EntityHandle>::size_type)2, children.size() );
   set1 = children[0];
   set2 = children[1];
   rval = moab.get_parent_meshsets( set1, parents );
@@ -1236,23 +1238,23 @@ void test_pack_set_parent_child()
   CHECK( children.empty() );
   rval = moab.get_parent_meshsets( set2, parents );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (std::vector<MBEntityHandle>::size_type)2, parents.size() );
+  CHECK_EQUAL( (std::vector<EntityHandle>::size_type)2, parents.size() );
   CHECK_EQUAL( set1, parents[0] );
   CHECK_EQUAL( set3, parents[1] );
 }
 
 void test_pack_tag_data_sparse()
 {
-  MBRange::iterator i;
+  Range::iterator i;
   int size;
-  MBDataType type;
-  MBTagType storage;
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBErrorCode rval;
+  DataType type;
+  TagType storage;
+  Core moab;
+  Interface& mb = moab;
+  ErrorCode rval;
   
   create_simple_grid( mb, 3 );  
-  MBRange elems;
+  Range elems;
   rval = mb.get_entities_by_type( 0, MBHEX, elems );
   CHECK_ERR(rval);
   CHECK( !elems.empty() );
@@ -1261,7 +1263,7 @@ void test_pack_tag_data_sparse()
     // in the mesh, set the tag value to the floor of the x and y
     // coordinates of the first vertex in the elements connectivity list.
   const char sparse_2_int_tag_name[] = "test tag 1";
-  MBTag sparse_2_int_tag;
+  Tag sparse_2_int_tag;
   rval = mb.tag_create( sparse_2_int_tag_name,
                         2*sizeof(int),
                         MB_TAG_SPARSE,
@@ -1275,7 +1277,7 @@ void test_pack_tag_data_sparse()
     if (skip)
       continue;
     
-    const MBEntityHandle* conn =0;
+    const EntityHandle* conn =0;
     int len;
     rval = mb.get_connectivity( *i, conn, len );
     CHECK_ERR(rval);
@@ -1288,7 +1290,7 @@ void test_pack_tag_data_sparse()
   }
   
     // pack and unpack
-  MBRange ents;
+  Range ents;
   pack_unpack_noremoteh( moab, ents );
   elems.clear();
   rval = mb.get_entities_by_type( 0, MBHEX, elems );
@@ -1311,7 +1313,7 @@ void test_pack_tag_data_sparse()
   CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
   
     // check tag data for sparse_2_int_tag
-  MBRange tagged;
+  Range tagged;
   rval = mb.get_entities_by_type_and_tag( 0, MBHEX, 
                                           &sparse_2_int_tag, 0, 1,
                                           tagged );
@@ -1321,7 +1323,7 @@ void test_pack_tag_data_sparse()
     rval = mb.tag_get_data( sparse_2_int_tag, &*i, 1, intdata );
     CHECK_ERR(rval);
     
-    const MBEntityHandle* conn =0;
+    const EntityHandle* conn =0;
     int len;
     rval = mb.get_connectivity( *i, conn, len );
     CHECK_ERR(rval);
@@ -1337,16 +1339,16 @@ void test_pack_tag_data_sparse()
 
 void test_pack_tag_data_dense()
 {
-  MBRange::iterator i;
+  Range::iterator i;
   int size;
-  MBDataType type;
-  MBTagType storage;
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBErrorCode rval;
+  DataType type;
+  TagType storage;
+  Core moab;
+  Interface& mb = moab;
+  ErrorCode rval;
   
   create_simple_grid( mb, 3 );  
-  MBRange verts;
+  Range verts;
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
   CHECK( !verts.empty() );
@@ -1355,7 +1357,7 @@ void test_pack_tag_data_dense()
     // point value.  For each vertex, store the distance from the origin
     // in this tag.
   const char dense_1_double_tag_name[] = "test tag 2";
-  MBTag dense_1_double_tag;
+  Tag dense_1_double_tag;
   rval = mb.tag_create( dense_1_double_tag_name,
                         sizeof(double),
                         MB_TAG_DENSE,
@@ -1373,7 +1375,7 @@ void test_pack_tag_data_dense()
   }
   
     // pack and unpack
-  MBRange ents;
+  Range ents;
   pack_unpack_noremoteh( moab, ents );
   verts.clear();
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
@@ -1410,16 +1412,16 @@ void test_pack_tag_data_dense()
 
 void test_pack_tag_data_default_value()
 {
-  MBRange::iterator i;
+  Range::iterator i;
   int size;
-  MBDataType type;
-  MBTagType storage;
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBErrorCode rval;
+  DataType type;
+  TagType storage;
+  Core moab;
+  Interface& mb = moab;
+  ErrorCode rval;
   
   create_simple_grid( mb, 3 );  
-  MBRange verts, elems, sets;
+  Range verts, elems, sets;
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
   CHECK( !verts.empty() );
@@ -1430,23 +1432,23 @@ void test_pack_tag_data_default_value()
     // Define a dense, opaque tag with a default value of "DEFLT".
     // Set the tag on one element, one vertex,and one set to "TAGGD".
   const char dense_5_opaque_tag_name[] = "This is intentionally a very long tag name in an attempt to test for an arbitrary limitations on tag name length.";
-  MBTag dense_5_opaque_tag;
+  Tag dense_5_opaque_tag;
   rval = mb.tag_create( dense_5_opaque_tag_name,
                         5,
                         MB_TAG_DENSE,
                         dense_5_opaque_tag,
                         "DEFLT" );
   CHECK_ERR(rval);
-  MBEntityHandle set;
+  EntityHandle set;
   rval = mb.create_meshset( MESHSET_SET, set );
   CHECK_ERR(rval);
-  const MBEntityHandle handles[3] = { verts.front(), elems.front(), set };
+  const EntityHandle handles[3] = { verts.front(), elems.front(), set };
   const char data[] = "TAGGDTAGGDTAGGD";
   rval = mb.tag_set_data( dense_5_opaque_tag, handles, 3, data );
   CHECK_ERR(rval);
   
     // pack and unpack
-  MBRange ents;
+  Range ents;
   pack_unpack_noremoteh( moab, ents );
   elems.clear();
   verts.clear();
@@ -1507,21 +1509,21 @@ void test_pack_tag_data_default_value()
 
 void test_pack_bit_tag_data()
 {
-  MBRange::iterator i;
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBErrorCode rval;
+  Range::iterator i;
+  Core moab;
+  Interface& mb = moab;
+  ErrorCode rval;
   
     // create some mesh
   create_simple_grid( mb, 3 );  
-  MBRange verts;
+  Range verts;
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
   CHECK( !verts.empty() );
  
     // Create a bit tag
   const char tag_name[] = "test bit";
-  MBTag tag;
+  Tag tag;
   rval = mb.tag_create( tag_name, 3, MB_TAG_BIT, tag, 0 );
   CHECK_ERR(rval);
   
@@ -1541,7 +1543,7 @@ void test_pack_bit_tag_data()
   }
   
     // pack and unpack
-  MBRange ents;
+  Range ents;
   pack_unpack_noremoteh( moab, ents );
   verts.clear();
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
@@ -1556,12 +1558,12 @@ void test_pack_bit_tag_data()
   CHECK_ERR(rval);
   CHECK_EQUAL( 3, size );
   
-  MBTagType storage;
+  TagType storage;
   rval = mb.tag_get_type( tag, storage );
   CHECK_ERR(rval);
   CHECK_EQUAL( MB_TAG_BIT, storage );
   
-  MBDataType type;
+  DataType type;
   rval = mb.tag_get_data_type( tag, type );
   CHECK_EQUAL( MB_TYPE_BIT, type );
 
@@ -1586,14 +1588,14 @@ void test_pack_bit_tag_data()
 
 void test_pack_variable_length_tag()
 {
-  MBRange::iterator i;
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBErrorCode rval;
+  Range::iterator i;
+  Core moab;
+  Interface& mb = moab;
+  ErrorCode rval;
   
     // create some mesh
   create_simple_grid( mb, 3 );  
-  MBRange verts;
+  Range verts;
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
   CHECK( !verts.empty() );
@@ -1601,7 +1603,7 @@ void test_pack_variable_length_tag()
     // create a variable-length tag 
   const char* tag_name = "var_int_tag";
   const int default_val[] = { 0xBEEF, 0xFEED, 0xDEAD, 0xBAD, 0xBEAD };
-  MBTag tag;
+  Tag tag;
   rval = mb.tag_create_variable_length( tag_name, MB_TAG_DENSE, MB_TYPE_INTEGER,
                                         tag, default_val, sizeof(default_val) );
   CHECK_ERR(rval);
@@ -1636,12 +1638,12 @@ void test_pack_variable_length_tag()
   rval = mb.tag_get_size( tag, size );
   CHECK_EQUAL( MB_VARIABLE_DATA_LENGTH, rval );
   
-  MBTagType storage;
+  TagType storage;
   rval = mb.tag_get_type( tag, storage );
   CHECK_ERR(rval);
   CHECK_EQUAL( MB_TAG_DENSE, storage );
   
-  MBDataType type;
+  DataType type;
   rval = mb.tag_get_data_type( tag, type );
   CHECK_EQUAL( MB_TYPE_INTEGER, type );
 
@@ -1679,14 +1681,14 @@ void test_pack_variable_length_tag()
 
 void test_pack_tag_handle_data()
 {
-  MBRange::iterator i;
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBErrorCode rval;
+  Range::iterator i;
+  Core moab;
+  Interface& mb = moab;
+  ErrorCode rval;
   
     // create some mesh
   create_simple_grid( mb, 3 );  
-  MBRange verts, elems;
+  Range verts, elems;
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
   CHECK( !verts.empty() );
@@ -1696,16 +1698,16 @@ void test_pack_tag_handle_data()
  
     // create a tag
   const char* tag_name = "entity tag";
-  MBEntityHandle default_val[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-  MBTag tag;
-  rval = mb.tag_create( tag_name, 8*sizeof(MBEntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, tag, &default_val );
+  EntityHandle default_val[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  Tag tag;
+  rval = mb.tag_create( tag_name, 8*sizeof(EntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, tag, &default_val );
   CHECK_ERR(rval);
   
     // Store on each vertex the handles of the adjacent hexes, padded
     // with NULL handles.
-  MBEntityHandle tagdata[8*8];
+  EntityHandle tagdata[8*8];
   for (i = elems.begin(); i != elems.end(); ++i) {
-    const MBEntityHandle* conn;
+    const EntityHandle* conn;
     int len;
     rval = mb.get_connectivity( *i, conn, len );
     CHECK_ERR(rval);
@@ -1715,7 +1717,7 @@ void test_pack_tag_handle_data()
     CHECK_ERR(rval);
     
     for (int j = 0; j < 8; ++j) {
-      MBEntityHandle* vdata = tagdata + 8*j;
+      EntityHandle* vdata = tagdata + 8*j;
       int idx = 0;
       while (vdata[idx]) {
         ++idx;
@@ -1741,26 +1743,26 @@ void test_pack_tag_handle_data()
   int size;
   rval = mb.tag_get_size( tag, size );
   CHECK_ERR(rval);
-  CHECK_EQUAL( 8*sizeof(MBEntityHandle), (size_t)size );
+  CHECK_EQUAL( 8*sizeof(EntityHandle), (size_t)size );
   
-  MBTagType storage;
+  TagType storage;
   rval = mb.tag_get_type( tag, storage );
   CHECK_ERR(rval);
   CHECK_EQUAL( MB_TAG_SPARSE, storage );
   
-  MBDataType type;
+  DataType type;
   rval = mb.tag_get_data_type( tag, type );
   CHECK_EQUAL( MB_TYPE_HANDLE, type );
 
   rval = mb.tag_get_default_value( tag, tagdata );
   CHECK_ERR(rval);
   for (int j = 0; j < 8; ++j) {
-    CHECK_EQUAL( (MBEntityHandle)0, tagdata[j] );
+    CHECK_EQUAL( (EntityHandle)0, tagdata[j] );
   }
   
     // check tag values
   for (i = elems.begin(); i != elems.end(); ++i) {
-    const MBEntityHandle* conn;
+    const EntityHandle* conn;
     int len;
     rval = mb.get_connectivity( *i, conn, len );
     CHECK_ERR(rval);
@@ -1770,7 +1772,7 @@ void test_pack_tag_handle_data()
     CHECK_ERR(rval);
     
     for (int j = 0; j < 8; ++j) {
-      MBEntityHandle* vdata = tagdata + 8*j;
+      EntityHandle* vdata = tagdata + 8*j;
       int idx = 0;
       while (vdata[idx] != *i) {
         ++idx;
@@ -1787,20 +1789,20 @@ void test_pack_tag_handle_data()
     rval = mb.tag_get_data( tag, &*i, 1, tagdata );
     CHECK_ERR(rval);
     for (int j = 0; j < 8; ++j) {
-      CHECK_EQUAL( (MBEntityHandle)0, tagdata[j] );
+      CHECK_EQUAL( (EntityHandle)0, tagdata[j] );
     }
   }
 }
   
-MBErrorCode get_entities(MBInterface *mb,
-                         std::vector<MBEntityHandle> &ent_verts, 
+ErrorCode get_entities(Interface *mb,
+                         std::vector<EntityHandle> &ent_verts, 
                          int verts_per_entity, int dim, 
-                         MBRange &ents) 
+                         Range &ents) 
 {
   assert(!(ent_verts.size()%verts_per_entity));
   unsigned int num_ents = ent_verts.size() / verts_per_entity;
-  MBRange dum_ents;
-  MBErrorCode result;
+  Range dum_ents;
+  ErrorCode result;
   for (unsigned int i = 0; i < num_ents; i++) {
     result = mb->get_adjacencies(&ent_verts[verts_per_entity*i], verts_per_entity,
                                 dim, true, dum_ents);
@@ -1814,22 +1816,22 @@ MBErrorCode get_entities(MBInterface *mb,
   
 void test_pack_shared_entities_2d()
 {
-  MBCore moab[4];
-  MBParallelComm *pc[4];
+  Core moab[4];
+  ParallelComm *pc[4];
   for (unsigned int i = 0; i < 4; i++) {
-    pc[i] = new MBParallelComm(&moab[i]);
+    pc[i] = new ParallelComm(&moab[i]);
     pc[i]->set_rank(i);
   }
 
-  MBRange verts[4], quads[4];
-  MBErrorCode rval = create_shared_grid_2d(pc, verts, quads);
+  Range verts[4], quads[4];
+  ErrorCode rval = create_shared_grid_2d(pc, verts, quads);
 
     // exchange interface cells
-  rval = MBParallelComm::exchange_ghost_cells(pc, 4, -1, -1, 0, true);
+  rval = ParallelComm::exchange_ghost_cells(pc, 4, -1, -1, 0, true);
   CHECK_ERR(rval);
   
     // now 1 layer of hex ghosts
-  rval = MBParallelComm::exchange_ghost_cells(pc, 4, 2, 0, 1, true);
+  rval = ParallelComm::exchange_ghost_cells(pc, 4, 2, 0, 1, true);
   CHECK_ERR(rval);
 
   for (unsigned int i = 0; i < 4; i++)
@@ -1838,10 +1840,10 @@ void test_pack_shared_entities_2d()
 
 void test_pack_shared_entities_3d()
 {
-  MBCore moab[4];
-  MBParallelComm *pc[4];
+  Core moab[4];
+  ParallelComm *pc[4];
   for (unsigned int i = 0; i < 4; i++) {
-    pc[i] = new MBParallelComm(&moab[i]);
+    pc[i] = new ParallelComm(&moab[i]);
     pc[i]->set_rank(i);
     for (unsigned int j = 0; j < 4; j++) {
       if (j == i) continue;
@@ -1849,15 +1851,15 @@ void test_pack_shared_entities_3d()
     }
   }
 
-  MBRange verts[4], hexes[4];
-  MBErrorCode rval = create_shared_grid_3d(pc, verts, hexes);
+  Range verts[4], hexes[4];
+  ErrorCode rval = create_shared_grid_3d(pc, verts, hexes);
 
     // exchange interface cells
-  rval = MBParallelComm::exchange_ghost_cells(pc, 4, -1, -1, 0, true);
+  rval = ParallelComm::exchange_ghost_cells(pc, 4, -1, -1, 0, true);
   CHECK_ERR(rval);
   
     // now 1 layer of hex ghosts
-  rval = MBParallelComm::exchange_ghost_cells(pc, 4, 3, 0, 1, true);
+  rval = ParallelComm::exchange_ghost_cells(pc, 4, 3, 0, 1, true);
   CHECK_ERR(rval);
 
   for (unsigned int i = 0; i < 4; i++)
@@ -1866,15 +1868,15 @@ void test_pack_shared_entities_3d()
 
 void test_filter_pstatus()
 {
-  MBRange::iterator i;
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBErrorCode rval;
+  Range::iterator i;
+  Core moab;
+  Interface& mb = moab;
+  ErrorCode rval;
   
     // create some mesh
   create_simple_grid( mb, 3 );  
-  std::vector<MBEntityHandle> verts;
-  MBRange dum_vertsr, vertsr;
+  std::vector<EntityHandle> verts;
+  Range dum_vertsr, vertsr;
   rval = mb.get_entities_by_type( 0, MBVERTEX, dum_vertsr );
   CHECK_ERR(rval);
   vertsr.insert(dum_vertsr[0], dum_vertsr[8]);
@@ -1882,7 +1884,7 @@ void test_filter_pstatus()
 
   CHECK( !verts.empty() );
  
-  MBParallelComm *pcomm = new MBParallelComm( &moab );
+  ParallelComm *pcomm = new ParallelComm( &moab );
 
   std::vector<int> procs(70, -1);
   for (unsigned int i = 0; i < 6; i++) procs[i] = i;
@@ -1919,7 +1921,7 @@ void test_filter_pstatus()
   CHECK_ERR(rval);
   
 
-  MBRange tmp_range = vertsr;
+  Range tmp_range = vertsr;
 
     // interface ents
   rval = pcomm->filter_pstatus(tmp_range, PSTATUS_INTERFACE, PSTATUS_AND);

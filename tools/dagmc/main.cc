@@ -1,7 +1,7 @@
 #include "GeometryQueryTool.hpp"
 #include "InitCGMA.hpp"
 #include "CGMApp.hpp"
-#include "MBCore.hpp"
+#include "moab/Core.hpp"
 #include "cubfile.h"
 
 #define GF_CUBIT_FILE_TYPE    "CUBIT"
@@ -10,6 +10,8 @@
 #define GF_ACIS_TXT_FILE_TYPE "ACIS_SAT"
 #define GF_ACIS_BIN_FILE_TYPE "ACIS_SAB"
 #define GF_OCC_BREP_FILE_TYPE "OCC"
+
+using namespace moab;
 
 /* Get the type of a file.
    Return value is one of the above constants
@@ -127,9 +129,9 @@ int main( int argc, char* argv[] )
 	  actuate_attribs?"yes":"no",dist_tol,norm_tol,len_tol);
       
     // Intitalize MOAB
-  MBCore moab;
-  MBInterface* iface = &moab;
-  MBErrorCode rval;
+  Core moab;
+  Interface* iface = &moab;
+  ErrorCode rval;
 
 // If CUB file, extract ACIS geometry
   if (!strcmp( file_type, "CUBIT" )) {

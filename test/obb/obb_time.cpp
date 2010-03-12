@@ -1,7 +1,7 @@
-#include "MBCore.hpp"
-#include "MBCartVect.hpp"
-#include "MBOrientedBox.hpp"
-#include "MBOrientedBoxTreeTool.hpp"
+#include "moab/Core.hpp"
+#include "moab/CartVect.hpp"
+#include "OrientedBox.hpp"
+#include "moab/OrientedBoxTreeTool.hpp"
 #include <stdlib.h>
 #include <iostream>
 #include <cmath>
@@ -11,6 +11,8 @@
 
 const int NUM_RAYS = 40000;
 const int NUM_XSCT = 20000;
+
+using namespace moab;
 
 static void usage( )
 {
@@ -26,10 +28,10 @@ static void usage( )
   exit(1);
 }
 
-void generate_ray( const MBCartVect& sphere_center,
+void generate_ray( const CartVect& sphere_center,
                    double sphere_radius,
-                   MBCartVect& point,
-                   MBCartVect& dir )
+                   CartVect& point,
+                   CartVect& dir )
 {
   const int H = RAND_MAX/2;
   point[0] = (double)rand()/H - 1;
@@ -45,21 +47,21 @@ void generate_ray( const MBCartVect& sphere_center,
   point += sphere_center;
 }
 
-MBErrorCode read_tree( MBInterface* instance,
+ErrorCode read_tree( Interface* instance,
                        const char* filename,
-                       MBEntityHandle& tree_root_out )
+                       EntityHandle& tree_root_out )
 {
-  MBErrorCode rval = instance->load_mesh( filename );
+  ErrorCode rval = instance->load_mesh( filename );
   if (MB_SUCCESS != rval)
     return rval;
   
-  MBTag tag;
+  Tag tag;
   rval = instance->tag_get_handle( "OBB_ROOT", tag );
   if (MB_SUCCESS != rval)
     return rval;
   
   int size;
-  MBDataType type;
+  DataType type;
   rval = instance->tag_get_size( tag, size );
   if (MB_SUCCESS != rval)
     return rval;
@@ -67,7 +69,7 @@ MBErrorCode read_tree( MBInterface* instance,
   if (MB_SUCCESS != rval)
     return rval;
 
-  if (size != sizeof(MBEntityHandle) || type != MB_TYPE_HANDLE)
+  if (size != sizeof(EntityHandle) || type != MB_TYPE_HANDLE)
     return MB_FAILURE;
   
   return instance->tag_get_data( tag, 0, 0, &tree_root_out );
@@ -149,33 +151,33 @@ int main( int argc, char* argv[] )
     usage();
   }
     
-  MBCore instance;
-  MBInterface* iface = &instance;
-  MBEntityHandle root;
-  MBErrorCode rval = read_tree( iface, filename, root );
+  Core instance;
+  Interface* iface = &instance;
+  EntityHandle root;
+  ErrorCode rval = read_tree( iface, filename, root );
   if (MB_SUCCESS != rval) {
     std::cerr << "Failed to read \"" <<filename<<'"'<<std::endl;
     return 2;
   }
   
-  MBOrientedBoxTreeTool tool(iface);
-  MBOrientedBox box;
+  OrientedBoxTreeTool tool(iface);
+  OrientedBox box;
   rval = tool.box( root, box );
   if (MB_SUCCESS != rval) {
     std::cerr << "Corrupt tree.  Cannot get box for root node." << std::endl;
     return 3;
   }
 
-  MBOrientedBoxTreeTool::TrvStats* stats = NULL;
+  OrientedBoxTreeTool::TrvStats* stats = NULL;
   if( do_trv_stats ){
-    stats = new MBOrientedBoxTreeTool::TrvStats;
+    stats = new OrientedBoxTreeTool::TrvStats;
   }
   
   const unsigned cached = 1000;
   std::vector<double> intersections;
-  std::vector<MBEntityHandle> sets, facets;
-  MBCartVect point, dir;
-  std::vector<MBCartVect> randrays;
+  std::vector<EntityHandle> sets, facets;
+  CartVect point, dir;
+  std::vector<CartVect> randrays;
   randrays.reserve( cached );
   int cached_idx = 0;
   
@@ -193,7 +195,7 @@ int main( int argc, char* argv[] )
       break;
     
     ++rays;
-    MBCartVect point, dir;
+    CartVect point, dir;
     if (randrays.size() < cached) {
       generate_ray( box.center, box.outer_radius(), point, dir );
       ++gen;

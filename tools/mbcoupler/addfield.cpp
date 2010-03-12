@@ -1,9 +1,11 @@
 #include <iostream>
-#include "MBCore.hpp"
+#include "moab/Core.hpp"
 #include <math.h>
 #include <cstdlib>
 using namespace std;
 
+
+namespace moab {
 
 //make a nice picture. tweak here
 //217: x,y -> [-8, 8] /// z -> [-65, 65]
@@ -22,8 +24,8 @@ double physField(double x, double y, double z, double factor){
 
 
 //get some sort of element center
-void getHexPos(MBInterface *mbi, MBEntityHandle *hex, double &x, double &y, double &z){
-  std::vector<MBEntityHandle> connect;
+void getHexPos(Interface *mbi, EntityHandle *hex, double &x, double &y, double &z){
+  std::vector<EntityHandle> connect;
  
   mbi->get_connectivity(hex, 1, connect);
   double pos[3]={0,0,0};
@@ -31,7 +33,7 @@ void getHexPos(MBInterface *mbi, MBEntityHandle *hex, double &x, double &y, doub
   int numVerts = connect.size();
   for(int i=0; i<numVerts; i++){
     double tempPos[3];
-    MBEntityHandle vert(connect[i]);
+    EntityHandle vert(connect[i]);
 
     mbi->get_coords(&vert, 1, tempPos);
 
@@ -46,20 +48,20 @@ void getHexPos(MBInterface *mbi, MBEntityHandle *hex, double &x, double &y, doub
 }
 
 
-void putElementField(MBInterface *mbi, char *tagname, double factor){
-  MBRange hexes;
+void putElementField(Interface *mbi, char *tagname, double factor){
+  Range hexes;
 
   mbi->get_entities_by_type(0, MBHEX, hexes);
 
   const double defVal = 0.;
-  MBTag fieldTag;
+  Tag fieldTag;
   mbi->tag_create(tagname, sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, fieldTag, &defVal);
  
   int numHexes = hexes.size();
 
   for(int i=0; i<numHexes; i++){
       //cout << hexes[i] << endl;
-    MBEntityHandle hex = hexes[i];
+    EntityHandle hex = hexes[i];
 
     double x,y,z;
     getHexPos(mbi, &hex, x,y,z);
@@ -72,18 +74,18 @@ void putElementField(MBInterface *mbi, char *tagname, double factor){
 }
 
 
-void putVertexField(MBInterface *mbi, char *tagname, double factor){
-  MBRange verts;
+void putVertexField(Interface *mbi, char *tagname, double factor){
+  Range verts;
 
   mbi->get_entities_by_type(0, MBVERTEX, verts);
 
   const double defVal = 0.;
-  MBTag fieldTag;
+  Tag fieldTag;
   mbi->tag_create(tagname, sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, fieldTag, &defVal);
  
   int numVerts = verts.size();
   for(int i=0; i<numVerts; i++){
-    MBEntityHandle vert = verts[i]; //?
+    EntityHandle vert = verts[i]; //?
 
     double vertPos[3];
     mbi->get_coords(&vert, 1, vertPos);
@@ -100,7 +102,7 @@ void putVertexField(MBInterface *mbi, char *tagname, double factor){
 
 //Using moab instead of imesh for dev speed
 int main(int argc, char **argv){
-  MBInterface *mbi = new MBCore();
+  Interface *mbi = new Core();
 
   if (argc < 3){
     cout << "Usage: " << argv[0] << " <infile> <outfile> [factor]\n"
@@ -116,7 +118,7 @@ int main(int argc, char **argv){
   putVertexField(mbi, "vertex_field", factor);
   putElementField(mbi, "element_field", factor);
 
-  MBErrorCode result = mbi->write_mesh(argv[2]);
+  ErrorCode result = mbi->write_mesh(argv[2]);
   if (MB_SUCCESS == result) cout << "wrote " << argv[2] << endl;
   else cout << "Failed to write " << argv[2] << endl;
 
@@ -128,3 +130,6 @@ int main(int argc, char **argv){
 
   return 1;
 }
+
+} // namespace moab
+

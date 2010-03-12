@@ -23,13 +23,15 @@
 
 #include <string>
 #include <vector>
-#include "MBTypes.h"
+#include "moab/Types.hpp"
+
+namespace moab {
 
 /**\brief Parse options string passed to file IO routines
  *
  * This is a utility class used by file-IO-related code to 
- * parse the options string passed to MBCore::load_file and
- * MBCore::write_file
+ * parse the options string passed to Core::load_file and
+ * Core::write_file
  */
 class FileOptions {
 public:
@@ -55,7 +57,7 @@ public:
    *        - MB_TYPE_OUT_OF_RANGE if options is found, but has value
    *        - MB_ENTITY_NOT_FOUND if option is not found.
    */
-  MBErrorCode get_null_option( const char* name ) const;
+  ErrorCode get_null_option( const char* name ) const;
   
   /**\brief Check for option with an integer value.
    *
@@ -66,7 +68,7 @@ public:
    *        - MB_TYPE_OUT_OF_RANGE if options is found, but does not have an integer value
    *        - MB_ENTITY_NOT_FOUND if option is not found.
    */
-  MBErrorCode get_int_option( const char* name, int& value ) const;
+  ErrorCode get_int_option( const char* name, int& value ) const;
   
   /**\brief Check for option with a double value.
    *
@@ -77,7 +79,7 @@ public:
    *        - MB_TYPE_OUT_OF_RANGE if options is found, but does not have a double value
    *        - MB_ENTITY_NOT_FOUND if option is not found.
    */
-  MBErrorCode get_real_option( const char* name, double& value ) const;
+  ErrorCode get_real_option( const char* name, double& value ) const;
   
   /**\brief Check for option with any value.
    *
@@ -88,7 +90,7 @@ public:
    *        - MB_TYPE_OUT_OF_RANGE if options is found, but does not have a value
    *        - MB_ENTITY_NOT_FOUND if option is not found.
    */
-  MBErrorCode get_str_option( const char* name, std::string& value ) const;
+  ErrorCode get_str_option( const char* name, std::string& value ) const;
   
   /**\brief Check for option 
    *
@@ -97,7 +99,7 @@ public:
    *\param value The option value, or an empty string if no value.
    *\return MB_SUCCESS or MB_ENTITY_NOT_FOUND
    */
-  MBErrorCode get_option( const char* name, std::string& value ) const;
+  ErrorCode get_option( const char* name, std::string& value ) const;
   
   /**\brief Check the string value of an option
    *
@@ -111,7 +113,7 @@ public:
    *        MB_ENTITY_NOT_FOUND if the option was not specified
    *        MB_FAILURE if the option value is not in the input <code>values</code> array.
    */
-  MBErrorCode match_option( const char* name, const char* const* values, int& index ) const;
+  ErrorCode match_option( const char* name, const char* const* values, int& index ) const;
   
   /**\brief Check if an option matches a string value
    *
@@ -122,7 +124,7 @@ public:
    *        MB_ENTITY_NOT_FOUND if the option was not specified
    *        MB_FAILURE if the option value doesn't match the passed string/
    */
-  MBErrorCode match_option( const char* name, const char* value ) const;
+  ErrorCode match_option( const char* name, const char* value ) const;
   
   /**\brief Check for option for which the value is a list of ints
    *
@@ -137,7 +139,7 @@ public:
    *        - MB_TYPE_OUT_OF_RANGE if options is found, but does not contain an ID list
    *        - MB_ENTITY_NOT_FOUND if option is not found.
    */
-  MBErrorCode get_ints_option( const char* name, std::vector<int>& values) const;
+  ErrorCode get_ints_option( const char* name, std::vector<int>& values) const;
   
   /** number of options */
   inline unsigned size() const 
@@ -154,7 +156,7 @@ public:
   bool all_seen() const;
   
   /** Get first unseen option */
-  MBErrorCode get_unseen_option( std::string& value ) const;
+  ErrorCode get_unseen_option( std::string& value ) const;
   
 private:
   
@@ -165,7 +167,7 @@ private:
    *\param value The option value, or an empty string if no value.
    *\return MB_SUCCESS or MB_ENTITY_NOT_FOUND
    */
-  MBErrorCode get_option( const char* name, const char*& value) const;
+  ErrorCode get_option( const char* name, const char*& value) const;
 
   char* mData;
   std::vector<const char*> mOptions;
@@ -174,6 +176,8 @@ private:
     /** Case-insensitive compare of name with option value. */
   static bool compare( const char* name, const char* option );
 };
+  
+} // namespace moab
 
 #endif
 

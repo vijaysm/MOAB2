@@ -7,23 +7,23 @@
 
 #include "mcnpmit.hpp"
 
-#include "MBCartVect.hpp"
-#include "MBCore.hpp"
-#include "MBTagConventions.hpp"
-#include "MBAdaptiveKDTree.hpp"
-#include "MBGeomUtil.hpp"
-#include "MBElemUtil.hpp"
+#include "moab/CartVect.hpp"
+#include "moab/Core.hpp"
+#include "moab/MBTagConventions.hpp"
+#include "moab/AdaptiveKDTree.hpp"
+#include "moab/GeomUtil.hpp"
+#include "ElemUtil.hpp"
 
 #define MBI mb_instance()
 
 McnpData* mc_instance();
-MBInterface* mb_instance();
+moab::Interface* mb_instance();
 MCNPError read_files(int, char**);
 MCNPError next_double(std::string, double&, int&);
 MCNPError next_int(std::string, int&, int&);
 
 MCNPError result;
-MBTag     coord_tag, rotation_tag, cfd_heating_tag, cfd_error_tag;
+moab::Tag     coord_tag, rotation_tag, cfd_heating_tag, cfd_error_tag;
 
 std::string h5m_filename;
 std::string CAD_filename;
@@ -58,19 +58,19 @@ int main(int argc, char **argv) {
   load_time = clock() - start_time;
 
   // Make the KD-Tree
-  MBErrorCode                MBresult;
-  MBAdaptiveKDTree           kdtree(MBI);
-  MBEntityHandle             root;
-  MBAdaptiveKDTree::Settings settings;
-  settings.candidatePlaneSet = MBAdaptiveKDTree::SUBDIVISION;
+  moab::ErrorCode                MBresult;
+  moab::AdaptiveKDTree           kdtree(MBI);
+  moab::EntityHandle             root;
+  moab::AdaptiveKDTree::Settings settings;
+  settings.candidatePlaneSet = moab::AdaptiveKDTree::SUBDIVISION;
 
-  MBI->tag_create("CoordTag", sizeof(int), MB_TAG_DENSE, coord_tag, 0);
-  MBI->tag_create("RotationTag", 16*sizeof(double), MB_TAG_DENSE, rotation_tag, 0);
+  MBI->tag_create("CoordTag", sizeof(int), moab::MB_TAG_DENSE, coord_tag, 0);
+  MBI->tag_create("RotationTag", 16*sizeof(double), moab::MB_TAG_DENSE, rotation_tag, 0);
 
   if (skip_build) {
     MBresult = MBI->load_mesh(h5m_filename.c_str());
 
-    if (MB_SUCCESS == MBresult) {
+    if (moab::MB_SUCCESS == MBresult) {
       std::cout << std::endl << "Read in mesh from h5m file." << std::endl << std::endl;
       std::cout << "Querying mesh file..." << std::endl;
     }
@@ -78,12 +78,12 @@ int main(int argc, char **argv) {
       std::cout << "Failure reading h5m file!" << std::endl;
       std::cerr  << "Error code: " << MBI->get_error_string(MBresult) << " (" << MBresult << ")" << std::endl;
       std::string message;
-      if (MB_SUCCESS == MBI->get_last_error(message) && !message.empty())
+      if (moab::MB_SUCCESS == MBI->get_last_error(message) && !message.empty())
 	std::cerr << "Error message: " << message << std::endl;
       return 1;
     }
 
-    MBRange tmprange;
+    moab::Range tmprange;
     kdtree.find_all_trees( tmprange );
     root = tmprange[0];
     
@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
   else {
     std::cout << "Building KD-Tree..." << std::endl;      
     MBresult = kdtree.build_tree( MCNP -> elem_handles, root, &settings);
-    if (MBresult == MB_SUCCESS) {
+    if (MBresult == moab::MB_SUCCESS) {
 
       MBI->tag_set_data(coord_tag, &root, 1, &(MCNP->coord_system));
       MBI->tag_set_data(rotation_tag, &root, 1, &(MCNP->rotation_matrix));
@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
       std::cout << "Error building KD-Tree!" << std::endl << std::endl;
       std::cerr  << "Error code: " << MBI->get_error_string(MBresult) << " (" << MBresult << ")" << std::endl;
       std::string message;
-      if (MB_SUCCESS == MBI->get_last_error(message) && !message.empty())
+      if (moab::MB_SUCCESS == MBI->get_last_error(message) && !message.empty())
 	std::cerr << "Error message: " << message << std::endl;
       return 1;
       return 1;
@@ -137,8 +137,8 @@ int main(int argc, char **argv) {
 
   // Used only when reading a mesh file to get vertex info
   double *cfd_coords;
-  MBRange::iterator cfd_iter;
-  MBEntityHandle meshset;
+  moab::Range::iterator cfd_iter;
+  moab::EntityHandle meshset;
 
   if (read_qnv) {      
     cadfile.open( CAD_filename.c_str() );
@@ -150,19 +150,19 @@ int main(int argc, char **argv) {
 
     meshset = 0;
     MBresult = MBI->load_file( CAD_filename.c_str(), &meshset );
-    assert( MB_SUCCESS == MBresult );
+    assert( moab::MB_SUCCESS == MBresult );
     assert( 0 != meshset );
 
-    MBRange cfd_verts;
-    MBresult = MBI->get_entities_by_type( meshset, MBVERTEX, cfd_verts, true);
+    moab::Range cfd_verts;
+    MBresult = MBI->get_entities_by_type( meshset, moab::MBVERTEX, cfd_verts, true);
     num_pts = cfd_verts.size();
 
     cfd_coords = new double [ 3 * num_pts ];
     MBresult = MBI->get_coords( cfd_verts , cfd_coords );  
 
     cfd_iter = cfd_verts.begin();
-    MBresult = MBI->tag_create("heating_tag", sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, cfd_heating_tag, 0); 
-    MBresult = MBI->tag_create("error_tag", sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, cfd_error_tag, 0);
+    MBresult = MBI->tag_create("heating_tag", sizeof(double), moab::MB_TAG_DENSE, moab::MB_TYPE_DOUBLE, cfd_heating_tag, 0); 
+    MBresult = MBI->tag_create("error_tag", sizeof(double), moab::MB_TAG_DENSE, moab::MB_TYPE_DOUBLE, cfd_error_tag, 0);
 
     std::cout << std::endl << "Read in mesh with query points." << std::endl << std::endl;
 
@@ -174,20 +174,20 @@ int main(int argc, char **argv) {
   double     taldata;
   double     errdata;
 
-  MBCartVect testvc;
+  moab::CartVect testvc;
 
   bool found = false;
 
-  MBAdaptiveKDTreeIter    treeiter;
+  moab::AdaptiveKDTreeIter    treeiter;
   kdtree.get_tree_iterator( root, treeiter );
 
   // MBRange verts;
-  std::vector<MBEntityHandle> verts;
-  MBRange range;
-  MBCartVect box_max, box_min;
+  std::vector<moab::EntityHandle> verts;
+  moab::Range range;
+  moab::CartVect box_max, box_min;
 
-  MBCartVect hexverts[8];
-  MBCartVect tmp_cartvect;
+  moab::CartVect hexverts[8];
+  moab::CartVect tmp_cartvect;
   std::vector<double> coords;
 
   double tal_sum     = 0.0,
@@ -229,7 +229,7 @@ int main(int argc, char **argv) {
 
     // Find the leaf containing the point
     MBresult = kdtree.leaf_containing_point( root, transformed_pt, treeiter);
-    if (MB_SUCCESS != MBresult) {
+    if (moab::MB_SUCCESS != MBresult) {
       double x, y, z;
       if (CARTESIAN == coord_sys) {
         x = testvc[0];
@@ -242,7 +242,7 @@ int main(int argc, char **argv) {
         z = testvc[1];
       } 
       else {
-        assert(MB_SUCCESS == MBresult);
+        assert(moab::MB_SUCCESS == MBresult);
       }
       std::cout << "No leaf found, MCNP coord xyz=" << x << " " << y << " " << z << std::endl;
       cfd_iter++;
@@ -250,23 +250,23 @@ int main(int argc, char **argv) {
     }
 
     range.clear();
-    MBresult = MBI -> get_entities_by_type( treeiter.handle(), MBHEX, range );
-    assert(MBresult == MB_SUCCESS);
+    MBresult = MBI -> get_entities_by_type( treeiter.handle(), moab::MBHEX, range );
+    assert(MBresult == moab::MB_SUCCESS);
 
     // davg += (double) range.size();
     // if (range.size() > nmax) nmax = range.size();
     // if (range.size() < nmin) nmin = range.size();
 
-    for (MBRange::iterator rit = range.begin(); rit != range.end(); rit++) {
+    for (moab::Range::iterator rit = range.begin(); rit != range.end(); rit++) {
       verts.clear();
-      const MBEntityHandle *connect;
+      const moab::EntityHandle *connect;
       int num_connect;
       MBresult = MBI -> get_connectivity( *rit, connect, num_connect, true); 
-      assert(MBresult == MB_SUCCESS);
+      assert(MBresult == moab::MB_SUCCESS);
 
       coords.resize(3*num_connect);
       MBresult = MBI -> get_coords( connect, num_connect, &coords[0]);
-      assert(MBresult == MB_SUCCESS);
+      assert(MBresult == moab::MB_SUCCESS);
 
       for (unsigned int j = 0; j < (unsigned int) num_connect; j++) {
 	  hexverts[j][0] = coords[3*j];
@@ -274,7 +274,7 @@ int main(int argc, char **argv) {
 	  hexverts[j][2] = coords[3*j+2];
       }
 
-      if (MBElemUtil::point_in_trilinear_hex(hexverts, testvc, 1.e-6)) {
+      if (moab::ElemUtil::point_in_trilinear_hex(hexverts, testvc, 1.e-6)) {
     	MBresult = MBI -> tag_get_data( MCNP->tally_tag, &(*rit), 1, &taldata);
 	MBresult = MBI -> tag_get_data( MCNP->relerr_tag, &(*rit), 1, &errdata);
 
@@ -449,8 +449,8 @@ McnpData* mc_instance()
   return &inst;
 }
 
-MBInterface* mb_instance()
+moab::Interface* mb_instance()
 {
-  static MBCore inst;
+  static moab::Core inst;
   return &inst;
 }

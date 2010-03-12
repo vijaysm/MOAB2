@@ -33,6 +33,8 @@ extern "C" int getrusage(int, struct rusage *);
 #include "CubitNode.hpp"
 #include "NodeHex.hpp"
 
+using namespace moab;
+
 const double LENGTH = 1.0;
 
 extern "C" 

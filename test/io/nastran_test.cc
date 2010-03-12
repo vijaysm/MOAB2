@@ -1,13 +1,15 @@
 #include "TestUtil.hpp"
-#include "MBCore.hpp"
-#include "MBTagConventions.hpp"
-#include "MBCN.hpp"
+#include "moab/Core.hpp"
+#include "moab/MBTagConventions.hpp"
+#include "moab/MBCN.hpp"
 #define IS_BUILDING_MB
 #include "ReadNASTRAN.hpp"
-#include "MBRange.hpp"
+#include "moab/Range.hpp"
 #include "FileOptions.hpp"
 #include <math.h>
 #include <algorithm>
+
+using namespace moab;
 
 #ifdef SRCDIR
 static const char example[] = STRINGIFY(SRCDIR) "/test.nas";
@@ -15,7 +17,7 @@ static const char example[] = STRINGIFY(SRCDIR) "/test.nas";
 static const char example[] = "test.nas";
 #endif
 
-void read_file( MBInterface& moab, const char* input_file );
+void read_file( Interface& moab, const char* input_file );
 void test_read_nodes();
 void test_read_tets();
 void test_read_prisms();
@@ -38,9 +40,9 @@ int main()
 }
 
 
-void read_file( MBInterface& moab, const char* input_file )
+void read_file( Interface& moab, const char* input_file )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   ReadNASTRAN reader( &moab );
   FileOptions opts("");
   rval = reader.load_file( input_file, 0, opts, 0, 0, 0 );
@@ -50,17 +52,17 @@ void read_file( MBInterface& moab, const char* input_file )
 void test_read_nodes()
 {
   const double eps = 1e-100;
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
   read_file( moab, example );
   
-  std::vector<MBEntityHandle> nodes;
+  std::vector<EntityHandle> nodes;
   rval = mb.get_entities_by_type( 0, MBVERTEX, nodes );
   CHECK_ERR(rval);
   CHECK_EQUAL( (size_t)19, nodes.size() );
   
-  MBTag id_tag;
+  Tag id_tag;
   rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
   CHECK_ERR(rval);
   
@@ -214,17 +216,17 @@ void test_read_nodes()
 
 void test_read_tets()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
   read_file( moab, example );
   
-  std::vector<MBEntityHandle> tets;
+  std::vector<EntityHandle> tets;
   rval = mb.get_entities_by_type( 0, MBTET, tets );
   CHECK_ERR(rval);
   CHECK_EQUAL( (size_t)2, tets.size() );
   
-  MBTag id_tag;
+  Tag id_tag;
   rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
   CHECK_ERR(rval);
   
@@ -238,7 +240,7 @@ void test_read_tets()
   }
   
   int vtx_ids[4];
-  const MBEntityHandle* conn;
+  const EntityHandle* conn;
   int len;
   
   const int conn1[] = { 8, 9, 10, 11 };
@@ -264,17 +266,17 @@ void test_read_tets()
 
 void test_read_prisms()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
   read_file( moab, example );
   
-  std::vector<MBEntityHandle> prisms;
+  std::vector<EntityHandle> prisms;
   rval = mb.get_entities_by_type( 0, MBPRISM, prisms );
   CHECK_ERR(rval);
   CHECK_EQUAL( (size_t)2, prisms.size() );
   
-  MBTag id_tag;
+  Tag id_tag;
   rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
   CHECK_ERR(rval);
   
@@ -288,7 +290,7 @@ void test_read_prisms()
   }
   
   int vtx_ids[6];
-  const MBEntityHandle* conn;
+  const EntityHandle* conn;
   int len;
   
   const int conn1[] = { 2, 3, 4, 5, 6, 7 };
@@ -317,17 +319,17 @@ void test_read_prisms()
 
 void test_read_hexes()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
   read_file( moab, example );
   
-  std::vector<MBEntityHandle> hexes;
+  std::vector<EntityHandle> hexes;
   rval = mb.get_entities_by_type( 0, MBHEX, hexes );
   CHECK_ERR(rval);
   CHECK_EQUAL( (size_t)1, hexes.size() );
   
-  MBTag id_tag;
+  Tag id_tag;
   rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
   CHECK_ERR(rval);
   
@@ -336,7 +338,7 @@ void test_read_hexes()
   CHECK_ERR(rval);
   
   int vtx_ids[8];
-  const MBEntityHandle* conn;
+  const EntityHandle* conn;
   int len;
   
   const int conn1[] = { 12, 13, 14, 15, 16, 17, 18, 19 };
@@ -354,23 +356,23 @@ void test_read_hexes()
 // The tets are in material set 1.
 void test_read_material_set1()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
   read_file( moab, example );
   
-  MBTag mat_tag;
+  Tag mat_tag;
   rval = mb.tag_get_handle( MATERIAL_SET_TAG_NAME, mat_tag );
   CHECK_ERR(rval);
   
-  MBRange mat_set_one;  
+  Range mat_set_one;  
   const int one = 1;
   const void* const one_val[] = {&one};  
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &mat_tag, one_val, 1, mat_set_one );
   CHECK_ERR(rval);
   CHECK_EQUAL( 1, (int)mat_set_one.size() );
   
-  std::vector<MBEntityHandle> tets, contents;
+  std::vector<EntityHandle> tets, contents;
   rval = mb.get_entities_by_type( 0, MBTET, tets );
   CHECK_ERR(rval);
   rval = mb.get_entities_by_handle( mat_set_one.front(), contents );
@@ -383,23 +385,23 @@ void test_read_material_set1()
 // The prisms are in material set 2.
 void test_read_material_set2()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
   read_file( moab, example );
   
-  MBTag mat_tag;
+  Tag mat_tag;
   rval = mb.tag_get_handle( MATERIAL_SET_TAG_NAME, mat_tag );
   CHECK_ERR(rval);
   
-  MBRange mat_set_two;  
+  Range mat_set_two;  
   const int two = 2;
   const void* const two_val[] = {&two};  
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &mat_tag, two_val, 1, mat_set_two );
   CHECK_ERR(rval);
   CHECK_EQUAL( 1, (int)mat_set_two.size() );
   
-  std::vector<MBEntityHandle> prisms, contents;
+  std::vector<EntityHandle> prisms, contents;
   rval = mb.get_entities_by_type( 0, MBPRISM, prisms );
   CHECK_ERR(rval);
   rval = mb.get_entities_by_handle( mat_set_two.front(), contents );

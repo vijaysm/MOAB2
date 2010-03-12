@@ -1,6 +1,8 @@
 #include "TestUtil.hpp"
 #include "VarLenTag.hpp"
 
+using namespace moab;
+
 #include <iostream>
 
 void test_valid_struct();

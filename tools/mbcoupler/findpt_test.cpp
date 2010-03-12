@@ -1,9 +1,9 @@
 #include <iostream>
-#include "MBElemUtil.hpp"
+#include "ElemUtil.hpp"
 
 using namespace std;
-using namespace MBElemUtil;
-
+using namespace moab;
+using namespace ElemUtil;
 
 extern "C"{
 #include "errmem.h" //for tmalloc, convenient but not C++
@@ -14,8 +14,8 @@ extern "C"{
 void test_hex_findpt()
 {
 
-    MBCartVect xyz(.5,.3,.4);
-    MBCartVect rst;
+    CartVect xyz(.5,.3,.4);
+    CartVect rst;
     double dist;
 
     double *xm[3]; //element coord fields, lex ordering
@@ -53,7 +53,7 @@ void test_hex_findpt()
 
 void test_hex_eval()
 {
-    MBCartVect rst(.5,.3,.4);
+    CartVect rst(.5,.3,.4);
     double value;
 
     const int n=2; //number of nodes per direction (min is 2, for linear element)
@@ -80,20 +80,20 @@ void test_hex_eval()
 
 void test_nat_coords_trilinear_hex2()
 {
-  MBCartVect hex[8];
-  MBCartVect xyz(.5,.3,.4);
-  MBCartVect ncoords;;
+  CartVect hex[8];
+  CartVect xyz(.5,.3,.4);
+  CartVect ncoords;;
   double etol;
   
   //Make our sample hex the unit cube [0,1]**3
-  hex[0] = MBCartVect(0,0,0);
-  hex[1] = MBCartVect(1,0,0);
-  hex[2] = MBCartVect(1,1,0);
-  hex[3] = MBCartVect(0,1,0);
-  hex[4] = MBCartVect(0,0,1);
-  hex[5] = MBCartVect(1,0,1);
-  hex[6] = MBCartVect(1,1,1);
-  hex[7] = MBCartVect(0,1,1);
+  hex[0] = CartVect(0,0,0);
+  hex[1] = CartVect(1,0,0);
+  hex[2] = CartVect(1,1,0);
+  hex[3] = CartVect(0,1,0);
+  hex[4] = CartVect(0,0,1);
+  hex[5] = CartVect(1,0,1);
+  hex[6] = CartVect(1,1,1);
+  hex[7] = CartVect(0,1,1);
 
   etol = .1 ; //ignored by nat_coords
 

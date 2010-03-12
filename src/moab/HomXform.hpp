@@ -13,8 +13,8 @@
  * 
  */
 
-#ifndef HOMXFORM
-#define HOMXFORM
+#ifndef MOAB_HOMXFORM
+#define MOAB_HOMXFORM
 
 //
 // Class: HomXform
@@ -30,6 +30,8 @@
 #define XFORM_INDEX(a,b) 4*a+b
 
 #include <math.h>
+
+namespace moab {
 
 class HomXform;
 
@@ -702,5 +704,7 @@ inline HomXform HomXform::inverse() const
     -(XFORM(3,0)*XFORM(2,0) + XFORM(3,1)*XFORM(2,1) + XFORM(3,2)*xForm[10]),
     1);
 }
+
+} // namespace moab 
 
 #endif

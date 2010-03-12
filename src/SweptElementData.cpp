@@ -15,13 +15,15 @@
 
 #include "SweptElementData.hpp"
 #include "SweptVertexData.hpp"
-#include "MBInterface.hpp"
-#include "MBReadUtilIface.hpp"
-#include "MBCN.hpp"
-#include "MBInternals.hpp"
+#include "moab/Interface.hpp"
+#include "moab/ReadUtilIface.hpp"
+#include "moab/MBCN.hpp"
+#include "Internals.hpp"
 #include <assert.h>
 
-MBEntityID SweptElementData::calc_num_entities(MBEntityHandle start_handle,
+namespace moab {
+
+EntityID SweptElementData::calc_num_entities(EntityHandle start_handle,
                                 int irange, int jrange, int krange)
 {
   size_t result = 1;
@@ -35,7 +37,7 @@ MBEntityID SweptElementData::calc_num_entities(MBEntityHandle start_handle,
 }
 
 SweptElementData::SweptElementData(
-                             MBEntityHandle start_handle,
+                             EntityHandle start_handle,
                              const int imin, const int jmin, const int kmin,
                              const int imax, const int jmax, const int kmax,
 			     const int* Cq ) 
@@ -136,8 +138,8 @@ bool SweptElementData::boundary_complete() const
 }
 
 
-SequenceData* SweptElementData::subset( MBEntityHandle /*start*/, 
-                                      MBEntityHandle /*end*/,
+SequenceData* SweptElementData::subset( EntityHandle /*start*/, 
+                                      EntityHandle /*end*/,
                                       const int* /*sequence_data_sizes*/,
                                       const int* /*tag_data_sizes*/ ) const
 {
@@ -148,3 +150,5 @@ unsigned long SweptElementData::get_memory_use() const
 {
   return sizeof(*this) + vertexSeqRefs.capacity() * sizeof(VertexDataRef);
 }
+
+} // namespace moab

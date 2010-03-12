@@ -4,19 +4,21 @@
 #include "EntitySequence.hpp"
 #include "SequenceData.hpp"
 
+namespace moab {
+
 class VertexSequence : public EntitySequence
 {
 public:
 
-  VertexSequence( MBEntityHandle start,
-                  MBEntityID count,
+  VertexSequence( EntityHandle start,
+                  EntityID count,
                   SequenceData* data )
     : EntitySequence( start, count, data )
     {}
   
-  VertexSequence( MBEntityHandle start,
-                  MBEntityID count,
-                  MBEntityID data_size )
+  VertexSequence( EntityHandle start,
+                  EntityID count,
+                  EntityID data_size )
     : EntitySequence( start, count, new SequenceData( 3, start, start+data_size-1 ) )
     {
       data()->create_sequence_data( X, sizeof(double) );
@@ -26,41 +28,41 @@ public:
   
   virtual ~VertexSequence();
   
-  inline MBErrorCode get_coordinates( MBEntityHandle handle,
+  inline ErrorCode get_coordinates( EntityHandle handle,
                                       double& x,
                                       double& y,
                                       double& z ) const;
 
-  inline MBErrorCode get_coordinates( MBEntityHandle handle,
+  inline ErrorCode get_coordinates( EntityHandle handle,
                                       double coords[3] ) const;
 
-  inline MBErrorCode get_coordinates_ref( MBEntityHandle handle,
+  inline ErrorCode get_coordinates_ref( EntityHandle handle,
                                           const double*& x,
                                           const double*& y,
                                           const double*& z ) const;
 
-  inline MBErrorCode set_coordinates( MBEntityHandle entity,
+  inline ErrorCode set_coordinates( EntityHandle entity,
                                       double x, 
                                       double y,
                                       double z );
 
-  inline MBErrorCode set_coordinates( MBEntityHandle entity,
+  inline ErrorCode set_coordinates( EntityHandle entity,
                                       const double xyz[3] );
 
-  inline MBErrorCode get_coordinate_arrays( double*& x, 
+  inline ErrorCode get_coordinate_arrays( double*& x, 
                                             double*& y, 
                                             double*& z );
 
-  inline MBErrorCode get_coordinate_arrays( const double*& x,
+  inline ErrorCode get_coordinate_arrays( const double*& x,
                                             const double*& y,
                                             const double*& z ) const;
  
-  EntitySequence* split( MBEntityHandle here );
+  EntitySequence* split( EntityHandle here );
   
-  SequenceData* create_data_subset( MBEntityHandle start, MBEntityHandle end ) const;
+  SequenceData* create_data_subset( EntityHandle start, EntityHandle end ) const;
   
-  MBErrorCode push_front( MBEntityID count );
-  MBErrorCode push_back( MBEntityID count );
+  ErrorCode push_front( EntityID count );
+  ErrorCode push_back( EntityID count );
   
   void get_const_memory_use( unsigned long& bytes_per_entity,
                              unsigned long& size_of_sequence ) const;
@@ -87,28 +89,28 @@ private:
   inline const double* y_array() const { return array(Y); }
   inline const double* z_array() const { return array(Z); }
   
-  VertexSequence( VertexSequence& split_from, MBEntityHandle here )
+  VertexSequence( VertexSequence& split_from, EntityHandle here )
     : EntitySequence( split_from, here )
     {}
 };
 
   
-MBErrorCode VertexSequence::get_coordinates( MBEntityHandle handle,
+ErrorCode VertexSequence::get_coordinates( EntityHandle handle,
                                              double& x,
                                              double& y,
                                              double& z ) const
 {
-  MBEntityID offset = handle - data()->start_handle();
+  EntityID offset = handle - data()->start_handle();
   x = x_array()[offset];
   y = y_array()[offset];
   z = z_array()[offset];
   return MB_SUCCESS;
 }
 
-MBErrorCode VertexSequence::get_coordinates( MBEntityHandle handle,
+ErrorCode VertexSequence::get_coordinates( EntityHandle handle,
                                              double coords[3] ) const
 {
-  MBEntityID offset = handle - data()->start_handle();
+  EntityID offset = handle - data()->start_handle();
   coords[X] = x_array()[offset];
   coords[Y] = y_array()[offset];
   coords[Z] = z_array()[offset];
@@ -116,56 +118,58 @@ MBErrorCode VertexSequence::get_coordinates( MBEntityHandle handle,
 }
   
 
-MBErrorCode VertexSequence::get_coordinates_ref( MBEntityHandle handle,
+ErrorCode VertexSequence::get_coordinates_ref( EntityHandle handle,
                                                  const double*& x,
                                                  const double*& y,
                                                  const double*& z ) const
 {
-  MBEntityID offset = handle - data()->start_handle();
+  EntityID offset = handle - data()->start_handle();
   x = x_array()+offset;
   y = y_array()+offset;
   z = z_array()+offset;
   return MB_SUCCESS;
 }
 
-MBErrorCode VertexSequence::set_coordinates( MBEntityHandle entity,
+ErrorCode VertexSequence::set_coordinates( EntityHandle entity,
                                              double x, 
                                              double y,
                                              double z )
 {
-  MBEntityID offset = entity - data()->start_handle();
+  EntityID offset = entity - data()->start_handle();
   x_array()[offset] = x;
   y_array()[offset] = y;
   z_array()[offset] = z;
   return MB_SUCCESS;
 }
 
-MBErrorCode VertexSequence::set_coordinates( MBEntityHandle entity,
+ErrorCode VertexSequence::set_coordinates( EntityHandle entity,
                                              const double* xyz )
 {
-  MBEntityID offset = entity - data()->start_handle();
+  EntityID offset = entity - data()->start_handle();
   x_array()[offset] = xyz[0];
   y_array()[offset] = xyz[1];
   z_array()[offset] = xyz[2];
   return MB_SUCCESS;
 }
 
-MBErrorCode VertexSequence::get_coordinate_arrays( double*& x, 
+ErrorCode VertexSequence::get_coordinate_arrays( double*& x, 
                                                    double*& y, 
                                                    double*& z )
 {
-  MBEntityID offset = start_handle() - data()->start_handle();
+  EntityID offset = start_handle() - data()->start_handle();
   x = x_array()+offset;
   y = y_array()+offset;
   z = z_array()+offset;
   return MB_SUCCESS;
 }
   
-MBErrorCode VertexSequence::get_coordinate_arrays( const double*& x,
+ErrorCode VertexSequence::get_coordinate_arrays( const double*& x,
                                                    const double*& y,
                                                    const double*& z ) const
 {
   return get_coordinates_ref( start_handle(), x, y, z ); 
 }
+
+} // namespace moab
 
 #endif

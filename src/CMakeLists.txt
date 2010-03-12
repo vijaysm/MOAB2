@@ -10,27 +10,27 @@
     GeomTopoTool.cpp
     HigherOrderFactory.cpp
     HomXform.cpp
-    MBAdaptiveKDTree.cpp
-    MBAffineXform.cpp
-    MBAxisBox.cpp
-    MBBSPTree.cpp
-    MBCN.cpp
-    MBCartVect.cpp
-    MBMatrix3.cpp
-    MBCore.cpp
-    MBFactory.cpp
-    MBGeomUtil.cpp
-    MBMeshSet.cpp
-    MBOrientedBox.cpp
-    MBOrientedBoxTreeTool.cpp
-    MBRange.cpp
-    MBRangeSeqIntersectIter.cpp
-    MBReadUtil.cpp
-    MBReaderWriterSet.cpp
-    MBSkinner.cpp
-    MBSysUtil.cpp
-    MBUtil.cpp
-    MBWriteUtil.cpp
+    AdaptiveKDTree.cpp
+    AffineXform.cpp
+    AxisBox.cpp
+    BSPTree.cpp
+    CN.cpp
+    CartVect.cpp
+    Matrix3.cpp
+    Core.cpp
+    Factory.cpp
+    GeomUtil.cpp
+    MeshSet.cpp
+    OrientedBox.cpp
+    OrientedBoxTreeTool.cpp
+    Range.cpp
+    RangeSeqIntersectIter.cpp
+    ReadUtil.cpp
+    ReaderWriterSet.cpp
+    Skinner.cpp
+    SysUtil.cpp
+    Util.cpp
+    WriteUtil.cpp
     MeshSetSequence.cpp
     MeshTopoUtil.cpp
     PolyElementSeq.cpp
@@ -55,10 +55,6 @@
     ${MOAB_BINARY_DIR}/src
     ${MOAB_SOURCE_DIR}/src/io
     ${MOAB_BINARY_DIR}/src/io
-    ${MOAB_SOURCE_DIR}/src/moab
-    ${MOAB_BINARY_DIR}/src/moab
-    ${MOAB_SOURCE_DIR}/src/io/moab
-    ${MOAB_BINARY_DIR}/src/io/moab
   )
 
   if ( MOAB_USE_MPI )

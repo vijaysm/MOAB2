@@ -15,23 +15,25 @@
 
 #include "quads_to_tris.hpp"
 
+using namespace moab;
+
 // Generic function to create two tris from a quad. This can be improved later.
-MBErrorCode make_tris_from_quad( MBInterface *MBI,
-                                 MBEntityHandle quad,  /* intput */
-                                 MBEntityHandle &tri0, /* output */
-				 MBEntityHandle &tri1  /* output */) {
+ErrorCode make_tris_from_quad( Interface *MBI,
+                                 EntityHandle quad,  /* intput */
+                                 EntityHandle &tri0, /* output */
+				 EntityHandle &tri1  /* output */) {
   
   // get connectivity (ordered counterclockwise for 2D elements in MOAB)
-  MBErrorCode result;    
-  const MBEntityHandle *quad_conn;
+  ErrorCode result;    
+  const EntityHandle *quad_conn;
   int n_verts=0;
   result = MBI->get_connectivity( quad, quad_conn, n_verts );
     assert( 4 == n_verts );
     assert( MB_SUCCESS == result);
    
   // make tris from quad
-  MBEntityHandle tri0_conn[] = {quad_conn[0], quad_conn[1], quad_conn[3]};
-  MBEntityHandle tri1_conn[] = {quad_conn[1], quad_conn[2], quad_conn[3]};
+  EntityHandle tri0_conn[] = {quad_conn[0], quad_conn[1], quad_conn[3]};
+  EntityHandle tri1_conn[] = {quad_conn[1], quad_conn[2], quad_conn[3]};
   result = MBI->create_element(MBTRI, tri0_conn, 3, tri0);
     assert( MB_SUCCESS == result);
   result = MBI->create_element(MBTRI, tri1_conn, 3, tri1);
@@ -40,13 +42,13 @@ MBErrorCode make_tris_from_quad( MBInterface *MBI,
   return MB_SUCCESS;
 }
 
-MBErrorCode make_tris_from_quads( MBInterface *MBI,
-                                  const MBRange quads,
-                                  MBRange &tris ) {
-  MBErrorCode result;
+ErrorCode make_tris_from_quads( Interface *MBI,
+                                  const Range quads,
+                                  Range &tris ) {
+  ErrorCode result;
   tris.clear();
-  for(MBRange::const_iterator i=quads.begin(); i!=quads.end(); ++i) {
-    MBEntityHandle tri0, tri1;
+  for(Range::const_iterator i=quads.begin(); i!=quads.end(); ++i) {
+    EntityHandle tri0, tri1;
     result = make_tris_from_quad( MBI, *i, tri0, tri1 );
     assert(MB_SUCCESS == result);
     tris.insert( tri0 );
@@ -55,11 +57,11 @@ MBErrorCode make_tris_from_quads( MBInterface *MBI,
   return MB_SUCCESS;
 }  
 
-MBErrorCode quads_to_tris( MBInterface *MBI, MBEntityHandle input_meshset ) {
+ErrorCode quads_to_tris( Interface *MBI, EntityHandle input_meshset ) {
 
   // create a geometry tag to find the surfaces with
-  MBErrorCode result;
-  MBTag geom_tag, id_tag;
+  ErrorCode result;
+  Tag geom_tag, id_tag;
   result = MBI->tag_create( GEOM_DIMENSION_TAG_NAME, sizeof(int), MB_TAG_DENSE,
                             MB_TYPE_INTEGER, geom_tag, 0, true );
     assert( MB_SUCCESS==result || MB_ALREADY_ALLOCATED==result);
@@ -70,7 +72,7 @@ MBErrorCode quads_to_tris( MBInterface *MBI, MBEntityHandle input_meshset ) {
     assert( MB_SUCCESS==result || MB_ALREADY_ALLOCATED==result);
 
   // get all surface meshsets
-  MBRange surface_meshsets;
+  Range surface_meshsets;
   int dim = 2;
   void* input_dim[] = {&dim};
   result = MBI->get_entities_by_type_and_tag( input_meshset, MBENTITYSET, &geom_tag,
@@ -81,7 +83,7 @@ MBErrorCode quads_to_tris( MBInterface *MBI, MBEntityHandle input_meshset ) {
   // ******************************************************************
   // Loop over every surface meshset and grab each surface's quads.
   // ******************************************************************
-  for( MBRange::iterator i=surface_meshsets.begin(); i!=surface_meshsets.end(); i++ ) {
+  for( Range::iterator i=surface_meshsets.begin(); i!=surface_meshsets.end(); i++ ) {
 
     // get the surface id of the surface meshset
     int surf_id=0;
@@ -90,7 +92,7 @@ MBErrorCode quads_to_tris( MBInterface *MBI, MBEntityHandle input_meshset ) {
     std::cout << "  Surface " << surf_id << " has ";
 
     // get all quads of the surface
-    MBRange quads;
+    Range quads;
     result = MBI->get_entities_by_type( *i, MBQUAD, quads );
       assert( MB_SUCCESS == result );
     std::cout << quads.size() << " quads." << std::endl;
@@ -98,10 +100,10 @@ MBErrorCode quads_to_tris( MBInterface *MBI, MBEntityHandle input_meshset ) {
     // ******************************************************************
     // For each quad, make two triangles then delete the quad.
     // ******************************************************************
-    for(MBRange::iterator j=quads.begin(); j!=quads.end(); j++ ) {
+    for(Range::iterator j=quads.begin(); j!=quads.end(); j++ ) {
     
       // make the tris
-      MBEntityHandle tri0 = 0, tri1 = 0;
+      EntityHandle tri0 = 0, tri1 = 0;
       result = make_tris_from_quad( MBI, *j, tri0, tri1 );
         assert( MB_SUCCESS == result );
       

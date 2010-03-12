@@ -3,9 +3,7 @@ BUILT_SOURCES = iMesh_protos.h iMeshP_protos.h iMesh_extensions_protos.h
 AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(srcdir)/.. \
                -I$(top_srcdir)/src \
-               -I$(top_builddir)/src \
-               -I$(top_srcdir)/src/moab \
-               -I$(top_builddir)/src/moab 
+               -I$(top_builddir)/src  
 
 # stuff for c test program
 check_PROGRAMS = testc_cbind

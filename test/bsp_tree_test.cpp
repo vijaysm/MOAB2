@@ -1,10 +1,12 @@
-#include "MBCore.hpp"
+#include "moab/Core.hpp"
 #include "TestUtil.hpp"
-#include "MBBSPTree.hpp"
-#include "MBCartVect.hpp"
-#include "BSPTreePoly.hpp"
-#include "MBRange.hpp"
+#include "moab/BSPTree.hpp"
+#include "moab/CartVect.hpp"
+#include "moab/BSPTreePoly.hpp"
+#include "moab/Range.hpp"
 #include <algorithm>
+
+using namespace moab;
 
 void test_set_plane();
 void test_iterator();
@@ -51,8 +53,8 @@ int main()
 
 
 // Make CHECK_EQUAL macro work for planes
-void check_equal( const MBBSPTree::Plane& p1, 
-                  const MBBSPTree::Plane& p2,
+void check_equal( const BSPTree::Plane& p1, 
+                  const BSPTree::Plane& p2,
                   const char* exp1, 
                   const char* exp2,
                   int line,
@@ -75,7 +77,7 @@ void check_equal( const MBBSPTree::Plane& p1,
 
 void test_set_plane()
 {
-  MBBSPTree::Plane p;
+  BSPTree::Plane p;
   const double points[3][3] = { { 1, 0, 0 }, { 0, 1, 0 }, { 0, 0, 1 } };
   p.set( points[0], points[1], points[2] );
   CHECK_REAL_EQUAL( 0.0, p.distance( points[0] ), 1e-10 );
@@ -85,11 +87,11 @@ void test_set_plane()
 
 void test_iterator()
 {
-  MBCore moab;
-  MBBSPTree tool( &moab );
-  MBErrorCode rval;
-  MBEntityHandle root;
-  MBBSPTreeIter iter;
+  Core moab;
+  BSPTree tool( &moab );
+  ErrorCode rval;
+  EntityHandle root;
+  BSPTreeIter iter;
     
     // create a depth-1 tree
   rval = tool.create_tree( root );
@@ -103,7 +105,7 @@ void test_iterator()
   CHECK_EQUAL(  1u,   iter.depth() );
   
     // should fail if at root
-  MBBSPTree::Plane p;
+  BSPTree::Plane p;
   rval = iter.get_parent_split_plane( p );
   CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
   
@@ -124,7 +126,7 @@ void test_iterator()
   CHECK_ERR(rval);
   
     // insert a single split plane
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(2,0,0,0) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(2,0,0,0) );
   CHECK_ERR(rval);
   
     // check initial location
@@ -132,7 +134,7 @@ void test_iterator()
   CHECK( iter.handle() != root );
   
     // create new iterators at left and right ends
-  MBBSPTreeIter left, right;
+  BSPTreeIter left, right;
   rval = tool.get_tree_iterator( root, left );
   CHECK_ERR(rval);
   rval = tool.get_tree_end_iterator( root, right );
@@ -165,10 +167,10 @@ void test_iterator()
     // check plane
     // should have unit normal
   left.get_parent_split_plane( p );
-  CHECK_EQUAL( MBBSPTree::Plane(1,0,0,0), p );
+  CHECK_EQUAL( BSPTree::Plane(1,0,0,0), p );
   p.norm[0] = 11;
   right.get_parent_split_plane( p );
-  CHECK_EQUAL( MBBSPTree::Plane(1,0,0,0), p );
+  CHECK_EQUAL( BSPTree::Plane(1,0,0,0), p );
   
     // check step past ends
   rval = left.back();
@@ -245,11 +247,11 @@ static void aabox_corners( double min_x, double min_y, double min_z,
 
 void test_box_iterator()
 {
-  MBCore moab;
-  MBBSPTree tool( &moab );
-  MBErrorCode rval;
-  MBEntityHandle root;
-  MBBSPTreeBoxIter iter;
+  Core moab;
+  BSPTree tool( &moab );
+  ErrorCode rval;
+  EntityHandle root;
+  BSPTreeBoxIter iter;
   const double min[3] = { -1, -2, -3 };
   const double max[3] = {  3,  2,  1 };
     
@@ -272,7 +274,7 @@ void test_box_iterator()
   CHECK( compare_hexes( expt, corners, 1e-6 ) );
   
     // should fail if at root
-  MBBSPTree::Plane p;
+  BSPTree::Plane p;
   rval = iter.get_parent_split_plane( p );
   CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
   
@@ -293,7 +295,7 @@ void test_box_iterator()
   CHECK_ERR(rval);
   
     // insert a single split plane
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(2,0,0,0) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(2,0,0,0) );
   CHECK_ERR(rval);
   
     // check initial location
@@ -301,7 +303,7 @@ void test_box_iterator()
   CHECK( iter.handle() != root );
   
     // create new iterators at left and right ends
-  MBBSPTreeIter left, right;
+  BSPTreeIter left, right;
   rval = tool.get_tree_iterator( root, left );
   CHECK_ERR(rval);
   rval = tool.get_tree_end_iterator( root, right );
@@ -361,10 +363,10 @@ void test_box_iterator()
     // check plane
     // should have unit normal
   left.get_parent_split_plane( p );
-  CHECK_EQUAL( MBBSPTree::Plane(1,0,0,0), p );
+  CHECK_EQUAL( BSPTree::Plane(1,0,0,0), p );
   p.norm[0] = 11;
   right.get_parent_split_plane( p );
-  CHECK_EQUAL( MBBSPTree::Plane(1,0,0,0), p );
+  CHECK_EQUAL( BSPTree::Plane(1,0,0,0), p );
   
     // check step past ends
   rval = left.back();
@@ -375,12 +377,12 @@ void test_box_iterator()
 
 void test_tree_create()
 {
-  MBCore moab;
-  MBBSPTree tool( &moab );
-  MBErrorCode rval;
-  MBEntityHandle root;
-  MBBSPTreeIter iter;
-  MBBSPTree::Plane p;
+  Core moab;
+  BSPTree tool( &moab );
+  ErrorCode rval;
+  EntityHandle root;
+  BSPTreeIter iter;
+  BSPTree::Plane p;
     
     // create a depth-1 tree
   rval = tool.create_tree( root );
@@ -394,17 +396,17 @@ void test_tree_create()
   CHECK_EQUAL(  1u,   iter.depth() );
 
     // split with z=0
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(0,0,0.5,0) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(0,0,0.5,0) );
   CHECK_ERR(rval);
   CHECK_EQUAL( 2u, iter.depth() );
   
     // check that parent split plane is correct
   rval = iter.get_parent_split_plane( p );
   CHECK_ERR(rval);
-  CHECK_EQUAL( MBBSPTree::Plane(0,0,1,0), p );
+  CHECK_EQUAL( BSPTree::Plane(0,0,1,0), p );
 
     // split lower leaf with diagonal plane
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(1,1,0,0) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(1,1,0,0) );
   CHECK_ERR(rval);
   CHECK_EQUAL( 3u, iter.depth() );
   
@@ -413,21 +415,21 @@ void test_tree_create()
     // check that parent split plane is correct
   rval = iter.get_parent_split_plane( p );
   CHECK_ERR(rval);
-  CHECK_EQUAL( MBBSPTree::Plane(r,r,0,0), p );
+  CHECK_EQUAL( BSPTree::Plane(r,r,0,0), p );
   
     // step to upper leaf
   rval = iter.step();
   CHECK_ERR(rval);
   
     // split upper leaf with diagonal plane
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(-1,1,0,0) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(-1,1,0,0) );
   CHECK_ERR(rval);
   CHECK_EQUAL( 4u, iter.depth() );
   
     // check that parent split plane is correct
   rval = iter.get_parent_split_plane( p );
   CHECK_ERR(rval);
-  CHECK_EQUAL( MBBSPTree::Plane(-r,r,0,0), p );
+  CHECK_EQUAL( BSPTree::Plane(-r,r,0,0), p );
   
     // iterate over four leaves
   
@@ -437,7 +439,7 @@ void test_tree_create()
   CHECK_EQUAL( 3u, iter.depth() );
   rval = iter.get_parent_split_plane( p );
   CHECK_ERR(rval);
-  CHECK_EQUAL( MBBSPTree::Plane(r,r,0,0), p );
+  CHECK_EQUAL( BSPTree::Plane(r,r,0,0), p );
   
     // second leaf
   rval = iter.step();
@@ -445,7 +447,7 @@ void test_tree_create()
   CHECK_EQUAL( 4u, iter.depth() );
   rval = iter.get_parent_split_plane( p );
   CHECK_ERR(rval);
-  CHECK_EQUAL( MBBSPTree::Plane(-r,r,0,0), p );
+  CHECK_EQUAL( BSPTree::Plane(-r,r,0,0), p );
    
     // third leaf
   rval = iter.step();
@@ -453,7 +455,7 @@ void test_tree_create()
   CHECK_EQUAL( 4u, iter.depth() );
   rval = iter.get_parent_split_plane( p );
   CHECK_ERR(rval);
-  CHECK_EQUAL( MBBSPTree::Plane(-r,r,0,0), p );
+  CHECK_EQUAL( BSPTree::Plane(-r,r,0,0), p );
    
     // fourth leaf
   rval = iter.step();
@@ -461,7 +463,7 @@ void test_tree_create()
   CHECK_EQUAL( 2u, iter.depth() );
   rval = iter.get_parent_split_plane( p );
   CHECK_ERR(rval);
-  CHECK_EQUAL( MBBSPTree::Plane(0,0,1,0), p );
+  CHECK_EQUAL( BSPTree::Plane(0,0,1,0), p );
  
     // no more leaves
   rval = iter.step();
@@ -470,12 +472,12 @@ void test_tree_create()
 
 void test_box_tree_create()
 {
-  MBCore moab;
-  MBBSPTree tool( &moab );
-  MBErrorCode rval;
-  MBEntityHandle root;
-  MBBSPTreeBoxIter iter;
-  MBBSPTree::Plane p;
+  Core moab;
+  BSPTree tool( &moab );
+  ErrorCode rval;
+  EntityHandle root;
+  BSPTreeBoxIter iter;
+  BSPTree::Plane p;
   const double min[3] = { -2, -2, -2 };
   const double max[3] = {  2,  2,  2 };
     
@@ -500,95 +502,95 @@ void test_box_tree_create()
  
     // Try splits that should fail because they
     // do not intersect the leaf at all
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(0,0,1, 4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(0,0,1, 4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(0,0,1,-4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(0,0,1,-4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(0,1,0, 4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(0,1,0, 4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(0,1,0,-4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(0,1,0,-4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(1,0,0, 4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(1,0,0, 4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(1,0,0,-4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(1,0,0,-4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(-1,-1,-1, 7) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(-1,-1,-1, 7) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(-1,-1,-1,-7) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(-1,-1,-1,-7) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 1,-1,-1, 7) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 1,-1,-1, 7) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 1,-1,-1,-7) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 1,-1,-1,-7) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 1, 1,-1, 7) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 1, 1,-1, 7) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 1, 1,-1,-7) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 1, 1,-1,-7) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(-1, 1,-1, 7) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(-1, 1,-1, 7) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(-1, 1,-1,-7) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(-1, 1,-1,-7) );
   CHECK_EQUAL( MB_FAILURE, rval );
   
  
     // Try a split that should fail because the
     // resulting leaf would not be a hexahedron.
     // Clip each corner twice using planes with opposing normals
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(-1,-1,-1,-4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(-1,-1,-1,-4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 1, 1, 1, 4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 1, 1, 1, 4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 1,-1,-1,-4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 1,-1,-1,-4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(-1, 1, 1, 4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(-1, 1, 1, 4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 1, 1,-1,-4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 1, 1,-1,-4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(-1,-1, 1, 4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(-1,-1, 1, 4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(-1, 1,-1,-4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(-1, 1,-1,-4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 1,-1, 1, 4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 1,-1, 1, 4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(-1,-1, 1,-4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(-1,-1, 1,-4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 1, 1,-1, 4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 1, 1,-1, 4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 1,-1, 1,-4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 1,-1, 1,-4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(-1, 1,-1, 4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(-1, 1,-1, 4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 1, 1, 1,-4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 1, 1, 1,-4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(-1,-1,-1, 4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(-1,-1,-1, 4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(-1, 1, 1,-4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(-1, 1, 1,-4) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 1,-1,-1, 4) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 1,-1,-1, 4) );
   CHECK_EQUAL( MB_FAILURE, rval );
     // Clip each edge
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(-1,-1, 0,-2) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(-1,-1, 0,-2) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 1,-1, 0,-2) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 1,-1, 0,-2) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 1, 1, 0,-2) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 1, 1, 0,-2) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(-1, 1, 0,-2) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(-1, 1, 0,-2) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 0,-1,-1,-2) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 0,-1,-1,-2) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 0, 1,-1,-2) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 0, 1,-1,-2) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 0, 1, 1,-2) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 0, 1, 1,-2) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 0,-1, 1,-2) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 0,-1, 1,-2) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(-1, 0,-1,-2) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(-1, 0,-1,-2) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 1, 0,-1,-2) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 1, 0,-1,-2) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane( 1, 0, 1,-2) );
+  rval = tool.split_leaf( iter, BSPTree::Plane( 1, 0, 1,-2) );
   CHECK_EQUAL( MB_FAILURE, rval );
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(-1, 0, 1,-2) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(-1, 0, 1,-2) );
   CHECK_EQUAL( MB_FAILURE, rval );
  
     // verify that iterator is still valid after many failed splits
@@ -601,14 +603,14 @@ void test_box_tree_create()
 
 
     // split with z=0
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(0,0,0.5,0) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(0,0,0.5,0) );
   CHECK_ERR(rval);
   CHECK_EQUAL( 2u, iter.depth() );
   
     // check that parent split plane is correct
   rval = iter.get_parent_split_plane( p );
   CHECK_ERR(rval);
-  CHECK_EQUAL( MBBSPTree::Plane(0,0,1,0), p );
+  CHECK_EQUAL( BSPTree::Plane(0,0,1,0), p );
   
     // check that box corners are correct
   aabox_corners( min, max, expt );
@@ -621,7 +623,7 @@ void test_box_tree_create()
 
   
     // split with z=-1 and normal in opposite direction
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(0,0,-2,-2) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(0,0,-2,-2) );
   CHECK_ERR(rval);
   CHECK_EQUAL( 3u, iter.depth() );
   for (unsigned i = 0; i < 8; ++i)
@@ -645,14 +647,14 @@ void test_box_tree_create()
 
     
     // split at x = -1
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(-0.1,0,0,-0.1) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(-0.1,0,0,-0.1) );
   CHECK_ERR(rval);
   CHECK_EQUAL( 4u, iter.depth() );
   
     // check that parent split plane is correct
   rval = iter.get_parent_split_plane( p );
   CHECK_ERR(rval);
-  CHECK_EQUAL( MBBSPTree::Plane(-1,0,0,-1), p );
+  CHECK_EQUAL( BSPTree::Plane(-1,0,0,-1), p );
   
     // check that leaf box is correct
   aabox_corners( -1, -2, -2, 2, 2, -1, expt );
@@ -662,14 +664,14 @@ void test_box_tree_create()
 
 
     // split at x = 1
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(5,0,0,-5) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(5,0,0,-5) );
   CHECK_ERR(rval);
   CHECK_EQUAL( 5u, iter.depth() );
   
     // check that parent split plane is correct
   rval = iter.get_parent_split_plane( p );
   CHECK_ERR(rval);
-  CHECK_EQUAL( MBBSPTree::Plane(1,0,0,-1), p );
+  CHECK_EQUAL( BSPTree::Plane(1,0,0,-1), p );
   
     // check that leaf box is correct
   aabox_corners( -1, -2, -2, 1, 2, -1, expt );
@@ -679,14 +681,14 @@ void test_box_tree_create()
 
     
     // split at y = -1
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(0,-1,0,-1) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(0,-1,0,-1) );
   CHECK_ERR(rval);
   CHECK_EQUAL( 6u, iter.depth() );
   
     // check that parent split plane is correct
   rval = iter.get_parent_split_plane( p );
   CHECK_ERR(rval);
-  CHECK_EQUAL( MBBSPTree::Plane(0,-1,0,-1), p );
+  CHECK_EQUAL( BSPTree::Plane(0,-1,0,-1), p );
   
     // check that leaf box is correct
   aabox_corners( -1, -1, -2, 1, 2, -1, expt );
@@ -696,14 +698,14 @@ void test_box_tree_create()
 
 
     // split at y = 1
-  rval = tool.split_leaf( iter, MBBSPTree::Plane(0,1,0,-1) );
+  rval = tool.split_leaf( iter, BSPTree::Plane(0,1,0,-1) );
   CHECK_ERR(rval);
   CHECK_EQUAL( 7u, iter.depth() );
   
     // check that parent split plane is correct
   rval = iter.get_parent_split_plane( p );
   CHECK_ERR(rval);
-  CHECK_EQUAL( MBBSPTree::Plane(0,1,0,-1), p );
+  CHECK_EQUAL( BSPTree::Plane(0,1,0,-1), p );
   
     // check that leaf box is correct
   aabox_corners( -1, -1, -2, 1, 1, -1, expt );
@@ -719,7 +721,7 @@ void test_box_tree_create()
   CHECK_EQUAL( 3u, iter.depth() );
   rval = iter.get_parent_split_plane( p );
   CHECK_ERR(rval);
-  CHECK_EQUAL( MBBSPTree::Plane(0,0,-1,-1), p );
+  CHECK_EQUAL( BSPTree::Plane(0,0,-1,-1), p );
   aabox_corners( -2, -2, -1, 2, 2, 0, expt );
   rval = iter.get_box_corners( corners );
   CHECK_ERR( rval );
@@ -730,7 +732,7 @@ void test_box_tree_create()
   CHECK_EQUAL( 7u, iter.depth() );
   rval = iter.get_parent_split_plane( p );
   CHECK_ERR(rval);
-  CHECK_EQUAL( MBBSPTree::Plane(0,1,0,-1), p );
+  CHECK_EQUAL( BSPTree::Plane(0,1,0,-1), p );
   aabox_corners( -1, -1, -2, 1, 1, -1, expt );
   rval = iter.get_box_corners( corners );
   CHECK_ERR( rval );
@@ -741,7 +743,7 @@ void test_box_tree_create()
   CHECK_EQUAL( 7u, iter.depth() );
   rval = iter.get_parent_split_plane( p );
   CHECK_ERR(rval);
-  CHECK_EQUAL( MBBSPTree::Plane(0,1,0,-1), p );
+  CHECK_EQUAL( BSPTree::Plane(0,1,0,-1), p );
   aabox_corners( -1, 1, -2, 1, 2, -1, expt );
   rval = iter.get_box_corners( corners );
   CHECK_ERR( rval );
@@ -752,7 +754,7 @@ void test_box_tree_create()
   CHECK_EQUAL( 6u, iter.depth() );
   rval = iter.get_parent_split_plane( p );
   CHECK_ERR(rval);
-  CHECK_EQUAL( MBBSPTree::Plane(0,-1,0,-1), p );
+  CHECK_EQUAL( BSPTree::Plane(0,-1,0,-1), p );
   aabox_corners( -1, -2, -2, 1, -1, -1, expt );
   rval = iter.get_box_corners( corners );
   CHECK_ERR( rval );
@@ -763,7 +765,7 @@ void test_box_tree_create()
   CHECK_EQUAL( 5u, iter.depth() );
   rval = iter.get_parent_split_plane( p );
   CHECK_ERR(rval);
-  CHECK_EQUAL( MBBSPTree::Plane(1,0,0,-1), p );
+  CHECK_EQUAL( BSPTree::Plane(1,0,0,-1), p );
   aabox_corners( 1, -2, -2, 2, 2, -1, expt );
   rval = iter.get_box_corners( corners );
   CHECK_ERR( rval );
@@ -774,7 +776,7 @@ void test_box_tree_create()
   CHECK_EQUAL( 4u, iter.depth() );
   rval = iter.get_parent_split_plane( p );
   CHECK_ERR(rval);
-  CHECK_EQUAL( MBBSPTree::Plane(-1,0,0,-1), p );
+  CHECK_EQUAL( BSPTree::Plane(-1,0,0,-1), p );
   aabox_corners( -2, -2, -2, -1, 2, -1, expt );
   rval = iter.get_box_corners( corners );
   CHECK_ERR( rval );
@@ -785,7 +787,7 @@ void test_box_tree_create()
   CHECK_EQUAL( 2u, iter.depth() );
   rval = iter.get_parent_split_plane( p );
   CHECK_ERR(rval);
-  CHECK_EQUAL( MBBSPTree::Plane(0,0,1,0), p );
+  CHECK_EQUAL( BSPTree::Plane(0,0,1,0), p );
   aabox_corners( -2, -2, 0, 2, 2, 2, expt );
   rval = iter.get_box_corners( corners );
   CHECK_ERR( rval );
@@ -798,14 +800,14 @@ void test_box_tree_create()
 
 void test_leaf_containing_point_bounded_tree()
 {
-  MBCore moab;
-  MBBSPTree tool( &moab );
-  MBErrorCode rval;
-  MBEntityHandle root;
-  MBBSPTreeIter iter;
-  MBBSPTreeBoxIter b_iter;
-  MBBSPTree::Plane p;
-  MBEntityHandle h;
+  Core moab;
+  BSPTree tool( &moab );
+  ErrorCode rval;
+  EntityHandle root;
+  BSPTreeIter iter;
+  BSPTreeBoxIter b_iter;
+  BSPTree::Plane p;
+  EntityHandle h;
   double expected[8][3], corners[8][3];
 
 
@@ -824,9 +826,9 @@ void test_leaf_containing_point_bounded_tree()
   0.0 +---------+--------------+
       0.0       0.4            1.0  */
 
-  const MBBSPTree::Plane  X_split(1.0, 0.0, 0.0,-0.4);
-  const MBBSPTree::Plane AB_split(0.0,-1.0, 0.0, 0.7);
-  const MBBSPTree::Plane CD_split(0.0,-1.0, 0.0, 0.3);
+  const BSPTree::Plane  X_split(1.0, 0.0, 0.0,-0.4);
+  const BSPTree::Plane AB_split(0.0,-1.0, 0.0, 0.7);
+  const BSPTree::Plane CD_split(0.0,-1.0, 0.0, 0.3);
   
   
   const double min[3] = { 0, 0, 0 };
@@ -841,21 +843,21 @@ void test_leaf_containing_point_bounded_tree()
   
   rval = tool.split_leaf( iter, AB_split );
   CHECK_ERR(rval);
-  const MBEntityHandle A = iter.handle();
+  const EntityHandle A = iter.handle();
   
   rval = iter.step();
   CHECK_ERR(rval);
-  const MBEntityHandle B = iter.handle();
+  const EntityHandle B = iter.handle();
   
   rval = iter.step();
   CHECK_ERR(rval);
   rval = tool.split_leaf( iter, CD_split );
   CHECK_ERR(rval);
-  const MBEntityHandle C = iter.handle();
+  const EntityHandle C = iter.handle();
   
   rval = iter.step();
   CHECK_ERR(rval);
-  const MBEntityHandle D = iter.handle();
+  const EntityHandle D = iter.handle();
 
   
     // Test queries inside tree
@@ -946,13 +948,13 @@ void test_leaf_containing_point_bounded_tree()
 
 void test_leaf_containing_point_unbounded_tree()
 {
-  MBCore moab;
-  MBBSPTree tool( &moab );
-  MBErrorCode rval;
-  MBEntityHandle root;
-  MBBSPTreeIter iter;
-  MBBSPTree::Plane p;
-  MBEntityHandle h;
+  Core moab;
+  BSPTree tool( &moab );
+  ErrorCode rval;
+  EntityHandle root;
+  BSPTreeIter iter;
+  BSPTree::Plane p;
+  EntityHandle h;
 
 
 /*  Build Tree
@@ -971,9 +973,9 @@ void test_leaf_containing_point_unbounded_tree()
                o (1,-2,0)
                 \
  */
-  const MBBSPTree::Plane  X_split( 2.0, 1.0, 0.0, 0.0);
-  const MBBSPTree::Plane AB_split( 0.0, 1.0, 0.0, 0.0);
-  const MBBSPTree::Plane CD_split( 1.0, 0.0, 0.0, 0.0);
+  const BSPTree::Plane  X_split( 2.0, 1.0, 0.0, 0.0);
+  const BSPTree::Plane AB_split( 0.0, 1.0, 0.0, 0.0);
+  const BSPTree::Plane CD_split( 1.0, 0.0, 0.0, 0.0);
   
   
   rval = tool.create_tree( root );
@@ -986,21 +988,21 @@ void test_leaf_containing_point_unbounded_tree()
   
   rval = tool.split_leaf( iter, AB_split );
   CHECK_ERR(rval);
-  const MBEntityHandle A = iter.handle();
+  const EntityHandle A = iter.handle();
   
   rval = iter.step();
   CHECK_ERR(rval);
-  const MBEntityHandle B = iter.handle();
+  const EntityHandle B = iter.handle();
   
   rval = iter.step();
   CHECK_ERR(rval);
   rval = tool.split_leaf( iter, CD_split );
   CHECK_ERR(rval);
-  const MBEntityHandle C = iter.handle();
+  const EntityHandle C = iter.handle();
   
   rval = iter.step();
   CHECK_ERR(rval);
-  const MBEntityHandle D = iter.handle();
+  const EntityHandle D = iter.handle();
 
   
     // Test queries inside tree
@@ -1052,12 +1054,12 @@ void test_leaf_containing_point_unbounded_tree()
 
 void test_merge_leaf()
 {
-  MBCore moab;
-  MBBSPTree tool( &moab );
-  MBErrorCode rval;
-  MBEntityHandle root;
-  MBBSPTreeBoxIter iter;
-  MBBSPTree::Plane p;
+  Core moab;
+  BSPTree tool( &moab );
+  ErrorCode rval;
+  EntityHandle root;
+  BSPTreeBoxIter iter;
+  BSPTree::Plane p;
   double expected[8][3], corners[8][3];
 
 
@@ -1076,9 +1078,9 @@ void test_merge_leaf()
   0.0 +---------+--------------+
       0.0       0.4            1.0  */
 
-  const MBBSPTree::Plane  X_split(1.0, 0.0, 0.0,-0.4);
-  const MBBSPTree::Plane AB_split(0.0,-1.0, 0.0, 0.7);
-  const MBBSPTree::Plane CD_split(0.0,-1.0, 0.0, 0.3);
+  const BSPTree::Plane  X_split(1.0, 0.0, 0.0,-0.4);
+  const BSPTree::Plane AB_split(0.0,-1.0, 0.0, 0.7);
+  const BSPTree::Plane CD_split(0.0,-1.0, 0.0, 0.3);
   
   const double min[3] = { 0, 0, 0 };
   const double max[3] = { 1, 1, 1 };
@@ -1088,14 +1090,14 @@ void test_merge_leaf()
   CHECK_ERR(rval);
   rval = tool.split_leaf( iter, X_split );
   CHECK_ERR(rval);
-  const MBEntityHandle AB = iter.handle();
+  const EntityHandle AB = iter.handle();
   rval = tool.split_leaf( iter, AB_split );
   CHECK_ERR(rval);
   rval = iter.step();
   CHECK_ERR(rval);
   rval = iter.step();
   CHECK_ERR(rval);
-  const MBEntityHandle CD = iter.handle();
+  const EntityHandle CD = iter.handle();
   rval = tool.split_leaf( iter, CD_split );
   CHECK_ERR(rval);
   rval = iter.step();
@@ -1136,13 +1138,13 @@ void test_merge_leaf()
 }
 
 static std::vector<int>
-neighbors( const MBBSPTreeBoxIter& iter, 
-           const MBEntityHandle leaves[8], 
-           MBBSPTreeBoxIter::SideBits side, 
+neighbors( const BSPTreeBoxIter& iter, 
+           const EntityHandle leaves[8], 
+           BSPTreeBoxIter::SideBits side, 
            double epsilon ) 
 {
-  std::vector<MBBSPTreeBoxIter> list;
-  MBErrorCode rval = iter.get_neighbors( side, list, epsilon );
+  std::vector<BSPTreeBoxIter> list;
+  ErrorCode rval = iter.get_neighbors( side, list, epsilon );
   CHECK_ERR(rval);
   
   std::vector<int> results;
@@ -1154,12 +1156,12 @@ neighbors( const MBBSPTreeBoxIter& iter,
 
 void test_box_iter_neighbors()
 {
-  MBCore moab;
-  MBBSPTree tool( &moab );
-  MBErrorCode rval;
-  MBEntityHandle root;
-  MBBSPTreeBoxIter iter;
-  MBBSPTree::Plane p;
+  Core moab;
+  BSPTree tool( &moab );
+  ErrorCode rval;
+  EntityHandle root;
+  BSPTreeBoxIter iter;
+  BSPTree::Plane p;
 
 
 /*  Build Tree */
@@ -1177,7 +1179,7 @@ void test_box_iter_neighbors()
   CHECK_ERR(rval);
   rval = tool.get_tree_iterator( root, iter );
   CHECK_ERR(rval);
-  MBEntityHandle leaves[8];
+  EntityHandle leaves[8];
   
   /* +----------------------------------------+
      |                                        |
@@ -1185,7 +1187,7 @@ void test_box_iter_neighbors()
      |                                        |
      +----------------------------------------+ */
   
-  p = MBBSPTree::Plane( 1, 0, 0, -4 );
+  p = BSPTree::Plane( 1, 0, 0, -4 );
   rval = tool.split_leaf( iter, p );
   CHECK_ERR(rval);
   
@@ -1195,7 +1197,7 @@ void test_box_iter_neighbors()
      |                   |                    |
      +----------------------------------------+ */
   
-  p = MBBSPTree::Plane( -1, 0, 0, 2 );
+  p = BSPTree::Plane( -1, 0, 0, 2 );
   rval = tool.split_leaf( iter, p );
   CHECK_ERR(rval);
    
@@ -1205,7 +1207,7 @@ void test_box_iter_neighbors()
      |         |         |                    |
      +----------------------------------------+ */
  
-  p = MBBSPTree::Plane( 0, 1, 0, -1 );
+  p = BSPTree::Plane( 0, 1, 0, -1 );
   rval = tool.split_leaf( iter, p );
   CHECK_ERR(rval);
    
@@ -1226,7 +1228,7 @@ void test_box_iter_neighbors()
      |         |    0    |                    |
      +----------------------------------------+ */
  
-  p = MBBSPTree::Plane( 0, -1, 0, 1 );
+  p = BSPTree::Plane( 0, -1, 0, 1 );
   rval = tool.split_leaf( iter, p );
   CHECK_ERR(rval);
    
@@ -1247,7 +1249,7 @@ void test_box_iter_neighbors()
      |    3    |    0    |                    |
      +----------------------------------------+ */
 
-  p = MBBSPTree::Plane( 0, 1, 0, -1 );
+  p = BSPTree::Plane( 0, 1, 0, -1 );
   rval = tool.split_leaf( iter, p );
   CHECK_ERR(rval);
    
@@ -1257,7 +1259,7 @@ void test_box_iter_neighbors()
      |    3    |    0    |         4*         |
      +----------------------------------------+ */
 
-  p = MBBSPTree::Plane( 1, 0, 0, -6 );
+  p = BSPTree::Plane( 1, 0, 0, -6 );
   rval = tool.split_leaf( iter, p );
   CHECK_ERR(rval);
    
@@ -1278,7 +1280,7 @@ void test_box_iter_neighbors()
      |    3    |    0    |     4    |    5    |
      +------------------------------+---------+ */
 
-  p = MBBSPTree::Plane( -1, 0, 0, 6 );
+  p = BSPTree::Plane( -1, 0, 0, 6 );
   rval = tool.split_leaf( iter, p );
   CHECK_ERR(rval);
    
@@ -1314,41 +1316,41 @@ void test_box_iter_neighbors()
   std::vector<int> expected;
   CHECK_EQUAL( leaves[0], iter.handle() );
   expected.clear(); 
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3210, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B4567, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B0154, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3210, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B4567, 1e-6 ) );
   expected.push_back( 3 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3047, -1e-6 ) );
   expected.insert( expected.begin(), 2 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3047,  1e-6 ) );
   expected.clear(); expected.push_back( 1 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B2376, -1e-6 ) );
   // See NOTE //  expected.push_back( 2 ); expected.push_back( 7 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B2376,  1e-6 ) );
   expected.clear(); expected.push_back( 4 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B1265, -1e-6 ) );
   expected.push_back( 7 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B1265,  1e-6 ) );
   
     // check neighbors of leaf 1
   CHECK_ERR( iter.step() );
   CHECK_EQUAL( leaves[1], iter.handle() );
   expected.clear(); 
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3210, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B4567, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B2376, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3210, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B4567, 1e-6 ) );
   expected.push_back( 2 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3047, -1e-6 ) );
   expected.push_back( 3 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3047,  1e-6 ) );
   expected.clear(); expected.push_back( 0 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B0154, -1e-6 ) );
   // See NOTE //  expected.push_back( 3 ); expected.push_back( 4 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B0154,  1e-6 ) );
   expected.clear(); expected.push_back( 7 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B1265, -1e-6 ) );
   expected.insert( expected.begin(), 4 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B1265,  1e-6 ) );
     
   /* +---------+---------+--------------------+
      |    2    |    1    |     7    |    6    |
@@ -1360,35 +1362,35 @@ void test_box_iter_neighbors()
   CHECK_ERR( iter.step() );
   CHECK_EQUAL( leaves[2], iter.handle() );
   expected.clear(); 
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3210, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B4567, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B2376, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3047, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3210, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B4567, 1e-6 ) );
   expected.push_back( 3 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B0154, -1e-6 ) );
   // See NOTE // expected.insert( expected.begin(), 0 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B0154,  1e-6 ) );
   expected.clear(); expected.push_back( 1 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B1265, -1e-6 ) );
   expected.insert( expected.begin(), 0 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B1265,  1e-6 ) );
 
     // check neighbors of leaf 3
   CHECK_ERR( iter.step() );
   CHECK_EQUAL( leaves[3], iter.handle() );
   expected.clear(); 
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3210, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B4567, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B0154, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3047, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3210, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B4567, 1e-6 ) );
   expected.push_back( 2 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B2376, -1e-6 ) );
   // See NOTE // expected.insert( expected.begin(), 1 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B2376,  1e-6 ) );
   expected.clear(); expected.push_back( 0 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B1265, -1e-6 ) );
   expected.push_back( 1 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B1265,  1e-6 ) );
     
   /* +---------+---------+--------------------+
      |    2    |    1    |     7    |    6    |
@@ -1400,39 +1402,39 @@ void test_box_iter_neighbors()
   CHECK_ERR( iter.step() );
   CHECK_EQUAL( leaves[4], iter.handle() );
   expected.clear(); 
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3210, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B4567, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B0154, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3210, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B4567, 1e-6 ) );
   expected.push_back( 0 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3047, -1e-6 ) );
   expected.push_back( 1 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3047,  1e-6 ) );
   expected.clear(); expected.push_back( 7 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B2376, -1e-6 ) );
   expected.insert( expected.begin(), 6 ); 
   // See NOTE // expected.insert( expected.begin(), 1 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B2376,  1e-6 ) );
   expected.clear(); expected.push_back( 5 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B1265, -1e-6 ) );
   // See NOTE // expected.push_back( 6 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B1265,  1e-6 ) );
 
     // check neighbors of leaf 5
   CHECK_ERR( iter.step() );
   CHECK_EQUAL( leaves[5], iter.handle() );
   expected.clear(); 
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3210, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B4567, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B0154, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B1265, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3210, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B4567, 1e-6 ) );
   expected.push_back( 4 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3047, -1e-6 ) );
   // See NOTE // expected.push_back( 7 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3047,  1e-6 ) );
   expected.clear(); expected.push_back( 6 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B2376, -1e-6 ) );
   expected.push_back( 7 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B2376,  1e-6 ) );
     
   /* +---------+---------+--------------------+
      |    2    |    1    |     7    |    6    |
@@ -1444,49 +1446,49 @@ void test_box_iter_neighbors()
   CHECK_ERR( iter.step() );
   CHECK_EQUAL( leaves[6], iter.handle() );
   expected.clear(); 
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3210, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B4567, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B2376, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B1265, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3210, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B4567, 1e-6 ) );
   expected.push_back( 7 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3047, -1e-6 ) );
   // See NOTE // expected.insert( expected.begin(), 4 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3047,  1e-6 ) );
   expected.clear(); expected.push_back( 5 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B0154, -1e-6 ) );
   expected.insert( expected.begin(), 4 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B0154,  1e-6 ) );
 
     // check neighbors of leaf 7
   CHECK_ERR( iter.step() );
   CHECK_EQUAL( leaves[7], iter.handle() );
   expected.clear(); 
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3210, 1e-6 ) );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B4567, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B2376, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3210, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B4567, 1e-6 ) );
   expected.push_back( 1 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3047, -1e-6 ) );
   expected.insert( expected.begin(), 0 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B3047,  1e-6 ) );
   expected.clear(); expected.push_back( 4 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B0154, -1e-6 ) );
   // See NOTE // expected.insert( expected.begin(), 0 ); 
   expected.push_back( 5 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B0154,  1e-6 ) );
   expected.clear(); expected.push_back( 6 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265, -1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B1265, -1e-6 ) );
   // See NOTE // expected.insert( expected.begin(), 5 );
-  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265,  1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, BSPTreeBoxIter::B1265,  1e-6 ) );
 }
 
 
 void test_leaf_sibling()
 {
-  MBCore moab;
-  MBBSPTree tool( &moab );
-  MBErrorCode rval;
-  MBEntityHandle root;
-  MBBSPTreeIter iter;
+  Core moab;
+  BSPTree tool( &moab );
+  ErrorCode rval;
+  EntityHandle root;
+  BSPTreeIter iter;
 
 
 /*  Build Tree
@@ -1504,9 +1506,9 @@ void test_leaf_sibling()
   0.0 +---------+--------------+
       0.0       0.4            1.0  */
 
-  const MBBSPTree::Plane  X_split(1.0, 0.0, 0.0,-0.4);
-  const MBBSPTree::Plane AB_split(0.0,-1.0, 0.0, 0.7);
-  const MBBSPTree::Plane CD_split(0.0,-1.0, 0.0, 0.3);
+  const BSPTree::Plane  X_split(1.0, 0.0, 0.0,-0.4);
+  const BSPTree::Plane AB_split(0.0,-1.0, 0.0, 0.7);
+  const BSPTree::Plane CD_split(0.0,-1.0, 0.0, 0.3);
   
   const double min[3] = { 0, 0, 0 };
   const double max[3] = { 1, 1, 1 };
@@ -1526,7 +1528,7 @@ void test_leaf_sibling()
   CHECK_ERR(rval);
   
     // create two iterators for testing
-  MBBSPTreeIter iter1, iter2;
+  BSPTreeIter iter1, iter2;
   rval = tool.get_tree_iterator( root, iter1 );
   CHECK_ERR(rval);
   rval = tool.get_tree_iterator( root, iter2 );
@@ -1581,13 +1583,13 @@ void test_leaf_sibling()
 
 void test_leaf_volume( bool box )
 {
-  MBCore moab;
-  MBBSPTree tool( &moab );
-  MBErrorCode rval;
-  MBEntityHandle root;
-  MBBSPTreeBoxIter b_iter;
-  MBBSPTreeIter g_iter;
-  MBBSPTreeIter& iter = box ? b_iter : g_iter;
+  Core moab;
+  BSPTree tool( &moab );
+  ErrorCode rval;
+  EntityHandle root;
+  BSPTreeBoxIter b_iter;
+  BSPTreeIter g_iter;
+  BSPTreeIter& iter = box ? b_iter : g_iter;
 
 
 /*  Build Tree
@@ -1605,9 +1607,9 @@ void test_leaf_volume( bool box )
   0.0 +---------+--------------+
       0.0       0.4            1.0  */
 
-  const MBBSPTree::Plane  X_split(1.0, 0.0, 0.0,-0.4);
-  const MBBSPTree::Plane AB_split(0.0,-1.0, 0.0, 0.7);
-  const MBBSPTree::Plane CD_split(0.0,-1.0, 0.0, 0.3);
+  const BSPTree::Plane  X_split(1.0, 0.0, 0.0,-0.4);
+  const BSPTree::Plane AB_split(0.0,-1.0, 0.0, 0.7);
+  const BSPTree::Plane CD_split(0.0,-1.0, 0.0, 0.3);
   
   const double min[3] = { 0, 0, 0 };
   const double max[3] = { 1, 1, 1 };
@@ -1642,12 +1644,12 @@ void test_leaf_volume( bool box )
   
 void test_leaf_splits_intersects()
 {
-  MBCore moab;
-  MBBSPTree tool( &moab );
-  MBErrorCode rval;
-  MBEntityHandle root;
-  MBBSPTreeBoxIter iter;
-  MBBSPTree::Plane p;
+  Core moab;
+  BSPTree tool( &moab );
+  ErrorCode rval;
+  EntityHandle root;
+  BSPTreeBoxIter iter;
+  BSPTree::Plane p;
   
   const double min[3] = { 0, 0, 0 };
   const double max[3] = { 1, 2, 3 };
@@ -1657,62 +1659,62 @@ void test_leaf_splits_intersects()
   CHECK_ERR(rval);
   
   p.set( 1, 0, 0, 1 ); // x == -1
-  CHECK_EQUAL( MBBSPTreeBoxIter::MISS, iter.splits( p ) );
+  CHECK_EQUAL( BSPTreeBoxIter::MISS, iter.splits( p ) );
   CHECK( !iter.intersects( p ) );
   p.flip();
-  CHECK_EQUAL( MBBSPTreeBoxIter::MISS, iter.splits( p ) );
+  CHECK_EQUAL( BSPTreeBoxIter::MISS, iter.splits( p ) );
   CHECK( !iter.intersects( p ) );
   
   p.set( 1, 0, 0, 0 ); // x == 0
-  CHECK_EQUAL( MBBSPTreeBoxIter::NONHEX, iter.splits( p ) );
+  CHECK_EQUAL( BSPTreeBoxIter::NONHEX, iter.splits( p ) );
   p.flip();
-  CHECK_EQUAL( MBBSPTreeBoxIter::NONHEX, iter.splits( p ) );
+  CHECK_EQUAL( BSPTreeBoxIter::NONHEX, iter.splits( p ) );
  
   p.set( 1, 0, 0, -0.5 ); // x == 0.5
-  CHECK_EQUAL( MBBSPTreeBoxIter::SPLIT, iter.splits( p ) );
+  CHECK_EQUAL( BSPTreeBoxIter::SPLIT, iter.splits( p ) );
   CHECK( iter.intersects( p ) );
   p.flip();
-  CHECK_EQUAL( MBBSPTreeBoxIter::SPLIT, iter.splits( p ) );
+  CHECK_EQUAL( BSPTreeBoxIter::SPLIT, iter.splits( p ) );
   CHECK( iter.intersects( p ) );
   
   p.set( 1, 0, 0, -1 ); // x == 1
-  CHECK_EQUAL( MBBSPTreeBoxIter::NONHEX, iter.splits( p ) );
+  CHECK_EQUAL( BSPTreeBoxIter::NONHEX, iter.splits( p ) );
   p.flip();
-  CHECK_EQUAL( MBBSPTreeBoxIter::NONHEX, iter.splits( p ) );
+  CHECK_EQUAL( BSPTreeBoxIter::NONHEX, iter.splits( p ) );
  
   p.set( 1, 0, 0, -2 ); // x == 2
-  CHECK_EQUAL( MBBSPTreeBoxIter::MISS, iter.splits( p ) );
+  CHECK_EQUAL( BSPTreeBoxIter::MISS, iter.splits( p ) );
   CHECK( !iter.intersects( p ) );
   p.flip();
-  CHECK_EQUAL( MBBSPTreeBoxIter::MISS, iter.splits( p ) );
+  CHECK_EQUAL( BSPTreeBoxIter::MISS, iter.splits( p ) );
   CHECK( !iter.intersects( p ) );
   
   double pt1[3] = { 0, 0, 1.5 };
   double pt2[3] = { 1, 0, 1.5 };
   double pt3[3] = { 0, 1, 3.0 };
   p.set( pt1, pt2, pt3 );
-  CHECK_EQUAL( MBBSPTreeBoxIter::NONHEX, iter.splits( p ) );
+  CHECK_EQUAL( BSPTreeBoxIter::NONHEX, iter.splits( p ) );
   CHECK( iter.intersects( p ) );
   p.flip();
-  CHECK_EQUAL( MBBSPTreeBoxIter::NONHEX, iter.splits( p ) );
+  CHECK_EQUAL( BSPTreeBoxIter::NONHEX, iter.splits( p ) );
   CHECK( iter.intersects( p ) );
   
   double pt4[3] = { 0, 2, 2.8 };
   p.set( pt1, pt2, pt4 );
-  CHECK_EQUAL( MBBSPTreeBoxIter::SPLIT, iter.splits( p ) );
+  CHECK_EQUAL( BSPTreeBoxIter::SPLIT, iter.splits( p ) );
   CHECK( iter.intersects( p ) );
   p.flip();
-  CHECK_EQUAL( MBBSPTreeBoxIter::SPLIT, iter.splits( p ) );
+  CHECK_EQUAL( BSPTreeBoxIter::SPLIT, iter.splits( p ) );
   CHECK( iter.intersects( p ) );
   
   double pta[3] = { 0.8, 0, 0 };
   double ptb[3] = { 0, 0.2, 3 };
   double ptc[3] = { 0.8, 2, 3 };
   p.set( pta, ptb, ptc );
-  CHECK_EQUAL( MBBSPTreeBoxIter::NONHEX, iter.splits( p ) );
+  CHECK_EQUAL( BSPTreeBoxIter::NONHEX, iter.splits( p ) );
   CHECK( iter.intersects( p ) );
   p.flip();
-  CHECK_EQUAL( MBBSPTreeBoxIter::NONHEX, iter.splits( p ) );
+  CHECK_EQUAL( BSPTreeBoxIter::NONHEX, iter.splits( p ) );
   CHECK( iter.intersects( p ) );
 }
   
@@ -1724,9 +1726,9 @@ void test_leaf_splits_intersects()
     
 void test_leaf_intersects_ray_common( bool box )
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBBSPTree tool( &moab );
+  ErrorCode rval;
+  Core moab;
+  BSPTree tool( &moab );
   double t_in, t_out;
   
   /** Start with only root box for initial testing **/
@@ -1747,7 +1749,7 @@ void test_leaf_intersects_ray_common( bool box )
          o--------------------o
   (1,1,-1)                    (6,1,-1)
   */
-  MBEntityHandle root;
+  EntityHandle root;
   const double corners[][3] = { { 1, 1, -3 },
                                 { 6, 1, -3 },
                                 { 2, 5, -3 },
@@ -1759,9 +1761,9 @@ void test_leaf_intersects_ray_common( bool box )
   rval = tool.create_tree( corners, root );
   CHECK_ERR(rval);
   
-  MBBSPTreeIter gen_iter;
-  MBBSPTreeBoxIter box_iter;
-  MBBSPTreeIter& iter = box ? static_cast<MBBSPTreeIter&>(box_iter) : gen_iter;
+  BSPTreeIter gen_iter;
+  BSPTreeBoxIter box_iter;
+  BSPTreeIter& iter = box ? static_cast<BSPTreeIter&>(box_iter) : gen_iter;
   rval = tool.get_tree_iterator( root, iter );
   CHECK_ERR(rval);
   
@@ -1815,10 +1817,10 @@ void test_leaf_intersects_ray_common( bool box )
 
   /** Now split twice and test the bottom right corne **/
   
-  MBBSPTree::Plane Y3( MBBSPTree::Y, 3.0 );
+  BSPTree::Plane Y3( BSPTree::Y, 3.0 );
   rval = tool.split_leaf( iter, Y3 );
   CHECK_ERR(rval);
-  MBBSPTree::Plane X2( MBBSPTree::X, 2.0 );
+  BSPTree::Plane X2( BSPTree::X, 2.0 );
   rval = tool.split_leaf( iter, X2 );
   CHECK_ERR(rval);
   rval = iter.step();
@@ -1896,11 +1898,11 @@ static void box( const double pts[], int num_pts, double minpt[3], double maxpt[
   }
 }
 
-static MBEntityHandle build_tree( const double points[], int num_points, MBBSPTree& tool )
+static EntityHandle build_tree( const double points[], int num_points, BSPTree& tool )
 {
     // create points
-  MBErrorCode rval;
-  std::vector<MBEntityHandle> pts(num_points);
+  ErrorCode rval;
+  std::vector<EntityHandle> pts(num_points);
   for (int i = 0; i < num_points; ++i) {
     rval = tool.moab()->create_vertex( points + 3*i, pts[i] );
     CHECK_ERR(rval);
@@ -1911,11 +1913,11 @@ static MBEntityHandle build_tree( const double points[], int num_points, MBBSPTr
   box( points, num_points, minpt, maxpt );
   
     // create initial (1-node) tree
-  MBEntityHandle root;
+  EntityHandle root;
   rval = tool.create_tree( minpt, maxpt, root );
   CHECK_ERR(rval);
   
-  MBBSPTreeIter iter;
+  BSPTreeIter iter;
   rval = tool.get_tree_iterator( root, iter );
   CHECK_ERR(rval);
   
@@ -1923,8 +1925,8 @@ static MBEntityHandle build_tree( const double points[], int num_points, MBBSPTr
   CHECK_ERR(rval);
   
     // build tree
-  std::vector<MBEntityHandle> left_pts, right_pts;
-  std::vector<MBCartVect> coords(num_points), tmp_coords;
+  std::vector<EntityHandle> left_pts, right_pts;
+  std::vector<CartVect> coords(num_points), tmp_coords;
   std::vector<double> coeffs;
   for (; MB_SUCCESS == rval; rval = iter.step()) {
     pts.clear();
@@ -1937,21 +1939,21 @@ static MBEntityHandle build_tree( const double points[], int num_points, MBBSPTr
       CHECK_ERR(rval);
       
         // find two points far apart apart
-      std::vector<MBCartVect>* ptr;
+      std::vector<CartVect>* ptr;
       if (coords.size() < 10) 
         ptr = &coords;
       else {
         tmp_coords.resize(16);
-        MBCartVect pn, px;
+        CartVect pn, px;
         box( coords[0].array(), coords.size(), pn.array(), px.array() );
         tmp_coords[8] = pn;
-        tmp_coords[9] = MBCartVect( px[0], pn[1], pn[2] );
-        tmp_coords[10] = MBCartVect( px[0], px[1], pn[2] );
-        tmp_coords[11] = MBCartVect( pn[0], px[1], pn[2] );
-        tmp_coords[12] = MBCartVect( pn[0], pn[1], px[2] );
-        tmp_coords[13] = MBCartVect( px[0], pn[1], px[2] );
+        tmp_coords[9] = CartVect( px[0], pn[1], pn[2] );
+        tmp_coords[10] = CartVect( px[0], px[1], pn[2] );
+        tmp_coords[11] = CartVect( pn[0], px[1], pn[2] );
+        tmp_coords[12] = CartVect( pn[0], pn[1], px[2] );
+        tmp_coords[13] = CartVect( px[0], pn[1], px[2] );
         tmp_coords[14] = px;
-        tmp_coords[15] = MBCartVect( pn[0], px[1], px[2] );
+        tmp_coords[15] = CartVect( pn[0], px[1], px[2] );
         for (int i = 0; i < 8; ++i) {
           tmp_coords[i] = coords[0];
           for (size_t j = 1; j < coords.size(); ++j)
@@ -1981,7 +1983,7 @@ static MBEntityHandle build_tree( const double points[], int num_points, MBBSPTr
         break;
         
         // define normal orthogonal to line through two points
-      MBCartVect norm = (*ptr)[pt1] - (*ptr)[pt2];
+      CartVect norm = (*ptr)[pt1] - (*ptr)[pt2];
       norm.normalize();
       
         // find mean position for plane
@@ -2001,7 +2003,7 @@ static MBEntityHandle build_tree( const double points[], int num_points, MBBSPTr
           right_pts.push_back( pts[i] );
       }
       
-      rval = tool.split_leaf( iter, MBBSPTree::Plane( norm.array(), coeff ), left_pts, right_pts );
+      rval = tool.split_leaf( iter, BSPTree::Plane( norm.array(), coeff ), left_pts, right_pts );
       CHECK_ERR(rval);
       CHECK( !left_pts.empty() && !right_pts.empty() );
       pts.swap( left_pts );
@@ -2019,16 +2021,16 @@ static MBEntityHandle build_tree( const double points[], int num_points, MBBSPTr
   
     // verify that tree is constructed correctly
   for (int i = 0; i < num_points; ++i) {
-    MBCartVect pt( points + 3*i );
-    MBEntityHandle leaf;
+    CartVect pt( points + 3*i );
+    EntityHandle leaf;
     rval = tool.leaf_containing_point( root, pt.array(), leaf );
     CHECK_ERR(rval);
-    MBRange ents;
+    Range ents;
     rval = tool.moab()->get_entities_by_handle( leaf, ents );
     CHECK_ERR(rval);
     bool found = false;
-    for (MBRange::iterator j = ents.begin(); j != ents.end(); ++j) {
-      MBCartVect ent_coords;
+    for (Range::iterator j = ents.begin(); j != ents.end(); ++j) {
+      CartVect ent_coords;
       rval = tool.moab()->get_coords( &*j, 1, ent_coords.array() );
       CHECK_ERR(rval);
       if ((pt - ent_coords).length_squared() < 1e-6)
@@ -2067,17 +2069,17 @@ void test_leaf_polyhedron()
        1, 6, 0};
   const int num_pts = sizeof(points)/(3*sizeof(double));
 
-  MBErrorCode rval;
-  MBCore moab;
-  MBBSPTree tool( &moab );
-  MBEntityHandle root = build_tree( points, num_pts, tool );
+  ErrorCode rval;
+  Core moab;
+  BSPTree tool( &moab );
+  EntityHandle root = build_tree( points, num_pts, tool );
   
-  MBBSPTreeIter iter;
+  BSPTreeIter iter;
   rval = tool.get_tree_iterator( root, iter );
   CHECK_ERR(rval);
   
-  std::vector<MBEntityHandle> pts;
-  std::vector<MBCartVect> coords;
+  std::vector<EntityHandle> pts;
+  std::vector<CartVect> coords;
   
   for (; rval == MB_SUCCESS; rval = iter.step()) {
     BSPTreePoly poly;

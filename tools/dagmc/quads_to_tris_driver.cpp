@@ -1,11 +1,12 @@
 #include <iostream>
 #include <assert.h>
-#include "MBCore.hpp"
+#include "moab/Core.hpp"
 #include "quads_to_tris.hpp"
 
-#define MBI mb_instance()
-MBInterface* mb_instance();
+using namespace moab;
 
+#define MBI mb_instance()
+Interface* mb_instance();
 
 // Read a DAGMC-style file of quads and convert it to tris
 // Input argument is the input filename.
@@ -20,7 +21,7 @@ int main(int argc, char **argv) {
   }
 
   // load file from input argument
-  MBErrorCode result;
+  ErrorCode result;
   std::string filename = argv[1];
   result = MBI->load_file( filename.c_str() );
     assert( MB_SUCCESS == result );
@@ -39,7 +40,7 @@ int main(int argc, char **argv) {
 
   return 0;
 }
-MBInterface* mb_instance() {
-  static MBCore inst;
+Interface* mb_instance() {
+  static Core inst;
   return &inst;
 }

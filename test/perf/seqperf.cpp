@@ -2,8 +2,8 @@
 #include <assert.h>
 #include <iostream>
 #include <sstream>
-#include "MBCore.hpp"
-#include "MBReadUtilIface.hpp"
+#include "moab/Core.hpp"
+#include "moab/ReadUtilIface.hpp"
 
 #define PRINT_SEQUENCE_COUNT
 
@@ -16,6 +16,8 @@
 #    include "SequenceManager.hpp"
 #  endif
 #endif
+
+using namespace moab;
 
   // constants
 const bool dump_mesh = false;        //!< write mesh to vtk file
@@ -31,10 +33,10 @@ long numSideInt, numVert, numElem;   //!< total counts;
 int queryCount;                      //!< number of times to do each query set
 
   // misc globals
-MBCore moab;                         //!< moab instance
-MBInterface& mb = moab;              //!< moab instance
-MBEntityHandle vertStart, elemStart; //!< first handle
-MBReadUtilIface *readTool = 0;       
+Core mb_core;                         //!< moab instance
+Interface& mb = mb_core;              //!< moab instance
+EntityHandle vertStart, elemStart; //!< first handle
+ReadUtilIface *readTool = 0;       
 long* queryVertPermutation = 0;      //!< pupulated by init(): "random" order for vertices
 long* queryElemPermutation = 0;      //!< pupulated by init(): "random" order for elements
 
@@ -65,8 +67,8 @@ long* permutation( long count )
 void init() 
 {
   void* ptr;
-  MBErrorCode rval = mb.query_interface( "MBReadUtilIface", &ptr );
-  readTool = static_cast<MBReadUtilIface*>(ptr);
+  ErrorCode rval = mb.query_interface( "ReadUtilIface", &ptr );
+  readTool = static_cast<ReadUtilIface*>(ptr);
   if (rval || !readTool) {
     assert(false);
     abort();
@@ -78,9 +80,9 @@ void init()
 
 
 void create_vertices_single( ); //!< create vertices one at a time
-void create_vertices_block( );  //!< create vertices in block using MBReadUtilIface
+void create_vertices_block( );  //!< create vertices in block using ReadUtilIface
 void create_elements_single( ); //!< create elements one at a time
-void create_elements_block( );  //!< create elements in block using MBReadUtilIface
+void create_elements_block( );  //!< create elements in block using ReadUtilIface
  
 void forward_order_query_vertices(int percent); //!< calculate mean of all vertex coordinates
 void reverse_order_query_vertices(int percent); //!< calculate mean of all vertex coordinates
@@ -106,7 +108,7 @@ void create_missing_vertices( int percent ); //!< re-create deleted vertices
 void create_missing_elements( int percent ); //!< re-create deleted elements
 
 #ifdef PRINT_SEQUENCE_COUNT
-unsigned get_number_sequences( MBEntityType type );
+unsigned get_number_sequences( EntityType type );
 #endif
 
 /* Build arrays of function pointers, indexed by the order the entities are traversed in */
@@ -139,7 +141,7 @@ const char* order_strs[] = { "Forward", "Reverse", "Random" };
 //! Coordinates for ith vertex in structured hex mesh
 inline void vertex_coords( long vert_index, double& x, double& y, double& z );
 //! Connectivity for ith hex in structured hex mesh
-inline void element_conn( long elem_index, MBEntityHandle conn[8] );
+inline void element_conn( long elem_index, EntityHandle conn[8] );
 //! True if passed index is one of the x% to be deleted
 inline bool deleted_vert( long index, int percent );
 //! True if passed index is one of the x% to be deleted
@@ -395,7 +397,7 @@ inline long vert_index( long x, long y, long z )
   return x + vs * (y + vs * z);
 }
 
-inline void element_conn( long elem_index, MBEntityHandle conn[8] )
+inline void element_conn( long elem_index, EntityHandle conn[8] )
 {
   const long x = elem_index % numSideInt;
   const long y = (elem_index / numSideInt) % numSideInt;
@@ -425,22 +427,22 @@ void create_vertices_single( )
 {
   double coords[3];
   vertex_coords( 0, coords[0], coords[1], coords[2] );
-  MBErrorCode rval = mb.create_vertex( coords, vertStart );
+  ErrorCode rval = mb.create_vertex( coords, vertStart );
   assert(!rval);
   
-  MBEntityHandle h;
+  EntityHandle h;
   for (long i = 1; i < numVert; ++i) {
     vertex_coords( i, coords[0], coords[1], coords[2] );
     rval = mb.create_vertex( coords, h );
     assert(!rval);
-    assert(h - vertStart == (MBEntityHandle)i);
+    assert(h - vertStart == (EntityHandle)i);
   }
 }
 
 void create_vertices_block( )
 {
   std::vector<double*> arrays;
-  MBErrorCode rval = readTool->get_node_arrays( 3, numVert, 0, vertStart, arrays );
+  ErrorCode rval = readTool->get_node_arrays( 3, numVert, 0, vertStart, arrays );
   if (rval || arrays.size() != 3) {
     assert(false);
     abort();
@@ -454,28 +456,28 @@ void create_vertices_block( )
 
 void create_elements_single( )
 {
-  MBEntityHandle conn[8];
+  EntityHandle conn[8];
   element_conn( 0, conn );
-  MBErrorCode rval = mb.create_element( MBHEX, conn, 8, elemStart );
+  ErrorCode rval = mb.create_element( MBHEX, conn, 8, elemStart );
   if (rval) {
     assert(false);
     abort();
   }
   
-  MBEntityHandle h;
+  EntityHandle h;
   for (long i = 1; i < numElem; ++i) {
     element_conn( i, conn );
     rval = mb.create_element( MBHEX, conn, 8, h );
     assert(!rval);
-    assert(h - elemStart == (MBEntityHandle)i);
+    assert(h - elemStart == (EntityHandle)i);
   }
 }
 
 
 void create_elements_block( )
 {
-  MBEntityHandle* conn = 0;
-  MBErrorCode rval = readTool->get_element_array( numElem, 8, MBHEX, 0, elemStart, conn );
+  EntityHandle* conn = 0;
+  ErrorCode rval = readTool->get_element_array( numElem, 8, MBHEX, 0, elemStart, conn );
   if (rval && !conn) {
     assert(false);
     abort();
@@ -487,12 +489,12 @@ void create_elements_block( )
  
 void forward_order_query_vertices(int percent)
 {
-  MBErrorCode r;
+  ErrorCode r;
   double coords[3];
   long x, y, z;
   const long vert_per_edge = numSideInt + 1;
   const long deleted_x = (numSideInt+1)*(100-percent) / 100;
-  MBEntityHandle h = vertStart;
+  EntityHandle h = vertStart;
   for (z = 0; z < vert_per_edge; ++z) {
     for (y = 0; y < vert_per_edge; ++y) {
       for (x = 0; x < deleted_x; ++x, ++h) {
@@ -509,12 +511,12 @@ void forward_order_query_vertices(int percent)
 
 void reverse_order_query_vertices(int percent)
 {
-  MBErrorCode r;
+  ErrorCode r;
   double coords[3];
   long x, y, z;
   const long vert_per_edge = numSideInt + 1;
   const long deleted_x = (numSideInt+1)*(100-percent) / 100;
-  MBEntityHandle h = vertStart + numVert - 1;;
+  EntityHandle h = vertStart + numVert - 1;;
   for (z = vert_per_edge-1; z >= 0; --z) {
     for (y = vert_per_edge-1; y >= 0; --y) {
       h -= (vert_per_edge - deleted_x);
@@ -528,8 +530,8 @@ void reverse_order_query_vertices(int percent)
 
 void random_order_query_vertices(int percent)
 {
-  MBErrorCode r;
-  MBEntityHandle h;
+  ErrorCode r;
+  EntityHandle h;
   double coords[3];
   for (long i = 0; i < numVert; ++i) {
     if (!deleted_vert(queryVertPermutation[i],percent)) {
@@ -542,13 +544,13 @@ void random_order_query_vertices(int percent)
 
 void forward_order_query_elements(int percent)
 {
-  MBErrorCode r;
-  const MBEntityHandle* conn;
+  ErrorCode r;
+  const EntityHandle* conn;
   int len;
   long x, y, z;
   const long elem_per_edge = numSideInt;
   const long deleted_x = (numSideInt+1)*(100-percent) / 100 - 1;
-  MBEntityHandle h = elemStart;
+  EntityHandle h = elemStart;
   for (z = 0; z < elem_per_edge; ++z) {
     for (y = 0; y < elem_per_edge; ++y) {
       for (x = 0; x < deleted_x; ++x, ++h) {
@@ -563,13 +565,13 @@ void forward_order_query_elements(int percent)
 
 void reverse_order_query_elements(int percent)
 {
-  MBErrorCode r;
-  const MBEntityHandle* conn;
+  ErrorCode r;
+  const EntityHandle* conn;
   int len;
   long x, y, z;
   const long elem_per_edge = numSideInt;
   const long deleted_x = (numSideInt+1)*(100-percent) / 100 - 1;
-  MBEntityHandle h = elemStart + numElem - 1;;
+  EntityHandle h = elemStart + numElem - 1;;
   for (z = elem_per_edge-1; z >= 0; --z) {
     for (y = elem_per_edge-1; y >= 0; --y) {
       h -= (elem_per_edge - deleted_x);
@@ -584,8 +586,8 @@ void reverse_order_query_elements(int percent)
 
 void  random_order_query_elements(int percent)
 {
-  MBErrorCode r;
-  const MBEntityHandle* conn;
+  ErrorCode r;
+  const EntityHandle* conn;
   int len;
   for (long i = 0; i < numElem; ++i) {
     if (!deleted_elem( queryElemPermutation[i], percent )) {
@@ -619,14 +621,14 @@ static double hex_centroid( double coords[24], double cent[3] )
 
 void forward_order_query_element_verts(int percent)
 {
-  MBErrorCode r;
-  const MBEntityHandle* conn;
+  ErrorCode r;
+  const EntityHandle* conn;
   int len;
   long x, y, z;
   double coords[24];
   const long elem_per_edge = numSideInt;
   const long deleted_x = (numSideInt+1)*(100-percent) / 100 - 1;
-  MBEntityHandle h = elemStart;
+  EntityHandle h = elemStart;
   for (z = 0; z < elem_per_edge; ++z) {
     for (y = 0; y < elem_per_edge; ++y) {
       for (x = 0; x < deleted_x; ++x, ++h) {
@@ -643,14 +645,14 @@ void forward_order_query_element_verts(int percent)
 
 void reverse_order_query_element_verts(int percent)
 {
-  MBErrorCode r;
-  const MBEntityHandle* conn;
+  ErrorCode r;
+  const EntityHandle* conn;
   int len;
   long x, y, z;
   double coords[24];
   const long elem_per_edge = numSideInt;
   const long deleted_x = (numSideInt+1)*(100-percent) / 100 - 1;
-  MBEntityHandle h = elemStart + numElem - 1;;
+  EntityHandle h = elemStart + numElem - 1;;
   for (z = elem_per_edge-1; z >= 0; --z) {
     for (y = elem_per_edge-1; y >= 0; --y) {
       h -= (elem_per_edge - deleted_x);
@@ -667,8 +669,8 @@ void reverse_order_query_element_verts(int percent)
 
 void  random_order_query_element_verts(int percent)
 {
-  MBErrorCode r;
-  const MBEntityHandle* conn;
+  ErrorCode r;
+  const EntityHandle* conn;
   int len;
   double coords[24];
   for (long i = 0; i < numElem; ++i) {
@@ -721,8 +723,8 @@ void  random_order_delete_elements( int percent )
 
 void create_missing_vertices( int percent )
 {
-  MBEntityHandle h;
-  MBErrorCode rval;
+  EntityHandle h;
+  ErrorCode rval;
   double coords[3];
   for (long i = 0; i < numVert; ++i)
     if (deleted_vert( i, percent )) {
@@ -734,9 +736,9 @@ void create_missing_vertices( int percent )
 
 void create_missing_elements( int percent )
 {
-  MBEntityHandle h;
-  MBErrorCode rval;
-  MBEntityHandle conn[8];
+  EntityHandle h;
+  ErrorCode rval;
+  EntityHandle conn[8];
   for (long i = 0; i < numElem; ++i)
     if (deleted_elem( i, percent )) {
       element_conn( i, conn );
@@ -751,8 +753,8 @@ void create_missing_elements( int percent )
 inline void delete_vert( long index, int percent )
 {
   if (deleted_vert(index, percent)) {
-    MBEntityHandle h = index + vertStart;
-    MBErrorCode rval = mb.delete_entities( &h, 1 );
+    EntityHandle h = index + vertStart;
+    ErrorCode rval = mb.delete_entities( &h, 1 );
     if (rval) {
       assert(false);
       abort();
@@ -763,8 +765,8 @@ inline void delete_vert( long index, int percent )
 inline void delete_elem( long index, int percent )
 {
   if (deleted_elem(index, percent)) {
-    MBEntityHandle h = index + elemStart;
-    MBErrorCode rval = mb.delete_entities( &h, 1 );
+    EntityHandle h = index + elemStart;
+    ErrorCode rval = mb.delete_entities( &h, 1 );
     if (rval) {
       assert(false);
       abort();
@@ -773,12 +775,12 @@ inline void delete_elem( long index, int percent )
 }
 
 #ifdef PRINT_SEQUENCE_COUNT
-unsigned get_number_sequences( MBEntityType type )
+unsigned get_number_sequences( EntityType type )
 {
 #ifdef MB_ENTITY_SEQUENCE_HPP
-  return moab.sequence_manager()->entity_map(type)->size();
+  return mb_core.sequence_manager()->entity_map(type)->size();
 #else
-  return moab.sequence_manager()->entity_map(type).get_sequence_count();
+  return mb_core.sequence_manager()->entity_map(type).get_sequence_count();
 #endif
 }
 #endif

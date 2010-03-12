@@ -1,5 +1,4 @@
-AM_CPPFLAGS += -I$(top_srcdir)/src -I$(top_builddir)/src $(QVDUAL_INCLUDES) \
-               -I$(top_srcdir)/src/moab -I$(top_builddir)/src/moab
+AM_CPPFLAGS += -I$(top_srcdir)/src -I$(top_builddir)/src $(QVDUAL_INCLUDES)
 bin_PROGRAMS = qvdual
 qvdual_SOURCES = \
   CropTool.cpp \

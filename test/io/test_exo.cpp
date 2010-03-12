@@ -13,12 +13,14 @@
  * 
  */
 
-#include "MBDefines.h"
-#include "MBCore.hpp"
+#include "moab/Defines.h"
+#include "moab/Core.hpp"
 #include "ReadWriteExoII.hpp"
-#include "MB_MBSet.hpp"
+#include "moab/_MBSet.hpp"
 
 #include <iostream>
+
+using namespace moab;
 
 std::ostream& operator<<(std::ostream& out, const std::vector<int> & v)
 {
@@ -35,9 +37,9 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  MBCore mdb;
+  Core mdb;
   ReadWriteExoII reader(&mdb);
-  MBErrorCode result = reader.load_file(argv[1], NULL);
+  ErrorCode result = reader.load_file(argv[1], NULL);
 
   std::cout << "Result of reading file = " 
             << (MB_FAILURE == result ? "FAILURE." : "SUCCESS.")

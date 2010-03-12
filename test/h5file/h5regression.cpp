@@ -1,7 +1,7 @@
-#include "MBCore.hpp"
+#include "moab/Core.hpp"
 #include "TestUtil.hpp"
-#include "MBRange.hpp"
-#include "MBReadUtilIface.hpp"
+#include "moab/Range.hpp"
+#include "moab/ReadUtilIface.hpp"
 #include "WriteHDF5.hpp"
 #include "FileOptions.hpp"
 
@@ -9,6 +9,8 @@
 #include <iostream>
 #include <stdlib.h>
 #include <math.h>
+
+using namespace moab;
 
 const char filename[] = "bad.h5m";
   
@@ -24,19 +26,19 @@ int main(int argc, char* argv[])
   
 void test_write_invalid_elem()
 {
-  MBCore mbcore;
-  MBInterface& moab = mbcore;
-  MBReadUtilIface* readtool = 0;
-  MBErrorCode rval;
+  Core mbcore;
+  Interface& moab = mbcore;
+  ReadUtilIface* readtool = 0;
+  ErrorCode rval;
   
   void* ptr = 0;
-  rval = moab.query_interface( "MBReadUtilIface", &ptr );
+  rval = moab.query_interface( "ReadUtilIface", &ptr );
   CHECK_ERR(rval);
   CHECK( ptr != 0 );
-  readtool = reinterpret_cast<MBReadUtilIface*>(ptr);
+  readtool = reinterpret_cast<ReadUtilIface*>(ptr);
   
     // create two nodes
-  MBEntityHandle first_node;
+  EntityHandle first_node;
   std::vector<double*> coords;
   rval = readtool->get_node_arrays( 3, 2, 1, first_node, coords );
   CHECK_ERR(rval);
@@ -46,8 +48,8 @@ void test_write_invalid_elem()
   
     // create a triangle with an invalid node handle for its
     // third vertex
-  MBEntityHandle tri;
-  MBEntityHandle* conn = 0;
+  EntityHandle tri;
+  EntityHandle* conn = 0;
   rval = readtool->get_element_array( 1, 3, MBTRI, 1, tri, conn );
   CHECK_ERR(rval);
   conn[0] = first_node;   // valid

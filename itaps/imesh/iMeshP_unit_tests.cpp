@@ -1,5 +1,5 @@
 #include "iMeshP.h"
-#include "MBmpi.h"
+#include "moab_mpi.h"
 #include <iostream>
 #include <algorithm>
 #include <vector>

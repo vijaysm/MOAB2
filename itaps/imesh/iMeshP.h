@@ -4,7 +4,7 @@
 
 #include "iMesh.h"
 #include "iMeshP_protos.h"
-#include "MBmpi.h"
+#include "moab_mpi.h"
 
 #ifdef __cplusplus
 extern "C" {

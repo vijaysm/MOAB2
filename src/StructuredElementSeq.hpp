@@ -30,13 +30,15 @@
 #include "ElementSequence.hpp"
 #include "ScdElementData.hpp"
 
+namespace moab {
+
 class StructuredElementSeq : public ElementSequence
 {
 public:
 
     //! constructor
   StructuredElementSeq(
-                MBEntityHandle start_handle,
+                EntityHandle start_handle,
                 const int imin, const int jmin, const int kmin,
                 const int imax, const int jmax, const int kmax);
   
@@ -48,19 +50,19 @@ public:
     { return reinterpret_cast<const ScdElementData*>(data()); }
 
     //! get handle of vertex at i, j, k
-  MBEntityHandle get_vertex(const int i, const int j, const int k) const
+  EntityHandle get_vertex(const int i, const int j, const int k) const
     { return get_vertex( HomCoord(i,j,k) ); }
   
     //! get handle of vertex at homogeneous coords
-  inline MBEntityHandle get_vertex(const HomCoord &coords) const
+  inline EntityHandle get_vertex(const HomCoord &coords) const
     { return sdata()->get_vertex(coords); }
   
     //! get handle of element at i, j, k
-  MBEntityHandle get_element(const int i, const int j, const int k) const
+  EntityHandle get_element(const int i, const int j, const int k) const
     { return sdata()->get_element( i, j, k ); }
   
     //! get handle of element at homogeneous coords
-  MBEntityHandle get_element(const HomCoord &coords) const
+  EntityHandle get_element(const HomCoord &coords) const
     { return sdata()->get_element( coords.i(), coords.j(), coords.k() ); }
   
     //! get min params for this element
@@ -84,7 +86,7 @@ public:
     { sdata()->param_extents( di, dj, dk ); }
 
     //! given a handle, get the corresponding parameters
-  MBErrorCode get_params(const MBEntityHandle ehandle,
+  ErrorCode get_params(const EntityHandle ehandle,
                           int &i, int &j, int &k) const
     { return sdata()->get_params( ehandle, i, j, k ); }
   
@@ -108,29 +110,29 @@ public:
     { return sdata()->contains(coords); }
 
     //! get connectivity of an entity given entity's parameters
-  MBErrorCode get_params_connectivity(const int i, const int j, const int k,
-                                std::vector<MBEntityHandle>& connectivity) const
+  ErrorCode get_params_connectivity(const int i, const int j, const int k,
+                                std::vector<EntityHandle>& connectivity) const
     { return sdata()->get_params_connectivity( i, j, k, connectivity ); }
   
   
     /***************** Methods from ElementSequence *****************/
 
-  virtual MBErrorCode get_connectivity( MBEntityHandle handle,
-                                        std::vector<MBEntityHandle>& connect,
+  virtual ErrorCode get_connectivity( EntityHandle handle,
+                                        std::vector<EntityHandle>& connect,
                                         bool topological = false ) const;
   
-  virtual MBErrorCode get_connectivity( MBEntityHandle handle,
-                                        MBEntityHandle const*& connect,
+  virtual ErrorCode get_connectivity( EntityHandle handle,
+                                        EntityHandle const*& connect,
                                         int &connect_length,
                                         bool topological = false,
-                                        std::vector<MBEntityHandle>* storage = 0
+                                        std::vector<EntityHandle>* storage = 0
                                        ) const;
 
-  virtual MBErrorCode set_connectivity( MBEntityHandle handle,
-                                        MBEntityHandle const* connect,
+  virtual ErrorCode set_connectivity( EntityHandle handle,
+                                        EntityHandle const* connect,
                                         int connect_length );
   
-  virtual MBEntityHandle* get_connectivity_array();
+  virtual EntityHandle* get_connectivity_array();
   
   
     /***************** Methods from EntitySequence *****************/
@@ -141,18 +143,20 @@ public:
      */
   virtual int values_per_entity() const;
 
-  virtual EntitySequence* split( MBEntityHandle here );
+  virtual EntitySequence* split( EntityHandle here );
 
-  virtual SequenceData* create_data_subset( MBEntityHandle start_handle,
-                                            MBEntityHandle end_handle ) const;
+  virtual SequenceData* create_data_subset( EntityHandle start_handle,
+                                            EntityHandle end_handle ) const;
 
   virtual void get_const_memory_use( unsigned long& bytes_per_entity,
                                      unsigned long& size_of_sequence ) const;
 
 protected:
-  StructuredElementSeq( StructuredElementSeq& split_from, MBEntityHandle here )
+  StructuredElementSeq( StructuredElementSeq& split_from, EntityHandle here )
     : ElementSequence( split_from, here )
     {}
 };
+
+} // namespace moab
 
 #endif

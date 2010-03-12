@@ -35,6 +35,8 @@ extern "C" int getrusage(int, struct rusage *);
 
 const double LENGTH = 1.0;
 
+using namespace moab;
+
 extern "C" 
 {
   void __ctype_toupper() 

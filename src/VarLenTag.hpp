@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+namespace moab {
+
 /* Remove this preprocessor macro to compile 
  * simple implementation w/ no inlined storage
  */
@@ -220,6 +222,8 @@ inline VarLenTag::VarLenTag( unsigned size, const void* data )
   if (size) 
     memcpy( resize(size), data, size );
 }
+
+} // namespace moab
 
 #endif
 

@@ -1,7 +1,7 @@
 #include "TestUtil.hpp"
-#include "MBCore.hpp"
-#include "MBTagConventions.hpp"
-#include "MBCN.hpp"
+#include "moab/Core.hpp"
+#include "moab/MBTagConventions.hpp"
+#include "moab/MBCN.hpp"
 #define IS_BUILDING_MB
 #include "ReadNCDF.hpp"
 #include "WriteNCDF.hpp"
@@ -9,6 +9,8 @@
 #include "ExoIIUtil.hpp"
 #include <math.h>
 #include <algorithm>
+
+using namespace moab;
 
 /* Input test file: ho_test.g
  * 
@@ -23,18 +25,18 @@ static const char ho_file[] = STRINGIFY(SRCDIR) "/ho_test.g";
 static const char ho_file[] = "ho_test.g";
 #endif
 
-void read_file( MBInterface& moab, 
+void read_file( Interface& moab, 
                 const char* input_file );
 
 // Check that element has expected higher-order nodes
 // and that each higher-order node is at the center
 // of the sub-entity it is on.
-void check_ho_element( MBInterface& moab, 
-                       MBEntityHandle entity,
+void check_ho_element( Interface& moab, 
+                       EntityHandle entity,
                        int mid_nodes[4] );
 
 void test_read_side( int sideset_id,
-                     MBEntityType sideset_type,
+                     EntityType sideset_type,
                      int sideset_nodes_per_elem,
                      bool shell_side = false );
 
@@ -42,7 +44,7 @@ void test_read_side( int sideset_id,
 // Looks for a block containing the specified entity type
 // and with the specified mid-node flags set in its
 // HAS_MID_NODES_TAG.
-void test_ho_elements( MBEntityType type, int num_nodes );
+void test_ho_elements( EntityType type, int num_nodes );
 
 void test_types();
 
@@ -101,7 +103,7 @@ int main()
 }
 
 struct TestType {
-  MBEntityType moab_type;
+  EntityType moab_type;
   ExoIIElementType exo_type;
   int num_nodes;
   std::string name;
@@ -121,7 +123,7 @@ void check_type( const TestType& type )
     case 1: CHECK_EQUAL( has_mid_nodes[1], ExoIIUtil::HasMidNodes[type.exo_type][1] );
   }
   
-  MBCore moab;
+  Core moab;
   ExoIIUtil tool(&moab);
   CHECK_EQUAL( type.exo_type, tool.element_name_to_type( type.name.c_str() ) );
   CHECK_EQUAL( type.name, std::string(tool.element_type_name( type.exo_type ) ) );
@@ -178,27 +180,27 @@ void test_types()
     check_type( types[i] );
 }
 
-void read_file( MBInterface& moab, 
+void read_file( Interface& moab, 
                 const char* input_file )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   ReadNCDF reader( &moab );
   FileOptions opts("");
   rval = reader.load_file( input_file, 0, opts, 0, 0, 0 );
   CHECK_ERR(rval);
 }
 
-void write_and_read( MBInterface& write_mb,
-                     MBInterface& read_mb,
-                     MBEntityHandle block = 0 )
+void write_and_read( Interface& write_mb,
+                     Interface& read_mb,
+                     EntityHandle block = 0 )
 {
   const char* tmp_file = "exodus_test_tmp.g";
-  MBErrorCode rval;
+  ErrorCode rval;
   ReadNCDF reader( &read_mb );
   WriteNCDF writer( &write_mb );
   FileOptions opts("");
   
-  MBEntityHandle* write_set_list = &block;
+  EntityHandle* write_set_list = &block;
   int write_set_list_len = 0;//(block != 0);
   std::vector<std::string> qa_records;
   rval = writer.write_file( tmp_file, true, opts, 
@@ -213,33 +215,33 @@ void write_and_read( MBInterface& write_mb,
   CHECK_ERR(rval);
 }
 
-void check_ho_elements( MBInterface& moab, 
-                        MBEntityHandle block,
-                        MBEntityType type,
+void check_ho_elements( Interface& moab, 
+                        EntityHandle block,
+                        EntityType type,
                         int mid_nodes[4] )
 {
-  MBErrorCode rval;
-  MBRange elems;
+  ErrorCode rval;
+  Range elems;
   rval = moab.get_entities_by_handle( block, elems );
   CHECK_ERR(rval);
   CHECK(!elems.empty());
   CHECK(elems.all_of_type(type));
-  for (MBRange::const_iterator i = elems.begin(); i != elems.end(); ++i)
+  for (Range::const_iterator i = elems.begin(); i != elems.end(); ++i)
     check_ho_element( moab, *i, mid_nodes );
 }
 
 // Check that element has expected higher-order nodes
 // and that each higher-order node is at the center
 // of the sub-entity it is on.
-void check_ho_element( MBInterface& moab, 
-                       MBEntityHandle entity,
+void check_ho_element( Interface& moab, 
+                       EntityHandle entity,
                        int mid_nodes[4] )
 {
     // get element info
-  const MBEntityType type = TYPE_FROM_HANDLE(entity);
-  const MBEntityHandle* conn;
+  const EntityType type = TYPE_FROM_HANDLE(entity);
+  const EntityHandle* conn;
   int conn_len;
-  MBErrorCode rval = moab.get_connectivity( entity, conn, conn_len );
+  ErrorCode rval = moab.get_connectivity( entity, conn, conn_len );
   CHECK_ERR(rval);
   std::vector<double> coords(3*conn_len);
   rval = moab.get_coords( conn, conn_len, &coords[0] );
@@ -262,7 +264,7 @@ void check_ho_element( MBInterface& moab,
     int sub_conn[8], num_sub;
     if (sub_dim < MBCN::Dimension(type)) {
       MBCN::SubEntityVertexIndices( type, sub_dim, sub_num, sub_conn );
-      MBEntityType sub_type = MBCN::SubEntityType( type, sub_dim, sub_num );
+      EntityType sub_type = MBCN::SubEntityType( type, sub_dim, sub_num );
       num_sub = MBCN::VerticesPerEntity( sub_type );
     }
     else {
@@ -289,24 +291,24 @@ void check_ho_element( MBInterface& moab,
 }
 
 
-MBEntityHandle find_block( MBInterface& mb, MBEntityType type, const int has_mid_nodes[4] )
+EntityHandle find_block( Interface& mb, EntityType type, const int has_mid_nodes[4] )
 {
 
-  MBErrorCode rval;
-  MBTag ho_tag, block_tag;
+  ErrorCode rval;
+  Tag ho_tag, block_tag;
   rval = mb.tag_get_handle( MATERIAL_SET_TAG_NAME, block_tag );
   CHECK_ERR(rval);
   rval = mb.tag_get_handle( HAS_MID_NODES_TAG_NAME, ho_tag );
   CHECK_ERR(rval);
   
   // get material sets with expected higher-order nodes
-  MBRange blocks;
-  MBTag tags[2] = {ho_tag, block_tag};
+  Range blocks;
+  Tag tags[2] = {ho_tag, block_tag};
   const void* vals[2] = {has_mid_nodes, NULL};
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, tags, vals, 2, blocks );
   CHECK_ERR(rval);
   
-  for (MBRange::iterator i = blocks.begin(); i != blocks.end(); ++i) {
+  for (Range::iterator i = blocks.begin(); i != blocks.end(); ++i) {
     int n;
     rval = mb.get_number_entities_by_type( *i, type, n );
     CHECK_ERR(rval);
@@ -318,17 +320,17 @@ MBEntityHandle find_block( MBInterface& mb, MBEntityType type, const int has_mid
   return 0;
 }
 
-MBEntityHandle find_sideset( MBInterface& mb, 
+EntityHandle find_sideset( Interface& mb, 
                              int sideset_id,
-                             MBEntityType side_type )
+                             EntityType side_type )
 {
-  MBErrorCode rval;
-  MBTag ss_tag;
+  ErrorCode rval;
+  Tag ss_tag;
   rval = mb.tag_get_handle( NEUMANN_SET_TAG_NAME, ss_tag );
   CHECK_ERR(rval);
   
   const void* tag_vals[] = { &sideset_id };
-  MBRange side_sets;
+  Range side_sets;
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &ss_tag, tag_vals, 1, side_sets );
   CHECK_ERR(rval);
   CHECK_EQUAL( 1, (int)side_sets.size() );
@@ -339,17 +341,17 @@ MBEntityHandle find_sideset( MBInterface& mb,
 // Looks for a block containing the specified entity type
 // and with the specified mid-node flags set in its
 // HAS_MID_NODES_TAG.
-void test_ho_elements( MBEntityType type, int num_nodes )
+void test_ho_elements( EntityType type, int num_nodes )
 {
-  MBCore mb_impl1, mb_impl2;
-  MBInterface &mb1 = mb_impl1, &mb2 = mb_impl2;
+  Core mb_impl1, mb_impl2;
+  Interface &mb1 = mb_impl1, &mb2 = mb_impl2;
   int ho_flags[4];
   MBCN::HasMidNodes( type, num_nodes, ho_flags );
 
     // read file 
   read_file( mb1, ho_file );
     // test element connectivity order
-  MBEntityHandle block = find_block( mb1, type, ho_flags );
+  EntityHandle block = find_block( mb1, type, ho_flags );
   CHECK(block != 0);
   check_ho_elements( mb1, block, type, ho_flags );
   
@@ -362,17 +364,17 @@ void test_ho_elements( MBEntityType type, int num_nodes )
 }
 
 void test_read_side( int id,
-                     MBEntityType sideset_type,
+                     EntityType sideset_type,
                      int sideset_nodes_per_elem,
                      bool shell_side )
 {
   // read test file
-  MBCore mb_impl;
-  MBInterface& moab = mb_impl;
+  Core mb_impl;
+  Interface& moab = mb_impl;
   read_file( moab, ho_file );
   
   // get side set 
-  MBEntityHandle set = find_sideset( moab, id, sideset_type );
+  EntityHandle set = find_sideset( moab, id, sideset_type );
   CHECK(set != 0);
   
   // check expected element connectivity
@@ -384,14 +386,14 @@ void test_read_side( int id,
     return;
   
   // check that each element is on the boundary of the mesh
-  MBRange elems;
-  MBErrorCode rval = mb_impl.get_entities_by_handle( set, elems );
+  Range elems;
+  ErrorCode rval = mb_impl.get_entities_by_handle( set, elems );
   CHECK_ERR(rval);
   
   int dim = MBCN::Dimension( sideset_type );
-  for (MBRange::iterator i= elems.begin(); i != elems.end(); ++i) {
-    MBRange adj;
-    rval = mb_impl.get_adjacencies( &*i, 1, dim+1, false, adj, MBInterface::UNION );
+  for (Range::iterator i= elems.begin(); i != elems.end(); ++i) {
+    Range adj;
+    rval = mb_impl.get_adjacencies( &*i, 1, dim+1, false, adj, Interface::UNION );
     CHECK_ERR(rval);
     CHECK_EQUAL( 1, (int)adj.size() );
   }
@@ -403,12 +405,12 @@ void test_read_ids_common( const char* file_name,
                            const int* expected_vals,
                            int num_expected )
 {
-  MBCore mb;
+  Core mb;
   ReadNCDF reader(&mb);
   
   FileOptions opts("");
   std::vector<int> values;
-  MBErrorCode rval = reader.read_tag_values( file_name, tag_name, opts, values );
+  ErrorCode rval = reader.read_tag_values( file_name, tag_name, opts, values );
   CHECK_ERR(rval);
   
   std::vector<int> expected( expected_vals, expected_vals+num_expected );

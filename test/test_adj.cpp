@@ -25,26 +25,28 @@
 #endif
 
 #include <iostream>
-#include "MBCore.hpp"
+#include "moab/Core.hpp"
 
 #ifndef IS_BUILDING_MB
 #define IS_BUILDING_MB
 #endif
-#include "MBInternals.hpp"
+#include "Internals.hpp"
+
+using namespace moab;
 
 int main()
 {
 
-  MBInterface* iface = new MBCore;
+  Interface* iface = new Core;
 
   iface->load_mesh( "../test/quad/quad1.gen" );
 
-  std::vector<MBEntityHandle> nodes;
+  std::vector<EntityHandle> nodes;
   int err;
-  MBEntityHandle h = CREATE_HANDLE(MBQUAD, MB_START_ID, err);
+  EntityHandle h = CREATE_HANDLE(MBQUAD, MB_START_ID, err);
   err = iface->get_adjacencies( &h, 1, 0, true, nodes);
 
-  std::vector<MBEntityHandle> tris;
+  std::vector<EntityHandle> tris;
   err = iface->get_adjacencies( &h, 1, 1, true, tris);
 
   //faces to nodes

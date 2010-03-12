@@ -1,11 +1,11 @@
 #include "GeometryQueryTool.hpp"
 #include "InitCGMA.hpp"
 #include "CGMApp.hpp"
-#include "MBCore.hpp"
-#include "MBCartVect.hpp"
+#include "moab/Core.hpp"
+#include "moab/CartVect.hpp"
 #include "cubfile.h"
 #include "FileOptions.hpp"
-#include "MBSkinner.hpp"
+#include "moab/Skinner.hpp"
 #include "quads_to_tris.hpp"
 #include <limits>
 #include <cstdlib>
@@ -17,25 +17,27 @@
 #define GF_ACIS_BIN_FILE_TYPE "ACIS_SAB"
 #define GF_OCC_BREP_FILE_TYPE "OCC"
 
+using namespace moab;
+
 // DAGMC cannot build an OBB tree if all of a volume's surfaces have no facets.
 // To prevent this, remove the cgm surface set if the cub surface set exists,
 // but had its faced removed (due to dead elements). Remember that the cgm_file_set
 // is not TRACKING.
-MBErrorCode remove_empty_cgm_surfs_and_vols( MBInterface *MBI, 
-                                          const MBEntityHandle cgm_file_set, 
-                                          const MBTag idTag, 
-                                          const MBTag dimTag, 
+ErrorCode remove_empty_cgm_surfs_and_vols( Interface *MBI, 
+                                          const EntityHandle cgm_file_set, 
+                                          const Tag idTag, 
+                                          const Tag dimTag, 
                                           const bool debug ) {
 
-  MBErrorCode result;
+  ErrorCode result;
   const int two = 2;
   const void* const two_val[] = {&two};
-  MBRange cgm_surfs;
+  Range cgm_surfs;
   result = MBI->get_entities_by_type_and_tag(cgm_file_set, MBENTITYSET, &dimTag,
 						 two_val, 1, cgm_surfs );
   if(MB_SUCCESS != result) return result;    
 
-  for(MBRange::iterator i=cgm_surfs.begin(); i!=cgm_surfs.end(); ++i) {
+  for(Range::iterator i=cgm_surfs.begin(); i!=cgm_surfs.end(); ++i) {
     int n_tris;
     result = MBI->get_number_entities_by_type( *i, MBTRI, n_tris );
     if(MB_SUCCESS != result) return result;                              
@@ -45,17 +47,17 @@ MBErrorCode remove_empty_cgm_surfs_and_vols( MBInterface *MBI,
       result = MBI->tag_get_data(idTag, &(*i), 1, &surf_id);
       assert(MB_SUCCESS == result);
 
-      MBRange parent_vols;
+      Range parent_vols;
       result = MBI->get_parent_meshsets( *i, parent_vols );
       assert(MB_SUCCESS == result);
-      for(MBRange::iterator j=parent_vols.begin(); j!=parent_vols.end(); ++j) {  
+      for(Range::iterator j=parent_vols.begin(); j!=parent_vols.end(); ++j) {  
         result = MBI->remove_parent_child( *j, *i );
         assert(MB_SUCCESS == result);
       }  
-      MBRange child_curves;
+      Range child_curves;
       result = MBI->get_child_meshsets( *i, child_curves );
       assert(MB_SUCCESS == result);
-      for(MBRange::iterator j=child_curves.begin(); j!=child_curves.end(); ++j) {  
+      for(Range::iterator j=child_curves.begin(); j!=child_curves.end(); ++j) {  
         result = MBI->remove_parent_child( *i, *j );
         assert(MB_SUCCESS == result);
       }  
@@ -65,10 +67,10 @@ MBErrorCode remove_empty_cgm_surfs_and_vols( MBInterface *MBI,
       // Is the set contained anywhere else? If the surface is in a CUBIT group, 
       // such as "unmerged_surfs" it will cause write_mesh to fail. This should 
       // be a MOAB bug.
-      MBRange all_sets;
+      Range all_sets;
       result = MBI->get_entities_by_type( 0, MBENTITYSET, all_sets );
       assert(MB_SUCCESS == result);
-      for(MBRange::iterator j=all_sets.begin(); j!=all_sets.end(); ++j) {
+      for(Range::iterator j=all_sets.begin(); j!=all_sets.end(); ++j) {
         if(MBI->contains_entities( *j, &(*i), 1 )) {
           result = MBI->remove_entities( *j, &(*i), 1 );
           assert(MB_SUCCESS == result);
@@ -86,12 +88,12 @@ MBErrorCode remove_empty_cgm_surfs_and_vols( MBInterface *MBI,
   // get all volumes
   const int three = 3;
   const void* const three_val[] = {&three};
-  MBRange cgm_vols;
+  Range cgm_vols;
   result = MBI->get_entities_by_type_and_tag(cgm_file_set, MBENTITYSET, &dimTag,
 						 three_val, 1, cgm_vols );
   if(MB_SUCCESS != result) return result;    
 
-  for(MBRange::iterator i=cgm_vols.begin(); i!=cgm_vols.end(); ++i) {
+  for(Range::iterator i=cgm_vols.begin(); i!=cgm_vols.end(); ++i) {
     // get the volume's number of surfaces
     int n_surfs;
     result = MBI->num_child_meshsets( *i, &n_surfs );
@@ -105,10 +107,10 @@ MBErrorCode remove_empty_cgm_surfs_and_vols( MBInterface *MBI,
       // Is the set contained anywhere else? If the surface is in a CUBIT group, 
       // such as "unmerged_surfs" it will cause write_mesh to fail. This should 
       // be a MOAB bug.
-      MBRange all_sets;
+      Range all_sets;
       result = MBI->get_entities_by_type( 0, MBENTITYSET, all_sets );
       assert(MB_SUCCESS == result);
-      for(MBRange::iterator j=all_sets.begin(); j!=all_sets.end(); ++j) {
+      for(Range::iterator j=all_sets.begin(); j!=all_sets.end(); ++j) {
         if(MBI->contains_entities( *j, &(*i), 1 )) {
           result = MBI->remove_entities( *j, &(*i), 1 );
           assert(MB_SUCCESS == result);
@@ -127,15 +129,15 @@ MBErrorCode remove_empty_cgm_surfs_and_vols( MBInterface *MBI,
 
 // Given parent volume senses, an id, and a set handle, this function creates a
 // new surface set with dimension, geometry category, id, and sense tags.
-MBErrorCode build_new_surface( MBInterface *MBI,
-                               MBEntityHandle &new_surf,
-                               const MBEntityHandle forward_parent_vol,
-                               const MBEntityHandle reverse_parent_vol,
+ErrorCode build_new_surface( Interface *MBI,
+                               EntityHandle &new_surf,
+                               const EntityHandle forward_parent_vol,
+                               const EntityHandle reverse_parent_vol,
                                const int new_surf_id,
-                               const MBTag dimTag, const MBTag idTag, 
-                               const MBTag categoryTag, const MBTag senseTag ) {
+                               const Tag dimTag, const Tag idTag, 
+                               const Tag categoryTag, const Tag senseTag ) {
  
-  MBErrorCode result;
+  ErrorCode result;
   result = MBI->create_meshset( 0, new_surf );
   if(MB_SUCCESS != result) return result;
   if(0 != forward_parent_vol) {
@@ -154,7 +156,7 @@ MBErrorCode build_new_surface( MBInterface *MBI,
   const char geom_category[CATEGORY_TAG_SIZE] = {"Surface\0"};
   result = MBI->tag_set_data( categoryTag, &new_surf, 1, &geom_category );
   if(MB_SUCCESS != result) return result;
-  MBEntityHandle vols[2] = { forward_parent_vol, reverse_parent_vol };
+  EntityHandle vols[2] = { forward_parent_vol, reverse_parent_vol };
   result = MBI->tag_set_data( senseTag, &new_surf, 1, vols );
   if(MB_SUCCESS != result) return result;
 
@@ -164,51 +166,51 @@ MBErrorCode build_new_surface( MBInterface *MBI,
 
 // Given a face, orient it outward wrt its adjacent mesh element.
 // Each face must be adjacent to exactly one mesh element.
-MBErrorCode orient_faces_outward( MBInterface *MBI, const MBRange faces,
+ErrorCode orient_faces_outward( Interface *MBI, const Range faces,
                                   const bool debug ) {
 
-  MBErrorCode result;
-  for(MBRange::const_iterator i=faces.begin(); i!=faces.end(); ++i) {
-    MBRange adj_elem;
+  ErrorCode result;
+  for(Range::const_iterator i=faces.begin(); i!=faces.end(); ++i) {
+    Range adj_elem;
     result = MBI->get_adjacencies( &(*i), 1, 3, false, adj_elem );
     if(MB_SUCCESS != result) return result;
     if(1 != adj_elem.size()) return MB_INVALID_SIZE;
         
     // get center of element
-    const MBEntityHandle *elem_conn;
+    const EntityHandle *elem_conn;
     int n_nodes;   
     result = MBI->get_connectivity( adj_elem.front(), elem_conn, n_nodes );
     if(MB_SUCCESS != result) return result;
-    MBCartVect elem_coords[n_nodes];
+    CartVect elem_coords[n_nodes];
     result = MBI->get_coords( elem_conn, n_nodes, elem_coords[0].array() );
     if(MB_SUCCESS != result) return result;
-    MBCartVect elem_center(0.0);
+    CartVect elem_center(0.0);
     for(int j=0; j<n_nodes; ++j) elem_center += elem_coords[j];
     elem_center /= n_nodes;
 
     // get the center of the face
-    const MBEntityHandle *face_conn;
+    const EntityHandle *face_conn;
     result = MBI->get_connectivity( *i, face_conn, n_nodes );
     if(MB_SUCCESS != result) return result;
-    MBCartVect face_coords[n_nodes];
+    CartVect face_coords[n_nodes];
     result = MBI->get_coords( face_conn, n_nodes, face_coords[0].array() );
     if(MB_SUCCESS != result) return result;
     assert(4 == n_nodes);
-    MBCartVect face_center(0.0);
+    CartVect face_center(0.0);
     for(int j=0; j<n_nodes; ++j) face_center += face_coords[j];
     face_center /= n_nodes;
     if(debug) std::cout << "      center of mesh face exposed by dead element=" 
                         << face_center << std::endl;
 
     // get the normal of the face
-    MBCartVect face_normal, a, b;
+    CartVect face_normal, a, b;
     a = face_coords[2] - face_coords[1];
     b = face_coords[0] - face_coords[1];
     face_normal = a*b;
     face_normal.normalize();
 
     // get the direction into the element
-    MBCartVect elem_dir = elem_center - face_center;
+    CartVect elem_dir = elem_center - face_center;
     elem_dir.normalize();
 
     // the dot product of the face_normal and elem_dir should be ~-1 if the face
@@ -217,7 +219,7 @@ MBErrorCode orient_faces_outward( MBInterface *MBI, const MBRange faces,
     
     // If the face is not oriented outward wrt the element, reverse it
     if(0 < dot_prod) {
-      MBEntityHandle new_face_conn[4] = { face_conn[3], face_conn[2], 
+      EntityHandle new_face_conn[4] = { face_conn[3], face_conn[2], 
                                           face_conn[1], face_conn[0] };
       result = MBI->set_connectivity( *i, new_face_conn, 4 );
       if(MB_SUCCESS != result) return result;
@@ -229,8 +231,8 @@ MBErrorCode orient_faces_outward( MBInterface *MBI, const MBRange faces,
 /* qsort int comparison function */
 int handle_compare(const void *a, const void *b)
 {
-  const MBEntityHandle *ia = (const MBEntityHandle *)a; // casting pointer types
-  const MBEntityHandle *ib = (const MBEntityHandle *)b;
+  const EntityHandle *ia = (const EntityHandle *)a; // casting pointer types
+  const EntityHandle *ib = (const EntityHandle *)b;
   return *ia  - *ib; 
   /* integer comparison: returns negative if b > a 
      and positive if a > b */
@@ -238,8 +240,8 @@ int handle_compare(const void *a, const void *b)
 
 // qsort face comparison function. assume each face has 4 nodes
 int compare_face(const void *a, const void *b) {                                       
-  MBEntityHandle *ia = (MBEntityHandle *)a;                                                  
-  MBEntityHandle *ib = (MBEntityHandle *)b;                                                  
+  EntityHandle *ia = (EntityHandle *)a;                                                  
+  EntityHandle *ib = (EntityHandle *)b;                                                  
   if(*ia == *ib) {
     if(*(ia+1) == *(ib+1)) {
       if(*(ia+2) == *(ib+2)) {
@@ -256,42 +258,42 @@ int compare_face(const void *a, const void *b) {
 }  
 
 // Use this to get quad faces from hex elems.
-MBErrorCode skin_hex_elems(MBInterface *MBI, MBRange elems, const int dim, 
-                           MBRange &faces ) {
+ErrorCode skin_hex_elems(Interface *MBI, Range elems, const int dim, 
+                           Range &faces ) {
   // get faces of each hex
   const int nodes_per_face = 4;
   const unsigned int faces_per_elem = 6;
   unsigned int n_faces = faces_per_elem*elems.size();
-  MBEntityHandle f[n_faces][nodes_per_face];
-  MBErrorCode result;
+  EntityHandle f[n_faces][nodes_per_face];
+  ErrorCode result;
   int counter = 0;
-  for(MBRange::iterator i=elems.begin(); i!=elems.end(); ++i) {
-    MBRange elem_faces;
+  for(Range::iterator i=elems.begin(); i!=elems.end(); ++i) {
+    Range elem_faces;
     result = MBI->get_adjacencies( &(*i), 1, 2, true, elem_faces );
     if(MB_SUCCESS != result) return result;
     if(faces_per_elem != elem_faces.size()) return MB_INVALID_SIZE;
-    for(MBRange::iterator j=elem_faces.begin(); j!=elem_faces.end(); ++j) {
-      const MBEntityHandle *conn;
+    for(Range::iterator j=elem_faces.begin(); j!=elem_faces.end(); ++j) {
+      const EntityHandle *conn;
       int n_nodes;
-      MBErrorCode result = MBI->get_connectivity( *j, conn, n_nodes );
+      ErrorCode result = MBI->get_connectivity( *j, conn, n_nodes );
       if(MB_SUCCESS != result) return result;
       if(nodes_per_face != n_nodes) return MB_INVALID_SIZE;
       // Sort the node handles of the face
       for(int k=0; k<nodes_per_face; ++k) f[counter][k] = conn[k];
-      qsort( &f[counter][0], nodes_per_face, sizeof(MBEntityHandle), handle_compare );
+      qsort( &f[counter][0], nodes_per_face, sizeof(EntityHandle), handle_compare );
       ++counter;
     }
   }
   
   // Sort the faces by the first node handle, then second node, then third node...
-  qsort( &f[0][0], n_faces, nodes_per_face*sizeof(MBEntityHandle), compare_face );
+  qsort( &f[0][0], n_faces, nodes_per_face*sizeof(EntityHandle), compare_face );
 
   // if a face has 1 or more duplicates, it is not on the skin
   faces.clear();
   for(unsigned int i=0; i<n_faces; ++i) {
     // if the last face is tested, it must be on the skin
     if(n_faces-1 == i) {
-      MBRange face_handle;
+      Range face_handle;
       result = MBI->get_adjacencies( &(f[i][0]), nodes_per_face, 2, false, face_handle );
       if(MB_SUCCESS != result) return result;
       if(1 != face_handle.size()) return MB_INVALID_SIZE;
@@ -307,7 +309,7 @@ MBErrorCode skin_hex_elems(MBInterface *MBI, MBRange elems, const int dim,
       }
       // otherwise it is on the skin
     } else {
-      MBRange face_handle;
+      Range face_handle;
       result = MBI->get_adjacencies( &(f[i][0]), nodes_per_face, 2, false, face_handle );
       if(MB_SUCCESS != result) return result;
       if(1 != face_handle.size()) return MB_INVALID_SIZE;
@@ -394,24 +396,24 @@ void generate_plots( const double orig[], const double defo[],
 }
 
 // Given four nodes, calculate the tet volume.
-inline static double tet_volume( const MBCartVect& v0,
-                                 const MBCartVect& v1,
-                                 const MBCartVect& v2, 
-                                 const MBCartVect& v3 )
+inline static double tet_volume( const CartVect& v0,
+                                 const CartVect& v1,
+                                 const CartVect& v2, 
+                                 const CartVect& v3 )
 {
   return 1./6. * ( ((v1 - v0) * (v2 - v0)) % (v3 - v0) );
 }
 
 // Measure and tet volume are taken from measure.cpp
-double measure(MBInterface *MBI, const MBEntityHandle element) {
-  MBEntityType type = MBI->type_from_handle( element );
+double measure(Interface *MBI, const EntityHandle element) {
+  EntityType type = MBI->type_from_handle( element );
 
-  const MBEntityHandle *conn;
+  const EntityHandle *conn;
   int num_vertices;
-  MBErrorCode result = MBI->get_connectivity( element, conn, num_vertices );
+  ErrorCode result = MBI->get_connectivity( element, conn, num_vertices );
   if(MB_SUCCESS != result) return result;
 
-  MBCartVect coords[num_vertices];
+  CartVect coords[num_vertices];
   result = MBI->get_coords( conn, num_vertices, coords[0].array() );
   if(MB_SUCCESS != result) return result;
 
@@ -425,7 +427,7 @@ double measure(MBInterface *MBI, const MBEntityHandle element) {
       num_vertices = 4;
     case MBPOLYGON:
       {
-	MBCartVect mid(0,0,0);
+	CartVect mid(0,0,0);
 	for (int i = 0; i < num_vertices; ++i)
 	  mid += coords[i];
 	mid /= num_vertices;
@@ -465,19 +467,19 @@ double measure(MBInterface *MBI, const MBEntityHandle element) {
    Special Case: If the surface is planar, and the plane includes the origin,
    the signed volume will be ~0. If the signed volume is ~0 then offset everything
    by a random amount and try again. */
-MBErrorCode get_signed_volume( MBInterface *MBI, 
-                               const MBEntityHandle surf_set,
-                               const MBCartVect offset, 
+ErrorCode get_signed_volume( Interface *MBI, 
+                               const EntityHandle surf_set,
+                               const CartVect offset, 
                                double &signed_volume) {
-  MBErrorCode rval;
-  MBRange tris;
+  ErrorCode rval;
+  Range tris;
   rval = MBI->get_entities_by_type( surf_set, MBTRI, tris ); 
   if(MB_SUCCESS != rval) return rval;
   signed_volume = 0.0;                                                                 
-  const MBEntityHandle *conn;                                                            
+  const EntityHandle *conn;                                                            
   int len;                                                                               
-  MBCartVect coords[3];                                                                  
-  for (MBRange::iterator j = tris.begin(); j != tris.end(); ++j) {             
+  CartVect coords[3];                                                                  
+  for (Range::iterator j = tris.begin(); j != tris.end(); ++j) {             
     rval = MBI->get_connectivity( *j, conn, len, true );                                 
     if(MB_SUCCESS != rval) return rval;                                                 
     if(3 != len) return MB_INVALID_SIZE;                                                                    
@@ -503,26 +505,26 @@ MBErrorCode get_signed_volume( MBInterface *MBI,
 // represent the quads in the cub surface. Calculate the signed volume of both
 // the cgm and cub surface. If they are different, change the cgm sense so that
 // it matches the sense of the cub surface.
-MBErrorCode fix_surface_senses( MBInterface *MBI, 
-                                const MBEntityHandle cgm_file_set, 
-                                const MBEntityHandle cub_file_set,
-                                const MBTag idTag, const MBTag dimTag, const MBTag senseTag,
+ErrorCode fix_surface_senses( Interface *MBI, 
+                                const EntityHandle cgm_file_set, 
+                                const EntityHandle cub_file_set,
+                                const Tag idTag, const Tag dimTag, const Tag senseTag,
                                 const bool debug ) {
-  MBErrorCode result;
+  ErrorCode result;
   const int two = 2;
   const void* const two_val[] = {&two};
-  MBRange cgm_surfs;
+  Range cgm_surfs;
   result = MBI->get_entities_by_type_and_tag(cgm_file_set, MBENTITYSET, &dimTag,
 						 two_val, 1, cgm_surfs );
   if(MB_SUCCESS != result) return result;    
-  for(MBRange::iterator i=cgm_surfs.begin(); i!=cgm_surfs.end(); i++) {
+  for(Range::iterator i=cgm_surfs.begin(); i!=cgm_surfs.end(); i++) {
     int surf_id;
     result = MBI->tag_get_data(idTag, &(*i), 1, &surf_id);
     if(MB_SUCCESS != result) return result;    
             
     // Find the meshed surface set with the same id
-    MBRange cub_surf;
-    const MBTag tags[] = {idTag, dimTag};
+    Range cub_surf;
+    const Tag tags[] = {idTag, dimTag};
     const void* const tag_vals[] = { &surf_id, &two };
     result = MBI->get_entities_by_type_and_tag(cub_file_set, MBENTITYSET, tags,
 						   tag_vals, 2, cub_surf );
@@ -535,10 +537,10 @@ MBErrorCode fix_surface_senses( MBInterface *MBI,
     }
 
     // Get tris that represent the quads of the cub surf
-    MBRange quads;
+    Range quads;
     result = MBI->get_entities_by_type( cub_surf.front(), MBQUAD, quads ); 
     if(MB_SUCCESS != result) return result;  
-    MBRange cub_tris; 
+    Range cub_tris; 
     result = make_tris_from_quads( MBI, quads, cub_tris );
 
     // Add the tris to the same surface meshset as the quads are inside.            
@@ -556,7 +558,7 @@ MBErrorCode fix_surface_senses( MBInterface *MBI,
     for(int j=0; j<n_attempts; ++j) {
       cgm_signed_vol = 0;
       cub_signed_vol = 0;
-      MBCartVect offset(std::rand()%max_random, std::rand()%max_random, std::rand()%max_random);
+      CartVect offset(std::rand()%max_random, std::rand()%max_random, std::rand()%max_random);
       result = get_signed_volume( MBI,               *i, offset, cgm_signed_vol ); 
       if(MB_SUCCESS != result) return result;                                      
       result = get_signed_volume( MBI, cub_surf.front(), offset, cub_signed_vol ); 
@@ -574,7 +576,7 @@ MBErrorCode fix_surface_senses( MBInterface *MBI,
     // representations have the same signed volume.
     if( (cgm_signed_vol<0 && cub_signed_vol>0) ||
 	(cgm_signed_vol>0 && cub_signed_vol<0) ) {
-      MBEntityHandle cgm_surf_volumes[2], reversed_cgm_surf_volumes[2];
+      EntityHandle cgm_surf_volumes[2], reversed_cgm_surf_volumes[2];
       result = MBI->tag_get_data( senseTag, &(*i), 1, cgm_surf_volumes );
       if(MB_SUCCESS != result) return result;  
       if(MB_SUCCESS != result) return result;    
@@ -594,28 +596,28 @@ MBErrorCode fix_surface_senses( MBInterface *MBI,
   // cgm_surf, if there exists a cub_surf with the same id, replace the cgm tris
   // with cub_tris (created from the quads). Note the a surface that is not 
   // meshed (in cub file) will not be effected.
-MBErrorCode replace_faceted_cgm_surfs( MBInterface *MBI,
-                                       const MBEntityHandle cgm_file_set, 
-                                       const MBEntityHandle cub_file_set, 
-                                       const MBTag idTag, const MBTag dimTag, 
+ErrorCode replace_faceted_cgm_surfs( Interface *MBI,
+                                       const EntityHandle cgm_file_set, 
+                                       const EntityHandle cub_file_set, 
+                                       const Tag idTag, const Tag dimTag, 
                                        const bool debug ) {
-  MBErrorCode result;
+  ErrorCode result;
   const int two = 2;
   const void* const two_val[] = {&two};
-  MBRange cgm_surfs;
+  Range cgm_surfs;
   result = MBI->get_entities_by_type_and_tag(cgm_file_set, MBENTITYSET, &dimTag,
 						 two_val, 1, cgm_surfs );
   if(MB_SUCCESS != result) return result;    
 
-  for(MBRange::iterator i=cgm_surfs.begin(); i!=cgm_surfs.end(); ++i) {
+  for(Range::iterator i=cgm_surfs.begin(); i!=cgm_surfs.end(); ++i) {
     int surf_id;
     result = MBI->tag_get_data(idTag, &(*i), 1, &surf_id);
     if(MB_SUCCESS != result) return result;    
     if(debug) std::cout << "surf_id=" << surf_id << std::endl;
             
     // Find the meshed surface set with the same id
-    MBRange cub_surf;
-    const MBTag tags[] = {idTag, dimTag};
+    Range cub_surf;
+    const Tag tags[] = {idTag, dimTag};
     const void* const tag_vals[] = { &surf_id, &two };
     result = MBI->get_entities_by_type_and_tag(cub_file_set, MBENTITYSET, tags,
 						   tag_vals, 2, cub_surf );
@@ -628,17 +630,17 @@ MBErrorCode replace_faceted_cgm_surfs( MBInterface *MBI,
     }
 
     // Get tris that represent the quads of the cub surf
-    MBRange quads;
+    Range quads;
     result = MBI->get_entities_by_type( cub_surf.front(), MBQUAD, quads ); 
     if(MB_SUCCESS != result) return result;  
 
-    MBRange cub_tris; 
+    Range cub_tris; 
     result = make_tris_from_quads( MBI, quads, cub_tris );
     if(MB_SUCCESS != result) return result;	
 
     // Remove the tris from the cgm surf. Don't forget to remove them from the
     // cgm_file_set because it is not TRACKING.
-    MBRange cgm_tris;
+    Range cgm_tris;
     result = MBI->get_entities_by_type( *i, MBTRI, cgm_tris );
     if(MB_SUCCESS != result) return result;                              
     result = MBI->remove_entities( *i, cgm_tris );                     
@@ -662,18 +664,18 @@ MBErrorCode replace_faceted_cgm_surfs( MBInterface *MBI,
 // IF MODIFYING THIS CODE, BE AWARE THAT DEAD ELEMENTS CAN BE ADJACENT TO MORE
 // THAN ONE SURFACE, MAKING THE ASSOCIATION BETWEEN NEWLY EXPOSED AND EXISTING
 // SURFACES AMBIGUOUS.
-MBErrorCode add_dead_elems_to_impl_compl( MBInterface *MBI, 
-                                          const MBEntityHandle cgm_file_set,
-                                          const MBEntityHandle cub_file_set,
-                                          const MBTag idTag, const MBTag dimTag,
-                                          const MBTag categoryTag, const MBTag senseTag,
+ErrorCode add_dead_elems_to_impl_compl( Interface *MBI, 
+                                          const EntityHandle cgm_file_set,
+                                          const EntityHandle cub_file_set,
+                                          const Tag idTag, const Tag dimTag,
+                                          const Tag categoryTag, const Tag senseTag,
                                           const bool debug ) {
 
   // Get the cgm surfaces
-  MBErrorCode result;
+  ErrorCode result;
   const int two = 2;
   const void* const two_val[] = {&two};
-  MBRange cgm_surfs;
+  Range cgm_surfs;
   result = MBI->get_entities_by_type_and_tag(cgm_file_set, MBENTITYSET, &dimTag,
 					     two_val, 1, cgm_surfs );
   if(MB_SUCCESS != result) return result;    
@@ -681,7 +683,7 @@ MBErrorCode add_dead_elems_to_impl_compl( MBInterface *MBI,
   // Get the maximum surface id. This is so that new surfaces do not have
   // duplicate ids.
   int max_surf_id = -1;
-  for(MBRange::const_iterator i=cgm_surfs.begin(); i!=cgm_surfs.end(); ++i) {
+  for(Range::const_iterator i=cgm_surfs.begin(); i!=cgm_surfs.end(); ++i) {
     int surf_id;
     result = MBI->tag_get_data( idTag, &(*i), 1, &surf_id );
     if(MB_SUCCESS != result) return result;
@@ -692,13 +694,13 @@ MBErrorCode add_dead_elems_to_impl_compl( MBInterface *MBI,
   // For each cgm volume, does a cub volume with the same id exist?
   const int three = 3;
   const void* const three_val[] = {&three};
-  MBRange cgm_vols;
+  Range cgm_vols;
   result = MBI->get_entities_by_type_and_tag(cgm_file_set, MBENTITYSET, &dimTag,
 					     three_val, 1, cgm_vols );
   if(MB_SUCCESS != result) return result;
 
   // get the corresponding cub volume
-  for(MBRange::iterator i=cgm_vols.begin(); i!=cgm_vols.end(); i++) {
+  for(Range::iterator i=cgm_vols.begin(); i!=cgm_vols.end(); i++) {
     int vol_id;
     result = MBI->tag_get_data(idTag, &(*i), 1, &vol_id);
     assert(MB_SUCCESS == result);
@@ -706,8 +708,8 @@ MBErrorCode add_dead_elems_to_impl_compl( MBInterface *MBI,
     std::cout << "  Volume " << vol_id;
             
     // Find the meshed vol set with the same id
-    MBRange cub_vol;
-    const MBTag tags[] = {idTag, dimTag};
+    Range cub_vol;
+    const Tag tags[] = {idTag, dimTag};
     const void* const tag_vals[] = { &vol_id, &three };
     result = MBI->get_entities_by_type_and_tag(cub_file_set, MBENTITYSET, tags,
 					       tag_vals, 2, cub_vol );
@@ -721,15 +723,15 @@ MBErrorCode add_dead_elems_to_impl_compl( MBInterface *MBI,
     }
 
     // get the mesh elements of the volume.
-    MBRange elems;
+    Range elems;
     result = MBI->get_entities_by_type( cub_vol.front(), MBHEX, elems ); 
     assert(MB_SUCCESS == result);
     if(MB_SUCCESS != result) return result;  
     if(debug) std::cout << "    found " << elems.size() << " hex elems" << std::endl;
 
     // skin the volumes
-    MBSkinner tool(MBI);
-    MBRange skin_faces;
+    Skinner tool(MBI);
+    Range skin_faces;
     result = tool.find_skin( elems, 2, skin_faces, true );
     assert(MB_SUCCESS == result);
     if(MB_SUCCESS != result) return result;
@@ -747,17 +749,17 @@ MBErrorCode add_dead_elems_to_impl_compl( MBInterface *MBI,
     //                       they are now adjacent to this volume
 
     // get cub child surfaces.
-    MBRange cub_surfs;
+    Range cub_surfs;
     result = MBI->get_child_meshsets( cub_vol.front(), cub_surfs );
     assert(MB_SUCCESS == result);
     if(MB_SUCCESS != result) return result;
-    for(MBRange::iterator j=cub_surfs.begin(); j!=cub_surfs.end(); ++j) {
+    for(Range::iterator j=cub_surfs.begin(); j!=cub_surfs.end(); ++j) {
       int surf_id;
       result = MBI->tag_get_data( idTag, &(*j), 1, &surf_id );
       assert(MB_SUCCESS == result);
       if(MB_SUCCESS != result) return result;
       // get the quads on each surface
-      MBRange cub_faces;
+      Range cub_faces;
       result = MBI->get_entities_by_type( *j, MBQUAD, cub_faces );
       assert(MB_SUCCESS == result);
       if(MB_SUCCESS != result) return result;
@@ -767,9 +769,9 @@ MBErrorCode add_dead_elems_to_impl_compl( MBInterface *MBI,
 	// return MB_ENTITY_NOT_FOUND;
       }
       // get the faces common to both the skin and this surface
-      MBRange common_faces = intersect( cub_faces, skin_faces );
+      Range common_faces = intersect( cub_faces, skin_faces );
       // find the surface faces not on the skin - these are old and need removed
-      MBRange old_faces = subtract( cub_faces, common_faces );
+      Range old_faces = subtract( cub_faces, common_faces );
       result = MBI->remove_entities( *j, old_faces );
       assert(MB_SUCCESS == result);
       if(MB_SUCCESS != result) return result;
@@ -782,8 +784,8 @@ MBErrorCode add_dead_elems_to_impl_compl( MBInterface *MBI,
 		<< " old faces removed" << std::endl;
       // Place the old faces in a new surface, because they may still be adjacent
       // to 3D mesh in another volume. Get the parent vols of the surface.
-      MBRange cgm_surf;
-      const MBTag tags[] = {idTag, dimTag};
+      Range cgm_surf;
+      const Tag tags[] = {idTag, dimTag};
       const void* const tag_vals[] = { &surf_id, &two };
       result = MBI->get_entities_by_type_and_tag(cgm_file_set, MBENTITYSET, tags,
 						 tag_vals, 2, cgm_surf );
@@ -793,7 +795,7 @@ MBErrorCode add_dead_elems_to_impl_compl( MBInterface *MBI,
 	std::cout << "invalid size" << std::endl;
         return MB_INVALID_SIZE;
       }
-      MBEntityHandle cgm_vols[2], cub_vols[2];
+      EntityHandle cgm_vols[2], cub_vols[2];
       result = MBI->tag_get_data( senseTag, cgm_surf, &cgm_vols );
       assert(MB_SUCCESS == result);
       if(MB_SUCCESS != result) return result;
@@ -817,7 +819,7 @@ MBErrorCode add_dead_elems_to_impl_compl( MBInterface *MBI,
 	continue;
       }
       // build the new surface.
-      MBEntityHandle new_cgm_surf, new_cub_surf;
+      EntityHandle new_cgm_surf, new_cub_surf;
       ++max_surf_id;
       result = build_new_surface( MBI, new_cgm_surf,
 				  cgm_vols[0], cgm_vols[1], max_surf_id,
@@ -848,7 +850,7 @@ MBErrorCode add_dead_elems_to_impl_compl( MBInterface *MBI,
     }
 
     // the remaining skin faces are newly exposed faces
-    MBRange new_faces = skin_faces;
+    Range new_faces = skin_faces;
 
     // new skin faces must be assigned to a surface
     if(new_faces.empty()) continue;
@@ -861,7 +863,7 @@ MBErrorCode add_dead_elems_to_impl_compl( MBInterface *MBI,
     if(MB_SUCCESS != result) return result;
 
     // Create the new surface.
-    MBEntityHandle new_cgm_surf, new_cub_surf;
+    EntityHandle new_cgm_surf, new_cub_surf;
     ++max_surf_id;
     result = build_new_surface( MBI, new_cgm_surf,
 				*i, 0, max_surf_id,
@@ -912,7 +914,7 @@ int DEFAULT_NORM = 5;
 // load cgm file
 // for each surface
 //   convert cub surf quads to tris
-//   get signed volume from cgm and cub surf         MUST COME BEFORE COORD UPDATE, NEEDS TRIS
+//   get signed volume from cgm and cub surf         MUST COME BEFORE COORD UPDATE, NEEDS MBTRIS
 //   reverse cgm surface sense if needed
 //   replace cgm surf tris with cub surf tris
 // measure volume of predeformed cub elements
@@ -1004,9 +1006,9 @@ int main( int argc, char* argv[] )
   }
 
   // Read the mesh from the cub file with Tqcdfr 
-  MBCore *MBI = new MBCore();
-  MBErrorCode result;
-  MBEntityHandle cub_file_set;
+  Core *MBI = new Core();
+  ErrorCode result;
+  EntityHandle cub_file_set;
   result = MBI->create_meshset( 0, cub_file_set );
   if(MB_SUCCESS != result) return result;
   //char cub_options[256] = "120";
@@ -1020,7 +1022,7 @@ int main( int argc, char* argv[] )
   sprintf(cgm_options,
 	  "CGM_ATTRIBS=yes;FACET_DISTANCE_TOLERANCE=%g;FACET_NORMAL_TOLERANCE=%d;MAX_FACET_EDGE_LENGTH=%g;",
 	  dist_tol,norm_tol,len_tol); 
-  MBEntityHandle cgm_file_set;
+  EntityHandle cgm_file_set;
   result = MBI->create_meshset( 0, cgm_file_set );
   if(MB_SUCCESS != result) return result;
   result = MBI->load_file(sat_name, &cgm_file_set, cgm_options,NULL,0,0);
@@ -1028,7 +1030,7 @@ int main( int argc, char* argv[] )
   std::cout << "CAD file read." << std::endl;
     
   // Create tags
-  MBTag dimTag, idTag, categoryTag, senseTag;
+  Tag dimTag, idTag, categoryTag, senseTag;
   result = MBI->tag_create(GEOM_DIMENSION_TAG_NAME, sizeof(int), MB_TAG_DENSE, 
 			       MB_TYPE_INTEGER, dimTag, NULL, true );
   if(MB_SUCCESS != result) return result;
@@ -1038,7 +1040,7 @@ int main( int argc, char* argv[] )
   result = MBI->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_SIZE, MB_TAG_SPARSE, 
 			       MB_TYPE_OPAQUE, categoryTag, NULL, true );
   if(MB_SUCCESS != result) return result;
-  result = MBI->tag_create("GEOM_SENSE_2", 2*sizeof(MBEntityHandle), MB_TAG_DENSE, 
+  result = MBI->tag_create("GEOM_SENSE_2", 2*sizeof(EntityHandle), MB_TAG_DENSE, 
 			       MB_TYPE_HANDLE, senseTag, NULL, true );
   if(MB_SUCCESS != result) return result;
     
@@ -1051,7 +1053,7 @@ int main( int argc, char* argv[] )
   std::cout << "Fixed CAD surface senses to match meshed surface senses." << std::endl;
 
   // Get the 3D elements in the cub file and measure their volume.
-  MBRange orig_elems;
+  Range orig_elems;
   std::vector<double> orig_size;
   if(determine_volume_change) {
     result = MBI->get_entities_by_dimension( 0, 3, orig_elems );   
@@ -1066,11 +1068,11 @@ int main( int argc, char* argv[] )
   // sets to track ownership so that dead elements will be deleted from the sets.
   const int three = 3;
   const void* const three_val[] = {&three};
-  MBRange cub_vols;
+  Range cub_vols;
   result = MBI->get_entities_by_type_and_tag(cub_file_set, MBENTITYSET, &dimTag,
 						 three_val, 1, cub_vols );
   if(MB_SUCCESS != result) return result;
-  for(MBRange::const_iterator i=cub_vols.begin(); i!=cub_vols.end(); ++i) {
+  for(Range::const_iterator i=cub_vols.begin(); i!=cub_vols.end(); ++i) {
     result = MBI->set_meshset_options( *i, MESHSET_TRACK_OWNER );
     if(MB_SUCCESS != result) return result;
   }
@@ -1107,7 +1109,7 @@ int main( int argc, char* argv[] )
   if(determine_volume_change) {
     // Dead elements have been removed by the deformation. Get the elements that 
     // still exist.
-    MBRange defo_elems;
+    Range defo_elems;
     result = MBI->get_entities_by_dimension( 0, 3, defo_elems );   
     if(MB_SUCCESS != result) return result;
     

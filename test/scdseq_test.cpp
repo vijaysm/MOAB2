@@ -22,58 +22,60 @@
 #include "SequenceManager.hpp"
 #include "StructuredElementSeq.hpp"
 #include "VertexSequence.hpp"
-#include "MBCore.hpp"
+#include "moab/Core.hpp"
 
 #include <iostream>
 #include <assert.h>
 
-int test_vertex_seq(MBCore *gMB);
-MBErrorCode check_vertex_sequence(const ScdVertexData *this_seq, 
+using namespace moab;
+
+int test_vertex_seq(Core *gMB);
+ErrorCode check_vertex_sequence(const ScdVertexData *this_seq, 
                                  const int imin, const int jmin, const int kmin, 
                                  const int imax, const int jmax, const int kmax, 
-                                 const MBEntityHandle this_start);
-MBErrorCode evaluate_vertex_sequence(ScdVertexData *this_seq);
+                                 const EntityHandle this_start);
+ErrorCode evaluate_vertex_sequence(ScdVertexData *this_seq);
 
-int test_element_seq(MBCore *gMB);
-MBErrorCode check_element_sequence(const StructuredElementSeq *this_seq, 
+int test_element_seq(Core *gMB);
+ErrorCode check_element_sequence(const StructuredElementSeq *this_seq, 
                                     const HomCoord &min_params,
                                     const HomCoord &max_params,
-                                    const MBEntityHandle this_start);
-MBErrorCode evaluate_element_sequence(StructuredElementSeq *this_seq);
-int eseq_test1a(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max);
-int eseq_test1b(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max);
-int eseq_test1c(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max);
-int eseq_test2a(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max);
-int eseq_test2b(MBCore *gMB);
-int eseq_test2c(MBCore *gMB);
-int eseq_test2d(MBCore *gMB);
+                                    const EntityHandle this_start);
+ErrorCode evaluate_element_sequence(StructuredElementSeq *this_seq);
+int eseq_test1a(Core *gMB, HomCoord tmp_min, HomCoord tmp_max);
+int eseq_test1b(Core *gMB, HomCoord tmp_min, HomCoord tmp_max);
+int eseq_test1c(Core *gMB, HomCoord tmp_min, HomCoord tmp_max);
+int eseq_test2a(Core *gMB, HomCoord tmp_min, HomCoord tmp_max);
+int eseq_test2b(Core *gMB);
+int eseq_test2c(Core *gMB);
+int eseq_test2d(Core *gMB);
 
-int create_1d_3_sequences(MBCore *gMB,
+int create_1d_3_sequences(Core *gMB,
                           HomCoord tmp_min, HomCoord tmp_max,
-                          ScdVertexData **vseq, MBEntityHandle *vstart,
-                          StructuredElementSeq **eseq, MBEntityHandle *estart);
+                          ScdVertexData **vseq, EntityHandle *vstart,
+                          StructuredElementSeq **eseq, EntityHandle *estart);
 
-int create_2d_3_sequences(MBCore *gMB,
-                          ScdVertexData **vseq, MBEntityHandle *vstart,
-                          StructuredElementSeq **eseq, MBEntityHandle *estart);
+int create_2d_3_sequences(Core *gMB,
+                          ScdVertexData **vseq, EntityHandle *vstart,
+                          StructuredElementSeq **eseq, EntityHandle *estart);
 
-int create_2dtri_3_sequences(MBCore *gMB,
+int create_2dtri_3_sequences(Core *gMB,
                              const int int1, const int int2, const int int3,
-                             ScdVertexData **vseq, MBEntityHandle *vstart,
-                             StructuredElementSeq **eseq, MBEntityHandle *estart);
-int create_3dtri_3_sequences(MBCore *gMB,
+                             ScdVertexData **vseq, EntityHandle *vstart,
+                             StructuredElementSeq **eseq, EntityHandle *estart);
+int create_3dtri_3_sequences(Core *gMB,
                              const int int1, const int int2, const int int3, const int int4,
-                             ScdVertexData **vseq, MBEntityHandle *vstart,
-                             StructuredElementSeq **eseq, MBEntityHandle *estart);
+                             ScdVertexData **vseq, EntityHandle *vstart,
+                             StructuredElementSeq **eseq, EntityHandle *estart);
 
 // first comes general-capability code used by various tests; main and test functions
 // come after these, starting with main
-MBErrorCode check_vertex_sequence(const ScdVertexData *this_seq, 
+ErrorCode check_vertex_sequence(const ScdVertexData *this_seq, 
                                    const int imin, const int jmin, const int kmin, 
                                    const int imax, const int jmax, const int kmax, 
-                                   const MBEntityHandle this_start) 
+                                   const EntityHandle this_start) 
 {
-  MBErrorCode result = MB_SUCCESS;
+  ErrorCode result = MB_SUCCESS;
   
     // check data stored in sequence with that in arg list
   if (imin != this_seq->i_min() ||
@@ -104,12 +106,12 @@ MBErrorCode check_vertex_sequence(const ScdVertexData *this_seq,
   return result;
 }
   
-MBErrorCode check_element_sequence(const StructuredElementSeq *this_seq, 
+ErrorCode check_element_sequence(const StructuredElementSeq *this_seq, 
                                     const HomCoord &min_params,
                                     const HomCoord &max_params,
-                                    const MBEntityHandle this_start) 
+                                    const EntityHandle this_start) 
 {
-  MBErrorCode result = MB_SUCCESS;
+  ErrorCode result = MB_SUCCESS;
   
     // check data stored in sequence with that in arg list
   if (min_params.i() != this_seq->i_min() ||
@@ -145,9 +147,9 @@ MBErrorCode check_element_sequence(const StructuredElementSeq *this_seq,
   return result;
 }
   
-MBErrorCode evaluate_vertex_sequence(ScdVertexData *this_seq) 
+ErrorCode evaluate_vertex_sequence(ScdVertexData *this_seq) 
 {
-  MBErrorCode result = MB_SUCCESS;
+  ErrorCode result = MB_SUCCESS;
   
     // first get the parametric extents
   int imin, jmin, kmin, imax, jmax, kmax, itmp, jtmp, ktmp;
@@ -155,15 +157,15 @@ MBErrorCode evaluate_vertex_sequence(ScdVertexData *this_seq)
   this_seq->max_params(imax, jmax, kmax);
 
     // then the start vertex
-  MBEntityHandle start_handle = this_seq->start_handle();
+  EntityHandle start_handle = this_seq->start_handle();
   
     // now evaluate all the vertices in forward and reverse
-  MBEntityHandle tmp_handle, tmp_handle2;
+  EntityHandle tmp_handle, tmp_handle2;
   for (int i = imin; i <= imax; i++) {
     for (int j = jmin; j <= jmax; j++) {
       for (int k = kmin; k <= kmax; k++) {
           // compute what the vertex handle is supposed to be
-        MBEntityHandle this_handle = start_handle + (i-imin) + (j-jmin)*(imax-imin+1) + 
+        EntityHandle this_handle = start_handle + (i-imin) + (j-jmin)*(imax-imin+1) + 
           (k-kmin)*(jmax-jmin+1)*(imax-imin+1);
 
           // get_vertex variants
@@ -183,7 +185,7 @@ MBErrorCode evaluate_vertex_sequence(ScdVertexData *this_seq)
         }
 
         itmp = jtmp = ktmp = 0xdeadbeef;
-        MBErrorCode tmp_result = this_seq->get_params(tmp_handle, itmp, jtmp, ktmp);
+        ErrorCode tmp_result = this_seq->get_params(tmp_handle, itmp, jtmp, ktmp);
         if (MB_SUCCESS != tmp_result || i != itmp || j != jtmp || k != ktmp) {
           std::cout << "vertex seq: get_params didn't work, i, j, k = " << i << ", " 
                     << j << ", " << k << "; itmp, jtmp, ktmp = " 
@@ -203,9 +205,9 @@ MBErrorCode evaluate_vertex_sequence(ScdVertexData *this_seq)
   return result;
 }
 
-MBErrorCode evaluate_element_sequence(StructuredElementSeq *this_seq) 
+ErrorCode evaluate_element_sequence(StructuredElementSeq *this_seq) 
 {
-  MBErrorCode result = MB_SUCCESS;
+  ErrorCode result = MB_SUCCESS;
   
     // first get the parametric extents
   int imin, jmin, kmin, imax, jmax, kmax, itmp, jtmp, ktmp;
@@ -213,7 +215,7 @@ MBErrorCode evaluate_element_sequence(StructuredElementSeq *this_seq)
   this_seq->max_params(imax, jmax, kmax);
 
     // now evaluate all the vertices and elements in forward and reverse
-  MBEntityHandle tmp_handle, tmp_handle2;
+  EntityHandle tmp_handle, tmp_handle2;
   for (int i = imin; i < imax; i++) {
     for (int j = jmin; j < jmax; j++) {
       for (int k = kmin; k < kmax; k++) {
@@ -242,7 +244,7 @@ MBErrorCode evaluate_element_sequence(StructuredElementSeq *this_seq)
         
           // get_params
         itmp = jtmp = ktmp = 0xdeadbeef;
-        MBErrorCode tmp_result = this_seq->get_params(tmp_handle, itmp, jtmp, ktmp);
+        ErrorCode tmp_result = this_seq->get_params(tmp_handle, itmp, jtmp, ktmp);
         if (MB_SUCCESS != tmp_result || i != itmp || j != jtmp || k != ktmp) {
           std::cout << "element seq: get_params didn't work, i, j, k = " << i << ", " 
                     << j << ", " << k << "; itmp, jtmp, ktmp = " 
@@ -266,8 +268,8 @@ int main(int, char**)
 {
   int errors = 0;
 
-    // first we need to make a new MBCore
-  MBCore moab;
+    // first we need to make a new Core
+  Core moab;
   
     // test creating and evaluating vertex sequences
   errors += test_vertex_seq(&moab);
@@ -283,18 +285,18 @@ int main(int, char**)
   return errors;
 }
 
-int test_vertex_seq(MBCore *gMB) 
+int test_vertex_seq(Core *gMB) 
 {
     // get the seq manager from gMB
   SequenceManager *seq_mgr = gMB->sequence_manager();
   
   int errors = 0;
-  MBEntityHandle oned_start, twod_start, threed_start;
+  EntityHandle oned_start, twod_start, threed_start;
   EntitySequence *dum_seq = NULL;
   ScdVertexData *oned_seq = NULL, *twod_seq = NULL, *threed_seq = NULL;
   
     // make a 1d sequence
-  MBErrorCode result = seq_mgr->create_scd_sequence(-10, 0, 0, 10, 0, 0,
+  ErrorCode result = seq_mgr->create_scd_sequence(-10, 0, 0, 10, 0, 0,
                                                      MBVERTEX, 1,
                                                      oned_start, dum_seq);
   if (NULL != dum_seq) oned_seq = dynamic_cast<ScdVertexData*>(dum_seq->data());
@@ -376,7 +378,7 @@ int test_vertex_seq(MBCore *gMB)
   return errors;
 }
 
-int test_element_seq(MBCore *gMB) 
+int test_element_seq(Core *gMB) 
 {
   int errors = 0;
   HomCoord TEST_MIN_PARAMS(0,0,0);
@@ -397,7 +399,7 @@ int test_element_seq(MBCore *gMB)
   return errors;
 }
 
-int eseq_test1a(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max) 
+int eseq_test1a(Core *gMB, HomCoord tmp_min, HomCoord tmp_max) 
 {
     // TEST 1a: 1d single vertex seq block, min/max = (-10,0,0)/(10,0,0)
     // create vertex seq
@@ -410,17 +412,17 @@ int eseq_test1a(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max)
     // get the seq manager from gMB
   SequenceManager *seq_mgr = gMB->sequence_manager();
   
-  MBEntityHandle oned_start;
+  EntityHandle oned_start;
   EntitySequence *dum_seq;
   ScdVertexData *oned_seq = NULL;
-  MBErrorCode result = seq_mgr->create_scd_sequence(tmp_min, tmp_max,
+  ErrorCode result = seq_mgr->create_scd_sequence(tmp_min, tmp_max,
                                                      MBVERTEX, 1,
                                                      oned_start, dum_seq);
   if (NULL != dum_seq) oned_seq = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && oned_start != 0 && dum_seq != NULL && oned_seq != NULL);
 
     // now create the element sequence
-  MBEntityHandle eseq_start;
+  EntityHandle eseq_start;
   StructuredElementSeq *eseq = NULL;
   result = seq_mgr->create_scd_sequence(tmp_min, tmp_max,
                                         MBEDGE, 1,
@@ -455,7 +457,7 @@ int eseq_test1a(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max)
   return errors;
 }
 
-int eseq_test1b(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max) 
+int eseq_test1b(Core *gMB, HomCoord tmp_min, HomCoord tmp_max) 
 {
     // TEST 1b: 2d single vertex seq block, min/max = (-10,-5,0)/(10,5,0)
 
@@ -467,17 +469,17 @@ int eseq_test1b(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max)
     // get the seq manager from gMB
   SequenceManager *seq_mgr = gMB->sequence_manager();
   
-  MBEntityHandle twod_start;
+  EntityHandle twod_start;
   EntitySequence *dum_seq;
   ScdVertexData *twod_seq = NULL;
-  MBErrorCode result = seq_mgr->create_scd_sequence(tmp_min, tmp_max,
+  ErrorCode result = seq_mgr->create_scd_sequence(tmp_min, tmp_max,
                                                      MBVERTEX, 1,
                                                      twod_start, dum_seq);
   if (NULL != dum_seq) twod_seq = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && twod_start != 0 && dum_seq != NULL && twod_seq != NULL);
 
     // now create the element sequence
-  MBEntityHandle eseq_start;
+  EntityHandle eseq_start;
   StructuredElementSeq *eseq = NULL;
   result = seq_mgr->create_scd_sequence(tmp_min, tmp_max,
                                         MBQUAD, 1,
@@ -513,7 +515,7 @@ int eseq_test1b(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max)
   return errors;
 }
 
-int eseq_test1c(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max) 
+int eseq_test1c(Core *gMB, HomCoord tmp_min, HomCoord tmp_max) 
 {
     // TEST 1c: 3d single vertex seq block, min/max = (-10,-5,-1)/(10,5,1)
 
@@ -522,17 +524,17 @@ int eseq_test1c(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max)
     // get the seq manager from gMB
   SequenceManager *seq_mgr = gMB->sequence_manager();
   
-  MBEntityHandle threed_start;
+  EntityHandle threed_start;
   EntitySequence *dum_seq;
   ScdVertexData *threed_seq = NULL;
-  MBErrorCode result = seq_mgr->create_scd_sequence(tmp_min, tmp_max,
+  ErrorCode result = seq_mgr->create_scd_sequence(tmp_min, tmp_max,
                                                      MBVERTEX, 1,
                                                      threed_start, dum_seq);
   if (NULL != dum_seq) threed_seq = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && threed_start != 0 && dum_seq != NULL && threed_seq != NULL);
 
     // now create the element sequence
-  MBEntityHandle eseq_start;
+  EntityHandle eseq_start;
   StructuredElementSeq *eseq = NULL;
   result = seq_mgr->create_scd_sequence(tmp_min, tmp_max,
                                         MBHEX, 1,
@@ -566,14 +568,14 @@ int eseq_test1c(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max)
   return errors;
 }
 
-int eseq_test2a(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max) 
+int eseq_test2a(Core *gMB, HomCoord tmp_min, HomCoord tmp_max) 
 {
     // TEST 2a: 1d composite block, 0d difference between owning/sharing blocks
     // create vertex seq
   
   ScdVertexData *vseq[3];
   StructuredElementSeq *eseq[3];
-  MBEntityHandle vstart[3], estart[3];
+  EntityHandle vstart[3], estart[3];
   
   int errors = create_1d_3_sequences(gMB, tmp_min, tmp_max,
                                      vseq, vstart, eseq, estart);
@@ -591,7 +593,7 @@ int eseq_test2a(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max)
 
     // check/evaluate element sequences
   for (int i = 0; i < 3; i++) {
-    MBErrorCode result = check_element_sequence(eseq[i], eseq[i]->min_params(), eseq[i]->max_params(), 
+    ErrorCode result = check_element_sequence(eseq[i], eseq[i]->min_params(), eseq[i]->max_params(), 
                                                  estart[i]);
     if (MB_SUCCESS != result) {
       std::cout << "1d composite element sequence " << i << " didn't pass check." << std::endl;
@@ -608,14 +610,14 @@ int eseq_test2a(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max)
   return errors;
 }
 
-int eseq_test2b(MBCore *gMB) 
+int eseq_test2b(Core *gMB) 
 {
     // TEST 2b: 2d composite block, 0d difference between owning/sharing blocks
     // create vertex seq
   
   ScdVertexData *vseq[3];
   StructuredElementSeq *eseq[3];
-  MBEntityHandle vstart[3], estart[3];
+  EntityHandle vstart[3], estart[3];
   
   int errors = create_2d_3_sequences(gMB, vseq, vstart, eseq, estart);
   if (0 != errors) return errors;
@@ -634,7 +636,7 @@ int eseq_test2b(MBCore *gMB)
 
     // check/evaluate element sequences
   for (int i = 0; i < 3; i++) {
-    MBErrorCode result = check_element_sequence(eseq[i], eseq[i]->min_params(), eseq[i]->max_params(), 
+    ErrorCode result = check_element_sequence(eseq[i], eseq[i]->min_params(), eseq[i]->max_params(), 
                                                  estart[i]);
     if (MB_SUCCESS != result) {
       std::cout << "2d composite element sequence " << i << " didn't pass check." << std::endl;
@@ -651,14 +653,14 @@ int eseq_test2b(MBCore *gMB)
   return errors;
 }
 
-int eseq_test2c(MBCore *gMB) 
+int eseq_test2c(Core *gMB) 
 {
     // TEST 2c: 2d composite block, 0d difference between owning/sharing blocks,
     // tri-valent shared vertex between the three blocks
 
   ScdVertexData *vseq[3];
   StructuredElementSeq *eseq[3];
-  MBEntityHandle vstart[3], estart[3];
+  EntityHandle vstart[3], estart[3];
 
     // interval settings: only 3 of them
   int int1 = 5, int2 = 15, int3 = 25;
@@ -669,7 +671,7 @@ int eseq_test2c(MBCore *gMB)
 
     // check/evaluate element sequences
   for (int i = 0; i < 3; i++) {
-    MBErrorCode result = check_element_sequence(eseq[i], eseq[i]->min_params(), eseq[i]->max_params(), 
+    ErrorCode result = check_element_sequence(eseq[i], eseq[i]->min_params(), eseq[i]->max_params(), 
                                                  estart[i]);
     if (MB_SUCCESS != result) {
       std::cout << "2d tri-composite element sequence " << i << " didn't pass check." << std::endl;
@@ -686,14 +688,14 @@ int eseq_test2c(MBCore *gMB)
   return errors;
 }
 
-int eseq_test2d(MBCore *gMB) 
+int eseq_test2d(Core *gMB) 
 {
     // TEST 2d: 3d composite block, 0d difference between owning/sharing blocks,
     // tri-valent shared edge between the three blocks
 
   ScdVertexData *vseq[3];
   StructuredElementSeq *eseq[3];
-  MBEntityHandle vstart[3], estart[3];
+  EntityHandle vstart[3], estart[3];
 
     // interval settings: only 3 of them
   int int1 = 100, int2 = 100, int3 = 100, int4 = 100;
@@ -704,7 +706,7 @@ int eseq_test2d(MBCore *gMB)
 
     // check/evaluate element sequences
   for (int i = 0; i < 3; i++) {
-    MBErrorCode result = check_element_sequence(eseq[i], eseq[i]->min_params(), eseq[i]->max_params(), 
+    ErrorCode result = check_element_sequence(eseq[i], eseq[i]->min_params(), eseq[i]->max_params(), 
                                                  estart[i]);
     if (MB_SUCCESS != result) {
       std::cout << "3d tri-composite element sequence " << i << " didn't pass check." << std::endl;
@@ -721,10 +723,10 @@ int eseq_test2d(MBCore *gMB)
   return errors;
 }
 
-int create_1d_3_sequences(MBCore *gMB,
+int create_1d_3_sequences(Core *gMB,
                           HomCoord tmp_min, HomCoord tmp_max,
-                          ScdVertexData **vseq, MBEntityHandle *vstart,
-                          StructuredElementSeq **eseq, MBEntityHandle *estart) 
+                          ScdVertexData **vseq, EntityHandle *vstart,
+                          StructuredElementSeq **eseq, EntityHandle *estart) 
 {
   int errors = 0;
   
@@ -747,7 +749,7 @@ int create_1d_3_sequences(MBCore *gMB,
   
 
     // first vertex sequence 
-  MBErrorCode result = seq_mgr->create_scd_sequence(vseq0_minmax[0], vseq0_minmax[1],
+  ErrorCode result = seq_mgr->create_scd_sequence(vseq0_minmax[0], vseq0_minmax[1],
                                                      MBVERTEX, 1,
                                                      vstart[0], dum_seq);
   if (NULL != dum_seq) vseq[0] = dynamic_cast<ScdVertexData*>(dum_seq->data());
@@ -859,9 +861,9 @@ int create_1d_3_sequences(MBCore *gMB,
   return errors;
 }
 
-int create_2d_3_sequences(MBCore *gMB,
-                          ScdVertexData **vseq, MBEntityHandle *vstart,
-                          StructuredElementSeq **eseq, MBEntityHandle *estart) 
+int create_2d_3_sequences(Core *gMB,
+                          ScdVertexData **vseq, EntityHandle *vstart,
+                          StructuredElementSeq **eseq, EntityHandle *estart) 
 {
     // create 3 rectangular esequences attached end to end and back (periodic); vsequences are 
     // assorted orientations, esequences have globally-consistent (periodic in i) parameter space
@@ -880,7 +882,7 @@ int create_2d_3_sequences(MBCore *gMB,
   vseq[0] = vseq[1] = vseq[2] = NULL;
 
     // first vertex sequence 
-  MBErrorCode result = seq_mgr->create_scd_sequence(vseq0_minmax[0], vseq0_minmax[1],
+  ErrorCode result = seq_mgr->create_scd_sequence(vseq0_minmax[0], vseq0_minmax[1],
                                                      MBVERTEX, 1,
                                                      vstart[0], dum_seq);
   if (NULL != dum_seq) vseq[0] = dynamic_cast<ScdVertexData*>(dum_seq->data());
@@ -1037,10 +1039,10 @@ int create_2d_3_sequences(MBCore *gMB,
   return errors;
 }
 
-int create_2dtri_3_sequences(MBCore *gMB,
+int create_2dtri_3_sequences(Core *gMB,
                              const int int1, const int int2, const int int3,
-                             ScdVertexData **vseq, MBEntityHandle *vstart,
-                             StructuredElementSeq **eseq, MBEntityHandle *estart) 
+                             ScdVertexData **vseq, EntityHandle *vstart,
+                             StructuredElementSeq **eseq, EntityHandle *estart) 
 {
     // create 3 rectangular esequences arranged such that the all share a common (tri-valent) corner;
     // orient each region such that its origin is at the tri-valent corner and the k direction is
@@ -1066,7 +1068,7 @@ int create_2dtri_3_sequences(MBCore *gMB,
   vseq[0] = vseq[1] = vseq[2] = NULL;
 
     // first vertex sequence 
-  MBErrorCode result = seq_mgr->create_scd_sequence(vseq0_minmax[0], vseq0_minmax[1],
+  ErrorCode result = seq_mgr->create_scd_sequence(vseq0_minmax[0], vseq0_minmax[1],
                                                      MBVERTEX, 1,
                                                      vstart[0], dum_seq);
   if (NULL != dum_seq) vseq[0] = dynamic_cast<ScdVertexData*>(dum_seq->data());
@@ -1216,10 +1218,10 @@ int create_2dtri_3_sequences(MBCore *gMB,
   return errors;
 }
 
-int create_3dtri_3_sequences(MBCore *gMB,
+int create_3dtri_3_sequences(Core *gMB,
                              const int int1, const int int2, const int int3, const int int4,
-                             ScdVertexData **vseq, MBEntityHandle *vstart,
-                             StructuredElementSeq **eseq, MBEntityHandle *estart) 
+                             ScdVertexData **vseq, EntityHandle *vstart,
+                             StructuredElementSeq **eseq, EntityHandle *estart) 
 {
     // create 3 brick esequences arranged such that the all share a common (tri-valent) edge;
     // orient each region similarly to the 2dtri_3_esequences test problem, swept into 3d in the 
@@ -1246,7 +1248,7 @@ int create_3dtri_3_sequences(MBCore *gMB,
   vseq[0] = vseq[1] = vseq[2] = NULL;
 
     // first vertex sequence 
-  MBErrorCode result = seq_mgr->create_scd_sequence(vseq0_minmax[0], vseq0_minmax[1],
+  ErrorCode result = seq_mgr->create_scd_sequence(vseq0_minmax[0], vseq0_minmax[1],
                                                      MBVERTEX, 1,
                                                      vstart[0], dum_seq);
   if (NULL != dum_seq) vseq[0] = dynamic_cast<ScdVertexData*>(dum_seq->data());

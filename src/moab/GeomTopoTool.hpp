@@ -15,69 +15,71 @@
 
 
 
-#ifndef GEOM_TOPO_TOOL_HPP
-#define GEOM_TOPO_TOOL_HPP
+#ifndef MOAB_GEOM_TOPO_TOOL_HPP
+#define MOAB_GEOM_TOPO_TOOL_HPP
 
-#include "MBForward.hpp"
-#include "MBRange.hpp"
-#include "MBOrientedBoxTreeTool.hpp"
+#include "moab/Forward.hpp"
+#include "moab/Range.hpp"
+#include "moab/OrientedBoxTreeTool.hpp"
+
+namespace moab {
 
 class GeomTopoTool
 {
 public:
-  GeomTopoTool(MBInterface *impl, bool find_geoments = false);
+  GeomTopoTool(Interface *impl, bool find_geoments = false);
   ~GeomTopoTool() {}
   
     //! Restore parent/child links between GEOM_TOPO mesh sets
-  MBErrorCode restore_topology();
+  ErrorCode restore_topology();
   
     //! Store sense of surface relative to volume.
     //!\return MB_MULTIPLE_ENTITIES_FOUND if surface already has a forward volume.
     //!        MB_SUCCESS if successful
     //!        otherwise whatever internal error code occured.
-  MBErrorCode set_sense( MBEntityHandle surface,
-                         MBEntityHandle volume,
+  ErrorCode set_sense( EntityHandle surface,
+                         EntityHandle volume,
                          bool forward );
 
-  MBErrorCode get_sense( MBEntityHandle surface,
-                         MBEntityHandle volume,
+  ErrorCode get_sense( EntityHandle surface,
+                         EntityHandle volume,
                          bool& forward );
 
-  MBErrorCode find_geomsets(MBRange *ranges = NULL);
+  ErrorCode find_geomsets(Range *ranges = NULL);
 
-  MBErrorCode construct_obb_trees();
+  ErrorCode construct_obb_trees();
 
-  MBErrorCode get_root(MBEntityHandle vol_or_surf, MBEntityHandle &root);
+  ErrorCode get_root(EntityHandle vol_or_surf, EntityHandle &root);
 
-  MBOrientedBoxTreeTool *obb_tree() {return &obbTree;}
+  OrientedBoxTreeTool *obb_tree() {return &obbTree;}
 
 private:
-  MBInterface *mdbImpl;
-  MBTag sense2Tag;
-  MBTag geomTag;
-  MBRange geomRanges[4];
+  Interface *mdbImpl;
+  Tag sense2Tag;
+  Tag geomTag;
+  Range geomRanges[4];
 
-  MBOrientedBoxTreeTool obbTree;
-  MBEntityHandle setOffset;
-  std::vector<MBEntityHandle> rootSets;
+  OrientedBoxTreeTool obbTree;
+  EntityHandle setOffset;
+  std::vector<EntityHandle> rootSets;
   
     //! compute vertices inclusive and put on tag on sets in geom_sets
-  MBErrorCode construct_vertex_ranges(const MBRange &geom_sets,
-				      const MBTag verts_tag);
+  ErrorCode construct_vertex_ranges(const Range &geom_sets,
+				      const Tag verts_tag);
   
     //! given a range of geom topology sets, separate by dimension
-  MBErrorCode separate_by_dimension(const MBRange &geom_sets,
-				    MBRange *entities, MBTag geom_tag = 0);
+  ErrorCode separate_by_dimension(const Range &geom_sets,
+				    Range *entities, Tag geom_tag = 0);
 
-  //MBErrorCode construct_obb_trees(MBEntityHandle& offset,
-  //			  MBRange& rootSets,
-  //			  MBOrientedBoxTreeTool& obbTree);
+  //ErrorCode construct_obb_trees(EntityHandle& offset,
+  //			  Range& rootSets,
+  //			  OrientedBoxTreeTool& obbTree);
   
   
   
 };
 
-inline GeomTopoTool::GeomTopoTool(MBInterface *impl, 
+inline GeomTopoTool::GeomTopoTool(Interface *impl, 
                                   bool find_geoments) 
   : mdbImpl(impl), obbTree(impl), sense2Tag(0) 
 {
@@ -85,12 +87,14 @@ inline GeomTopoTool::GeomTopoTool(MBInterface *impl,
 }
 
 // get the root of the obbtree for a given entity
-inline MBErrorCode GeomTopoTool::get_root(MBEntityHandle vol_or_surf, MBEntityHandle &root) 
+inline ErrorCode GeomTopoTool::get_root(EntityHandle vol_or_surf, EntityHandle &root) 
 {
   unsigned int index = vol_or_surf - setOffset;
   root = (index < rootSets.size() ? rootSets[index] : 0);
   return (root ? MB_SUCCESS : MB_INDEX_OUT_OF_RANGE);
 }
+
+} // namespace moab 
 
 #endif
 

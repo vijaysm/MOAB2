@@ -16,11 +16,7 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src \
                -I$(top_srcdir)/src/io \
-               -I$(top_srcdir)/src/parallel \
-               -I$(top_builddir)/src/moab \
-               -I$(top_srcdir)/src/moab \
-               -I$(top_srcdir)/src/io/moab \
-               -I$(top_srcdir)/src/parallel/moab
+               -I$(top_srcdir)/src/parallel
 
 TESTS = tqdcfr \
         vtk_test \

@@ -1,9 +1,12 @@
-SUBDIRS = dual obb perf io 
+SUBDIRS = . io dual obb perf
 if HDF5_FILE
   SUBDIRS += h5file
 endif
 if PARALLEL
   SUBDIRS += parallel
+endif
+if OLD_HEADERS
+  SUBDIRS += oldinc
 endif
 
 LDADD = $(top_builddir)/src/libMOAB.la
@@ -11,9 +14,7 @@ LDADD = $(top_builddir)/src/libMOAB.la
 AM_CPPFLAGS += -DIS_BUILDING_MB \
                -DSRCDIR=$(srcdir) \
                -I$(top_builddir)/src \
-               -I$(top_srcdir)/src \
-               -I$(top_builddir)/src/moab \
-               -I$(top_srcdir)/src/moab
+               -I$(top_srcdir)/src 
 
 TESTS = moab_test \
         homxform_test \
@@ -111,7 +112,7 @@ mesh_set_test_SOURCES = Test_MBMeshSet.cpp TestUtil.hpp
 geom_util_test_SOURCES = TestUtil.hpp GeomUtilTests.cpp 
 geom_util_test_DEPENDENCIES = $(LDADD)
 
-xform_test_SOURCES = $(top_srcdir)/src/MBAffineXform.cpp
+xform_test_SOURCES = $(top_srcdir)/src/AffineXform.cpp
 xform_test_CPPFLAGS = -DTEST $(AM_CPPFLAGS) $(CPPFLAGS)
 xform_test_DEPENDENCIES = $(LDADD)
 

@@ -13,14 +13,16 @@
  * 
  */
 
-#include "GeomTopoTool.hpp"
-#include "MBRange.hpp"
-#include "MBTagConventions.hpp"
-#include "MBInterface.hpp"
-#include "MBCN.hpp"
-#include "MBInternals.hpp"
+#include "moab/GeomTopoTool.hpp"
+#include "moab/Range.hpp"
+#include "moab/MBTagConventions.hpp"
+#include "moab/Interface.hpp"
+#include "moab/MBCN.hpp"
+#include "Internals.hpp"
 #include <assert.h>
 #include <iostream>
+
+namespace moab {
 
 // Tag name used for saving sense of faces in volumes.
 // We assume that the surface occurs in at most two volumes.
@@ -31,20 +33,20 @@
 // be listed for both the forward and reverse slots.
 const char GEOM_SENSE_TAG_NAME[] = "GEOM_SENSE_2";
 
-MBErrorCode GeomTopoTool::set_sense( MBEntityHandle surface,
-                                     MBEntityHandle volume,
+ErrorCode GeomTopoTool::set_sense( EntityHandle surface,
+                                     EntityHandle volume,
                                      bool forward )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   if (!sense2Tag) {
-    rval = mdbImpl->tag_create( GEOM_SENSE_TAG_NAME, 2*sizeof(MBEntityHandle), 
+    rval = mdbImpl->tag_create( GEOM_SENSE_TAG_NAME, 2*sizeof(EntityHandle), 
                            MB_TAG_SPARSE, MB_TYPE_HANDLE, 
                            sense2Tag, 0, true );
     if (MB_SUCCESS != rval)
       return rval;
   }
   
-  MBEntityHandle sense_data[2] = {0,0};
+  EntityHandle sense_data[2] = {0,0};
   rval = mdbImpl->tag_get_data( sense2Tag, &surface, 1, sense_data );
   if (MB_TAG_NOT_FOUND != rval && MB_SUCCESS != rval)
     return MB_FAILURE;
@@ -58,11 +60,11 @@ MBErrorCode GeomTopoTool::set_sense( MBEntityHandle surface,
   return mdbImpl->tag_set_data( sense2Tag, &surface, 1, sense_data );
 }
 
-MBErrorCode GeomTopoTool::get_sense( MBEntityHandle surface,
-                                     MBEntityHandle volume,
+ErrorCode GeomTopoTool::get_sense( EntityHandle surface,
+                                     EntityHandle volume,
                                      bool& forward )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   if (!sense2Tag) {
     rval = mdbImpl->tag_get_handle( GEOM_SENSE_TAG_NAME, sense2Tag );
     if (MB_SUCCESS != rval) {
@@ -71,7 +73,7 @@ MBErrorCode GeomTopoTool::get_sense( MBEntityHandle surface,
     }
   }
   
-  MBEntityHandle sense_data[2] = {0,0};
+  EntityHandle sense_data[2] = {0,0};
   rval = mdbImpl->tag_get_data( sense2Tag, &surface, 1, sense_data );
   if (MB_SUCCESS != rval)
     return rval;
@@ -86,16 +88,16 @@ MBErrorCode GeomTopoTool::get_sense( MBEntityHandle surface,
   return MB_SUCCESS;
 }
 
-MBErrorCode GeomTopoTool::find_geomsets(MBRange *ranges) 
+ErrorCode GeomTopoTool::find_geomsets(Range *ranges) 
 {
-  //MBTag geom_tag;
-  MBErrorCode result = mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4, 
+  //Tag geom_tag;
+  ErrorCode result = mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4, 
                                            MB_TAG_SPARSE, geomTag, NULL);
   if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result)
     return result;
   
     // get all sets with this tag
-  MBRange geom_sets;
+  Range geom_sets;
   result = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &geomTag, NULL, 1,
                                                  geom_sets);
   if (MB_SUCCESS != result || geom_sets.empty()) 
@@ -112,13 +114,13 @@ MBErrorCode GeomTopoTool::find_geomsets(MBRange *ranges)
   return MB_SUCCESS;
 }
 
-MBErrorCode GeomTopoTool::construct_obb_trees()
+ErrorCode GeomTopoTool::construct_obb_trees()
 {
   // get all surfaces and volumes
-  MBRange surfs, vols;
+  Range surfs, vols;
   const int three = 3;
   const void* const three_val[] = {&three};
-  MBErrorCode rval = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &geomTag, 
+  ErrorCode rval = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &geomTag, 
 							   three_val, 1, vols);
   if (MB_SUCCESS != rval) return rval;
 
@@ -143,10 +145,10 @@ MBErrorCode GeomTopoTool::construct_obb_trees()
   }
 
   // for surface
-  MBEntityHandle root;
+  EntityHandle root;
   rootSets.resize(surfs.size() + vols.size());
-  for (MBRange::iterator i = surfs.begin(); i != surfs.end(); ++i) {
-    MBRange tris;
+  for (Range::iterator i = surfs.begin(); i != surfs.end(); ++i) {
+    Range tris;
     rval = mdbImpl->get_entities_by_dimension( *i, 2, tris );
     if (MB_SUCCESS != rval) return rval;
     
@@ -164,15 +166,15 @@ MBErrorCode GeomTopoTool::construct_obb_trees()
   }
   
   // for volumes
-  for (MBRange::iterator i = vols.begin(); i != vols.end(); ++i) {
+  for (Range::iterator i = vols.begin(); i != vols.end(); ++i) {
     // get all surfaces in volume
-    MBRange tmp_surfs;
+    Range tmp_surfs;
     rval = mdbImpl->get_child_meshsets( *i, tmp_surfs );
     if (MB_SUCCESS != rval) return rval;
     
     // get OBB trees for each surface
-    MBRange trees;
-    for (MBRange::iterator j = tmp_surfs.begin();  j != tmp_surfs.end(); ++j) {
+    Range trees;
+    for (Range::iterator j = tmp_surfs.begin();  j != tmp_surfs.end(); ++j) {
       rval = get_root(*j, root);
       if (MB_SUCCESS != rval || !root) return MB_FAILURE;
       trees.insert( root );
@@ -189,7 +191,7 @@ MBErrorCode GeomTopoTool::construct_obb_trees()
 } 
   
     //! Restore parent/child links between GEOM_TOPO mesh sets
-MBErrorCode GeomTopoTool::restore_topology() 
+ErrorCode GeomTopoTool::restore_topology() 
 {
   
     // look for geometric topology sets and restore parent/child links between them
@@ -202,39 +204,39 @@ MBErrorCode GeomTopoTool::restore_topology()
     //   . make parent/child links with parents
 
     // get the geom topology tag
-  MBTag geom_tag;
-  MBErrorCode result = mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4, 
+  Tag geom_tag;
+  ErrorCode result = mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4, 
                                             MB_TAG_SPARSE, geom_tag, NULL);
   if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result)
     return result;
   
     // get all sets with this tag
-  MBRange geom_sets;
+  Range geom_sets;
   result = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &geom_tag, NULL, 1,
                                                 geom_sets);
   if (MB_SUCCESS != result || geom_sets.empty()) 
     return result;
 
-  MBRange entities[4];
+  Range entities[4];
   result = separate_by_dimension(geom_sets, entities, geom_tag);
   if (MB_SUCCESS != result)
     return result;
 
-  std::vector<MBEntityHandle> parents;
-  MBRange tmp_parents;
+  std::vector<EntityHandle> parents;
+  Range tmp_parents;
   
     // loop over dimensions
   for (int dim = 2; dim >= 0; dim--) {
       // mark entities of next higher dimension with their owners; regenerate tag
       // each dimension so prev dim's tag data goes away
-    MBTag owner_tag;
-    MBEntityHandle dum_val = 0;
-    result = mdbImpl->tag_create("__owner_tag", sizeof(MBEntityHandle), MB_TAG_DENSE,
+    Tag owner_tag;
+    EntityHandle dum_val = 0;
+    result = mdbImpl->tag_create("__owner_tag", sizeof(EntityHandle), MB_TAG_DENSE,
                                  MB_TYPE_HANDLE, owner_tag, &dum_val);
     if (MB_SUCCESS != result) continue;
-    MBRange dp1ents;
-    std::vector<MBEntityHandle> owners;
-    for (MBRange::iterator rit = entities[dim+1].begin(); rit != entities[dim+1].end(); rit++) {
+    Range dp1ents;
+    std::vector<EntityHandle> owners;
+    for (Range::iterator rit = entities[dim+1].begin(); rit != entities[dim+1].end(); rit++) {
       dp1ents.clear();
       result = mdbImpl->get_entities_by_dimension(*rit, dim+1, dp1ents);
       if (MB_SUCCESS != result) continue;
@@ -244,9 +246,9 @@ MBErrorCode GeomTopoTool::restore_topology()
       if (MB_SUCCESS != result) continue;
     }
     
-    for (MBRange::iterator d_it = entities[dim].begin(); 
+    for (Range::iterator d_it = entities[dim].begin(); 
          d_it != entities[dim].end(); d_it++) {
-      MBRange dents;
+      Range dents;
       result = mdbImpl->get_entities_by_dimension(*d_it, dim, dents);
       if (MB_SUCCESS != result) continue;
       if (dents.empty()) continue;
@@ -265,8 +267,8 @@ MBErrorCode GeomTopoTool::restore_topology()
       
         // compress to a range to remove duplicates
       tmp_parents.clear();
-      std::copy(parents.begin(), parents.end(), mb_range_inserter(tmp_parents));
-      for (MBRange::iterator pit = tmp_parents.begin(); pit != tmp_parents.end(); pit++) {
+      std::copy(parents.begin(), parents.end(), range_inserter(tmp_parents));
+      for (Range::iterator pit = tmp_parents.begin(); pit != tmp_parents.end(); pit++) {
         result = mdbImpl->add_parent_child(*pit, *d_it);
         if (MB_SUCCESS != result) return result;
       }
@@ -274,7 +276,7 @@ MBErrorCode GeomTopoTool::restore_topology()
         // store surface senses
       if (dim != 2) 
         continue;
-      const MBEntityHandle *conn3, *conn2;
+      const EntityHandle *conn3, *conn2;
       int len3, len2, err, num, sense, offset;
       for (size_t i = 0; i < parents.size(); ++i) {
         result = mdbImpl->get_connectivity( dp1ents[i], conn3, len3, true );
@@ -307,10 +309,10 @@ MBErrorCode GeomTopoTool::restore_topology()
   return result;
 }
 
-MBErrorCode GeomTopoTool::separate_by_dimension(const MBRange &geom_sets,
-                                                 MBRange *entities, MBTag geom_tag) 
+ErrorCode GeomTopoTool::separate_by_dimension(const Range &geom_sets,
+                                                 Range *entities, Tag geom_tag) 
 {
-  MBErrorCode result;
+  ErrorCode result;
   
   if (0 == geom_tag) {
     
@@ -325,7 +327,7 @@ MBErrorCode GeomTopoTool::separate_by_dimension(const MBRange &geom_sets,
   if (MB_SUCCESS != result)
     return result;
 
-  MBRange::const_iterator git;
+  Range::const_iterator git;
   std::vector<int>::iterator iit;
   
   for (git = geom_sets.begin(), iit = tag_vals.begin(); git != geom_sets.end(); 
@@ -341,15 +343,15 @@ MBErrorCode GeomTopoTool::separate_by_dimension(const MBRange &geom_sets,
   return MB_SUCCESS;
 }
 
-MBErrorCode GeomTopoTool::construct_vertex_ranges(const MBRange &geom_sets,
-                                                   const MBTag verts_tag) 
+ErrorCode GeomTopoTool::construct_vertex_ranges(const Range &geom_sets,
+                                                   const Tag verts_tag) 
 {
     // construct the vertex range for each entity and put on that tag
-  MBRange *temp_verts, temp_elems;
-  MBErrorCode result = MB_SUCCESS;
-  for (MBRange::const_iterator it = geom_sets.begin(); it != geom_sets.end(); it++) {
+  Range *temp_verts, temp_elems;
+  ErrorCode result = MB_SUCCESS;
+  for (Range::const_iterator it = geom_sets.begin(); it != geom_sets.end(); it++) {
       // make the new range
-    temp_verts = new MBRange();
+    temp_verts = new Range();
     assert(NULL != temp_verts);
     temp_elems.clear();
     
@@ -360,7 +362,7 @@ MBErrorCode GeomTopoTool::construct_vertex_ranges(const MBRange &geom_sets,
     
       // get all the verts of those elements; use get_adjacencies 'cuz it handles ranges better
     result = mdbImpl->get_adjacencies(temp_elems, 0, false, *temp_verts,
-                                      MBInterface::UNION);
+                                      Interface::UNION);
     if (MB_SUCCESS != result) 
       return result;
 
@@ -373,5 +375,7 @@ MBErrorCode GeomTopoTool::construct_vertex_ranges(const MBRange &geom_sets,
   
   return result;
 }
- 
+  
+} // namespace moab
+
   

@@ -1,7 +1,7 @@
 #include "SphereDecomp.hpp"
-#include "MeshTopoUtil.hpp"
-#include "MBRange.hpp"
-#include "MBCN.hpp"
+#include "moab/MeshTopoUtil.hpp"
+#include "moab/Range.hpp"
+#include "moab/MBCN.hpp"
 #include <math.h>
 #include <assert.h>
 #include <iostream>
@@ -10,24 +10,26 @@
 
 const char *SUBDIV_VERTICES_TAG_NAME = "subdiv_vertices";
 
-SphereDecomp::SphereDecomp(MBInterface *impl) 
+using namespace moab;
+
+SphereDecomp::SphereDecomp(Interface *impl) 
 {
   mbImpl = impl;
 }
 
-MBErrorCode SphereDecomp::build_sphere_mesh(const char *sphere_radii_tag_name,
-                                            MBEntityHandle *hex_set) 
+ErrorCode SphereDecomp::build_sphere_mesh(const char *sphere_radii_tag_name,
+                                            EntityHandle *hex_set) 
 {
-  MBErrorCode result = mbImpl->tag_get_handle(sphere_radii_tag_name, sphereRadiiTag); RR;
+  ErrorCode result = mbImpl->tag_get_handle(sphere_radii_tag_name, sphereRadiiTag); RR;
 
     // need to make sure all interior edges and faces are created
-  MBRange all_verts;
+  Range all_verts;
   result = mbImpl->get_entities_by_type(0, MBVERTEX, all_verts); RR;
   MeshTopoUtil mtu(mbImpl);
   result = mtu.construct_aentities(all_verts);
   
     // create tag to hold vertices
-  result = mbImpl->tag_create(SUBDIV_VERTICES_TAG_NAME, 9*sizeof(MBEntityHandle), 
+  result = mbImpl->tag_create(SUBDIV_VERTICES_TAG_NAME, 9*sizeof(EntityHandle), 
                            MB_TAG_DENSE, MB_TYPE_HANDLE, subdivVerticesTag, NULL); RR;
 
     // compute nodal positions for each dimension element
@@ -36,14 +38,14 @@ MBErrorCode SphereDecomp::build_sphere_mesh(const char *sphere_radii_tag_name,
   result = compute_nodes(3); RR;
   
     // build hex elements
-  std::vector<MBEntityHandle> sphere_hexes, interstic_hexes;
+  std::vector<EntityHandle> sphere_hexes, interstic_hexes;
   result = build_hexes(sphere_hexes, interstic_hexes); 
 
   result = mbImpl->tag_delete(subdivVerticesTag); RR;
 
   if (NULL != hex_set) {
     if (0 == *hex_set) {
-      MBEntityHandle this_set;
+      EntityHandle this_set;
         // make a new set
       result = mbImpl->create_meshset(MESHSET_SET, this_set); RR;
       *hex_set = this_set;
@@ -59,26 +61,26 @@ MBErrorCode SphereDecomp::build_sphere_mesh(const char *sphere_radii_tag_name,
   return result;
 }
 
-MBErrorCode SphereDecomp::compute_nodes(const int dim) 
+ErrorCode SphereDecomp::compute_nodes(const int dim) 
 {
     // get facets of that dimension
-  MBRange these_ents;
-  const MBEntityType the_types[4] = {MBVERTEX, MBEDGE, MBTRI, MBTET};
+  Range these_ents;
+  const EntityType the_types[4] = {MBVERTEX, MBEDGE, MBTRI, MBTET};
   
-  MBErrorCode result = mbImpl->get_entities_by_dimension(0, dim, these_ents); RR;
+  ErrorCode result = mbImpl->get_entities_by_dimension(0, dim, these_ents); RR;
   assert(mbImpl->type_from_handle(*these_ents.begin()) == the_types[dim] &&
          mbImpl->type_from_handle(*these_ents.rbegin()) == the_types[dim]);
   
-  MBEntityHandle subdiv_vertices[9];
+  EntityHandle subdiv_vertices[9];
   MeshTopoUtil mtu(mbImpl);
   double avg_pos[3], vert_pos[12], new_vert_pos[12], new_new_vert_pos[3];
   double radii[4], unitv[3];
   int num_verts = MBCN::VerticesPerEntity(the_types[dim]);
   
-  for (MBRange::iterator rit = these_ents.begin(); rit != these_ents.end(); rit++) {
+  for (Range::iterator rit = these_ents.begin(); rit != these_ents.end(); rit++) {
     
       // get vertices
-    const MBEntityHandle *connect;
+    const EntityHandle *connect;
     int num_connect;
     result = mbImpl->get_connectivity(*rit, connect, num_connect); RR;
 
@@ -111,7 +113,7 @@ MBErrorCode SphereDecomp::compute_nodes(const int dim)
         new_vert_pos[3*i+j] = vert_pos[3*i+j] + radii[i] * unitv[j];
 
       // create vertex at this position
-      MBErrorCode tmp_result = mbImpl->create_vertex(&new_vert_pos[3*i], subdiv_vertices[i]);
+      ErrorCode tmp_result = mbImpl->create_vertex(&new_vert_pos[3*i], subdiv_vertices[i]);
       if (MB_SUCCESS != tmp_result) result = tmp_result;
     }
     
@@ -133,41 +135,41 @@ MBErrorCode SphereDecomp::compute_nodes(const int dim)
   return result;
 }
 
-MBErrorCode SphereDecomp::build_hexes(std::vector<MBEntityHandle> &sphere_hexes,
-                        std::vector<MBEntityHandle> &interstic_hexes) 
+ErrorCode SphereDecomp::build_hexes(std::vector<EntityHandle> &sphere_hexes,
+                        std::vector<EntityHandle> &interstic_hexes) 
 {
     // build hexes inside each tet element separately
-  MBRange tets;
-  MBErrorCode result = mbImpl->get_entities_by_type(0, MBTET, tets); RR;
+  Range tets;
+  ErrorCode result = mbImpl->get_entities_by_type(0, MBTET, tets); RR;
   
-  for (MBRange::iterator vit = tets.begin(); vit != tets.end(); vit++) {
+  for (Range::iterator vit = tets.begin(); vit != tets.end(); vit++) {
     result = subdivide_tet(*vit, sphere_hexes, interstic_hexes); RR;
   }
   
   return MB_SUCCESS;
 }
 
-MBErrorCode SphereDecomp::subdivide_tet(MBEntityHandle tet, 
-                          std::vector<MBEntityHandle> &sphere_hexes,
-                          std::vector<MBEntityHandle> &interstic_hexes) 
+ErrorCode SphereDecomp::subdivide_tet(EntityHandle tet, 
+                          std::vector<EntityHandle> &sphere_hexes,
+                          std::vector<EntityHandle> &interstic_hexes) 
 {
     // 99: (#subdiv_verts/entity=9) * (#edges=6 + #faces=4 + 1=tet)
-  MBEntityHandle subdiv_verts[99];
+  EntityHandle subdiv_verts[99];
 
     // get tet connectivity
-  std::vector<MBEntityHandle> tet_conn;
-  MBErrorCode result = mbImpl->get_connectivity(&tet, 1, tet_conn); RR;
+  std::vector<EntityHandle> tet_conn;
+  ErrorCode result = mbImpl->get_connectivity(&tet, 1, tet_conn); RR;
   
   for (int dim = 1; dim <= 3; dim++) {
       // get entities of this dimension
-    std::vector<MBEntityHandle> ents;
+    std::vector<EntityHandle> ents;
     if (dim != 3) {
       result = mbImpl->get_adjacencies(&tet, 1, dim, false, ents); RR; 
     }
     else ents.push_back(tet);
     
       // for each, get subdiv verts & put into vector
-    for (std::vector<MBEntityHandle>::iterator vit = ents.begin(); vit != ents.end(); vit++) {
+    for (std::vector<EntityHandle>::iterator vit = ents.begin(); vit != ents.end(); vit++) {
       result = retrieve_subdiv_verts(tet, *vit, &tet_conn[0], dim, subdiv_verts); RR;
     }
   }
@@ -222,7 +224,7 @@ MBErrorCode SphereDecomp::subdivide_tet(MBEntityHandle tet,
 #define FSV(a,b) subdiv_verts[54+a*9+b]
 #define TSV(a,b) subdiv_verts[90+a*9+b]
 
-  MBEntityHandle this_connect[8], this_hex;
+  EntityHandle this_connect[8], this_hex;
 
     // first, interstices hexes, three per vertex/spherical surface
 // V0:
@@ -412,12 +414,12 @@ MBErrorCode SphereDecomp::subdivide_tet(MBEntityHandle tet,
   return result;
 }
 
-MBErrorCode SphereDecomp::retrieve_subdiv_verts(MBEntityHandle tet, MBEntityHandle this_ent,
-                                  const MBEntityHandle *tet_conn,
-                                  const int dim, MBEntityHandle *subdiv_verts) 
+ErrorCode SphereDecomp::retrieve_subdiv_verts(EntityHandle tet, EntityHandle this_ent,
+                                  const EntityHandle *tet_conn,
+                                  const int dim, EntityHandle *subdiv_verts) 
 {
     // get the subdiv verts for this entity
-  MBErrorCode result;
+  ErrorCode result;
   
     // if it's a tet, just put them on the end & return
   if (tet == this_ent) {
@@ -427,7 +429,7 @@ MBErrorCode SphereDecomp::retrieve_subdiv_verts(MBEntityHandle tet, MBEntityHand
   
     // if it's a sub-entity, need to find index, relative orientation, and offset
     // get connectivity of sub-entity
-  std::vector<MBEntityHandle> this_conn;
+  std::vector<EntityHandle> this_conn;
   result = mbImpl->get_connectivity(&this_ent, 1, this_conn); RR;
   
     // get relative orientation
@@ -441,13 +443,13 @@ MBErrorCode SphereDecomp::retrieve_subdiv_verts(MBEntityHandle tet, MBEntityHand
   
     // start of this entity's subdiv_verts; edges go first, then preceding sides, then this one;
     // this assumes 6 edges/tet
-  MBEntityHandle *subdiv_start = &subdiv_verts[((dim-1)*6 + side_no) * 9];
+  EntityHandle *subdiv_start = &subdiv_verts[((dim-1)*6 + side_no) * 9];
   
     // get subdiv_verts and put them into proper place
   result = mbImpl->tag_get_data(subdivVerticesTag, &this_ent, 1, subdiv_start);
 
     // could probably do this more elegantly, but isn't worth it
-#define SWITCH(a,b) {MBEntityHandle tmp_handle = a; a = b; b = tmp_handle;}
+#define SWITCH(a,b) {EntityHandle tmp_handle = a; a = b; b = tmp_handle;}
   switch (dim) {
     case 1:
       if (offset != 0 || sense == -1) {

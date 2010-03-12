@@ -16,12 +16,14 @@
 #include <stdio.h>
 #include <math.h>
 
-#include "MBCore.hpp"
-#include "MBRange.hpp"
-#include "MBTagConventions.hpp"
-#include "MBCN.hpp"
+#include "moab/Core.hpp"
+#include "moab/Range.hpp"
+#include "moab/MBTagConventions.hpp"
+#include "moab/MBCN.hpp"
 
 #define filename "h5test.h5m"
+
+using namespace moab;
 
 // Dense tag name
 // Pick an ugly name to check special-char escaping in HDF5 file
@@ -38,7 +40,7 @@ const int EMPTY_SET_ID  = 1100;
 const int SET_SET_ID    = 1105;
 
 
-MBInterface* iface;
+Interface* iface;
 
 void create();
 
@@ -48,10 +50,10 @@ void moab_error( const char* function );
 
 int main()
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   std::string msg;
   
-  iface = new MBCore();
+  iface = new Core();
   
   // create a dodecahedron and inscribed hex
   fprintf( stderr, "creating... " );
@@ -137,23 +139,23 @@ int main()
   return 0;
 }
 
-MBEntityHandle vtx( double x, double y, double z )
+EntityHandle vtx( double x, double y, double z )
 {
   const double p[3] = { x, y, z };
-  MBEntityHandle result;
+  EntityHandle result;
   if (MB_SUCCESS != iface->create_vertex( p, result ))
       moab_error( "create_vertex" );
   return result;
 }
 
-MBEntityHandle pent( MBEntityHandle* vtx_list, int i1, int i2, int i3, int i4, int i5 )
+EntityHandle pent( EntityHandle* vtx_list, int i1, int i2, int i3, int i4, int i5 )
 {
-  const MBEntityHandle conn[5] = { vtx_list[i1],
+  const EntityHandle conn[5] = { vtx_list[i1],
                                    vtx_list[i2],
                                    vtx_list[i3],
                                    vtx_list[i4],
                                    vtx_list[i5] };
-  MBEntityHandle result;
+  EntityHandle result;
   if (MB_SUCCESS != iface->create_element( MBPOLYGON, conn, 5, result ))
     moab_error( "create_element" );
   return result;
@@ -165,13 +167,13 @@ MBEntityHandle pent( MBEntityHandle* vtx_list, int i1, int i2, int i3, int i4, i
 // num_entities - length of 'entities'
 // reverse      - if true, add entities in reverse order
 // id           - value for global id on set
-MBEntityHandle make_set( unsigned int options,
-                         MBEntityHandle* entities,
+EntityHandle make_set( unsigned int options,
+                         EntityHandle* entities,
                          size_t num_entities,
                          bool reverse,
                          int id )
 {
-  MBEntityHandle handle;
+  EntityHandle handle;
   if (MB_SUCCESS != iface->create_meshset( options, handle ))
     moab_error( "create_meshset" );
   
@@ -187,8 +189,8 @@ MBEntityHandle make_set( unsigned int options,
       moab_error( "add_entities" );
   }
     
-  MBErrorCode rval;
-  MBTag id_tag;
+  ErrorCode rval;
+  Tag id_tag;
   rval = iface->tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
   if (MB_TAG_NOT_FOUND == rval)
   {
@@ -231,13 +233,13 @@ void create()
   const double b = edge / 2.0;
   
   // list of vertex handles
-  MBEntityHandle vertices[20];
+  EntityHandle vertices[20];
   // list of pentagon handles
-  MBEntityHandle faces[12];
+  EntityHandle faces[12];
   // Dodecahedron handle
-  MBEntityHandle dodec;
+  EntityHandle dodec;
   // Inscribed Hex handle
-  MBEntityHandle hex;
+  EntityHandle hex;
   
   // Create vertices if inscribed cube
   vertices[ 0] = vtx( x-c, y+c, z+c );
@@ -293,7 +295,7 @@ void create()
   
   // Create a dense tag 
   int zero = 0;
-  MBTag tag;
+  Tag tag;
   if (MB_SUCCESS != iface->tag_create( tagname, 4, MB_TAG_DENSE, tag, &zero ))
     moab_error( "tag_create" );
   
@@ -303,7 +305,7 @@ void create()
       moab_error( "tag_set_data" );
       
   // Create bit tag
-  MBTag tag2;
+  Tag tag2;
   if (MB_SUCCESS != iface->tag_create( bitname, 2, MB_TAG_BIT, tag2, 0 ))
     moab_error( "tag_create" );
   
@@ -318,7 +320,7 @@ void create()
     moab_error( "tag_set_data" );
   
   // Create an integer array tag and set some values on the dodecahedron
-  MBTag itag;
+  Tag itag;
   if (MB_SUCCESS != iface->tag_create( intname, 2*sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, itag, 0 ))
     moab_error( "tag_create(MB_TYPE_INT)" );
   int idata[] = { 0xDEADBEEF, 0xDEFACED };
@@ -326,7 +328,7 @@ void create()
     moab_error( "tag_set_data(itag)" );
   
   // Create a double tag with a non-zero default value, and set on dodecahedron
-  MBTag dtag;
+  Tag dtag;
   double ddef = 3.14159;
   if (MB_SUCCESS != iface->tag_create( dblname, sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, dtag, &ddef ))
     moab_error( "tag_create(dtag)" );
@@ -335,28 +337,28 @@ void create()
     moab_error( "tag_set_data(dtag)" );
   
   // Create a tag containing entity handles, with default values
-  MBTag htag;
-  MBEntityHandle hdef[] = { hex, dodec, 0 };
-  if (MB_SUCCESS != iface->tag_create( handlename, 3*sizeof(MBEntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, htag, hdef ))
+  Tag htag;
+  EntityHandle hdef[] = { hex, dodec, 0 };
+  if (MB_SUCCESS != iface->tag_create( handlename, 3*sizeof(EntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, htag, hdef ))
     moab_error( "tag_create(htag)" );
   // Set global (mesh) value for tag
-  MBEntityHandle hgbl[] = { 0, hex, dodec };
+  EntityHandle hgbl[] = { 0, hex, dodec };
   if (MB_SUCCESS != iface->tag_set_data( htag, 0, 0, hgbl ))
     moab_error( "tag_set_data(hgbl)" );
   // Store first three entiries of dodec connectivity on dodec
-  MBEntityHandle hval[] = { faces[0], faces[1], faces[2] };
+  EntityHandle hval[] = { faces[0], faces[1], faces[2] };
   if (MB_SUCCESS != iface->tag_set_data( htag, &dodec, 1, hval ))
     moab_error( "tag_set_data(hgbl)" );
     
   // create some sets
-  MBEntityHandle face_set, vertex_set, region_set, empty_set, set_set;
-  MBEntityHandle regions[] = { dodec, hex };
+  EntityHandle face_set, vertex_set, region_set, empty_set, set_set;
+  EntityHandle regions[] = { dodec, hex };
   const unsigned empty_flags = MESHSET_ORDERED|MESHSET_TRACK_OWNER;
   face_set   = make_set( MESHSET_SET,     faces,    12, false, FACE_SET_ID    );
   vertex_set = make_set( MESHSET_ORDERED, vertices, 20, true,  VERTEX_SET_ID  );
   region_set = make_set( MESHSET_SET,     regions,   2, false, REGION_SET_ID  );
   empty_set  = make_set( empty_flags,     0,         0, true,  EMPTY_SET_ID   );
-  MBEntityHandle sets[] = {face_set, vertex_set, region_set, empty_set};
+  EntityHandle sets[] = {face_set, vertex_set, region_set, empty_set};
   set_set    = make_set( MESHSET_ORDERED, sets,      4, false, SET_SET_ID     );
   
   // create some set parent-child links
@@ -368,8 +370,8 @@ void create()
     moab_error( "add_parent_meshet" );
 }
 
-bool compare_conn( std::vector<MBEntityHandle>& conn1,
-                   std::vector<MBEntityHandle>& conn2 )
+bool compare_conn( std::vector<EntityHandle>& conn1,
+                   std::vector<EntityHandle>& conn2 )
 {
   unsigned i;
   
@@ -403,7 +405,7 @@ bool compare_conn( std::vector<MBEntityHandle>& conn1,
   
   std::vector<int> tags[2];
   tags[0].resize( conn1.size() ); tags[1].resize( conn2.size() );
-  MBTag tag;
+  Tag tag;
   if (MB_SUCCESS != iface->tag_get_handle( tagname, tag ))
     moab_error( "tag_get_handle" );
   if (MB_SUCCESS != iface->tag_get_data( tag, &conn1[0], conn1.size(), &tags[0][0] ) ||
@@ -433,18 +435,18 @@ bool compare_conn( std::vector<MBEntityHandle>& conn1,
 bool compare_sets( int id, const char* tag_name = 0 )
 {
   bool ok;
-  MBErrorCode rval;
+  ErrorCode rval;
   
   // get sets
  
-  MBTag id_tag;
+  Tag id_tag;
   if (MB_SUCCESS != iface->tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag ))
   {
     fprintf(stderr, "Could not find global id tag in file.\n");
     return false;
   }
   
-  MBRange range;
+  Range range;
   const void* tag_data[] = { &id };
   rval = iface->get_entities_by_type_and_tag( 0, MBENTITYSET, &id_tag, tag_data, 1, range );
   if (MB_ENTITY_NOT_FOUND == rval || range.size() != 2)
@@ -455,8 +457,8 @@ bool compare_sets( int id, const char* tag_name = 0 )
   else if (MB_SUCCESS != rval)
     moab_error( "get_entities_by_type_and_tag" );
   
-  MBEntityHandle set1 = *range.begin();
-  MBEntityHandle set2 = *++range.begin();
+  EntityHandle set1 = *range.begin();
+  EntityHandle set2 = *++range.begin();
   
   
     // Compare set descriptions
@@ -489,7 +491,7 @@ bool compare_sets( int id, const char* tag_name = 0 )
     //  o If set is ordered, compare entity types in order
     //  o Otherwise compare counts of entity types in sets
 
-  std::vector<MBEntityHandle> list1, list2;
+  std::vector<EntityHandle> list1, list2;
   if (MB_SUCCESS != iface->get_entities_by_handle( set1, list1 ) ||
       MB_SUCCESS != iface->get_entities_by_handle( set2, list2 ))
     moab_error( "get_entities_by_handle" );
@@ -504,7 +506,7 @@ bool compare_sets( int id, const char* tag_name = 0 )
   
   if (tag_name) // compare contents using tag value
   {
-    MBTag tag;
+    Tag tag;
     if (MB_SUCCESS != iface->tag_get_handle( tag_name, tag ))
     {
       fprintf(stderr, "Could not find tag \"%s\" in file.\n", tag_name);
@@ -512,7 +514,7 @@ bool compare_sets( int id, const char* tag_name = 0 )
     }
     
       // Make sure tag is integer type
-    MBDataType type;
+    DataType type;
     if (MB_SUCCESS != iface->tag_get_data_type( tag, type ))
       moab_error( "tag_get_data_type" );
     if (MB_TYPE_INTEGER != type && MB_TYPE_OPAQUE != type)
@@ -565,7 +567,7 @@ bool compare_sets( int id, const char* tag_name = 0 )
       if (counts1[j] != counts2[j])
       {
         fprintf(stderr, "Sets with id %d have differing numbers of %s: %u and %u\n",
-                id, MBCN::EntityTypeName((MBEntityType)j), counts1[j], counts2[j] );
+                id, MBCN::EntityTypeName((EntityType)j), counts1[j], counts2[j] );
         ok = false;
       }
     if (!ok)
@@ -577,7 +579,7 @@ bool compare_sets( int id, const char* tag_name = 0 )
   
   ok = true;
   const char* words[] = { "children", "parents" };
-  std::vector<MBEntityHandle> adj1, adj2;
+  std::vector<EntityHandle> adj1, adj2;
   for (unsigned two = 0; two < 2; ++two)
   {
     adj1.clear(); adj2.clear();
@@ -634,12 +636,12 @@ bool compare_sets( int id, const char* tag_name = 0 )
   return ok;
 }
 
-bool compare_tags( MBEntityHandle dod[] )
+bool compare_tags( EntityHandle dod[] )
 {
-  MBTag tag;
+  Tag tag;
   int size;
-  MBDataType type;
-  MBTagType store;
+  DataType type;
+  TagType store;
 
 
     // Get integer tag handle and characterstics
@@ -654,7 +656,7 @@ bool compare_tags( MBEntityHandle dod[] )
     
     // check that integer tag has correct characteristics
   if (type != MB_TYPE_INTEGER) {
-    fprintf(stderr, "Incorrect MBDataType for integer tag.\n" );
+    fprintf(stderr, "Incorrect DataType for integer tag.\n" );
     return false;
   }
   if (size != 2*sizeof(int)) {
@@ -695,7 +697,7 @@ bool compare_tags( MBEntityHandle dod[] )
     
     // check that double tag has correct characteristics
   if (type != MB_TYPE_DOUBLE) {
-    fprintf(stderr, "Incorrect MBDataType for double tag.\n" );
+    fprintf(stderr, "Incorrect DataType for double tag.\n" );
     return false;
   }
   if (size != sizeof(double)) {
@@ -737,10 +739,10 @@ bool compare_tags( MBEntityHandle dod[] )
     
     // check that handle tag has correct characteristics
   if (type != MB_TYPE_HANDLE) {
-    fprintf(stderr, "Incorrect MBDataType for handle tag.\n" );
+    fprintf(stderr, "Incorrect DataType for handle tag.\n" );
     return false;
   }
-  if (size != 3*sizeof(MBEntityHandle)) {
+  if (size != 3*sizeof(EntityHandle)) {
     fprintf(stderr, "Incorrect size for handle tag.\n" );
     return false;
   }
@@ -753,7 +755,7 @@ bool compare_tags( MBEntityHandle dod[] )
     // default value will not change after tag is created.  As we
     // do multiple iterations of save/restore, we shouldn't expect
     // the dodecahedron handles to point to the most recent two.
-  MBEntityHandle hdata[6];
+  EntityHandle hdata[6];
   if (MB_SUCCESS != iface->tag_get_default_value( tag, hdata ))
     moab_error( "tag_get_default_value" );
   if (iface->type_from_handle(hdata[0]) != MBHEX ||
@@ -776,19 +778,19 @@ bool compare_tags( MBEntityHandle dod[] )
   }
  
     // check data on each dodecahedron
-  const MBEntityHandle *conn;
+  const EntityHandle *conn;
   int len;
   if (MB_SUCCESS != iface->tag_get_data( tag, dod, 2, hdata ))
     moab_error( "tag_get_data()" );
   if (MB_SUCCESS != iface->get_connectivity( dod[0], conn, len ))
     moab_error( "get_connectivity" );
-  if (memcmp(conn, hdata, 3*sizeof(MBEntityHandle))) {
+  if (memcmp(conn, hdata, 3*sizeof(EntityHandle))) {
     fprintf( stderr, "Incorrect values for handle tag data.\n" );
     return false;
   }
   if (MB_SUCCESS != iface->get_connectivity( dod[1], conn, len ))
     moab_error( "get_connectivity" );
-  if (memcmp(conn, hdata+3, 3*sizeof(MBEntityHandle))) {
+  if (memcmp(conn, hdata+3, 3*sizeof(EntityHandle))) {
     fprintf( stderr, "Incorrect values for handle tag data.\n" );
     return false;
   }
@@ -800,11 +802,11 @@ bool compare_tags( MBEntityHandle dod[] )
 
 bool compare()
 {
-  MBRange range;
-  MBEntityHandle hex[2];
-  MBEntityHandle dod[2];
-  MBTag elemtag;
-  MBRange::iterator iter;
+  Range range;
+  EntityHandle hex[2];
+  EntityHandle dod[2];
+  Tag elemtag;
+  Range::iterator iter;
   
   // get tag
   if (MB_SUCCESS != iface->tag_get_handle( bitname, elemtag ))
@@ -842,7 +844,7 @@ bool compare()
   dod[1] = *++iter;
   
   // compare hexes
-  std::vector<MBEntityHandle> conn[2];
+  std::vector<EntityHandle> conn[2];
   if (MB_SUCCESS != iface->get_connectivity( hex  , 1, conn[0] ) ||
       MB_SUCCESS != iface->get_connectivity( hex+1, 1, conn[1] ))
     moab_error( "get_connectivity" );
@@ -851,7 +853,7 @@ bool compare()
   
   // compare polyhedra
   
-  std::vector<MBEntityHandle> face[2];
+  std::vector<EntityHandle> face[2];
   conn[0].clear(); conn[1].clear();
   if (MB_SUCCESS != iface->get_connectivity( dod  , 1, conn[0], false ) ||
       MB_SUCCESS != iface->get_connectivity( dod+1, 1, conn[1], false ))

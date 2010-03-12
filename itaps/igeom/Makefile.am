@@ -3,8 +3,6 @@ BUILT_SOURCES = iGeom_protos.h
 AM_CPPFLAGS = -DSRCDIR=$(srcdir) \
               -I$(top_srcdir)/src \
               -I$(top_builddir)/src \
-              -I$(top_srcdir)/src/moab \
-              -I$(top_builddir)/src/moab \
               -I.. -I$(srcdir)/.. \
               -I$(top_srcdir)/itaps/imesh \
               -I$(top_builddir)/itaps/imesh 

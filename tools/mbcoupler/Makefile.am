@@ -1,9 +1,6 @@
 AM_CPPFLAGS += -I$(top_srcdir)/src \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src/parallel \
-               -I$(top_srcdir)/src/moab \
-               -I$(top_builddir)/src/moab \
-               -I$(top_srcdir)/src/parallel/moab \
                -I$(top_srcdir)/test
 
 lib_LTLIBRARIES = libmbcoupler.la
@@ -12,7 +9,7 @@ libmbcoupler_la_LIBADD = $(top_builddir)/src/libMOAB.la
 LDADD = libmbcoupler.la 
 
 libmbcoupler_la_SOURCES = \
-   MBElemUtil.cpp \
+   ElemUtil.cpp \
    poly.c   \
    poly.h   \
    tensor.c \
@@ -24,11 +21,11 @@ libmbcoupler_la_SOURCES = \
    findpt.h \
    minmax.h \
    types.h \
-   MBCoupler.cpp
+   Coupler.cpp
 
 libmbcoupler_la_include_HEADERS = \
-   MBElemUtil.hpp \
-   MBCoupler.hpp
+   ElemUtil.hpp \
+   Coupler.hpp
 
 libmbcoupler_la_includedir = $(includedir)
 

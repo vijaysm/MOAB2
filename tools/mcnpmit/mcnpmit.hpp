@@ -1,5 +1,5 @@
-#include "MBCore.hpp"
-#include "MBRange.hpp"
+#include "moab/Core.hpp"
+#include "moab/Range.hpp"
 #include <iostream>
 #define MCNP mc_instance()
 #define BOXMIN_TAG "BOXMIN_TAG"
@@ -24,15 +24,15 @@ class McnpData {
             double rotation_matrix[16];
 
             // Vertices and elements
-            std::vector<MBEntityHandle> MCNP_vertices;
-            std::vector<MBEntityHandle> MCNP_elems;
-            MBRange                     vert_handles;
-            MBRange                     elem_handles;
+            std::vector<moab::EntityHandle> MCNP_vertices;
+            std::vector<moab::EntityHandle> MCNP_elems;
+            moab::Range                 vert_handles;
+            moab::Range                 elem_handles;
 
             // Tally data
-            MBTag box_min_tag, box_max_tag;
-            MBTag tally_tag;
-            MBTag relerr_tag;
+            moab::Tag box_min_tag, box_max_tag;
+            moab::Tag tally_tag;
+            moab::Tag relerr_tag;
 
             // MCNP Meshtal file name
             std::string MCNP_filename;
@@ -56,7 +56,7 @@ class McnpData {
             MCNPError make_elements(std::vector<double> [3], int*);
             MCNPError make_adjacencies(int*);
             MCNPError initialize_tags();
-            MCNPError extract_tally_data(std::string, MBEntityHandle);
+            MCNPError extract_tally_data(std::string, moab::EntityHandle);
 
             // Transformation routine
             MCNPError transform_point(double*, double*, int, double*);

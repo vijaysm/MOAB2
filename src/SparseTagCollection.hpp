@@ -49,10 +49,12 @@
 #endif
 #include <vector>
 
-#include "MBTypes.h"
-#include "MBInternals.hpp"
-#include "MBRange.hpp"
+#include "moab/Types.hpp"
+#include "Internals.hpp"
+#include "moab/Range.hpp"
 #include "TagInfo.hpp"
+
+namespace moab {
 
 //! allocator for tag data
 class SparseTagDataAllocator
@@ -83,12 +85,12 @@ public:
   //! set the tag data for an entity id
   //!\NOTE Will fail with MB_VARIABLE_DATA_LENGTH if called for 
   //!      variable-length tag.
-  MBErrorCode set_data(const MBEntityHandle entity_handle, const void* data);
+  ErrorCode set_data(const EntityHandle entity_handle, const void* data);
 
   //! get the tag data for an entity id
   //!\NOTE Will fail with MB_VARIABLE_DATA_LENGTH if called for 
   //!      variable-length tag.
-  MBErrorCode get_data(const MBEntityHandle entity_handle, void* data);
+  ErrorCode get_data(const EntityHandle entity_handle, void* data);
   
   //! set variable-length tag data for an entity id
   //!
@@ -96,36 +98,36 @@ public:
   //!
   //!\NOTE If called with zero size for a variable-length tag, is equivalent
   //!      to remove_data().
-  MBErrorCode set_data(const MBEntityHandle entity_handle, const void* data, int length);
+  ErrorCode set_data(const EntityHandle entity_handle, const void* data, int length);
 
   //! get the variable-length data for an entity id
-  MBErrorCode get_data(const MBEntityHandle entity_handle, const void*& data, int& length);
+  ErrorCode get_data(const EntityHandle entity_handle, const void*& data, int& length);
 
   //! removes the data
-  MBErrorCode remove_data(const MBEntityHandle entity_handle);
+  ErrorCode remove_data(const EntityHandle entity_handle);
 
   //! get number of entities of type
-  MBErrorCode get_number_entities(MBEntityType type, int& num_entities);
+  ErrorCode get_number_entities(EntityType type, int& num_entities);
   
   //! get number of entities
   unsigned long get_number_entities()
     { return mData.size(); }
 
   //! gets all entity handles that match a type and tag
-  MBErrorCode get_entities(MBEntityType type, MBRange &entities);
+  ErrorCode get_entities(EntityType type, Range &entities);
 
   //! gets all entity handles that match a tag
-  MBErrorCode get_entities(MBRange &entities) const;
+  ErrorCode get_entities(Range &entities) const;
 
   //! gets all entity handles that match a type, tag, tag_value
-  MBErrorCode get_entities_with_tag_value( const TagInfo& info,
-                                           MBEntityType type, 
-                                           MBRange &entities, 
+  ErrorCode get_entities_with_tag_value( const TagInfo& info,
+                                           EntityType type, 
+                                           Range &entities, 
                                            const void* tag_value,
                                            int value_size);
 
   //! if this collection contains this entity, return true, otherwise false
-  bool contains(const MBEntityHandle entity) const;
+  bool contains(const EntityHandle entity) const;
   
   int tag_size() const { return mDataSize; }
 
@@ -142,20 +144,20 @@ protected:
 
   //! map of entity id and tag data
 #ifdef HAVE_UNORDERED_MAP
-  typedef UNORDERED_MAP_NS::unordered_map<MBEntityHandle,void*> myMapType;
+  typedef UNORDERED_MAP_NS::unordered_map<EntityHandle,void*> myMapType;
 #else
-  typedef std::map<MBEntityHandle /*entity_handle*/ , void* /*data*/ > myMapType;
+  typedef std::map<EntityHandle /*entity_handle*/ , void* /*data*/ > myMapType;
 #endif
 
   myMapType mData;
 };
 
-inline bool SparseTagCollection::contains(const MBEntityHandle entity) const
+inline bool SparseTagCollection::contains(const EntityHandle entity) const
 {
   return (mData.find(entity) == mData.end() ? false : true);
 }
 
-inline MBErrorCode SparseTagCollection::get_entities(MBRange &entities) const 
+inline ErrorCode SparseTagCollection::get_entities(Range &entities) const 
 {
   for (myMapType::const_iterator mit = mData.begin(); mit != mData.end(); mit++) 
     entities.insert((*mit).first);
@@ -163,6 +165,7 @@ inline MBErrorCode SparseTagCollection::get_entities(MBRange &entities) const
   return MB_SUCCESS;
 }
 
+} // namespace moab
 
 #endif //SPARSE_TAG_COLLECTION_HPP
 

@@ -2,11 +2,7 @@ AUTOMAKE_OPTIONS = foreign
 AM_CPPFLAGS += -I$(top_srcdir)/src \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src/parallel \
-               -I$(top_builddir)/src/parallel \
-               -I$(top_srcdir)/src/moab \
-               -I$(top_builddir)/src/moab \
-               -I$(top_srcdir)/src/parallel/moab \
-               -I$(top_builddir)/src/parallel/moab 
+               -I$(top_builddir)/src/parallel
 
 LDADD = $(top_builddir)/src/libMOAB.la
 
@@ -139,7 +135,7 @@ mbskin_DEPENDENCIES = $(LDADD)
 mbdepth_SOURCES = depth.cpp
 mbdepth_DEPENDENCIES = $(LDADD)
 
-spheredecomp_SOURCES = SphereDecomp.hpp SphereDecomp.cpp main.cpp
+spheredecomp_SOURCES = SphereDecomp.hpp SphereDecomp.cpp sphere_decomp.cpp
 spheredecomp_DEPENDENCIES = $(LDADD)
 
 mbsurfplot_SOURCES = surfplot.cpp

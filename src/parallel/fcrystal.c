@@ -28,7 +28,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #ifdef MPI
-#  include "MBmpi.h"
+#  include "moab_mpi.h"
 #endif
 
 #include "fname.h"

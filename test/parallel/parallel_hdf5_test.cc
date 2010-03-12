@@ -1,16 +1,16 @@
-#include "MBRange.hpp"
+#include "moab/Range.hpp"
 #include "TestUtil.hpp"
 
-#include "MBCore.hpp"
-#include "MBParallelComm.hpp"
-#include "MBTagConventions.hpp"
-#include "MBCN.hpp"
-#include "MBParallelConventions.h"
+#include "moab/Core.hpp"
+#include "moab/ParallelComm.hpp"
+#include "moab/MBTagConventions.hpp"
+#include "moab/MBCN.hpp"
+#include "moab/MBParallelConventions.h"
 
 #include <iostream>
 #include <sstream>
 #include <algorithm>
-#include "MBmpi.h"
+#include "moab_mpi.h"
 #include <unistd.h>
 #include <float.h>
 #include <stdio.h>
@@ -18,17 +18,19 @@
 #define STRINGIFY_(X) #X
 #define STRINGIFY(X) STRINGIFY_(X)
 
+using namespace moab;
+
 #ifdef SRCDIR
 const char* InputFile = STRINGIFY(SRCDIR) "/ptest.cub";
 #else
 const char* InputFile = "ptest.cub";
 #endif
 
-void load_and_partition( MBInterface& moab, const char* filename, bool print_debug = false );
+void load_and_partition( Interface& moab, const char* filename, bool print_debug = false );
 
-void save_and_load_on_root( MBInterface& moab, const char* tmp_filename );
+void save_and_load_on_root( Interface& moab, const char* tmp_filename );
 
-void check_identical_mesh( MBInterface& moab1, MBInterface& moab2 );
+void check_identical_mesh( Interface& moab1, Interface& moab2 );
 
 void test_write_elements();
 void test_write_shared_sets();
@@ -113,9 +115,9 @@ int main( int argc, char* argv[] )
  * should aways be true.  Print for each geometric topology set
  * the list of processors it is shared with.
  */
-void print_partitioned_entities( MBInterface& moab, bool list_non_shared = false )
+void print_partitioned_entities( Interface& moab, bool list_non_shared = false )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   int size, rank;
   std::vector<int> ent_procs(MAX_SHARING_PROCS), tmp_ent_procs(MAX_SHARING_PROCS);
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
@@ -124,13 +126,13 @@ void print_partitioned_entities( MBInterface& moab, bool list_non_shared = false
     // expect shared entities to correspond to geometric sets
     
     // get tags for parallel data
-  MBTag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
+  Tag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
   const char* ptag_names[] = { PARALLEL_SHARED_PROC_TAG_NAME,
                                PARALLEL_SHARED_PROCS_TAG_NAME,
                                PARALLEL_SHARED_HANDLE_TAG_NAME,
                                PARALLEL_SHARED_HANDLES_TAG_NAME,
                                PARALLEL_STATUS_TAG_NAME };
-  MBTag* tag_ptrs[] = { &sharedp_tag, &sharedps_tag, &sharedh_tag, &sharedhs_tag, &pstatus_tag };
+  Tag* tag_ptrs[] = { &sharedp_tag, &sharedps_tag, &sharedh_tag, &sharedhs_tag, &pstatus_tag };
   const int ntags = sizeof(ptag_names)/sizeof(ptag_names[0]);
   for (int i = 0; i < ntags; ++i) {
     rval = moab.tag_get_handle( ptag_names[i], *tag_ptrs[i] ); CHECK_ERR(rval);
@@ -138,32 +140,32 @@ void print_partitioned_entities( MBInterface& moab, bool list_non_shared = false
   
     // for each geometric entity, check which processor we are sharing
     // entities with
-  MBTag geom_tag, id_tag;
+  Tag geom_tag, id_tag;
   rval = moab.tag_get_handle( GEOM_DIMENSION_TAG_NAME, geom_tag ); CHECK_ERR(rval);
   rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag ); CHECK_ERR(rval);
   const char* topo_names_s[] = { "Vertex", "Curve", "Surface", "Volume" };
 //  const char* topo_names_p[] = { "Vertices", "Curves", "Surfaces", "Volumes" };
   std::ostringstream buffer; // buffer output in an attempt to prevent lines from different processsors being mixed up.
   for (int t = 0; t < 4; ++t) {
-    MBRange geom;
+    Range geom;
     int dim = t;
     const void* ptr = &dim;
     rval = moab.get_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag, &ptr, 1, geom );
     CHECK_ERR(rval);
   
       // for each geometric entity of dimension 't'
-    for (MBRange::const_iterator i = geom.begin(); i != geom.end(); ++i) {
-      MBEntityHandle set = *i;
+    for (Range::const_iterator i = geom.begin(); i != geom.end(); ++i) {
+      EntityHandle set = *i;
       int id;
       rval = moab.tag_get_data( id_tag, &set, 1, &id ); CHECK_ERR(rval);
 
       buffer.clear();
 
         // get entities contained in this set but not its children
-      MBRange entities, tmp_entities, children, diff;
+      Range entities, tmp_entities, children, diff;
       rval = moab.get_entities_by_handle( set, entities ); CHECK_ERR(rval);
       rval = moab.get_child_meshsets( set, children ); CHECK_ERR(rval);
-      for (MBRange::const_iterator j = children.begin(); j != children.end(); ++j) {
+      for (Range::const_iterator j = children.begin(); j != children.end(); ++j) {
         tmp_entities.clear();
         rval = moab.get_entities_by_handle( *j, tmp_entities ); CHECK_ERR(rval);
         diff = subtract( entities, tmp_entities );
@@ -223,7 +225,7 @@ void print_partitioned_entities( MBInterface& moab, bool list_non_shared = false
                  << "ERROR: no entities!" << std::endl;
         }
         else {
-          MBRange::const_iterator j = entities.begin();
+          Range::const_iterator j = entities.begin();
           rval = moab.tag_get_data( sharedps_tag, &*j, 1, &ent_procs[0] );
           CHECK_ERR(rval);
           for (++j; j != entities.end(); ++j) {
@@ -259,9 +261,9 @@ void print_partitioned_entities( MBInterface& moab, bool list_non_shared = false
   }
 }
 
-void load_and_partition( MBInterface& moab, const char* filename, bool print )
+void load_and_partition( Interface& moab, const char* filename, bool print )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   
   rval = moab.load_file( filename, 0, 
                          "PARALLEL=READ_DELETE;"
@@ -275,9 +277,9 @@ void load_and_partition( MBInterface& moab, const char* filename, bool print )
   CHECK_ERR(rval);
 }
 
-void save_and_load_on_root( MBInterface& moab, const char* tmp_filename )
+void save_and_load_on_root( Interface& moab, const char* tmp_filename )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   int procnum;
   MPI_Comm_rank( MPI_COMM_WORLD, &procnum );
   
@@ -301,15 +303,15 @@ void save_and_load_on_root( MBInterface& moab, const char* tmp_filename )
   }
 }
 
-void count_owned_entities( MBInterface& moab, int counts[MBENTITYSET] )
+void count_owned_entities( Interface& moab, int counts[MBENTITYSET] )
 {
-  MBErrorCode rval;
-  MBParallelComm* pcomm = MBParallelComm::get_pcomm( &moab, 0 );
+  ErrorCode rval;
+  ParallelComm* pcomm = ParallelComm::get_pcomm( &moab, 0 );
   CHECK(0 != pcomm);
   std::fill( counts, counts+MBENTITYSET, 0u );
   
-  for (MBEntityType t = MBVERTEX; t < MBENTITYSET; ++t) {
-    MBRange range;
+  for (EntityType t = MBVERTEX; t < MBENTITYSET; ++t) {
+    Range range;
     rval = moab.get_entities_by_type( 0, t, range );
     CHECK_ERR(rval);
     if (!range.empty())
@@ -319,14 +321,14 @@ void count_owned_entities( MBInterface& moab, int counts[MBENTITYSET] )
   }
 }
 
-void check_identical_mesh( MBInterface& mb1, MBInterface& mb2 )
+void check_identical_mesh( Interface& mb1, Interface& mb2 )
 {
-  MBErrorCode rval;
-  std::map<MBEntityHandle,MBEntityHandle> entmap;
+  ErrorCode rval;
+  std::map<EntityHandle,EntityHandle> entmap;
   
     // match vertices by coordinate
-  MBRange r1, r2;
-  MBRange::iterator i1, i2;
+  Range r1, r2;
+  Range::iterator i1, i2;
   rval = mb1.get_entities_by_type( 0, MBVERTEX, r1 );
   CHECK_ERR(rval);
   rval = mb2.get_entities_by_type( 0, MBVERTEX, r2 );
@@ -353,8 +355,8 @@ void check_identical_mesh( MBInterface& mb1, MBInterface& mb2 )
   }
   
     // match element connectivity
-  std::vector<MBEntityHandle> conn1, conn2;
-  for (MBEntityType t = MBEDGE; t < MBENTITYSET; ++t) {
+  std::vector<EntityHandle> conn1, conn2;
+  for (EntityType t = MBEDGE; t < MBENTITYSET; ++t) {
     r1.clear();
     rval = mb1.get_entities_by_type( 0, t, r1 );
     CHECK_ERR(rval);
@@ -373,7 +375,7 @@ void check_identical_mesh( MBInterface& mb1, MBInterface& mb2 )
         CHECK_ERR(rval);
         if (conn1.size() != conn2.size())
           continue;
-        for (std::vector<MBEntityHandle>::iterator j = conn2.begin(); j != conn2.end(); ++j)
+        for (std::vector<EntityHandle>::iterator j = conn2.begin(); j != conn2.end(); ++j)
           *j = entmap[*j];
         if (conn1 == conn2)
           break;
@@ -390,13 +392,13 @@ void test_write_elements()
 {
   int proc_counts[MBENTITYSET], all_counts[MBENTITYSET], file_counts[MBENTITYSET];
   int err, rank;
-  MBErrorCode rval;
+  ErrorCode rval;
   err = MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   CHECK(!err);
   
     // load and partition a .cub file
-  MBCore moab_instance;
-  MBInterface& moab = moab_instance;
+  Core moab_instance;
+  Interface& moab = moab_instance;
   load_and_partition( moab, InputFile, false );
   
     // count number of owned entities of each type and sum over all procs
@@ -408,7 +410,7 @@ void test_write_elements()
     // do parallel write and on root proc do serial read of written file
   save_and_load_on_root( moab, "test_write_elements.h5m" );
   if (rank == 0) {
-    for (MBEntityType t = MBVERTEX; t < MBENTITYSET; ++t) {
+    for (EntityType t = MBVERTEX; t < MBENTITYSET; ++t) {
       rval = moab.get_number_entities_by_type( 0, t, file_counts[t] );
       CHECK_ERR(rval);
     }
@@ -420,13 +422,13 @@ void test_write_elements()
   CHECK(!err);
   
   bool all_equal = true;
-  for (MBEntityType t = MBVERTEX; t < MBENTITYSET; ++t) 
+  for (EntityType t = MBVERTEX; t < MBENTITYSET; ++t) 
     if (file_counts[t] != all_counts[t])
       all_equal = false;
     
   if (rank == 0 && !all_equal) {
     std::cerr << "Type\tPartnd\tWritten" << std::endl;
-    for (MBEntityType t = MBVERTEX; t < MBENTITYSET; ++t) 
+    for (EntityType t = MBVERTEX; t < MBENTITYSET; ++t) 
       std::cerr << MBCN::EntityTypeName(t) << '\t' << all_counts[t] << '\t' << file_counts[t] << std::endl;
   }
   
@@ -435,19 +437,19 @@ void test_write_elements()
     // on root processor, do serial read of original .cub file and compare
   
   if (rank == 0) {
-    MBCore moab2;
+    Core moab2;
     rval = moab2.load_file( InputFile );
     CHECK_ERR(rval);
     check_identical_mesh( moab, moab2 );
   }
 }
 
-bool check_sets_sizes( MBInterface& mb1, MBEntityHandle set1,
-                       MBInterface& mb2, MBEntityHandle set2 )
+bool check_sets_sizes( Interface& mb1, EntityHandle set1,
+                       Interface& mb2, EntityHandle set2 )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   bool result = true;
-  for (MBEntityType t = MBVERTEX; t < MBMAXTYPE; ++t) {
+  for (EntityType t = MBVERTEX; t < MBMAXTYPE; ++t) {
     int count1, count2;
     rval = mb1.get_number_entities_by_type( set1, t, count1 );
     CHECK_ERR(rval);
@@ -465,40 +467,40 @@ bool check_sets_sizes( MBInterface& mb1, MBEntityHandle set1,
 void test_write_shared_sets()
 {
   int err, rank, size;
-  MBErrorCode rval;
+  ErrorCode rval;
   err = MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   CHECK(!err);
   err = MPI_Comm_size( MPI_COMM_WORLD, &size );
   CHECK(!err);
   
-  MBCore moab_instance;
-  MBInterface& moab = moab_instance;
+  Core moab_instance;
+  Interface& moab = moab_instance;
   load_and_partition( moab, InputFile );
   save_and_load_on_root( moab, "test_write_shared_sets.h5m" );
 
   if (rank != 0)
     return;
   
-  MBCore moab2_instance;
-  MBInterface& moab2 = moab2_instance;
+  Core moab2_instance;
+  Interface& moab2 = moab2_instance;
   rval = moab2.load_file( InputFile );
   CHECK_ERR(rval);
   
-  MBTag mattag1, mattag2;
+  Tag mattag1, mattag2;
   rval = moab.tag_get_handle( MATERIAL_SET_TAG_NAME, mattag1 );
   CHECK_ERR(rval);
   rval = moab2.tag_get_handle( MATERIAL_SET_TAG_NAME, mattag2 );
   CHECK_ERR(rval);
   
-  MBRange matsets;
+  Range matsets;
   rval = moab2.get_entities_by_type_and_tag( 0, MBENTITYSET, &mattag2, 0, 1, matsets );
   CHECK_ERR(rval);
-  for (MBRange::iterator i = matsets.begin(); i != matsets.end(); ++i) {
+  for (Range::iterator i = matsets.begin(); i != matsets.end(); ++i) {
     int block_id;
     rval = moab2.tag_get_data( mattag2, &*i, 1, &block_id );
     CHECK_ERR(rval);
     
-    MBRange tmpents;
+    Range tmpents;
     void* tagdata[] = {&block_id};
     rval = moab.get_entities_by_type_and_tag( 0, MBENTITYSET, &mattag1, tagdata, 1, tmpents );
     if (tmpents.size() != 1) 
@@ -512,17 +514,17 @@ void test_write_shared_sets()
 
 void test_var_length_parallel()
 {
-  MBRange::const_iterator i;
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface &mb = moab;
-  MBRange verts;
-  MBTag vartag;
+  Range::const_iterator i;
+  ErrorCode rval;
+  Core moab;
+  Interface &mb = moab;
+  Range verts;
+  Tag vartag;
   const char* filename = "var-len-para.h5m";
   const char* tagname = "ParVar";
   
   // If this tag doesn't exist, writer will fail
-  MBTag junk_tag;
+  Tag junk_tag;
   mb.tag_create( PARALLEL_GID_TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, junk_tag, 0 );
 
   int numproc, rank;
@@ -543,7 +545,7 @@ void test_var_length_parallel()
   std::vector<int> data;
   rval = MB_SUCCESS;
   for (i = verts.begin(); i != verts.end(); ++i) {
-    MBEntityHandle h = *i;
+    EntityHandle h = *i;
     const int n = h % 7 + 1;
     data.resize( n+1 );
     data[0] = n;
@@ -551,7 +553,7 @@ void test_var_length_parallel()
       data[j+1] = rank + j;
     const int s = (n + 1) * sizeof(int);
     const void* ptrarr[] = { &data[0] };
-    MBErrorCode tmperr = mb.tag_set_data( vartag, &h, 1, ptrarr, &s );
+    ErrorCode tmperr = mb.tag_set_data( vartag, &h, 1, ptrarr, &s );
     if (MB_SUCCESS != tmperr)
       rval = tmperr;
   }
@@ -567,10 +569,10 @@ void test_var_length_parallel()
   // processors.  Running the tests on the pre-write mesh on
   // non-root processors allows us to verify that any problems
   // are due to the file API rather than some other bug.
-  MBErrorCode rval2 = rval = MB_SUCCESS;
+  ErrorCode rval2 = rval = MB_SUCCESS;
   if (!rank) {
-    moab.~MBCore();
-    new (&moab) MBCore;
+    moab.~Core();
+    new (&moab) Core;
     rval = mb.load_mesh( filename );
     if (!KeepTmpFiles) 
       remove( filename );
@@ -583,10 +585,10 @@ void test_var_length_parallel()
   int tag_size;
   rval = mb.tag_get_size( vartag, tag_size );
   CHECK_EQUAL( MB_VARIABLE_DATA_LENGTH, rval );
-  MBTagType storage;
+  TagType storage;
   rval = mb.tag_get_type( vartag, storage );
   CHECK_EQUAL( MB_TAG_DENSE, storage );
-  MBDataType type;
+  DataType type;
   rval = mb.tag_get_data_type( vartag, type);
   CHECK_EQUAL( MB_TYPE_INTEGER, type );
   
@@ -599,7 +601,7 @@ void test_var_length_parallel()
   // and count the number of vertices for each rank.
   std::vector<int> vtx_counts( numproc, 0 );
   for (i = verts.begin(); i != verts.end(); ++i) {
-    MBEntityHandle h = *i;
+    EntityHandle h = *i;
     int size = -1;
     const void* ptrarr[1] = { 0 };
     rval = mb.tag_get_data( vartag, &h, 1, ptrarr, &size );
@@ -635,11 +637,11 @@ void create_input_file( const char* file_name,
                         const int* global_mesh_value = 0, 
                         const int* global_default_value = 0 )
 {
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
+  ErrorCode rval;
   
-  MBTag ijk_vert_tag = 0, ij_set_tag = 0, global_tag = 0;
+  Tag ijk_vert_tag = 0, ij_set_tag = 0, global_tag = 0;
   if (ijk_vert_tag_name) {
     rval = mb.tag_create( ijk_vert_tag_name, 3*sizeof(int), MB_TAG_DENSE, 
                           MB_TYPE_INTEGER, ijk_vert_tag, 0 );
@@ -662,7 +664,7 @@ void create_input_file( const char* file_name,
   
   
   int iv = intervals+1, ii = num_cpu*intervals+1;
-  std::vector<MBEntityHandle> verts(iv*iv*ii);
+  std::vector<EntityHandle> verts(iv*iv*ii);
   int idx = 0;
   for (int i = 0; i < ii; ++i) {
     for (int j = 0; j < iv; ++j) {
@@ -680,7 +682,7 @@ void create_input_file( const char* file_name,
       }
       
       if (ij_set_tag) {
-        MBEntityHandle set;
+        EntityHandle set;
         rval = mb.create_meshset( MESHSET_SET, set );
         CHECK_ERR(rval);
         rval = mb.add_entities( set, &verts[start], idx - start );
@@ -693,13 +695,13 @@ void create_input_file( const char* file_name,
   }
   
   const int eb = intervals*intervals*intervals;
-  std::vector<MBEntityHandle> elems(num_cpu*eb);
+  std::vector<EntityHandle> elems(num_cpu*eb);
   idx = 0;
   for (int c = 0; c < num_cpu; ++c) {
     for (int i = c*intervals; i < (c+1)*intervals; ++i) {
       for (int j = 0; j < intervals; ++j) {
         for (int k = 0; k < intervals; ++k) {
-          MBEntityHandle conn[8] = { verts[iv*(iv* i +      j    ) + k    ],
+          EntityHandle conn[8] = { verts[iv*(iv* i +      j    ) + k    ],
                                      verts[iv*(iv*(i + 1) + j    ) + k    ],
                                      verts[iv*(iv*(i + 1) + j + 1) + k    ],
                                      verts[iv*(iv* i      + j + 1) + k    ],
@@ -715,11 +717,11 @@ void create_input_file( const char* file_name,
     }
   }
   
-  MBTag part_tag;
+  Tag part_tag;
   rval = mb.tag_create( "PARTITION", sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, part_tag, 0 );
   CHECK_ERR(rval);
   
-  std::vector<MBEntityHandle> parts(num_cpu);
+  std::vector<EntityHandle> parts(num_cpu);
   for (int i = 0; i < num_cpu; ++i) {
     rval = mb.create_meshset( MESHSET_SET, parts[i] );
     CHECK_ERR(rval);
@@ -739,9 +741,9 @@ void test_read_elements_common( bool by_rank, int intervals, bool print_time )
   int numproc, rank;
   MPI_Comm_size( MPI_COMM_WORLD, &numproc );
   MPI_Comm_rank( MPI_COMM_WORLD, &rank    );
-  MBCore moab;
-  MBInterface &mb = moab;
-  MBErrorCode rval;
+  Core moab;
+  Interface &mb = moab;
+  ErrorCode rval;
 
     // if root processor, create hdf5 file for use in testing
   if (0 == rank) 
@@ -758,15 +760,15 @@ void test_read_elements_common( bool by_rank, int intervals, bool print_time )
   CHECK_ERR(rval);
       
   
-  MBTag part_tag;
+  Tag part_tag;
   rval = mb.tag_get_handle( "PARTITION", part_tag );
   CHECK_ERR(rval);
   
-  MBRange parts;
+  Range parts;
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &part_tag, 0, 1, parts );
   CHECK_ERR(rval);
   CHECK_EQUAL( 1, (int)parts.size() );
-  MBEntityHandle part = parts.front();
+  EntityHandle part = parts.front();
   int id;
   rval = mb.tag_get_data( part_tag, &part, 1, &id );
   CHECK_ERR(rval);
@@ -785,7 +787,7 @@ void test_read_elements_common( bool by_rank, int intervals, bool print_time )
     // check that we have the correct vertices
   const double x_min = intervals*rank;
   const double x_max = intervals*(rank+1);
-  MBRange verts;
+  Range verts;
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
   std::vector<double> coords(verts.size());
@@ -803,7 +805,7 @@ void test_read_time()
   int numproc, rank;
   MPI_Comm_size( MPI_COMM_WORLD, &numproc );
   MPI_Comm_rank( MPI_COMM_WORLD, &rank    );
-  MBErrorCode rval;
+  ErrorCode rval;
 
     // if root processor, create hdf5 file for use in testing
   if (0 == rank) 
@@ -816,8 +818,8 @@ void test_read_time()
   clock_t tmp_t;
   
     // Time true parallel read
-  MBCore moab;
-  MBInterface &mb = moab;
+  Core moab;
+  Interface &mb = moab;
   times[0] = MPI_Wtime();
   tmp_t    = clock();
   const char opt[] = "PARALLEL=READ_PART;PARTITION=PARTITION;PARTITION_BY_RANK";
@@ -828,8 +830,8 @@ void test_read_time()
   mb.delete_mesh();
     
     // Time read and delete
-  MBCore moab2;
-  MBInterface& mb2 = moab2;
+  Core moab2;
+  Interface& mb2 = moab2;
   times[2] = MPI_Wtime();
   tmp_t    = clock();
   const char opt2[] = "PARALLEL=READ_DELETE;PARTITION=PARTITION;PARTITION_BY_RANK";
@@ -840,8 +842,8 @@ void test_read_time()
   mb2.delete_mesh();
     
     // Time broadcast and delete
-  MBCore moab3;
-  MBInterface& mb3 = moab3;
+  Core moab3;
+  Interface& mb3 = moab3;
   times[4] = MPI_Wtime();
   tmp_t    = clock();
   const char opt3[] = "PARALLEL=BCAST_DELETE;PARTITION=PARTITION;PARTITION_BY_RANK";
@@ -874,9 +876,9 @@ void test_read_tags()
   int numproc, rank;
   MPI_Comm_size( MPI_COMM_WORLD, &numproc );
   MPI_Comm_rank( MPI_COMM_WORLD, &rank    );
-  MBCore moab;
-  MBInterface &mb = moab;
-  MBErrorCode rval;
+  Core moab;
+  Interface &mb = moab;
+  ErrorCode rval;
 
     // if root processor, create hdf5 file for use in testing
   if (0 == rank) 
@@ -891,7 +893,7 @@ void test_read_tags()
   if (0 == rank && !KeepTmpFiles) remove( file_name );
   CHECK_ERR(rval);
       
-  MBTag tag;
+  Tag tag;
   rval = mb.tag_get_handle( tag_name, tag );
   CHECK_ERR(rval);
   
@@ -900,24 +902,24 @@ void test_read_tags()
   CHECK_ERR(rval);
   CHECK_EQUAL( 3*(int)sizeof(int), size );
   
-  MBTagType storage;
+  TagType storage;
   rval = mb.tag_get_type( tag, storage );
   CHECK_ERR(rval);
   CHECK_EQUAL( MB_TAG_DENSE, storage );
   
-  MBDataType type;
+  DataType type;
   rval = mb.tag_get_data_type( tag, type );
   CHECK_ERR(rval);
   CHECK_EQUAL( MB_TYPE_INTEGER, type );
   
-  MBRange verts, tagged;
+  Range verts, tagged;
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
   rval = mb.get_entities_by_type_and_tag( 0, MBVERTEX, &tag, 0, 1, tagged );
   CHECK_ERR(rval);
   CHECK_EQUAL( verts, tagged );
   
-  for (MBRange::iterator i = verts.begin(); i != verts.end(); ++i) {
+  for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
     double coords[3];
     rval = mb.get_coords( &*i, 1, coords );
     CHECK_ERR(rval);
@@ -945,9 +947,9 @@ void test_read_global_tags()
   int numproc, rank;
   MPI_Comm_size( MPI_COMM_WORLD, &numproc );
   MPI_Comm_rank( MPI_COMM_WORLD, &rank    );
-  MBCore moab;
-  MBInterface &mb = moab;
-  MBErrorCode rval;
+  Core moab;
+  Interface &mb = moab;
+  ErrorCode rval;
   const int def_val = 0xdeadcad;
   const int global_val = -11;
 
@@ -964,7 +966,7 @@ void test_read_global_tags()
   if (0 == rank && !KeepTmpFiles) remove( file_name );
   CHECK_ERR(rval);
       
-  MBTag tag;
+  Tag tag;
   rval = mb.tag_get_handle( tag_name, tag );
   CHECK_ERR(rval);
   
@@ -973,12 +975,12 @@ void test_read_global_tags()
   CHECK_ERR(rval);
   CHECK_EQUAL( (int)sizeof(int), size );
   
-  MBTagType storage;
+  TagType storage;
   rval = mb.tag_get_type( tag, storage );
   CHECK_ERR(rval);
   CHECK_EQUAL( MB_TAG_DENSE, storage );
   
-  MBDataType type;
+  DataType type;
   rval = mb.tag_get_data_type( tag, type );
   CHECK_ERR(rval);
   CHECK_EQUAL( MB_TYPE_INTEGER, type );
@@ -999,9 +1001,9 @@ void test_read_sets()
   int numproc, rank;
   MPI_Comm_size( MPI_COMM_WORLD, &numproc );
   MPI_Comm_rank( MPI_COMM_WORLD, &rank    );
-  MBCore moab;
-  MBInterface &mb = moab;
-  MBErrorCode rval;
+  Core moab;
+  Interface &mb = moab;
+  ErrorCode rval;
 
     // if root processor, create hdf5 file for use in testing
   if (0 == rank) 
@@ -1016,7 +1018,7 @@ void test_read_sets()
   if (0 == rank && !KeepTmpFiles) remove( file_name );
   CHECK_ERR(rval);
       
-  MBTag tag;
+  Tag tag;
   rval = mb.tag_get_handle( tag_name, tag );
   CHECK_ERR(rval);
   
@@ -1025,23 +1027,23 @@ void test_read_sets()
   CHECK_ERR(rval);
   CHECK_EQUAL( 2*(int)sizeof(int), size );
   
-  MBTagType storage;
+  TagType storage;
   rval = mb.tag_get_type( tag, storage );
   CHECK_ERR(rval);
   CHECK_EQUAL( MB_TAG_SPARSE, storage );
   
-  MBDataType type;
+  DataType type;
   rval = mb.tag_get_data_type( tag, type );
   CHECK_ERR(rval);
   CHECK_EQUAL( MB_TYPE_INTEGER, type );
   
   const int iv = DefaultReadIntervals + 1;
-  MBRange sets;
+  Range sets;
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &tag, 0, 1, sets );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (MBEntityHandle)(iv*iv), sets.size() );
+  CHECK_EQUAL( (EntityHandle)(iv*iv), sets.size() );
   
-  for (MBRange::iterator i = sets.begin(); i != sets.end(); ++i) {
+  for (Range::iterator i = sets.begin(); i != sets.end(); ++i) {
     int ij[2];
     rval = mb.tag_get_data( tag, &*i, 1, &ij );
     CHECK_ERR(rval);
@@ -1051,13 +1053,13 @@ void test_read_sets()
     CHECK( ij[1] >= 0 );
     CHECK( ij[1] <= DefaultReadIntervals );
     
-    MBRange contents;
+    Range contents;
     rval = mb.get_entities_by_handle( *i, contents );
     CHECK_ERR(rval);
     CHECK(contents.all_of_type(MBVERTEX));
-    CHECK_EQUAL( (MBEntityHandle)iv, contents.size() );
+    CHECK_EQUAL( (EntityHandle)iv, contents.size() );
     
-    for (MBRange::iterator v = contents.begin(); v != contents.end(); ++v) {
+    for (Range::iterator v = contents.begin(); v != contents.end(); ++v) {
       double coords[3];
       rval = mb.get_coords( &*v, 1, coords );
       CHECK_ERR(rval);

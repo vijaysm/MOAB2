@@ -42,12 +42,14 @@
 #include <map>
 #include <vector>
 
-#include "MBTypes.h"
-#include "MBInternals.hpp"
-#include "MBRange.hpp"
+#include "moab/Types.hpp"
+#include "Internals.hpp"
+#include "moab/Range.hpp"
 #include "TagInfo.hpp"
 
 #define get_collection( A ) ((A) < mDataTags.size() ? mDataTags[(A)] : 0)
+
+namespace moab {
 
 class SparseTagCollection;
 
@@ -64,19 +66,19 @@ public:
   void reset_data();
 
   //! allocate new tag id
-  MBErrorCode reserve_tag_id(int data_size, MBTagId tag_id);
+  ErrorCode reserve_tag_id(int data_size, TagId tag_id);
 
-  //! releases an MBTagId
-  MBErrorCode release_tag_id(MBTagId tag_id);
+  //! releases an TagId
+  ErrorCode release_tag_id(TagId tag_id);
 
   //! size of data tag
-  int tag_size(const MBTagId tag_id) const;
+  int tag_size(const TagId tag_id) const;
 
     /** Set fixed-length tag values.
      *\NOTE Will fail for variable-length tag data.
      */
-  MBErrorCode set_data( MBTagId tag_handle,
-                        const MBEntityHandle* handles,
+  ErrorCode set_data( TagId tag_handle,
+                        const EntityHandle* handles,
                         int num_handles,
                         const void* data );
 
@@ -87,20 +89,20 @@ public:
      *\param values      Array of pointers to tag values, one pointer for each handle
      *\param lengths     Length of each tag value.  Ignored for fixed-length tags.
      */
-  MBErrorCode set_data( MBTagId tag_handle,
-                        const MBEntityHandle* handles,
+  ErrorCode set_data( TagId tag_handle,
+                        const EntityHandle* handles,
                         int num_handles,
                         void const* const* data_pointers,
                         const int* lengths = 0 );
 
-    /** Set fixed-length tag value for an MBRange of entities
+    /** Set fixed-length tag value for an Range of entities
      *\NOTE Will fail for variable-length tag data
      */
-  MBErrorCode set_data( MBTagId tag_handle,
-                        const MBRange& handles,
+  ErrorCode set_data( TagId tag_handle,
+                        const Range& handles,
                         const void* data );
 
-    /** Set tag data for an MBRange of entities.
+    /** Set tag data for an Range of entities.
      *
      *\param tag_id  The tag
      *\param handles The entities
@@ -110,8 +112,8 @@ public:
      *               length of the tag value for each entity.  Ingored
      *               for fixed-length tags.
      */
-  MBErrorCode set_data( MBTagId tag_handle,
-                        const MBRange& handles,
+  ErrorCode set_data( TagId tag_handle,
+                        const Range& handles,
                         void const* const* data_pointers,
                         const int* lengths = 0 );
   
@@ -119,8 +121,8 @@ public:
      *\NOTE Will fail with MB_VARIABLE_DATA_LENGTH if called
      *      for variable-length tag.
      */
-  MBErrorCode get_data( MBTagId tag_handle,
-                        const MBEntityHandle* handles,
+  ErrorCode get_data( TagId tag_handle,
+                        const EntityHandle* handles,
                         int num_handles,
                         void* data,
                         const void* default_value ) const;
@@ -135,24 +137,24 @@ public:
      *\param default_value_length  Length of default tag value.  Ingored for
      *                   fixed-length tags.
      */
-  MBErrorCode get_data( MBTagId tag_handle,
-                        const MBEntityHandle* handles,
+  ErrorCode get_data( TagId tag_handle,
+                        const EntityHandle* handles,
                         int num_handles,
                         const void** data,
                         int* lengths,
                         const void* default_value,
                         int default_value_length ) const;
   
-    /** Get fixed-length tag value for an MBRange of entities
+    /** Get fixed-length tag value for an Range of entities
      *\NOTE Will fail with MB_VARIABLE_DATA_LENGTH if called
      *      for variable-length tag.
      */
-  MBErrorCode get_data( MBTagId tag_handle,
-                        const MBRange& handles,
+  ErrorCode get_data( TagId tag_handle,
+                        const Range& handles,
                         void* data,
                         const void* default_value ) const;
   
-    /** Get pointers to tag data for an MBRange of entities.
+    /** Get pointers to tag data for an Range of entities.
      *
      *\param tag_id   The tag.
      *\param handles  The entities.
@@ -166,58 +168,58 @@ public:
      *\param default_value The default value for the tag.
      *\param default_value_length The length of the default tag value.
      */
-  MBErrorCode get_data( MBTagId tag_handle,
-                        const MBRange& handles,
+  ErrorCode get_data( TagId tag_handle,
+                        const Range& handles,
                         const void** data,
                         int* lengths,
                         const void* default_value,
                         int default_value_length ) const;
 
   //! removes data
-  MBErrorCode remove_data(const MBTagId tag_handle, const MBEntityHandle entity_handle);
+  ErrorCode remove_data(const TagId tag_handle, const EntityHandle entity_handle);
 
   //! gets all entity handles that match a type and tag
-  MBErrorCode get_entities(const MBTagId tag_handle, MBRange &entities);
+  ErrorCode get_entities(const TagId tag_handle, Range &entities);
 
   //! gets all entity handles that match a tag
-  MBErrorCode get_entities(const MBTagId tag_handle, const MBEntityType type,
-                            MBRange &entities);
+  ErrorCode get_entities(const TagId tag_handle, const EntityType type,
+                            Range &entities);
 
   //! gets all entity handles that match a tag
-  MBErrorCode get_entities(const MBRange &range,
-                            const MBTagId tag_handle, const MBEntityType type,
-                            MBRange &entities);
+  ErrorCode get_entities(const Range &range,
+                            const TagId tag_handle, const EntityType type,
+                            Range &entities);
 
   //! gets all tags on a given entity handle
-  MBErrorCode get_tags(const MBEntityHandle entity,
-                       std::vector<MBTag> &all_tags);
+  ErrorCode get_tags(const EntityHandle entity,
+                       std::vector<Tag> &all_tags);
   
   //! gets all entity handles that match a tag
-  MBErrorCode get_entities_with_tag_value( const MBTagId tag_handle, 
+  ErrorCode get_entities_with_tag_value( const TagId tag_handle, 
                                            const TagInfo& tag_info,
-                                           const MBEntityType type,
-                                           MBRange &entities,
+                                           const EntityType type,
+                                           Range &entities,
                                            const void* tag_value,
                                            int value_size);
 
   //! gets all entity handles that match a tag
-  MBErrorCode get_entities_with_tag_value( const MBRange &range,
-                                           const MBTagId tag_handle, 
+  ErrorCode get_entities_with_tag_value( const Range &range,
+                                           const TagId tag_handle, 
                                            const TagInfo& tag_info,
-                                           const MBEntityType type,
-                                           MBRange &entities,
+                                           const EntityType type,
+                                           Range &entities,
                                            const void* tag_value,
                                            int value_size);
 
   //! gets the number of entities that match a tag
-  MBErrorCode get_number_entities(const MBTagId tag_handle, const MBEntityType type, int& num_ent);
+  ErrorCode get_number_entities(const TagId tag_handle, const EntityType type, int& num_ent);
 
 
   //! gets the number of entities that match a tag
-  MBErrorCode get_number_entities(const MBRange &range,
-                                   const MBTagId tag_handle, const MBEntityType type, int& num_ent);
+  ErrorCode get_number_entities(const Range &range,
+                                   const TagId tag_handle, const EntityType type, int& num_ent);
 
-  MBErrorCode get_memory_use( MBTagId tag_id, 
+  ErrorCode get_memory_use( TagId tag_id, 
                               unsigned long& total,
                               unsigned long& per_entity );
 
@@ -226,6 +228,7 @@ private:
   std::vector<SparseTagCollection*> mDataTags;
 };
 
+} // namespace moab
 
 #endif //SPARSE_TAG_SUPER_COLLECTION_HPP
 

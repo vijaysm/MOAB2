@@ -1,7 +1,7 @@
 set( moab_PARALLEL_SRCS
-  MBParallelComm.cpp
-  MBProcConfig.cpp
-  MBParallelData.cpp
+  ParallelComm.cpp
+  ProcConfig.cpp
+  ParallelData.cpp
   ReadParallel.cpp
   crystal.c
   errmem.c

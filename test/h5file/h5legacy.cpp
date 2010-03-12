@@ -1,17 +1,19 @@
-#include "MBCore.hpp"
+#include "moab/Core.hpp"
 #include "TestUtil.hpp"
-#include "MBRange.hpp"
+#include "moab/Range.hpp"
 
 #include <algorithm>
 #include <iostream>
 #include <stdlib.h>
 #include <math.h>
 
-void calc_centroid( MBInterface* iface, MBEntityHandle pent, double result[3] )
+using namespace moab;
+
+void calc_centroid( Interface* iface, EntityHandle pent, double result[3] )
 {
   int len;
-  const MBEntityHandle* conn;
-  MBErrorCode rval;
+  const EntityHandle* conn;
+  ErrorCode rval;
   rval = iface->get_connectivity( pent, conn, len );
   CHECK_ERR(rval);
   CHECK_EQUAL( 5, len );
@@ -30,16 +32,16 @@ void calc_centroid( MBInterface* iface, MBEntityHandle pent, double result[3] )
 
 void test_moab_v3_poly_format()
 {
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
+  ErrorCode rval;
   
     // load file containing a dodecahedron
   rval = mb.load_mesh( STRINGIFY(SRCDIR) "/v3_dodec.h5m" );
   CHECK_ERR(rval);
   
     // get entities from file
-  MBRange verts, faces, polyhedrons;
+  Range verts, faces, polyhedrons;
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
   rval = mb.get_entities_by_type( 0, MBPOLYGON, faces );
@@ -48,13 +50,13 @@ void test_moab_v3_poly_format()
   CHECK_ERR(rval);
   
     // check expected number of entities
-  CHECK_EQUAL( (MBEntityHandle)20, verts.size() );
-  CHECK_EQUAL( (MBEntityHandle)12, faces.size() );
-  CHECK_EQUAL( (MBEntityHandle)1,  polyhedrons.size() );
-  const MBEntityHandle polyhedron = polyhedrons.front();
+  CHECK_EQUAL( (EntityHandle)20, verts.size() );
+  CHECK_EQUAL( (EntityHandle)12, faces.size() );
+  CHECK_EQUAL( (EntityHandle)1,  polyhedrons.size() );
+  const EntityHandle polyhedron = polyhedrons.front();
   
     // check the polyhedron connectivity list
-  std::vector<MBEntityHandle> faces1, faces2;
+  std::vector<EntityHandle> faces1, faces2;
   std::copy( faces.begin(), faces.end(), std::back_inserter(faces1) );
   rval = mb.get_connectivity( &polyhedron, 1, faces2 );
   CHECK_ERR(rval);
@@ -66,12 +68,12 @@ void test_moab_v3_poly_format()
     // the vertex coords.
   
     // get tag for saved values
-  MBTag centroid;
+  Tag centroid;
   rval = mb.tag_get_handle( "CENTROID", centroid );
   CHECK_ERR(rval);
   
     // for each face...
-  for (MBRange::iterator i = faces.begin(); i != faces.end(); ++i) {
+  for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
     double saved[3], calc[3];
     rval = mb.tag_get_data( centroid, &*i, 1, saved );
     CHECK_ERR(rval);

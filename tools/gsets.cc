@@ -1,20 +1,22 @@
 #include <iostream>
 #include <stdlib.h>
-#include "MBRange.hpp"
-#include "MBCore.hpp"
-#include "MBTagConventions.hpp"
-#include "GeomTopoTool.hpp"
+#include "moab/Range.hpp"
+#include "moab/Core.hpp"
+#include "moab/MBTagConventions.hpp"
+#include "moab/GeomTopoTool.hpp"
 
-MBTag geomTag = 0;
-MBTag blockTag = 0;
-MBTag sideTag = 0;
-MBTag nodeTag = 0;
-MBTag nameTag = 0;
-MBTag idTag = 0;
+using namespace moab;
+
+Tag geomTag = 0;
+Tag blockTag = 0;
+Tag sideTag = 0;
+Tag nodeTag = 0;
+Tag nameTag = 0;
+Tag idTag = 0;
 bool printAnonSets = false;
 bool printSVSense = false;
 
-MBCore mb;
+Core mb;
 GeomTopoTool geomTool(&mb);
 
 void usage( const char* name, bool brief = true ) {
@@ -46,9 +48,9 @@ void usage( const char* name, bool brief = true ) {
 
 enum Link { NONE = 0, SOLID, DASHED };
 void write_dot( Link contained, Link children );
-void dot_nodes( std::ostream& s, MBRange& sets_out );
-void dot_children( std::ostream& s, const MBRange& sets, bool dashed );
-void dot_contained( std::ostream& s, const MBRange& sets, bool dashed );
+void dot_nodes( std::ostream& s, Range& sets_out );
+void dot_children( std::ostream& s, const Range& sets, bool dashed );
+void dot_contained( std::ostream& s, const Range& sets, bool dashed );
 
 int main( int argc, char* argv[] )
 {
@@ -105,7 +107,7 @@ int main( int argc, char* argv[] )
     return 1;
   }
 
-  MBTag t;
+  Tag t;
   if (printGeomSets) {
     if (MB_SUCCESS == mb.tag_get_handle( GEOM_DIMENSION_TAG_NAME, t )) {
       geomTag = t;
@@ -137,7 +139,7 @@ int main( int argc, char* argv[] )
   
 void write_dot( Link contained, Link children )
 {
-  MBRange sets;
+  Range sets;
   std::cout << "digraph {" << std::endl;
   dot_nodes( std::cout, sets );
   std::cout << std::endl;
@@ -148,8 +150,8 @@ void write_dot( Link contained, Link children )
   std::cout << "}" << std::endl;
 }
 
-void dot_get_sets( MBRange& curr_sets, MBRange& result_sets, 
-                   MBTag tag, void* tag_val = 0 )
+void dot_get_sets( Range& curr_sets, Range& result_sets, 
+                   Tag tag, void* tag_val = 0 )
 {
   if (!tag)
     return;
@@ -160,7 +162,7 @@ void dot_get_sets( MBRange& curr_sets, MBRange& result_sets,
   curr_sets.merge( result_sets );
 }
 
-void dot_write_node( std::ostream& s, MBEntityHandle h, 
+void dot_write_node( std::ostream& s, EntityHandle h, 
                      const char* label, int* id = 0 )
 {
   s << 's' << mb.id_from_handle(h) << " [label = \"" << label;
@@ -170,21 +172,21 @@ void dot_write_node( std::ostream& s, MBEntityHandle h,
 }
 
 void dot_write_id_nodes( std::ostream& s,
-                         const MBRange& entites,
-                         MBTag id_tag,
+                         const Range& entites,
+                         Tag id_tag,
                          const char* type_name )
 {
   int id;
-  for (MBRange::iterator i = entites.begin(); i != entites.end(); ++i)
+  for (Range::iterator i = entites.begin(); i != entites.end(); ++i)
     if (MB_SUCCESS == mb.tag_get_data( id_tag, &*i, 1, &id )) 
       dot_write_node( s, *i, type_name, &id );
 }
 
-void dot_nodes( std::ostream& s, MBRange& sets )
+void dot_nodes( std::ostream& s, Range& sets )
 {
-  MBRange vol_sets, surf_sets, curv_sets, vert_sets;
-  MBRange block_sets, side_sets, node_sets;
-  MBRange named_sets, other_sets;
+  Range vol_sets, surf_sets, curv_sets, vert_sets;
+  Range block_sets, side_sets, node_sets;
+  Range named_sets, other_sets;
 
   dot_get_sets( sets, named_sets, nameTag );
     
@@ -203,7 +205,7 @@ void dot_nodes( std::ostream& s, MBRange& sets )
 
   if (printAnonSets) {
     mb.get_entities_by_type( 0, MBENTITYSET, other_sets );
-    MBRange xsect = subtract( other_sets,  sets );
+    Range xsect = subtract( other_sets,  sets );
     sets.swap(other_sets);
     other_sets.swap(xsect);
   }
@@ -216,7 +218,7 @@ void dot_nodes( std::ostream& s, MBRange& sets )
   dot_write_id_nodes( s, side_sets, sideTag, "Neumann Set" );
   dot_write_id_nodes( s, node_sets, nodeTag, "Dirichlet Set" );
   
-  MBRange::iterator i;
+  Range::iterator i;
   char name[NAME_TAG_SIZE+1];
   for (i = named_sets.begin(); i != named_sets.end(); ++i) {
     if (MB_SUCCESS == mb.tag_get_data( nameTag, &*i, 1, name )) {
@@ -231,8 +233,8 @@ void dot_nodes( std::ostream& s, MBRange& sets )
 }
 
 void dot_down_link( std::ostream& s,
-                    MBEntityHandle parent,
-                    MBEntityHandle child,
+                    EntityHandle parent,
+                    EntityHandle child,
                     bool dashed,
                     const char* label = 0 )
 {
@@ -249,17 +251,17 @@ void dot_down_link( std::ostream& s,
 
 
 void dot_children( std::ostream& s, 
-                   const MBRange& sets,
+                   const Range& sets,
                    bool dashed )
 {
   bool forward;
   const char *fstr = "forward", *rstr = "reverse";
-  for (MBRange::iterator i = sets.begin(); i != sets.end(); ++i) {
-    MBRange parents;
+  for (Range::iterator i = sets.begin(); i != sets.end(); ++i) {
+    Range parents;
     mb.get_parent_meshsets( *i, parents );
     parents = intersect( parents,  sets );
     
-    for (MBRange::iterator j = parents.begin(); j != parents.end(); ++j) {
+    for (Range::iterator j = parents.begin(); j != parents.end(); ++j) {
       const char* linklabel = 0;
       if (printSVSense && MB_SUCCESS == geomTool.get_sense( *i, *j, forward ))
         linklabel = forward ? fstr : rstr;
@@ -270,15 +272,15 @@ void dot_children( std::ostream& s,
 
 
 void dot_contained( std::ostream& s, 
-                    const MBRange& sets,
+                    const Range& sets,
                     bool dashed )
 {
-  for (MBRange::iterator i = sets.begin(); i != sets.end(); ++i) {
-    MBRange contained;
+  for (Range::iterator i = sets.begin(); i != sets.end(); ++i) {
+    Range contained;
     mb.get_entities_by_type(*i, MBENTITYSET, contained );
     contained = intersect( contained,  sets );
     
-    for (MBRange::iterator j = contained.begin(); j != contained.end(); ++j)
+    for (Range::iterator j = contained.begin(); j != contained.end(); ++j)
       dot_down_link( s, *i, *j, dashed );
   }
 }

@@ -1,20 +1,22 @@
-#include "MBParallelComm.hpp"
-#include "MBParallelConventions.h"
-#include "MBCore.hpp"
+#include "moab/ParallelComm.hpp"
+#include "moab/MBParallelConventions.h"
+#include "moab/Core.hpp"
 #include "FileOptions.hpp"
 #include "ReadParallel.hpp"
-#include "MBCoupler.hpp"
-#include "MBmpi.h"
+#include "Coupler.hpp"
+#include "moab_mpi.h"
 #include <iostream>
 #include <sstream>
 #include <assert.h>
+
+using namespace moab;
 
 bool debug = false;
 
 #define RRA(a) if (MB_SUCCESS != result) {\
       std::string tmp_str; mbImpl->get_last_error(tmp_str);\
       tmp_str.append("\n"); tmp_str.append(a);\
-      dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(tmp_str.c_str()); \
+      dynamic_cast<Core*>(mbImpl)->get_error_handler()->set_last_error(tmp_str.c_str()); \
       return result;}
 
 #define PRINT_LAST_ERROR \
@@ -27,19 +29,19 @@ bool debug = false;
       return result;\
     }
 
-MBErrorCode get_file_options(int argc, char **argv, 
+ErrorCode get_file_options(int argc, char **argv, 
                              std::vector<const char *> &filenames,
                              std::string &tag_name,
                              std::string &out_fname,
                              std::string &opts);
 
-MBErrorCode report_iface_ents(MBInterface *mbImpl,
-                              std::vector<MBParallelComm *> &pcs,
+ErrorCode report_iface_ents(Interface *mbImpl,
+                              std::vector<ParallelComm *> &pcs,
                               bool print_results);
 
-MBErrorCode test_interpolation(MBInterface *mbImpl, 
+ErrorCode test_interpolation(Interface *mbImpl, 
                                std::string &interp_tag,
-                               std::vector<MBParallelComm *> &pcs,
+                               std::vector<ParallelComm *> &pcs,
                                std::vector<ReadParallel *> rps,
                                double &instant_time,
                                double &pointloc_time,
@@ -76,10 +78,10 @@ int main(int argc, char **argv)
   if (0 == rank) stime = MPI_Wtime();
 
     // create MOAB instance based on that
-  MBInterface *mbImpl = new MBCore(rank, nprocs);
+  Interface *mbImpl = new Core(rank, nprocs);
   if (NULL == mbImpl) return 1;
   
-  MBErrorCode result = MB_SUCCESS;
+  ErrorCode result = MB_SUCCESS;
 
   std::vector<const char *> filenames;
   std::string opts, interp_tag, out_fname;
@@ -87,11 +89,11 @@ int main(int argc, char **argv)
   
 
     // read in mesh(es)
-  std::vector<MBParallelComm *> pcs(filenames.size()); 
+  std::vector<ParallelComm *> pcs(filenames.size()); 
   std::vector<ReadParallel *> rps(filenames.size()); 
 
   for (unsigned int i = 0; i < filenames.size(); i++) {
-    pcs[i] = new MBParallelComm(mbImpl);
+    pcs[i] = new ParallelComm(mbImpl);
     rps[i] = new ReadParallel(mbImpl, pcs[i]);
     
     result = rps[i]->load_file(filenames[i], 0, FileOptions(opts.c_str()));
@@ -140,12 +142,12 @@ int main(int argc, char **argv)
   return 0;
 }
 
-MBErrorCode report_iface_ents(MBInterface *mbImpl,
-                              std::vector<MBParallelComm *> &pcs,
+ErrorCode report_iface_ents(Interface *mbImpl,
+                              std::vector<ParallelComm *> &pcs,
                               const bool print_results) 
 {
-  MBRange iface_ents[6];
-  MBErrorCode result = MB_SUCCESS, tmp_result;
+  Range iface_ents[6];
+  ErrorCode result = MB_SUCCESS, tmp_result;
   
     // now figure out which vertices are shared
   for (unsigned int p = 0; p < pcs.size(); p++) {
@@ -167,7 +169,7 @@ MBErrorCode report_iface_ents(MBInterface *mbImpl,
 
     // report # iface entities
   result = mbImpl->get_adjacencies(iface_ents[4], 0, false, iface_ents[5], 
-                                   MBInterface::UNION);
+                                   Interface::UNION);
 
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -184,7 +186,7 @@ MBErrorCode report_iface_ents(MBInterface *mbImpl,
   return result;
 }
 
-MBErrorCode get_file_options(int argc, char **argv, 
+ErrorCode get_file_options(int argc, char **argv, 
                              std::vector<const char *> &filenames,
                              std::string &interp_tag,
                              std::string &out_fname,
@@ -235,33 +237,33 @@ MBErrorCode get_file_options(int argc, char **argv,
   return MB_SUCCESS;
 }
 
-MBErrorCode test_interpolation(MBInterface *mbImpl, 
+ErrorCode test_interpolation(Interface *mbImpl, 
                                std::string &interp_tag,
-                               std::vector<MBParallelComm *> &pcs,
+                               std::vector<ParallelComm *> &pcs,
                                std::vector<ReadParallel *> rps,
                                double &instant_time,
                                double &pointloc_time,
                                double &interp_time) 
 {
     // source is 1st mesh, target is 2nd
-  MBRange src_elems, targ_elems;
-  MBErrorCode result = pcs[0]->get_part_entities(src_elems, 3);
+  Range src_elems, targ_elems;
+  ErrorCode result = pcs[0]->get_part_entities(src_elems, 3);
   PRINT_LAST_ERROR;
 
   double start_time = MPI_Wtime();
 
     // instantiate a coupler, which also initializes the tree
-  MBCoupler mbc(mbImpl, pcs[0], src_elems, 0);
+  Coupler mbc(mbImpl, pcs[0], src_elems, 0);
 
   instant_time = MPI_Wtime();
 
     // get points from the target mesh to interpolate
-  MBRange targ_verts, tmp_verts;
+  Range targ_verts, tmp_verts;
 
     // first get all vertices adj to partition entities in target mesh
   result = pcs[1]->get_part_entities(targ_elems, 3);
   result = mbImpl->get_adjacencies(targ_elems, 0, false, targ_verts, 
-                                   MBInterface::UNION);
+                                   Interface::UNION);
   PRINT_LAST_ERROR;
 
     // then get non-owned verts and subtract 
@@ -284,9 +286,9 @@ MBErrorCode test_interpolation(MBInterface *mbImpl,
   std::vector<double> field(targ_verts.size());
 
   if(interp_tag == "vertex_field"){
-    result = mbc.interpolate(MBCoupler::LINEAR_FE, interp_tag, &field[0]);
+    result = mbc.interpolate(Coupler::LINEAR_FE, interp_tag, &field[0]);
   }else if(interp_tag == "element_field"){
-    result = mbc.interpolate(MBCoupler::PLAIN_FE, interp_tag, &field[0]);
+    result = mbc.interpolate(Coupler::PLAIN_FE, interp_tag, &field[0]);
   }else{
     std::cout << "Using tag name to determine type of sourge field at the moment... Use either vertex_field or element_field\n";
     result = MB_FAILURE;
@@ -300,7 +302,7 @@ MBErrorCode test_interpolation(MBInterface *mbImpl,
   instant_time -= start_time;
 
     // set field values as tag on target vertices
-  MBTag tag;
+  Tag tag;
   result = mbImpl->tag_get_handle(interp_tag.c_str(), tag); PRINT_LAST_ERROR;
   result = mbImpl->tag_set_data(tag, targ_verts, &field[0]); PRINT_LAST_ERROR;
 

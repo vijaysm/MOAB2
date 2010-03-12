@@ -1,6 +1,8 @@
-#include "BSPTreePoly.hpp"
+#include "moab/BSPTreePoly.hpp"
 #include "TestUtil.hpp"
-#include "MBCartVect.hpp"
+#include "moab/CartVect.hpp"
+
+using namespace moab;
 
 void test_construct_from_hex();
 void test_cut_with_plane();
@@ -23,26 +25,26 @@ const int hex_faces[6][4] = { { 0, 1, 5, 4 },
                               { 3, 2, 1, 0 },
                               { 4, 5, 6, 7 } };
 
-static void get_corners( MBCartVect corners[8] )
+static void get_corners( CartVect corners[8] )
 {
-  corners[0] = MBCartVect( 1, 1, 0 );
-  corners[1] = MBCartVect( 6, 1, 0 );
-  corners[2] = MBCartVect( 6, 3, 0 );
-  corners[3] = MBCartVect( 1, 3, 0 );
-  corners[4] = MBCartVect( 1, 1, 2 );
-  corners[5] = MBCartVect( 4, 1, 2 );
-  corners[6] = MBCartVect( 4, 3, 2 );
-  corners[7] = MBCartVect( 1, 3, 2 );
+  corners[0] = CartVect( 1, 1, 0 );
+  corners[1] = CartVect( 6, 1, 0 );
+  corners[2] = CartVect( 6, 3, 0 );
+  corners[3] = CartVect( 1, 3, 0 );
+  corners[4] = CartVect( 1, 1, 2 );
+  corners[5] = CartVect( 4, 1, 2 );
+  corners[6] = CartVect( 4, 3, 2 );
+  corners[7] = CartVect( 1, 3, 2 );
 }
 
 const BSPTreePoly::Face* find_face( const BSPTreePoly& poly,
-                                     const MBCartVect* coords,
+                                     const CartVect* coords,
                                      int num_corners,
                                      const int* face_indices = 0 )
 {
   std::vector<const BSPTreePoly::Face*>::iterator i;
   std::vector<const BSPTreePoly::Face*> faces;
-  std::vector<MBCartVect> corners;
+  std::vector<CartVect> corners;
   poly.get_faces( faces );
   for (i = faces.begin(); i != faces.end(); ++i) {
     corners.clear();
@@ -77,7 +79,7 @@ void test_construct_from_hex()
 {
   BSPTreePoly::reset_debug_ids();
 
-  MBCartVect corners[8];
+  CartVect corners[8];
   get_corners( corners );
   BSPTreePoly poly( corners );
   CHECK( poly.is_valid() );
@@ -98,7 +100,7 @@ void test_cut_with_plane()
 {
     // create a hexahedron
   BSPTreePoly::reset_debug_ids();
-  MBCartVect corners[8];
+  CartVect corners[8];
   get_corners( corners );
   BSPTreePoly poly( corners );
   CHECK( poly.is_valid() );
@@ -106,12 +108,12 @@ void test_cut_with_plane()
     // check that a plane entirely above the 
     // polyhedron (coincident with one face)
     // doesn't modify the polyhedron
-  bool r = poly.cut_polyhedron( MBCartVect(0,0,1), -2 );
+  bool r = poly.cut_polyhedron( CartVect(0,0,1), -2 );
   CHECK(!r);
   CHECK( poly.is_valid() );
   
     // cut in half with Z=1 plane
-  r = poly.cut_polyhedron( MBCartVect(0,0,1), -1 );
+  r = poly.cut_polyhedron( CartVect(0,0,1), -1 );
   CHECK(r);
   CHECK( poly.is_valid() );
   for (int i = 0; i < 8; ++i) {
@@ -139,7 +141,7 @@ void test_cut_with_plane()
   CHECK( poly.is_valid() );
   
     // cut off two corners using X=5 plane
-  r = poly.cut_polyhedron( MBCartVect(1,0,0), -5 );
+  r = poly.cut_polyhedron( CartVect(1,0,0), -5 );
   CHECK(r);
   CHECK( poly.is_valid() );
   
@@ -147,16 +149,16 @@ void test_cut_with_plane()
   poly.get_faces( faces );
   CHECK_EQUAL( (size_t)7, faces.size() );
   
-  MBCartVect new_vtx1( 5, 1, 1 );
-  MBCartVect new_vtx2( 5, 1, 0 );
-  MBCartVect new_vtx3( 5, 3, 0 );
-  MBCartVect new_vtx4( 5, 3, 1 );
+  CartVect new_vtx1( 5, 1, 1 );
+  CartVect new_vtx2( 5, 1, 0 );
+  CartVect new_vtx3( 5, 3, 0 );
+  CartVect new_vtx4( 5, 3, 1 );
   
-  MBCartVect face1[5] = { corners[0], new_vtx2, new_vtx1, corners[5], corners[4] };
-  MBCartVect face2[4] = { new_vtx1, new_vtx4, corners[6], corners[5] };
-  MBCartVect face3[5] = { new_vtx4, new_vtx3, corners[3], corners[7], corners[6] };
-  MBCartVect face5[4] = { corners[3], new_vtx3, new_vtx2, corners[0] };
-  MBCartVect face7[4] = { new_vtx1, new_vtx2, new_vtx3, new_vtx4 };
+  CartVect face1[5] = { corners[0], new_vtx2, new_vtx1, corners[5], corners[4] };
+  CartVect face2[4] = { new_vtx1, new_vtx4, corners[6], corners[5] };
+  CartVect face3[5] = { new_vtx4, new_vtx3, corners[3], corners[7], corners[6] };
+  CartVect face5[4] = { corners[3], new_vtx3, new_vtx2, corners[0] };
+  CartVect face7[4] = { new_vtx1, new_vtx2, new_vtx3, new_vtx4 };
   
   CHECK( 0 != find_face( poly, face1, 5 ) );
   CHECK( 0 != find_face( poly, face2, 4 ) );
@@ -169,7 +171,7 @@ void test_cut_with_plane()
 
 void test_volume()
 {
-  MBCartVect corners[8];
+  CartVect corners[8];
   get_corners( corners );
   BSPTreePoly poly( corners );
   CHECK( poly.is_valid() );

@@ -4,6 +4,8 @@
 #include "TagInfo.hpp"
 #include "VarLenTag.hpp"
 
+namespace moab {
+
 /* OPAQUE FUNCTORS */
 
 /** Test fixed-length opaque tags for equality */
@@ -203,10 +205,10 @@ typedef TagOneTypeLess <int> TagOneIntLess;
 
 typedef TagBytesEqual                   TagHandlesEqual;
 typedef TagVarBytesEqual                TagVarHandlesEqual;
-typedef TagTypeLess    <MBEntityHandle> TagHandlesLess;
-typedef TagVarTypeLess <MBEntityHandle> TagVarHandlesLess;
-typedef TagOneTypeEqual<MBEntityHandle> TagOneHandleEqual;
-typedef TagOneTypeLess <MBEntityHandle> TagOneHandleLess;
+typedef TagTypeLess    <EntityHandle> TagHandlesLess;
+typedef TagVarTypeLess <EntityHandle> TagVarHandlesLess;
+typedef TagOneTypeEqual<EntityHandle> TagOneHandleEqual;
+typedef TagOneTypeLess <EntityHandle> TagOneHandleLess;
 
 typedef TagTypeEqual   <double> TagDoublesEqual;
 typedef TagVarTypeEqual<double> TagVarDoublesEqual;
@@ -222,9 +224,9 @@ template <class Functor,
 void find_tag_values( Functor compare,
                       IteratorType begin,
                       IteratorType end,
-                      MBRange& results )
+                      Range& results )
 {
-  MBRange::iterator insert = results.begin();
+  Range::iterator insert = results.begin();
   for (IteratorType i = begin; i != end; ++i) 
     if (compare( i->second ))
       insert = results.insert( insert, i->first, i->first );
@@ -235,9 +237,9 @@ template <class Functor,
 void find_tag_values( Functor compare,
                       IteratorType begin,
                       IteratorType end,
-                      std::vector<MBEntityHandle>& results )
+                      std::vector<EntityHandle>& results )
 {
-  MBRange::iterator insert = results.begin();
+  Range::iterator insert = results.begin();
   for (IteratorType i = begin; i != end; ++i) 
     if (compare( i->second ))
       results.push_back( i->first );
@@ -247,7 +249,7 @@ void find_tag_values( Functor compare,
  *\param IteratorType : an iterator that has map behavior:
  *                      the value of 'first' is the entity handle.
  *                      the value of 'second' is a pointer to the tag data.
- *\param ContainerType : std::vector<MBEntityHandle> or MBRange
+ *\param ContainerType : std::vector<EntityHandle> or Range
  */
 template <class IteratorType, class ContainerType>
 void find_tag_values_equal( const TagInfo& tag_info,
@@ -291,7 +293,7 @@ void find_tag_values_equal( const TagInfo& tag_info,
         case MB_VARIABLE_LENGTH:
           find_tag_values( TagVarHandlesEqual( value, size ), begin, end, results );
           break;
-        case sizeof(MBEntityHandle):
+        case sizeof(EntityHandle):
           find_tag_values( TagOneHandleEqual( value ), begin, end, results );
           break;
         default:
@@ -314,17 +316,17 @@ class ByteArrayIterator
 {
   private:
     size_t step;
-    typedef std::pair<MBEntityHandle, const char*> data_type;
+    typedef std::pair<EntityHandle, const char*> data_type;
     data_type data;
   public:
-    ByteArrayIterator( MBEntityHandle start_handle,
+    ByteArrayIterator( EntityHandle start_handle,
                        const void* data_array,
                        size_t tag_size )
       : step(tag_size),
         data(start_handle, reinterpret_cast<const char*>(data_array))
         
       {}
-    ByteArrayIterator( MBEntityHandle start_handle,
+    ByteArrayIterator( EntityHandle start_handle,
                        const void* data_array,
                        const TagInfo& tag_info )
       : step(tag_info.get_size() == MB_VARIABLE_LENGTH ? sizeof(VarLenTag) : tag_info.get_size()),
@@ -346,13 +348,15 @@ class ByteArrayIterator
       { data.first += amt; data.second += amt*step; return *this; }
     ByteArrayIterator& operator-=(size_t amt)
       { data.first -= amt; data.second -= amt*step; return *this; }
-    MBEntityHandle operator-( const ByteArrayIterator& other ) const
+    EntityHandle operator-( const ByteArrayIterator& other ) const
       { return data.first - other.data.first; }
     const data_type& operator*() const 
       { return data; }
     const data_type* operator->() const 
       { return &data; }
 };
+
+} // namespace moab
 
 #endif
 

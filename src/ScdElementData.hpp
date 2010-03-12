@@ -28,14 +28,16 @@
 // handles associated with the element are each contiguous.
 
 #include "SequenceData.hpp"
-#include "HomXform.hpp"
-#include "MBCN.hpp"
+#include "moab/HomXform.hpp"
+#include "moab/MBCN.hpp"
 #include "ScdVertexData.hpp"
-#include "MBInternals.hpp"
-#include "MBRange.hpp"
+#include "Internals.hpp"
+#include "moab/Range.hpp"
 
 #include <vector>
 #include <algorithm>
+
+namespace moab {
 
 class ScdElementData : public SequenceData
 {
@@ -78,19 +80,19 @@ private:
 public:
 
     //! constructor
-  ScdElementData( MBEntityHandle start_handle,
+  ScdElementData( EntityHandle start_handle,
                   const int imin, const int jmin, const int kmin,
                   const int imax, const int jmax, const int kmax);
   
   virtual ~ScdElementData();
   
     //! get handle of vertex at homogeneous coords
-  inline MBEntityHandle get_vertex(const HomCoord &coords) const;
-  inline MBEntityHandle get_vertex(int i, int j, int k) const
+  inline EntityHandle get_vertex(const HomCoord &coords) const;
+  inline EntityHandle get_vertex(int i, int j, int k) const
     { return get_vertex(HomCoord(i,j,k)); }
   
     //! get handle of element at i, j, k
-  MBEntityHandle get_element(const int i, const int j, const int k) const;
+  EntityHandle get_element(const int i, const int j, const int k) const;
   
     //! get min params for this element
   const HomCoord &min_params() const;
@@ -102,7 +104,7 @@ public:
   void param_extents(int &di, int &dj, int &dk) const;
 
     //! given a handle, get the corresponding parameters
-  MBErrorCode get_params(const MBEntityHandle ehandle,
+  ErrorCode get_params(const EntityHandle ehandle,
                           int &i, int &j, int &k) const;
   
     //! convenience functions for parameter extents
@@ -121,15 +123,15 @@ public:
   inline bool contains(const HomCoord &coords) const;
 
     //! get connectivity of an entity given entity's parameters
-  inline MBErrorCode get_params_connectivity(const int i, const int j, const int k,
-                                       std::vector<MBEntityHandle>& connectivity) const;
+  inline ErrorCode get_params_connectivity(const int i, const int j, const int k,
+                                       std::vector<EntityHandle>& connectivity) const;
   
     //! add a vertex seq ref to this element sequence;
     //! if bb_input is true, bounding box (in eseq-local coords) of vseq being added 
     //! is input in bb_min and bb_max (allows partial sharing of vseq rather than the whole
     //! vseq); if it's false, the whole vseq is referenced and the eseq-local coordinates
     //! is computed from the transformed bounding box of the vseq
-  MBErrorCode add_vsequence(ScdVertexData *vseq, 
+  ErrorCode add_vsequence(ScdVertexData *vseq, 
                              const HomCoord &p1, const HomCoord &q1,
                              const HomCoord &p2, const HomCoord &q2,
                              const HomCoord &p3, const HomCoord &q3,
@@ -138,12 +140,12 @@ public:
                              const HomCoord &bb_max = HomCoord::unitv[0]);
 
 
-  SequenceData* subset( MBEntityHandle start, 
-                        MBEntityHandle end,
+  SequenceData* subset( EntityHandle start, 
+                        EntityHandle end,
                         const int* sequence_data_sizes,
                         const int* tag_data_sizes ) const;
   
-  static MBEntityID calc_num_entities( MBEntityHandle start_handle,
+  static EntityID calc_num_entities( EntityHandle start_handle,
                                        int irange,
                                        int jrange,
                                        int krange );
@@ -151,7 +153,7 @@ public:
   unsigned long get_memory_use() const;
 };
 
-inline MBEntityHandle ScdElementData::get_element(const int i, const int j, const int k) const
+inline EntityHandle ScdElementData::get_element(const int i, const int j, const int k) const
 {
   return start_handle() + (i-i_min()) + (j-j_min())*dIJKm1[0] + (k-k_min())*dIJKm1[0]*dIJKm1[1];
 }
@@ -174,7 +176,7 @@ inline void ScdElementData::param_extents(int &di, int &dj, int &dk) const
   dk = dIJK[2];
 }
 
-inline MBErrorCode ScdElementData::get_params(const MBEntityHandle ehandle,
+inline ErrorCode ScdElementData::get_params(const EntityHandle ehandle,
                                               int &i, int &j, int &k) const
 {
   if (TYPE_FROM_HANDLE(ehandle) != TYPE_FROM_HANDLE(start_handle())) return MB_FAILURE;
@@ -218,7 +220,7 @@ inline ScdElementData::VertexDataRef::VertexDataRef(const HomCoord &this_min, co
   minmax[1] = HomCoord(this_max); 
 }
 
-inline MBEntityHandle ScdElementData::get_vertex(const HomCoord &coords) const
+inline EntityHandle ScdElementData::get_vertex(const HomCoord &coords) const
 {
   assert(boundary_complete());
    for (std::vector<VertexDataRef>::const_iterator it = vertexSeqRefs.begin();
@@ -236,7 +238,7 @@ inline MBEntityHandle ScdElementData::get_vertex(const HomCoord &coords) const
    return 0;
 }
 
-inline MBErrorCode ScdElementData::add_vsequence(ScdVertexData *vseq, 
+inline ErrorCode ScdElementData::add_vsequence(ScdVertexData *vseq, 
                                                  const HomCoord &p1, const HomCoord &q1,
                                                  const HomCoord &p2, const HomCoord &q2, 
                                                  const HomCoord &p3, const HomCoord &q3,
@@ -285,8 +287,8 @@ inline MBErrorCode ScdElementData::add_vsequence(ScdVertexData *vseq,
   return MB_SUCCESS;
 }
 
-inline MBErrorCode ScdElementData::get_params_connectivity(const int i, const int j, const int k,
-                                                           std::vector<MBEntityHandle>& connectivity) const
+inline ErrorCode ScdElementData::get_params_connectivity(const int i, const int j, const int k,
+                                                           std::vector<EntityHandle>& connectivity) const
 {
   if (contains(HomCoord(i, j, k)) == false) return MB_FAILURE;
   
@@ -302,5 +304,7 @@ inline MBErrorCode ScdElementData::get_params_connectivity(const int i, const in
   connectivity.push_back(get_vertex(i, j+1, k+1));
   return MB_SUCCESS;
 }
+  
+} // namespace moab
 
 #endif

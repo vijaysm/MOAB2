@@ -1,5 +1,7 @@
 #include "TestUtil.hpp"
-#include "MBCN.hpp"
+#include "moab/MBCN.hpp"
+
+using namespace moab;
 
 void test_dimension_pair();
 void test_type_names();
@@ -38,7 +40,7 @@ void test_opposite_side_quad();
 void test_opposite_side_tet();
 void test_opposite_side_hex();
 
-void test_has_mid_nodes( MBEntityType type );
+void test_has_mid_nodes( EntityType type );
 void test_has_mid_nodes_edge() { test_has_mid_nodes(MBEDGE); }
 void test_has_mid_nodes_tri()  { test_has_mid_nodes(MBTRI); }
 void test_has_mid_nodes_quad() { test_has_mid_nodes(MBQUAD); }
@@ -51,8 +53,8 @@ void test_has_mid_nodes_hex()  { test_has_mid_nodes(MBHEX); }
 void test_ho_node_parent();
 void test_ho_node_index();
 
-void test_sub_entity_nodes( MBEntityType parent, int sub_dimension );
-void test_sub_entity_nodes( MBEntityType parent, int num_nodes, int sub_dimension );
+void test_sub_entity_nodes( EntityType parent, int sub_dimension );
+void test_sub_entity_nodes( EntityType parent, int num_nodes, int sub_dimension );
 void test_sub_entity_nodes_tri_edges()  { test_sub_entity_nodes(MBTRI,     1 ); }
 void test_sub_entity_nodes_quad_edges() { test_sub_entity_nodes(MBQUAD,    1 ); }
 void test_sub_entity_nodes_tet_edges()  { test_sub_entity_nodes(MBTET,     1 ); }
@@ -133,7 +135,7 @@ int main()
   return result;
 }
 
-const MBEntityType elem_types[] = { MBTRI,
+const EntityType elem_types[] = { MBTRI,
                                     MBQUAD,
                                     MBTET,
                                     MBPYRAMID,
@@ -144,7 +146,7 @@ const int num_elem_types = sizeof(elem_types)/sizeof(elem_types[0]) - 1;
 
 void test_dimension_pair()
 {
-  MBDimensionPair dp;
+  DimensionPair dp;
   
   dp = MBCN::TypeDimensionMap[0];
   CHECK_EQUAL( MBVERTEX, dp.first );  
@@ -165,7 +167,7 @@ void test_dimension_pair()
 
 void test_type_names()
 {
-  for (MBEntityType t = MBVERTEX; t != MBMAXTYPE; ++t) {
+  for (EntityType t = MBVERTEX; t != MBMAXTYPE; ++t) {
     const char* name = MBCN::EntityTypeName(t);
     CHECK_EQUAL( t, MBCN::EntityTypeFromName(name) );
   }
@@ -235,7 +237,7 @@ void test_num_sub_entities()
   CHECK_EQUAL( 6, MBCN::NumSubEntities(MBHEX, 2));
 }
 
-void do_test_sub_entity_type_2d( MBEntityType type )
+void do_test_sub_entity_type_2d( EntityType type )
 {
   for (int j = 0; j < MBCN::VerticesPerEntity(type); ++j) {
     CHECK_EQUAL( MBVERTEX, MBCN::SubEntityType(type, 0, j ) );
@@ -244,9 +246,9 @@ void do_test_sub_entity_type_2d( MBEntityType type )
   CHECK_EQUAL( type, MBCN::SubEntityType(type, 2, 0) );
 }
 
-void do_test_sub_entity_type_3d( MBEntityType type,
+void do_test_sub_entity_type_3d( EntityType type,
                                  int num_faces,
-                                 const MBEntityType* face_types )
+                                 const EntityType* face_types )
 {
   for (int j = 0; j < MBCN::VerticesPerEntity(type); ++j) {
     CHECK_EQUAL( MBVERTEX, MBCN::SubEntityType(type, 0, j ) );
@@ -257,7 +259,7 @@ void do_test_sub_entity_type_3d( MBEntityType type,
   }
 
   for (int j = 0; j < num_faces; ++j) {
-    MBEntityType sub_type = MBCN::SubEntityType( type, 2, j );
+    EntityType sub_type = MBCN::SubEntityType( type, 2, j );
     CHECK_EQUAL( face_types[j], sub_type );
   }
 
@@ -288,36 +290,36 @@ void test_sub_entity_type_quad()
 
 void test_sub_entity_type_tet()
 {
-  const MBEntityType types[] = { MBTRI, MBTRI, MBTRI, MBTRI };
+  const EntityType types[] = { MBTRI, MBTRI, MBTRI, MBTRI };
   do_test_sub_entity_type_3d( MBTET, sizeof(types)/sizeof(types[0]), types );
 }
 
 void test_sub_entity_type_pyr()
 {
-  const MBEntityType types[] = { MBQUAD, MBTRI, MBTRI, MBTRI, MBTRI };
+  const EntityType types[] = { MBQUAD, MBTRI, MBTRI, MBTRI, MBTRI };
   do_test_sub_entity_type_3d( MBPYRAMID, sizeof(types)/sizeof(types[0]), types );
 }
 
 void test_sub_entity_type_pri()
 {
-  const MBEntityType types[] = { MBQUAD, MBQUAD, MBQUAD, MBTRI, MBTRI };
+  const EntityType types[] = { MBQUAD, MBQUAD, MBQUAD, MBTRI, MBTRI };
   do_test_sub_entity_type_3d( MBPRISM, sizeof(types)/sizeof(types[0]), types );
 }
 
 void test_sub_entity_type_knife()
 {
-  const MBEntityType types[] = { MBQUAD, MBQUAD, MBQUAD, MBQUAD, MBQUAD };
+  const EntityType types[] = { MBQUAD, MBQUAD, MBQUAD, MBQUAD, MBQUAD };
   do_test_sub_entity_type_3d( MBKNIFE, sizeof(types)/sizeof(types[0]), types );
 }
 
 void test_sub_entity_type_hex()
 {
-  const MBEntityType types[] = { MBQUAD, MBQUAD, MBQUAD, MBQUAD, MBQUAD, MBQUAD };
+  const EntityType types[] = { MBQUAD, MBQUAD, MBQUAD, MBQUAD, MBQUAD, MBQUAD };
   do_test_sub_entity_type_3d( MBHEX, sizeof(types)/sizeof(types[0]), types );
 }
 
 
-void test_0d_sub_entity_indices( MBEntityType type, int num_vtx )
+void test_0d_sub_entity_indices( EntityType type, int num_vtx )
 {
   for (int i = 0; i < num_vtx; ++i) {
     // zero input array
@@ -330,7 +332,7 @@ void test_0d_sub_entity_indices( MBEntityType type, int num_vtx )
   }
 }
 
-void test_1d_sub_entity_indices( MBEntityType type, int num_edges, 
+void test_1d_sub_entity_indices( EntityType type, int num_edges, 
                                  const int (*edge_indices)[2] )
 {
   for (int i = 0; i < num_edges; ++i) {
@@ -350,7 +352,7 @@ void test_1d_sub_entity_indices( MBEntityType type, int num_edges,
   }
 }
 
-void test_2d_sub_entity_indices( MBEntityType type, int num_faces,
+void test_2d_sub_entity_indices( EntityType type, int num_faces,
                                  const int (*face_indices)[5] )
 {
   for (int i = 0; i < num_faces; ++i) {
@@ -389,7 +391,7 @@ void test_2d_sub_entity_indices( MBEntityType type, int num_faces,
   }
 }
 
-void test_elem_as_sub_entity( MBEntityType type, int dim, int num_vertices )
+void test_elem_as_sub_entity( EntityType type, int dim, int num_vertices )
 { 
   int indices[9] = { -2, -2, -2, -2, -2, -2, -2, -2, -2 };
   MBCN::SubEntityVertexIndices( type, dim, 0, indices );
@@ -433,7 +435,7 @@ void test_sub_entity_indices_quad()
 
 void test_sub_entity_indices_tet()
 {
-  const MBEntityType type = MBTET;
+  const EntityType type = MBTET;
   const int num_vtx = 4;
   const int edges[][2] = { { 0, 1 },
                            { 1, 2 },
@@ -453,7 +455,7 @@ void test_sub_entity_indices_tet()
 
 void test_sub_entity_indices_pyr()
 {
-  const MBEntityType type = MBPYRAMID;
+  const EntityType type = MBPYRAMID;
   const int num_vtx = 5;
   const int edges[][2] = { { 0, 1 },
                            { 1, 2 },
@@ -476,7 +478,7 @@ void test_sub_entity_indices_pyr()
 
 void test_sub_entity_indices_pri()
 {
-  const MBEntityType type = MBPRISM;
+  const EntityType type = MBPRISM;
   const int num_vtx = 6;
   const int edges[][2] = { { 0, 1 },
                            { 1, 2 },
@@ -500,7 +502,7 @@ void test_sub_entity_indices_pri()
 
 void test_sub_entity_indices_hex()
 {
-  const MBEntityType type = MBHEX;
+  const EntityType type = MBHEX;
   const int num_vtx = 8;
   const int edges[][2] = { { 0, 1 },
                            { 1, 2 },
@@ -526,7 +528,7 @@ void test_sub_entity_indices_hex()
   test_elem_as_sub_entity( type, 3, num_vtx );
 }
 
-static void do_test_side_number_1d( MBEntityType type, int idx )
+static void do_test_side_number_1d( EntityType type, int idx )
 {
   // define a random handle list
   const int elem_verts[] = { 7400, 6233, 3027, 0454, 6839, 5391, 7735, 3603 };
@@ -551,7 +553,7 @@ static void do_test_side_number_1d( MBEntityType type, int idx )
   CHECK(result_offset == 1 || result_sense == -1);
 }     
 
-static void do_test_side_number_2d( MBEntityType type, int idx )
+static void do_test_side_number_2d( EntityType type, int idx )
 {
   // define a random handle list
   const int elem_verts[] = { 7400, 6233, 3027, 0454, 6839, 5391, 7735, 3603 };
@@ -867,7 +869,7 @@ void test_opposite_side_hex()
   CHECK_EQUAL( 4, idx );
 }
 
-void test_has_mid_nodes(MBEntityType type)
+void test_has_mid_nodes(EntityType type)
 {
   const int combinations[][4] = { { 0, 0, 0, 0 },
                                   { 0, 1, 0, 0 },
@@ -918,8 +920,8 @@ void test_ho_node_parent()
                                   { 0, 0, 1, 1 },
                                   { 0, 1, 1, 1 } };
   
-  for (const MBEntityType* t = elem_types; *t != MBMAXTYPE; ++t) {
-    const MBEntityType type = *t;
+  for (const EntityType* t = elem_types; *t != MBMAXTYPE; ++t) {
+    const EntityType type = *t;
     const int dim = MBCN::Dimension(type);
       // calculate number of valid combinations of ho node flags
     int num_comb = 1;
@@ -981,8 +983,8 @@ void test_ho_node_index()
                                   { 0, 0, 1, 1 },
                                   { 0, 1, 1, 1 } };
   
-  for (const MBEntityType* t = elem_types; *t != MBMAXTYPE; ++t) {
-    const MBEntityType type = *t;
+  for (const EntityType* t = elem_types; *t != MBMAXTYPE; ++t) {
+    const EntityType type = *t;
     const int dim = MBCN::Dimension(type);
       // calculate number of valid combinations of ho node flags
     int num_comb = 1;
@@ -1027,7 +1029,7 @@ void test_ho_node_index()
   } // for each type
 }
 
-void test_sub_entity_nodes( MBEntityType parent, int sub_dimension )
+void test_sub_entity_nodes( EntityType parent, int sub_dimension )
 {
   const int num_corner = MBCN::VerticesPerEntity( parent );
   const int num_edge   = MBCN::NumSubEntities( parent, 1 );
@@ -1051,7 +1053,7 @@ void test_sub_entity_nodes( MBEntityType parent, int sub_dimension )
   }
 }
 
-void test_sub_entity_nodes( MBEntityType parent, int num_nodes, int sub_dimension )
+void test_sub_entity_nodes( EntityType parent, int num_nodes, int sub_dimension )
 {
   const int num_sub = MBCN::NumSubEntities( parent, sub_dimension );
   const int parent_ho = MBCN::HasMidNodes( parent, num_nodes );
@@ -1062,7 +1064,7 @@ void test_sub_entity_nodes( MBEntityType parent, int num_nodes, int sub_dimensio
     // first test the types
   for (int i = 0; i < num_sub; ++i) {
     int num, conn[MB_MAX_SUB_ENTITY_VERTICES];
-    MBEntityType type;
+    EntityType type;
     MBCN::SubEntityNodeIndices( parent, num_nodes, sub_dimension, i, type, num, conn );
     CHECK_EQUAL( MBCN::SubEntityType(parent, sub_dimension, i), type );
   }
@@ -1070,7 +1072,7 @@ void test_sub_entity_nodes( MBEntityType parent, int num_nodes, int sub_dimensio
     // now test that they have the correct number of higher-order node
   for (int i = 0; i < num_sub; ++i) {
     int num, conn[MB_MAX_SUB_ENTITY_VERTICES];
-    MBEntityType type;
+    EntityType type;
     MBCN::SubEntityNodeIndices( parent, num_nodes, sub_dimension, i, type, num, conn );
     const int ho = MBCN::HasMidNodes( type, num );
     CHECK_EQUAL( child_ho, ho );
@@ -1079,7 +1081,7 @@ void test_sub_entity_nodes( MBEntityType parent, int num_nodes, int sub_dimensio
     // now test the actual indices
   for (int i = 0; i < num_sub; ++i) {
     int num, conn[MB_MAX_SUB_ENTITY_VERTICES], corners[MB_MAX_SUB_ENTITY_VERTICES];
-    MBEntityType type;
+    EntityType type;
     MBCN::SubEntityNodeIndices( parent, num_nodes, sub_dimension, i, type, num, conn );
     
       // check corner indices against SubEntityVertexIndices

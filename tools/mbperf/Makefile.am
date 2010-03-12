@@ -13,9 +13,7 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
             -I$(top_srcdir)/itaps \
             -I$(top_srcdir)/itaps/imesh \
             -I$(top_builddir)/itaps \
-            -I$(top_builddir)/itaps/imesh \
-            -I$(top_srcdir)/src/moab \
-            -I$(top_builddir)/src/moab
+            -I$(top_builddir)/itaps/imesh 
 
 bin_PROGRAMS = mbperf $(imesh_progs)
 

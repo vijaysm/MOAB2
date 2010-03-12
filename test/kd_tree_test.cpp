@@ -1,13 +1,13 @@
-#include "MBCore.hpp"
-#include "MBAdaptiveKDTree.hpp"
-#include "MBRange.hpp"
+#include "moab/Core.hpp"
+#include "moab/AdaptiveKDTree.hpp"
+#include "moab/Range.hpp"
 
 #include <math.h>
 #include <assert.h>
 #include <float.h>
 #include <cstdio>
 
-#include "MBCartVect.hpp"
+#include "moab/CartVect.hpp"
 
 #include <stdlib.h>
 #ifdef NDEBUG
@@ -15,22 +15,24 @@
 #  define assert(A) do { if (!(A)) abort(); } while(false)
 #endif
 
+using namespace moab;
+
 const unsigned INTERVALS = 4;
 const unsigned DEPTH = 7; // 3*log2(INTERVALS)+1
 const char* TAG_NAME = "TEST_DATA";
 
-void test_iterator_back( MBAdaptiveKDTree& tool, MBEntityHandle root );
-void test_point_search( MBAdaptiveKDTree& tool, MBEntityHandle root );
+void test_iterator_back( AdaptiveKDTree& tool, EntityHandle root );
+void test_point_search( AdaptiveKDTree& tool, EntityHandle root );
 
 int main()
 {
   // Initialize MOAB & create tree tool
-  MBCore moab;
-  MBAdaptiveKDTree tool(&moab);
+  Core moab;
+  AdaptiveKDTree tool(&moab);
   
   // Create tree root
-  MBErrorCode err;
-  MBEntityHandle root, leaf;
+  ErrorCode err;
+  EntityHandle root, leaf;
   const double tree_box_min_corner[] = { 0, 0, 0 };  
     // Make each leaf box be 1x1x1.
   const double tree_box_max_corner[] = { INTERVALS, INTERVALS, INTERVALS };
@@ -38,13 +40,13 @@ int main()
   assert(!err);
   
   // Use iterator to create tree to fixed depth of DEPTH
-  MBAdaptiveKDTreeIter iter;
+  AdaptiveKDTreeIter iter;
   err = tool.get_tree_iterator( root, iter );
   assert(!err);
   while(err == MB_SUCCESS) { 
     if (iter.depth() < DEPTH) {
         // bisect leaves along alternating axes
-      MBAdaptiveKDTree::Plane split;
+      AdaptiveKDTree::Plane split;
       split.norm = iter.depth() % 3;  // alternate split axes;
       split.coord = 0.5 * (iter.box_min()[split.norm] + iter.box_max()[split.norm]);
       err = tool.split_leaf( iter, split ); // advances iter to first new leaf
@@ -58,7 +60,7 @@ int main()
   assert(MB_ENTITY_NOT_FOUND == err);
   
   // define a tag to use to store integer values on tree leaves
-  MBTag data;
+  Tag data;
   err = moab.tag_create( TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, data, 0, false );
   assert(!err);
   
@@ -131,7 +133,7 @@ int main()
   assert(!err);
 
   // get root handle for tree
-  MBRange range;
+  Range range;
   err = tool.find_all_trees( range );
   assert(!err);
   assert(range.size() == 1);
@@ -193,15 +195,15 @@ int main()
 }
 
 
-void test_iterator_back( MBAdaptiveKDTree& tool, MBEntityHandle root )
+void test_iterator_back( AdaptiveKDTree& tool, EntityHandle root )
 {
-  MBAdaptiveKDTreeIter iter;
-  MBErrorCode rval = tool.get_tree_iterator( root, iter );
+  AdaptiveKDTreeIter iter;
+  ErrorCode rval = tool.get_tree_iterator( root, iter );
   assert( MB_SUCCESS == rval );
   
-  MBCartVect min( iter.box_min() );
-  MBCartVect max( iter.box_max() );
-  MBEntityHandle leaf = iter.handle();
+  CartVect min( iter.box_min() );
+  CartVect max( iter.box_max() );
+  EntityHandle leaf = iter.handle();
   
     // going back from first location should fail.
   rval = iter.back();
@@ -216,9 +218,9 @@ void test_iterator_back( MBAdaptiveKDTree& tool, MBEntityHandle root )
   
   while (MB_SUCCESS == iter.step()) {
       // Get values at current iterator location
-    MBCartVect next_min( iter.box_min() );
-    MBCartVect next_max( iter.box_max() );
-    MBEntityHandle next_leaf = iter.handle();
+    CartVect next_min( iter.box_min() );
+    CartVect next_max( iter.box_max() );
+    EntityHandle next_leaf = iter.handle();
   
       // step back to previous location
     rval = iter.back();
@@ -245,15 +247,15 @@ void test_iterator_back( MBAdaptiveKDTree& tool, MBEntityHandle root )
   }
 }
 
-void test_point_search( MBAdaptiveKDTree& tool, MBEntityHandle root )
+void test_point_search( AdaptiveKDTree& tool, EntityHandle root )
 {
-  MBErrorCode rval;
-  MBEntityHandle leaf;
-  MBAdaptiveKDTreeIter iter, iter2;
+  ErrorCode rval;
+  EntityHandle leaf;
+  AdaptiveKDTreeIter iter, iter2;
   
     // points to test
-  MBCartVect left( 0.5 );
-  MBCartVect right( MBCartVect(INTERVALS) - left );
+  CartVect left( 0.5 );
+  CartVect right( CartVect(INTERVALS) - left );
  
     // compare leaf search to iterator search
   rval = tool.leaf_containing_point( root, left.array(), leaf );

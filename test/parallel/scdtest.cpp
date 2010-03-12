@@ -3,14 +3,14 @@
 #include <iostream>
 #include <cassert>
 
-#include <MBCore.hpp>
-#include <MBInterface.hpp>
-#include <MBParallelComm.hpp>
-#include <HomXform.hpp>
-#include <MBParallelConventions.h>
-#include <MBTagConventions.hpp>
+#include "moab/Core.hpp"
+#include "moab/ParallelComm.hpp"
+#include "moab/HomXform.hpp"
+#include "moab/MBParallelConventions.h"
+#include "moab/MBTagConventions.hpp"
 
 using namespace std;
+using namespace moab;
 
 // Number of cells in each direction:
 const int NC = 2;
@@ -26,8 +26,8 @@ const int NPROCS = 4;
 const double DSIZE = 10.0;
 
 // MOAB objects:
-MBInterface *mbint = NULL;
-MBParallelComm *mbpc = NULL;
+Interface *mbint = NULL;
+ParallelComm *mbpc = NULL;
 
 // Local domain starting and ending hex indexes:
 int is, js, ks;
@@ -40,7 +40,7 @@ int size;
 void set_local_domain_bounds();
 void create_hexes_and_verts();
 void resolve_and_exchange();
-void error(MBErrorCode err);
+void error(ErrorCode err);
 
 int main(int argc, char *argv[])
 {
@@ -52,8 +52,8 @@ int main(int argc, char *argv[])
     exit(1);
   }
   
-  mbint = new MBCore();
-  mbpc  = new MBParallelComm(mbint);
+  mbint = new Core();
+  mbpc  = new ParallelComm(mbint);
 
   set_local_domain_bounds();
   create_hexes_and_verts();
@@ -118,12 +118,12 @@ void set_local_domain_bounds()
 
 void create_hexes_and_verts()
 {
-  MBCore *mbcore = dynamic_cast<MBCore*>(mbint);
+  Core *mbcore = dynamic_cast<Core*>(mbint);
   HomCoord coord_min(0,0,0);
   HomCoord coord_max(ie-is, je-js, ke-ks);
   EntitySequence* vertex_seq = NULL;
   EntitySequence* cell_seq = NULL;
-  MBEntityHandle vs, cs;
+  EntityHandle vs, cs;
 
   error(mbcore->create_scd_sequence(coord_min, coord_max, MBVERTEX, 1, vs, vertex_seq));
   error(mbcore->create_scd_sequence(coord_min, coord_max, MBHEX, 1, cs, cell_seq));
@@ -136,12 +136,12 @@ void create_hexes_and_verts()
 
   // Set global id's:
   int gid;
-  MBTag global_id_tag;
+  Tag global_id_tag;
   error(mbint->tag_get_handle(GLOBAL_ID_TAG_NAME, global_id_tag));
-  MBEntityHandle handle = vs;
+  EntityHandle handle = vs;
   int i,j,k;
 
-  MBErrorCode err;
+  ErrorCode err;
 
   for(k = ks; k < ke + 1; k++)
     for(j = js; j < je + 1; j++)
@@ -167,20 +167,20 @@ void create_hexes_and_verts()
 
 void resolve_and_exchange()
 {
-  MBEntityHandle entity_set;
+  EntityHandle entity_set;
 
   // Create the entity set:
   error(mbint->create_meshset(MESHSET_SET, entity_set));
 
   // Get a list of hexes:
-  MBRange range;
+  Range range;
   error(mbint->get_entities_by_type(0, MBHEX, range));
 
   // Add entities to the entity set:
   error(mbint->add_entities(entity_set, range));
 
   // Add the MATERIAL_SET tag to the entity set:
-  MBTag tag;
+  Tag tag;
   error(mbint->tag_get_handle(MATERIAL_SET_TAG_NAME, tag));
   error(mbint->tag_set_data(tag, &entity_set, 1, &rank));
 
@@ -196,7 +196,7 @@ void resolve_and_exchange()
   error(mbpc->exchange_ghost_cells(-1, 0, 1, true));
 }
 
-void error(MBErrorCode err)
+void error(ErrorCode err)
 {
   if(err != MB_SUCCESS) {
     cerr << "Error: MOAB function failed\n";

@@ -1,13 +1,13 @@
 #include "ReadParallel.hpp"
-#include "MBCore.hpp"
-#include "MBProcConfig.hpp"
+#include "moab/Core.hpp"
+#include "moab/ProcConfig.hpp"
 #include "FileOptions.hpp"
-#include "MBError.hpp"
-#include "MBReaderWriterSet.hpp"
-#include "MBReadUtilIface.hpp"
-#include "MBParallelComm.hpp"
-#include "MBParallelConventions.h"
-#include "MBCN.hpp"
+#include "Error.hpp"
+#include "moab/ReaderWriterSet.hpp"
+#include "moab/ReadUtilIface.hpp"
+#include "moab/ParallelComm.hpp"
+#include "moab/MBParallelConventions.h"
+#include "moab/MBCN.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -16,10 +16,12 @@
 #include <algorithm>
 #include <assert.h>
 
+namespace moab {
+
 const bool debug = false;
 
 #define RR(a) if (MB_SUCCESS != result) {                               \
-      dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(a); \
+      dynamic_cast<Core*>(mbImpl)->get_error_handler()->set_last_error(a); \
       return result;}
 
 const char *ReadParallel::ParallelActionsNames[] = {
@@ -42,29 +44,29 @@ const char* ReadParallel::parallelOptsNames[] = { "NONE",
                                                   "", 
                                                   0 };
 
-ReadParallel::ReadParallel(MBInterface* impl, 
-                           MBParallelComm *pc) 
+ReadParallel::ReadParallel(Interface* impl, 
+                           ParallelComm *pc) 
         : mbImpl(impl), myPcomm(pc) 
 {
   if (!myPcomm) {
-    myPcomm = MBParallelComm::get_pcomm(mbImpl, 0);
-    if (NULL == myPcomm) myPcomm = new MBParallelComm(mbImpl);
+    myPcomm = ParallelComm::get_pcomm(mbImpl, 0);
+    if (NULL == myPcomm) myPcomm = new ParallelComm(mbImpl);
   }
 }
 
-MBErrorCode ReadParallel::load_file(const char **file_names,
+ErrorCode ReadParallel::load_file(const char **file_names,
                                     const int num_files,
-                                    const MBEntityHandle* file_set,
+                                    const EntityHandle* file_set,
                                     const FileOptions &opts,
-                                    const MBReaderIface::IDTag* subset_list,
+                                    const ReaderIface::IDTag* subset_list,
                                     int subset_list_length,
-                                    const MBTag* file_id_tag ) 
+                                    const Tag* file_id_tag ) 
 {
-  MBError *merror = ((MBCore*)mbImpl)->get_error_handler();
+  Error *merror = ((Core*)mbImpl)->get_error_handler();
 
     // Get parallel settings
   int parallel_mode;
-  MBErrorCode result = opts.match_option( "PARALLEL", parallelOptsNames, 
+  ErrorCode result = opts.match_option( "PARALLEL", parallelOptsNames, 
                                           parallel_mode );
   if (MB_FAILURE == result) {
     merror->set_last_error( "Unexpected value for 'PARALLEL' option\n" );
@@ -220,9 +222,9 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
                    ghost_dim, bridge_dim, num_layers);
 }
     
-MBErrorCode ReadParallel::load_file(const char **file_names,
+ErrorCode ReadParallel::load_file(const char **file_names,
                                     const int num_files,
-                                    const MBEntityHandle* file_set_ptr,
+                                    const EntityHandle* file_set_ptr,
                                     int parallel_mode, 
                                     std::string &partition_tag_name, 
                                     std::vector<int> &partition_tag_vals, 
@@ -230,9 +232,9 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
                                     bool partition_by_rank,
                                     std::vector<int> &pa_vec,
                                     const FileOptions &opts,
-                                    const MBReaderIface::IDTag* subset_list,
+                                    const ReaderIface::IDTag* subset_list,
                                     int subset_list_length,
-                                    const MBTag* file_id_tag,
+                                    const Tag* file_id_tag,
                                     const int reader_rank,
                                     const bool cputime,
                                     const int resolve_dim,
@@ -241,18 +243,18 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
                                     const int bridge_dim,
                                     const int num_layers) 
 {
-  MBErrorCode result = MB_SUCCESS;
+  ErrorCode result = MB_SUCCESS;
   if (myPcomm == NULL)
-    myPcomm = new MBParallelComm(mbImpl);
+    myPcomm = new ParallelComm(mbImpl);
 
-  MBError *merror = ((MBCore*)mbImpl)->get_error_handler();
+  Error *merror = ((Core*)mbImpl)->get_error_handler();
 
-  MBRange entities; 
-  MBTag file_set_tag = 0;
+  Range entities; 
+  Tag file_set_tag = 0;
   int other_sets = 0;
-  MBReaderWriterSet::iterator iter;
-  MBRange other_file_sets, file_sets;
-  MBCore *impl = dynamic_cast<MBCore*>(mbImpl);
+  ReaderWriterSet::iterator iter;
+  Range other_file_sets, file_sets;
+  Core *impl = dynamic_cast<Core*>(mbImpl);
 
   std::vector<double> act_times(pa_vec.size()+1);
   double stime = 0.0;
@@ -262,18 +264,18 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
   act_times[0] = MPI_Wtime();
   
     // make a new set for the parallel read
-  MBEntityHandle file_set;
+  EntityHandle file_set;
   result = mbImpl->create_meshset(MESHSET_SET, file_set);
   if (MB_SUCCESS != result) return result;
 
   bool i_read = false;
-  MBTag id_tag = 0;
+  Tag id_tag = 0;
   bool use_id_tag = false;
 
   for (i = 1, vit = pa_vec.begin();
        vit != pa_vec.end(); vit++, i++) {
 
-    MBErrorCode tmp_result = MB_SUCCESS;
+    ErrorCode tmp_result = MB_SUCCESS;
     switch (*vit) {
 //==================
       case PA_READ:
@@ -283,7 +285,7 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
             if (debug)
               std::cout << "Reading file " << file_names[j] << std::endl;
 
-            MBEntityHandle new_file_set;
+            EntityHandle new_file_set;
             result = mbImpl->create_meshset(MESHSET_SET, new_file_set);
             if (MB_SUCCESS != result) return result;
             tmp_result = impl->serial_load_file( file_names[j], 
@@ -297,7 +299,7 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
               // put the contents of each file set for the reader into the 
               // file set for the parallel read
             assert(0 != new_file_set);
-            MBRange all_ents;
+            Range all_ents;
             tmp_result = mbImpl->get_entities_by_handle(new_file_set, all_ents);
             if (MB_SUCCESS != tmp_result) break;
             all_ents.insert(new_file_set);
@@ -341,7 +343,7 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
             }
           }
           
-          MBReaderIface::IDTag parts = { partition_tag_name.c_str(),
+          ReaderIface::IDTag parts = { partition_tag_name.c_str(),
                                          0, 0, 0, 0 };
           int rank = myPcomm->rank();
           if (partition_by_rank) {
@@ -357,7 +359,7 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
               parts.num_tag_values = partition_tag_vals.size();
             }
           }
-          std::vector<MBReaderIface::IDTag> subset( subset_list, 
+          std::vector<ReaderIface::IDTag> subset( subset_list, 
                                                     subset_list + subset_list_length );
           subset.push_back( parts );
           tmp_result = impl->serial_load_file( *file_names, &file_set, opts, 
@@ -477,7 +479,7 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
   }
 
   if (use_id_tag) {
-    MBErrorCode tmp_result = mbImpl->tag_delete( id_tag );
+    ErrorCode tmp_result = mbImpl->tag_delete( id_tag );
     if (MB_SUCCESS != tmp_result && MB_SUCCESS == result)
       result = tmp_result;
   }
@@ -495,7 +497,7 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
   }
   
   if (MB_SUCCESS == result && file_set_ptr) {
-    MBRange all_ents;
+    Range all_ents;
     result = mbImpl->get_entities_by_handle(file_set, all_ents);
     if (MB_SUCCESS == result)
       result = mbImpl->add_entities(*file_set_ptr, all_ents);
@@ -504,15 +506,15 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
   return result;
 }
 
-MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
+ErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
                                                    std::vector<int> &ptag_vals,
                                                    bool distribute,
-                                                   MBEntityHandle file_set) 
+                                                   EntityHandle file_set) 
 {
-  MBRange partition_sets;
-  MBErrorCode result;
+  Range partition_sets;
+  ErrorCode result;
 
-  MBTag ptag;
+  Tag ptag;
   result = mbImpl->tag_get_handle(ptag_name.c_str(), ptag); 
   RR("Failed getting tag handle in delete_nonlocal_entities.");
 
@@ -526,7 +528,7 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
 
   if (!ptag_vals.empty()) {
       // values input, get sets with those values
-    MBRange tmp_sets;
+    Range tmp_sets;
     std::vector<int> tag_vals(myPcomm->partition_sets().size());
     result = mbImpl->tag_get_data(ptag, myPcomm->partition_sets(), &tag_vals[0]);
     RR("Failed to get tag data for partition vals tag.");
@@ -549,7 +551,7 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
       RR("Number of procs greater than number of partitions.");
     }
     
-    MBRange tmp_sets;
+    Range tmp_sets;
       // distribute the partition sets
     unsigned int num_sets = myPcomm->partition_sets().size() / proc_sz;
     unsigned int num_leftover = myPcomm->partition_sets().size() % proc_sz;
@@ -578,17 +580,17 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
   return result;
 }
 
-MBErrorCode ReadParallel::create_partition_sets( std::string &ptag_name,
-                                                 MBEntityHandle file_set )
+ErrorCode ReadParallel::create_partition_sets( std::string &ptag_name,
+                                                 EntityHandle file_set )
 {
   if (ptag_name == PARALLEL_PARTITION_TAG_NAME)
     return MB_SUCCESS;
   
   int proc_rk = myPcomm->proc_config().proc_rank();
-  MBRange partition_sets;
-  MBErrorCode result;
+  Range partition_sets;
+  ErrorCode result;
 
-  MBTag ptag;
+  Tag ptag;
   result = mbImpl->tag_get_handle(ptag_name.c_str(), ptag); 
   RR("Failed getting tag handle in create_partition_sets.");
 
@@ -606,7 +608,7 @@ MBErrorCode ReadParallel::create_partition_sets( std::string &ptag_name,
     if (MB_ALREADY_ALLOCATED == result) {
         // this tag already exists; better check to see that tagged sets
         // agree with this partition
-      MBRange tagged_sets;
+      Range tagged_sets;
       int *proc_rk_ptr = &proc_rk;
       result = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET, &ptag, 
                                                     (const void* const*)&proc_rk_ptr, 1,
@@ -627,17 +629,17 @@ MBErrorCode ReadParallel::create_partition_sets( std::string &ptag_name,
   return result;
 }
 
-MBErrorCode ReadParallel::delete_nonlocal_entities(MBEntityHandle file_set) 
+ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set) 
 {
 
-  MBErrorCode result;
+  ErrorCode result;
 
     // get partition entities and ents related to/used by those
     // get ents in the partition
-  std::string iface_name = "MBReadUtilIface";
-  MBReadUtilIface *read_iface;
+  std::string iface_name = "ReadUtilIface";
+  ReadUtilIface *read_iface;
   mbImpl->query_interface(iface_name, reinterpret_cast<void**>(&read_iface));
-  MBRange partition_ents, all_sets;
+  Range partition_ents, all_sets;
 
   if (debug) std::cout << "Gathering related entities." << std::endl;
   
@@ -646,7 +648,7 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(MBEntityHandle file_set)
   RR("Failure gathering related entities.");
 
     // get pre-existing entities
-  MBRange file_ents;
+  Range file_ents;
   result = mbImpl->get_entities_by_handle(file_set, file_ents); 
   RR("Couldn't get pre-existing entities.");
 
@@ -656,16 +658,16 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(MBEntityHandle file_set)
   }
   
     // get deletable entities by subtracting partition ents from file ents
-  MBRange deletable_ents = subtract( file_ents, partition_ents);
+  Range deletable_ents = subtract( file_ents, partition_ents);
 
     // cache deletable vs. keepable sets
-  MBRange deletable_sets = intersect( all_sets, deletable_ents);
-  MBRange keepable_sets = subtract( all_sets, deletable_sets);
+  Range deletable_sets = intersect( all_sets, deletable_ents);
+  Range keepable_sets = subtract( all_sets, deletable_sets);
   
   if (debug) std::cout << "Removing deletable entities from keepable sets." << std::endl;
 
     // remove deletable ents from all keepable sets
-  for (MBRange::iterator rit = keepable_sets.begin();
+  for (Range::iterator rit = keepable_sets.begin();
        rit != keepable_sets.end(); rit++) {
     result = mbImpl->remove_entities(*rit, deletable_ents);
     RR("Failure removing deletable entities.");
@@ -698,3 +700,5 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(MBEntityHandle file_set)
 
   return result;
 }
+
+} // namespace moab

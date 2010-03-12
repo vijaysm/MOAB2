@@ -1,13 +1,15 @@
-#include "MBCartVect.hpp"
-#include "BSPTreePoly.hpp"
+#include "moab/CartVect.hpp"
+#include "moab/BSPTreePoly.hpp"
 #include <assert.h>
 #include <stdlib.h>
 #include <set>
 
 #undef DEBUG_IDS
 
-struct BSPTreePoly::Vertex : public MBCartVect {
-  Vertex( const MBCartVect& v ) : MBCartVect(v), usePtr(0) 
+namespace moab {
+
+struct BSPTreePoly::Vertex : public CartVect {
+  Vertex( const CartVect& v ) : CartVect(v), usePtr(0) 
 #ifdef DEBUG_IDS
   , id(nextID++)
 #endif  
@@ -339,7 +341,7 @@ void BSPTreePoly::clear() {
   }
 }
 
-MBErrorCode BSPTreePoly::set( const MBCartVect hex_corners[8] )
+ErrorCode BSPTreePoly::set( const CartVect hex_corners[8] )
 {
   clear();
   
@@ -410,7 +412,7 @@ void BSPTreePoly::get_faces( std::vector<const Face*>& face_list ) const
 }
 
 void BSPTreePoly::get_vertices( const Face* face,
-                                 std::vector<MBCartVect>& vertices ) const
+                                 std::vector<CartVect>& vertices ) const
 {
   vertices.clear();
   if (!face || !face->usePtr)
@@ -425,11 +427,11 @@ void BSPTreePoly::get_vertices( const Face* face,
 
 double BSPTreePoly::Face::signed_volume() const
 {
-  MBCartVect sum(0.0);
-  const MBCartVect* base = usePtr->start();
-  MBCartVect d1 = (*usePtr->end() - *base);
+  CartVect sum(0.0);
+  const CartVect* base = usePtr->start();
+  CartVect d1 = (*usePtr->end() - *base);
   for (EdgeUse* coedge = usePtr->nextPtr; coedge != usePtr; coedge = coedge->nextPtr) {
-    MBCartVect d2 = (*coedge->end() - *base);
+    CartVect d2 = (*coedge->end() - *base);
     sum += d1 * d2;
     d1 = d2;
   }
@@ -534,7 +536,7 @@ static BSPTreePoly::Face* split_face( BSPTreePoly::EdgeUse* start,
 }
 
 
-bool BSPTreePoly::cut_polyhedron( const MBCartVect& plane_normal,
+bool BSPTreePoly::cut_polyhedron( const CartVect& plane_normal,
                                    double plane_coeff )
 {
   const double EPSILON = 1e-6; // points this close are considered coincident
@@ -586,7 +588,7 @@ bool BSPTreePoly::cut_polyhedron( const MBCartVect& plane_normal,
 
       if ((end->markVal == ABOVE && start->markVal == BELOW) ||
           (end->markVal == BELOW && start->markVal == ABOVE)) {
-        MBCartVect dir = *end - *start;
+        CartVect dir = *end - *start;
         double t = -(plane_normal % *start + plane_coeff) / (dir % plane_normal);
         Vertex* new_vtx = new Vertex( *start + t*dir );
         new_vtx->markVal = ON;
@@ -797,7 +799,7 @@ bool BSPTreePoly::is_valid() const
   return true;
 }
 
-bool BSPTreePoly::is_point_contained( const MBCartVect& point ) const
+bool BSPTreePoly::is_point_contained( const CartVect& point ) const
 {
   if (!faceList) // empty (zero-dimension) polyhedron
     return false;
@@ -813,7 +815,7 @@ bool BSPTreePoly::is_point_contained( const MBCartVect& point ) const
     if (pt3 == pt1) // degenerate
       continue;
 
-    MBCartVect norm = (*pt3 - *pt2) * (*pt1 - *pt2);
+    CartVect norm = (*pt3 - *pt2) * (*pt1 - *pt2);
     double coeff = -(norm % *pt2);
     if (norm % point > -coeff) // if above plane
       return false;
@@ -821,3 +823,5 @@ bool BSPTreePoly::is_point_contained( const MBCartVect& point ) const
   
   return true;
 }
+  
+} // namespace moab

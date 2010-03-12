@@ -1,7 +1,8 @@
-#include "MBCore.hpp"
-#include "MBGeomUtil.hpp"
+#include "moab/Core.hpp"
+#include "moab/GeomUtil.hpp"
 
-using namespace MBGeomUtil;
+using namespace moab;
+using namespace moab::GeomUtil;
 
 #include <iostream>
 
@@ -12,7 +13,7 @@ const double TOL = 1e-6;
 #define ASSERT(B) CHECK(B)
 
 
-void assert_vectors_equal( const MBCartVect& a, const MBCartVect& b, 
+void assert_vectors_equal( const CartVect& a, const CartVect& b, 
                            const char* sa, const char* sb,
                            int lineno )
 {
@@ -27,20 +28,20 @@ void assert_vectors_equal( const MBCartVect& a, const MBCartVect& b,
   }
 }
 
-void test_box_plane_norm( MBCartVect norm, 
-                          MBCartVect min,
-                          MBCartVect max )
+void test_box_plane_norm( CartVect norm, 
+                          CartVect min,
+                          CartVect max )
 {
-  MBCartVect c_lower = min;
-  MBCartVect c_upper = max;
+  CartVect c_lower = min;
+  CartVect c_upper = max;
   for (int i = 0; i < 3; ++i)
     if (norm[i] < 0.0)
       std::swap(c_lower[i],c_upper[i]);
   
-  MBCartVect p_below = c_lower - norm;
-  MBCartVect p_lower = c_lower + norm;
-  MBCartVect p_upper = c_upper - norm;
-  MBCartVect p_above = c_upper + norm;
+  CartVect p_below = c_lower - norm;
+  CartVect p_lower = c_lower + norm;
+  CartVect p_upper = c_upper - norm;
+  CartVect p_above = c_upper + norm;
   
   double below = -(p_below % norm);
   double lower = -(p_lower % norm);
@@ -54,18 +55,18 @@ void test_box_plane_norm( MBCartVect norm,
 }
 
 void test_box_plane_axis( int axis, double ns, 
-                          const MBCartVect& min, 
-                          const MBCartVect& max )
+                          const CartVect& min, 
+                          const CartVect& max )
 {
-  MBCartVect norm(0.0);
+  CartVect norm(0.0);
   norm[axis] = ns;
   test_box_plane_norm( norm, min, max );
 }
 
 void test_box_plane_edge( int axis1, int axis2, bool flip_axis2,
-                          MBCartVect min, MBCartVect max )
+                          CartVect min, CartVect max )
 {
-  MBCartVect norm(0.0);
+  CartVect norm(0.0);
   norm[axis1] = max[axis1] - min[axis1];
   if (flip_axis2)
     norm[axis2] = min[axis2] - max[axis2];
@@ -77,9 +78,9 @@ void test_box_plane_edge( int axis1, int axis2, bool flip_axis2,
 }
 
 void test_box_plane_corner( int xdir, int ydir, int zdir, 
-                            MBCartVect min, MBCartVect max )
+                            CartVect min, CartVect max )
 {
-  MBCartVect norm(max - min);
+  CartVect norm(max - min);
   norm[0] *= xdir;
   norm[1] *= ydir;
   norm[2] *= zdir;
@@ -88,8 +89,8 @@ void test_box_plane_corner( int xdir, int ydir, int zdir,
 
 void test_box_plane_overlap()
 {
-  const MBCartVect min( -1, -2, -3 );
-  const MBCartVect max(  6,  4,  2 );
+  const CartVect min( -1, -2, -3 );
+  const CartVect max(  6,  4,  2 );
   
     // test with planes orthogonal to Z axis
   test_box_plane_axis( 2, 2.0, min, max );
@@ -117,41 +118,41 @@ void test_box_plane_overlap()
 class ElemOverlapTest {
   public:
   
-    virtual bool operator()( const MBCartVect* coords, 
-                             const MBCartVect& box_center, 
-                             const MBCartVect& box_dims ) const = 0;
+    virtual bool operator()( const CartVect* coords, 
+                             const CartVect& box_center, 
+                             const CartVect& box_dims ) const = 0;
 };
 class LinearElemOverlapTest : public ElemOverlapTest {
   public:
-    const MBEntityType type;
-    LinearElemOverlapTest(MBEntityType t) : type(t) {}
-    bool operator()( const MBCartVect* coords, 
-                     const MBCartVect& box_center, 
-                     const MBCartVect& box_dims ) const
+    const EntityType type;
+    LinearElemOverlapTest(EntityType t) : type(t) {}
+    bool operator()( const CartVect* coords, 
+                     const CartVect& box_center, 
+                     const CartVect& box_dims ) const
       { return box_linear_elem_overlap( coords, type, box_center, box_dims ); }
 };
 class TypeElemOverlapTest : public ElemOverlapTest {
   public:
-    bool (*func)( const MBCartVect*, const MBCartVect&, const MBCartVect& );
-    TypeElemOverlapTest( bool (*f)( const MBCartVect*, const MBCartVect&, const MBCartVect& ) )
+    bool (*func)( const CartVect*, const CartVect&, const CartVect& );
+    TypeElemOverlapTest( bool (*f)( const CartVect*, const CartVect&, const CartVect& ) )
       : func(f){}
-    bool operator()( const MBCartVect* coords, 
-                     const MBCartVect& box_center, 
-                     const MBCartVect& box_dims ) const
+    bool operator()( const CartVect* coords, 
+                     const CartVect& box_center, 
+                     const CartVect& box_dims ) const
       { return (*func)( coords, box_center, box_dims ); }
 };    
 
 void general_box_tri_overlap_test( const ElemOverlapTest& overlap )
 {
-  MBCartVect coords[3];
-  MBCartVect center, dims;
+  CartVect coords[3];
+  CartVect center, dims;
   
     // test box projection within triangle, z-plane
-  coords[0] = MBCartVect( 0, 0, 0 );
-  coords[1] = MBCartVect( 0, 4, 0 );
-  coords[2] = MBCartVect(-4, 0, 0 );
-  center = MBCartVect( -2, 1, 0 );
-  dims = MBCartVect( 1, 0.5, 3 );
+  coords[0] = CartVect( 0, 0, 0 );
+  coords[1] = CartVect( 0, 4, 0 );
+  coords[2] = CartVect(-4, 0, 0 );
+  center = CartVect( -2, 1, 0 );
+  dims = CartVect( 1, 0.5, 3 );
   ASSERT(  overlap( coords, center, dims ) );
     // move box below plane of triangle
   center[2] = -4;
@@ -161,11 +162,11 @@ void general_box_tri_overlap_test( const ElemOverlapTest& overlap )
   ASSERT( !overlap( coords, center, dims ) );
   
     // test box projection within triangle, x-plane
-  coords[0] = MBCartVect( 3, 3, 0 );
-  coords[1] = MBCartVect( 3, 3, 1 );
-  coords[2] = MBCartVect( 3, 0, 0 );
-  center = MBCartVect( 3, 2.5, .25 );
-  dims = MBCartVect( 0.001, 0.4, .2 );
+  coords[0] = CartVect( 3, 3, 0 );
+  coords[1] = CartVect( 3, 3, 1 );
+  coords[2] = CartVect( 3, 0, 0 );
+  center = CartVect( 3, 2.5, .25 );
+  dims = CartVect( 0.001, 0.4, .2 );
   ASSERT(  overlap( coords, center, dims ) );
     // move box below plane of triangle
   center[0] = 2;
@@ -175,568 +176,568 @@ void general_box_tri_overlap_test( const ElemOverlapTest& overlap )
   ASSERT( !overlap( coords, center, dims ) );
   
     // test tri slices corner at +x,+y,+z
-  coords[0] = MBCartVect(3,1,1);
-  coords[1] = MBCartVect(1,3,1);
-  coords[2] = MBCartVect(1,1,3);
-  ASSERT(  overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect(3,1,1);
+  coords[1] = CartVect(1,3,1);
+  coords[2] = CartVect(1,1,3);
+  ASSERT(  overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri above the corner
-  ASSERT( !overlap( coords, MBCartVect(0,0,0), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(0,0,0), CartVect(1,1,1) ) );
     // test tri slices corner at -x,-y,-z
-  coords[0] = MBCartVect(-1,1,1);
-  coords[1] = MBCartVect(1,-1,1);
-  coords[2] = MBCartVect(1,1,-1);
-  ASSERT(  overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect(-1,1,1);
+  coords[1] = CartVect(1,-1,1);
+  coords[2] = CartVect(1,1,-1);
+  ASSERT(  overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri below the corner
-  ASSERT( !overlap( coords, MBCartVect(2,2,2),MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(2,2,2),CartVect(1,1,1) ) );
   
     // test tri slices corner at -x,+y,+z
-  coords[0] = MBCartVect( 0.5, 0.0, 2.5);
-  coords[1] = MBCartVect( 0.5, 2.5, 0.0);
-  coords[2] = MBCartVect(-0.5, 0.0, 0.0);
-  ASSERT(  overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect( 0.5, 0.0, 2.5);
+  coords[1] = CartVect( 0.5, 2.5, 0.0);
+  coords[2] = CartVect(-0.5, 0.0, 0.0);
+  ASSERT(  overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri above the corner
-  ASSERT( !overlap( coords, MBCartVect(2,1,1), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(2,1,1), CartVect(1,1,1) ) );
   
     // test tri slices corner at +x,-y,-z
-  coords[0] = MBCartVect( 0.5, 0.0,-1.5);
-  coords[1] = MBCartVect( 0.5,-1.5, 0.0);
-  coords[2] = MBCartVect( 1.5, 0.0, 0.0);
-  ASSERT(  overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect( 0.5, 0.0,-1.5);
+  coords[1] = CartVect( 0.5,-1.5, 0.0);
+  coords[2] = CartVect( 1.5, 0.0, 0.0);
+  ASSERT(  overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri above the corner
-  ASSERT( !overlap( coords, MBCartVect(0,1,1), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(0,1,1), CartVect(1,1,1) ) );
 
     // test tri slices corner at +x,-y,+z
-  coords[0] = MBCartVect( 1.0, 1.0, 2.5 );
-  coords[1] = MBCartVect( 2.5, 1.0, 1.0 );
-  coords[2] = MBCartVect( 1.0,-0.5, 1.0 );
-  ASSERT(  overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect( 1.0, 1.0, 2.5 );
+  coords[1] = CartVect( 2.5, 1.0, 1.0 );
+  coords[2] = CartVect( 1.0,-0.5, 1.0 );
+  ASSERT(  overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri above the corner
-  ASSERT( !overlap( coords, MBCartVect(-1,1,1), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(-1,1,1), CartVect(1,1,1) ) );
 
     // test tri slices corner at -x,+y,-z  
-  coords[0] = MBCartVect( 1.0,  1.0,-0.5 );
-  coords[1] = MBCartVect(-0.5,  1.0, 1.0 );
-  coords[2] = MBCartVect( 1.0,  2.5, 1.0 );
-  ASSERT(  overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect( 1.0,  1.0,-0.5 );
+  coords[1] = CartVect(-0.5,  1.0, 1.0 );
+  coords[2] = CartVect( 1.0,  2.5, 1.0 );
+  ASSERT(  overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri above the corner
-  ASSERT( !overlap( coords, MBCartVect(3,1,1), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(3,1,1), CartVect(1,1,1) ) );
 
     // test tri slices corner at +x,+y,-z
-  coords[0] = MBCartVect(-0.1, 1.0, 1.0);
-  coords[1] = MBCartVect( 1.0,-0.1, 1.0);
-  coords[2] = MBCartVect( 1.0, 1.0,-0.1);
-  ASSERT(  overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect(-0.1, 1.0, 1.0);
+  coords[1] = CartVect( 1.0,-0.1, 1.0);
+  coords[2] = CartVect( 1.0, 1.0,-0.1);
+  ASSERT(  overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(1,1,3), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(1,1,3), CartVect(1,1,1) ) );
   
     // test tri slices corner at -x,-y,+z
-  coords[0] = MBCartVect( 2.1, 1.0, 1.0);
-  coords[1] = MBCartVect( 1.0, 2.1, 1.0);
-  coords[2] = MBCartVect( 1.0, 1.0, 2.1);
-  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect( 2.1, 1.0, 1.0);
+  coords[1] = CartVect( 1.0, 2.1, 1.0);
+  coords[2] = CartVect( 1.0, 1.0, 2.1);
+  ASSERT(  box_tri_overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(1,1,-1), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(1,1,-1), CartVect(1,1,1) ) );
   
     // box edge parallel to x at +y,+z passes through triangle
-  coords[0] = MBCartVect( 1.0, 1.0, 3.0);
-  coords[1] = MBCartVect( 1.0, 3.0, 3.0);
-  coords[2] = MBCartVect( 1.0, 3.0, 1.0);
-  ASSERT(  overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect( 1.0, 1.0, 3.0);
+  coords[1] = CartVect( 1.0, 3.0, 3.0);
+  coords[2] = CartVect( 1.0, 3.0, 1.0);
+  ASSERT(  overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(1,1,0.3), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(1,1,0.3), CartVect(1,1,1) ) );
   
     // box edge parallel to x at +y,-z passes through triangle
-  coords[0] = MBCartVect( 1.0, 3.0, 1.0);
-  coords[1] = MBCartVect( 1.0, 3.0,-1.0);
-  coords[2] = MBCartVect( 1.0, 1.0,-1.0);
-  ASSERT(  overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect( 1.0, 3.0, 1.0);
+  coords[1] = CartVect( 1.0, 3.0,-1.0);
+  coords[2] = CartVect( 1.0, 1.0,-1.0);
+  ASSERT(  overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(1,1,1.7), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(1,1,1.7), CartVect(1,1,1) ) );
   
     // box edge parallel to x at -y,-z passes through triangle
-  coords[0] = MBCartVect( 1.0,-1.0, 1.0);
-  coords[1] = MBCartVect( 1.0,-1.0,-1.0);
-  coords[2] = MBCartVect( 1.0, 1.0,-1.0);
-  ASSERT(  overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect( 1.0,-1.0, 1.0);
+  coords[1] = CartVect( 1.0,-1.0,-1.0);
+  coords[2] = CartVect( 1.0, 1.0,-1.0);
+  ASSERT(  overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(1,1,1.7), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(1,1,1.7), CartVect(1,1,1) ) );
   
     // box edge parallel to x at -y,+z passes through triangle
-  coords[0] = MBCartVect( 1.0,-1.0, 1.0);
-  coords[1] = MBCartVect( 1.0,-1.0, 3.0);
-  coords[2] = MBCartVect( 1.0, 1.0, 3.0);
-  ASSERT(  overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect( 1.0,-1.0, 1.0);
+  coords[1] = CartVect( 1.0,-1.0, 3.0);
+  coords[2] = CartVect( 1.0, 1.0, 3.0);
+  ASSERT(  overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(1,1,0.3), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(1,1,0.3), CartVect(1,1,1) ) );
   
     // box edge parallel to y at +x,+z passes through triangle
-  coords[0] = MBCartVect( 1.0, 1.0, 3.0);
-  coords[1] = MBCartVect( 3.0, 1.0, 3.0);
-  coords[2] = MBCartVect( 3.0, 1.0, 1.0);
-  ASSERT(  overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect( 1.0, 1.0, 3.0);
+  coords[1] = CartVect( 3.0, 1.0, 3.0);
+  coords[2] = CartVect( 3.0, 1.0, 1.0);
+  ASSERT(  overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(1,1,0.3), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(1,1,0.3), CartVect(1,1,1) ) );
   
     // box edge parallel to y at -x,+z passes through triangle
-  coords[0] = MBCartVect( 1.0, 1.0, 3.0);
-  coords[1] = MBCartVect(-1.0, 1.0, 3.0);
-  coords[2] = MBCartVect(-1.0, 1.0, 1.0);
-  ASSERT(  overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect( 1.0, 1.0, 3.0);
+  coords[1] = CartVect(-1.0, 1.0, 3.0);
+  coords[2] = CartVect(-1.0, 1.0, 1.0);
+  ASSERT(  overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(1,1,0.3), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(1,1,0.3), CartVect(1,1,1) ) );
   
     // box edge parallel to y at +x,-z passes through triangle
-  coords[0] = MBCartVect( 1.0, 1.0,-1.0);
-  coords[1] = MBCartVect( 3.0, 1.0,-1.0);
-  coords[2] = MBCartVect( 3.0, 1.0, 1.0);
-  ASSERT(  overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect( 1.0, 1.0,-1.0);
+  coords[1] = CartVect( 3.0, 1.0,-1.0);
+  coords[2] = CartVect( 3.0, 1.0, 1.0);
+  ASSERT(  overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(1,1,1.7), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(1,1,1.7), CartVect(1,1,1) ) );
   
     // box edge parallel to y at -x,-z passes through triangle
-  coords[0] = MBCartVect( 1.0, 1.0,-1.0);
-  coords[1] = MBCartVect(-1.0, 1.0,-1.0);
-  coords[2] = MBCartVect(-1.0, 1.0, 1.0);
-  ASSERT(  overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect( 1.0, 1.0,-1.0);
+  coords[1] = CartVect(-1.0, 1.0,-1.0);
+  coords[2] = CartVect(-1.0, 1.0, 1.0);
+  ASSERT(  overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(1,1,1.7), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(1,1,1.7), CartVect(1,1,1) ) );
   
     // box edge parallel to z at +x,+y passes through triangle
-  coords[0] = MBCartVect( 1.0, 3.0, 1.0);
-  coords[1] = MBCartVect( 3.0, 3.0, 1.0);
-  coords[2] = MBCartVect( 3.0, 1.0, 1.0);
-  ASSERT(  overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect( 1.0, 3.0, 1.0);
+  coords[1] = CartVect( 3.0, 3.0, 1.0);
+  coords[2] = CartVect( 3.0, 1.0, 1.0);
+  ASSERT(  overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(0.3,1,1), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(0.3,1,1), CartVect(1,1,1) ) );
   
     // box edge parallel to z at +x,-y passes through triangle
-  coords[0] = MBCartVect( 1.0,-1.0, 1.0);
-  coords[1] = MBCartVect( 3.0,-1.0, 1.0);
-  coords[2] = MBCartVect( 3.0, 1.0, 1.0);
-  ASSERT(  overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect( 1.0,-1.0, 1.0);
+  coords[1] = CartVect( 3.0,-1.0, 1.0);
+  coords[2] = CartVect( 3.0, 1.0, 1.0);
+  ASSERT(  overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(0.3,1,1), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(0.3,1,1), CartVect(1,1,1) ) );
   
     // box edge parallel to z at -x,+y passes through triangle
-  coords[0] = MBCartVect( 1.0, 3.0, 1.0);
-  coords[1] = MBCartVect(-1.0, 3.0, 1.0);
-  coords[2] = MBCartVect(-1.0, 1.0, 1.0);
-  ASSERT(  overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect( 1.0, 3.0, 1.0);
+  coords[1] = CartVect(-1.0, 3.0, 1.0);
+  coords[2] = CartVect(-1.0, 1.0, 1.0);
+  ASSERT(  overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(1.7,1,1), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(1.7,1,1), CartVect(1,1,1) ) );
   
     // box edge parallel to z at -x,-y passes through triangle
-  coords[0] = MBCartVect( 1.0,-1.0, 1.0);
-  coords[1] = MBCartVect(-1.0,-1.0, 1.0);
-  coords[2] = MBCartVect(-1.0, 1.0, 1.0);
-  ASSERT(  overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+  coords[0] = CartVect( 1.0,-1.0, 1.0);
+  coords[1] = CartVect(-1.0,-1.0, 1.0);
+  coords[2] = CartVect(-1.0, 1.0, 1.0);
+  ASSERT(  overlap( coords, CartVect(1,1,1), CartVect(1,1,1) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(1.7,1,1), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(1.7,1,1), CartVect(1,1,1) ) );
   
     // triangle penetrates +x face
-  coords[0] = MBCartVect( 2.0, 2.0, 2.0 );
-  coords[1] = MBCartVect( 5.0, 3.0, 2.0 );
-  coords[2] = MBCartVect( 5.0, 1.0, 2.0 );
-  ASSERT(  overlap( coords, MBCartVect(2,2,2), MBCartVect(2,2,2) ) );
+  coords[0] = CartVect( 2.0, 2.0, 2.0 );
+  coords[1] = CartVect( 5.0, 3.0, 2.0 );
+  coords[2] = CartVect( 5.0, 1.0, 2.0 );
+  ASSERT(  overlap( coords, CartVect(2,2,2), CartVect(2,2,2) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(-1,2,2), MBCartVect(2,2,2) ) );
+  ASSERT( !overlap( coords, CartVect(-1,2,2), CartVect(2,2,2) ) );
   
     // triangle penetrates -x face
-  coords[0] = MBCartVect( 2.0, 2.0, 2.0 );
-  coords[1] = MBCartVect(-1.0, 3.0, 2.0 );
-  coords[2] = MBCartVect(-1.0, 1.0, 2.0 );
-  ASSERT(  overlap( coords, MBCartVect(2,2,2), MBCartVect(2,2,2) ) );
+  coords[0] = CartVect( 2.0, 2.0, 2.0 );
+  coords[1] = CartVect(-1.0, 3.0, 2.0 );
+  coords[2] = CartVect(-1.0, 1.0, 2.0 );
+  ASSERT(  overlap( coords, CartVect(2,2,2), CartVect(2,2,2) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(5,2,2), MBCartVect(2,2,2) ) );
+  ASSERT( !overlap( coords, CartVect(5,2,2), CartVect(2,2,2) ) );
   
     // triangle penetrates +y face
-  coords[0] = MBCartVect( 2.0, 2.0, 2.0 );
-  coords[1] = MBCartVect( 3.0, 5.0, 2.0 );
-  coords[2] = MBCartVect( 1.0, 5.0, 2.0 );
-  ASSERT(  overlap( coords, MBCartVect(2,2,2), MBCartVect(2,2,2) ) );
+  coords[0] = CartVect( 2.0, 2.0, 2.0 );
+  coords[1] = CartVect( 3.0, 5.0, 2.0 );
+  coords[2] = CartVect( 1.0, 5.0, 2.0 );
+  ASSERT(  overlap( coords, CartVect(2,2,2), CartVect(2,2,2) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(2,-1,2), MBCartVect(2,2,2) ) );
+  ASSERT( !overlap( coords, CartVect(2,-1,2), CartVect(2,2,2) ) );
   
     // triangle penetrates -y face
-  coords[0] = MBCartVect( 2.0, 2.0, 2.0 );
-  coords[1] = MBCartVect( 3.0,-1.0, 2.0 );
-  coords[2] = MBCartVect( 1.0,-1.0, 2.0 );
-  ASSERT(  overlap( coords, MBCartVect(2,2,2), MBCartVect(2,2,2) ) );
+  coords[0] = CartVect( 2.0, 2.0, 2.0 );
+  coords[1] = CartVect( 3.0,-1.0, 2.0 );
+  coords[2] = CartVect( 1.0,-1.0, 2.0 );
+  ASSERT(  overlap( coords, CartVect(2,2,2), CartVect(2,2,2) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(2,5,2), MBCartVect(2,2,2) ) );
+  ASSERT( !overlap( coords, CartVect(2,5,2), CartVect(2,2,2) ) );
   
     // triangle penetrates +z face
-  coords[0] = MBCartVect( 2.0, 2.0, 2.0 );
-  coords[1] = MBCartVect( 2.0, 3.0, 5.0 );
-  coords[2] = MBCartVect( 2.0, 1.0, 5.0 );
-  ASSERT(  overlap( coords, MBCartVect(2,2,2), MBCartVect(2,2,2) ) );
+  coords[0] = CartVect( 2.0, 2.0, 2.0 );
+  coords[1] = CartVect( 2.0, 3.0, 5.0 );
+  coords[2] = CartVect( 2.0, 1.0, 5.0 );
+  ASSERT(  overlap( coords, CartVect(2,2,2), CartVect(2,2,2) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(2,2,-1), MBCartVect(2,2,2) ) );
+  ASSERT( !overlap( coords, CartVect(2,2,-1), CartVect(2,2,2) ) );
   
     // triangle penetrates -z face
-  coords[0] = MBCartVect( 2.0, 2.0, 2.0 );
-  coords[1] = MBCartVect( 2.0, 3.0,-1.0 );
-  coords[2] = MBCartVect( 2.0, 1.0,-1.0 );
-  ASSERT(  overlap( coords, MBCartVect(2,2,2), MBCartVect(2,2,2) ) );
+  coords[0] = CartVect( 2.0, 2.0, 2.0 );
+  coords[1] = CartVect( 2.0, 3.0,-1.0 );
+  coords[2] = CartVect( 2.0, 1.0,-1.0 );
+  ASSERT(  overlap( coords, CartVect(2,2,2), CartVect(2,2,2) ) );
     // test with tri outside box
-  ASSERT( !overlap( coords, MBCartVect(2,2,5), MBCartVect(2,2,2) ) );
+  ASSERT( !overlap( coords, CartVect(2,2,5), CartVect(2,2,2) ) );
 }
 
 void general_box_hex_overlap_test( const ElemOverlapTest& overlap )
 {
-  MBCartVect coords[8];
+  CartVect coords[8];
 
     // test against axis-aligned rectilinear hex
-  coords[0] = MBCartVect(-0.5,-0.5,-0.5);
-  coords[1] = MBCartVect( 0.5,-0.5,-0.5);
-  coords[2] = MBCartVect( 0.5, 0.5,-0.5);
-  coords[3] = MBCartVect(-0.5, 0.5,-0.5);
-  coords[4] = MBCartVect(-0.5,-0.5, 0.5);
-  coords[5] = MBCartVect( 0.5,-0.5, 0.5);
-  coords[6] = MBCartVect( 0.5, 0.5, 0.5);
-  coords[7] = MBCartVect(-0.5, 0.5, 0.5);
+  coords[0] = CartVect(-0.5,-0.5,-0.5);
+  coords[1] = CartVect( 0.5,-0.5,-0.5);
+  coords[2] = CartVect( 0.5, 0.5,-0.5);
+  coords[3] = CartVect(-0.5, 0.5,-0.5);
+  coords[4] = CartVect(-0.5,-0.5, 0.5);
+  coords[5] = CartVect( 0.5,-0.5, 0.5);
+  coords[6] = CartVect( 0.5, 0.5, 0.5);
+  coords[7] = CartVect(-0.5, 0.5, 0.5);
 
-  ASSERT( overlap( coords, MBCartVect( 0, 0, 0), MBCartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect( 0, 0, 0), CartVect(1,1,1) ) );
 
-  ASSERT( overlap( coords, MBCartVect( 1, 0, 0), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect( 0, 1, 0), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect( 0, 0, 1), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect(-1, 0, 0), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect( 0,-1, 0), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect( 0, 0,-1), MBCartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect( 1, 0, 0), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect( 0, 1, 0), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect( 0, 0, 1), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(-1, 0, 0), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect( 0,-1, 0), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect( 0, 0,-1), CartVect(1,1,1) ) );
 
-  ASSERT( overlap( coords, MBCartVect( 1, 1, 0), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect(-1, 1, 0), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect(-1,-1, 0), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect( 1,-1, 0), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect( 1, 0, 1), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect(-1, 0, 1), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect(-1, 0,-1), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect( 1, 0,-1), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect( 0, 1, 1), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect( 0,-1, 1), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect( 0,-1,-1), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect( 0, 1,-1), MBCartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect( 1, 1, 0), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(-1, 1, 0), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(-1,-1, 0), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect( 1,-1, 0), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect( 1, 0, 1), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(-1, 0, 1), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(-1, 0,-1), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect( 1, 0,-1), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect( 0, 1, 1), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect( 0,-1, 1), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect( 0,-1,-1), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect( 0, 1,-1), CartVect(1,1,1) ) );
 
-  ASSERT( overlap( coords, MBCartVect( 1, 1, 1), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect(-1, 1, 1), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect(-1,-1, 1), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect( 1,-1, 1), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect( 1, 1,-1), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect(-1, 1,-1), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect(-1,-1,-1), MBCartVect(1,1,1) ) );
-  ASSERT( overlap( coords, MBCartVect( 1,-1,-1), MBCartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect( 1, 1, 1), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(-1, 1, 1), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(-1,-1, 1), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect( 1,-1, 1), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect( 1, 1,-1), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(-1, 1,-1), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(-1,-1,-1), CartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect( 1,-1,-1), CartVect(1,1,1) ) );
 
-  ASSERT(!overlap( coords, MBCartVect( 3, 0, 0), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect( 0, 3, 0), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect( 0, 0, 3), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect(-3, 0, 0), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect( 0,-3, 0), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect( 0, 0,-3), MBCartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect( 3, 0, 0), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect( 0, 3, 0), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect( 0, 0, 3), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect(-3, 0, 0), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect( 0,-3, 0), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect( 0, 0,-3), CartVect(1,1,1) ) );
 
-  ASSERT(!overlap( coords, MBCartVect( 3, 3, 0), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect(-3, 3, 0), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect(-3,-3, 0), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect( 3,-3, 0), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect( 3, 0, 3), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect(-3, 0, 3), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect(-3, 0,-3), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect( 3, 0,-3), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect( 0, 3, 3), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect( 0,-3, 3), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect( 0,-3,-3), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect( 0, 3,-3), MBCartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect( 3, 3, 0), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect(-3, 3, 0), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect(-3,-3, 0), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect( 3,-3, 0), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect( 3, 0, 3), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect(-3, 0, 3), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect(-3, 0,-3), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect( 3, 0,-3), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect( 0, 3, 3), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect( 0,-3, 3), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect( 0,-3,-3), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect( 0, 3,-3), CartVect(1,1,1) ) );
 
-  ASSERT(!overlap( coords, MBCartVect( 3, 3, 3), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect(-3, 3, 3), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect(-3,-3, 3), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect( 3,-3, 3), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect( 3, 3,-3), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect(-3, 3,-3), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect(-3,-3,-3), MBCartVect(1,1,1) ) );
-  ASSERT(!overlap( coords, MBCartVect( 3,-3,-3), MBCartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect( 3, 3, 3), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect(-3, 3, 3), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect(-3,-3, 3), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect( 3,-3, 3), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect( 3, 3,-3), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect(-3, 3,-3), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect(-3,-3,-3), CartVect(1,1,1) ) );
+  ASSERT(!overlap( coords, CartVect( 3,-3,-3), CartVect(1,1,1) ) );
 
     // test against rectilinear hex rotated 45 degrees about z axis
   const double r = sqrt(2.0)/2.0;
-  coords[0] = MBCartVect( r, 0,-0.5);
-  coords[1] = MBCartVect( 0, r,-0.5);
-  coords[2] = MBCartVect(-r, 0,-0.5);
-  coords[3] = MBCartVect( 0,-r,-0.5);
-  coords[4] = MBCartVect( r, 0, 0.5);
-  coords[5] = MBCartVect( 0, r, 0.5);
-  coords[6] = MBCartVect(-r, 0, 0.5);
-  coords[7] = MBCartVect( 0,-r, 0.5);
+  coords[0] = CartVect( r, 0,-0.5);
+  coords[1] = CartVect( 0, r,-0.5);
+  coords[2] = CartVect(-r, 0,-0.5);
+  coords[3] = CartVect( 0,-r,-0.5);
+  coords[4] = CartVect( r, 0, 0.5);
+  coords[5] = CartVect( 0, r, 0.5);
+  coords[6] = CartVect(-r, 0, 0.5);
+  coords[7] = CartVect( 0,-r, 0.5);
 
-  ASSERT( overlap( coords, MBCartVect( 1, 0, 0 ), MBCartVect(0.5,0.5,0.5) ) );
-  ASSERT( overlap( coords, MBCartVect(-1, 0, 0 ), MBCartVect(0.5,0.5,0.5) ) );
-  ASSERT( overlap( coords, MBCartVect( 0, 1, 0 ), MBCartVect(0.5,0.5,0.5) ) );
-  ASSERT( overlap( coords, MBCartVect( 0,-1, 0 ), MBCartVect(0.5,0.5,0.5) ) );
+  ASSERT( overlap( coords, CartVect( 1, 0, 0 ), CartVect(0.5,0.5,0.5) ) );
+  ASSERT( overlap( coords, CartVect(-1, 0, 0 ), CartVect(0.5,0.5,0.5) ) );
+  ASSERT( overlap( coords, CartVect( 0, 1, 0 ), CartVect(0.5,0.5,0.5) ) );
+  ASSERT( overlap( coords, CartVect( 0,-1, 0 ), CartVect(0.5,0.5,0.5) ) );
 
-  ASSERT(!overlap( coords, MBCartVect( 1, 0, 2 ), MBCartVect(0.5,0.5,0.5) ) );
-  ASSERT(!overlap( coords, MBCartVect(-1, 0, 2 ), MBCartVect(0.5,0.5,0.5) ) );
-  ASSERT(!overlap( coords, MBCartVect( 0, 1, 2 ), MBCartVect(0.5,0.5,0.5) ) );
-  ASSERT(!overlap( coords, MBCartVect( 0,-1, 2 ), MBCartVect(0.5,0.5,0.5) ) );
+  ASSERT(!overlap( coords, CartVect( 1, 0, 2 ), CartVect(0.5,0.5,0.5) ) );
+  ASSERT(!overlap( coords, CartVect(-1, 0, 2 ), CartVect(0.5,0.5,0.5) ) );
+  ASSERT(!overlap( coords, CartVect( 0, 1, 2 ), CartVect(0.5,0.5,0.5) ) );
+  ASSERT(!overlap( coords, CartVect( 0,-1, 2 ), CartVect(0.5,0.5,0.5) ) );
 
-  ASSERT(!overlap( coords, MBCartVect( 2, 0, 0 ), MBCartVect(0.5,0.5,0.5) ) );
-  ASSERT(!overlap( coords, MBCartVect(-2, 0, 0 ), MBCartVect(0.5,0.5,0.5) ) );
-  ASSERT(!overlap( coords, MBCartVect( 0, 2, 0 ), MBCartVect(0.5,0.5,0.5) ) );
-  ASSERT(!overlap( coords, MBCartVect( 0,-2, 0 ), MBCartVect(0.5,0.5,0.5) ) );
+  ASSERT(!overlap( coords, CartVect( 2, 0, 0 ), CartVect(0.5,0.5,0.5) ) );
+  ASSERT(!overlap( coords, CartVect(-2, 0, 0 ), CartVect(0.5,0.5,0.5) ) );
+  ASSERT(!overlap( coords, CartVect( 0, 2, 0 ), CartVect(0.5,0.5,0.5) ) );
+  ASSERT(!overlap( coords, CartVect( 0,-2, 0 ), CartVect(0.5,0.5,0.5) ) );
 
-  ASSERT(!overlap( coords, MBCartVect( 1, 1, 0 ), MBCartVect(0.5,0.5,0.5) ) );
-  ASSERT(!overlap( coords, MBCartVect(-1, 1, 0 ), MBCartVect(0.5,0.5,0.5) ) );
-  ASSERT(!overlap( coords, MBCartVect(-1,-1, 0 ), MBCartVect(0.5,0.5,0.5) ) );
-  ASSERT(!overlap( coords, MBCartVect( 1,-1, 0 ), MBCartVect(0.5,0.5,0.5) ) );
+  ASSERT(!overlap( coords, CartVect( 1, 1, 0 ), CartVect(0.5,0.5,0.5) ) );
+  ASSERT(!overlap( coords, CartVect(-1, 1, 0 ), CartVect(0.5,0.5,0.5) ) );
+  ASSERT(!overlap( coords, CartVect(-1,-1, 0 ), CartVect(0.5,0.5,0.5) ) );
+  ASSERT(!overlap( coords, CartVect( 1,-1, 0 ), CartVect(0.5,0.5,0.5) ) );
 
-  ASSERT( overlap( coords, MBCartVect( 1, 1, 0 ), MBCartVect(0.75,0.75,0.5) ) );
-  ASSERT( overlap( coords, MBCartVect(-1, 1, 0 ), MBCartVect(0.75,0.75,0.5) ) );
-  ASSERT( overlap( coords, MBCartVect(-1,-1, 0 ), MBCartVect(0.75,0.75,0.5) ) );
-  ASSERT( overlap( coords, MBCartVect( 1,-1, 0 ), MBCartVect(0.75,0.75,0.5) ) );
+  ASSERT( overlap( coords, CartVect( 1, 1, 0 ), CartVect(0.75,0.75,0.5) ) );
+  ASSERT( overlap( coords, CartVect(-1, 1, 0 ), CartVect(0.75,0.75,0.5) ) );
+  ASSERT( overlap( coords, CartVect(-1,-1, 0 ), CartVect(0.75,0.75,0.5) ) );
+  ASSERT( overlap( coords, CartVect( 1,-1, 0 ), CartVect(0.75,0.75,0.5) ) );
 }
 
 void general_box_tet_overlap_test( const ElemOverlapTest& overlap )
 {
-  MBCartVect coords[4];
+  CartVect coords[4];
   
     // Octant I
-  coords[0] = MBCartVect(0,0,0);
-  coords[1] = MBCartVect(1,0,0);
-  coords[2] = MBCartVect(0,1,0);
-  coords[3] = MBCartVect(0,0,1);
+  coords[0] = CartVect(0,0,0);
+  coords[1] = CartVect(1,0,0);
+  coords[2] = CartVect(0,1,0);
+  coords[3] = CartVect(0,0,1);
     // tet entirely within box
-  ASSERT( overlap( coords, MBCartVect(-1,-1,-1), MBCartVect(3,3,3) ) );
+  ASSERT( overlap( coords, CartVect(-1,-1,-1), CartVect(3,3,3) ) );
     // box entirely within tet
-  ASSERT( overlap( coords, MBCartVect(0.2,0.2,0.2), MBCartVect(0.1,0.1,0.1) ) );
+  ASSERT( overlap( coords, CartVect(0.2,0.2,0.2), CartVect(0.1,0.1,0.1) ) );
     // box corner penetrates tet face
-  ASSERT( overlap( coords, MBCartVect(0.5,0.5,0.5), MBCartVect(0.2,0.2,0.2) ) );
+  ASSERT( overlap( coords, CartVect(0.5,0.5,0.5), CartVect(0.2,0.2,0.2) ) );
     // box corner does not penetrate face
-  ASSERT( !overlap( coords, MBCartVect(0.5,0.5,0.5), MBCartVect(0.15,0.15,0.15) ) );
+  ASSERT( !overlap( coords, CartVect(0.5,0.5,0.5), CartVect(0.15,0.15,0.15) ) );
   
     // Octant II
-  coords[0] = MBCartVect(0,1,0);
-  coords[1] = MBCartVect(-1,0,0);
-  coords[2] = MBCartVect(0,0,0);
-  coords[3] = MBCartVect(0,0,1);
+  coords[0] = CartVect(0,1,0);
+  coords[1] = CartVect(-1,0,0);
+  coords[2] = CartVect(0,0,0);
+  coords[3] = CartVect(0,0,1);
     // tet entirely within box
-  ASSERT( overlap( coords, MBCartVect( 1,-1,-1), MBCartVect(3,3,3) ) );
+  ASSERT( overlap( coords, CartVect( 1,-1,-1), CartVect(3,3,3) ) );
     // box entirely within tet
-  ASSERT( overlap( coords, MBCartVect(-0.2,0.2,0.2), MBCartVect(0.1,0.1,0.1) ) );
+  ASSERT( overlap( coords, CartVect(-0.2,0.2,0.2), CartVect(0.1,0.1,0.1) ) );
     // box corner penetrates tet face
-  ASSERT( overlap( coords, MBCartVect(-0.5,0.5,0.5), MBCartVect(0.2,0.2,0.2) ) );
+  ASSERT( overlap( coords, CartVect(-0.5,0.5,0.5), CartVect(0.2,0.2,0.2) ) );
     // box corner does not penetrate face
-  ASSERT( !overlap( coords, MBCartVect(-0.5,0.5,0.5), MBCartVect(0.15,0.15,0.15) ) );
+  ASSERT( !overlap( coords, CartVect(-0.5,0.5,0.5), CartVect(0.15,0.15,0.15) ) );
   
     // Octant III
-  coords[0] = MBCartVect(0,-1,0);
-  coords[1] = MBCartVect(0,0,0);
-  coords[2] = MBCartVect(-1,0,0);
-  coords[3] = MBCartVect(0,0,1);
+  coords[0] = CartVect(0,-1,0);
+  coords[1] = CartVect(0,0,0);
+  coords[2] = CartVect(-1,0,0);
+  coords[3] = CartVect(0,0,1);
     // tet entirely within box
-  ASSERT( overlap( coords, MBCartVect( 1, 1,-1), MBCartVect(3,3,3) ) );
+  ASSERT( overlap( coords, CartVect( 1, 1,-1), CartVect(3,3,3) ) );
     // box entirely within tet
-  ASSERT( overlap( coords, MBCartVect(-0.2,-0.2,0.2), MBCartVect(0.1,0.1,0.1) ) );
+  ASSERT( overlap( coords, CartVect(-0.2,-0.2,0.2), CartVect(0.1,0.1,0.1) ) );
     // box corner penetrates tet face
-  ASSERT( overlap( coords, MBCartVect(-0.5,-0.5,0.5), MBCartVect(0.2,0.2,0.2) ) );
+  ASSERT( overlap( coords, CartVect(-0.5,-0.5,0.5), CartVect(0.2,0.2,0.2) ) );
     // box corner does not penetrate face
-  ASSERT( !overlap( coords, MBCartVect(-0.5,-0.5,0.5), MBCartVect(0.15,0.15,0.15) ) );
+  ASSERT( !overlap( coords, CartVect(-0.5,-0.5,0.5), CartVect(0.15,0.15,0.15) ) );
   
     // Octant IV
-  coords[0] = MBCartVect(1,0,0);
-  coords[1] = MBCartVect(0,-1,0);
-  coords[2] = MBCartVect(0,0,1);
-  coords[3] = MBCartVect(0,0,0);
+  coords[0] = CartVect(1,0,0);
+  coords[1] = CartVect(0,-1,0);
+  coords[2] = CartVect(0,0,1);
+  coords[3] = CartVect(0,0,0);
     // tet entirely within box
-  ASSERT( overlap( coords, MBCartVect(-1, 1,-1), MBCartVect(3,3,3) ) );
+  ASSERT( overlap( coords, CartVect(-1, 1,-1), CartVect(3,3,3) ) );
     // box entirely within tet
-  ASSERT( overlap( coords, MBCartVect(0.2,-0.2,0.2), MBCartVect(0.1,0.1,0.1) ) );
+  ASSERT( overlap( coords, CartVect(0.2,-0.2,0.2), CartVect(0.1,0.1,0.1) ) );
     // box corner penetrates tet face
-  ASSERT( overlap( coords, MBCartVect(0.5,-0.5,0.5), MBCartVect(0.2,0.2,0.2) ) );
+  ASSERT( overlap( coords, CartVect(0.5,-0.5,0.5), CartVect(0.2,0.2,0.2) ) );
     // box corner does not penetrate face
-  ASSERT( !overlap( coords, MBCartVect(0.5,-0.5,0.5), MBCartVect(0.15,0.15,0.15) ) );
+  ASSERT( !overlap( coords, CartVect(0.5,-0.5,0.5), CartVect(0.15,0.15,0.15) ) );
    
     // Octant V
-  coords[0] = MBCartVect(0,0,0);
-  coords[1] = MBCartVect(0,1,0);
-  coords[2] = MBCartVect(1,0,0);
-  coords[3] = MBCartVect(0,0,-1);
+  coords[0] = CartVect(0,0,0);
+  coords[1] = CartVect(0,1,0);
+  coords[2] = CartVect(1,0,0);
+  coords[3] = CartVect(0,0,-1);
     // tet entirely within box
-  ASSERT( overlap( coords, MBCartVect(-1,-1, 1), MBCartVect(3,3,3) ) );
+  ASSERT( overlap( coords, CartVect(-1,-1, 1), CartVect(3,3,3) ) );
     // box entirely within tet
-  ASSERT( overlap( coords, MBCartVect(0.2,0.2,-0.2), MBCartVect(0.1,0.1,0.1) ) );
+  ASSERT( overlap( coords, CartVect(0.2,0.2,-0.2), CartVect(0.1,0.1,0.1) ) );
     // box corner penetrates tet face
-  ASSERT( overlap( coords, MBCartVect(0.5,0.5,-0.5), MBCartVect(0.2,0.2,0.2) ) );
+  ASSERT( overlap( coords, CartVect(0.5,0.5,-0.5), CartVect(0.2,0.2,0.2) ) );
     // box corner does not penetrate face
-  ASSERT( !overlap( coords, MBCartVect(0.5,0.5,-0.5), MBCartVect(0.15,0.15,0.15) ) );
+  ASSERT( !overlap( coords, CartVect(0.5,0.5,-0.5), CartVect(0.15,0.15,0.15) ) );
   
     // Octant VI
-  coords[0] = MBCartVect(-1,0,0);
-  coords[1] = MBCartVect(0,1,0);
-  coords[2] = MBCartVect(0,0,0);
-  coords[3] = MBCartVect(0,0,-1);
+  coords[0] = CartVect(-1,0,0);
+  coords[1] = CartVect(0,1,0);
+  coords[2] = CartVect(0,0,0);
+  coords[3] = CartVect(0,0,-1);
     // tet entirely within box
-  ASSERT( overlap( coords, MBCartVect( 1,-1, 1), MBCartVect(3,3,3) ) );
+  ASSERT( overlap( coords, CartVect( 1,-1, 1), CartVect(3,3,3) ) );
     // box entirely within tet
-  ASSERT( overlap( coords, MBCartVect(-0.2,0.2,-0.2), MBCartVect(0.1,0.1,0.1) ) );
+  ASSERT( overlap( coords, CartVect(-0.2,0.2,-0.2), CartVect(0.1,0.1,0.1) ) );
     // box corner penetrates tet face
-  ASSERT( overlap( coords, MBCartVect(-0.5,0.5,-0.5), MBCartVect(0.2,0.2,0.2) ) );
+  ASSERT( overlap( coords, CartVect(-0.5,0.5,-0.5), CartVect(0.2,0.2,0.2) ) );
     // box corner does not penetrate face
-  ASSERT( !overlap( coords, MBCartVect(-0.5,0.5,-0.5), MBCartVect(0.15,0.15,0.15) ) );
+  ASSERT( !overlap( coords, CartVect(-0.5,0.5,-0.5), CartVect(0.15,0.15,0.15) ) );
   
     // Octant VII
-  coords[0] = MBCartVect(0,0,0);
-  coords[1] = MBCartVect(0,-1,0);
-  coords[2] = MBCartVect(-1,0,0);
-  coords[3] = MBCartVect(0,0,-1);
+  coords[0] = CartVect(0,0,0);
+  coords[1] = CartVect(0,-1,0);
+  coords[2] = CartVect(-1,0,0);
+  coords[3] = CartVect(0,0,-1);
     // tet entirely within box
-  ASSERT( overlap( coords, MBCartVect( 1, 1, 1), MBCartVect(3,3,3) ) );
+  ASSERT( overlap( coords, CartVect( 1, 1, 1), CartVect(3,3,3) ) );
     // box entirely within tet
-  ASSERT( overlap( coords, MBCartVect(-0.2,-0.2,-0.2), MBCartVect(0.1,0.1,0.1) ) );
+  ASSERT( overlap( coords, CartVect(-0.2,-0.2,-0.2), CartVect(0.1,0.1,0.1) ) );
     // box corner penetrates tet face
-  ASSERT( overlap( coords, MBCartVect(-0.5,-0.5,-0.5), MBCartVect(0.2,0.2,0.2) ) );
+  ASSERT( overlap( coords, CartVect(-0.5,-0.5,-0.5), CartVect(0.2,0.2,0.2) ) );
     // box corner does not penetrate face
-  ASSERT( !overlap( coords, MBCartVect(-0.5,-0.5,-0.5), MBCartVect(0.15,0.15,0.15) ) );
+  ASSERT( !overlap( coords, CartVect(-0.5,-0.5,-0.5), CartVect(0.15,0.15,0.15) ) );
   
     // Octant VIII
-  coords[0] = MBCartVect(0,-1,0);
-  coords[1] = MBCartVect(1,0,0);
-  coords[2] = MBCartVect(0,0,-1);
-  coords[3] = MBCartVect(0,0,0);
+  coords[0] = CartVect(0,-1,0);
+  coords[1] = CartVect(1,0,0);
+  coords[2] = CartVect(0,0,-1);
+  coords[3] = CartVect(0,0,0);
     // tet entirely within box
-  ASSERT( overlap( coords, MBCartVect(-1, 1, 1), MBCartVect(3,3,3) ) );
+  ASSERT( overlap( coords, CartVect(-1, 1, 1), CartVect(3,3,3) ) );
     // box entirely within tet
-  ASSERT( overlap( coords, MBCartVect(0.2,-0.2,-0.2), MBCartVect(0.1,0.1,0.1) ) );
+  ASSERT( overlap( coords, CartVect(0.2,-0.2,-0.2), CartVect(0.1,0.1,0.1) ) );
     // box corner penetrates tet face
-  ASSERT( overlap( coords, MBCartVect(0.5,-0.5,-0.5), MBCartVect(0.2,0.2,0.2) ) );
+  ASSERT( overlap( coords, CartVect(0.5,-0.5,-0.5), CartVect(0.2,0.2,0.2) ) );
     // box corner does not penetrate face
-  ASSERT( !overlap( coords, MBCartVect(0.5,-0.5,-0.5), MBCartVect(0.15,0.15,0.15) ) );
+  ASSERT( !overlap( coords, CartVect(0.5,-0.5,-0.5), CartVect(0.15,0.15,0.15) ) );
  
   
     // Box edge -x,-z
-  coords[0] = MBCartVect( 0, 0, 0);
-  coords[1] = MBCartVect( 2,-1, 0);
-  coords[2] = MBCartVect( 2, 1, 0);
-  coords[3] = MBCartVect( 0, 0, 2);
+  coords[0] = CartVect( 0, 0, 0);
+  coords[1] = CartVect( 2,-1, 0);
+  coords[2] = CartVect( 2, 1, 0);
+  coords[3] = CartVect( 0, 0, 2);
     // box edge passes through tet
-  ASSERT( overlap( coords, MBCartVect(1.5,0.0,1.5), MBCartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(1.5,0.0,1.5), CartVect(1,1,1) ) );
     // box edge does not pass through tet
-  ASSERT( !overlap( coords, MBCartVect(2.5,0.0,2.5), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(2.5,0.0,2.5), CartVect(1,1,1) ) );
   
     // Box edge -y,-z
-  coords[0] = MBCartVect( 1, 2, 0);
-  coords[1] = MBCartVect(-1, 2, 0);
-  coords[2] = MBCartVect( 0, 0, 0);
-  coords[3] = MBCartVect( 0, 0, 2);
+  coords[0] = CartVect( 1, 2, 0);
+  coords[1] = CartVect(-1, 2, 0);
+  coords[2] = CartVect( 0, 0, 0);
+  coords[3] = CartVect( 0, 0, 2);
     // box edge passes through tet
-  ASSERT( overlap( coords, MBCartVect(0.0,1.5,1.5), MBCartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(0.0,1.5,1.5), CartVect(1,1,1) ) );
     // box edge does not pass through tet
-  ASSERT( !overlap( coords, MBCartVect(0.0,2.5,2.5), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(0.0,2.5,2.5), CartVect(1,1,1) ) );
   
     // Box edge +x,-z
-  coords[0] = MBCartVect(-2,-1, 0);
-  coords[1] = MBCartVect(-2, 1, 0);
-  coords[2] = MBCartVect( 0, 0, 2);
-  coords[3] = MBCartVect( 0, 0, 0);
+  coords[0] = CartVect(-2,-1, 0);
+  coords[1] = CartVect(-2, 1, 0);
+  coords[2] = CartVect( 0, 0, 2);
+  coords[3] = CartVect( 0, 0, 0);
     // box edge passes through tet
-  ASSERT( overlap( coords, MBCartVect(-1.5,0.0,1.5), MBCartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(-1.5,0.0,1.5), CartVect(1,1,1) ) );
     // box edge does not pass through tet
-  ASSERT( !overlap( coords, MBCartVect(-2.5,0.0,2.5), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(-2.5,0.0,2.5), CartVect(1,1,1) ) );
   
     // Box edge +y,-z
-  coords[0] = MBCartVect( 2,-1, 0);
-  coords[1] = MBCartVect( 0, 0, 0);
-  coords[2] = MBCartVect(-2,-1, 0);
-  coords[3] = MBCartVect( 0, 0, 2);
+  coords[0] = CartVect( 2,-1, 0);
+  coords[1] = CartVect( 0, 0, 0);
+  coords[2] = CartVect(-2,-1, 0);
+  coords[3] = CartVect( 0, 0, 2);
     // box edge passes through tet
-  ASSERT( overlap( coords, MBCartVect(0.0,-1.5,1.5), MBCartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(0.0,-1.5,1.5), CartVect(1,1,1) ) );
     // box edge does not pass through tet
-  ASSERT( !overlap( coords, MBCartVect(0.0,-2.5,2.5), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(0.0,-2.5,2.5), CartVect(1,1,1) ) );
   
     // Box edge -x,+z
-  coords[0] = MBCartVect( 2,-1, 0);
-  coords[1] = MBCartVect( 0, 0, 0);
-  coords[2] = MBCartVect( 2, 1, 0);
-  coords[3] = MBCartVect( 0, 0,-2);
+  coords[0] = CartVect( 2,-1, 0);
+  coords[1] = CartVect( 0, 0, 0);
+  coords[2] = CartVect( 2, 1, 0);
+  coords[3] = CartVect( 0, 0,-2);
     // box edge passes through tet
-  ASSERT( overlap( coords, MBCartVect(1.5,0.0,-1.5), MBCartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(1.5,0.0,-1.5), CartVect(1,1,1) ) );
     // box edge does not pass through tet
-  ASSERT( !overlap( coords, MBCartVect(2.5,0.0,-2.5), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(2.5,0.0,-2.5), CartVect(1,1,1) ) );
   
     // Box edge -y,+z
-  coords[0] = MBCartVect(-1, 2, 0);
-  coords[1] = MBCartVect( 1, 2, 0);
-  coords[2] = MBCartVect( 0, 0, 0);
-  coords[3] = MBCartVect( 0, 0,-2);
+  coords[0] = CartVect(-1, 2, 0);
+  coords[1] = CartVect( 1, 2, 0);
+  coords[2] = CartVect( 0, 0, 0);
+  coords[3] = CartVect( 0, 0,-2);
     // box edge passes through tet
-  ASSERT( overlap( coords, MBCartVect(0.0,1.5,-1.5), MBCartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(0.0,1.5,-1.5), CartVect(1,1,1) ) );
     // box edge does not pass through tet
-  ASSERT( !overlap( coords, MBCartVect(0.0,2.5,-2.5), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(0.0,2.5,-2.5), CartVect(1,1,1) ) );
   
     // Box edge +x,+z
-  coords[0] = MBCartVect(-2, 1, 0);
-  coords[1] = MBCartVect(-2,-1, 0);
-  coords[2] = MBCartVect( 0, 0,-2);
-  coords[3] = MBCartVect( 0, 0, 0);
+  coords[0] = CartVect(-2, 1, 0);
+  coords[1] = CartVect(-2,-1, 0);
+  coords[2] = CartVect( 0, 0,-2);
+  coords[3] = CartVect( 0, 0, 0);
     // box edge passes through tet
-  ASSERT( overlap( coords, MBCartVect(-1.5,0.0,-1.5), MBCartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(-1.5,0.0,-1.5), CartVect(1,1,1) ) );
     // box edge does not pass through tet
-  ASSERT( !overlap( coords, MBCartVect(-2.5,0.0,-2.5), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(-2.5,0.0,-2.5), CartVect(1,1,1) ) );
   
     // Box edge +y,+z
-  coords[0] = MBCartVect( 0, 0, 0);
-  coords[1] = MBCartVect( 2,-1, 0);
-  coords[2] = MBCartVect(-2,-1, 0);
-  coords[3] = MBCartVect( 0, 0,-2);
+  coords[0] = CartVect( 0, 0, 0);
+  coords[1] = CartVect( 2,-1, 0);
+  coords[2] = CartVect(-2,-1, 0);
+  coords[3] = CartVect( 0, 0,-2);
     // box edge passes through tet
-  ASSERT( overlap( coords, MBCartVect(0.0,-1.5,-1.5), MBCartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(0.0,-1.5,-1.5), CartVect(1,1,1) ) );
     // box edge does not pass through tet
-  ASSERT( !overlap( coords, MBCartVect(0.0,-2.5,-2.5), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(0.0,-2.5,-2.5), CartVect(1,1,1) ) );
     
     // Box edge -x,-y
-  coords[0] = MBCartVect( 0, 0, 0);
-  coords[1] = MBCartVect( 0, 2,-1);
-  coords[2] = MBCartVect( 0, 2, 1);
-  coords[3] = MBCartVect( 2, 0, 0);
+  coords[0] = CartVect( 0, 0, 0);
+  coords[1] = CartVect( 0, 2,-1);
+  coords[2] = CartVect( 0, 2, 1);
+  coords[3] = CartVect( 2, 0, 0);
     // box edge passes through tet
-  ASSERT( overlap( coords, MBCartVect(1.5,1.5,0.0), MBCartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(1.5,1.5,0.0), CartVect(1,1,1) ) );
     // box edge does not pass through tet
-  ASSERT( !overlap( coords, MBCartVect(2.5,2.5,0.0), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(2.5,2.5,0.0), CartVect(1,1,1) ) );
     
     // Box edge +x,-y
-  coords[0] = MBCartVect( 0, 2,-1);
-  coords[1] = MBCartVect( 0, 0, 0);
-  coords[2] = MBCartVect( 0, 2, 1);
-  coords[3] = MBCartVect(-2, 0, 0);
+  coords[0] = CartVect( 0, 2,-1);
+  coords[1] = CartVect( 0, 0, 0);
+  coords[2] = CartVect( 0, 2, 1);
+  coords[3] = CartVect(-2, 0, 0);
     // box edge passes through tet
-  ASSERT( overlap( coords, MBCartVect(-1.5,1.5,0.0), MBCartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(-1.5,1.5,0.0), CartVect(1,1,1) ) );
     // box edge does not pass through tet
-  ASSERT( !overlap( coords, MBCartVect(-2.5,2.5,0.0), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(-2.5,2.5,0.0), CartVect(1,1,1) ) );
     
     // Box edge -x,+y
-  coords[0] = MBCartVect( 0,-2, 1);
-  coords[1] = MBCartVect( 0,-2,-1);
-  coords[2] = MBCartVect( 0, 0, 0);
-  coords[3] = MBCartVect( 2, 0, 0);
+  coords[0] = CartVect( 0,-2, 1);
+  coords[1] = CartVect( 0,-2,-1);
+  coords[2] = CartVect( 0, 0, 0);
+  coords[3] = CartVect( 2, 0, 0);
     // box edge passes through tet
-  ASSERT( overlap( coords, MBCartVect(1.5,-1.5,0.0), MBCartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(1.5,-1.5,0.0), CartVect(1,1,1) ) );
     // box edge does not pass through tet
-  ASSERT( !overlap( coords, MBCartVect(2.5,-2.5,0.0), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(2.5,-2.5,0.0), CartVect(1,1,1) ) );
     
     // Box edge +x,+y
-  coords[0] = MBCartVect( 0,-2,-1);
-  coords[1] = MBCartVect(-2, 0, 0);
-  coords[2] = MBCartVect( 0,-2, 1);
-  coords[3] = MBCartVect( 0, 0, 0);
+  coords[0] = CartVect( 0,-2,-1);
+  coords[1] = CartVect(-2, 0, 0);
+  coords[2] = CartVect( 0,-2, 1);
+  coords[3] = CartVect( 0, 0, 0);
     // box edge passes through tet
-  ASSERT( overlap( coords, MBCartVect(-1.5,-1.5,0.0), MBCartVect(1,1,1) ) );
+  ASSERT( overlap( coords, CartVect(-1.5,-1.5,0.0), CartVect(1,1,1) ) );
     // box edge does not pass through tet
-  ASSERT( !overlap( coords, MBCartVect(-2.5,-2.5,0.0), MBCartVect(1,1,1) ) );
+  ASSERT( !overlap( coords, CartVect(-2.5,-2.5,0.0), CartVect(1,1,1) ) );
   
   
     // Test tet edge through box 
-  coords[0] = MBCartVect( -0.13369421660900116, -2.9871494770050049,  0.0526076555252075 );
-  coords[1] = MBCartVect( -0.00350524857640266, -3.3236153125762939,  0.2924639880657196 );
-  coords[2] = MBCartVect(  0.16473215818405151, -2.9966945648193359, -0.1936169415712357 );
-  coords[3] = MBCartVect(  0.26740345358848572, -2.8492588996887207,  0.1519143134355545 );
-  ASSERT( overlap( coords, MBCartVect( -2.5, -2.8, -2.5 ), MBCartVect( 2.5, 0.31, 2.5 ) ) );
+  coords[0] = CartVect( -0.13369421660900116, -2.9871494770050049,  0.0526076555252075 );
+  coords[1] = CartVect( -0.00350524857640266, -3.3236153125762939,  0.2924639880657196 );
+  coords[2] = CartVect(  0.16473215818405151, -2.9966945648193359, -0.1936169415712357 );
+  coords[3] = CartVect(  0.26740345358848572, -2.8492588996887207,  0.1519143134355545 );
+  ASSERT( overlap( coords, CartVect( -2.5, -2.8, -2.5 ), CartVect( 2.5, 0.31, 2.5 ) ) );
 }
 
 void test_box_tri_overlap()
@@ -776,59 +777,59 @@ void test_ray_tri_intersect()
   double t;
 
     // define a triangle
-  const MBCartVect tri[3] = { MBCartVect(1.0, 0.0, 0.0), 
-                              MBCartVect(0.0, 1.0, 0.0),
-                              MBCartVect(0.0, 0.0, 1.0) };
+  const CartVect tri[3] = { CartVect(1.0, 0.0, 0.0), 
+                              CartVect(0.0, 1.0, 0.0),
+                              CartVect(0.0, 0.0, 1.0) };
   
     // try a ray through the center of the triangle
   xsect = ray_tri_intersect( tri, 
-                             MBCartVect( 0.0, 0.0, 0.0 ),
-                             MBCartVect( 1.0, 1.0, 1.0 ),
+                             CartVect( 0.0, 0.0, 0.0 ),
+                             CartVect( 1.0, 1.0, 1.0 ),
                              TOL, t );
   ASSERT(xsect);
   ASSERT_DOUBLES_EQUAL( 1.0/3.0, t );
   
     // try a same ray, but move base point above triangle
   xsect = ray_tri_intersect( tri, 
-                             MBCartVect( 1.0, 1.0, 1.0 ),
-                             MBCartVect( 1.0, 1.0, 1.0 ),
+                             CartVect( 1.0, 1.0, 1.0 ),
+                             CartVect( 1.0, 1.0, 1.0 ),
                              TOL, t );
   ASSERT(!xsect);
   
     // try a same ray the other direction with base point below triangle
   xsect = ray_tri_intersect( tri, 
-                             MBCartVect( 0.0, 0.0, 0.0 ),
-                             MBCartVect(-1.0,-1.0,-1.0 ),
+                             CartVect( 0.0, 0.0, 0.0 ),
+                             CartVect(-1.0,-1.0,-1.0 ),
                              TOL, t );
   ASSERT(!xsect);
   
   
     // try a ray that passes above the triangle
   xsect = ray_tri_intersect( tri, 
-                             MBCartVect( 1.0, 1.0, 1.0 ),
-                             MBCartVect(-1.0,-1.0, 1.0 ),
+                             CartVect( 1.0, 1.0, 1.0 ),
+                             CartVect(-1.0,-1.0, 1.0 ),
                              TOL, t );
   ASSERT(!xsect);
   
     // try a skew ray
   xsect = ray_tri_intersect( tri, 
-                             MBCartVect( 0.0, 0.0, 0.0 ),
-                             MBCartVect( 1.0, 1.0,-0.1 ),
+                             CartVect( 0.0, 0.0, 0.0 ),
+                             CartVect( 1.0, 1.0,-0.1 ),
                              TOL, t );
   ASSERT(!xsect);
 }
 
 void test_closest_location_on_tri()
 {
-  MBCartVect result, input;
+  CartVect result, input;
   
     // define a triangle
-  const MBCartVect tri[3] = { MBCartVect(1.0, 0.0, 0.0), 
-                              MBCartVect(0.0, 1.0, 0.0),
-                              MBCartVect(0.0, 0.0, 1.0) };
+  const CartVect tri[3] = { CartVect(1.0, 0.0, 0.0), 
+                              CartVect(0.0, 1.0, 0.0),
+                              CartVect(0.0, 0.0, 1.0) };
   
     // try point at triangle centroid
-  input = MBCartVect( 1.0/3.0, 1.0/3.0, 1.0/3.0 );
+  input = CartVect( 1.0/3.0, 1.0/3.0, 1.0/3.0 );
   closest_location_on_tri( input, tri, result );
   ASSERT_VECTORS_EQUAL( result, input );
   
@@ -852,14 +853,14 @@ void test_closest_location_on_tri()
   ASSERT_VECTORS_EQUAL( result, input );
   
     // try a point above the center of the triangle
-  input = MBCartVect(1.0,1.0,1.0);
+  input = CartVect(1.0,1.0,1.0);
   closest_location_on_tri( input, tri, result );
-  ASSERT_VECTORS_EQUAL( result, MBCartVect( 1.0/3.0, 1.0/3.0, 1.0/3.0 ) );
+  ASSERT_VECTORS_EQUAL( result, CartVect( 1.0/3.0, 1.0/3.0, 1.0/3.0 ) );
   
     // try a point below the center of the triangle
-  input = MBCartVect(0.0,0.0,0.0);
+  input = CartVect(0.0,0.0,0.0);
   closest_location_on_tri( input, tri, result );
-  ASSERT_VECTORS_EQUAL( result, MBCartVect( 1.0/3.0, 1.0/3.0, 1.0/3.0 ) );
+  ASSERT_VECTORS_EQUAL( result, CartVect( 1.0/3.0, 1.0/3.0, 1.0/3.0 ) );
   
     // try a point closest to each vertex and 'outside' of both adjacent edges.
   input = 2*tri[0];
@@ -884,60 +885,60 @@ void test_closest_location_on_tri()
   ASSERT_VECTORS_EQUAL( result, 0.5 * input );
   
     // define an equilateral triangle in the xy-plane
-  const MBCartVect tri_xy[3] = { MBCartVect( 0.0, sqrt(3.0)/2.0, 0.0), 
-                                 MBCartVect( 0.5, 0.0, 0.0),
-                                 MBCartVect(-0.5, 0.0, 0.0) };
+  const CartVect tri_xy[3] = { CartVect( 0.0, sqrt(3.0)/2.0, 0.0), 
+                                 CartVect( 0.5, 0.0, 0.0),
+                                 CartVect(-0.5, 0.0, 0.0) };
   
     // for each vertex, test point that is
     // - outside triangle
     // - closest to vertex
     // - 'inside' one of the adjacent edges
     // - 'outside' the other adjacent edge
-  closest_location_on_tri( MBCartVect(-0.3, 1.2, 0.0), tri_xy, result );
+  closest_location_on_tri( CartVect(-0.3, 1.2, 0.0), tri_xy, result );
   ASSERT_VECTORS_EQUAL( result, tri_xy[0] );
-  closest_location_on_tri( MBCartVect( 0.3, 1.2, 0.0), tri_xy, result );
+  closest_location_on_tri( CartVect( 0.3, 1.2, 0.0), tri_xy, result );
   ASSERT_VECTORS_EQUAL( result, tri_xy[0] );
-  closest_location_on_tri( MBCartVect( 1.0, 0.1, 0.0), tri_xy, result );
+  closest_location_on_tri( CartVect( 1.0, 0.1, 0.0), tri_xy, result );
   ASSERT_VECTORS_EQUAL( result, tri_xy[1] );
-  closest_location_on_tri( MBCartVect( 0.6,-0.5, 0.0), tri_xy, result );
+  closest_location_on_tri( CartVect( 0.6,-0.5, 0.0), tri_xy, result );
   ASSERT_VECTORS_EQUAL( result, tri_xy[1] );
-  closest_location_on_tri( MBCartVect(-0.6,-0.5, 0.0), tri_xy, result );
+  closest_location_on_tri( CartVect(-0.6,-0.5, 0.0), tri_xy, result );
   ASSERT_VECTORS_EQUAL( result, tri_xy[2] );
-  closest_location_on_tri( MBCartVect(-1.0, 0.1, 0.0), tri_xy, result );
+  closest_location_on_tri( CartVect(-1.0, 0.1, 0.0), tri_xy, result );
   ASSERT_VECTORS_EQUAL( result, tri_xy[2] );
 }
 
 void test_closest_location_on_polygon()
 {
-  MBCartVect result, input;
+  CartVect result, input;
   
     // define a unit square in xy plane
-  const MBCartVect quad[4] = { MBCartVect( 0.0, 0.0, 0.0), 
-                               MBCartVect( 1.0, 0.0, 0.0),
-                               MBCartVect( 1.0, 1.0, 0.0),
-                               MBCartVect( 0.0, 1.0, 0.0) };
+  const CartVect quad[4] = { CartVect( 0.0, 0.0, 0.0), 
+                               CartVect( 1.0, 0.0, 0.0),
+                               CartVect( 1.0, 1.0, 0.0),
+                               CartVect( 0.0, 1.0, 0.0) };
   
     // test input in center of square
-  closest_location_on_polygon(  MBCartVect( 0.5, 0.5, 0.0 ), quad, 4, result );
-  ASSERT_VECTORS_EQUAL( result, MBCartVect( 0.5, 0.5, 0.0 ) );
+  closest_location_on_polygon(  CartVect( 0.5, 0.5, 0.0 ), quad, 4, result );
+  ASSERT_VECTORS_EQUAL( result, CartVect( 0.5, 0.5, 0.0 ) );
     // test above center of square  
-  closest_location_on_polygon(  MBCartVect( 0.5, 0.5, 1.0 ), quad, 4, result );
-  ASSERT_VECTORS_EQUAL( result, MBCartVect( 0.5, 0.5, 0.0 ) );
+  closest_location_on_polygon(  CartVect( 0.5, 0.5, 1.0 ), quad, 4, result );
+  ASSERT_VECTORS_EQUAL( result, CartVect( 0.5, 0.5, 0.0 ) );
     // test below center of square  
-  closest_location_on_polygon(  MBCartVect( 0.5, 0.5,-1.0 ), quad, 4, result );
-  ASSERT_VECTORS_EQUAL( result, MBCartVect( 0.5, 0.5, 0.0 ) );
+  closest_location_on_polygon(  CartVect( 0.5, 0.5,-1.0 ), quad, 4, result );
+  ASSERT_VECTORS_EQUAL( result, CartVect( 0.5, 0.5, 0.0 ) );
 
     // test points within square, but not at center
-  input = MBCartVect( 0.25, 0.25, 0 );
+  input = CartVect( 0.25, 0.25, 0 );
   closest_location_on_polygon( input, quad, 4, result );
   ASSERT_VECTORS_EQUAL( result, input );
-  input = MBCartVect( 0.75, 0.25, 0 );
+  input = CartVect( 0.75, 0.25, 0 );
   closest_location_on_polygon( input, quad, 4, result );
   ASSERT_VECTORS_EQUAL( result, input );
-  input = MBCartVect( 0.75, 0.75, 0 );
+  input = CartVect( 0.75, 0.75, 0 );
   closest_location_on_polygon( input, quad, 4, result );
   ASSERT_VECTORS_EQUAL( result, input );
-  input = MBCartVect( 0.25, 0.75, 0 );
+  input = CartVect( 0.25, 0.75, 0 );
   closest_location_on_polygon( input, quad, 4, result );
   ASSERT_VECTORS_EQUAL( result, input );
 
@@ -966,17 +967,17 @@ void test_closest_location_on_polygon()
   ASSERT_VECTORS_EQUAL( result, input );
   
     // test at point outside and closest to each corner
-  closest_location_on_polygon( MBCartVect(-1.0,-1.0, 0.0 ), quad, 4, result );
+  closest_location_on_polygon( CartVect(-1.0,-1.0, 0.0 ), quad, 4, result );
   ASSERT_VECTORS_EQUAL( result, quad[0] );
-  closest_location_on_polygon( MBCartVect( 2.0,-1.0, 0.0 ), quad, 4, result );
+  closest_location_on_polygon( CartVect( 2.0,-1.0, 0.0 ), quad, 4, result );
   ASSERT_VECTORS_EQUAL( result, quad[1] );
-  closest_location_on_polygon( MBCartVect( 2.0, 2.0, 0.0 ), quad, 4, result );
+  closest_location_on_polygon( CartVect( 2.0, 2.0, 0.0 ), quad, 4, result );
   ASSERT_VECTORS_EQUAL( result, quad[2] );
-  closest_location_on_polygon( MBCartVect(-1.0, 2.0, 0.0 ), quad, 4, result );
+  closest_location_on_polygon( CartVect(-1.0, 2.0, 0.0 ), quad, 4, result );
   ASSERT_VECTORS_EQUAL( result, quad[3] );
   
     // test at point outside and closest to an edge
-  MBCartVect x(1.0,0.0,0.0), y(0.0,1.0,0.0);
+  CartVect x(1.0,0.0,0.0), y(0.0,1.0,0.0);
   input = 0.5 * quad[0] + 0.5 * quad[1];
   closest_location_on_polygon(  input-y, quad, 4, result );
   ASSERT_VECTORS_EQUAL( result, input );
@@ -997,16 +998,16 @@ void test_segment_box_intersect()
   const double box_max = 2.0;
   const double box_wid = box_max - box_min;
   const double box_mid = 0.5 * (box_min + box_max);
-  const MBCartVect min( box_min );
-  const MBCartVect max( box_max );
-  const MBCartVect X(1,0,0), Y(0,1,0), Z(0,0,1);
-  MBCartVect pt;
+  const CartVect min( box_min );
+  const CartVect max( box_max );
+  const CartVect X(1,0,0), Y(0,1,0), Z(0,0,1);
+  CartVect pt;
   double start, end;
   bool r;
   
     // test line through box in +x direction
   double offset = 1;
-  pt = MBCartVect( box_min - offset, box_mid, box_mid );
+  pt = CartVect( box_min - offset, box_mid, box_mid );
   start = -HUGE_VAL; end = HUGE_VAL;
   r = segment_box_intersect( min, max, pt, X, start, end );
   ASSERT( r );
@@ -1040,7 +1041,7 @@ void test_segment_box_intersect()
    
     // test line through box in -y direction
   offset = 1;
-  pt = MBCartVect( box_mid, box_min - offset, box_mid );
+  pt = CartVect( box_mid, box_min - offset, box_mid );
   start = -HUGE_VAL; end = HUGE_VAL;
   r = segment_box_intersect( min, max, pt, -Y, start, end );
   ASSERT( r );
@@ -1073,7 +1074,7 @@ void test_segment_box_intersect()
  
     // test ray outside in Z direction, parallel to Z plane, and
     // intersecting in projections into other planes
-  pt = MBCartVect( box_mid, box_mid, box_max + 1 );
+  pt = CartVect( box_mid, box_mid, box_max + 1 );
   start = 0; end = box_wid;
   r = segment_box_intersect( min, max, pt,  X, start, end );
   ASSERT( !r );
@@ -1088,7 +1089,7 @@ void test_segment_box_intersect()
   ASSERT( !r );
   
     // try the other side (less than the min Z);
-  pt = MBCartVect( box_mid, box_mid, box_min - 1 );
+  pt = CartVect( box_mid, box_mid, box_min - 1 );
   start = 0; end = box_wid;
   r = segment_box_intersect( min, max, pt,  X, start, end );
   ASSERT( !r );
@@ -1103,7 +1104,7 @@ void test_segment_box_intersect()
   ASSERT( !r );
   
     // now move the ray such that it lies exactly on the side of the box
-  pt = MBCartVect( box_mid, box_mid, box_min );
+  pt = CartVect( box_mid, box_mid, box_min );
   start = 0; end = box_wid;
   r = segment_box_intersect( min, max, pt,  X, start, end );
   ASSERT( r );
@@ -1126,8 +1127,8 @@ void test_segment_box_intersect()
   ASSERT_DOUBLES_EQUAL( end, 0.5 * box_wid );
   
     // try a skew line segment
-  pt = MBCartVect( box_min - 0.25 * box_wid, box_mid, box_mid );
-  MBCartVect dir( 1.0/sqrt(2.0), 1.0/sqrt(2.0), 0 );
+  pt = CartVect( box_min - 0.25 * box_wid, box_mid, box_mid );
+  CartVect dir( 1.0/sqrt(2.0), 1.0/sqrt(2.0), 0 );
   start = 0; end = 1.5 / sqrt(2.0) * box_wid;
   r = segment_box_intersect( min, max, pt, dir, start, end );
   ASSERT( r );
@@ -1135,7 +1136,7 @@ void test_segment_box_intersect()
   ASSERT_DOUBLES_EQUAL( end, box_wid / sqrt(2.0) );
   
     // try with skew line segment that just touches edge of box
-  pt = MBCartVect( box_min - 0.5 * box_wid, box_mid, box_mid );
+  pt = CartVect( box_min - 0.5 * box_wid, box_mid, box_mid );
   start = 0; end = 3.0 / sqrt(2.0) * box_wid;
   r = segment_box_intersect( min, max, pt, dir, start, end );
   ASSERT( r );
@@ -1143,7 +1144,7 @@ void test_segment_box_intersect()
   ASSERT_DOUBLES_EQUAL( end, box_wid / sqrt(2.0) );
 
     // try with skew line segment outside of box
-  pt = MBCartVect( box_min - 0.75 * box_wid, box_mid, box_mid );
+  pt = CartVect( box_min - 0.75 * box_wid, box_mid, box_mid );
   start = 0; end = 3.0 / sqrt(2.0) * box_wid;
   r = segment_box_intersect( min, max, pt, dir, start, end );
   ASSERT( !r );
@@ -1151,43 +1152,43 @@ void test_segment_box_intersect()
 
 void test_closest_location_on_box()
 {
-  const MBCartVect min(0,0,0), max(1,2,3);
-  MBCartVect pt;
+  const CartVect min(0,0,0), max(1,2,3);
+  CartVect pt;
   
     // inside
-  closest_location_on_box( min, max, MBCartVect(0.5,0.5,0.5), pt );
-  ASSERT_VECTORS_EQUAL( MBCartVect(0.5,0.5,0.5), pt );
+  closest_location_on_box( min, max, CartVect(0.5,0.5,0.5), pt );
+  ASSERT_VECTORS_EQUAL( CartVect(0.5,0.5,0.5), pt );
   
     // closest to min x side
-  closest_location_on_box( min, max, MBCartVect(-1.0,0.5,0.5), pt );
-  ASSERT_VECTORS_EQUAL( MBCartVect(0.0,0.5,0.5), pt );
+  closest_location_on_box( min, max, CartVect(-1.0,0.5,0.5), pt );
+  ASSERT_VECTORS_EQUAL( CartVect(0.0,0.5,0.5), pt );
   
     // closest to max x side
-  closest_location_on_box( min, max, MBCartVect(2.0,0.5,0.5), pt );
-  ASSERT_VECTORS_EQUAL( MBCartVect(1.0,0.5,0.5), pt );
+  closest_location_on_box( min, max, CartVect(2.0,0.5,0.5), pt );
+  ASSERT_VECTORS_EQUAL( CartVect(1.0,0.5,0.5), pt );
   
     // closest to min y side
-  closest_location_on_box( min, max, MBCartVect(0.5,-1.0,0.5), pt );
-  ASSERT_VECTORS_EQUAL( MBCartVect(0.5,0.0,0.5), pt );
+  closest_location_on_box( min, max, CartVect(0.5,-1.0,0.5), pt );
+  ASSERT_VECTORS_EQUAL( CartVect(0.5,0.0,0.5), pt );
   
     // closest to max y side
-  closest_location_on_box( min, max, MBCartVect(0.5,2.5,0.5), pt );
-  ASSERT_VECTORS_EQUAL( MBCartVect(0.5,2.0,0.5), pt );
+  closest_location_on_box( min, max, CartVect(0.5,2.5,0.5), pt );
+  ASSERT_VECTORS_EQUAL( CartVect(0.5,2.0,0.5), pt );
   
     // closest to min z side
-  closest_location_on_box( min, max, MBCartVect(0.5,0.5,-0.1), pt );
-  ASSERT_VECTORS_EQUAL( MBCartVect(0.5,0.5,0.0), pt );
+  closest_location_on_box( min, max, CartVect(0.5,0.5,-0.1), pt );
+  ASSERT_VECTORS_EQUAL( CartVect(0.5,0.5,0.0), pt );
   
     // closest to max z side
-  closest_location_on_box( min, max, MBCartVect(0.5,0.5,100.0), pt );
-  ASSERT_VECTORS_EQUAL( MBCartVect(0.5,0.5,3.0), pt );
+  closest_location_on_box( min, max, CartVect(0.5,0.5,100.0), pt );
+  ASSERT_VECTORS_EQUAL( CartVect(0.5,0.5,3.0), pt );
   
     // closest to min corner
-  closest_location_on_box( min, max, MBCartVect(-1,-1,-1), pt );
+  closest_location_on_box( min, max, CartVect(-1,-1,-1), pt );
   ASSERT_VECTORS_EQUAL( min, pt );
   
     // closest to max corner
-  closest_location_on_box( min, max, MBCartVect(2,3,4), pt );
+  closest_location_on_box( min, max, CartVect(2,3,4), pt );
   ASSERT_VECTORS_EQUAL( max, pt );
 }
 

@@ -1,11 +1,13 @@
 #include "TestUtil.hpp"
-#include "MBCore.hpp"
+#include "moab/Core.hpp"
 #include "Tqdcfr.hpp"
-#include "MBTagConventions.hpp"
+#include "moab/MBTagConventions.hpp"
 #include "FileOptions.hpp"
-#include "MBCN.hpp"
+#include "moab/MBCN.hpp"
 #include <math.h>
 #include <algorithm>
+
+using namespace moab;
 
 /**\brief Input test file: test.cub
  * Cubit 10.2 file.
@@ -83,26 +85,26 @@ static const char input_file_1[] = "test.cub";
 static const char ho_file[] = "ho_test.cub";
 #endif
 
-void read_file( MBInterface& moab, const char* input_file );
+void read_file( Interface& moab, const char* input_file );
 
 
 // Check that adjacent lower-order entities have
 // higher-order nodes consitent with input entity.
-void check_adj_ho_nodes( MBInterface& moab,
-                         MBEntityHandle entity );
+void check_adj_ho_nodes( Interface& moab,
+                         EntityHandle entity );
 
 // Check that element has expected higher-order nodes
 // and that each higher-order node is at the center
 // of the sub-entity it is on.
-void check_ho_element( MBInterface& moab, 
-                       MBEntityHandle entity,
+void check_ho_element( Interface& moab, 
+                       EntityHandle entity,
                        int mid_nodes[4] );
 
 // Validate elements of specified type.
 // Looks for a block containing the specified entity type
 // and with the specified mid-node flags set in its
 // HAS_MID_NODES_TAG.
-void test_ho_elements( MBEntityType type, int num_nodes );
+void test_ho_elements( EntityType type, int num_nodes );
 
 void test_vertices();
 
@@ -168,9 +170,9 @@ int main()
   return result;
 }
 
-void read_file( MBInterface& moab, const char* input_file )
+void read_file( Interface& moab, const char* input_file )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   Tqdcfr reader( &moab );
   FileOptions opts("");
   rval = reader.load_file( input_file, 0, opts, 0, 0, 0 );
@@ -227,19 +229,19 @@ void test_vertices()
                                 10,  0,  0  // 45
                                 };
 
-  MBErrorCode rval;
-  MBCore mb_impl;
-  MBInterface& mb = mb_impl;
+  ErrorCode rval;
+  Core mb_impl;
+  Interface& mb = mb_impl;
   read_file( mb, input_file_1 );
   
     // get vertex handles and check correct number of vertices
   const size_t num_nodes = sizeof(node_coords)/(3*sizeof(double));
-  MBRange verts;
+  Range verts;
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts ); CHECK_ERR(rval);
   CHECK_EQUAL( num_nodes, (size_t)verts.size() );
   
     // check global ids (should be 1 to 45 for vertices.)
-  MBTag gid_tag;
+  Tag gid_tag;
   rval = mb.tag_get_handle( "GLOBAL_ID", gid_tag ); CHECK_ERR(rval);
   std::vector<int> ids(num_nodes);
   rval = mb.tag_get_data( gid_tag, verts, &ids[0] ); CHECK_ERR(rval);
@@ -262,22 +264,22 @@ void test_vertices()
 
 
 void test_element( const char* filename,
-                   MBEntityType type, 
+                   EntityType type, 
                    int num_elem,
                    int node_per_elem,
                    const int* conn_list )
 {
-  MBErrorCode rval;
-  MBCore mb_impl;
-  MBInterface& mb = mb_impl;
+  ErrorCode rval;
+  Core mb_impl;
+  Interface& mb = mb_impl;
   read_file( mb, filename );
   
-  MBRange elems;
+  Range elems;
   rval = mb.get_entities_by_type( 0, type, elems ); CHECK_ERR(rval);
   CHECK_EQUAL( num_elem, (int)elems.size() );
   
     // get global ids
-  MBTag gid_tag;
+  Tag gid_tag;
   rval = mb.tag_get_handle( "GLOBAL_ID", gid_tag ); CHECK_ERR(rval);
   std::vector<int> ids(num_elem);
   rval = mb.tag_get_data( gid_tag, elems, &ids[0] ); CHECK_ERR(rval);
@@ -290,8 +292,8 @@ void test_element( const char* filename,
   
     // check connectivity of each element
   std::vector<int> conn_ids(node_per_elem);
-  std::vector<MBEntityHandle> conn_h;
-  MBRange::iterator j = elems.begin();
+  std::vector<EntityHandle> conn_h;
+  Range::iterator j = elems.begin();
   for (int i = 0; i < num_elem; ++i, ++j) {
     conn_h.clear();
     rval = mb.get_connectivity( &*j, 1, conn_h ); CHECK_ERR(rval);
@@ -478,26 +480,26 @@ std::vector<int> find_parents( const int parent_conn[][L], int num_parent, int i
   return results;
 }
 
-int check_geometric_set( MBInterface& moab,
+int check_geometric_set( Interface& moab,
                          int dim, int id, 
                          const int* children, int num_children, 
                          std::vector<int> parents )
 {
-  MBErrorCode rval;
-  MBTag gid_tag, dim_tag;
+  ErrorCode rval;
+  Tag gid_tag, dim_tag;
   
   rval = moab.tag_get_handle( "GLOBAL_ID", gid_tag ); CHECK_ERR(rval);
   rval = moab.tag_get_handle( "GEOM_DIMENSION", dim_tag ); CHECK_ERR(rval);
   void* tag_vals[] = { &dim, &id };
-  MBTag tags[] = { dim_tag, gid_tag };
-  MBRange ents;
+  Tag tags[] = { dim_tag, gid_tag };
+  Range ents;
   rval = moab.get_entities_by_type_and_tag( 0, MBENTITYSET, tags, tag_vals, 2, ents );
   CHECK_ERR(rval);
   CHECK_EQUAL( 1u, (unsigned)ents.size() );
   
-  const MBEntityHandle geom = ents.front();
+  const EntityHandle geom = ents.front();
   std::vector<int> exp_rel, act_rel;
-  std::vector<MBEntityHandle> rel;
+  std::vector<EntityHandle> rel;
   
   if (num_children) {
     exp_rel.resize( num_children );
@@ -531,8 +533,8 @@ int check_geometric_set( MBInterface& moab,
 
 void test_geometric_topology()
 {
-  MBCore mb_impl;
-  MBInterface& mb = mb_impl;
+  Core mb_impl;
+  Interface& mb = mb_impl;
   read_file( mb, input_file_1 );
   // expected geometric vertices, specified by global ID
   const int vertex_ids[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 14 };
@@ -605,16 +607,16 @@ void test_geometric_topology()
 
 void test_geometric_sets()
 {
-  MBErrorCode rval;
-  MBCore mb_impl;
-  MBInterface& mb = mb_impl;
+  ErrorCode rval;
+  Core mb_impl;
+  Interface& mb = mb_impl;
   read_file( mb, input_file_1 );
-  MBTag gid_tag, dim_tag;
+  Tag gid_tag, dim_tag;
   rval = mb.tag_get_handle( "GLOBAL_ID", gid_tag ); CHECK_ERR(rval);
   rval = mb.tag_get_handle( "GEOM_DIMENSION", dim_tag ); CHECK_ERR(rval);
 
     // verify mesh entity counts
-  MBRange verts, curves, surfs, vols;
+  Range verts, curves, surfs, vols;
   int dim = 0;
   const void* vals[] = {&dim};
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &dim_tag, vals, 1, verts );
@@ -636,8 +638,8 @@ void test_geometric_sets()
   
     // check that each vertex has a single node, and that the 
     // node is also contained in any parent curve
-  MBRange ents;
-  MBRange::iterator i;
+  Range ents;
+  Range::iterator i;
   for (i = verts.begin(); i != verts.end(); ++i) {
     ents.clear();
     rval = mb.get_entities_by_handle( *i, ents ); CHECK_ERR(rval);
@@ -675,7 +677,7 @@ void test_geometric_sets()
   
     // Check that for each geometric entity, any contained vertices
     // are adjacent to some entity in one of its parents.
-  MBRange parents, geom, nodes, tmp;
+  Range parents, geom, nodes, tmp;
   for (int d = 0; d < 3; ++d) {
     const void* vals[] = {&d};
     rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &dim_tag, vals, 1, geom );
@@ -687,13 +689,13 @@ void test_geometric_sets()
       parents.clear();
       rval = mb.get_entities_by_type( *i, MBVERTEX, nodes ); CHECK_ERR(rval);
       rval = mb.get_parent_meshsets( *i, parents ); CHECK_ERR(rval);
-      for (MBRange::iterator j = parents.begin(); j != parents.end(); ++j) {
+      for (Range::iterator j = parents.begin(); j != parents.end(); ++j) {
         tmp.clear();
         rval = mb.get_entities_by_dimension( *j, d+1, tmp ); CHECK_ERR(rval);
         ents.merge( tmp );
       }
       tmp.clear();
-      rval = mb.get_adjacencies( ents, 0, false, tmp, MBInterface::UNION );
+      rval = mb.get_adjacencies( ents, 0, false, tmp, Interface::UNION );
       CHECK_ERR(rval);
       nodes = subtract( nodes, tmp );
       CHECK( nodes.empty() );
@@ -704,24 +706,24 @@ void test_geometric_sets()
 // expect one block containing entire mesh, with id == 1
 void test_blocks()
 {
-  MBErrorCode rval;
-  MBCore mb_impl;
-  MBInterface& mb = mb_impl;
+  ErrorCode rval;
+  Core mb_impl;
+  Interface& mb = mb_impl;
   read_file( mb, input_file_1 );
-  MBTag mat_tag;
+  Tag mat_tag;
   rval = mb.tag_get_handle( MATERIAL_SET_TAG_NAME, mat_tag ); CHECK_ERR(rval);
 
-  MBRange blocks;
+  Range blocks;
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &mat_tag, 0, 1, blocks );
   CHECK_ERR(rval);
   CHECK_EQUAL( 1u, (unsigned)blocks.size() );
-  MBEntityHandle block = blocks.front();
+  EntityHandle block = blocks.front();
   int id;
   rval = mb.tag_get_data( mat_tag, &block, 1, &id );
   CHECK_ERR(rval);
   CHECK_EQUAL( 1, id );
   
-  MBRange block_hexes, mesh_hexes;
+  Range block_hexes, mesh_hexes;
   rval = mb.get_entities_by_dimension( 0, 3, mesh_hexes ); CHECK_ERR(rval);
   rval = mb.get_entities_by_dimension( block, 3, block_hexes, true ); CHECK_ERR(rval);
   CHECK( mesh_hexes == block_hexes );  
@@ -738,22 +740,22 @@ void test_bc_sets( const char* tag_name, unsigned count,
                    const int* ids,
                    const std::vector<int> set_surfs[] )
 {
-  MBErrorCode rval;
-  MBCore mb_impl;
-  MBInterface& mb = mb_impl;
+  ErrorCode rval;
+  Core mb_impl;
+  Interface& mb = mb_impl;
   read_file( mb, input_file_1 );
-  MBTag ss_tag, gid_tag, dim_tag;
+  Tag ss_tag, gid_tag, dim_tag;
   rval = mb.tag_get_handle( tag_name, ss_tag ); CHECK_ERR(rval);
   rval = mb.tag_get_handle( "GLOBAL_ID", gid_tag ); CHECK_ERR(rval);
   rval = mb.tag_get_handle( "GEOM_DIMENSION", dim_tag ); CHECK_ERR(rval);
 
     // check number of sidesets and IDs
-  MBRange sidesets;
+  Range sidesets;
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &ss_tag, 0, 1, sidesets );
   CHECK_ERR(rval);
   CHECK_EQUAL( count, (unsigned)sidesets.size() );
-  std::vector<MBEntityHandle> handles(count,0);
-  for (MBRange::iterator i = sidesets.begin(); i != sidesets.end(); ++i) {
+  std::vector<EntityHandle> handles(count,0);
+  for (Range::iterator i = sidesets.begin(); i != sidesets.end(); ++i) {
     int id;
     rval = mb.tag_get_data( ss_tag, &*i, 1, &id ); CHECK_ERR(rval);
     unsigned idx;
@@ -767,9 +769,9 @@ void test_bc_sets( const char* tag_name, unsigned count,
 
     
     // get surface faces
-  std::vector<MBRange> exp(count);
-  MBRange surfs, tmp;
-  MBTag tags[] = { dim_tag, gid_tag };
+  std::vector<Range> exp(count);
+  Range surfs, tmp;
+  Tag tags[] = { dim_tag, gid_tag };
   for (unsigned i = 0; i < count; ++i) {
     exp[i].clear();
     surfs.clear();
@@ -787,7 +789,7 @@ void test_bc_sets( const char* tag_name, unsigned count,
   }
   
     // check each bc set
-  MBRange act;
+  Range act;
   for (unsigned i = 0; i < count; ++i) {
     act.clear();
     rval = mb.get_entities_by_dimension( handles[i], 2, act, true ); CHECK_ERR(rval);
@@ -821,25 +823,25 @@ void test_node_sets()
   test_bc_sets( DIRICHLET_SET_TAG_NAME, 2, ids, surfs );
 }
 
-static MBEntityHandle find_side( MBInterface& moab, 
-                                 MBEntityHandle entity,
+static EntityHandle find_side( Interface& moab, 
+                                 EntityHandle entity,
                                  int side_dim,
                                  int side_num )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   
-  std::vector<MBEntityHandle> adj;
+  std::vector<EntityHandle> adj;
   rval = moab.get_adjacencies( &entity, 1, side_dim, false, adj );
   CHECK_ERR(rval);
   
   int sub_ent_indices[4];
   MBCN::SubEntityVertexIndices( TYPE_FROM_HANDLE(entity), side_dim, side_num, 
                                 sub_ent_indices );
-  MBEntityType subtype = MBCN::SubEntityType( TYPE_FROM_HANDLE(entity),
+  EntityType subtype = MBCN::SubEntityType( TYPE_FROM_HANDLE(entity),
                                               side_dim, side_num );
   int sub_ent_corners = MBCN::VerticesPerEntity(subtype);
   
-  const MBEntityHandle* conn;
+  const EntityHandle* conn;
   int conn_len;
   rval = moab.get_connectivity( entity, conn, conn_len );
   CHECK_ERR(rval);
@@ -848,7 +850,7 @@ static MBEntityHandle find_side( MBInterface& moab,
     if (TYPE_FROM_HANDLE(adj[i]) != subtype)
       continue;
   
-    const MBEntityHandle* sub_conn;
+    const EntityHandle* sub_conn;
     int sub_len;
     rval = moab.get_connectivity( adj[i], sub_conn, sub_len );
     CHECK_ERR(rval);
@@ -879,13 +881,13 @@ static MBEntityHandle find_side( MBInterface& moab,
 }
       
   
-void check_adj_ho_nodes( MBInterface& moab,
-                         MBEntityHandle entity )
+void check_adj_ho_nodes( Interface& moab,
+                         EntityHandle entity )
 {
-    MBEntityType type = TYPE_FROM_HANDLE(entity);
-    const MBEntityHandle* conn;
+    EntityType type = TYPE_FROM_HANDLE(entity);
+    const EntityHandle* conn;
     int conn_len;
-    MBErrorCode rval = moab.get_connectivity( entity, conn, conn_len );
+    ErrorCode rval = moab.get_connectivity( entity, conn, conn_len );
     CHECK_ERR(rval);
     
     int ho[4];
@@ -895,11 +897,11 @@ void check_adj_ho_nodes( MBInterface& moab,
         continue;
         
       for (int j = 0; j < MBCN::NumSubEntities( type, dim ); ++j) {
-        MBEntityHandle side = find_side( moab, entity, dim, j );
+        EntityHandle side = find_side( moab, entity, dim, j );
         if (!side)
           continue;
         
-        const MBEntityHandle* side_conn;
+        const EntityHandle* side_conn;
         int side_len;
         rval = moab.get_connectivity( side, side_conn, side_len );
         CHECK_ERR(rval);
@@ -914,15 +916,15 @@ void check_adj_ho_nodes( MBInterface& moab,
 // Check that element has expected higher-order nodes
 // and that each higher-order node is at the center
 // of the sub-entity it is on.
-void check_ho_element( MBInterface& moab, 
-                       MBEntityHandle entity,
+void check_ho_element( Interface& moab, 
+                       EntityHandle entity,
                        int mid_nodes[4] )
 {
     // get element info
-  const MBEntityType type = TYPE_FROM_HANDLE(entity);
-  const MBEntityHandle* conn;
+  const EntityType type = TYPE_FROM_HANDLE(entity);
+  const EntityHandle* conn;
   int conn_len;
-  MBErrorCode rval = moab.get_connectivity( entity, conn, conn_len );
+  ErrorCode rval = moab.get_connectivity( entity, conn, conn_len );
   CHECK_ERR(rval);
   std::vector<double> coords(3*conn_len);
   rval = moab.get_coords( conn, conn_len, &coords[0] );
@@ -945,7 +947,7 @@ void check_ho_element( MBInterface& moab,
     int sub_conn[8], num_sub;
     if (sub_dim < MBCN::Dimension(type)) {
       MBCN::SubEntityVertexIndices( type, sub_dim, sub_num, sub_conn );
-      MBEntityType sub_type = MBCN::SubEntityType( type, sub_dim, sub_num );
+      EntityType sub_type = MBCN::SubEntityType( type, sub_dim, sub_num );
       num_sub = MBCN::VerticesPerEntity( sub_type );
     }
     else {
@@ -975,30 +977,30 @@ void check_ho_element( MBInterface& moab,
 // Looks for a block containing the specified entity type
 // and with the specified mid-node flags set in its
 // HAS_MID_NODES_TAG.
-void test_ho_elements( MBEntityType type, int num_nodes )
+void test_ho_elements( EntityType type, int num_nodes )
 {
-  MBCore mb_impl;
-  MBInterface& mb = mb_impl;
+  Core mb_impl;
+  Interface& mb = mb_impl;
   read_file( mb, ho_file );
 
-  MBErrorCode rval;
-  MBTag ho_tag, block_tag;
+  ErrorCode rval;
+  Tag ho_tag, block_tag;
   rval = mb.tag_get_handle( MATERIAL_SET_TAG_NAME, block_tag );
   CHECK_ERR(rval);
   rval = mb.tag_get_handle( HAS_MID_NODES_TAG_NAME, ho_tag );
   CHECK_ERR(rval);
   
   // get material sets with expected higher-order nodes
-  MBRange blocks;
+  Range blocks;
   int ho_flags[4];
   MBCN::HasMidNodes( type, num_nodes, ho_flags );
-  MBTag tags[2] = {ho_tag, block_tag};
+  Tag tags[2] = {ho_tag, block_tag};
   void* vals[2] = {ho_flags, NULL};
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, tags, vals, 2, blocks );
   CHECK_ERR(rval);
   
-  MBRange::iterator i;
-  MBRange entities;
+  Range::iterator i;
+  Range entities;
   for (i = blocks.begin(); i != blocks.end(); ++i) {
     rval = mb.get_entities_by_type( *i, type, entities, true );
     CHECK_ERR(rval);
@@ -1016,16 +1018,16 @@ void test_ho_elements( MBEntityType type, int num_nodes )
 void test_multiple_files()
 {
     // load two surface meshes, one at z=+5 at z=-5.
-  MBErrorCode rval;
-  MBCore mb_impl;
-  MBInterface& mb = mb_impl;
-  MBRange file1_ents, file2_ents;
+  ErrorCode rval;
+  Core mb_impl;
+  Interface& mb = mb_impl;
+  Range file1_ents, file2_ents;
   read_file( mb, input_file_1 );
   mb.get_entities_by_handle( 0, file1_ents );
   read_file( mb, input_file_1 );
   mb.get_entities_by_handle( 0, file2_ents );
   file2_ents = subtract( file2_ents, file1_ents );
-  MBEntityHandle file1, file2;
+  EntityHandle file1, file2;
   mb.create_meshset( MESHSET_SET, file1 );
   mb.create_meshset( MESHSET_SET, file2 );
   mb.add_entities( file1, file1_ents );
@@ -1033,7 +1035,7 @@ void test_multiple_files()
   
     // first check that we get the same number of verts from 
     // each file and that they are distinct vertices
-  MBRange file1_verts, file2_verts;
+  Range file1_verts, file2_verts;
   rval = mb.get_entities_by_type( file1, MBVERTEX, file1_verts );
   CHECK_ERR(rval);
   CHECK( !file1_verts.empty() );
@@ -1045,7 +1047,7 @@ void test_multiple_files()
   
     // now check that we get the same number of elements from 
     // each file and that they are distinct
-  MBRange file1_elems, file2_elems;
+  Range file1_elems, file2_elems;
   rval = mb.get_entities_by_dimension( file1, 3, file1_elems );
   CHECK_ERR(rval);
   CHECK( !file1_elems.empty() );
@@ -1057,10 +1059,10 @@ void test_multiple_files()
 
     // now check that the connectivity for each element is
     // defined using the appropriate vertex instances
-  MBRange file1_elem_verts, file2_elem_verts;
-  rval = mb.get_adjacencies( file1_elems, 0, false, file1_elem_verts, MBInterface::UNION );
+  Range file1_elem_verts, file2_elem_verts;
+  rval = mb.get_adjacencies( file1_elems, 0, false, file1_elem_verts, Interface::UNION );
   CHECK_ERR(rval);
-  rval = mb.get_adjacencies( file2_elems, 0, false, file2_elem_verts, MBInterface::UNION );
+  rval = mb.get_adjacencies( file2_elems, 0, false, file2_elem_verts, Interface::UNION );
   CHECK_ERR(rval);
   CHECK_EQUAL( file1_elem_verts.size(), file2_elem_verts.size() );
   CHECK( intersect( file1_elem_verts,  file1_verts ) == file1_elem_verts );

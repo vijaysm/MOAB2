@@ -71,7 +71,7 @@
 #include <string.h>
 #include <math.h>
 #ifdef USE_MPI
-#  include "MBmpi.h"
+#  include "moab_mpi.h"
 #endif
 
 #include "errmem.h"     

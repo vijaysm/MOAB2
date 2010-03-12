@@ -1,7 +1,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <string.h>
-#include "MBmpi.h"
+#include "moab_mpi.h"
 #include "iMesh.h"
 
 

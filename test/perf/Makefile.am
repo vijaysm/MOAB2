@@ -1,9 +1,7 @@
 
 AM_CPPFLAGS += -I$(top_srcdir)/src \
                -I$(top_srcdir)/src/io/mhdf/include \
-               -I$(top_builddir)/src \
-               -I$(top_srcdir)/src/moab \
-               -I$(top_builddir)/src/moab
+               -I$(top_builddir)/src 
             
 LDADD = $(top_builddir)/src/libMOAB.la
 

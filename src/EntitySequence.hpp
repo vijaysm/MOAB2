@@ -1,22 +1,24 @@
 #ifndef ENTITY_SEQUENCE_HPP
 #define ENTITY_SEQUENCE_HPP
 
-#include "MBTypes.h"
-#include "MBInternals.hpp"
+#include "moab/Types.hpp"
+#include "Internals.hpp"
+
+namespace moab {
 
 class SequenceData;
 
 class EntitySequence {
 private:
-  MBEntityHandle startHandle, endHandle;
+  EntityHandle startHandle, endHandle;
   SequenceData* sequenceData;
 
 protected:
 
-  EntitySequence( MBEntityHandle h )
+  EntitySequence( EntityHandle h )
     : startHandle(h), endHandle(h) {}
 
-  EntitySequence( EntitySequence& split_from, MBEntityHandle here )
+  EntitySequence( EntitySequence& split_from, EntityHandle here )
     : startHandle( here ),
       endHandle( split_from.endHandle ),
       sequenceData( split_from.sequenceData )
@@ -24,29 +26,29 @@ protected:
     split_from.endHandle = here - 1;
   }
 
-  SequenceData* create_data_subset( MBEntityHandle start_handle,
-                                    MBEntityHandle end_handle,
+  SequenceData* create_data_subset( EntityHandle start_handle,
+                                    EntityHandle end_handle,
                                     int num_sequence_arrays,
                                     unsigned const* bytes_per_element ) const;
 
-  MBErrorCode prepend_entities( MBEntityID count );
-  MBErrorCode append_entities( MBEntityID count );
+  ErrorCode prepend_entities( EntityID count );
+  ErrorCode append_entities( EntityID count );
 
 public:
 
-  EntitySequence( MBEntityHandle start, MBEntityID count, SequenceData* data )
+  EntitySequence( EntityHandle start, EntityID count, SequenceData* data )
     : startHandle(start), endHandle( start + count - 1 ), sequenceData( data )
     {}
 
   virtual ~EntitySequence() {}
 
-  MBEntityType type() const
+  EntityType type() const
     { return TYPE_FROM_HANDLE(start_handle()); }
 
-  MBEntityHandle start_handle() const
+  EntityHandle start_handle() const
     { return startHandle; }
   
-  MBEntityHandle end_handle() const
+  EntityHandle end_handle() const
     { return endHandle; }
   
   SequenceData* data() const
@@ -55,7 +57,7 @@ public:
   void data( SequenceData* ptr )
     { sequenceData = ptr; }
   
-  MBEntityID size() const
+  EntityID size() const
     { return endHandle - startHandle + 1; }
     
     /**\brief True if SequenceData has no holes and is used only 
@@ -78,20 +80,20 @@ public:
      *\param here New sequences should be [start_handle(),here) & [here,end_handle()]
      *\return New sequence containing [here,end_handle()]
      */
-  virtual EntitySequence* split( MBEntityHandle here ) = 0;
+  virtual EntitySequence* split( EntityHandle here ) = 0;
 
     /**\brief Merge this sequence with another
      *
      * Combine two adjacent sequences.  Sequence handle blocks must be
      * consective and sequences must share a common SequenceData.
      */
-  virtual MBErrorCode merge( EntitySequence& other );
+  virtual ErrorCode merge( EntitySequence& other );
   
     /**\brief Erase entities in range: (end_handle()-count, end_handle()] */
-  virtual MBErrorCode pop_back( MBEntityID count );
+  virtual ErrorCode pop_back( EntityID count );
   
     /**\brief Erase entities in range: [start_handle(), start_handle()+count) */
-  virtual MBErrorCode pop_front( MBEntityID count );
+  virtual ErrorCode pop_front( EntityID count );
   
     /**\brief Create a new SequenceData that is a copy of a subset of 
     *         the one referenced by this sequence.
@@ -100,8 +102,8 @@ public:
     * SequenceData referenced by this EntitySequence.  Do not make any
     * changes to this EntitySequence or the current SequenceData.
     */
-  virtual SequenceData* create_data_subset( MBEntityHandle start_handle,
-                                            MBEntityHandle end_handle ) const = 0;
+  virtual SequenceData* create_data_subset( EntityHandle start_handle,
+                                            EntityHandle end_handle ) const = 0;
 
     /**\brief Get memory characteristcs that are the same for all entities
      *
@@ -119,8 +121,10 @@ public:
      *\return Any per-entity memory use not accounted for in the results
      *        of get_const_memory_use.
      */
-  virtual unsigned long get_per_entity_memory_use( MBEntityHandle first,
-                                                   MBEntityHandle last ) const;
+  virtual unsigned long get_per_entity_memory_use( EntityHandle first,
+                                                   EntityHandle last ) const;
 };
+  
+} // namespace moab
 
 #endif

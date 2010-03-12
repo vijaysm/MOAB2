@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+using namespace moab;
 
 void tag_syntax( std::ostream& s )
 {
@@ -42,7 +43,7 @@ inline static bool is_platform_little_endian();
 
   // Parse tag value from a string (vals).  The passed size
   // is the size returned by MOAB (num values * sizeof(type)).
-void* parse_values( const char* vals, MBDataType type, int size );
+void* parse_values( const char* vals, DataType type, int size );
 
   // Parse opque tag data as either a hexidecimal number or
   // an ASCII string.
@@ -214,14 +215,14 @@ template<typename T> T* parse_values_typed( const char* vals, int size )
 
 
 
-void* parse_values( const char* vals, MBDataType type, int size )
+void* parse_values( const char* vals, DataType type, int size )
 {
   switch( type ) {
     case MB_TYPE_OPAQUE:  return parse_opaque_value               ( vals, size );
     case MB_TYPE_INTEGER: return parse_values_typed<          int>( vals, size );
     case MB_TYPE_DOUBLE:  return parse_values_typed<       double>( vals, size );
     case MB_TYPE_BIT:     return parse_values_typed<      bittype>( vals, size );
-    case MB_TYPE_HANDLE:  return parse_values_typed<MBEntityHandle>(vals, size );
+    case MB_TYPE_HANDLE:  return parse_values_typed<EntityHandle>(vals, size );
     default:
       std::cerr << "Unknown tag data type: " << (int)type << std::endl;
       return 0;
@@ -230,7 +231,7 @@ void* parse_values( const char* vals, MBDataType type, int size )
 
 
 
-int parse_tag_spec( char* name, TagSpec& result, MBInterface* iface )
+int parse_tag_spec( char* name, TagSpec& result, Interface* iface )
 {
     //  Separate optional tag value from tag name
   char* val = strrchr( name, '=' );
@@ -248,7 +249,7 @@ int parse_tag_spec( char* name, TagSpec& result, MBInterface* iface )
   } 
   
     // Get tag
-  MBErrorCode rval = iface->tag_get_handle( name, result.handle );
+  ErrorCode rval = iface->tag_get_handle( name, result.handle );
   if (MB_TAG_NOT_FOUND == rval)
   {
     std::cerr << "Tag not found: " << name << std::endl;
@@ -264,7 +265,7 @@ int parse_tag_spec( char* name, TagSpec& result, MBInterface* iface )
   result.value = 0;
   if (val)
   {
-    MBDataType type;
+    DataType type;
     rval = iface->tag_get_data_type( result.handle, type );
     if (MB_SUCCESS != rval)
     {
@@ -291,7 +292,7 @@ int parse_tag_spec( char* name, TagSpec& result, MBInterface* iface )
   
   
 
-int parse_tag_create( char* name, TagSpec& result, MBInterface* iface )
+int parse_tag_create( char* name, TagSpec& result, Interface* iface )
 {
     // split at '=' signs
   
@@ -326,7 +327,7 @@ int parse_tag_create( char* name, TagSpec& result, MBInterface* iface )
   }
   *size_str = '\0';
   ++size_str;
-  MBDataType type;
+  DataType type;
   int tsize;
   if (!strcmp(type_str,"int"))
   {
@@ -346,7 +347,7 @@ int parse_tag_create( char* name, TagSpec& result, MBInterface* iface )
   else if (!strcmp(type_str,"handle"))
   {
     type = MB_TYPE_HANDLE;
-    tsize = sizeof(MBEntityHandle);
+    tsize = sizeof(EntityHandle);
   }
   else if (!strcmp(type_str,"opaque"))
   {
@@ -379,7 +380,7 @@ int parse_tag_create( char* name, TagSpec& result, MBInterface* iface )
   if (MB_SUCCESS == iface->tag_get_handle( name, result.handle ))
   {
       // make sure it matches
-    MBDataType etype;
+    DataType etype;
     int esize;
     if (MB_SUCCESS != iface->tag_get_data_type( result.handle, etype ) ||
         MB_SUCCESS != iface->tag_get_size( result.handle, esize ))
@@ -397,7 +398,7 @@ int parse_tag_create( char* name, TagSpec& result, MBInterface* iface )
     std::vector<unsigned char> value(esize);
     if (result.value)
     {
-      MBErrorCode rval = iface->tag_get_default_value( result.handle, &value[0] );
+      ErrorCode rval = iface->tag_get_default_value( result.handle, &value[0] );
       if (rval != MB_ENTITY_NOT_FOUND && rval != MB_SUCCESS)
       {
         std::cerr << "Error checking default value of tag: " << name << std::endl;
@@ -412,7 +413,7 @@ int parse_tag_create( char* name, TagSpec& result, MBInterface* iface )
   }
   else
   {
-    MBErrorCode rval = iface->tag_create( name, 
+    ErrorCode rval = iface->tag_create( name, 
                                    tsize*count, 
                                    type == MB_TYPE_BIT ? MB_TAG_BIT : MB_TAG_SPARSE,
                                    type,

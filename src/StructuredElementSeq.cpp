@@ -16,12 +16,14 @@
 #include "StructuredElementSeq.hpp"
 #include "ScdVertexData.hpp"
 #include "ScdElementData.hpp"
-#include "MBInterface.hpp"
-#include "MBReadUtilIface.hpp"
-#include "MBCN.hpp"
-#include "MBInternals.hpp"
+#include "moab/Interface.hpp"
+#include "moab/ReadUtilIface.hpp"
+#include "moab/MBCN.hpp"
+#include "Internals.hpp"
 
-StructuredElementSeq::StructuredElementSeq(MBEntityHandle start_handle,
+namespace moab {
+
+StructuredElementSeq::StructuredElementSeq(EntityHandle start_handle,
                              const int imin, const int jmin, const int kmin,
                              const int imax, const int jmax, const int kmax) 
   : ElementSequence( start_handle, 
@@ -40,24 +42,24 @@ StructuredElementSeq::~StructuredElementSeq()
 {
 }
 
-MBErrorCode StructuredElementSeq::get_connectivity( 
-                                        MBEntityHandle handle,
-                                        std::vector<MBEntityHandle>& connect,
+ErrorCode StructuredElementSeq::get_connectivity( 
+                                        EntityHandle handle,
+                                        std::vector<EntityHandle>& connect,
                                         bool /*topological*/ ) const
 {
   int i, j, k;
-  MBErrorCode rval = get_params( handle, i, j, k );
+  ErrorCode rval = get_params( handle, i, j, k );
   if (MB_SUCCESS == rval)
     rval = get_params_connectivity( i, j, k, connect );
   return rval;
 }
 
-MBErrorCode StructuredElementSeq::get_connectivity( 
-                                        MBEntityHandle handle,
-                                        MBEntityHandle const*& connect,
+ErrorCode StructuredElementSeq::get_connectivity( 
+                                        EntityHandle handle,
+                                        EntityHandle const*& connect,
                                         int &connect_length,
                                         bool topo,
-                                        std::vector<MBEntityHandle>* storage
+                                        std::vector<EntityHandle>* storage
                                         ) const
 {
   if (!storage) {
@@ -67,30 +69,30 @@ MBErrorCode StructuredElementSeq::get_connectivity(
   }
   
   storage->clear();
-  MBErrorCode rval = get_connectivity( handle, *storage, topo );
+  ErrorCode rval = get_connectivity( handle, *storage, topo );
   connect = &(*storage)[0];
   connect_length = storage->size();
   return rval;
 }
 
-MBErrorCode StructuredElementSeq::set_connectivity( 
-                                        MBEntityHandle,
-                                        MBEntityHandle const*,
+ErrorCode StructuredElementSeq::set_connectivity( 
+                                        EntityHandle,
+                                        EntityHandle const*,
                                         int )
 {
   return MB_NOT_IMPLEMENTED;
 }
 
-MBEntityHandle* StructuredElementSeq::get_connectivity_array()
+EntityHandle* StructuredElementSeq::get_connectivity_array()
   { return 0; }
 
 int StructuredElementSeq::values_per_entity() const
   { return -1; } // never reuse freed handles for structured elements 
 
-EntitySequence* StructuredElementSeq::split( MBEntityHandle here )
+EntitySequence* StructuredElementSeq::split( EntityHandle here )
   { return new StructuredElementSeq( *this, here ); }
 
-SequenceData* StructuredElementSeq::create_data_subset( MBEntityHandle, MBEntityHandle ) const
+SequenceData* StructuredElementSeq::create_data_subset( EntityHandle, EntityHandle ) const
   { return 0; }
 
 void StructuredElementSeq::get_const_memory_use( unsigned long& bytes_per_entity,
@@ -99,3 +101,5 @@ void StructuredElementSeq::get_const_memory_use( unsigned long& bytes_per_entity
   sequence_size = sizeof(*this);
   bytes_per_entity = sdata()->get_memory_use() / sdata()->size();
 }
+
+} // namespace moab

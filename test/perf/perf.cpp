@@ -33,18 +33,20 @@ extern "C" int getrusage(int, struct rusage *);
 #include <stdio.h>
 #include <assert.h>
 #include <iostream>
-#include "MBCore.hpp"
-#include "MBReadUtilIface.hpp"
+#include "moab/Core.hpp"
+#include "moab/ReadUtilIface.hpp"
 #include "VertexSequence.hpp"
 #include "StructuredElementSeq.hpp"
 #include "EntitySequence.hpp"
 #include "SequenceManager.hpp"
-#include "HomXform.hpp"
+#include "moab/HomXform.hpp"
+
+using namespace moab;
 
 double LENGTH = 1.0;
 
 void testA(const int nelem, const double *coords);
-void testB(const int nelem, const double *coords, const MBEntityHandle *connect);
+void testB(const int nelem, const double *coords, const EntityHandle *connect);
 void testC(const int nelem, const double *coords);
 void print_time(const bool print_em, double &tot_time, double &utime, double &stime);
 void query_vert_to_elem();
@@ -239,13 +241,13 @@ void build_coords(const int nelem, double *&coords)
             << std::endl;
 }
 
-void build_connect(const int nelem, const MBEntityHandle vstart, MBEntityHandle *&connect) 
+void build_connect(const int nelem, const EntityHandle vstart, EntityHandle *&connect) 
 {
     // allocate the memory
   int nume_tot = nelem*nelem*nelem;
-  connect = new MBEntityHandle[8*nume_tot];
+  connect = new EntityHandle[8*nume_tot];
 
-  MBEntityHandle vijk;
+  EntityHandle vijk;
   int numv = nelem + 1;
   int numv_sq = numv*numv;
   int idx = 0;
@@ -267,7 +269,7 @@ void build_connect(const int nelem, const MBEntityHandle vstart, MBEntityHandle 
   }
 }
 
-MBInterface *gMB;
+Interface *gMB;
 int main(int argc, char* argv[])
 {
   int nelem = 20;
@@ -289,14 +291,14 @@ int main(int argc, char* argv[])
   std::cout << "number of elements: " << nelem << "; test " 
             << which_test << std::endl;
 
-  gMB = new MBCore();
+  gMB = new Core();
 
     // pre-build the coords array
   double *coords = NULL;
   build_coords(nelem, coords);
   assert(NULL != coords);
 
-  MBEntityHandle *connect = NULL;
+  EntityHandle *connect = NULL;
   build_connect(nelem, 1, connect);
 
   switch (which_test) {
@@ -321,12 +323,12 @@ int main(int argc, char* argv[])
 
 void query_elem_to_vert()
 {
-  MBRange all_hexes;
-  MBErrorCode result = gMB->get_entities_by_type(0, MBHEX, all_hexes);
-  const MBEntityHandle *connect;
+  Range all_hexes;
+  ErrorCode result = gMB->get_entities_by_type(0, MBHEX, all_hexes);
+  const EntityHandle *connect;
   int num_connect;
   double dum_coords[24];
-  for (MBRange::iterator eit = all_hexes.begin(); eit != all_hexes.end(); eit++) {
+  for (Range::iterator eit = all_hexes.begin(); eit != all_hexes.end(); eit++) {
     result = gMB->get_connectivity(*eit, connect, num_connect);
     assert(MB_SUCCESS == result);
     result = gMB->get_coords(connect, num_connect, dum_coords);
@@ -344,11 +346,11 @@ void query_elem_to_vert()
 
 void query_vert_to_elem()
 {
-  MBRange all_verts;
-  std::vector<MBEntityHandle> neighbor_hexes;
-  MBErrorCode result = gMB->get_entities_by_type(0, MBVERTEX, all_verts);
+  Range all_verts;
+  std::vector<EntityHandle> neighbor_hexes;
+  ErrorCode result = gMB->get_entities_by_type(0, MBVERTEX, all_verts);
   assert(MB_SUCCESS == result);
-  for (MBRange::iterator vit = all_verts.begin(); vit != all_verts.end(); vit++) {
+  for (Range::iterator vit = all_verts.begin(); vit != all_verts.end(); vit++) {
     neighbor_hexes.clear();
     result = gMB->get_adjacencies(&(*vit), 1, 3, false, neighbor_hexes);
     assert(MB_SUCCESS == result);
@@ -358,11 +360,11 @@ void query_vert_to_elem()
 void query_struct_elem_to_vert()
 {
     // assumes brick mapped mesh with handles starting at zero
-  MBRange all_hexes;
-  MBErrorCode result = gMB->get_entities_by_type(0, MBHEX, all_hexes);
+  Range all_hexes;
+  ErrorCode result = gMB->get_entities_by_type(0, MBHEX, all_hexes);
   double dum_coords[24];
-  std::vector<MBEntityHandle> connect;
-  for (MBRange::iterator eit = all_hexes.begin(); eit != all_hexes.end(); eit++) {
+  std::vector<EntityHandle> connect;
+  for (Range::iterator eit = all_hexes.begin(); eit != all_hexes.end(); eit++) {
     result = gMB->get_connectivity(&(*eit), 1, connect);
     assert(MB_SUCCESS == result);
     result = gMB->get_coords(&connect[0], connect.size(), dum_coords);
@@ -410,12 +412,12 @@ void testA(const int nelem, const double *coords)
   EntitySequence *dum_seq = NULL;
   ScdVertexData *vseq = NULL;
   StructuredElementSeq *eseq = NULL;
-  SequenceManager *seq_mgr = dynamic_cast<MBCore*>(gMB)->sequence_manager();
+  SequenceManager *seq_mgr = dynamic_cast<Core*>(gMB)->sequence_manager();
   HomCoord vseq_minmax[2] = {HomCoord(0,0,0), 
                              HomCoord(nelem, nelem, nelem)};
-  MBEntityHandle vstart, estart;
+  EntityHandle vstart, estart;
   
-  MBErrorCode result = seq_mgr->create_scd_sequence(vseq_minmax[0], vseq_minmax[1],
+  ErrorCode result = seq_mgr->create_scd_sequence(vseq_minmax[0], vseq_minmax[1],
                                                     MBVERTEX, 1, vstart, dum_seq);
   if (NULL != dum_seq) vseq = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && vstart != 0 && dum_seq != NULL && vseq != NULL);
@@ -432,7 +434,7 @@ void testA(const int nelem, const double *coords)
   assert(MB_SUCCESS == result);
 
     // set the coordinates of the vertices
-  MBEntityHandle handle;
+  EntityHandle handle;
   int i;
   double dumv[3];
   int num_verts = (nelem + 1)*(nelem + 1)*(nelem + 1);
@@ -461,7 +463,7 @@ void testA(const int nelem, const double *coords)
             << std::endl;
 }
 
-void testB(const int nelem, const double *coords, const MBEntityHandle *connect) 
+void testB(const int nelem, const double *coords, const EntityHandle *connect) 
 {
   double ttime0, ttime1, ttime2, ttime3, utime, stime;
   
@@ -469,17 +471,17 @@ void testB(const int nelem, const double *coords, const MBEntityHandle *connect)
 
   int num_verts = (nelem + 1)*(nelem + 1)*(nelem + 1);
   int num_elems = nelem*nelem*nelem;
-  MBEntityHandle vstart, estart;
+  EntityHandle vstart, estart;
 
   // get the read interface
   void* ptr = 0;
-  gMB->query_interface("MBReadUtilIface", &ptr);
-  MBReadUtilIface* readMeshIface = reinterpret_cast<MBReadUtilIface*>(ptr);
+  gMB->query_interface("ReadUtilIface", &ptr);
+  ReadUtilIface* readMeshIface = reinterpret_cast<ReadUtilIface*>(ptr);
   
   // create a sequence to hold the node coordinates
   // get the current number of entities and start at the next slot
   std::vector<double*> coord_arrays;
-  MBErrorCode result = readMeshIface->get_node_arrays(3, num_verts, 1, vstart, coord_arrays);
+  ErrorCode result = readMeshIface->get_node_arrays(3, num_verts, 1, vstart, coord_arrays);
   assert(MB_SUCCESS == result && 1 == vstart &&
          coord_arrays[0] && coord_arrays[1] && coord_arrays[2]);
     // memcpy the coordinate data into place
@@ -487,10 +489,10 @@ void testB(const int nelem, const double *coords, const MBEntityHandle *connect)
   memcpy(coord_arrays[1], &coords[num_verts], sizeof(double)*num_verts);
   memcpy(coord_arrays[2], &coords[2*num_verts], sizeof(double)*num_verts);
   
-  MBEntityHandle *conn = 0;
+  EntityHandle *conn = 0;
   result = readMeshIface->get_element_array(num_elems, 8, MBHEX, 1, estart, conn);
   assert(MB_SUCCESS == result);
-  memcpy(conn, connect, num_elems*8*sizeof(MBEntityHandle));
+  memcpy(conn, connect, num_elems*8*sizeof(EntityHandle));
   result = readMeshIface->update_adjacencies(estart, num_elems, 8, conn);
   assert(MB_SUCCESS == result);
 
@@ -525,12 +527,12 @@ void testC(const int nelem, const double *coords)
   int numv_sq = numv*numv;
   int num_verts = numv*numv*numv;
   double dum_coords[3] = {coords[0], coords[num_verts], coords[2*num_verts]};
-  MBEntityHandle vstart;
+  EntityHandle vstart;
 
-  MBErrorCode result = gMB->create_vertex(dum_coords, vstart);
+  ErrorCode result = gMB->create_vertex(dum_coords, vstart);
   assert(MB_SUCCESS == result && 1 == vstart);
 
-  MBEntityHandle dum_vert, vijk;
+  EntityHandle dum_vert, vijk;
   int i;
   for (i = 1; i < num_verts; i++) {
     dum_coords[0] = coords[i]; 
@@ -540,7 +542,7 @@ void testC(const int nelem, const double *coords)
     assert(MB_SUCCESS == result);
   }
 
-  MBEntityHandle dum_conn[8];
+  EntityHandle dum_conn[8];
   for (i=0; i < nelem; i++) {
     for (int j=0; j < nelem; j++) {
       for (int k=0; k < nelem; k++) {

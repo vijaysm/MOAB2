@@ -1,8 +1,10 @@
-#include "MBRange.hpp"
-#include "MBCore.hpp"
-#include "MBSkinner.hpp"
+#include "moab/Range.hpp"
+#include "moab/Core.hpp"
+#include "moab/Skinner.hpp"
 #include <iostream>
 #include <stdlib.h>
+
+using namespace moab;
 
 enum {
   NO_ERROR= 0,
@@ -28,7 +30,7 @@ void help( const char* argv0 )
   exit(NO_ERROR);
 }
 
-void check( MBErrorCode rval )
+void check( ErrorCode rval )
 {
   if (MB_SUCCESS != rval) {
     std::cerr << "Internal error.  Aborting." << std::endl;
@@ -36,7 +38,7 @@ void check( MBErrorCode rval )
   }
 }
 
-void tag_depth( MBInterface& moab, MBTag tag );
+void tag_depth( Interface& moab, Tag tag );
 
 int main( int argc, char* argv[] )
 {
@@ -72,11 +74,11 @@ int main( int argc, char* argv[] )
     usage(argv[0]);
   }
 
-  MBCore moab;
-  MBInterface& mb = moab;
+  Core moab;
+  Interface& mb = moab;
   
-  MBEntityHandle file;
-  MBErrorCode rval;
+  EntityHandle file;
+  ErrorCode rval;
   rval = mb.create_meshset( MESHSET_SET, file ); check(rval);
   rval = mb.load_file( input, &file );
   if (MB_SUCCESS != rval) {
@@ -85,7 +87,7 @@ int main( int argc, char* argv[] )
   }
   
   int init_val = -1;
-  MBTag tag;
+  Tag tag;
   rval = mb.tag_create( tagname, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &init_val );
   if (MB_ALREADY_ALLOCATED == rval) {
     rval = mb.tag_delete( tag ); check(rval);
@@ -106,25 +108,25 @@ int main( int argc, char* argv[] )
   return NO_ERROR;
 }
 
-MBErrorCode get_adjacent_elems( MBInterface& mb, const MBRange& verts, MBRange& elems )
+ErrorCode get_adjacent_elems( Interface& mb, const Range& verts, Range& elems )
 {
   elems.clear();
-  MBErrorCode rval;
+  ErrorCode rval;
   for (int dim = 3; dim > 0; --dim) {
-    rval = mb.get_adjacencies( verts, dim, false, elems, MBInterface::UNION );
+    rval = mb.get_adjacencies( verts, dim, false, elems, Interface::UNION );
     if (MB_SUCCESS != rval)
       break;
   }
   return rval;
 }
 
-void tag_depth( MBInterface& mb, MBTag tag )
+void tag_depth( Interface& mb, Tag tag )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   int dim;
   
-  MBSkinner tool(&mb);
-  MBRange verts, elems;
+  Skinner tool(&mb);
+  Range verts, elems;
   dim = 3;
   while (elems.empty()) {
     rval = mb.get_entities_by_dimension( 0, dim, elems ); check(rval);
@@ -142,13 +144,13 @@ void tag_depth( MBInterface& mb, MBTag tag )
     rval = mb.tag_set_data( tag, elems, &data[0] ); check(rval);
     
     verts.clear();
-    rval = mb.get_adjacencies( elems, 0, false, verts, MBInterface::UNION );
+    rval = mb.get_adjacencies( elems, 0, false, verts, Interface::UNION );
     check(rval);
     
-    MBRange tmp;
+    Range tmp;
     rval = get_adjacent_elems( mb, verts, tmp ); check(rval);
     elems.clear();
-    for (MBRange::reverse_iterator i = tmp.rbegin(); i != tmp.rend(); ++i) {
+    for (Range::reverse_iterator i = tmp.rbegin(); i != tmp.rend(); ++i) {
       rval = mb.tag_get_data( tag, &*i, 1, &val ); check(rval);
       if (val == -1)
         elems.insert( *i );

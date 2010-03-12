@@ -1,14 +1,16 @@
-#include "MBCore.hpp"
-#include "MBRange.hpp"
+#include "moab/Core.hpp"
+#include "moab/Range.hpp"
 #include "TestUtil.hpp"
 #include "ReadHDF5.hpp"
-#include "MBTagConventions.hpp"
+#include "moab/MBTagConventions.hpp"
 #include "FileOptions.hpp"
 #include <vector>
 #include <stdlib.h>
 #include <iostream>
 #include <algorithm>
 #include <limits>
+
+using namespace moab;
 
 const char TEST_FILE[] = "partial.h5m";
 #define READ_OPTS "BUFFER_SIZE=256"
@@ -19,14 +21,14 @@ static void test_read_nothing_common( bool non_existant );
 static void test_read_nodes_common( int num_read_sets );
 static void test_read_handle_tag_common( bool var_len );
 
-const int QUAD_INT = 20; 
+const int MBQUAD_INT = 20; 
 const int NUM_SETS = 10;
-const int SET_WIDTH = (QUAD_INT + NUM_SETS - 1) / NUM_SETS; // ceil(QUAD_INT/NUM_SETS)
+const int SET_WIDTH = (MBQUAD_INT + NUM_SETS - 1) / NUM_SETS; // ceil(MBQUAD_INT/NUM_SETS)
 const char LOGICAL_NAME[] = "logical";   // tag storing logical (i,j) coordinates
 const char CENTROID_NAME[] = "centroid"; // tag storing position of centroid (x,y,0)
-//! Create a regular QUAD_INT^2 element quad mesh with regularly
+//! Create a regular MBQUAD_INT^2 element quad mesh with regularly
 //! spaced coordinates in the range [1,100].  Group elements
-//! into 10 vertical strips QUAD_INT/10 elements wide.  Tag elements,
+//! into 10 vertical strips MBQUAD_INT/10 elements wide.  Tag elements,
 //! vertices and/or sets with ID in [1,10] stored in ID_TAG_NAME
 //! tag.  Write new mesh to TEST_FILE.
 void create_mesh( bool create_element_sets,
@@ -37,13 +39,13 @@ void create_mesh( bool create_element_sets,
                   bool var_len_adj_elems = false );
 // Given a list of vertices adjacent to a quad strip, identify it as one of the 
 // NUM_SETS strips of quads written by create_mesh.
-int identify_set( MBInterface& mb, const MBRange& verts );
-int identify_set( MBInterface& mb, MBEntityHandle set );
+int identify_set( Interface& mb, const Range& verts );
+int identify_set( Interface& mb, EntityHandle set );
 
-static MBTag check_tag( MBInterface& mb, 
+static Tag check_tag( Interface& mb, 
                         const char* name,
-                        MBTagType storage,
-                        MBDataType type,
+                        TagType storage,
+                        DataType type,
                         int size );
 
 enum GatherTestMode { GATHER_SETS, GATHER_CONTENTS, GATHER_NONE };
@@ -185,18 +187,18 @@ int main( int argc, char* argv[] )
 
 void test_read_nothing_common( bool non_existant )
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
 
   // create a few nodes to write to file
   std::vector<double> coords( 3000 );
-  MBRange verts;
+  Range verts;
   rval= mb.create_vertices( &coords[0], coords.size()/3, verts );
   CHECK_ERR(rval);
   
   // create three entity sets
-  MBEntityHandle sets[3];
+  EntityHandle sets[3];
   rval = mb.create_meshset( MESHSET_SET, sets[0] );
   CHECK_ERR(rval);
   rval = mb.create_meshset( MESHSET_SET, sets[1] );
@@ -211,7 +213,7 @@ void test_read_nothing_common( bool non_existant )
   CHECK_ERR(rval);
   
   // tag all three sets
-  MBTag id_tag;
+  Tag id_tag;
   rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
   CHECK_ERR(rval);
   int ids[3] = { 5, 7, 9 };
@@ -225,7 +227,7 @@ void test_read_nothing_common( bool non_existant )
   CHECK_ERR(rval);
   
   // now read back in only the empty set
-  MBEntityHandle file_set;
+  EntityHandle file_set;
   int id = non_existant ? 8 : 7;
   rval = mb.create_meshset( MESHSET_SET, file_set );
   CHECK_ERR(rval);
@@ -239,13 +241,13 @@ void test_read_nothing_common( bool non_existant )
   
   // the file should contain exactly two sets (the specified one and the new
   // file set, and nothing else.)
-  for (MBEntityType t = MBVERTEX; t < MBENTITYSET; ++t) {
+  for (EntityType t = MBVERTEX; t < MBENTITYSET; ++t) {
     int count = -1;
     rval = mb.get_number_entities_by_type( 0, t, count );
     CHECK_ERR(rval);
     CHECK_EQUAL( 0, count );
   }
-  MBRange setrange;
+  Range setrange;
   rval = mb.get_entities_by_type( 0, MBENTITYSET, setrange );
   CHECK_ERR(rval);
   CHECK_EQUAL( (non_existant ? 1 : 2), (int)setrange.size() );
@@ -263,14 +265,14 @@ static void vtx_coords( int set_id, int j, int num_sets, double coords[3] )
 
 void test_read_nodes_common( int num_read_sets )
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
     
     // create 1000 nodes
   const int num_sets = 2*num_read_sets;
-  std::vector<MBEntityHandle> verts(1000);
-  std::vector< std::vector<MBEntityHandle> > set_verts(num_sets);
+  std::vector<EntityHandle> verts(1000);
+  std::vector< std::vector<EntityHandle> > set_verts(num_sets);
   for (size_t i = 0; i < verts.size(); ++i) {
     double coords[3];
     int j = i % num_sets;
@@ -281,7 +283,7 @@ void test_read_nodes_common( int num_read_sets )
   }
   
     // create two sets, each containing half of the nodes
-  std::vector<MBEntityHandle> sets(num_sets);
+  std::vector<EntityHandle> sets(num_sets);
   for (int i = 0; i < num_sets; ++i) {
     rval = mb.create_meshset( MESHSET_ORDERED, sets[i] );
     CHECK_ERR(rval);
@@ -290,7 +292,7 @@ void test_read_nodes_common( int num_read_sets )
   }
  
     // tag both sets
-  MBTag id_tag;
+  Tag id_tag;
   rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
   CHECK_ERR(rval);
   std::vector<int> values( num_sets );
@@ -307,7 +309,7 @@ void test_read_nodes_common( int num_read_sets )
     // now read back in only the specified number of sets
   values.resize( num_read_sets );
   for (int i = 0; i < num_read_sets; ++i) values[i] = 2*(i+1);
-  MBEntityHandle file_set;
+  EntityHandle file_set;
   rval = mb.create_meshset( MESHSET_SET, file_set );
   CHECK_ERR(rval);
   rval = mb.load_file( TEST_FILE, &file_set, READ_OPTS, ID_TAG_NAME, &values[0], num_read_sets );
@@ -321,18 +323,18 @@ void test_read_nodes_common( int num_read_sets )
       expected += set_verts[i].size();
   CHECK_EQUAL( expected, count );
   
-  MBRange sets2;
+  Range sets2;
   rval = mb.get_entities_by_type( 0, MBENTITYSET, sets2 );
   CHECK_ERR(rval);
   CHECK_EQUAL( 1+num_read_sets, (int)sets2.size() );
-  MBRange::iterator it = sets2.find( file_set );
+  Range::iterator it = sets2.find( file_set );
   CHECK( it != sets2.end() );
   sets2.erase( it );
   
   rval = mb.tag_get_handle( ID_TAG_NAME, id_tag );
   CHECK_ERR(rval);  
   while (!sets2.empty()) {
-    MBEntityHandle set = sets2.pop_front();
+    EntityHandle set = sets2.pop_front();
     int id;
     rval = mb.tag_get_data( id_tag, &set, 1, &id );
     CHECK_ERR(rval);
@@ -340,7 +342,7 @@ void test_read_nodes_common( int num_read_sets )
     CHECK( id > 0 );
     CHECK( (unsigned)id <= set_verts.size() );
     
-    std::vector<MBEntityHandle> verts;
+    std::vector<EntityHandle> verts;
     rval = mb.get_entities_by_handle( set, verts );
     CHECK_ERR(rval);
     CHECK_EQUAL( set_verts[id-1].size(), verts.size() );
@@ -357,9 +359,9 @@ void test_read_nodes_common( int num_read_sets )
   }
 }
 
-//! Create a regular QUAD_INT^2 element quad mesh with regularly
+//! Create a regular MBQUAD_INT^2 element quad mesh with regularly
 //! spaced coordinates in the range [1,100].  Group elements
-//! into 10 vertical strips QUAD_INT/10 elements wide.  Tag elements,
+//! into 10 vertical strips MBQUAD_INT/10 elements wide.  Tag elements,
 //! vertices and/or sets with ID in [1,10] stored in ID_TAG_NAME
 //! tag.  Write new mesh to TEST_FILE.
 void create_mesh( bool create_element_sets,
@@ -369,12 +371,12 @@ void create_mesh( bool create_element_sets,
                   const char* adj_elem_tag_name,
                   bool var_len_adj_elems )
 {
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
+  ErrorCode rval;
   
     // create tags
-  MBTag logical_tag, centroid_tag, id_tag;
+  Tag logical_tag, centroid_tag, id_tag;
   rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
   CHECK_ERR(rval);
   rval = mb.tag_create( LOGICAL_NAME, 2*sizeof(int), MB_TAG_DENSE, MB_TYPE_OPAQUE, logical_tag, 0 );
@@ -382,7 +384,7 @@ void create_mesh( bool create_element_sets,
   rval = mb.tag_create( CENTROID_NAME, 3*sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, centroid_tag, 0 );
   CHECK_ERR(rval);
 
-  MBEntityHandle sets[NUM_SETS];
+  EntityHandle sets[NUM_SETS];
   if (create_element_sets || create_vertex_sets) {
     for (int i = 0; i < NUM_SETS; ++i) {
       rval = mb.create_meshset( MESHSET_ORDERED, sets[i] );
@@ -394,8 +396,8 @@ void create_mesh( bool create_element_sets,
   }
 
     // create elements
-  MBEntityHandle verts[QUAD_INT+1][QUAD_INT+1], quads[QUAD_INT][QUAD_INT];
-  for (int i = 0; i <= QUAD_INT; ++i) for(int j = 0; j <= QUAD_INT; ++j) {
+  EntityHandle verts[MBQUAD_INT+1][MBQUAD_INT+1], quads[MBQUAD_INT][MBQUAD_INT];
+  for (int i = 0; i <= MBQUAD_INT; ++i) for(int j = 0; j <= MBQUAD_INT; ++j) {
     double coords[3] = { i, j, 0 };
     rval = mb.create_vertex( coords, verts[j][i] );
     CHECK_ERR(rval);
@@ -421,8 +423,8 @@ void create_mesh( bool create_element_sets,
       }
     }
   }
-  for (int i = 0; i < QUAD_INT; ++i) for(int j = 0; j < QUAD_INT; ++j) {
-    MBEntityHandle conn[4] = { verts[j  ][i  ], 
+  for (int i = 0; i < MBQUAD_INT; ++i) for(int j = 0; j < MBQUAD_INT; ++j) {
+    EntityHandle conn[4] = { verts[j  ][i  ], 
                                verts[j  ][i+1],
                                verts[j+1][i+1],
                                verts[j+1][i  ] };
@@ -446,39 +448,39 @@ void create_mesh( bool create_element_sets,
   }
   
   if (adj_elem_tag_name && !var_len_adj_elems) {
-    MBTag handle_tag;
+    Tag handle_tag;
     rval = mb.tag_create( adj_elem_tag_name, 
-                          4 * sizeof(MBEntityHandle), 
+                          4 * sizeof(EntityHandle), 
                           MB_TAG_DENSE,
                           MB_TYPE_HANDLE,
                           handle_tag,
                           0 );
     CHECK_ERR(rval);
-    for (int i = 0; i <= QUAD_INT; ++i) for(int j = 0; j <= QUAD_INT; ++j) {
-      MBEntityHandle val[4] = { (i > 0        && j > 0       ) ? quads[j-1][i-1] : 0,
-                                (i > 0        && j < QUAD_INT) ? quads[j  ][i-1] : 0,
-                                (i < QUAD_INT && j < QUAD_INT) ? quads[j  ][i  ] : 0,
-                                (i < QUAD_INT && j > 0       ) ? quads[j-1][i  ] : 0 };
+    for (int i = 0; i <= MBQUAD_INT; ++i) for(int j = 0; j <= MBQUAD_INT; ++j) {
+      EntityHandle val[4] = { (i > 0        && j > 0       ) ? quads[j-1][i-1] : 0,
+                                (i > 0        && j < MBQUAD_INT) ? quads[j  ][i-1] : 0,
+                                (i < MBQUAD_INT && j < MBQUAD_INT) ? quads[j  ][i  ] : 0,
+                                (i < MBQUAD_INT && j > 0       ) ? quads[j-1][i  ] : 0 };
       rval = mb.tag_set_data( handle_tag, &verts[j][i], 1, val );
       CHECK_ERR(rval);
     }
   }
   else if (adj_elem_tag_name && var_len_adj_elems) {
-    MBTag handle_tag;
+    Tag handle_tag;
     rval = mb.tag_create_variable_length( adj_elem_tag_name,
                                           MB_TAG_DENSE,
                                           MB_TYPE_HANDLE,
                                           handle_tag );
     CHECK_ERR(rval);
-    for (int i = 0; i <= QUAD_INT; ++i) for(int j = 0; j <= QUAD_INT; ++j) {
-      MBEntityHandle val[4];
+    for (int i = 0; i <= MBQUAD_INT; ++i) for(int j = 0; j <= MBQUAD_INT; ++j) {
+      EntityHandle val[4];
       int num = 0;
       if (i > 0        && j > 0       ) val[num++] = quads[j-1][i-1];
-      if (i > 0        && j < QUAD_INT) val[num++] = quads[j  ][i-1];
-      if (i < QUAD_INT && j < QUAD_INT) val[num++] = quads[j  ][i  ];
-      if (i < QUAD_INT && j > 0       ) val[num++] = quads[j-1][i  ];
+      if (i > 0        && j < MBQUAD_INT) val[num++] = quads[j  ][i-1];
+      if (i < MBQUAD_INT && j < MBQUAD_INT) val[num++] = quads[j  ][i  ];
+      if (i < MBQUAD_INT && j > 0       ) val[num++] = quads[j-1][i  ];
       const void* ptr = val;
-      num *= sizeof(MBEntityHandle);
+      num *= sizeof(EntityHandle);
       rval = mb.tag_set_data( handle_tag, &verts[j][i], 1, &ptr, &num );
       CHECK_ERR(rval);
     }
@@ -490,17 +492,17 @@ void create_mesh( bool create_element_sets,
 
 // Given a list of vertices adjacent to a quad strip, identify it as one of the 
 // NUM_SETS strips of quads written by create_mesh.
-int identify_set( MBInterface& mb, const MBRange& verts )
+int identify_set( Interface& mb, const Range& verts )
 {
   const int COL = SET_WIDTH+1;
-  CHECK_EQUAL( (1+QUAD_INT)*COL, (int)verts.size() );
+  CHECK_EQUAL( (1+MBQUAD_INT)*COL, (int)verts.size() );
 
     // Get X range of vertices
   int min_x = std::numeric_limits<int>::max();
   int max_x = std::numeric_limits<int>::min();
-  for (MBRange::const_iterator i = verts.begin(); i != verts.end(); ++i) {
+  for (Range::const_iterator i = verts.begin(); i != verts.end(); ++i) {
     double coords[3];
-    MBErrorCode rval = mb.get_coords( &*i, 1, coords );
+    ErrorCode rval = mb.get_coords( &*i, 1, coords );
     CHECK_ERR(rval);
       // Expect whole-valued coorindates
     int int_x = (int)coords[0];
@@ -515,35 +517,35 @@ int identify_set( MBInterface& mb, const MBRange& verts )
   const int ID = min_x / SET_WIDTH + 1;
   
     // Now verify that all vertices correctly form a grid
-  MBEntityHandle grid[QUAD_INT+1][COL];
+  EntityHandle grid[MBQUAD_INT+1][COL];
   memset( grid, 0, sizeof(grid) );
-  for (MBRange::const_iterator i = verts.begin(); i != verts.end(); ++i) {
+  for (Range::const_iterator i = verts.begin(); i != verts.end(); ++i) {
     double coords[3];
-    MBErrorCode rval = mb.get_coords( &*i, 1, coords );
+    ErrorCode rval = mb.get_coords( &*i, 1, coords );
     CHECK_ERR(rval);
       // Expect whole-valued coorindates
     int x = (int)coords[0] - (ID-1)*SET_WIDTH, y = (int)coords[1];
     CHECK( fabs( coords[1] - (double)y ) < 1e-12 );
     CHECK( fabs( coords[2] ) < 1e-12 );
-    CHECK( y >= 0 && y <= QUAD_INT );
-    CHECK_EQUAL( (MBEntityHandle)0, grid[y][x] );
+    CHECK( y >= 0 && y <= MBQUAD_INT );
+    CHECK_EQUAL( (EntityHandle)0, grid[y][x] );
     grid[y][x] = *i;
   }
   
   return ID;
 }
-int identify_set( MBInterface& mb, MBEntityHandle set )
+int identify_set( Interface& mb, EntityHandle set )
 {
-  MBErrorCode rval;
-  MBRange verts, elems;
+  ErrorCode rval;
+  Range verts, elems;
   rval = mb.get_entities_by_handle( set, elems );
   CHECK_ERR(rval);
-  MBRange::iterator it = elems.upper_bound( MBVERTEX );
+  Range::iterator it = elems.upper_bound( MBVERTEX );
   verts.merge( elems.begin(), it );
   elems.erase( elems.begin(), it );
   it = elems.lower_bound( MBENTITYSET );
   elems.erase( it, elems.end() );
-  rval = mb.get_adjacencies( elems, 0, false, verts, MBInterface::UNION );
+  rval = mb.get_adjacencies( elems, 0, false, verts, Interface::UNION );
   CHECK_ERR(rval);
   return identify_set( mb, verts );
 }
@@ -551,9 +553,9 @@ int identify_set( MBInterface& mb, MBEntityHandle set )
 //! Read in the elems contained in a set
 void test_read_one_set_elems()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
   
   create_mesh( true, false, false, false );
   
@@ -562,7 +564,7 @@ void test_read_one_set_elems()
     CHECK_ERR(rval);
     rval = mb.load_file( TEST_FILE, 0, READ_OPTS, ID_TAG_NAME, &id, 1 );
     CHECK_ERR(rval);
-    MBRange verts;
+    Range verts;
     rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
     int act_id = identify_set( mb, verts );
     CHECK_EQUAL( id, act_id );
@@ -572,23 +574,23 @@ void test_read_one_set_elems()
 //! Read in the elems contained in a sets
 void test_read_two_sets_elems()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
   
   create_mesh( true, false, false, false );
   int ids[2] = { 2, 8 };
-  MBEntityHandle file_set;
+  EntityHandle file_set;
   rval = mb.create_meshset( MESHSET_SET, file_set );
   CHECK_ERR(rval);
   rval = mb.load_file( TEST_FILE, &file_set, READ_OPTS, ID_TAG_NAME, ids, 2 );
   CHECK_ERR(rval);
   
-  MBRange sets;
+  Range sets;
   rval = mb.get_entities_by_type( 0, MBENTITYSET, sets );
   CHECK_ERR(rval);
   CHECK_EQUAL( 3, (int)sets.size() );
-  MBRange::iterator it = sets.find( file_set );
+  Range::iterator it = sets.find( file_set );
   CHECK( it != sets.end() );
   sets.erase( it );
   
@@ -603,23 +605,23 @@ void test_read_two_sets_elems()
   }
 }
 
-MBTag check_tag( MBInterface& mb, 
+Tag check_tag( Interface& mb, 
                  const char* name,
-                 MBTagType storage,
-                 MBDataType type,
+                 TagType storage,
+                 DataType type,
                  int size )
 {
   
-  MBTag tag;
-  MBErrorCode rval = mb.tag_get_handle( name, tag );
+  Tag tag;
+  ErrorCode rval = mb.tag_get_handle( name, tag );
   CHECK_ERR(rval);
 
-  MBTagType storage1;
+  TagType storage1;
   rval = mb.tag_get_type( tag, storage1 );
   CHECK_ERR(rval);
   CHECK_EQUAL( storage, storage1 );
   
-  MBDataType type1;
+  DataType type1;
   rval = mb.tag_get_data_type( tag, type1 );
   CHECK_ERR(rval);
   CHECK_EQUAL( type, type1 );
@@ -640,21 +642,21 @@ MBTag check_tag( MBInterface& mb,
 //! Test reading of sparse double tag data
 void test_read_double_tag()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
   
   create_mesh( true, false, false, false );
   int ids[2] = { 1, 4 };
   rval = mb.load_file( TEST_FILE, 0, READ_OPTS, ID_TAG_NAME, ids, 2 );
   CHECK_ERR(rval);
   
-  MBTag tag = check_tag( mb, CENTROID_NAME, MB_TAG_DENSE, MB_TYPE_DOUBLE, 3*sizeof(double) );
-  MBRange verts;
+  Tag tag = check_tag( mb, CENTROID_NAME, MB_TAG_DENSE, MB_TYPE_DOUBLE, 3*sizeof(double) );
+  Range verts;
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
   CHECK( !verts.empty() );
-  for (MBRange::iterator i = verts.begin(); i != verts.end(); ++i) {
+  for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
     double coords[3], data[3];
     rval = mb.get_coords( &*i, 1, coords );
     CHECK_ERR(rval);
@@ -669,21 +671,21 @@ void test_read_double_tag()
 //! Test reading of sparse opaque tag data
 void test_read_opaque_tag()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
   
   create_mesh( true, false, false, false );
   int ids[2] = { 1, 4 };
   rval = mb.load_file( TEST_FILE, 0, READ_OPTS, ID_TAG_NAME, ids, 2 );
   CHECK_ERR(rval);
 
-  MBTag tag = check_tag( mb, LOGICAL_NAME, MB_TAG_DENSE, MB_TYPE_OPAQUE, 2*sizeof(int) );
-  MBRange verts;
+  Tag tag = check_tag( mb, LOGICAL_NAME, MB_TAG_DENSE, MB_TYPE_OPAQUE, 2*sizeof(int) );
+  Range verts;
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
   CHECK( !verts.empty() );
-  for (MBRange::iterator i = verts.begin(); i != verts.end(); ++i) {
+  for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
     double coords[3];
     int data[2];
     rval = mb.get_coords( &*i, 1, coords );
@@ -697,9 +699,9 @@ void test_read_opaque_tag()
 
 static void test_read_handle_tag_common( bool var_len )
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
   
   const char tag_name[] = "VTX_ADJ";
   create_mesh( true, false, false, false, tag_name, var_len );
@@ -707,15 +709,15 @@ static void test_read_handle_tag_common( bool var_len )
   rval = mb.load_file( TEST_FILE, 0, READ_OPTS, ID_TAG_NAME, ids, 2 );
   CHECK_ERR(rval);
   
-  MBTag tag = check_tag( mb, tag_name, MB_TAG_DENSE, MB_TYPE_HANDLE, 
-                         var_len ? -1 : 4*sizeof(MBEntityHandle) );
-  MBRange verts;
+  Tag tag = check_tag( mb, tag_name, MB_TAG_DENSE, MB_TYPE_HANDLE, 
+                         var_len ? -1 : 4*sizeof(EntityHandle) );
+  Range verts;
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
   CHECK( !verts.empty() );
-  for (MBRange::iterator i = verts.begin(); i != verts.end(); ++i) {
-    std::vector<MBEntityHandle> adj, val;
-    rval = mb.get_adjacencies( &*i, 1, 2, false, adj, MBInterface::UNION );
+  for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
+    std::vector<EntityHandle> adj, val;
+    rval = mb.get_adjacencies( &*i, 1, 2, false, adj, Interface::UNION );
     CHECK_ERR(rval);
     CHECK(!adj.empty());
     
@@ -723,8 +725,8 @@ static void test_read_handle_tag_common( bool var_len )
     const void* ptr;
     rval = mb.tag_get_data( tag, &*i, 1, &ptr, &num );
     CHECK_ERR(rval);
-    CHECK_EQUAL( 0, num % (int)sizeof(MBEntityHandle) );
-    num /= sizeof(MBEntityHandle);
+    CHECK_EQUAL( 0, num % (int)sizeof(EntityHandle) );
+    num /= sizeof(EntityHandle);
     
     if (var_len) {
       CHECK( num > 0 );
@@ -735,8 +737,8 @@ static void test_read_handle_tag_common( bool var_len )
     }
     
     val.clear();
-    const MBEntityHandle* dat = (const MBEntityHandle*)ptr;
-    for (const MBEntityHandle* end = dat+num; dat != end; ++dat)
+    const EntityHandle* dat = (const EntityHandle*)ptr;
+    for (const EntityHandle* end = dat+num; dat != end; ++dat)
       if (*dat)
         val.push_back(*dat);
 
@@ -750,16 +752,16 @@ static void test_read_handle_tag_common( bool var_len )
 
 void test_read_tagged_elems()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
   
   create_mesh( false, false, true, false );
   int id = 5;
   rval = mb.load_file( TEST_FILE, 0, READ_OPTS, ID_TAG_NAME, &id, 1 );
   CHECK_ERR(rval);
   
-  MBRange verts;
+  Range verts;
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
   int id2 = identify_set( mb, verts );
@@ -768,21 +770,21 @@ void test_read_tagged_elems()
   int elems;
   rval = mb.get_number_entities_by_type( 0, MBQUAD, elems );
   CHECK_ERR(rval);
-  CHECK_EQUAL( QUAD_INT*QUAD_INT/NUM_SETS, elems );
+  CHECK_EQUAL( MBQUAD_INT*MBQUAD_INT/NUM_SETS, elems );
 }
 
 void test_read_tagged_nodes()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
   
   create_mesh( false, false, false, true );
   int id = 1; // NOTE: this test will only succeed for ID == 1 
   rval = mb.load_file( TEST_FILE, 0, READ_OPTS, ID_TAG_NAME, &id, 1 );
   CHECK_ERR(rval);
   
-  MBRange verts;
+  Range verts;
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
   int id2 = identify_set( mb, verts );
@@ -791,20 +793,20 @@ void test_read_tagged_nodes()
   int elems;
   rval = mb.get_number_entities_by_type( 0, MBQUAD, elems );
   CHECK_ERR(rval);
-  CHECK_EQUAL( QUAD_INT*QUAD_INT/NUM_SETS, elems );
+  CHECK_EQUAL( MBQUAD_INT*MBQUAD_INT/NUM_SETS, elems );
 }
 
 
 //! Read in the polyhedra contained in a set
 void test_read_one_set_polyhedra()
 {
-  MBErrorCode rval;
-  MBCore instance;
-  MBInterface& mb = instance;
+  ErrorCode rval;
+  Core instance;
+  Interface& mb = instance;
   
     // create a 2x2x1 block of hexes, splitting each hex face
     // into two triangles to form an 12-sided polyhedron
-  MBEntityHandle verts[18], hexes[4];
+  EntityHandle verts[18], hexes[4];
   double coords[18][3] = { {0, 0, 0},
                            {1, 0, 0},
                            {2, 0, 0},
@@ -832,19 +834,19 @@ void test_read_one_set_polyhedra()
     CHECK_ERR(rval);
   }
   for (int i = 0; i < 4; ++i) {
-    MBEntityHandle conn[8];
+    EntityHandle conn[8];
     for (int j = 0; j < 8; ++j)
       conn[j] = verts[hexconn[i][j]];
     rval = mb.create_element( MBHEX, conn, 8, hexes[i] );
     CHECK_ERR(rval);
   }
   
-  MBTag tri_tag;
-  rval = mb.tag_create( "tris", 2*sizeof(MBEntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, tri_tag, 0 );
+  Tag tri_tag;
+  rval = mb.tag_create( "tris", 2*sizeof(EntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, tri_tag, 0 );
   CHECK_ERR(rval);
   
-  std::vector<MBEntityHandle> quads;
-  MBEntityHandle tris[12], poly[4];
+  std::vector<EntityHandle> quads;
+  EntityHandle tris[12], poly[4];
   for (int i = 0; i < 4; ++i) {
     quads.clear();
     rval = mb.get_adjacencies( &hexes[i], 1, 2, true, quads );
@@ -856,12 +858,12 @@ void test_read_one_set_polyhedra()
       if (MB_SUCCESS == rval)
         continue;
       CHECK_EQUAL( MB_TAG_NOT_FOUND, rval );
-      const MBEntityHandle* conn;
+      const EntityHandle* conn;
       int len;
       rval = mb.get_connectivity( quads[j], conn, len );
       CHECK_ERR(rval);
       CHECK_EQUAL( 4, len );
-      MBEntityHandle tri_conn[2][3] = {  { conn[0], conn[1], conn[2] },
+      EntityHandle tri_conn[2][3] = {  { conn[0], conn[1], conn[2] },
                                          { conn[2], conn[3], conn[0] } };
       rval = mb.create_element( MBTRI, tri_conn[0], 3, tris[2*j  ] ); CHECK_ERR(rval);
       rval = mb.create_element( MBTRI, tri_conn[1], 3, tris[2*j+1] ); CHECK_ERR(rval);
@@ -872,7 +874,7 @@ void test_read_one_set_polyhedra()
     CHECK_ERR(rval);
   }
   
-  MBRange all_tri;
+  Range all_tri;
   rval = mb.get_entities_by_type( 0, MBTRI, all_tri );
   CHECK_ERR(rval);
   CHECK_EQUAL( 40, (int)all_tri.size() );
@@ -880,13 +882,13 @@ void test_read_one_set_polyhedra()
   rval = mb.delete_entities( hexes, 4 ); CHECK_ERR(rval);
   rval = mb.delete_entities( &quads[0], quads.size() ); CHECK_ERR(rval);
   
-  MBEntityHandle sets[2];
+  EntityHandle sets[2];
   rval = mb.create_meshset( 0, sets[0] ); CHECK_ERR(rval);
   rval = mb.add_entities( sets[0], poly, 2 ); CHECK_ERR(rval);
   rval = mb.create_meshset( 0, sets[1] ); CHECK_ERR(rval);
   rval = mb.add_entities( sets[1], poly+2, 2 ); CHECK_ERR(rval);
   
-  MBTag id_tag;
+  Tag id_tag;
   rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
   CHECK_ERR(rval);
   int ids[2] = { 2, 3 };
@@ -900,17 +902,17 @@ void test_read_one_set_polyhedra()
   rval = mb.load_file( TEST_FILE, 0, READ_OPTS, ID_TAG_NAME, ids, 1 );
   CHECK_ERR(rval);
   
-  MBRange rpoly;
+  Range rpoly;
   rval = mb.get_entities_by_type( 0, MBPOLYHEDRON, rpoly );
   CHECK_ERR(rval);
   CHECK_EQUAL( 2, (int)rpoly.size() );
   
-  MBRange polyverts;
-  rval = mb.get_adjacencies( rpoly, 0, false, polyverts, MBInterface::UNION );
+  Range polyverts;
+  rval = mb.get_adjacencies( rpoly, 0, false, polyverts, Interface::UNION );
   CHECK_ERR(rval);
   CHECK_EQUAL( 12, (int)polyverts.size() );
   
-  for (MBRange::iterator it = polyverts.begin(); it != polyverts.end(); ++it) {
+  for (Range::iterator it = polyverts.begin(); it != polyverts.end(); ++it) {
     double coords2[3];
     rval = mb.get_coords( &*it, 1, coords2 );
     CHECK_ERR(rval);
@@ -926,17 +928,17 @@ void test_read_one_set_polyhedra()
 //! set.  Test the later here.
 void test_read_set_sets()
 {
-  MBErrorCode rval;
-  MBCore instance;
-  MBInterface& mb = instance;
+  ErrorCode rval;
+  Core instance;
+  Interface& mb = instance;
   
-  MBTag id_tag;
+  Tag id_tag;
   rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
   CHECK_ERR(rval);
   
     // create sets and assign an ID to each
   const int len = 5;
-  MBEntityHandle set[2*len+2];
+  EntityHandle set[2*len+2];
   for (int i = 0; i < 2*len+2; ++i) {
     rval = mb.create_meshset( MESHSET_SET, set[i] );
     CHECK_ERR(rval);
@@ -948,7 +950,7 @@ void test_read_set_sets()
     // make set containment as follows (values are assigned IDs):
   int cont_ids[2][len] = { { 3, 4, 5, 9, 10 }, { 6, 7, 8, 11, 12 } };
   for (int i = 0; i < 2; ++i) {
-    MBEntityHandle contents[len] = { set[cont_ids[i][0] - 1],
+    EntityHandle contents[len] = { set[cont_ids[i][0] - 1],
                                      set[cont_ids[i][1] - 1],
                                      set[cont_ids[i][2] - 1],
                                      set[cont_ids[i][3] - 1],
@@ -964,7 +966,7 @@ void test_read_set_sets()
     rval = mb.delete_mesh();
     CHECK_ERR(rval);
     
-    MBEntityHandle file;
+    EntityHandle file;
     rval = mb.create_meshset( MESHSET_SET, file );
     CHECK_ERR(rval);
     int id = i+1;
@@ -972,10 +974,10 @@ void test_read_set_sets()
     CHECK_ERR(rval);
     
       // check that the total number of sets read is as expected
-    MBRange sets;
+    Range sets;
     rval = mb.get_entities_by_type( 0, MBENTITYSET, sets );
     CHECK_ERR(rval);
-    MBRange::iterator it = sets.find( file );
+    Range::iterator it = sets.find( file );
     if (it != sets.end())
       sets.erase( it );
     CHECK_EQUAL( len+1, (int)sets.size() );
@@ -990,7 +992,7 @@ void test_read_set_sets()
     CHECK_EQUAL( 1, (int)sets.size() );
       
       // check that it contains the expected sets
-    MBEntityHandle owner = sets.front();
+    EntityHandle owner = sets.front();
     sets.clear();
     rval = mb.get_entities_by_type( owner, MBENTITYSET, sets );
     CHECK_ERR(rval);
@@ -1006,27 +1008,27 @@ void test_read_set_sets()
   }
 }
 
-static void check_children( bool contents, GatherTestMode mode, MBInterface& mb, int id, MBTag id_tag, MBEntityHandle file )
+static void check_children( bool contents, GatherTestMode mode, Interface& mb, int id, Tag id_tag, EntityHandle file )
 {
     // Increase number of expected sets by one if contents is true because
     // we always read immediately contained (depth 1) sets.
   const int exp_num_sets = (mode == GATHER_NONE) ? 1+contents : id;
   const int exp_num_edges = (mode == GATHER_CONTENTS) ? id : 1;
   
-  MBErrorCode rval;
-  MBRange range;
+  ErrorCode rval;
+  Range range;
   rval = mb.get_entities_by_type( 0, MBEDGE , range );
   CHECK_ERR(rval);
   CHECK_EQUAL( exp_num_edges, (int)range.size() );
   range.clear();
   rval = mb.get_entities_by_type( 0, MBENTITYSET , range );
   CHECK_ERR(rval);
-  MBRange::iterator it = range.find( file );
+  Range::iterator it = range.find( file );
   CHECK( it != range.end() );
   range.erase( it );
   CHECK_EQUAL( exp_num_sets, (int)range.size() );
   
-  MBEntityHandle set;
+  EntityHandle set;
   const void* val[] = {&id};
   range.clear();
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &id_tag, val, 1, range );
@@ -1053,7 +1055,7 @@ static void check_children( bool contents, GatherTestMode mode, MBInterface& mb,
     CHECK_ERR(rval);
     if (mode == GATHER_CONTENTS || i == id) {
       CHECK_EQUAL( 1, (int)range.size() );
-      const MBEntityHandle* conn;
+      const EntityHandle* conn;
       int len;
       rval = mb.get_connectivity( range.front(), conn, len );
       CHECK_ERR(rval);
@@ -1067,7 +1069,7 @@ static void check_children( bool contents, GatherTestMode mode, MBInterface& mb,
       CHECK( range.empty() );
     }
     
-    std::vector<MBEntityHandle> children;
+    std::vector<EntityHandle> children;
     if (contents)
       rval = mb.get_entities_by_type( set, MBENTITYSET, children );
     else
@@ -1087,11 +1089,11 @@ static void check_children( bool contents, GatherTestMode mode, MBInterface& mb,
 const char* set_read_opts[] = { "SETS", "CONTENTS", "NONE" };
 void test_gather_sets_common( bool contents, GatherTestMode mode )
 {
-  MBErrorCode rval;
-  MBCore instance;
-  MBInterface& mb = instance;
+  ErrorCode rval;
+  Core instance;
+  Interface& mb = instance;
   
-  MBTag id_tag;
+  Tag id_tag;
   rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
   CHECK_ERR(rval);
   
@@ -1101,7 +1103,7 @@ void test_gather_sets_common( bool contents, GatherTestMode mode )
     // ID that is the X coordinate of the larger of the two vertices of the edge
     // contained in the set.
   const int INT = 64;
-  MBEntityHandle verts[INT+1], edges[INT], sets[INT];
+  EntityHandle verts[INT+1], edges[INT], sets[INT];
   double coords[] = { 0, 0, 0 };
   rval = mb.create_vertex( coords, verts[0] );
   CHECK_ERR(rval);
@@ -1131,7 +1133,7 @@ void test_gather_sets_common( bool contents, GatherTestMode mode )
   rval = mb.write_file( TEST_FILE, "MOAB" );
   CHECK_ERR(rval);
  
-  MBEntityHandle file;
+  EntityHandle file;
   std::string opt( READ_OPTS );
   if (contents)
     opt += ";CHILDREN=NONE;SETS=";
@@ -1162,12 +1164,12 @@ void test_gather_sets_common( bool contents, GatherTestMode mode )
 
 void test_gather_sets_ranged( bool contents, GatherTestMode mode )
 {
-  MBErrorCode rval;
-  MBCore instance;
-  MBInterface& mb = instance;
+  ErrorCode rval;
+  Core instance;
+  Interface& mb = instance;
   
-  MBRange verts;
-  MBTag id_tag;
+  Range verts;
+  Tag id_tag;
   rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
   CHECK_ERR(rval);
   
@@ -1175,7 +1177,7 @@ void test_gather_sets_ranged( bool contents, GatherTestMode mode )
     // have the same x-coordinate
   const int NUM_GRP_VTX = 20;
   const int NUM_GRP = 4;
-  MBEntityHandle sets[NUM_GRP];
+  EntityHandle sets[NUM_GRP];
   for (int i = 0; i < NUM_GRP; ++i) {
     double coords[3*NUM_GRP_VTX];
     for (int j = 0; j < NUM_GRP_VTX; ++j) {
@@ -1217,7 +1219,7 @@ void test_gather_sets_ranged( bool contents, GatherTestMode mode )
     opt += ";SETS=NONE;CHILDREN=";
   opt += set_read_opts[mode];
 
-  MBEntityHandle file;
+  EntityHandle file;
   const int read_id = 3;
   rval = mb.delete_mesh(); CHECK_ERR(rval);
   rval = mb.create_meshset( MESHSET_SET, file ); CHECK_ERR(rval);
@@ -1225,7 +1227,7 @@ void test_gather_sets_ranged( bool contents, GatherTestMode mode )
   CHECK_ERR(rval);
   
     // get any sets that were read it
-  MBRange read_sets;
+  Range read_sets;
   rval = mb.get_entities_by_type( file, MBENTITYSET, read_sets );
   CHECK_ERR(rval);
   
@@ -1235,7 +1237,7 @@ void test_gather_sets_ranged( bool contents, GatherTestMode mode )
   verts.clear();
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
-  for (MBRange::iterator it = verts.begin(); it != verts.end(); ++it) {
+  for (Range::iterator it = verts.begin(); it != verts.end(); ++it) {
     double coords[3];
     rval = mb.get_coords( &*it, 1, coords );
     CHECK_ERR(rval);
@@ -1264,16 +1266,16 @@ void test_gather_sets_ranged( bool contents, GatherTestMode mode )
   }
 }
 
-static void check_num_verts( MBInterface& mb, MBTag tag, int id, int num_vtx )
+static void check_num_verts( Interface& mb, Tag tag, int id, int num_vtx )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   const void* val[] = {&id};
-  MBRange range;
+  Range range;
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &tag, val, 1, range );
   CHECK_ERR(rval);
   CHECK_EQUAL( 1, (int)range.size() );
 
-  MBEntityHandle set = range.front();
+  EntityHandle set = range.front();
   range.clear();
   rval = mb.get_entities_by_type( set, MBVERTEX, range );
   CHECK_ERR(rval);
@@ -1292,9 +1294,9 @@ void test_read_containing_sets()
     // such that adjacent sets share vertices.
   create_mesh( false, true, false, false );
   
-  MBErrorCode rval;
-  MBCore instance;
-  MBInterface& mb = instance;
+  ErrorCode rval;
+  Core instance;
+  Interface& mb = instance;
   
     // read some sets
   const int ids[] = { 1, 5, 9 };
@@ -1302,31 +1304,31 @@ void test_read_containing_sets()
   rval = mb.load_file( TEST_FILE, 0, READ_OPTS, ID_TAG_NAME, ids, num_sets );
   CHECK_ERR(rval);
 
-  MBTag id_tag;
+  Tag id_tag;
   rval = mb.tag_get_handle( ID_TAG_NAME, id_tag );
   CHECK_ERR(rval);
   
     // expect all sets adjacent to the specified sets because
     // they share vertices.
-  MBRange verts;
+  Range verts;
   for (int i = 0; i < num_sets; ++i) {
     if (ids[i] > 1)
-      check_num_verts( mb, id_tag, ids[i]-1, QUAD_INT+1 );
-    check_num_verts( mb, id_tag, ids[i], (QUAD_INT+1)*(SET_WIDTH+1) );
+      check_num_verts( mb, id_tag, ids[i]-1, MBQUAD_INT+1 );
+    check_num_verts( mb, id_tag, ids[i], (MBQUAD_INT+1)*(SET_WIDTH+1) );
     if (ids[i] < NUM_SETS)
-      check_num_verts( mb, id_tag, ids[i]+1, QUAD_INT+1 );
+      check_num_verts( mb, id_tag, ids[i]+1, MBQUAD_INT+1 );
   }
 }
 
 //! Test reading of explicit adjacencies
 void test_read_adjacencies()
 {
-  MBErrorCode rval;
-  MBCore instance;
-  MBInterface& mb = instance;
+  ErrorCode rval;
+  Core instance;
+  Interface& mb = instance;
   
     // create four hexes sharing an edge
-  MBEntityHandle verts[3][3][2], hexes[2][2];
+  EntityHandle verts[3][3][2], hexes[2][2];
   for (int k = 0; k < 2; ++k) {
     for (int j = 0; j < 3; ++j) {
       for (int i = 0; i < 3; ++i) {
@@ -1338,7 +1340,7 @@ void test_read_adjacencies()
   }
   for (int j = 0; j < 2; ++j) {
     for (int i = 0; i < 2; ++i) {
-      MBEntityHandle conn[] = { verts[i  ][j  ][0],
+      EntityHandle conn[] = { verts[i  ][j  ][0],
                                 verts[i+1][j  ][0],
                                 verts[i+1][j+1][0],
                                 verts[i  ][j+1][0],
@@ -1352,8 +1354,8 @@ void test_read_adjacencies()
   }
   
     // create two duplicate edges that connect the vertices common to all four hexes
-  MBEntityHandle edge_conn[2] = { verts[1][1][0], verts[1][1][1] };
-  MBEntityHandle edges[2];
+  EntityHandle edge_conn[2] = { verts[1][1][0], verts[1][1][1] };
+  EntityHandle edges[2];
   rval = mb.create_element( MBEDGE, edge_conn, 2, edges[0] ); CHECK_ERR(rval);
   rval = mb.create_element( MBEDGE, edge_conn, 2, edges[1] ); CHECK_ERR(rval);
     // mark one edge as adjacent to the left two hexes and the
@@ -1362,16 +1364,16 @@ void test_read_adjacencies()
   rval = mb.add_adjacencies( edges[1], hexes[1], 2, true ); CHECK_ERR(rval);
     // create two sets containing the front two and the rear two
     // hexes, respectively.
-  MBEntityHandle sets[2];
+  EntityHandle sets[2];
   rval = mb.create_meshset( MESHSET_SET, sets[0] ); CHECK_ERR(rval);
   rval = mb.create_meshset( MESHSET_SET, sets[1] ); CHECK_ERR(rval);
-  MBEntityHandle set1[4] = { hexes[0][0], hexes[1][0], edges[0], edges[1] };
-  MBEntityHandle set2[4] = { hexes[0][1], hexes[1][1], edges[0], edges[1] };
+  EntityHandle set1[4] = { hexes[0][0], hexes[1][0], edges[0], edges[1] };
+  EntityHandle set2[4] = { hexes[0][1], hexes[1][1], edges[0], edges[1] };
   rval = mb.add_entities( sets[0], set1, 4 ); CHECK_ERR(rval);
   rval = mb.add_entities( sets[1], set2, 4 ); CHECK_ERR(rval);
   
     // assign IDs to sets
-  MBTag id_tag;
+  Tag id_tag;
   rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
   CHECK_ERR(rval);
   int ids[2] = { 1, 2 };
@@ -1388,11 +1390,11 @@ void test_read_adjacencies()
   CHECK_ERR(rval);
   
     // expect two hexes and two edges
-  MBRange range;
+  Range range;
   rval = mb.get_entities_by_type( 0, MBHEX, range );
   CHECK_ERR(rval);
   CHECK_EQUAL( 2, (int)range.size() );
-  MBEntityHandle h1 = range.front(), h2 = range.back();
+  EntityHandle h1 = range.front(), h2 = range.back();
   range.clear();
   rval = mb.get_entities_by_type( 0, MBEDGE, range );
   CHECK_ERR(rval);
@@ -1403,12 +1405,12 @@ void test_read_adjacencies()
   rval = mb.get_adjacencies( &h1, 1, 1, false, range );
   CHECK_ERR(rval);
   CHECK_EQUAL( 1, (int)range.size() ); 
-  MBEntityHandle e1 = range.front();
+  EntityHandle e1 = range.front();
   range.clear();
   rval = mb.get_adjacencies( &h2, 1, 1, false, range );
   CHECK_ERR(rval);
   CHECK_EQUAL( 1, (int)range.size() ); 
-  MBEntityHandle e2 = range.front();
+  EntityHandle e2 = range.front();
   
   CHECK( e1 != e2 );
 }
@@ -1416,13 +1418,13 @@ void test_read_adjacencies()
 
 void test_read_sides()
 {
-  MBErrorCode rval;
-  MBCore instance;
-  MBInterface& mb = instance;
+  ErrorCode rval;
+  Core instance;
+  Interface& mb = instance;
   
     // create 4x4 grid of quads with edges
   const int INT = 4;
-  MBEntityHandle verts[INT+1][INT+1];
+  EntityHandle verts[INT+1][INT+1];
   for (int j = 0; j <= INT; ++j) {
     for (int i = 0; i <= INT; ++i) {
       double coords[3] = { i, j, 0 };
@@ -1430,10 +1432,10 @@ void test_read_sides()
       CHECK_ERR(rval);
     }
   }
-  MBEntityHandle quads[INT][INT];
+  EntityHandle quads[INT][INT];
   for (int j = 0; j < INT; ++j) {
     for (int i = 0; i < INT; ++i) {
-      MBEntityHandle conn[4] = { verts[INT-j][i],
+      EntityHandle conn[4] = { verts[INT-j][i],
                                  verts[INT-j][i+1],
                                  verts[INT-j-1][i+1],
                                  verts[INT-j-1][i] };
@@ -1441,13 +1443,13 @@ void test_read_sides()
       CHECK_ERR(rval);
     }
   }
-  MBRange edges;
-  rval = mb.get_adjacencies( &quads[0][0], INT*INT, 1, true, edges, MBInterface::UNION );
+  Range edges;
+  rval = mb.get_adjacencies( &quads[0][0], INT*INT, 1, true, edges, Interface::UNION );
   CHECK_ERR(rval);
   CHECK_EQUAL( 40, (int)edges.size() );
   
     // group quads into two sets
-  MBEntityHandle sets[2];
+  EntityHandle sets[2];
   rval = mb.create_meshset( MESHSET_SET, sets[0] ); CHECK_ERR(rval);
   rval = mb.create_meshset( MESHSET_SET, sets[1] ); CHECK_ERR(rval);
   rval = mb.add_entities( sets[0], quads[0], INT ); CHECK_ERR(rval);
@@ -1456,7 +1458,7 @@ void test_read_sides()
   rval = mb.add_entities( sets[1], quads[3], INT ); CHECK_ERR(rval);
   
     // assign IDS
-  MBTag id_tag;
+  Tag id_tag;
   rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
   CHECK_ERR(rval);
   int ids[2] = { 4, 5 };
@@ -1485,10 +1487,10 @@ void test_read_sides()
   CHECK_EQUAL( 2*(INT+1) + INT*INT, count );
 
     // check edges adjacent to each quad
-  MBRange elems;
+  Range elems;
   rval = mb.get_entities_by_type( 0, MBQUAD, elems );
   CHECK_ERR(rval);
-  for (MBRange::iterator it = elems.begin(); it != elems.end(); ++it) {
+  for (Range::iterator it = elems.begin(); it != elems.end(); ++it) {
     edges.clear();
     rval = mb.get_adjacencies( &*it, 1, 1, false, edges );
     CHECK_ERR(rval);
@@ -1501,19 +1503,19 @@ const int expected_vols[] = { 3, 7, 10 };
 
 void write_id_test_file()
 {
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
+  ErrorCode rval;
   
     // create 12 entity sets
-  MBEntityHandle sets[12];
+  EntityHandle sets[12];
   for (int i = 0; i < 12; ++i) {
     rval = mb.create_meshset( MESHSET_SET, sets[i] );
     CHECK_ERR(rval);
   }
   
     // create tag handles
-  MBTag id = 0, gid = 0, dim = 0;
+  Tag id = 0, gid = 0, dim = 0;
   mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id, 0 );
   mb.tag_create( GEOM_DIMENSION_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, dim, 0 );
   mb.tag_create( GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, gid, 0 );
@@ -1549,10 +1551,10 @@ void test_read_ids()
 {
   write_id_test_file();
   
-  MBCore moab;
+  Core moab;
   ReadHDF5 reader(&moab);
   FileOptions opts("");
-  MBErrorCode rval;
+  ErrorCode rval;
   std::vector<int> values;
   rval = reader.read_tag_values( TEST_FILE, ID_TAG_NAME, opts, values );
   remove( TEST_FILE );
@@ -1568,12 +1570,12 @@ void test_read_partial_ids()
   write_id_test_file();
   
   const int three = 3;
-  MBReaderIface::IDTag vols = { GEOM_DIMENSION_TAG_NAME, &three, 1 };
+  ReaderIface::IDTag vols = { GEOM_DIMENSION_TAG_NAME, &three, 1 };
   
-  MBCore moab;
+  Core moab;
   ReadHDF5 reader(&moab);
   FileOptions opts("");
-  MBErrorCode rval;
+  ErrorCode rval;
   std::vector<int> values;
   rval = reader.read_tag_values( TEST_FILE, GLOBAL_ID_TAG_NAME, opts, values, &vols, 1 );
   remove( TEST_FILE );

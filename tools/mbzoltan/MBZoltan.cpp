@@ -24,15 +24,17 @@
 #include <assert.h>
 
 #include "MBZoltan.hpp"
-#include "MBInterface.hpp"
-#include "MBInternals.hpp"
-#include "MBParallelComm.hpp"
-#include "MBRange.hpp"
-#include "MBWriteUtilIface.hpp"
-#include "MeshTopoUtil.hpp"
-#include "MBParallelComm.hpp"
-#include "MBTagConventions.hpp"
-#include "MBCN.hpp"
+#include "moab/Interface.hpp"
+#include "Internals.hpp"
+#include "moab/ParallelComm.hpp"
+#include "moab/Range.hpp"
+#include "moab/WriteUtilIface.hpp"
+#include "moab/MeshTopoUtil.hpp"
+#include "moab/ParallelComm.hpp"
+#include "moab/MBTagConventions.hpp"
+#include "moab/MBCN.hpp"
+
+using namespace moab;
 
 #define RR if (MB_SUCCESS != result) return result
 
@@ -45,7 +47,7 @@ static int *NborProcs=NULL;
 
 const bool debug = false;
 
-MBZoltan::MBZoltan( MBInterface *impl , 
+MBZoltan::MBZoltan( Interface *impl , 
                     const bool use_coords,
                     int argc, 
                     char **argv ) 
@@ -56,9 +58,9 @@ MBZoltan::MBZoltan( MBInterface *impl ,
                      argcArg(argc), 
                      argvArg(argv)
 {
-  mbpc = MBParallelComm::get_pcomm(mbImpl, 0);
+  mbpc = ParallelComm::get_pcomm(mbImpl, 0);
   if (!mbpc)
-    mbpc = new MBParallelComm( impl, MPI_COMM_WORLD, 0 );
+    mbpc = new ParallelComm( impl, MPI_COMM_WORLD, 0 );
 }
 
 MBZoltan::~MBZoltan() 
@@ -66,7 +68,7 @@ MBZoltan::~MBZoltan()
   if (NULL == myZZ) delete myZZ;
 }
 
-MBErrorCode MBZoltan::balance_mesh(const char *zmethod,
+ErrorCode MBZoltan::balance_mesh(const char *zmethod,
                                    const char *other_method,
                                    const bool write_as_sets,
                                    const bool write_as_tags) 
@@ -85,11 +87,11 @@ MBErrorCode MBZoltan::balance_mesh(const char *zmethod,
   std::vector<double> pts; // x[0], y[0], z[0], ... from MOAB
   std::vector<int> ids; // point ids from MOAB
   std::vector<int> adjs, length;
-  MBRange elems;
+  Range elems;
 
   // Get a mesh from MOAB and divide it across processors.
 
-  MBErrorCode result;
+  ErrorCode result;
   
   if (mbpc->proc_config().proc_rank() == 0) {
     result = assemble_graph(3, pts, ids, adjs, length, elems); RR;
@@ -182,7 +184,7 @@ MBErrorCode MBZoltan::balance_mesh(const char *zmethod,
                    exportProcs, &assignment);
   
   if (mbpc->proc_config().proc_rank() == 0) {
-    MBErrorCode result = write_partition(mbpc->proc_config().proc_size(), elems, assignment,
+    ErrorCode result = write_partition(mbpc->proc_config().proc_size(), elems, assignment,
                                          write_as_sets, write_as_tags);
 
     if (MB_SUCCESS != result) return result;
@@ -209,7 +211,7 @@ MBErrorCode MBZoltan::balance_mesh(const char *zmethod,
   return MB_SUCCESS;
 }
 
-MBErrorCode MBZoltan::partition_mesh(const int nparts,
+ErrorCode MBZoltan::partition_mesh(const int nparts,
                                      const char *zmethod,
                                      const char *other_method,
                                      const bool write_as_sets,
@@ -237,11 +239,11 @@ MBErrorCode MBZoltan::partition_mesh(const int nparts,
   std::vector<double> pts; // x[0], y[0], z[0], ... from MOAB
   std::vector<int> ids; // point ids from MOAB
   std::vector<int> adjs, length;
-  MBRange elems;
+  Range elems;
 
   // Get a mesh from MOAB and divide it across processors.
 
-  MBErrorCode result;
+  ErrorCode result;
   
   result = assemble_graph(part_dim, pts, ids, adjs, length, elems); RR;
   
@@ -334,18 +336,18 @@ MBErrorCode MBZoltan::partition_mesh(const int nparts,
   return MB_SUCCESS;
 }
 
-MBErrorCode MBZoltan::assemble_graph(const int dimension,
+ErrorCode MBZoltan::assemble_graph(const int dimension,
                                      std::vector<double> &coords,
                                      std::vector<int> &moab_ids,
                                      std::vector<int> &adjacencies, 
                                      std::vector<int> &length,
-                                     MBRange &elems) 
+                                     Range &elems) 
 {
     // assemble a graph with vertices equal to elements of specified dimension, edges
     // signified by list of other elements to which an element is connected
 
     // get the elements of that dimension
-  MBErrorCode result = mbImpl->get_entities_by_dimension(0, dimension, elems);
+  ErrorCode result = mbImpl->get_entities_by_dimension(0, dimension, elems);
   if (MB_SUCCESS != result || elems.empty()) return result;
   
     // assign global ids
@@ -354,7 +356,7 @@ MBErrorCode MBZoltan::assemble_graph(const int dimension,
     // now assemble the graph, calling MeshTopoUtil to get bridge adjacencies through d-1 dimensional
     // neighbors
   MeshTopoUtil mtu(mbImpl);
-  MBRange adjs;
+  Range adjs;
     // can use a fixed-size array 'cuz the number of lower-dimensional neighbors is limited
     // by MBCN
   int neighbors[5*MB_MAX_SUB_ENTITIES];
@@ -362,12 +364,12 @@ MBErrorCode MBZoltan::assemble_graph(const int dimension,
   int moab_id;
   
     // get the global id tag hanlde
-  MBTag gid;
+  Tag gid;
   result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, 4, MB_TAG_DENSE, MB_TYPE_INTEGER,
                               gid, NULL, true);
   if (MB_SUCCESS != result) return result;
   
-  for (MBRange::iterator rit = elems.begin(); rit != elems.end(); rit++) {
+  for (Range::iterator rit = elems.begin(); rit != elems.end(); rit++) {
 
       // get bridge adjacencies
     adjs.clear();
@@ -415,24 +417,24 @@ MBErrorCode MBZoltan::assemble_graph(const int dimension,
   return MB_SUCCESS;
 }
 
-MBErrorCode MBZoltan::write_partition(const int nparts,
-                                      MBRange &elems, 
+ErrorCode MBZoltan::write_partition(const int nparts,
+                                      Range &elems, 
                                       const int *assignment,
                                       const bool write_as_sets,
                                       const bool write_as_tags) 
 {
-  MBErrorCode result;
+  ErrorCode result;
 
     // get the partition set tag
-  MBTag part_set_tag;
+  Tag part_set_tag;
   int dum_id = -1;
   result = mbImpl->tag_create("PARALLEL_PARTITION", 4, MB_TAG_SPARSE, MB_TYPE_INTEGER, part_set_tag, &dum_id,
                               true); RR;
   
     // get any sets already with this tag, and clear them
-  MBRange tagged_sets;
+  Range tagged_sets;
   result = mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &part_set_tag, NULL, 1,
-                                                tagged_sets, MBInterface::UNION); RR;
+                                                tagged_sets, Interface::UNION); RR;
   if (!tagged_sets.empty()) {
     result = mbImpl->clear_meshset(tagged_sets); RR;
     if (!write_as_sets) {
@@ -442,14 +444,14 @@ MBErrorCode MBZoltan::write_partition(const int nparts,
 
   if (write_as_sets) {
       // first, create partition sets and store in vector
-    MBEntityHandle *part_sets = new MBEntityHandle[nparts];
+    EntityHandle *part_sets = new EntityHandle[nparts];
     if (NULL == part_sets) return MB_FAILURE;
   
     if (nparts > (int) tagged_sets.size()) {
         // too few partition sets - create missing ones
       int num_new = nparts - tagged_sets.size();
       for (int i = 0; i < num_new; i++) {
-        MBEntityHandle new_set;
+        EntityHandle new_set;
         result = mbImpl->create_meshset(MESHSET_SET, new_set); RR;
         tagged_sets.insert(new_set);
       }
@@ -458,13 +460,13 @@ MBErrorCode MBZoltan::write_partition(const int nparts,
         // too many partition sets - delete extras
       int num_del = tagged_sets.size() - nparts;
       for (int i = 0; i < num_del; i++) {
-        MBEntityHandle old_set = tagged_sets.pop_back();
+        EntityHandle old_set = tagged_sets.pop_back();
         result = mbImpl->delete_entities(&old_set, 1); RR;
       }
     }
   
       // assign partition sets to vector
-    MBRange::iterator rit = tagged_sets.begin();
+    Range::iterator rit = tagged_sets.begin();
     int i = 0;
     for (; i < nparts; rit++, i++) part_sets[i] = *rit;
   

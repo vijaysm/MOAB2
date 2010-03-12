@@ -1,13 +1,15 @@
 #ifndef BIT_TAG_SERVER_HPP
 #define BIT_TAG_SERVER_HPP
 
-#include "MBTypes.h"
-#include "MBInternals.hpp"
+#include "moab/Types.hpp"
+#include "Internals.hpp"
 #include <algorithm>
 #include <vector>
 #include <assert.h>
 
-class MBRange;
+namespace moab {
+
+class Range;
 class BitTag;
 class BitPage;
 
@@ -29,103 +31,103 @@ public:
      * Returns MB_TAG_NOT_FOUND if ID is already in use.
      *\param num_bits Number of bits in each per-entity tag value
      */
-  MBErrorCode reserve_tag_id( int num_bits, MBTagId tag_id );
+  ErrorCode reserve_tag_id( int num_bits, TagId tag_id );
 
     /**\brief Deallocate tag
      *
      * Mask specified tag id as unused and release any memory
      * associated with the tag.
      */
-  MBErrorCode release_tag_id( MBTagId tag_id );
+  ErrorCode release_tag_id( TagId tag_id );
 
     /**\brief Get tag values for an array of entity handles */
-  MBErrorCode get_bits( MBTagId tag_id, 
-                        const MBEntityHandle* handles, 
+  ErrorCode get_bits( TagId tag_id, 
+                        const EntityHandle* handles, 
                         int num_handles, 
                         unsigned char* data,
                         const unsigned char* default_value ) const;
     /**\brief Get tag values for a range of entity handles */
-  MBErrorCode get_bits( MBTagId tag_id, 
-                        const MBRange& handles, 
+  ErrorCode get_bits( TagId tag_id, 
+                        const Range& handles, 
                         unsigned char* data,
                         const unsigned char* default_value ) const;
 
     /**\brief Set tag values for an array of entity handles */
-  MBErrorCode set_bits( MBTagId tag_id, 
-                        const MBEntityHandle* handles, 
+  ErrorCode set_bits( TagId tag_id, 
+                        const EntityHandle* handles, 
                         int num_handles,
                         const unsigned char* data, 
                         const unsigned char* default_value );
     /**\brief Set tag values for a range of entity handles */
-  MBErrorCode set_bits( MBTagId tag_id, 
-                        const MBRange& handles, 
+  ErrorCode set_bits( TagId tag_id, 
+                        const Range& handles, 
                         const unsigned char* data, 
                         const unsigned char* default_value );
 
     /**\brief Clear tag values for an array of entity handles */
-  MBErrorCode clear_bits( MBTagId tag_id, 
-                          const MBEntityHandle* handles, 
+  ErrorCode clear_bits( TagId tag_id, 
+                          const EntityHandle* handles, 
                           int num_handles,
                           const unsigned char* default_value );
     /**\brief Clear tag values for a range of entity handles */
-  MBErrorCode clear_bits( MBTagId tag_id, 
-                          const MBRange& handles, 
+  ErrorCode clear_bits( TagId tag_id, 
+                          const Range& handles, 
                           const unsigned char* default_value );
     
     /**\brief Get entities for which an explicit tag value is stored */
-  MBErrorCode get_entities( MBTagId tag_id, 
-                            MBRange& entities ) const;
+  ErrorCode get_entities( TagId tag_id, 
+                            Range& entities ) const;
 
     /**\brief Get entities for which an explicit tag value is stored */
-  MBErrorCode get_entities( MBTagId tag_id, 
-                            MBEntityType type, 
-                            MBRange& entities ) const;
+  ErrorCode get_entities( TagId tag_id, 
+                            EntityType type, 
+                            Range& entities ) const;
 
     /**\brief Get entities for which an explicit tag of the specified value is stored */
-  MBErrorCode get_entities_with_tag_value( MBTagId tag_id, 
-                                           MBEntityType type, 
-                                           MBRange& entities,
+  ErrorCode get_entities_with_tag_value( TagId tag_id, 
+                                           EntityType type, 
+                                           Range& entities,
                                            unsigned char bits ) const;
 
     /**\brief Get entities for which an explicit tag value is stored */
-  MBErrorCode get_entities( const MBRange &range,
-                            MBTagId tag_id, 
-                            MBEntityType type, 
-                            MBRange& entities ) const;
+  ErrorCode get_entities( const Range &range,
+                            TagId tag_id, 
+                            EntityType type, 
+                            Range& entities ) const;
 
     /**\brief Get entities for which an explicit tag of the specified value is stored */
-  MBErrorCode get_entities_with_tag_value( const MBRange &range,
-                                           MBTagId tag_id, 
-                                           MBEntityType type, 
-                                           MBRange& entities,
+  ErrorCode get_entities_with_tag_value( const Range &range,
+                                           TagId tag_id, 
+                                           EntityType type, 
+                                           Range& entities,
                                            unsigned char bits ) const;
 
     //! get all tags defined on an entity
-  MBErrorCode get_tags( MBEntityHandle entity,
-                        std::vector<MBTag> &tags ) const;
+  ErrorCode get_tags( EntityHandle entity,
+                        std::vector<Tag> &tags ) const;
 
     /**\brief Get number of entities for which an explicit tag value is stored */
-  MBErrorCode get_number_entities( MBTagId tag_id, 
-                                   MBEntityType type,
+  ErrorCode get_number_entities( TagId tag_id, 
+                                   EntityType type,
                                    int& num_entities ) const;
   
     /**\brief Get number of entities for which an explicit tag value is stored */
-  MBErrorCode get_number_entities( const MBRange &range,
-                                   MBTagId tag_id, 
-                                   MBEntityType type,
+  ErrorCode get_number_entities( const Range &range,
+                                   TagId tag_id, 
+                                   EntityType type,
                                    int& num_entities ) const;
   
-  MBErrorCode get_memory_use( MBTagId tag,
+  ErrorCode get_memory_use( TagId tag,
                               unsigned long& total,
                               unsigned long& per_entity ) const;
 
 private:
   
     /**\brief Get BitTag instance for specified tag ID, or NULL if none */
-  inline BitTag* get_tag( MBTagId id );
+  inline BitTag* get_tag( TagId id );
   
     /**\brief Get BitTag instance for specified tag ID, or NULL if none */
-  inline const BitTag* get_tag( MBTagId id ) const;
+  inline const BitTag* get_tag( TagId id ) const;
   
     /**\brief Array of BitTag instances, indexed by (tag id - 1) */
   std::vector<BitTag> tagList;
@@ -149,67 +151,67 @@ class BitTag
     { const_cast<BitTag&>(other).swap(*this); return *this; }
     
     /**\brief Get tag values for an array of entity handles */
-  MBErrorCode get_bits( const MBEntityHandle* handles, 
+  ErrorCode get_bits( const EntityHandle* handles, 
                         int num_handles, 
                         unsigned char* data,
                         const unsigned char* default_value ) const;
     /**\brief Get tag values for a range of entity handles */
-  MBErrorCode get_bits( const MBRange& handles, 
+  ErrorCode get_bits( const Range& handles, 
                         unsigned char* data,
                         const unsigned char* default_value ) const;
 
     /**\brief Set tag values for an array of entity handles */
-  MBErrorCode set_bits( const MBEntityHandle* handles, 
+  ErrorCode set_bits( const EntityHandle* handles, 
                         int num_handles,
                         const unsigned char* data, 
                         const unsigned char* default_value );
     /**\brief Set tag values for a range of entity handles */
-  MBErrorCode set_bits( const MBRange& handles, 
+  ErrorCode set_bits( const Range& handles, 
                         const unsigned char* data, 
                         const unsigned char* default_value );
 
     /**\brief Clear tag values for an array of entity handles */
-  MBErrorCode clear_bits( const MBEntityHandle* handles, 
+  ErrorCode clear_bits( const EntityHandle* handles, 
                           int num_handles,
                           const unsigned char* default_value );
     /**\brief Clear tag values for a range of entity handles */
-  MBErrorCode clear_bits( const MBRange& handles, 
+  ErrorCode clear_bits( const Range& handles, 
                           const unsigned char* default_value );
     
 
     /**\brief Get entities for which an explicit tag value is stored */
-  MBErrorCode get_entities( MBRange& entities ) const;
+  ErrorCode get_entities( Range& entities ) const;
 
     /**\brief Get entities for which an explicit tag value is stored */
-  MBErrorCode get_entities( MBEntityType type, 
-                            MBRange& entities ) const;
+  ErrorCode get_entities( EntityType type, 
+                            Range& entities ) const;
 
     /**\brief Get entities for which an explicit tag value is stored */
-  MBErrorCode get_entities( const MBRange &range,
-                            MBEntityType type, 
-                            MBRange& entities ) const;
+  ErrorCode get_entities( const Range &range,
+                            EntityType type, 
+                            Range& entities ) const;
 
     /**\brief Get entities for which an explicit tag of the specified value is stored */
-  MBErrorCode get_entities_with_bits( MBEntityType type, 
-                                      MBRange& entities,
+  ErrorCode get_entities_with_bits( EntityType type, 
+                                      Range& entities,
                                       unsigned char bits ) const;
 
     /**\brief Get entities for which an explicit tag of the specified value is stored */
-  MBErrorCode get_entities_with_bits( const MBRange &range,
-                                      MBEntityType type, 
-                                      MBRange& entities,
+  ErrorCode get_entities_with_bits( const Range &range,
+                                      EntityType type, 
+                                      Range& entities,
                                       unsigned char bits ) const;
 
     /**\brief Get number of entities for which an explicit tag value is stored */
-  MBErrorCode get_number_entities( MBEntityType type,
+  ErrorCode get_number_entities( EntityType type,
                                    int& num_entities ) const;
   
     /**\brief Get number of entities for which an explicit tag value is stored */
-  MBErrorCode get_number_entities( const MBRange &range,
-                                   MBEntityType type,
+  ErrorCode get_number_entities( const Range &range,
+                                   EntityType type,
                                    int& num_entities ) const;
   
-  MBErrorCode get_memory_use( unsigned long& total,
+  ErrorCode get_memory_use( unsigned long& total,
                               unsigned long& per_entity ) const;
                               
   enum { Ln2PageSize = 12,              //!< Constant: log2(PageSize)
@@ -241,7 +243,7 @@ class BitTag
      *         implementation is free to allocate more than the
      *         requested number of bits for each entity
      */
-  MBErrorCode reserve( unsigned int bits_per_entity );
+  ErrorCode reserve( unsigned int bits_per_entity );
   
     /**\brief Helper function for destructive assignment */
   void swap( BitTag& other ) {
@@ -249,7 +251,7 @@ class BitTag
     std::swap( storedBitsPerEntity, other.storedBitsPerEntity );
     std::swap( requestedBitsPerEntity, other.requestedBitsPerEntity );
     std::swap( pageShift, other.pageShift );
-    for (MBEntityType t = (MBEntityType)0; t != MBMAXTYPE; ++t)
+    for (EntityType t = (EntityType)0; t != MBMAXTYPE; ++t)
       pageList[t].swap( other.pageList[t] );
   }
 
@@ -267,7 +269,7 @@ class BitTag
    *\param page   Output: index into pageList[type]
    *\param offset Output: index into pageList[type][page]
    */
-  void unpack( MBEntityHandle h, MBEntityType& type, size_t& page, int& offset ) const
+  void unpack( EntityHandle h, EntityType& type, size_t& page, int& offset ) const
     { 
       type = TYPE_FROM_HANDLE(h);
       h = ID_FROM_HANDLE(h);
@@ -377,7 +379,7 @@ public:
   /**\brief Search stored values for specified value.
    *
    * Find the offsets n in the data at which the specified value occurs,
-   * and for each one insert 'start + n' into the passed MBRange.
+   * and for each one insert 'start + n' into the passed Range.
    *\param value   The value to look for
    *\param offset  The offset at which to begin searching
    *\param count   The number of values to search
@@ -387,7 +389,7 @@ public:
    *               tag value stored at 'offset'
    */
   void search( unsigned char value, int offset, int count, 
-               int bits_per_ent, MBRange& results, MBEntityHandle start ) const;
+               int bits_per_ent, Range& results, EntityHandle start ) const;
 
 private:
 
@@ -439,15 +441,15 @@ inline void BitPage::set_bits( int offset, int count, int per_ent, unsigned char
 }
 
   
-inline BitTag* BitTagServer::get_tag( MBTagId id )
+inline BitTag* BitTagServer::get_tag( TagId id )
   { return id-1 >= tagList.size() || !tagList[id-1].in_use() ? 0 : &tagList[id-1]; }
   
-inline const BitTag* BitTagServer::get_tag( MBTagId id ) const
+inline const BitTag* BitTagServer::get_tag( TagId id ) const
   { return id-1 >= tagList.size() || !tagList[id-1].in_use() ? 0 : &tagList[id-1]; }
 
-inline MBErrorCode 
-BitTagServer::get_bits( MBTagId tag_id, 
-                        const MBEntityHandle* handles, 
+inline ErrorCode 
+BitTagServer::get_bits( TagId tag_id, 
+                        const EntityHandle* handles, 
                         int num_handles, 
                         unsigned char* data,
                         const unsigned char* default_value ) const
@@ -458,9 +460,9 @@ BitTagServer::get_bits( MBTagId tag_id,
     return MB_TAG_NOT_FOUND;
 }
 
-inline MBErrorCode 
-BitTagServer::get_bits( MBTagId tag_id, 
-                        const MBRange& handles, 
+inline ErrorCode 
+BitTagServer::get_bits( TagId tag_id, 
+                        const Range& handles, 
                         unsigned char* data,
                         const unsigned char* default_value ) const
 {
@@ -470,9 +472,9 @@ BitTagServer::get_bits( MBTagId tag_id,
     return MB_TAG_NOT_FOUND;
 }
 
-inline MBErrorCode 
-BitTagServer::set_bits( MBTagId tag_id, 
-                        const MBEntityHandle* handles, 
+inline ErrorCode 
+BitTagServer::set_bits( TagId tag_id, 
+                        const EntityHandle* handles, 
                         int num_handles,
                         const unsigned char* data, 
                         const unsigned char* default_value )
@@ -482,9 +484,9 @@ BitTagServer::set_bits( MBTagId tag_id,
   else
     return MB_TAG_NOT_FOUND;
 }
-inline MBErrorCode 
-BitTagServer::set_bits( MBTagId tag_id, 
-                        const MBRange& handles, 
+inline ErrorCode 
+BitTagServer::set_bits( TagId tag_id, 
+                        const Range& handles, 
                         const unsigned char* data, 
                         const unsigned char* default_value )
 {
@@ -494,9 +496,9 @@ BitTagServer::set_bits( MBTagId tag_id,
     return MB_TAG_NOT_FOUND;
 }
 
-inline MBErrorCode 
-BitTagServer::clear_bits( MBTagId tag_id, 
-                          const MBEntityHandle* handles, 
+inline ErrorCode 
+BitTagServer::clear_bits( TagId tag_id, 
+                          const EntityHandle* handles, 
                           int num_handles,
                           const unsigned char* default_value )
 {
@@ -505,9 +507,9 @@ BitTagServer::clear_bits( MBTagId tag_id,
   else
     return MB_TAG_NOT_FOUND;
 }
-inline MBErrorCode 
-BitTagServer::clear_bits( MBTagId tag_id, 
-                          const MBRange& handles, 
+inline ErrorCode 
+BitTagServer::clear_bits( TagId tag_id, 
+                          const Range& handles, 
                           const unsigned char* default_value )
 {
   if (BitTag* ptr = get_tag(tag_id))
@@ -517,8 +519,8 @@ BitTagServer::clear_bits( MBTagId tag_id,
 }
     
 
-inline MBErrorCode 
-BitTagServer::get_entities( MBTagId tag_id, MBRange& entities ) const
+inline ErrorCode 
+BitTagServer::get_entities( TagId tag_id, Range& entities ) const
 {
   if (const BitTag* ptr = get_tag(tag_id))
     return ptr->get_entities( entities );
@@ -526,10 +528,10 @@ BitTagServer::get_entities( MBTagId tag_id, MBRange& entities ) const
     return MB_TAG_NOT_FOUND;
 }
 
-inline MBErrorCode 
-BitTagServer::get_entities( MBTagId tag_id, 
-                            MBEntityType type, 
-                            MBRange& entities ) const
+inline ErrorCode 
+BitTagServer::get_entities( TagId tag_id, 
+                            EntityType type, 
+                            Range& entities ) const
 {
   if (const BitTag* ptr = get_tag(tag_id))
     return ptr->get_entities( type, entities );
@@ -537,10 +539,10 @@ BitTagServer::get_entities( MBTagId tag_id,
     return MB_TAG_NOT_FOUND;
 }
 
-inline MBErrorCode 
-BitTagServer::get_entities_with_tag_value( MBTagId tag_id, 
-                                           MBEntityType type, 
-                                           MBRange& entities,
+inline ErrorCode 
+BitTagServer::get_entities_with_tag_value( TagId tag_id, 
+                                           EntityType type, 
+                                           Range& entities,
                                            unsigned char bits ) const
 {
   if (const BitTag* ptr = get_tag(tag_id))
@@ -549,11 +551,11 @@ BitTagServer::get_entities_with_tag_value( MBTagId tag_id,
     return MB_TAG_NOT_FOUND;
 }
 
-inline MBErrorCode 
-BitTagServer::get_entities( const MBRange &range,
-                            MBTagId tag_id, 
-                            MBEntityType type, 
-                            MBRange& entities ) const
+inline ErrorCode 
+BitTagServer::get_entities( const Range &range,
+                            TagId tag_id, 
+                            EntityType type, 
+                            Range& entities ) const
 {
   if (const BitTag* ptr = get_tag(tag_id))
     return ptr->get_entities( range, type, entities );
@@ -561,11 +563,11 @@ BitTagServer::get_entities( const MBRange &range,
     return MB_TAG_NOT_FOUND;
 }
 
-inline MBErrorCode 
-BitTagServer::get_entities_with_tag_value( const MBRange &range,
-                                           MBTagId tag_id, 
-                                           MBEntityType type, 
-                                           MBRange& entities,
+inline ErrorCode 
+BitTagServer::get_entities_with_tag_value( const Range &range,
+                                           TagId tag_id, 
+                                           EntityType type, 
+                                           Range& entities,
                                            unsigned char bits ) const
 {
   if (const BitTag* ptr = get_tag(tag_id))
@@ -574,9 +576,9 @@ BitTagServer::get_entities_with_tag_value( const MBRange &range,
     return MB_TAG_NOT_FOUND;
 }
 
-inline MBErrorCode 
-BitTagServer::get_number_entities( const MBTagId tag_id, 
-                                   const MBEntityType type,
+inline ErrorCode 
+BitTagServer::get_number_entities( const TagId tag_id, 
+                                   const EntityType type,
                                    int& num_entities ) const
 {
   if (const BitTag* ptr = get_tag(tag_id))
@@ -585,10 +587,10 @@ BitTagServer::get_number_entities( const MBTagId tag_id,
     return MB_TAG_NOT_FOUND;
 }
   
-inline MBErrorCode 
-BitTagServer::get_number_entities( const MBRange &range,
-                                   const MBTagId tag_id, 
-                                   const MBEntityType type,
+inline ErrorCode 
+BitTagServer::get_number_entities( const Range &range,
+                                   const TagId tag_id, 
+                                   const EntityType type,
                                    int& num_entities ) const
 {
   if (const BitTag* ptr = get_tag(tag_id))
@@ -597,18 +599,20 @@ BitTagServer::get_number_entities( const MBRange &range,
     return MB_TAG_NOT_FOUND;
 }
   
-inline MBErrorCode 
-BitTagServer::get_memory_use( MBTagId tag,
+inline ErrorCode 
+BitTagServer::get_memory_use( TagId tag,
                               unsigned long& total,
                               unsigned long& per_entity ) const
 {
   if (const BitTag* ptr = get_tag(tag)) {
-    MBErrorCode result = ptr->get_memory_use( total, per_entity );
+    ErrorCode result = ptr->get_memory_use( total, per_entity );
     total += sizeof(*this);
     return result;
   }
   else
     return MB_TAG_NOT_FOUND;
 }
+  
+} // namespace moab
 
 #endif

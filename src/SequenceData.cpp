@@ -1,8 +1,10 @@
 #include "SequenceData.hpp"
 #include "TagServer.hpp"
-#include "MBSysUtil.hpp"
+#include "SysUtil.hpp"
 #include "VarLenTag.hpp"
 #include <assert.h>
+
+namespace moab {
 
 SequenceData::~SequenceData()
 {
@@ -15,7 +17,7 @@ void* SequenceData::create_data( int index, int bytes_per_ent, const void* initi
 {  
   char* array = (char*)malloc( bytes_per_ent * size() );
   if (initial_value)
-    MBSysUtil::setmem( array, initial_value, bytes_per_ent, size() );
+    SysUtil::setmem( array, initial_value, bytes_per_ent, size() );
   else 
     memset( array, 0, bytes_per_ent * size() );
   
@@ -65,7 +67,7 @@ void SequenceData::increase_tag_count( unsigned amount )
   numTagData += amount;
 }
 
-void* SequenceData::create_tag_data( MBTagId tag_num,
+void* SequenceData::create_tag_data( TagId tag_num,
                                      int bytes_per_ent,
                                      const void* initial_val )
 {
@@ -76,16 +78,16 @@ void* SequenceData::create_tag_data( MBTagId tag_num,
   return create_data( tag_num + 1, bytes_per_ent, initial_val );
 }
 
-SequenceData* SequenceData::subset( MBEntityHandle start,
-                                    MBEntityHandle end,
+SequenceData* SequenceData::subset( EntityHandle start,
+                                    EntityHandle end,
                                     const int* sequence_data_sizes ) const
 {
   return new SequenceData( this, start, end, sequence_data_sizes );
 }
 
 SequenceData::SequenceData( const SequenceData* from,
-                            MBEntityHandle start, 
-                            MBEntityHandle end,
+                            EntityHandle start, 
+                            EntityHandle end,
                             const int* sequence_data_sizes )
   : numSequenceData( from->numSequenceData ),
     numTagData( from->numTagData ),
@@ -158,7 +160,7 @@ void SequenceData::release_tag_data( const int* tag_sizes, int num_tag_sizes )
     release_tag_data( i, tag_sizes[i] );
 }
 
-void SequenceData::release_tag_data( MBTagId tag_num, int tag_size )
+void SequenceData::release_tag_data( TagId tag_num, int tag_size )
 {
   if (tag_num < numTagData) {
     if (tag_size == MB_VARIABLE_LENGTH && arraySet[tag_num+1]) {
@@ -172,3 +174,4 @@ void SequenceData::release_tag_data( MBTagId tag_num, int tag_size )
   }
 }
 
+} // namespace moab

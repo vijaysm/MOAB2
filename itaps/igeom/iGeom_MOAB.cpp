@@ -2,24 +2,26 @@
 #include <map>
 #include "iGeom_MOAB.hpp"
 #include "iMesh.h"
-#include "MBInterface.hpp"
-#include "GeomTopoTool.hpp"
-#include "MBOrientedBox.hpp"
-#include "MBOrientedBoxTreeTool.hpp"
-#include "MBCartVect.hpp"
+#include "moab/Interface.hpp"
+#include "moab/GeomTopoTool.hpp"
+#include "OrientedBox.hpp"
+#include "moab/OrientedBoxTreeTool.hpp"
+#include "moab/CartVect.hpp"
 #include <stdlib.h>
 #include <cstring>
+
+using namespace moab;
 
 iBase_Error iGeom_LAST_ERROR;
 bool i_created = false; // if interface is created
 bool t_created = false;
-MBRange _my_gsets[4];
+Range _my_gsets[4];
 GeomTopoTool* _my_geomTopoTool = NULL;
 
 bool debug_igeom = false;
 
 #define COPY_RANGE(r, vec) {                      \
-    MBEntityHandle *tmp_ptr = reinterpret_cast<MBEntityHandle*>(vec);	\
+    EntityHandle *tmp_ptr = reinterpret_cast<EntityHandle*>(vec);	\
     std::copy(r.begin(), r.end(), tmp_ptr);}
 
 static inline void
@@ -27,9 +29,9 @@ iGeom_processError(iBase_ErrorType code, const char* desc);
 
 static void
 iGeom_get_adjacent_entities(iGeom_Instance instance,
-			    const MBEntityHandle from, 
+			    const EntityHandle from, 
 			    const int to_dim,
-			    MBRange &adj_ents, int* err);
+			    Range &adj_ents, int* err);
 
 double get_edge_length(double* p1, double* p2);
 
@@ -57,9 +59,9 @@ void iGeom_newGeom( char const* options,
                     int* err,
                     int options_len ) 
 {
-  if (*instance_out && !(reinterpret_cast<MBInterface*>(instance_out))) {
+  if (*instance_out && !(reinterpret_cast<Interface*>(instance_out))) {
     *err = iBase_INVALID_ENTITY_TYPE;
-    ERRORR("Passed in instance must be an MBInterface*.");
+    ERRORR("Passed in instance must be an Interface*.");
   }
 
   // make a new imesh instance
@@ -94,9 +96,9 @@ void iGeom_load( iGeom_Instance instance,
              name_len, options_len);
   ERRORR("Failure to load geometry.");
   
-  // keep mesh-based geometries in MBRange
+  // keep mesh-based geometries in Range
   GETGTT(instance);
-  MBErrorCode rval = _my_geomTopoTool->find_geomsets(_my_gsets);
+  ErrorCode rval = _my_geomTopoTool->find_geomsets(_my_gsets);
   MBERRORR("Failure to keep geometry list.");
 
   if (debug_igeom) {
@@ -192,7 +194,7 @@ void iGeom_getEntities( iGeom_Instance instance,
   }
   else {
     *entity_handles_size = 0;
-    MBRange total_range;
+    Range total_range;
     for (i = 0; i < 4; i++) {
       total_range.merge(_my_gsets[i]);
     }
@@ -268,8 +270,8 @@ void iGeom_getEntAdj( iGeom_Instance instance,
                       int* adj_entities_size,
                       int* err ) 
 {
-  MBRange adjs;
-  MBEntityHandle this_ent = MBH_cast(entity_handle);
+  Range adjs;
+  EntityHandle this_ent = MBH_cast(entity_handle);
 
   // get adjacent
   iGeom_get_adjacent_entities(instance, this_ent, to_dimension,
@@ -298,7 +300,7 @@ void iGeom_getArrAdj( iGeom_Instance instance,
                       int* err ) 
 {
   // check offset array size
-  MBRange temp_range, total_range;
+  Range temp_range, total_range;
   CHECK_SIZE(*offset, *offset_allocated, entity_handles_size + 1, int, NULL);
   *offset_size = entity_handles_size + 1;
   
@@ -333,12 +335,12 @@ void iGeom_getEnt2ndAdj( iGeom_Instance instance,
                          int* adjacent_entities_size,
                          int* err )
 {
-  MBRange to_ents, bridge_ents, tmp_ents;
+  Range to_ents, bridge_ents, tmp_ents;
   iGeom_get_adjacent_entities(instance, MBH_cast(entity_handle), bridge_dimension, bridge_ents, err);
   ERRORR("Failed to get adjacent entities in iGeom_getEnt2ndAdj.");
   
-  MBRange::iterator iter, jter, kter, end_jter;
-  MBRange::iterator end_iter = bridge_ents.end();
+  Range::iterator iter, jter, kter, end_jter;
+  Range::iterator end_iter = bridge_ents.end();
   for (iter = bridge_ents.begin(); iter != end_iter; iter++) {
     iGeom_get_adjacent_entities(instance, *iter, to_dimension, tmp_ents, err);
     ERRORR("Failed to get adjacent entities in iGeom_getEnt2ndAdj.");
@@ -373,7 +375,7 @@ void iGeom_getArr2ndAdj( iGeom_Instance instance,
                          int* err )
 {
   CHECK_SIZE(*offset, *offset_allocated, entity_handles_size + 1, int, NULL);
-  MBRange bridge_range, temp_range, entity_range, total_range;
+  Range bridge_range, temp_range, entity_range, total_range;
    
   for (int i = 0; i < entity_handles_size; ++i) {
     bridge_range.clear();
@@ -382,8 +384,8 @@ void iGeom_getArr2ndAdj( iGeom_Instance instance,
 				order_adjacent_key, bridge_range, err);
     ERRORR("Failed to get adjacent entities in iGeom_getArr2ndAdj.");
 
-    MBRange::iterator iter, jter, end_jter;
-    MBRange::iterator end_iter = bridge_range.end();
+    Range::iterator iter, jter, end_jter;
+    Range::iterator end_iter = bridge_range.end();
     for (iter = bridge_range.begin(); iter != end_iter; iter++) {
       temp_range.clear();
       iGeom_get_adjacent_entities(instance, *iter,
@@ -422,8 +424,8 @@ void iGeom_isEntAdj( iGeom_Instance instance,
   iGeom_getEntType(instance, entity_handle2, &type2, err);
   ERRORR("Failed to get entity type in iGeom_isEntAdj.");
 
-  MBErrorCode rval;
-  MBRange adjs;
+  ErrorCode rval;
+  Range adjs;
   if (type1 < type2) {
     rval = MBI->get_parent_meshsets(MBH_cast(entity_handle1), adjs, type2 - type1);
     MBERRORR("Failed to get parent meshsets in iGeom_isEntAdj.");
@@ -500,7 +502,7 @@ void iGeom_getEntClosestPt( iGeom_Instance instance,
                             double* on_z,
                             int* err )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   int type;
   iGeom_getEntType(instance, entity_handle, &type, err);
   ERRORR("Failed to get entity type.");
@@ -527,7 +529,7 @@ void iGeom_getEntClosestPt( iGeom_Instance instance,
     
     double point[3] = {near_x, near_y, near_z};
     double point_out[3];
-    MBEntityHandle root, facet_out;
+    EntityHandle root, facet_out;
     rval = _my_geomTopoTool->get_root(MBH_cast(entity_handle), root);
     MBERRORR("Failed to get tree root in iGeom_getEntClosestPt.");
     rval = _my_geomTopoTool->obb_tree()->closest_to_location(point, root,
@@ -600,17 +602,17 @@ void iGeom_getEntNrmlXYZ( iGeom_Instance instance,
   // get closest location and facet
   double point[3] = {x, y, z};
   double point_out[3];
-  MBEntityHandle root, facet_out;
+  EntityHandle root, facet_out;
   _my_geomTopoTool->get_root(MBH_cast(entity_handle), root);
-  MBErrorCode rval = _my_geomTopoTool->obb_tree()->closest_to_location(point, root,
+  ErrorCode rval = _my_geomTopoTool->obb_tree()->closest_to_location(point, root,
 							   point_out,
 							   facet_out);
   MBERRORR("Failed to get closest location in iGeom_getEntNrmlXYZ.");
 
   // get facet normal
-  const MBEntityHandle* conn;
+  const EntityHandle* conn;
   int len;
-  MBCartVect coords[3], normal;
+  CartVect coords[3], normal;
   rval = MBI->get_connectivity(facet_out, conn, len);
   MBERRORR("Failed to get triangle connectivity in iGeom_getEntNrmlXYZ.");
   if (len != 3) RETURN(iBase_FAILURE);
@@ -737,9 +739,9 @@ void iGeom_getEntNrmlPlXYZ( iGeom_Instance instance,
   // get closest location and facet
   double point[3] = {x, y, z};
   double point_out[3];
-  MBEntityHandle root, facet_out;
+  EntityHandle root, facet_out;
   _my_geomTopoTool->get_root(MBH_cast(entity_handle), root);
-  MBErrorCode rval = _my_geomTopoTool->obb_tree()->closest_to_location(point, root,
+  ErrorCode rval = _my_geomTopoTool->obb_tree()->closest_to_location(point, root,
 								       point_out,
 								       facet_out);
   MBERRORR("Failed to get closest location in iGeom_getEntNrmlPlXYZ.");
@@ -750,9 +752,9 @@ void iGeom_getEntNrmlPlXYZ( iGeom_Instance instance,
   *pt_z = point_out[2];
 
   // get facet normal
-  const MBEntityHandle* conn;
+  const EntityHandle* conn;
   int len;
-  MBCartVect coords[3], normal;
+  CartVect coords[3], normal;
   rval = MBI->get_connectivity(facet_out, conn, len);
   MBERRORR("Failed to get triangle connectivity in iGeom_getEntNrmlPlXYZ.");
   if (len != 3) RETURN(iBase_FAILURE);
@@ -906,7 +908,7 @@ void iGeom_getEntBoundBox( iGeom_Instance instance,
                            double* max_z,
                            int* err )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   int type;
   iGeom_getEntType(instance, entity_handle, &type, err);
   ERRORR("Failed to get entity type.");
@@ -931,14 +933,14 @@ void iGeom_getEntBoundBox( iGeom_Instance instance,
       t_created = true;
     }
     
-    MBEntityHandle root;
-    MBOrientedBox box;
+    EntityHandle root;
+    OrientedBox box;
     rval = _my_geomTopoTool->get_root(MBH_cast(entity_handle), root);
     MBERRORR("Failed to get tree root in iGeom_getEntBoundBox.");
     rval = _my_geomTopoTool->obb_tree()->box(root, box);
     MBERRORR("Failed to get closest point in iGeom_getEntBoundBox.");
     
-    MBCartVect min, max;
+    CartVect min, max;
     min = box.center - box.length[0]*box.axis[0] - box.length[1]*box.axis[1]
       - box.length[2]*box.axis[2];
     max = box.center + box.length[0]*box.axis[0] + box.length[1]*box.axis[1]
@@ -1220,7 +1222,7 @@ void iGeom_measure( iGeom_Instance instance,
       
       // calculate sum of area of triangles
       double* p;
-      MBCartVect coords[3];
+      CartVect coords[3];
       for (int j = 0; j < tris_size; j++) {
 	for (int k = 0; k < 3; k++) {
 	  p = coords[k].array();
@@ -1785,7 +1787,7 @@ void iGeom_sweepEntAboutAxis( iGeom_Instance,
 
 void iGeom_deleteAll(iGeom_Instance instance, int* err )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   for (int i = 0; i < 4; i++) {
     rval = MBI->delete_entities(_my_gsets[i]);
     MBERRORR("Failed to delete entities in iGeom_deleteAll.");
@@ -1803,14 +1805,14 @@ void iGeom_deleteEnt( iGeom_Instance instance,
   iGeom_getEntType(instance, entity_handle, &type, err);
   ERRORR("Failed to get entity type in iGeom_deleteEnt.");
 
-  MBRange::iterator iter = _my_gsets[type].find(MBH_cast(entity_handle));
+  Range::iterator iter = _my_gsets[type].find(MBH_cast(entity_handle));
   if (iter == _my_gsets[type].end()) {
     RETURN(iBase_INVALID_ENTITY_HANDLE);
   }
   _my_gsets[type].erase(iter);
 
-  MBEntityHandle this_entity = MBH_cast(entity_handle);
-  MBErrorCode rval = MBI->delete_entities(&this_entity, 1);
+  EntityHandle this_entity = MBH_cast(entity_handle);
+  ErrorCode rval = MBI->delete_entities(&this_entity, 1);
   MBERRORR("Failed to delete entity.");
 }
 
@@ -2623,10 +2625,10 @@ iGeom_processError( iBase_ErrorType code, const char* desc )
 
 static void
 iGeom_get_adjacent_entities(iGeom_Instance instance,
-			    const MBEntityHandle from, 
+			    const EntityHandle from, 
 			    const int to_dim,
-			    MBRange &adjs,
-			    //std::vector<MBEntityHandle>& adjs,
+			    Range &adjs,
+			    //std::vector<EntityHandle>& adjs,
 			    int* err)
 {
   int this_dim = -1;
@@ -2651,7 +2653,7 @@ iGeom_get_adjacent_entities(iGeom_Instance instance,
     RETURN(iBase_FAILURE);
   }
   
-  MBErrorCode rval;
+  ErrorCode rval;
   adjs.clear();
   if (to_dim > this_dim) {
     int number;

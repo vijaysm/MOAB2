@@ -2,10 +2,10 @@
 #include <fstream>
 #include <cstdlib>
 #include "mcnpmit.hpp"
-#include "MBCartVect.hpp"
+#include "moab/CartVect.hpp"
 #include "math.h"
 
-MBInterface* mb_instance();
+moab::Interface* mb_instance();
 
 MCNPError next_number(std::string, double&, int&);
 int how_many_numbers(std::string);
@@ -73,9 +73,9 @@ std::string McnpData::get_filename() {
 MCNPError McnpData::read_mcnpfile(bool skip_mesh) {
 
       MCNPError result;
-      MBErrorCode MBresult;
+      moab::ErrorCode MBresult;
       int nelems;
-      MBCartVect tvect;
+      moab::CartVect tvect;
 
       std::vector<double> xvec[3];
 
@@ -143,10 +143,10 @@ MCNPError McnpData::read_mcnpfile(bool skip_mesh) {
             break;
             case 4:           // Read in tally data, make, and tag elements
                   mode++;
-                  MBEntityHandle elemhandle;
+                  moab::EntityHandle elemhandle;
 
-                  MBEntityHandle vstart, vijk;
-                  MBEntityHandle connect[8];
+                  moab::EntityHandle vstart, vijk;
+                  moab::EntityHandle connect[8];
                   // double d[3];
 
                   // vstart = MCNP_vertices.front();
@@ -168,8 +168,8 @@ MCNPError McnpData::read_mcnpfile(bool skip_mesh) {
                         connect[6] = vijk + 1 + nv[0] + nv[0]*nv[1];
                         connect[7] = vijk + nv[0] + nv[0]*nv[1];
 
-                        MBresult = MBI->create_element(MBHEX, connect, 8, elemhandle);
-                        if (MBresult != MB_SUCCESS) return MCNP_FAILURE;
+                        MBresult = MBI->create_element(moab::MBHEX, connect, 8, elemhandle);
+                        if (MBresult != moab::MB_SUCCESS) return MCNP_FAILURE;
                         elem_handles.insert(elemhandle);
 
                         mcnpfile.getline(line, 10000);
@@ -261,7 +261,7 @@ MCNPError McnpData::make_elements(std::vector<double> x[3], int* n) {
       // double v[3];
       // MBEntityHandle dumhandle;
       // MBEntityHandle vstart, vijk;
-      MBErrorCode MBresult;
+      moab::ErrorCode MBresult;
 
       unsigned int num_verts = n[0]*n[1]*n[2];
       double       *coords;
@@ -310,22 +310,22 @@ MCNPError McnpData::make_elements(std::vector<double> x[3], int* n) {
 
 MCNPError McnpData::initialize_tags() {
 
-      MBErrorCode rval;
+      moab::ErrorCode rval;
 
-      rval = MBI->tag_create(TALLY_TAG, sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, tally_tag, 0);
-      rval = MBI->tag_create(ERROR_TAG, sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, relerr_tag, 0);
+      rval = MBI->tag_create(TALLY_TAG, sizeof(double), moab::MB_TAG_DENSE, moab::MB_TYPE_DOUBLE, tally_tag, 0);
+      rval = MBI->tag_create(ERROR_TAG, sizeof(double), moab::MB_TAG_DENSE, moab::MB_TYPE_DOUBLE, relerr_tag, 0);
 
       return MCNP_SUCCESS;
 
 }
 
-MCNPError McnpData::extract_tally_data(std::string s, MBEntityHandle handle) {
+MCNPError McnpData::extract_tally_data(std::string s, moab::EntityHandle handle) {
 
       int fpos = 0;
       double d = 0;
 
       MCNPError result;
-      MBErrorCode MBresult;
+      moab::ErrorCode MBresult;
 
       // Discard first three lines
       for (int i = 0; i < 3; i++) {
@@ -336,13 +336,13 @@ MCNPError McnpData::extract_tally_data(std::string s, MBEntityHandle handle) {
       result = next_number(s, d, fpos);
       if (result == MCNP_FAILURE) return MCNP_FAILURE;
       MBresult = MBI -> tag_set_data(tally_tag, &handle, 1, &d);
-      if (MBresult != MB_SUCCESS) return MCNP_FAILURE; 
+      if (MBresult != moab::MB_SUCCESS) return MCNP_FAILURE; 
 
       // Need to read in relative error entry and tag ...
       result = next_number(s, d, fpos);
       if (result == MCNP_FAILURE) return MCNP_FAILURE;
       MBresult = MBI -> tag_set_data(relerr_tag, &handle, 1, &d);
-      if (MBresult != MB_SUCCESS) return MCNP_FAILURE; 
+      if (MBresult != moab::MB_SUCCESS) return MCNP_FAILURE; 
 
       return MCNP_SUCCESS;
 }

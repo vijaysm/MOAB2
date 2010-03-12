@@ -14,7 +14,9 @@
  */
 
 #include "TSTT_MB_QueryInterface.h"
-#include "MB_RMBSet.hpp"
+#include "moab/_RMBSet.hpp"
+
+using namespace moab;
 
 int compare_coords(double *xval, double *yval, double *zval,
                    double *nodex, double *nodey, double *nodez, 

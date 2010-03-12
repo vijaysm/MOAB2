@@ -3,44 +3,48 @@
 
 #include "UnstructuredElemSeq.hpp"
 
+namespace moab {
+
 
 class PolyElementSeq : public UnstructuredElemSeq
 {
 public:
-  PolyElementSeq( MBEntityHandle start_handle, 
-                  MBEntityID entity_count, 
+  PolyElementSeq( EntityHandle start_handle, 
+                  EntityID entity_count, 
                   unsigned nodes_per_entity,
                   SequenceData* data )
     : UnstructuredElemSeq( start_handle, entity_count, nodes_per_entity, data )
     {}
 
-  PolyElementSeq( MBEntityHandle start_handle, 
-                  MBEntityID entity_count, 
+  PolyElementSeq( EntityHandle start_handle, 
+                  EntityID entity_count, 
                   unsigned nodes_per_entity,
-                  MBEntityID sequence_data_size)
+                  EntityID sequence_data_size)
     : UnstructuredElemSeq( start_handle, entity_count, nodes_per_entity, sequence_data_size )
     {}
 
   virtual ~PolyElementSeq();
   
-  virtual EntitySequence* split( MBEntityHandle here );
+  virtual EntitySequence* split( EntityHandle here );
                        
-  virtual MBErrorCode get_connectivity( MBEntityHandle handle,
-                                        std::vector<MBEntityHandle>& connect,
+  virtual ErrorCode get_connectivity( EntityHandle handle,
+                                        std::vector<EntityHandle>& connect,
                                         bool topological = false ) const;
   
-  virtual MBErrorCode get_connectivity( MBEntityHandle handle,
-                                        MBEntityHandle const*& connect,
+  virtual ErrorCode get_connectivity( EntityHandle handle,
+                                        EntityHandle const*& connect,
                                         int &connect_length,
                                         bool topological = false,
-                                        std::vector<MBEntityHandle>* storage = 0
+                                        std::vector<EntityHandle>* storage = 0
                                        ) const;
 
 protected:
 
-  PolyElementSeq( PolyElementSeq& split_from, MBEntityHandle here )
+  PolyElementSeq( PolyElementSeq& split_from, EntityHandle here )
     : UnstructuredElemSeq( split_from, here )
    {}
 };
+  
+} // namespace moab
 
 #endif

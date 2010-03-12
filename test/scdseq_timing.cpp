@@ -17,11 +17,13 @@
 #include "ScdElementSeq.hpp"
 #include "EntitySequenceManager.hpp"
 #include "EntitySequence.hpp"
-#include "MBCore.hpp"
-#include "MBReadUtilIface.hpp"
+#include "moab/Core.hpp"
+#include "moab/ReadUtilIface.hpp"
 
 #include <iostream>
 #include <time.h>
+
+using namespace moab;
 
 /*
 // some timing/memory measurement includes; memory measurement
@@ -37,12 +39,12 @@
 #include <fcntl.h>
 */
 
-int create_3dtri_3_sequences(MBCore *gMB,
+int create_3dtri_3_sequences(Core *gMB,
                              const int intervals,
-                             MBEntityHandle *vstart, MBEntityHandle *estart);
-int create_3dtri_ucd_sequences(MBCore *gMB,
+                             EntityHandle *vstart, EntityHandle *estart);
+int create_3dtri_ucd_sequences(Core *gMB,
                                const int intervals,
-                               MBEntityHandle *vstart, MBEntityHandle *estart);
+                               EntityHandle *vstart, EntityHandle *estart);
 void print_time();
 
 
@@ -51,8 +53,8 @@ int main(int argc, char**argv)
 {
   int errors = 0;
 
-    // first we need to make a new MBCore
-  MBCore *gMB = new MBCore();
+    // first we need to make a new Core
+  Core *gMB = new Core();
 
     // get the intervals
   if (argc < 2) {
@@ -77,10 +79,10 @@ int main(int argc, char**argv)
     }
   }
   
-  MBEntityHandle estart[3], vstart[3];
+  EntityHandle estart[3], vstart[3];
   int total_elements = intervals*intervals*intervals;
-  std::vector<MBEntityHandle> connect;
-  MBErrorCode result;
+  std::vector<EntityHandle> connect;
+  ErrorCode result;
   clock_t start, stop;
   float time;
   char inp[1];
@@ -128,7 +130,7 @@ int main(int argc, char**argv)
   if (do_ucd) {
 
       // now do the same thing, only unstructured
-    gMB = new MBCore();
+    gMB = new Core();
 
       // create the elements
     errors = create_3dtri_ucd_sequences(gMB, intervals, vstart, estart);
@@ -138,7 +140,7 @@ int main(int argc, char**argv)
     }
 
       // get connectivity
-    std::vector<MBEntityHandle> connect;
+    std::vector<EntityHandle> connect;
     start = clock();
     for (int j = 0; j < 3; j++) {
       for (int i = 0; i < total_elements; i++) {
@@ -165,9 +167,9 @@ int main(int argc, char**argv)
   }
 }
 
-int create_3dtri_3_sequences(MBCore *gMB,
+int create_3dtri_3_sequences(Core *gMB,
                              const int intervals,
-                             MBEntityHandle *vstart, MBEntityHandle *estart) 
+                             EntityHandle *vstart, EntityHandle *estart) 
 {
     // create 3 brick esequences arranged such that the all share a common (tri-valent) edge;
     // orient each region similarly to the 2dtri_3_esequences test problem, swept into 3d in the 
@@ -194,11 +196,11 @@ int create_3dtri_3_sequences(MBCore *gMB,
   EntitySequenceManager *seq_mgr = gMB->sequence_manager();
 
     // create three vertex sequences
-  MBEntitySequence *dum_seq;
+  EntitySequence *dum_seq;
   vseq[0] = vseq[1] = vseq[2] = NULL;
 
     // first vertex sequence 
-  MBErrorCode result = seq_mgr->create_scd_sequence(vseq0_minmax[0], vseq0_minmax[1],
+  ErrorCode result = seq_mgr->create_scd_sequence(vseq0_minmax[0], vseq0_minmax[1],
                                                      MBVERTEX, 1,
                                                      vstart[0], dum_seq);
   if (NULL != dum_seq) vseq[0] = dynamic_cast<ScdVertexSeq*>(dum_seq);
@@ -351,12 +353,12 @@ int create_3dtri_3_sequences(MBCore *gMB,
   return errors;
 }
 
-int create_3dtri_ucd_sequences(MBCore *gMB, const int intervals, 
-                               MBEntityHandle *vstart, MBEntityHandle *estart) 
+int create_3dtri_ucd_sequences(Core *gMB, const int intervals, 
+                               EntityHandle *vstart, EntityHandle *estart) 
 {
   
-  MBReadUtilIface* readMeshIface;
-  std::string iface_name = "MBReadUtilIface";
+  ReadUtilIface* readMeshIface;
+  std::string iface_name = "ReadUtilIface";
   gMB->query_interface(iface_name, reinterpret_cast<void**>(&readMeshIface));
   
   int num_elements = intervals*intervals*intervals;
@@ -369,7 +371,7 @@ int create_3dtri_ucd_sequences(MBCore *gMB, const int intervals,
     arrays.clear();
   }
 
-  MBEntityHandle *conn[3];
+  EntityHandle *conn[3];
 
     // allocate 3 arrays to initialize connectivity data
   for (int i = 0; i < 3; i++) {

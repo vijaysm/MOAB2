@@ -1,7 +1,7 @@
-#include "MBCore.hpp"
-#include "MBParallelComm.hpp"
-#include "MBTagConventions.hpp"
-#include "MBmpi.h"
+#include "moab/Core.hpp"
+#include "moab/ParallelComm.hpp"
+#include "moab/MBTagConventions.hpp"
+#include "moab_mpi.h"
 #include <stdlib.h>
 #include <iostream>
 #include <time.h>
@@ -9,6 +9,8 @@
 #include <math.h>
 #include <assert.h>
 #include <stdio.h>
+
+using namespace moab;
 
 #define TPRINT(A) tprint( (A) )
 static void tprint(const char* A) 
@@ -32,7 +34,7 @@ const char* DEFAULT_FILE_NAME = "parallel_write_test.h5m";
 // along each edge.  Otherwise processor blocks will be arranged
 // within the subset of the grid that is the ceiling of the cubic
 // root of the comm size such that there are no disjoint regions.
-MBErrorCode generate_mesh( MBInterface& moab, int intervals );
+ErrorCode generate_mesh( Interface& moab, int intervals );
 
 const char args[] = "[-i <intervals>] [-o <filename>] [-g <filename>]";
 void help() {
@@ -155,9 +157,9 @@ int main( int argc, char* argv[] )
     // Create mesh
 TPRINT("Generating mesh");
   double gen_time = MPI_Wtime();
-  MBCore mb;
-  MBInterface& moab = mb;
-  MBErrorCode rval = generate_mesh( moab, intervals );
+  Core mb;
+  Interface& moab = mb;
+  ErrorCode rval = generate_mesh( moab, intervals );
   if (MB_SUCCESS != rval) {
     std::cerr << "Mesh creation failed with error code: " << rval << std::endl;
     return (int)rval;
@@ -180,15 +182,15 @@ TPRINT("Writing individual file");
   }
 
   double res_time = MPI_Wtime();
-  MBRange hexes;
+  Range hexes;
   moab.get_entities_by_type( 0, MBHEX, hexes );
   if (!skip_resolve_shared) {
 TPRINT("Resolving shared entities");
       // Negotiate shared entities using vertex global IDs
-    MBParallelComm* pcomm = new MBParallelComm( &moab );
+    ParallelComm* pcomm = new ParallelComm( &moab );
     rval = pcomm->resolve_shared_ents( 0, hexes, 3, 0 );
     if (MB_SUCCESS != rval) {
-      std::cerr << "MBParallelComm::resolve_shared_ents failed" << std::endl;
+      std::cerr << "ParallelComm::resolve_shared_ents failed" << std::endl;
       return rval;
     }
   }
@@ -234,14 +236,14 @@ TPRINT("Finalizing MPI");
 
 #define IDX(i,j,k) ((num_interval+1)*((num_interval+1)*(k) + (j)) + (i))
 
-MBErrorCode generate_mesh( MBInterface& moab, int num_interval )
+ErrorCode generate_mesh( Interface& moab, int num_interval )
 {
   int rank, size;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   MPI_Comm_size( MPI_COMM_WORLD, &size );
   
-  MBErrorCode rval;
-  MBTag global_id;
+  ErrorCode rval;
+  Tag global_id;
   rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, global_id );
   if (MB_SUCCESS != rval)
     return rval;
@@ -276,15 +278,15 @@ MBErrorCode generate_mesh( MBInterface& moab, int num_interval )
   const int y_offset = my_y_block * num_interval;
   const int z_offset = my_z_block * num_interval;
   double step = 1.0 / num_interval;
-  std::vector<MBEntityHandle> vertices( (num_interval+1)*(num_interval+1)*(num_interval+1) );
-  std::vector<MBEntityHandle>::iterator v = vertices.begin();
+  std::vector<EntityHandle> vertices( (num_interval+1)*(num_interval+1)*(num_interval+1) );
+  std::vector<EntityHandle>::iterator v = vertices.begin();
   for (int k = 0; k <= num_interval; ++k) {
     for (int j = 0; j <= num_interval; ++j) {
       for (int i = 0; i <= num_interval; ++i) {
         double coords[] = { my_x_block + i*step,
                             my_y_block + j*step,
                             my_z_block + k*step };
-        MBEntityHandle h;
+        EntityHandle h;
         rval = moab.create_vertex( coords, h );
         if (MB_SUCCESS != rval)
           return rval;
@@ -307,7 +309,7 @@ MBErrorCode generate_mesh( MBInterface& moab, int num_interval )
     for (int j = 0; j < num_interval; ++j) {
       for (int i = 0; i < num_interval; ++i) {
         assert( IDX(i+1,j+1,k+1) < (int)vertices.size() );
-        const MBEntityHandle conn[] = { vertices[IDX(i,  j,  k  )],
+        const EntityHandle conn[] = { vertices[IDX(i,  j,  k  )],
                                         vertices[IDX(i+1,j,  k  )],
                                         vertices[IDX(i+1,j+1,k  )],
                                         vertices[IDX(i,  j+1,k  )],
@@ -315,7 +317,7 @@ MBErrorCode generate_mesh( MBInterface& moab, int num_interval )
                                         vertices[IDX(i+1,j,  k+1)],
                                         vertices[IDX(i+1,j+1,k+1)],
                                         vertices[IDX(i,  j+1,k+1)] };
-        MBEntityHandle elem;
+        EntityHandle elem;
         rval = moab.create_element( MBHEX, conn, 8, elem );
         if (MB_SUCCESS != rval)
           return rval;
@@ -326,9 +328,9 @@ MBErrorCode generate_mesh( MBInterface& moab, int num_interval )
     // create interface quads 
   for (int j = 0; j < num_interval; ++j) {
     for (int i = 0; i < num_interval; ++i) {
-      MBEntityHandle h;
+      EntityHandle h;
 
-      const MBEntityHandle conn1[] = { vertices[IDX(i,  j,  0)],
+      const EntityHandle conn1[] = { vertices[IDX(i,  j,  0)],
                                        vertices[IDX(i+1,j,  0)],
                                        vertices[IDX(i+1,j+1,0)],
                                        vertices[IDX(i,  j+1,0)] };
@@ -336,7 +338,7 @@ MBErrorCode generate_mesh( MBInterface& moab, int num_interval )
       if (MB_SUCCESS != rval)
         return rval;
 
-      const MBEntityHandle conn2[] = { vertices[IDX(i,  j,  num_interval)],
+      const EntityHandle conn2[] = { vertices[IDX(i,  j,  num_interval)],
                                        vertices[IDX(i+1,j,  num_interval)],
                                        vertices[IDX(i+1,j+1,num_interval)],
                                        vertices[IDX(i,  j+1,num_interval)] };
@@ -347,9 +349,9 @@ MBErrorCode generate_mesh( MBInterface& moab, int num_interval )
   }
   for (int k = 0; k < num_interval; ++k) {
     for (int i = 0; i < num_interval; ++i) {
-      MBEntityHandle h;
+      EntityHandle h;
 
-      const MBEntityHandle conn1[] = { vertices[IDX(i,  0,k  )],
+      const EntityHandle conn1[] = { vertices[IDX(i,  0,k  )],
                                        vertices[IDX(i+1,0,k  )],
                                        vertices[IDX(i+1,0,k+1)],
                                        vertices[IDX(i,  0,k+1)] };
@@ -357,7 +359,7 @@ MBErrorCode generate_mesh( MBInterface& moab, int num_interval )
       if (MB_SUCCESS != rval)
         return rval;
 
-      const MBEntityHandle conn2[] = { vertices[IDX(i,  num_interval,k  )],
+      const EntityHandle conn2[] = { vertices[IDX(i,  num_interval,k  )],
                                        vertices[IDX(i+1,num_interval,k  )],
                                        vertices[IDX(i+1,num_interval,k+1)],
                                        vertices[IDX(i,  num_interval,k+1)] };
@@ -368,9 +370,9 @@ MBErrorCode generate_mesh( MBInterface& moab, int num_interval )
   }
   for (int k = 0; k < num_interval; ++k) {
     for (int j = 0; j < num_interval; ++j) {
-      MBEntityHandle h;
+      EntityHandle h;
 
-      const MBEntityHandle conn1[] = { vertices[IDX(0,j,  k  )],
+      const EntityHandle conn1[] = { vertices[IDX(0,j,  k  )],
                                        vertices[IDX(0,j+1,k  )],
                                        vertices[IDX(0,j+1,k+1)],
                                        vertices[IDX(0,j,  k+1)] };
@@ -378,7 +380,7 @@ MBErrorCode generate_mesh( MBInterface& moab, int num_interval )
       if (MB_SUCCESS != rval)
         return rval;
 
-      const MBEntityHandle conn2[] = { vertices[IDX(num_interval,j,  k  )],
+      const EntityHandle conn2[] = { vertices[IDX(num_interval,j,  k  )],
                                        vertices[IDX(num_interval,j+1,k  )],
                                        vertices[IDX(num_interval,j+1,k+1)],
                                        vertices[IDX(num_interval,j,  k+1)] };

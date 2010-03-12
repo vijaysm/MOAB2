@@ -215,13 +215,13 @@ inline void flag_error()
 
 
 /* Make sure IS_BUILDING_MB is defined so we can include MBInternals.hpp */
-#include "MBTypes.h"
+#include "moab/Types.hpp"
 #ifndef IS_BUILDING_MB
 #  define IS_BUILDING_MB
-#  include "MBInternals.hpp"
+#  include "Internals.hpp"
 #  undef IS_BUILDING_MB
 #else
-#  include "MBInternals.hpp"
+#  include "Internals.hpp"
 #endif
 
 typedef void (*test_func)(void);
@@ -356,25 +356,25 @@ void check_equal( float A, float B, float eps, const char* sA, const char* sB, i
 void check_equal( double A, double B, float eps, const char* sA, const char* sB, int line, const char* file )
   {  EQUAL_TEST_IMPL( fabs(A - B) <= eps, f ) }
 
-const char* mb_error_str( MBErrorCode err )
+const char* mb_error_str( moab::ErrorCode err )
 {
   switch (err) {
-    case MB_SUCCESS                 : return "Success";
-    case MB_INDEX_OUT_OF_RANGE      : return "Index Out of Range";
-    case MB_TYPE_OUT_OF_RANGE       : return "Type Out of Range";
-    case MB_MEMORY_ALLOCATION_FAILED: return "Memory Alloc. Failed";
-    case MB_ENTITY_NOT_FOUND        : return "Entity Not Found";
-    case MB_MULTIPLE_ENTITIES_FOUND : return "Multiple Entities Found";
-    case MB_TAG_NOT_FOUND           : return "Tag Not Found";
-    case MB_FILE_DOES_NOT_EXIST     : return "File Not Found";
-    case MB_FILE_WRITE_ERROR        : return "File Write Error";
-    case MB_NOT_IMPLEMENTED         : return "Not Implemented";
-    case MB_ALREADY_ALLOCATED       : return "Already Allocated";
-    case MB_VARIABLE_DATA_LENGTH    : return "Variable Data Length";
-    case MB_INVALID_SIZE            : return "Invalid Size";
-    case MB_UNSUPPORTED_OPERATION   : return "Unsupported Operation";
-    case MB_UNHANDLED_OPTION        : return "Unhandled Option";
-    case MB_FAILURE                 : return "Failure";
+    case moab::MB_SUCCESS                 : return "Success";
+    case moab::MB_INDEX_OUT_OF_RANGE      : return "Index Out of Range";
+    case moab::MB_TYPE_OUT_OF_RANGE       : return "Type Out of Range";
+    case moab::MB_MEMORY_ALLOCATION_FAILED: return "Memory Alloc. Failed";
+    case moab::MB_ENTITY_NOT_FOUND        : return "Entity Not Found";
+    case moab::MB_MULTIPLE_ENTITIES_FOUND : return "Multiple Entities Found";
+    case moab::MB_TAG_NOT_FOUND           : return "Tag Not Found";
+    case moab::MB_FILE_DOES_NOT_EXIST     : return "File Not Found";
+    case moab::MB_FILE_WRITE_ERROR        : return "File Write Error";
+    case moab::MB_NOT_IMPLEMENTED         : return "Not Implemented";
+    case moab::MB_ALREADY_ALLOCATED       : return "Already Allocated";
+    case moab::MB_VARIABLE_DATA_LENGTH    : return "Variable Data Length";
+    case moab::MB_INVALID_SIZE            : return "Invalid Size";
+    case moab::MB_UNSUPPORTED_OPERATION   : return "Unsupported Operation";
+    case moab::MB_UNHANDLED_OPTION        : return "Unhandled Option";
+    case moab::MB_FAILURE                 : return "Failure";
     default                         : return "(unknown)";
   }
 }
@@ -382,7 +382,7 @@ const char* mb_error_str( MBErrorCode err )
 
 // Special case for MBErrorCode, use mb_error_str() to print the 
 // string name of the error code.
-void check_equal( MBErrorCode A, MBErrorCode B, const char* sA, const char* sB, int line, const char* file )
+void check_equal( moab::ErrorCode A, moab::ErrorCode B, const char* sA, const char* sB, int line, const char* file )
 {
   if (A == B)
     return;
@@ -395,30 +395,30 @@ void check_equal( MBErrorCode A, MBErrorCode B, const char* sA, const char* sB, 
   flag_error(); 
 }
 
-const char* mb_type_str( MBEntityType type )
+const char* mb_type_str( moab::EntityType type )
 {
   switch(type) {
-    case MBVERTEX    : return "Vertex";
-    case MBEDGE      : return "Edge";
-    case MBTRI       : return "Triangle";
-    case MBQUAD      : return "Quadrilateral";
-    case MBPOLYGON   : return "Polygon";
-    case MBTET       : return "Tetrahedron";
-    case MBPYRAMID   : return "Pyramid";
-    case MBPRISM     : return "Prism (wedge)";
-    case MBKNIFE     : return "Knife";
-    case MBHEX       : return "Hexahedron";
-    case MBPOLYHEDRON: return "Polyhedron";
-    case MBENTITYSET : return "Entity (Mesh) Set";
-    case MBMAXTYPE   : return "(max type)";
+    case moab::MBVERTEX    : return "Vertex";
+    case moab::MBEDGE      : return "Edge";
+    case moab::MBTRI       : return "Triangle";
+    case moab::MBQUAD      : return "Quadrilateral";
+    case moab::MBPOLYGON   : return "Polygon";
+    case moab::MBTET       : return "Tetrahedron";
+    case moab::MBPYRAMID   : return "Pyramid";
+    case moab::MBPRISM     : return "Prism (wedge)";
+    case moab::MBKNIFE     : return "Knife";
+    case moab::MBHEX       : return "Hexahedron";
+    case moab::MBPOLYHEDRON: return "Polyhedron";
+    case moab::MBENTITYSET : return "Entity (Mesh) Set";
+    case moab::MBMAXTYPE   : return "(max type)";
     default          : return "(unknown)";
   }
 }
 
-const char* mb_type_str( MBEntityHandle a )
-  { return mb_type_str( TYPE_FROM_HANDLE(a) ); }
+const char* mb_type_str( moab::EntityHandle a )
+  { return mb_type_str( moab::TYPE_FROM_HANDLE(a) ); }
 /*
-void check_equal( MBEntityHandle A, MBEntityHandle B, const char* sA, const char* sB, int line, const char* file )
+void check_equal( moab::EntityHandle A, moab::EntityHandle B, const char* sA, const char* sB, int line, const char* file )
 {
   if (A == B)
     return;
@@ -536,14 +536,14 @@ void check_equal( const std::vector<T>& A, const std::vector<T>& B,
   check_array_equal( &A[0], A.size(), &B[0], B.size(), sA, sB, line, file );
 }
 
-#ifdef MB_RANGE_HPP
+#ifdef MOAB_RANGE_HPP
 
-void check_equal( const MBRange& A, const MBRange& B, const char* sA, const char* sB, int line, const char* file )
+void check_equal( const moab::Range& A, const moab::Range& B, const char* sA, const char* sB, int line, const char* file )
 {
   if (A == B)
     return;
     
-  std::cout << "MBErrorCode Test Failed: " << sA << " == " << sB << std::endl;
+  std::cout << "moab::ErrorCode Test Failed: " << sA << " == " << sB << std::endl;
   std::cout << "  at line " << line << " of '" << file << "'" << std::endl;
   std::cout << "   Expected: " << A << std::endl;
   std::cout << "   Actual  : " << B << std::endl;

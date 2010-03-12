@@ -1,13 +1,14 @@
 #include "TagInfo.hpp"
 
+namespace moab {
 
-int TagInfo::size_from_data_type( MBDataType t )
+int TagInfo::size_from_data_type( DataType t )
 {
   static const int sizes[] = { 1, 
                                sizeof(int), 
                                sizeof(double), 
                                1, 
-                               sizeof(MBEntityHandle),
+                               sizeof(EntityHandle),
                                0 };  
    return sizes[t];
 }
@@ -107,4 +108,6 @@ bool TagInfo::check_valid_sizes( const int* sizes, int num_sizes ) const
     sum |= ((unsigned)sizes[i]) % size;
   return (sum == 0);
 }
+
+} // namespace moab
 

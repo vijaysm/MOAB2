@@ -37,15 +37,17 @@ extern "C" int getrusage(int, struct rusage *);
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <assert.h>
-#include "MBCore.hpp"
-#include "MBReadUtilIface.hpp"
+#include "moab/Core.hpp"
+#include "moab/ReadUtilIface.hpp"
 #include "ScdVertexData.hpp"
 #include "VertexSequence.hpp"
 #include "StructuredElementSeq.hpp"
 #include "EntitySequence.hpp"
 #include "SequenceManager.hpp"
-#include "HomXform.hpp"
-#include "MBSkinner.hpp"
+#include "moab/HomXform.hpp"
+#include "moab/Skinner.hpp"
+
+using namespace moab;
 
 double LENGTH = 1.0;
 const int DEFAULT_INTERVALS = 50;
@@ -56,12 +58,12 @@ void testB(const int nelem, const int );
 void testC(const int nelem, const int );
 void print_time(const bool print_em, double &tot_time, double &utime, double &stime,
                 double &mem);
-void query_vert_to_elem(MBInterface*);
-void query_elem_to_vert(MBInterface*);
-void query_struct_elem_to_vert(MBInterface*);
+void query_vert_to_elem(Interface*);
+void query_elem_to_vert(Interface*);
+void query_struct_elem_to_vert(Interface*);
 void get_time_mem(double &tot_time, double &user_time,
                   double &sys_time, double &tot_mem);
-void bulk_construct_mesh( MBInterface* gMB, const int nelem );
+void bulk_construct_mesh( Interface* gMB, const int nelem );
 void create_regular_mesh( int interval, int dimension );
 void skin_common( int interval, int dim, bool use_adj );
 void skin(const int intervals, const int dim) 
@@ -261,9 +263,9 @@ void build_coords(const int nelem, std::vector<double>& coords)
             << mem1/1.0e6 << " MB." << std::endl;
 }
 
-void build_connect(const int nelem, const MBEntityHandle vstart, MBEntityHandle *connect) 
+void build_connect(const int nelem, const EntityHandle vstart, EntityHandle *connect) 
 {
-  MBEntityHandle vijk;
+  EntityHandle vijk;
   int numv = nelem + 1;
   int numv_sq = numv*numv;
   int idx = 0;
@@ -403,14 +405,14 @@ int main(int argc, char* argv[])
   return 0;
 }
 
-void query_elem_to_vert(MBInterface* gMB)
+void query_elem_to_vert(Interface* gMB)
 {
-  MBRange all_hexes;
-  MBErrorCode result = gMB->get_entities_by_type(0, MBHEX, all_hexes);
-  const MBEntityHandle *connect;
+  Range all_hexes;
+  ErrorCode result = gMB->get_entities_by_type(0, MBHEX, all_hexes);
+  const EntityHandle *connect;
   int num_connect;
   double dum_coords[24];
-  for (MBRange::iterator eit = all_hexes.begin(); eit != all_hexes.end(); eit++) {
+  for (Range::iterator eit = all_hexes.begin(); eit != all_hexes.end(); eit++) {
     result = gMB->get_connectivity(*eit, connect, num_connect);
     assert(MB_SUCCESS == result);
     result = gMB->get_coords(connect, num_connect, dum_coords);
@@ -426,27 +428,27 @@ void query_elem_to_vert(MBInterface* gMB)
   }
 }
 
-void query_vert_to_elem(MBInterface* gMB)
+void query_vert_to_elem(Interface* gMB)
 {
-  MBRange all_verts;
-  std::vector<MBEntityHandle> neighbor_hexes;
-  MBErrorCode result = gMB->get_entities_by_type(0, MBVERTEX, all_verts);
+  Range all_verts;
+  std::vector<EntityHandle> neighbor_hexes;
+  ErrorCode result = gMB->get_entities_by_type(0, MBVERTEX, all_verts);
   assert(MB_SUCCESS == result);
-  for (MBRange::iterator vit = all_verts.begin(); vit != all_verts.end(); vit++) {
+  for (Range::iterator vit = all_verts.begin(); vit != all_verts.end(); vit++) {
     neighbor_hexes.clear();
     result = gMB->get_adjacencies(&(*vit), 1, 3, false, neighbor_hexes);
     assert(MB_SUCCESS == result);
   }
 }
 
-void query_struct_elem_to_vert(MBInterface* gMB)
+void query_struct_elem_to_vert(Interface* gMB)
 {
     // assumes brick mapped mesh with handles starting at zero
-  MBRange all_hexes;
-  MBErrorCode result = gMB->get_entities_by_type(0, MBHEX, all_hexes);
+  Range all_hexes;
+  ErrorCode result = gMB->get_entities_by_type(0, MBHEX, all_hexes);
   double dum_coords[24];
-  std::vector<MBEntityHandle> connect;
-  for (MBRange::iterator eit = all_hexes.begin(); eit != all_hexes.end(); eit++) {
+  std::vector<EntityHandle> connect;
+  for (Range::iterator eit = all_hexes.begin(); eit != all_hexes.end(); eit++) {
     result = gMB->get_connectivity(&(*eit), 1, connect);
     assert(MB_SUCCESS == result);
     result = gMB->get_coords(&connect[0], connect.size(), dum_coords);
@@ -531,8 +533,8 @@ void get_time_mem(double &tot_time, double &user_time,
 
 void testA( const int nelem, const int  ) 
 {
-  MBCore moab;
-  MBInterface* gMB = &moab;
+  Core moab;
+  Interface* gMB = &moab;
   double ttime0, ttime1, ttime2, ttime3, utime, stime, mem;
   
   print_time(false, ttime0, utime, stime, mem);
@@ -546,9 +548,9 @@ void testA( const int nelem, const int  )
   SequenceManager *seq_mgr = moab.sequence_manager();
   HomCoord vseq_minmax[2] = {HomCoord(0,0,0), 
                              HomCoord(nelem, nelem, nelem)};
-  MBEntityHandle vstart, estart;
+  EntityHandle vstart, estart;
   
-  MBErrorCode result = seq_mgr->create_scd_sequence(vseq_minmax[0], vseq_minmax[1],
+  ErrorCode result = seq_mgr->create_scd_sequence(vseq_minmax[0], vseq_minmax[1],
                                                     MBVERTEX, 1, vstart, dum_seq);
   if (NULL != dum_seq) vseq = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && vstart != 0 && dum_seq != NULL && vseq != NULL);
@@ -569,7 +571,7 @@ void testA( const int nelem, const int  )
   build_coords(nelem, coords);
 
     // set the coordinates of the vertices
-  MBEntityHandle handle;
+  EntityHandle handle;
   int i;
   double dumv[3];
   int num_verts = (nelem + 1)*(nelem + 1)*(nelem + 1);
@@ -601,21 +603,21 @@ void testA( const int nelem, const int  )
             << std::endl;
 }
 
-void bulk_construct_mesh( MBInterface* gMB, const int nelem )
+void bulk_construct_mesh( Interface* gMB, const int nelem )
 {
   int num_verts = (nelem + 1)*(nelem + 1)*(nelem + 1);
   int num_elems = nelem*nelem*nelem;
-  MBEntityHandle vstart, estart;
+  EntityHandle vstart, estart;
 
   void *ptr = 0;
   // get the read interface
-  gMB->query_interface("MBReadUtilIface", &ptr);
-  MBReadUtilIface* readMeshIface = static_cast<MBReadUtilIface*>(ptr);
+  gMB->query_interface("ReadUtilIface", &ptr);
+  ReadUtilIface* readMeshIface = static_cast<ReadUtilIface*>(ptr);
 
   // create a sequence to hold the node coordinates
   // get the current number of entities and start at the next slot
   std::vector<double*> coord_arrays;
-  MBErrorCode result = readMeshIface->get_node_arrays(3, num_verts, 1, vstart, coord_arrays);
+  ErrorCode result = readMeshIface->get_node_arrays(3, num_verts, 1, vstart, coord_arrays);
   assert(MB_SUCCESS == result && 1 == vstart &&
          coord_arrays[0] && coord_arrays[1] && coord_arrays[2]);
     // memcpy the coordinate data into place
@@ -625,7 +627,7 @@ void bulk_construct_mesh( MBInterface* gMB, const int nelem )
   memcpy(coord_arrays[1], &coords[num_verts], sizeof(double)*num_verts);
   memcpy(coord_arrays[2], &coords[2*num_verts], sizeof(double)*num_verts);
   
-  MBEntityHandle *conn = 0;
+  EntityHandle *conn = 0;
   result = readMeshIface->get_element_array(num_elems, 8, MBHEX, 1, estart, conn);
   assert(MB_SUCCESS == result);
   build_connect(nelem, vstart, conn);
@@ -635,8 +637,8 @@ void bulk_construct_mesh( MBInterface* gMB, const int nelem )
 
 void testB(const int nelem, const int ) 
 {
-  MBCore moab;
-  MBInterface* gMB = &moab;
+  Core moab;
+  Interface* gMB = &moab;
   double ttime0, ttime1, ttime2, ttime3, utime, stime, mem;
   
   print_time(false, ttime0, utime, stime, mem);
@@ -668,8 +670,8 @@ void testB(const int nelem, const int )
 
 void testC(const int nelem, const int ) 
 {
-  MBCore moab;
-  MBInterface* gMB = &moab;
+  Core moab;
+  Interface* gMB = &moab;
   double ttime0, ttime1, ttime2, ttime3, utime, stime, mem;
   
   print_time(false, ttime0, utime, stime, mem);
@@ -683,12 +685,12 @@ void testC(const int nelem, const int )
   int numv_sq = numv*numv;
   int num_verts = numv*numv*numv;
   double dum_coords[3] = {coords[0], coords[num_verts], coords[2*num_verts]};
-  MBEntityHandle vstart;
+  EntityHandle vstart;
 
-  MBErrorCode result = gMB->create_vertex(dum_coords, vstart);
+  ErrorCode result = gMB->create_vertex(dum_coords, vstart);
   assert(MB_SUCCESS == result && 1 == vstart);
 
-  MBEntityHandle dum_vert, vijk;
+  EntityHandle dum_vert, vijk;
   int i;
   for (i = 1; i < num_verts; i++) {
     dum_coords[0] = coords[i]; 
@@ -698,7 +700,7 @@ void testC(const int nelem, const int )
     assert(MB_SUCCESS == result);
   }
 
-  MBEntityHandle dum_conn[8];
+  EntityHandle dum_conn[8];
   for (i=0; i < nelem; i++) {
     for (int j=0; j < nelem; j++) {
       for (int k=0; k < nelem; k++) {
@@ -740,7 +742,7 @@ void testC(const int nelem, const int )
 }
 
 
-void create_regular_mesh( MBInterface* gMB, int interval, int dim )
+void create_regular_mesh( Interface* gMB, int interval, int dim )
 {
   if (dim < 1 || dim > 3 || interval < 1) {
     std::cerr << "Invalid arguments" << std::endl;
@@ -753,12 +755,12 @@ void create_regular_mesh( MBInterface* gMB, int interval, int dim )
 
   void *ptr = 0;
   // get the read interface
-  gMB->query_interface("MBReadUtilIface", &ptr);
-  MBReadUtilIface* readMeshIface = static_cast<MBReadUtilIface*>(ptr);
+  gMB->query_interface("ReadUtilIface", &ptr);
+  ReadUtilIface* readMeshIface = static_cast<ReadUtilIface*>(ptr);
   
-  MBEntityHandle vstart;
+  EntityHandle vstart;
   std::vector<double*> arrays;
-  MBErrorCode rval = readMeshIface->get_node_arrays(3, num_vert, 1, vstart, arrays);
+  ErrorCode rval = readMeshIface->get_node_arrays(3, num_vert, 1, vstart, arrays);
   if (MB_SUCCESS != rval || arrays.size() < 3) {
     std::cerr << "Vertex creation failed" << std::endl;
     exit(2);
@@ -778,9 +780,9 @@ void create_regular_mesh( MBInterface* gMB, int interval, int dim )
   const long vert_per_elem = 1 << dim; // 2^dim
   const long intervals[3] = { interval, dim>1?interval:1, dim>2?interval:1 };
   const long num_elem = intervals[0]*intervals[1]*intervals[2];
-  const MBEntityType type = (dim == 1) ? MBEDGE : (dim == 2) ? MBQUAD : MBHEX;
+  const EntityType type = (dim == 1) ? MBEDGE : (dim == 2) ? MBQUAD : MBHEX;
   
-  MBEntityHandle estart, *conn = 0;
+  EntityHandle estart, *conn = 0;
   rval = readMeshIface->get_element_array( num_elem, vert_per_elem, type, 0, estart, conn );
   if (MB_SUCCESS != rval || !conn) {
     std::cerr << "Element creation failed" << std::endl;
@@ -793,7 +795,7 @@ void create_regular_mesh( MBInterface* gMB, int interval, int dim )
   const long corners[8] = { 0, 1, 1+dims[0], dims[0], c, c+1, c+1+dims[0], c+dims[0] };
                              
     // Populate element list
-  MBEntityHandle* iter = conn;
+  EntityHandle* iter = conn;
   for (long z = 0; z < intervals[2]; ++z)
     for (long y = 0; y < intervals[1]; ++y)
       for (long x = 0; x < intervals[0]; ++x)
@@ -813,19 +815,19 @@ void create_regular_mesh( MBInterface* gMB, int interval, int dim )
 
 void skin_common( int interval, int dim, bool use_adj ) 
 {
-  MBCore moab;
-  MBInterface* gMB = &moab;
-  MBErrorCode rval;
+  Core moab;
+  Interface* gMB = &moab;
+  ErrorCode rval;
   double d;
   clock_t t, tt;
 
   create_regular_mesh( gMB, interval, dim );
 
-  MBRange skin, verts, elems;
+  Range skin, verts, elems;
   rval = gMB->get_entities_by_dimension( 0, dim, elems );
   assert(MB_SUCCESS == rval); assert(!elems.empty());
 
-  MBSkinner tool(gMB);
+  Skinner tool(gMB);
   
   t = clock();
   rval = tool.find_skin( elems, true, verts, 0, use_adj, false );
@@ -841,11 +843,11 @@ void skin_common( int interval, int dim, bool use_adj )
   long blocksize = elems.size() / 1000;
   if (!blocksize) blocksize = 1;
   long numblocks = elems.size()/blocksize;
-  MBRange::iterator it = elems.begin();
+  Range::iterator it = elems.begin();
   for (long i = 0; i < numblocks; ++i) {
     verts.clear();
-    MBRange::iterator end = it + blocksize;
-    MBRange blockelems;
+    Range::iterator end = it + blocksize;
+    Range blockelems;
     blockelems.merge( it, end );
     it = end;
     tt = clock();
@@ -865,7 +867,7 @@ void skin_common( int interval, int dim, bool use_adj )
         // create all interior faces
       skin.clear();
       t = clock();
-      gMB->get_adjacencies( elems, dim-1, true, skin, MBInterface::UNION );
+      gMB->get_adjacencies( elems, dim-1, true, skin, Interface::UNION );
       t = clock() - t;
       d = ((double)t)/CLOCKS_PER_SEC;
       std::cout << "Created " << skin.size() << " entities of dimension-1 in " << d << " seconds" << std::endl;
@@ -886,8 +888,8 @@ void skin_common( int interval, int dim, bool use_adj )
     it = elems.begin();
     for (long i = 0; i < numblocks; ++i) {
       skin.clear();
-      MBRange::iterator end = it + blocksize;
-      MBRange blockelems;
+      Range::iterator end = it + blocksize;
+      Range blockelems;
       blockelems.merge( it, end );
       it = end;
       tt = clock();

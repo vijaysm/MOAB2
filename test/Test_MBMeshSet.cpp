@@ -1,7 +1,9 @@
-#include "MBMeshSet.hpp"
+#include "MeshSet.hpp"
 #include "AEntityFactory.hpp"
 #include "TestUtil.hpp"
-#include "MBCore.hpp"
+#include "moab/Core.hpp"
+
+using namespace moab;
 
 #include <iostream>
 
@@ -19,32 +21,32 @@ void test_subtract( unsigned flags1, unsigned flags2 );
 void test_intersect( unsigned flags1, unsigned flags2 );
 //! test unite_meshset
 void test_unite( unsigned flags1, unsigned flags2 );
-//! test MBMeshSet::contains_entities
+//! test MeshSet::contains_entities
 void test_contains_entities( unsigned flags );
 //! test clear_meshset
 void test_clear( unsigned flags );
 
 //! Create 10x10x10 hex mesh
-void make_mesh( MBInterface& iface );
+void make_mesh( Interface& iface );
 //! Create 10x10x10 hex mesh, return ranges of handles
-void make_mesh( MBInterface& iface, MBEntityHandle& vstart, MBEntityHandle& vend, MBEntityHandle& hstart, MBEntityHandle& hend );
-//! Print std::vector<MBEntityHandle>
-void print_handle_vect( const char* prefix, const std::vector<MBEntityHandle>& vect );
-//! Print MBRange
-void print_mbrange( const char* prefix, const MBRange& range );
+void make_mesh( Interface& iface, EntityHandle& vstart, EntityHandle& vend, EntityHandle& hstart, EntityHandle& hend );
+//! Print std::vector<EntityHandle>
+void print_handle_vect( const char* prefix, const std::vector<EntityHandle>& vect );
+//! Print Range
+void print_mbrange( const char* prefix, const Range& range );
 //! Compare set contents against passed vector, and if MESHSET_TRACK_OWNER then check adjacencies
-bool check_set_contents( MBCore& mb, MBEntityHandle set, const std::vector<MBEntityHandle>& expected );
+bool check_set_contents( Core& mb, EntityHandle set, const std::vector<EntityHandle>& expected );
 //! Compare result of get_entities_by_type to result of get_entities_by_handle
-bool check_set_contents( MBCore& mb, MBEntityType type, MBEntityHandle set, unsigned flags );
+bool check_set_contents( Core& mb, EntityType type, EntityHandle set, unsigned flags );
 //! Compare result of get_entities_by_dimension to result of get_entities_by_handle
-bool check_set_contents( MBCore& mb, int dim, MBEntityHandle set, unsigned flags );
+bool check_set_contents( Core& mb, int dim, EntityHandle set, unsigned flags );
 //! For each entry in range, if one or more occurances in vect, remove last occurance from vect.
-void remove_from_back( std::vector<MBEntityHandle>& vect, const MBRange& range );
+void remove_from_back( std::vector<EntityHandle>& vect, const Range& range );
 enum BoolOp { UNITE, INTERSECT, SUBTRACT };
 //! Perform boolean op on two entity sets and verify result
-bool test_boolean( MBCore& mb, BoolOp op, 
-                   unsigned flags1, const MBRange& set1_ents, 
-                   unsigned flags2, const MBRange& set2_ents );
+bool test_boolean( Core& mb, BoolOp op, 
+                   unsigned flags1, const Range& set1_ents, 
+                   unsigned flags2, const Range& set2_ents );
 
 void test_add_entities_ordered()          { test_add_entities( MESHSET_ORDERED ); }
 void test_add_entities_set()              { test_add_entities( MESHSET_SET     ); }
@@ -159,18 +161,18 @@ int main()
 }
 
 // Create 100x100x100 hex mesh
-void make_mesh( MBInterface& iface )
+void make_mesh( Interface& iface )
 {
   const int dim = 10;
 
     // create vertices
-  MBEntityHandle prev_handle = 0;
+  EntityHandle prev_handle = 0;
   for (int z = 0; z <= dim; ++z) {
     for (int y = 0; y <= dim; ++y) {
       for (int x = 0; x <= dim; ++x) {
         const double coords[] = {x, y, z};
-        MBEntityHandle new_handle = 0;
-        MBErrorCode rval = iface.create_vertex( coords, new_handle );
+        EntityHandle new_handle = 0;
+        ErrorCode rval = iface.create_vertex( coords, new_handle );
         CHECK_ERR(rval);
         CHECK_EQUAL( ++prev_handle, new_handle );
       }
@@ -184,11 +186,11 @@ void make_mesh( MBInterface& iface )
   for (int z = 0; z < dim; ++z) {
     for (int y = 0; y < dim; ++y) {
       for (int x = 0; x < dim; ++x) {
-        const MBEntityHandle off = 1 + x + dim1*y + dimq*z;
-        const MBEntityHandle conn[] = { off,      off+1,      off+1+dim1,      off+dim1,
+        const EntityHandle off = 1 + x + dim1*y + dimq*z;
+        const EntityHandle conn[] = { off,      off+1,      off+1+dim1,      off+dim1,
                                         off+dimq, off+1+dimq, off+1+dim1+dimq, off+dim1+dimq };
-        MBEntityHandle new_handle = 0;
-        MBErrorCode rval = iface.create_element( MBHEX, conn, 8, new_handle );
+        EntityHandle new_handle = 0;
+        ErrorCode rval = iface.create_element( MBHEX, conn, 8, new_handle );
         CHECK_ERR(rval);
         CHECK_EQUAL( prev_handle++, new_handle );
       }
@@ -197,24 +199,24 @@ void make_mesh( MBInterface& iface )
   
 }
 
-void make_mesh( MBInterface& mb, MBEntityHandle& first_vert, MBEntityHandle& last_vert, MBEntityHandle& first_hex, MBEntityHandle& last_hex )
+void make_mesh( Interface& mb, EntityHandle& first_vert, EntityHandle& last_vert, EntityHandle& first_hex, EntityHandle& last_hex )
 {
   make_mesh( mb );
   
     // Get handle ranges, and validate assumption that handles
     // are contiguous.
-  MBRange range;
-  MBErrorCode rval = mb.get_entities_by_type( 0, MBVERTEX, range );
+  Range range;
+  ErrorCode rval = mb.get_entities_by_type( 0, MBVERTEX, range );
   CHECK_ERR(rval);
   first_vert = range.front();
   last_vert = range.back();
-  CHECK_EQUAL( (MBEntityHandle)1331, last_vert - first_vert + 1 );
+  CHECK_EQUAL( (EntityHandle)1331, last_vert - first_vert + 1 );
   range.clear();
   rval = mb.get_entities_by_type( 0, MBHEX, range );
   CHECK_ERR(rval);
   first_hex = range.front();
   last_hex = range.back();
-  CHECK_EQUAL( (MBEntityHandle)1000, last_hex - first_hex + 1 );
+  CHECK_EQUAL( (EntityHandle)1000, last_hex - first_hex + 1 );
 }
 
 
@@ -229,8 +231,8 @@ void print_handles( std::ostream& str, const char* prefix, iter_type begin, iter
   }
   
   iter_type i = begin;
-  MBEntityType prev_type = TYPE_FROM_HANDLE(*i);
-  MBEntityHandle prev_ent = *i;
+  EntityType prev_type = TYPE_FROM_HANDLE(*i);
+  EntityHandle prev_ent = *i;
   str << ' ' << MBCN::EntityTypeName(prev_type) << ' ' << ID_FROM_HANDLE(*i);
   for (;;) {
     iter_type j = i;
@@ -254,24 +256,24 @@ void print_handles( std::ostream& str, const char* prefix, iter_type begin, iter
   str << std::endl;
 }
 
-void print_handle_vect( const char* prefix, const std::vector<MBEntityHandle>& vect )
+void print_handle_vect( const char* prefix, const std::vector<EntityHandle>& vect )
 {
   print_handles(std::cout, prefix, vect.begin(), vect.end());
 }
 
-void print_mbrange( const char* prefix, const MBRange& range )
+void print_mbrange( const char* prefix, const Range& range )
 {
   print_handles(std::cout, prefix, range.begin(), range.end());
 }
 
 bool compare_set_contents( unsigned flags, 
-                           const std::vector<MBEntityHandle>& expected,
+                           const std::vector<EntityHandle>& expected,
                            int set_count,
-                           std::vector<MBEntityHandle>& vect,
-                           const MBRange& range )
+                           std::vector<EntityHandle>& vect,
+                           const Range& range )
 {
   
-  std::vector<MBEntityHandle> sorted( expected );
+  std::vector<EntityHandle> sorted( expected );
   std::sort( sorted.begin(), sorted.end() );
   sorted.erase( std::unique( sorted.begin(), sorted.end() ), sorted.end() );
   
@@ -315,15 +317,15 @@ bool compare_set_contents( unsigned flags,
   return true;
 }     
 
-bool check_set_contents( MBCore& mb, MBEntityHandle set, const std::vector<MBEntityHandle>& expected )
+bool check_set_contents( Core& mb, EntityHandle set, const std::vector<EntityHandle>& expected )
 {
   unsigned flags;
-  MBErrorCode rval = mb.get_meshset_options( set, flags );
+  ErrorCode rval = mb.get_meshset_options( set, flags );
   CHECK_ERR(rval);
   
   int count;
-  std::vector<MBEntityHandle> vect;
-  MBRange range;
+  std::vector<EntityHandle> vect;
+  Range range;
   rval = mb.get_entities_by_handle( set, vect, false );
   CHECK_ERR(rval);
   rval = mb.get_entities_by_handle( set, range, false );
@@ -338,15 +340,15 @@ bool check_set_contents( MBCore& mb, MBEntityHandle set, const std::vector<MBEnt
     return true;
   
     // get all entitites with an adjacency to the set
-  std::vector<MBEntityHandle> adj;
-  MBRange all, adjacent;
-  MBRange::iterator in = adjacent.begin();
+  std::vector<EntityHandle> adj;
+  Range all, adjacent;
+  Range::iterator in = adjacent.begin();
   mb.get_entities_by_handle( 0, all );
-  for (MBRange::iterator i = all.begin(); i != all.end(); ++i) {
+  for (Range::iterator i = all.begin(); i != all.end(); ++i) {
     adj.clear();
     rval = mb.a_entity_factory()->get_adjacencies( *i, adj );
     CHECK_ERR(rval);
-    std::vector<MBEntityHandle>::iterator j = std::lower_bound( adj.begin(), adj.end(), set );
+    std::vector<EntityHandle>::iterator j = std::lower_bound( adj.begin(), adj.end(), set );
     if (j != adj.end() && *j == set)
       in = adjacent.insert( in, *i, *i );
   }
@@ -361,16 +363,16 @@ bool check_set_contents( MBCore& mb, MBEntityHandle set, const std::vector<MBEnt
   return true;
 }  
 
-bool check_set_contents( MBCore& mb, MBEntityType type, MBEntityHandle set, unsigned flags )
+bool check_set_contents( Core& mb, EntityType type, EntityHandle set, unsigned flags )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   int count;
-  std::vector<MBEntityHandle> vect, expected;
-  MBRange range;
+  std::vector<EntityHandle> vect, expected;
+  Range range;
   
   rval = mb.get_entities_by_handle( set, expected, false );
   CHECK_ERR(rval);
-  std::vector<MBEntityHandle>::iterator i = expected.begin();
+  std::vector<EntityHandle>::iterator i = expected.begin();
   while (i != expected.end()) {
     if (TYPE_FROM_HANDLE(*i) != type)
       i = expected.erase( i );
@@ -387,16 +389,16 @@ bool check_set_contents( MBCore& mb, MBEntityType type, MBEntityHandle set, unsi
   return compare_set_contents( flags, expected, count, vect, range );
 }  
 
-bool check_set_contents( MBCore& mb, int dim, MBEntityHandle set, unsigned flags )
+bool check_set_contents( Core& mb, int dim, EntityHandle set, unsigned flags )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   int count;
-  std::vector<MBEntityHandle> vect, expected;
-  MBRange range;
+  std::vector<EntityHandle> vect, expected;
+  Range range;
   
   rval = mb.get_entities_by_handle( set, expected, false );
   CHECK_ERR(rval);
-  std::vector<MBEntityHandle>::iterator i = expected.begin();
+  std::vector<EntityHandle>::iterator i = expected.begin();
   while (i != expected.end()) {
     if (MBCN::Dimension(TYPE_FROM_HANDLE(*i)) != dim)
       i = expected.erase( i );
@@ -415,14 +417,14 @@ bool check_set_contents( MBCore& mb, int dim, MBEntityHandle set, unsigned flags
 
 void test_add_entities( unsigned flags )
 {
-  MBCore mb; make_mesh( mb );
+  Core mb; make_mesh( mb );
   
-  MBEntityHandle set;
-  MBErrorCode rval = mb.create_meshset( flags, set );
+  EntityHandle set;
+  ErrorCode rval = mb.create_meshset( flags, set );
   CHECK_ERR(rval);
   
-  std::vector<MBEntityHandle> contents, vect;
-  MBRange range;
+  std::vector<EntityHandle> contents, vect;
+  Range range;
   
   range.clear();
   range.insert( 11, 20 );
@@ -553,7 +555,7 @@ void test_add_entities( unsigned flags )
   CHECK( check_set_contents( mb, set, contents ) );
   
   vect.clear();
-  for (MBEntityHandle h = 1; h < 100; ++h) {
+  for (EntityHandle h = 1; h < 100; ++h) {
     vect.push_back(h);
     contents.push_back(h);
   }
@@ -611,14 +613,14 @@ void test_add_entities( unsigned flags )
   CHECK( check_set_contents( mb, set, contents ) );
 }
 
-void remove_from_back( std::vector<MBEntityHandle>& vect, const MBRange& range )
+void remove_from_back( std::vector<EntityHandle>& vect, const Range& range )
 {
-  for (MBRange::const_iterator r = range.begin(); r != range.end(); ++r) {
-    std::vector<MBEntityHandle>::reverse_iterator i = find( vect.rbegin(), vect.rend(), *r );
+  for (Range::const_iterator r = range.begin(); r != range.end(); ++r) {
+    std::vector<EntityHandle>::reverse_iterator i = find( vect.rbegin(), vect.rend(), *r );
     if (i != vect.rend())
       *i = 0;
   }
-  std::vector<MBEntityHandle>::iterator j = vect.begin(); 
+  std::vector<EntityHandle>::iterator j = vect.begin(); 
   while (j != vect.end()) {
     if (*j == 0)
       j = vect.erase(j);
@@ -629,14 +631,14 @@ void remove_from_back( std::vector<MBEntityHandle>& vect, const MBRange& range )
 
 void test_remove_entities( unsigned flags )
 {
-  MBCore mb; make_mesh( mb );
+  Core mb; make_mesh( mb );
   
-  MBEntityHandle set;
-  MBErrorCode rval = mb.create_meshset( flags, set );
+  EntityHandle set;
+  ErrorCode rval = mb.create_meshset( flags, set );
   CHECK_ERR(rval);
   
-  std::vector<MBEntityHandle> contents;
-  MBRange range;
+  std::vector<EntityHandle> contents;
+  Range range;
   
   range.clear();
   range.insert( 1, 1000 );
@@ -809,7 +811,7 @@ void test_remove_entities( unsigned flags )
   
   // test vector-based remove
   assert(contents.size() == 242);
-  std::vector<MBEntityHandle> remlist(5);
+  std::vector<EntityHandle> remlist(5);
   remlist[0] = contents[240]; contents.erase( contents.begin() + 240 );
   remlist[1] = contents[200]; contents.erase( contents.begin() + 200 );
   remlist[2] = contents[100]; contents.erase( contents.begin() + 100 );
@@ -837,7 +839,7 @@ void test_remove_entities( unsigned flags )
   // [1000,2000]
   CHECK( check_set_contents( mb, set, contents ) );
   
-  MBRange remove;
+  Range remove;
   remove.insert( 1, 3 );
   remove.insert( 10, 100 );
   remove.insert( 110, 120 );
@@ -857,12 +859,12 @@ void test_remove_entities( unsigned flags )
 
 void test_entities_by_type( unsigned flags )
 {
-  MBEntityHandle first_vert, last_vert, first_hex, last_hex;
-  MBCore mb; make_mesh( mb, first_vert, last_vert, first_hex, last_hex );
+  EntityHandle first_vert, last_vert, first_hex, last_hex;
+  Core mb; make_mesh( mb, first_vert, last_vert, first_hex, last_hex );
   
     // Create an entity set
-  MBEntityHandle set;
-  MBErrorCode rval = mb.create_meshset( flags, set );
+  EntityHandle set;
+  ErrorCode rval = mb.create_meshset( flags, set );
   CHECK_ERR(rval);
 
     // Test empty set
@@ -871,7 +873,7 @@ void test_entities_by_type( unsigned flags )
   CHECK( check_set_contents( mb, MBHEX   , set, flags ) );
   
     // Add stuff to set
-  MBRange range;
+  Range range;
   range.insert( first_vert      , first_vert +  10 );
   range.insert( first_vert + 100, first_vert + 110 );
   range.insert( first_hex  + 200, first_hex  + 299 );
@@ -887,12 +889,12 @@ void test_entities_by_type( unsigned flags )
 
 void test_entities_by_dimension( unsigned flags )
 {
-  MBEntityHandle first_vert, last_vert, first_hex, last_hex;
-  MBCore mb; make_mesh( mb, first_vert, last_vert, first_hex, last_hex );
+  EntityHandle first_vert, last_vert, first_hex, last_hex;
+  Core mb; make_mesh( mb, first_vert, last_vert, first_hex, last_hex );
   
     // Create an entity set
-  MBEntityHandle set;
-  MBErrorCode rval = mb.create_meshset( flags, set );
+  EntityHandle set;
+  ErrorCode rval = mb.create_meshset( flags, set );
   CHECK_ERR(rval);
 
     // Test empty set
@@ -902,7 +904,7 @@ void test_entities_by_dimension( unsigned flags )
   CHECK( check_set_contents( mb, 3, set, flags ) );
   
     // Add stuff to set
-  MBRange range;
+  Range range;
   range.insert( first_vert      , first_vert +  10 );
   range.insert( first_vert + 100, first_vert + 110 );
   range.insert( first_hex  + 200, first_hex  + 299 );
@@ -917,14 +919,14 @@ void test_entities_by_dimension( unsigned flags )
   CHECK( check_set_contents( mb, 3, set, flags ) );
 }
 
-bool test_boolean( MBCore& mb, BoolOp op, 
-                   unsigned flags1, const MBRange& set1_ents, 
-                   unsigned flags2, const MBRange& set2_ents )
+bool test_boolean( Core& mb, BoolOp op, 
+                   unsigned flags1, const Range& set1_ents, 
+                   unsigned flags2, const Range& set2_ents )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
    
   // make sets
-  MBEntityHandle set1, set2;
+  EntityHandle set1, set2;
   rval = mb.create_meshset( flags1, set1 );
   CHECK_ERR(rval);
   rval = mb.create_meshset( flags2, set2 );
@@ -934,8 +936,8 @@ bool test_boolean( MBCore& mb, BoolOp op,
   rval = mb.add_entities( set2, set2_ents );
   CHECK_ERR(rval);
   
-  MBRange tmp_range;
-  std::vector<MBEntityHandle> expected;
+  Range tmp_range;
+  std::vector<EntityHandle> expected;
   rval = MB_INDEX_OUT_OF_RANGE;
   switch (op) {
     case UNITE:
@@ -973,9 +975,9 @@ bool test_boolean( MBCore& mb, BoolOp op,
 
 void test_intersect( unsigned flags1, unsigned flags2 )
 {
-  MBRange empty, set1_ents, set2_ents;
-  MBEntityHandle first_vert, last_vert, first_hex, last_hex;
-  MBCore mb; make_mesh( mb, first_vert, last_vert, first_hex, last_hex );
+  Range empty, set1_ents, set2_ents;
+  EntityHandle first_vert, last_vert, first_hex, last_hex;
+  Core mb; make_mesh( mb, first_vert, last_vert, first_hex, last_hex );
 
     // define contents of first set
   set1_ents.insert( first_vert, first_vert + 10 );
@@ -999,9 +1001,9 @@ void test_intersect( unsigned flags1, unsigned flags2 )
 
 void test_unite( unsigned flags1, unsigned flags2 )
 {
-  MBRange empty, set1_ents, set2_ents;
-  MBEntityHandle first_vert, last_vert, first_hex, last_hex;
-  MBCore mb; make_mesh( mb, first_vert, last_vert, first_hex, last_hex );
+  Range empty, set1_ents, set2_ents;
+  EntityHandle first_vert, last_vert, first_hex, last_hex;
+  Core mb; make_mesh( mb, first_vert, last_vert, first_hex, last_hex );
 
     // define contents of first set
   set1_ents.insert( first_vert, first_vert + 10 );
@@ -1026,9 +1028,9 @@ void test_unite( unsigned flags1, unsigned flags2 )
 
 void test_subtract( unsigned flags1, unsigned flags2 )
 {
-  MBRange empty, set1_ents, set2_ents;
-  MBEntityHandle first_vert, last_vert, first_hex, last_hex;
-  MBCore mb; make_mesh( mb, first_vert, last_vert, first_hex, last_hex );
+  Range empty, set1_ents, set2_ents;
+  EntityHandle first_vert, last_vert, first_hex, last_hex;
+  Core mb; make_mesh( mb, first_vert, last_vert, first_hex, last_hex );
 
     // define contents of first set
   set1_ents.insert( first_vert, first_vert + 10 );
@@ -1055,38 +1057,38 @@ void test_subtract( unsigned flags1, unsigned flags2 )
 void test_contains_entities( unsigned flags )
 {
   CHECK( !(flags&MESHSET_TRACK_OWNER) );
-  MBMeshSet set(flags);
+  MeshSet set(flags);
   bool result;
   
-  const MBEntityHandle entities[] = { 1,2,3,6,10,11,25,100 };
-  const int num_ents = sizeof(entities)/sizeof(MBEntityHandle);
-  MBErrorCode rval = set.add_entities( entities, num_ents, 0, 0 );
+  const EntityHandle entities[] = { 1,2,3,6,10,11,25,100 };
+  const int num_ents = sizeof(entities)/sizeof(EntityHandle);
+  ErrorCode rval = set.add_entities( entities, num_ents, 0, 0 );
   CHECK_ERR(rval);
   
-  result = set.contains_entities( entities, num_ents, MBInterface::UNION );
+  result = set.contains_entities( entities, num_ents, Interface::UNION );
   CHECK(result);
-  result = set.contains_entities( entities, num_ents, MBInterface::INTERSECT );
-  CHECK(result);
-  
-  result = set.contains_entities( entities, 1, MBInterface::UNION );
-  CHECK(result);
-  result = set.contains_entities( entities, 1, MBInterface::INTERSECT );
+  result = set.contains_entities( entities, num_ents, Interface::INTERSECT );
   CHECK(result);
   
-  const MBEntityHandle entities2[] = { 3,4,5 };
-  const int num_ents2 = sizeof(entities2)/sizeof(MBEntityHandle);
-  result = set.contains_entities( entities2, num_ents2, MBInterface::UNION );
+  result = set.contains_entities( entities, 1, Interface::UNION );
   CHECK(result);
-  result = set.contains_entities( entities2, num_ents2, MBInterface::INTERSECT );
+  result = set.contains_entities( entities, 1, Interface::INTERSECT );
+  CHECK(result);
+  
+  const EntityHandle entities2[] = { 3,4,5 };
+  const int num_ents2 = sizeof(entities2)/sizeof(EntityHandle);
+  result = set.contains_entities( entities2, num_ents2, Interface::UNION );
+  CHECK(result);
+  result = set.contains_entities( entities2, num_ents2, Interface::INTERSECT );
   CHECK(!result);
 }
 
 void test_clear( unsigned flags )
 {
-  std::vector<MBEntityHandle> contents(4);
-  MBCore mb; make_mesh( mb, contents[0], contents[1], contents[2], contents[3] );
-  MBEntityHandle set;
-  MBErrorCode rval = mb.create_meshset( flags, set );
+  std::vector<EntityHandle> contents(4);
+  Core mb; make_mesh( mb, contents[0], contents[1], contents[2], contents[3] );
+  EntityHandle set;
+  ErrorCode rval = mb.create_meshset( flags, set );
   CHECK_ERR(rval);
   rval = mb.add_entities( set, &contents[0], contents.size() );
   CHECK_ERR(rval);

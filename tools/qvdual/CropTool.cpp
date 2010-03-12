@@ -9,6 +9,8 @@
 
 #include "assert.h"
 
+using namespace moab;
+
 CropTool::CropTool()
 {
   func_types[0] = func_types[1] = func_types[2] = NONE;

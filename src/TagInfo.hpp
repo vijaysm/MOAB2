@@ -1,11 +1,13 @@
 #ifndef TAG_INFO_HPP
 #define TAG_INFO_HPP
 
-#include "MBTypes.h"
+#include "moab/Types.hpp"
 
 #include <string>
 #include <string.h>  /* memcpy */
 #include <stdlib.h>  /* realloc & free */
+
+namespace moab {
 
 // ! stores information about a tag
 class TagInfo
@@ -26,7 +28,7 @@ public:
   //! constructor that takes all parameters
   inline TagInfo( const char * name, 
                   int size, 
-                  MBDataType type, 
+                  DataType type, 
                   const void * default_value,
                   int default_value_size);
   
@@ -68,11 +70,11 @@ public:
     //! remove mesh value
   void remove_mesh_value();
   
-  inline MBDataType get_data_type() const     { return dataType; }
+  inline DataType get_data_type() const     { return dataType; }
   
-  inline void set_data_type( MBDataType t )   { dataType = t; }
+  inline void set_data_type( DataType t )   { dataType = t; }
 
-  static int size_from_data_type( MBDataType t );
+  static int size_from_data_type( DataType t );
   
   bool is_valid() const { return isValid; }
   void invalidate();
@@ -83,7 +85,7 @@ public:
 
 private:    
 
-  MBErrorCode reserve_mesh_tag_id( int& id_out );
+  ErrorCode reserve_mesh_tag_id( int& id_out );
 
   //! stores the default data, if any
   void* mDefaultValue;
@@ -101,7 +103,7 @@ private:
   int mDataSize;
   
   //! type of tag data
-  MBDataType dataType;
+  DataType dataType;
 
   //! stores the tag name
   std::string mTagName;
@@ -113,7 +115,7 @@ private:
 
 inline TagInfo::TagInfo( const char* name, 
                          int size, 
-                         MBDataType type,
+                         DataType type,
                          const void* default_value,
                          int default_value_size)
  : mDefaultValue(0),
@@ -138,5 +140,7 @@ inline TagInfo::~TagInfo()
   mDefaultValue = mMeshValue = 0;
   mDefaultValueSize = mMeshValueSize = 0;
 }
+
+} // namespace moab
 
 #endif

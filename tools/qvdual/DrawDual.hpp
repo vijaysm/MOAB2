@@ -7,8 +7,8 @@ class Agraph_t;
 
 class SheetDiagramPopup;
 
-#include "MBInterface.hpp"
-#include "MBRange.hpp"
+#include "moab/Interface.hpp"
+#include "moab/Range.hpp"
 #include <map>
 #include <vector>
 
@@ -24,30 +24,32 @@ class vtkActor;
 class Agsym_t;
 class QLineEdit;
 
+using namespace moab;
+
 class DrawDual
 {
 public:
   DrawDual(QLineEdit *pickline1, QLineEdit *pickline2);
   ~DrawDual();
 
-  bool draw_dual_surfs(MBRange &dual_surfs,
+  bool draw_dual_surfs(Range &dual_surfs,
                        const bool use_offsets = false);
-  bool print_dual_surfs(MBRange &dual_surfs,
+  bool print_dual_surfs(Range &dual_surfs,
                         const bool use_offsets = false);
-  bool draw_dual_surfs(std::vector<MBEntityHandle> &dual_surfs,
+  bool draw_dual_surfs(std::vector<EntityHandle> &dual_surfs,
                        const bool use_offsets = false);
-  MBErrorCode draw_dual_surf(MBEntityHandle dual_surf,
+  ErrorCode draw_dual_surf(EntityHandle dual_surf,
                              int offset_num = 0);
   
-  MBEntityHandle lastPickedEnt; // last picked entity
-  MBEntityHandle secondLastPickedEnt; // second last picked entity
+  EntityHandle lastPickedEnt; // last picked entity
+  EntityHandle secondLastPickedEnt; // second last picked entity
 
     //! reset the drawing data for a sheet
-  MBErrorCode reset_drawing_data(MBEntityHandle dual_surf);
+  ErrorCode reset_drawing_data(EntityHandle dual_surf);
 
-  MBErrorCode reset_drawn_sheets(MBRange *drawn_sheets = NULL);
+  ErrorCode reset_drawn_sheets(Range *drawn_sheets = NULL);
   
-  void print_picked_ents(MBRange &picked_ents,
+  void print_picked_ents(Range &picked_ents,
                          bool from_return = false);
 
 private:
@@ -61,8 +63,8 @@ private:
   {
   public:
     int numGvizEntities;
-    MBEntityHandle dualSurfs[3];
-    MBEntityHandle moabEntity;
+    EntityHandle dualSurfs[3];
+    EntityHandle moabEntity;
     int pointPos[3][2];
     int vtkEntityIds[4]; // extra pt for edge mid-pts
     vtkActor *myActors[3];
@@ -83,7 +85,7 @@ private:
         gvizEdges[0] = gvizEdges[1] = gvizEdges[2] = gvizEdges[3] = NULL;
       }
     void reset(const int index);
-    int get_index(const MBEntityHandle dual_surf) 
+    int get_index(const EntityHandle dual_surf) 
       {
         if (dual_surf == dualSurfs[0]) return 0;
         else if (dual_surf == dualSurfs[1]) return 1;
@@ -103,23 +105,23 @@ private:
     vtkActor *pickActor;
 
     GraphWindows() : gvizGraph(NULL), sheetDiagram(NULL), pickActor(NULL) {}
-    MBErrorCode reset(MBEntityHandle dual_surf);
+    ErrorCode reset(EntityHandle dual_surf);
   };
   
     //! make sure all dual vertices and edges have graphviz nodes and edges
-  MBErrorCode construct_graphviz_data(MBEntityHandle dual_surf,
-                                      MBRange &dcells, MBRange &dedges,
-                                      MBRange &dverts, MBRange &face_verts,
-                                      MBRange &loop_edges);
+  ErrorCode construct_graphviz_data(EntityHandle dual_surf,
+                                      Range &dcells, Range &dedges,
+                                      Range &dverts, Range &face_verts,
+                                      Range &loop_edges);
   
     //! given the loop vertices, compute and fix their points
-  MBErrorCode compute_fixed_points(MBEntityHandle dual_surf, MBRange &dverts,
-                                   MBRange &face_verts, MBRange &loop_edges);
+  ErrorCode compute_fixed_points(EntityHandle dual_surf, Range &dverts,
+                                   Range &face_verts, Range &loop_edges);
 
     //! compute fixed points for a pillow sheet
-  MBErrorCode compute_pillow_fixed_points(MBEntityHandle dual_surf, 
-                                          MBRange &face_verts, 
-                                          MBRange &face_edges);
+  ErrorCode compute_pillow_fixed_points(EntityHandle dual_surf, 
+                                          Range &face_verts, 
+                                          Range &face_edges);
   
     //! compute the position on the loop, accounting for multiple loops
   void get_loop_vertex_pos(unsigned int vert_num, 
@@ -128,15 +130,15 @@ private:
                            double angle, int &xpos_pts, int &ypos_pts);
   
     //! construct the points & cells for the vtkPolyData from the MOAB/graphviz data
-  MBErrorCode make_vtk_data(MBEntityHandle dual_surf,
+  ErrorCode make_vtk_data(EntityHandle dual_surf,
                             vtkPolyData *pd,
                             vtkRenderer *this_ren);
 
     //! construct dim-dimensional cells
-  MBErrorCode make_vtk_cells(const MBRange &cell_range, const int dim,
+  ErrorCode make_vtk_cells(const Range &cell_range, const int dim,
                              const float color_index,
-                             const MBEntityHandle dual_surf,
-                             std::map<MBEntityHandle, GVEntity *> &vert_gv_map,
+                             const EntityHandle dual_surf,
+                             std::map<EntityHandle, GVEntity *> &vert_gv_map,
                              vtkPolyData *pd,
                              vtkFloatArray *color_ids);
   
@@ -144,32 +146,32 @@ private:
   vtkPolyData *get_polydata(SheetDiagramPopup *this_sdpopup);
   
     //! get a clean polydata for this widget
-  void get_clean_pd(MBEntityHandle dual_surf,
+  void get_clean_pd(EntityHandle dual_surf,
                     SheetDiagramPopup *&this_sdpopup, vtkPolyData *&pd);
 
     //! draw various labels with the sheet
-  MBErrorCode draw_labels(MBEntityHandle dual_surf,
+  ErrorCode draw_labels(EntityHandle dual_surf,
                           vtkPolyData *pd,
                           vtkPolyData *new_pd);
 
-  MBErrorCode label_other_sheets(MBEntityHandle dual_surf,
+  ErrorCode label_other_sheets(EntityHandle dual_surf,
                                  vtkPolyData *pd,
                                  vtkPolyData *&new_pd);
   
-  void label_interior_verts(MBEntityHandle dual_surf,
+  void label_interior_verts(EntityHandle dual_surf,
                             vtkPolyData *pd,
                             vtkRenderer *ren);
   
-  MBEntityHandle other_sheet(const MBEntityHandle this_chord,
-                             const MBEntityHandle dual_surf);
+  EntityHandle other_sheet(const EntityHandle this_chord,
+                             const EntityHandle dual_surf);
   
-  MBErrorCode get_primal_ids(const MBRange &ents, std::vector<int> &ids);
+  ErrorCode get_primal_ids(const Range &ents, std::vector<int> &ids);
   
-  MBErrorCode allocate_points(MBEntityHandle dual_surf,
+  ErrorCode allocate_points(EntityHandle dual_surf,
                               vtkPolyData *pd,
-                              MBRange &verts,
-                              MBRange &loop_edges,
-                              std::map<MBEntityHandle, GVEntity*> &vert_gv_map);
+                              Range &verts,
+                              Range &loop_edges,
+                              std::map<EntityHandle, GVEntity*> &vert_gv_map);
   
   static void add_picker(vtkRenderer *this_ren);
   
@@ -182,18 +184,18 @@ private:
 
     //! given a dual surface and the pick point (in world coords), return a list 
     //! of picked entities on that sheet drawing
-  MBErrorCode process_pick(MBEntityHandle dual_surf, 
+  ErrorCode process_pick(EntityHandle dual_surf, 
                            const double x, const double y,
-                           MBRange &picked_ents);
+                           Range &picked_ents);
   
     //! map of dual surfaces and windows they're drawn in
-  std::map<MBEntityHandle, GraphWindows> surfDrawrings;
+  std::map<EntityHandle, GraphWindows> surfDrawrings;
   
   
     //! cache some of the tags we use
-  MBTag gvEntityHandle, dualEntityTagHandle;
+  Tag gvEntityHandle, dualEntityTagHandle;
 
-  static MBTag dualSurfaceTagHandle, dualCurveTagHandle;
+  static Tag dualSurfaceTagHandle, dualCurveTagHandle;
 
     //! gviz graphics context, seems to be needed for layout
   void *gvizGvc;
@@ -205,54 +207,54 @@ private:
   static vtkCellPicker *dualPicker;
 
     //! entities which are currently picked
-  static MBRange pickRange;
+  static Range pickRange;
 
-  MBEntityHandle get_picked_cell(MBEntityHandle cell_set,
+  EntityHandle get_picked_cell(EntityHandle cell_set,
                                  const int dim,
                                  const int picked_cell);
 
   void update_high_polydatas();
   
-  MBErrorCode get_xform(MBEntityHandle dual_surf, Agsym_t *asym_pos, 
+  ErrorCode get_xform(EntityHandle dual_surf, Agsym_t *asym_pos, 
                         double &x_xform, double &y_xform);
   
-  MBErrorCode construct_graphviz_points(MBEntityHandle dual_surf, 
-                                        MBRange &dverts, 
+  ErrorCode construct_graphviz_points(EntityHandle dual_surf, 
+                                        Range &dverts, 
                                         Agsym_t *asym_pos);
   
-  MBErrorCode construct_graphviz_edges(MBEntityHandle dual_surf, 
-                                       MBRange &dedges, 
-                                       MBRange &loop_verts, 
+  ErrorCode construct_graphviz_edges(EntityHandle dual_surf, 
+                                       Range &dedges, 
+                                       Range &loop_verts, 
                                        Agsym_t *asym_pos);
   
-  Agsym_t *get_asym(MBEntityHandle dual_surf, const int dim,
+  Agsym_t *get_asym(EntityHandle dual_surf, const int dim,
                     const char *name, const char *def_val = NULL);
   
-  MBErrorCode fixup_degen_bchords(MBEntityHandle dual_surf);
+  ErrorCode fixup_degen_bchords(EntityHandle dual_surf);
 
     //! given some entities, get the corresponding gviz points on the sheet
-  void get_points(const MBEntityHandle *ents, const int num_ents, 
+  void get_points(const EntityHandle *ents, const int num_ents, 
                   const bool extra,
-                  MBEntityHandle dual_surf, Agnode_t **points);
+                  EntityHandle dual_surf, Agnode_t **points);
 
     //! smooth the points in the dual surface using length-weighted laplacian smoothing
-  MBErrorCode smooth_dual_surf(MBEntityHandle dual_surf,
-                               MBRange &dcells, MBRange &dedges,
-                               MBRange &dverts, MBRange &face_verts,
-                               MBRange &loop_edges);
+  ErrorCode smooth_dual_surf(EntityHandle dual_surf,
+                               Range &dcells, Range &dedges,
+                               Range &dverts, Range &face_verts,
+                               Range &loop_edges);
   
-  MBErrorCode set_graphpoint_pos(void *point, double *pos);
+  ErrorCode set_graphpoint_pos(void *point, double *pos);
   
-  MBErrorCode get_graphpoint_pos(void *point, double *pos);
+  ErrorCode get_graphpoint_pos(void *point, double *pos);
   
-  void get_graph_points(const MBEntityHandle *ents, const int gnum_ents, 
-                        MBEntityHandle dual_surf, void **points);
+  void get_graph_points(const EntityHandle *ents, const int gnum_ents, 
+                        EntityHandle dual_surf, void **points);
 
-  void get_graph_points(MBRange ents,
-                        MBEntityHandle dual_surf, void **points);
+  void get_graph_points(Range ents,
+                        EntityHandle dual_surf, void **points);
 
     //! given a renderer, return the sheet that this renderer renders
-  MBEntityHandle get_dual_surf(vtkRenderer *this_ren);
+  EntityHandle get_dual_surf(vtkRenderer *this_ren);
 };
 
 

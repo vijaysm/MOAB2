@@ -10,6 +10,9 @@ if PARALLEL
   AM_CPPFLAGS += -I$(srcdir)/parallel
 endif
 SUBDIRS += io .
+if OLD_HEADERS
+  SUBDIRS += oldinc
+endif
 
 BUILT_SOURCES = MBCN_protos.h
 
@@ -17,12 +20,8 @@ BUILT_SOURCES = MBCN_protos.h
 AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I. \
                -I$(srcdir)/io \
-               -I$(srcdir)/io/moab \
                -I$(srcdir)/io/mhdf/include \
-               -I./moab \
-               -I$(srcdir)/moab \
-               -I$(srcdir)/parallel/moab \
-               -I./parallel/moab
+               -I$(srcdir)/parallel
 
 # The directory in which to install headers
 libMOAB_la_includedir = $(includedir)
@@ -39,44 +38,44 @@ libMOAB_la_SOURCES = \
   ElementSequence.hpp \
   EntitySequence.cpp \
   EntitySequence.hpp \
+  Error.hpp \
   FileOptions.cpp \
   FileOptions.hpp \
   GeomTopoTool.cpp \
   HigherOrderFactory.cpp \
   HomXform.cpp \
-  MBAdaptiveKDTree.cpp \
-  MBAffineXform.cpp \
-  MBAffineXform.hpp \
-  MBAxisBox.cpp \
-  MBAxisBox.hpp \
-  MBBSPTree.cpp \
+  AdaptiveKDTree.cpp \
+  AffineXform.cpp \
+  AffineXform.hpp \
+  AxisBox.cpp \
+  AxisBox.hpp \
+  BSPTree.cpp \
   MBCN.cpp \
-  MBCNArrays.hpp \
-  MBCartVect.cpp \
-  MBCartVect.hpp \
-  MBMatrix3.cpp \
-  MBMatrix3.hpp \
-  MBCore.cpp \
-  MBFactory.cpp \
-  MBGeomUtil.cpp \
-  MBInternals.hpp \
-  MBMeshSet.cpp \
-  MBMeshSet.hpp \
-  MBOrientedBox.cpp \
-  MBOrientedBox.hpp \
-  MBOrientedBoxTreeTool.cpp \
-  MBRange.cpp \
-  MBRangeSeqIntersectIter.cpp \
-  MBRangeSeqIntersectIter.hpp \
-  MBReadUtil.cpp \
-  MBReadUtil.hpp \
-  MBReaderWriterSet.cpp \
-  MBSkinner.cpp \
-  MBSysUtil.cpp \
-  MBSysUtil.hpp \
-  MBUtil.cpp \
-  MBWriteUtil.cpp \
-  MBWriteUtil.hpp \
+  CNArrays.hpp \
+  CartVect.cpp \
+  Matrix3.cpp \
+  Matrix3.hpp \
+  Core.cpp \
+  Factory.cpp \
+  GeomUtil.cpp \
+  Internals.hpp \
+  MeshSet.cpp \
+  MeshSet.hpp \
+  OrientedBox.cpp \
+  OrientedBox.hpp \
+  OrientedBoxTreeTool.cpp \
+  Range.cpp \
+  RangeSeqIntersectIter.cpp \
+  RangeSeqIntersectIter.hpp \
+  ReadUtil.cpp \
+  ReadUtil.hpp \
+  ReaderWriterSet.cpp \
+  Skinner.cpp \
+  SysUtil.cpp \
+  SysUtil.hpp \
+  Util.cpp \
+  WriteUtil.cpp \
+  WriteUtil.hpp \
   MeshSetSequence.cpp \
   MeshSetSequence.hpp \
   MeshTopoUtil.cpp \
@@ -121,29 +120,29 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/GeomTopoTool.hpp \
   moab/HigherOrderFactory.hpp \
   moab/HomXform.hpp \
-  moab/MBAdaptiveKDTree.hpp \
-  moab/MBBSPTree.hpp \
+  moab/AdaptiveKDTree.hpp \
+  moab/BSPTree.hpp \
   moab/MBCN.hpp \
-  moab/MBCore.hpp \
-  moab/MBEntityType.h \
-  moab/MBEntityHandle.h \
-  moab/MBError.hpp \
-  moab/MBForward.hpp \
-  moab/MBGeomUtil.hpp \
-  moab/MBInterface.hpp \
-  moab/MBOrientedBoxTreeTool.hpp \
+  moab/CartVect.hpp \
+  moab/Core.hpp \
+  moab/EntityType.hpp \
+  moab/EntityHandle.hpp \
+  moab/Forward.hpp \
+  moab/GeomUtil.hpp \
+  moab/Interface.hpp \
+  moab/OrientedBoxTreeTool.hpp \
   moab/BSPTreePoly.hpp \
-  moab/MBRange.hpp \
-  moab/MBReadUtilIface.hpp \
-  moab/MBReaderIface.hpp \
-  moab/MBReaderWriterSet.hpp \
-  moab/MBSkinner.hpp \
+  moab/Range.hpp \
+  moab/ReadUtilIface.hpp \
+  moab/ReaderIface.hpp \
+  moab/ReaderWriterSet.hpp \
+  moab/Skinner.hpp \
   moab/MBTagConventions.hpp \
-  moab/MBTypes.h \
-  moab/MBUnknownInterface.hpp \
-  moab/MBUtil.hpp \
-  moab/MBWriteUtilIface.hpp \
-  moab/MBWriterIface.hpp \
+  moab/Types.hpp \
+  moab/UnknownInterface.hpp \
+  moab/Util.hpp \
+  moab/WriteUtilIface.hpp \
+  moab/WriterIface.hpp \
   moab/MeshTopoUtil.hpp \
   moab/RangeMap.hpp \
   MBCN.h \

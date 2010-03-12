@@ -45,6 +45,16 @@ fi
 
 
 ################################################################################
+#                           No-Namepsace (3.0) Headers
+################################################################################
+AC_ARG_ENABLE([old-headers],
+ [AC_HELP_STRING([--disable-old-headers],
+     [Do not install no-namespace headers for compatability with MOAB 3.0 API])],
+ [OLD_HEADERS=$enableval],[OLD_HEADERS=yes])
+AM_CONDITIONAL([OLD_HEADERS],[test "xyes" = "x$OLD_HEADERS"])
+
+
+################################################################################
 #                              HANDLE SIZE
 ################################################################################
 AC_CHECK_HEADER([inttypes.h], [AC_DEFINE(MOAB_HAVE_INTTYPES_H,  [], [MOAB qualified HAVE_INTTYPES_H]) ])
@@ -56,7 +66,7 @@ SIZEOF_MBENTITYHANDLE=0
 AC_CHECK_SIZEOF(void *)
 SIZEOF_VOID_P=$ac_cv_sizeof_void_p
 AC_ARG_ENABLE([64bit-handles],
-  [AC_HELP_STRING([--enable-64bit-handles],[Force MBEntityHandle to be 64 bits])],
+  [AC_HELP_STRING([--enable-64bit-handles],[Force EntityHandle to be 64 bits])],
   [AC_CHECK_TYPE([uint64_t],
     [AC_DEFINE(MOAB_FORCE_64_BIT_HANDLES,[],[Use int64_t for handles])
      SIZEOF_MBENTITYHANDLE=8
@@ -64,7 +74,7 @@ AC_ARG_ENABLE([64bit-handles],
     [AC_MSG_ERROR([Platform does not have uint64_t. Cannot force 64-bit handles])])
 ])
 AC_ARG_ENABLE([32bit-handles],
-  [AC_HELP_STRING([--enable-32bit-handles],[Force MBEntityHandle to be 32 bits])],
+  [AC_HELP_STRING([--enable-32bit-handles],[Force EntityHandle to be 32 bits])],
   [AC_CHECK_TYPE([uint32_t],
     [AC_DEFINE(MOAB_FORCE_32_BIT_HANDLES,[],[Use int32_t for handles])
      SIZEOF_MBENTITYHANDLE=4
@@ -149,12 +159,12 @@ esac
 # after configuring the compilers so that we know what size of 
 # various types are.
 
-AC_MSG_CHECKING([size of MBEntityHandle])
+AC_MSG_CHECKING([size of EntityHandle])
 AC_MSG_RESULT([$SIZEOF_MBENTITYHANDLE])
 ITAPS_VALID_HANDLE_SIZE=yes
 if test $SIZEOF_VOID_P -ne $SIZEOF_MBENTITYHANDLE; then
   ITAPS_VALID_HANDLE_SIZE=no
-  AC_MSG_WARN([Cannot build iMesh or iGeom API because sizeof(MBEntityHandle) != sizeof(void*)])
+  AC_MSG_WARN([Cannot build iMesh or iGeom API because sizeof(EntityHandle) != sizeof(void*)])
   if test "x$FORCE_IMESH" = "xno"; then
     ENABLE_imesh=no
   fi
@@ -168,7 +178,7 @@ AC_MSG_RESULT([$ENABLE_imesh])
 AM_CONDITIONAL([ENABLE_imesh],[test "xyes" = "x$ENABLE_imesh"])
 if test "x$ENABLE_imesh" = "xyes"; then
   if test "x$ITAPS_VALID_HANDLE_SIZE" != "xyes"; then
-    AC_MSG_ERROR([Cannot build iMesh API with sizeof(MBEntityHandle) != sizeof(void*)])
+    AC_MSG_ERROR([Cannot build iMesh API with sizeof(EntityHandle) != sizeof(void*)])
   fi
 fi
 
@@ -177,7 +187,7 @@ AC_MSG_RESULT([$ENABLE_igeom])
 AM_CONDITIONAL([ENABLE_igeom],[test "xyes" = "x$ENABLE_igeom"])
 if test "x$ENABLE_igeom" = "xyes"; then
   if test "x$ITAPS_VALID_HANDLE_SIZE" != "xyes"; then
-    AC_MSG_ERROR([Cannot build iGeom API with sizeof(MBEntityHandle) != sizeof(void*)])
+    AC_MSG_ERROR([Cannot build iGeom API with sizeof(EntityHandle) != sizeof(void*)])
   fi
 fi
 
@@ -235,7 +245,7 @@ FATHOM_CHECK_MPI
 FATHOM_CONFIG_MPI_EXEC
 test "xyes" != "x$WITH_MPI" || AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_MPI"
 AM_CONDITIONAL(USE_MPI, [test "xno" != "x$WITH_MPI"])
-# Used to generate MBmpi.h
+# Used to generate moab_mpi.h
 if test "xyes" = "x$MPI_CXX_HELP_NEEDED"; then
   AC_DEFINE( [MB_MPI_CXX_CONFLICT], [1], 
     [MPICH_IGNORE_CXX_SEEK is not sufficient to avoid conflicts] )
@@ -1001,9 +1011,9 @@ AC_SUBST([DISTCHECK_CONFIGURE_FLAGS])
 
 AC_ARG_VAR([FC], [FORTRAN compiler command])
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_HEADERS([src/moab/MBVersion.h 
-                   src/moab/MBEntityHandle.h 
-                   src/parallel/moab/MBmpi_config.h
+AC_CONFIG_HEADERS([src/moab/Version.h
+                   src/moab/EntityHandle.hpp
+                   src/parallel/moab_mpi_config.h
                    src/FCDefs.h])
 AC_CONFIG_FILES([Makefile 
                  moab.make                  
@@ -1011,6 +1021,7 @@ AC_CONFIG_FILES([Makefile
                  src/io/Makefile
                  src/io/mhdf/Makefile
                  src/parallel/Makefile
+                 src/oldinc/Makefile
                  test/Makefile
                  test/h5file/Makefile
                  test/dual/Makefile
@@ -1018,6 +1029,7 @@ AC_CONFIG_FILES([Makefile
                  test/perf/Makefile
                  test/io/Makefile
                  test/parallel/Makefile
+                 test/oldinc/Makefile
                  itaps/Makefile
                  itaps/imesh/Makefile
                  itaps/imesh/iMesh-Defs.inc

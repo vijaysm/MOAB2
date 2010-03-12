@@ -25,7 +25,9 @@
 // the parametric space used to address those vertices.
 
 #include "SequenceData.hpp"
-#include "HomXform.hpp"
+#include "moab/HomXform.hpp"
+
+namespace moab {
 
 class ScdVertexData : public SequenceData
 {
@@ -46,21 +48,21 @@ private:
 public:
 
     //! constructor
-  ScdVertexData(const MBEntityHandle start_vertex, 
+  ScdVertexData(const EntityHandle start_vertex, 
                 const int imin, const int jmin, const int kmin,
                 const int imax, const int jmax, const int kmax) ;
   
   virtual ~ScdVertexData() {};
 
     //! get handle of vertex at i, j, k
-  MBEntityHandle get_vertex(const int i, const int j, const int k) const;
+  EntityHandle get_vertex(const int i, const int j, const int k) const;
 
     //! get handle of vertex at homogeneous coordinates
-  MBEntityHandle get_vertex(const HomCoord &coords) const;
+  EntityHandle get_vertex(const HomCoord &coords) const;
 
     //! get the parameters of a given handle; return MB_FAILURE if vhandle not in this
     //! sequence
-  MBErrorCode get_params(const MBEntityHandle vhandle,
+  ErrorCode get_params(const EntityHandle vhandle,
                           int &i, int &j, int &k) const;
   
     //! get min params for this vertex
@@ -90,25 +92,25 @@ public:
   bool contains(const HomCoord &coords) const;
   bool contains(const int i, const int j, const int k) const;
 
-  SequenceData* subset( MBEntityHandle start, 
-                        MBEntityHandle end,
+  SequenceData* subset( EntityHandle start, 
+                        EntityHandle end,
                         const int* sequence_data_sizes,
                         const int* tag_data_sizes ) const;
 };
 
-inline MBEntityHandle ScdVertexData::get_vertex(const int i, const int j, 
+inline EntityHandle ScdVertexData::get_vertex(const int i, const int j, 
                                                 const int k) const
 {
   return start_handle() + (i-i_min()) + (j-j_min())*dIJK[0] + 
     (k-k_min())*dIJK[0]*dIJK[1];
 }
 
-inline MBEntityHandle ScdVertexData::get_vertex(const HomCoord &coords) const
+inline EntityHandle ScdVertexData::get_vertex(const HomCoord &coords) const
 {
   return get_vertex(coords.hom_coord()[0], coords.hom_coord()[1], coords.hom_coord()[2]);
 }
 
-inline MBErrorCode ScdVertexData::get_params(const MBEntityHandle vhandle,
+inline ErrorCode ScdVertexData::get_params(const EntityHandle vhandle,
                                              int &i, int &j, int &k) const
 {
   if (TYPE_FROM_HANDLE(vhandle) != MBVERTEX) return MB_FAILURE;
@@ -172,5 +174,7 @@ inline bool ScdVertexData::contains(const int i, const int j, const int k) const
 {
   return contains(HomCoord(i, j, k));
 }
+  
+} // namespace moab
 
 #endif

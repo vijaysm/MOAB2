@@ -25,6 +25,8 @@
 #include <string.h>
 #include <algorithm>
 
+namespace moab {
+
 const char DEFAULT_SEPARATOR = ';';
 
 static inline bool strempty( const char* s ) { return !*s; }
@@ -100,19 +102,19 @@ FileOptions::~FileOptions()
   free( mData );
 }
 
-MBErrorCode FileOptions::get_null_option( const char* name ) const
+ErrorCode FileOptions::get_null_option( const char* name ) const
 {
   const char* s;
-  MBErrorCode rval = get_option( name, s );
+  ErrorCode rval = get_option( name, s );
   if (MB_SUCCESS != rval)
     return rval;
   return strempty(s) ? MB_SUCCESS : MB_TYPE_OUT_OF_RANGE;
 }
 
-MBErrorCode FileOptions::get_int_option( const char* name, int& value ) const
+ErrorCode FileOptions::get_int_option( const char* name, int& value ) const
 {
   const char* s;
-  MBErrorCode rval = get_option( name, s );
+  ErrorCode rval = get_option( name, s );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -134,11 +136,11 @@ MBErrorCode FileOptions::get_int_option( const char* name, int& value ) const
   return MB_SUCCESS;
 }
 
-MBErrorCode FileOptions::get_ints_option( const char* name, 
+ErrorCode FileOptions::get_ints_option( const char* name, 
                                           std::vector<int>& values) const
 {
   const char* s;
-  MBErrorCode rval = get_option( name, s );
+  ErrorCode rval = get_option( name, s );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -179,10 +181,10 @@ MBErrorCode FileOptions::get_ints_option( const char* name,
   return MB_SUCCESS;
 }
 
-MBErrorCode FileOptions::get_real_option ( const char* name, double& value ) const
+ErrorCode FileOptions::get_real_option ( const char* name, double& value ) const
 {
   const char* s;
-  MBErrorCode rval = get_option( name, s );
+  ErrorCode rval = get_option( name, s );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -199,10 +201,10 @@ MBErrorCode FileOptions::get_real_option ( const char* name, double& value ) con
   return MB_SUCCESS;
 }
 
-MBErrorCode FileOptions::get_str_option( const char* name, std::string& value ) const
+ErrorCode FileOptions::get_str_option( const char* name, std::string& value ) const
 {
   const char* s;
-  MBErrorCode rval = get_option( name, s );
+  ErrorCode rval = get_option( name, s );
   if (MB_SUCCESS != rval)
     return rval;
   if (strempty(s))
@@ -211,10 +213,10 @@ MBErrorCode FileOptions::get_str_option( const char* name, std::string& value ) 
   return MB_SUCCESS;
 }
 
-MBErrorCode FileOptions::get_option( const char* name, std::string& value ) const
+ErrorCode FileOptions::get_option( const char* name, std::string& value ) const
 {
   const char* s;
-  MBErrorCode rval = get_option( name, s );
+  ErrorCode rval = get_option( name, s );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -222,7 +224,7 @@ MBErrorCode FileOptions::get_option( const char* name, std::string& value ) cons
   return MB_SUCCESS;
 }  
 
-MBErrorCode FileOptions::get_option( const char* name, const char*& value ) const
+ErrorCode FileOptions::get_option( const char* name, const char*& value ) const
 {
   std::vector<const char*>::const_iterator i;
   for (i = mOptions.begin(); i != mOptions.end(); ++i) {
@@ -242,7 +244,7 @@ MBErrorCode FileOptions::get_option( const char* name, const char*& value ) cons
   return MB_ENTITY_NOT_FOUND;
 }
 
-MBErrorCode FileOptions::match_option( const char* name, 
+ErrorCode FileOptions::match_option( const char* name, 
                                        const char* value ) const
 {
   int idx;
@@ -250,12 +252,12 @@ MBErrorCode FileOptions::match_option( const char* name,
   return match_option( name, array, idx );
 }
 
-MBErrorCode FileOptions::match_option( const char* name, 
+ErrorCode FileOptions::match_option( const char* name, 
                                        const char* const* values, 
                                        int& index ) const
 {
   const char* optval;
-  MBErrorCode rval = get_option( name, optval );
+  ErrorCode rval = get_option( name, optval );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -292,7 +294,7 @@ bool FileOptions::all_seen() const
   return std::find( mSeen.begin(), mSeen.end(), false ) == mSeen.end();
 }
 
-MBErrorCode FileOptions::get_unseen_option( std::string& name ) const
+ErrorCode FileOptions::get_unseen_option( std::string& name ) const
 {
   std::vector<bool>::iterator i = std::find( mSeen.begin(), mSeen.end(), false );
   if (i == mSeen.end()) {
@@ -305,8 +307,12 @@ MBErrorCode FileOptions::get_unseen_option( std::string& name ) const
   name = end ? std::string(opt, end-opt) : std::string(opt);
   return MB_SUCCESS;
 }
+  
+} // namespace moab
 
 #ifdef TEST
+
+using namespace moab;
 
 #include <iostream>
 
@@ -329,7 +335,7 @@ int main()
   std::string s;
   int i;
   double d;
-  MBErrorCode rval;
+  ErrorCode rval;
   
     // test basic get_option method without deleting entry
   rval = tool.get_option( "STR1", s );

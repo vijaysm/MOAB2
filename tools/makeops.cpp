@@ -3,25 +3,27 @@
  *
  */
 
-#include "MBCore.hpp"
-#include "MBRange.hpp"
+#include "moab/Core.hpp"
+#include "moab/Range.hpp"
 #include <iostream>
 
-MBInterface *gMB = NULL;
+using namespace moab;
 
-MBErrorCode make_atomic_pillow();
-MBErrorCode make_face_shrink();
-MBErrorCode make_face_open_collapse();
-MBErrorCode make_chord_push();
-MBErrorCode make_triple_chord_push();
-MBErrorCode make_triple_hex_push();
+Interface *gMB = NULL;
+
+ErrorCode make_atomic_pillow();
+ErrorCode make_face_shrink();
+ErrorCode make_face_open_collapse();
+ErrorCode make_chord_push();
+ErrorCode make_triple_chord_push();
+ErrorCode make_triple_hex_push();
 
 enum OperationType {ATOMIC_PILLOW = 0, 
                     FACE_OPEN_COLLAPSE, 
                     FACE_SHRINK, 
                     CHORD_PUSH, 
-                    TRIPLE_CHORD_PUSH, 
-                    TRIPLE_HEX_PUSH,
+                    MBTRIPLE_CHORD_PUSH, 
+                    MBTRIPLE_HEX_PUSH,
                     UNDEFINED};
 
 const char *OperationNames[] = {"atomic_pillow", 
@@ -34,7 +36,7 @@ const char *OperationNames[] = {"atomic_pillow",
 
 int main(int argc, char **argv) 
 {
-  gMB = new MBCore();
+  gMB = new Core();
   const char *extensions[] = 
     {
       ".g",
@@ -66,13 +68,13 @@ int main(int argc, char **argv)
     else if (!strcmp("-cp", argv[current_arg])) 
       op_types.push_back(CHORD_PUSH);
     else if (!strcmp("-tcp", argv[current_arg])) 
-      op_types.push_back(TRIPLE_CHORD_PUSH);
+      op_types.push_back(MBTRIPLE_CHORD_PUSH);
     else if (!strcmp("-thp", argv[current_arg])) 
-      op_types.push_back(TRIPLE_HEX_PUSH);
+      op_types.push_back(MBTRIPLE_HEX_PUSH);
     current_arg++;
   }
   
-  MBErrorCode result = MB_SUCCESS, tmp_result = MB_FAILURE;
+  ErrorCode result = MB_SUCCESS, tmp_result = MB_FAILURE;
 
   for (std::vector<OperationType>::iterator vit = op_types.begin(); 
        vit != op_types.end(); vit++) {
@@ -85,11 +87,11 @@ int main(int argc, char **argv)
     else if (*vit == CHORD_PUSH) {
       tmp_result = make_chord_push();
     }
-    else if (*vit == TRIPLE_CHORD_PUSH) {
+    else if (*vit == MBTRIPLE_CHORD_PUSH) {
       tmp_result = make_triple_chord_push();
     }
 
-    else if (*vit == TRIPLE_HEX_PUSH) {
+    else if (*vit == MBTRIPLE_HEX_PUSH) {
       tmp_result = make_triple_hex_push();
     }
     else if (*vit == FACE_SHRINK) {
@@ -110,7 +112,7 @@ int main(int argc, char **argv)
   return (result == MB_SUCCESS ? 0 : 1);
 }
 
-MBErrorCode make_atomic_pillow() 
+ErrorCode make_atomic_pillow() 
 {
     // make atomic pillow configuration
     // make all vertices
@@ -131,15 +133,15 @@ MBErrorCode make_atomic_pillow()
     4, 5, 6, 7, 0, 1, 2, 3
   };
 
-  MBErrorCode result;
-  MBEntityHandle vtx_handles[8];
+  ErrorCode result;
+  EntityHandle vtx_handles[8];
   
   for (int i = 0; i < 8; i++) {
     result = gMB->create_vertex(&vtx_coord[3*i], vtx_handles[i]);
     if (MB_SUCCESS != result) return MB_FAILURE;
   }
   
-  MBEntityHandle conn[8], elems[4];
+  EntityHandle conn[8], elems[4];
 
     // make the two hexes
   for (int i = 0; i < 8; i++)
@@ -171,7 +173,7 @@ MBErrorCode make_atomic_pillow()
   return MB_SUCCESS;
 }
 
-MBErrorCode make_face_shrink() 
+ErrorCode make_face_shrink() 
 {
     // make face shrink configuration
     // make all vertices
@@ -204,8 +206,8 @@ MBErrorCode make_face_shrink()
     12, 15, 14, 13, 8, 11, 10, 9
   };
 
-  MBErrorCode result;
-  MBEntityHandle vtx_handles[16];
+  ErrorCode result;
+  EntityHandle vtx_handles[16];
   
   for (int i = 0; i < 16; i++) {
     result = gMB->create_vertex(&vtx_coord[3*i], vtx_handles[i]);
@@ -213,7 +215,7 @@ MBErrorCode make_face_shrink()
   }
   
     // make all elements at once
-  MBEntityHandle conn[8], elems[6];
+  EntityHandle conn[8], elems[6];
 
   for (int j = 0; j < 6; j++) {
     for (int i = 0; i < 8; i++)
@@ -226,12 +228,12 @@ MBErrorCode make_face_shrink()
   return MB_SUCCESS;
 }
 
-MBErrorCode make_face_open_collapse() 
+ErrorCode make_face_open_collapse() 
 {
   return MB_FAILURE;
 }
 
-MBErrorCode make_chord_push() 
+ErrorCode make_chord_push() 
 {
     // make chord push configuration
     // make all vertices
@@ -279,15 +281,15 @@ MBErrorCode make_chord_push()
     0, 4, 11, 7
   };
 
-  MBErrorCode result;
-  MBEntityHandle vtx_handles[16];
+  ErrorCode result;
+  EntityHandle vtx_handles[16];
   
   for (int i = 0; i < 16; i++) {
     result = gMB->create_vertex(&vtx_coord[3*i], vtx_handles[i]);
     if (MB_SUCCESS != result) return MB_FAILURE;
   }
   
-  MBEntityHandle conn[8], elems[12];
+  EntityHandle conn[8], elems[12];
 
     // make the five hexes
   for (int i = 0; i < 5; i++) {
@@ -369,7 +371,7 @@ MBErrorCode make_chord_push()
   return MB_SUCCESS;
 }
 
-MBErrorCode make_triple_chord_push() 
+ErrorCode make_triple_chord_push() 
 {
     // make chord push configuration
     // make all vertices
@@ -410,15 +412,15 @@ MBErrorCode make_triple_chord_push()
     2, 1, 15, 3, 14, 6, 5, 4
   };
 
-  MBErrorCode result;
-  MBEntityHandle vtx_handles[16];
+  ErrorCode result;
+  EntityHandle vtx_handles[16];
   
   for (int i = 0; i < 16; i++) {
     result = gMB->create_vertex(&vtx_coord[3*i], vtx_handles[i]);
     if (MB_SUCCESS != result) return MB_FAILURE;
   }
   
-  MBEntityHandle conn[8], elems[12];
+  EntityHandle conn[8], elems[12];
 
     // make the five hexes
   for (int i = 0; i < 5; i++) {
@@ -431,7 +433,7 @@ MBErrorCode make_triple_chord_push()
   return MB_SUCCESS;
 }
 
-MBErrorCode make_triple_hex_push() 
+ErrorCode make_triple_hex_push() 
 {
   return MB_FAILURE;
 }

@@ -60,7 +60,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "iMesh.h"
-#include "MBTypes.h"
+#include "moab/Types.hpp"
 extern enum iBase_ErrorType iBase_ERROR_MAP[MB_FAILURE+1];
 
 

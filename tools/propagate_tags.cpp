@@ -29,15 +29,17 @@
 
 #include "parse.hpp"
 
-#include "MBCore.hpp"
-#include "MBRange.hpp"
-#include "MBInterface.hpp"
+#include "moab/Core.hpp"
+#include "moab/Range.hpp"
+#include "moab/Interface.hpp"
 #define IS_BUILDING_MB
-#include "MBInternals.hpp"
+#include "Internals.hpp"
 #undef IS_BUILDING_MB
 
+using namespace moab;
+
 #define CALL(A,B) \
-  do { MBErrorCode _r = iface->A B ; \
+  do { ErrorCode _r = iface->A B ; \
        if (MB_SUCCESS != _r) { \
          std::cerr << #A << #B << " failed at " << __FILE__ << ":" << __LINE__ << std::endl; \
          exit( 5 ); }\
@@ -45,7 +47,7 @@
   while (false)
 
 
-MBInterface* iface = 0;
+Interface* iface = 0;
 const char* exe_name = 0;
 
 void usage( bool error = true )
@@ -133,7 +135,7 @@ void parse_error( const char* msg, const char* val = 0 )
 
 int main( int argc, char* argv[] )
 {
-  MBCore mb_core;
+  Core mb_core;
   exe_name = argv[0];
   iface = &mb_core;
 
@@ -192,7 +194,7 @@ int main( int argc, char* argv[] )
   bool node_from_elem_spec = false;
   bool have_data_tag = false;
   const char* write_tag_name = 0;
-  MBTag write_tag = 0;
+  Tag write_tag = 0;
   TagSpec data_tag = { 0, 0 };
   typedef std::vector<TagSpec> TagVect;
   TagVect ident_tags;
@@ -291,10 +293,10 @@ int main( int argc, char* argv[] )
     // create it.
   else
   {
-    MBDataType data_type;
+    DataType data_type;
     CALL( tag_get_data_type, (data_tag.handle, data_type) );
     
-    MBErrorCode rval = iface->tag_get_handle( write_tag_name, write_tag );
+    ErrorCode rval = iface->tag_get_handle( write_tag_name, write_tag );
     if (MB_FAILURE == rval)
     {
       std::cerr << "Unknown error retrieving handle for tag: " << write_tag_name << std::endl;
@@ -306,7 +308,7 @@ int main( int argc, char* argv[] )
     }
     else
     {
-      MBDataType write_type;
+      DataType write_type;
       int write_size;
       CALL( tag_get_data_type, (write_tag, write_type) );
       CALL( tag_get_size, (write_tag, write_size) );
@@ -327,7 +329,7 @@ int main( int argc, char* argv[] )
   /**************** Done processing input -- do actual work ****************/
  
     // Get list of sets with identifying tags
-  MBRange sets, temp;
+  Range sets, temp;
   for (TagVect::iterator i = ident_tags.begin(); i != ident_tags.end(); ++i)
   {
     const void* value[] = { i->value };
@@ -338,10 +340,10 @@ int main( int argc, char* argv[] )
   
     // For each set, set tag on contained entities
   std::vector<unsigned char> tag_data(data_size);
-  for (MBRange::iterator i = sets.begin(); i != sets.end(); ++i)
+  for (Range::iterator i = sets.begin(); i != sets.end(); ++i)
   {
       // Get tag value
-    MBErrorCode rval = iface->tag_get_data( data_tag.handle, &*i, 1, &tag_data[0] );
+    ErrorCode rval = iface->tag_get_data( data_tag.handle, &*i, 1, &tag_data[0] );
     if (MB_TAG_NOT_FOUND == rval)
     {
       if (!data_tag.value)
@@ -358,24 +360,24 @@ int main( int argc, char* argv[] )
     }
     
       // Get entities
-    MBRange entities;
+    Range entities;
     CALL( get_entities_by_handle, (*i, entities, true) );
     int junk;
-    MBRange::iterator eb = entities.lower_bound( entities.begin(), 
+    Range::iterator eb = entities.lower_bound( entities.begin(), 
                                                  entities.end(),
                                                  CREATE_HANDLE(MBEDGE,0,junk) );
     if (elems_spec) 
-      for (MBRange::iterator j = eb; j != entities.end(); ++j)
+      for (Range::iterator j = eb; j != entities.end(); ++j)
         CALL( tag_set_data, (write_tag, &*j, 1, &tag_data[0]) );
     if (nodes_spec)
-      for (MBRange::iterator j = entities.begin(); j != eb; ++j)
+      for (Range::iterator j = entities.begin(); j != eb; ++j)
         CALL( tag_set_data, (write_tag, &*j, 1, &tag_data[0]) );
     if (node_from_elem_spec) {
-      MBRange elems;
+      Range elems;
       elems.merge( eb, entities.end() );
       entities.clear();
-      CALL( get_adjacencies, (elems, 0, false, entities, MBInterface::UNION) );
-      for (MBRange::iterator j = entities.begin(); j != entities.end(); ++j)
+      CALL( get_adjacencies, (elems, 0, false, entities, Interface::UNION) );
+      for (Range::iterator j = entities.begin(); j != entities.end(); ++j)
         CALL( tag_set_data, (write_tag, &*j, 1, &tag_data[0]) );
     }
   }

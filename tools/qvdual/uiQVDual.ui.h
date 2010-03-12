@@ -28,7 +28,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtkMOABUtils.h"
-#include "MeshTopoUtil.hpp"
+#include "moab/MeshTopoUtil.hpp"
 #include "vtkPolyDataMapper.h"
 #include "vtkDataSetMapper.h"
 #include "vtkActor.h"
@@ -553,7 +553,7 @@ void uiQVDual::displayVisible()
   for (MBRange::iterator rit = selected.begin(); rit != selected.end(); rit++)
     vtkMOABUtils::mbImpl->get_child_meshsets(*rit, children, 0);
 
-  std::copy(children.begin(), children.end(), mb_range_inserter(selected));
+  std::copy(children.begin(), children.end(), range_inserter(selected));
   
   unselected.clear();
   vtkMOABUtils::change_set_visibility(selected, unselected);
@@ -571,7 +571,7 @@ void uiQVDual::displayDraw()
   for (MBRange::iterator rit = selected.begin(); rit != selected.end(); rit++)
     vtkMOABUtils::mbImpl->get_child_meshsets(*rit, children, 0);
 
-  std::copy(children.begin(), children.end(), mb_range_inserter(selected));
+  std::copy(children.begin(), children.end(), range_inserter(selected));
   
   vtkMOABUtils::change_set_visibility(selected, unselected);
 
@@ -612,7 +612,7 @@ void uiQVDual::displayInvisible()
   for (MBRange::iterator rit = selected.begin(); rit != selected.end(); rit++)
     vtkMOABUtils::mbImpl->get_child_meshsets(*rit, children, 0);
 
-  std::copy(children.begin(), children.end(), mb_range_inserter(selected));
+  std::copy(children.begin(), children.end(), range_inserter(selected));
   
   unselected.clear();
   vtkMOABUtils::change_set_visibility(unselected, selected);

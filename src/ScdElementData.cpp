@@ -15,13 +15,15 @@
 
 #include "ScdElementData.hpp"
 #include "ScdVertexData.hpp"
-#include "MBInterface.hpp"
-#include "MBReadUtilIface.hpp"
-#include "MBCN.hpp"
-#include "MBInternals.hpp"
+#include "moab/Interface.hpp"
+#include "moab/ReadUtilIface.hpp"
+#include "moab/MBCN.hpp"
+#include "Internals.hpp"
 #include <assert.h>
 
-MBEntityID ScdElementData::calc_num_entities(MBEntityHandle start_handle,
+namespace moab {
+
+EntityID ScdElementData::calc_num_entities(EntityHandle start_handle,
                                 int irange, int jrange, int krange)
 {
   size_t result = 1;
@@ -35,7 +37,7 @@ MBEntityID ScdElementData::calc_num_entities(MBEntityHandle start_handle,
 }
 
 ScdElementData::ScdElementData(
-                             MBEntityHandle start_handle,
+                             EntityHandle start_handle,
                              const int imin, const int jmin, const int kmin,
                              const int imax, const int jmax, const int kmax) 
     : SequenceData(0, start_handle,
@@ -135,8 +137,8 @@ bool ScdElementData::boundary_complete() const
 }
 
 
-SequenceData* ScdElementData::subset( MBEntityHandle /*start*/, 
-                                      MBEntityHandle /*end*/,
+SequenceData* ScdElementData::subset( EntityHandle /*start*/, 
+                                      EntityHandle /*end*/,
                                       const int* /*sequence_data_sizes*/,
                                       const int* /*tag_data_sizes*/ ) const
 {
@@ -147,3 +149,5 @@ unsigned long ScdElementData::get_memory_use() const
 {
   return sizeof(*this) + vertexSeqRefs.capacity() * sizeof(VertexDataRef);
 }
+  
+} // namespace moab

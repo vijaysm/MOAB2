@@ -18,16 +18,18 @@
  *\date 2007-04-25
  */
 
-#ifndef RANGE_MAP_HPP
-#define RANGE_MAP_HPP
+#ifndef MOAB_RANGE_MAP_HPP
+#define MOAB_RANGE_MAP_HPP
 
 #include <vector>
 #include <algorithm>
 
+namespace moab {
+
 /**\brief Map ranges of values 
  *
  * This class provides a map between ranges of values, such as
- * a map between file IDs and MBEntityHandles.  It is intended
+ * a map between file IDs and EntityHandles.  It is intended
  * for use in situations where there are relatively few insertions
  * of large contiguous ranges of values.
  */
@@ -236,5 +238,7 @@ RangeMap<KeyType,ValType,NullVal>::erase( KeyType key, KeyType count )
   
   return i;
 }
+
+} // namespace moab 
 
 #endif

@@ -14,7 +14,6 @@
  */
 
 #include "mhdf.h"
-#include "MBTypes.h"
 
 #include <time.h>
 #include <stdlib.h>
@@ -114,7 +113,7 @@ void write_file_data()
   const int total_num_hexes = NUM_PROC;
   long first_node, first_elem, first_set, count, ntag;
   unsigned long ucount;
-  long set_desc[4] = { 0, -1, -1, MESHSET_SET };
+  long set_desc[4] = { 0, -1, -1, 0 };
   hid_t handle, handles[2];
   mhdf_Status status;
   mhdf_FileHandle file;

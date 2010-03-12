@@ -1,5 +1,7 @@
-#include "MBCore.hpp"
-#include "MBRange.hpp"
+#include "moab/Core.hpp"
+#include "moab/Range.hpp"
+
+using namespace moab;
 
 #include <string.h>
 #include <stdio.h>
@@ -152,31 +154,34 @@ int main( int argc, char* argv[] )
   return fail_count;
 }
 
-#define CHECK(A) if (!(A)) return do_error( #A, __LINE__ )
+#define CHECK(A) if (is_error((A))) return do_error( #A, __LINE__ )
 static bool do_error( const char* string, int line )
 {
   fprintf(stderr, "Check failed at line %d: %s\n", line, string );
   return false;
 }
+static inline bool is_error( bool b )
+  { return !b; }
 
-#define MBCHECK(A) if (MB_SUCCESS != (A)) return do_mb_error( (A), __LINE__ )
-static bool do_mb_error( MBErrorCode err, int line )
+static bool do_error( ErrorCode err, int line )
 {
-  MBCore tmp_core;
+  Core tmp_core;
   fprintf(stderr, "API failed at line %d: %s (%d)\n", 
     line, tmp_core.get_error_string(err).c_str(), (int)err );
   return false;
 }
+static inline bool is_error( ErrorCode b )
+  { return MB_SUCCESS != b; }
 
-bool read_file( MBInterface* iface, const char* file );
-bool write_and_read( MBInterface* iface1, MBInterface* iface2 );
+bool read_file( Interface* iface, const char* file );
+bool write_and_read( Interface* iface1, Interface* iface2 );
 
 
 bool test_read_write_element( const double* coords, unsigned num_coords,
                               const int* vtk_conn, const int* moab_conn,
                               unsigned num_conn,
                               unsigned num_elem, unsigned vtk_type,
-                              MBEntityType moab_type );
+                              EntityType moab_type );
 
 bool test_edge2()
 {
@@ -727,9 +732,9 @@ bool test_rectilinear_grid_3d()
   return test_structured_3d( file );
 }
 
-bool test_scalar_attrib(const char* vtk_type, MBDataType mb_type, int count);
-bool test_vector_attrib(const char* vtk_type, MBDataType mb_type);
-bool test_tensor_attrib(const char* vtk_type, MBDataType mb_type);
+bool test_scalar_attrib(const char* vtk_type, DataType mb_type, int count);
+bool test_vector_attrib(const char* vtk_type, DataType mb_type);
+bool test_tensor_attrib(const char* vtk_type, DataType mb_type);
 
 bool test_scalar_attrib_1_bit()
 {
@@ -950,31 +955,31 @@ bool test_tensor_attrib_double()
 
 
 
-bool read_file( MBInterface* iface, const char* file )
+bool read_file( Interface* iface, const char* file )
 {
   char fname[] = "tmp_file.vtk";
   FILE* fptr = fopen( fname, "w" );
   fputs( file, fptr ); 
   fclose( fptr );
   
-  MBErrorCode rval = iface->load_mesh( fname );
+  ErrorCode rval = iface->load_mesh( fname );
   remove( fname );
-  MBCHECK(rval);
+  CHECK(rval);
   return true;
 }
 
-bool write_and_read( MBInterface* iface1, MBInterface* iface2 )
+bool write_and_read( Interface* iface1, Interface* iface2 )
 {
   const char fname[] = "tmp_file.vtk";
-  MBErrorCode rval1 = iface1->write_mesh( fname );
-  MBErrorCode rval2 = iface2->load_mesh( fname );
+  ErrorCode rval1 = iface1->write_mesh( fname );
+  ErrorCode rval2 = iface2->load_mesh( fname );
   remove( fname );
-  MBCHECK(rval1);
-  MBCHECK(rval2);
+  CHECK(rval1);
+  CHECK(rval2);
   return true;
 }
 
-bool compare_connectivity( MBEntityType ,
+bool compare_connectivity( EntityType ,
                            const int* conn1,
                            const int* conn2,
                            unsigned len )
@@ -985,40 +990,40 @@ bool compare_connectivity( MBEntityType ,
   return true;
 }
 
-bool match_vertices_and_elements( MBInterface* iface,
-                                  MBEntityType moab_type,
+bool match_vertices_and_elements( Interface* iface,
+                                  EntityType moab_type,
                                   unsigned num_vert,
                                   unsigned num_elem,
                                   unsigned vert_per_elem,
                                   const double* coords,
                                   const int* connectivity,
-                                  MBEntityHandle* vert_handles,
-                                  MBEntityHandle* elem_handles )
+                                  EntityHandle* vert_handles,
+                                  EntityHandle* elem_handles )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   
     // get vertices and check count
-  MBRange verts;
+  Range verts;
   rval = iface->get_entities_by_type( 0, MBVERTEX, verts );
-  MBCHECK(rval);
+  CHECK(rval);
   CHECK(verts.size() == num_vert);
   
     // get elements and check count
-  MBRange elems;
+  Range elems;
   rval = iface->get_entities_by_type( 0, moab_type, elems );
-  MBCHECK(rval);
+  CHECK(rval);
   CHECK(elems.size() == num_elem);
   
     // get vertex coordinates
-  std::vector<MBEntityHandle> vert_array(num_vert);
+  std::vector<EntityHandle> vert_array(num_vert);
   std::copy(verts.begin(), verts.end(), vert_array.begin());
   std::vector<double> mb_coords(3*num_vert);
   rval = iface->get_coords( &vert_array[0], num_vert, &mb_coords[0] );
-  MBCHECK(rval);
+  CHECK(rval);
   
     // compare vertex coordinates to construct map from 
-    // MBEntityHandle to index in input coordinate list
-  std::map<MBEntityHandle,int> vert_map;
+    // EntityHandle to index in input coordinate list
+  std::map<EntityHandle,int> vert_map;
   std::vector<bool> seen(num_vert, false);
   for (unsigned i = 0; i < num_vert; ++i) {
     double* vert_coords = &mb_coords[3*i];
@@ -1043,19 +1048,19 @@ bool match_vertices_and_elements( MBInterface* iface,
   
     // check element connectivity
   seen.clear(); seen.resize( num_elem, false );
-  MBRange::iterator iter = elems.begin();
+  Range::iterator iter = elems.begin();
   for (unsigned i = 0; i < num_elem; ++i) {
       // get element connectivity
-    MBEntityHandle elem = *iter; ++iter;
-    std::vector<MBEntityHandle> elem_conn;
+    EntityHandle elem = *iter; ++iter;
+    std::vector<EntityHandle> elem_conn;
     rval = iface->get_connectivity( &elem, 1, elem_conn );
-    MBCHECK(rval);
+    CHECK(rval);
     CHECK( elem_conn.size() == vert_per_elem );
     
       // convert to input vertex ordering
     std::vector<int> elem_conn2(vert_per_elem);
     for (unsigned j = 0; j < vert_per_elem; ++j) {
-      std::map<MBEntityHandle,int>::iterator k = vert_map.find(elem_conn[j]);
+      std::map<EntityHandle,int>::iterator k = vert_map.find(elem_conn[j]);
       CHECK( k != vert_map.end() );
       elem_conn2[j] = k->second;
     }
@@ -1079,12 +1084,12 @@ bool match_vertices_and_elements( MBInterface* iface,
 }
 
 
-bool check_elements( MBInterface* iface,
-                     MBEntityType moab_type, unsigned num_elem, unsigned vert_per_elem,
+bool check_elements( Interface* iface,
+                     EntityType moab_type, unsigned num_elem, unsigned vert_per_elem,
                      const double* coords, unsigned num_vert, 
                      const int* connectivity )
 {
-  std::vector<MBEntityHandle> junk1(num_vert), junk2(num_elem);
+  std::vector<EntityHandle> junk1(num_vert), junk2(num_elem);
   bool rval = match_vertices_and_elements( iface, moab_type, num_vert, num_elem, 
                                          vert_per_elem, coords, connectivity,
                                          &junk1[0], &junk2[0] );
@@ -1098,7 +1103,7 @@ bool test_read_write_element( const double* coords, unsigned num_verts,
                               const int* vtk_conn, const int* moab_conn,
                               unsigned num_conn,
                               unsigned num_elem, unsigned vtk_type,
-                              MBEntityType moab_type )
+                              EntityType moab_type )
       
 {
     // construct VTK file
@@ -1128,7 +1133,7 @@ bool test_read_write_element( const double* coords, unsigned num_verts,
     len += sprintf(file+len, "%u\n", vtk_type);
   
     // read VTK file and check results
-  MBCore instance1, instance2;
+  Core instance1, instance2;
   bool bval = read_file( &instance1, file ); CHECK(bval);
   bval = check_elements( &instance1, moab_type, num_elem, conn_len, coords, num_verts, moab_conn );
   CHECK(bval);
@@ -1144,7 +1149,7 @@ bool test_read_write_element( const double* coords, unsigned num_verts,
 bool test_structured_2d( const char* file )
 {
     // read VTK file and check results
-  MBCore instance;
+  Core instance;
   bool bval = read_file( &instance, file ); CHECK(bval);
   bval = check_elements( &instance, MBQUAD, 9, 4, grid_3x3, 16, quad_structured_conn );
   CHECK(bval);
@@ -1155,7 +1160,7 @@ bool test_structured_2d( const char* file )
 bool test_structured_3d( const char* file )
 {
     // read VTK file and check results
-  MBCore instance;
+  Core instance;
   bool bval = read_file( &instance, file ); CHECK(bval);
   bval = check_elements( &instance, MBHEX, 8, 8, grid_2x2x2, 27, hex_structured_conn );
   CHECK(bval);
@@ -1205,7 +1210,7 @@ const int element_values[] = { 1001, 1002, 1004, 1003, 50, 60, 51, 61,
                                1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 
                                0, 9, 8, 7, 6, 5, 4, 3, 2, 1 };
 
-void write_data( char* file, size_t& len, MBDataType type, unsigned count, const int* vals )
+void write_data( char* file, size_t& len, DataType type, unsigned count, const int* vals )
 {
   switch(type) {
     case MB_TYPE_BIT:
@@ -1229,21 +1234,21 @@ void write_data( char* file, size_t& len, MBDataType type, unsigned count, const
   }
 }
 
-bool check_tag_values( MBInterface* iface,
-                       MBDataType tag_type, int tag_length,
-                       int num_entities, const MBEntityHandle* entities,
+bool check_tag_values( Interface* iface,
+                       DataType tag_type, int tag_length,
+                       int num_entities, const EntityHandle* entities,
                        const int* values )
 {
-  MBTag tag;
-  MBErrorCode rval = iface->tag_get_handle( "data", tag ); MBCHECK(rval);
+  Tag tag;
+  ErrorCode rval = iface->tag_get_handle( "data", tag ); CHECK(rval);
   
-  MBDataType act_type;
-  rval = iface->tag_get_data_type( tag, act_type ); MBCHECK(rval);
+  DataType act_type;
+  rval = iface->tag_get_data_type( tag, act_type ); CHECK(rval);
   CHECK( act_type == tag_type );
   
   int size, *intptr;
   double* dblptr;
-  rval = iface->tag_get_size( tag, size ); MBCHECK(rval);
+  rval = iface->tag_get_size( tag, size ); CHECK(rval);
   std::vector<unsigned char> data( size * num_entities );
   
   switch (tag_type) {
@@ -1251,7 +1256,7 @@ bool check_tag_values( MBInterface* iface,
       CHECK( tag_length == size );
       for (int i = 0; i < num_entities; ++i) {
         unsigned char val;
-        rval = iface->tag_get_data( tag, entities + i, 1, &val ); MBCHECK(rval);
+        rval = iface->tag_get_data( tag, entities + i, 1, &val ); CHECK(rval);
         for (int j = 0; j < tag_length; ++j) {
           int bitval = !!(val & (1 << j));
           int expval = abs(*values) % 2;
@@ -1261,14 +1266,14 @@ bool check_tag_values( MBInterface* iface,
       }
       break;
     case MB_TYPE_OPAQUE:
-      rval = iface->tag_get_data( tag, entities, num_entities, &data[0] ); MBCHECK(rval);
+      rval = iface->tag_get_data( tag, entities, num_entities, &data[0] ); CHECK(rval);
       CHECK( tag_length == size );
       for (int i = 0; i < num_entities; ++i) 
         for (int j = 0; j < tag_length; ++j, ++values) 
           CHECK( (unsigned)(*values % 256) == data[i*tag_length+j] );
       break;
     case MB_TYPE_INTEGER:
-      rval = iface->tag_get_data( tag, entities, num_entities, &data[0] ); MBCHECK(rval);
+      rval = iface->tag_get_data( tag, entities, num_entities, &data[0] ); CHECK(rval);
       CHECK( tag_length*sizeof(int) == (unsigned)size );
       intptr = reinterpret_cast<int*>(&data[0]);
       for (int i = 0; i < num_entities; ++i) 
@@ -1276,7 +1281,7 @@ bool check_tag_values( MBInterface* iface,
           CHECK( *values == intptr[i*tag_length+j] );
       break;
     case MB_TYPE_DOUBLE:
-      rval = iface->tag_get_data( tag, entities, num_entities, &data[0] ); MBCHECK(rval);
+      rval = iface->tag_get_data( tag, entities, num_entities, &data[0] ); CHECK(rval);
       CHECK( tag_length*sizeof(double) == (unsigned)size );
       dblptr = reinterpret_cast<double*>(&data[0]);
       for (int i = 0; i < num_entities; ++i) 
@@ -1291,9 +1296,9 @@ bool check_tag_values( MBInterface* iface,
 }
 
 
-bool check_tag_values( MBInterface* iface, MBDataType type, int vals_per_ent )
+bool check_tag_values( Interface* iface, DataType type, int vals_per_ent )
 {
-  MBEntityHandle vert_handles[6], elem_handles[2];
+  EntityHandle vert_handles[6], elem_handles[2];
   bool rval = match_vertices_and_elements( iface, MBQUAD, 6, 2, 4, 
                            two_quad_mesh_coords, two_quad_mesh_conn,
                            vert_handles, elem_handles ); CHECK(rval);
@@ -1305,10 +1310,10 @@ bool check_tag_values( MBInterface* iface, MBDataType type, int vals_per_ent )
   return rval;
 }
 
-bool check_tag_data( const char* file, MBDataType type, int vals_per_ent )
+bool check_tag_data( const char* file, DataType type, int vals_per_ent )
 {
   bool bval;
-  MBCore instance1, instance2;
+  Core instance1, instance2;
   
   bval = read_file( &instance1, file ); CHECK(bval);
   bval = check_tag_values( &instance1, type, vals_per_ent ); CHECK(bval);
@@ -1317,7 +1322,7 @@ bool check_tag_data( const char* file, MBDataType type, int vals_per_ent )
   return true;
 }
 
-bool test_scalar_attrib(const char* vtk_type, MBDataType mb_type, int count)
+bool test_scalar_attrib(const char* vtk_type, DataType mb_type, int count)
 {
   char file[4096];
   strcpy( file, two_quad_mesh );
@@ -1334,7 +1339,7 @@ bool test_scalar_attrib(const char* vtk_type, MBDataType mb_type, int count)
   return check_tag_data( file, mb_type, count );
 } 
 
-bool test_vector_attrib( const char* vtk_type, MBDataType mb_type )
+bool test_vector_attrib( const char* vtk_type, DataType mb_type )
 {
   char file[4096];
   strcpy( file, two_quad_mesh );
@@ -1349,7 +1354,7 @@ bool test_vector_attrib( const char* vtk_type, MBDataType mb_type )
   return check_tag_data( file, mb_type, 3 );
 } 
 
-bool test_tensor_attrib( const char* vtk_type, MBDataType mb_type )
+bool test_tensor_attrib( const char* vtk_type, DataType mb_type )
 {
   char file[4096];
   strcpy( file, two_quad_mesh );
@@ -1366,12 +1371,12 @@ bool test_tensor_attrib( const char* vtk_type, MBDataType mb_type )
 
 bool test_subset( )
 {
-  MBCore moab_inst;
-  MBInterface& moab = moab_inst;
-  MBErrorCode rval;
+  Core moab_inst;
+  Interface& moab = moab_inst;
+  ErrorCode rval;
   
     // create 9 nodes in grid pattern
-  MBEntityHandle verts[9];
+  EntityHandle verts[9];
   const double coords[][3] = { { 0, 0, 0 },
                                { 1, 0, 0 },
                                { 2, 0, 0 },
@@ -1391,7 +1396,7 @@ bool test_subset( )
                           { 1, 2, 5, 4 },
                           { 3, 4, 7, 6 },
                           { 4, 5, 8, 7 } };
-  MBEntityHandle econn[4], elems[4];
+  EntityHandle econn[4], elems[4];
   for (unsigned i = 0; i < 4; ++i) {
     for (unsigned j = 0; j < 4; ++j)
       econn[j] = verts[conn[i][j]];
@@ -1400,7 +1405,7 @@ bool test_subset( )
   }
   
     // create 3 meshsets
-  MBEntityHandle sets[3];
+  EntityHandle sets[3];
   for (unsigned i = 0;i < 3; ++i) {
     rval = moab.create_meshset( 0, sets[i] );
     assert(MB_SUCCESS == rval);
@@ -1425,31 +1430,31 @@ bool test_subset( )
   
     // write sets[0] to vtk file
   rval = moab.write_mesh(  "tmp_file.vtk", sets, 1 );
-  MBCHECK(rval);
+  CHECK(rval);
    
     // read data back in
   moab.delete_mesh();
   rval = moab.load_mesh( "tmp_file.vtk" );
   remove( "tmp_file.vtk" );
-  MBCHECK(rval);
+  CHECK(rval);
   
     // writer should have written all three sets,
     // so the resulting mesh should be elems[2], elems[3], 
     // and verts[2]
-  MBRange new_elems, new_verts;
+  Range new_elems, new_verts;
   rval = moab.get_entities_by_type( 0, MBQUAD, new_elems );
-  MBCHECK(rval);
+  CHECK(rval);
   CHECK( new_elems.size() == 2 );
   rval = moab.get_entities_by_type( 0, MBVERTEX, new_verts );
-  MBCHECK(rval);
+  CHECK(rval);
   CHECK( new_verts.size() == 7 );
   
     // vertex not in element closure should have coords of 2,0,0
-  MBRange elem_verts;
-  rval = moab.get_adjacencies( new_elems, 0, false, elem_verts, MBInterface::UNION );
-  MBCHECK(rval);
+  Range elem_verts;
+  rval = moab.get_adjacencies( new_elems, 0, false, elem_verts, Interface::UNION );
+  CHECK(rval);
   CHECK(elem_verts.size() == 6);
-  MBRange free_verts( subtract( new_verts, elem_verts ) );
+  Range free_verts( subtract( new_verts, elem_verts ) );
   CHECK(free_verts.size() == 1 );
   double vcoords[3];
   rval = moab.get_coords( free_verts, vcoords );

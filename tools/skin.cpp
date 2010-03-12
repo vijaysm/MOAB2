@@ -12,13 +12,15 @@
 #include <sys/stat.h>
 #endif
 #include <fcntl.h>
-#include "MBInterface.hpp"
-#include "MBTagConventions.hpp"
-#include "MBCore.hpp"
-#include "MBRange.hpp"
-#include "MBSkinner.hpp"
-#include "MBAdaptiveKDTree.hpp"
-#include "MBCN.hpp"
+#include "moab/Interface.hpp"
+#include "moab/MBTagConventions.hpp"
+#include "moab/Core.hpp"
+#include "moab/Range.hpp"
+#include "moab/Skinner.hpp"
+#include "moab/AdaptiveKDTree.hpp"
+#include "moab/MBCN.hpp"
+
+using namespace moab;
 
 void get_time_mem(double &tot_time, double &tot_mem);
 
@@ -40,8 +42,8 @@ const int MIN_EDGE_LEN_DENOM = 4;
  std::cerr << "Internal error at line " << __LINE__ << std::endl; \
  return 3; } } while(false)
 
-MBErrorCode merge_duplicate_vertices( MBInterface&, double epsilon );
-MBErrorCode min_edge_length( MBInterface&, double& result );
+ErrorCode merge_duplicate_vertices( Interface&, double epsilon );
+ErrorCode min_edge_length( Interface&, double& result );
 
 void usage( const char* argv0, bool help = false ) 
 {
@@ -146,9 +148,9 @@ int main( int argc, char* argv[] )
   }
 
   
-  MBErrorCode result;
-  MBCore mbimpl;
-  MBInterface* iface = &mbimpl;
+  ErrorCode result;
+  Core mbimpl;
+  Interface* iface = &mbimpl;
   
   if (print_perf) {
     double tmp_time1, tmp_mem1;
@@ -188,7 +190,7 @@ int main( int argc, char* argv[] )
   
     // get entities of largest dimension
   int dim = 4;
-  MBRange entities;
+  Range entities;
   while (entities.empty() && dim > 1)
   {
     dim--;
@@ -196,8 +198,8 @@ int main( int argc, char* argv[] )
     CHKERROR(result);
   }
 
-  MBRange skin_ents;
-  MBTag matset_tag = 0, neuset_tag = 0;
+  Range skin_ents;
+  Tag matset_tag = 0, neuset_tag = 0;
   result = iface->tag_get_handle(MATERIAL_SET_TAG_NAME, matset_tag);
   result = iface->tag_get_handle(NEUMANN_SET_TAG_NAME, neuset_tag);
 
@@ -212,7 +214,7 @@ int main( int argc, char* argv[] )
     for (std::vector<int>::iterator vit = matsets.begin(); vit != matsets.end(); vit++) {
       int this_matset = *vit;
       const void *this_matset_ptr = &this_matset;
-      MBRange this_range, ent_range;
+      Range this_range, ent_range;
       result = iface->get_entities_by_type_and_tag(0, MBENTITYSET, &matset_tag,
                                                     &this_matset_ptr, 1, this_range);
       if (MB_SUCCESS != result) {
@@ -237,7 +239,7 @@ int main( int argc, char* argv[] )
 
   if (use_vert_elem_adjs) {
       // make a call which we know will generate vert-elem adjs
-    MBRange dum_range;
+    Range dum_range;
     result = iface->get_adjacencies(&(*skin_ents.begin()), 1, 1, false,
                                     dum_range);
   }
@@ -250,10 +252,10 @@ int main( int argc, char* argv[] )
   }
 
     // skin the mesh
-  MBRange forward_lower, reverse_lower;
-  MBSkinner tool( iface );
+  Range forward_lower, reverse_lower;
+  Skinner tool( iface );
   result = tool.find_skin( skin_ents, false, forward_lower, &reverse_lower );
-  MBRange boundary;
+  Range boundary;
   boundary.merge( forward_lower );
   boundary.merge( reverse_lower );
   if (MB_SUCCESS != result || boundary.empty())
@@ -264,12 +266,12 @@ int main( int argc, char* argv[] )
 
   if (write_tag) {
       // get tag handle
-    MBTag tag;
+    Tag tag;
     result = iface->tag_get_handle( fixed_tag, tag );
     if (result == MB_SUCCESS)
     {
       int size;
-      MBDataType type;
+      DataType type;
       iface->tag_get_size(tag, size);
       iface->tag_get_data_type(tag, type);
     
@@ -292,8 +294,8 @@ int main( int argc, char* argv[] )
   
       // Set tags
     std::vector<int> ones;
-    MBRange bverts;
-    result = iface->get_adjacencies(boundary, 0, false, bverts, MBInterface::UNION);
+    Range bverts;
+    result = iface->get_adjacencies(boundary, 0, false, bverts, Interface::UNION);
     if (MB_SUCCESS != result) {
       std::cerr << "Trouble getting vertices on boundary." << std::endl;
       return 1;
@@ -313,7 +315,7 @@ int main( int argc, char* argv[] )
     
 
       // always create a forward neumann set, assuming we have something in the set
-    MBEntityHandle forward_neuset = 0;
+    EntityHandle forward_neuset = 0;
     result = iface->create_meshset(MESHSET_SET, forward_neuset);
     if (MB_SUCCESS != result || 0 == forward_neuset) return 1;
     result = iface->tag_set_data(neuset_tag, &forward_neuset, 1, &neuset_num);
@@ -324,13 +326,13 @@ int main( int argc, char* argv[] )
       if (MB_SUCCESS != result) return 1;
     }
     if (!reverse_lower.empty()) {
-      MBEntityHandle reverse_neuset = 1;
+      EntityHandle reverse_neuset = 1;
       result = iface->create_meshset(MESHSET_SET, reverse_neuset);
       if (MB_SUCCESS != result || 0 == forward_neuset) return 1;
 
       result = iface->add_entities(reverse_neuset, reverse_lower);
       if (MB_SUCCESS != result) return 1;
-      MBTag sense_tag;
+      Tag sense_tag;
       result = iface->tag_get_handle("SENSE", sense_tag);
       if (result == MB_TAG_NOT_FOUND) {
         int dum_sense = 0;
@@ -358,7 +360,7 @@ int main( int argc, char* argv[] )
   }
   else if (NULL != output_file) {
       // write only skin; write them as one set
-    MBEntityHandle skin_set;
+    EntityHandle skin_set;
     result = iface->create_meshset(MESHSET_SET, skin_set);
     if (MB_SUCCESS != result) return 1;
     result = iface->add_entities(skin_set, forward_lower);
@@ -366,7 +368,7 @@ int main( int argc, char* argv[] )
     result = iface->add_entities(skin_set, reverse_lower);
     if (MB_SUCCESS != result) return 1;
 
-    MBRange this_range, ent_range;
+    Range this_range, ent_range;
     result = iface->get_entities_by_type_and_tag(0, MBENTITYSET, &matset_tag,
                                                   NULL, 0, this_range);
     if (!this_range.empty()) iface->delete_entities(this_range);
@@ -459,23 +461,23 @@ void get_time_mem(double &tot_time, double &tot_mem)
   
   
   
-MBErrorCode min_edge_length( MBInterface& moab, double& result )
+ErrorCode min_edge_length( Interface& moab, double& result )
 {
   double sqr_result = std::numeric_limits<double>::max();
   
-  MBErrorCode rval;
-  MBRange entities;
+  ErrorCode rval;
+  Range entities;
   rval = moab.get_entities_by_handle( 0, entities );
   if (MB_SUCCESS != rval) return rval;
-  MBRange::iterator i = entities.upper_bound( MBVERTEX );
+  Range::iterator i = entities.upper_bound( MBVERTEX );
   entities.erase( entities.begin(), i );
   i = entities.lower_bound( MBENTITYSET );
   entities.erase( i, entities.end() );
   
-  std::vector<MBEntityHandle> storage;
+  std::vector<EntityHandle> storage;
   for (i = entities.begin(); i != entities.end(); ++i) {
-    MBEntityType t = moab.type_from_handle( *i );
-    const MBEntityHandle* conn;
+    EntityType t = moab.type_from_handle( *i );
+    const EntityHandle* conn;
     int conn_len, indices[2];
     rval = moab.get_connectivity( *i, conn, conn_len, true, &storage );
     if (MB_SUCCESS != rval) return rval;
@@ -483,7 +485,7 @@ MBErrorCode min_edge_length( MBInterface& moab, double& result )
     int num_edges = MBCN::NumSubEntities( t, 1 );
     for (int j = 0; j < num_edges; ++j) {
       MBCN::SubEntityVertexIndices( t, 1, j, indices );
-      MBEntityHandle v[2] = { conn[indices[0]], conn[indices[1]] };
+      EntityHandle v[2] = { conn[indices[0]], conn[indices[1]] };
       if (v[0] == v[1])
         continue;
       
@@ -506,25 +508,25 @@ MBErrorCode min_edge_length( MBInterface& moab, double& result )
   
   
   
-MBErrorCode merge_duplicate_vertices( MBInterface& moab, const double epsilon )
+ErrorCode merge_duplicate_vertices( Interface& moab, const double epsilon )
 {
-  MBErrorCode rval;
-  MBRange verts;
+  ErrorCode rval;
+  Range verts;
   rval = moab.get_entities_by_type( 0, MBVERTEX, verts );
   if (MB_SUCCESS != rval)
     return rval;
   
-  MBAdaptiveKDTree tree( &moab );
-  MBEntityHandle root;
+  AdaptiveKDTree tree( &moab );
+  EntityHandle root;
   rval = tree.build_tree( verts, root );
   if (MB_SUCCESS != rval) {
     fprintf(stderr,"Failed to build kD-tree.\n");
     return rval;
   }
   
-  std::set<MBEntityHandle> dead_verts;
-  std::vector<MBEntityHandle> leaves;
-  for (MBRange::iterator i = verts.begin(); i != verts.end(); ++i) {
+  std::set<EntityHandle> dead_verts;
+  std::vector<EntityHandle> leaves;
+  for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
     double coords[3];
     rval = moab.get_coords( &*i, 1, coords );
     if (MB_SUCCESS != rval) return rval;
@@ -533,21 +535,21 @@ MBErrorCode merge_duplicate_vertices( MBInterface& moab, const double epsilon )
     rval = tree.leaves_within_distance( root, coords, epsilon, leaves );
     if (MB_SUCCESS != rval) return rval;
     
-    MBRange near;
-    for (std::vector<MBEntityHandle>::iterator j = leaves.begin(); j != leaves.end(); ++j) {
-      MBRange tmp;
+    Range near;
+    for (std::vector<EntityHandle>::iterator j = leaves.begin(); j != leaves.end(); ++j) {
+      Range tmp;
       rval = moab.get_entities_by_type( *j, MBVERTEX, tmp );
       if (MB_SUCCESS != rval)
         return rval;
       near.merge( tmp.begin(), tmp.end() );
     }
     
-    MBRange::iterator v = near.find( *i );
+    Range::iterator v = near.find( *i );
     assert( v != near.end() );
     near.erase( v );
     
-    MBEntityHandle merge = 0;
-    for (MBRange::iterator j = near.begin(); j != near.end(); ++j) {
+    EntityHandle merge = 0;
+    for (Range::iterator j = near.begin(); j != near.end(); ++j) {
       if (*j < *i && dead_verts.find( *j ) != dead_verts.end())
         continue;
       

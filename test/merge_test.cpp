@@ -3,12 +3,13 @@
 #include <utility>
 #include <iostream>
 using namespace std;
+using namespace moab;
 
-#include "MBCore.hpp"
-#include "MBInterface.hpp"
-#include "MBRange.hpp"
+#include "moab/Core.hpp"
+#include "moab/Interface.hpp"
+#include "moab/Range.hpp"
 
-MBInterface* gMB = 0;
+Interface* gMB = 0;
 
 class EntityCount
 {
@@ -22,8 +23,8 @@ public:
 
   EntityCount();
 
-  MBErrorCode get_counts();
-  MBErrorCode create_adjacencies(MBRange &entities, int adj_dim);
+  ErrorCode get_counts();
+  ErrorCode create_adjacencies(Range &entities, int adj_dim);
   void copy_counts(EntityCount &count);
   void print();
 };
@@ -48,9 +49,9 @@ void EntityCount::copy_counts(EntityCount &count)
   tet = count.tet;
 }
 
-MBErrorCode EntityCount::get_counts()
+ErrorCode EntityCount::get_counts()
 {
-  MBRange entities;
+  Range entities;
   int do_create = edge == 0;
 
   if(gMB->get_entities_by_type(0, MBVERTEX, entities) != MB_SUCCESS)
@@ -110,11 +111,11 @@ MBErrorCode EntityCount::get_counts()
   return MB_SUCCESS;
 }
 
-MBErrorCode EntityCount::create_adjacencies(MBRange &entities, int adj_dim)
+ErrorCode EntityCount::create_adjacencies(Range &entities, int adj_dim)
 {
-  MBErrorCode result;
-  MBRange::iterator iter;
-  std::vector<MBEntityHandle> adjacencies;
+  ErrorCode result;
+  Range::iterator iter;
+  std::vector<EntityHandle> adjacencies;
   
   for (iter = entities.begin(); iter != entities.end(); iter++)
   {
@@ -155,13 +156,13 @@ bool points_are_coincident(const double *first, const double *second)
 }
 
 // dumb n^2 coincident node algorithm
-MBErrorCode find_coincident_nodes(MBRange vertices,
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> > &coin_nodes)
+ErrorCode find_coincident_nodes(Range vertices,
+  std::vector< std::pair<EntityHandle,EntityHandle> > &coin_nodes)
 {
   double first_coords[3], second_coords[3];
-  MBRange::iterator iter, jter;
-  std::pair<MBEntityHandle, MBEntityHandle> coincident_pair;
-  MBErrorCode result;
+  Range::iterator iter, jter;
+  std::pair<EntityHandle, EntityHandle> coincident_pair;
+  ErrorCode result;
 
   for (iter = vertices.begin(); iter != vertices.end(); iter++)
   {
@@ -189,13 +190,13 @@ MBErrorCode find_coincident_nodes(MBRange vertices,
   return MB_SUCCESS;
 }
 
-MBErrorCode find_coincident_edges(MBRange entities,
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> > &coin_edges)
+ErrorCode find_coincident_edges(Range entities,
+  std::vector< std::pair<EntityHandle,EntityHandle> > &coin_edges)
 {
   double coords1[3], coords2[3], coords3[3];
-  MBRange::iterator iter, jter;
-  std::vector<MBEntityHandle> conn(2);
-  std::pair<MBEntityHandle, MBEntityHandle> coincident_pair;
+  Range::iterator iter, jter;
+  std::vector<EntityHandle> conn(2);
+  std::pair<EntityHandle, EntityHandle> coincident_pair;
 
   for(iter = entities.begin(); iter != entities.end(); iter++)
   {
@@ -239,13 +240,13 @@ MBErrorCode find_coincident_edges(MBRange entities,
   return MB_SUCCESS;
 }
 
-MBErrorCode find_coincident_elements(MBRange entities, int num_nodes,
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> > &coin)
+ErrorCode find_coincident_elements(Range entities, int num_nodes,
+  std::vector< std::pair<EntityHandle,EntityHandle> > &coin)
 {
   double coords1[8][3], coords2[8][3];
-  MBRange::iterator iter, jter;
-  std::vector<MBEntityHandle> conn(8);
-  std::pair<MBEntityHandle, MBEntityHandle> coincident_pair;
+  Range::iterator iter, jter;
+  std::vector<EntityHandle> conn(8);
+  std::pair<EntityHandle, EntityHandle> coincident_pair;
   int i = 0, j = 0, ii = 0;
 
   for(iter = entities.begin(); iter != entities.end(); iter++)
@@ -306,11 +307,11 @@ MBErrorCode find_coincident_elements(MBRange entities, int num_nodes,
   return MB_SUCCESS;
 }
 
-MBErrorCode coincident_counts(EntityCount &curr_count,
+ErrorCode coincident_counts(EntityCount &curr_count,
                                EntityCount &diff_count)
 {
-  MBRange entities;
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> > coincident;
+  Range entities;
+  std::vector< std::pair<EntityHandle,EntityHandle> > coincident;
 
 
   if(curr_count.node > 0)
@@ -371,12 +372,12 @@ MBErrorCode coincident_counts(EntityCount &curr_count,
   return MB_SUCCESS;
 }
 
-MBErrorCode merge_top_down(EntityCount &init_count,
+ErrorCode merge_top_down(EntityCount &init_count,
                             EntityCount &curr_count)
 {
-  MBRange entities;
+  Range entities;
   EntityCount diff_count;
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> > coincident;
+  std::vector< std::pair<EntityHandle,EntityHandle> > coincident;
 
   // Find how many objects of each type need to be merged.
   if(coincident_counts(curr_count, diff_count) != MB_SUCCESS)
@@ -415,7 +416,7 @@ MBErrorCode merge_top_down(EntityCount &init_count,
     find_coincident_edges(entities, coincident);
   }
 
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> >::iterator iter;
+  std::vector< std::pair<EntityHandle,EntityHandle> >::iterator iter;
   for(iter=coincident.begin(); iter != coincident.end(); iter++)
     gMB->merge_entities((*iter).first, (*iter).second, false, true);
 
@@ -438,22 +439,22 @@ MBErrorCode merge_top_down(EntityCount &init_count,
   return MB_SUCCESS;
 }
 
-MBErrorCode merge_nodes(EntityCount &init_count, EntityCount &curr_count)
+ErrorCode merge_nodes(EntityCount &init_count, EntityCount &curr_count)
 {
   cout << "Merging Coincident Nodes:" << endl;
 
   // Get the list of vertices from the database.
-  MBRange vertices;
-  MBErrorCode result = gMB->get_entities_by_type(0, MBVERTEX,  vertices);
+  Range vertices;
+  ErrorCode result = gMB->get_entities_by_type(0, MBVERTEX,  vertices);
   if(result != MB_SUCCESS)
     return result;
 
   // find the coincident node pairs
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> > coincident_nodes;
+  std::vector< std::pair<EntityHandle,EntityHandle> > coincident_nodes;
   find_coincident_nodes(vertices, coincident_nodes);
 
   // merge the coincident nodes
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> >::iterator iter;
+  std::vector< std::pair<EntityHandle,EntityHandle> >::iterator iter;
   for(iter=coincident_nodes.begin(); iter != coincident_nodes.end(); iter++)
   {
     cout << "   Coincident nodes: " << (*iter).first << "-"
@@ -491,23 +492,23 @@ MBErrorCode merge_nodes(EntityCount &init_count, EntityCount &curr_count)
   return MB_SUCCESS;
 }
 
-MBErrorCode merge_edges(EntityCount &init_count, EntityCount &curr_count)
+ErrorCode merge_edges(EntityCount &init_count, EntityCount &curr_count)
 {
   cout << "Merging Coincident Edges:" << endl;
 
   // Get the list of entities from the database.
-  MBRange entities;
-  MBErrorCode result = gMB->get_entities_by_type(0, MBEDGE,  entities);
+  Range entities;
+  ErrorCode result = gMB->get_entities_by_type(0, MBEDGE,  entities);
   if(result != MB_SUCCESS)
     return result;
 
   // find the coincident edge pairs
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> > coincident_edges;
+  std::vector< std::pair<EntityHandle,EntityHandle> > coincident_edges;
   find_coincident_edges(entities, coincident_edges);
 
   // merge the coincident edges
   unsigned long id1, id2;
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> >::iterator iter;
+  std::vector< std::pair<EntityHandle,EntityHandle> >::iterator iter;
   for(iter=coincident_edges.begin(); iter != coincident_edges.end(); iter++)
   {
     id1 = gMB->id_from_handle((*iter).first);
@@ -544,24 +545,24 @@ MBErrorCode merge_edges(EntityCount &init_count, EntityCount &curr_count)
   return MB_SUCCESS;
 }
 
-MBErrorCode merge_2D_elem(EntityCount &init_count, EntityCount &curr_count)
+ErrorCode merge_2D_elem(EntityCount &init_count, EntityCount &curr_count)
 {
   cout << "Merging Coincident 2D Elements:" << endl;
 
   // Get the list of tris from the database.
-  MBRange entities;
-  MBErrorCode result = gMB->get_entities_by_type(0, MBTRI,  entities);
+  Range entities;
+  ErrorCode result = gMB->get_entities_by_type(0, MBTRI,  entities);
   if(result != MB_SUCCESS)
     return result;
 
   // find the coincident tri pairs
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> > coincident;
+  std::vector< std::pair<EntityHandle,EntityHandle> > coincident;
   find_coincident_elements(entities, 3, coincident);
 
   // merge the coincident tris
   unsigned long id1, id2;
   unsigned int tri_diff = coincident.size();
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> >::iterator iter;
+  std::vector< std::pair<EntityHandle,EntityHandle> >::iterator iter;
   for(iter=coincident.begin(); iter != coincident.end(); iter++)
   {
     id1 = gMB->id_from_handle((*iter).first);
@@ -626,26 +627,26 @@ MBErrorCode merge_2D_elem(EntityCount &init_count, EntityCount &curr_count)
   return MB_SUCCESS;
 }
 
-MBErrorCode merge_3D_elem(EntityCount &init_count, EntityCount &curr_count)
+ErrorCode merge_3D_elem(EntityCount &init_count, EntityCount &curr_count)
 {
   cout << "Merging Coincident 3D Elements:" << endl;
 
 
   // Get the list of tets from the database.
-  MBRange entities;
-  MBErrorCode result = gMB->get_entities_by_type(0, MBTET,  entities);
+  Range entities;
+  ErrorCode result = gMB->get_entities_by_type(0, MBTET,  entities);
   if(result != MB_SUCCESS)
 
     return result;
 
   // find the coincident tet pairs
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> > coincident;
+  std::vector< std::pair<EntityHandle,EntityHandle> > coincident;
   find_coincident_elements(entities, 4, coincident);
 
   // merge the coincident tets
   unsigned long id1, id2;
   unsigned int tet_diff = coincident.size();
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> >::iterator iter;
+  std::vector< std::pair<EntityHandle,EntityHandle> >::iterator iter;
   for(iter=coincident.begin(); iter != coincident.end(); iter++)
   {
     id1 = gMB->id_from_handle((*iter).first);
@@ -710,7 +711,7 @@ MBErrorCode merge_3D_elem(EntityCount &init_count, EntityCount &curr_count)
   return MB_SUCCESS;
 }
 
-MBErrorCode read_file(std::string &file_name, EntityCount &counts)
+ErrorCode read_file(std::string &file_name, EntityCount &counts)
 {
   // Make sure the database is empty.
   gMB->delete_mesh();
@@ -732,12 +733,12 @@ MBErrorCode read_file(std::string &file_name, EntityCount &counts)
   return MB_SUCCESS;
 }
 
-MBErrorCode write_file(std::string &file_name)
+ErrorCode write_file(std::string &file_name)
 {
   //get the block tag
-  MBErrorCode result;
-  MBRange block_range;
-  MBTag block_tag;
+  ErrorCode result;
+  Range block_range;
+  Tag block_tag;
 
   if(gMB->tag_get_handle("MATERIAL_SET", block_tag) == MB_SUCCESS)
   {
@@ -748,9 +749,9 @@ MBErrorCode write_file(std::string &file_name)
   }
 
   //transfer range contents into vectors
-  std::vector<MBEntityHandle> output_list;
+  std::vector<EntityHandle> output_list;
 
-  MBRange::iterator range_iter, end_iter;
+  Range::iterator range_iter, end_iter;
   range_iter = block_range.begin();
   end_iter = block_range.end();
 
@@ -777,7 +778,7 @@ MBErrorCode write_file(std::string &file_name)
   return result;
 }
 
-MBErrorCode process_td_auto_merge(std::string &file_name)
+ErrorCode process_td_auto_merge(std::string &file_name)
 {
   EntityCount init_count;
   EntityCount curr_count;
@@ -795,8 +796,8 @@ MBErrorCode process_td_auto_merge(std::string &file_name)
   curr_count.print();
 
   // Try auto merging from the top down.
-  MBRange entities;
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> > coincident;
+  Range entities;
+  std::vector< std::pair<EntityHandle,EntityHandle> > coincident;
 
   // Find how many objects of each type need to be merged.
   if(coincident_counts(curr_count, diff_count) != MB_SUCCESS)
@@ -841,7 +842,7 @@ MBErrorCode process_td_auto_merge(std::string &file_name)
   }
 
   cout << "Merging coincident entities(top down)..." << endl;
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> >::iterator iter;
+  std::vector< std::pair<EntityHandle,EntityHandle> >::iterator iter;
   for(iter=coincident.begin(); iter != coincident.end(); iter++)
     gMB->merge_entities((*iter).first, (*iter).second, true, true);
 
@@ -873,7 +874,7 @@ MBErrorCode process_td_auto_merge(std::string &file_name)
   return MB_SUCCESS;
 }
 
-MBErrorCode process_mo_auto_merge(std::string &file_name)
+ErrorCode process_mo_auto_merge(std::string &file_name)
 {
   EntityCount init_count;
   EntityCount curr_count;
@@ -891,8 +892,8 @@ MBErrorCode process_mo_auto_merge(std::string &file_name)
   curr_count.print();
 
   // Try auto merging from the middle out.
-  MBRange entities;
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> > coincident;
+  Range entities;
+  std::vector< std::pair<EntityHandle,EntityHandle> > coincident;
 
   // Find how many objects of each type need to be merged.
   if(coincident_counts(curr_count, diff_count) != MB_SUCCESS)
@@ -915,7 +916,7 @@ MBErrorCode process_mo_auto_merge(std::string &file_name)
   }
 
   cout << "Merging coincident entities(middle out)..." << endl;
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> >::iterator iter;
+  std::vector< std::pair<EntityHandle,EntityHandle> >::iterator iter;
   for(iter=coincident.begin(); iter != coincident.end(); iter++)
 
     gMB->merge_entities((*iter).first, (*iter).second, true,true);
@@ -948,7 +949,7 @@ MBErrorCode process_mo_auto_merge(std::string &file_name)
   return MB_SUCCESS;
 }
 
-MBErrorCode process_bu_auto_merge(std::string &file_name)
+ErrorCode process_bu_auto_merge(std::string &file_name)
 {
   EntityCount init_count;
   EntityCount curr_count;
@@ -966,8 +967,8 @@ MBErrorCode process_bu_auto_merge(std::string &file_name)
   curr_count.print();
 
   // Try auto merging from the bottom up.
-  MBRange entities;
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> > coincident;
+  Range entities;
+  std::vector< std::pair<EntityHandle,EntityHandle> > coincident;
 
   // Find how many objects of each type need to be merged.
   if(coincident_counts(curr_count, diff_count) != MB_SUCCESS)
@@ -979,7 +980,7 @@ MBErrorCode process_bu_auto_merge(std::string &file_name)
   find_coincident_nodes(entities, coincident);
 
   cout << "Merging coincident entities(bottom up)..." << endl;
-  std::vector< std::pair<MBEntityHandle,MBEntityHandle> >::iterator iter;
+  std::vector< std::pair<EntityHandle,EntityHandle> >::iterator iter;
   for(iter=coincident.begin(); iter != coincident.end(); iter++)
     gMB->merge_entities((*iter).first, (*iter).second, true, true);
 
@@ -1012,7 +1013,7 @@ MBErrorCode process_bu_auto_merge(std::string &file_name)
   return MB_SUCCESS;
 }
 
-MBErrorCode process_merge(std::string &file_name)
+ErrorCode process_merge(std::string &file_name)
 {
   EntityCount init_count;
   EntityCount curr_count;
@@ -1064,7 +1065,7 @@ MBErrorCode process_merge(std::string &file_name)
 
 int main()
 {
-  MBErrorCode result;
+  ErrorCode result;
   std::string test_files[] = {std::string("test/2barcase1.g"),
                               std::string("test/2barcase2.g"),
                               std::string("test/2hexcase1.g"),
@@ -1085,7 +1086,7 @@ int main()
                               std::string("test/2tricase3.g")};
 
   // Create the MB database instance.
-  gMB = new MBCore();
+  gMB = new Core();
 
   // Loop through the list of test files.
   unsigned int i;

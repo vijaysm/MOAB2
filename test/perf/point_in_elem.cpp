@@ -1,8 +1,8 @@
-#include "MBCore.hpp"
-#include "MBAdaptiveKDTree.hpp"
-#include "MBRange.hpp"
-#include "MBCartVect.hpp"
-#include "MBGeomUtil.hpp"
+#include "moab/Core.hpp"
+#include "moab/AdaptiveKDTree.hpp"
+#include "moab/Range.hpp"
+#include "moab/CartVect.hpp"
+#include "moab/GeomUtil.hpp"
 #include <iostream>
 #include <time.h>
 #include <stdlib.h>
@@ -10,7 +10,9 @@
 
 #define CHK(ErrorCode) do { if (MB_SUCCESS != (ErrorCode)) fail( (ErrorCode), __FILE__, __LINE__ ); } while(false)
 
-void fail( MBErrorCode error_code, const char* file_name, int line_number );
+using namespace moab;
+
+void fail( ErrorCode error_code, const char* file_name, int line_number );
 
 enum TreeType {  UseKDTree, UseNoTree, UseDefaultTree = UseKDTree };
 
@@ -45,18 +47,18 @@ void usage( char* argv0, bool help = false )
   exit(0);
 }
 
-void generate_random_points( MBInterface& mesh, size_t num_points,
-                             std::vector<MBCartVect>& points,
-                             std::vector<MBEntityHandle>& point_elems );
+void generate_random_points( Interface& mesh, size_t num_points,
+                             std::vector<CartVect>& points,
+                             std::vector<EntityHandle>& point_elems );
 
-void do_kdtree_test( MBInterface& mesh, int tree_depth, int elem_per_leaf,
-                     long num_test, const std::vector<MBCartVect>& points,
-                     std::vector<MBEntityHandle>& point_elems,
+void do_kdtree_test( Interface& mesh, int tree_depth, int elem_per_leaf,
+                     long num_test, const std::vector<CartVect>& points,
+                     std::vector<EntityHandle>& point_elems,
                      clock_t& build_time, clock_t& test_time, size_t& depth );
 
-void do_linear_test( MBInterface& mesh, int tree_depth, int elem_per_leaf,
-                     long num_test, const std::vector<MBCartVect>& points,
-                     std::vector<MBEntityHandle>& point_elems,
+void do_linear_test( Interface& mesh, int tree_depth, int elem_per_leaf,
+                     long num_test, const std::vector<CartVect>& points,
+                     std::vector<EntityHandle>& point_elems,
                      clock_t& build_time, clock_t& test_time, size_t& depth );
 
 int main( int argc, char* argv[] )
@@ -113,9 +115,9 @@ int main( int argc, char* argv[] )
   
     // LOAD MESH
     
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
+  ErrorCode rval;
   std::string init_msg, msg;
   mb.get_last_error( init_msg );
   rval = mb.load_file( input_file );
@@ -133,8 +135,8 @@ int main( int argc, char* argv[] )
     num_unique = HARD_MAX_UNIQUE_POINTS;
   else if (num_unique < HARD_MIN_UNIQUE_POINTS)
     num_unique = num_points;
-  std::vector<MBCartVect> points;
-  std::vector<MBEntityHandle> elems;
+  std::vector<CartVect> points;
+  std::vector<EntityHandle> elems;
   generate_random_points( mb, num_unique, points, elems );
   
     // GET MEMORY USE BEFORE BUILDING TREE
@@ -145,7 +147,7 @@ int main( int argc, char* argv[] )
     // RUN TIMING TEST
   clock_t build_time, test_time;
   size_t actual_depth;
-  std::vector<MBEntityHandle> results(points.size());
+  std::vector<EntityHandle> results(points.size());
   switch (type) {
     case UseKDTree: 
       do_kdtree_test( mb, tree_depth, elem_per_leaf, num_points, points, results, build_time, test_time, actual_depth );
@@ -181,7 +183,7 @@ int main( int argc, char* argv[] )
 }
 
 
-void fail( MBErrorCode error_code, const char* file, int line )
+void fail( ErrorCode error_code, const char* file, int line )
 {
   std::cerr << "Internal error (error code " << error_code << ") at " << file << ":" << line << std::endl;
   abort();
@@ -196,16 +198,16 @@ const int HexSign[8][3] = { { -1, -1, -1 },
                             {  1,  1,  1 },
                             { -1,  1,  1 } };
 
-MBCartVect random_point_in_hex( MBInterface& mb, MBEntityHandle hex )
+CartVect random_point_in_hex( Interface& mb, EntityHandle hex )
 {
   const double f = RAND_MAX/2;
-  MBCartVect xi( ((double)rand() - f)/f, 
+  CartVect xi( ((double)rand() - f)/f, 
                  ((double)rand() - f)/f, 
                  ((double)rand() - f)/f );
-  MBCartVect coords[8];
-  const MBEntityHandle* conn;
+  CartVect coords[8];
+  const EntityHandle* conn;
   int len;
-  MBErrorCode rval = mb.get_connectivity( hex, conn, len, true );
+  ErrorCode rval = mb.get_connectivity( hex, conn, len, true );
   if (len != 8 && MB_SUCCESS != rval) {
     std::cerr << "Invalid element" << std::endl;
     assert(false);
@@ -214,7 +216,7 @@ MBCartVect random_point_in_hex( MBInterface& mb, MBEntityHandle hex )
   rval = mb.get_coords( conn, 8, reinterpret_cast<double*>(coords) );
   CHK(rval);
   
-  MBCartVect point(0,0,0);
+  CartVect point(0,0,0);
   for (unsigned i = 0; i < 8; ++i) {
     double coeff = 0.125;
     for (unsigned j = 0; j < 3; ++j)
@@ -225,17 +227,17 @@ MBCartVect random_point_in_hex( MBInterface& mb, MBEntityHandle hex )
   return point;
 }
 
-void generate_random_points( MBInterface& mb, size_t num_points,
-                             std::vector<MBCartVect>& points,
-                             std::vector<MBEntityHandle>& point_elems )
+void generate_random_points( Interface& mb, size_t num_points,
+                             std::vector<CartVect>& points,
+                             std::vector<EntityHandle>& point_elems )
 {
-  MBRange elems;
-  MBErrorCode rval;
+  Range elems;
+  ErrorCode rval;
   rval = mb.get_entities_by_dimension( 0, 3, elems );
   CHK(rval);
   if (!elems.all_of_type(MBHEX)) {
     std::cerr << "Warning: ignoring non-hexahedral elements." << std::endl;
-    std::pair< MBRange::iterator, MBRange::iterator > p = elems.equal_range(MBHEX);
+    std::pair< Range::iterator, Range::iterator > p = elems.equal_range(MBHEX);
     elems.erase( p.second, elems.end() );
     elems.erase( elems.begin(), p.first );
   }
@@ -257,21 +259,21 @@ void generate_random_points( MBInterface& mb, size_t num_points,
   }
 }
 
-void do_kdtree_test( MBInterface& mb, int tree_depth, int elem_per_leaf,
-                     long num_test, const std::vector<MBCartVect>& points,
-                     std::vector<MBEntityHandle>& point_elems,
+void do_kdtree_test( Interface& mb, int tree_depth, int elem_per_leaf,
+                     long num_test, const std::vector<CartVect>& points,
+                     std::vector<EntityHandle>& point_elems,
                      clock_t& build_time, clock_t& test_time, size_t& depth )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   clock_t init = clock();
-  MBAdaptiveKDTree tool( &mb );
-  MBEntityHandle root;
-  MBAdaptiveKDTree::Settings settings;
+  AdaptiveKDTree tool( &mb );
+  EntityHandle root;
+  AdaptiveKDTree::Settings settings;
   if (tree_depth > 0)
     settings.maxTreeDepth = tree_depth;
   if (elem_per_leaf > 0)
     settings.maxEntPerLeaf = elem_per_leaf;
-  MBRange all_hexes;
+  Range all_hexes;
   rval = mb.get_entities_by_type( 0, MBHEX, all_hexes );
   CHK(rval);
   rval = tool.build_tree( all_hexes, root, &settings );
@@ -279,11 +281,11 @@ void do_kdtree_test( MBInterface& mb, int tree_depth, int elem_per_leaf,
   all_hexes.clear();
   build_time = clock() - init;
   
-  MBEntityHandle leaf;
-  std::vector<MBEntityHandle> hexes;
-  std::vector<MBEntityHandle>::iterator j;
-  MBCartVect coords[8];
-  const MBEntityHandle* conn;
+  EntityHandle leaf;
+  std::vector<EntityHandle> hexes;
+  std::vector<EntityHandle>::iterator j;
+  CartVect coords[8];
+  const EntityHandle* conn;
   int len;
   for (long i = 0; i < num_test; ++i) {
     const size_t idx = (size_t)i % points.size();
@@ -293,7 +295,7 @@ void do_kdtree_test( MBInterface& mb, int tree_depth, int elem_per_leaf,
     for (j = hexes.begin(); j != hexes.end(); ++j) {
       rval = mb.get_connectivity( *j, conn, len, true ); CHK(rval);
       rval = mb.get_coords( conn, 8, reinterpret_cast<double*>(coords) ); CHK(rval);
-      if (MBGeomUtil::point_in_trilinear_hex( coords, points[idx], 1e-12 )) {
+      if (GeomUtil::point_in_trilinear_hex( coords, points[idx], 1e-12 )) {
         point_elems[idx] = *j;
         break;
       }
@@ -308,28 +310,28 @@ void do_kdtree_test( MBInterface& mb, int tree_depth, int elem_per_leaf,
   depth = max_d;
 }
 
-void do_linear_test( MBInterface& mb, int , int ,
-                     long num_test, const std::vector<MBCartVect>& points,
-                     std::vector<MBEntityHandle>& point_elems,
+void do_linear_test( Interface& mb, int , int ,
+                     long num_test, const std::vector<CartVect>& points,
+                     std::vector<EntityHandle>& point_elems,
                      clock_t& build_time, clock_t& test_time, size_t& depth )
 {
   clock_t init = clock();
-  MBRange hexes;
-  MBErrorCode rval = mb.get_entities_by_type( 0, MBHEX, hexes );
+  Range hexes;
+  ErrorCode rval = mb.get_entities_by_type( 0, MBHEX, hexes );
   CHK(rval);
   depth = 0;
   point_elems.resize( points.size() );
   build_time = clock() - init;
   
-  MBCartVect coords[8];
-  const MBEntityHandle* conn;
+  CartVect coords[8];
+  const EntityHandle* conn;
   int len;
   for (long i = 0; i < num_test; ++i) {
     const size_t idx = (size_t)i % points.size();
-    for (MBRange::iterator h = hexes.begin(); h != hexes.end(); ++h) {
+    for (Range::iterator h = hexes.begin(); h != hexes.end(); ++h) {
       rval = mb.get_connectivity( *h, conn, len, true ); CHK(rval);
       rval = mb.get_coords( conn, 8, reinterpret_cast<double*>(coords) ); CHK(rval);
-      if (MBGeomUtil::point_in_trilinear_hex( coords, points[idx], 1e-12 )) {
+      if (GeomUtil::point_in_trilinear_hex( coords, points[idx], 1e-12 )) {
         point_elems[idx] = *h;
         break;
       }

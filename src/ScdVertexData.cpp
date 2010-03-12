@@ -16,8 +16,10 @@
 #include "ScdVertexData.hpp"
 #include <assert.h>
 
+namespace moab {
+
     //! constructor
-ScdVertexData::ScdVertexData(const MBEntityHandle start_vertex, 
+ScdVertexData::ScdVertexData(const EntityHandle start_vertex, 
                              const int imin, const int jmin, const int kmin,
                              const int imax, const int jmax, const int kmax) 
     : SequenceData( 3, start_vertex, 
@@ -40,10 +42,12 @@ ScdVertexData::ScdVertexData(const MBEntityHandle start_vertex,
   create_sequence_data( 2, sizeof(double) );
 }
 
-SequenceData* ScdVertexData::subset( MBEntityHandle /*start*/, 
-                                     MBEntityHandle /*end*/,
+SequenceData* ScdVertexData::subset( EntityHandle /*start*/, 
+                                     EntityHandle /*end*/,
                                      const int* /*sequence_data_sizes*/,
                                      const int* /*tag_data_sizes*/ ) const
 {
   return 0;
 }
+  
+} // namespace moab

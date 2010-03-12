@@ -6,8 +6,6 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${MOAB_BINARY_DIR}/src
   ${MOAB_SOURCE_DIR}/src
-  ${MOAB_BINARY_DIR}/src/moab
-  ${MOAB_SOURCE_DIR}/src/moab
 )
 
 set( MOAB_DAGMC_LIB_SRCS

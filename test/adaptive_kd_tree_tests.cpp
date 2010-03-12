@@ -1,15 +1,17 @@
-#include "MBCore.hpp"
-#include "MBAdaptiveKDTree.hpp"
-#include "MBCartVect.hpp"
-#include "MBGeomUtil.hpp"
-#include "MBRange.hpp"
+#include "moab/Core.hpp"
+#include "moab/AdaptiveKDTree.hpp"
+#include "moab/CartVect.hpp"
+#include "moab/GeomUtil.hpp"
+#include "moab/Range.hpp"
 #include "TestUtil.hpp"
+
+using namespace moab;
 
 #include <iostream>
 #include <algorithm>
 
 /* Utility method - compare two range boxes */
-bool box_equal( const MBAdaptiveKDTreeIter& iter, 
+bool box_equal( const AdaptiveKDTreeIter& iter, 
                 double x_min, double y_min, double z_min,
                 double x_max, double y_max, double z_max )
 {
@@ -21,15 +23,15 @@ bool box_equal( const MBAdaptiveKDTreeIter& iter,
          iter.box_max()[2] == z_max;
 }
 
-void build_triangles( MBInterface* moab, MBRange& tris,
+void build_triangles( Interface* moab, Range& tris,
                       int num_vert, const double* coords,
                       int num_tri,  const unsigned* conn )
 {
-  std::vector<MBEntityHandle> verts(num_vert);
+  std::vector<EntityHandle> verts(num_vert);
   for (int i = 0; i < num_vert; ++i)
     moab->create_vertex( coords + 3*i, verts[i] );
   
-  MBEntityHandle tri, tri_verts[3];
+  EntityHandle tri, tri_verts[3];
   for (int i = 0; i < num_tri; ++i) {
     tri_verts[0] = verts[conn[3*i  ]];
     tri_verts[1] = verts[conn[3*i+1]];
@@ -41,7 +43,7 @@ void build_triangles( MBInterface* moab, MBRange& tris,
 }  
 
 /* Utility method - build a 2x2x2 box composed of four triagles on a side */
-void build_triangle_box_small( MBInterface* moab, MBRange& tris )
+void build_triangle_box_small( Interface* moab, Range& tris )
 {
   const double coords[] = { -1, -1, -1,
                              1, -1, -1,
@@ -65,7 +67,7 @@ void build_triangle_box_small( MBInterface* moab, MBRange& tris )
 /* build 6x6x6 box centered at origin and composed of 18 triangles per side,
    Each side of the box is composed of a 3x3 grid of quads, where each
    quad is split diagonally to form two triangles. */
-void build_triangle_box_large( MBInterface* moab, MBRange& tris )
+void build_triangle_box_large( Interface* moab, Range& tris )
 {
   const double coords[] = { // corners
                             -3, -3, -3,
@@ -257,7 +259,7 @@ void build_triangle_box_large( MBInterface* moab, MBRange& tris )
                             
 
 /* Utility method - build 2x2x2 octahedron (3D diamond)*/
-void build_triangle_octahedron( MBInterface* moab, MBRange& tris )
+void build_triangle_octahedron( Interface* moab, Range& tris )
 {
   const double coords[] = {  1,  0,  0,
                              0,  1,  0,
@@ -277,34 +279,34 @@ void build_triangle_octahedron( MBInterface* moab, MBRange& tris )
   build_triangles( moab, tris, 6, coords, 8, conn );
 }
 
-void test_valid_tree( MBAdaptiveKDTree* tool, MBEntityHandle root, 
-                      MBAdaptiveKDTree::Settings& settings,
-                      const MBRange& expected_tris )
+void test_valid_tree( AdaptiveKDTree* tool, EntityHandle root, 
+                      AdaptiveKDTree::Settings& settings,
+                      const Range& expected_tris )
 {
-  MBRange all_tris;
-  MBErrorCode rval;
-  MBAdaptiveKDTreeIter iter;
+  Range all_tris;
+  ErrorCode rval;
+  AdaptiveKDTreeIter iter;
   CHECK(MB_SUCCESS == tool->get_tree_iterator( root, iter ));
   do {
     CHECK( !settings.maxTreeDepth || iter.depth() <= settings.maxTreeDepth );
     
-    MBRange tris;
+    Range tris;
     CHECK( tool->moab()->get_entities_by_type( iter.handle(), MBTRI, tris ) == MB_SUCCESS );
     //CHECK( !tris.empty() );
     all_tris.merge( tris );
 
-    const MBCartVect min(iter.box_min()), max(iter.box_max());
-    const MBCartVect cen(0.5*(min+max)), hdim(0.5*(max-min));
+    const CartVect min(iter.box_min()), max(iter.box_max());
+    const CartVect cen(0.5*(min+max)), hdim(0.5*(max-min));
     
-    for (MBRange::iterator i = tris.begin(); i != tris.end(); ++i) {
-      MBEntityHandle tri = *i;
-      const MBEntityHandle* conn;
+    for (Range::iterator i = tris.begin(); i != tris.end(); ++i) {
+      EntityHandle tri = *i;
+      const EntityHandle* conn;
       int conn_len;
       CHECK( tool->moab()->get_connectivity( tri, conn, conn_len ) == MB_SUCCESS );
       CHECK( conn_len == 3 );
-      MBCartVect coords[3];
+      CartVect coords[3];
       CHECK( tool->moab()->get_coords( conn, 3, coords[0].array() ) == MB_SUCCESS );
-      CHECK( MBGeomUtil::box_tri_overlap( coords, cen, hdim ) );
+      CHECK( GeomUtil::box_tri_overlap( coords, cen, hdim ) );
     }
   } while (MB_SUCCESS == (rval = iter.step()));  
   
@@ -313,17 +315,17 @@ void test_valid_tree( MBAdaptiveKDTree* tool, MBEntityHandle root,
 }
 
 /* utility method - check that all tris share a vertex */
-void check_common_vertex( MBInterface* moab,
-                          const MBEntityHandle* tris,
+void check_common_vertex( Interface* moab,
+                          const EntityHandle* tris,
                           unsigned num_tri,
-                          MBCartVect point )
+                          CartVect point )
 {
   for (unsigned i = 0; i < num_tri; ++i)
     CHECK( MBTRI == moab->type_from_handle( tris[i] ) );
   
-  MBErrorCode rval;
-  MBCartVect tri_coords[3];
-  const MBEntityHandle* conn;
+  ErrorCode rval;
+  CartVect tri_coords[3];
+  const EntityHandle* conn;
   int conn_len;
   rval = moab->get_connectivity( tris[0], conn, conn_len );
   CHECK( MB_SUCCESS == rval );
@@ -332,7 +334,7 @@ void check_common_vertex( MBInterface* moab,
   tri_coords[0] -= point;
   tri_coords[1] -= point;
   tri_coords[2] -= point;
-  MBEntityHandle vertex = 0;
+  EntityHandle vertex = 0;
   if (tri_coords[0] % tri_coords[0] < 1e-6)
     vertex = conn[0];
   else if (tri_coords[1] % tri_coords[1] < 1e-6)
@@ -347,14 +349,14 @@ void check_common_vertex( MBInterface* moab,
 }                        
  
 /* utility method - check that all tris share a vertex */
-void check_point_in_triangles( MBInterface* moab,
-                               const MBEntityHandle* tris,
+void check_point_in_triangles( Interface* moab,
+                               const EntityHandle* tris,
                                unsigned num_tris,
-                               MBCartVect point )
+                               CartVect point )
 {
-  MBErrorCode rval;
-  MBCartVect tri_coords[3], tript;
-  const MBEntityHandle* conn;
+  ErrorCode rval;
+  CartVect tri_coords[3], tript;
+  const EntityHandle* conn;
   int conn_len;
 
   for (unsigned i = 0; i < num_tris; ++i) {
@@ -365,7 +367,7 @@ void check_point_in_triangles( MBInterface* moab,
     rval = moab->get_coords( conn, 3, tri_coords[0].array() );
     CHECK( MB_SUCCESS == rval );
     
-    MBGeomUtil::closest_location_on_tri( point, tri_coords, tript );
+    GeomUtil::closest_location_on_tri( point, tri_coords, tript );
     tript -= point;
     CHECK( fabs(tript[0]) < 1e-6 );
     CHECK( fabs(tript[1]) < 1e-6 );
@@ -393,12 +395,12 @@ void check_point_in_triangles( MBInterface* moab,
                     |                |
                     (2) X = -1      (4) X = 4
    */
-void create_simple_2d_tree( MBAdaptiveKDTree& tool, 
-                            MBEntityHandle& root,
-                            MBEntityHandle leaves[9] = 0 )
+void create_simple_2d_tree( AdaptiveKDTree& tool, 
+                            EntityHandle& root,
+                            EntityHandle leaves[9] = 0 )
 {
-  MBErrorCode rval;
-  MBAdaptiveKDTree::Plane plane;
+  ErrorCode rval;
+  AdaptiveKDTree::Plane plane;
 
     // create a single-node tree
   double min[3] = { -5, -4, -1 };
@@ -407,27 +409,27 @@ void create_simple_2d_tree( MBAdaptiveKDTree& tool,
   CHECK( MB_SUCCESS == rval );
 
     // get iterator for tree
-  MBAdaptiveKDTreeIter iter;
+  AdaptiveKDTreeIter iter;
   rval = tool.get_tree_iterator( root, iter );
   CHECK( MB_SUCCESS == rval );
   CHECK( box_equal(iter, -5, -4, -1, 5, 4, 1 ) );
    
    // split plane (1)
-  plane.norm = MBAdaptiveKDTree::Y;
+  plane.norm = AdaptiveKDTree::Y;
   plane.coord = 0.0;
   rval = tool.split_leaf( iter, plane );
   CHECK( MB_SUCCESS == rval );
   CHECK( box_equal( iter, -5, -4, -1, 5, 0, 1 ) );
   
    // split plane (2)
-  plane.norm = MBAdaptiveKDTree::X;
+  plane.norm = AdaptiveKDTree::X;
   plane.coord = -1.0;
   rval = tool.split_leaf( iter, plane );
   CHECK( MB_SUCCESS == rval );
   CHECK( box_equal( iter, -5, -4, -1, -1, 0, 1 ) );
   
    // split plane (3), leaf [1]
-  plane.norm = MBAdaptiveKDTree::Y;
+  plane.norm = AdaptiveKDTree::Y;
   plane.coord = -2.0;
   rval = tool.split_leaf( iter, plane );
   CHECK( MB_SUCCESS == rval );
@@ -448,7 +450,7 @@ void create_simple_2d_tree( MBAdaptiveKDTree& tool,
   CHECK( box_equal( iter, -1, -4, -1, 5, 0, 1 ) );
   
     // split plane (4) and leaf [3]
-  plane.norm = MBAdaptiveKDTree::X;
+  plane.norm = AdaptiveKDTree::X;
   plane.coord = 4.0;
   rval = tool.split_leaf( iter, plane );
   CHECK( MB_SUCCESS == rval );
@@ -469,14 +471,14 @@ void create_simple_2d_tree( MBAdaptiveKDTree& tool,
   CHECK( box_equal( iter, -5, 0, -1, 5, 4, 1 ) );
   
     // split plane (5)
-  plane.norm = MBAdaptiveKDTree::X;
+  plane.norm = AdaptiveKDTree::X;
   plane.coord = 0.0;
   rval = tool.split_leaf( iter, plane );
   CHECK( MB_SUCCESS == rval );
   CHECK( box_equal( iter, -5, 0, -1, 0, 4, 1 ) );
   
     // split plane (6) and leaf [5]
-  plane.norm = MBAdaptiveKDTree::X;
+  plane.norm = AdaptiveKDTree::X;
   plane.coord = -3.0;
   rval = tool.split_leaf( iter, plane );
   CHECK( MB_SUCCESS == rval );
@@ -497,7 +499,7 @@ void create_simple_2d_tree( MBAdaptiveKDTree& tool,
   CHECK( box_equal( iter, 0, 0, -1, 5, 4, 1 ) );
   
     // split plane (7) and leaf [7]
-  plane.norm = MBAdaptiveKDTree::Y;
+  plane.norm = AdaptiveKDTree::Y;
   plane.coord = 3.0;
   rval = tool.split_leaf( iter, plane );
   CHECK( MB_SUCCESS == rval );
@@ -519,21 +521,21 @@ void create_simple_2d_tree( MBAdaptiveKDTree& tool,
 
 void leaf_iterator_test()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface* mb = &moab;
-  MBAdaptiveKDTree tool(mb);
+  ErrorCode rval;
+  Core moab;
+  Interface* mb = &moab;
+  AdaptiveKDTree tool(mb);
 
 
     // create a single-node tree
-  MBEntityHandle root;
+  EntityHandle root;
   double min[3] = { -3, -2, -1 };
   double max[3] = {  1,  2,  3 };
   rval = tool.create_tree( min, max, root );
   CHECK( MB_SUCCESS == rval );
 
     // get iterator for tree
-  MBAdaptiveKDTreeIter iter;
+  AdaptiveKDTreeIter iter;
   rval = tool.get_tree_iterator( root, iter );
   CHECK( MB_SUCCESS == rval );
   CHECK( box_equal(iter, -3, -2, -1, 1, 2, 3 ) );
@@ -550,12 +552,12 @@ void leaf_iterator_test()
   
   
     // construct a simple 2D tree for remaining tests
-  MBEntityHandle leaves[9];
+  EntityHandle leaves[9];
   create_simple_2d_tree( tool, root, leaves );
 
   
   /**** Now traverse tree again, and check neighbors of each leaf *****/
-  std::vector<MBAdaptiveKDTreeIter> list;
+  std::vector<AdaptiveKDTreeIter> list;
   
     // leaf [1]
   
@@ -565,12 +567,12 @@ void leaf_iterator_test()
   CHECK( iter.handle() == leaves[1] );
   
   list.clear();
-  rval = iter.get_neighbors( MBAdaptiveKDTree::X, true, list );
+  rval = iter.get_neighbors( AdaptiveKDTree::X, true, list );
   CHECK( MB_SUCCESS == rval );
   CHECK( list.empty() );
   
   list.clear();
-  rval = iter.get_neighbors( MBAdaptiveKDTree::X, false, list );
+  rval = iter.get_neighbors( AdaptiveKDTree::X, false, list );
   CHECK( MB_SUCCESS == rval );
   CHECK( list.size() == 1 );
     // should be leaf [3]
@@ -578,12 +580,12 @@ void leaf_iterator_test()
   CHECK( list.front().handle() == leaves[3] );
   
   list.clear();
-  rval = iter.get_neighbors( MBAdaptiveKDTree::Y, true, list );
+  rval = iter.get_neighbors( AdaptiveKDTree::Y, true, list );
   CHECK( MB_SUCCESS == rval );
   CHECK( list.empty() );
   
   list.clear();
-  rval = iter.get_neighbors( MBAdaptiveKDTree::Y, false, list );
+  rval = iter.get_neighbors( AdaptiveKDTree::Y, false, list );
   CHECK( MB_SUCCESS == rval );
   CHECK( list.size() == 1 );
     // should be leaf [2]
@@ -591,12 +593,12 @@ void leaf_iterator_test()
   CHECK( list.front().handle() == leaves[2] );
   
   list.clear();
-  rval = iter.get_neighbors( MBAdaptiveKDTree::Z, true, list );
+  rval = iter.get_neighbors( AdaptiveKDTree::Z, true, list );
   CHECK( MB_SUCCESS == rval );
   CHECK( list.empty() );
   
   list.clear();
-  rval = iter.get_neighbors( MBAdaptiveKDTree::Z, false, list );
+  rval = iter.get_neighbors( AdaptiveKDTree::Z, false, list );
   CHECK( MB_SUCCESS == rval );
   CHECK( list.empty() );
   
@@ -608,12 +610,12 @@ void leaf_iterator_test()
   CHECK( iter.handle() == leaves[2] );
   
   list.clear();
-  rval = iter.get_neighbors( MBAdaptiveKDTree::X, true, list );
+  rval = iter.get_neighbors( AdaptiveKDTree::X, true, list );
   CHECK( MB_SUCCESS == rval );
   CHECK( list.empty() );
   
   list.clear();
-  rval = iter.get_neighbors( MBAdaptiveKDTree::X, false, list );
+  rval = iter.get_neighbors( AdaptiveKDTree::X, false, list );
   CHECK( MB_SUCCESS == rval );
   CHECK( list.size() == 1 );
     // should be leaf [3]
@@ -621,7 +623,7 @@ void leaf_iterator_test()
   CHECK( list.front().handle() == leaves[3] );
   
   list.clear();
-  rval = iter.get_neighbors( MBAdaptiveKDTree::Y, true, list );
+  rval = iter.get_neighbors( AdaptiveKDTree::Y, true, list );
   CHECK( MB_SUCCESS == rval );
     // should be leaf [1]
   CHECK( list.size() == 1 );
@@ -629,7 +631,7 @@ void leaf_iterator_test()
   CHECK( list.front().handle() == leaves[1] );
   
   list.clear();
-  rval = iter.get_neighbors( MBAdaptiveKDTree::Y, false, list );
+  rval = iter.get_neighbors( AdaptiveKDTree::Y, false, list );
   CHECK( MB_SUCCESS == rval );
   CHECK( list.size() == 2 );
     // should be leaf [5] and leaf[6]
@@ -641,12 +643,12 @@ void leaf_iterator_test()
   CHECK( box_equal( list[1], -3, 0, -1, 0, 4, 1 ) );
   
   list.clear();
-  rval = iter.get_neighbors( MBAdaptiveKDTree::Z, true, list );
+  rval = iter.get_neighbors( AdaptiveKDTree::Z, true, list );
   CHECK( MB_SUCCESS == rval );
   CHECK( list.empty() );
   
   list.clear();
-  rval = iter.get_neighbors( MBAdaptiveKDTree::Z, false, list );
+  rval = iter.get_neighbors( AdaptiveKDTree::Z, false, list );
   CHECK( MB_SUCCESS == rval );
   CHECK( list.empty() );
   
@@ -690,16 +692,16 @@ void leaf_iterator_test()
 void test_tree_merge_nodes()
 {
     // build simple tree for tests
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface* mb = &moab;
-  MBAdaptiveKDTree tool(mb);
-  MBEntityHandle root;
-  MBEntityHandle leaves[9];
+  ErrorCode rval;
+  Core moab;
+  Interface* mb = &moab;
+  AdaptiveKDTree tool(mb);
+  EntityHandle root;
+  EntityHandle leaves[9];
   create_simple_2d_tree( tool, root, leaves );
 
     // get iterator for tree
-  MBAdaptiveKDTreeIter iter;
+  AdaptiveKDTreeIter iter;
   rval = tool.get_tree_iterator( root, iter );
   CHECK( MB_SUCCESS == rval );
 
@@ -723,16 +725,16 @@ void test_tree_merge_nodes()
 
 void test_build_tree_bisect_triangles( )
 {
-  MBCore moab;
-  MBAdaptiveKDTree tool( &moab );
-  MBRange box_tris;
+  Core moab;
+  AdaptiveKDTree tool( &moab );
+  Range box_tris;
   
-  MBAdaptiveKDTree::Settings settings;
+  AdaptiveKDTree::Settings settings;
   settings.maxEntPerLeaf = 1;
   settings.candidateSplitsPerDir = 1;
-  settings.candidatePlaneSet = MBAdaptiveKDTree::SUBDIVISION;
-  MBEntityHandle root;
-  MBErrorCode rval;
+  settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION;
+  EntityHandle root;
+  ErrorCode rval;
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_small( &moab, box_tris );
@@ -761,17 +763,17 @@ void test_build_tree_bisect_triangles( )
   
 void test_closest_triangle()
 {
-  MBCore moab;
-  MBAdaptiveKDTree tool( &moab );
-  MBRange box_tris;
+  Core moab;
+  AdaptiveKDTree tool( &moab );
+  Range box_tris;
   
-  MBAdaptiveKDTree::Settings settings;
+  AdaptiveKDTree::Settings settings;
   settings.maxEntPerLeaf = 1;
   settings.candidateSplitsPerDir = 1;
-  settings.candidatePlaneSet = MBAdaptiveKDTree::SUBDIVISION;
-  MBEntityHandle root;
-  MBErrorCode rval;
-  MBEntityHandle tri;
+  settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION;
+  EntityHandle root;
+  ErrorCode rval;
+  EntityHandle tri;
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_small( &moab, box_tris );
@@ -785,7 +787,7 @@ void test_closest_triangle()
     int y = i & 2 ? 1 : -1;
     int z = i & 4 ? 1 : -1;
     double coords[] = { 2.0*x, 2.0*y, 2.0*z };
-    MBCartVect point;
+    CartVect point;
     rval = tool.closest_triangle( root, coords, point.array(), tri );
     CHECK( MB_SUCCESS == rval );
       // check result position
@@ -797,18 +799,18 @@ void test_closest_triangle()
   }
   
     // test location on each face
-  const MBCartVect facepts[] = { MBCartVect( -1.0, 0.5, 0.5 ),
-                                 MBCartVect(  1.0, 0.5, 0.5 ),
-                                 MBCartVect( 0.5, -1.0, 0.5 ),
-                                 MBCartVect( 0.5,  1.0, 0.5 ),
-                                 MBCartVect( 0.5, 0.5, -1.0 ),
-                                 MBCartVect( 0.5, 0.5,  1.0 ) };
+  const CartVect facepts[] = { CartVect( -1.0, 0.5, 0.5 ),
+                                 CartVect(  1.0, 0.5, 0.5 ),
+                                 CartVect( 0.5, -1.0, 0.5 ),
+                                 CartVect( 0.5,  1.0, 0.5 ),
+                                 CartVect( 0.5, 0.5, -1.0 ),
+                                 CartVect( 0.5, 0.5,  1.0 ) };
   for (unsigned i = 0; i < 6; ++i) {
-    MBCartVect point;
+    CartVect point;
     rval = tool.closest_triangle( root, facepts[i].array(), point.array(), tri );
     CHECK( MB_SUCCESS == rval );
       // check result position
-    const MBCartVect diff = facepts[i] - point;
+    const CartVect diff = facepts[i] - point;
     CHECK( fabs(diff[0]) < 1e-6 );
     CHECK( fabs(diff[1]) < 1e-6 );
     CHECK( fabs(diff[2]) < 1e-6 );
@@ -819,7 +821,7 @@ void test_closest_triangle()
     // test a location really far from the tree
   {
     const double far[] = { 0.75, 0.75, 200 };
-    MBCartVect point;
+    CartVect point;
     rval = tool.closest_triangle( root, far, point.array(), tri );
     CHECK( MB_SUCCESS == rval );
     CHECK( fabs(point[0] - 0.75) < 1e-6 );    
@@ -842,7 +844,7 @@ void test_closest_triangle()
     int y = i & 2 ? 1 : -1;
     int z = i & 4 ? 1 : -1;
     double coords[] = { 4.0*x, 4.0*y, 4.0*z };
-    MBCartVect point;
+    CartVect point;
     rval = tool.closest_triangle( root, coords, point.array(), tri );
     CHECK( MB_SUCCESS == rval );
       // check result position
@@ -854,18 +856,18 @@ void test_closest_triangle()
   }
   
     // test location on each face
-  const MBCartVect facepts2[] = { MBCartVect( -3.0, 0.5, 0.5 ),
-                                 MBCartVect(  3.0, 0.5, 0.5 ),
-                                 MBCartVect( 0.5, -3.0, 0.5 ),
-                                 MBCartVect( 0.5,  3.0, 0.5 ),
-                                 MBCartVect( 0.5, 0.5, -3.0 ),
-                                 MBCartVect( 0.5, 0.5,  3.0 ) };
+  const CartVect facepts2[] = { CartVect( -3.0, 0.5, 0.5 ),
+                                 CartVect(  3.0, 0.5, 0.5 ),
+                                 CartVect( 0.5, -3.0, 0.5 ),
+                                 CartVect( 0.5,  3.0, 0.5 ),
+                                 CartVect( 0.5, 0.5, -3.0 ),
+                                 CartVect( 0.5, 0.5,  3.0 ) };
   for (unsigned i = 0; i < 6; ++i) {
-    MBCartVect point;
+    CartVect point;
     rval = tool.closest_triangle( root, facepts2[i].array(), point.array(), tri );
     CHECK( MB_SUCCESS == rval );
       // check result position
-    const MBCartVect diff = facepts2[i] - point;
+    const CartVect diff = facepts2[i] - point;
     CHECK( fabs(diff[0]) < 1e-6 );
     CHECK( fabs(diff[1]) < 1e-6 );
     CHECK( fabs(diff[2]) < 1e-6 );
@@ -876,7 +878,7 @@ void test_closest_triangle()
     // test a location really far from the tree
   {
     const double far[] = { 2.75, 2.75, 200 };
-    MBCartVect point;
+    CartVect point;
     rval = tool.closest_triangle( root, far, point.array(), tri );
     CHECK( MB_SUCCESS == rval );
     CHECK( fabs(point[0] - 2.75) < 1e-6 );    
@@ -889,17 +891,17 @@ void test_closest_triangle()
 
 void test_sphere_intersect_triangles()
 {
-  MBCore moab;
-  MBAdaptiveKDTree tool( &moab );
-  MBRange box_tris;
+  Core moab;
+  AdaptiveKDTree tool( &moab );
+  Range box_tris;
   
-  MBAdaptiveKDTree::Settings settings;
+  AdaptiveKDTree::Settings settings;
   settings.maxEntPerLeaf = 1;
   settings.candidateSplitsPerDir = 1;
-  settings.candidatePlaneSet = MBAdaptiveKDTree::SUBDIVISION;
-  MBEntityHandle root;
-  MBErrorCode rval;
-  std::vector<MBEntityHandle> triangles;
+  settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION;
+  EntityHandle root;
+  ErrorCode rval;
+  std::vector<EntityHandle> triangles;
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_small( &moab, box_tris );
@@ -920,7 +922,7 @@ void test_sphere_intersect_triangles()
     CHECK( triangles.size() >= 3 );
     CHECK( triangles.size() <= 6 );
       // check point is at the same vertex for each triangle
-    check_common_vertex( tool.moab(), &triangles[0], triangles.size(), MBCartVect(center) );
+    check_common_vertex( tool.moab(), &triangles[0], triangles.size(), CartVect(center) );
   }
   
     // now do it all again with a lot more triangles
@@ -944,23 +946,23 @@ void test_sphere_intersect_triangles()
     CHECK( triangles.size() >= 3 );
     CHECK( triangles.size() <= 6 );
       // check point is at the same vertex for each triangle
-    check_common_vertex( tool.moab(), &triangles[0], triangles.size(), MBCartVect(center) );
+    check_common_vertex( tool.moab(), &triangles[0], triangles.size(), CartVect(center) );
   }
 }
 
 void test_ray_intersect_triangles()
 {
-  MBCore moab;
-  MBAdaptiveKDTree tool( &moab );
-  MBRange box_tris;
+  Core moab;
+  AdaptiveKDTree tool( &moab );
+  Range box_tris;
   
-  MBAdaptiveKDTree::Settings settings;
+  AdaptiveKDTree::Settings settings;
   settings.maxEntPerLeaf = 1;
   settings.candidateSplitsPerDir = 1;
-  settings.candidatePlaneSet = MBAdaptiveKDTree::SUBDIVISION;
-  MBEntityHandle root;
-  MBErrorCode rval;
-  std::vector<MBEntityHandle> tris;
+  settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION;
+  EntityHandle root;
+  ErrorCode rval;
+  std::vector<EntityHandle> tris;
   std::vector<double> dists;
   
   moab.delete_mesh(); box_tris.clear();
@@ -970,8 +972,8 @@ void test_ray_intersect_triangles()
   test_valid_tree( &tool, root, settings, box_tris );
   
     // test ray through box parallel to X axis
-  MBCartVect dir( 1, 0, 0 );
-  MBCartVect pt( -2, 0.75, 0.75 );
+  CartVect dir( 1, 0, 0 );
+  CartVect pt( -2, 0.75, 0.75 );
   tris.clear(); dists.clear();
   rval = tool.ray_intersect_triangles( root, 1e-6, dir.array(), pt.array(), tris, dists );
   CHECK( MB_SUCCESS == rval );
@@ -979,7 +981,7 @@ void test_ray_intersect_triangles()
   CHECK( dists.size() == tris.size() );
   for ( unsigned i = 0; i < dists.size(); ++i ) {
     CHECK( fabs(dists[i] - 1) < 1e-6 || fabs(dists[i] - 3) < 1e-6 );
-    MBCartVect tript = pt + dists[i] * dir;
+    CartVect tript = pt + dists[i] * dir;
     check_point_in_triangles( &moab, &tris[i], 1, tript );
   }
    
@@ -1003,20 +1005,20 @@ void test_ray_intersect_triangles()
   
     // test ray starting within box parallel to X axis
   tris.clear(); dists.clear();
-  pt = MBCartVect( 0, .75, .75 );
+  pt = CartVect( 0, .75, .75 );
   rval = tool.ray_intersect_triangles( root, 1e-6, dir.array(), pt.array(), tris, dists );
   CHECK( MB_SUCCESS == rval );
   CHECK( tris.size() == 2 );
   CHECK( dists.size() == tris.size() );
   for ( unsigned i = 0; i < dists.size(); ++i ) {
     CHECK( fabs(dists[i] - 1) < 1e-6 );
-    MBCartVect tript = pt + dists[i] * dir;
+    CartVect tript = pt + dists[i] * dir;
     check_point_in_triangles( &moab, &tris[i], 1, tript );
   }
   
     // test skew ray through box
-  dir = MBCartVect( 0.5*sqrt(2.0), 0.5*sqrt(2.0), 0.0 );
-  pt = MBCartVect( 0, -1.5, 0 );
+  dir = CartVect( 0.5*sqrt(2.0), 0.5*sqrt(2.0), 0.0 );
+  pt = CartVect( 0, -1.5, 0 );
   tris.clear(); dists.clear();
   rval = tool.ray_intersect_triangles( root, 1e-6, dir.array(), pt.array(), tris, dists );
   CHECK( MB_SUCCESS == rval );
@@ -1031,8 +1033,8 @@ void test_ray_intersect_triangles()
   
   
     // test ray through box parallel to -Y axis
-  dir = MBCartVect( 0, -1, 0 );
-  pt = MBCartVect( 0, 2, 0 );
+  dir = CartVect( 0, -1, 0 );
+  pt = CartVect( 0, 2, 0 );
   tris.clear(); dists.clear();
   rval = tool.ray_intersect_triangles( root, 1e-6, dir.array(), pt.array(), tris, dists );
   CHECK( MB_SUCCESS == rval );
@@ -1040,13 +1042,13 @@ void test_ray_intersect_triangles()
   CHECK( dists.size() == tris.size() );
   for ( unsigned i = 0; i < dists.size(); ++i ) {
     CHECK( fabs(dists[i] - 1) < 1e-6 || fabs(dists[i] - 3) < 1e-6 );
-    MBCartVect tript = pt + dists[i] * dir;
+    CartVect tript = pt + dists[i] * dir;
     check_point_in_triangles( &moab, &tris[i], 1, tript );
   }
   
     // test ray through box parallel to Z axis
-  dir = MBCartVect( 0, 0, 1 );
-  pt = MBCartVect( 0, 0, -2 );
+  dir = CartVect( 0, 0, 1 );
+  pt = CartVect( 0, 0, -2 );
   tris.clear(); dists.clear();
   rval = tool.ray_intersect_triangles( root, 1e-6, dir.array(), pt.array(), tris, dists );
   CHECK( MB_SUCCESS == rval );
@@ -1054,7 +1056,7 @@ void test_ray_intersect_triangles()
   CHECK( dists.size() == tris.size() );
   for ( unsigned i = 0; i < dists.size(); ++i ) {
     CHECK( fabs(dists[i] - 1) < 1e-6 || fabs(dists[i] - 3) < 1e-6 );
-    MBCartVect tript = pt + dists[i] * dir;
+    CartVect tript = pt + dists[i] * dir;
     check_point_in_triangles( &moab, &tris[i], 1, tript );
   }
   
@@ -1066,20 +1068,20 @@ void test_ray_intersect_triangles()
   CHECK( dists.size() == tris.size() );
   for ( unsigned i = 0; i < dists.size(); ++i ) {
     CHECK( fabs(dists[i] - 1) < 1e-6 );
-    MBCartVect tript = pt + dists[i] * dir;
+    CartVect tript = pt + dists[i] * dir;
     check_point_in_triangles( &moab, &tris[i], 1, tript );
   }
 }
 
 void test_leaf_volume()
 {
-  MBCore moab;
-  MBAdaptiveKDTree tool( &moab );
-  MBEntityHandle root;
+  Core moab;
+  AdaptiveKDTree tool( &moab );
+  EntityHandle root;
   
   create_simple_2d_tree( tool, root );
-  MBAdaptiveKDTreeIter iter;
-  MBErrorCode rval = tool.get_tree_iterator( root, iter );
+  AdaptiveKDTreeIter iter;
+  ErrorCode rval = tool.get_tree_iterator( root, iter );
   CHECK_ERR(rval);
   
   CHECK_REAL_EQUAL( 16.0, iter.volume(), 1e-12 ); // 1
@@ -1101,13 +1103,13 @@ void test_leaf_volume()
 
 void test_leaf_sibling()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBAdaptiveKDTree tool( &moab );
-  MBEntityHandle root;
+  ErrorCode rval;
+  Core moab;
+  AdaptiveKDTree tool( &moab );
+  EntityHandle root;
   
   create_simple_2d_tree( tool, root );
-  MBAdaptiveKDTreeIter iter1, iter2;
+  AdaptiveKDTreeIter iter1, iter2;
   rval = tool.get_tree_iterator( root, iter1 );
   CHECK_ERR(rval);
   rval = tool.get_tree_iterator( root, iter2 );
@@ -1162,57 +1164,57 @@ void test_leaf_sibling()
 
 void test_leaf_intersects_plane()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBAdaptiveKDTree tool( &moab );
+  ErrorCode rval;
+  Core moab;
+  AdaptiveKDTree tool( &moab );
   
-  MBEntityHandle root;
+  EntityHandle root;
   const double min[3] = { -5, -4, -1 };
   const double max[3] = {  1,  2,  3 };
   rval = tool.create_tree( min, max, root );
   CHECK_ERR(rval);
   
-  MBAdaptiveKDTreeIter iter;
+  AdaptiveKDTreeIter iter;
   rval = tool.get_tree_iterator( root, iter );
   CHECK_ERR(rval);
   
-  MBAdaptiveKDTree::Plane x1 = { min[0] - 1, MBAdaptiveKDTree::X };
+  AdaptiveKDTree::Plane x1 = { min[0] - 1, AdaptiveKDTree::X };
   CHECK( !iter.intersects( x1 ) );
-  MBAdaptiveKDTree::Plane x2 = { min[0]    , MBAdaptiveKDTree::X };
+  AdaptiveKDTree::Plane x2 = { min[0]    , AdaptiveKDTree::X };
   CHECK(  iter.intersects( x2 ) );
-  MBAdaptiveKDTree::Plane x3 = { min[0] + 1, MBAdaptiveKDTree::X };
+  AdaptiveKDTree::Plane x3 = { min[0] + 1, AdaptiveKDTree::X };
   CHECK(  iter.intersects( x3 ) );
-  MBAdaptiveKDTree::Plane x4 = { max[0] - 1, MBAdaptiveKDTree::X };
+  AdaptiveKDTree::Plane x4 = { max[0] - 1, AdaptiveKDTree::X };
   CHECK(  iter.intersects( x4 ) );
-  MBAdaptiveKDTree::Plane x5 = { max[0]    , MBAdaptiveKDTree::X };
+  AdaptiveKDTree::Plane x5 = { max[0]    , AdaptiveKDTree::X };
   CHECK(  iter.intersects( x5 ) );
-  MBAdaptiveKDTree::Plane x6 = { max[0] + 1, MBAdaptiveKDTree::X };
+  AdaptiveKDTree::Plane x6 = { max[0] + 1, AdaptiveKDTree::X };
   CHECK( !iter.intersects( x6 ) );
   
-  MBAdaptiveKDTree::Plane y1 = { min[1] - 1, MBAdaptiveKDTree::Y };
+  AdaptiveKDTree::Plane y1 = { min[1] - 1, AdaptiveKDTree::Y };
   CHECK( !iter.intersects( y1 ) );
-  MBAdaptiveKDTree::Plane y2 = { min[1]    , MBAdaptiveKDTree::Y };
+  AdaptiveKDTree::Plane y2 = { min[1]    , AdaptiveKDTree::Y };
   CHECK(  iter.intersects( y2 ) );
-  MBAdaptiveKDTree::Plane y3 = { min[1] + 1, MBAdaptiveKDTree::Y };
+  AdaptiveKDTree::Plane y3 = { min[1] + 1, AdaptiveKDTree::Y };
   CHECK(  iter.intersects( y3 ) );
-  MBAdaptiveKDTree::Plane y4 = { max[1] - 1, MBAdaptiveKDTree::Y };
+  AdaptiveKDTree::Plane y4 = { max[1] - 1, AdaptiveKDTree::Y };
   CHECK(  iter.intersects( y4 ) );
-  MBAdaptiveKDTree::Plane y5 = { max[1]    , MBAdaptiveKDTree::Y };
+  AdaptiveKDTree::Plane y5 = { max[1]    , AdaptiveKDTree::Y };
   CHECK(  iter.intersects( y5 ) );
-  MBAdaptiveKDTree::Plane y6 = { max[1] + 1, MBAdaptiveKDTree::Y };
+  AdaptiveKDTree::Plane y6 = { max[1] + 1, AdaptiveKDTree::Y };
   CHECK( !iter.intersects( y6 ) );
   
-  MBAdaptiveKDTree::Plane z1 = { min[2] - 1, MBAdaptiveKDTree::Z };
+  AdaptiveKDTree::Plane z1 = { min[2] - 1, AdaptiveKDTree::Z };
   CHECK( !iter.intersects( z1 ) );
-  MBAdaptiveKDTree::Plane z2 = { min[2]    , MBAdaptiveKDTree::Z };
+  AdaptiveKDTree::Plane z2 = { min[2]    , AdaptiveKDTree::Z };
   CHECK(  iter.intersects( z2 ) );
-  MBAdaptiveKDTree::Plane z3 = { min[2] + 1, MBAdaptiveKDTree::Z };
+  AdaptiveKDTree::Plane z3 = { min[2] + 1, AdaptiveKDTree::Z };
   CHECK(  iter.intersects( z3 ) );
-  MBAdaptiveKDTree::Plane z4 = { max[2] - 1, MBAdaptiveKDTree::Z };
+  AdaptiveKDTree::Plane z4 = { max[2] - 1, AdaptiveKDTree::Z };
   CHECK(  iter.intersects( z4 ) );
-  MBAdaptiveKDTree::Plane z5 = { max[2]    , MBAdaptiveKDTree::Z };
+  AdaptiveKDTree::Plane z5 = { max[2]    , AdaptiveKDTree::Z };
   CHECK(  iter.intersects( z5 ) );
-  MBAdaptiveKDTree::Plane z6 = { max[2] + 1, MBAdaptiveKDTree::Z };
+  AdaptiveKDTree::Plane z6 = { max[2] + 1, AdaptiveKDTree::Z };
   CHECK( !iter.intersects( z6 ) );
 }
 
@@ -1224,18 +1226,18 @@ void test_leaf_intersects_plane()
     
 void test_leaf_intersects_ray()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBAdaptiveKDTree tool( &moab );
+  ErrorCode rval;
+  Core moab;
+  AdaptiveKDTree tool( &moab );
   double t_in, t_out;
   
-  MBEntityHandle root;
+  EntityHandle root;
   const double min[3] = { -5, -4, -1 };
   const double max[3] = {  1,  2,  3 };
   rval = tool.create_tree( min, max, root );
   CHECK_ERR(rval);
   
-  MBAdaptiveKDTreeIter iter;
+  AdaptiveKDTreeIter iter;
   rval = tool.get_tree_iterator( root, iter );
   CHECK_ERR(rval);
   

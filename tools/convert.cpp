@@ -20,10 +20,10 @@
 #  endif
 #endif
 
-#include "MBCore.hpp"
-#include "MBRange.hpp"
-#include "MBTagConventions.hpp"
-#include "MBReaderWriterSet.hpp"
+#include "moab/Core.hpp"
+#include "moab/Range.hpp"
+#include "moab/MBTagConventions.hpp"
+#include "moab/ReaderWriterSet.hpp"
 #include <iostream>
 #include <iomanip>
 #include <set>
@@ -36,7 +36,7 @@
 #endif
 #include <time.h>
 #ifdef USE_MPI
-#  include "MBmpi.h"
+#  include "moab_mpi.h"
 #endif
 #include <stdio.h>
 
@@ -46,6 +46,8 @@
 #define WRITE_ERROR 3
 #define OTHER_ERROR 4
 #define ENT_NOT_FOUND 5
+
+using namespace moab;
 
 /* Tag to control ACIS dump from .cub file reader */
 const char acis_dump_file_tag_name[] = "__ACISDumpFile";
@@ -121,13 +123,13 @@ void usage_error( const char* name )
 } 
 
 
-void list_formats( MBInterface* );
+void list_formats( Interface* );
 bool parse_id_list( const char* string, std::set<int>&  );
 void print_id_list( const char*, std::ostream& stream, const std::set<int>& list );
 void reset_times();
 void write_times( std::ostream& stream );
-void remove_entities_from_sets( MBInterface* gMB, MBRange& dead_entities, MBRange& empty_sets );
-void remove_from_vector( std::vector<MBEntityHandle>& vect, const MBRange& ents_to_remove );
+void remove_entities_from_sets( Interface* gMB, Range& dead_entities, Range& empty_sets );
+void remove_from_vector( std::vector<EntityHandle>& vect, const Range& ents_to_remove );
 bool make_opts_string( std::vector<std::string> options, std::string& result );
 
 int main(int argc, char* argv[])
@@ -137,12 +139,12 @@ int main(int argc, char* argv[])
 #endif
 
 
-  MBInterface* gMB;
-  MBErrorCode result;
-  MBRange range;
+  Interface* gMB;
+  ErrorCode result;
+  Range range;
 
   int proc_id = 0;
-  gMB = new MBCore();
+  gMB = new Core();
 
   bool append_rank = false;
   int i, dim;
@@ -152,7 +154,7 @@ int main(int argc, char* argv[])
   const char* out = NULL;   // output file name
   bool verbose = false;
   std::set<int> geom[4], mesh[3];       // user-specified IDs 
-  std::vector<MBEntityHandle> set_list; // list of user-specified sets to write
+  std::vector<EntityHandle> set_list; // list of user-specified sets to write
   std::vector<std::string> write_opts, read_opts;
   const char* const mesh_tag_names[] = { DIRICHLET_SET_TAG_NAME,
                                          NEUMANN_SET_TAG_NAME,
@@ -301,7 +303,7 @@ int main(int argc, char* argv[])
   bool have_sets = have_geom;
   
     // Get geometry tags
-  MBTag dim_tag, id_tag;
+  Tag dim_tag, id_tag;
   if (have_geom) 
   {
     int size;
@@ -341,7 +343,7 @@ int main(int argc, char* argv[])
   if ( have_geom ) 
   {
     int id_val;
-    MBTag tags[] = { id_tag, dim_tag };
+    Tag tags[] = { id_tag, dim_tag };
     const void* vals[] = { &id_val, &dim };
     for (dim = 0; dim <= 3; ++dim) 
     {
@@ -376,7 +378,7 @@ int main(int argc, char* argv[])
     have_sets = true;
     
       // Get tag
-    MBTag tag;
+    Tag tag;
     result = gMB->tag_get_handle( mesh_tag_names[i], tag );
     if (MB_SUCCESS != result) 
     {
@@ -431,23 +433,23 @@ int main(int argc, char* argv[])
  
     // Generate any internal entities
   if (generate[1] || generate[2]) {
-    MBEntityHandle all_mesh = 0;
-    const MBEntityHandle* sets = &all_mesh;
+    EntityHandle all_mesh = 0;
+    const EntityHandle* sets = &all_mesh;
     int num_sets = 1;
     if (have_sets) {
       num_sets = set_list.size();
       sets = &set_list[0];
     }
     for (i = 0; i < num_sets; ++i) {
-      MBRange dim3, dim2, adj;
+      Range dim3, dim2, adj;
       gMB->get_entities_by_dimension( sets[i], 3, dim3, true );
       if (generate[1]) {
         gMB->get_entities_by_dimension( sets[i], 2, dim2, true );
-        gMB->get_adjacencies( dim3, 1, true, adj, MBInterface::UNION );
-        gMB->get_adjacencies( dim2, 1, true, adj, MBInterface::UNION );
+        gMB->get_adjacencies( dim3, 1, true, adj, Interface::UNION );
+        gMB->get_adjacencies( dim2, 1, true, adj, Interface::UNION );
       }
       if (generate[2]) {
-        gMB->get_adjacencies( dim3, 2, true, adj, MBInterface::UNION );
+        gMB->get_adjacencies( dim3, 2, true, adj, Interface::UNION );
       }
       if (sets[i])
         gMB->add_entities( sets[i], adj );
@@ -457,7 +459,7 @@ int main(int argc, char* argv[])
     // Delete any entities not of the dimensions to be exported
   if (bydim) {
       // Get list of dead elements
-    MBRange dead_entities , tmp_range;
+    Range dead_entities , tmp_range;
     for (dim = 1; dim <= 3; ++dim) {
       if (dims[dim])
         continue;
@@ -466,13 +468,13 @@ int main(int argc, char* argv[])
     }
       // Remove dead entities from all sets, and add all 
       // empty sets to list of dead entities.
-    MBRange empty_sets;
+    Range empty_sets;
     remove_entities_from_sets( gMB, dead_entities, empty_sets );
     while (!empty_sets.empty()) {
       if (!set_list.empty())
         remove_from_vector( set_list, empty_sets );
       dead_entities.merge( empty_sets );
-      MBRange tmp_range;
+      Range tmp_range;
       remove_entities_from_sets( gMB, empty_sets, tmp_range );
       empty_sets = subtract( tmp_range,  dead_entities );
     }
@@ -716,23 +718,23 @@ bool make_opts_string( std::vector<std::string> options, std::string& opts )
 }
 
 
-void list_formats( MBInterface* gMB )
+void list_formats( Interface* gMB )
 {
-  const char iface_name[] = "MBReaderWriterSet";
-  MBErrorCode err;
+  const char iface_name[] = "ReaderWriterSet";
+  ErrorCode err;
   void* void_ptr = 0;
-  MBReaderWriterSet* set;
-  MBReaderWriterSet::iterator i;
+  ReaderWriterSet* set;
+  ReaderWriterSet::iterator i;
   std::ostream& str = std::cout;
     
-    // get MBReaderWriterSet
+    // get ReaderWriterSet
   err = gMB->query_interface( iface_name, &void_ptr );
   if (err != MB_SUCCESS || !void_ptr) {
     std::cerr << "Internal error:  Interface \"" << iface_name 
               << "\" not available.\n";
     exit(OTHER_ERROR);
   }
-  set = (MBReaderWriterSet*)void_ptr;
+  set = (ReaderWriterSet*)void_ptr;
   
     // get field with for format description
   size_t w = 0;
@@ -765,13 +767,13 @@ void list_formats( MBInterface* gMB )
   exit(0);
 }
 
-void remove_entities_from_sets( MBInterface* gMB, MBRange& dead_entities, MBRange& empty_sets )
+void remove_entities_from_sets( Interface* gMB, Range& dead_entities, Range& empty_sets )
 {
   empty_sets.clear();
-  MBRange sets;
+  Range sets;
   gMB->get_entities_by_type( 0, MBENTITYSET, sets );
-  for (MBRange::iterator i = sets.begin(); i != sets.end(); ++i) {
-    MBRange set_contents;
+  for (Range::iterator i = sets.begin(); i != sets.end(); ++i) {
+    Range set_contents;
     gMB->get_entities_by_handle( *i, set_contents, false );
     set_contents = intersect( set_contents, dead_entities );
     gMB->remove_entities( *i, set_contents );
@@ -782,10 +784,10 @@ void remove_entities_from_sets( MBInterface* gMB, MBRange& dead_entities, MBRang
   }
 }
 
-void remove_from_vector( std::vector<MBEntityHandle>& vect, const MBRange& ents_to_remove )
+void remove_from_vector( std::vector<EntityHandle>& vect, const Range& ents_to_remove )
 {
-  MBRange::const_iterator i;
-  std::vector<MBEntityHandle>::iterator j;
+  Range::const_iterator i;
+  std::vector<EntityHandle>::iterator j;
   for (i = ents_to_remove.begin(); i != ents_to_remove.end(); ++i) {
     j = std::find( vect.begin(), vect.end(), *i );
     if (j != vect.end())

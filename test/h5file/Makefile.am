@@ -7,11 +7,7 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_srcdir)/src/io/mhdf/include \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src/parallel \
-	       -I$(top_builddir)/src/parallel \
-               -I$(top_srcdir)/src/moab \
-               -I$(top_builddir)/src/moab \
-               -I$(top_srcdir)/src/parallel/moab \
-	       -I$(top_builddir)/src/parallel/moab
+	       -I$(top_builddir)/src/parallel 
             
 check_PROGRAMS = h5test h5legacy h5varlen h5sets_test h5regression h5partial
 

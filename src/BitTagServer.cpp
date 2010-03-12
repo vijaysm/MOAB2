@@ -1,14 +1,16 @@
 #include "BitTagServer.hpp"
-#include "MBRange.hpp"
-#include "MBInternals.hpp"
+#include "moab/Range.hpp"
+#include "Internals.hpp"
 #include <stdlib.h>
 #include <string.h>
 
+namespace moab {
+
 void BitPage::search( unsigned char value, int offset, int count, 
-                      int per_ent, MBRange& results, MBEntityHandle start ) const
+                      int per_ent, Range& results, EntityHandle start ) const
 {
   const int end = offset + count;
-  MBRange::iterator hint = results.begin();
+  Range::iterator hint = results.begin();
   while (offset != end) {
     if (get_bits( offset, per_ent ) == value)
       hint = results.insert( hint, start );
@@ -32,7 +34,7 @@ BitPage::BitPage( int per_ent, unsigned char init_val )
   memset( byteArray, init_val, BitTag::PageSize );
 }
 
-MBErrorCode BitTagServer::reserve_tag_id( int num_bits, MBTagId tag_id )
+ErrorCode BitTagServer::reserve_tag_id( int num_bits, TagId tag_id )
 {
   if (tag_id > tagList.size())
     tagList.resize( tag_id );
@@ -42,7 +44,7 @@ MBErrorCode BitTagServer::reserve_tag_id( int num_bits, MBTagId tag_id )
   return tagList[tag_id-1].reserve( num_bits );
 }
 
-MBErrorCode BitTagServer::release_tag_id( MBTagId tag_id )
+ErrorCode BitTagServer::release_tag_id( TagId tag_id )
 {
   if (tag_id > tagList.size() && !tagList[tag_id-1].in_use())
     return MB_TAG_NOT_FOUND;
@@ -57,16 +59,16 @@ void BitTagServer::reset_data()
     i->reset_data();
 }
 
-MBErrorCode BitTagServer::get_tags( MBEntityHandle entity,  
-                                    std::vector<MBTag> &tags ) const
+ErrorCode BitTagServer::get_tags( EntityHandle entity,  
+                                    std::vector<Tag> &tags ) const
 {
   for (size_t i = 0; i < tagList.size(); ++i)
     if (tagList[i].in_use())
-      tags.push_back( (MBTag)(i+1) );
+      tags.push_back( (Tag)(i+1) );
   return MB_SUCCESS;
 }
 
-MBErrorCode BitTag::reserve( unsigned bits )
+ErrorCode BitTag::reserve( unsigned bits )
 {
   if (in_use() || bits > 8)
     return MB_FAILURE;
@@ -93,7 +95,7 @@ MBErrorCode BitTag::reserve( unsigned bits )
 
 void BitTag::reset_data()
 {
-  for (MBEntityType t = (MBEntityType)0; t != MBMAXTYPE; ++t) {
+  for (EntityType t = (EntityType)0; t != MBMAXTYPE; ++t) {
     for (size_t i = 0; i < pageList[t].size(); ++i)
       delete pageList[t][i];
     pageList[t].clear();
@@ -106,12 +108,12 @@ void BitTag::release()
   inUse = false;
 }
 
-MBErrorCode BitTag::get_bits( const MBEntityHandle* handles, 
+ErrorCode BitTag::get_bits( const EntityHandle* handles, 
                               int num_handles, 
                               unsigned char* data,
                               const unsigned char* default_value ) const
 {
-  MBEntityType type;
+  EntityType type;
   size_t page;
   int offset;
   unsigned char def = default_value ? *default_value : 0;
@@ -125,12 +127,12 @@ MBErrorCode BitTag::get_bits( const MBEntityHandle* handles,
   return MB_SUCCESS;
 }
 
-MBErrorCode BitTag::set_bits( const MBEntityHandle* handles, 
+ErrorCode BitTag::set_bits( const EntityHandle* handles, 
                               int num_handles, 
                               const unsigned char* data,
                               const unsigned char* default_value )
 {
-  MBEntityType type;
+  EntityType type;
   size_t page;
   int offset;
   for (int i = 0; i < num_handles; ++i) {
@@ -145,11 +147,11 @@ MBErrorCode BitTag::set_bits( const MBEntityHandle* handles,
   return MB_SUCCESS;
 }
 
-MBErrorCode BitTag::clear_bits( const MBEntityHandle* handles, 
+ErrorCode BitTag::clear_bits( const EntityHandle* handles, 
                                 int num_handles, 
                                 const unsigned char* default_value )
 {
-  MBEntityType type;
+  EntityType type;
   size_t page;
   int offset;
   const unsigned char val = default_value ? *default_value : 0;
@@ -161,16 +163,16 @@ MBErrorCode BitTag::clear_bits( const MBEntityHandle* handles,
   return MB_SUCCESS;
 }
 
-MBErrorCode BitTag::get_bits( const MBRange& handles, 
+ErrorCode BitTag::get_bits( const Range& handles, 
                               unsigned char* data,
                               const unsigned char* default_value ) const
 {
-  MBEntityType type;
-  MBEntityID count;
+  EntityType type;
+  EntityID count;
   size_t page;
   int offset, per_page = ents_per_page();
   unsigned char def = default_value ? *default_value : 0;
-  MBRange::const_pair_iterator i;
+  Range::const_pair_iterator i;
   for (i = handles.const_pair_begin(); i != handles.const_pair_end(); ++i) {
     unpack( i->first, type, page, offset );
     assert(TYPE_FROM_HANDLE(i->second) == type); // should be true because id of zero is never used
@@ -182,7 +184,7 @@ MBErrorCode BitTag::get_bits( const MBRange& handles,
     }
     
     while (count) {
-      size_t pcount = std::min( (MBEntityID)(per_page - offset), count );
+      size_t pcount = std::min( (EntityID)(per_page - offset), count );
       if (pageList[type][page])
         pageList[type][page]->get_bits( offset, pcount, storedBitsPerEntity, data );
       else
@@ -196,16 +198,16 @@ MBErrorCode BitTag::get_bits( const MBRange& handles,
   return MB_SUCCESS;
 }
 
-MBErrorCode BitTag::set_bits( const MBRange& handles, 
+ErrorCode BitTag::set_bits( const Range& handles, 
                               const unsigned char* data, 
                               const unsigned char* default_value )
 {
-  MBEntityType type;
-  MBEntityID count;
+  EntityType type;
+  EntityID count;
   size_t page;
   int offset, per_page = ents_per_page();
   unsigned char def = default_value ? *default_value : 0;
-  MBRange::const_pair_iterator i;
+  Range::const_pair_iterator i;
   for (i = handles.const_pair_begin(); i != handles.const_pair_end(); ++i) {
     unpack( i->first, type, page, offset );
     assert(TYPE_FROM_HANDLE(i->second) == type); // should be true because id of zero is never used
@@ -217,7 +219,7 @@ MBErrorCode BitTag::set_bits( const MBRange& handles,
       if (!pageList[type][page])
         pageList[type][page] = new BitPage( storedBitsPerEntity, def );
 
-      size_t pcount = std::min( (MBEntityID)(per_page - offset), count );
+      size_t pcount = std::min( (EntityID)(per_page - offset), count );
       pageList[type][page]->set_bits( offset, pcount, storedBitsPerEntity, data );
       data += pcount;
       count -= pcount; 
@@ -228,22 +230,22 @@ MBErrorCode BitTag::set_bits( const MBRange& handles,
   return MB_SUCCESS;
 }
 
-MBErrorCode BitTag::clear_bits( const MBRange& handles, 
+ErrorCode BitTag::clear_bits( const Range& handles, 
                                 const unsigned char* default_value )
 {
-  MBEntityType type;
-  MBEntityID count;
+  EntityType type;
+  EntityID count;
   size_t page;
   int offset, per_page = ents_per_page();
   unsigned char val = default_value ? *default_value : 0;
-  MBRange::const_pair_iterator i;
+  Range::const_pair_iterator i;
   for (i = handles.const_pair_begin(); i != handles.const_pair_end(); ++i) {
     unpack( i->first, type, page, offset );
     assert(TYPE_FROM_HANDLE(i->second) == type); // should be true because id of zero is never used
     count = i->second - i->first + 1;
     
     while (count) {
-      size_t pcount = std::min( (MBEntityID)(per_page - offset), count );
+      size_t pcount = std::min( (EntityID)(per_page - offset), count );
       if (page < pageList[type].size() && pageList[type][page])
         pageList[type][page]->set_bits( offset, pcount, storedBitsPerEntity, val );
       count -= pcount; 
@@ -254,10 +256,10 @@ MBErrorCode BitTag::clear_bits( const MBRange& handles,
   return MB_SUCCESS;
 }
 
-MBErrorCode BitTag::get_entities( MBRange& entities ) const
+ErrorCode BitTag::get_entities( Range& entities ) const
 {
-  MBErrorCode rval = MB_SUCCESS;
-  MBEntityType type = MBMAXTYPE;
+  ErrorCode rval = MB_SUCCESS;
+  EntityType type = MBMAXTYPE;
   while (type--) {
     rval = get_entities( type, entities );
     if (MB_SUCCESS != rval)
@@ -267,15 +269,15 @@ MBErrorCode BitTag::get_entities( MBRange& entities ) const
 }
     
 
-MBErrorCode BitTag::get_entities( MBEntityType type, MBRange& entities ) const
+ErrorCode BitTag::get_entities( EntityType type, Range& entities ) const
 {
   const int per_page = ents_per_page();
-  MBRange::iterator hint = entities.begin();
+  Range::iterator hint = entities.begin();
   for (size_t i = 0; i < pageList[type].size(); ++i) {
     if (pageList[type][i]) {
-      MBEntityID id = i * per_page;
-      MBEntityHandle h = CREATE_HANDLE( type, id );
-      MBEntityHandle last = h + per_page - 1;
+      EntityID id = i * per_page;
+      EntityHandle h = CREATE_HANDLE( type, id );
+      EntityHandle last = h + per_page - 1;
         // never zero ID
       if (!id) ++h;
       hint = entities.insert( h, last );
@@ -284,16 +286,16 @@ MBErrorCode BitTag::get_entities( MBEntityType type, MBRange& entities ) const
   return MB_SUCCESS;
 }
 
-MBErrorCode BitTag::get_entities( const MBRange& range, 
-                                  MBEntityType in_type,
-                                  MBRange& entities ) const
+ErrorCode BitTag::get_entities( const Range& range, 
+                                  EntityType in_type,
+                                  Range& entities ) const
 {
-  MBEntityType type;
-  MBEntityID count;
+  EntityType type;
+  EntityID count;
   size_t page;
   int offset, per_page = ents_per_page();
-  MBRange::const_iterator j, i = range.lower_bound( in_type );
-  MBEntityHandle h;
+  Range::const_iterator j, i = range.lower_bound( in_type );
+  EntityHandle h;
   while (i != range.end()) {
     h = *i;
     unpack( h, type, page, offset );
@@ -304,7 +306,7 @@ MBErrorCode BitTag::get_entities( const MBRange& range,
     count = *i - h + 1;
     ++i;
     while (count > 0) {
-      MBEntityID pcount = std::min( count, (MBEntityID)(per_page - offset) );
+      EntityID pcount = std::min( count, (EntityID)(per_page - offset) );
       if (page < pageList[type].size() && pageList[type][page]) 
         entities.insert( h, h+pcount-1 );
     
@@ -318,15 +320,15 @@ MBErrorCode BitTag::get_entities( const MBRange& range,
   return MB_SUCCESS;
 }
 
-MBErrorCode BitTag::get_entities_with_bits( MBEntityType type, 
-                                            MBRange& entities,
+ErrorCode BitTag::get_entities_with_bits( EntityType type, 
+                                            Range& entities,
                                             unsigned char bits ) const
 {
   const int per_page = ents_per_page();
   for (size_t i = 0; i < pageList[type].size(); ++i) {
     if (pageList[type][i]) {
-      MBEntityID id = i * per_page;
-      MBEntityHandle h = CREATE_HANDLE( type, id );
+      EntityID id = i * per_page;
+      EntityHandle h = CREATE_HANDLE( type, id );
       int off = !i; // never zero ID
       pageList[type][i]->search( bits, off, per_page-off, storedBitsPerEntity, 
                                  entities, h+off );
@@ -335,17 +337,17 @@ MBErrorCode BitTag::get_entities_with_bits( MBEntityType type,
   return MB_SUCCESS;
 }
 
-MBErrorCode BitTag::get_entities_with_bits( const MBRange &range,
-                                            MBEntityType in_type, 
-                                            MBRange& entities,
+ErrorCode BitTag::get_entities_with_bits( const Range &range,
+                                            EntityType in_type, 
+                                            Range& entities,
                                             unsigned char bits ) const
 {
-  MBEntityType type;
-  MBEntityID count;
+  EntityType type;
+  EntityID count;
   size_t page;
   int offset, per_page = ents_per_page();
-  MBRange::const_iterator j, i = range.lower_bound( in_type );
-  MBEntityHandle h;
+  Range::const_iterator j, i = range.lower_bound( in_type );
+  EntityHandle h;
   while (i != range.end()) {
     h = *i;
     unpack( h, type, page, offset );
@@ -356,7 +358,7 @@ MBErrorCode BitTag::get_entities_with_bits( const MBRange &range,
     count = *i - h + 1;
     ++i;
     while (count > 0) {
-      MBEntityID pcount = std::min( count, (MBEntityID)(per_page - offset) );
+      EntityID pcount = std::min( count, (EntityID)(per_page - offset) );
       if (page < pageList[type].size() && pageList[type][page]) 
         pageList[type][page]->search( bits, offset, pcount, 
                                       storedBitsPerEntity,
@@ -372,7 +374,7 @@ MBErrorCode BitTag::get_entities_with_bits( const MBRange &range,
   return MB_SUCCESS;
 }
 
-MBErrorCode BitTag::get_number_entities( MBEntityType type,
+ErrorCode BitTag::get_number_entities( EntityType type,
                                          int& num_entities ) const
 {
   const int per_page = ents_per_page();
@@ -387,21 +389,21 @@ MBErrorCode BitTag::get_number_entities( MBEntityType type,
   return MB_SUCCESS;
 }
 
-MBErrorCode BitTag::get_number_entities( const MBRange &range,
-                                         MBEntityType type,
+ErrorCode BitTag::get_number_entities( const Range &range,
+                                         EntityType type,
                                          int& num_entities ) const
 {
-  MBRange tmp;
-  MBErrorCode result = get_entities( range, type, tmp );
+  Range tmp;
+  ErrorCode result = get_entities( range, type, tmp );
   num_entities = tmp.size();
   return result;
 }
 
-MBErrorCode BitTag::get_memory_use( unsigned long& total,
+ErrorCode BitTag::get_memory_use( unsigned long& total,
                                     unsigned long& per_entity ) const
 {
   per_entity = (storedBitsPerEntity > 4); // cannot return fraction of bytes, so round
-  for (MBEntityType t = (MBEntityType)0; t < MBMAXTYPE; ++t) {
+  for (EntityType t = (EntityType)0; t < MBMAXTYPE; ++t) {
     total += pageList[t].capacity() * sizeof(BitPage*);
     for (size_t i = 0; i < pageList[t].size(); ++i)
       if (pageList[t][i])
@@ -409,3 +411,5 @@ MBErrorCode BitTag::get_memory_use( unsigned long& total,
   }
   return MB_SUCCESS;
 }
+  
+} // namespace moab

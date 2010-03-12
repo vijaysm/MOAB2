@@ -1,9 +1,9 @@
-#include "MBCore.hpp"
-#include "MBCartVect.hpp"
-#include "MBAdaptiveKDTree.hpp"
-#include "MBGeomUtil.hpp"
-#include "MBInternals.hpp"
-#include "MBRange.hpp"
+#include "moab/Core.hpp"
+#include "moab/CartVect.hpp"
+#include "moab/AdaptiveKDTree.hpp"
+#include "moab/GeomUtil.hpp"
+#include "Internals.hpp"
+#include "moab/Range.hpp"
 #include <iostream>
 #include <iomanip>
 #include <cstdio>
@@ -16,30 +16,32 @@
 #include <fcntl.h>
 #endif 
 
+using namespace moab;
+
 const int MAX_TAG_VALUE = 32; // maximum value to use when tagging entities with tree cell number
 const char* TAG_NAME = "TREE_CELL";
 
 std::string clock_to_string( clock_t t );
 std::string mem_to_string( unsigned long mem );
 
-void build_tree( MBInterface* interface, const MBRange& elems,
-                 MBAdaptiveKDTree::Settings settings, 
+void build_tree( Interface* interface, const Range& elems,
+                 AdaptiveKDTree::Settings settings, 
                  unsigned meshset_flags );
-void build_grid( MBInterface* iface,
-                 MBAdaptiveKDTree::Settings settings,
+void build_grid( Interface* iface,
+                 AdaptiveKDTree::Settings settings,
                  unsigned meshset_flags,
                  const double dims[3] );
-void delete_existing_tree( MBInterface* interface );
-void print_stats( MBInterface* interface );
-void tag_elements( MBInterface* interface );
-void tag_vertices( MBInterface* interface );
-void write_tree_blocks( MBInterface* interface, const char* file );
+void delete_existing_tree( Interface* interface );
+void print_stats( Interface* interface );
+void tag_elements( Interface* interface );
+void tag_vertices( Interface* interface );
+void write_tree_blocks( Interface* interface, const char* file );
 
-static const char* ds( MBAdaptiveKDTree::CandidatePlaneSet scheme )
+static const char* ds( AdaptiveKDTree::CandidatePlaneSet scheme )
 {
   static const char def[] = " (default)";
   const static char non[] = "";
-  MBAdaptiveKDTree::Settings st;
+  AdaptiveKDTree::Settings st;
   return scheme == st.candidatePlaneSet ? def : non;
 }
   
@@ -50,16 +52,16 @@ static void usage( bool err = true )
     << "kd_tree_tool [-d <int>] -G <dims> [-s|-S] <output file>" << std::endl
     << "kd_tree_tool [-h]" << std::endl;
   if (!err) {
-    MBAdaptiveKDTree::Settings st;
+    AdaptiveKDTree::Settings st;
     s << "Tool to build adaptive kd-Tree" << std::endl;
     s << "  -d <int>  Specify maximum depth for tree. Default: " << st.maxTreeDepth << std::endl
       << "  -n <int>  Specify maximum entities per leaf. Default: " << st.maxEntPerLeaf << std::endl
       << "  -2        Build tree from surface elements. Default: yes" << std::endl
       << "  -3        Build tree from volume elements. Default: yes" << std::endl
-      << "  -u        Use 'SUBDIVISION' scheme for tree construction" << ds(MBAdaptiveKDTree::SUBDIVISION) << std::endl
-      << "  -p        Use 'SUBDIVISION_SNAP' tree construction algorithm." << ds(MBAdaptiveKDTree::SUBDIVISION_SNAP) << std::endl
-      << "  -m        Use 'VERTEX_MEDIAN' tree construction algorithm." << ds(MBAdaptiveKDTree::VERTEX_MEDIAN) << std::endl
-      << "  -v        Use 'VERTEX_SAMPLE' tree construction algorithm." << ds(MBAdaptiveKDTree::VERTEX_SAMPLE) << std::endl
+      << "  -u        Use 'SUBDIVISION' scheme for tree construction" << ds(AdaptiveKDTree::SUBDIVISION) << std::endl
+      << "  -p        Use 'SUBDIVISION_SNAP' tree construction algorithm." << ds(AdaptiveKDTree::SUBDIVISION_SNAP) << std::endl
+      << "  -m        Use 'VERTEX_MEDIAN' tree construction algorithm." << ds(AdaptiveKDTree::VERTEX_MEDIAN) << std::endl
+      << "  -v        Use 'VERTEX_SAMPLE' tree construction algorithm." << ds(AdaptiveKDTree::VERTEX_SAMPLE) << std::endl
       << "  -N <int>  Specify candidate split planes per axis.  Default: " << st.candidateSplitsPerDir << std::endl
       << "  -t        Tag elements will tree cell number." << std::endl
       << "  -T        Write tree boxes to file." << std::endl
@@ -160,7 +162,7 @@ int main( int argc, char* argv[] )
   const char* input_file = 0;
   const char* output_file = 0;
   const char* tree_file = 0;
-  MBAdaptiveKDTree::Settings settings;
+  AdaptiveKDTree::Settings settings;
   unsigned meshset_flags = MESHSET_SET;
   bool tag_elems = false;
   clock_t load_time, build_time, stat_time, tag_time, write_time, block_time;
@@ -188,10 +190,10 @@ int main( int argc, char* argv[] )
       case 's': meshset_flags = MESHSET_SET;                        break;
       case 'd': settings.maxTreeDepth  = parseint( i, argc, argv ); break;
       case 'n': settings.maxEntPerLeaf = parseint( i, argc, argv ); break;
-      case 'u': settings.candidatePlaneSet = MBAdaptiveKDTree::SUBDIVISION;      break;
-      case 'p': settings.candidatePlaneSet = MBAdaptiveKDTree::SUBDIVISION_SNAP; break;
-      case 'm': settings.candidatePlaneSet = MBAdaptiveKDTree::VERTEX_MEDIAN;    break;
-      case 'v': settings.candidatePlaneSet = MBAdaptiveKDTree::VERTEX_SAMPLE;    break;
+      case 'u': settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION;      break;
+      case 'p': settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION_SNAP; break;
+      case 'm': settings.candidatePlaneSet = AdaptiveKDTree::VERTEX_MEDIAN;    break;
+      case 'v': settings.candidatePlaneSet = AdaptiveKDTree::VERTEX_SAMPLE;    break;
       case 'N': settings.candidateSplitsPerDir = parseint( i, argc, argv );      break;
       case 't': tag_elems = true;                                   break;
       case 'T': tree_file = argv[++i];                              break;
@@ -208,9 +210,9 @@ int main( int argc, char* argv[] )
   if (!surf_elems && !vol_elems)
     surf_elems = vol_elems = true;
   
-  MBErrorCode rval;
-  MBCore moab_core;
-  MBInterface* interface = &moab_core;
+  ErrorCode rval;
+  Core moab_core;
+  Interface* interface = &moab_core;
   
   if (make_grid) {
     load_time = 0;
@@ -234,14 +236,14 @@ int main( int argc, char* argv[] )
 
     std::cout << "Building tree..." << std::endl;
     build_time = clock();
-    MBRange elems;
+    Range elems;
     if (!surf_elems) {
       interface->get_entities_by_dimension( 0, 3, elems );
     }
     else {
       interface->get_entities_by_dimension( 0, 2, elems );
       if (vol_elems) {
-        MBRange tmp;
+        Range tmp;
         interface->get_entities_by_dimension( 0, 3, tmp );
         elems.merge( tmp );
       }
@@ -304,15 +306,15 @@ int main( int argc, char* argv[] )
 }
 
   
-void delete_existing_tree( MBInterface* interface )
+void delete_existing_tree( Interface* interface )
 {
-  MBRange trees;
-  MBAdaptiveKDTree tool(interface);
+  Range trees;
+  AdaptiveKDTree tool(interface);
 
   tool.find_all_trees( trees );
   if (!trees.empty())
     std::cout << "Destroying existing tree(s) contained in file" << std::endl;
-  for (MBRange::iterator i = trees.begin(); i != trees.end(); ++i)
+  for (Range::iterator i = trees.begin(); i != trees.end(); ++i)
     tool.delete_tree( *i );
   
   trees.clear();
@@ -323,20 +325,20 @@ void delete_existing_tree( MBInterface* interface )
   }
 }
   
-void build_tree( MBInterface* interface,
-                 const MBRange& elems, 
-                 MBAdaptiveKDTree::Settings settings, 
+void build_tree( Interface* interface,
+                 const Range& elems, 
+                 AdaptiveKDTree::Settings settings, 
                  unsigned meshset_flags )
 {
-  MBErrorCode rval;
-  MBEntityHandle root = 0;
+  ErrorCode rval;
+  EntityHandle root = 0;
   
   if (elems.empty()) {
     std::cerr << "No elements from which to build tree." << std::endl;
     exit(4);
   }
   
-  MBAdaptiveKDTree tool(interface, 0, meshset_flags);
+  AdaptiveKDTree tool(interface, 0, meshset_flags);
   rval = tool.build_tree( elems, root, &settings );
   if (MB_SUCCESS != rval || !root) {
     std::cerr << "Tree construction failed." << std::endl;
@@ -344,16 +346,16 @@ void build_tree( MBInterface* interface,
   }
 }  
   
-void build_grid( MBInterface* interface, 
-                 MBAdaptiveKDTree::Settings settings, 
+void build_grid( Interface* interface, 
+                 AdaptiveKDTree::Settings settings, 
                  unsigned meshset_flags,
                  const double dims[3] )
 {
-  MBErrorCode rval;
-  MBEntityHandle root = 0;
-  MBAdaptiveKDTree tool(interface, 0, meshset_flags);
-  MBAdaptiveKDTreeIter iter;
-  MBAdaptiveKDTree::Plane plane;
+  ErrorCode rval;
+  EntityHandle root = 0;
+  AdaptiveKDTree tool(interface, 0, meshset_flags);
+  AdaptiveKDTreeIter iter;
+  AdaptiveKDTree::Plane plane;
 
   double min[3] = { -0.5*dims[0], -0.5*dims[1], -0.5*dims[2] };
   double max[3] = {  0.5*dims[0],  0.5*dims[1],  0.5*dims[2] };
@@ -456,11 +458,11 @@ template <typename T> void SimpleStat<T>::add( T value )
   ++count;
 }
   
-void print_stats( MBInterface* interface )
+void print_stats( Interface* interface )
 {
-  MBEntityHandle root;
-  MBRange range;
-  MBAdaptiveKDTree tool(interface);
+  EntityHandle root;
+  Range range;
+  AdaptiveKDTree tool(interface);
   
   tool.find_all_trees( range );
   if (range.size() != 1) {
@@ -474,10 +476,10 @@ void print_stats( MBInterface* interface )
   root = *range.begin();
   range.clear();
 
-  MBRange tree_sets, elem2d, elem3d, verts, all;
+  Range tree_sets, elem2d, elem3d, verts, all;
   //interface->get_child_meshsets( root, tree_sets, 0 );
   interface->get_entities_by_type( 0, MBENTITYSET, tree_sets );
-  tree_sets.erase( tree_sets.begin(), MBRange::lower_bound( tree_sets.begin(), tree_sets.end(), root ) );
+  tree_sets.erase( tree_sets.begin(), Range::lower_bound( tree_sets.begin(), tree_sets.end(), root ) );
   interface->get_entities_by_dimension( 0, 2, elem2d );
   interface->get_entities_by_dimension( 0, 3, elem3d );
   interface->get_entities_by_type( 0, MBVERTEX, verts );
@@ -508,7 +510,7 @@ void print_stats( MBInterface* interface )
   SimpleStat<unsigned> depth, size;
   SimpleStat<double> vol, surf;
   
-  MBAdaptiveKDTreeIter iter;
+  AdaptiveKDTreeIter iter;
   tool.get_tree_iterator( root, iter );
   do {
     depth.add( iter.depth() );
@@ -556,17 +558,17 @@ void print_stats( MBInterface* interface )
 }
 
 
-static int hash_handle( MBEntityHandle handle )
+static int hash_handle( EntityHandle handle )
 {
-  MBEntityID h = ID_FROM_HANDLE(handle);
+  EntityID h = ID_FROM_HANDLE(handle);
   return (int)((h * 13 + 7) % MAX_TAG_VALUE) + 1;
 }   
 
-void tag_elements( MBInterface* moab )
+void tag_elements( Interface* moab )
 {
-  MBEntityHandle root;
-  MBRange range;
-  MBAdaptiveKDTree tool(moab);
+  EntityHandle root;
+  Range range;
+  AdaptiveKDTree tool(moab);
   
   tool.find_all_trees( range );
   if (range.size() != 1) {
@@ -580,11 +582,11 @@ void tag_elements( MBInterface* moab )
   root = *range.begin();
   range.clear();
   
-  MBTag tag;
+  Tag tag;
   int zero = 0;
   moab->tag_create( TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &zero, true );
   
-  MBAdaptiveKDTreeIter iter;
+  AdaptiveKDTreeIter iter;
   tool.get_tree_iterator( root, iter );
   
   std::vector<int> tag_vals;
@@ -597,11 +599,11 @@ void tag_elements( MBInterface* moab )
   } while (MB_SUCCESS == iter.step());
 }
 
-void tag_vertices( MBInterface* moab )
+void tag_vertices( Interface* moab )
 {
-  MBEntityHandle root;
-  MBRange range;
-  MBAdaptiveKDTree tool(moab);
+  EntityHandle root;
+  Range range;
+  AdaptiveKDTree tool(moab);
   
   tool.find_all_trees( range );
   if (range.size() != 1) {
@@ -615,11 +617,11 @@ void tag_vertices( MBInterface* moab )
   root = *range.begin();
   range.clear();
   
-  MBTag tag;
+  Tag tag;
   int zero = 0;
   moab->tag_create( TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &zero, true );
   
-  MBAdaptiveKDTreeIter iter;
+  AdaptiveKDTreeIter iter;
   tool.get_tree_iterator( root, iter );
   
   do {
@@ -627,24 +629,24 @@ void tag_vertices( MBInterface* moab )
     moab->get_entities_by_handle( iter.handle(), range );
     
     int tag_val = hash_handle(iter.handle());
-    MBRange verts;
-    moab->get_adjacencies( range, 0, false, verts, MBInterface::UNION );
-    for (MBRange::iterator i = verts.begin(); i != verts.end(); ++i) {
-      MBCartVect coords;
+    Range verts;
+    moab->get_adjacencies( range, 0, false, verts, Interface::UNION );
+    for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
+      CartVect coords;
       moab->get_coords( &*i, 1, coords.array() );
-      if (MBGeomUtil::box_point_overlap( MBCartVect(iter.box_min()),
-                                         MBCartVect(iter.box_max()),
+      if (GeomUtil::box_point_overlap( CartVect(iter.box_min()),
+                                         CartVect(iter.box_max()),
                                          coords, 1e-7 )) 
         moab->tag_set_data( tag, &*i, 1, &tag_val );
     }
   } while (MB_SUCCESS == iter.step());
 }
 
-void write_tree_blocks( MBInterface* interface, const char* file )
+void write_tree_blocks( Interface* interface, const char* file )
 {
-  MBEntityHandle root;
-  MBRange range;
-  MBAdaptiveKDTree tool(interface);
+  EntityHandle root;
+  Range range;
+  AdaptiveKDTree tool(interface);
   
   tool.find_all_trees( range );
   if (range.size() != 1) {
@@ -658,13 +660,13 @@ void write_tree_blocks( MBInterface* interface, const char* file )
   root = *range.begin();
   range.clear();
   
-  MBCore moab2;
-  MBTag tag;
+  Core moab2;
+  Tag tag;
   int zero = 0;
   moab2.tag_create( TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &zero, true );
   
   
-  MBAdaptiveKDTreeIter iter;
+  AdaptiveKDTreeIter iter;
   tool.get_tree_iterator( root, iter );
   
   do {
@@ -682,7 +684,7 @@ void write_tree_blocks( MBInterface* interface, const char* file )
                           x2, y1, z2,
                           x2, y2, z2,
                           x1, y2, z2 };
-    MBEntityHandle verts[8], elem;
+    EntityHandle verts[8], elem;
     for (int i = 0; i < 8; ++i)
       moab2.create_vertex( coords + 3*i, verts[i] );
     moab2.create_element( MBHEX, verts, 8, elem );

@@ -16,12 +16,14 @@
 #include "SweptElementSeq.hpp"
 #include "SweptVertexData.hpp"
 #include "SweptElementData.hpp"
-#include "MBInterface.hpp"
-#include "MBReadUtilIface.hpp"
-#include "MBCN.hpp"
-#include "MBInternals.hpp"
+#include "moab/Interface.hpp"
+#include "moab/ReadUtilIface.hpp"
+#include "moab/MBCN.hpp"
+#include "Internals.hpp"
 
-SweptElementSeq::SweptElementSeq(MBEntityHandle start_handle,
+namespace moab {
+
+SweptElementSeq::SweptElementSeq(EntityHandle start_handle,
                                  const int imin, const int jmin, const int kmin,
 				 const int imax, const int jmax, const int kmax,
                                  const int* Cq ) 
@@ -42,24 +44,24 @@ SweptElementSeq::~SweptElementSeq()
 {
 }
 
-MBErrorCode SweptElementSeq::get_connectivity( 
-                                        MBEntityHandle handle,
-                                        std::vector<MBEntityHandle>& connect,
+ErrorCode SweptElementSeq::get_connectivity( 
+                                        EntityHandle handle,
+                                        std::vector<EntityHandle>& connect,
                                         bool /*topological*/ ) const
 {
   int i, j, k;
-  MBErrorCode rval = get_params( handle, i, j, k );
+  ErrorCode rval = get_params( handle, i, j, k );
   if (MB_SUCCESS == rval)
     rval = get_params_connectivity( i, j, k, connect );
   return rval;
 }
 
-MBErrorCode SweptElementSeq::get_connectivity( 
-                                        MBEntityHandle handle,
-                                        MBEntityHandle const*& connect,
+ErrorCode SweptElementSeq::get_connectivity( 
+                                        EntityHandle handle,
+                                        EntityHandle const*& connect,
                                         int &connect_length,
                                         bool topo,
-                                        std::vector<MBEntityHandle>* storage
+                                        std::vector<EntityHandle>* storage
                                         ) const
 {
   if (!storage) {
@@ -69,30 +71,30 @@ MBErrorCode SweptElementSeq::get_connectivity(
   }
   
   storage->clear();
-  MBErrorCode rval = get_connectivity( handle, *storage, topo );
+  ErrorCode rval = get_connectivity( handle, *storage, topo );
   connect = &(*storage)[0];
   connect_length = storage->size();
   return rval;
 }
 
-MBErrorCode SweptElementSeq::set_connectivity( 
-                                        MBEntityHandle,
-                                        MBEntityHandle const*,
+ErrorCode SweptElementSeq::set_connectivity( 
+                                        EntityHandle,
+                                        EntityHandle const*,
                                         int )
 {
   return MB_NOT_IMPLEMENTED;
 }
 
-MBEntityHandle* SweptElementSeq::get_connectivity_array()
+EntityHandle* SweptElementSeq::get_connectivity_array()
   { return 0; }
 
 int SweptElementSeq::values_per_entity() const
   { return -1; } // never reuse freed handles for swept elements 
 
-EntitySequence* SweptElementSeq::split( MBEntityHandle here )
+EntitySequence* SweptElementSeq::split( EntityHandle here )
   { return new SweptElementSeq( *this, here ); }
 
-SequenceData* SweptElementSeq::create_data_subset( MBEntityHandle, MBEntityHandle ) const
+SequenceData* SweptElementSeq::create_data_subset( EntityHandle, EntityHandle ) const
   { return 0; }
 
 void SweptElementSeq::get_const_memory_use( unsigned long& bytes_per_entity,
@@ -101,3 +103,5 @@ void SweptElementSeq::get_const_memory_use( unsigned long& bytes_per_entity,
   sequence_size = sizeof(*this);
 //  bytes_per_entity = sdata()->get_memory_use() / sdata()->size();
 }
+
+} // namespace moab

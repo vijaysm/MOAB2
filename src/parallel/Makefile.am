@@ -1,18 +1,13 @@
 # Don't require GNU-standard files (Changelog, README, etc.)
 AUTOMAKE_OPTIONS = foreign
 
-# Subdirectories to build
-SUBDIRS = 
-
 # Things to build
 noinst_LTLIBRARIES = libMOABpar.la
          
 # Some variables
 AM_CPPFLAGS += -DIS_BUILDING_MB -DSRCDIR=$(srcdir) \
                -I$(srcdir)/.. -I.. -I$(srcdir)/../io \
-               -I$(srcdir)/../io/mhdf/include  \
-               -I$(srcdir)/../moab -I../moab \
-               -I$(srcdir)/moab -Imoab
+               -I$(srcdir)/../io/mhdf/include 
 
 # The directory in which to install headers
 libMOABpar_la_includedir = $(includedir)
@@ -29,9 +24,9 @@ MOAB_PARALLEL_HDRS =
 if PARALLEL
 # The list of source files, and any header files that do not need to be installed
   MOAB_PARALLEL_SRCS += \
-     MBParallelComm.cpp \
-     MBProcConfig.cpp \
-     MBParallelData.cpp \
+     ParallelComm.cpp \
+     ProcConfig.cpp \
+     ParallelData.cpp \
      ReadParallel.cpp \
      ReadParallel.hpp \
      crystal.h errmem.h types.h \
@@ -42,11 +37,11 @@ if PARALLEL
 
 # The list of header files which are to be installed
   MOAB_PARALLEL_HDRS += \
-     moab/MBmpi.h \
-     moab/MBmpi_config.h \
-     moab/MBParallelComm.hpp \
-     moab/MBProcConfig.hpp \
-     moab/MBParallelData.hpp \
+     moab_mpi.h \
+     moab_mpi_config.h \
+     moab/ParallelComm.hpp \
+     moab/ProcConfig.hpp \
+     moab/ParallelData.hpp \
      moab/MBParallelConventions.h 
 
 if PARALLEL_HDF5

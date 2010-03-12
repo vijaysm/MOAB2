@@ -1,10 +1,10 @@
-#include "MBParallelComm.hpp"
-#include "MBParallelConventions.h"
+#include "moab/ParallelComm.hpp"
+#include "moab/MBParallelConventions.h"
 #include "ReadParallel.hpp"
 #include "FileOptions.hpp"
-#include "MBTagConventions.hpp"
-#include "MBCore.hpp"
-#include "MBmpi.h"
+#include "moab/MBTagConventions.hpp"
+#include "moab/Core.hpp"
+#include "moab_mpi.h"
 #include <iostream>
 #include <algorithm>
 #include <sstream>
@@ -14,12 +14,14 @@
 #endif
 
 
+using namespace moab;
+
 #define STRINGIFY_(X) #X
 #define STRINGIFY(X) STRINGIFY_(X)
 
 
 #define CHKERR(a) do { \
-  MBErrorCode val = (a); \
+  ErrorCode val = (a); \
   if (MB_SUCCESS != val) { \
     std::cerr << "Error code  " << val << " at " << __FILE__ << ":" << __LINE__ << std::endl;\
     return val; \
@@ -28,13 +30,13 @@
 
 #define PCHECK(A) if (is_any_proc_error(!(A))) return report_error(__FILE__,__LINE__)
 
-MBErrorCode report_error( const char* file, int line )
+ErrorCode report_error( const char* file, int line )
 {
   std::cerr << "Failure at " << file << ':' << line << std::endl;
   return MB_FAILURE;
 }
 
-MBErrorCode test_read(const char *filename, const char *option);
+ErrorCode test_read(const char *filename, const char *option);
 
 #define RUN_TEST(A, B, C) run_test( &A, #A, B, C)
 
@@ -45,12 +47,12 @@ int is_any_proc_error( int is_my_error )
   return err || result;
 }
 
-int run_test( MBErrorCode (*func)(const char*, const char*), 
+int run_test( ErrorCode (*func)(const char*, const char*), 
               const char* func_name,
               const char* file_name,
               const char *option)
 {
-  MBErrorCode result = (*func)(file_name, option);
+  ErrorCode result = (*func)(file_name, option);
   int is_err = is_any_proc_error( (MB_SUCCESS != result) );
   int rank;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
@@ -120,16 +122,16 @@ int main( int argc, char* argv[] )
   return num_errors;
 }
 
-MBErrorCode test_read(const char *filename, const char *option) 
+ErrorCode test_read(const char *filename, const char *option) 
 {
-  MBCore mb_instance;
-  MBInterface& moab = mb_instance;
-  MBErrorCode rval;
+  Core mb_instance;
+  Interface& moab = mb_instance;
+  ErrorCode rval;
 
   rval = moab.load_file( filename, 0, option);
   CHKERR(rval);
 
-  MBParallelComm* pcomm = MBParallelComm::get_pcomm(&moab, 0);
+  ParallelComm* pcomm = ParallelComm::get_pcomm(&moab, 0);
 
   rval = pcomm->check_all_shared_handles();
   CHKERR(rval);

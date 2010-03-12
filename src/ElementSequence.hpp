@@ -3,14 +3,16 @@
 
 #include "EntitySequence.hpp"
 #include "SequenceData.hpp"
-#include "MBCN.hpp"
+#include "moab/MBCN.hpp"
+
+namespace moab {
 
 class ElementSequence : public EntitySequence
 {
 public:
   
-  ElementSequence( MBEntityHandle start,
-                   MBEntityID count,
+  ElementSequence( EntityHandle start,
+                   EntityID count,
                    unsigned int nodes_per_element,
                    SequenceData* data )
     : EntitySequence( start, count, data ), 
@@ -21,24 +23,24 @@ public:
   
   inline unsigned int nodes_per_element() const { return nodesPerElement; }
   
-  virtual MBErrorCode get_connectivity( MBEntityHandle handle,
-                                        std::vector<MBEntityHandle>& connect,
+  virtual ErrorCode get_connectivity( EntityHandle handle,
+                                        std::vector<EntityHandle>& connect,
                                         bool topological = false ) const = 0;
   
-  virtual MBErrorCode get_connectivity( MBEntityHandle handle,
-                                        MBEntityHandle const*& connect,
+  virtual ErrorCode get_connectivity( EntityHandle handle,
+                                        EntityHandle const*& connect,
                                         int &connect_length,
                                         bool topological = false,
-                                        std::vector<MBEntityHandle>* storage = 0
+                                        std::vector<EntityHandle>* storage = 0
                                        ) const = 0;
 
-  virtual MBErrorCode set_connectivity( MBEntityHandle handle,
-                                        MBEntityHandle const* connect,
+  virtual ErrorCode set_connectivity( EntityHandle handle,
+                                        EntityHandle const* connect,
                                         int connect_length ) = 0;
 
-  inline MBEntityHandle const* get_connectivity_array() const;
+  inline EntityHandle const* get_connectivity_array() const;
   
-  virtual MBEntityHandle* get_connectivity_array() = 0;
+  virtual EntityHandle* get_connectivity_array() = 0;
   
   inline bool has_mid_edge_nodes() const;
   inline bool has_mid_face_nodes() const;
@@ -46,7 +48,7 @@ public:
 
 protected:
 
-  ElementSequence( ElementSequence& split_from, MBEntityHandle here )
+  ElementSequence( ElementSequence& split_from, EntityHandle here )
     : EntitySequence( split_from, here ),
       nodesPerElement( split_from.nodesPerElement )
     {}
@@ -56,7 +58,7 @@ private:
   unsigned nodesPerElement;
 };
 
-inline MBEntityHandle const*
+inline EntityHandle const*
 ElementSequence::get_connectivity_array() const
   { return const_cast<ElementSequence*>(this)->get_connectivity_array(); }
 
@@ -72,4 +74,6 @@ inline bool
 ElementSequence::has_mid_volume_nodes() const
   { return MBCN::HasMidRegionNodes( type(), nodes_per_element() ); }
   
+} // namespace moab
+
 #endif

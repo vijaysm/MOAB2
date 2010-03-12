@@ -39,12 +39,14 @@
 #include <algorithm>
 #include <assert.h>
 #include "TagServer.hpp"
-#include "MBRange.hpp"
+#include "moab/Range.hpp"
 #include "SparseTagSuperCollection.hpp"
 #include "BitTagServer.hpp"
-#include "MBInterface.hpp"
+#include "moab/Interface.hpp"
 #include "SequenceManager.hpp"
 #include "TagCompare.hpp"
+
+namespace moab {
 
 using namespace std;
   
@@ -76,7 +78,7 @@ TagServer::~TagServer()
 }
 
 
-MBErrorCode TagServer::reset_all_data()
+ErrorCode TagServer::reset_all_data()
 {
   mSparseData->reset_data();
   mBitServer->reset_data();
@@ -86,11 +88,11 @@ MBErrorCode TagServer::reset_all_data()
 }
 
 
-MBErrorCode TagServer::add_tag( const char *tag_name, 
+ErrorCode TagServer::add_tag( const char *tag_name, 
                                 const int data_size,
-                                const MBTagType storage,
-                                const MBDataType data_type,
-                                MBTag &tag_handle,
+                                const TagType storage,
+                                const DataType data_type,
+                                Tag &tag_handle,
                                 const void *default_value,
                                 int default_value_size)
 {
@@ -142,10 +144,10 @@ MBErrorCode TagServer::add_tag( const char *tag_name,
     *i = TagInfo( tag_name, data_size, data_type, default_value, default_value_size );
 
 
-  MBTagId tag_id = i - list.begin() + 1;
+  TagId tag_id = i - list.begin() + 1;
   tag_handle = TAG_HANDLE_FROM_ID( tag_id, storage );
 
-  MBErrorCode result = MB_FAILURE;
+  ErrorCode result = MB_FAILURE;
   switch (storage) {
     case MB_TAG_BIT:
       result = mBitServer->reserve_tag_id( data_size, tag_id );
@@ -167,16 +169,16 @@ MBErrorCode TagServer::add_tag( const char *tag_name,
 }
 
 
-MBErrorCode TagServer::remove_tag(const MBTag tag_handle)
+ErrorCode TagServer::remove_tag(const Tag tag_handle)
 {
-  const MBTagId tag_id = ID_FROM_TAG_HANDLE( tag_handle );
-  const MBTagType tag_type = PROP_FROM_TAG_HANDLE( tag_handle );
+  const TagId tag_id = ID_FROM_TAG_HANDLE( tag_handle );
+  const TagType tag_type = PROP_FROM_TAG_HANDLE( tag_handle );
   const unsigned tag_idx = tag_id - 1;
   if (tag_idx >= mTagTable[tag_type].size() ||
       !mTagTable[tag_type][tag_idx].is_valid())
     return MB_TAG_NOT_FOUND;
   
-  MBErrorCode status = MB_FAILURE;
+  ErrorCode status = MB_FAILURE;
   switch (tag_type) {
     case MB_TAG_BIT:
       status = mBitServer->release_tag_id(tag_id);
@@ -199,11 +201,11 @@ MBErrorCode TagServer::remove_tag(const MBTag tag_handle)
 
 //! resets all data tagged to this entity handle back to default data or NULL.
 //! this is used to clean out stale data that might be referenced again
-MBErrorCode TagServer::reset_data(MBEntityHandle entity_handle)
+ErrorCode TagServer::reset_data(EntityHandle entity_handle)
 {
   std::vector<TagInfo>::iterator i;
 
-  MBTagId tag_id;
+  TagId tag_id;
 
   for (tag_id = 1; tag_id <= mTagTable[MB_TAG_BIT].size(); ++tag_id) 
     if (mTagTable[MB_TAG_BIT][tag_id-1].is_valid())
@@ -224,7 +226,7 @@ MBErrorCode TagServer::reset_data(MBEntityHandle entity_handle)
 }
 
 
-MBErrorCode TagServer::set_mesh_data( const MBTag tag_handle,
+ErrorCode TagServer::set_mesh_data( const Tag tag_handle,
                                       const void* data,
                                       int size )
 {
@@ -246,14 +248,14 @@ MBErrorCode TagServer::set_mesh_data( const MBTag tag_handle,
 }
 
 
-MBErrorCode TagServer::set_data( const MBTag tag_handle, 
-                                 const MBEntityHandle* entity_handles, 
+ErrorCode TagServer::set_data( const Tag tag_handle, 
+                                 const EntityHandle* entity_handles, 
                                  const int num_entities,
                                  const void* data )
 {
-  MBErrorCode rval;
-  const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
-  const MBTagType tag_type = PROP_FROM_TAG_HANDLE(tag_handle);
+  ErrorCode rval;
+  const TagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
+  const TagType tag_type = PROP_FROM_TAG_HANDLE(tag_handle);
   const TagInfo* tag_info;
   switch (tag_type) {
     case MB_TAG_DENSE:
@@ -288,13 +290,13 @@ MBErrorCode TagServer::set_data( const MBTag tag_handle,
   return rval;
 }
 
-MBErrorCode TagServer::set_data( const MBTag tag_handle, 
-                                 const MBRange& entity_handles, 
+ErrorCode TagServer::set_data( const Tag tag_handle, 
+                                 const Range& entity_handles, 
                                  const void* data )
 {
-  MBErrorCode rval;
-  const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
-  const MBTagType tag_type = PROP_FROM_TAG_HANDLE(tag_handle);
+  ErrorCode rval;
+  const TagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
+  const TagType tag_type = PROP_FROM_TAG_HANDLE(tag_handle);
   const TagInfo* tag_info;
   switch (tag_type) {
     case MB_TAG_DENSE:
@@ -330,15 +332,15 @@ MBErrorCode TagServer::set_data( const MBTag tag_handle,
   return rval;
 }
 
-MBErrorCode TagServer::set_data( const MBTag tag_handle, 
-                                 const MBEntityHandle* entity_handles, 
+ErrorCode TagServer::set_data( const Tag tag_handle, 
+                                 const EntityHandle* entity_handles, 
                                  const int num_entities,
                                  void const* const* data,
                                  const int* lengths )
 {
-  MBErrorCode rval;
-  const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
-  const MBTagType tag_type = PROP_FROM_TAG_HANDLE(tag_handle);
+  ErrorCode rval;
+  const TagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
+  const TagType tag_type = PROP_FROM_TAG_HANDLE(tag_handle);
   const TagInfo* tag_info = get_tag_info( tag_id, tag_type );
   if (!tag_info)
     return MB_TAG_NOT_FOUND;
@@ -371,14 +373,14 @@ MBErrorCode TagServer::set_data( const MBTag tag_handle,
   return rval;
 }
 
-MBErrorCode TagServer::set_data( const MBTag tag_handle, 
-                                 const MBRange& entity_handles, 
+ErrorCode TagServer::set_data( const Tag tag_handle, 
+                                 const Range& entity_handles, 
                                  void const* const* data,
                                  const int* lengths )
 {
-  MBErrorCode rval;
-  const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
-  const MBTagType tag_type = PROP_FROM_TAG_HANDLE(tag_handle);
+  ErrorCode rval;
+  const TagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
+  const TagType tag_type = PROP_FROM_TAG_HANDLE(tag_handle);
   const TagInfo* tag_info = get_tag_info( tag_id, tag_type );
   if (!tag_info)
     return MB_TAG_NOT_FOUND;
@@ -413,7 +415,7 @@ MBErrorCode TagServer::set_data( const MBTag tag_handle,
 
 
 
-MBErrorCode TagServer::get_mesh_data( const MBTag tag_handle,
+ErrorCode TagServer::get_mesh_data( const Tag tag_handle,
                                       void* data ) const
 {
   const TagInfo* info = get_tag_info( tag_handle );
@@ -433,7 +435,7 @@ MBErrorCode TagServer::get_mesh_data( const MBTag tag_handle,
   return MB_SUCCESS;
 }
 
-MBErrorCode TagServer::get_mesh_data( MBTag tag_handle,
+ErrorCode TagServer::get_mesh_data( Tag tag_handle,
                                       const void*& data,
                                       int& size ) const
 {
@@ -464,13 +466,13 @@ MBErrorCode TagServer::get_mesh_data( MBTag tag_handle,
   return MB_SUCCESS;
 }
 
-MBErrorCode TagServer::get_data( const MBTag tag_handle,
-                                 const MBEntityHandle* entity_handles,
+ErrorCode TagServer::get_data( const Tag tag_handle,
+                                 const EntityHandle* entity_handles,
                                  const int num_entities,
                                  void* data )
 {
-  const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
-  const MBTagType type = PROP_FROM_TAG_HANDLE(tag_handle);
+  const TagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
+  const TagType type = PROP_FROM_TAG_HANDLE(tag_handle);
   const TagInfo* info = get_tag_info( tag_handle );
   if (!info)
     return MB_TAG_NOT_FOUND;
@@ -489,12 +491,12 @@ MBErrorCode TagServer::get_data( const MBTag tag_handle,
   }
 }
 
-MBErrorCode TagServer::get_data( const MBTag tag_handle,
-                                 const MBRange& entity_handles,
+ErrorCode TagServer::get_data( const Tag tag_handle,
+                                 const Range& entity_handles,
                                  void* data )
 {
-  const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
-  const MBTagType type = PROP_FROM_TAG_HANDLE(tag_handle);
+  const TagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
+  const TagType type = PROP_FROM_TAG_HANDLE(tag_handle);
   const TagInfo* info = get_tag_info( tag_handle );
   if (!info)
     return MB_TAG_NOT_FOUND;
@@ -513,14 +515,14 @@ MBErrorCode TagServer::get_data( const MBTag tag_handle,
   }
 }
 
-MBErrorCode TagServer::get_data( const MBTag tag_handle,
-                                 const MBEntityHandle* entity_handles,
+ErrorCode TagServer::get_data( const Tag tag_handle,
+                                 const EntityHandle* entity_handles,
                                  const int num_entities,
                                  const void** data,
                                  int* lengths )
 {
-  const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
-  const MBTagType type = PROP_FROM_TAG_HANDLE(tag_handle);
+  const TagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
+  const TagType type = PROP_FROM_TAG_HANDLE(tag_handle);
   const TagInfo* info = get_tag_info( tag_handle );
   if (!info)
     return MB_TAG_NOT_FOUND;
@@ -538,13 +540,13 @@ MBErrorCode TagServer::get_data( const MBTag tag_handle,
   }
 }
 
-MBErrorCode TagServer::get_data( const MBTag tag_handle,
-                                 const MBRange& entity_handles,
+ErrorCode TagServer::get_data( const Tag tag_handle,
+                                 const Range& entity_handles,
                                  const void** data,
                                  int* lengths )
 {
-  const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
-  const MBTagType type = PROP_FROM_TAG_HANDLE(tag_handle);
+  const TagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
+  const TagType type = PROP_FROM_TAG_HANDLE(tag_handle);
   const TagInfo* info = get_tag_info( tag_handle );
   if (!info)
     return MB_TAG_NOT_FOUND;
@@ -563,32 +565,32 @@ MBErrorCode TagServer::get_data( const MBTag tag_handle,
 }
 
 
-MBTag TagServer::get_handle(const char *tag_name) const
+Tag TagServer::get_handle(const char *tag_name) const
 {
   if (tag_name && *tag_name)
     for (int i = 0; i < MB_TAG_LAST+1; ++i) 
-      for (MBTagId j = 0; j < mTagTable[i].size(); ++j) 
+      for (TagId j = 0; j < mTagTable[i].size(); ++j) 
         if (mTagTable[i][j].is_valid() && mTagTable[i][j].get_name() == tag_name)
-          return TAG_HANDLE_FROM_ID( j + 1, (MBTagType)i );
+          return TAG_HANDLE_FROM_ID( j + 1, (TagType)i );
   
   return 0;
 }
 
-MBErrorCode TagServer::get_tags(std::vector<MBTag> &all_tags)
+ErrorCode TagServer::get_tags(std::vector<Tag> &all_tags)
 {
   for (int i = 0; i < MB_TAG_LAST+1; ++i) 
-    for (MBTagId j = 0; j < mTagTable[i].size(); ++j) 
+    for (TagId j = 0; j < mTagTable[i].size(); ++j) 
       if (mTagTable[i][j].is_valid())
-        all_tags.push_back( TAG_HANDLE_FROM_ID( j + 1, (MBTagType)i ) );
+        all_tags.push_back( TAG_HANDLE_FROM_ID( j + 1, (TagType)i ) );
 
   return MB_SUCCESS;
 }
 
-MBErrorCode TagServer::get_tags(const MBEntityHandle entity, std::vector<MBTag> &all_tags)
+ErrorCode TagServer::get_tags(const EntityHandle entity, std::vector<Tag> &all_tags)
 {
-  MBErrorCode result = MB_SUCCESS;
+  ErrorCode result = MB_SUCCESS;
   
-  MBErrorCode tmp_result = mSparseData->get_tags(entity, all_tags);
+  ErrorCode tmp_result = mSparseData->get_tags(entity, all_tags);
   if (MB_SUCCESS != tmp_result) result = tmp_result;
   
   tmp_result = sequenceManager->get_entity_tags(entity, all_tags);
@@ -600,17 +602,17 @@ MBErrorCode TagServer::get_tags(const MBEntityHandle entity, std::vector<MBTag> 
   return result;
 }
 
-MBErrorCode TagServer::get_mesh_tags( std::vector<MBTag>& all_tags ) const
+ErrorCode TagServer::get_mesh_tags( std::vector<Tag>& all_tags ) const
 {
   for (int i = 0; i < MB_TAG_LAST+1; ++i) 
-    for (MBTagId j = 0; j < mTagTable[i].size(); ++j) 
+    for (TagId j = 0; j < mTagTable[i].size(); ++j) 
       if (mTagTable[i][j].is_valid() && mTagTable[i][j].get_mesh_value())
-        all_tags.push_back( TAG_HANDLE_FROM_ID( j + 1, (MBTagType)i ) );
+        all_tags.push_back( TAG_HANDLE_FROM_ID( j + 1, (TagType)i ) );
   
   return MB_SUCCESS;
 }
 
-MBErrorCode TagServer::get_default_data_ref( const MBTag tag_handle, 
+ErrorCode TagServer::get_default_data_ref( const Tag tag_handle, 
                                              const void *& data,
                                              int& size) 
 {
@@ -633,7 +635,7 @@ MBErrorCode TagServer::get_default_data_ref( const MBTag tag_handle,
 }
 
 
-MBErrorCode TagServer::get_default_data( const MBTag tag_handle, 
+ErrorCode TagServer::get_default_data( const Tag tag_handle, 
                                          void *data,
                                          int& size) 
 {
@@ -653,7 +655,7 @@ MBErrorCode TagServer::get_default_data( const MBTag tag_handle,
 }
 
 
-MBErrorCode TagServer::remove_mesh_data( const MBTag tag_handle )
+ErrorCode TagServer::remove_mesh_data( const Tag tag_handle )
 {
   TagInfo* info = get_tag_info( tag_handle );
   if (!info || !info->get_mesh_value_size())
@@ -663,10 +665,10 @@ MBErrorCode TagServer::remove_mesh_data( const MBTag tag_handle )
 }
 
 
-MBErrorCode TagServer::remove_data( const MBTag tag_handle, const MBEntityHandle entity_handle )
+ErrorCode TagServer::remove_data( const Tag tag_handle, const EntityHandle entity_handle )
 {
-  MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
-  MBTagType storage = PROP_FROM_TAG_HANDLE(tag_handle);
+  TagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
+  TagType storage = PROP_FROM_TAG_HANDLE(tag_handle);
   if (tag_id > mTagTable[storage].size())
     return MB_TAG_NOT_FOUND;
   const void* defval = mTagTable[storage][tag_id-1].default_value();
@@ -689,11 +691,11 @@ MBErrorCode TagServer::remove_data( const MBTag tag_handle, const MBEntityHandle
 
 
 //! gets all entity handles that match a type and tag
-MBErrorCode TagServer::get_entities(const MBTag tag_handle, const MBEntityType type,
-                                     MBRange &entities)
+ErrorCode TagServer::get_entities(const Tag tag_handle, const EntityType type,
+                                     Range &entities)
 {
-  MBErrorCode result = MB_TAG_NOT_FOUND;
-  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  ErrorCode result = MB_TAG_NOT_FOUND;
+  TagId id = ID_FROM_TAG_HANDLE(tag_handle);
   switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
     case MB_TAG_SPARSE:
       result = mSparseData->get_entities(id, type, entities);
@@ -713,16 +715,16 @@ MBErrorCode TagServer::get_entities(const MBTag tag_handle, const MBEntityType t
 }
 
 //! gets all entity handles that match a tag
-MBErrorCode TagServer::get_entities(const MBTag tag_handle, MBRange &entities)
+ErrorCode TagServer::get_entities(const Tag tag_handle, Range &entities)
 {
-  MBErrorCode result = MB_TAG_NOT_FOUND;
-  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  ErrorCode result = MB_TAG_NOT_FOUND;
+  TagId id = ID_FROM_TAG_HANDLE(tag_handle);
   switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
     case MB_TAG_SPARSE:
       result = mSparseData->get_entities(id, entities);
       break;
     case MB_TAG_DENSE:
-      for (MBEntityType t = MBENTITYSET; t >= MBVERTEX; --t)
+      for (EntityType t = MBENTITYSET; t >= MBVERTEX; --t)
         result = sequenceManager->get_tagged_entities(id, t, entities);
       break;
     case MB_TAG_BIT:
@@ -737,18 +739,18 @@ MBErrorCode TagServer::get_entities(const MBTag tag_handle, MBRange &entities)
 }
 
 //! gets all entity handles that match a type and tag
-MBErrorCode TagServer::get_entities(const MBRange &range,
-                                     const MBTag tag_handle, const MBEntityType type,
-                                     MBRange &entities)
+ErrorCode TagServer::get_entities(const Range &range,
+                                     const Tag tag_handle, const EntityType type,
+                                     Range &entities)
 {
-  MBErrorCode result = MB_TAG_NOT_FOUND;
-  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  ErrorCode result = MB_TAG_NOT_FOUND;
+  TagId id = ID_FROM_TAG_HANDLE(tag_handle);
   switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
     case MB_TAG_SPARSE:
       result = mSparseData->get_entities(range, id, type, entities);
       break;
     case MB_TAG_DENSE: {
-      MBRange temp;
+      Range temp;
       result = sequenceManager->get_tagged_entities(id, type, temp);
       entities.merge( intersect( range, temp) );
       }
@@ -764,15 +766,15 @@ MBErrorCode TagServer::get_entities(const MBRange &range,
   return result;
 }
 
-MBErrorCode TagServer::get_entities_with_tag_value( const MBEntityType type,
-                                                    const MBTag tag_handle,
+ErrorCode TagServer::get_entities_with_tag_value( const EntityType type,
+                                                    const Tag tag_handle,
                                                     const void* value,
-                                                    MBRange &entities,
+                                                    Range &entities,
                                                     int value_size ) 
 {
 
-  MBErrorCode result = MB_TAG_NOT_FOUND;
-  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  ErrorCode result = MB_TAG_NOT_FOUND;
+  TagId id = ID_FROM_TAG_HANDLE(tag_handle);
 
   const TagInfo* info = get_tag_info( tag_handle );
   if (!info)
@@ -800,16 +802,16 @@ MBErrorCode TagServer::get_entities_with_tag_value( const MBEntityType type,
   
 }
 
-MBErrorCode TagServer::get_entities_with_tag_value( const MBRange &range,
-                                                    const MBEntityType type,
-                                                    const MBTag tag_handle,
+ErrorCode TagServer::get_entities_with_tag_value( const Range &range,
+                                                    const EntityType type,
+                                                    const Tag tag_handle,
                                                     const void* value,
-                                                    MBRange &entities,
+                                                    Range &entities,
                                                     int value_size ) 
 {
 
-  MBErrorCode result = MB_TAG_NOT_FOUND;
-  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  ErrorCode result = MB_TAG_NOT_FOUND;
+  TagId id = ID_FROM_TAG_HANDLE(tag_handle);
 
   const TagInfo* info = get_tag_info( tag_handle );
   if (!info)
@@ -830,7 +832,7 @@ MBErrorCode TagServer::get_entities_with_tag_value( const MBRange &range,
     else
       equals_default = !memcmp( value, info->default_value(), info->default_value_size() );
   }
-  MBRange tmp_ents;
+  Range tmp_ents;
   if (equals_default)
     tmp_ents.swap( entities );
   
@@ -856,7 +858,7 @@ MBErrorCode TagServer::get_entities_with_tag_value( const MBRange &range,
     // If tag value is default value, then we want every entity
     // in 'range' of the correct type, except those with a different tag value.
   
-  MBRange all_tagged;
+  Range all_tagged;
   result = get_entities( range, tag_handle, type, all_tagged );
   if (MB_SUCCESS != result) 
     return result;
@@ -866,7 +868,7 @@ MBErrorCode TagServer::get_entities_with_tag_value( const MBRange &range,
     // get everything that does not have a different value
   entities = subtract( range, entities );
     // remove entities of the incorrect type, if any
-  std::pair<MBRange::iterator,MBRange::iterator> p = entities.equal_range(type);
+  std::pair<Range::iterator,Range::iterator> p = entities.equal_range(type);
   entities.erase( entities.begin(), p.first );
   entities.erase( p.second, entities.end() );
     // merge with entities initially in range
@@ -876,24 +878,24 @@ MBErrorCode TagServer::get_entities_with_tag_value( const MBRange &range,
   
 }
 
-MBErrorCode TagServer::get_entities_with_tag_values( const MBRange &input_range,
-                                                      const MBEntityType type,
-                                                      const MBTag *tags,
+ErrorCode TagServer::get_entities_with_tag_values( const Range &input_range,
+                                                      const EntityType type,
+                                                      const Tag *tags,
                                                       const void* const* values,
                                                       const int num_tags,
-                                                      MBRange &entities,
+                                                      Range &entities,
                                                       const int condition) 
 {
     // range should never come in empty
   assert(!input_range.empty());
   if (input_range.empty()) return MB_FAILURE;
-  MBRange range = input_range;
+  Range range = input_range;
   
-  MBErrorCode result;
-  MBRange temp1;
+  ErrorCode result;
+  Range temp1;
 
-  if (condition != MBInterface::INTERSECT &&
-      condition != MBInterface::UNION)
+  if (condition != Interface::INTERSECT &&
+      condition != Interface::UNION)
     return MB_FAILURE;
 
   for (unsigned int it = 0; it < (unsigned int) num_tags; it++) {
@@ -910,14 +912,14 @@ MBErrorCode TagServer::get_entities_with_tag_values( const MBRange &input_range,
 
       // if we're doing a running intersection and we're just starting and
       // the list comes in empty, the 1st result is the start
-    if (0 == it && condition == MBInterface::INTERSECT && entities.empty()) {
+    if (0 == it && condition == Interface::INTERSECT && entities.empty()) {
       entities = intersect( temp1, range);
     }
 
       // else if we're doing a running intersection, intersect this result (temp1)
       // with the running result (entities) into temp2, then move that to the running
       // result (entities)
-    else if (condition == MBInterface::INTERSECT) {
+    else if (condition == Interface::INTERSECT) {
       entities = intersect( entities, temp1);
       if (entities.empty()) return MB_SUCCESS;
 
@@ -928,7 +930,7 @@ MBErrorCode TagServer::get_entities_with_tag_values( const MBRange &input_range,
 
       // else if we're doing a union, put these results (temp1) into the running 
       // result (entities)
-    else if (condition == MBInterface::UNION) {
+    else if (condition == Interface::UNION) {
       entities.merge(temp1);
     }
   }
@@ -937,13 +939,13 @@ MBErrorCode TagServer::get_entities_with_tag_values( const MBRange &input_range,
   return MB_SUCCESS;
 }
 
-MBErrorCode TagServer::get_number_entities( const MBTag tag_handle,
+ErrorCode TagServer::get_number_entities( const Tag tag_handle,
                                             unsigned long& num_entities )
 {
   num_entities = 0;
-  for (MBEntityType t = MBVERTEX; t < MBMAXTYPE; ++t) {
+  for (EntityType t = MBVERTEX; t < MBMAXTYPE; ++t) {
     int type_num_entities;
-    MBErrorCode rval = get_number_entities( tag_handle, t, type_num_entities );
+    ErrorCode rval = get_number_entities( tag_handle, t, type_num_entities );
     if (MB_SUCCESS != rval) 
       return rval;
     num_entities += type_num_entities;
@@ -951,11 +953,11 @@ MBErrorCode TagServer::get_number_entities( const MBTag tag_handle,
   return MB_SUCCESS;
 }
 
-MBErrorCode TagServer::get_number_entities( const MBTag tag_handle, 
-                                             const MBEntityType type,
+ErrorCode TagServer::get_number_entities( const Tag tag_handle, 
+                                             const EntityType type,
                                              int& num_entities)
 {
-  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  TagId id = ID_FROM_TAG_HANDLE(tag_handle);
   switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
     case MB_TAG_SPARSE:
       return mSparseData->get_number_entities(id, type, num_entities);
@@ -969,18 +971,18 @@ MBErrorCode TagServer::get_number_entities( const MBTag tag_handle,
   return MB_TAG_NOT_FOUND;
 }
 
-MBErrorCode TagServer::get_number_entities( const MBRange &range,
-                                             const MBTag tag_handle, 
-                                             const MBEntityType type,
+ErrorCode TagServer::get_number_entities( const Range &range,
+                                             const Tag tag_handle, 
+                                             const EntityType type,
                                              int& num_entities)
 {
-  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  TagId id = ID_FROM_TAG_HANDLE(tag_handle);
   switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
     case MB_TAG_SPARSE:
       return mSparseData->get_number_entities(range, id, type, num_entities);
     case MB_TAG_DENSE: {
-      MBRange temp;
-      MBErrorCode rval = get_entities( range, tag_handle, type, temp );
+      Range temp;
+      ErrorCode rval = get_entities( range, tag_handle, type, temp );
       num_entities = temp.size();
       return rval;
     }
@@ -992,14 +994,14 @@ MBErrorCode TagServer::get_number_entities( const MBRange &range,
   return MB_TAG_NOT_FOUND;
 }
 
-unsigned long TagServer::get_memory_use( MBTag tag_handle ) const
+unsigned long TagServer::get_memory_use( Tag tag_handle ) const
 {
   const TagInfo* tag_info = get_tag_info(tag_handle);
   if (!tag_info)
     return 0;
 
   unsigned long result = 0, tmp;
-  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  TagId id = ID_FROM_TAG_HANDLE(tag_handle);
   switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
     case MB_TAG_SPARSE:
       mSparseData->get_memory_use( id, result, tmp );
@@ -1015,14 +1017,14 @@ unsigned long TagServer::get_memory_use( MBTag tag_handle ) const
   }
 
     // add in size of entry in mTagTable
-  result += sizeof(MBTag) + sizeof(TagInfo) + 3*sizeof(void*);
+  result += sizeof(Tag) + sizeof(TagInfo) + 3*sizeof(void*);
   result += tag_info->default_value_size();
   result += tag_info->get_mesh_value_size();
   result += tag_info->get_name().size();
   return result;
 }
 
-MBErrorCode TagServer::get_memory_use( MBTag tag_handle,
+ErrorCode TagServer::get_memory_use( Tag tag_handle,
                                        unsigned long& total,
                                        unsigned long& per_entity ) const
 {
@@ -1030,7 +1032,7 @@ MBErrorCode TagServer::get_memory_use( MBTag tag_handle,
   if(!tag_info)
     return MB_TAG_NOT_FOUND;
 
-  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  TagId id = ID_FROM_TAG_HANDLE(tag_handle);
   switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
     case MB_TAG_SPARSE:
       mSparseData->get_memory_use( id, total, per_entity );
@@ -1046,7 +1048,7 @@ MBErrorCode TagServer::get_memory_use( MBTag tag_handle,
   }
   
     // size of entry in mTagTable map
-  total += sizeof(MBTag) + sizeof(TagInfo) + 3*sizeof(void*);
+  total += sizeof(Tag) + sizeof(TagInfo) + 3*sizeof(void*);
   total += tag_info->default_value_size();
   total += tag_info->get_mesh_value_size();
   total += tag_info->get_name().size();
@@ -1054,8 +1056,8 @@ MBErrorCode TagServer::get_memory_use( MBTag tag_handle,
   return MB_SUCCESS;
 }
     
-  
-  
+
+} // namespace moab
 
 #ifdef TEST
 
@@ -1066,6 +1068,7 @@ MBErrorCode TagServer::get_memory_use( MBTag tag_handle,
 
 #include "TagServer.hpp"
 
+using namespace moab;
 
 const int MAX_ID = 10000;
 const int SET_TAG_LOOPS = 0xFFF;
@@ -1080,11 +1083,11 @@ int main()
   std::string tag_name;
   tag_name.reserve(TAG_NAME_SIZE+1);
   //char tag_name[TAG_NAME_SIZE+1] = {0};
-  MBTag my_tag_handle;
+  Tag my_tag_handle;
   unsigned char tag_data[MAX_TAG_DATA_SIZE] = {0};
   unsigned char tag_size;
   unsigned int entity_type;
-  MBTag tag_handle = (MBTag)3245;
+  Tag tag_handle = (Tag)3245;
 
 
   tag_server.add_tag("densex", 4, MB_TAG_DENSE, MB_TYPE_OPAQUE, my_tag_handle);
@@ -1112,7 +1115,7 @@ int main()
     {
       std::cout << "adding tag - " << tag_name << " " << my_tag_handle << " with entity type " << entity_type << " of size " << static_cast<int>(tag_size) << std::endl;
 
-      MBTag tmp_tag_handle = tag_server.get_handle(tag_name.c_str());
+      Tag tmp_tag_handle = tag_server.get_handle(tag_name.c_str());
 
       if(tmp_tag_handle != my_tag_handle)
       {
@@ -1126,13 +1129,13 @@ int main()
       // test the find_entity function.  This test succeeds on failure
       tag_data[0] = rand();
       tag_server.set_data(my_tag_handle, 200, tag_data);
-      MBRange tmp_range;
+      Range tmp_range;
       tag_server.get_entities_with_tag_value( TYPE_FROM_HANDLE(200), my_tag_handle, tag_data, tmp_range );
       assert( tmp_range.size() == 1 && tmp_range.begin() == 200 );
 
       for( int i=0; i<SET_TAG_LOOPS; i++ )
       {
-        MBEntityHandle id = (MAX_ID*rand())/(RAND_MAX+1);
+        EntityHandle id = (MAX_ID*rand())/(RAND_MAX+1);
         for(int j=0; j<tag_size; j++)
           tag_data[j] = rand();
 
@@ -1154,7 +1157,7 @@ int main()
     {
       unsigned int entity_type_tmp = (0x3 & rand()) + 1;
       // try to get the handle and remove it
-      MBTag tmp = tag_server.get_handle(tag_name.c_str()); 
+      Tag tmp = tag_server.get_handle(tag_name.c_str()); 
       if(tmp)
       {
         std::cout << " removing tag - " << tag_name << " with entity type " << entity_type_tmp << std::endl;
@@ -1166,6 +1169,5 @@ int main()
   std::cout << std::endl << "---SUCCESS---" << std::endl << std::endl; 
   return 0;
 }
-
 
 #endif

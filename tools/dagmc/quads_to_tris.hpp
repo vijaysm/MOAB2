@@ -6,15 +6,15 @@
 
 #include <iostream>
 #include <assert.h>
-#include "MBCore.hpp"
-#include "MBTagConventions.hpp"
-#include "MBRange.hpp"
+#include "moab/Core.hpp"
+#include "moab/MBTagConventions.hpp"
+#include "moab/Range.hpp"
 
-MBErrorCode make_tris_from_quad( MBInterface *MBI,
-                                 MBEntityHandle quad,  /* input  */
-                                 MBEntityHandle &tri0, /* output */
-				 MBEntityHandle &tri1  /* output */);
+moab::ErrorCode make_tris_from_quad( moab::Interface *MBI,
+                                 moab::EntityHandle quad,  /* input  */
+                                 moab::EntityHandle &tri0, /* output */
+				 moab::EntityHandle &tri1  /* output */);
 
-MBErrorCode make_tris_from_quads( MBInterface *MBI, const MBRange quads, MBRange &tris ) ;
+moab::ErrorCode make_tris_from_quads( moab::Interface *MBI, const moab::Range quads, moab::Range &tris ) ;
 
-MBErrorCode quads_to_tris( MBInterface *MBI, MBEntityHandle input_meshset );
+moab::ErrorCode quads_to_tris( moab::Interface *MBI, moab::EntityHandle input_meshset );

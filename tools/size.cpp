@@ -37,10 +37,12 @@
 #include <assert.h>
 #include <float.h>
 
-#include "MBCore.hpp"
-#include "MBRange.hpp"
-#include "MBTagConventions.hpp"
-#include "MBInterface.hpp"
+#include "moab/Core.hpp"
+#include "moab/Range.hpp"
+#include "moab/MBTagConventions.hpp"
+#include "moab/Interface.hpp"
+
+using namespace moab;
 
 #include "measure.hpp"
 
@@ -56,7 +58,7 @@ void usage( const char* exe )
 }
 
 
-MBCore moab;
+Core mb;
 
 
 struct stat_set 
@@ -120,31 +122,31 @@ struct set_stats {
 };
 
 
-MBErrorCode gather_set_stats( MBEntityHandle set, set_stats& stats )
+ErrorCode gather_set_stats( EntityHandle set, set_stats& stats )
 {
-  MBErrorCode rval = MB_SUCCESS;
+  ErrorCode rval = MB_SUCCESS;
   
   int count;
-  rval = moab.get_number_entities_by_type( set, MBVERTEX, count );
+  rval = mb.get_number_entities_by_type( set, MBVERTEX, count );
   if (MB_SUCCESS != rval) return rval;
   stats.nodes = count;
   
   int edge_vtx_idx[2];
-  std::vector<MBEntityHandle> conn;
+  std::vector<EntityHandle> conn;
   std::vector<double> coords;
-  for (MBEntityType type = MBEDGE; type < MBENTITYSET; ++type)
+  for (EntityType type = MBEDGE; type < MBENTITYSET; ++type)
   {
     int num_edges = MBCN::NumSubEntities( type, 1 );
     
-    MBRange range;
-    rval = moab.get_entities_by_type( set, type, range, true );
+    Range range;
+    rval = mb.get_entities_by_type( set, type, range, true );
     if (MB_SUCCESS != rval) return rval;
-    for (MBRange::iterator i = range.begin(); i != range.end(); ++i)
+    for (Range::iterator i = range.begin(); i != range.end(); ++i)
     {
-      rval = moab.get_connectivity( &*i, 1, conn, true );
+      rval = mb.get_connectivity( &*i, 1, conn, true );
       if (MB_SUCCESS != rval) return rval;
       coords.resize( 3*conn.size() );
-      rval = moab.get_coords( &conn[0], conn.size(), &coords[0] );
+      rval = mb.get_coords( &conn[0], conn.size(), &coords[0] );
       if (MB_SUCCESS != rval) return rval;
       stats.stats[type].add( measure( type, conn.size(), &coords[0] ) );
       
@@ -207,7 +209,7 @@ void print_stats( set_stats& stats )
   if (count_width < node_count_width)
     count_width = node_count_width;
   
-  for (MBEntityType i = MBEDGE; i < MBMAXTYPE; ++i)
+  for (EntityType i = MBEDGE; i < MBMAXTYPE; ++i)
   {
     stat_set& s = (i == MBMAXTYPE) ? stats.edge_uses : stats.stats[i];
 
@@ -285,7 +287,7 @@ void print_stats( set_stats& stats )
   printf( "%*s ", val_width, dashes(val_width) );
   printf( "%*s\n", val_width, dashes(val_width) );
   
-  for (MBEntityType i = MBEDGE; i <= MBMAXTYPE; ++i)
+  for (EntityType i = MBEDGE; i <= MBMAXTYPE; ++i)
   {
     stat_set& s = (i == MBMAXTYPE) ? stats.edge_uses : stats.stats[i];
     
@@ -355,7 +357,7 @@ int main( int argc, char* argv[] )
        f != file_list.end(); ++f)
   {
     printf("File %s:\n", f->c_str() );
-    if (MB_SUCCESS != moab.load_mesh( f->c_str(), 0, 0 ))
+    if (MB_SUCCESS != mb.load_mesh( f->c_str(), 0, 0 ))
     {
       fprintf(stderr, "Error reading file: %s\n", f->c_str() );
       return 1;
@@ -373,9 +375,9 @@ int main( int argc, char* argv[] )
     
     if (geom_owners)
     {
-      MBRange entities;
-      MBTag dim_tag = 0, id_tag = 0;
-      MBErrorCode rval = moab.tag_get_handle( GEOM_DIMENSION_TAG_NAME, dim_tag );
+      Range entities;
+      Tag dim_tag = 0, id_tag = 0;
+      ErrorCode rval = mb.tag_get_handle( GEOM_DIMENSION_TAG_NAME, dim_tag );
       if (MB_TAG_NOT_FOUND == rval) 
       {
         fprintf( stderr, "No geometry tag defined.\n" );
@@ -386,7 +388,7 @@ int main( int argc, char* argv[] )
         return 2;
       }
       
-      rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
+      rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
       if (MB_TAG_NOT_FOUND == rval) 
       {
         fprintf( stderr, "No ID tag defined.\n" );
@@ -399,7 +401,7 @@ int main( int argc, char* argv[] )
       
       if (dim_tag && id_tag)
       {
-        if (MB_SUCCESS != moab.get_entities_by_type_and_tag( 0, 
+        if (MB_SUCCESS != mb.get_entities_by_type_and_tag( 0, 
                                                         MBENTITYSET, 
                                                         &dim_tag,
                                                         0,
@@ -415,11 +417,11 @@ int main( int argc, char* argv[] )
         fprintf( stderr, "No geometry entities defined in file.\n" );
       }
       
-      for (MBRange::iterator i = entities.begin(); i != entities.end(); ++i)
+      for (Range::iterator i = entities.begin(); i != entities.end(); ++i)
       {
         int id = 0, dim = 0;
-        if (MB_SUCCESS != moab.tag_get_data( dim_tag, &*i, 1, &dim ) ||
-            MB_SUCCESS != moab.tag_get_data(  id_tag, &*i, 1,  &id ))
+        if (MB_SUCCESS != mb.tag_get_data( dim_tag, &*i, 1, &dim ) ||
+            MB_SUCCESS != mb.tag_get_data(  id_tag, &*i, 1,  &id ))
         {
           fprintf( stderr, "Error retreiving tag data for geometry entity.\n");
           continue;
@@ -443,9 +445,9 @@ int main( int argc, char* argv[] )
     {
       for (int t = 0; t < 3; ++t)
       {
-        MBRange entities;
-        MBTag tag = 0;
-        MBErrorCode rval = moab.tag_get_handle( mesh_type_tags[t], tag );
+        Range entities;
+        Tag tag = 0;
+        ErrorCode rval = mb.tag_get_handle( mesh_type_tags[t], tag );
         if (MB_TAG_NOT_FOUND == rval) 
         {
           continue;
@@ -456,7 +458,7 @@ int main( int argc, char* argv[] )
           return 2;
         }
       
-        if (MB_SUCCESS != moab.get_entities_by_type_and_tag( 0, 
+        if (MB_SUCCESS != mb.get_entities_by_type_and_tag( 0, 
                                                         MBENTITYSET, 
                                                         &tag,
                                                         0,
@@ -467,10 +469,10 @@ int main( int argc, char* argv[] )
           continue;
         }
       
-        for (MBRange::iterator i = entities.begin(); i != entities.end(); ++i)
+        for (Range::iterator i = entities.begin(); i != entities.end(); ++i)
         {
           int id = 0;
-          if (MB_SUCCESS != moab.tag_get_data( tag, &*i, 1, &id ))
+          if (MB_SUCCESS != mb.tag_get_data( tag, &*i, 1, &id ))
           {
             fprintf( stderr, "Error retreiving tag data for %s entity.\n", mesh_type_names[t]);
             continue;
@@ -486,11 +488,11 @@ int main( int argc, char* argv[] )
       }
     }
 
-    if (just_list) moab.list_entities(0, 1);
+    if (just_list) mb.list_entities(0, 1);
    
-    if (just_list_basic) moab.list_entities(0, 0);
+    if (just_list_basic) mb.list_entities(0, 0);
     
-    moab.delete_mesh();
+    mb.delete_mesh();
   }
   
   if (file_list.size() > 1)

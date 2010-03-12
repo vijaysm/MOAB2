@@ -1,6 +1,6 @@
-#include "MBCore.hpp"
-#include "MBRange.hpp"
-#include "MBTagConventions.hpp"
+#include "moab/Core.hpp"
+#include "moab/Range.hpp"
+#include "moab/MBTagConventions.hpp"
 #include <iostream>
 #include <fstream>
 #include <limits>
@@ -168,10 +168,12 @@ enum FileType {
   SVG
 };
 
+using namespace moab;
+
 int main(int argc, char* argv[])
 {
-  MBInterface* moab = new MBCore();
-  MBErrorCode result;
+  Interface* moab = new Core();
+  ErrorCode result;
   std::vector<CartVect3D>::iterator iter;
   FileType type = GNUPLOT;
 
@@ -212,7 +214,7 @@ int main(int argc, char* argv[])
   }
   
     // Get tag handles
-  MBTag tags[2];
+  Tag tags[2];
   result = moab->tag_get_handle( GEOM_DIMENSION_TAG_NAME, tags[0] );
   if (MB_SUCCESS != result) {
     std::cerr << "No geometry tag.\n";
@@ -227,7 +229,7 @@ int main(int argc, char* argv[])
     // Find entityset for surface.
   int dimension = 2; // surface
   const void* tag_values[] = { &dimension, &surface_id };
-  MBRange surfaces;
+  Range surfaces;
   moab->get_entities_by_type_and_tag( 0, MBENTITYSET,
                                       tags, tag_values,
                                       2, surfaces );
@@ -237,10 +239,10 @@ int main(int argc, char* argv[])
               << std::endl;
     return SURFACE_NOT_FOUND;
   }
-  MBEntityHandle surface = *surfaces.begin();
+  EntityHandle surface = *surfaces.begin();
   
     // Get surface mesh
-  MBRange elements;
+  Range elements;
   result = moab->get_entities_by_dimension( surface, dimension, elements );
   if (MB_SUCCESS != result) {
     std::cerr << "Internal error\n";
@@ -249,9 +251,9 @@ int main(int argc, char* argv[])
   
     // Calculate average corner normal in surface mesh
   CartVect3D normal(0,0,0);
-  std::vector<MBEntityHandle> vertices;
+  std::vector<EntityHandle> vertices;
   std::vector<CartVect3D> coords;
-  for (MBRange::iterator i = elements.begin(); i != elements.end(); ++i)
+  for (Range::iterator i = elements.begin(); i != elements.end(); ++i)
   {
     vertices.clear();
     result = moab->get_connectivity( &*i, 1, vertices, true );
@@ -278,15 +280,15 @@ int main(int argc, char* argv[])
 
   
     // Get edges from elements
-  MBRange edge_range;
-  result = moab->get_adjacencies( elements, 1, true, edge_range, MBInterface::UNION );
+  Range edge_range;
+  result = moab->get_adjacencies( elements, 1, true, edge_range, Interface::UNION );
   if (MB_SUCCESS != result) {
     std::cerr << "Internal error\n";
     return OTHER_ERROR;
   }
   
     // Get vertex coordinates for each edge
-  std::vector<MBEntityHandle> edges( edge_range.size() );
+  std::vector<EntityHandle> edges( edge_range.size() );
   std::copy( edge_range.begin(), edge_range.end(), edges.begin() );
   vertices.clear();
   result = moab->get_connectivity( &edges[0], edges.size(), vertices, true );

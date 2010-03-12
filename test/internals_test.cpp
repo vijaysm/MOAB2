@@ -1,8 +1,10 @@
-#include "MBInternals.hpp"
+#include "Internals.hpp"
 #include <iostream>
 using namespace std;
 
-MBHandleUtils handleUtils(0,1);
+using namespace moab;
+
+HandleUtils handleUtils(0,1);
 
 bool internal_assert( bool c ) { return !c; }
 
@@ -12,20 +14,20 @@ bool internal_assert( bool c ) { return !c; }
     return false; \
   }
 
-bool handle_test( MBEntityType type, MBEntityID id, int proc, bool should_fail )
+bool handle_test( EntityType type, EntityID id, int proc, bool should_fail )
 {
   int err = 0;
-  MBEntityHandle handle = CREATE_HANDLE( type, handleUtils.create_id(id, proc), err );
+  EntityHandle handle = CREATE_HANDLE( type, handleUtils.create_id(id, proc), err );
   if (should_fail) {
     handle_test_assert( err )
     return true;
   }
   handle_test_assert( !err )
   
-  MBEntityType type_from_handle = TYPE_FROM_HANDLE(handle);
+  EntityType type_from_handle = TYPE_FROM_HANDLE(handle);
   handle_test_assert( type_from_handle == type )
   
-  MBEntityID id_from_handle = handleUtils.id_from_handle(handle);
+  EntityID id_from_handle = handleUtils.id_from_handle(handle);
   handle_test_assert( id_from_handle == id )
   
   int proc_from_handle = handleUtils.rank_from_handle(handle);
@@ -40,14 +42,14 @@ bool handle_test( MBEntityType type, MBEntityID id, int proc, bool should_fail )
     return false; \
   }
 
-bool tag_test( MBTagId id, MBTagType prop )
+bool tag_test( TagId id, TagType prop )
 {
-  MBTag tag = TAG_HANDLE_FROM_ID( id, prop );
+  Tag tag = TAG_HANDLE_FROM_ID( id, prop );
   
   unsigned long id_from_handle = ID_FROM_TAG_HANDLE(tag);
   tag_test_assert( id_from_handle == id )
   
-  MBTagType prop_from_handle = PROP_FROM_TAG_HANDLE(tag);
+  TagType prop_from_handle = PROP_FROM_TAG_HANDLE(tag);
   tag_test_assert( prop_from_handle == prop )
   
   return true;
@@ -64,13 +66,13 @@ int main()
   
   ++tests;
   if (MB_TAG_LAST > num_prop) {
-    cout << "MB_TAG_PROP_WIDTH insufficient for size of MBTagType" << endl;
+    cout << "MB_TAG_PROP_WIDTH insufficient for size of TagType" << endl;
     ++errors;
   }
   
   ++tests;
   if (MBMAXTYPE > 1<<MB_TYPE_WIDTH) {
-    cout << "MB_TYPE_WIDTH insufficient for size of MBEntityType" << endl;
+    cout << "MB_TYPE_WIDTH insufficient for size of EntityType" << endl;
     ++errors;
   }
   
@@ -81,16 +83,16 @@ int main()
   
   for (int num_cpu = 0; num_cpu < num_cpus; ++num_cpu) {
     
-    handleUtils = MBHandleUtils( 0, cpus[num_cpu] );
+    handleUtils = HandleUtils( 0, cpus[num_cpu] );
     
     // init these after setting num_cpu, because max id depends on num cpu.
-    const MBEntityID ids[] = {0, 1, handleUtils.max_id()/2, handleUtils.max_id()-1, handleUtils.max_id()};
-    const MBTagId tids[] = {0, 1, MB_TAG_PROP_MASK/2, MB_TAG_PROP_MASK-1, MB_TAG_PROP_MASK};
+    const EntityID ids[] = {0, 1, handleUtils.max_id()/2, handleUtils.max_id()-1, handleUtils.max_id()};
+    const TagId tids[] = {0, 1, MB_TAG_PROP_MASK/2, MB_TAG_PROP_MASK-1, MB_TAG_PROP_MASK};
     const int num_ids = sizeof(ids)/sizeof(ids[0]);
     const int num_tids = sizeof(tids)/sizeof(tids[0]);
     
     for (unsigned cpu = 0; cpu < cpus[num_cpu]; ++cpu) {
-      for (MBEntityType type = MBVERTEX; type < MBMAXTYPE; ++type) 
+      for (EntityType type = MBVERTEX; type < MBMAXTYPE; ++type) 
         for (int id = 0; id < num_ids; ++id) {
         ++tests;
          if (!handle_test( type, ids[id], cpu, false )) {
@@ -103,7 +105,7 @@ int main()
       for (int prop = 0; prop < num_prop; ++prop)
         for (int id = 0; id < num_tids; ++id) {
           ++tests;
-          if (!tag_test( tids[id], (MBTagType)prop )) {
+          if (!tag_test( tids[id], (TagType)prop )) {
             cout << "Test of tag handle with prop=" << prop << ", id=" << tids[id]
                  << ", proc=" << cpu << ", and numproc=" << cpus[num_cpu] << endl;
             ++errors;
@@ -113,14 +115,14 @@ int main()
   }
   
     // test some stuff that should fail
-  handleUtils = MBHandleUtils(0, 16);
+  handleUtils = HandleUtils(0, 16);
   ++tests;
   if (!handle_test( MBVERTEX, MB_END_ID+1, 0, true)) {
     cout << "Failed to catch ID overflow" << endl;
     ++errors;
   }
   ++tests;
-  if (!handle_test( (MBEntityType)(MBMAXTYPE+1), 1, 0, true)) {
+  if (!handle_test( (EntityType)(MBMAXTYPE+1), 1, 0, true)) {
     cout << "Failed to catch type overflow" << endl;
     ++errors;
   }

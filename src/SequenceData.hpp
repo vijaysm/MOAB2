@@ -8,33 +8,35 @@
 #include <stdlib.h>
 #include <string.h>
 
+namespace moab {
+
 class TagServer;
 
 class SequenceData
 {
 public:
 
-  typedef std::vector<MBEntityHandle>* AdjacencyDataType;
+  typedef std::vector<EntityHandle>* AdjacencyDataType;
 
   /**\param num_sequence_arrays Number of data arrays needed by the EntitySequence
    * \param start               First handle in this SequenceData
    * \param end                 Last handle in this SequenceData
    */
   inline SequenceData( int num_sequence_arrays, 
-                       MBEntityHandle start,
-                       MBEntityHandle end );
+                       EntityHandle start,
+                       EntityHandle end );
   
   virtual ~SequenceData();
   
   /**\return first handle in this sequence data */
-  MBEntityHandle start_handle() const 
+  EntityHandle start_handle() const 
     { return startHandle; }
   
   /**\return last handle in this sequence data */
-  MBEntityHandle end_handle() const
+  EntityHandle end_handle() const
     { return endHandle; }
     
-  MBEntityID size() const
+  EntityID size() const
     { return endHandle + 1 - startHandle; }
   
   /**\return ith array of EnitySequence-specific data */
@@ -52,10 +54,10 @@ public:
                 { return reinterpret_cast<AdjacencyDataType const*>(arraySet[0]); }
   
   /**\return array of dense tag data, or NULL if none. */
-  void*       get_tag_data( MBTagId tag_num )              
+  void*       get_tag_data( TagId tag_num )              
                 { return tag_num < numTagData  ? arraySet[tag_num+1] : 0; }
   /**\return array of dense tag data, or NULL if none. */
-  void const* get_tag_data( MBTagId tag_num ) const        
+  void const* get_tag_data( TagId tag_num ) const        
                 { return tag_num < numTagData  ? arraySet[tag_num+1] : 0; }
   
   /**\brief Allocate array of sequence-specific data
@@ -99,7 +101,7 @@ public:
    *                      be bytes_per_ent long.  If NULL, array will be zeroed.
    *\return The newly allocated array, or NULL if error.
    */
-  void* create_tag_data( MBTagId tag_num, int bytes_per_ent, const void* initial_val = 0 );
+  void* create_tag_data( TagId tag_num, int bytes_per_ent, const void* initial_val = 0 );
   
   /**\brief Create new SequenceData that is a copy of a subset of this one
     *
@@ -112,8 +114,8 @@ public:
     *\param sequence_data_sizes Bytes-per-entity for sequence-specific data.
     *\NOTE Does not copy tag data.
     */
-  SequenceData* subset( MBEntityHandle start, 
-                        MBEntityHandle end,
+  SequenceData* subset( EntityHandle start, 
+                        EntityHandle end,
                         const int* sequence_data_sizes ) const;
   
   /**\brief SequenceManager data */
@@ -125,13 +127,13 @@ public:
   /**\brief Free all tag data arrays */
   void release_tag_data(const int* tag_sizes, int num_tag_sizes);
   /**\brief Free specified tag data array */
-  void release_tag_data( MBTagId tag_num, int tag_size );
+  void release_tag_data( TagId tag_num, int tag_size );
   
 protected:
 
   SequenceData( const SequenceData* subset_from,
-                MBEntityHandle start, 
-                MBEntityHandle end,
+                EntityHandle start, 
+                EntityHandle end,
                 const int* sequence_data_sizes );
 
 private:
@@ -148,12 +150,12 @@ private:
   const int numSequenceData;
   unsigned numTagData;
   void** arraySet;
-  MBEntityHandle startHandle, endHandle;
+  EntityHandle startHandle, endHandle;
 };
 
 inline SequenceData::SequenceData( int num_sequence_arrays, 
-                                   MBEntityHandle start,
-                                   MBEntityHandle end )
+                                   EntityHandle start,
+                                   EntityHandle end )
   : numSequenceData(num_sequence_arrays),
     numTagData(0),
     startHandle(start),
@@ -165,5 +167,6 @@ inline SequenceData::SequenceData( int num_sequence_arrays,
   arraySet = data + num_sequence_arrays;
 }
 
+} // namespace moab
 
 #endif

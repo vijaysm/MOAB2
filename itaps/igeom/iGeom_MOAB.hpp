@@ -2,40 +2,40 @@
 #define IGEOM_MOAB_HPP
 
 #include "iGeom.h"
-#include "MBForward.hpp"
+#include "moab/Forward.hpp"
 
-class GeomTopoTool;
+namespace moab { class GeomTopoTool; }
 
 /* map from MB's entity type to TSTT's entity type */
-extern const iBase_EntityType tstt_type_table[MBMAXTYPE+1];
+extern const iBase_EntityType tstt_type_table[moab::MBMAXTYPE+1];
 
 /* map to MB's entity type from TSTT's entity topology */
-extern const MBEntityType mb_topology_table[MBMAXTYPE+1];
+extern const moab::EntityType mb_topology_table[moab::MBMAXTYPE+1];
 
 /* map from TSTT's tag types to MOAB's */
-extern const MBDataType mb_data_type_table[4];
+extern const moab::DataType mb_data_type_table[4];
 
 /* map from MOAB's tag types to tstt's */
-extern const iBase_TagValueType tstt_data_type_table[MB_MAX_DATA_TYPE+1];
+extern const iBase_TagValueType tstt_data_type_table[moab::MB_MAX_DATA_TYPE+1];
 
 /* map from MOAB's MBErrorCode to tstt's */
-extern "C" const iBase_ErrorType iBase_ERROR_MAP[MB_FAILURE+1];
+extern "C" const iBase_ErrorType iBase_ERROR_MAP[moab::MB_FAILURE+1];
 
 /* Create ITAPS iterator */
-iGeom_EntityIterator create_itaps_iterator( MBRange& swap_range,
+iGeom_EntityIterator create_itaps_iterator( moab::Range& swap_range,
                                             int array_size = 1 ); 
 
 /* Define macro for quick reference to MBInterface instance */
-static inline MBInterface* MBI_cast( iGeom_Instance i )  
-  { return reinterpret_cast<MBInterface*>(i); }         
+static inline moab::Interface* MBI_cast( iGeom_Instance i )  
+  { return reinterpret_cast<moab::Interface*>(i); }         
 #define MBI MBI_cast(instance)
 
-/* Define macro for quick reference to MBInterface instance */
-static inline MBEntityHandle MBH_cast( iBase_EntityHandle h )  
-  { return reinterpret_cast<MBEntityHandle>(h); }         
+/* Define macro for quick reference to moab::Interface instance */
+static inline moab::EntityHandle MBH_cast( iBase_EntityHandle h )  
+  { return reinterpret_cast<moab::EntityHandle>(h); }         
 
 #define GETGTT(a) {if (_my_geomTopoTool == NULL) _my_geomTopoTool =	\
-	new GeomTopoTool(reinterpret_cast<MBInterface*>(a));}
+	new GeomTopoTool(reinterpret_cast<moab::Interface*>(a));}
 
 /* Most recently returned error code */
 //extern "C" iBase_Error iGeom_LAST_ERROR;

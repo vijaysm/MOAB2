@@ -9,7 +9,7 @@
 //
 
 #include "MBZoltan.hpp"
-#include "MBCore.hpp"
+#include "moab/Core.hpp"
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -49,10 +49,10 @@ int main(int argc, char *argv[])
   err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // create MOAB instance based on that
-  MBInterface *mbImpl = new MBCore(rank, nprocs);
+  moab::Interface *mbImpl = new moab::Core(rank, nprocs);
   if (NULL == mbImpl) return 1;
   
-  MBErrorCode result = mbImpl->load_mesh(argv[2]); RR;
+  moab::ErrorCode result = mbImpl->load_mesh(argv[2]); RR;
   
   MBZoltan *mbz = new MBZoltan(mbImpl, false, argc, argv);
 

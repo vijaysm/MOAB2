@@ -1,10 +1,10 @@
 #define IS_BUILDING_MB
-#include "MBCore.hpp"
-#include "MBCartVect.hpp"
-#include "MBOrientedBoxTreeTool.hpp"
-#include "MBOrientedBox.hpp"
-#include "MBInternals.hpp"
-#include "MBRange.hpp"
+#include "moab/Core.hpp"
+#include "moab/CartVect.hpp"
+#include "moab/OrientedBoxTreeTool.hpp"
+#include "OrientedBox.hpp"
+#include "Internals.hpp"
+#include "moab/Range.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -18,6 +18,8 @@
 #  include <fcntl.h>
 #endif
 
+using namespace moab;
+
 std::string clock_to_string( clock_t t );
 std::string mem_to_string( unsigned long mem );
 
@@ -26,14 +28,14 @@ const char* const TAG_NAME = "OBB_ID";
 const char* const TREE_TAG = "OBB_ROOT";
 const char* root_tag = TREE_TAG;
 
-MBErrorCode get_root( MBInterface* moab, MBEntityHandle& root );
-MBEntityHandle build_tree( MBInterface* interface, 
-                           MBOrientedBoxTreeTool::Settings settings );
-void delete_existing_tree( MBInterface* interface );
-void print_stats( MBInterface* interface );
-void tag_triangles( MBInterface* interface );
-void tag_vertices( MBInterface* interface );
-void write_tree_blocks( MBInterface* interface, const char* file );
+ErrorCode get_root( Interface* moab, EntityHandle& root );
+EntityHandle build_tree( Interface* interface, 
+                           OrientedBoxTreeTool::Settings settings );
+void delete_existing_tree( Interface* interface );
+void print_stats( Interface* interface );
+void tag_triangles( Interface* interface );
+void tag_vertices( Interface* interface );
+void write_tree_blocks( Interface* interface, const char* file );
 
 static void usage( bool err = true )
 {
@@ -41,7 +43,7 @@ static void usage( bool err = true )
   s << "obb_tree_tool [-s|-S] [-d <int>] [-n <int>] <input file> <output file>" << std::endl
     << "obb_tree_tool [-h]" << std::endl;
   if (!err) {
-    MBOrientedBoxTreeTool::Settings st;
+    OrientedBoxTreeTool::Settings st;
     s << "Tool to build adaptive kd-Tree from triangles" << std::endl;
     s << "  -s        Use range-based sets for tree nodes" << std::endl
       << "  -S        Use vector-based sets for tree nodes" << std::endl
@@ -125,7 +127,7 @@ int main( int argc, char* argv[] )
   const char* input_file = 0;
   const char* output_file = 0;
   const char* tree_file = 0;
-  MBOrientedBoxTreeTool::Settings settings;
+  OrientedBoxTreeTool::Settings settings;
   bool tag_tris = false;
   clock_t load_time, build_time, stat_time, tag_time, write_time, block_time;
   
@@ -161,9 +163,9 @@ int main( int argc, char* argv[] )
   if (!output_file)
     usage();
   
-  MBErrorCode rval;
-  MBCore moab_core;
-  MBInterface* interface = &moab_core;
+  ErrorCode rval;
+  Core moab_core;
+  Interface* interface = &moab_core;
   
   load_time = clock();
   rval = interface->load_mesh( input_file );
@@ -234,10 +236,10 @@ int main( int argc, char* argv[] )
   return 0;
 }
 
-MBErrorCode get_root( MBInterface* moab, MBEntityHandle& root )
+ErrorCode get_root( Interface* moab, EntityHandle& root )
 {
-  MBTag tag;
-  MBErrorCode rval;
+  Tag tag;
+  ErrorCode rval;
 
   rval = moab->tag_get_handle( root_tag, tag );
   if (MB_SUCCESS != rval)
@@ -247,10 +249,10 @@ MBErrorCode get_root( MBInterface* moab, MBEntityHandle& root )
   rval = moab->tag_get_size( tag, size );
   if (MB_SUCCESS != rval)
     return rval;
-  if (size != sizeof(MBEntityHandle))
+  if (size != sizeof(EntityHandle))
     return MB_TAG_NOT_FOUND;
   
-  MBDataType type;
+  DataType type;
   rval = moab->tag_get_data_type( tag, type );
   if (MB_SUCCESS != rval)
     return rval;
@@ -261,12 +263,12 @@ MBErrorCode get_root( MBInterface* moab, MBEntityHandle& root )
 }
 
   
-void delete_existing_tree( MBInterface* interface )
+void delete_existing_tree( Interface* interface )
 {
-  MBEntityHandle root;
-  MBErrorCode rval = get_root(interface, root);
+  EntityHandle root;
+  ErrorCode rval = get_root(interface, root);
   if (MB_SUCCESS == rval) {
-    MBOrientedBoxTreeTool tool(interface);
+    OrientedBoxTreeTool tool(interface);
     rval = tool.delete_tree( root );
     if (MB_SUCCESS != rval) {
       std::cerr << "Failed to destroy existing trees. Aborting" << std::endl;
@@ -275,11 +277,11 @@ void delete_existing_tree( MBInterface* interface )
   }
 }
   
-MBEntityHandle build_tree( MBInterface* interface, MBOrientedBoxTreeTool::Settings settings )
+EntityHandle build_tree( Interface* interface, OrientedBoxTreeTool::Settings settings )
 {
-  MBErrorCode rval;
-  MBEntityHandle root = 0;
-  MBRange triangles;
+  ErrorCode rval;
+  EntityHandle root = 0;
+  Range triangles;
   
   rval = interface->get_entities_by_type( 0, MBTRI, triangles );
   if (MB_SUCCESS != rval || triangles.empty()) {
@@ -287,7 +289,7 @@ MBEntityHandle build_tree( MBInterface* interface, MBOrientedBoxTreeTool::Settin
     exit(4);
   }
   
-  MBOrientedBoxTreeTool tool( interface );
+  OrientedBoxTreeTool tool( interface );
   rval = tool.build( triangles, root, &settings );
   if (MB_SUCCESS != rval || !root) {
     std::cerr << "Tree construction failed." << std::endl;
@@ -295,8 +297,8 @@ MBEntityHandle build_tree( MBInterface* interface, MBOrientedBoxTreeTool::Settin
   }
   
     // store tree root
-  MBTag roottag;
-  rval = interface->tag_create( root_tag, sizeof(MBEntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, roottag, 0, true );
+  Tag roottag;
+  rval = interface->tag_create( root_tag, sizeof(EntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, roottag, 0, true );
   if (MB_SUCCESS != rval) {
     std::cout << "Failed to create root tag: \"" << root_tag << '"' << std::endl;
     exit(2);
@@ -369,17 +371,17 @@ template <typename T> SimpleStat<T>::SimpleStat()
     sum( 0 ), sqr( 0 ), count( 0 )
   {}
 
-void print_stats( MBInterface* interface )
+void print_stats( Interface* interface )
 {
-  MBEntityHandle root;
-  MBRange range;
+  EntityHandle root;
+  Range range;
   get_root( interface, root );
-  MBOrientedBoxTreeTool tool(interface);
+  OrientedBoxTreeTool tool(interface);
 
-  MBRange tree_sets, triangles, verts;
+  Range tree_sets, triangles, verts;
   //interface->get_child_meshsets( root, tree_sets, 0 );
   interface->get_entities_by_type( 0, MBENTITYSET, tree_sets );
-  tree_sets.erase( tree_sets.begin(), MBRange::lower_bound( tree_sets.begin(), tree_sets.end(), root ) );
+  tree_sets.erase( tree_sets.begin(), Range::lower_bound( tree_sets.begin(), tree_sets.end(), root ) );
   interface->get_entities_by_type( 0, MBTRI, triangles );
   interface->get_entities_by_type( 0, MBVERTEX, verts );
   triangles.merge( verts );
@@ -413,27 +415,27 @@ void print_stats( MBInterface* interface )
 }
 
 
-static int hash_handle( MBEntityHandle handle )
+static int hash_handle( EntityHandle handle )
 {
-  MBEntityID h = ID_FROM_HANDLE(handle);
+  EntityID h = ID_FROM_HANDLE(handle);
   return (int)((h * 13 + 7) % MAX_TAG_VALUE) + 1;
 }   
 
-class TriTagger : public MBOrientedBoxTreeTool::Op
+class TriTagger : public OrientedBoxTreeTool::Op
 {
 private:
-  MBInterface* mMB;
-  MBTag mTag;
-  std::vector<MBEntityHandle> mHandles;
+  Interface* mMB;
+  Tag mTag;
+  std::vector<EntityHandle> mHandles;
   std::vector<int> mTagData;
 public:
-  TriTagger( MBTag tag, MBInterface* moab )
+  TriTagger( Tag tag, Interface* moab )
     : mMB(moab), mTag(tag) {}
 
-  MBErrorCode visit( MBEntityHandle, int, bool& descent )
+  ErrorCode visit( EntityHandle, int, bool& descent )
     { descent = true; return MB_SUCCESS; }
   
-  MBErrorCode leaf( MBEntityHandle node ) {
+  ErrorCode leaf( EntityHandle node ) {
     mHandles.clear();
     mMB->get_entities_by_handle( node, mHandles );
     mTagData.clear();
@@ -444,21 +446,21 @@ public:
 };
     
 
-void tag_triangles( MBInterface* moab )
+void tag_triangles( Interface* moab )
 {
-  MBEntityHandle root;
-  MBErrorCode rval = get_root( moab, root );
+  EntityHandle root;
+  ErrorCode rval = get_root( moab, root );
   if (MB_SUCCESS != rval) {
     std::cerr << "Internal error: Failed to retreive tree." << std::endl;
     exit(5);
   }
 
-  MBTag tag;
+  Tag tag;
   int zero = 0;
   moab->tag_create( TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &zero, true );
   TriTagger op( tag, moab );
   
-  MBOrientedBoxTreeTool tool(moab);
+  OrientedBoxTreeTool tool(moab);
   rval = tool.preorder_traverse( root, op );
   if (MB_SUCCESS != rval) {
     std::cerr << "Internal error tagging triangles" << std::endl;
@@ -467,22 +469,22 @@ void tag_triangles( MBInterface* moab )
 }
 
 
-class VtxTagger : public MBOrientedBoxTreeTool::Op
+class VtxTagger : public OrientedBoxTreeTool::Op
 {
 private:
-  MBInterface* mMB;
-  MBTag mTag;
-  std::vector<MBEntityHandle> mHandles;
-  std::vector<MBEntityHandle> mConn;
+  Interface* mMB;
+  Tag mTag;
+  std::vector<EntityHandle> mHandles;
+  std::vector<EntityHandle> mConn;
   std::vector<int> mTagData;
 public:
-  VtxTagger( MBTag tag, MBInterface* moab )
+  VtxTagger( Tag tag, Interface* moab )
     : mMB(moab), mTag(tag) {}
 
-  MBErrorCode visit( MBEntityHandle, int, bool& descent )
+  ErrorCode visit( EntityHandle, int, bool& descent )
     { descent = true; return MB_SUCCESS; }
   
-  MBErrorCode leaf( MBEntityHandle node ) {
+  ErrorCode leaf( EntityHandle node ) {
     mHandles.clear();
     mMB->get_entities_by_handle( node, mHandles );
     mConn.clear();
@@ -495,21 +497,21 @@ public:
 };
     
 
-void tag_vertices( MBInterface* moab )
+void tag_vertices( Interface* moab )
 {
-  MBEntityHandle root;
-  MBErrorCode rval = get_root( moab, root );
+  EntityHandle root;
+  ErrorCode rval = get_root( moab, root );
   if (MB_SUCCESS != rval) {
     std::cerr << "Internal error: Failed to retreive tree." << std::endl;
     exit(5);
   }
 
-  MBTag tag;
+  Tag tag;
   int zero = 0;
   moab->tag_create( TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &zero, true );
   VtxTagger op( tag, moab );
   
-  MBOrientedBoxTreeTool tool(moab);
+  OrientedBoxTreeTool tool(moab);
   rval = tool.preorder_traverse( root, op );
   if (MB_SUCCESS != rval) {
     std::cerr << "Internal error tagging vertices" << std::endl;
@@ -518,26 +520,26 @@ void tag_vertices( MBInterface* moab )
 }
 
 
-class LeafHexer : public MBOrientedBoxTreeTool::Op
+class LeafHexer : public OrientedBoxTreeTool::Op
 {
 private:
-  MBOrientedBoxTreeTool* mTool;
-  MBInterface* mOut;
-  MBTag mTag;
-  std::vector<MBEntityHandle> mHandles;
-  std::vector<MBEntityHandle> mConn;
+  OrientedBoxTreeTool* mTool;
+  Interface* mOut;
+  Tag mTag;
+  std::vector<EntityHandle> mHandles;
+  std::vector<EntityHandle> mConn;
   std::vector<int> mTagData;
 public:
-  LeafHexer( MBOrientedBoxTreeTool* tool, MBInterface* mb2, MBTag tag )
+  LeafHexer( OrientedBoxTreeTool* tool, Interface* mb2, Tag tag )
     : mTool(tool), mOut( mb2 ), mTag(tag) {}
 
-  MBErrorCode visit( MBEntityHandle, int, bool& descent )
+  ErrorCode visit( EntityHandle, int, bool& descent )
     { descent = true; return MB_SUCCESS; }
   
-  MBErrorCode leaf( MBEntityHandle node ) {
-    MBOrientedBox box;
-    MBErrorCode rval = mTool->box( node, box );
-    MBEntityHandle h;
+  ErrorCode leaf( EntityHandle node ) {
+    OrientedBox box;
+    ErrorCode rval = mTool->box( node, box );
+    EntityHandle h;
     rval = box.make_hex( h, mOut );
     if (MB_SUCCESS !=rval) return rval;
     int i = hash_handle( node );
@@ -545,21 +547,21 @@ public:
   }
 };
 
-void write_tree_blocks( MBInterface* interface, const char* file )
+void write_tree_blocks( Interface* interface, const char* file )
 {
-  MBEntityHandle root;
-  MBErrorCode rval = get_root( interface, root );
+  EntityHandle root;
+  ErrorCode rval = get_root( interface, root );
   if (MB_SUCCESS != rval) {
     std::cerr << "Internal error: Failed to retreive tree." << std::endl;
     exit(5);
   }
   
-  MBCore moab2;
-  MBTag tag;
+  Core moab2;
+  Tag tag;
   int zero = 0;
   moab2.tag_create( TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &zero, true );
 
-  MBOrientedBoxTreeTool tool(interface);
+  OrientedBoxTreeTool tool(interface);
   LeafHexer op( &tool, &moab2, tag );
   rval = tool.preorder_traverse( root, op );
   if (MB_SUCCESS != rval) {

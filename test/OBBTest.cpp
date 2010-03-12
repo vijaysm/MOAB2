@@ -1,7 +1,9 @@
-#include "MBOrientedBox.hpp"
-#include "MBCartVect.hpp"
-#include "MBCore.hpp"
-#include "MBRange.hpp"
+#include "OrientedBox.hpp"
+#include "moab/CartVect.hpp"
+#include "moab/Core.hpp"
+#include "moab/Range.hpp"
+
+using namespace moab;
 
 #include <assert.h>
 
@@ -22,8 +24,8 @@ static void test_save();
 #define ASSERT_DOUBLES_EQUAL(A, B) assert_doubles_equal( (A), (B), #A, #B, __LINE__ )
 #define ASSERT(B) assert_bool( (B), #B, __LINE__ )
 
-static void assert_vector_element( const MBCartVect& a, const MBCartVect* b, const char* sa, const char* sb, int lineno );
-static void assert_vectors_equal( const MBCartVect& a, const MBCartVect& b, const char* sa, const char* sb, int lineno );
+static void assert_vector_element( const CartVect& a, const CartVect* b, const char* sa, const char* sb, int lineno );
+static void assert_vectors_equal( const CartVect& a, const CartVect& b, const char* sa, const char* sb, int lineno );
 static void assert_doubles_equal( double a, double b, const char* sa, const char* sb, int lineno );
 static void assert_bool( bool b, const char* sb, int lineno );
 
@@ -43,32 +45,32 @@ int main()
 /********************* Declare some boxes to test ***************************/
 
   // define unit box centered at origin
-const MBCartVect origin( 0.0, 0.0, 0.0 );
-const MBCartVect unitaxes[3] = { MBCartVect(0.5, 0.0, 0.0),
-                                 MBCartVect(0.0, 0.5, 0.0),
-                                 MBCartVect(0.0, 0.0, 0.5) };
-const MBOrientedBox unitbox( unitaxes, origin );
+const CartVect origin( 0.0, 0.0, 0.0 );
+const CartVect unitaxes[3] = { CartVect(0.5, 0.0, 0.0),
+                                 CartVect(0.0, 0.5, 0.0),
+                                 CartVect(0.0, 0.0, 0.5) };
+const OrientedBox unitbox( unitaxes, origin );
 
   // define axis-aligned unit box outside origin
-const MBCartVect unitcenter( 10, 20, 30 );
-const MBOrientedBox offsetbox( unitaxes, unitcenter );
+const CartVect unitcenter( 10, 20, 30 );
+const OrientedBox offsetbox( unitaxes, unitcenter );
 
   // define non-unit centered at origin
-const MBCartVect origaxes[3] = { 5*unitaxes[0],
+const CartVect origaxes[3] = { 5*unitaxes[0],
                                 10*unitaxes[1],
                                 .1*unitaxes[2] };
-const MBOrientedBox oblongbox( origaxes, origin );
+const OrientedBox oblongbox( origaxes, origin );
 
   // define non-axis-aligned unit box at origin
-const MBCartVect rotaxes[3] = { unit( MBCartVect( 1.0, 1.0, 0.0 ) ),
-                                unit( MBCartVect( 1.0,-1.0, 1.0 ) ),
-                                unit( MBCartVect( 1.0, 1.0, 0.0 )*MBCartVect( 1.0,-1.0, 1.0 ) ) };
-const MBOrientedBox rotbox( rotaxes, origin );
+const CartVect rotaxes[3] = { unit( CartVect( 1.0, 1.0, 0.0 ) ),
+                                unit( CartVect( 1.0,-1.0, 1.0 ) ),
+                                unit( CartVect( 1.0, 1.0, 0.0 )*CartVect( 1.0,-1.0, 1.0 ) ) };
+const OrientedBox rotbox( rotaxes, origin );
 
 /********************* Utility methods for tests ***************************/
 
 // return point at specified fraction between box center and specified box corner
-static MBCartVect scaled_corner( const MBOrientedBox& box, int corner, double factor )
+static CartVect scaled_corner( const OrientedBox& box, int corner, double factor )
 {
   static const int signs[][3] = { { 1, 1,-1},
                                   {-1, 1,-1},
@@ -85,7 +87,7 @@ static MBCartVect scaled_corner( const MBOrientedBox& box, int corner, double fa
 }
 
 // return point at specified fraction between box center and specified box face
-static MBCartVect scaled_face( const MBOrientedBox& box, int face, double factor )
+static CartVect scaled_face( const OrientedBox& box, int face, double factor )
 {
   assert(face >= 0 && face <= 6);
   int sign = face % 2 ? -1 : 1;
@@ -93,9 +95,9 @@ static MBCartVect scaled_face( const MBOrientedBox& box, int face, double factor
 }
 
 // get vector containing axis lengths, ordered from smallest to largest
-static void axis_dims( const MBCartVect axis[3], MBCartVect& dims )
+static void axis_dims( const CartVect axis[3], CartVect& dims )
 {
-  dims = MBCartVect(axis[0].length(), axis[1].length(), axis[2].length());
+  dims = CartVect(axis[0].length(), axis[1].length(), axis[2].length());
   if (dims[0] > dims[1]) 
     std::swap(dims[0], dims[1]);
   if (dims[1] > dims[2])
@@ -109,7 +111,7 @@ static void axis_dims( const MBCartVect axis[3], MBCartVect& dims )
 
 static void test_basic()
 {
-  MBCartVect dims;
+  CartVect dims;
   
   axis_dims( unitaxes, dims );
   ASSERT_VECTORS_EQUAL( unitbox.center, origin );
@@ -403,7 +405,7 @@ static void test_contained()
 
 static void test_closest_point()
 {
-  MBCartVect result;
+  CartVect result;
   
     // start with unit box
     
@@ -772,7 +774,7 @@ static void test_closest_point()
 
 void test_ray_intersect()
 {
-  MBCartVect dir, pt;
+  CartVect dir, pt;
   
   // start with unit box
   
@@ -1153,8 +1155,8 @@ void test_ray_intersect()
 
 void test_build_from_tri()
 {
-  MBErrorCode rval;
-  MBCore moab;
+  ErrorCode rval;
+  Core moab;
   int i;
   
   // define a planar patch of triangles
@@ -1212,15 +1214,15 @@ void test_build_from_tri()
                       8,19,20 };
   
     // build triangle mesh
-  std::vector<MBEntityHandle> vertices(21);
+  std::vector<EntityHandle> vertices(21);
   for (i = 0; i < 21; ++i) {
     rval = moab.create_vertex( coords + 3*i, vertices[i] );
     ASSERT(MB_SUCCESS == rval);
   }
-  MBRange tris;
+  Range tris;
   for (i = 0; i < 28; ++i) {
-    MBEntityHandle tri;
-    MBEntityHandle c[3] = { vertices[conn[3*i  ]],
+    EntityHandle tri;
+    EntityHandle c[3] = { vertices[conn[3*i  ]],
                             vertices[conn[3*i+1]],
                             vertices[conn[3*i+2]] };
     rval = moab.create_element( MBTRI, c, 3, tri );
@@ -1229,22 +1231,22 @@ void test_build_from_tri()
   }
   
     // create box from triangles
-  MBOrientedBox box;
-  rval = MBOrientedBox::compute_from_2d_cells( box, &moab, tris );
+  OrientedBox box;
+  rval = OrientedBox::compute_from_2d_cells( box, &moab, tris );
   ASSERT( MB_SUCCESS == rval );
   
     // compute range along each box axis for input vertices
-  const MBCartVect axis[3] = { box.scaled_axis(0),
+  const CartVect axis[3] = { box.scaled_axis(0),
                                box.scaled_axis(1),
                                box.scaled_axis(2) };
   double min[3], max[3];
-  MBCartVect v = MBCartVect(coords) - box.center;
+  CartVect v = CartVect(coords) - box.center;
   min[0] = max[0] = box.scaled_axis(0) % v;
   min[1] = max[1] = box.scaled_axis(1) % v;
   min[2] = max[2] = box.scaled_axis(2) % v;
   for (i = 1; i < 21; ++i) {
-    MBCartVect vi( coords + 3*i );
-    MBCartVect v = vi - box.center;
+    CartVect vi( coords + 3*i );
+    CartVect v = vi - box.center;
     for (int j = 0; j < 3; ++j) {
       double d = (axis[j] % v) / (axis[j] % axis[j]);
       if (d < min[j])
@@ -1254,7 +1256,7 @@ void test_build_from_tri()
     }
   }
   
-  const MBCartVect size = 0.5 * box.dimensions();
+  const CartVect size = 0.5 * box.dimensions();
   
     // Vrify that all points are contained in box 
     // and that box fits points tightly.
@@ -1268,7 +1270,7 @@ void test_build_from_tri()
     // verify that the box is flat along first axis
   ASSERT( box.dimensions()[0] <= TOL );
     // verify that other two axes are in XY plane
-  const MBCartVect z_axis(0.0,0.0,1.0);
+  const CartVect z_axis(0.0,0.0,1.0);
   ASSERT( fabs(box.axis[1] % z_axis) <= TOL );
   ASSERT( fabs(box.axis[2] % z_axis) <= TOL );
 }
@@ -1277,9 +1279,9 @@ void test_build_from_tri()
 
 void test_build_from_pts()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface* const gMB = &moab;
+  ErrorCode rval;
+  Core moab;
+  Interface* const gMB = &moab;
   
   const double vertex_coords[] =
     { 0, 0, 0,
@@ -1295,11 +1297,11 @@ void test_build_from_pts()
   assert (0 == num_double%3);
   
     // create some vertices
-  MBRange vertices;
+  Range vertices;
   double min[3] = { HUGE_VAL,  HUGE_VAL,  HUGE_VAL};
   double max[3] = {-HUGE_VAL, -HUGE_VAL, -HUGE_VAL};
   for (int i = 0; i < num_vertex; ++i) {
-    MBEntityHandle h;
+    EntityHandle h;
     rval = gMB->create_vertex( vertex_coords + 3*i, h );
     ASSERT( MB_SUCCESS == rval );
     vertices.insert(h);
@@ -1311,12 +1313,12 @@ void test_build_from_pts()
   }
   
     // create box containing vertices
-  MBOrientedBox box;
-  rval = MBOrientedBox::compute_from_vertices( box, gMB, vertices );
+  OrientedBox box;
+  rval = OrientedBox::compute_from_vertices( box, gMB, vertices );
   ASSERT( MB_SUCCESS == rval );
   
   for (int i = 0; i < num_vertex; ++i) {
-    ASSERT( box.contained( MBCartVect(vertex_coords[3*i]), 1e-6 ) );
+    ASSERT( box.contained( CartVect(vertex_coords[3*i]), 1e-6 ) );
   }
   
     // define a set of points otside of the box to test
@@ -1338,33 +1340,33 @@ void test_build_from_pts()
   double *outside[3] = {outside1, outside2, outside3};
     // test 'contained' method for all points
   for (int i = 0; i < 3; ++i) {
-    ASSERT( ! box.contained( MBCartVect(outside[i]), 1e-6 ) );
+    ASSERT( ! box.contained( CartVect(outside[i]), 1e-6 ) );
   } 
 }
 
 static void test_save()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBOrientedBox box;
+  ErrorCode rval;
+  Core moab;
+  OrientedBox box;
   
     // create a tag to store the data in
-  MBTag tag;
-  rval = MBOrientedBox::tag_handle( tag, &moab, "FOO" );
+  Tag tag;
+  rval = OrientedBox::tag_handle( tag, &moab, "FOO" );
   ASSERT( MB_SUCCESS == rval );
   
     // check tag size
   int size;
   rval= moab.tag_get_size( tag, size );
   ASSERT( MB_SUCCESS == rval );
-  ASSERT( size == sizeof(MBOrientedBox) );
+  ASSERT( size == sizeof(OrientedBox) );
 }
 
 
 /********************* Error Checking Code ***************************/
 
-static void assert_vector_element( const MBCartVect& a, 
-                                   const MBCartVect b[3], 
+static void assert_vector_element( const CartVect& a, 
+                                   const CartVect b[3], 
                                    const char* sa, 
                                    const char* sb, 
                                    int lineno )
@@ -1384,7 +1386,7 @@ static void assert_vector_element( const MBCartVect& a,
 }
 
 
-void assert_vectors_equal( const MBCartVect& a, const MBCartVect& b, 
+void assert_vectors_equal( const CartVect& a, const CartVect& b, 
                            const char* sa, const char* sb,
                            int lineno )
 {

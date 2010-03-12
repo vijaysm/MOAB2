@@ -1,13 +1,15 @@
 // tests dual construction code
  
-#include "MBCore.hpp"
-#include "MBRange.hpp"
-#include "MeshTopoUtil.hpp"
-#include "DualTool.hpp"
+#include "moab/Core.hpp"
+#include "moab/Range.hpp"
+#include "moab/MeshTopoUtil.hpp"
+#include "moab/DualTool.hpp"
 #include <iostream>
 #include <string>
 
-MBInterface *gMB;
+using namespace moab;
+
+Interface *gMB;
 
 int main(int argc, char* argv[])
 {
@@ -17,17 +19,17 @@ int main(int argc, char* argv[])
     return 0;
   }
 
-  gMB = new MBCore();
+  gMB = new Core();
 
     // read the mesh file
-  MBErrorCode result = gMB->load_mesh(argv[1]);
+  ErrorCode result = gMB->load_mesh(argv[1]);
   if (MB_SUCCESS != result) {
     std::cout << "Problems reading file " << argv[1] << "." << std::endl;
     return 0;
   }
 
     // make sure aentities are created
-  MBRange all_verts;
+  Range all_verts;
   result = gMB->get_entities_by_dimension(0, 0, all_verts);
   if (MB_SUCCESS != result) 
     std::cout << "Problem getting vertices." << std::endl;
@@ -63,7 +65,7 @@ int main(int argc, char* argv[])
   }
   
     // print information about the dual
-  MBRange dual_cells, dual_faces;
+  Range dual_cells, dual_faces;
   result = dt.get_dual_entities(0,0, 2, dual_faces);
   if (MB_SUCCESS != result)
     std::cout << "Problem getting dual faces." << std::endl;
@@ -79,8 +81,8 @@ int main(int argc, char* argv[])
               << std::endl;
 
     // print information about dual hyperplanes, if any
-  MBTag hp_tag;
-  MBRange hp_sets;
+  Tag hp_tag;
+  Range hp_sets;
   if (num_2d == num_quad) {
       // get sets with the right tag
     result = gMB->tag_get_handle(DualTool::DUAL_CURVE_TAG_NAME, hp_tag);

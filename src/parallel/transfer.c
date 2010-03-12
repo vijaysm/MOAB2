@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <math.h>
-#include "MBmpi.h"
+#include "moab_mpi.h"
 #include "errmem.h"
 #include "types.h"
 #include "minmax.h"

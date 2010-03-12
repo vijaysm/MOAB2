@@ -2,9 +2,11 @@
 #define IMESH_MOAB_HPP
 
 #include "iMesh.h"
-#include "MBForward.hpp"
+#include "moab/Forward.hpp"
 #include <cstring>
 #include <cstdlib>
+
+using namespace moab;
 
 /* map from MB's entity type to TSTT's entity topology */
 extern const iMesh_EntityTopology tstt_topology_table[MBMAXTYPE+1];
@@ -13,24 +15,24 @@ extern const iMesh_EntityTopology tstt_topology_table[MBMAXTYPE+1];
 extern const iBase_EntityType tstt_type_table[MBMAXTYPE+1];
 
 /* map to MB's entity type from TSTT's entity topology */
-extern const MBEntityType mb_topology_table[MBMAXTYPE+1];
+extern const EntityType mb_topology_table[MBMAXTYPE+1];
 
 /* map from TSTT's tag types to MOAB's */
-extern const MBDataType mb_data_type_table[4];
+extern const DataType mb_data_type_table[4];
 
 /* map from MOAB's tag types to tstt's */
 extern const iBase_TagValueType tstt_data_type_table[MB_MAX_DATA_TYPE+1];
 
-/* map from MOAB's MBErrorCode to tstt's */
+/* map from MOAB's ErrorCode to tstt's */
 extern "C" const iBase_ErrorType iBase_ERROR_MAP[MB_FAILURE+1];
 
 /* Create ITAPS iterator */
-iMesh_EntityIterator create_itaps_iterator( MBRange& swap_range,
+iMesh_EntityIterator create_itaps_iterator( Range& swap_range,
                                             int array_size = 1 ); 
 
-/* Define macro for quick reference to MBInterface instance */
-static inline MBInterface* MBI_cast( iMesh_Instance i )  
-  { return reinterpret_cast<MBInterface*>(i); }         
+/* Define macro for quick reference to Interface instance */
+static inline Interface* MBI_cast( iMesh_Instance i )  
+  { return reinterpret_cast<Interface*>(i); }         
 #define MBI MBI_cast(instance)
 
 /* Most recently returned error code */
@@ -40,9 +42,9 @@ extern "C" iBase_Error iMesh_LAST_ERROR;
                       iMesh_LAST_ERROR.description[0] = '\0'; \
                       return;} while(false)
 
-#include "MBCore.hpp"
+#include "moab/Core.hpp"
 
-class MBiMesh : public MBCore
+class MBiMesh : public Core
 {
 private:
   bool haveDeletedEntities;
@@ -57,9 +59,9 @@ public:
     return result;
   }
 
-  virtual MBErrorCode delete_mesh();
-  virtual MBErrorCode delete_entities( const MBEntityHandle*, const int );
-  virtual MBErrorCode delete_entities( const MBRange& );
+  virtual ErrorCode delete_mesh();
+  virtual ErrorCode delete_entities( const EntityHandle*, const int );
+  virtual ErrorCode delete_entities( const Range& );
   int AdjTable[16];
 };
 
@@ -78,9 +80,9 @@ iMesh_processError( int code, const char* desc )
 #define ERROR(CODE,MSG) do { *err = iMesh_setLastError( MBI, (CODE), (MSG) ); return; } while(false)
 #define IBASE_ERROR(CODE,MSG) do { *err = iMesh_processError( (CODE), (MSG) ); return; } while(false)
 
-static inline int iMesh_setLastError( MBInterface*, int code, const char* msg )
+static inline int iMesh_setLastError( Interface*, int code, const char* msg )
   { return iMesh_processError( code, msg ); }  
-static inline int iMesh_setLastError( MBInterface* mbi, MBErrorCode code, const char* msg )
+static inline int iMesh_setLastError( Interface* mbi, ErrorCode code, const char* msg )
   { 
     std::string message(msg);
     message += "  (MOAB Error Code: ";
@@ -94,7 +96,7 @@ static inline int iMesh_setLastError( MBInterface* mbi, MBErrorCode code, const 
 
 static inline bool iMesh_isError(int code)
   { return (iBase_SUCCESS != code); }
-static inline bool iMesh_isError(MBErrorCode code)
+static inline bool iMesh_isError(ErrorCode code)
   { return (MB_SUCCESS != code); }
 
 

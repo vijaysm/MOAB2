@@ -9,17 +9,19 @@
 #define WRITE_HDF5_PARALLEL_HPP
 
 #include "WriteHDF5.hpp"
-#include "MBmpi.h"
+#include "moab_mpi.h"
 #include <map>
 
-struct RemoteSetData;
-class MBParallelComm;
+namespace moab {
 
-class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
+struct RemoteSetData;
+class ParallelComm;
+
+class WriteHDF5Parallel : public WriteHDF5
 {
   public:
 
-    static MBWriterIface* factory( MBInterface* );
+    static WriterIface* factory( Interface* );
     
       /** Consturctor
        *
@@ -30,7 +32,7 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
        * disable this functionality, call one of the other construtors
        * with an empty list of tags.
        */
-    WriteHDF5Parallel( MBInterface* iface );
+    WriteHDF5Parallel( Interface* iface );
      
     
       /** Constructor
@@ -45,7 +47,7 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
        * NOTE: This list must be identical on all processors, including
        *       the order!
        */
-    WriteHDF5Parallel( MBInterface* iface,
+    WriteHDF5Parallel( Interface* iface,
                        const std::vector<std::string>& multiproc_set_tags );
 
   virtual ~WriteHDF5Parallel();
@@ -92,7 +94,7 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
        *                          NOTE:  This must be identical on all processors, including
        *                          the order in which tags were added to the object!
        */
-    WriteHDF5Parallel( MBInterface* iface, const MultiProcSetTags& multiproc_set_tags );
+    WriteHDF5Parallel( Interface* iface, const MultiProcSetTags& multiproc_set_tags );
       
     
   
@@ -100,10 +102,10 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
   
       //! Called by normal (non-parallel) writer.  Sets up
       //! necessary data for parallel write.
-    virtual MBErrorCode parallel_create_file( const char* filename,
+    virtual ErrorCode parallel_create_file( const char* filename,
                                      bool overwrite,
                                      const std::vector<std::string>& qa_records,
-                                     const MBTag* user_tag_list = 0,
+                                     const Tag* user_tag_list = 0,
                                      int user_tag_count = 0,
                                      int dimension = 3,
                                      int pcomm_no = 0);
@@ -111,14 +113,14 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
       //! Figure out which mesh local mesh is duplicated on
       //! remote processors and which processor will write
       //! that mesh.
-    MBErrorCode gather_interface_meshes();
+    ErrorCode gather_interface_meshes();
     
       //! For entities that will be written by another 
       //! processor but are referenced by entities on this
       //! processor, get the file Ids that will be assigned
       //! to those so they can be referenced by
       //! entities to be written on this processor.
-    MBErrorCode exchange_file_ids();
+    ErrorCode exchange_file_ids();
     
       //! Sort the list of tag information in the parent
       //! class by name so all procs have them in the same
@@ -126,75 +128,75 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
     void sort_tags_by_name();
     
       //! Create the node table in the file.
-    MBErrorCode create_node_table( int dimension );
+    ErrorCode create_node_table( int dimension );
     
       //! Communicate with other processors to negotiate 
       //! the types of elements that will be written
       //! (the union of the types defined on each proc.)
-    MBErrorCode negotiate_type_list();
+    ErrorCode negotiate_type_list();
     
       //! Create tables to hold element connectivity
-    MBErrorCode create_element_tables();
+    ErrorCode create_element_tables();
     
       //! Create tables to hold element adjacencies.
-    MBErrorCode create_adjacency_tables();
+    ErrorCode create_adjacency_tables();
     
       //! Identify and set up meshsets that span multiple
       //! processors.
       //!\param offsets Output array of three values.
-    MBErrorCode negotiate_shared_meshsets( long* offsets );
+    ErrorCode negotiate_shared_meshsets( long* offsets );
     
       //! Setup meshsets spanning multiple processors
-    MBErrorCode get_remote_set_data( const MultiProcSetTags::Data& tag,
+    ErrorCode get_remote_set_data( const MultiProcSetTags::Data& tag,
                                      RemoteSetData& data,
                                      long& offset );
                                      
       //! Setup interface meshsets spanning multiple processors
-    MBErrorCode get_interface_set_data( RemoteSetData& data, long& offset );
+    ErrorCode get_interface_set_data( RemoteSetData& data, long& offset );
     
       //! Determine offsets in contents and children tables for 
       //! meshsets shared between processors.
-    MBErrorCode negotiate_remote_set_contents( RemoteSetData& data,
+    ErrorCode negotiate_remote_set_contents( RemoteSetData& data,
                                                long* offsets );
     
       //! Create tables for mesh sets
-    MBErrorCode create_meshset_tables();
+    ErrorCode create_meshset_tables();
     
       //! Write tag descriptions and create tables to hold tag data.
-    MBErrorCode create_tag_tables();
+    ErrorCode create_tag_tables();
     
       //! Mark multiple-processor meshsets with correct file Id
       //! from the set description offset stored in that tag by
       //! negotiate_shared_meshsets(..).
-    MBErrorCode set_shared_set_ids( RemoteSetData& data, long& start_id );
+    ErrorCode set_shared_set_ids( RemoteSetData& data, long& start_id );
       
       //! Write set descriptions for multi-processor meshsets.
       //! Virtual function called by non-parallel code after
       //! the normal (single-processor) meshset descriptions have
       //! been written.
-    MBErrorCode write_shared_set_descriptions( hid_t table );
+    ErrorCode write_shared_set_descriptions( hid_t table );
        
       //! Write set contents for multi-processor meshsets.
       //! Virtual function called by non-parallel code after
       //! the normal (single-processor) meshset contents have
       //! been written.
-    MBErrorCode write_shared_set_contents( hid_t table );
+    ErrorCode write_shared_set_contents( hid_t table );
        
       //! Write set children for multi-processor meshsets.
       //! Virtual function called by non-parallel code after
       //! the normal (single-processor) meshset children have
       //! been written.
-    MBErrorCode write_shared_set_children( hid_t table );
+    ErrorCode write_shared_set_children( hid_t table );
        
       //! Write set children for multi-processor meshsets.
       //! Virtual function called by non-parallel code after
       //! the normal (single-processor) meshset children have
       //! been written.
-    MBErrorCode write_shared_set_parents( hid_t table );
+    ErrorCode write_shared_set_parents( hid_t table );
   
       //! Virtual function overridden from WriteHDF5.  
       //! Release memory by clearing member lists.
-    MBErrorCode write_finished();
+    ErrorCode write_finished();
 
     virtual void tprint( const char* fmt, ... )
 #ifdef __GNUC__
@@ -203,27 +205,27 @@ __attribute__((format(printf,2,3)))
     ;
     
       //! Remove any remote mesh entities from the passed range.
-    void remove_remote_entities( MBEntityHandle relative, MBRange& range );
-    void remove_remote_entities( MBEntityHandle relative, std::vector<MBEntityHandle>& vect );
-    void remove_remote_sets( MBEntityHandle relative, MBRange& range );
-    void remove_remote_sets( MBEntityHandle relative, std::vector<MBEntityHandle>& vect );
+    void remove_remote_entities( EntityHandle relative, Range& range );
+    void remove_remote_entities( EntityHandle relative, std::vector<EntityHandle>& vect );
+    void remove_remote_sets( EntityHandle relative, Range& range );
+    void remove_remote_sets( EntityHandle relative, std::vector<EntityHandle>& vect );
   
     //! get any existing tags which aren't excluded and add to shared set tags
-  MBErrorCode get_sharedset_tags();
+  ErrorCode get_sharedset_tags();
   
   private:
     
       //! An array of interface mesh which is to be written by
       //! remote processors.  Indexed by MPI rank (processor number).
-    std::map<unsigned,MBRange> interfaceMesh;
-    typedef std::map<unsigned,MBRange>::iterator proc_iter;
+    std::map<unsigned,Range> interfaceMesh;
+    typedef std::map<unsigned,Range>::iterator proc_iter;
     
       //! Tag names for identifying multi-processor meshsets
     MultiProcSetTags multiProcSetTags;
     
       //! Struct describing a multi-processor meshset
     struct ParallelSet {
-      MBEntityHandle handle;// set handle on this processor
+      EntityHandle handle;// set handle on this processor
       long contentsOffset;  // offset in table at which to write set contents
       long childrenOffset;  // offset in table at which to write set children
       long parentsOffset;   // offset in table at which to write set parents
@@ -238,18 +240,18 @@ __attribute__((format(printf,2,3)))
     
       //! Vector indexed by MPI rank, containing the list
       //! of parallel sets that each processor knows about.
-    std::map<unsigned,MBRange> cpuParallelSets;
+    std::map<unsigned,Range> cpuParallelSets;
     
       //! List of parallel sets "owned" by this processor
-    //MBRange myParallelSets;
+    //Range myParallelSets;
 
     //! pcomm controlling parallel nature of mesh
-  MBParallelComm *myPcomm;
+  ParallelComm *myPcomm;
 
     //! whether this instance allocated (and dtor should delete) the pcomm
   bool pcommAllocated;
     
-    void printrange( MBRange& );
+    void printrange( Range& );
 };
 
 
@@ -269,5 +271,7 @@ class WriteHDF5Parallel::MultiProcSetTags::Data
   int filterValue;
   bool useFilterValue;
 };
+
+} // namespace moab
 
 #endif

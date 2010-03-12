@@ -5,10 +5,7 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I.. -I$(srcdir)/.. \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src \
-               -I$(top_srcdir)/src/parallel \
-               -I$(top_builddir)/src/moab \
-               -I$(top_srcdir)/src/moab \
-               -I$(top_srcdir)/src/parallel/moab
+               -I$(top_srcdir)/src/parallel 
 
 # Run parallel tests in parallel
 if USE_MPIEXEC

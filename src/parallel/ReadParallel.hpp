@@ -1,41 +1,43 @@
 #ifndef READ_PARALLEL_HPP
 #define READ_PARALLEL_HPP
 
-#include "MBForward.hpp"
-#include "MBReaderIface.hpp"
+#include "moab/Forward.hpp"
+#include "moab/ReaderIface.hpp"
 
 #include <string>
 
-class MBReadUtilIface;
-class MBParallelComm;
+namespace moab {
+
+class ReadUtilIface;
+class ParallelComm;
 
 class ReadParallel
 {
    
 public:
 
-  static MBReaderIface* factory( MBInterface* );
+  static ReaderIface* factory( Interface* );
 
     //! load a file
-  MBErrorCode load_file(const char *file_name,
-                        const MBEntityHandle* file_set,
+  ErrorCode load_file(const char *file_name,
+                        const EntityHandle* file_set,
                         const FileOptions &opts,
-                        const MBReaderIface::IDTag* subset_list = 0,
+                        const ReaderIface::IDTag* subset_list = 0,
                         int subset_list_length = 0,
-                        const MBTag* file_id_tag = 0 );
+                        const Tag* file_id_tag = 0 );
   
     //! load multiple files
-  MBErrorCode load_file(const char **file_names,
+  ErrorCode load_file(const char **file_names,
                         const int num_files,
-                        const MBEntityHandle* file_set,
+                        const EntityHandle* file_set,
                         const FileOptions &opts,
-                        const MBReaderIface::IDTag* subset_list = 0,
+                        const ReaderIface::IDTag* subset_list = 0,
                         int subset_list_length = 0,
-                        const MBTag* file_id_tag = 0 );
+                        const Tag* file_id_tag = 0 );
   
-  MBErrorCode load_file(const char **file_names,
+  ErrorCode load_file(const char **file_names,
                         const int num_files,
-                        const MBEntityHandle* file_set,
+                        const EntityHandle* file_set,
                         int parallel_mode, 
                         std::string &partition_tag_name, 
                         std::vector<int> &partition_tag_vals, 
@@ -43,9 +45,9 @@ public:
                         bool partition_by_rank,
                         std::vector<int> &pa_vec,
                         const FileOptions &opts,
-                        const MBReaderIface::IDTag* subset_list,
+                        const ReaderIface::IDTag* subset_list,
                         int subset_list_length,
-                        const MBTag* file_id_tag,
+                        const Tag* file_id_tag,
                         const int reader_rank,
                         const bool cputime,
                         const int resolve_dim,
@@ -54,7 +56,7 @@ public:
                         const int bridge_dim,
                         const int num_layers);
     //! Constructor
-  ReadParallel(MBInterface* impl = NULL, MBParallelComm *pc = NULL);
+  ReadParallel(Interface* impl = NULL, ParallelComm *pc = NULL);
 
    //! Destructor
   virtual ~ReadParallel() {}
@@ -81,34 +83,36 @@ public:
                       POPT_DEFAULT};
 
     //! PUBLIC TO ALLOW TESTING
-  MBErrorCode delete_nonlocal_entities(std::string &ptag_name,
+  ErrorCode delete_nonlocal_entities(std::string &ptag_name,
                                        std::vector<int> &ptag_vals,
                                        bool distribute,
-                                       MBEntityHandle file_set);
+                                       EntityHandle file_set);
   
-  MBErrorCode delete_nonlocal_entities(MBEntityHandle file_set);
+  ErrorCode delete_nonlocal_entities(EntityHandle file_set);
 
 protected:
-  MBErrorCode create_partition_sets( std::string &ptag_name,
-                                     MBEntityHandle file_set );
+  ErrorCode create_partition_sets( std::string &ptag_name,
+                                     EntityHandle file_set );
 
 private:
 
-  MBInterface *mbImpl;
+  Interface *mbImpl;
 
     // each reader can keep track of its own pcomm
-  MBParallelComm *myPcomm;
+  ParallelComm *myPcomm;
 };
 
-inline MBErrorCode ReadParallel::load_file(const char *file_name,
-                                           const MBEntityHandle* file_set,
+inline ErrorCode ReadParallel::load_file(const char *file_name,
+                                           const EntityHandle* file_set,
                                            const FileOptions &opts,
-                                           const MBReaderIface::IDTag* subset_list,
+                                           const ReaderIface::IDTag* subset_list,
                                            int subset_list_length,
-                                           const MBTag* file_id_tag )
+                                           const Tag* file_id_tag )
 {
   return load_file(&file_name, 1, file_set, opts, 
                    subset_list, subset_list_length, file_id_tag);
 }
-  
+
+} // namespace moab
+
 #endif

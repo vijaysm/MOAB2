@@ -35,25 +35,26 @@
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
-#include "MBInterface.hpp"
-#include "MBTagConventions.hpp"
-#include "MBRange.hpp"
-#include "MBSkinner.hpp"
-#include "MeshTopoUtil.hpp"
-#include "MBCN.hpp"
-#include "MBOrientedBox.hpp"
-#include "MBCartVect.hpp"
+#include "moab/Interface.hpp"
+#include "moab/MBTagConventions.hpp"
+#include "moab/Range.hpp"
+#include "moab/Skinner.hpp"
+#include "moab/MeshTopoUtil.hpp"
+#include "moab/MBCN.hpp"
+#include "OrientedBox.hpp"
+#include "moab/CartVect.hpp"
 
 #ifndef IS_BUILDING_MB
 #define IS_BUILDING_MB
 #endif
-#include "MBInternals.hpp"
-#include "MBCore.hpp"
+#include "Internals.hpp"
+#include "moab/Core.hpp"
 #include "SequenceManager.hpp"
 #include "EntitySequence.hpp"
-#include "MBRangeSeqIntersectIter.hpp"
+#include "RangeSeqIntersectIter.hpp"
 
 using namespace std;
+using namespace moab;
 
 #define STRINGIFY_(A) #A
 #define STRINGIFY(A) STRINGIFY_(A)
@@ -86,11 +87,11 @@ string TestDir( "." );
     @li Get coordinates of vertex 6 correctly
   */
 
-MBErrorCode mb_vertex_coordinate_test(MBInterface *MB)
+ErrorCode mb_vertex_coordinate_test(Interface *MB)
 {
   double coords[3];
-  MBEntityHandle handle;
-  MBErrorCode error;
+  EntityHandle handle;
+  ErrorCode error;
   int err;
 
     // coordinate 2 should be {1.5, -1.5, 3.5}
@@ -137,7 +138,7 @@ MBErrorCode mb_vertex_coordinate_test(MBInterface *MB)
 
     // tag names must be defined by convention
 
-  MBRange vertices;
+  Range vertices;
   error = MB->get_entities_by_type(0,  MBVERTEX, vertices);
 
   if (error != MB_SUCCESS)
@@ -146,7 +147,7 @@ MBErrorCode mb_vertex_coordinate_test(MBInterface *MB)
   int node_count = 0;
   double all_coords[3*47];
   double* coord_iter = all_coords;
-  for ( MBRange::iterator iter = vertices.begin();
+  for ( Range::iterator iter = vertices.begin();
         iter != vertices.end(); ++iter)
   {
     error = MB->get_coords(&(*iter), 1, coord_iter );
@@ -198,22 +199,22 @@ MBErrorCode mb_vertex_coordinate_test(MBInterface *MB)
     @li Add, Set and correctly get a struct tag
   */
 
-MBErrorCode mb_vertex_tag_test(MBInterface *MB)
+ErrorCode mb_vertex_tag_test(Interface *MB)
 {
     // Add an int Vertex Tag to the database
 
   int tag_size = sizeof(int);
-  MBTag tag_id;
+  Tag tag_id;
 
     // Create a dense tag for all vertices
-  MBErrorCode error = MB->tag_create("int_tag", tag_size, MB_TAG_SPARSE, tag_id, 0);
+  ErrorCode error = MB->tag_create("int_tag", tag_size, MB_TAG_SPARSE, tag_id, 0);
   if (error != MB_SUCCESS)
     return error;
 
     // put a value in vertex 1 and retrieve
 
   int err;
-  MBEntityHandle handle = CREATE_HANDLE(MBVERTEX, 1, err);
+  EntityHandle handle = CREATE_HANDLE(MBVERTEX, 1, err);
   int input_value = 11;
   error = MB->tag_set_data(tag_id, &handle, 1, &input_value);
   if (MB_SUCCESS != error) return error;
@@ -332,7 +333,7 @@ MBErrorCode mb_vertex_tag_test(MBInterface *MB)
   for (i=0; i<10; i++)
   {
     int err=0;
-    MBEntityHandle handle = CREATE_HANDLE(MBVERTEX, node_ids[i], err);
+    EntityHandle handle = CREATE_HANDLE(MBVERTEX, node_ids[i], err);
 
     if (err != 0)
       return MB_FAILURE;
@@ -371,7 +372,7 @@ MBErrorCode mb_vertex_tag_test(MBInterface *MB)
     return MB_FAILURE;
 
     // get the tag handle of the last tag created above
-  MBTag int_tag_handle;
+  Tag int_tag_handle;
   error = MB->tag_get_handle (int_tag_name.c_str(), int_tag_handle);
   if (MB_SUCCESS != error) return error;
     
@@ -379,7 +380,7 @@ MBErrorCode mb_vertex_tag_test(MBInterface *MB)
     return MB_FAILURE;
 
     // test tag_get_tags_on_entity and tag_delete_data
-  std::vector<MBTag> all_tags;
+  std::vector<Tag> all_tags;
   handle = CREATE_HANDLE(MBVERTEX, node_ids[0], err);
   error = MB->tag_get_tags_on_entity(handle, all_tags);
   if (MB_SUCCESS != error)
@@ -414,7 +415,7 @@ MBErrorCode mb_vertex_tag_test(MBInterface *MB)
     return error;
 
     // delete the dense tag named bool_tag 
-  MBTag bool_tag_handle;
+  Tag bool_tag_handle;
   error = MB->tag_get_handle ("bool_tag", bool_tag_handle);
   if (error != MB_SUCCESS) return error;
 
@@ -432,13 +433,13 @@ MBErrorCode mb_vertex_tag_test(MBInterface *MB)
     @li Get coordinates for 2 node bar elements
   */
 
-MBErrorCode mb_bar_connectivity_test(MBInterface *MB)
+ErrorCode mb_bar_connectivity_test(Interface *MB)
 {
 
-  std::vector<MBEntityHandle> conn;
-  MBErrorCode error;
+  std::vector<EntityHandle> conn;
+  ErrorCode error;
 
-  MBRange bars;
+  Range bars;
 
   error = MB->get_entities_by_type(0, MBEDGE, bars);
 
@@ -446,7 +447,7 @@ MBErrorCode mb_bar_connectivity_test(MBInterface *MB)
     return error;
 
     // get the connectivity of the second bar
-  MBEntityHandle handle = *(++bars.begin());
+  EntityHandle handle = *(++bars.begin());
 
   error = MB->get_connectivity(&handle, 1, conn);
   if (error != MB_SUCCESS )  
@@ -474,20 +475,20 @@ MBErrorCode mb_bar_connectivity_test(MBInterface *MB)
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_tri_connectivity_test(MBInterface *MB)
+ErrorCode mb_tri_connectivity_test(Interface *MB)
 {
 
-  std::vector<MBEntityHandle> conn; 
-  MBErrorCode error;
+  std::vector<EntityHandle> conn; 
+  ErrorCode error;
 
-  MBRange tris;
+  Range tris;
   error = MB->get_entities_by_type(0, MBTRI, tris);
 
   if (error != MB_SUCCESS)
     return error;
 
     // get the connectivity of the second tri
-  MBEntityHandle handle = *(++tris.begin());
+  EntityHandle handle = *(++tris.begin());
 
   error = MB->get_connectivity(&handle, 1, conn);
   if (error != MB_SUCCESS )  
@@ -511,20 +512,20 @@ MBErrorCode mb_tri_connectivity_test(MBInterface *MB)
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_quad_connectivity_test(MBInterface *MB)
+ErrorCode mb_quad_connectivity_test(Interface *MB)
 {
 
-  std::vector<MBEntityHandle> conn;
+  std::vector<EntityHandle> conn;
 
-  MBRange quads;
+  Range quads;
 
-  MBErrorCode error = MB->get_entities_by_type(0, MBQUAD, quads);
+  ErrorCode error = MB->get_entities_by_type(0, MBQUAD, quads);
 
   if (error != MB_SUCCESS)
     return error;
 
     // get the connectivity of the second quad
-  MBEntityHandle handle = *(++quads.begin());
+  EntityHandle handle = *(++quads.begin());
 
   error = MB->get_connectivity(&handle, 1, conn);
   if (error != MB_SUCCESS )  
@@ -551,20 +552,20 @@ MBErrorCode mb_quad_connectivity_test(MBInterface *MB)
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_hex_connectivity_test(MBInterface *MB)
+ErrorCode mb_hex_connectivity_test(Interface *MB)
 {
 
-  std::vector<MBEntityHandle> conn;
+  std::vector<EntityHandle> conn;
 
-  MBRange hexes;
+  Range hexes;
 
-  MBErrorCode error = MB->get_entities_by_type(0,  MBHEX, hexes);
+  ErrorCode error = MB->get_entities_by_type(0,  MBHEX, hexes);
 
   if (error != MB_SUCCESS)
     return error;
 
     // get the connectivity of the second hex
-  MBEntityHandle handle = *(++hexes.begin());
+  EntityHandle handle = *(++hexes.begin());
 
   error = MB->get_connectivity(&handle, 1, conn);
   if (error != MB_SUCCESS )  
@@ -603,19 +604,19 @@ MBErrorCode mb_hex_connectivity_test(MBInterface *MB)
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_tet_connectivity_test(MBInterface *MB)
+ErrorCode mb_tet_connectivity_test(Interface *MB)
 {
-  std::vector<MBEntityHandle> conn; 
+  std::vector<EntityHandle> conn; 
 
-  MBRange tets;
+  Range tets;
 
-  MBErrorCode error = MB->get_entities_by_type(0, MBTET, tets);
+  ErrorCode error = MB->get_entities_by_type(0, MBTET, tets);
 
   if (error != MB_SUCCESS)
     return error;
 
     // get the connectivity of the second tet
-  MBEntityHandle handle = *(++tets.begin());
+  EntityHandle handle = *(++tets.begin());
 
   error = MB->get_connectivity(&handle, 1, conn);
   if (error != MB_SUCCESS )  
@@ -641,21 +642,21 @@ MBErrorCode mb_tet_connectivity_test(MBInterface *MB)
 
   return MB_SUCCESS;
 }
-MBErrorCode mb_temporary_test( MBInterface *gMB )
+ErrorCode mb_temporary_test( Interface *gMB )
 {
 
   double array[3] = {0.0, 0.0, 0.0};
-  MBEntityHandle h_node1;
-  MBErrorCode result = gMB->create_vertex(array, h_node1);
+  EntityHandle h_node1;
+  ErrorCode result = gMB->create_vertex(array, h_node1);
   if (MB_SUCCESS != result)
     return result;
 
-  MBEntityHandle ordered_meshset1;
+  EntityHandle ordered_meshset1;
   result = gMB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, ordered_meshset1);
   if (MB_SUCCESS != result)
     return result;
 
-  MBEntityHandle ordered_meshset2;
+  EntityHandle ordered_meshset2;
   result = gMB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, ordered_meshset2);
   if (MB_SUCCESS != result)
     return result;
@@ -673,7 +674,7 @@ MBErrorCode mb_temporary_test( MBInterface *gMB )
     return result;
 
   bool create_if_missing = false;
-  std::vector<MBEntityHandle> meshsets;
+  std::vector<EntityHandle> meshsets;
   result = gMB->get_adjacencies(&h_node1, 1, 4, create_if_missing, meshsets);
   if (MB_SUCCESS != result)
     return result;
@@ -684,11 +685,11 @@ MBErrorCode mb_temporary_test( MBInterface *gMB )
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_adjacent_vertex_test( MBInterface* mb )
+ErrorCode mb_adjacent_vertex_test( Interface* mb )
 {
-  MBErrorCode rval;
-  MBRange hexes, expt_vert, got_vert, some_hexes;
-  MBRange::const_iterator i, j;
+  ErrorCode rval;
+  Range hexes, expt_vert, got_vert, some_hexes;
+  Range::const_iterator i, j;
   int n;
   
     // get all hexes
@@ -704,7 +705,7 @@ MBErrorCode mb_adjacent_vertex_test( MBInterface* mb )
     if (++n % 3)
       continue;
     some_hexes.insert( *i );
-    const MBEntityHandle* conn;
+    const EntityHandle* conn;
     int len;
     rval = mb->get_connectivity( *i, conn, len );
     if (MB_SUCCESS != rval)
@@ -714,7 +715,7 @@ MBErrorCode mb_adjacent_vertex_test( MBInterface* mb )
   }
   
     // use get_adjacencies to get vertices
-  rval = mb->get_adjacencies( some_hexes, 0, false, got_vert, MBInterface::UNION );
+  rval = mb->get_adjacencies( some_hexes, 0, false, got_vert, Interface::UNION );
   if (MB_SUCCESS != rval) {
     std::cout << "get_adjacencies failed with error code " << rval << std::endl;
     return rval;
@@ -747,7 +748,7 @@ MBErrorCode mb_adjacent_vertex_test( MBInterface* mb )
   return MB_SUCCESS;
 }
   
-MBErrorCode mb_adjacencies_test(MBInterface *mb) 
+ErrorCode mb_adjacencies_test(Interface *mb) 
 {
     // this test does the following:
     // 1. For each element, creates vertex-element adjacencies (only for
@@ -757,9 +758,9 @@ MBErrorCode mb_adjacencies_test(MBInterface *mb)
     //
     // assume mesh has already been read
 
-  MBEntityType seq_type;
-  MBErrorCode result = MB_SUCCESS;
-  MBRange handle_range;
+  EntityType seq_type;
+  ErrorCode result = MB_SUCCESS;
+  Range handle_range;
 
     // Some code to make the test simpler locally (this will cause other tests to
     // fail though, so watch out!)
@@ -772,11 +773,11 @@ MBErrorCode mb_adjacencies_test(MBInterface *mb)
     // this may be far from being the most efficient, but
     // it certainly does exercise the adjacency routines
 
-  MBRange::iterator iter;
-  MBRange::reverse_iterator riter;
+  Range::iterator iter;
+  Range::reverse_iterator riter;
 
     // first get the hexes
-  MBRange hexes;
+  Range hexes;
   result = mb->get_entities_by_type(0, MBHEX, hexes);
   if (MB_SUCCESS != result)
     return result;
@@ -794,8 +795,8 @@ MBErrorCode mb_adjacencies_test(MBInterface *mb)
 
 
     // get all the nodes that these hexes are connected to
-  MBRange nodes;
-  result = mb->get_adjacencies(hexes, 0, false, nodes, MBInterface::UNION);
+  Range nodes;
+  result = mb->get_adjacencies(hexes, 0, false, nodes, Interface::UNION);
   if (MB_SUCCESS != result)
     return result;
 
@@ -807,8 +808,8 @@ MBErrorCode mb_adjacencies_test(MBInterface *mb)
   }
 
     // find the interior nodes; assume a structured mesh
-  MBRange interior_nodes;
-  std::vector<MBEntityHandle> attached_hexes;
+  Range interior_nodes;
+  std::vector<EntityHandle> attached_hexes;
   for( iter = nodes.begin(); iter != nodes.end();)
   {
     attached_hexes.clear();
@@ -836,14 +837,14 @@ MBErrorCode mb_adjacencies_test(MBInterface *mb)
   }
 
     // get interior quads from interior nodes
-  MBRange interior_quads;
-  result = mb->get_adjacencies(interior_nodes, 2, true, interior_quads, MBInterface::UNION);
+  Range interior_quads;
+  result = mb->get_adjacencies(interior_nodes, 2, true, interior_quads, Interface::UNION);
   if (MB_SUCCESS != result) 
     return result;
 
     // get a list of quads generated adjacent to the exterior nodes
-  MBRange temp_quads, exterior_quads;
-  result = mb->get_adjacencies(nodes, 2, true, temp_quads, MBInterface::UNION);
+  Range temp_quads, exterior_quads;
+  result = mb->get_adjacencies(nodes, 2, true, temp_quads, Interface::UNION);
   if (MB_SUCCESS != result) 
     return result;
 
@@ -851,7 +852,7 @@ MBErrorCode mb_adjacencies_test(MBInterface *mb)
     // and we should be left with exterior quads
   std::set_difference(temp_quads.begin(), temp_quads.end(),
                       interior_quads.begin(), interior_quads.end(),
-                      mb_range_inserter(exterior_quads));
+                      range_inserter(exterior_quads));
 
     // check to make sure we have the right number of quads; for hexes, should be
     // .5(6*num_hexes - num_exterior_quads)
@@ -864,7 +865,7 @@ MBErrorCode mb_adjacencies_test(MBInterface *mb)
   if (MB_SUCCESS != result) 
     return result;
 
-  MBRange remaining_quads;
+  Range remaining_quads;
   result = mb->get_entities_by_type(0, MBQUAD, remaining_quads);
   if (MB_SUCCESS != result)
     return result;
@@ -898,34 +899,34 @@ MBErrorCode mb_adjacencies_test(MBInterface *mb)
 
 }
   
-MBErrorCode mb_adjacencies_create_delete_test(MBInterface *mb) 
+ErrorCode mb_adjacencies_create_delete_test(Interface *mb) 
 {
-  MBCore moab;
+  Core moab;
   mb = &moab;
-  MBErrorCode rval;
+  ErrorCode rval;
 
   double coords[] = { 0, 0, 0, 2, 0, 0, 1, 2, 0 };
-  MBRange verts;
+  Range verts;
   rval = mb->create_vertices( coords, 3, verts );
   if (MB_SUCCESS != rval)
     return rval;
   if (verts.size() != 3)
     return MB_FAILURE;
-  MBEntityHandle vert_arr[3];
+  EntityHandle vert_arr[3];
 
-  MBEntityHandle tri;
+  EntityHandle tri;
   std::copy( verts.begin(), verts.end(), vert_arr );
   rval = mb->create_element( MBTRI, vert_arr, 3, tri );
   if (MB_SUCCESS != rval)
     return rval;
   
   vert_arr[2] = vert_arr[0];
-  MBEntityHandle forward_edge, reverse_edge;
+  EntityHandle forward_edge, reverse_edge;
   rval = mb->create_element( MBEDGE, vert_arr, 2, forward_edge );
   if (MB_SUCCESS != rval)
     return rval;
     
-  std::vector<MBEntityHandle> results;
+  std::vector<EntityHandle> results;
   rval = mb->get_adjacencies( &forward_edge, 1, 2, false, results );
   if (results.size() != 1 || results.front() != tri) {
     std::cerr << "Adjacency query from forward edge to tri failed at "
@@ -974,15 +975,15 @@ MBErrorCode mb_adjacencies_create_delete_test(MBInterface *mb)
   return MB_SUCCESS;
 }
 
-static MBErrorCode create_two_hex_full_mesh( MBInterface* mb,
-                                             MBEntityHandle vertices[12],
-                                             MBEntityHandle hexes[2],
-                                             MBEntityHandle hex1_faces[6],
-                                             MBEntityHandle hex2_faces[6],
-                                             MBEntityHandle hex1_edges[12],
-                                             MBEntityHandle hex2_edges[12] )
+static ErrorCode create_two_hex_full_mesh( Interface* mb,
+                                             EntityHandle vertices[12],
+                                             EntityHandle hexes[2],
+                                             EntityHandle hex1_faces[6],
+                                             EntityHandle hex2_faces[6],
+                                             EntityHandle hex1_edges[12],
+                                             EntityHandle hex2_edges[12] )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
  // create a simple mesh containing 2 hexes
   const double coords[] = { 0, 0, 0, 
                             1, 0, 0,
@@ -999,28 +1000,28 @@ static MBErrorCode create_two_hex_full_mesh( MBInterface* mb,
   for (int i = 0; i < 12; ++i)
     if (MB_SUCCESS != mb->create_vertex( coords + 3*i, vertices[i] ))
       return MB_FAILURE;
-  MBEntityHandle hex1_conn[] = { vertices[6], vertices[7], vertices[1], vertices[0],
+  EntityHandle hex1_conn[] = { vertices[6], vertices[7], vertices[1], vertices[0],
                                  vertices[9], vertices[10],vertices[4], vertices[3] };
-  MBEntityHandle hex2_conn[] = { vertices[7], vertices[8], vertices[2], vertices[1],
+  EntityHandle hex2_conn[] = { vertices[7], vertices[8], vertices[2], vertices[1],
                                  vertices[10],vertices[11],vertices[5], vertices[4] };
-  MBEntityHandle shared_quad_conn[] = { vertices[7], vertices[1], vertices[4], vertices[10] };
-  MBEntityHandle hex1_face_conn[][4] = {
+  EntityHandle shared_quad_conn[] = { vertices[7], vertices[1], vertices[4], vertices[10] };
+  EntityHandle hex1_face_conn[][4] = {
     { vertices[6], vertices[7], vertices[10],vertices[9] },
     { vertices[7], vertices[6], vertices[0], vertices[1] },
     { vertices[1], vertices[0], vertices[3], vertices[4] },
     { vertices[9], vertices[10],vertices[4], vertices[3] },
     { vertices[3], vertices[0], vertices[6], vertices[9] } };
-  MBEntityHandle hex2_face_conn[][4] = {
+  EntityHandle hex2_face_conn[][4] = {
     { vertices[7], vertices[8], vertices[11],vertices[10] },
     { vertices[8], vertices[7], vertices[1], vertices[2] },
     { vertices[2], vertices[1], vertices[4], vertices[5] },
     { vertices[10],vertices[11],vertices[5], vertices[4] },
     { vertices[5], vertices[2], vertices[8], vertices[11] } };
-  MBEntityHandle shared_edge_conn[][2] = { { vertices[1], vertices[7] },
+  EntityHandle shared_edge_conn[][2] = { { vertices[1], vertices[7] },
                                            { vertices[7], vertices[10]},
                                            { vertices[10],vertices[4] },
                                            { vertices[4], vertices[1] } };
-  MBEntityHandle hex1_edge_conn[][2] = { { vertices[6], vertices[7] },
+  EntityHandle hex1_edge_conn[][2] = { { vertices[6], vertices[7] },
                                          { vertices[9], vertices[10] },
                                          { vertices[3], vertices[4] },
                                          { vertices[0], vertices[1] },
@@ -1028,7 +1029,7 @@ static MBErrorCode create_two_hex_full_mesh( MBInterface* mb,
                                          { vertices[9], vertices[3] },
                                          { vertices[3], vertices[0] },
                                          { vertices[0], vertices[6] } };
-  MBEntityHandle hex2_edge_conn[][2] = { { vertices[7], vertices[8] },
+  EntityHandle hex2_edge_conn[][2] = { { vertices[7], vertices[8] },
                                          { vertices[10], vertices[11] },
                                          { vertices[4], vertices[5] },
                                          { vertices[1], vertices[2] },
@@ -1072,22 +1073,22 @@ static MBErrorCode create_two_hex_full_mesh( MBInterface* mb,
 }
 
 
-MBErrorCode mb_upward_adjacencies_test(MBInterface *mb) 
+ErrorCode mb_upward_adjacencies_test(Interface *mb) 
 {
-  MBErrorCode rval;
-  MBCore moab;
+  ErrorCode rval;
+  Core moab;
   mb = &moab;
   
   // create a simple mesh containing 2 hexes
-  MBEntityHandle vertices[12], hexes[2], hex1_faces[6], hex2_faces[6], hex1_edges[12], hex2_edges[12];
+  EntityHandle vertices[12], hexes[2], hex1_faces[6], hex2_faces[6], hex1_edges[12], hex2_edges[12];
   rval = create_two_hex_full_mesh( mb, vertices, hexes, hex1_faces, hex2_faces, hex1_edges, hex2_edges );
   if (MB_SUCCESS != rval)
     return rval;
 
     // test adjacences from dim to 3
   for (int dim = 0; dim < 3; ++dim) {
-    std::vector<MBEntityHandle> hex1_ent, hex2_ent, shared;
-    const MBEntityHandle *list1, *list2;
+    std::vector<EntityHandle> hex1_ent, hex2_ent, shared;
+    const EntityHandle *list1, *list2;
     int n;
     switch (dim) {
       case 0:
@@ -1119,7 +1120,7 @@ MBErrorCode mb_upward_adjacencies_test(MBInterface *mb)
     }
     
     for (size_t j = 0; j < shared.size(); ++j) {
-      std::vector<MBEntityHandle> adj;
+      std::vector<EntityHandle> adj;
       rval = mb->get_adjacencies( &shared[j], 1, 3, false, adj );
       if (MB_SUCCESS != rval)
         return rval;
@@ -1131,7 +1132,7 @@ MBErrorCode mb_upward_adjacencies_test(MBInterface *mb)
     }
     
     for (size_t j = 0; j < hex1_ent.size(); ++j) {
-      std::vector<MBEntityHandle> adj;
+      std::vector<EntityHandle> adj;
       rval = mb->get_adjacencies( &hex1_ent[j], 1, 3, false, adj );
       if (MB_SUCCESS != rval)
         return rval;
@@ -1140,7 +1141,7 @@ MBErrorCode mb_upward_adjacencies_test(MBInterface *mb)
     }
     
     for (size_t j = 0; j < hex2_ent.size(); ++j) {
-      std::vector<MBEntityHandle> adj;
+      std::vector<EntityHandle> adj;
       rval = mb->get_adjacencies( &hex2_ent[j], 1, 3, false, adj );
       if (MB_SUCCESS != rval)
         return rval;
@@ -1152,13 +1153,13 @@ MBErrorCode mb_upward_adjacencies_test(MBInterface *mb)
     // For each edge, get adjacent faces, and for each face
     // get adjacent hexes.  Result should be the same as
     // direct query from edges to hexes
-  std::vector<MBEntityHandle> all_edges(24);
+  std::vector<EntityHandle> all_edges(24);
   std::copy( hex1_edges, hex1_edges+12, all_edges.begin() );
   std::copy( hex2_edges, hex2_edges+12, all_edges.begin()+12 );
   std::sort( all_edges.begin(), all_edges.end() );
   all_edges.erase( std::unique(all_edges.begin(), all_edges.end()), all_edges.end() );
   for (size_t j = 0; j < all_edges.size(); ++j) {
-    std::vector<MBEntityHandle> edge_hexes, edge_faces, face_hexes;
+    std::vector<EntityHandle> edge_hexes, edge_faces, face_hexes;
     rval = mb->get_adjacencies( &all_edges[j], 1, 3, false, edge_hexes );
     if (MB_SUCCESS != rval)
       return rval;
@@ -1166,7 +1167,7 @@ MBErrorCode mb_upward_adjacencies_test(MBInterface *mb)
     if (MB_SUCCESS != rval)
       return rval;
     rval = mb->get_adjacencies( &edge_faces[0], edge_faces.size(), 3,
-                                false, face_hexes, MBInterface::UNION );
+                                false, face_hexes, Interface::UNION );
     if (MB_SUCCESS != rval)
       return rval;
     if (edge_hexes.size() != face_hexes.size())
@@ -1188,11 +1189,11 @@ MBErrorCode mb_upward_adjacencies_test(MBInterface *mb)
   return MB_SUCCESS;
 }
 
-MBErrorCode nothing_but_type( MBRange& range, MBEntityType type )
+ErrorCode nothing_but_type( Range& range, EntityType type )
 { 
 
     //make sure there's nothing but hexes in hex_ms
-  MBRange::iterator iter, end_iter;
+  Range::iterator iter, end_iter;
   iter = range.begin();
   end_iter = range.end();
 
@@ -1206,29 +1207,29 @@ MBErrorCode nothing_but_type( MBRange& range, MBEntityType type )
   return MB_SUCCESS;
 }
 
-MBErrorCode check_esets(MBInterface * MB, const int num_sets) 
+ErrorCode check_esets(Interface * MB, const int num_sets) 
 {
   int entity_sets_size;
-  MBErrorCode result = MB->get_number_entities_by_type(0, MBENTITYSET, entity_sets_size);
+  ErrorCode result = MB->get_number_entities_by_type(0, MBENTITYSET, entity_sets_size);
   if (MB_SUCCESS != result ||
       entity_sets_size != num_sets) return MB_FAILURE;
   
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_mesh_sets_test(MBInterface * MB, int flags)
+ErrorCode mb_mesh_sets_test(Interface * MB, int flags)
 {
 
-  MBRange temp_range;
-  std::vector<MBEntityHandle> temp_vector;
-  MBEntityType ent_type;
+  Range temp_range;
+  std::vector<EntityHandle> temp_vector;
+  EntityType ent_type;
 
-  MBEntityHandle ms_array[MBENTITYSET] = {0};
+  EntityHandle ms_array[MBENTITYSET] = {0};
   unsigned int number_array[MBENTITYSET] = {0};
   unsigned int num_dim_array[4] = { 0, 0, 0, 0 };
   int count, start_num_sets;
 
-  MBErrorCode result = MB->get_number_entities_by_type(0, MBENTITYSET, start_num_sets);
+  ErrorCode result = MB->get_number_entities_by_type(0, MBENTITYSET, start_num_sets);
   if (MB_SUCCESS != result) return result;
 
     //add entities to meshsets 
@@ -1361,7 +1362,7 @@ MBErrorCode mb_mesh_sets_test(MBInterface * MB, int flags)
   }
 
     //----------TEST RECURSIVE OPERATIONS----------------//
-  MBEntityHandle recursive1, recursive2;
+  EntityHandle recursive1, recursive2;
   result = MB->create_meshset( MESHSET_SET, recursive1 );
   if( result != MB_SUCCESS )
     return result;
@@ -1483,7 +1484,7 @@ MBErrorCode mb_mesh_sets_test(MBInterface * MB, int flags)
 
     //----------TEST BOOLEAN OPERATIONS----------------//
 
-  MBEntityHandle temp_ms1, temp_ms2; 
+  EntityHandle temp_ms1, temp_ms2; 
   result = MB->create_meshset(flags, temp_ms1);
   if(result  != MB_SUCCESS ) 
     return result;
@@ -1671,12 +1672,12 @@ MBErrorCode mb_mesh_sets_test(MBInterface * MB, int flags)
   if (MB_SUCCESS != result) return result;
 
     //-------------Misc tests--------------
-  MBEntityHandle temp_ms3;
+  EntityHandle temp_ms3;
   result = MB->create_meshset(flags, temp_ms3);
   if(result  != MB_SUCCESS ) 
     return result;
 
-  MBEntityHandle handle_array[] = {1, 2, 3, 4, 5, 7, 8, 9, 10};
+  EntityHandle handle_array[] = {1, 2, 3, 4, 5, 7, 8, 9, 10};
   const int num_handle = sizeof(handle_array)/sizeof(handle_array[0]);
     //add ents to set
   result = MB->add_entities( temp_ms3, handle_array, num_handle );
@@ -1700,8 +1701,8 @@ MBErrorCode mb_mesh_sets_test(MBInterface * MB, int flags)
   return MB_SUCCESS;
 }
 
-static bool compare_lists( std::vector<MBEntityHandle> vect,
-                           const MBEntityHandle* array, 
+static bool compare_lists( std::vector<EntityHandle> vect,
+                           const EntityHandle* array, 
                            int count,
                            bool ordered = true )
 {
@@ -1719,17 +1720,17 @@ static bool compare_lists( std::vector<MBEntityHandle> vect,
 }
 
     //Test parent/child stuff in meshsets
-MBErrorCode mb_mesh_set_parent_child_test(MBInterface *MB)
+ErrorCode mb_mesh_set_parent_child_test(Interface *MB)
 {
-  MBErrorCode rval;
-  std::vector<MBEntityHandle> list;
-  MBRange range;
-  MBRange::iterator iter;
+  ErrorCode rval;
+  std::vector<EntityHandle> list;
+  Range range;
+  Range::iterator iter;
   int count;
 
     // create a few mesh sets
   const int num_sets = 10;
-  MBEntityHandle sets[num_sets];
+  EntityHandle sets[num_sets];
   for (int i = 0; i < num_sets; ++i) {
     rval = MB->create_meshset( i % 2 ? MESHSET_SET : 0, sets[i] );
     if (MB_SUCCESS != rval) 
@@ -2209,33 +2210,33 @@ MBErrorCode mb_mesh_set_parent_child_test(MBInterface *MB)
   return MB->delete_entities( sets, 9 );
 }
   
-MBErrorCode mb_mesh_sets_set_test( MBInterface* mb )
+ErrorCode mb_mesh_sets_set_test( Interface* mb )
 {
   return mb_mesh_sets_test( mb, MESHSET_SET );
 }
   
-MBErrorCode mb_mesh_sets_list_test( MBInterface* mb )
+ErrorCode mb_mesh_sets_list_test( Interface* mb )
 {
   return mb_mesh_sets_test( mb, MESHSET_ORDERED );
 } 
 
-// Verify that all query functions *append* to output MBRange
-MBErrorCode mb_mesh_set_appends( MBInterface* mb, int flags )
+// Verify that all query functions *append* to output Range
+ErrorCode mb_mesh_set_appends( Interface* mb, int flags )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   
     // get all handles and subdivide into vertex and non-vertex ents
-  MBRange all_ents, verts, elems, results;
+  Range all_ents, verts, elems, results;
   rval = mb->get_entities_by_handle( 0, all_ents );
   if (MB_SUCCESS != rval)
     return rval;
-  MBRange::iterator ve = all_ents.upper_bound( MBVERTEX );
+  Range::iterator ve = all_ents.upper_bound( MBVERTEX );
   verts.merge( all_ents.begin(), ve );
   elems.merge( ve, all_ents.end() );
 
     // If we're not testing queries from the root set, 
     // create a set containing all the vertices
-  MBEntityHandle set = 0;
+  EntityHandle set = 0;
   if (flags != -1) {
     rval = mb->create_meshset( flags, set );
     if (MB_SUCCESS != rval)
@@ -2272,11 +2273,11 @@ MBErrorCode mb_mesh_set_appends( MBInterface* mb, int flags )
     return MB_FAILURE;
   
     // choose a single entity for testing tag queries
-  MBEntityHandle entity = verts.front();
-  MBRange expected( elems );
+  EntityHandle entity = verts.front();
+  Range expected( elems );
   expected.insert( entity );
   
-  MBTag sparse, dense;
+  Tag sparse, dense;
   const int zero = 0, one = 1;
   const void* vals[] = {&one};
 
@@ -2295,7 +2296,7 @@ MBErrorCode mb_mesh_set_appends( MBInterface* mb, int flags )
   rval = mb->get_entities_by_type_and_tag( set, 
                                            TYPE_FROM_HANDLE(entity),
                                            &sparse, 0, 1, 
-                                           results, MBInterface::UNION );
+                                           results, Interface::UNION );
   if (MB_SUCCESS != rval)
     return rval;
   if (results != expected)
@@ -2305,7 +2306,7 @@ MBErrorCode mb_mesh_set_appends( MBInterface* mb, int flags )
   rval = mb->get_entities_by_type_and_tag( set, 
                                            TYPE_FROM_HANDLE(entity),
                                            &sparse, vals, 1, 
-                                           results, MBInterface::UNION );
+                                           results, Interface::UNION );
   if (MB_SUCCESS != rval)
     return rval;
   if (results != expected)
@@ -2326,7 +2327,7 @@ MBErrorCode mb_mesh_set_appends( MBInterface* mb, int flags )
   rval = mb->get_entities_by_type_and_tag( set, 
                                            TYPE_FROM_HANDLE(entity),
                                            &dense, vals, 1, 
-                                           results, MBInterface::UNION );
+                                           results, Interface::UNION );
   if (MB_SUCCESS != rval)
     return rval;
   if (results != expected)
@@ -2335,36 +2336,36 @@ MBErrorCode mb_mesh_set_appends( MBInterface* mb, int flags )
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_mesh_set_set_appends( MBInterface* mb )
+ErrorCode mb_mesh_set_set_appends( Interface* mb )
 {
   return mb_mesh_set_appends( mb, MESHSET_SET );
 }
 
-MBErrorCode mb_mesh_set_list_appends( MBInterface* mb )
+ErrorCode mb_mesh_set_list_appends( Interface* mb )
 {
   return mb_mesh_set_appends( mb, MESHSET_ORDERED );
 }
 
-MBErrorCode mb_mesh_set_root_appends( MBInterface* mb )
+ErrorCode mb_mesh_set_root_appends( Interface* mb )
 {
   return mb_mesh_set_appends( mb, -1 );
 }
 
-MBErrorCode mb_mesh_set_set_replace_test( MBInterface*  )
+ErrorCode mb_mesh_set_set_replace_test( Interface*  )
 {
-  MBCore moab;
-  MBInterface* mb = &moab;
-  MBErrorCode rval;
-  MBRange r;
+  Core moab;
+  Interface* mb = &moab;
+  ErrorCode rval;
+  Range r;
     // create 10 vertices to put in set
   std::vector<double> coords(30);
   rval = mb->create_vertices( &coords[0], 10, r );
   CHKERR(rval);
-  std::vector<MBEntityHandle> verts(r.size());
+  std::vector<EntityHandle> verts(r.size());
   std::copy( r.begin(), r.end(), verts.begin() );
   r.clear();
     // create a set
-  MBEntityHandle set;
+  EntityHandle set;
   rval = mb->create_meshset( MESHSET_SET, set );
   CHKERR(rval);
     // put every other vertex in set
@@ -2374,14 +2375,14 @@ MBErrorCode mb_mesh_set_set_replace_test( MBInterface*  )
   CHKERR(rval);
   r.clear();
     // swap 3 of the vertices
-  MBEntityHandle old_ents[3] = { verts[2], verts[4], verts[6] };
-  MBEntityHandle new_ents[3] = { verts[1], verts[9], verts[5] };
+  EntityHandle old_ents[3] = { verts[2], verts[4], verts[6] };
+  EntityHandle new_ents[3] = { verts[1], verts[9], verts[5] };
   rval = mb->replace_entities( set, old_ents, new_ents, 3 );
   CHKERR(rval);
     // check new set contents
   rval = mb->get_entities_by_handle( set, r );
   CHKERR(rval);
-  MBRange r2;
+  Range r2;
   r2.insert( verts[0] );
   r2.insert( verts[1] );
   r2.insert( verts[9] );
@@ -2397,34 +2398,34 @@ MBErrorCode mb_mesh_set_set_replace_test( MBInterface*  )
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_mesh_set_list_replace_test( MBInterface*  )
+ErrorCode mb_mesh_set_list_replace_test( Interface*  )
 {
-  MBCore moab;
-  MBInterface* mb = &moab;
-  MBErrorCode rval;
+  Core moab;
+  Interface* mb = &moab;
+  ErrorCode rval;
     // create 10 vertices to put in set
-  MBRange r;
+  Range r;
   std::vector<double> coords(30);
   rval = mb->create_vertices( &coords[0], 10, r );
   CHKERR(rval);
-  std::vector<MBEntityHandle> verts(r.size());
+  std::vector<EntityHandle> verts(r.size());
   std::copy( r.begin(), r.end(), verts.begin() );
   r.clear();
     // create a set
-  MBEntityHandle set;
+  EntityHandle set;
   rval = mb->create_meshset( MESHSET_ORDERED, set );
   CHKERR(rval);
     // put all vertices in set, but add the first one a second time
-  std::vector<MBEntityHandle> list( verts );
+  std::vector<EntityHandle> list( verts );
   list.push_back( verts.front() );
   rval = mb->add_entities( set, &list[0], list.size() );
     // swap 3 of the vertices
-  MBEntityHandle old_ents[3] = { verts[2], verts[4], verts[6] };
-  MBEntityHandle new_ents[3] = { verts[1], verts[9], verts[5] };
+  EntityHandle old_ents[3] = { verts[2], verts[4], verts[6] };
+  EntityHandle new_ents[3] = { verts[1], verts[9], verts[5] };
   rval = mb->replace_entities( set, old_ents, new_ents, 3 );
   CHKERR(rval);
     // check new set contents
-  std::vector<MBEntityHandle> list2;
+  std::vector<EntityHandle> list2;
   rval = mb->get_entities_by_handle( set, list2 );
   CHKERR(rval);
   list[2] = verts[1];
@@ -2433,9 +2434,9 @@ MBErrorCode mb_mesh_set_list_replace_test( MBInterface*  )
   if (list != list2) {
     std::cerr << "Range does not contain expected values." << std::endl;
     std::cerr << "  Expected: ";
-    std::copy( list.begin(), list.end(), std::ostream_iterator<MBEntityHandle>(std::cerr, " ") );
+    std::copy( list.begin(), list.end(), std::ostream_iterator<EntityHandle>(std::cerr, " ") );
     std::cerr << std::endl << "  Actual  : ";
-    std::copy( list2.begin(), list2.end(), std::ostream_iterator<MBEntityHandle>(std::cerr, " ") );
+    std::copy( list2.begin(), list2.end(), std::ostream_iterator<EntityHandle>(std::cerr, " ") );
     std::cerr << std::endl;
     return MB_FAILURE;
   }
@@ -2449,9 +2450,9 @@ MBErrorCode mb_mesh_set_list_replace_test( MBInterface*  )
   if (list != list2) {
     std::cerr << "Range does not contain expected values." << std::endl;
     std::cerr << "  Expected: ";
-    std::copy( list.begin(), list.end(), std::ostream_iterator<MBEntityHandle>(std::cerr, " ") );
+    std::copy( list.begin(), list.end(), std::ostream_iterator<EntityHandle>(std::cerr, " ") );
     std::cerr << std::endl << "  Actual  : ";
-    std::copy( list2.begin(), list2.end(), std::ostream_iterator<MBEntityHandle>(std::cerr, " ") );
+    std::copy( list2.begin(), list2.end(), std::ostream_iterator<EntityHandle>(std::cerr, " ") );
     std::cerr << std::endl;
     return MB_FAILURE;
   }
@@ -2460,28 +2461,28 @@ MBErrorCode mb_mesh_set_list_replace_test( MBInterface*  )
 }
 
 /* Test the following changes to a meshset:
-  set       -> tracking
-  tracking  -> set
-  unordered -> ordered
-  ordered   -> unordered
+  set       MB-> tracking
+  tracking  MB-> set
+  unordered MB-> ordered
+  ordered   MB-> unordered
 */
-MBErrorCode mb_mesh_set_flag_test(MBInterface *mb) {
-  MBErrorCode rval;
+ErrorCode mb_mesh_set_flag_test(Interface *mb) {
+  ErrorCode rval;
     // create 10 vertices to put in set
-  MBRange verts;
+  Range verts;
   std::vector<double> coords(30);
   rval = mb->create_vertices( &coords[0], 10, verts );
   CHKERR(rval);
   
   // CHECK SET->TRACKING
   // create a set and add the verts
-  MBEntityHandle set;
+  EntityHandle set;
   rval = mb->create_meshset( MESHSET_SET, set );
   CHKERR(rval);
   rval = mb->add_entities( set, verts);
   CHKERR(rval);
   // the verts should not be tracking adjacencies
-  MBRange adj_sets;
+  Range adj_sets;
   rval = mb->get_adjacencies( verts, 4, false, adj_sets);
   CHKERR(rval);
   if(!adj_sets.empty()) {
@@ -2542,7 +2543,7 @@ MBErrorCode mb_mesh_set_flag_test(MBInterface *mb) {
   rval = mb->add_entities( set, &verts.front(), 1);
   CHKERR(rval);
   // unordered sets cannot hold duplicates so size shouldn't change
-  std::vector<MBEntityHandle> entities;
+  std::vector<EntityHandle> entities;
   rval = mb->get_entities_by_handle( set, entities );
   if(10 != entities.size()) {
     std::cerr << "set should not hold duplicate entities" << std::endl;
@@ -2599,9 +2600,9 @@ MBErrorCode mb_mesh_set_flag_test(MBInterface *mb) {
   // in mbtest1.g  (all other values are 0.
 static const unsigned int num_entities[MBMAXTYPE] = {47,12,18,8,22,8};
 
-MBErrorCode mb_delete_mesh_test(MBInterface *gMB)
+ErrorCode mb_delete_mesh_test(Interface *gMB)
 {
-  MBErrorCode error = MB_SUCCESS;
+  ErrorCode error = MB_SUCCESS;
 
     // Lets also test the global MB pointer (gMB) here.
   error = gMB->delete_mesh();
@@ -2615,7 +2616,7 @@ MBErrorCode mb_delete_mesh_test(MBInterface *gMB)
     return error;
 
 
-  MBRange entities;
+  Range entities;
   error = gMB->get_entities_by_type(0,  MBVERTEX, entities);
   if (error != MB_SUCCESS)
     return error;
@@ -2624,8 +2625,8 @@ MBErrorCode mb_delete_mesh_test(MBInterface *gMB)
   if ( entities.size() != num_entities[MBVERTEX] )
     return MB_FAILURE;
 
-  MBTag tag_handle = 0;
-  MBEntityType type;
+  Tag tag_handle = 0;
+  EntityType type;
     // step through each element type
   for (type = MBEDGE; type != MBENTITYSET; type++)
   {
@@ -2650,19 +2651,19 @@ MBErrorCode mb_delete_mesh_test(MBInterface *gMB)
 }
 
 
-MBErrorCode mb_meshset_tracking_test( MBInterface *MB )
+ErrorCode mb_meshset_tracking_test( Interface *MB )
 {
 
     //read in a file so you have some data in the database
   std::string file_name = TestDir + "/mbtest1.g";
-  MBErrorCode error = MB->load_mesh(file_name.c_str(), NULL, 0);
+  ErrorCode error = MB->load_mesh(file_name.c_str(), NULL, 0);
   if (error != MB_SUCCESS)
     return error;
 
-  MBEntityHandle ms1, ms2, ms3;
+  EntityHandle ms1, ms2, ms3;
 
     //create meshsets 
-  MBErrorCode result = MB->create_meshset( MESHSET_TRACK_OWNER | MESHSET_ORDERED, ms1 ) ;
+  ErrorCode result = MB->create_meshset( MESHSET_TRACK_OWNER | MESHSET_ORDERED, ms1 ) ;
   if(result != MB_SUCCESS )
     return result;
   result = MB->create_meshset( MESHSET_SET | MESHSET_TRACK_OWNER, ms2 ) ;
@@ -2673,29 +2674,29 @@ MBErrorCode mb_meshset_tracking_test( MBInterface *MB )
     return result;
 
     // get all hexes 
-  MBRange hexes;
+  Range hexes;
   result = MB->get_entities_by_type(0, MBHEX, hexes);
   if(result != MB_SUCCESS )
     return result;
 
     // get all tris 
-  MBRange tris;
+  Range tris;
   result = MB->get_entities_by_type(0, MBTRI, tris );
   if(result != MB_SUCCESS )
     return result;
 
     // get all tets 
-  MBRange temp_range;
+  Range temp_range;
   result = MB->get_entities_by_type(0, MBTET, temp_range);
   if(result != MB_SUCCESS )
     return result;
 
     //copy all the tets from the range into a vector 'tets'
-  std::vector<MBEntityHandle> tets( temp_range.size() );
+  std::vector<EntityHandle> tets( temp_range.size() );
   std::copy(temp_range.begin(), temp_range.end(), tets.begin() );
 
     //Quick check on 'get_entities_by_dimension()'
-  MBRange dim_3_range;
+  Range dim_3_range;
   result = MB->get_entities_by_dimension(0, 3, dim_3_range) ;
   if(result != MB_SUCCESS )
     return result;
@@ -2731,10 +2732,10 @@ MBErrorCode mb_meshset_tracking_test( MBInterface *MB )
   if(result != MB_SUCCESS )
     return result;
 
-  MBRange::iterator iter;
+  Range::iterator iter;
   iter = tris.begin();
 
-  std::vector< MBEntityHandle > temp_vec;
+  std::vector< EntityHandle > temp_vec;
 
     //ask a tri which meshsets it is in
   result = MB->get_adjacencies( &(*iter), 1, 4, false, temp_vec ) ;
@@ -2747,7 +2748,7 @@ MBErrorCode mb_meshset_tracking_test( MBInterface *MB )
 
     //ask a tet which meshsets it is in
   temp_vec.clear();
-  std::vector<MBEntityHandle>::iterator vec_iter = tets.begin();
+  std::vector<EntityHandle>::iterator vec_iter = tets.begin();
   result = MB->get_adjacencies( &(*vec_iter), 1, 4, false, temp_vec ) ;
   if(result != MB_SUCCESS )
     return result;
@@ -2859,32 +2860,32 @@ MBErrorCode mb_meshset_tracking_test( MBInterface *MB )
 
 }
 
-MBErrorCode mb_write_mesh_test(MBInterface *MB)
+ErrorCode mb_write_mesh_test(Interface *MB)
 {
   std::string file_name = "mb_write.g";
 
     // no need to get lists, write out the whole mesh
-  MBErrorCode result = MB->write_mesh(file_name.c_str());
+  ErrorCode result = MB->write_mesh(file_name.c_str());
   if(result != MB_SUCCESS )
     return result;
 
     //---------The following tests outputting meshsets that are in meshsets of blocks ---/
 
     //lets create a block meshset and put some entities and meshsets into it
-  MBEntityHandle block_ms;
+  EntityHandle block_ms;
   result = MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, block_ms );
   if(result != MB_SUCCESS )
     return result;
 
     //make another meshset to put quads in, so SHELLs can be written out
-  MBEntityHandle block_of_shells;
+  EntityHandle block_of_shells;
   result = MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, block_of_shells); 
   if(result != MB_SUCCESS )
     return result;
 
     //tag the meshset so it's a block, with id 100
   int id = 100;
-  MBTag tag_handle;
+  Tag tag_handle;
   result = MB->tag_get_handle( MATERIAL_SET_TAG_NAME, tag_handle ) ;
   if(result != MB_SUCCESS )
     return result;
@@ -2906,17 +2907,17 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
     return result;
 
     //get some entities (tets) 
-  MBRange temp_range;
+  Range temp_range;
   result = MB->get_entities_by_type(0,  MBHEX, temp_range ) ;
   if(result != MB_SUCCESS )
     return result;
 
-  MBRange::iterator iter, end_iter;
+  Range::iterator iter, end_iter;
   iter = temp_range.begin();
   end_iter = temp_range.end();
 
     //add evens to 'block_ms'
-  std::vector<MBEntityHandle> temp_vec; 
+  std::vector<EntityHandle> temp_vec; 
   for(; iter != end_iter; iter++)
   {
     if( ID_FROM_HANDLE( *iter ) % 2 == 0 ) 
@@ -2928,7 +2929,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
 
     //make another meshset
-  MBEntityHandle ms_of_block_ms;
+  EntityHandle ms_of_block_ms;
   result = MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, ms_of_block_ms);
   if(result != MB_SUCCESS )
     return result;
@@ -2954,7 +2955,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
     //---------------testing sidesets----------------/
 
     //lets create a sideset meshset and put some entities and meshsets into it
-  MBEntityHandle sideset_ms;
+  EntityHandle sideset_ms;
   result = MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, sideset_ms );
   if(result != MB_SUCCESS )
     return result;
@@ -2990,7 +2991,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
     return result;
 
     //make another meshset
-  MBEntityHandle ms_of_sideset_ms;
+  EntityHandle ms_of_sideset_ms;
   result = MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, ms_of_sideset_ms);
   if(result != MB_SUCCESS )
     return result;
@@ -3015,7 +3016,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
     //---------test sense on meshsets (reverse/foward)-------//
 
     //get all quads whose x-coord = 2.5 and put them into a meshset_a 
-  MBEntityHandle meshset_a;
+  EntityHandle meshset_a;
   result = MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, meshset_a );
   if(result != MB_SUCCESS )
     return result;
@@ -3025,7 +3026,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
   if(result != MB_SUCCESS )
     return result;
 
-  std::vector<MBEntityHandle> nodes, entity_vec;
+  std::vector<EntityHandle> nodes, entity_vec;
   std::copy(temp_range.begin(), temp_range.end(), std::back_inserter(entity_vec));
   result = MB->get_connectivity(&entity_vec[0], entity_vec.size(), nodes);
   if(result != MB_SUCCESS ) 
@@ -3038,7 +3039,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
     return result;
   
   unsigned int k = 0;
-  for(MBRange::iterator it = temp_range.begin(); it != temp_range.end(); it++) {
+  for(Range::iterator it = temp_range.begin(); it != temp_range.end(); it++) {
     if( coords[12*k] == 2.5 && coords[12*k+3] == 2.5 &&
         coords[12*k+6] == 2.5 && coords[12*k+9] == 2.5 )
       temp_vec.push_back(*it);
@@ -3052,7 +3053,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
     return result;
 
     //put these quads into a different meshset_b and tag them with a reverse sense tag
-  MBEntityHandle meshset_b;
+  EntityHandle meshset_b;
   result = MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, meshset_b );
   if(result != MB_SUCCESS ) 
     return result;
@@ -3089,7 +3090,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
   temp_vec.clear();
   for(; iter != end_iter; iter++ )
   {
-    std::vector<MBEntityHandle> nodes;
+    std::vector<EntityHandle> nodes;
     result = MB->get_connectivity( &(*iter), 1, nodes );
     if(result != MB_SUCCESS)
       return result;
@@ -3117,7 +3118,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
     }
   }
 
-  MBEntityHandle meshset_c;
+  EntityHandle meshset_c;
   MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, meshset_c );
     
   
@@ -3135,7 +3136,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
 
     //create another meshset_abc, adding meshset_a, meshset_b, meshset_c 
-  MBEntityHandle meshset_abc;
+  EntityHandle meshset_abc;
   MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, meshset_abc );
 
   temp_vec.clear();
@@ -3162,7 +3163,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
 
     //lets create a nodeset meshset and put some entities and meshsets into it
-  MBEntityHandle nodeset_ms;
+  EntityHandle nodeset_ms;
   MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, nodeset_ms );
 
     //tag the meshset so it's a nodeset, with id 119
@@ -3183,14 +3184,14 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
 
     //get all the nodes of the tris
-  MBRange nodes_of_quads;
+  Range nodes_of_quads;
   iter = temp_range.begin();
   end_iter = temp_range.end();
 
 
   for(; iter != end_iter; iter++ )
   {
-    std::vector<MBEntityHandle> nodes;
+    std::vector<EntityHandle> nodes;
     result = MB->get_connectivity( &(*iter), 1, nodes);
     if(result != MB_SUCCESS)
       return result;
@@ -3214,7 +3215,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
 
     //make another meshset
-  MBEntityHandle ms_of_nodeset_ms;
+  EntityHandle ms_of_nodeset_ms;
   MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, ms_of_nodeset_ms);
 
     //add some entities to it
@@ -3234,19 +3235,19 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
     // no need to get lists, write out the whole mesh
   file_name = "mb_write2.g";
-  std::vector<MBEntityHandle> output_list;
+  std::vector<EntityHandle> output_list;
   output_list.push_back( block_ms );
   output_list.push_back( sideset_ms );
   output_list.push_back( meshset_abc );
   output_list.push_back( nodeset_ms );
   output_list.push_back( block_of_shells );
-  MBErrorCode error = MB->write_mesh(file_name.c_str(), &output_list[0], output_list.size());
+  ErrorCode error = MB->write_mesh(file_name.c_str(), &output_list[0], output_list.size());
 
   return error;
 }
 
 
-MBErrorCode mb_higher_order_test(MBInterface *MB)
+ErrorCode mb_higher_order_test(Interface *MB)
 {
   double nodes_array [7][3];
 
@@ -3274,8 +3275,8 @@ MBErrorCode mb_higher_order_test(MBInterface *MB)
 
 
     //create the nodes
-  std::vector<MBEntityHandle> connectivity(8);
-  MBEntityHandle node_handle;
+  std::vector<EntityHandle> connectivity(8);
+  EntityHandle node_handle;
   int i;
   for( i=0; i<7; i++)
   {
@@ -3285,13 +3286,13 @@ MBErrorCode mb_higher_order_test(MBInterface *MB)
   }
 
     //create the higher order tri
-  MBEntityHandle tri_handle;
-  MBErrorCode result = MB->create_element(MBTRI, &connectivity[0], 6, tri_handle);
+  EntityHandle tri_handle;
+  ErrorCode result = MB->create_element(MBTRI, &connectivity[0], 6, tri_handle);
   if(result != MB_SUCCESS)
     return result;
 
     //create the higher order tri
-  std::vector<MBEntityHandle> other_conn(3);
+  std::vector<EntityHandle> other_conn(3);
 
   double other_nodes[3][3];
   other_nodes[0][0] = 1.999;
@@ -3311,13 +3312,13 @@ MBErrorCode mb_higher_order_test(MBInterface *MB)
     other_conn[i] = node_handle;
   }
 
-  MBEntityHandle other_tri_handle;
+  EntityHandle other_tri_handle;
   result = MB->create_element(MBTRI, &other_conn[0], 3, other_tri_handle);
   if(result != MB_SUCCESS)
     return result;
 
     //get the connectivity now
-  std::vector<MBEntityHandle> retrieved_conn; 
+  std::vector<EntityHandle> retrieved_conn; 
 
   result = MB->get_connectivity(&tri_handle, 1, retrieved_conn) ;
   if(result != MB_SUCCESS)
@@ -3337,7 +3338,7 @@ MBErrorCode mb_higher_order_test(MBInterface *MB)
       return MB_FAILURE;
 
     // now let's just try getting the topological connectivity (the 3 corner vertices)
-  std::vector<MBEntityHandle> topo_conn; 
+  std::vector<EntityHandle> topo_conn; 
   result = MB->get_connectivity(&other_tri_handle, 1, topo_conn, true) ;
   if(result != MB_SUCCESS)
     return result;
@@ -3349,10 +3350,10 @@ MBErrorCode mb_higher_order_test(MBInterface *MB)
     if (topo_conn[k] != retrieved_conn[k] )
       return MB_FAILURE;
 
-    // short check to make sure that MBCore::handle_from_id() works
+    // short check to make sure that Core::handle_from_id() works
   unsigned long handle_id = MB->id_from_handle( node_handle); 
 
-  MBEntityHandle test_handle; 
+  EntityHandle test_handle; 
   result = MB->handle_from_id( MBVERTEX, handle_id, test_handle ); 
   if(result != MB_SUCCESS)
     return result;
@@ -3387,13 +3388,13 @@ MBErrorCode mb_higher_order_test(MBInterface *MB)
 
 }
 
-MBErrorCode mb_bit_tags_test(MBInterface* MB)
+ErrorCode mb_bit_tags_test(Interface* MB)
 {
 
-  MBTag bit_tag;
-  MBRange entities;
+  Tag bit_tag;
+  Range entities;
   MB->get_entities_by_type(0, MBVERTEX, entities);
-  MBErrorCode success = MB_SUCCESS;
+  ErrorCode success = MB_SUCCESS;
 
   if(MB->tag_create("bit on vertex", 3, MB_TAG_BIT, bit_tag, NULL) != MB_SUCCESS)
   {
@@ -3401,7 +3402,7 @@ MBErrorCode mb_bit_tags_test(MBInterface* MB)
     return MB_FAILURE;
   }
 
-  MBRange::iterator iter;
+  Range::iterator iter;
   unsigned char bits;
   for(iter = entities.begin();
       iter != entities.end(); ++iter)
@@ -3436,7 +3437,7 @@ MBErrorCode mb_bit_tags_test(MBInterface* MB)
       return MB_FAILURE;
 
   // test vector-based query for all vertices
-  std::vector<MBEntityHandle> verts(entities.begin(), entities.end());
+  std::vector<EntityHandle> verts(entities.begin(), entities.end());
   success = MB->tag_get_data( bit_tag, &verts[0], verts.size(), &data[0] );
   if (MB_SUCCESS != success) return success;
   i = data.begin();
@@ -3446,7 +3447,7 @@ MBErrorCode mb_bit_tags_test(MBInterface* MB)
   
   // test default value
   const unsigned char default_bits = '\005'; // 0000 0101
-  MBTag tag2;
+  Tag tag2;
   success = MB->tag_create( "bit with default", 4, MB_TAG_BIT, tag2, &default_bits );
   if (MB_SUCCESS != success) {
     cout << "Failed to create bit tag with default value" << std::endl;
@@ -3455,7 +3456,7 @@ MBErrorCode mb_bit_tags_test(MBInterface* MB)
   
   // set value to zero on a single vertex
   bits = 0;
-  MBEntityHandle zh = verts[verts.size()/2];
+  EntityHandle zh = verts[verts.size()/2];
   success = MB->tag_set_data( tag2, &zh, 1, &bits );
   if (MB_SUCCESS != success)
     return success;
@@ -3478,11 +3479,11 @@ MBErrorCode mb_bit_tags_test(MBInterface* MB)
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_tags_test(MBInterface *MB)
+ErrorCode mb_tags_test(Interface *MB)
 {
 
-  MBTag stale_bits, stale_dense, stale_sparse;
-  MBErrorCode result = MB->tag_create("stale data", 5, MB_TAG_BIT, stale_bits, NULL);
+  Tag stale_bits, stale_dense, stale_sparse;
+  ErrorCode result = MB->tag_create("stale data", 5, MB_TAG_BIT, stale_bits, NULL);
   if (MB_SUCCESS != result)
     return result;
      
@@ -3495,7 +3496,7 @@ MBErrorCode mb_tags_test(MBInterface *MB)
     return result;
 
   double coords[3] = { 0,0,0 };
-  MBEntityHandle stale_handle1, stale_handle2;
+  EntityHandle stale_handle1, stale_handle2;
   result = MB->create_vertex( coords, stale_handle1 );
   if (MB_SUCCESS != result)
     return result;
@@ -3559,7 +3560,7 @@ MBErrorCode mb_tags_test(MBInterface *MB)
       return MB_FAILURE;
 
     def_data = 3;
-    MBErrorCode stale_result = MB->tag_get_data(stale_sparse, &stale_handle2, 1, &def_data);
+    ErrorCode stale_result = MB->tag_get_data(stale_sparse, &stale_handle2, 1, &def_data);
       // we are supposed to fail here
     if(stale_result != MB_TAG_NOT_FOUND)
       return MB_FAILURE;
@@ -3575,10 +3576,10 @@ MBErrorCode mb_tags_test(MBInterface *MB)
 
 
     //get all blocks with material tag and with tag_value of 1 (should only be 1)
-  MBRange entities;
+  Range entities;
   int value = 1;
   const void *dum_ptr = &value;
-  MBTag material_tag;
+  Tag material_tag;
   result = MB->tag_get_handle( MATERIAL_SET_TAG_NAME, material_tag);
   if (MB_SUCCESS != result)
     return result;
@@ -3591,18 +3592,18 @@ MBErrorCode mb_tags_test(MBInterface *MB)
     return MB_FAILURE;
  
     //add a dense tag to hexes
-  MBTag junk_tag;
+  Tag junk_tag;
   if(MB->tag_create( "junk_tag", sizeof(int), MB_TAG_DENSE, junk_tag, 0) 
      != MB_SUCCESS)
     return MB_FAILURE;    
 
     //Set the dense tag on 5 hexes to 3489 
-  MBRange test_range;
+  Range test_range;
   result = MB->get_entities_by_type(0,  MBHEX, test_range ) ;
   if(result != MB_SUCCESS)
     return result;
 
-  MBRange::iterator iter, end_iter;
+  Range::iterator iter, end_iter;
   iter = test_range.begin();
   end_iter = test_range.end();
 
@@ -3644,7 +3645,7 @@ MBErrorCode mb_tags_test(MBInterface *MB)
 
     // test fetch by tag value again, this time limiting the results
     // to the contents of an entity set
-  MBEntityHandle meshset;
+  EntityHandle meshset;
   result = MB->create_meshset( MESHSET_SET, meshset );
   if (MB_SUCCESS != result)
     return result;
@@ -3675,7 +3676,7 @@ MBErrorCode mb_tags_test(MBInterface *MB)
 
 
     // now try the query with an empty meshset, expecting to get back
-    // an empty MBRange
+    // an empty Range
 
   result = MB->create_meshset( MESHSET_SET, meshset );
   if (MB_SUCCESS != result)
@@ -3699,15 +3700,15 @@ MBErrorCode mb_tags_test(MBInterface *MB)
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_common_tag_test( MBTagType storage, MBInterface* mb )
+ErrorCode mb_common_tag_test( TagType storage, Interface* mb )
 {
   char tagname[64];
   sprintf( tagname, "t%d", rand() );
   
-  MBTag tag;
-  const MBEntityHandle def_val = ~(MBEntityHandle)0;
-  MBErrorCode rval = mb->tag_create( tagname, 
-                                     sizeof(MBEntityHandle), 
+  Tag tag;
+  const EntityHandle def_val = ~(EntityHandle)0;
+  ErrorCode rval = mb->tag_create( tagname, 
+                                     sizeof(EntityHandle), 
                                      storage, 
                                      MB_TYPE_HANDLE, 
                                      tag, 
@@ -3716,17 +3717,17 @@ MBErrorCode mb_common_tag_test( MBTagType storage, MBInterface* mb )
     return rval;
   
   
-  MBRange entities;
+  Range entities;
   mb->get_entities_by_handle( 0, entities );
   if (entities.empty())
     return MB_FAILURE;
   
     // set tag on every other entity to be the entities handle
-  MBRange::const_iterator i;
+  Range::const_iterator i;
   bool odd = true;
   for (i = entities.begin(); i != entities.end(); ++i, odd = !odd) {
     if (odd) {
-      const MBEntityHandle h = *i;
+      const EntityHandle h = *i;
       rval = mb->tag_set_data( tag, &h, 1, &h );
       if (MB_SUCCESS != rval)
         return rval;
@@ -3736,7 +3737,7 @@ MBErrorCode mb_common_tag_test( MBTagType storage, MBInterface* mb )
     // check values on every entity -- expect default for every other entity
   odd = true;
   for (i = entities.begin(); i != entities.end(); ++i, odd = !odd) {
-    MBEntityHandle val = 0;
+    EntityHandle val = 0;
     rval = mb->tag_get_data( tag, &*i, 1, &val );
     if (MB_SUCCESS != rval)
       return rval;
@@ -3752,7 +3753,7 @@ MBErrorCode mb_common_tag_test( MBTagType storage, MBInterface* mb )
   }
   
     // set tag values on all entities
-  std::vector<MBEntityHandle> values( entities.size() );
+  std::vector<EntityHandle> values( entities.size() );
   std::copy( entities.begin(), entities.end(), values.begin() );
   rval = mb->tag_set_data( tag, entities, &values[0] );
   if (MB_SUCCESS != rval)
@@ -3760,7 +3761,7 @@ MBErrorCode mb_common_tag_test( MBTagType storage, MBInterface* mb )
   
     // check values on every entity -- expect default for every other entity
   for (i = entities.begin(); i != entities.end(); ++i) {
-    MBEntityHandle val = 0;
+    EntityHandle val = 0;
     rval = mb->tag_get_data( tag, &*i, 1, &val );
     if (MB_SUCCESS != rval)
       return rval;
@@ -3770,10 +3771,10 @@ MBErrorCode mb_common_tag_test( MBTagType storage, MBInterface* mb )
   
     // find each entity by tag value
   for (i = entities.begin(); i != entities.end(); ++i) {
-    const MBEntityHandle h = *i;
-    const MBEntityType type = mb->type_from_handle( h );
+    const EntityHandle h = *i;
+    const EntityType type = mb->type_from_handle( h );
     const void* const tag_vals[] = { &h };
-    MBRange result;
+    Range result;
     rval = mb->get_entities_by_type_and_tag( 0, type, &tag, tag_vals, 1, result );
     if (MB_SUCCESS != rval)
       return rval;
@@ -3787,21 +3788,21 @@ MBErrorCode mb_common_tag_test( MBTagType storage, MBInterface* mb )
 }
 
 
-MBErrorCode mb_dense_tag_test( MBInterface* mb )
+ErrorCode mb_dense_tag_test( Interface* mb )
 {
   return mb_common_tag_test( MB_TAG_DENSE, mb );
 }
 
-MBErrorCode mb_sparse_tag_test( MBInterface* mb )
+ErrorCode mb_sparse_tag_test( Interface* mb )
 {
   return mb_common_tag_test( MB_TAG_SPARSE, mb );
 }
   
 // class to offset hex center nodes
-class OffsetHexCenterNodes : public MBInterface::HONodeAddedRemoved
+class OffsetHexCenterNodes : public Interface::HONodeAddedRemoved
 {
 public:
-  OffsetHexCenterNodes(MBInterface* mb, double x, double y, double z)
+  OffsetHexCenterNodes(Interface* mb, double x, double y, double z)
       : gMB(mb)
     { 
       mOffset[0] = x; mOffset[1] = y; mOffset[2] = z; 
@@ -3809,7 +3810,7 @@ public:
     
   ~OffsetHexCenterNodes(){}
 
-  void node_added(MBEntityHandle node, MBEntityHandle)
+  void node_added(EntityHandle node, EntityHandle)
     {
       gMB->get_coords(&node, 1, mCoords);
       mCoords[0] += mOffset[0];
@@ -3819,17 +3820,17 @@ public:
     }
 
     //do nothing
-  void node_removed( MBEntityHandle /*node*/) {}
+  void node_removed( EntityHandle /*node*/) {}
 
 private:
-  MBInterface* gMB;
+  Interface* gMB;
   double mCoords[3];
   double mOffset[3];
 };
 
-MBErrorCode mb_entity_conversion_test(MBInterface *MB)
+ErrorCode mb_entity_conversion_test(Interface *MB)
 {
-  MBErrorCode error = MB->delete_mesh();
+  ErrorCode error = MB->delete_mesh();
   if (error != MB_SUCCESS)
     return error;
 
@@ -3839,8 +3840,8 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
   if (error != MB_SUCCESS)
     return error;
 
-  MBRange entities;
-  MBEntityHandle meshset;
+  Range entities;
+  EntityHandle meshset;
   MB->create_meshset(MESHSET_SET, meshset);
   
   MB->get_entities_by_type(0, MBHEX, entities);
@@ -4067,16 +4068,16 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
     return error;
   
     // skin the model
-  for(MBRange::iterator tet_iter = entities.begin(); tet_iter != entities.end(); ++tet_iter)
+  for(Range::iterator tet_iter = entities.begin(); tet_iter != entities.end(); ++tet_iter)
   {
-    std::vector<MBEntityHandle> adj;
+    std::vector<EntityHandle> adj;
     error = MB->get_adjacencies(&(*tet_iter), 1, 2, true, adj);
     if (MB_SUCCESS != error)
       return error;
-    for(std::vector<MBEntityHandle>::iterator tri_iter = adj.begin();
+    for(std::vector<EntityHandle>::iterator tri_iter = adj.begin();
         tri_iter != adj.end(); ++tri_iter)
     {
-      std::vector<MBEntityHandle> up_adj;
+      std::vector<EntityHandle> up_adj;
       MB->get_adjacencies(&(*tri_iter), 1, 3, false, up_adj);
       if(up_adj.size() > 1) {
         error = MB->delete_entities(&(*tri_iter), 1);
@@ -4087,16 +4088,16 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
   }
 
     // create a meshset of the skin
-  MBEntityHandle export_meshset;
+  EntityHandle export_meshset;
   MB->create_meshset( MESHSET_SET, export_meshset);
-  MBTag material_tag;
+  Tag material_tag;
   MB->tag_get_handle(MATERIAL_SET_TAG_NAME, material_tag);
   int block_id = 100;
   MB->tag_set_data(material_tag, &export_meshset, 1, &block_id);
   entities.clear();
   MB->get_entities_by_type(0, MBTRI, entities);
     // remove the first few tri's for fun
-  MBRange tmp_ents;
+  Range tmp_ents;
   tmp_ents.insert(*entities.begin());
   entities.erase(entities.begin());
   tmp_ents.insert(*entities.begin());
@@ -4112,8 +4113,8 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
   MB->convert_entities(export_meshset, true, true, false);
 
     // make sure our first few tri's were untouched
-  std::vector<MBEntityHandle> conn(3);
-  for(MBRange::iterator kter=tmp_ents.begin(); kter != tmp_ents.end(); ++kter)
+  std::vector<EntityHandle> conn(3);
+  for(Range::iterator kter=tmp_ents.begin(); kter != tmp_ents.end(); ++kter)
   {
     MB->get_connectivity(&(*kter), 1, conn);
     if(conn.size() != 3)
@@ -4158,10 +4159,10 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
 //! and only get 4 (not 5) edges.
 //!
 
-MBErrorCode mb_forced_adjacencies_test(MBInterface *MB)
+ErrorCode mb_forced_adjacencies_test(Interface *MB)
 {
     //! first clean up any existing mesh.
-  MBErrorCode error = MB->delete_mesh();
+  ErrorCode error = MB->delete_mesh();
   if (error != MB_SUCCESS)
     return error;
 
@@ -4184,7 +4185,7 @@ MBErrorCode mb_forced_adjacencies_test(MBInterface *MB)
   double node_coord5[3] = {1., 1., 0.};
   double node_coord6[3] = {2., 1., 0.};
 
-  MBEntityHandle node1, node2, node3, node4, node5, node6;
+  EntityHandle node1, node2, node3, node4, node5, node6;
   error = MB->create_vertex(node_coord1, node1);
   if (error != MB_SUCCESS)
     return error;
@@ -4209,9 +4210,9 @@ MBErrorCode mb_forced_adjacencies_test(MBInterface *MB)
   if (error != MB_SUCCESS)
     return error;
 
-  std::vector<MBEntityHandle> conn(4);
+  std::vector<EntityHandle> conn(4);
     //! create the first quad
-  MBEntityHandle              quad1;
+  EntityHandle              quad1;
   conn[0] = node1;
   conn[1] = node2;
   conn[2] = node5;
@@ -4221,7 +4222,7 @@ MBErrorCode mb_forced_adjacencies_test(MBInterface *MB)
     return error;
 
     //! create the second quad
-  MBEntityHandle              quad2;
+  EntityHandle              quad2;
   conn[0] = node2;
   conn[1] = node3;
   conn[2] = node6;
@@ -4231,7 +4232,7 @@ MBErrorCode mb_forced_adjacencies_test(MBInterface *MB)
     return error;
 
     //! create the edges
-  MBEntityHandle edge1;
+  EntityHandle edge1;
   conn.resize(2);
   conn[0] = node1;
   conn[1] = node2;
@@ -4239,49 +4240,49 @@ MBErrorCode mb_forced_adjacencies_test(MBInterface *MB)
   if (error != MB_SUCCESS)
     return error;
 
-  MBEntityHandle edge2;
+  EntityHandle edge2;
   conn[0] = node2;
   conn[1] = node3;
   error = MB->create_element(MBEDGE, &conn[0], 2, edge2);
   if (error != MB_SUCCESS)
     return error;
 
-  MBEntityHandle edge3;
+  EntityHandle edge3;
   conn[0] = node1;
   conn[1] = node4;
   error = MB->create_element(MBEDGE, &conn[0], 2, edge3);
   if (error != MB_SUCCESS)
     return error;
 
-  MBEntityHandle edge4;
+  EntityHandle edge4;
   conn[0] = node2;
   conn[1] = node5;
   error = MB->create_element(MBEDGE, &conn[0], 2, edge4);
   if (error != MB_SUCCESS)
     return error;
 
-  MBEntityHandle edge5;
+  EntityHandle edge5;
   conn[0] = node2;
   conn[1] = node5;
   error = MB->create_element(MBEDGE, &conn[0], 2, edge5);
   if (error != MB_SUCCESS)
     return error;
 
-  MBEntityHandle edge6;
+  EntityHandle edge6;
   conn[0] = node3;
   conn[1] = node6;
   error = MB->create_element(MBEDGE, &conn[0], 2, edge6);
   if (error != MB_SUCCESS)
     return error;
 
-  MBEntityHandle edge7;
+  EntityHandle edge7;
   conn[0] = node4;
   conn[1] = node5;
   error = MB->create_element(MBEDGE, &conn[0], 2, edge7);
   if (error != MB_SUCCESS)
     return error;
 
-  MBEntityHandle edge8;
+  EntityHandle edge8;
   conn[0] = node5;
   conn[1] = node6;
   error = MB->create_element(MBEDGE, &conn[0], 2, edge8);
@@ -4294,7 +4295,7 @@ MBErrorCode mb_forced_adjacencies_test(MBInterface *MB)
     return MB_FAILURE;
 
     //! Now that the geometry is created start adding the adjacency information
-  std::vector<MBEntityHandle> edge_adjacencies1(4);
+  std::vector<EntityHandle> edge_adjacencies1(4);
   edge_adjacencies1[0] = edge1;
   edge_adjacencies1[1] = edge4;
   edge_adjacencies1[2] = edge7;
@@ -4307,7 +4308,7 @@ MBErrorCode mb_forced_adjacencies_test(MBInterface *MB)
   if (error != MB_SUCCESS)
     return error;
 
-  std::vector<MBEntityHandle> edge_adjacencies2(4);
+  std::vector<EntityHandle> edge_adjacencies2(4);
   edge_adjacencies2[0] = edge2;
   edge_adjacencies2[1] = edge6;
   edge_adjacencies2[2] = edge8;
@@ -4317,7 +4318,7 @@ MBErrorCode mb_forced_adjacencies_test(MBInterface *MB)
     return error;
 
     //! now get the adjacencies of each quad.
-  std::vector<MBEntityHandle> quad1_adjacencies;
+  std::vector<EntityHandle> quad1_adjacencies;
   error = MB->get_adjacencies(&(quad1), 1, 1, false, quad1_adjacencies);
   if (error != MB_SUCCESS)
     return error;
@@ -4329,7 +4330,7 @@ MBErrorCode mb_forced_adjacencies_test(MBInterface *MB)
   if (quad1_adjacencies != edge_adjacencies1)
     return MB_FAILURE;
   
-  std::vector<MBEntityHandle> quad2_adjacencies;
+  std::vector<EntityHandle> quad2_adjacencies;
   error = MB->get_adjacencies(&(quad2), 1, 1, false, quad2_adjacencies);
   if (error != MB_SUCCESS)
     return error;
@@ -4341,7 +4342,7 @@ MBErrorCode mb_forced_adjacencies_test(MBInterface *MB)
     return MB_FAILURE;
 
     //! try getting the adjacency of edge1 (should be quad1)
-  std::vector<MBEntityHandle> edge1_adjacencies;
+  std::vector<EntityHandle> edge1_adjacencies;
   error = MB->get_adjacencies(&(edge1), 1, 2, false, edge1_adjacencies);
   if (error != MB_SUCCESS)
     return error;
@@ -4355,7 +4356,7 @@ MBErrorCode mb_forced_adjacencies_test(MBInterface *MB)
     return error;
 
     //! try getting the adjacency of edge6 (should be none)
-  std::vector<MBEntityHandle> edge6_adjacencies;
+  std::vector<EntityHandle> edge6_adjacencies;
   error = MB->get_adjacencies(&(edge6), 1, 2, false, edge6_adjacencies);
   if (error != MB_SUCCESS)
     return error;
@@ -4367,17 +4368,17 @@ MBErrorCode mb_forced_adjacencies_test(MBInterface *MB)
     //! Now seal up the "gap" caused by edges 4 and 5.  Remove edge5
     //! from the adjacencies of quad2 and add edge 4 to quad2.
 
-  std::vector<MBEntityHandle> edge5_adjacencies(1, edge5);
+  std::vector<EntityHandle> edge5_adjacencies(1, edge5);
   error = MB->remove_adjacencies(quad2, &edge5_adjacencies[0], edge5_adjacencies.size());
   if (error != MB_SUCCESS)
     return error;
 
 
-  std::vector<MBEntityHandle> edge4_adjacencies(1, edge4);
+  std::vector<EntityHandle> edge4_adjacencies(1, edge4);
   error = MB->add_adjacencies(quad2, &edge4_adjacencies[0], edge4_adjacencies.size(), true);
   
     //! get the adjacencies of edge4 and it should return both quads.
-  std::vector<MBEntityHandle> quad_adjacencies;
+  std::vector<EntityHandle> quad_adjacencies;
   error = MB->get_adjacencies(&(edge4), 1, 2, false, quad_adjacencies);
   if (error != MB_SUCCESS)
     return error;
@@ -4401,7 +4402,7 @@ MBErrorCode mb_forced_adjacencies_test(MBInterface *MB)
   return MB_SUCCESS;
 }
 
-/*bool lessnodesZ(const MBEntityHandle entity_handle1, const MBEntityHandle entity_handle2) 
+/*bool lessnodesZ(const EntityHandle entity_handle1, const EntityHandle entity_handle2) 
   {
   double coords1[3], coords2[3];
   gMB->get_coords(entity_handle1, coords1);
@@ -4410,10 +4411,10 @@ MBErrorCode mb_forced_adjacencies_test(MBInterface *MB)
   return coords2[2] < coords1[2];
   }*/
 
-/*void sort_verts(MBRange vertices) 
+/*void sort_verts(Range vertices) 
   {
-  std::vector<MBEntityHandle> vert_vec(vertices.size());
-  MBRange::const_iterator iter;
+  std::vector<EntityHandle> vert_vec(vertices.size());
+  Range::const_iterator iter;
   for (iter = vertices.begin(); iter != vertices.end(); iter++) 
   vert_vec.push_back(*iter);
   vert_vec.sort(lessnodesZ);
@@ -4433,13 +4434,13 @@ bool points_are_coincident(const double *first, const double *second)
 
   return false;
 }
-MBErrorCode find_coincident_nodes(MBInterface* gMB, MBRange vertices,
-                                  std::vector< std::pair<MBEntityHandle,MBEntityHandle> > &coin_nodes)
+ErrorCode find_coincident_nodes(Interface* gMB, Range vertices,
+                                  std::vector< std::pair<EntityHandle,EntityHandle> > &coin_nodes)
 {
   double first_coords[3], second_coords[3];
-  MBRange::const_iterator iter, jter;
-  std::pair<MBEntityHandle, MBEntityHandle> coincident_pair;
-  MBErrorCode result;
+  Range::const_iterator iter, jter;
+  std::pair<EntityHandle, EntityHandle> coincident_pair;
+  ErrorCode result;
 
   for (iter = vertices.begin(); iter != vertices.end(); iter++)
   {
@@ -4467,13 +4468,13 @@ MBErrorCode find_coincident_nodes(MBInterface* gMB, MBRange vertices,
   return MB_SUCCESS;
 }
 
-MBErrorCode find_coincident_elements(MBInterface* gMB, MBRange entities, int num_nodes,
-                                     std::vector< std::pair<MBEntityHandle,MBEntityHandle> > &coin)
+ErrorCode find_coincident_elements(Interface* gMB, Range entities, int num_nodes,
+                                     std::vector< std::pair<EntityHandle,EntityHandle> > &coin)
 {
   double coords1[8][3], coords2[8][3];
-  MBRange::iterator iter, jter;
-  std::vector<MBEntityHandle> conn(8);
-  std::pair<MBEntityHandle, MBEntityHandle> coincident_pair;
+  Range::iterator iter, jter;
+  std::vector<EntityHandle> conn(8);
+  std::pair<EntityHandle, EntityHandle> coincident_pair;
   int i = 0,/* j = 0,*/ ii = 0;
 
   for(iter = entities.begin(); iter != entities.end(); iter++)
@@ -4599,13 +4600,13 @@ MBErrorCode find_coincident_elements(MBInterface* gMB, MBRange entities, int num
 }
 
 
-MBErrorCode mb_merge_test(MBInterface *MB)
+ErrorCode mb_merge_test(Interface *MB)
 { 
   MB->delete_mesh();
   time_t begin_time = clock();
   unsigned int i;
-  MBErrorCode result;
-  MBSkinner MBSkinner_Obj(MB);
+  ErrorCode result;
+  Skinner Skinner_Obj(MB);
 
   std::string test_files[] = {std::string("cell1.gen"),
                               std::string("cell2.gen")};
@@ -4632,15 +4633,15 @@ MBErrorCode mb_merge_test(MBInterface *MB)
 			      std::string("cell23.gen"),
 			      std::string("cell24.gen")};*/
 
-    /*std::vector<MBRange> entities(sizeof(test_files));
-      std::vector<MBRange> forward_lower(sizeof(test_files));
-      std::vector<MBRange> reverse_lower(sizeof(test_files));
-      std::vector<MBRange> nodes(sizeof(test_files));*/
-  MBRange entities;
-  MBRange forward_lower;
-  MBRange reverse_lower;
-  MBRange faces;
-  MBRange nodes;
+    /*std::vector<Range> entities(sizeof(test_files));
+      std::vector<Range> forward_lower(sizeof(test_files));
+      std::vector<Range> reverse_lower(sizeof(test_files));
+      std::vector<Range> nodes(sizeof(test_files));*/
+  Range entities;
+  Range forward_lower;
+  Range reverse_lower;
+  Range faces;
+  Range nodes;
 
   cout << "---Starting Merge Tests---" << endl << endl;
   for(i=0; i<(sizeof(test_files)/sizeof(std::string)); i++)
@@ -4653,14 +4654,14 @@ MBErrorCode mb_merge_test(MBInterface *MB)
       //get Hexes from model
   }
   result = MB->get_entities_by_type(0, MBHEX, entities);
-  MBSkinner_Obj.find_skin(entities,false,forward_lower,&reverse_lower);
+  Skinner_Obj.find_skin(entities,false,forward_lower,&reverse_lower);
   cout <<"num hexes = "<<entities.size()<<"\n";
   cout <<"fl = "<<forward_lower.size()<<" rl = "<<reverse_lower.size()<<"\n";
   
-    //  MBRange::const_iterator iter;
+    //  Range::const_iterator iter;
   int dim = 0;
     //  int num_ents = 1;
-  result = MB->get_adjacencies(forward_lower, dim, true, nodes, MBInterface::UNION);
+  result = MB->get_adjacencies(forward_lower, dim, true, nodes, Interface::UNION);
   cout <<"nodes.size() = "<<nodes.size() <<"\n";
     
   if(result == MB_SUCCESS)
@@ -4672,28 +4673,28 @@ MBErrorCode mb_merge_test(MBInterface *MB)
     //  result = MB->get_entities_by_type(0, MBQUAD, faces);
     //  cout <<"num faces = "<<faces.size() <<"\n";
 
-  std::vector<std::pair<MBEntityHandle, MBEntityHandle> > coin_nodes;
+  std::vector<std::pair<EntityHandle, EntityHandle> > coin_nodes;
     //  cout <<"Begining sort...\n";
     //  std::sort(nodes.begin(),nodes.end(),lessnodesZ);
     //  cout <<"Ending sort...\n";
   result = find_coincident_nodes(MB,nodes, coin_nodes);
   cout <<"coin_nodes.size() = "<<coin_nodes.size() <<"\n";
-  std::vector< std::pair<MBEntityHandle, MBEntityHandle> >::iterator n_iter;
+  std::vector< std::pair<EntityHandle, EntityHandle> >::iterator n_iter;
   for (n_iter=coin_nodes.begin(); n_iter != coin_nodes.end(); n_iter++) {
     result = MB->merge_entities((*n_iter).first, (*n_iter).second, false, true);
     if (MB_SUCCESS != result)
       return result;
   }
-    /*  std::vector<std::pair<MBEntityHandle, MBEntityHandle> > coin_faces;
+    /*  std::vector<std::pair<EntityHandle, EntityHandle> > coin_faces;
         int nodes_per_elt = 4;
         result = find_coincident_elements(forward_lower, nodes_per_elt, coin_faces);
         if (result != MB_SUCCESS) cout <<"find_coincident_elements fail!\n";
         cout <<"coin_faces.size() = "<<coin_faces.size() <<"\n";
-        std::vector< std::pair<MBEntityHandle, MBEntityHandle> >::iterator f_iter;
+        std::vector< std::pair<EntityHandle, EntityHandle> >::iterator f_iter;
         for (f_iter=coin_faces.begin(); f_iter != coin_faces.end(); f_iter++)
         MB->merge_entities((*f_iter).first, (*f_iter).second, true, true);*/
     /*
-      std::vector<std::pair<MBEntityHandle, MBEntityHandle> > coin_fl;
+      std::vector<std::pair<EntityHandle, EntityHandle> > coin_fl;
       nodes_per_elt = 4;
       result = find_coincident_elements(entities, nodes_per_elt, coin_fl);
       cout <<"coin_fl.size() = "<<coin_fl.size() <<"\n";
@@ -4713,11 +4714,11 @@ MBErrorCode mb_merge_test(MBInterface *MB)
   return result;
 }
 
-MBErrorCode mb_merge_update_test(MBInterface*)
+ErrorCode mb_merge_update_test(Interface*)
 {
-  MBCore moab;
-  MBInterface* mb = &moab;
-  MBErrorCode rval;
+  Core moab;
+  Interface* mb = &moab;
+  ErrorCode rval;
   
     // create two quads with a coincident edge pair
   double coords[] = { 0, 0, 0,
@@ -4728,10 +4729,10 @@ MBErrorCode mb_merge_update_test(MBInterface*)
                       1, 0, 0,
                       2, 0, 0,
                       2, 1, 0 };
-  MBEntityHandle verts[8];
+  EntityHandle verts[8];
   for (int i = 0; i < 8; ++i) 
     mb->create_vertex( coords + 3*i, verts[i] );
-  MBEntityHandle quad1, quad2, edge1, edge2;
+  EntityHandle quad1, quad2, edge1, edge2;
   mb->create_element( MBQUAD, verts, 4, quad1 );
   mb->create_element( MBQUAD, verts+4, 4, quad2 );
   mb->create_element( MBEDGE, verts+1, 2, edge1 );
@@ -4739,7 +4740,7 @@ MBErrorCode mb_merge_update_test(MBInterface*)
   
     // create two tracking sets containing the vertices
     // and edge of each quad
-  MBEntityHandle set1, set2;
+  EntityHandle set1, set2;
   mb->create_meshset( MESHSET_TRACK_OWNER|MESHSET_SET, set1 );
   mb->create_meshset( MESHSET_TRACK_OWNER|MESHSET_ORDERED, set2 );
   mb->add_entities( set1, verts, 4 );
@@ -4765,13 +4766,13 @@ MBErrorCode mb_merge_update_test(MBInterface*)
   }
   
     // check that there is only one edge and that it has the correct connectivity
-  MBRange r;
+  Range r;
   mb->get_entities_by_type( 0, MBEDGE, r );
   if (r.size() != 1 || r.front() != edge1) {
     std::cerr << "Edge merge failed at " << __FILE__ << ":" << __LINE__ << std::endl;
     return MB_FAILURE;
   }
-  std::vector<MBEntityHandle> exp(verts+1, verts+3), act;
+  std::vector<EntityHandle> exp(verts+1, verts+3), act;
   mb->get_connectivity( &edge1, 1, act );
   if (exp != act) {
     std::cerr << "Incorrect conn for edge at " << __FILE__ << ":" << __LINE__ << std::endl;
@@ -4779,7 +4780,7 @@ MBErrorCode mb_merge_update_test(MBInterface*)
   }
   
     // check that quad connectivity is as expected
-  exp = std::vector<MBEntityHandle>(verts, verts+4);
+  exp = std::vector<EntityHandle>(verts, verts+4);
   act.clear();
   mb->get_connectivity( &quad1, 1, act );
   if (exp != act) {
@@ -4799,7 +4800,7 @@ MBErrorCode mb_merge_update_test(MBInterface*)
   }
   
     // check that set contents are correctly updated
-  exp = std::vector<MBEntityHandle>(verts, verts+4);
+  exp = std::vector<EntityHandle>(verts, verts+4);
   exp.push_back( edge1 );
   act.clear();
   mb->get_entities_by_handle( set1, act );
@@ -4808,9 +4809,9 @@ MBErrorCode mb_merge_update_test(MBInterface*)
   if (exp != act) {
     std::cerr << "Incorrect set contents at " << __FILE__ << ":" << __LINE__ << std::endl;
     std::cerr << "  Expected: ";
-    std::copy( exp.begin(), exp.end(), std::ostream_iterator<MBEntityHandle>(std::cerr, " ") );
+    std::copy( exp.begin(), exp.end(), std::ostream_iterator<EntityHandle>(std::cerr, " ") );
     std::cerr << std::endl << "  Actual  : ";
-    std::copy( act.begin(), act.end(), std::ostream_iterator<MBEntityHandle>(std::cerr, " ") );
+    std::copy( act.begin(), act.end(), std::ostream_iterator<EntityHandle>(std::cerr, " ") );
     std::cerr << std::endl;
     return MB_FAILURE;
   }
@@ -4826,9 +4827,9 @@ MBErrorCode mb_merge_update_test(MBInterface*)
   if (exp != act) {
     std::cerr << "Incorrect set contents at " << __FILE__ << ":" << __LINE__ << std::endl;
     std::cerr << "  Expected: ";
-    std::copy( exp.begin(), exp.end(), std::ostream_iterator<MBEntityHandle>(std::cerr, " ") );
+    std::copy( exp.begin(), exp.end(), std::ostream_iterator<EntityHandle>(std::cerr, " ") );
     std::cerr << std::endl << "  Actual  : ";
-    std::copy( act.begin(), act.end(), std::ostream_iterator<MBEntityHandle>(std::cerr, " ") );
+    std::copy( act.begin(), act.end(), std::ostream_iterator<EntityHandle>(std::cerr, " ") );
     std::cerr << std::endl;
     return MB_FAILURE;
   }
@@ -4836,10 +4837,10 @@ MBErrorCode mb_merge_update_test(MBInterface*)
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_stress_test(MBInterface *MB)
+ErrorCode mb_stress_test(Interface *MB)
 {
     // delete the existing mesh
-  MBErrorCode error = MB->delete_mesh();
+  ErrorCode error = MB->delete_mesh();
   if (error != MB_SUCCESS)
     return error;
 
@@ -4874,14 +4875,14 @@ MBErrorCode mb_stress_test(MBInterface *MB)
   cout << "\n        Transforming and copying elements" << endl;
   start = clock();
 
-  MBRange hexes;
+  Range hexes;
   error = MB->get_entities_by_type(0, MBHEX, hexes);
   if (error != MB_SUCCESS)
     return error;
 
 
-  std::vector<MBEntityHandle> conn;
-  MBRange::iterator iter;
+  std::vector<EntityHandle> conn;
+  Range::iterator iter;
   for (iter = hexes.begin(); iter != hexes.end(); iter++)
   {
     error = MB->get_connectivity(&(*iter), 1, conn);
@@ -4890,9 +4891,9 @@ MBErrorCode mb_stress_test(MBInterface *MB)
 
     double coords[3];
     int i = 0;
-    std::vector<MBEntityHandle> vertex_handle(8);
-    MBEntityHandle element_handle;
-    std::vector<MBEntityHandle>::iterator jter;
+    std::vector<EntityHandle> vertex_handle(8);
+    EntityHandle element_handle;
+    std::vector<EntityHandle>::iterator jter;
 
     for (jter = conn.begin(); jter != conn.end(); jter++)
     {
@@ -4926,7 +4927,7 @@ MBErrorCode mb_stress_test(MBInterface *MB)
   if (hexes.size() != 512000)
     return MB_FAILURE;
 
-  MBEntityHandle mesh_set;
+  EntityHandle mesh_set;
   error = MB->create_meshset( MESHSET_SET, mesh_set );
   if (error != MB_SUCCESS)
     return error;
@@ -4945,8 +4946,8 @@ MBErrorCode mb_stress_test(MBInterface *MB)
   start = clock();
 
     // set the block tag
-  MBTag tag_handle;
-  MBErrorCode result = MB->tag_get_handle( MATERIAL_SET_TAG_NAME, tag_handle ) ;
+  Tag tag_handle;
+  ErrorCode result = MB->tag_get_handle( MATERIAL_SET_TAG_NAME, tag_handle ) ;
   if(result != MB_SUCCESS)
     return result;
 
@@ -4955,7 +4956,7 @@ MBErrorCode mb_stress_test(MBInterface *MB)
   if(result != MB_SUCCESS)
     return result;
 
-  std::vector<MBEntityHandle> output_list;
+  std::vector<EntityHandle> output_list;
   output_list.push_back(mesh_set);
 
   file_name = "mb_stress_out.g";
@@ -4979,15 +4980,15 @@ MBErrorCode mb_stress_test(MBInterface *MB)
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_canon_number_test(MBInterface *MB) 
+ErrorCode mb_canon_number_test(Interface *MB) 
 {
     // various tests for canonical ordering
 
     // MBCN::AdjacentSubEntities
   std::vector<int> vec1, vec2;
-  MBErrorCode result;
+  ErrorCode result;
 
-  MBEntityType this_type;
+  EntityType this_type;
 
   for (this_type = MBEDGE; this_type != MBKNIFE; this_type++) {
     
@@ -5035,18 +5036,18 @@ MBErrorCode mb_canon_number_test(MBInterface *MB)
 
     // create vertices to use later
   double xyz[3] = {0.0, 0.0, 0.0};
-  MBEntityHandle vertex_handles[8];
+  EntityHandle vertex_handles[8];
   for (int i = 0; i < 8; i++) {
     result = MB->create_vertex(xyz, vertex_handles[i]);
     assert(result == MB_SUCCESS);
   }
   int side, sense, offset;
   
-  MBEntityHandle this_entity;
+  EntityHandle this_entity;
   
   for (this_type = MBEDGE; this_type != MBKNIFE; this_type++) {
     
-      // skip remainder of the loop for POLYGONS and POLYHEDRA, which don't follow
+      // skip remainder of the loop for MBPOLYGONS and POLYHEDRA, which don't follow
       // the standard canonical ordering 
     if (this_type == MBPOLYGON || this_type == MBPOLYHEDRON)
       continue;
@@ -5062,7 +5063,7 @@ MBErrorCode mb_canon_number_test(MBInterface *MB)
     }
 
       // now get the connectivity vector *
-    const MBEntityHandle *entity_vertices;
+    const EntityHandle *entity_vertices;
     int num_verts;
     result = MB->get_connectivity(this_entity, entity_vertices, num_verts);
     if (MB_SUCCESS != result || 
@@ -5115,7 +5116,7 @@ MBErrorCode mb_canon_number_test(MBInterface *MB)
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_poly_test(MBInterface *mb) 
+ErrorCode mb_poly_test(Interface *mb) 
 {
     // test polygon and polyhedron representation
     // create a couple of polygons; vertices first
@@ -5137,8 +5138,8 @@ MBErrorCode mb_poly_test(MBInterface *mb)
     2, -1, 0,
     1.5, .5, 1};
 
-  MBEntityHandle verts[16];
-  MBErrorCode result;
+  EntityHandle verts[16];
+  ErrorCode result;
   int i;
   for (i = 0; i < 16; i++) {
     result = mb->create_vertex(&vert_pos[3*i], verts[i]);
@@ -5164,9 +5165,9 @@ MBErrorCode mb_poly_test(MBInterface *mb)
   
   int num_connect_idx[] = {5, 4, 3, 3, 4, 10, 11, 4, 4};
   
-  MBEntityHandle polygons[9], temp_connect[12];
+  EntityHandle polygons[9], temp_connect[12];
   int idx = 0, nump = 0;
-  MBErrorCode tmp_result;
+  ErrorCode tmp_result;
   while (nump < 9) {
     for (i = 0; i < num_connect_idx[nump]; i++)
       temp_connect[i] = verts[connect_idx[idx+i]];
@@ -5187,7 +5188,7 @@ MBErrorCode mb_poly_test(MBInterface *mb)
   if (MB_SUCCESS != result) return result;
   
     // ok, made 'em; now get all the vertices and make sure they're the same
-  const MBEntityHandle *connect;
+  const EntityHandle *connect;
   int num_connect;
   idx = 0;
   int j;
@@ -5214,10 +5215,10 @@ MBErrorCode mb_poly_test(MBInterface *mb)
   if (MB_SUCCESS != result) return result;
 
     // check a different way, with ranges
-  MBRange vert_range, poly_range;
+  Range vert_range, poly_range;
   for (i = 0; i < 9; i++) poly_range.insert(polygons[i]);
   result = mb->get_adjacencies(poly_range, 0, false, vert_range, 
-                               MBInterface::UNION);
+                               Interface::UNION);
   if (MB_SUCCESS != result) {
     std::cout << "mb_poly_test: get_adjacencies failed for polygon " 
               << i << "." << std::endl;
@@ -5231,7 +5232,7 @@ MBErrorCode mb_poly_test(MBInterface *mb)
   }
   
     // make a couple polyhedra
-  MBEntityHandle polyhedra[2];
+  EntityHandle polyhedra[2];
   result = mb->create_element(MBPOLYHEDRON, polygons, 7, polyhedra[0]);
   if (MB_SUCCESS != result) {
     std::cout << "mb_poly_test: create_element failed for polyhedron 1." << std::endl;
@@ -5248,7 +5249,7 @@ MBErrorCode mb_poly_test(MBInterface *mb)
   }
   
     // now look for vertices common to both
-  std::vector<MBEntityHandle> temp_verts;
+  std::vector<EntityHandle> temp_verts;
   result = mb->get_adjacencies(polyhedra, 2, 0, false, temp_verts);
   if (MB_SUCCESS != result) {
     std::cout << "mb_poly_test: get_adjacencies failed for polyhedra." << std::endl;
@@ -5265,21 +5266,21 @@ MBErrorCode mb_poly_test(MBInterface *mb)
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_range_test(MBInterface *) 
+ErrorCode mb_range_test(Interface *MB) 
 {
 
-  MBRange r1, r2, rhs;
-  MBErrorCode result = MB_SUCCESS;
+  Range r1, r2, rhs;
+  ErrorCode result = MB_SUCCESS;
   int err;
 
-  MBEntityHandle h1 = CREATE_HANDLE(MBVERTEX, 1, err);
-  MBEntityHandle h4 = CREATE_HANDLE(MBVERTEX, 4, err);
-  MBEntityHandle h5 = CREATE_HANDLE(MBVERTEX, 5, err);
-  MBEntityHandle h9 = CREATE_HANDLE(MBVERTEX, 9, err);
-  MBEntityHandle h10 = CREATE_HANDLE(MBVERTEX, 10, err);
-  MBEntityHandle h15 = CREATE_HANDLE(MBVERTEX, 15, err);
-  MBEntityHandle h16 = CREATE_HANDLE(MBVERTEX, 16, err);
-  MBEntityHandle h20 = CREATE_HANDLE(MBVERTEX, 20, err);
+  EntityHandle h1 = CREATE_HANDLE(MBVERTEX, 1, err);
+  EntityHandle h4 = CREATE_HANDLE(MBVERTEX, 4, err);
+  EntityHandle h5 = CREATE_HANDLE(MBVERTEX, 5, err);
+  EntityHandle h9 = CREATE_HANDLE(MBVERTEX, 9, err);
+  EntityHandle h10 = CREATE_HANDLE(MBVERTEX, 10, err);
+  EntityHandle h15 = CREATE_HANDLE(MBVERTEX, 15, err);
+  EntityHandle h16 = CREATE_HANDLE(MBVERTEX, 16, err);
+  EntityHandle h20 = CREATE_HANDLE(MBVERTEX, 20, err);
 
     // equal start/end
   r1.insert(h1, h5);
@@ -5360,8 +5361,8 @@ MBErrorCode mb_range_test(MBInterface *)
   r2.clear();
   r1.insert(h1, h5);
   r1.insert(h10, h15);
-  MBRange::const_iterator i1 = r1.begin();
-  MBRange::const_iterator i2 = r1.end();
+  Range::const_iterator i1 = r1.begin();
+  Range::const_iterator i2 = r1.end();
   i1 += 2;
   i2 -= 2;
   r2.merge( i1, i2 );
@@ -5375,12 +5376,12 @@ MBErrorCode mb_range_test(MBInterface *)
   r1.insert( h1 );
   r1.insert( h4 );
   r1.insert( h5 );
-  MBRange::const_pair_iterator pair_iter = r1.const_pair_begin();
-  MBEntityHandle cpi_h1 = (*pair_iter).first;
-  MBEntityHandle cpi_h2 = (*pair_iter).second;
+  Range::const_pair_iterator pair_iter = r1.const_pair_begin();
+  EntityHandle cpi_h1 = (*pair_iter).first;
+  EntityHandle cpi_h2 = (*pair_iter).second;
   ++pair_iter;
-  MBEntityHandle cpi_h3 = (*pair_iter).first;
-  MBEntityHandle cpi_h4 = (*pair_iter).second;
+  EntityHandle cpi_h3 = (*pair_iter).first;
+  EntityHandle cpi_h4 = (*pair_iter).second;
   ++pair_iter;
   if (cpi_h1 != h1 || cpi_h2 != h1 || 
       cpi_h3 != h4 || cpi_h4 != h5 ||
@@ -5457,7 +5458,7 @@ MBErrorCode mb_range_test(MBInterface *)
   r1.insert(h4);
   r1.insert(h5);
   r2.insert(h4);
-  MBRange r3 = subtract( r1, r2);
+  Range r3 = subtract( r1, r2);
   if (r3.size() != 2 ||
       r3.find(h1) == r3.end() ||
       r3.find(h5) == r3.end() ||
@@ -5486,10 +5487,10 @@ MBErrorCode mb_range_test(MBInterface *)
   return result;
 }
 
-MBErrorCode mb_range_erase_test(MBInterface *) 
+ErrorCode mb_range_erase_test(Interface *MB) 
 {
-  MBRange range;
-  MBRange::iterator result;
+  Range range;
+  Range::iterator result;
   
     // test erase from first node
   range.clear();
@@ -5619,7 +5620,7 @@ MBErrorCode mb_range_erase_test(MBInterface *)
   CHECK_EQUAL(  8u, *result );
   
     // test iterators before erase remain valid
-  MBRange::iterator a, b, c;
+  Range::iterator a, b, c;
   range.clear();
   range.insert( 5, 10 );
   range.insert( 12, 20 );
@@ -5651,7 +5652,7 @@ MBErrorCode mb_range_erase_test(MBInterface *)
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_topo_util_test(MBInterface *gMB) 
+ErrorCode mb_topo_util_test(Interface *gMB) 
 {
   MeshTopoUtil mtu(gMB);
 
@@ -5667,8 +5668,8 @@ MBErrorCode mb_topo_util_test(MBInterface *gMB)
       0.0, 2.0, 1.0, 1.0, 2.0, 1.0, 2.0, 2.0, 1.0
     };
       
-  MBEntityHandle grid_verts[18], grid_elems[4];
-  MBErrorCode result;
+  EntityHandle grid_verts[18], grid_elems[4];
+  ErrorCode result;
 #define RR if (result != MB_SUCCESS) return result
   int init_edges, init_faces;
   result = gMB->get_number_entities_by_dimension(0, 1, init_edges); RR;
@@ -5682,7 +5683,7 @@ MBErrorCode mb_topo_util_test(MBInterface *gMB)
     // make hexes
   int numv = 3, numv_sq = 9;
 #define VINDEX(i,j,k) (i + (j*numv) + (k*numv_sq))
-  MBEntityHandle connect[8];
+  EntityHandle connect[8];
   for (int j = 0; j < 2; j++) {
     for (int i = 0; i < 2; i++) {
       int vijk = VINDEX(i,j,0);
@@ -5698,8 +5699,8 @@ MBErrorCode mb_topo_util_test(MBInterface *gMB)
     }
   }
 
-  MBRange vert_range;
-  std::copy(grid_verts, grid_verts+18, mb_range_inserter(vert_range));
+  Range vert_range;
+  std::copy(grid_verts, grid_verts+18, range_inserter(vert_range));
   
     // generate aentities
   result = mtu.construct_aentities(vert_range); RR;
@@ -5728,8 +5729,8 @@ MBErrorCode mb_topo_util_test(MBInterface *gMB)
   RR;
 
     // get star faces
-  MBRange all_hexes, middle_edge;
-  std::copy(grid_elems, grid_elems+4, mb_range_inserter(all_hexes));
+  Range all_hexes, middle_edge;
+  std::copy(grid_elems, grid_elems+4, range_inserter(all_hexes));
     // get the shared edge
   result = gMB->get_adjacencies(all_hexes, 1, false, middle_edge);
   if (MB_SUCCESS != result || 1 != middle_edge.size()) {
@@ -5737,7 +5738,7 @@ MBErrorCode mb_topo_util_test(MBInterface *gMB)
     return MB_FAILURE;
   }
   
-  std::vector<MBEntityHandle> star_faces, star_hexes;
+  std::vector<EntityHandle> star_faces, star_hexes;
   bool bdy_edge;
   result = mtu.star_entities(*middle_edge.begin(), star_faces, bdy_edge, 0, &star_hexes);
   if (MB_SUCCESS != result || bdy_edge || star_faces.size() != 4 || star_hexes.size() != 4) {
@@ -5746,7 +5747,7 @@ MBErrorCode mb_topo_util_test(MBInterface *gMB)
   }
   
     // now try for a different edge, which has to be on the bdy
-  MBRange other_edges;
+  Range other_edges;
   all_hexes.clear(); all_hexes.insert(grid_elems[0]);
   result = gMB->get_adjacencies(all_hexes, 1, false, other_edges); RR;
   other_edges.erase(*middle_edge.begin());
@@ -5767,7 +5768,7 @@ MBErrorCode mb_topo_util_test(MBInterface *gMB)
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_split_test(MBInterface *gMB) 
+ErrorCode mb_split_test(Interface *gMB) 
 {
   MeshTopoUtil mtu(gMB);
 
@@ -5787,8 +5788,8 @@ MBErrorCode mb_split_test(MBInterface *gMB)
       0.0, 2.0, 2.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0
     };
       
-  MBEntityHandle grid_verts[27], grid_elems[8];
-  MBErrorCode result;
+  EntityHandle grid_verts[27], grid_elems[8];
+  ErrorCode result;
 #define RR if (result != MB_SUCCESS) return result
   int init_edges, init_faces, init_regions;
   result = gMB->get_number_entities_by_dimension(0, 1, init_edges); RR;
@@ -5803,7 +5804,7 @@ MBErrorCode mb_split_test(MBInterface *gMB)
     // make hexes
   int numv = 3, numv_sq = 9;
 #define VINDEX(i,j,k) (i + (j*numv) + (k*numv_sq))
-  MBEntityHandle connect[8];
+  EntityHandle connect[8];
   for (int k = 0; k < 2; k++) {
     for (int j = 0; j < 2; j++) {
       for (int i = 0; i < 2; i++) {
@@ -5821,8 +5822,8 @@ MBErrorCode mb_split_test(MBInterface *gMB)
     }
   }
   
-  MBRange vert_range;
-  std::copy(grid_verts, grid_verts+27, mb_range_inserter(vert_range));
+  Range vert_range;
+  std::copy(grid_verts, grid_verts+27, range_inserter(vert_range));
   
     // generate aentities
   result = mtu.construct_aentities(vert_range); RR;
@@ -5838,7 +5839,7 @@ MBErrorCode mb_split_test(MBInterface *gMB)
 
     // split the faces between the 2 layers
     // first get the faces
-  MBRange split_faces, tmp_ents, tmp_faces;
+  Range split_faces, tmp_ents, tmp_faces;
   for (int i = 0; i < 4; i++) {
     tmp_ents.clear();
     tmp_ents.insert(grid_elems[i]);
@@ -5852,7 +5853,7 @@ MBErrorCode mb_split_test(MBInterface *gMB)
     split_faces.insert(*tmp_faces.begin());
   }
 
-  MBRange new_faces, new_regions;
+  Range new_faces, new_regions;
 
     // NOTE: passing in non-NULL pointer for new_regions requests that region between the
     // split entities be filled with an element; in this case, since we're splitting faces,
@@ -5879,16 +5880,16 @@ MBErrorCode mb_split_test(MBInterface *gMB)
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_range_seq_intersect_test( MBInterface*) 
+ErrorCode mb_range_seq_intersect_test( Interface*) 
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   SequenceManager sequences;
-  MBRangeSeqIntersectIter iter( &sequences );
-  MBRange range;
+  RangeSeqIntersectIter iter( &sequences );
+  Range range;
 
     // create some entity sequences
   EntitySequence *ts1, *ts2, *ts3, *qs1;
-  MBEntityHandle th1, th2, th3, qh1;
+  EntityHandle th1, th2, th3, qh1;
   const int nt1 = 100, nt2 = 10, nt3 = 1, nq1 = 20;
   rval = sequences.create_entity_sequence( MBTRI, nt1, 3, 5, th1, ts1 );
   if (MB_SUCCESS != rval) return rval;
@@ -5903,7 +5904,7 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
   if (th1 > th2 || th2 > th3 || th3 > qh1)
     return MB_FAILURE;
   
-    // construct an MBRange containing all valid handles;
+    // construct an Range containing all valid handles;
   range.clear();
   range.insert( ts1->start_handle(), ts1->end_handle() );
   range.insert( ts2->start_handle(), ts2->end_handle() );
@@ -6028,8 +6029,8 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
    
     // Iterate over two subsets of the quad sequence
     
-  MBRange quads = range.subset_by_type( MBQUAD );
-  MBEntityHandle removed = qs1->start_handle() + nq1/2;
+  Range quads = range.subset_by_type( MBQUAD );
+  EntityHandle removed = qs1->start_handle() + nq1/2;
   if (quads.erase( removed ) == quads.end())
     return MB_FAILURE;
 
@@ -6062,9 +6063,9 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     // Iterate over everything, including a bunch of
     // invalid handles
 
-  MBRange big;
+  Range big;
   int junk;
-  MBEntityHandle last = CREATE_HANDLE(MBQUAD+1, 0, junk);
+  EntityHandle last = CREATE_HANDLE(MBQUAD+1, 0, junk);
   big.insert( ts1->start_handle() - 1, last );
 
     // first some invalid handles in the beginning of the range
@@ -6195,16 +6196,16 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
   
   
     // Create some holes
-  MBEntityHandle ts1s  = ts1->start_handle();
-  MBEntityHandle dead1 = ts1->start_handle() + 1;
-  MBEntityHandle dead2 = ts1->start_handle() + 2;
-  MBEntityHandle ts1e  = ts1->end_handle();
-  MBEntityHandle dead3 = ts2->start_handle();
-  MBEntityHandle dead4 = ts2->end_handle();
-  MBEntityHandle qs1s  = qs1->start_handle();
-  MBEntityHandle qs1e  = qs1->end_handle();
-  MBEntityHandle dead5 = qs1->start_handle() + nq1/2;
-  MBEntityHandle dead6 = dead5+1;
+  EntityHandle ts1s  = ts1->start_handle();
+  EntityHandle dead1 = ts1->start_handle() + 1;
+  EntityHandle dead2 = ts1->start_handle() + 2;
+  EntityHandle ts1e  = ts1->end_handle();
+  EntityHandle dead3 = ts2->start_handle();
+  EntityHandle dead4 = ts2->end_handle();
+  EntityHandle qs1s  = qs1->start_handle();
+  EntityHandle qs1e  = qs1->end_handle();
+  EntityHandle dead5 = qs1->start_handle() + nq1/2;
+  EntityHandle dead6 = dead5+1;
   rval = sequences.delete_entity( dead1 );
   if (MB_SUCCESS != rval) return rval;
   rval = sequences.delete_entity( dead2 );
@@ -6489,19 +6490,19 @@ bool _assert_not_equal( T1 a, T2 b, const char* as, const char* bs, int line )
   return false;
 }
     
-std::ostream& operator<<( std::ostream& s, MBRange::const_iterator i ) {
+std::ostream& operator<<( std::ostream& s, Range::const_iterator i ) {
   return s << *i;
 }
 
-MBErrorCode mb_poly_adjacency_test( MBInterface* )
+ErrorCode mb_poly_adjacency_test( Interface* )
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface *mbImpl = &moab;
+  ErrorCode rval;
+  Core moab;
+  Interface *mbImpl = &moab;
   
     // make a couple polygons and a polyhedron
   double coords[3] = {0,1,2};
-  MBEntityHandle verts[10], polygons[2], polyhedron;
+  EntityHandle verts[10], polygons[2], polyhedron;
   
   for (int i = 0; i < 10; i++) {
     rval = mbImpl->create_vertex(coords, verts[i]);
@@ -6519,7 +6520,7 @@ MBErrorCode mb_poly_adjacency_test( MBInterface* )
     return rval;
   
     // create the aentities
-  MBRange dum_range;
+  Range dum_range;
   for (int dim = 0; dim < 3; dim++) {
     dum_range.clear();
     rval = mbImpl->get_adjacencies(&polyhedron, 1, dim, true, dum_range);
@@ -6536,19 +6537,19 @@ MBErrorCode mb_poly_adjacency_test( MBInterface* )
   return moab.check_adjacencies();
 }
 
-MBErrorCode mb_memory_use_test( MBInterface* ) 
+ErrorCode mb_memory_use_test( Interface* ) 
 {
-  MBCore mb;
+  Core mb;
   unsigned long init_total, total_with_elem, total_with_tag, total_with_tag_data;
   mb.estimated_memory_use(0,0,0,&init_total);
   
   double coords[12] = { 1, 2, 0, 3, 4, 0, 5, 6, 0, 7, 8, 0 };
-  MBEntityHandle verts[4];
+  EntityHandle verts[4];
   for (int i = 0; i < 4; ++i)
     if (MB_SUCCESS != mb.create_vertex( coords + 3*i, verts[i] ))
       return MB_FAILURE;
   
-  MBEntityHandle elem;
+  EntityHandle elem;
   mb.create_element( MBQUAD, verts, 4, elem );
   
   mb.estimated_memory_use(0,0,0,&total_with_elem);
@@ -6556,10 +6557,10 @@ MBErrorCode mb_memory_use_test( MBInterface* )
     return MB_FAILURE;
   
   unsigned long min, am;
-  MBRange r;
+  Range r;
   r.insert( elem );
   mb.estimated_memory_use( r, &min, &am );
-  if (min != 4*sizeof(MBEntityHandle))
+  if (min != 4*sizeof(EntityHandle))
     return MB_FAILURE;
   
   r.clear();
@@ -6569,7 +6570,7 @@ MBErrorCode mb_memory_use_test( MBInterface* )
   if (min != 6*sizeof(double))
     return MB_FAILURE;
   
-  MBTag tag;
+  Tag tag;
   if (MB_SUCCESS != mb.tag_create( "TMP_TAG", sizeof(int), MB_TAG_SPARSE, tag, 0 ))
     return MB_FAILURE;
   mb.estimated_memory_use( r, &min, &am );
@@ -6594,53 +6595,53 @@ MBErrorCode mb_memory_use_test( MBInterface* )
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_skin_curve_test_common( bool use_adj );
+ErrorCode mb_skin_curve_test_common( bool use_adj );
 
-MBErrorCode mb_skin_curve_test( MBInterface* )
+ErrorCode mb_skin_curve_test( Interface* )
   { return mb_skin_curve_test_common( false ); }
 
-MBErrorCode mb_skin_curve_adj_test( MBInterface* )
+ErrorCode mb_skin_curve_adj_test( Interface* )
   { return mb_skin_curve_test_common( true ); }
 
-MBErrorCode mb_skin_surface_test_common( bool use_adj );
+ErrorCode mb_skin_surface_test_common( bool use_adj );
 
-MBErrorCode mb_skin_surface_test( MBInterface* )
+ErrorCode mb_skin_surface_test( Interface* )
   { return mb_skin_surface_test_common( false ); }
 
-MBErrorCode mb_skin_surface_adj_test( MBInterface* )
+ErrorCode mb_skin_surface_adj_test( Interface* )
   { return mb_skin_surface_test_common( true ); }
 
-MBErrorCode mb_skin_volume_test_common( bool use_adj );
+ErrorCode mb_skin_volume_test_common( bool use_adj );
 
-MBErrorCode mb_skin_volume_test( MBInterface* )
+ErrorCode mb_skin_volume_test( Interface* )
   { return mb_skin_volume_test_common( false ); }
 
-MBErrorCode mb_skin_volume_adj_test( MBInterface* )
+ErrorCode mb_skin_volume_adj_test( Interface* )
   { return mb_skin_volume_test_common( true ); }
 
-MBErrorCode mb_skin_curve_test_common( bool use_adj )
+ErrorCode mb_skin_curve_test_common( bool use_adj )
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface *mb = &moab;
+  ErrorCode rval;
+  Core moab;
+  Interface *mb = &moab;
   
-  std::vector<MBEntityHandle> verts;
+  std::vector<EntityHandle> verts;
   for (unsigned i = 0; i < 10; ++i) {
     double coords[] = { i, 0, 0 };
-    MBEntityHandle h;
+    EntityHandle h;
     mb->create_vertex( coords, h );
     verts.push_back(h);
   }
-  MBRange edges;
+  Range edges;
   for (unsigned i = 1; i < verts.size(); ++i) {
-    MBEntityHandle conn[] = { verts[i-1], verts[i] };
-    MBEntityHandle h;
+    EntityHandle conn[] = { verts[i-1], verts[i] };
+    EntityHandle h;
     mb->create_element( MBEDGE, conn, 2, h );
     edges.insert(h);
   }
   
-  MBRange skin;
-  MBSkinner tool(mb);
+  Range skin;
+  Skinner tool(mb);
   rval = tool.find_skin( edges, 0, skin, use_adj );
   if (MB_SUCCESS != rval) {
     std::cerr << "Skinner failure at " __FILE__ ":" << __LINE__ << std::endl;
@@ -6661,8 +6662,8 @@ MBErrorCode mb_skin_curve_test_common( bool use_adj )
   
   
     // now test again with only one edge
-  MBEntityHandle edge = edges.front();
-  MBRange range(edge,edge);
+  EntityHandle edge = edges.front();
+  Range range(edge,edge);
   skin.clear();
   rval = tool.find_skin( range, 0, skin, use_adj );
   if (MB_SUCCESS != rval) {
@@ -6674,7 +6675,7 @@ MBErrorCode mb_skin_curve_test_common( bool use_adj )
     return MB_FAILURE;
   }
 
-  MBRange verts2;
+  Range verts2;
   mb->get_connectivity( &edge, 1, verts2 );
   if (skin.front() != verts2.front() ||
       skin.back()  != verts2.back()) {
@@ -6685,11 +6686,11 @@ MBErrorCode mb_skin_curve_test_common( bool use_adj )
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_skin_surface_test_common( bool use_adj )
+ErrorCode mb_skin_surface_test_common( bool use_adj )
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface *mb = &moab;
+  ErrorCode rval;
+  Core moab;
+  Interface *mb = &moab;
   
     /* Create 4 of 5 faces of a wedge: */
     /*
@@ -6711,28 +6712,28 @@ MBErrorCode mb_skin_surface_test_common( bool use_adj )
                                { 0, 2, 0 },
                                { 2, 2, 0 },
                                { 1, 2, 1 } };
-  MBEntityHandle verts[6];
+  EntityHandle verts[6];
   for (unsigned i = 0; i < 6; ++i)
     mb->create_vertex( coords[i], verts[i] );
 
-  MBEntityHandle faces[4];
-  MBEntityHandle tri[] = { verts[0], verts[1], verts[2] };
-  MBEntityHandle quad1[] = { verts[0], verts[1], verts[5], verts[3] };
-  MBEntityHandle quad2[] = { verts[1], verts[5], verts[4], verts[2] };
-  MBEntityHandle quad3[] = { verts[2], verts[4], verts[3], verts[0] };
+  EntityHandle faces[4];
+  EntityHandle tri[] = { verts[0], verts[1], verts[2] };
+  EntityHandle quad1[] = { verts[0], verts[1], verts[5], verts[3] };
+  EntityHandle quad2[] = { verts[1], verts[5], verts[4], verts[2] };
+  EntityHandle quad3[] = { verts[2], verts[4], verts[3], verts[0] };
   mb->create_element( MBTRI, tri, 3, faces[0] );
   mb->create_element( MBQUAD, quad1, 4, faces[1] );
   mb->create_element( MBQUAD, quad2, 4, faces[2] );
   mb->create_element( MBQUAD, quad3, 4, faces[3] );
-  MBRange source;
-  std::copy( faces, faces+4, mb_range_inserter(source) );
+  Range source;
+  std::copy( faces, faces+4, range_inserter(source) );
   
     // Now skin the mesh.  The only missing face is the 
     // back triangle (verts 3, 4, & 5) so the skin should
     // be the edges bordering that face.
   
-  MBRange skin;
-  MBSkinner tool(mb);
+  Range skin;
+  Skinner tool(mb);
   rval = tool.find_skin( source, 1, skin, use_adj );
   if (MB_SUCCESS != rval) {
     std::cerr << "Skinner failure at " __FILE__ ":" << __LINE__ << std::endl;
@@ -6744,7 +6745,7 @@ MBErrorCode mb_skin_surface_test_common( bool use_adj )
   }
 
     // Check each edge
-  std::vector<MBEntityHandle> conn[3];
+  std::vector<EntityHandle> conn[3];
   rval = mb->get_connectivity( &skin.front(), 1, conn[0] );
   rval = mb->get_connectivity( &*++skin.begin(), 1, conn[1] );
   rval = mb->get_connectivity( &skin.back(), 1, conn[2] );
@@ -6753,7 +6754,7 @@ MBErrorCode mb_skin_surface_test_common( bool use_adj )
       std::swap(conn[i][0], conn[i][1]);
 
   for (int i = 0; i < 3; ++i) {
-    MBEntityHandle s = verts[i+3], e = verts[(i+1)%3 + 3];
+    EntityHandle s = verts[i+3], e = verts[(i+1)%3 + 3];
     if (s > e)
       std::swap(s,e);
     int j = 0; 
@@ -6771,11 +6772,11 @@ MBErrorCode mb_skin_surface_test_common( bool use_adj )
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_skin_volume_test_common( bool use_adj )
+ErrorCode mb_skin_volume_test_common( bool use_adj )
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface *mb = &moab;
+  ErrorCode rval;
+  Core moab;
+  Interface *mb = &moab;
   
     /* A 2 adjacent hexes hexes */
     /*
@@ -6800,32 +6801,32 @@ MBErrorCode mb_skin_volume_test_common( bool use_adj )
                                { 0, 1, 1 },
                                { 1, 1, 1 },
                                { 2, 1, 1 } };
-  MBEntityHandle verts[12];
+  EntityHandle verts[12];
   for (unsigned i = 0; i < 12; ++i)
     mb->create_vertex( coords[i], verts[i] );
 
-  MBEntityHandle hex1c[] = { verts[0], verts[1], verts[4], verts[3],
+  EntityHandle hex1c[] = { verts[0], verts[1], verts[4], verts[3],
                           verts[6], verts[7], verts[10], verts[9] };
-  MBEntityHandle hex2c[] = { verts[1], verts[2], verts[5], verts[4],
+  EntityHandle hex2c[] = { verts[1], verts[2], verts[5], verts[4],
                           verts[7], verts[8], verts[11], verts[10] };
-  MBEntityHandle hex1, hex2;
+  EntityHandle hex1, hex2;
   mb->create_element( MBHEX, hex1c, 8, hex1 );
   mb->create_element( MBHEX, hex2c, 8, hex2 );
-  MBRange source;
+  Range source;
   source.insert( hex1 );
   source.insert( hex2 );
     
     // get all quads and shared face
-  MBRange tmp, all_faces;
-  mb->get_adjacencies( source, 2, true, all_faces, MBInterface::UNION );
-  mb->get_adjacencies( source, 2, true, tmp, MBInterface::INTERSECT );
+  Range tmp, all_faces;
+  mb->get_adjacencies( source, 2, true, all_faces, Interface::UNION );
+  mb->get_adjacencies( source, 2, true, tmp, Interface::INTERSECT );
   assert(tmp.size() == 1);
-  MBRange non_shared = subtract( all_faces, tmp );
+  Range non_shared = subtract( all_faces, tmp );
   
     // Now skin the mesh.  
   
-  MBRange skin;
-  MBSkinner tool(mb);
+  Range skin;
+  Skinner tool(mb);
   rval = tool.find_skin( source, 2, skin, use_adj );
   if (MB_SUCCESS != rval) {
     std::cerr << "Skinner failure at " __FILE__ ":" << __LINE__ << std::endl;
@@ -6847,10 +6848,10 @@ MBErrorCode mb_skin_volume_test_common( bool use_adj )
 // so we can test all the readers w/out knowing which
 // readers we have.
 const char* argv0 = 0;
-MBErrorCode mb_read_fail_test(MBInterface* mb)
+ErrorCode mb_read_fail_test(Interface* mb)
 {
   const char BAD_FILE_NAME[] = "non-existant-file.txt";
-  MBErrorCode rval;
+  ErrorCode rval;
   
   FILE* fptr = fopen(BAD_FILE_NAME,"r");
   if (fptr) {
@@ -6882,7 +6883,7 @@ MBErrorCode mb_read_fail_test(MBInterface* mb)
     return MB_FAILURE; \
   } 
 
-MBErrorCode mb_enum_string_test( MBInterface* mb )
+ErrorCode mb_enum_string_test( Interface* mb )
 {
   TEST_ERROR_CODE( MB_SUCCESS );
   TEST_ERROR_CODE( MB_INDEX_OUT_OF_RANGE );
@@ -6908,12 +6909,12 @@ int number_tests = 0;
 int number_tests_failed = 0;
 #define RUN_TEST( A ) _run_test( (A), #A )
 
-typedef MBErrorCode (*TestFunc)(MBInterface*);
+typedef ErrorCode (*TestFunc)(Interface*);
 static void _run_test( TestFunc func, const char* func_str ) 
 {
-  MBErrorCode error;
-  MBCore moab;
-  MBInterface* iface = &moab;
+  ErrorCode error;
+  Core moab;
+  Interface* iface = &moab;
   
   std::string file_name = TestDir + "/mbtest1.g";
   error = iface->load_mesh( file_name.c_str() );
@@ -6949,21 +6950,21 @@ static void _run_test( TestFunc func, const char* func_str )
 
 
 // Test basic skinning using vert-to-elem adjacencies
-MBErrorCode mb_skin_verts_common( unsigned dim, bool skin_elems );
+ErrorCode mb_skin_verts_common( unsigned dim, bool skin_elems );
 
-MBErrorCode mb_skin_surf_verts_test( MBInterface* )
+ErrorCode mb_skin_surf_verts_test( Interface* )
   { return mb_skin_verts_common( 2, false ); }
 
-MBErrorCode mb_skin_vol_verts_test( MBInterface* )
+ErrorCode mb_skin_vol_verts_test( Interface* )
   { return mb_skin_verts_common( 3, false ); }
 
-MBErrorCode mb_skin_surf_verts_elems_test( MBInterface* )
+ErrorCode mb_skin_surf_verts_elems_test( Interface* )
   { return mb_skin_verts_common( 2, true ); }
 
-MBErrorCode mb_skin_vol_verts_elems_test( MBInterface* )
+ErrorCode mb_skin_vol_verts_elems_test( Interface* )
   { return mb_skin_verts_common( 3, true ); }
 
-MBErrorCode mb_skin_verts_common( unsigned dim, bool skin_elems )
+ErrorCode mb_skin_verts_common( unsigned dim, bool skin_elems )
 {
   const int INT = 10; // intervals+1
   const char* tmp_file = "structured.vtk";
@@ -6981,23 +6982,23 @@ MBErrorCode mb_skin_verts_common( unsigned dim, bool skin_elems )
       << "SPACING 1 1 1" << std::endl;
   str.close();
   
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
+  ErrorCode rval;
   
   rval = mb.load_file( tmp_file );
   remove( tmp_file );
   if (MB_SUCCESS != rval) 
     return rval;
   
-  MBRange ents;
+  Range ents;
   rval = mb.get_entities_by_dimension( 0, dim, ents );
   if (MB_SUCCESS != rval)
     return rval;
   if (ents.empty())
     return MB_FAILURE;
   
-  MBSkinner tool( &mb );
+  Skinner tool( &mb );
   
    // mesh is a structured quad/hex mesh, so we can
    // determine skin vertices from the number of
@@ -7005,13 +7006,13 @@ MBErrorCode mb_skin_verts_common( unsigned dim, bool skin_elems )
   unsigned interior_adj = 1;
   for (unsigned i = 0; i < dim; ++i)
     interior_adj *= 2;
-  MBRange expected, verts;
+  Range expected, verts;
   rval = mb.get_entities_by_dimension( 0, 0, verts );
   if (MB_SUCCESS != rval)
     return rval;
-  MBRange::iterator h = expected.begin();
-  std::vector<MBEntityHandle> adj;
-  for (MBRange::iterator v = verts.begin(); v != verts.end(); ++v) {
+  Range::iterator h = expected.begin();
+  std::vector<EntityHandle> adj;
+  for (Range::iterator v = verts.begin(); v != verts.end(); ++v) {
     adj.clear();
     rval = mb.get_adjacencies( &*v, 1, dim, false, adj );
     if (MB_SUCCESS != rval)
@@ -7021,12 +7022,12 @@ MBErrorCode mb_skin_verts_common( unsigned dim, bool skin_elems )
   }
   
     // Get skin vertices using skinner
-  MBRange actual;
+  Range actual;
   rval = tool.find_skin( ents, !skin_elems, actual );
   if (MB_SUCCESS != rval)
     return rval;
  
-  MBRange extra, missing;
+  Range extra, missing;
   if (!skin_elems) {
       // Check that we got expected result
     extra = subtract( actual, expected );
@@ -7052,8 +7053,8 @@ MBErrorCode mb_skin_verts_common( unsigned dim, bool skin_elems )
     
     // check that each skin vertex has the correct number of adjacent quads
   missing.clear(); extra.clear();
-  for (MBRange::iterator i = expected.begin(); i != expected.end(); ++i) {
-    std::vector<MBEntityHandle> elem, side;
+  for (Range::iterator i = expected.begin(); i != expected.end(); ++i) {
+    std::vector<EntityHandle> elem, side;
     rval = mb.get_adjacencies( &*i, 1, dim, false, elem );
     if (MB_SUCCESS != rval) return rval;
     rval = mb.get_adjacencies( &*i, 1, dim-1, false, side );
@@ -7083,8 +7084,8 @@ MBErrorCode mb_skin_verts_common( unsigned dim, bool skin_elems )
   
     // check that all returned elements are actually on the skin
   extra.clear();
-  for (MBRange::iterator i = actual.begin(); i != actual.end(); ++i) {
-    MBRange verts;
+  for (Range::iterator i = actual.begin(); i != actual.end(); ++i) {
+    Range verts;
     rval = mb.get_adjacencies( &*i, 1, 0, false, verts );
     if (MB_SUCCESS != rval)
       return rval;
@@ -7101,7 +7102,7 @@ MBErrorCode mb_skin_verts_common( unsigned dim, bool skin_elems )
 }
 
 // Test that skinning of polyhedra works
-MBErrorCode mb_skin_poly_test( MBInterface* )
+ErrorCode mb_skin_poly_test( Interface* )
 {
   /* Create a mesh composed of 8 hexagonal prisms and 
      two hexahedra by extruding the following cross section
@@ -7156,13 +7157,13 @@ MBErrorCode mb_skin_poly_test( MBInterface* )
                                { 5,  6,  7, 15, 18, 14 },
                                { 8,  9, 10, 12, 19, 15 } };
 
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBRange regions, faces, interior_faces;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
+  Range regions, faces, interior_faces;
 
     // create 48 vertices
-  MBEntityHandle verts[3][16];
+  EntityHandle verts[3][16];
   for (int i = 0; i < 3; ++i) {
     for (int j = 0; j < 16; ++j) {
       double coords[3] = { coords2D[j][0], coords2D[j][1], 2*i };
@@ -7172,9 +7173,9 @@ MBErrorCode mb_skin_poly_test( MBInterface* )
   }
   
     // create two hexahedra
-  MBEntityHandle hexes[2];
+  EntityHandle hexes[2];
   for (int i = 0; i < 2; ++i) {
-    MBEntityHandle conn[8] = { verts[i  ][15],
+    EntityHandle conn[8] = { verts[i  ][15],
                                verts[i  ][14],
                                verts[i  ][13],
                                verts[i  ][12],
@@ -7188,10 +7189,10 @@ MBErrorCode mb_skin_poly_test( MBInterface* )
   }
   
     // create hexagonal faces
-  MBEntityHandle hexagons[3][4];
+  EntityHandle hexagons[3][4];
   for (int i = 0; i < 3; ++i) {
     for (int j = 0; j < 4; ++j) {
-      MBEntityHandle conn[6];
+      EntityHandle conn[6];
       for (int k = 0; k < 6; ++k) 
         conn[k] = verts[i][polyconn[j][k]];
       rval = mb.create_element( MBPOLYGON, conn, 6, hexagons[i][j] );
@@ -7203,7 +7204,7 @@ MBErrorCode mb_skin_poly_test( MBInterface* )
   }
   
     // create quadrilateral faces
-  MBEntityHandle quads[2][20];
+  EntityHandle quads[2][20];
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 20; ++j) {
       int c1, c2;
@@ -7216,7 +7217,7 @@ MBErrorCode mb_skin_poly_test( MBInterface* )
       else {
         c1 = j-4; c2 = 12 + (j-15)%4;
       }
-      MBEntityHandle conn[4] = { verts[i  ][c1],
+      EntityHandle conn[4] = { verts[i  ][c1],
                                  verts[i  ][c2],
                                  verts[i+1][c2],
                                  verts[i+1][c1] };
@@ -7229,10 +7230,10 @@ MBErrorCode mb_skin_poly_test( MBInterface* )
   }
   
     // create polyhedra
-  MBEntityHandle poly[2][4];
+  EntityHandle poly[2][4];
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 4; ++j) {
-      MBEntityHandle conn[8];
+      EntityHandle conn[8];
       for (int k = 0; k < 6; ++k) 
         conn[k] = quads[i][polyside[j][k]];
       conn[6] = hexagons[  i][j];
@@ -7243,27 +7244,27 @@ MBErrorCode mb_skin_poly_test( MBInterface* )
     }
   }
   
-  MBRange interior_verts;
+  Range interior_verts;
   interior_verts.insert( verts[1][12] );
   interior_verts.insert( verts[1][13] );
   interior_verts.insert( verts[1][14] );
   interior_verts.insert( verts[1][15] );
   
-  MBSkinner tool(&mb);
-  MBRange skin;
+  Skinner tool(&mb);
+  Range skin;
   rval = tool.find_skin( regions, true, skin, 0, true, false );
   if (MB_SUCCESS != rval) {
     std::cout << "Vertex skinning failed with: " << mb.get_error_string(rval) << std::endl;
     return rval;
   }
   
-  MBRange all_verts, all_faces;
+  Range all_verts, all_faces;
   rval = mb.get_entities_by_dimension( 0, 0, all_verts );
   if (MB_SUCCESS != rval) return rval;
   rval = mb.get_entities_by_dimension( 0, 2, all_faces );
   if (MB_SUCCESS != rval) return rval;
   
-  MBRange expected = subtract( all_verts, interior_verts );
+  Range expected = subtract( all_verts, interior_verts );
   if (expected != skin) {
     std::cout << "Skinner returned incorrect vertices." << std::endl;
     return MB_FAILURE;
@@ -7295,10 +7296,10 @@ MBErrorCode mb_skin_poly_test( MBInterface* )
     std::cout << "Create face skinning failed with: " << mb.get_error_string(rval) << std::endl;
     return rval;
   }
-  MBRange all_faces2;
+  Range all_faces2;
   rval = mb.get_entities_by_dimension( 0, 2, all_faces2 );
   if (MB_SUCCESS != rval) return rval;
-  MBRange difference = subtract( all_faces2, all_faces );
+  Range difference = subtract( all_faces2, all_faces );
   if (difference.size() != 2) { // should have created two quads for hex top/bottom
     std::cout << "Skinner failed to create new quads or created to many." << std::endl;
     return MB_FAILURE;
@@ -7309,12 +7310,12 @@ MBErrorCode mb_skin_poly_test( MBInterface* )
     return MB_FAILURE;
   }
     // check that new faces are correct
-  MBEntityHandle expected_conn[2][4] = {
+  EntityHandle expected_conn[2][4] = {
     { verts[0][12],verts[0][13],verts[0][14],verts[0][15] },
     { verts[2][12],verts[2][13],verts[2][14],verts[2][15] } };
-  MBEntityHandle nq[2] = { difference.front(), difference.back() };
+  EntityHandle nq[2] = { difference.front(), difference.back() };
   for (int i = 0; i < 2; ++i) {
-    const MBEntityHandle* conn;
+    const EntityHandle* conn;
     int len;
     bool found = false;
     for (int j = 0; !found && j < 2; ++j) {
@@ -7343,7 +7344,7 @@ MBErrorCode mb_skin_poly_test( MBInterface* )
 }
 
 // Test that skinning of higher-order elements works
-MBErrorCode mb_skin_higher_order_faces_common( bool use_adj )
+ErrorCode mb_skin_higher_order_faces_common( bool use_adj )
 {
   /* Create mesh:
    
@@ -7356,45 +7357,45 @@ MBErrorCode mb_skin_higher_order_faces_common( bool use_adj )
      10--11--12
   */
 
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
   
   double coords[13][3] = { 
    {0,4,0}, {2,4,0}, {4,4,0}, {6,4,0}, {8,4,0},
    {0,2,0}, {2,2,0}, {4,2,0}, {5,2,0}, {6,2,0},
    {0,0,0}, {2,0,0}, {4,0,0} };
-  MBEntityHandle verts[13];
+  EntityHandle verts[13];
   for (int i = 0; i < 13; ++i) {
     rval = mb.create_vertex( coords[i], verts[i] );
     if (MB_SUCCESS != rval) return rval;
   }
   
-  MBEntityHandle qconn[9] = {
+  EntityHandle qconn[9] = {
     verts[0], verts[2], verts[12], verts[10],
     verts[1], verts[7], verts[11], verts[5],
     verts[6] };
-  MBEntityHandle tconn[7] = {
+  EntityHandle tconn[7] = {
     verts[2], verts[4], verts[12],
     verts[3], verts[9], verts[7],
     verts[8] };
-  MBEntityHandle quad, tri;
+  EntityHandle quad, tri;
   rval = mb.create_element( MBQUAD, qconn, 9, quad );
   if (MB_SUCCESS != rval) return rval;
   rval = mb.create_element( MBTRI, tconn, 7, tri );
   if (MB_SUCCESS != rval) return rval;
   
-  MBRange faces;
+  Range faces;
   faces.insert(quad);
   faces.insert(tri);
   
-  MBRange skin_verts;
+  Range skin_verts;
   const int skin_vert_idx[] = { 0, 1, 2, 3, 4, 5, 9, 10, 11, 12 };
   for (size_t i = 0; i < sizeof(skin_vert_idx)/sizeof(skin_vert_idx[0]); ++i)
     skin_verts.insert( verts[skin_vert_idx[i]] );
   
-  MBSkinner tool(&mb);
-  MBRange skin;
+  Skinner tool(&mb);
+  Range skin;
   
   rval = tool.find_skin( faces, true, skin, 0, use_adj, false );
   if (MB_SUCCESS != rval) {
@@ -7419,9 +7420,9 @@ MBErrorCode mb_skin_higher_order_faces_common( bool use_adj )
     return MB_FAILURE;
   }
   int num_quadratic = 0;
-  const MBEntityHandle* conn;
+  const EntityHandle* conn;
   int len;
-  for (MBRange::iterator i = skin.begin(); i != skin.end(); ++i) {
+  for (Range::iterator i = skin.begin(); i != skin.end(); ++i) {
     rval = mb.get_connectivity( *i, conn, len, false );
     if (MB_SUCCESS != rval) return rval;
     if (len == 3)
@@ -7438,7 +7439,7 @@ MBErrorCode mb_skin_higher_order_faces_common( bool use_adj )
   
   for (int i = 0; i < 5; ++i) {
     bool found = false;
-    for (MBRange::iterator j = skin.begin(); j != skin.end(); ++j) {
+    for (Range::iterator j = skin.begin(); j != skin.end(); ++j) {
       mb.get_connectivity( *j, conn, len, false );
       if (conn[2] == verts[skin_edges[i][1]]) {
         found = true;
@@ -7458,13 +7459,13 @@ MBErrorCode mb_skin_higher_order_faces_common( bool use_adj )
    
   return MB_SUCCESS;
 }
-MBErrorCode mb_skin_higher_order_faces_test( MBInterface* )
+ErrorCode mb_skin_higher_order_faces_test( Interface* )
   { return mb_skin_higher_order_faces_common( false ); }
-MBErrorCode mb_skin_adj_higher_order_faces_test( MBInterface* )
+ErrorCode mb_skin_adj_higher_order_faces_test( Interface* )
   { return mb_skin_higher_order_faces_common( true ); }
 
 // Test that skinning of higher-order elements works
-MBErrorCode mb_skin_higher_order_regions_common( bool use_adj )
+ErrorCode mb_skin_higher_order_regions_common( bool use_adj )
 {
   // create mesh containing two 27-node hexes
   /*
@@ -7477,13 +7478,13 @@ MBErrorCode mb_skin_higher_order_regions_common( bool use_adj )
      0,0---1,0---2,0---3,0---4,0
   */
 
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBRange hexes;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
+  Range hexes;
   
   
-  MBEntityHandle verts[5][3][3];
+  EntityHandle verts[5][3][3];
   for (int i = 0; i < 5; ++i) 
     for (int j = 0; j < 3; ++j)
       for (int k = 0; k < 3; ++k) {
@@ -7505,9 +7506,9 @@ MBErrorCode mb_skin_higher_order_regions_common( bool use_adj )
                         // mid-volume
                         {1,1,1} };
  
-  MBEntityHandle hexverts[2][27];
+  EntityHandle hexverts[2][27];
   for (int i = 0; i < 2; ++i) {
-    MBEntityHandle h;
+    EntityHandle h;
     for (int j = 0; j < 27; ++j)
       hexverts[i][j] = verts[ 2*i+hex_conn[j][0] ][ hex_conn[j][1] ][ hex_conn[j][2] ];
     rval = mb.create_element( MBHEX, hexverts[i], 27, h );
@@ -7516,13 +7517,13 @@ MBErrorCode mb_skin_higher_order_regions_common( bool use_adj )
     hexes.insert( h );
   }
   
-  MBRange interior_verts;
+  Range interior_verts;
   interior_verts.insert( verts[1][1][1] ); // mid-node of hex 1
   interior_verts.insert( verts[3][1][1] ); // mid-node of hex 2
   interior_verts.insert( verts[2][1][1] ); // mid-node of shared face
   
-  MBSkinner tool(&mb);
-  MBRange skin;
+  Skinner tool(&mb);
+  Range skin;
 
   rval = tool.find_skin( hexes, true, skin, 0, use_adj, false );
   if (MB_SUCCESS != rval) {
@@ -7530,7 +7531,7 @@ MBErrorCode mb_skin_higher_order_regions_common( bool use_adj )
               << std::endl;
     return rval;
   }
-  MBRange extra = intersect( skin, interior_verts );
+  Range extra = intersect( skin, interior_verts );
   if (!extra.empty()) {
     std::cout << "Skinner returned " << extra.size() << " interior vertices" 
               << std::endl;
@@ -7560,9 +7561,9 @@ MBErrorCode mb_skin_higher_order_regions_common( bool use_adj )
   
   bool all_okay = true;
   bool faces[2][6] = { {0,0,0,0,0,0},{0,0,0,0,0,0} };
-  const MBEntityHandle *conn;
+  const EntityHandle *conn;
   int len;
-  for (MBRange::iterator it = skin.begin(); it != skin.end(); ++it) {
+  for (Range::iterator it = skin.begin(); it != skin.end(); ++it) {
     rval = mb.get_connectivity( *it, conn, len );
     if (MB_SUCCESS != rval) return rval;
     if (len != 9) {
@@ -7584,7 +7585,7 @@ MBErrorCode mb_skin_higher_order_regions_common( bool use_adj )
       }
       
       int idx[9], len2;
-      MBEntityType sidetype;
+      EntityType sidetype;
       MBCN::SubEntityNodeIndices( MBHEX, 27, 2, side, sidetype, len2, idx );
       assert(sidetype == MBQUAD);
       assert(len2 == 9);
@@ -7627,15 +7628,15 @@ MBErrorCode mb_skin_higher_order_regions_common( bool use_adj )
   return all_okay ? MB_SUCCESS : MB_FAILURE;
 }
 
-MBErrorCode mb_skin_higher_order_regions_test( MBInterface* )
+ErrorCode mb_skin_higher_order_regions_test( Interface* )
   { return mb_skin_higher_order_regions_common(false); }
-MBErrorCode mb_skin_adj_higher_order_regions_test( MBInterface* )
+ErrorCode mb_skin_adj_higher_order_regions_test( Interface* )
   { return mb_skin_higher_order_regions_common(true); }
 
 
-MBErrorCode mb_skin_reversed_common( int dim, bool use_adj )
+ErrorCode mb_skin_reversed_common( int dim, bool use_adj )
 {
-  MBEntityType type, subtype;
+  EntityType type, subtype;
   switch (dim) { 
     case 2: type = MBTRI; subtype = MBEDGE; break;
     case 3: type = MBTET; subtype = MBTRI;  break;
@@ -7650,48 +7651,48 @@ MBErrorCode mb_skin_reversed_common( int dim, bool use_adj )
      0----1----2
   */
 
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBRange hexes;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
+  Range hexes;
    
   double coords[][3] = { { 0, 0, 0 },
                          { 1, 0, 0 },
                          { 2, 0, 0 },
                          { 1, 2, 0 },
                          { 1, 2, 2 } };
-  MBEntityHandle verts[5];
+  EntityHandle verts[5];
   const int nvtx = 2+dim;
   for (int i = 0; i < nvtx; ++i) {
     rval = mb.create_vertex( coords[i], verts[i] );
     if (MB_SUCCESS != rval) return rval;
   }
     // NOTE: order connectivity such that side 1 is shared!
-  MBEntityHandle conn[2][4] = { 
+  EntityHandle conn[2][4] = { 
     { verts[0], verts[1], verts[3], verts[4] },
     { verts[2], verts[3], verts[1], verts[4] } };
   const int conn_len = dim+1;
-  MBRange elems;
+  Range elems;
   for (int i = 0; i < 2; ++i) {
-    MBEntityHandle h;
+    EntityHandle h;
     rval = mb.create_element( type, conn[i], conn_len, h );
     if (MB_SUCCESS != rval) return rval;
     elems.insert(h);
   }
   
     // create one reversed side
-  MBEntityHandle side_conn[3];
+  EntityHandle side_conn[3];
   int side_indices[3] = {0,0,0};
   MBCN::SubEntityVertexIndices(type, dim-1, 0, side_indices );
   side_conn[0] = conn[0][side_indices[1]];
   side_conn[1] = conn[0][side_indices[0]];
   side_conn[2] = conn[0][side_indices[2]];
-  MBEntityHandle side;
+  EntityHandle side;
   rval = mb.create_element( subtype, side_conn, dim, side );
   if (MB_SUCCESS != rval) return rval;
   
-  MBRange forward, reverse;
-  MBSkinner tool(&mb);
+  Range forward, reverse;
+  Skinner tool(&mb);
   rval = tool.find_skin( elems, false, forward, &reverse, use_adj, true );
   if (MB_SUCCESS != rval) {
     std::cout << "Skinner failed." << std::endl;
@@ -7707,19 +7708,19 @@ MBErrorCode mb_skin_reversed_common( int dim, bool use_adj )
   
   return MB_SUCCESS;
 }
-MBErrorCode mb_skin_faces_reversed_test( MBInterface* )
+ErrorCode mb_skin_faces_reversed_test( Interface* )
   { return mb_skin_reversed_common( 2, false ); }
-MBErrorCode mb_skin_adj_faces_reversed_test( MBInterface* )
+ErrorCode mb_skin_adj_faces_reversed_test( Interface* )
   { return mb_skin_reversed_common( 2, true ); }
-MBErrorCode mb_skin_regions_reversed_test( MBInterface* )
+ErrorCode mb_skin_regions_reversed_test( Interface* )
   { return mb_skin_reversed_common( 3, false ); }
-MBErrorCode mb_skin_adj_regions_reversed_test( MBInterface* )
+ErrorCode mb_skin_adj_regions_reversed_test( Interface* )
   { return mb_skin_reversed_common( 3, true ); }
 
 
-MBErrorCode mb_skin_subset_common( int dimension, bool use_adj )
+ErrorCode mb_skin_subset_common( int dimension, bool use_adj )
 {
-  MBEntityType type;
+  EntityType type;
   switch (dimension) { 
     case 2: type = MBTRI; break;
     case 3: type = MBPRISM; break;
@@ -7742,13 +7743,13 @@ MBErrorCode mb_skin_subset_common( int dimension, bool use_adj )
           3
    */
 
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBRange expected_verts;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
+  Range expected_verts;
 
   const double coords2D[7][2] = { {0,2}, {1,1}, {1,-1}, {0,-2}, {-1,-1}, {-1,1}, {0,0} };
-  MBEntityHandle verts[2][7] = { {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0} };
+  EntityHandle verts[2][7] = { {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0} };
   for (int d = 1; d < dimension; ++d) {
     for (int i = 0; i < 7; ++i) {
       double coords[3] = { coords2D[i][0], coords2D[i][1], d-1 };
@@ -7759,21 +7760,21 @@ MBErrorCode mb_skin_subset_common( int dimension, bool use_adj )
     }
   }
   
-  MBEntityHandle elems[6];
+  EntityHandle elems[6];
   for (int i = 0; i < 6; ++i) {
-    MBEntityHandle conn[6] = { verts[0][6], verts[0][(i+1)%6], verts[0][i],
+    EntityHandle conn[6] = { verts[0][6], verts[0][(i+1)%6], verts[0][i],
                                verts[1][6], verts[1][(i+1)%6], verts[1][i] };
     rval = mb.create_element( type, conn, MBCN::VerticesPerEntity(type), elems[i] );
     if (MB_SUCCESS != rval) return rval;
   }
   
-  MBRange input;
+  Range input;
   input.insert( elems[0] );
   input.insert( elems[1] );
   input.insert( elems[2] );
   
-  MBRange skin;
-  MBSkinner tool(&mb);
+  Range skin;
+  Skinner tool(&mb);
   rval = tool.find_skin( input, true, skin, 0, use_adj, false );
   if (MB_SUCCESS != rval) {
     std::cout << "Skinner failed to find skin vertices" << std::endl;
@@ -7790,7 +7791,7 @@ MBErrorCode mb_skin_subset_common( int dimension, bool use_adj )
     return MB_FAILURE;
   }
     
-  std::vector<MBEntityHandle> sv( skin.begin(), skin.end() );
+  std::vector<EntityHandle> sv( skin.begin(), skin.end() );
   std::vector<int> counts( sv.size(), 0 );
   skin.clear();
   rval = tool.find_skin( input, false, skin, 0, use_adj, true );
@@ -7798,8 +7799,8 @@ MBErrorCode mb_skin_subset_common( int dimension, bool use_adj )
     std::cout << "Skinner failed to find skin elements" << std::endl;
     return MB_FAILURE;
   }
-  for (MBRange::iterator i = skin.begin(); i != skin.end(); ++i) {
-    const MBEntityHandle *conn;
+  for (Range::iterator i = skin.begin(); i != skin.end(); ++i) {
+    const EntityHandle *conn;
     int len;
     rval = mb.get_connectivity( *i, conn, len );
     if (MB_SUCCESS != rval) return rval;
@@ -7827,21 +7828,21 @@ MBErrorCode mb_skin_subset_common( int dimension, bool use_adj )
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_skin_faces_subset_test( MBInterface* )
+ErrorCode mb_skin_faces_subset_test( Interface* )
   { return mb_skin_subset_common( 2, false ); }
-MBErrorCode mb_skin_adj_faces_subset_test( MBInterface* )
+ErrorCode mb_skin_adj_faces_subset_test( Interface* )
   { return mb_skin_subset_common( 2, true ); }
-MBErrorCode mb_skin_regions_subset_test( MBInterface* )
+ErrorCode mb_skin_regions_subset_test( Interface* )
   { return mb_skin_subset_common( 3, false ); }
-MBErrorCode mb_skin_adj_regions_subset_test( MBInterface* )
+ErrorCode mb_skin_adj_regions_subset_test( Interface* )
   { return mb_skin_subset_common( 3, true ); }
   
   
     
  
-MBErrorCode mb_skin_full_common( int dimension, bool use_adj )
+ErrorCode mb_skin_full_common( int dimension, bool use_adj )
 {
-  MBEntityType type;
+  EntityType type;
   switch (dimension) { 
     case 2: type = MBQUAD; break;
     case 3: type = MBHEX; break;
@@ -7856,13 +7857,13 @@ MBErrorCode mb_skin_full_common( int dimension, bool use_adj )
       0----1----2
   */
   
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
  
     // create vertices
   const double coords2D[6][2] = { {0,0}, {1,0}, {2,0}, {0,1}, {1,1}, {2,1} };
-  MBEntityHandle v[2][6] = { {0,0,0,0,0,0}, {0,0,0,0,0,0} };
+  EntityHandle v[2][6] = { {0,0,0,0,0,0}, {0,0,0,0,0,0} };
   for (int d = 1; d < dimension; ++d) {
     for (int i = 0; i < 6; ++i) {
       double coords[3] = { coords2D[i][0], coords2D[i][1], d-1 };
@@ -7872,10 +7873,10 @@ MBErrorCode mb_skin_full_common( int dimension, bool use_adj )
   }
   
     // create elements
-  MBRange input;
-  MBEntityHandle elems[2], econn[2][8];;
+  Range input;
+  EntityHandle elems[2], econn[2][8];;
   for (int i = 0; i < 2; ++i) {
-    MBEntityHandle conn[8] = { v[0][i], v[0][i+1], v[0][i+4], v[0][i+3],
+    EntityHandle conn[8] = { v[0][i], v[0][i+1], v[0][i+4], v[0][i+3],
                                v[1][i], v[1][i+1], v[1][i+4], v[1][i+3] };
     memcpy( econn[i], conn, sizeof(conn) );
     rval = mb.create_element( type, conn, MBCN::VerticesPerEntity(type), elems[i] );
@@ -7885,20 +7886,20 @@ MBErrorCode mb_skin_full_common( int dimension, bool use_adj )
   
     // create sides
     // NOTE: Shared side is element 0 side 1 and element 1 side 3
-  MBRange expected;
+  Range expected;
   for (int i = 0; i < MBCN::NumSubEntities( type, dimension-1 ); ++i) {
-    MBEntityType subtype;
+    EntityType subtype;
     int len;
     const short* indices = MBCN::SubEntityVertexIndices( type, dimension-1,
                                                          i, subtype, len );
-    MBEntityHandle conn[4];
+    EntityHandle conn[4];
     assert((size_t)len <= sizeof(conn)/sizeof(conn[0]));
     for (int j = 0; j < 2; ++j) {
       if (j == 1 && i == 3) // don't create shared face twice
         continue;
       for (int k = 0; k < len; ++k)
         conn[k] = econn[j][indices[k]];
-      MBEntityHandle h;
+      EntityHandle h;
       rval = mb.create_element( subtype, conn, len, h );
       if (MB_SUCCESS != rval) return rval;
       if (j != 0 || i != 1) // don't insert shared face
@@ -7906,8 +7907,8 @@ MBErrorCode mb_skin_full_common( int dimension, bool use_adj )
     }
   }
   
-  MBRange skin;
-  MBSkinner tool(&mb);
+  Range skin;
+  Skinner tool(&mb);
   rval = tool.find_skin( input, false, skin, 0, use_adj, true );
   if (MB_SUCCESS != rval) {
     std::cout << "Skinner failed to find skin elements" << std::endl;
@@ -7928,21 +7929,21 @@ MBErrorCode mb_skin_full_common( int dimension, bool use_adj )
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_skin_faces_full_test( MBInterface* )
+ErrorCode mb_skin_faces_full_test( Interface* )
   { return mb_skin_full_common( 2, false ); }
-MBErrorCode mb_skin_adj_faces_full_test( MBInterface* )
+ErrorCode mb_skin_adj_faces_full_test( Interface* )
   { return mb_skin_full_common( 2, true ); }
-MBErrorCode mb_skin_regions_full_test( MBInterface* )
+ErrorCode mb_skin_regions_full_test( Interface* )
   { return mb_skin_full_common( 3, false ); }
-MBErrorCode mb_skin_adj_regions_full_test( MBInterface* )
+ErrorCode mb_skin_adj_regions_full_test( Interface* )
   { return mb_skin_full_common( 3, true ); }
         
-MBErrorCode mb_skin_adjacent_surf_patches( MBInterface* )
+ErrorCode mb_skin_adjacent_surf_patches( Interface* )
 {
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBErrorCode rval;
-  MBSkinner tool(&mb);
+  Core moab;
+  Interface& mb = moab;
+  ErrorCode rval;
+  Skinner tool(&mb);
   
   /* Mesh with vertices and quads numbered. 
      Groups are indicated by letters {A,B,C,D}
@@ -7963,7 +7964,7 @@ MBErrorCode mb_skin_adjacent_surf_patches( MBInterface* )
   */
   
   const int num_vtx = 30;
-  MBEntityHandle vtx[num_vtx];
+  EntityHandle vtx[num_vtx];
   for (int i = 0; i < 6; ++i) {
     for (int j = 0; j < 5; ++j) {
       double coords[3] = {i, j, 0};
@@ -7972,11 +7973,11 @@ MBErrorCode mb_skin_adjacent_surf_patches( MBInterface* )
     }
   }
   
-  MBEntityHandle quads[20];
+  EntityHandle quads[20];
   for (int i = 0; i < 5; ++i) {
     for (int j = 0; j < 4; ++j) {
       int v = 6*j+i;
-      MBEntityHandle conn[4] = { vtx[v+6], vtx[v+7], vtx[v+1], vtx[v+0] };
+      EntityHandle conn[4] = { vtx[v+6], vtx[v+7], vtx[v+1], vtx[v+0] };
       rval = mb.create_element( MBQUAD, conn, 4, quads[5*j+i] );
       if (MB_SUCCESS != rval) return rval;
     }
@@ -8014,8 +8015,8 @@ MBErrorCode mb_skin_adjacent_surf_patches( MBInterface* )
   const int* const shared[4] = { Ashared, Bshared, Cshared, Dshared };
   const int skin_size[4] = { Askin_size, Bskin_size, Cskin_size, Dskin_size };
   
-    // Create an MBRange for each group of quads
-  MBRange ranges[4];
+    // Create an Range for each group of quads
+  Range ranges[4];
   for (int grp = 0; grp < 4; ++grp) 
     for (int i = 0; i < gquads_size[grp]; ++i)
       ranges[grp].insert( quads[gquads[grp][i]] );
@@ -8033,13 +8034,13 @@ MBErrorCode mb_skin_adjacent_surf_patches( MBInterface* )
   for (int run = 0; run < 4; ++run) {
     const bool use_adj = run > 1;
     if (run == 3) {
-      MBRange dead;
+      Range dead;
       mb.get_entities_by_type( 0, MBEDGE, dead );
       mb.delete_entities( dead );
     }
     
       // test each group
-    MBRange edges[4];
+    Range edges[4];
     for (int grp = 0; grp < 4; ++grp) {
         // get the skin edges
       rval = tool.find_skin( ranges[grp], 1, edges[grp], use_adj );
@@ -8050,8 +8051,8 @@ MBErrorCode mb_skin_adjacent_surf_patches( MBInterface* )
       
         // check that we have the expected result
       std::vector<bool> seen(skin_size[grp], false);
-      for (MBRange::iterator e = edges[grp].begin(); e != edges[grp].end(); ++e) {
-        const MBEntityHandle* conn;
+      for (Range::iterator e = edges[grp].begin(); e != edges[grp].end(); ++e) {
+        const EntityHandle* conn;
         int len;
         rval = mb.get_connectivity( *e, conn, len );
         if (MB_SUCCESS != rval) return rval;

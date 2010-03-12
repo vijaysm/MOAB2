@@ -1,11 +1,13 @@
 #include "TestUtil.hpp"
-#include "MBCore.hpp"
-#include "MBTagConventions.hpp"
-#include "MBCN.hpp"
+#include "moab/Core.hpp"
+#include "moab/MBTagConventions.hpp"
+#include "moab/MBCN.hpp"
 #include "ReadGmsh.hpp"
 #include "FileOptions.hpp"
 #include <math.h>
 #include <algorithm>
+
+using namespace moab;
 
 /* Input test file: gmsh2.msh
  * 
@@ -22,7 +24,7 @@ void test_read_quads();
 void test_read_material_set();
 void test_read_geom_set();
 
-void read_file( MBInterface& moab, const char* input_file );
+void read_file( Interface& moab, const char* input_file );
 
 int main()
 {
@@ -37,9 +39,9 @@ int main()
 }
 
 
-void read_file( MBInterface& moab, const char* input_file )
+void read_file( Interface& moab, const char* input_file )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   ReadGmsh reader( &moab );
   FileOptions opts("");
   rval = reader.load_file( input_file, 0, opts, 0, 0, 0 );
@@ -49,17 +51,17 @@ void read_file( MBInterface& moab, const char* input_file )
 void test_read_nodes()
 {
   const double eps = 1e-100;
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
   read_file( moab, example );
   
-  std::vector<MBEntityHandle> nodes;
+  std::vector<EntityHandle> nodes;
   rval = mb.get_entities_by_type( 0, MBVERTEX, nodes );
   CHECK_ERR(rval);
   CHECK_EQUAL( (size_t)6, nodes.size() );
   
-  MBTag id_tag;
+  Tag id_tag;
   rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
   CHECK_ERR(rval);
   
@@ -120,17 +122,17 @@ void test_read_nodes()
 
 void test_read_quads()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
   read_file( moab, example );
   
-  std::vector<MBEntityHandle> quads;
+  std::vector<EntityHandle> quads;
   rval = mb.get_entities_by_type( 0, MBQUAD, quads );
   CHECK_ERR(rval);
   CHECK_EQUAL( (size_t)2, quads.size() );
   
-  MBTag id_tag;
+  Tag id_tag;
   rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
   CHECK_ERR(rval);
   
@@ -144,7 +146,7 @@ void test_read_quads()
   }
   
   int vtx_ids[4];
-  const MBEntityHandle* conn;
+  const EntityHandle* conn;
   int len;
   
   const int conn1[] = { 1, 2, 3, 4 };
@@ -170,27 +172,27 @@ void test_read_quads()
 
 void test_read_material_set()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
   read_file( moab, example );
   
-  MBTag mat_tag;
+  Tag mat_tag;
   rval = mb.tag_get_handle( MATERIAL_SET_TAG_NAME, mat_tag );
   CHECK_ERR(rval);
   
-  MBRange sets;
+  Range sets;
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &mat_tag, 0, 1, sets );
   CHECK_ERR(rval);
   CHECK_EQUAL( 1, (int)sets.size() );
-  MBEntityHandle set = sets.front();
+  EntityHandle set = sets.front();
   
   int id;
   rval = mb.tag_get_data( mat_tag, &set, 1, &id );
   CHECK_ERR(rval);
   CHECK_EQUAL( 99, id );
   
-  std::vector<MBEntityHandle> quads, contents;
+  std::vector<EntityHandle> quads, contents;
   rval = mb.get_entities_by_type( 0, MBQUAD, quads );
   CHECK_ERR(rval);
   rval = mb.get_entities_by_handle( set, contents );
@@ -203,22 +205,22 @@ void test_read_material_set()
 
 void test_read_geom_set()
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
   read_file( moab, example );
   
-  MBTag dim_tag, id_tag;
+  Tag dim_tag, id_tag;
   rval = mb.tag_get_handle( GEOM_DIMENSION_TAG_NAME, dim_tag );
   CHECK_ERR(rval);
   rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
   CHECK_ERR(rval);
   
-  MBRange sets;
+  Range sets;
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &dim_tag, 0, 1, sets );
   CHECK_ERR(rval);
   CHECK_EQUAL( 1, (int)sets.size() );
-  MBEntityHandle set = sets.front();
+  EntityHandle set = sets.front();
   
   int dim;
   rval = mb.tag_get_data( dim_tag, &set, 1, &dim );
@@ -230,7 +232,7 @@ void test_read_geom_set()
   CHECK_ERR(rval);
   CHECK_EQUAL( 3, id );
   
-  std::vector<MBEntityHandle> quads, contents;
+  std::vector<EntityHandle> quads, contents;
   rval = mb.get_entities_by_type( 0, MBQUAD, quads );
   CHECK_ERR(rval);
   rval = mb.get_entities_by_handle( set, contents );

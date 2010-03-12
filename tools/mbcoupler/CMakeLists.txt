@@ -3,8 +3,8 @@ include_directories(
 )
 
 set( MBCOUPLER_SRCS
-  MBCoupler.cpp
-  MBElemUtil.cpp
+  Coupler.cpp
+  ElemUtil.cpp
   errmem.c
   findpt.c
   poly.c

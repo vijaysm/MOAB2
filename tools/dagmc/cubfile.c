@@ -12,8 +12,7 @@
  */
 
 #include <stdlib.h>
-
-#include "MBEntityHandle.h" // for MOAB_HAVE_STDINT_H
+#include <stdint.h>
 
 #ifdef _MSC_VER /* windows */
 #  include <BaseTsd.h>

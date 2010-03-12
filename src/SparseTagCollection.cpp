@@ -31,9 +31,11 @@
 #include <algorithm>
 
 #include "SparseTagCollection.hpp"
-#include "MBRange.hpp"
+#include "moab/Range.hpp"
 #include "TagCompare.hpp"
 #include "VarLenTag.hpp"
+
+namespace moab {
 
 SparseTagCollection::SparseTagCollection(int data_size)
 {
@@ -56,12 +58,12 @@ SparseTagCollection::~SparseTagCollection()
   mData.clear();
 }
 
-MBErrorCode SparseTagCollection::set_data(const MBEntityHandle entity_handle, const void* data)
+ErrorCode SparseTagCollection::set_data(const EntityHandle entity_handle, const void* data)
 {
   if (mDataSize == MB_VARIABLE_LENGTH)
     return MB_VARIABLE_DATA_LENGTH;
 
-  MBErrorCode ret_val = MB_TAG_NOT_FOUND;
+  ErrorCode ret_val = MB_TAG_NOT_FOUND;
 
 #ifdef HAVE_UNORDERED_MAP
   myMapType::iterator iterator = mData.find(entity_handle);
@@ -80,14 +82,14 @@ MBErrorCode SparseTagCollection::set_data(const MBEntityHandle entity_handle, co
   {
     void* new_data = mAllocator.allocate(mDataSize);
     memcpy(new_data, data, mDataSize);
-    mData.insert(iterator, std::pair<const MBEntityHandle,void*>(entity_handle, new_data));
+    mData.insert(iterator, std::pair<const EntityHandle,void*>(entity_handle, new_data));
     ret_val = MB_SUCCESS;
   }
 
   return ret_val;
 }
 
-MBErrorCode SparseTagCollection::get_data(const MBEntityHandle entity_handle, void* data)
+ErrorCode SparseTagCollection::get_data(const EntityHandle entity_handle, void* data)
 {
   if (mDataSize == MB_VARIABLE_LENGTH)
     return MB_VARIABLE_DATA_LENGTH;
@@ -101,7 +103,7 @@ MBErrorCode SparseTagCollection::get_data(const MBEntityHandle entity_handle, vo
   return MB_SUCCESS;
 }
 
-MBErrorCode SparseTagCollection::set_data(const MBEntityHandle entity_handle, const void* data, int size)
+ErrorCode SparseTagCollection::set_data(const EntityHandle entity_handle, const void* data, int size)
 {
 #ifdef HAVE_UNORDERED_MAP
   myMapType::iterator iterator = mData.find(entity_handle);
@@ -119,7 +121,7 @@ MBErrorCode SparseTagCollection::set_data(const MBEntityHandle entity_handle, co
     if (iterator == mData.end() || iterator->first != entity_handle) {
       void* new_data = mAllocator.allocate(sizeof(VarLenTag));
       new (new_data) VarLenTag;
-      iterator = mData.insert( iterator, std::pair<const MBEntityHandle,void*>(entity_handle, new_data) );
+      iterator = mData.insert( iterator, std::pair<const EntityHandle,void*>(entity_handle, new_data) );
     }
     reinterpret_cast<VarLenTag*>(iterator->second)->set( data, size );
   }
@@ -129,7 +131,7 @@ MBErrorCode SparseTagCollection::set_data(const MBEntityHandle entity_handle, co
   
     if (iterator == mData.end() || iterator->first != entity_handle) {
       void* new_data = mAllocator.allocate(mDataSize);
-      iterator = mData.insert( iterator, std::pair<const MBEntityHandle,void*>(entity_handle, new_data) );
+      iterator = mData.insert( iterator, std::pair<const EntityHandle,void*>(entity_handle, new_data) );
     }
     memcpy( iterator->second, data, mDataSize);
   }
@@ -137,7 +139,7 @@ MBErrorCode SparseTagCollection::set_data(const MBEntityHandle entity_handle, co
   return MB_SUCCESS;
 }
 
-MBErrorCode SparseTagCollection::get_data(const MBEntityHandle entity_handle, const void*& data, int& size)
+ErrorCode SparseTagCollection::get_data(const EntityHandle entity_handle, const void*& data, int& size)
 {
   myMapType::iterator iter = mData.find(entity_handle);
 
@@ -158,7 +160,7 @@ MBErrorCode SparseTagCollection::get_data(const MBEntityHandle entity_handle, co
 
 
 
-MBErrorCode SparseTagCollection::remove_data( const MBEntityHandle entity_handle )
+ErrorCode SparseTagCollection::remove_data( const EntityHandle entity_handle )
 {
   myMapType::iterator iterator = mData.find(entity_handle);
 
@@ -175,7 +177,7 @@ MBErrorCode SparseTagCollection::remove_data( const MBEntityHandle entity_handle
 
 
 //! get number of entities of type
-MBErrorCode SparseTagCollection::get_number_entities(MBEntityType type, int& num_entities)
+ErrorCode SparseTagCollection::get_number_entities(EntityType type, int& num_entities)
 {
   num_entities = 0;
   myMapType::iterator iter;
@@ -188,7 +190,7 @@ MBErrorCode SparseTagCollection::get_number_entities(MBEntityType type, int& num
 }
 
 //! gets all entity handles that match a type and tag
-MBErrorCode SparseTagCollection::get_entities(MBEntityType type, MBRange &entities)
+ErrorCode SparseTagCollection::get_entities(EntityType type, Range &entities)
 {
   myMapType::iterator iter;
   for(iter = mData.begin(); iter != mData.end(); ++iter)
@@ -201,10 +203,10 @@ MBErrorCode SparseTagCollection::get_entities(MBEntityType type, MBRange &entiti
 
 
 //! gets all entity handles that match a type, tag and tag value
-MBErrorCode SparseTagCollection::get_entities_with_tag_value(
+ErrorCode SparseTagCollection::get_entities_with_tag_value(
                                                     const TagInfo& tag_info,
-                                                    MBEntityType type, 
-                                                    MBRange &entities, 
+                                                    EntityType type, 
+                                                    Range &entities, 
                                                     const void* tag_value,
                                                     int value_size)
 {
@@ -231,6 +233,7 @@ MBErrorCode SparseTagCollection::get_entities_with_tag_value(
   return MB_SUCCESS;
 }
 
+} // namespace moab
 
 
 

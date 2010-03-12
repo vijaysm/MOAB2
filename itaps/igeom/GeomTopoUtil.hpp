@@ -18,47 +18,49 @@
 #ifndef GEOM_TOPO_UTIL_HPP
 #define GEOM_TOPO_UTIL_HPP
 
-#include "MBForward.hpp"
-#include "MBRange.hpp"
+#include "moab/Forward.hpp"
+#include "moab/Range.hpp"
+
+using namespace moab;
 
 class GeomTopoUtil
 {
 public:
-  GeomTopoUtil(MBInterface *impl, bool find_geoments = false);
+  GeomTopoUtil(Interface *impl, bool find_geoments = false);
   ~GeomTopoUtil() {}
   
     //! Restore parent/child links between GEOM_TOPO mesh sets
-  MBErrorCode restore_topology();
+  ErrorCode restore_topology();
   
     //! Store sense of surface relative to volume.
     //!\return MB_MULTIPLE_ENTITIES_FOUND if surface already has a forward volume.
     //!        MB_SUCCESS if successful
     //!        otherwise whatever internal error code occured.
-  MBErrorCode set_sense( MBEntityHandle surface,
-                         MBEntityHandle volume,
+  ErrorCode set_sense( EntityHandle surface,
+                         EntityHandle volume,
                          bool forward );
 
-  MBErrorCode get_sense( MBEntityHandle surface,
-                         MBEntityHandle volume,
+  ErrorCode get_sense( EntityHandle surface,
+                         EntityHandle volume,
                          bool& forward );
 
-  MBErrorCode find_geomsets(MBRange *ranges = NULL);
+  ErrorCode find_geomsets(Range *ranges = NULL);
 
 private:
-  MBInterface *mdbImpl;
-  MBTag sense2Tag;
-  MBRange geomRanges[4];
+  Interface *mdbImpl;
+  Tag sense2Tag;
+  Range geomRanges[4];
   
     //! compute vertices inclusive and put on tag on sets in geom_sets
-  MBErrorCode construct_vertex_ranges(const MBRange &geom_sets,
-                                       const MBTag verts_tag);
+  ErrorCode construct_vertex_ranges(const Range &geom_sets,
+                                       const Tag verts_tag);
   
     //! given a range of geom topology sets, separate by dimension
-  MBErrorCode separate_by_dimension(const MBRange &geom_sets,
-                                     MBRange *entities, MBTag geom_tag = 0);
+  ErrorCode separate_by_dimension(const Range &geom_sets,
+                                     Range *entities, Tag geom_tag = 0);
 };
 
-inline GeomTopoUtil::GeomTopoUtil(MBInterface *impl, 
+inline GeomTopoUtil::GeomTopoUtil(Interface *impl, 
                                   bool find_geoments) 
         : mdbImpl(impl), sense2Tag(0) 
 {

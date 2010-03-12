@@ -14,7 +14,7 @@
  */
 
 /**
- * MBZoltan: class to get a mesh from MOAB and write a Zoltan partition set for
+ * Zoltan: class to get a mesh from MOAB and write a Zoltan partition set for
  * that mesh back into MOAB and to a file
  *
  */
@@ -23,7 +23,7 @@
 #define MB_ZOLTAN_HPP
 
 #include <stdlib.h>
-#include "MBmpi.h"
+#include "moab_mpi.h"
 #include "zoltan_cpp.h"
 
 extern "C" 
@@ -57,29 +57,34 @@ extern "C"
 }
 
 #include <vector>
-#include "MBTypes.h"
+#include "moab/Types.hpp"
 
-  class MBParallelComm;
-  class MBInterface;
-  class MBRange;
+namespace moab {
+
+  class ParallelComm;
+  class Interface;
+  class Range;
+}
+
+using namespace moab;
 
   class MBZoltan 
   {
 
   public:
-    MBZoltan( MBInterface *impl = NULL, 
+    MBZoltan( Interface *impl = NULL, 
               const bool use_coords = false,
               int argc = 0, 
               char **argv = NULL );
 
     ~MBZoltan();
 
-    MBErrorCode balance_mesh(const char *zmethod,
+    ErrorCode balance_mesh(const char *zmethod,
                              const char *other_method,
                              const bool write_as_sets = true,
                              const bool write_as_tags = false);
     
-    MBErrorCode partition_mesh(const int nparts,
+    ErrorCode partition_mesh(const int nparts,
                                const char *zmethod,
                                const char *other_method,
                                const bool write_as_sets = true,
@@ -88,16 +93,16 @@ extern "C"
     
     int get_mesh(std::vector<double> &pts, std::vector<int> &ids,
                  std::vector<int> &adjs, std::vector<int> &length,
-                 MBRange &elems);
+                 Range &elems);
 
       // given a processor assignment returned from Zoltan, write that as a
       // processor assignment to MOAB
-    MBErrorCode write_partition(const int nparts, MBRange &elems, 
+    ErrorCode write_partition(const int nparts, Range &elems, 
                                 const int *assignment,
                                 const bool write_as_sets,
                                 const bool write_as_tags);
 
-    MBErrorCode write_file(const char *filename, const char *out_file);
+    ErrorCode write_file(const char *filename, const char *out_file);
   
     void SetOCTPART_Parameters(const char *oct_method);
   
@@ -113,9 +118,9 @@ extern "C"
   
   private:
 
-    MBInterface *mbImpl;
+    Interface *mbImpl;
 
-    MBParallelComm *mbpc;
+    ParallelComm *mbpc;
 
     Zoltan *myZZ;
   
@@ -140,12 +145,12 @@ extern "C"
   
       // given the dimension, assemble the vertices and store in coords and
       // moab_ids
-    MBErrorCode assemble_graph(const int dimension, 
+    ErrorCode assemble_graph(const int dimension, 
                                std::vector<double> &coords,
                                std::vector<int> &moab_ids,
                                std::vector<int> &adjacencies, 
                                std::vector<int> &length,
-                               MBRange &elems);
+                               Range &elems);
 
     void mbFinalizePoints(int npts, int numExport,
                           ZOLTAN_ID_PTR exportLocalIDs, int *exportProcs,

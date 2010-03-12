@@ -9,7 +9,7 @@
 #include "MBParallelComm.hpp"
 #include "ReadParallel.hpp"
 #include "FileOptions.hpp"
-#include "MBmpi.h"
+#include "moab_mpi.h"
 #endif // USE_MPI
 
 #include <iostream>

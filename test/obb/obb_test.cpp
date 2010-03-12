@@ -1,10 +1,10 @@
-#include "MBCore.hpp"
-#include "MBRange.hpp"
-#include "MBOrientedBoxTreeTool.hpp"
-#include "MBOrientedBox.hpp"
-#include "MBTagConventions.hpp"
-#include "MBGeomUtil.hpp"
-#include "MBCN.hpp"
+#include "moab/Core.hpp"
+#include "moab/Range.hpp"
+#include "moab/OrientedBoxTreeTool.hpp"
+#include "OrientedBox.hpp"
+#include "moab/MBTagConventions.hpp"
+#include "moab/GeomUtil.hpp"
+#include "moab/MBCN.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -15,6 +15,8 @@
 #include <map>
 #define STRINGIFY_(A) #A
 #define STRINGIFY(A) STRINGIFY_(A)
+
+using namespace moab;
 
 const char* NAME = "obb_test";
 const char* DEFAULT_FILES[] = { STRINGIFY(SRCDIR) "/../3k-tri-sphere.vtk",
@@ -58,7 +60,7 @@ static void usage( const char* error, const char* opt )
         << " -s force construction of surface tree" << std::endl
         << " -S do not build surface tree." << std::endl
         << "    (Default: surface tree if file contains multiple surfaces" << std::endl
-        << " -u  use unordered (MBRange) meshsets for tree nodes" << std::endl
+        << " -u  use unordered (Range) meshsets for tree nodes" << std::endl
         << " -U  use ordered (vector) meshsets for tree nodes" << std::endl
         << " Verbosity (-q sets to 0, each -v increments, default is 1):" << std::endl
         << "  0 - no output" << std::endl
@@ -67,7 +69,7 @@ static void usage( const char* error, const char* opt )
         << "  3 - output errors for each node" << std::endl
         << "  4 - print tree" << std::endl
         << "  5 - print tree w/ contents of each node" << std::endl
-        << " See documentation for MBOrientedBoxTreeTool::Settings for " << std::endl
+        << " See documentation for OrientedBoxTreeTool::Settings for " << std::endl
         << " a description of tree generation settings." << std::endl
       ;
   exit( !!error );
@@ -104,12 +106,12 @@ static bool do_file( const char* filename );
 enum TriOption { DISABLE, ENABLE, AUTO };
 
 int verbosity = 1;
-MBOrientedBoxTreeTool::Settings settings;
+OrientedBoxTreeTool::Settings settings;
 double tolerance = 1e-6;
 bool write_cubit = false;
 bool write_vtk = false;
 bool write_ray_vtk = false;
-std::vector<MBCartVect> rays;
+std::vector<CartVect> rays;
 const char* save_file_name = 0;
 TriOption surfTree = AUTO;
 
@@ -166,7 +168,7 @@ int main( int argc, char* argv[] )
   }
   
   if (verbosity) {
-    MBCore core;
+    Core core;
     std::string version;
     core.impl_version( & version );
     std::cout << version << std::endl;
@@ -209,7 +211,7 @@ int main( int argc, char* argv[] )
 
 void parse_ray( int& i, int argc, char* argv[] )
 {
-  MBCartVect point, direction;
+  CartVect point, direction;
   if (6 != sscanf( get_option( i, argc, argv ), "%lf:%lf:%lf:%lf:%lf:%lf",
                    &point[0], &point[1], &point[2],
                    &direction[0], &direction[1], &direction[2] ))
@@ -220,24 +222,24 @@ void parse_ray( int& i, int argc, char* argv[] )
 }
  
 
-class TreeValidator : public MBOrientedBoxTreeTool::Op
+class TreeValidator : public OrientedBoxTreeTool::Op
 {
   private:
-    MBInterface* const instance;
-    MBOrientedBoxTreeTool* const tool;
+    Interface* const instance;
+    OrientedBoxTreeTool* const tool;
     const bool printing;
     const double epsilon;
     bool surfaces;
     std::ostream& stream;
-    MBOrientedBoxTreeTool::Settings settings;
+    OrientedBoxTreeTool::Settings settings;
     
-    void print( MBEntityHandle handle, const char* string ) {
+    void print( EntityHandle handle, const char* string ) {
       if (printing)
         stream << instance->id_from_handle(handle) << ": "
                << string << std::endl;
     }
     
-    MBErrorCode error( MBEntityHandle handle, const char* string ) {
+    ErrorCode error( EntityHandle handle, const char* string ) {
       ++error_count;
       print( handle, string );
       return MB_SUCCESS;
@@ -262,17 +264,17 @@ class TreeValidator : public MBOrientedBoxTreeTool::Op
     unsigned bad_outer_radius_count;
     unsigned missing_surface_count;
     unsigned multiple_surface_count;
-    std::set<MBEntityHandle> seen;
+    std::set<EntityHandle> seen;
     int surface_depth;
-    MBEntityHandle surface_handle;
+    EntityHandle surface_handle;
 
-    TreeValidator( MBInterface* instance_ptr, 
-                   MBOrientedBoxTreeTool* tool_ptr,
+    TreeValidator( Interface* instance_ptr, 
+                   OrientedBoxTreeTool* tool_ptr,
                    bool print_errors,
                    std::ostream& str,
                    double tol,
                    bool surfs,
-                   MBOrientedBoxTreeTool::Settings s )
+                   OrientedBoxTreeTool::Settings s )
       : instance(instance_ptr),
         tool(tool_ptr),
         printing(print_errors), 
@@ -306,22 +308,22 @@ class TreeValidator : public MBOrientedBoxTreeTool::Op
                     +unsorted_axis_count+non_unit_count+duplicate_entity_count
                     +bad_outer_radius_count+missing_surface_count+multiple_surface_count; }
     
-    virtual MBErrorCode visit( MBEntityHandle node,
+    virtual ErrorCode visit( EntityHandle node,
                                int depth,
                                bool& descend );
                                
-    virtual MBErrorCode leaf( MBEntityHandle ) { return MB_SUCCESS; }
+    virtual ErrorCode leaf( EntityHandle ) { return MB_SUCCESS; }
 };
 
 
-MBErrorCode TreeValidator::visit( MBEntityHandle node,
+ErrorCode TreeValidator::visit( EntityHandle node,
                                   int depth,
                                   bool& descend )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   descend = true;
   
-  MBRange contents;
+  Range contents;
   rval = instance->get_entities_by_handle( node, contents );
   if (MB_SUCCESS != rval) 
     return error(node, "Error getting contents of tree node.  Corrupt tree?");
@@ -332,8 +334,8 @@ MBErrorCode TreeValidator::visit( MBEntityHandle node,
     if (depth <= surface_depth) 
       surface_depth = -1;
       
-    MBEntityHandle surface = 0;
-    MBRange::iterator surf_iter = contents.lower_bound( MBENTITYSET );
+    EntityHandle surface = 0;
+    Range::iterator surf_iter = contents.lower_bound( MBENTITYSET );
     if (surf_iter != contents.end()) {
       surface = *surf_iter;
       contents.erase( surf_iter );
@@ -351,12 +353,12 @@ MBErrorCode TreeValidator::visit( MBEntityHandle node,
     }
   }
   
-  std::vector<MBEntityHandle> children;
+  std::vector<EntityHandle> children;
   rval = tool->get_moab_instance()->get_child_meshsets( node, children );
   if (MB_SUCCESS != rval || (!children.empty() && children.size() != 2)) 
     return error(node, "Error getting children.  Corrupt tree?");
   
-  MBOrientedBox box;
+  OrientedBox box;
   rval = tool->box( node, box );
   if (MB_SUCCESS != rval) 
     return error(node, "Error getting oriented box from tree node.  Corrupt tree?");
@@ -385,7 +387,7 @@ MBErrorCode TreeValidator::visit( MBEntityHandle node,
   
   if (!children.empty()) {
     for (int i = 0; i < 2; ++i) {
-      MBOrientedBox other_box;
+      OrientedBox other_box;
       rval = tool->box( children[i], other_box );
       if (MB_SUCCESS != rval) 
         return error( children[i], " Error getting oriented box from tree node.  Corrupt tree?" );
@@ -415,15 +417,15 @@ MBErrorCode TreeValidator::visit( MBEntityHandle node,
   bool duplicate_element = false;
   int num_outside = 0;
   bool boundary[6] = { false, false, false, false, false, false };
-  for (MBRange::iterator it = contents.begin(); it != contents.end(); ++it) {
-    MBEntityType type = instance->type_from_handle( *it );
+  for (Range::iterator it = contents.begin(); it != contents.end(); ++it) {
+    EntityType type = instance->type_from_handle( *it );
     int dim = MBCN::Dimension( type );
     if (dim != 2) {
       bad_element = true;
       continue;
     }
     
-    const MBEntityHandle* conn;
+    const EntityHandle* conn;
     int conn_len;
     rval = instance->get_connectivity( *it, conn, conn_len );
     if (MB_SUCCESS != rval) {
@@ -431,7 +433,7 @@ MBErrorCode TreeValidator::visit( MBEntityHandle node,
       continue;
     }
     
-    std::vector<MBCartVect> coords(conn_len);
+    std::vector<CartVect> coords(conn_len);
     rval = instance->get_coords( conn, conn_len, coords[0].array() );
     if (MB_SUCCESS != rval) {
       bad_element_conn = true;
@@ -439,7 +441,7 @@ MBErrorCode TreeValidator::visit( MBEntityHandle node,
     }
     
     bool outside = false;
-    for (std::vector<MBCartVect>::iterator j = coords.begin(); j != coords.end(); ++j) {
+    for (std::vector<CartVect>::iterator j = coords.begin(); j != coords.end(); ++j) {
       if (!box.contained( *j, epsilon ))
         outside = true;
       else for (int d = 0; d < 3; ++d) {
@@ -451,8 +453,8 @@ MBErrorCode TreeValidator::visit( MBEntityHandle node,
           boundary[2*d+1] = true;
 #else
         double ln = box.axis[d].length();
-        MBCartVect v1 = *j - box.center - box.axis[d];
-        MBCartVect v2 = *j - box.center + box.axis[d];
+        CartVect v1 = *j - box.center - box.axis[d];
+        CartVect v2 = *j - box.center + box.axis[d];
         if (fabs(v1 % box.axis[d]) <= ln * epsilon)
           boundary[2*d] = true;
         if (fabs(v2 % box.axis[d]) <= ln * epsilon)
@@ -469,11 +471,11 @@ MBErrorCode TreeValidator::visit( MBEntityHandle node,
     }
   }
   
-  MBCartVect alength( box.axis[0].length(), box.axis[1].length(), box.axis[2].length() );
+  CartVect alength( box.axis[0].length(), box.axis[1].length(), box.axis[2].length() );
 #if MB_ORIENTED_BOX_UNIT_VECTORS
-  MBCartVect length = box.length;
+  CartVect length = box.length;
 #else
-  MBCartVect length = alength;
+  CartVect length = alength;
 #endif
   
   if (length[0] > length[1] || length[0] > length[2] || length[1] > length[2]) {
@@ -540,30 +542,30 @@ MBErrorCode TreeValidator::visit( MBEntityHandle node,
   return MB_SUCCESS;
 }
 
-class CubitWriter : public MBOrientedBoxTreeTool::Op
+class CubitWriter : public OrientedBoxTreeTool::Op
 {
   public:
     CubitWriter( FILE* file_ptr, 
-                 MBOrientedBoxTreeTool* tool_ptr )
+                 OrientedBoxTreeTool* tool_ptr )
       : file(file_ptr), tool(tool_ptr) {}
     
-    MBErrorCode visit ( MBEntityHandle node,
+    ErrorCode visit ( EntityHandle node,
                         int depth,
                         bool& descend );
-    MBErrorCode leaf( MBEntityHandle ) { return MB_SUCCESS; }
+    ErrorCode leaf( EntityHandle ) { return MB_SUCCESS; }
     
   private:
     FILE* file;
-    MBOrientedBoxTreeTool* tool;
+    OrientedBoxTreeTool* tool;
 };
 
-MBErrorCode CubitWriter::visit( MBEntityHandle node,
+ErrorCode CubitWriter::visit( EntityHandle node,
                                 int ,
                                 bool& descend )
 {
   descend = true;
-  MBOrientedBox box;
-  MBErrorCode rval = tool->box( node, box );
+  OrientedBox box;
+  ErrorCode rval = tool->box( node, box );
   if (rval != MB_SUCCESS)
     return rval;
 
@@ -572,11 +574,11 @@ MBErrorCode CubitWriter::visit( MBEntityHandle node,
     for (int j = 0; j < 2; ++j)
       for (int k = 0; k < 2; ++k) {
 #if MB_ORIENTED_BOX_UNIT_VECTORS
-        MBCartVect corner = box.center + box.length[0] * sign[i] * box.axis[0] +
+        CartVect corner = box.center + box.length[0] * sign[i] * box.axis[0] +
                                          box.length[1] * sign[j] * box.axis[1] +
                                          box.length[2] * sign[k] * box.axis[2];
 #else
-        MBCartVect corner = box.center + sign[i] * box.axis[0] +
+        CartVect corner = box.center + sign[i] * box.axis[0] +
                                          sign[j] * box.axis[1] +
                                          sign[k] * box.axis[2];
 #endif
@@ -598,31 +600,31 @@ MBErrorCode CubitWriter::visit( MBEntityHandle node,
   return MB_SUCCESS;
 }
 
-class VtkWriter : public MBOrientedBoxTreeTool::Op
+class VtkWriter : public OrientedBoxTreeTool::Op
 {
    public:
     VtkWriter( std::string base_name, 
-               MBInterface* interface )
+               Interface* interface )
       : baseName(base_name), instance(interface) {}
     
-    MBErrorCode visit ( MBEntityHandle node,
+    ErrorCode visit ( EntityHandle node,
                         int depth,
                         bool& descend );
                         
-    MBErrorCode leaf( MBEntityHandle node ) { return MB_SUCCESS; }
+    ErrorCode leaf( EntityHandle node ) { return MB_SUCCESS; }
     
   private:
     std::string baseName;
-    MBInterface* instance;
+    Interface* instance;
 };
 
-MBErrorCode VtkWriter::visit( MBEntityHandle node,
+ErrorCode VtkWriter::visit( EntityHandle node,
                               int ,
                               bool& descend )
 {
   descend = true;
   
-  MBErrorCode rval;
+  ErrorCode rval;
   int count;
   rval = instance->get_number_entities_by_handle( node, count );
   if (MB_SUCCESS != rval || 0 == count)
@@ -641,25 +643,25 @@ MBErrorCode VtkWriter::visit( MBEntityHandle node,
 }
 
   
-static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool, 
-                              MBEntityHandle root_set,
+static bool do_ray_fire_test( OrientedBoxTreeTool& tool, 
+                              EntityHandle root_set,
                               const char* filename,
                               bool have_surface_tree );
                               
-static bool do_closest_point_test( MBOrientedBoxTreeTool& tool,
-                                   MBEntityHandle root_set,
+static bool do_closest_point_test( OrientedBoxTreeTool& tool,
+                                   EntityHandle root_set,
                                    bool have_surface_tree );
 
-static MBErrorCode save_tree( MBInterface* instance,
+static ErrorCode save_tree( Interface* instance,
                               const char* filename,
-                              MBEntityHandle tree_root );
+                              EntityHandle tree_root );
   
 static bool do_file( const char* filename )
 {
-  MBErrorCode rval;
-  MBCore instance;
-  MBInterface* const iface = &instance;
-  MBOrientedBoxTreeTool tool( iface );
+  ErrorCode rval;
+  Core instance;
+  Interface* const iface = &instance;
+  OrientedBoxTreeTool tool( iface );
   bool haveSurfTree = false;
   
   if (verbosity) 
@@ -675,9 +677,9 @@ static bool do_file( const char* filename )
   
     // IF building from surfaces, get surfaces.
     // If AUTO and less than two surfaces, don't build from surfaces.
-  MBRange surfaces;
+  Range surfaces;
   if (surfTree != DISABLE) {
-    MBTag surftag;
+    Tag surftag;
     rval = iface->tag_get_handle( GEOM_DIMENSION_TAG_NAME, surftag );
     if (MB_SUCCESS == rval) {
       int dim = 2;
@@ -698,8 +700,8 @@ static bool do_file( const char* filename )
     haveSurfTree = (ENABLE == surfTree) || (surfaces.size() > 1);
   }
   
-  MBEntityHandle root;
-  MBRange entities;
+  EntityHandle root;
+  Range entities;
   if (!haveSurfTree) {
     rval = iface->get_entities_by_dimension( 0, 2, entities );
     if (MB_SUCCESS != rval) {
@@ -729,9 +731,9 @@ static bool do_file( const char* filename )
       std::cout << "Building tree from " << surfaces.size() << " surfaces" << std::endl;
 
       // Build subtree for each surface, get list of all entities to use later
-    MBRange surf_trees, surf_tris;
-    MBEntityHandle surf_root;
-    for (MBRange::iterator s = surfaces.begin(); s != surfaces.end(); ++s) {
+    Range surf_trees, surf_tris;
+    EntityHandle surf_root;
+    for (Range::iterator s = surfaces.begin(); s != surfaces.end(); ++s) {
       surf_tris.clear();
       rval= iface->get_entities_by_dimension( *s, 2, surf_tris );
       if (MB_SUCCESS != rval)
@@ -892,19 +894,19 @@ static bool do_file( const char* filename )
 struct RayTest {
   const char* description;
   unsigned expected_hits;
-  MBCartVect point, direction;
+  CartVect point, direction;
 };
 
-static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool, 
-                              MBEntityHandle root_set,
+static bool do_ray_fire_test( OrientedBoxTreeTool& tool, 
+                              EntityHandle root_set,
                               const char* filename,
                               bool haveSurfTree )
 {
   if (verbosity > 1)
     std::cout << "beginning ray fire tests" << std::endl;
  
-  MBOrientedBox box;
-  MBErrorCode rval = tool.box( root_set, box );
+  OrientedBox box;
+  ErrorCode rval = tool.box( root_set, box );
   if (MB_SUCCESS != rval) {
     if (verbosity)
       std::cerr << "Error getting box for tree root set" << std::endl;
@@ -921,7 +923,7 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
    { "skew miss",                 0, box.center + box.dimensions(),          box.dimensions() * box.axis[2] }
    };
   
-  MBOrientedBoxTreeTool::TrvStats stats;
+  OrientedBoxTreeTool::TrvStats stats;
 
   bool result = true;
   const size_t num_test = sizeof(tests)/sizeof(tests[0]);
@@ -934,7 +936,7 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
     rval = tool.ray_intersect_triangles( intersections, root_set, tolerance, tests[i].point.array(), tests[i].direction.array(), 0, &stats );
     if (MB_SUCCESS != rval) {
       if (verbosity)
-        std::cout << "  Call to MBOrientedBoxTreeTool::ray_intersect_triangles failed." << std::endl;
+        std::cout << "  Call to OrientedBoxTreeTool::ray_intersect_triangles failed." << std::endl;
       result = false;
       continue;
     }
@@ -957,11 +959,11 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
     
     const int NUM_NON_TOL_INT = 1;
     std::vector<double> intersections2;
-    std::vector<MBEntityHandle> surf_handles, facet_handles;
+    std::vector<EntityHandle> surf_handles, facet_handles;
     rval = tool.ray_intersect_sets( intersections2, surf_handles, facet_handles, root_set, tolerance, NUM_NON_TOL_INT, tests[i].point.array(), tests[i].direction.array(), 0, &stats );
     if (MB_SUCCESS != rval) {
       if (verbosity)
-        std::cout << "  Call to MBOrientedBoxTreeTool::ray_intersect_sets failed." << std::endl;
+        std::cout << "  Call to OrientedBoxTreeTool::ray_intersect_sets failed." << std::endl;
       result = false;
       continue;
     }
@@ -1028,7 +1030,7 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
     std::cout << rays[i] << "+" << rays[i+1] << " : ";
     
     if (!haveSurfTree) {
-      MBRange leaves;
+      Range leaves;
       std::vector<double> intersections;
       rval = tool.ray_intersect_boxes( leaves, root_set, tolerance, rays[i].array(), rays[i+1].array(), 0, &stats );
       if (MB_SUCCESS != rval) {
@@ -1046,7 +1048,7 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
         name += num;
         name += ".vtk";
 
-        std::vector<MBEntityHandle> sets(leaves.size());
+        std::vector<EntityHandle> sets(leaves.size());
         std::copy( leaves.begin(), leaves.end(), sets.begin() );
         tool.get_moab_instance()->write_mesh( name.c_str(), &sets[0], sets.size() );
         if (verbosity)
@@ -1072,14 +1074,14 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
 
       if (!leaves.empty() && write_cubit && verbosity > 2) {
         std::cout << "  intersected boxes:";
-        for (MBRange::iterator i= leaves.begin(); i!= leaves.end(); ++i)
+        for (Range::iterator i= leaves.begin(); i!= leaves.end(); ++i)
           std::cout << " " << tool.get_moab_instance()->id_from_handle(*i);
         std::cout << std::endl;
       }
     }
     else {
       std::vector<double> intersections;
-      std::vector<MBEntityHandle> surfaces, facets;
+      std::vector<EntityHandle> surfaces, facets;
       rval = tool.ray_intersect_sets( intersections, surfaces, facets, root_set, tolerance, 1000, rays[i].array(), rays[i+1].array(), 0, &stats );
       if (MB_SUCCESS != rval) {
         std::cout << "FAILED" << std::endl;
@@ -1113,7 +1115,7 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
       }
       
       
-      MBTag idtag;
+      Tag idtag;
       rval = tool.get_moab_instance()->tag_get_handle( GLOBAL_ID_TAG_NAME, idtag );
       if (MB_SUCCESS != rval) {
         std::cout << "NO GLOBAL_ID TAG." << std::endl;
@@ -1155,17 +1157,17 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
 }
 
 
-MBErrorCode save_tree( MBInterface* instance,
+ErrorCode save_tree( Interface* instance,
                        const char* filename,
-                       MBEntityHandle tree_root )
+                       EntityHandle tree_root )
 {
-  MBErrorCode rval;
-  MBTag tag;
+  ErrorCode rval;
+  Tag tag;
   
   rval = instance->tag_get_handle( "OBB_ROOT", tag );
   if (MB_SUCCESS == rval) {
     int size;
-    MBDataType type;
+    DataType type;
     rval = instance->tag_get_size( tag, size );
     if (MB_SUCCESS != rval)
       return rval;
@@ -1173,11 +1175,11 @@ MBErrorCode save_tree( MBInterface* instance,
     if (MB_SUCCESS != rval)
       return rval;
 
-    if (size != sizeof(MBEntityHandle) || type != MB_TYPE_HANDLE)
+    if (size != sizeof(EntityHandle) || type != MB_TYPE_HANDLE)
       return MB_FAILURE;
   }
   else {
-    rval = instance->tag_create( "OBB_ROOT", sizeof(MBEntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, tag, 0 );
+    rval = instance->tag_create( "OBB_ROOT", sizeof(EntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, tag, 0 );
     if (MB_SUCCESS != rval)
       return rval;
   }
@@ -1189,12 +1191,12 @@ MBErrorCode save_tree( MBInterface* instance,
   return instance->write_mesh( filename );
 }
 
-static MBErrorCode tri_coords( MBInterface* moab,
-                               MBEntityHandle tri,
-                               MBCartVect coords[3] )
+static ErrorCode tri_coords( Interface* moab,
+                               EntityHandle tri,
+                               CartVect coords[3] )
 {
-  MBErrorCode rval;
-  const MBEntityHandle* conn;
+  ErrorCode rval;
+  const EntityHandle* conn;
   int len;
   
   rval = moab->get_connectivity( tri, conn, len, true );
@@ -1204,14 +1206,14 @@ static MBErrorCode tri_coords( MBInterface* moab,
   return rval;
 }
 
-static MBErrorCode closest_point_in_triangles( MBInterface* moab,
-                                        const MBCartVect& to_pos,
-                                        MBCartVect& result_pos,
-                                        MBEntityHandle& result_tri )
+static ErrorCode closest_point_in_triangles( Interface* moab,
+                                        const CartVect& to_pos,
+                                        CartVect& result_pos,
+                                        EntityHandle& result_tri )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
 
-  MBRange triangles;
+  Range triangles;
   rval = moab->get_entities_by_type( 0, MBTRI, triangles );
   if (MB_SUCCESS != rval)
     return rval;
@@ -1219,20 +1221,20 @@ static MBErrorCode closest_point_in_triangles( MBInterface* moab,
   if (triangles.empty())
     return MB_FAILURE;
   
-  MBRange::iterator i = triangles.begin();
-  MBCartVect coords[3];
+  Range::iterator i = triangles.begin();
+  CartVect coords[3];
   rval = tri_coords( moab, *i, coords );
   if (MB_SUCCESS != rval) return rval;
   result_tri = *i;
-  MBGeomUtil::closest_location_on_tri( to_pos, coords, result_pos );
-  MBCartVect diff = to_pos - result_pos;
+  GeomUtil::closest_location_on_tri( to_pos, coords, result_pos );
+  CartVect diff = to_pos - result_pos;
   double shortest_dist_sqr = diff % diff;
   
   for (++i; i != triangles.end(); ++i) {
     rval = tri_coords( moab, *i, coords );
     if (MB_SUCCESS != rval) return rval;
-    MBCartVect pos;
-    MBGeomUtil::closest_location_on_tri( to_pos, coords, pos );
+    CartVect pos;
+    GeomUtil::closest_location_on_tri( to_pos, coords, pos );
     diff = to_pos - pos;
     double dsqr = diff % diff;
     if (dsqr < shortest_dist_sqr) {
@@ -1245,48 +1247,48 @@ static MBErrorCode closest_point_in_triangles( MBInterface* moab,
   return MB_SUCCESS;
 }
   
-static bool tri_in_set( MBInterface* moab,
-                        MBEntityHandle set,
-                        MBEntityHandle tri )
+static bool tri_in_set( Interface* moab,
+                        EntityHandle set,
+                        EntityHandle tri )
 {
-  MBRange tris;
-  MBErrorCode rval = moab->get_entities_by_type( set, MBTRI, tris );
+  Range tris;
+  ErrorCode rval = moab->get_entities_by_type( set, MBTRI, tris );
   if (MB_SUCCESS != rval) return false;
-  MBRange::iterator i = tris.find( tri );
+  Range::iterator i = tris.find( tri );
   return i != tris.end();
 }
 
-static bool do_closest_point_test( MBOrientedBoxTreeTool& tool,
-                                   MBEntityHandle root_set,
+static bool do_closest_point_test( OrientedBoxTreeTool& tool,
+                                   EntityHandle root_set,
                                    bool have_surface_tree )
 {
   if (verbosity > 1)
     std::cout << "beginning closest point tests" << std::endl;
 
-  MBErrorCode rval;
-  MBInterface* moab = tool.get_moab_instance();
-  MBEntityHandle set;
-  MBEntityHandle* set_ptr = have_surface_tree ? &set : 0;
+  ErrorCode rval;
+  Interface* moab = tool.get_moab_instance();
+  EntityHandle set;
+  EntityHandle* set_ptr = have_surface_tree ? &set : 0;
   bool result = true;
   
     // get root box
-  MBOrientedBox box;
+  OrientedBox box;
   rval = tool.box( root_set, box );
   if (MB_SUCCESS != rval) {
     if (verbosity) std::cerr << "Invalid tree in do_closest_point_test\n";
     return false;
   }
 
-  MBOrientedBoxTreeTool::TrvStats stats;
+  OrientedBoxTreeTool::TrvStats stats;
   
     // chose some points to test
-  MBCartVect points[] = { box.center + box.scaled_axis(0),
+  CartVect points[] = { box.center + box.scaled_axis(0),
                           box.center + 2 * box.scaled_axis(1),
                           box.center + 0.5 * box.scaled_axis(2),
                           box.center + -2*box.scaled_axis(0)
                                      + -2*box.scaled_axis(1)
                                      + -2*box.scaled_axis(2),
-                          MBCartVect(100,100,100) };
+                          CartVect(100,100,100) };
   const int num_pts = sizeof(points)/sizeof(points[0]);
   
     // test each point
@@ -1294,8 +1296,8 @@ static bool do_closest_point_test( MBOrientedBoxTreeTool& tool,
     if (verbosity >= 3) 
       std::cout << "Evaluating closest point to " << points[i] << std::endl;
     
-    MBCartVect n_result, t_result;
-    MBEntityHandle n_tri = 0, t_tri;
+    CartVect n_result, t_result;
+    EntityHandle n_tri = 0, t_tri;
     
       // find closest point the slow way
     rval = closest_point_in_triangles( moab, points[i], n_result, n_tri );
@@ -1314,12 +1316,12 @@ static bool do_closest_point_test( MBOrientedBoxTreeTool& tool,
                                      &stats );
     if (MB_SUCCESS != rval) {
       if (verbosity)
-        std::cout << "MBOrientedBoxTreeTool:: closest_to_location( " << points[i] << " ) FAILED!" << std::endl;
+        std::cout << "OrientedBoxTreeTool:: closest_to_location( " << points[i] << " ) FAILED!" << std::endl;
       result = false;
       continue;
     }
     
-    MBCartVect diff = t_result - n_result;
+    CartVect diff = t_result - n_result;
     if ( diff.length() > tolerance ) {
       if (verbosity)
         std::cout << "Closest point to " << points[i] << " INCORRECT! (" 
@@ -1333,11 +1335,11 @@ static bool do_closest_point_test( MBOrientedBoxTreeTool& tool,
         // already tested that it is the same location 
         // as the expected value.  We just have a case where
         // the point was on an edge or vertex.
-      MBCartVect coords[3];
-      MBCartVect diff(1,1,1);
+      CartVect coords[3];
+      CartVect diff(1,1,1);
       rval = tri_coords( moab, t_tri, coords );
       if (MB_SUCCESS == rval) {
-        MBGeomUtil::closest_location_on_tri( points[i], coords, n_result );
+        GeomUtil::closest_location_on_tri( points[i], coords, n_result );
         diff = n_result - t_result;
       }
       if ((diff % diff) > tolerance) {
@@ -1366,14 +1368,14 @@ static bool do_closest_point_test( MBOrientedBoxTreeTool& tool,
 }
 
 #define IS_BUILDING_MB
-#include "MBInternals.hpp"
+#include "Internals.hpp"
     
-void print_mb_range( const MBRange& range )
+void print_mb_range( const Range& range )
 {
-  MBRange::const_pair_iterator i = range.const_pair_begin();
+  Range::const_pair_iterator i = range.const_pair_begin();
   for (; i != range.const_pair_end(); ++i) {
-    MBEntityType type1 = TYPE_FROM_HANDLE( i->first );
-    MBEntityType type2 = TYPE_FROM_HANDLE( i->second );
+    EntityType type1 = TYPE_FROM_HANDLE( i->first );
+    EntityType type2 = TYPE_FROM_HANDLE( i->second );
     int id1 = ID_FROM_HANDLE( i->first );
     int id2 = ID_FROM_HANDLE( i->second );
     std::cout << MBCN::EntityTypeName( type1 ) << " " << id1;

@@ -5,6 +5,8 @@
 #include "TagInfo.hpp"
 #include <vector>
 
+namespace moab {
+
 class HomCoord;
 class TagServer;
 
@@ -20,7 +22,7 @@ class SequenceManager
       /** Find entity sequence containing specified handle.
        *\return MB_SUCCESS or MB_ENTITY_NOT_FOUND
        */
-    MBErrorCode find( MBEntityHandle handle, EntitySequence*& sequence_out )
+    ErrorCode find( EntityHandle handle, EntitySequence*& sequence_out )
       { 
         return typeData[TYPE_FROM_HANDLE(handle)].find( handle, sequence_out );
       }
@@ -28,25 +30,25 @@ class SequenceManager
       /** Find entity sequence containing specified handle.
        *\return MB_SUCCESS or MB_ENTITY_NOT_FOUND
        */
-    MBErrorCode find( MBEntityHandle handle, const EntitySequence*& sequence_out ) const
+    ErrorCode find( EntityHandle handle, const EntitySequence*& sequence_out ) const
       { 
         return typeData[TYPE_FROM_HANDLE(handle)].find( handle, sequence_out );
       }
     
-      /** Get all entities of a given MBEntityType */
-   void get_entities( MBEntityType type, MBRange& entities_out ) const
+      /** Get all entities of a given EntityType */
+   void get_entities( EntityType type, Range& entities_out ) const
       { typeData[type].get_entities( entities_out ); }
     
-      /** Get all entities of a given MBEntityType */
-   void get_entities( MBEntityType type, std::vector<MBEntityHandle>& entities_out ) const
+      /** Get all entities of a given EntityType */
+   void get_entities( EntityType type, std::vector<EntityHandle>& entities_out ) const
       { typeData[type].get_entities( entities_out ); }
     
-      /** Count entities of a given MBEntityType */
-    MBEntityID get_number_entities( MBEntityType type ) const
+      /** Count entities of a given EntityType */
+    EntityID get_number_entities( EntityType type ) const
       { return typeData[type].get_number_entities(); }
       
       /** Get most recently accessed sequence for a given type */
-    const EntitySequence* get_last_accessed_sequence( MBEntityType type ) const
+    const EntitySequence* get_last_accessed_sequence( EntityType type ) const
       { return typeData[type].get_last_accessed(); }
     
       /**\brief Replace subset of existing sequence with new 
@@ -57,42 +59,42 @@ class SequenceManager
        * sequence.  Existing sequence will be removed, modified, or split
        * into two prevent it from overlapping the new sequence.
        */
-    MBErrorCode replace_subsequence( EntitySequence* new_seq, TagServer* ts );
+    ErrorCode replace_subsequence( EntitySequence* new_seq, TagServer* ts );
     
       /** Check if passed entity handles are valid */
-    MBErrorCode check_valid_entities( const MBRange& entities ) const;
+    ErrorCode check_valid_entities( const Range& entities ) const;
     
       /** Check if passed entity handles are valid */
-    MBErrorCode check_valid_entities( const MBEntityHandle entities[],
+    ErrorCode check_valid_entities( const EntityHandle entities[],
                                       size_t num_entities ) const;
     
       /** Delete an entity.  Deletes sequence if only contained entity. */
-    MBErrorCode delete_entity( MBEntityHandle entity );
+    ErrorCode delete_entity( EntityHandle entity );
     
       /** Delete entities */
-    MBErrorCode delete_entities( const MBRange& entities );
+    ErrorCode delete_entities( const Range& entities );
     
       /** Allocate a vertex (possibly in an existing sequence) and 
        *  assign it the passed coordinate values.
        */
-    MBErrorCode create_vertex( const double coords[3],
-                               MBEntityHandle& handle_out );
+    ErrorCode create_vertex( const double coords[3],
+                               EntityHandle& handle_out );
     
       /** Allocate a element (possibly in an existing sequence) and 
        *  assign it the passed connectivity.
        */
-    MBErrorCode create_element( MBEntityType type,
-                                const MBEntityHandle* conn_array,
+    ErrorCode create_element( EntityType type,
+                                const EntityHandle* conn_array,
                                 unsigned num_vertices,
-                                MBEntityHandle& handle_out );
+                                EntityHandle& handle_out );
     
       /** Allocate an entity set (possibly in an existing sequence) */
-    MBErrorCode create_mesh_set( unsigned flags,
-                                 MBEntityHandle& handle_out );
+    ErrorCode create_mesh_set( unsigned flags,
+                                 EntityHandle& handle_out );
       /** Allocate an entity set with the specified handle. 
        *\return MB_ALREADY_ALLOCATED if handle is in use, MB_SUCCESS otherwise.
        */
-    MBErrorCode allocate_mesh_set( MBEntityHandle at_this_handle,
+    ErrorCode allocate_mesh_set( EntityHandle at_this_handle,
                                    unsigned flags );
     
       /**\brief Allocate a block of consecutive entity handles
@@ -112,11 +114,11 @@ class SequenceManager
        *                    NOTE: first_handle_out may not be first handle in
        *                    sequence.
        */
-    MBErrorCode create_entity_sequence( MBEntityType type,
-                                        MBEntityID num_entities,
+    ErrorCode create_entity_sequence( EntityType type,
+                                        EntityID num_entities,
                                         int nodes_per_entity,
-                                        MBEntityID start_id_hint,
-                                        MBEntityHandle& first_handle_out,
+                                        EntityID start_id_hint,
+                                        EntityHandle& first_handle_out,
                                         EntitySequence*& sequence_out );
     
        /**\brief Allocate a block of consecutive mesh sets
@@ -136,59 +138,59 @@ class SequenceManager
        *                    NOTE: first_handle_out may not be first handle in
        *                    sequence.
        */
-    MBErrorCode create_meshset_sequence( MBEntityID num_sets,
-                                         MBEntityID start_id_hint,
+    ErrorCode create_meshset_sequence( EntityID num_sets,
+                                         EntityID start_id_hint,
                                          const unsigned* flags,
-                                         MBEntityHandle& first_handle_out,
+                                         EntityHandle& first_handle_out,
                                          EntitySequence*& sequence_out );
     
       /**\brief Allocate a block of consecutive mesh sets
        *
        * Alternate form that creates all mesh sets with same flags.
        */
-    MBErrorCode create_meshset_sequence( MBEntityID num_sets,
-                                         MBEntityID start_id_hint,
+    ErrorCode create_meshset_sequence( EntityID num_sets,
+                                         EntityID start_id_hint,
                                          unsigned flags,
-                                         MBEntityHandle& first_handle_out,
+                                         EntityHandle& first_handle_out,
                                          EntitySequence*& sequence_out );
     
       /** Create structured mesh */
-    MBErrorCode create_scd_sequence( int imin, int jmin, int kmin,
+    ErrorCode create_scd_sequence( int imin, int jmin, int kmin,
                                      int imax, int jmax, int kmax,
-                                     MBEntityType type,
-                                     MBEntityID start_id_hint,
-                                     MBEntityHandle& first_handle_out,
+                                     EntityType type,
+                                     EntityID start_id_hint,
+                                     EntityHandle& first_handle_out,
                                      EntitySequence*& sequence_out );
     
       /** Create structured mesh */
-    MBErrorCode create_scd_sequence( const HomCoord& coord_min,
+    ErrorCode create_scd_sequence( const HomCoord& coord_min,
                                      const HomCoord& coord_max,
-                                     MBEntityType type,
-                                     MBEntityID start_id_hint,
-                                     MBEntityHandle& first_handle_out,
+                                     EntityType type,
+                                     EntityID start_id_hint,
+                                     EntityHandle& first_handle_out,
                                      EntitySequence*& sequence_out );
 
       /** Create swept mesh */
-    MBErrorCode create_sweep_sequence( int imin, int jmin, int kmin,
+    ErrorCode create_sweep_sequence( int imin, int jmin, int kmin,
 				       int imax, int jmax, int kmax,
 				       int* Cq,
-				       MBEntityType type,
-				       MBEntityID start_id_hint,
-				       MBEntityHandle& first_handle_out,
+				       EntityType type,
+				       EntityID start_id_hint,
+				       EntityHandle& first_handle_out,
 				       EntitySequence*& sequence_out );
     
       /** Create swept mesh */
-    MBErrorCode create_sweep_sequence( const HomCoord& coord_min,
+    ErrorCode create_sweep_sequence( const HomCoord& coord_min,
 				       const HomCoord& coord_max,
 				       int* Cq,
-				       MBEntityType type,
-				       MBEntityID start_id_hint,
-				       MBEntityHandle& first_handle_out,
+				       EntityType type,
+				       EntityID start_id_hint,
+				       EntityHandle& first_handle_out,
 				       EntitySequence*& sequence_out );
 
     /** Add a structured vertex sequence to this structured element sequence;
      * see comments in ScdElementData */
-  MBErrorCode add_vsequence(EntitySequence *vert_seq,
+  ErrorCode add_vsequence(EntitySequence *vert_seq,
                             EntitySequence *elem_seq,
                             const HomCoord &p1, const HomCoord &q1,
                             const HomCoord &p2, const HomCoord &q2,
@@ -197,22 +199,22 @@ class SequenceManager
                             const HomCoord *bb_min = NULL,
                             const HomCoord *bb_max = NULL);
 
-      /** Get data for a specific MBEntityType */
-    TypeSequenceManager& entity_map( MBEntityType type )
+      /** Get data for a specific EntityType */
+    TypeSequenceManager& entity_map( EntityType type )
       { return typeData[type]; }
     
-      /** Get data for a specific MBEntityType */
-    const TypeSequenceManager& entity_map( MBEntityType type ) const
+      /** Get data for a specific EntityType */
+    const TypeSequenceManager& entity_map( EntityType type ) const
       { return typeData[type]; }
     
     void get_memory_use( unsigned long& total_entity_storage,
                          unsigned long& total_storage ) const;
                          
-    void get_memory_use( MBEntityType type,
+    void get_memory_use( EntityType type,
                          unsigned long& total_entity_storage,
                          unsigned long& total_storage ) const;
     
-    void get_memory_use( const MBRange& entities,
+    void get_memory_use( const Range& entities,
                          unsigned long& total_entity_storage,
                          unsigned long& total_amortized_storage ) const;
     
@@ -227,17 +229,17 @@ class SequenceManager
        *\param tag_id   The ID to allocate/reserve
        *\param tag_size The size of the tag value for each entity
        */
-    MBErrorCode reserve_tag_id( int tag_size, MBTagId tag_id );
+    ErrorCode reserve_tag_id( int tag_size, TagId tag_id );
     
       /** Release a reserved tag ID any any associated storage */
-    MBErrorCode release_tag( MBTagId tag_id );
+    ErrorCode release_tag( TagId tag_id );
     
       /** If tag data is allocated for the specified entity,
        *  change it to the passed default value.  Otherwise 
        *  do nothing. 
        */
-    MBErrorCode remove_tag_data( MBTagId tag_id, 
-                                 MBEntityHandle handle,
+    ErrorCode remove_tag_data( TagId tag_id, 
+                                 EntityHandle handle,
                                  const void* default_tag_value,
                                  int default_value_size = 0 );
                                  
@@ -247,8 +249,8 @@ class SequenceManager
        *
        *\NOTE Will fail for variable-length tag data.
        */
-    MBErrorCode set_tag_data( MBTagId tag_id,
-                              const MBEntityHandle* handles,
+    ErrorCode set_tag_data( TagId tag_id,
+                              const EntityHandle* handles,
                               int num_handles,
                               const void* values,
                               const void* default_value );
@@ -262,24 +264,24 @@ class SequenceManager
        *\param default_value Used to initialize any additional tag storage.  Ignored
        *                   for variable-length tags.
        */
-    MBErrorCode set_tag_data( MBTagId tag_id,
-                              const MBEntityHandle* handles,
+    ErrorCode set_tag_data( TagId tag_id,
+                              const EntityHandle* handles,
                               int num_handles,
                               void const* const* values,
                               const int* lengths,
                               const void* default_value );
                               
-      /** Set fixed-length tag value for an MBRange of entities
+      /** Set fixed-length tag value for an Range of entities
        *\NOTE Default value must be given because it is often
        *      necessary to allocate storage for other entities
        *\NOTE Will fail for variable-length tag data
        */
-    MBErrorCode set_tag_data( MBTagId tag_id,
-                              const MBRange& handles,
+    ErrorCode set_tag_data( TagId tag_id,
+                              const Range& handles,
                               const void* values,
                               const void* default_value );
                               
-      /** Set tag data for an MBRange of entities.
+      /** Set tag data for an Range of entities.
        *
        *\param tag_id  The tag
        *\param handles The entities
@@ -291,8 +293,8 @@ class SequenceManager
        *\param default_value The default value for the tag.  Ignored for
        *               variable-length tags.
        */
-     MBErrorCode set_tag_data( MBTagId tag_id,
-                               const MBRange& handles,
+     ErrorCode set_tag_data( TagId tag_id,
+                               const Range& handles,
                                void const* const* values,
                                const int* lengths,
                                const void* default_value );
@@ -301,8 +303,8 @@ class SequenceManager
        *\NOTE Will fail with MB_VARIABLE_DATA_LENGTH if called
        *      for variable-length tag.
        */
-    MBErrorCode get_tag_data( MBTagId tag_id,
-                              const MBEntityHandle* handles,
+    ErrorCode get_tag_data( TagId tag_id,
+                              const EntityHandle* handles,
                               int num_handles,
                               void* values, 
                               const void* default_value ) const;
@@ -317,24 +319,24 @@ class SequenceManager
        *\param default_value_length  Length of default tag value.  Ingored for
        *                   fixed-length tags.
        */
-    MBErrorCode get_tag_data( MBTagId tag_id,
-                              const MBEntityHandle* handles,
+    ErrorCode get_tag_data( TagId tag_id,
+                              const EntityHandle* handles,
                               int num_handles,
                               const void** tag_ptrs,
                               int* lengths,
                               const void* default_value,
                               int default_value_length ) const;
                               
-      /** Get fixed-length tag value for an MBRange of entities
+      /** Get fixed-length tag value for an Range of entities
        *\NOTE Will fail with MB_VARIABLE_DATA_LENGTH if called
        *      for variable-length tag.
        */
-    MBErrorCode get_tag_data( MBTagId tag_id,
-                              const MBRange& handles,
+    ErrorCode get_tag_data( TagId tag_id,
+                              const Range& handles,
                               void* values,
                               const void* default_value ) const;
                               
-      /** Get pointers to tag data for an MBRange of entities.
+      /** Get pointers to tag data for an Range of entities.
        *
        *\param tag_id   The tag.
        *\param handles  The entities.
@@ -348,8 +350,8 @@ class SequenceManager
        *\param default_value The default value for the tag.
        *\param default_value_length The length of the default tag value.
        */
-    MBErrorCode get_tag_data( MBTagId tag_id,
-                              const MBRange& handles,
+    ErrorCode get_tag_data( TagId tag_id,
+                              const Range& handles,
                               const void** values,
                               int* lengths,
                               const void* default_value,
@@ -360,32 +362,32 @@ class SequenceManager
        *\NOTE For variable-length data, will only return tag if
        *      data length is greater than zero.
        */
-    MBErrorCode get_entity_tags( MBEntityHandle entity,
-                                 std::vector<MBTag>& tags_out ) const;
+    ErrorCode get_entity_tags( EntityHandle entity,
+                                 std::vector<Tag>& tags_out ) const;
 
       /** Get all entities for which storage for a specific tag has
        *  been allocated.
        *\NOTE For variable-length data, will only return entities for
        *      which data length is greater than zero.
        */
-    MBErrorCode get_tagged_entities( MBTagId tag_id, 
-                                     MBEntityType type,
-                                     MBRange& entities_out ) const;
+    ErrorCode get_tagged_entities( TagId tag_id, 
+                                     EntityType type,
+                                     Range& entities_out ) const;
 
       /** Count all entities for which storage for a specific tag has
        *  been allocated.
        *\NOTE For variable-length data, will only count entities for
        *      which data length is greater than zero.
        */
-    MBErrorCode count_tagged_entities( MBTagId tag, 
-                                       MBEntityType type, 
+    ErrorCode count_tagged_entities( TagId tag, 
+                                       EntityType type, 
                                        int& result ) const;
 
       /** Get entities by type and tag value (intersection) */
-    MBErrorCode get_entities_with_tag_value( MBTagId id,
+    ErrorCode get_entities_with_tag_value( TagId id,
                                              const TagInfo& tag_info,
-                                             MBEntityType type,
-                                             MBRange& entities_out,
+                                             EntityType type,
+                                             Range& entities_out,
                                              const void* value,
                                              int value_size ) const;
                                              
@@ -396,25 +398,25 @@ class SequenceManager
        *\param entities_out Result (subset of input 'range')
        *\param value The tag value
        */
-    MBErrorCode get_entities_with_tag_value( const MBRange& range,
-                                             MBTagId id,
+    ErrorCode get_entities_with_tag_value( const Range& range,
+                                             TagId id,
                                              const TagInfo& tag_info,
-                                             MBEntityType type,
-                                             MBRange& entities_out,
+                                             EntityType type,
+                                             Range& entities_out,
                                              const void* value,
                                              int value_size ) const;
     
-    MBErrorCode get_tag_memory_use( MBTagId id, 
+    ErrorCode get_tag_memory_use( TagId id, 
                                     unsigned long& total, 
                                     unsigned long& per_entity ) const;
     
       /**\brief Get default size of POLYGON and POLYHEDRON SequenceData */
-    static MBEntityID default_poly_sequence_size( int entity_connectivity_length );
+    static EntityID default_poly_sequence_size( int entity_connectivity_length );
     
       /**\brief Size to allocate for new SquenceData */
-    MBEntityID new_sequence_size( MBEntityHandle start_handle, 
-                                  MBEntityID reqested_size,
-                                  MBEntityID default_size ) const;
+    EntityID new_sequence_size( EntityHandle start_handle, 
+                                  EntityID reqested_size,
+                                  EntityID default_size ) const;
     
   private:
   
@@ -423,15 +425,15 @@ class SequenceManager
      * Given a block of available handles, determine the non-strict
      * subset at which to create a new EntitySequence.
      */
-    void trim_sequence_block( MBEntityHandle start_handle,
-                              MBEntityHandle& end_handle_in_out,
+    void trim_sequence_block( EntityHandle start_handle,
+                              EntityHandle& end_handle_in_out,
                               unsigned maximum_sequence_size );
   
   
       /**\brief Get range of handles in which to create an entity sequence
        *
        * Get range of handles in whcih to place a new entity sequence.
-       *\param type              The MBEntityType for the contents of the sequence
+       *\param type              The EntityType for the contents of the sequence
        *\param entity_count      The number of entities in the range
        *\param values_per_entity Vertices per element, zero for other types
        *\param start_id_hint     Preferred id of first handle
@@ -441,16 +443,18 @@ class SequenceManager
        *                         the handle range.
        *\return zero if no available handle range, start handle otherwise.
        */
-    MBEntityHandle sequence_start_handle( MBEntityType type,
-                                          MBEntityID entity_count,
+    EntityHandle sequence_start_handle( EntityType type,
+                                          EntityID entity_count,
                                           int values_per_entity,
-                                          MBEntityID start_id_hint,
+                                          EntityID start_id_hint,
                                           SequenceData*& data_out,
-                                          MBEntityID &data_size );
+                                          EntityID &data_size );
   
     TypeSequenceManager typeData[MBMAXTYPE];
     
     std::vector<int> tagSizes;
 };
+
+} // namespace moab
 
 #endif

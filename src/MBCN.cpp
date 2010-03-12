@@ -13,11 +13,13 @@
  * 
  */
 
-#include "MBCN.hpp"
+#include "moab/MBCN.hpp"
 #include "MBCNArrays.hpp"
 #include "MBCN.h"
 #include <assert.h>
 #include <string.h>
+
+namespace moab {
 
 const char *MBCN::entityTypeNames[] = {
     "Vertex",
@@ -37,14 +39,14 @@ const char *MBCN::entityTypeNames[] = {
 
 short int MBCN::numberBasis = 0;
 
-const MBDimensionPair MBCN::TypeDimensionMap[] = 
+const DimensionPair MBCN::TypeDimensionMap[] = 
 {
-    MBDimensionPair(MBVERTEX,   MBVERTEX), 
-    MBDimensionPair(MBEDGE,     MBEDGE), 
-    MBDimensionPair(MBTRI,     MBPOLYGON),
-    MBDimensionPair(MBTET,     MBPOLYHEDRON),
-    MBDimensionPair(MBENTITYSET, MBENTITYSET), 
-    MBDimensionPair(MBMAXTYPE, MBMAXTYPE)
+    DimensionPair(MBVERTEX,   MBVERTEX), 
+    DimensionPair(MBEDGE,     MBEDGE), 
+    DimensionPair(MBTRI,     MBPOLYGON),
+    DimensionPair(MBTET,     MBPOLYHEDRON),
+    DimensionPair(MBENTITYSET, MBENTITYSET), 
+    DimensionPair(MBMAXTYPE, MBMAXTYPE)
 };
 
 short MBCN::increasingInts[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 
@@ -60,9 +62,9 @@ void MBCN::SetBasis(const int in_basis)
 }
 
 //! return a type for the given name
-MBEntityType MBCN::EntityTypeFromName(const char *name)
+EntityType MBCN::EntityTypeFromName(const char *name)
 {
-  for (MBEntityType i = MBVERTEX; i < MBMAXTYPE; i++) {
+  for (EntityType i = MBVERTEX; i < MBMAXTYPE; i++) {
     if (0 == strcmp(name, entityTypeNames[i]))
       return i;
   }
@@ -70,11 +72,11 @@ MBEntityType MBCN::EntityTypeFromName(const char *name)
   return MBMAXTYPE;
 }
 
-void MBCN::SubEntityNodeIndices( const MBEntityType this_topo, 
+void MBCN::SubEntityNodeIndices( const EntityType this_topo, 
                                  const int num_nodes,
                                  const int sub_dimension,
                                  const int sub_index,
-                                 MBEntityType& subentity_topo,
+                                 EntityType& subentity_topo,
                                  int& num_sub_entity_nodes,
                                  int sub_entity_conn[] )
 {
@@ -101,7 +103,7 @@ void MBCN::SubEntityNodeIndices( const MBEntityType this_topo,
     
     const short num_mid = NumSubEntities( subentity_topo, dim );
     for (int i = 0; i < num_mid; ++i) {
-      const MBEntityType sub_sub_topo = SubEntityType( subentity_topo, dim, i );
+      const EntityType sub_sub_topo = SubEntityType( subentity_topo, dim, i );
       const int sub_sub_num_vert = VerticesPerEntity( sub_sub_topo );
       SubEntityVertexIndices( subentity_topo, dim, i, sub_sub_corners );
 
@@ -122,7 +124,7 @@ void MBCN::SubEntityNodeIndices( const MBEntityType this_topo,
 //! \param sub_entity_conn Connectivity of sub-entity, based on parent_conn and canonical
 //!           ordering for parent_type
 //! \param num_sub_vertices Number of vertices in sub-entity
-void MBCN::SubEntityConn(const void *parent_conn, const MBEntityType parent_type,
+void MBCN::SubEntityConn(const void *parent_conn, const EntityType parent_type,
                          const int sub_dimension,
                          const int sub_index,
                          void *sub_entity_conn, int &num_sub_vertices) 
@@ -139,7 +141,7 @@ void MBCN::SubEntityConn(const void *parent_conn, const MBEntityType parent_type
 }
 
 //! given an entity and a target dimension & side number, get that entity
-short int MBCN::AdjacentSubEntities(const MBEntityType this_type,
+short int MBCN::AdjacentSubEntities(const EntityType this_type,
                               const int *source_indices,
                               const int num_source_indices,
                               const int source_dim,
@@ -217,7 +219,7 @@ short int MBCN::AdjacentSubEntities(const MBEntityType this_type,
 
 template <typename T> 
 short int side_number(const T *parent_conn, 
-                const MBEntityType parent_type,
+                const EntityType parent_type,
                 const T *child_conn,
                 const int child_num_verts,
                 const int child_dim,
@@ -239,7 +241,7 @@ short int side_number(const T *parent_conn,
                     child_dim, side_no, sense, offset);
 }
 
-short int MBCN::SideNumber(const MBEntityType parent_type, const int *parent_conn, 
+short int MBCN::SideNumber(const EntityType parent_type, const int *parent_conn, 
                      const int *child_conn, const int child_num_verts,
                      const int child_dim,
                      int &side_no, int &sense, int &offset) 
@@ -248,7 +250,7 @@ short int MBCN::SideNumber(const MBEntityType parent_type, const int *parent_con
                      child_dim, side_no, sense, offset);
 }
 
-short int MBCN::SideNumber(const MBEntityType parent_type, const unsigned int *parent_conn, 
+short int MBCN::SideNumber(const EntityType parent_type, const unsigned int *parent_conn, 
                      const unsigned int *child_conn, const int child_num_verts,
                      const int child_dim,
                      int &side_no, int &sense, int &offset)
@@ -256,7 +258,7 @@ short int MBCN::SideNumber(const MBEntityType parent_type, const unsigned int *p
   return side_number(parent_conn, parent_type, child_conn, child_num_verts,
                      child_dim, side_no, sense, offset);
 }
-short int MBCN::SideNumber(const MBEntityType parent_type, const long *parent_conn, 
+short int MBCN::SideNumber(const EntityType parent_type, const long *parent_conn, 
                      const long *child_conn, const int child_num_verts,
                      const int child_dim,
                      int &side_no, int &sense, int &offset)
@@ -264,7 +266,7 @@ short int MBCN::SideNumber(const MBEntityType parent_type, const long *parent_co
   return side_number(parent_conn, parent_type, child_conn, child_num_verts,
                      child_dim, side_no, sense, offset);
 }
-short int MBCN::SideNumber(const MBEntityType parent_type, const unsigned long *parent_conn, 
+short int MBCN::SideNumber(const EntityType parent_type, const unsigned long *parent_conn, 
                      const unsigned long *child_conn, const int child_num_verts,
                      const int child_dim,
                      int &side_no, int &sense, int &offset)
@@ -272,7 +274,7 @@ short int MBCN::SideNumber(const MBEntityType parent_type, const unsigned long *
   return side_number(parent_conn, parent_type, child_conn, child_num_verts,
                      child_dim, side_no, sense, offset);
 }
-short int MBCN::SideNumber(const MBEntityType parent_type, void * const *parent_conn, 
+short int MBCN::SideNumber(const EntityType parent_type, void * const *parent_conn, 
                      void * const *child_conn, const int child_num_verts,
                      const int child_dim,
                      int &side_no, int &sense, int &offset)
@@ -281,7 +283,7 @@ short int MBCN::SideNumber(const MBEntityType parent_type, void * const *parent_
                      child_dim, side_no, sense, offset);
 }
 
-short int MBCN::SideNumber( const MBEntityType parent_type,
+short int MBCN::SideNumber( const EntityType parent_type,
                       const int *child_conn_indices,
                       const int child_num_verts,
                       const int child_dim,
@@ -351,7 +353,7 @@ short int MBCN::SideNumber( const MBEntityType parent_type,
   //! \param child_index The index of the child element
   //! \param opposite_index The index of the opposite element
   //! \return status Returns 0 if successful, -1 if not
-short int MBCN::OppositeSide(const MBEntityType parent_type,
+short int MBCN::OppositeSide(const EntityType parent_type,
                        const int child_index,
                        const int child_dim,
                        int &opposite_index,
@@ -557,7 +559,7 @@ bool MBCN::ConnectivityMatch( void* const *conn1_i,
 
   //! for an entity of this type and a specified subfacet (dimension and index), return
   //! the index of the higher order node for that entity in this entity's connectivity array
-short int MBCN::HONodeIndex(const MBEntityType this_type, const int num_verts,
+short int MBCN::HONodeIndex(const EntityType this_type, const int num_verts,
                       const int subfacet_dim, const int subfacet_index) 
 {
   int i;
@@ -593,7 +595,7 @@ short int MBCN::HONodeIndex(const MBEntityType this_type, const int num_verts,
   //! and index of the sub-entity that the vertex resolves.  If it does not resolve a
   //! sub-entity, either because it's a corner node or it's not in the element, -1 is
   //! returned in both return values
-void MBCN::HONodeParent( MBEntityType elem_type,
+void MBCN::HONodeParent( EntityType elem_type,
                          int num_verts, 
                          int ho_index,
                          int& parent_dim,
@@ -633,6 +635,12 @@ void MBCN::HONodeParent( MBEntityType elem_type,
   }
 }
 
+} // namespace moab
+
+
+using moab::MBCN;
+using moab::EntityType;
+
   //! get the basis of the numbering system
 void MBCN_GetBasis(int *rval) {*rval = MBCN::GetBasis();}
   
@@ -642,7 +650,7 @@ void MBCN_SetBasis(const int in_basis) {MBCN::SetBasis(in_basis);}
   //! return the string type name for this type
 void MBCN_EntityTypeName(const int this_type, char *rval, int rval_len) 
 {
-  const char *rval_tmp = MBCN::EntityTypeName((MBEntityType)this_type);
+  const char *rval_tmp = MBCN::EntityTypeName((EntityType)this_type);
   int rval_len_tmp = strlen(rval_tmp);
   rval_len_tmp = (rval_len_tmp < rval_len ? rval_len_tmp : rval_len);
   strncpy(rval, rval_tmp, rval_len_tmp);
@@ -657,19 +665,19 @@ void MBCN_EntityTypeFromName(const char *name, int *rval)
   //! return the topological entity dimension
 void MBCN_Dimension(const int t, int *rval) 
 {
-  *rval = MBCN::Dimension((MBEntityType)t);
+  *rval = MBCN::Dimension((EntityType)t);
 }
 
   //! return the number of (corner) vertices contained in the specified type.  
 void MBCN_VerticesPerEntity(const int t, int *rval) 
 {
-  *rval = MBCN::VerticesPerEntity((MBEntityType)t);
+  *rval = MBCN::VerticesPerEntity((EntityType)t);
 }
   
   //! return the number of sub-entities bounding the entity.
 void MBCN_NumSubEntities(const int t, const int d, int *rval) 
 {
-  *rval = MBCN::NumSubEntities((MBEntityType)t, d);
+  *rval = MBCN::NumSubEntities((EntityType)t, d);
 }
 
   //! return the type of a particular sub-entity.
@@ -683,7 +691,7 @@ void MBCN_SubEntityType(const int this_type,
 
 {
   
-  *rval = MBCN::SubEntityType((MBEntityType)this_type, sub_dimension, index);
+  *rval = MBCN::SubEntityType((EntityType)this_type, sub_dimension, index);
 
 }
 
@@ -698,7 +706,7 @@ void MBCN_SubEntityVertexIndices(const int this_type,
                                  const int sub_index,
                                  int sub_entity_conn[]) 
 {
-  MBCN::SubEntityVertexIndices((MBEntityType)this_type, sub_dimension, 
+  MBCN::SubEntityVertexIndices((EntityType)this_type, sub_dimension, 
                                sub_index, sub_entity_conn);
 }
 
@@ -735,7 +743,7 @@ void MBCN_AdjacentSubEntities(const int this_type,
                               const int operation_type, int *rval) 
 {
   std::vector<int> tmp_index_list;
-  *rval = MBCN::AdjacentSubEntities((MBEntityType)this_type, source_indices, 
+  *rval = MBCN::AdjacentSubEntities((EntityType)this_type, source_indices, 
                                     num_source_indices, source_dim, target_dim, 
                                     tmp_index_list, operation_type);
   std::copy(tmp_index_list.begin(), tmp_index_list.end(), index_list);
@@ -757,52 +765,52 @@ void MBCN_SideNumber(const int parent_type,
                      const int child_dim,
                      int *side_no, int *sense, int *offset) 
 {
-  MBCN::SideNumber((MBEntityType)parent_type, child_conn_indices, child_num_verts, child_dim,
+  MBCN::SideNumber((EntityType)parent_type, child_conn_indices, child_num_verts, child_dim,
                    *side_no, *sense, *offset);
 }
 
-void MBCN_SideNumberInt(const int *parent_conn, const MBEntityType parent_type,
+void MBCN_SideNumberInt(const int *parent_conn, const EntityType parent_type,
                         const int *child_conn, const int child_num_verts,
                         const int child_dim,
                         int *side_no, int *sense, int *offset) 
 {
-  side_number(parent_conn, parent_type, child_conn, child_num_verts, 
+  moab::side_number(parent_conn, parent_type, child_conn, child_num_verts, 
               child_dim, *side_no, *sense, *offset);
 }
 
-void MBCN_SideNumberUint(const unsigned int *parent_conn, const MBEntityType parent_type,
+void MBCN_SideNumberUint(const unsigned int *parent_conn, const EntityType parent_type,
                          const unsigned int *child_conn, const int child_num_verts,
                          const int child_dim,
                          int *side_no, int *sense, int *offset)
 {
-  side_number(parent_conn, parent_type, child_conn, child_num_verts, 
+  moab::side_number(parent_conn, parent_type, child_conn, child_num_verts, 
               child_dim, *side_no, *sense, *offset);
 }
 
-void MBCN_SideNumberLong(const long *parent_conn, const MBEntityType parent_type,
+void MBCN_SideNumberLong(const long *parent_conn, const EntityType parent_type,
                          const long *child_conn, const int child_num_verts,
                          const int child_dim,
                          int *side_no, int *sense, int *offset)
 {
-  side_number(parent_conn, parent_type, child_conn, child_num_verts, 
+  moab::side_number(parent_conn, parent_type, child_conn, child_num_verts, 
               child_dim, *side_no, *sense, *offset);
 }
 
-void MBCN_SideNumberUlong(const unsigned long *parent_conn, const MBEntityType parent_type,
+void MBCN_SideNumberUlong(const unsigned long *parent_conn, const EntityType parent_type,
                           const unsigned long *child_conn, const int child_num_verts,
                           const int child_dim,
                           int *side_no, int *sense, int *offset)
 {
-  side_number(parent_conn, parent_type, child_conn, child_num_verts, 
+  moab::side_number(parent_conn, parent_type, child_conn, child_num_verts, 
               child_dim, *side_no, *sense, *offset);
 }
 
-void MBCN_SideNumberVoid(void * const *parent_conn, const MBEntityType parent_type,
+void MBCN_SideNumberVoid(void * const *parent_conn, const EntityType parent_type,
                          void * const *child_conn, const int child_num_verts,
                          const int child_dim,
                          int *side_no, int *sense, int *offset)
 {
-  side_number(parent_conn, parent_type, child_conn, child_num_verts, 
+  moab::side_number(parent_conn, parent_type, child_conn, child_num_verts, 
               child_dim, *side_no, *sense, *offset);
 }
 
@@ -825,7 +833,7 @@ void MBCN_OppositeSide(const int parent_type,
                        int *opposite_index,
                        int *opposite_dim, int *rval) 
 {
-  *rval = MBCN::OppositeSide((MBEntityType)parent_type, child_index, child_dim, 
+  *rval = MBCN::OppositeSide((EntityType)parent_type, child_index, child_dim, 
                              *opposite_index, *opposite_dim);
 }
 
@@ -889,7 +897,7 @@ void MBCN_ConnectivityMatchVoid(void* const* conn1,
 void MBCN_HasMidEdgeNodes(const int this_type, 
                           const int num_verts, int *rval) 
 {
-  *rval = MBCN::HasMidEdgeNodes((MBEntityType)this_type, num_verts);
+  *rval = MBCN::HasMidEdgeNodes((EntityType)this_type, num_verts);
 }
 
   //! true if entities of a given type and number of nodes indicates mid face nodes are present.
@@ -900,7 +908,7 @@ void MBCN_HasMidEdgeNodes(const int this_type,
 void MBCN_HasMidFaceNodes(const int this_type, 
                           const int num_verts, int *rval) 
 {
-  *rval = MBCN::HasMidFaceNodes((MBEntityType)this_type, num_verts);
+  *rval = MBCN::HasMidFaceNodes((EntityType)this_type, num_verts);
 }
 
   //! true if entities of a given type and number of nodes indicates mid region nodes are present.
@@ -911,7 +919,7 @@ void MBCN_HasMidFaceNodes(const int this_type,
 void MBCN_HasMidRegionNodes(const int this_type, 
                             const int num_verts, int *rval) 
 {
-  *rval = MBCN::HasMidRegionNodes((MBEntityType)this_type, num_verts);
+  *rval = MBCN::HasMidRegionNodes((EntityType)this_type, num_verts);
 }
 
   //! true if entities of a given type and number of nodes indicates mid edge/face/region nodes 
@@ -924,7 +932,7 @@ void MBCN_HasMidNodes(const int this_type,
                       const int num_verts, 
                       int mid_nodes[4]) 
 {
-  return MBCN::HasMidNodes((MBEntityType)this_type, num_verts, mid_nodes);
+  return MBCN::HasMidNodes((EntityType)this_type, num_verts, mid_nodes);
 }
 
   //! given data about an element and a vertex in that element, return the dimension
@@ -942,7 +950,7 @@ void MBCN_HONodeParent( int elem_type,
                         int *parent_dim, 
                         int *parent_index ) 
 {
-  return MBCN::HONodeParent((MBEntityType)elem_type, num_nodes, ho_node_index, 
+  return MBCN::HONodeParent((EntityType)elem_type, num_nodes, ho_node_index, 
                             *parent_dim, *parent_index);
 }
 
@@ -959,12 +967,14 @@ void MBCN_HONodeIndex(const int this_type, const int num_verts,
 
 {
   
-  *rval = MBCN::HONodeIndex((MBEntityType)this_type, num_verts, subfacet_dim, subfacet_index);
+  *rval = MBCN::HONodeIndex((EntityType)this_type, num_verts, subfacet_dim, subfacet_index);
 
 }
 
+namespace moab {
+
 template <typename T> 
-inline int permute_this(MBEntityType t,
+inline int permute_this(EntityType t,
                         const int dim,
                         T* conn,
                         const int indices_per_ent,
@@ -986,7 +996,7 @@ inline int permute_this(MBEntityType t,
 }
 
 template <typename T> 
-inline int rev_permute_this(MBEntityType t,
+inline int rev_permute_this(EntityType t,
                             const int dim,
                             T* conn,
                             const int indices_per_ent,
@@ -1008,30 +1018,32 @@ inline int rev_permute_this(MBEntityType t,
 }
 
 //! Permute this vector
-inline int MBCN::permuteThis(const MBEntityType t, const int dim, int *pvec, 
+inline int MBCN::permuteThis(const EntityType t, const int dim, int *pvec, 
                              const int num_indices, const int num_entries) 
 {return permute_this(t, dim, pvec, num_indices, num_entries);}
-inline int MBCN::permuteThis(const MBEntityType t, const int dim, unsigned int *pvec, 
+inline int MBCN::permuteThis(const EntityType t, const int dim, unsigned int *pvec, 
                              const int num_indices, const int num_entries) 
 {return permute_this(t, dim, pvec, num_indices, num_entries);}
-inline int MBCN::permuteThis(const MBEntityType t, const int dim, long *pvec, 
+inline int MBCN::permuteThis(const EntityType t, const int dim, long *pvec, 
                              const int num_indices, const int num_entries) 
 {return permute_this(t, dim, pvec, num_indices, num_entries);}
-inline int MBCN::permuteThis(const MBEntityType t, const int dim, void **pvec, 
+inline int MBCN::permuteThis(const EntityType t, const int dim, void **pvec, 
                              const int num_indices, const int num_entries) 
 {return permute_this(t, dim, pvec, num_indices, num_entries);}
 
 //! Reverse permute this vector
-inline int MBCN::revPermuteThis(const MBEntityType t, const int dim, int *pvec, 
+inline int MBCN::revPermuteThis(const EntityType t, const int dim, int *pvec, 
                              const int num_indices, const int num_entries) 
 {return rev_permute_this(t, dim, pvec, num_indices, num_entries);}
-inline int MBCN::revPermuteThis(const MBEntityType t, const int dim, unsigned int *pvec, 
+inline int MBCN::revPermuteThis(const EntityType t, const int dim, unsigned int *pvec, 
                              const int num_indices, const int num_entries) 
 {return rev_permute_this(t, dim, pvec, num_indices, num_entries);}
-inline int MBCN::revPermuteThis(const MBEntityType t, const int dim, long *pvec, 
+inline int MBCN::revPermuteThis(const EntityType t, const int dim, long *pvec, 
                              const int num_indices, const int num_entries) 
 {return rev_permute_this(t, dim, pvec, num_indices, num_entries);}
-inline int MBCN::revPermuteThis(const MBEntityType t, const int dim, void **pvec, 
+inline int MBCN::revPermuteThis(const EntityType t, const int dim, void **pvec, 
                              const int num_indices, const int num_entries) 
 {return rev_permute_this(t, dim, pvec, num_indices, num_entries);}
 
+  
+} // namespace moab

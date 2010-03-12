@@ -1,11 +1,13 @@
-#include "MBParallelComm.hpp"
-#include "MBParallelConventions.h"
-#include "MBTagConventions.hpp"
-#include "MBCore.hpp"
+#include "moab/ParallelComm.hpp"
+#include "moab/MBParallelConventions.h"
+#include "moab/MBTagConventions.hpp"
+#include "moab/Core.hpp"
 #include "FileOptions.hpp"
 #include "ReadParallel.hpp"
 #include "TestUtil.hpp"
 #include <vector>
+
+using namespace moab;
 
 void print_usage(char *argv) 
 {
@@ -46,11 +48,11 @@ int main( int argc, char* argv[] )
     return 1;
   }
   
-  MBErrorCode rval;
-  MBCore *moab = new MBCore[nprocs]();
-  std::vector<MBParallelComm *> pc(nprocs);
+  ErrorCode rval;
+  Core *moab = new Core[nprocs]();
+  std::vector<ParallelComm *> pc(nprocs);
   for (int i = 0; i < nprocs; i++) {
-    pc[i] = new MBParallelComm(&moab[i]);
+    pc[i] = new ParallelComm(&moab[i]);
     pc[i]->set_rank(i);
     pc[i]->set_size(nprocs);
   }
@@ -77,15 +79,15 @@ int main( int argc, char* argv[] )
     CHECK_ERR(rval);
   }
   
-  rval = MBParallelComm::resolve_shared_ents(&pc[0], nprocs, 3);
+  rval = ParallelComm::resolve_shared_ents(&pc[0], nprocs, 3);
   CHECK_ERR(rval);
 
     // exchange interface cells
-  rval = MBParallelComm::exchange_ghost_cells(&pc[0], nprocs, -1, -1, 0, true);
+  rval = ParallelComm::exchange_ghost_cells(&pc[0], nprocs, -1, -1, 0, true);
   CHECK_ERR(rval);
   
     // now 1 layer of hex ghosts
-  rval = MBParallelComm::exchange_ghost_cells(&pc[0], nprocs, 3, 2, 1, true);
+  rval = ParallelComm::exchange_ghost_cells(&pc[0], nprocs, 3, 2, 1, true);
   CHECK_ERR(rval);
 
   for (int i = 0; i < nprocs; i++)

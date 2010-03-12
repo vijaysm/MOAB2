@@ -1,6 +1,6 @@
-#include "MBCore.hpp"
+#include "moab/Core.hpp"
 #include "TestUtil.hpp"
-#include "MBRange.hpp"
+#include "moab/Range.hpp"
 
 #include <algorithm>
 #include <iostream>
@@ -8,12 +8,14 @@
 #include <stdlib.h>
 #include <math.h>
 
+using namespace moab;
+
 const char filename[] = "sets.h5m";
 bool keep_file = false;
 
-void read_write_file( MBInterface& output, MBInterface& input, MBEntityHandle* input_set = 0 )
+void read_write_file( Interface& output, Interface& input, EntityHandle* input_set = 0 )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   rval = output.write_file( filename );
   CHECK_ERR(rval);
   if (input_set) {
@@ -28,10 +30,10 @@ void read_write_file( MBInterface& output, MBInterface& input, MBEntityHandle* i
 
 void test_ranged_set_with_holes()
 {
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBErrorCode rval;
-  MBRange verts;
+  Core moab;
+  Interface& mb = moab;
+  ErrorCode rval;
+  Range verts;
   
   const int num_vtx = 40;
   std::vector<double> coords( 3*num_vtx, 0.0 );
@@ -39,28 +41,28 @@ void test_ranged_set_with_holes()
   CHECK_ERR(rval);
   CHECK_EQUAL(num_vtx, (int)verts.size());
   
-  MBEntityHandle set;
+  EntityHandle set;
   rval = mb.create_meshset( MESHSET_SET, set );
   CHECK_ERR(rval);
   rval = mb.add_entities( set, verts );
   
-  std::vector<MBEntityHandle> dead_verts;
+  std::vector<EntityHandle> dead_verts;
   for (int i = num_vtx/4; i < num_vtx; i += num_vtx/4 ) {
-    MBRange::iterator j = verts.begin();
+    Range::iterator j = verts.begin();
     j += i;
     dead_verts.push_back( *j );
   }
   rval = mb.delete_entities( &dead_verts[0], dead_verts.size() );
   CHECK_ERR(rval);
   
-  MBCore moab2;
-  MBInterface& mb2 = moab2;
-  MBEntityHandle file_set;
+  Core moab2;
+  Interface& mb2 = moab2;
+  EntityHandle file_set;
   read_write_file( mb, mb2, &file_set );
-  MBRange sets;
+  Range sets;
   mb2.get_entities_by_type( 0, MBENTITYSET, sets );
   CHECK_EQUAL( 2, (int)sets.size() );
-  MBEntityHandle other_set = sets.front() == file_set ? sets.back() : sets.front();
+  EntityHandle other_set = sets.front() == file_set ? sets.back() : sets.front();
   
   int num_vtx2 = -5;
   rval = mb2.get_number_entities_by_type( other_set, MBVERTEX, num_vtx2 );
@@ -70,29 +72,29 @@ void test_ranged_set_with_holes()
 
 void test_file_set()
 {
-  MBErrorCode rval;
-  MBCore moab;
+  ErrorCode rval;
+  Core moab;
   double vtxcoords[] = { 0.0, 0.0, 0.0, 
                          1.0, 0.0, 0.0, 
                          0.0, 1.0, 0.0 };
-  MBRange verts;
+  Range verts;
   rval = moab.create_vertices( vtxcoords, 3, verts );
   CHECK_ERR(rval);
   CHECK_EQUAL( 3, (int)verts.size() );
   
-  MBEntityHandle tri;
-  MBEntityHandle conn[3];
+  EntityHandle tri;
+  EntityHandle conn[3];
   std::copy( verts.begin(), verts.end(), conn );
   rval = moab.create_element( MBTRI, conn, 3, tri );
   CHECK_ERR(rval);
   
-  MBEntityHandle set;
+  EntityHandle set;
   rval = moab.create_meshset( MESHSET_ORDERED, set );
   CHECK_ERR(rval);
   rval = moab.add_entities( set, &tri, 1 );
   CHECK_ERR(rval);
   
-  MBEntityHandle file;
+  EntityHandle file;
   read_write_file( moab, moab, &file );
   
   int count;
@@ -143,15 +145,15 @@ int coords_by_idx( int idx, double coords[][3] )
 }
 
 void recursive_build_tree( int max_depth,
-                           MBInterface& mb,
-                           MBTag tag,
-                           MBEntityHandle p,
+                           Interface& mb,
+                           Tag tag,
+                           EntityHandle p,
                            int depth,
                            int& idx )
 {
-  MBErrorCode rval = mb.tag_set_data( tag, &p, 1, &idx ); CHECK_ERR(rval);
+  ErrorCode rval = mb.tag_set_data( tag, &p, 1, &idx ); CHECK_ERR(rval);
   
-  MBRange verts;
+  Range verts;
   double coords[6][3];
   int num_vtx = coords_by_idx( idx, coords );
   rval = mb.create_vertices( &coords[0][0], num_vtx, verts );
@@ -160,7 +162,7 @@ void recursive_build_tree( int max_depth,
   if (depth == max_depth)
     return;
 
-  MBEntityHandle l, r;
+  EntityHandle l, r;
   rval = mb.create_meshset( MESHSET_SET, l ); CHECK_ERR(rval);
   rval = mb.create_meshset( MESHSET_SET, r ); CHECK_ERR(rval);
   rval = mb.add_parent_child( p, l ); CHECK_ERR(rval);
@@ -171,17 +173,17 @@ void recursive_build_tree( int max_depth,
 }
  
 void recursive_check_tree( int max_depth,
-                           MBInterface& mb,
-                           MBTag tag,
-                           MBEntityHandle p,
+                           Interface& mb,
+                           Tag tag,
+                           EntityHandle p,
                            int depth,
                            int& idx )
 {
   int id;
-  MBErrorCode rval = mb.tag_get_data( tag, &p, 1, &id); CHECK_ERR(rval);
+  ErrorCode rval = mb.tag_get_data( tag, &p, 1, &id); CHECK_ERR(rval);
   CHECK_EQUAL( idx, id );
   
-  MBRange verts;
+  Range verts;
   double coords[6][3];
   int num_vtx = coords_by_idx( idx, coords );
   rval = mb.get_entities_by_handle( p, verts );
@@ -214,7 +216,7 @@ void recursive_check_tree( int max_depth,
  
   ++idx;
   
-  std::vector<MBEntityHandle> children, parents;
+  std::vector<EntityHandle> children, parents;
 
   rval = mb.get_child_meshsets( p, children ); CHECK_ERR(rval);
   if (depth == max_depth) {
@@ -223,8 +225,8 @@ void recursive_check_tree( int max_depth,
   }
   
   CHECK_EQUAL( (size_t)2, children.size() );
-  MBEntityHandle l = children.front();
-  MBEntityHandle r = children.back();
+  EntityHandle l = children.front();
+  EntityHandle r = children.back();
   
   parents.clear();
   rval = mb.get_parent_meshsets( l, parents ); CHECK_ERR(rval);
@@ -242,14 +244,14 @@ void recursive_check_tree( int max_depth,
 
 void test_tree( int max_depth ) 
 {
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBEntityHandle root;
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
+  EntityHandle root;
   
   // create tag in which to store number for each tree node,
   // in depth-first in-order search order.
-  MBTag tag;
+  Tag tag;
   rval = mb.tag_get_handle( "GLOBAL_ID", tag ); CHECK_ERR(rval);
   
   // create a binary tree to a depth of 20 (about 1 million nodes)
@@ -272,11 +274,11 @@ void test_tree( int max_depth )
   
   // get tree root
   rval = mb.tag_get_handle( "GLOBAL_ID", tag ); CHECK_ERR(rval);
-  MBRange roots;
+  Range roots;
   idx = 1;
   const void* vals[] = {&idx};
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &tag, vals, 1, roots );
-  CHECK_EQUAL( (MBEntityHandle)1, roots.size() );
+  CHECK_EQUAL( (EntityHandle)1, roots.size() );
   root = roots.front();
   
   // check that tree is as we expect it

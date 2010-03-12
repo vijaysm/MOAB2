@@ -1,9 +1,11 @@
-#include "MBCore.hpp"
-#include "MBAdaptiveKDTree.hpp"
-#include "MBRange.hpp"
+#include "moab/Core.hpp"
+#include "moab/AdaptiveKDTree.hpp"
+#include "moab/Range.hpp"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+using namespace moab;
 
 void usage( const char* argv0 )
 {
@@ -11,11 +13,11 @@ void usage( const char* argv0 )
   exit(1);
 }
 
-void print_file_stats( MBInterface& moab )
+void print_file_stats( Interface& moab )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   int num_tri;
-  MBRange sets;
+  Range sets;
   unsigned long set_mem, set_am, tag_mem, tag_am;
   
   rval = moab.get_number_entities_by_type( 0, MBTRI, num_tri );
@@ -97,28 +99,28 @@ int main( int argc, char* argv[] )
  
   printf("Loading tree..."); fflush( stdout );
   t = clock();
-  MBCore moab;
-  MBErrorCode rval = moab.load_mesh( tree_file, 0, 0 );
+  Core moab;
+  ErrorCode rval = moab.load_mesh( tree_file, 0, 0 );
   if (MB_SUCCESS != rval) {
     fprintf(stderr,"Failed to read file: %s\n", tree_file );
     return 2;
   }
   printf("%0.2f seconds\n", (clock()-t)/(double)CLOCKS_PER_SEC); fflush( stdout );
   
-  MBRange range;
-  MBAdaptiveKDTree tool(&moab);
+  Range range;
+  AdaptiveKDTree tool(&moab);
   tool.find_all_trees(range);
   if (range.size() != 1) {
     fprintf(stderr,"%s : found %d kd-trees\n", argv[1], (int)range.size() );
     return 3;
   }
-  const MBEntityHandle root = range.front();
+  const EntityHandle root = range.front();
 
   print_file_stats( moab );
   
   printf("Running point queries..."); fflush( stdout );
   t = clock();
-  MBEntityHandle leaf;
+  EntityHandle leaf;
   double pt[3];
   for (unsigned long i = 0; i < count; ++i) {
     const double* coords = values + 3 * (i % length);
@@ -127,7 +129,7 @@ int main( int argc, char* argv[] )
     else
       rval = tool.leaf_containing_point( root, coords, leaf );
     if (MB_SUCCESS != rval) {
-      fprintf(stderr, "Failure (MBErrorCode == %d) for point %d (%f, %f, %f)\n",
+      fprintf(stderr, "Failure (ErrorCode == %d) for point %d (%f, %f, %f)\n",
         (int)rval, (int)(count % length), coords[0], coords[1], coords[2] );
     }
     else if (rfile) {

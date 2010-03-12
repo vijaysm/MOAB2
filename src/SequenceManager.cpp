@@ -5,23 +5,29 @@
 #include "MeshSetSequence.hpp"
 #include "SweptElementSeq.hpp"
 #include "StructuredElementSeq.hpp"
-#include "HomXform.hpp"
+#include "moab/HomXform.hpp"
 #include "PolyElementSeq.hpp"
-#include "MBSysUtil.hpp"
+#include "SysUtil.hpp"
 #include "TagCompare.hpp"
 
 #include <assert.h>
 #include <new>
 #include <algorithm>
 
-const MBEntityID DEFAULT_VERTEX_SEQUENCE_SIZE = 4096;
-const MBEntityID DEFAULT_ELEMENT_SEQUENCE_SIZE = DEFAULT_VERTEX_SEQUENCE_SIZE;
-const MBEntityID DEFAULT_POLY_SEQUENCE_SIZE = 4 * DEFAULT_ELEMENT_SEQUENCE_SIZE;
-const MBEntityID DEFAULT_MESHSET_SEQUENCE_SIZE = DEFAULT_VERTEX_SEQUENCE_SIZE;
+#ifndef NDEBUG
+#include <iostream>
+#endif 
+
+namespace moab {
+
+const EntityID DEFAULT_VERTEX_SEQUENCE_SIZE = 4096;
+const EntityID DEFAULT_ELEMENT_SEQUENCE_SIZE = DEFAULT_VERTEX_SEQUENCE_SIZE;
+const EntityID DEFAULT_POLY_SEQUENCE_SIZE = 4 * DEFAULT_ELEMENT_SEQUENCE_SIZE;
+const EntityID DEFAULT_MESHSET_SEQUENCE_SIZE = DEFAULT_VERTEX_SEQUENCE_SIZE;
 
 static inline
 const unsigned char* tag_array( const EntitySequence* seq, 
-                                MBEntityHandle h,
+                                EntityHandle h,
                                 int tag_id, 
                                 int tag_size )
 {
@@ -32,7 +38,7 @@ const unsigned char* tag_array( const EntitySequence* seq,
 
 static inline
 unsigned char* tag_array( EntitySequence* seq, 
-                          MBEntityHandle h, 
+                          EntityHandle h, 
                           int tag_id, 
                           int tag_size )
 {
@@ -43,7 +49,7 @@ unsigned char* tag_array( EntitySequence* seq,
 
 static inline
 unsigned char* make_tag( EntitySequence* seq, 
-                         MBEntityHandle h, 
+                         EntityHandle h, 
                          int tag_id, 
                          int tag_size,
                          const void* default_value )
@@ -57,7 +63,7 @@ unsigned char* make_tag( EntitySequence* seq,
 
 static inline
 const VarLenTag* vtag_array( const EntitySequence* seq, 
-                             MBEntityHandle h, 
+                             EntityHandle h, 
                              int tag_id )
 {
   const void* mem = seq->data()->get_tag_data(tag_id);
@@ -66,7 +72,7 @@ const VarLenTag* vtag_array( const EntitySequence* seq,
 
 static inline
 VarLenTag* vtag_array( EntitySequence* seq, 
-                       MBEntityHandle h, 
+                       EntityHandle h, 
                        int tag_id )
 {
   void* mem = seq->data()->get_tag_data(tag_id);
@@ -75,7 +81,7 @@ VarLenTag* vtag_array( EntitySequence* seq,
 
 static inline
 VarLenTag* make_vtag( EntitySequence* seq, 
-                      MBEntityHandle h, 
+                      EntityHandle h, 
                       int tag_id )
 {
   void* mem = seq->data()->get_tag_data(tag_id);
@@ -84,8 +90,8 @@ VarLenTag* make_vtag( EntitySequence* seq,
   return reinterpret_cast<VarLenTag*>(mem) + h - seq->data()->start_handle();
 }
 
-MBEntityID SequenceManager::default_poly_sequence_size( int conn_len )
-  {  return std::max( DEFAULT_POLY_SEQUENCE_SIZE / conn_len, (MBEntityID)1 ); }
+EntityID SequenceManager::default_poly_sequence_size( int conn_len )
+  {  return std::max( DEFAULT_POLY_SEQUENCE_SIZE / conn_len, (EntityID)1 ); }
 
 SequenceManager::~SequenceManager()
 {
@@ -103,21 +109,21 @@ void SequenceManager::clear()
       release_tag( i );
 
     // destroy all TypeSequenceManager instances
-  for (MBEntityType t = MBVERTEX; t < MBMAXTYPE; ++t)
+  for (EntityType t = MBVERTEX; t < MBMAXTYPE; ++t)
     typeData[t].~TypeSequenceManager();
     
     // now re-create TypeSequenceManager instances
-  for (MBEntityType t = MBVERTEX; t < MBMAXTYPE; ++t)
+  for (EntityType t = MBVERTEX; t < MBMAXTYPE; ++t)
     new (typeData+t) TypeSequenceManager();
 }  
 
-MBErrorCode SequenceManager::check_valid_entities( const MBRange& entities ) const
+ErrorCode SequenceManager::check_valid_entities( const Range& entities ) const
 {
-  MBErrorCode rval;
-  MBRange::const_pair_iterator i;
+  ErrorCode rval;
+  Range::const_pair_iterator i;
   for (i = entities.const_pair_begin(); i != entities.const_pair_end(); ++i) {
-    const MBEntityType type1 = TYPE_FROM_HANDLE(i->first);
-    const MBEntityType type2 = TYPE_FROM_HANDLE(i->second);
+    const EntityType type1 = TYPE_FROM_HANDLE(i->first);
+    const EntityType type2 = TYPE_FROM_HANDLE(i->second);
     if (type1 == type2) {
       rval = typeData[type1].check_valid_handles( i->first, i->second );
       if (MB_SUCCESS != rval)
@@ -125,7 +131,7 @@ MBErrorCode SequenceManager::check_valid_entities( const MBRange& entities ) con
     }
     else {
       int junk;
-      MBEntityHandle split = CREATE_HANDLE( type2, 0, junk );
+      EntityHandle split = CREATE_HANDLE( type2, 0, junk );
       rval = typeData[type1].check_valid_handles( i->first, split-1 );
       if (MB_SUCCESS != rval)
         return rval;
@@ -137,13 +143,13 @@ MBErrorCode SequenceManager::check_valid_entities( const MBRange& entities ) con
   return MB_SUCCESS;
 }
 
-MBErrorCode SequenceManager::check_valid_entities( const MBEntityHandle* entities,
+ErrorCode SequenceManager::check_valid_entities( const EntityHandle* entities,
                                                    size_t num_entities ) const
 {
-  MBErrorCode rval = MB_SUCCESS;
+  ErrorCode rval = MB_SUCCESS;
   const EntitySequence* ptr = 0;
   
-  const MBEntityHandle* const end = entities + num_entities;
+  const EntityHandle* const end = entities + num_entities;
   for (; entities < end; ++entities) {
     rval = find(*entities, ptr);
     if (MB_SUCCESS != rval)
@@ -153,22 +159,22 @@ MBErrorCode SequenceManager::check_valid_entities( const MBEntityHandle* entitie
   return rval;
 }
 
-MBErrorCode SequenceManager::delete_entity( MBEntityHandle entity )
+ErrorCode SequenceManager::delete_entity( EntityHandle entity )
 {
   return typeData[TYPE_FROM_HANDLE(entity)].erase( entity );
 }
 
-MBErrorCode SequenceManager::delete_entities( const MBRange& entities )
+ErrorCode SequenceManager::delete_entities( const Range& entities )
 {
-  MBErrorCode rval = check_valid_entities( entities );
+  ErrorCode rval = check_valid_entities( entities );
   if (MB_SUCCESS != rval)
     return rval;
   
-  MBErrorCode result = MB_SUCCESS;
-  MBRange::const_pair_iterator i;
+  ErrorCode result = MB_SUCCESS;
+  Range::const_pair_iterator i;
   for (i = entities.const_pair_begin(); i != entities.const_pair_end(); ++i) {
-    const MBEntityType type1 = TYPE_FROM_HANDLE(i->first);
-    const MBEntityType type2 = TYPE_FROM_HANDLE(i->second);
+    const EntityType type1 = TYPE_FROM_HANDLE(i->first);
+    const EntityType type2 = TYPE_FROM_HANDLE(i->second);
     if (type1 == type2) {
       rval = typeData[type1].erase( i->first, i->second );
       if (MB_SUCCESS != rval)
@@ -176,7 +182,7 @@ MBErrorCode SequenceManager::delete_entities( const MBRange& entities )
     }
     else {
       int junk;
-      MBEntityHandle split = CREATE_HANDLE( type2, 0, junk );
+      EntityHandle split = CREATE_HANDLE( type2, 0, junk );
       rval = typeData[type1].erase( i->first, split-1 );
       if (MB_SUCCESS != rval)
         return result = rval;
@@ -188,18 +194,18 @@ MBErrorCode SequenceManager::delete_entities( const MBRange& entities )
   return result;
 }
   
-MBErrorCode SequenceManager::create_vertex( const double coords[3],
-                                            MBEntityHandle& handle )
+ErrorCode SequenceManager::create_vertex( const double coords[3],
+                                            EntityHandle& handle )
 {
-  const MBEntityHandle start = CREATE_HANDLE( MBVERTEX, MB_START_ID );
-  const MBEntityHandle   end = CREATE_HANDLE( MBVERTEX,   MB_END_ID );
+  const EntityHandle start = CREATE_HANDLE( MBVERTEX, MB_START_ID );
+  const EntityHandle   end = CREATE_HANDLE( MBVERTEX,   MB_END_ID );
   bool append;
   TypeSequenceManager::iterator seq = typeData[MBVERTEX].find_free_handle( start, end, append );
   VertexSequence* vseq;
   
   if (seq == typeData[MBVERTEX].end()) {
     SequenceData* seq_data = 0;
-    MBEntityID seq_data_size = 0;
+    EntityID seq_data_size = 0;
     handle = typeData[MBVERTEX].find_free_sequence( DEFAULT_VERTEX_SEQUENCE_SIZE, start, end, seq_data, seq_data_size );
     if (!handle) 
       return MB_FAILURE;
@@ -209,7 +215,7 @@ MBErrorCode SequenceManager::create_vertex( const double coords[3],
     else
       vseq = new VertexSequence( handle, 1, DEFAULT_VERTEX_SEQUENCE_SIZE );
       
-    MBErrorCode rval = typeData[MBVERTEX].insert_sequence( vseq );
+    ErrorCode rval = typeData[MBVERTEX].insert_sequence( vseq );
     if (MB_SUCCESS != rval) {
       SequenceData* vdata = vseq->data();
       delete vseq;
@@ -237,16 +243,16 @@ MBErrorCode SequenceManager::create_vertex( const double coords[3],
 }
 
   
-MBErrorCode SequenceManager::create_element( MBEntityType type,
-                                             const MBEntityHandle* conn,
+ErrorCode SequenceManager::create_element( EntityType type,
+                                             const EntityHandle* conn,
                                              unsigned conn_len,
-                                             MBEntityHandle& handle )
+                                             EntityHandle& handle )
 {
   if (type <= MBVERTEX || type >= MBENTITYSET)
     return MB_TYPE_OUT_OF_RANGE;
   
-  const MBEntityHandle start = CREATE_HANDLE( type, MB_START_ID );
-  const MBEntityHandle   end = CREATE_HANDLE( type,   MB_END_ID );
+  const EntityHandle start = CREATE_HANDLE( type, MB_START_ID );
+  const EntityHandle   end = CREATE_HANDLE( type,   MB_END_ID );
   bool append;
   TypeSequenceManager::iterator seq = typeData[type].find_free_handle( start, end, append, conn_len );
   UnstructuredElemSeq* eseq;
@@ -257,7 +263,7 @@ MBErrorCode SequenceManager::create_element( MBEntityType type,
     if (type == MBPOLYGON || type == MBPOLYHEDRON) {
       size = default_poly_sequence_size( conn_len );
     }
-    MBEntityID seq_data_size = 0;
+    EntityID seq_data_size = 0;
     handle = typeData[type].find_free_sequence( size, start, end, seq_data, seq_data_size, conn_len );
     if (!handle) 
       return MB_FAILURE;
@@ -275,7 +281,7 @@ MBErrorCode SequenceManager::create_element( MBEntityType type,
         eseq = new UnstructuredElemSeq( handle, 1, conn_len, size );
     }
     
-    MBErrorCode rval = typeData[type].insert_sequence( eseq );
+    ErrorCode rval = typeData[type].insert_sequence( eseq );
     if (MB_SUCCESS != rval) {
       SequenceData* vdata = eseq->data();
       delete eseq;
@@ -304,18 +310,18 @@ MBErrorCode SequenceManager::create_element( MBEntityType type,
 
 
   
-MBErrorCode SequenceManager::create_mesh_set( unsigned flags,
-                                              MBEntityHandle& handle )
+ErrorCode SequenceManager::create_mesh_set( unsigned flags,
+                                              EntityHandle& handle )
 {
-  const MBEntityHandle start = CREATE_HANDLE( MBENTITYSET, MB_START_ID );
-  const MBEntityHandle   end = CREATE_HANDLE( MBENTITYSET,   MB_END_ID );
+  const EntityHandle start = CREATE_HANDLE( MBENTITYSET, MB_START_ID );
+  const EntityHandle   end = CREATE_HANDLE( MBENTITYSET,   MB_END_ID );
   bool append;
   TypeSequenceManager::iterator seq = typeData[MBENTITYSET].find_free_handle( start, end, append );
   MeshSetSequence* msseq;
   
   if (seq == typeData[MBENTITYSET].end()) {
     SequenceData* seq_data = 0;
-    MBEntityID seq_data_size = 0;
+    EntityID seq_data_size = 0;
     handle = typeData[MBENTITYSET].find_free_sequence( DEFAULT_MESHSET_SEQUENCE_SIZE, start, end, seq_data, seq_data_size );
     if (!handle) 
       return MB_FAILURE;
@@ -325,7 +331,7 @@ MBErrorCode SequenceManager::create_mesh_set( unsigned flags,
     else
       msseq = new MeshSetSequence( handle, 1, flags, DEFAULT_MESHSET_SEQUENCE_SIZE );
       
-    MBErrorCode rval = typeData[MBENTITYSET].insert_sequence( msseq );
+    ErrorCode rval = typeData[MBENTITYSET].insert_sequence( msseq );
     if (MB_SUCCESS != rval) {
       SequenceData* vdata = msseq->data();
       delete msseq;
@@ -352,13 +358,13 @@ MBErrorCode SequenceManager::create_mesh_set( unsigned flags,
   return MB_SUCCESS;
 }
 
-MBErrorCode SequenceManager::allocate_mesh_set( MBEntityHandle handle,
+ErrorCode SequenceManager::allocate_mesh_set( EntityHandle handle,
                                                 unsigned flags )
 {
   SequenceData* data = 0;
   TypeSequenceManager::iterator seqptr; 
-  MBEntityHandle block_start = 1, block_end = 0;
-  MBErrorCode rval = typeData[MBENTITYSET].is_free_handle( handle, seqptr, data, block_start, block_end );
+  EntityHandle block_start = 1, block_end = 0;
+  ErrorCode rval = typeData[MBENTITYSET].is_free_handle( handle, seqptr, data, block_start, block_end );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -396,7 +402,7 @@ MBErrorCode SequenceManager::allocate_mesh_set( MBEntityHandle handle,
       seq = new MeshSetSequence( handle, 1, flags, block_end - handle + 1 );
     }
     
-    MBErrorCode rval = typeData[MBENTITYSET].insert_sequence( seq );
+    ErrorCode rval = typeData[MBENTITYSET].insert_sequence( seq );
     if (MB_SUCCESS != rval) {
       SequenceData* vdata = seq->data();
       delete seq;
@@ -410,8 +416,8 @@ MBErrorCode SequenceManager::allocate_mesh_set( MBEntityHandle handle,
 }
 
 void
-SequenceManager::trim_sequence_block( MBEntityHandle start_handle,
-                                      MBEntityHandle& end_handle,
+SequenceManager::trim_sequence_block( EntityHandle start_handle,
+                                      EntityHandle& end_handle,
                                       unsigned max_size )
 {
   assert( end_handle >= start_handle );
@@ -422,35 +428,35 @@ SequenceManager::trim_sequence_block( MBEntityHandle start_handle,
     end_handle = start_handle + max_size - 1;
 }
 
-MBEntityHandle 
-SequenceManager::sequence_start_handle( MBEntityType type,
-                                        MBEntityID count,
+EntityHandle 
+SequenceManager::sequence_start_handle( EntityType type,
+                                        EntityID count,
                                         int size,
-                                        MBEntityID start,
+                                        EntityID start,
                                         SequenceData*& data,
-                                        MBEntityID &data_size)
+                                        EntityID &data_size)
 {
   TypeSequenceManager &tsm = typeData[type];
   data = 0;
-  MBEntityHandle handle = CREATE_HANDLE( type, start );
+  EntityHandle handle = CREATE_HANDLE( type, start );
   if (start < MB_START_ID ||
       !tsm.is_free_sequence( handle, count, data, size )) {
-    MBEntityHandle pstart = CREATE_HANDLE( type, MB_START_ID );
-    MBEntityHandle pend   = CREATE_HANDLE( type,   MB_END_ID );
+    EntityHandle pstart = CREATE_HANDLE( type, MB_START_ID );
+    EntityHandle pend   = CREATE_HANDLE( type,   MB_END_ID );
     handle = tsm.find_free_sequence( count, pstart, pend, data, data_size, size);
   }
   return handle;
 }
 
 
-MBEntityID SequenceManager::new_sequence_size( MBEntityHandle start,
-                                               MBEntityID requested_size,
-                                               MBEntityID default_size ) const
+EntityID SequenceManager::new_sequence_size( EntityHandle start,
+                                               EntityID requested_size,
+                                               EntityID default_size ) const
 {
   if (requested_size >= default_size)
     return requested_size;
   
-  MBEntityHandle last = typeData[TYPE_FROM_HANDLE(start)].last_free_handle( start );
+  EntityHandle last = typeData[TYPE_FROM_HANDLE(start)].last_free_handle( start );
 // tjt - when start is 41427, last comes back 41685, when there's really an entity
     // at 41673, and 41467+246-1=41672
   if (!last) {
@@ -458,23 +464,23 @@ MBEntityID SequenceManager::new_sequence_size( MBEntityHandle start,
     return 0;
   }
   
-  MBEntityID available_size = last - start + 1;
+  EntityID available_size = last - start + 1;
   if (default_size < available_size)
     return default_size;
   else
     return available_size;
 }
 
-MBErrorCode 
-SequenceManager::create_entity_sequence( MBEntityType type,
-                                         MBEntityID count,
+ErrorCode 
+SequenceManager::create_entity_sequence( EntityType type,
+                                         EntityID count,
                                          int size,
-                                         MBEntityID start,
-                                         MBEntityHandle& handle,
+                                         EntityID start,
+                                         EntityHandle& handle,
                                          EntitySequence*& sequence )
 {
   SequenceData* data = 0;
-  MBEntityID data_size = 0;
+  EntityID data_size = 0;
   handle = sequence_start_handle( type, count, size, start, data, data_size );
     
   if (!handle)
@@ -531,7 +537,7 @@ SequenceManager::create_entity_sequence( MBEntityType type,
     break;
   }
   
-  MBErrorCode result = typeData[type].insert_sequence( sequence );
+  ErrorCode result = typeData[type].insert_sequence( sequence );
   if (MB_SUCCESS != result) {
       // change to NULL if had an existing data or if no existing data,
       // change to the new data created
@@ -545,15 +551,15 @@ SequenceManager::create_entity_sequence( MBEntityType type,
 }
 
 
-MBErrorCode 
-SequenceManager::create_meshset_sequence( MBEntityID count,
-                                          MBEntityID start,
+ErrorCode 
+SequenceManager::create_meshset_sequence( EntityID count,
+                                          EntityID start,
                                           const unsigned* flags,
-                                          MBEntityHandle& handle,
+                                          EntityHandle& handle,
                                           EntitySequence*& sequence )
 {
   SequenceData* data = 0;
-  MBEntityID data_size = 0;
+  EntityID data_size = 0;
   handle = sequence_start_handle( MBENTITYSET, count, 0, start, data, data_size );
 
   if (!handle)
@@ -566,7 +572,7 @@ SequenceManager::create_meshset_sequence( MBEntityID count,
   
   
   
-  MBErrorCode result = typeData[MBENTITYSET].insert_sequence( sequence );
+  ErrorCode result = typeData[MBENTITYSET].insert_sequence( sequence );
   if (MB_SUCCESS != result) {
       // change to NULL if had an existing data or if no existing data,
       // change to the new data created
@@ -580,15 +586,15 @@ SequenceManager::create_meshset_sequence( MBEntityID count,
 }
 
 
-MBErrorCode 
-SequenceManager::create_meshset_sequence( MBEntityID count,
-                                          MBEntityID start,
+ErrorCode 
+SequenceManager::create_meshset_sequence( EntityID count,
+                                          EntityID start,
                                           unsigned flags,
-                                          MBEntityHandle& handle,
+                                          EntityHandle& handle,
                                           EntitySequence*& sequence )
 {
   SequenceData* data = 0;
-  MBEntityID data_size = 0;
+  EntityID data_size = 0;
   handle = sequence_start_handle( MBENTITYSET, count, 0, start, data, data_size );
   if (!handle)
     return MB_MEMORY_ALLOCATION_FAILED;
@@ -600,7 +606,7 @@ SequenceManager::create_meshset_sequence( MBEntityID count,
   
   
   
-  MBErrorCode result = typeData[MBENTITYSET].insert_sequence( sequence );
+  ErrorCode result = typeData[MBENTITYSET].insert_sequence( sequence );
   if (MB_SUCCESS != result) {
       // change to NULL if had an existing data or if no existing data,
       // change to the new data created
@@ -613,12 +619,12 @@ SequenceManager::create_meshset_sequence( MBEntityID count,
   return MB_SUCCESS;
 }
 
-MBErrorCode
+ErrorCode
 SequenceManager::create_scd_sequence( int imin, int jmin, int kmin,
                                       int imax, int jmax, int kmax,
-                                      MBEntityType type,
-                                      MBEntityID start_id_hint,
-                                      MBEntityHandle& handle,
+                                      EntityType type,
+                                      EntityID start_id_hint,
+                                      EntityHandle& handle,
                                       EntitySequence*& sequence )
 {
   int this_dim = MBCN::Dimension(type);
@@ -629,9 +635,9 @@ SequenceManager::create_scd_sequence( int imin, int jmin, int kmin,
          (this_dim < 1 || imax > imin));
 
     // compute # entities; not as easy as it would appear...
-  MBEntityID num_ent;
+  EntityID num_ent;
   if (MBVERTEX == type)
-    num_ent = (MBEntityID)(imax-imin+1)*(MBEntityID)(jmax-jmin+1)*(MBEntityID)(kmax-kmin+1);
+    num_ent = (EntityID)(imax-imin+1)*(EntityID)(jmax-jmin+1)*(EntityID)(kmax-kmin+1);
   else {
     num_ent = (imax-imin) *
       (this_dim >= 2 ? (jmax-jmin) : 1) *
@@ -640,7 +646,7 @@ SequenceManager::create_scd_sequence( int imin, int jmin, int kmin,
   
     // get a start handle
   SequenceData* data = 0;
-  MBEntityID data_size = 0;
+  EntityID data_size = 0;
   handle = sequence_start_handle( type, num_ent, -1, start_id_hint, data, data_size );
 
   if (!handle)
@@ -661,7 +667,7 @@ SequenceManager::create_scd_sequence( int imin, int jmin, int kmin,
     return MB_TYPE_OUT_OF_RANGE;
   }
   
-  MBErrorCode result = typeData[type].insert_sequence( sequence );
+  ErrorCode result = typeData[type].insert_sequence( sequence );
   if (MB_SUCCESS != result) {
     data = sequence->data();
     delete sequence;
@@ -672,12 +678,12 @@ SequenceManager::create_scd_sequence( int imin, int jmin, int kmin,
   return MB_SUCCESS;
 }
 
-MBErrorCode
+ErrorCode
 SequenceManager::create_scd_sequence( const HomCoord& coord_min,
                                       const HomCoord& coord_max,
-                                      MBEntityType type,
-                                      MBEntityID start_id_hint,
-                                      MBEntityHandle& first_handle_out,
+                                      EntityType type,
+                                      EntityID start_id_hint,
+                                      EntityHandle& first_handle_out,
                                       EntitySequence*& sequence_out )
 {
   return create_scd_sequence( coord_min.i(), coord_min.j(), coord_min.k(),
@@ -686,13 +692,13 @@ SequenceManager::create_scd_sequence( const HomCoord& coord_min,
                               first_handle_out, sequence_out );
 }
 
-MBErrorCode
+ErrorCode
 SequenceManager::create_sweep_sequence( int imin, int jmin, int kmin,
 					int imax, int jmax, int kmax,
 					int* Cq,
-					MBEntityType type,
-					MBEntityID start_id_hint,
-					MBEntityHandle& handle,
+					EntityType type,
+					EntityID start_id_hint,
+					EntityHandle& handle,
 					EntitySequence*& sequence )
 {
   int this_dim = MBCN::Dimension(type);
@@ -701,9 +707,9 @@ SequenceManager::create_sweep_sequence( int imin, int jmin, int kmin,
          (this_dim < 2 || jmax > jmin) &&
          (this_dim < 1 || imax > imin));
 
-  MBEntityID num_ent;
+  EntityID num_ent;
   if (MBVERTEX == type)
-    num_ent = (MBEntityID)(imax-imin+1)*(MBEntityID)(jmax-jmin+1)*(MBEntityID)(kmax-kmin+1);
+    num_ent = (EntityID)(imax-imin+1)*(EntityID)(jmax-jmin+1)*(EntityID)(kmax-kmin+1);
   else {
     num_ent = (imax-imin) *
       (this_dim >= 2 ? (jmax-jmin) : 1) *
@@ -712,7 +718,7 @@ SequenceManager::create_sweep_sequence( int imin, int jmin, int kmin,
   
     // get a start handle
   SequenceData* data = 0;
-  MBEntityID data_size = 0;
+  EntityID data_size = 0;
   handle = sequence_start_handle( type, num_ent, -1, start_id_hint, data, data_size );
 
   if (!handle)
@@ -733,7 +739,7 @@ SequenceManager::create_sweep_sequence( int imin, int jmin, int kmin,
     return MB_TYPE_OUT_OF_RANGE;
   }
   
-  MBErrorCode result = typeData[type].insert_sequence( sequence );
+  ErrorCode result = typeData[type].insert_sequence( sequence );
   if (MB_SUCCESS != result) {
     data = sequence->data();
     delete sequence;
@@ -744,13 +750,13 @@ SequenceManager::create_sweep_sequence( int imin, int jmin, int kmin,
   return MB_SUCCESS;
 }
 
-MBErrorCode
+ErrorCode
 SequenceManager::create_sweep_sequence( const HomCoord& coord_min,
 					const HomCoord& coord_max,
 					int* Cq,
-					MBEntityType type,
-					MBEntityID start_id_hint,
-					MBEntityHandle& first_handle_out,
+					EntityType type,
+					EntityID start_id_hint,
+					EntityHandle& first_handle_out,
 					EntitySequence*& sequence_out )
 {
   return create_sweep_sequence( coord_min.i(), coord_min.j(), coord_min.k(),
@@ -760,7 +766,7 @@ SequenceManager::create_sweep_sequence( const HomCoord& coord_min,
 				first_handle_out, sequence_out );
 }
 
-MBErrorCode 
+ErrorCode 
 SequenceManager::add_vsequence(EntitySequence *vert_seq,
                                EntitySequence *elem_seq,
                                const HomCoord &p1, const HomCoord &q1,
@@ -785,10 +791,10 @@ SequenceManager::add_vsequence(EntitySequence *vert_seq,
                                  bb_input, HomCoord::unitv[0], HomCoord::unitv[0]);
 }
  
-MBErrorCode
+ErrorCode
 SequenceManager::replace_subsequence( EntitySequence* new_seq, TagServer* ts )
 {
-  const MBEntityType type = TYPE_FROM_HANDLE(new_seq->start_handle());
+  const EntityType type = TYPE_FROM_HANDLE(new_seq->start_handle());
   return typeData[type].replace_subsequence( new_seq, ts );
 }
 
@@ -799,7 +805,7 @@ void SequenceManager::get_memory_use( unsigned long& total_entity_storage,
   total_entity_storage = 0;
   total_storage = 0;
   unsigned long temp_entity, temp_total;
-  for (MBEntityType i = MBVERTEX; i < MBMAXTYPE; ++i) {
+  for (EntityType i = MBVERTEX; i < MBMAXTYPE; ++i) {
     temp_entity = temp_total = 0;
     get_memory_use( i, temp_entity, temp_total );
     total_entity_storage += temp_entity;
@@ -807,24 +813,24 @@ void SequenceManager::get_memory_use( unsigned long& total_entity_storage,
   }
 }
 
-void SequenceManager::get_memory_use( MBEntityType type,
+void SequenceManager::get_memory_use( EntityType type,
                                       unsigned long& total_entity_storage,
                                       unsigned long& total_storage ) const
 {
   typeData[type].get_memory_use( total_entity_storage, total_storage );
 }
 
-void SequenceManager::get_memory_use( const MBRange& entities,
+void SequenceManager::get_memory_use( const Range& entities,
                                       unsigned long& total_entity_storage,
                                       unsigned long& total_amortized_storage ) const
 {
   total_entity_storage = 0;
   total_amortized_storage = 0;
   unsigned long temp_entity, temp_total;
-  MBRange::const_pair_iterator i;
+  Range::const_pair_iterator i;
   for (i = entities.const_pair_begin(); i != entities.const_pair_end(); ++i) {
-    const MBEntityType t1 = TYPE_FROM_HANDLE(i->first);
-    const MBEntityType t2 = TYPE_FROM_HANDLE(i->second);
+    const EntityType t1 = TYPE_FROM_HANDLE(i->first);
+    const EntityType t2 = TYPE_FROM_HANDLE(i->second);
     if (t1 == t2) {
       temp_entity = temp_total = 0;
       typeData[t1].get_memory_use( i->first, i->second, temp_entity, temp_total );
@@ -848,14 +854,14 @@ void SequenceManager::get_memory_use( const MBRange& entities,
 }
 
 void SequenceManager::reset_tag_data() {
-  for (MBEntityType t = MBVERTEX; t <= MBENTITYSET; ++t) {
+  for (EntityType t = MBVERTEX; t <= MBENTITYSET; ++t) {
     TypeSequenceManager& seqs = entity_map(t);
     for (TypeSequenceManager::iterator i = seqs.begin(); i != seqs.end(); ++i)
       (*i)->data()->release_tag_data( &tagSizes[0], tagSizes.size() );
   }
 }
 
-MBErrorCode SequenceManager::reserve_tag_id( int size, MBTagId tag_id )
+ErrorCode SequenceManager::reserve_tag_id( int size, TagId tag_id )
 {
   if (size < 1 && size != MB_VARIABLE_LENGTH)
     return MB_INVALID_SIZE;
@@ -867,13 +873,13 @@ MBErrorCode SequenceManager::reserve_tag_id( int size, MBTagId tag_id )
   return MB_SUCCESS;
 }
 
-MBErrorCode SequenceManager::release_tag( MBTagId tag_id )
+ErrorCode SequenceManager::release_tag( TagId tag_id )
 {
   if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
     return MB_TAG_NOT_FOUND;
   tagSizes[tag_id] = 0;
   
-  for (MBEntityType t = MBVERTEX; t <= MBENTITYSET; ++t) {
+  for (EntityType t = MBVERTEX; t <= MBENTITYSET; ++t) {
     TypeSequenceManager& seqs = entity_map(t);
     for (TypeSequenceManager::iterator i = seqs.begin(); i != seqs.end(); ++i)
       (*i)->data()->release_tag_data(tag_id, tagSizes[tag_id]);
@@ -881,8 +887,8 @@ MBErrorCode SequenceManager::release_tag( MBTagId tag_id )
   return MB_SUCCESS;
 }
 
-MBErrorCode SequenceManager::remove_tag_data( MBTagId tag_id, 
-                                              MBEntityHandle handle,
+ErrorCode SequenceManager::remove_tag_data( TagId tag_id, 
+                                              EntityHandle handle,
                                               const void* default_tag_value,
                                               int default_value_size )
 {
@@ -890,7 +896,7 @@ MBErrorCode SequenceManager::remove_tag_data( MBTagId tag_id,
     return MB_TAG_NOT_FOUND;
 
   EntitySequence* seq = 0;
-  MBErrorCode rval = find( handle, seq );
+  ErrorCode rval = find( handle, seq );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -916,8 +922,8 @@ MBErrorCode SequenceManager::remove_tag_data( MBTagId tag_id,
   return MB_SUCCESS;
 }
 
-MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
-                                           const MBEntityHandle* handles,
+ErrorCode SequenceManager::set_tag_data( TagId tag_id,
+                                           const EntityHandle* handles,
                                            int num_handles,
                                            const void* values,
                                            const void* default_value )
@@ -929,12 +935,12 @@ MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
       return MB_TAG_NOT_FOUND;
   }
   
-  MBErrorCode result = MB_SUCCESS;
+  ErrorCode result = MB_SUCCESS;
   const unsigned char* ptr = reinterpret_cast<const unsigned char*>(values);
-  const MBEntityHandle* const end = handles + num_handles;
-  for (const MBEntityHandle* i = handles; i != end; ++i, ptr += tagSizes[tag_id] ) {
+  const EntityHandle* const end = handles + num_handles;
+  for (const EntityHandle* i = handles; i != end; ++i, ptr += tagSizes[tag_id] ) {
     EntitySequence* seq = 0;
-    MBErrorCode rval = find( *i, seq );
+    ErrorCode rval = find( *i, seq );
     if (MB_SUCCESS != rval) {
       result = rval;
       continue;
@@ -947,24 +953,24 @@ MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
   return result;
 }
 
-MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
-                                           const MBEntityHandle* handles,
+ErrorCode SequenceManager::set_tag_data( TagId tag_id,
+                                           const EntityHandle* handles,
                                            int num_handles,
                                            void const* const* values,
                                            const int* lengths,
                                            const void* default_value )
 {
-  MBErrorCode result = MB_SUCCESS;
-  const MBEntityHandle* const end = handles + num_handles;
+  ErrorCode result = MB_SUCCESS;
+  const EntityHandle* const end = handles + num_handles;
   
   if (tagSizes[tag_id] == MB_VARIABLE_LENGTH) {
     if (!lengths)
       return MB_VARIABLE_DATA_LENGTH;
     
-    for (const MBEntityHandle* i = handles; i != end; ++i, ++values, ++lengths ) {
+    for (const EntityHandle* i = handles; i != end; ++i, ++values, ++lengths ) {
         // find sequence for entity
       EntitySequence* seq = 0;
-      MBErrorCode rval = find( *i, seq );
+      ErrorCode rval = find( *i, seq );
       if (MB_SUCCESS != rval) {
         result = rval;
         continue;
@@ -975,10 +981,10 @@ MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
     }
   }
   else {
-    for (const MBEntityHandle* i = handles; i != end; ++i, ++values ) {
+    for (const EntityHandle* i = handles; i != end; ++i, ++values ) {
         // find sequence for entity
       EntitySequence* seq = 0;
-      MBErrorCode rval = find( *i, seq );
+      ErrorCode rval = find( *i, seq );
       if (MB_SUCCESS != rval) {
         result = rval;
         continue;
@@ -992,12 +998,12 @@ MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
   return result;
 }
 
-MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
-                                           const MBRange& handles,
+ErrorCode SequenceManager::set_tag_data( TagId tag_id,
+                                           const Range& handles,
                                            const void* values,
                                            const void* default_value )
 {
-  MBErrorCode rval, result = MB_SUCCESS;
+  ErrorCode rval, result = MB_SUCCESS;
     // NOTE: Comparison of size to 1 should also catch 
     //       case where tag is variable-length.  
   if (tag_id >= tagSizes.size() || tagSizes[tag_id] < 1) {
@@ -1009,11 +1015,11 @@ MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
   
   const char* data = reinterpret_cast<const char*>(values);
 
-  MBRange::const_pair_iterator p = handles.begin();
-  for (MBRange::const_pair_iterator p = handles.const_pair_begin(); 
+  Range::const_pair_iterator p = handles.begin();
+  for (Range::const_pair_iterator p = handles.const_pair_begin(); 
        p != handles.const_pair_end(); ++p) {
        
-    MBEntityHandle start = p->first;
+    EntityHandle start = p->first;
     while (start <= p->second) {
       
       EntitySequence* seq = 0;
@@ -1025,8 +1031,8 @@ MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
         continue;
       }
       
-      const MBEntityHandle finish = std::min( p->second, seq->end_handle() );
-      const MBEntityID count = finish - start + 1;
+      const EntityHandle finish = std::min( p->second, seq->end_handle() );
+      const EntityID count = finish - start + 1;
       
       void* tag_array = seq->data()->get_tag_data( tag_id );
       if (!tag_array)
@@ -1045,13 +1051,13 @@ MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
 }
       
 
-MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
-                                           const MBRange& handles,
+ErrorCode SequenceManager::set_tag_data( TagId tag_id,
+                                           const Range& handles,
                                            void const* const* values,
                                            const int* lengths,
                                            const void* default_value )
 {
-  MBErrorCode rval, result = MB_SUCCESS;
+  ErrorCode rval, result = MB_SUCCESS;
   if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
     return MB_TAG_NOT_FOUND;
 
@@ -1070,11 +1076,11 @@ MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
   }
 
 
-  MBRange::const_pair_iterator p = handles.begin();
-  for (MBRange::const_pair_iterator p = handles.const_pair_begin(); 
+  Range::const_pair_iterator p = handles.begin();
+  for (Range::const_pair_iterator p = handles.const_pair_begin(); 
        p != handles.const_pair_end(); ++p) {
        
-    MBEntityHandle start = p->first;
+    EntityHandle start = p->first;
     while (start <= p->second) {
       
       EntitySequence* seq = 0;
@@ -1088,8 +1094,8 @@ MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
         continue;
       }
       
-      const MBEntityHandle finish = std::min( p->second, seq->end_handle() ) + 1;
-      const MBEntityID count = finish - start;
+      const EntityHandle finish = std::min( p->second, seq->end_handle() ) + 1;
+      const EntityID count = finish - start;
       
       void* tag_array = seq->data()->get_tag_data( tag_id );
       if (!tag_array)
@@ -1125,8 +1131,8 @@ MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
 }
       
 
-MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
-                                           const MBEntityHandle* handles,
+ErrorCode SequenceManager::get_tag_data( TagId tag_id,
+                                           const EntityHandle* handles,
                                            int num_handles,
                                            void* values,
                                            const void* default_value ) const
@@ -1142,11 +1148,11 @@ MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
 
   const int len = tagSizes[tag_id];
   unsigned char* ptr = reinterpret_cast<unsigned char*>(values);
-  const MBEntityHandle *const end = handles + num_handles;
-  for (const MBEntityHandle* i = handles; i != end; ++i, ptr += len) {
+  const EntityHandle *const end = handles + num_handles;
+  for (const EntityHandle* i = handles; i != end; ++i, ptr += len) {
     
     const EntitySequence* seq = 0;
-    MBErrorCode rval = find( *i, seq );
+    ErrorCode rval = find( *i, seq );
     // keep MOAB 3.0 behavior : return default value for invalid handles
     if (MB_SUCCESS != rval)
       return rval;
@@ -1165,8 +1171,8 @@ MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
   return MB_SUCCESS;
 }
 
-MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
-                                           const MBEntityHandle* handles,
+ErrorCode SequenceManager::get_tag_data( TagId tag_id,
+                                           const EntityHandle* handles,
                                            int num_handles,
                                            const void** values,
                                            int* lengths,
@@ -1176,15 +1182,15 @@ MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
   if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
     return MB_TAG_NOT_FOUND;
   
-  MBErrorCode result = MB_SUCCESS;
-  const MBEntityHandle *const end = handles + num_handles;
+  ErrorCode result = MB_SUCCESS;
+  const EntityHandle *const end = handles + num_handles;
   const int len = tagSizes[tag_id];
   
   if (len == MB_VARIABLE_LENGTH) {
-    for (const MBEntityHandle* i = handles; i != end; ++i) {
+    for (const EntityHandle* i = handles; i != end; ++i) {
       
       const EntitySequence* seq = 0;
-      MBErrorCode rval = find( *i, seq );
+      ErrorCode rval = find( *i, seq );
       if (MB_SUCCESS != rval) {
         result = rval;
         *values = 0;
@@ -1213,11 +1219,11 @@ MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
   }
   else {
     if (lengths) 
-      MBSysUtil::setmem( lengths, &len, sizeof(int), num_handles );
+      SysUtil::setmem( lengths, &len, sizeof(int), num_handles );
   
-    for (const MBEntityHandle* i = handles; i != end; ++i) {
+    for (const EntityHandle* i = handles; i != end; ++i) {
       const EntitySequence* seq = 0;
-      MBErrorCode rval = find( *i, seq );
+      ErrorCode rval = find( *i, seq );
       if (MB_SUCCESS != rval) {
         result = rval;
         *values = 0;
@@ -1238,12 +1244,12 @@ MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
   return result;
 }
 
-MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
-                                           const MBRange& handles,
+ErrorCode SequenceManager::get_tag_data( TagId tag_id,
+                                           const Range& handles,
                                            void* values,
                                            const void* default_value ) const
 {
-  MBErrorCode rval;
+  ErrorCode rval;
     // NOTE: Comparison of size to 1 should also catch 
     //       case where tag is variable-length.  
   if (tag_id >= tagSizes.size() || tagSizes[tag_id] < 1) {
@@ -1255,10 +1261,10 @@ MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
     
   char* data = reinterpret_cast<char*>(values);
 
-  for (MBRange::const_pair_iterator p = handles.const_pair_begin(); 
+  for (Range::const_pair_iterator p = handles.const_pair_begin(); 
        p != handles.const_pair_end(); ++p) {
        
-    MBEntityHandle start = p->first;
+    EntityHandle start = p->first;
     while (start <= p->second) {
       
       const EntitySequence* seq = 0;
@@ -1266,8 +1272,8 @@ MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
       if (MB_SUCCESS != rval)
         return rval;
      
-      const MBEntityHandle finish = std::min( p->second, seq->end_handle() );
-      const MBEntityID count = finish - start + 1;
+      const EntityHandle finish = std::min( p->second, seq->end_handle() );
+      const EntityID count = finish - start + 1;
       
       const void* tag_array = seq->data()->get_tag_data( tag_id );
       if (tag_array) {
@@ -1276,7 +1282,7 @@ MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
         memcpy( data, tag_data, tagSizes[tag_id] * count );
       }
       else if (default_value) {
-        MBSysUtil::setmem( data, default_value, tagSizes[tag_id], count );
+        SysUtil::setmem( data, default_value, tagSizes[tag_id], count );
       }
       else {
         return MB_TAG_NOT_FOUND;
@@ -1290,14 +1296,14 @@ MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
   return MB_SUCCESS;
 }
 
-MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
-                                           const MBRange& handles,
+ErrorCode SequenceManager::get_tag_data( TagId tag_id,
+                                           const Range& handles,
                                            const void** values,
                                            int* lengths,
                                            const void* default_value,
                                            int default_value_length ) const
 {
-  MBErrorCode rval, result = MB_SUCCESS;
+  ErrorCode rval, result = MB_SUCCESS;
   if (!default_value)
     default_value_length = 0;
 
@@ -1310,13 +1316,13 @@ MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
   }
   else if (lengths) {
     int len = tagSizes[tag_id];
-    MBSysUtil::setmem( lengths, &len, sizeof(int), handles.size() );
+    SysUtil::setmem( lengths, &len, sizeof(int), handles.size() );
   }
   
-  for (MBRange::const_pair_iterator p = handles.const_pair_begin(); 
+  for (Range::const_pair_iterator p = handles.const_pair_begin(); 
        p != handles.const_pair_end(); ++p) {
 
-    MBEntityHandle start = p->first;
+    EntityHandle start = p->first;
     while (start <= p->second) {
 
       const EntitySequence* seq = 0;
@@ -1333,13 +1339,13 @@ MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
         continue;
       }
 
-      const MBEntityHandle finish = std::min( p->second, seq->end_handle() ) + 1;
-      const MBEntityID count = finish - start;
+      const EntityHandle finish = std::min( p->second, seq->end_handle() ) + 1;
+      const EntityID count = finish - start;
       if (tagSizes[tag_id] == MB_VARIABLE_LENGTH) {
         const VarLenTag* tag_data = vtag_array( seq, start, tag_id );
         if (!tag_data) {
-          MBSysUtil::setmem( values, &default_value, sizeof(void*), count );
-          MBSysUtil::setmem( lengths, &default_value_length, sizeof(int), count );
+          SysUtil::setmem( values, &default_value, sizeof(void*), count );
+          SysUtil::setmem( lengths, &default_value_length, sizeof(int), count );
           values += count;
           lengths += count;
           if (!default_value)
@@ -1370,7 +1376,7 @@ MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
       else {
         const unsigned char* tag_data = tag_array( seq, start, tag_id, tagSizes[tag_id] );
         if (!tag_data) {
-          MBSysUtil::setmem( values, &default_value, sizeof(void*), count );
+          SysUtil::setmem( values, &default_value, sizeof(void*), count );
           values += count;
           if (!default_value)
             result = MB_TAG_NOT_FOUND;
@@ -1391,15 +1397,15 @@ MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
   return result;
 }
 
-MBErrorCode SequenceManager::get_entity_tags(  MBEntityHandle entity,
-                                 std::vector<MBTag>& tags_out ) const
+ErrorCode SequenceManager::get_entity_tags(  EntityHandle entity,
+                                 std::vector<Tag>& tags_out ) const
 {
   const EntitySequence* seq = 0;
-  MBErrorCode rval = find( entity, seq );
+  ErrorCode rval = find( entity, seq );
   if (MB_SUCCESS != rval)
     return rval;
   
-  for (MBTagId i = 0; i < tagSizes.size(); ++i) {
+  for (TagId i = 0; i < tagSizes.size(); ++i) {
     if (tagSizes[i] == MB_VARIABLE_LENGTH) {
       const void* data_array = seq->data()->get_tag_data(i);
       if (data_array) {
@@ -1418,14 +1424,14 @@ MBErrorCode SequenceManager::get_entity_tags(  MBEntityHandle entity,
   return MB_SUCCESS;
 }
 
-MBErrorCode SequenceManager::get_tagged_entities( MBTagId tag_id, 
-                                                  MBEntityType type,
-                                                  MBRange& entities_out ) const
+ErrorCode SequenceManager::get_tagged_entities( TagId tag_id, 
+                                                  EntityType type,
+                                                  Range& entities_out ) const
 {
   if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
     return MB_TAG_NOT_FOUND;
 
-  MBRange::iterator insert = entities_out.begin();
+  Range::iterator insert = entities_out.begin();
   const TypeSequenceManager& map = entity_map( type );
   if (tagSizes[tag_id] == MB_VARIABLE_LENGTH) {
     const VarLenTag *data, *iter, *end;
@@ -1435,7 +1441,7 @@ MBErrorCode SequenceManager::get_tagged_entities( MBTagId tag_id,
         continue;
       end = data + (*i)->end_handle() - (*i)->data()->start_handle() + 1;
       iter = data + (*i)->start_handle() - (*i)->data()->start_handle();
-      MBEntityHandle handle = (*i)->start_handle();
+      EntityHandle handle = (*i)->start_handle();
       for (; iter != end; ++iter, ++handle)
         if (iter->size()) 
           insert = entities_out.insert( insert, handle, handle );
@@ -1450,8 +1456,8 @@ MBErrorCode SequenceManager::get_tagged_entities( MBTagId tag_id,
   return MB_SUCCESS;
 }
 
-MBErrorCode SequenceManager::count_tagged_entities( MBTagId tag_id, 
-                                                    MBEntityType type,
+ErrorCode SequenceManager::count_tagged_entities( TagId tag_id, 
+                                                    EntityType type,
                                                     int& count ) const
 {
   if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
@@ -1482,17 +1488,17 @@ MBErrorCode SequenceManager::count_tagged_entities( MBTagId tag_id,
   return MB_SUCCESS;
 }
 
-MBErrorCode SequenceManager::get_entities_with_tag_value( MBTagId id,
+ErrorCode SequenceManager::get_entities_with_tag_value( TagId id,
                                                           const TagInfo& tag_info,
-                                                          MBEntityType type,
-                                                          MBRange& entities_out,
+                                                          EntityType type,
+                                                          Range& entities_out,
                                                           const void* value,
                                                           int size ) const
 {
   if (id >= tagSizes.size() || !tagSizes[id])
     return MB_TAG_NOT_FOUND;
 
-  MBRange::iterator insert = entities_out.begin();
+  Range::iterator insert = entities_out.begin();
   const TypeSequenceManager& map = entity_map( type );
   for (TypeSequenceManager::const_iterator i = map.begin(); i != map.end(); ++i) {
     if (const void* data = (*i)->data()->get_tag_data(id)) {
@@ -1506,25 +1512,25 @@ MBErrorCode SequenceManager::get_entities_with_tag_value( MBTagId id,
   return MB_SUCCESS;
 }
 
-MBErrorCode SequenceManager::get_entities_with_tag_value( const MBRange& range,
-                                                          MBTagId id,
+ErrorCode SequenceManager::get_entities_with_tag_value( const Range& range,
+                                                          TagId id,
                                                           const TagInfo& tag_info,
-                                                          MBEntityType type,
-                                                          MBRange& entities_out,
+                                                          EntityType type,
+                                                          Range& entities_out,
                                                           const void* value,
                                                           int size ) const
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   if (id >= tagSizes.size() || !tagSizes[id])
     return MB_TAG_NOT_FOUND;
     
-  MBRange::iterator insert = entities_out.begin();
-  MBRange::const_pair_iterator p = range.lower_bound(type);         
-  for (MBRange::const_pair_iterator p = range.const_pair_begin(); 
+  Range::iterator insert = entities_out.begin();
+  Range::const_pair_iterator p = range.lower_bound(type);         
+  for (Range::const_pair_iterator p = range.const_pair_begin(); 
        p != range.const_pair_end() && TYPE_FROM_HANDLE(p->first) == type; 
        ++p) {
     
-    MBEntityHandle start = p->first;
+    EntityHandle start = p->first;
     while (start <= p->second) {
       
       const EntitySequence* seq = 0;
@@ -1532,7 +1538,7 @@ MBErrorCode SequenceManager::get_entities_with_tag_value( const MBRange& range,
       if (MB_SUCCESS != rval) 
         return rval;
      
-      const MBEntityHandle finish = std::min( p->second, seq->end_handle() );
+      const EntityHandle finish = std::min( p->second, seq->end_handle() );
       const void* tag_array = seq->data()->get_tag_data( id );
       if (tag_array) {
         ByteArrayIterator start( seq->data()->start_handle(), tag_array, tag_info );
@@ -1547,7 +1553,7 @@ MBErrorCode SequenceManager::get_entities_with_tag_value( const MBRange& range,
   return MB_SUCCESS;
 }
 
-MBErrorCode SequenceManager::get_tag_memory_use( MBTagId id, 
+ErrorCode SequenceManager::get_tag_memory_use( TagId id, 
                                        unsigned long& total, 
                                        unsigned long& per_entity ) const
 {
@@ -1556,7 +1562,7 @@ MBErrorCode SequenceManager::get_tag_memory_use( MBTagId id,
     
   per_entity = tagSizes[id];
   total = 0;
-  for (MBEntityType t = MBVERTEX; t <= MBENTITYSET; ++t) {
+  for (EntityType t = MBVERTEX; t <= MBENTITYSET; ++t) {
     const TypeSequenceManager& map = entity_map(t);
     const SequenceData* prev_data = 0;
     for (TypeSequenceManager::const_iterator i = map.begin(); i != map.end(); ++i) {
@@ -1574,7 +1580,6 @@ MBErrorCode SequenceManager::get_tag_memory_use( MBTagId id,
 // These are meant to be called from the debugger (not declared in any header)
 // so leave them out of release builds (-DNDEBUG).
 #ifndef NDEBUG
-#include <iostream>
 
 std::ostream& operator<<( std::ostream& s, const TypeSequenceManager& seq_man )
 {
@@ -1602,7 +1607,7 @@ std::ostream& operator<<( std::ostream& s, const TypeSequenceManager& seq_man )
 
 std::ostream& operator<<( std::ostream& s, const SequenceManager& seq_man )
 {
-  for (MBEntityType t = MBVERTEX; t < MBMAXTYPE; ++t) 
+  for (EntityType t = MBVERTEX; t < MBMAXTYPE; ++t) 
     if (!seq_man.entity_map(t).empty()) 
       s << std::endl 
         << "****************** " << MBCN::EntityTypeName( t ) << " ******************"
@@ -1619,5 +1624,7 @@ void print_sequences( const TypeSequenceManager& seqman )
 {
   std::cout << seqman << std::endl;
 }
+
+} // namespace moab
 
 #endif

@@ -13,8 +13,10 @@
  * 
  */
 
-#include "HomXform.hpp"
-#include "assert.h"
+#include "moab/HomXform.hpp"
+#include <assert.h>
+
+namespace moab {
 
 HomCoord HomCoord::unitv[3] = {HomCoord(1,0,0), HomCoord(0,1,0), HomCoord(0,0,1)};
 HomCoord HomCoord::IDENTITY(1, 1, 1);
@@ -126,8 +128,13 @@ void HomXform::three_pt_xform(const HomCoord &p1, const HomCoord &q1,
          (q2 == p2 * *this) &&
          (q3 == p3 * *this));
 }
+  
+} // namespace moab
+
 
 #ifdef TEST
+
+using namespace moab;
 
 #include <iostream>
 

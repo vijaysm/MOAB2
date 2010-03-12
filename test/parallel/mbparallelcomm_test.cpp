@@ -1,4 +1,4 @@
-/** test of MBParallelComm functionality
+/** test of ParallelComm functionality
  *
  * To run:
  *
@@ -6,17 +6,17 @@
  *
  */
 
-#include "MBParallelComm.hpp"
-#include "MBParallelConventions.h"
+#include "moab/ParallelComm.hpp"
+#include "moab/MBParallelConventions.h"
 #include "ReadParallel.hpp"
 #include "FileOptions.hpp"
-#include "MBTagConventions.hpp"
-#include "MBCore.hpp"
+#include "moab/MBTagConventions.hpp"
+#include "moab/Core.hpp"
 #include "ScdVertexData.hpp"
 #include "StructuredElementSeq.hpp"
 #include "SequenceManager.hpp"
-#include "MBError.hpp"
-#include "MBmpi.h"
+#include "Error.hpp"
+#include "moab_mpi.h"
 #include <iostream>
 #include <sstream>
 #include <assert.h>
@@ -24,6 +24,8 @@
 #define REALTFI 1
 
 const bool debug = false;
+
+using namespace moab;
 
 #define ERROR(a, b) {std::cerr << a << std::endl; return b;}
 
@@ -36,26 +38,26 @@ const bool debug = false;
 #define RRA(a) if (MB_SUCCESS != result) {\
       std::string tmp_str; mbImpl->get_last_error(tmp_str);\
       tmp_str.append("\n"); tmp_str.append(a);\
-      dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(tmp_str); \
+      dynamic_cast<Core*>(mbImpl)->get_error_handler()->set_last_error(tmp_str); \
       return result;}
 
-MBErrorCode create_linear_mesh(MBInterface *mbImpl,
+ErrorCode create_linear_mesh(Interface *mbImpl,
                                int N, int M, int &nshared);
 
-MBErrorCode create_scd_mesh(MBInterface *mbImpl,
+ErrorCode create_scd_mesh(Interface *mbImpl,
                             int IJK, int &nshared);
 
-MBErrorCode read_file(MBInterface *mbImpl, std::vector<std::string> &filenames,
+ErrorCode read_file(Interface *mbImpl, std::vector<std::string> &filenames,
                       const char *tag_name, int tag_val, int distrib,
                       int parallel_option, int resolve_shared, int with_ghosts, 
                       int use_mpio, bool print_parallel);
 
-MBErrorCode test_packing(MBInterface *mbImpl, const char *filename);
+ErrorCode test_packing(Interface *mbImpl, const char *filename);
 
-MBErrorCode report_nsets(MBInterface *mbImpl);
+ErrorCode report_nsets(Interface *mbImpl);
 
-MBErrorCode report_iface_ents(MBInterface *mbImpl,
-                              std::vector<MBParallelComm *> &pcs);
+ErrorCode report_iface_ents(Interface *mbImpl,
+                              std::vector<ParallelComm *> &pcs);
 
 void print_usage(const char *);
 
@@ -73,10 +75,10 @@ int main(int argc, char **argv)
   if (0 == rank) stime = MPI_Wtime();
 
     // create MOAB instance based on that
-  MBInterface *mbImpl = new MBCore;
+  Interface *mbImpl = new Core;
   if (NULL == mbImpl) return 1;
   
-  MBErrorCode result = MB_SUCCESS;
+  ErrorCode result = MB_SUCCESS;
 
     // each interior proc has a vector of N+M vertices, sharing
     // M vertices each with lower- and upper-rank processors, except
@@ -100,7 +102,7 @@ int main(int argc, char **argv)
   if (!strcmp(argv[npos], "-p")) print_parallel = true;
 
   while (npos != argc) {    
-    MBErrorCode tmp_result;
+    ErrorCode tmp_result;
     int nshared = -1;
     int this_opt = strtol(argv[npos++], NULL, 0);
     switch (this_opt) {
@@ -227,16 +229,16 @@ void print_usage(const char *command)
       << "*Note: if opt 3 is used, it must be the last one." << std::endl;
 }
 
-MBErrorCode report_nsets(MBInterface *mbImpl) 
+ErrorCode report_nsets(Interface *mbImpl) 
 {
     // get and report various numbers...
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   
-  MBRange matsets, geomsets, parsets;
+  Range matsets, geomsets, parsets;
   int nsets;
-  MBTag mtag = 0, gtag = 0, ptag = 0, gidtag;
-  MBErrorCode result = mbImpl->tag_get_handle("MATERIAL_SET", mtag);
+  Tag mtag = 0, gtag = 0, ptag = 0, gidtag;
+  ErrorCode result = mbImpl->tag_get_handle("MATERIAL_SET", mtag);
   result = mbImpl->tag_get_handle("GEOM_DIMENSION", gtag);
   result = mbImpl->tag_get_handle("PARALLEL_PARTITION", ptag);
   result = mbImpl->tag_get_handle("GLOBAL_ID", gidtag);
@@ -293,7 +295,7 @@ MBErrorCode report_nsets(MBInterface *mbImpl)
   return MB_SUCCESS;
 }
 
-MBErrorCode read_file(MBInterface *mbImpl, 
+ErrorCode read_file(Interface *mbImpl, 
                       std::vector<std::string> &filenames,
                       const char *tag_name, int tag_val,
                       int distrib, int parallel_option, int resolve_shared,
@@ -337,13 +339,13 @@ MBErrorCode read_file(MBInterface *mbImpl,
   if (print_parallel) 
     options << ";PRINT_PARALLEL";
 
-  std::vector<MBParallelComm*> pcs(filenames.size());
+  std::vector<ParallelComm*> pcs(filenames.size());
   std::vector<ReadParallel*> rps(filenames.size());
-  MBErrorCode result;
+  ErrorCode result;
 
   if (1 < filenames.size()) {
     for (unsigned int i = 0; i < filenames.size(); i++) {
-      pcs[i] = new MBParallelComm(mbImpl);
+      pcs[i] = new ParallelComm(mbImpl);
       rps[i] = new ReadParallel(mbImpl, pcs[i]);
     
       result = rps[i]->load_file(filenames[i].c_str(), 0, 
@@ -357,7 +359,7 @@ MBErrorCode read_file(MBInterface *mbImpl,
       }
 
         // exchange tag
-      MBRange tmp_range;
+      Range tmp_range;
       result = pcs[i]->exchange_tags("GLOBAL_ID", tmp_range);
       if (MB_SUCCESS != result) {
         std::cerr << "Tag exchange didn't work." << std::endl;
@@ -369,7 +371,7 @@ MBErrorCode read_file(MBInterface *mbImpl,
   else {
     result = mbImpl->load_file(filenames[0].c_str(), 0, 
                                options.str().c_str());
-    pcs[0] = MBParallelComm::get_pcomm(mbImpl, 0);
+    pcs[0] = ParallelComm::get_pcomm(mbImpl, 0);
     assert(pcs[0]);
   }
     
@@ -378,11 +380,11 @@ MBErrorCode read_file(MBInterface *mbImpl,
   return result;
 }
 
-MBErrorCode test_packing(MBInterface *mbImpl, const char *filename) 
+ErrorCode test_packing(Interface *mbImpl, const char *filename) 
 {
     // read the mesh
-  MBEntityHandle file_set;
-  MBErrorCode result = mbImpl->create_meshset( MESHSET_SET, file_set );
+  EntityHandle file_set;
+  ErrorCode result = mbImpl->create_meshset( MESHSET_SET, file_set );
   RRA("create_meshset failed.");
 
   result = mbImpl->load_file(filename, &file_set, NULL);
@@ -393,21 +395,21 @@ MBErrorCode test_packing(MBInterface *mbImpl, const char *filename)
   }
   
     // get 3d entities and pack a buffer with them
-  MBRange ents, new_ents, whole_range;
+  Range ents, new_ents, whole_range;
   result = mbImpl->get_entities_by_handle(file_set, ents);
   RRA("Getting 3d ents failed.");
   
   ents.insert(file_set);
   
-  MBParallelComm *pcomm = new MBParallelComm(mbImpl);
+  ParallelComm *pcomm = new ParallelComm(mbImpl);
 
-  MBParallelComm::Buffer buff;
+  ParallelComm::Buffer buff;
   result = pcomm->pack_buffer(ents, false, true, false, -1, &buff);
   RRA("Packing buffer count (non-stored handles) failed.");
 
-  std::vector<std::vector<MBEntityHandle> > L1hloc, L1hrem;
+  std::vector<std::vector<EntityHandle> > L1hloc, L1hrem;
   std::vector<std::vector<int> > L1p;
-  std::vector<MBEntityHandle> L2hloc, L2hrem;
+  std::vector<EntityHandle> L2hloc, L2hrem;
   std::vector<unsigned int> L2p;
   
   buff.reset_ptr();
@@ -418,17 +420,17 @@ MBErrorCode test_packing(MBInterface *mbImpl, const char *filename)
   return MB_SUCCESS;
 }
 
-MBErrorCode report_iface_ents(MBInterface *mbImpl,
-                              std::vector<MBParallelComm *> &pcs) 
+ErrorCode report_iface_ents(Interface *mbImpl,
+                              std::vector<ParallelComm *> &pcs) 
 {
-  MBRange iface_ents[6];
-  MBErrorCode result = MB_SUCCESS, tmp_result;
+  Range iface_ents[6];
+  ErrorCode result = MB_SUCCESS, tmp_result;
   
     // now figure out which vertices are shared
-  MBRange part_ents;
+  Range part_ents;
   for (unsigned int p = 0; p < pcs.size(); p++) {
     // get entities owned by this partition
-    for (MBRange::iterator rit = pcs[p]->partition_sets().begin();
+    for (Range::iterator rit = pcs[p]->partition_sets().begin();
 	 rit != pcs[p]->partition_sets().end(); rit++) {
       tmp_result = mbImpl->get_entities_by_dimension(*rit, 3, part_ents, true);
       if (MB_SUCCESS != tmp_result) result = tmp_result;
@@ -452,7 +454,7 @@ MBErrorCode report_iface_ents(MBInterface *mbImpl,
 
     // report # iface entities
   result = mbImpl->get_adjacencies(iface_ents[4], 0, false, iface_ents[5], 
-                                   MBInterface::UNION);
+                                   Interface::UNION);
 
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);

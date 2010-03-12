@@ -2,18 +2,21 @@
 #define TYPE_SEQUENCE_MANAGER_HPP
 
 #include "EntitySequence.hpp"
-#include "MBRange.hpp"
+#include "moab/Range.hpp"
 
 #include <set>
 #include <vector>
+
+namespace moab {
+
 class TagServer;
 
 /**\brief Maintain data structures organizing EntitySequence instances
  *
  * EntitySequenceManager is a composition of instances of TypeSequenceManager,
- * one instance for each MBEntityType.  The TypeSequenceManager provides
+ * one instance for each EntityType.  The TypeSequenceManager provides
  * organization, owership, and querying of EntitySequences for a specific
- * MBEntityType.
+ * EntityType.
  */
 class TypeSequenceManager
 {
@@ -30,17 +33,17 @@ public:
   /**\brief Dummy EntitySequence for use in querying set container */
   class DummySequence : public EntitySequence {
     public:
-      DummySequence( MBEntityHandle start )
+      DummySequence( EntityHandle start )
         : EntitySequence( start ) {}
   
-      EntitySequence* split( MBEntityHandle ) 
+      EntitySequence* split( EntityHandle ) 
         { return 0; }
-      SequenceData* create_data_subset( MBEntityHandle, MBEntityHandle ) const
+      SequenceData* create_data_subset( EntityHandle, EntityHandle ) const
         { return 0; }
       
       void get_const_memory_use( unsigned long& a, unsigned long& b) const
         { a = b = 0; }
-      unsigned long get_per_entity_memory_use( MBEntityHandle, MBEntityHandle) const
+      unsigned long get_per_entity_memory_use( EntityHandle, EntityHandle) const
         { return 0; }
   };
 
@@ -67,22 +70,22 @@ private:
 
   iterator erase( iterator i );  //!< Remove a sequence
   
-  iterator split_sequence( iterator i, MBEntityHandle h ); //!< split a sequence
+  iterator split_sequence( iterator i, EntityHandle h ); //!< split a sequence
 
-  void append_memory_use( MBEntityHandle first,
-                          MBEntityHandle last,
+  void append_memory_use( EntityHandle first,
+                          EntityHandle last,
                           const SequenceData* data,
                           unsigned long& entity_storage,
                           unsigned long& total_storage ) const;
 
     // check if sequence at passed iterator should be merged with
     // the subsequent sequence, and if so merge them retaining i.
-  MBErrorCode check_merge_next( iterator i );
+  ErrorCode check_merge_next( iterator i );
     // check if sequence at passed iterator should be merged with
     // the previous sequence, and if so merge them retaining i.
-  MBErrorCode check_merge_prev( iterator i );
+  ErrorCode check_merge_prev( iterator i );
     // common code for check_merge_next and check_merge_prev
-  MBErrorCode merge_internal( iterator keep, iterator dead );
+  ErrorCode merge_internal( iterator keep, iterator dead );
 
 #ifndef NDEBUG
   bool check_valid_data( const EntitySequence* seq ) const;
@@ -101,7 +104,7 @@ public:
    *        EntitySequence* is the remaining one, but the passed
    *        sequence may have modified start and end handles.
    */
-  MBErrorCode insert_sequence( EntitySequence* seq_ptr );
+  ErrorCode insert_sequence( EntitySequence* seq_ptr );
   
   /**\brief Remove an entity sequence.
    *
@@ -111,7 +114,7 @@ public:
    * is also relinquished because the specified EntitySequence is
    * the last one referencing it.  
    */
-  MBErrorCode remove_sequence( const EntitySequence* seq_ptr,
+  ErrorCode remove_sequence( const EntitySequence* seq_ptr,
                                bool& is_last_user_of_sequence_data );
                                
                                
@@ -126,7 +129,7 @@ public:
    * This method is provided for use when changing the
    * number of nodes in elements. 
    */
-  MBErrorCode replace_subsequence( EntitySequence* seq_ptr, TagServer* ts );
+  ErrorCode replace_subsequence( EntitySequence* seq_ptr, TagServer* ts );
   
   TypeSequenceManager() : lastReferenced(0) {}
   
@@ -146,12 +149,12 @@ public:
      *  no such sequence, the next one.  Returns end() if
      *  all sequences have ranges less than specified handle.
      */
-  const_iterator lower_bound( MBEntityHandle h ) const 
+  const_iterator lower_bound( EntityHandle h ) const 
     { 
       DummySequence f(h);
       return sequenceSet.lower_bound( &f ); 
     }
-  iterator lower_bound( MBEntityHandle h )
+  iterator lower_bound( EntityHandle h )
     { 
       DummySequence f(h);
       return sequenceSet.lower_bound( &f ); 
@@ -164,7 +167,7 @@ public:
      *  all sequences have start handles less than specified 
      *  handle.
      */
-  const_iterator upper_bound( MBEntityHandle h ) const 
+  const_iterator upper_bound( EntityHandle h ) const 
     { 
       DummySequence f(h);
       return sequenceSet.upper_bound( &f ); 
@@ -173,22 +176,22 @@ public:
     /**\brief Get EntitySequence for handle. 
      *\return EntitySequence for handle, or NULL if no such sequence.
      */
-  inline EntitySequence* find( MBEntityHandle h ) const;
-  inline EntitySequence* find( MBEntityHandle h );
-  inline MBErrorCode find( MBEntityHandle h, EntitySequence*& );
-  inline MBErrorCode find( MBEntityHandle h, const EntitySequence*& ) const;
+  inline EntitySequence* find( EntityHandle h ) const;
+  inline EntitySequence* find( EntityHandle h );
+  inline ErrorCode find( EntityHandle h, EntitySequence*& );
+  inline ErrorCode find( EntityHandle h, const EntitySequence*& ) const;
   inline const EntitySequence* get_last_accessed() const;
   
     /**\brief Get handles for all entities in all sequences. */
-  inline void get_entities( MBRange& entities_out ) const;
+  inline void get_entities( Range& entities_out ) const;
   
     /**\brief Get handles for all entities in all sequences. */
-  inline void get_entities( std::vector<MBEntityHandle>& entities_out ) const;
+  inline void get_entities( std::vector<EntityHandle>& entities_out ) const;
   
     /**\brief Get number of entities represented by all sequences. */
-  inline MBEntityID get_number_entities() const;
+  inline EntityID get_number_entities() const;
   
-  MBErrorCode check_valid_handles( MBEntityHandle first, MBEntityHandle last ) const;
+  ErrorCode check_valid_handles( EntityHandle first, EntityHandle last ) const;
   
     /**\brief Remove entities 
      *
@@ -196,8 +199,8 @@ public:
      * specified entities (e.g. split sequences, delete sequences,
      * free SequenceData instances, etc.)
      */
-  MBErrorCode erase( MBEntityHandle first, MBEntityHandle last );
-  MBErrorCode erase( MBEntityHandle entity );
+  ErrorCode erase( EntityHandle first, EntityHandle last );
+  ErrorCode erase( EntityHandle entity );
   
   /**\brief Test if this instance contains no sequences */
   bool empty() const
@@ -215,8 +218,8 @@ public:
    * find_free_sequence() to find appropriate values for the
    * creation of a new EntitySequence.
    */
-  iterator find_free_handle( MBEntityHandle min_start_handle,
-                             MBEntityHandle max_end_handle,
+  iterator find_free_handle( EntityHandle min_start_handle,
+                             EntityHandle max_end_handle,
                              bool& append_out,
                              int values_per_ent = 0 );
   
@@ -226,9 +229,9 @@ public:
      * overlap any existing EntitySequence. 
      *\return First handle of block, or zero if no block found.
      */
-  MBEntityHandle find_free_block( MBEntityID num_entities, 
-                                  MBEntityHandle min_start_handle,
-                                  MBEntityHandle max_end_handle );
+  EntityHandle find_free_block( EntityID num_entities, 
+                                  EntityHandle min_start_handle,
+                                  EntityHandle max_end_handle );
   
     /**\brief Find block of free handles
      *
@@ -247,11 +250,11 @@ public:
      *                         the existing EntitySequences using have a different
      *                         value than the passed one.
      */
-  MBEntityHandle find_free_sequence( MBEntityID num_entities, 
-                                     MBEntityHandle min_start_handle,
-                                     MBEntityHandle max_end_handle,
+  EntityHandle find_free_sequence( EntityID num_entities, 
+                                     EntityHandle min_start_handle,
+                                     EntityHandle max_end_handle,
                                      SequenceData*& sequence_data_out,
-                                     MBEntityID &sequence_data_size,
+                                     EntityID &sequence_data_size,
                                      int values_per_ent = 0 );
 
     /**\brief Check if block of handles is free.
@@ -261,8 +264,8 @@ public:
      * is contained within an unused portion of a SequenceData,
      * the SequenceData is returned.
      */
-  bool is_free_sequence( MBEntityHandle start_handle, 
-                         MBEntityID num_entities,
+  bool is_free_sequence( EntityHandle start_handle, 
+                         EntityID num_entities,
                          SequenceData*& sequence_data_out,
                          int values_per_ent = 0 );
   
@@ -302,33 +305,33 @@ public:
      *\param block_start Output: Smallest possible start handle for new sequence.
      *\param block_end   Output: Largest possible end handle for new sequence.
      */
-  MBErrorCode is_free_handle( MBEntityHandle handle,
+  ErrorCode is_free_handle( EntityHandle handle,
                               iterator& seq_ptr_out,
                               SequenceData*& data_ptr_out,
-                              MBEntityHandle& block_start,
-                              MBEntityHandle& block_end,
+                              EntityHandle& block_start,
+                              EntityHandle& block_end,
                               int values_per_ent = 0 );  
 
-  MBEntityHandle last_free_handle( MBEntityHandle after_this ) const;
+  EntityHandle last_free_handle( EntityHandle after_this ) const;
 
     /**\brief Notify that sequence was prepended to
      *
      * Notify of sequence modifications so we can check if
      * sequence needs to be merged.
      */
-  MBErrorCode notify_prepended( iterator seq );
+  ErrorCode notify_prepended( iterator seq );
   
     /**\brief Notify that sequence was appended to
      *
      * Notify of sequence modifications so we can check if
      * sequence needs to be merged.
      */
-  MBErrorCode notify_appended( iterator seq );
+  ErrorCode notify_appended( iterator seq );
     
   void get_memory_use( unsigned long& total_entity_storage,
                        unsigned long& total_storage ) const;
   
-  void get_memory_use( MBEntityHandle start, MBEntityHandle end,
+  void get_memory_use( EntityHandle start, EntityHandle end,
                        unsigned long& total_entity_storage,
                        unsigned long& total_amortized_storage ) const;
                        
@@ -340,10 +343,10 @@ public:
      * Get the sum of the size of all EntitySequences referencing
      * a SequenceData.  Used for memory use calculations.
      */
-  MBEntityID get_occupied_size( const SequenceData* ) const;
+  EntityID get_occupied_size( const SequenceData* ) const;
 };
 
-inline EntitySequence* TypeSequenceManager::find( MBEntityHandle h ) const
+inline EntitySequence* TypeSequenceManager::find( EntityHandle h ) const
 {
   if (!lastReferenced) // only null if empty
     return 0;
@@ -355,7 +358,7 @@ inline EntitySequence* TypeSequenceManager::find( MBEntityHandle h ) const
     return i == end() ? 0 : (lastReferenced = *i);
   }
 }   
-inline EntitySequence* TypeSequenceManager::find( MBEntityHandle h )
+inline EntitySequence* TypeSequenceManager::find( EntityHandle h )
 {
   if (!lastReferenced) // only null if empty
     return 0;
@@ -368,7 +371,7 @@ inline EntitySequence* TypeSequenceManager::find( MBEntityHandle h )
   }
 }   
 
-inline MBErrorCode TypeSequenceManager::find( MBEntityHandle h, EntitySequence*& seq )
+inline ErrorCode TypeSequenceManager::find( EntityHandle h, EntitySequence*& seq )
 {
   if (!lastReferenced) { // only null if empty
     seq = 0;
@@ -392,7 +395,7 @@ inline MBErrorCode TypeSequenceManager::find( MBEntityHandle h, EntitySequence*&
   }
 }   
 
-inline MBErrorCode TypeSequenceManager::find( MBEntityHandle h, const EntitySequence*& seq ) const
+inline ErrorCode TypeSequenceManager::find( EntityHandle h, const EntitySequence*& seq ) const
 {
   if (!lastReferenced) { // only null if empty
     seq = 0;
@@ -419,26 +422,28 @@ inline MBErrorCode TypeSequenceManager::find( MBEntityHandle h, const EntitySequ
 inline const EntitySequence* TypeSequenceManager::get_last_accessed() const
   { return lastReferenced; /* only NULL if TypeSequenceManager is empty */ }
 
-inline void TypeSequenceManager::get_entities( MBRange& entities_out ) const
+inline void TypeSequenceManager::get_entities( Range& entities_out ) const
 {
-  MBRange::iterator in = entities_out.begin();
+  Range::iterator in = entities_out.begin();
   for (const_iterator i = begin(); i != end(); ++i)
     in = entities_out.insert( in, (*i)->start_handle(), (*i)->end_handle() );
 }
 
-inline void TypeSequenceManager::get_entities( std::vector<MBEntityHandle>& entities_out ) const
+inline void TypeSequenceManager::get_entities( std::vector<EntityHandle>& entities_out ) const
 {
   for (const_iterator i = begin(); i != end(); ++i)
-    for (MBEntityHandle j = (*i)->start_handle(); j <= (*i)->end_handle(); ++j)
+    for (EntityHandle j = (*i)->start_handle(); j <= (*i)->end_handle(); ++j)
       entities_out.push_back( j );
 }
 
-inline MBEntityID TypeSequenceManager::get_number_entities() const
+inline EntityID TypeSequenceManager::get_number_entities() const
 {
-  MBEntityID count = 0;
+  EntityID count = 0;
   for (const_iterator i = begin(); i != end(); ++i)
     count += (*i)->size();
   return count;
 }
+
+} // namespace moab
 
 #endif

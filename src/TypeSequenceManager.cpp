@@ -2,7 +2,10 @@
 #include "SequenceData.hpp"
 #include <assert.h>
 #include <limits>
-#include "MBCN.hpp"
+#include "moab/MBCN.hpp"
+
+namespace moab {
+
 TypeSequenceManager::~TypeSequenceManager()
 {
     // We assume that for there to be multiple squences referenceing
@@ -36,11 +39,11 @@ TypeSequenceManager::~TypeSequenceManager()
   availableList.clear();
 }
 
-MBErrorCode TypeSequenceManager::merge_internal( iterator i, iterator j )
+ErrorCode TypeSequenceManager::merge_internal( iterator i, iterator j )
 {
   EntitySequence* dead = *j;
   sequenceSet.erase( j );
-  MBErrorCode rval = (*i)->merge( *dead );
+  ErrorCode rval = (*i)->merge( *dead );
   if (MB_SUCCESS != rval) {
     sequenceSet.insert( dead );
     return rval;
@@ -58,7 +61,7 @@ MBErrorCode TypeSequenceManager::merge_internal( iterator i, iterator j )
   return MB_SUCCESS;
 }
 
-MBErrorCode TypeSequenceManager::check_merge_next( iterator i )
+ErrorCode TypeSequenceManager::check_merge_next( iterator i )
 {
   iterator j = i; ++j;
   if (j == end() || (*j)->data() != (*i)->data() || 
@@ -69,7 +72,7 @@ MBErrorCode TypeSequenceManager::check_merge_next( iterator i )
   return merge_internal( i, j );
 }  
 
-MBErrorCode TypeSequenceManager::check_merge_prev( iterator i )
+ErrorCode TypeSequenceManager::check_merge_prev( iterator i )
 {
   if (i == begin())
     return MB_SUCCESS;
@@ -83,7 +86,7 @@ MBErrorCode TypeSequenceManager::check_merge_prev( iterator i )
   return merge_internal( i, j );
 }  
 
-MBErrorCode TypeSequenceManager::insert_sequence( EntitySequence* seq_ptr )
+ErrorCode TypeSequenceManager::insert_sequence( EntitySequence* seq_ptr )
 {
   if (!seq_ptr->data())
     return MB_FAILURE;
@@ -150,7 +153,7 @@ MBErrorCode TypeSequenceManager::insert_sequence( EntitySequence* seq_ptr )
   return MB_SUCCESS;
 }
 
-MBErrorCode TypeSequenceManager::replace_subsequence( EntitySequence* seq_ptr,
+ErrorCode TypeSequenceManager::replace_subsequence( EntitySequence* seq_ptr,
                                                       TagServer* tag_server )
 {
     // find the sequence of interest
@@ -300,7 +303,7 @@ TypeSequenceManager::iterator TypeSequenceManager::erase( iterator i )
 }
   
 
-MBErrorCode TypeSequenceManager::remove_sequence( const EntitySequence* seq_ptr,
+ErrorCode TypeSequenceManager::remove_sequence( const EntitySequence* seq_ptr,
                                                   bool& unreferenced_data )
 {
     // remove sequence from set
@@ -328,8 +331,8 @@ MBErrorCode TypeSequenceManager::remove_sequence( const EntitySequence* seq_ptr,
 }
 
 TypeSequenceManager::iterator
-TypeSequenceManager::find_free_handle(  MBEntityHandle min_start_handle,
-                                        MBEntityHandle max_end_handle,
+TypeSequenceManager::find_free_handle(  EntityHandle min_start_handle,
+                                        EntityHandle max_end_handle,
                                         bool& append_out,
                                         int values_per_ent )
 {
@@ -361,8 +364,8 @@ TypeSequenceManager::find_free_handle(  MBEntityHandle min_start_handle,
   return end();
 }
 
-bool TypeSequenceManager::is_free_sequence( MBEntityHandle start, 
-                                            MBEntityID num_entities,
+bool TypeSequenceManager::is_free_sequence( EntityHandle start, 
+                                            EntityID num_entities,
                                             SequenceData*& data_out,
                                             int values_per_ent )
 {
@@ -421,9 +424,9 @@ bool TypeSequenceManager::is_free_sequence( MBEntityHandle start,
 }
 
 
-MBEntityHandle TypeSequenceManager::find_free_block( MBEntityID num_entities,
-                                                     MBEntityHandle min_start_handle,
-                                                     MBEntityHandle max_end_handle )
+EntityHandle TypeSequenceManager::find_free_block( EntityID num_entities,
+                                                     EntityHandle min_start_handle,
+                                                     EntityHandle max_end_handle )
 {
   const_iterator i = lower_bound( min_start_handle );
   if (i == end())
@@ -432,9 +435,9 @@ MBEntityHandle TypeSequenceManager::find_free_block( MBEntityID num_entities,
   if ((*i)->start_handle() < min_start_handle + num_entities)
     return min_start_handle;
   
-  MBEntityHandle prev_end = (*i)->end_handle(); ++i;
+  EntityHandle prev_end = (*i)->end_handle(); ++i;
   for (; i != end(); prev_end = (*i)->end_handle(), ++i) {
-    MBEntityID len = (*i)->start_handle() - prev_end - 1;
+    EntityID len = (*i)->start_handle() - prev_end - 1;
     if (len >= num_entities) 
       break;
   }
@@ -446,17 +449,17 @@ MBEntityHandle TypeSequenceManager::find_free_block( MBEntityID num_entities,
 }
 
 struct range_data {
-  MBEntityID num_entities;
-  MBEntityHandle min_start_handle, max_end_handle;
-  MBEntityHandle first, last;
+  EntityID num_entities;
+  EntityHandle min_start_handle, max_end_handle;
+  EntityHandle first, last;
 };
 
 static bool check_range( const range_data& d,
                          bool prefer_end,
-                         MBEntityHandle& result )
+                         EntityHandle& result )
 {
-  MBEntityHandle first = std::max( d.min_start_handle, d.first );
-  MBEntityHandle  last = std::min( d.max_end_handle, d.last );
+  EntityHandle first = std::max( d.min_start_handle, d.first );
+  EntityHandle  last = std::min( d.max_end_handle, d.last );
   if (last < first + d.num_entities - 1) {
     result = 0;
     return false;
@@ -466,17 +469,17 @@ static bool check_range( const range_data& d,
   return true;
 }
 
-MBEntityHandle TypeSequenceManager::find_free_sequence( MBEntityID num_entities, 
-                                                        MBEntityHandle min_start_handle,
-                                                        MBEntityHandle max_end_handle,
+EntityHandle TypeSequenceManager::find_free_sequence( EntityID num_entities, 
+                                                        EntityHandle min_start_handle,
+                                                        EntityHandle max_end_handle,
                                                         SequenceData*& data_out,
-                                                        MBEntityID &data_size,
+                                                        EntityID &data_size,
                                                         int num_verts)
 {
   if (max_end_handle < min_start_handle + num_entities - 1)
     return 0;
   
-  MBEntityHandle result;
+  EntityHandle result;
   iterator p, i = lower_bound( min_start_handle );
   range_data d = { num_entities, min_start_handle, max_end_handle, 0, 0 };
   
@@ -567,7 +570,7 @@ MBEntityHandle TypeSequenceManager::find_free_sequence( MBEntityID num_entities,
   return 0;
 }
 
-MBEntityHandle TypeSequenceManager::last_free_handle( MBEntityHandle after_this ) const
+EntityHandle TypeSequenceManager::last_free_handle( EntityHandle after_this ) const
 {
   int junk;
   const_iterator it = lower_bound( after_this );
@@ -575,22 +578,22 @@ MBEntityHandle TypeSequenceManager::last_free_handle( MBEntityHandle after_this 
     return CREATE_HANDLE( TYPE_FROM_HANDLE(after_this), MB_END_ID, junk );
   else if ((*it)->start_handle() > after_this) {
       // need to check against the sequence data first
-    MBEntityHandle rhandle = (*it)->data()->start_handle();
+    EntityHandle rhandle = (*it)->data()->start_handle();
     return rhandle - 1;
   }
   else
     return 0;
 }
 
-MBErrorCode TypeSequenceManager::check_valid_handles( MBEntityHandle first,
-                                                      MBEntityHandle last ) const
+ErrorCode TypeSequenceManager::check_valid_handles( EntityHandle first,
+                                                      EntityHandle last ) const
 {
   const_iterator i = lower_bound( first );
   if (i == end() || (*i)->start_handle() > first)
     return MB_ENTITY_NOT_FOUND;
 
   while ((*i)->end_handle() < last) {
-    MBEntityHandle prev_end = (*i)->end_handle();
+    EntityHandle prev_end = (*i)->end_handle();
     ++i;
     if (i == end() || prev_end + 1 != (*i)->start_handle())
       return MB_ENTITY_NOT_FOUND;
@@ -599,7 +602,7 @@ MBErrorCode TypeSequenceManager::check_valid_handles( MBEntityHandle first,
   return MB_SUCCESS;
 }
 
-MBErrorCode TypeSequenceManager::erase( MBEntityHandle h )
+ErrorCode TypeSequenceManager::erase( EntityHandle h )
 {
   EntitySequence* seq = find(h);
   if (!seq)
@@ -614,7 +617,7 @@ MBErrorCode TypeSequenceManager::erase( MBEntityHandle h )
     }
     SequenceData* data = seq->data();
     bool delete_data;
-    MBErrorCode rval = remove_sequence( seq, delete_data );
+    ErrorCode rval = remove_sequence( seq, delete_data );
     if (MB_SUCCESS != rval)
       return rval;
     delete seq;
@@ -640,11 +643,11 @@ MBErrorCode TypeSequenceManager::erase( MBEntityHandle h )
   }
 }
 
-MBErrorCode TypeSequenceManager::erase( MBEntityHandle first, MBEntityHandle last )
+ErrorCode TypeSequenceManager::erase( EntityHandle first, EntityHandle last )
 {
     // first check that all entities in range are valid
 
-  MBErrorCode rval = check_valid_handles( first, last );
+  ErrorCode rval = check_valid_handles( first, last );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -692,7 +695,7 @@ MBErrorCode TypeSequenceManager::erase( MBEntityHandle first, MBEntityHandle las
 }
 
 TypeSequenceManager::iterator 
-TypeSequenceManager::split_sequence( iterator i, MBEntityHandle h )
+TypeSequenceManager::split_sequence( iterator i, EntityHandle h )
 {
   EntitySequence* seq = (*i)->split( h );
   if (!seq)
@@ -703,12 +706,12 @@ TypeSequenceManager::split_sequence( iterator i, MBEntityHandle h )
   return i;
 }
 
-MBErrorCode 
-TypeSequenceManager::is_free_handle( MBEntityHandle handle,
+ErrorCode 
+TypeSequenceManager::is_free_handle( EntityHandle handle,
                                      iterator& seq_iter_out,
                                      SequenceData*& data_ptr_out,
-                                     MBEntityHandle& block_start,
-                                     MBEntityHandle& block_end,
+                                     EntityHandle& block_start,
+                                     EntityHandle& block_end,
                                      int values_per_ent )
 {
   int junk;
@@ -783,17 +786,17 @@ TypeSequenceManager::is_free_handle( MBEntityHandle handle,
   return MB_SUCCESS;
 }
 
-MBErrorCode TypeSequenceManager::notify_appended( iterator seq )
+ErrorCode TypeSequenceManager::notify_appended( iterator seq )
 {
-  MBErrorCode rval = check_merge_next( seq );
+  ErrorCode rval = check_merge_next( seq );
   if ((*seq)->using_entire_data())
     availableList.erase( (*seq)->data() );
   return rval;
 }
 
-MBErrorCode TypeSequenceManager::notify_prepended( iterator seq )
+ErrorCode TypeSequenceManager::notify_prepended( iterator seq )
 {
-  MBErrorCode rval =  check_merge_prev( seq );
+  ErrorCode rval =  check_merge_prev( seq );
   if ((*seq)->using_entire_data())
     availableList.erase( (*seq)->data() );
   return rval;
@@ -806,7 +809,7 @@ void TypeSequenceManager::get_memory_use( unsigned long& entity_storage,
   if (empty())
     return;
   
-  MBEntityType mytype = TYPE_FROM_HANDLE(lastReferenced->start_handle());
+  EntityType mytype = TYPE_FROM_HANDLE(lastReferenced->start_handle());
   int junk;
   get_memory_use( CREATE_HANDLE( mytype, MB_START_ID, junk ), 
                   CREATE_HANDLE( mytype, MB_END_ID,   junk ),
@@ -814,8 +817,8 @@ void TypeSequenceManager::get_memory_use( unsigned long& entity_storage,
                   total_storage );
 } 
 
-void TypeSequenceManager::append_memory_use( MBEntityHandle first,
-                                             MBEntityHandle last,
+void TypeSequenceManager::append_memory_use( EntityHandle first,
+                                             EntityHandle last,
                                              const SequenceData* data,
                                              unsigned long& entity_storage,
                                              unsigned long& total_storage ) const
@@ -832,8 +835,8 @@ void TypeSequenceManager::append_memory_use( MBEntityHandle first,
     occupied_count += (*i)->size();
     ++sequence_count;
     
-    MBEntityHandle start = std::max( first, (*i)->start_handle() );
-    MBEntityHandle  stop = std::min(  last, (*i)->end_handle() );
+    EntityHandle start = std::max( first, (*i)->start_handle() );
+    EntityHandle  stop = std::min(  last, (*i)->end_handle() );
     if (stop < start)
       continue;
     
@@ -855,8 +858,8 @@ void TypeSequenceManager::append_memory_use( MBEntityHandle first,
   }
 }
 
-void TypeSequenceManager::get_memory_use( MBEntityHandle first,
-                                          MBEntityHandle last,
+void TypeSequenceManager::get_memory_use( EntityHandle first,
+                                          EntityHandle last,
                                           unsigned long& entity_storage,
                                           unsigned long& total_storage ) const
 {
@@ -875,9 +878,9 @@ void TypeSequenceManager::get_memory_use( MBEntityHandle first,
   }
 }
 
-MBEntityID TypeSequenceManager::get_occupied_size( const SequenceData* data ) const
+EntityID TypeSequenceManager::get_occupied_size( const SequenceData* data ) const
 {
-  MBEntityID result = 0;
+  EntityID result = 0;
   for (const_iterator i = data->seqManData.firstSequence; i != end() && (*i)->data() == data; ++i)
     result += (*i)->size();
   return result;
@@ -937,6 +940,9 @@ bool TypeSequenceManager::check_valid_data( const EntitySequence* seq ) const
   
   return true;
 }
+
+} // namespace moab
+
 #endif
 
     

@@ -1,17 +1,19 @@
 #include "PolyElementSeq.hpp"
 
+namespace moab {
+
 PolyElementSeq::~PolyElementSeq() {}
   
-EntitySequence* PolyElementSeq::split( MBEntityHandle here )
+EntitySequence* PolyElementSeq::split( EntityHandle here )
   { return new PolyElementSeq( *this, here ); }
                        
 
-MBErrorCode
-PolyElementSeq::get_connectivity( MBEntityHandle handle,
-                                  std::vector<MBEntityHandle>& connect,
+ErrorCode
+PolyElementSeq::get_connectivity( EntityHandle handle,
+                                  std::vector<EntityHandle>& connect,
                                   bool ) const
 {
-  MBEntityHandle const* conn = get_array() + nodes_per_element() * (handle - start_handle());
+  EntityHandle const* conn = get_array() + nodes_per_element() * (handle - start_handle());
   int len = nodes_per_element();
   connect.reserve( connect.size() + len );
   std::copy( conn, conn+len, std::back_inserter( connect ) );
@@ -19,14 +21,16 @@ PolyElementSeq::get_connectivity( MBEntityHandle handle,
 }
 
 
-MBErrorCode
-PolyElementSeq::get_connectivity( MBEntityHandle handle,
-                                  MBEntityHandle const*& conn_ptr,
+ErrorCode
+PolyElementSeq::get_connectivity( EntityHandle handle,
+                                  EntityHandle const*& conn_ptr,
                                   int& len,
                                   bool,
-                                  std::vector<MBEntityHandle>* ) const
+                                  std::vector<EntityHandle>* ) const
 {
   conn_ptr = get_array() + nodes_per_element() * (handle - start_handle());
   len = nodes_per_element();
   return MB_SUCCESS;
 }
+  
+} // namespace moab

@@ -1,11 +1,13 @@
 #include "TestUtil.hpp"
-#include "MBCore.hpp"
+#include "moab/Core.hpp"
 #include "ReadSTL.hpp"
 #include "WriteSTL.hpp"
 #include "FileOptions.hpp"
-#include "MBRange.hpp"
+#include "moab/Range.hpp"
 #include <math.h>
 #include <algorithm>
+
+using namespace moab;
 
 /* Input test file: test/sample.stl
  * 
@@ -29,7 +31,7 @@ void test_big_endian();
 void test_little_endian();
 void test_detect_byte_order();
 
-void read_file( MBInterface& moab, 
+void read_file( Interface& moab, 
                 const char* input_file,
                 const char* options = "" );
 void convert_file( const char* source_file,
@@ -37,7 +39,7 @@ void convert_file( const char* source_file,
                    const char* options = "" );
 // check that the mesh constains the simple tetrahedron defined
 // in test/sample.stl
-void check_mesh_is_tet( MBInterface& moab );
+void check_mesh_is_tet( Interface& moab );
 
 int main()
 {
@@ -56,25 +58,25 @@ int main()
   return result;
 }
 
-MBErrorCode read_file_( MBInterface& moab, const char* input_file, const char* options = "" )
+ErrorCode read_file_( Interface& moab, const char* input_file, const char* options = "" )
 {
-  MBErrorCode rval;
+  ErrorCode rval;
   ReadSTL reader( &moab );
   FileOptions opts(options);
   rval = reader.load_file( input_file, 0, opts, 0, 0, 0 );
   return rval;
 }
 
-void read_file( MBInterface& moab, const char* input_file, const char* options )
+void read_file( Interface& moab, const char* input_file, const char* options )
 {
-  MBErrorCode rval = read_file_( moab, input_file, options );
+  ErrorCode rval = read_file_( moab, input_file, options );
   CHECK_ERR(rval);
 }
 
 void convert_file( const char* input_file, const char* output_file, const char* options )
 {
-  MBErrorCode rval;
-  MBCore moab;
+  ErrorCode rval;
+  Core moab;
 
   ReadSTL reader( &moab );
   FileOptions opts_reader("");
@@ -90,7 +92,7 @@ void convert_file( const char* input_file, const char* output_file, const char* 
 
 void test_read_ascii()
 {
-  MBCore moab;
+  Core moab;
   read_file( moab, sample, "ASCII" );
   check_mesh_is_tet( moab );
 }
@@ -98,7 +100,7 @@ void test_read_ascii()
 void test_write_ascii()
 {
   convert_file( sample, tmp_file, "ASCII" );
-  MBCore moab;
+  Core moab;
   read_file( moab, tmp_file, "ASCII" );
   remove( tmp_file );
   check_mesh_is_tet( moab );
@@ -106,8 +108,8 @@ void test_write_ascii()
 
 void test_type_option()
 {
-  MBErrorCode rval;
-  MBCore moab;
+  ErrorCode rval;
+  Core moab;
 
   rval = read_file_( moab, sample, "BINARY" );
   CHECK( MB_SUCCESS != rval );
@@ -121,7 +123,7 @@ void test_type_option()
 
 void test_detect_type()
 {
-  MBCore moab;
+  Core moab;
 
   read_file( moab, sample );
   
@@ -133,8 +135,8 @@ void test_detect_type()
 
 void test_endian_option()
 {
-  MBErrorCode rval;
-  MBCore moab;
+  ErrorCode rval;
+  Core moab;
 
   convert_file( sample, tmp_file, "BINARY;BIG_ENDIAN" );
   rval = read_file_( moab, tmp_file, "BINARY;LITTLE_ENDIAN" );
@@ -149,7 +151,7 @@ void test_endian_option()
 
 void test_big_endian()
 {
-  MBCore moab;
+  Core moab;
   convert_file( sample, tmp_file, "BINARY;BIG_ENDIAN" );
   read_file( moab, tmp_file, "BINARY;BIG_ENDIAN" );
   check_mesh_is_tet( moab );
@@ -158,7 +160,7 @@ void test_big_endian()
 
 void test_little_endian()
 {
-  MBCore moab;
+  Core moab;
   convert_file( sample, tmp_file, "BINARY;LITTLE_ENDIAN" );
   read_file( moab, tmp_file, "BINARY;LITTLE_ENDIAN" );
   check_mesh_is_tet( moab );
@@ -167,7 +169,7 @@ void test_little_endian()
 
 void test_detect_byte_order()
 {
-  MBCore moab;
+  Core moab;
 
   convert_file( sample, tmp_file, "BINARY;LITTLE_ENDIAN" );
   read_file( moab, tmp_file, "BINARY" );
@@ -179,10 +181,10 @@ void test_detect_byte_order()
 }
 
 
-void check_mesh_is_tet( MBInterface& moab )
+void check_mesh_is_tet( Interface& moab )
 {
-  MBErrorCode rval;
-  MBRange verts, tris, other;
+  ErrorCode rval;
+  Range verts, tris, other;
   rval = moab.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
   rval = moab.get_entities_by_type( 0, MBTRI, tris );
@@ -200,8 +202,8 @@ void check_mesh_is_tet( MBInterface& moab )
                                      { 1, 0, 0 },
                                      { 0, 1, 0 },
                                      { 0, 0, 1 } };
-  MBEntityHandle vert_handles[4] = { 0, 0, 0, 0 };
-  for (MBRange::iterator i = verts.begin(); i != verts.end(); ++i) {
+  EntityHandle vert_handles[4] = { 0, 0, 0, 0 };
+  for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
     double coords[3];
     rval = moab.get_coords( &*i, 1, coords );
     CHECK_ERR(rval);
@@ -215,7 +217,7 @@ void check_mesh_is_tet( MBInterface& moab )
       }
       
       if (ds < 1e-6) {
-        CHECK_EQUAL( (MBEntityHandle)0, vert_handles[j] );
+        CHECK_EQUAL( (EntityHandle)0, vert_handles[j] );
         vert_handles[j] = *i;
         found = true;
         break;
@@ -228,9 +230,9 @@ void check_mesh_is_tet( MBInterface& moab )
                                 { 0, 2, 1 },
                                 { 0, 3, 2 },
                                 { 1, 2, 3 } };
-  MBEntityHandle tri_handles[4] = { 0, 0, 0, 0 };
-  for (MBRange::iterator i = tris.begin(); i != tris.end(); ++i) {
-    const MBEntityHandle* conn = 0;
+  EntityHandle tri_handles[4] = { 0, 0, 0, 0 };
+  for (Range::iterator i = tris.begin(); i != tris.end(); ++i) {
+    const EntityHandle* conn = 0;
     int len = 0;
     rval = moab.get_connectivity( *i, conn, len );
     CHECK_ERR(rval);
@@ -252,7 +254,7 @@ void check_mesh_is_tet( MBInterface& moab )
       
       if (expt_conn[j][(k+1)%3] == conn_idx[1] && 
           expt_conn[j][(k+2)%3] == conn_idx[2]) {
-        CHECK_EQUAL( (MBEntityHandle)0, tri_handles[j] );
+        CHECK_EQUAL( (EntityHandle)0, tri_handles[j] );
         tri_handles[j] = *i;
         found = true;
         break;
