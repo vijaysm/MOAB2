@@ -1625,6 +1625,6 @@ void print_sequences( const TypeSequenceManager& seqman )
   std::cout << seqman << std::endl;
 }
 
-} // namespace moab
-
 #endif
+
+} // namespace moab

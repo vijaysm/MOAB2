@@ -51,7 +51,7 @@ libMOAB_la_SOURCES = \
   AxisBox.hpp \
   BSPTree.cpp \
   MBCN.cpp \
-  CNArrays.hpp \
+  MBCNArrays.hpp \
   CartVect.cpp \
   Matrix3.cpp \
   Matrix3.hpp \
@@ -145,6 +145,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/WriterIface.hpp \
   moab/MeshTopoUtil.hpp \
   moab/RangeMap.hpp \
+  MBEntityType.h \
   MBCN.h \
   MOAB_FCDefs.h \
   MBCN_protos.h 

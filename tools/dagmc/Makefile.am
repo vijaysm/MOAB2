@@ -30,6 +30,7 @@ cgm2moab_DEPENDENCIES = libdagmc.la $(top_builddir)/src/libMOAB.la
 bin_PROGRAMS = $(cgm2moabbin)
 noinst_PROGRAMS = quads_to_tris $(netcdf_progs)
 man1_MANS = $(cgm2moabman)
+EXTRA_DIST = cgm2moab.man
                    
 CGM_CPPFLAGS = @CGM_CPPFLAGS@
 CGM_LDFLAGS = @CGM_LDFLAGS@
