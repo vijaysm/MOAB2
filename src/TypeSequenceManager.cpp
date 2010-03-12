@@ -941,9 +941,8 @@ bool TypeSequenceManager::check_valid_data( const EntitySequence* seq ) const
   return true;
 }
 
-} // namespace moab
-
 #endif
 
+} // namespace moab
     
   
