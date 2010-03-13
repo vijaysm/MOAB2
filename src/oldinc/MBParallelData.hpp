@@ -1,7 +1,7 @@
 #ifndef MBParallelData_HEADER
 #define MBParallelData_HEADER
 
-#include "MBFoward.hpp"
+#include "MBForward.hpp"
 #include "MBRange.hpp"
 
 #include "moab/ParallelData.hpp"
