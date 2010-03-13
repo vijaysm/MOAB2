@@ -1,6 +1,8 @@
 
 include_HEADERS = MBAdaptiveKDTree.hpp \
                   MBBSPTree.hpp \
+                  MBBSPTreePoly.hpp \
+                  MBCartVect.hpp \
                   MBCore.hpp \
                   MBEntityHandle.h \
                   MBForward.hpp \

@@ -60,6 +60,9 @@ MBEntitySetProperty prop = MESHSET_SET;
 #include "MBOrientedBoxTreeTool.hpp"
 #include "MBSkinner.hpp"
 
+#include "MBCartVect.hpp"
+#include "MBBSPTreePoly.hpp"
+
 int main()
 {
     // check that the expected types are defined
@@ -81,6 +84,9 @@ int main()
   MBParallelComm* pcomm_ptr;
   MBProcConfig* pconf_ptr;
 #endif
+
+  MBCartVect vect(0.0);
+  MBBSPTreePoly poly;
 
   return 0;
 }

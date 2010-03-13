@@ -1,6 +1,8 @@
 #ifndef MBRange_HEADER
 #define MBRange_HEADER
 
+#include "MBTypes.h"
+
 #include "moab/Range.hpp"
 
 typedef moab::Range MBRange;
