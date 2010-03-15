@@ -159,7 +159,7 @@ void write_file_data()
   
     /* write hex connectivity */
   for (i = 0; i < 8; ++i)
-    list[i] = 4*RANK + i + 1;
+    list[i] = 4*RANK + i + first_node;
   handle = mhdf_openConnectivity( file, elem_handle, &dim, &count, &first_elem, &status );
   CHECK(status);
   assert( count == total_num_hexes );
