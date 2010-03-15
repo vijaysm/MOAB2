@@ -5,7 +5,8 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I.. -I$(srcdir)/.. \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src \
-               -I$(top_srcdir)/src/parallel 
+               -I$(top_srcdir)/src/parallel \
+               -I$(top_srcdir)/src/io/mhdf/include
 
 # Run parallel tests in parallel
 if USE_MPIEXEC
@@ -31,7 +32,6 @@ check_PROGRAMS = $(TESTS) mbparallelcomm_test
 pcomm_unit_SOURCES = pcomm_unit.cpp
 parallel_hdf5_test_SOURCES = parallel_hdf5_test.cc
 mhdf_parallel_SOURCES = mhdf_parallel.c
-mhdf_parallel_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS) -I$(top_srcdir)/src/io/mhdf/include
 parallel_unit_tests_SOURCES = parallel_unit_tests.cpp
 parallel_write_test_SOURCES = parallel_write_test.cc
 uber_parallel_test_SOURCES = uber_parallel_test.cpp
