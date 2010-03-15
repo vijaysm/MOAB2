@@ -346,6 +346,8 @@ extern "C" {
   {
     ErrorCode rval = MBI->set_dimension(geom_dim);
     CHKERR(rval,"iMesh_setGeometricDimension: failed");
+
+    RETURN(iBase_SUCCESS);
   }
 
   void iMesh_getDfltStorage(iMesh_Instance instance,
