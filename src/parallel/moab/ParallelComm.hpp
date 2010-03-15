@@ -284,8 +284,8 @@ public:
   
     /** \brief Return the rank of the entity owner
      */
-  ErrorCode get_owner(EntityHandle entity,
-                        int &owner);
+  ErrorCode get_owner(EntityHandle entity, int &owner);
+  ErrorCode get_owner(EntityHandle entity, EntityID &owner);
   
     /** \brief Return the owner processor and handle of a given entity
      */
@@ -559,7 +559,7 @@ public:
   struct SharedEntityData {
     EntityHandle local;
     EntityHandle remote;
-    int owner;
+    EntityID owner;
   };
 
   ErrorCode pack_shared_handles(
@@ -1206,6 +1206,16 @@ inline ErrorCode ParallelComm::get_owner(EntityHandle entity,
 {
   EntityHandle tmp_handle;
   return get_owner_handle(entity, owner, tmp_handle);
+}
+
+inline ErrorCode ParallelComm::get_owner(EntityHandle entity,
+                                         EntityID &owner) 
+{
+  EntityHandle tmp_handle;
+  int tmp_owner;
+  ErrorCode result = get_owner_handle(entity, tmp_owner, tmp_handle);
+  owner = tmp_owner;
+  return result;
 }
 
     /* \brief Unpack message with remote handles (const pointer to buffer)
