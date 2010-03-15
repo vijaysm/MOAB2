@@ -4,7 +4,7 @@
 
 SET( match_expr "^[ \\t]*void[ \\t]+${prefix}_([a-z][_a-zA-Z0-9]*)[ \\t]*\\(.*$" )
 FILE( STRINGS ${input_file} data REGEX ${match_expr} )
-FILE( WRITE ${output_file} "#include \"MBCN_FCDefs.h\"\n#ifdef FC_FUNC_\n\n" )
+FILE( WRITE ${output_file} "#include \"MOAB_FCDefs.h\"\n#ifdef FC_FUNC_\n\n" )
 FOREACH( line ${data} )
   STRING(REGEX REPLACE ${match_expr} "${prefix}_\\1" func ${line})
   STRING(TOUPPER ${func} upper)

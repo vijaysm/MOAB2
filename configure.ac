@@ -15,8 +15,12 @@ AC_CHECK_PROG( [SED], [sed], [sed], [true] )
 #                           Compilers
 ################################################################################
 
+AC_ARG_ENABLE([fortran],[AC_HELP_STRING([disable-fortran],
+  [No Fortran name mangling in ITAPS/MBCN C headers])],
+  [ENABLE_FORTRAN=$enableval],[ENABLE_FORTRAN=yes])
+
 EXTRA_GNU_FLAGS='-Wall -pipe'
-FATHOM_CHECK_COMPILERS([yes],[yes],[yes])
+FATHOM_CHECK_COMPILERS([yes],[yes],[$ENABLE_FORTRAN])
 AM_CONDITIONAL(PARALLEL,[test "x$WITH_MPI" != "xno"])
 LIBS="-lm"
 
@@ -116,7 +120,7 @@ case $enableval in
     ENABLE_imesh=yes
     ;;
   nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
-    AC_MSG_ERROR([Depricated value for --enable-imesh: \"$enableval\".  Try \"FC= F77=\"])
+    AC_MSG_ERROR([Depricated value for --enable-imesh: \"$enableval\".  Try \"--disable-fortran\"])
     ;;
   no)
     ENABLE_imesh=no

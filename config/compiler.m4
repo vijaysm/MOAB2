@@ -21,6 +21,7 @@ AC_DEFUN([ITAPS_LIBTOOL_VAR], [
 #  CPP      - The C preprocessor
 #  CC       - The C compiler
 #  CXX      - The C++ compiler
+#  FC       - The Fortran compiler
 #  CFLAGS   - C compiler flags
 #  CXXFLAGS - C++ compiler flags
 #  WITH_MPI - 'yes' if parallel support, 'no' otherwise
@@ -40,7 +41,6 @@ CHECK_FC="$3"
 test "xno" = "x$CHECK_CC" || CHECK_CC=yes 
 test "xno" = "x$CHECK_CXX" || CHECK_CXX=yes 
 test "xno" = "x$CHECK_FC" || CHECK_FC=yes 
-
 
   # Save these before calling AC_PROG_CC or AC_PROG_CXX
   # because those macros will modify them, and we want
