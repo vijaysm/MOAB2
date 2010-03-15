@@ -18,10 +18,16 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_srcdir)/src/io \
                -I$(top_srcdir)/src/parallel
 
+if NETCDF_FILE
+  EXODUS_TEST = exodus_test
+else
+  EXODUS_TEST = 
+endif
+
 TESTS = tqdcfr \
         vtk_test \
         cub_file_test \
-	exodus_test \
+	$(EXODUS_TEST) \
         gmsh_test \
 	nastran_test \
         stl_test 
