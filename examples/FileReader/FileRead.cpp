@@ -152,7 +152,9 @@ int main(int argc, char **argv) {
    MBErrorCode rval = ReadTriangleOutput(mb, filename);
 
    if (rval==MB_SUCCESS)
+   {
      cout << "Writing output file " << outfile << endl;
      mb->write_file(outfile); 
+   }
    return 0;
 }  
