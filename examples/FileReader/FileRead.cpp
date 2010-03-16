@@ -9,14 +9,32 @@
 
 using namespace std;
 
+int comment(string & line)
+{
+    // if a line starts with '#' is a comment
+    // eat white space characters
+    int found=line.find_first_not_of(" \t");
+    if (found==string::npos)
+	return 1; // empty line
+    if ('#'==line[found])
+        return 1; // a comment indeed
+    return 0; // a line with some data in it, then
+
+}
 MBErrorCode ReadTriangleOutput( MBCore *mb, std::string fileBase ) {    
   
   //
-  // get the read iface from moab
+  // get the read interface from moab
   void* ptr = 0;
   mb->query_interface("MBReadUtilIface", &ptr);
   MBReadUtilIface *iface = reinterpret_cast<MBReadUtilIface*>(ptr);
   //
+  if (NULL == iface)
+     {
+        cout<<"Can't get interface.\n";
+        return MB_FAILURE;
+     }
+  // Triangle default <name>.node
   string nodeFileName = fileBase+".node";
   ifstream nodeFile (nodeFileName.c_str());
   if (!nodeFile.is_open())
@@ -24,14 +42,16 @@ MBErrorCode ReadTriangleOutput( MBCore *mb, std::string fileBase ) {
      cout<<"can't open node file .\n";
      return MB_FILE_DOES_NOT_EXIST;
   }
+  cout << "reading nodes from file " << nodeFileName.c_str() << endl;
   
   string eleFileName = fileBase+".ele";
   ifstream eleFile (eleFileName.c_str());
   if (!eleFile.is_open())
   {
-     cout<<"can't open node file .\n";
+     cout<<"can't open element file .\n";
      return MB_FILE_DOES_NOT_EXIST;
   }
+  cout << "reading elements from file " << eleFileName.c_str() << endl;
 
   string line;
   
@@ -41,32 +61,41 @@ MBErrorCode ReadTriangleOutput( MBCore *mb, std::string fileBase ) {
   while(num_nodes==0)
     {
       getline(nodeFile, line);
-      if ('#' == line[0])
+      if (comment(line))
 	continue;
       stringstream tks(line);
-      tks >> num_nodes; // ignore the rest of the line
+      tks >> num_nodes; // ignore the rest of the first line
+                        // maybe will read attributes some other time
       cout << "num nodes:" << num_nodes << endl; 
     }
   
   //  allocate a block of vertex handles and read xyz’s into them
+  //  we know the size of the node arrays, and this call will allocate 
+  //   needed arrays, coordinate arrays
+  //   also, it will return a starting handle for the node sequence
   vector<double*> arrays;
   MBEntityHandle startv, *starth;
   MBErrorCode rval = iface->get_node_arrays(2, num_nodes, 0, startv, arrays);
   for (int i = 0; i < num_nodes; i++)
     {
       getline(nodeFile, line);
-      if ('#' == line[0])
+      if (comment(line))
+      {
+        i--;// read one more line
 	continue;
+      }
       stringstream tokens(line);
       int nodeId;
       tokens >> nodeId >> arrays[0][i] >> arrays[1][i] ;
     }
   
-  
+  // now read the element data from a different file
+  // first, find out how many elements are out there
+  // first line with data should have it
   while(num_triangles==0)
     {
       getline(eleFile, line);
-      if ('#' == line[0])
+      if (comment(line))
 	continue;
       stringstream tks(line);
       tks >> num_triangles; // ignore the rest of the line
@@ -80,15 +109,18 @@ MBErrorCode ReadTriangleOutput( MBCore *mb, std::string fileBase ) {
   for (int j = 0; j < num_triangles; j++)
     {
       getline(eleFile, line);
-      if ('#' == line[0])
+      if (comment(line))
+      {
+        j--;// read one more line
 	continue;
+      }
       stringstream tokens(line);
       int eleId, node;
       tokens >> eleId;
       for (int k=0; k<3; k++)
 	{
 	  tokens >> node;
-          // vertex starts from 0
+          // vertex handles start at startv
           starth[3*j+k] = (MBEntityHandle)(node + (int)startv-1 );
         }
     }
@@ -120,6 +152,7 @@ int main(int argc, char **argv) {
    MBErrorCode rval = ReadTriangleOutput(mb, filename);
 
    if (rval==MB_SUCCESS)
+     cout << "Writing output file " << outfile << endl;
      mb->write_file(outfile); 
    return 0;
 }  
