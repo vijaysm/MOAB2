@@ -38,7 +38,7 @@ cfg_DATA = moab.make moab.config
 # directory until we're doing the install.
 install-data-hook:
 	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/moab.make
-	echo "MOAB_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/moab.make
+	echo "MOAB_INCLUDES=-I${includedir}" >> $(DESTDIR)$(cfgdir)/moab.make
 
 
 # Generate a file to be installed in $libdir containing the configuration
