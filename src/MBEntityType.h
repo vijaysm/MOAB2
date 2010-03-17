@@ -85,6 +85,19 @@ inline MOAB_ENTITY_TYPE_NAME operator--(MOAB_ENTITY_TYPE_NAME &type, int)
 #  ifndef MOAB_ENTITY_TYPE_NS_ONLY
 #    define MOAB_ENTITY_TYPE_NS_ONLY
      typedef moab::EntityType MBEntityType;
+     using moab::MBVERTEX;
+     using moab::MBEDGE;
+     using moab::MBTRI;
+     using moab::MBQUAD;
+     using moab::MBPOLYGON;
+     using moab::MBTET;
+     using moab::MBPYRAMID;
+     using moab::MBPRISM;
+     using moab::MBKNIFE;
+     using moab::MBHEX;
+     using moab::MBPOLYHEDRON;
+     using moab::MBENTITYSET;
+     using moab::MBMAXTYPE;
 #  endif /* MOAB_ENTITY_TYPE_NS_ONLY */
 #else /* __cplusplus */
 #  ifndef MOAB_ENTITY_TYPE_C
