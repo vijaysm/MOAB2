@@ -7,6 +7,6 @@
 #include "moab/BSPTree.hpp"
 typedef moab::BSPTree MBBSPTree;
 typedef moab::BSPTreeIter MBBSPTreeIter;
-typedef moab::BSPTreeBoxIter MBBSPTreeBoxIter
+typedef moab::BSPTreeBoxIter MBBSPTreeBoxIter;
 
 #endif
