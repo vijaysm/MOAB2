@@ -8,15 +8,12 @@ CXXFLAGS = -g
 
 default: all
 
-all: FileRead GeomSetHierarchy GetEntities SetsNTags SkinMesh SurfArea
+all: FileRead GeomSetHierarchy SetsNTags SkinMesh SurfArea
 
 FileRead: FileRead.o
 	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
 
 GeomSetHierarchy: GeomSetHierarchy.o
-	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
-
-GetEntities: GetEntities.o
 	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
 
 SetsNTags: SetsNTags.o

@@ -1060,6 +1060,7 @@ AC_CONFIG_FILES([Makefile
                  doc/user.dox
                  examples/Makefile
                  examples/examples.make
+                 examples/simple/makefile
                  ])
 AC_CONFIG_COMMANDS([src/MOAB_FCDefs.h],
   [sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h])

@@ -1,0 +1,14 @@
+exec_prefix = @exec_prefix@
+prefix = @prefix@
+libdir = @libdir@
+include $(libdir)/moab.make
+
+CPPFLAGS = ${MOAB_INCLUDES}
+CXXFLAGS = -g
+
+default: all
+
+all: GetEntities
+
+GetEntities: GetEntities.o
+	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
