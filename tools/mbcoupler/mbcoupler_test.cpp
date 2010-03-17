@@ -1,5 +1,5 @@
 #include "moab/ParallelComm.hpp"
-#include "moab/MBParallelConventions.h"
+#include "MBParallelConventions.h"
 #include "moab/Core.hpp"
 #include "FileOptions.hpp"
 #include "ReadParallel.hpp"

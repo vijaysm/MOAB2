@@ -13,7 +13,7 @@
 #endif
 #include <fcntl.h>
 #include "moab/Interface.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
 #include "moab/Skinner.hpp"

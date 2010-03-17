@@ -39,7 +39,7 @@
 
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "moab/Interface.hpp"
 
 using namespace moab;

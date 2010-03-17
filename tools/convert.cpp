@@ -22,7 +22,7 @@
 
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "moab/ReaderWriterSet.hpp"
 #include <iostream>
 #include <iomanip>

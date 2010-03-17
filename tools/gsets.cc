@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "moab/Range.hpp"
 #include "moab/Core.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "moab/GeomTopoTool.hpp"
 
 using namespace moab;

@@ -31,7 +31,7 @@
 #include "moab/WriteUtilIface.hpp"
 #include "moab/MeshTopoUtil.hpp"
 #include "moab/ParallelComm.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 
 using namespace moab;
 

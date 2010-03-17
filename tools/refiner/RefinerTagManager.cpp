@@ -2,8 +2,8 @@
 
 #include "moab/Interface.hpp"
 #include "moab/ParallelComm.hpp"
-#include "moab/ParallelConventions.h"
-#include "moab/MBTagConventions.hpp"
+#include "ParallelConventions.h"
+#include "MBTagConventions.hpp"
 
 #include <iostream>
 #include <stdexcept>

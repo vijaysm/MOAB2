@@ -7,7 +7,7 @@
 #include <iostream>
 #include <assert.h>
 #include "moab/Core.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "moab/Range.hpp"
 
 moab::ErrorCode make_tris_from_quad( moab::Interface *MBI,

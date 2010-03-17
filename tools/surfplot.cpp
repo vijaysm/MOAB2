@@ -1,6 +1,6 @@
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include <iostream>
 #include <fstream>
 #include <limits>

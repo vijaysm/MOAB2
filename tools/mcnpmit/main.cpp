@@ -9,7 +9,7 @@
 
 #include "moab/CartVect.hpp"
 #include "moab/Core.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "moab/AdaptiveKDTree.hpp"
 #include "moab/GeomUtil.hpp"
 #include "ElemUtil.hpp"

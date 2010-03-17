@@ -23,7 +23,7 @@
 
 #include "moab/Types.h"
 #include "moab/ProcessSet.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 
 #include <map>
 #include <vector>

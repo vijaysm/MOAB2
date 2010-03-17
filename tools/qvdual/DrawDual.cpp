@@ -1,7 +1,7 @@
 #include "moab/DrawDual.hpp"
 #include "SheetDiagramPopup.h"
 #include "moab/MeshTopoUtil.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "moab/CartVect.hpp"
 #include "vtkMOABUtils.h"
 #include "vtkPolyData.h"
