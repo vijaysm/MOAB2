@@ -16,20 +16,19 @@
 #ifndef MB_ENTITY_TYPE_H
 #define MB_ENTITY_TYPE_H
 
-#ifndef MOAB_ENTITY_TYPE_NAME
-#  define MOAB_ENTITY_TYPE_NAME MBEntityType
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /*! Entity types defined in MOAB and MBCN
  *  The ordering here must ensure that all element types are 
  *  grouped together and all elements of similar dimension are
  *  grouped together.
  */
-typedef enum 
+
+#ifdef __cplusplus
+namespace moab { 
+# define MOAB_ENTITY_TYPE_NAME EntityType
+# else /* __cplusplus */
+# define MOAB_ENTITY_TYPE_NAME MBEntityType
+#endif /* __cplusplus */
+enum MOAB_ENTITY_TYPE_NAME
 {
   MBVERTEX = 0, /**< Mesh Vertex AKA node */
   MBEDGE,       /**< Mesh Edge */
@@ -45,11 +44,7 @@ typedef enum
   MBENTITYSET,    /**< MeshSet */
   MBMAXTYPE  /**< Just a place keeper - must be the # of entities, for array */
     /**< dimensioning purposes  */
-} MOAB_ENTITY_TYPE_NAME;
-
-#ifdef __cplusplus
-} /* extern "C" */
-
+};
 
 /** prefix increment operator for MBEntityType */
 inline MOAB_ENTITY_TYPE_NAME & operator++(MOAB_ENTITY_TYPE_NAME &type)
@@ -79,8 +74,21 @@ inline MOAB_ENTITY_TYPE_NAME operator--(MOAB_ENTITY_TYPE_NAME &type, int)
   return oldval;
 }
 
-#endif
+#ifdef __cplusplus
+} /* namespace moab*/
+#endif /* __cplusplus */
 
 #undef MOAB_ENTITY_TYPE_NAME
+#endif /* MB_ENTITY_TYPE_H */
 
-#endif
+#ifdef __cplusplus
+#  ifndef MOAB_ENTITY_TYPE_NS_ONLY
+#    define MOAB_ENTITY_TYPE_NS_ONLY
+     typedef moab::EntityType MBEntityType;
+#  endif /* MOAB_ENTITY_TYPE_NS_ONLY */
+#else /* __cplusplus */
+#  ifndef MOAB_ENTITY_TYPE_C
+#    define MOAB_ENTITY_TYPE_C
+     typedef enum MBEntityType MBEntityType;
+#  endif /* MOAB_ENTITY_TYPE_C */
+#endif /* __cplusplus */

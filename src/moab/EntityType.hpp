@@ -1,12 +1,6 @@
-#ifndef MOAB_ENTITY_TYPE_HPP
-#define MOAB_ENTITY_TYPE_HPP
-
-namespace moab {
-  #undef MB_ENTITY_TYPE_H
-  #define MOAB_ENTITY_TYPE_NAME EntityType
-  #include "MBEntityType.h"
-  #undef MB_ENTITY_TYPE_H
-}
-
-#endif
+#ifndef MOAB_ENTITY_TYPE_NS_ONLY
+# define MOAB_ENTITY_TYPE_NS_ONLY
+# include "MBEntityType.h"
+# undef MOAB_ENTITY_TYPE_NS_ONLY
+#endif 
 
