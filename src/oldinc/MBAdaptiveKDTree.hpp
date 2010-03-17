@@ -5,5 +5,6 @@
 
 #include "moab/AdaptiveKDTree.hpp"
 typedef moab::AdaptiveKDTree MBAdaptiveKDTree;
+typedef moab::AdaptiveKDTreeIter MBAdaptiveKDTreeIter;
 
 #endif
