@@ -11,7 +11,7 @@
 #include "moab/Core.hpp"
 #include "Error.hpp"
 #include "ElementSequence.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include "moab/RangeMap.hpp"
 #include "moab/MeshTopoUtil.hpp"
 
@@ -849,7 +849,7 @@ ErrorCode ParallelComm::pack_entities(Range &entities,
 
 #ifdef DEBUG_PACKING
   std::cerr << "Packed " << these_ents.size() << " ents of type " 
-            << MBCN::EntityTypeName(TYPE_FROM_HANDLE(*these_ents.begin())) << std::endl;
+            << CN::EntityTypeName(TYPE_FROM_HANDLE(*these_ents.begin())) << std::endl;
 #endif      
   }
 
@@ -1025,7 +1025,7 @@ ErrorCode ParallelComm::pack_entity_seq(const int nodes_per_entity,
 
 #ifdef DEBUG_PACKING
   std::cerr << std::endl << "Packed " << these_ents.size() << " ents of type " 
-            << MBCN::EntityTypeName(TYPE_FROM_HANDLE(*these_ents.begin())) << std::endl;
+            << CN::EntityTypeName(TYPE_FROM_HANDLE(*these_ents.begin())) << std::endl;
 #endif      
 
   return result;
@@ -1467,7 +1467,7 @@ ErrorCode ParallelComm::unpack_entities(unsigned char *&buff_ptr,
     
 #ifdef DEBUG_PACKING
       std::cerr << "Unpacked " << num_ents << " ents of type " 
-                << MBCN::EntityTypeName(TYPE_FROM_HANDLE(this_type)) << std::endl;
+                << CN::EntityTypeName(TYPE_FROM_HANDLE(this_type)) << std::endl;
 #endif      
 
   }
@@ -1544,7 +1544,7 @@ ErrorCode ParallelComm::print_buffer(unsigned char *buff_ptr,
         UNPACK_INT(buff_ptr, verts_per_entity);
       }
 
-      std::cerr << "Type: " << MBCN::EntityTypeName(this_type)
+      std::cerr << "Type: " << CN::EntityTypeName(this_type)
                 << "; num_ents = " << num_ents2;
       if (MBVERTEX != this_type) std::cerr << "; verts_per_ent = " << verts_per_entity;
       std::cerr << std::endl;
@@ -1598,8 +1598,8 @@ ErrorCode ParallelComm::print_buffer(unsigned char *buff_ptr,
     std::cerr << num_ents << " Entity pairs; hremote/hlocal/proc: " << std::endl;
     for (int i = 0; i < num_ents; i++) {
       EntityType etype = TYPE_FROM_HANDLE(L1hloc[i]);
-      std::cerr << MBCN::EntityTypeName(etype) << ID_FROM_HANDLE(L1hrem[i])  << ", " 
-                << MBCN::EntityTypeName(etype) << ID_FROM_HANDLE(L1hloc[i])  << ", " 
+      std::cerr << CN::EntityTypeName(etype) << ID_FROM_HANDLE(L1hrem[i])  << ", " 
+                << CN::EntityTypeName(etype) << ID_FROM_HANDLE(L1hloc[i])  << ", " 
                 << L1p[i] << std::endl;
     }
 
@@ -1634,7 +1634,7 @@ ErrorCode ParallelComm::print_buffer(unsigned char *buff_ptr,
       int tot_length = 0;
       for (int i = 0; i < num_ents; i++) {
         EntityType etype = TYPE_FROM_HANDLE(*((EntityHandle*)tmp_buff));
-        std::cerr << MBCN::EntityTypeName(etype) << " " 
+        std::cerr << CN::EntityTypeName(etype) << " " 
                   << ID_FROM_HANDLE(*((EntityHandle*)tmp_buff))
                   << ", tag = ";
         if (tag_size == MB_VARIABLE_LENGTH) {
@@ -2018,7 +2018,7 @@ ErrorCode ParallelComm::find_existing_entity(const bool is_iface,
   
   Range tmp_range;
   ErrorCode result = mbImpl->get_adjacencies(connect, num_connect, 
-                                               MBCN::Dimension(this_type), false, 
+                                               CN::Dimension(this_type), false, 
                                                tmp_range);
   RRA("Problem getting existing entity.");
   if (!tmp_range.empty()) {
@@ -2742,8 +2742,8 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   if (resolve_dim > shared_dim &&
       mbImpl->dimension_from_handle(*proc_ents.rbegin()) !=
       mbImpl->dimension_from_handle(*proc_ents.begin())) {
-    Range::iterator lower = proc_ents.lower_bound(MBCN::TypeDimensionMap[0].first),
-      upper = proc_ents.upper_bound(MBCN::TypeDimensionMap[resolve_dim-1].second);
+    Range::iterator lower = proc_ents.lower_bound(CN::TypeDimensionMap[0].first),
+      upper = proc_ents.upper_bound(CN::TypeDimensionMap[resolve_dim-1].second);
     proc_ents.erase(lower, upper);
   }
   
@@ -6131,7 +6131,7 @@ ErrorCode ParallelComm::get_shared_entities(int other_proc,
   
     // dimension
   if (-1 != dim) {
-    DimensionPair dp = MBCN::TypeDimensionMap[dim];
+    DimensionPair dp = CN::TypeDimensionMap[dim];
     Range dum_range;
     shared_ents.merge(sharedEnts.lower_bound(dp.first), 
                       sharedEnts.upper_bound(dp.second));

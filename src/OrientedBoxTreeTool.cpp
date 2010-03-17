@@ -23,7 +23,7 @@
 #include "moab/OrientedBoxTreeTool.hpp"
 #include "OrientedBox.hpp"
 #include "moab/Range.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include "moab/GeomUtil.hpp"
 #include "moab/MBTagConventions.hpp"
 #include <iostream>
@@ -1531,7 +1531,7 @@ ErrorCode TreeNodePrinter::print_counts( EntityHandle node )
     if (MB_SUCCESS != rval)
       return rval;
     if(count > 0)
-      outputStream << " " << count << " " << MBCN::EntityTypeName(type) << std::endl;
+      outputStream << " " << count << " " << CN::EntityTypeName(type) << std::endl;
   }
   return MB_SUCCESS;
 }
@@ -1546,7 +1546,7 @@ ErrorCode TreeNodePrinter::print_contents( EntityHandle node )
       return rval;
     if (range.empty())
       continue;
-    outputStream << " " << MBCN::EntityTypeName(type) << " ";  
+    outputStream << " " << CN::EntityTypeName(type) << " ";  
     std::vector<int> ids( range.size() );
     if (haveTag) {
       rval = instance->tag_get_data( tag, range, &ids[0] );

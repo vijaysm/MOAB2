@@ -3,7 +3,7 @@
 #include "Tqdcfr.hpp"
 #include "moab/MBTagConventions.hpp"
 #include "FileOptions.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include <math.h>
 #include <algorithm>
 
@@ -835,11 +835,11 @@ static EntityHandle find_side( Interface& moab,
   CHECK_ERR(rval);
   
   int sub_ent_indices[4];
-  MBCN::SubEntityVertexIndices( TYPE_FROM_HANDLE(entity), side_dim, side_num, 
+  CN::SubEntityVertexIndices( TYPE_FROM_HANDLE(entity), side_dim, side_num, 
                                 sub_ent_indices );
-  EntityType subtype = MBCN::SubEntityType( TYPE_FROM_HANDLE(entity),
+  EntityType subtype = CN::SubEntityType( TYPE_FROM_HANDLE(entity),
                                               side_dim, side_num );
-  int sub_ent_corners = MBCN::VerticesPerEntity(subtype);
+  int sub_ent_corners = CN::VerticesPerEntity(subtype);
   
   const EntityHandle* conn;
   int conn_len;
@@ -891,12 +891,12 @@ void check_adj_ho_nodes( Interface& moab,
     CHECK_ERR(rval);
     
     int ho[4];
-    MBCN::HasMidNodes( type, conn_len, ho );
-    for (int dim = MBCN::Dimension(type)-1; dim > 0; --dim) {
+    CN::HasMidNodes( type, conn_len, ho );
+    for (int dim = CN::Dimension(type)-1; dim > 0; --dim) {
       if (!ho[dim])
         continue;
         
-      for (int j = 0; j < MBCN::NumSubEntities( type, dim ); ++j) {
+      for (int j = 0; j < CN::NumSubEntities( type, dim ); ++j) {
         EntityHandle side = find_side( moab, entity, dim, j );
         if (!side)
           continue;
@@ -906,8 +906,8 @@ void check_adj_ho_nodes( Interface& moab,
         rval = moab.get_connectivity( side, side_conn, side_len );
         CHECK_ERR(rval);
         
-        int this_idx = MBCN::HONodeIndex( type, conn_len, dim, j );
-        int side_idx = MBCN::HONodeIndex( TYPE_FROM_HANDLE(side), side_len, dim, 0 );
+        int this_idx = CN::HONodeIndex( type, conn_len, dim, j );
+        int side_idx = CN::HONodeIndex( TYPE_FROM_HANDLE(side), side_len, dim, 0 );
         CHECK_EQUAL( side_conn[side_idx], conn[this_idx] );
       }
     }
@@ -931,27 +931,27 @@ void check_ho_element( Interface& moab,
   CHECK_ERR(rval);
   
     // calculate and verify expected number of mid nodes
-  int num_nodes = MBCN::VerticesPerEntity(type);
-  for (int d = 1; d <= MBCN::Dimension(type); ++d)
+  int num_nodes = CN::VerticesPerEntity(type);
+  for (int d = 1; d <= CN::Dimension(type); ++d)
     if (mid_nodes[d])
-      num_nodes += MBCN::NumSubEntities(type, d);
+      num_nodes += CN::NumSubEntities(type, d);
   CHECK_EQUAL( num_nodes, conn_len );
   
     // verify that each higher-order node is at the center
     // of its respective sub-entity.
-  for (int i = MBCN::VerticesPerEntity(type); i < num_nodes; ++i) {
+  for (int i = CN::VerticesPerEntity(type); i < num_nodes; ++i) {
       // get sub-entity owning ho-node  
     int sub_dim, sub_num;
-    MBCN::HONodeParent( type, num_nodes, i, sub_dim, sub_num );
+    CN::HONodeParent( type, num_nodes, i, sub_dim, sub_num );
       // get corner vertex indices
     int sub_conn[8], num_sub;
-    if (sub_dim < MBCN::Dimension(type)) {
-      MBCN::SubEntityVertexIndices( type, sub_dim, sub_num, sub_conn );
-      EntityType sub_type = MBCN::SubEntityType( type, sub_dim, sub_num );
-      num_sub = MBCN::VerticesPerEntity( sub_type );
+    if (sub_dim < CN::Dimension(type)) {
+      CN::SubEntityVertexIndices( type, sub_dim, sub_num, sub_conn );
+      EntityType sub_type = CN::SubEntityType( type, sub_dim, sub_num );
+      num_sub = CN::VerticesPerEntity( sub_type );
     }
     else {
-      num_sub = MBCN::VerticesPerEntity(type);
+      num_sub = CN::VerticesPerEntity(type);
       for (int j = 0; j < num_sub; ++j)
         sub_conn[j] = j;
     }
@@ -993,7 +993,7 @@ void test_ho_elements( EntityType type, int num_nodes )
   // get material sets with expected higher-order nodes
   Range blocks;
   int ho_flags[4];
-  MBCN::HasMidNodes( type, num_nodes, ho_flags );
+  CN::HasMidNodes( type, num_nodes, ho_flags );
   Tag tags[2] = {ho_tag, block_tag};
   void* vals[2] = {ho_flags, NULL};
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, tags, vals, 2, blocks );

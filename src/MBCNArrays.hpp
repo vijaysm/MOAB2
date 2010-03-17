@@ -19,7 +19,7 @@
 
 namespace moab {
 
-const MBCN::ConnMap MBCN::mConnectivityMap[MBMAXTYPE][3] =
+const CN::ConnMap CN::mConnectivityMap[MBMAXTYPE][3] =
 {
     // vertex-edge
   {{ 0, 0 , {0}, 
@@ -159,7 +159,7 @@ const MBCN::ConnMap MBCN::mConnectivityMap[MBMAXTYPE][3] =
     // maxtype
 };
 
-const MBCN::UpConnMap MBCN::mUpConnMap[MBMAXTYPE][4][4] =
+const CN::UpConnMap CN::mUpConnMap[MBMAXTYPE][4][4] =
 {
   { // type MBVERTEX
     {{{1}, {{0}} }, {{0}, {{0}} }, {{0}, {{0}} }, {{0}, {{0}} }}, // source dim 0
@@ -692,10 +692,10 @@ const MBCN::UpConnMap MBCN::mUpConnMap[MBMAXTYPE][4][4] =
     {{{0}, {{0}} }, {{0}, {{0}} }, {{0}, {{0}} }} // source dim 3
   } // end type MBENTITYSET
 };
-const unsigned char E = MBCN::MID_EDGE_BIT;
-const unsigned char F = MBCN::MID_FACE_BIT;
-const unsigned char R = MBCN::MID_REGION_BIT;
-const unsigned char MBCN::midNodesPerType[MBMAXTYPE][MAX_NODES_PER_ELEMENT+1] = {
+const unsigned char E = CN::MID_EDGE_BIT;
+const unsigned char F = CN::MID_FACE_BIT;
+const unsigned char R = CN::MID_REGION_BIT;
+const unsigned char CN::midNodesPerType[MBMAXTYPE][MAX_NODES_PER_ELEMENT+1] = {
 // vertex
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
 // edge

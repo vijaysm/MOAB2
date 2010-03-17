@@ -20,7 +20,7 @@
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
 #include "Error.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include "moab/MeshTopoUtil.hpp"
 #include "EntitySequence.hpp"
 #include "SequenceData.hpp"
@@ -95,7 +95,7 @@ ErrorCode AEntityFactory::get_elements(EntityHandle source_entity,
 {
   // check for trivial case first
   const EntityType source_type = TYPE_FROM_HANDLE(source_entity);
-  const unsigned source_dimension = MBCN::Dimension(source_type);
+  const unsigned source_dimension = CN::Dimension(source_type);
 
   if (source_type >= MBENTITYSET || target_dimension < 1 || target_dimension > 3) {
     return MB_TYPE_OUT_OF_RANGE;
@@ -158,7 +158,7 @@ ErrorCode AEntityFactory::get_associated_meshsets( EntityHandle source_entity,
     return result;
 
   // find the meshsets in this vector 
-  DimensionPair dim_pair = MBCN::TypeDimensionMap[4];
+  DimensionPair dim_pair = CN::TypeDimensionMap[4];
   int dum;
   const EntityHandle* start_ent =
     std::lower_bound(adj_vec, adj_vec+num_adj, CREATE_HANDLE(dim_pair.first, MB_START_ID, dum));
@@ -260,12 +260,12 @@ ErrorCode AEntityFactory::get_element(const EntityHandle *vertex_list,
       }
 
       if (0 == target_entity && 
-          thisMB->dimension_from_handle(source_entity) > MBCN::Dimension(target_type)+1) {
+          thisMB->dimension_from_handle(source_entity) > CN::Dimension(target_type)+1) {
           // still have multiple entities, and source dimension is two greater than target,
           // so there may not be any explicit adjacencies between the two; look for common
           // entities of the intermediate dimension
         MeshTopoUtil mtu(thisMB);
-        int intermed_dim = MBCN::Dimension(target_type)+1;
+        int intermed_dim = CN::Dimension(target_type)+1;
         for (dum = 0; dum < temp_vec_size; dum++) {
           if (0 != mtu.common_entity(temp_vec[dum], source_entity, intermed_dim)) {
             target_entity = temp_vec[dum];
@@ -310,7 +310,7 @@ bool AEntityFactory::entities_equivalent(const EntityHandle this_entity,
   // see if we can get one node id to match
   assert(vertex_list_size > 0);
   int num_corner_verts = ((this_type == MBPOLYGON || this_type == MBPOLYHEDRON) ?
-                          num_this_vertices : MBCN::VerticesPerEntity(target_type));
+                          num_this_vertices : CN::VerticesPerEntity(target_type));
   const EntityHandle *iter = 
     std::find(this_vertices, (this_vertices+num_corner_verts), vertex_list[0]);
   if(iter == (this_vertices+num_corner_verts))
@@ -434,7 +434,7 @@ ErrorCode AEntityFactory::remove_all_adjacencies(EntityHandle base_entity,
 
   if (base_type == MBENTITYSET) 
     return thisMB->clear_meshset(&base_entity, 1);
-  const int base_ent_dim = MBCN::Dimension( base_type );
+  const int base_ent_dim = CN::Dimension( base_type );
 
     // Remove adjacencies from element vertices back to 
     // this element.  Also check any elements adjacent
@@ -458,7 +458,7 @@ ErrorCode AEntityFactory::remove_all_adjacencies(EntityHandle base_entity,
         if (adjvect[j] == base_entity)
           remove_this = true;
         
-        if (MBCN::Dimension(TYPE_FROM_HANDLE(adjvect[j])) != base_ent_dim 
+        if (CN::Dimension(TYPE_FROM_HANDLE(adjvect[j])) != base_ent_dim 
          && explicitly_adjacent( adjvect[j], base_entity )) 
           remove_adjacency( adjvect[j], base_entity );
       }
@@ -581,7 +581,7 @@ ErrorCode AEntityFactory::get_adjacencies( const EntityHandle source_entity,
                                              std::vector<EntityHandle> &target_entities )
 {
   const EntityType source_type = TYPE_FROM_HANDLE(source_entity);
-  const unsigned source_dimension = MBCN::Dimension(source_type);
+  const unsigned source_dimension = CN::Dimension(source_type);
 
   ErrorCode result;
   if (target_dimension == 4) { //get meshsets 'source' is in
@@ -674,10 +674,10 @@ ErrorCode AEntityFactory::get_zero_to_n_elements(EntityHandle source_entity,
       std::vector<EntityHandle> tmp_ents;
       
       start_ent = std::lower_bound(adj_vec->begin(), adj_vec->end(), 
-                         FIRST_HANDLE(MBCN::TypeDimensionMap[target_dimension+1].first));
+                         FIRST_HANDLE(CN::TypeDimensionMap[target_dimension+1].first));
 
       end_ent = std::lower_bound(start_ent, adj_vec->end(), 
-                         LAST_HANDLE(MBCN::TypeDimensionMap[3].second));
+                         LAST_HANDLE(CN::TypeDimensionMap[3].second));
       
       std::vector<EntityHandle> elems(start_ent, end_ent);
  
@@ -689,7 +689,7 @@ ErrorCode AEntityFactory::get_zero_to_n_elements(EntityHandle source_entity,
       }
   }
     
-  DimensionPair dim_pair = MBCN::TypeDimensionMap[target_dimension];
+  DimensionPair dim_pair = CN::TypeDimensionMap[target_dimension];
   start_ent = std::lower_bound(adj_vec->begin(), adj_vec->end(), FIRST_HANDLE(dim_pair.first ));
   end_ent   = std::lower_bound(start_ent,        adj_vec->end(), LAST_HANDLE (dim_pair.second));
   target_entities.insert( target_entities.end(), start_ent, end_ent );
@@ -725,15 +725,15 @@ ErrorCode AEntityFactory::get_down_adjacency_elements(EntityHandle source_entity
   if (MB_SUCCESS != result) return result;
 
   int has_mid_nodes[4];
-  MBCN::HasMidNodes(source_type, num_verts, has_mid_nodes);
+  CN::HasMidNodes(source_type, num_verts, has_mid_nodes);
   
   std::vector<int> index_list;
-  int num_sub_ents = MBCN::NumSubEntities(source_type, target_dimension);
+  int num_sub_ents = CN::NumSubEntities(source_type, target_dimension);
   
   for( int j=0; j<num_sub_ents; j++)
   {
-    const MBCN::ConnMap &cmap = 
-      MBCN::mConnectivityMap[source_type][target_dimension-1];
+    const CN::ConnMap &cmap = 
+      CN::mConnectivityMap[source_type][target_dimension-1];
   
     int verts_per_sub = cmap.num_corners_per_sub_element[j];
 
@@ -746,11 +746,11 @@ ErrorCode AEntityFactory::get_down_adjacency_elements(EntityHandle source_entity
         // has edge mid-nodes; for each edge, get the right mid-node and put in vertices
         // first get the edge indices
       index_list.clear();
-      int int_result = MBCN::AdjacentSubEntities(source_type, &j, 1, 
+      int int_result = CN::AdjacentSubEntities(source_type, &j, 1, 
                                                    target_dimension, 1, index_list);
       if (0 != int_result) return MB_FAILURE;
       for (unsigned int k = 0; k < index_list.size(); k++) {
-        int tmp_index = MBCN::HONodeIndex(source_type, num_verts, 1,
+        int tmp_index = CN::HONodeIndex(source_type, num_verts, 1,
                                             index_list[k]);
         if (tmp_index >= (int) num_verts) return MB_INDEX_OUT_OF_RANGE;
 
@@ -761,7 +761,7 @@ ErrorCode AEntityFactory::get_down_adjacency_elements(EntityHandle source_entity
       // get the ho nodes for the target dimension
     if (has_mid_nodes[target_dimension]) {
         // get the ho node index for this subfacet
-      int tmp_index = MBCN::HONodeIndex(source_type, num_verts,
+      int tmp_index = CN::HONodeIndex(source_type, num_verts,
                                           target_dimension, j);
       if (tmp_index >= num_verts) return MB_INDEX_OUT_OF_RANGE;
       vertex_array[verts_per_sub++] = vertices[tmp_index];
@@ -903,7 +903,7 @@ ErrorCode AEntityFactory::get_up_adjacency_elements(
     // Handle ranges
   const size_t in_size = target_entities.size();
   const EntityType src_type = TYPE_FROM_HANDLE(source_entity);
-  DimensionPair target_types = MBCN::TypeDimensionMap[target_dimension];
+  DimensionPair target_types = CN::TypeDimensionMap[target_dimension];
   const EntityHandle src_beg_handle = CREATE_HANDLE( src_type, 0 );
   const EntityHandle src_end_handle = CREATE_HANDLE( src_type+1, 0 );
   const EntityHandle tgt_beg_handle = CREATE_HANDLE( target_types.first, 0 );
@@ -923,7 +923,7 @@ ErrorCode AEntityFactory::get_up_adjacency_elements(
 
     // create necessary entities. this only makes sense if there exists of a
     // dimension greater than the target dimension.
-  if (create_if_missing && target_dimension < 3 && MBCN::Dimension(src_type) < 2) {
+  if (create_if_missing && target_dimension < 3 && CN::Dimension(src_type) < 2) {
     for (size_t i = 0; i < conn_len; ++i) {
       rval = get_adjacency_ptr( conn[i], vtx_adj );
       if (MB_SUCCESS != rval)
@@ -932,7 +932,7 @@ ErrorCode AEntityFactory::get_up_adjacency_elements(
 
       std::vector<EntityHandle> tmp2, tmp(*vtx_adj); // copy in case adjacency vector is changed
       for (size_t j = 0; j < tmp.size(); ++j) {
-        if (MBCN::Dimension(TYPE_FROM_HANDLE(tmp[j])) <= (int)target_dimension)
+        if (CN::Dimension(TYPE_FROM_HANDLE(tmp[j])) <= (int)target_dimension)
           continue;
         if (TYPE_FROM_HANDLE(tmp[j]) == MBENTITYSET)
           break;
@@ -1025,7 +1025,7 @@ ErrorCode AEntityFactory::get_up_adjacency_elements(
   
   // If target dimension is 3 and source dimension is 1, also need to
   // check for explicit adjacencies to intermediate faces
-  if (MBCN::Dimension(src_type) > 1 || target_dimension < 3)
+  if (CN::Dimension(src_type) > 1 || target_dimension < 3)
     return MB_SUCCESS;
   
     // Get faces adjacent to each element and check for explict 
@@ -1152,8 +1152,8 @@ ErrorCode AEntityFactory::get_up_adjacency_elements(EntityHandle source_entity,
     else if (adj_vec == NULL)
       return MB_SUCCESS;
 
-    DimensionPair dim_pair_dp1 = MBCN::TypeDimensionMap[MBCN::Dimension(source_type)+1],
-      dim_pair_td = MBCN::TypeDimensionMap[target_dimension];
+    DimensionPair dim_pair_dp1 = CN::TypeDimensionMap[CN::Dimension(source_type)+1],
+      dim_pair_td = CN::TypeDimensionMap[target_dimension];
     int dum;
 
     Range tmp_ents, target_ents;
@@ -1246,7 +1246,7 @@ bool AEntityFactory::explicitly_adjacent(const EntityHandle ent1,
 ErrorCode AEntityFactory::merge_adjust_adjacencies(EntityHandle entity_to_keep,
                                                      EntityHandle entity_to_remove) 
 {
-  int ent_dim = MBCN::Dimension(TYPE_FROM_HANDLE(entity_to_keep));
+  int ent_dim = CN::Dimension(TYPE_FROM_HANDLE(entity_to_keep));
   ErrorCode result;
   
     // check for newly-formed equivalent entities, and create explicit adjacencies
@@ -1353,7 +1353,7 @@ ErrorCode AEntityFactory::check_equiv_entities(EntityHandle entity_to_keep,
       
       
       //   . if # vertices != number of corner vertices + 1, continue
-      if (MBCN::VerticesPerEntity(TYPE_FROM_HANDLE(*rit_rm))+1 != (int) all_verts.size()) continue;
+      if (CN::VerticesPerEntity(TYPE_FROM_HANDLE(*rit_rm))+1 != (int) all_verts.size()) continue;
       
       //   . for the two entities adjacent to kept & removed entity:
       result = create_explicit_adjs(*rit_rm);

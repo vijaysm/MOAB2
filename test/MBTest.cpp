@@ -40,7 +40,7 @@
 #include "moab/Range.hpp"
 #include "moab/Skinner.hpp"
 #include "moab/MeshTopoUtil.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include "OrientedBox.hpp"
 #include "moab/CartVect.hpp"
 
@@ -1253,7 +1253,7 @@ ErrorCode mb_mesh_sets_test(Interface * MB, int flags)
       return result;
 
     number_array[ent_type] = temp_range.size(); //KGM
-    num_dim_array[MBCN::Dimension(ent_type)] += count;
+    num_dim_array[CN::Dimension(ent_type)] += count;
 
       //Check to make sure mesh set really has correct number of entities in it
     temp_range.clear();
@@ -1298,7 +1298,7 @@ ErrorCode mb_mesh_sets_test(Interface * MB, int flags)
       return MB_FAILURE;
       
     temp_range.clear();
-    result = MB->get_entities_by_dimension( ms_array[ent_type], MBCN::Dimension(ent_type), temp_range);
+    result = MB->get_entities_by_dimension( ms_array[ent_type], CN::Dimension(ent_type), temp_range);
     if(result != MB_SUCCESS)
       return result;
     if(number_array[ent_type] != temp_range.size())
@@ -1337,7 +1337,7 @@ ErrorCode mb_mesh_sets_test(Interface * MB, int flags)
     if (count != 0)
       return MB_FAILURE;
         
-    result = MB->get_number_entities_by_dimension( ms_array[ent_type], MBCN::Dimension(ent_type), count );
+    result = MB->get_number_entities_by_dimension( ms_array[ent_type], CN::Dimension(ent_type), count );
     if (result != MB_SUCCESS)
       return result;
     if ((unsigned)count != number_array[ent_type])
@@ -4984,7 +4984,7 @@ ErrorCode mb_canon_number_test(Interface *MB)
 {
     // various tests for canonical ordering
 
-    // MBCN::AdjacentSubEntities
+    // CN::AdjacentSubEntities
   std::vector<int> vec1, vec2;
   ErrorCode result;
 
@@ -4992,16 +4992,16 @@ ErrorCode mb_canon_number_test(Interface *MB)
 
   for (this_type = MBEDGE; this_type != MBKNIFE; this_type++) {
     
-    for (int i = 0; i < MBCN::VerticesPerEntity(this_type); i++) {
+    for (int i = 0; i < CN::VerticesPerEntity(this_type); i++) {
         // test for edges and faces
-      for (int dim = 1; dim <= MBCN::Dimension(this_type); dim++) {
+      for (int dim = 1; dim <= CN::Dimension(this_type); dim++) {
           // get the sides adjacent to this vertex
         vec1.clear();
-        int temp_result = MBCN::AdjacentSubEntities(this_type, &i, 1, 0, dim, vec1);
+        int temp_result = CN::AdjacentSubEntities(this_type, &i, 1, 0, dim, vec1);
                                      
         if (0 != temp_result ||
-            vec1.size() > (unsigned int) MBCN::NumSubEntities(this_type, dim)) {
-          cout << "failed getting sides for type " << MBCN::EntityTypeName(this_type)
+            vec1.size() > (unsigned int) CN::NumSubEntities(this_type, dim)) {
+          cout << "failed getting sides for type " << CN::EntityTypeName(this_type)
                << " dimension" << dim << endl;
           return MB_FAILURE;
         }
@@ -5010,21 +5010,21 @@ ErrorCode mb_canon_number_test(Interface *MB)
           // now get the vertices shared by these sides
         vec2.clear();
         temp_result = 
-          MBCN::AdjacentSubEntities(this_type, &vec1[0], vec1.size(), dim, 0,
+          CN::AdjacentSubEntities(this_type, &vec1[0], vec1.size(), dim, 0,
                                     vec2);
 
           // vertex side recovered should be i
         if (0 != temp_result || 
               // if dimension is same as DIMENSION(this_type), will get back all the
               // vertices in the entity
-            (dim == MBCN::Dimension(this_type) && 
-             vec2.size() != (unsigned int) MBCN::VerticesPerEntity(this_type)) ||
+            (dim == CN::Dimension(this_type) && 
+             vec2.size() != (unsigned int) CN::VerticesPerEntity(this_type)) ||
               // otherwise, we should get back only one vertex, and it should be the one
               // we started with
-            (dim != MBCN::Dimension(this_type) &&
+            (dim != CN::Dimension(this_type) &&
              (vec2.size() != 1 || vec2[0] != i))) {
           cout << "traversal from verts to sides to verts failed for " << endl
-               << "vertex " << i << " type " << MBCN::EntityTypeName(this_type) 
+               << "vertex " << i << " type " << CN::EntityTypeName(this_type) 
                << " dimension " << dim << endl;
           return MB_FAILURE;
         }
@@ -5032,7 +5032,7 @@ ErrorCode mb_canon_number_test(Interface *MB)
     }
   }
   
-    // MBCN::side_number
+    // CN::side_number
 
     // create vertices to use later
   double xyz[3] = {0.0, 0.0, 0.0};
@@ -5054,11 +5054,11 @@ ErrorCode mb_canon_number_test(Interface *MB)
     
       // make an entity of this type
     result = MB->create_element(this_type, vertex_handles, 
-                                MBCN::VerticesPerEntity(this_type),
+                                CN::VerticesPerEntity(this_type),
                                 this_entity);
     if (MB_SUCCESS != result || 0 == this_entity) {
       cout << "failed to create entity of type " 
-           << MBCN::EntityTypeName(this_type) << endl;
+           << CN::EntityTypeName(this_type) << endl;
       return MB_FAILURE;
     }
 
@@ -5067,30 +5067,30 @@ ErrorCode mb_canon_number_test(Interface *MB)
     int num_verts;
     result = MB->get_connectivity(this_entity, entity_vertices, num_verts);
     if (MB_SUCCESS != result || 
-        num_verts != MBCN::VerticesPerEntity(this_type)) {
+        num_verts != CN::VerticesPerEntity(this_type)) {
       cout << "failed to get connectivity for entity type " 
-           << MBCN::EntityTypeName(this_type) << endl;
+           << CN::EntityTypeName(this_type) << endl;
       return MB_FAILURE;
     }
     
       // for each dimension
-    for (int dim = 1; dim <= MBCN::Dimension(this_type); dim++) {
+    for (int dim = 1; dim <= CN::Dimension(this_type); dim++) {
         // for each side of this dimension
-      const MBCN::ConnMap &cm = MBCN::mConnectivityMap[this_type][dim-1];
+      const CN::ConnMap &cm = CN::mConnectivityMap[this_type][dim-1];
       int tmp_conn[MB_MAX_SUB_ENTITY_VERTICES];
 
-      for (int side_no = 0; side_no < MBCN::NumSubEntities(this_type, dim); side_no++) {
+      for (int side_no = 0; side_no < CN::NumSubEntities(this_type, dim); side_no++) {
 
         for (int j = 0; j < MB_MAX_SUB_ENTITY_VERTICES; j++) tmp_conn[j] = cm.conn[side_no][j];
         int temp_result = 
-          MBCN::SideNumber(this_type,
+          CN::SideNumber(this_type,
                            tmp_conn, 
-                           MBCN::VerticesPerEntity(MBCN::SubEntityType(this_type, dim, side_no)),
+                           CN::VerticesPerEntity(CN::SubEntityType(this_type, dim, side_no)),
                            dim, side, sense, offset);
         if (0 != temp_result) {
-          cout << "call to MBCN::side_number failed with non-success result"
+          cout << "call to CN::side_number failed with non-success result"
                << " for type " 
-               << MBCN::EntityTypeName(this_type) << " dimension " << dim 
+               << CN::EntityTypeName(this_type) << " dimension " << dim 
                << " side no " << side_no << endl;
           return MB_FAILURE;
         }
@@ -5098,8 +5098,8 @@ ErrorCode mb_canon_number_test(Interface *MB)
           // side number should be the same as side_no, sense should be forward, offset should
           // be zero
         if (side != side_no || sense != 1 || offset != 0) {
-          cout << "call to MBCN::side_number failed for type " 
-               << MBCN::EntityTypeName(this_type) << " dimension " << dim << " side no " 
+          cout << "call to CN::side_number failed for type " 
+               << CN::EntityTypeName(this_type) << " dimension " << dim << " side no " 
                << side_no << endl
                << "side, sense, offset = " << side << " " << sense << " " << offset << endl;
           return MB_FAILURE;
@@ -7574,7 +7574,7 @@ ErrorCode mb_skin_higher_order_regions_common( bool use_adj )
     
     int valid, side, sense, offset;
     for (int h = 0; h < 2; ++h) {
-      valid = MBCN::SideNumber( MBHEX, hexverts[h], conn, 4, 2, side, sense, offset );
+      valid = CN::SideNumber( MBHEX, hexverts[h], conn, 4, 2, side, sense, offset );
       if (valid != 0)
         continue;
       if (sense != 1) {
@@ -7586,7 +7586,7 @@ ErrorCode mb_skin_higher_order_regions_common( bool use_adj )
       
       int idx[9], len2;
       EntityType sidetype;
-      MBCN::SubEntityNodeIndices( MBHEX, 27, 2, side, sidetype, len2, idx );
+      CN::SubEntityNodeIndices( MBHEX, 27, 2, side, sidetype, len2, idx );
       assert(sidetype == MBQUAD);
       assert(len2 == 9);
       if ( conn[   offset     ] != hexverts[h][idx[0]] ||
@@ -7683,7 +7683,7 @@ ErrorCode mb_skin_reversed_common( int dim, bool use_adj )
     // create one reversed side
   EntityHandle side_conn[3];
   int side_indices[3] = {0,0,0};
-  MBCN::SubEntityVertexIndices(type, dim-1, 0, side_indices );
+  CN::SubEntityVertexIndices(type, dim-1, 0, side_indices );
   side_conn[0] = conn[0][side_indices[1]];
   side_conn[1] = conn[0][side_indices[0]];
   side_conn[2] = conn[0][side_indices[2]];
@@ -7764,7 +7764,7 @@ ErrorCode mb_skin_subset_common( int dimension, bool use_adj )
   for (int i = 0; i < 6; ++i) {
     EntityHandle conn[6] = { verts[0][6], verts[0][(i+1)%6], verts[0][i],
                                verts[1][6], verts[1][(i+1)%6], verts[1][i] };
-    rval = mb.create_element( type, conn, MBCN::VerticesPerEntity(type), elems[i] );
+    rval = mb.create_element( type, conn, CN::VerticesPerEntity(type), elems[i] );
     if (MB_SUCCESS != rval) return rval;
   }
   
@@ -7879,7 +7879,7 @@ ErrorCode mb_skin_full_common( int dimension, bool use_adj )
     EntityHandle conn[8] = { v[0][i], v[0][i+1], v[0][i+4], v[0][i+3],
                                v[1][i], v[1][i+1], v[1][i+4], v[1][i+3] };
     memcpy( econn[i], conn, sizeof(conn) );
-    rval = mb.create_element( type, conn, MBCN::VerticesPerEntity(type), elems[i] );
+    rval = mb.create_element( type, conn, CN::VerticesPerEntity(type), elems[i] );
     if (MB_SUCCESS != rval) return rval;
     input.insert( elems[i] );
   }
@@ -7887,10 +7887,10 @@ ErrorCode mb_skin_full_common( int dimension, bool use_adj )
     // create sides
     // NOTE: Shared side is element 0 side 1 and element 1 side 3
   Range expected;
-  for (int i = 0; i < MBCN::NumSubEntities( type, dimension-1 ); ++i) {
+  for (int i = 0; i < CN::NumSubEntities( type, dimension-1 ); ++i) {
     EntityType subtype;
     int len;
-    const short* indices = MBCN::SubEntityVertexIndices( type, dimension-1,
+    const short* indices = CN::SubEntityVertexIndices( type, dimension-1,
                                                          i, subtype, len );
     EntityHandle conn[4];
     assert((size_t)len <= sizeof(conn)/sizeof(conn[0]));
@@ -8127,11 +8127,11 @@ int main(int argc, char* argv[])
     // Check command line arg to see if we should avoid doing the stress test
   bool stress_test = true;
 
-  std::cout << "Size of mConnMap = " << sizeof(MBCN::mConnectivityMap)
+  std::cout << "Size of mConnMap = " << sizeof(CN::mConnectivityMap)
             << std::endl;
-  std::cout << "Size of mUpConnMap = " << sizeof(MBCN::mUpConnMap)
+  std::cout << "Size of mUpConnMap = " << sizeof(CN::mUpConnMap)
             << std::endl;
-  std::cout << "Size of MBCN = " << sizeof(MBCN)
+  std::cout << "Size of CN = " << sizeof(CN)
             << std::endl;
     
   for (int i = 1; i < argc; ++i) {

@@ -233,7 +233,7 @@ void print_handles( std::ostream& str, const char* prefix, iter_type begin, iter
   iter_type i = begin;
   EntityType prev_type = TYPE_FROM_HANDLE(*i);
   EntityHandle prev_ent = *i;
-  str << ' ' << MBCN::EntityTypeName(prev_type) << ' ' << ID_FROM_HANDLE(*i);
+  str << ' ' << CN::EntityTypeName(prev_type) << ' ' << ID_FROM_HANDLE(*i);
   for (;;) {
     iter_type j = i;
     for (++j, ++prev_ent; j != end && *j == prev_ent; ++j, ++prev_ent);
@@ -249,7 +249,7 @@ void print_handles( std::ostream& str, const char* prefix, iter_type begin, iter
     
     str << ',';
     if (TYPE_FROM_HANDLE(*i) != prev_type) 
-      str << ' ' << MBCN::EntityTypeName(prev_type = TYPE_FROM_HANDLE(*i));
+      str << ' ' << CN::EntityTypeName(prev_type = TYPE_FROM_HANDLE(*i));
     str << ' ' << ID_FROM_HANDLE(*i);
     prev_ent = *i;
   }
@@ -400,7 +400,7 @@ bool check_set_contents( Core& mb, int dim, EntityHandle set, unsigned flags )
   CHECK_ERR(rval);
   std::vector<EntityHandle>::iterator i = expected.begin();
   while (i != expected.end()) {
-    if (MBCN::Dimension(TYPE_FROM_HANDLE(*i)) != dim)
+    if (CN::Dimension(TYPE_FROM_HANDLE(*i)) != dim)
       i = expected.erase( i );
     else
       ++i;

@@ -3,7 +3,7 @@
 
 #include "EntitySequence.hpp"
 #include "SequenceData.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 
 namespace moab {
 
@@ -64,15 +64,15 @@ ElementSequence::get_connectivity_array() const
 
 inline bool
 ElementSequence::has_mid_edge_nodes() const
-  { return MBCN::HasMidEdgeNodes( type(), nodes_per_element() ); }
+  { return CN::HasMidEdgeNodes( type(), nodes_per_element() ); }
 
 inline bool
 ElementSequence::has_mid_face_nodes() const
-  { return MBCN::HasMidFaceNodes( type(), nodes_per_element() ); }
+  { return CN::HasMidFaceNodes( type(), nodes_per_element() ); }
 
 inline bool
 ElementSequence::has_mid_volume_nodes() const
-  { return MBCN::HasMidRegionNodes( type(), nodes_per_element() ); }
+  { return CN::HasMidRegionNodes( type(), nodes_per_element() ); }
   
 } // namespace moab
 

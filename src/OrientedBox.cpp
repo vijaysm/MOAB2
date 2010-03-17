@@ -32,7 +32,7 @@
  */
 
 #include "moab/Interface.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include "OrientedBox.hpp"
 #include "moab/Range.hpp"
 #include "Matrix3.hpp"
@@ -313,8 +313,8 @@ ErrorCode OrientedBox::covariance_data_from_tris( CovarienceData& result,
                                                  const Range& elements )
 {
   ErrorCode rval;
-  const Range::iterator begin = elements.lower_bound( MBCN::TypeDimensionMap[2].first );
-  const Range::iterator end = elements.lower_bound( MBCN::TypeDimensionMap[3].first );
+  const Range::iterator begin = elements.lower_bound( CN::TypeDimensionMap[2].first );
+  const Range::iterator end = elements.lower_bound( CN::TypeDimensionMap[3].first );
   
     // compute mean and moments
   result.matrix = Matrix3(0.0);

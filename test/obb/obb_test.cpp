@@ -4,7 +4,7 @@
 #include "OrientedBox.hpp"
 #include "moab/MBTagConventions.hpp"
 #include "moab/GeomUtil.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -419,7 +419,7 @@ ErrorCode TreeValidator::visit( EntityHandle node,
   bool boundary[6] = { false, false, false, false, false, false };
   for (Range::iterator it = contents.begin(); it != contents.end(); ++it) {
     EntityType type = instance->type_from_handle( *it );
-    int dim = MBCN::Dimension( type );
+    int dim = CN::Dimension( type );
     if (dim != 2) {
       bad_element = true;
       continue;
@@ -1378,9 +1378,9 @@ void print_mb_range( const Range& range )
     EntityType type2 = TYPE_FROM_HANDLE( i->second );
     int id1 = ID_FROM_HANDLE( i->first );
     int id2 = ID_FROM_HANDLE( i->second );
-    std::cout << MBCN::EntityTypeName( type1 ) << " " << id1;
+    std::cout << CN::EntityTypeName( type1 ) << " " << id1;
     if (i->first != i->second) 
-      std::cout << " to " << MBCN::EntityTypeName( type2 ) << " " << id2;
+      std::cout << " to " << CN::EntityTypeName( type2 ) << " " << id2;
     std::cout << std::endl;
   }
 }

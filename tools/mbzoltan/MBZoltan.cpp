@@ -32,7 +32,6 @@
 #include "moab/MeshTopoUtil.hpp"
 #include "moab/ParallelComm.hpp"
 #include "moab/MBTagConventions.hpp"
-#include "moab/MBCN.hpp"
 
 using namespace moab;
 

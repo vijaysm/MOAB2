@@ -1,7 +1,7 @@
 #include "iMesh_extensions.h"
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include "moab/MeshTopoUtil.hpp"
 #include "FileOptions.hpp"
 #include "iMesh_MOAB.hpp"
@@ -653,7 +653,7 @@ extern "C" {
       else if (iBase_ALL_TYPES == entity_type_requested) {
         adj_ents.clear();
         for (int dim = 0; dim < 4; ++dim) {
-          if (MBCN::Dimension(TYPE_FROM_HANDLE(*entity_iter)) == dim)
+          if (CN::Dimension(TYPE_FROM_HANDLE(*entity_iter)) == dim)
             continue;
           result = MBI->get_adjacencies( entity_iter, 1, dim, false, adj_ents, Interface::UNION );
           if (MB_SUCCESS != result) {
@@ -1295,11 +1295,11 @@ extern "C" {
     int num_ents = 0, num_verts;
     const EntityHandle *lower_ents;
     if (MBVERTEX != this_type) {
-      num_verts = MBCN::VerticesPerEntity(this_type);
+      num_verts = CN::VerticesPerEntity(this_type);
       num_ents = lower_order_entity_handles_size / num_verts;
       lower_ents = CONST_HANDLE_ARRAY_PTR(lower_order_entity_handles);
         // check that we have the right number of lower order entity handles
-      if (lower_order_entity_handles_size % MBCN::VerticesPerEntity(this_type) != 0) {
+      if (lower_order_entity_handles_size % CN::VerticesPerEntity(this_type) != 0) {
         ERROR(iBase_INVALID_ENTITY_COUNT, "iMesh_createEntArr: wrong # vertices for this entity type.");
        }
     }
@@ -2514,8 +2514,8 @@ extern "C" {
     }
     else if (use_type && entity_type != iBase_ALL_TYPES) {
         // need to loop over all types of this dimension
-      for (EntityType tp = MBCN::TypeDimensionMap[entity_type].first;
-           tp <= MBCN::TypeDimensionMap[entity_type].second; tp++) {
+      for (EntityType tp = CN::TypeDimensionMap[entity_type].first;
+           tp <= CN::TypeDimensionMap[entity_type].second; tp++) {
         Range tmp_range;
         ErrorCode tmp_result = MBI->get_entities_by_type_and_tag(handle, type, (Tag*)tag_handles, 
                                                                    (const void* const *)tag_vals,
@@ -2585,7 +2585,7 @@ extern "C" {
     RETURN(iBase_SUCCESS);
   }
 
-  void iMesh_MBCNType(/*in*/ const int imesh_entity_topology,
+  void iMesh_CNType(/*in*/ const int imesh_entity_topology,
                       /*out*/ int *mbcn_type) 
   {
     if (iMesh_POINT > imesh_entity_topology ||
@@ -2667,7 +2667,7 @@ ErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
   int num_connect;
   for (ent_it = entities.begin(); ent_it != entities.end(); ent_it++) {
     this_type = MBI->type_from_handle(*ent_it);
-    if ((-1 == req_dimension || req_dimension == MBCN::Dimension(this_type)) &&
+    if ((-1 == req_dimension || req_dimension == CN::Dimension(this_type)) &&
         (MBMAXTYPE == req_type || this_type == req_type)) {
       req_entities.insert(*ent_it);
       result = MBI->get_connectivity(*ent_it, connect, num_connect, false, 

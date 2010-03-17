@@ -1,5 +1,5 @@
 #include "TestUtil.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 
 using namespace moab;
 
@@ -148,19 +148,19 @@ void test_dimension_pair()
 {
   DimensionPair dp;
   
-  dp = MBCN::TypeDimensionMap[0];
+  dp = CN::TypeDimensionMap[0];
   CHECK_EQUAL( MBVERTEX, dp.first );  
   CHECK_EQUAL( MBVERTEX, dp.second );
   
-  dp = MBCN::TypeDimensionMap[1];
+  dp = CN::TypeDimensionMap[1];
   CHECK_EQUAL( MBEDGE, dp.first );  
   CHECK_EQUAL( MBEDGE, dp.second );
   
-  dp = MBCN::TypeDimensionMap[2];
+  dp = CN::TypeDimensionMap[2];
   CHECK_EQUAL( MBTRI, dp.first );  
   CHECK_EQUAL( MBPOLYGON, dp.second );
   
-  dp = MBCN::TypeDimensionMap[3];
+  dp = CN::TypeDimensionMap[3];
   CHECK_EQUAL( MBTET, dp.first );  
   CHECK_EQUAL( MBPOLYHEDRON, dp.second );
 }
@@ -168,114 +168,114 @@ void test_dimension_pair()
 void test_type_names()
 {
   for (EntityType t = MBVERTEX; t != MBMAXTYPE; ++t) {
-    const char* name = MBCN::EntityTypeName(t);
-    CHECK_EQUAL( t, MBCN::EntityTypeFromName(name) );
+    const char* name = CN::EntityTypeName(t);
+    CHECK_EQUAL( t, CN::EntityTypeFromName(name) );
   }
 }
 
 void test_dimension()
 {
-  CHECK_EQUAL( 0, MBCN::Dimension(MBVERTEX) );
-  CHECK_EQUAL( 1, MBCN::Dimension(MBEDGE) );
-  CHECK_EQUAL( 2, MBCN::Dimension(MBTRI) );
-  CHECK_EQUAL( 2, MBCN::Dimension(MBQUAD) );
-  CHECK_EQUAL( 2, MBCN::Dimension(MBPOLYGON) );
-  CHECK_EQUAL( 3, MBCN::Dimension(MBTET) );
-  CHECK_EQUAL( 3, MBCN::Dimension(MBPYRAMID) );
-  CHECK_EQUAL( 3, MBCN::Dimension(MBPRISM) );
-  CHECK_EQUAL( 3, MBCN::Dimension(MBKNIFE) );
-  CHECK_EQUAL( 3, MBCN::Dimension(MBHEX) );
-  CHECK_EQUAL( 3, MBCN::Dimension(MBPOLYHEDRON) );
+  CHECK_EQUAL( 0, CN::Dimension(MBVERTEX) );
+  CHECK_EQUAL( 1, CN::Dimension(MBEDGE) );
+  CHECK_EQUAL( 2, CN::Dimension(MBTRI) );
+  CHECK_EQUAL( 2, CN::Dimension(MBQUAD) );
+  CHECK_EQUAL( 2, CN::Dimension(MBPOLYGON) );
+  CHECK_EQUAL( 3, CN::Dimension(MBTET) );
+  CHECK_EQUAL( 3, CN::Dimension(MBPYRAMID) );
+  CHECK_EQUAL( 3, CN::Dimension(MBPRISM) );
+  CHECK_EQUAL( 3, CN::Dimension(MBKNIFE) );
+  CHECK_EQUAL( 3, CN::Dimension(MBHEX) );
+  CHECK_EQUAL( 3, CN::Dimension(MBPOLYHEDRON) );
 }
 
 void test_vertices_per_entity()
 {
-  CHECK_EQUAL( 1, MBCN::VerticesPerEntity(MBVERTEX) );
-  CHECK_EQUAL( 2, MBCN::VerticesPerEntity(MBEDGE) );
-  CHECK_EQUAL( 3, MBCN::VerticesPerEntity(MBTRI) );
-  CHECK_EQUAL( 4, MBCN::VerticesPerEntity(MBQUAD) );
-  CHECK_EQUAL( 4, MBCN::VerticesPerEntity(MBTET) );
-  CHECK_EQUAL( 5, MBCN::VerticesPerEntity(MBPYRAMID) );
-  CHECK_EQUAL( 6, MBCN::VerticesPerEntity(MBPRISM) );
-  CHECK_EQUAL( 7, MBCN::VerticesPerEntity(MBKNIFE) );
-  CHECK_EQUAL( 8, MBCN::VerticesPerEntity(MBHEX) );
+  CHECK_EQUAL( 1, CN::VerticesPerEntity(MBVERTEX) );
+  CHECK_EQUAL( 2, CN::VerticesPerEntity(MBEDGE) );
+  CHECK_EQUAL( 3, CN::VerticesPerEntity(MBTRI) );
+  CHECK_EQUAL( 4, CN::VerticesPerEntity(MBQUAD) );
+  CHECK_EQUAL( 4, CN::VerticesPerEntity(MBTET) );
+  CHECK_EQUAL( 5, CN::VerticesPerEntity(MBPYRAMID) );
+  CHECK_EQUAL( 6, CN::VerticesPerEntity(MBPRISM) );
+  CHECK_EQUAL( 7, CN::VerticesPerEntity(MBKNIFE) );
+  CHECK_EQUAL( 8, CN::VerticesPerEntity(MBHEX) );
 }
 
 void test_num_sub_entities()
 {
-  CHECK_EQUAL( 1, MBCN::NumSubEntities(MBVERTEX, 0));
+  CHECK_EQUAL( 1, CN::NumSubEntities(MBVERTEX, 0));
 
-  CHECK_EQUAL( 2, MBCN::NumSubEntities(MBEDGE, 0));
-  CHECK_EQUAL( 1, MBCN::NumSubEntities(MBEDGE, 1));
+  CHECK_EQUAL( 2, CN::NumSubEntities(MBEDGE, 0));
+  CHECK_EQUAL( 1, CN::NumSubEntities(MBEDGE, 1));
 
-  CHECK_EQUAL( 3, MBCN::NumSubEntities(MBTRI, 0));
-  CHECK_EQUAL( 3, MBCN::NumSubEntities(MBTRI, 1));
-  CHECK_EQUAL( 1, MBCN::NumSubEntities(MBTRI, 2));
+  CHECK_EQUAL( 3, CN::NumSubEntities(MBTRI, 0));
+  CHECK_EQUAL( 3, CN::NumSubEntities(MBTRI, 1));
+  CHECK_EQUAL( 1, CN::NumSubEntities(MBTRI, 2));
 
-  CHECK_EQUAL( 4, MBCN::NumSubEntities(MBQUAD, 0));
-  CHECK_EQUAL( 4, MBCN::NumSubEntities(MBQUAD, 1));
-  CHECK_EQUAL( 1, MBCN::NumSubEntities(MBQUAD, 2));
+  CHECK_EQUAL( 4, CN::NumSubEntities(MBQUAD, 0));
+  CHECK_EQUAL( 4, CN::NumSubEntities(MBQUAD, 1));
+  CHECK_EQUAL( 1, CN::NumSubEntities(MBQUAD, 2));
 
-  CHECK_EQUAL( 4, MBCN::NumSubEntities(MBTET, 0));
-  CHECK_EQUAL( 6, MBCN::NumSubEntities(MBTET, 1));
-  CHECK_EQUAL( 4, MBCN::NumSubEntities(MBTET, 2));
+  CHECK_EQUAL( 4, CN::NumSubEntities(MBTET, 0));
+  CHECK_EQUAL( 6, CN::NumSubEntities(MBTET, 1));
+  CHECK_EQUAL( 4, CN::NumSubEntities(MBTET, 2));
 
-  CHECK_EQUAL( 5, MBCN::NumSubEntities(MBPYRAMID, 0));
-  CHECK_EQUAL( 8, MBCN::NumSubEntities(MBPYRAMID, 1));
-  CHECK_EQUAL( 5, MBCN::NumSubEntities(MBPYRAMID, 2));
+  CHECK_EQUAL( 5, CN::NumSubEntities(MBPYRAMID, 0));
+  CHECK_EQUAL( 8, CN::NumSubEntities(MBPYRAMID, 1));
+  CHECK_EQUAL( 5, CN::NumSubEntities(MBPYRAMID, 2));
 
-  CHECK_EQUAL( 6, MBCN::NumSubEntities(MBPRISM, 0));
-  CHECK_EQUAL( 9, MBCN::NumSubEntities(MBPRISM, 1));
-  CHECK_EQUAL( 5, MBCN::NumSubEntities(MBPRISM, 2));
+  CHECK_EQUAL( 6, CN::NumSubEntities(MBPRISM, 0));
+  CHECK_EQUAL( 9, CN::NumSubEntities(MBPRISM, 1));
+  CHECK_EQUAL( 5, CN::NumSubEntities(MBPRISM, 2));
 
-  CHECK_EQUAL( 7, MBCN::NumSubEntities(MBKNIFE, 0));
-  CHECK_EQUAL(10, MBCN::NumSubEntities(MBKNIFE, 1));
-  CHECK_EQUAL( 5, MBCN::NumSubEntities(MBKNIFE, 2));
+  CHECK_EQUAL( 7, CN::NumSubEntities(MBKNIFE, 0));
+  CHECK_EQUAL(10, CN::NumSubEntities(MBKNIFE, 1));
+  CHECK_EQUAL( 5, CN::NumSubEntities(MBKNIFE, 2));
 
-  CHECK_EQUAL( 8, MBCN::NumSubEntities(MBHEX, 0));
-  CHECK_EQUAL( 12, MBCN::NumSubEntities(MBHEX, 1));
-  CHECK_EQUAL( 6, MBCN::NumSubEntities(MBHEX, 2));
+  CHECK_EQUAL( 8, CN::NumSubEntities(MBHEX, 0));
+  CHECK_EQUAL( 12, CN::NumSubEntities(MBHEX, 1));
+  CHECK_EQUAL( 6, CN::NumSubEntities(MBHEX, 2));
 }
 
 void do_test_sub_entity_type_2d( EntityType type )
 {
-  for (int j = 0; j < MBCN::VerticesPerEntity(type); ++j) {
-    CHECK_EQUAL( MBVERTEX, MBCN::SubEntityType(type, 0, j ) );
-    CHECK_EQUAL( MBEDGE,   MBCN::SubEntityType(type, 1, j ) );
+  for (int j = 0; j < CN::VerticesPerEntity(type); ++j) {
+    CHECK_EQUAL( MBVERTEX, CN::SubEntityType(type, 0, j ) );
+    CHECK_EQUAL( MBEDGE,   CN::SubEntityType(type, 1, j ) );
   }
-  CHECK_EQUAL( type, MBCN::SubEntityType(type, 2, 0) );
+  CHECK_EQUAL( type, CN::SubEntityType(type, 2, 0) );
 }
 
 void do_test_sub_entity_type_3d( EntityType type,
                                  int num_faces,
                                  const EntityType* face_types )
 {
-  for (int j = 0; j < MBCN::VerticesPerEntity(type); ++j) {
-    CHECK_EQUAL( MBVERTEX, MBCN::SubEntityType(type, 0, j ) );
+  for (int j = 0; j < CN::VerticesPerEntity(type); ++j) {
+    CHECK_EQUAL( MBVERTEX, CN::SubEntityType(type, 0, j ) );
   }
 
-  for (int j = 0; j < MBCN::NumSubEntities(type,1); ++j) {
-    CHECK_EQUAL( MBEDGE, MBCN::SubEntityType(type, 1, j ) );
+  for (int j = 0; j < CN::NumSubEntities(type,1); ++j) {
+    CHECK_EQUAL( MBEDGE, CN::SubEntityType(type, 1, j ) );
   }
 
   for (int j = 0; j < num_faces; ++j) {
-    EntityType sub_type = MBCN::SubEntityType( type, 2, j );
+    EntityType sub_type = CN::SubEntityType( type, 2, j );
     CHECK_EQUAL( face_types[j], sub_type );
   }
 
-  CHECK_EQUAL( type, MBCN::SubEntityType(type, 3, 0) );
+  CHECK_EQUAL( type, CN::SubEntityType(type, 3, 0) );
 }
 
 void test_sub_entity_type_vtx()
 {
-  CHECK_EQUAL( MBVERTEX, MBCN::SubEntityType(MBVERTEX, 0, 0 ));
+  CHECK_EQUAL( MBVERTEX, CN::SubEntityType(MBVERTEX, 0, 0 ));
 }
 
 void test_sub_entity_type_edge()
 {
-  CHECK_EQUAL( MBVERTEX, MBCN::SubEntityType(MBEDGE, 0, 0 ));
-  CHECK_EQUAL( MBVERTEX, MBCN::SubEntityType(MBEDGE, 0, 1 ));
-  CHECK_EQUAL( MBEDGE  , MBCN::SubEntityType(MBEDGE, 1, 0 ));
+  CHECK_EQUAL( MBVERTEX, CN::SubEntityType(MBEDGE, 0, 0 ));
+  CHECK_EQUAL( MBVERTEX, CN::SubEntityType(MBEDGE, 0, 1 ));
+  CHECK_EQUAL( MBEDGE  , CN::SubEntityType(MBEDGE, 1, 0 ));
 }
 
 void test_sub_entity_type_tri()
@@ -325,7 +325,7 @@ void test_0d_sub_entity_indices( EntityType type, int num_vtx )
     // zero input array
     int indices[2] = { 0, -100 };
     // check correct results
-    MBCN::SubEntityVertexIndices( type, 0, i, indices );
+    CN::SubEntityVertexIndices( type, 0, i, indices );
     CHECK_EQUAL( i, indices[0] );
     // check didn't write past end of array
     CHECK_EQUAL( -100, indices[1] );
@@ -339,7 +339,7 @@ void test_1d_sub_entity_indices( EntityType type, int num_edges,
     // zero input array
     int indices[3] = { 0, 0, -99 };
     // check correct results
-    MBCN::SubEntityVertexIndices( type, 1, i, indices );
+    CN::SubEntityVertexIndices( type, 1, i, indices );
     if (edge_indices[i][0] == indices[0]) {
       CHECK_EQUAL( edge_indices[i][1], indices[1] );
     }
@@ -359,7 +359,7 @@ void test_2d_sub_entity_indices( EntityType type, int num_faces,
     // zero input array
     int indices[5] = { 0, 0, 0, -99, -99 };
     // check correct results
-    MBCN::SubEntityVertexIndices( type, 2, i, indices );
+    CN::SubEntityVertexIndices( type, 2, i, indices );
     const int num_vtx = face_indices[i][0];
     if (num_vtx != 3) CHECK_EQUAL( 4, num_vtx );
     const int* exp_index = face_indices[i] + 1;
@@ -394,7 +394,7 @@ void test_2d_sub_entity_indices( EntityType type, int num_faces,
 void test_elem_as_sub_entity( EntityType type, int dim, int num_vertices )
 { 
   int indices[9] = { -2, -2, -2, -2, -2, -2, -2, -2, -2 };
-  MBCN::SubEntityVertexIndices( type, dim, 0, indices );
+  CN::SubEntityVertexIndices( type, dim, 0, indices );
   for (int i = 0; i < num_vertices; ++i)
     CHECK_EQUAL( i, indices[i] );
   // make sure didn't write past end
@@ -534,19 +534,19 @@ static void do_test_side_number_1d( EntityType type, int idx )
   const int elem_verts[] = { 7400, 6233, 3027, 0454, 6839, 5391, 7735, 3603 };
   // get side indices
   int side_idx[4] = { 0, 0 };
-  MBCN::SubEntityVertexIndices( type, 1, idx, side_idx );
+  CN::SubEntityVertexIndices( type, 1, idx, side_idx );
 
   // "reversed" and "offset" are the same thing for edges.
   int side_conn[2] = { elem_verts[side_idx[0]], elem_verts[side_idx[1]] };
   int rev_conn[2] = { elem_verts[side_idx[1]], elem_verts[side_idx[0]] };
   int result_side = -100, result_sense = -100, result_offset = -100;
-  int err= MBCN::SideNumber( type, elem_verts, side_conn, 2, 1, 
+  int err= CN::SideNumber( type, elem_verts, side_conn, 2, 1, 
                              result_side, result_sense, result_offset );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( idx, result_side );
   CHECK_EQUAL( 1, result_sense );
   CHECK_EQUAL( 0, result_offset);
-  err= MBCN::SideNumber( type, elem_verts, rev_conn, 2, 1, 
+  err= CN::SideNumber( type, elem_verts, rev_conn, 2, 1, 
                          result_side, result_sense, result_offset );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( idx, result_side );
@@ -558,9 +558,9 @@ static void do_test_side_number_2d( EntityType type, int idx )
   // define a random handle list
   const int elem_verts[] = { 7400, 6233, 3027, 0454, 6839, 5391, 7735, 3603 };
   // get side indices
-  const int side_size = MBCN::VerticesPerEntity( MBCN::SubEntityType( type, 2, idx ) );
+  const int side_size = CN::VerticesPerEntity( CN::SubEntityType( type, 2, idx ) );
   int side_idx[4] = { 0, 0, 0, 0 };
-  MBCN::SubEntityVertexIndices( type, 2, idx, side_idx );
+  CN::SubEntityVertexIndices( type, 2, idx, side_idx );
 
   // for each possible forward or reverse offset
   for (int rev = -1; rev < 2; rev += 2) {
@@ -570,7 +570,7 @@ static void do_test_side_number_2d( EntityType type, int idx )
         side_conn[(side_size+rev*i)%side_size] = elem_verts[side_idx[(i+off)%side_size]];
       
       int result_side = -100, result_sense = -100, result_offset = -100;
-      int err = MBCN::SideNumber( type, elem_verts, side_conn, side_size, 2, 
+      int err = CN::SideNumber( type, elem_verts, side_conn, side_size, 2, 
                                   result_side, result_sense, result_offset );
       CHECK_EQUAL( 0, err );
       CHECK_EQUAL( idx, result_side );
@@ -628,27 +628,27 @@ void test_side_number_hex()
 void test_opposite_side_tri()
 {
   int idx, dim, err;
-  err = MBCN::OppositeSide( MBTRI, 0, 0, idx, dim );
+  err = CN::OppositeSide( MBTRI, 0, 0, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 1, idx );
-  err = MBCN::OppositeSide( MBTRI, 1, 0, idx, dim );
+  err = CN::OppositeSide( MBTRI, 1, 0, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 2, idx );
-  err = MBCN::OppositeSide( MBTRI, 2, 0, idx, dim );
+  err = CN::OppositeSide( MBTRI, 2, 0, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 0, idx );
-  err = MBCN::OppositeSide( MBTRI, 0, 1, idx, dim );
+  err = CN::OppositeSide( MBTRI, 0, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 0, dim );
   CHECK_EQUAL( 2, idx );
-  err = MBCN::OppositeSide( MBTRI, 1, 1, idx, dim );
+  err = CN::OppositeSide( MBTRI, 1, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 0, dim );
   CHECK_EQUAL( 0, idx );
-  err = MBCN::OppositeSide( MBTRI, 2, 1, idx, dim );
+  err = CN::OppositeSide( MBTRI, 2, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 0, dim );
   CHECK_EQUAL( 1, idx );
@@ -657,36 +657,36 @@ void test_opposite_side_tri()
 void test_opposite_side_quad()
 {
   int idx, dim, err;
-  err = MBCN::OppositeSide( MBQUAD, 0, 0, idx, dim );
+  err = CN::OppositeSide( MBQUAD, 0, 0, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 0, dim );
   CHECK_EQUAL( 2, idx );
-  err = MBCN::OppositeSide( MBQUAD, 1, 0, idx, dim );
+  err = CN::OppositeSide( MBQUAD, 1, 0, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 0, dim );
   CHECK_EQUAL( 3, idx );
-  err = MBCN::OppositeSide( MBQUAD, 2, 0, idx, dim );
+  err = CN::OppositeSide( MBQUAD, 2, 0, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 0, dim );
   CHECK_EQUAL( 0, idx );
-  err = MBCN::OppositeSide( MBQUAD, 3, 0, idx, dim );
+  err = CN::OppositeSide( MBQUAD, 3, 0, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 0, dim );
   CHECK_EQUAL( 1, idx );
 
-  err = MBCN::OppositeSide( MBQUAD, 0, 1, idx, dim );
+  err = CN::OppositeSide( MBQUAD, 0, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 2, idx );
-  err = MBCN::OppositeSide( MBQUAD, 1, 1, idx, dim );
+  err = CN::OppositeSide( MBQUAD, 1, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 3, idx );
-  err = MBCN::OppositeSide( MBQUAD, 2, 1, idx, dim );
+  err = CN::OppositeSide( MBQUAD, 2, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 0, idx );
-  err = MBCN::OppositeSide( MBQUAD, 3, 1, idx, dim );
+  err = CN::OppositeSide( MBQUAD, 3, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 1, idx );
@@ -696,61 +696,61 @@ void test_opposite_side_tet()
 {
   int idx, dim, err;
   
-  err = MBCN::OppositeSide( MBTET, 0, 0, idx, dim );
+  err = CN::OppositeSide( MBTET, 0, 0, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 2, dim );
   CHECK_EQUAL( 1, idx );
-  err = MBCN::OppositeSide( MBTET, 1, 0, idx, dim );
+  err = CN::OppositeSide( MBTET, 1, 0, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 2, dim );
   CHECK_EQUAL( 2, idx );
-  err = MBCN::OppositeSide( MBTET, 2, 0, idx, dim );
+  err = CN::OppositeSide( MBTET, 2, 0, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 2, dim );
   CHECK_EQUAL( 0, idx );
-  err = MBCN::OppositeSide( MBTET, 3, 0, idx, dim );
+  err = CN::OppositeSide( MBTET, 3, 0, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 2, dim );
   CHECK_EQUAL( 3, idx );
   
-  err = MBCN::OppositeSide( MBTET, 0, 2, idx, dim );
+  err = CN::OppositeSide( MBTET, 0, 2, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 0, dim );
   CHECK_EQUAL( 2, idx );
-  err = MBCN::OppositeSide( MBTET, 1, 2, idx, dim );
+  err = CN::OppositeSide( MBTET, 1, 2, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 0, dim );
   CHECK_EQUAL( 0, idx );
-  err = MBCN::OppositeSide( MBTET, 2, 2, idx, dim );
+  err = CN::OppositeSide( MBTET, 2, 2, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 0, dim );
   CHECK_EQUAL( 1, idx );
-  err = MBCN::OppositeSide( MBTET, 3, 2, idx, dim );
+  err = CN::OppositeSide( MBTET, 3, 2, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 0, dim );
   CHECK_EQUAL( 3, idx );
   
-  err = MBCN::OppositeSide( MBTET, 0, 1, idx, dim );
+  err = CN::OppositeSide( MBTET, 0, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 5, idx );
-  err = MBCN::OppositeSide( MBTET, 1, 1, idx, dim );
+  err = CN::OppositeSide( MBTET, 1, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 3, idx );
-  err = MBCN::OppositeSide( MBTET, 2, 1, idx, dim );
+  err = CN::OppositeSide( MBTET, 2, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 4, idx );
-  err = MBCN::OppositeSide( MBTET, 3, 1, idx, dim );
+  err = CN::OppositeSide( MBTET, 3, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 1, idx );
-  err = MBCN::OppositeSide( MBTET, 4, 1, idx, dim );
+  err = CN::OppositeSide( MBTET, 4, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 2, idx );
-  err = MBCN::OppositeSide( MBTET, 5, 1, idx, dim );
+  err = CN::OppositeSide( MBTET, 5, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 0, idx );
@@ -761,109 +761,109 @@ void test_opposite_side_hex()
 {
   int idx, dim, err;
   
-  err = MBCN::OppositeSide( MBHEX, 0, 0, idx, dim );
+  err = CN::OppositeSide( MBHEX, 0, 0, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 0, dim );
   CHECK_EQUAL( 6, idx );
-  err = MBCN::OppositeSide( MBHEX, 1, 0, idx, dim );
+  err = CN::OppositeSide( MBHEX, 1, 0, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 0, dim );
   CHECK_EQUAL( 7, idx );
-  err = MBCN::OppositeSide( MBHEX, 2, 0, idx, dim );
+  err = CN::OppositeSide( MBHEX, 2, 0, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 0, dim );
   CHECK_EQUAL( 4, idx );
-  err = MBCN::OppositeSide( MBHEX, 3, 0, idx, dim );
+  err = CN::OppositeSide( MBHEX, 3, 0, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 0, dim );
   CHECK_EQUAL( 5, idx );
-  err = MBCN::OppositeSide( MBHEX, 4, 0, idx, dim );
+  err = CN::OppositeSide( MBHEX, 4, 0, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 0, dim );
   CHECK_EQUAL( 2, idx );
-  err = MBCN::OppositeSide( MBHEX, 5, 0, idx, dim );
+  err = CN::OppositeSide( MBHEX, 5, 0, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 0, dim );
   CHECK_EQUAL( 3, idx );
-  err = MBCN::OppositeSide( MBHEX, 6, 0, idx, dim );
+  err = CN::OppositeSide( MBHEX, 6, 0, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 0, dim );
   CHECK_EQUAL( 0, idx );
-  err = MBCN::OppositeSide( MBHEX, 7, 0, idx, dim );
+  err = CN::OppositeSide( MBHEX, 7, 0, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 0, dim );
   CHECK_EQUAL( 1, idx );
 
-  err = MBCN::OppositeSide( MBHEX, 0, 1, idx, dim );
+  err = CN::OppositeSide( MBHEX, 0, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 10, idx );
-  err = MBCN::OppositeSide( MBHEX, 1, 1, idx, dim );
+  err = CN::OppositeSide( MBHEX, 1, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 11, idx );
-  err = MBCN::OppositeSide( MBHEX, 2, 1, idx, dim );
+  err = CN::OppositeSide( MBHEX, 2, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 8, idx );
-  err = MBCN::OppositeSide( MBHEX, 3, 1, idx, dim );
+  err = CN::OppositeSide( MBHEX, 3, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 9, idx );
-  err = MBCN::OppositeSide( MBHEX, 4, 1, idx, dim );
+  err = CN::OppositeSide( MBHEX, 4, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 6, idx );
-  err = MBCN::OppositeSide( MBHEX, 5, 1, idx, dim );
+  err = CN::OppositeSide( MBHEX, 5, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 7, idx );
-  err = MBCN::OppositeSide( MBHEX, 6, 1, idx, dim );
+  err = CN::OppositeSide( MBHEX, 6, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 4, idx );
-  err = MBCN::OppositeSide( MBHEX, 7, 1, idx, dim );
+  err = CN::OppositeSide( MBHEX, 7, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 5, idx );
-  err = MBCN::OppositeSide( MBHEX, 8, 1, idx, dim );
+  err = CN::OppositeSide( MBHEX, 8, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 2, idx );
-  err = MBCN::OppositeSide( MBHEX, 9, 1, idx, dim );
+  err = CN::OppositeSide( MBHEX, 9, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 3, idx );
-  err = MBCN::OppositeSide( MBHEX, 10, 1, idx, dim );
+  err = CN::OppositeSide( MBHEX, 10, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 0, idx );
-  err = MBCN::OppositeSide( MBHEX, 11, 1, idx, dim );
+  err = CN::OppositeSide( MBHEX, 11, 1, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 1, dim );
   CHECK_EQUAL( 1, idx );
   
-  err = MBCN::OppositeSide( MBHEX, 0, 2, idx, dim );
+  err = CN::OppositeSide( MBHEX, 0, 2, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 2, dim );
   CHECK_EQUAL( 2, idx );
-  err = MBCN::OppositeSide( MBHEX, 1, 2, idx, dim );
+  err = CN::OppositeSide( MBHEX, 1, 2, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 2, dim );
   CHECK_EQUAL( 3, idx );
-  err = MBCN::OppositeSide( MBHEX, 2, 2, idx, dim );
+  err = CN::OppositeSide( MBHEX, 2, 2, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 2, dim );
   CHECK_EQUAL( 0, idx );
-  err = MBCN::OppositeSide( MBHEX, 3, 2, idx, dim );
+  err = CN::OppositeSide( MBHEX, 3, 2, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 2, dim );
   CHECK_EQUAL( 1, idx );
-  err = MBCN::OppositeSide( MBHEX, 4, 2, idx, dim );
+  err = CN::OppositeSide( MBHEX, 4, 2, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 2, dim );
   CHECK_EQUAL( 5, idx );
-  err = MBCN::OppositeSide( MBHEX, 5, 2, idx, dim );
+  err = CN::OppositeSide( MBHEX, 5, 2, idx, dim );
   CHECK_EQUAL( 0, err );
   CHECK_EQUAL( 2, dim );
   CHECK_EQUAL( 4, idx );
@@ -880,7 +880,7 @@ void test_has_mid_nodes(EntityType type)
                                   { 0, 0, 1, 1 },
                                   { 0, 1, 1, 1 } };
   
-    const int dim = MBCN::Dimension(type);
+    const int dim = CN::Dimension(type);
       // calculate number of valid combinations of ho node flags
     int num_comb = 1;
     for (int i = 0; i < dim; ++i)
@@ -889,19 +889,19 @@ void test_has_mid_nodes(EntityType type)
     for (int c = 0; c < num_comb; ++c) {
         // calculate corresponding number of vertices in element
       const int* ho_nodes = combinations[c];
-      int num_vtx = MBCN::VerticesPerEntity(type);
+      int num_vtx = CN::VerticesPerEntity(type);
       switch (dim) {
-        case 3: if (ho_nodes[2]) num_vtx += MBCN::NumSubEntities(type,2);
-        case 2: if (ho_nodes[1]) num_vtx += MBCN::NumSubEntities(type,1);
+        case 3: if (ho_nodes[2]) num_vtx += CN::NumSubEntities(type,2);
+        case 2: if (ho_nodes[1]) num_vtx += CN::NumSubEntities(type,1);
       }
       if (ho_nodes[dim]) ++num_vtx;
       
-      CHECK_EQUAL( ho_nodes[1], (int)MBCN::HasMidEdgeNodes( type, num_vtx ) );
-      CHECK_EQUAL( ho_nodes[2], (int)MBCN::HasMidFaceNodes( type, num_vtx ) );
-      CHECK_EQUAL( ho_nodes[3], (int)MBCN::HasMidRegionNodes( type, num_vtx ) );
+      CHECK_EQUAL( ho_nodes[1], (int)CN::HasMidEdgeNodes( type, num_vtx ) );
+      CHECK_EQUAL( ho_nodes[2], (int)CN::HasMidFaceNodes( type, num_vtx ) );
+      CHECK_EQUAL( ho_nodes[3], (int)CN::HasMidRegionNodes( type, num_vtx ) );
       
       int results[4] = { 0, -1, -1, -1 };
-      MBCN::HasMidNodes( type, num_vtx, results );
+      CN::HasMidNodes( type, num_vtx, results );
       CHECK_EQUAL(           0, !!results[0] );
       CHECK_EQUAL( ho_nodes[1], !!results[1] );
       CHECK_EQUAL( ho_nodes[2], !!results[2] );
@@ -922,7 +922,7 @@ void test_ho_node_parent()
   
   for (const EntityType* t = elem_types; *t != MBMAXTYPE; ++t) {
     const EntityType type = *t;
-    const int dim = MBCN::Dimension(type);
+    const int dim = CN::Dimension(type);
       // calculate number of valid combinations of ho node flags
     int num_comb = 1;
     for (int i = 0; i < dim; ++i)
@@ -931,21 +931,21 @@ void test_ho_node_parent()
     for (int c = 0; c < num_comb; ++c) {
         // calculate corresponding number of vertices in element
       const int* ho_nodes = combinations[c];
-      int num_vtx = MBCN::VerticesPerEntity(type);
+      int num_vtx = CN::VerticesPerEntity(type);
       switch (dim) {
-        case 3: if (ho_nodes[2]) num_vtx += MBCN::NumSubEntities(type,2);
-        case 2: if (ho_nodes[1]) num_vtx += MBCN::NumSubEntities(type,1);
+        case 3: if (ho_nodes[2]) num_vtx += CN::NumSubEntities(type,2);
+        case 2: if (ho_nodes[1]) num_vtx += CN::NumSubEntities(type,1);
       }
       if (ho_nodes[dim]) ++num_vtx;
 
         // start at first higher-order node
-      int pos = MBCN::VerticesPerEntity(type);
+      int pos = CN::VerticesPerEntity(type);
       
         // check mid-edge
       if (dim > 1 && ho_nodes[1]) {
-        for (int i = 0; i < MBCN::NumSubEntities(type,1); ++i) {
+        for (int i = 0; i < CN::NumSubEntities(type,1); ++i) {
           int pdim = -1, pidx = -1;
-          MBCN::HONodeParent( type, num_vtx, pos++, pdim, pidx );
+          CN::HONodeParent( type, num_vtx, pos++, pdim, pidx );
           CHECK_EQUAL( 1, pdim );
           CHECK_EQUAL( i, pidx );
         }
@@ -953,9 +953,9 @@ void test_ho_node_parent()
       
         // check mid-face
       if (dim > 2 && ho_nodes[2]) {
-        for (int i = 0; i < MBCN::NumSubEntities(type,2); ++i) {
+        for (int i = 0; i < CN::NumSubEntities(type,2); ++i) {
           int pdim = -1, pidx = -1;
-          MBCN::HONodeParent( type, num_vtx, pos++, pdim, pidx );
+          CN::HONodeParent( type, num_vtx, pos++, pdim, pidx );
           CHECK_EQUAL( 2, pdim );
           CHECK_EQUAL( i, pidx );
         }
@@ -964,7 +964,7 @@ void test_ho_node_parent()
         // check mid-volume
       if (ho_nodes[dim]) {
         int pdim = -1, pidx = -1;
-        MBCN::HONodeParent( type, num_vtx, pos++, pdim, pidx );
+        CN::HONodeParent( type, num_vtx, pos++, pdim, pidx );
         CHECK_EQUAL( dim, pdim );
         CHECK_EQUAL( 0, pidx );
       }
@@ -985,7 +985,7 @@ void test_ho_node_index()
   
   for (const EntityType* t = elem_types; *t != MBMAXTYPE; ++t) {
     const EntityType type = *t;
-    const int dim = MBCN::Dimension(type);
+    const int dim = CN::Dimension(type);
       // calculate number of valid combinations of ho node flags
     int num_comb = 1;
     for (int i = 0; i < dim; ++i)
@@ -994,35 +994,35 @@ void test_ho_node_index()
     for (int c = 0; c < num_comb; ++c) {
         // calculate corresponding number of vertices in element
       const int* ho_nodes = combinations[c];
-      int num_vtx = MBCN::VerticesPerEntity(type);
+      int num_vtx = CN::VerticesPerEntity(type);
       switch (dim) {
-        case 3: if (ho_nodes[2]) num_vtx += MBCN::NumSubEntities(type,2);
-        case 2: if (ho_nodes[1]) num_vtx += MBCN::NumSubEntities(type,1);
+        case 3: if (ho_nodes[2]) num_vtx += CN::NumSubEntities(type,2);
+        case 2: if (ho_nodes[1]) num_vtx += CN::NumSubEntities(type,1);
       }
       if (ho_nodes[dim]) ++num_vtx;
 
         // start at first higher-order node
-      int pos = MBCN::VerticesPerEntity(type);
+      int pos = CN::VerticesPerEntity(type);
       
         // check mid-edge
       if (dim > 1 && ho_nodes[1]) {
-        for (int i = 0; i < MBCN::NumSubEntities(type,1); ++i) {
-          int idx = MBCN::HONodeIndex( type, num_vtx, 1, i );
+        for (int i = 0; i < CN::NumSubEntities(type,1); ++i) {
+          int idx = CN::HONodeIndex( type, num_vtx, 1, i );
           CHECK_EQUAL( pos++, idx );
         }
       }
       
         // check mid-face
       if (dim > 2 && ho_nodes[2]) {
-        for (int i = 0; i < MBCN::NumSubEntities(type,2); ++i) {
-          int idx = MBCN::HONodeIndex( type, num_vtx, 2, i );
+        for (int i = 0; i < CN::NumSubEntities(type,2); ++i) {
+          int idx = CN::HONodeIndex( type, num_vtx, 2, i );
           CHECK_EQUAL( pos++, idx );
         }
       }
       
         // check mid-volume
       if (ho_nodes[dim]) {
-        int idx = MBCN::HONodeIndex( type, num_vtx, dim, 0 );
+        int idx = CN::HONodeIndex( type, num_vtx, dim, 0 );
         CHECK_EQUAL( pos++, idx );
       }
     } // for ho_node combinatinos
@@ -1031,11 +1031,11 @@ void test_ho_node_index()
 
 void test_sub_entity_nodes( EntityType parent, int sub_dimension )
 {
-  const int num_corner = MBCN::VerticesPerEntity( parent );
-  const int num_edge   = MBCN::NumSubEntities( parent, 1 );
-  const int num_face   = MBCN::NumSubEntities( parent, 2 );
+  const int num_corner = CN::VerticesPerEntity( parent );
+  const int num_edge   = CN::NumSubEntities( parent, 1 );
+  const int num_face   = CN::NumSubEntities( parent, 2 );
  
-  switch (MBCN::Dimension(parent)) {
+  switch (CN::Dimension(parent)) {
     case 3:
       test_sub_entity_nodes( parent, num_corner+num_face, sub_dimension );
       test_sub_entity_nodes( parent, num_corner+num_edge+num_face, sub_dimension );
@@ -1055,8 +1055,8 @@ void test_sub_entity_nodes( EntityType parent, int sub_dimension )
 
 void test_sub_entity_nodes( EntityType parent, int num_nodes, int sub_dimension )
 {
-  const int num_sub = MBCN::NumSubEntities( parent, sub_dimension );
-  const int parent_ho = MBCN::HasMidNodes( parent, num_nodes );
+  const int num_sub = CN::NumSubEntities( parent, sub_dimension );
+  const int parent_ho = CN::HasMidNodes( parent, num_nodes );
   int child_ho = 0;
   for (int d = 1; d <= sub_dimension; ++d)
     child_ho |= (parent_ho & (1<<d));
@@ -1065,16 +1065,16 @@ void test_sub_entity_nodes( EntityType parent, int num_nodes, int sub_dimension 
   for (int i = 0; i < num_sub; ++i) {
     int num, conn[MB_MAX_SUB_ENTITY_VERTICES];
     EntityType type;
-    MBCN::SubEntityNodeIndices( parent, num_nodes, sub_dimension, i, type, num, conn );
-    CHECK_EQUAL( MBCN::SubEntityType(parent, sub_dimension, i), type );
+    CN::SubEntityNodeIndices( parent, num_nodes, sub_dimension, i, type, num, conn );
+    CHECK_EQUAL( CN::SubEntityType(parent, sub_dimension, i), type );
   }
  
     // now test that they have the correct number of higher-order node
   for (int i = 0; i < num_sub; ++i) {
     int num, conn[MB_MAX_SUB_ENTITY_VERTICES];
     EntityType type;
-    MBCN::SubEntityNodeIndices( parent, num_nodes, sub_dimension, i, type, num, conn );
-    const int ho = MBCN::HasMidNodes( type, num );
+    CN::SubEntityNodeIndices( parent, num_nodes, sub_dimension, i, type, num, conn );
+    const int ho = CN::HasMidNodes( type, num );
     CHECK_EQUAL( child_ho, ho );
   }
   
@@ -1082,24 +1082,24 @@ void test_sub_entity_nodes( EntityType parent, int num_nodes, int sub_dimension 
   for (int i = 0; i < num_sub; ++i) {
     int num, conn[MB_MAX_SUB_ENTITY_VERTICES], corners[MB_MAX_SUB_ENTITY_VERTICES];
     EntityType type;
-    MBCN::SubEntityNodeIndices( parent, num_nodes, sub_dimension, i, type, num, conn );
+    CN::SubEntityNodeIndices( parent, num_nodes, sub_dimension, i, type, num, conn );
     
       // check corner indices against SubEntityVertexIndices
-    const int num_corner = MBCN::VerticesPerEntity(type);
+    const int num_corner = CN::VerticesPerEntity(type);
     CHECK( num >= num_corner );
-    MBCN::SubEntityVertexIndices( parent, sub_dimension, i, corners );
+    CN::SubEntityVertexIndices( parent, sub_dimension, i, corners );
     for (int j = 0; j < num_corner; ++j)
       CHECK_EQUAL( corners[j], conn[j] );
     
       // check mid-edge indices, if present
     int idx = num_corner;
-    if (child_ho & MBCN::MID_EDGE_BIT) {
+    if (child_ho & CN::MID_EDGE_BIT) {
         // for each edge in the sub-entity type
-      const int num_edge = MBCN::NumSubEntities( type, 1 );
+      const int num_edge = CN::NumSubEntities( type, 1 );
       for (int j = 0; j < num_edge; ++j) {
           // get edge indices for sub-entity connectivity
         int edge_ends[2];
-        MBCN::SubEntityVertexIndices( type, 1, j, edge_ends );
+        CN::SubEntityVertexIndices( type, 1, j, edge_ends );
           // convert to indices into parent type's connectivity
         CHECK( edge_ends[0] < num_corner );
         edge_ends[0] = corners[edge_ends[0]];
@@ -1107,18 +1107,18 @@ void test_sub_entity_nodes( EntityType parent, int num_nodes, int sub_dimension 
         edge_ends[1] = corners[edge_ends[1]];
           // find edge index in parent element
         int side, sense, off;
-        int result = MBCN::SideNumber( parent, edge_ends, 2, 1, side, sense, off );
+        int result = CN::SideNumber( parent, edge_ends, 2, 1, side, sense, off );
         CHECK_EQUAL( 0, result );
           // get location in parent entity connectivity for mid-edge node
-        int loc = MBCN::HONodeIndex( parent, num_nodes, 1, side );
+        int loc = CN::HONodeIndex( parent, num_nodes, 1, side );
         CHECK_EQUAL( loc, conn[idx++] );
       }
     }
     
       // check mid-face indices, if present
-    if (child_ho & MBCN::MID_FACE_BIT) {
-      CHECK_EQUAL( 2, MBCN::Dimension(type) );
-      int loc = MBCN::HONodeIndex( parent, num_nodes, 2, i );
+    if (child_ho & CN::MID_FACE_BIT) {
+      CHECK_EQUAL( 2, CN::Dimension(type) );
+      int loc = CN::HONodeIndex( parent, num_nodes, 2, i );
       CHECK_EQUAL( loc, conn[idx++] );
     }
     

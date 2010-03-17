@@ -21,7 +21,7 @@
 #include "moab/Range.hpp"
 #include "Internals.hpp"
 #include "moab/Interface.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 
 #include <assert.h>
 
@@ -460,7 +460,7 @@ ErrorCode MeshTopoUtil::get_bridge_adjacencies(const EntityHandle from_entity,
   
   if (from_type >= MBENTITYSET) return MB_FAILURE;
 
-  int from_dim = MBCN::Dimension(from_type);
+  int from_dim = CN::Dimension(from_type);
   
   Range to_ents;
 
@@ -470,14 +470,14 @@ ErrorCode MeshTopoUtil::get_bridge_adjacencies(const EntityHandle from_entity,
       // looping over each sub-entity of dimension bridge_dim...
     EntityHandle bridge_verts[MB_MAX_SUB_ENTITIES];
     int bridge_indices[MB_MAX_SUB_ENTITIES];
-    for (int i = 0; i < MBCN::NumSubEntities(from_type, bridge_dim); i++) {
+    for (int i = 0; i < CN::NumSubEntities(from_type, bridge_dim); i++) {
 
         // get the vertices making up this sub-entity
-      int num_bridge_verts = MBCN::VerticesPerEntity( MBCN::SubEntityType( from_type, bridge_dim, i ) );
-      MBCN::SubEntityVertexIndices( from_type, bridge_dim, i, bridge_indices );
+      int num_bridge_verts = CN::VerticesPerEntity( CN::SubEntityType( from_type, bridge_dim, i ) );
+      CN::SubEntityVertexIndices( from_type, bridge_dim, i, bridge_indices );
       for (int j = 0; j < num_bridge_verts; ++j)
         bridge_verts[j]= connect[bridge_indices[j]];
-      //MBCN::SubEntityConn(connect, from_type, bridge_dim, i, &bridge_verts[0], num_bridge_verts);
+      //CN::SubEntityConn(connect, from_type, bridge_dim, i, &bridge_verts[0], num_bridge_verts);
     
         // get the to_dim entities adjacent
       to_ents.clear();
@@ -524,7 +524,7 @@ EntityHandle MeshTopoUtil::common_entity(const EntityHandle ent1,
 
   //! return the opposite side entity given a parent and bounding entity.
   //! This function is only defined for certain types of parent/child types;
-  //! See MBCN.hpp::OppositeSide for details.
+  //! See CN.hpp::OppositeSide for details.
   //!
   //! \param parent The parent element
   //! \param child The child element
@@ -539,9 +539,9 @@ ErrorCode MeshTopoUtil::opposite_entity(const EntityHandle parent,
                                            offset, sense);
   if (MB_SUCCESS != result) return result;
   
-    // get the child index from MBCN
+    // get the child index from CN
   int opposite_index, opposite_dim;
-  int status = MBCN::OppositeSide(mbImpl->type_from_handle(parent),
+  int status = CN::OppositeSide(mbImpl->type_from_handle(parent),
                                   side_no, mbImpl->dimension_from_handle(child),
                                   opposite_index, opposite_dim);
   if (0 != status) return MB_FAILURE;
@@ -610,7 +610,7 @@ ErrorCode MeshTopoUtil::split_entities_manifold(EntityHandle *entities,
     bool valid_up_adjs = true;
     for (int dim = 1; dim <= 3; dim++) {
       tmp_result = mbImpl->get_adjacencies(entities+i, 1, dim, false, up_adjs[dim]); TC;
-      if (dim > MBCN::Dimension(TYPE_FROM_HANDLE(entities[i])) && up_adjs[dim].size() > 2) {
+      if (dim > CN::Dimension(TYPE_FROM_HANDLE(entities[i])) && up_adjs[dim].size() > 2) {
         valid_up_adjs = false;
         break;
       }
@@ -627,9 +627,9 @@ ErrorCode MeshTopoUtil::split_entities_manifold(EntityHandle *entities,
       // adjs to distinguish them; don't need to check if there's already one there,
       // 'cuz add_adjacency does that for us
     for (int dim = 1; dim <= 3; dim++) {
-      if (up_adjs[dim].empty() || dim == MBCN::Dimension(TYPE_FROM_HANDLE(entities[i]))) continue;
+      if (up_adjs[dim].empty() || dim == CN::Dimension(TYPE_FROM_HANDLE(entities[i]))) continue;
 
-      if (dim < MBCN::Dimension(TYPE_FROM_HANDLE(entities[i]))) {
+      if (dim < CN::Dimension(TYPE_FROM_HANDLE(entities[i]))) {
           // adjacencies from other entities to this one; if any of those are equivalent entities,
           // need to make explicit adjacency to new entity too
         for (Range::iterator rit = up_adjs[dim].begin(); rit != up_adjs[dim].end(); rit++) {
@@ -668,7 +668,7 @@ ErrorCode MeshTopoUtil::split_entities_manifold(EntityHandle *entities,
     EntityHandle tmp_ents[2];
     if (NULL != fill_entities) {
         // how to do this depends on dimension
-      switch (MBCN::Dimension(TYPE_FROM_HANDLE(entities[i]))) {
+      switch (CN::Dimension(TYPE_FROM_HANDLE(entities[i]))) {
         case 0:
           tmp_ents[0] = entities[i];
           tmp_ents[1] = new_entity;
@@ -787,7 +787,7 @@ way to do it, if I ever get the time.  Sigh.
     // see algorithm description in notes from 2/25/05
   const EntityHandle split_types = {MBEDGE, MBPOLYGON, MBPOLYHEDRON};
   ErrorCode result = MB_SUCCESS;
-  const int dim = MBCN::Dimension(TYPE_FROM_HANDLE(d));
+  const int dim = CN::Dimension(TYPE_FROM_HANDLE(d));
   MeshTopoUtil mtu(this);
 
     // get all (d+2)-, (d+1)-cells connected to d

@@ -3,7 +3,6 @@
 #include "moab/MeshTopoUtil.hpp"
 #include "moab/MBTagConventions.hpp"
 #include "moab/CartVect.hpp"
-#include "moab/MBCN.hpp"
 #include "vtkMOABUtils.h"
 #include "vtkPolyData.h"
 #include "vtkPolyDataMapper2D.h"

@@ -36,7 +36,7 @@
 #include "moab/MBTagConventions.hpp"
 #include "moab/MBParallelConventions.h"
 #include "moab/ParallelComm.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include "moab/WriteUtilIface.hpp"
 #include "moab/Range.hpp"
 
@@ -141,7 +141,7 @@ void WriteHDF5Parallel::printrange( Range& r )
     if (mytype != type)
     {
       type = mytype;
-      fprintf(DEBUG_OUT_STREAM, "%s[%d]  %s", type == MBMAXTYPE ? "" : "\n", rank, MBCN::EntityTypeName( type ) );
+      fprintf(DEBUG_OUT_STREAM, "%s[%d]  %s", type == MBMAXTYPE ? "" : "\n", rank, CN::EntityTypeName( type ) );
     }
     unsigned long id1 = iFace->id_from_handle( a );
     unsigned long id2 = iFace->id_from_handle( b );
@@ -422,7 +422,7 @@ tprint("Getting shared entity sets");
     const char* type_names[MBMAXTYPE];
     memset( type_names, 0, MBMAXTYPE * sizeof(char*) );
     for (EntityType i = MBEDGE; i < MBENTITYSET; ++i)
-      type_names[i] = MBCN::EntityTypeName( i );
+      type_names[i] = CN::EntityTypeName( i );
    
 tprint("call mhdf_createFile");
     filePtr = mhdf_createFile( filename, overwrite, type_names, MBMAXTYPE, &status );
@@ -760,7 +760,7 @@ ErrorCode WriteHDF5Parallel::negotiate_type_list()
   {
     int type = *viter; ++viter;
     int count = *viter; ++viter;
-    printdebug("  %s : %d\n", MBCN::EntityTypeName((EntityType)type), count);
+    printdebug("  %s : %d\n", CN::EntityTypeName((EntityType)type), count);
   }
   END_SERIAL;
   #endif
@@ -823,7 +823,7 @@ ErrorCode WriteHDF5Parallel::negotiate_type_list()
   {
     int type = *viter; ++viter;
     int count = *viter; ++viter;
-    printdebug("  %s : %d\n", MBCN::EntityTypeName((EntityType)type), count);
+    printdebug("  %s : %d\n", CN::EntityTypeName((EntityType)type), count);
   }
   END_SERIAL;
   #endif
@@ -1372,7 +1372,7 @@ ErrorCode WriteHDF5Parallel::set_shared_set_ids( RemoteSetData& data, long& offs
 
         std::cerr << pfx1 << "Failed at: (" << i << ") " << data.local_values[i] 
                   << "->" << id << " for " 
-                  << MBCN::EntityTypeName(TYPE_FROM_HANDLE(*riter)) 
+                  << CN::EntityTypeName(TYPE_FROM_HANDLE(*riter)) 
                   << " " << ID_FROM_HANDLE(*riter) << std::endl;
         std::cerr.flush();
       }

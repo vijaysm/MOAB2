@@ -19,7 +19,7 @@
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
 #include "moab/MBTagConventions.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 
 #define filename "h5test.h5m"
 
@@ -567,7 +567,7 @@ bool compare_sets( int id, const char* tag_name = 0 )
       if (counts1[j] != counts2[j])
       {
         fprintf(stderr, "Sets with id %d have differing numbers of %s: %u and %u\n",
-                id, MBCN::EntityTypeName((EntityType)j), counts1[j], counts2[j] );
+                id, CN::EntityTypeName((EntityType)j), counts1[j], counts2[j] );
         ok = false;
       }
     if (!ok)

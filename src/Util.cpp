@@ -34,7 +34,6 @@
 #include "moab/Interface.hpp"
 #include <assert.h>
 #include <math.h>
-#include "moab/MBCN.hpp"
 #include <algorithm>
 
 namespace moab {

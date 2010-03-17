@@ -18,7 +18,7 @@
 #include "moab/Range.hpp"
 #include "moab/Skinner.hpp"
 #include "moab/AdaptiveKDTree.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 
 using namespace moab;
 
@@ -482,9 +482,9 @@ ErrorCode min_edge_length( Interface& moab, double& result )
     rval = moab.get_connectivity( *i, conn, conn_len, true, &storage );
     if (MB_SUCCESS != rval) return rval;
     
-    int num_edges = MBCN::NumSubEntities( t, 1 );
+    int num_edges = CN::NumSubEntities( t, 1 );
     for (int j = 0; j < num_edges; ++j) {
-      MBCN::SubEntityVertexIndices( t, 1, j, indices );
+      CN::SubEntityVertexIndices( t, 1, j, indices );
       EntityHandle v[2] = { conn[indices[0]], conn[indices[1]] };
       if (v[0] == v[1])
         continue;

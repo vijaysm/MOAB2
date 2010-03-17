@@ -1,6 +1,6 @@
 #include "UnstructuredElemSeq.hpp"
 #include "SequenceData.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 
 namespace moab {
 
@@ -63,7 +63,7 @@ UnstructuredElemSeq::get_connectivity( EntityHandle handle,
                                        bool topological ) const
 {
   EntityHandle const* conn = get_array() + nodes_per_element() * (handle - start_handle());
-  int len = topological ? MBCN::VerticesPerEntity(type()) : nodes_per_element();
+  int len = topological ? CN::VerticesPerEntity(type()) : nodes_per_element();
   connect.reserve( connect.size() + len );
   std::copy( conn, conn+len, std::back_inserter( connect ) );
   return MB_SUCCESS;
@@ -78,7 +78,7 @@ UnstructuredElemSeq::get_connectivity( EntityHandle handle,
                                        std::vector<EntityHandle>* ) const
 {
   conn_ptr = get_array() + nodes_per_element() * (handle - start_handle());
-  len = topological ? MBCN::VerticesPerEntity(type()) : nodes_per_element();
+  len = topological ? CN::VerticesPerEntity(type()) : nodes_per_element();
   return MB_SUCCESS;
 }
 

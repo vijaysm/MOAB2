@@ -18,7 +18,7 @@
 #include "ScdElementData.hpp"
 #include "moab/Interface.hpp"
 #include "moab/ReadUtilIface.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include "Internals.hpp"
 
 namespace moab {
@@ -31,7 +31,7 @@ StructuredElementSeq::StructuredElementSeq(EntityHandle start_handle,
                                                         imax-imin,
                                                         jmax-jmin,
                                                         kmax-kmin ),
-                     MBCN::VerticesPerEntity(TYPE_FROM_HANDLE(start_handle)),
+                     CN::VerticesPerEntity(TYPE_FROM_HANDLE(start_handle)),
                      new ScdElementData( start_handle, 
                                         imin, jmin, kmin,
                                         imax, jmax, kmax ) )

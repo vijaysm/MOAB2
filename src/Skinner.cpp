@@ -19,7 +19,7 @@
 
 #include "moab/Skinner.hpp"
 #include "moab/Range.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include <vector>
 #include <set>
 #include <algorithm>
@@ -53,7 +53,7 @@ void Skinner::initialize()
   // also get the connectivity tags for each type
   // also populate adjacency information
   EntityType type;
-  DimensionPair target_ent_types = MBCN::TypeDimensionMap[mTargetDim];
+  DimensionPair target_ent_types = CN::TypeDimensionMap[mTargetDim];
 
   void* null_ptr = NULL;
   ErrorCode result;
@@ -254,7 +254,7 @@ ErrorCode Skinner::find_skin( const Range& source_entities,
   
   Range forward, reverse;
   Range prev;
-  const int d = MBCN::Dimension(TYPE_FROM_HANDLE(source_entities.front()));
+  const int d = CN::Dimension(TYPE_FROM_HANDLE(source_entities.front()));
   if (!source_entities.all_of_dimension(d))
     return MB_TYPE_OUT_OF_RANGE;
   
@@ -316,7 +316,7 @@ ErrorCode Skinner::find_skin_noadj(const Range &source_entities,
   
   // get our working dimensions
   EntityType type = thisMB->type_from_handle(*(source_entities.begin()));
-  const int source_dim = MBCN::Dimension(type);
+  const int source_dim = CN::Dimension(type);
   mTargetDim = source_dim - 1;
 
   // make sure we can handle the working dimensions
@@ -363,10 +363,10 @@ ErrorCode Skinner::find_skin_noadj(const Range &source_entities,
     Range dum_elems, dum_sub_elems;
     
     // get connectivity of each n-1 dimension entity
-    num_sides = MBCN::NumSubEntities( type, mTargetDim );
+    num_sides = CN::NumSubEntities( type, mTargetDim );
     for(int i=0; i<num_sides; i++)
     {
-      sub_indices = MBCN::SubEntityVertexIndices( type, mTargetDim, i, sub_type, num_sub_nodes );
+      sub_indices = CN::SubEntityVertexIndices( type, mTargetDim, i, sub_type, num_sub_nodes );
       assert(num_sub_nodes <= 32);
       for(int j=0; j<num_sub_nodes; j++)
         sub_conn[j] = conn[sub_indices[j]];
@@ -400,7 +400,7 @@ ErrorCode Skinner::find_skin_noadj(const Range &source_entities,
 //            int indices[MB_MAX_SUB_ENTITY_VERTICES];
 //            EntityType new_type;
 //            int num_new_nodes;
-//            MBCN::SubEntityNodeIndices( type, num_nodes, mTargetDim, i, new_type, num_new_nodes, indices );
+//            CN::SubEntityNodeIndices( type, num_nodes, mTargetDim, i, new_type, num_new_nodes, indices );
 //            for(int j=0; j<num_new_nodes; j++)
 //              sub_conn[j] = conn[indices[j]];
 //        
@@ -438,7 +438,7 @@ ErrorCode Skinner::find_skin_noadj(const Range &source_entities,
           int indices[MB_MAX_SUB_ENTITY_VERTICES];
           EntityType new_type;
           int num_new_nodes;
-          MBCN::SubEntityNodeIndices( type, num_nodes, mTargetDim, i, new_type, num_new_nodes, indices );
+          CN::SubEntityNodeIndices( type, num_nodes, mTargetDim, i, new_type, num_new_nodes, indices );
           for(int j=0; j<num_new_nodes; j++)
             sub_conn[j] = conn[indices[j]];
           result = thisMB->create_element(new_type, sub_conn, num_new_nodes,
@@ -690,7 +690,7 @@ ErrorCode Skinner::classify_2d_boundary( const Range &boundary,
   
   // get our working dimensions
   EntityType type = thisMB->type_from_handle(*(boundary.begin()));
-  const int source_dim = MBCN::Dimension(type);
+  const int source_dim = CN::Dimension(type);
 
   // make sure we can handle the working dimensions
   if(source_dim != 2)
@@ -738,17 +738,17 @@ ErrorCode Skinner::classify_2d_boundary( const Range &boundary,
     assert(MB_SUCCESS == result);
 
     // add node handles to boundary_node range
-    std::copy(conn.begin(), conn.begin()+MBCN::VerticesPerEntity(type), 
+    std::copy(conn.begin(), conn.begin()+CN::VerticesPerEntity(type), 
               range_inserter(boundary_nodes));
 
     type = thisMB->type_from_handle(*iter);
     
     // get connectivity of each n-1 dimension entity (edge in this case)
-    const struct MBCN::ConnMap* conn_map = &(MBCN::mConnectivityMap[type][0]);
-    num_edge = MBCN::NumSubEntities( type, 1 );
+    const struct CN::ConnMap* conn_map = &(CN::mConnectivityMap[type][0]);
+    num_edge = CN::NumSubEntities( type, 1 );
     for(int i=0; i<num_edge; i++)
     {
-      edge_verts = MBCN::SubEntityVertexIndices( type, 1, i, sub_type, num_sub_ent_vert );
+      edge_verts = CN::SubEntityVertexIndices( type, 1, i, sub_type, num_sub_ent_vert );
       assert( sub_type == MBEDGE && num_sub_ent_vert == 2 );
       sub_conn[0] = conn[edge_verts[0]];
       sub_conn[1] = conn[edge_verts[1]];
@@ -765,7 +765,7 @@ ErrorCode Skinner::classify_2d_boundary( const Range &boundary,
         int indices[MB_MAX_SUB_ENTITY_VERTICES];
         EntityType new_type;
         int num_new_nodes;
-        MBCN::SubEntityNodeIndices( type, conn.size(), 1, i, new_type, num_new_nodes, indices );
+        CN::SubEntityNodeIndices( type, conn.size(), 1, i, new_type, num_new_nodes, indices );
         for(int j=0; j<num_new_nodes; j++)
           sub_conn[j] = conn[indices[j]];
         
@@ -1013,7 +1013,7 @@ ErrorCode Skinner::find_skin_vertices( const Range& entities,
   if (entities.empty())
     return MB_SUCCESS;
   
-  const int dim = MBCN::Dimension(TYPE_FROM_HANDLE(entities.front()));
+  const int dim = CN::Dimension(TYPE_FROM_HANDLE(entities.front()));
   if (dim < 1 || dim > 3 || !entities.all_of_dimension(dim))
     return MB_TYPE_OUT_OF_RANGE;
   
@@ -1268,7 +1268,7 @@ public:
      *             in all sides in the list.)
      *\param adj_elem The element that this is a side of.
      *\param elem_side Which side of adj_elem are we storing
-     *             (MBCN side number.)
+     *             (CN side number.)
      */
   void insert( const EntityHandle* handles, int skip_idx,
                EntityHandle adj_elem, unsigned short elem_side )
@@ -1299,7 +1299,7 @@ public:
      *\param indices  The indices into 'handles' at which the vertices
      *             representing the side occur.
      *\param elem_side Which side of adj_elem are we storing
-     *             (MBCN side number.)
+     *             (CN side number.)
      */
   void insert( const EntityHandle* handles,  int skip_idx,
                EntityHandle adj_elem, unsigned short elem_side,
@@ -1355,7 +1355,7 @@ public:
 //
 // This function always creates elements that have a "forward"
 // orientation with respect to the parent element (have
-// nodes ordered the same as MBCN returns for the "side").
+// nodes ordered the same as CN returns for the "side").
 //
 // elem - The higher-dimension element for which to create
 //        a lower-dim element representing the side.
@@ -1371,8 +1371,8 @@ ErrorCode Skinner::create_side( EntityHandle elem,
   int len, side_len, side, sense, offset, indices[max_side];
   ErrorCode rval;
   EntityType type = TYPE_FROM_HANDLE(elem), tmp_type;
-  const int ncorner = MBCN::VerticesPerEntity( side_type );
-  const int d = MBCN::Dimension(side_type);
+  const int ncorner = CN::VerticesPerEntity( side_type );
+  const int d = CN::Dimension(side_type);
   std::vector<EntityHandle> storage;
   
   // Get the connectivity of the parent element
@@ -1381,8 +1381,8 @@ ErrorCode Skinner::create_side( EntityHandle elem,
  
   // Find which side we are creating and get indices of all nodes
   // (including higher-order, if any.)
-  MBCN::SideNumber( type, conn, side_conn, ncorner, d, side, sense, offset );
-  MBCN::SubEntityNodeIndices( type, len, d, side, tmp_type, side_len, indices );
+  CN::SideNumber( type, conn, side_conn, ncorner, d, side, sense, offset );
+  CN::SubEntityNodeIndices( type, len, d, side, tmp_type, side_len, indices );
   assert(side_len <= max_side);
   assert(side_type == tmp_type);
   
@@ -1396,7 +1396,7 @@ ErrorCode Skinner::create_side( EntityHandle elem,
   return thisMB->create_element( side_type, side_conn_full, side_len, side_elem );
 }
 
-// Test if an edge is reversed with respect MBCN's ordering
+// Test if an edge is reversed with respect CN's ordering
 // for the "side" of a face.
 bool Skinner::edge_reversed( EntityHandle face,
                                const EntityHandle* edge_ends )
@@ -1417,7 +1417,7 @@ bool Skinner::edge_reversed( EntityHandle face,
 }
 
 // Test if a 2D element representing the side or face of a
-// volume element is reversed with respect to the MBCN node
+// volume element is reversed with respect to the CN node
 // ordering for the corresponding region element side.
 bool Skinner::face_reversed( EntityHandle region,
                                const EntityHandle* face_corners,
@@ -1430,9 +1430,9 @@ bool Skinner::face_reversed( EntityHandle region,
     assert(false);
     return false;
   }
-  short r = MBCN::SideNumber( TYPE_FROM_HANDLE(region), conn, face_corners, 
-                              MBCN::VerticesPerEntity(face_type),
-                              MBCN::Dimension(face_type),
+  short r = CN::SideNumber( TYPE_FROM_HANDLE(region), conn, face_corners, 
+                              CN::VerticesPerEntity(face_type),
+                              CN::Dimension(face_type),
                               side, sense, offset );
   assert(0 == r);
   return (!r && sense == -1);
@@ -1563,13 +1563,13 @@ ErrorCode Skinner::find_skin_vertices_2D( Tag tag,
 
             rval = thisMB->get_connectivity( face, conn, len, false );
             if (MB_SUCCESS != rval) return rval;
-            if (!MBCN::HasMidEdgeNodes( type, len ))
+            if (!CN::HasMidEdgeNodes( type, len ))
               continue;
 
             EntityHandle ec[2] = { *it, p->handles[0] };
             int side, sense, offset;
-            MBCN::SideNumber( type, conn, ec, 2, 1, side, sense, offset );
-            offset = MBCN::HONodeIndex( type, len, 1, side );
+            CN::SideNumber( type, conn, ec, 2, 1, side, sense, offset );
+            offset = CN::HONodeIndex( type, len, 1, side );
             assert(offset >= 0 && offset < len);
             skin_verts->insert( conn[offset] );
           }
@@ -1755,18 +1755,18 @@ ErrorCode Skinner::find_skin_vertices_3D( Tag tag,
         idx = std::find(conn, conn+len, *it) - conn;
         assert(idx != len);
         
-        if (len > MBCN::VerticesPerEntity( type )) {
+        if (len > CN::VerticesPerEntity( type )) {
           higher_order =true;
             // skip higher-order nodes for now
-          if (idx >= MBCN::VerticesPerEntity( type )) 
+          if (idx >= CN::VerticesPerEntity( type )) 
             continue;
         }
 
           // For each side of the element...
-        const int num_faces = MBCN::NumSubEntities( type, 2 );
+        const int num_faces = CN::NumSubEntities( type, 2 );
         for (int f = 0; f < num_faces; ++f) {
           int num_vtx;
-          const short* face_indices = MBCN::SubEntityVertexIndices(type, 2, f, face_type, num_vtx );
+          const short* face_indices = CN::SubEntityVertexIndices(type, 2, f, face_type, num_vtx );
           const short face_idx = std::find(face_indices, face_indices+num_vtx, (short)idx) - face_indices;
             // skip sides that do not contain vertex from outer loop
           if (face_idx == num_vtx)
@@ -1805,12 +1805,12 @@ ErrorCode Skinner::find_skin_vertices_3D( Tag tag,
 
             rval = thisMB->get_connectivity( elem, conn, len, false );
             if (MB_SUCCESS != rval) return rval;
-            if (!MBCN::HasMidNodes( type, len ))
+            if (!CN::HasMidNodes( type, len ))
               continue;
 
             EntityHandle ec[3] = { *it, t->handles[0], t->handles[1] };
-            MBCN::SideNumber( type, conn, ec, 3, 2, side, sense, offset );
-            MBCN::SubEntityNodeIndices( type, len, 2, side, face_type, clen, indices );
+            CN::SideNumber( type, conn, ec, 3, 2, side, sense, offset );
+            CN::SubEntityNodeIndices( type, len, 2, side, face_type, clen, indices );
             assert(MBTRI == face_type);
             for (int k = 3; k < clen; ++k)
               skin_verts->insert( conn[indices[k]] );
@@ -1823,12 +1823,12 @@ ErrorCode Skinner::find_skin_vertices_3D( Tag tag,
 
             rval = thisMB->get_connectivity( elem, conn, len, false );
             if (MB_SUCCESS != rval) return rval;
-            if (!MBCN::HasMidNodes( type, len ))
+            if (!CN::HasMidNodes( type, len ))
               continue;
 
             EntityHandle ec[4] = { *it, q->handles[0], q->handles[1], q->handles[2] };
-            MBCN::SideNumber( type, conn, ec, 4, 2, side, sense, offset );
-            MBCN::SubEntityNodeIndices( type, len, 2, side, face_type, clen, indices );
+            CN::SideNumber( type, conn, ec, 4, 2, side, sense, offset );
+            CN::SubEntityNodeIndices( type, len, 2, side, face_type, clen, indices );
             assert(MBQUAD == face_type);
             for (int k = 4; k < clen; ++k)
               skin_verts->insert( conn[indices[k]] );

@@ -28,7 +28,7 @@
 #include "VertexSequence.hpp"
 #include "AEntityFactory.hpp"
 #include "moab/Core.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include <assert.h>
 #include <algorithm>
 
@@ -52,9 +52,9 @@ void HigherOrderFactory::initialize_map()
 
   for(EntityType i=MBVERTEX; i<MBMAXTYPE; i++)
   {
-    const MBCN::ConnMap& canon_map = MBCN::mConnectivityMap[i][0];
+    const CN::ConnMap& canon_map = CN::mConnectivityMap[i][0];
     unsigned char (&this_map)[8][8] = mNodeMap[i];
-    int num_node = MBCN::VerticesPerEntity(i);
+    int num_node = CN::VerticesPerEntity(i);
     for(int j=0; j<canon_map.num_sub_elements; j++)
     {
       unsigned char x = canon_map.conn[j][0];
@@ -159,11 +159,11 @@ ErrorCode HigherOrderFactory::convert_sequence( ElementSequence* seq,
   }
 
     // calculate number of nodes in target configuration
-  unsigned nodes_per_elem = MBCN::VerticesPerEntity( seq->type() );
+  unsigned nodes_per_elem = CN::VerticesPerEntity( seq->type() );
   if (mid_edge_nodes)
-    nodes_per_elem += (seq->type() == MBEDGE) ? 1 : MBCN::NumSubEntities( seq->type(), 1 );
+    nodes_per_elem += (seq->type() == MBEDGE) ? 1 : CN::NumSubEntities( seq->type(), 1 );
   if (mid_face_nodes)
-    nodes_per_elem += (MBCN::Dimension(seq->type()) == 2) ? 1 : MBCN::NumSubEntities( seq->type(), 2 );
+    nodes_per_elem += (CN::Dimension(seq->type()) == 2) ? 1 : CN::NumSubEntities( seq->type(), 2 );
   if (mid_volume_nodes) 
     nodes_per_elem += 1;
   
@@ -268,10 +268,10 @@ ErrorCode HigherOrderFactory::add_mid_volume_nodes(ElementSequence* seq)
   int edge_factor = seq->has_mid_edge_nodes() ? 1 : 0;
   int face_factor = seq->has_mid_face_nodes() ? 1 : 0;
   // offset by number of higher order nodes on edges if they exist
-  int num_corner_nodes = MBCN::VerticesPerEntity(this_type);
+  int num_corner_nodes = CN::VerticesPerEntity(this_type);
   int new_node_index = num_corner_nodes;
-  new_node_index += edge_factor * MBCN::mConnectivityMap[this_type][0].num_sub_elements;
-  new_node_index += face_factor * MBCN::mConnectivityMap[this_type][1].num_sub_elements;
+  new_node_index += edge_factor * CN::mConnectivityMap[this_type][0].num_sub_elements;
+  new_node_index += face_factor * CN::mConnectivityMap[this_type][1].num_sub_elements;
 
   EntityHandle* element = seq->get_connectivity_array();
   EntityHandle curr_handle = seq->start_handle();
@@ -315,12 +315,12 @@ ErrorCode HigherOrderFactory::add_mid_face_nodes(ElementSequence* seq)
 {
   EntityType this_type = seq->type();
   SequenceManager* seq_manager = mMB->sequence_manager();
-  int num_vertices = MBCN::VerticesPerEntity(this_type);
-  int num_edges = MBCN::mConnectivityMap[this_type][0].num_sub_elements;
+  int num_vertices = CN::VerticesPerEntity(this_type);
+  int num_edges = CN::mConnectivityMap[this_type][0].num_sub_elements;
   num_edges = seq->has_mid_edge_nodes() ? num_edges : 0;
-  int num_faces = MBCN::mConnectivityMap[this_type][1].num_sub_elements;
+  int num_faces = CN::mConnectivityMap[this_type][1].num_sub_elements;
 
-  const MBCN::ConnMap& entity_faces = MBCN::mConnectivityMap[this_type][1];
+  const CN::ConnMap& entity_faces = CN::mConnectivityMap[this_type][1];
 
   EntityHandle* element = seq->get_connectivity_array();
   EntityHandle curr_handle = seq->start_handle();
@@ -399,10 +399,10 @@ ErrorCode HigherOrderFactory::add_mid_edge_nodes(ElementSequence* seq)
   SequenceManager* seq_manager = mMB->sequence_manager();
 
   // offset by number of corner nodes
-  int num_vertices = MBCN::VerticesPerEntity(this_type);
-  int num_edges = MBCN::mConnectivityMap[this_type][0].num_sub_elements;
+  int num_vertices = CN::VerticesPerEntity(this_type);
+  int num_edges = CN::mConnectivityMap[this_type][0].num_sub_elements;
 
-  const MBCN::ConnMap& entity_edges = MBCN::mConnectivityMap[this_type][0];
+  const CN::ConnMap& entity_edges = CN::mConnectivityMap[this_type][0];
   
   EntityHandle* element = seq->get_connectivity_array();
   EntityHandle curr_handle = seq->start_handle();
@@ -502,7 +502,7 @@ EntityHandle HigherOrderFactory::center_node_exist( EntityHandle corner1,
     }
     mMB->get_connectivity(*iter, conn, conn_size);
     // if this entity has mid edge nodes
-    if(MBCN::HasMidEdgeNodes(this_type, conn_size))
+    if(CN::HasMidEdgeNodes(this_type, conn_size))
     {
       // find out at which index the mid node should be at
       int first_node = std::find(conn, conn+conn_size, corner1) - conn;
@@ -562,14 +562,14 @@ EntityHandle HigherOrderFactory::center_node_exist( EntityHandle corners[4],
       ++iter;
       continue;
     }
-    const MBCN::ConnMap& entity_faces = MBCN::mConnectivityMap[this_type][1];
+    const CN::ConnMap& entity_faces = CN::mConnectivityMap[this_type][1];
     mMB->get_connectivity(*iter, conn, conn_size);
-    int offset = MBCN::VerticesPerEntity(this_type);
-    if(MBCN::HasMidEdgeNodes(this_type, conn_size))
-      offset += MBCN::mConnectivityMap[this_type][0].num_sub_elements;
+    int offset = CN::VerticesPerEntity(this_type);
+    if(CN::HasMidEdgeNodes(this_type, conn_size))
+      offset += CN::mConnectivityMap[this_type][0].num_sub_elements;
 
     // if this entity has mid face nodes
-    if(MBCN::HasMidFaceNodes(this_type, conn_size))
+    if(CN::HasMidFaceNodes(this_type, conn_size))
     {
       int k;
       int indexes[4];
@@ -579,7 +579,7 @@ EntityHandle HigherOrderFactory::center_node_exist( EntityHandle corners[4],
       // find out at which index the mid node should be at
       for(k=0; k<entity_faces.num_sub_elements; k++)
       {
-        if(MBCN::VerticesPerEntity(entity_faces.target_type[k]) != num_nodes)
+        if(CN::VerticesPerEntity(entity_faces.target_type[k]) != num_nodes)
           continue;
 
         int* pivot = std::find(indexes, indexes+num_nodes, entity_faces.conn[k][0]);
@@ -636,7 +636,7 @@ bool HigherOrderFactory::add_center_node(EntityType this_type, EntityHandle* ele
 ErrorCode 
 HigherOrderFactory::copy_corner_nodes( ElementSequence* src, ElementSequence* dst )
 {
-  unsigned num_corners = MBCN::VerticesPerEntity( src->type() );
+  unsigned num_corners = CN::VerticesPerEntity( src->type() );
   return copy_nodes( src, dst, num_corners, 0, 0 );
 }
 
@@ -646,8 +646,8 @@ HigherOrderFactory::copy_mid_edge_nodes( ElementSequence* src, ElementSequence* 
   if (!src->has_mid_edge_nodes() || !dst->has_mid_edge_nodes())
     return MB_FAILURE;
   
-  unsigned num_corners = MBCN::VerticesPerEntity( src->type() );
-  unsigned num_edges = (src->type() == MBEDGE) ? 1 : MBCN::NumSubEntities( src->type(), 1 );
+  unsigned num_corners = CN::VerticesPerEntity( src->type() );
+  unsigned num_edges = (src->type() == MBEDGE) ? 1 : CN::NumSubEntities( src->type(), 1 );
   return copy_nodes( src, dst, num_edges, num_corners, num_corners );
 }
 
@@ -657,13 +657,13 @@ HigherOrderFactory::copy_mid_face_nodes( ElementSequence* src, ElementSequence* 
   if (!src->has_mid_face_nodes() || !dst->has_mid_face_nodes())
     return MB_FAILURE;
   
-  unsigned src_offset = MBCN::VerticesPerEntity( src->type() );
+  unsigned src_offset = CN::VerticesPerEntity( src->type() );
   unsigned dst_offset = src_offset;
   if (src->has_mid_edge_nodes())
-    src_offset += MBCN::NumSubEntities( src->type(), 1 );
+    src_offset += CN::NumSubEntities( src->type(), 1 );
   if (dst->has_mid_edge_nodes())
-    dst_offset += MBCN::NumSubEntities( dst->type(), 1 );
-  unsigned num_faces = (MBCN::Dimension(src->type()) == 2) ? 1 : MBCN::NumSubEntities( src->type(), 2 );
+    dst_offset += CN::NumSubEntities( dst->type(), 1 );
+  unsigned num_faces = (CN::Dimension(src->type()) == 2) ? 1 : CN::NumSubEntities( src->type(), 2 );
   return copy_nodes( src, dst, num_faces, src_offset, dst_offset );
 }
 
@@ -674,16 +674,16 @@ HigherOrderFactory::copy_mid_volume_nodes( ElementSequence* src, ElementSequence
   if (!src->has_mid_volume_nodes() || !dst->has_mid_volume_nodes())
     return MB_FAILURE;
   
-  unsigned src_offset = MBCN::VerticesPerEntity( src->type() );
+  unsigned src_offset = CN::VerticesPerEntity( src->type() );
   unsigned dst_offset = src_offset;
   if (src->has_mid_edge_nodes())
-    src_offset += MBCN::NumSubEntities( src->type(), 1 );
+    src_offset += CN::NumSubEntities( src->type(), 1 );
   if (dst->has_mid_edge_nodes())
-    dst_offset += MBCN::NumSubEntities( dst->type(), 1 );
+    dst_offset += CN::NumSubEntities( dst->type(), 1 );
   if (src->has_mid_face_nodes())
-    src_offset += MBCN::NumSubEntities( src->type(), 2 );
+    src_offset += CN::NumSubEntities( src->type(), 2 );
   if (dst->has_mid_face_nodes())
-    dst_offset += MBCN::NumSubEntities( dst->type(), 2 );
+    dst_offset += CN::NumSubEntities( dst->type(), 2 );
   return copy_nodes( src, dst, 1, src_offset, dst_offset );
 }
 
@@ -733,8 +733,8 @@ HigherOrderFactory::remove_mid_edge_nodes( ElementSequence* seq,
     offset = 2;
   }
   else {
-    count = MBCN::NumSubEntities( seq->type(), 1 );
-    offset = MBCN::VerticesPerEntity( seq->type() );
+    count = CN::NumSubEntities( seq->type(), 1 );
+    offset = CN::VerticesPerEntity( seq->type() );
   }
   
   return remove_ho_nodes( seq, start, end, count, offset, deletable_nodes );
@@ -748,13 +748,13 @@ HigherOrderFactory::remove_mid_face_nodes( ElementSequence* seq,
                                            Tag deletable_nodes )
 {
   int count;
-  if (MBCN::Dimension(seq->type()) == 2)
+  if (CN::Dimension(seq->type()) == 2)
     count = 1;
   else 
-    count = MBCN::NumSubEntities( seq->type(), 2 );
-  int offset = MBCN::VerticesPerEntity( seq->type() );
+    count = CN::NumSubEntities( seq->type(), 2 );
+  int offset = CN::VerticesPerEntity( seq->type() );
   if (seq->has_mid_edge_nodes())
-    offset += MBCN::NumSubEntities( seq->type(), 1 );
+    offset += CN::NumSubEntities( seq->type(), 1 );
   
   return remove_ho_nodes( seq, start, end, count, offset, deletable_nodes );
 }
@@ -765,11 +765,11 @@ HigherOrderFactory::remove_mid_volume_nodes( ElementSequence* seq,
                                              EntityHandle end,
                                              Tag deletable_nodes )
 {
-  int offset = MBCN::VerticesPerEntity( seq->type() );
+  int offset = CN::VerticesPerEntity( seq->type() );
   if (seq->has_mid_edge_nodes())
-    offset += MBCN::NumSubEntities( seq->type(), 1 );
+    offset += CN::NumSubEntities( seq->type(), 1 );
   if (seq->has_mid_face_nodes())
-    offset += MBCN::NumSubEntities( seq->type(), 2 );
+    offset += CN::NumSubEntities( seq->type(), 2 );
   
   return remove_ho_nodes( seq, start, end, 1, offset, deletable_nodes );
 }
@@ -837,7 +837,7 @@ HigherOrderFactory::tag_for_deletion( EntityHandle parent_handle,
 
   //tells us if higher order node is on 
   int dimension, side_number; 
-  MBCN::HONodeParent( this_type, seq->nodes_per_element(),
+  CN::HONodeParent( this_type, seq->nodes_per_element(),
                       conn_index, dimension, side_number );  
 
   //it MUST be a higher-order node

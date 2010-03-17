@@ -1,7 +1,7 @@
 #include "SphereDecomp.hpp"
 #include "moab/MeshTopoUtil.hpp"
 #include "moab/Range.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include <math.h>
 #include <assert.h>
 #include <iostream>
@@ -75,7 +75,7 @@ ErrorCode SphereDecomp::compute_nodes(const int dim)
   MeshTopoUtil mtu(mbImpl);
   double avg_pos[3], vert_pos[12], new_vert_pos[12], new_new_vert_pos[3];
   double radii[4], unitv[3];
-  int num_verts = MBCN::VerticesPerEntity(the_types[dim]);
+  int num_verts = CN::VerticesPerEntity(the_types[dim]);
   
   for (Range::iterator rit = these_ents.begin(); rit != these_ents.end(); rit++) {
     
@@ -437,7 +437,7 @@ ErrorCode SphereDecomp::retrieve_subdiv_verts(EntityHandle tet, EntityHandle thi
   for (size_t i = 0; i < this_conn.size(); ++i)
     conn_tet_indices[i] = std::find(tet_conn, tet_conn+4, this_conn[i]) - tet_conn;
   int sense, side_no, offset;
-  int success = MBCN::SideNumber(MBTET, &conn_tet_indices[0],
+  int success = CN::SideNumber(MBTET, &conn_tet_indices[0],
                                  this_conn.size(), dim, side_no, sense, offset);
   if (-1 == success) return MB_FAILURE;
   

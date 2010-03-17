@@ -17,7 +17,7 @@
 #include "moab/Range.hpp"
 #include "moab/MBTagConventions.hpp"
 #include "moab/Interface.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include "Internals.hpp"
 #include <assert.h>
 #include <iostream>
@@ -284,7 +284,7 @@ ErrorCode GeomTopoTool::restore_topology()
         result = mdbImpl->get_connectivity( dents.front(), conn2, len2, true );
         if (MB_SUCCESS != result) return result;
         assert(len2 <= 4);
-        err = MBCN::SideNumber( TYPE_FROM_HANDLE(dp1ents[i]), conn3,
+        err = CN::SideNumber( TYPE_FROM_HANDLE(dp1ents[i]), conn3,
                                 conn2, len2, dim, num, sense, offset );
         if (err)
           return MB_FAILURE;

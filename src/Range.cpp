@@ -31,7 +31,7 @@
 #include <assert.h>
 #include "moab/Range.hpp"
 #include "Internals.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include <iostream>
 #include <string>
 
@@ -624,12 +624,12 @@ void Range::print(std::ostream& stream, const char *indent_prefix) const
     EntityType t1 = TYPE_FROM_HANDLE( i->first );
     EntityType t2 = TYPE_FROM_HANDLE( i->second );
   
-    stream << indent_prefix_str << "\t" << MBCN::EntityTypeName( t1 ) << " " 
+    stream << indent_prefix_str << "\t" << CN::EntityTypeName( t1 ) << " " 
            << ID_FROM_HANDLE( i->first );
     if(i->first != i->second) {
       stream << " - ";
       if (t1 != t2) 
-        stream << MBCN::EntityTypeName( t2 ) << " ";
+        stream << CN::EntityTypeName( t2 ) << " ";
       stream << ID_FROM_HANDLE( i->second );
     }
     stream << std::endl;
@@ -842,8 +842,8 @@ bool Range::all_of_type( EntityType type ) const
 bool Range::all_of_dimension( int dimension ) const
 {
   return empty() 
-      || (MBCN::Dimension(TYPE_FROM_HANDLE(front())) == dimension
-       && MBCN::Dimension(TYPE_FROM_HANDLE(back())) == dimension);
+      || (CN::Dimension(TYPE_FROM_HANDLE(front())) == dimension
+       && CN::Dimension(TYPE_FROM_HANDLE(back())) == dimension);
 }
 
 unsigned Range::num_of_type( EntityType type ) const
@@ -871,23 +871,23 @@ unsigned Range::num_of_type( EntityType type ) const
 unsigned Range::num_of_dimension( int dim ) const
 {
   const_pair_iterator iter = const_pair_begin();
-  while(iter != const_pair_end() && MBCN::Dimension(TYPE_FROM_HANDLE((*iter).second)) < dim)
+  while(iter != const_pair_end() && CN::Dimension(TYPE_FROM_HANDLE((*iter).second)) < dim)
     ++iter;
   
   int junk;
   unsigned count = 0;
   for ( ; iter != const_pair_end(); ++iter)
   {
-    int start_dim = MBCN::Dimension(TYPE_FROM_HANDLE((*iter).first));
-    int end_dim = MBCN::Dimension(TYPE_FROM_HANDLE((*iter).second));
+    int start_dim = CN::Dimension(TYPE_FROM_HANDLE((*iter).first));
+    int end_dim = CN::Dimension(TYPE_FROM_HANDLE((*iter).second));
     if (start_dim > dim)
       break;
       
     EntityHandle sh = start_dim < dim ? 
-                        CREATE_HANDLE( MBCN::TypeDimensionMap[dim].first, 1, junk ) :
+                        CREATE_HANDLE( CN::TypeDimensionMap[dim].first, 1, junk ) :
                         (*iter).first;
     EntityHandle eh = end_dim > dim ?
-                        CREATE_HANDLE( MBCN::TypeDimensionMap[dim].second, MB_END_ID, junk ) :
+                        CREATE_HANDLE( CN::TypeDimensionMap[dim].second, MB_END_ID, junk ) :
                         (*iter).second;
     count += eh - sh + 1;
   }

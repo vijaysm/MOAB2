@@ -1,7 +1,6 @@
 #include "TestUtil.hpp"
 #include "moab/Core.hpp"
 #include "moab/MBTagConventions.hpp"
-#include "moab/MBCN.hpp"
 #include "ReadGmsh.hpp"
 #include "FileOptions.hpp"
 #include <math.h>

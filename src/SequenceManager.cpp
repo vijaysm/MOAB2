@@ -627,7 +627,7 @@ SequenceManager::create_scd_sequence( int imin, int jmin, int kmin,
                                       EntityHandle& handle,
                                       EntitySequence*& sequence )
 {
-  int this_dim = MBCN::Dimension(type);
+  int this_dim = CN::Dimension(type);
 
     // use > instead of != in the following assert to also catch cases where imin > imax, etc.
   assert((this_dim < 3 || kmax > kmin) &&
@@ -701,7 +701,7 @@ SequenceManager::create_sweep_sequence( int imin, int jmin, int kmin,
 					EntityHandle& handle,
 					EntitySequence*& sequence )
 {
-  int this_dim = MBCN::Dimension(type);
+  int this_dim = CN::Dimension(type);
 
   assert((this_dim < 3 || kmax > kmin) &&
          (this_dim < 2 || jmax > jmin) &&
@@ -1610,7 +1610,7 @@ std::ostream& operator<<( std::ostream& s, const SequenceManager& seq_man )
   for (EntityType t = MBVERTEX; t < MBMAXTYPE; ++t) 
     if (!seq_man.entity_map(t).empty()) 
       s << std::endl 
-        << "****************** " << MBCN::EntityTypeName( t ) << " ******************"
+        << "****************** " << CN::EntityTypeName( t ) << " ******************"
         << std::endl << seq_man.entity_map(t) << std::endl;
   return s;
 }

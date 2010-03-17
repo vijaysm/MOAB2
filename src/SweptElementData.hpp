@@ -29,7 +29,7 @@
 
 #include "SequenceData.hpp"
 #include "moab/HomXform.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include "SweptVertexData.hpp"
 #include "Internals.hpp"
 #include "moab/Range.hpp"
@@ -295,10 +295,10 @@ inline ErrorCode SweptElementData::get_params_connectivity(const int i, const in
   
   connectivity.push_back(get_vertex(i, j, k));
   connectivity.push_back(get_vertex(i+1, j, k));
-  if (MBCN::Dimension(TYPE_FROM_HANDLE(start_handle())) < 2) return MB_SUCCESS;
+  if (CN::Dimension(TYPE_FROM_HANDLE(start_handle())) < 2) return MB_SUCCESS;
   connectivity.push_back(get_vertex(i+1, j+1, k));
   connectivity.push_back(get_vertex(i, j+1, k));
-  if (MBCN::Dimension(TYPE_FROM_HANDLE(start_handle())) < 3) return MB_SUCCESS;
+  if (CN::Dimension(TYPE_FROM_HANDLE(start_handle())) < 3) return MB_SUCCESS;
   connectivity.push_back(get_vertex(i, j, k+1));
   connectivity.push_back(get_vertex(i+1, j, k+1));
   connectivity.push_back(get_vertex(i+1, j+1, k+1));

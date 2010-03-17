@@ -50,7 +50,7 @@ libMOAB_la_SOURCES = \
   AxisBox.cpp \
   AxisBox.hpp \
   BSPTree.cpp \
-  MBCN.cpp \
+  CN.cpp \
   MBCNArrays.hpp \
   CartVect.cpp \
   Matrix3.cpp \
@@ -122,7 +122,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/HomXform.hpp \
   moab/AdaptiveKDTree.hpp \
   moab/BSPTree.hpp \
-  moab/MBCN.hpp \
+  moab/CN.hpp \
   moab/CartVect.hpp \
   moab/Core.hpp \
   moab/EntityType.hpp \

@@ -14,7 +14,7 @@
  */
 
 /** 
- * \class MBCN
+ * \class CN
  * \author Tim Tautges
  * \date April 2004
  *
@@ -29,8 +29,8 @@
  * Numbering Conventions", Timothy J. Tautges, Sandia National Laboratories
  * Report #SAND2004-xxxx.
  */
-#ifndef MOAB_MBCN_HPP
-#define MOAB_MBCN_HPP
+#ifndef MOAB_CN_HPP
+#define MOAB_CN_HPP
 
 #include <vector>
 #include <algorithm>
@@ -48,7 +48,7 @@ namespace moab {
 
 typedef std::pair<EntityType, EntityType> DimensionPair;
 
-class MBCN
+class CN
 {
 private:
 
@@ -56,7 +56,7 @@ private:
   static const char *entityTypeNames[];
   
 //! declare private constructor, since we don't want to create any of these
-  MBCN();
+  CN();
 
 //! the basis of the numbering system (normally 0 or 1, 0 by default)
   static short int numberBasis;
@@ -102,7 +102,7 @@ public:
     //  num_corners_per_sub_element[k] (k=0..num_sub_elements-1) = number of nodes in sub-facet k
     //    (can vary over sub-facets, e.g. faces bounding a pyramid) or self (j=2)
     //  target_type[k] = entity type of sub-facet k (e.g. MBTRI or MBQUAD bounding a pyramid) or self (j=2)
-    //  conn[k][l] (l=0..MBCN::VerticesPerEntity[target_type[k]]) = vertex connectivity of sub-facet k,
+    //  conn[k][l] (l=0..CN::VerticesPerEntity[target_type[k]]) = vertex connectivity of sub-facet k,
     //    with respect to entity i's canonical vertex ordering, or self (j=2)
     // (not documented with Doxygen)
   static const ConnMap mConnectivityMap[MBMAXTYPE][3];
@@ -231,7 +231,7 @@ public:
   //! \param source_dim Dimension of source entity
   //! \param target_dim Dimension of target entity
   //! \param index_list Indices of target entities (returned)
-  //! \param operation_type Specify either MBCN::INTERSECT or MBCN::UNION to get intersection
+  //! \param operation_type Specify either CN::INTERSECT or CN::UNION to get intersection
   //!        or union of target entity lists over source entities
   static short int AdjacentSubEntities(const EntityType this_type,
                                  const int *source_indices,
@@ -239,7 +239,7 @@ public:
                                  const int source_dim,
                                  const int target_dim,
                                  std::vector<int> &index_list,
-                                 const int operation_type = MBCN::INTERSECT);
+                                 const int operation_type = CN::INTERSECT);
 
   //! return the side index represented in the input sub-entity connectivity in the input 
   //! parent entity connectivity array.
@@ -336,8 +336,8 @@ public:
                                 int& direct, int& offset );
 
     //! Set permutation or reverse permutation vector
-    //! Forward permutation is from MBCN's numbering into application's ordering;
-    //! that is, if i is MBCN's index, pvec[i] is application's index.  This
+    //! Forward permutation is from CN's numbering into application's ordering;
+    //! that is, if i is CN's index, pvec[i] is application's index.  This
     //! function stores the permutation vector for this type and facet dimension,
     //! which then is used in calls to permuteThis or revPermuteThis.
     //! \param t EntityType for which to set permutation
@@ -460,31 +460,31 @@ public:
 };
 
   //! get the basis of the numbering system
-inline short int MBCN::GetBasis() {return numberBasis;}
+inline short int CN::GetBasis() {return numberBasis;}
   
-inline const char *MBCN::EntityTypeName(const EntityType this_type) 
+inline const char *CN::EntityTypeName(const EntityType this_type) 
 {
   return entityTypeNames[this_type];
 }
 
-inline short int MBCN::Dimension(const EntityType t) 
+inline short int CN::Dimension(const EntityType t) 
 {
   return mConnectivityMap[t][0].topo_dimension;
 }
 
-inline short int MBCN::VerticesPerEntity(const EntityType t) 
+inline short int CN::VerticesPerEntity(const EntityType t) 
 {
   return (MBVERTEX == t ? 1 : mConnectivityMap[t][mConnectivityMap[t][0].topo_dimension-1].num_corners_per_sub_element[0]);
 }
 
-inline short int MBCN::NumSubEntities(const EntityType t, const int d)
+inline short int CN::NumSubEntities(const EntityType t, const int d)
 {
   return (t != MBVERTEX && d > 0 ? mConnectivityMap[t][d-1].num_sub_elements :
           (d ? -1 : VerticesPerEntity(t)));
 }
 
   //! return the type of a particular sub-entity.
-inline EntityType MBCN::SubEntityType(const EntityType this_type,
+inline EntityType CN::SubEntityType(const EntityType this_type,
                                         const int sub_dimension,
                                         const int index) 
 {
@@ -494,7 +494,7 @@ inline EntityType MBCN::SubEntityType(const EntityType this_type,
           mConnectivityMap[this_type][sub_dimension-1].target_type[index]));
 }
 
-inline const short* MBCN::SubEntityVertexIndices( const EntityType this_type, 
+inline const short* CN::SubEntityVertexIndices( const EntityType this_type, 
                                                   const int sub_dimension,
                                                   const int index,
                                                   EntityType& sub_type,
@@ -506,7 +506,7 @@ inline const short* MBCN::SubEntityVertexIndices( const EntityType this_type,
     return increasingInts + index;
   }
   else {
-    const MBCN::ConnMap& map = mConnectivityMap[this_type][sub_dimension-1];
+    const CN::ConnMap& map = mConnectivityMap[this_type][sub_dimension-1];
     sub_type = map.target_type[index];
     n = map.num_corners_per_sub_element[index];
     return map.conn[index];
@@ -514,7 +514,7 @@ inline const short* MBCN::SubEntityVertexIndices( const EntityType this_type,
 }
   
   //! return the connectivity of the specified sub-entity.
-inline void MBCN::SubEntityVertexIndices(const EntityType this_type, 
+inline void CN::SubEntityVertexIndices(const EntityType this_type, 
                                          const int sub_dimension,
                                          const int index,
                                          int sub_entity_conn[]) 
@@ -525,35 +525,35 @@ inline void MBCN::SubEntityVertexIndices(const EntityType this_type,
   std::copy( indices, indices+n, sub_entity_conn );
 }
 
-inline bool MBCN::HasMidEdgeNodes(const EntityType this_type, 
+inline bool CN::HasMidEdgeNodes(const EntityType this_type, 
                                      const int num_nodes)
 {
   const int bits = HasMidNodes( this_type, num_nodes );
   return static_cast<bool>( (bits & (1<<1)) >> 1 );
 }
 
-inline bool MBCN::HasMidFaceNodes(const EntityType this_type, 
+inline bool CN::HasMidFaceNodes(const EntityType this_type, 
                                        const int num_nodes)
 {
   const int bits = HasMidNodes( this_type, num_nodes );
   return static_cast<bool>( (bits & (1<<2)) >> 2 );
 }
 
-inline bool MBCN::HasMidRegionNodes(const EntityType this_type, 
+inline bool CN::HasMidRegionNodes(const EntityType this_type, 
                                          const int num_nodes)
 {
   const int bits = HasMidNodes( this_type, num_nodes );
   return static_cast<bool>( (bits & (1<<3)) >> 3 );
 }
 
-inline int MBCN::HasMidNodes( const EntityType this_type, const int num_nodes )
+inline int CN::HasMidNodes( const EntityType this_type, const int num_nodes )
 {
   assert( (unsigned)num_nodes <= (unsigned)MAX_NODES_PER_ELEMENT );
   return midNodesPerType[this_type][num_nodes];
 }
   
 
-inline void MBCN::HasMidNodes(const EntityType this_type, const int num_nodes,
+inline void CN::HasMidNodes(const EntityType this_type, const int num_nodes,
                               int mid_nodes[4])
 {
   const int bits = HasMidNodes( this_type, num_nodes );
@@ -564,7 +564,7 @@ inline void MBCN::HasMidNodes(const EntityType this_type, const int num_nodes,
 }
 
 //! Set permutation or reverse permutation vector
-inline void MBCN::setPermutation(const EntityType t, const int dim, int *pvec, 
+inline void CN::setPermutation(const EntityType t, const int dim, int *pvec, 
                                  const int num_entries, const bool is_reverse) 
 {
   short int *this_vec = permuteVec[t][dim], *that_vec = revPermuteVec[t][dim];
@@ -582,7 +582,7 @@ inline void MBCN::setPermutation(const EntityType t, const int dim, int *pvec,
 }
 
 //! Reset permutation or reverse permutation vector
-inline void MBCN::resetPermutation(const EntityType t, const int dim) 
+inline void CN::resetPermutation(const EntityType t, const int dim) 
 {
   if (-1 == dim) {
     for (unsigned int i = 0; i < 3; i++) resetPermutation(t, i);

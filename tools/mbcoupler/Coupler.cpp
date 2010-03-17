@@ -3,7 +3,6 @@
 #include "moab/AdaptiveKDTree.hpp"
 #include "moab/GeomUtil.hpp"
 #include "ElemUtil.hpp"
-#include "moab/MBCN.hpp"
 #include "iostream"
 
 extern "C" 

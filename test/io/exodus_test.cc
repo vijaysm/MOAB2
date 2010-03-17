@@ -1,7 +1,7 @@
 #include "TestUtil.hpp"
 #include "moab/Core.hpp"
 #include "moab/MBTagConventions.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #define IS_BUILDING_MB
 #include "ReadNCDF.hpp"
 #include "WriteNCDF.hpp"
@@ -112,12 +112,12 @@ struct TestType {
 void check_type( const TestType& type )
 {
   int has_mid_nodes[4];
-  MBCN::HasMidNodes( type.moab_type, type.num_nodes, has_mid_nodes );
+  CN::HasMidNodes( type.moab_type, type.num_nodes, has_mid_nodes );
   
   CHECK_EQUAL( type.moab_type, ExoIIUtil::ExoIIElementMBEntity[type.exo_type] );
   CHECK_EQUAL( type.name, std::string( ExoIIUtil::ElementTypeNames[type.exo_type] ) );
   CHECK_EQUAL( type.num_nodes, ExoIIUtil::VerticesPerElement[type.exo_type] );
-  switch (MBCN::Dimension(type.moab_type)) {
+  switch (CN::Dimension(type.moab_type)) {
     case 3: CHECK_EQUAL( has_mid_nodes[3], ExoIIUtil::HasMidNodes[type.exo_type][3] );
     case 2: CHECK_EQUAL( has_mid_nodes[2], ExoIIUtil::HasMidNodes[type.exo_type][2] );
     case 1: CHECK_EQUAL( has_mid_nodes[1], ExoIIUtil::HasMidNodes[type.exo_type][1] );
@@ -248,27 +248,27 @@ void check_ho_element( Interface& moab,
   CHECK_ERR(rval);
   
     // calculate and verify expected number of mid nodes
-  int num_nodes = MBCN::VerticesPerEntity(type);
-  for (int d = 1; d <= MBCN::Dimension(type); ++d)
+  int num_nodes = CN::VerticesPerEntity(type);
+  for (int d = 1; d <= CN::Dimension(type); ++d)
     if (mid_nodes[d])
-      num_nodes += MBCN::NumSubEntities(type, d);
+      num_nodes += CN::NumSubEntities(type, d);
   CHECK_EQUAL( num_nodes, conn_len );
   
     // verify that each higher-order node is at the center
     // of its respective sub-entity.
-  for (int i = MBCN::VerticesPerEntity(type); i < num_nodes; ++i) {
+  for (int i = CN::VerticesPerEntity(type); i < num_nodes; ++i) {
       // get sub-entity owning ho-node  
     int sub_dim, sub_num;
-    MBCN::HONodeParent( type, num_nodes, i, sub_dim, sub_num );
+    CN::HONodeParent( type, num_nodes, i, sub_dim, sub_num );
       // get corner vertex indices
     int sub_conn[8], num_sub;
-    if (sub_dim < MBCN::Dimension(type)) {
-      MBCN::SubEntityVertexIndices( type, sub_dim, sub_num, sub_conn );
-      EntityType sub_type = MBCN::SubEntityType( type, sub_dim, sub_num );
-      num_sub = MBCN::VerticesPerEntity( sub_type );
+    if (sub_dim < CN::Dimension(type)) {
+      CN::SubEntityVertexIndices( type, sub_dim, sub_num, sub_conn );
+      EntityType sub_type = CN::SubEntityType( type, sub_dim, sub_num );
+      num_sub = CN::VerticesPerEntity( sub_type );
     }
     else {
-      num_sub = MBCN::VerticesPerEntity(type);
+      num_sub = CN::VerticesPerEntity(type);
       for (int j = 0; j < num_sub; ++j)
         sub_conn[j] = j;
     }
@@ -346,7 +346,7 @@ void test_ho_elements( EntityType type, int num_nodes )
   Core mb_impl1, mb_impl2;
   Interface &mb1 = mb_impl1, &mb2 = mb_impl2;
   int ho_flags[4];
-  MBCN::HasMidNodes( type, num_nodes, ho_flags );
+  CN::HasMidNodes( type, num_nodes, ho_flags );
 
     // read file 
   read_file( mb1, ho_file );
@@ -379,7 +379,7 @@ void test_read_side( int id,
   
   // check expected element connectivity
   int ho_flags[4];
-  MBCN::HasMidNodes( sideset_type, sideset_nodes_per_elem, ho_flags );
+  CN::HasMidNodes( sideset_type, sideset_nodes_per_elem, ho_flags );
   check_ho_elements( moab, set, sideset_type, ho_flags );
   
   if (shell_side)
@@ -390,7 +390,7 @@ void test_read_side( int id,
   ErrorCode rval = mb_impl.get_entities_by_handle( set, elems );
   CHECK_ERR(rval);
   
-  int dim = MBCN::Dimension( sideset_type );
+  int dim = CN::Dimension( sideset_type );
   for (Range::iterator i= elems.begin(); i != elems.end(); ++i) {
     Range adj;
     rval = mb_impl.get_adjacencies( &*i, 1, dim+1, false, adj, Interface::UNION );

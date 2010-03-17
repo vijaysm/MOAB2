@@ -279,7 +279,7 @@ ErrorCode ReadUtil::get_ordered_vertices(EntityHandle *bound_ents,
                                              EntityType &etype) 
 {
     // get dimension of bounding entities
-  int bound_dim = MBCN::Dimension(TYPE_FROM_HANDLE(bound_ents[0]));
+  int bound_dim = CN::Dimension(TYPE_FROM_HANDLE(bound_ents[0]));
   int indices[MB_MAX_SUB_ENTITY_VERTICES];
   const EntityHandle *connect;
   std::vector<EntityHandle> tmp_connect;
@@ -288,19 +288,19 @@ ErrorCode ReadUtil::get_ordered_vertices(EntityHandle *bound_ents,
   int numv = 0, num_connect;
   ErrorCode result;
   for (EntityType t = MBEDGE; t < MBENTITYSET; t++) {
-    int nindex = MBCN::NumSubEntities(t, bound_dim);
-    if (MBCN::Dimension(t) != dim || nindex != bound_size) 
+    int nindex = CN::NumSubEntities(t, bound_dim);
+    if (CN::Dimension(t) != dim || nindex != bound_size) 
       continue;
 
       // fill in vertices from bounding entity vertices
-    int nverts = MBCN::VerticesPerEntity(t);
+    int nverts = CN::VerticesPerEntity(t);
     std::fill(bound_verts, bound_verts+nverts, 0);
     for (int index = 0; index < nindex; index++) {
       result = mMB->get_connectivity(bound_ents[index], connect, num_connect,
                                      false, &tmp_connect);
       if (MB_SUCCESS != result) return result;
       
-      MBCN::SubEntityVertexIndices(t, bound_dim, index, indices);
+      CN::SubEntityVertexIndices(t, bound_dim, index, indices);
 
       for (int c = 0; c < num_connect; c++) {
         if (!bound_verts[indices[c]]) {

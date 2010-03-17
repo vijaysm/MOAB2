@@ -4,7 +4,7 @@
 #include "moab/Core.hpp"
 #include "moab/ParallelComm.hpp"
 #include "moab/MBTagConventions.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include "moab/MBParallelConventions.h"
 
 #include <iostream>
@@ -429,7 +429,7 @@ void test_write_elements()
   if (rank == 0 && !all_equal) {
     std::cerr << "Type\tPartnd\tWritten" << std::endl;
     for (EntityType t = MBVERTEX; t < MBENTITYSET; ++t) 
-      std::cerr << MBCN::EntityTypeName(t) << '\t' << all_counts[t] << '\t' << file_counts[t] << std::endl;
+      std::cerr << CN::EntityTypeName(t) << '\t' << all_counts[t] << '\t' << file_counts[t] << std::endl;
   }
   
   CHECK(all_equal);
@@ -456,7 +456,7 @@ bool check_sets_sizes( Interface& mb1, EntityHandle set1,
     rval = mb2.get_number_entities_by_type( set2, t, count2 );
     CHECK_ERR(rval);
     if (count1 != count2) {
-      std::cerr << "Sets differ in number of " << MBCN::EntityTypeName(t)
+      std::cerr << "Sets differ in number of " << CN::EntityTypeName(t)
                 << " : " << count1 << " vs. " << count2 << std::endl;
       result = false;
     }

@@ -34,7 +34,7 @@
 #include "AEntityFactory.hpp"
 #include "ReadUtil.hpp"
 #include "WriteUtil.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include "moab/HigherOrderFactory.hpp"
 #include "SequenceManager.hpp"
 #include "Error.hpp"
@@ -338,7 +338,7 @@ ErrorCode Core::handle_from_id( const EntityType type,
 
 int Core::dimension_from_handle(const EntityHandle handle) const
 {
-  return MBCN::Dimension(TYPE_FROM_HANDLE(handle));
+  return CN::Dimension(TYPE_FROM_HANDLE(handle));
 }
 
 //! load mesh from data in file
@@ -921,7 +921,7 @@ ErrorCode Core::get_connectivity_by_type(const EntityType type,
   ErrorCode result = get_entities_by_type(0, type, this_range);
   
   int num_ents = this_range.size();
-  connect.reserve(num_ents*MBCN::VerticesPerEntity(type));
+  connect.reserve(num_ents*CN::VerticesPerEntity(type));
   
     // now loop over these entities, getting connectivity for each
   for (Range::iterator this_it = this_range.begin(); 
@@ -1082,7 +1082,7 @@ ErrorCode get_adjacencies_union( Core* gMB,
     remaining -= count;
     temp_vec.clear();
     for (size_t j = 0; j < count; ++i, ++j) {
-      if (MBCN::Dimension(TYPE_FROM_HANDLE(*i)) == to_dimension) {
+      if (CN::Dimension(TYPE_FROM_HANDLE(*i)) == to_dimension) {
         temp_vec.push_back(*i);
       }
       else if (to_dimension == 0 && TYPE_FROM_HANDLE(*i) != MBPOLYHEDRON) {
@@ -1135,7 +1135,7 @@ ErrorCode get_adjacencies_intersection( Core* mb,
     // input list), we begin with the adjacencies for the first entity.
   if (adj_entities.empty()) {
     EntityType type = TYPE_FROM_HANDLE(*begin);
-    if (to_dimension == MBCN::Dimension(type)) 
+    if (to_dimension == CN::Dimension(type)) 
       adj_entities.push_back(*begin); 
     else if(to_dimension == 0 && type != MBPOLYHEDRON)
       result = mb->get_connectivity(&(*begin), 1, adj_entities);
@@ -1154,7 +1154,7 @@ ErrorCode get_adjacencies_intersection( Core* mb,
 
       // get the next set of adjacencies
     EntityType type = TYPE_FROM_HANDLE(*from_it);
-    if (to_dimension == MBCN::Dimension(type)) 
+    if (to_dimension == CN::Dimension(type)) 
       temp_vec.push_back(*from_it); 
     else if(to_dimension == 0 && type != MBPOLYHEDRON)
       result = mb->get_connectivity(&(*from_it), 1, temp_vec);
@@ -1437,8 +1437,8 @@ ErrorCode Core::get_entities_by_dimension(const EntityHandle meshset,
     result = MB_SUCCESS;
   } 
   else {
-    for (EntityType this_type = MBCN::TypeDimensionMap[dimension].first;
-         this_type <= MBCN::TypeDimensionMap[dimension].second;
+    for (EntityType this_type = CN::TypeDimensionMap[dimension].first;
+         this_type <= CN::TypeDimensionMap[dimension].second;
          this_type++) {
       sequence_manager()->get_entities( this_type, entities );
     }
@@ -1466,8 +1466,8 @@ ErrorCode Core::get_entities_by_dimension(const EntityHandle meshset,
     result = MB_SUCCESS;
   } 
   else {
-    for (EntityType this_type = MBCN::TypeDimensionMap[dimension].first;
-         this_type <= MBCN::TypeDimensionMap[dimension].second;
+    for (EntityType this_type = CN::TypeDimensionMap[dimension].first;
+         this_type <= CN::TypeDimensionMap[dimension].second;
          this_type++) {
       sequence_manager()->get_entities( this_type, entities );
     }
@@ -1614,8 +1614,8 @@ ErrorCode Core::get_number_entities_by_dimension(const EntityHandle meshset,
  
   if (!meshset) {
     number = 0;
-    for (EntityType this_type = MBCN::TypeDimensionMap[dim].first;
-         this_type <= MBCN::TypeDimensionMap[dim].second;
+    for (EntityType this_type = CN::TypeDimensionMap[dim].first;
+         this_type <= CN::TypeDimensionMap[dim].second;
          this_type++) {
       number += sequence_manager()->get_number_entities( this_type );
     }
@@ -2025,7 +2025,7 @@ ErrorCode Core::create_element(const EntityType type,
                                    EntityHandle &handle)
 {
     // make sure we have enough vertices for this entity type
-  if(num_nodes < MBCN::VerticesPerEntity(type))
+  if(num_nodes < CN::VerticesPerEntity(type))
     return MB_FAILURE;
   
   ErrorCode status = sequence_manager()->create_element(type, connectivity, num_nodes, handle);
@@ -2096,7 +2096,7 @@ ErrorCode Core::merge_entities( EntityHandle entity_to_keep,
   
     // If auto_merge is not set, all sub-entities should
     // be merged if the entities are to be merged.
-  int ent_dim = MBCN::Dimension(type_to_keep);
+  int ent_dim = CN::Dimension(type_to_keep);
   if(ent_dim > 0)
   {
     std::vector<EntityHandle> conn, conn2;
@@ -2112,7 +2112,7 @@ ErrorCode Core::merge_entities( EntityHandle entity_to_keep,
     int dum1, dum2;
     if(!auto_merge && 
        (conn.size() != conn2.size() ||
-        !MBCN::ConnectivityMatch(&conn[0], &conn2[0], conn.size(), dum1, dum2)))
+        !CN::ConnectivityMatch(&conn[0], &conn2[0], conn.size(), dum1, dum2)))
       return MB_FAILURE;
   }
 
@@ -2193,7 +2193,7 @@ ErrorCode Core::list_entities(const EntityHandle *entities,
     std::cout << "Number of entities per type: " << std::endl;
     for (EntityType this_type = MBVERTEX; this_type < MBMAXTYPE; this_type++) {
       result = get_number_entities_by_type(0, this_type, num_ents);
-      std::cout << MBCN::EntityTypeName(this_type) << ": " << num_ents << std::endl;
+      std::cout << CN::EntityTypeName(this_type) << ": " << num_ents << std::endl;
     }
     std::cout << std::endl;
 
@@ -2227,7 +2227,7 @@ ErrorCode Core::list_entities(const EntityHandle *entities,
     ErrorCode tmp_result;
     for (int i = 0; i < num_entities; i++) {
       EntityType this_type = TYPE_FROM_HANDLE(entities[i]);
-      std::cout << MBCN::EntityTypeName(this_type) << " " 
+      std::cout << CN::EntityTypeName(this_type) << " " 
                 << ID_FROM_HANDLE(entities[i]) << ":" << endl;
 
       tmp_result = (const_cast<Core*>(this))->list_entity(entities[i]);
@@ -2244,7 +2244,7 @@ ErrorCode Core::list_entities(const Range &temp_range) const
   
   for (Range::const_iterator rit = temp_range.begin(); rit != temp_range.end(); rit++) {
     EntityType this_type = TYPE_FROM_HANDLE(*rit);
-    std::cout << MBCN::EntityTypeName(this_type) << " " << ID_FROM_HANDLE(*rit) << ":" << endl;
+    std::cout << CN::EntityTypeName(this_type) << " " << ID_FROM_HANDLE(*rit) << ":" << endl;
 
     tmp_result = (const_cast<Core*>(this))->list_entity(*rit);
     if (MB_SUCCESS != tmp_result) result = tmp_result;
@@ -2286,7 +2286,7 @@ ErrorCode Core::list_entity(const EntityHandle entity) const
   bool some = false;
   int multiple = 0;
   for (int dim = 0; dim <= 3; dim++) {
-    if (dim == MBCN::Dimension(this_type)) continue;
+    if (dim == CN::Dimension(this_type)) continue;
     adj_vec.clear();
       // use const_cast here 'cuz we're in a const function and we're passing 'false' for
       // create_if_missing, so we know we won't change anything
@@ -2295,7 +2295,7 @@ ErrorCode Core::list_entity(const EntityHandle entity) const
     for (HandleVec::iterator adj_it = adj_vec.begin(); adj_it != adj_vec.end(); adj_it++) {
       if (adj_it != adj_vec.begin()) std::cout << ", ";
       else std::cout << "   ";
-      std::cout << MBCN::EntityTypeName(TYPE_FROM_HANDLE(*adj_it)) << " " << ID_FROM_HANDLE(*adj_it);
+      std::cout << CN::EntityTypeName(TYPE_FROM_HANDLE(*adj_it)) << " " << ID_FROM_HANDLE(*adj_it);
     }
     if (!adj_vec.empty()) {
       std::cout << std::endl;
@@ -2312,7 +2312,7 @@ ErrorCode Core::list_entity(const EntityHandle entity) const
     std::cout << "  Explicit adjacencies: ";
     for (int i = 0; i < num_exp; i++) {
       if (i != 0) std::cout << ", ";
-      std::cout << MBCN::EntityTypeName(TYPE_FROM_HANDLE(explicit_adjs[i])) << " " 
+      std::cout << CN::EntityTypeName(TYPE_FROM_HANDLE(explicit_adjs[i])) << " " 
                 << ID_FROM_HANDLE(explicit_adjs[i]);
     }
     std::cout << std::endl;
@@ -2347,7 +2347,7 @@ ErrorCode Core::side_number(const EntityHandle parent,
   int num_parent_vertices, num_child_vertices;
   ErrorCode result = get_connectivity(parent, parent_conn, num_parent_vertices, true);
   if (MB_NOT_IMPLEMENTED == result) {
-    static std::vector<EntityHandle> tmp_connect(MBCN::MAX_NODES_PER_ELEMENT);
+    static std::vector<EntityHandle> tmp_connect(CN::MAX_NODES_PER_ELEMENT);
     result = get_connectivity(parent, parent_conn, num_parent_vertices, true, &tmp_connect);
   }
   if (MB_SUCCESS != result) return result;
@@ -2386,9 +2386,9 @@ ErrorCode Core::side_number(const EntityHandle parent,
       }
     }
     
-    int temp_result = MBCN::SideNumber(TYPE_FROM_HANDLE(parent),
+    int temp_result = CN::SideNumber(TYPE_FROM_HANDLE(parent),
                                        child_conn_indices, num_child_vertices, 
-                                       MBCN::Dimension(TYPE_FROM_HANDLE(child)), 
+                                       CN::Dimension(TYPE_FROM_HANDLE(child)), 
                                        side_number, sense, offset);
     return (0 == temp_result ? MB_SUCCESS : MB_FAILURE);
   }
@@ -2404,7 +2404,7 @@ ErrorCode Core::side_number(const EntityHandle parent,
       return MB_SUCCESS;
     }
     else if (TYPE_FROM_HANDLE(child) == MBPOLYGON) {
-      bool match = MBCN::ConnectivityMatch(parent_conn, child_conn,
+      bool match = CN::ConnectivityMatch(parent_conn, child_conn,
                                            num_parent_vertices,
                                            sense, offset);
       side_number = 0;
@@ -2444,31 +2444,31 @@ ErrorCode Core::high_order_node(const EntityHandle parent_handle,
 
     // find whether this entity has ho nodes
   int mid_nodes[4];
-  MBCN::HasMidNodes(parent_type, num_parent_vertices, mid_nodes);
+  CN::HasMidNodes(parent_type, num_parent_vertices, mid_nodes);
 
     // check whether this entity has mid nodes on this dimension subfacet; 
     // use dimension-1 because vertices don't have mid nodes
-  if (!mid_nodes[MBCN::Dimension(subfacet_type)]) return MB_SUCCESS;
+  if (!mid_nodes[CN::Dimension(subfacet_type)]) return MB_SUCCESS;
 
     // ok, we have mid nodes; now must compute expected index in connectivity array; 
     // ho nodes stored for edges, faces then entity
 
     // offset starts with # corner vertices
-  int offset = MBCN::VerticesPerEntity(parent_type);
+  int offset = CN::VerticesPerEntity(parent_type);
   int i;
 
-  for (i = 0; i < MBCN::Dimension(subfacet_type)-1; i++)
+  for (i = 0; i < CN::Dimension(subfacet_type)-1; i++)
       // for each dimension lower than that of the subfacet we're looking for, 
       // if this entity has midnodes in that dimension, increment offset by # 
       // of subfacets of that dimension; use dimension-1 in loop because 
       // canon numbering table only has 2 positions, for edges and faces;
-    if (mid_nodes[i+1]) offset += MBCN::mConnectivityMap[parent_type][i].num_sub_elements;
+    if (mid_nodes[i+1]) offset += CN::mConnectivityMap[parent_type][i].num_sub_elements;
 
     // now add the index of this subfacet; only need to if it's not the highest dimension
   if (subfacet_type != parent_type) {
 
       // find indices into parent_conn for each entry in child_conn
-    unsigned subfacet_size = MBCN::VerticesPerEntity(subfacet_type);
+    unsigned subfacet_size = CN::VerticesPerEntity(subfacet_type);
     int subfacet_indices[10];
     assert(subfacet_size <= sizeof(subfacet_indices)/sizeof(subfacet_indices[0]));
     for (unsigned i = 0; i < subfacet_size; ++i) {
@@ -2481,7 +2481,7 @@ ErrorCode Core::high_order_node(const EntityHandle parent_handle,
 
     int dum, side_no, temp_offset;
     int temp_result = 
-      MBCN::SideNumber(  parent_type, subfacet_indices, 
+      CN::SideNumber(  parent_type, subfacet_indices, 
                          subfacet_size, subfacet_type,
                          side_no, dum, temp_offset);
     if(temp_result != 0) return MB_FAILURE;
@@ -2526,7 +2526,7 @@ ErrorCode Core::side_element(const EntityHandle source_entity,
   std::vector<int> vertex_indices;
 
   int temp_result = 
-    MBCN::AdjacentSubEntities(source_type, &side_number, 1, dim, 0, vertex_indices);
+    CN::AdjacentSubEntities(source_type, &side_number, 1, dim, 0, vertex_indices);
   if (0 != temp_result) return MB_FAILURE;
     // now get the actual vertices
   for (unsigned int i = 0; i < vertex_indices.size(); i++)
@@ -2541,7 +2541,7 @@ ErrorCode Core::side_element(const EntityHandle source_entity,
   if (!target_ents.empty() &&
       TYPE_FROM_HANDLE(*(target_ents.begin())) != MBVERTEX &&
       TYPE_FROM_HANDLE(*(target_ents.begin())) != 
-      MBCN::mConnectivityMap[source_type][dim-1].target_type[side_number])
+      CN::mConnectivityMap[source_type][dim-1].target_type[side_number])
     return MB_ENTITY_NOT_FOUND;
 
   if (!target_ents.empty()) target_entity = *(target_ents.begin());
@@ -3113,7 +3113,7 @@ ErrorCode Core::check_adjacencies(const EntityHandle *ents, int num_ents)
   for (int i = 0; i < num_ents; i++) {
     EntityHandle this_ent = ents[i];
     std::ostringstream ent_str;
-    ent_str << MBCN::EntityTypeName(TYPE_FROM_HANDLE(this_ent)) << " "
+    ent_str << CN::EntityTypeName(TYPE_FROM_HANDLE(this_ent)) << " "
             << ID_FROM_HANDLE(this_ent) << ": ";
     int this_dim = dimension_from_handle(this_ent);
 
@@ -3148,7 +3148,7 @@ ErrorCode Core::check_adjacencies(const EntityHandle *ents, int num_ents)
         tmp_result = sequence_manager()->find(*rit, seq);
         if(seq == 0 || tmp_result != MB_SUCCESS) {
           oss << ent_str.str() << 
-            "Adjacent entity " << MBCN::EntityTypeName(TYPE_FROM_HANDLE(*rit)) << " "
+            "Adjacent entity " << CN::EntityTypeName(TYPE_FROM_HANDLE(*rit)) << " "
               << ID_FROM_HANDLE(*rit) << " is invalid." << std::endl;
           result = tmp_result;
         }
@@ -3158,7 +3158,7 @@ ErrorCode Core::check_adjacencies(const EntityHandle *ents, int num_ents)
           if (MB_SUCCESS != tmp_result) {
             oss << ent_str.str() 
                 << "Failed to get reverse adjacency from " 
-                << MBCN::EntityTypeName(TYPE_FROM_HANDLE(*rit)) << " "
+                << CN::EntityTypeName(TYPE_FROM_HANDLE(*rit)) << " "
                 << ID_FROM_HANDLE(*rit);
             if (MB_MULTIPLE_ENTITIES_FOUND == tmp_result)
               oss << " (MULTIPLE)" << std::endl;
@@ -3168,7 +3168,7 @@ ErrorCode Core::check_adjacencies(const EntityHandle *ents, int num_ents)
           else if (rev_adjs.find(this_ent) == rev_adjs.end()) {
             oss << ent_str.str() 
                 << "Failed to find adjacency to this entity from " 
-                << MBCN::EntityTypeName(TYPE_FROM_HANDLE(*rit)) << " "
+                << CN::EntityTypeName(TYPE_FROM_HANDLE(*rit)) << " "
                 << ID_FROM_HANDLE(*rit) << "." << std::endl;
             result = tmp_result;
           }
@@ -3444,7 +3444,7 @@ void Core::print_database() const
       for (int j = 0; j < nadj; ++j) {
         if (TYPE_FROM_HANDLE(adj[j]) != pt) {
           pt = TYPE_FROM_HANDLE(adj[j]);
-          printf("  %s", pt >= MBMAXTYPE ? "INVALID TYPE" : MBCN::EntityTypeName(pt) );
+          printf("  %s", pt >= MBMAXTYPE ? "INVALID TYPE" : CN::EntityTypeName(pt) );
         }
         printf(" %d", (int)ID_FROM_HANDLE(adj[j]));
       }
@@ -3469,7 +3469,7 @@ void Core::print_database() const
       clen = strlen("Connectivity");
     std::vector<char> dashes( clen, '-' );
     dashes.push_back( '\0' );
-    printf( "  %7s ID %-*s Adjacencies\n", MBCN::EntityTypeName(t), clen, "Connectivity" );
+    printf( "  %7s ID %-*s Adjacencies\n", CN::EntityTypeName(t), clen, "Connectivity" );
     printf( "  ---------- %s -----------...\n", &dashes[0] );
     
     std::vector<EntityHandle> storage;
@@ -3503,7 +3503,7 @@ void Core::print_database() const
         for (int j = 0; j < nadj; ++j) {
           if (TYPE_FROM_HANDLE(adj[j]) != pt) {
             pt = TYPE_FROM_HANDLE(adj[j]);
-            printf("  %s", pt >= MBMAXTYPE ? "INVALID TYPE" : MBCN::EntityTypeName(pt) );
+            printf("  %s", pt >= MBMAXTYPE ? "INVALID TYPE" : CN::EntityTypeName(pt) );
           }
           printf(" %d", (int)ID_FROM_HANDLE(adj[j]));
         }

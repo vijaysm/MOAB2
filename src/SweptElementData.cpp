@@ -17,7 +17,7 @@
 #include "SweptVertexData.hpp"
 #include "moab/Interface.hpp"
 #include "moab/ReadUtilIface.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include "Internals.hpp"
 #include <assert.h>
 
@@ -27,7 +27,7 @@ EntityID SweptElementData::calc_num_entities(EntityHandle start_handle,
                                 int irange, int jrange, int krange)
 {
   size_t result = 1;
-  switch (MBCN::Dimension(TYPE_FROM_HANDLE(start_handle))) {
+  switch (CN::Dimension(TYPE_FROM_HANDLE(start_handle))) {
     default: result = 0; assert( false ); 
     case 3: result *= krange;
     case 2: result *= jrange;

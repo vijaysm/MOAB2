@@ -19,7 +19,7 @@
  */
 
 #include "moab/CartVect.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include "moab/GeomUtil.hpp"
 #include "Matrix3.hpp"
 #include <cmath>
@@ -389,7 +389,7 @@ bool box_linear_elem_overlap( const CartVect *elem_corners,
                               const CartVect& box_halfdims )
 {
   CartVect corners[8];
-  const unsigned num_corner = MBCN::VerticesPerEntity( type );
+  const unsigned num_corner = CN::VerticesPerEntity( type );
   assert( num_corner <= sizeof(corners)/sizeof(corners[0]) );
   for (unsigned i = 0; i < num_corner; ++i)
     corners[i] = elem_corners[i] - box_center;
@@ -416,7 +416,7 @@ bool box_linear_elem_overlap( const CartVect *elem_corners,
   int indices[4]; // element edge/face vertex indices
   
     // test box face normals (principal axes)
-  const unsigned num_corner = MBCN::VerticesPerEntity( type );
+  const unsigned num_corner = CN::VerticesPerEntity( type );
   int not_less[3] = { num_corner, num_corner, num_corner }; 
   int not_greater[3] = { num_corner, num_corner, num_corner };
   int not_inside;
@@ -459,10 +459,10 @@ bool box_linear_elem_overlap( const CartVect *elem_corners,
     // Edge directions for box are principal axis, so 
     // for each element edge, check along the cross-product
     // of that edge with each of the tree principal axes.
-  const unsigned num_edge = MBCN::NumSubEntities( type, 1 );
+  const unsigned num_edge = CN::NumSubEntities( type, 1 );
   for (e = 0; e < num_edge; ++e) { // for each element edge
       // get which element vertices bound the edge
-    MBCN::SubEntityVertexIndices( type, 1, e, indices );
+    CN::SubEntityVertexIndices( type, 1, e, indices );
 
       // X-Axis
 
@@ -527,10 +527,10 @@ bool box_linear_elem_overlap( const CartVect *elem_corners,
   
   
     // test element face normals
-  const unsigned num_face = MBCN::NumSubEntities( type, 2 );
+  const unsigned num_face = CN::NumSubEntities( type, 2 );
   for (f = 0; f < num_face; ++f) {
-    MBCN::SubEntityVertexIndices( type, 2, f, indices );
-    switch (MBCN::SubEntityType( type, 2, f )) {
+    CN::SubEntityVertexIndices( type, 2, f, indices );
+    switch (CN::SubEntityType( type, 2, f )) {
       case MBTRI:
         norm = tri_norm( elem_corners[indices[0]], 
                          elem_corners[indices[1]], 

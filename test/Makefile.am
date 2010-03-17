@@ -142,8 +142,8 @@ var_len_test_no_template_CPPFLAGS = -UTEMPLATE_SPECIALIZATION $(AM_CPPFLAGS) $(C
 
 tag_test_SOURCES = TestUtil.hpp TagTest.cpp
 
-mbcn_test_SOURCES = $(top_srcdir)/src/moab/MBCN.hpp \
-                    $(top_srcdir)/src/MBCN.cpp \
+mbcn_test_SOURCES = $(top_srcdir)/src/moab/CN.hpp \
+                    $(top_srcdir)/src/CN.cpp \
                     mbcn_test.cc
 
 bsp_tree_poly_test_SOURCES = bsp_tree_poly_test.cpp

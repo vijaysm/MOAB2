@@ -8,7 +8,7 @@
 #include "moab/Interface.hpp"
 #include "Internals.hpp"
 #include "moab/Range.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 
 #include <assert.h>
 #include <vector>
@@ -230,15 +230,15 @@ private:
 public:
     /** get dimension of enity */
   static inline int DIM_FROM_HANDLE( EntityHandle h )
-    { return MBCN::Dimension( TYPE_FROM_HANDLE( h ) ); }
+    { return CN::Dimension( TYPE_FROM_HANDLE( h ) ); }
   
     /** Get smallest possible handle with specified dimension (first handle for first type of dimension) */
   static inline EntityHandle FIRST_OF_DIM( int dim )
-    { return FIRST_HANDLE( MBCN::TypeDimensionMap[dim].first ); }
+    { return FIRST_HANDLE( CN::TypeDimensionMap[dim].first ); }
   
     /** Get largest possible handle with specified dimension (largest handle for last type of dimension) */
   static inline EntityHandle LAST_OF_DIM( int dim )
-    { return LAST_HANDLE( MBCN::TypeDimensionMap[dim].second ); }
+    { return LAST_HANDLE( CN::TypeDimensionMap[dim].second ); }
 
     /** functor: test if handle is not of type */
   struct not_type_test {

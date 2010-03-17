@@ -2,7 +2,6 @@
 #include "SequenceData.hpp"
 #include <assert.h>
 #include <limits>
-#include "moab/MBCN.hpp"
 
 namespace moab {
 

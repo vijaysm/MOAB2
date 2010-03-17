@@ -136,7 +136,7 @@ ErrorCode gather_set_stats( EntityHandle set, set_stats& stats )
   std::vector<double> coords;
   for (EntityType type = MBEDGE; type < MBENTITYSET; ++type)
   {
-    int num_edges = MBCN::NumSubEntities( type, 1 );
+    int num_edges = CN::NumSubEntities( type, 1 );
     
     Range range;
     rval = mb.get_entities_by_type( set, type, range, true );
@@ -162,7 +162,7 @@ ErrorCode gather_set_stats( EntityHandle set, set_stats& stats )
             edge_vtx_idx[1] = e+1;
           }
           else
-            MBCN::SubEntityVertexIndices( type, 1, e, edge_vtx_idx );
+            CN::SubEntityVertexIndices( type, 1, e, edge_vtx_idx );
           stats.edge_uses.add( edge_length( &coords[3*edge_vtx_idx[0]],
                                             &coords[3*edge_vtx_idx[1]] ) );
         }
@@ -216,7 +216,7 @@ void print_stats( set_stats& stats )
     if (s.count == 0)
       continue;
     
-    unsigned len = strlen(MBCN::EntityTypeName(i));
+    unsigned len = strlen(CN::EntityTypeName(i));
     if (len > type_width)
       type_width = len;
     
@@ -302,7 +302,7 @@ void print_stats( set_stats& stats )
     }
     
     printf( "%*s %*ld %*.*g %*.*g %*.*g %*.*g %*.*g %*.*g\n",
-            type_width, i == MBMAXTYPE ? edge_use_name : MBCN::EntityTypeName(i),
+            type_width, i == MBMAXTYPE ? edge_use_name : CN::EntityTypeName(i),
             count_width, s.count,
             total_width, total_prec, s.sum,
             val_width, precision, s.min,

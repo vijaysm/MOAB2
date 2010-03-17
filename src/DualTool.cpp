@@ -23,7 +23,7 @@
 #include "moab/Core.hpp"
 #include "moab/MeshTopoUtil.hpp"
 #include "AEntityFactory.hpp"
-#include "moab/MBCN.hpp"
+#include "moab/CN.hpp"
 #include <string>
 #include <algorithm>
 #include <iostream>
@@ -203,8 +203,8 @@ ErrorCode DualTool::construct_dual_vertices(const Range &all_regions,
   if (all_regions.empty()) return MB_SUCCESS;
   
     // make sure they're all regions
-  assert(3 == MBCN::Dimension(TYPE_FROM_HANDLE(*all_regions.begin())) &&
-         3 == MBCN::Dimension(TYPE_FROM_HANDLE(*all_regions.rbegin())));
+  assert(3 == CN::Dimension(TYPE_FROM_HANDLE(*all_regions.begin())) &&
+         3 == CN::Dimension(TYPE_FROM_HANDLE(*all_regions.rbegin())));
   
   Range::const_iterator rit;
   EntityHandle dual_ent;
@@ -294,8 +294,8 @@ ErrorCode DualTool::construct_dual_edges(const Range &all_faces,
   if (all_faces.empty()) return MB_SUCCESS;
   
     // make sure they're all faces
-  assert(2 == MBCN::Dimension(TYPE_FROM_HANDLE(*all_faces.begin())) &&
-         2 == MBCN::Dimension(TYPE_FROM_HANDLE(*all_faces.rbegin())));
+  assert(2 == CN::Dimension(TYPE_FROM_HANDLE(*all_faces.begin())) &&
+         2 == CN::Dimension(TYPE_FROM_HANDLE(*all_faces.rbegin())));
   
   Range::const_iterator rit;
   EntityHandle dual_ent;
@@ -376,8 +376,8 @@ ErrorCode DualTool::construct_dual_faces(const Range &all_edges,
   if (all_edges.empty()) return MB_SUCCESS;
   
     // make sure they're all edges
-  assert(1 == MBCN::Dimension(TYPE_FROM_HANDLE(*all_edges.begin())) &&
-         1 == MBCN::Dimension(TYPE_FROM_HANDLE(*all_edges.rbegin())));
+  assert(1 == CN::Dimension(TYPE_FROM_HANDLE(*all_edges.begin())) &&
+         1 == CN::Dimension(TYPE_FROM_HANDLE(*all_edges.rbegin())));
   
   Range::const_iterator rit;
   EntityHandle dual_ent;
@@ -581,8 +581,8 @@ ErrorCode DualTool::construct_dual_cells(const Range &all_verts,
   if (all_verts.empty()) return MB_SUCCESS;
   
     // make sure they're all edges
-  assert(0 == MBCN::Dimension(TYPE_FROM_HANDLE(*all_verts.begin())) &&
-         0 == MBCN::Dimension(TYPE_FROM_HANDLE(*all_verts.rbegin())));
+  assert(0 == CN::Dimension(TYPE_FROM_HANDLE(*all_verts.begin())) &&
+         0 == CN::Dimension(TYPE_FROM_HANDLE(*all_verts.rbegin())));
   
   Range::const_iterator rit;
   EntityHandle dual_ent;
@@ -2531,12 +2531,12 @@ ErrorCode DualTool::list_entities(const Range &entities) const
   ErrorCode result = MB_SUCCESS, tmp_result;
   for (Range::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
     EntityType this_type = TYPE_FROM_HANDLE(*iter);
-    std::cout << MBCN::EntityTypeName(this_type) << " " << ID_FROM_HANDLE(*iter) << ":" << std::endl;
+    std::cout << CN::EntityTypeName(this_type) << " " << ID_FROM_HANDLE(*iter) << ":" << std::endl;
 
     EntityHandle dual_ent = get_dual_entity(*iter);
     if (0 != dual_ent) {
       std::cout << "Dual to " 
-                << MBCN::EntityTypeName(mbImpl->type_from_handle(dual_ent)) << " "
+                << CN::EntityTypeName(mbImpl->type_from_handle(dual_ent)) << " "
                 << mbImpl->id_from_handle(dual_ent) << std::endl;
     }
 
@@ -3143,7 +3143,7 @@ ErrorCode DualTool::check_dual_adjs()
   }
   
     // for each primal entity of dimension pd
-#define PRENT(ent) MBCN::EntityTypeName(TYPE_FROM_HANDLE(ent)) << " " \
+#define PRENT(ent) CN::EntityTypeName(TYPE_FROM_HANDLE(ent)) << " " \
         << ID_FROM_HANDLE(ent) 
   ErrorCode overall_result = MB_SUCCESS;
   for (int pd = 1; pd <= 3; pd++) {
