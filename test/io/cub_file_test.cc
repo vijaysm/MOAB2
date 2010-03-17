@@ -1,7 +1,7 @@
 #include "TestUtil.hpp"
 #include "moab/Core.hpp"
 #include "Tqdcfr.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "FileOptions.hpp"
 #include "moab/CN.hpp"
 #include <math.h>

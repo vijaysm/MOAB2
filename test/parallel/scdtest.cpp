@@ -6,8 +6,8 @@
 #include "moab/Core.hpp"
 #include "moab/ParallelComm.hpp"
 #include "moab/HomXform.hpp"
-#include "moab/MBParallelConventions.h"
-#include "moab/MBTagConventions.hpp"
+#include "MBParallelConventions.h"
+#include "MBTagConventions.hpp"
 
 using namespace std;
 using namespace moab;

@@ -1,8 +1,8 @@
 #include "moab/ParallelComm.hpp"
-#include "moab/MBParallelConventions.h"
+#include "MBParallelConventions.h"
 #include "ReadParallel.hpp"
 #include "FileOptions.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "moab/Core.hpp"
 #include "moab_mpi.h"
 #include <iostream>

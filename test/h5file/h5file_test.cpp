@@ -18,7 +18,7 @@
 
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "moab/CN.hpp"
 
 #define filename "h5test.h5m"

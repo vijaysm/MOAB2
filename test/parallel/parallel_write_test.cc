@@ -1,6 +1,6 @@
 #include "moab/Core.hpp"
 #include "moab/ParallelComm.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "moab_mpi.h"
 #include <stdlib.h>
 #include <iostream>

@@ -1,6 +1,6 @@
 #include "TestUtil.hpp"
 #include "moab/Core.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "moab/CN.hpp"
 #define IS_BUILDING_MB
 #include "ReadNCDF.hpp"

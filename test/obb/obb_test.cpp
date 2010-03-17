@@ -2,7 +2,7 @@
 #include "moab/Range.hpp"
 #include "moab/OrientedBoxTreeTool.hpp"
 #include "OrientedBox.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "moab/GeomUtil.hpp"
 #include "moab/CN.hpp"
 

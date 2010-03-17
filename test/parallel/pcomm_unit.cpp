@@ -1,6 +1,6 @@
 #include "moab/ParallelComm.hpp"
-#include "moab/MBParallelConventions.h"
-#include "moab/MBTagConventions.hpp"
+#include "MBParallelConventions.h"
+#include "MBTagConventions.hpp"
 #include "moab/Core.hpp"
 #include "moab/MeshTopoUtil.hpp"
 #include "ReadParallel.hpp"

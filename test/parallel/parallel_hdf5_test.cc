@@ -3,9 +3,9 @@
 
 #include "moab/Core.hpp"
 #include "moab/ParallelComm.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "moab/CN.hpp"
-#include "moab/MBParallelConventions.h"
+#include "MBParallelConventions.h"
 
 #include <iostream>
 #include <sstream>

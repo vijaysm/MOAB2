@@ -2,7 +2,7 @@
 #include "moab/Range.hpp"
 #include "TestUtil.hpp"
 #include "ReadHDF5.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "FileOptions.hpp"
 #include <vector>
 #include <stdlib.h>
