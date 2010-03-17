@@ -35,6 +35,8 @@ MBEntitySetProperty prop = MESHSET_SET;
 # error "MB_VERSION_STRING not defined"
 #endif
 
+#include "MBCN.hpp"
+
 #include "MBUnknownInterface.hpp"
 #include "MBInterface.hpp"
 #include "MBRange.hpp"
