@@ -6,7 +6,7 @@
 #include "moab/MeshTopoUtil.hpp"
 #include "FileOptions.hpp"
 #include "moab/ParallelComm.hpp"
-#include "moab/MBParallelConventions.h"
+#include "MBParallelConventions.h"
 
 #define IS_BUILDING_MB
 #include "Internals.hpp"
