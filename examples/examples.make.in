@@ -1,0 +1,29 @@
+exec_prefix = @exec_prefix@
+prefix = @prefix@
+libdir = @libdir@
+include $(libdir)/moab.make
+
+CPPFLAGS = ${MOAB_INCLUDES}
+CXXFLAGS = -g
+
+default: all
+
+all: FileRead GeomSetHierarchy GetEntities SetsNTags SkinMesh SurfArea
+
+FileRead: FileRead.o
+	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
+
+GeomSetHierarchy: GeomSetHierarchy.o
+	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
+
+GetEntities: GetEntities.o
+	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
+
+SetsNTags: SetsNTags.o
+	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
+
+SkinMesh: SkinMesh.o
+	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
+
+SurfArea: SurfArea.o
+	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)

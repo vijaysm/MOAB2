@@ -1004,6 +1004,14 @@ AM_CONDITIONAL( HAVE_CGM, [test "x$CGM_MISSING" = "xno"] )
 ################################################################################
 #                           Output Files
 ################################################################################
+
+# Some old versions of autoconf don't define docdir.  
+# Define it if autoconf did not.
+if test "x" = "x$docdir"; then
+  docdir='${datadir}/doc/moab'
+  AC_SUBST(docdir)
+fi
+
 AC_SUBST([AM_CPPFLAGS])
 AM_LDFLAGS="$AM_LDFLAGS $EXPORT_LTFLAGS $EXPORT_LDFLAGS"
 AC_SUBST([AM_LDFLAGS])
@@ -1050,6 +1058,8 @@ AC_CONFIG_FILES([Makefile
                  tools/dagmc/Makefile
                  doc/Makefile
                  doc/user.dox
+                 examples/Makefile
+                 examples/examples.make
                  ])
 AC_CONFIG_COMMANDS([src/MOAB_FCDefs.h],
   [sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h])

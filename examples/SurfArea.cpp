@@ -7,8 +7,8 @@
    non-convex element, since it breaks polygons into triangles for computing the area
 */
 
-#include "moab/MBCore.hpp"
-#include "moab/MBRange.hpp"
+#include "MBCore.hpp"
+#include "MBRange.hpp"
 #include "MBCartVect.hpp"
 #include <iostream>
 

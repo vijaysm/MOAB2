@@ -1,5 +1,6 @@
-#include "moab/MBCore.hpp"
-#include "moab/MBRange.hpp"
+#include "MBCore.hpp"
+#include "MBRange.hpp"
+#include "MBCN.hpp"
 #include <iostream>
 
 int main(int argc, char **argv) {
