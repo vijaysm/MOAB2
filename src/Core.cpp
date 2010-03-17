@@ -227,7 +227,7 @@ void Core::deinitialize()
 
 ErrorCode Core::query_interface(const std::string& iface_name, void** iface)
 {
-  if(iface_name == "ReadUtilIface")
+  if(iface_name == "ReadUtilIface" || iface_name == "MBReadUtilIface")
   {
     if(mMBReadUtil)
       *iface = (ReadUtilIface*)mMBReadUtil;
@@ -235,7 +235,7 @@ ErrorCode Core::query_interface(const std::string& iface_name, void** iface)
       *iface = (ReadUtilIface*)(mMBReadUtil = new ReadUtil(this, mError));
     return MB_SUCCESS;
   }
-  else if(iface_name == "WriteUtilIface")
+  else if(iface_name == "WriteUtilIface" || iface_name == "MBWriteUtilIface")
   {
     if(mMBWriteUtil)
       *iface = (WriteUtilIface*)mMBWriteUtil;
@@ -243,7 +243,7 @@ ErrorCode Core::query_interface(const std::string& iface_name, void** iface)
       *iface = (WriteUtilIface*)(mMBWriteUtil = new WriteUtil(this, mError));
     return MB_SUCCESS;
   }
-  else if(iface_name == "ReaderWriterSet")
+  else if(iface_name == "ReaderWriterSet" || iface_name == "MBReaderWriterSet")
   {
     *iface = reader_writer_set();
     return MB_SUCCESS;
@@ -262,16 +262,16 @@ ErrorCode Core::release_interface(const std::string& iface_name, void* iface)
   if(iface == NULL)
     return MB_FAILURE;
 
-  if(iface_name == "ReadUtilIface")
+  if(iface_name == "ReadUtilIface" || iface_name == "MBReadUtilIface")
   {
       // Is it possible to crash here?  We should fail gracefully instead.
     return MB_SUCCESS;
   }
-  else if(iface_name == "WriteUtilIface")
+  else if(iface_name == "WriteUtilIface" || iface_name == "MBWriteUtilIface")
   {
     return MB_SUCCESS;
   }
-  else if(iface_name == "ReaderWriterSet")
+  else if(iface_name == "ReaderWriterSet" || iface_name == "MBReaderWriterSet")
   {
     return MB_SUCCESS;
   }
