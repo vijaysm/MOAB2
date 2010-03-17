@@ -4,7 +4,6 @@
 #include "iMesh.h"
 #include "moab/Interface.hpp"
 #include "moab/GeomTopoTool.hpp"
-#include "OrientedBox.hpp"
 #include "moab/OrientedBoxTreeTool.hpp"
 #include "moab/CartVect.hpp"
 #include <stdlib.h>
@@ -934,17 +933,18 @@ void iGeom_getEntBoundBox( iGeom_Instance instance,
     }
     
     EntityHandle root;
-    OrientedBox box;
+    CartVect center, axis[3];
     rval = _my_geomTopoTool->get_root(MBH_cast(entity_handle), root);
     MBERRORR("Failed to get tree root in iGeom_getEntBoundBox.");
-    rval = _my_geomTopoTool->obb_tree()->box(root, box);
+    rval = _my_geomTopoTool->obb_tree()->box(root, center.array(), 
+                                                   axis[0].array(), 
+                                                   axis[1].array(), 
+                                                   axis[2].array());
     MBERRORR("Failed to get closest point in iGeom_getEntBoundBox.");
     
     CartVect min, max;
-    min = box.center - box.length[0]*box.axis[0] - box.length[1]*box.axis[1]
-      - box.length[2]*box.axis[2];
-    max = box.center + box.length[0]*box.axis[0] + box.length[1]*box.axis[1]
-      + box.length[2]*box.axis[2];
+    min = center - axis[0] - axis[1] - axis[2];
+    max = center + axis[0] + axis[1] + axis[2];
     *min_x = min[0];
     *min_y = min[1];
     *min_z = min[2];
