@@ -31,6 +31,8 @@ namespace moab {
 
 class Range;
 class OrientedBox;
+class StatData;
+class CartVect;
 
 class OrientedBoxTreeTool
 {
@@ -300,13 +302,6 @@ class OrientedBoxTreeTool
      * Get the oriented box for a node in an oriented bounding box tree.
      */
     ErrorCode box( EntityHandle node_set,
-                     OrientedBox& box );
-    
-    /**\brief Get oriented box at node in tree
-     *
-     * Get the oriented box for a node in an oriented bounding box tree.
-     */
-    ErrorCode box( EntityHandle node_set,
                      double center[3],
                      double axis1[3],
                      double axis2[3],
@@ -404,6 +399,17 @@ class OrientedBoxTreeTool
     struct SetData;
   private:
   
+    friend class RayIntersector;
+    friend class TreeNodePrinter;
+    friend class RayIntersectSets;
+    
+    /**\brief Get oriented box at node in tree
+     *
+     * Get the oriented box for a node in an oriented bounding box tree.
+     */
+    ErrorCode box( EntityHandle node_set,
+                     OrientedBox& box );
+  
     ErrorCode build_tree( const Range& entities, 
                             EntityHandle& set, 
                             int depth,
@@ -413,6 +419,14 @@ class OrientedBoxTreeTool
                             EntityHandle& node_set,
                             int depth,
                             const Settings& settings );
+
+    ErrorCode recursive_stats( OrientedBoxTreeTool* tool,
+                                    Interface* instance,
+                                    EntityHandle set,
+                                    int depth,
+                                    StatData& data,
+                                    unsigned& count_out,
+                                    CartVect& dimensions_out );
   
     Interface* instance;
     Tag tagHandle;

@@ -1732,7 +1732,7 @@ static int measure( const CartVect& v, double& result )
 }
   
 
-static ErrorCode recursive_stats( OrientedBoxTreeTool* tool,
+ErrorCode OrientedBoxTreeTool::recursive_stats( OrientedBoxTreeTool* tool,
                                     Interface* instance,
                                     EntityHandle set,
                                     int depth,
