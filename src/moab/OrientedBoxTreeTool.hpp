@@ -397,18 +397,18 @@ class OrientedBoxTreeTool
     Interface* get_moab_instance() const { return instance; }
   
     struct SetData;
-  private:
-  
-    friend class RayIntersector;
-    friend class TreeNodePrinter;
-    friend class RayIntersectSets;
     
     /**\brief Get oriented box at node in tree
      *
      * Get the oriented box for a node in an oriented bounding box tree.
+     *
+     * NOTE: This function is provided for internal MOAB use only.
+     *       The definition of OrientedBox is not available as a part
+     *       of the MOAB API
      */
     ErrorCode box( EntityHandle node_set,
                      OrientedBox& box );
+  private:
   
     ErrorCode build_tree( const Range& entities, 
                             EntityHandle& set, 
