@@ -137,7 +137,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/ReaderIface.hpp \
   moab/ReaderWriterSet.hpp \
   moab/Skinner.hpp \
-  moab/MBTagConventions.hpp \
+  MBTagConventions.hpp \
   moab/Types.hpp \
   moab/UnknownInterface.hpp \
   moab/Util.hpp \

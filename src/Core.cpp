@@ -61,7 +61,7 @@
 #  include "WriteVtk.hpp"
    typedef moab::WriteVtk DefaultWriter;
 #endif
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "ExoIIUtil.hpp"
 #include "EntitySequence.hpp"
 #include "FileOptions.hpp"

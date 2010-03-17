@@ -18,7 +18,7 @@
 // using Core for call to check_adjacencies
 #include "moab/Core.hpp"
 #include "Internals.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "moab/Skinner.hpp"
 #include "moab/Core.hpp"
 #include "moab/MeshTopoUtil.hpp"

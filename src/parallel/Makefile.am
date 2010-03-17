@@ -42,7 +42,7 @@ if PARALLEL
      moab/ParallelComm.hpp \
      moab/ProcConfig.hpp \
      moab/ParallelData.hpp \
-     moab/MBParallelConventions.h 
+     MBParallelConventions.h 
 
 if PARALLEL_HDF5
 #  libMOABpar_la_LIBADD = $(top_builddir)/mhdf/libmhdf.la

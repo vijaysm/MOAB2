@@ -25,7 +25,7 @@
 #include "moab/Range.hpp"
 #include "moab/CN.hpp"
 #include "moab/GeomUtil.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include <iostream>
 #include <iomanip>
 #include <algorithm>

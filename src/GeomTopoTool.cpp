@@ -15,7 +15,7 @@
 
 #include "moab/GeomTopoTool.hpp"
 #include "moab/Range.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "moab/Interface.hpp"
 #include "moab/CN.hpp"
 #include "Internals.hpp"

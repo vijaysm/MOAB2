@@ -6,7 +6,7 @@
 #include "moab/ReaderWriterSet.hpp"
 #include "moab/ReadUtilIface.hpp"
 #include "moab/ParallelComm.hpp"
-#include "moab/MBParallelConventions.h"
+#include "MBParallelConventions.h"
 
 #include <iostream>
 #include <iomanip>

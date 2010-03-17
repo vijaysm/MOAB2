@@ -25,7 +25,7 @@
 #include "VertexSequence.hpp"
 #include "TagServer.hpp"
 #include "AEntityFactory.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "RangeSeqIntersectIter.hpp"
 
 #include <sys/types.h>

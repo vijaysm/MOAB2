@@ -1,6 +1,6 @@
 #include "moab/ParallelData.hpp"
 #include "moab/ParallelComm.hpp"
-#include "moab/MBParallelConventions.h"
+#include "MBParallelConventions.h"
 #include "moab/Interface.hpp"
 
 #include <map>

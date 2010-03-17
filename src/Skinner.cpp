@@ -28,7 +28,7 @@
 #include <iostream>
 #include "moab/Util.hpp"
 #include "Internals.hpp"
-#include "moab/MBTagConventions.hpp"
+#include "MBTagConventions.hpp"
 #include "moab/Core.hpp"
 #include "AEntityFactory.hpp"
 

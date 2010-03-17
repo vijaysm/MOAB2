@@ -33,8 +33,8 @@
 
 #include "moab/Interface.hpp"
 #include "Internals.hpp"
-#include "moab/MBTagConventions.hpp"
-#include "moab/MBParallelConventions.h"
+#include "MBTagConventions.hpp"
+#include "MBParallelConventions.h"
 #include "moab/ParallelComm.hpp"
 #include "moab/CN.hpp"
 #include "moab/WriteUtilIface.hpp"
