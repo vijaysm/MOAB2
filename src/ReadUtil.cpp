@@ -280,7 +280,7 @@ ErrorCode ReadUtil::get_ordered_vertices(EntityHandle *bound_ents,
 {
     // get dimension of bounding entities
   int bound_dim = CN::Dimension(TYPE_FROM_HANDLE(bound_ents[0]));
-  int indices[MB_MAX_SUB_ENTITY_VERTICES];
+  int indices[MAX_SUB_ENTITY_VERTICES];
   const EntityHandle *connect;
   std::vector<EntityHandle> tmp_connect;
   

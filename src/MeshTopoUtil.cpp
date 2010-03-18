@@ -468,8 +468,8 @@ ErrorCode MeshTopoUtil::get_bridge_adjacencies(const EntityHandle from_entity,
 
   if (bridge_dim < from_dim) {
       // looping over each sub-entity of dimension bridge_dim...
-    EntityHandle bridge_verts[MB_MAX_SUB_ENTITIES];
-    int bridge_indices[MB_MAX_SUB_ENTITIES];
+    EntityHandle bridge_verts[MAX_SUB_ENTITIES];
+    int bridge_indices[MAX_SUB_ENTITIES];
     for (int i = 0; i < CN::NumSubEntities(from_type, bridge_dim); i++) {
 
         // get the vertices making up this sub-entity

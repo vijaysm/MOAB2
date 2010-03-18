@@ -464,7 +464,7 @@ ErrorCode Coupler::interp_field_for_hex(EntityHandle elem,
   const double xi[8] = {-1,1,1,-1,-1,1,1,-1};
   const double etha[8] = {-1,-1,1,1,-1,-1,1,1};
   const double mu[8] = {-1,-1,-1,-1,1,1,1,1};
-  double vfields[MB_MAX_SUB_ENTITIES*MB_MAX_SUB_ENTITY_VERTICES];
+  double vfields[MAX_SUB_ENTITIES*MAX_SUB_ENTITY_VERTICES];
 
     // get the tag values at the vertices
   const EntityHandle *connect;

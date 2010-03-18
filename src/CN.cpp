@@ -95,7 +95,7 @@ void CN::SubEntityNodeIndices( const EntityType this_topo,
   const short* corners = mConnectivityMap[this_topo][sub_dimension-1].conn[sub_index];
   std::copy( corners, corners+num_sub_entity_nodes, sub_entity_conn );
   
-  int sub_sub_corners[MB_MAX_SUB_ENTITY_VERTICES];
+  int sub_sub_corners[MAX_SUB_ENTITY_VERTICES];
   int side, sense, offset;
   for (int dim = 1; dim <= sub_dimension; ++dim) {
     if (!(ho_bits & (1<<dim)))
@@ -129,7 +129,7 @@ void CN::SubEntityConn(const void *parent_conn, const EntityType parent_type,
                          const int sub_index,
                          void *sub_entity_conn, int &num_sub_vertices) 
 {
-  static int sub_indices[MB_MAX_SUB_ENTITY_VERTICES];
+  static int sub_indices[MAX_SUB_ENTITY_VERTICES];
   
   SubEntityVertexIndices(parent_type, sub_dimension, sub_index, sub_indices);
   
@@ -980,9 +980,9 @@ inline int permute_this(EntityType t,
                         const int indices_per_ent,
                         const int num_entries) 
 {
-  T tmp_conn[MB_MAX_SUB_ENTITIES];
-  assert(indices_per_ent <= CN::permuteVec[t][dim][MB_MAX_SUB_ENTITIES]);
-  if (indices_per_ent > CN::permuteVec[t][dim][MB_MAX_SUB_ENTITIES]) return 1;
+  T tmp_conn[MAX_SUB_ENTITIES];
+  assert(indices_per_ent <= CN::permuteVec[t][dim][MAX_SUB_ENTITIES]);
+  if (indices_per_ent > CN::permuteVec[t][dim][MAX_SUB_ENTITIES]) return 1;
   short int *tvec = CN::permuteVec[t][dim];
   T *pvec = conn;
   for (int j = 0; j < num_entries; j++) {
@@ -1002,9 +1002,9 @@ inline int rev_permute_this(EntityType t,
                             const int indices_per_ent,
                             const int num_entries) 
 {
-  T tmp_conn[MB_MAX_SUB_ENTITIES];
-  assert(indices_per_ent <= CN::revPermuteVec[t][dim][MB_MAX_SUB_ENTITIES]);
-  if (indices_per_ent > CN::revPermuteVec[t][dim][MB_MAX_SUB_ENTITIES]) return 1;
+  T tmp_conn[MAX_SUB_ENTITIES];
+  assert(indices_per_ent <= CN::revPermuteVec[t][dim][MAX_SUB_ENTITIES]);
+  if (indices_per_ent > CN::revPermuteVec[t][dim][MAX_SUB_ENTITIES]) return 1;
   short int *tvec = CN::revPermuteVec[t][dim];
   T *pvec = conn;
   for (int j = 0; j < num_entries; j++) {

@@ -359,7 +359,7 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
   Range adjs;
     // can use a fixed-size array 'cuz the number of lower-dimensional neighbors is limited
     // by MBCN
-  int neighbors[5*MB_MAX_SUB_ENTITIES];
+  int neighbors[5*MAX_SUB_ENTITIES];
   double avg_position[3];
   int moab_id;
   
@@ -379,7 +379,7 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
     
       // get the graph vertex ids of those
     if (!adjs.empty()) {
-      assert(adjs.size() < 5*MB_MAX_SUB_ENTITIES);
+      assert(adjs.size() < 5*MAX_SUB_ENTITIES);
       result = mbImpl->tag_get_data(gid, adjs, neighbors); RR;
     }
 

@@ -397,7 +397,7 @@ ErrorCode Skinner::find_skin_noadj(const Range &source_entities,
 //          if (dum_sub_elems.empty()) {
 //              // need to create one
 //            EntityHandle tmphndl=0;
-//            int indices[MB_MAX_SUB_ENTITY_VERTICES];
+//            int indices[MAX_SUB_ENTITY_VERTICES];
 //            EntityType new_type;
 //            int num_new_nodes;
 //            CN::SubEntityNodeIndices( type, num_nodes, mTargetDim, i, new_type, num_new_nodes, indices );
@@ -435,7 +435,7 @@ ErrorCode Skinner::find_skin_noadj(const Range &source_entities,
         if(match == 0)
         {
           EntityHandle tmphndl=0;
-          int indices[MB_MAX_SUB_ENTITY_VERTICES];
+          int indices[MAX_SUB_ENTITY_VERTICES];
           EntityType new_type;
           int num_new_nodes;
           CN::SubEntityNodeIndices( type, num_nodes, mTargetDim, i, new_type, num_new_nodes, indices );
@@ -762,7 +762,7 @@ ErrorCode Skinner::classify_2d_boundary( const Range &boundary,
       if(match == 0)
       {
         EntityHandle tmphndl=0;
-        int indices[MB_MAX_SUB_ENTITY_VERTICES];
+        int indices[MAX_SUB_ENTITY_VERTICES];
         EntityType new_type;
         int num_new_nodes;
         CN::SubEntityNodeIndices( type, conn.size(), 1, i, new_type, num_new_nodes, indices );

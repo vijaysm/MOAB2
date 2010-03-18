@@ -40,11 +40,12 @@
 
 namespace moab {
 
-// the maximum number n-1 dimension adjacencies a element may have
-#define MB_MAX_SUB_ENTITIES  12
-
-// the maximum number of nodes an n-1 dimensional element may have
-#define MB_MAX_SUB_ENTITY_VERTICES 9
+enum {
+  //! the maximum number n-1 dimension adjacencies a element may have
+  MAX_SUB_ENTITIES = 12,
+  //! the maximum number of nodes an n-1 dimensional element may have
+  MAX_SUB_ENTITY_VERTICES = 9
+};
 
 typedef std::pair<EntityType, EntityType> DimensionPair;
 
@@ -88,13 +89,13 @@ public:
     short int num_sub_elements;
     
       // Number of nodes in each sub-element of this dimension
-    short int num_corners_per_sub_element[MB_MAX_SUB_ENTITIES];
+    short int num_corners_per_sub_element[MAX_SUB_ENTITIES];
 
       // Type of each sub-element
-    EntityType target_type[MB_MAX_SUB_ENTITIES];
+    EntityType target_type[MAX_SUB_ENTITIES];
 
       // Connectivity of each of the sub-elements
-    short int conn[MB_MAX_SUB_ENTITIES][MB_MAX_SUB_ENTITY_VERTICES];
+    short int conn[MAX_SUB_ENTITIES][MAX_SUB_ENTITY_VERTICES];
   };
 
     // mConnectivityMap[i=entity type][j=0,1,2]:
@@ -112,10 +113,10 @@ public:
   struct UpConnMap
   {
       // Number of higher-dimensional entities using each sub-entity
-    short int num_targets_per_source_element[MB_MAX_SUB_ENTITIES];
+    short int num_targets_per_source_element[MAX_SUB_ENTITIES];
 
       // Higher-dimensional entities using each sub-entity
-    short int targets_per_source_element[MB_MAX_SUB_ENTITIES][MB_MAX_SUB_ENTITIES];
+    short int targets_per_source_element[MAX_SUB_ENTITIES][MAX_SUB_ENTITIES];
   };
 
     // Reverse canonical numbering, duplicates data in mConnectivityMap, but 
@@ -128,8 +129,8 @@ public:
   static const unsigned char midNodesPerType[MBMAXTYPE][MAX_NODES_PER_ELEMENT+1];
 
     //! Permutation and reverse permutation vectors
-  static short int permuteVec[MBMAXTYPE][3][MB_MAX_SUB_ENTITIES+1];
-  static short int revPermuteVec[MBMAXTYPE][3][MB_MAX_SUB_ENTITIES+1];
+  static short int permuteVec[MBMAXTYPE][3][MAX_SUB_ENTITIES+1];
+  static short int revPermuteVec[MBMAXTYPE][3][MAX_SUB_ENTITIES+1];
   
   //! this const vector defines the starting and ending EntityType for 
   //! each dimension, e.g. TypeDimensionMap[2] returns a pair of EntityTypes 
@@ -578,7 +579,7 @@ inline void CN::setPermutation(const EntityType t, const int dim, int *pvec,
     that_vec[pvec[i]] = i;
   }
 
-  this_vec[MB_MAX_SUB_ENTITIES] = that_vec[MB_MAX_SUB_ENTITIES] = num_entries;
+  this_vec[MAX_SUB_ENTITIES] = that_vec[MAX_SUB_ENTITIES] = num_entries;
 }
 
 //! Reset permutation or reverse permutation vector
@@ -589,12 +590,12 @@ inline void CN::resetPermutation(const EntityType t, const int dim)
     return;
   }
   
-  for (unsigned int i = 0; i < MB_MAX_SUB_ENTITIES; i++) {
+  for (unsigned int i = 0; i < MAX_SUB_ENTITIES; i++) {
     revPermuteVec[t][dim][i] = permuteVec[t][dim][i] = i;
   }
   
-  revPermuteVec[t][dim][MB_MAX_SUB_ENTITIES] = 
-    permuteVec[t][dim][MB_MAX_SUB_ENTITIES] = MB_MAX_SUB_ENTITIES+1;
+  revPermuteVec[t][dim][MAX_SUB_ENTITIES] = 
+    permuteVec[t][dim][MAX_SUB_ENTITIES] = MAX_SUB_ENTITIES+1;
 }
 
 } // namespace moab 
