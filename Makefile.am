@@ -23,6 +23,10 @@ endif
 build-check:
 	$(MAKE) 'TESTS_ENVIRONMENT=: ' check
 
+doc_DATA = ANNOUNCE KNOWN_ISSUES LICENSE README README.IO RELEASE_NOTES
+
+EXTRA_DIST = $(doc_DATA)
+
 
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put 
