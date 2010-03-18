@@ -2585,7 +2585,7 @@ extern "C" {
     RETURN(iBase_SUCCESS);
   }
 
-  void iMesh_CNType(/*in*/ const int imesh_entity_topology,
+  void iMesh_MBCNType(/*in*/ const int imesh_entity_topology,
                       /*out*/ int *mbcn_type) 
   {
     if (iMesh_POINT > imesh_entity_topology ||
