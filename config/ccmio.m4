@@ -1,10 +1,10 @@
 #######################################################################################
-# Check for NetCDF library ((C++)
-# Sets HAVE_NETCDF to 'yes' or 'no'
-# If HAVE_NETCDF == yes, then exports:
-#   NETCDF_CPPFLAGS
-#   NETCDF_LDFLAGS
-#   NETCDF_LIBS
+# Check for CCMIO library ((C++)
+# Sets HAVE_CCMIO to 'yes' or 'no'
+# If HAVE_CCMIO == yes, then exports:
+#   CCMIO_CPPFLAGS
+#   CCMIO_LDFLAGS
+#   CCMIO_LIBS
 #######################################################################################
 AC_DEFUN([FATHOM_CHECK_CCMIO],[
 

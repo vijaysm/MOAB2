@@ -1063,7 +1063,7 @@ void test_sub_entity_nodes( EntityType parent, int num_nodes, int sub_dimension 
    
     // first test the types
   for (int i = 0; i < num_sub; ++i) {
-    int num, conn[MB_MAX_SUB_ENTITY_VERTICES];
+    int num, conn[moab::MAX_SUB_ENTITY_VERTICES];
     EntityType type;
     CN::SubEntityNodeIndices( parent, num_nodes, sub_dimension, i, type, num, conn );
     CHECK_EQUAL( CN::SubEntityType(parent, sub_dimension, i), type );
@@ -1071,7 +1071,7 @@ void test_sub_entity_nodes( EntityType parent, int num_nodes, int sub_dimension 
  
     // now test that they have the correct number of higher-order node
   for (int i = 0; i < num_sub; ++i) {
-    int num, conn[MB_MAX_SUB_ENTITY_VERTICES];
+    int num, conn[moab::MAX_SUB_ENTITY_VERTICES];
     EntityType type;
     CN::SubEntityNodeIndices( parent, num_nodes, sub_dimension, i, type, num, conn );
     const int ho = CN::HasMidNodes( type, num );
@@ -1080,7 +1080,7 @@ void test_sub_entity_nodes( EntityType parent, int num_nodes, int sub_dimension 
   
     // now test the actual indices
   for (int i = 0; i < num_sub; ++i) {
-    int num, conn[MB_MAX_SUB_ENTITY_VERTICES], corners[MB_MAX_SUB_ENTITY_VERTICES];
+    int num, conn[moab::MAX_SUB_ENTITY_VERTICES], corners[moab::MAX_SUB_ENTITY_VERTICES];
     EntityType type;
     CN::SubEntityNodeIndices( parent, num_nodes, sub_dimension, i, type, num, conn );
     
