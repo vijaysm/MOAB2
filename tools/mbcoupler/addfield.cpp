@@ -2,8 +2,6 @@
 #include "moab/Core.hpp"
 #include <math.h>
 #include <cstdlib>
-using namespace std;
-
 
 namespace moab {
 
