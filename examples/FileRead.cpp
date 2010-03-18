@@ -74,7 +74,7 @@ MBErrorCode ReadTriangleOutput( MBCore *mb, std::string fileBase ) {
   //   needed arrays, coordinate arrays
   //   also, it will return a starting handle for the node sequence
   vector<double*> arrays;
-  MBEntityHandle startv, *starth;
+  MBEntityHandle startv;
   MBErrorCode rval = iface->get_node_arrays(2, num_nodes, 0, startv, arrays);
   for (int i = 0; i < num_nodes; i++)
     {
@@ -99,10 +99,12 @@ MBErrorCode ReadTriangleOutput( MBCore *mb, std::string fileBase ) {
 	continue;
       stringstream tks(line);
       tks >> num_triangles; // ignore the rest of the line
-      cout << "num triangles:" << num_nodes << endl; 
+      cout << "num triangles:" << num_triangles << endl; 
     }
 
   MBEntityHandle starte;
+  MBEntityHandle *starth; // the connectivity array that will get populated
+                          // with triangle data
   // allocate block of triangle handles and read connectivity into them
   rval = iface->get_element_array(num_triangles, 3, MBTRI, 0, starte, starth);
   
