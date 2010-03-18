@@ -2733,9 +2733,10 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
 
     // resolve dim is maximal dim of entities in proc_ents
   if (-1 == resolve_dim) {
+    if (proc_ents.empty()) 
+      return MB_ENTITY_NOT_FOUND;
+
     resolve_dim = mbImpl->dimension_from_handle(*proc_ents.rbegin()); 
-    RRA("Couldn't get dimension.");
-    
   }
 
     // proc_ents should all be of same dimension
