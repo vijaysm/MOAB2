@@ -43,4 +43,4 @@ namespace ElemUtil {
  
 } // namespace moab
 
-#endif MOAB_ELEM_UTIL_HPP
+#endif /*MOAB_ELEM_UTIL_HPP*/
