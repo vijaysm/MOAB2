@@ -369,7 +369,9 @@ ErrorCode Core::load_file( const char* file_name,
 #ifdef USE_MPI    
     ParallelComm* pcomm = 0;
     int pcomm_id;
-    rval = opts.get_int_option( "PCOMM", pcomm_id );
+    rval = opts.get_int_option( "PARALLEL_COMM", pcomm_id );
+    if (MB_ENTITY_NOT_FOUND == rval)
+      rval = opts.get_int_option( "PCOMM", pcomm_id );
     if (rval == MB_SUCCESS) {
       pcomm = ParallelComm::get_pcomm( this, pcomm_id );
       if (!pcomm)
