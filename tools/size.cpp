@@ -186,7 +186,7 @@ void print_stats( set_stats& stats )
   const char* edge_use_name = "1D Side";
   const char* vertex_name = "Vertex";
   
-  bool have_some = stats.edge_uses.count > 0;
+  bool have_some = stats.edge_uses.count > 0 || stats.nodes > 0;
   for (int i = 0; i < MBMAXTYPE; ++i)
     if (stats.stats[i].count > 0)
       have_some = true;
@@ -229,7 +229,7 @@ void print_stats( set_stats& stats )
       total_log = tl;
   }
   
-  if (total_log > (int)total_width)
+  if (total_log > (int)total_width || total_log == -10000)
   {
     total_width = 8;
     total_prec = 2;
@@ -426,10 +426,6 @@ int main( int argc, char* argv[] )
           fprintf( stderr, "Error retreiving tag data for geometry entity.\n");
           continue;
         }
-        
-          // skip vertices
-        if (0 == dim)
-          continue;
         
         printf( "%s %d:\n", geom_type_names[dim], id );
         if (MB_SUCCESS != gather_set_stats( *i, file_stats ))
