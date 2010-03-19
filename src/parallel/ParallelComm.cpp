@@ -5815,12 +5815,13 @@ ErrorCode ParallelComm::pack_shared_handles(
     // build up send buffers
   int ent_procs[MAX_SHARING_PROCS];
   EntityHandle handles[MAX_SHARING_PROCS];
-  int num_sharing;
+  int num_sharing, tmp_int;
   SharedEntityData tmp;
   send_data.resize(buffProcs.size());
   for (Range::iterator i = all_shared.begin(); i != all_shared.end(); ++i) {
     tmp.remote = *i; // swap local/remote so they're correct on the remote proc.
-    rval = get_owner( *i, tmp.owner );
+    rval = get_owner( *i, tmp_int );
+    tmp.owner = tmp_int;
     if (MB_SUCCESS != rval)
       return rval;
 
