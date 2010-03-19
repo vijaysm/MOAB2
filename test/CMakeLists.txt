@@ -9,6 +9,8 @@
 
   add_executable( moab_test MBTest.cpp )
   target_link_libraries( moab_test MOAB )
+  set_source_files_properties( scdseq_test.cpp
+    COMPILE_FLAGS "-DSRCDIR=${CMAKE_CURRENT_SOURCE_DIR}" )
   add_test( TestMOAB ${EXECUTABLE_OUTPUT_PATH}/moab_test -nostress )
   # FIXME: moab_test depends on: test/mb_big_test.g test/cell1.gen test/cell2.gen
 

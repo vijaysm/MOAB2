@@ -98,6 +98,6 @@
   endif ( DEFINED MOAB_VERSION_PATCH )
   set( MB_VERSION_STRING "\"${MOAB_VERSION_STRING}\"" )
 
-  autoconf_header( ${MOAB_SOURCE_DIR}/src/moab/MBVersion.h.in ${MOAB_BINARY_DIR}/src/moab/MBVersion.h )
-  autoconf_header( ${MOAB_SOURCE_DIR}/src/moab/MBEntityHandle.h.in ${MOAB_BINARY_DIR}/src/moab/MBEntityHandle.h )
+  autoconf_header( ${MOAB_SOURCE_DIR}/src/moab/Version.h.in ${MOAB_BINARY_DIR}/src/moab/Version.h )
+  autoconf_header( ${MOAB_SOURCE_DIR}/src/moab/EntityHandle.hpp.in ${MOAB_BINARY_DIR}/src/moab/EntityHandle.hpp )
   file( WRITE ${MOAB_BINARY_DIR}/src/MBCN_protos.h "" )
