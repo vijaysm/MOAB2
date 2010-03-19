@@ -73,12 +73,6 @@ else
   mbperf_DIR =
 endif
 
-if ENABLE_mbchaco
-  mbchaco_DIR = mbchaco
-else
-  mbchaco_DIR=
-endif
-
 if ENABLE_mbcoupler
   mbcoupler_DIR = mbcoupler
 else
@@ -109,8 +103,7 @@ else
   dagmc_DIR = 
 endif 
 
-SUBDIRS = $(mbchaco_DIR) \
-          $(mbcoupler_DIR) \
+SUBDIRS = $(mbcoupler_DIR) \
           $(mbzoltan_DIR) \
           $(mbperf_DIR) \
 	  $(mcnpmit_DIR) \

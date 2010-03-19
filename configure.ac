@@ -465,7 +465,6 @@ AC_HELP_STRING([--disable-tools],[Disable all tools by default])],
   # Individual tools
 MB_OPTIONAL_TOOL([mbconvert],    [yes])
 MB_OPTIONAL_TOOL([hexmodops],    [yes])
-MB_OPTIONAL_TOOL([mbchaco],      [no] )
 MB_OPTIONAL_TOOL([mbperf],       [yes])
 MB_OPTIONAL_TOOL([qvdual],       [no] )
 MB_OPTIONAL_TOOL([mbsize],       [yes])
@@ -542,41 +541,6 @@ fi
 AC_SUBST(ZOLTAN_LIBS)
 AC_SUBST(ZOLTAN_LIB_FLAGS)
 AC_SUBST(ZOLTAN_INC_FLAGS)
-
-################################################################################
-#                           Chaco
-################################################################################
-if test $ENABLE_mbchaco = yes; then
-  AC_ARG_WITH(chaco, 
-  [AC_HELP_STRING([--with-chaco=DIR], [Specify directory containing chaco source and library])],
-  [CHACO_DIR=$withval
-   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-chaco=\"${withval}\""
-   ], [CHACO_DIR=])
-  case "x$CHACO_DIR" in
-    xno|x)
-      CHACO_MISSING=yes
-      ;;
-    xyes)
-      AC_MSG_ERROR([--with-chaco requires and argument])
-      ;;
-  esac
-  if ! test -d "$CHACO_DIR"; then
-    AC_MSG_WARN([$CHACO_DIR : not a directory.])
-  fi
-  AC_CHECK_FILES([${CHACO_DIR}/code/main/defs.h ${CHACO_DIR}/code/main/params.h],
-                [], [AC_MSG_WARN([$CHACO_DIR : not a valid chaco source]); CHACO_MISSING=yes])
-  old_LIBS="$LIBS"
-  LIBS="-L${CHACO_DIR}/code"
-  AC_CHECK_LIB([chaco],[read_params],[],
-               [AC_MSG_WARN([Could not find libchaco in ${CHACO_DIR}/code]); CHACO_MISSING=yes],
-               [-lm])
-  CHACO_INCLUDES="-I${CHACO_DIR}/code/main"
-  LIBS="$old_LIBS"
-  CHACO_LIBS="-L${CHACO_DIR}/code -lchaco -lm"
-  AC_SUBST(CHACO_LIBS)
-  AC_SUBST(CHACO_INCLUDES)
-fi
-
 
 ################################################################################
 #                               qvdual
@@ -1049,7 +1013,6 @@ AC_CONFIG_FILES([Makefile
                  itaps/igeom/iGeom-Defs.inc
                  tools/Makefile
                  tools/mbperf/Makefile
-                 tools/mbchaco/Makefile
                  tools/mbcoupler/Makefile
                  tools/mbzoltan/Config.moab
                  tools/mbzoltan/Makefile
