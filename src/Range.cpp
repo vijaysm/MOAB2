@@ -531,13 +531,7 @@ Range::const_iterator Range::find(EntityHandle val) const
   merges another Range with this one
 */
 
-
-void Range::merge( const Range& range )
-{
-  merge( range.begin(), range.end() );
-}
-
-void Range::merge( Range::const_iterator begin,
+void Range::insert( Range::const_iterator begin,
                      Range::const_iterator end )
 {
   if (begin == end)
@@ -941,7 +935,7 @@ Range Range::subset_by_type(EntityType t) const
 {
   Range result;
   std::pair<const_iterator, const_iterator> iters = equal_range(t);
-  result.merge( iters.first, iters.second );
+  result.insert( iters.first, iters.second );
   return result;
 }
 

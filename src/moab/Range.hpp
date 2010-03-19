@@ -316,12 +316,17 @@ public:
   
   unsigned long get_memory_use() const;
 
+  void insert( Range::const_iterator begin,
+               Range::const_iterator end );
+
   //! merges this Range with another range
-  void merge( const Range& range );
+  void merge( const Range& range )
+    { insert( range.begin(), range.end() ); }
   
   //! merge a subset of some other range
   void merge( Range::const_iterator begin,
-              Range::const_iterator end );
+              Range::const_iterator end )
+    { insert( begin, end ); }
 
   //! swap the contents of this range with another one
   void swap( Range &range );
@@ -670,7 +675,7 @@ Range subtract( const Range& from, const Range& );
 
     //! unite two ranges, placing the results in the return range
 inline Range unite( const Range& r1, const Range& r2 )
-  { Range r(r1); r.merge(r2); return r; }
+  { Range r(r1); r.insert(r2.begin(), r2.end()); return r; }
 
 
 inline Range::const_iterator 
