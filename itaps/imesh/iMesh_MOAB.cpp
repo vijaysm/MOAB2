@@ -1269,11 +1269,22 @@ extern "C" {
   
       // make the entities
     EntityHandle *new_verts = HANDLE_ARRAY_PTR(*new_vertex_handles);
-  
-    for (int i = 0; i < num_verts; i++) {
-      ErrorCode result = MBI->create_vertex(&new_coords[3*i], new_verts[i]);
-      CHKERR(result, "iMesh_createVtxArr: couldn't create vertex.");
-    }  
+
+    if (storage_order == iBase_INTERLEAVED) {
+      for (int i = 0; i < num_verts; i++) {
+        ErrorCode result = MBI->create_vertex(&new_coords[3*i], new_verts[i]);
+        CHKERR(result, "iMesh_createVtxArr: couldn't create vertex.");
+      }
+    }
+    else {
+      for (int i = 0; i < num_verts; i++) {
+        double tmp[3] = { new_coords[0*num_verts+i],
+                          new_coords[1*num_verts+i],
+                          new_coords[2*num_verts+i] };
+        ErrorCode result = MBI->create_vertex(tmp, new_verts[i]);
+        CHKERR(result, "iMesh_createVtxArr: couldn't create vertex.");
+      }
+    }
 
     KEEP_ARRAY(new_vertex_handles);
     RETURN(iBase_SUCCESS);
