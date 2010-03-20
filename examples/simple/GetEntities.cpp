@@ -16,7 +16,9 @@ int main(int argc, char **argv) {
 
     // iterate over dimensions
   for (int d = 0; d <= 3; d++) {
+    ents.clear();
     rval = mb->get_entities_by_dimension(0, d, ents);
+    std::cout << "Found " << ents.size() << " " << d << "-dimensional entities:" << std::endl;
     for (MBRange::iterator it = ents.begin(); it != ents.end(); it++) {
       MBEntityHandle ent = *it;
       std::cout << "Found d=" << d << " entity " 
