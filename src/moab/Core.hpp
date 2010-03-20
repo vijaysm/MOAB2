@@ -444,6 +444,7 @@ public:
                                                              const void* const* values,
                                                              const int num_tags,
                                                              int &num_entities,
+                                                             const int condition = Interface::INTERSECT,
                                                              const bool recursive = false) const;
 
       //! Retrieves all entities in the data base

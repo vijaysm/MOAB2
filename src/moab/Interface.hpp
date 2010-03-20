@@ -772,6 +772,7 @@ public:
                                                           const void* const* values,
                                                           const int num_tags,
                                                           int &num_entities,
+                                                          const int condition = Interface::INTERSECT,
                                                           const bool recursive = false) const = 0;
 
     //! Returns number of entities in the data base or meshset

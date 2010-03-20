@@ -35,17 +35,36 @@ class SequenceManager
         return typeData[TYPE_FROM_HANDLE(handle)].find( handle, sequence_out );
       }
     
-      /** Get all entities of a given EntityType */
-   void get_entities( EntityType type, Range& entities_out ) const
-      { typeData[type].get_entities( entities_out ); }
+      /** Get all entities of a given EntityType, return all entities
+       *  if type == MBMAXTYPE */
+    void get_entities( EntityType type, Range& entities_out ) const
+      { 
+        if (type == MBMAXTYPE)
+          get_entities( entities_out );
+        else
+          typeData[type].get_entities( entities_out ); 
+      }
+
+    void get_entities( Range& entities_out ) const;
     
-      /** Get all entities of a given EntityType */
-   void get_entities( EntityType type, std::vector<EntityHandle>& entities_out ) const
-      { typeData[type].get_entities( entities_out ); }
+      /** Get all entities of a given EntityType, return all entities
+       *  if type == MBMAXTYPE */
+    void get_entities( EntityType type, std::vector<EntityHandle>& entities_out ) const
+      { 
+        if (type == MBMAXTYPE)
+          get_entities( entities_out );
+        else
+          typeData[type].get_entities( entities_out ); 
+      }
+    
+    void get_entities( std::vector<EntityHandle>& entities_out ) const;
     
       /** Count entities of a given EntityType */
     EntityID get_number_entities( EntityType type ) const
-      { return typeData[type].get_number_entities(); }
+      { return type == MBMAXTYPE ? get_number_entities() : typeData[type].get_number_entities(); }
+    
+      /** Count entities of a given EntityType */
+    EntityID get_number_entities( ) const;
       
       /** Get most recently accessed sequence for a given type */
     const EntitySequence* get_last_accessed_sequence( EntityType type ) const

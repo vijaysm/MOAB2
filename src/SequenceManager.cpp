@@ -117,6 +117,28 @@ void SequenceManager::clear()
     new (typeData+t) TypeSequenceManager();
 }  
 
+void SequenceManager::get_entities( Range& entities_out ) const
+{
+  for (EntityType t = MBENTITYSET; t >= MBVERTEX; --t)
+    typeData[t].get_entities( entities_out );
+}
+
+void SequenceManager::get_entities( std::vector<EntityHandle>& entities_out ) const
+{
+  for (EntityType t = MBVERTEX; t != MBMAXTYPE; ++t)
+    typeData[t].get_entities( entities_out );
+}
+
+EntityID SequenceManager::get_number_entities( ) const
+{
+  EntityID sum = 0;
+  for (EntityType t = MBVERTEX; t != MBMAXTYPE; ++t)
+    sum += typeData[t].get_number_entities();
+  return sum;
+}
+
+
+
 ErrorCode SequenceManager::check_valid_entities( const Range& entities ) const
 {
   ErrorCode rval;
@@ -1431,6 +1453,16 @@ ErrorCode SequenceManager::get_tagged_entities( TagId tag_id,
   if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
     return MB_TAG_NOT_FOUND;
 
+  if (type == MBMAXTYPE) {
+    ErrorCode rval;
+    for (EntityType t = MBVERTEX; t < MBMAXTYPE; ++t) {
+      rval = get_tagged_entities( tag_id, t, entities_out );
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
+    return MB_SUCCESS;
+  }      
+
   Range::iterator insert = entities_out.begin();
   const TypeSequenceManager& map = entity_map( type );
   if (tagSizes[tag_id] == MB_VARIABLE_LENGTH) {
@@ -1464,6 +1496,19 @@ ErrorCode SequenceManager::count_tagged_entities( TagId tag_id,
     return MB_TAG_NOT_FOUND;
 
   count = 0;
+
+  if (type == MBMAXTYPE) {
+    ErrorCode rval;
+    for (EntityType t = MBVERTEX; t < MBMAXTYPE; ++t) {
+      int tmp = 0;
+      rval = count_tagged_entities( tag_id, t, tmp );
+      if (MB_SUCCESS != rval)
+        return rval;
+      count += tmp;
+    }
+    return MB_SUCCESS;
+  }      
+
   const TypeSequenceManager& map = entity_map( type );
   
   if (tagSizes[tag_id] == MB_VARIABLE_LENGTH) {
@@ -1498,6 +1543,16 @@ ErrorCode SequenceManager::get_entities_with_tag_value( TagId id,
   if (id >= tagSizes.size() || !tagSizes[id])
     return MB_TAG_NOT_FOUND;
 
+  if (type == MBMAXTYPE) {
+    ErrorCode rval;
+    for (EntityType t = MBVERTEX; t < MBMAXTYPE; ++t) {
+      rval = get_entities_with_tag_value( id, tag_info, t, entities_out, value, size );
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
+    return MB_SUCCESS;
+  }      
+
   Range::iterator insert = entities_out.begin();
   const TypeSequenceManager& map = entity_map( type );
   for (TypeSequenceManager::const_iterator i = map.begin(); i != map.end(); ++i) {
@@ -1525,9 +1580,10 @@ ErrorCode SequenceManager::get_entities_with_tag_value( const Range& range,
     return MB_TAG_NOT_FOUND;
     
   Range::iterator insert = entities_out.begin();
-  Range::const_pair_iterator p = range.lower_bound(type);         
+  Range::const_pair_iterator p = type == MBMAXTYPE ? range.begin() : range.lower_bound(type);         
   for (Range::const_pair_iterator p = range.const_pair_begin(); 
-       p != range.const_pair_end() && TYPE_FROM_HANDLE(p->first) == type; 
+       p != range.const_pair_end() && 
+       (MBMAXTYPE == type || TYPE_FROM_HANDLE(p->first) == type); 
        ++p) {
     
     EntityHandle start = p->first;

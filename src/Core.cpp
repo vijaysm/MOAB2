@@ -1666,11 +1666,12 @@ ErrorCode Core::get_number_entities_by_type_and_tag(const EntityHandle meshset,
                                                           const void* const* values,
                                                           const int num_tags,
                                                           int &num_entities,
+                                                          int condition,
                                                           const bool recursive) const
 {
   Range dum_ents;
   ErrorCode result = get_entities_by_type_and_tag(meshset, type, tag_handles, values, num_tags, 
-                                                     dum_ents, recursive);
+                                                     dum_ents, condition, recursive);
   num_entities = dum_ents.size();
   return result;
 }

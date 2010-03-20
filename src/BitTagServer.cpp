@@ -271,6 +271,9 @@ ErrorCode BitTag::get_entities( Range& entities ) const
 
 ErrorCode BitTag::get_entities( EntityType type, Range& entities ) const
 {
+  if (MBMAXTYPE == type)
+    return get_entities(entities);
+
   const int per_page = ents_per_page();
   Range::iterator hint = entities.begin();
   for (size_t i = 0; i < pageList[type].size(); ++i) {
@@ -294,12 +297,12 @@ ErrorCode BitTag::get_entities( const Range& range,
   EntityID count;
   size_t page;
   int offset, per_page = ents_per_page();
-  Range::const_iterator j, i = range.lower_bound( in_type );
+  Range::const_iterator j, i = in_type == MBMAXTYPE ? range.begin() : range.lower_bound( in_type );
   EntityHandle h;
   while (i != range.end()) {
     h = *i;
     unpack( h, type, page, offset );
-    if (type != in_type)
+    if (in_type != MBMAXTYPE && type != in_type)
       break;
     
     i = i.end_of_block();
@@ -324,6 +327,16 @@ ErrorCode BitTag::get_entities_with_bits( EntityType type,
                                             Range& entities,
                                             unsigned char bits ) const
 {
+  if (MBMAXTYPE == type) {
+    ErrorCode rval;
+    for (--type; type >= MBVERTEX; --type) {
+      rval = get_entities_with_bits( type, entities, bits );
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
+    return MB_SUCCESS;
+  }
+
   const int per_page = ents_per_page();
   for (size_t i = 0; i < pageList[type].size(); ++i) {
     if (pageList[type][i]) {
@@ -342,6 +355,16 @@ ErrorCode BitTag::get_entities_with_bits( const Range &range,
                                             Range& entities,
                                             unsigned char bits ) const
 {
+  if (MBMAXTYPE == in_type) {
+    ErrorCode rval;
+    for (--in_type; in_type >= MBVERTEX; --in_type) {
+      rval = get_entities_with_bits( range, in_type, entities, bits );
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
+    return MB_SUCCESS;
+  }
+
   EntityType type;
   EntityID count;
   size_t page;
@@ -377,8 +400,20 @@ ErrorCode BitTag::get_entities_with_bits( const Range &range,
 ErrorCode BitTag::get_number_entities( EntityType type,
                                          int& num_entities ) const
 {
-  const int per_page = ents_per_page();
   num_entities = 0;
+  if (MBMAXTYPE == type) {
+    int tmp;
+    ErrorCode rval;
+    for (--type; type >= MBVERTEX; --type) {
+      rval = get_number_entities( type, tmp );
+      if (MB_SUCCESS != rval)
+        return rval;
+      num_entities += tmp;
+    }
+    return MB_SUCCESS;
+  }
+
+  const int per_page = ents_per_page();
   if (pageList[type].empty())
     return MB_SUCCESS;
   if (pageList[type][0])

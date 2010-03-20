@@ -467,7 +467,10 @@ inline ErrorCode MeshSet::get_entities_by_type(EntityType type,
 {
   size_t count;
   const EntityHandle* ptr = get_contents( count );
-  if (vector_based()) {
+  if (MBMAXTYPE == type) {
+    return get_entities( entity_list );
+  }
+  else if (vector_based()) {
     std::remove_copy_if( ptr, ptr+count, 
                          std::back_inserter( entity_list ),
                          not_type_test(type) );
@@ -500,7 +503,10 @@ inline ErrorCode MeshSet::get_entities_by_type( EntityType type,
 {
   size_t count;
   const EntityHandle* ptr = get_contents( count );
-  if (vector_based()) {
+  if (MBMAXTYPE == type) {
+    return get_entities( entity_list );
+  }
+  else if (vector_based()) {
     std::remove_copy_if( ptr, ptr+count, 
                          range_inserter( entity_list ),
                          not_type_test(type) );
@@ -534,7 +540,10 @@ inline unsigned int MeshSet::num_entities_by_type(EntityType type) const
   unsigned int result;
   size_t count;
   const EntityHandle* ptr = get_contents( count );
-  if (vector_based()) {
+  if (MBMAXTYPE == type) {
+    return num_entities( );
+  }
+  else if (vector_based()) {
     #ifndef __SUNPRO_CC
       result = std::count_if( ptr, ptr+count, type_test(type) );
     #else

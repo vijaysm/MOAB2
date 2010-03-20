@@ -183,7 +183,7 @@ ErrorCode SparseTagCollection::get_number_entities(EntityType type, int& num_ent
   myMapType::iterator iter;
   for(iter = mData.begin(); iter != mData.end(); ++iter)
   {
-    if(TYPE_FROM_HANDLE(iter->first) == type)
+    if(MBMAXTYPE == type || TYPE_FROM_HANDLE(iter->first) == type)
       num_entities++;
   }
   return MB_SUCCESS;
@@ -195,7 +195,7 @@ ErrorCode SparseTagCollection::get_entities(EntityType type, Range &entities)
   myMapType::iterator iter;
   for(iter = mData.begin(); iter != mData.end(); ++iter)
   {
-    if(TYPE_FROM_HANDLE(iter->first) == type)
+    if(MBMAXTYPE == type || TYPE_FROM_HANDLE(iter->first) == type)
       entities.insert(iter->first);    
   }
   return MB_SUCCESS;
@@ -210,6 +210,18 @@ ErrorCode SparseTagCollection::get_entities_with_tag_value(
                                                     const void* tag_value,
                                                     int value_size)
 {
+  if (MBMAXTYPE == type) {
+    ErrorCode rval;
+    while (type--) {
+      rval = get_entities_with_tag_value( tag_info, type, entities, tag_value, value_size );
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
+    return MB_SUCCESS;
+  }
+
+
+
   myMapType::iterator iter, end;
 #ifdef HAVE_UNORDERED_MAP
   iter = mData.begin();

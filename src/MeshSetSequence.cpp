@@ -222,6 +222,13 @@ ErrorCode MeshSetSequence::get_type( const SequenceManager* seqman,
   else if (type == MBENTITYSET) {
     return recursive_get_sets( handle, seqman, 0, 0, &entities );
   }
+  else if (type == MBMAXTYPE) {
+    Range tmp;
+    ErrorCode rval = get_entities( seqman, handle, tmp, recursive );
+    if (MB_SUCCESS == rval) 
+      entities.insert( entities.end(), tmp.begin(), tmp.end() );
+    return rval;
+  }
   else {
     std::vector<const MeshSet*> list;
     ErrorCode rval = recursive_get_sets( handle, seqman, &list );
@@ -243,6 +250,13 @@ ErrorCode MeshSetSequence::get_type( const SequenceManager* seqman,
   }
   else if (type == MBENTITYSET) {
     return recursive_get_sets( handle, seqman, 0, &entities );
+  }
+  else if (type == MBMAXTYPE) {
+    std::vector<const MeshSet*> list;
+    ErrorCode rval = recursive_get_sets( handle, seqman, &list );
+    for (std::vector<const MeshSet*>::iterator i = list.begin(); i != list.end(); ++i)
+      (*i)->get_non_set_entities( entities );
+    return rval;
   }
   else {
     std::vector<const MeshSet*> list;
