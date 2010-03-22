@@ -4783,9 +4783,9 @@ ErrorCode ParallelComm::add_verts(Range &sent_ents)
 }
 
 
-ErrorCode ParallelComm::exchange_tags(std::vector<Tag> &src_tags,
-                                          std::vector<Tag> &dst_tags,
-                                          Range &entities)
+ErrorCode ParallelComm::exchange_tags( const std::vector<Tag> &src_tags,
+                                       const std::vector<Tag> &dst_tags,
+                                       const Range &entities_in)
 {
   ErrorCode result;
   int success;
@@ -4829,7 +4829,7 @@ ErrorCode ParallelComm::exchange_tags(std::vector<Tag> &src_tags,
   sendReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
   
     // take all shared entities if incoming list is empty
-  if (entities.empty()) entities = sharedEnts;
+  const Range& entities = entities_in.empty() ? sharedEnts : entities_in;
   
   int dum_ack_buff;
 
@@ -4849,7 +4849,7 @@ ErrorCode ParallelComm::exchange_tags(std::vector<Tag> &src_tags,
     
       // pack-send; this also posts receives if store_remote_handles is true
     std::vector<Range> tag_ranges;
-    for (std::vector<Tag>::iterator vit = src_tags.begin(); vit != src_tags.end(); vit++) {
+    for (std::vector<Tag>::const_iterator vit = src_tags.begin(); vit != src_tags.end(); vit++) {
       const void* ptr;
       int size;
       if (tagServer->get_default_data_ref( *vit, ptr, size ) != MB_SUCCESS) {
@@ -4922,6 +4922,42 @@ ErrorCode ParallelComm::exchange_tags(std::vector<Tag> &src_tags,
   if (MPI_SUCCESS != success) {
     result = MB_FAILURE;
     RRA("Failure in waitall in tag exchange.");
+  }
+  
+    // If source tag is not equal to destination tag, then
+    // do local copy for owned entities (communicate w/ self)
+  assert(src_tags.size() == dst_tags.size());
+  if (src_tags != dst_tags) {
+    std::vector<unsigned char> data;
+    Range owned_ents(entities_in);
+    result = filter_pstatus(owned_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);
+    RRA("Failure to get subset of owned entities");
+  
+    for (size_t i = 0; i < src_tags.size(); ++i) {
+      if (src_tags[i] == dst_tags[i])
+        continue;
+    
+      Range tagged_ents(owned_ents);
+      result = mbImpl->get_entities_by_type_and_tag( 0, MBMAXTYPE,
+                        &src_tags[0], 0, 1, tagged_ents, Interface::INTERSECT );
+      RRA("get_entities_by_type_and_tag(type == MBMAXTYPE) failed.");
+      
+      int size, size2;
+      result = mbImpl->tag_get_size( src_tags[i], size );
+      RRA("tag_get_size failed.");
+      result = mbImpl->tag_get_size( dst_tags[i], size2 );
+      RRA("tag_get_size failed.");
+      if (size != size2) {
+        result = MB_FAILURE;
+        RRA("tag sizes don't match")
+      }
+      
+      data.resize( size * tagged_ents.size() );
+      result = mbImpl->tag_get_data( src_tags[i], tagged_ents, &data[0] );
+      RRA("tag_get_data failed.");
+      result = mbImpl->tag_set_data( dst_tags[i], tagged_ents, &data[0] );
+      RRA("tag_set_data failed.");
+    }
   }
   
 #ifdef DEBUG_COMM

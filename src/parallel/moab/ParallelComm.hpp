@@ -190,23 +190,23 @@ public:
      * tag (or the tag should have a default value).
      * \param tags Vector of tag handles to be exchanged
      */
-  ErrorCode exchange_tags(std::vector<Tag> &src_tags,
-                            std::vector<Tag> &dst_tags,
-                            Range &entities);
+  ErrorCode exchange_tags( const std::vector<Tag> &src_tags,
+                           const  std::vector<Tag> &dst_tags,
+                           const Range &entities);
   
     /** \brief Exchange tags for all shared and ghosted entities
      * This function should be called collectively over the communicator for this ParallelComm
      * \param tag_name Name of tag to be exchanged
      */
-  ErrorCode exchange_tags(const char *tag_name,
-                            Range &entities);
+  ErrorCode exchange_tags( const char *tag_name,
+                           const Range &entities);
   
     /** \brief Exchange tags for all shared and ghosted entities
      * This function should be called collectively over the communicator for this ParallelComm
      * \param tagh Handle of tag to be exchanged
      */
-  ErrorCode exchange_tags(Tag tagh,
-                            Range &entities);
+  ErrorCode exchange_tags( Tag tagh,
+                           const Range &entities);
   
     /** \brief Broadcast all entities resident on from_proc to other processors
      * This function assumes remote handles are *not* being stored, since (usually)
@@ -1168,8 +1168,8 @@ inline ErrorCode ParallelComm::get_shared_proc_tags(Tag &sharedp,
   return MB_SUCCESS;
 }
 
-inline ErrorCode ParallelComm::exchange_tags(const char *tag_name,
-                                                 Range &entities)
+inline ErrorCode ParallelComm::exchange_tags( const char *tag_name,
+                                              const Range &entities)
 {
     // get the tag handle
   std::vector<Tag> tags(1);
@@ -1180,8 +1180,8 @@ inline ErrorCode ParallelComm::exchange_tags(const char *tag_name,
   return exchange_tags(tags, tags, entities);
 }
   
-inline ErrorCode ParallelComm::exchange_tags(Tag tagh,
-                                                 Range &entities)
+inline ErrorCode ParallelComm::exchange_tags( Tag tagh,
+                                              const Range &entities)
 {
     // get the tag handle
   std::vector<Tag> tags;
