@@ -1,5 +1,5 @@
-#include "MBCore.hpp"
-#include "MBRange.hpp"
+#include "moab/Core.hpp"
+#include "moab/Range.hpp"
 #include <iostream>
 
 int main(int argc, char **argv) {
@@ -9,18 +9,18 @@ int main(int argc, char **argv) {
   }
 
     // instantiate & load a mesh from a file
-  MBCore *mb = new MBCore();
-  MBErrorCode rval = mb->load_mesh(argv[1]);
+  moab::Core *mb = new moab::Core();
+  moab::ErrorCode rval = mb->load_mesh(argv[1]);
 
-  MBRange ents;
+  moab::Range ents;
 
     // iterate over dimensions
   for (int d = 0; d <= 3; d++) {
     ents.clear();
     rval = mb->get_entities_by_dimension(0, d, ents);
     std::cout << "Found " << ents.size() << " " << d << "-dimensional entities:" << std::endl;
-    for (MBRange::iterator it = ents.begin(); it != ents.end(); it++) {
-      MBEntityHandle ent = *it;
+    for (moab::Range::iterator it = ents.begin(); it != ents.end(); it++) {
+      moab::EntityHandle ent = *it;
       std::cout << "Found d=" << d << " entity " 
                 << mb->id_from_handle(ent) << "." << std::endl;
     }
