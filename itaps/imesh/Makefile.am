@@ -24,7 +24,7 @@ if PARALLEL
   libiMesh_la_include_HEADERS += iMeshP.h iMeshP_f.h iMeshP_protos.h
   AM_CPPFLAGS += -I$(top_srcdir)/src/parallel -I$(top_srcdir)/src/parallel/moab
 
-  check_PROGRAMS += partest # iMeshP_unit_tests
+  check_PROGRAMS += partest iMeshP_unit_tests
 
 #  check_PROGRAMS += ftest
 #  ftest_SOURCES = ftest.F
@@ -61,7 +61,6 @@ cfg_DATA = iMesh-Defs.inc
 # 'make prefix=/foo install', we don't know the correct install
 # directory until we're doing the install.
 install-data-hook:
-	echo "IMESH_DIR=${cfgdir}/.." >> $(DESTDIR)$(cfgdir)/iMesh-SIDL-Defs.inc
 	echo "IMESH_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 	echo "IMESH_INCLUDEDIR2=" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 	echo "IMESH_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
