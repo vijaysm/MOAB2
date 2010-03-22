@@ -8,6 +8,7 @@
 #include <math.h>
 #include <map>
 #include <string.h>
+#include <stdio.h> // remove()
 
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <unistd.h>
@@ -779,7 +780,9 @@ static int test_get_by_type_topo_all( iMesh_Instance imesh,
     // from number of parts (see create_mesh(..) function.)
   const int expected_global_quad_count = 4 * num_parts;
   const int num_col = 2 * (num_parts / 2 + num_parts % 2);
-  const int expected_global_vtx_count = 5 + 5*num_col - 4*(num_parts % 2);
+  const int expected_global_vtx_count = num_parts == 1 ? 9 :
+                                        num_parts % 2  ? 1 + 5*num_col :
+                                                         5 + 5*num_col;
   
     // test getNumOf*All for root set
   int ierr, count;
@@ -874,6 +877,7 @@ static int test_get_by_type_topo_local( iMesh_Instance imesh,
   std::vector<iBase_EntityHandle> act_quads( ptr, ptr+num_ent );
   free(ptr);
   junk1 = num_ent = 0;
+  ptr = 0;
   iMeshP_getEntities( imesh, prtn, part, root, iBase_ALL_TYPES,
                       iMesh_ALL_TOPOLOGIES,
                       &ptr, &junk1, &num_ent, &ierr ); CHKERR;
@@ -927,6 +931,7 @@ static int test_get_by_type_topo_local( iMesh_Instance imesh,
     // compare local contents (using non-root set)
 
   junk1 = 0; num_ent = 0;
+  ptr = 0;
   iMeshP_getEntities( imesh, prtn, part, set, test_type ? iBase_FACE : iBase_ALL_TYPES,
                       test_type ? iMesh_ALL_TOPOLOGIES : iMesh_QUADRILATERAL,
                       &ptr, &junk1, &num_ent, &ierr ); CHKERR;
@@ -1225,7 +1230,7 @@ int test_get_neighbors( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const
   
     // test iMeshP_getPartNborsArr
   iMeshP_Part* nbor_arr = 0;
-  junk1 = 0, junk2 = handles.size();
+  junk1  = handles.size(), junk2 = 0;
   int junk3 = 0, nbor_size;
   iMeshP_getPartNborsArr( imesh, prtn, &handles[0], handles.size(), iBase_VERTEX,
                           &count_arr, &junk1, &junk2, 
