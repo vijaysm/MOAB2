@@ -2,6 +2,7 @@ check_PROGRAMS = FileRead \
                  GeomSetHierarchy \
                  GetEntities \
                  KDTree \
+		 ObbTree \
                  SetsNTags \
                  SkinMesh \
                  SurfArea
@@ -18,6 +19,7 @@ SetsNTags_SOURCES = SetsNTags.cpp
 SkinMesh_SOURCES = SkinMesh.cpp
 SurfArea_SOURCES = SurfArea.cpp
 KDTree_SOURCES = KDTree.cpp
+ObbTree_SOURCES = ObbTree.cpp
 
 exampledir = ${docdir}/examples
 nobase_example_DATA = \
@@ -27,6 +29,7 @@ nobase_example_DATA = \
                simple/GetEntities.cpp \
                simple/makefile \
                KDTree.cpp \
+	       ObbTree.cpp \
                SetsNTags.cpp \
                SkinMesh.cpp \
                SurfArea.cpp 
