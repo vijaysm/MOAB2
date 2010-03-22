@@ -7,16 +7,17 @@
    non-convex element, since it breaks polygons into triangles for computing the area
 */
 
-#include "MBCore.hpp"
-#include "MBRange.hpp"
-#include "MBCartVect.hpp"
+#include "moab/Core.hpp"
+#include "moab/Range.hpp"
+#include "CartVect.hpp"
 #include <iostream>
 
+using namespace moab;
 
-double compute_area(std::vector<MBEntityHandle>&);
+double compute_area(std::vector<EntityHandle>&);
 
 // instantiate
-MBInterface *mb;
+Interface *mb;
 
 int main(int argc, char **argv) {
   if (1 == argc) {
@@ -24,16 +25,16 @@ int main(int argc, char **argv) {
     return 0;
   }
   
-  // get tag 
-  MBTag gtag, idtag;
-  MBErrorCode rval;
+  // declare variables
+  Tag gtag, idtag;
+  ErrorCode rval;
   const char *tag_geom = "GEOM_DIMENSION";
   const char *tag_gid = "GLOBAL_ID";
-  MBRange sets;
-  std::vector<MBEntityHandle> ents;
+  Range sets;
+  std::vector<EntityHandle> ents;
   
   // load a file
-  mb = new MBCore();
+  mb = new Core();
   rval = mb->load_file(argv[1]);
 
   // get the tag handle for the tags
@@ -45,12 +46,12 @@ int main(int argc, char **argv) {
 					  NULL, 1, sets);
  
   // iterate over each set, getting entities
-  MBRange::iterator set_it;
+  Range::iterator set_it;
     
   // loop thru all the geometric entity sets
   for (set_it = sets.begin(); set_it != sets.end(); set_it++)  {
 
-    MBEntityHandle this_set = *set_it;
+    EntityHandle this_set = *set_it;
     
     // get the id for this set
     int set_id;
@@ -81,31 +82,30 @@ int main(int argc, char **argv) {
 
 // This routine takes all the element entities in a face as input and computes the surface area
 // iterating over each element
-double compute_area(std::vector<MBEntityHandle> & entities){
+double compute_area(std::vector<EntityHandle> & entities){
  
   int rval= 0;
   double area = 0.0;
-  double coord[9];
  
   // loop thro' all the elements
-  for (int i=0;i<entities.size();i++){
-    std::vector<MBEntityHandle> conn;
-    MBEntityHandle handle = entities[i];
+  for (int i=0;i<int(entities.size());i++){
+    std::vector<EntityHandle> conn;
+    EntityHandle handle = entities[i];
 
     // get the connectivity of this element
     rval = mb->get_connectivity(&handle, 1, conn);
 
     // break polygon into triangles and sum the area - Limitation: Convex polygon
-    for (int j = 2; j<=conn.size(); ++j){
+    for (int j = 2; j<=int(conn.size()); ++j){
 
-      MBEntityHandle vertices[3]={conn[0], conn[j-1],  conn[j-2]};
-      MBCartVect coords[3];
+      EntityHandle vertices[3]={conn[0], conn[j-1],  conn[j-2]};
+      CartVect coords[3];
       
       // get 3 coordinates forming the triangle
       rval = mb->get_coords(vertices, 3, coords[0].array());
       
-      MBCartVect edge0 = coords[1] - coords [0];
-      MBCartVect edge1 = coords [2] - coords[0];
+      CartVect edge0 = coords[1] - coords [0];
+      CartVect edge1 = coords [2] - coords[0];
       
       // using MBCarVect overloaded operators and computing triangle area
       area+=(edge0*edge1).length()/2.0;
