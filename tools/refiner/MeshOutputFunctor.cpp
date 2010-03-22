@@ -1,8 +1,8 @@
-#include "moab/MeshOutputFunctor.hpp"
+#include "MeshOutputFunctor.hpp"
 
-#include "moab/SplitVertices.hpp"
+#include "SplitVertices.hpp"
 #include "moab/ParallelComm.hpp"
-#include "moab/RefinerTagManager.hpp"
+#include "RefinerTagManager.hpp"
 
 #include <iostream>
 #include <set>
@@ -11,7 +11,7 @@
 
 #undef MB_DEBUG
 
-namespace maob {
+namespace moab {
 
 MeshOutputFunctor::MeshOutputFunctor( RefinerTagManager* tag_mgr )
 {

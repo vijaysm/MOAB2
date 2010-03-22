@@ -28,9 +28,9 @@
 #ifndef MOAB_MESH_OUTPUT_FUNCTOR_HPP
 #define MOAB_MESH_OUTPUT_FUNCTOR_HPP
 
-#include "moab/Types.h"
-#include "moab/EntityRefiner.hpp"
-#include "moab/ProcessSet.hpp"
+#include "moab/Types.hpp"
+#include "EntityRefiner.hpp"
+#include "ProcessSet.hpp"
 
 #include <vector>
 #include <map>

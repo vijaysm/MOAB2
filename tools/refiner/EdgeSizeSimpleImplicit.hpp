@@ -30,7 +30,7 @@
 #ifndef MOAB_EDGE_SIZE_SIMPLE_IMPLICIT_HPP
 #define MOAB_EDGE_SIZE_SIMPLE_IMPLICIT_HPP
 
-#include "moab/EdgeSizeEvaluator.hpp"
+#include "EdgeSizeEvaluator.hpp"
 
 namespace moab {
 

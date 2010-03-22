@@ -67,6 +67,12 @@ if ENABLE_gsets
   bin_PROGRAMS += mbgsets
 endif 
 
+if ENABLE_refiner
+  refiner_DIR = refiner
+else
+  refiner_DIR=
+endif
+
 if ENABLE_mbperf
   mbperf_DIR = mbperf
 else
@@ -103,7 +109,8 @@ else
   dagmc_DIR = 
 endif 
 
-SUBDIRS = $(mbcoupler_DIR) \
+SUBDIRS = $(refiner_DIR) \
+          $(mbcoupler_DIR) \
           $(mbzoltan_DIR) \
           $(mbperf_DIR) \
 	  $(mcnpmit_DIR) \

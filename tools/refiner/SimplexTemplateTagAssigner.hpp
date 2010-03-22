@@ -27,7 +27,7 @@
 #ifndef MOAB_SIMPEX_TEMPLATE_TAG_ASSIGNER_HPP
 #define MOAB_SIMPEX_TEMPLATE_TAG_ASSIGNER_HPP
 
-#include "moab/Types.h" // for MB_DLL_EXPORT
+#include "moab/Types.hpp" // for MB_DLL_EXPORT
 
 namespace moab {
 

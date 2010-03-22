@@ -1,4 +1,4 @@
-#include "moab/ProcessSet.hpp"
+#include "ProcessSet.hpp"
 
 #include <assert.h>
 

@@ -1,10 +1,10 @@
-#include "moab/MeshRefiner.hpp"
+#include "MeshRefiner.hpp"
 
-#include "moab/EdgeSizeEvaluator.hpp"
-#include "moab/EntityRefiner.hpp"
+#include "EdgeSizeEvaluator.hpp"
+#include "EntityRefiner.hpp"
 #include "moab/Interface.hpp"
-#include "moab/RefinerTagManager.hpp"
-#include "moab/MeshOutputFunctor.hpp"
+#include "RefinerTagManager.hpp"
+#include "MeshOutputFunctor.hpp"
 
 #ifdef USE_MPI
 #include "moab/ParallelComm.hpp"

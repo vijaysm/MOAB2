@@ -26,9 +26,9 @@
 #ifndef MOAB_REFINER_TAG_MANAGER_HPP
 #define MOAB_REFINER_TAG_MANAGER_HPP
 
-#include "moab/Types.h" // for MB_DLL_EXPORT
+#include "moab/Types.hpp" // for MB_DLL_EXPORT
 
-#include "moab/ProcessSet.hpp"
+#include "ProcessSet.hpp"
 
 #include <vector>
 

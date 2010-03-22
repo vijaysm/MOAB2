@@ -26,7 +26,7 @@
 #ifndef MOAB_EDGE_SIZE_EVALUATOR_HPP
 #define MOAB_EDGE_SIZE_EVALUATOR_HPP
 
-#include "moab/RefinerTagManager.hpp"
+#include "RefinerTagManager.hpp"
 
 namespace moab {
 

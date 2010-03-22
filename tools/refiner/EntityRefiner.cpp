@@ -1,6 +1,6 @@
-#include "moab/EntityRefiner.hpp"
+#include "EntityRefiner.hpp"
 
-#include "moab/EdgeSizeEvaluator.hpp"
+#include "EdgeSizeEvaluator.hpp"
 #include "moab/Interface.hpp"
 
 namespace moab {

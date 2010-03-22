@@ -29,10 +29,10 @@
 #ifndef MB_SIMPLEX_TEMPLATE_REFINER_HPP
 #define MB_SIMPLEX_TEMPLATE_REFINER_HPP
 
-#include "moab/EntityRefiner.hpp"
-#include "moab/SimplexTemplateTagAssigner.hpp"
+#include "EntityRefiner.hpp"
+#include "SimplexTemplateTagAssigner.hpp"
 
-#include "moab/Types.h" // for MB_DLL_EXPORT
+#include "moab/Types.hpp" // for MB_DLL_EXPORT
 
 namespace moab { 
 

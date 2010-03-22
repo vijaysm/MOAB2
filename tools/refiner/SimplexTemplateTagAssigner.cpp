@@ -1,9 +1,9 @@
-#include "moab/SimplexTemplateTagAssigner.hpp"
+#include "SimplexTemplateTagAssigner.hpp"
 
-#include "moab/EdgeSizeEvaluator.hpp"
+#include "EdgeSizeEvaluator.hpp"
 #include "moab/Interface.hpp"
-#include "moab/RefinerTagManager.hpp"
-#include "moab/SimplexTemplateRefiner.hpp"
+#include "RefinerTagManager.hpp"
+#include "SimplexTemplateRefiner.hpp"
 
 #include <vector>
 

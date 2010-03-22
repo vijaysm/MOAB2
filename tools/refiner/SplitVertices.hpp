@@ -21,8 +21,8 @@
 #ifndef MOAB_SPLIT_VERTICES_HPP
 #define MOAB_SPLIT_VERTICES_HPP
 
-#include "moab/Types.h"
-#include "moab/ProcessSet.hpp"
+#include "moab/Types.hpp"
+#include "ProcessSet.hpp"
 #include "MBTagConventions.hpp"
 
 #include <map>

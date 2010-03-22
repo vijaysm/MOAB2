@@ -1,4 +1,4 @@
-#include "moab/EdgeSizeSimpleImplicit.hpp"
+#include "EdgeSizeSimpleImplicit.hpp"
 
 namespace moab { 
 

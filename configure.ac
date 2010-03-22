@@ -478,6 +478,13 @@ MB_OPTIONAL_TOOL([mbzoltan],     [${WITH_ZOLTAN}] )
 MB_OPTIONAL_TOOL([dagmc],        [yes])
 MB_OPTIONAL_TOOL([gsets],        [yes])
 MB_OPTIONAL_TOOL([mbdepth],      [yes])
+MB_OPTIONAL_TOOL([refiner],      [no])
+
+if test "xyes" = "x$ENABLE_refiner"; then
+  if test "xyes" != "x$WITH_MPI"; then
+    AC_MSG_ERROR([refiner requires MPI/parallel configuration])
+  fi
+fi
 
 
 ################################################################################
@@ -1012,6 +1019,7 @@ AC_CONFIG_FILES([Makefile
 		 itaps/igeom/Makefile
                  itaps/igeom/iGeom-Defs.inc
                  tools/Makefile
+                 tools/refiner/Makefile
                  tools/mbperf/Makefile
                  tools/mbcoupler/Makefile
                  tools/mbzoltan/Config.moab

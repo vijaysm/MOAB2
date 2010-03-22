@@ -1,14 +1,12 @@
-#include "MBCore.hpp"
-#include "MBEdgeSizeSimpleImplicit.hpp"
-#include "MBSimplexTemplateRefiner.hpp"
-#include "MBMeshRefiner.hpp"
-#include "MBInterface.hpp"
+#include "moab/Core.hpp"
+#include "EdgeSizeSimpleImplicit.hpp"
+#include "SimplexTemplateRefiner.hpp"
+#include "MeshRefiner.hpp"
+#include "moab/Interface.hpp"
 #include "MBParallelConventions.h"
 
 #ifdef USE_MPI
-#include "MBParallelComm.hpp"
-#include "ReadParallel.hpp"
-#include "FileOptions.hpp"
+#include "moab/ParallelComm.hpp"
 #include "moab_mpi.h"
 #endif // USE_MPI
 
@@ -17,6 +15,8 @@
 #include <map>
 
 #include "sys/time.h"
+
+using namespace moab;
 
 int TestMeshRefiner( int argc, char* argv[] )
 {
@@ -34,17 +34,18 @@ int TestMeshRefiner( int argc, char* argv[] )
   // Create the input mesh and, if -new-mesh is specified, an output mesh
   const char* ifname = argc > 1 ? argv[1] : "fourVolsBare.cub";
   bool input_is_output = ( argc > 2 && ! strcmp( argv[2], "-new-mesh" ) ) ? false : true;
-  MBInterface* imesh = new MBCore; // ( rank, nprocs );
-  MBInterface* omesh = input_is_output ? imesh : new MBCore; // ( rank, nprocs );
+  Interface* imesh = new Core; // ( rank, nprocs );
+  Interface* omesh = input_is_output ? imesh : new Core; // ( rank, nprocs );
 
 #ifdef USE_MPI
-  // Use an MBParallelComm object to help set up the input mesh
-  MBParallelComm* ipcomm = new MBParallelComm( imesh );
+  // Use an ParallelComm object to help set up the input mesh
+  ParallelComm* ipcomm = new ParallelComm( imesh );
   //ReadParallel* readpar = new ReadParallel( imesh, ipcomm );
 #endif // USE_MPI
 
-  MBEntityHandle set_handle;
+  EntityHandle set_handle;
   std::ostringstream parallel_options;
+#ifdef USE_MPI
   parallel_options
     << "PARALLEL=READ_DELETE" << ";" // NB: You can use BCAST_DELETE or READ_DELETE here.
     //<< "PARALLEL=BCAST_DELETE" << ";" // NB: You can use BCAST_DELETE or READ_DELETE here.
@@ -53,9 +54,9 @@ int TestMeshRefiner( int argc, char* argv[] )
     << "PARTITION_VAL=" << ( rank + 1 ) << ";"
     << "PARALLEL_RESOLVE_SHARED_ENTS" << ";"
     << "CPUTIME";
-#ifdef USE_MPI
-  //readpar->load_file( ifname, set_handle, FileOptions( parallel_options.str().c_str() ), 0, 0 );
-  imesh->load_file( ifname, set_handle, parallel_options.str().c_str() );
+#endif
+  set_handle = 0;
+  imesh->load_file( ifname, &set_handle, parallel_options.str().c_str() );
 #  if 0
   // Print out what we have so far, one process at a time
   for ( int i = 0; i < nprocs; ++ i )
@@ -70,26 +71,23 @@ int TestMeshRefiner( int argc, char* argv[] )
     MPI_Barrier( MPI_COMM_WORLD );
     }
 #  endif // 0
-#else // USE_MPI
-  imesh->load_file( ifname, set_handle, parallel_options.str().c_str() );
-  imesh->list_entities( 0, 1 );
-#endif // USE_MPI
+
   std::ostringstream ifs;
   ifs << "prerefiner." << nprocs << "." << rank << ".vtk";
   imesh->write_mesh( ifs.str().c_str() );
 
   // The refiner will need an implicit function to be used as an indicator function for subdivision:
-  MBEdgeSizeSimpleImplicit* eval = new MBEdgeSizeSimpleImplicit();
+  EdgeSizeSimpleImplicit* eval = new EdgeSizeSimpleImplicit();
   eval->set_ratio( 2. );
   // Refine the mesh
-  MBMeshRefiner* mref = new MBMeshRefiner( imesh, omesh );
-  MBSimplexTemplateRefiner* eref = new MBSimplexTemplateRefiner;
+  MeshRefiner* mref = new MeshRefiner( imesh, omesh );
+  SimplexTemplateRefiner* eref = new SimplexTemplateRefiner;
   mref->set_entity_refiner( eref );
   //mref->add_vertex_tag( tag_floatular );
   //mref->add_vertex_tag( tag_intular );
   // (We don't add tag_gid to the refiner's tag manager because it is special)
   eref->set_edge_size_evaluator( eval );
-  MBRange ents_to_refine;
+  Range ents_to_refine;
   imesh->get_entities_by_type( set_handle, MBTET, ents_to_refine ); // refine just the tets
   //ents_to_refine.insert( set_handle ); // refine everything multiple times (because subsets are not disjoint)
   struct timeval tic, toc;

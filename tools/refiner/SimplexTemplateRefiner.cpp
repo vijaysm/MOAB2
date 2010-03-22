@@ -1,7 +1,7 @@
-#include "moab/SimplexTemplateRefiner.hpp"
+#include "SimplexTemplateRefiner.hpp"
 
-#include "moab/EdgeSizeEvaluator.hpp"
-#include "moab/RefinerTagManager.hpp"
+#include "EdgeSizeEvaluator.hpp"
+#include "RefinerTagManager.hpp"
 
 #include "moab/Interface.hpp"
 

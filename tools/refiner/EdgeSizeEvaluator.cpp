@@ -1,22 +1,24 @@
-#include "MBEdgeSizeEvaluator.hpp"
+#include "EdgeSizeEvaluator.hpp"
 
-#include "MBRefinerTagManager.hpp"
-#include "MBInterface.hpp"
+#include "RefinerTagManager.hpp"
+#include "moab/Interface.hpp"
 
 #include <assert.h>
 
+namespace moab {
+
 /// Construct an evaluator.
-MBEdgeSizeEvaluator::MBEdgeSizeEvaluator()
+EdgeSizeEvaluator::EdgeSizeEvaluator()
 {
   this->tag_manager = 0;
 }
 
 /// Destruction is virtual so subclasses may clean up after refinement.
-MBEdgeSizeEvaluator::~MBEdgeSizeEvaluator()
+EdgeSizeEvaluator::~EdgeSizeEvaluator()
 {
 }
 
-/**\fn bool MBEdgeSizeEvaluator::evaluate_edge( \
+/**\fn bool EdgeSizeEvaluator::evaluate_edge( \
   *         const double* p0, const void* t0, double* p1, void* t1, const double* p2, const void* t2 )
   *\brief Returns true if the edge \a p0 - \a p2 should be subdivided, false otherwise.
   *
@@ -33,4 +35,5 @@ MBEdgeSizeEvaluator::~MBEdgeSizeEvaluator()
   * Subclasses may access vertex_tags and vertexSize directly; the refiner uses public methods to
   * populate vertex_tags before evaluate_edge() is called.
   */
+}
 

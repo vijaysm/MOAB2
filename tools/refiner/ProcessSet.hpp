@@ -24,7 +24,7 @@
 #ifndef MOAB_PROCESS_SET_HPP
 #define MOAB_PROCESS_SET_HPP
 
-#include "moab/Types.h"
+#include "moab/Types.hpp"
 #include "moab/ParallelComm.hpp"
 
 #include <iostream>

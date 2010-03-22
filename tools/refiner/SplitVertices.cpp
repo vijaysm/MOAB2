@@ -1,7 +1,7 @@
-#include "moab/SplitVertices.hpp"
-#include "moab/RefinerTagManager.hpp"
+#include "SplitVertices.hpp"
+#include "RefinerTagManager.hpp"
 
-#include "ParallelConventions.h"
+#include "MBParallelConventions.h"
 
 namespace moab {
 
