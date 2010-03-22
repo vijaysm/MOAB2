@@ -31,3 +31,6 @@ nobase_example_DATA = \
 
 install-data-hook:
 	mv -f $(DESTDIR)$(exampledir)/examples.make $(DESTDIR)$(exampledir)/makefile
+
+uninstall-hook:
+	rm -f $(DESTDIR)$(exampledir)/makefile
