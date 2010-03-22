@@ -24,7 +24,7 @@ if PARALLEL
   libiMesh_la_include_HEADERS += iMeshP.h iMeshP_f.h iMeshP_protos.h
   AM_CPPFLAGS += -I$(top_srcdir)/src/parallel -I$(top_srcdir)/src/parallel/moab
 
-  check_PROGRAMS += partest iMeshP_unit_tests
+  check_PROGRAMS += partest # iMeshP_unit_tests
 
 #  check_PROGRAMS += ftest
 #  ftest_SOURCES = ftest.F
