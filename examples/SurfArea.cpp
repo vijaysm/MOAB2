@@ -9,7 +9,7 @@
 
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
-#include "CartVect.hpp"
+#include "moab/CartVect.hpp"
 #include <iostream>
 
 using namespace moab;
