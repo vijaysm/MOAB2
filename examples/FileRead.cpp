@@ -13,7 +13,7 @@ int comment(string & line)
 {
     // if a line starts with '#' is a comment
     // eat white space characters
-    int found=line.find_first_not_of(" \t");
+    size_t found=line.find_first_not_of(" \t");
     if (found==string::npos)
 	return 1; // empty line
     if ('#'==line[found])
@@ -21,7 +21,7 @@ int comment(string & line)
     return 0; // a line with some data in it, then
 
 }
-MBErrorCode ReadTriangleOutput( MBCore *mb, std::string fileBase ) {    
+MBErrorCode ReadTriangleOutput( MBCore *mb, string fileBase ) {    
   
   //
   // get the read interface from moab
