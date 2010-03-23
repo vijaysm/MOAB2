@@ -49,10 +49,12 @@ void print_hex( moab::Interface& mb, moab::EntityHandle hex );
 
 int main( )
 {
+    // Ask user for file to read
   std::string filename;
   std::cout << "Hex mesh file name: ";
   std::cin >> filename;
   
+    // Read file into MOAB instance
   moab::ErrorCode rval;
   moab::Core moab;
   moab::Interface& mb = moab;
@@ -63,6 +65,7 @@ int main( )
     return 1;
   }
   
+    // Get all hex elemeents
   moab::Range elems;
   rval = mb.get_entities_by_type( 0, moab::MBHEX, elems ); CHKERR(rval);
   if (elems.empty()) {
@@ -70,10 +73,14 @@ int main( )
     return 1;
   }
   
+    // Build a kD-tree from hex elements
   moab::EntityHandle tree_root;
   moab::AdaptiveKDTree tool( &mb );
   rval = tool.build_tree( elems, tree_root ); CHKERR(rval);
   
+    // Loop forever (or until EOF), asking user for a point
+    // to query and printing the hex element containing that
+    // point.
   for (;;) {
     double point[3];
     std::cout << "Point coordinates: ";
@@ -102,26 +109,38 @@ moab::EntityHandle hex_containing_point( moab::Interface& mb,
   const moab::EntityHandle* conn; // hex connectivity
   int conn_len;
   
+    // Get hexes in leaf
   std::vector<moab::EntityHandle> hexes;
-  std::vector<moab::EntityHandle>::const_iterator i;
   rval = mb.get_entities_by_type( set, moab::MBHEX, hexes ); CHKERR(rval);
+
+    // Check which hex the point is in
+  std::vector<moab::EntityHandle>::const_iterator i;
   for (i = hexes.begin(); i != hexes.end(); ++i) {
     rval = mb.get_connectivity( *i, conn, conn_len ); CHKERR(rval);
     rval = mb.get_coords( conn, 8, &coords[0][0] ); CHKERR(rval);
     if (moab::GeomUtil::point_in_trilinear_hex( coords, pt, EPSILON ))
       return *i;
   }
+  
+    // Return 0 if no hex contains point.
   return 0;  
 }
 
 void print_hex( moab::Interface& mb, moab::EntityHandle hex )
 {
+    // Get MOAB's internal ID for hex element
   int id = mb.id_from_handle(hex);
-  double coords[3*8]; // coordinates of corners of hexahedron
+  
+    // Get vertex handles for hex corners
   const moab::EntityHandle* conn; // hex connectivity
   int conn_len;
   mb.get_connectivity( hex, conn, conn_len );
+  
+    // Get coordinates of vertices
+  double coords[3*8]; 
   mb.get_coords( conn, 8, coords );
+  
+    // Print
   std::cout << " Point is in hex " << id << " with corners: " << std::endl;
   for (int i = 0; i < 8; ++i) {
     std::cout << " (" << coords[3*i] 
