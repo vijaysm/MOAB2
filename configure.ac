@@ -1075,7 +1075,7 @@ if test "x$HAVE_NETCDF" = "xno"; then
 elif test "xno" = "x$NETCDF_SUFFICIENT_DIMS_VARS"; then
   AC_MSG_WARN([
 *************************************************************************
-*  The configured NetCDF library does not have sufficient cosntant limits
+*  The configured NetCDF library does not have sufficient constant limits
 *  to support reading of ExodusII with large numbers of blocks or sidesets
 *  or nodesets.  Please consider re-compiling your NetCDF library after
 *  increasing the constants NC_MAX_DIMS and NC_MAX_VARS in netcdf.h to
