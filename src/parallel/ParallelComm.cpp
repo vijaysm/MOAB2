@@ -4290,7 +4290,7 @@ ErrorCode ParallelComm::check_clean_iface(Range &allsent)
     // allsent is all entities I think are on interface; go over them, looking
     // for zero-valued handles, and fix any I find
 
-  ErrorCode result;
+  ErrorCode result = MB_SUCCESS;
   Range::iterator rit;
   unsigned char pstatus;
   int sharedp[MAX_SHARING_PROCS], nump;
