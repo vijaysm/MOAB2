@@ -8107,7 +8107,295 @@ ErrorCode mb_skin_adjacent_surf_patches( Interface* )
   
   return error_count ? MB_FAILURE : MB_SUCCESS;
 }
-    
+
+
+static ErrorCode get_by_all_types_and_tag( Interface* mb,
+                                           EntityHandle meshset,
+                                           const Tag* tag_handles,
+                                           const void* const* values,
+                                           int num_tags,
+                                           Range& result,
+                                           int condition,
+                                           bool recursive )
+{
+  ErrorCode rval;
+  Range tmp;
+  const EntityType LAST = recursive ? MBENTITYSET : MBMAXTYPE;
+  for (EntityType t = MBVERTEX; t < LAST; ++t) {
+    tmp.clear();
+    rval = mb->get_entities_by_type_and_tag( meshset, t, tag_handles, values, num_tags, tmp, condition, recursive );
+    if (MB_SUCCESS != rval)
+      return rval;
+    result.insert( tmp.begin(), tmp.end() );
+  }
+  return MB_SUCCESS;
+}
+
+
+/** Check that functions which accept a type return the
+ *  result for all types when passed MBMAXTYPE
+ */
+ErrorCode mb_type_is_maxtype_test( Interface* mb )
+{
+  ErrorCode rval;
+  
+  Range r1, r2;
+  rval = mb->get_entities_by_type( 0, MBMAXTYPE, r1, false ); CHKERR(rval);
+  rval = mb->get_entities_by_handle( 0, r2, false ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  
+  std::vector<EntityHandle> v1, v2;
+  rval = mb->get_entities_by_type( 0, MBMAXTYPE, v1, false ); CHKERR(rval);
+  rval = mb->get_entities_by_handle( 0, v2, false ); CHKERR(rval);
+  CHECK( v1 == v2 );
+  
+  int c1, c2;
+  rval = mb->get_number_entities_by_type( 0, MBMAXTYPE, c1, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_handle( 0, c2, false ); CHKERR(rval);
+  CHECK( c1 == c2 );
+  
+  Range h1, h2;
+  Range::iterator it = r1.begin() + r1.size()/2;
+  h1.insert( r1.begin(), it );
+  if (it != r1.end())
+    h2.insert( ++it, r1.end() );
+  
+  EntityHandle s1, s2;
+  rval = mb->create_meshset( MESHSET_SET, s1 ); CHKERR(rval);
+  rval = mb->create_meshset( MESHSET_ORDERED, s2 ); CHKERR(rval);
+  rval = mb->add_entities( s1, r1 ); CHKERR(rval);
+  rval = mb->add_entities( s2, r2 ); CHKERR(rval);
+  rval = mb->add_entities( s2, &s1, 1 ); CHKERR(rval);
+  
+  r1.clear();
+  r2.clear();
+  rval = mb->get_entities_by_type( s1, MBMAXTYPE, r1, false ); CHKERR(rval);
+  rval = mb->get_entities_by_handle( s1, r2, false ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  
+  r1.clear();
+  r2.clear();
+  rval = mb->get_entities_by_type( s2, MBMAXTYPE, r1, false ); CHKERR(rval);
+  rval = mb->get_entities_by_handle( s2, r2, false ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  
+  r1.clear();
+  r2.clear();
+  rval = mb->get_entities_by_type( s2, MBMAXTYPE, r1, true ); CHKERR(rval);
+  rval = mb->get_entities_by_handle( s2, r2, true ); CHKERR(rval);
+  CHECK( r1 == r2 );
+ 
+   
+  v1.clear();
+  v2.clear();
+  rval = mb->get_entities_by_type( s1, MBMAXTYPE, v1, false ); CHKERR(rval);
+  rval = mb->get_entities_by_handle( s1, v2, false ); CHKERR(rval);
+  CHECK( v1 == v2 );
+  
+  v1.clear();
+  v2.clear();
+  rval = mb->get_entities_by_type( s2, MBMAXTYPE, v1, false ); CHKERR(rval);
+  rval = mb->get_entities_by_handle( s2, v2, false ); CHKERR(rval);
+  CHECK( v1 == v2 );
+  
+  v1.clear();
+  v2.clear();
+  rval = mb->get_entities_by_type( s2, MBMAXTYPE, v1, true ); CHKERR(rval);
+  rval = mb->get_entities_by_handle( s2, v2, true ); CHKERR(rval);
+  CHECK( v1 == v2 );
+ 
+   
+  rval = mb->get_number_entities_by_type( s1, MBMAXTYPE, c1, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_handle( s1, c2, false ); CHKERR(rval);
+  CHECK( c1 == c2 );
+  
+  rval = mb->get_number_entities_by_type( s2, MBMAXTYPE, c1, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_handle( s2, c2, false ); CHKERR(rval);
+  CHECK( c1 == c2 );
+  
+  rval = mb->get_number_entities_by_type( s2, MBMAXTYPE, c1, true ); CHKERR(rval);
+  rval = mb->get_number_entities_by_handle( s2, c2, true ); CHKERR(rval);
+  CHECK( c1 == c2 );
+ 
+  r1.clear();
+  rval = mb->get_entities_by_handle( s1, r1 ); CHKERR(rval);
+  Tag t1;
+  rval = mb->tag_create( "maxtype1", sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, t1, 0 );
+  CHKERR(rval);
+  std::vector<int> d1(r1.size());
+  Range::iterator ri;
+  std::vector<int>::iterator ii = d1.begin();
+  for (ri = r1.begin(); ri != r1.end(); ++ri, ++ii)
+    *ii = ((int)ID_FROM_HANDLE(*ri)) % 20;
+  rval = mb->tag_set_data( t1, r1, &d1[0] ); CHKERR(rval);
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( 0, MBMAXTYPE, &t1, 0, 1, r1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( 0, MBMAXTYPE, &t1, 0, 1, c1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, 0, &t1, 0, 1, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( s1, MBMAXTYPE, &t1, 0, 1, r1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s1, MBMAXTYPE, &t1, 0, 1, c1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, s1, &t1, 0, 1, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, 0, 1, r1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, 0, 1, c1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, &t1, 0, 1, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, 0, 1, r1, Interface::INTERSECT, true ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, 0, 1, c1, Interface::INTERSECT, true ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, &t1, 0, 1, r2, Interface::INTERSECT, true ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+  
+  int value = 3;
+  const void* vallist[2] = { &value, 0 };
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( 0, MBMAXTYPE, &t1, vallist, 1, r1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( 0, MBMAXTYPE, &t1, vallist, 1, c1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, 0, &t1, vallist, 1, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( s1, MBMAXTYPE, &t1, vallist, 1, r1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s1, MBMAXTYPE, &t1, vallist, 1, c1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, s1, &t1, vallist, 1, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, vallist, 1, r1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, vallist, 1, c1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, &t1, vallist, 1, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, vallist, 1, r1, Interface::INTERSECT, true ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, vallist, 1, c1, Interface::INTERSECT, true ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, &t1, vallist, 1, r2, Interface::INTERSECT, true ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_handle( s1, r1 ); CHKERR(rval);
+  r2.insert( r1.back() );
+  r1.clear();
+  rval = mb->get_entities_by_handle( s2, r1 ); CHKERR(rval);
+  r2.insert( r1.front() );
+  
+  Tag t2;
+  rval = mb->tag_create( "maxtype2", sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, t2, 0 );
+  CHKERR(rval);
+  d1.resize(r2.size());
+  ii = d1.begin();;
+  for (ri = r2.begin(); ri != r2.end(); ++ri, ++ii)
+    *ii = ((int)ID_FROM_HANDLE(*ri)) % 2;
+  rval = mb->tag_set_data( t2, r2, &d1[0] ); CHKERR(rval);
+  
+  Tag tags[] = { t1, t2 };
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( 0, MBMAXTYPE, tags, 0, 2, r1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( 0, MBMAXTYPE, tags, 0, 2, c1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, 0, tags, 0, 2, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( s1, MBMAXTYPE, tags, 0, 2, r1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s1, MBMAXTYPE, tags, 0, 2, c1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, s1, tags, 0, 2, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, tags, 0, 2, r1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, tags, 0, 2, c1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, tags, 0, 2, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, tags, 0, 2, r1, Interface::INTERSECT, true ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, tags, 0, 2, c1, Interface::INTERSECT, true ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, tags, 0, 2, r2, Interface::INTERSECT, true ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+  
+  int val2 = 1;
+  vallist[1] = &val2;
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( 0, MBMAXTYPE, tags, vallist, 2, r1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( 0, MBMAXTYPE, tags, vallist, 2, c1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, 0, tags, vallist, 2, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( s1, MBMAXTYPE, tags, vallist, 2, r1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s1, MBMAXTYPE, tags, vallist, 2, c1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, s1, tags, vallist, 2, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, r1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, c1, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, tags, vallist, 2, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, r1, Interface::INTERSECT, true ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, c1, Interface::INTERSECT, true ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, tags, vallist, 2, r2, Interface::INTERSECT, true ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+   
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( 0, MBMAXTYPE, tags, vallist, 2, r1, Interface::UNION, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( 0, MBMAXTYPE, tags, vallist, 2, c1, Interface::UNION, false ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, 0, tags, vallist, 2, r2, Interface::UNION, false ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( s1, MBMAXTYPE, tags, vallist, 2, r1, Interface::UNION, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s1, MBMAXTYPE, tags, vallist, 2, c1, Interface::UNION, false ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, s1, tags, vallist, 2, r2, Interface::UNION, false ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, r1, Interface::UNION, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, c1, Interface::UNION, false ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, tags, vallist, 2, r2, Interface::UNION, false ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+  
+  r1.clear(); r2.clear();
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, r1, Interface::UNION, true ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, c1, Interface::UNION, true ); CHKERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, tags, vallist, 2, r2, Interface::UNION, true ); CHKERR(rval);
+  CHECK( r1 == r2 );
+  CHECK( (unsigned)c1 == r2.size() );
+  
+  return MB_SUCCESS;
+} 
+  
   
 static void usage(const char* exe) {
   cerr << "Usage: " << exe << " [-nostress] [-d input_file_dir]\n";
@@ -8222,6 +8510,7 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_read_fail_test );
   RUN_TEST( mb_enum_string_test );
   RUN_TEST( mb_merge_update_test );
+  RUN_TEST( mb_type_is_maxtype_test );
   RUN_TEST( mb_merge_test );
   if (stress_test) RUN_TEST( mb_stress_test );
 
