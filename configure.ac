@@ -314,7 +314,7 @@ AC_SUBST(CCMIO_LIBS)
 
 old_LDFLAGS="$LDFLAGS"
 LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
-FATHOM_CHECK_NETCDF
+FATHOM_CHECK_NETCDF([65536],[524288])
 LDFLAGS="$old_LDFLAGS"
 if test "xno" = "x$HAVE_NETCDF"; then
   AC_MSG_WARN([Support for ExodusII file format disabled])
@@ -1071,6 +1071,16 @@ if test "x$HAVE_NETCDF" = "xno"; then
 *************************************************************************
 *           MOAB has been configured w/out the NetCDF library.
 *     Support for ExodusII/Genesis and other file formats is disabled!
+*************************************************************************])
+elif test "xno" = "x$NETCDF_SUFFICIENT_DIMS_VARS"; then
+  AC_MSG_WARN([
+*************************************************************************
+*  The configured NetCDF library does not have sufficient cosntant limits
+*  to support reading of ExodusII with large numbers of blocks or sidesets
+*  or nodesets.  Please consider re-compiling your NetCDF library after
+*  increasing the constants NC_MAX_DIMS and NC_MAX_VARS in netcdf.h to
+*  65536 and 524288, respectively.  See: 
+*  http://cubit.sandia.gov/help-version11.1/finite_element_model/export/exporting_exodus2_file.htm
 *************************************************************************])
 fi
 

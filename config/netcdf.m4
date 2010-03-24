@@ -5,8 +5,20 @@
 #   NETCDF_CPPFLAGS
 #   NETCDF_LDFLAGS
 #   NETCDF_LIBS
+#   NETCDF_SUFFICIENT_DIMS_VARS
+#
+# This macro has two optional arguments:  a minimum value for
+# NC_MAX_DIMS and a minimum value for NC_MAX_VARS.  If either or
+# both of these are specified, NETCDF_SUFFICIENT_DIMS_VARS will
+# be set to yes if the NetCDF library is built with limits that
+# are at least the passed miminums.  It will be set to no if 
+# either limit is less than the passed minimum.
 #######################################################################################
 AC_DEFUN([FATHOM_CHECK_NETCDF],[
+
+MIN_NC_MAX_DIMS="$1"
+MIN_NC_MAX_VARS="$2"
+NETCDF_SUFFICIENT_DIMS_VARS=yes
 
 AC_MSG_CHECKING([if NetCDF support is enabled])
 AC_ARG_WITH(netcdf, 
@@ -28,14 +40,13 @@ if test "xno" != "x$NETCDF_ARG"; then
   HAVE_NETCDF=yes
 
     # Check for stream headers and set STRSTREAM_H_SPEC accordingly
-  AC_LANG_SAVE
-  AC_LANG_CPLUSPLUS
+  AC_LANG_PUSH([C++])
   AC_CHECK_HEADER( [strstream.h], [NETCDF_DEF="<strstream.h>"], [
     AC_CHECK_HEADER( [sstream.h], [NETCDF_DEF="<sstream.h>"], [
       AC_CHECK_HEADER( [strstream], [NETCDF_DEF="<strstream>"], [
         AC_CHECK_HEADER( [sstream], [NETCDF_DEF="<sstream>"] )
   ] ) ] ) ] )
-  AC_LANG_RESTORE
+  AC_LANG_POP([C++])
   
     # if a path is specified, update LIBS and INCLUDES accordingly
   if test "xyes" != "x$NETCDF_ARG" && test "x" != "x$NETCDF_ARG"; then
@@ -61,10 +72,27 @@ if test "xno" != "x$NETCDF_ARG"; then
   LDFLAGS="$NETCDF_LDFLAGS $LDFLAGS"
   
    # Check for C library
+  AC_LANG_PUSH([C])
   AC_CHECK_HEADERS( [netcdf.h], [], [AC_MSG_WARN([[NetCDF header not found.]]); HAVE_NETCDF=no] )
+  if test "x" != "x$MIN_NC_MAX_DIMS"; then
+    AC_MSG_CHECKING([if NC_MAX_DIMS is at least ${MIN_NC_MAX_DIMS}])
+    AC_COMPILE_IFELSE(
+      [AC_LANG_PROGRAM([#include <netcdf.h>],
+                       [[int arr[1 + (int)(${MIN_NC_MAX_DIMS}) - (int)(NC_MAX_DIMS)];]])],
+      [AC_MSG_RESULT([yes])],
+      [AC_MSG_RESULT([no]); NETCDF_SUFFICIENT_DIMS_VARS=no])
+  fi
+  if test "x" != "x$MIN_NC_MAX_VARS"; then
+    AC_MSG_CHECKING([if NC_MAX_VARS is at least ${MIN_NC_MAX_VARS}])
+    AC_COMPILE_IFELSE(
+      [AC_LANG_PROGRAM([#include <netcdf.h>],
+                       [[int arr[1 + (int)(${MIN_NC_MAX_VARS}) - (int)(NC_MAX_VARS)];]])],
+      [AC_MSG_RESULT([yes])],
+      [AC_MSG_RESULT([no]); NETCDF_SUFFICIENT_DIMS_VARS=no])
+  fi
+  
   AC_MSG_CHECKING([for netcdf.hh])
-  AC_LANG_SAVE
-  AC_LANG_CPLUSPLUS
+  AC_LANG_PUSH([C++])
   HAVE_NETCDF_HH=no
   AC_TRY_COMPILE( 
 [#include "netcdf.hh"], [], [HAVE_NETCDF_HH=yes; NETCDF_DEF=], [
@@ -95,7 +123,10 @@ if test "xno" != "x$NETCDF_ARG"; then
            [AC_MSG_RESULT([no]); HAVE_NETCDF=no] )    
      ])
   LIBS="$old_LIBS"
-  AC_LANG_RESTORE
+  AC_LANG_POP([C++])
+  
+  
+  
   CPPFLAGS="$old_CPPFLAGS"
   LDFLAGS="$old_LDFLAGS"
 
