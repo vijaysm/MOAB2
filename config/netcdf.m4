@@ -78,7 +78,7 @@ if test "xno" != "x$NETCDF_ARG"; then
     AC_MSG_CHECKING([if NC_MAX_DIMS is at least ${MIN_NC_MAX_DIMS}])
     AC_COMPILE_IFELSE(
       [AC_LANG_PROGRAM([#include <netcdf.h>],
-                       [[int arr[1 + (int)(${MIN_NC_MAX_DIMS}) - (int)(NC_MAX_DIMS)];]])],
+                       [[int arr[1 + (int)(NC_MAX_DIMS) - (int)(${MIN_NC_MAX_DIMS})];]])],
       [AC_MSG_RESULT([yes])],
       [AC_MSG_RESULT([no]); NETCDF_SUFFICIENT_DIMS_VARS=no])
   fi
@@ -86,7 +86,7 @@ if test "xno" != "x$NETCDF_ARG"; then
     AC_MSG_CHECKING([if NC_MAX_VARS is at least ${MIN_NC_MAX_VARS}])
     AC_COMPILE_IFELSE(
       [AC_LANG_PROGRAM([#include <netcdf.h>],
-                       [[int arr[1 + (int)(${MIN_NC_MAX_VARS}) - (int)(NC_MAX_VARS)];]])],
+                       [[int arr[1 + (int)(NC_MAX_VARS) - (int)(${MIN_NC_MAX_VARS})];]])],
       [AC_MSG_RESULT([yes])],
       [AC_MSG_RESULT([no]); NETCDF_SUFFICIENT_DIMS_VARS=no])
   fi
