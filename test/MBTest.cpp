@@ -767,7 +767,7 @@ ErrorCode mb_adjacencies_test(Interface *mb)
     //mb->delete_mesh();
     //result = mb->load_mesh("mbtest2.g", 0);
     //if (MB_SUCCESS != result)
-  return result;
+    //return result;
 
     // lets create a skin of the hexes
     // this may be far from being the most efficient, but
