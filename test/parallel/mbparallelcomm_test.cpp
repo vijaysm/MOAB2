@@ -427,7 +427,7 @@ ErrorCode report_iface_ents(Interface *mbImpl,
   ErrorCode result = MB_SUCCESS, tmp_result;
   
     // now figure out which vertices are shared
-  Range part_ents;
+  Range part_ents, part_verts;
   for (unsigned int p = 0; p < pcs.size(); p++) {
     // get entities owned by this partition
     for (Range::iterator rit = pcs[p]->partition_sets().begin();
@@ -452,6 +452,20 @@ ErrorCode report_iface_ents(Interface *mbImpl,
     }
   }
 
+    // get non-owned vertices
+  result = pcs[0]->get_pstatus_entities(0, PSTATUS_NOT_OWNED, part_verts);
+  if (MB_SUCCESS != tmp_result) {
+    std::cerr << "Couldn't get non-owned entities." << std::endl;
+    return result;
+  }
+  int tot_verts;
+  result = mbImpl->get_number_entities_by_dimension(0, 0, tot_verts);
+  if (MB_SUCCESS != tmp_result) {
+    std::cerr << "Couldn't get number of vertices." << std::endl;
+    return result;
+  }
+  tot_verts -= part_verts.size();
+
     // report # iface entities
   result = mbImpl->get_adjacencies(iface_ents[4], 0, false, iface_ents[5], 
                                    Interface::UNION);
@@ -474,15 +488,19 @@ ErrorCode report_iface_ents(Interface *mbImpl,
 	    << " 3d entities." << std::endl;
 
     // get total # regions over all procs
-  int num_local = part_ents.size(), num_total;
+  int num_local[2], num_total[2];
+  num_local[0] = tot_verts;
+  num_local[1] = part_ents.size();
   
-  int failure = MPI_Reduce(&num_local, &num_total, 1,
+  int failure = MPI_Reduce(&num_local, &num_total, 2,
                            MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
   if (failure) result = MB_FAILURE;
 
-  if (0 == rank)
-    std::cout << "Total # owned regions = " << num_total << std::endl;
-    
+  if (0 == rank) {
+    std::cout << "Total # owned vertices = " << num_total[0] << std::endl;
+    std::cout << "Total # owned regions = " << num_total[1] << std::endl;
+  }
+  
   return result;
 }
 

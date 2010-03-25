@@ -16,7 +16,15 @@
 #include <iostream>
 #include <string>
 
-#define RR if (MB_SUCCESS != result) return result
+#define RR                                                            \
+    {if (MB_SUCCESS != result) {                                      \
+        std::string last_error;                                       \
+        mbImpl->get_last_error(last_error);                           \
+        std::cerr << "MOAB returned with error: " << std::endl;       \
+        std::cerr << last_error << std::endl;                         \
+        return 1;                                                     \
+      }                                                               \
+    }
 
 int main(int argc, char *argv[])
 {
@@ -49,10 +57,11 @@ int main(int argc, char *argv[])
   err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // create MOAB instance based on that
-  moab::Interface *mbImpl = new moab::Core(rank, nprocs);
+  moab::Interface *mbImpl = new moab::Core();
   if (NULL == mbImpl) return 1;
   
   moab::ErrorCode result = mbImpl->load_mesh(argv[2]); RR;
+    
   
   MBZoltan *mbz = new MBZoltan(mbImpl, false, argc, argv);
 
