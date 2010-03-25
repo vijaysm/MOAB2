@@ -1451,14 +1451,14 @@ void AEntityFactory::get_memory_use( unsigned long& entity_total,
       
       if (prev_data != (*i)->data()) {
         prev_data = (*i)->data();
-        memory_total += prev_data->size() * sizeof(AdjacencyVector);
+        memory_total += prev_data->size() * sizeof(AdjacencyVector*);
       }
       
       const AdjacencyVector* vec;
       for (EntityHandle h = (*i)->start_handle(); h <= (*i)->end_handle(); ++h) {
         get_adjacency_ptr( h, vec );
         if (vec) 
-          entity_total += vec->capacity() * sizeof(EntityHandle) * sizeof(AdjacencyVector);
+          entity_total += vec->capacity() * sizeof(EntityHandle) + sizeof(AdjacencyVector);
       }
     }
   }
@@ -1472,6 +1472,7 @@ ErrorCode AEntityFactory::get_memory_use( const Range& ents_in,
                                        unsigned long& amortized )
 {
   min_per_ent = amortized = 0;
+  SequenceData* prev_data = 0;
   RangeSeqIntersectIter iter( thisMB->sequence_manager() );
   ErrorCode rval = iter.init( ents_in.begin(), ents_in.end() );
   if (MB_SUCCESS != rval)
@@ -1487,10 +1488,13 @@ ErrorCode AEntityFactory::get_memory_use( const Range& ents_in,
                                 ->entity_map( iter.get_sequence()->type() )
                                  .get_occupied_size( iter.get_sequence()->data() );
     
-    amortized += sizeof(AdjacencyVector*) 
-                 * iter.get_sequence()->data()->size()
-                 * count / data_occ;
-                 
+    if (iter.get_sequence()->data() != prev_data) {
+      prev_data = iter.get_sequence()->data();
+      amortized += sizeof(AdjacencyVector*) 
+                   * iter.get_sequence()->data()->size()
+                   * count / data_occ;
+    }
+            
     array += iter.get_start_handle() - iter.get_sequence()->data()->start_handle();
     for (EntityID i = 0; i < count; ++i) {
       if (array[i]) 
