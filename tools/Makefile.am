@@ -53,6 +53,10 @@ if ENABLE_mbtagprop
   doc_DATA += README.mbtagprop
 endif
 
+if ENABLE_mbmem
+  bin_PROGRAMS += mbmem
+endif
+
 if ENABLE_spheredecomp
   bin_PROGRAMS += spheredecomp
   doc_DATA += README.spheredecomp
