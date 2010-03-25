@@ -435,9 +435,10 @@ ErrorCode BitTag::get_number_entities( const Range &range,
 }
 
 ErrorCode BitTag::get_memory_use( unsigned long& total,
-                                    unsigned long& per_entity ) const
+                                  unsigned long& per_entity ) const
 {
   per_entity = (storedBitsPerEntity > 4); // cannot return fraction of bytes, so round
+  total = 0;
   for (EntityType t = (EntityType)0; t < MBMAXTYPE; ++t) {
     total += pageList[t].capacity() * sizeof(BitPage*);
     for (size_t i = 0; i < pageList[t].size(); ++i)
