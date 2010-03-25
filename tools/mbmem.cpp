@@ -17,11 +17,13 @@
 void usage( const char* argv0 )
 {
   std::cerr << "Usage: " << argv0 << " [-h|-b|-k|-m] <filename> [<filename> ...]" << std::endl
+            << "Usage: " << argv0 << " [-h|-b|-k|-m] -T" << std::endl
             << "  -h : human readable units" << std::endl
             << "  -b : bytes" << std::endl
             << "  -k : kilobytes (1 kB == 1024 bytes)" << std::endl
             << "  -m : megabytes (1 MB == 1024 kB)" << std::endl
             << "  -g : gigabytes (1 GB == 1024 MB)" << std::endl
+            << "  -T : test mode" << std::endl
             << std::endl;
   std::exit(1);
 }
@@ -30,15 +32,22 @@ enum Units { HUMAN, BYTES, KILOBYTES, MEGABYTES, GIGABYTES };
 Units UNITS = HUMAN;
 
   // The core functionality of this example
-void print_memory_stats( moab::Interface& mb );
+void print_memory_stats( moab::Interface& mb,
+                         bool per_type = true,
+                         bool per_tag = true,
+                         bool totals = true,
+                         bool sysstats = true );
+  
+  // Generate a series of meshes for testing
+void do_test_mode();
   
   // main routine: read any specified files and call print_memory_stats
 int main( int argc, char* argv[] )
 {
-  moab::Core mbcore;
-  moab::Interface& mb = mbcore;
   moab::ErrorCode rval;
   bool no_more_flags = false;
+  bool test_mode = false;
+  std::vector<int> input_file_list;
 
     // load each file specified on command line
   for (int i = 1; i < argc; ++i) {
@@ -53,23 +62,40 @@ int main( int argc, char* argv[] )
         UNITS = MEGABYTES;
       else if(!strcmp(argv[i],"-g"))
         UNITS = GIGABYTES;
+      else if(!strcmp(argv[i],"-T"))
+        test_mode = true;
       else if(!strcmp(argv[i],"--"))
         no_more_flags = true;
       else
         usage(argv[0]);
     }
     else {
-      rval = mb.load_file(argv[i]);
-
-        // if file load failed, print some info and exit
-      if (moab::MB_SUCCESS != rval) {
-        std::string message;
-        mb.get_last_error( message );
-        std::cerr << mb.get_error_string(rval) << ": " << message << std::endl
-                  << argv[i] << ": Failed to read file." << std::endl;
-        return 1;
-      }
+      input_file_list.push_back(i);
     }
+  }
+  
+  if (test_mode) {
+    do_test_mode();
+    if (input_file_list.empty())
+      return 0;
+  }
+
+  moab::Core mbcore;
+  moab::Interface& mb = mbcore;
+  for (std::vector<int>::iterator it = input_file_list.begin(); 
+       it != input_file_list.end(); ++it) {
+    rval = mb.load_file(argv[*it]);
+
+      // if file load failed, print some info and exit
+    if (moab::MB_SUCCESS != rval) {
+      std::string message;
+      mb.get_last_error( message );
+      std::cerr << mb.get_error_string(rval) << ": " << message << std::endl
+                << argv[*it] << ": Failed to read file." << std::endl;
+      return 1;
+    }
+    
+    std::cout << "Loaded file: " << argv[*it] << std::endl;
   }
   
     // print summary of MOAB's memory use
@@ -110,7 +136,11 @@ std::string tag_storage_string( moab::Interface& mb, moab::Tag tag );
   // Center
 std::string center( const char* str, size_t width );
 
-void print_memory_stats( moab::Interface& mb )
+void print_memory_stats( moab::Interface& mb,
+                         bool per_type,
+                         bool per_tag,
+                         bool totals,
+                         bool sysstats )
 {
   moab::ErrorCode rval;
   const char ANON_TAG_NAME[] = "(anonymous)";
@@ -123,152 +153,163 @@ void print_memory_stats( moab::Interface& mb )
 
     // per-entity-type table header
   MemStats stats;
-  std::cout.fill(' ');
-  std::cout << std::left << std::setw(TYPE_WIDTH) << "Type" << ' '
-            << center("Total",MEM2_WIDTH) << ' '
-            << center("Entity",MEM2_WIDTH) << ' '
-            << center("Adjacency",MEM2_WIDTH) << ' '
-            << center("Tag",MEM2_WIDTH) << ' '
-            << std::endl << std::setw(TYPE_WIDTH) << " ";
-  for (int i = 0; i < 4; ++i)
-    std::cout << ' ' << std::left << std::setw(MEM_WIDTH) << "Used"
-              << ' ' << std::left << std::setw(MEM_WIDTH) << "Alloc";
-  std::cout << std::endl;
-  std::cout.fill('-');
-  std::cout << std::setw(TYPE_WIDTH) << '-';
-  for (int i = 0; i < 8; ++i)
-    std::cout << ' ' << std::setw(MEM_WIDTH) << '-';
-  std::cout.fill(' ');
-  std::cout << std::endl;
   
-    // per-entity-type memory use
-  for (moab::EntityType t = moab::MBVERTEX; t != moab::MBMAXTYPE; ++t) {
-    get_mem_stats( mb, stats, t );
-    if (is_zero(stats)) continue;  // skip types with no allocated memory
-    
-    std::cout << std::left << std::setw(TYPE_WIDTH) << moab::CN::EntityTypeName(t) << ' '
-              << std::right << std::setw(MEM_WIDTH) << memstr(stats.total_storage) << ' '
-              << std::right << std::setw(MEM_WIDTH) << memstr(stats.total_amortized) << ' '
-              << std::right << std::setw(MEM_WIDTH) << memstr(stats.entity_storage) << ' '
-              << std::right << std::setw(MEM_WIDTH) << memstr(stats.entity_amortized) << ' '
-              << std::right << std::setw(MEM_WIDTH) << memstr(stats.adjacency_storage) << ' '
-              << std::right << std::setw(MEM_WIDTH) << memstr(stats.adjacency_amortized) << ' '
-              << std::right << std::setw(MEM_WIDTH) << memstr(stats.tag_storage) << ' '
-              << std::right << std::setw(MEM_WIDTH) << memstr(stats.tag_amortized) << std::endl;
-  }
+  if (per_type) {
   
-    // get list of tags
-  std::vector<moab::Tag> tags;
-  std::vector<moab::Tag>::const_iterator ti;
-  mb.tag_get_tags( tags );
-  
-    // figure out required field with to fit longest tag name 
-  unsigned maxlen = MIN_TAG_NAME_WIDTH;
-  for (ti = tags.begin(); ti != tags.end(); ++ti) {
-    std::string name;
-    rval = mb.tag_get_name( *ti, name );
-    if (moab::MB_SUCCESS != rval)
-      continue;
-    if (name.size() > maxlen)
-      maxlen = name.size();
-  }
-  
-    // print header for per-tag data
-  if (!tags.empty()) {
     std::cout.fill(' ');
-    std::cout << std::endl
-              << std::left << std::setw(maxlen) << "Tag Name" << ' '
-              << std::left << std::setw(DTYPE_WIDTH) << "Type" << ' '
-              << std::left << std::setw(STORAGE_WIDTH) << "Storage" << ' '
-              << std::left << std::setw(MEM_WIDTH) << "Used" << ' '
-              << std::left << std::setw(MEM_WIDTH) << "Alloc" << std::endl;
+    std::cout << std::left << std::setw(TYPE_WIDTH) << "Type" << ' '
+              << center("Total",MEM2_WIDTH) << ' '
+              << center("Entity",MEM2_WIDTH) << ' '
+              << center("Adjacency",MEM2_WIDTH) << ' '
+              << center("Tag",MEM2_WIDTH) << ' '
+              << std::endl << std::setw(TYPE_WIDTH) << " ";
+    for (int i = 0; i < 4; ++i)
+      std::cout << ' ' << std::left << std::setw(MEM_WIDTH) << "Used"
+                << ' ' << std::left << std::setw(MEM_WIDTH) << "Alloc";
+    std::cout << std::endl;
     std::cout.fill('-');
-    std::cout << std::setw(maxlen) << '-' << ' '
-              << std::setw(DTYPE_WIDTH) << '-' << ' '
-              << std::setw(STORAGE_WIDTH) << '-' << ' '
-              << std::setw(MEM_WIDTH) << '-' << ' '
-              << std::setw(MEM_WIDTH) << '-' << std::endl;
+    std::cout << std::setw(TYPE_WIDTH) << '-';
+    for (int i = 0; i < 8; ++i)
+      std::cout << ' ' << std::setw(MEM_WIDTH) << '-';
     std::cout.fill(' ');
-  }
-              
-    // print per-tag memory use
-  for (ti = tags.begin(); ti != tags.end(); ++ti) {
-    std::string name;
-    rval = mb.tag_get_name( *ti, name );
-    if (moab::MB_SUCCESS != rval || name.empty())
-      name = ANON_TAG_NAME;
-    
-    unsigned long occupied, allocated;
-    mb.estimated_memory_use( 0, 0, 0, 0, 0, 0, 0, 0, &*ti, 1, &occupied, &allocated );
-    
-    std::cout << std::left << std::setw(maxlen) << name << ' '
-              << std::right << std::setw(DTYPE_WIDTH) << tag_type_string(mb,*ti) <<  ' '
-              << std::right << std::setw(STORAGE_WIDTH) << tag_storage_string(mb,*ti) << ' '
-              << std::right << std::setw(MEM_WIDTH) << memstr(occupied) << ' '
-              << std::right << std::setw(MEM_WIDTH) << memstr(allocated) << std::endl;
-  }
-  
-    // print summary of overall memory use
-  get_mem_stats( mb, stats );
-  std::cout << std::endl
-            << "TOTAL: (Used/Allocated)" << std::endl
-            << "memory:    " << memstr(stats.total_storage) << "/" << memstr(stats.total_amortized) << std::endl
-            << "entity:    " << memstr(stats.entity_storage) << "/" << memstr(stats.entity_amortized) << std::endl
-            << "adjacency: " << memstr(stats.adjacency_storage) << "/" << memstr(stats.adjacency_amortized) << std::endl
-            << "tag:       " << memstr(stats.tag_storage) << "/" << memstr(stats.tag_amortized) << std::endl
-            << std::endl;
+    std::cout << std::endl;
 
-  std::FILE* filp = std::fopen("/proc/self/stat", "r");
-  unsigned long vsize, rss;
-  if (filp && 2 == std::fscanf(filp,
-                "%*d " // pid
-                "%*s " // comm
-                "%*c " // state
-                "%*d " // ppid
-                "%*d " // pgrp
-                "%*d " // session
-                "%*d " // tty_nr
-                "%*d " // tpgid
-                "%*u " // flags
-                "%*u " // minflt
-                "%*u " // cminflt
-                "%*u " // majflt
-                "%*u " // cmajflt
-                "%*u " // utime
-                "%*u " // stime
-                "%*d " // cutime
-                "%*d " // cstime
-                "%*d " // priority
-                "%*d " // nice
-                "%*d " // num_threads
-                "%*d " // itrealvalue
-                "%*u " // starttime
-                "%lu " // vsize
-                "%ld", // rss
-                &vsize, &rss )) {
-#ifndef _MSC_VER
-    rss *= getpagesize();
-#endif
-    std::cout << std::endl << "SYSTEM:" 
-              << std::endl << "Virtual memory:    " << memstr(vsize)
-              << std::endl << "Resident set size: " << memstr(rss)
-              << std::endl;
-  }
-  else {
-#ifndef _MSC_VER
-    struct rusage sysdata;
-    if (getrusage( RUSAGE_SELF, &sysdata )) {
-      std::cerr << "getrusage failed" << std::endl;
+      // per-entity-type memory use
+    for (moab::EntityType t = moab::MBVERTEX; t != moab::MBMAXTYPE; ++t) {
+      get_mem_stats( mb, stats, t );
+      if (is_zero(stats)) continue;  // skip types with no allocated memory
+
+      std::cout << std::left << std::setw(TYPE_WIDTH) << moab::CN::EntityTypeName(t) << ' '
+                << std::right << std::setw(MEM_WIDTH) << memstr(stats.total_storage) << ' '
+                << std::right << std::setw(MEM_WIDTH) << memstr(stats.total_amortized) << ' '
+                << std::right << std::setw(MEM_WIDTH) << memstr(stats.entity_storage) << ' '
+                << std::right << std::setw(MEM_WIDTH) << memstr(stats.entity_amortized) << ' '
+                << std::right << std::setw(MEM_WIDTH) << memstr(stats.adjacency_storage) << ' '
+                << std::right << std::setw(MEM_WIDTH) << memstr(stats.adjacency_amortized) << ' '
+                << std::right << std::setw(MEM_WIDTH) << memstr(stats.tag_storage) << ' '
+                << std::right << std::setw(MEM_WIDTH) << memstr(stats.tag_amortized) << std::endl;
     }
-    else {
-      unsigned long rss = sysdata.ru_maxrss;
+  } // end per_type
+  
+  if (per_tag) {
+      // get list of tags
+    std::vector<moab::Tag> tags;
+    std::vector<moab::Tag>::const_iterator ti;
+    mb.tag_get_tags( tags );
+
+      // figure out required field with to fit longest tag name 
+    unsigned maxlen = MIN_TAG_NAME_WIDTH;
+    for (ti = tags.begin(); ti != tags.end(); ++ti) {
+      std::string name;
+      rval = mb.tag_get_name( *ti, name );
+      if (moab::MB_SUCCESS != rval)
+        continue;
+      if (name.size() > maxlen)
+        maxlen = name.size();
+    }
+
+      // print header for per-tag data
+    if (!tags.empty()) {
+      std::cout.fill(' ');
+      std::cout << std::endl
+                << std::left << std::setw(maxlen) << "Tag Name" << ' '
+                << std::left << std::setw(DTYPE_WIDTH) << "Type" << ' '
+                << std::left << std::setw(STORAGE_WIDTH) << "Storage" << ' '
+                << std::left << std::setw(MEM_WIDTH) << "Used" << ' '
+                << std::left << std::setw(MEM_WIDTH) << "Alloc" << std::endl;
+      std::cout.fill('-');
+      std::cout << std::setw(maxlen) << '-' << ' '
+                << std::setw(DTYPE_WIDTH) << '-' << ' '
+                << std::setw(STORAGE_WIDTH) << '-' << ' '
+                << std::setw(MEM_WIDTH) << '-' << ' '
+                << std::setw(MEM_WIDTH) << '-' << std::endl;
+      std::cout.fill(' ');
+    }
+
+      // print per-tag memory use
+    for (ti = tags.begin(); ti != tags.end(); ++ti) {
+      std::string name;
+      rval = mb.tag_get_name( *ti, name );
+      if (moab::MB_SUCCESS != rval || name.empty())
+        name = ANON_TAG_NAME;
+
+      unsigned long occupied, allocated;
+      mb.estimated_memory_use( 0, 0, 0, 0, 0, 0, 0, 0, &*ti, 1, &occupied, &allocated );
+
+      std::cout << std::left << std::setw(maxlen) << name << ' '
+                << std::right << std::setw(DTYPE_WIDTH) << tag_type_string(mb,*ti) <<  ' '
+                << std::right << std::setw(STORAGE_WIDTH) << tag_storage_string(mb,*ti) << ' '
+                << std::right << std::setw(MEM_WIDTH) << memstr(occupied) << ' '
+                << std::right << std::setw(MEM_WIDTH) << memstr(allocated) << std::endl;
+    }
+  } // end per_tag
+  
+  if (totals) {
+      // print summary of overall memory use
+    get_mem_stats( mb, stats );
+    std::cout << std::endl
+              << "TOTAL: (Used/Allocated)" << std::endl
+              << "memory:    " << memstr(stats.total_storage) << "/" << memstr(stats.total_amortized) << std::endl
+              << "entity:    " << memstr(stats.entity_storage) << "/" << memstr(stats.entity_amortized) << std::endl
+              << "adjacency: " << memstr(stats.adjacency_storage) << "/" << memstr(stats.adjacency_amortized) << std::endl
+              << "tag:       " << memstr(stats.tag_storage) << "/" << memstr(stats.tag_amortized) << std::endl
+              << std::endl;
+
+  } // end totals
+
+  if (sysstats) {
+    std::FILE* filp = std::fopen("/proc/self/stat", "r");
+    unsigned long vsize, rss;
+    if (filp && 2 == std::fscanf(filp,
+                  "%*d " // pid
+                  "%*s " // comm
+                  "%*c " // state
+                  "%*d " // ppid
+                  "%*d " // pgrp
+                  "%*d " // session
+                  "%*d " // tty_nr
+                  "%*d " // tpgid
+                  "%*u " // flags
+                  "%*u " // minflt
+                  "%*u " // cminflt
+                  "%*u " // majflt
+                  "%*u " // cmajflt
+                  "%*u " // utime
+                  "%*u " // stime
+                  "%*d " // cutime
+                  "%*d " // cstime
+                  "%*d " // priority
+                  "%*d " // nice
+                  "%*d " // num_threads
+                  "%*d " // itrealvalue
+                  "%*u " // starttime
+                  "%lu " // vsize
+                  "%ld", // rss
+                  &vsize, &rss )) {
+  #ifndef _MSC_VER
       rss *= getpagesize();
-      std::cerr << std::endl << "SYSTEM:"
-                << std::endl << "Resident set size: " << memstr(rss) 
+  #endif
+      std::cout << std::endl << "SYSTEM:" 
+                << std::endl << "Virtual memory:    " << memstr(vsize)
+                << std::endl << "Resident set size: " << memstr(rss)
                 << std::endl;
     }
-#endif
-  }
+    else {
+  #ifndef _MSC_VER
+      struct rusage sysdata;
+      if (getrusage( RUSAGE_SELF, &sysdata )) {
+        std::cerr << "getrusage failed" << std::endl;
+      }
+      else {
+        unsigned long rss = sysdata.ru_maxrss;
+        rss *= getpagesize();
+        std::cerr << std::endl << "SYSTEM:"
+                  << std::endl << "Resident set size: " << memstr(rss) 
+                  << std::endl;
+      }
+  #endif
+    }
+  } // end sysstats
 }
 
 
@@ -433,3 +474,137 @@ std::string center( const char* str, size_t width )
   return s.str();
 }
 
+void do_test_mode() 
+{
+  const char prefix[] = "****************";
+  moab::Core mbcore;
+  moab::Interface& mb = mbcore;
+  moab::ErrorCode rval;
+  moab::Range handles;
+  moab::EntityHandle h;
+  moab::Range::iterator jt, it;
+  const unsigned N = 1000;
+  
+  // creating some vertices
+  const double coords[3] = { 1, 2, 3 };
+  for (unsigned i = 0; i < N; ++i) 
+    mb.create_vertex( coords, h );
+  std::cout << std::endl << prefix << "Created " << N << " vertices" << std::endl;
+  print_memory_stats( mb, true, false, true, true );
+  
+  for (unsigned i = 0; i < N; ++i) 
+    mb.create_vertex( coords, h );
+  std::cout << std::endl << prefix << "Created another " << N << " vertices" << std::endl;
+  print_memory_stats( mb, true, false, true, true );
+  
+  for (int i = 0; i < 100; ++i) {      
+    for (unsigned j = 0; j < N; ++j) 
+      mb.create_vertex( coords, h );
+  }
+  std::cout << std::endl << prefix << "Created another " << 100*N << " vertices" << std::endl;
+  print_memory_stats( mb, true, false, true, true );
+  
+  // create some elements
+  handles.clear();
+  mb.get_entities_by_type( 0, moab::MBVERTEX, handles );
+  it = handles.begin();
+  for (unsigned i = 0; i < N-2; ++i, ++it) {
+    jt = it;
+    moab::EntityHandle conn[3];
+    conn[0] = *jt; ++jt;
+    conn[1] = *jt; ++jt;
+    conn[2] = *jt; ++jt;
+    mb.create_element( moab::MBTRI, conn, 3, h );
+  }
+  std::cout << std::endl << prefix << "Created " << N-2 << " triangles" << std::endl;
+  print_memory_stats( mb, true, false, true, true );
+  
+  it = handles.begin();
+  for (unsigned i = 0; i < N-3; ++i, ++it) {
+    jt = it;
+    moab::EntityHandle conn[4];
+    conn[0] = *jt; ++jt;
+    conn[1] = *jt; ++jt;
+    conn[2] = *jt; ++jt;
+    conn[3] = *jt; ++jt;
+    mb.create_element( moab::MBQUAD, conn, 4, h );
+  }
+  std::cout << std::endl << prefix << "Created " << N-3 << " quads" << std::endl;
+  print_memory_stats( mb, true, false, true, true );
+  
+  for (int i = 0; i < 100; ++i) {
+    it = handles.begin();
+    for (unsigned j = 0; j < N-3; ++j, ++it) {
+      jt = it;
+      moab::EntityHandle conn[4];
+      conn[0] = *jt; ++jt;
+      conn[1] = *jt; ++jt;
+      conn[2] = *jt; ++jt;
+      conn[3] = *jt; ++jt;
+      mb.create_element( moab::MBQUAD, conn, 4, h );
+    }
+  }
+  std::cout << std::endl << prefix << "Created another " << 100*(N-3) << " quads" << std::endl;
+  print_memory_stats( mb, true, false, true, true );
+
+  // set global ID
+  moab::Tag tag;
+  rval = mb.tag_get_handle( "GLOBAL_ID", tag );
+  if (moab::MB_SUCCESS != rval) {
+    std::cerr << "Failed to get GLOBAL_ID tag handle" << std::endl;
+    return;
+  }
+  handles.clear();
+  mb.get_entities_by_type( 0, moab::MBVERTEX, handles );
+  int id = 1;
+  for (it = handles.begin(); it != handles.end(); ++it) {
+    mb.tag_set_data( tag, &*it, 1, &id );
+    ++id;
+  }
+  std::cout << std::endl << prefix << "Set global ID tag on " << handles.size() << " vertices" << std::endl;
+  print_memory_stats( mb, true, true, true, true );
+  
+  handles.clear();
+  mb.get_entities_by_type( 0, moab::MBQUAD, handles );
+  id = 1;
+  for (it = handles.begin(); it != handles.end(); ++it) {
+    mb.tag_set_data( tag, &*it, 1, &id );
+    ++id;
+  }
+  std::cout << std::endl << prefix << "Set global ID tag on " << handles.size() << " quads" << std::endl;
+  print_memory_stats( mb, true, true, true, true );
+  
+  // create and set a sparse tag
+  mb.tag_create( "mem_test_tag", 3*sizeof(double), moab::MB_TAG_SPARSE, moab::MB_TYPE_DOUBLE, tag, 0 );
+  handles.clear();
+  mb.get_entities_by_type( 0, moab::MBVERTEX, handles );
+  for (it = handles.begin(); it != handles.end(); ++it) {
+    double coords[3];
+    mb.get_coords( &*it, 1, coords );
+    mb.tag_set_data( tag, &*it, 1, coords );
+  }
+  std::cout << std::endl << prefix << "Copied vertex coords to sparse tag for " << handles.size() << " vertices" << std::endl;
+  print_memory_stats( mb, true, true, true, true );
+  
+  // create and set bit tag
+  mb.tag_create( "mem_test_bit", 1, moab::MB_TAG_BIT, moab::MB_TYPE_BIT, tag, 0 );
+  handles.clear();
+  mb.get_entities_by_type( 0, moab::MBTRI, handles );
+  for (it = handles.begin(); it != handles.end(); ++it) {
+    char byte = '\001';
+    mb.tag_set_data( tag, &*it, 1, &byte );
+  }
+  std::cout << std::endl << prefix << "Set 1-bit tag for " << handles.size() << " triangles" << std::endl;
+  print_memory_stats( mb, true, true, true, true );
+  
+  // create vertex to element adjacency data
+  handles.clear();
+  mb.get_entities_by_type( 0, moab::MBVERTEX, handles );
+  std::vector<moab::EntityHandle> adj_vec;
+  mb.get_adjacencies( &*handles.begin(), 1, 2, false, adj_vec );
+  std::cout << std::endl << prefix << "Created vertex-to-element adjacencies" << std::endl;
+  print_memory_stats( mb, true, false, true, true );
+  std::cout << std::endl;
+}
+
+  
