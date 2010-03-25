@@ -147,3 +147,7 @@ mbsurfplot_DEPENDENCIES = $(LDADD)
 
 mbtagprop_SOURCES = parse.cpp parse.hpp propagate_tags.cpp
 mbtagprop_DEPENDENCIES = $(LDADD)
+
+mbmem_SOURCES = mbmem.cpp
+mbmem_DEPENDENCIES = $(LDADD)
+
