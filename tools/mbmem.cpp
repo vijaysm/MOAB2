@@ -376,7 +376,7 @@ std::string memstr( unsigned long val )
       s << "0  ";
   }
   else {
-    unsigned long den;
+    unsigned long den = 1;
     switch (UNITS) {
       case BYTES: den = 1; break;
       case KILOBYTES: den = kb; break;
