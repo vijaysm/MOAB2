@@ -135,7 +135,7 @@ public:
   virtual EntityID id_from_handle(const EntityHandle handle) const =0;
 
     //! Returns the topological dimension of an entity
-    /** Returns the EntityType (ie, MeshVertex, MeshQuad, MeshHex ) of <em>handle</em>.
+    /** Returns the topological dimension of an entity.
         \param handle The EntityHandle you want to find the dimension of.
         \return type The topological dimension of <em>handle</em>. 
 
