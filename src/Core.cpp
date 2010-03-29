@@ -313,7 +313,10 @@ float Core::impl_version( std::string *version_string )
 //! get the type from a handle, returns type
 EntityType Core::type_from_handle(const EntityHandle handle) const
 {
-  return TYPE_FROM_HANDLE(handle);
+  if (!handle) // root set
+    return MBENTITYSET;
+  else
+    return TYPE_FROM_HANDLE(handle);
 }
   
 //! get the id from a handle, returns id
@@ -338,7 +341,10 @@ ErrorCode Core::handle_from_id( const EntityType type,
 
 int Core::dimension_from_handle(const EntityHandle handle) const
 {
-  return CN::Dimension(TYPE_FROM_HANDLE(handle));
+  if (!handle) // root set
+    return 4;
+  else
+    return CN::Dimension(TYPE_FROM_HANDLE(handle));
 }
 
 //! load mesh from data in file
@@ -2564,6 +2570,11 @@ ErrorCode Core::create_meshset(const unsigned int options,
 ErrorCode Core::get_meshset_options( const EntityHandle ms_handle, 
                                           unsigned int& options) const
 {
+  if (!ms_handle) { // root set
+    options = MESHSET_SET;
+    return MB_SUCCESS;
+  }
+  
   const MeshSet* set = get_mesh_set( sequence_manager(), ms_handle );
   if (!set)
     return MB_ENTITY_NOT_FOUND;
@@ -2694,8 +2705,9 @@ bool Core::contains_entities(EntityHandle meshset,
                                int num_entities, 
                                const int operation_type)
 {
-  MeshSet* set = get_mesh_set( sequence_manager(), meshset );
-  if (set)
+  if (!meshset) // root
+    return true;
+  else if (MeshSet* set = get_mesh_set( sequence_manager(), meshset ))
     return set->contains_entities(entities, num_entities, operation_type);
   else
     return false;
