@@ -4933,30 +4933,34 @@ ErrorCode ParallelComm::exchange_tags( const std::vector<Tag> &src_tags,
     result = filter_pstatus(owned_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);
     RRA("Failure to get subset of owned entities");
   
-    for (size_t i = 0; i < src_tags.size(); ++i) {
-      if (src_tags[i] == dst_tags[i])
-        continue;
-    
-      Range tagged_ents(owned_ents);
-      result = mbImpl->get_entities_by_type_and_tag( 0, MBMAXTYPE,
-                        &src_tags[0], 0, 1, tagged_ents, Interface::INTERSECT );
-      RRA("get_entities_by_type_and_tag(type == MBMAXTYPE) failed.");
-      
-      int size, size2;
-      result = mbImpl->tag_get_size( src_tags[i], size );
-      RRA("tag_get_size failed.");
-      result = mbImpl->tag_get_size( dst_tags[i], size2 );
-      RRA("tag_get_size failed.");
-      if (size != size2) {
-        result = MB_FAILURE;
-        RRA("tag sizes don't match")
+    if (!owned_ents.empty()) { // check this here, otherwise we get 
+      // unexpected results from get_entities_by_type_and_tag w/ Interface::INTERSECT
+  
+      for (size_t i = 0; i < src_tags.size(); ++i) {
+        if (src_tags[i] == dst_tags[i])
+          continue;
+
+        Range tagged_ents(owned_ents);
+        result = mbImpl->get_entities_by_type_and_tag( 0, MBMAXTYPE,
+                          &src_tags[0], 0, 1, tagged_ents, Interface::INTERSECT );
+        RRA("get_entities_by_type_and_tag(type == MBMAXTYPE) failed.");
+
+        int size, size2;
+        result = mbImpl->tag_get_size( src_tags[i], size );
+        RRA("tag_get_size failed.");
+        result = mbImpl->tag_get_size( dst_tags[i], size2 );
+        RRA("tag_get_size failed.");
+        if (size != size2) {
+          result = MB_FAILURE;
+          RRA("tag sizes don't match")
+        }
+
+        data.resize( size * tagged_ents.size() );
+        result = mbImpl->tag_get_data( src_tags[i], tagged_ents, &data[0] );
+        RRA("tag_get_data failed.");
+        result = mbImpl->tag_set_data( dst_tags[i], tagged_ents, &data[0] );
+        RRA("tag_set_data failed.");
       }
-      
-      data.resize( size * tagged_ents.size() );
-      result = mbImpl->tag_get_data( src_tags[i], tagged_ents, &data[0] );
-      RRA("tag_get_data failed.");
-      result = mbImpl->tag_set_data( dst_tags[i], tagged_ents, &data[0] );
-      RRA("tag_set_data failed.");
     }
   }
   
@@ -5821,7 +5825,11 @@ ErrorCode ParallelComm::get_sharing_parts( EntityHandle entity,
     // Count number of valid (positive) entries in sharedps_tag
   for (num_part_ids_out = 0; num_part_ids_out < MAX_SHARING_PROCS &&
        part_ids_out[num_part_ids_out] >= 0; ++num_part_ids_out);
-  part_ids_out[num_part_ids_out++] = proc_config().proc_rank();
+  //part_ids_out[num_part_ids_out++] = proc_config().proc_rank();
+#ifndef NDEBUG
+  int my_idx = std::find(part_ids_out, part_ids_out+num_part_ids_out, proc_config().proc_rank()) - part_ids_out;
+  assert(my_idx < num_part_ids_out);
+#endif
   
     // done?
   if (!remote_handles)
@@ -5829,7 +5837,9 @@ ErrorCode ParallelComm::get_sharing_parts( EntityHandle entity,
   
     // get remote handles
   result = mbImpl->tag_get_data( sharedhs_tag(), &entity, 1, remote_handles );
-  remote_handles[num_part_ids_out-1] = entity;
+  //remote_handles[num_part_ids_out-1] = entity;
+  assert(remote_handles[my_idx] == entity);
+
   return result;
 }
 
