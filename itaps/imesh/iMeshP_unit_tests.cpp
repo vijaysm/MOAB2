@@ -1624,15 +1624,17 @@ int test_part_boundary_iter( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, 
       }
       else {
         std::vector<iBase_EntityHandle> results;
-        do {
+        for (;;) {
           iBase_EntityHandle handle;
           iMesh_getNextEntIter( imesh, siter, &handle, &has_data, &ierr );
           if (ierr != iBase_SUCCESS) {
             single_step_error.push_back( part_pair );
             break;
           }
+          if (!has_data)
+            break;
           results.push_back(handle);
-        } while (has_data);
+        }
       
         std::sort( results.begin(), results.end() );
         if ((int)results.size() != num_shared_verts ||
@@ -1652,14 +1654,14 @@ int test_part_boundary_iter( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, 
       iBase_EntityHandle results[5], *ptr = results;
       int junk = 5, count;
       iMesh_getNextEntArrIter( imesh, aiter, &ptr, &junk, &count, &has_data, &ierr );
-      if (ierr != iBase_SUCCESS) {
+      if (ierr != iBase_SUCCESS || !has_data) {
         array_step_error.push_back( part_pair );
         continue;
       }
       assert(count <= 5);
       assert(ptr == results);
       std::sort(results, results + count);
-      if (count != num_shared_verts || has_data ||
+      if (count != num_shared_verts ||
           !std::equal( shared_verts, shared_verts + num_shared_verts, results ))
         array_failed.push_back( part_pair );
     }
