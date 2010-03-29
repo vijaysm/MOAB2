@@ -8395,7 +8395,134 @@ ErrorCode mb_type_is_maxtype_test( Interface* mb )
   
   return MB_SUCCESS;
 } 
+
+/** Test behavior of various functions when passed the root set
+ */
+ErrorCode mb_root_set_test( Interface* mb )
+{
+  ErrorCode rval;
+  EntityHandle rs = mb->get_root_set();
   
+    // expect root set to have zero handle
+  CHECK(!rs);
+  
+    // check type
+  EntityType type = mb->type_from_handle( rs );
+  CHECK( MBENTITYSET == type );
+  
+    // Check dimension.
+    // Use an existing set to determine the expected
+    // result of this function, rather than hard-coding it.
+  Range sets;
+  rval = mb->get_entities_by_type( 0, MBENTITYSET, sets );
+  CHKERR( rval );
+  CHECK(!sets.empty());
+  EntityHandle some_set = sets.front();
+  
+  int exp_dim = mb->dimension_from_handle( some_set );
+  int dim = mb->dimension_from_handle( rs );
+  CHECK( exp_dim == dim );
+  
+    // test some stuff that should fail
+  rval = mb->clear_meshset( &rs, 1 );
+  CHECK( MB_SUCCESS != rval );
+  rval = mb->set_meshset_options( rs, MESHSET_ORDERED );
+  CHECK( MB_SUCCESS != rval );
+  rval = mb->subtract_meshset( rs, some_set );
+  CHECK( MB_SUCCESS != rval );
+  rval = mb->intersect_meshset( rs, some_set );
+  CHECK( MB_SUCCESS != rval );
+  rval = mb->unite_meshset( rs, some_set );
+  CHECK( MB_SUCCESS != rval );
+  
+    // add/remove should fail for root set?
+  rval = mb->add_entities( rs, &some_set, 1 );
+  CHECK( MB_SUCCESS != rval );
+  rval = mb->remove_entities( rs, &some_set, 1 );
+  CHECK( MB_SUCCESS != rval );
+  rval = mb->replace_entities( rs, &some_set, &some_set, 1 );
+  CHECK( MB_SUCCESS != rval );
+   
+    // check flags
+  unsigned flags;
+  rval = mb->get_meshset_options( rs, flags );
+  CHECK( flags & MESHSET_SET );
+  CHECK( !(flags & MESHSET_ORDERED) );
+  CHECK( !(flags & MESHSET_TRACK_OWNER) );
+  
+    // contains tests
+  bool c = mb->contains_entities( rs, &some_set, 1 );
+  CHECK( c );
+  
+  Range sets2;
+  rval = mb->get_contained_meshsets( rs, sets2 );
+  CHKERR(rval);
+  CHECK( sets == sets2 );
+  
+  int count;
+  rval = mb->num_contained_meshsets( rs, &count );
+  CHKERR(rval);
+  CHECK( count == (int)sets.size() );
+  
+    // Apparently, the expected behavior for 
+    // parent/child queries on the root set
+    // is to successfully return nothing.
+    
+  sets2.clear();
+  rval = mb->get_parent_meshsets( rs, sets2 );
+  CHKERR(rval);
+  CHECK(sets2.empty());
+  sets2.clear();
+  rval = mb->get_parent_meshsets( rs, sets2, 2 );
+  CHKERR(rval);
+  CHECK(sets2.empty());
+    
+  sets2.clear();
+  rval = mb->get_child_meshsets( rs, sets2 );
+  CHKERR(rval);
+  CHECK(sets2.empty());
+  sets2.clear();
+  rval = mb->get_child_meshsets( rs, sets2, 2 );
+  CHKERR(rval);
+  CHECK(sets2.empty());
+    
+  count = 10;
+  rval = mb->num_parent_meshsets( rs, &count );
+  CHKERR(rval);
+  CHECK(!count);
+  count = 10;
+  rval = mb->num_parent_meshsets( rs, &count, 2 );
+  CHKERR(rval);
+  CHECK(!count);
+    
+  count = 10;
+  rval = mb->num_child_meshsets( rs, &count );
+  CHKERR(rval);
+  CHECK(!count);
+  count = 10;
+  rval = mb->num_child_meshsets( rs, &count, 2 );
+  CHKERR(rval);
+  CHECK(!count);
+  
+  rval = mb->add_parent_meshset( rs, some_set );
+  CHECK(MB_SUCCESS != rval);
+  rval = mb->add_parent_meshsets( rs, &some_set, 1 );
+  CHECK(MB_SUCCESS != rval);
+  rval = mb->add_child_meshset( rs, some_set );
+  CHECK(MB_SUCCESS != rval);
+  rval = mb->add_child_meshsets( rs, &some_set, 1 );
+  CHECK(MB_SUCCESS != rval);
+  rval = mb->add_parent_child( rs, some_set );
+  CHECK(MB_SUCCESS != rval);
+  rval = mb->remove_parent_child( rs, some_set );
+  CHECK(MB_SUCCESS != rval);
+  rval = mb->remove_parent_meshset( rs, some_set );
+  CHECK(MB_SUCCESS != rval);
+  rval = mb->remove_child_meshset( rs, some_set );
+  CHECK(MB_SUCCESS != rval);
+  
+  return MB_SUCCESS;
+}
   
 static void usage(const char* exe) {
   cerr << "Usage: " << exe << " [-nostress] [-d input_file_dir]\n";
@@ -8511,6 +8638,7 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_enum_string_test );
   RUN_TEST( mb_merge_update_test );
   RUN_TEST( mb_type_is_maxtype_test );
+  RUN_TEST( mb_root_set_test );
   RUN_TEST( mb_merge_test );
   if (stress_test) RUN_TEST( mb_stress_test );
 
