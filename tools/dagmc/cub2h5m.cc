@@ -386,13 +386,13 @@ void generate_plots( const double orig[], const double defo[],
                      const int n_elems, const std::string time_step ) {
 
   // find volume ratio then max and min
-  double ratio[n_elems];
+  double *ratio = new double[n_elems];
   for(int i=0; i<n_elems; ++i) ratio[i] = (defo[i]-orig[i])/orig[i];
 
   plot_histogram( "Predeformed Element Volume", "Num_Elems", "Volume [cc]", 10, orig, n_elems );
   std::string title = "Element Volume Change Ratio at Time Step " + time_step;
   plot_histogram( title, "Num_Elems", "Volume Ratio", 10, ratio, n_elems );
-
+  delete[] ratio;
 }
 
 // Given four nodes, calculate the tet volume.
@@ -1096,7 +1096,7 @@ int main( int argc, char* argv[] )
     //result =  my_ex_reader.load_file(exo_name, cgm_file_set, exo_opts, NULL, 0 , 0);
     //result =  my_ex_reader.load_file(exo_name, cub_file_set, exo_opts, NULL, 0 , 0);
     //result = my_ex_reader.load_file(exo_name, &cub_file_set, exo_opts, NULL, 0 , 0);
-    MBI->load_file( exo_name, 0, exo_options );
+    MBI->load_file( exo_name, &cub_file_set, exo_options );
     if(MB_SUCCESS != result) {
       std::string last_error;
       MBI->get_last_error(last_error); 
@@ -1115,8 +1115,8 @@ int main( int argc, char* argv[] )
     
     // Determine the volume of the elements now that a deformation has been
     // applied. Condense the original array by removing dead elements.
-    double orig_size_condensed[defo_elems.size()];
-    double defo_size_condensed[defo_elems.size()];
+    double *orig_size_condensed = new double[defo_elems.size()];
+    double *defo_size_condensed = new double[defo_elems.size()];
     int j=0;
     for(unsigned int i=0; i<orig_elems.size(); ++i) {
       if(orig_elems[i] == defo_elems[j]) {
@@ -1127,6 +1127,8 @@ int main( int argc, char* argv[] )
     }
     generate_plots( orig_size_condensed, defo_size_condensed, 
 		    defo_elems.size(), std::string(time_step) );
+    delete[] orig_size_condensed; // can't use the same delete[] for both
+    delete[] defo_size_condensed;
   }
 
   // Deal with dead elements. For now, add them to the impl_compl volume.
