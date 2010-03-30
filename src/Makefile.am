@@ -151,7 +151,7 @@ nobase_libMOAB_la_include_HEADERS = \
   MBCN_protos.h 
 
 MBCN_protos.h: MBCN.h $(top_srcdir)/itaps/mkprotos.sh
-	$(top_srcdir)/itaps/mkprotos.sh MBCN MBCN $< $@ MOAB_FCDefs.h
+	$(top_srcdir)/itaps/mkprotos.sh MBCN MOAB $< $@ MOAB_FCDefs.h
 
 
 MOAB_FCDefs.h: FCDefs.h
