@@ -22,6 +22,43 @@
  *  grouped together.
  */
 
+/* This file can be used to define several different things.
+ *
+ * A) If included in C code (not C++), it defines:
+ *    1) An enum named MBEntityType, guarded by the MB_ENTITY_TYPE_H
+ *        include guards and 
+ *    2) a typedef MBEntityType guarded by MOAB_ENTITY_TYPE_C include guards.
+ *
+ * B) If included in C++ code, it defines:
+ *    1) An enum named EntiyType in the MOAB namespace, guarded
+ *       by the MB_ENTITY_TYPE include guards
+ *    2) Increment and decrement oeprators for the moab::EntityType enum,
+ *       also guarded by the MB_ENTITY_TYPE include guards
+ *    3) A typedef for moab::EntityType in the global namespace 
+ *        named MBEntityType, guarded by the MOAB_ENTITY_TYPE_NS_ONLY
+ *        include guards
+ *
+ * The C and C++ code should be entirely independent.  They are defined
+ * in the same file only to avoid code duplication and inconsistent enum
+ * values.  OTOH, the C++ definitions must be in the same file because
+ * the compiler must treat both the namespaced and non-namespaced names
+ * as the same type.
+ *
+ * The C++ code must be able to provide:
+ *  a) An enum in the moab namespace
+ *  b) An enum in the global namespace that is the *same type*
+ *      as a) as far as the compiler is concerned.
+ *  c) Nothing in the global namespace unless requested
+ *  d) No breakage if both namespaced and non-namespaced headers
+ *      are both included.
+ * 
+ * This is acheived with the somewhat complicated set of multiple
+ * included guards described above, where moab/EntityType.hpp will
+ * include this file with MOAB_ENTITY_TYPE_NS_OLNY temporarily defined
+ * so as to pull in only the namespaced version at that time, without
+ * prohibiting the non-namespaced version from being pulled in previously
+ * or later.
+ */
 #ifdef __cplusplus
 namespace moab { 
 # define MOAB_ENTITY_TYPE_NAME EntityType
@@ -46,6 +83,7 @@ enum MOAB_ENTITY_TYPE_NAME
     /**< dimensioning purposes  */
 };
 
+#ifdef __cplusplus
 /** prefix increment operator for MBEntityType */
 inline MOAB_ENTITY_TYPE_NAME & operator++(MOAB_ENTITY_TYPE_NAME &type)
 {
@@ -74,7 +112,6 @@ inline MOAB_ENTITY_TYPE_NAME operator--(MOAB_ENTITY_TYPE_NAME &type, int)
   return oldval;
 }
 
-#ifdef __cplusplus
 } /* namespace moab*/
 #endif /* __cplusplus */
 
