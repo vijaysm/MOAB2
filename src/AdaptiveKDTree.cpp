@@ -2047,38 +2047,41 @@ ErrorCode AdaptiveKDTree::ray_intersect_triangles( EntityHandle root,
       return rval;
     
     const double t = (plane.coord - ray_pt[plane.norm]) / ray_dir[plane.norm];
-    if (!finite(t)) {         // ray parallel to plane
+      // If ray is parallel to plane...
+    if (!finite(t)) {  
       if (ray_pt[plane.norm] - tol <= plane.coord)
         list.push_back( NodeSeg( children[0], seg.beg, seg.end ) );
       if (ray_pt[plane.norm] + tol >= plane.coord)
         list.push_back( NodeSeg( children[1], seg.beg, seg.end ) );
     }
+      // If ray direction points towards left (below) plane
     else if (ray_dir[plane.norm] < 0.0) {
       if (seg.beg > t) {      // segment left of plane
         list.push_back( NodeSeg( children[0], seg.beg, seg.end ) );
-//        if (plane.coord - ray_pt[plane.norm] + ray_dir[plane.norm] * seg.beg < tol)
-//          list.push_back( NodeSeg( children[1], seg.beg, seg.end ) );
+        if (plane.coord - ray_pt[plane.norm] + ray_dir[plane.norm] * seg.beg < tol)
+          list.push_back( NodeSeg( children[1], seg.beg, seg.end ) );
       }
       else if (seg.end < t) { // segment right of plane
         list.push_back( NodeSeg( children[1], seg.beg, seg.end ) );
-//        if (ray_pt[plane.norm] + ray_dir[plane.norm] * seg.end - plane.coord < tol)
-//          list.push_back( NodeSeg( children[0], seg.beg, seg.end ) );
+        if (ray_pt[plane.norm] + ray_dir[plane.norm] * seg.end - plane.coord < tol)
+          list.push_back( NodeSeg( children[0], seg.beg, seg.end ) );
       }
       else {                  // segment crosses plane
         list.push_back( NodeSeg( children[1], seg.beg, t ) );
         list.push_back( NodeSeg( children[0], t, seg.end ) );
       }
     }
+      // If ray direction points towards right (above) plane
     else {
       if (seg.beg > t) {      // segment right of plane
         list.push_back( NodeSeg( children[1], seg.beg, seg.end ) );
-//        if (ray_pt[plane.norm] + ray_dir[plane.norm] * seg.beg - plane.coord < tol)
-//          list.push_back( NodeSeg( children[0], seg.beg, seg.end ) );
+        if (ray_pt[plane.norm] + ray_dir[plane.norm] * seg.beg - plane.coord < tol)
+          list.push_back( NodeSeg( children[0], seg.beg, seg.end ) );
       }
       else if (seg.end < t) { // segment left of plane
         list.push_back( NodeSeg( children[0], seg.beg, seg.end ) );
-//        if (plane.coord - ray_pt[plane.norm] + ray_dir[plane.norm] * seg.end < tol)
-//          list.push_back( NodeSeg( children[1], seg.beg, seg.end ) );
+        if (plane.coord - ray_pt[plane.norm] + ray_dir[plane.norm] * seg.end < tol)
+          list.push_back( NodeSeg( children[1], seg.beg, seg.end ) );
       }
       else {                  // segment crosses plane
         list.push_back( NodeSeg( children[0], seg.beg, t ) );
