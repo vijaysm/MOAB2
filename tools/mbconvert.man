@@ -5,9 +5,17 @@ mbconvert \- convert between file formats supported by MOAB
 .B mbconvert [-h|-l]
 
 .B mbconvert
-.B [-a 
+.B [-f
+.I format
+.B ] [-a 
 .I sat_file
-.B |-A] [-t] [-g] [-v 
+.B |-A] [-t] [-g] [-o
+.I option
+.B ] [-O
+.I option
+.B ] [-I
+.I dim
+.B ] [-p|-P] [-v 
 .I vol_id_list
 .B ] [-s 
 .I surf_id_list
@@ -27,7 +35,9 @@ mbconvert \- convert between file formats supported by MOAB
 .B mbconvert
 uses the MOAB library to translate between mesh file formats or
 to extract subsets of mesh files.  The type of the output file
-is determined from the file extension.  The 
+is determined from the file extension if the 
+.B -f
+flag is not specified.  The 
 .B -l
 option can be used to list the file formats supported.
 
@@ -43,6 +53,14 @@ with different ID lists may be specified.  The output will contain the
 union of all of the subset options.  If no subset options are specified
 the entire input mesh is written to the output file.
 
+String options for use with the 
+.B -o 
+and 
+.B -O
+flags are documented in the 
+.I README.IO
+file.
+
 .SH OPTIONS
 .IP -h
 Print help to stdout and exit.
@@ -51,11 +69,22 @@ List supported file formats to stdout.
 .IP "-a sat_file"
 File to store extracted geometry from .cub file.
 .IP -A
-Do not store extracted geometry from .cub file.
+Do not store extracted geometry from .cub file (depricated, default).
+.IP "-O option"
+Specify writer option.  Specify flag multiple times to specify multiple options.
+.IP "-o option"
+Specify reader option.  Specify flag multiple times to specify multiple options.
 .IP -t
 Print timing data for read and write operations to stdout.
 .IP -g
 Print verbose debugging and status information to stdout.
+.IP "-I dim"
+Generate internal/adjacent entities of specified dimension.
+.IP -P
+Parallel only: append '.' and proccessor rank in world comm to output file name.
+.IP -p
+Parallel only: replace every occurance of '%' symbol in both input and
+output file names with processor rank in world communicator.
 .IP "-v idlist"
 List of IDs of geometric volumes for which the corresponding mesh is to be written.
 .IP "-s idlist"
@@ -79,3 +108,5 @@ Write all three-dimensional mesh entities (tets,hexes,etc.)
 .SH FILES
 .SH ENVIRONMENT
 .SH DIAGNOSTICS
+.SH SEE ALSO
+README.IO
