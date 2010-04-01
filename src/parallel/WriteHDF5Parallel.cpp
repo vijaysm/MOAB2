@@ -626,6 +626,8 @@ tprint("communicating tag metadata");
     mhdf_closeFile( filePtr, &status );
   }
   
+  MPI_Barrier( myPcomm->proc_config().proc_comm() );
+  
 tprint("(re)opening file in parallel mode");
   unsigned long junk;
   hid_t hdf_opt = H5Pcreate( H5P_FILE_ACCESS );
