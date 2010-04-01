@@ -60,7 +60,7 @@ int RHANDLES_START, RHANDLES_END;
 
 #endif
 #undef DEBUG_COMM
-//#define DEBUG_COMM 1
+#define DEBUG_COMM 1
 #undef DEBUG_PACKING
 #undef DEBUG_MSGS
 //#define DEBUG_MSGS 1

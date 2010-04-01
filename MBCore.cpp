@@ -12,7 +12,9 @@
  * version 2.1 of the License, or (at your option) any later version.
  * 
  */
-
+#ifndef DEBUG
+#define DEBUG
+#endif
 #ifdef WIN32
 // turn off warnings that say they debugging identifier has been truncated
 // this warning comes up when using some STL containers
@@ -349,6 +351,8 @@ MBErrorCode  MBCore::load_mesh( const char *file_name,
   return load_file( file_name, 0, 0, name, block_id_list, num_blocks );
 }
 
+#undef  __FUNCT__
+#define __FUNCT__ "MBCore::load_file"
 MBErrorCode MBCore::load_file( const char* file_name,
                                const MBEntityHandle* file_set,
                                const char* options,
@@ -363,11 +367,21 @@ MBErrorCode MBCore::load_file( const char* file_name,
     // if reading in parallel, call a different reader
   std::string parallel_opt;
   rval = opts.get_option( "PARALLEL", parallel_opt);
+  int ierr;
   if (MB_SUCCESS == rval) {
 #ifdef USE_MPI    
+#ifdef DEBUG
+    int size, rank;
+    ierr = MPI_Comm_size(MPI_COMM_WORLD, &size);
+    ierr = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    cout << "DEBUG: " << __FUNCT__ << "[" << rank << "," << size << "]: " << "Parallel read: comm size: " << size << ", comm_rank: " << rank << "\n";
+#endif
     MBParallelComm* pcomm = 0;
     int pcomm_id;
     rval = opts.get_int_option( "PCOMM", pcomm_id );
+#ifdef DEBUG
+    cout << "DEBUG: " << __FUNCT__ << "[" << rank << "," << size << "]: " << "got promm_id from options: " << pcomm_id << "\n";
+#endif
     if (rval == MB_SUCCESS) {
       pcomm = MBParallelComm::get_pcomm( this, pcomm_id );
       if (!pcomm)
@@ -375,6 +389,10 @@ MBErrorCode MBCore::load_file( const char* file_name,
     }
     else if (rval != MB_ENTITY_NOT_FOUND) 
       return rval;
+#ifdef DEBUG
+    cout << "DEBUG: " << __FUNCT__ << "[" << rank << "," << size << "]: " << "Entering ReadParallel" << "\n";
+#endif
+
     if (set_tag_name && num_set_tag_vals) 
       rval = ReadParallel(this,pcomm).load_file( file_name, file_set, opts, &t, 1 );
     else
