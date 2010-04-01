@@ -25,6 +25,7 @@
 #include "MBTagConventions.hpp"
 #include "moab/ReaderWriterSet.hpp"
 #include <iostream>
+#include <sstream>
 #include <iomanip>
 #include <set>
 #include <cstdlib>
@@ -68,7 +69,8 @@ void print_usage( const char* name, std::ostream& stream )
     << "\t-l             - List available file formats and exit." << std::endl
     << "\t-I <dim>       - Generate internal entities of specified dimension." << std::endl
 #ifdef USE_MPI
-    << "\t-P             - Append processor ID to file name" << std::endl
+    << "\t-P             - Append processor ID to output file name" << std::endl
+    << "\t-p             - Replace '%' with processor ID in input and output file name" << std::endl
 #endif
     << "\t--             - treat all subsequent options as file names" << std::endl
     << "\t                 (allows file names beginning with '-')" << std::endl
@@ -131,11 +133,14 @@ void write_times( std::ostream& stream );
 void remove_entities_from_sets( Interface* gMB, Range& dead_entities, Range& empty_sets );
 void remove_from_vector( std::vector<EntityHandle>& vect, const Range& ents_to_remove );
 bool make_opts_string( std::vector<std::string> options, std::string& result );
+std::string percent_subst( const std::string& s, int val );
 
 int main(int argc, char* argv[])
 {
+  int proc_id = 0;
 #ifdef USE_MPI
   MPI_Init(&argc,&argv);
+  MPI_Comm_rank( MPI_COMM_WORLD, &proc_id );
 #endif
 
 
@@ -143,15 +148,15 @@ int main(int argc, char* argv[])
   ErrorCode result;
   Range range;
 
-  int proc_id = 0;
   gMB = new Core();
 
   bool append_rank = false;
+  bool percent_rank_subst = false;      
   int i, dim;
   bool dims[4] = {false, false, false, false};
   const char* format = NULL; // output file format
-  const char* in = NULL;    // input file name
-  const char* out = NULL;   // output file name
+  std::string in;    // input file name
+  std::string out;   // output file name
   bool verbose = false;
   std::set<int> geom[4], mesh[3];       // user-specified IDs 
   std::vector<EntityHandle> set_list; // list of user-specified sets to write
@@ -191,6 +196,7 @@ int main(int argc, char* argv[])
         case 'l': list_formats( gMB );   break;
 #ifdef USE_MPI
         case 'P': append_rank = true;    break;
+        case 'p': percent_rank_subst = true; break;
 #endif
         case '1': case '2': case '3':
           dims[argv[i][1] - '0'] = true; break;
@@ -237,29 +243,31 @@ int main(int argc, char* argv[])
       }
     }
       // do file names
-    else if (!in)
+    else if (in.empty())
       in = argv[i];
-    else if (!out)
+    else if (out.empty())
       out = argv[i];
     else  { // too many file names
       std::cerr << "Unexpexed argument: " << argv[i] << std::endl;
       usage_error(argv[0]);
     }
   }
-  if (!in || !out) {
+  if (in.empty() || out.empty()) {
     std::cerr << "No output file name specified." << std::endl;
     usage_error(argv[0]);
   }
     
-  std::string mod_out;
   if (append_rank) {
-    char buffer[16];
-    sprintf(buffer,".%d",proc_id);
-    mod_out = out;
-    mod_out += buffer;
-    out = mod_out.c_str();
+    std::ostringstream mod;
+    mod << out << "." << proc_id;
+    out = mod.str();
   }
-
+  
+  if (percent_rank_subst) {
+    in  = percent_subst( in , proc_id );
+    out = percent_subst( out, proc_id );
+  }
+ 
     // construct options string from individual options
   std::string read_options, write_options;
   if (!make_opts_string(  read_opts,  read_options ) ||
@@ -273,7 +281,7 @@ int main(int argc, char* argv[])
   
     // Read the input file.
   reset_times();
-  result = gMB->load_file( in, 0, read_options.c_str() );
+  result = gMB->load_file( in.c_str(), 0, read_options.c_str() );
   if (MB_SUCCESS != result)
   { 
     std::cerr << "Failed to load \"" << in << "\"." << std::endl;
@@ -504,9 +512,9 @@ int main(int argc, char* argv[])
     // Write the output file
   reset_times();
   if (have_sets) 
-    result = gMB->write_file( out, format, write_options.c_str(), &set_list[0], set_list.size() );
+    result = gMB->write_file( out.c_str(), format, write_options.c_str(), &set_list[0], set_list.size() );
   else
-    result = gMB->write_file( out, format, write_options.c_str() );
+    result = gMB->write_file( out.c_str(), format, write_options.c_str() );
   if (MB_SUCCESS != result)
   { 
     std::cerr << "Failed to write \"" << out << "\"." << std::endl; 
@@ -794,3 +802,27 @@ void remove_from_vector( std::vector<EntityHandle>& vect, const Range& ents_to_r
       vect.erase( j );
   }
 }
+
+std::string percent_subst( const std::string& s, int val )
+{
+  if (s.empty())
+    return s;
+  
+  size_t j = s.find( '%' );
+  if (j == std::string::npos) 
+    return s;
+  
+  std::ostringstream st;
+  st << s.substr( 0, j );
+  st << val;
+  
+  size_t i;
+  while ((i = s.find( '%', j+1)) != std::string::npos) {
+    st << s.substr( j, i - j );
+    st << val;
+    j = i;
+  }
+  st << s.substr( j+1 );
+  return st.str();
+}
+
