@@ -23,6 +23,7 @@
 #include "moab/GeomUtil.hpp"
 #include "moab/Range.hpp"
 #include "Internals.hpp"
+#include <math.h>
 
 #include <assert.h>
 #include <algorithm>
@@ -796,7 +797,7 @@ static ErrorCode intersect_children_with_elems(
   const CartVect left_dim = 0.5*(left_max - box_min);
   const CartVect right_cen = 0.5*(box_max + right_min);
   const CartVect right_dim = 0.5*(box_max - right_min);
-  const CartVect dim = box_max - box_min;
+  //const CartVect dim = box_max - box_min;
   
   
     // test each entity
@@ -850,18 +851,16 @@ static ErrorCode intersect_children_with_elems(
         ro = true;
     }
     
-      // Triangle must be in at least one leaf.  If test against plain
+      // Triangle must be in at least one leaf.  If test against plane
       // identified that leaf, then we're done.  If triangle is on both
       // sides of plane, do more precise test to ensure that it is really
       // in both.
     if (lo && ro) {
-      lo = GeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i), left_cen, left_dim );
-      ro = GeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i),right_cen,right_dim );
-      double tol = std::numeric_limits<double>::epsilon();
-        // didn't intersect either - tolerance issue
-      while (!lo && !ro && tol < eps) {
-        lo = GeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i), left_cen,left_dim+tol*dim );
-        ro = GeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i),right_cen,right_dim+tol*dim );
+      double tol = eps/1000;
+      lo = ro = false;
+      while (!lo && !ro && tol <= eps) {
+        lo = GeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i), left_cen, left_dim+CartVect(tol) );
+        ro = GeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i),right_cen,right_dim+CartVect(tol) );
         tol *= 10.0;
       }
     }
@@ -1949,13 +1948,13 @@ struct NodeSeg {
 };
 
 ErrorCode AdaptiveKDTree::ray_intersect_triangles( EntityHandle root,
-                                                 const double tol,
-                                                 const double ray_dir_in[3],
-                                                 const double ray_pt_in[3],
-                                                 std::vector<EntityHandle>& tris_out,
-                                                 std::vector<double>& dists_out,
-                                                 int max_ints,
-                                                 double ray_end )
+                                                   const double tol,
+                                                   const double ray_dir_in[3],
+                                                   const double ray_pt_in[3],
+                                                   std::vector<EntityHandle>& tris_out,
+                                                   std::vector<double>& dists_out,
+                                                   int max_ints,
+                                                   double ray_end )
 {
   ErrorCode rval;
   double ray_beg = 0.0;
@@ -2046,47 +2045,56 @@ ErrorCode AdaptiveKDTree::ray_intersect_triangles( EntityHandle root,
     if (MB_SUCCESS != rval)
       return rval;
     
-    const double t = (plane.coord - ray_pt[plane.norm]) / ray_dir[plane.norm];
-      // If ray is parallel to plane...
-    if (!finite(t)) {  
+      // Consider two planes that are the split plane +/- the tolerance.
+      // Calculate the segment parameter at which the line segment intersects
+      // the true plane, and also the difference between that value and the
+      // intersection with either of the +/- tol planes.
+    const double inv_dir = 1.0/ray_dir[plane.norm]; // only do division once
+    const double t = (plane.coord - ray_pt[plane.norm]) * inv_dir; // intersection with plane
+    const double diff = tol * inv_dir; // t adjustment for +tol plane
+    //const double t0 = t - diff; // intersection with -tol plane
+    //const double t1 = t + diff; // intersection with +tol plane
+    
+      // The index of the child tree node (0 or 1) that is on the
+      // side of the plane to which the ray direction points.  That is,
+      // if the ray direction is opposite the plane normal, the index
+      // of the child corresponding to the side beneath the plane.  If
+      // the ray direction is the same as the plane normal, the index
+      // of the child corresponding to the side above the plane.
+    const int fwd_child = (ray_dir[plane.norm] > 0.0);
+    
+      // Note: we maintain seg.beg <= seg.end at all times, so assume that here.
+    
+      // If segment is parallel to plane
+    if (!finite(t)) {
       if (ray_pt[plane.norm] - tol <= plane.coord)
         list.push_back( NodeSeg( children[0], seg.beg, seg.end ) );
       if (ray_pt[plane.norm] + tol >= plane.coord)
         list.push_back( NodeSeg( children[1], seg.beg, seg.end ) );
     }
-      // If ray direction points towards left (below) plane
-    else if (ray_dir[plane.norm] < 0.0) {
-      if (seg.beg > t) {      // segment left of plane
-        list.push_back( NodeSeg( children[0], seg.beg, seg.end ) );
-        if (plane.coord - ray_pt[plane.norm] + ray_dir[plane.norm] * seg.beg < tol)
-          list.push_back( NodeSeg( children[1], seg.beg, seg.end ) );
-      }
-      else if (seg.end < t) { // segment right of plane
-        list.push_back( NodeSeg( children[1], seg.beg, seg.end ) );
-        if (ray_pt[plane.norm] + ray_dir[plane.norm] * seg.end - plane.coord < tol)
-          list.push_back( NodeSeg( children[0], seg.beg, seg.end ) );
-      }
-      else {                  // segment crosses plane
-        list.push_back( NodeSeg( children[1], seg.beg, t ) );
-        list.push_back( NodeSeg( children[0], t, seg.end ) );
-      }
+      // If segment is entirely to one side of plane such that the
+      // intersection with the split plane is past the end of the segment
+    else if (seg.end + diff < t) {
+        // If segment direction is opposite that of plane normal, then
+        // being past the end of the segment means that we are to the
+        // right (or above) the plane and what the right child (index == 1).
+        // Otherwise we want the left child (index == 0);
+      list.push_back( NodeSeg( children[1-fwd_child], seg.beg, seg.end ) );
     }
-      // If ray direction points towards right (above) plane
+      // If the segment is entirely to one side of the plane such that
+      // the intersection with the split plane is before the start of the
+      // segment
+    else if (seg.beg - diff > t) {
+        // If segment direction is opposite that of plane normal, then
+        // being before the start of the segment means that we are to the
+        // left (or below) the plane and what the left child (index == 0).
+        // Otherwise we want the right child (index == 1);
+      list.push_back( NodeSeg( children[fwd_child], seg.beg, seg.end ) );
+    }
+      // Otherwise we must intersect the plane
     else {
-      if (seg.beg > t) {      // segment right of plane
-        list.push_back( NodeSeg( children[1], seg.beg, seg.end ) );
-        if (ray_pt[plane.norm] + ray_dir[plane.norm] * seg.beg - plane.coord < tol)
-          list.push_back( NodeSeg( children[0], seg.beg, seg.end ) );
-      }
-      else if (seg.end < t) { // segment left of plane
-        list.push_back( NodeSeg( children[0], seg.beg, seg.end ) );
-        if (plane.coord - ray_pt[plane.norm] + ray_dir[plane.norm] * seg.end < tol)
-          list.push_back( NodeSeg( children[1], seg.beg, seg.end ) );
-      }
-      else {                  // segment crosses plane
-        list.push_back( NodeSeg( children[0], seg.beg, t ) );
-        list.push_back( NodeSeg( children[1], t, seg.end ) );
-      }
+      list.push_back( NodeSeg( children[1-fwd_child], seg.beg, t ) );
+      list.push_back( NodeSeg( children[  fwd_child], t, seg.end ) );
     }
   }
   
