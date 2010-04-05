@@ -797,7 +797,8 @@ static ErrorCode intersect_children_with_elems(
   const CartVect left_dim = 0.5*(left_max - box_min);
   const CartVect right_cen = 0.5*(box_max + right_min);
   const CartVect right_dim = 0.5*(box_max - right_min);
-  //const CartVect dim = box_max - box_min;
+  const CartVect dim = box_max - box_min;
+  const double max_tol = std::max(dim[0], std::max(dim[1], dim[2]))/10;
   
   
     // test each entity
@@ -856,9 +857,9 @@ static ErrorCode intersect_children_with_elems(
       // sides of plane, do more precise test to ensure that it is really
       // in both.
     if (lo && ro) {
-      double tol = eps/1000;
+      double tol = eps;
       lo = ro = false;
-      while (!lo && !ro && tol <= eps) {
+      while (!lo && !ro && tol <= max_tol) {
         lo = GeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i), left_cen, left_dim+CartVect(tol) );
         ro = GeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i),right_cen,right_dim+CartVect(tol) );
         tol *= 10.0;
@@ -2091,7 +2092,18 @@ ErrorCode AdaptiveKDTree::ray_intersect_triangles( EntityHandle root,
         // Otherwise we want the right child (index == 1);
       list.push_back( NodeSeg( children[fwd_child], seg.beg, seg.end ) );
     }
-      // Otherwise we must intersect the plane
+      // Otherwise we must intersect the plane.
+      // Note: be careful not to grow the segment if t is slightly
+      // outside the current segment, as doing so would effectively
+      // increase the tolerance as we descend the tree.
+    else if (t <= seg.beg) {
+      list.push_back( NodeSeg( children[1-fwd_child], seg.beg, seg.beg ) );
+      list.push_back( NodeSeg( children[  fwd_child], seg.beg, seg.end ) );
+    }
+    else if (t >= seg.end) {
+      list.push_back( NodeSeg( children[1-fwd_child], seg.beg, seg.end ) );
+      list.push_back( NodeSeg( children[  fwd_child], seg.end, seg.end ) );
+    }
     else {
       list.push_back( NodeSeg( children[1-fwd_child], seg.beg, t ) );
       list.push_back( NodeSeg( children[  fwd_child], t, seg.end ) );
