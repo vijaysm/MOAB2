@@ -950,6 +950,14 @@ ErrorCode RayIntersectSets::leaf( EntityHandle node )
 
 void RayIntersectSets::add_intersection( double t, EntityHandle facet )
 {
+    // If minTolInt is less than zero, return all intersections
+  if (minTolInt < 0 && t > -tol) {
+    intersections.push_back(t);
+    sets.push_back(lastSet);
+    facets.push_back(facet);
+    return;
+  }
+
     // Check if the 'len' pointer is pointing into the intersection
     // list.  If this is the case, then the list contains, at that
     // location, an intersection greater than the tolerance away from

@@ -233,6 +233,9 @@ class OrientedBoxTreeTool
      *                     ray start point is less than this number, the next closest
      *                     intersection.  If the desired result is only the closest
      *                     intersection, pass zero for this argument.
+     *                     This function will return all intersections, regardless
+     *                     of distance from the start of the ray, if this value
+     *                     is negative.
      *\param tolerance     The tolerance to use in intersection checks.
      *\param ray_point     The base point of the ray.
      *\param unit_ray_dir  The ray direction vector (must be unit length)
