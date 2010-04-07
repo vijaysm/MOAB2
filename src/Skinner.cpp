@@ -127,7 +127,7 @@ void Skinner::add_adjacency(EntityHandle entity)
   std::vector<EntityHandle> *adj = NULL;
   const EntityHandle *nodes;
   int num_nodes;
-  ErrorCode result = thisMB->get_connectivity(entity, nodes, num_nodes);
+  ErrorCode result = thisMB->get_connectivity(entity, nodes, num_nodes, true);
   assert(MB_SUCCESS == result);
   const EntityHandle *iter =
     std::min_element(nodes, nodes+num_nodes);
@@ -160,6 +160,10 @@ void Skinner::add_adjacency(EntityHandle entity,
 
   if(iter == nodes+num_nodes)
     return;
+
+    // should not be setting adjacency lists in ho-nodes
+  assert(TYPE_FROM_HANDLE(entity) == MBPOLYGON || 
+         num_nodes == CN::VerticesPerEntity(TYPE_FROM_HANDLE(entity)));
 
   // add this entity to the node
   if(thisMB->tag_get_data(mAdjTag, iter, 1, &adj) == MB_SUCCESS && adj != NULL)
@@ -347,7 +351,7 @@ ErrorCode Skinner::find_skin_noadj(const Range &source_entities,
   EntityHandle sub_conn[32];
   std::vector<EntityHandle> tmp_conn_vec;
   int num_nodes, num_sub_nodes, num_sides;
-  const short *sub_indices;
+  int sub_indices[32];
   EntityType sub_type;
 
   // for each source entity
@@ -366,8 +370,8 @@ ErrorCode Skinner::find_skin_noadj(const Range &source_entities,
     num_sides = CN::NumSubEntities( type, mTargetDim );
     for(int i=0; i<num_sides; i++)
     {
-      sub_indices = CN::SubEntityVertexIndices( type, mTargetDim, i, sub_type, num_sub_nodes );
-      assert(num_sub_nodes <= 32);
+      CN::SubEntityNodeIndices( type, num_nodes, mTargetDim, i, sub_type, num_sub_nodes, sub_indices );
+      assert((size_t)num_sub_nodes <= sizeof(sub_indices)/sizeof(sub_indices[0]));
       for(int j=0; j<num_sub_nodes; j++)
         sub_conn[j] = conn[sub_indices[j]];
       
@@ -444,7 +448,7 @@ ErrorCode Skinner::find_skin_noadj(const Range &source_entities,
           result = thisMB->create_element(new_type, sub_conn, num_new_nodes,
                                           tmphndl);
           assert(MB_SUCCESS == result);
-          add_adjacency(tmphndl, sub_conn, num_sub_nodes);
+          add_adjacency(tmphndl, sub_conn, CN::VerticesPerEntity(new_type));
           forward_target_entities.insert(tmphndl);
         }
           // if there is a match, delete the matching entity
@@ -531,9 +535,11 @@ void Skinner::find_match( EntityType type,
     if( type != tmp_type )
       continue;
 
-    result = thisMB->get_connectivity(*jter, tmp, num_verts, true);
-    assert(MB_SUCCESS == result && num_verts >= num_nodes);
-    if(connectivity_match(conn, tmp, num_verts, direct))
+    result = thisMB->get_connectivity(*jter, tmp, num_verts, false);
+    assert(MB_SUCCESS == result && num_verts >= CN::VerticesPerEntity(type));
+    // FIXME: connectivity_match appears to work only for linear elements,
+    //        so ignore higher-order nodes.
+    if(connectivity_match(conn, tmp, CN::VerticesPerEntity(type), direct))
     {
       match = *jter;
       break;
