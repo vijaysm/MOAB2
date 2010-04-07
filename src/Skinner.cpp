@@ -1476,6 +1476,7 @@ ErrorCode Skinner::find_skin_vertices_2D( Tag tag,
   const EntityHandle *conn;
   int len;
   bool find_edges = skin_edges || create_edges;
+  bool printed_nonconformal_ho_warning = false;
   EntityHandle face;
   
   if (!faces.all_of_dimension(2))
@@ -1529,14 +1530,30 @@ ErrorCode Skinner::find_skin_vertices_2D( Tag tag,
       if (TYPE_FROM_HANDLE(*i) == MBTRI && len > 3) {
         len = 3;
         higher_order = true;
-        if (idx > 2) // skip higher-order nodes for now
+        if (idx > 2) { // skip higher-order nodes for now
+          if (!printed_nonconformal_ho_warning) {
+            printed_nonconformal_ho_warning = true;
+            std::cerr << "Non-conformal higher-order mesh detected in skinner: "
+                      << "vertex " << ID_FROM_HANDLE(*it) << " is a corner in "
+                      << "some elements and a higher-order node in others" 
+                      << std::endl;
+          }
           continue;
+        }
       }
       else if (TYPE_FROM_HANDLE(*i) == MBQUAD && len > 4) {
         len = 4;
         higher_order = true;
-        if (idx > 3) // skip higher-order nodes for now
+        if (idx > 3) { // skip higher-order nodes for now
+          if (!printed_nonconformal_ho_warning) {
+            printed_nonconformal_ho_warning = true;
+            std::cerr << "Non-conformal higher-order mesh detected in skinner: "
+                      << "vertex " << ID_FROM_HANDLE(*it) << " is a corner in "
+                      << "some elements and a higher-order node in others" 
+                      << std::endl;
+          }
           continue;
+        }
       }
 
       const int prev_idx = (idx + len - 1)%len;
@@ -1682,15 +1699,29 @@ ErrorCode Skinner::find_skin_vertices_3D( Tag tag,
   int clen, side, sense, offset, indices[9];
   EntityType face_type;
   EntityHandle elem;
+  bool printed_nonconformal_ho_warning = false;
   
   if (!entities.all_of_dimension(3))
     return MB_TYPE_OUT_OF_RANGE;
   
   // get all the vertices
   Range verts;
-  rval = thisMB->get_adjacencies( entities, 0, false, verts, Interface::UNION );
+  rval = thisMB->get_connectivity( entities, verts, true );
   if (MB_SUCCESS != rval)
     return rval;
+  // if there are polyhedra in the input list, need to make another
+  // call to get vertices from faces
+  if (!verts.all_of_dimension(0)) {
+    Range::iterator it = verts.upper_bound( MBVERTEX );
+    Range pfaces;
+    pfaces.merge( it, verts.end() );
+    verts.erase( it, verts.end() );
+    rval = thisMB->get_connectivity( pfaces, verts, true );
+    if (MB_SUCCESS != rval)
+      return rval;
+    assert(verts.all_of_dimension(0));
+  }
+    
   
   AdjSides<4> adj_quads; // 4-node sides adjacent to a vertex
   AdjSides<3> adj_tris;  // 3-node sides adjacent to a vertex
@@ -1764,8 +1795,16 @@ ErrorCode Skinner::find_skin_vertices_3D( Tag tag,
         if (len > CN::VerticesPerEntity( type )) {
           higher_order =true;
             // skip higher-order nodes for now
-          if (idx >= CN::VerticesPerEntity( type )) 
+          if (idx >= CN::VerticesPerEntity( type ))  {
+            if (!printed_nonconformal_ho_warning) {
+              printed_nonconformal_ho_warning = true;
+              std::cerr << "Non-conformal higher-order mesh detected in skinner: "
+                        << "vertex " << ID_FROM_HANDLE(*it) << " is a corner in "
+                        << "some elements and a higher-order node in others" 
+                        << std::endl;
+            }
             continue;
+          }
         }
 
           // For each side of the element...
@@ -1855,7 +1894,11 @@ ErrorCode Skinner::find_skin_vertices_3D( Tag tag,
         rval = thisMB->get_connectivity( *i, conn, len, true );
         if (MB_SUCCESS != rval) return rval;
         const int idx = std::find( conn, conn+len, *it ) - conn;
-        assert(idx != len);
+        if (idx >= len) {
+          assert(printed_nonconformal_ho_warning);
+          continue;
+        }
+
           // Note that the order of the terms in the if statements below
           // is important.  We want to unmark any existing skin faces even 
           // if we aren't returning them.  Otherwise we'll end up creating 
