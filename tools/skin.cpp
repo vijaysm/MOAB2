@@ -124,7 +124,7 @@ int main( int argc, char* argv[] )
             ++i;
             break;
           default:
-            std::cerr << "Unrecognized flag: '" << argv[i][j] << "'" << std::endl;
+            std::cerr << "Unrecognized flag: '" << argv[f][j] << "'" << std::endl;
             usage(argv[0]);
             break;
         }
