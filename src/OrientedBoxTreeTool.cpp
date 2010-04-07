@@ -830,7 +830,7 @@ class RayIntersectSets : public OrientedBoxTreeTool::Op
 {
   private:
     OrientedBoxTreeTool* tool;
-    unsigned minTolInt;
+    int minTolInt;
     const CartVect b, m;
     const double* len;
     const double tol;
