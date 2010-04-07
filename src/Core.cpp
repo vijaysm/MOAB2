@@ -1203,8 +1203,8 @@ ErrorCode get_adjacencies_intersection( Core* mb,
                              Range& adj_entities )
 {
   std::vector<EntityHandle> results;
-  ErrorCode rval = get_adjacencies_intersection( mb, begin, end, to_dimension, 
-                                                   create_if_missing, results );
+  ErrorCode rval = moab::get_adjacencies_intersection( mb, begin, end, to_dimension, 
+						       create_if_missing, results );
   if (MB_SUCCESS != rval)
     return rval;
   
