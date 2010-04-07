@@ -1532,7 +1532,10 @@ extern "C" {
                           iBase_TagHandle *tag_handle, int *err,
                           const int tag_name_len)
   {
-    ErrorCode result = MBI->tag_get_handle(tag_name, (Tag&)*tag_handle);
+    std::string tmp_tagname(tag_name, tag_name_len);
+    eatwhitespace(tmp_tagname);
+
+    ErrorCode result = MBI->tag_get_handle(tmp_tagname.c_str(), (Tag&)*tag_handle);
     
     if (MB_SUCCESS != result) {
       std::string msg("iMesh_getTagHandle: problem getting handle for tag named '");
