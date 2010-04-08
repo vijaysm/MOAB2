@@ -762,13 +762,6 @@ ErrorCode mb_adjacencies_test(Interface *mb)
   ErrorCode result = MB_SUCCESS;
   Range handle_range;
 
-    // Some code to make the test simpler locally (this will cause other tests to
-    // fail though, so watch out!)
-    //mb->delete_mesh();
-    //result = mb->load_mesh("mbtest2.g", 0);
-    //if (MB_SUCCESS != result)
-    //return result;
-
     // lets create a skin of the hexes
     // this may be far from being the most efficient, but
     // it certainly does exercise the adjacency routines
