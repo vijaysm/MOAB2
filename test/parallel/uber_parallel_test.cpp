@@ -94,11 +94,11 @@ int main( int argc, char* argv[] )
   num_errors += RUN_TEST( test_read, filename, option );
 
     //=========== bcast_delete, geom_dimension, resolve_shared
-  option = "PARALLEL=READ_DELETE;PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;";
+  option = "PARALLEL=BCAST_DELETE;PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;";
   num_errors += RUN_TEST( test_read, filename, option );
 
     //=========== bcast_delete, material_set, resolve_shared
-  option = "PARALLEL=READ_DELETE;PARTITION=MATERIAL_SET;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;";
+  option = "PARALLEL=BCAST_DELETE;PARTITION=MATERIAL_SET;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;";
   num_errors += RUN_TEST( test_read, filename, option );
 
     //=========== read_delete, geom_dimension, resolve_shared, exch ghost
@@ -110,11 +110,11 @@ int main( int argc, char* argv[] )
   num_errors += RUN_TEST( test_read, filename, option );
 
     //=========== bcast_delete, geom_dimension, resolve_shared, exch ghost
-  option = "PARALLEL=READ_DELETE;PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1;";
+  option = "PARALLEL=BCAST_DELETE;PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1;";
   num_errors += RUN_TEST( test_read, filename, option );
 
     //=========== bcast_delete, material_set, resolve_shared, exch ghost
-  option = "PARALLEL=READ_DELETE;PARTITION=MATERIAL_SET;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1;";
+  option = "PARALLEL=BCAST_DELETE;PARTITION=MATERIAL_SET;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1;";
   num_errors += RUN_TEST( test_read, filename, option );
 
   MPI_Finalize();
