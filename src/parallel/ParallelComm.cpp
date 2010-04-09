@@ -3676,26 +3676,26 @@ ErrorCode ParallelComm::filter_pstatus( Range &ents,
   ErrorCode result = mbImpl->tag_get_data(pstatus_tag(), ents,
                                             &shared_flags[0]);
   RRA("Failed to get pstatus flag.");
-  Range::const_iterator rit;
+  Range::const_iterator rit, hint = tmp_ents.begin();;
   int i;
   if (op == PSTATUS_OR) {
     for (rit = ents.begin(), i = 0; rit != ents.end(); rit++, i++) 
       if (((shared_flags[i] & ~pstat)^shared_flags[i]) & pstat) {
-        tmp_ents.insert(*rit);
+        hint = tmp_ents.insert(hint,*rit);
         if (-1 != to_proc) shared_flags2.push_back(shared_flags[i]);
       }
   }
   else if (op == PSTATUS_AND) {
     for (rit = ents.begin(), i = 0; rit != ents.end(); rit++, i++)
       if ((shared_flags[i] & pstat) == pstat) {
-        tmp_ents.insert(*rit);
+        hint = tmp_ents.insert(hint,*rit);
         if (-1 != to_proc) shared_flags2.push_back(shared_flags[i]);
       }
   }
   else if (op == PSTATUS_NOT) {
     for (rit = ents.begin(), i = 0; rit != ents.end(); rit++, i++)
       if (!(shared_flags[i] & pstat)) {
-        tmp_ents.insert(*rit);
+        hint = tmp_ents.insert(hint,*rit);
         if (-1 != to_proc) shared_flags2.push_back(shared_flags[i]);
       }
   }
@@ -3709,6 +3709,7 @@ ErrorCode ParallelComm::filter_pstatus( Range &ents,
     int sharing_procs[MAX_SHARING_PROCS];
     std::fill(sharing_procs, sharing_procs+MAX_SHARING_PROCS, -1);
     Range tmp_ents2;
+    hint = tmp_ents2.begin();
 
     for (rit = tmp_ents.begin(), i = 0; rit != tmp_ents.end(); rit++, i++) {
         // we need to check sharing procs
@@ -3720,7 +3721,7 @@ ErrorCode ParallelComm::filter_pstatus( Range &ents,
         for (unsigned int j = 0; j < MAX_SHARING_PROCS; j++) {
             // if to_proc shares this entity, add it to list
           if (sharing_procs[j] == to_proc) {
-            tmp_ents2.insert(*rit);
+            hint = tmp_ents2.insert(hint, *rit);
           }
           else if (sharing_procs[j] == -1) break;
 
@@ -3732,7 +3733,8 @@ ErrorCode ParallelComm::filter_pstatus( Range &ents,
                                       sharing_procs);
         RRA(" ");
         assert(-1 != sharing_procs[0]);
-        if (sharing_procs[0] == to_proc) tmp_ents2.insert(*rit);
+        if (sharing_procs[0] == to_proc) 
+          hint = tmp_ents2.insert(hint,*rit);
         sharing_procs[0] = -1;
       }
       else
