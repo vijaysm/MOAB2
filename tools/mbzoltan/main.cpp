@@ -82,6 +82,7 @@ int main(int argc, char *argv[])
   
   if (write_output) {
     result = mbImpl->write_mesh(argv[4]); RR;
+    std::cout << "Wrote partitioned mesh to " << argv[4] << std::endl;
   }
 
   delete mbz;
