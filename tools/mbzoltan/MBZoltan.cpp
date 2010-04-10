@@ -481,6 +481,20 @@ ErrorCode MBZoltan::write_partition(const int nparts,
     for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
       result = mbImpl->add_entities(part_sets[assignment[i]], &(*rit), 1); RR;
     }
+
+      // check for empty sets, warn if there are any
+    std::vector<unsigned int> empty_sets;
+    for (i = 0; i < nparts; i++) {
+      int num_ents = 0;
+      result = mbImpl->get_number_entities_by_handle(part_sets[i], num_ents);
+      if (MB_SUCCESS != result || !num_ents) empty_sets.push_back(i);
+    }
+    if (!empty_sets.empty()) {
+      std::cout << "WARNING: " << empty_sets.size() << " empty sets in partition: ";
+      for (std::vector<unsigned int>::iterator vit = empty_sets.begin(); vit != empty_sets.end(); vit++)
+        std::cout << *vit << " ";
+      std::cout << std::endl;
+    }
   }
   
   if (write_as_tags) {
@@ -576,7 +590,7 @@ void MBZoltan::SetOCTPART_Parameters(const char *oct_method)
 int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids, 
                                  int *adjs, int *length)
 {
-  int i;
+  unsigned int i;
   int j;
   int *numPts, *nborProcs;
   int sum, ptsPerProc, ptsAssigned, mySize;
@@ -595,7 +609,7 @@ int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids,
     ptsPerProc = npts / mbpc->proc_config().proc_size();
     ptsAssigned = 0;
 
-    for (i=0; (int) i < mbpc->proc_config().proc_size()-1; i++)
+    for (i=0; i < mbpc->proc_config().proc_size()-1; i++)
     {
       numPts[i] = ptsPerProc;
       ptsAssigned += ptsPerProc;
@@ -627,7 +641,7 @@ int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids,
 
     sendProcs = nborProcs + (sendNborId - adjs);
 
-    for (i=1; (int)i<mbpc->proc_config().proc_size(); i++)
+    for (i=1; i<mbpc->proc_config().proc_size(); i++)
     {
       MPI_Send(&numPts[i], 1, MPI_INT, i, 0x00,MPI_COMM_WORLD);
       MPI_Send(sendPts, 3 * numPts[i], MPI_DOUBLE, i, 0x01,MPI_COMM_WORLD);
@@ -728,7 +742,7 @@ void MBZoltan::mbFinalizePoints(int npts, int numExport,
 int MBZoltan::mbGlobalSuccess(int rc)
 {
   int fail = 0;
-  int i;
+  unsigned int i;
   int *vals = (int *)malloc(mbpc->proc_config().proc_size() * sizeof(int));
 
   MPI_Allgather(&rc, 1, MPI_INT, vals, 1, MPI_INT, MPI_COMM_WORLD);
@@ -749,7 +763,7 @@ int MBZoltan::mbGlobalSuccess(int rc)
 void MBZoltan::mbPrintGlobalResult(const char *s, 
                                    int begin, int import, int exp, int change)
 {
-  int i;
+  unsigned int i;
   int *v1 = (int *)malloc(4 * sizeof(int));
   int *v2 = NULL;
   int *v;
