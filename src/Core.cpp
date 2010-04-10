@@ -2335,8 +2335,8 @@ ErrorCode Core::list_entity(const EntityHandle entity) const
 }
 
 ErrorCode Core::convert_entities( const EntityHandle meshset, 
-                                        const bool mid_side, const bool mid_face, const bool mid_volume,
-                                        Interface::HONodeAddedRemoved* function_object )
+                                  const bool mid_side, const bool mid_face, const bool mid_volume,
+                                  Interface::HONodeAddedRemoved* function_object )
 {
   HigherOrderFactory fact(this, function_object);
   return fact.convert(meshset, mid_side, mid_face, mid_volume);

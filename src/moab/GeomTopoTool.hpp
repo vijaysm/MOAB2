@@ -81,7 +81,7 @@ private:
 
 inline GeomTopoTool::GeomTopoTool(Interface *impl, 
                                   bool find_geoments) 
-  : mdbImpl(impl), obbTree(impl), sense2Tag(0) 
+        : mdbImpl(impl), sense2Tag(0), obbTree(impl)
 {
   if (find_geoments) find_geomsets();
 }

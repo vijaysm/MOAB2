@@ -682,7 +682,7 @@ int ParallelComm::estimate_ents_buffer_size(Range &entities,
     if (TYPE_FROM_HANDLE(*rit) != t) continue;
     
     ErrorCode result = mbImpl->get_connectivity(*rit, connect, num_connect, 
-                                                  true, &dum_connect_vec);
+                                                false, &dum_connect_vec);
     RRA("Failed to get connectivity to estimate buffer size.");
 
       // number, type, nodes per entity
@@ -1101,6 +1101,11 @@ ErrorCode ParallelComm::get_remote_handles(const bool store_remote_handles,
           int j = new_ents.index(from_vec[i]);
           if (-1 == j) {
             result = MB_FAILURE;
+            std::cout << "Failed to find new entity in send list, proc " 
+                      << procConfig.proc_rank() << std::endl;
+            for (int j = 0; j <= num_ents; j++) 
+              std::cout << j << ": " << from_vec[j] << " " << to_vec[j] 
+                        << std::endl;
             RRA("Failed to find new entity in send list.");
           }
           int err;
@@ -2975,6 +2980,11 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   result = get_interface_procs(procs, true);
   RRA("Trouble getting iface procs.");
 
+#ifndef NDEBUG
+  result = check_all_shared_handles();
+  RRA("Shared handle check failed after iface vertex exchange.");
+#endif  
+
     // resolve shared entity remote handles; implemented in ghost cell exchange
     // code because it's so similar
   result = exchange_ghost_cells(-1, -1, 0, true, true);
@@ -3421,7 +3431,7 @@ ErrorCode ParallelComm::tag_shared_ents(int resolve_dim,
     for (Range::iterator rit = skin_ents[d].begin();
          rit != skin_ents[d].end(); rit++) {
         // get connectivity
-      result = mbImpl->get_connectivity(*rit, connect, num_connect, true,
+      result = mbImpl->get_connectivity(*rit, connect, num_connect, false,
                                         &dum_connect);
       RRA("Failed to get connectivity on non-vertex skin entities.");
  
@@ -5883,6 +5893,7 @@ ErrorCode ParallelComm::pack_shared_handles(
       tmp.local = handles[j];
       int ind = get_buffers(ent_procs[j]);
       assert(-1 != ind);
+      if ((int)send_data.size() < ind+1) send_data.resize(ind+1);
       send_data[ind].push_back( tmp );
     }
   }
@@ -5913,6 +5924,7 @@ ErrorCode ParallelComm::exchange_all_shared_handles(
   assert(num_proc == (int)send_data.size());
   
   sendReqs.resize(buffProcs.size(), MPI_REQUEST_NULL);
+  result.resize(num_proc);
   for (int i = 0; i < num_proc; ++i) {
     sizes_send[i] = send_data[i].size();
     ierr = MPI_Isend( &sizes_send[i], 1, MPI_INT, buffProcs[i], tag, comm, &sendReqs[i] );
