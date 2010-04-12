@@ -30,7 +30,8 @@ TESTS = tqdcfr \
 	$(EXODUS_TEST) \
         gmsh_test \
 	nastran_test \
-        stl_test 
+        stl_test \
+        smf_test
 
 check_PROGRAMS = $(TESTS)
 
@@ -61,6 +62,9 @@ nastran_test_DEPENDENCIES = $(LDADD)
 
 stl_test_SOURCES = $(srcdir)/../TestUtil.hpp stl_test.cc
 stl_test_DEPENDENCIES = $(LDADD)
+
+smf_test_SOURCES = $(srcdir)/../TestUtil.hpp smf_test.cc
+smf_test_DEPENDENCIES = $(LDADD)
 
 MOSTLYCLEANFILES = dumped_acis.sat 
 
