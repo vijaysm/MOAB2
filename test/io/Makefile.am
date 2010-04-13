@@ -8,7 +8,8 @@ EXTRA_DIST = brick_cubit10.1.cub \
              ho_test.cub \
              test.cub \
              test.nas \
-	     sample.stl
+	     sample.stl \
+             three.smf
 
 
 AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
