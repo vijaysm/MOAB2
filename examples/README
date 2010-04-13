@@ -1,0 +1,42 @@
+This directory contains examples of some of MOAB's key functionality.
+Each example described here corresponds to a source file.  
+
+The GetEntities example is located in the "simple" subdirectory.  The
+makefile there indicates how to build a program linked to MOAB using a
+simple makefile.
+
+The Makefile.am in the main examples directory illustrates how to
+build a program linked to MOAB using a GNU autotools build system.
+
+For more information on these examples, refer to the MOAB Code
+Examples webpage at
+    http://trac.mcs.anl.gov/projects/ITAPS/wiki/CodeExamples
+
+
+Simple Examples
+===============
+    GetEntities: get the number of entities of each dimension
+
+    SetsNTags: query the sets in a mesh and tags on those sets
+
+
+General Mesh Query & Manipulation
+=================================
+    SkinMesh: compute the outer faces of a mesh
+
+    SurfArea: compute the surface area of the skin of a mesh
+
+    ObbTree: construct an obb tree from input triangles and do ray-tracing
+
+    KDTree: construct a kD-tree from a hexahedral mesh and then search
+            for some points
+
+
+Mesh Import
+===========
+    FileRead: file reader example
+
+
+Meta-Data
+=========
+    GeomSetHierarchy: read and query geometric model information
