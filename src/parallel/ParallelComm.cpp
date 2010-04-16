@@ -117,8 +117,12 @@ void PACK_INT( unsigned char*& buff, int int_val )
   { PACK_INTS( buff, &int_val, 1 ); }
 
 static inline
-void PACK_DBL( unsigned char*& buff, const double* dbl_val, size_t num )
+void PACK_DBLS( unsigned char*& buff, const double* dbl_val, size_t num )
   { PACK( buff, dbl_val, num ); PC(num, " doubles"); }
+
+static inline
+void PACK_DBL( unsigned char*& buff, const double dbl_val)
+{ PACK_DBLS( buff, &dbl_val, 1 ); }
 
 static inline
 void PACK_EH( unsigned char*& buff, const EntityHandle* eh_val, size_t num )
@@ -127,7 +131,7 @@ void PACK_EH( unsigned char*& buff, const EntityHandle* eh_val, size_t num )
 static inline
 void PACK_CHAR_64( unsigned char*& buff, const char* str )
 {
-  strncpy( reinterpret_cast<char*>(buff), str, 64 );
+  memcpy(buff, str, 64 );
   buff += 64;
   PC(64, " chars");
 }
@@ -164,8 +168,12 @@ void UNPACK_INT( unsigned char*& buff, int& int_val )
   { UNPACK_INTS( buff, &int_val, 1 ); }
 
 static inline
-void UNPACK_DBL( unsigned char*& buff, double* dbl_val, size_t num )
+void UNPACK_DBLS( unsigned char*& buff, double* dbl_val, size_t num )
   { UNPACK(buff, dbl_val, num); UPC(num, " doubles"); }
+
+static inline
+void UNPACK_DBL( unsigned char*& buff, double &dbl_val)
+{ UNPACK_DBLS(buff, &dbl_val, 1); }
 
 static inline
 void UNPACK_EH( unsigned char*& buff, EntityHandle* eh_val, size_t num )
@@ -841,11 +849,10 @@ ErrorCode ParallelComm::pack_entities(Range &entities,
     PACK_INT(buff->buff_ptr, ((int) MBVERTEX));
     PACK_INT(buff->buff_ptr, ((int) num_ents));
 
-    result = mbImpl->get_coords(these_ents, (double*)buff->buff_ptr);
+    std::vector<double> tmp_coords(3*num_ents);
+    result = mbImpl->get_coords(these_ents, &tmp_coords[0]);
+    PACK_DBLS(buff->buff_ptr, &tmp_coords[0], 3*num_ents);
     RRA("Couldn't get vertex coordinates.");
-    PC(3*num_ents, " doubles");
-
-    buff->buff_ptr += 3 * num_ents * sizeof(double);
 
 #ifdef DEBUG_PACKING
   std::cerr << "Packed " << these_ents.size() << " ents of type " 
@@ -1004,23 +1011,20 @@ ErrorCode ParallelComm::pack_entity_seq(const int nodes_per_entity,
   PACK_INT(buff->buff_ptr, nodes_per_entity);
       
     // pack the connectivity
-  const EntityHandle *connect;
-  int num_connect;
-  std::vector<EntityHandle> dum_connect;
-  EntityHandle *start_vec = (EntityHandle*)buff->buff_ptr;
+  std::vector<EntityHandle> connect;
   ErrorCode result = MB_SUCCESS;
   for (Range::const_iterator rit = these_ents.begin(); rit != these_ents.end(); rit++) {
-    result = mbImpl->get_connectivity(*rit, connect, num_connect, false,
-                                      &dum_connect);
+    connect.clear();
+    result = mbImpl->get_connectivity(&(*rit), 1, connect, false);
     RRA("Failed to get connectivity.");
-    assert(num_connect == nodes_per_entity);
-    PACK_EH(buff->buff_ptr, connect, num_connect);
+    assert((int)connect.size() == nodes_per_entity);
+    result = get_remote_handles(store_remote_handles, &connect[0], &connect[0],
+                                connect.size(), to_proc, entities);
+    RRA("Failed in get_remote_handles.");
+    PACK_EH(buff->buff_ptr, &connect[0], connect.size());
   }
 
     // substitute destination handles
-  result = get_remote_handles(store_remote_handles, start_vec, start_vec,
-                              nodes_per_entity*these_ents.size(), to_proc,
-                              entities);
   RRA("Trouble getting remote handles when packing entities.");
 
 #ifdef DEBUG_PACKING
@@ -1317,8 +1321,8 @@ ErrorCode ParallelComm::unpack_entities(unsigned char *&buff_ptr,
         // check for existing entity, otherwise make new one
       EntityHandle new_h = 0;
 
-      EntityHandle *connect;
-      double *coords;
+      EntityHandle connect[CN::MAX_NODES_PER_ELEMENT];
+      double coords[3];
       int num_ps = -1;
 
         //=======================================
@@ -1338,12 +1342,11 @@ ErrorCode ParallelComm::unpack_entities(unsigned char *&buff_ptr,
       }
 
       if (MBVERTEX == this_type) {
-        coords = (double*) buff_ptr;
-        buff_ptr += 3*sizeof(double);
+        UNPACK_DBLS(buff_ptr, coords, 3);
       }
       else {
-        connect = (EntityHandle*) buff_ptr;
-        buff_ptr += verts_per_entity * sizeof(EntityHandle);
+        assert(verts_per_entity <= CN::MAX_NODES_PER_ELEMENT);
+        UNPACK_EH(buff_ptr, connect, verts_per_entity);
 
           // update connectivity to local handles
         result = get_local_handles(connect, verts_per_entity, msg_ents);
@@ -1560,18 +1563,17 @@ ErrorCode ParallelComm::print_buffer(unsigned char *buff_ptr,
     
       for (int e = 0; e < num_ents2; e++) {
           // check for existing entity, otherwise make new one
-        EntityHandle *connect;
-        double *coords;
 
         if (MBVERTEX == this_type) {
-          coords = (double*) buff_ptr;
-          buff_ptr += 3*sizeof(double);
+          double coords[3];
+          UNPACK_DBLS(buff_ptr, coords, 3);
           std::cerr << "xyz = " << coords[0] << ", " << coords[1] << ", " 
                     << coords[2] << std::endl;
         }
         else {
-          connect = (EntityHandle*) buff_ptr;
-          buff_ptr += verts_per_entity * sizeof(EntityHandle);
+          EntityHandle connect[CN::MAX_NODES_PER_ELEMENT];
+          assert(verts_per_entity <= CN::MAX_NODES_PER_ELEMENT);
+          UNPACK_EH(buff_ptr, connect, verts_per_entity);
 
             // update connectivity to local handles
           std::cerr << "Connectivity: ";
@@ -1630,33 +1632,48 @@ ErrorCode ParallelComm::print_buffer(unsigned char *buff_ptr,
       std::cerr << "Default value size = " << dum1 << std::endl;
       buff_ptr += dum1;
       UNPACK_INT(buff_ptr, dum1);
-      std::cerr << "Tag name = " << (char*) buff_ptr << std::endl;
+      std::string name((char*)buff_ptr, dum1);
+      std::cerr << "Tag name = " << name.c_str() << std::endl;
       buff_ptr += dum1;
       UNPACK_INT(buff_ptr, num_ents);
       std::cerr << "Number of ents = " << num_ents << std::endl;
-      unsigned char *tmp_buff = buff_ptr;
-      buff_ptr += num_ents*sizeof(EntityHandle);
+      std::vector<EntityHandle> tmp_buff(num_ents);
+      UNPACK_EH(buff_ptr, &tmp_buff[0], num_ents);
       int tot_length = 0;
       for (int i = 0; i < num_ents; i++) {
-        EntityType etype = TYPE_FROM_HANDLE(*((EntityHandle*)tmp_buff));
+        EntityType etype = TYPE_FROM_HANDLE(tmp_buff[i]);
         std::cerr << CN::EntityTypeName(etype) << " " 
-                  << ID_FROM_HANDLE(*((EntityHandle*)tmp_buff))
+                  << ID_FROM_HANDLE(tmp_buff[i])
                   << ", tag = ";
         if (tag_size == MB_VARIABLE_LENGTH) {
           UNPACK_INT(buff_ptr, dum1);
           tot_length += dum1;
           std::cerr << "(variable, length = " << dum1 << ")" << std::endl;
         }
-        else if (data_type == MB_TYPE_DOUBLE) std::cerr << *((double*)buff_ptr) << std::endl;
-        else if (data_type == MB_TYPE_INTEGER) std::cerr << *((int*)buff_ptr) << std::endl;
-        else if (data_type == MB_TYPE_OPAQUE) std::cerr << "(opaque)" << std::endl;
-        else if (data_type == MB_TYPE_HANDLE) 
-          std::cerr <<  (EntityHandle)*buff_ptr << std::endl;
-        else if (data_type == MB_TYPE_BIT) std::cerr << "(bit)" << std::endl;
-        tmp_buff += sizeof(EntityHandle);
-        buff_ptr += tag_size;
+        else if (data_type == MB_TYPE_DOUBLE) {
+          double dum_dbl;
+          UNPACK_DBL(buff_ptr, dum_dbl);
+          std::cerr << dum_dbl << std::endl;
+        }
+        else if (data_type == MB_TYPE_INTEGER) {
+          int dum_int;
+          UNPACK_INT(buff_ptr, dum_int);
+          std::cerr << dum_int << std::endl;
+        }
+        else if (data_type == MB_TYPE_OPAQUE) {
+          std::cerr << "(opaque)" << std::endl;
+          buff_ptr += tag_size;
+        }
+        else if (data_type == MB_TYPE_HANDLE) {
+          EntityHandle dum_eh;
+          UNPACK_EH(buff_ptr, &dum_eh, 1);
+          std::cerr <<  dum_eh << std::endl;
+        }
+        else if (data_type == MB_TYPE_BIT) {
+          std::cerr << "(bit)" << std::endl;
+          buff_ptr += tag_size;
+        }
       }
-
       if (tag_size == MB_VARIABLE_LENGTH) buff_ptr += tot_length;
     }
   }
@@ -2512,8 +2529,9 @@ ErrorCode ParallelComm::pack_tag( Tag src_tag,
     // pack entities
   buff->check_space(tagged_entities.size()*sizeof(EntityHandle)+sizeof(int));
   PACK_INT(buff->buff_ptr, tagged_entities.size());
+  std::vector<EntityHandle> dum_tagged_entities(tagged_entities.size());
   result = get_remote_handles(store_remote_handles,
-                              tagged_entities, (EntityHandle*)buff->buff_ptr, to_proc,
+                              tagged_entities, &dum_tagged_entities[0], to_proc,
                               whole_range);
 #ifdef DEBUG_PACKING
   if (MB_SUCCESS != result) {
@@ -2523,8 +2541,7 @@ ErrorCode ParallelComm::pack_tag( Tag src_tag,
 #else
   RRA("Trouble getting remote handles for tagged entities.");
 #endif
-
-  buff->buff_ptr += tagged_entities.size() * sizeof(EntityHandle);
+  PACK_EH(buff->buff_ptr, &dum_tagged_entities[0], dum_tagged_entities.size());
 
   const size_t num_ent = tagged_entities.size();
   if (tinfo->get_size() == MB_VARIABLE_LENGTH) {
@@ -2542,6 +2559,8 @@ ErrorCode ParallelComm::pack_tag( Tag src_tag,
   }
   else {
     buff->check_space(num_ent * tinfo->get_size());
+      // should be ok to read directly into buffer, since tags are untyped and
+      // handled by memcpy
     result = mbImpl->tag_get_data(src_tag, tagged_entities, buff->buff_ptr);
     RRA("Failed to get tag data in pack_tags.");
     buff->buff_ptr += num_ent * tinfo->get_size();
@@ -2600,7 +2619,6 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
   UNPACK_INT(buff_ptr, num_tags);
   std::vector<EntityHandle> tag_ents;
   std::vector<const void*> var_len_vals;
-  std::vector<int> var_lengths;
 
   for (int i = 0; i < num_tags; i++) {
     
@@ -2657,23 +2675,24 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
     }
     else if (MB_SUCCESS != result) return result;
 
-      // go through handle vec (in buffer) and convert to local handles in-place
+      // get handles and convert to local handles
     int num_ents;
     UNPACK_INT(buff_ptr, num_ents);
-    EntityHandle *handle_vec = (EntityHandle*)buff_ptr;
-    buff_ptr += num_ents * sizeof(EntityHandle);
+    std::vector<EntityHandle> dum_ents(num_ents), dum_vals;
+    UNPACK_EH(buff_ptr, &dum_ents[0], num_ents);
 
     if (!store_remote_handles) {
         // in this case handles are indices into new entity range; need to convert
         // to local handles
-      result = get_local_handles(handle_vec, num_ents, entities);
+      result = get_local_handles(&dum_ents[0], num_ents, entities);
       RRA("Unable to convert to local handles.");
     }
 
       // if it's a handle type, also convert tag vals in-place in buffer
     if (MB_TYPE_HANDLE == tag_type) {
-      EntityHandle *val_vec = (EntityHandle*)buff_ptr;
-      result = get_local_handles(val_vec, num_ents, entities);
+      dum_vals.resize(num_ents);
+      UNPACK_EH(buff_ptr, &dum_vals[0], num_ents);
+      result = get_local_handles(&dum_vals[0], num_ents, entities);
       RRA("Failed to get local handles for tag vals.");
     }
 
@@ -2681,16 +2700,8 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
         // Be careful of alignment here.  If the integers are aligned
         // in the buffer, we can use them directly.  Otherwise we must
         // copy them.
-      const int* size_arr;
-      if (((size_t)buff_ptr)%4) {
-        var_lengths.resize( num_ents );
-        memcpy( &var_lengths[0], buff_ptr, num_ents*sizeof(int) );
-        size_arr = &var_lengths[0];
-      }
-      else {
-        size_arr = reinterpret_cast<const int*>(buff_ptr);
-      }
-      buff_ptr += sizeof(int) * num_ents;
+      std::vector<int> var_lengths(num_ents);
+      UNPACK_INTS(buff_ptr, &var_lengths[0], num_ents);
       UPC(sizeof(int) * num_ents, " void");
       
         // get pointers into buffer for each tag value
@@ -2698,15 +2709,15 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
       for (std::vector<EntityHandle>::size_type i = 0; 
            i < (std::vector<EntityHandle>::size_type) num_ents; ++i) {
         var_len_vals[i] = buff_ptr;
-        buff_ptr += size_arr[i];
-        UPC(size_arr[i], " void");
+        buff_ptr += var_lengths[i];
+        UPC(var_lengths[i], " void");
       }
-      result = mbImpl->tag_set_data( tag_handle, handle_vec, num_ents,
-                                     &var_len_vals[0], size_arr );
+      result = mbImpl->tag_set_data( tag_handle, &dum_ents[0], num_ents,
+                                     &var_len_vals[0], &var_lengths[0]);
       RRA("Trouble setting tag data when unpacking variable-length tag.");
     }
     else {
-      result = mbImpl->tag_set_data(tag_handle, handle_vec,
+      result = mbImpl->tag_set_data(tag_handle, &dum_ents[0],
                                     num_ents, buff_ptr);
       RRA("Trouble setting range-based tag data when unpacking tag.");
       buff_ptr += num_ents * tag_size;
@@ -6223,92 +6234,3 @@ ErrorCode ParallelComm::get_shared_entities(int other_proc,
 
 
 } // namespace moab
-
-#ifdef TEST_PARALLELCOMM
-
-#include <iostream>
-
-#include "moab/Core.hpp"
-#include "moab/ParallelComm.hpp"
-#include "moab/Range.hpp"
-
-#define PM {std::cerr << "Test failed; error message:" << std::endl;\
-          std::string errmsg; \
-          dynamic_cast<Core*>(my_impl)->get_last_error(errmsg); \
-          std::cerr << errmsg << std::endl;\
-          return 1;}
-
-using namespace moab;
-
-int main(int argc, char* argv[])
-{
-
-    // Check command line arg
-  if (argc < 2)
-  {
-    std::cout << "Usage: " << argv[0] << " <mesh_file_name>" << std::endl;
-    exit(1);
-  }
-
-  const char* file = argv[1];
-  Core *my_impl = new Core(0, 2);
-  Interface* mbImpl = my_impl;
-
-    // create a communicator class, which will start mpi too
-  ParallelComm pcomm(mbImpl, my_impl->tag_server(), my_impl->sequence_manager());
-  ErrorCode result;
-
-    // load the mesh
-  result = mbImpl->load_mesh(file, 0, 0);
-  if (MB_SUCCESS != result) return result;
-
-    // get the mesh
-  Range all_mesh, whole_range;
-  result = mbImpl->get_entities_by_dimension(0, 3, all_mesh);
-  if (MB_SUCCESS != result) return result;
-    
-  int buff_size;
-  result = pcomm.pack_buffer(all_mesh, false, true, true, false, whole_range, buff_size);
-  PM;
-
-
-    // allocate space in the buffer
-  pcomm.buffer_size(buff_size);
-
-    // pack the actual buffer
-  int actual_buff_size;
-  result = pcomm.pack_buffer(whole_range, false, true, false, false, all_mesh, 
-                             actual_buff_size);
-  PM;
-
-    // list the entities that got packed
-  std::cout << "ENTITIES PACKED:" << std::endl;
-  mbImpl->list_entities(all_mesh);
-
-    // get the buffer
-  std::vector<unsigned char> tmp_buffer;
-  pcomm.take_buffer(tmp_buffer);
-    
-    // stop and restart MOAB
-  delete mbImpl;
-  my_impl = new Core(1, 2);
-  mbImpl = my_impl;
-    
-    // create a new communicator class, using our old buffer
-  ParallelComm pcomm2(mbImpl, my_impl->tag_server(), my_impl->sequence_manager(),
-                        tmp_buffer);
-
-    // unpack the results
-  all_mesh.clear();
-  result = pcomm2.unpack_buffer(all_mesh, store_remote_handles, from_proc);
-  PM;
-  
-  std::cout << "ENTITIES UNPACKED:" << std::endl;
-  mbImpl->list_entities(all_mesh);
-  
-  std::cout << "Success, processor " << mbImpl->proc_rank() << "." << std::endl;
-  
-  return 1;
-}
-
-#endif
