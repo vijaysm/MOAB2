@@ -605,7 +605,7 @@ int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids,
   {
       /* divide pts to start */
 
-    numPts = (int *)malloc(sizeof(int) * mbpc->proc_config().proc_size());
+    MALLOC(numPts, sizeof(int) * mbpc->proc_config().proc_size(), int *);
     ptsPerProc = npts / mbpc->proc_config().proc_size();
     ptsAssigned = 0;
 
@@ -631,7 +631,7 @@ int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids,
     for (j=numPts[0]; j<npts; j++)
       sum += length[j];
 
-    nborProcs = (int *)malloc(sizeof(int) * sum);
+    MALLOC(nborProcs, sizeof(int) * sum, int *);
 
     for (j=0; j<sum; j++)
       if ((i = adjs[j]/ptsPerProc) < mbpc->proc_config().proc_size())
@@ -666,9 +666,9 @@ int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids,
   else
   {
     MPI_Recv(&mySize, 1, MPI_INT, 0, 0x00, MPI_COMM_WORLD, &stat);
-    pts = (double *)malloc(sizeof(double) * 3 * mySize);
-    ids = (int *)malloc(sizeof(int) * mySize);
-    length = (int *)malloc(sizeof(int) * mySize);
+    MALLOC(pts, sizeof(double) * 3 * mySize, double *);
+    MALLOC(ids, sizeof(int) * mySize, int *);
+    MALLOC(length, sizeof(int) * mySize, int *);
     MPI_Recv(pts, 3 * mySize, MPI_DOUBLE, 0, 0x01, MPI_COMM_WORLD, &stat);
     MPI_Recv(ids, mySize, MPI_INT, 0, 0x03, MPI_COMM_WORLD, &stat);
     MPI_Recv(length, mySize, MPI_INT, 0, 0x06, MPI_COMM_WORLD, &stat);
@@ -677,8 +677,8 @@ int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids,
     for (j=0; j<mySize; j++)
       sum += length[j];
 
-    adjs = (int *)malloc(sizeof(int) * sum);
-    nborProcs = (int *)malloc(sizeof(int) * sum);
+    MALLOC(adjs, sizeof(int) * sum, int *);
+    MALLOC(nborProcs, sizeof(int) * sum, int *);
     MPI_Recv(adjs, sum, MPI_INT, 0, 0x07, MPI_COMM_WORLD, &stat);
     MPI_Recv(nborProcs, sum, MPI_INT, 0, 0x08, MPI_COMM_WORLD, &stat);
   }     
@@ -705,10 +705,12 @@ void MBZoltan::mbFinalizePoints(int npts, int numExport,
 
   /* assign pts to start */
 
-  if (mbpc->proc_config().proc_rank() == 0)
-    MyAssignment = (int *)malloc(sizeof(int) * npts);
-  else
-    MyAssignment = (int *)malloc(sizeof(int) * NumPoints);
+  if (mbpc->proc_config().proc_rank() == 0) {
+    MALLOC(MyAssignment, sizeof(int) * npts, int *);
+  }
+  else {
+    MALLOC(MyAssignment, sizeof(int) * NumPoints, int *);
+  }
 
   for (i=0; i<NumPoints; i++)
     MyAssignment[i] = mbpc->proc_config().proc_rank();
@@ -743,7 +745,8 @@ int MBZoltan::mbGlobalSuccess(int rc)
 {
   int fail = 0;
   unsigned int i;
-  int *vals = (int *)malloc(mbpc->proc_config().proc_size() * sizeof(int));
+  int *vals;
+  MALLOC(vals, mbpc->proc_config().proc_size() * sizeof(int), int *);
 
   MPI_Allgather(&rc, 1, MPI_INT, vals, 1, MPI_INT, MPI_COMM_WORLD);
 
@@ -764,7 +767,8 @@ void MBZoltan::mbPrintGlobalResult(const char *s,
                                    int begin, int import, int exp, int change)
 {
   unsigned int i;
-  int *v1 = (int *)malloc(4 * sizeof(int));
+  int *v1;
+  MALLOC(v1, 4 * sizeof(int), int *);
   int *v2 = NULL;
   int *v;
 
@@ -774,7 +778,7 @@ void MBZoltan::mbPrintGlobalResult(const char *s,
   v1[3] = change;
 
   if (mbpc->proc_config().proc_rank() == 0){
-    v2 = (int *)malloc(4 * mbpc->proc_config().proc_size() * sizeof(int));
+    MALLOC(v2, 4 * mbpc->proc_config().proc_size() * sizeof(int), int*);
   }
 
   MPI_Gather(v1, 4, MPI_INT, v2, 4, MPI_INT, 0, MPI_COMM_WORLD);

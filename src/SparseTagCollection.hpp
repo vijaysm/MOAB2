@@ -65,7 +65,7 @@ public:
   //! destructor
   ~SparseTagDataAllocator(){}
   //! allocates memory of size and returns pointer
-  void* allocate(size_t data_size) { return malloc(data_size); }
+  void* allocate(size_t data_size) { void *array; MALLOC(array, data_size, void*); return array;}
   //! frees the memory
   void destroy(void* p){ free(p); }
 };

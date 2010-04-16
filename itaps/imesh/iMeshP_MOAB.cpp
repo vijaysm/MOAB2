@@ -882,7 +882,8 @@ void iMeshP_getAdjEntIndices(iMesh_Instance instance,
   // allocate or check size of adj_entity_indices
   *adj_entity_indices_size = size;
   if (allocated_indices) {
-    *adj_entity_indices = (int*)malloc(sizeof(iBase_EntityHandle)*size);
+    MALLOC(*adj_entity_indices, sizeof(iBase_EntityHandle)*size, int*);
+//    *adj_entity_indices = (int*)malloc(sizeof(iBase_EntityHandle)*size);
     if (!*adj_entity_indices) 
       *err = iBase_MEMORY_ALLOCATION_FAILED;
     else
@@ -916,7 +917,7 @@ void iMeshP_getAdjEntIndices(iMesh_Instance instance,
     unique_adj = *adj_entity_handles;
   }
   else {
-    unique_adj = (iBase_EntityHandle*)malloc(sizeof(iBase_EntityHandle) * size);
+    MALLOC(unique_adj, sizeof(iBase_EntityHandle) * size, iBase_EntityHandle*);
   }
   std::copy( all_adj_handles, all_adj_handles+size, unique_adj );
   std::sort( unique_adj, unique_adj + size );
@@ -927,8 +928,8 @@ void iMeshP_getAdjEntIndices(iMesh_Instance instance,
   // and copy the unique handle list into it
   if (*adj_entity_handles != unique_adj) {
     if (!*adj_entity_handles_allocated) {
-      *adj_entity_handles = (iBase_EntityHandle*)malloc(
-                            sizeof(iBase_EntityHandle) * *adj_entity_handles_size);
+      MALLOC(*adj_entity_handles, 
+             sizeof(iBase_EntityHandle) * *adj_entity_handles_size, iBase_EntityHandle*);
       if (!*adj_entity_handles)
         *err = iBase_MEMORY_ALLOCATION_FAILED;
       else

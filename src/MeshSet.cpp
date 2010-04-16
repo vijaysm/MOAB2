@@ -133,7 +133,8 @@ MeshSet::Count insert_in_vector( const MeshSet::Count count,
         return MeshSet::TWO;
       }
       else {
-        EntityHandle* ptr = (EntityHandle*)malloc(3*sizeof(EntityHandle));
+        EntityHandle *ptr;
+        MALLOC(ptr, 3*sizeof(EntityHandle), EntityHandle*);
         ptr[0] = list.hnd[0];
         ptr[1] = list.hnd[1];
         ptr[2] = h;
@@ -147,8 +148,11 @@ MeshSet::Count insert_in_vector( const MeshSet::Count count,
         result = false;
       }
       else {
-        int size = list.ptr[1] - list.ptr[0];
-        list.ptr[0] = (EntityHandle*)realloc( list.ptr[0], (size+1)*sizeof(EntityHandle) );
+        int size = list.ptr[1] - list.ptr[0],
+            old_size = size * sizeof(EntityHandle);
+        REALLOC(list.ptr[0], list.ptr[0], old_size, old_size+sizeof(EntityHandle),
+                EntityHandle*);
+          //list.ptr[0] = (EntityHandle*)realloc( list.ptr[0], (size+1)*sizeof(EntityHandle) );
         list.ptr[0][size] = h;
         list.ptr[1] = list.ptr[0] + size + 1;
         result = true;
@@ -216,7 +220,9 @@ MeshSet::Count remove_from_vector( const MeshSet::Count count,
         return MeshSet::TWO;
       }
       else {
-        list.ptr[0] = (EntityHandle*)realloc( list.ptr[0], size*sizeof(EntityHandle) );
+        int rsize = size * sizeof(EntityHandle);
+        REALLOC(list.ptr[0], list.ptr[0], rsize, rsize, EntityHandle*);
+//        list.ptr[0] = (EntityHandle*)realloc( list.ptr[0], size*sizeof(EntityHandle) );
         list.ptr[1] = list.ptr[0] + size;
         return MeshSet::MANY;
       }
@@ -374,7 +380,8 @@ static EntityHandle* resize_compact_list( MeshSet::Count& count,
       return clist.hnd;
     }
     else {
-      EntityHandle* list = (EntityHandle*)malloc( new_list_size*sizeof(EntityHandle) );
+      EntityHandle *list;
+      MALLOC(list, new_list_size*sizeof(EntityHandle), EntityHandle*);
       list[0] = clist.hnd[0];
       list[1] = clist.hnd[1];
       clist.ptr[0] = list;
@@ -384,8 +391,12 @@ static EntityHandle* resize_compact_list( MeshSet::Count& count,
     }
   }
   else if (new_list_size > 2) {
-    if (new_list_size > (size_t)(clist.ptr[1] - clist.ptr[0]))
-      clist.ptr[0] = (EntityHandle*)realloc( clist.ptr[0], new_list_size*sizeof(EntityHandle) );
+    if (new_list_size > (size_t)(clist.ptr[1] - clist.ptr[0])) {
+      size_t old_size = (clist.ptr[1] - clist.ptr[0]) * sizeof(EntityHandle);
+      REALLOC(clist.ptr[0], clist.ptr[0], old_size, new_list_size*sizeof(EntityHandle),
+              EntityHandle*);
+//      clist.ptr[0] = (EntityHandle*)realloc( clist.ptr[0], new_list_size*sizeof(EntityHandle) );
+    }
     clist.ptr[1] = clist.ptr[0] + new_list_size;
     count = MeshSet::MANY;
     return clist.ptr[0];

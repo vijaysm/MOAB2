@@ -27,7 +27,7 @@ extern "C" int getrusage(int, struct rusage *);
 #include <assert.h>
 
 #include "iMesh.h"
-
+#include "moab/Interface.hpp"
 // needed to get the proper size for handles
 
 using namespace std;
@@ -134,7 +134,8 @@ void testB(iMesh_Instance mesh,
     // need to explicitly fill connectivity array, since we don't know
     // the format of entity handles
   int nconnect = 8 * num_elems;
-  iBase_EntityHandle *sidl_connect = (iBase_EntityHandle*) malloc(nconnect*sizeof(iBase_EntityHandle));
+  iBase_EntityHandle *sidl_connect;
+  MALLOC(sidl_connect, nconnect*sizeof(iBase_EntityHandle), iBase_EntityHandle*);
   
   for (int i = 0; i < nconnect; i++) {
       // use connect[i]-1 because we used starting vertex index (vstart) of 1
@@ -191,7 +192,8 @@ void testC(iMesh_Instance mesh, const int nelem, const double *coords)
 #define VINDEX(i,j,k) (i + (j*numv) + (k*numv_sq))
 
     // array to hold vertices created individually
-  iBase_EntityHandle *sidl_vertices = (iBase_EntityHandle*) malloc(num_verts*sizeof(iBase_EntityHandle));
+  iBase_EntityHandle *sidl_vertices;
+  MALLOC(sidl_vertices, num_verts*sizeof(iBase_EntityHandle), iBase_EntityHandle*);
   int result;
 
   for (int i = 0; i < num_verts; i++) {
@@ -473,7 +475,7 @@ void build_coords(const int nelem, double *&coords)
   int numv = nelem+1;
   int numv_sq = numv*numv;
   int tot_numv = numv*numv*numv;
-  coords = (double*) malloc(3*tot_numv*sizeof(double));
+  MALLOC(coords, 3*tot_numv*sizeof(double), double*);
 
 // use FORTRAN-like indexing
 #define VINDEX(i,j,k) (i + (j*numv) + (k*numv_sq))
@@ -611,7 +613,7 @@ void build_connect(const int nelem, const int vstart, int *&connect)
 {
     // allocate the memory
   int nume_tot = nelem*nelem*nelem;
-  connect = (int*) malloc(8*nume_tot*sizeof(int));
+  MALLOC(connect, 8*nume_tot*sizeof(int), int*);
 
   int vijk;
   int numv = nelem + 1;

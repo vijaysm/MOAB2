@@ -120,7 +120,8 @@ int hexdigit( char c )
 
 unsigned char* parse_opaque_value( const char* vals, int size )
 {
-  unsigned char* data = (unsigned char*)malloc( size );
+  unsigned char* data;
+  MALLOC(data, size, unsigned char*);
   if (vals[0] && vals[0] == '0' && vals[1] && toupper(vals[1]) == 'X')
   {
     unsigned char *iter, *end;
@@ -187,7 +188,8 @@ template<typename T> T* parse_values_typed( const char* vals, int size )
   if (!count)
     return 0;
     
-  T* data = (T*)malloc( size );
+  T* data;
+  MALLOC(data, size, T*);
   T* end = data + count;
   if (parse_value<T>( vals, *data ))
   {

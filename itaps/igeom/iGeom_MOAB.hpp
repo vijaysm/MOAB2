@@ -63,7 +63,7 @@ static inline moab::EntityHandle MBH_cast( iBase_EntityHandle h )
     RETURN(iBase_MEMORY_ALLOCATION_FAILED);				\
   }									\
   if ((size) && ((allocated) == 0 || NULL == (array))) {		\
-    array = (type*)malloc((size)*sizeof(type));				\
+    MALLOC(array, (size)*sizeof(type), (type*));                                \
     allocated=(size);							\
     if (NULL == array) {iGeom_processError(iBase_MEMORY_ALLOCATION_FAILED, \
 					   "Couldn't allocate array.");RETURN(iBase_MEMORY_ALLOCATION_FAILED); } \

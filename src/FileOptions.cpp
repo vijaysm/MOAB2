@@ -19,6 +19,7 @@
  */
 
 #include "FileOptions.hpp"
+#include "moab/Interface.hpp"
 
 #include <ctype.h>
 #include <stdlib.h>
@@ -69,7 +70,7 @@ FileOptions::FileOptions( const FileOptions& copy ) :
     const char* last = copy.mOptions.back();
     const char* endptr = last + strlen(last) + 1;
     size_t len = endptr - copy.mData;
-    mData = (char*)malloc( len );
+    MALLOC(mData, len, char*);
     memcpy( mData, copy.mData, len );
     for (size_t i = 0; i < mOptions.size(); ++i)
       mOptions[i] = mData + (copy.mOptions[i] - copy.mData);
@@ -87,7 +88,7 @@ FileOptions& FileOptions::operator=( const FileOptions& copy )
     const char* last = copy.mOptions.back();
     const char* endptr = last + strlen(last) + 1;
     size_t len = endptr - copy.mData;
-    mData = (char*)malloc( len );
+    MALLOC(mData, len, char* );
     memcpy( mData, copy.mData, len );
     for (size_t i = 0; i < mOptions.size(); ++i)
       mOptions[i] = mData + (copy.mOptions[i] - copy.mData);

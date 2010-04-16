@@ -189,7 +189,7 @@ ErrorCode ReadHDF5::set_up_read( const char* filename,
     return error(MB_INVALID_SIZE);
   }
   
-  dataBuffer = (char*)malloc( bufferSize );
+  MALLOC(dataBuffer, bufferSize, char*);
   if (!dataBuffer)
     return error(MB_MEMORY_ALLOCATION_FAILED);
   
@@ -236,7 +236,7 @@ ErrorCode ReadHDF5::set_up_read( const char* filename,
     
       // allocate structure
     if (rank != 0) 
-      fileInfo = reinterpret_cast<mhdf_FileDesc*>( malloc( size ) );
+      MALLOC(fileInfo, size, reinterpret_cast<mhdf_FileDesc*>);
       // bcast file summary
     MPI_Bcast( fileInfo, size, MPI_BYTE, 0, myPcomm->proc_config().proc_comm() );
       // fix up internal pointers in file summary struct

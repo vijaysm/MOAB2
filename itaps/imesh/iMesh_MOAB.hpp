@@ -136,7 +136,7 @@ public:
                      int* err ) : arrayPtr(0)
   {
     if (!*array_ptr) {
-      *array_ptr = std::malloc(val_size * count);
+      MALLOC(*array_ptr, val_size * count, void**);
       array_allocated_space = array_size = count;
       if (!*array_ptr) {
         IBASE_ERROR(iBase_MEMORY_ALLOCATION_FAILED, "Couldn't allocate array.");

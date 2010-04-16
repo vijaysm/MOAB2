@@ -52,8 +52,6 @@ ErrorCode read_file(Interface *mbImpl, std::vector<std::string> &filenames,
                       int parallel_option, int resolve_shared, int with_ghosts, 
                       int use_mpio, bool print_parallel);
 
-ErrorCode test_packing(Interface *mbImpl, const char *filename);
-
 ErrorCode report_nsets(Interface *mbImpl);
 
 ErrorCode report_iface_ents(Interface *mbImpl,
@@ -147,13 +145,8 @@ int main(int argc, char **argv)
           break;
 
       case 4:
-          filenames.push_back(argv[npos++]);
-          tmp_result = test_packing(mbImpl, filenames[0].c_str());
-          if (MB_SUCCESS != tmp_result) {
-            result = tmp_result;
-            std::cerr << "Packing test failed; error message:" << std::endl;
-            PRINT_LAST_ERROR
-                }
+          std::cout << "Not implemented; use pcomm_unit to test packing."
+                    << std::endl;
           break;
 
       case 5:
@@ -378,46 +371,6 @@ ErrorCode read_file(Interface *mbImpl,
   if (MB_SUCCESS == result) report_iface_ents(mbImpl, pcs);
   
   return result;
-}
-
-ErrorCode test_packing(Interface *mbImpl, const char *filename) 
-{
-    // read the mesh
-  EntityHandle file_set;
-  ErrorCode result = mbImpl->create_meshset( MESHSET_SET, file_set );
-  RRA("create_meshset failed.");
-
-  result = mbImpl->load_file(filename, &file_set, NULL);
-  if (MB_SUCCESS != result) {
-    std::cerr << "Reading file failed; message:" << std::endl;
-    PRINT_LAST_ERROR;
-    return result;
-  }
-  
-    // get 3d entities and pack a buffer with them
-  Range ents, new_ents, whole_range;
-  result = mbImpl->get_entities_by_handle(file_set, ents);
-  RRA("Getting 3d ents failed.");
-  
-  ents.insert(file_set);
-  
-  ParallelComm *pcomm = new ParallelComm(mbImpl);
-
-  ParallelComm::Buffer buff;
-  result = pcomm->pack_buffer(ents, false, true, false, -1, &buff);
-  RRA("Packing buffer count (non-stored handles) failed.");
-
-  std::vector<std::vector<EntityHandle> > L1hloc, L1hrem;
-  std::vector<std::vector<int> > L1p;
-  std::vector<EntityHandle> L2hloc, L2hrem;
-  std::vector<unsigned int> L2p;
-  
-  buff.reset_ptr();
-  result = pcomm->unpack_buffer(buff.buff_ptr, false, -1, -1, L1hloc, L1hrem, L1p, L2hloc, 
-                         L2hrem, L2p, new_ents);
-  RRA("Unpacking buffer (non-stored handles) failed.");
-
-  return MB_SUCCESS;
 }
 
 ErrorCode report_iface_ents(Interface *mbImpl,

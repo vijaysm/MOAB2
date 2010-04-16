@@ -22,7 +22,7 @@ void test_hex_findpt()
     const int n=5; //number of nodes per direction (min is 2, for linear element)
 
     for(int d=0; d<3; d++){
-      xm[d]=tmalloc(double, n*n*n);
+      MALLOC(xm[d], n*n*n, double);
     }
 
     double scale = 1./(n-1);
@@ -57,7 +57,8 @@ void test_hex_eval()
     double value;
 
     const int n=2; //number of nodes per direction (min is 2, for linear element)
-    double *field = tmalloc(double, n*n*n);
+    double *field;
+    MALLOC(field, n*n*n, double);
 
     double scale = 1./(n-1);
     int node = 0;

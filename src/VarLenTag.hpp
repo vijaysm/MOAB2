@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include "moab/Interface.hpp"
 
 namespace moab {
 
@@ -170,14 +171,17 @@ inline unsigned char* VarLenTag::resize( unsigned s )
     return mData.mInline.array;
   }
   else if (size() <= INLINE_COUNT) {
-    void* tmp_ptr = malloc(s);
+    void *tmp_ptr;
+    MALLOC(tmp_ptr, s, void*);
     memcpy( tmp_ptr, mData.mInline.array, size() );
     mData.mPointer.array = reinterpret_cast<unsigned char*>(tmp_ptr);
   }
   else 
 #endif
   if (size() < s) {
-    void* tmp_ptr = size() ? realloc( mData.mPointer.array, s ) : malloc( s );
+    void *tmp_ptr;
+    if (size()) {REALLOC( mData.mPointer.array, tmp_ptr, size(), s, void* );}
+    else MALLOC(tmp_ptr, s, void* );
     mData.mPointer.array = reinterpret_cast<unsigned char*>(tmp_ptr);
   }
   mData.mPointer.size = s;
@@ -189,7 +193,7 @@ inline VarLenTag::VarLenTag( unsigned size )
 #ifdef VAR_LEN_TAG_ELIDE_DATA
   if (size > INLINE_COUNT) 
 #endif
-    mData.mPointer.array = reinterpret_cast<unsigned char*>(malloc(size));
+    MALLOC(mData.mPointer.array, size, unsigned char*);
   mData.mPointer.size = size;
 }
 
@@ -211,7 +215,7 @@ inline VarLenTag::VarLenTag( const VarLenTag& copy )
   if (size() > INLINE_COUNT)
 #endif
   {
-    mData.mPointer.array = reinterpret_cast<unsigned char*>(malloc(size()));
+    MALLOC(mData.mPointer.array, size(), reinterpret_cast<unsigned char*>);
     memcpy( mData.mPointer.array, copy.mData.mPointer.array, size() );
   }
 }

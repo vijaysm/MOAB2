@@ -21,7 +21,9 @@ size_t num_tests = 0;
 test_data *test_array = 0;
 int register_test( test_ptr test, const char* name )
 {
-  test_array = (test_data*)realloc( test_array, sizeof(test_data)*(num_tests+1) );
+//  test_array = (test_data*)realloc( test_array, sizeof(test_data)*(num_tests+1) );
+  int old_size = num_tests*sizeof(test_data);
+  REALLOC(test_array, test_array, old_size, old_size+sizeof(test_data), test_data*);
   test_array[num_tests].test = test;
   test_array[num_tests].name = name;
   test_array[num_tests].result = true;
@@ -105,7 +107,8 @@ DECLARE_TEST(subset)
 
 int main( int argc, char* argv[] )
 {
-  int *test_indices = (int*)malloc( sizeof(int) * num_tests );
+  int *test_indices;
+  MALLOC(test_indices, sizeof(int) * num_tests, int* );
   int test_count;
     // if no arguments, do all tests
   if (argc == 1) {

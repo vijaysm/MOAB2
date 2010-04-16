@@ -3,6 +3,7 @@
 
 
 #include "TypeSequenceManager.hpp"
+#include "moab/Interface.hpp"
 
 #include <vector>
 #include <stdlib.h>
@@ -162,7 +163,8 @@ inline SequenceData::SequenceData( int num_sequence_arrays,
     endHandle(end)
 {
   const size_t size = sizeof(void*) * (num_sequence_arrays + 1);
-  void** data = (void**)malloc( size );
+  void **data;
+  MALLOC(data, size, void**);
   memset( data, 0, size );
   arraySet = data + num_sequence_arrays;
 }

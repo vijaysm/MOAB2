@@ -688,11 +688,14 @@ extern "C" {
           // exact allocation if one input entity or typical queries 
           // such as connectivity of a non-mixed mesh or regions adjacent
           // to faces.
+        int new_alloc;
         if (!array_alloc) 
-          array_alloc = entity_handles_size * num_connect;
+          new_alloc = entity_handles_size * num_connect;
         else
-          array_alloc = std::max(array_alloc*2, prev_off+num_connect);  
-        array = (EntityHandle*)realloc( array, array_alloc*sizeof(EntityHandle) );
+          new_alloc = std::max(array_alloc*2, prev_off+num_connect);  
+        REALLOC(array, array, array_alloc, new_alloc, EntityHandle*);
+        array_alloc = new_alloc;
+          //array = (EntityHandle*)realloc( array, array_alloc*sizeof(EntityHandle) );
         if (!array) {
           RETURN(iBase_MEMORY_ALLOCATION_FAILED);
         }
@@ -824,7 +827,7 @@ extern "C" {
     // allocate or check size of adj_entity_indices
     *adj_entity_indices_size = size;
     if (allocated_indices) {
-      *adj_entity_indices = (int*)malloc(sizeof(iBase_EntityHandle)*size);
+      MALLOC(*adj_entity_indices, sizeof(iBase_EntityHandle)*size, int*);
       if (!*adj_entity_indices) 
         *err = iBase_MEMORY_ALLOCATION_FAILED;
       else
@@ -858,7 +861,7 @@ extern "C" {
       unique_adj = *adj_entity_handles;
     }
     else {
-      unique_adj = (iBase_EntityHandle*)malloc(sizeof(iBase_EntityHandle) * size);
+      MALLOC(unique_adj, sizeof(iBase_EntityHandle) * size, iBase_EntityHandle*);
     }
     std::copy( all_adj_handles, all_adj_handles+size, unique_adj );
     std::sort( unique_adj, unique_adj + size );
@@ -869,8 +872,8 @@ extern "C" {
     // and copy the unique handle list into it
     if (*adj_entity_handles != unique_adj) {
       if (!*adj_entity_handles_allocated) {
-        *adj_entity_handles = (iBase_EntityHandle*)malloc(
-                              sizeof(iBase_EntityHandle) * *adj_entity_handles_size);
+        MALLOC(*adj_entity_handles, 
+               sizeof(iBase_EntityHandle) * *adj_entity_handles_size, iBase_EntityHandle*);
         if (!*adj_entity_handles)
           *err = iBase_MEMORY_ALLOCATION_FAILED;
         else
@@ -2753,7 +2756,7 @@ void cfunc_(int arg3, char *mystr, char *mystr2, int arg2,
 
 void cfptr_(void **instance) 
 {
-  *instance = malloc(sizeof(int));
+  MALLOC(*instance, sizeof(int), void*);
   int *tmp_inst = (int*) instance;
   *tmp_inst = 6;
 }

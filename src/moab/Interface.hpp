@@ -61,6 +61,26 @@ namespace moab {
 static const MBuuid IDD_MBCore = MBuuid( 0x8956e0a, 0xc300, 0x4005,
                                          0xbd, 0xf6, 0xc3, 0x4e, 0xf7, 0x1f, 0x5a, 0x52 );
 
+#ifdef MEM_ALIGN
+#define MALLOC(ptr, size, mtype) posix_memalign((void**)&ptr, MEM_ALIGN, size);
+#define REALLOC(old_ptr, new_ptr, old_size, new_size, mtype) \
+    {if (old_ptr == new_ptr) {                                         \
+      mtype _mtmp_ptr;                                                   \
+      posix_memalign((void**)&_mtmp_ptr, MEM_ALIGN, new_size);           \
+      memcpy(_mtmp_ptr, old_ptr, old_size);\
+      free(old_ptr);                     \
+      new_ptr = _mtmp_ptr;                 \
+    }                                    \
+    else { \
+      posix_memalign((void**)&new_ptr, MEM_ALIGN, new_size);          \
+      memcpy(new_ptr, old_ptr, old_size);                             \
+      free(old_ptr);                     \
+    }                                    \
+    }
+#else  
+#define MALLOC(ptr, size, mtype) ptr = (mtype)malloc(size);
+#define REALLOC(old_ptr, new_ptr, old_size, new_size, mtype) new_ptr = (mtype)realloc(old_ptr, old_size);
+#endif
 
 
 #if defined(XPCOM_MB)

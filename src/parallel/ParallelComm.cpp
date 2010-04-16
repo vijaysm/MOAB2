@@ -110,7 +110,10 @@ void PACK( unsigned char*& buff, const T* val, size_t count )
 
 static inline
 void PACK_INTS( unsigned char*& buff, const int* int_val, size_t num )
-  { PACK( buff, int_val, num ); PC(num, " ints"); }
+  { 
+    unsigned long _extra;
+    ALIGN_BY_SIZE<int>(buff, _extra);
+    PACK( buff, int_val, num ); PC(num, " ints"); }
 
 static inline
 void PACK_INT( unsigned char*& buff, int int_val )
@@ -118,11 +121,17 @@ void PACK_INT( unsigned char*& buff, int int_val )
 
 static inline
 void PACK_DBL( unsigned char*& buff, const double* dbl_val, size_t num )
-  { PACK( buff, dbl_val, num ); PC(num, " doubles"); }
+  { 
+    unsigned long extra;
+    ALIGN_BUFFER(buff, extra);
+    PACK( buff, dbl_val, num ); PC(num, " doubles"); }
 
 static inline
 void PACK_EH( unsigned char*& buff, const EntityHandle* eh_val, size_t num )
-  { PACK( buff, eh_val, num ); PC(num, " handles"); }
+  { 
+    unsigned long extra;
+    ALIGN_BUFFER(buff, extra);
+    PACK( buff, eh_val, num ); PC(num, " handles"); }
 
 static inline
 void PACK_CHAR_64( unsigned char*& buff, const char* str )
@@ -157,7 +166,11 @@ void PACK_RANGE( unsigned char*& buff, const Range& rng )
 
 static inline
 void UNPACK_INTS( unsigned char*& buff, int* int_val, size_t num )
-  { UNPACK(buff, int_val, num); UPC(num, " ints"); }
+  { 
+    unsigned long _extra;
+    ALIGN_BY_SIZE<int>(buff, _extra);
+    UNPACK(buff, int_val, num); UPC(num, " ints"); 
+}
 
 static inline
 void UNPACK_INT( unsigned char*& buff, int& int_val )
@@ -165,11 +178,17 @@ void UNPACK_INT( unsigned char*& buff, int& int_val )
 
 static inline
 void UNPACK_DBL( unsigned char*& buff, double* dbl_val, size_t num )
-  { UNPACK(buff, dbl_val, num); UPC(num, " doubles"); }
+  { 
+    long _extra;
+    ALIGN_BUFFER(buff, _extra);
+    UNPACK(buff, dbl_val, num); UPC(num, " doubles"); }
 
 static inline
 void UNPACK_EH( unsigned char*& buff, EntityHandle* eh_val, size_t num )
-  { UNPACK(buff, eh_val, num); UPC(num, " handles"); }
+  { 
+    long _extra;
+    ALIGN_BUFFER(buff, _extra);
+    UNPACK(buff, eh_val, num); UPC(num, " handles"); }
 
 static inline
 void UNPACK_CHAR_64( unsigned char*& buff, char* char_val )
@@ -554,7 +573,7 @@ ErrorCode ParallelComm::broadcast_entities( const int from_proc,
     std::vector<EntityHandle> dum2;
     std::vector<unsigned int> dum3;
     buff.reset_ptr(sizeof(int));
-    result = unpack_buffer(buff.buff_ptr, false, from_proc, -1, 
+    result = unpack_buffer(&buff, false, from_proc, -1, 
                            dum1a, dum1b, dum1p, dum2, dum2, dum3, entities);
     RRA("Failed to unpack buffer in broadcast_entities.");
   }
@@ -609,8 +628,8 @@ ErrorCode ParallelComm::pack_buffer(Range &orig_ents,
   return result;
 }
  
-ErrorCode ParallelComm::unpack_buffer(unsigned char *buff_ptr,
-                                          const bool store_remote_handles,
+ErrorCode ParallelComm::unpack_buffer(Buffer *buff,
+                                      const bool store_remote_handles,
                                           const int from_proc,
                                           const int ind,
                                           std::vector<std::vector<EntityHandle> > &L1hloc,
@@ -622,28 +641,18 @@ ErrorCode ParallelComm::unpack_buffer(unsigned char *buff_ptr,
                                           Range &new_ents) 
 {
 #ifdef DEBUG_PACKING
-    unsigned char *tmp_buff = buff_ptr;
+  std::cerr << "Unpack buffer: starting at " << buff->get_size() << std::endl;
 #endif  
     ErrorCode result;
-    result = unpack_entities(buff_ptr, store_remote_handles,
+    result = unpack_entities(buff, store_remote_handles,
                              ind, false, L1hloc, L1hrem, L1p, L2hloc, L2hrem, L2p, new_ents);
   RRA("Unpacking entities failed.");
-#ifdef DEBUG_PACKING
-    std::cerr << "unpack_entities buffer space: " << buff_ptr - tmp_buff << " bytes." << std::endl;
-    tmp_buff = buff_ptr;
-#endif  
-  result = unpack_sets(buff_ptr, new_ents, store_remote_handles, from_proc);
+
+  result = unpack_sets(buff, new_ents, store_remote_handles, from_proc);
   RRA("Unpacking sets failed.");
-#ifdef DEBUG_PACKING
-    std::cerr << "unpack_sets buffer space: " << buff_ptr - tmp_buff << " bytes." << std::endl;
-    tmp_buff = buff_ptr;
-#endif  
-  result = unpack_tags(buff_ptr, new_ents, store_remote_handles, from_proc);
+
+  result = unpack_tags(buff, new_ents, store_remote_handles, from_proc);
   RRA("Unpacking tags failed.");
-#ifdef DEBUG_PACKING
-    std::cerr << "unpack_tags buffer space: " << buff_ptr - tmp_buff << " bytes." << std::endl;
-    tmp_buff = buff_ptr;
-#endif  
 
 #ifdef DEBUG_PACKING
   std::cerr << std::endl;
@@ -664,9 +673,11 @@ int ParallelComm::num_subranges(const Range &this_range)
 }
 
 int ParallelComm::estimate_ents_buffer_size(Range &entities,
-                                              const bool store_remote_handles) 
+                                            const bool store_remote_handles,
+                                            unsigned int &num_aligns) 
 {
   int buff_size = 0;
+  num_aligns = 0;
   std::vector<EntityHandle> dum_connect_vec;
   const EntityHandle *connect;
   int num_connect;
@@ -674,7 +685,11 @@ int ParallelComm::estimate_ents_buffer_size(Range &entities,
   int num_verts = entities.num_of_type(MBVERTEX);
     // # verts + coords + handles
   buff_size += 2*sizeof(int) + 3*sizeof(double)*num_verts;
-  if (store_remote_handles) buff_size += sizeof(EntityHandle)*num_verts;
+  num_aligns++;
+  if (store_remote_handles) {
+    buff_size += sizeof(EntityHandle)*num_verts;
+    num_aligns++;
+  }
 
     // do a rough count by looking at first entity of each type
   for (EntityType t = MBEDGE; t < MBENTITYSET; t++) {
@@ -690,6 +705,7 @@ int ParallelComm::estimate_ents_buffer_size(Range &entities,
     int num_ents = entities.num_of_type(t);
       // connectivity, handle for each ent
     buff_size += (num_connect+1)*sizeof(EntityHandle)*num_ents;
+    num_aligns++;
   }
 
       // extra entity type at end, passed as int
@@ -699,8 +715,11 @@ int ParallelComm::estimate_ents_buffer_size(Range &entities,
 }
 
 int ParallelComm::estimate_sets_buffer_size(Range &entities,
-                                              const bool store_remote_handles) 
+                                            const bool store_remote_handles,
+                                            unsigned int &num_aligns) 
 {
+  num_aligns = 0;
+  
     // number of sets
   int buff_size = sizeof(int);
   
@@ -722,7 +741,9 @@ int ParallelComm::estimate_sets_buffer_size(Range &entities,
       RRA("Failed to get set entities.");
 
         // set range
-      buff_size += RANGE_SIZE(set_range);
+      int rsize = RANGE_SIZE(set_range);
+      buff_size += rsize;
+      num_aligns += rsize;
     }
     else if (options & MESHSET_ORDERED) {
         // just get the number of entities in the set
@@ -732,6 +753,7 @@ int ParallelComm::estimate_sets_buffer_size(Range &entities,
 
         // set vec
       buff_size += sizeof(EntityHandle) * num_ents + sizeof(int);
+      num_aligns++;
     }
 
       // get numbers of parents/children
@@ -743,6 +765,7 @@ int ParallelComm::estimate_sets_buffer_size(Range &entities,
     RRA("Failed to get num parents.");
 
     buff_size += (num_ch + num_par) * sizeof(EntityHandle) + 2*sizeof(int);
+    num_aligns += 2;
   }
 
   return buff_size;
@@ -765,9 +788,11 @@ ErrorCode ParallelComm::pack_entities(Range &entities,
     // 3. vertex/entity info
 
     // get an estimate of the buffer size & pre-allocate buffer size
+  unsigned int num_aligns;
   unsigned int buff_size = estimate_ents_buffer_size(entities, 
-                                                     store_remote_handles);
-  buff->check_space(buff_size);
+                                                     store_remote_handles, 
+                                                     num_aligns);
+  buff->check_space(buff_size, num_aligns);
   
   WriteUtilIface *wu;
   ErrorCode result = mbImpl->query_interface(std::string("WriteUtilIface"), 
@@ -782,7 +807,8 @@ ErrorCode ParallelComm::pack_entities(Range &entities,
 
       // buff space is at least proc+handle for each entity; use avg of 4 other procs
       // to estimate buff size, but check later
-    buff->check_space(sizeof(int) + (5*sizeof(int) + sizeof(EntityHandle))*entities.size());
+    buff->check_space(sizeof(int) + (5*sizeof(int) + sizeof(EntityHandle))*entities.size(),
+                      entities.size());
 
       // 1. # entities = E
     PACK_INT(buff->buff_ptr, entities.size());
@@ -841,6 +867,8 @@ ErrorCode ParallelComm::pack_entities(Range &entities,
     PACK_INT(buff->buff_ptr, ((int) MBVERTEX));
     PACK_INT(buff->buff_ptr, ((int) num_ents));
 
+    unsigned long extra;
+    ALIGN_BUFFER(buff->buff_ptr, extra);
     result = mbImpl->get_coords(these_ents, (double*)buff->buff_ptr);
     RRA("Couldn't get vertex coordinates.");
     PC(3*num_ents, " doubles");
@@ -912,6 +940,10 @@ ErrorCode ParallelComm::pack_entities(Range &entities,
   PACK_INT(buff->buff_ptr, ((int)MBMAXTYPE));
 
   buff->set_stored_size();
+
+  if (22 == procConfig.proc_rank() || 23 == procConfig.proc_rank())
+    print_buffer(buff->mem_ptr, MB_MESG_ENTS_LARGE, to_proc, true);
+
   return MB_SUCCESS;
 }
 
@@ -1006,6 +1038,8 @@ ErrorCode ParallelComm::pack_entity_seq(const int nodes_per_entity,
     // pack the connectivity
   const EntityHandle *connect;
   int num_connect;
+  unsigned long extra;
+  ALIGN_BUFFER(buff->buff_ptr, extra);
   std::vector<EntityHandle> dum_connect;
   EntityHandle *start_vec = (EntityHandle*)buff->buff_ptr;
   ErrorCode result = MB_SUCCESS;
@@ -1218,17 +1252,17 @@ ErrorCode ParallelComm::get_remote_handles(const bool store_remote_handles,
   return result;
 }
 
-ErrorCode ParallelComm::unpack_entities(unsigned char *&buff_ptr,
-                                            const bool store_remote_handles,
-                                            const int from_ind,
-                                            const bool is_iface,
-                                            std::vector<std::vector<EntityHandle> > &L1hloc,
-                                            std::vector<std::vector<EntityHandle> > &L1hrem,
-                                            std::vector<std::vector<int> > &L1p,
-                                            std::vector<EntityHandle> &L2hloc, 
-                                            std::vector<EntityHandle> &L2hrem,
-                                            std::vector<unsigned int> &L2p,
-                                            Range &new_ents) 
+ErrorCode ParallelComm::unpack_entities(Buffer *buff,
+                                        const bool store_remote_handles,
+                                        const int from_ind,
+                                        const bool is_iface,
+                                        std::vector<std::vector<EntityHandle> > &L1hloc,
+                                        std::vector<std::vector<EntityHandle> > &L1hrem,
+                                        std::vector<std::vector<int> > &L1p,
+                                        std::vector<EntityHandle> &L2hloc, 
+                                        std::vector<EntityHandle> &L2hrem,
+                                        std::vector<unsigned int> &L2p,
+                                        Range &new_ents) 
 {
     // general algorithm:
     // - unpack # entities
@@ -1265,28 +1299,35 @@ ErrorCode ParallelComm::unpack_entities(unsigned char *&buff_ptr,
                                    reinterpret_cast<void**>(&ru));
   RRA("Failed to get ReadUtilIface.");
 
+#ifdef DEBUG_PACKING
+  std::cerr << "Unpack entities: starting at " << buff->get_size() << std::endl;
+#endif  
+
     // procs the sending proc is telling me I'll be receiving from
   std::set<unsigned int> comm_procs;
 
     // 1. # entities = E
   int num_ents;
-  unsigned char *buff_save = buff_ptr;
+  unsigned char *buff_save = buff->buff_ptr;
+  unsigned char *buff_orig = buff->buff_ptr;
   int i, j;
+  unsigned long extra;
 
   if (store_remote_handles) {
-    UNPACK_INT(buff_ptr, num_ents);
+    UNPACK_INT(buff->buff_ptr, num_ents);
 
-    buff_save = buff_ptr;
-    
       // save place where remote handle info starts, then scan forward to ents
     for (i = 0; i < num_ents; i++) {
-      UNPACK_INT(buff_ptr, j);
+      UNPACK_INT(buff->buff_ptr, j);
       if (j < 0) {
         std::cout << "Should be non-negative # proc/handles.";
         return MB_FAILURE;
       }
       
-      buff_ptr += j * (sizeof(int)+sizeof(EntityHandle));
+//      buff_ptr += j * (sizeof(int)+sizeof(EntityHandle));
+      buff->buff_ptr += j * sizeof(int);
+      ALIGN_BUFFER(buff->buff_ptr, extra);
+      buff->buff_ptr += j*sizeof(EntityHandle);
     }
   }
 
@@ -1294,7 +1335,7 @@ ErrorCode ParallelComm::unpack_entities(unsigned char *&buff_ptr,
   
   while (!done) {
     EntityType this_type = MBMAXTYPE;
-    UNPACK_TYPE(buff_ptr, this_type);
+    UNPACK_TYPE(buff->buff_ptr, this_type);
     assert(this_type != MBENTITYSET);
 
       // MBMAXTYPE signifies end of entities data
@@ -1304,11 +1345,11 @@ ErrorCode ParallelComm::unpack_entities(unsigned char *&buff_ptr,
     
       // get the number of ents
     int num_ents2, verts_per_entity;
-    UNPACK_INT(buff_ptr, num_ents2);
+    UNPACK_INT(buff->buff_ptr, num_ents2);
 
       // unpack the nodes per entity
     if (MBVERTEX != this_type && num_ents2) {
-      UNPACK_INT(buff_ptr, verts_per_entity);
+      UNPACK_INT(buff->buff_ptr, verts_per_entity);
     }
       
     std::vector<int> ps(MAX_SHARING_PROCS, -1);
@@ -1337,13 +1378,14 @@ ErrorCode ParallelComm::unpack_entities(unsigned char *&buff_ptr,
         UNPACK_EH(buff_save, &hs[0], num_ps);
       }
 
+      ALIGN_BUFFER(buff->buff_ptr, extra);
       if (MBVERTEX == this_type) {
-        coords = (double*) buff_ptr;
-        buff_ptr += 3*sizeof(double);
+        coords = (double*) buff->buff_ptr;
+        buff->buff_ptr += 3*sizeof(double);
       }
       else {
-        connect = (EntityHandle*) buff_ptr;
-        buff_ptr += verts_per_entity * sizeof(EntityHandle);
+        connect = (EntityHandle*) buff->buff_ptr;
+        buff->buff_ptr += verts_per_entity * sizeof(EntityHandle);
 
           // update connectivity to local handles
         result = get_local_handles(connect, verts_per_entity, msg_ents);
@@ -1449,11 +1491,31 @@ ErrorCode ParallelComm::unpack_entities(unsigned char *&buff_ptr,
                 L1hrem[idx].push_back(hs[0]);
               }
               else {
-                assert("either this remote handle isn't in the remote list, or it's for another proc" &&
-                       (std::find(L1hrem[idx].begin(), L1hrem[idx].end(), hs[j]) == 
-                        L1hrem[idx].end() ||
-                        L1p[idx][std::find(L1hrem[idx].begin(), L1hrem[idx].end(), hs[j]) - 
-                                 L1hrem[idx].begin()] != -1));
+#ifndef NDEBUG
+//                assert("either this remote handle isn't in the remote list, or it's for another proc" &&
+//                       (std::find(L1hrem[idx].begin(), L1hrem[idx].end(), hs[j]) == 
+//                        L1hrem[idx].end() ||
+//                        L1p[idx][std::find(L1hrem[idx].begin(), L1hrem[idx].end(), hs[j]) - 
+//                                 L1hrem[idx].begin()] != -1));
+                if (!is_iface && 22 == procConfig.proc_rank() && 
+                    "either this remote handle isn't in the remote list, or it's for another proc" &&
+                    (std::find(L1hrem[idx].begin(), L1hrem[idx].end(), hs[j]) != 
+                     L1hrem[idx].end() &&
+                     L1p[idx][std::find(L1hrem[idx].begin(), L1hrem[idx].end(), hs[j]) - 
+                              L1hrem[idx].begin()] == -1)) {
+                  print_buffer(buff_orig, MB_MESG_ENTS_LARGE, buffProcs[from_ind], false);
+                  
+                  std::cerr << "L1hrem[k], L1hloc[k], L1p[k]:" << std::endl;
+                  for (unsigned int k = 0; k < L1hrem.size(); k++) {
+                    std::cerr << procConfig.proc_rank() << ": k=" << k << ": " << L1hrem[idx][k] << ", " << L1hloc[idx][k] << ", " 
+                              << L1p[idx][k] << std::endl;
+                    std::cerr << procConfig.proc_rank() << ": ps, hs = ";
+                    for (unsigned int l = 0; l < MAX_SHARING_PROCS && -1 != ps[l]; l++)
+                      std::cerr << ps[l] << ", " << hs[l];
+                    std::cerr << std::endl;
+                  }
+                }
+#endif
                 L1p[idx].push_back(-1);
                 L1hrem[idx].push_back(hs[j]);
               }
@@ -1495,6 +1557,7 @@ ErrorCode ParallelComm::print_buffer(unsigned char *buff_ptr,
             << " to/from proc " << from_proc << "; contents:" << std::endl;
 
   int msg_length, num_ents;
+  unsigned long extra;
   unsigned char *orig_ptr = buff_ptr;
   UNPACK_INT(buff_ptr, msg_length);
   std::cerr << msg_length << " bytes..." << std::endl;
@@ -1558,11 +1621,13 @@ ErrorCode ParallelComm::print_buffer(unsigned char *buff_ptr,
         return MB_FAILURE;
       }
     
+      unsigned long extra;
       for (int e = 0; e < num_ents2; e++) {
           // check for existing entity, otherwise make new one
         EntityHandle *connect;
         double *coords;
 
+        ALIGN_BUFFER(buff_ptr, extra);
         if (MBVERTEX == this_type) {
           coords = (double*) buff_ptr;
           buff_ptr += 3*sizeof(double);
@@ -1634,6 +1699,7 @@ ErrorCode ParallelComm::print_buffer(unsigned char *buff_ptr,
       buff_ptr += dum1;
       UNPACK_INT(buff_ptr, num_ents);
       std::cerr << "Number of ents = " << num_ents << std::endl;
+      ALIGN_BUFFER(buff_ptr, extra);
       unsigned char *tmp_buff = buff_ptr;
       buff_ptr += num_ents*sizeof(EntityHandle);
       int tot_length = 0;
@@ -1661,7 +1727,6 @@ ErrorCode ParallelComm::print_buffer(unsigned char *buff_ptr,
     }
   }
   else {
-    assert(false);
     return MB_FAILURE;
   }
 
@@ -2116,7 +2181,8 @@ ErrorCode ParallelComm::pack_sets(Range &entities,
   ErrorCode result;
   Range all_sets = entities.subset_by_type(MBENTITYSET);
 
-  int buff_size = estimate_sets_buffer_size(all_sets, store_remote_handles);
+  unsigned int num_aligns;
+  int buff_size = estimate_sets_buffer_size(all_sets, store_remote_handles, num_aligns);
   buff->check_space(buff_size);
 
     // number of sets
@@ -2153,7 +2219,9 @@ ErrorCode ParallelComm::pack_sets(Range &entities,
         
         buff->check_space(members.size()*sizeof(EntityHandle)+sizeof(int));
         PACK_INT(buff->buff_ptr, members.size());
-        PACK_EH(buff->buff_ptr, &members[0], members.size());
+          // check size, since calling pack aligns the buffer
+        if (members.size())
+          PACK_EH(buff->buff_ptr, &members[0], members.size());
       }
   }
     // pack numbers of parents/children
@@ -2220,7 +2288,7 @@ ErrorCode ParallelComm::pack_sets(Range &entities,
   return MB_SUCCESS;
 }
 
-ErrorCode ParallelComm::unpack_sets(unsigned char *&buff_ptr,
+ErrorCode ParallelComm::unpack_sets(Buffer *buff,
                                         Range &entities,
                                         const bool store_remote_handles,
                                         const int from_proc)
@@ -2231,7 +2299,7 @@ ErrorCode ParallelComm::unpack_sets(unsigned char *&buff_ptr,
 
   Range new_sets;
   int num_sets;
-  UNPACK_INT(buff_ptr, num_sets);
+  UNPACK_INT(buff->buff_ptr, num_sets);
 
   if (!num_sets) return MB_SUCCESS;
          
@@ -2240,7 +2308,7 @@ ErrorCode ParallelComm::unpack_sets(unsigned char *&buff_ptr,
   std::vector<unsigned int> options_vec(num_sets);
       // option value
   if (num_sets)
-    UNPACK_VOID(buff_ptr, &options_vec[0], num_sets*sizeof(unsigned int));
+    UNPACK_VOID(buff->buff_ptr, &options_vec[0], num_sets*sizeof(unsigned int));
 
     // create sets
   int i;
@@ -2264,7 +2332,7 @@ ErrorCode ParallelComm::unpack_sets(unsigned char *&buff_ptr,
     if (options_vec[i] & MESHSET_SET) {
         // unpack entities as a range
       Range set_range, tmp_range;
-      UNPACK_RANGE(buff_ptr, tmp_range);
+      UNPACK_RANGE(buff->buff_ptr, tmp_range);
       result = get_local_handles(tmp_range, set_range, entities);      
       RRA("Failed to get local handles for unordered set contents.");
       result = mbImpl->add_entities(*rit, set_range);
@@ -2272,9 +2340,9 @@ ErrorCode ParallelComm::unpack_sets(unsigned char *&buff_ptr,
     }
     else if (options_vec[i] & MESHSET_ORDERED) {
         // unpack entities as vector, with length
-      UNPACK_INT(buff_ptr, num_ents);
+      UNPACK_INT(buff->buff_ptr, num_ents);
       members.resize(num_ents);
-      if (num_ents) UNPACK_EH(buff_ptr, &members[0], num_ents);
+      if (num_ents) UNPACK_EH(buff->buff_ptr, &members[0], num_ents);
       result = get_local_handles(&members[0], num_ents, entities);
       RRA("Failed to get local handles for ordered set contents.");
       result = mbImpl->add_entities(*rit, &members[0], num_ents);
@@ -2286,12 +2354,12 @@ ErrorCode ParallelComm::unpack_sets(unsigned char *&buff_ptr,
   std::vector<int>::iterator vit;
   int tot_pch = 0;
   for (vit = num_pch.begin(); vit != num_pch.end(); vit++) {
-    UNPACK_INT(buff_ptr, *vit);
+    UNPACK_INT(buff->buff_ptr, *vit);
     tot_pch += *vit;
   }
   
   members.resize(tot_pch);
-  UNPACK_EH(buff_ptr, &members[0], tot_pch);
+  UNPACK_EH(buff->buff_ptr, &members[0], tot_pch);
   result = get_local_handles(&members[0], tot_pch, entities);
   RRA("Couldn't get local handle for parent/child sets.");
 
@@ -2319,7 +2387,7 @@ ErrorCode ParallelComm::unpack_sets(unsigned char *&buff_ptr,
     // unpack source handles
   Range dum_range;
   if (store_remote_handles && !new_sets.empty()) {
-    UNPACK_RANGE(buff_ptr, dum_range);
+    UNPACK_RANGE(buff->buff_ptr, dum_range);
     result = update_remote_data(new_sets, dum_range, from_proc, 0);
     RRA("Couldn't set sharing data for sets");
   }
@@ -2332,19 +2400,19 @@ ErrorCode ParallelComm::unpack_sets(unsigned char *&buff_ptr,
 }
 
 ErrorCode ParallelComm::pack_adjacencies(Range &entities,
-                                             Range::const_iterator &start_rit,
-                                             Range &whole_range,
-                                             unsigned char *&buff_ptr,
-                                             int &count,
-                                             const bool just_count,
-                                             const bool store_handles,
-                                             const int to_proc)
+                                         Range::const_iterator &start_rit,
+                                         Range &whole_range,
+                                         Buffer *buff,
+                                         int &count,
+                                         const bool just_count,
+                                         const bool store_handles,
+                                         const int to_proc)
 {
   return MB_FAILURE;
 }
 
-ErrorCode ParallelComm::unpack_adjacencies(unsigned char *&buff_ptr,
-                                               Range &entities,
+ErrorCode ParallelComm::unpack_adjacencies(Buffer *buff,
+                                           Range &entities,
                                                const bool store_handles,
                                                const int from_proc)
 {
@@ -2460,6 +2528,7 @@ ErrorCode ParallelComm::pack_tag( Tag src_tag,
   ErrorCode result;
   std::vector<int> var_len_sizes;
   std::vector<const void*> var_len_values;
+  unsigned long extra;
 
   const TagInfo* tinfo = tagServer->get_tag_info(src_tag);
   if (!tinfo)
@@ -2495,6 +2564,11 @@ ErrorCode ParallelComm::pack_tag( Tag src_tag,
     PACK_INT(buff->buff_ptr, 0);
   }
   else {
+    PACK_INT(buff->buff_ptr, tinfo->get_size());
+    if (tinfo->get_data_type() == MB_TYPE_DOUBLE ||
+        tinfo->get_data_type() == MB_TYPE_HANDLE) {
+      ALIGN_BUFFER(buff->buff_ptr, extra);
+    }
     buff->check_space(tinfo->default_value_size());
     PACK_BYTES(buff->buff_ptr, tinfo->default_value(), tinfo->default_value_size());
   }
@@ -2512,6 +2586,7 @@ ErrorCode ParallelComm::pack_tag( Tag src_tag,
     // pack entities
   buff->check_space(tagged_entities.size()*sizeof(EntityHandle)+sizeof(int));
   PACK_INT(buff->buff_ptr, tagged_entities.size());
+  ALIGN_BUFFER(buff->buff_ptr, extra);
   result = get_remote_handles(store_remote_handles,
                               tagged_entities, (EntityHandle*)buff->buff_ptr, to_proc,
                               whole_range);
@@ -2541,6 +2616,10 @@ ErrorCode ParallelComm::pack_tag( Tag src_tag,
     }
   }
   else {
+    if (tinfo->get_data_type() == MB_TYPE_DOUBLE ||
+        tinfo->get_data_type() == MB_TYPE_HANDLE) {
+      ALIGN_BUFFER(buff->buff_ptr, extra);
+    }
     buff->check_space(num_ent * tinfo->get_size());
     result = mbImpl->tag_get_data(src_tag, tagged_entities, buff->buff_ptr);
     RRA("Failed to get tag data in pack_tags.");
@@ -2584,8 +2663,8 @@ ErrorCode ParallelComm::get_tag_send_list( const Range& whole_range,
 
 
 
-ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
-                                        Range &entities,
+ErrorCode ParallelComm::unpack_tags(Buffer *buff,
+                                    Range &entities,
                                         const bool store_remote_handles,
                                         const int from_proc)
 {
@@ -2596,11 +2675,12 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
 
   ErrorCode result;
   
-  int num_tags;
-  UNPACK_INT(buff_ptr, num_tags);
+  int num_tags = 0;
+  UNPACK_INT(buff->buff_ptr, num_tags);
   std::vector<EntityHandle> tag_ents;
   std::vector<const void*> var_len_vals;
   std::vector<int> var_lengths;
+  unsigned long extra;
 
   for (int i = 0; i < num_tags; i++) {
     
@@ -2609,25 +2689,29 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
 
       // size, data type
     int tag_size, tag_data_type, tag_type;
-    UNPACK_INT(buff_ptr, tag_size);
-    UNPACK_INT(buff_ptr, tag_type);
-    UNPACK_INT(buff_ptr, tag_data_type);
+    UNPACK_INT(buff->buff_ptr, tag_size);
+    UNPACK_INT(buff->buff_ptr, tag_type);
+    UNPACK_INT(buff->buff_ptr, tag_data_type);
       
       // default value
-    int def_val_size;
-    UNPACK_INT(buff_ptr, def_val_size);
+    int def_val_size = 0;
+    UNPACK_INT(buff->buff_ptr, def_val_size);
+    
     void *def_val_ptr = NULL;
     if (def_val_size) {
-      def_val_ptr = buff_ptr;
-      buff_ptr += def_val_size;
+      if (MB_TYPE_DOUBLE == tag_data_type || MB_TYPE_HANDLE == tag_data_type) {
+        ALIGN_BUFFER(buff->buff_ptr, extra);
+      }
+      def_val_ptr = buff->buff_ptr;
+      buff->buff_ptr += def_val_size;
       UPC(tag_size, " void");
     }
     
       // name
     int name_len;
-    UNPACK_INT(buff_ptr, name_len);
-    std::string tag_name( reinterpret_cast<char*>(buff_ptr), name_len );
-    buff_ptr += name_len;
+    UNPACK_INT(buff->buff_ptr, name_len);
+    std::string tag_name( reinterpret_cast<char*>(buff->buff_ptr), name_len );
+    buff->buff_ptr += name_len;
     UPC(64, " chars");
 #ifdef DEBUG_PACKING
     std::cerr << "Unpacking tag " << tag_name << std::endl;
@@ -2659,9 +2743,10 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
 
       // go through handle vec (in buffer) and convert to local handles in-place
     int num_ents;
-    UNPACK_INT(buff_ptr, num_ents);
-    EntityHandle *handle_vec = (EntityHandle*)buff_ptr;
-    buff_ptr += num_ents * sizeof(EntityHandle);
+    UNPACK_INT(buff->buff_ptr, num_ents);
+    ALIGN_BUFFER(buff->buff_ptr, extra);
+    EntityHandle *handle_vec = (EntityHandle*)buff->buff_ptr;
+    buff->buff_ptr += num_ents * sizeof(EntityHandle);
 
     if (!store_remote_handles) {
         // in this case handles are indices into new entity range; need to convert
@@ -2672,7 +2757,7 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
 
       // if it's a handle type, also convert tag vals in-place in buffer
     if (MB_TYPE_HANDLE == tag_type) {
-      EntityHandle *val_vec = (EntityHandle*)buff_ptr;
+      EntityHandle *val_vec = (EntityHandle*)buff->buff_ptr;
       result = get_local_handles(val_vec, num_ents, entities);
       RRA("Failed to get local handles for tag vals.");
     }
@@ -2682,23 +2767,23 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
         // in the buffer, we can use them directly.  Otherwise we must
         // copy them.
       const int* size_arr;
-      if (((size_t)buff_ptr)%4) {
+      if (((size_t)buff->buff_ptr)%4) {
         var_lengths.resize( num_ents );
-        memcpy( &var_lengths[0], buff_ptr, num_ents*sizeof(int) );
+        memcpy( &var_lengths[0], buff->buff_ptr, num_ents*sizeof(int) );
         size_arr = &var_lengths[0];
       }
       else {
-        size_arr = reinterpret_cast<const int*>(buff_ptr);
+        size_arr = reinterpret_cast<const int*>(buff->buff_ptr);
       }
-      buff_ptr += sizeof(int) * num_ents;
+      buff->buff_ptr += sizeof(int) * num_ents;
       UPC(sizeof(int) * num_ents, " void");
       
         // get pointers into buffer for each tag value
       var_len_vals.resize(num_ents);
       for (std::vector<EntityHandle>::size_type i = 0; 
            i < (std::vector<EntityHandle>::size_type) num_ents; ++i) {
-        var_len_vals[i] = buff_ptr;
-        buff_ptr += size_arr[i];
+        var_len_vals[i] = buff->buff_ptr;
+        buff->buff_ptr += size_arr[i];
         UPC(size_arr[i], " void");
       }
       result = mbImpl->tag_set_data( tag_handle, handle_vec, num_ents,
@@ -2707,9 +2792,9 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
     }
     else {
       result = mbImpl->tag_set_data(tag_handle, handle_vec,
-                                    num_ents, buff_ptr);
+                                    num_ents, buff->buff_ptr);
       RRA("Trouble setting range-based tag data when unpacking tag.");
-      buff_ptr += num_ents * tag_size;
+      buff->buff_ptr += num_ents * tag_size;
       UPC(num_ents * tag_size, " void");
     }
   }
@@ -2981,7 +3066,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   RRA("Trouble getting iface procs.");
 
 #ifndef NDEBUG
-  result = check_all_shared_handles();
+  result = check_all_shared_handles(true);
   RRA("Shared handle check failed after iface vertex exchange.");
 #endif  
 
@@ -3318,7 +3403,7 @@ ErrorCode ParallelComm::create_interface_sets(std::map<std::vector<int>, Range> 
       unsigned int ind = std::find(proc_ids, proc_ids+mit->first.size(), procConfig.proc_rank())
           - proc_ids;
       assert(ind < mit->first.size());
-      std::fill( proc_handles + mit->first.size(), proc_handles + MAX_SHARING_PROCS, 0);
+      std::fill( proc_handles, proc_handles + MAX_SHARING_PROCS, 0);
       proc_handles[ind] = new_set;
       result = mbImpl->tag_set_data(sharedhs_tag, &new_set, 1, proc_handles); 
     }
@@ -3930,7 +4015,7 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
 
         // message completely received - process buffer that was sent
     remoteOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
-    result = unpack_entities(remoteOwnedBuffs[ind/2]->buff_ptr,
+    result = unpack_entities(remoteOwnedBuffs[ind/2],
                              store_remote_handles, ind/2, is_iface,
                              L1hloc, L1hrem, L1p, L2hloc, L2hrem, L2p, new_ents);
       if (MB_SUCCESS != result) {
@@ -3990,7 +4075,7 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
 #ifndef NDEBUG
     result = check_sent_ents(allsent);
     if (MB_SUCCESS != result) std::cout << "Failed check." << std::endl;
-    result = check_all_shared_handles();
+    result = check_all_shared_handles(true);
     if (MB_SUCCESS != result) std::cout << "Failed check." << std::endl;
 #endif
 
@@ -4080,7 +4165,7 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
 #endif  
     localOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
     result = unpack_remote_handles(buffProcs[ind/2], 
-                                   localOwnedBuffs[ind/2]->buff_ptr,
+                                   localOwnedBuffs[ind/2],
                                    L2hloc, L2hrem, L2p);
       RRA("Failed to unpack remote handles.");
     }
@@ -4113,7 +4198,7 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
 #ifndef NDEBUG
   result = check_sent_ents(allsent);
   RRA("Failed check on shared entities.");
-  result = check_all_shared_handles();
+  result = check_all_shared_handles(true);
   RRA("Failed check on all shared handles.");
 #endif
 #ifdef DEBUG_COMM
@@ -4534,7 +4619,7 @@ ErrorCode ParallelComm::exchange_ghost_cells(ParallelComm **pcs,
 
       unsigned int to_p = pc->buffProcs[ind];
       pc->localOwnedBuffs[ind]->reset_ptr(sizeof(int));
-      result = pcs[to_p]->unpack_entities(pc->localOwnedBuffs[ind]->buff_ptr,
+      result = pcs[to_p]->unpack_entities(pc->localOwnedBuffs[ind],
                                           store_remote_handles, ind, is_iface,
                                           L1hloc[to_p], L1hrem[to_p], L1p[to_p], L2hloc[to_p], 
                                           L2hrem[to_p], L2p[to_p], new_ents[to_p]);
@@ -4592,7 +4677,7 @@ ErrorCode ParallelComm::exchange_ghost_cells(ParallelComm **pcs,
       unsigned int to_p = pc->buffProcs[ind];
       pc->localOwnedBuffs[ind]->reset_ptr(sizeof(int));
       result = pcs[to_p]->unpack_remote_handles(p, 
-                                                pc->localOwnedBuffs[ind]->buff_ptr,
+                                                pc->localOwnedBuffs[ind],
                                                 L2hloc[to_p], L2hrem[to_p], L2p[to_p]);
       RRAI(pc->get_moab(), "Failed to unpack remote handles.");
     }
@@ -4698,24 +4783,30 @@ ErrorCode ParallelComm::pack_remote_handles(std::vector<EntityHandle> &L1hloc,
 }
 
 ErrorCode ParallelComm::unpack_remote_handles(unsigned int from_proc,
-                                                  unsigned char *&buff_ptr,
+                                                  Buffer *buff,
                                                   std::vector<EntityHandle> &L2hloc,
                                                   std::vector<EntityHandle> &L2hrem,
                                                   std::vector<unsigned int> &L2p)
 {
     // incoming remote handles; use to set remote handles
   int num_eh;
-  UNPACK_INT(buff_ptr, num_eh);
+  UNPACK_INT(buff->buff_ptr, num_eh);
 
-  unsigned char *buff_proc = buff_ptr;
-  buff_ptr += num_eh * sizeof(int);
-  unsigned char *buff_rem = buff_ptr + num_eh * sizeof(EntityHandle);
+  unsigned long extra;
+
+  unsigned char *buff_proc = buff->buff_ptr;
+
+    // buff->buff_ptr is already int-aligned, due to last unpack_int
+  buff->buff_ptr += num_eh * sizeof(int);
+  ALIGN_BUFFER(buff->buff_ptr, extra);
+    // buff_rem is already int-aligned, due to last align_buffer
+  unsigned char *buff_rem = buff->buff_ptr + num_eh * sizeof(EntityHandle);
   ErrorCode result;
   EntityHandle hpair[2], dum_h;
   int proc;
   for (int i = 0; i < num_eh; i++) {
     UNPACK_INT(buff_proc, proc);
-    UNPACK_EH(buff_ptr, hpair, 1);
+    UNPACK_EH(buff->buff_ptr, hpair, 1);
     UNPACK_EH(buff_rem, hpair+1, 1);
 
     if (-1 != proc) {
@@ -4918,7 +5009,7 @@ ErrorCode ParallelComm::exchange_tags( const std::vector<Tag> &src_tags,
     RRA("Failed to resize recv buffer.");
     if (done) {
       remoteOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
-      result = unpack_tags(remoteOwnedBuffs[ind/2]->buff_ptr,
+      result = unpack_tags(remoteOwnedBuffs[ind/2],
                            dum_range, true, buffProcs[ind/2]);
       RRA("Failed to recv-unpack-tag message.");
     }
@@ -5977,27 +6068,45 @@ ErrorCode ParallelComm::exchange_all_shared_handles(
   return MB_SUCCESS;
 }
 
-ErrorCode ParallelComm::check_all_shared_handles() 
+ErrorCode ParallelComm::check_all_shared_handles(bool print_em) 
 {
     // get all shared ent data from other procs
   std::vector<std::vector<SharedEntityData> > shents(buffProcs.size()),
       send_data(buffProcs.size());
 
-  ErrorCode result = check_local_shared();
-  if (MB_SUCCESS != result)
-    return result;
-
-  result = pack_shared_handles(send_data);
-  if (MB_SUCCESS != result)
-    return result;
+  ErrorCode result;
+  bool done = false;
   
-  result = exchange_all_shared_handles(send_data, shents);
-  if (MB_SUCCESS != result)
-    return result;
-  else if (shents.empty())
-    return MB_SUCCESS;
+  while (!done) {
+    result = check_local_shared();
+    if (MB_SUCCESS != result) {
+      done = true;
+      continue;
+    }
 
-  return check_my_shared_handles(shents);
+    result = pack_shared_handles(send_data);
+    if (MB_SUCCESS != result) {
+      done = true;
+      continue;
+    }
+  
+    result = exchange_all_shared_handles(send_data, shents);
+    if (MB_SUCCESS != result) {
+      done = true;
+      continue;
+    }
+
+    if (!shents.empty()) check_my_shared_handles(shents);
+    done = true;
+  }
+  
+  if (MB_SUCCESS != result && print_em) {
+    std::ostringstream ent_str;
+    ent_str << "mesh." << procConfig.proc_rank() << ".h5m";
+    mbImpl->write_mesh(ent_str.str().c_str());
+  }
+  
+  return result;
 }
 
 ErrorCode ParallelComm::check_local_shared() 

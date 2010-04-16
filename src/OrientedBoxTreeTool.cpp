@@ -973,7 +973,7 @@ void RayIntersectSets::add_intersection( double t, EntityHandle facet )
     if (len_idx >= 0) {
         // If we no longer want an intersection outside the tolerance,
         // remove it.
-      if (intersections.size() >= minTolInt) {
+      if ((int)intersections.size() >= minTolInt) {
         intersections[len_idx] = t;
         sets[len_idx] = lastSet;
         facets[len_idx] = facet;
@@ -997,7 +997,7 @@ void RayIntersectSets::add_intersection( double t, EntityHandle facet )
         // If we have all the intersections we want, set
         // length such that we will only find further intersections
         // within the tolerance
-      if (intersections.size() >= minTolInt)
+      if ((int)intersections.size() >= minTolInt)
         len = &tol;
     }
   }
@@ -1013,7 +1013,7 @@ void RayIntersectSets::add_intersection( double t, EntityHandle facet )
   }
     // Otherwise if we want an intersection outside the tolerance
     // and don'thave one yet, add it.
-  else if (intersections.size() < minTolInt) {
+  else if ((int)intersections.size() < minTolInt) {
     intersections.push_back( t );
     sets.push_back( lastSet );
     facets.push_back(facet);

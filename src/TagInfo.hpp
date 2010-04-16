@@ -2,6 +2,7 @@
 #define TAG_INFO_HPP
 
 #include "moab/Types.hpp"
+#include "moab/Interface.hpp"
 
 #include <string>
 #include <string.h>  /* memcpy */
@@ -128,7 +129,7 @@ inline TagInfo::TagInfo( const char* name,
    isValid(true)
 {
   if (default_value) {
-    mDefaultValue = malloc( mDefaultValueSize );
+    MALLOC(mDefaultValue, mDefaultValueSize, void*);
     memcpy( mDefaultValue, default_value, mDefaultValueSize );
   }
 }

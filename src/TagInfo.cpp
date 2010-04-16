@@ -36,11 +36,11 @@ TagInfo::TagInfo( const TagInfo& copy )
     isValid(copy.isValid)
 {
   if (mDefaultValueSize) {
-    mDefaultValue = malloc( mDefaultValueSize );
+    MALLOC(mDefaultValue, mDefaultValueSize, void* );
     memcpy( mDefaultValue, copy.mDefaultValue, mDefaultValueSize );
   }
   if (mMeshValueSize) {
-    mMeshValue = malloc( mMeshValueSize );
+    MALLOC(mMeshValue, mMeshValueSize, void* );
     memcpy( mMeshValue, copy.mMeshValue, mMeshValueSize );
   }
 }
@@ -49,7 +49,10 @@ TagInfo& TagInfo::operator=( const TagInfo& copy )
 {
   if (copy.mDefaultValue) {
     if (mDefaultValueSize != copy.mDefaultValueSize)
-      mDefaultValue = realloc( mDefaultValue,copy.mDefaultValueSize);
+      REALLOC(mDefaultValue, mDefaultValue, 
+              std::min(mDefaultValueSize, copy.mDefaultValueSize), 
+              copy.mDefaultValueSize, void*);
+//      mDefaultValue = realloc( mDefaultValue,copy.mDefaultValueSize);
     mDefaultValueSize = copy.mDefaultValueSize;
     memcpy( mDefaultValue, copy.mDefaultValue, copy.mDefaultValueSize );
   }
@@ -61,7 +64,10 @@ TagInfo& TagInfo::operator=( const TagInfo& copy )
 
   if (copy.mMeshValue) {
     if (mMeshValueSize != copy.mMeshValueSize)
-      mMeshValue = realloc( mMeshValue,copy.mMeshValueSize);
+      REALLOC(mMeshValue, mMeshValue, 
+              std::min(mMeshValueSize, copy.mMeshValueSize), 
+              copy.mMeshValueSize, void*);
+//      mMeshValue = realloc( mMeshValue,copy.mMeshValueSize);
     mMeshValueSize = copy.mMeshValueSize;
     memcpy( mMeshValue, copy.mMeshValue, copy.mMeshValueSize );
   }
@@ -81,8 +87,10 @@ TagInfo& TagInfo::operator=( const TagInfo& copy )
 void TagInfo::set_mesh_value( const void* data, int size )
 {
   if (mMeshValueSize != size) {
+    REALLOC(mMeshValue, mMeshValue, 
+            std::min(mMeshValueSize, size), size, void*);
     mMeshValueSize = size;
-    mMeshValue = realloc( mMeshValue, size );
+//    mMeshValue = realloc( mMeshValue, size );
   }
   memcpy( mMeshValue, data, size );
 }

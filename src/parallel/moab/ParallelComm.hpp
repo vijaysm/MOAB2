@@ -34,6 +34,7 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <assert.h>
 #include <stdlib.h>
 #include "math.h"
@@ -41,6 +42,36 @@
 
 extern "C" {
   struct tuple_list;
+}
+
+static inline 
+void ASSERT_ALIGNED(unsigned char *buff) 
+{
+#ifdef MEM_ALIGN
+  assert(!((size_t)buff%MEM_ALIGN));
+#endif
+}
+
+static inline 
+void ALIGN_BUFFER(unsigned char *&buff, size_t extra) 
+{
+#ifdef MEM_ALIGN
+  extra = (size_t)buff%MEM_ALIGN;
+  if (extra) extra = MEM_ALIGN - extra;
+  buff += extra;
+  ASSERT_ALIGNED(buff);
+#endif
+}
+
+template<typename T> static inline
+void ALIGN_BY_SIZE(unsigned char *&buff, size_t &extra) 
+{
+#ifdef MEM_ALIGN
+  extra = (size_t)buff%sizeof(T);
+  if (extra) extra = sizeof(T) - extra;
+  buff += extra;
+  assert(!((size_t)buff%sizeof(T)));
+#endif
 }
 
 namespace moab {
@@ -503,8 +534,10 @@ public:
     void reserve(unsigned int new_size);
     void set_stored_size() {*((int*)mem_ptr) = (int)(buff_ptr - mem_ptr);}
     int get_stored_size() {return *((int*)mem_ptr);}
+    unsigned long get_size() 
+        {return (unsigned long)buff_ptr - (unsigned long)mem_ptr;}
           
-    void check_space(unsigned int addl_space);
+    void check_space(unsigned int addl_space, unsigned int num_aligns = 1);
   };
 
     //! public 'cuz we want to unit test these externally
@@ -515,7 +548,7 @@ public:
                           const int to_proc,
                           Buffer *buff);
   
-  ErrorCode unpack_buffer(unsigned char *buff_ptr,
+  ErrorCode unpack_buffer(Buffer *buff,
                             const bool store_remote_handles,
                             const int from_proc,
                             const int ind,
@@ -528,7 +561,7 @@ public:
                             Range &new_ents);
   
   ErrorCode pack_entities(Range &entities,
-                            Buffer *buff,
+                          Buffer *buff,
                             const bool store_remote_handles,
                             const int to_proc,
                             const bool is_iface,
@@ -536,7 +569,7 @@ public:
                             Range *allsent = NULL);
 
     //! unpack entities in buff_ptr
-  ErrorCode unpack_entities(unsigned char *&buff_ptr,
+  ErrorCode unpack_entities(Buffer *buff,
                               const bool store_remote_handles,
                               const int from_ind,
                               const bool is_iface,
@@ -550,7 +583,7 @@ public:
   
     //! Call exchange_all_shared_handles, then compare the results with tag data
     //! on local shared entities.
-  ErrorCode check_all_shared_handles();
+  ErrorCode check_all_shared_handles(bool print_em = false);
 
   static ErrorCode check_all_shared_handles(ParallelComm **pcs,
                                               int num_pcs);
@@ -589,7 +622,7 @@ public:
      * PUBLIC ONLY FOR TESTING!
      */
   ErrorCode unpack_remote_handles(unsigned int from_proc,
-                                    unsigned char *&buff_ptr,
+                                  Buffer *buff,
                                     std::vector<EntityHandle> &L2hloc,
                                     std::vector<EntityHandle> &L2hrem,
                                     std::vector<unsigned int> &L2p);
@@ -665,11 +698,13 @@ private:
 
     //! estimate size required to pack entities
   int estimate_ents_buffer_size(Range &entities,
-                                const bool store_remote_handles);
+                                const bool store_remote_handles,
+                                unsigned int &num_aligns);
   
     //! estimate size required to pack sets
   int estimate_sets_buffer_size(Range &entities,
-                                const bool store_remote_handles);
+                                const bool store_remote_handles,
+                                unsigned int &num_aligns);
   
     //! send the indicated buffer, possibly sending size first
   ErrorCode send_buffer(const unsigned int to_proc,
@@ -716,7 +751,7 @@ private:
   
     //! for all the entities in the received buffer; for each, save
     //! entities in this instance which match connectivity, or zero if none found
-  ErrorCode unpack_iface_entities(unsigned char *&buff_ptr, 
+  ErrorCode unpack_iface_entities(Buffer *buff,
                                     const int from_proc,
                                     const int ind,
                                     std::vector<EntityHandle> &recd_ents);
@@ -726,7 +761,7 @@ private:
                         const bool store_handles,
                         const int to_proc);
   
-  ErrorCode unpack_sets(unsigned char *&buff_ptr,
+  ErrorCode unpack_sets(Buffer *buff,
                           Range &entities,
                           const bool store_handles,
                           const int to_proc);
@@ -734,13 +769,13 @@ private:
   ErrorCode pack_adjacencies(Range &entities,
                                Range::const_iterator &start_rit,
                                Range &whole_range,
-                               unsigned char *&buff_ptr,
+                               Buffer *buff,
                                int &count,
                                const bool just_count,
                                const bool store_handles,
                                const int to_proc);
 
-  ErrorCode unpack_adjacencies(unsigned char *&buff_ptr,
+  ErrorCode unpack_adjacencies(Buffer *buff,
                                  Range &entities,
                                  const bool store_handles,
                                  const int from_proc);
@@ -749,10 +784,10 @@ private:
     /* \brief Unpack message with remote handles (const pointer to buffer)
      */
   ErrorCode unpack_remote_handles(unsigned int from_proc,
-                                    const unsigned char *buff_ptr,
-                                    std::vector<EntityHandle> &L2hloc,
-                                    std::vector<EntityHandle> &L2hrem,
-                                    std::vector<unsigned int> &L2p);
+                                  const Buffer *buff,
+                                  std::vector<EntityHandle> &L2hloc,
+                                  std::vector<EntityHandle> &L2hrem,
+                                  std::vector<unsigned int> &L2p);
   
     //! given connectivity and type, find an existing entity, if there is one
   ErrorCode find_existing_entity(const bool is_iface,
@@ -887,7 +922,7 @@ private:
                         const bool store_remote_handles,
                         const int to_proc );
 
-  ErrorCode unpack_tags(unsigned char *&buff_ptr,
+  ErrorCode unpack_tags(Buffer *buff,
                           Range &entities,
                           const bool store_handles,
                           const int to_proc);
@@ -1070,6 +1105,8 @@ inline ParallelComm::Buffer::Buffer(const Buffer &other_buff)
 {
   alloc_size = other_buff.alloc_size;
   mem_ptr = (unsigned char *)malloc(alloc_size);
+//  MALLOC(mem_ptr, alloc_size, unsigned char*);
+  
   memcpy(mem_ptr, other_buff.mem_ptr, alloc_size);
   buff_ptr = mem_ptr + (other_buff.buff_ptr - other_buff.mem_ptr);
 }
@@ -1097,7 +1134,7 @@ inline void ParallelComm::Buffer::reserve(unsigned int new_size) {
   if (mem_ptr) {
     tmp_pos = buff_ptr - mem_ptr;
   }
-  buff_ptr = (unsigned char *)malloc(new_size);
+  MALLOC(buff_ptr, new_size, unsigned char *);
   assert(0 <= tmp_pos && tmp_pos <= (int)alloc_size);  
   if (tmp_pos) memcpy(buff_ptr, mem_ptr, tmp_pos);
   if (mem_ptr) free(mem_ptr);
@@ -1107,20 +1144,24 @@ inline void ParallelComm::Buffer::reserve(unsigned int new_size) {
 #else    
   if (mem_ptr && alloc_size < new_size) {
     size_t tmp_pos = mem_ptr ? buff_ptr - mem_ptr : 0;
-    mem_ptr = (unsigned char *)realloc(mem_ptr, new_size);
+    REALLOC(mem_ptr, mem_ptr, alloc_size, new_size, unsigned char*);
     alloc_size = new_size;
     buff_ptr = mem_ptr + tmp_pos;
   }
   else if (!mem_ptr) {
-    mem_ptr = (unsigned char *)malloc(new_size);
+    MALLOC(mem_ptr, new_size, unsigned char *);
     alloc_size = new_size;
     buff_ptr = mem_ptr;
   } 
 #endif
 }
 
-inline void ParallelComm::Buffer::check_space(unsigned int addl_space )
+inline void ParallelComm::Buffer::check_space(unsigned int addl_space,
+                                              unsigned int num_aligns)
 {
+#ifdef MEM_ALIGN
+  addl_space += num_aligns*MEM_ALIGN;
+#endif
   assert(buff_ptr >= mem_ptr && buff_ptr <= mem_ptr+alloc_size);
   unsigned int new_size = buff_ptr - mem_ptr + addl_space;
   if (new_size > alloc_size) 
@@ -1210,14 +1251,16 @@ inline ErrorCode ParallelComm::get_owner(EntityHandle entity,
     /* \brief Unpack message with remote handles (const pointer to buffer)
      */
 inline ErrorCode ParallelComm::unpack_remote_handles(unsigned int from_proc,
-                                                         const unsigned char *buff_ptr,
-                                                         std::vector<EntityHandle> &L2hloc,
-                                                         std::vector<EntityHandle> &L2hrem,
-                                                         std::vector<unsigned int> &L2p) 
+                                                     const Buffer *buff_ptr,
+                                                     std::vector<EntityHandle> &L2hloc,
+                                                     std::vector<EntityHandle> &L2hrem,
+                                                     std::vector<unsigned int> &L2p) 
 {
     // cast away const-ness, we won't be passing back a modified ptr
-  unsigned char *tmp_buff = const_cast<unsigned char*>(buff_ptr);
-  return unpack_remote_handles(from_proc, tmp_buff, L2hloc, L2hrem, L2p);
+  Buffer buff(*buff_ptr);
+  
+  return unpack_remote_handles(from_proc, &buff, 
+                               L2hloc, L2hrem, L2p);
 }
 
 inline void ParallelComm::set_rank(unsigned int r) 

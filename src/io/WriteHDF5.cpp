@@ -393,7 +393,7 @@ ErrorCode WriteHDF5::write_file( const char* filename,
     bufferSize = buf_size;
 
     // Allocate internal buffer to use when gathering data to write.
-  dataBuffer = (char*)malloc( bufferSize );
+  MALLOC(dataBuffer, bufferSize, char* );
   if (!dataBuffer)
     return MB_MEMORY_ALLOCATION_FAILED;
 

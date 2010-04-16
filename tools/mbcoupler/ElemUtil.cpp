@@ -213,7 +213,7 @@ void hex_findpt(real *xm[3],
 
   //triplicates
   for(int d=0; d<3; d++){
-    z[d] = tmalloc(real, n);
+    MALLOC(z[d], n, real);
     lobatto_nodes(z[d], n); 
     lagrange_setup(&ld[d], z[d], n);
   }
@@ -263,7 +263,7 @@ void hex_eval(real *field,
   lagrange_data ld[3]; 
   real *z[3];
   for(d=0;d<3;++d){
-    z[d] = tmalloc(real, n);
+    MALLOC(z[d], n, real);
     lobatto_nodes(z[d], n);
     lagrange_setup(&ld[d], z[d], n);
   } 
@@ -273,7 +273,8 @@ void hex_eval(real *field,
     nf = n*n,
     ne = n,
     nw = 2*n*n + 3*n;
-  real *od_work = tmalloc(real, 6*nf + 9*ne + nw);
+  real *od_work;
+  MALLOC(od_work, 6*nf + 9*ne + nw, real);
 
   //piece that we shouldn't want to cache
   for(d=0; d<3; d++){
