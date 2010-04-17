@@ -550,7 +550,7 @@ public:
   
     //! Call exchange_all_shared_handles, then compare the results with tag data
     //! on local shared entities.
-  ErrorCode check_all_shared_handles();
+  ErrorCode check_all_shared_handles(bool print_em = false);
 
   static ErrorCode check_all_shared_handles(ParallelComm **pcs,
                                               int num_pcs);

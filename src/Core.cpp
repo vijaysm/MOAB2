@@ -767,9 +767,9 @@ ErrorCode  Core::get_coords(const Range& entities, double *coords) const
     y += offset;
     z += offset;
     for (EntityID j = 0; j < count; ++j) {
-      *coords = *x; ++coords; ++x;
-      *coords = *y; ++coords; ++y;
-      *coords = *z; ++coords; ++z;
+      coords[3*j] = x[j];
+      coords[3*j+1] = y[j];
+      coords[3*j+2] = z[j];
     }
   }
   

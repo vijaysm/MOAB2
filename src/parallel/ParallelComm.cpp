@@ -2992,7 +2992,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   RRA("Trouble getting iface procs.");
 
 #ifndef NDEBUG
-  result = check_all_shared_handles();
+  result = check_all_shared_handles(true);
   RRA("Shared handle check failed after iface vertex exchange.");
 #endif  
 
@@ -3010,6 +3010,10 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
 #ifdef DEBUG_MPE
   MPE_Log_event(RESOLVE_END, procConfig.proc_rank(), "Exiting resolve_shared_ents.");
 #endif
+
+//  std::ostringstream ent_str;
+//  ent_str << "mesh." << procConfig.proc_rank() << ".h5m";
+//  mbImpl->write_mesh(ent_str.str().c_str());
 
     // done
   return result;
@@ -4001,7 +4005,7 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
 #ifndef NDEBUG
     result = check_sent_ents(allsent);
     if (MB_SUCCESS != result) std::cout << "Failed check." << std::endl;
-    result = check_all_shared_handles();
+    result = check_all_shared_handles(true);
     if (MB_SUCCESS != result) std::cout << "Failed check." << std::endl;
 #endif
 
@@ -4124,7 +4128,7 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
 #ifndef NDEBUG
   result = check_sent_ents(allsent);
   RRA("Failed check on shared entities.");
-  result = check_all_shared_handles();
+  result = check_all_shared_handles(true);
   RRA("Failed check on all shared handles.");
 #endif
 #ifdef DEBUG_COMM
@@ -5988,27 +5992,45 @@ ErrorCode ParallelComm::exchange_all_shared_handles(
   return MB_SUCCESS;
 }
 
-ErrorCode ParallelComm::check_all_shared_handles() 
+ErrorCode ParallelComm::check_all_shared_handles(bool print_em) 
 {
     // get all shared ent data from other procs
   std::vector<std::vector<SharedEntityData> > shents(buffProcs.size()),
       send_data(buffProcs.size());
-
-  ErrorCode result = check_local_shared();
-  if (MB_SUCCESS != result)
-    return result;
-
-  result = pack_shared_handles(send_data);
-  if (MB_SUCCESS != result)
-    return result;
+ 
+  ErrorCode result;
+  bool done = false;
   
-  result = exchange_all_shared_handles(send_data, shents);
-  if (MB_SUCCESS != result)
-    return result;
-  else if (shents.empty())
-    return MB_SUCCESS;
-
-  return check_my_shared_handles(shents);
+  while (!done) {
+    result = check_local_shared();
+    if (MB_SUCCESS != result) {
+      done = true;
+      continue;
+    }
+ 
+    result = pack_shared_handles(send_data);
+    if (MB_SUCCESS != result) {
+      done = true;
+      continue;
+    }
+   
+    result = exchange_all_shared_handles(send_data, shents);
+    if (MB_SUCCESS != result) {
+      done = true;
+      continue;
+    }
+ 
+    if (!shents.empty()) check_my_shared_handles(shents);
+    done = true;
+  }
+  
+  if (MB_SUCCESS != result && print_em) {
+    std::ostringstream ent_str;
+    ent_str << "mesh." << procConfig.proc_rank() << ".h5m";
+    mbImpl->write_mesh(ent_str.str().c_str());
+  }
+  
+  return result;
 }
 
 ErrorCode ParallelComm::check_local_shared() 
