@@ -371,6 +371,7 @@ ErrorCode read_file(Interface *mbImpl,
   else {
     result = mbImpl->load_file(filenames[0].c_str(), 0, 
                                options.str().c_str());
+    RRA("Failed to load file.");
     pcs[0] = ParallelComm::get_pcomm(mbImpl, 0);
     assert(pcs[0]);
   }

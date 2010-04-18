@@ -547,7 +547,10 @@ ErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
       // than number of procs
     if (myPcomm->partition_sets().size() < (unsigned int) proc_sz) {
       result = MB_FAILURE;
-      RR("Number of procs greater than number of partitions.");
+      std::ostringstream ostr;
+      ostr << "Too few parts; P = " << proc_rk << ", tag = " << ptag 
+           << ", # sets = " << myPcomm->partition_sets().size() << std::endl;
+      RR(ostr.str().c_str());
     }
     
     Range tmp_sets;
