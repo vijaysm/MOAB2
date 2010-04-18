@@ -368,28 +368,6 @@ ErrorCode Core::load_file( const char* file_name,
                                const int* set_tag_vals,
                                int num_set_tag_vals )
 {
-  int status;
-#if defined(WIN32) || defined(WIN64) || defined(MSC_VER)
-  struct _stat stat_data;
-  status = _stat(file_name, &stat_data);
-#else
-  struct stat stat_data;
-  status = stat(file_name, &stat_data);
-#endif
-  if (status) {
-    mError->set_last_error( "%s: %s", file_name, strerror(errno) );
-    return MB_FILE_DOES_NOT_EXIST;
-  }
-#if defined(WIN32) || defined(WIN64) || defined(MSC_VER)
-  else if (_S_IFDIR(stat_data.st_mode)) {
-#else
-  else if (S_ISDIR(stat_data.st_mode)) {
-#endif
-    mError->set_last_error( "%s: Cannot read directory/folder.", file_name );
-    return MB_FILE_DOES_NOT_EXIST;
-  }
-
-
   FileOptions opts(options);
   ErrorCode rval;
   ReaderIface::IDTag t = { set_tag_name, set_tag_vals, num_set_tag_vals, 0, 0 };
@@ -468,6 +446,27 @@ ErrorCode Core::serial_load_file( const char* file_name,
                                       int num_sets,
                                       const Tag* id_tag  )
 {
+  int status;
+#if defined(WIN32) || defined(WIN64) || defined(MSC_VER)
+  struct _stat stat_data;
+  status = _stat(file_name, &stat_data);
+#else
+  struct stat stat_data;
+  status = stat(file_name, &stat_data);
+#endif
+  if (status) {
+    mError->set_last_error( "%s: %s", file_name, strerror(errno) );
+    return MB_FILE_DOES_NOT_EXIST;
+  }
+#if defined(WIN32) || defined(WIN64) || defined(MSC_VER)
+  else if (_S_IFDIR(stat_data.st_mode)) {
+#else
+  else if (S_ISDIR(stat_data.st_mode)) {
+#endif
+    mError->set_last_error( "%s: Cannot read directory/folder.", file_name );
+    return MB_FILE_DOES_NOT_EXIST;
+  }
+
   if (num_sets < 0)
     return MB_INDEX_OUT_OF_RANGE;
   
