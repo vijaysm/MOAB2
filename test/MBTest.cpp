@@ -4342,21 +4342,21 @@ ErrorCode mb_forced_adjacencies_test(Interface *MB)
 
     //! there should be only 1 entity adjacent to edge1
   if (edge1_adjacencies.size() != 1)
-    return error;
+    return MB_FAILURE;
 
     //! and that entity should be quad1
   if (edge1_adjacencies[0] != quad1)
-    return error;
+    return MB_FAILURE;
 
-    //! try getting the adjacency of edge6 (should be none)
+    //! try getting the adjacency of edge6 (should be one)
   std::vector<EntityHandle> edge6_adjacencies;
   error = MB->get_adjacencies(&(edge6), 1, 2, false, edge6_adjacencies);
   if (error != MB_SUCCESS)
     return error;
 
-    //! there should be only 1 entity adjacent to edge1
-  if (edge1_adjacencies.size() != 0)
-    return error;
+    //! there should be only 1 entity adjacent to edge6
+  if (edge6_adjacencies.size() != 1)
+    return MB_FAILURE;
 
     //! Now seal up the "gap" caused by edges 4 and 5.  Remove edge5
     //! from the adjacencies of quad2 and add edge 4 to quad2.
@@ -4369,6 +4369,8 @@ ErrorCode mb_forced_adjacencies_test(Interface *MB)
 
   std::vector<EntityHandle> edge4_adjacencies(1, edge4);
   error = MB->add_adjacencies(quad2, &edge4_adjacencies[0], edge4_adjacencies.size(), true);
+  if (error != MB_SUCCESS)
+    return error;
   
     //! get the adjacencies of edge4 and it should return both quads.
   std::vector<EntityHandle> quad_adjacencies;
@@ -4378,13 +4380,13 @@ ErrorCode mb_forced_adjacencies_test(Interface *MB)
 
     //! there should be 2 entities adjacent to edge4
   if (quad_adjacencies.size() != 2)
-    return error;
+    return MB_FAILURE;
 
     //! and they should be quad1 and quad2.  Note that we are not saying anything
     //! about order in the array.
-  if ( (quad_adjacencies[0] != quad1 || quad_adjacencies[1] != quad1) &&
-       (quad_adjacencies[0] != quad2 || quad_adjacencies[1] != quad2) ) 
-    return error;
+  if ( (quad_adjacencies[0] != quad1 || quad_adjacencies[1] != quad2) &&
+       (quad_adjacencies[0] != quad2 || quad_adjacencies[1] != quad1) ) 
+    return MB_FAILURE;
   
     //! clean up on exit
   error = MB->delete_mesh();
