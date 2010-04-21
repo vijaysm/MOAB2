@@ -194,11 +194,15 @@ short int CN::AdjacentSubEntities(const EntityType this_type,
     else {
         // else we're intersecting, and have a non-empty list; intersect with this target list
       tmp_indices.clear();
-      std::set_intersection(MUC.targets_per_source_element[*it1],
-                            MUC.targets_per_source_element[*it1]+
-                            MUC.num_targets_per_source_element[*it1],
-                            index_list.begin(), index_list.end(),
-                            std::back_inserter(tmp_indices));
+      for (int i = MUC.num_targets_per_source_element[*it1]-1; i>= 0; i--)
+        if (std::find(index_list.begin(), index_list.end(), MUC.targets_per_source_element[*it1][i]) !=
+            index_list.end())
+          tmp_indices.push_back(MUC.targets_per_source_element[*it1][i]);
+//      std::set_intersection(MUC.targets_per_source_element[*it1],
+//                            MUC.targets_per_source_element[*it1]+
+//                            MUC.num_targets_per_source_element[*it1],
+//                            index_list.begin(), index_list.end(),
+//                            std::back_inserter(tmp_indices));
       index_list.swap(tmp_indices);
 
         // if we're at this point and the list is empty, the intersection will be NULL;

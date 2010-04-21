@@ -347,7 +347,7 @@ bool AEntityFactory::entities_equivalent(const EntityHandle this_entity,
   // offset iter to avoid addition inside loop; this just makes sure we don't
   // go off beginning of this_vertices with an index < 0
   offset += num_corner_verts;
-  for(i = 1; i < vertex_list_size; i++)
+  for(i = 1; i < num_corner_verts; i++)
   {
     if(vertex_list[i] != this_vertices[(offset-i)%num_corner_verts])
     {
