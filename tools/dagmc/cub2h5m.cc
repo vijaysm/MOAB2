@@ -948,7 +948,7 @@ int main( int argc, char* argv[] )
   if(4!=argc && 6!=argc && 7!=argc)
     {
       std::cerr << "To read meshed geometry for DagMC:" << std::endl;
-      std::cerr << "$> cub_file acis_file output_file" << std::endl;
+      std::cerr << "$> <cub_file.cub> <acis_file.sat> <output_file.h5m>" << std::endl;
       std::cerr << "To read meshed geometry for DagMC and update node coordinates:" << std::endl;
       std::cerr << "$> <cub_file.cub> <acis_file.sat> <output_file.h5m> <deformed_exo_file.e> time_step<int> check_vol_change<bool>" 
 		<< std::endl;
