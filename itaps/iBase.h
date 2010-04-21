@@ -1,9 +1,5 @@
-#ifndef __IBASE_H__
-#define __IBASE_H__
-
-#ifndef ITAPS
-#define ITAPS
-#endif
+#ifndef _ITAPS_iBase
+#define _ITAPS_iBase
 
 #ifdef __cplusplus
 
@@ -132,4 +128,4 @@ extern "C"
 }
 #endif
 
-#endif /* #ifndef __IBASE_H__ */
+#endif /* #ifndef _ITAPS_iBase */

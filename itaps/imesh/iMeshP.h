@@ -1,6 +1,6 @@
 
-#ifndef iMeshP_H
-#define iMeshP_H
+#ifndef _ITAPS_iMeshP
+#define _ITAPS_iMeshP
 
 #include "iMesh.h"
 #include "iMeshP_protos.h"
@@ -2589,4 +2589,4 @@ optimize storage or ignore the flag.
 } /*  extern "C"  */
 #endif
 
-#endif /* defined(iMeshP_h) */
+#endif /* !defined(_ITAPS_iMeshP) */

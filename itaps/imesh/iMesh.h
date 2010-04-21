@@ -1,5 +1,5 @@
-#ifndef IMESH_CBIND_H__
-#define IMESH_CBIND_H__
+#ifndef _ITAPS_iMesh
+#define _ITAPS_iMesh
 
 #define IMESH_MAJOR_VERSION 0
 #define IMESH_MINOR_VERSION 8
@@ -63,10 +63,6 @@
    * DE-ALLOCATED USING THE C FREE FUNCTION.
    *
    */
-
-#ifndef ITAPS
-#define ITAPS
-#endif
 
 #include "iBase.h"
 #include "iMesh_protos.h"
@@ -1995,4 +1991,4 @@ extern "C" {
 } /*  extern "C" */
 #endif
 
-#endif /* ifndef IMESH_CBIND_H__ */
+#endif /* ifndef _ITAPS_iMesh */

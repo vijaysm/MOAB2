@@ -1,5 +1,5 @@
-#ifndef IGEOM_CBIND_H__
-#define IGEOM_CBIND_H__
+#ifndef _ITAPS_iGeom
+#define _ITAPS_iGeom
 
   /** \mainpage The ITAPS Geometry Interface iGeom
    *
@@ -56,10 +56,6 @@
    * DE-ALLOCATED USING THE C FREE FUNCTION.
    *
    */
-
-#ifndef ITAPS
-#define ITAPS
-#endif
 
 #include "iBase.h"
 #include "iGeom_protos.h"
