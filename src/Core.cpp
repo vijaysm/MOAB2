@@ -770,6 +770,7 @@ ErrorCode  Core::get_coords(const Range& entities, double *coords) const
       coords[3*j+1] = y[j];
       coords[3*j+2] = z[j];
     }
+    coords=&coords[ 3*count ];
   }
   
   return MB_SUCCESS;
