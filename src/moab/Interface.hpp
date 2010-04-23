@@ -198,8 +198,10 @@ public:
    * file format.
    *
    *\param file_name The location of the file to read.
-   *\param file_set  Output: a handle to a new set containing all entities 
-   *                        read or imported from the file.
+   *\param file_set  If non-null, this argument must be a pointer to
+   *                 a valid entity set handle.  All entities read from
+   *                 the file will be added to this set.  File metadata
+   *                 will be added to tags on the set.
    *\param options A list of string options, separated by semicolons (;).
    *               See README.IO for more information.  Options are typically
    *               format-specific options or parallel options.  If an
@@ -216,6 +218,14 @@ public:
    *               only those entities or sets that have a value for
    *               the tag that is one of the values in this array.
    *\param num_set_tag_values The length of set_tag_values.
+   *
+   *\Note file_set is passed by pointer rather than by value (where a 
+   *      zero handle value would indicate no set) so as to intentionally
+   *      break compatibility with the previous version of this function
+   *      because the behavior with respect to the file set was changed.
+   *      The file_set is now an input-only argument.  The previous 
+   *      version of this function unconditionally created a set and
+   *      passed it back to the caller via a non-const reference argument.
    */
   virtual ErrorCode load_file( const char* file_name,
                                  const EntityHandle* file_set = 0,
