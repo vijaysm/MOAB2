@@ -1913,6 +1913,17 @@ extern "C" {
       RETURN(iBase_SUCCESS);
     }
 
+    int tag_size;
+    iMesh_getTagSizeBytes(instance, tag_handle, &tag_size, err);
+    // Check err manually and just return if not iBase_SUCCESS to not step on
+    // the error set in iMesh_getTagSizeBytes().
+    if (iBase_SUCCESS != *err)
+      return;
+
+    if (tag_values_size != (tag_size * entity_handles_size)) {
+      ERROR(iBase_INVALID_ARGUMENT,"iMesh_setArrData: bad tag_values_size passed.");
+    }
+
     ErrorCode result = MBI->tag_set_data(TAG_HANDLE(tag_handle), 
                                            CONST_HANDLE_ARRAY_PTR(entity_handles),
                                            entity_handles_size,

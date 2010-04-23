@@ -1320,7 +1320,7 @@ int vertex_int_tag_test(iMesh_Instance mesh,
 
     /* put a value in the first vertex and retrieve */
   iMesh_setArrData(mesh, &dum_vert, 1, *int_tag, 
-                   (const char*)(&dum_val), sizeof(iBase_EntityHandle), &result);
+                   (const char*)(&dum_val), sizeof(int), &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to set int tag (val=11) in vertex_int_tag_test.\n");
     return FALSE;
