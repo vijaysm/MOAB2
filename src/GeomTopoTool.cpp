@@ -33,6 +33,18 @@ namespace moab {
 // be listed for both the forward and reverse slots.
 const char GEOM_SENSE_TAG_NAME[] = "GEOM_SENSE_2";
 
+GeomTopoTool::GeomTopoTool(Interface *impl, bool find_geoments) 
+  : mdbImpl(impl), obbTree(impl), sense2Tag(0), oneVolRootSet(NULL)
+{
+  ErrorCode result = mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4, 
+                                           MB_TAG_SPARSE, geomTag, NULL);
+  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) {
+    std::cerr << "Error: Failed to create geometry dimension tag." << std::endl;
+  }
+  
+  if (find_geoments) find_geomsets();
+}
+  
 ErrorCode GeomTopoTool::set_sense( EntityHandle surface,
                                      EntityHandle volume,
                                      bool forward )
@@ -90,16 +102,10 @@ ErrorCode GeomTopoTool::get_sense( EntityHandle surface,
 
 ErrorCode GeomTopoTool::find_geomsets(Range *ranges) 
 {
-  //Tag geom_tag;
-  ErrorCode result = mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4, 
-                                           MB_TAG_SPARSE, geomTag, NULL);
-  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result)
-    return result;
-  
     // get all sets with this tag
   Range geom_sets;
-  result = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &geomTag, NULL, 1,
-                                                 geom_sets);
+  ErrorCode result = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &geomTag, NULL, 1,
+							   geom_sets);
   if (MB_SUCCESS != result || geom_sets.empty()) 
     return result;
 
@@ -114,14 +120,16 @@ ErrorCode GeomTopoTool::find_geomsets(Range *ranges)
   return MB_SUCCESS;
 }
 
-ErrorCode GeomTopoTool::construct_obb_trees()
+ErrorCode GeomTopoTool::construct_obb_trees(bool make_one_vol)
 {
+  ErrorCode rval;
+
   // get all surfaces and volumes
-  Range surfs, vols;
+  Range surfs, vols, vol_trees;
   const int three = 3;
   const void* const three_val[] = {&three};
-  ErrorCode rval = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &geomTag, 
-							   three_val, 1, vols);
+  rval = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &geomTag, 
+					       three_val, 1, vols);
   if (MB_SUCCESS != rval) return rval;
 
   const int two = 2;
@@ -129,10 +137,6 @@ ErrorCode GeomTopoTool::construct_obb_trees()
   rval = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &geomTag, 
 					       two_val, 1, surfs);
   if (MB_SUCCESS != rval) return rval;
-
-  // surf/vol offsets are just first handles
-  setOffset = (*surfs.begin() < *vols.begin() ? *surfs.begin() : *vols.begin())
-;
 
   if (vols.empty() && !surfs.empty()) {
     setOffset = surfs.front();
@@ -143,7 +147,7 @@ ErrorCode GeomTopoTool::construct_obb_trees()
   else {
     setOffset = (surfs.front() < vols.front() ? surfs.front() : vols.front());
   }
-
+  
   // for surface
   EntityHandle root;
   rootSets.resize(surfs.size() + vols.size());
@@ -162,10 +166,12 @@ ErrorCode GeomTopoTool::construct_obb_trees()
     rval = mdbImpl->add_entities( root, &*i, 1 );
     if (MB_SUCCESS != rval) return rval;
 
+    //surfRootSets[*i - surfOffset] = root;
     rootSets[*i - setOffset] = root;
   }
   
   // for volumes
+  Range trees;
   for (Range::iterator i = vols.begin(); i != vols.end(); ++i) {
     // get all surfaces in volume
     Range tmp_surfs;
@@ -173,21 +179,29 @@ ErrorCode GeomTopoTool::construct_obb_trees()
     if (MB_SUCCESS != rval) return rval;
     
     // get OBB trees for each surface
-    Range trees;
+    if (!make_one_vol) trees.clear();
     for (Range::iterator j = tmp_surfs.begin();  j != tmp_surfs.end(); ++j) {
       rval = get_root(*j, root);
       if (MB_SUCCESS != rval || !root) return MB_FAILURE;
       trees.insert( root );
     }
-    
-    // build OBB tree for volume
-    rval = obbTree.join_trees( trees, root );
-    if (MB_SUCCESS != rval) return rval;
 
-    rootSets[*i - setOffset] = root;
+    // build OBB tree for volume
+    if (!make_one_vol) {
+      rval = obbTree.join_trees( trees, root );
+      if (MB_SUCCESS != rval) return rval;
+      rootSets[*i - setOffset] = root;
+    }
   }
 
-  return MB_SUCCESS;
+  // build OBB tree for volume
+  if (make_one_vol) {
+    rval = obbTree.join_trees( trees, root );
+    if (MB_SUCCESS != rval) return rval;
+    oneVolRootSet = root;
+  }
+  
+  return rval;
 } 
   
     //! Restore parent/child links between GEOM_TOPO mesh sets

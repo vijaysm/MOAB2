@@ -47,9 +47,11 @@ public:
 
   ErrorCode find_geomsets(Range *ranges = NULL);
 
-  ErrorCode construct_obb_trees();
+  ErrorCode construct_obb_trees(bool make_one_vol = false);
 
   ErrorCode get_root(EntityHandle vol_or_surf, EntityHandle &root);
+
+  EntityHandle get_one_vol_root();
 
   OrientedBoxTreeTool *obb_tree() {return &obbTree;}
 
@@ -62,7 +64,8 @@ private:
   OrientedBoxTreeTool obbTree;
   EntityHandle setOffset;
   std::vector<EntityHandle> rootSets;
-  
+  EntityHandle oneVolRootSet;
+
     //! compute vertices inclusive and put on tag on sets in geom_sets
   ErrorCode construct_vertex_ranges(const Range &geom_sets,
 				      const Tag verts_tag);
@@ -70,21 +73,7 @@ private:
     //! given a range of geom topology sets, separate by dimension
   ErrorCode separate_by_dimension(const Range &geom_sets,
 				    Range *entities, Tag geom_tag = 0);
-
-  //ErrorCode construct_obb_trees(EntityHandle& offset,
-  //			  Range& rootSets,
-  //			  OrientedBoxTreeTool& obbTree);
-  
-  
-  
 };
-
-inline GeomTopoTool::GeomTopoTool(Interface *impl, 
-                                  bool find_geoments) 
-        : mdbImpl(impl), sense2Tag(0), obbTree(impl)
-{
-  if (find_geoments) find_geomsets();
-}
 
 // get the root of the obbtree for a given entity
 inline ErrorCode GeomTopoTool::get_root(EntityHandle vol_or_surf, EntityHandle &root) 
@@ -94,7 +83,13 @@ inline ErrorCode GeomTopoTool::get_root(EntityHandle vol_or_surf, EntityHandle &
   return (root ? MB_SUCCESS : MB_INDEX_OUT_OF_RANGE);
 }
 
-} // namespace moab 
+inline EntityHandle GeomTopoTool::get_one_vol_root()
+{
+  return oneVolRootSet;
+}
+
+}
+ // namespace moab 
 
 #endif
 
