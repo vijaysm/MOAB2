@@ -2113,6 +2113,10 @@ ErrorCode Core::merge_entities( EntityHandle entity_to_keep,
 {
   if (auto_merge) return MB_FAILURE;
   
+    // The two entities to merge must not be the same entity.
+  if (entity_to_keep == entity_to_remove)
+    return MB_FAILURE;
+
     // The two entities to merge must be of the same type
   EntityType type_to_keep = TYPE_FROM_HANDLE(entity_to_keep);
 
