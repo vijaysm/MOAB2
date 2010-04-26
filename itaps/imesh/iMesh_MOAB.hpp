@@ -135,7 +135,7 @@ public:
                      int val_size,
                      int* err ) : arrayPtr(0)
   {
-    if (!*array_ptr) {
+    if (!*array_ptr || !array_allocated_space) {
       *array_ptr = std::malloc(val_size * count);
       array_allocated_space = array_size = count;
       if (!*array_ptr) {

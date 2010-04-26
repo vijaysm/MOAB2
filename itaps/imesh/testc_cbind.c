@@ -86,6 +86,9 @@ int ASSERT_( const char* cond, const char* file, int line )
   return FALSE;
 }
 
+#define CHK(err) if (err != iBase_SUCCESS)                              \
+    do {printf("%s:%d ITAPS error %d\n",__FILE__,__LINE__,err); return 0;} while (0)
+
 static iBase_EntitySetHandle root_set;
 
 /*!
@@ -2171,8 +2174,6 @@ int all_adjacency_regression( iMesh_Instance mesh )
     return 1;
 }
 
-#define CHK(err) if (err != iBase_SUCCESS)                              \
-    do {printf("%s:%d ITAPS error %d\n",__FILE__,__LINE__,err); return 0;} while (0)
 static int ordered_set_regression( iMesh_Instance mesh )
 {
   double coords[] = { 0,0,0, 1,1,1 };
@@ -2199,6 +2200,63 @@ static int ordered_set_regression( iMesh_Instance mesh )
     }
   }
   iMesh_dtor(mesh,&err);CHK(err);
+  return 1;
+}
+
+int array_allocation( iMesh_Instance mesh )
+{
+  int err;
+
+  double coords[] = { 0,0,0, 1,1,1, 2,2,2, 3,3,3 };
+
+  iBase_EntityHandle *verts = NULL;
+  int verts_alloc = 0,verts_size;
+
+  iMesh_newMesh("",&mesh,&err,0);
+  if (iBase_SUCCESS != err) return 0;
+
+  iMesh_getRootSet(mesh, &root_set, &err);
+  if (iBase_SUCCESS != err) {
+    printf("Failed to return a root set.\n");
+    return 0;
+  }
+
+  iMesh_createVtxArr(mesh,4,iBase_INTERLEAVED,coords,12,&verts,&verts_alloc,
+                     &verts_size,&err);
+  if (iBase_SUCCESS != err) return 0;
+  free(verts);
+
+  iBase_EntityHandle *ents;
+  int ents_alloc, ents_size;
+
+    // test for proper allocation when array pointer passed in null but alloc'd size not
+  ents_alloc = 3;
+  ents = NULL;
+  iMesh_getEntities(mesh, root_set, iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES, 
+                    &ents, &ents_alloc, &ents_size, &err);
+  CHK(err);
+    
+  free(ents);
+    
+    // test for proper allocation when array pointer passed in non-null but alloc'd size 0
+  ents_alloc = 0;
+  iMesh_getEntities(mesh, root_set, iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES, 
+                    &ents, &ents_alloc, &ents_size, &err);
+  CHK(err);
+    
+  free(ents);
+
+    // test for failure when passed in alloc'd size is smaller than it should be
+  ents_alloc -= 1;
+  iMesh_getEntities(mesh, root_set, iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES, 
+                    &ents, &ents_alloc, &ents_size, &err);
+  if (iBase_BAD_ARRAY_SIZE != err && iBase_BAD_ARRAY_DIMENSION != err) {
+    err = iBase_FAILURE;
+    CHK(err);
+  }
+    
+  iMesh_dtor(mesh,&err);CHK(err);
+
   return 1;
 }
 
@@ -2339,6 +2397,7 @@ int main( int argc, char *argv[] )
   number_tests++;
   printf("\n");
 
+    /* test for error codes */
   printf("   error_code_test: ");
   result = error_code_test(mesh);
   handle_error_code(result, &number_tests_failed,
@@ -2350,6 +2409,15 @@ int main( int argc, char *argv[] )
       /* regression test for ordered sets not preserving order */
   printf("   ordered_set_regression: ");
   result = ordered_set_regression(mesh);
+  handle_error_code(result, &number_tests_failed,
+                    &number_tests_not_implemented,
+                    &number_tests_successful);
+  number_tests++;
+  printf("\n");
+
+    /* test for array allocation behavior */
+  printf("   array_allocation_regression: ");
+  result = array_allocation(mesh);
   handle_error_code(result, &number_tests_failed,
                     &number_tests_not_implemented,
                     &number_tests_successful);
