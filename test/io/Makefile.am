@@ -8,6 +8,7 @@ EXTRA_DIST = brick_cubit10.1.cub \
              ho_test.cub \
              test.cub \
              test.nas \
+             test.unv \
 	     sample.stl \
              three.smf
 
@@ -31,6 +32,7 @@ TESTS = tqdcfr \
 	$(EXODUS_TEST) \
         gmsh_test \
 	nastran_test \
+        ideas_test \
         stl_test \
         smf_test
 
@@ -60,6 +62,9 @@ gmsh_test_DEPENDENCIES = $(LDADD)
 
 nastran_test_SOURCES = $(srcdir)/../TestUtil.hpp nastran_test.cc
 nastran_test_DEPENDENCIES = $(LDADD)
+
+ideas_test_SOURCES = $(srcdir)/../TestUtil.hpp ideas_test.cc
+ideas_test_DEPENDENCIES = $(LDADD)
 
 stl_test_SOURCES = $(srcdir)/../TestUtil.hpp stl_test.cc
 stl_test_DEPENDENCIES = $(LDADD)
