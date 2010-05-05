@@ -136,6 +136,35 @@ ErrorCode FileOptions::get_int_option( const char* name, int& value ) const
   return MB_SUCCESS;
 }
 
+ErrorCode FileOptions::get_int_option( const char* name, 
+                                       int default_val,
+                                       int& value ) const
+{
+  const char* s;
+  ErrorCode rval = get_option( name, s );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+    // empty string
+  if (strempty(s)) {
+    value = default_val;
+    return MB_SUCCESS;
+  }
+  
+    // parse value
+  char* endptr;
+  long int pval = strtol( s, &endptr, 0 );
+  if (!strempty(endptr)) // syntax error
+    return MB_TYPE_OUT_OF_RANGE;
+  
+    // check for overflow (parsing long int, returning int)
+  value = pval;
+  if (pval != (long int)value)
+    return MB_TYPE_OUT_OF_RANGE;
+  
+  return MB_SUCCESS;
+}
+
 ErrorCode FileOptions::get_ints_option( const char* name, 
                                           std::vector<int>& values) const
 {

@@ -70,6 +70,26 @@ public:
    */
   ErrorCode get_int_option( const char* name, int& value ) const;
   
+  /**\brief Check for option with an integer value.  Accept option with no value.
+   *
+   * Check for an option with an integer value.
+   * If the option is found but has no value specified, then
+   * pass back the user-specified default value.
+   *
+   *\NOTE:  This function will not pass back the default_val, but will instead
+   *        return MB_ENTITY_NOT_FOUND if the option is not specified at all.
+   *        The default value is returned only when the option is specified,
+   *        but is specified w/out a value.
+   *
+   *\param name The option name
+   *\param default_val The default value for the option.
+   *\param value Output. The value.
+   *\return - MB_SUCCESS if option is found
+   *        - MB_TYPE_OUT_OF_RANGE if options is found but has a value that cannot be parsed as an int
+   *        - MB_ENTITY_NOT_FOUND if option is not found.
+   */
+  ErrorCode get_int_option( const char* name, int default_val, int& value ) const;
+  
   /**\brief Check for option with a double value.
    *
    * Check for an option with a double value
