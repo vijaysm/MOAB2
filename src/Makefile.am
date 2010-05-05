@@ -34,6 +34,8 @@ libMOAB_la_SOURCES = \
   BitTagServer.cpp \
   BitTagServer.hpp \
   BSPTreePoly.cpp \
+  DebugOutput.cpp \
+  DebugOutput.hpp \
   DualTool.cpp \
   ElementSequence.hpp \
   EntitySequence.cpp \
