@@ -117,17 +117,19 @@ void DebugOutput::print_real( const std::string& str )
   process_line_buffer();
 }
 
-void DebugOutput::print_real( const char* fmt, va_list args )
+void DebugOutput::print_real( const char* fmt, va_list args1, va_list args2 )
 {
   size_t idx = lineBuffer.size();
 #ifdef HAVE_VSNPRINTF
     // try once with remaining space in buffer
   lineBuffer.resize( lineBuffer.capacity() );
-  unsigned size = vsnprintf( &lineBuffer[idx], lineBuffer.size() - idx, fmt, args );
+  unsigned size = vsnprintf( &lineBuffer[idx], lineBuffer.size() - idx, fmt, args1 );
+  ++size; // trailing null
     // if necessary, increase buffer size and retry
   if (size > (lineBuffer.size() - idx)) {
     lineBuffer.resize( idx + size );
-    size = vsnprintf( &lineBuffer[idx], lineBuffer.size() - idx, fmt, args );
+    size = vsnprintf( &lineBuffer[idx], lineBuffer.size() - idx, fmt, args2 );
+    ++size; // trailing null
   }
 #else
     // Guess how much space might be required.
@@ -135,18 +137,20 @@ void DebugOutput::print_real( const char* fmt, va_list args )
     // Guess a random large value of 81 characters per formatted argument.
   unsigned exp_size = 27*strlen(fmt);
   lineBuffer.resize( idx + exp_size );
-  unsigned size = vsprintf( &lineBuffer[idx], fmt, args );
+  unsigned size = vsprintf( &lineBuffer[idx], fmt, args1 );
+  ++size; // trailing null
     // check if we overflowed the buffer
   if (size > exp_size) {
     // crap!
-   fprintf(stderr,"ERROR: Buffer overflow at %s:%d\n", __FILE__, __LINE__);
-   lineBuffer.resize( idx + exp_size );
-   size = vsprintf( &lineBuffer[idx], fmt, args );
+    fprintf(stderr,"ERROR: Buffer overflow at %s:%d\n", __FILE__, __LINE__);
+    lineBuffer.resize( idx + exp_size );
+    size = vsprintf( &lineBuffer[idx], fmt, args2 );
+    ++size; // trailing null
   }
 #endif
 
     // less one because we don't want the trailing '\0'
-  lineBuffer.resize(size-1);
+  lineBuffer.resize(idx+size-1);
   process_line_buffer();
 }
 
@@ -224,7 +228,7 @@ void DebugOutput::process_line_buffer()
     else
       outputImpl->println( linePfx.c_str(), &lineBuffer[last_idx] );
     ++i;
-    last_idx = i - lineBuffer.end();
+    last_idx = i - lineBuffer.begin();
   }
   
   if (last_idx) {

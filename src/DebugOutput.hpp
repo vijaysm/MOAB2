@@ -155,10 +155,12 @@ public:
 #endif
     {
       if (check(verbosity)) {
-        va_list args;
-        va_start(args, fmt);
-        print_real(fmt, args);
-        va_end(args);
+        va_list args1, args2;
+        va_start(args1, fmt);
+        va_start(args2, fmt);
+        print_real(fmt, args1, args2);
+        va_end(args2);
+        va_end(args1);
       }
     }
    
@@ -189,7 +191,12 @@ private:
   void list_ints_real( const char* pfx, const Range& range );
   void print_real( const char* buffer );
   void print_real( const std::string& str );
-  void print_real( const char* buffer, va_list args );
+  
+  // Function must be passed to copies of the same va_list because
+  // a) it might have to call vs(n)printf twice, b) vs(n)printf modifies
+  // the va_list such that it cannot be reused, and c) va_copy is not
+  // (yet) portable (c99, no c++ standard).
+  void print_real( const char* buffer, va_list args1, va_list args2 );
   void process_line_buffer();
   
   std::vector<char> lineBuffer;
