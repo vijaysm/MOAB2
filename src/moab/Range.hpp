@@ -289,7 +289,7 @@ public:
   
   const_iterator lower_bound( EntityHandle val ) const 
     { return lower_bound( begin(), end(), val ); }
-  const_iterator upperbound( EntityHandle val ) const 
+  const_iterator upper_bound( EntityHandle val ) const 
     { return upper_bound( begin(), end(), val ); }
   const_iterator lower_bound( EntityType type ) const;
   const_iterator upper_bound( EntityType type ) const;
