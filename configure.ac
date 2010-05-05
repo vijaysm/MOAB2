@@ -47,6 +47,11 @@ if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FC"; then
   AC_FC_WRAPPERS
 fi
 
+################################################################################
+#                           Basic Portability Stuff
+################################################################################
+AC_CHECK_FUNC([vsnprintf],[AM_CPPFLAGS="$AM_CPPFLAGS -DHAVE_VSNPRINTF"])
+
 
 ################################################################################
 #                           No-Namepsace (3.0) Headers
