@@ -159,7 +159,7 @@ void WriteHDF5Parallel::printrange( Range& r )
 #ifndef DEBUG
 static void print_type_sets( Interface* , int , int , Range& ) {}
 #else
-static void print_type_sets( Interface* iFace, int rank, int size, Range& sets )
+static void print_type_sets( Interface* iFace, int /*rank*/, int /*size*/, Range& sets )
 {
   Tag gid, did, bid, sid, nid;
   iFace->tag_get_handle( GLOBAL_ID_TAG_NAME, gid ); 
@@ -1254,7 +1254,7 @@ ErrorCode WriteHDF5Parallel::get_remote_set_data(
   for (unsigned j = 0; j < myPcomm->proc_config().proc_size(); ++j)
   {
     const int start = w;
-    for (int i = 0; i < data.counts[j]; ++i)
+    for (i = 0; i < data.counts[j]; ++i)
     {
       std::vector<int>::iterator p 
         = std::lower_bound( sorted.begin(), sorted.end(), data.all_values[r] );
@@ -2042,9 +2042,9 @@ ErrorCode WriteHDF5Parallel::write_finished()
   return WriteHDF5::write_finished();
 }
 
+#ifdef TIME_DEBUG
 void WriteHDF5Parallel::tprint( const char* fmt, ... )
 {
-#ifdef TIME_DEBUG
   static const double t0 = MPI_Wtime();
   va_list args;
   va_start(args, fmt);
@@ -2058,8 +2058,10 @@ void WriteHDF5Parallel::tprint( const char* fmt, ... )
   strcpy( buffer+n, "\n" );
   fputs( buffer, stderr ); 
   va_end(args);
-#endif
 }
+#else
+void WriteHDF5Parallel::tprint( const char* , ... ) {}
+#endif
 
 class TagNameCompare {
   Interface* iFace;
