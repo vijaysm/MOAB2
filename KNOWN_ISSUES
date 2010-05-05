@@ -7,74 +7,28 @@ the online ticket system at the MOAB website:
 === ========  ===================================================================
 33  critical  Parallel read failure for > 32procs
 
-
-34  critical  Resolve shared entities bug in scdtest
-
-
-6   major     ncdf load failure
-
-
-9   major     MOAB has trouble loading the attached files
-
-
-10  major     "For ilcend.cub, MOAB returns inconsistent numbers of VERTEXes for
-              REGIONs, FACEs, etc"
-
-
-11  major     Get the wrong number of lower/higher dimensional entities for a
-              given entity with ilcend.cub
-
-
-28  major     Adjacencies not right after entity creation
-
-
 35  major     MOAB parallel memory leak
-
-
-144 major     Document need for MPI/IO for HDF5
-
 
 149 major     Usage notes for iMesh/iGeom on MOAB/CGM implementations
 
+161 major     Need better MBCN test
 
-151 major     Document usage of parallel moab with non-world communicators
-
-
-13  minor     MOAB make check fails w/ clean build & no previous iMesh
-
+163 major     Assertion failure reading 2 meshes in mbcoupler_test
 
 22  minor     iMesh_getAdjTable() is incorrect
 
-
 29  minor     Specifying sets not to write
-
 
 30  minor     geometric vertex sets not partitioned
 
-
 32  minor     support writing compressed (szip) HDF5 files
-
-
-37  minor     Bug: MBInterface::merge_entities
-
 
 138 minor     Error handlers
 
-
 141 minor     reader/writer file set
-
 
 142 minor     Document use of MBReaderWriterSet
 
-
-145 minor     Remove mbchaco
-
-
-148 minor     scdtest.cpp needs more verbose error output
-
-
-157 minor     parallel/uber_parallel_test.cpp has typo in file options
-
+162 minor     Cub file reader fails if file contains named blocks
 
 26  trivial   pipelining utilities
-
