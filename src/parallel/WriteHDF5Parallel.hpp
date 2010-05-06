@@ -16,6 +16,7 @@ namespace moab {
 
 struct RemoteSetData;
 class ParallelComm;
+class IODebugTrack;
 
 class WriteHDF5Parallel : public WriteHDF5
 {
@@ -174,36 +175,30 @@ class WriteHDF5Parallel : public WriteHDF5
       //! Virtual function called by non-parallel code after
       //! the normal (single-processor) meshset descriptions have
       //! been written.
-    ErrorCode write_shared_set_descriptions( hid_t table );
+    ErrorCode write_shared_set_descriptions( hid_t table, IODebugTrack* );
        
       //! Write set contents for multi-processor meshsets.
       //! Virtual function called by non-parallel code after
       //! the normal (single-processor) meshset contents have
       //! been written.
-    ErrorCode write_shared_set_contents( hid_t table );
+    ErrorCode write_shared_set_contents( hid_t table, IODebugTrack* );
        
       //! Write set children for multi-processor meshsets.
       //! Virtual function called by non-parallel code after
       //! the normal (single-processor) meshset children have
       //! been written.
-    ErrorCode write_shared_set_children( hid_t table );
+    ErrorCode write_shared_set_children( hid_t table, IODebugTrack* );
        
       //! Write set children for multi-processor meshsets.
       //! Virtual function called by non-parallel code after
       //! the normal (single-processor) meshset children have
       //! been written.
-    ErrorCode write_shared_set_parents( hid_t table );
+    ErrorCode write_shared_set_parents( hid_t table, IODebugTrack* );
   
       //! Virtual function overridden from WriteHDF5.  
       //! Release memory by clearing member lists.
     ErrorCode write_finished();
-
-    virtual void tprint( const char* fmt, ... )
-#ifdef __GNUC__
-__attribute__((format(printf,2,3)))
-#endif
-    ;
-    
+   
       //! Remove any remote mesh entities from the passed range.
     void remove_remote_entities( EntityHandle relative, Range& range );
     void remove_remote_entities( EntityHandle relative, std::vector<EntityHandle>& vect );
@@ -250,8 +245,6 @@ __attribute__((format(printf,2,3)))
 
     //! whether this instance allocated (and dtor should delete) the pcomm
   bool pcommAllocated;
-    
-    void printrange( Range& );
 };
 
 
