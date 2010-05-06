@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string.h>
 #include <algorithm>
+#include <assert.h>
 
 #ifdef USE_MPI
 #  include "moab_mpi.h"
@@ -154,6 +155,41 @@ void DebugOutput::print_real( const char* fmt, va_list args1, va_list args2 )
   process_line_buffer();
 }
 
+static void print_range( char* buffer, unsigned long begin, unsigned long end )
+{
+  assert(end > begin);
+    // begin with a space
+  *buffer = ' ';
+  char *b1 = buffer + 1;
+    // print begin-end, but keep track of where each peice is written
+  char* e1 = b1 + sprintf(b1,"%lu",begin);
+  *e1 = '-';
+  char* b2 = e1+1;
+  char* e2 = b2 + sprintf(b2,"%lu",end);
+    // if the printed strings for both numbers don't contain the same
+    // number of digits, don't do anything more
+  if (e1-b1 == e2-b2) {
+     // see how many leading digits the two numbers have in common
+    char* p = b2;
+    while (*p && *p == *b1)
+      { ++p; ++b1; }
+      // remove common shared leading digits from second number
+    if (p > b2 && *p) {
+       // shift second value down so that common leading digits are not repeated
+      while(*p) {
+        *b2 = *p;
+        ++b2;
+        ++p;
+      } 
+      e2 = b2;
+    }
+  }
+    // add trailing comma
+  *e2 = ',';
+  ++e2;
+  *e2 = '\0';
+}
+
 void DebugOutput::list_range_real( const char* pfx, const Range& range )
 {
   if (range.empty()) {
@@ -175,14 +211,10 @@ void DebugOutput::list_range_real( const char* pfx, const Range& range )
       const char* name = CN::EntityTypeName(type);
       lineBuffer.insert( lineBuffer.end(), name, name+strlen(name) );
     }
-    if (i->first == i->second) {
+    if (i->first == i->second) 
       sprintf(numbuf, " %lu,", (unsigned long)(ID_FROM_HANDLE(i->first)));
-    }
-    else {
-      sprintf(numbuf, " %lu - %lu,", 
-        (unsigned long)(ID_FROM_HANDLE(i->first)),
-        (unsigned long)(ID_FROM_HANDLE(i->second)));
-    }
+    else
+      print_range(numbuf, ID_FROM_HANDLE(i->first), ID_FROM_HANDLE(i->second) );
     lineBuffer.insert( lineBuffer.end(), numbuf, numbuf+strlen(numbuf) );
   }
 
@@ -208,7 +240,7 @@ void DebugOutput::list_ints_real( const char* pfx, const Range& range )
     if (i->first == i->second) 
       sprintf(numbuf, " %lu,", (unsigned long)(i->first));
     else
-      sprintf(numbuf, " %lu - %lu,", (unsigned long)(i->first), (unsigned long)(i->second));
+      print_range(numbuf, (unsigned long)(i->first), (unsigned long)(i->second));
     lineBuffer.insert( lineBuffer.end(), numbuf, numbuf+strlen(numbuf) );
   }
 
