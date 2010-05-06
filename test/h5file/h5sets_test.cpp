@@ -16,7 +16,7 @@ bool keep_file = false;
 void read_write_file( Interface& output, Interface& input, EntityHandle* input_set = 0 )
 {
   ErrorCode rval;
-  rval = output.write_file( filename );
+  rval = output.write_file( filename, 0, "DEBUG_BINIO" );
   CHECK_ERR(rval);
   if (input_set) {
     rval = input.create_meshset( MESHSET_SET, *input_set );
@@ -265,7 +265,7 @@ void test_tree( int max_depth )
   str << "tree-" << max_depth << ".h5m";
   
   // write file and read back in
-  rval = mb.write_file( str.str().c_str(), 0, "BUFFER_SIZE=1024" ); CHECK_ERR(rval);
+  rval = mb.write_file( str.str().c_str(), 0, "BUFFER_SIZE=1024;DEBUG_BINIO" ); CHECK_ERR(rval);
   mb.delete_mesh();
   rval = mb.load_file( str.str().c_str() );
   if (!keep_file)

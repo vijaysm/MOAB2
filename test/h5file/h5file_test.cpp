@@ -61,7 +61,7 @@ int main()
   
   // write out the dodecahedron
   fprintf( stderr, "writing... " );
-  rval = iface->write_mesh( filename );
+  rval = iface->write_file( filename, 0, "DEBUG_BINIO" );
   if (MB_SUCCESS != rval)
   {
     fprintf( stderr, "Failed to write \"%s\"\n", filename );
@@ -72,7 +72,7 @@ int main()
   
   // Read back in as a copy of the original
   fprintf( stderr, "reading... " );
-  rval = iface->load_mesh( filename );
+  rval = iface->load_file( filename );
   if (MB_SUCCESS != rval)
   {
     fprintf( stderr, "Failed to read \"%s\"\n", filename );
@@ -92,7 +92,7 @@ int main()
   
   // Write both the original and copy to a file
   fprintf( stderr, "writing... " );
-  rval = iface->write_mesh( filename );
+  rval = iface->write_file( filename, 0, "DEBUG_BINIO" );
   if (MB_SUCCESS != rval)
   {
     fprintf( stderr, "Failed to write \"%s\"\n", filename );
@@ -109,7 +109,7 @@ int main()
   
   // Read the two dodecahedrons from the file
   fprintf( stderr, "reading... " );
-  rval = iface->load_mesh( filename );
+  rval = iface->load_file( filename );
   if (MB_SUCCESS != rval)
   {
     fprintf( stderr, "Failed to read \"%s\"\n", filename );
