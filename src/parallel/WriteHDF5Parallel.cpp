@@ -1805,7 +1805,7 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
 //char buffer[256];
 //sprintf(buffer, "write_shared_set_descriptions( %u )", (unsigned)parallelSets.size() );
 //tprint( buffer );
-tprint( "write_shared_set_descriptions" );
+tprint( "write_shared_set_descriptions\n" );
 
   const id_t start_id = setSet.first_id;
   ErrorCode rval;
@@ -1838,7 +1838,7 @@ tprint( "write_shared_set_descriptions" );
     CHECK_HDF(status);
   }
 
-tprint( "finished write_shared_set_descriptions" );
+tprint( "finished write_shared_set_descriptions\n" );
 
   return MB_SUCCESS;
 }
@@ -1847,7 +1847,7 @@ tprint( "finished write_shared_set_descriptions" );
 ErrorCode WriteHDF5Parallel::write_shared_set_contents( hid_t table,
                                             IODebugTrack* dbg_track )
 {
-tprint( "write_shared_set_contents" );
+tprint( "write_shared_set_contents\n" );
 
   ErrorCode rval;
   mhdf_Status status;
@@ -1879,7 +1879,7 @@ tprint( "write_shared_set_contents" );
   }
   
 
-tprint( "finished write_shared_set_contents" );
+tprint( "finished write_shared_set_contents\n" );
   return MB_SUCCESS;
 }
     
@@ -1887,7 +1887,7 @@ tprint( "finished write_shared_set_contents" );
 ErrorCode WriteHDF5Parallel::write_shared_set_children( hid_t table,
                                             IODebugTrack* dbg_track )
 {
-tprint( "write_shared_set_children" );
+tprint( "write_shared_set_children\n" );
 
   ErrorCode rval;
   mhdf_Status status;
@@ -1919,7 +1919,7 @@ tprint( "write_shared_set_children" );
     }
   }
 
-tprint( "finished write_shared_set_children" );
+tprint( "finished write_shared_set_children\n" );
   return MB_SUCCESS;
 }
     
@@ -1927,7 +1927,7 @@ tprint( "finished write_shared_set_children" );
 ErrorCode WriteHDF5Parallel::write_shared_set_parents( hid_t table,
                                             IODebugTrack* dbg_track )
 {
-tprint( "write_shared_set_parents" );
+tprint( "write_shared_set_parents\n" );
 
   ErrorCode rval;
   mhdf_Status status;
@@ -1959,7 +1959,7 @@ tprint( "write_shared_set_parents" );
     }
   }
 
-tprint( "finished write_shared_set_parents" );
+tprint( "finished write_shared_set_parents\n" );
   return MB_SUCCESS;
 }
 
