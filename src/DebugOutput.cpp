@@ -111,11 +111,23 @@ void DebugOutput::print_real( const char* buffer )
   lineBuffer.insert( lineBuffer.end(), buffer, buffer + strlen(buffer) );
   process_line_buffer();
 }
+
+void DebugOutput::tprint_real( const char* buffer )
+{
+  tprint();
+  print_real( buffer );
+}
   
 void DebugOutput::print_real( const std::string& str )
 {
   lineBuffer.insert( lineBuffer.end(), str.begin(), str.end() );
   process_line_buffer();
+}
+  
+void DebugOutput::tprint_real( const std::string& str )
+{
+  tprint();
+  print_real( str );
 }
 
 void DebugOutput::print_real( const char* fmt, va_list args1, va_list args2 )
@@ -153,6 +165,12 @@ void DebugOutput::print_real( const char* fmt, va_list args1, va_list args2 )
     // less one because we don't want the trailing '\0'
   lineBuffer.resize(idx+size-1);
   process_line_buffer();
+}
+
+void DebugOutput::tprint_real( const char* fmt, va_list args1, va_list args2 )
+{
+  tprint();
+  print_real( fmt, args1, args2 );
 }
 
 static void print_range( char* buffer, unsigned long begin, unsigned long end )
@@ -267,6 +285,16 @@ void DebugOutput::process_line_buffer()
     i = std::copy( lineBuffer.begin()+last_idx, lineBuffer.end(), lineBuffer.begin() );
     lineBuffer.erase( i, lineBuffer.end() );
   }
+}
+
+void DebugOutput::tprint()
+{
+  clock_t t = clock();
+  double tm = ((double)t)/CLOCKS_PER_SEC;
+  size_t s = lineBuffer.size();
+  lineBuffer.resize( s + 64 );
+  size_t ss = sprintf(&lineBuffer[s],"(%.2f s) ", tm );
+  lineBuffer.resize( s + ss );
 }
 
 } // namespace moab

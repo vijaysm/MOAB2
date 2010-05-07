@@ -163,6 +163,36 @@ public:
         va_end(args1);
       }
     }
+
+  //!\brief Output the specified string iff output is enabled.
+  //! 
+  //! Include current CPU time (as returned by clock()) in output.
+  void tprint( int verbosity, const char* str ) 
+    { if (check(verbosity)) tprint_real(str); }
+  
+  //!\brief Output the specified string iff output is enabled.
+  //! 
+  //! Include current CPU time (as returned by clock()) in output.
+  void tprint( int verbosity, const std::string& str )
+    { if (check(verbosity)) tprint_real(str); }
+    
+  //!\brief Output the specified printf-formatted output iff output is enabled
+  //! 
+  //! Include current CPU time (as returned by clock()) in output.
+  void tprintf( int verbosity, const char* fmt, ... )
+#ifdef __GNUC__
+    __attribute__((format(printf,3,4)))
+#endif
+    {
+      if (check(verbosity)) {
+        va_list args1, args2;
+        va_start(args1, fmt);
+        va_start(args2, fmt);
+        tprint_real(fmt, args1, args2);
+        va_end(args2);
+        va_end(args1);
+      }
+    }
    
   //!\brief Print the contents of a moab::Range
   //!\param pfx String to print after default class prefix and before range contents
@@ -187,16 +217,21 @@ private:
   int mpiRank;
   unsigned verbosityLimit;
 
+  void tprint();
+
   void list_range_real( const char* pfx, const Range& range );
   void list_ints_real( const char* pfx, const Range& range );
   void print_real( const char* buffer );
   void print_real( const std::string& str );
+  void tprint_real( const char* buffer );
+  void tprint_real( const std::string& str );
   
   // Function must be passed to copies of the same va_list because
   // a) it might have to call vs(n)printf twice, b) vs(n)printf modifies
   // the va_list such that it cannot be reused, and c) va_copy is not
   // (yet) portable (c99, no c++ standard).
   void print_real( const char* buffer, va_list args1, va_list args2 );
+  void tprint_real( const char* buffer, va_list args1, va_list args2 );
   void process_line_buffer();
   
   std::vector<char> lineBuffer;
