@@ -289,8 +289,11 @@ void DebugOutput::process_line_buffer()
 
 void DebugOutput::tprint()
 {
-  clock_t t = clock();
-  double tm = ((double)t)/CLOCKS_PER_SEC;
+#ifdef USE_MPI
+  double tm = MPI_Wtime();
+#else
+  double tm = clock()/(double)CLOCKS_PER_SEC;
+#endif
   size_t s = lineBuffer.size();
   lineBuffer.resize( s + 64 );
   size_t ss = sprintf(&lineBuffer[s],"(%.2f s) ", tm );
