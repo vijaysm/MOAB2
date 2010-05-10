@@ -3,6 +3,7 @@
 
 #include "moab/Forward.hpp"
 #include "moab/ReaderIface.hpp"
+#include "DebugOutput.hpp"
 
 #include <string>
 
@@ -100,6 +101,8 @@ private:
 
     // each reader can keep track of its own pcomm
   ParallelComm *myPcomm;
+  
+  DebugOutput myDebug;
 };
 
 inline ErrorCode ReadParallel::load_file(const char *file_name,

@@ -45,12 +45,15 @@ const char* ReadParallel::parallelOptsNames[] = { "NONE",
 
 ReadParallel::ReadParallel(Interface* impl, 
                            ParallelComm *pc) 
-        : mbImpl(impl), myPcomm(pc) 
+        : mbImpl(impl), myPcomm(pc), myDebug("ReadPara", std::cerr)
 {
   if (!myPcomm) {
     myPcomm = ParallelComm::get_pcomm(mbImpl, 0);
     if (NULL == myPcomm) myPcomm = new ParallelComm(mbImpl);
   }
+  myDebug.set_rank( myPcomm->proc_config().proc_rank() );
+  if (debug) // for backwards compatability, enable all debug output if constant is true
+    myDebug.set_verbosity(10);
 }
 
 ErrorCode ReadParallel::load_file(const char **file_names,
@@ -62,6 +65,12 @@ ErrorCode ReadParallel::load_file(const char **file_names,
                                     const Tag* file_id_tag ) 
 {
   Error *merror = ((Core*)mbImpl)->get_error_handler();
+  
+  
+  int tmpval;
+  if (MB_SUCCESS == opts.get_int_option("DEBUG_PIO", 1, tmpval))
+    myDebug.set_verbosity(tmpval);
+  myDebug.tprint(1,"Setting up...\n");
 
     // Get parallel settings
   int parallel_mode;
@@ -169,6 +178,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   
   switch (parallel_mode) {
     case POPT_BCAST:
+        myDebug.print(1,"Read mode is BCAST\n");
         if (is_reader) {
           pa_vec.push_back(PA_READ);
           pa_vec.push_back(PA_CHECK_GIDS_SERIAL);
@@ -180,6 +190,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
         break;
     
     case POPT_BCAST_DELETE:
+        myDebug.print(1,"Read mode is BCAST_DELETE\n");
         if (is_reader) {
           pa_vec.push_back(PA_READ);
           pa_vec.push_back(PA_CHECK_GIDS_SERIAL);
@@ -192,6 +203,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
 
     case POPT_DEFAULT:
     case POPT_READ_DELETE:
+        myDebug.print(1,"Read mode is READ_DELETE\n");
         pa_vec.push_back(PA_READ);
         pa_vec.push_back(PA_CHECK_GIDS_SERIAL);
         pa_vec.push_back(PA_GET_FILESET_ENTS);
@@ -199,6 +211,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
         break;
 
     case POPT_READ_PART:
+        myDebug.print(1,"Read mode is READ_PART\n");
         pa_vec.push_back(PA_READ_PART);
         break;
     default:
@@ -281,8 +294,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
           i_read = true;
           
           for (j = 0; j < num_files; j++) {
-            if (debug)
-              std::cout << "Reading file " << file_names[j] << std::endl;
+            myDebug.tprintf(1,"Reading file: \"%s\"\n", file_names[j] );
 
             EntityHandle new_file_set;
             result = mbImpl->create_meshset(MESHSET_SET, new_file_set);
@@ -319,8 +331,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
           break;
 //==================
       case PA_READ_PART: {
-        if (debug)
-          std::cout << "Reading file " << file_names[0] << std::endl;
+          myDebug.tprintf(1,"Reading file: \"%s\"\n", file_names[0] );
 
           i_read = true;
           if (num_files != 1) {
@@ -370,8 +381,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
 
 //==================
       case PA_GET_FILESET_ENTS:
-          if (debug)
-            std::cout << "Getting fileset entities." << std::endl;
+          myDebug.tprint(1,"Getting fileset entities.\n");
 
             // get entities in the file set, and add actual file set to it;
             // mark the file set to make sure any receiving procs know which it
@@ -387,8 +397,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
 //==================
       case PA_BROADCAST:
             // do the actual broadcast; if single-processor, ignore error
-          if (debug)
-            std::cout << "Broadcasting mesh." << std::endl;
+          myDebug.tprint(1,"Broadcasting mesh.\n");
 
           if (myPcomm->proc_config().proc_size() > 1)
             tmp_result = myPcomm->broadcast_entities( reader_rank, entities );
@@ -406,8 +415,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
 
 //==================
       case PA_DELETE_NONLOCAL:
-          if (debug)
-            std::cout << "Deleting nonlocal entities." << std::endl;
+          myDebug.tprint(1,"Deleting nonlocal entities.\n");
 
           tmp_result = delete_nonlocal_entities(partition_tag_name, 
                                                 partition_tag_vals, 
@@ -425,16 +433,14 @@ ErrorCode ReadParallel::load_file(const char **file_names,
 
 //==================
       case PA_CHECK_GIDS_SERIAL:
-          if (debug)
-            std::cout << "Checking global ids." << std::endl;
+          myDebug.tprint(1,"Checkig global IDs\n");
 
           tmp_result = myPcomm->check_global_ids(file_set, 0, 1, true, false);
           break;
         
 //==================
       case PA_RESOLVE_SHARED_ENTS:
-          if (debug)
-            std::cout << "Resolving shared entities." << std::endl;
+          myDebug.tprint(1,"Resolving shared entities.\n");
 
           tmp_result = myPcomm->resolve_shared_ents(file_set, resolve_dim, shared_dim,
                                                     use_id_tag ? file_id_tag : 0);
@@ -442,8 +448,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
         
 //==================
       case PA_EXCHANGE_GHOSTS:
-          if (debug)
-            std::cout << "Exchanging ghost entities." << std::endl;
+          myDebug.tprint(1,"Exchanging ghost entities.\n");
 
           tmp_result = myPcomm->exchange_ghost_cells(ghost_dim, bridge_dim, 
                                                      num_layers, true);
@@ -451,8 +456,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
         
 //==================
       case PA_PRINT_PARALLEL:
-          if (debug)
-            std::cout << "Printing parallel information." << std::endl;
+          myDebug.tprint(1,"Printing parallel information.\n");
 
           tmp_result = myPcomm->list_entities(0, -1);
           break;
@@ -572,10 +576,7 @@ ErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
     myPcomm->partition_sets().swap(tmp_sets);
   }
 
-  if (debug) {
-    std::cerr << "My partition sets: ";
-    myPcomm->partition_sets().print();
-  }
+  myDebug.print(1,"My partition sets: ", myPcomm->partition_sets());
   
   result = delete_nonlocal_entities(file_set); RR(" ");
   
@@ -643,7 +644,7 @@ ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set)
   mbImpl->query_interface(iface_name, reinterpret_cast<void**>(&read_iface));
   Range partition_ents, all_sets;
 
-  if (debug) std::cout << "Gathering related entities." << std::endl;
+  myDebug.tprint(2,"Gathering related entities.\n");
   
   result = read_iface->gather_related_ents(myPcomm->partition_sets(), partition_ents,
                                            &all_sets);
@@ -654,9 +655,8 @@ ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set)
   result = mbImpl->get_entities_by_handle(file_set, file_ents); 
   RR("Couldn't get pre-existing entities.");
 
-  if (debug && myPcomm->proc_config().proc_rank() == 0) {
-    std::cout << "File entities: " << std::endl;
-    file_ents.print("ff  ");
+  if (myPcomm->proc_config().proc_rank() == 0) {
+    myDebug.print( 2, "File entities: ", file_ents );
   }
   
     // get deletable entities by subtracting partition ents from file ents
@@ -666,7 +666,7 @@ ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set)
   Range deletable_sets = intersect( all_sets, deletable_ents);
   Range keepable_sets = subtract( all_sets, deletable_sets);
   
-  if (debug) std::cout << "Removing deletable entities from keepable sets." << std::endl;
+  myDebug.tprint( 2, "Removing deletable entities from keepable sets.\n" );
 
     // remove deletable ents from all keepable sets
   for (Range::iterator rit = keepable_sets.begin();
@@ -675,13 +675,10 @@ ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set)
     RR("Failure removing deletable entities.");
   }
 
-  if (debug) {
-    std::cout << "Deleting deletable entities." << std::endl;
+  myDebug.tprint( 2, "Deleting deletable entities.\n" );
 
-    if (myPcomm->proc_config().proc_rank() == 0) {
-      std::cout << "Deletable sets: " << std::endl;
-      deletable_sets.print("ff  ");
-    }
+  if (myPcomm->proc_config().proc_rank() == 0) {
+    myDebug.print( 2, "Deletable sets: ", deletable_sets );
   }
   
     // delete sets, then ents
@@ -691,9 +688,8 @@ ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set)
 
   deletable_ents = subtract( deletable_ents, deletable_sets);
 
-  if (debug && myPcomm->proc_config().proc_rank() == 0) {
-    std::cout << "Deletable entities: " << std::endl;
-    deletable_ents.print("ff  ");
+  if (myPcomm->proc_config().proc_rank() == 0) {
+    myDebug.print( 2, "Deletable entities: ", deletable_ents );
   }
   
   if (!deletable_ents.empty())
