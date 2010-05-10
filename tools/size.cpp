@@ -51,6 +51,7 @@ void usage( const char* exe )
   std::cerr << "Usage: " << exe << " [-g] [-m] [-l] [-ll] <mesh file list>" << std::endl
             << "-g  : print counts by geometric owner" << std::endl
             << "-m  : print counts per block/boundary" << std::endl
+            << "-t  : print counts by tag" << std::endl
             << "-l  : print counts of mesh" << std::endl
             << "-ll : verbose listing of every entity" << std::endl
             ;
@@ -172,6 +173,48 @@ ErrorCode gather_set_stats( EntityHandle set, set_stats& stats )
   return MB_SUCCESS;
 }
 
+struct TagCounts {
+  TagCounts(std::string n) : name(n) 
+    { std::fill(counts, counts+MBMAXTYPE, 0); }
+  std::string name;
+  int counts[MBMAXTYPE];
+};
+ErrorCode gather_tag_counts( EntityHandle set, 
+                             std::vector<TagCounts>& counts )
+{
+  std::vector<Tag> tags;
+  mb.tag_get_tags( tags );
+  for (size_t i = 0; i < tags.size(); ++i) {
+    std::string name;
+    ErrorCode rval = mb.tag_get_name( tags[i], name );
+    if (MB_SUCCESS != rval || name.empty())
+      continue;
+    
+    counts.push_back( name );
+    for (EntityType t = MBVERTEX; t != MBMAXTYPE; ++t) 
+      mb.get_number_entities_by_type_and_tag( set, t, &tags[i], 0, 1, counts.back().counts[t] );
+  }
+  
+  return MB_SUCCESS;
+}
+
+void add_tag_counts( std::vector<TagCounts>& counts,
+                     const std::vector<TagCounts>& add )
+{
+  for (size_t i = 0; i < add.size(); ++i) {
+    size_t j;
+    for (j = 0; j < counts.size(); ++j)
+      if (add[i].name == counts[j].name)
+        break;
+    if (j == counts.size()) {
+      counts.push_back( add[i] );
+      continue;
+    }
+    for (EntityType t = MBVERTEX; t != MBMAXTYPE; ++t) 
+      counts[j].counts[t] += add[i].counts[t];
+  }
+}
+
 const char* dashes( unsigned count )
 {
   static std::vector<char> dashes;
@@ -179,6 +222,52 @@ const char* dashes( unsigned count )
   dashes.resize( count + 1, '-' );
   dashes[count] = '\0';
   return &dashes[0];
+}
+
+void print_tag_counts( const std::vector<TagCounts>& counts )
+{
+  if (counts.empty()) {
+    printf( "<No tags>\n");
+    return;
+  }
+
+  int widths[MBMAXTYPE] = { 0 };
+  int name_width = 0;
+  for (size_t i = 0; i < counts.size(); ++i) {
+    if (counts[i].name.length() > (unsigned)name_width)
+      name_width = counts[i].name.length();
+    for (EntityType t = MBVERTEX; t != MBMAXTYPE; ++t) 
+      if (counts[i].counts[t] != 0)
+        widths[t] = std::max(8,(int)strlen(CN::EntityTypeName(t)));
+  }
+  
+  if (0 == std::min_element(widths, widths+MBMAXTYPE)) {
+    printf( "<No Tagged Entities>\n");
+    return;
+  }
+  
+    // Print header line
+  const char* name_title = "Tag Name";
+  if ((unsigned)name_width < strlen(name_title))
+    name_width = strlen(name_title);
+  printf( "%*s", name_width, name_title );
+  for (EntityType t = MBVERTEX; t != MBMAXTYPE; ++t) 
+    if (widths[t])
+      printf( " %*s", widths[t], CN::EntityTypeName(t) );
+  printf("\n%s", dashes(name_width));
+  for (EntityType t = MBVERTEX; t != MBMAXTYPE; ++t) 
+    if (widths[t])
+      printf( " %s", dashes(widths[t]) );
+    printf("\n");
+    
+    // print data
+  for (size_t i = 0; i < counts.size(); ++i) {
+    printf( "%*s", name_width, counts[i].name.c_str() );
+    for (EntityType t = MBVERTEX; t != MBMAXTYPE; ++t) 
+      if (widths[t])
+        printf( " %*d", widths[t], counts[i].counts[t] );
+    printf("\n");
+  }
 }
 
 void print_stats( set_stats& stats )
@@ -328,8 +417,11 @@ int main( int argc, char* argv[] )
   bool mesh_owners = false;
   bool just_list = false;
   bool just_list_basic = false;
+  bool tag_count = false;
   std::vector<std::string> file_list;
   set_stats total_stats, file_stats;
+  std::vector<TagCounts> total_counts, file_counts;
+  ErrorCode rval;
   
   for (int i = 1; i < argc; ++i)
   {
@@ -341,6 +433,8 @@ int main( int argc, char* argv[] )
       just_list_basic = true;
     else if (!strcmp(argv[i],"-m"))
       mesh_owners = true;
+    else if (!strcmp(argv[i],"-t"))
+      tag_count = true;
     else if (*argv[i] && *argv[i] != '-')
       file_list.push_back( argv[i] );
     else
@@ -362,16 +456,27 @@ int main( int argc, char* argv[] )
       fprintf(stderr, "Error reading file: %s\n", f->c_str() );
       return 1;
     }
-
-    if (MB_SUCCESS != gather_set_stats( 0, file_stats ))
+    
+    if (tag_count)
+      rval = gather_tag_counts( 0, file_counts );
+    else
+      rval = gather_set_stats( 0, file_stats );
+    if (MB_SUCCESS != rval)
     {
       fprintf(stderr, "Error processing mesh from file: %s\n", f->c_str());
       return 1;
     }
     
-    total_stats.add( file_stats );
-    print_stats( file_stats );
-    file_stats.clear();
+    if (tag_count) {
+      add_tag_counts( total_counts, file_counts );
+      print_tag_counts( file_counts );
+      file_counts.clear();
+    }
+    else {
+      total_stats.add( file_stats );
+      print_stats( file_stats );
+      file_stats.clear();
+    }
     
     if (geom_owners)
     {
@@ -428,11 +533,19 @@ int main( int argc, char* argv[] )
         }
         
         printf( "%s %d:\n", geom_type_names[dim], id );
-        if (MB_SUCCESS != gather_set_stats( *i, file_stats ))
+        if (tag_count)
+          rval = gather_tag_counts( *i, file_counts );
+        else
+          rval = gather_set_stats( *i, file_stats );
+        
+        if (MB_SUCCESS != rval)
           fprintf(stderr, "Error processing mesh from file: %s\n", f->c_str());
+        else if (tag_count)
+          print_tag_counts( file_counts );
         else
           print_stats( file_stats );
         file_stats.clear();
+        file_counts.clear();
       }
     }
 
@@ -475,11 +588,18 @@ int main( int argc, char* argv[] )
           }
 
           printf( "%s %d:\n", mesh_type_names[t], id );
-          if (MB_SUCCESS != gather_set_stats( *i, file_stats ))
+          if (tag_count)
+            rval = gather_tag_counts( *i, file_counts );
+          else
+            rval = gather_set_stats( *i, file_stats );
+          if (rval != gather_set_stats( *i, file_stats ))
             fprintf(stderr, "Error processing mesh from file: %s\n", f->c_str());
+          else if (tag_count)
+            print_tag_counts( file_counts );
           else
             print_stats( file_stats );
           file_stats.clear();
+          file_counts.clear();
         }
       }
     }
@@ -494,7 +614,10 @@ int main( int argc, char* argv[] )
   if (file_list.size() > 1)
   {
     printf("Total for all files:\n");
-    print_stats( total_stats );
+    if (tag_count)
+      print_tag_counts( total_counts );
+    else
+      print_stats( total_stats );
   }
   
   return 0;
