@@ -48,7 +48,7 @@ using namespace moab;
 
 void usage( const char* exe )
 {
-  std::cerr << "Usage: " << exe << " [-g] [-m] [-l] [-ll] <mesh file list>" << std::endl
+  std::cerr << "Usage: " << exe << " [-g] [-m] [-t|-l|-ll] <mesh file list>" << std::endl
             << "-g  : print counts by geometric owner" << std::endl
             << "-m  : print counts per block/boundary" << std::endl
             << "-t  : print counts by tag" << std::endl
@@ -459,8 +459,9 @@ int main( int argc, char* argv[] )
     
     if (tag_count)
       rval = gather_tag_counts( 0, file_counts );
-    else
+    else if (!just_list && !just_list_basic)
       rval = gather_set_stats( 0, file_stats );
+
     if (MB_SUCCESS != rval)
     {
       fprintf(stderr, "Error processing mesh from file: %s\n", f->c_str());
@@ -471,6 +472,12 @@ int main( int argc, char* argv[] )
       add_tag_counts( total_counts, file_counts );
       print_tag_counts( file_counts );
       file_counts.clear();
+    }
+    else if (just_list) {
+      mb.list_entities( 0, 1 );
+    }
+    else if (just_list_basic) {
+      mb.list_entities( 0, 0 );
     }
     else {
       total_stats.add( file_stats );
@@ -535,15 +542,20 @@ int main( int argc, char* argv[] )
         printf( "%s %d:\n", geom_type_names[dim], id );
         if (tag_count)
           rval = gather_tag_counts( *i, file_counts );
-        else
+        else if (!just_list && !just_list_basic)
           rval = gather_set_stats( *i, file_stats );
         
         if (MB_SUCCESS != rval)
           fprintf(stderr, "Error processing mesh from file: %s\n", f->c_str());
         else if (tag_count)
           print_tag_counts( file_counts );
+        else if (just_list)
+          mb.list_entities( 0, 1 );
+        else if (just_list_basic)
+          mb.list_entities( 0, 0 );
         else
           print_stats( file_stats );
+
         file_stats.clear();
         file_counts.clear();
       }
@@ -590,12 +602,16 @@ int main( int argc, char* argv[] )
           printf( "%s %d:\n", mesh_type_names[t], id );
           if (tag_count)
             rval = gather_tag_counts( *i, file_counts );
-          else
+          else if (!just_list && !just_list_basic)
             rval = gather_set_stats( *i, file_stats );
           if (rval != gather_set_stats( *i, file_stats ))
             fprintf(stderr, "Error processing mesh from file: %s\n", f->c_str());
           else if (tag_count)
             print_tag_counts( file_counts );
+          else if (just_list)
+            mb.list_entities( 0, 1 );
+          else if (just_list_basic)
+            mb.list_entities( 0, 0 );
           else
             print_stats( file_stats );
           file_stats.clear();
@@ -603,15 +619,11 @@ int main( int argc, char* argv[] )
         }
       }
     }
-
-    if (just_list) mb.list_entities(0, 1);
-   
-    if (just_list_basic) mb.list_entities(0, 0);
     
     mb.delete_mesh();
   }
   
-  if (file_list.size() > 1)
+  if (file_list.size() > 1 && !just_list && !just_list_basic)
   {
     printf("Total for all files:\n");
     if (tag_count)
