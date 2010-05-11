@@ -172,6 +172,7 @@
 
 #include <iterator>
 #include <iosfwd>
+#include <algorithm>
 #include "moab/Types.hpp"
 
 namespace moab {
@@ -257,6 +258,17 @@ public:
   //! inserted item
   iterator insert(EntityHandle val1, EntityHandle val2)
     { return insert( begin(), val1, val2 ); }
+    
+  template <typename T> 
+  iterator insert_list( T begin_iter, T end_iter );
+    
+  template <class T> 
+  iterator insert( typename T::const_iterator begin_iter, typename T::const_iterator end_iter )
+    { return insert_list( begin_iter, end_iter ); }
+    
+  template <typename T> 
+  iterator insert( const T* begin_iter, const T* end_iter )
+    { return insert_list( begin_iter, end_iter ); }
   
     //! remove an item from this list and return an iterator to the next item
   iterator erase(iterator iter);
@@ -802,6 +814,26 @@ inline EntityHandle Range::operator[](EntityID index) const
   Range::const_iterator i = begin();
   i += index;
   return *i;
+}
+    
+template <typename Iterator> 
+Range::iterator Range::insert_list( Iterator begin_iter, Iterator end_iter )
+{
+  size_t n = std::distance(begin_iter, end_iter);
+  EntityHandle* sorted = new EntityHandle[n];
+  std::copy( begin_iter, end_iter, sorted );
+  std::sort( sorted, sorted + n );
+  iterator hint = begin();
+  size_t i;
+  while (i < n) {
+    size_t j = i + 1;
+    while (j < n && sorted[j] == 1+sorted[j-1])
+      ++j;
+    hint = insert( hint, sorted[i], sorted[i] + ((j - i) - 1) );
+    i = j;
+  }
+  delete [] sorted;
+  return hint;
 }
 
 } // namespace moab 
