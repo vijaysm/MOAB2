@@ -113,10 +113,6 @@ else
   dagmc_DIR = 
 endif 
 
-if ENABLE_mbparread
-  bin_PROGRAMS += mbparread
-endif
-
 SUBDIRS = $(refiner_DIR) \
           $(mbcoupler_DIR) \
           $(mbzoltan_DIR) \
@@ -124,9 +120,6 @@ SUBDIRS = $(refiner_DIR) \
 	  $(mcnpmit_DIR) \
           $(qvdual_DIR) \
           $(dagmc_DIR)
-
-mbparread_SOURCES = parread.cpp
-mbparread_DEPENDENCIES = $(LDADD)
 
 mbconvert_SOURCES = convert.cpp
 mbconvert_DEPENDENCIES = $(LDADD)
