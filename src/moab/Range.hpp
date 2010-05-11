@@ -824,7 +824,7 @@ Range::iterator Range::insert_list( Iterator begin_iter, Iterator end_iter )
   std::copy( begin_iter, end_iter, sorted );
   std::sort( sorted, sorted + n );
   iterator hint = begin();
-  size_t i;
+  size_t i = 0;
   while (i < n) {
     size_t j = i + 1;
     while (j < n && sorted[j] == 1+sorted[j-1])
