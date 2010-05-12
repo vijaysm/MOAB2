@@ -14,6 +14,31 @@ AC_DEFUN([ITAPS_LIBTOOL_VAR], [
   rm .tmp
 ])
 
+
+########## Helper function for FATHOM_CHECK_COMPILERS #############
+# args: compiler variable, compiler list, path
+AC_DEFUN([FATHOM_SET_MPI_COMPILER], [
+  if test "x" = "x${$1}"; then
+    if test "x" = "x$3"; then
+      AC_CHECK_PROGS([$1], [$2], [false])
+    else
+      $1=false
+      for prog in $2 ; do
+        if test -x "$3/$prog"; then
+          $1="$3/$prog"
+          AC_SUBST($1)
+          export $1
+          break
+        fi
+      done
+    fi
+    
+    if test "x${$1}" = "xfalse"; then
+      AC_MSG_ERROR([Cannot find MPI compiler.  Try specifying \$$1])
+    fi
+  fi
+])
+
 #######################################################################################
 # Implement checks for C and C++ compilers, with all corresponding options
 #
@@ -52,91 +77,38 @@ USER_CFLAGS="$CFLAGS"
   # Need to check this early so we can look for the correct compiler
 AC_ARG_WITH( [mpi], AC_HELP_STRING([[--with-mpi(=DIR)]], [Enable parallel support]),
              [WITH_MPI=$withval],[WITH_MPI=no] )
-case "x$WITH_MPI" in
-  xno)
-    CC_LIST=
-    CXX_LIST=
-    FC_LIST=
-    F77_LIST=
-    ;;
-  xyes)
-    CC_LIST="mpicc mpcc"
-    CXX_LIST="mpiCC mpCC mpicxx"
-    FC_LIST="mpif90"
-    F77_LIST="mpif77"
-    ;;
-  x*)
-    if test "x" = "x$CC"; then
-      for prog in mpicc mpcc; do
-        if test -x ${WITH_MPI}/bin/$prog; then
-          CC="${WITH_MPI}/bin/$prog"
-          CC_LIST="$prog"
-        fi
-      done
-    else
-      CC_LIST="$CC"
-    fi
-    if test "x" = "x$CXX"; then
-      for prog in mpicxx mpiCC mpCC mpicxx; do
-        if test -x ${WITH_MPI}/bin/$prog; then
-          CXX="${WITH_MPI}/bin/$prog"
-          CXX_LIST="$prog"
-        fi
-      done
-    else
-      CXX_LIST="$CXX"
-    fi
-    if test "x" = "x$FC"; then
-      for prog in mpif90; do
-        if test -x ${WITH_MPI}/bin/$prog; then
-          FC="${WITH_MPI}/bin/$prog"
-          FC_LIST="$prog"
-        fi
-      done
-    else
-      FC_LIST="$FC"
-    fi
-    if test "x" = "x$F77";then
-      for prog in mpif77; do
-        if test -x ${WITH_MPI}/bin/$prog; then
-          F77="${WITH_MPI}/bin/$prog"
-          F77_LIST="$prog"
-        fi
-      done
-    else
-      F77_LIST="$F77"
-    fi
+if test "xno" != "x$WITH_MPI"; then
+
+  CC_LIST="mpicc mpcc"
+  CXX_LIST="mpiCC mpCC mpicxx"
+  FC_LIST="mpif90"
+  F77_LIST="mpif77"
+  
+  if test "xyes" == "x$WITH_MPI"; then
+    FATHOM_SET_MPI_COMPILER([CC],  [$CC_LIST])
+    FATHOM_SET_MPI_COMPILER([CXX],[$CXX_LIST])
+    FATHOM_SET_MPI_COMPILER([FC],  [$FC_LIST])
+    FATHOM_SET_MPI_COMPILER([F77],[$F77_LIST])
+  else
+    FATHOM_SET_MPI_COMPILER([CC],  [$CC_LIST],[${WITH_MPI}/bin])
+    FATHOM_SET_MPI_COMPILER([CXX],[$CXX_LIST],[${WITH_MPI}/bin])
+    FATHOM_SET_MPI_COMPILER([FC],  [$FC_LIST],[${WITH_MPI}/bin])
+    FATHOM_SET_MPI_COMPILER([F77],[$F77_LIST],[${WITH_MPI}/bin])
     WITH_MPI=yes
-    ;;
-esac
+  fi
+fi
 
 if test "xno" != "x$CHECK_CC"; then
-  if test "x" = "x$CC_LIST"; then
-    AC_PROG_CC
-  else
-    AC_PROG_CC( [$CC_LIST] )
-  fi
+  AC_PROG_CC
 fi
 AC_PROG_CPP
 if test "xno" != "x$CHECK_CXX"; then
-  if test "x" = "x$CXX_LIST"; then
-    AC_PROG_CXX
-  else
-    AC_PROG_CXX( [$CXX_LIST] )
-  fi
+  AC_PROG_CXX
   AC_PROG_CXXCPP
 fi
 if test "xno" != "x$CHECK_FC"; then
-  if test "x" = "x$FC_LIST"; then
-    AC_PROG_FC
-  else
-    AC_PROG_FC( [FC_LIST] )
-  fi
-  if test "x" = "x$F77_LIST"; then
-    AC_PROG_F77
-  else
-    AC_PROG_F77( [F77_LIST] )
-  fi
+  AC_PROG_FC
+  AC_PROG_F77
 fi
 
 ]) # FATHOM_CHECK_COMPILERS
@@ -300,15 +272,12 @@ else
   case "$target_os" in
     aix*)
       FATHOM_TRY_COMPILER_DEFINE([__IBMCPP__],[cxx_compiler=VisualAge])
-      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cxx_compiler=GNU])
       ;;
     solaris*|sunos*)
-      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cxx_compiler=GNU])
       FATHOM_TRY_COMPILER_DEFINE([__SUNPRO_CC],[cxx_compiler=SunWorkshop])
       ;;
     irix*)
       FATHOM_TRY_COMPILER_DEFINE([__sgi],[cxx_compiler=MIPSpro])
-      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cxx_compiler=GNU])
       ;;
     linux*)
       FATHOM_TRY_COMPILER_DEFINE([__INTEL_COMPILER],[cxx_compiler=Intel])
@@ -316,11 +285,9 @@ else
       FATHOM_TRY_COMPILER_DEFINE([__DECCXX_VER],[cxx_compiler=Compaq])
       FATHOM_TRY_COMPILER_DEFINE([__SUNPRO_CC],[cxx_compiler=SunWorkshop])
       FATHOM_TRY_COMPILER_DEFINE([__PGI],[cxx_compiler=PortlandGroup])
-      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cxx_compiler=GNU])
       ;;
     hpux*)
       FATHOM_TRY_COMPILER_DEFINE([__HP_aCC],[cxx_compiler=HP])
-      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cxx_compiler=GNU])
       ;;
     windows*)
       FATHOM_TRY_COMPILER_DEFINE([__MSC_VER],[cxx_compiler=VisualStudio])
@@ -329,11 +296,9 @@ else
       FATHOM_TRY_COMPILER_DEFINE([__BORLANDC__],[cxx_compiler=Borland])
       FATHOM_TRY_COMPILER_DEFINE([__CYGWIN__],[cxx_compiler=Cygwin])
       FATHOM_TRY_COMPILER_DEFINE([__MINGW32__],[cxx_compiler=MinGW])
-      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cxx_compiler=GNU])
       ;;
     *)
       FATHOM_TRY_COMPILER_DEFINE([__PGI],[cxx_compiler=PortlandGroup])
-      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cxx_compiler=GNU])
       ;;
   esac
 fi
@@ -439,15 +404,12 @@ else
   case "$target_os" in
     aix*)
       FATHOM_TRY_COMPILER_DEFINE([__IBMC__],[cc_compiler=VisualAge])
-      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cc_compiler=GNU])
       ;;
     solaris*|sunos*)
       FATHOM_TRY_COMPILER_DEFINE([__SUNPRO_C],[cc_compiler=SunWorkshop])
-      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cc_compiler=GNU])
       ;;
     irix*)
       FATHOM_TRY_COMPILER_DEFINE([__sgi],[cc_compiler=MIPSpro])
-      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cc_compiler=GNU])
       ;;
     linux*)
       FATHOM_TRY_COMPILER_DEFINE([__INTEL_COMPILER],[cc_compiler=Intel])
@@ -455,11 +417,9 @@ else
       FATHOM_TRY_COMPILER_DEFINE([__DECC_VER],[cc_compiler=Compaq])
       FATHOM_TRY_COMPILER_DEFINE([__SUNPRO_C],[cc_compiler=SunWorkshop])
       FATHOM_TRY_COMPILER_DEFINE([__PGI],[cc_compiler=PortlandGroup])
-      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cc_compiler=GNU])
       ;;
     hpux*)
       FATHOM_TRY_COMPILER_DEFINE([__HP_cc],[cc_compiler=HP])
-      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cc_compiler=GNU])
       ;;
     windows*)
       FATHOM_TRY_COMPILER_DEFINE([__MSC_VER],[cc_compiler=VisualStudio])
@@ -469,11 +429,9 @@ else
       FATHOM_TRY_COMPILER_DEFINE([__TURBOC__],[cc_compiler=TurboC])
       FATHOM_TRY_COMPILER_DEFINE([__CYGWIN__],[cc_compiler=Cygwin])
       FATHOM_TRY_COMPILER_DEFINE([__MINGW32__],[cc_compiler=MinGW])
-      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cc_compiler=GNU])
       ;;
     *)
       FATHOM_TRY_COMPILER_DEFINE([__PGI],[cc_compiler=PortlandGroup])
-      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cc_compiler=GNU])
       ;;
   esac
 fi
