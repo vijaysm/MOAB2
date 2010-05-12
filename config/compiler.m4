@@ -54,10 +54,10 @@ AC_ARG_WITH( [mpi], AC_HELP_STRING([[--with-mpi(=DIR)]], [Enable parallel suppor
              [WITH_MPI=$withval],[WITH_MPI=no] )
 case "x$WITH_MPI" in
   xno)
-    CC_LIST="cc gcc cl egcs pgcc"
-    CXX_LIST="CC aCC cxx xlC_r xlC c++ g++ pgCC gpp cc++ cl FCC KCC RCC"
-    FC_LIST="gfortran ifort pgf90"
-    F77_LIST="gfortran ifort pgf77"
+    CC_LIST=
+    CXX_LIST=
+    FC_LIST=
+    F77_LIST=
     ;;
   xyes)
     CC_LIST="mpicc mpcc"
@@ -111,16 +111,32 @@ case "x$WITH_MPI" in
 esac
 
 if test "xno" != "x$CHECK_CC"; then
-  AC_PROG_CC( [$CC_LIST] )
+  if test "x" = "x$CC_LIST"; then
+    AC_PROG_CC
+  else
+    AC_PROG_CC( [$CC_LIST] )
+  fi
 fi
 AC_PROG_CPP
 if test "xno" != "x$CHECK_CXX"; then
-  AC_PROG_CXX( [$CXX_LIST] )
+  if test "x" = "x$CXX_LIST"; then
+    AC_PROG_CXX
+  else
+    AC_PROG_CXX( [$CXX_LIST] )
+  fi
   AC_PROG_CXXCPP
 fi
 if test "xno" != "x$CHECK_FC"; then
-  AC_PROG_FC( [$FC_LIST] )
-  AC_PROG_F77( [$F77_LIST] )
+  if test "x" = "x$FC_LIST"; then
+    AC_PROG_FC
+  else
+    AC_PROG_FC( [FC_LIST] )
+  fi
+  if test "x" = "x$F77_LIST"; then
+    AC_PROG_F77
+  else
+    AC_PROG_F77( [F77_LIST] )
+  fi
 fi
 
 ]) # FATHOM_CHECK_COMPILERS
@@ -284,22 +300,27 @@ else
   case "$target_os" in
     aix*)
       FATHOM_TRY_COMPILER_DEFINE([__IBMCPP__],[cxx_compiler=VisualAge])
+      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cxx_compiler=GNU])
       ;;
     solaris*|sunos*)
+      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cxx_compiler=GNU])
       FATHOM_TRY_COMPILER_DEFINE([__SUNPRO_CC],[cxx_compiler=SunWorkshop])
       ;;
     irix*)
       FATHOM_TRY_COMPILER_DEFINE([__sgi],[cxx_compiler=MIPSpro])
+      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cxx_compiler=GNU])
       ;;
     linux*)
       FATHOM_TRY_COMPILER_DEFINE([__INTEL_COMPILER],[cxx_compiler=Intel])
       FATHOM_TRY_COMPILER_DEFINE([__IBMCPP__],[cxx_compiler=VisualAge])
       FATHOM_TRY_COMPILER_DEFINE([__DECCXX_VER],[cxx_compiler=Compaq])
       FATHOM_TRY_COMPILER_DEFINE([__SUNPRO_CC],[cxx_compiler=SunWorkshop])
-      FATHOM_TRY_COMPILER_DEFINE([__PGI],[cxx_cmopiler=PortlandGroup])
+      FATHOM_TRY_COMPILER_DEFINE([__PGI],[cxx_compiler=PortlandGroup])
+      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cxx_compiler=GNU])
       ;;
     hpux*)
       FATHOM_TRY_COMPILER_DEFINE([__HP_aCC],[cxx_compiler=HP])
+      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cxx_compiler=GNU])
       ;;
     windows*)
       FATHOM_TRY_COMPILER_DEFINE([__MSC_VER],[cxx_compiler=VisualStudio])
@@ -308,9 +329,11 @@ else
       FATHOM_TRY_COMPILER_DEFINE([__BORLANDC__],[cxx_compiler=Borland])
       FATHOM_TRY_COMPILER_DEFINE([__CYGWIN__],[cxx_compiler=Cygwin])
       FATHOM_TRY_COMPILER_DEFINE([__MINGW32__],[cxx_compiler=MinGW])
+      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cxx_compiler=GNU])
       ;;
     *)
-      FATHOM_TRY_COMPILER_DEFINE([__PGI],[cc_cmopiler=PortlandGroup])
+      FATHOM_TRY_COMPILER_DEFINE([__PGI],[cxx_compiler=PortlandGroup])
+      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cxx_compiler=GNU])
       ;;
   esac
 fi
@@ -416,22 +439,27 @@ else
   case "$target_os" in
     aix*)
       FATHOM_TRY_COMPILER_DEFINE([__IBMC__],[cc_compiler=VisualAge])
+      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cc_compiler=GNU])
       ;;
     solaris*|sunos*)
       FATHOM_TRY_COMPILER_DEFINE([__SUNPRO_C],[cc_compiler=SunWorkshop])
+      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cc_compiler=GNU])
       ;;
     irix*)
       FATHOM_TRY_COMPILER_DEFINE([__sgi],[cc_compiler=MIPSpro])
+      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cc_compiler=GNU])
       ;;
     linux*)
       FATHOM_TRY_COMPILER_DEFINE([__INTEL_COMPILER],[cc_compiler=Intel])
       FATHOM_TRY_COMPILER_DEFINE([__IBMC__],[cc_compiler=VisualAge])
       FATHOM_TRY_COMPILER_DEFINE([__DECC_VER],[cc_compiler=Compaq])
       FATHOM_TRY_COMPILER_DEFINE([__SUNPRO_C],[cc_compiler=SunWorkshop])
-      FATHOM_TRY_COMPILER_DEFINE([__PGI],[cc_cmopiler=PortlandGroup])
+      FATHOM_TRY_COMPILER_DEFINE([__PGI],[cc_compiler=PortlandGroup])
+      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cc_compiler=GNU])
       ;;
     hpux*)
       FATHOM_TRY_COMPILER_DEFINE([__HP_cc],[cc_compiler=HP])
+      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cc_compiler=GNU])
       ;;
     windows*)
       FATHOM_TRY_COMPILER_DEFINE([__MSC_VER],[cc_compiler=VisualStudio])
@@ -441,9 +469,11 @@ else
       FATHOM_TRY_COMPILER_DEFINE([__TURBOC__],[cc_compiler=TurboC])
       FATHOM_TRY_COMPILER_DEFINE([__CYGWIN__],[cc_compiler=Cygwin])
       FATHOM_TRY_COMPILER_DEFINE([__MINGW32__],[cc_compiler=MinGW])
+      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cc_compiler=GNU])
       ;;
     *)
-      FATHOM_TRY_COMPILER_DEFINE([__PGI],[cc_cmopiler=PortlandGroup])
+      FATHOM_TRY_COMPILER_DEFINE([__PGI],[cc_compiler=PortlandGroup])
+      FATHOM_TRY_COMPILER_DEFINE([__GNUC__],[cc_compiler=GNU])
       ;;
   esac
 fi
