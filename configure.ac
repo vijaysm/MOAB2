@@ -72,7 +72,7 @@ AC_CHECK_HEADER([sys/types.h],[AC_DEFINE(MOAB_HAVE_SYS_TYPES_H, [], [MOAB qualif
 AC_CHECK_HEADER([stddef.h],   [AC_DEFINE(MOAB_HAVE_STDDEF_H,    [], [MOAB qualified HAVE_STDDEF_H])   ])
 AC_CHECK_HEADER([stdlib.h],   [AC_DEFINE(MOAB_HAVE_STDLIB_H,    [], [MOAB qualified HAVE_STDLIB_H])   ])
 SIZEOF_MBENTITYHANDLE=0
-AC_CHECK_SIZEOF(void *)
+AC_CHECK_SIZEOF([void *])
 SIZEOF_VOID_P=$ac_cv_sizeof_void_p
 AC_ARG_ENABLE([64bit-handles],
   [AC_HELP_STRING([--enable-64bit-handles],[Force EntityHandle to be 64 bits])],
@@ -94,15 +94,18 @@ if test "x$SIZEOF_MBENTITYHANDLE" = "x0"; then
   SIZEOF_MBENTITYHANDLE=$SIZEOF_VOID_P
   AC_CHECK_TYPE([size_t], 
    [AC_DEFINE(MOAB_HAVE_SIZE_T,[],[System provides size_t typedef])],
-   [AC_CHECK_SIZEOF(unsigned long)
+   [AC_CHECK_SIZEOF([unsigned long])
+    SIZEOF_UNSIGNGED_LONG=$ac_cv_sizeof_unsigned_long
     if test "$SIZEOF_UNSIGNED_LONG" -ne "$SIZEOF_VOID_P"; then
       AC_MSG_ERROR([Cannot define handle with sizeof void*: size_t not found and long is of incorrect size.])
     fi]
   )
   AC_CHECK_TYPE([ptrdiff_t], 
    [AC_DEFINE(MOAB_HAVE_PTRDIFF_T,[],[System provides ptrdiff_t typedef])],
-   [AC_CHECK_SIZEOF(long)
-    AC_CHECK_SIZEOF(void *)
+   [AC_CHECK_SIZEOF([long])
+    AC_CHECK_SIZEOF([void *])
+    SIZEOF_VOID_P=$ac_cv_sizeof_void_p
+    SIZEOF_LONG=$ac_cv_sizeof_long
     if test "$SIZEOF_LONG" -ne "$SIZEOF_VOID_P"; then
       AC_MSG_ERROR([Cannot define handle with sizeof void*: ptrdiff_t not found and long is of incorrect size.])
     fi]
@@ -512,7 +515,8 @@ if test "xyes" = "x$WITH_ZOLTAN"; then
   AC_LANG_PUSH([C++])
   old_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $ZOLTAN_INC_FLAGS -DMPICH_IGNORE_CXX_SEEK"
-  AC_CHECK_HEADER([zoltan_cpp.h],,[AC_MSG_ERROR([zoltan_cpp.h: header not found in $ZOLTAN_INC_FLAGS .])])
+  AC_CHECK_HEADER([zoltan_cpp.h],,[AC_MSG_ERROR([zoltan_cpp.h: header not found in $ZOLTAN_INC_FLAGS .])],
+                  [#include <stdlib.h>])
   CPPFLAGS="$old_CPPFLAGS"
   AC_LANG_POP([C++])
   
