@@ -14,18 +14,24 @@
 #include <sys/resource.h>
 #endif
 
-void usage( const char* argv0 )
+void usage( const char* argv0, bool help = false )
 {
-  std::cerr << "Usage: " << argv0 << " [-h|-b|-k|-m] <filename> [<filename> ...]" << std::endl
-            << "Usage: " << argv0 << " [-h|-b|-k|-m] -T" << std::endl
-            << "  -h : human readable units" << std::endl
+  std::ostream& str = help ? std::cout : std::cerr;
+  str << "Usage: " << argv0 << " [-H|-b|-k|-m] <filename> [<filename> ...]" << std::endl
+      << "       " << argv0 << " [-H|-b|-k|-m] -T" << std::endl;
+  if (!help) {
+    str << "       " << argv0 << " -h" << std::endl;
+    std::exit(1);
+  }
+  
+  std::cerr << "  -H : human readable units" << std::endl
             << "  -b : bytes" << std::endl
             << "  -k : kilobytes (1 kB == 1024 bytes)" << std::endl
             << "  -m : megabytes (1 MB == 1024 kB)" << std::endl
             << "  -g : gigabytes (1 GB == 1024 MB)" << std::endl
             << "  -T : test mode" << std::endl
             << std::endl;
-  std::exit(1);
+  std::exit(0);
 }
 
 enum Units { HUMAN, BYTES, KILOBYTES, MEGABYTES, GIGABYTES };
@@ -52,7 +58,7 @@ int main( int argc, char* argv[] )
     // load each file specified on command line
   for (int i = 1; i < argc; ++i) {
     if (!no_more_flags && argv[i][0] == '-') {
-      if (!strcmp(argv[i],"-h"))
+      if (!strcmp(argv[i],"-H"))
         UNITS = HUMAN;
       else if(!strcmp(argv[i],"-b"))
         UNITS = BYTES;
@@ -64,10 +70,14 @@ int main( int argc, char* argv[] )
         UNITS = GIGABYTES;
       else if(!strcmp(argv[i],"-T"))
         test_mode = true;
+      else if(!strcmp(argv[i],"-h"))
+        usage(argv[0],true);
       else if(!strcmp(argv[i],"--"))
         no_more_flags = true;
-      else
+      else {
+        std::cerr << argv[0] << ": Invalid flag: \"" << argv[i] << "\"." << std::endl << std::endl;
         usage(argv[0]);
+      }
     }
     else {
       input_file_list.push_back(i);
