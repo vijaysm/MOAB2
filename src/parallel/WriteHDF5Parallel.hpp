@@ -100,6 +100,8 @@ class WriteHDF5Parallel : public WriteHDF5
     
   
   protected:
+    
+    virtual void debug_barrier_line(int lineno);
   
       //! Called by normal (non-parallel) writer.  Sets up
       //! necessary data for parallel write.

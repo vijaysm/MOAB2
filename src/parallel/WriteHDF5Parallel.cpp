@@ -140,7 +140,7 @@ static void print_type_sets( Interface* iFace, DebugOutput* str, Range& sets )
 
     oldsize = typesets[dim].size();
     typesets[dim].insert( id );
-    assert( typesets[dim].size() - oldsize == 1 );  
+//    assert( typesets[dim].size() - oldsize == 1 );  
   }
   for (int ii = 0; ii < 9; ++ii)
   {
@@ -173,6 +173,18 @@ static void range_remove( Range& from, const Range& removed )
   {
     Range tmp = subtract( from, removed);
     from.swap( tmp );
+  }
+}
+
+#define debug_barrier() debug_barrier_line(__LINE__)
+
+void WriteHDF5Parallel::debug_barrier_line(int lineno)
+{
+  const unsigned threshold = 2;
+  static unsigned long count = 0;
+  if (dbgOut.get_verbosity() >= threshold) {
+    dbgOut.printf( threshold, "*********** Debug Barrier %lu (@%d)***********\n", ++count, lineno);
+    MPI_Barrier( myPcomm->proc_config().proc_comm() );
   }
 }
 
@@ -340,12 +352,12 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   
   dbgOut.set_rank( myPcomm->proc_config().proc_rank() );
 
-tprint("Gathering interface meshes\n");
+  dbgOut.tprint(1,"Gathering interface meshes\n");
   rval = gather_interface_meshes();
   if (MB_SUCCESS != rval) return rval;
 
     /**************** get tag names for sets likely to be shared ***********/
-tprint("Getting shared entity sets\n");
+  dbgOut.tprint(1,"Getting shared entity sets\n");
   rval = get_sharedset_tags();
   if (MB_SUCCESS != rval) return rval;
   
@@ -360,7 +372,7 @@ tprint("Getting shared entity sets\n");
     for (EntityType i = MBEDGE; i < MBENTITYSET; ++i)
       type_names[i] = CN::EntityTypeName( i );
    
-tprint("call mhdf_createFile\n");
+    dbgOut.tprint(1,"call mhdf_createFile\n");
     filePtr = mhdf_createFile( filename, overwrite, type_names, MBMAXTYPE, &status );
     if (!filePtr)
     {
@@ -368,7 +380,7 @@ tprint("call mhdf_createFile\n");
       return MB_FAILURE;
     }
     
-tprint("call write_qa\n");
+    dbgOut.tprint(1,"call write_qa\n");
     rval = write_qa( qa_records );
     if (MB_SUCCESS != rval) return rval;
   }
@@ -376,36 +388,36 @@ tprint("call write_qa\n");
   
      /**************** Create node coordinate table ***************/
  
-tprint("creating node table\n");
+  dbgOut.tprint(1,"creating node table\n");
   rval = create_node_table( dimension );
   if (MB_SUCCESS != rval) return rval;
   
     /**************** Create element tables ***************/
 
-tprint("negotiating element types\n");
+  dbgOut.tprint(1,"negotiating element types\n");
   rval = negotiate_type_list();
   if (MB_SUCCESS != rval) return rval;
-tprint("creating element table\n");
+  dbgOut.tprint(1,"creating element table\n");
   rval = create_element_tables();
   if (MB_SUCCESS != rval) return rval;
   
   
     /*************** Exchange file IDs *****************/
 
-tprint("communicating file ids\n");
+  dbgOut.tprint(1,"communicating file ids\n");
   rval = exchange_file_ids();
   if (MB_SUCCESS != rval) return rval;
  
 
     /**************** Create adjacency tables *********************/
   
-tprint("creating adjacency table\n");
+  dbgOut.tprint(1,"creating adjacency table\n");
   rval = create_adjacency_tables();
   if (MB_SUCCESS != rval) return rval;
   
     /**************** Create meshset tables *********************/
   
-tprint("creating meshset table\n");
+  dbgOut.tprint(1,"creating meshset table\n");
   rval = create_meshset_tables();
   if (MB_SUCCESS != rval) return rval;
   
@@ -461,7 +473,7 @@ tprint("creating meshset table\n");
   
     // Populate proc_tag_offsets on root processor with the values from
     // tag_counts on each processor.
-tprint("communicating tag metadata\n");
+  dbgOut.tprint(1,"communicating tag metadata\n");
   dbgOut.printf(2,"Exchanging tag data for %d tags.\n", num_tags);
   std::vector<unsigned long> proc_tag_offsets(2*num_tags*myPcomm->proc_config().proc_size());
   VALGRIND_CHECK_MEM_IS_DEFINED( &tag_counts[0], 2*num_tags*sizeof(long) );
@@ -561,7 +573,7 @@ tprint("communicating tag metadata\n");
   
   MPI_Barrier( myPcomm->proc_config().proc_comm() );
   
-tprint("(re)opening file in parallel mode\n");
+  dbgOut.tprint(1,"(re)opening file in parallel mode\n");
   unsigned long junk;
   hid_t hdf_opt = H5Pcreate( H5P_FILE_ACCESS );
   H5Pset_fapl_mpio( hdf_opt, myPcomm->proc_config().proc_comm(), MPI_INFO_NULL );
@@ -573,7 +585,12 @@ tprint("(re)opening file in parallel mode\n");
     return MB_FAILURE;
   }
   
-tprint("Exiting parallel_create_file\n");
+  if (collectiveIO) {
+    writeProp = H5Pcreate( H5P_DATASET_XFER );
+    H5Pset_dxpl_mpio( writeProp, H5FD_MPIO_COLLECTIVE );
+  }
+  
+  dbgOut.tprint(1,"Exiting parallel_create_file\n");
   return MB_SUCCESS;
 }
 
@@ -1802,10 +1819,7 @@ END_SERIAL;
 ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
                                               IODebugTrack* dbg_track )
 {
-//char buffer[256];
-//sprintf(buffer, "write_shared_set_descriptions( %u )", (unsigned)parallelSets.size() );
-//tprint( buffer );
-tprint( "write_shared_set_descriptions\n" );
+  dbgOut.tprint( 1, "write_shared_set_descriptions\n" );
 
   const id_t start_id = setSet.first_id;
   ErrorCode rval;
@@ -1838,7 +1852,7 @@ tprint( "write_shared_set_descriptions\n" );
     CHECK_HDF(status);
   }
 
-tprint( "finished write_shared_set_descriptions\n" );
+  dbgOut.tprint( 1,"finished write_shared_set_descriptions\n" );
 
   return MB_SUCCESS;
 }
@@ -1847,7 +1861,7 @@ tprint( "finished write_shared_set_descriptions\n" );
 ErrorCode WriteHDF5Parallel::write_shared_set_contents( hid_t table,
                                             IODebugTrack* dbg_track )
 {
-tprint( "write_shared_set_contents\n" );
+  dbgOut.tprint(1, "write_shared_set_contents\n" );
 
   ErrorCode rval;
   mhdf_Status status;
@@ -1879,7 +1893,7 @@ tprint( "write_shared_set_contents\n" );
   }
   
 
-tprint( "finished write_shared_set_contents\n" );
+  dbgOut.tprint(1, "finished write_shared_set_contents\n" );
   return MB_SUCCESS;
 }
     
@@ -1887,7 +1901,7 @@ tprint( "finished write_shared_set_contents\n" );
 ErrorCode WriteHDF5Parallel::write_shared_set_children( hid_t table,
                                             IODebugTrack* dbg_track )
 {
-tprint( "write_shared_set_children\n" );
+  dbgOut.tprint(1, "write_shared_set_children\n" );
 
   ErrorCode rval;
   mhdf_Status status;
@@ -1919,7 +1933,7 @@ tprint( "write_shared_set_children\n" );
     }
   }
 
-tprint( "finished write_shared_set_children\n" );
+  dbgOut.tprint(1, "finished write_shared_set_children\n" );
   return MB_SUCCESS;
 }
     
@@ -1927,7 +1941,7 @@ tprint( "finished write_shared_set_children\n" );
 ErrorCode WriteHDF5Parallel::write_shared_set_parents( hid_t table,
                                             IODebugTrack* dbg_track )
 {
-tprint( "write_shared_set_parents\n" );
+  dbgOut.tprint(1, "write_shared_set_parents\n" );
 
   ErrorCode rval;
   mhdf_Status status;
@@ -1959,7 +1973,7 @@ tprint( "write_shared_set_parents\n" );
     }
   }
 
-tprint( "finished write_shared_set_parents\n" );
+  dbgOut.tprint(1, "finished write_shared_set_parents\n" );
   return MB_SUCCESS;
 }
 
