@@ -442,7 +442,7 @@ void create_vertices_single( )
 void create_vertices_block( )
 {
   std::vector<double*> arrays;
-  ErrorCode rval = readTool->get_node_arrays( 3, numVert, 0, vertStart, arrays );
+  ErrorCode rval = readTool->get_node_coords( 3, numVert, 0, vertStart, arrays );
   if (rval || arrays.size() != 3) {
     assert(false);
     abort();
@@ -477,7 +477,7 @@ void create_elements_single( )
 void create_elements_block( )
 {
   EntityHandle* conn = 0;
-  ErrorCode rval = readTool->get_element_array( numElem, 8, MBHEX, 0, elemStart, conn );
+  ErrorCode rval = readTool->get_element_connect( numElem, 8, MBHEX, 0, elemStart, conn );
   if (rval && !conn) {
     assert(false);
     abort();

@@ -43,7 +43,7 @@ public:
   ~ReadUtil(){}
 
   //! gets arrays for coordinate data from the MB
-  ErrorCode get_node_arrays(
+  ErrorCode get_node_coords(
       const int num_arrays,
       const int num_nodes, 
       const int preferred_start_id,
@@ -52,7 +52,7 @@ public:
       );
 
   //! get array for connectivity data from the MB
-  ErrorCode get_element_array(
+  ErrorCode get_element_connect(
       const int num_elements, 
       const int verts_per_element,
       const EntityType mdb_type,

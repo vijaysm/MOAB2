@@ -366,7 +366,7 @@ int create_3dtri_ucd_sequences(Core *gMB, const int intervals,
   
   std::vector<double*> arrays;
   for (int i = 0; i < 3; i++) {
-    readMeshIface->get_node_arrays(3, num_verts,
+    readMeshIface->get_node_coords(3, num_verts,
                                    MB_START_ID, vstart[i], arrays);
     arrays.clear();
   }
@@ -375,7 +375,7 @@ int create_3dtri_ucd_sequences(Core *gMB, const int intervals,
 
     // allocate 3 arrays to initialize connectivity data
   for (int i = 0; i < 3; i++) {
-    readMeshIface->get_element_array(num_elements, 8, MBHEX, 1, estart[i], conn[i]);
+    readMeshIface->get_element_connect(num_elements, 8, MBHEX, 1, estart[i], conn[i]);
 
     // now, initialize connectivity data to what it should be; just fudge for now
     for (int j = 0; j < num_elements*8; j++)

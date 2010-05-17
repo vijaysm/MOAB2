@@ -48,7 +48,7 @@ public:
     //! \param arrays STL vector of double*'s, point to memory storage to be used for 
     //!     these vertices
     //! \return status Success/failure of this call
-  virtual ErrorCode get_node_arrays(
+  virtual ErrorCode get_node_coords(
     const int num_arrays,
     const int num_nodes, 
     const int preferred_start_id,
@@ -66,7 +66,7 @@ public:
     //! \param actual_start_handle Actual integer id for first element (returned)
     //! \param array Pointer to memory allocated for storing connectivity for these elements
     //! \return status Success/failure of this call
-  virtual ErrorCode get_element_array(
+  virtual ErrorCode get_element_connect(
     const int num_elements, 
     const int verts_per_element,
     const EntityType mdb_type,

@@ -729,6 +729,62 @@ Range subtract(const Range &range1, const Range &range2)
   }
 }
 
+Range &Range::operator-=(const Range &range2) 
+{
+  const bool braindead = false;
+  
+  if (braindead) {
+      // brain-dead implementation right now
+    Range res( *this );
+    for (Range::const_iterator rit = range2.begin(); rit != range2.end(); rit++)
+      res.erase(*rit);
+
+    return *this;
+  }
+  else {
+    Range::pair_iterator r_it0 = this->pair_begin();
+    Range::const_pair_iterator r_it1 = range2.const_pair_begin();
+  
+      // terminate the while loop when at least one "start" iterator is at the
+      // end of the list
+    while (r_it0 != this->end() && r_it1 != range2.end()) {
+        // case a: pair wholly within subtracted pair
+      if (r_it0->first >= r_it1->first && r_it0->second <= r_it1->second) {
+        Range::PairNode *rtmp = r_it0.node();
+        r_it0++;
+        this->delete_pair_node(rtmp);
+      }
+        // case b: pair overlaps upper part of subtracted pair
+      else if (r_it0->first <= r_it1->second &&
+               r_it0->first >= r_it1->first) {
+        r_it0->first = r_it1->second + 1;
+        r_it1++;
+      }
+        // case c: pair overlaps lower part of subtracted pair
+      else if (r_it0->second >= r_it1->first &&
+               r_it0->second <= r_it1->second) {
+        r_it0->second = r_it1->first - 1;
+        r_it0++;
+      }
+        // case d: pair completely surrounds subtracted pair
+      else if (r_it0->first < r_it1->first && 
+               r_it0->second > r_it1->second) {
+        Range::PairNode* new_node = alloc_pair(r_it0.node(), r_it0.node()->mPrev, 
+                                        r_it0->first, r_it1->first - 1);
+        new_node->mPrev->mNext = new_node->mNext->mPrev = new_node;
+        r_it0.node()->first = r_it1->second+1;
+        r_it1++;
+      }
+      else {
+        while (r_it0->second < r_it1->first && r_it0 != this->end()) r_it0++;
+        if (r_it0 == this->end()) break;
+        while (r_it1->second < r_it0->first && r_it1 != range2.end()) r_it1++;
+      }
+    }
+    return *this;
+  }
+}
+
   
 EntityID 
 operator-( const Range::const_iterator& it2, const Range::const_iterator& it1 )

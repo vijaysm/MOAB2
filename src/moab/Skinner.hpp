@@ -45,8 +45,20 @@ public:
 
   ErrorCode find_geometric_skin(Range &forward_target_entities);
   
-  // will accept entities all of one dimension
-  // and return entities of n-1 dimension
+    /**\brief will accept entities all of one dimension and 
+     *        return entities of n-1 dimension
+     * \param entities The elements for which to find the skin
+     * \param get_vertices If true, vertices on the skin are also returned 
+     *        in the range
+     * \param output_handles Range holding skin entities returned
+     * \param output_reverse_handles Range holding entities on skin which 
+     *        are reversed wrt entities
+     * \param create_vert_elem_adjs If true, this function will cause 
+     *        vertex-element adjacencies to be generated
+     * \param create_skin_elements If true, this function will cause creation 
+     *        of skin entities, otherwise only skin entities already extant 
+     *        will be returned
+     */
   ErrorCode find_skin( const Range &entities,
                          bool get_vertices,
                          Range &output_handles,
@@ -54,11 +66,17 @@ public:
                          bool create_vert_elem_adjs = false,
                          bool create_skin_elements = true);
 
-    // get skin entities of prescribed dimension
+    /**\brief get skin entities of prescribed dimension
+     * \param entities The elements for which to find the skin
+     * \param dim Dimension of skin entities requested
+     * \param skin_entities Range holding skin entities returned
+     * \param create_vert_elem_adjs If true, this function will cause 
+     *        vertex-element adjacencies to be generated
+     */
   ErrorCode find_skin(const Range &entities,
-                        int dim,
-                        Range &skin_entities,
-                        bool create_vert_elem_adjs = false);
+                      int dim,
+                      Range &skin_entities,
+                      bool create_vert_elem_adjs = false);
 
     /**\brief Find vertices on the skin of a set of mesh entities.
      *\param entities The elements for which to find the skin.  Range

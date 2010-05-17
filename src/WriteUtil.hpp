@@ -48,7 +48,7 @@ public:
   virtual ErrorCode check_doesnt_exist( const char* file_name );
 
   //! gets arrays for coordinate data from the MB
-  ErrorCode get_node_arrays(
+  ErrorCode get_node_coords(
       const int num_arrays,
       const int num_nodes, 
       const Range& entities,
@@ -59,8 +59,8 @@ public:
       
   /** Get an array of coordinate values for nodes
    *
-   * Given a range of node handles, retreive a single coordinate
-   * value for each. 
+   * Given a range of node handles, retreive a single or multiple coordinate
+   * value(s) for each. 
    *
    * Failure conditions:
    *  - invalid entity handles (not vertices, non-existant entity, etc.)
@@ -68,14 +68,14 @@ public:
    *  - <code>output_array</code> is null
    *  - insufficient space in <code>output_array</code>
    *
-   *\param which_array  The coordinate to retreive (0-&gt;X, 1-&gt;Y, 2-&gt;Z)
+   *\param which_array  The coordinate to retreive (0-&gt;X, 1-&gt;Y, 2-&gt;Z, -1-&gt;all)
    *\param begin        The first node handle.
    *\param end          One past the last node handle.
    *\param output_size  The size of <code>output_array</code>.
    *\param output_array The memory in which to write the node coordinates.
    *\author Jason Kraftcheck
    */
-  ErrorCode get_node_array(
+  ErrorCode get_node_coords(
       const int which_array, 
       Range::const_iterator begin,
       const Range::const_iterator end,
@@ -83,15 +83,28 @@ public:
       double* const output_array
       );
 
-  //! get array for connectivity data from the MB
-  ErrorCode get_element_array(
+  /** Get connectivity for elements 
+   *
+   * Get the connectivity list for a range of elements.
+   *
+   *\param num_elements Number of elements for which connectivity is needed
+   *\param vertices_per_elem Number of vertices to retreive for each
+   *                    element.
+   *\param node_id_tag  A tag with integer values.  
+   *\param entities Entities being quieried
+   *\param element_id_tag If non-zero, elements are tagged with an id starting at start_element_id
+   *\param start_element_id Starting id value for element_id_tag
+   *\param add_sizes If true, writes size of connect array before connectivity in array
+   */
+  ErrorCode get_element_connect(
       const int num_elements, 
       const int verts_per_element,
       Tag node_id_tag,
       const Range& entities, 
       Tag element_id_tag,
       int start_element_id,
-      int* array
+      int* array,
+      bool add_sizes = false
       );
 
   /** Get connectivity for elements 
@@ -119,15 +132,17 @@ public:
    *\param array_size   The length of <code>element_array</code>
    *\param element_array The memory location at which to store the 
    *                    connectivity list.
+   *\param add_sizes If true, writes size of connect array before connectivity in array
    *\author Jason Kraftcheck
    */
-  ErrorCode get_element_array(
+  ErrorCode get_element_connect(
       Range::const_iterator begin,
       const Range::const_iterator end,
       const int vertices_per_elem,
       Tag node_id_tag,
       const size_t array_size, 
-      int *const element_array
+      int *const element_array,
+      bool add_sizes = false
       );
 
   /** Get connectivity for elements 
@@ -155,7 +170,7 @@ public:
    *                    connectivity list.
    *\author Jason Kraftcheck
    */
-  virtual ErrorCode get_element_array(
+  virtual ErrorCode get_element_connect(
       Range::const_iterator begin,
       const Range::const_iterator end,
       const int vertices_per_elem,
@@ -170,7 +185,7 @@ public:
    *              For the specified range of polyhedra.
    *\author Jason Kraftcheck
    */
-  virtual ErrorCode get_poly_array_size(
+  virtual ErrorCode get_poly_connect_size(
       Range::const_iterator begin,
       const Range::const_iterator end,
       int& connectivity_size 
@@ -204,7 +219,7 @@ public:
    *                          presumably want to pass to the next call.)
    *\author Jason Kraftcheck
    */
-  virtual ErrorCode get_poly_arrays(
+  virtual ErrorCode get_poly_connect(
       Range::const_iterator& iter,
       const Range::const_iterator end,
       const Tag node_id_tag,

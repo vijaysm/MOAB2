@@ -49,7 +49,7 @@ public:
     //! \param start_node_id Starting value for node ids
     //! \param arrays Pointers to memory where coordinate data will be written
     //! \return status Return status
-  virtual ErrorCode get_node_arrays(
+  virtual ErrorCode get_node_coords(
     const int num_arrays,
     const int num_nodes, 
     const Range& entities, 
@@ -58,10 +58,10 @@ public:
     std::vector<double*>& arrays
     ) = 0;
       
-  /** Get an array of coordinate values for nodes
+  /** Get array of coordinate values for nodes
    *
-   * Given a range of node handles, retreive a single coordinate
-   * value for each. 
+   * Given a range of node handles, retreive a single or multiple coordinate
+   * value(s) for each. 
    *
    * Failure conditions:
    *  - invalid entity handles (not vertices, non-existant entity, etc.)
@@ -69,14 +69,14 @@ public:
    *  - <code>output_array</code> is null
    *  - insufficient space in <code>output_array</code>
    *
-   *\param which_array  The coordinate to retreive (0-&gt;X, 1-&gt;Y, 2-&gt;Z)
+   *\param which_array  The coordinate to retreive (0-&gt;X, 1-&gt;Y, 2-&gt;Z, -1-&gt;all)
    *\param begin        The first node handle.
    *\param end          One past the last node handle.
    *\param output_size  The size of <code>output_array</code>.
    *\param output_array The memory in which to write the node coordinates.
    *\author Jason Kraftcheck
    */
-  virtual ErrorCode get_node_array(
+  virtual ErrorCode get_node_coords(
       const int which_array, 
       Range::const_iterator begin,
       const Range::const_iterator end,
@@ -86,7 +86,7 @@ public:
 
     //! Given information about elements to be written and a pointer to memory
     //! where connectivity for those elements should be written, writes connectivity
-    //! to that memory; uses node ids stored in a tag during call to <em>get_node_arrays</em>
+    //! to that memory; uses node ids stored in a tag during call to <em>get_node_coords</em>
     //! function
     //! \param num_elements Number of elements to be written
     //! \param verts_per_element Number of vertices per element
@@ -96,14 +96,15 @@ public:
     //! \param start_element_id Starting value for element ids
     //! \param array Pointer to memory where connectivity data will be written
     //! \return status Return status
-  virtual ErrorCode get_element_array(
+  virtual ErrorCode get_element_connect(
     const int num_elements, 
     const int verts_per_element,
     Tag node_id_tag,
     const Range& entities, 
     Tag element_id_tag,
     int start_element_id,
-    int* array
+    int* array,
+    bool add_sizes = false
     ) = 0;
 
   /** Get connectivity for elements 
@@ -131,15 +132,17 @@ public:
    *\param array_size   The length of <code>element_array</code>
    *\param element_array The memory location at which to store the 
    *                    connectivity list.
+   *\param add_sizes If true, writes size of connect array before connectivity in array
    *\author Jason Kraftcheck
    */
-  virtual ErrorCode get_element_array(
+  virtual ErrorCode get_element_connect(
       Range::const_iterator begin,
       const Range::const_iterator end,
       const int vertices_per_elem,
       Tag node_id_tag,
       const size_t array_size, 
-      int *const element_array
+      int *const element_array,
+      bool add_sizes = false
       ) = 0;
 
   /** Get connectivity for elements 
@@ -167,7 +170,7 @@ public:
    *                    connectivity list.
    *\author Jason Kraftcheck
    */
-  virtual ErrorCode get_element_array(
+  virtual ErrorCode get_element_connect(
       Range::const_iterator begin,
       const Range::const_iterator end,
       const int vertices_per_elem,
@@ -183,7 +186,7 @@ public:
    *              For the specified range of polyhedra.
    *\author Jason Kraftcheck
    */
-  virtual ErrorCode get_poly_array_size(
+  virtual ErrorCode get_poly_connect_size(
       Range::const_iterator begin,
       const Range::const_iterator end,
       int& connectivity_size 
@@ -230,7 +233,7 @@ public:
    *                          presumably want to pass to the next call.)
    *\author Jason Kraftcheck
    */
-  virtual ErrorCode get_poly_arrays(
+  virtual ErrorCode get_poly_connect(
       Range::const_iterator& iter,
       const Range::const_iterator end,
       const Tag node_id_tag,

@@ -2089,7 +2089,7 @@ ErrorCode Core::create_vertices(const double *coordinates,
   
   std::vector<double*> arrays;
   EntityHandle start_handle_out = 0;
-  result = read_iface->get_node_arrays( 3, nverts, MB_START_ID, 
+  result = read_iface->get_node_coords( 3, nverts, MB_START_ID, 
                                         start_handle_out, arrays);
   if (MB_SUCCESS != result) return result;
   for (int i = 0; i < nverts; i++) {

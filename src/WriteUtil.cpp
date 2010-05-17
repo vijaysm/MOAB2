@@ -69,7 +69,7 @@ ErrorCode WriteUtil::check_doesnt_exist( const char* file_name )
 }
 
 
-ErrorCode WriteUtil::get_node_arrays(
+ErrorCode WriteUtil::get_node_coords(
     const int num_arrays,
     const int num_nodes, 
     const Range& entities, 
@@ -120,8 +120,8 @@ ErrorCode WriteUtil::get_node_arrays(
   return result;
 }
 
-ErrorCode WriteUtil::get_node_array(
-    const int which_array, /* 0->X, 1->Y, 2->Z */
+ErrorCode WriteUtil::get_node_coords(
+    const int which_array, /* 0->X, 1->Y, 2->Z, -1->all */
     Range::const_iterator iter,
     const Range::const_iterator end,
     const size_t output_array_len,
@@ -129,7 +129,7 @@ ErrorCode WriteUtil::get_node_array(
 {
   // check the data coming into the function
   // dimension should be proper
-  if(which_array < 0 || which_array > 2)
+  if(which_array < -1 || which_array > 2)
     return MB_FAILURE;
 
   // there should be some entities
@@ -177,26 +177,38 @@ ErrorCode WriteUtil::get_node_array(
       ->get_coordinate_arrays( coord_array[0], coord_array[1], coord_array[2]);
     
       // Copy data to ouput buffer
-    if (output_iter + count > output_end)
-      return MB_FAILURE;
-    memcpy( output_iter, coord_array[which_array] + offset, count * sizeof(double) );
+    if (-1 != which_array) {
+      if (output_iter + count > output_end)
+        return MB_FAILURE;
+      memcpy( output_iter, coord_array[which_array] + offset, count * sizeof(double) );
+      output_iter += count;
+    }
+    else {
+      if (output_iter + 3*count > output_end)
+        return MB_FAILURE;
+      for (unsigned int i = 0; i < count; i++) {
+        *output_iter = coord_array[0][i]; output_iter++;
+        *output_iter = coord_array[1][i]; output_iter++;
+        *output_iter = coord_array[2][i]; output_iter++;
+      }
+    }
     
       // Iterate
-    output_iter += count;
     iter += count;
   }
 
   return MB_SUCCESS;
 }
 
-ErrorCode WriteUtil::get_element_array(
+ErrorCode WriteUtil::get_element_connect(
     const int num_elements, 
     const int verts_per_element,
     Tag node_id_tag,
     const Range& elements, 
     Tag element_id_tag,
     int start_element_id,
-    int* element_array)
+    int* element_array,
+    bool add_sizes)
 {
 
   // check the data we got
@@ -275,6 +287,8 @@ ErrorCode WriteUtil::get_element_array(
       tag_server->set_data(element_id_tag, *tmp_iter, &start_element_id);
       ++start_element_id;
 
+      if (add_sizes) *element_array++ = i;
+      
       // for each node
       for(int j=0; j<i; j++)
       {
@@ -293,13 +307,14 @@ ErrorCode WriteUtil::get_element_array(
   return MB_SUCCESS;
 }
 
-ErrorCode WriteUtil::get_element_array(
+ErrorCode WriteUtil::get_element_connect(
     Range::const_iterator iter,
     const Range::const_iterator end,
     const int vertices_per_elem,
     Tag node_id_tag,
     const size_t elem_array_size, 
-    int *const element_array)
+    int *const element_array,
+    bool add_sizes)
 {
 
   // check the data we got
@@ -361,12 +376,13 @@ ErrorCode WriteUtil::get_element_array(
     EntityHandle offset = *iter - (*seq_iter)->start_handle();
 
       // Make sure sufficient space in output array
-    if (output_iter + (count * conn_size) > output_end)
+    if ((!add_sizes && output_iter + (count * conn_size) > output_end) ||
+        (add_sizes && output_iter + (count * (conn_size+1)) > output_end))
       return MB_FAILURE;
 
       // If the nodes per element match, do in one call
     conn_array += (conn_size * offset);
-    if (vertices_per_elem == conn_size)
+    if (vertices_per_elem == conn_size && !add_sizes)
     {
       ErrorCode rval = tag_server->get_data( node_id_tag, 
                                                conn_array,
@@ -383,6 +399,7 @@ ErrorCode WriteUtil::get_element_array(
       int min = vertices_per_elem > conn_size ? conn_size : vertices_per_elem;
       for (EntityHandle i = 0; i < count; ++i)
       {
+        *output_iter++ = min;
         ErrorCode rval = tag_server->get_data( node_id_tag,
                                                  conn_array,
                                                  min,
@@ -407,7 +424,7 @@ ErrorCode WriteUtil::get_element_array(
   return MB_SUCCESS;
 }
 
-ErrorCode WriteUtil::get_element_array(
+ErrorCode WriteUtil::get_element_connect(
                                        Range::const_iterator iter,
                                        const Range::const_iterator end,
                                        const int vertices_per_elem,
@@ -485,7 +502,7 @@ ErrorCode WriteUtil::get_element_array(
   return MB_SUCCESS;
 }
 
-ErrorCode WriteUtil::get_poly_array_size(
+ErrorCode WriteUtil::get_poly_connect_size(
       Range::const_iterator ,
       const Range::const_iterator ,
       int&  )
@@ -493,7 +510,7 @@ ErrorCode WriteUtil::get_poly_array_size(
   return MB_NOT_IMPLEMENTED;
 }
 
-ErrorCode WriteUtil::get_poly_arrays(
+ErrorCode WriteUtil::get_poly_connect(
       Range::const_iterator& ,
       const Range::const_iterator ,
       const Tag ,

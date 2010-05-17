@@ -43,7 +43,7 @@ void test_write_invalid_elem()
     // create two nodes
   EntityHandle first_node;
   std::vector<double*> coords;
-  rval = readtool->get_node_arrays( 3, 2, 1, first_node, coords );
+  rval = readtool->get_node_coords( 3, 2, 1, first_node, coords );
   CHECK_ERR(rval);
   coords[0][0] = coords[0][1] = 0.0;
   coords[1][0] = coords[1][1] = 0.0;
@@ -53,7 +53,7 @@ void test_write_invalid_elem()
     // third vertex
   EntityHandle tri;
   EntityHandle* conn = 0;
-  rval = readtool->get_element_array( 1, 3, MBTRI, 1, tri, conn );
+  rval = readtool->get_element_connect( 1, 3, MBTRI, 1, tri, conn );
   CHECK_ERR(rval);
   conn[0] = first_node;   // valid
   conn[1] = first_node+1; // valid

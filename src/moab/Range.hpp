@@ -203,6 +203,9 @@ public:
   friend Range intersect( const Range&, const Range& );
   friend Range subtract( const Range&, const Range& );
 
+    //! just like subtract, but as an operator
+  Range &operator-=(const Range &rhs);
+    
   //! for short hand notation, lets typedef the 
   //! container class that holds the ranges
   typedef EntityHandle value_type;
