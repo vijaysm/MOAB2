@@ -1124,7 +1124,7 @@ inline void ParallelComm::Buffer::check_space(unsigned int addl_space )
   assert(buff_ptr >= mem_ptr && buff_ptr <= mem_ptr+alloc_size);
   unsigned int new_size = buff_ptr - mem_ptr + addl_space;
   if (new_size > alloc_size) 
-    reserve(1.5*new_size);
+    reserve(3*new_size/2);
 }
 
 inline void ParallelComm::reset_all_buffers() 

@@ -126,7 +126,7 @@ static void print_type_sets( Interface* iFace, DebugOutput* str, Range& sets )
   const char* typenames[] = {"Block ", "Sideset ", "NodeSet", "Vertex", "Curve", "Surface", "Volume", "Body", "Other"};
   for (Range::iterator riter = sets.begin(); riter != sets.end(); ++riter)
   {
-    unsigned dim, id, oldsize;
+    unsigned dim, id ; //, oldsize;
     if (MB_SUCCESS == iFace->tag_get_data(bid, &*riter, 1, &id)) 
       dim = 0;
     else if (MB_SUCCESS == iFace->tag_get_data(sid, &*riter, 1, &id))
@@ -143,7 +143,7 @@ static void print_type_sets( Interface* iFace, DebugOutput* str, Range& sets )
       dim = 9;
     }
 
-    oldsize = typesets[dim].size();
+    //oldsize = typesets[dim].size();
     typesets[dim].insert( id );
 //    assert( typesets[dim].size() - oldsize == 1 );  
   }
@@ -704,7 +704,7 @@ else
     for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) {
       std::string name;
       iFace->tag_get_name( tag_iter->tag_id, name );
-      dbgOut.printf(2,"%18s %8lu %8lu %8lu %8ld 0x%7lx\n", name.c_str(), 
+      dbgOut.printf(2,"%18s %8lu %8lu %8lu %8lu 0x%7lx\n", name.c_str(), 
         (unsigned long)tag_iter->range.size(), 
         (unsigned long)tag_iter->offset,
         (unsigned long)tag_iter->varDataOffset,
