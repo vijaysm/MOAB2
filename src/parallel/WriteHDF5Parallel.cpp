@@ -47,12 +47,12 @@ namespace moab {
 
 #define CHECK_MPI(A) do { if (MPI_SUCCESS != (A)) { \
   writeUtil->report_error( "MPI Failure at " __FILE__ ":%d\n", __LINE__ ); \
-  return MB_FAILURE; } } while(false)
+  return error(MB_FAILURE); } } while(false)
 
 #define CHECK_HDF(A) do { if (mhdf_isError(&(A))) { \
   writeUtil->report_error( "MHDF Failure at " __FILE__ ":%d : %s\n", \
     __LINE__, mhdf_message(&(A)) ); \
-  return MB_FAILURE; } } while(false)
+  return error(MB_FAILURE); } } while(false)
 
 
 #ifdef VALGRIND
@@ -104,6 +104,11 @@ void VALGRIND_MAKE_VEC_UNDEFINED( std::vector<T>& v ) {
    }
 #endif
 
+
+// This function doesn't do anything useful.  It's just a nice
+// place to set a break point to determine why the reader fails.
+static inline ErrorCode error( ErrorCode rval )
+  { return rval; }
 
 static void print_type_sets( Interface* iFace, DebugOutput* str, Range& sets )
 {
@@ -263,11 +268,11 @@ ErrorCode WriteHDF5Parallel::gather_interface_meshes()
   for (Range::iterator ifit = iface_sets.begin(); ifit != iface_sets.end(); ifit++) {
     int owner;
     result = myPcomm->get_owner(*ifit, owner);
-    if (MB_SUCCESS != result || -1 == owner) return result;
+    if (MB_SUCCESS != result || -1 == owner) return error(result);
 
     tmpset.clear();
     result = iFace->get_entities_by_handle(*ifit, tmpset, true);
-    if (MB_SUCCESS != result) return result;
+    if (MB_SUCCESS != result) return error(result);
     interfaceMesh[owner].merge( tmpset );
   }
   
@@ -282,7 +287,7 @@ ErrorCode WriteHDF5Parallel::gather_interface_meshes()
   Range nonowned;
   result = myPcomm->filter_pstatus( nodeSet.range, PSTATUS_NOT_OWNED, PSTATUS_AND, -1, &nonowned);
   if (MB_SUCCESS != result)
-    return result;
+    return error(result);
   nodeSet.range = subtract( nodeSet.range, nonowned);
   
   for (std::list<ExportSet>::iterator eiter = exportList.begin();
@@ -290,7 +295,7 @@ ErrorCode WriteHDF5Parallel::gather_interface_meshes()
     tmpset.clear();
     result = myPcomm->filter_pstatus( eiter->range, PSTATUS_NOT_OWNED, PSTATUS_AND, -1, &tmpset);
     if (MB_SUCCESS != result)
-      return result;
+      return error(result);
     eiter->range = subtract( eiter->range,  tmpset );
     nonowned.merge(tmpset);
   }
@@ -341,7 +346,6 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
                                             int pcomm_no)
 {
   ErrorCode rval;
-  int result;
   mhdf_Status status;
 
   myPcomm = ParallelComm::get_pcomm(iFace, pcomm_no);
@@ -354,12 +358,12 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
 
   dbgOut.tprint(1,"Gathering interface meshes\n");
   rval = gather_interface_meshes();
-  if (MB_SUCCESS != rval) return rval;
+  if (MB_SUCCESS != rval) return error(rval);
 
     /**************** get tag names for sets likely to be shared ***********/
   dbgOut.tprint(1,"Getting shared entity sets\n");
   rval = get_sharedset_tags();
-  if (MB_SUCCESS != rval) return rval;
+  if (MB_SUCCESS != rval) return error(rval);
   
 
     /**************** Create actual file and write meta info ***************/
@@ -377,12 +381,12 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
     if (!filePtr)
     {
       writeUtil->report_error( "%s\n", mhdf_message( &status ) );
-      return MB_FAILURE;
+      return error(MB_FAILURE);
     }
     
     dbgOut.tprint(1,"call write_qa\n");
     rval = write_qa( qa_records );
-    if (MB_SUCCESS != rval) return rval;
+    if (MB_SUCCESS != rval) return error(rval);
   }
   
   
@@ -390,36 +394,36 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
  
   dbgOut.tprint(1,"creating node table\n");
   rval = create_node_table( dimension );
-  if (MB_SUCCESS != rval) return rval;
+  if (MB_SUCCESS != rval) return error(rval);
   
     /**************** Create element tables ***************/
 
   dbgOut.tprint(1,"negotiating element types\n");
   rval = negotiate_type_list();
-  if (MB_SUCCESS != rval) return rval;
+  if (MB_SUCCESS != rval) return error(rval);
   dbgOut.tprint(1,"creating element table\n");
   rval = create_element_tables();
-  if (MB_SUCCESS != rval) return rval;
+  if (MB_SUCCESS != rval) return error(rval);
   
   
     /*************** Exchange file IDs *****************/
 
   dbgOut.tprint(1,"communicating file ids\n");
   rval = exchange_file_ids();
-  if (MB_SUCCESS != rval) return rval;
+  if (MB_SUCCESS != rval) return error(rval);
  
 
     /**************** Create adjacency tables *********************/
   
   dbgOut.tprint(1,"creating adjacency table\n");
   rval = create_adjacency_tables();
-  if (MB_SUCCESS != rval) return rval;
+  if (MB_SUCCESS != rval) return error(rval);
   
     /**************** Create meshset tables *********************/
   
   dbgOut.tprint(1,"creating meshset table\n");
   rval = create_meshset_tables();
-  if (MB_SUCCESS != rval) return rval;
+  if (MB_SUCCESS != rval) return error(rval);
   
   
     /* Need to write tags for shared sets this proc is responsible for */
@@ -433,137 +437,14 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   setSet.range.merge( parallel_sets );
   rval = gather_tags( user_tag_list, user_tag_count );
   if (MB_SUCCESS != rval)
-    return rval;
+    return error(rval);
   range_remove( setSet.range, parallel_sets );   
   
-
     /**************** Create tag data *********************/
-  
-  std::list<SparseTag>::iterator tag_iter;
-  sort_tags_by_name();
-  const int num_tags = tagList.size();
-  
-    // Construct vector (tag_counts) containing a pair of values for each
-    // tag, where the first value in the pair is the number of entities on
-    // this processor for which the tag has been set.  The second value is
-    // zero for normal tags.  For variable-length tags it is the total number
-    // of tag values set for all entities on this processor.
-  std::vector<unsigned long> tag_offsets(2*num_tags), tag_counts(2*num_tags);
-  std::vector<unsigned long>::iterator tag_off_iter = tag_counts.begin();
-  for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) {
-    int s;
-    assert(tag_off_iter < tag_counts.begin() + tag_counts.size());
-    *tag_off_iter = tag_iter->range.size();
-    ++tag_off_iter;
-    if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_size( tag_iter->tag_id, s )) {
-      unsigned long total_len;
-      rval = get_tag_data_length( *tag_iter, total_len );
-      if (MB_SUCCESS != rval)
-        return rval;
-      
-      assert(tag_off_iter < tag_counts.begin() + tag_counts.size());
-      *tag_off_iter = total_len;
-      assert(total_len == *tag_off_iter);
-    }
-    else {
-      *tag_off_iter = 0;
-    }
-    ++tag_off_iter;
-  }
-  
-    // Populate proc_tag_offsets on root processor with the values from
-    // tag_counts on each processor.
-  dbgOut.tprint(1,"communicating tag metadata\n");
-  dbgOut.printf(2,"Exchanging tag data for %d tags.\n", num_tags);
-  std::vector<unsigned long> proc_tag_offsets(2*num_tags*myPcomm->proc_config().proc_size());
-  VALGRIND_CHECK_MEM_IS_DEFINED( &tag_counts[0], 2*num_tags*sizeof(long) );
-  VALGRIND_MAKE_VEC_UNDEFINED( proc_tag_offsets );
-  result = MPI_Gather( &tag_counts[0], 2*num_tags, MPI_UNSIGNED_LONG,
-                 &proc_tag_offsets[0], 2*num_tags, MPI_UNSIGNED_LONG,
-                       0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
-  
-    // Calculate the total counts over all processors (tag_counts)
-    // and the offset at which each processor should begin writing
-    // its data (proc_tag_offsets).  Both lists contain a pair of
-    // values, where the first is the number of entities and the second
-    // is either unused for fixed-length tags or the total data table
-    // size for variable-length tags.
-  tag_iter = tagList.begin();
-  for (int i = 0; i < num_tags; ++i, ++tag_iter)
-  {
-    assert((unsigned)(2*i+1) < tag_counts.size());
-    tag_counts[2*i] = tag_counts[2*i+1] = 0;
-    unsigned long next_offset = 0;
-    unsigned long next_var_len_offset = 0;
-    for (unsigned int j = 0; j < myPcomm->proc_config().proc_size(); j++)
-    {
-      unsigned idx = 2*i + j*2*num_tags;
-      assert(idx < proc_tag_offsets.size());
-      unsigned long count = proc_tag_offsets[idx];
-      proc_tag_offsets[idx] = next_offset;
-      next_offset += count;
-      assert((unsigned)(2*i) < tag_counts.size());
-      tag_counts[2*i] += count;
-      
-      ++idx;
-      assert(idx < proc_tag_offsets.size());
-      count = proc_tag_offsets[idx];
-      proc_tag_offsets[idx] = next_var_len_offset;
-      next_var_len_offset += count;
-      assert((unsigned)(2*i + 1) < tag_counts.size());
-      tag_counts[2*i + 1] += count;
-    }
 
-    if (0 == myPcomm->proc_config().proc_rank())
-    {
-      rval = create_tag(tag_iter->tag_id, next_offset, next_var_len_offset);
-      if (MB_SUCCESS != rval)
-        return rval;
-      dbgOut.printf( 2, "Creating table of size %lu for tag 0x%lx\n", 
-                  next_var_len_offset ? next_var_len_offset : next_offset, 
-                  (unsigned long)tag_iter->tag_id );
-    }
-  }
-  
-    // Send total counts to all processors.  This is necessary because all 
-    // processors need to know if we are not writing anything for the tag (count == 0).  
-  if (myPcomm->rank() == 0) {
-    VALGRIND_CHECK_MEM_IS_DEFINED( &tag_counts[0], 2*num_tags*sizeof(long) );
-  }
-  result = MPI_Bcast( &tag_counts[0], 2*num_tags, MPI_UNSIGNED_LONG, 0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
-  
-    // Send to each processor its per-tag offset values.
-  if (myPcomm->rank() == 0) {
-    VALGRIND_CHECK_MEM_IS_DEFINED(  &proc_tag_offsets[0], proc_tag_offsets.size()*sizeof(long) );
-  }
-  result = MPI_Scatter( &proc_tag_offsets[0], 2*num_tags, MPI_UNSIGNED_LONG,
-                             &tag_offsets[0], 2*num_tags, MPI_UNSIGNED_LONG,
-                             0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
-
-
-  tag_iter = tagList.begin();
-  for (int i = 0; i < num_tags; ++i, ++tag_iter)
-  {
-    assert((unsigned)(2*i) < tag_counts.size());
-    tag_iter->offset = tag_offsets[2*i];
-    tag_iter->write = tag_counts[2*i] > 0;
-    tag_iter->varDataOffset = tag_offsets[2*i + 1];
-  }
-
-  if (dbgOut.get_verbosity() > 1) {
-    dbgOut.printf(2,"Tags: %12s %8s %8s %8s %8s %8s\n", "Name", "Count", "Offset", "Var Off", "Var Len", "Handle");
-
-    tag_iter = tagList.begin();
-    for (int i = 0; i < num_tags; ++i, ++tag_iter) {
-      std::string name;
-      iFace->tag_get_name( tag_iter->tag_id, name );
-      dbgOut.printf(2,"%18s %8lu %8lu %8lu %8lu 0x%7lx\n", name.c_str(), tag_counts[2*i], tag_offsets[2*i], tag_offsets[2*i+1], tag_counts[2*i+1], (unsigned long)tag_iter->tag_id );
-    }
-  }
-  
+  rval = create_tag_tables();
+  if (MB_SUCCESS != rval) return error(rval);
+    
   /************** Close serial file and reopen parallel *****************/
   
   if (0 == myPcomm->proc_config().proc_rank())
@@ -582,10 +463,11 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   if (!filePtr)
   {
     writeUtil->report_error( "%s\n", mhdf_message( &status ) );
-    return MB_FAILURE;
+    return error(MB_FAILURE);
   }
   
   if (collectiveIO) {
+    dbgOut.print(1,"USING COLLECTIVE IO\n");
     writeProp = H5Pcreate( H5P_DATASET_XFER );
     H5Pset_dxpl_mpio( writeProp, H5FD_MPIO_COLLECTIVE );
   }
@@ -595,6 +477,244 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
 }
 
 
+class TagNameCompare {
+  Interface* iFace;
+  std::string name1, name2;
+public:
+  TagNameCompare( Interface* iface ) : iFace(iface) {}
+  bool operator() (const WriteHDF5::SparseTag& t1, 
+                   const WriteHDF5::SparseTag& t2);
+};
+bool TagNameCompare::operator() (const WriteHDF5::SparseTag& t1, 
+                                 const WriteHDF5::SparseTag& t2)
+{
+  iFace->tag_get_name( t1.tag_id, name1 );
+  iFace->tag_get_name( t2.tag_id, name2 );
+  return name1 < name2;
+}  
+
+struct serial_tag_data {
+  TagType storage;
+  DataType type;
+  int size;
+  int name_len;
+  unsigned long num_sparse_ents;
+  unsigned long num_sparse_vals; // not used for fixed-length tags
+  char name[sizeof(unsigned long)];
+  
+  static size_t len( int name_len ) {
+    return sizeof(serial_tag_data) + name_len - sizeof(size_t);
+  }
+  size_t len() const { return len( name_len ); }
+};
+
+ErrorCode WriteHDF5Parallel::append_serial_tag_data( 
+                                         std::vector<unsigned char>& buffer,
+                                         const WriteHDF5::SparseTag& tag )
+{
+  ErrorCode rval;
+  
+  std::string name;
+  rval = iFace->tag_get_name( tag.tag_id, name );
+  if (MB_SUCCESS != rval)
+    return error(rval);
+  
+    // get name length padded to preserve alignement
+  size_t name_len = name.size();
+  if (!name_len) return MB_SUCCESS; // skip tags with no name
+    // we pad such that we always terminate with a null character
+  name_len += sizeof(unsigned long) - (name_len % sizeof(unsigned long));
+
+    // allocate struct within buffer
+  size_t init_size = buffer.size();
+  buffer.resize( init_size + serial_tag_data::len(name_len) );
+  serial_tag_data* ptr = reinterpret_cast<serial_tag_data*>(&buffer[init_size]);
+  
+    // populate struct
+  rval = iFace->tag_get_type( tag.tag_id, ptr->storage );
+  if (MB_SUCCESS != rval) return error(rval);
+  rval = iFace->tag_get_data_type( tag.tag_id, ptr->type );
+  if (MB_SUCCESS != rval) return error(rval);
+  rval = iFace->tag_get_size( tag.tag_id, ptr->size );
+  if (MB_VARIABLE_DATA_LENGTH == rval)
+    ptr->size = MB_VARIABLE_LENGTH;
+  else if (MB_SUCCESS != rval)
+    return error(rval);
+  ptr->name_len = name_len;
+  ptr->num_sparse_ents = tag.range.size();
+  ptr->num_sparse_vals = 0;
+  if (MB_VARIABLE_LENGTH == ptr->size) {
+    rval = get_tag_data_length( tag, ptr->num_sparse_vals );
+    assert(MB_SUCCESS == rval);
+    if (MB_SUCCESS != rval) return error(rval);
+  }
+  memset( ptr->name, 0, ptr->name_len );
+  memcpy( ptr->name, name.data(), name.size() );
+  
+  return MB_SUCCESS;
+}
+   
+ 
+
+ErrorCode WriteHDF5Parallel::create_tag_tables()
+{  
+  std::list<SparseTag>::iterator tag_iter;
+  ErrorCode rval;
+  int err;
+  const int num_proc = myPcomm->proc_config().proc_size();
+  int num_tags = tagList.size();
+
+  dbgOut.tprint(1,"communicating tag metadata\n");
+  
+    // Sort tagList contents in alphabetical order by tag name
+  tagList.sort( TagNameCompare( iFace ) );
+  
+    // Negotiate total list of tags to write
+  
+    // Build concatenated list of all tag data
+  std::vector<unsigned char> tag_buffer;
+  for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) {
+    rval = append_serial_tag_data( tag_buffer, *tag_iter );
+    if (MB_SUCCESS != rval)
+      return error(rval);
+  }
+
+  dbgOut.printf(2,"Exchanging tag data for %d tags.\n", num_tags);
+
+    // Exchange tag data between all processors
+  int dsize = tag_buffer.size();
+  std::vector<int> recvcounts( num_proc );
+  err = MPI_Allgather( &dsize, 1, MPI_INT,
+                       &recvcounts[0], 1, MPI_INT, 
+                       myPcomm->proc_config().proc_comm() );
+  CHECK_MPI(err);
+    // Put total size in last spot of displs. It simplifies some things.
+  std::vector<int> displs( num_proc+1 );
+  displs[0] = 0;
+  for (int i = 1; i <= num_proc; ++i) 
+    displs[i] = displs[i-1] + recvcounts[i-1];
+  std::vector<unsigned char> all_buffer( displs[num_proc] );
+  err = MPI_Allgatherv( &tag_buffer[0], tag_buffer.size(), MPI_BYTE,
+                        &all_buffer[0], &recvcounts[0], &displs[0], 
+                        MPI_BYTE, myPcomm->proc_config().proc_comm() );
+  CHECK_MPI(err);
+  
+    // Zero local values
+  for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) {
+    tag_iter->offset = 0;
+    tag_iter->varDataOffset = 0;
+    tag_iter->write = false;
+    tag_iter->max_num_ents = 0;
+  }
+  
+    // Iterate over data from all procs, updating the local list
+  std::vector<unsigned char>::const_iterator diter = all_buffer.begin();
+    // Also need to calculate global counts for each tag.
+  std::vector<unsigned long> counts(num_tags, 0), var_counts(num_tags, 0);
+  tag_iter = tagList.begin();
+  size_t idx = 0;
+  unsigned rank = 0; 
+  while (diter < all_buffer.end()) {
+      // displs contains offsets into buffer at which data for each
+      // proc starts, and the total length at the end.  If we've passed
+      // the data for the process ID in 'rank' then increment rank.
+    while (diter - all_buffer.begin() > (unsigned)displs[rank+1])
+      ++rank;
+
+      // Get struct from buffer
+    const serial_tag_data* ptr = reinterpret_cast<const serial_tag_data*>(&*diter);
+    
+      // Find local struct for tag
+    std::string name(ptr->name);
+    std::string n;
+    iFace->tag_get_name( tag_iter->tag_id, n );  // second time we've called, so shouldnt fail
+    if (n > name) {
+      tag_iter = tagList.begin(); // new proc, start search from beginning
+      idx = 0;
+    }
+    iFace->tag_get_name( tag_iter->tag_id, n );
+    while (n < name) {
+      ++tag_iter;
+      ++idx;
+      if (tag_iter == tagList.end())
+        break;
+      iFace->tag_get_name( tag_iter->tag_id, n );
+    }
+    if (tag_iter == tagList.end() || n != name) { // new tag
+      SparseTag newtag;
+      
+      if (ptr->size == MB_VARIABLE_DATA_LENGTH) 
+        rval = iFace->tag_create_variable_length( name.c_str(), ptr->storage, ptr->type, newtag.tag_id, 0 );
+      else
+        rval = iFace->tag_create( name.c_str(), ptr->size, ptr->storage, ptr->type, newtag.tag_id, 0 );
+      if (MB_SUCCESS != rval)
+        return error(rval);
+      
+      newtag.offset = 0;
+      newtag.varDataOffset = 0;
+      newtag.write = false;
+      newtag.max_num_ents = 0;
+if (tag_iter == tagList.end()) 
+  std::cout << myPcomm->proc_config().proc_rank() << ": Inserting tag \"" << name.c_str() << "\" at end of tag list" << std::endl;
+else
+  std::cout << myPcomm->proc_config().proc_rank() << ": Inserting tag \"" << name.c_str() << "\" before \"" << n << "\"" << std::endl;
+
+      tag_iter = tagList.insert( tag_iter, newtag );
+      ++num_tags;
+      
+      counts.insert( counts.begin() + idx, 0 );
+      var_counts.insert( var_counts.begin() + idx, 0 );
+    }
+    
+      // Update local struct
+    if (rank < myPcomm->proc_config().proc_rank()) {
+      tag_iter->offset += ptr->num_sparse_ents;
+      tag_iter->varDataOffset += ptr->num_sparse_vals;
+    }
+    if (ptr->num_sparse_ents)
+      tag_iter->write = true;
+    if (ptr->num_sparse_ents > tag_iter->max_num_ents)
+      tag_iter->max_num_ents = ptr->num_sparse_ents;
+  
+      // Update global counts
+    counts[idx] += ptr->num_sparse_ents;
+    var_counts[idx] += ptr->num_sparse_vals;
+  
+      // Step to next variable-length struct.
+    diter += ptr->len();
+  }
+
+    // Create tag tables on root process
+  if (0 == myPcomm->proc_config().proc_rank()) {
+    tag_iter = tagList.begin();
+    for (int i = 0; i < num_tags; ++i, ++tag_iter) {
+      dbgOut.printf( 2, "Creating table of size %lu for tag 0x%lx\n", 
+                  var_counts[i] ? var_counts[i] : counts[i], 
+                  (unsigned long)tag_iter->tag_id );
+
+      rval = create_tag( tag_iter->tag_id, counts[i], var_counts[i] );
+      if (MB_SUCCESS != rval)
+        return error(rval);
+    }
+  }
+  
+  if (dbgOut.get_verbosity() > 1) {
+    dbgOut.printf(2,"Tags: %12s %8s %8s %8s %8s %8s\n", "Name", "Count", "Offset", "Var Off", "Max Ent", "Handle");
+
+    for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) {
+      std::string name;
+      iFace->tag_get_name( tag_iter->tag_id, name );
+      dbgOut.printf(2,"%18s %8lu %8lu %8lu %8ld 0x%7lx\n", name.c_str(), 
+        (unsigned long)tag_iter->range.size(), 
+        (unsigned long)tag_iter->offset,
+        (unsigned long)tag_iter->varDataOffset,
+        (unsigned long)tag_iter->max_num_ents,
+        (unsigned long)tag_iter->tag_id );
+    }
+  }
+
+  return MB_SUCCESS;
+}
 ErrorCode WriteHDF5Parallel::create_node_table( int dimension )
 {
   int result;
@@ -608,22 +728,25 @@ ErrorCode WriteHDF5Parallel::create_node_table( int dimension )
   CHECK_MPI(result);
   
     // create node data in file
-  long first_id;
+  long first_id_and_max_count[2];
   if (myPcomm->proc_config().proc_rank() == 0)
   {
     int total = 0;
     for (unsigned int i = 0; i < myPcomm->proc_config().proc_size(); i++)
       total += node_counts[i];
       
-    hid_t handle = mhdf_createNodeCoords( filePtr, dimension, total, &first_id, &status );
+    hid_t handle = mhdf_createNodeCoords( filePtr, dimension, total, &first_id_and_max_count[0], &status );
     CHECK_HDF(status);
     mhdf_closeData( filePtr, handle, &status );
+    
+    first_id_and_max_count[1] = *std::max_element( node_counts.begin(), node_counts.end() );
   }
     
     // send id offset to every proc
-  result = MPI_Bcast( &first_id, 1, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
+  result = MPI_Bcast( first_id_and_max_count, 2, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
   CHECK_MPI(result);
-  nodeSet.first_id = (id_t)first_id;
+  nodeSet.first_id = (id_t)first_id_and_max_count[0];
+  nodeSet.max_num_ents = (id_t)first_id_and_max_count[1];
    
       // calculate per-processor offsets
   if (myPcomm->proc_config().proc_rank() == 0)
@@ -830,16 +953,27 @@ ErrorCode WriteHDF5Parallel::create_element_tables()
   CHECK_MPI(result);
   
     // Convert counts to offsets
-  for (int i = 0; i < numtypes; i++) 
-  {
-    long prev = 0;
-    for (unsigned int j = 0; j <= myPcomm->proc_config().proc_size(); j++)
+  if (myPcomm->proc_config().proc_rank() == 0) {
+    for (int i = 0; i < numtypes; i++) 
     {
-      long tmp = counts[j*numtypes + i];
-      counts[j*numtypes+i] = prev;
-      prev += tmp;
+      long prev = 0;
+      for (unsigned int j = 0; j <= myPcomm->proc_config().proc_size(); j++)
+      {
+        long tmp = counts[j*numtypes + i];
+        if (tmp > my_counts[i]) // put max count in my_counts
+          my_counts[i] = tmp;
+        counts[j*numtypes+i] = prev;
+        prev += tmp;
+      }
     }
   }
+  
+    // Broadcast max count for each type
+  result = MPI_Bcast( &my_counts[0], numtypes, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
+  CHECK_MPI(result);
+  viter = my_counts.begin();
+  for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
+    ex_iter->max_num_ents = *(viter++);
   
     // Send offsets to each processor
   if (myPcomm->rank() == 0) {
@@ -869,7 +1003,7 @@ ErrorCode WriteHDF5Parallel::create_element_tables()
                                  *citer,
                                  *viter );
       if (MB_SUCCESS != rval)
-        return rval;
+        return error(rval);
       ++citer;
       ++viter;
     }
@@ -887,7 +1021,7 @@ ErrorCode WriteHDF5Parallel::create_element_tables()
     id_t myfirst = (id_t)(ex_iter->first_id + ex_iter->offset);
     rval = assign_ids( ex_iter->range, myfirst );
     if (MB_SUCCESS != rval)
-      return rval;
+      return error(rval);
   }
   
   return MB_SUCCESS;
@@ -924,7 +1058,7 @@ ErrorCode WriteHDF5Parallel::create_adjacency_tables()
   {
     rval = count_adjacencies( ex_iter->range, num_adj );
     if (MB_SUCCESS != rval)
-      return rval;
+      return error(rval);
     *viter = num_adj; ++viter;
   }
   
@@ -936,6 +1070,7 @@ ErrorCode WriteHDF5Parallel::create_adjacency_tables()
   CHECK_MPI(result);
   
   
+      // Record in 'local' the maximum adjacency count for each type
   if (myPcomm->rank() == 0) {
       // Convert counts to offsets
     for (i = 0; i < numtypes; i++) 
@@ -944,18 +1079,28 @@ ErrorCode WriteHDF5Parallel::create_adjacency_tables()
       for (j = 0; j <= myPcomm->proc_config().proc_size(); j++)
       {
         long tmp = all[j*numtypes + i];
+        if (tmp > local[i])
+          local[i] = tmp;
         all[j*numtypes+i] = prev;
         prev += tmp;
       }
     }
 
       // For each element type for which there is no adjacency data,
-      // send -1 to all processors as the offset
+      // send -1 to all processors as the offset.
     for (i = 0; i < numtypes; ++i)
       if (all[numtypes*myPcomm->proc_config().proc_size()+i] == 0)
         for (j = 0; j < myPcomm->proc_config().proc_size(); ++j)
           all[j*numtypes+i] = -1;
   }
+  
+    // Broadcast maximum count for each type
+  result = MPI_Bcast( &local[0], numtypes, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
+  CHECK_MPI(result);
+  viter = local.begin();
+  for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
+    ex_iter->max_num_adjs = *(viter++);
+  
   
     // Send offsets back to each processor
   result = MPI_Scatter( &all[0],   numtypes, MPI_LONG,
@@ -1012,33 +1157,33 @@ ErrorCode WriteHDF5Parallel::get_interface_set_data( RemoteSetData& data,
   ErrorCode rval;
   
   rval = iFace->tag_get_handle( PARALLEL_INTERFACE_TAG_NAME, iface_tag );
-  if (MB_SUCCESS != rval) return rval;
+  if (MB_SUCCESS != rval) return error(rval);
   
   rval = iFace->tag_get_handle( PROC_ID_TAG, proc_tag );
   if (MB_SUCCESS == rval) 
     iFace->tag_delete( proc_tag );
   rval = iFace->tag_create( PROC_ID_TAG, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, proc_tag, 0 );
-  if (MB_SUCCESS != rval) return rval;
+  if (MB_SUCCESS != rval) return error(rval);
     
   Range interface_sets, sets;
   rval = iFace->get_entities_by_type_and_tag( 0, MBENTITYSET, &iface_tag, 0, 1, interface_sets );
-  if (MB_SUCCESS != rval) return rval;
+  if (MB_SUCCESS != rval) return error(rval);
   
   std::vector<int> list;
   for (Range::iterator i = interface_sets.begin(); i != interface_sets.end(); ++i)
   {
     int proc_ids[2];
     rval = iFace->tag_get_data( iface_tag, &*i, 1, proc_ids );
-    if (MB_SUCCESS != rval) return rval;
+    if (MB_SUCCESS != rval) return error(rval);
     
     sets.clear();
     rval = iFace->get_entities_by_type( *i, MBENTITYSET, sets );
-    if (MB_SUCCESS != rval) return rval;
+    if (MB_SUCCESS != rval) return error(rval);
   
     list.clear();
     list.resize( sets.size(), proc_ids[0] );
     rval = iFace->tag_set_data( proc_tag, sets, &list[0] );
-    if (MB_SUCCESS != rval) return rval;
+    if (MB_SUCCESS != rval) return error(rval);
   }
   
   return get_remote_set_data( PROC_ID_TAG, PARALLEL_GLOBAL_ID_TAG_NAME, data, offset );
@@ -1101,7 +1246,7 @@ ErrorCode WriteHDF5Parallel::get_remote_set_data(
   Range::iterator riter;
 
   rval = iFace->tag_get_handle( tags.filterTag.c_str(), data.filter_tag );
-  if (rval != MB_SUCCESS) return rval;
+  if (rval != MB_SUCCESS) return error(rval);
   if (tags.useFilterValue) 
   {
     i = 0;
@@ -1109,7 +1254,7 @@ ErrorCode WriteHDF5Parallel::get_remote_set_data(
     if (i != sizeof(int)) {
       fprintf(stderr, "Cannot use non-int tag data for filtering remote sets.\n" );
       assert(0);
-      return MB_FAILURE;
+      return error(MB_FAILURE);
     }  
     data.filter_value = tags.filterValue;
   }
@@ -1119,13 +1264,13 @@ ErrorCode WriteHDF5Parallel::get_remote_set_data(
   }
   
   rval = iFace->tag_get_handle( tags.dataTag.c_str(), data.data_tag );
-  if (rval != MB_SUCCESS) return rval;
+  if (rval != MB_SUCCESS) return error(rval);
   i = 0;
   iFace->tag_get_size( data.data_tag, i );
   if (i != sizeof(int)) {
     fprintf(stderr, "Cannot use non-int tag data for matching remote sets.\n" );
     assert(0);
-    return MB_FAILURE;
+    return error(MB_FAILURE);
   }  
     
 
@@ -1153,7 +1298,7 @@ ErrorCode WriteHDF5Parallel::get_remote_set_data(
                                                   1,
                                                   data.range );
     }
-    if (rval != MB_SUCCESS) return rval;
+    if (rval != MB_SUCCESS) return error(rval);
     Range tmp = intersect( data.range,  setSet.range );
     data.range.swap( tmp );
     range_remove( setSet.range, data.range );
@@ -1183,7 +1328,7 @@ ErrorCode WriteHDF5Parallel::get_remote_set_data(
   VALGRIND_MAKE_VEC_UNDEFINED( data.local_values );
   rval = iFace->tag_get_data( data.data_tag, data.range, &data.local_values[0] );
   if (MB_SUCCESS != rval)
-    return rval;
+    return error(rval);
   VALGRIND_CHECK_MEM_IS_DEFINED( &data.local_values[0], count*sizeof(int) );
   result = MPI_Allgatherv( &data.local_values[0], count, MPI_INT,
                            &data.all_values[0], &data.counts[0], &data.displs[0], MPI_INT,
@@ -1324,7 +1469,7 @@ ErrorCode WriteHDF5Parallel::set_shared_set_ids( RemoteSetData& data, long& offs
       }
       
       assert(false);
-      return MB_FAILURE;
+      return error(MB_FAILURE);
     }
   }
   
@@ -1351,7 +1496,7 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
                                 remote_set_data[i],
                                 total_offset ); 
     if (MB_SUCCESS != rval)
-      return rval;
+      return error(rval);
   }
 
   dbgOut.print(2, "myLocalSets\n");
@@ -1386,7 +1531,7 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
   {
     rval = create_set_meta( (id_t)total_count_and_start_id[0], total_count_and_start_id[1] );
     if (MB_SUCCESS != rval)
-      return rval;
+      return error(rval);
   }
   
     // Send totals to all procs.
@@ -1417,7 +1562,7 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
   {
     rval = negotiate_remote_set_contents( remote_set_data[i], data_offsets ); 
     if (MB_SUCCESS != rval)
-      return rval;
+      return error(rval);
   }
   remote_set_data.clear();
   
@@ -1428,7 +1573,7 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
   long data_counts[3];
   rval = count_set_size( setSet.range, data_counts[0], data_counts[1], data_counts[2] );
   if (MB_SUCCESS != rval) 
-    return rval;
+    return error(rval);
   std::vector<long> set_counts(3*myPcomm->proc_config().proc_size());
   VALGRIND_MAKE_VEC_UNDEFINED( set_counts );
   result = MPI_Gather( data_counts,    3, MPI_LONG,
@@ -1456,7 +1601,7 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
   {
     rval = create_set_tables( all_counts[0], all_counts[1], all_counts[2] );
     if (MB_SUCCESS != rval) 
-      return rval;
+      return error(rval);
   }
   
     // Send totals to all processors
@@ -1601,7 +1746,7 @@ ErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& data,
     tmp_range.clear();
     rval = iFace->get_entities_by_handle( *riter, tmp_range );
     if (MB_SUCCESS != rval)
-      return rval;
+      return error(rval);
     remove_remote_entities( *riter, tmp_range );
     for (Range::iterator iter = tmp_range.begin(); iter != tmp_range.end(); ++iter)
       if (0 != idMap.find( *iter ))
@@ -1613,7 +1758,7 @@ ErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& data,
     child_list.clear();
     rval = iFace->get_child_meshsets( *riter, child_list );
     if (MB_SUCCESS != rval)
-      return rval;
+      return error(rval);
     remove_remote_sets( *riter, child_list );
     for (std::vector<EntityHandle>::iterator iter = child_list.begin();
          iter != child_list.end(); ++iter)
@@ -1626,7 +1771,7 @@ ErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& data,
     child_list.clear();
     rval = iFace->get_parent_meshsets( *riter, child_list );
     if (MB_SUCCESS != rval)
-      return rval;
+      return error(rval);
     remove_remote_sets( *riter, child_list );
     for (std::vector<EntityHandle>::iterator iter = child_list.begin();
          iter != child_list.end(); ++iter)
@@ -1840,7 +1985,7 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
     unsigned int flags;
     rval = iFace->get_meshset_options( iter->handle, flags );
     if (MB_SUCCESS != rval)
-      return rval;
+      return error(rval);
       
       // Write the data
     long data[4] = { iter->contentsOffset + iter->contentsCount - 1, 
@@ -1874,7 +2019,7 @@ ErrorCode WriteHDF5Parallel::write_shared_set_contents( hid_t table,
     handle_list.clear();
     rval = iFace->get_entities_by_handle( iter->handle, handle_list );
     if (MB_SUCCESS != rval)
-      return rval;
+      return error(rval);
     remove_remote_entities( iter->handle, handle_list );
     
     id_list.clear();
@@ -1915,7 +2060,7 @@ ErrorCode WriteHDF5Parallel::write_shared_set_children( hid_t table,
     handle_list.clear();
     rval = iFace->get_child_meshsets( iter->handle, handle_list );
     if (MB_SUCCESS != rval)
-      return rval;
+      return error(rval);
     remove_remote_sets( iter->handle, handle_list );
     
     id_list.clear();
@@ -1955,7 +2100,7 @@ ErrorCode WriteHDF5Parallel::write_shared_set_parents( hid_t table,
     handle_list.clear();
     rval = iFace->get_parent_meshsets( iter->handle, handle_list );
     if (MB_SUCCESS != rval)
-      return rval;
+      return error(rval);
     remove_remote_sets( iter->handle, handle_list );
     
     id_list.clear();
@@ -1985,27 +2130,6 @@ ErrorCode WriteHDF5Parallel::write_finished()
   return WriteHDF5::write_finished();
 }
 
-class TagNameCompare {
-  Interface* iFace;
-  std::string name1, name2;
-public:
-  TagNameCompare( Interface* iface ) : iFace(iface) {}
-  bool operator() (const WriteHDF5::SparseTag& t1, 
-                   const WriteHDF5::SparseTag& t2);
-};
-bool TagNameCompare::operator() (const WriteHDF5::SparseTag& t1, 
-                                 const WriteHDF5::SparseTag& t2)
-{
-  iFace->tag_get_name( t1.tag_id, name1 );
-  iFace->tag_get_name( t2.tag_id, name2 );
-  return name1 < name2;
-}  
-
-void WriteHDF5Parallel::sort_tags_by_name( )
-{
-  tagList.sort( TagNameCompare( iFace ) );
-}
-
 
 ErrorCode WriteHDF5Parallel::exchange_file_ids()
 {
@@ -2019,7 +2143,7 @@ ErrorCode WriteHDF5Parallel::exchange_file_ids()
                                         file_id_tag,
                                         &default_val );
   if (MB_SUCCESS != rval)
-    return rval;
+    return error(rval);
 
     // get file ids for my interface entities
   Range::const_iterator i;
@@ -2031,7 +2155,7 @@ ErrorCode WriteHDF5Parallel::exchange_file_ids()
     *j = idMap.find( *i );
     if (!*j) {
       iFace->tag_delete( file_id_tag );
-      return MB_FAILURE;
+      return error(MB_FAILURE);
     }
   }
 
@@ -2041,7 +2165,7 @@ dbgOut.print( 2, "Interface entities: ", interfaceMesh[myPcomm->proc_config().pr
   rval = iFace->tag_set_data( file_id_tag, imesh, &file_id_vect[0] );
   if (MB_SUCCESS != rval) {
     iFace->tag_delete( file_id_tag );
-    return rval;
+    return error(rval);
   }
   
     // do communication
@@ -2049,7 +2173,7 @@ dbgOut.print( 2, "Interface entities: ", interfaceMesh[myPcomm->proc_config().pr
   rval = myPcomm->exchange_tags( file_id_tag, dum_range );
   if (MB_SUCCESS != rval) {
     iFace->tag_delete( file_id_tag );
-    return rval;
+    return error(rval);
   }
   
     // store file IDs for remote entities
@@ -2062,19 +2186,19 @@ dbgOut.print( 2, "Interface entities: ", interfaceMesh[myPcomm->proc_config().pr
     rval = iFace->tag_get_data( file_id_tag, p->second, &file_id_vect[0] );
     if (MB_SUCCESS != rval) {
       iFace->tag_delete( file_id_tag );
-      return rval;
+      return error(rval);
     }
     
     j = file_id_vect.begin();
     for (i = p->second.begin(); i != p->second.end(); ++i, ++j) {
       if (*j == 0) {
          iFace->tag_delete( file_id_tag );
-         return MB_FAILURE;
+         return error(MB_FAILURE);
       }
       else {
         if (!idMap.insert( *i, *j, 1 ).second) {
           iFace->tag_delete( file_id_tag );
-          return MB_FAILURE;
+          return error(MB_FAILURE);
         }
       }
     }
@@ -2090,7 +2214,8 @@ ErrorCode WriteHDF5Parallel::get_sharedset_tags()
   Range all_sets;
   ErrorCode result = iFace->get_entities_by_type_and_tag(0, MBENTITYSET, NULL, NULL, 0,
                                                            all_sets);
-  if (MB_SUCCESS != result || all_sets.empty()) return result;
+  if (MB_SUCCESS != result) return error(result);
+  if (all_sets.empty()) return MB_SUCCESS;
   
     // get all the tags on those sets & test against known exceptions
   std::set<Tag> all_tags;
@@ -2100,7 +2225,7 @@ ErrorCode WriteHDF5Parallel::get_sharedset_tags()
   for (Range::iterator rit = all_sets.begin(); rit != all_sets.end(); rit++) {
     all_tagsv.clear();
     result = iFace->tag_get_tags_on_entity(*rit, all_tagsv);
-    if (MB_SUCCESS != result) return result;
+    if (MB_SUCCESS != result) return error(result);
 
     for (std::vector<Tag>::iterator vit = all_tagsv.begin(); vit != all_tagsv.end(); vit++) {
         // don't look at tags already selected
@@ -2108,7 +2233,7 @@ ErrorCode WriteHDF5Parallel::get_sharedset_tags()
 
         // get name
       result = iFace->tag_get_name(*vit, tag_name);
-      if (MB_SUCCESS != result) return result;
+      if (MB_SUCCESS != result) return error(result);
 
         // look for known exclusions
       const char *tag_cstr = tag_name.c_str();
@@ -2127,7 +2252,7 @@ ErrorCode WriteHDF5Parallel::get_sharedset_tags()
     // now add the tag names to the list
   for (std::set<Tag>::iterator sit = all_tags.begin(); sit != all_tags.end(); sit++) {
     result = iFace->tag_get_name(*sit, tag_name);
-    if (MB_SUCCESS != result) return result;
+    if (MB_SUCCESS != result) return error(result);
     multiProcSetTags.add( tag_name);
   }
     

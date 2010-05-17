@@ -125,11 +125,6 @@ class WriteHDF5Parallel : public WriteHDF5
       //! entities to be written on this processor.
     ErrorCode exchange_file_ids();
     
-      //! Sort the list of tag information in the parent
-      //! class by name so all procs have them in the same
-      //! order.
-    void sort_tags_by_name();
-    
       //! Create the node table in the file.
     ErrorCode create_node_table( int dimension );
     
@@ -207,8 +202,11 @@ class WriteHDF5Parallel : public WriteHDF5
     void remove_remote_sets( EntityHandle relative, Range& range );
     void remove_remote_sets( EntityHandle relative, std::vector<EntityHandle>& vect );
   
-    //! get any existing tags which aren't excluded and add to shared set tags
-  ErrorCode get_sharedset_tags();
+      //! get any existing tags which aren't excluded and add to shared set tags
+    ErrorCode get_sharedset_tags();
+
+    ErrorCode append_serial_tag_data( std::vector<unsigned char>& buffer,
+                                      const WriteHDF5::SparseTag& tag );
   
   private:
     
