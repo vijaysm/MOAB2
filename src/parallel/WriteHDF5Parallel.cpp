@@ -618,7 +618,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
       // displs contains offsets into buffer at which data for each
       // proc starts, and the total length at the end.  If we've passed
       // the data for the process ID in 'rank' then increment rank.
-    while (diter - all_buffer.begin() > (unsigned)displs[rank+1])
+    while (diter - all_buffer.begin() >= (unsigned)displs[rank+1])
       ++rank;
 
       // Get struct from buffer
@@ -654,10 +654,6 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
       newtag.varDataOffset = 0;
       newtag.write = false;
       newtag.max_num_ents = 0;
-if (tag_iter == tagList.end()) 
-  std::cout << myPcomm->proc_config().proc_rank() << ": Inserting tag \"" << name.c_str() << "\" at end of tag list" << std::endl;
-else
-  std::cout << myPcomm->proc_config().proc_rank() << ": Inserting tag \"" << name.c_str() << "\" before \"" << n << "\"" << std::endl;
 
       tag_iter = tagList.insert( tag_iter, newtag );
       ++num_tags;
