@@ -23,6 +23,9 @@
 
 #define filename "h5test.h5m"
 
+#include <iostream>
+#include <sstream>
+
 using namespace moab;
 
 // Dense tag name
@@ -48,10 +51,38 @@ bool compare();
 
 void moab_error( const char* function );
 
-int main()
+int main(int argc, char* argv[])
 {
   ErrorCode rval;
   std::string msg;
+  
+  std::string read_opt;
+  std::string write_opt("DEBUG_BINIO");
+  
+  for (int i = 1; i < argc; ++i) {
+    long val;
+    char* endptr;
+    if (argv[i][0] == '-' && (argv[i][1] == 'r' || argv[i][1] == 'w') 
+        && i+1 < argc && (val = strtol(argv[i+1],&endptr,0)) >= 0 && !*endptr)
+    {
+      std::string& s = argv[i][1] == 'r' ? read_opt : write_opt;
+      std::ostringstream str;
+      str << "DEBUG_IO=" << val;
+      if (s.empty())
+        s = str.str();
+      else {
+        s += ';';
+        s += str.str();
+      }
+      ++i;
+    }
+    else 
+    {
+      std::cerr << "Usage: " << argv[0] << " [-r <n>] [-w <n>]" << std::endl;
+      return 1;
+    }
+  }
+  
   
   iface = new Core();
   
@@ -61,7 +92,7 @@ int main()
   
   // write out the dodecahedron
   fprintf( stderr, "writing... " );
-  rval = iface->write_file( filename, 0, "DEBUG_BINIO" );
+  rval = iface->write_file( filename, 0, write_opt.c_str() );
   if (MB_SUCCESS != rval)
   {
     fprintf( stderr, "Failed to write \"%s\"\n", filename );
@@ -72,7 +103,7 @@ int main()
   
   // Read back in as a copy of the original
   fprintf( stderr, "reading... " );
-  rval = iface->load_file( filename );
+  rval = iface->load_file( filename, 0, read_opt.c_str() );
   if (MB_SUCCESS != rval)
   {
     fprintf( stderr, "Failed to read \"%s\"\n", filename );
@@ -92,7 +123,7 @@ int main()
   
   // Write both the original and copy to a file
   fprintf( stderr, "writing... " );
-  rval = iface->write_file( filename, 0, "DEBUG_BINIO" );
+  rval = iface->write_file( filename, 0, write_opt.c_str() );
   if (MB_SUCCESS != rval)
   {
     fprintf( stderr, "Failed to write \"%s\"\n", filename );
@@ -109,7 +140,7 @@ int main()
   
   // Read the two dodecahedrons from the file
   fprintf( stderr, "reading... " );
-  rval = iface->load_file( filename );
+  rval = iface->load_file( filename, 0, read_opt.c_str() );
   if (MB_SUCCESS != rval)
   {
     fprintf( stderr, "Failed to read \"%s\"\n", filename );
