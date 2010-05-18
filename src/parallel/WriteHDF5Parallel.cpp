@@ -541,10 +541,13 @@ ErrorCode WriteHDF5Parallel::append_serial_tag_data(
   else if (MB_SUCCESS != rval)
     return error(rval);
   ptr->name_len = name_len;
-  ptr->num_sparse_ents = tag.range.size();
+  Range range;
+  rval = get_sparse_tagged_entities( tag, range );
+  if (MB_SUCCESS != rval) return error(rval);
+  ptr->num_sparse_ents = range.size();
   ptr->num_sparse_vals = 0;
   if (MB_VARIABLE_LENGTH == ptr->size) {
-    rval = get_tag_data_length( tag, ptr->num_sparse_vals );
+    rval = get_tag_data_length( tag, range, ptr->num_sparse_vals );
     assert(MB_SUCCESS == rval);
     if (MB_SUCCESS != rval) return error(rval);
   }
@@ -700,8 +703,10 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
     for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) {
       std::string name;
       iFace->tag_get_name( tag_iter->tag_id, name );
+      size_t size;
+      get_num_sparse_tagged_entities( *tag_iter, size );
       dbgOut.printf(2,"%18s %8lu %8lu %8lu %8lu 0x%7lx\n", name.c_str(), 
-        (unsigned long)tag_iter->range.size(), 
+        (unsigned long)size, 
         (unsigned long)tag_iter->offset,
         (unsigned long)tag_iter->varDataOffset,
         (unsigned long)tag_iter->max_num_ents,
