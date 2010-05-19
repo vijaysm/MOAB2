@@ -461,6 +461,8 @@ int main( int argc, char* argv[] )
       rval = gather_tag_counts( 0, file_counts );
     else if (!just_list && !just_list_basic)
       rval = gather_set_stats( 0, file_stats );
+    else
+      rval = MB_SUCCESS;
 
     if (MB_SUCCESS != rval)
     {
