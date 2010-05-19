@@ -58,8 +58,8 @@ using namespace moab;
 
 #define STRINGIFY_(A) #A
 #define STRINGIFY(A) STRINGIFY_(A)
-#ifdef SRCDIR
-string TestDir( STRINGIFY(SRCDIR) );
+#ifdef MESHDIR
+string TestDir( STRINGIFY(MESHDIR) );
 #else
 string TestDir( "." );
 #endif

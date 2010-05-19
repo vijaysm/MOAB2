@@ -7,8 +7,8 @@
 
 using namespace moab;
 
-#ifdef SRCDIR
-static const char example[] = STRINGIFY(SRCDIR) "/three.smf";
+#ifdef MESHDIR
+static const char example[] = STRINGIFY(MESHDIR) "/io/three.smf";
 #else
 static const char example[] = "three.smf";
 #endif

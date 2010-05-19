@@ -1,6 +1,9 @@
 BUILT_SOURCES = iGeom_protos.h
 
+MESHDIR = $(top_srcdir)/MeshFiles/unittest/iGeom
+
 AM_CPPFLAGS = -DSRCDIR=$(srcdir) \
+	      -DMESHDIR=$(MESHDIR) \
               -I$(top_srcdir)/src \
               -I$(top_builddir)/src \
               -I.. -I$(srcdir)/.. \

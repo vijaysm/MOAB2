@@ -1,7 +1,10 @@
 check_PROGRAMS = obb_test obb_time obb_tree_tool
 TESTS = obb_test
 
+MESHDIR = $(top_srcdir)/MeshFiles/unittest
+
 AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
+               -DMESHDIR=$(MESHDIR) \
                -I$(top_srcdir)/src -I$(top_builddir)/src -I.. 
 
 LDADD = $(top_builddir)/src/libMOAB.la

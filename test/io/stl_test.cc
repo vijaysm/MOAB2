@@ -14,8 +14,8 @@ using namespace moab;
  * Example ASCII STL file from: 
  *  http://people.sc.fsu.edu/~burkardt/data/stla/stla.html
  */
-#ifdef SRCDIR
-static const char sample[] = STRINGIFY(SRCDIR) "/sample.stl";
+#ifdef MESHDIR
+static const char sample[] = STRINGIFY(MESHDIR) "/io/sample.stl";
 #else
 static const char sample[] = "sample.stl";
 #endif

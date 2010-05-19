@@ -1,19 +1,9 @@
 LDADD = $(top_builddir)/src/libMOAB.la
 
-EXTRA_DIST = brick_cubit10.1.cub \
-             brick_cubit10.2.cub \
-             brick_cubit10.cub \
-	     gmsh2.msh \
-             ho_test.g \
-             ho_test.cub \
-             test.cub \
-             test.nas \
-             test.unv \
-	     sample.stl \
-             three.smf
-
+MESHDIR = $(top_srcdir)/MeshFiles/unittest
 
 AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
+               -DMESHDIR=$(MESHDIR) \
                -I$(builddir) -I.. -I$(srcdir)/.. \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src \

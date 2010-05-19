@@ -12,8 +12,8 @@ using namespace moab;
  * 
  * Example version 2.0 ASCII input file from Gmsh 2.4 manual.
  */
-#ifdef SRCDIR
-static const char example[] = STRINGIFY(SRCDIR) "/gmsh2.msh";
+#ifdef MESHDIR
+static const char example[] = STRINGIFY(MESHDIR) "/io/gmsh2.msh";
 #else
 static const char example[] = "gmsh2.msh";
 #endif

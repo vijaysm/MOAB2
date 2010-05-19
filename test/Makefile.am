@@ -11,8 +11,11 @@ endif
 
 LDADD = $(top_builddir)/src/libMOAB.la
 
+MESHDIR = $(top_srcdir)/MeshFiles/unittest
+
 AM_CPPFLAGS += -DIS_BUILDING_MB \
                -DSRCDIR=$(srcdir) \
+		-DMESHDIR=$(MESHDIR) \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src 
 
@@ -40,30 +43,6 @@ check_PROGRAMS = $(TESTS) \
 		 kd_tree_tool \
 		 kd_tree_time
 
-EXTRA_DIST  = 125hex.g \
-              1hex.g \
-              1khex.g \
-              1tet.g \
-              3k-tri-cube.h5m \
-              3k-tri-sphere.vtk \
-              4k-tri-plane.vtk \
-              4tet.g \
-              8hex.g \
-              cell1.gen.gz \
-              cell2.gen.gz \
-              mb_big_test.g.gz \
-              mbtest1.g \
-              mbtest2.g \
-              mbtest3.g \
-              test.g \
-              testquad-cyl.g \
-              testquad.g \
-              testtet.g 
-
-CLEANFILES = mb_big_test.g \
-             cell1.gen \
-             cell2.gen
-
 MOSTLYCLEANFILES = mb_write.g \
                    mb_write2.g \
                    hex_mid_volume_nodes.g \
@@ -80,7 +59,11 @@ MOSTLYCLEANFILES = mb_write.g \
 # Tests and such
 
 moab_test_SOURCES = MBTest.cpp
-moab_test_DEPENDENCIES = mb_big_test.g cell1.gen cell2.gen $(LDADD)
+moab_test_DEPENDENCIES = \
+	$(top_srcdir)/MeshFiles/unittest/mb_big_test.g \
+	$(top_srcdir)/MeshFiles/unittest/cell1.gen \
+	$(top_srcdir)/MeshFiles/unittest/cell2.gen \
+	$(LDADD)
 
 homxform_test_SOURCES = $(top_srcdir)/src/HomXform.cpp
 homxform_test_CPPFLAGS = -DTEST $(AM_CPPFLAGS) $(CPPFLAGS)
@@ -148,13 +131,13 @@ mbcn_test_SOURCES = $(top_srcdir)/src/moab/CN.hpp \
 
 bsp_tree_poly_test_SOURCES = bsp_tree_poly_test.cpp
 
-mb_big_test.g: mb_big_test.g.gz
+$(MESHDIR)/mb_big_test.g: $(MESHDIR)/mb_big_test.g.gz
 	$(ZCAT) $< > $@
 
-cell1.gen: cell1.gen.gz
+$(MESHDIR)/cell1.gen: $(MESHDIR)/cell1.gen.gz
 	$(ZCAT) $< > $@
 
-cell2.gen: cell2.gen.gz
+$(MESHDIR)/cell2.gen: $(MESHDIR)/cell2.gen.gz
 	$(ZCAT) $< > $@
 
 

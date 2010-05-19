@@ -10,8 +10,8 @@
 
 using namespace moab;
 
-#ifdef SRCDIR
-static const char example[] = STRINGIFY(SRCDIR) "/test.nas";
+#ifdef MESHDIR
+static const char example[] = STRINGIFY(MESHDIR) "/io/test.nas";
 #else
 static const char example[] = "test.nas";
 #endif

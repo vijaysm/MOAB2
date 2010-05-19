@@ -1,6 +1,10 @@
 LDADD = $(top_builddir)/src/libMOAB.la
+
+MESHDIR = $(top_srcdir)/MeshFiles/unittest
+
 AM_CPPFLAGS += -DIS_BUILDING_MB \
                -DSRCDIR=$(srcdir) \
+               -DMESHDIR=$(MESHDIR) \
                -I. \
                -I.. -I$(srcdir)/.. \
                -I$(top_builddir)/src \
@@ -41,7 +45,3 @@ scdtest_SOURCES = scdtest.cpp
 
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = mhdf_ll.h5m
-
-EXTRA_DIST = ptest.cub \
-             64bricks_512hex.h5m 
-             

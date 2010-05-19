@@ -29,7 +29,7 @@ int main( int argc, char* argv[] )
   std::string ptag_name("GEOM_DIMENSION");
   std::vector<int> partition_tag_vals;
 #ifdef SRCDIR
-  const char *fnames[] = {STRINGIFY(SRCDIR) "/ptest.cub"};
+  const char *fnames[] = {STRINGIFY(MESHDIR) "/ptest.cub"};
 #else
   const char *fnames[] = {"./ptest.cub"};
 #endif

@@ -20,8 +20,8 @@
 
 using namespace moab;
 
-#ifdef SRCDIR
-const char* InputFile = STRINGIFY(SRCDIR) "/ptest.cub";
+#ifdef MESHDIR
+const char* InputFile = STRINGIFY(MESHDIR) "/ptest.cub";
 #else
 const char* InputFile = "ptest.cub";
 #endif

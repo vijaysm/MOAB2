@@ -19,8 +19,8 @@ using namespace moab;
  * every higher-order node are expected to be the mean of the
  * adjacent corner vertices of the element.
  */
-#ifdef SRCDIR
-static const char ho_file[] = STRINGIFY(SRCDIR) "/ho_test.g";
+#ifdef MESHDIR
+static const char ho_file[] = STRINGIFY(MESHDIR) "/io/ho_test.g";
 #else
 static const char ho_file[] = "ho_test.g";
 #endif
