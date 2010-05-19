@@ -1,0 +1,11 @@
+Sample meshes to use with MOAB, in various formats.
+
+unittest: subdirectory containing mesh files used in various unit tests in 
+   MOAB.  Some may be interesting as sample meshes, some may be
+   particular to very specific tests and not otherwise very
+   interesting.
+
+unittest/io: meshes used to test the various readers/writers in MOAB.
+
+singlecyl.[cub,h5m]: right circular cylinder, 96 hexes, material set
+   100, neumann sets 100 ('side'), 200 ('bottom'), 300 ('top')
