@@ -1,0 +1,28 @@
+SUBDIRS = io
+
+EXTRA_DIST  = 125hex.g \
+              1hex.g \
+              1khex.g \
+              1tet.g \
+              3k-tri-cube.h5m \
+              3k-tri-sphere.vtk \
+              4k-tri-plane.vtk \
+              4tet.g \
+              8hex.g \
+              cell1.gen.gz \
+              cell2.gen.gz \
+              mb_big_test.g.gz \
+              mbtest1.g \
+              mbtest2.g \
+              mbtest3.g \
+              test.g \
+              testquad-cyl.g \
+              testquad.g \
+              testtet.g \
+	      ptest.cub \
+              64bricks_512hex.h5m 
+
+CLEANFILES = mb_big_test.g \
+             cell1.gen \
+             cell2.gen
+
