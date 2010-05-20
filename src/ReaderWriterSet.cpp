@@ -49,8 +49,8 @@
 #endif
 
 #ifdef CCMIO_FILE
-#  include "WriteCCMIO.hpp"
 #  include "ReadCCMIO.hpp"
+#  include "WriteCCMIO.hpp"
 #endif
 
 #ifdef HDF5_FILE

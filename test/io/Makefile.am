@@ -16,6 +16,12 @@ else
   EXODUS_TEST = 
 endif
 
+if CCMIO_FILE
+  CCMIO_TEST = ccmio_test
+else
+  CCMIO_TEST = 
+endif
+
 TESTS = tqdcfr \
         vtk_test \
         cub_file_test \
@@ -24,7 +30,8 @@ TESTS = tqdcfr \
 	nastran_test \
         ideas_test \
         stl_test \
-        smf_test
+        smf_test \
+	$(CCMIO_TEST)
 
 check_PROGRAMS = $(TESTS)
 
@@ -61,6 +68,9 @@ stl_test_DEPENDENCIES = $(LDADD)
 
 smf_test_SOURCES = $(srcdir)/../TestUtil.hpp smf_test.cc
 smf_test_DEPENDENCIES = $(LDADD)
+
+ccmio_test_SOURCES = $(srcdir)/../TestUtil.hpp ccmio_test.cpp
+ccmio_test_DEPENDENCIES = $(LDADD)
 
 MOSTLYCLEANFILES = dumped_acis.sat 
 
