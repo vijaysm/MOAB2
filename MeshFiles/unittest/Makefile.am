@@ -22,7 +22,3 @@ EXTRA_DIST  = 125hex.g \
 	      ptest.cub \
               64bricks_512hex.h5m 
 
-CLEANFILES = mb_big_test.g \
-             cell1.gen \
-             cell2.gen
-

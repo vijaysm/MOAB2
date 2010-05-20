@@ -60,9 +60,9 @@ MOSTLYCLEANFILES = mb_write.g \
 
 moab_test_SOURCES = MBTest.cpp
 moab_test_DEPENDENCIES = \
-	$(top_srcdir)/MeshFiles/unittest/mb_big_test.g \
-	$(top_srcdir)/MeshFiles/unittest/cell1.gen \
-	$(top_srcdir)/MeshFiles/unittest/cell2.gen \
+	mb_big_test.g \
+	cell1.gen \
+	cell2.gen \
 	$(LDADD)
 
 homxform_test_SOURCES = $(top_srcdir)/src/HomXform.cpp
@@ -131,15 +131,19 @@ mbcn_test_SOURCES = $(top_srcdir)/src/moab/CN.hpp \
 
 bsp_tree_poly_test_SOURCES = bsp_tree_poly_test.cpp
 
-$(MESHDIR)/mb_big_test.g: $(MESHDIR)/mb_big_test.g.gz
+mb_big_test.g: $(MESHDIR)/mb_big_test.g.gz
 	$(ZCAT) $< > $@
 
-$(MESHDIR)/cell1.gen: $(MESHDIR)/cell1.gen.gz
+cell1.gen: $(MESHDIR)/cell1.gen.gz
 	$(ZCAT) $< > $@
 
-$(MESHDIR)/cell2.gen: $(MESHDIR)/cell2.gen.gz
+cell2.gen: $(MESHDIR)/cell2.gen.gz
 	$(ZCAT) $< > $@
 
+
+CLEANFILES = mb_big_test.g \
+             cell1.gen \
+             cell2.gen
 
 # Utility target: build but don't run tests
 build-check:
