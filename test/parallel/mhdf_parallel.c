@@ -238,7 +238,7 @@ void write_file_data()
   assert( ntag == total_num_nodes + total_num_hexes + NUM_PROC );
   mhdf_writeSparseTagEntities( handles[0], offset, count, H5T_NATIVE_INT, list, &status );
   CHECK(status);
-  mhdf_writeSparseTagValues( handles[1], offset, count, H5T_NATIVE_INT, tagdata, &status );
+  mhdf_writeTagValues( handles[1], offset, count, H5T_NATIVE_INT, tagdata, &status );
   CHECK(status);
   mhdf_closeData( file, handles[0], &status );
   CHECK(status);

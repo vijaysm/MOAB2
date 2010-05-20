@@ -557,7 +557,20 @@ ErrorCode WriteHDF5Parallel::append_serial_tag_data(
   return MB_SUCCESS;
 }
    
- 
+
+static void set_bit( int position, unsigned char* bytes )
+{
+  int byte = position/8;
+  int bit = position%8;
+  bytes[byte] |= (((unsigned char)1)<<bit);
+}
+
+static bool get_bit( int position, const unsigned char* bytes )
+{
+  int byte = position/8;
+  int bit = position%8;
+  return 0 != (bytes[byte] & (((unsigned char)1)<<bit));
+}
 
 ErrorCode WriteHDF5Parallel::create_tag_tables()
 {  
@@ -683,6 +696,93 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
     diter += ptr->len();
   }
 
+
+  if (writeTagDense) {
+    // Figure out for which tag/element combinations we can
+    // write dense tag data.  
+    
+    // Construct a table of bits,
+    // where each row of the table corresponds to a tag
+    // and each column to an element group.
+    
+    // Two extra, because first is nodes and last is sets.
+    // (n+7)/8 is ceil(n/8)
+  const int bytes_per_tag = (exportList.size() + 9)/8;
+  std::vector<unsigned char> data(bytes_per_tag * tagList.size(), 0);
+  unsigned char* iter = &data[0];
+  for (tag_iter = tagList.begin(); tag_iter != tagList.end();
+       ++tag_iter, iter += bytes_per_tag) {
+       
+    int s;
+    if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_size( tag_iter->tag_id, s ))
+      continue;  
+       
+    std::string n;
+    iFace->tag_get_name( tag_iter->tag_id, n );  // second time we've called, so shouldnt fail
+
+    Range tagged;
+    rval = get_sparse_tagged_entities( *tag_iter, tagged );
+    if (MB_SUCCESS != rval)
+      return error(rval);
+
+    int i = 0;
+    if (!nodeSet.range.empty() && tagged.contains( nodeSet.range )) {
+      set_bit( i, iter );
+      dbgOut.printf( 2, "Can write dense data for \"%s\"/Nodes\n", n.c_str());
+    }
+    std::list<ExportSet>::const_iterator ex_iter = exportList.begin();
+    for (++i; ex_iter != exportList.end(); ++i, ++ex_iter) {
+      if (!ex_iter->range.empty() && tagged.contains( ex_iter->range )) {
+        set_bit( i, iter );
+        dbgOut.printf( 2, "Can write dense data for \"%s\"/%s\n", n.c_str(),
+          ex_iter->name());
+      }
+    }
+    if (!setSet.range.empty() && tagged.contains( setSet.range )) {
+      set_bit( i, iter );
+      dbgOut.printf( 2, "Can write dense data for \"%s\"/Sets\n", n.c_str());
+    }
+  }
+  
+    // Do bit-wise and of table with all processors
+  std::vector<unsigned char> recv( data.size(), 0 );
+  err = MPI_Allreduce( &data[0], &recv[0], data.size(), MPI_UNSIGNED_CHAR,
+                       MPI_BAND, myPcomm->proc_config().proc_comm() );
+  CHECK_MPI(err);
+  
+    // Record dense tag/element combinations
+  iter = &recv[0];
+  const unsigned char* iter2 = &data[0];
+  for (tag_iter = tagList.begin(); tag_iter != tagList.end();
+       ++tag_iter, iter += bytes_per_tag, iter2 += bytes_per_tag) {
+       
+    std::string n;
+    iFace->tag_get_name( tag_iter->tag_id, n );  // second time we've called, so shouldnt fail
+
+    int i = 0;
+    if (get_bit(i, iter)) {
+      assert(get_bit(i, iter2));
+      tag_iter->denseList.push_back(nodeSet);
+      dbgOut.printf( 2, "Will write dense data for \"%s\"/Nodes\n", n.c_str());
+    }
+    std::list<ExportSet>::const_iterator ex_iter = exportList.begin();
+    for (++i; ex_iter != exportList.end(); ++i, ++ex_iter) {
+      if (get_bit(i, iter)) {
+        assert(get_bit(i, iter2));
+        tag_iter->denseList.push_back(*ex_iter);
+        dbgOut.printf( 2, "WIll write dense data for \"%s\"/%s\n", n.c_str(),
+          ex_iter->name());
+      }
+    }
+    if (get_bit(i, iter)) {
+      assert(get_bit(i, iter2));
+      tag_iter->denseList.push_back(setSet);
+      dbgOut.printf( 2, "Will write dense data for \"%s\"/Sets\n", n.c_str());
+    }
+  }
+  } // endif (writeTagDense)
+
+
     // Create tag tables on root process
   if (0 == myPcomm->proc_config().proc_rank()) {
     tag_iter = tagList.begin();
@@ -691,7 +791,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
                   var_counts[i] ? var_counts[i] : counts[i], 
                   (unsigned long)tag_iter->tag_id );
 
-      rval = create_tag( tag_iter->tag_id, counts[i], var_counts[i] );
+      rval = create_tag( *tag_iter, counts[i], var_counts[i] );
       if (MB_SUCCESS != rval)
         return error(rval);
     }
@@ -735,7 +835,8 @@ ErrorCode WriteHDF5Parallel::create_node_table( int dimension )
     int total = 0;
     for (unsigned int i = 0; i < myPcomm->proc_config().proc_size(); i++)
       total += node_counts[i];
-      
+    
+    nodeSet.total_num_ents = total;
     hid_t handle = mhdf_createNodeCoords( filePtr, dimension, total, &first_id_and_max_count[0], &status );
     CHECK_HDF(status);
     mhdf_closeData( filePtr, handle, &status );
@@ -999,10 +1100,8 @@ ErrorCode WriteHDF5Parallel::create_element_tables()
     long* citer = &counts[numtypes * myPcomm->proc_config().proc_size()];
     for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
     {
-      rval = create_elem_tables( ex_iter->type,
-                                 ex_iter->num_nodes,
-                                 *citer,
-                                 *viter );
+      ex_iter->total_num_ents = *citer;
+      rval = create_elem_tables( *ex_iter, *viter );
       if (MB_SUCCESS != rval)
         return error(rval);
       ++citer;
@@ -1530,7 +1629,8 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
   long total_count_and_start_id[2] = { set_offsets[myPcomm->proc_config().proc_size()], 0 };
   if (myPcomm->proc_config().proc_rank() == 0 && total_count_and_start_id[0] > 0)
   {
-    rval = create_set_meta( (id_t)total_count_and_start_id[0], total_count_and_start_id[1] );
+    setSet.total_num_ents = total_count_and_start_id[0];
+    rval = create_set_meta( total_count_and_start_id[1] );
     if (MB_SUCCESS != rval)
       return error(rval);
   }
