@@ -348,6 +348,9 @@ public:
 
     //! check for internal consistency
   void sanity_check() const;
+  
+    //! Check if this range is a non-strict superset of some other range
+  bool contains( const Range& other ) const;
 
     //! return a subset of this range, by type
   Range subset_by_type(EntityType t) const;

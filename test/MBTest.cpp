@@ -5647,6 +5647,138 @@ ErrorCode mb_range_erase_test(Interface *MB)
   return MB_SUCCESS;
 }
 
+ErrorCode mb_range_contains_test(Interface *MB) 
+{
+  Range r1, r2;
+
+    // simple test cases: one range each
+    
+  r1.clear();
+  r2.clear();
+  r1.insert( 1, 20 );
+  r2.insert( 1, 21 );
+  CHECK( !r1.contains(r2) );
+  CHECK(  r2.contains(r1) );
+  
+  r1.clear();
+  r2.clear();
+  r1.insert( 2, 20 );
+  r2.insert( 1, 20 );
+  CHECK( !r1.contains(r2) );
+  CHECK(  r2.contains(r1) );
+  
+  r1.clear();
+  r2.clear();
+  r1.insert( 5 );
+  r2.insert( 1, 6 );
+  CHECK( !r1.contains(r2) );
+  CHECK(  r2.contains(r1) );
+  
+  r1.clear();
+  r2.clear();
+  r1.insert( 5 );
+  r2.insert( 6 );
+  CHECK( !r1.contains(r2) );
+  CHECK( !r2.contains(r1) );
+  
+  r1.clear();
+  r2.clear();
+  r1.insert( 18 );
+  r2.insert( 18 );
+  CHECK( r1.contains(r2) );
+  CHECK( r2.contains(r1) );
+  
+    // empty range test cases
+  
+  r1.clear();
+  r2.clear();
+  CHECK( r1.contains(r2) );
+  CHECK( r2.contains(r1) );
+
+  r1.clear();
+  r2.clear();
+  r1.insert( 18 );
+  CHECK(  r1.contains(r2) );
+  CHECK( !r2.contains(r1) );
+  
+    // slightly more complex tests: one range in one container
+    // and multiple in the other
+
+  r1.clear();
+  r1.insert( 10, 100 );
+  r2.clear();
+  r2.insert( 20, 30 );
+  r2.insert( 40, 50 );
+  CHECK(  r1.contains(r2) );
+  CHECK( !r2.contains(r1) );
+  
+  r2.insert( 10, 12 );
+  CHECK(  r1.contains(r2) );
+  CHECK( !r2.contains(r1) );
+
+  r2.insert( 90, 100 );  
+  CHECK(  r1.contains(r2) );
+  CHECK( !r2.contains(r1) );
+
+  r2.insert( 9 );  
+  CHECK( !r1.contains(r2) );
+  CHECK( !r2.contains(r1) );
+
+  r2.erase(9);
+  r2.insert( 101 );
+  CHECK( !r1.contains(r2) );
+  CHECK( !r2.contains(r1) );
+  
+  r2.erase( 101 );
+  r2.insert( 103, 110 );
+  CHECK( !r1.contains(r2) );
+  CHECK( !r2.contains(r1) );
+  
+  r2.insert( 1, 5 );
+  CHECK( !r1.contains(r2) );
+  CHECK( !r2.contains(r1) );
+  
+    // most complex case: both containers have several ranges
+
+  r1.clear();
+  r1.insert( 10, 30 );
+  r1.insert( 40, 50 );
+  r1.insert( 90, 100 );
+  r2.clear();
+  r2.insert( 20, 30 );
+  r2.insert( 40, 50 );
+  CHECK(  r1.contains(r2) );
+  CHECK( !r2.contains(r1) );
+  
+  r2.insert( 10, 12 );
+  CHECK(  r1.contains(r2) );
+  CHECK( !r2.contains(r1) );
+
+  r2.insert( 90, 100 );  
+  CHECK(  r1.contains(r2) );
+  CHECK( !r2.contains(r1) );
+
+  r2.insert( 9 );  
+  CHECK( !r1.contains(r2) );
+  CHECK( !r2.contains(r1) );
+
+  r2.erase(9);
+  r2.insert( 101 );
+  CHECK( !r1.contains(r2) );
+  CHECK( !r2.contains(r1) );
+  
+  r2.erase( 101 );
+  r2.insert( 103, 110 );
+  CHECK( !r1.contains(r2) );
+  CHECK( !r2.contains(r1) );
+  
+  r2.insert( 1, 5 );
+  CHECK( !r1.contains(r2) );
+  CHECK( !r2.contains(r1) );
+  
+  return MB_SUCCESS;
+}
+
 ErrorCode mb_topo_util_test(Interface *gMB) 
 {
   MeshTopoUtil mtu(gMB);
@@ -8596,6 +8728,7 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_poly_test );
   RUN_TEST( mb_range_test );
   RUN_TEST( mb_range_erase_test );
+  RUN_TEST( mb_range_contains_test );
   RUN_TEST( mb_topo_util_test );
   RUN_TEST( mb_split_test );
   RUN_TEST( mb_range_seq_intersect_test );

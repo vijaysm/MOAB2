@@ -1015,6 +1015,44 @@ unsigned long Range::get_memory_use() const
     result += sizeof(PairNode);
   return result;
 }
+
+bool Range::contains( const Range& othr ) const
+{
+  if (othr.empty())
+    return true;
+  if (empty())
+    return false;
+  
+    // neither range is empty, so both have valid pair nodes
+    // other than dummy mHead
+  const PairNode* this_node = mHead.mNext;
+  const PairNode* othr_node = othr.mHead.mNext;
+  for(;;) {
+      // Loop while the node in this list is entirely before
+      // the node in the other list.
+    while (this_node->second < othr_node->first) {
+      this_node = this_node->mNext;
+      if (this_node == &mHead)
+        return false;
+    }
+      // If other node is not entirely contained in this node
+      // then other list is not contained in this list
+    if (this_node->first > othr_node->first)
+      return false;
+      // Loop while other node is entirely contained in this node.
+    while (othr_node->second <= this_node->second) {
+      othr_node = othr_node->mNext;
+      if (othr_node == &othr.mHead)
+        return true;
+    }
+      // If other node overlapped end of this node
+    if (othr_node->first <= this_node->second)
+      return false;
+  }
+  
+    // should be unreachable
+  return false;
+}
   
 } // namespace moab
 
