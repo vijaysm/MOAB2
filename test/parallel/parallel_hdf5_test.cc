@@ -50,6 +50,8 @@ void test_read_sets();
 bool KeepTmpFiles = false;
 bool PauseOnStart = false;
 const int DefaultReadIntervals = 2;
+int ReadDebugLevel = 0;
+int WriteDebugLevel = 0;
 
 int main( int argc, char* argv[] )
 {
@@ -61,14 +63,26 @@ int main( int argc, char* argv[] )
       KeepTmpFiles = true;
     else if (!strcmp( argv[i], "-p"))
       PauseOnStart = true;
-    else if (!strcmp( argv[i], "-r")) {
+    else if (!strcmp( argv[i], "-R")) {
       ++i;
       CHECK( i < argc );
       ReadIntervals = atoi( argv[i] );
       CHECK( ReadIntervals > 0 );
     }
+    else if (!strcmp( argv[i], "-r")) {
+      ++i;
+      CHECK( i < argc );
+      ReadDebugLevel = atoi( argv[i] );
+      CHECK( ReadDebugLevel > 0 );
+    }
+    else if (!strcmp( argv[i], "-w")) {
+      ++i;
+      CHECK( i < argc );
+      WriteDebugLevel = atoi( argv[i] );
+      CHECK( WriteDebugLevel > 0 );
+    }
     else {
-      std::cerr << "Usage: " << argv[0] << " [-k] [-p] [-r <int>]" << std::endl;
+      std::cerr << "Usage: " << argv[0] << " [-k] [-p] [-R <intervals>] [-r <level>] [-w <level>]" << std::endl;
       return 1;
     }
   }
@@ -283,7 +297,15 @@ void save_and_load_on_root( Interface& moab, const char* tmp_filename )
   int procnum;
   MPI_Comm_rank( MPI_COMM_WORLD, &procnum );
   
-  rval = moab.write_file( tmp_filename, 0, "PARALLEL=WRITE_PART" );
+  const char* opt = "PARALLEL=WRITE_PART";
+  std::string str;
+  if (WriteDebugLevel) {
+    std::ostringstream s;
+    s << opt << ";DEBUG_IO=" << ReadDebugLevel;
+    str = s.str();
+    opt = str.c_str();
+  }
+  rval = moab.write_file( tmp_filename, 0, opt );
   if (MB_SUCCESS != rval) {
     std::cerr << "Parallel write filed on processor " << procnum << std::endl;
     if (procnum == 0 && !KeepTmpFiles)
@@ -560,7 +582,15 @@ void test_var_length_parallel()
   CHECK_ERR(rval);
   
   // Write file
-  rval = mb.write_file( filename, "MOAB", "PARALLEL=WRITE_PART" );
+  const char* opt = "PARALLEL=WRITE_PART";
+  std::string str;
+  if (WriteDebugLevel) {
+    std::ostringstream s;
+    s << opt << ";DEBUG_IO=" << ReadDebugLevel;
+    str = s.str();
+    opt = str.c_str();
+  }
+  rval = mb.write_file( filename, "MOAB", opt );
   CHECK_ERR(rval);
   
   // Read file.  We only reset and re-read the file on the
@@ -754,6 +784,13 @@ void test_read_elements_common( bool by_rank, int intervals, bool print_time )
   const char opt1[] = "PARALLEL=READ_PART;PARTITION=PARTITION";
   const char opt2[] = "PARALLEL=READ_PART;PARTITION=PARTITION;PARTITION_BY_RANK";
   const char* opt = numproc == 1 ? 0 : by_rank ? opt2 : opt1;
+  std::string str;
+  if (ReadDebugLevel) {
+    std::ostringstream s;
+    s << opt << ";DEBUG_IO=" << ReadDebugLevel;
+    str = s.str();
+    opt = str.c_str();
+  }
   rval = mb.load_file( file_name, 0, opt );
   MPI_Barrier(MPI_COMM_WORLD); // make sure all procs complete before removing file
   if (0 == rank && !KeepTmpFiles) remove( file_name );
@@ -822,7 +859,14 @@ void test_read_time()
   Interface &mb = moab;
   times[0] = MPI_Wtime();
   tmp_t    = clock();
-  const char opt[] = "PARALLEL=READ_PART;PARTITION=PARTITION;PARTITION_BY_RANK";
+  const char* opt = "PARALLEL=READ_PART;PARTITION=PARTITION;PARTITION_BY_RANK";
+  std::string str;
+  if (ReadDebugLevel) {
+    std::ostringstream s;
+    s << opt << ";DEBUG_IO=" << ReadDebugLevel;
+    str = s.str();
+    opt = str.c_str();
+  }
   rval = mb.load_file( file_name, 0, opt );
   CHECK_ERR(rval);
   times[0] = MPI_Wtime() - times[0];
@@ -888,6 +932,13 @@ void test_read_tags()
     // do parallel read unless only one processor
   const char opt1[] = "PARALLEL=READ_PART;PARTITION=PARTITION";
   const char* opt = numproc == 1 ? 0 : opt1;
+  std::string str;
+  if (ReadDebugLevel) {
+    std::ostringstream s;
+    s << opt << ";DEBUG_IO=" << ReadDebugLevel;
+    str = s.str();
+    opt = str.c_str();
+  }
   rval = mb.load_file( file_name, 0, opt );
   MPI_Barrier(MPI_COMM_WORLD); // make sure all procs complete before removing file
   if (0 == rank && !KeepTmpFiles) remove( file_name );
@@ -961,6 +1012,13 @@ void test_read_global_tags()
     // do parallel read unless only one processor
   const char opt1[] = "PARALLEL=READ_PART;PARTITION=PARTITION";
   const char* opt = numproc == 1 ? 0 : opt1;
+  std::string str;
+  if (ReadDebugLevel) {
+    std::ostringstream s;
+    s << opt << ";DEBUG_IO=" << ReadDebugLevel;
+    str = s.str();
+    opt = str.c_str();
+  }
   rval = mb.load_file( file_name, 0, opt );
   MPI_Barrier(MPI_COMM_WORLD); // make sure all procs complete before removing file
   if (0 == rank && !KeepTmpFiles) remove( file_name );
@@ -1013,6 +1071,13 @@ void test_read_sets()
     // do parallel read unless only one processor
   const char opt1[] = "PARALLEL=READ_PART;PARTITION=PARTITION";
   const char* opt = numproc == 1 ? 0 : opt1;
+  std::string str;
+  if (ReadDebugLevel) {
+    std::ostringstream s;
+    s << opt << ";DEBUG_IO=" << ReadDebugLevel;
+    str = s.str();
+    opt = str.c_str();
+  }
   rval = mb.load_file( file_name, 0, opt );
   MPI_Barrier(MPI_COMM_WORLD); // make sure all procs complete before removing file
   if (0 == rank && !KeepTmpFiles) remove( file_name );
