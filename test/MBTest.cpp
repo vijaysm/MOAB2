@@ -642,8 +642,10 @@ ErrorCode mb_tet_connectivity_test(Interface *MB)
 
   return MB_SUCCESS;
 }
-ErrorCode mb_temporary_test( Interface *gMB )
+ErrorCode mb_temporary_test( Interface * )
 {
+  Core moab;
+  Interface* gMB = &moab;
 
   double array[3] = {0.0, 0.0, 0.0};
   EntityHandle h_node1;
@@ -892,10 +894,10 @@ ErrorCode mb_adjacencies_test(Interface *mb)
 
 }
   
-ErrorCode mb_adjacencies_create_delete_test(Interface *mb) 
+ErrorCode mb_adjacencies_create_delete_test(Interface *) 
 {
   Core moab;
-  mb = &moab;
+  Interface* mb = &moab;
   ErrorCode rval;
 
   double coords[] = { 0, 0, 0, 2, 0, 0, 1, 2, 0 };
@@ -1066,11 +1068,11 @@ static ErrorCode create_two_hex_full_mesh( Interface* mb,
 }
 
 
-ErrorCode mb_upward_adjacencies_test(Interface *mb) 
+ErrorCode mb_upward_adjacencies_test(Interface *) 
 {
   ErrorCode rval;
   Core moab;
-  mb = &moab;
+  Interface* mb = &moab;
   
   // create a simple mesh containing 2 hexes
   EntityHandle vertices[12], hexes[2], hex1_faces[6], hex2_faces[6], hex1_edges[12], hex2_edges[12];
@@ -1713,8 +1715,11 @@ static bool compare_lists( std::vector<EntityHandle> vect,
 }
 
     //Test parent/child stuff in meshsets
-ErrorCode mb_mesh_set_parent_child_test(Interface *MB)
+ErrorCode mb_mesh_set_parent_child_test(Interface *)
 {
+  Core moab;
+  Interface *MB = &moab;
+
   ErrorCode rval;
   std::vector<EntityHandle> list;
   Range range;
@@ -2459,7 +2464,11 @@ ErrorCode mb_mesh_set_list_replace_test( Interface*  )
   unordered MB-> ordered
   ordered   MB-> unordered
 */
-ErrorCode mb_mesh_set_flag_test(Interface *mb) {
+ErrorCode mb_mesh_set_flag_test(Interface *) 
+{
+  Core moab;
+  Interface* mb = &moab;
+
   ErrorCode rval;
     // create 10 vertices to put in set
   Range verts;
@@ -2644,8 +2653,10 @@ ErrorCode mb_delete_mesh_test(Interface *gMB)
 }
 
 
-ErrorCode mb_meshset_tracking_test( Interface *MB )
+ErrorCode mb_meshset_tracking_test( Interface * )
 {
+  Core moab;
+  Interface* MB = &moab;
 
     //read in a file so you have some data in the database
   std::string file_name = TestDir + "/mbtest1.g";
@@ -3240,8 +3251,11 @@ ErrorCode mb_write_mesh_test(Interface *MB)
 }
 
 
-ErrorCode mb_higher_order_test(Interface *MB)
+ErrorCode mb_higher_order_test(Interface *)
 {
+  Core moab;
+  Interface *MB = &moab;
+
   double nodes_array [7][3];
 
   nodes_array[0][0] = 0;
@@ -3821,11 +3835,11 @@ private:
   double mOffset[3];
 };
 
-ErrorCode mb_entity_conversion_test(Interface *MB)
+ErrorCode mb_entity_conversion_test(Interface *)
 {
-  ErrorCode error = MB->delete_mesh();
-  if (error != MB_SUCCESS)
-    return error;
+  ErrorCode error;
+  Core moab;
+  Interface* MB = &moab;
 
     //read in a file so you have some data in the database
   std::string file_name = TestDir + "/mbtest3.g";
@@ -4152,12 +4166,12 @@ ErrorCode mb_entity_conversion_test(Interface *MB)
 //! and only get 4 (not 5) edges.
 //!
 
-ErrorCode mb_forced_adjacencies_test(Interface *MB)
+ErrorCode mb_forced_adjacencies_test(Interface *)
 {
     //! first clean up any existing mesh.
-  ErrorCode error = MB->delete_mesh();
-  if (error != MB_SUCCESS)
-    return error;
+  ErrorCode error;
+  Core moab;
+  Interface* MB = &moab;
 
 
     //! create 6 nodes, 2 quads and 8 edges.  Edge 4 is adjacent
@@ -4595,9 +4609,11 @@ ErrorCode find_coincident_elements(Interface* gMB, Range entities, int num_nodes
 }
 
 
-ErrorCode mb_merge_test(Interface *MB)
+ErrorCode mb_merge_test(Interface *)
 { 
-  MB->delete_mesh();
+  Core moab;
+  Interface* MB = &moab;
+  
   time_t begin_time = clock();
   unsigned int i;
   ErrorCode result;
@@ -4832,12 +4848,11 @@ ErrorCode mb_merge_update_test(Interface*)
   return MB_SUCCESS;
 }
 
-ErrorCode mb_stress_test(Interface *MB)
+ErrorCode mb_stress_test(Interface *)
 {
-    // delete the existing mesh
-  ErrorCode error = MB->delete_mesh();
-  if (error != MB_SUCCESS)
-    return error;
+  ErrorCode error;
+  Core moab;
+  Interface* MB = &moab;
 
   cout << "    Beginning Stress Test . . ." << endl;
   cout << "\n        Reading elements" << endl;
@@ -4975,8 +4990,11 @@ ErrorCode mb_stress_test(Interface *MB)
   return MB_SUCCESS;
 }
 
-ErrorCode mb_canon_number_test(Interface *MB) 
+ErrorCode mb_canon_number_test(Interface *) 
 {
+  Core moab;
+  Interface* MB = &moab;
+
     // various tests for canonical ordering
 
     // CN::AdjacentSubEntities
@@ -5111,8 +5129,11 @@ ErrorCode mb_canon_number_test(Interface *MB)
   return MB_SUCCESS;
 }
 
-ErrorCode mb_poly_test(Interface *mb) 
+ErrorCode mb_poly_test(Interface *) 
 {
+  Core moab;
+  Interface* mb = &moab;
+
     // test polygon and polyhedron representation
     // create a couple of polygons; vertices first
   const double vert_pos[48] = {
@@ -5261,7 +5282,7 @@ ErrorCode mb_poly_test(Interface *mb)
   return MB_SUCCESS;
 }
 
-ErrorCode mb_range_test(Interface *MB) 
+ErrorCode mb_range_test(Interface *) 
 {
 
   Range r1, r2, rhs;
@@ -5482,7 +5503,7 @@ ErrorCode mb_range_test(Interface *MB)
   return result;
 }
 
-ErrorCode mb_range_erase_test(Interface *MB) 
+ErrorCode mb_range_erase_test(Interface *) 
 {
   Range range;
   Range::iterator result;
@@ -5647,7 +5668,7 @@ ErrorCode mb_range_erase_test(Interface *MB)
   return MB_SUCCESS;
 }
 
-ErrorCode mb_range_contains_test(Interface *MB) 
+ErrorCode mb_range_contains_test(Interface *) 
 {
   Range r1, r2;
 
@@ -5779,8 +5800,10 @@ ErrorCode mb_range_contains_test(Interface *MB)
   return MB_SUCCESS;
 }
 
-ErrorCode mb_topo_util_test(Interface *gMB) 
+ErrorCode mb_topo_util_test(Interface *) 
 {
+  Core moab;
+  Interface* gMB = &moab;
   MeshTopoUtil mtu(gMB);
 
     // construct a four-hex mesh for testing purposes
@@ -5895,8 +5918,10 @@ ErrorCode mb_topo_util_test(Interface *gMB)
   return MB_SUCCESS;
 }
 
-ErrorCode mb_split_test(Interface *gMB) 
+ErrorCode mb_split_test(Interface *) 
 {
+  Core moab;
+  Interface* gMB = &moab;
   MeshTopoUtil mtu(gMB);
 
     // construct a four-hex mesh for testing purposes
@@ -6975,8 +7000,11 @@ ErrorCode mb_skin_volume_test_common( bool use_adj )
 // so we can test all the readers w/out knowing which
 // readers we have.
 const char* argv0 = 0;
-ErrorCode mb_read_fail_test(Interface* mb)
+ErrorCode mb_read_fail_test(Interface* )
 {
+  Core moab;
+  Interface* mb = &moab;
+
   const char BAD_FILE_NAME[] = "non-existant-file.txt";
   ErrorCode rval;
   
@@ -7010,8 +7038,11 @@ ErrorCode mb_read_fail_test(Interface* mb)
     return MB_FAILURE; \
   } 
 
-ErrorCode mb_enum_string_test( Interface* mb )
+ErrorCode mb_enum_string_test( Interface* )
 {
+  Core moab;
+  Interface* mb = &moab;
+
   TEST_ERROR_CODE( MB_SUCCESS );
   TEST_ERROR_CODE( MB_INDEX_OUT_OF_RANGE );
   TEST_ERROR_CODE( MB_TYPE_OUT_OF_RANGE );
@@ -8525,9 +8556,11 @@ ErrorCode mb_type_is_maxtype_test( Interface* mb )
 
 /** Test behavior of various functions when passed the root set
  */
-ErrorCode mb_root_set_test( Interface* mb )
+ErrorCode mb_root_set_test( Interface* )
 {
   ErrorCode rval;
+  Core moab;
+  Interface* mb = &moab;
   EntityHandle rs = mb->get_root_set();
   
     // expect root set to have zero handle
@@ -8537,14 +8570,12 @@ ErrorCode mb_root_set_test( Interface* mb )
   EntityType type = mb->type_from_handle( rs );
   CHECK( MBENTITYSET == type );
   
-    // Check dimension.
-    // Use an existing set to determine the expected
-    // result of this function, rather than hard-coding it.
-  Range sets;
-  rval = mb->get_entities_by_type( 0, MBENTITYSET, sets );
+    // Create a set to test with
+  EntityHandle some_set;
+  rval = mb->create_meshset( MESHSET_SET, some_set );
   CHKERR( rval );
-  CHECK(!sets.empty());
-  EntityHandle some_set = sets.front();
+  Range sets;
+  sets.insert( some_set );
   
   int exp_dim = mb->dimension_from_handle( some_set );
   int dim = mb->dimension_from_handle( rs );
