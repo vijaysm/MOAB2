@@ -5,7 +5,7 @@ AUTOMAKE_OPTIONS = foreign
 ACLOCAL_AMFLAGS = -I config
 
 # Subdirectories to build
-SUBDIRS = src test $(itaps_dir) tools doc examples
+SUBDIRS = src MeshFiles test $(itaps_dir) tools doc examples
 
 if ENABLE_igeom
   itaps_dir_igeom = itaps
