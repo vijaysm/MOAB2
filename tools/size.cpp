@@ -408,7 +408,7 @@ void print_stats( set_stats& stats )
 }
 
 const char* geom_type_names[] = { "Vertex", "Curve", "Surface", "Volume" } ;
-const char* mesh_type_names[] = { "Nodeset", "Sideset", "Block" };
+const char* mesh_type_names[] = { "Dirichlet Set", "Neumann Set", "Material Set" };
 const char* mesh_type_tags[] = { DIRICHLET_SET_TAG_NAME, NEUMANN_SET_TAG_NAME, MATERIAL_SET_TAG_NAME };
 
 int main( int argc, char* argv[] )
