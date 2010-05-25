@@ -3102,7 +3102,7 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
     result = this->tag_get_data_type(*vit, this_data_type);
     int this_size;
     result = this->tag_get_size(*vit, this_size);
-    if (MB_SUCCESS != result || (int) sizeof(double) < this_size) continue;
+    if (MB_SUCCESS != result) continue;
       // use double since this is largest single-valued tag
     double dbl_val;
     int int_val;
@@ -3114,20 +3114,35 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
       case MB_TYPE_INTEGER:
         result = this->tag_get_data(*vit, &ms_handle, 1, &int_val);
         if (MB_SUCCESS != result) continue;
-        std::cout << indent_prefix << tag_name << " = " << int_val << std::endl;
+        std::cout << indent_prefix << tag_name << " = " << int_val;
+        if ((int)sizeof(int) < this_size) std::cout << " (mult values)";
+        std::cout << std::endl;
         break;
       case MB_TYPE_DOUBLE:
         result = this->tag_get_data(*vit, &ms_handle, 1, &dbl_val);
         if (MB_SUCCESS != result) continue;
-        std::cout << indent_prefix << tag_name << " = " << dbl_val << std::endl;
+        std::cout << indent_prefix << tag_name << " = " << dbl_val ;
+        if ((int)sizeof(double) < this_size) std::cout << " (mult values)";
+        std::cout << std::endl;
         break;
       case MB_TYPE_HANDLE:
         result = this->tag_get_data(*vit, &ms_handle, 1, &hdl_val);
         if (MB_SUCCESS != result) continue;
-        std::cout << indent_prefix << tag_name << " = " << hdl_val << std::endl;
+        std::cout << indent_prefix << tag_name << " = " << hdl_val ;
+        if ((int)sizeof(EntityHandle) < this_size) std::cout << " (mult values)";
+        std::cout << std::endl;
+        break;
+      case MB_TYPE_OPAQUE:
+        if (NAME_TAG_SIZE == this_size) {
+          char dum_tag[NAME_TAG_SIZE];
+          result = this->tag_get_data(*vit, &ms_handle, 1, &dum_tag);
+          if (MB_SUCCESS != result) continue;
+            // insert NULL just in case there isn't one
+          dum_tag[NAME_TAG_SIZE-1] = '\0';
+          std::cout << indent_prefix << tag_name << " = " << dum_tag << std::endl;
+        }
         break;
       case MB_TYPE_BIT:
-      case MB_TYPE_OPAQUE:
         break;
     }
   }
