@@ -187,9 +187,9 @@ ErrorCode WriteUtil::get_node_coords(
       if (output_iter + 3*count > output_end)
         return MB_FAILURE;
       for (unsigned int i = 0; i < count; i++) {
-        *output_iter = coord_array[0][i]; output_iter++;
-        *output_iter = coord_array[1][i]; output_iter++;
-        *output_iter = coord_array[2][i]; output_iter++;
+        *output_iter = coord_array[0][i+offset]; output_iter++;
+        *output_iter = coord_array[1][i+offset]; output_iter++;
+        *output_iter = coord_array[2][i+offset]; output_iter++;
       }
     }
     
