@@ -70,7 +70,7 @@ void create_file()
   mhdf_writeHistory( file, history, history_size, &status );
   CHECK(status);
   
-  data = mhdf_createNodeCoords( file, 3, num_nodes, &junk, 1, &status );
+  data = mhdf_createNodeCoords( file, 3, num_nodes, &junk, 0, &status );
   CHECK(status);
   mhdf_closeData( file, data, &status );
   CHECK(status);
