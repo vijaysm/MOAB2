@@ -146,9 +146,14 @@ ErrorCode gather_set_stats( EntityHandle set, set_stats& stats )
     {
       rval = mb.get_connectivity( &*i, 1, conn, true );
       if (MB_SUCCESS != rval) return rval;
+      if (type == MBPOLYHEDRON) {
+        std::vector<EntityHandle> dum_conn(conn);
+        conn.clear();
+        rval = mb.get_adjacencies(&dum_conn[0], dum_conn.size(), 0, false, conn, Interface::UNION);
+        if (MB_SUCCESS != rval) return rval;
+      }
       coords.resize( 3*conn.size() );
       rval = mb.get_coords( &conn[0], conn.size(), &coords[0] );
-      if (MB_SUCCESS != rval) return rval;
       stats.stats[type].add( measure( type, conn.size(), &coords[0] ) );
       
       if (type != MBEDGE)
