@@ -15,7 +15,7 @@ AC_CHECK_PROG( [SED], [sed], [sed], [true] )
 #                           Compilers
 ################################################################################
 
-AC_ARG_ENABLE([fortran],[AC_HELP_STRING([disable-fortran],
+AC_ARG_ENABLE([fortran],[AC_HELP_STRING([--disable-fortran],
   [No Fortran name mangling in ITAPS/MBCN C headers])],
   [ENABLE_FORTRAN=$enableval],[ENABLE_FORTRAN=yes])
 
