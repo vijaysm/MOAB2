@@ -5873,25 +5873,14 @@ ErrorCode ParallelComm::get_sharing_parts( EntityHandle entity,
 ErrorCode ParallelComm::pack_shared_handles(
     std::vector<std::vector<SharedEntityData> > &send_data) 
 {
-    // get all shared entities
-  Range all_shared, dum_range;
-  ErrorCode rval = mbImpl->get_entities_by_handle(0, all_shared);
-  if (MB_SUCCESS != rval)
-    return rval;
-  rval = get_pstatus_entities(-1, 0, dum_range);
-  if (MB_SUCCESS != rval)
-    return rval;
-  all_shared = subtract( all_shared, dum_range);
-  all_shared.erase(all_shared.upper_bound(MBPOLYHEDRON), all_shared.end());
-  assert(sharedEnts == all_shared);
-
     // build up send buffers
+  ErrorCode rval = MB_SUCCESS;
   int ent_procs[MAX_SHARING_PROCS];
   EntityHandle handles[MAX_SHARING_PROCS];
   int num_sharing, tmp_int;
   SharedEntityData tmp;
   send_data.resize(buffProcs.size());
-  for (Range::iterator i = all_shared.begin(); i != all_shared.end(); ++i) {
+  for (Range::iterator i = sharedEnts.begin(); i != sharedEnts.end(); ++i) {
     tmp.remote = *i; // swap local/remote so they're correct on the remote proc.
     rval = get_owner( *i, tmp_int );
     tmp.owner = tmp_int;
