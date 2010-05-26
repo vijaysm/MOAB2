@@ -837,7 +837,7 @@ ErrorCode WriteHDF5Parallel::create_node_table( int dimension )
       total += node_counts[i];
     
     nodeSet.total_num_ents = total;
-    hid_t handle = mhdf_createNodeCoords( filePtr, dimension, total, &first_id_and_max_count[0], chunkNodes, &status );
+    hid_t handle = mhdf_createNodeCoords( filePtr, dimension, total, &first_id_and_max_count[0], &status );
     CHECK_HDF(status);
     mhdf_closeData( filePtr, handle, &status );
     
