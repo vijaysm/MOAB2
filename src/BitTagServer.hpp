@@ -64,6 +64,18 @@ public:
                         const unsigned char* data, 
                         const unsigned char* default_value );
 
+    /**\brief Set tag value for an array of entity handles */
+  ErrorCode set_bits( TagId tag_id, 
+                      const EntityHandle* handles, 
+                      int num_handles,
+                      unsigned char value, 
+                      const unsigned char* default_value );
+    /**\brief Set tag value for a range of entity handles */
+  ErrorCode set_bits( TagId tag_id, 
+                      const Range& handles, 
+                      unsigned char value, 
+                      const unsigned char* default_value );
+
     /**\brief Clear tag values for an array of entity handles */
   ErrorCode clear_bits( TagId tag_id, 
                           const EntityHandle* handles, 
@@ -169,6 +181,16 @@ class BitTag
   ErrorCode set_bits( const Range& handles, 
                         const unsigned char* data, 
                         const unsigned char* default_value );
+
+    /**\brief Set tag value for an array of entity handles */
+  ErrorCode set_bits( const EntityHandle* handles, 
+                      int num_handles,
+                      unsigned char bits, 
+                      const unsigned char* default_value );
+    /**\brief Set tag value for a range of entity handles */
+  ErrorCode set_bits( const Range& handles, 
+                      unsigned char bits, 
+                      const unsigned char* default_value );
 
     /**\brief Clear tag values for an array of entity handles */
   ErrorCode clear_bits( const EntityHandle* handles, 
@@ -492,6 +514,30 @@ BitTagServer::set_bits( TagId tag_id,
 {
   if (BitTag* ptr = get_tag(tag_id))
     return ptr->set_bits( handles, data, default_value );
+  else
+    return MB_TAG_NOT_FOUND;
+}
+
+inline ErrorCode 
+BitTagServer::set_bits( TagId tag_id, 
+                        const EntityHandle* handles, 
+                        int num_handles,
+                        unsigned char bits, 
+                        const unsigned char* default_value )
+{
+  if (BitTag* ptr = get_tag(tag_id))
+    return ptr->set_bits( handles, num_handles, bits, default_value );
+  else
+    return MB_TAG_NOT_FOUND;
+}
+inline ErrorCode 
+BitTagServer::set_bits( TagId tag_id, 
+                        const Range& handles, 
+                        unsigned char bits, 
+                        const unsigned char* default_value )
+{
+  if (BitTag* ptr = get_tag(tag_id))
+    return ptr->set_bits( handles, bits, default_value );
   else
     return MB_TAG_NOT_FOUND;
 }

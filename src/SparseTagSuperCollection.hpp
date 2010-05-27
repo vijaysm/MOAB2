@@ -88,12 +88,15 @@ public:
      *\param num_handles Length of 'handles' array.
      *\param values      Array of pointers to tag values, one pointer for each handle
      *\param lengths     Length of each tag value.  Ignored for fixed-length tags.
+     *\param one_value   If true, tag on all entities is set to the (same)
+     *                   first passed tag value.
      */
   ErrorCode set_data( TagId tag_handle,
                         const EntityHandle* handles,
                         int num_handles,
                         void const* const* data_pointers,
-                        const int* lengths = 0 );
+                        const int* lengths = 0,
+                        bool one_value = false );
 
     /** Set fixed-length tag value for an Range of entities
      *\NOTE Will fail for variable-length tag data
@@ -111,11 +114,14 @@ public:
      *\param lengths An array of integers, one per entity, indicating the
      *               length of the tag value for each entity.  Ingored
      *               for fixed-length tags.
+     *\param one_value   If true, tag on all entities is set to the (same)
+     *                   first passed tag value.
      */
   ErrorCode set_data( TagId tag_handle,
                         const Range& handles,
                         void const* const* data_pointers,
-                        const int* lengths = 0 );
+                        const int* lengths = 0,
+                        bool one_value = false );
   
     /** Get fixed-length tag values for array of entities
      *\NOTE Will fail with MB_VARIABLE_DATA_LENGTH if called

@@ -147,6 +147,26 @@ ErrorCode BitTag::set_bits( const EntityHandle* handles,
   return MB_SUCCESS;
 }
 
+ErrorCode BitTag::set_bits( const EntityHandle* handles, 
+                            int num_handles, 
+                            unsigned char value,
+                            const unsigned char* default_value )
+{
+  EntityType type;
+  size_t page;
+  int offset;
+  for (int i = 0; i < num_handles; ++i) {
+    unpack( handles[i], type, page, offset );
+    if (pageList[type].size() <= page)
+      pageList[type].resize(page+1, 0);
+    if (!pageList[type][page])
+      pageList[type][page] = new BitPage( storedBitsPerEntity, 
+                              default_value ? *default_value : 0 );
+    pageList[type][page]->set_bits( offset, storedBitsPerEntity, value );
+  }
+  return MB_SUCCESS;
+}
+
 ErrorCode BitTag::clear_bits( const EntityHandle* handles, 
                                 int num_handles, 
                                 const unsigned char* default_value )
@@ -222,6 +242,37 @@ ErrorCode BitTag::set_bits( const Range& handles,
       size_t pcount = std::min( (EntityID)(per_page - offset), count );
       pageList[type][page]->set_bits( offset, pcount, storedBitsPerEntity, data );
       data += pcount;
+      count -= pcount; 
+      offset = 0;
+      ++page;
+    }
+  }
+  return MB_SUCCESS;
+}
+
+ErrorCode BitTag::set_bits( const Range& handles, 
+                            unsigned char value, 
+                            const unsigned char* default_value )
+{
+  EntityType type;
+  EntityID count;
+  size_t page;
+  int offset, per_page = ents_per_page();
+  unsigned char def = default_value ? *default_value : 0;
+  Range::const_pair_iterator i;
+  for (i = handles.const_pair_begin(); i != handles.const_pair_end(); ++i) {
+    unpack( i->first, type, page, offset );
+    assert(TYPE_FROM_HANDLE(i->second) == type); // should be true because id of zero is never used
+    count = i->second - i->first + 1;
+    
+    while (count) {
+      if (page >= pageList[type].size())
+        pageList[type].resize( page+1, 0 );
+      if (!pageList[type][page])
+        pageList[type][page] = new BitPage( storedBitsPerEntity, def );
+
+      size_t pcount = std::min( (EntityID)(per_page - offset), count );
+      pageList[type][page]->set_bits( offset, pcount, storedBitsPerEntity, value );
       count -= pcount; 
       offset = 0;
       ++page;

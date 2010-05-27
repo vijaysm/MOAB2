@@ -1826,6 +1826,28 @@ ErrorCode  Core::tag_set_data( const Tag tag_handle,
   return tagServer->set_data(tag_handle, entity_handles, tag_data, tag_sizes);
 }
 
+//! set the data  for given EntityHandles and Tag
+ErrorCode  Core::tag_clear_data( const Tag tag_handle, 
+                                 const EntityHandle* entity_handles, 
+                                 const int num_entities,
+                                 const void* tag_data,
+                                 int tag_size )
+{
+  if (NULL == entity_handles && 0 == num_entities)
+    return tagServer->set_mesh_data(tag_handle, tag_data, tag_size);
+
+  return tagServer->clear_data(tag_handle, entity_handles, num_entities, tag_data, tag_size);
+}
+
+//! set the data  for given EntityHandles and Tag
+ErrorCode  Core::tag_clear_data( const Tag tag_handle, 
+                                 const Range& entity_handles, 
+                                 const void* tag_data,
+                                 int tag_size )
+{
+  return tagServer->clear_data(tag_handle, entity_handles, tag_data, tag_size);
+}
+
 //! adds a sparse tag for this specific EntityHandle/tag_name combination
 ErrorCode Core::tag_create(const char *tag_name,
                                  const int tag_size, 

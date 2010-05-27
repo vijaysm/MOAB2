@@ -282,13 +282,16 @@ class SequenceManager
        *\param lengths     Length of each tag value.  Ignored for fixed-length tags.
        *\param default_value Used to initialize any additional tag storage.  Ignored
        *                   for variable-length tags.
+       *\param one_value   If true, tag on all entities is set to the (same)
+       *                   first passed tag value.
        */
     ErrorCode set_tag_data( TagId tag_id,
                               const EntityHandle* handles,
                               int num_handles,
                               void const* const* values,
                               const int* lengths,
-                              const void* default_value );
+                              const void* default_value,
+                              bool one_value = false );
                               
       /** Set fixed-length tag value for an Range of entities
        *\NOTE Default value must be given because it is often
@@ -311,12 +314,15 @@ class SequenceManager
        *               for fixed-length tags.
        *\param default_value The default value for the tag.  Ignored for
        *               variable-length tags.
+       *\param one_value   If true, tag on all entities is set to the (same)
+       *                   first passed tag value.
        */
      ErrorCode set_tag_data( TagId tag_id,
                                const Range& handles,
                                void const* const* values,
                                const int* lengths,
-                               const void* default_value );
+                               const void* default_value,
+                               bool one_value = false );
 
       /** Get fixed-length tag values for array of entities
        *\NOTE Will fail with MB_VARIABLE_DATA_LENGTH if called
@@ -438,7 +444,7 @@ class SequenceManager
                                   EntityID default_size ) const;
     
   private:
-  
+   
     /**\brief Utility function for allocate_mesh_set (and similar)
      *
      * Given a block of available handles, determine the non-strict

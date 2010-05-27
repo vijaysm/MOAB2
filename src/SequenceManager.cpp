@@ -980,16 +980,18 @@ ErrorCode SequenceManager::set_tag_data( TagId tag_id,
                                            int num_handles,
                                            void const* const* values,
                                            const int* lengths,
-                                           const void* default_value )
+                                           const void* default_value,
+                                           bool one_value )
 {
   ErrorCode result = MB_SUCCESS;
   const EntityHandle* const end = handles + num_handles;
+  const bool step = !one_value;
   
   if (tagSizes[tag_id] == MB_VARIABLE_LENGTH) {
     if (!lengths)
       return MB_VARIABLE_DATA_LENGTH;
     
-    for (const EntityHandle* i = handles; i != end; ++i, ++values, ++lengths ) {
+    for (const EntityHandle* i = handles; i != end; ++i, values += step, lengths += step ) {
         // find sequence for entity
       EntitySequence* seq = 0;
       ErrorCode rval = find( *i, seq );
@@ -1003,7 +1005,7 @@ ErrorCode SequenceManager::set_tag_data( TagId tag_id,
     }
   }
   else {
-    for (const EntityHandle* i = handles; i != end; ++i, ++values ) {
+    for (const EntityHandle* i = handles; i != end; ++i, values += step ) {
         // find sequence for entity
       EntitySequence* seq = 0;
       ErrorCode rval = find( *i, seq );
@@ -1077,7 +1079,8 @@ ErrorCode SequenceManager::set_tag_data( TagId tag_id,
                                            const Range& handles,
                                            void const* const* values,
                                            const int* lengths,
-                                           const void* default_value )
+                                           const void* default_value,
+                                           bool one_value )
 {
   ErrorCode rval, result = MB_SUCCESS;
   if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
@@ -1097,6 +1100,7 @@ ErrorCode SequenceManager::set_tag_data( TagId tag_id,
     default_value = NULL;
   }
 
+  const bool step = !one_value;
 
   Range::const_pair_iterator p = handles.begin();
   for (Range::const_pair_iterator p = handles.const_pair_begin(); 
@@ -1110,9 +1114,9 @@ ErrorCode SequenceManager::set_tag_data( TagId tag_id,
       if (MB_SUCCESS != rval) {
         result = rval;
         ++start;
-        ++values;
+        values += step;
         if (lengths)
-          ++lengths;
+          lengths += step;
         continue;
       }
       
@@ -1130,8 +1134,8 @@ ErrorCode SequenceManager::set_tag_data( TagId tag_id,
         while (tag_data != end_data) {
           tag_data->set( *values, *lengths );
           ++tag_data;
-          ++values;
-          ++lengths;
+          values += step;
+          lengths += step;
         }
       }
       else {
@@ -1141,7 +1145,7 @@ ErrorCode SequenceManager::set_tag_data( TagId tag_id,
         while (tag_data != end_data) {
           memcpy( tag_data, *values, alloc_size );
           tag_data += alloc_size;
-          ++values;
+          values += step;
         }
       }
     

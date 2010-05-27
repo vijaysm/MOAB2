@@ -120,21 +120,23 @@ ErrorCode SparseTagSuperCollection::set_data( TagId tag_handle,
 }
 
 ErrorCode SparseTagSuperCollection::set_data( TagId tag_handle,
-                                                const EntityHandle* handles,
-                                                int num_handles,
-                                                void const* const* data_ptrs,
-                                                const int* lengths )
+                                              const EntityHandle* handles,
+                                              int num_handles,
+                                              void const* const* data_ptrs,
+                                              const int* lengths,
+                                              bool one_value )
 {
   SparseTagCollection* coll = get_collection(tag_handle);
   if (!coll)
     return MB_TAG_NOT_FOUND;
-    
+  
+  const bool step = !one_value;
   const int length = coll->tag_size();
   int length_step;
   if (length == MB_VARIABLE_LENGTH) {
     if (!lengths)
       return MB_VARIABLE_DATA_LENGTH;
-    length_step = 1;
+    length_step = step;
   }
   else {
     lengths = &length;
@@ -144,7 +146,7 @@ ErrorCode SparseTagSuperCollection::set_data( TagId tag_handle,
   ErrorCode rval, result = MB_SUCCESS;
   const EntityHandle *const end = handles + num_handles;
   void const* const* ptr = data_ptrs;
-  for (const EntityHandle* i = handles; i != end; ++i, ++ptr, lengths += length_step) {
+  for (const EntityHandle* i = handles; i != end; ++i, ptr += step, lengths += length_step) {
     rval = coll->set_data( *i, *ptr, *lengths );
     if (MB_SUCCESS != rval)
       result = rval;
@@ -178,20 +180,22 @@ ErrorCode SparseTagSuperCollection::set_data( TagId tag_handle,
 }
 
 ErrorCode SparseTagSuperCollection::set_data( TagId tag_handle,
-                                                const Range& handles,
-                                                void const* const* data_ptrs,
-                                                const int* lengths )
+                                              const Range& handles,
+                                              void const* const* data_ptrs,
+                                              const int* lengths,
+                                              bool one_value )
 {
   SparseTagCollection* coll = get_collection(tag_handle);
   if (!coll)
     return MB_TAG_NOT_FOUND;
-    
+  
+  const bool step = !one_value;
   const int length = coll->tag_size();
   int length_step;
   if (length == MB_VARIABLE_LENGTH) {
     if (!lengths)
       return MB_VARIABLE_DATA_LENGTH;
-    length_step = 1;
+    length_step = step;
   }
   else {
     lengths = &length;
@@ -200,7 +204,7 @@ ErrorCode SparseTagSuperCollection::set_data( TagId tag_handle,
 
   ErrorCode rval, result = MB_SUCCESS;
   void const* const* ptr = data_ptrs;
-  for (Range::const_iterator i = handles.begin(); i != handles.end(); ++i, ++ptr, lengths += length_step) {
+  for (Range::const_iterator i = handles.begin(); i != handles.end(); ++i, ptr += step, lengths += length_step) {
     rval = coll->set_data( *i, *ptr, *lengths );
     if (MB_SUCCESS != rval)
       result = rval;

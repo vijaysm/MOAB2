@@ -153,6 +153,31 @@ public:
                         void const* const* data,
                         const int* lengths = 0 );
 
+  /**\brief Set tags on all entities to same value
+   *\param tag The tag to set
+   *\param entities Entities on which to set tag
+   *\param value    Pointer to tag value.
+   *\param length   For variable-length tags, the length of the
+   *                tag value.  Ignored otherwise.
+   */
+  ErrorCode clear_data( Tag tag, 
+                        const Range& entities, 
+                        const void* value, 
+                        int length = 0 );
+                        
+  /**\brief Set tags on all entities to same value
+   *\param tag The tag to set
+   *\param entities Entities on which to set tag
+   *\param value    Pointer to tag value.
+   *\param length   For variable-length tags, the length of the
+   *                tag value.  Ignored otherwise.
+   */
+  ErrorCode clear_data( Tag tag, 
+                        const EntityHandle* entities, 
+                        int num_entities, 
+                        const void* value, 
+                        int length = 0 );
+
   //! get global/mesh value of tag
   ErrorCode get_mesh_data( const Tag tag_handle, void* data ) const;
 

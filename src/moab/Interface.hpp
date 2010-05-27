@@ -1283,6 +1283,41 @@ public:
                                     void const* const* tag_data,
                                     const int* tag_sizes = 0 ) = 0;
 
+    /**\brief Set tag data given value.
+     *
+     * For a tag, set the values for a list of passed entity handles to
+     * the same, specified value.
+     *
+     *\param tag_handle     The tag
+     *\param entity_handles The entity handles for which to set tag values.
+     *\param tag_data       A pointer to the tag value.
+     *\param tag_sizes      For variable-length tags, the lenght of the
+     *                      tag value.  This argument will be ignored for
+     *                      fixed-length tags.
+     */
+  virtual ErrorCode tag_clear_data( Tag tag_handle,
+                                    const Range& entity_handles,
+                                    const void* value,
+                                    int value_size = 0 ) = 0;
+
+    /**\brief Set tag data given value.
+     *
+     * For a tag, set the values for a list of passed entity handles to
+     * the same, specified value.
+     *
+     *\param tag_handle     The tag
+     *\param entity_handles The entity handles for which to set tag values.
+     *\param tag_data       A pointer to the tag value.
+     *\param tag_sizes      For variable-length tags, the lenght of the
+     *                      tag value.  This argument will be ignored for
+     *                      fixed-length tags.
+     */
+  virtual ErrorCode tag_clear_data( Tag tag_handle,
+                                    const EntityHandle* entity_handles,
+                                    const int num_entity_handles,
+                                    const void* value,
+                                    int value_size = 0 ) = 0;
+
     //! Delete the data of a vector of entity handles and sparse tag
     /** Delete the data of a tag on a vector of entity handles.  Only sparse tag data are deleted with this
         function; dense tags are deleted by deleting the tag itself using tag_delete.

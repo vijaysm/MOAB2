@@ -415,6 +415,96 @@ ErrorCode TagServer::set_data( const Tag tag_handle,
 
 
 
+ErrorCode TagServer::clear_data( const Tag tag_handle, 
+                                 const Range& entity_handles, 
+                                 const void* data,
+                                 int length )
+{
+  ErrorCode rval;
+  const TagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
+  const TagType tag_type = PROP_FROM_TAG_HANDLE(tag_handle);
+  const TagInfo* tag_info = get_tag_info( tag_id, tag_type );
+  if (!tag_info)
+    return MB_TAG_NOT_FOUND;
+    
+  if (tag_info->get_size() == MB_VARIABLE_LENGTH &&
+      !tag_info->check_valid_sizes( &length, 1 ))
+    return MB_INVALID_SIZE;
+    
+  switch (tag_type) {
+    case MB_TAG_DENSE:
+      rval = sequenceManager->set_tag_data( tag_id, entity_handles, 
+                      &data, &length, tag_info->default_value(), true );
+      break;
+      
+    case MB_TAG_SPARSE:
+      rval = sequenceManager->check_valid_entities( entity_handles );
+      if (MB_SUCCESS == rval)
+        rval = mSparseData->set_data( tag_id, entity_handles, &data, &length, true );
+      break;
+    
+    case MB_TAG_BIT:
+      rval = sequenceManager->check_valid_entities( entity_handles );
+      if (MB_SUCCESS == rval)
+        rval= mBitServer->set_bits( tag_id, entity_handles, 
+                                    *reinterpret_cast<const unsigned char*>(data),
+                                    reinterpret_cast<const unsigned char*>(tag_info->default_value()));
+      break;
+    
+    default:
+      rval = MB_TAG_NOT_FOUND;
+      break;
+  }
+  
+  return rval;
+}
+
+
+ErrorCode TagServer::clear_data( const Tag tag_handle, 
+                                 const EntityHandle* entity_handles, 
+                                 int num_entities,
+                                 const void* data,
+                                 int length )
+{
+  ErrorCode rval;
+  const TagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
+  const TagType tag_type = PROP_FROM_TAG_HANDLE(tag_handle);
+  const TagInfo* tag_info = get_tag_info( tag_id, tag_type );
+  if (!tag_info)
+    return MB_TAG_NOT_FOUND;
+    
+  if (tag_info->get_size() == MB_VARIABLE_LENGTH &&
+      !tag_info->check_valid_sizes( &length, 1 ))
+    return MB_INVALID_SIZE;
+    
+  switch (tag_type) {
+    case MB_TAG_DENSE:
+      rval = sequenceManager->set_tag_data( tag_id, entity_handles, num_entities, 
+                   &data, &length, tag_info->default_value(), true );
+      break;
+      
+    case MB_TAG_SPARSE:
+      rval = sequenceManager->check_valid_entities( entity_handles, num_entities );
+      if (MB_SUCCESS == rval)
+        rval = mSparseData->set_data( tag_id, entity_handles, num_entities, &data, &length, true );
+      break;
+    
+    case MB_TAG_BIT:
+      rval = sequenceManager->check_valid_entities( entity_handles, num_entities );
+      if (MB_SUCCESS == rval)
+        rval= mBitServer->set_bits( tag_id, entity_handles, num_entities, 
+                                    *reinterpret_cast<const unsigned char*>(data),
+                                    reinterpret_cast<const unsigned char*>(tag_info->default_value()));
+      break;
+    
+    default:
+      rval = MB_TAG_NOT_FOUND;
+      break;
+  }
+  
+  return rval;
+}
+
 ErrorCode TagServer::get_mesh_data( const Tag tag_handle,
                                       void* data ) const
 {
