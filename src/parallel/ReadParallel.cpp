@@ -586,9 +586,6 @@ ErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
 ErrorCode ReadParallel::create_partition_sets( std::string &ptag_name,
                                                  EntityHandle file_set )
 {
-  if (ptag_name == PARALLEL_PARTITION_TAG_NAME)
-    return MB_SUCCESS;
-  
   int proc_rk = myPcomm->proc_config().proc_rank();
   Range partition_sets;
   ErrorCode result;
@@ -602,6 +599,9 @@ ErrorCode ReadParallel::create_partition_sets( std::string &ptag_name,
                                                 myPcomm->partition_sets());
   RR("Failed to get sets with partition-type tag.");
 
+  if (ptag_name == PARALLEL_PARTITION_TAG_NAME) 
+    return MB_SUCCESS;
+  
 
       // tag the partition sets with a standard tag name
     result = mbImpl->tag_create(PARALLEL_PARTITION_TAG_NAME, sizeof(int), 
