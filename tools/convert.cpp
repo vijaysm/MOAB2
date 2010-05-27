@@ -295,7 +295,7 @@ int main(int argc, char* argv[])
     return READ_ERROR;
   }
   std::cerr << "Read \"" << in << "\"" << std::endl;
-  if (print_times) write_times( std::cerr );
+  if (print_times && !proc_id) write_times( std::cout );
   
     // Determine if the user has specified any geometry sets to write
   bool have_geom = false;
@@ -527,8 +527,9 @@ int main(int argc, char* argv[])
 #endif
     return WRITE_ERROR;
   }
+  
   std::cerr << "Wrote \"" << out << "\"" << std::endl;
-  if (print_times) write_times( std::cerr );
+  if (print_times && !proc_id) write_times( std::cout );
 
 #ifdef USE_MPI
   MPI_Finalize();
