@@ -13,20 +13,14 @@
  * 
  */
 
-/**
- * \class Range
- *
- * Stores contiguous or partially contiguous values in an optimized
- * fashion.  Partially contiguous accessing patterns is also optimized.
- *
- * \author Clinton Stimpson
- *
- * \date 15 April 2002
- *
- */
+/*!
+  \brief Stores contiguous or partially contiguous values in an optimized
+  fashion.  Partially contiguous accessing patterns is also optimized.
+ 
+  \author Clinton Stimpson
+ 
+  \date 15 April 2002
 
-
-/*
  *************  Range FAQ and tips ********************
 
  The purpose of this FAQ is to familiarize a user with

@@ -13,7 +13,7 @@
  * 
  */
 
-/** \class EntityRefiner
+/** \class moab::EntityRefiner
   *
   * This is an abstract class that contains the method used for per-entity refinement.
   * Subclasses must implement the pure virtual refine_entity() function and

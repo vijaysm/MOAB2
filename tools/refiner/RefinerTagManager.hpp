@@ -13,16 +13,6 @@
  * 
  */
 
-/**\class RefinerTagManager
-  *
-  * This a class that manages which tags an edge refiner should include
-  * on output vertices created during mesh refinement.
-  * The 
-  *
-  * \author David Thompson
-  *
-  * \date 12 June 2008
-  */
 #ifndef MOAB_REFINER_TAG_MANAGER_HPP
 #define MOAB_REFINER_TAG_MANAGER_HPP
 
@@ -36,6 +26,15 @@ namespace moab {
 
 class Interface;
 
+/**
+  * This a class that manages which tags an edge refiner should include
+  * on output vertices created during mesh refinement.
+  * The 
+  *
+  * \author David Thompson
+  *
+  * \date 12 June 2008
+  */
 class MB_DLL_EXPORT RefinerTagManager
 {
 public:

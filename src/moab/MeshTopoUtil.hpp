@@ -13,13 +13,6 @@
  * 
  */
 
-/*!
- *  \class   MeshTopoUtil
- *  \authors Tim Tautges
- *  \date    2/04
- *  \brief   MeshTopoUtil contains general mesh utility functions 
- *          
- */ 
 
 #ifndef MOAB_MESH_TOPO_UTIL_HPP
 #define MOAB_MESH_TOPO_UTIL_HPP
@@ -28,6 +21,12 @@
 
 namespace moab {
 
+/*!
+ *  \authors Tim Tautges
+ *  \date    2/04
+ *  \brief   MeshTopoUtil contains general mesh utility functions 
+ *          
+ */ 
 class MeshTopoUtil
 {
 public:

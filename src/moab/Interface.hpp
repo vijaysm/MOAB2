@@ -13,14 +13,6 @@
  * 
  */
 
-/**
- * \class Interface
- * \brief Main interface class to MOAB
- * \author Tim Tautges, Karl Merkley, Ray Meyers, Corey Ernst, Clinton Stimpson,
- * \author Hong-Jun Kim, Jason Kraftcheck
- * \version 1.00
- * \date April, 2004
- */
 #ifndef MOAB_INTERFACE_HPP
 #define MOAB_INTERFACE_HPP
 
@@ -63,6 +55,13 @@ static const MBuuid IDD_MBCore = MBuuid( 0x8956e0a, 0xc300, 0x4005,
 
 
 
+/**
+ * \brief Main interface class to MOAB
+ * \author Tim Tautges, Karl Merkley, Ray Meyers, Corey Ernst, Clinton Stimpson,
+ * \author Hong-Jun Kim, Jason Kraftcheck
+ * \version 1.00
+ * \date April, 2004
+ */
 #if defined(XPCOM_MB)
 class NS_NO_VTABLE Interface : public nsISupports {
 #else
@@ -1031,7 +1030,8 @@ public:
         Tag tag_handle;
         double value = 100.0;
           // create a dense tag with default value of 100
-          tag_create( "my_tag", sizeof(double), MB_TAG_DENSE, tag_handle, &value );\endcode
+          tag_create( "my_tag", sizeof(double), MB_TAG_DENSE, tag_handle, &value );
+          \endcode
     */
   virtual ErrorCode tag_create(const char *tag_name,
                                  const int tag_size, 

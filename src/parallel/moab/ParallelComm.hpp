@@ -13,14 +13,6 @@
  * 
  */
 
-/**
- * \class ParallelComm
- * \brief Parallel communications in MOAB
- * \author Tim Tautges
- *
- *  This class implements methods to communicate mesh between processors
- *
- */
 
 #ifndef MOAB_PARALLEL_COMM_HPP
 #define MOAB_PARALLEL_COMM_HPP
@@ -52,6 +44,13 @@ typedef RangeMap<EntityHandle, EntityHandle, 0> HandleMap;
 
 #define MAX_SHARING_PROCS 64
 
+/**
+ * \brief Parallel communications in MOAB
+ * \author Tim Tautges
+ *
+ *  This class implements methods to communicate mesh between processors
+ *
+ */
 class ParallelComm 
 {
 public:

@@ -13,7 +13,7 @@
  * 
  */
 
-/**\class EdgeSizeEvaluator
+/**\class moab::EdgeSizeEvaluator
   *
   * This is an abstract class that embodies the rule used during edge-based mesh
   * refinement to decide whether an edge should be subdivided or not.

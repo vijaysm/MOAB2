@@ -13,14 +13,6 @@
  * 
  */
 
-/*!
- *  \class   DualTool
- *  \authors Tim Tautges
- *  \date    2/04
- *  \brief   Tools for constructing and working with mesh duals (both tet- and hex-based,
- *           though some functions may not make sense for tet duals)
- *          
- */ 
 
 #ifndef MOAB_DUAL_TOOL_HPP
 #define MOAB_DUAL_TOOL_HPP
@@ -29,6 +21,13 @@
 
 namespace moab {
 
+/*!
+ *  \authors Tim Tautges
+ *  \date    2/04
+ *  \brief   Tools for constructing and working with mesh duals (both tet- and hex-based,
+ *           though some functions may not make sense for tet duals)
+ *          
+ */ 
 class DualTool
 {
 public:

@@ -13,7 +13,7 @@
  * 
  */
 
-/**\class MeshRefiner
+/**\class moab::MeshRefiner
   *\brief Refine a mesh using a streaming operation.
   *
   * This is an class that contains the method used for mesh refinement.

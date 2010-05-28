@@ -13,13 +13,6 @@
  * 
  */
 
-/**
- *\class ReaderWriterSet
- *\brief Maintain list of readers and writers.
- *\version 1.00
- *\date 2004-4-23
- *\author Jason Kraftcheck
- */
 
 #ifndef MOAB_READER_WRITER_SET_HPP
 #define MOAB_READER_WRITER_SET_HPP
@@ -35,6 +28,12 @@ class WriterIface;
 class Core;
 class Error;
 
+/**
+ *\brief Maintain list of readers and writers.
+ *\version 1.00
+ *\date 2004-4-23
+ *\author Jason Kraftcheck
+ */
 class ReaderWriterSet
 {
 

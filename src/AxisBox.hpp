@@ -13,12 +13,6 @@
  * 
  */
 
-/**
- * \class AxisBox
- * \brief Class representing axis-aligned bounding box
- * \author Jason Kraftcheck (kraftche@cae.wisc.edu)
- * \date August, 2006
- */
 
 #ifndef MB_AXIS_BOX_HPP
 #define MB_AXIS_BOX_HPP
@@ -28,6 +22,11 @@
 
 namespace moab {
 
+/**
+ * \brief Class representing axis-aligned bounding box
+ * \author Jason Kraftcheck (kraftche@cae.wisc.edu)
+ * \date August, 2006
+ */
 class AxisBox {
   public:
   

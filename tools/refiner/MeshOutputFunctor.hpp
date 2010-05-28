@@ -13,7 +13,7 @@
  * 
  */
 
-/**\class MeshOutputFunctor
+/**\class moab::MeshOutputFunctor
   *\brief Implements the abstract EntityRefinerOutputFunctor class.
   *
   * This class is a concrete implementation of the EntityRefinerOutputFunctor.

@@ -13,13 +13,6 @@
  * 
  */
 
-/**
- * \class CartVect
- * \brief Cartesian Vector
- * \author Jason Kraftcheck
- * \date July, 2006
- */
-
 #ifndef MB_CART_VECT_HPP
 #define MB_CART_VECT_HPP
 
@@ -28,6 +21,12 @@
 
 namespace moab {
 
+
+/**
+ * \brief Cartesian Vector
+ * \author Jason Kraftcheck
+ * \date July, 2006
+ */
 class CartVect
 {
   private:

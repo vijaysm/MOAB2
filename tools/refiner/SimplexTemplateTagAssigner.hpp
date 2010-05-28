@@ -13,7 +13,7 @@
  * 
  */
 
-/**\class SimplexTemplateTagAssigner
+/**\class moab::SimplexTemplateTagAssigner
   *
   * This is an class that embodies the process of assigning tag
   * values to new vertices based on some pre-existing neighbors in a 

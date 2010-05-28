@@ -13,13 +13,6 @@
  * 
  */
 
-/*!
- *  \class   HigherOrderFactory
- *  \authors Clinton Stimpson
- *  \date    11/25/02
- *  \brief   
- *          
- */ 
 
 #ifndef MOAB_HIGHER_ORDER_FACTORY_HPP
 #define MOAB_HIGHER_ORDER_FACTORY_HPP
@@ -35,6 +28,12 @@ namespace moab {
 class ElementSequence;
 class Core;
 
+/*!
+ *  \authors Clinton Stimpson
+ *  \date    11/25/02
+ *  \brief   
+ *          
+ */ 
 class HigherOrderFactory
 {
 public:

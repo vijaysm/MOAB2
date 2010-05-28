@@ -13,12 +13,6 @@
  * 
  */
 
-/**
- * \class AffineXform
- * \brief Define an affine transformatino
- * \author Jason Kraftcheck (kraftche@cae.wisc.edu)
- * \date August, 2006
- */
 
 #ifndef MOAB_AFFINE_XFORM_HPP
 #define MOAB_AFFINE_XFORM_HPP
@@ -29,6 +23,11 @@
 
 namespace moab {
 
+/**
+ * \brief Define an affine transformatino
+ * \author Jason Kraftcheck (kraftche@cae.wisc.edu)
+ * \date August, 2006
+ */
 class AffineXform
 {
   public:

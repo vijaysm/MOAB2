@@ -1,14 +1,3 @@
-/**
- * \class ParallelData
- * \brief Parallel data in MOAB
- * \author Tim Tautges
- *
- *  This class implements methods to retrieve information about 
- * the parallel mesh from MOAB.  Most of this data can be retrieved
- * directly from MOAB as sets and tags; this class provides convenience
- * methods implemented on top of other MOAB functions.
- *
- */
 
 #ifndef MOAB_PARALLEL_DATA_HPP
 #define MOAB_PARALLEL_DATA_HPP
@@ -20,6 +9,16 @@ namespace moab {
 
 class ParallelComm;
 
+/**
+ * \brief Parallel data in MOAB
+ * \author Tim Tautges
+ *
+ *  This class implements methods to retrieve information about 
+ * the parallel mesh from MOAB.  Most of this data can be retrieved
+ * directly from MOAB as sets and tags; this class provides convenience
+ * methods implemented on top of other MOAB functions.
+ *
+ */
 class ParallelData
 {
 public:

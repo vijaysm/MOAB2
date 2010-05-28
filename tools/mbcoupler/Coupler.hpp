@@ -1,5 +1,5 @@
 /** 
- * \class Coupler
+ * \class moab::Coupler
  * \author Tim Tautges
  *
  * \brief This class couples data between meshes.

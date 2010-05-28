@@ -1,9 +1,3 @@
-/** 
- * \class WriteHDF5Parallel
- * \brief Write MOAB HDF5 file in parallel.
- * \author Jason Kraftcheck
- * \data   22 July 2004
- */
 
 #ifndef WRITE_HDF5_PARALLEL_HPP
 #define WRITE_HDF5_PARALLEL_HPP
@@ -18,6 +12,11 @@ struct RemoteSetData;
 class ParallelComm;
 class IODebugTrack;
 
+/** 
+ * \brief Write MOAB HDF5 file in parallel.
+ * \author Jason Kraftcheck
+ * \data   22 July 2004
+ */
 class WriteHDF5Parallel : public WriteHDF5
 {
   public:

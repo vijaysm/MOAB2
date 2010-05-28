@@ -13,7 +13,7 @@
  * 
  */
 
-/**\class EdgeSizeSimpleImplicit
+/**\class moab::EdgeSizeSimpleImplicit
   *
   * This is an simple example edge evaluator tha subdivides edges based
   * on their midpoint's distance to a simple, fixed-form implicit surface

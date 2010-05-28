@@ -13,7 +13,7 @@
  * 
  */
 
-/**\class SimplexTemplateRefiner
+/**\class moab::SimplexTemplateRefiner
   *
   * This is a concrete subclass of EntityRefiner that implements
   * refinement using templates applied to simplices.

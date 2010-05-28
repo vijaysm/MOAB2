@@ -14,7 +14,7 @@
  */
 
 /** 
- * \class CN
+ * \class moab::CN
  * \author Tim Tautges
  * \date April 2004
  *

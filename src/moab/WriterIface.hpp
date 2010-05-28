@@ -13,13 +13,6 @@
  * 
  */
 
-/**
- *\class WriterIface
- *\brief Interface for mesh writer implementations.
- *\version 1.00
- *\date 2004-4-23
- *\author Jason Kraftcheck
- */
 
 #ifndef MOAB_WRITER_IFACE_HPP
 #define MOAB_WRITER_IFACE_HPP
@@ -32,6 +25,12 @@ namespace moab {
 
 class FileOptions;
 
+/**
+ *\brief Interface for mesh writer implementations.
+ *\version 1.00
+ *\date 2004-4-23
+ *\author Jason Kraftcheck
+ */
 class WriterIface
 {
   public:

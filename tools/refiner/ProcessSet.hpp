@@ -13,14 +13,6 @@
  * 
  */
 
-/**\class ProcessSet
-  *\brief Represent a set of processes using a bit vector.
-  *
-  * This is used by the mesh refiner when determining where to record
-  * split vertices so that labeling can be inferred across process
-  * boundaries without communicating anything other than the number of
-  * entities in a given partition.
-  */
 #ifndef MOAB_PROCESS_SET_HPP
 #define MOAB_PROCESS_SET_HPP
 
@@ -32,6 +24,13 @@
 
 namespace moab {
 
+/**\brief Represent a set of processes using a bit vector.
+  *
+  * This is used by the mesh refiner when determining where to record
+  * split vertices so that labeling can be inferred across process
+  * boundaries without communicating anything other than the number of
+  * entities in a given partition.
+  */
 class ProcessSet
 {
 public:

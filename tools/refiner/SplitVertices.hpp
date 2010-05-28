@@ -13,7 +13,7 @@
  * 
  */
 
-/**\class SplitVertices
+/**\class moab::SplitVertices
   *\brief A dictionary of new vertices.
   *
   * An array of existing vertex ids used as a key in a dictionary of new vertices.

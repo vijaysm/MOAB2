@@ -13,13 +13,6 @@
  * 
  */
 
-/**
- *\class ReaderIface
- *\brief Interface for mesh reader implementations.
- *\version 1.00
- *\date 2004-4-23
- *\author Jason Kraftcheck
- */
 
 #ifndef MOAB_READER_IFACE_HPP
 #define MOAB_READER_IFACE_HPP
@@ -30,6 +23,12 @@ namespace moab {
 
 class FileOptions;
 
+/**
+ *\brief Interface for mesh reader implementations.
+ *\version 1.00
+ *\date 2004-4-23
+ *\author Jason Kraftcheck
+ */
 class ReaderIface
 {
   public:
