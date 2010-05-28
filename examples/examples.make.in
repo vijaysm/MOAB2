@@ -8,25 +8,3 @@ CXXFLAGS = -g
 
 default: all
 
-all: FileRead GeomSetHierarchy SetsNTags SkinMesh SurfArea KDTree ObbTree
-
-FileRead: FileRead.o
-	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
-
-GeomSetHierarchy: GeomSetHierarchy.o
-	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
-
-SetsNTags: SetsNTags.o
-	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
-
-SkinMesh: SkinMesh.o
-	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
-
-SurfArea: SurfArea.o
-	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
-
-KDTree: KDTree.cpp
-	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
-
-ObbTree: ObbTree.cpp
-	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)

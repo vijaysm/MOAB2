@@ -1,3 +1,9 @@
+# NOTE:  The 'makefile' in the *installed* examples directory is generated
+#        using the install-data-hook target below.  This logic assumes that:
+#        1) All examples are listed in check_PROGRAMS
+#        2) All examples have a single source file with the same name (case
+#           sensitive) as the example executable with a .cpp suffix.
+
 check_PROGRAMS = FileRead \
                  GeomSetHierarchy \
                  GetEntities \
@@ -35,8 +41,17 @@ nobase_example_DATA = \
                SurfArea.cpp 
                
 
+ex_make = $(DESTDIR)$(exampledir)/makefile
 install-data-hook:
-	mv -f $(DESTDIR)$(exampledir)/examples.make $(DESTDIR)$(exampledir)/makefile
+	rm -f $(ex_make)
+	mv $(DESTDIR)$(exampledir)/examples.make $(ex_make)
+	echo "all: $(check_PROGRAMS)" >>$(ex_make)
+	rule='	$$(CXX) -o $$@ $$< $$(MOAB_LIBS_LINK)'; \
+	for example in $(check_PROGRAMS); do \
+	  echo >>$(ex_make); \
+	  echo "$${example}: $${example}.o" >>$(ex_make); \
+	  echo "$$rule" >>$(ex_make); \
+	done
 
 uninstall-hook:
 	rm -f $(DESTDIR)$(exampledir)/makefile
