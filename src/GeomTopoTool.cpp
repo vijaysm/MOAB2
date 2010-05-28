@@ -34,7 +34,7 @@ namespace moab {
 const char GEOM_SENSE_TAG_NAME[] = "GEOM_SENSE_2";
 
 GeomTopoTool::GeomTopoTool(Interface *impl, bool find_geoments) 
-  : mdbImpl(impl), obbTree(impl), sense2Tag(0), oneVolRootSet(NULL)
+  : mdbImpl(impl), sense2Tag(0), obbTree(impl), oneVolRootSet(NULL)
 {
   ErrorCode result = mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4, 
                                            MB_TAG_SPARSE, geomTag, NULL);

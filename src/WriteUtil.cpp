@@ -573,7 +573,7 @@ ErrorCode WriteUtil::gather_nodes_from_elements(
     const EntityHandle* conn_array = seq->get_connectivity_array();
     
     // if unstructed mesh
-    if (conn_array) {
+    if (conn_array && mMB->type_from_handle(iter.get_start_handle()) != MBPOLYHEDRON) {
       assert(iter.get_start_handle() >= seq->start_handle());
       assert(iter.get_end_handle() <= seq->end_handle());
       const EntityHandle offset = iter.get_start_handle() - seq->start_handle();
@@ -595,6 +595,38 @@ ErrorCode WriteUtil::gather_nodes_from_elements(
         assert(MB_SUCCESS == rval);
         if (MB_SUCCESS != rval)
           return rval;
+      }
+    }
+      // polyhedra
+    else if (conn_array && mMB->type_from_handle(iter.get_start_handle()) == MBPOLYHEDRON) {
+      assert(iter.get_start_handle() >= seq->start_handle());
+      assert(iter.get_end_handle() <= seq->end_handle());
+      const EntityHandle offset = iter.get_start_handle() - seq->start_handle();
+      const EntityHandle num_elem = iter.get_end_handle() - iter.get_start_handle() + 1;
+      
+      conn_array += offset * seq->nodes_per_element();
+      int num_face = num_elem * seq->nodes_per_element();
+ 
+        // for each node
+      for (int j = 0; j < num_face; j++)
+      {
+        const EntityHandle *face_conn;
+        int face_num_conn;
+        rval = mMB->get_connectivity(conn_array[j], face_conn, face_num_conn, false);
+        if (MB_SUCCESS != rval)
+          return rval;
+        for (int k = 0; k < face_num_conn; k++) {
+          EntityHandle node = face_conn[k];
+          if(node < lower_bound)
+            lower_bound = node;
+          if(node > upper_bound)
+            upper_bound = node;
+          unsigned char bit = 0x1;
+          rval = tag_server->set_data(exporting_nodes_tag, &node, 1, &bit);
+          assert(MB_SUCCESS == rval);
+          if (MB_SUCCESS != rval)
+            return rval;
+        }
       }
     }
       // structured mesh
