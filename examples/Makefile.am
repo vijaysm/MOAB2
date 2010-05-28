@@ -46,10 +46,10 @@ install-data-hook:
 	rm -f $(ex_make)
 	mv $(DESTDIR)$(exampledir)/examples.make $(ex_make)
 	echo "all: $(check_PROGRAMS)" >>$(ex_make)
-	rule='	$$(CXX) -o $$@ $$< $$(MOAB_LIBS_LINK)'; \
+	rule='	$$(CXX) -o $$@ $$< $$(CXXFLAGS) $$(MOAB_INCLUDES) $$(MOAB_LIBS_LINK)'; \
 	for example in $(check_PROGRAMS); do \
 	  echo >>$(ex_make); \
-	  echo "$${example}: $${example}.o" >>$(ex_make); \
+	  echo "$${example}: $${example}.cpp" >>$(ex_make); \
 	  echo "$$rule" >>$(ex_make); \
 	done
 

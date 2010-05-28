@@ -3,14 +3,7 @@ exec_prefix = @exec_prefix@
 libdir = @libdir@
 include $(libdir)/moab.make
 
-CPPFLAGS = ${MOAB_INCLUDES}
 CXXFLAGS = -g
 
 default: all
-
-.SUFFIXES: .cpp
-
-.cpp.o:
-	$(CXX) -c $< $(CPPFLAGS) $(CXXFLAGS)
-
 
