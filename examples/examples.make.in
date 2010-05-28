@@ -1,5 +1,5 @@
-exec_prefix = @exec_prefix@
 prefix = @prefix@
+exec_prefix = @exec_prefix@
 libdir = @libdir@
 include $(libdir)/moab.make
 
@@ -8,7 +8,7 @@ CXXFLAGS = -g
 
 default: all
 
-all: FileRead GeomSetHierarchy SetsNTags SkinMesh SurfArea
+all: FileRead GeomSetHierarchy SetsNTags SkinMesh SurfArea KDTree ObbTree
 
 FileRead: FileRead.o
 	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
@@ -23,4 +23,10 @@ SkinMesh: SkinMesh.o
 	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
 
 SurfArea: SurfArea.o
+	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
+
+KDTree: KDTree.cpp
+	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
+
+ObbTree: ObbTree.cpp
 	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
