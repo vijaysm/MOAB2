@@ -8,3 +8,9 @@ CXXFLAGS = -g
 
 default: all
 
+.SUFFIXES: .cpp
+
+.cpp.o:
+	$(CXX) -c $< $(CPPFLAGS) $(CXXFLAGS)
+
+
