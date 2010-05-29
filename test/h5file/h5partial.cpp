@@ -1571,13 +1571,14 @@ void test_read_partial_ids()
   
   const int three = 3;
   ReaderIface::IDTag vols = { GEOM_DIMENSION_TAG_NAME, &three, 1 };
+  ReaderIface::SubsetList subset = { &vols, 1, 0, 0 };
   
   Core moab;
   ReadHDF5 reader(&moab);
   FileOptions opts("");
   ErrorCode rval;
   std::vector<int> values;
-  rval = reader.read_tag_values( TEST_FILE, GLOBAL_ID_TAG_NAME, opts, values, &vols, 1 );
+  rval = reader.read_tag_values( TEST_FILE, GLOBAL_ID_TAG_NAME, opts, values, &subset );
   remove( TEST_FILE );
   CHECK_ERR(rval);
   

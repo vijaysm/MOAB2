@@ -23,8 +23,7 @@ public:
   ErrorCode load_file(const char *file_name,
                         const EntityHandle* file_set,
                         const FileOptions &opts,
-                        const ReaderIface::IDTag* subset_list = 0,
-                        int subset_list_length = 0,
+                        const ReaderIface::SubsetList* subset_list = 0,
                         const Tag* file_id_tag = 0 );
   
     //! load multiple files
@@ -32,8 +31,7 @@ public:
                         const int num_files,
                         const EntityHandle* file_set,
                         const FileOptions &opts,
-                        const ReaderIface::IDTag* subset_list = 0,
-                        int subset_list_length = 0,
+                        const ReaderIface::SubsetList* subset_list = 0,
                         const Tag* file_id_tag = 0 );
   
   ErrorCode load_file(const char **file_names,
@@ -46,8 +44,7 @@ public:
                         bool partition_by_rank,
                         std::vector<int> &pa_vec,
                         const FileOptions &opts,
-                        const ReaderIface::IDTag* subset_list,
-                        int subset_list_length,
+                        const ReaderIface::SubsetList* subset_list,
                         const Tag* file_id_tag,
                         const int reader_rank,
                         const bool cputime,
@@ -106,14 +103,13 @@ private:
 };
 
 inline ErrorCode ReadParallel::load_file(const char *file_name,
-                                           const EntityHandle* file_set,
-                                           const FileOptions &opts,
-                                           const ReaderIface::IDTag* subset_list,
-                                           int subset_list_length,
-                                           const Tag* file_id_tag )
+                                         const EntityHandle* file_set,
+                                         const FileOptions &opts,
+                                         const ReaderIface::SubsetList* subset_list,
+                                         const Tag* file_id_tag )
 {
   return load_file(&file_name, 1, file_set, opts, 
-                   subset_list, subset_list_length, file_id_tag);
+                   subset_list, file_id_tag);
 }
 
 } // namespace moab

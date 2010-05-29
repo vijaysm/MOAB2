@@ -349,7 +349,7 @@ ErrorCode read_file(Interface *mbImpl,
       rps[i] = new ReadParallel(mbImpl, pcs[i]);
     
       result = rps[i]->load_file(filenames[i].c_str(), 0, 
-                                 FileOptions(options.str().c_str()), 0, 0, 0);
+                                 FileOptions(options.str().c_str()), 0, 0);
       if (MB_SUCCESS != result) 
         PRINT_LAST_ERROR;
 

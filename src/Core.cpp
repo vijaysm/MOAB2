@@ -370,7 +370,8 @@ ErrorCode Core::load_file( const char* file_name,
 {
   FileOptions opts(options);
   ErrorCode rval;
-  ReaderIface::IDTag t = { set_tag_name, set_tag_vals, num_set_tag_vals, 0, 0 };
+  ReaderIface::IDTag t = { set_tag_name, set_tag_vals, num_set_tag_vals };
+  ReaderIface::SubsetList sl = { &t, 1, 0, 0 };
   
     // if reading in parallel, call a different reader
   std::string parallel_opt;
@@ -390,7 +391,7 @@ ErrorCode Core::load_file( const char* file_name,
     else if (rval != MB_ENTITY_NOT_FOUND) 
       return rval;
     if (set_tag_name && num_set_tag_vals) 
-      rval = ReadParallel(this,pcomm).load_file( file_name, file_set, opts, &t, 1 );
+      rval = ReadParallel(this,pcomm).load_file( file_name, file_set, opts, &sl );
     else
       rval = ReadParallel(this,pcomm).load_file( file_name, file_set, opts );
 #else
@@ -401,7 +402,7 @@ ErrorCode Core::load_file( const char* file_name,
   }
   else {
     if (set_tag_name && num_set_tag_vals) 
-      rval = serial_load_file( file_name, file_set, opts, &t, 1 );
+      rval = serial_load_file( file_name, file_set, opts, &sl );
     else 
       rval = serial_load_file( file_name, file_set, opts );
   }
@@ -440,11 +441,10 @@ void Core::clean_up_failed_read( const Range& initial_ents,
 }
 
 ErrorCode Core::serial_load_file( const char* file_name,
-                                      const EntityHandle* file_set,
-                                      const FileOptions& opts,
-                                      const ReaderIface::IDTag* subsets,
-                                      int num_sets,
-                                      const Tag* id_tag  )
+                                  const EntityHandle* file_set,
+                                  const FileOptions& opts,
+                                  const ReaderIface::SubsetList* subsets,
+                                  const Tag* id_tag  )
 {
   int status;
 #if defined(WIN32) || defined(WIN64) || defined(MSC_VER)
@@ -466,9 +466,6 @@ ErrorCode Core::serial_load_file( const char* file_name,
     mError->set_last_error( "%s: Cannot read directory/folder.", file_name );
     return MB_FILE_DOES_NOT_EXIST;
   }
-
-  if (num_sets < 0)
-    return MB_INDEX_OUT_OF_RANGE;
   
   ErrorCode rval = MB_FAILURE;
   const ReaderWriterSet* set = reader_writer_set();
@@ -488,7 +485,7 @@ ErrorCode Core::serial_load_file( const char* file_name,
   ReaderIface* reader = set->get_file_extension_reader( file_name );
   if (reader)
   {
-    rval = reader->load_file( file_name, file_set, opts, subsets, num_sets, id_tag );
+    rval = reader->load_file( file_name, file_set, opts, subsets, id_tag );
     delete reader;
   }
   else
@@ -500,7 +497,7 @@ ErrorCode Core::serial_load_file( const char* file_name,
       ReaderIface* reader = iter->make_reader( this );
       if (NULL != reader)
       {
-        rval = reader->load_file( file_name, file_set, opts, subsets, num_sets, id_tag );
+        rval = reader->load_file( file_name, file_set, opts, subsets, id_tag );
         delete reader;
         if (MB_SUCCESS == rval)
           break;
@@ -523,15 +520,11 @@ ErrorCode Core::serial_load_file( const char* file_name,
 }
 
 ErrorCode Core::serial_read_tag( const char* file_name,
-                                     const char* tag_name,
-                                     const FileOptions& opts,
-                                     std::vector<int>& vals,
-                                     const ReaderIface::IDTag* subsets,
-                                     int num_sets )
+                                 const char* tag_name,
+                                 const FileOptions& opts,
+                                 std::vector<int>& vals,
+                                 const ReaderIface::SubsetList* subsets )
 {
-  if (num_sets < 0)
-    return MB_INDEX_OUT_OF_RANGE;
-  
   ErrorCode rval = MB_FAILURE;
   const ReaderWriterSet* set = reader_writer_set();
 
@@ -539,7 +532,7 @@ ErrorCode Core::serial_read_tag( const char* file_name,
   ReaderIface* reader = set->get_file_extension_reader( file_name );
   if (reader)
   {
-    rval = reader->read_tag_values( file_name, tag_name, opts, vals, subsets, num_sets );
+    rval = reader->read_tag_values( file_name, tag_name, opts, vals, subsets );
     delete reader;
   }
   else
@@ -551,7 +544,7 @@ ErrorCode Core::serial_read_tag( const char* file_name,
       ReaderIface* reader = iter->make_reader( this );
       if (NULL != reader)
       {
-        rval = reader->read_tag_values( file_name, tag_name, opts, vals, subsets, num_sets );
+        rval = reader->read_tag_values( file_name, tag_name, opts, vals, subsets );
         delete reader;
         if (MB_SUCCESS == rval)
           break;

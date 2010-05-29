@@ -1,9 +1,7 @@
 #include "TestUtil.hpp"
 #include "moab/Core.hpp"
 #define IS_BUILDING_MB
-#include "ReadSmf.hpp"
 #include "moab/Range.hpp"
-#include "FileOptions.hpp"
 
 using namespace moab;
 
@@ -30,10 +28,7 @@ int main()
 
 void read_file( Interface& moab, const char* input_file )
 {
-  ErrorCode rval;
-  ReadSmf reader( &moab );
-  FileOptions opts("");
-  rval = reader.load_file( input_file, 0, opts, 0, 0, 0 );
+  ErrorCode rval = moab.load_file( input_file );
   CHECK_ERR(rval);
 }
 

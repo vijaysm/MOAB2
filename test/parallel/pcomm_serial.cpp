@@ -75,7 +75,7 @@ int main( int argc, char* argv[] )
     rval = rp.load_file(fnames, 1, 0, ReadParallel::POPT_READ_DELETE,
                         ptag_name, 
                         partition_tag_vals, partition_distrib, false, pa_vec, 
-                        fopts, NULL, 0, NULL, i, false, -1, -1, -1, -1, 0);
+                        fopts, NULL, NULL, i, false, -1, -1, -1, -1, 0);
     CHECK_ERR(rval);
   }
   

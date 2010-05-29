@@ -1,8 +1,5 @@
 #include "TestUtil.hpp"
 #include "moab/Core.hpp"
-#include "ReadSTL.hpp"
-#include "WriteSTL.hpp"
-#include "FileOptions.hpp"
 #include "moab/Range.hpp"
 #include <math.h>
 #include <algorithm>
@@ -60,10 +57,7 @@ int main()
 
 ErrorCode read_file_( Interface& moab, const char* input_file, const char* options = "" )
 {
-  ErrorCode rval;
-  ReadSTL reader( &moab );
-  FileOptions opts(options);
-  rval = reader.load_file( input_file, 0, opts, 0, 0, 0 );
+  ErrorCode rval = moab.load_file( input_file, 0, options );
   return rval;
 }
 
@@ -78,15 +72,10 @@ void convert_file( const char* input_file, const char* output_file, const char* 
   ErrorCode rval;
   Core moab;
 
-  ReadSTL reader( &moab );
-  FileOptions opts_reader("");
-  rval = reader.load_file( input_file, 0, opts_reader, 0, 0, 0 );
+  rval = moab.load_file( input_file );
   CHECK_ERR(rval);
   
-  WriteSTL writer( &moab );
-  FileOptions opts_writer(options);
-  std::vector<std::string> empty;
-  rval = writer.write_file( output_file, true, opts_writer, 0, 0, empty, 0, 0, 3 );
+  rval = moab.write_file( output_file, "STL", options );
   CHECK_ERR(rval);
 }
 

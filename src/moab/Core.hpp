@@ -106,18 +106,16 @@ public:
 
   /**Load or import a file. */
   ErrorCode serial_load_file( const char* file_name,
-                         const EntityHandle* file_set,
-                         const FileOptions& opts,
-                         const ReaderIface::IDTag* subset_list = 0,
-                         int subset_list_length = 0,
-                         const Tag* file_id_tag = 0 );
+                              const EntityHandle* file_set,
+                              const FileOptions& opts,
+                              const ReaderIface::SubsetList* subset_list = 0,
+                              const Tag* file_id_tag = 0 );
                          
   ErrorCode serial_read_tag( const char* file_name,
-                               const char* tag_name,
-                               const FileOptions& opts,
-                               std::vector<int>& tag_vals,
-                               const ReaderIface::IDTag* subset_list = 0,
-                               int subset_list_length = 0 );
+                             const char* tag_name,
+                             const FileOptions& opts,
+                             std::vector<int>& tag_vals,
+                             const ReaderIface::SubsetList* subset_list = 0 );
   
   virtual ErrorCode write_mesh(const char *file_name,
                                   const EntityHandle *output_list = NULL,

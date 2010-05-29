@@ -60,8 +60,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
                                     const int num_files,
                                     const EntityHandle* file_set,
                                     const FileOptions &opts,
-                                    const ReaderIface::IDTag* subset_list,
-                                    int subset_list_length,
+                                    const ReaderIface::SubsetList* subset_list,
                                     const Tag* file_id_tag ) 
 {
   Error *merror = ((Core*)mbImpl)->get_error_handler();
@@ -228,7 +227,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
                    partition_tag_name,
                    partition_tag_vals, distrib, 
                    partition_by_rank, pa_vec, opts,
-                   subset_list, subset_list_length, file_id_tag,
+                   subset_list, file_id_tag,
                    reader_rank, cputime, 
                    resolve_dim, shared_dim,
                    ghost_dim, bridge_dim, num_layers);
@@ -244,8 +243,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
                                     bool partition_by_rank,
                                     std::vector<int> &pa_vec,
                                     const FileOptions &opts,
-                                    const ReaderIface::IDTag* subset_list,
-                                    int subset_list_length,
+                                    const ReaderIface::SubsetList* subset_list,
                                     const Tag* file_id_tag,
                                     const int reader_rank,
                                     const bool cputime,
@@ -303,7 +301,6 @@ ErrorCode ReadParallel::load_file(const char **file_names,
                                                  &new_file_set, 
                                                  opts,
                                                  subset_list,
-                                                 subset_list_length,
                                                  file_id_tag );
             if (MB_SUCCESS != tmp_result) break;
 
@@ -353,8 +350,8 @@ ErrorCode ReadParallel::load_file(const char **file_names,
             }
           }
           
-          ReaderIface::IDTag parts = { partition_tag_name.c_str(),
-                                         0, 0, 0, 0 };
+          ReaderIface::IDTag parts = { partition_tag_name.c_str(), 0, 0 };
+          ReaderIface::SubsetList sl;
           int rank = myPcomm->rank();
           if (partition_by_rank) {
             assert(partition_tag_vals.empty());
@@ -362,18 +359,19 @@ ErrorCode ReadParallel::load_file(const char **file_names,
             parts.num_tag_values = 1;
           }
           else {
-            parts.num_parts = myPcomm->size();
-            parts.part_number = myPcomm->rank();
+            sl.num_parts = myPcomm->size();
+            sl.part_number = myPcomm->rank();
             if (!partition_tag_vals.empty()) {
               parts.tag_values = &partition_tag_vals[0];
               parts.num_tag_values = partition_tag_vals.size();
             }
           }
-          std::vector<ReaderIface::IDTag> subset( subset_list, 
-                                                    subset_list + subset_list_length );
+          std::vector<ReaderIface::IDTag> subset( subset_list->tag_list, 
+                                subset_list->tag_list + subset_list->tag_list_length );
           subset.push_back( parts );
-          tmp_result = impl->serial_load_file( *file_names, &file_set, opts, 
-                                               &subset[0], subset.size(), file_id_tag );
+          sl.tag_list = &subset[0];
+          sl.tag_list_length = subset.size();
+          tmp_result = impl->serial_load_file( *file_names, &file_set, opts, &sl, file_id_tag );
           
           if (MB_SUCCESS == tmp_result)
             tmp_result = create_partition_sets( partition_tag_name, file_set );

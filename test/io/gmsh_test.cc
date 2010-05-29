@@ -1,8 +1,7 @@
 #include "TestUtil.hpp"
 #include "moab/Core.hpp"
+#include "moab/Range.hpp"
 #include "MBTagConventions.hpp"
-#include "ReadGmsh.hpp"
-#include "FileOptions.hpp"
 #include <math.h>
 #include <algorithm>
 
@@ -41,9 +40,7 @@ int main()
 void read_file( Interface& moab, const char* input_file )
 {
   ErrorCode rval;
-  ReadGmsh reader( &moab );
-  FileOptions opts("");
-  rval = reader.load_file( input_file, 0, opts, 0, 0, 0 );
+  rval = moab.load_file( input_file );
   CHECK_ERR(rval);
 }
 

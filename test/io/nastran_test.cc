@@ -2,9 +2,7 @@
 #include "moab/Core.hpp"
 #include "MBTagConventions.hpp"
 #define IS_BUILDING_MB
-#include "ReadNASTRAN.hpp"
 #include "moab/Range.hpp"
-#include "FileOptions.hpp"
 #include <math.h>
 #include <algorithm>
 
@@ -41,10 +39,7 @@ int main()
 
 void read_file( Interface& moab, const char* input_file )
 {
-  ErrorCode rval;
-  ReadNASTRAN reader( &moab );
-  FileOptions opts("");
-  rval = reader.load_file( input_file, 0, opts, 0, 0, 0 );
+  ErrorCode rval = moab.load_file( input_file );
   CHECK_ERR(rval);
 }
 

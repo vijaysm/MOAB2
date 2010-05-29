@@ -2,10 +2,10 @@
 #include "moab/Core.hpp"
 #include "MBTagConventions.hpp"
 #include "moab/CN.hpp"
-#define IS_BUILDING_MB
+#include "moab/Range.hpp"
 #include "ReadNCDF.hpp"
-#include "WriteNCDF.hpp"
 #include "FileOptions.hpp"
+#define IS_BUILDING_MB
 #include "ExoIIUtil.hpp"
 #include <math.h>
 #include <algorithm>
@@ -183,10 +183,7 @@ void test_types()
 void read_file( Interface& moab, 
                 const char* input_file )
 {
-  ErrorCode rval;
-  ReadNCDF reader( &moab );
-  FileOptions opts("");
-  rval = reader.load_file( input_file, 0, opts, 0, 0, 0 );
+  ErrorCode rval = moab.load_file( input_file );
   CHECK_ERR(rval);
 }
 
@@ -196,21 +193,16 @@ void write_and_read( Interface& write_mb,
 {
   const char* tmp_file = "exodus_test_tmp.g";
   ErrorCode rval;
-  ReadNCDF reader( &read_mb );
-  WriteNCDF writer( &write_mb );
-  FileOptions opts("");
   
   EntityHandle* write_set_list = &block;
   int write_set_list_len = 0;//(block != 0);
-  std::vector<std::string> qa_records;
-  rval = writer.write_file( tmp_file, true, opts, 
-                            write_set_list, write_set_list_len,
-                            qa_records, NULL, 0, 3 );
+  rval = write_mb.write_file( tmp_file, "EXODUS", 0, 
+                            write_set_list, write_set_list_len );
   if (MB_SUCCESS != rval) 
     remove(tmp_file);
   CHECK_ERR(rval);
   
-  rval = reader.load_file( tmp_file, 0, opts, 0, 0, 0 );
+  rval = read_mb.load_file( tmp_file );
   remove( tmp_file );
   CHECK_ERR(rval);
 }
