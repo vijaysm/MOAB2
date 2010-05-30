@@ -366,11 +366,19 @@ ErrorCode ReadParallel::load_file(const char **file_names,
               parts.num_tag_values = partition_tag_vals.size();
             }
           }
-          std::vector<ReaderIface::IDTag> subset( subset_list->tag_list, 
-                                subset_list->tag_list + subset_list->tag_list_length );
-          subset.push_back( parts );
-          sl.tag_list = &subset[0];
-          sl.tag_list_length = subset.size();
+          std::vector<ReaderIface::IDTag> subset;
+          if (subset_list) {
+            std::vector<ReaderIface::IDTag> tmplist( subset_list->tag_list, 
+                           subset_list->tag_list + subset_list->tag_list_length );
+            tmplist.push_back( parts );
+            subset.swap(tmplist);
+            sl.tag_list = &subset[0];
+            sl.tag_list_length = subset.size();
+          }
+          else {
+            sl.tag_list = &parts;
+            sl.tag_list_length = 1;
+          }
           tmp_result = impl->serial_load_file( *file_names, &file_set, opts, &sl, file_id_tag );
           
           if (MB_SUCCESS == tmp_result)
