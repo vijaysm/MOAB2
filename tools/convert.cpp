@@ -621,9 +621,10 @@ void print_time( int clk_per_sec, const char* prefix, clock_t ticks, std::ostrea
   ticks *= clk_per_sec/100;
   clock_t centi = ticks % 100;
   clock_t seconds = ticks / 100;
+  stream << prefix;
   if (seconds < 120)
   {
-    stream << prefix << (ticks / 100) << "." << centi << "s" << std::endl;
+    stream << (ticks / 100) << "." << centi << "s" << std::endl;
   }
   else
   {
