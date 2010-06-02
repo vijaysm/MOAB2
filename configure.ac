@@ -52,6 +52,12 @@ fi
 ################################################################################
 AC_CHECK_FUNC([vsnprintf],[AM_CPPFLAGS="$AM_CPPFLAGS -DHAVE_VSNPRINTF"])
 
+# Use 64-bit off_t value for file offsets.  W/out this, the stat/fseek calls
+# in serial_open_file and other places will fail on 32-bit systems if the file 
+# is larger that 2GB.
+AM_CPPFLAGS="$AM_CPPFLAGS -D_FILE_OFFSET_BITS=64"
+
+
 
 ################################################################################
 #                           No-Namepsace (3.0) Headers
