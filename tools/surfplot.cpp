@@ -21,7 +21,7 @@ void usage_error( const char* name )
     << "\t-g           -  Write GNU Plot data file (default)." << std::endl
     << "\t-p           -  Write encapsulated postscript file"  << std::endl
     << "\t-s           -  Write an SVG file"                   << std::endl
-    << "\t<Surface_ID> -  ID of surface containing mesh to export." << std::endl
+    << "\t<Surface_ID> -  ID of surface containing mesh to export (0 for entire file)." << std::endl
     << "\t<input_file> -  Mesh file to read." << std::endl
     << std::endl
     << "  This utility plots the mesh of a single geometric surface "
@@ -199,7 +199,7 @@ int main(int argc, char* argv[])
     usage_error(argv[0]);
   char* endptr;
   surface_id = strtol( argv[idx], &endptr, 0 );
-  if (!endptr || *endptr || surface_id < 1)
+  if (!endptr || *endptr)
     usage_error(argv[0]);
   ++idx;
   
@@ -214,32 +214,38 @@ int main(int argc, char* argv[])
   }
   
     // Get tag handles
-  Tag tags[2];
-  result = moab->tag_get_handle( GEOM_DIMENSION_TAG_NAME, tags[0] );
-  if (MB_SUCCESS != result) {
-    std::cerr << "No geometry tag.\n";
-    return OTHER_ERROR;
+  EntityHandle surface;
+  const int dimension = 2; // surface
+  if (surface_id) {
+    Tag tags[2];
+    result = moab->tag_get_handle( GEOM_DIMENSION_TAG_NAME, tags[0] );
+    if (MB_SUCCESS != result) {
+      std::cerr << "No geometry tag.\n";
+      return OTHER_ERROR;
+    }
+    result = moab->tag_get_handle( GLOBAL_ID_TAG_NAME, tags[1] );
+    if (MB_SUCCESS != result) {
+      std::cerr << "No ID tag.\n";
+      return OTHER_ERROR;
+    }
+
+      // Find entityset for surface.
+    const void* tag_values[] = { &dimension, &surface_id };
+    Range surfaces;
+    moab->get_entities_by_type_and_tag( 0, MBENTITYSET,
+                                        tags, tag_values,
+                                        2, surfaces );
+    if (surfaces.size() != 1) {
+      std::cerr << "Found " << surfaces.size() 
+                << " surfaces with ID " << surface_id
+                << std::endl;
+      return SURFACE_NOT_FOUND;
+    }
+    surface = *surfaces.begin();
   }
-  result = moab->tag_get_handle( GLOBAL_ID_TAG_NAME, tags[1] );
-  if (MB_SUCCESS != result) {
-    std::cerr << "No ID tag.\n";
-    return OTHER_ERROR;
+  else {
+    surface = 0;
   }
- 
-    // Find entityset for surface.
-  int dimension = 2; // surface
-  const void* tag_values[] = { &dimension, &surface_id };
-  Range surfaces;
-  moab->get_entities_by_type_and_tag( 0, MBENTITYSET,
-                                      tags, tag_values,
-                                      2, surfaces );
-  if (surfaces.size() != 1) {
-    std::cerr << "Found " << surfaces.size() 
-              << " surfaces with ID " << surface_id
-              << std::endl;
-    return SURFACE_NOT_FOUND;
-  }
-  EntityHandle surface = *surfaces.begin();
   
     // Get surface mesh
   Range elements;
