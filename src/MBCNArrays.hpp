@@ -397,13 +397,13 @@ const CN::UpConnMap CN::mUpConnMap[MBMAXTYPE][4][4] =
     { // source dim 2
       { // target dim 0
         {3, 3, 3, 3}, // 3 vertices for all faces
-        {{0,1,3}, {1,2,3}, {0,2,3}, {0,1,2}} }, // end target dim 0
+        {{0,1,3}, {1,2,3}, {0,3,2}, {0,2,1}} }, // end target dim 0
       { // target dim 1
         {3, 3, 3, 3}, // 3 edges for all faces
-        {{0,4,3}, {1,5,4}, {2,3,5}, {0,2,1}} }, // end target dim 1
+        {{0,4,3}, {1,5,4}, {3,5,2}, {2,1,0}} }, // end target dim 1
       { // target dim 2
         {3, 3, 3, 3}, // 3 faces for all faces
-        {{3,1,2}, {3,2,0}, {0,1,3}, {0,2,1}} }, // end target dim 2
+        {{3,1,2}, {3,2,0}, {0,1,3}, {2,1,0}} }, // end target dim 2
       { // target dimension 3
         {1, 1, 1, 1}, // 0 connected elements for all vertices
         {{0}, {0}, {0}, {0}} } // end target dimension 3
