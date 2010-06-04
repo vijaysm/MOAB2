@@ -16,12 +16,6 @@
 #ifndef MB_ENTITY_TYPE_H
 #define MB_ENTITY_TYPE_H
 
-/*! Entity types defined in MOAB and MBCN
- *  The ordering here must ensure that all element types are 
- *  grouped together and all elements of similar dimension are
- *  grouped together.
- */
-
 /* This file can be used to define several different things.
  *
  * A) If included in C code (not C++), it defines:
@@ -65,6 +59,12 @@ namespace moab {
 # else /* __cplusplus */
 # define MOAB_ENTITY_TYPE_NAME MBEntityType
 #endif /* __cplusplus */
+
+/*! Entity types defined in MOAB and MBCN
+ *  The ordering here must ensure that all element types are 
+ *  grouped together and all elements of similar dimension are
+ *  grouped together.
+ */
 enum MOAB_ENTITY_TYPE_NAME
 {
   MBVERTEX = 0, /**< Mesh Vertex AKA node */
