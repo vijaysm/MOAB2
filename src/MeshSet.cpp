@@ -432,7 +432,7 @@ range_tool<pair_iter_t>::ranged_insert_entities( MeshSet::Count& count,
       // if there are holes in the current array, shuffle blocks 
       // down until we find the next block to merge with or insert before
     if (list_read != list_write) {
-      while (list_read != list_end && i->second + 1 < list_read[0]) {
+      while (list_read != list_end && list_read[1] + 1 < i->first) {
       	list_write[0] = list_read[0];
         list_write[1] = list_read[1];
         list_write += 2;

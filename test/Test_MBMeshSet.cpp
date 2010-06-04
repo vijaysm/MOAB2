@@ -98,6 +98,11 @@ void test_clear_set()                 { test_clear(                     MESHSET_
 void test_clear_ordered_tracking()    { test_clear( MESHSET_TRACK_OWNER|MESHSET_ORDERED ); }
 void test_clear_set_tracking()        { test_clear( MESHSET_TRACK_OWNER|MESHSET_SET     ); }
 
+// Reproduce contitions that resulted in bug reported to 
+// mailing list: 
+// http://lists.mcs.anl.gov/pipermail/moab-dev/2010/002714.html
+void regression_insert_set_1();
+
 int main()
 {
   int err = 0;
@@ -151,6 +156,8 @@ int main()
   err += RUN_TEST(test_clear_set);
   err += RUN_TEST(test_clear_ordered_tracking);
   err += RUN_TEST(test_clear_set_tracking);
+
+  err += RUN_TEST(regression_insert_set_1);
   
   if (!err) 
     printf("ALL TESTS PASSED\n");
@@ -1097,5 +1104,93 @@ void test_clear( unsigned flags )
   CHECK_ERR(rval);
   contents.clear();
   CHECK( check_set_contents( mb, set, contents ) );
+}
+
+void regression_insert_set_1()
+{
+  EntityHandle e = CREATE_HANDLE(MBEDGE,0);
+  EntityHandle q = CREATE_HANDLE(MBQUAD,0);
+  const EntityHandle initial_ranges[] = 
+    { 0x7fe, 0x7fe, 
+      0x802, 0x80b, 
+      0xb3a, 0xb3c, 
+      0xb6b, 0xb6b, 
+      0xbed, 0xbee, 
+      0x19ff, 0x19ff, 
+      0x1a0b, 0x1a0b, 
+      0x1a16, 0x1a17, 
+      0x1a56, 0x1a57, 
+      0x2554, 0x255c, 
+      e+0x0099, e+0x009b, 
+      e+0x00c0, e+0x00c2, 
+      e+0x0729, e+0x0732, 
+      e+0x0a3b, e+0x0a3d, 
+      e+0x0ba9, e+0x0bab, 
+      e+0x2322, e+0x232b, 
+      q+0x00c, q+0x017, 
+      q+0x0e9, q+0x112, 
+      q+0x2f2, q+0x303, 
+      q+0x67e, q+0x6a5, 
+      q+0x866, q+0x871, 
+      q+0x8f5, q+0x900, 
+      q+0xc06, q+0xc17, 
+      q+0xc7e, q+0xc9b, 
+      q+0xce0, q+0xd07 };
+  
+  const EntityHandle new_ranges[] = {
+      0x7e1, 0x829, 
+      0xb37, 0xb63, 
+      0xb6b, 0xb6b, 
+      0xb73, 0xb75, 
+      0xbed, 0xbee, 
+      0xc0b, 0xc10, 
+      0x19fd, 0x19fd, 
+      0x19ff, 0x19ff, 
+      0x1a02, 0x1a04, 
+      0x1a0b, 0x1a0b, 
+      0x1a11, 0x1a17, 
+      0x1a1b, 0x1a23, 
+      0x1a56, 0x1a57, 
+      0x1a7c, 0x1a96, 
+      0x1bb5, 0x1bba, 
+      0x254b, 0x2565, 
+      0x25a5, 0x25bf };
+      
+  Core moab;
+  Interface& mb = moab;
+  ErrorCode rval;
+  
+  EntityHandle set;
+  rval = mb.create_meshset( MESHSET_SET, set );
+  CHECK_ERR(rval);
+  
+  Range init, add;
+  for (size_t i = 0; i < sizeof(initial_ranges)/sizeof(initial_ranges[0]); i += 2)
+    init.insert( initial_ranges[i], initial_ranges[i+1] );
+  for (size_t i = 0; i < sizeof(new_ranges)/sizeof(new_ranges[0]); i += 2)
+    add.insert( new_ranges[i], new_ranges[i+1] );
+  
+  rval = mb.add_entities( set, init );
+  CHECK_ERR(rval);
+  rval = mb.add_entities( set, add );
+  CHECK_ERR(rval);
+  
+  std::vector<EntityHandle> contents;
+  rval = mb.get_entities_by_handle( set, contents );
+  CHECK_ERR(rval);
+  
+  init.merge( add );
+  Range::iterator r = init.begin();
+  std::vector<EntityHandle>::iterator v = contents.begin();
+  for (;;) {
+    if (r == init.end() || v == contents.end()) {
+      CHECK( r == init.end() );
+      CHECK( v == contents.end() );
+      break;
+    }
+    CHECK_EQUAL( *r, *v );
+    ++r;
+    ++v;
+  }
 }
 
