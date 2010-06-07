@@ -149,20 +149,11 @@ public:
     { if (check(verbosity)) print_real(str); }
     
   //!\brief Output the specified printf-formatted output iff output is enabled
-  void printf( int verbosity, const char* fmt, ... )
+  inline void printf( int verbosity, const char* fmt, ... )
 #ifdef __GNUC__
     __attribute__((format(printf,3,4)))
 #endif
-    {
-      if (check(verbosity)) {
-        va_list args1, args2;
-        va_start(args1, fmt);
-        va_start(args2, fmt);
-        print_real(fmt, args1, args2);
-        va_end(args2);
-        va_end(args1);
-      }
-    }
+    ;
 
   //!\brief Output the specified string iff output is enabled.
   //! 
@@ -179,20 +170,12 @@ public:
   //!\brief Output the specified printf-formatted output iff output is enabled
   //! 
   //! Include current CPU time (as returned by clock()) in output.
-  void tprintf( int verbosity, const char* fmt, ... )
+  inline void tprintf( int verbosity, const char* fmt, ... )
 #ifdef __GNUC__
     __attribute__((format(printf,3,4)))
 #endif
-    {
-      if (check(verbosity)) {
-        va_list args1, args2;
-        va_start(args1, fmt);
-        va_start(args2, fmt);
-        tprint_real(fmt, args1, args2);
-        va_end(args2);
-        va_end(args1);
-      }
-    }
+    ;
+
    
   //!\brief Print the contents of a moab::Range
   //!\param pfx String to print after default class prefix and before range contents
@@ -247,6 +230,30 @@ public:
   virtual void println( const char* pfx, const char* str ) = 0;
   virtual void println( int rank, const char* pfx, const char* str ) = 0;
 };
+  
+void DebugOutput::printf( int verbosity, const char* fmt, ... )
+{
+  if (check(verbosity)) {
+    va_list args1, args2;
+    va_start(args1, fmt);
+    va_start(args2, fmt);
+    print_real(fmt, args1, args2);
+    va_end(args2);
+    va_end(args1);
+  }
+}
+
+void DebugOutput::tprintf( int verbosity, const char* fmt, ... )
+{
+  if (check(verbosity)) {
+    va_list args1, args2;
+    va_start(args1, fmt);
+    va_start(args2, fmt);
+    tprint_real(fmt, args1, args2);
+    va_end(args2);
+    va_end(args1);
+  }
+}
 
 } // namespace moab
 
