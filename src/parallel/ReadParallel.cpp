@@ -656,6 +656,18 @@ ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set)
                                            &all_sets);
   RR("Failure gathering related entities.");
 
+    // Collect the empty sets from all_sets
+  Range orig_empty_sets;
+  for (Range::iterator rit = all_sets.begin();
+       rit != all_sets.end(); rit++) {
+    int num_ents;
+    result = mbImpl->get_number_entities_by_handle(*rit, num_ents);
+    RR("Failure getting number of entities.");
+
+    if (num_ents == 0)
+      orig_empty_sets.insert(*rit);
+  }
+
     // get pre-existing entities
   Range file_ents;
   result = mbImpl->get_entities_by_handle(file_set, file_ents); 
@@ -680,6 +692,20 @@ ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set)
     result = mbImpl->remove_entities(*rit, deletable_ents);
     RR("Failure removing deletable entities.");
   }
+
+    // Collect the empty sets from keepable_sets and add to deletable_sets
+  for (Range::iterator rit = keepable_sets.begin();
+       rit != keepable_sets.end(); rit++) {
+    int num_ents;
+    result = mbImpl->get_number_entities_by_handle(*rit, num_ents);
+    RR("Failure getting number of entities.");
+
+    if (num_ents == 0)
+      deletable_sets.insert(*rit);
+  }
+
+    // Subtract the original empty_sets from deletable_sets.
+  deletable_sets = subtract(deletable_sets, orig_empty_sets);
 
   myDebug.tprint( 2, "Deleting deletable entities.\n" );
 
