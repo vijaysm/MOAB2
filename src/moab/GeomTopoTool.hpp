@@ -45,6 +45,15 @@ public:
                          EntityHandle volume,
                          bool& forward );
 
+    //! Store senses and ents for edges
+  ErrorCode get_senses(EntityHandle edge,
+                       std::vector<EntityHandle> &faces,
+                       std::vector<int> &senses);
+  
+  ErrorCode set_senses(EntityHandle edge,
+                       std::vector<EntityHandle> &faces,
+                       std::vector<int> &senses);
+  
   ErrorCode find_geomsets(Range *ranges = NULL);
 
   ErrorCode construct_obb_trees(bool make_one_vol = false);
@@ -58,6 +67,7 @@ public:
 private:
   Interface *mdbImpl;
   Tag sense2Tag;
+  Tag senseNEntsTag, senseNSensesTag;
   Tag geomTag;
   Range geomRanges[4];
 

@@ -31,10 +31,14 @@ namespace moab {
 // forward and reverse volumes, respectively.  If a surface
 // is non-manifold in a single volume, the same volume will
 // be listed for both the forward and reverse slots.
-const char GEOM_SENSE_TAG_NAME[] = "GEOM_SENSE_2";
+const char GEOM_SENSE_2_TAG_NAME[] = "GEOM_SENSE_2";
+
+const char GEOM_SENSE_N_ENTS_TAG_NAME[] = "GEOM_SENSE_N_ENTS";
+const char GEOM_SENSE_N_SENSES_TAG_NAME[] = "GEOM_SENSE_N_SENSES";
 
 GeomTopoTool::GeomTopoTool(Interface *impl, bool find_geoments) 
-  : mdbImpl(impl), sense2Tag(0), obbTree(impl), oneVolRootSet(NULL)
+        : mdbImpl(impl), sense2Tag(0), senseNEntsTag(0), senseNSensesTag(0), 
+          obbTree(impl), oneVolRootSet(NULL)
 {
   ErrorCode result = mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4, 
                                            MB_TAG_SPARSE, geomTag, NULL);
@@ -51,7 +55,7 @@ ErrorCode GeomTopoTool::set_sense( EntityHandle surface,
 {
   ErrorCode rval;
   if (!sense2Tag) {
-    rval = mdbImpl->tag_create( GEOM_SENSE_TAG_NAME, 2*sizeof(EntityHandle), 
+    rval = mdbImpl->tag_create( GEOM_SENSE_2_TAG_NAME, 2*sizeof(EntityHandle), 
                            MB_TAG_SPARSE, MB_TYPE_HANDLE, 
                            sense2Tag, 0, true );
     if (MB_SUCCESS != rval)
@@ -72,13 +76,47 @@ ErrorCode GeomTopoTool::set_sense( EntityHandle surface,
   return mdbImpl->tag_set_data( sense2Tag, &surface, 1, sense_data );
 }
 
+ErrorCode GeomTopoTool::set_senses(EntityHandle edge,
+                                   std::vector<EntityHandle> &faces,
+                                   std::vector<int> &senses)
+{
+  ErrorCode rval;
+  if (!senseNEntsTag) {
+    rval = mdbImpl->tag_create_variable_length( GEOM_SENSE_N_ENTS_TAG_NAME, 
+                                                MB_TAG_SPARSE, MB_TYPE_HANDLE, 
+                                                senseNEntsTag);
+    if (MB_SUCCESS != rval)
+      return rval;
+
+    rval = mdbImpl->tag_create_variable_length( GEOM_SENSE_N_SENSES_TAG_NAME, 
+                                                MB_TAG_SPARSE, MB_TYPE_INTEGER, 
+                                                senseNSensesTag);
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+
+  int dum_size = faces.size() * sizeof(EntityHandle);
+  void *dum_ptr = &faces[0];
+  rval = mdbImpl->tag_set_data(senseNEntsTag, &edge, 1, &dum_ptr, &dum_size);
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  dum_ptr = &senses[0];
+  dum_size =  faces.size() * sizeof(int);
+  rval = mdbImpl->tag_set_data(senseNSensesTag, &edge, 1, &dum_ptr, &dum_size);
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  return rval;
+}
+
 ErrorCode GeomTopoTool::get_sense( EntityHandle surface,
                                      EntityHandle volume,
                                      bool& forward )
 {
   ErrorCode rval;
   if (!sense2Tag) {
-    rval = mdbImpl->tag_get_handle( GEOM_SENSE_TAG_NAME, sense2Tag );
+    rval = mdbImpl->tag_get_handle( GEOM_SENSE_2_TAG_NAME, sense2Tag );
     if (MB_SUCCESS != rval) {
       sense2Tag = 0;
       return MB_FAILURE;
@@ -96,6 +134,50 @@ ErrorCode GeomTopoTool::get_sense( EntityHandle surface,
     forward = false;
   else
     return MB_ENTITY_NOT_FOUND;
+  
+  return MB_SUCCESS;
+}
+
+ErrorCode GeomTopoTool::get_senses(EntityHandle edge,
+                                   std::vector<EntityHandle> &faces,
+                                   std::vector<int> &senses)
+{
+  ErrorCode rval;
+  if (!senseNEntsTag) {
+    rval = mdbImpl->tag_get_handle( GEOM_SENSE_N_ENTS_TAG_NAME, senseNEntsTag );
+    if (MB_SUCCESS != rval) {
+      senseNEntsTag = 0;
+      return MB_FAILURE;
+    }
+  }
+  
+  if (!senseNSensesTag) {
+    rval = mdbImpl->tag_get_handle( GEOM_SENSE_N_SENSES_TAG_NAME, senseNSensesTag );
+    if (MB_SUCCESS != rval) {
+      senseNSensesTag = 0;
+      return MB_FAILURE;
+    }
+  }
+  
+  const void *dum_ptr;
+  int num_ents;
+  rval = mdbImpl->tag_get_data( senseNEntsTag, &edge, 1, &dum_ptr, &num_ents);
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  faces.clear();
+  num_ents /= sizeof(EntityHandle);
+  const EntityHandle *ents_data = static_cast<const EntityHandle*>(dum_ptr);
+  std::copy(ents_data, ents_data+num_ents, std::back_inserter(faces));
+  
+  rval = mdbImpl->tag_get_data( senseNSensesTag, &edge, 1, &dum_ptr, &num_ents);
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  senses.clear();
+  num_ents /= sizeof(int);
+  const int *senses_data = static_cast<const int*>(dum_ptr);
+  std::copy(senses_data, senses_data+num_ents, std::back_inserter(senses));
   
   return MB_SUCCESS;
 }

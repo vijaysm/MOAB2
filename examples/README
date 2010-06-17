@@ -1,5 +1,15 @@
 This directory contains examples of some of MOAB's key functionality.
-Each example described here corresponds to a source file.  
+Each example described here corresponds to a source file.  To make all
+examples, enter 'make check'.  To make a specific example, list that
+example name on the make command line.  For example,
+
+  make FileRead
+
+will make the FileRead example, while
+
+  make check
+
+will make all the examples.
 
 The GetEntities example is located in the "simple" subdirectory.  The
 makefile there indicates how to build a program linked to MOAB using a
