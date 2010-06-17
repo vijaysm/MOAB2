@@ -64,15 +64,18 @@ int main(int argc, char **argv) {
         }
       }
       else if (1 == dim) {
+        sense_ents.clear();
+        senses.clear();
         rval = gt.get_senses(*ch_it, sense_ents, senses);
         if (moab::MB_SUCCESS != rval) continue;
         for (unsigned int i = 0; i < sense_ents.size(); i++) {
           rval = mb->tag_get_data(gid_tag, &sense_ents[i], 1, &pgid);
           std::cout << ent_names[dim+1] << " "   << pgid << ", " 
                     << ent_names[dim] << " " << chgid << " sense is: ";
-          if (1 == senses[i]) std::cout << "FORWARD" << std::endl;
-          else if (-1 == senses[i]) std::cout << "REVERSE" << std::endl;
-          else if (!senses[i]) std::cout << "BOTH" << std::endl;
+          if (1 == senses[i]) std::cout << "REVERSED" << std::endl;
+          else if (0 == senses[i]) std::cout << "FORWARD" << std::endl;
+          else if (-1 == senses[i]) std::cout << "UNKNOWN" << std::endl;
+          else std::cout << "(invalid)" << std::endl;
         }
       }
     }
