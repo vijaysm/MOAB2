@@ -14,7 +14,6 @@ DEFS += $(DEFINES)
 LIBS = 
 
 # stuff for c test program
-bin_PROGRAMS = rtestc
 rtestc_SOURCES = rtestc.c
 
 LDADD = libiRel.la 
@@ -23,8 +22,8 @@ TESTS = rtestc
 check_PROGRAMS = ${TESTS}
 
 rtestc_DEPENDENCIES = libiRel.la ${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMesh.la 
-rtestc_LDADD = libiRel.la ${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMesh.la 
-rtestc_LDFLAGS = ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${IMESH_LTFLAGS} ${IMESH_LDFLAGS} 
+rtestc_LDADD = libiRel.la #${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMesh.la 
+#rtestc_LDFLAGS = ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${IMESH_LTFLAGS} ${IMESH_LDFLAGS} 
 
 libiRel_la_SOURCES = \
 	iRel_Lasso.cpp \
@@ -38,6 +37,8 @@ libiRel_la_include_HEADERS = iRel.h \
 
 # The directory in which to install headers
 libiRel_la_includedir = $(includedir)
+libiRel_la_LIBADD = ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${IMESH_LTFLAGS} \
+                    ${IMESH_LDFLAGS} ${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMesh.la 
 
 lib_LTLIBRARIES = libiRel.la
 
