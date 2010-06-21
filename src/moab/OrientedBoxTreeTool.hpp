@@ -125,6 +125,7 @@ class OrientedBoxTreeTool
                             EntityHandle& root_set_out,
                             const Settings* settings = 0 );
 
+
     /**\brief Traversal statistics structure
      *
      * Structure to accumulate statistics on traversal performance. Passed optionally
@@ -150,6 +151,10 @@ class OrientedBoxTreeTool
         //! return counts of traversals ended, indexed by tree depth
         const std::vector< unsigned >& traversals_ended() const 
         { return traversals_ended_count; }        
+        //! return total number of ray-triangle intersection tests performed
+        //! in calls made with this TrvStats
+        unsigned int ray_tri_tests() const
+        { return ray_tri_tests_count; }
         //! reset all counters on this structure
         void reset();
         //! print the contents of this structure to given stream
@@ -160,7 +165,8 @@ class OrientedBoxTreeTool
         std::vector< unsigned > nodes_visited_count;
         std::vector< unsigned > leaves_visited_count;
         std::vector< unsigned > traversals_ended_count;
-        
+        unsigned int ray_tri_tests_count;
+
         void increment( unsigned depth );
         void increment_leaf( unsigned depth );
         void end_traversal( unsigned depth );
@@ -207,14 +213,19 @@ class OrientedBoxTreeTool
                                      const double* ray_length = 0,
                                      TrvStats* accum = 0 );
 
-    /**\brief Intersect ray with triangles contained in passed MBENTITYSETs */
+    /**\brief Intersect ray with triangles contained in passed MBENTITYSETs 
+     * 
+     * \param raytri_test_count    If non-NULL, count of ray-triangle intersect tests
+     *                             will be added to the value at which this points.
+     */
     ErrorCode ray_intersect_triangles( 
                           std::vector<double>& intersection_distances_out,
                           const Range& leaf_boxes_containing_tris,
                           double tolerance,
                           const double ray_point[3],
                           const double unit_ray_dir[3],
-                          const double* ray_length = 0);
+                          const double* ray_length = 0, 
+                          unsigned int* raytri_test_count = 0);
                           
 
     /**\brief Intersect a ray with the triangles contained within the tree

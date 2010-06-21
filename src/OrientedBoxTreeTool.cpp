@@ -676,6 +676,7 @@ class RayIntersector : public OrientedBoxTreeTool::Op
     const double tol;
     Range& boxes;
     
+
   public:
     RayIntersector( OrientedBoxTreeTool* tool_ptr,
                     const double* ray_point,
@@ -713,7 +714,8 @@ ErrorCode OrientedBoxTreeTool::ray_intersect_triangles(
                           double tolerance,
                           const double ray_point[3],
                           const double unit_ray_dir[3],
-                          const double* ray_length )
+                          const double* ray_length, 
+                          unsigned int* raytri_test_count )
 {
   ErrorCode rval;
   intersection_distances_out.clear();
@@ -761,6 +763,8 @@ ErrorCode OrientedBoxTreeTool::ray_intersect_triangles(
       if (MB_SUCCESS != rval)
         return rval;
       
+      if( raytri_test_count ) *raytri_test_count += 1; 
+
       double td;
       if (GeomUtil::ray_tri_intersect( coords, point, dir, tolerance, td, ray_length ))
         intersection_distances_out.push_back(td);
@@ -786,7 +790,9 @@ ErrorCode OrientedBoxTreeTool::ray_intersect_triangles(
   if (MB_SUCCESS != rval)
     return rval;
     
-  return ray_intersect_triangles( intersection_distances_out, boxes, tolerance, ray_point, unit_ray_dir, ray_length );
+  return ray_intersect_triangles( intersection_distances_out, boxes, 
+                                  tolerance, ray_point, unit_ray_dir, ray_length, 
+                                  accum ? &(accum->ray_tri_tests_count) : NULL );
 }
 
 ErrorCode OrientedBoxTreeTool::ray_intersect_boxes( 
@@ -837,6 +843,7 @@ class RayIntersectSets : public OrientedBoxTreeTool::Op
     std::vector<double>& intersections;
     std::vector<EntityHandle>& sets;
     std::vector<EntityHandle>& facets;    
+    unsigned int* raytri_test_count;
 
   EntityHandle lastSet;
     int lastSetDepth;
@@ -852,12 +859,13 @@ class RayIntersectSets : public OrientedBoxTreeTool::Op
                    unsigned min_tol_intersections,
                    std::vector<double>& intersections,
                    std::vector<EntityHandle>& surfaces,
-                   std::vector<EntityHandle>& facets )
+                   std::vector<EntityHandle>& facets,
+                   unsigned int* raytri_test_count   )
       : tool(tool_ptr), minTolInt(min_tol_intersections),
         b(ray_point), m(unit_ray_dir),
         len(ray_length), tol(tolerance),
         intersections(intersections),
-        sets(surfaces), facets(facets), lastSet(0)
+        sets(surfaces), facets(facets), raytri_test_count(raytri_test_count), lastSet(0)
       { }
   
     virtual ErrorCode visit( EntityHandle node,
@@ -937,6 +945,8 @@ ErrorCode RayIntersectSets::leaf( EntityHandle node )
     rval = tool->get_moab_instance()->get_coords( conn, 3, coords[0].array() );
     if (MB_SUCCESS != rval)
       return rval;
+
+    if( raytri_test_count ) *raytri_test_count += 1; 
 
     double td;
     if (GeomUtil::ray_tri_intersect( coords, b, m, tol, td, len )) 
@@ -1037,7 +1047,8 @@ ErrorCode OrientedBoxTreeTool::ray_intersect_sets(
                                     TrvStats* accum )
 {
   RayIntersectSets op( this, ray_point, unit_ray_dir, ray_length, tolerance, 
-                       min_tolerace_intersections, distances_out, sets_out, facets_out ); 
+                       min_tolerace_intersections, distances_out, sets_out, facets_out, 
+                       accum ? &(accum->ray_tri_tests_count) : NULL ); 
   return preorder_traverse( root_set, op, accum );
 }
 
@@ -1614,6 +1625,7 @@ void OrientedBoxTreeTool::TrvStats::reset(){
   nodes_visited_count.clear();
   leaves_visited_count.clear();
   traversals_ended_count.clear();
+  ray_tri_tests_count = 0;
 }
 
 void OrientedBoxTreeTool::TrvStats::increment( unsigned depth ){
@@ -1665,6 +1677,11 @@ void OrientedBoxTreeTool::TrvStats::print( std::ostream& str ) const {
       << std::setw(h3.length()) << num_leaves
       << std::setw(h4.length()) << num_traversals 
       << std::endl;
+  
+  if( ray_tri_tests_count ){
+    str << std::setw(h1.length()) << "---- Total ray-tri tests: " 
+	<< ray_tri_tests_count << std::endl;
+  }
 
 }
 
