@@ -28,6 +28,7 @@
 #include <sstream>
 #include <iomanip>
 #include <set>
+#include <list>
 #include <cstdlib>
 #include <algorithm>
 #ifndef WIN32
@@ -57,7 +58,7 @@ const char acis_dump_file_tag_name[] = "__ACISDumpFile";
 void print_usage( const char* name, std::ostream& stream )
 {
   stream << "Usage: " << name << 
-    " [-a <sat_file>|-A] [-t] [subset options] [-f format] <input_file> <output_file>" << std::endl
+    " [-a <sat_file>|-A] [-t] [subset options] [-f format] <input_file> [<input_file2> ...] <output_file>" << std::endl
     << "\t-f <format>    - Specify output file format" << std::endl
     << "\t-a <acis_file> - ACIS SAT file dumped by .cub reader (same as \"-o SAT_FILE=acis_file\"" << std::endl
     << "\t-A             - .cub file reader should not dump a SAT file (depricated default)" << std::endl
@@ -153,9 +154,10 @@ int main(int argc, char* argv[])
   bool append_rank = false;
   bool percent_rank_subst = false;      
   int i, dim;
+  std::list< std::string >::iterator j;
   bool dims[4] = {false, false, false, false};
   const char* format = NULL; // output file format
-  std::string in;    // input file name
+  std::list< std::string > in; // input file name list
   std::string out;   // output file name
   bool verbose = false;
   std::set<int> geom[4], mesh[3];       // user-specified IDs 
@@ -243,19 +245,17 @@ int main(int argc, char* argv[])
       }
     }
       // do file names
-    else if (in.empty())
-      in = argv[i];
-    else if (out.empty())
-      out = argv[i];
-    else  { // too many file names
-      std::cerr << "Unexpexed argument: " << argv[i] << std::endl;
-      usage_error(argv[0]);
+    else {
+      in.push_back( argv[i] );
     }
   }
-  if (in.empty() || out.empty()) {
+  if (in.size() < 2) {
     std::cerr << "No output file name specified." << std::endl;
     usage_error(argv[0]);
   }
+    // output file name is the last one specified
+  out = in.back();
+  in.pop_back();
     
   if (append_rank) {
     std::ostringstream mod;
@@ -264,7 +264,8 @@ int main(int argc, char* argv[])
   }
   
   if (percent_rank_subst) {
-    in  = percent_subst( in , proc_id );
+    for (j = in.begin(); j != in.end(); ++j) 
+      *j = percent_subst( *j , proc_id );
     out = percent_subst( out, proc_id );
   }
  
@@ -280,22 +281,24 @@ int main(int argc, char* argv[])
   }
   
     // Read the input file.
-  reset_times();
-  result = gMB->load_file( in.c_str(), 0, read_options.c_str() );
-  if (MB_SUCCESS != result)
-  { 
-    std::cerr << "Failed to load \"" << in << "\"." << std::endl;
-    std::cerr  << "Error code: " << gMB->get_error_string(result) << " (" << result << ")" << std::endl;
-    std::string message;
-    if (MB_SUCCESS == gMB->get_last_error(message) && !message.empty())
-      std::cerr << "Error message: " << message << std::endl;
-#ifdef USE_MPI
-    MPI_Finalize();
-#endif
-    return READ_ERROR;
+  for (j = in.begin(); j != in.end(); ++j) {
+    reset_times();
+    result = gMB->load_file( j->c_str(), 0, read_options.c_str() );
+    if (MB_SUCCESS != result)
+    { 
+      std::cerr << "Failed to load \"" << *j << "\"." << std::endl;
+      std::cerr  << "Error code: " << gMB->get_error_string(result) << " (" << result << ")" << std::endl;
+      std::string message;
+      if (MB_SUCCESS == gMB->get_last_error(message) && !message.empty())
+        std::cerr << "Error message: " << message << std::endl;
+  #ifdef USE_MPI
+      MPI_Finalize();
+  #endif
+      return READ_ERROR;
+    }
+    std::cerr << "Read \"" << *j << "\"" << std::endl;
+    if (print_times && !proc_id) write_times( std::cout );
   }
-  std::cerr << "Read \"" << in << "\"" << std::endl;
-  if (print_times && !proc_id) write_times( std::cout );
   
     // Determine if the user has specified any geometry sets to write
   bool have_geom = false;

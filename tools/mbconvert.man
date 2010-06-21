@@ -7,7 +7,7 @@ mbconvert \- convert between file formats supported by MOAB
 .B mbconvert
 .B [-f
 .I format
-.B ] [-a 
+.B ] [-a
 .I sat_file
 .B |-A] [-t] [-g] [-o
 .I option
@@ -15,22 +15,26 @@ mbconvert \- convert between file formats supported by MOAB
 .I option
 .B ] [-I
 .I dim
-.B ] [-p|-P] [-v 
+.B ] [-p|-P] [-v
 .I vol_id_list
-.B ] [-s 
+.B ] [-s
 .I surf_id_list
-.B ] [-c 
+.B ] [-c
 .I curve_id_list
-.B ] [-V 
+.B ] [-V
 .I vert_id_list
-.B ] [-m 
+.B ] [-m
 .I block_id_list
-.B ] [-d 
+.B ] [-d
 .I nodeset_id_list
-.B ] [-n 
+.B ] [-n
 .I sideset_id_list
-.B ] [-1] [-2] [-3] 
-.I input_file output_file
+.B ] [-1] [-2] [-3]
+.I input_file
+.B [
+.I input_file2
+.B ...]
+.I output_file
 .SH DESCRIPTION
 .B mbconvert
 uses the MOAB library to translate between mesh file formats or
