@@ -24,18 +24,16 @@
 
 
 AssocPairC::AssocPairC(iBase_Instance iface0,
-                       const int ent_or_set0,
-                       const IfaceType type0,
+                       RelationType ent_or_set0,
+                       IfaceType type0,
                        iBase_Instance iface1,
-                       const int ent_or_set1,
-                       const IfaceType type1,
+                       RelationType ent_or_set1,
+                       IfaceType type1,
                        Lasso *lasso) 
-    : AssocPair(ent_or_set0, ent_or_set1, lasso)
+  : AssocPair(ent_or_set0, type0, ent_or_set1, type1, lasso)
 {
   ifaceInstances[0] = iface0;
   ifaceInstances[1] = iface1;
-  ifaceTypes[0] = type0;
-  ifaceTypes[1] = type1;    
 
     // finally, create the tags we'll need
   create_tags();

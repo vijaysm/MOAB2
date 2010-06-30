@@ -81,9 +81,10 @@ void iRel_createRelation (
     
     // assume it's an AssocPairC
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  *rel = (iRel_RelationHandle) new AssocPairC(iface1, ent_or_set1, static_cast<IfaceType>(type1),
-                                              iface2, ent_or_set2, static_cast<IfaceType>(type2),
-                                              lasso);
+  *rel = (iRel_RelationHandle) new AssocPairC(
+    iface1, static_cast<RelationType>(ent_or_set1), static_cast<IfaceType>(type1),
+    iface2, static_cast<RelationType>(ent_or_set2), static_cast<IfaceType>(type2),
+    lasso);
   
   RETURN(iBase_SUCCESS);
 }

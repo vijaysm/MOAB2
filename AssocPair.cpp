@@ -7,13 +7,12 @@ const char *AssocPair::GLOBAL_ID_TAG_NAME = "GLOBAL_ID";
 const char *AssocPair::GEOM_DIMENSION_TAG_NAME = "GEOM_DIMENSION";
 const char *AssocPair::ASSOCIATION_TAG_NAME = "ASSOCIATION";
 
-AssocPair::AssocPair(const int ent_or_set0, const int ent_or_set1,
-                            Lasso *lasso)
-    : 
-    myLasso(lasso)
+AssocPair::AssocPair(RelationType ent_or_set0, IfaceType type0,
+                     RelationType ent_or_set1, IfaceType type1,
+                     Lasso *lasso) : myLasso(lasso)
 {
-  ifaceTypes[0] = iRel_IBASE_IFACE;
-  ifaceTypes[1] = iRel_IBASE_IFACE;
+  ifaceTypes[0] = type0;
+  ifaceTypes[1] = type1;
   entOrSet[0] = ent_or_set0;
   entOrSet[1] = ent_or_set1;
   assocTags[0] = 0;
@@ -207,6 +206,11 @@ int AssocPair::set_assoc_tags(iBase_EntitySetHandle ent1, iBase_EntitySetHandle 
 IfaceType AssocPair::iface_type(const int iface_no) 
 {
   return ifaceTypes[iface_no];
+}
+
+RelationType AssocPair::ent_or_set(const int iface_no) 
+{
+  return entOrSet[iface_no];
 }
   
 bool AssocPair::equivalent(IfaceType type1, 

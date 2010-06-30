@@ -95,8 +95,7 @@ extern "C"
      * of iBase.
      */
   enum IfaceType 
-  {iRel_IBASE_IFACE = 0,
-   iRel_IGEOM_IFACE, 
+  {iRel_IGEOM_IFACE = 0, 
    iRel_IMESH_IFACE, 
    iRel_IFIELD_IFACE, 
    iRel_IREL_IFACE};

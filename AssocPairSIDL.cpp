@@ -20,94 +20,31 @@ AssocPairSIDL::AssocPairSIDL(::sidl::BaseInterface iface0,
                              ::sidl::BaseInterface iface1,
                              const int ent_or_set1,
                              Lasso *lasso) 
-    : AssocPair(ent_or_set0, ent_or_set1, lasso)
+  : AssocPair(ent_or_set0, get_type(iface0), ent_or_set1, get_type(iface1), 
+              lasso)
 {
-    // try casting to figure out which type it is
-  if (is_type(iface0, iMesh_IFACE)) {
-      // if we get here, it's mesh
-    ifaceTypes[0] = iMesh_IFACE;
-    ifaceInstances[0] = iface0;
-  }
-  else if (is_type(iface0, iGeom_IFACE)) {
-      // if we get here, it's geom
-    ifaceTypes[0] = iGeom_IFACE;
-    ifaceInstances[0] = iface0;
-  }
-  else if (is_type(iface0, iRel_IFACE)) {
-      // if we get here, it's associate
-    ifaceTypes[0] = iRel_IFACE;
-    ifaceInstances[0] = iface0;
-  }
-  else {
-    iBase::Error err;
-    err.set(iBase::ErrorType_INVALID_ARGUMENT,
-            "Couldn't find proper type of interface for createAssociation.");
-    throw err;
-  }
-
-    // try casting to figure out which type it is
-  if (is_type(iface1, iMesh_IFACE)) {
-      // if we get here, it's mesh
-    ifaceTypes[1] = iMesh_IFACE;
-    ifaceInstances[1] = iface1;
-  }
-  else if (is_type(iface1, iGeom_IFACE)) {
-      // if we get here, it's geom
-    ifaceTypes[1] = iGeom_IFACE;
-    ifaceInstances[1] = iface1;
-  }
-  else if (is_type(iface1, iRel_IFACE)) {
-      // if we get here, it's associate
-    ifaceTypes[1] = iRel_IFACE;
-    ifaceInstances[1] = iface1;
-  }
-  else {
-    iBase::Error err;
-    err.set(iBase::ErrorType_INVALID_ARGUMENT,
-            "Couldn't find proper type of interface for createAssociation.");
-    throw err;
-  }
-
-
-    // sort by iface type
-#define SWITCH(this_type, arg1, arg2) \
-  {this_type arg_tmp = arg1; arg1 = arg2; arg2 = arg_tmp;}
-
-  if (ifaceTypes[0] > ifaceTypes[1]) {
-    SWITCH(IfaceType, ifaceTypes[0], ifaceTypes[1]);
-    SWITCH(::sidl::BaseInterface, ifaceInstances[0], ifaceInstances[1]);
-    SWITCH(int, entOrSet[0], entOrSet[1]);
-  }
-
-    // finally, create the tags we'll need
+  // create the tags we'll need
   create_tags();
 }
 
 AssocPairSIDL::~AssocPairSIDL() 
 {}
 
-bool AssocPairSIDL::is_type(::sidl::BaseInterface iface,
-                            IfaceType this_type) 
+IfaceType AssocPairSIDL::get_type(::sidl::BaseInterface iface)
 {
-  if (iGeom_IFACE == this_type) {
-    iGeom::Geometry geom = iface;
-    if (geom._is_nil()) return false;
-    else return true;
-  }
-  
-  if (iMesh_IFACE == this_type) {
-    iMesh::Mesh mesh = iface;
-    if (mesh._is_nil()) return false;
-    else return true;
-  }
-  
-  if (iRel_IFACE == this_type) {
-    iRel::Associate assoc = iface;
-    if (assoc._is_nil()) return false;
-    else return true;
-  }
+  iGeom::Geometry geom = iface;
+  if (!geom._is_nil()) return iGeom_IFACE;
 
-  return false;
+  iMesh::Mesh mesh = iface;
+  if (!mesh._is_nil()) return iMesh_IFACE;
+  
+  iRel::Associate assoc = iface;
+  if (!assoc._is_nil()) return iRel_IFACE;
+
+  iBase::Error err;
+  err.set(iBase::ErrorType_INVALID_ARGUMENT,
+          "Couldn't find proper type of interface.");
+  throw err;
 }
 
 bool AssocPairSIDL::same_interface(iBase_Instance iface0, 

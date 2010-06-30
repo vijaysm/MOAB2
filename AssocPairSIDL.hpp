@@ -138,8 +138,7 @@ public:
   
 private:
 
-  bool is_type(::sidl::BaseInterface iface,
-               IfaceType this_type);
+  static IFaceType get_type(::sidl::BaseInterface iface);
 
   ::sidl::BaseInterface ifaceInstances[2];
   

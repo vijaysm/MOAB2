@@ -7,10 +7,10 @@ class AssocPairC : public AssocPair
 {
 public:
   AssocPairC(iBase_Instance iface0,
-             const int ent_or_set0,
+             RelationType ent_or_set0,
              IfaceType type0,
              iBase_Instance iface1,
-             const int ent_or_set1,
+             RelationType ent_or_set1,
              IfaceType type1,
              Lasso *lasso);
 
