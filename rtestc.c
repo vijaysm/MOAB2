@@ -203,8 +203,8 @@ int relate_geom_mesh_test(iRel_Instance assoc,
 
     // create an relation, entity to set
   iRel_createRelation(assoc, 
-                      geom, 0, iRel_IGEOM_IFACE,
-                      mesh, 1, iRel_IMESH_IFACE, rel, &result);
+                      geom, iRel_ENTITY, iRel_IGEOM_IFACE,
+                      mesh, iRel_SET, iRel_IMESH_IFACE, rel, &result);
   if (iBase_SUCCESS != result) {
     printf("Couldn't create a new relation.\n");
     return 0;

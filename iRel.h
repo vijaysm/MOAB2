@@ -47,13 +47,13 @@
    * For example, if a relation pair is created by calling:
    * \code 
    * iRel_createRelation(instance, iface1, ent_or_set1, type1, 
-   *                        iface2, ent_or_set2, type2,
-   *                        &relation_handle, &ierr)
+   *                     iface2, ent_or_set2, type2,
+   *                     &relation_handle, &ierr)
    * \endcode
    * and relations set by calling
    * \code
    * iRel_setEntEntRelation(instance, relation_handle,
-   *                           ent1, is_set1, ent2, is_set2, &ierr)
+   *                        ent1, is_set1, ent2, is_set2, &ierr)
    * \endcode
    * it is assumed that ent1 is contained in iface1 and ent2 in
    * iface2.
@@ -100,6 +100,16 @@ extern "C"
    iRel_IMESH_IFACE, 
    iRel_IFIELD_IFACE, 
    iRel_IREL_IFACE};
+
+    /**\brief  \enum RelationType Enumerator specifying relation types
+     *
+     * Enumerator specifying relation types.  A relation has two types, one
+     * for each side of the relation.
+     */
+  enum RelationType 
+  {iRel_ENTITY = 0, 
+   iRel_SET, 
+   iRel_BOTH};
 
   extern struct iBase_Error iRel_LAST_ERROR;
 
@@ -190,19 +200,19 @@ extern "C"
     iRel_Instance instance,
     iRel_RelationHandle rel,
     iBase_EntityHandle ent1,
-    iBase_EntitySetHandle ent2,
+    iBase_EntitySetHandle entset2,
     int *ierr);
   void iRel_setSetEntRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,
-    iBase_EntitySetHandle ent1,
+    iBase_EntitySetHandle entset1,
     iBase_EntityHandle ent2,
     int *ierr);
   void iRel_setSetSetRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,
-    iBase_EntitySetHandle ent1,
-    iBase_EntitySetHandle ent2,
+    iBase_EntitySetHandle entset1,
+    iBase_EntitySetHandle entset2,
     int *ierr);
 
     /**\brief  Set a relation between an entity and several entities
@@ -213,7 +223,7 @@ extern "C"
         \param instance Interface instance
         \param rel Relation handle being queried
         \param ent1 1st entity of relation being set
-        \param switch_order If non-zero, ent1 is associated with iface2 and
+        \param switch_order If non-zero, ent1 is related with iface2 and
                  ent_array_2 with iface1 of
                  specified relation, otherwise vica versa
         \param ent_array_2 Entity(ies) to be related to ent1
@@ -231,7 +241,7 @@ extern "C"
   void iRel_setSetEntArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
-    iBase_EntitySetHandle ent1,
+    iBase_EntitySetHandle entset1,
     int switch_order,
     iBase_EntityHandle *ent_array_2,
     int num_entities,
@@ -241,15 +251,15 @@ extern "C"
     iRel_RelationHandle rel,    
     iBase_EntityHandle ent1,
     int switch_order,
-    iBase_EntitySetHandle *ent_array_2,
+    iBase_EntitySetHandle *entset_array_2,
     int num_entities,
     int *ierr);
   void iRel_setSetSetArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
-    iBase_EntitySetHandle ent1,
+    iBase_EntitySetHandle entset1,
     int switch_order,
-    iBase_EntitySetHandle *ent_array_2,
+    iBase_EntitySetHandle *entset_array_2,
     int num_entities,
     int *ierr);
 
@@ -279,7 +289,7 @@ extern "C"
   void iRel_setSetArrEntArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
-    iBase_EntitySetHandle *ent_array_1,
+    iBase_EntitySetHandle *entset_array_1,
     int num_ent1,
     iBase_EntityHandle *ent_array_2,
     int num_ent2,
@@ -289,15 +299,15 @@ extern "C"
     iRel_RelationHandle rel,    
     iBase_EntityHandle *ent_array_1,
     int num_ent1,
-    iBase_EntitySetHandle *ent_array_2,
+    iBase_EntitySetHandle *entset_array_2,
     int num_ent2,
     int *ierr);
   void iRel_setSetArrSetArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
-    iBase_EntitySetHandle *ent_array_1,
+    iBase_EntitySetHandle *entset_array_1,
     int num_ent1,
-    iBase_EntitySetHandle *ent_array_2,
+    iBase_EntitySetHandle *entset_array_2,
     int num_ent2,
     int *ierr);
 
@@ -325,21 +335,21 @@ extern "C"
     iRel_RelationHandle rel,    
     iBase_EntityHandle ent1,
     int switch_order,
-    iBase_EntitySetHandle *ent2,
+    iBase_EntitySetHandle *entset2,
     int *ierr);
   void iRel_getSetEntRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
-    iBase_EntitySetHandle ent1,
+    iBase_EntitySetHandle entset1,
     int switch_order,
     iBase_EntityHandle *ent2,
     int *ierr);
   void iRel_getSetSetRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
-    iBase_EntitySetHandle ent1,
+    iBase_EntitySetHandle entset1,
     int switch_order,
-    iBase_EntitySetHandle *ent2,
+    iBase_EntitySetHandle *entset2,
     int *ierr);
 
     /**\brief  Get entities related to specified entity and relation
@@ -350,7 +360,7 @@ extern "C"
         \param instance Interface instance
         \param rel Relation handle being queried
         \param ent1 1st entity of relation being queried
-        \param switch_order ent1 is associated with 1st (=0) or 2nd (=1) interface
+        \param switch_order ent1 is related with 1st (=0) or 2nd (=1) interface
                of this relation pair
         \param *ent_array_2 Pointer to array of entity handles returned from function
         \param *ent_array_2_allocated Pointer to allocated size of ent_array_2
@@ -369,7 +379,7 @@ extern "C"
   void iRel_getSetEntArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
-    iBase_EntitySetHandle ent1,
+    iBase_EntitySetHandle entset1,
     int switch_order,
     iBase_EntityHandle **ent_array_2,
     int *ent_array_2_allocated,
@@ -385,7 +395,7 @@ extern "C"
         \param rel Relation handle being queried
         \param ent_array_1 Array of entities whose relations are being queried
         \param ent_array_1_size Number of entities in ent_array_1
-        \param switch_order Entities in ent_array_1 are associated with 1st (=0) 
+        \param switch_order Entities in ent_array_1 are related with 1st (=0) 
                or 2nd (=1) interface of this relation pair
         \param *ent_array_2 Pointer to array of entity handles returned from function
         \param *ent_array_2_allocated Pointer to allocated size of ent_array_2
@@ -415,15 +425,15 @@ extern "C"
     iBase_EntityHandle *ent_array_1,
     int ent_array_1_size,
     int switch_order,
-    iBase_EntitySetHandle **ent_array_2,
-    int *ent_array_2_allocated,
-    int *ent_array_2_size,
+    iBase_EntitySetHandle **entset_array_2,
+    int *entset_array_2_allocated,
+    int *entset_array_2_size,
     int *ierr);
   void iRel_getSetArrEntArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
-    iBase_EntitySetHandle *ent_array_1,
-    int ent_array_1_size,
+    iBase_EntitySetHandle *entset_array_1,
+    int entset_array_1_size,
     int switch_order,
     iBase_EntityHandle **ent_array_2,
     int *ent_array_2_allocated,
@@ -435,12 +445,12 @@ extern "C"
   void iRel_getSetArrSetArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
-    iBase_EntitySetHandle *ent_array_1,
-    int ent_array_1_size,
+    iBase_EntitySetHandle *entset_array_1,
+    int entset_array_1_size,
     int switch_order,
-    iBase_EntitySetHandle **ent_array_2,
-    int *ent_array_2_allocated,
-    int *ent_array_2_size,
+    iBase_EntitySetHandle **entset_array_2,
+    int *entset_array_2_allocated,
+    int *entset_array_2_size,
     int *ierr);
 
     /**\brief  Infer relations between entities in specified pair of interfaces
@@ -481,7 +491,7 @@ extern "C"
   void iRel_inferSetRelations (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
-    iBase_EntitySetHandle entity,
+    iBase_EntitySetHandle entity_set,
     int iface_no,
     int *ierr);
 
@@ -510,7 +520,7 @@ extern "C"
   void iRel_inferSetArrRelations (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
-    iBase_EntitySetHandle *entities,
+    iBase_EntitySetHandle *entity_sets,
     int entities_size,
     int iface_no,
     int *ierr);
@@ -527,7 +537,7 @@ extern "C"
                    iRel_Instance *instance,
                    int *ierr,
                    const int options_len);
-  
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
