@@ -148,28 +148,6 @@ int print_mesh_info(iMesh_Instance mesh, iBase_EntityHandle ment)
   return 1;
 }
 
-int project_to_geom(iGeom_Instance geom,
-                    iMesh_Instance mesh,
-                    iRel_Instance assoc,
-                    iBase_EntityHandle *gents,
-                    int gents_size)
-{
-  enum iBase_ErrorType result = iBase_SUCCESS;
-  int i;
-  for (i = 0; i < gents_size; i++) {
-    int tmp_result;
-    iRel_moveTo(assoc, geom, mesh, gents[i], &tmp_result);
-    if (iBase_SUCCESS != tmp_result) result = tmp_result;
-  }
-
-  if (iBase_SUCCESS != result) {
-    printf("ERROR : can not move meshes.\n");
-    return 0;
-  }
-  
-  return 1;
-}
-
 /*!
   @test 
   Load Mesh
@@ -445,41 +423,6 @@ int query_relations_test(iRel_Instance assoc,
   return 1;
 }
 
-/*!
-  @test
-  TSTTAssoc move to test
-  @li Move meshes onto the given geometry
-*/
-int move_to_test(iRel_Instance assoc,
-                 iGeom_Instance geom, iMesh_Instance mesh)
-{
-  int dim;
-  for (dim = 0; dim <= 2; dim++) {
-    iBase_EntityHandle *geom_ents = NULL;
-    int geom_ents_size = 0, geom_ents_alloc = 0;
-    int result; 
-    iGeom_getEntities(geom, NULL, 
-                      iBase_VERTEX, 
-                      &geom_ents,
-                      &geom_ents_alloc,
-                      &geom_ents_size, &result);
-    if (iBase_SUCCESS != result) {
-      printf("Failed to get gentities by type in move_to_test.\n");
-      return 0;
-    }
-
-      // project mesh down to geometry for those entities
-    int success = project_to_geom(geom, mesh, assoc, 
-                                  geom_ents, geom_ents_size);
-
-    if (!success) return 0;
-    
-    free(geom_ents);
-  }
-  
-  return 1;
-}
-
 
 int main( int argc, char *argv[] )
 {
@@ -546,15 +489,6 @@ int main( int argc, char *argv[] )
     // query_relations test
   printf("   query_relations: ");
   result = query_relations_test(assoc, geom, mesh, rel);
-  handle_error_code(result, &number_tests_failed,
-                    &number_tests_not_implemented,
-                    &number_tests_successful);
-  number_tests++;
-  printf("\n");
-
-    // move_to test
-  printf("   move_to: ");
-  result = move_to_test(assoc, geom, mesh);
   handle_error_code(result, &number_tests_failed,
                     &number_tests_not_implemented,
                     &number_tests_successful);
