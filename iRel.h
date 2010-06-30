@@ -1,6 +1,9 @@
 #ifndef __iRel_LASSO_HPP__
 #define __iRel_LASSO_HPP__
 
+#define IREL_MAJOR_VERSION 1
+#define IREL_MINOR_VERSION 0
+
   /** \mainpage The ITAPS Relations Interface iRel
    *
    * Each ITAPS interface encapsulates functionality that "belongs"
@@ -12,7 +15,7 @@
    * way which allows the lower-level interfaces to remain
    * independent.
    *
-   * iRel defines relations as pairwise associations between entities
+   * iRel defines relations as pairwise relations between entities
    * or entity sets.  Related entities can be in the same or different
    * interfaces.  A given relation is created for a given pair of
    * interfaces and returned in the form of a \em Relation \em Handle.
@@ -28,11 +31,12 @@
    * For each interface in a relation pair, a corresponding type
    * indicates whether the relation applies to entities, entity sets,
    * or both entities and sets in the corresponding interface in the
-   * pair.  If one of the interfaces in a given pair has a
-   * 'both'-type, that means both entities and entity sets in that
-   * interface are related to either entities or sets in the other
-   * interface in the pair.  Only one of the interfaces in a given
-   * relation pair can have the 'both' type.
+   * pair.  If only one of the interfaces in a given pair has a
+   * 'both'-type, entities and entity sets in that
+   * interface are each related to either entities or sets in the other
+   * interface in the pair.  If both of the sides of a relation are of 
+   * 'both'-type, entities and sets on one side of a relation point to 
+   * sets on the other side.
    *
    * \section Argument Order
    *
@@ -42,13 +46,13 @@
    * same order as the interfaces used to create that relation pair.
    * For example, if a relation pair is created by calling:
    * \code 
-   * iRel_createAssociation(instance, iface1, ent_or_set1, type1, 
+   * iRel_createRelation(instance, iface1, ent_or_set1, type1, 
    *                        iface2, ent_or_set2, type2,
    *                        &relation_handle, &ierr)
    * \endcode
    * and relations set by calling
    * \code
-   * iRel_setEntEntAssociation(instance, relation_handle,
+   * iRel_setEntEntRelation(instance, relation_handle,
    *                           ent1, is_set1, ent2, is_set2, &ierr)
    * \endcode
    * it is assumed that ent1 is contained in iface1 and ent2 in
@@ -59,20 +63,6 @@
    * whether the input entity or list belongs to the first or second
    * interface in that relation pair.
    * 
-   * \section Entity Arguments for 'both'-Type Relations
-   *
-   * 'both'-type relations can be assigned and retrieved on entities
-   * or sets.  For these functions, an additional input parameter
-   * specifies whether the input entity is an entity or an entity set.
-   *
-   * \section Geometry-Mesh Functions
-   *
-   * Several functions in iRel pertain specifically to geometry-mesh
-   * relations.  These functions assume that the relation pair handle
-   * input is a relation between an iGeom and iMesh instance, and that
-   * the relation pair was created with the interfaces in that order.
-   *
-   *
    */
 
 #include "iGeom.h"
@@ -139,7 +129,7 @@ extern "C"
         \param *rel Pointer to relation handle, returned from function
         \param *ierr Pointer to error value, returned from function
     */
-  void iRel_createAssociation (
+  void iRel_createRelation (
     iRel_Instance instance,
     iBase_Instance iface1,
     const int ent_or_set1,
@@ -157,7 +147,7 @@ extern "C"
         \param rel Handle of relation pair to destroy
         \param *ierr Pointer to error value, returned from function
     */
-  void iRel_destroyAssociation (
+  void iRel_destroyRelation (
     iRel_Instance instance, 
     iRel_RelationHandle rel,
     int *ierr);
@@ -173,7 +163,7 @@ extern "C"
         \param interfaces_size Pointer to occupied size of interfaces list
         \param *ierr Pointer to error value, returned from function
     */
-  void iRel_getAssociatedInterfaces (
+  void iRel_getRelatedInterfaces (
     iRel_Instance instance,
     iBase_Instance iface,
     iBase_Instance **interfaces,
@@ -190,25 +180,25 @@ extern "C"
         \param ent2 2nd entity of relation being set
         \param *ierr Pointer to error value, returned from function
     */
-  void iRel_setEntEntAssociation (
+  void iRel_setEntEntRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,
     iBase_EntityHandle ent1,
     iBase_EntityHandle ent2,
     int *ierr);
-  void iRel_setEntSetAssociation (
+  void iRel_setEntSetRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,
     iBase_EntityHandle ent1,
     iBase_EntitySetHandle ent2,
     int *ierr);
-  void iRel_setSetEntAssociation (
+  void iRel_setSetEntRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,
     iBase_EntitySetHandle ent1,
     iBase_EntityHandle ent2,
     int *ierr);
-  void iRel_setSetSetAssociation (
+  void iRel_setSetSetRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,
     iBase_EntitySetHandle ent1,
@@ -230,7 +220,7 @@ extern "C"
         \param num_entities Number of entities in ent_array_2
         \param *ierr Pointer to error value, returned from function
     */
-  void iRel_setEntEntArrAssociation (
+  void iRel_setEntEntArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntityHandle ent1,
@@ -238,7 +228,7 @@ extern "C"
     iBase_EntityHandle *ent_array_2,
     int num_entities,
     int *ierr);
-  void iRel_setSetEntArrAssociation (
+  void iRel_setSetEntArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntitySetHandle ent1,
@@ -246,7 +236,7 @@ extern "C"
     iBase_EntityHandle *ent_array_2,
     int num_entities,
     int *ierr);
-  void iRel_setEntSetArrAssociation (
+  void iRel_setEntSetArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntityHandle ent1,
@@ -254,7 +244,7 @@ extern "C"
     iBase_EntitySetHandle *ent_array_2,
     int num_entities,
     int *ierr);
-  void iRel_setSetSetArrAssociation (
+  void iRel_setSetSetArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntitySetHandle ent1,
@@ -278,7 +268,7 @@ extern "C"
         \param num_ent2 Number of entities in 2nd array
         \param *ierr Pointer to error value, returned from function
     */
-  void iRel_setEntArrEntArrAssociation (
+  void iRel_setEntArrEntArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntityHandle *ent_array_1,
@@ -286,7 +276,7 @@ extern "C"
     iBase_EntityHandle *ent_array_2,
     int num_ent2,
     int *ierr);
-  void iRel_setSetArrEntArrAssociation (
+  void iRel_setSetArrEntArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntitySetHandle *ent_array_1,
@@ -294,7 +284,7 @@ extern "C"
     iBase_EntityHandle *ent_array_2,
     int num_ent2,
     int *ierr);
-  void iRel_setEntArrSetArrAssociation (
+  void iRel_setEntArrSetArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntityHandle *ent_array_1,
@@ -302,7 +292,7 @@ extern "C"
     iBase_EntitySetHandle *ent_array_2,
     int num_ent2,
     int *ierr);
-  void iRel_setSetArrSetArrAssociation (
+  void iRel_setSetArrSetArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntitySetHandle *ent_array_1,
@@ -323,28 +313,28 @@ extern "C"
         \param *ent2 Pointer to entity related to ent1
         \param *ierr Pointer to error value, returned from function
     */
-  void iRel_getEntEntAssociation (
+  void iRel_getEntEntRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntityHandle ent1,
     int switch_order,
     iBase_EntityHandle *ent2,
     int *ierr);
-  void iRel_getEntSetAssociation (
+  void iRel_getEntSetRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntityHandle ent1,
     int switch_order,
     iBase_EntitySetHandle *ent2,
     int *ierr);
-  void iRel_getSetEntAssociation (
+  void iRel_getSetEntRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntitySetHandle ent1,
     int switch_order,
     iBase_EntityHandle *ent2,
     int *ierr);
-  void iRel_getSetSetAssociation (
+  void iRel_getSetSetRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntitySetHandle ent1,
@@ -367,7 +357,7 @@ extern "C"
         \param *ent_array_2_size Pointer to occupied size of ent_array_2
         \param *ierr Pointer to error value, returned from function
     */
-  void iRel_getEntEntArrAssociation (
+  void iRel_getEntEntArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntityHandle ent1,
@@ -376,7 +366,7 @@ extern "C"
     int *ent_array_2_allocated,
     int *ent_array_2_size,
     int *ierr);
-  void iRel_getSetEntArrAssociation (
+  void iRel_getSetEntArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntitySetHandle ent1,
@@ -406,7 +396,7 @@ extern "C"
         \param *offset_size Pointer to occupied size of offset
         \param *ierr Pointer to error value, returned from function
     */
-  void iRel_getEntArrEntArrAssociation (
+  void iRel_getEntArrEntArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntityHandle *ent_array_1,
@@ -419,7 +409,7 @@ extern "C"
     int *offset_allocated,
     int *offset_size,
     int *ierr);
-  void iRel_getEntArrSetArrAssociation (
+  void iRel_getEntArrSetArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntityHandle *ent_array_1,
@@ -429,7 +419,7 @@ extern "C"
     int *ent_array_2_allocated,
     int *ent_array_2_size,
     int *ierr);
-  void iRel_getSetArrEntArrAssociation (
+  void iRel_getSetArrEntArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntitySetHandle *ent_array_1,
@@ -442,7 +432,7 @@ extern "C"
     int *offset_allocated,
     int *offset_size,
     int *ierr);
-  void iRel_getSetArrSetArrAssociation (
+  void iRel_getSetArrSetArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntitySetHandle *ent_array_1,
@@ -463,7 +453,7 @@ extern "C"
         \param rel Relation handle being queried
         \param *ierr Pointer to error value, returned from function
     */
-  void iRel_inferAllAssociations (
+  void iRel_inferAllRelations (
     iRel_Instance instance,
     iRel_RelationHandle rel,
     int *ierr);
@@ -482,13 +472,13 @@ extern "C"
                in relation pair
         \param *ierr Pointer to error value, returned from function
     */
-  void iRel_inferEntAssociations (
+  void iRel_inferEntRelations (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntityHandle entity,
     int iface_no,
     int *ierr);
-  void iRel_inferSetAssociations (
+  void iRel_inferSetRelations (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntitySetHandle entity,
@@ -510,14 +500,14 @@ extern "C"
                in relation pair
         \param *ierr Pointer to error value, returned from function
     */
-  void iRel_inferEntArrAssociations (
+  void iRel_inferEntArrRelations (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntityHandle *entities,
     int entities_size,
     int iface_no,
     int *ierr);
-  void iRel_inferSetArrAssociations (
+  void iRel_inferSetArrRelations (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
     iBase_EntitySetHandle *entities,
@@ -533,10 +523,10 @@ extern "C"
         \param *ierr Pointer to error value, returned from function
         \param options_len Length of options string
     */
-  void iRel_newAssoc(const char *options,
-                     iRel_Instance *instance,
-                     int *ierr,
-                     const int options_len);
+  void iRel_newRel(const char *options,
+                   iRel_Instance *instance,
+                   int *ierr,
+                   const int options_len);
   
 #ifdef __cplusplus
 } /* extern "C" */

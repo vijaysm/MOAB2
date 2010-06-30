@@ -30,10 +30,11 @@ libiRel_la_SOURCES = \
 	AssocPair.cpp \
 	AssocPairC.cpp 
 
-libiRel_la_include_HEADERS = iRel.h \
-                             iRel_f.h \
-                             iRel_protos.h \
-			     iRel_FCDefs.h
+libiRel_la_include_HEADERS = \
+	iRel.h \
+	iRel_f.h \
+	iRel_protos.h \
+	iRel_FCDefs.h
 
 # The directory in which to install headers
 libiRel_la_includedir = $(includedir)
