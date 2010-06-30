@@ -88,6 +88,29 @@ void iRel_createRelation (
   RETURN(iBase_SUCCESS);
 }
 
+void iRel_getRelationInfo (
+  iRel_Instance instance,
+  iRel_RelationHandle rel,
+  iBase_Instance *iface1,
+  int *type1,
+  iBase_Instance *iface2,
+  int *type2,
+  int *ierr)
+{
+  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
+  AssocPair *assoc_pair = reinterpret_cast<AssocPair*>(rel);
+  if (NULL == assoc_pair) {
+    iRel_processError(iBase_FAILURE, "Didn't find relation pair.");
+    RETURN(iBase_FAILURE);
+  }
+
+  *iface1 = assoc_pair->iface_instance(0);
+  *type1  = assoc_pair->iface_type(0);
+  *iface2 = assoc_pair->iface_instance(1);
+  *type2  = assoc_pair->iface_type(1);
+
+  RETURN(iBase_SUCCESS);
+}
 
 void iRel_destroyRelation (
   iRel_Instance instance,

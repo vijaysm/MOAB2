@@ -149,7 +149,29 @@ extern "C"
     const int iface_type2,
     iRel_RelationHandle *rel,
     int *ierr);
-  
+
+    /**\brief Get information for this relation handle
+     *
+     * Get information about the interfaces and relation type for this
+     * relation.  Relation type for each side is passed back as integers,
+     * but values will be from RelationType enumeration.
+        \param instance Interface instance
+        \param rel Handle of relation pair being queried
+        \param *iface1 Side 1 instance for this relation
+        \param *type1 Relation type for side 1 of this relation
+        \param *iface2 Side 2 instance for this relation
+        \param *type2 Relation type for side 2 of this relation
+        \param *ierr Pointer to error value, returned from function
+    */
+  void iRel_getRelationInfo (
+      iRel_Instance instance,
+      iRel_RelationHandle rel,
+      iBase_Instance *iface1,
+      int *type1,
+      iBase_Instance *iface2,
+      int *type2,
+      int *ierr);
+
     /**\brief  Destroy a relation pair
      *
      * Destroy the relation pair corresponding to the handle input

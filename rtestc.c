@@ -210,6 +210,19 @@ int relate_geom_mesh_test(iRel_Instance assoc,
     return 0;
   }
 
+  iBase_Instance iface1, iface2;
+  int type1, type2;
+  iRel_getRelationInfo(assoc, *rel, &iface1, &type1, &iface2, &type2, &result);
+  if (iBase_SUCCESS != result) {
+    printf("Couldn't retrieve relation info.\n");
+    return 0;
+  }
+  if (iface1 != geom || type1 != iRel_IGEOM_IFACE ||
+      iface2 != mesh || type2 != iRel_IMESH_IFACE) {
+    printf("Unexpected relation info returned.\n");
+    return 0;
+  }
+
   iRel_inferEntArrRelations(assoc, *rel,
                             gentities, gentities_size, 0,
                             &result);
