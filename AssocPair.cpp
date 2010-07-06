@@ -69,26 +69,26 @@ int AssocPair::destroy_tags()
 int AssocPair::set_assoc_tags(iBase_EntityHandle ent1, iBase_EntityHandle ent2)
 {
   // check that is_setx is consistent with entOrSet
-  assert(entOrSet[0] == 0 && entOrSet[1] == 0);
+  assert(entOrSet[0] == iRel_ENTITY && entOrSet[1] == iRel_ENTITY);
 
   // check that if we're passing in an ent for a 'both'-type
   // assoc, there's already a set associated to the other ent
-  assert((entOrSet[0] < 2 || 
+  assert((entOrSet[0] != iRel_BOTH || 
           get_eh_tags(1, &ent2, 1, assocTags[1], &tmp_ent) == iBase_SUCCESS) &&
-         (entOrSet[1] < 2 || 
+         (entOrSet[1] != iRel_BOTH || 
           get_eh_tags(0, &ent1, 1, assocTags[0], &tmp_ent) == iBase_SUCCESS));
   
   int result = iBase_SUCCESS;
 
   // set ent1 assoc tag to point to ent2
-  if (entOrSet[1] == 0) {
+  if (entOrSet[1] == iRel_ENTITY) {
     result = set_tags(0, &ent1, 1, assocTags[0], &ent2,
                       sizeof(iBase_EntityHandle));
     if (iBase_SUCCESS != result) return result;
   }
   
   // set ent2 assoc tag to point to ent1
-  if (entOrSet[0] == 0) {
+  if (entOrSet[0] == iRel_ENTITY) {
     result = set_tags(1, &ent2, 1, assocTags[1], &ent1,
                        sizeof(iBase_EntityHandle));
     if (iBase_SUCCESS != result) return result;
@@ -101,11 +101,11 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1,
                               iBase_EntitySetHandle set2) 
 {
   // check that is_setx is consistent with entOrSet
-  assert(entOrSet[0] == 0 && entOrSet[1] > 0);
+  assert(entOrSet[0] == iRel_ENTITY && entOrSet[1] != iRel_ENTITY);
 
   // check that if we're passing in an ent for a 'both'-type
   // assoc, there's already a set associated to the other ent
-  assert( entOrSet[0] < 2 ||
+  assert( entOrSet[0] != iRel_BOTH ||
           get_eh_tags(1, &set2, 1, assocTags[1], &tmp_ent) == iBase_SUCCESS);
   
   int result = iBase_SUCCESS;
@@ -116,7 +116,7 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1,
   if (iBase_SUCCESS != result) return result;
   
   // set ent2 assoc tag to point to ent1
-  if (entOrSet[0] == 0) {
+  if (entOrSet[0] == iRel_ENTITY) {
     result = set_tags(1, &set2, 1, assocTags[1], &ent1,
                       sizeof(iBase_EntityHandle));
     if (iBase_SUCCESS != result) return result;
@@ -124,7 +124,7 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1,
 
   // if either are sets and 'both' type association, get the indiv
   // entities & set associations for them too
-  if (entOrSet[1] == 2) {
+  if (entOrSet[1] == iRel_BOTH) {
     iBase_EntityHandle *entities = NULL, to_ent;
     int entities_alloc = 0, entities_size, iface_no;
 
@@ -151,17 +151,17 @@ int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
                               iBase_EntityHandle ent2) 
 {
   // check that is_setx is consistent with entOrSet
-  assert(entOrSet[0] > 0 && entOrSet[1] == 0);
+  assert(entOrSet[0] != iRel_ENTITY && entOrSet[1] == iRel_ENTITY);
 
   // check that if we're passing in an ent for a 'both'-type
   // assoc, there's already a set associated to the other ent
-  assert( entOrSet[1] < 2 ||
+  assert( entOrSet[1] != iRel_BOTH ||
           get_eh_tags(0, &ent1, 1, assocTags[0], &tmp_ent) == iBase_SUCCESS);
   
   int result = iBase_SUCCESS;
 
   // set ent1 assoc tag to point to ent2
-  if (entOrSet[1] == 0) {
+  if (entOrSet[1] == iRel_ENTITY) {
     result = set_tags(0, &set1, 1, assocTags[0], &ent2,
                       sizeof(iBase_EntityHandle));
     if (iBase_SUCCESS != result) return result;
@@ -174,7 +174,7 @@ int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
 
   // if either are sets and 'both' type association, get the indiv
   // entities & set associations for them too
-  if (entOrSet[0] == 2) {
+  if (entOrSet[0] == iRel_BOTH) {
     iBase_EntityHandle *entities = NULL, to_ent;
     int entities_alloc, entities_size, iface_no;
       // get ents from set1 & associate to ent2
@@ -200,7 +200,7 @@ int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
                               iBase_EntitySetHandle set2) 
 {
   // check that is_setx is consistent with entOrSet
-  assert(entOrSet[0] > 0 && entOrSet[1] > 0);
+  assert(entOrSet[0] != iRel_ENTITY && entOrSet[1] != iRel_ENTITY);
 
   int result = iBase_SUCCESS;
 
@@ -220,7 +220,7 @@ int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
 int AssocPair::get_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
                               int num_entities, iBase_EntityHandle *tag_values)
 {
-  if (entOrSet[!iface_no] != 0) { // other iface is sets
+  if (entOrSet[!iface_no] != iRel_ENTITY) { // other iface is sets
     iRel_processError(iBase_INVALID_ENTITY_HANDLE,
                       "Expected EntitySet, got Entity");
     return iBase_INVALID_ENTITY_HANDLE;
@@ -233,7 +233,7 @@ int AssocPair::get_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
 int AssocPair::get_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
                               int num_sets, iBase_EntityHandle *tag_values)
 {
-  if (entOrSet[!iface_no] != 0) { // other iface is sets
+  if (entOrSet[!iface_no] != iRel_ENTITY) { // other iface is sets
     iRel_processError(iBase_INVALID_ENTITY_HANDLE,
                       "Expected EntitySet, got Entity");
     return iBase_INVALID_ENTITY_HANDLE;
@@ -247,7 +247,7 @@ int AssocPair::get_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
                               int num_entities,
                               iBase_EntitySetHandle *tag_values)
 {
-  if (entOrSet[!iface_no] == 0) { // other iface is not sets
+  if (entOrSet[!iface_no] == iRel_ENTITY) { // other iface is not sets
     iRel_processError(iBase_INVALID_ENTITY_HANDLE,
                       "Expected Entity, got EntitySet");
     return iBase_INVALID_ENTITY_HANDLE;
@@ -261,7 +261,7 @@ int AssocPair::get_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
 int AssocPair::get_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
                               int num_sets, iBase_EntitySetHandle *tag_values)
 {
-  if (entOrSet[!iface_no] == 0) { // other iface is not sets
+  if (entOrSet[!iface_no] == iRel_ENTITY) { // other iface is not sets
     iRel_processError(iBase_INVALID_ENTITY_HANDLE,
                       "Expected Entity, got EntitySet");
     return iBase_INVALID_ENTITY_HANDLE;

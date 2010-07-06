@@ -526,7 +526,7 @@ void iRel_getEntEntArrRelation (
 
   int iface_no = (switch_order ? 1 : 0);
   
-  if (this_pair->ent_or_set(!iface_no) > 0) { // iface2 is sets
+  if (this_pair->ent_or_set(!iface_no) != iRel_ENTITY) { // iface2 is sets
     iBase_EntitySetHandle ent_set2 = 0;
 
     iRel_getEntSetRelation(instance, rel,
@@ -571,7 +571,7 @@ void iRel_getSetEntArrRelation (
 
   int iface_no = (switch_order ? 1 : 0);
   
-  if (this_pair->ent_or_set(!iface_no) > 0) { // iface2 is sets
+  if (this_pair->ent_or_set(!iface_no) != iRel_ENTITY) { // iface2 is sets
     iBase_EntitySetHandle set2 = 0;
 
     iRel_getSetSetRelation(instance, rel,
@@ -764,7 +764,7 @@ get_gids_and_dims(AssocPair *assoc_pair,
                   int iface_no,
                   iBase_EntityHandle *ents,
                   int ents_size,
-                  int is_set,
+                  int ent_or_set,
                   std::vector<int> &ents_gids,
                   std::vector<int> &ents_dims)
 {
@@ -772,24 +772,24 @@ get_gids_and_dims(AssocPair *assoc_pair,
   iBase_EntitySetHandle *sets = reinterpret_cast<iBase_EntitySetHandle*>(ents);
 
   ents_gids.resize(ents_size);
-  if (is_set)
-    result = assoc_pair->get_gid_tags(iface_no, sets, ents_size, &ents_gids[0]);
-  else
+  if (ent_or_set == iRel_ENTITY)
     result = assoc_pair->get_gid_tags(iface_no, ents, ents_size, &ents_gids[0]);
+  else
+    result = assoc_pair->get_gid_tags(iface_no, sets, ents_size, &ents_gids[0]);
 
   if (iBase_SUCCESS != result && iBase_TAG_NOT_FOUND != result)
     return result;
 
   ents_dims.resize(ents_size, -1);
-  if (is_set) {
-    result = assoc_pair->get_dim_tags(iface_no, sets, ents_size, &ents_dims[0]);
-  }
-  else {
+  if (ent_or_set == iRel_ENTITY) {
     int *ents_dims_ptr = &ents_dims[0];
     int ents_dims_alloc = ents_dims.size(), ents_dims_size;
     result = assoc_pair->get_ents_dims(iface_no, ents, ents_size,
                                        &ents_dims_ptr, &ents_dims_alloc,
                                        &ents_dims_size);
+  }
+  else {
+    result = assoc_pair->get_dim_tags(iface_no, sets, ents_size, &ents_dims[0]);
   }
 
   if (iBase_SUCCESS != result && iBase_TAG_NOT_FOUND != result)
@@ -803,27 +803,18 @@ iRel_inferArrArrRelations(Lasso *lasso,
                           AssocPair *assoc_pair,
                           iBase_EntityHandle *ents1,
                           const int ents1_size,
-                          int is_set1,
+                          int ent_or_set1,
                           iBase_EntityHandle *ents2,
                           const int ents2_size,
-                          int is_set2,
+                          int ent_or_set2,
                           int *ierr)
 {
-  // get dimension and global id tags for sets
-  int tmp_index = 0;
-  int ents_index[2] = {tmp_index, 1-tmp_index};
-  iBase_EntityHandle *ents[2] = {ents1, ents2};
-  iBase_EntitySetHandle *sets[2] = {
-    reinterpret_cast<iBase_EntitySetHandle*>(ents1),
-    reinterpret_cast<iBase_EntitySetHandle*>(ents2) };
-  int ents_size[2] = {ents1_size, ents2_size};
-  
   int result;
 
   std::vector<int> ents_gids, ents_dims;
   std::map<const int, iBase_EntityHandle> ents_gid_map[4];
 
-  get_gids_and_dims(assoc_pair, 0, ents1, ents1_size, is_set1, ents_gids,
+  get_gids_and_dims(assoc_pair, 0, ents1, ents1_size, ent_or_set1, ents_gids,
                     ents_dims);
   for (int i = 0; i < ents1_size; i++) {
     int dim = ents_dims[i];
@@ -831,7 +822,7 @@ iRel_inferArrArrRelations(Lasso *lasso,
       ents_gid_map[dim][ents_gids[i]] = ents1[i];
   }
 
-  get_gids_and_dims(assoc_pair, 1, ents2, ents2_size, is_set2, ents_gids,
+  get_gids_and_dims(assoc_pair, 1, ents2, ents2_size, ent_or_set2, ents_gids,
                     ents_dims);
   for (int i = 0; i < ents2_size; i++) {
     int dim = ents_dims[i];
@@ -846,22 +837,22 @@ iRel_inferArrArrRelations(Lasso *lasso,
 
       // if it matches, set the relation tags for those entities
     if (iter != ents_gid_map[dim].end()) {
-      if (!is_set1 && !is_set2) {
+      if (ent_or_set1 == iRel_ENTITY && ent_or_set2 == iRel_ENTITY) {
         result = assoc_pair->set_assoc_tags(
           (*iter).second,
           ents2[i]);
       }
-      else if (is_set1 && !is_set2) {
+      else if (ent_or_set1 != iRel_ENTITY && ent_or_set2 == iRel_ENTITY) {
         result = assoc_pair->set_assoc_tags(
           (iBase_EntitySetHandle)(*iter).second,
           ents2[i]);
       }
-      else if (!is_set1 && is_set2) {
+      else if (ent_or_set1 == iRel_ENTITY && ent_or_set2 != iRel_ENTITY) {
         result = assoc_pair->set_assoc_tags(
           (*iter).second,
           (iBase_EntitySetHandle)ents2[i]);
       }
-      else { // is_set1 && is_set2
+      else { // ent_or_set1 != iRel_ENTITY && ent_or_set2 != iRel_ENTITY
         result = assoc_pair->set_assoc_tags(
           (iBase_EntitySetHandle)(*iter).second,
           (iBase_EntitySetHandle)ents2[i]);
@@ -949,7 +940,7 @@ void iRel_inferAllRelations (
 
   iBase_EntityHandle *ents1 = NULL;
   int ents1_alloc = 0, ents1_size;
-  if (this_pair->ent_or_set(0) > 0)
+  if (this_pair->ent_or_set(0) != iRel_ENTITY)
     result = this_pair->get_all_sets(0, (iBase_EntitySetHandle**)&ents1,
                                      &ents1_alloc, &ents1_size);
   else
@@ -961,7 +952,7 @@ void iRel_inferAllRelations (
   
   iBase_EntityHandle *ents2 = NULL;
   int ents2_alloc = 0, ents2_size;
-  if (this_pair->ent_or_set(1) > 0)
+  if (this_pair->ent_or_set(1) != iRel_ENTITY)
     result = this_pair->get_all_sets(1, (iBase_EntitySetHandle**)&ents2,
                                      &ents2_alloc, &ents2_size);
   else
@@ -1021,8 +1012,8 @@ static void iRel_inferArrRelations (
                       "Interface number must be 0 or 1");
     RETURN(iBase_INVALID_ARGUMENT);
   }
-  else if (( is_set && this_pair->ent_or_set(iface_no) == 0) ||
-           (!is_set && this_pair->ent_or_set(iface_no)  > 0)) {
+  else if (( is_set && this_pair->ent_or_set(iface_no) == iRel_ENTITY) ||
+           (!is_set && this_pair->ent_or_set(iface_no) != iRel_ENTITY)) {
     iRel_processError(iBase_INVALID_ARGUMENT, "is_set must match entOrSet in "
                       "call to inferArrRelations");
     RETURN(iBase_INVALID_ARGUMENT);
@@ -1035,7 +1026,7 @@ static void iRel_inferArrRelations (
   int ents1_size = entities_size;
   iBase_EntityHandle *ents2 = NULL;
   int ents2_alloc = 0, ents2_size;
-  if (this_pair->ent_or_set(1-iface_no) > 0)
+  if (this_pair->ent_or_set(1-iface_no) != iRel_ENTITY)
     result = this_pair->get_all_sets(!iface_no, 
                                      (iBase_EntitySetHandle**)&ents2, 
                                      &ents2_alloc, &ents2_size);
