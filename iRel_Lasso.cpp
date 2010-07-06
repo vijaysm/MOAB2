@@ -172,7 +172,7 @@ void iRel_setEntEntRelation (
 
   int result = this_pair->set_assoc_tags(ent1, ent2);
   
-    // xxx - need to check whether either is a set, and act accordingly!
+  // xxx - need to check whether either is a set, and act accordingly!
   RETURN(result);
 }
 
@@ -464,14 +464,8 @@ void iRel_getEntEntRelation (
   }
   
   int iface_no = (switch_order ? 1 : 0);
-  
-  if (this_pair->ent_or_set(!iface_no) > 0) { // iface2 is sets
-    iRel_processError(iBase_INVALID_ENTITY_HANDLE,
-                      "Expected EntitySet, got Entity");
-    RETURN(iBase_INVALID_ENTITY_HANDLE);
-  }
-  
   int result = this_pair->get_assoc_tags(iface_no, &ent1, 1, ent2);
+
   RETURN(result);
 }
 
@@ -480,7 +474,7 @@ void iRel_getEntSetRelation (
   iRel_RelationHandle rel,    
   iBase_EntityHandle ent1,
   int switch_order,
-  iBase_EntitySetHandle *ent2,
+  iBase_EntitySetHandle *set2,
   int *ierr)
 {
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
@@ -491,22 +485,15 @@ void iRel_getEntSetRelation (
   }
   
   int iface_no = (switch_order ? 1 : 0);
-  
-  if (this_pair->ent_or_set(!iface_no) == 0) { // iface2 is not sets
-    iRel_processError(iBase_INVALID_ENTITY_HANDLE,
-                      "Expected Entity, got EntitySet");
-    RETURN(iBase_INVALID_ENTITY_HANDLE);
-  }
-  
-  int result = this_pair->get_assoc_tags(iface_no, &ent1, 1, ent2);
-  
+  int result = this_pair->get_assoc_tags(iface_no, &ent1, 1, set2);
+
   RETURN(result);
 }
 
 void iRel_getSetEntRelation (
   iRel_Instance instance,
   iRel_RelationHandle rel,    
-  iBase_EntitySetHandle ent1,
+  iBase_EntitySetHandle set1,
   int switch_order,
   iBase_EntityHandle *ent2,
   int *ierr)
@@ -519,24 +506,17 @@ void iRel_getSetEntRelation (
   }
   
   int iface_no = (switch_order ? 1 : 0);
-  
-  if (this_pair->ent_or_set(!iface_no) > 0) { // iface2 is sets
-    iRel_processError(iBase_INVALID_ENTITY_HANDLE,
-                      "Expected EntitySet, got Entity");
-    RETURN(iBase_INVALID_ENTITY_HANDLE);
-  }
-  
-  int result = this_pair->get_assoc_tags(iface_no, &ent1, 1, ent2);
-  
+  int result = this_pair->get_assoc_tags(iface_no, &set1, 1, ent2);
+
   RETURN(result);
 }
 
 void iRel_getSetSetRelation (
   iRel_Instance instance,
   iRel_RelationHandle rel,    
-  iBase_EntitySetHandle ent1,
+  iBase_EntitySetHandle set1,
   int switch_order,
-  iBase_EntitySetHandle *ent2,
+  iBase_EntitySetHandle *set2,
   int *ierr)
 {
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
@@ -547,15 +527,8 @@ void iRel_getSetSetRelation (
   }
   
   int iface_no = (switch_order ? 1 : 0);
-  
-  if (this_pair->ent_or_set(!iface_no) == 0) { // iface2 is not sets
-    iRel_processError(iBase_INVALID_ENTITY_HANDLE,
-                      "Expected Entity, got EntitySet");
-    RETURN(iBase_INVALID_ENTITY_HANDLE);
-  }
-  
-  int result = this_pair->get_assoc_tags(iface_no, &ent1, 1, ent2);
-  
+  int result = this_pair->get_assoc_tags(iface_no, &set1, 1, set2);
+
   RETURN(result);
 }
 

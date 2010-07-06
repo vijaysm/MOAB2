@@ -7,6 +7,8 @@ const char *AssocPair::GLOBAL_ID_TAG_NAME = "GLOBAL_ID";
 const char *AssocPair::GEOM_DIMENSION_TAG_NAME = "GEOM_DIMENSION";
 const char *AssocPair::ASSOCIATION_TAG_NAME = "ASSOCIATION";
 
+#define iRel_processError(a, b) {sprintf(iRel_LAST_ERROR.description, "%s", b); iRel_LAST_ERROR.error_type = a;}
+
 AssocPair::AssocPair(RelationType ent_or_set0, IfaceType type0,
                      RelationType ent_or_set1, IfaceType type1,
                      Lasso *lasso) : myLasso(lasso)
@@ -213,6 +215,12 @@ int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
 int AssocPair::get_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
                               int num_entities, iBase_EntityHandle *tag_values)
 {
+  if (entOrSet[!iface_no] != 0) { // other iface is sets
+    iRel_processError(iBase_INVALID_ENTITY_HANDLE,
+                      "Expected EntitySet, got Entity");
+    return iBase_INVALID_ENTITY_HANDLE;
+  }
+
   return get_tags(iface_no, entities, num_entities, assocTags[iface_no],
                   tag_values, sizeof(iBase_EntityHandle));
 }
@@ -220,6 +228,12 @@ int AssocPair::get_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
 int AssocPair::get_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
                               int num_sets, iBase_EntityHandle *tag_values)
 {
+  if (entOrSet[!iface_no] != 0) { // other iface is sets
+    iRel_processError(iBase_INVALID_ENTITY_HANDLE,
+                      "Expected EntitySet, got Entity");
+    return iBase_INVALID_ENTITY_HANDLE;
+  }
+
   return get_tags(iface_no, sets, num_sets, assocTags[iface_no], tag_values,
                   sizeof(iBase_EntityHandle));
 }
@@ -228,15 +242,29 @@ int AssocPair::get_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
                               int num_entities,
                               iBase_EntitySetHandle *tag_values)
 {
-  return get_assoc_tags(iface_no, entities, num_entities,
-                        reinterpret_cast<iBase_EntityHandle*>(tag_values));
+  if (entOrSet[!iface_no] == 0) { // other iface is not sets
+    iRel_processError(iBase_INVALID_ENTITY_HANDLE,
+                      "Expected Entity, got EntitySet");
+    return iBase_INVALID_ENTITY_HANDLE;
+  }
+
+  return get_tags(iface_no, entities, num_entities, assocTags[iface_no],
+                  reinterpret_cast<iBase_EntityHandle*>(tag_values),
+                  sizeof(iBase_EntityHandle));
 }
 
 int AssocPair::get_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
                               int num_sets, iBase_EntitySetHandle *tag_values)
 {
-  return get_assoc_tags(iface_no, sets, num_sets,
-                        reinterpret_cast<iBase_EntityHandle*>(tag_values));
+  if (entOrSet[!iface_no] == 0) { // other iface is not sets
+    iRel_processError(iBase_INVALID_ENTITY_HANDLE,
+                      "Expected Entity, got EntitySet");
+    return iBase_INVALID_ENTITY_HANDLE;
+  }
+
+  return get_tags(iface_no, sets, num_sets, assocTags[iface_no],
+                  reinterpret_cast<iBase_EntityHandle*>(tag_values),
+                  sizeof(iBase_EntityHandle));
 }
 
 int AssocPair::get_gid_tags(const int iface_no, iBase_EntityHandle *entities,
