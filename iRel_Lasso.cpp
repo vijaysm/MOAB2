@@ -506,6 +506,17 @@ void iRel_getSetSetRelation (
   RETURN(result);
 }
 
+void iRel_getEntSetIterRelation (
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntityHandle ent1,
+  int switch_order,
+  iBase_EntityIterator *entset2,
+  int *ierr)
+{
+  RETURN(iBase_NOT_SUPPORTED);
+}
+
 void iRel_getEntEntArrRelation (
   iRel_Instance instance,
   iRel_RelationHandle rel,    
@@ -759,6 +770,21 @@ void iRel_getSetArrSetArrRelation(
   RETURN(result);
 }
 
+void iRel_getEntArrSetIterArrRelation (
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntityHandle *ent_array_1,
+  int ent_array_1_size,
+  int switch_order,
+  iBase_EntityIterator **entiter,
+  int *entiter_allocated,
+  int *entiter_size,
+  int *ierr)
+{
+  RETURN(iBase_NOT_SUPPORTED);
+}
+
+
 static int
 get_gids_and_dims(AssocPair *assoc_pair,
                   int iface_no,
@@ -971,6 +997,14 @@ void iRel_inferAllRelations (
   RETURN(result);
 }
 
+void iRel_inferAllRelationsAndType (
+  iRel_Instance instance,
+  iRel_RelationHandle *rel,
+  int *ierr)
+{
+  RETURN(iBase_NOT_SUPPORTED);
+}
+
 void iRel_inferEntRelations (
   iRel_Instance instance,
   iRel_RelationHandle rel,    
@@ -996,7 +1030,7 @@ static void iRel_inferArrRelations (
   iRel_RelationHandle rel,    
   iBase_EntityHandle *entities,
   int entities_size,
-  int is_set,
+  bool is_set,
   int iface_no,
   int *ierr)
 {
@@ -1063,8 +1097,8 @@ void iRel_inferEntArrRelations (
   int iface_no,
   int *ierr)
 {
-  iRel_inferArrRelations(instance, rel, entities, entities_size, 0, iface_no,
-                         ierr);
+  iRel_inferArrRelations(instance, rel, entities, entities_size, false,
+                         iface_no, ierr);
 }
 
 void iRel_inferSetArrRelations (
@@ -1076,5 +1110,5 @@ void iRel_inferSetArrRelations (
   int *ierr)
 {
   iRel_inferArrRelations(instance, rel, (iBase_EntityHandle*)entities,
-                         entities_size, 1, iface_no, ierr);
+                         entities_size, true, iface_no, ierr);
 }

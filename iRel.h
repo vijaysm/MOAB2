@@ -81,6 +81,8 @@ extern "C"
      */
   typedef void* iRel_Instance;
 
+  typedef void* iBase_EntityIterator;
+
     /**\brief  Type used to store references to relation pairs
      *
      * Type used to store references to relation pairs
@@ -389,6 +391,13 @@ extern "C"
     int switch_order,
     iBase_EntitySetHandle *entset2,
     int *ierr);
+  void iRel_getEntSetIterRelation (
+    iRel_Instance instance,
+    iRel_RelationHandle rel,    
+    iBase_EntityHandle ent1,
+    int switch_order,
+    iBase_EntityIterator *entset2,
+    int *ierr);
 
     /**\brief  Get entities related to specified entity and relation
      *
@@ -490,6 +499,16 @@ extern "C"
     int *entset_array_2_allocated,
     int *entset_array_2_size,
     int *ierr);
+  void iRel_getEntArrSetIterArrRelation (
+    iRel_Instance instance,
+    iRel_RelationHandle rel,    
+    iBase_EntityHandle *ent_array_1,
+    int ent_array_1_size,
+    int switch_order,
+    iBase_EntityIterator **entiter,
+    int *entiter_allocated,
+    int *entiter_size,
+    int *ierr);
 
     /**\brief  Infer relations between entities in specified pair of interfaces
      *
@@ -504,6 +523,23 @@ extern "C"
   void iRel_inferAllRelations (
     iRel_Instance instance,
     iRel_RelationHandle rel,
+    int *ierr);
+
+    /**\brief  Infer relations and relation type between entities in specified 
+     * pair of interfaces 
+     *
+     * Infer relations between entities in specified pair of interfaces, and the
+     * relation type used by this iRel implementation.  The
+     * criteria used to infer these relations depends on the interfaces in
+     * the pair, the iRel implementation, and the source of the data in those
+     * interfaces.
+     *   \param instance Interface instance
+     *   \param rel Relation handle created by implementation
+     *   \param *ierr Pointer to error value, returned from function
+     */
+  void iRel_inferAllRelationsAndType (
+    iRel_Instance instance,
+    iRel_RelationHandle *rel,
     int *ierr);
 
     /**\brief  Infer relations corresponding to specified entity and relation pair
