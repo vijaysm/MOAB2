@@ -157,18 +157,22 @@ extern "C"
         \param instance Interface instance
         \param rel Handle of relation pair being queried
         \param *iface1 Side 1 instance for this relation
-        \param *type1 Relation type for side 1 of this relation
+        \param *ent_or_set1 Relation type for side 1 of this relation
+        \param *iface_type1 Inferface type for side 1 of this relation
         \param *iface2 Side 2 instance for this relation
-        \param *type2 Relation type for side 2 of this relation
+        \param *ent_or_set2 Relation type for side 2 of this relation
+        \param *iface_type2 Inferface type for side 2 of this relation
         \param *ierr Pointer to error value, returned from function
     */
   void iRel_getRelationInfo (
       iRel_Instance instance,
       iRel_RelationHandle rel,
       iBase_Instance *iface1,
-      int *type1,
+      int *ent_or_set1,
+      int *iface_type1,
       iBase_Instance *iface2,
-      int *type2,
+      int *ent_or_set2,
+      int *iface_type2,
       int *ierr);
 
     /**\brief  Destroy a relation pair
@@ -183,23 +187,23 @@ extern "C"
     iRel_RelationHandle rel,
     int *ierr);
 
-    /**\brief  Get interfaces related to specified interface
+  /**\brief  Get relations containing specified interface
      *
-     * Get interfaces related to the specified interface
+     * Get relations containing the specified interface
         \param instance Interface instance
         \param iface Specified interface 
-        \param interfaces Pointer to array holding returned interfaces
-               related to specified interface
-        \param interfaces_allocated Pointer to allocated size of interfaces list
-        \param interfaces_size Pointer to occupied size of interfaces list
+        \param relations Pointer to array holding returned relations
+               containing specified interface
+        \param relations_allocated Pointer to allocated size of relations list
+        \param relations_size Pointer to occupied size of relations list
         \param *ierr Pointer to error value, returned from function
     */
-  void iRel_getRelatedInterfaces (
+  void iRel_findRelations(
     iRel_Instance instance,
     iBase_Instance iface,
-    iBase_Instance **interfaces,
-    int *interfaces_allocated,
-    int *interfaces_size,
+    iRel_RelationHandle **relations,
+    int *relations_allocated,
+    int *relations_size,
     int *ierr);
 
     /**\brief  

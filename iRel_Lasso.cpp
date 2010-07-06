@@ -93,9 +93,11 @@ void iRel_getRelationInfo (
   iRel_Instance instance,
   iRel_RelationHandle rel,
   iBase_Instance *iface1,
-  int *type1,
+  int *ent_or_set1,
+  int *iface_type1,
   iBase_Instance *iface2,
-  int *type2,
+  int *ent_or_set2,
+  int *iface_type2,
   int *ierr)
 {
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
@@ -105,10 +107,12 @@ void iRel_getRelationInfo (
     RETURN(iBase_FAILURE);
   }
 
-  *iface1 = assoc_pair->iface_instance(0);
-  *type1  = assoc_pair->iface_type(0);
-  *iface2 = assoc_pair->iface_instance(1);
-  *type2  = assoc_pair->iface_type(1);
+  *iface1      = assoc_pair->iface_instance(0);
+  *ent_or_set1 = assoc_pair->ent_or_set(0);
+  *iface_type1 = assoc_pair->iface_type(0);
+  *iface2      = assoc_pair->iface_instance(1);
+  *iface_type2 = assoc_pair->iface_type(1);
+  *ent_or_set2 = assoc_pair->ent_or_set(1);
 
   RETURN(iBase_SUCCESS);
 }
@@ -130,32 +134,31 @@ void iRel_destroyRelation (
   RETURN(result);
 }
 
-void iRel_getRelatedInterfaces (
+void iRel_findRelations(
   iRel_Instance instance,
   iBase_Instance iface,
-  iBase_Instance **interfaces,
-  int *interfaces_allocated,
-  int *interfaces_size,
+  iRel_RelationHandle **relations,
+  int *relations_allocated,
+  int *relations_size,
   int *ierr
   )
 {
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  std::vector<AssocPair*> tmp_ifaces;
-  lasso->find_pairs(iface, tmp_ifaces);
-  if (tmp_ifaces.empty()) {
-    *interfaces_size = 0;
-    iRel_LAST_ERROR.error_type = iBase_SUCCESS;
+  std::vector<AssocPair*> tmp_pairs;
+  lasso->find_pairs(iface, tmp_pairs);
+  if (tmp_pairs.empty()) {
+    *relations_size = 0;
   }
   else {
-    CHECK_SIZE(iBase_Instance, interfaces, interfaces_allocated, 
-               (int)tmp_ifaces.size());
-    *interfaces_size = tmp_ifaces.size();
-    for (size_t i=0; i<tmp_ifaces.size(); ++i) {
-        size_t other = (tmp_ifaces[i]->iface_instance(0) == iface);
-        *interfaces[i] = tmp_ifaces[i]->iface_instance(other);
+    CHECK_SIZE(iRel_RelationHandle, relations, relations_allocated, 
+               (int)tmp_pairs.size());
+    *relations_size = tmp_pairs.size();
+	for (size_t i=0; i<tmp_pairs.size(); ++i) {
+      (*relations)[i] = reinterpret_cast<iRel_RelationHandle>(tmp_pairs[i]);
     }
   }
-  RETURN(iRel_LAST_ERROR.error_type);
+
+  RETURN(iBase_SUCCESS);
 }
 
 void iRel_setEntEntRelation (
