@@ -26,6 +26,7 @@ rtestc_LDADD = libiRel.la #${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMes
 #rtestc_LDFLAGS = ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${IMESH_LTFLAGS} ${IMESH_LDFLAGS} 
 
 libiRel_la_SOURCES = \
+	Lasso.cpp \
 	iRel_Lasso.cpp \
 	AssocPair.cpp \
 	AssocPairC.cpp 

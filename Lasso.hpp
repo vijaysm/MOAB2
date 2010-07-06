@@ -1,7 +1,9 @@
 #ifndef LASSO_HPP
 #define LASSO_HPP
 
+#include <set>
 #include <vector>
+#include "iRel.h"
 
 class AssocPair;
 
@@ -23,9 +25,9 @@ public:
   void find_pairs(void *iface, std::vector<AssocPair*> &iface_pairs);
 
   int insert_pair(AssocPair *this_pair);
-  int delete_pair(AssocPair *this_pair);
+  int erase_pair(AssocPair *this_pair);
 private:
-  std::vector<AssocPair*> assocPairs;
+  std::set<AssocPair*> assocPairs;
 };
 
 #endif // #ifndef LASSO_HPP

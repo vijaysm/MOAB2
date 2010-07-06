@@ -125,7 +125,7 @@ void iRel_destroyRelation (
     RETURN(iBase_FAILURE);
   }
 
-  int result = lasso->delete_pair(assoc_pair);
+  int result = lasso->erase_pair(assoc_pair);
 
   RETURN(result);
 }
@@ -1147,65 +1147,4 @@ void iRel_newRel(/* in */ const char * /* options */,
   
   *instance = new Lasso();
   RETURN(iBase_SUCCESS);
-}
-
-Lasso::~Lasso() 
-{
-  for (std::vector<AssocPair*>::iterator vit = assocPairs.begin();
-       vit != assocPairs.end(); vit++) 
-    delete *vit;
-}
-
-//! find a pair equivalent to these ifaces, passed as pointer to
-//! SIDL interface or interface instance
-AssocPair *Lasso::find_pair(void *iface0, void *iface1, bool *switched) 
-{
-  for (std::vector<AssocPair*>::iterator vit = assocPairs.begin();
-       vit != assocPairs.end(); vit++) {
-    if ((*vit)->equivalent(iface0, iface1, switched)) return *vit;
-  }
-  
-  return NULL;
-}
-
-//! find a pair with the right types
-AssocPair *Lasso::find_pair(IfaceType type1, IfaceType type2, bool *switched) 
-{
-  for (std::vector<AssocPair*>::iterator vit = assocPairs.begin();
-       vit != assocPairs.end(); vit++) {
-    if ((*vit)->equivalent(type1, type2, switched)) return *vit;
-  }
-  
-  return NULL;
-}
-
-void Lasso::find_pairs(void *iface, std::vector<AssocPair*> &iface_pairs)
-{
-  for (std::vector<AssocPair*>::iterator vit = assocPairs.begin();
-       vit != assocPairs.end(); vit++) {
-    if ((*vit)->contains(iface)) iface_pairs.push_back(*vit);
-  }
-}
-
-int Lasso::insert_pair(AssocPair *this_pair)
-{
-  assocPairs.push_back(this_pair);
-  return iBase_SUCCESS;
-}
-
-int Lasso::delete_pair(AssocPair *this_pair) 
-{
-  if (std::find(assocPairs.begin(), assocPairs.end(),
-                this_pair) == assocPairs.end())
-    return iBase_FAILURE;
-  
-  // remove the pair from the list
-  assocPairs.erase(std::remove(assocPairs.begin(),
-                               assocPairs.end(), this_pair), 
-                   assocPairs.end());
-  
-  // then delete it
-  delete this_pair;
-
-  return iBase_SUCCESS;
 }
