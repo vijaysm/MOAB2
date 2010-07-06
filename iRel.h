@@ -141,15 +141,13 @@ extern "C"
      * back a handle to the pair.
         \param instance Interface instance
         \param iface1 1st interface object in the relation pair
-        \param ent_or_set1 This relation relates entities (=0) or sets (=1)
-               or both (=2) from 1st interface object
-        \param iface_type1 Type of 1st interface (0=iBase, 1=iGeom, 2=iMesh, 
-               3=iField, 4=iRel)
+        \param ent_or_set1 This relation relates entities, sets, or both from
+               1st interface object
+        \param iface_type1 Type of 1st interface
         \param iface2 2nd interface object in the relation pair
-        \param ent_or_set2 This relation relates entities (=0) or sets (=1)
-               or both (=2) from 2nd interface object
-        \param iface_type2 Type of 2nd interface (0=iBase, 1=iGeom, 2=iMesh, 
-               3=iField, 4=iRel)
+        \param ent_or_set2 This relation relates entities, sets, or both from
+               2nd interface object
+        \param iface_type2 Type of 2nd interface
         \param *rel Pointer to relation handle, returned from function
         \param *ierr Pointer to error value, returned from function
     */
