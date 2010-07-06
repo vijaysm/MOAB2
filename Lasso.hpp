@@ -1,14 +1,13 @@
 #ifndef LASSO_HPP
 #define LASSO_HPP
-class AssocPair;
 
 #include <vector>
+
+class AssocPair;
 
 class Lasso 
 {
 public:
-  friend class AssocPair;
-  
   Lasso(){}
 
   virtual ~Lasso();
