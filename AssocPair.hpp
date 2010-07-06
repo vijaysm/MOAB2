@@ -76,12 +76,12 @@ public:
                    int num_sets, int *tag_values);
 protected:
   AssocPair(RelationType ent_or_set0, IfaceType type0,
-            RelationType ent_or_set1, IfaceType type1,
-            Lasso *lasso);
+            RelationType ent_or_set1, IfaceType type1);
 
   virtual ~AssocPair();
 
   int create_tags();
+  int destroy_tags();
 
   virtual int get_tags(const int iface_no,
                        iBase_EntityHandle *entities,
@@ -118,7 +118,7 @@ protected:
                                          const bool create_if_missing,
                                          void *default_val = NULL) = 0;
 
-  iBase_TagHandle assocTags[2];
+  virtual int tag_destroy(const int iface_no, iBase_TagHandle tag_handle) = 0;
 private:
   AssocPair();
   
@@ -127,11 +127,12 @@ private:
 
   RelationType entOrSet[2];
   IfaceType ifaceTypes[2];
-  iBase_TagHandle gidTags[2], dimTags[2];
+  iBase_TagHandle assocTags[2], gidTags[2], dimTags[2];
 
   static const char *GLOBAL_ID_TAG_NAME;
   static const char *GEOM_DIMENSION_TAG_NAME;
   static const char *ASSOCIATION_TAG_NAME;
+  static int currId;
 };
 
 #endif

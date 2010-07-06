@@ -23,12 +23,17 @@ AssocPairSIDL::AssocPairSIDL(::sidl::BaseInterface iface0,
   : AssocPair(ent_or_set0, get_type(iface0), ent_or_set1, get_type(iface1), 
               lasso)
 {
+  ifaceInstances[0] = iface0;
+  ifaceInstances[1] = iface1;
+
   // create the tags we'll need
   create_tags();
 }
 
 AssocPairSIDL::~AssocPairSIDL() 
-{}
+{
+  destroy_tags();
+}
 
 IfaceType AssocPairSIDL::get_type(::sidl::BaseInterface iface)
 {
@@ -382,4 +387,10 @@ iBase_TagHandle AssocPairSIDL::tag_get_handle(const int iface_no,
   }
   
   return this_tag;
+}
+
+int AssocPairSIDL::tag_destroy(const int iface_no, iBase_TagHandle tag_handle)
+{
+  // TODO: implement this
+  return iBase_SUCCESS;
 }

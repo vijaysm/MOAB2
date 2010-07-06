@@ -11,8 +11,7 @@ public:
              IfaceType type0,
              iBase_Instance iface1,
              RelationType ent_or_set1,
-             IfaceType type1,
-             Lasso *lasso);
+             IfaceType type1);
 
   virtual ~AssocPairC();
 
@@ -84,6 +83,8 @@ protected:
                                          const int tag_data_type,
                                          const bool create_if_missing,
                                          void *default_val = NULL);
+
+  virtual int tag_destroy(const int iface_no, iBase_TagHandle tag_handle);
 private:
   iBase_Instance ifaceInstances[2];
 };

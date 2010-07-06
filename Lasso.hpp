@@ -23,11 +23,9 @@ public:
   
   void find_pairs(void *iface, std::vector<AssocPair*> &iface_pairs);
 
+  int insert_pair(AssocPair *this_pair);
   int delete_pair(AssocPair *this_pair);
-  
 private:
-  
-
   std::vector<AssocPair*> assocPairs;
 };
 

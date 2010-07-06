@@ -73,14 +73,15 @@ void iRel_createRelation (
 {
   // assume we want an AssocPairC
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  *rel = reinterpret_cast<iRel_RelationHandle>(
-    new AssocPairC(
+  AssocPair *pair = new AssocPairC(
       iface1, static_cast<RelationType>(ent_or_set1),
       static_cast<IfaceType>(iface_type1),
       iface2, static_cast<RelationType>(ent_or_set2),
-      static_cast<IfaceType>(iface_type2), lasso)
+      static_cast<IfaceType>(iface_type2)
     );
-  
+  lasso->insert_pair(pair);
+
+  *rel = reinterpret_cast<iRel_RelationHandle>(pair);
   RETURN(iBase_SUCCESS);
 }
 
@@ -1184,6 +1185,12 @@ void Lasso::find_pairs(void *iface, std::vector<AssocPair*> &iface_pairs)
        vit != assocPairs.end(); vit++) {
     if ((*vit)->contains(iface)) iface_pairs.push_back(*vit);
   }
+}
+
+int Lasso::insert_pair(AssocPair *this_pair)
+{
+  assocPairs.push_back(this_pair);
+  return iBase_SUCCESS;
 }
 
 int Lasso::delete_pair(AssocPair *this_pair) 

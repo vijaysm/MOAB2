@@ -6,12 +6,12 @@
 const char *AssocPair::GLOBAL_ID_TAG_NAME = "GLOBAL_ID";
 const char *AssocPair::GEOM_DIMENSION_TAG_NAME = "GEOM_DIMENSION";
 const char *AssocPair::ASSOCIATION_TAG_NAME = "ASSOCIATION";
+int AssocPair::currId = 0;
 
 #define iRel_processError(a, b) {sprintf(iRel_LAST_ERROR.description, "%s", b); iRel_LAST_ERROR.error_type = a;}
 
 AssocPair::AssocPair(RelationType ent_or_set0, IfaceType type0,
-                     RelationType ent_or_set1, IfaceType type1,
-                     Lasso *lasso) : myLasso(lasso)
+                     RelationType ent_or_set1, IfaceType type1)
 {
   ifaceTypes[0] = type0;
   ifaceTypes[1] = type1;
@@ -24,35 +24,32 @@ AssocPair::AssocPair(RelationType ent_or_set0, IfaceType type0,
   dimTags[0] = 0;
   dimTags[1] = 0;
   
-  pairId = myLasso->assocPairs.size();
-  myLasso->assocPairs.push_back(this);
+  pairId = currId++;
 }
 
 AssocPair::~AssocPair() 
-{
-    // don't take out of Lasso's list here - that's done by
-    // Lasso's destructor
-}
+{}
 
 int AssocPair::create_tags() 
 {
-    // first the association tag name
+  // first the association tag name
   std::stringstream tag_name_str;
   tag_name_str << ASSOCIATION_TAG_NAME << pairId;
   std::string tmp_name(tag_name_str.str());
   
-    // create the tag in each interface
+  // create the tag in each interface
   iBase_EntityHandle def_handle_value = 0;
   int def_int_value = 0;
 
-  for (int i = 0; i <= 1; i++) {
+  for (int i = 0; i < 2; i++) {
     assocTags[i] = tag_get_handle(i, tmp_name.c_str(), 1,
                                   iBase_ENTITY_HANDLE, true, &def_handle_value);
 
     gidTags[i] = tag_get_handle(i, GLOBAL_ID_TAG_NAME, 1, iBase_INTEGER, 
                                 true, &def_int_value);
 
-    if (1 == i && ifaceTypes[0] == iRel_IGEOM_IFACE && ifaceTypes[1] == iRel_IMESH_IFACE) {
+    if (ifaceTypes[ i] == iRel_IMESH_IFACE &&
+        ifaceTypes[!i] == iRel_IGEOM_IFACE) {
       dimTags[i] = tag_get_handle(i, GEOM_DIMENSION_TAG_NAME, 1, iBase_INTEGER, 
                                   false);
     }
@@ -61,13 +58,21 @@ int AssocPair::create_tags()
   return iBase_SUCCESS;
 }
 
+int AssocPair::destroy_tags()
+{
+  // We assume that subclasses have called create_tags
+  for (int i = 0; i < 2; i++) {
+    tag_destroy(i, assocTags[i]);
+  }
+}
+
 int AssocPair::set_assoc_tags(iBase_EntityHandle ent1, iBase_EntityHandle ent2)
 {
-    // check that is_setx is consistent with entOrSet
+  // check that is_setx is consistent with entOrSet
   assert(entOrSet[0] == 0 && entOrSet[1] == 0);
 
-    // check that if we're passing in an ent for a 'both'-type
-    // assoc, there's already a set associated to the other ent
+  // check that if we're passing in an ent for a 'both'-type
+  // assoc, there's already a set associated to the other ent
   assert((entOrSet[0] < 2 || 
           get_eh_tags(1, &ent2, 1, assocTags[1], &tmp_ent) == iBase_SUCCESS) &&
          (entOrSet[1] < 2 || 
@@ -75,14 +80,14 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1, iBase_EntityHandle ent2)
   
   int result = iBase_SUCCESS;
 
-    // set ent1 assoc tag to point to ent2
+  // set ent1 assoc tag to point to ent2
   if (entOrSet[1] == 0) {
     result = set_tags(0, &ent1, 1, assocTags[0], &ent2,
                       sizeof(iBase_EntityHandle));
     if (iBase_SUCCESS != result) return result;
   }
   
-    // set ent2 assoc tag to point to ent1
+  // set ent2 assoc tag to point to ent1
   if (entOrSet[0] == 0) {
     result = set_tags(1, &ent2, 1, assocTags[1], &ent1,
                        sizeof(iBase_EntityHandle));
@@ -95,35 +100,35 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1, iBase_EntityHandle ent2)
 int AssocPair::set_assoc_tags(iBase_EntityHandle ent1,
                               iBase_EntitySetHandle set2) 
 {
-    // check that is_setx is consistent with entOrSet
+  // check that is_setx is consistent with entOrSet
   assert(entOrSet[0] == 0 && entOrSet[1] > 0);
 
-    // check that if we're passing in an ent for a 'both'-type
-    // assoc, there's already a set associated to the other ent
+  // check that if we're passing in an ent for a 'both'-type
+  // assoc, there's already a set associated to the other ent
   assert( entOrSet[0] < 2 ||
           get_eh_tags(1, &set2, 1, assocTags[1], &tmp_ent) == iBase_SUCCESS);
   
   int result = iBase_SUCCESS;
 
-    // set ent1 assoc tag to point to ent2
+  // set ent1 assoc tag to point to ent2
   result = set_tags(0, &ent1, 1, assocTags[0], &set2,
                     sizeof(iBase_EntityHandle));
   if (iBase_SUCCESS != result) return result;
   
-    // set ent2 assoc tag to point to ent1
+  // set ent2 assoc tag to point to ent1
   if (entOrSet[0] == 0) {
     result = set_tags(1, &set2, 1, assocTags[1], &ent1,
                       sizeof(iBase_EntityHandle));
     if (iBase_SUCCESS != result) return result;
   }
 
-    // if either are sets and 'both' type association, get the indiv
-    // entities & set associations for them too
+  // if either are sets and 'both' type association, get the indiv
+  // entities & set associations for them too
   if (entOrSet[1] == 2) {
     iBase_EntityHandle *entities = NULL, to_ent;
     int entities_alloc = 0, entities_size, iface_no;
 
-      // get ents from set2 & associate to ent1
+    // get ents from set2 & associate to ent1
     result = get_entities(1, -1, set2, &entities, &entities_alloc,
                           &entities_size);
     if (iBase_SUCCESS != result) return result;
@@ -145,30 +150,30 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1,
 int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
                               iBase_EntityHandle ent2) 
 {
-    // check that is_setx is consistent with entOrSet
+  // check that is_setx is consistent with entOrSet
   assert(entOrSet[0] > 0 && entOrSet[1] == 0);
 
-    // check that if we're passing in an ent for a 'both'-type
-    // assoc, there's already a set associated to the other ent
+  // check that if we're passing in an ent for a 'both'-type
+  // assoc, there's already a set associated to the other ent
   assert( entOrSet[1] < 2 ||
           get_eh_tags(0, &ent1, 1, assocTags[0], &tmp_ent) == iBase_SUCCESS);
   
   int result = iBase_SUCCESS;
 
-    // set ent1 assoc tag to point to ent2
+  // set ent1 assoc tag to point to ent2
   if (entOrSet[1] == 0) {
     result = set_tags(0, &set1, 1, assocTags[0], &ent2,
                       sizeof(iBase_EntityHandle));
     if (iBase_SUCCESS != result) return result;
   }
   
-    // set ent2 assoc tag to point to ent1
+  // set ent2 assoc tag to point to ent1
   result = set_tags(1, &ent2, 1, assocTags[1], &set1,
                     sizeof(iBase_EntityHandle));
   if (iBase_SUCCESS != result) return result;
 
-    // if either are sets and 'both' type association, get the indiv
-    // entities & set associations for them too
+  // if either are sets and 'both' type association, get the indiv
+  // entities & set associations for them too
   if (entOrSet[0] == 2) {
     iBase_EntityHandle *entities = NULL, to_ent;
     int entities_alloc, entities_size, iface_no;
@@ -194,17 +199,17 @@ int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
 int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
                               iBase_EntitySetHandle set2) 
 {
-    // check that is_setx is consistent with entOrSet
+  // check that is_setx is consistent with entOrSet
   assert(entOrSet[0] > 0 && entOrSet[1] > 0);
 
   int result = iBase_SUCCESS;
 
-    // set ent1 assoc tag to point to ent2
+  // set ent1 assoc tag to point to ent2
   result = set_tags(0, &set1, 1, assocTags[0], &set2,
                     sizeof(iBase_EntityHandle));
   if (iBase_SUCCESS != result) return result;
   
-    // set ent2 assoc tag to point to ent1
+  // set ent2 assoc tag to point to ent1
   result = set_tags(1, &set2, 1, assocTags[1], &set1,
                     sizeof(iBase_EntityHandle));
   if (iBase_SUCCESS != result) return result;

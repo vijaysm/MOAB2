@@ -9,6 +9,7 @@
 
 #define RETURN(a) {iRel_LAST_ERROR.error_type = a; return a;}
 #define iRel_processError(a, b) {sprintf(iRel_LAST_ERROR.description, "%s", b); iRel_LAST_ERROR.error_type = a;}
+
 #define PROCESS_GERROR  if (iBase_SUCCESS != result) {\
           char this_descr[120];\
           int err;\
@@ -28,34 +29,19 @@ AssocPairC::AssocPairC(iBase_Instance iface0,
                        IfaceType type0,
                        iBase_Instance iface1,
                        RelationType ent_or_set1,
-                       IfaceType type1,
-                       Lasso *lasso) 
-  : AssocPair(ent_or_set0, type0, ent_or_set1, type1, lasso)
+                       IfaceType type1)
+  : AssocPair(ent_or_set0, type0, ent_or_set1, type1)
 {
   ifaceInstances[0] = iface0;
   ifaceInstances[1] = iface1;
 
-    // finally, create the tags we'll need
+  // finally, create the tags we'll need
   create_tags();
 }
 
 AssocPairC::~AssocPairC() 
 {
-    // need to destroy tags for this assoc pair
-  for (int iface_no = 0; iface_no < 2; iface_no++) {
-    int result;
-    if (iface_type(iface_no) == iRel_IGEOM_IFACE) {
-      iGeom_destroyTag((iGeom_Instance)ifaceInstances[iface_no],
-                       assocTags[iface_no], true, &result);
-      PROCESS_GERROR;
-    }
-    else if (iface_type(iface_no) == iRel_IMESH_IFACE) {
-      iMesh_destroyTag((iMesh_Instance)ifaceInstances[iface_no],
-                       assocTags[iface_no], true, &result);
-      PROCESS_MERROR;
-    }
-    assocTags[iface_no] = 0;
-  }
+  destroy_tags();
 }
 
 iBase_Instance AssocPairC::iface_instance(const int iface_no)
@@ -278,6 +264,7 @@ int AssocPairC::get_all_entities(const int iface_no,
   
   RETURN(iRel_LAST_ERROR.error_type);
 }
+
 int AssocPairC::get_all_sets(const int iface_no,
                                  iBase_EntitySetHandle **entities,
                                  int *entities_alloc,
@@ -437,4 +424,23 @@ iBase_TagHandle AssocPairC::tag_get_handle(const int iface_no,
   }
   
   return this_tag;
+}
+
+int AssocPairC::tag_destroy(const int iface_no,
+                            iBase_TagHandle tag_handle)
+{
+  int result;
+
+  if (iface_type(iface_no) == iRel_IGEOM_IFACE) {
+    iGeom_destroyTag((iGeom_Instance)ifaceInstances[iface_no],
+                     tag_handle, true, &result);
+      PROCESS_GERROR;
+  }
+  else if (iface_type(iface_no) == iRel_IMESH_IFACE) {
+    iMesh_destroyTag((iMesh_Instance)ifaceInstances[iface_no],
+                     tag_handle, true, &result);
+    PROCESS_MERROR;
+  }
+
+  return iBase_SUCCESS;
 }
