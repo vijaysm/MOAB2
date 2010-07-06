@@ -112,6 +112,19 @@ extern "C"
 
   extern struct iBase_Error iRel_LAST_ERROR;
 
+    /**\brief  Create a new iRel instance
+     *
+     * Create a new iRel instance.  Currently no options are implemented.
+        \param options Options for the implementation
+        \param *instance Interface instance
+        \param *ierr Pointer to error value, returned from function
+        \param options_len Length of options string
+    */
+  void iRel_newRel(const char *options,
+                   iRel_Instance *instance,
+                   int *ierr,
+                   const int options_len);
+
     /**\brief  iRel_dtor Destroy the interface object
      *
      * Calls destructor on interface object
@@ -549,19 +562,6 @@ extern "C"
     int entities_size,
     int iface_no,
     int *ierr);
-
-    /**\brief  Create a new iRel instance
-     *
-     * Create a new iRel instance.  Currently no options are implemented.
-        \param options Options for the implementation
-        \param *instance Interface instance
-        \param *ierr Pointer to error value, returned from function
-        \param options_len Length of options string
-    */
-  void iRel_newRel(const char *options,
-                   iRel_Instance *instance,
-                   int *ierr,
-                   const int options_len);
 
 #ifdef __cplusplus
 } /* extern "C" */

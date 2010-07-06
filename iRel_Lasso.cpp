@@ -13,6 +13,7 @@
 
 #include "Lasso.hpp"
 #include "AssocPairC.hpp"
+#include "ArrayManager.hpp"
 
 #include <iostream>
 #include <vector>
@@ -23,36 +24,28 @@
 
 const bool debug = false;
 
-// TAG_CHECK_SIZE is like CHECK_SIZE except it checks for and makes the allocated memory
-// size a multiple of sizeof(void*), and the pointer is assumed to be type char*
-#define TAG_CHECK_SIZE(array, allocated, size)  \
-  if (NULL != array && 0 != array ## _allocated && array ## _allocated < (size)) {\
-    iRel_processError(iBase_MEMORY_ALLOCATION_FAILED, \
-          "Allocated array not large enough to hold returned contents.");\
-    RETURN(iBase_MEMORY_ALLOCATION_FAILED);\
-  }\
-  if (NULL == array) {\
-    allocated=(size); \
-    if (allocated%sizeof(void*) != 0) allocated=((size)/sizeof(void*)+1)*sizeof(void*);\
-    array = (char*)malloc(allocated); \
-    if (NULL == array) {iRel_processError(iBase_MEMORY_ALLOCATION_FAILED, \
-          "Couldn't allocate array.");return iBase_MEMORY_ALLOCATION_FAILED; }\
-  }
-
-#define CHECK_SIZE(type, array, allocated_size, size)  \
-          if (NULL == *array || *allocated_size == 0) {\
-            *array = (type *) malloc(sizeof(type) * size); \
-            *allocated_size = size;} \
-          else if (*allocated_size < size) { \
-             std::cerr << "   Array passed in is non-zero but too short." << std::cerr; }
-
 iBase_Error iRel_LAST_ERROR;
 
 #define RETURN(a) {iRel_LAST_ERROR.error_type = *ierr = a; return;}
 #define iRel_processError(a, b) {sprintf(iRel_LAST_ERROR.description, "%s", b); iRel_LAST_ERROR.error_type = *ierr = a;}
+#define ERROR(CODE,MSG) do { *ierr = (CODE); iRel_processError( (CODE), (MSG) ); return; } while(false)
 
-void
-iRel_dtor(iRel_Instance instance, int *ierr) 
+void iRel_newRel(/* in */ const char * /* options */,
+                 iRel_Instance *instance,
+                 int *ierr,
+                 const int options_len) 
+{
+  if (0 != options_len) {
+    *instance = NULL;
+    ERROR(iBase_NOT_SUPPORTED, "No options for iRel factory have been "
+          "implemented.");
+  }
+  
+  *instance = new Lasso();
+  RETURN(iBase_SUCCESS);
+}
+
+void iRel_dtor(iRel_Instance instance, int *ierr) 
 {
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   delete lasso;
@@ -99,8 +92,7 @@ void iRel_getRelationInfo (
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   AssocPair *assoc_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == assoc_pair) {
-    iRel_processError(iBase_FAILURE, "Didn't find relation pair.");
-    RETURN(iBase_FAILURE);
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
   *iface1      = assoc_pair->iface_instance(0);
@@ -121,8 +113,7 @@ void iRel_destroyRelation (
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   AssocPair *assoc_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == assoc_pair) {
-    iRel_processError(iBase_FAILURE, "Didn't find relation pair.");
-    RETURN(iBase_FAILURE);
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
   int result = lasso->erase_pair(assoc_pair);
@@ -142,16 +133,10 @@ void iRel_findRelations(
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   std::vector<AssocPair*> tmp_pairs;
   lasso->find_pairs(iface, tmp_pairs);
-  if (tmp_pairs.empty()) {
-    *relations_size = 0;
-  }
-  else {
-    CHECK_SIZE(iRel_RelationHandle, relations, relations_allocated, 
-               (int)tmp_pairs.size());
-    *relations_size = tmp_pairs.size();
-	for (size_t i=0; i<tmp_pairs.size(); ++i) {
-      (*relations)[i] = reinterpret_cast<iRel_RelationHandle>(tmp_pairs[i]);
-    }
+
+  ALLOC_CHECK_ARRAY_NOFAIL(relations, tmp_pairs.size());
+  for (size_t i=0; i<tmp_pairs.size(); ++i) {
+    (*relations)[i] = reinterpret_cast<iRel_RelationHandle>(tmp_pairs[i]);
   }
 
   RETURN(iBase_SUCCESS);
@@ -167,8 +152,7 @@ void iRel_setEntEntRelation (
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == this_pair) {
-    iRel_processError(iBase_FAILURE, "Didn't find relation pair.");
-    RETURN(iBase_FAILURE);
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
   int result = this_pair->set_assoc_tags(ent1, ent2);
@@ -187,8 +171,7 @@ void iRel_setEntSetRelation (
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == this_pair) {
-    iRel_processError(iBase_FAILURE, "Didn't find relation pair.");
-    RETURN(iBase_FAILURE);
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
   int result = this_pair->set_assoc_tags(ent1, set2);
@@ -207,8 +190,7 @@ void iRel_setSetEntRelation (
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == this_pair) {
-    iRel_processError(iBase_FAILURE, "Didn't find relation pair.");
-    RETURN(iBase_FAILURE);
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
   int result = this_pair->set_assoc_tags(set1, ent2);
@@ -227,8 +209,7 @@ void iRel_setSetSetRelation (
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == this_pair) {
-    iRel_processError(iBase_FAILURE, "Didn't find relation pair.");
-    RETURN(iBase_FAILURE);
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
   int result = this_pair->set_assoc_tags(set1, set2);
@@ -355,9 +336,8 @@ void iRel_setEntArrEntArrRelation (
   int *ierr)
 {
   if (num_entities1 != num_entities2) {
-    iRel_processError(iBase_NOT_SUPPORTED, "setEntArrEntArrRelation doesn't "
-                      "support different #'s of entities.");
-    RETURN(iBase_NOT_SUPPORTED);
+    ERROR(iBase_NOT_SUPPORTED, "setEntArrEntArrRelation doesn't support "
+          "different #'s of entities.");
   }
   
   int result = iBase_SUCCESS;
@@ -381,9 +361,8 @@ void iRel_setEntArrSetArrRelation (
   int *ierr)
 {
   if (num_entities1 != num_sets2) {
-    iRel_processError(iBase_NOT_SUPPORTED, "setEntArrSetArrRelation doesn't "
-                      "support different #'s of entities.");
-    RETURN(iBase_NOT_SUPPORTED);
+    ERROR(iBase_NOT_SUPPORTED, "setEntArrSetArrRelation doesn't support "
+          "different #'s of entities.");
   }
   
   int result = iBase_SUCCESS;
@@ -407,9 +386,8 @@ void iRel_setSetArrEntArrRelation (
   int *ierr)
 {
   if (num_sets1 != num_entities2) {
-    iRel_processError(iBase_NOT_SUPPORTED, "setSetArrEntArrRelation doesn't "
-                      "support different #'s of entities.");
-    RETURN(iBase_NOT_SUPPORTED);
+    ERROR(iBase_NOT_SUPPORTED, "setSetArrEntArrRelation doesn't support "
+          "different #'s of entities.");
   }
   
   int result = iBase_SUCCESS;
@@ -433,9 +411,8 @@ void iRel_setSetArrSetArrRelation (
   int *ierr)
 {
   if (num_sets1 != num_sets2) {
-    iRel_processError(iBase_NOT_SUPPORTED, "setSetArrSetArrRelation doesn't "
-                      "support different #'s of entities.");
-    RETURN(iBase_NOT_SUPPORTED);
+    ERROR(iBase_NOT_SUPPORTED, "setSetArrSetArrRelation doesn't support "
+          "different #'s of entities.");
   }
   
   int result = iBase_SUCCESS;
@@ -460,8 +437,7 @@ void iRel_getEntEntRelation (
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == this_pair) {
-    iRel_processError(iBase_FAILURE, "Didn't find relation pair.");
-    RETURN(iBase_FAILURE);
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
   
   int iface_no = (switch_order ? 1 : 0);
@@ -481,8 +457,7 @@ void iRel_getEntSetRelation (
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == this_pair) {
-    iRel_processError(iBase_FAILURE, "Didn't find relation pair.");
-    RETURN(iBase_FAILURE);
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
   
   int iface_no = (switch_order ? 1 : 0);
@@ -502,8 +477,7 @@ void iRel_getSetEntRelation (
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == this_pair) {
-    iRel_processError(iBase_FAILURE, "Didn't find relation pair.");
-    RETURN(iBase_FAILURE);
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
   
   int iface_no = (switch_order ? 1 : 0);
@@ -523,8 +497,7 @@ void iRel_getSetSetRelation (
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == this_pair) {
-    iRel_processError(iBase_FAILURE, "Didn't find relation pair.");
-    RETURN(iBase_FAILURE);
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
   
   int iface_no = (switch_order ? 1 : 0);
@@ -548,9 +521,9 @@ void iRel_getEntEntArrRelation (
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == this_pair) {
-    iRel_processError(iBase_FAILURE, "Didn't find relation pair.");
-    RETURN(iBase_FAILURE);
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
+
   int iface_no = (switch_order ? 1 : 0);
   
   if (this_pair->ent_or_set(!iface_no) > 0) { // iface2 is sets
@@ -563,16 +536,19 @@ void iRel_getEntEntArrRelation (
 
     result = this_pair->get_entities(!iface_no, -1, ent_set2, ent_array_2,
                                      ent_array_2_allocated, ent_array_2_size);
+    if (iBase_SUCCESS != result) RETURN(result);
   }
   else {
     // otherwise put the set into the ent list
-    CHECK_SIZE(iBase_EntityHandle, ent_array_2, ent_array_2_allocated, 1);
-    *ent_array_2_size = 1;
+    ALLOC_CHECK_ARRAY(ent_array_2, 1);
     iRel_getEntEntRelation(instance, rel, ent1, switch_order, 
                            *ent_array_2, &result);
+    if (iBase_SUCCESS != result) RETURN(result);
+
+    KEEP_ARRAY(ent_array_2);
   }
   
-  RETURN(result);
+  RETURN(iBase_SUCCESS);
 }
 
 void iRel_getSetEntArrRelation (
@@ -590,9 +566,9 @@ void iRel_getSetEntArrRelation (
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == this_pair) {
-    iRel_processError(iBase_FAILURE, "Didn't find relation pair.");
-    RETURN(iBase_FAILURE);
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
+
   int iface_no = (switch_order ? 1 : 0);
   
   if (this_pair->ent_or_set(!iface_no) > 0) { // iface2 is sets
@@ -604,16 +580,19 @@ void iRel_getSetEntArrRelation (
 
     result = this_pair->get_entities(!iface_no, -1, set2, ent_array_2,
                                      ent_array_2_allocated, ent_array_2_size);
+    if (iBase_SUCCESS != result) RETURN(result);
   }
   else {
     // otherwise put the set into the ent list
-    CHECK_SIZE(iBase_EntityHandle, ent_array_2, ent_array_2_allocated, 1);
-    *ent_array_2_size = 1;
+    ALLOC_CHECK_ARRAY(ent_array_2, 1);
     iRel_getSetEntRelation(instance, rel, set1, switch_order, 
                            *ent_array_2, &result);
+    if (iBase_SUCCESS != result) RETURN(result);
+
+    KEEP_ARRAY(ent_array_2);
   }
   
-  RETURN(result);
+  RETURN(iBase_SUCCESS);
 }
 
 void iRel_getEntArrEntArrRelation(
@@ -630,29 +609,22 @@ void iRel_getEntArrEntArrRelation(
   int *offset_size,
   int *ierr)
 {
-  std::vector<iBase_EntityHandle> tmp_ents;
-  int result = iBase_SUCCESS;
-  CHECK_SIZE(int, offset, offset_allocated, (ent_array_1_size+1));
-  *offset_size = ent_array_1_size+1;
-
-  // get assocpair so we can check whether ents are related to
-  // entities or sets or both
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  bool switched = false;
   AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == this_pair) {
-    iRel_processError(iBase_FAILURE, "Didn't find relation pair.");
-    RETURN(iBase_FAILURE);
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
+
+  std::vector<iBase_EntityHandle> tmp_ents;
+  int result = iBase_SUCCESS;
+  ALLOC_CHECK_ARRAY(offset, ent_array_1_size+1);
 
   for (int i = 0; i < ent_array_1_size; i++) {
     (*offset)[i] = tmp_ents.size();
     int tmp_result;
     iBase_EntityHandle *tmp_array = NULL;
     int tmp_array_size, tmp_array_allocated;
-    iRel_getEntEntArrRelation(instance, rel,
-                              ent_array_1[i], 
-                              switch_order,
+    iRel_getEntEntArrRelation(instance, rel, ent_array_1[i], switch_order,
                               &tmp_array, &tmp_array_allocated,
                               &tmp_array_size, &tmp_result);
     if (iBase_SUCCESS == result && NULL != tmp_array) {
@@ -661,16 +633,15 @@ void iRel_getEntArrEntArrRelation(
       free(tmp_array);
     }
     
-    if (iBase_SUCCESS != tmp_result) result = tmp_result;
+    if (iBase_SUCCESS != tmp_result) RETURN(result);
   }
 
   (*offset)[ent_array_1_size] = tmp_ents.size();
-  CHECK_SIZE(iBase_EntityHandle, ent_array_2, ent_array_2_allocated,
-             (int)tmp_ents.size());
-  *ent_array_2_size = tmp_ents.size();
+  ALLOC_CHECK_ARRAY_NOFAIL(ent_array_2, tmp_ents.size());
   std::copy(tmp_ents.begin(), tmp_ents.end(), *ent_array_2);
-  
-  RETURN(result);
+
+  KEEP_ARRAY(offset);
+  RETURN(iBase_SUCCESS);
 }
 
 void iRel_getEntArrSetArrRelation(
@@ -684,30 +655,25 @@ void iRel_getEntArrSetArrRelation(
   int *set_array_2_size,
   int *ierr)
 {
-  std::vector<iBase_EntityHandle> tmp_ents;
-  int tmp_result, result = iBase_SUCCESS;
-  CHECK_SIZE(iBase_EntitySetHandle, set_array_2, set_array_2_allocated,
-             ent_array_1_size);
-  *set_array_2_size = ent_array_1_size;
-
-  // get assocpair so we can check whether ents are related to
-  // entities or sets or both
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  bool switched = false;
   AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == this_pair) {
-    iRel_processError(iBase_FAILURE, "Didn't find relation pair.");
-    RETURN(iBase_FAILURE);
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
+
+  std::vector<iBase_EntityHandle> tmp_ents;
+  int tmp_result, result = iBase_SUCCESS;
+  ALLOC_CHECK_ARRAY(set_array_2, ent_array_1_size);
 
   for (int i = 0; i < ent_array_1_size; i++) {
     iRel_getEntSetRelation( instance, rel, ent_array_1[i],
                             switch_order, (*set_array_2)+i,
                             &tmp_result );
-    if (iBase_SUCCESS != tmp_result) result = tmp_result;
+    if (iBase_SUCCESS != tmp_result) RETURN(result);
   }
-  
-  RETURN(result);
+
+  KEEP_ARRAY(set_array_2);
+  RETURN(iBase_SUCCESS);
 }
 
 void iRel_getSetArrEntArrRelation(
@@ -724,20 +690,15 @@ void iRel_getSetArrEntArrRelation(
   int *offset_size,
   int *ierr)
 {
-  std::vector<iBase_EntityHandle> tmp_ents;
-  int result = iBase_SUCCESS;
-  CHECK_SIZE(int, offset, offset_allocated, (set_array_1_size+1));
-  *offset_size = set_array_1_size+1;
-
-  // get assocpair so we can check whether ents are related to
-  // entities or sets or both
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  bool switched = false;
   AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == this_pair) {
-    iRel_processError(iBase_FAILURE, "Didn't find relation pair.");
-    RETURN(iBase_FAILURE);
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
+
+  std::vector<iBase_EntityHandle> tmp_ents;
+  int result = iBase_SUCCESS;
+  ALLOC_CHECK_ARRAY(offset, set_array_1_size+1);
 
   for (int i = 0; i < set_array_1_size; i++) {
     (*offset)[i] = tmp_ents.size();
@@ -755,16 +716,15 @@ void iRel_getSetArrEntArrRelation(
       free(tmp_array);
     }
     
-    if (iBase_SUCCESS != tmp_result) result = tmp_result;
+    if (iBase_SUCCESS != tmp_result) RETURN(result);
   }
 
   (*offset)[set_array_1_size] = tmp_ents.size();
-  CHECK_SIZE(iBase_EntityHandle, ent_array_2, ent_array_2_allocated,
-             (int)tmp_ents.size());
-  *ent_array_2_size = tmp_ents.size();
+  ALLOC_CHECK_ARRAY_NOFAIL(ent_array_2, tmp_ents.size());
   std::copy(tmp_ents.begin(), tmp_ents.end(), *ent_array_2);
-  
-  RETURN(result);
+
+  KEEP_ARRAY(offset);
+  RETURN(iBase_SUCCESS);
 }
 
 void iRel_getSetArrSetArrRelation(
@@ -778,28 +738,24 @@ void iRel_getSetArrSetArrRelation(
   int *set_array_2_size,
   int *ierr)
 {
-  std::vector<iBase_EntityHandle> tmp_ents;
-  int tmp_result, result = iBase_SUCCESS;
-  CHECK_SIZE(iBase_EntitySetHandle, set_array_2, set_array_2_allocated,
-             set_array_1_size );
-  *set_array_2_size = set_array_1_size;
-
-  // get assocpair so we can check whether ents are related to
-  // entities or sets or both
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == this_pair) {
-    iRel_processError(iBase_FAILURE, "Didn't find relation pair.");
-    RETURN(iBase_FAILURE);
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
+
+  std::vector<iBase_EntityHandle> tmp_ents;
+  int tmp_result, result = iBase_SUCCESS;
+  ALLOC_CHECK_ARRAY(set_array_2, set_array_1_size);
 
   for (int i = 0; i < set_array_1_size; i++) {
     iRel_getSetSetRelation( instance, rel, set_array_1[i],
                             switch_order, (*set_array_2)+i,
                             &tmp_result );
-    if (iBase_SUCCESS != tmp_result) result = tmp_result;
+    if (iBase_SUCCESS != tmp_result) RETURN(result);
   }
-  
+
+  KEEP_ARRAY(set_array_2);
   RETURN(result);
 }
 
@@ -816,16 +772,13 @@ get_gids_and_dims(AssocPair *assoc_pair,
   iBase_EntitySetHandle *sets = reinterpret_cast<iBase_EntitySetHandle*>(ents);
 
   ents_gids.resize(ents_size);
-  if (is_set) {
+  if (is_set)
     result = assoc_pair->get_gid_tags(iface_no, sets, ents_size, &ents_gids[0]);
-  }
-  else {
+  else
     result = assoc_pair->get_gid_tags(iface_no, ents, ents_size, &ents_gids[0]);
-  }
 
-  if (iBase_SUCCESS != result && iBase_TAG_NOT_FOUND != result) {
+  if (iBase_SUCCESS != result && iBase_TAG_NOT_FOUND != result)
     return result;
-  }
 
   ents_dims.resize(ents_size, -1);
   if (is_set) {
@@ -839,9 +792,10 @@ get_gids_and_dims(AssocPair *assoc_pair,
                                        &ents_dims_size);
   }
 
-  if (iBase_SUCCESS != result && iBase_TAG_NOT_FOUND != result) {
+  if (iBase_SUCCESS != result && iBase_TAG_NOT_FOUND != result)
     return result;
-  }
+
+  return iBase_SUCCESS;
 }
 
 static void
@@ -1132,19 +1086,4 @@ void iRel_inferSetArrRelations (
 {
   iRel_inferArrRelations(instance, rel, (iBase_EntityHandle*)entities,
                          entities_size, 1, iface_no, ierr);
-}
-
-void iRel_newRel(/* in */ const char * /* options */,
-                 iRel_Instance *instance,
-                 int *ierr,
-                 const int options_len) 
-{
-  if (0 != options_len) {
-    iRel_processError(iBase_NOT_SUPPORTED, "No options for iRel factory have "
-                      "been implemented.");
-    *instance = NULL;
-  }
-  
-  *instance = new Lasso();
-  RETURN(iBase_SUCCESS);
 }
