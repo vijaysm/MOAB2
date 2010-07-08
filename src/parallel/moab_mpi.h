@@ -2,6 +2,12 @@
 #define MOAB_MPI_H
 #include "moab_mpi_config.h"
 
+/* Work around brain-dead netcdf.h */
+#undef MPI_Comm
+#undef MPI_Info
+#undef MPI_COMM_WORLD
+#undef MPI_INFO_NULL
+
 #ifndef __cplusplus
 #  include <mpi.h>
 #elif !defined(MB_MPI_CXX_CONFLICT)
