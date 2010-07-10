@@ -46,6 +46,7 @@
 #  include "ReadNCDF.hpp"
 #  include "WriteNCDF.hpp"
 #  include "WriteSLAC.hpp"
+#  include "ReadNC.hpp"
 #endif
 
 #ifdef CCMIO_FILE
@@ -83,6 +84,7 @@ ReaderWriterSet::ReaderWriterSet( Core* mdb, Error* handler )
 #ifdef NETCDF_FILE
   const char* exo_sufxs[] = { "exo", "exoII", "exo2", "g", "gen", NULL };
   register_factory( ReadNCDF::factory, WriteNCDF::factory, "Exodus II", exo_sufxs, "EXODUS" );
+  register_factory( ReadNC::factory, NULL, "Climate NC", "nc", "NC" );
 #endif
 
   register_factory( ReadIDEAS::factory, NULL, "IDEAS format", "unv", "UNV" );
