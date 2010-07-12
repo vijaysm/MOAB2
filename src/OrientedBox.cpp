@@ -599,8 +599,13 @@ ErrorCode OrientedBox::make_hex( EntityHandle& hex, Interface* instance )
   for (int i = 0; i < 8; ++i)
   {
     CartVect coords(center);
-    for (int j = 0; j < 3; ++j)
+    for (int j = 0; j < 3; ++j){
+#if MB_ORIENTED_BOX_UNIT_VECTORS
+      coords += signs[i][j] * (axis[j]*length[j]);
+#else
       coords += signs[i][j] * axis[j];
+#endif
+    }
     EntityHandle handle;
     rval = instance->create_vertex( coords.array(), handle );
     if (MB_SUCCESS != rval) {
