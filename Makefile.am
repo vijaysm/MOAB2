@@ -27,8 +27,11 @@ rtestc_LDADD = libiRel.la #${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMes
 
 libiRel_la_SOURCES = \
 	iRel_Lasso.cpp \
+	AssocPair.hpp \
 	AssocPair.cpp \
-	AssocPairC.cpp 
+	AssocPairC.hpp \
+	AssocPairC.cpp \
+	Lasso.hpp
 
 libiRel_la_include_HEADERS = iRel.h \
                              iRel_f.h \
@@ -59,7 +62,7 @@ install-data-hook:
 	echo "IREL_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iRel-Defs.inc
 
 if USE_BABEL
-  SIDL_SUBDIR = SIDL
+  SIDL_SUBDIR = #SIDL
 else
   SIDL_SUBDIR =
 endif
