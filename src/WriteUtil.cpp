@@ -492,11 +492,28 @@ ErrorCode WriteUtil::get_element_connect(
     if (output_iter + (count * conn_size) > output_end)
       return MB_FAILURE;
 
+    if (conn_array == NULL) { // if it is structured mesh
+      ErrorCode rval;
+      int temp_buff_size = conn_size* sizeof(EntityHandle);
+      for (int i = 0; i < count; i++) { // copy connectivity element by element
+	std::vector<EntityHandle> connect;
+	rval = static_cast<ElementSequence*>(*seq_iter)->get_connectivity(*iter,
+									  connect);
+	if (MB_SUCCESS != rval) {
+          return rval;
+	}
+	memcpy(output_iter, &connect[0], temp_buff_size);
+	output_iter += conn_size;
+	iter++;
+      }
+    }
+    else {
       // Copy connectivity into output array
-    conn_array += (conn_size * offset);
-    memcpy( output_iter, conn_array, count * conn_size * sizeof(EntityHandle));
-    output_iter += count * conn_size;
-    iter += count;
+      conn_array += (conn_size * offset);
+      memcpy( output_iter, conn_array, count * conn_size * sizeof(EntityHandle));
+      output_iter += count * conn_size;
+      iter += count;
+    }
   }
 
   return MB_SUCCESS;
@@ -631,8 +648,9 @@ ErrorCode WriteUtil::gather_nodes_from_elements(
     }
       // structured mesh
     else {
+      EntityHandle end_h = iter.get_end_handle() + 1;
       for (EntityHandle h = iter.get_start_handle();
-           h < iter.get_end_handle(); ++h) {
+           h < end_h; ++h) {
         tmp_conn.clear();
         rval = seq->get_connectivity( h, tmp_conn, false );
         if (MB_SUCCESS != rval) {
