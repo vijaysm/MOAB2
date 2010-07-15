@@ -32,6 +32,7 @@ libiRel_la_SOURCES = \
 	AssocPairC.cpp \
 	AssocPairC.hpp \
 	iRel_Lasso.cpp \
+	iRel_Lasso.hpp \
 	Lasso.cpp \
 	Lasso.hpp
 

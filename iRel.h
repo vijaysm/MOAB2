@@ -81,8 +81,6 @@ extern "C"
      */
   typedef void* iRel_Instance;
 
-  typedef void* iBase_EntityIterator;
-
     /**\brief  Type used to store references to relation pairs
      *
      * Type used to store references to relation pairs
@@ -112,7 +110,31 @@ extern "C"
    iRel_SET, 
    iRel_BOTH};
 
-  extern struct iBase_Error iRel_LAST_ERROR;
+    /**\brief  Get the error type returned from the last iRek function
+     *
+     * Get the error type returned from the last iRel function.  Value
+     * returned is a member of the iBase_ErrorType enumeration.
+     * \param instance iRel instance handle
+     * \param *error_type Error type returned from last iRel function
+     * \param *err Pointer to error type returned from function
+     */
+  void iRel_getErrorType(iRel_Instance instance,
+                         /*out*/ int *error_type, 
+                         int *ierr);
+
+    /**\brief  Get a description of the error returned from the last iRel function
+     *
+     * Get a description of the error returned from the last iRel function
+     * \param instance iRel instance handle
+     * \param descr Pointer to a character string to be filled with a
+     *        description of the error from the last iRel function
+     * \param *err Pointer to error type returned from function
+     * \param descr_len Length of the character string pointed to by descr
+     */
+  void iRel_getDescription(iRel_Instance instance,
+                           /*inout*/ char *descr, 
+                           int *ierr, 
+                           /*in*/ int descr_len);
 
     /**\brief  Create a new iRel instance
      *

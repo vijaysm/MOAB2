@@ -8,8 +8,6 @@ const char *AssocPair::GEOM_DIMENSION_TAG_NAME = "GEOM_DIMENSION";
 const char *AssocPair::ASSOCIATION_TAG_NAME = "ASSOCIATION";
 int AssocPair::currId = 0;
 
-#define iRel_processError(a, b) {sprintf(iRel_LAST_ERROR.description, "%s", b); iRel_LAST_ERROR.error_type = a;}
-
 AssocPair::AssocPair(RelationType ent_or_set0, IfaceType type0,
                      RelationType ent_or_set1, IfaceType type1)
 {
@@ -42,16 +40,15 @@ int AssocPair::create_tags()
   int def_int_value = 0;
 
   for (int i = 0; i < 2; i++) {
-    assocTags[i] = tag_get_handle(i, tmp_name.c_str(), 1,
-                                  iBase_ENTITY_HANDLE, true, &def_handle_value);
-
-    gidTags[i] = tag_get_handle(i, GLOBAL_ID_TAG_NAME, 1, iBase_INTEGER, 
-                                true, &def_int_value);
+    CHK_ERRORR( tag_get_handle(i, tmp_name.c_str(), 1, iBase_ENTITY_HANDLE,
+                               true, &def_handle_value, assocTags+i) );
+    CHK_ERRORR( tag_get_handle(i, GLOBAL_ID_TAG_NAME, 1, iBase_INTEGER,
+                               true, &def_int_value, gidTags+i) );
 
     if (ifaceTypes[ i] == iRel_IMESH_IFACE &&
         ifaceTypes[!i] == iRel_IGEOM_IFACE) {
-      dimTags[i] = tag_get_handle(i, GEOM_DIMENSION_TAG_NAME, 1, iBase_INTEGER, 
-                                  false);
+      CHK_ERRORR( tag_get_handle(i, GEOM_DIMENSION_TAG_NAME, 1, iBase_INTEGER, 
+                                 false, NULL, dimTags+i) );
     }
   }
   

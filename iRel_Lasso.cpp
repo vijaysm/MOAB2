@@ -9,26 +9,38 @@
  * version 2.1 of the License, or (at your option) any later version.
  * 
  */
-#include "iRel.h"
+#include "iRel_Lasso.hpp"
 
 #include "Lasso.hpp"
 #include "AssocPairC.hpp"
 #include "ArrayManager.hpp"
 
-#include <iostream>
-#include <vector>
-#include <map>
 #include <algorithm>
-#include <math.h>
-#include <stdio.h>
+#include <cmath>
+#include <cstdio>
+#include <iostream>
+#include <map>
+#include <vector>
 
 const bool debug = false;
 
 iBase_Error iRel_LAST_ERROR;
 
-#define RETURN(a) {iRel_LAST_ERROR.error_type = *ierr = a; return;}
-#define iRel_processError(a, b) {sprintf(iRel_LAST_ERROR.description, "%s", b); iRel_LAST_ERROR.error_type = *ierr = a;}
-#define ERROR(CODE,MSG) do { *ierr = (CODE); iRel_processError( (CODE), (MSG) ); return; } while(false)
+void iRel_getErrorType(iRel_Instance instance, int *error_type, int *ierr)
+{
+  *error_type = iRel_LAST_ERROR.error_type;
+  RETURN(iBase_SUCCESS);
+}
+  
+void iRel_getDescription(iRel_Instance instance, char *descr, int *ierr,
+                         int descr_len)
+{
+  unsigned int len = std::min(strlen(iRel_LAST_ERROR.description),
+                              static_cast<size_t>(descr_len));
+  strncpy(descr, iRel_LAST_ERROR.description, len);
+  descr[len] = '\0';
+  RETURN(iBase_SUCCESS);
+}
 
 void iRel_newRel(/* in */ const char * /* options */,
                  iRel_Instance *instance,
@@ -514,7 +526,7 @@ void iRel_getEntSetIterRelation (
   iBase_EntityIterator *entset2,
   int *ierr)
 {
-  RETURN(iBase_NOT_SUPPORTED);
+  ERROR(iBase_NOT_SUPPORTED, "Iterators not currently supported.");
 }
 
 void iRel_getEntEntArrRelation (
@@ -543,11 +555,11 @@ void iRel_getEntEntArrRelation (
     iRel_getEntSetRelation(instance, rel,
                            ent1, switch_order,
                            &ent_set2, &result);
-    if (iBase_SUCCESS != result) RETURN(result);
+    CHK_ERROR(result);
 
     result = this_pair->get_entities(!iface_no, -1, ent_set2, ent_array_2,
                                      ent_array_2_allocated, ent_array_2_size);
-    if (iBase_SUCCESS != result) RETURN(result);
+    CHK_ERROR(result);
   }
   else {
     // otherwise put the set into the ent list
@@ -587,11 +599,11 @@ void iRel_getSetEntArrRelation (
 
     iRel_getSetSetRelation(instance, rel,
                            set1, switch_order, &set2, &result);
-    if (iBase_SUCCESS != result) RETURN(result);
+    CHK_ERROR(result);
 
     result = this_pair->get_entities(!iface_no, -1, set2, ent_array_2,
                                      ent_array_2_allocated, ent_array_2_size);
-    if (iBase_SUCCESS != result) RETURN(result);
+    CHK_ERROR(result);
   }
   else {
     // otherwise put the set into the ent list
@@ -638,14 +650,16 @@ void iRel_getEntArrEntArrRelation(
     iRel_getEntEntArrRelation(instance, rel, ent_array_1[i], switch_order,
                               &tmp_array, &tmp_array_allocated,
                               &tmp_array_size, &tmp_result);
+
     if (iBase_SUCCESS == result && NULL != tmp_array) {
       std::copy(tmp_array, tmp_array+tmp_array_size,
                 std::back_inserter(tmp_ents));
       free(tmp_array);
     }
     
-    if (iBase_SUCCESS != tmp_result) RETURN(result);
+    if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
+  CHK_ERROR(result);
 
   (*offset)[ent_array_1_size] = tmp_ents.size();
   ALLOC_CHECK_ARRAY_NOFAIL(ent_array_2, tmp_ents.size());
@@ -680,8 +694,10 @@ void iRel_getEntArrSetArrRelation(
     iRel_getEntSetRelation( instance, rel, ent_array_1[i],
                             switch_order, (*set_array_2)+i,
                             &tmp_result );
-    if (iBase_SUCCESS != tmp_result) RETURN(result);
+    if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
+  CHK_ERROR(result);
+
 
   KEEP_ARRAY(set_array_2);
   RETURN(iBase_SUCCESS);
@@ -727,8 +743,9 @@ void iRel_getSetArrEntArrRelation(
       free(tmp_array);
     }
     
-    if (iBase_SUCCESS != tmp_result) RETURN(result);
+    if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
+  CHK_ERROR(result);
 
   (*offset)[set_array_1_size] = tmp_ents.size();
   ALLOC_CHECK_ARRAY_NOFAIL(ent_array_2, tmp_ents.size());
@@ -763,8 +780,9 @@ void iRel_getSetArrSetArrRelation(
     iRel_getSetSetRelation( instance, rel, set_array_1[i],
                             switch_order, (*set_array_2)+i,
                             &tmp_result );
-    if (iBase_SUCCESS != tmp_result) RETURN(result);
+    if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
+  CHK_ERROR(result);
 
   KEEP_ARRAY(set_array_2);
   RETURN(result);
@@ -781,7 +799,7 @@ void iRel_getEntArrSetIterArrRelation (
   int *entiter_size,
   int *ierr)
 {
-  RETURN(iBase_NOT_SUPPORTED);
+  ERROR(iBase_NOT_SUPPORTED, "Iterators not currently supported.");
 }
 
 
@@ -884,9 +902,7 @@ iRel_inferArrArrRelations(Lasso *lasso,
           (iBase_EntitySetHandle)ents2[i]);
       }
 
-      if (iBase_SUCCESS != result) {
-        RETURN(result);
-      }
+      CHK_ERROR(result);
     }
   }
 
@@ -957,8 +973,7 @@ void iRel_inferAllRelations (
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == this_pair) {
-    iRel_processError(iBase_FAILURE, "Didn't find relation pair.");
-    RETURN(iBase_FAILURE);
+    ERROR(iBase_FAILURE, "Didn't find relation pair.");
   }
 
   // get all entities in those interfaces
@@ -972,9 +987,7 @@ void iRel_inferAllRelations (
   else
     result = this_pair->get_all_entities(0, -1, &ents1, &ents1_alloc,
                                          &ents1_size);
-  if (iBase_SUCCESS != result) {
-    RETURN(result);
-  }
+  CHK_ERROR(result);
   
   iBase_EntityHandle *ents2 = NULL;
   int ents2_alloc = 0, ents2_size;
@@ -984,9 +997,7 @@ void iRel_inferAllRelations (
   else
   result = this_pair->get_all_entities(1, -1, &ents2, &ents2_alloc,
                                        &ents2_size);
-  if (iBase_SUCCESS != result) {
-    RETURN(result);
-  }
+  CHK_ERROR(result);
   
   iRel_inferArrArrRelations(lasso, this_pair, 
                             ents1, ents1_size, this_pair->ent_or_set(0),
@@ -1002,7 +1013,7 @@ void iRel_inferAllRelationsAndType (
   iRel_RelationHandle *rel,
   int *ierr)
 {
-  RETURN(iBase_NOT_SUPPORTED);
+  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
 }
 
 void iRel_inferEntRelations (
@@ -1037,25 +1048,20 @@ static void iRel_inferArrRelations (
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == this_pair) {
-    iRel_processError(iBase_FAILURE, "Didn't find relation pair.");
-    RETURN(iBase_FAILURE);
+    ERROR(iBase_FAILURE, "Didn't find relation pair.");
   }
 
   if (0 > iface_no || 1 < iface_no) {
-    iRel_processError(iBase_INVALID_ARGUMENT,
-                      "Interface number must be 0 or 1");
-    RETURN(iBase_INVALID_ARGUMENT);
+    ERROR(iBase_INVALID_ARGUMENT, "Interface number must be 0 or 1");
   }
   else if (( is_set && this_pair->ent_or_set(iface_no) == iRel_ENTITY) ||
            (!is_set && this_pair->ent_or_set(iface_no) != iRel_ENTITY)) {
-    iRel_processError(iBase_INVALID_ARGUMENT, "is_set must match entOrSet in "
-                      "call to inferArrRelations");
-    RETURN(iBase_INVALID_ARGUMENT);
+    ERROR(iBase_INVALID_ARGUMENT, "is_set must match entOrSet in call to "
+          "inferArrRelations");
   }
   
   // get all entities in iface2
   int result;
-
   iBase_EntityHandle *ents1 = entities;
   int ents1_size = entities_size;
   iBase_EntityHandle *ents2 = NULL;
@@ -1067,9 +1073,7 @@ static void iRel_inferArrRelations (
   else
     result = this_pair->get_all_entities(!iface_no, -1, 
                                          &ents2, &ents2_alloc, &ents2_size);
-  if (iBase_SUCCESS != result) {
-    RETURN(result);
-  }
+  CHK_ERROR(result);
 
   // switch so that entity lists always go into inferArrArrRelations in
   // forward order wrt assoc_pair

@@ -1,7 +1,7 @@
 #ifndef ASSOCPAIR_HPP
 #define ASSOCPAIR_HPP
 
-#include "iRel.h"
+#include "iRel_Lasso.hpp"
 #include <sstream>
 
 class Lasso;
@@ -111,12 +111,13 @@ protected:
                        const void *tag_values,
                        const int tag_size) = 0;
 
-  virtual iBase_TagHandle tag_get_handle(const int iface_no,
-                                         const char *tag_name,
-                                         const int tag_size_values,
-                                         const int tag_data_type,
-                                         const bool create_if_missing,
-                                         void *default_val = NULL) = 0;
+  virtual int tag_get_handle(const int iface_no,
+                             const char *tag_name,
+                             const int tag_size_bytes,
+                             const int tag_data_type,
+                             const bool create_if_missing,
+                             void *default_val,
+                             iBase_TagHandle *tag_handle) = 0;
 
   virtual int tag_destroy(const int iface_no, iBase_TagHandle tag_handle) = 0;
 private:

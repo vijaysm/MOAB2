@@ -77,12 +77,13 @@ protected:
                        const void *tag_values,
                        const int tag_size);
 
-  virtual iBase_TagHandle tag_get_handle(const int iface_no,
-                                         const char *tag_name,
-                                         const int tag_size_bytes,
-                                         const int tag_data_type,
-                                         const bool create_if_missing,
-                                         void *default_val = NULL);
+  virtual int tag_get_handle(const int iface_no,
+                             const char *tag_name,
+                             const int tag_size_bytes,
+                             const int tag_data_type,
+                             const bool create_if_missing,
+                             void *default_val,
+                             iBase_TagHandle *tag_handle);
 
   virtual int tag_destroy(const int iface_no, iBase_TagHandle tag_handle);
 private:
