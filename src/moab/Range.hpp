@@ -543,6 +543,21 @@ public:
      * this iterator.
      */
     inline const_iterator end_of_block() const;
+    
+    /**\brief get an iterator at the start of the block
+     *
+     * Get an iterator at the start of the block of consecutive
+     * handles that this iterator is currently contained in.
+     * That is, if the range contains blocks of consecutive 
+     * handles of the form { [1,5], [7,100], ... } and this
+     * iterator is at any handle in the range [7,100], return
+     * an iterator at the '7' handle.
+     *
+     * Never returns end() unless this iterator is
+     * at end().  May return the same location as
+     * this iterator.
+     */
+    inline const_iterator start_of_block() const;
 
   protected:
 
@@ -794,6 +809,9 @@ inline Range::iterator Range::erase(EntityHandle val)
   
 inline Range::const_iterator Range::const_iterator::end_of_block() const
   { return Range::const_iterator( mNode, mNode->second ); }
+
+inline Range::const_iterator Range::const_iterator::start_of_block() const
+  { return Range::const_iterator( mNode, mNode->first ); }
 
   //! get first entity in range
 inline const EntityHandle& Range::front() const
