@@ -7,8 +7,10 @@
 #include "FileOptions.hpp"
 #include "moab/Skinner.hpp"
 #include "quads_to_tris.hpp"
+#include "DagMC.hpp"
 #include <limits>
 #include <cstdlib>
+#include <time.h>
 
 #define GF_CUBIT_FILE_TYPE    "CUBIT"
 #define GF_STEP_FILE_TYPE     "STEP"
@@ -18,6 +20,80 @@
 #define GF_OCC_BREP_FILE_TYPE "OCC"
 
 using namespace moab;
+
+ErrorCode get_group_names( Interface* MBI,
+                           const EntityHandle group_set,
+                           const Tag nameTag,
+                           std::vector<std::string> &grp_names ) {
+    // get names
+  char name0[NAME_TAG_SIZE];
+  std::fill(name0, name0+NAME_TAG_SIZE, '\0');
+  ErrorCode result = MBI->tag_get_data( nameTag, &group_set, 1, &name0);
+  if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) return MB_FAILURE;
+
+  if (MB_TAG_NOT_FOUND != result) grp_names.push_back(std::string(name0));
+  
+  return MB_SUCCESS;
+}  
+
+// For each material, sum the volume. If the coordinates were updated for 
+// deformation, summarize the volume change.
+ErrorCode summarize_cell_volume_change( Interface* MBI,
+                                        const EntityHandle cgm_file_set,
+                                        const Tag categoryTag,
+                                        const Tag dimTag,
+                                        const Tag sizeTag,
+					const Tag nameTag,
+                                        const bool debug ) {
+  // get groups
+  ErrorCode rval;
+  const char group_category[CATEGORY_TAG_SIZE] = {"Group\0"};
+  const void* const group_val[] = {&group_category};
+  Range groups;
+  rval = MBI->get_entities_by_type_and_tag(0, MBENTITYSET, &categoryTag, group_val, 1, groups);
+  if(MB_SUCCESS != rval) return rval;
+
+  for(Range::const_iterator i=groups.begin(); i!=groups.end(); ++i) {
+    // get group names
+    std::vector<std::string> grp_names;
+    rval = get_group_names( MBI, *i, nameTag, grp_names );
+    if(MB_SUCCESS != rval) return MB_FAILURE;
+
+    // determine if it is a material group
+    bool material_grp = false;
+    for(std::vector<std::string>::const_iterator j=grp_names.begin(); j!=grp_names.end(); ++j) {
+      if(std::string::npos!=(*j).find("mat") && std::string::npos!=(*j).find("rho")) {
+        material_grp=true;
+	std::cout << "  material group: " << *j << std::endl;
+      }
+    }
+    if(!material_grp) continue;
+
+    // get the volume sets of the material group
+    const int three = 3;
+    const void* const three_val[] = {&three};
+    Range vols;
+    rval = MBI->get_entities_by_type_and_tag(*i, MBENTITYSET, &dimTag, three_val, 1, vols );
+    if(MB_SUCCESS != rval) return rval;
+    
+    // for each volume, sum predeformed and deformed volume
+    double orig_grp_volume = 0, defo_grp_volume = 0;
+    for(Range::const_iterator j=vols.begin(); j!=vols.end(); ++j) {
+      double defo_size = 0, orig_size = 0;
+      moab::DagMC &dagmc = *moab::DagMC::instance( MBI );
+      rval = dagmc.measure_volume( *j, defo_size );
+      if(MB_SUCCESS != rval) return rval;
+      defo_grp_volume += defo_size;
+      rval = MBI->tag_get_data( sizeTag, &(*j), 1, &orig_size );
+      if(MB_SUCCESS != rval) return rval;
+      orig_grp_volume += orig_size;
+    }
+    std::cout << "    orig_volume=" << orig_grp_volume << " defo_volume=" << defo_grp_volume 
+              << " defo/orig=" << defo_grp_volume/orig_grp_volume << std::endl;
+  }
+  
+  return MB_SUCCESS;
+}
 
 // DAGMC cannot build an OBB tree if all of a volume's surfaces have no facets.
 // To prevent this, remove the cgm surface set if the cub surface set exists,
@@ -551,7 +627,7 @@ ErrorCode fix_surface_senses( Interface *MBI,
     // The signed volumes are much greater than numerical precision. Planar
     // surfaces will have a signed volume of zero if the plane goes through the
     // origin, unless we apply an offset.
-    const int n_attempts = 10;
+    const int n_attempts = 100;
     const int max_random = 10;
     const double min_signed_vol = 0.1;
     double cgm_signed_vol, cub_signed_vol;
@@ -934,6 +1010,8 @@ int DEFAULT_NORM = 5;
 // remove empty surfaces and volumes due to dead elements
 int main( int argc, char* argv[] )
 {
+  clock_t start_time = clock();
+
   const bool debug = false;
   const char *file_type = NULL;
   
@@ -1011,10 +1089,15 @@ int main( int argc, char* argv[] )
   EntityHandle cub_file_set;
   result = MBI->create_meshset( 0, cub_file_set );
   if(MB_SUCCESS != result) return result;
+  // Do not ignore the Cubit file version. In testing, a cub file from Cubit12 
+  // did not work.
   //char cub_options[256] = "120";
   //result = MBI->load_file(cub_name, cub_file_set, cub_options, NULL, 0, 0);
   result = MBI->load_file(cub_name, &cub_file_set, 0, NULL, 0, 0);
-  if(MB_SUCCESS != result) return result;
+  if(MB_SUCCESS != result) {
+    std::cout << "error: problem reading cub file" << std::endl;
+    return result;
+  }
   std::cout << "Mesh file read." << std::endl;
 
   // Read the ACIS file with ReadCGM
@@ -1026,11 +1109,14 @@ int main( int argc, char* argv[] )
   result = MBI->create_meshset( 0, cgm_file_set );
   if(MB_SUCCESS != result) return result;
   result = MBI->load_file(sat_name, &cgm_file_set, cgm_options,NULL,0,0);
-  if(MB_SUCCESS != result) return result;
+  if(MB_SUCCESS != result) {
+    std::cout << "error: problem reading sat file" << std::endl;
+    return result;
+  }
   std::cout << "CAD file read." << std::endl;
     
   // Create tags
-  Tag dimTag, idTag, categoryTag, senseTag;
+  Tag dimTag, idTag, categoryTag, senseTag, sizeTag, nameTag;
   result = MBI->tag_create(GEOM_DIMENSION_TAG_NAME, sizeof(int), MB_TAG_DENSE, 
 			       MB_TYPE_INTEGER, dimTag, NULL, true );
   if(MB_SUCCESS != result) return result;
@@ -1043,7 +1129,13 @@ int main( int argc, char* argv[] )
   result = MBI->tag_create("GEOM_SENSE_2", 2*sizeof(EntityHandle), MB_TAG_DENSE, 
 			       MB_TYPE_HANDLE, senseTag, NULL, true );
   if(MB_SUCCESS != result) return result;
-    
+  result = MBI->tag_create( "GEOM_SIZE", sizeof(double), MB_TAG_DENSE,                                                       
+			    MB_TYPE_DOUBLE, sizeTag, 0, true );
+  if(MB_SUCCESS != result) return result;
+  result = MBI->tag_create(NAME_TAG_NAME, NAME_TAG_SIZE, MB_TAG_SPARSE,
+                           MB_TYPE_OPAQUE, nameTag, NULL, true );
+  if(MB_SUCCESS != result) return result;
+
   // Create triangles from the quads of the cub surface sets and add them to the
   // cub surface sets. Get the signed volume of each surface for both cgm and 
   // cub representations. Change the sense of the cgm representation to match 
@@ -1076,6 +1168,20 @@ int main( int argc, char* argv[] )
     result = MBI->set_meshset_options( *i, MESHSET_TRACK_OWNER );
     if(MB_SUCCESS != result) return result;
   }
+
+  // Tag volume sets with the undeformed size of each volume.
+  Range vol_sets;
+  result = MBI->get_entities_by_type_and_tag(cgm_file_set, MBENTITYSET, &dimTag,
+						 three_val, 1, vol_sets );
+  if(MB_SUCCESS != result) return result;
+  for(Range::const_iterator i=vol_sets.begin(); i!=vol_sets.end(); ++i) {
+    double size;
+    moab::DagMC &dagmc = *moab::DagMC::instance( MBI );
+    result = dagmc.measure_volume( *i, size );
+    if(MB_SUCCESS != result) return result;
+    result = MBI->tag_set_data( sizeTag, &(*i), 1, &size );
+    if(MB_SUCCESS != result) return result;
+  } 
 
   // Update the coordinates if needed. Do not do this before checking surface
   // sense, because the coordinate update could deform the surfaces too much
@@ -1155,12 +1261,21 @@ int main( int argc, char* argv[] )
   std::cout << "Removed surfaces and volumes that no longer have any triangles." 
             << std::endl;
 
+  // For each material, sum the volume. If the coordinates were updated for 
+  // deformation, summarize the volume change.
+  result = summarize_cell_volume_change( MBI, cgm_file_set, categoryTag, dimTag, sizeTag, nameTag, debug );
+  if(MB_SUCCESS != result) return result;
+  std::cout << "Summarized the volume change of each material, with respect to the solid model." << std::endl;
+
   result = MBI->write_mesh( out_name, &cgm_file_set, 1 );
   if(MB_SUCCESS != result) {
     std::cout << "write mesh failed" << std::endl;
     return result;
   }
   std::cout << "Saved output file for mesh-based analysis." << std::endl;
+
+  clock_t end_time = clock();
+  std::cout << "  " << (double) (end_time-start_time)/CLOCKS_PER_SEC << " seconds" << std::endl;
   std::cout << std::endl;
   
   return 0;
