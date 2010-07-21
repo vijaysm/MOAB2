@@ -1098,7 +1098,7 @@ void test_gather_sets_common( bool contents, GatherTestMode mode )
   CHECK_ERR(rval);
   
     // Create a string of edges from [0,INT] along the X axis each 1 unit in length.
-    // Create a set for edge edge, containing the edge and the parent of the 
+    // Create a set for edge edge containing the edge and make it the parent of the 
     // set containing the previous (closer to origin) edge.  Assign each set an
     // ID that is the X coordinate of the larger of the two vertices of the edge
     // contained in the set.
