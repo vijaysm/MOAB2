@@ -139,7 +139,7 @@ ErrorCode SparseTagCollection::set_data(const EntityHandle entity_handle, const 
   return MB_SUCCESS;
 }
 
-ErrorCode SparseTagCollection::get_data(const EntityHandle entity_handle, const void*& data, int& size)
+ErrorCode SparseTagCollection::get_data(const EntityHandle entity_handle, void*& data, int& size)
 {
   myMapType::iterator iter = mData.find(entity_handle);
 
@@ -147,7 +147,7 @@ ErrorCode SparseTagCollection::get_data(const EntityHandle entity_handle, const 
     return MB_TAG_NOT_FOUND;
   
   if (mDataSize == MB_VARIABLE_LENGTH) {
-    const VarLenTag* vtag = reinterpret_cast<const VarLenTag*>(iter->second);
+    VarLenTag* vtag = reinterpret_cast<VarLenTag*>(iter->second);
     size = vtag->size();
     data = vtag->data();
   }

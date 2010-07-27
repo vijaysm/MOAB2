@@ -20,6 +20,7 @@
 #define MOAB_API_VERSION_STRING "1.01"
 
 #include "moab/Forward.hpp"
+#include "moab/Range.hpp"
 
 // include files
 #include <string>
@@ -1325,9 +1326,9 @@ public:
         \param entity_handles 1d vector of entity handles from which the tag is being deleted
         \param num_handles Number of entity handles in 1d vector
     */
-  virtual ErrorCode  tag_delete_data(const Tag tag_handle, 
-                                       const EntityHandle *entity_handles,
-                                       const int num_handles) = 0;
+  virtual ErrorCode  tag_delete_data( const Tag tag_handle, 
+                                      const EntityHandle *entity_handles,
+                                      const int num_handles) = 0;
 
     //! Delete the data of a range of entity handles and sparse tag
     /** Delete the data of a tag on a range of entity handles.  Only sparse tag data are deleted with this
@@ -1335,8 +1336,62 @@ public:
         \param tag_handle Handle of the (sparse) tag being deleted from entity
         \param entity_range Range of entities from which the tag is being deleted
     */
-  virtual ErrorCode  tag_delete_data(const Tag tag_handle, 
-                                       const Range &entity_range) = 0;
+  virtual ErrorCode  tag_delete_data( const Tag tag_handle, 
+                                      const Range &entity_range) = 0;
+
+  /**\brief Access tag data via direct pointer into contiguous blocks
+   *
+   * Iteratively obtain direct access to contiguous blocks of tag
+   * storage.  This function cannot be used with bit tags because
+   * of the compressed bit storage.  This function cannot be used
+   * with variable length tags because it does not provide a mechanism
+   * to determine the length of the value for each entity.  This
+   * function may be used with sparse tags, but if it is used, it
+   * will return data for a single entity at a time.  
+   *
+   *\param tag_handle  The handle of the tag for which to access data
+   *\param iter        As input, the first entity for which to return
+   *                   data.  As output, one past the last entity for
+   *                   which data was returned.
+   *\param end         One past the last entity for which data is desired
+   *\param data_ptr    Output: pointer to tag storage.
+   *  
+   *\Note If this function is called for entities for which no tag value
+   *      has been set, but for which a default value exists, it will 
+   *      force the allocation of explicit storage for each such entity
+   *      even though MOAB would normally not explicitly store tag values
+   *      for such entities.
+   *
+   *\Example:
+   *\code
+   * Range ents; // range to iterate over
+   * Tag tag; // tag for which to access data
+   * int bytes;
+   * ErrorCode err = mb.tag_get_size( tag, bytes );
+   * if (err) { ... }
+   * 
+   * ...
+   * Range::iterator iter = ents.begin();
+   * while (iter != ents.end()) {
+   *   Range::iterator iter2 = iter; // start of current block
+   *    // get contiguous block of tag dat
+   *   void* ptr;
+   *   err = mb.tag_iterate( tag, iter, ents.end(), ptr );
+   *   if (err) { ... }
+   *    // for each tag value
+   *   char* data = ptr;
+   *   while (iter2 != iter) {
+   *     do_something( *iter2, data );
+   *     data += bytes;
+   *     ++iter2;
+   *   }
+   * }
+   *\endcode
+   */
+  virtual ErrorCode tag_iterate( Tag tag_handle,
+                                 Range::iterator& iter,
+                                 const Range::iterator& end,
+                                 void*& data_ptr ) = 0;
 
     //! Remove a tag from the database and delete all of its associated data
     /** Deletes a tag and all associated data.

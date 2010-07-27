@@ -52,7 +52,6 @@ using namespace moab;
 double LENGTH = 1.0;
 const int DEFAULT_INTERVALS = 50;
 
-
 void testA(const int nelem, const int );
 void testB(const int nelem, const int );
 void testC(const int nelem, const int );
@@ -72,6 +71,18 @@ void skin(const int intervals, const int dim)
 void skin_adj(const int intervals, const int dim)
   { std::cout << "Skinning with adjacencies:" << std::endl;
     skin_common( intervals, dim, true ); }
+
+void tag_time( TagType storage, bool direct, int intervals, int dim );
+
+void dense_tag( int intervals, int dim ) 
+  { std::cout << "Dense Tag Time:"; 
+    tag_time( MB_TAG_DENSE, false, intervals, dim ); }
+void sparse_tag( int intervals, int dim )
+  { std::cout << "Sparse Tag Time:"; 
+    tag_time( MB_TAG_SPARSE, false, intervals, dim ); }
+void direct_tag( int intervals, int dim )
+  { std::cout << "Direct Tag Time:"; 
+    tag_time( MB_TAG_DENSE, true, intervals, dim ); }
 
 void compute_edge(double *start, const int nelem,  const double xint,
                   const int stride) 
@@ -298,6 +309,9 @@ const struct {
  { "indiv",     &testC,     "Conn. and adj. query time for per-entity created mesh" },
  { "skin",      &skin,      "Test time to get skin mesh w/out adjacencies" },
  { "skin_adj",  &skin_adj,  "Test time to get skin mesh with adjacencies" },
+ { "sparse",    &sparse_tag,"Sparse tag data manipulation" },
+ { "dense",     &dense_tag, "Dense tag data manipulation" },
+ { "direct",    &direct_tag,"Dense tag data manipulation using direct data access" },
 };
 const int TestListSize = sizeof(TestList)/sizeof(TestList[0]); 
 
@@ -904,4 +918,84 @@ void skin_common( int interval, int dim, bool use_adj )
     std::cout << "Got skin elements for " << numblocks << " blocks of " 
               << blocksize << " elements in " << d << " seconds." << std::endl;
   }
+}
+
+void tag_time( TagType storage, bool direct, int intervals, int dim )
+{
+  Core moab;
+  Interface& mb = moab;
+  create_regular_mesh( &mb, intervals, dim );
+  
+    // Create tag in which to store data
+  Tag tag;
+  mb.tag_create( "data", sizeof(double), storage, MB_TYPE_DOUBLE, tag, 0 );
+  
+    // Make up some arbitrary iterative calculation for timing purposes:
+    // set each value v_n = (V + v_n)/2 until all values are within
+    // epsilon of V.
+  std::vector<double> data;
+  Range verts;
+  mb.get_entities_by_type( 0, MBVERTEX, verts );
+  
+  clock_t t = clock();
+  
+    // initialize
+  if (direct) {
+    Range::iterator i, j = verts.begin();
+    void* ptr;
+    while (j != verts.end()) {
+      i = j;
+      mb.tag_iterate( tag, j, verts.end(), ptr );
+      double* arr = reinterpret_cast<double*>(ptr);
+      for (; i != j; ++i, ++arr) 
+        *arr = (11.0 * *i + 7.0)/(*i);
+    }
+  }
+  else {
+    data.resize( verts.size() );
+    double* arr = &data[0];
+    for (Range::iterator i = verts.begin(); i != verts.end(); ++i, ++arr)
+      *arr = (11.0 * *i + 7.0)/(*i);
+    mb.tag_set_data( tag, verts, &data[0] );
+  }
+  
+    // iterate
+  const double v0 = acos(-1.0); // pi
+  size_t iter_count = 0;
+  double max_diff;
+  do {
+    if (direct) {
+      max_diff = 0.0;
+      Range::iterator i, j = verts.begin();
+      void* ptr;
+      while (j != verts.end()) {
+        i = j;
+        mb.tag_iterate( tag, j, verts.end(), ptr );
+        double* arr = reinterpret_cast<double*>(ptr);
+        
+        for (; i != j; ++i, ++arr) {
+          *arr = 0.5 * (*arr + v0);
+          double diff = fabs(*arr - v0);
+          if (diff > max_diff)
+            max_diff = diff;
+        }
+      }
+    }
+    else {
+      max_diff = 0.0;
+      mb.tag_get_data( tag, verts, &data[0] );
+      for (size_t i = 0; i < data.size(); ++i) { 
+        data[i] = 0.5 * (v0+data[i]);
+        double diff = fabs( data[i] - v0 );
+        if (diff > max_diff)
+          max_diff = diff;
+      }
+      mb.tag_set_data( tag, verts, &data[0] );
+    }
+    ++iter_count;
+//    std::cout << iter_count << " " << max_diff << std::endl;
+  } while (max_diff > 1e-6);
+  
+  double secs = (clock() - t) / (double)CLOCKS_PER_SEC;
+  std::cout << " " << iter_count << " iterations in " << secs << " seconds" << std::endl;
 }

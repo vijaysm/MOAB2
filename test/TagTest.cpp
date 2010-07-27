@@ -37,6 +37,11 @@ void test_clear_sparse();
 void test_clear_bit();
 void test_clear_dense_varlen();
 void test_clear_sparse_varlen();
+void test_tag_iterate_sparse();
+void test_tag_iterate_dense();
+void test_tag_iterate_sparse_default();
+void test_tag_iterate_dense_default();
+void test_tag_iterate_invalid();
 
 void regression_one_entity_by_var_tag();
 void regression_tag_on_nonexistent_entity();
@@ -78,7 +83,15 @@ int main()
   failures += RUN_TEST( test_clear_bit );
   failures += RUN_TEST( test_clear_dense_varlen );
   failures += RUN_TEST( test_clear_sparse_varlen );
+  failures += RUN_TEST( test_tag_iterate_sparse );
+  failures += RUN_TEST( test_tag_iterate_dense );
+  failures += RUN_TEST( test_tag_iterate_sparse_default );
+  failures += RUN_TEST( test_tag_iterate_dense_default );
+  failures += RUN_TEST( test_tag_iterate_invalid );
   
+  if (failures) 
+    std::cerr << "<<<< " << failures << " TESTS FAILED >>>>" << std::endl;
+    
   return failures;
 }
 
@@ -2034,3 +2047,152 @@ void regression_tag_on_nonexistent_entity()
   rval = moab.tag_set_data( sparse, handles, valarr, &numval );
   CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
 }
+
+void test_tag_iterate_common( TagType storage, bool with_default )
+{
+  // create 1000 vertices
+  const int NUM_VTX = 1000;
+  Core moab;
+  Interface& mb = moab;
+  std::vector<double> coords(3*NUM_VTX);
+  Range verts, dead;
+  ErrorCode rval = mb.create_vertices( &coords[0], NUM_VTX, verts );
+  CHECK_ERR(rval);
+  
+  // delete about 1% of vertices
+  const int step = 100;
+  int remaining = NUM_VTX;
+  Range::iterator i = verts.begin();
+  for (int j = 0; j < remaining; j += step) {
+    rval = mb.delete_entities( &*i, 1 );
+    CHECK_ERR(rval);
+    dead.insert(*i);
+    i = verts.erase(i);
+    i += step-1;
+  }
+  
+  // Remove some additional values from the range 
+  // so that our handle blocks don't always align with
+  // sequences
+  verts.erase( verts.begin() + (step-5), verts.begin() + (step+5) );
+  
+  // Create an integer tag
+  Tag tag;
+  const int defval = 0;
+  rval = mb.tag_create( "TEST_TAG", sizeof(int), storage, MB_TYPE_INTEGER, 
+                         tag, with_default ? &defval : 0 );
+  CHECK_ERR(rval);
+  
+  // Set tag values
+  std::vector<int> values( verts.size(), defval );
+  if (!with_default) 
+    for (size_t j = 0; j < values.size(); ++j)
+      values[j] = j;
+  rval = mb.tag_set_data( tag, verts, &values[0] );
+  CHECK_ERR(rval);
+  
+  // Check that we get back expected values
+  i = verts.begin();
+  size_t k = 0;
+  void* ptr;
+  while (i != verts.end()) {
+    ptr = 0;
+    Range::iterator j = i;
+    rval = mb.tag_iterate( tag, i, verts.end(), ptr );
+    CHECK_ERR(rval);
+    
+    size_t count = i - j;
+    assert(k + count <= values.size());
+    CHECK_ARRAYS_EQUAL( &values[k], count, reinterpret_cast<int*>(ptr), count );
+    k += count;
+  }
+  
+  // Check that we can set values
+  i = verts.begin();
+  while (i != verts.end()) {
+    ptr = 0;
+    Range::iterator j = i;
+    rval = mb.tag_iterate( tag, i, verts.end(), ptr );
+    CHECK_ERR(rval);
+    
+    int* arr = reinterpret_cast<int*>(ptr);
+    while (j != i) {
+      *arr = static_cast<int>((*j)%NUM_VTX);
+      ++j;
+      ++arr;
+    }
+  }
+  
+  // Check that we got back the values that we set
+  i = verts.begin();
+  while (i != verts.end()) {
+    ptr = 0;
+    Range::iterator j = i;
+    rval = mb.tag_iterate( tag, i, verts.end(), ptr );
+    CHECK_ERR(rval);
+    
+    int* arr = reinterpret_cast<int*>(ptr);
+    while (j != i) {
+      CHECK_EQUAL( *arr, static_cast<int>((*j)%NUM_VTX) );
+      ++j;
+      ++arr;
+    }
+  }
+  
+  // Check that we cannot get tag values for invalid handles
+  i = dead.begin();
+  rval = mb.tag_iterate( tag, i, dead.end(), ptr );
+  CHECK( MB_ENTITY_NOT_FOUND == rval || MB_TAG_NOT_FOUND == rval );
+}
+void test_tag_iterate_sparse()
+  { test_tag_iterate_common( MB_TAG_SPARSE, false ); }
+void test_tag_iterate_sparse_default()
+  { test_tag_iterate_common( MB_TAG_SPARSE, true ); }
+void test_tag_iterate_dense()
+  { test_tag_iterate_common( MB_TAG_DENSE, false ); }
+void test_tag_iterate_dense_default()
+  { test_tag_iterate_common( MB_TAG_DENSE, true ); }
+  
+void test_tag_iterate_invalid()
+{
+  // create 1000 vertices
+  const int NUM_VTX = 1000;
+  Core moab;
+  Interface& mb = moab;
+  std::vector<double> coords(3*NUM_VTX);
+  Range verts;
+  ErrorCode rval = mb.create_vertices( &coords[0], NUM_VTX, verts );
+  CHECK_ERR(rval);
+  
+  Tag tag;
+  const int zero = 0;
+  void* ptr;
+  Range::iterator i;
+  
+  // Check that we cannot iterate over bit tags
+  // (this will never be possible because the storage for bit tags
+  //  is compressed and therefore cannot be directly accessed.)
+  rval = mb.tag_create( "bits", 1, MB_TAG_BIT, MB_TYPE_BIT, tag, &zero);
+  CHECK_ERR(rval);
+  i = verts.begin();
+  rval = mb.tag_iterate( tag, i, verts.end(), ptr );
+  CHECK_EQUAL( MB_TYPE_OUT_OF_RANGE, rval );
+  
+  // Check that we cannot iterate over variable-length tags
+  // (this will never be possible because this API function cannot
+  //  pass back the length of the tag values)
+  rval = mb.tag_create_variable_length( "vden", MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &zero, sizeof(int));
+  CHECK_ERR(rval);
+  i = verts.begin();
+  rval = mb.tag_iterate( tag, i, verts.end(), ptr );
+  CHECK_EQUAL( MB_VARIABLE_DATA_LENGTH, rval );
+  
+  rval = mb.tag_create_variable_length( "vspr", MB_TAG_SPARSE, MB_TYPE_INTEGER, tag, &zero, sizeof(int));
+  CHECK_ERR(rval);
+  i = verts.begin();
+  rval = mb.tag_iterate( tag, i, verts.end(), ptr );
+  CHECK_EQUAL( MB_VARIABLE_DATA_LENGTH, rval );
+}
+  
+    
+
