@@ -10,6 +10,7 @@
 #include "DagMC.hpp"
 #include <limits>
 #include <cstdlib>
+#include <sstream>
 #include <time.h>
 
 #define GF_CUBIT_FILE_TYPE    "CUBIT"
@@ -20,6 +21,24 @@
 #define GF_OCC_BREP_FILE_TYPE "OCC"
 
 using namespace moab;
+
+void tokenize( const std::string& str,
+	       std::vector<std::string>& tokens,
+	       const char* delimiters )
+{
+  std::string::size_type last = str.find_first_not_of( delimiters, 0 );
+  std::string::size_type pos  = str.find_first_of( delimiters, last );
+  if ( std::string::npos == pos )
+    tokens.push_back(str);
+  else
+    while (std::string::npos != pos && std::string::npos != last) {
+      tokens.push_back( str.substr( last, pos - last ) );
+      last = str.find_first_not_of( delimiters, pos );
+      pos  = str.find_first_of( delimiters, last );
+      if(std::string::npos == pos)
+	pos = str.size();
+    }
+}
 
 ErrorCode get_group_names( Interface* MBI,
                            const EntityHandle group_set,
@@ -44,14 +63,31 @@ ErrorCode summarize_cell_volume_change( Interface* MBI,
                                         const Tag dimTag,
                                         const Tag sizeTag,
 					const Tag nameTag,
+                                        const Tag idTag,
+                                        const bool conserve_mass,
                                         const bool debug ) {
   // get groups
   ErrorCode rval;
   const char group_category[CATEGORY_TAG_SIZE] = {"Group\0"};
   const void* const group_val[] = {&group_category};
   Range groups;
-  rval = MBI->get_entities_by_type_and_tag(0, MBENTITYSET, &categoryTag, group_val, 1, groups);
+  rval = MBI->get_entities_by_type_and_tag(0, MBENTITYSET, &categoryTag, 
+                                           group_val, 1, groups);
   if(MB_SUCCESS != rval) return rval;
+
+  // Get the maximum group id. This is so that new groups do not have
+  // duplicate ids.
+  int max_grp_id = -1;
+  for(Range::const_iterator i=groups.begin(); i!=groups.end(); ++i) {
+    int grp_id;
+    rval = MBI->tag_get_data( idTag, &(*i), 1, &grp_id );
+    if(MB_SUCCESS != rval) return rval;
+    if(max_grp_id < grp_id) max_grp_id = grp_id;
+  }
+  if(conserve_mass) {
+    std::cout << "  Altering group densities to conserve mass for each volume." << std::endl;
+    std::cout << "    maximum group id=" << max_grp_id << std::endl;
+  }
 
   for(Range::const_iterator i=groups.begin(); i!=groups.end(); ++i) {
     // get group names
@@ -61,10 +97,18 @@ ErrorCode summarize_cell_volume_change( Interface* MBI,
 
     // determine if it is a material group
     bool material_grp = false;
+    int mat_id = -1;
+    double rho = 0;
     for(std::vector<std::string>::const_iterator j=grp_names.begin(); j!=grp_names.end(); ++j) {
       if(std::string::npos!=(*j).find("mat") && std::string::npos!=(*j).find("rho")) {
         material_grp=true;
 	std::cout << "  material group: " << *j << std::endl;
+
+        // get the density and material id
+	std::vector<std::string> tokens;
+        tokenize(*j,tokens,"_");
+        mat_id = atoi(tokens[1].c_str());
+        rho    = atof(tokens[3].c_str());
       }
     }
     if(!material_grp) continue;
@@ -87,9 +131,45 @@ ErrorCode summarize_cell_volume_change( Interface* MBI,
       rval = MBI->tag_get_data( sizeTag, &(*j), 1, &orig_size );
       if(MB_SUCCESS != rval) return rval;
       orig_grp_volume += orig_size;
+
+      // calculate a new density to conserve mass through the deformation
+      if(!conserve_mass) continue;
+      double new_rho = rho*orig_size/defo_size;
+
+      // create a group for the volume with modified density
+      EntityHandle new_grp;
+      rval = MBI->create_meshset( MESHSET_SET, new_grp );
+      if(MB_SUCCESS != rval) return rval;
+      std::stringstream new_name_ss;
+      new_name_ss << "mat_" << mat_id << "_rho_" << new_rho << "\0";
+      std::string new_name;
+      new_name_ss >> new_name;
+      rval = MBI->tag_set_data( nameTag, &new_grp, 1, new_name.c_str() );
+      if(MB_SUCCESS != rval) return rval;
+      max_grp_id++;
+      rval = MBI->tag_set_data( idTag, &new_grp, 1, &max_grp_id );
+      if(MB_SUCCESS != rval) return rval;
+      const char group_category[CATEGORY_TAG_SIZE] = "Group\0"; 
+      rval = MBI->tag_set_data( categoryTag, &new_grp, 1, group_category );
+      if(MB_SUCCESS != rval) return rval;
+
+      // add the volume to the new group
+      rval = MBI->add_entities( new_grp, &(*j), 1 );
+      if(MB_SUCCESS != rval) return rval;
+
+      // add the new grp to the cgm_file_set
+      rval = MBI->add_entities( cgm_file_set, &new_grp, 1 );
+      if(MB_SUCCESS != rval) return rval;
+
+      // remove the volume from the old group
+      rval = MBI->remove_entities( *i, &(*j), 1 ); 
+      if(MB_SUCCESS != rval) return rval;
+      if(debug) std::cout << "    new group: " << new_name << " id=" << max_grp_id << std::endl; 
     }
+
     std::cout << "    orig_volume=" << orig_grp_volume << " defo_volume=" << defo_grp_volume 
               << " defo/orig=" << defo_grp_volume/orig_grp_volume << std::endl;
+
   }
   
   return MB_SUCCESS;
@@ -1023,12 +1103,12 @@ int main( int argc, char* argv[] )
   double dist_tol = 0.001, len_tol = 0.0;
   int norm_tol = 5;
 
-  if(4!=argc && 6!=argc && 7!=argc)
+  if(5!=argc && 8!=argc)
     {
       std::cerr << "To read meshed geometry for DagMC:" << std::endl;
-      std::cerr << "$> <cub_file.cub> <acis_file.sat> <output_file.h5m>" << std::endl;
+      std::cerr << "$> <cub_file.cub> <acis_file.sat> <output_file.h5m> conserve_mass<bool>" << std::endl;
       std::cerr << "To read meshed geometry for DagMC and update node coordinates:" << std::endl;
-      std::cerr << "$> <cub_file.cub> <acis_file.sat> <output_file.h5m> <deformed_exo_file.e> time_step<int> check_vol_change<bool>" 
+      std::cerr << "$> <cub_file.cub> <acis_file.sat> <output_file.h5m> <deformed_exo_file.e> time_step<int> check_vol_change<bool> conserve_mass<bool>" 
 		<< std::endl;
       exit(4);
     }
@@ -1056,7 +1136,7 @@ int main( int argc, char* argv[] )
 
   // Should the nodes be updated?
   bool update_coords = false;
-  if(6 <= argc) {
+  if(8 == argc) {
     exo_name = argv[4];
     temp.assign(exo_name);
     if(std::string::npos == temp.find(".e")) {
@@ -1074,6 +1154,16 @@ int main( int argc, char* argv[] )
     if(std::string::npos != temp.find("true")) determine_volume_change = true;
   }
   
+  // Should densities be changed to conserve mass?
+  bool conserve_mass = false;
+  if(8 == argc) {
+    temp.assign(argv[7]);
+    if(std::string::npos != temp.find("true")) conserve_mass = true;
+  } else if (5==argc) {
+    temp.assign(argv[4]);
+    if(std::string::npos != temp.find("true")) conserve_mass = true;
+  }
+
   // Get CGM file type
   if (!file_type) {
     file_type = get_geom_file_type( cub_name );
@@ -1092,7 +1182,8 @@ int main( int argc, char* argv[] )
   // Do not ignore the Cubit file version. In testing, a cub file from Cubit12 
   // did not work.
   //char cub_options[256] = "120";
-  //result = MBI->load_file(cub_name, cub_file_set, cub_options, NULL, 0, 0);
+  //char cub_options[256] = "IGNORE_VERSION";
+  //result = MBI->load_file(cub_name, &cub_file_set, cub_options, NULL, 0, 0);
   result = MBI->load_file(cub_name, &cub_file_set, 0, NULL, 0, 0);
   if(MB_SUCCESS != result) {
     std::cout << "error: problem reading cub file" << std::endl;
@@ -1263,7 +1354,8 @@ int main( int argc, char* argv[] )
 
   // For each material, sum the volume. If the coordinates were updated for 
   // deformation, summarize the volume change.
-  result = summarize_cell_volume_change( MBI, cgm_file_set, categoryTag, dimTag, sizeTag, nameTag, debug );
+  result = summarize_cell_volume_change( MBI, cgm_file_set, categoryTag, dimTag,
+                                         sizeTag, nameTag, idTag, conserve_mass, debug );
   if(MB_SUCCESS != result) return result;
   std::cout << "Summarized the volume change of each material, with respect to the solid model." << std::endl;
 
