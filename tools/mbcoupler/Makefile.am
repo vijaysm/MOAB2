@@ -1,10 +1,12 @@
 AM_CPPFLAGS += -I$(top_srcdir)/src \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src/parallel \
-               -I$(top_srcdir)/test
+               -I$(top_srcdir)/test \
+               -I$(top_srcdir)/itaps \
+               -I$(top_srcdir)/itaps/imesh 
 
 lib_LTLIBRARIES = libmbcoupler.la
-libmbcoupler_la_LIBADD = $(top_builddir)/src/libMOAB.la
+libmbcoupler_la_LIBADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la
 
 LDADD = libmbcoupler.la 
 
@@ -44,8 +46,9 @@ noinst_PROGRAMS =
 if PARALLEL
 #  TESTS += mbcoupler_test
 #  check_PROGRAMS += mbcoupler_test
-  noinst_PROGRAMS += mbcoupler_test
+  noinst_PROGRAMS += mbcoupler_test ssn_test
   mbcoupler_test_SOURCES = mbcoupler_test.cpp
+  ssn_test_SOURCES = ssn_test.cpp
   AM_CPPFLAGS += -I$(srcdir)/parallel
 endif
 

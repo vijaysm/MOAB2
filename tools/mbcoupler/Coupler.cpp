@@ -4,6 +4,7 @@
 #include "moab/GeomUtil.hpp"
 #include "ElemUtil.hpp"
 #include "moab/CN.hpp"
+#include "iMesh_extensions.h"
 #include "iostream"
 
 extern "C" 
@@ -19,7 +20,12 @@ extern "C"
 
 #include "assert.h"
 
+#define ERROR(a) {if (iBase_SUCCESS != err) std::cerr << a << std::endl;}
+#define ERRORR(a,b) {if (iBase_SUCCESS != err) {std::cerr << a << std::endl; return b;}}
+
 namespace moab {
+
+bool debug = false;
 
 Coupler::Coupler(Interface *impl,
                      ParallelComm *pc,
@@ -90,7 +96,11 @@ ErrorCode Coupler::initialize_tree()
   result = myTree->get_tree_box(localRoot, &allBoxes[6*my_rank], &allBoxes[6*my_rank+3]);
 
     // now communicate to get all boxes
-  int mpi_err = MPI_Allgather(&allBoxes[6*my_rank], 6, MPI_DOUBLE,
+//   int mpi_err = MPI_Allgather(&allBoxes[6*my_rank], 6, MPI_DOUBLE,
+//                               &allBoxes[0], 6, MPI_DOUBLE, 
+//                               myPc->proc_config().proc_comm());
+    // Change to use "in place" option
+  int mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
                               &allBoxes[0], 6, MPI_DOUBLE, 
                               myPc->proc_config().proc_comm());
 
@@ -509,4 +519,449 @@ ErrorCode Coupler::plain_field_map(EntityHandle elem,
   return MB_SUCCESS;
 }
 
-} // namespace moab
+// Normalize a field over the subset of entities identified by the tags and values passed
+int Coupler::normalize_subset(iBase_EntitySetHandle &m1_root_set,
+                              iBase_EntitySetHandle &m2_root_set,
+                              const char            *norm_tag,
+                              const char            **tag_names,
+                              int                   num_tags,
+                              const char            **tag_values,
+                              Coupler::IntegType    integ_type)
+{
+  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
+  int err;
+  std::vector<iBase_TagHandle> tag_handles;
+  
+  // Lookup tag handles from tag names
+  for (int t = 0; t < num_tags; t++) {
+    // get tag handle & size
+    iBase_TagHandle th;
+    iMesh_getTagHandle(iMeshInst, tag_names[t], &th, &err, strlen(tag_names[t]));
+    ERRORR("Failed to get tag handle.", err);
+    tag_handles.push_back(th);
+  }
+
+  return normalize_subset(m1_root_set, m2_root_set, norm_tag, &tag_handles[0], num_tags, tag_values, integ_type);
+}
+
+int Coupler::normalize_subset(iBase_EntitySetHandle &m1_root_set,
+                              iBase_EntitySetHandle &m2_root_set,
+                              const char            *norm_tag,
+                              iBase_TagHandle       *tag_handles,
+                              int                   num_tags,
+                              const char            **tag_values,
+                              Coupler::IntegType    integ_type)
+{
+  //  ErrorCode result = MB_SUCCESS;
+  int err = iBase_SUCCESS;
+
+  // Get an iMesh_Instance from MBCoupler::mbImpl.
+  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
+
+  // MASTER/SLAVE START #########################################################
+  // Broadcast norm_tag, tag_handles, tag_values to procs
+  // ***TODO***
+  // MASTER/SLAVE END   #########################################################
+
+  // SLAVE START ****************************************************************
+  // Search for entities based on tag_handles and tag_values
+
+  // Get matching entities for Mesh 1
+  std::vector< std::vector<iBase_EntityHandle> > m1EntityGroups;
+  err = get_matching_entities(m1_root_set, tag_handles, tag_values, num_tags, 
+                              &m1EntityGroups);
+  ERRORR("Failed to get matching entities for Mesh 1.", err);
+
+  // Get matching entities for Mesh 2
+  std::vector< std::vector<iBase_EntityHandle> > m2EntityGroups;
+  err = get_matching_entities(m2_root_set, tag_handles, tag_values, num_tags,
+                              &m2EntityGroups);
+  ERRORR("Failed to get matching entities for Mesh 2.", err);
+
+  // SLAVE START ****************************************************************
+  // Loop over vector of groups(vectors) of entities
+  //   Retrieve norm_tag for each entity in the group and integrate it over all
+  //   of the entities in the group.  This will generate an integrated value for 
+  //   the group.  Add this value to a vector.  If no entities are in the group
+  //   then put zero in the list.  There will be 2 lists, one for Mesh 1 data and one for 
+  //   Mesh 2 data.  These could be combined in 1 list with Mesh1 in the first
+  //   n entries and Mesh2 in the last n entries.  The list would then be 2n in
+  //   length.  This may allow for reduction using MPI calls.
+
+  std::vector<double> m1IntegVals(m1EntityGroups.size());
+  std::vector<double> m2IntegVals(m2EntityGroups.size());
+  std::vector< std::vector<iBase_EntityHandle> >::iterator iter_i;
+  std::vector<iBase_EntityHandle>::iterator iter_j;
+  double grpIntgrVal, intgrVal;
+
+  // Get tag handle for norm_tag
+  iBase_TagHandle normTagHdl;
+  iMesh_getTagHandle(iMeshInst, norm_tag, &normTagHdl, &err, strlen(norm_tag));
+  ERRORR("Failed to get tag handle.", err);
+
+  // Mesh 1 work
+  // Loop over the groups(vectors) of entities
+  for (iter_i = m1EntityGroups.begin(); iter_i != m1EntityGroups.end(); iter_i++) {
+    grpIntgrVal = 0;
+
+    // Loop over the all the entities in the group
+    for (iter_j = (*iter_i).begin(); iter_j != (*iter_i).end(); iter_j++) {
+      intgrVal = 0;
+
+      // Retrieve the norm_tag value for the entity in iter_j
+      // ***Assumption that norm_tag is integer valued
+      int val;
+      iMesh_getIntData(iMeshInst, *iter_j, normTagHdl, &val, &err);
+      ERRORR("Failed to get tag value.", err);
+
+      // Integrate this value over the entity in iter_j
+      // ***TODO***
+
+      // Combine the result with those of the group
+      grpIntgrVal += intgrVal;
+    }
+
+    // Set the group integrated value in the vector
+    m1IntegVals.push_back(grpIntgrVal);
+  }
+
+  // Mesh 2 work
+  // Loop over the groups(vectors) of entities
+  for (iter_i = m2EntityGroups.begin(); iter_i != m2EntityGroups.end(); iter_i++) {
+    grpIntgrVal = 0;
+
+    // Loop over the all the entities in the group
+    for (iter_j = (*iter_i).begin(); iter_j != (*iter_i).end(); iter_j++) {
+      intgrVal = 0;
+
+      // Retrieve the norm_tag value for the entity in iter_j
+      // ***Assumption that norm_tag is integer valued
+      int val;
+      iMesh_getIntData(iMeshInst, *iter_j, normTagHdl, &val, &err);
+      ERRORR("Failed to get tag value.", err);
+
+      // Integrate this value over the entity in iter_j
+      // ***TODO***
+
+      // Combine the result with those of the group
+      grpIntgrVal += intgrVal;
+    }
+
+    // Set the group integrated value in the vector
+    m2IntegVals.push_back(grpIntgrVal);
+  }
+  // SLAVE END   ****************************************************************
+
+  // SLAVE/MASTER START #########################################################
+  // Send list of integrated values back to master proc.  The ordering of the 
+  // values will match the ordering of the entity groups (i.e. vector of vectors)
+  // sent from master to slaves earlier.
+  // ***TODO***
+  // SLAVE/MASTER END   #########################################################
+
+  // MASTER START ***************************************************************
+  // START SUBROUTINE **************************************************
+  // Reduce/sum the individual normalized values according to whether they apply
+  // to Mesh 1 or Mesh 2.
+  // END   SUBROUTINE **************************************************
+
+  // START SUBROUTINE **************************************************
+  // Calculate the normalization factor for each tuple by taking reduced/summed 
+  // value for Mesh 1, tuple n and divide it by the reduced/summed value for 
+  // Mesh 2, tuple n.  Put the normalization factor for each tuple in a list 
+  // according to the ordering of the tuples broadcast out previously.
+  // END   SUBROUTINE **************************************************
+  // MASTER END   ***************************************************************
+
+  // MASTER/SLAVE START #########################################################
+  // Broadcast the normalization factors to the procs.
+  // ***TODO***
+  // MASTER/SLAVE END   #########################################################
+
+  // SLAVE START ****************************************************************
+  // START SUBROUTINE **************************************************
+  // Loop over the list of normalization factors.
+  //   Multiply the norm_tag value for each entity in the set corresponding to
+  //   tuple n by the normalization factor for tuple n.
+  // END   SUBROUTINE **************************************************
+  // SLAVE END   ****************************************************************
+
+  return err;
+}
+
+// Functions supporting the subset normalization function
+
+// Retrieve groups of entities matching tags and values if present
+int Coupler::get_matching_entities(iBase_EntitySetHandle                          root_set,
+                                   const char                                     **tag_names,
+                                   const char                                     **tag_values,
+                                   int                                            num_tags,
+                                   std::vector< std::vector<iBase_EntityHandle> > *sets_of_ents)
+{
+  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
+  int err;
+  std::vector<iBase_TagHandle> tag_handles;
+  
+  for (int t = 0; t < num_tags; t++) {
+    // get tag handle & size
+    iBase_TagHandle th;
+    iMesh_getTagHandle(iMeshInst, tag_names[t], &th, &err, strlen(tag_names[t]));
+    ERRORR("Failed to get tag handle.", err);
+    tag_handles.push_back(th);
+  }
+
+  return get_matching_entities(root_set, &tag_handles[0], tag_values, num_tags,
+                               sets_of_ents);
+}
+
+// Retrieve groups of entities matching tags and values if present
+int Coupler::get_matching_entities(iBase_EntitySetHandle                          root_set,
+                                   iBase_TagHandle                                *tag_handles,
+                                   const char                                     **tag_values,
+                                   int                                            num_tags,
+                                   std::vector< std::vector<iBase_EntityHandle> > *sets_of_ents)
+{                                        
+
+  // SLAVE START ****************************************************************
+  // Get an iMesh_Instance from MBCoupler::mbImpl.
+  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
+
+  int err = iBase_SUCCESS;
+  int entSetsSize;
+  int entSetsAlloc=0;
+  iBase_EntitySetHandle *entSets = NULL;  // free at end
+
+  // Get Entity Sets that match the tags and values.
+  iMesh_getEntSetsByTagsRec(iMeshInst, root_set, tag_handles, 
+                            tag_values, num_tags, 0,
+                            &entSets, &entSetsAlloc, &entSetsSize, &err);
+  ERRORR("iMesh_getEntSetsByTagsRec failed.", err);
+
+  tuple_list *tagList = NULL;
+  err = create_tuples(entSets, entSetsSize, tag_handles, num_tags, &tagList);
+  ERRORR("Failed to create tuples from entity sets.", err);
+
+  // Free up array memory from iMesh call
+  free(entSets);
+  // SLAVE END   ****************************************************************
+
+  // SLAVE/MASTER START #########################################################
+  // Send tuple list back to master proc for consolidation
+  // ***TODO***
+  // SLAVE/MASTER END   #########################################################
+
+  // MASTER START ***************************************************************
+  // Master proc receives all lists and consolidates to one set with no duplicates.
+  tuple_list *consTuples = tagList;  // assignment for serial version
+//   tuple_list *tuples = tagList;
+//   tuple_list *consTuples = NULL;
+//   int numTuples = 1;
+//   err = consolidate_tuples(&tuples, numTuples, &consTuples);
+//   ERRORR("Failed to consolidate tuples.", err);
+  // MASTER END   ***************************************************************
+
+  // MASTER/SLAVE START #########################################################
+  // Broadcast condensed tuple list back to all procs.
+  // ***TODO***
+  // MASTER/SLAVE END   #########################################################
+
+  // SLAVE START ****************************************************************
+  // Loop over tuple list, retrieving sets of entities that match each tuple
+  //   Retrieve norm_tag for each entity in set and integrate it over all of
+  //   the entities in the set.
+  //   Add this to a list.  If no entities are in the set returned then put zero
+  //   in the list.  There will be 2 lists, one for Mesh 1 data and one for 
+  //   Mesh 2 data.  These could be combined in 1 list with Mesh1 in the first
+  //   n entries and Mesh2 in the last n entries.  The list would then be 2n in
+  //   length.  This may allow for reduction using MPI calls.
+
+  // Loop over the tuple list getting the entities with the tags in the tuple_list entry
+  const unsigned intSize  = sizeof(sint);
+
+  for (unsigned int i = 0; i < consTuples->n; i++) {
+    // Get Entity Sets that match the tags and values.
+    entSets = NULL;
+    entSetsAlloc = 0;
+    entSetsSize = 0;
+    err = 0;
+
+    // Convert the data in the tuple_list to an array of pointers to the data
+    // in the tuple_list as that is what the iMesh API call is expecting.
+    int **vals = new int*[consTuples->mi];
+    for (unsigned int j = 0; j < consTuples->mi; j++)
+      vals[j] = &(consTuples->vi[(i*consTuples->mi) + j]);
+
+    iMesh_getEntSetsByTagsRec(iMeshInst, root_set, tag_handles, 
+                              (const char * const *) vals,
+                              consTuples->mi, 0,
+                              &entSets, &entSetsAlloc, &entSetsSize, &err);
+    ERRORR("iMesh_getEntSetsByTagsRec failed.", err);
+    if (debug) std::cout << "entSetsSize=" << entSetsSize << std::endl;
+
+    // Free up the array of pointers
+    free(vals);
+
+    // Loop over the entity sets and then free the memory for entSets.
+    std::vector<iBase_EntityHandle> entHandles;
+    for (int j = 0; j < entSetsSize; j++) {
+      // Get all entities for the entity set
+      iBase_EntityHandle *ents = NULL;
+      int entsAlloc = 0;
+      int entsSize = 0;
+      err = 0;
+
+      iMesh_getEntities(iMeshInst, entSets[j], iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES,
+                        &ents, &entsAlloc, &entsSize, &err);
+      ERRORR("iMesh_getEntities failed.", err);
+      if (debug) std::cout << "entsSize=" << entsSize << std::endl;
+
+      // Insert all of the returned handles into entHandles and free the memory for ents.
+      for (int k = 0; k < entsSize; k++) {
+        entHandles.push_back(ents[k]);
+      }
+      free(ents);
+      if (debug) std::cout << "entHandles.size=" << entHandles.size() << std::endl;
+    }
+    free(entSets);
+
+    // Push entHandles onto sets_of_ents and clear entHandles
+    sets_of_ents->push_back(entHandles);
+    entHandles.clear();
+    if (debug) std::cout << "sets_of_ents->size=" << sets_of_ents->size() << std::endl;
+  }
+  // SLAVE END   ****************************************************************
+
+  return err;
+}
+
+
+// Return a tuple_list containing  tag values for each Entity Set
+// The tuple_list will have a column for each tag and a row for each
+// Entity Set.
+int Coupler::create_tuples(iBase_EntitySetHandle *ent_sets,
+                           int                   num_sets, 
+                           const char            **tag_names,
+                           int                   num_tags,
+                           tuple_list            **tuple_list)
+{
+  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
+  int err;
+  std::vector<iBase_TagHandle> tag_handles;
+  
+  for (int t = 0; t < num_tags; t++) {
+    // get tag handle & size
+    iBase_TagHandle th;
+    iMesh_getTagHandle(iMeshInst, tag_names[t], &th, &err, strlen(tag_names[t]));
+    ERRORR("Failed to get tag handle.", err);
+    tag_handles.push_back(th);
+  }
+
+  return create_tuples(ent_sets, num_sets, &tag_handles[0], num_tags, tuple_list);
+}
+
+// Return a tuple_list containing  tag values for each Entity Set
+// The tuple_list will have a column for each tag and a row for each
+// Entity Set.
+int Coupler::create_tuples(iBase_EntitySetHandle *ent_sets, 
+                           int                   num_sets, 
+                           iBase_TagHandle       *tag_handles,
+                           int                   num_tags,
+                           tuple_list            **tuples)
+{
+  // Get an iMesh_Instance from MBCoupler::mbImpl.
+  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
+
+  int err = iBase_SUCCESS;
+
+  // ASSUMPTION: All tags are of type integer.  This may need to be expanded in future.
+
+  // Allocate a tuple_list for the number of entity sets passed in
+  tuple_list *tag_tuples = new tuple_list;
+  tuple_list_init_max(tag_tuples, num_tags, 0, 0, 0, num_sets);
+  if (tag_tuples->mi == 0)
+    ERRORR("Failed to initialize tuple_list.", iBase_FAILURE);
+
+  // Loop over the filtered entity sets retrieving each matching tag value one by one.
+  int val;
+  for (int i = 0; i < num_sets; i++) {
+    for (int j = 0; j < num_tags; j++) {
+      iMesh_getEntSetIntData(iMeshInst, ent_sets[i], tag_handles[j], &val, &err);
+      ERRORR("Failed to get integer tag data.", err);
+      tag_tuples->vi[i*tag_tuples->mi + j] = val;
+    }
+
+    // If we get here there was no error so increment n in the tuple_list
+    tag_tuples->n++;
+  }
+
+  *tuples = tag_tuples;
+
+  return err;
+}
+
+// Consolidate tuple_lists into one list with no duplicates
+int Coupler::consolidate_tuples(tuple_list **all_tuples, 
+                                int        num_tuples,
+                                tuple_list **unique_tuples)
+{
+  int err = iBase_SUCCESS;
+
+  const unsigned intSize = sizeof(sint);
+  const unsigned numTags = all_tuples[0]->mi;
+  const unsigned intWidth = numTags * intSize;
+
+  int totalRcvTuples = 0;
+  int offset = 0, copysz = 0;
+
+  // Get the total size of all of the tuple_lists in all_tuples.
+  for (int i = 0; i < num_tuples; i++) {
+    totalRcvTuples += all_tuples[i]->n;
+  }
+
+  // Copy the tuple_lists into a single tuple_list.
+  tuple_list *newTupleList = new tuple_list;
+  tuple_list_init_max(newTupleList, numTags, 0, 0, 0, totalRcvTuples);
+  for (int i = 0; i < num_tuples; i++) {
+    copysz = all_tuples[i]->n * intWidth;
+    memcpy(newTupleList->vi+offset, all_tuples[i]->vi, copysz);
+    offset = offset + (all_tuples[i]->n * all_tuples[i]->mi);
+    newTupleList->n = newTupleList->n + all_tuples[i]->n;
+  }
+
+  // Sort the new tuple_list.  Use a radix type sort, starting with the last (or least significant)
+  // tag column in the vi array and working towards the first (or most significant) tag column.
+  buffer sort_buffer;
+  buffer_init(&sort_buffer, 2 * totalRcvTuples * intWidth);
+  for (int i = numTags - 1; i >= 0; i--) {
+    tuple_list_sort(newTupleList, i, &sort_buffer);
+  }
+
+  // Cycle through the sorted list eliminating duplicates.
+  // Keep counters to the current end of the tuple_list (w/out dups) and the last tuple examined.
+  unsigned int endIdx = 0, lastIdx = 1;
+  while (lastIdx < newTupleList->n) {
+    if (memcmp(newTupleList->vi+(endIdx*numTags), newTupleList->vi+(lastIdx*numTags), intWidth) == 0) {
+      // Values equal - skip
+      lastIdx += 1;
+    }
+    else {
+      // Values different - copy
+      // Move up the end index
+      endIdx += 1;
+      memcpy(newTupleList->vi+(endIdx*numTags), newTupleList->vi+(lastIdx*numTags), intWidth);
+      lastIdx += 1;
+    }
+  }
+  // Update the count in newTupleList
+  newTupleList->n = endIdx + 1;
+
+  // Resize the tuple_list
+  tuple_list_resize(newTupleList, newTupleList->n);
+
+  // Set the output parameter
+  *unique_tuples = newTupleList;
+
+  return err;
+}
+
+} // namespace_moab
