@@ -132,13 +132,13 @@ mbcn_test_SOURCES = $(top_srcdir)/src/moab/CN.hpp \
 bsp_tree_poly_test_SOURCES = bsp_tree_poly_test.cpp
 
 mb_big_test.g: $(MESHDIR)/mb_big_test.g.gz
-	$(ZCAT) $< > $@
+	$(AM_V_GEN)$(ZCAT) $< > $@
 
 cell1.gen: $(MESHDIR)/cell1.gen.gz
-	$(ZCAT) $< > $@
+	$(AM_V_GEN)$(ZCAT) $< > $@
 
 cell2.gen: $(MESHDIR)/cell2.gen.gz
-	$(ZCAT) $< > $@
+	$(AM_V_GEN)$(ZCAT) $< > $@
 
 
 CLEANFILES = mb_big_test.g \

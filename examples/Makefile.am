@@ -43,15 +43,15 @@ nobase_example_DATA = \
 
 ex_make = $(DESTDIR)$(exampledir)/makefile
 install-data-hook:
-	rm -f $(ex_make)
-	mv $(DESTDIR)$(exampledir)/examples.make $(ex_make)
-	echo "all: $(check_PROGRAMS)" >>$(ex_make)
-	rule='	$$(CXX) -o $$@ $$< $$(CXXFLAGS) $$(MOAB_INCLUDES) $$(MOAB_LIBS_LINK)'; \
-	for example in $(check_PROGRAMS); do \
+	$(AM_V_at)rm -f $(ex_make)
+	$(AM_V_at)mv $(DESTDIR)$(exampledir)/examples.make $(ex_make)
+	$(AM_V_at)echo "all: $(check_PROGRAMS)" >>$(ex_make)
+	$(AM_V_at)rule='	$$(CXX) -o $$@ $$< $$(CXXFLAGS) $$(MOAB_INCLUDES) $$(MOAB_LIBS_LINK)'; \
+	$(AM_V_at)for example in $(check_PROGRAMS); do \
 	  echo >>$(ex_make); \
 	  echo "$${example}: $${example}.cpp" >>$(ex_make); \
 	  echo "$$rule" >>$(ex_make); \
 	done
 
 uninstall-hook:
-	rm -f $(DESTDIR)$(exampledir)/makefile
+	$(AM_V_at)rm -f $(DESTDIR)$(exampledir)/makefile

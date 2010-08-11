@@ -6,7 +6,7 @@ AC_CONFIG_SRCDIR([moab.make.in])
 AC_CONFIG_MACRO_DIR([config])
 AC_CONFIG_AUX_DIR([config])
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([silent-rules color-tests parallel-tests])
 
 AC_CHECK_PROG( [SED], [sed], [sed], [true] )
 

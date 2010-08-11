@@ -41,8 +41,8 @@ cfg_DATA = moab.make moab.config
 # 'make prefix=/foo install', we don't know the correct install
 # directory until we're doing the install.
 install-data-hook:
-	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/moab.make
-	echo "MOAB_INCLUDES=-I${includedir}" >> $(DESTDIR)$(cfgdir)/moab.make
+	$(AM_V_at)echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/moab.make
+	$(AM_V_at)echo "MOAB_INCLUDES=-I${includedir}" >> $(DESTDIR)$(cfgdir)/moab.make
 
 
 # Generate a file to be installed in $libdir containing the configuration
@@ -53,7 +53,7 @@ install-data-hook:
 # Second line: extract just the list of options
 # Third line: put individual options on separate lines
 moab.config: config.status Makefile.am
-	./config.status --version | \
+	$(AM_V_GEN)./config.status --version | \
 	  sed -e 's/.*options "\(.*\)"/\1/p' -e 'd' | \
 	  sed -e "s/'[[:space:]]'/'\n'/g" >$@
 

@@ -63,16 +63,16 @@ cfg_DATA = iMesh-Defs.inc
 # 'make prefix=/foo install', we don't know the correct install
 # directory until we're doing the install.
 install-data-hook:
-	echo "IMESH_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
-	echo "IMESH_INCLUDEDIR2=" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
-	echo "IMESH_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
-	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
+	$(AM_V_at)echo "IMESH_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
+	$(AM_V_at)echo "IMESH_INCLUDEDIR2=" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
+	$(AM_V_at)echo "IMESH_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
+	$(AM_V_at)echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 
 iMesh_protos.h: iMesh.h ../mkprotos.sh Makefile.am
-	$(srcdir)/../mkprotos.sh iMesh MOAB $< $@ MOAB_FCDefs.h
+	$(AM_V_GEN)$(srcdir)/../mkprotos.sh iMesh MOAB $< $@ MOAB_FCDefs.h
 
 iMesh_extensions_protos.h: iMesh_extensions.h ../mkprotos.sh
-	$(srcdir)/../mkprotos.sh iMesh MOAB $< $@ MOAB_FCDefs.h
+	$(AM_V_GEN)$(srcdir)/../mkprotos.sh iMesh MOAB $< $@ MOAB_FCDefs.h
 
 iMeshP_protos.h: iMeshP.h ../mkprotos.sh
-	$(srcdir)/../mkprotos.sh iMeshP MOAB $< $@ MOAB_FCDefs.h
+	$(AM_V_GEN)$(srcdir)/../mkprotos.sh iMeshP MOAB $< $@ MOAB_FCDefs.h

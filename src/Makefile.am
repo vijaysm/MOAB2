@@ -153,10 +153,10 @@ nobase_libMOAB_la_include_HEADERS = \
   MBCN_protos.h 
 
 MBCN_protos.h: MBCN.h $(top_srcdir)/itaps/mkprotos.sh
-	$(top_srcdir)/itaps/mkprotos.sh MBCN MOAB $< $@ MOAB_FCDefs.h
+	$(AM_V_GEN)$(top_srcdir)/itaps/mkprotos.sh MBCN MOAB $< $@ MOAB_FCDefs.h
 
 
 MOAB_FCDefs.h: FCDefs.h
-	cd .. && ./config.status src/MOAB_FCDefs.h
+	$(AM_V_GEN)cd .. && ./config.status src/MOAB_FCDefs.h
 
 MOSTLYCLEANFILES = MOAB_FCDefs.h

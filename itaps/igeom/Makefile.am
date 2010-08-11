@@ -50,12 +50,12 @@ cfg_DATA = iGeom-Defs.inc
 # 'make prefix=/foo install', we don't know the correct install
 # directory until we're doing the install.
 install-data-hook:
-	echo "IGEOM_DIR=${cfgdir}/.." >> $(DESTDIR)$(cfgdir)/iGeom-SIDL-Defs.inc
-	echo "IGEOM_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iGeom-Defs.inc
-	echo "IGEOM_INCLUDEDIR2=" >> $(DESTDIR)$(cfgdir)/iGeom-Defs.inc
-	echo "IGEOM_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iGeom-Defs.inc
-	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iGeom-Defs.inc
-	echo "IGEOM_LIBS=-L${libdir} -liGeomMOAB" >> $(DESTDIR)$(cfgdir)/iGeom-Defs.inc
+	$(AM_V_at)echo "IGEOM_DIR=${cfgdir}/.." >> $(DESTDIR)$(cfgdir)/iGeom-SIDL-Defs.inc
+	$(AM_V_at)echo "IGEOM_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iGeom-Defs.inc
+	$(AM_V_at)echo "IGEOM_INCLUDEDIR2=" >> $(DESTDIR)$(cfgdir)/iGeom-Defs.inc
+	$(AM_V_at)echo "IGEOM_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iGeom-Defs.inc
+	$(AM_V_at)echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iGeom-Defs.inc
+	$(AM_V_at)echo "IGEOM_LIBS=-L${libdir} -liGeomMOAB" >> $(DESTDIR)$(cfgdir)/iGeom-Defs.inc
 
 iGeom_protos.h: iGeom.h $(top_srcdir)/itaps/mkprotos.sh Makefile.am
-	$(top_srcdir)/itaps/mkprotos.sh iGeom MOAB $< $@ MOAB_FCDefs.h
+	$(AM_V_GEN)$(top_srcdir)/itaps/mkprotos.sh iGeom MOAB $< $@ MOAB_FCDefs.h
