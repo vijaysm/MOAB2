@@ -1,6 +1,6 @@
 #include "moab/Core.hpp"
-#include "TestUtil.hpp"
 #include "moab/Range.hpp"
+#include "TestUtil.hpp"
 
 #include <algorithm>
 #include <iostream>
@@ -9,6 +9,10 @@
 #include <math.h>
 
 using namespace moab;
+
+#ifndef SRCDIR
+#  define SRCDIR .
+#endif
 
 const char filename[] = "sets.h5m";
 bool keep_file = false;
@@ -300,6 +304,9 @@ void test_small_tree()
 
 void test_big_tree()
   { test_tree( 20 ); }
+
+ 
+void regression_mmiller_8_2010();
   
 int main(int argc, char* argv[])
 {
@@ -318,13 +325,255 @@ int main(int argc, char* argv[])
   // only one test so far... should probably add second test
   // for really-old-format  entityset parent/child links
   int exitval = 0;
-  exitval += RUN_TEST( test_ranged_set_with_holes );
-  exitval += RUN_TEST( test_file_set );
-  exitval += RUN_TEST( test_small_tree );
+  //exitval += RUN_TEST( test_ranged_set_with_holes );
+  //exitval += RUN_TEST( test_file_set );
+  //exitval += RUN_TEST( test_small_tree );
+  exitval += RUN_TEST( regression_mmiller_8_2010 );
   if (do_big_tree_test) {
     exitval += RUN_TEST( test_big_tree );
   }
   return exitval;
 }
 
+// NOTE: this test makes some assuptions about handles:
+//       mainly that they will be assigned sequentially 
+//       in the same order as defined in the file and
+//       beginning with ID 1
+void regression_mmiller_8_2010()
+{
+  Core moab;
+  Interface& mb = moab;
   
+  const size_t num_vtx = 171;
+  const size_t num_pri = 12;
+  const size_t num_pyr = 8;
+  const size_t num_hex = 100;
+  const size_t num_set = 25;
+
+  mb.load_file( STRINGIFY(SRCDIR) "/rocket_ents_in_assm.h5m" );
+
+/* Dump of set contents from input file:
+ 1r: 172, 4, 
+ 2r: 192, 4, 204, 4, 216, 4, 228, 4, 240, 4, 252, 4, 264, 4, 276, 4, 
+ 3r: 288, 4, 
+ 4 : 181, 183, 185, 187, 
+ 5r: 176, 5, 182, 1, 184, 1, 186, 1, 188, 4, 196, 8, 208, 8, 220, 8, 232, 8, 244, 8, 256, 8, 268, 8, 280, 8, 
+ 6r: 172, 4, 192, 4, 204, 4, 216, 4, 228, 4, 240, 4, 252, 4, 264, 4, 276, 4, 288, 4, 
+ 7r: 176, 4, 188, 4, 196, 8, 208, 8, 220, 8, 232, 8, 244, 8,
+ 8r: 180, 8, 256, 8, 268, 8, 280, 8,
+ 9r: 172, 120, 301, 1, 309, 1, 
+10r: 176, 4, 188, 100, 302, 1, 308, 1, 
+11r: 176, 4, 188, 52, 303, 1, 
+12r: 176, 4, 188, 4, 304, 4, 
+13 : 177, 189, 
+14 : 178, 190, 
+15 : 179, 191, 
+16 : 
+17r: 240, 48,
+18r: 172, 4, 180, 8, 288, 4, 310, 1, 312, 1, 
+19r: 180, 8, 288, 4, 311, 1, 
+20r: 180, 8, 
+21r: 172, 4, 313, 4, 
+22 : 173, 
+23 : 174, 
+24 : 175, 
+25 : 176, 188
+*/
+
+
+    // check expected handles
+    
+  const EntityHandle VTX1 = CREATE_HANDLE(MBVERTEX,1);
+  Range range, expected;
+  mb.get_entities_by_type( 0, MBVERTEX, range );
+  CHECK_EQUAL( num_vtx, range.size() );
+  expected.insert( VTX1, VTX1+num_vtx-1 );
+  CHECK_EQUAL( expected, range );
+    
+  const EntityHandle PRI1 = CREATE_HANDLE(MBPRISM,1);
+  range.clear();
+  expected.clear();
+  mb.get_entities_by_type( 0, MBPRISM, range );
+  CHECK_EQUAL( num_pri, range.size() );
+  expected.insert( PRI1, PRI1+num_pri-1 );
+  CHECK_EQUAL( expected, range );
+    
+  const EntityHandle PYR1 = CREATE_HANDLE(MBPYRAMID,1);
+  range.clear();
+  expected.clear();
+  mb.get_entities_by_type( 0, MBPYRAMID, range );
+  CHECK_EQUAL( num_pyr, range.size() );
+  expected.insert( PYR1, PYR1+num_pyr-1 );
+  CHECK_EQUAL( expected, range );
+    
+  const EntityHandle HEX1 = CREATE_HANDLE(MBHEX,1);
+  range.clear();
+  expected.clear();
+  mb.get_entities_by_type( 0, MBHEX, range );
+  CHECK_EQUAL( num_hex, range.size() );
+  expected.insert( HEX1, HEX1+num_hex-1 );
+  CHECK_EQUAL( expected, range );
+  
+  const EntityHandle SET1 = CREATE_HANDLE(MBENTITYSET,1);
+  range.clear();
+  expected.clear();
+  mb.get_entities_by_type( 0, MBENTITYSET, range );
+  CHECK_EQUAL( num_set, range.size() );
+  expected.insert( SET1, SET1+num_set-1 );
+  CHECK_EQUAL( expected, range );
+  
+  // Check set contents
+  
+  // Set 1: Pyramids 1 to 4
+  range.clear();
+  mb.get_entities_by_handle( SET1, range );
+  expected.clear();
+  expected.insert( PYR1+0, PYR1+3 );
+  CHECK_EQUAL( expected, range );
+
+  // Skip sets 2 through 8 because they're long and complicated and
+  // I doubt I could code up the content lists explicitly from the
+  // dump of the HDF5 file w/out many mistakes
+  
+  // Set 9: Pyramids 1 to 8, Prism 1 to 12, Hex 1 to 100, and Sets 10 and 18
+  range.clear();
+  mb.get_entities_by_handle( SET1+8, range );
+  expected.clear();
+  expected.insert( PYR1+0, PYR1+7 );
+  expected.insert( PRI1+0, PRI1+11 );
+  expected.insert( HEX1+0, HEX1+99 );
+  expected.insert( SET1+9 );
+  expected.insert( SET1+17 );
+  CHECK_EQUAL( expected, range );
+  
+  // Set 10: Pyramids 5 to 8, Prism 9 to 12, Hex 1 to 96, and Sets 11 and 17
+  range.clear();
+  mb.get_entities_by_handle( SET1+9, range );
+  expected.clear();
+  expected.insert( PYR1+4, PYR1+7 );
+  expected.insert( PRI1+8, PRI1+11 );
+  expected.insert( HEX1+0, HEX1+95 );
+  expected.insert( SET1+10 );
+  expected.insert( SET1+16 );
+  CHECK_EQUAL( expected, range );
+  
+  // Set 11: Pyramids 5 to 8, Prism 9 to 12, Hex 1 to 48, and Set 12
+  range.clear();
+  mb.get_entities_by_handle( SET1+10, range );
+  expected.clear();
+  expected.insert( PYR1+4, PYR1+7 );
+  expected.insert( PRI1+8, PRI1+11 );
+  expected.insert( HEX1+0, HEX1+47 );
+  expected.insert( SET1+11 );
+  CHECK_EQUAL( expected, range );
+  
+  // Set 12: Pyramids 5 to 8, Prism 9 to 12, and Sets 13 to 16
+  range.clear();
+  mb.get_entities_by_handle( SET1+11, range );
+  expected.clear();
+  expected.insert( PYR1+4, PYR1+7 );
+  expected.insert( PRI1+8, PRI1+11 );
+  expected.insert( SET1+12, SET1+15 );
+  CHECK_EQUAL( expected, range );
+  
+  // Set 13: Pyramids 6 and Prism 10
+  range.clear();
+  mb.get_entities_by_handle( SET1+12, range );
+  expected.clear();
+  expected.insert( PYR1+5 );
+  expected.insert( PRI1+9 );
+  CHECK_EQUAL( expected, range );
+  
+  // Set 14: Pyramids 7 and Prism 11
+  range.clear();
+  mb.get_entities_by_handle( SET1+13, range );
+  expected.clear();
+  expected.insert( PYR1+6 );
+  expected.insert( PRI1+10 );
+  CHECK_EQUAL( expected, range );
+  
+  // Set 15: Pyramids 8 and Prism 12
+  range.clear();
+  mb.get_entities_by_handle( SET1+14, range );
+  expected.clear();
+  expected.insert( PYR1+7 );
+  expected.insert( PRI1+11 );
+  CHECK_EQUAL( expected, range );
+  
+  // Set 16: Empty
+  range.clear();
+  mb.get_entities_by_handle( SET1+15, range );
+  expected.clear();
+  CHECK_EQUAL( expected, range );
+  
+  // Set 17: Hex 49 to 96
+  range.clear();
+  mb.get_entities_by_handle( SET1+16, range );
+  expected.clear();
+  expected.insert( HEX1+48, HEX1+95 );
+  CHECK_EQUAL( expected, range );
+   
+  // Set 18: Pyramids 1 to 4, Prism 1 to 8, Hex 97 to 100, and Sets 19 and 21
+  range.clear();
+  mb.get_entities_by_handle( SET1+17, range );
+  expected.clear();
+  expected.insert( PYR1+0, PYR1+3 );
+  expected.insert( PRI1+0, PRI1+7 );
+  expected.insert( HEX1+96, HEX1+99 );
+  expected.insert( SET1+18 );
+  expected.insert( SET1+20 );
+  CHECK_EQUAL( expected, range );
+   
+  // Set 19: Prism 1 to 8, Hex 97 to 100, and Set 20  
+  range.clear();
+  mb.get_entities_by_handle( SET1+18, range );
+  expected.clear();
+  expected.insert( PRI1+0, PRI1+7 );
+  expected.insert( HEX1+96, HEX1+99 );
+  expected.insert( SET1+19 );
+  CHECK_EQUAL( expected, range );
+   
+  // Set 20: Prism 1 to 8
+  range.clear();
+  mb.get_entities_by_handle( SET1+19, range );
+  expected.clear();
+  expected.insert( PRI1+0, PRI1+7 );
+  CHECK_EQUAL( expected, range );
+   
+  // Set 21: Pyramids 1 to 4, and Sets 22 to 25
+  range.clear();
+  mb.get_entities_by_handle( SET1+20, range );
+  expected.clear();
+  expected.insert( PYR1+0, PYR1+3 );
+  expected.insert( SET1+21, SET1+24 );
+  CHECK_EQUAL( expected, range );
+   
+  // Set 22: Pyramid 2
+  range.clear();
+  mb.get_entities_by_handle( SET1+21, range );
+  expected.clear();
+  expected.insert( PYR1+1 );
+  CHECK_EQUAL( expected, range );
+   
+  // Set 23: Pyramid 3
+  range.clear();
+  mb.get_entities_by_handle( SET1+22, range );
+  expected.clear();
+  expected.insert( PYR1+2 );
+  CHECK_EQUAL( expected, range );
+   
+  // Set 24: Pyramid 4
+  range.clear();
+  mb.get_entities_by_handle( SET1+23, range );
+  expected.clear();
+  expected.insert( PYR1+3 );
+  CHECK_EQUAL( expected, range );
+   
+  // Set 25: Pyramid 5 and Prism 9
+  range.clear();
+  mb.get_entities_by_handle( SET1+24, range );
+  expected.clear();
+  expected.insert( PYR1+4 );
+  expected.insert( PRI1+8 );
+  CHECK_EQUAL( expected, range );
+}

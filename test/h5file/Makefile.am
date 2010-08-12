@@ -1,4 +1,4 @@
-EXTRA_DIST = v3_dodec.h5m
+EXTRA_DIST = v3_dodec.h5m rocket_ents_in_assm.h5m
 
 AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I.. -I$(srcdir)/.. \
