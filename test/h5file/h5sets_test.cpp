@@ -344,11 +344,11 @@ void regression_mmiller_8_2010()
   Core moab;
   Interface& mb = moab;
   
-  const size_t num_vtx = 171;
-  const size_t num_pri = 12;
-  const size_t num_pyr = 8;
-  const size_t num_hex = 100;
-  const size_t num_set = 25;
+  const EntityHandle num_vtx = 171;
+  const EntityHandle num_pri = 12;
+  const EntityHandle num_pyr = 8;
+  const EntityHandle num_hex = 100;
+  const EntityHandle num_set = 25;
 
   mb.load_file( STRINGIFY(SRCDIR) "/rocket_ents_in_assm.h5m" );
 
