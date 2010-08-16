@@ -109,6 +109,12 @@ int main( int argc, char* argv[] )
     }
   }
   
+  if (!input_file) {
+    std::cerr << argv[0] << ": no input file specified" << std::endl;
+    usage(argv[0]);
+  }
+  
+  
     // build options string
   
   std::ostringstream opts;
