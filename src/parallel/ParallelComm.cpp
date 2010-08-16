@@ -2740,7 +2740,6 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   ErrorCode result;
   Range proc_ents;
       // get the entities in the partition sets
-if (0 == rank()) std::cerr << "Getting partitioned entities" << std::endl;
   for (Range::iterator rit = partitionSets.begin(); rit != partitionSets.end(); rit++) {
     Range tmp_ents;
     result = mbImpl->get_entities_by_handle(*rit, tmp_ents, true);
@@ -2753,13 +2752,16 @@ if (0 == rank()) std::cerr << "Getting partitioned entities" << std::endl;
     if (proc_ents.empty()) 
       return MB_ENTITY_NOT_FOUND;
 
-    resolve_dim = mbImpl->dimension_from_handle(proc_ents.back()); 
+    resolve_dim = mbImpl->dimension_from_handle(*proc_ents.rbegin()); 
   }
 
     // proc_ents should all be of same dimension
-  if (resolve_dim > shared_dim && !proc_ents.all_of_dimension(resolve_dim)) {
-    Range::iterator upper = proc_ents.upper_bound(CN::TypeDimensionMap[resolve_dim-1].second);
-    proc_ents.erase(proc_ents.begin(), upper);
+  if (resolve_dim > shared_dim &&
+      mbImpl->dimension_from_handle(*proc_ents.rbegin()) !=
+      mbImpl->dimension_from_handle(*proc_ents.begin())) {
+    Range::iterator lower = proc_ents.lower_bound(CN::TypeDimensionMap[0].first),
+      upper = proc_ents.upper_bound(CN::TypeDimensionMap[resolve_dim-1].second);
+    proc_ents.erase(lower, upper);
   }
   
     // must call even if we don't have any entities, to make sure
@@ -2779,9 +2781,8 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   MPE_Log_event(RESOLVE_START, procConfig.proc_rank(), "Entering resolve_shared_ents.");
 #endif
 
-  double t0 = MPI_Wtime();
   ErrorCode result;
-  if (debug) std::cerr << MPI_Wtime()-t0 << ": Resolving shared entities." << std::endl;
+  if (debug) std::cerr << "Resolving shared entities." << std::endl;
 
   if (-1 == shared_dim) {
     if (0 == resolve_dim) {
@@ -2821,7 +2822,6 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   }
 
     // find the skin
-if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Skinning partitioned entities" << std::endl;
   Skinner skinner(mbImpl);
   result = skinner.find_skin(skin_ents[skin_dim+1], false, skin_ents[skin_dim],
                              0, true);
@@ -2829,7 +2829,6 @@ if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Skinning partitioned entities
   if (debug) std::cerr << "Found skin, now resolving." << std::endl;
 
     // get entities adjacent to skin ents from shared_dim down to zero
-if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Getting skin entities" << std::endl;
   for (int this_dim = skin_dim-1; this_dim >= 0; this_dim--) {
     result = mbImpl->get_adjacencies(skin_ents[skin_dim], this_dim,
                                      true, skin_ents[this_dim],
@@ -2857,7 +2856,6 @@ if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Getting skin entities" << std
   }
   
     // store index in temp tag; reuse gid_data 
-if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Setting __idx_tag" << std::endl;
   gid_data.resize(2*skin_ents[0].size());
   int idx = 0;
   for (Range::iterator rit = skin_ents[0].begin(); 
@@ -2875,9 +2873,8 @@ if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Setting __idx_tag" << std::en
   RRA("Couldn't get gid tag for skin vertices.");
 
     // put handles in vector for passing to gs setup
-if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Building skin_ents vector" << std::endl;
-  handle_vec.resize( skin_ents[0].size() );
-  std::copy(skin_ents[0].begin(), skin_ents[0].end(), handle_vec.begin());
+  std::copy(skin_ents[0].begin(), skin_ents[0].end(), 
+            std::back_inserter(handle_vec));
   
 #ifdef DEBUG_MPE
   MPE_Log_event(SHAREDV_START, procConfig.proc_rank(), "Creating crystal router.");
@@ -2901,7 +2898,6 @@ if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Building skin_ents vector" <<
   
 */
     // call gather-scatter to get shared ids & procs
-if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Doing gather-scatter" << std::endl;
   gs_data *gsd;
   assert(sizeof(ulong_) == sizeof(EntityHandle));
   if (sizeof(int) != sizeof(ulong_)) {
@@ -2927,7 +2923,6 @@ if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Doing gather-scatter" << std:
   RRA("Couldn't get shared proc tags.");
   
     // load shared verts into a tuple, then sort by index
-if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Sorting shared vertices" << std::endl;
   tuple_list shared_verts;
   tuple_list_init_max(&shared_verts, 2, 0, 1, 0, 
                       skin_ents[0].size()*(MAX_SHARING_PROCS+1));
@@ -2954,7 +2949,6 @@ if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Sorting shared vertices" << s
   j = 0; i = 0;
 
     // get ents shared by 1 or n procs
-if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Getting shared entities" << std::endl;
   std::map<std::vector<int>, Range> proc_nranges;
   Range proc_verts;
   result = mbImpl->get_adjacencies(proc_ents, 0, false, proc_verts,
@@ -2969,7 +2963,6 @@ if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Getting shared entities" << s
   MPE_Log_event(SHAREDV_END, procConfig.proc_rank(), "Finished tag_shared_verts.");
 #endif
 
-if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Tagging shared entities" << std::endl;
     // get entities shared by 1 or n procs
   result = tag_shared_ents(resolve_dim, shared_dim, skin_ents,
                            proc_nranges);
@@ -2987,14 +2980,12 @@ if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Tagging shared entities" << s
     }
   }
   
-if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Creating interface sets" << std::endl;
     // create the sets for each interface; store them as tags on
     // the interface instance
   Range iface_sets;
   result = create_interface_sets(proc_nranges, resolve_dim, shared_dim);
   RRA("Trouble creating iface sets.");
 
-if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Getting interface procs" << std::endl;
     // establish comm procs and buffers for them
   std::set<unsigned int> procs;
   result = get_interface_procs(procs, true);
@@ -3005,13 +2996,11 @@ if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Getting interface procs" << s
   RRA("Shared handle check failed after iface vertex exchange.");
 #endif  
 
-if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Resolving remote handles" << std::endl;
     // resolve shared entity remote handles; implemented in ghost cell exchange
     // code because it's so similar
   result = exchange_ghost_cells(-1, -1, 0, true, true);
   RRA("Trouble resolving shared entity remote handles.");
 
-if (0 == rank()) std::cerr << MPI_Wtime()-t0 << ": Creating parent/child links for interface sets" << std::endl;
     // now build parent/child links for interface sets
   result = create_iface_pc_links();
   RRA("Trouble creating interface parent/child links.");
@@ -3439,20 +3428,6 @@ ErrorCode ParallelComm::create_iface_pc_links()
   return MB_SUCCESS;
 }
 
-static void copy( std::map<std::vector<int>, std::vector<EntityHandle> >& source,
-                  std::map<std::vector<int>, Range>& dest )
-{
-  std::map<std::vector<int>, std::vector<EntityHandle> >::iterator i;
-  std::vector<EntityHandle>::iterator j;
-  for (i = source.begin(); i != source.end(); ++i) {
-    std::sort( i->second.begin(), i->second.end() );
-    Range& r = dest[i->first];
-    Range::iterator hint = r.begin();
-    for (j = i->second.begin(); j != i->second.end(); ++j)
-      hint = r.insert( hint, *j );
-  }
-}
-
 ErrorCode ParallelComm::tag_shared_ents(int resolve_dim,
                                             int shared_dim,
                                             Range *skin_ents,
@@ -3464,8 +3439,7 @@ ErrorCode ParallelComm::tag_shared_ents(int resolve_dim,
   std::set<int> sharing_procs;
   std::vector<EntityHandle> dum_connect;
   std::vector<int> sp_vec;
-  std::map<std::vector<int>, std::vector<EntityHandle> > proc_vecs;
-  
+
   for (int d = 3; d > 0; d--) {
     if (resolve_dim == d) continue;
     
@@ -3484,11 +3458,10 @@ ErrorCode ParallelComm::tag_shared_ents(int resolve_dim,
         // intersection is the owning proc(s) for this skin ent
       sp_vec.clear();
       std::copy(sharing_procs.begin(), sharing_procs.end(), std::back_inserter(sp_vec));
-      proc_vecs[sp_vec].push_back(*rit);
+      proc_nranges[sp_vec].insert(*rit);
     }
   }
 
-  copy( proc_vecs, proc_nranges );
   return MB_SUCCESS;
 }
 
@@ -3505,7 +3478,6 @@ ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
   unsigned int j = 0, i = 0;
   std::vector<int> sharing_procs, sharing_procs2;
   std::vector<EntityHandle> sharing_handles, sharing_handles2;
-  std::map<std::vector<int>, std::vector<EntityHandle> > proc_vecs;
   
   while (j < 2*shared_ents.n) {
       // count & accumulate sharing procs
@@ -3539,7 +3511,7 @@ ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
     sharing_handles.swap( sharing_handles2 );
     
     
-    proc_vecs[sharing_procs].push_back(this_ent);
+    proc_nranges[sharing_procs].insert(this_ent);
 
     unsigned char share_flag = PSTATUS_SHARED, 
         ms_flag = (PSTATUS_SHARED | PSTATUS_MULTISHARED);
@@ -3572,7 +3544,6 @@ ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
     sharing_handles.clear();
   }
 
-  copy( proc_vecs, proc_nranges );
   return MB_SUCCESS;
 }
   
