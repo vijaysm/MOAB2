@@ -269,6 +269,41 @@ int AssocPair::get_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
                   sizeof(iBase_EntityHandle));
 }
 
+int AssocPair::get_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
+                              int num_entities,
+                              iBase_EntityIterator *tag_values)
+{
+  std::vector<iBase_EntitySetHandle> sets(num_entities);
+  int result = get_assoc_tags(iface_no, entities, num_entities, &sets[0]);
+  if (result != iBase_SUCCESS)
+    return result;
+
+  for(int i=0; i<num_entities; i++) {
+    result = get_iterator(iface_no, sets[i], &tag_values[i]);
+    if (result != iBase_SUCCESS)
+      return result;
+  }
+
+  return iBase_SUCCESS;
+}
+
+int AssocPair::get_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
+                              int num_sets, iBase_EntityIterator *tag_values)
+{
+  std::vector<iBase_EntitySetHandle> sets2(num_sets);
+  int result = get_assoc_tags(iface_no, sets, num_sets, &sets2[0]);
+  if (result != iBase_SUCCESS)
+    return result;
+
+  for(int i=0; i<num_sets; i++) {
+    result = get_iterator(iface_no, sets2[i], &tag_values[i]);
+    if (result != iBase_SUCCESS)
+      return result;
+  }
+
+  return iBase_SUCCESS;
+}
+
 int AssocPair::get_gid_tags(const int iface_no, iBase_EntityHandle *entities,
                             int num_entities, int *tag_values)
 {

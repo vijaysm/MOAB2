@@ -77,6 +77,10 @@ protected:
                        const void *tag_values,
                        const int tag_size);
 
+  virtual int get_iterator(const int iface_no,
+                           iBase_EntitySetHandle set,
+                           iBase_EntityIterator *iter);
+
   virtual int tag_get_handle(const int iface_no,
                              const char *tag_name,
                              const int tag_size_bytes,

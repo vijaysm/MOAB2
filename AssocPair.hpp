@@ -64,6 +64,10 @@ public:
                      int num_entities, iBase_EntitySetHandle *tag_values);
   int get_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
                      int num_sets, iBase_EntitySetHandle *tag_values);
+  int get_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
+                     int num_entities, iBase_EntityIterator *tag_values);
+  int get_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
+                     int num_sets, iBase_EntityIterator *tag_values);
 
   int get_gid_tags(const int iface_no, iBase_EntityHandle *entities,
                    int num_entities, int *tag_values);
@@ -110,6 +114,10 @@ protected:
                        iBase_TagHandle tag_handle,
                        const void *tag_values,
                        const int tag_size) = 0;
+
+  virtual int get_iterator(const int iface_no,
+                           iBase_EntitySetHandle set,
+                           iBase_EntityIterator *iter) = 0;
 
   virtual int tag_get_handle(const int iface_no,
                              const char *tag_name,

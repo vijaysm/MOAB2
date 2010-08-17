@@ -526,7 +526,16 @@ void iRel_getEntSetIterRelation (
   iBase_EntityIterator *entset2,
   int *ierr)
 {
-  ERROR(iBase_NOT_SUPPORTED, "Iterators not currently supported.");
+  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
+  AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
+  if (NULL == this_pair) {
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
+  }
+  
+  int iface_no = (switch_order ? 1 : 0);
+  int result = this_pair->get_assoc_tags(iface_no, &ent1, 1, entset2);
+
+  RETURN(result);
 }
 
 void iRel_getEntEntArrRelation (
@@ -799,7 +808,27 @@ void iRel_getEntArrSetIterArrRelation (
   int *entiter_size,
   int *ierr)
 {
-  ERROR(iBase_NOT_SUPPORTED, "Iterators not currently supported.");
+  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
+  AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
+  if (NULL == this_pair) {
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
+  }
+
+  std::vector<iBase_EntityHandle> tmp_ents;
+  int tmp_result, result = iBase_SUCCESS;
+  ALLOC_CHECK_ARRAY(entiter, ent_array_1_size);
+
+  for (int i = 0; i < ent_array_1_size; i++) {
+    iRel_getEntSetIterRelation( instance, rel, ent_array_1[i],
+                                switch_order, (*entiter)+i,
+                                &tmp_result );
+    if (iBase_SUCCESS != tmp_result) result = tmp_result;
+  }
+  CHK_ERROR(result);
+
+
+  KEEP_ARRAY(entiter);
+  RETURN(iBase_SUCCESS);
 }
 
 

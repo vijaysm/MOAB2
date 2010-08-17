@@ -208,6 +208,30 @@ int AssocPairC::set_tags(const int iface_no,
   return iBase_SUCCESS;
 }
 
+int AssocPairC::get_iterator(const int iface_no,
+                             iBase_EntitySetHandle set,
+                             iBase_EntityIterator *iter)
+{
+  int result;
+
+  if (iface_type(iface_no) == iRel_IGEOM_IFACE) {
+    iGeom_initEntIter((iGeom_Instance)ifaceInstances[iface_no], set,
+                      iBase_ALL_TYPES,
+                      (iGeom_EntityIterator*)iter, &result);
+    PROCESS_GERROR;
+  }
+  else if (iface_type(iface_no) == iRel_IMESH_IFACE) {
+    iMesh_initEntIter((iMesh_Instance)ifaceInstances[iface_no], set,
+                      iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES,
+                      (iMesh_EntityIterator*)iter, &result);
+    PROCESS_MERROR;
+  }
+  else
+    ERRORR(iBase_NOT_SUPPORTED, "Interface should be geometry or mesh.");
+
+  return iBase_SUCCESS;  
+}
+
 int AssocPairC::get_all_entities(const int iface_no,
                                  const int dimension,
                                  iBase_EntityHandle **entities,
