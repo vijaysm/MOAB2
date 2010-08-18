@@ -1,5 +1,5 @@
-#ifndef __iRel_LASSO_HPP__
-#define __iRel_LASSO_HPP__
+#ifndef _ITAPS_iRel
+#define _ITAPS_iRel
 
 #define IREL_MAJOR_VERSION 1
 #define IREL_MINOR_VERSION 0
@@ -65,8 +65,7 @@
    * 
    */
 
-#include "iGeom.h"
-#include "iMesh.h"
+#include "iBase.h"
 #include "iRel_protos.h"
 
 #ifdef __cplusplus
@@ -121,7 +120,7 @@ extern "C"
   void iRel_getErrorType (
     iRel_Instance instance,
     /*out*/ int *error_type, 
-    int *ierr);
+    /*out*/ int *ierr);
 
     /**\brief  Get a description of the error returned from the last iRel
      *         function
@@ -136,7 +135,7 @@ extern "C"
   void iRel_getDescription (
     iRel_Instance instance,
     /*inout*/ char *descr, 
-    int *ierr, 
+    /*out*/ int *ierr, 
     /*in*/ int descr_len);
 
     /**\brief  Create a new iRel instance
@@ -149,9 +148,9 @@ extern "C"
      */
   void iRel_newRel (
     const char *options,
-    iRel_Instance *instance,
-    int *ierr,
-    const int options_len);
+    /*out*/ iRel_Instance *instance,
+    /*out*/ int *ierr,
+    /*in*/ const int options_len);
 
     /**\brief  iRel_dtor Destroy the interface object
      *
@@ -161,7 +160,7 @@ extern "C"
      */
   void iRel_dtor (
     iRel_Instance instance,
-    int *ierr);
+    /*out*/ int *ierr);
 
     /**\brief  Create a relation pair between two interfaces
      *
@@ -181,14 +180,14 @@ extern "C"
      */
   void iRel_createRelation (
     iRel_Instance instance,
-    iBase_Instance iface1,
-    const int ent_or_set1,
-    const int iface_type1,
-    iBase_Instance iface2,
-    const int ent_or_set2,
-    const int iface_type2,
-    iRel_RelationHandle *rel,
-    int *ierr);
+    /*in*/ iBase_Instance iface1,
+    /*in*/ const int ent_or_set1,
+    /*in*/ const int iface_type1,
+    /*in*/ iBase_Instance iface2,
+    /*in*/ const int ent_or_set2,
+    /*in*/ const int iface_type2,
+    /*out*/ iRel_RelationHandle *rel,
+    /*out*/ int *ierr);
 
     /**\brief  Get information for this relation handle
      *
@@ -207,14 +206,14 @@ extern "C"
      */
   void iRel_getRelationInfo (
       iRel_Instance instance,
-      iRel_RelationHandle rel,
-      iBase_Instance *iface1,
-      int *ent_or_set1,
-      int *iface_type1,
-      iBase_Instance *iface2,
-      int *ent_or_set2,
-      int *iface_type2,
-      int *ierr);
+      /*in*/ iRel_RelationHandle rel,
+      /*out*/ iBase_Instance *iface1,
+      /*out*/ int *ent_or_set1,
+      /*out*/ int *iface_type1,
+      /*out*/ iBase_Instance *iface2,
+      /*out*/ int *ent_or_set2,
+      /*out*/ int *iface_type2,
+      /*out*/ int *ierr);
 
     /**\brief  Destroy a relation pair
      *
@@ -225,8 +224,8 @@ extern "C"
      */
   void iRel_destroyRelation (
     iRel_Instance instance, 
-    iRel_RelationHandle rel,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,
+    /*out*/ int *ierr);
 
     /**\brief  Get relations containing specified interface
      *
@@ -241,11 +240,11 @@ extern "C"
      */
   void iRel_findRelations (
     iRel_Instance instance,
-    iBase_Instance iface,
-    iRel_RelationHandle **relations,
-    int *relations_allocated,
-    int *relations_size,
-    int *ierr);
+    /*in*/ iBase_Instance iface,
+    /*inout*/ iRel_RelationHandle **relations,
+    /*inout*/ int *relations_allocated,
+    /*out*/ int *relations_size,
+    /*out*/ int *ierr);
 
     /**\brief  
      *
@@ -258,28 +257,28 @@ extern "C"
      */
   void iRel_setEntEntRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,
-    iBase_EntityHandle ent1,
-    iBase_EntityHandle ent2,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,
+    /*in*/ iBase_EntityHandle ent1,
+    /*in*/ iBase_EntityHandle ent2,
+    /*out*/ int *ierr);
   void iRel_setEntSetRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,
-    iBase_EntityHandle ent1,
-    iBase_EntitySetHandle entset2,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,
+    /*in*/ iBase_EntityHandle ent1,
+    /*in*/ iBase_EntitySetHandle entset2,
+    /*out*/ int *ierr);
   void iRel_setSetEntRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,
-    iBase_EntitySetHandle entset1,
-    iBase_EntityHandle ent2,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,
+    /*in*/ iBase_EntitySetHandle entset1,
+    /*in*/ iBase_EntityHandle ent2,
+    /*out*/ int *ierr);
   void iRel_setSetSetRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,
-    iBase_EntitySetHandle entset1,
-    iBase_EntitySetHandle entset2,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,
+    /*in*/ iBase_EntitySetHandle entset1,
+    /*in*/ iBase_EntitySetHandle entset2,
+    /*out*/ int *ierr);
 
     /**\brief  Set a relation between an entity and several entities
      *
@@ -298,36 +297,36 @@ extern "C"
      */
   void iRel_setEntEntArrRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntityHandle ent1,
-    int switch_order,
-    iBase_EntityHandle *ent_array_2,
-    int num_entities,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntityHandle ent1,
+    /*in*/ int switch_order,
+    /*in*/ iBase_EntityHandle *ent_array_2,
+    /*in*/ int num_entities,
+    /*out*/ int *ierr);
   void iRel_setSetEntArrRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntitySetHandle entset1,
-    int switch_order,
-    iBase_EntityHandle *ent_array_2,
-    int num_entities,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntitySetHandle entset1,
+    /*in*/ int switch_order,
+    /*in*/ iBase_EntityHandle *ent_array_2,
+    /*in*/ int num_entities,
+    /*out*/ int *ierr);
   void iRel_setEntSetArrRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntityHandle ent1,
-    int switch_order,
-    iBase_EntitySetHandle *entset_array_2,
-    int num_entities,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntityHandle ent1,
+    /*in*/ int switch_order,
+    /*in*/ iBase_EntitySetHandle *entset_array_2,
+    /*in*/ int num_entities,
+    /*out*/ int *ierr);
   void iRel_setSetSetArrRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntitySetHandle entset1,
-    int switch_order,
-    iBase_EntitySetHandle *entset_array_2,
-    int num_entities,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntitySetHandle entset1,
+    /*in*/ int switch_order,
+    /*in*/ iBase_EntitySetHandle *entset_array_2,
+    /*in*/ int num_entities,
+    /*out*/ int *ierr);
 
     /**\brief Set relations between arrays of entities pairwise, 
      *        ent_array_1[i]<->ent_array_2[i]
@@ -346,36 +345,36 @@ extern "C"
      */
   void iRel_setEntArrEntArrRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntityHandle *ent_array_1,
-    int num_ent1,
-    iBase_EntityHandle *ent_array_2,
-    int num_ent2,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntityHandle *ent_array_1,
+    /*in*/ int num_ent1,
+    /*in*/ iBase_EntityHandle *ent_array_2,
+    /*in*/ int num_ent2,
+    /*out*/ int *ierr);
   void iRel_setSetArrEntArrRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntitySetHandle *entset_array_1,
-    int num_ent1,
-    iBase_EntityHandle *ent_array_2,
-    int num_ent2,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntitySetHandle *entset_array_1,
+    /*in*/ int num_ent1,
+    /*in*/ iBase_EntityHandle *ent_array_2,
+    /*in*/ int num_ent2,
+    /*out*/ int *ierr);
   void iRel_setEntArrSetArrRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntityHandle *ent_array_1,
-    int num_ent1,
-    iBase_EntitySetHandle *entset_array_2,
-    int num_ent2,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntityHandle *ent_array_1,
+    /*in*/ int num_ent1,
+    /*in*/ iBase_EntitySetHandle *entset_array_2,
+    /*in*/ int num_ent2,
+    /*out*/ int *ierr);
   void iRel_setSetArrSetArrRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntitySetHandle *entset_array_1,
-    int num_ent1,
-    iBase_EntitySetHandle *entset_array_2,
-    int num_ent2,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntitySetHandle *entset_array_1,
+    /*in*/ int num_ent1,
+    /*in*/ iBase_EntitySetHandle *entset_array_2,
+    /*in*/ int num_ent2,
+    /*out*/ int *ierr);
 
     /**\brief  Get entity related to specified entity and relation handle
      *
@@ -391,39 +390,39 @@ extern "C"
     */
   void iRel_getEntEntRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntityHandle ent1,
-    int switch_order,
-    iBase_EntityHandle *ent2,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntityHandle ent1,
+    /*in*/ int switch_order,
+    /*out*/ iBase_EntityHandle *ent2,
+    /*out*/ int *ierr);
   void iRel_getEntSetRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntityHandle ent1,
-    int switch_order,
-    iBase_EntitySetHandle *entset2,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntityHandle ent1,
+    /*in*/ int switch_order,
+    /*out*/ iBase_EntitySetHandle *entset2,
+    /*out*/ int *ierr);
   void iRel_getSetEntRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntitySetHandle entset1,
-    int switch_order,
-    iBase_EntityHandle *ent2,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntitySetHandle entset1,
+    /*in*/ int switch_order,
+    /*out*/ iBase_EntityHandle *ent2,
+    /*out*/ int *ierr);
   void iRel_getSetSetRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntitySetHandle entset1,
-    int switch_order,
-    iBase_EntitySetHandle *entset2,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntitySetHandle entset1,
+    /*in*/ int switch_order,
+    /*out*/ iBase_EntitySetHandle *entset2,
+    /*out*/ int *ierr);
   void iRel_getEntSetIterRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntityHandle ent1,
-    int switch_order,
-    iBase_EntityIterator *entset2,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntityHandle ent1,
+    /*in*/ int switch_order,
+    /*out*/ iBase_EntityIterator *entset2,
+    /*out*/ int *ierr);
 
     /**\brief  Get entities related to specified entity and relation
      *
@@ -443,22 +442,22 @@ extern "C"
      */
   void iRel_getEntEntArrRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntityHandle ent1,
-    int switch_order,
-    iBase_EntityHandle **ent_array_2,
-    int *ent_array_2_allocated,
-    int *ent_array_2_size,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntityHandle ent1,
+    /*in*/ int switch_order,
+    /*inout*/ iBase_EntityHandle **ent_array_2,
+    /*inout*/ int *ent_array_2_allocated,
+    /*out*/ int *ent_array_2_size,
+    /*out*/ int *ierr);
   void iRel_getSetEntArrRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntitySetHandle entset1,
-    int switch_order,
-    iBase_EntityHandle **ent_array_2,
-    int *ent_array_2_allocated,
-    int *ent_array_2_size,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntitySetHandle entset1,
+    /*in*/ int switch_order,
+    /*inout*/ iBase_EntityHandle **ent_array_2,
+    /*inout*/ int *ent_array_2_allocated,
+    /*out*/ int *ent_array_2_size,
+    /*out*/ int *ierr);
 
     /**\brief  Get entities related to those in specified array and relation,
      *         pairwise
@@ -484,60 +483,60 @@ extern "C"
      */
   void iRel_getEntArrEntArrRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntityHandle *ent_array_1,
-    int ent_array_1_size,
-    int switch_order,
-    iBase_EntityHandle **ent_array_2,
-    int *ent_array_2_allocated,
-    int *ent_array_2_size,
-    int **offset,
-    int *offset_allocated,
-    int *offset_size,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntityHandle *ent_array_1,
+    /*in*/ int ent_array_1_size,
+    /*in*/ int switch_order,
+    /*inout*/ iBase_EntityHandle **ent_array_2,
+    /*inout*/ int *ent_array_2_allocated,
+    /*out*/ int *ent_array_2_size,
+    /*inout*/ int **offset,
+    /*inout*/ int *offset_allocated,
+    /*out*/ int *offset_size,
+    /*out*/ int *ierr);
   void iRel_getEntArrSetArrRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntityHandle *ent_array_1,
-    int ent_array_1_size,
-    int switch_order,
-    iBase_EntitySetHandle **entset_array_2,
-    int *entset_array_2_allocated,
-    int *entset_array_2_size,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntityHandle *ent_array_1,
+    /*in*/ int ent_array_1_size,
+    /*in*/ int switch_order,
+    /*inout*/ iBase_EntitySetHandle **entset_array_2,
+    /*inout*/ int *entset_array_2_allocated,
+    /*out*/ int *entset_array_2_size,
+    /*out*/ int *ierr);
   void iRel_getSetArrEntArrRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntitySetHandle *entset_array_1,
-    int entset_array_1_size,
-    int switch_order,
-    iBase_EntityHandle **ent_array_2,
-    int *ent_array_2_allocated,
-    int *ent_array_2_size,
-    int **offset,
-    int *offset_allocated,
-    int *offset_size,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntitySetHandle *entset_array_1,
+    /*in*/ int entset_array_1_size,
+    /*in*/ int switch_order,
+    /*inout*/ iBase_EntityHandle **ent_array_2,
+    /*inout*/ int *ent_array_2_allocated,
+    /*out*/ int *ent_array_2_size,
+    /*inout*/ int **offset,
+    /*inout*/ int *offset_allocated,
+    /*out*/ int *offset_size,
+    /*out*/ int *ierr);
   void iRel_getSetArrSetArrRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntitySetHandle *entset_array_1,
-    int entset_array_1_size,
-    int switch_order,
-    iBase_EntitySetHandle **entset_array_2,
-    int *entset_array_2_allocated,
-    int *entset_array_2_size,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntitySetHandle *entset_array_1,
+    /*in*/ int entset_array_1_size,
+    /*in*/ int switch_order,
+    /*inout*/ iBase_EntitySetHandle **entset_array_2,
+    /*inout*/ int *entset_array_2_allocated,
+    /*out*/ int *entset_array_2_size,
+    /*out*/ int *ierr);
   void iRel_getEntArrSetIterArrRelation (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntityHandle *ent_array_1,
-    int ent_array_1_size,
-    int switch_order,
-    iBase_EntityIterator **entiter,
-    int *entiter_allocated,
-    int *entiter_size,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntityHandle *ent_array_1,
+    /*in*/ int ent_array_1_size,
+    /*in*/ int switch_order,
+    /*inout*/ iBase_EntityIterator **entiter,
+    /*inout*/ int *entiter_allocated,
+    /*out*/ int *entiter_size,
+    /*out*/ int *ierr);
 
     /**\brief  Infer relations between entities in specified pair of interfaces
      *
@@ -551,8 +550,8 @@ extern "C"
      */
   void iRel_inferAllRelations (
     iRel_Instance instance,
-    iRel_RelationHandle rel,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,
+    /*out*/ int *ierr);
 
     /**\brief  Infer relations and relation type between entities in specified 
      *         pair of interfaces 
@@ -567,8 +566,8 @@ extern "C"
      */
   void iRel_inferAllRelationsAndType (
     iRel_Instance instance,
-    iRel_RelationHandle *rel,
-    int *ierr);
+    /*in*/ iRel_RelationHandle *rel,
+    /*out*/ int *ierr);
 
     /**\brief  Infer relations corresponding to specified entity and relation
      *         pair
@@ -587,16 +586,16 @@ extern "C"
      */
   void iRel_inferEntRelations (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntityHandle entity,
-    int iface_no,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntityHandle entity,
+    /*in*/ int iface_no,
+    /*out*/ int *ierr);
   void iRel_inferSetRelations (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntitySetHandle entity_set,
-    int iface_no,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntitySetHandle entity_set,
+    /*in*/ int iface_no,
+    /*out*/ int *ierr);
 
     /**\brief  Infer relations corresponding to specified entities and relation
      *         pair
@@ -616,22 +615,22 @@ extern "C"
      */
   void iRel_inferEntArrRelations (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntityHandle *entities,
-    int entities_size,
-    int iface_no,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntityHandle *entities,
+    /*in*/ int entities_size,
+    /*in*/ int iface_no,
+    /*out*/ int *ierr);
   void iRel_inferSetArrRelations (
     iRel_Instance instance,
-    iRel_RelationHandle rel,    
-    iBase_EntitySetHandle *entity_sets,
-    int entities_size,
-    int iface_no,
-    int *ierr);
+    /*in*/ iRel_RelationHandle rel,    
+    /*in*/ iBase_EntitySetHandle *entity_sets,
+    /*in*/ int entities_size,
+    /*in*/ int iface_no,
+    /*out*/ int *ierr);
 
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
 
-#endif /* #ifndef __iRel_LASSO_HPP__ */
+#endif /* #ifndef _ITAPS_iRel */
 
