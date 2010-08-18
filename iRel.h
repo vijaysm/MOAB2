@@ -579,7 +579,6 @@ extern "C"
      * \param instance Interface instance
      * \param rel Relation handle being queried
      * \param entity Entity whose relations are being inferred
-     * \param is_set Entity is a regular entity (=0) or a set (=1)
      * \param iface_no Entity corresponds to 1st (=0) or 2nd (=1) interface
      *        in relation pair
      * \param *ierr Pointer to error value, returned from function
@@ -608,7 +607,6 @@ extern "C"
      * \param rel Relation handle being queried
      * \param entities Array of entities whose relation are being inferred
      * \param entities_size Number of entities in array
-     * \param is_set Entities are regular entities (=0) or sets (=1)
      * \param iface_no Entities correspond to 1st (=0) or 2nd (=1) interface
      *        in relation pair
      * \param *ierr Pointer to error value, returned from function
