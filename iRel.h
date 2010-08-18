@@ -122,7 +122,8 @@ extern "C"
                          /*out*/ int *error_type, 
                          int *ierr);
 
-    /**\brief  Get a description of the error returned from the last iRel function
+    /**\brief  Get a description of the error returned from the last iRel
+     *         function
      *
      * Get a description of the error returned from the last iRel function
      * \param instance iRel instance handle
@@ -139,11 +140,11 @@ extern "C"
     /**\brief  Create a new iRel instance
      *
      * Create a new iRel instance.  Currently no options are implemented.
-        \param options Options for the implementation
-        \param *instance Interface instance
-        \param *ierr Pointer to error value, returned from function
-        \param options_len Length of options string
-    */
+     * \param options Options for the implementation
+     * \param *instance Interface instance
+     * \param *ierr Pointer to error value, returned from function
+     * \param options_len Length of options string
+     */
   void iRel_newRel(const char *options,
                    iRel_Instance *instance,
                    int *ierr,
@@ -152,27 +153,27 @@ extern "C"
     /**\brief  iRel_dtor Destroy the interface object
      *
      * Calls destructor on interface object
-        \param instance Interface object handle to destroy
-        \param *ierr Pointer to error value, returned from function
-    */
+     * \param instance Interface object handle to destroy
+     * \param *ierr Pointer to error value, returned from function
+     */
   void iRel_dtor(iRel_Instance instance, int *ierr);
 
     /**\brief  Create a relation pair between two interfaces
      *
      * Creates a relation pair between two interfaces, passing
      * back a handle to the pair.
-        \param instance Interface instance
-        \param iface1 1st interface object in the relation pair
-        \param ent_or_set1 This relation relates entities, sets, or both from
-               1st interface object
-        \param iface_type1 Type of 1st interface
-        \param iface2 2nd interface object in the relation pair
-        \param ent_or_set2 This relation relates entities, sets, or both from
-               2nd interface object
-        \param iface_type2 Type of 2nd interface
-        \param *rel Pointer to relation handle, returned from function
-        \param *ierr Pointer to error value, returned from function
-    */
+     * \param instance Interface instance
+     * \param iface1 1st interface object in the relation pair
+     * \param ent_or_set1 This relation relates entities, sets, or both from
+     *        1st interface object
+     * \param iface_type1 Type of 1st interface
+     * \param iface2 2nd interface object in the relation pair
+     * \param ent_or_set2 This relation relates entities, sets, or both from
+     *        2nd interface object
+     * \param iface_type2 Type of 2nd interface
+     * \param *rel Pointer to relation handle, returned from function
+     * \param *ierr Pointer to error value, returned from function
+     */
   void iRel_createRelation (
     iRel_Instance instance,
     iBase_Instance iface1,
@@ -184,21 +185,21 @@ extern "C"
     iRel_RelationHandle *rel,
     int *ierr);
 
-    /**\brief Get information for this relation handle
+    /**\brief  Get information for this relation handle
      *
      * Get information about the interfaces and relation type for this
      * relation.  Relation type for each side is passed back as integers,
      * but values will be from RelationType enumeration.
-        \param instance Interface instance
-        \param rel Handle of relation pair being queried
-        \param *iface1 Side 1 instance for this relation
-        \param *ent_or_set1 Relation type for side 1 of this relation
-        \param *iface_type1 Inferface type for side 1 of this relation
-        \param *iface2 Side 2 instance for this relation
-        \param *ent_or_set2 Relation type for side 2 of this relation
-        \param *iface_type2 Inferface type for side 2 of this relation
-        \param *ierr Pointer to error value, returned from function
-    */
+     * \param instance Interface instance
+     * \param rel Handle of relation pair being queried
+     * \param *iface1 Side 1 instance for this relation
+     * \param *ent_or_set1 Relation type for side 1 of this relation
+     * \param *iface_type1 Inferface type for side 1 of this relation
+     * \param *iface2 Side 2 instance for this relation
+     * \param *ent_or_set2 Relation type for side 2 of this relation
+     * \param *iface_type2 Inferface type for side 2 of this relation
+     * \param *ierr Pointer to error value, returned from function
+     */
   void iRel_getRelationInfo (
       iRel_Instance instance,
       iRel_RelationHandle rel,
@@ -213,26 +214,26 @@ extern "C"
     /**\brief  Destroy a relation pair
      *
      * Destroy the relation pair corresponding to the handle input
-        \param instance Interface instance
-        \param rel Handle of relation pair to destroy
-        \param *ierr Pointer to error value, returned from function
-    */
+     * \param instance Interface instance
+     * \param rel Handle of relation pair to destroy
+     * \param *ierr Pointer to error value, returned from function
+     */
   void iRel_destroyRelation (
     iRel_Instance instance, 
     iRel_RelationHandle rel,
     int *ierr);
 
-  /**\brief  Get relations containing specified interface
+    /**\brief  Get relations containing specified interface
      *
      * Get relations containing the specified interface
-        \param instance Interface instance
-        \param iface Specified interface 
-        \param relations Pointer to array holding returned relations
-               containing specified interface
-        \param relations_allocated Pointer to allocated size of relations list
-        \param relations_size Pointer to occupied size of relations list
-        \param *ierr Pointer to error value, returned from function
-    */
+     * \param instance Interface instance
+     * \param iface Specified interface 
+     * \param relations Pointer to array holding returned relations
+     *        containing specified interface
+     * \param relations_allocated Pointer to allocated size of relations list
+     * \param relations_size Pointer to occupied size of relations list
+     * \param *ierr Pointer to error value, returned from function
+     */
   void iRel_findRelations(
     iRel_Instance instance,
     iBase_Instance iface,
@@ -244,12 +245,12 @@ extern "C"
     /**\brief  
      *
      * 
-        \param instance Interface instance
-        \param rel Relation handle being queried
-        \param ent1 1st entity of relation being set
-        \param ent2 2nd entity of relation being set
-        \param *ierr Pointer to error value, returned from function
-    */
+     * \param instance Interface instance
+     * \param rel Relation handle being queried
+     * \param ent1 1st entity of relation being set
+     * \param ent2 2nd entity of relation being set
+     * \param *ierr Pointer to error value, returned from function
+     */
   void iRel_setEntEntRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,
@@ -278,18 +279,18 @@ extern "C"
     /**\brief  Set a relation between an entity and several entities
      *
      * Set a relation between an entity and several entities.  If either
-        is a set and that side of the relation is 'both'-type, set relations
-        for individual entities in that set too.
-        \param instance Interface instance
-        \param rel Relation handle being queried
-        \param ent1 1st entity of relation being set
-        \param switch_order If non-zero, ent1 is related with iface2 and
-                 ent_array_2 with iface1 of
-                 specified relation, otherwise vica versa
-        \param ent_array_2 Entity(ies) to be related to ent1
-        \param num_entities Number of entities in ent_array_2
-        \param *ierr Pointer to error value, returned from function
-    */
+     * is a set and that side of the relation is 'both'-type, set relations
+     * for individual entities in that set too.
+     * \param instance Interface instance
+     * \param rel Relation handle being queried
+     * \param ent1 1st entity of relation being set
+     * \param switch_order If non-zero, ent1 is related with iface2 and
+     *          ent_array_2 with iface1 of
+     *          specified relation, otherwise vica versa
+     * \param ent_array_2 Entity(ies) to be related to ent1
+     * \param num_entities Number of entities in ent_array_2
+     * \param *ierr Pointer to error value, returned from function
+     */
   void iRel_setEntEntArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
@@ -327,17 +328,17 @@ extern "C"
      *        ent_array_1[i]<->ent_array_2[i]
      *
      * Set relations between arrays of entities pairwise, 
-        ent_array_1[i]<->ent_array_2[i].  If either array
-        contains sets and that side of the relation is 'both'-type, 
-        set relations for individual entities in those sets too.
-        \param instance Interface instance
-        \param rel Relation handle being queried
-        \param ent_array_1 1st array of entities of relation being set
-        \param num_ent1 Number of entities in 1st array
-        \param ent_array_2 2nd array of entities of relation being set
-        \param num_ent2 Number of entities in 2nd array
-        \param *ierr Pointer to error value, returned from function
-    */
+     * ent_array_1[i]<->ent_array_2[i].  If either array
+     * contains sets and that side of the relation is 'both'-type, 
+     * set relations for individual entities in those sets too.
+     * \param instance Interface instance
+     * \param rel Relation handle being queried
+     * \param ent_array_1 1st array of entities of relation being set
+     * \param num_ent1 Number of entities in 1st array
+     * \param ent_array_2 2nd array of entities of relation being set
+     * \param num_ent2 Number of entities in 2nd array
+     * \param *ierr Pointer to error value, returned from function
+     */
   void iRel_setEntArrEntArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
@@ -374,14 +375,14 @@ extern "C"
     /**\brief  Get entity related to specified entity and relation handle
      *
      * Get entity related to specified entity and relation handle.  Also
-        returns whether the related entity is an entity or a set.
-        \param instance Interface instance
-        \param rel Relation handle being queried
-        \param ent1 1st entity of relation being queried
-        \param switch_order 1st entity is related to 1st interface (=0) or 2nd
-               interface (=1) of relation pair
-        \param *ent2 Pointer to entity related to ent1
-        \param *ierr Pointer to error value, returned from function
+     * returns whether the related entity is an entity or a set.
+     * \param instance Interface instance
+     * \param rel Relation handle being queried
+     * \param ent1 1st entity of relation being queried
+     * \param switch_order 1st entity is related to 1st interface (=0) or 2nd
+     *        interface (=1) of relation pair
+     * \param *ent2 Pointer to entity related to ent1
+     * \param *ierr Pointer to error value, returned from function
     */
   void iRel_getEntEntRelation (
     iRel_Instance instance,
@@ -421,19 +422,20 @@ extern "C"
 
     /**\brief  Get entities related to specified entity and relation
      *
-     * Get entities related to specified entity and relation; returns
-        entity sets or contained entities, depending on relation type
-        (entity, set, or both).
-        \param instance Interface instance
-        \param rel Relation handle being queried
-        \param ent1 1st entity of relation being queried
-        \param switch_order ent1 is related with 1st (=0) or 2nd (=1) interface
-               of this relation pair
-        \param *ent_array_2 Pointer to array of entity handles returned from function
-        \param *ent_array_2_allocated Pointer to allocated size of ent_array_2
-        \param *ent_array_2_size Pointer to occupied size of ent_array_2
-        \param *ierr Pointer to error value, returned from function
-    */
+     * Get entities related to specified entity and relation; returns entity
+     * sets or contained entities, depending on relation type (entity, set, or
+     * both).
+     * \param instance Interface instance
+     * \param rel Relation handle being queried
+     * \param ent1 1st entity of relation being queried
+     * \param switch_order ent1 is related with 1st (=0) or 2nd (=1) interface
+     *        of this relation pair
+     * \param *ent_array_2 Pointer to array of entity handles returned from
+     *        function
+     * \param *ent_array_2_allocated Pointer to allocated size of ent_array_2
+     * \param *ent_array_2_size Pointer to occupied size of ent_array_2
+     * \param *ierr Pointer to error value, returned from function
+     */
   void iRel_getEntEntArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
@@ -453,26 +455,28 @@ extern "C"
     int *ent_array_2_size,
     int *ierr);
 
-    /**\brief  Get entities related to those in specified array and relation, pairwise
+    /**\brief  Get entities related to those in specified array and relation,
+     *         pairwise
      *
      * Get entities related to those in specified array and relation, pairwise.
-        Returns sets or entities, depending on relation type and entities in 
-        ent_array_1.
-        \param instance Interface instance
-        \param rel Relation handle being queried
-        \param ent_array_1 Array of entities whose relations are being queried
-        \param ent_array_1_size Number of entities in ent_array_1
-        \param switch_order Entities in ent_array_1 are related with 1st (=0) 
-               or 2nd (=1) interface of this relation pair
-        \param *ent_array_2 Pointer to array of entity handles returned from function
-        \param *ent_array_2_allocated Pointer to allocated size of ent_array_2
-        \param *ent_array_2_size Pointer to occupied size of ent_array_2
-        \param *offset Pointer to offset array; (*offset)[i] is index into 
-               (*ent_array_2) of 1st relation of ent_array_1[i]
-        \param *offset_allocated Pointer to allocated size of offset
-        \param *offset_size Pointer to occupied size of offset
-        \param *ierr Pointer to error value, returned from function
-    */
+     * Returns sets or entities, depending on relation type and entities in 
+     * ent_array_1.
+     * \param instance Interface instance
+     * \param rel Relation handle being queried
+     * \param ent_array_1 Array of entities whose relations are being queried
+     * \param ent_array_1_size Number of entities in ent_array_1
+     * \param switch_order Entities in ent_array_1 are related with 1st (=0) 
+     *        or 2nd (=1) interface of this relation pair
+     * \param *ent_array_2 Pointer to array of entity handles returned from
+     *        function
+     * \param *ent_array_2_allocated Pointer to allocated size of ent_array_2
+     * \param *ent_array_2_size Pointer to occupied size of ent_array_2
+     * \param *offset Pointer to offset array; (*offset)[i] is index into 
+     *        (*ent_array_2) of 1st relation of ent_array_1[i]
+     * \param *offset_allocated Pointer to allocated size of offset
+     * \param *offset_size Pointer to occupied size of offset
+     * \param *ierr Pointer to error value, returned from function
+     */
   void iRel_getEntArrEntArrRelation (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
@@ -533,49 +537,49 @@ extern "C"
     /**\brief  Infer relations between entities in specified pair of interfaces
      *
      * Infer relations between entities in specified pair of interfaces.  The
-        criteria used to infer these relations depends on the interfaces in
-        the pair, the iRel implementation, and the source of the data in those
-        interfaces.
-        \param instance Interface instance
-        \param rel Relation handle being queried
-        \param *ierr Pointer to error value, returned from function
-    */
+     * criteria used to infer these relations depends on the interfaces in
+     * the pair, the iRel implementation, and the source of the data in those
+     * interfaces.
+     * \param instance Interface instance
+     * \param rel Relation handle being queried
+     * \param *ierr Pointer to error value, returned from function
+     */
   void iRel_inferAllRelations (
     iRel_Instance instance,
     iRel_RelationHandle rel,
     int *ierr);
 
     /**\brief  Infer relations and relation type between entities in specified 
-     * pair of interfaces 
+     *         pair of interfaces 
      *
      * Infer relations between entities in specified pair of interfaces, and the
-     * relation type used by this iRel implementation.  The
-     * criteria used to infer these relations depends on the interfaces in
-     * the pair, the iRel implementation, and the source of the data in those
-     * interfaces.
-     *   \param instance Interface instance
-     *   \param rel Relation handle created by implementation
-     *   \param *ierr Pointer to error value, returned from function
+     * relation type used by this iRel implementation.  The criteria used to
+     * infer these relations depends on the interfaces in the pair, the iRel
+     * implementation, and the source of the data in those interfaces.
+     * \param instance Interface instance
+     * \param rel Relation handle created by implementation
+     * \param *ierr Pointer to error value, returned from function
      */
   void iRel_inferAllRelationsAndType (
     iRel_Instance instance,
     iRel_RelationHandle *rel,
     int *ierr);
 
-    /**\brief  Infer relations corresponding to specified entity and relation pair
+    /**\brief  Infer relations corresponding to specified entity and relation
+     *         pair
      *
      * Infer relations corresponding to specified entity and relation pair.  The
-        criteria used to infer these relations depends on the interfaces in
-        the pair, the iRel implementation, and the source of the data in those
-        interfaces.
-        \param instance Interface instance
-        \param rel Relation handle being queried
-        \param entity Entity whose relations are being inferred
-        \param is_set Entity is a regular entity (=0) or a set (=1)
-        \param iface_no Entity corresponds to 1st (=0) or 2nd (=1) interface
-               in relation pair
-        \param *ierr Pointer to error value, returned from function
-    */
+     * criteria used to infer these relations depends on the interfaces in
+     * the pair, the iRel implementation, and the source of the data in those
+     * interfaces.
+     * \param instance Interface instance
+     * \param rel Relation handle being queried
+     * \param entity Entity whose relations are being inferred
+     * \param is_set Entity is a regular entity (=0) or a set (=1)
+     * \param iface_no Entity corresponds to 1st (=0) or 2nd (=1) interface
+     *        in relation pair
+     * \param *ierr Pointer to error value, returned from function
+     */
   void iRel_inferEntRelations (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
@@ -589,21 +593,22 @@ extern "C"
     int iface_no,
     int *ierr);
 
-    /**\brief  Infer relations corresponding to specified entities and relation pair
+    /**\brief  Infer relations corresponding to specified entities and relation
+     *         pair
      *
-     * Infer relations corresponding to specified entities and relation pair.  The
-        criteria used to infer these relations depends on the interfaces in
-        the pair, the iRel implementation, and the source of the data in those
-        interfaces.
-        \param instance Interface instance
-        \param rel Relation handle being queried
-        \param entities Array of entities whose relation are being inferred
-        \param entities_size Number of entities in array
-        \param is_set Entities are regular entities (=0) or sets (=1)
-        \param iface_no Entities correspond to 1st (=0) or 2nd (=1) interface
-               in relation pair
-        \param *ierr Pointer to error value, returned from function
-    */
+     * Infer relations corresponding to specified entities and relation pair.
+     * The criteria used to infer these relations depends on the interfaces in
+     * the pair, the iRel implementation, and the source of the data in those
+     * interfaces.
+     * \param instance Interface instance
+     * \param rel Relation handle being queried
+     * \param entities Array of entities whose relation are being inferred
+     * \param entities_size Number of entities in array
+     * \param is_set Entities are regular entities (=0) or sets (=1)
+     * \param iface_no Entities correspond to 1st (=0) or 2nd (=1) interface
+     *        in relation pair
+     * \param *ierr Pointer to error value, returned from function
+     */
   void iRel_inferEntArrRelations (
     iRel_Instance instance,
     iRel_RelationHandle rel,    
