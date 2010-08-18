@@ -118,9 +118,10 @@ extern "C"
      * \param *error_type Error type returned from last iRel function
      * \param *err Pointer to error type returned from function
      */
-  void iRel_getErrorType(iRel_Instance instance,
-                         /*out*/ int *error_type, 
-                         int *ierr);
+  void iRel_getErrorType (
+    iRel_Instance instance,
+    /*out*/ int *error_type, 
+    int *ierr);
 
     /**\brief  Get a description of the error returned from the last iRel
      *         function
@@ -132,10 +133,11 @@ extern "C"
      * \param *err Pointer to error type returned from function
      * \param descr_len Length of the character string pointed to by descr
      */
-  void iRel_getDescription(iRel_Instance instance,
-                           /*inout*/ char *descr, 
-                           int *ierr, 
-                           /*in*/ int descr_len);
+  void iRel_getDescription (
+    iRel_Instance instance,
+    /*inout*/ char *descr, 
+    int *ierr, 
+    /*in*/ int descr_len);
 
     /**\brief  Create a new iRel instance
      *
@@ -145,10 +147,11 @@ extern "C"
      * \param *ierr Pointer to error value, returned from function
      * \param options_len Length of options string
      */
-  void iRel_newRel(const char *options,
-                   iRel_Instance *instance,
-                   int *ierr,
-                   const int options_len);
+  void iRel_newRel (
+    const char *options,
+    iRel_Instance *instance,
+    int *ierr,
+    const int options_len);
 
     /**\brief  iRel_dtor Destroy the interface object
      *
@@ -156,7 +159,9 @@ extern "C"
      * \param instance Interface object handle to destroy
      * \param *ierr Pointer to error value, returned from function
      */
-  void iRel_dtor(iRel_Instance instance, int *ierr);
+  void iRel_dtor (
+    iRel_Instance instance,
+    int *ierr);
 
     /**\brief  Create a relation pair between two interfaces
      *
@@ -234,7 +239,7 @@ extern "C"
      * \param relations_size Pointer to occupied size of relations list
      * \param *ierr Pointer to error value, returned from function
      */
-  void iRel_findRelations(
+  void iRel_findRelations (
     iRel_Instance instance,
     iBase_Instance iface,
     iRel_RelationHandle **relations,
