@@ -348,7 +348,7 @@ void iRel_setEntArrEntArrRelation (
   int *ierr)
 {
   if (num_entities1 != num_entities2) {
-    ERROR(iBase_NOT_SUPPORTED, "setEntArrEntArrRelation doesn't support "
+    ERROR(iBase_INVALID_ENTITY_COUNT, "setEntArrEntArrRelation doesn't support "
           "different #'s of entities.");
   }
   
@@ -373,7 +373,7 @@ void iRel_setEntArrSetArrRelation (
   int *ierr)
 {
   if (num_entities1 != num_sets2) {
-    ERROR(iBase_NOT_SUPPORTED, "setEntArrSetArrRelation doesn't support "
+    ERROR(iBase_INVALID_ENTITY_COUNT, "setEntArrSetArrRelation doesn't support "
           "different #'s of entities.");
   }
   
@@ -398,7 +398,7 @@ void iRel_setSetArrEntArrRelation (
   int *ierr)
 {
   if (num_sets1 != num_entities2) {
-    ERROR(iBase_NOT_SUPPORTED, "setSetArrEntArrRelation doesn't support "
+    ERROR(iBase_INVALID_ENTITY_COUNT, "setSetArrEntArrRelation doesn't support "
           "different #'s of entities.");
   }
   
@@ -423,7 +423,7 @@ void iRel_setSetArrSetArrRelation (
   int *ierr)
 {
   if (num_sets1 != num_sets2) {
-    ERROR(iBase_NOT_SUPPORTED, "setSetArrSetArrRelation doesn't support "
+    ERROR(iBase_INVALID_ENTITY_COUNT, "setSetArrSetArrRelation doesn't support "
           "different #'s of entities.");
   }
   
