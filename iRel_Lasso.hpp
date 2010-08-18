@@ -23,7 +23,7 @@ extern "C" iBase_Error iRel_LAST_ERROR;
                                 return (CODE); } while(false)
 
 static inline int
-iRel_processError(int code, const char* desc) 
+iRel_processError(int code, const char* desc)
 {
   std::strncpy( iRel_LAST_ERROR.description, desc,
                 sizeof(iRel_LAST_ERROR.description) );

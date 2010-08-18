@@ -52,18 +52,18 @@ public:
         return;
       }
     }
-    
+
     *err = iBase_SUCCESS;
   }
-  
-  ~ArrayManager() 
+
+  ~ArrayManager()
   {
     if (arrayPtr) {
       std::free(*arrayPtr);
       *arrayPtr = 0;
     }
   }
-  
+
   void keep_array()
     { arrayPtr = 0; }
 };

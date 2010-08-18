@@ -3,7 +3,7 @@
 
 #include "AssocPair.hpp"
 
-class AssocPairC : public AssocPair 
+class AssocPairC : public AssocPair
 {
 public:
   AssocPairC(iBase_Instance iface0,
@@ -19,11 +19,11 @@ public:
 
   virtual bool equivalent(iBase_Instance iface0, iBase_Instance iface1,
                           bool *order_switched = NULL);
-  
+
   virtual bool contains(iBase_Instance iface);
-  
+
   virtual bool same_interface(iBase_Instance iface0, iBase_Instance iface1);
-  
+
   virtual int get_all_entities(const int iface_no,
                                const int dimension,
                                iBase_EntityHandle **entities,

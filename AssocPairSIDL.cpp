@@ -19,8 +19,8 @@ AssocPairSIDL::AssocPairSIDL(::sidl::BaseInterface iface0,
                              const int ent_or_set0,
                              ::sidl::BaseInterface iface1,
                              const int ent_or_set1,
-                             Lasso *lasso) 
-  : AssocPair(ent_or_set0, get_type(iface0), ent_or_set1, get_type(iface1), 
+                             Lasso *lasso)
+  : AssocPair(ent_or_set0, get_type(iface0), ent_or_set1, get_type(iface1),
               lasso)
 {
   ifaceInstances[0] = iface0;
@@ -30,7 +30,7 @@ AssocPairSIDL::AssocPairSIDL(::sidl::BaseInterface iface0,
   create_tags();
 }
 
-AssocPairSIDL::~AssocPairSIDL() 
+AssocPairSIDL::~AssocPairSIDL()
 {
   destroy_tags();
 }
@@ -42,7 +42,7 @@ IfaceType AssocPairSIDL::get_type(::sidl::BaseInterface iface)
 
   iMesh::Mesh mesh = iface;
   if (!mesh._is_nil()) return iMesh_IFACE;
-  
+
   iRel::Associate assoc = iface;
   if (!assoc._is_nil()) return iRel_IFACE;
 
@@ -52,26 +52,26 @@ IfaceType AssocPairSIDL::get_type(::sidl::BaseInterface iface)
   throw err;
 }
 
-bool AssocPairSIDL::same_interface(iBase_Instance iface0, 
-                                   iBase_Instance iface1) 
+bool AssocPairSIDL::same_interface(iBase_Instance iface0,
+                                   iBase_Instance iface1)
 {
-  ::sidl::BaseInterface *iface0_tmp = (::sidl::BaseInterface*) iface0, 
+  ::sidl::BaseInterface *iface0_tmp = (::sidl::BaseInterface*) iface0,
       *iface1_tmp = (::sidl::BaseInterface*) iface1;
   return (iface0_tmp == iface1_tmp);
 }
 
 bool AssocPairSIDL::equivalent(iBase_Instance iface0, iBase_Instance iface1,
-                               bool *order_switched) 
+                               bool *order_switched)
 {
   bool equiv = false;
-  ::sidl::BaseInterface *iface0_tmp = (::sidl::BaseInterface*) iface0, 
+  ::sidl::BaseInterface *iface0_tmp = (::sidl::BaseInterface*) iface0,
       *iface1_tmp = (::sidl::BaseInterface*) iface1;
-  if (iface0_tmp->isSame(ifaceInstances[0]) && 
+  if (iface0_tmp->isSame(ifaceInstances[0]) &&
       iface1_tmp->isSame(ifaceInstances[1])) {
     if (NULL != order_switched) *order_switched = false;
     equiv = true;
   }
-  else if (iface0_tmp->isSame(ifaceInstances[1]) && 
+  else if (iface0_tmp->isSame(ifaceInstances[1]) &&
            iface1_tmp->isSame(ifaceInstances[0])) {
     equiv = true;
     if (NULL != order_switched) *order_switched = true;
@@ -79,11 +79,11 @@ bool AssocPairSIDL::equivalent(iBase_Instance iface0, iBase_Instance iface1,
 
   return equiv;
 }
-  
-bool AssocPairSIDL::contains(iBase_Instance iface) 
+
+bool AssocPairSIDL::contains(iBase_Instance iface)
 {
   ::sidl::BaseInterface *iface0_tmp = (::sidl::BaseInterface*) iface;
-  return (iface0_tmp->isSame(ifaceInstances[0]) || 
+  return (iface0_tmp->isSame(ifaceInstances[0]) ||
           iface0_tmp->isSame(ifaceInstances[1]));
 }
 
@@ -92,15 +92,15 @@ int AssocPairSIDL::get_tags(const int iface_no,
                             const int num_entities,
                             iBase_TagHandle tag_handle,
                             void *tag_values,
-                            const int tag_size) 
+                            const int tag_size)
 {
   int result = iBase_SUCCESS;
-  
+
   CAST_iBase_INTERFACE(ifaceInstances[iface_no], iface_atag, ArrTag,
                        iBase_FAILURE);
-  sidl::array<char> tag_values_tmp = 
+  sidl::array<char> tag_values_tmp =
     convert_to_sidl_vector(tag_values, num_entities*tag_size);
-    
+
   try {
     iface_atag.getArrData(convert_to_sidl_vector(entities, num_entities),
                           num_entities, tag_handle, tag_values_tmp,
@@ -123,10 +123,10 @@ int AssocPairSIDL::get_tags(const int iface_no,
                             const int num_entities,
                             iBase_TagHandle tag_handle,
                             void *tag_values,
-                            const int tag_size) 
+                            const int tag_size)
 {
   int result = iBase_SUCCESS;
-  
+
   CAST_iBase_INTERFACE(ifaceInstances[iface_no], iface_stag, SetTag,
                          iBase_FAILURE);
   try {
@@ -146,7 +146,7 @@ int AssocPairSIDL::get_tags(const int iface_no,
 
   RETURN(iBase_SUCCESS);
 }
-  
+
 int AssocPairSIDL::set_tags(const int iface_no,
                             iBase_EntityHandle *entities,
                             const int num_entities,
@@ -157,7 +157,7 @@ int AssocPairSIDL::set_tags(const int iface_no,
   try {
     CAST_iBase_INTERFACE(ifaceInstances[iface_no], iface_atag, ArrTag,
                          iBase_FAILURE);
-    sidl::array<char> tag_values_tmp = 
+    sidl::array<char> tag_values_tmp =
       convert_to_sidl_vector(tag_values, num_entities * tag_size);
 
     iface_atag.setArrData(convert_to_sidl_vector(entities, num_entities),
@@ -172,7 +172,7 @@ int AssocPairSIDL::set_tags(const int iface_no,
 
   RETURN(iBase_SUCCESS);
 }
-  
+
 int AssocPairSIDL::set_tags(const int iface_no,
                             iBase_EntitySetHandle *sets,
                             const int num_sets,
@@ -196,12 +196,12 @@ int AssocPairSIDL::set_tags(const int iface_no,
 
   RETURN(iBase_SUCCESS);
 }
-  
+
 int AssocPairSIDL::get_all_entities(const int iface_no,
                                     const int dimension,
                                     iBase_EntityHandle **entities,
                                     int *entities_alloc,
-                                    int *entities_size) 
+                                    int *entities_size)
 {
   sidl::array<iBase_EntityHandle> entities_tmp;
   int entities_tmp_size = 0;
@@ -209,14 +209,14 @@ int AssocPairSIDL::get_all_entities(const int iface_no,
   if (iface_type(iface_no) == iGeom_IFACE) {
     CAST_iGeom_INTERFACE(ifaceInstances[iface_no], geom_topo, Topology,
                          iBase_FAILURE);
-    geom_topo.getEntities(0, iGeom::EntityType_ALL_TYPES, 
+    geom_topo.getEntities(0, iGeom::EntityType_ALL_TYPES,
                           entities_tmp, entities_tmp_size);
   }
   else if (iface_type(iface_no) == iMesh_IFACE) {
     CAST_iMesh_INTERFACE(ifaceInstances[iface_no], mesh, Mesh,
                          iBase_FAILURE);
-    mesh.getEntities(0, iMesh::EntityType_ALL_TYPES, 
-                     iMesh::EntityTopology_ALL_TOPOLOGIES, 
+    mesh.getEntities(0, iMesh::EntityType_ALL_TYPES,
+                     iMesh::EntityTopology_ALL_TOPOLOGIES,
                      entities_tmp, entities_tmp_size);
   }
   else RETURN(iBase_FAILURE);
@@ -232,7 +232,7 @@ int AssocPairSIDL::get_all_entities(const int iface_no,
 int AssocPairSIDL::get_all_entities(const int iface_no,
                                     iBase_EntitySetHandle **entities,
                                     int *entities_alloc,
-                                    int *entities_size) 
+                                    int *entities_size)
 {
   sidl::array<iBase_EntityHandle> entities_tmp;
   int entities_tmp_size = 0;
@@ -255,14 +255,14 @@ int AssocPairSIDL::get_entities(const int iface_no,
                                 iBase_EntityHandle set_handle,
                                 iBase_EntityHandle **entities,
                                 int *entities_allocated,
-                                int *entities_size) 
+                                int *entities_size)
 {
   sidl::array<iBase_EntityHandle> entities_tmp;
   int entities_tmp_size = 0;
-  
+
   if (iface_type(iface_no) == iGeom_IFACE) {
     iGeom::EntityType this_type =
-      (-1 == dimension ? iGeom::EntityType_ALL_TYPES : 
+      (-1 == dimension ? iGeom::EntityType_ALL_TYPES :
        (iGeom::EntityType)dimension);
 
     CAST_iGeom_INTERFACE(ifaceInstances[iface_no], geom_topo, Topology,
@@ -272,13 +272,13 @@ int AssocPairSIDL::get_entities(const int iface_no,
   }
   else if (iface_type(iface_no) == iMesh_IFACE) {
     iMesh::EntityType this_type =
-      (-1 == dimension ? iMesh::EntityType_ALL_TYPES : 
+      (-1 == dimension ? iMesh::EntityType_ALL_TYPES :
        (iMesh::EntityType)dimension);
 
     CAST_iMesh_INTERFACE(ifaceInstances[iface_no], mesh, Mesh,
                          iBase_FAILURE);
     mesh.getEntities(set_handle, this_type,
-                     iMesh::EntityTopology_ALL_TOPOLOGIES, 
+                     iMesh::EntityTopology_ALL_TOPOLOGIES,
                      entities_tmp, entities_tmp_size);
   }
   else RETURN(iBase_FAILURE);
@@ -298,13 +298,13 @@ int AssocPairSIDL::get_ents_dims(const int iface_no,
                                  int entities_size,
                                  int **ent_types,
                                  int *ent_types_alloc,
-                                 int *ent_types_size) 
+                                 int *ent_types_size)
 {
   iRel_LAST_ERROR.error_type = iBase_SUCCESS;
-  
+
   if (iGeom_IFACE != iface_type(iface_no) &&
       iMesh_IFACE != iface_type(iface_no)) {
-    iRel_processError(iBase_NOT_SUPPORTED, 
+    iRel_processError(iBase_NOT_SUPPORTED,
                        "Interface should be geometry or mesh.");
     RETURN(iBase_NOT_SUPPORTED);
   }
@@ -315,9 +315,9 @@ int AssocPairSIDL::get_ents_dims(const int iface_no,
                            iBase_FAILURE);
       sidl::array<iGeom::EntityType> ent_types_tmp;
       int ent_types_tmp_size = 0;
-      geom_topo.getArrType(convert_to_sidl_vector(entities, 
-                                                  entities_size), 
-                           entities_size, 
+      geom_topo.getArrType(convert_to_sidl_vector(entities,
+                                                  entities_size),
+                           entities_size,
                            ent_types_tmp, ent_types_tmp_size);
       CHECK_SIZE_VOID(int, ent_types, ent_types_alloc,
                       ent_types_tmp_size);
@@ -337,9 +337,9 @@ int AssocPairSIDL::get_ents_dims(const int iface_no,
                            iBase_FAILURE);
       sidl::array<iMesh::EntityType> ent_types_tmp;
       int ent_types_tmp_size = 0;
-      mesh_arr.getEntArrType(convert_to_sidl_vector(entities, 
-                                                    entities_size), 
-                             entities_size, 
+      mesh_arr.getEntArrType(convert_to_sidl_vector(entities,
+                                                    entities_size),
+                             entities_size,
                              ent_types_tmp, ent_types_tmp_size);
       CHECK_SIZE_VOID(int, ent_types, ent_types_alloc,
                       ent_types_tmp_size);
@@ -353,7 +353,7 @@ int AssocPairSIDL::get_ents_dims(const int iface_no,
       RETURN(iRel_LAST_ERROR.error_type);
     }
   }
-  
+
   RETURN(iBase_SUCCESS);
 }
 
@@ -362,7 +362,7 @@ iBase_TagHandle AssocPairSIDL::tag_get_handle(const int iface_no,
                                               const int tag_size_values,
                                               const int tag_data_type,
                                               const bool create_if_missing,
-                                              void *default_val) 
+                                              void *default_val)
 {
   CAST_iBase_INTERFACE(ifaceInstances[iface_no], iface_tag, Tag,
                        NULL);
@@ -373,11 +373,11 @@ iBase_TagHandle AssocPairSIDL::tag_get_handle(const int iface_no,
   catch (iBase::Error err) {
     if (iBase::ErrorType_TAG_NOT_FOUND != err.getErrorType()) return 0;
   }
-  
+
   if (0 != this_tag || !create_if_missing) return this_tag;
-  
+
   try {
-    iface_tag.createTag(tag_name, tag_size_values, 
+    iface_tag.createTag(tag_name, tag_size_values,
                         (iBase::TagValueType)tag_data_type,
                         this_tag);
   }
@@ -385,7 +385,7 @@ iBase_TagHandle AssocPairSIDL::tag_get_handle(const int iface_no,
     iRel_processError(err.getErrorType(), err.getDescription().c_str());
     return 0;
   }
-  
+
   return this_tag;
 }
 

@@ -2,12 +2,12 @@
  * Copyright 2006 Sandia Corporation.  Under the terms of Contract
  * DE-AC04-94AL85000 with Sandia Coroporation, the U.S. Government
  * retains certain rights in this software.
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  */
 #include "iRel_Lasso.hpp"
 
@@ -31,7 +31,7 @@ void iRel_getErrorType(iRel_Instance instance, int *error_type, int *ierr)
   *error_type = iRel_LAST_ERROR.error_type;
   RETURN(iBase_SUCCESS);
 }
-  
+
 void iRel_getDescription(iRel_Instance instance, char *descr, int *ierr,
                          int descr_len)
 {
@@ -45,19 +45,19 @@ void iRel_getDescription(iRel_Instance instance, char *descr, int *ierr,
 void iRel_newRel(/* in */ const char * /* options */,
                  iRel_Instance *instance,
                  int *ierr,
-                 const int options_len) 
+                 const int options_len)
 {
   if (0 != options_len) {
     *instance = NULL;
     ERROR(iBase_NOT_SUPPORTED, "No options for iRel factory have been "
           "implemented.");
   }
-  
+
   *instance = new Lasso();
   RETURN(iBase_SUCCESS);
 }
 
-void iRel_dtor(iRel_Instance instance, int *ierr) 
+void iRel_dtor(iRel_Instance instance, int *ierr)
 {
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   delete lasso;
@@ -156,7 +156,7 @@ void iRel_findRelations(
 
 void iRel_setEntEntRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntityHandle ent1,
   iBase_EntityHandle ent2,
   int *ierr)
@@ -168,14 +168,14 @@ void iRel_setEntEntRelation (
   }
 
   int result = this_pair->set_assoc_tags(ent1, ent2);
-  
+
   // xxx - need to check whether either is a set, and act accordingly!
   RETURN(result);
 }
 
 void iRel_setEntSetRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntityHandle ent1,
   iBase_EntitySetHandle set2,
   int *ierr)
@@ -187,14 +187,14 @@ void iRel_setEntSetRelation (
   }
 
   int result = this_pair->set_assoc_tags(ent1, set2);
-  
+
   // xxx - need to check whether either is a set, and act accordingly!
   RETURN(result);
 }
 
 void iRel_setSetEntRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntitySetHandle set1,
   iBase_EntityHandle ent2,
   int *ierr)
@@ -206,14 +206,14 @@ void iRel_setSetEntRelation (
   }
 
   int result = this_pair->set_assoc_tags(set1, ent2);
-  
+
   // xxx - need to check whether either is a set, and act accordingly!
   RETURN(result);
 }
 
 void iRel_setSetSetRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntitySetHandle set1,
   iBase_EntitySetHandle set2,
   int *ierr)
@@ -225,14 +225,14 @@ void iRel_setSetSetRelation (
   }
 
   int result = this_pair->set_assoc_tags(set1, set2);
-  
+
   // xxx - need to check whether either is a set, and act accordingly!
   RETURN(result);
 }
 
 void iRel_setEntEntArrRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntityHandle ent1,
   int switch_order,
   iBase_EntityHandle *ent_array_2,
@@ -250,16 +250,16 @@ void iRel_setEntEntArrRelation (
       iRel_setEntEntRelation(instance, rel,
                              ent1, ent_array_2[i], &tmp_result);
     }
-      
+
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
-  
+
   RETURN(result);
 }
 
 void iRel_setEntSetArrRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntityHandle ent1,
   int switch_order,
   iBase_EntitySetHandle *set_array_2,
@@ -277,16 +277,16 @@ void iRel_setEntSetArrRelation (
       iRel_setEntSetRelation(instance, rel,
                              ent1, set_array_2[i], &tmp_result);
     }
-      
+
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
-  
+
   RETURN(result);
 }
 
 void iRel_setSetEntArrRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntitySetHandle set1,
   int switch_order,
   iBase_EntityHandle *ent_array_2,
@@ -304,16 +304,16 @@ void iRel_setSetEntArrRelation (
       iRel_setSetEntRelation(instance, rel,
                              set1, ent_array_2[i], &tmp_result);
     }
-      
+
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
-  
+
   RETURN(result);
 }
 
 void iRel_setSetSetArrRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntitySetHandle set1,
   int switch_order,
   iBase_EntitySetHandle *set_array_2,
@@ -331,16 +331,16 @@ void iRel_setSetSetArrRelation (
       iRel_setSetSetRelation(instance, rel,
                              set1, set_array_2[i], &tmp_result);
     }
-      
+
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
-  
+
   RETURN(result);
 }
 
 void iRel_setEntArrEntArrRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntityHandle *ent_array_1,
   int num_entities1,
   iBase_EntityHandle *ent_array_2,
@@ -351,7 +351,7 @@ void iRel_setEntArrEntArrRelation (
     ERROR(iBase_INVALID_ENTITY_COUNT, "setEntArrEntArrRelation doesn't support "
           "different #'s of entities.");
   }
-  
+
   int result = iBase_SUCCESS;
   for (int i = 0; i < num_entities1; i++) {
     int tmp_result;
@@ -359,13 +359,13 @@ void iRel_setEntArrEntArrRelation (
                            ent_array_1[i], ent_array_2[i], &tmp_result);
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
-  
+
   RETURN(result);
 }
 
 void iRel_setEntArrSetArrRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntityHandle *ent_array_1,
   int num_entities1,
   iBase_EntitySetHandle *set_array_2,
@@ -376,7 +376,7 @@ void iRel_setEntArrSetArrRelation (
     ERROR(iBase_INVALID_ENTITY_COUNT, "setEntArrSetArrRelation doesn't support "
           "different #'s of entities.");
   }
-  
+
   int result = iBase_SUCCESS;
   for (int i = 0; i < num_entities1; i++) {
     int tmp_result;
@@ -384,13 +384,13 @@ void iRel_setEntArrSetArrRelation (
                            ent_array_1[i], set_array_2[i], &tmp_result);
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
-  
+
   RETURN(result);
 }
 
 void iRel_setSetArrEntArrRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntitySetHandle *set_array_1,
   int num_sets1,
   iBase_EntityHandle *ent_array_2,
@@ -401,7 +401,7 @@ void iRel_setSetArrEntArrRelation (
     ERROR(iBase_INVALID_ENTITY_COUNT, "setSetArrEntArrRelation doesn't support "
           "different #'s of entities.");
   }
-  
+
   int result = iBase_SUCCESS;
   for (int i = 0; i < num_sets1; i++) {
     int tmp_result;
@@ -409,13 +409,13 @@ void iRel_setSetArrEntArrRelation (
                            set_array_1[i], ent_array_2[i], &tmp_result);
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
-  
+
   RETURN(result);
 }
 
 void iRel_setSetArrSetArrRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntitySetHandle *set_array_1,
   int num_sets1,
   iBase_EntitySetHandle *set_array_2,
@@ -426,7 +426,7 @@ void iRel_setSetArrSetArrRelation (
     ERROR(iBase_INVALID_ENTITY_COUNT, "setSetArrSetArrRelation doesn't support "
           "different #'s of entities.");
   }
-  
+
   int result = iBase_SUCCESS;
   for (int i = 0; i < num_sets1; i++) {
     int tmp_result;
@@ -434,13 +434,13 @@ void iRel_setSetArrSetArrRelation (
                            set_array_1[i], set_array_2[i], &tmp_result);
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
-  
+
   RETURN(result);
 }
 
 void iRel_getEntEntRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntityHandle ent1,
   int switch_order,
   iBase_EntityHandle *ent2,
@@ -451,7 +451,7 @@ void iRel_getEntEntRelation (
   if (NULL == this_pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
-  
+
   int iface_no = (switch_order ? 1 : 0);
   int result = this_pair->get_assoc_tags(iface_no, &ent1, 1, ent2);
 
@@ -460,7 +460,7 @@ void iRel_getEntEntRelation (
 
 void iRel_getEntSetRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntityHandle ent1,
   int switch_order,
   iBase_EntitySetHandle *set2,
@@ -471,7 +471,7 @@ void iRel_getEntSetRelation (
   if (NULL == this_pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
-  
+
   int iface_no = (switch_order ? 1 : 0);
   int result = this_pair->get_assoc_tags(iface_no, &ent1, 1, set2);
 
@@ -480,7 +480,7 @@ void iRel_getEntSetRelation (
 
 void iRel_getSetEntRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntitySetHandle set1,
   int switch_order,
   iBase_EntityHandle *ent2,
@@ -491,7 +491,7 @@ void iRel_getSetEntRelation (
   if (NULL == this_pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
-  
+
   int iface_no = (switch_order ? 1 : 0);
   int result = this_pair->get_assoc_tags(iface_no, &set1, 1, ent2);
 
@@ -500,7 +500,7 @@ void iRel_getSetEntRelation (
 
 void iRel_getSetSetRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntitySetHandle set1,
   int switch_order,
   iBase_EntitySetHandle *set2,
@@ -511,7 +511,7 @@ void iRel_getSetSetRelation (
   if (NULL == this_pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
-  
+
   int iface_no = (switch_order ? 1 : 0);
   int result = this_pair->get_assoc_tags(iface_no, &set1, 1, set2);
 
@@ -520,7 +520,7 @@ void iRel_getSetSetRelation (
 
 void iRel_getEntSetIterRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntityHandle ent1,
   int switch_order,
   iBase_EntityIterator *entset2,
@@ -531,7 +531,7 @@ void iRel_getEntSetIterRelation (
   if (NULL == this_pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
-  
+
   int iface_no = (switch_order ? 1 : 0);
   int result = this_pair->get_assoc_tags(iface_no, &ent1, 1, entset2);
 
@@ -540,7 +540,7 @@ void iRel_getEntSetIterRelation (
 
 void iRel_getEntEntArrRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntityHandle ent1,
   int switch_order,
   iBase_EntityHandle **ent_array_2,
@@ -557,7 +557,7 @@ void iRel_getEntEntArrRelation (
   }
 
   int iface_no = (switch_order ? 1 : 0);
-  
+
   if (this_pair->ent_or_set(!iface_no) != iRel_ENTITY) { // iface2 is sets
     iBase_EntitySetHandle ent_set2 = 0;
 
@@ -573,19 +573,19 @@ void iRel_getEntEntArrRelation (
   else {
     // otherwise put the set into the ent list
     ALLOC_CHECK_ARRAY(ent_array_2, 1);
-    iRel_getEntEntRelation(instance, rel, ent1, switch_order, 
+    iRel_getEntEntRelation(instance, rel, ent1, switch_order,
                            *ent_array_2, &result);
     if (iBase_SUCCESS != result) RETURN(result);
 
     KEEP_ARRAY(ent_array_2);
   }
-  
+
   RETURN(iBase_SUCCESS);
 }
 
 void iRel_getSetEntArrRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntitySetHandle set1,
   int switch_order,
   iBase_EntityHandle **ent_array_2,
@@ -602,7 +602,7 @@ void iRel_getSetEntArrRelation (
   }
 
   int iface_no = (switch_order ? 1 : 0);
-  
+
   if (this_pair->ent_or_set(!iface_no) != iRel_ENTITY) { // iface2 is sets
     iBase_EntitySetHandle set2 = 0;
 
@@ -617,19 +617,19 @@ void iRel_getSetEntArrRelation (
   else {
     // otherwise put the set into the ent list
     ALLOC_CHECK_ARRAY(ent_array_2, 1);
-    iRel_getSetEntRelation(instance, rel, set1, switch_order, 
+    iRel_getSetEntRelation(instance, rel, set1, switch_order,
                            *ent_array_2, &result);
     if (iBase_SUCCESS != result) RETURN(result);
 
     KEEP_ARRAY(ent_array_2);
   }
-  
+
   RETURN(iBase_SUCCESS);
 }
 
 void iRel_getEntArrEntArrRelation(
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntityHandle *ent_array_1,
   int ent_array_1_size,
   int switch_order,
@@ -665,7 +665,7 @@ void iRel_getEntArrEntArrRelation(
                 std::back_inserter(tmp_ents));
       free(tmp_array);
     }
-    
+
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
   CHK_ERROR(result);
@@ -680,7 +680,7 @@ void iRel_getEntArrEntArrRelation(
 
 void iRel_getEntArrSetArrRelation(
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntityHandle *ent_array_1,
   int ent_array_1_size,
   int switch_order,
@@ -714,7 +714,7 @@ void iRel_getEntArrSetArrRelation(
 
 void iRel_getSetArrEntArrRelation(
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntitySetHandle *set_array_1,
   int set_array_1_size,
   int switch_order,
@@ -742,7 +742,7 @@ void iRel_getSetArrEntArrRelation(
     iBase_EntityHandle *tmp_array = NULL;
     int tmp_array_size, tmp_array_allocated;
     iRel_getSetEntArrRelation(instance, rel,
-                              set_array_1[i], 
+                              set_array_1[i],
                               switch_order,
                               &tmp_array, &tmp_array_allocated,
                               &tmp_array_size, &tmp_result);
@@ -751,7 +751,7 @@ void iRel_getSetArrEntArrRelation(
                 std::back_inserter(tmp_ents));
       free(tmp_array);
     }
-    
+
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
   CHK_ERROR(result);
@@ -766,7 +766,7 @@ void iRel_getSetArrEntArrRelation(
 
 void iRel_getSetArrSetArrRelation(
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntitySetHandle *set_array_1,
   int set_array_1_size,
   int switch_order,
@@ -799,7 +799,7 @@ void iRel_getSetArrSetArrRelation(
 
 void iRel_getEntArrSetIterArrRelation (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntityHandle *ent_array_1,
   int ent_array_1_size,
   int switch_order,
@@ -990,7 +990,7 @@ iRel_inferSetArrSetArrRelations(Lasso *lasso,
 
 {
   iRel_inferArrArrRelations(lasso, assoc_pair, (iBase_EntityHandle*)ents1,
-                            ents1_size, 1, (iBase_EntityHandle*)ents2, 
+                            ents1_size, 1, (iBase_EntityHandle*)ents2,
                             ents2_size, 1, ierr);
 }
 
@@ -1017,7 +1017,7 @@ void iRel_inferAllRelations (
     result = this_pair->get_all_entities(0, -1, &ents1, &ents1_alloc,
                                          &ents1_size);
   CHK_ERROR(result);
-  
+
   iBase_EntityHandle *ents2 = NULL;
   int ents2_alloc = 0, ents2_size;
   if (this_pair->ent_or_set(1) != iRel_ENTITY)
@@ -1027,8 +1027,8 @@ void iRel_inferAllRelations (
   result = this_pair->get_all_entities(1, -1, &ents2, &ents2_alloc,
                                        &ents2_size);
   CHK_ERROR(result);
-  
-  iRel_inferArrArrRelations(lasso, this_pair, 
+
+  iRel_inferArrArrRelations(lasso, this_pair,
                             ents1, ents1_size, this_pair->ent_or_set(0),
                             ents2, ents2_size, this_pair->ent_or_set(1),
                             &result);
@@ -1047,7 +1047,7 @@ void iRel_inferAllRelationsAndType (
 
 void iRel_inferEntRelations (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntityHandle entity,
   int iface_no,
   int *ierr)
@@ -1057,7 +1057,7 @@ void iRel_inferEntRelations (
 
 void iRel_inferSetRelations (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntitySetHandle entity,
   int iface_no,
   int *ierr)
@@ -1067,7 +1067,7 @@ void iRel_inferSetRelations (
 
 static void iRel_inferArrRelations (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntityHandle *entities,
   int entities_size,
   bool is_set,
@@ -1088,7 +1088,7 @@ static void iRel_inferArrRelations (
     ERROR(iBase_INVALID_ARGUMENT, "is_set must match entOrSet in call to "
           "inferArrRelations");
   }
-  
+
   // get all entities in iface2
   int result;
   iBase_EntityHandle *ents1 = entities;
@@ -1096,11 +1096,11 @@ static void iRel_inferArrRelations (
   iBase_EntityHandle *ents2 = NULL;
   int ents2_alloc = 0, ents2_size;
   if (this_pair->ent_or_set(1-iface_no) != iRel_ENTITY)
-    result = this_pair->get_all_sets(!iface_no, 
-                                     (iBase_EntitySetHandle**)&ents2, 
+    result = this_pair->get_all_sets(!iface_no,
+                                     (iBase_EntitySetHandle**)&ents2,
                                      &ents2_alloc, &ents2_size);
   else
-    result = this_pair->get_all_entities(!iface_no, -1, 
+    result = this_pair->get_all_entities(!iface_no, -1,
                                          &ents2, &ents2_alloc, &ents2_size);
   CHK_ERROR(result);
 
@@ -1110,21 +1110,21 @@ static void iRel_inferArrRelations (
     std::swap(ents1, ents2);
     std::swap(ents1_size, ents2_size);
   }
-  
+
   iRel_inferArrArrRelations(lasso, this_pair,
-                            ents1, ents1_size, 
+                            ents1, ents1_size,
                             this_pair->ent_or_set(0),
-                            ents2, ents2_size, 
+                            ents2, ents2_size,
                             this_pair->ent_or_set(1), &result);
 
   free(1 == iface_no ? ents1 : ents2);
-  
+
   RETURN(result);
 }
 
 void iRel_inferEntArrRelations (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntityHandle *entities,
   int entities_size,
   int iface_no,
@@ -1136,7 +1136,7 @@ void iRel_inferEntArrRelations (
 
 void iRel_inferSetArrRelations (
   iRel_Instance instance,
-  iRel_RelationHandle rel,    
+  iRel_RelationHandle rel,
   iBase_EntitySetHandle *entities,
   int entities_size,
   int iface_no,

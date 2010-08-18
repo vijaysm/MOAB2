@@ -39,7 +39,7 @@ void handle_error_code(const bool result,
     number_successful++;
   }
   else {
-    cout << "Failure";    
+    cout << "Failure";
     number_failed++;
   }
 }
@@ -51,7 +51,7 @@ void handle_error_code(const bool result,
            return false; }
 
 
-bool print_geom_info(iGeom::Geometry &geom, 
+bool print_geom_info(iGeom::Geometry &geom,
                      iRel_EntityHandle *gentities,
                      int gentities_size)
 {
@@ -82,10 +82,10 @@ bool print_geom_info(iGeom::Geometry &geom,
     const char *type_names[] = {"Vertex", "Edge", "Face", "Region"};
     printf("%s %d\n", type_names[ent_type], gid);
   }
-  
+
   return 1;
 }
-  
+
 bool print_mesh_info(iMesh::Mesh &mesh, iRel_EntityHandle *mentities,
                      int mentities_size, bool is_set)
 {
@@ -97,21 +97,21 @@ bool print_mesh_info(iMesh::Mesh &mesh, iRel_EntityHandle *mentities,
   CAST_iBase_INTERFACE(mesh, mesh_eset, EntSet, false);
 
   for (int m = 0; m < mentities_size; m++) {
-    
+
       // get adjacencies first; assume not more than 50
     sidl::array<iRel_EntityHandle> adj_ents = adj_ents.create1d(50);
     sidl::array<iMesh::EntityType> ent_types;
     int adj_ents_size, ent_types_size = 0;
     if (!is_set) {
       try {
-        mesh_ent.getEntAdj(mentities[m], iMesh::EntityType_ALL_TYPES, 
+        mesh_ent.getEntAdj(mentities[m], iMesh::EntityType_ALL_TYPES,
                            adj_ents, adj_ents_size);
 
         assert(adj_ents_size < 50);
-    
+
           // put this ent on the end, then get types
         adj_ents.set(adj_ents_size, mentities[m]);
-        mesh_arr.getEntArrType(adj_ents, adj_ents_size+1, 
+        mesh_arr.getEntArrType(adj_ents, adj_ents_size+1,
                                ent_types, ent_types_size);
       }
       catch (iBase::Error err) {
@@ -120,7 +120,7 @@ bool print_mesh_info(iMesh::Mesh &mesh, iRel_EntityHandle *mentities,
         return false;
       }
     }
-  
+
       // get tags on mentities[m]
     sidl::array<iBase_TagHandle> ment_tags;
     int ment_tags_size;
@@ -128,7 +128,7 @@ bool print_mesh_info(iMesh::Mesh &mesh, iRel_EntityHandle *mentities,
     if (!is_set) {
       try {
         mesh_etag.getAllTags(mentities[m], ment_tags, ment_tags_size);
-    
+
           // while we're at it, get all the tag names
         for (int i = 0; i < ment_tags_size; i++)
           tag_names.push_back(mesh_etag.getTagName(ment_tags.get(i)));
@@ -142,7 +142,7 @@ bool print_mesh_info(iMesh::Mesh &mesh, iRel_EntityHandle *mentities,
     else {
       try {
         mesh_stag.getAllEntSetTags(mentities[m], ment_tags, ment_tags_size);
-    
+
           // while we're at it, get all the tag names
         for (int i = 0; i < ment_tags_size; i++)
           tag_names.push_back(mesh_etag.getTagName(ment_tags.get(i)));
@@ -153,14 +153,14 @@ bool print_mesh_info(iMesh::Mesh &mesh, iRel_EntityHandle *mentities,
         return false;
       }
     }
-  
+
       // now print the information
     const char *type_names[] = {"Vertex", "Edge", "Face", "Region"};
     if (!is_set)
       cout << type_names[ent_types.get(ent_types_size)];
     else
       cout << "Set";
-  
+
     cout << " " << (unsigned long)mentities[m] << ": " << endl;
     if (!is_set) {
       cout << "Adjacencies: ";
@@ -169,9 +169,9 @@ bool print_mesh_info(iMesh::Mesh &mesh, iRel_EntityHandle *mentities,
         cout << type_names[ent_types.get(ent_types_size)] << " " << (long)adj_ents.get(i);
       }
     }
-  
+
     std::vector<std::string> opaque_tags;
-  
+
     for (int i = 0; i < ment_tags_size; i++) {
       iBase::TagValueType tag_type;
       try {
@@ -180,11 +180,11 @@ bool print_mesh_info(iMesh::Mesh &mesh, iRel_EntityHandle *mentities,
       catch (iBase::Error) {
         cout << "(trouble getting type...)" << endl;
       }
-      if (tag_type != iBase::TagValueType_BYTES) 
+      if (tag_type != iBase::TagValueType_BYTES)
         cout << tag_names[i] << " ";
       else opaque_tags.push_back(tag_names[i]);
-    
-      try {      
+
+      try {
         switch (tag_type) {
           case iBase::TagValueType_INTEGER:
             cout << "(Int value=";
@@ -225,11 +225,11 @@ bool print_mesh_info(iMesh::Mesh &mesh, iRel_EntityHandle *mentities,
 
     cout << endl;
   }
-  
+
   return true;
 }
 
-bool print_entity_info(sidl::BaseInterface &iface, 
+bool print_entity_info(sidl::BaseInterface &iface,
                        iRel_EntityHandle *entities,
                        int entities_size, bool is_set)
 {
@@ -250,27 +250,27 @@ bool print_entity_info(sidl::BaseInterface &iface,
   }
   catch (iBase::Error err) {
   }
-  
+
   return false;
 }
-    
+
 bool get_gentities(iGeom::Geometry &geom,
                    const int low_dim, const int high_dim,
                    sidl::array<iRel_EntityHandle> &gents,
-                   int &gents_size) 
+                   int &gents_size)
 {
   assert (ARRAY_SIZE(gents) == 0);
   CAST_iGeom_INTERFACE(geom, geom_topo, Topology, false);
-  
+
     // get all the gentities in the model
-  
+
   std::vector<iRel_EntityHandle> gents_vec;
   for (int dim = high_dim; dim >= low_dim; dim--) {
     sidl::array<iRel_EntityHandle> these_gents;
     int these_gents_size = 0;
     try {
         // get all entities of this dimension
-      geom_topo.getEntities(0, (iGeom::EntityType)dim, 
+      geom_topo.getEntities(0, (iGeom::EntityType)dim,
                             these_gents, these_gents_size);
     }
     catch (iBase::Error err) {
@@ -278,11 +278,11 @@ bool get_gentities(iGeom::Geometry &geom,
       cerr << "Description: " << err.getDescription() << endl;
       return false;
     }
-    std::copy(ARRAY_PTR(these_gents, iRel_EntityHandle), 
+    std::copy(ARRAY_PTR(these_gents, iRel_EntityHandle),
               ARRAY_PTR(these_gents, iRel_EntityHandle)+these_gents_size,
               std::back_inserter(gents_vec));
   }
-  
+
   CHECK_SIZE(gents, (int) gents_vec.size());
   std::copy(gents_vec.begin(), gents_vec.end(), ARRAY_PTR(gents, iRel_EntityHandle));
   gents_size = (int) gents_vec.size();
@@ -307,12 +307,12 @@ bool project_to_geom(iGeom::Geometry &geom,
       return false;
     }
   }
-  
+
   return true;
 }
 
 /*!
-  @test 
+  @test
   Load Mesh
   @li Load a geom and a mesh file
 */
@@ -353,7 +353,7 @@ bool load_geom_mesh_test(const std::string geom_filename,
     int gentities_size = 0;
     CAST_iGeom_INTERFACE(geom, geom_topo, Topology, false);
     try {
-      geom_topo.getEntities(NULL, iGeom::EntityType_ALL_TYPES, 
+      geom_topo.getEntities(NULL, iGeom::EntityType_ALL_TYPES,
                             gentities, gentities_size);
     } catch (iBase::Error err) {
       return false;
@@ -361,7 +361,7 @@ bool load_geom_mesh_test(const std::string geom_filename,
 
     print_geom_info(geom, ARRAY_PTR(gentities, iRel_EntityHandle),
                     gentities_size);
-    
+
     cout << endl << endl << "Mesh: " << endl;
     sidl::array<iRel_EntityHandle> mentities;
     int mentities_size;
@@ -374,7 +374,7 @@ bool load_geom_mesh_test(const std::string geom_filename,
     print_mesh_info(mesh, ARRAY_PTR(mentities, iRel_EntityHandle),
                     mentities_size, true);
   }
-  
+
   return true;
 }
 
@@ -384,7 +384,7 @@ bool check_inferred_associations(iRel::Associate &lasso,
                                  sidl::array<iRel_EntityHandle> &ents1,
                                  int ents1_size,
                                  bool is_set1, bool is_set2,
-                                 const char *assoc_string) 
+                                 const char *assoc_string)
 {
   sidl::array<iRel_EntityHandle> other_entities;
   sidl::array<int> offset;
@@ -395,13 +395,13 @@ bool check_inferred_associations(iRel::Associate &lasso,
                             other_entities, other_entities_size,
                             offset, offset_size);
   } catch (iBase::Error err) {
-    cerr << "Failed to check " << assoc_string 
+    cerr << "Failed to check " << assoc_string
          << " vertex associations." << std::endl;
     cerr << "Description: " << err.getDescription() << endl;
     return false;
   }
   if (other_entities_size != ents1_size) {
-    cerr << assoc_string << " association check returned wrong # entities." 
+    cerr << assoc_string << " association check returned wrong # entities."
          << endl;
     return false;
   }
@@ -429,7 +429,7 @@ bool relate_geom_mesh_test(iRel::Associate &lasso,
   CAST_iBase_INTERFACE(mesh, mesh_stag, SetTag, false);
   CAST_iBase_INTERFACE(mesh, mesh_atag, ArrTag, false);
   CAST_iRel_INTERFACE(lasso, assoc_infer, Infer, false);
-  
+
 
     // create an association pair between geometry and mesh interfaces
   try {
@@ -464,11 +464,11 @@ bool relate_geom_mesh_test(iRel::Associate &lasso,
   }
 
     // check inferred associations
-  bool success = check_inferred_associations(lasso, geom, mesh, 
+  bool success = check_inferred_associations(lasso, geom, mesh,
                                              gentities, gentities_size,
                                              false, true, "vertex");
   if (!success) return success;
-  
+
     // TEST 2: infer associations for 1-d mesh sets
     // get 1-dimensional mesh entitysets
   sidl::array<iRel_EntityHandle> mentity_handles;
@@ -508,7 +508,7 @@ bool relate_geom_mesh_test(iRel::Associate &lasso,
     catch (iBase::Error err) {
       continue;
     }
-    
+
     if (dim == 1) {
       mentities_vector.push_back(mentity);
       n_mentities++;
@@ -537,7 +537,7 @@ bool relate_geom_mesh_test(iRel::Associate &lasso,
   }
 
     // check inferred associations
-  success = check_inferred_associations(lasso, mesh, geom, 
+  success = check_inferred_associations(lasso, mesh, geom,
                                         mentities, mentities_size,
                                         true, false,
                                         "1d mentity set");
@@ -564,10 +564,10 @@ bool relate_geom_mesh_test(iRel::Associate &lasso,
     geom_topo.getEntities
       (NULL, iGeom::EntityType_ALL_TYPES, gentities2, gentities2_size);
     lasso.getArrAssociation(geom, mesh, gentities2, gentities2_size, 0, 1,
-                            mentities2, mentities2_size, 
+                            mentities2, mentities2_size,
                             offsets, offsets_size);
     lasso.getArrAssociation(mesh, geom, mentities2, mentities2_size, 1, 0,
-                            gentities3, gentities3_size, 
+                            gentities3, gentities3_size,
                             offsets2, offsets2_size);
   } catch (iBase::Error err) {
     std::cerr << "Failed to reverse-check all associations in relate_geom_mesh_test."
@@ -585,12 +585,12 @@ bool relate_geom_mesh_test(iRel::Associate &lasso,
   int num_disagree = 0;
   for (int i = 0; i < gentities3_size; i++)
     if (gentities2[i] != gentities3[i]) num_disagree++;
-    
+
   if (num_disagree) {
     cerr << num_disagree << " entities don't agree between 2 geom entity lists." << endl;
     return false;
   }
-  
+
   return true;
 }
 
@@ -620,14 +620,14 @@ bool query_relations_test(iRel::Associate &lasso,
   }
 
     // get corresponding mesh entities
-  sidl::array<iRel_EntityHandle> out_mentities = 
+  sidl::array<iRel_EntityHandle> out_mentities =
     out_mentities.create1d(gentities_size);
   int out_mentities_size;
   sidl::array<int> offsets;
   int offsets_size = 0;
-  
+
   try {
-    lasso.getArrAssociation(geom, mesh, 
+    lasso.getArrAssociation(geom, mesh,
                             gentities, gentities_size, 0, 1,
                             out_mentities, out_mentities_size,
                             offsets, offsets_size);
@@ -635,7 +635,7 @@ bool query_relations_test(iRel::Associate &lasso,
     cerr << "Failed to get mesh entities related to geom entities in query_relations_test."
          << endl;
     cerr << "Description: " << err.getDescription();
-    
+
     for (int i = 0; i < gentities_size; i++) {
       if (out_mentities.get(i) == 0) {
         print_geom_info(geom, ARRAY_PTR(gentities, iRel_EntityHandle)+i, 1);
@@ -650,7 +650,7 @@ bool query_relations_test(iRel::Associate &lasso,
     cerr << "Number of geom & related mesh entities don't match." << endl;
     return false;
   }
-  
+
     // check to make sure they're mesh sets; how to do that?
   bool is_list;
   for (int i = 0; i < out_mentities_size; i++) {
@@ -659,26 +659,26 @@ bool query_relations_test(iRel::Associate &lasso,
                 << std::endl;
       return false;
     }
-    
+
     try {
       is_list = mesh_eset.isList(out_mentities[i]);
     }
     catch (iBase::Error err) {
       if (iBase::ErrorType_SUCCESS != err.getErrorType()) {
-        std::cerr << "Entity set returned from classification wasn't valid." 
+        std::cerr << "Entity set returned from classification wasn't valid."
                   << std::endl;
         std::cerr << "Description: " << err.getDescription() << std::endl;
         return false;
       }
     }
   }
-  
+
     // now turn around and check classification of those mesh entities
   sidl::array<iRel_EntityHandle> out_gentities;
   int out_gentities_size;
-  
+
   try {
-    lasso.getArrAssociation(mesh, geom, 
+    lasso.getArrAssociation(mesh, geom,
                             out_mentities, out_mentities_size, 1, 0,
                             out_gentities, out_gentities_size,
                             offsets, offsets_size);
@@ -694,7 +694,7 @@ bool query_relations_test(iRel::Associate &lasso,
     cerr << "Number of mesh & related geom entities don't match." << endl;
     return false;
   }
-  
+
     // ok, we're done
   return true;
 }
@@ -711,18 +711,18 @@ bool move_to_test(iRel::Associate &lasso,
   CAST_iBase_INTERFACE(mesh, mesh_eset, EntSet, false);
   CAST_iBase_INTERFACE(mesh, mesh_tag, Tag, false);
   CAST_iBase_INTERFACE(mesh, mesh_stag, SetTag, false);
-  
+
     // get all gvertices, gedges, gfaces
   sidl::array<iRel_EntityHandle> geom_ents;
   int geom_ents_size;
   bool success = get_gentities(geom, 0, 2, geom_ents, geom_ents_size);
   if (!success) return false;
-  
+
     // project mesh down to geometry for those entities
   success = project_to_geom(geom, mesh, lasso, geom_ents, geom_ents_size);
 
   if (!success) return false;
-  
+
   return true;
 }
 
@@ -800,9 +800,9 @@ int main( int argc, char *argv[] )
        << "   Number Tests:           " << number_tests << "\n"
        << "   Number Successful:      " << number_tests_successful << "\n"
        << "   Number Not Implemented: " << number_tests_not_implemented << "\n"
-       << "   Number Failed:          " << number_tests_failed 
+       << "   Number Failed:          " << number_tests_failed
        << "\n\n" << endl;
-  
+
   return 0;
 }
 

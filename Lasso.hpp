@@ -7,7 +7,7 @@
 
 class AssocPair;
 
-class Lasso 
+class Lasso
 {
 public:
   Lasso(){}
@@ -21,7 +21,7 @@ public:
 
   AssocPair *find_pair(IfaceType type1, IfaceType type2,
                        bool *switched = NULL);
-  
+
   void find_pairs(void *iface, std::vector<AssocPair*> &iface_pairs);
 
   int insert_pair(AssocPair *this_pair);
@@ -31,4 +31,3 @@ private:
 };
 
 #endif // #ifndef LASSO_HPP
-

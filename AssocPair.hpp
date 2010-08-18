@@ -6,26 +6,26 @@
 
 class Lasso;
 
-class AssocPair 
+class AssocPair
 {
 public:
   friend class Lasso;
-  
+
   IfaceType iface_type(const int iface_no);
   RelationType ent_or_set(const int iface_no);
 
   virtual iBase_Instance iface_instance(const int iface_no) = 0;
-  
+
   bool equivalent(IfaceType type1, IfaceType type2,
                   bool *order_switched = NULL);
 
   virtual bool equivalent(iBase_Instance iface1, iBase_Instance iface2,
                           bool *order_switched = NULL) = 0;
-  
+
   virtual bool contains(iBase_Instance iface) = 0;
-  
+
   virtual bool same_interface(iBase_Instance iface1, iBase_Instance iface2) = 0;
-  
+
   virtual int get_all_entities(const int iface_no,
                                const int dimension,
                                iBase_EntityHandle **entities,
@@ -130,7 +130,7 @@ protected:
   virtual int tag_destroy(const int iface_no, iBase_TagHandle tag_handle) = 0;
 private:
   AssocPair();
-  
+
   Lasso *myLasso;
   int pairId;
 

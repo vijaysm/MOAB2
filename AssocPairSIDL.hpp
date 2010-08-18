@@ -5,7 +5,7 @@
 #include "sidl.h"
 #include "sidl_BaseInterface_IOR.h"
 
-class AssocPairSIDL : public AssocPair 
+class AssocPairSIDL : public AssocPair
 {
 public:
   AssocPairSIDL(::sidl::BaseInterface iface1,
@@ -15,14 +15,14 @@ public:
                 Lasso *lasso);
 
   virtual ~AssocPairSIDL();
-  
+
   virtual bool equivalent(iBase_Instance iface1, iBase_Instance iface2,
                           bool *order_switched = NULL);
-  
+
   virtual bool contains(iBase_Instance iface);
-  
+
   virtual bool same_interface(iBase_Instance iface1, iBase_Instance iface2);
-  
+
   virtual int get_all_entities(const int iface_no,
                                const int dimension,
                                iBase_EntityHandle **entities,

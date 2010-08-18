@@ -10,24 +10,24 @@ Lasso::~Lasso()
 
 //! find a pair equivalent to these ifaces, passed as pointer to
 //! SIDL interface or interface instance
-AssocPair *Lasso::find_pair(void *iface0, void *iface1, bool *switched) 
+AssocPair *Lasso::find_pair(void *iface0, void *iface1, bool *switched)
 {
   for (std::set<AssocPair*>::iterator i = assocPairs.begin();
        i != assocPairs.end(); ++i) {
     if ((*i)->equivalent(iface0, iface1, switched)) return *i;
   }
-  
+
   return NULL;
 }
 
 //! find a pair with the right types
-AssocPair *Lasso::find_pair(IfaceType type1, IfaceType type2, bool *switched) 
+AssocPair *Lasso::find_pair(IfaceType type1, IfaceType type2, bool *switched)
 {
   for (std::set<AssocPair*>::iterator i = assocPairs.begin();
        i != assocPairs.end(); ++i) {
     if ((*i)->equivalent(type1, type2, switched)) return *i;
   }
-  
+
   return NULL;
 }
 
@@ -45,11 +45,11 @@ int Lasso::insert_pair(AssocPair *this_pair)
   return iBase_SUCCESS;
 }
 
-int Lasso::erase_pair(AssocPair *this_pair) 
+int Lasso::erase_pair(AssocPair *this_pair)
 {
   if (assocPairs.erase(this_pair) == 0)
     return iBase_FAILURE;
-  
+
   // If the pair was removed, then delete it too
   delete this_pair;
   return iBase_SUCCESS;
