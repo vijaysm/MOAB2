@@ -1,16 +1,30 @@
-/**
- * MOAB, a Mesh-Oriented datABase, is a software component for creating,
- * storing and accessing finite element mesh data.
- * 
- * Copyright 2004 Sandia Corporation.  Under the terms of Contract
- * DE-AC04-94AL85000 with Sandia Coroporation, the U.S. Government
- * retains certain rights in this software.
- * 
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- * 
+/** \mainpage The Mesh-Oriented datABase (MOAB)
+ *
+ * MOAB is a component for representing and evaluating mesh data.  MOAB can store 
+ * structured and unstructured mesh, consisting of elements in the finite element “zoo”, 
+ * along with polygons and polyhedra.  The functional interface to MOAB is simple, consisting 
+ * of only four fundamental data types.  This data is quite powerful, allowing the representation 
+ * of most types of metadata commonly found on the mesh.  MOAB is optimized for efficiency in 
+ * space and time, based on access to mesh in chunks rather than through individual entities, 
+ * while also versatile enough to support individual entity access.
+ *
+ * The MOAB data model consists of the following four fundamental types: mesh interface instance, 
+ * mesh entities (vertex, edge, tri, etc.), sets, and tags.  Entities are addressed through handles 
+ * rather than pointers, to allow the underlying representation of an entity to change without 
+ * changing the handle to that entity.  Sets are arbitrary groupings of mesh entities and other 
+ * sets.  Sets also support parent/child relationships as a relation distinct from sets containing 
+ * other sets.  The directed-graph provided by set parent/child relationships is useful for modeling 
+ * topological relations from a geometric model and other metadata.  Tags are named data which can 
+ * be assigned to the mesh as a whole, individual entities, or sets.  Tags are a mechanism for 
+ * attaching data to individual entities and sets are a mechanism for describing relations between 
+ * entities; the combination of these two mechanisms is a powerful yet simple interface for 
+ * representing metadata or application-specific data.  For example, sets and tags can be used 
+ * together to describe geometric topology, boundary condition, and inter-processor interface 
+ * groupings in a mesh.
+ *
+ * MOAB's API is documented in the moab::Interface class.  The User's Guide is located in
+ * doc/MOABv4-UG.doc in MOAB's source tree.  Questions and comments should be sent to moab-dev 
+ * _at_ mcs.anl.gov.
  */
 
 #ifndef MOAB_INTERFACE_HPP

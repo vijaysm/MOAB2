@@ -2183,6 +2183,7 @@ ErrorCode Core::merge_entities( EntityHandle entity_to_keep,
 ErrorCode Core::delete_entities(const Range &range)
 {
   ErrorCode result = MB_SUCCESS, temp_result;
+  Range failed_ents;
   
   for (Range::const_reverse_iterator rit = range.rbegin(); rit != range.rend(); rit++) {
     
@@ -2190,6 +2191,7 @@ ErrorCode Core::delete_entities(const Range &range)
     temp_result = aEntityFactory->notify_delete_entity(*rit);
     if (MB_SUCCESS != temp_result) {
       result = temp_result;
+      failed_ents.insert(*rit);
       continue;
     }
 
@@ -2197,6 +2199,7 @@ ErrorCode Core::delete_entities(const Range &range)
     temp_result = tagServer->reset_data(*rit);
     if (MB_SUCCESS != temp_result) {
       result = temp_result;
+      failed_ents.insert(*rit);
       continue;
     }
 
@@ -2213,14 +2216,16 @@ ErrorCode Core::delete_entities(const Range &range)
           remove_parent_meshset( rel[j], *rit );
       }
     }
-
-      // now delete the entity
-    temp_result = sequence_manager()->delete_entity(*rit);
-    if (MB_SUCCESS != temp_result) {
-      result = temp_result;
-      continue;
-    }
   }
+
+  if (!failed_ents.empty()) {
+    Range dum_range = subtract(range, failed_ents);
+      // don't test for success, since we'll return failure in this case
+    sequence_manager()->delete_entities(range);
+  }
+  else
+      // now delete the entities
+    result = sequence_manager()->delete_entities(range);
 
   return result;
 }

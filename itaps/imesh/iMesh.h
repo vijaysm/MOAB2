@@ -13,7 +13,7 @@
    * to this interface, for example mesh smoothing, adaptive mesh refinement,
    * and parallel mesh support.
    *
-   * \section ITAPS Data Model
+   * \section DataModel Data Model
    *
    * The ITAPS interfaces use a data model composed of four basic data types: \n
    * \em Entity: basic topological entities in a mesh, e.g. vertices, 
@@ -37,14 +37,14 @@
    * types, Entity Type in the iBase_EntityType enumeration, and
    * Entity Topology in the iMesh_EntityTopology enumeration.
    *
-   * \section KTAPS Entity-, Array-, and Iterator-Based Access
+   * \section Access Entity-, Array-, and Iterator-Based Access
    *
    * The iMesh interface provides functions for accessing entities
    * individually, as arrays of entities, or using iterators.  These access
    * methods have different memory versus execution time tradeoffs, 
    * depending on the implementation.
    *
-   * \section LTAPS Lists Passed Through Interface
+   * \section Lists Lists Passed Through Interface
    *
    * Many of the functions in iMesh have arguments corresponding to lists of 
    * objects.  In-type arguments for lists consist of a pointer to an array and
