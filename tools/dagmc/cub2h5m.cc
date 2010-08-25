@@ -1,6 +1,7 @@
 #include "GeometryQueryTool.hpp"
 #include "InitCGMA.hpp"
 #include "CGMApp.hpp"
+#include "moab/CN.hpp"
 #include "moab/Core.hpp"
 #include "moab/CartVect.hpp"
 #include "cubfile.h"
@@ -332,51 +333,30 @@ ErrorCode orient_faces_outward( Interface *MBI, const Range faces,
     if(MB_SUCCESS != result) return result;
     if(1 != adj_elem.size()) return MB_INVALID_SIZE;
         
-    // get center of element
+    // get connectivity for element and face
     const EntityHandle *elem_conn;
-    int n_nodes;   
-    result = MBI->get_connectivity( adj_elem.front(), elem_conn, n_nodes );
+    int elem_n_nodes;   
+    result = MBI->get_connectivity( adj_elem.front(), elem_conn, elem_n_nodes );
     if(MB_SUCCESS != result) return result;
-    CartVect elem_coords[n_nodes];
-    result = MBI->get_coords( elem_conn, n_nodes, elem_coords[0].array() );
-    if(MB_SUCCESS != result) return result;
-    CartVect elem_center(0.0);
-    for(int j=0; j<n_nodes; ++j) elem_center += elem_coords[j];
-    elem_center /= n_nodes;
-
-    // get the center of the face
     const EntityHandle *face_conn;
-    result = MBI->get_connectivity( *i, face_conn, n_nodes );
+    int face_n_nodes;
+    result = MBI->get_connectivity( *i, face_conn, face_n_nodes );
     if(MB_SUCCESS != result) return result;
-    CartVect face_coords[n_nodes];
-    result = MBI->get_coords( face_conn, n_nodes, face_coords[0].array() );
-    if(MB_SUCCESS != result) return result;
-    assert(4 == n_nodes);
-    CartVect face_center(0.0);
-    for(int j=0; j<n_nodes; ++j) face_center += face_coords[j];
-    face_center /= n_nodes;
-    if(debug) std::cout << "      center of mesh face exposed by dead element=" 
-                        << face_center << std::endl;
 
-    // get the normal of the face
-    CartVect face_normal, a, b;
-    a = face_coords[2] - face_coords[1];
-    b = face_coords[0] - face_coords[1];
-    face_normal = a*b;
-    face_normal.normalize();
+    // Get the sense of the face wrt the element
+    EntityType elem_type = MBI->type_from_handle(adj_elem.front());
+    EntityType face_type = MBI->type_from_handle(*i);
+    int side_num, offset;
+    int sense = 0; 
+    const int face_dim = CN::Dimension(face_type); 
+    int rval = CN::SideNumber( elem_type, elem_conn, face_conn, face_n_nodes, 
+                             face_dim, side_num, sense, offset );
+    if(0 != rval) return MB_FAILURE;
 
-    // get the direction into the element
-    CartVect elem_dir = elem_center - face_center;
-    elem_dir.normalize();
-
-    // the dot product of the face_normal and elem_dir should be ~-1 if the face
-    // is oriented outward wrt the elem.
-    double dot_prod = face_normal % elem_dir;
-    
     // If the face is not oriented outward wrt the element, reverse it
-    if(0 < dot_prod) {
+    if(-1 == sense) {
       EntityHandle new_face_conn[4] = { face_conn[3], face_conn[2], 
-                                          face_conn[1], face_conn[0] };
+                                        face_conn[1], face_conn[0] };
       result = MBI->set_connectivity( *i, new_face_conn, 4 );
       if(MB_SUCCESS != result) return result;
     }
@@ -1103,12 +1083,12 @@ int main( int argc, char* argv[] )
   double dist_tol = 0.001, len_tol = 0.0;
   int norm_tol = 5;
 
-  if(5!=argc && 8!=argc)
+  if(6!=argc && 9!=argc)
     {
       std::cerr << "To read meshed geometry for DagMC:" << std::endl;
-      std::cerr << "$> <cub_file.cub> <acis_file.sat> <output_file.h5m> conserve_mass<bool>" << std::endl;
+      std::cerr << "$> <cub_file.cub> <acis_file.sat> <facet_tol> <output_file.h5m> conserve_mass<bool>" << std::endl;
       std::cerr << "To read meshed geometry for DagMC and update node coordinates:" << std::endl;
-      std::cerr << "$> <cub_file.cub> <acis_file.sat> <output_file.h5m> <deformed_exo_file.e> time_step<int> check_vol_change<bool> conserve_mass<bool>" 
+      std::cerr << "$> <cub_file.cub> <acis_file.sat> <facet_tol> <output_file.h5m> <deformed_exo_file.e> time_step<int> check_vol_change<bool> conserve_mass<bool>" 
 		<< std::endl;
       exit(4);
     }
@@ -1127,40 +1107,47 @@ int main( int argc, char* argv[] )
     std::cerr << "sat_file does not have correct suffix" << std::endl;
     return 1;
   }
-  out_name = argv[3];
+  out_name = argv[4];
   temp.assign(out_name);
   if(std::string::npos == temp.find(".h5m")) {
     std::cerr << "out_file does not have correct suffix" << std::endl;
     return 1;
   }
 
+  // get the facet tolerance
+  dist_tol = atof(argv[3]);
+  if(0>dist_tol || 1<dist_tol) {
+    std::cout << "error: facet_tolerance=" << dist_tol << std::endl;
+    return 1;
+  }
+
   // Should the nodes be updated?
   bool update_coords = false;
-  if(8 == argc) {
-    exo_name = argv[4];
+  if(9 == argc) {
+    exo_name = argv[5];
     temp.assign(exo_name);
     if(std::string::npos == temp.find(".e")) {
       std::cerr << "e_file does not have correct suffix" << std::endl;
       return 1;
     }
-    time_step= argv[5];
+    time_step= argv[6];
     update_coords = true;
   }
 
   // Should the volume change be determined?
   bool determine_volume_change = false;
-  if(7 == argc) {
-    temp.assign(argv[6]);
+  if(9 == argc) {
+    temp.assign(argv[7]);
     if(std::string::npos != temp.find("true")) determine_volume_change = true;
   }
   
   // Should densities be changed to conserve mass?
   bool conserve_mass = false;
-  if(8 == argc) {
-    temp.assign(argv[7]);
+  if(9 == argc) {
+    temp.assign(argv[8]);
     if(std::string::npos != temp.find("true")) conserve_mass = true;
-  } else if (5==argc) {
-    temp.assign(argv[4]);
+  } else if (6==argc) {
+    temp.assign(argv[5]);
     if(std::string::npos != temp.find("true")) conserve_mass = true;
   }
 
@@ -1193,6 +1180,7 @@ int main( int argc, char* argv[] )
 
   // Read the ACIS file with ReadCGM
   char cgm_options[256];
+  std::cout << "  facet tolerance=" << dist_tol << std::endl;
   sprintf(cgm_options,
 	  "CGM_ATTRIBS=yes;FACET_DISTANCE_TOLERANCE=%g;FACET_NORMAL_TOLERANCE=%d;MAX_FACET_EDGE_LENGTH=%g;",
 	  dist_tol,norm_tol,len_tol); 
