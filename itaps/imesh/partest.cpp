@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "moab_mpi.h"
-#include "iMesh.h"
+#include "iMeshP.h"
 
 
 #define IMESH_ASSERT(ierr) if (ierr!=0) printf("imesh assert\n");
@@ -13,24 +13,28 @@ int main(int argc, char* argv[]){
   printf("Hello\n");
 
   iMesh_Instance imesh;
+  iMeshP_PartitionHandle partn;
   int ierr, num_sets;
 
-
+  iBase_EntitySetHandle root;
   imesh = IMESH_NULL;
-  iMesh_newMesh("PARALLEL", &imesh, &ierr, 8);
+  iMesh_newMesh(0, &imesh, &ierr, 0);
+  IMESH_ASSERT(ierr);
+  iMesh_getRootSet( imesh, &root, &ierr );
   IMESH_ASSERT(ierr);
 
 
-  const char options[] = "PARALLEL=BCAST_DELETE;PARTITION=MATERIAL_SET;PARTITION_DISTRIBUTE;";
+  const char options[] = ";PARTITION=MATERIAL_SET";
   const char filename[] = "64bricks_1mhex.h5m";
 
-  iMesh_load(imesh,
-             IMESH_NULL,
-             filename,
-             options,
-             &ierr,
-             strlen(filename),
-             strlen(options));
+  iMeshP_loadAll(imesh,
+              partn,
+              root,
+              filename,
+              options,
+              &ierr,
+              strlen(filename),
+              strlen(options));
   IMESH_ASSERT(ierr);
 
   
