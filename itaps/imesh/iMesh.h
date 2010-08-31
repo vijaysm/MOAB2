@@ -1,8 +1,25 @@
 #ifndef _ITAPS_iMesh
 #define _ITAPS_iMesh
 
-#define IMESH_MAJOR_VERSION 0
-#define IMESH_MINOR_VERSION 8
+  /**\brief iMesh Interface Specification Major Release Number
+    */
+#define IMESH_MAJOR_VERSION 1
+
+  /**\brief iMesh Interface Specification Minor Release Number
+    */
+#define IMESH_MINOR_VERSION 0
+
+  /**\brief iMesh Interface Specification Patch Release Number
+    *
+    * Technically speaking, there is not much practical value in
+    * a 'patch' digit for an interface specification. A 'patch'
+    * release is typically only used for bug fix releases. That
+    * is unlikely to apply to an interface specification such as
+    * iMesh. Nonetheless, there is non-technical value in having
+    * a bit finer grained control over version numbers that a patch
+    * digit affords. So, we define one for iMesh.
+    */
+#define IMESH_PATCH_VERSION 0
 
   /** \mainpage The ITAPS Mesh Interface iMesh
    *
@@ -13,7 +30,7 @@
    * to this interface, for example mesh smoothing, adaptive mesh refinement,
    * and parallel mesh support.
    *
-   * \section DataModel Data Model
+   * \section ITAPS Data Model
    *
    * The ITAPS interfaces use a data model composed of four basic data types: \n
    * \em Entity: basic topological entities in a mesh, e.g. vertices, 
@@ -28,7 +45,7 @@
    * \em Tag: application data associated with objects of any of the other 
    * data types.  Each tag has a designated name, size, and data type.
    *
-   * \section JTAPS Entity Type, Topology
+   * \section ITAPS Entity Type, Topology
    * Each entity has a specific Entity Type and Entity Topology.  The Entity 
    * Type is one of VERTEX, EDGE, FACE, and REGION, and is synonymous with
    * the topological dimension of the entity.  The Entity Topology denotes
@@ -37,14 +54,14 @@
    * types, Entity Type in the iBase_EntityType enumeration, and
    * Entity Topology in the iMesh_EntityTopology enumeration.
    *
-   * \section Access Entity-, Array-, and Iterator-Based Access
+   * \section ITAPS Entity-, Array-, and Iterator-Based Access
    *
    * The iMesh interface provides functions for accessing entities
    * individually, as arrays of entities, or using iterators.  These access
    * methods have different memory versus execution time tradeoffs, 
    * depending on the implementation.
    *
-   * \section Lists Lists Passed Through Interface
+   * \section ITAPS Lists Passed Through Interface
    *
    * Many of the functions in iMesh have arguments corresponding to lists of 
    * objects.  In-type arguments for lists consist of a pointer to an array and
@@ -62,10 +79,57 @@
    * INTERFACE IMPLEMENTATIONS IS DONE USING THE C MALLOC FUNCTION, AND CAN BE
    * DE-ALLOCATED USING THE C FREE FUNCTION.
    *
+   * \section ITAPS Storage Orders
+   *
+   * Many of the functions in iMesh can return arrays of tuples; that is, arrays
+   * of multi-valued type. For example, the function iMesh_getVtxArrCoords,
+   * returns an array of xyz coordinate 3-tuples (or, perhaps for geometrically
+   * 2D meshes, xy 2-tuples). In these situations, there are multiple ways the
+   * data can be organized in memory. For example, it could be stored xyz,xyz,xyz
+   * or xxx...,yyy...,zzz.... These two different storage orders are referred
+   * to as INTERLEAVED and BLOCKED, repsectively. For some functions in iMesh,
+   * the storage order is explicitly specified as an argument to the function.
+   * For other functions, the storage order is not explicitly specified. And,
+   * in these cases, it shall always be implicitly assumed to be INTERLEAVED.
+   * This fact will be mentioned in the documentation for each specific function
+   * where it applies. For example, in the case of iMesh_getEntArrAdj, the returned
+   * array of adjacent entities is multi-valued in that it stores for each
+   * entity queried, all its adjacent entities. Such an array will be stored
+   * INTERLEAVED with all adjacent entities for the first entity in the query
+   * followed by all adjacent entities for the second entity in the query and
+   * so forth.
+   *
    */
 
 #include "iBase.h"
 #include "iMesh_protos.h"
+
+/**\brief Useful macro for greater-than or equal-to comparisons of version number.
+ *
+ * Returns true (non-zero) if the current version is greater-than or equal-to that
+ * specified by Maj,Min,Pat triple.
+ */
+#define IMESH_VERSION_GE(Maj,Min,Pat) \
+    (((IMESH_MAJOR_VERSION==(Maj)) && (IMESH_MINOR_VERSION==(Min)) && (IMESH_PATCH_VERSION>=(Pat))) || \
+     ((IMESH_MAJOR_VERSION==(Maj)) && (IMESH_MINOR_VERSION>(Min))) || \
+      (IMESH_MAJOR_VERSION>(Maj)))
+
+#define IMESH_VERSION_TAG__(X,Y,Z) iMesh_Version_##X##_##Y##_##Z
+#define IMESH_VERSION_TAG_(X,Y,Z) IMESH_VERSION_TAG__(X,Y,Z)
+#define IMESH_VERSION_TAG IMESH_VERSION_TAG_(IMESH_MAJOR_VERSION,IMESH_MINOR_VERSION,IMESH_PATCH_VERSION)
+
+#define IMESH_VERSION_STRING__(X,Y,Z) "iMesh_Version_" #X "." #Y "." #Z
+#define IMESH_VERSION_STRING_(X,Y,Z) IMESH_VERSION_STRING__(X,Y,Z)
+#define IMESH_VERSION_STRING IMESH_VERSION_STRING_(IMESH_MAJOR_VERSION,IMESH_MINOR_VERSION,IMESH_PATCH_VERSION)
+
+#define IMESH_NEW_MESH_NAME__(A,B,C) A##_##B##_##C
+#define IMESH_NEW_MESH_NAME_(A,B,C) IMESH_NEW_MESH_NAME__(A,B,C)
+#define IMESH_NEW_MESH_NAME(A) IMESH_NEW_MESH_NAME_(A,IMESH_MAJOR_VERSION,IMESH_MINOR_VERSION)
+
+/*
+#undef  iMesh_newMesh
+#define iMesh_newMesh IMESH_NEW_MESH_NAME(iMesh_newMesh)
+*/
 
 #ifdef __cplusplus
 extern "C" {
@@ -273,7 +337,7 @@ extern "C" {
                           /*out*/ int* adjacency_table_size, 
                           /*out*/ int *err);
 
-    /**\brief  Set the adjacency table as requested by the application
+   /**\brief  Set the adjacency table as requested by the application
      *
      * Set the adjacency table as requested by the application.  This table 
      * is a 4x4 array, with indices 0-based, where A(i,j) (i=row, j=column) 
@@ -369,24 +433,20 @@ extern "C" {
                          /*in*/ const iBase_EntitySetHandle entity_set_handle,
                          /*in*/ const int entity_type,
                          /*in*/ const int entity_topology,
-                         /*out*/ iBase_EntityHandle** entity_handles,
-                         /*out*/ int* entity_handles_allocated,
+                         /*inout*/ iBase_EntityHandle** entity_handles,
+                         /*inout*/ int* entity_handles_allocated,
                          /*out*/ int* entity_handles_size,
                          /*out*/ int *err);
 
     /**\brief  Get coordinates of specified vertices
      *
-     * Get coordinates of specified vertices.  If storage order is passed in
-     * with a value other than iBase_UNDETERMINED, coordinates are returned
-     * in the specified storage order, otherwise storage order is that native
-     * to the implementation.  Storage order of returned coordinates is also
-     * returned.
+     * Get coordinates of specified vertices. Coordinates are returned
+     * in the storage order indicated by the storage_order argument.
      * \param instance iMesh instance handle
      * \param vertex_handles Array of mesh vertex handles whose coordinates are
      *        being requested
      * \param vertex_handles_size Number of vertices in vertex_handles array
-     * \param storage_order Pointer to storage order requested/returned from
-     *        function
+     * \param storage_order Requested storage order of returned coordinates
      * \param *coords Pointer to array of coordinates returned from function
      * \param *coords_allocated Pointer to allocated size of coords array
      * \param *coords_size Pointer to occupied size of coords array
@@ -395,7 +455,7 @@ extern "C" {
   void iMesh_getVtxArrCoords(iMesh_Instance instance,
                              /*in*/ const iBase_EntityHandle* vertex_handles,
                              /*in*/ const int vertex_handles_size,
-                             /*in*/ int storage_order,
+                             /*in*/ const int storage_order,
                              /*inout*/ double** coords,
                              /*inout*/ int* coords_allocated,
                              /*out*/ int* coords_size, 
@@ -431,10 +491,12 @@ extern "C" {
 
     /**\brief  Get entities contained in array iterator and increment iterator
      *
-     * Get the entities contained in an array iterator, and increment the 
-     * iterator.  Also return whether the next value of the iterator has
-     * any entities (if non-zero, next iterator value is the end of the
-     * iteration).
+     * Get the entities corresponding to an array iterator (e.g. de-reference
+     * the array iterator), and increment the iterator. The de-referenced
+     * value(s) are returned in entity_handles. If the iterator is at the
+     * end of the iteration, the de-referenced value(s) are undefined and
+     * has_data will be returned with a value of zero. Otherwise, has_data
+     * will be returned with a non-zero value.
      * \param instance iMesh instance handle
      * \param entArr_iterator Iterator being queried
      * \param *entity_handles Pointer to array of entity handles contained in
@@ -443,8 +505,9 @@ extern "C" {
      *        entity_handles array
      * \param *entity_handles_size Pointer to occupied size of entity_handles 
      *        array
-     * \param has_data Pointer to flag; zero if no entities returned
-     *        because iterator is at end, one otherwize.
+     * \param has_data Pointer to a flag indicating if the value(s) returned
+              in entity_handles are valid. A non-zero value indicates the value(s)
+              are valid. A zero value indicates the value(s) are NOT valid.
      * \param *err Pointer to error type returned from function
      */
   void iMesh_getNextEntArrIter(iMesh_Instance instance,
@@ -533,7 +596,8 @@ extern "C" {
      * \param entity_handles_size Number of entities in entity_handles array
      * \param entity_type_requested Type of adjacent entities requested
      * \param *adjacentEntityHandles Pointer to array of adjacentEntityHandles 
-     *        returned from function
+     *        returned from function. Note that the implicit INTERLEAVED storage
+     *        order rule applies (see section ITAPS Storage Orders)
      * \param *adjacentEntityHandles_allocated Pointer to allocated size of 
      *        adjacentEntityHandles array
      * \param *adj_entity_handles_size Pointer to occupied size of 
@@ -560,12 +624,26 @@ extern "C" {
  * entity, through other entities of a specified "bridge" dimension, to other 
  * entities of another specified "to" dimension.
  *
+ * Note 1:  If the "bridge" dimension is the same as the "to" dimension,
+ *    the output will be empty (and an error code of
+ *    iBase_INVALID_ARGUMENT returned).  If the type of a particular
+ *    entity matches the "bridge" dimension, there will be no entities
+ *    returned for that input entity.  This is consistent with the
+ *    definition of adjacencies and the behavior of iMesh first
+ *    adjacency calls. 
+ * Note 2:  An entity will never be returned as a second adjacency of
+ *    itself, on the grounds that this is the most likely expectation of
+ *    applications, and that it is easier for an application to add the
+ *    original entity to the returned data than to find and remove it.
+ *
  * \param instance iMesh instance for this call
  * \param entity_handles Entities from which adjacencies are requested
  * \param entity_handles_size Number of entities whose adjacencies are requested
  * \param bridge_entity_type  Type of bridge entity for 2nd order adjacencies
  * \param requested_entity_type Type of adjacent entities returned
- * \param adj_entity_handles Adjacent entities
+ * \param adj_entity_handles Adjacent entities. Note that the implicit
+ *        INTERLEAVED storage order rule applies
+ *        (see section ITAPS Storage Orders)
  * \param adj_entity_handles_allocated Allocated size of returned array
  * \param adj_entity_handles_size Occupied size of returned array
  * \param offset Offset[i] is offset into adj_entity_handles of 2nd order 
@@ -575,17 +653,17 @@ extern "C" {
  * \param err 
  */
   void iMesh_getEntArr2ndAdj( iMesh_Instance instance,
-                              iBase_EntityHandle const* entity_handles,
-                              int entity_handles_size,
-                              int bridge_entity_type,
-                              int requested_entity_type,
-                              iBase_EntityHandle** adj_entity_handles,
-                              int* adj_entity_handles_allocated,
-                              int* adj_entity_handles_size,
-                              int** offset,
-                              int* offset_allocated,
-                              int* offset_size,
-                              int* err );
+                              /*in*/ iBase_EntityHandle const* entity_handles,
+                              /*in*/ int entity_handles_size,
+                              /*in*/ int bridge_entity_type,
+                              /*in*/ int requested_entity_type,
+                              /*inout*/ iBase_EntityHandle** adj_entity_handles,
+                              /*inout*/ int* adj_entity_handles_allocated,
+                              /*out*/ int* adj_entity_handles_size,
+                              /*inout*/ int** offset,
+                              /*inout*/ int* offset_allocated,
+                              /*out*/ int* offset_size,
+                              /*out*/ int* err );
 
    /**\brief Get indexed representation of mesh or subset of mesh
     *
@@ -609,9 +687,11 @@ extern "C" {
     *                             the entity set indicated by 
     *                             'entity_set_handle' and the optional type
     *                             and topology filtering arguments.
-    *\param adj_entity_handles    The union of the entities of type 
+    *\param adj_entity_handles    The union of the unique entities of type 
     *                             'requested_entity_type' adjacent to each
-    *                             entity in 'entity_handles'.
+    *                             entity in 'entity_handles'. Note that the
+    *                             implicit INTERLEAVED storage order rule
+    *                             applies (see section ITAPS Storage Orders)
     *\param adj_entity_indices    For each entity in 'entity_handles', the
     *                             adjacent entities of type
     *                             'entity_type_requested', specified as 
@@ -654,6 +734,7 @@ extern "C" {
      * \param entity_set_created Entity set created by function
      * \param *err Pointer to error type returned from function
      */
+
   void iMesh_createEntSet(iMesh_Instance instance,
                           /*in*/ const int isList,
                           /*out*/ iBase_EntitySetHandle* entity_set_created,
@@ -725,8 +806,8 @@ extern "C" {
   void iMesh_getEntSets(iMesh_Instance instance,
                         /*in*/ const iBase_EntitySetHandle entity_set_handle,
                         /*in*/ const int num_hops,
-                        /*out*/ iBase_EntitySetHandle** contained_set_handles,
-                        /*out*/ int* contained_set_handles_allocated,
+                        /*inout*/ iBase_EntitySetHandle** contained_set_handles,
+                        /*inout*/ int* contained_set_handles_allocated,
                         /*out*/ int* contained_set_handles_size,
                         /*out*/ int *err);
 
@@ -969,8 +1050,8 @@ extern "C" {
   void iMesh_getChldn(iMesh_Instance instance,
                       /*in*/ const iBase_EntitySetHandle from_entity_set,
                       /*in*/ const int num_hops,
-                      /*out*/ iBase_EntitySetHandle** entity_set_handles,
-                      /*out*/ int* entity_set_handles_allocated,
+                      /*inout*/ iBase_EntitySetHandle** entity_set_handles,
+                      /*inout*/ int* entity_set_handles_allocated,
                       /*out*/ int* entity_set_handles_size,
                       /*out*/ int *err);
 
@@ -994,8 +1075,8 @@ extern "C" {
   void iMesh_getPrnts(iMesh_Instance instance,
                       /*in*/ const iBase_EntitySetHandle from_entity_set,
                       /*in*/ const int num_hops,
-                      /*out*/ iBase_EntitySetHandle** entity_set_handles,
-                      /*out*/ int* entity_set_handles_allocated,
+                      /*inout*/ iBase_EntitySetHandle** entity_set_handles,
+                      /*inout*/ int* entity_set_handles_allocated,
                       /*out*/ int* entity_set_handles_size,
                       /*out*/ int *err);
 
@@ -1047,7 +1128,7 @@ extern "C" {
                           /*in*/ const int new_coords_size,
                           /*inout*/ iBase_EntityHandle** new_vertex_handles,
                           /*inout*/ int* new_vertex_handles_allocated,
-                          /*inout*/ int* new_vertex_handles_size,
+                          /*out*/ int* new_vertex_handles_size,
                           /*out*/ int *err);
 
 
@@ -1079,8 +1160,8 @@ extern "C" {
                           /*in*/ const int new_entity_topology,
                           /*in*/ const iBase_EntityHandle* lower_order_entity_handles,
                           /*in*/ const int lower_order_entity_handles_size,
-                          /*out*/ iBase_EntityHandle** new_entity_handles,
-                          /*out*/ int* new_entity_handles_allocated,
+                          /*inout*/ iBase_EntityHandle** new_entity_handles,
+                          /*inout*/ int* new_entity_handles_allocated,
                           /*out*/ int* new_entity_handles_size,
                           /*inout*/ int** status,
                           /*inout*/ int* status_allocated,
@@ -1297,7 +1378,7 @@ extern "C" {
                            /*in*/ const iBase_TagHandle tag_handle,
                            /*inout*/ char** tag_value,
                            /*inout*/ int* tag_value_allocated,
-                           /*inout*/ int* tag_value_size,
+                           /*out*/ int* tag_value_size,
                            /*out*/ int *err);
 
     /**\brief  Get the value of a tag of integer type on an entity set
@@ -1359,8 +1440,8 @@ extern "C" {
      */
   void iMesh_getAllEntSetTags(iMesh_Instance instance,
                               /*in*/ const iBase_EntitySetHandle entity_set_handle,
-                              /*out*/ iBase_TagHandle** tag_handles,
-                              /*out*/ int* tag_handles_allocated,
+                              /*inout*/ iBase_TagHandle** tag_handles,
+                              /*inout*/ int* tag_handles_allocated,
                               /*out*/ int* tag_handles_size,
                               /*out*/ int *err);
 
@@ -1455,7 +1536,8 @@ extern "C" {
      * \param entity_handles_size Number of entities in array
      * \param tag_handle Tag being set on an entity
      * \param *tag_values Pointer to tag data array being returned from 
-     *        function
+     *        function. Note that the implicit INTERLEAVED storage
+     *        order rule applies (see section ITAPS Storage Orders)
      * \param tag_values_allocated Pointer to allocated size of tag data array
      * \param tag_values_size Pointer to occupied size of tag data array
      * \param *err Pointer to error type returned from function
@@ -1477,7 +1559,8 @@ extern "C" {
      * \param entity_handles_size Number of entities in array
      * \param tag_handle Tag being set on an entity
      * \param *tag_values Pointer to tag data array being returned from 
-     *        function
+     *        function. Note that the implicit INTERLEAVED storage
+     *        order rule applies (see section ITAPS Storage Orders)
      * \param tag_values_allocated Pointer to allocated size of tag data array
      * \param tag_values_size Pointer to occupied size of tag data array
      * \param *err Pointer to error type returned from function
@@ -1499,7 +1582,8 @@ extern "C" {
      * \param entity_handles_size Number of entities in array
      * \param tag_handle Tag being set on an entity
      * \param *tag_values Pointer to tag data array being returned from 
-     *        function
+     *        function. Note that the implicit INTERLEAVED storage
+     *        order rule applies (see section ITAPS Storage Orders)
      * \param tag_values_allocated Pointer to allocated size of tag data array
      * \param tag_values_size Pointer to occupied size of tag data array
      * \param *err Pointer to error type returned from function
@@ -1521,7 +1605,8 @@ extern "C" {
      * \param entity_handles_size Number of entities in array
      * \param tag_handle Tag being set on an entity
      * \param *tag_value Pointer to tag data array being returned from 
-     *        function
+     *        function. Note that the implicit INTERLEAVED storage
+     *        order rule applies (see section ITAPS Storage Orders)
      * \param tag_value_allocated Pointer to allocated size of tag data array
      * \param tag_value_size Pointer to occupied size of tag data array
      * \param *err Pointer to error type returned from function
@@ -1543,7 +1628,9 @@ extern "C" {
      * \param entity_handles Entity array on which tag is being set
      * \param entity_handles_size Number of entities in array
      * \param tag_handle Tag being set on an entity
-     * \param tag_values Pointer to tag data being set on entity
+     * \param tag_values Pointer to tag data being set on entity. Note that
+     *        the implicit INTERLEAVED storage order rule applies (see section
+     *        ITAPS Storage Orders)
      * \param tag_values_size Size in total bytes of tag data
      * \param *err Pointer to error type returned from function
      */
@@ -1562,7 +1649,9 @@ extern "C" {
      * \param entity_handles Entity array on which tag is being set
      * \param entity_handles_size Number of entities in array
      * \param tag_handle Tag being set on an entity
-     * \param tag_values Pointer to tag data being set on entities
+     * \param tag_values Pointer to tag data being set on entities. Note
+     *        that the implicit INTERLEAVED storage order rule applies
+     *        (see section ITAPS Storage Orders)
      * \param tag_values_size Size in total number of integers of tag data
      * \param *err Pointer to error type returned from function
      */
@@ -1581,7 +1670,9 @@ extern "C" {
      * \param entity_handles Entity array on which tag is being set
      * \param entity_handles_size Number of entities in array
      * \param tag_handle Tag being set on an entity
-     * \param tag_values Pointer to tag data being set on entities
+     * \param tag_values Pointer to tag data being set on entities. Note
+     *        that the implicit INTERLEAVED storage order rule applies
+     *        (see section ITAPS Storage Orders)
      * \param tag_values_size Size in total number of doubles of tag data
      * \param *err Pointer to error type returned from function
      */
@@ -1600,7 +1691,9 @@ extern "C" {
      * \param entity_handles Entity array on which tag is being set
      * \param entity_handles_size Number of entities in array
      * \param tag_handle Tag being set on an entity
-     * \param tag_values Pointer to tag data being set on entities
+     * \param tag_values Pointer to tag data being set on entities. Note
+     *        that the implicit INTERLEAVED storage order rule applies
+     *        (see section ITAPS Storage Orders)
      * \param tag_values_size Size in total number of entity handles of tag 
      *        data
      * \param *err Pointer to error type returned from function
@@ -1814,16 +1907,19 @@ extern "C" {
 
     /**\brief  Get entity corresponding to an iterator and increment iterator
      *
-     * Get the entity corresponding to an array iterator, and increment the 
-     * iterator.  Also return whether the next value of the iterator has
-     * an entity (if non-zero, next iterator value is the end of the
-     * iteration).
+     * Get the entity corresponding to an iterator (that is, de-reference
+     * the iterator), and increment the iterator. The de-referenced value
+     * is returned in 'entity_handle'. If the iterator is at the end of the
+     * iteration, the de-referenced value will be undefined and 'has_data'
+     * will have a value of zero. Otherwise, 'has_data' will have a non-zero
+     * value.
      * \param instance iMesh instance handle
      * \param entity_iterator Iterator being queried
      * \param entity_handle Pointer to an entity handle corresponding to the
-     *        current value of iterator
-     * \param has_data Pointer to flag; if non-zero, value returned in 
-     *          entity_handle is valid. Otherwise, the iteration as at the end.
+     *        current value of iterator just prior to the call.
+     * \param has_data Pointer to a flag indicating if the value returned in
+              entity_handle is valid. A non-zero value indicates the value is
+              valid. A zero value indicates the value is NOT valid.
      * \param *err Pointer to error type returned from function
      */
   void iMesh_getNextEntIter(iMesh_Instance instance,
@@ -1924,6 +2020,17 @@ extern "C" {
  * Get "2nd order" adjacencies to an entity, that is, from an entity, through
  * other entities of a specified "bridge" dimension, to other entities of another 
  * specified "to" dimension.
+ *
+ * Note 1: If the "bridge" dimension is the same as the "to" dimension
+ *    or the dimension of the input entity, the output will be empty
+ *    (and an error code of iBase_INVALID_ARGUMENT returned).  This is
+ *    consistent with the definition of adjacencies and the behavior of
+ *    iMesh first adjacency calls.
+ * Note 2: An entity will never be returned as a second adjacency of
+ *    itself, on the grounds that this is the most likely expectation of
+ *    applications, and that it is easier for an application to add the
+ *    original entity to the returned data than to find and remove it.
+ *
  * \param instance iMesh instance for this call
  * \param entity_handle Entity from which adjacencies are requested
  * \param bridge_entity_type  Type of bridge entity for 2nd order adjacencies
@@ -1934,13 +2041,13 @@ extern "C" {
  * \param err 
  */
   void iMesh_getEnt2ndAdj( iMesh_Instance instance,
-                           iBase_EntityHandle entity_handle,
-                           int bridge_entity_type,
-                           int requested_entity_type,
-                           iBase_EntityHandle** adjacent_entities,
-                           int* adjacent_entities_allocated,
-                           int* adjacent_entities_size,
-                           int* err );
+                           /*in*/ iBase_EntityHandle entity_handle,
+                           /*in*/ int bridge_entity_type,
+                           /*in*/ int requested_entity_type,
+                           /*inout*/ iBase_EntityHandle** adjacent_entities,
+                           /*inout*/ int* adjacent_entities_allocated,
+                           /*out*/ int* adjacent_entities_size,
+                           /*out*/ int* err );
 
     /**\brief  Subtract contents of one entity set from another
      *
@@ -1951,6 +2058,7 @@ extern "C" {
      * \param result_entity_set Pointer to entity set returned from function
      * \param *err Pointer to error type returned from function
      */
+
   void iMesh_subtract(iMesh_Instance instance,
                       /*in*/ const iBase_EntitySetHandle entity_set_1,
                       /*in*/ const iBase_EntitySetHandle entity_set_2,
@@ -1988,7 +2096,7 @@ extern "C" {
                    /*out*/ int *err);
 
 #ifdef __cplusplus
-} /*  extern "C" */
+} /* extern "C" */
 #endif
 
 #endif /* ifndef _ITAPS_iMesh */
