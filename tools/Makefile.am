@@ -122,32 +122,13 @@ SUBDIRS = $(refiner_DIR) \
           $(dagmc_DIR)
 
 mbconvert_SOURCES = convert.cpp
-mbconvert_DEPENDENCIES = $(LDADD)
-
 mbgsets_SOURCES = gsets.cc
-mbgsets_DEPENDENCIES = $(LDADD)
-
 hexmodops_SOURCES = makeops.cpp
-hexmodops_DEPENDENCIES = $(LDADD)
-
 mbsize_SOURCES = measure.cpp measure.hpp size.cpp
-mbsize_DEPENDENCIES = $(LDADD)
-
 mbskin_SOURCES = skin.cpp
-mbskin_DEPENDENCIES = $(LDADD)
-
 mbdepth_SOURCES = depth.cpp
-mbdepth_DEPENDENCIES = $(LDADD)
-
 spheredecomp_SOURCES = SphereDecomp.hpp SphereDecomp.cpp sphere_decomp.cpp
-spheredecomp_DEPENDENCIES = $(LDADD)
-
 mbsurfplot_SOURCES = surfplot.cpp
-mbsurfplot_DEPENDENCIES = $(LDADD)
-
 mbtagprop_SOURCES = parse.cpp parse.hpp propagate_tags.cpp
-mbtagprop_DEPENDENCIES = $(LDADD)
-
-mbmem_SOURCES = mbmem.cpp
-mbmem_DEPENDENCIES = $(LDADD)
+bmem_SOURCES = mbmem.cpp
 

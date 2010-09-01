@@ -67,52 +67,24 @@ moab_test_DEPENDENCIES = \
 
 homxform_test_SOURCES = $(top_srcdir)/src/HomXform.cpp
 homxform_test_CPPFLAGS = -DTEST $(AM_CPPFLAGS) $(CPPFLAGS)
-homxform_test_DEPENDENCIES = $(LDADD)
 
 scdseq_test_SOURCES = scdseq_test.cpp
-scdseq_test_DEPENDENCIES = $(LDADD)
-
 #scdseq_timing_SOURCES = scdseq_timing.cpp
-#scdseq_timing_DEPENDENCIES = $(LDADD)
-
 #merge_test_SOURCES = merge_test.cpp
-#merge_test_DEPENDENCIES = $(LDADD)
-
 #test_exo_SOURCES = test_exo.cpp
-#test_exo_DEPENDENCIES = $(LDADD)
-
 #test_tag_server_SOURCES = $(top_srcdir)/src/TagServer.cpp
 #test_tag_server_CPPFLAGS = -DTEST $(CPPFLAGS)
-#test_tag_server_DEPENDENCIES = $(LDADD)
-
 test_adj_SOURCES = test_adj.cpp
-test_adj_DEPENDENCIES = $(LDADD)
-
 seq_man_test_SOURCES = TestUtil.hpp TestTypeSequenceManager.cpp 
-
 mesh_set_test_SOURCES = Test_MBMeshSet.cpp TestUtil.hpp
-
 geom_util_test_SOURCES = TestUtil.hpp GeomUtilTests.cpp 
-geom_util_test_DEPENDENCIES = $(LDADD)
-
 xform_test_SOURCES = $(top_srcdir)/src/AffineXform.cpp
 xform_test_CPPFLAGS = -DTEST $(AM_CPPFLAGS) $(CPPFLAGS)
-xform_test_DEPENDENCIES = $(LDADD)
-
 obb_test_SOURCES = OBBTest.cpp
-obb_test_DEPENDENCIES = $(LDADD)
-
 adaptive_kd_tree_tests_SOURCES = adaptive_kd_tree_tests.cpp
-adaptive_kd_tree_tests_DEPENDENCIES = $(LDADD)
-
 kd_tree_tool_SOURCES = kd_tree_tool.cpp
-kd_tree_tool_DEPENDENCIES = $(LDADD)
-
 kd_tree_time_SOURCES = kd_tree_time.cpp
-kd_tree_time_DEPENDENCIES = $(LDADD)
-
 kd_tree_test_SOURCES = kd_tree_test.cpp
-
 bsp_tree_test_SOURCES = bsp_tree_test.cpp
 
 file_options_test_SOURCES = TestUtil.hpp $(top_srcdir)/src/FileOptions.cpp 
