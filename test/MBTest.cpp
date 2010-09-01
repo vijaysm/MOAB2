@@ -125,11 +125,12 @@ ErrorCode mb_vertex_coordinate_test()
   }
     
     // check blocked coordinates
-  double x[vertices.size()+1], y[vertices.size()+1], z[vertices.size()+1];
+  const size_t N = vertices.size()+1;
+  std::vector<double> x(N), y(N), z(N);
     // set last value so we can check later that nothing wrote past the
     // intended end of an array
   x[vertices.size()] = y[vertices.size()] = z[vertices.size()] = -3.14159;
-  error = MB->get_coords( vertices, x, y, z );
+  error = MB->get_coords( vertices, &x[0], &y[0], &z[0] );
   for (size_t i = 0; i < vertices.size(); ++i) {
     CHECK_EQUAL( all_coords[3*i  ], x[i] );
     CHECK_EQUAL( all_coords[3*i+1], y[i] );
@@ -142,14 +143,14 @@ ErrorCode mb_vertex_coordinate_test()
     
     // add invalid handle to end of range and try query again
   vertices.insert( vertices.back() + 1 );
-  error = MB->get_coords( vertices, x, y, z );
+  error = MB->get_coords( vertices, &x[0], &y[0], &z[0] );
   CHECK_EQUAL( MB_ENTITY_NOT_FOUND, error );
 
     // Try getting coordinates for a hex (should fail)
   Range hexes;
   error = MB->get_entities_by_type( 0, MBHEX, hexes );
   EntityHandle handle = hexes.front();
-  error = MB->get_coords(&handle, 1, x);
+  error = MB->get_coords(&handle, 1, &x[0]);
   CHECK_EQUAL( MB_TYPE_OUT_OF_RANGE, error );
   
   return MB_SUCCESS;
