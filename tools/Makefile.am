@@ -130,5 +130,5 @@ mbdepth_SOURCES = depth.cpp
 spheredecomp_SOURCES = SphereDecomp.hpp SphereDecomp.cpp sphere_decomp.cpp
 mbsurfplot_SOURCES = surfplot.cpp
 mbtagprop_SOURCES = parse.cpp parse.hpp propagate_tags.cpp
-bmem_SOURCES = mbmem.cpp
+mbmem_SOURCES = mbmem.cpp
 
