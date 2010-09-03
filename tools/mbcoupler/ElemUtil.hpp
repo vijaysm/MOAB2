@@ -39,6 +39,12 @@ namespace ElemUtil {
 		int n,
 		CartVect rst,
 		double &value);
+
+  bool integrate_trilinear_hex(const CartVect* hex_corners,
+                               double (*field_fn)(double, double, double),
+                               double& field_val,
+                               int num_pts);
+
 } // namespace ElemUtil
  
 } // namespace moab

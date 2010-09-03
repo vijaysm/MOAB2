@@ -9,6 +9,8 @@
 namespace moab { 
 namespace ElemUtil {
 
+  bool debug = false;
+
 /**\brief Class representing a 3-D mapping function (e.g. shape function for volume element) */
 class VolMap {
   public:
@@ -292,6 +294,114 @@ void hex_eval(real *field,
     lagrange_free(&ld[d]); 
   }
   free(od_work);
+}
+
+
+// Gaussian quadrature points.  Five 2d arrays are defined.
+// One for the single gaussian point solution, 2 point solution, 
+// 3 point solution, 4 point solution and 5 point solution.
+// There are 2 columns, one for Weights and the other for Locations
+//                                Weight         Location
+
+const double gauss_1[1][2] = { {  2.0,           0.0          } };
+
+const double gauss_2[2][2] = { {  1.0,          -0.5773502691 },
+                               {  1.0         ,  0.5773502691 } };
+
+const double gauss_3[3][2] = { {  0.5555555555, -0.7745966692 },
+                               {  0.8888888888,  0.0          },
+                               {  0.5555555555,  0.7745966692 } };
+
+const double gauss_4[4][2] = { {  0.3478548451, -0.8611363116 },
+                               {  0.6521451549, -0.3399810436 },
+                               {  0.6521451549,  0.3399810436 },
+                               {  0.3478548451,  0.8611363116 } };
+
+const double gauss_5[5][2] = { {  0.2369268851,  -0.9061798459 },
+                               {  0.4786286705,  -0.5384693101 },
+                               {  0.5688888889,   0.0          },
+                               {  0.4786286705,   0.5384693101 },
+                               {  0.2369268851,   0.9061798459 } };
+
+// Function to integrate the field defined by field_fn function
+// over the volume of the trilinear hex defined by the hex_corners
+
+bool integrate_trilinear_hex(const CartVect* hex_corners,
+                             double (*field_fn)(double, double, double),
+                             double& field_val,
+                             int num_pts)
+{
+  // Create the LinearHexMap object using the hex_corners array of CartVects
+  LinearHexMap hex(hex_corners);
+
+  // Use the correct table of points and locations based on the num_pts parameter
+  const double (*g_pts)[2] = 0;
+  switch (num_pts) {
+  case 1: 
+    g_pts = gauss_1;
+    break;
+
+  case 2:
+    g_pts = gauss_2;
+    break;
+
+  case 3:
+    g_pts = gauss_3;
+    break;
+
+  case 4:
+    g_pts = gauss_4;
+    break;
+
+  case 5:
+    g_pts = gauss_5;
+    break;
+
+  default:  // value out of range
+    return false;
+  }
+
+  // Test code - print Gaussian Quadrature data
+  if (debug) {
+    for (int r=0; r<num_pts; r++)
+      for (int c=0; c<2; c++)
+        std::cout << "g_pts[" << r << "][" << c << "]=" << g_pts[r][c] << std::endl;
+  }
+  // End Test code
+
+  double soln = 0.0;
+
+  for (int i=0; i<num_pts; i++) {     // Loop for xi direction
+    double w_i  = g_pts[i][0];
+    double xi_i = g_pts[i][1];
+    for (int j=0; j<num_pts; j++) {   // Loop for eta direction
+      double w_j   = g_pts[j][0];
+      double eta_j = g_pts[j][1];
+      for (int k=0; k<num_pts; k++) { // Loop for zeta direction
+        double w_k    = g_pts[k][0];
+        double zeta_k = g_pts[k][1];
+
+        // Calculate the "real" space point given the "normal" point
+        CartVect normal_pt(xi_i, eta_j, zeta_k);
+        CartVect real_pt = hex.evaluate(normal_pt);
+
+        // Calculate the value of F(x(xi,eta,zeta),y(xi,eta,zeta),z(xi,eta,zeta)
+        double field = (*field_fn)(real_pt[0], real_pt[1], real_pt[2]);
+
+        // Calculate the Jacobian for this "normal" point and its determinant
+        Matrix3 J = hex.jacobian(normal_pt);
+        double det = J.determinant();
+
+        // Calculate integral and update the solution
+        soln = soln + (w_i*w_j*w_k*field*det);
+      }
+    }
+  }
+
+  // Set the output parameter
+  field_val = soln;
+
+  return true;
 }
 
 } // namespace ElemUtil
