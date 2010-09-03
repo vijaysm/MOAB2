@@ -148,6 +148,8 @@ public:
      *       the same length as that for tag names however some entries may be 
      *       NULL indicating that tag should be matched for existence and not value
      * \param integ_type Type of integration to perform
+     * \param field_fn Field function used in integration
+     * \param num_integ_pts The number of Gaussian integration points to use in each dimension
      */
   int normalize_subset(iBase_EntitySetHandle &m1_root_set,
                        iBase_EntitySetHandle &m2_root_set,
@@ -155,7 +157,9 @@ public:
                        const char            **tag_names,
                        int                   num_tags,
                        const char            **tag_values,
-                       Coupler::IntegType    integ_type);
+                       Coupler::IntegType    integ_type,
+                       double (*field_fn) (double, double, double),
+                       int                   num_integ_pts);
 
     /* \brief Normalize a field over matching subsets of entities
      * A field existing on the vertices of elements in both meshes is integrated
@@ -172,6 +176,8 @@ public:
      *       the same length as that for tag handles however some entries may be 
      *       NULL indicating that tag should be matched for existence and not value
      * \param integ_type Type of integration to perform
+     * \param field_fn Field function used in integration
+     * \param num_integ_pts The number of Gaussian integration points to use in each dimension
      */
   int normalize_subset(iBase_EntitySetHandle &m1_root_set,
                        iBase_EntitySetHandle &m2_root_set,
@@ -179,7 +185,9 @@ public:
                        iBase_TagHandle       *tag_handles,
                        int                   num_tags,
                        const char            **tag_values,
-                       Coupler::IntegType    integ_type);
+                       Coupler::IntegType    integ_type,
+                       double (*field_fn) (double, double, double),
+                       int                   num_integ_pts);
 
     /* \brief Retrieve groups of entities matching tags and values(if present)
      * Retrieve a vector of vectors of entity handles matching the 
@@ -256,6 +264,36 @@ public:
   int consolidate_tuples(tuple_list **all_tuples, 
                          int        num_tuples,
                          tuple_list **unique_tuples);
+
+    /* \brief Calculate integrated field values for groups of entities
+     * An integrated field value, as defined by the field function, 
+     * is calculated for each group of entities passed in.
+     * 
+     * \param groups The vector contains vectors of entity handles, each representing a group
+     * \param integ_vals The integrated field values for each group
+     * \param field_fn The function defining the field on the entities
+     * \param num_integ_pts The number of Gaussian integration points to use in each dimension
+     * \param integ_type Type of integration to perform
+     */
+  int get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> > &groups,
+                           std::vector<double> &integ_vals, 
+                           double (*field_fn) (double, double, double),
+                           int num_integ_pts,
+                           Coupler::IntegType integ_type);
+
+    /* \brief Apply a normalization factor to group of entities
+     * Multiply a normalization factor with the value of norm_tag for each vertex
+     * of each entity in a group.  Save the value back to norm_tag on each vertex.
+     *
+     * \param groups The vector contains vectors of entity handles, each representing a group
+     * \param norm_factors The normalization factors for each group
+     * \param norm_tag The tag to be normalized on each group
+     * \param integ_type Type of integration to perform
+     */
+  int apply_group_norm_factor(std::vector< std::vector<iBase_EntityHandle> > &groups,
+                              std::vector<double> &norm_factors, 
+                              const char *norm_tag,
+                              Coupler::IntegType integ_type);
 
 private:
 

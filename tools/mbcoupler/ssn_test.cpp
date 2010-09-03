@@ -7,6 +7,7 @@
 #include "Coupler.hpp"
 #include "iMesh_extensions.h"
 #include "DebugOutput.hpp"
+#include "ElemUtil.hpp"
 #include <iostream>
 #include <iomanip>
 #include <cstring>
@@ -88,6 +89,17 @@ void get_file_options(int argc, char **argv,
 
 void print_tuples(tuple_list *tlp);
 
+int print_vertex_fields(Interface* mbi,
+                        iMesh_Instance iMeshInst,
+                        std::vector< std::vector<iBase_EntityHandle> > &groups,
+                        iBase_TagHandle                                &norm_hdl,
+                        Coupler::IntegType                             integ_type);
+
+double const_field(double x, double y, double z);
+double field_1(double x, double y, double z);
+double field_2(double x, double y, double z);
+double field_3(double x, double y, double z);
+double physField(double x, double y, double z);
 
 //
 // Start of main test program
@@ -224,11 +236,13 @@ int main(int argc, char **argv) {
   Range entSetRg;
   int icnt;
   for (iter_i = m1EntityGroups.begin(), icnt = 1; iter_i != m1EntityGroups.end(); iter_i++, icnt++) {
-    std::cout << "      Vector(" << icnt << ") = ";
+    std::cout << "      Group(" << icnt << ") = ";
+    std::cout.flush();
     entSetRg.clear();
     for (iter_j = (*iter_i).begin(); iter_j != (*iter_i).end(); iter_j++)
       entSetRg.insert((EntityHandle) *iter_j);
     debugOut.print(2, "Mesh1 matching EntitySets: ", entSetRg);
+    std::cout.flush();
   }
 
   // Get matching entities for Mesh 2
@@ -239,11 +253,13 @@ int main(int argc, char **argv) {
 
   std::cout << "    get_matching_entities returned " << m2EntityGroups.size() << " entity groups" << std::endl;
   for (iter_i = m2EntityGroups.begin(), icnt = 1; iter_i != m2EntityGroups.end(); iter_i++, icnt++) {
-    std::cout << "      Vector(" << icnt << ") = ";
+    std::cout << "      Group(" << icnt << ") = ";
+    std::cout.flush();
     entSetRg.clear();
     for (iter_j = (*iter_i).begin(); iter_j != (*iter_i).end(); iter_j++)
       entSetRg.insert((EntityHandle) *iter_j);
     debugOut.print(2, "Mesh2 matching EntitySets: ", entSetRg);
+    std::cout.flush();
   }
 
 //   // ********** Test create_tuples **********
@@ -321,6 +337,184 @@ int main(int argc, char **argv) {
     std::cout << "    print of test_tuples after filling with data..." << std::endl;
     print_tuples(&test_tuple);
   }
+
+  // Test integration function
+  // Create a simple hex centered at 0,0,0 with sides of length 2.
+  const CartVect biunit_cube[8] = { CartVect( -1, -1, -1 ),
+                                    CartVect(  1, -1, -1 ),
+                                    CartVect(  1,  1, -1 ),
+                                    CartVect( -1,  1, -1 ),
+                                    CartVect( -1, -1,  1 ),
+                                    CartVect(  1, -1,  1 ),
+                                    CartVect(  1,  1,  1 ),
+                                    CartVect( -1,  1,  1 ) };
+
+  const CartVect zerobase_cube[8] = { CartVect( 0, 0, 0 ),
+                                      CartVect( 2, 0, 0 ),
+                                      CartVect( 2, 2, 0 ),
+                                      CartVect( 0, 2, 0 ),
+                                      CartVect( 0, 0, 2 ),
+                                      CartVect( 2, 0, 2 ),
+                                      CartVect( 2, 2, 2 ),
+                                      CartVect( 0, 2, 2 ) };
+
+  double field_val = 0.0;
+  std::cout << "Integrated values:" << std::endl;
+
+  for (int i = 1; i <=5; i++) {
+    ElemUtil::integrate_trilinear_hex(biunit_cube, const_field, field_val, i);
+    std::cout << "    binunit_cube, const_field(num_pts=" << i << "): field_val=" << field_val << std::endl;
+    field_val = 0.0;
+
+    ElemUtil::integrate_trilinear_hex(biunit_cube, field_1, field_val, i);
+    std::cout << "    binunit_cube, field_1(num_pts=" << i << "): field_val=" << field_val << std::endl;
+    field_val = 0.0;
+
+    ElemUtil::integrate_trilinear_hex(biunit_cube, field_2, field_val, i);
+    std::cout << "    binunit_cube, field_2(num_pts=" << i << "): field_val=" << field_val << std::endl;
+    field_val = 0.0;
+
+    ElemUtil::integrate_trilinear_hex(biunit_cube, field_3, field_val, i);
+    std::cout << "    binunit_cube, field_3(num_pts=" << i << "): field_val=" << field_val << std::endl;
+    field_val = 0.0;
+
+    ElemUtil::integrate_trilinear_hex(zerobase_cube, const_field, field_val, i);
+    std::cout << "    zerobase_cube, const_field(num_pts=" << i << "): field_val=" << field_val << std::endl;
+    field_val = 0.0;
+
+    ElemUtil::integrate_trilinear_hex(zerobase_cube, field_1, field_val, i);
+    std::cout << "    zerobase_cube, field_1(num_pts=" << i << "): field_val=" << field_val << std::endl;
+    field_val = 0.0;
+
+    ElemUtil::integrate_trilinear_hex(zerobase_cube, field_2, field_val, i);
+    std::cout << "    zerobase_cube, field_2(num_pts=" << i << "): field_val=" << field_val << std::endl;
+    field_val = 0.0;
+
+    ElemUtil::integrate_trilinear_hex(zerobase_cube, field_3, field_val, i);
+    std::cout << "    zerobase_cube, field_3(num_pts=" << i << "): field_val=" << field_val << std::endl;
+    field_val = 0.0;
+  }
+
+  // Test get_group_integ_vals
+  std::cout << "Get group integrated field values..." << std::endl;
+
+  // print the field values at the vertices before change.
+  std::cout << "    print vertex field values first:" << std::endl;
+  iBase_TagHandle norm_hdl;
+  iMesh_getTagHandle(iMeshInst, normTag.c_str(), &norm_hdl, &err, strlen(normTag.c_str()));
+  CHKERR(err, "Failed to get tag handle.");
+
+  Coupler::IntegType integ_type = Coupler::VOLUME;
+  // Mesh 1 field values
+  std::cout << "  Original entity vertex field values (mesh 1): " << std::endl;
+  print_vertex_fields(mbi, iMeshInst, m1EntityGroups, norm_hdl, integ_type);
+
+  // Mesh 2 field values
+  std::cout << "  Original entity vertex field values (mesh 2): " << std::endl;
+  print_vertex_fields(mbi, iMeshInst, m2EntityGroups, norm_hdl, integ_type);
+
+  // Get the field values
+  std::vector<double>::iterator iter_ivals;
+
+  std::cout << "Get group integrated field values for mesh 1..." << std::endl;
+  std::vector<double> m1IntegVals(m1EntityGroups.size());
+  err = mbc.get_group_integ_vals(m1EntityGroups, m1IntegVals, (*physField), 4, integ_type);
+  CHKERR(err, "Failed to get the Mesh 1 group integration values.");
+  std::cout << "Mesh 1 integrated field values(" << m1IntegVals.size() << "): ";
+  for (iter_ivals = m1IntegVals.begin(); iter_ivals != m1IntegVals.end(); iter_ivals++) {
+    std::cout << (*iter_ivals) << " ";
+  }
+  std::cout << std::endl;
+
+  std::cout << "Get group integrated field values for mesh 2..." << std::endl;
+  std::vector<double> m2IntegVals(m2EntityGroups.size());
+  err = mbc.get_group_integ_vals(m2EntityGroups, m2IntegVals, (*physField), 4, integ_type);
+  CHKERR(err, "Failed to get the Mesh 2 group integration values.");
+  std::cout << "Mesh 2 integrated field values(" << m2IntegVals.size() << "): ";
+  for (iter_ivals = m2IntegVals.begin(); iter_ivals != m2IntegVals.end(); iter_ivals++) {
+    std::cout << (*iter_ivals) << " ";
+  }
+  std::cout << std::endl;
+
+  // Test apply_group_norm_factors
+
+  // Make the norm factors by inverting the integration values.
+  double val;
+  for (unsigned int i = 0; i < m1IntegVals.size(); i++) {
+    val = m1IntegVals[i];
+    m1IntegVals[i] = 1/val;
+  }
+
+  for (unsigned int i = 0; i < m2IntegVals.size(); i++) {
+    val = m2IntegVals[i];
+    m2IntegVals[i] = 1/val;
+  }
+
+  std::cout << "Mesh 1 norm factors(" << m1IntegVals.size() << "): ";
+  for (iter_ivals = m1IntegVals.begin(); iter_ivals != m1IntegVals.end(); iter_ivals++) {
+    std::cout << (*iter_ivals) << " ";
+  }
+  std::cout << std::endl;
+
+  std::cout << "Mesh 2 norm factors(" << m2IntegVals.size() << "): ";
+  for (iter_ivals = m2IntegVals.begin(); iter_ivals != m2IntegVals.end(); iter_ivals++) {
+    std::cout << (*iter_ivals) << " ";
+  }
+  std::cout << std::endl;
+
+  // Apply the factors and reprint the vertices
+  err = mbc.apply_group_norm_factor(m1EntityGroups, m1IntegVals, normTag.c_str(), integ_type);
+  CHKERR(err, "Failed to apply norm factors to Mesh 1.");
+
+  err = mbc.apply_group_norm_factor(m2EntityGroups, m2IntegVals, normTag.c_str(), integ_type);
+  CHKERR(err, "Failed to apply norm factors to Mesh 2.");
+
+  // Mesh 1 field values
+  std::cout << "  Normalized entity vertex field values (mesh 1): " << std::endl;
+  print_vertex_fields(mbi, iMeshInst, m1EntityGroups, norm_hdl, integ_type);
+
+  // Mesh 2 field values
+  std::cout << "  Normalized entity vertex field values (mesh 2): " << std::endl;
+  print_vertex_fields(mbi, iMeshInst, m2EntityGroups, norm_hdl, integ_type);
+
+  // Now get the integrated values again.  They should all be 1 if this works.
+  err = mbc.get_group_integ_vals(m1EntityGroups, m1IntegVals, (*physField), 4, integ_type);
+  CHKERR(err, "Failed to get the Mesh 1 group integration values.");
+  std::cout << "Mesh 1 normalized integrated field values(" << m1IntegVals.size() << "): ";
+  for (iter_ivals = m1IntegVals.begin(); iter_ivals != m1IntegVals.end(); iter_ivals++) {
+    std::cout << (*iter_ivals) << " ";
+  }
+  std::cout << std::endl;
+
+  err = mbc.get_group_integ_vals(m2EntityGroups, m2IntegVals, (*physField), 4, integ_type);
+  CHKERR(err, "Failed to get the Mesh 2 group integration values.");
+  std::cout << "Mesh 2 normalized integrated field values(" << m2IntegVals.size() << "): ";
+  for (iter_ivals = m2IntegVals.begin(); iter_ivals != m2IntegVals.end(); iter_ivals++) {
+    std::cout << (*iter_ivals) << " ";
+  }
+  std::cout << std::endl;
+
+  // Now call the Coupler::normalize_subset routine and see if we get an error.
+  std::cout << "Running Coupler::normalize_subset()" << std::endl;
+  err = mbc.normalize_subset(roots[0], 
+                             roots[1], 
+                             normTag.c_str(), 
+                             &tagNames[0], 
+                             numTagNames, 
+                             &tagValues[0], 
+                             Coupler::VOLUME, 
+                             (*physField), 
+                             4);
+  CHKERR(err, "Failure in call to Coupler::normalize_subset()");
+
+  // Print the field values after the above call.
+  // Mesh 1 field values
+  std::cout << "  Normalized entity vertex field values (mesh 1): " << std::endl;
+  print_vertex_fields(mbi, iMeshInst, m1EntityGroups, norm_hdl, integ_type);
+
+  // Mesh 2 field values
+  std::cout << "  Normalized entity vertex field values (mesh 2): " << std::endl;
+  print_vertex_fields(mbi, iMeshInst, m2EntityGroups, norm_hdl, integ_type);
 
   // Cleanup
   MPI_Finalize();
@@ -471,4 +665,90 @@ void print_tuples(tuple_list *tlp)
       std::cout << std::endl << "        ";
   }
   std::cout << "]" << std::endl;
+}
+
+// Function to print vertex field values
+int print_vertex_fields(Interface* mbi,
+                        iMesh_Instance iMeshInst,
+                        std::vector< std::vector<iBase_EntityHandle> > &groups,
+                        iBase_TagHandle                                &norm_hdl,
+                        Coupler::IntegType                             integ_type)
+{
+  int err = iBase_SUCCESS;
+  std::vector<iBase_EntityHandle>::iterator iter_j;
+
+  for (unsigned int i = 0; i < groups.size(); i++) {
+    std::cout << "    Group - " << std::endl << "        ";
+    for (iter_j = groups[i].begin(); iter_j != groups[i].end(); iter_j++) {
+      // Check that the entity in iter_j is of the same dimension as the 
+      // integ_type we are performing
+      int j_type;
+      iMesh_getEntType(iMeshInst, (*iter_j), &j_type, &err);
+      CHKERR(err, "Failed to get entity type.");
+      if (((integ_type == Coupler::VOLUME) && (j_type != iBase_REGION)) ||
+          ((integ_type == Coupler::AREA)   && (j_type != iBase_FACE)))
+        continue;
+
+      // Retrieve the vertices from the element
+      iBase_EntityHandle *verts = NULL;
+      int vertsAlloc = 0;
+      int vertsSize = 0;
+
+      iMesh_getEntAdj(iMeshInst, (*iter_j), iBase_VERTEX, &verts, &vertsAlloc, &vertsSize, &err);
+      CHKERR(err, "Failed to get vertices from entity.");
+      for (int i = 0; i < vertsSize; i++) {
+        double data = 0;
+        iMesh_getDblData(iMeshInst, verts[i], norm_hdl, &data, &err);
+        CHKERR(err, "Failed to get tag data.");
+        std::cout << data << ", ";
+      }
+      std::cout << std::endl << "        ";
+    }
+    std::cout << std::endl;
+  }
+
+  return err;
+}
+
+// Function for a constant field value
+double const_field(double x, double y, double z)
+{
+  //  return 5.0/40.0;
+  return 5.0;
+}
+
+// Functions for a some field values
+double field_1(double x, double y, double z)
+{
+  double f = fabs(x) + fabs(y) + fabs(z);
+  //  return f/24.0;
+  return f;
+}
+
+double field_2(double x, double y, double z)
+{
+  double f = x*x + y*y + z*z;
+  //  return f/32.0;
+  return f;
+}
+
+double field_3(double x, double y, double z)
+{
+  double f = 2*x + 2*y + 2*z;
+  //  return f/48.0;
+  return f;
+}
+
+// Function used to create field on mesh for testing.
+double physField(double x, double y, double z)
+{
+  double out;
+
+  // 1/r^2 decay from {0,0,0}
+
+  out = x*x + y*y + z*z;
+  out += 1e-1; // clamp
+  out = 1/out;
+
+  return out;
 }

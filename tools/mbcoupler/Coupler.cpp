@@ -526,7 +526,9 @@ int Coupler::normalize_subset(iBase_EntitySetHandle &m1_root_set,
                               const char            **tag_names,
                               int                   num_tags,
                               const char            **tag_values,
-                              Coupler::IntegType    integ_type)
+                              Coupler::IntegType    integ_type,
+                              double (*field_fn) (double, double, double),
+                              int                   num_integ_pts)
 {
   iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
   int err;
@@ -541,7 +543,15 @@ int Coupler::normalize_subset(iBase_EntitySetHandle &m1_root_set,
     tag_handles.push_back(th);
   }
 
-  return normalize_subset(m1_root_set, m2_root_set, norm_tag, &tag_handles[0], num_tags, tag_values, integ_type);
+  return normalize_subset(m1_root_set, 
+                          m2_root_set, 
+                          norm_tag, 
+                          &tag_handles[0], 
+                          num_tags, 
+                          tag_values, 
+                          integ_type, 
+                          (*field_fn), 
+                          num_integ_pts);
 }
 
 int Coupler::normalize_subset(iBase_EntitySetHandle &m1_root_set,
@@ -550,16 +560,18 @@ int Coupler::normalize_subset(iBase_EntitySetHandle &m1_root_set,
                               iBase_TagHandle       *tag_handles,
                               int                   num_tags,
                               const char            **tag_values,
-                              Coupler::IntegType    integ_type)
+                              Coupler::IntegType    integ_type,
+                              double (*field_fn) (double, double, double),
+                              int                   num_integ_pts)
 {
   //  ErrorCode result = MB_SUCCESS;
   int err = iBase_SUCCESS;
 
   // Get an iMesh_Instance from MBCoupler::mbImpl.
-  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
+//  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
 
   // MASTER/SLAVE START #########################################################
-  // Broadcast norm_tag, tag_handles, tag_values to procs
+  // Broadcast norm_tag, tag_handles, tag_values to procs???
   // ***TODO***
   // MASTER/SLAVE END   #########################################################
 
@@ -578,78 +590,19 @@ int Coupler::normalize_subset(iBase_EntitySetHandle &m1_root_set,
                               &m2EntityGroups);
   ERRORR("Failed to get matching entities for Mesh 2.", err);
 
-  // SLAVE START ****************************************************************
-  // Loop over vector of groups(vectors) of entities
-  //   Retrieve norm_tag for each entity in the group and integrate it over all
-  //   of the entities in the group.  This will generate an integrated value for 
-  //   the group.  Add this value to a vector.  If no entities are in the group
-  //   then put zero in the list.  There will be 2 lists, one for Mesh 1 data and one for 
-  //   Mesh 2 data.  These could be combined in 1 list with Mesh1 in the first
-  //   n entries and Mesh2 in the last n entries.  The list would then be 2n in
-  //   length.  This may allow for reduction using MPI calls.
-
+  // Get the integrated field value for each group(vector) of entities.
+  // If no entities are in a group then a zero will be put in the list
+  // of return values.
   std::vector<double> m1IntegVals(m1EntityGroups.size());
   std::vector<double> m2IntegVals(m2EntityGroups.size());
-  std::vector< std::vector<iBase_EntityHandle> >::iterator iter_i;
-  std::vector<iBase_EntityHandle>::iterator iter_j;
-  double grpIntgrVal, intgrVal;
-
-  // Get tag handle for norm_tag
-  iBase_TagHandle normTagHdl;
-  iMesh_getTagHandle(iMeshInst, norm_tag, &normTagHdl, &err, strlen(norm_tag));
-  ERRORR("Failed to get tag handle.", err);
 
   // Mesh 1 work
-  // Loop over the groups(vectors) of entities
-  for (iter_i = m1EntityGroups.begin(); iter_i != m1EntityGroups.end(); iter_i++) {
-    grpIntgrVal = 0;
-
-    // Loop over the all the entities in the group
-    for (iter_j = (*iter_i).begin(); iter_j != (*iter_i).end(); iter_j++) {
-      intgrVal = 0;
-
-      // Retrieve the norm_tag value for the entity in iter_j
-      // ***Assumption that norm_tag is integer valued
-      int val;
-      iMesh_getIntData(iMeshInst, *iter_j, normTagHdl, &val, &err);
-      ERRORR("Failed to get tag value.", err);
-
-      // Integrate this value over the entity in iter_j
-      // ***TODO***
-
-      // Combine the result with those of the group
-      grpIntgrVal += intgrVal;
-    }
-
-    // Set the group integrated value in the vector
-    m1IntegVals.push_back(grpIntgrVal);
-  }
+  err = get_group_integ_vals(m1EntityGroups, m1IntegVals, (*field_fn), num_integ_pts, integ_type);
+  ERRORR("Failed to get integrated field values for groups in Mesh 1.", err);
 
   // Mesh 2 work
-  // Loop over the groups(vectors) of entities
-  for (iter_i = m2EntityGroups.begin(); iter_i != m2EntityGroups.end(); iter_i++) {
-    grpIntgrVal = 0;
-
-    // Loop over the all the entities in the group
-    for (iter_j = (*iter_i).begin(); iter_j != (*iter_i).end(); iter_j++) {
-      intgrVal = 0;
-
-      // Retrieve the norm_tag value for the entity in iter_j
-      // ***Assumption that norm_tag is integer valued
-      int val;
-      iMesh_getIntData(iMeshInst, *iter_j, normTagHdl, &val, &err);
-      ERRORR("Failed to get tag value.", err);
-
-      // Integrate this value over the entity in iter_j
-      // ***TODO***
-
-      // Combine the result with those of the group
-      grpIntgrVal += intgrVal;
-    }
-
-    // Set the group integrated value in the vector
-    m2IntegVals.push_back(grpIntgrVal);
-  }
+  err = get_group_integ_vals(m2EntityGroups, m2IntegVals, (*field_fn), num_integ_pts, integ_type);
+  ERRORR("Failed to get integrated field values for groups in Mesh 2.", err);
   // SLAVE END   ****************************************************************
 
   // SLAVE/MASTER START #########################################################
@@ -663,13 +616,26 @@ int Coupler::normalize_subset(iBase_EntitySetHandle &m1_root_set,
   // START SUBROUTINE **************************************************
   // Reduce/sum the individual normalized values according to whether they apply
   // to Mesh 1 or Mesh 2.
+
+  // For non-parallel case just use the vectors from above.  No work here.
   // END   SUBROUTINE **************************************************
 
   // START SUBROUTINE **************************************************
-  // Calculate the normalization factor for each tuple by taking reduced/summed 
-  // value for Mesh 1, tuple n and divide it by the reduced/summed value for 
-  // Mesh 2, tuple n.  Put the normalization factor for each tuple in a list 
-  // according to the ordering of the tuples broadcast out previously.
+  // Calculate the normalization factor for each group by taking the
+  // inverse of each integrated field value.  Put the normalization factor 
+  // for each group back into the list in the same order.
+
+  // Mesh 1 work
+  for (unsigned int i = 0; i < m1IntegVals.size(); i++) {
+    double val = m1IntegVals[i];
+    m1IntegVals[i] = 1.0/val;
+  }
+
+  // Mesh 2 work
+  for (unsigned int i = 0; i < m2IntegVals.size(); i++) {
+    double val = m1IntegVals[i];
+    m1IntegVals[i] = 1.0/val;
+  }
   // END   SUBROUTINE **************************************************
   // MASTER END   ***************************************************************
 
@@ -679,11 +645,17 @@ int Coupler::normalize_subset(iBase_EntitySetHandle &m1_root_set,
   // MASTER/SLAVE END   #########################################################
 
   // SLAVE START ****************************************************************
-  // START SUBROUTINE **************************************************
-  // Loop over the list of normalization factors.
-  //   Multiply the norm_tag value for each entity in the set corresponding to
-  //   tuple n by the normalization factor for tuple n.
-  // END   SUBROUTINE **************************************************
+  // Multiply the normalization factors time the value of norm_tag on each
+  // vertex of each entity in a group.  Save the value back to norm_tag on each
+  // vertex.
+
+  // Mesh 1 work
+  err = apply_group_norm_factor(m1EntityGroups, m1IntegVals, norm_tag, integ_type);
+  ERRORR("Failed to set the normalization factor for groups in Mesh 1.", err);
+
+  // Mesh 2 work
+  err = apply_group_norm_factor(m2EntityGroups, m2IntegVals, norm_tag, integ_type);
+  ERRORR("Failed to set the normalization factor for groups in Mesh 2.", err);
   // SLAVE END   ****************************************************************
 
   return err;
@@ -766,18 +738,7 @@ int Coupler::get_matching_entities(iBase_EntitySetHandle                        
   // MASTER/SLAVE END   #########################################################
 
   // SLAVE START ****************************************************************
-  // Loop over tuple list, retrieving sets of entities that match each tuple
-  //   Retrieve norm_tag for each entity in set and integrate it over all of
-  //   the entities in the set.
-  //   Add this to a list.  If no entities are in the set returned then put zero
-  //   in the list.  There will be 2 lists, one for Mesh 1 data and one for 
-  //   Mesh 2 data.  These could be combined in 1 list with Mesh1 in the first
-  //   n entries and Mesh2 in the last n entries.  The list would then be 2n in
-  //   length.  This may allow for reduction using MPI calls.
-
   // Loop over the tuple list getting the entities with the tags in the tuple_list entry
-  const unsigned intSize  = sizeof(sint);
-
   for (unsigned int i = 0; i < consTuples->n; i++) {
     // Get Entity Sets that match the tags and values.
     entSets = NULL;
@@ -960,6 +921,149 @@ int Coupler::consolidate_tuples(tuple_list **all_tuples,
 
   // Set the output parameter
   *unique_tuples = newTupleList;
+
+  return err;
+}
+
+// Calculate integrated field values for groups of entities
+int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> > &groups,
+                                  std::vector<double> &integ_vals,
+                                  double (*field_fn) (double, double, double),
+                                  int num_integ_vals,
+                                  Coupler::IntegType integ_type)
+{
+  // Get an iMesh_Instance from MBCoupler::mbImpl.
+  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
+
+  int err = iBase_SUCCESS;
+
+  std::vector< std::vector<iBase_EntityHandle> >::iterator iter_i;
+  std::vector<iBase_EntityHandle>::iterator iter_j;
+  double grpIntgrVal, intgrVal;
+
+  // Check size of integ_vals vector
+  if (integ_vals.size() != groups.size())
+    integ_vals.resize(groups.size());
+
+  // Loop over the groups(vectors) of entities
+  for (unsigned int i = 0; i < groups.size(); i++) {
+    grpIntgrVal = 0;
+
+    // Loop over the all the entities in the group, integrating 
+    // the field_fn over the entity in iter_j
+    for (iter_j = groups[i].begin(); iter_j != groups[i].end(); iter_j++) {
+      // Check that the entity in iter_j is of the same dimension as the 
+      // integ_type we are performing
+      int j_type;
+      iMesh_getEntType(iMeshInst, (*iter_j), &j_type, &err);
+      ERRORR("Failed to get entity type.", err);
+      if (((integ_type == VOLUME) && (j_type != iBase_REGION)) ||
+          ((integ_type == AREA)   && (j_type != iBase_FACE)))
+        continue;
+      
+      intgrVal = 0;
+
+      // Get coordinates of all corner vertices (in normal order) and
+      // put in array of CartVec.
+      CartVect corners[8];
+
+      // Retrieve the vertices from the element
+      iBase_EntityHandle *verts = NULL;
+      int vertsAlloc = 0;
+      int vertsSize = 0;
+
+      iMesh_getEntAdj(iMeshInst, (*iter_j), iBase_VERTEX, &verts, &vertsAlloc, &vertsSize, &err);
+      ERRORR("Failed to get vertices from entity.", err);
+
+      if (vertsSize < 8)
+        ERRORR("Failed to get 8 vertices.", iBase_FAILURE);
+
+      // Put the vertices into a CartVect array
+      double x[3];
+      for (int i = 0; i < vertsSize; i++) {
+        iMesh_getVtxCoord(iMeshInst, verts[i], &x[0], &x[1], &x[2], &err);
+        corners[i] = x;
+      }
+
+      // Perform the integration
+      if (!ElemUtil::integrate_trilinear_hex(corners, (*field_fn), intgrVal, num_integ_vals))
+          ERRORR("Bad parameter to ElemUtil::integrate_trilinear_hex.", iBase_FAILURE);
+
+      // Combine the result with those of the group
+      grpIntgrVal += intgrVal;
+    }
+
+    // Set the group integrated value in the vector
+    integ_vals[i] = grpIntgrVal;
+  }
+
+  return err;
+}
+
+// Apply a normalization factor to group of entities
+int Coupler::apply_group_norm_factor(std::vector< std::vector<iBase_EntityHandle> > &groups,
+                                     std::vector<double> &norm_factors, 
+                                     const char *norm_tag,
+                                     Coupler::IntegType integ_type)
+{
+  // Get an iMesh_Instance from MBCoupler::mbImpl.
+  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
+
+  int err = iBase_SUCCESS;
+
+  // Get the entity handle for norm_tag
+  iBase_TagHandle norm_hdl;
+  iMesh_getTagHandle(iMeshInst, norm_tag, &norm_hdl, &err, strlen(norm_tag));
+  ERRORR("Failed to get tag handle for norm_tag.", err);
+
+  std::vector< std::vector<iBase_EntityHandle> >::iterator iter_i;
+  std::vector<iBase_EntityHandle>::iterator iter_j;
+  std::vector<double>::iterator iter_f;
+  double grpNormFactor = 0.0;
+
+  // Loop over the groups(vectors) of entities
+  for (iter_i = groups.begin(), iter_f = norm_factors.begin(); 
+       (iter_i != groups.end()) && (iter_f != norm_factors.end()); 
+       iter_i++, iter_f++) {
+    grpNormFactor = *iter_f;
+
+    // Loop over the all the entities in the group getting the vertices
+    // for each entity in iter_j and applying the normalization factor
+    for (iter_j = (*iter_i).begin(); iter_j != (*iter_i).end(); iter_j++) {
+      // Check that the entity in iter_j is of the same dimension as the 
+      // integ_type we are performing
+      int j_type;
+      iMesh_getEntType(iMeshInst, (*iter_j), &j_type, &err);
+      ERRORR("Failed to get entity type.", err);
+      if (((integ_type == VOLUME) && (j_type != iBase_REGION)) ||
+          ((integ_type == AREA)   && (j_type != iBase_FACE)))
+        continue;
+
+      // Retrieve the vertices from the element
+      iBase_EntityHandle *verts = NULL;
+      int vertsAlloc = 0;
+      int vertsSize = 0;
+
+      iMesh_getEntAdj(iMeshInst, (*iter_j), iBase_VERTEX, &verts, &vertsAlloc, &vertsSize, &err);
+      ERRORR("Failed to get vertices from entity.", err);
+
+      if (vertsSize < 8)
+        ERRORR("Failed to get 8 vertices.", iBase_FAILURE);
+
+      // Loop over all of the vertices.  Get the value of norm_tag, multiply by
+      // the grpNormFactor and set the value back to the vertex.
+      for (int i = 0; i < vertsSize; i++) {
+        double data = 0.0;
+        iMesh_getDblData(iMeshInst, verts[i], norm_hdl, &data, &err);
+        ERRORR("Failed to get tag data.", err);
+
+        data = data * grpNormFactor;
+
+        iMesh_setDblData(iMeshInst, verts[i], norm_hdl, data, &err);
+        ERRORR("Failed to set tag data.", err);
+      }
+    }
+  }
 
   return err;
 }
