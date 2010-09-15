@@ -36,6 +36,8 @@ testgeom_LDADD = libiGeomMOAB.la \
                  $(top_builddir)/itaps/imesh/libiMesh.la \
                  $(top_builddir)/src/libMOAB.la \
                  ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
+                 
+TESTS = $(check_PROGRAMS)
 
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put 

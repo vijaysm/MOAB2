@@ -127,26 +127,9 @@ void handle_error_code(const bool result,
 
 int main( int argc, char *argv[] )
 {
-#ifndef MESHDIR
-#define MESHDIR .
-#endif
-    // Check command line arg
-  #ifdef FORCE_OCC
-    #ifndef HAVE_OCC
-      #error "Cannot force use of OCC w/out OCC support"
-    #endif
-  std::string filename = STRINGIFY(MESHDIR) "LeverArm.brep";
-    std::string engine_opt = ";engine=OCC";
-  #elif defined(HAVE_ACIS)
-    std::string filename = STRINGIFY(MESHDIR) "testgeom.sat";
-    std::string engine_opt = ";engine=ACIS";
-  #elif defined(HAVE_OCC)
-    std::string filename = STRINGIFY(MESHDIR) "LeverArm.brep";
-    std::string engine_opt = ";engine=OCC";
-  #else
-    std::string filename = STRINGIFY(MESHDIR) "brick.stp";
+    std::string filename = STRINGIFY(MESHDIR) "/brick.stp";
     std::string engine_opt;
-  #endif
+
   if (argc == 1) {
     std::cout << "Using default input file: " << filename << std::endl;
   }
