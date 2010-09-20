@@ -187,14 +187,14 @@ int load_geom_mesh_test(const char *geom_filename,
 int create_relation_test(iRel_Instance assoc,
                          iGeom_Instance geom,
                          iMesh_Instance mesh,
-                         iRel_RelationHandle *rel)
+                         iRel_PairHandle *pair)
 {
   int result;
 
     // create an relation, entity to set
   iRel_createRelation(assoc,
                       geom, iRel_ENTITY, iRel_IGEOM_IFACE,
-                      mesh, iRel_SET, iRel_IMESH_IFACE, rel, &result);
+                      mesh, iRel_SET, iRel_IMESH_IFACE, pair, &result);
   if (iBase_SUCCESS != result) {
     printf("Couldn't create a new relation.\n");
     return 0;
@@ -203,7 +203,7 @@ int create_relation_test(iRel_Instance assoc,
   iBase_Instance iface1, iface2;
   int type1, type2;
   int ent_or_set1, ent_or_set2;
-  iRel_getRelationInfo(assoc, *rel,
+  iRel_getRelationInfo(assoc, *pair,
                        &iface1, &ent_or_set1, &type1,
                        &iface2, &ent_or_set2, &type2, &result);
   if (iBase_SUCCESS != result) {
@@ -217,29 +217,29 @@ int create_relation_test(iRel_Instance assoc,
     return 0;
   }
 
-  iRel_RelationHandle relation;
-  iRel_RelationHandle *rel_ptr = &relation;
-  int relations_alloc = 1, relations_size;
+  iRel_PairHandle tmp_pair;
+  iRel_PairHandle *pair_ptr = &tmp_pair;
+  int pairs_alloc = 1, pairs_size;
 
-  iRel_findRelations(assoc, geom, &rel_ptr, &relations_alloc, &relations_size,
+  iRel_findRelations(assoc, geom, &pair_ptr, &pairs_alloc, &pairs_size,
                      &result);
   if (iBase_SUCCESS != result) {
-    printf("Couldn't find relations.\n");
+    printf("Couldn't find relation pair when querying geom.\n");
     return 0;
   }
-  if (relations_size != 1 || relation != *rel) {
-    printf("Unexpected relations returned when querying geom.\n");
+  if (pairs_size != 1 || tmp_pair != *pair) {
+    printf("Unexpected relation pairs returned when querying geom.\n");
     return 0;
   }
 
-  iRel_findRelations(assoc, mesh, &rel_ptr, &relations_alloc, &relations_size,
+  iRel_findRelations(assoc, mesh, &pair_ptr, &pairs_alloc, &pairs_size,
                      &result);
   if (iBase_SUCCESS != result) {
-    printf("Couldn't find relations.\n");
+    printf("Couldn't find relation pair when querying mesh.\n");
     return 0;
   }
-  if (relations_size != 1 || relation != *rel) {
-    printf("Unexpected relations returned when querying mesh.\n");
+  if (pairs_size != 1 || tmp_pair != *pair) {
+    printf("Unexpected relation pairs returned when querying mesh.\n");
     return 0;
   }
 
@@ -254,7 +254,7 @@ int create_relation_test(iRel_Instance assoc,
 int relate_geom_mesh_test(iRel_Instance assoc,
                           iGeom_Instance geom,
                           iMesh_Instance mesh,
-                          iRel_RelationHandle rel)
+                          iRel_PairHandle pair)
 {
     // relate geometry entities with coresponding mesh entity sets
   iBase_EntityHandle *gentities = NULL;
@@ -270,7 +270,7 @@ int relate_geom_mesh_test(iRel_Instance assoc,
     return 0;
   }
 
-  iRel_inferEntArrRelations(assoc, rel,
+  iRel_inferEntArrRelations(assoc, pair,
                             gentities, gentities_size, 0,
                             &result);
   if (iBase_SUCCESS != result) {
@@ -317,7 +317,7 @@ int relate_geom_mesh_test(iRel_Instance assoc,
       mentities_vec[mentities_vec_size++] = mentity_handles[i];
   }
 
-  iRel_inferSetArrRelations(assoc, rel,
+  iRel_inferSetArrRelations(assoc, pair,
                             mentities_vec, mentities_vec_size,
                             1, &result);
   if (iBase_SUCCESS != result) {
@@ -326,7 +326,7 @@ int relate_geom_mesh_test(iRel_Instance assoc,
   }
 
     // relate all geometry and mesh entities
-  iRel_inferAllRelations(assoc, rel, &result);
+  iRel_inferAllRelations(assoc, pair, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to relate all geom and mesh entities in relate_geom_mesh_test.\n");
     return 0;
@@ -352,7 +352,7 @@ int relate_geom_mesh_test(iRel_Instance assoc,
   int out_mentities_size = 0, out_mentities_alloc = 0;
   int *offsets = NULL;
   int offsets_size = 0, offsets_alloc = 0;
-  iRel_getEntArrSetArrRelation(assoc, rel,
+  iRel_getEntArrSetArrRelation(assoc, pair,
                                gentities, gentities_size, 0,
                                &out_mentities, &out_mentities_alloc,
                                &out_mentities_size,
@@ -374,7 +374,7 @@ int relate_geom_mesh_test(iRel_Instance assoc,
   offsets = NULL;
   offsets_size = offsets_alloc = 0;
 
-  iRel_getSetArrEntArrRelation(assoc, rel,
+  iRel_getSetArrEntArrRelation(assoc, pair,
                                out_mentities, out_mentities_size, 1,
                                &out_gentities, &out_gentities_alloc,
                                &out_gentities_size,
@@ -401,7 +401,7 @@ int relate_geom_mesh_test(iRel_Instance assoc,
 int query_relations_test(iRel_Instance assoc,
                          iGeom_Instance geom,
                          iMesh_Instance mesh,
-                         iRel_RelationHandle rel)
+                         iRel_PairHandle pair)
 {
     // get all the geom entities, and find relation to some mesh entity
   iBase_EntityHandle *gentities = NULL;
@@ -420,7 +420,7 @@ int query_relations_test(iRel_Instance assoc,
   int *offsets = NULL;
   int offsets_size, offsets_alloc = 0;
 
-  iRel_getEntArrSetArrRelation(assoc, rel,
+  iRel_getEntArrSetArrRelation(assoc, pair,
                                gentities, gentities_size, 0,
                                &out_mentities, &out_mentities_alloc,
                                &out_mentities_size,
@@ -468,7 +468,7 @@ int query_relations_test(iRel_Instance assoc,
   offsets = NULL;
   offsets_alloc = 0;
 
-  iRel_getSetArrEntArrRelation(assoc, rel,
+  iRel_getSetArrEntArrRelation(assoc, pair,
                                out_mentities, out_mentities_size, 1,
                                &out_gentities, &out_gentities_alloc,
                                &out_gentities_size,
@@ -531,7 +531,7 @@ int main( int argc, char *argv[] )
     // Print out Header information
   printf("\n\niRel TEST PROGRAM:\n\n");
 
-  iRel_RelationHandle rel;
+  iRel_PairHandle pair;
 
     // load_geom_mesh test
   printf("   load_geom_mesh: ");
@@ -545,7 +545,7 @@ int main( int argc, char *argv[] )
 
     // create_relation test
   printf("   create_relation: ");
-  result = create_relation_test(assoc, geom, mesh, &rel);
+  result = create_relation_test(assoc, geom, mesh, &pair);
   handle_error_code(result, &number_tests_failed,
                     &number_tests_not_implemented,
                     &number_tests_successful);
@@ -554,7 +554,7 @@ int main( int argc, char *argv[] )
 
     // relate_geom_mesh test
   printf("   relate_geom_mesh: ");
-  result = relate_geom_mesh_test(assoc, geom, mesh, rel);
+  result = relate_geom_mesh_test(assoc, geom, mesh, pair);
   handle_error_code(result, &number_tests_failed,
                     &number_tests_not_implemented,
                     &number_tests_successful);
@@ -563,7 +563,7 @@ int main( int argc, char *argv[] )
 
     // query_relations test
   printf("   query_relations: ");
-  result = query_relations_test(assoc, geom, mesh, rel);
+  result = query_relations_test(assoc, geom, mesh, pair);
   handle_error_code(result, &number_tests_failed,
                     &number_tests_not_implemented,
                     &number_tests_successful);

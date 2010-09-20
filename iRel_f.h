@@ -1,5 +1,5 @@
 #define iRel_Instance integer
-#define iRel_RelationHandle integer
+#define iRel_PairHandle integer
 
       integer iRel_IGEOM_IFACE
       integer iRel_IMESH_IFACE
