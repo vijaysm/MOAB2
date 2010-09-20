@@ -155,9 +155,10 @@ AC_CONFIG_HEADERS(config.h) # Don't want this, just working around autoheader is
 AC_CONFIG_HEADERS([iBase_FCDefs.h])
 AC_CONFIG_FILES([Makefile 
                  iRel-Defs.inc
-		 SIDL/iRel-SIDL-Defs.inc
-		 SIDL/Makefile
                  ])
+#		 SIDL/iRel-SIDL-Defs.inc
+#		 SIDL/Makefile
+
 # Generate iRel_FCDefs.h from iBase_FCDefs.h
 AC_CONFIG_COMMANDS([iRel_FCDefs.h],
   [sed -e "s/FC_FUNC/IREL_FC_FUNC/" iBase_FCDefs.h >iRel_FCDefs.h])

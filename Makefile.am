@@ -66,7 +66,7 @@ install-data-hook:
 	echo "IREL_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iRel-Defs.inc
 
 if USE_BABEL
-  SIDL_SUBDIR = SIDL
+  SIDL_SUBDIR = #SIDL
 else
   SIDL_SUBDIR =
 endif
