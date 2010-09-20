@@ -192,9 +192,9 @@ int create_relation_test(iRel_Instance assoc,
   int result;
 
     // create an relation, entity to set
-  iRel_createRelation(assoc,
-                      geom, iRel_ENTITY, iRel_IGEOM_IFACE,
-                      mesh, iRel_SET, iRel_IMESH_IFACE, pair, &result);
+  iRel_createPair(assoc,
+                  geom, iRel_ENTITY, iRel_IGEOM_IFACE,
+                  mesh, iRel_SET, iRel_IMESH_IFACE, pair, &result);
   if (iBase_SUCCESS != result) {
     printf("Couldn't create a new relation.\n");
     return 0;
@@ -203,9 +203,9 @@ int create_relation_test(iRel_Instance assoc,
   iBase_Instance iface1, iface2;
   int type1, type2;
   int ent_or_set1, ent_or_set2;
-  iRel_getRelationInfo(assoc, *pair,
-                       &iface1, &ent_or_set1, &type1,
-                       &iface2, &ent_or_set2, &type2, &result);
+  iRel_getPairInfo(assoc, *pair,
+                   &iface1, &ent_or_set1, &type1,
+                   &iface2, &ent_or_set2, &type2, &result);
   if (iBase_SUCCESS != result) {
     printf("Couldn't retrieve relation info.\n");
     return 0;
@@ -221,8 +221,7 @@ int create_relation_test(iRel_Instance assoc,
   iRel_PairHandle *pair_ptr = &tmp_pair;
   int pairs_alloc = 1, pairs_size;
 
-  iRel_findRelations(assoc, geom, &pair_ptr, &pairs_alloc, &pairs_size,
-                     &result);
+  iRel_findPairs(assoc, geom, &pair_ptr, &pairs_alloc, &pairs_size, &result);
   if (iBase_SUCCESS != result) {
     printf("Couldn't find relation pair when querying geom.\n");
     return 0;
@@ -232,8 +231,7 @@ int create_relation_test(iRel_Instance assoc,
     return 0;
   }
 
-  iRel_findRelations(assoc, mesh, &pair_ptr, &pairs_alloc, &pairs_size,
-                     &result);
+  iRel_findPairs(assoc, mesh, &pair_ptr, &pairs_alloc, &pairs_size, &result);
   if (iBase_SUCCESS != result) {
     printf("Couldn't find relation pair when querying mesh.\n");
     return 0;

@@ -178,7 +178,7 @@ extern "C"
      * \param *pair Pointer to relation pair handle, returned from function
      * \param *ierr Pointer to error value, returned from function
      */
-  void iRel_createRelation (
+  void iRel_createPair (
     iRel_Instance instance,
     /*in*/ iBase_Instance iface1,
     /*in*/ const int ent_or_set1,
@@ -204,7 +204,7 @@ extern "C"
      * \param *iface_type2 Inferface type for side 2 of this relation
      * \param *ierr Pointer to error value, returned from function
      */
-  void iRel_getRelationInfo (
+  void iRel_getPairInfo (
       iRel_Instance instance,
       /*in*/ iRel_PairHandle pair,
       /*out*/ iBase_Instance *iface1,
@@ -226,7 +226,7 @@ extern "C"
      *  \param ent_or_set2 The new type of side 2 of this relation pair
      *  \param *ierr Pointer to error value, returned from function
      */
-  void iRel_changeRelationType (
+  void iRel_changePairType (
     iRel_Instance instance,
     iRel_PairHandle pair,
     int ent_or_set1,
@@ -240,7 +240,7 @@ extern "C"
      * \param pair Handle of relation pair to destroy
      * \param *ierr Pointer to error value, returned from function
      */
-  void iRel_destroyRelation (
+  void iRel_destroyPair (
     iRel_Instance instance, 
     /*in*/ iRel_PairHandle pair,
     /*out*/ int *ierr);
@@ -256,7 +256,7 @@ extern "C"
      * \param pairs_size Pointer to occupied size of relation pairs list
      * \param *ierr Pointer to error value, returned from function
      */
-  void iRel_findRelations (
+  void iRel_findPairs (
     iRel_Instance instance,
     /*in*/ iBase_Instance iface,
     /*inout*/ iRel_PairHandle **pairs,

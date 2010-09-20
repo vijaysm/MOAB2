@@ -65,7 +65,7 @@ void iRel_dtor(iRel_Instance instance, int *ierr)
   RETURN(iBase_SUCCESS);
 }
 
-void iRel_createRelation (
+void iRel_createPair (
   iRel_Instance instance,
   iBase_Instance iface1,
   const int ent_or_set1,
@@ -90,7 +90,7 @@ void iRel_createRelation (
   RETURN(iBase_SUCCESS);
 }
 
-void iRel_getRelationInfo (
+void iRel_getPairInfo (
   iRel_Instance instance,
   iRel_PairHandle pair,
   iBase_Instance *iface1,
@@ -117,7 +117,7 @@ void iRel_getRelationInfo (
   RETURN(iBase_SUCCESS);
 }
 
-void iRel_changeRelationType (
+void iRel_changePairType (
   iRel_Instance instance,
   iRel_PairHandle pair,
   int ent_or_set1,
@@ -127,7 +127,7 @@ void iRel_changeRelationType (
   ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
 }
 
-void iRel_destroyRelation (
+void iRel_destroyPair (
   iRel_Instance instance,
   iRel_PairHandle pair,
   int *ierr)
@@ -143,7 +143,7 @@ void iRel_destroyRelation (
   RETURN(result);
 }
 
-void iRel_findRelations(
+void iRel_findPairs (
   iRel_Instance instance,
   iBase_Instance iface,
   iRel_PairHandle **pairs,
