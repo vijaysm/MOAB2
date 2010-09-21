@@ -30,7 +30,7 @@
    * to this interface, for example mesh smoothing, adaptive mesh refinement,
    * and parallel mesh support.
    *
-   * \section ITAPS Data Model
+   * \section DataModel Data Model
    *
    * The ITAPS interfaces use a data model composed of four basic data types: \n
    * \em Entity: basic topological entities in a mesh, e.g. vertices, 
@@ -45,7 +45,7 @@
    * \em Tag: application data associated with objects of any of the other 
    * data types.  Each tag has a designated name, size, and data type.
    *
-   * \section ITAPS Entity Type, Topology
+   * \section TypeTopology Entity Type, Topology
    * Each entity has a specific Entity Type and Entity Topology.  The Entity 
    * Type is one of VERTEX, EDGE, FACE, and REGION, and is synonymous with
    * the topological dimension of the entity.  The Entity Topology denotes
@@ -54,14 +54,14 @@
    * types, Entity Type in the iBase_EntityType enumeration, and
    * Entity Topology in the iMesh_EntityTopology enumeration.
    *
-   * \section ITAPS Entity-, Array-, and Iterator-Based Access
+   * \section Access Entity-, Array-, and Iterator-Based Access
    *
    * The iMesh interface provides functions for accessing entities
    * individually, as arrays of entities, or using iterators.  These access
    * methods have different memory versus execution time tradeoffs, 
    * depending on the implementation.
    *
-   * \section ITAPS Lists Passed Through Interface
+   * \section Lists Lists Passed Through Interface
    *
    * Many of the functions in iMesh have arguments corresponding to lists of 
    * objects.  In-type arguments for lists consist of a pointer to an array and
@@ -79,7 +79,7 @@
    * INTERFACE IMPLEMENTATIONS IS DONE USING THE C MALLOC FUNCTION, AND CAN BE
    * DE-ALLOCATED USING THE C FREE FUNCTION.
    *
-   * \section ITAPS Storage Orders
+   * \section Storage Storage Orders
    *
    * Many of the functions in iMesh can return arrays of tuples; that is, arrays
    * of multi-valued type. For example, the function iMesh_getVtxArrCoords,

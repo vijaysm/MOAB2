@@ -56,8 +56,9 @@ Compiling
    command 'make' to compile MOAB and any configured MOAB-based tools.
 5. In whichever directory MOAB was build in, issue the command 
    'make check' to verify that MOAB compiled and is working correctly.
-6. Optional: Issue the command 'make install' to install the MOAB 
-   library and headers in the configured install directory.
+6. Issue the command 'make install' to install the MOAB library and headers 
+   in the configured install directory.  (This step is optional if you're 
+   only building tools distributed with MOAB.)
 
 
 =====================================

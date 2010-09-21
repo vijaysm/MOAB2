@@ -15,7 +15,7 @@ IMESH_LIBS = $(IMESH_LDFLAGS) -L$(MOAB_LIBDIR) \
              -L$(IMESH_LIBDIR) -liMesh -lMOAB \
              @NETCDF_LIBS@ @HDF5_LIBS@ @LIBS@ \
              $(IMESH_CXX_LDFLAGS) $(IMESH_CXX_LIBS) \
-             @CGM_LDFLAGS@ @CGM_LIBS@
+             @CGM_LDFLAGS@ @CGM_LIBS@ @CCMIO_LIBS@
 
 IMESH_INCLUDEDIR = @abs_srcdir@
 IMESH_INCLUDEDIR2 = -I@abs_top_builddir@

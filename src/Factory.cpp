@@ -111,7 +111,7 @@ int ComponentFactory::QueryInterface( const MBuuid& uuid, UnknownInterface** ifa
 }
 
 // returns the interface version
-MB_EXPORT const char* Version()
+MB_EXPORT const char* MoabVersion()
 {
    return MB_INTERFACE_VERSION;
 }

@@ -127,7 +127,7 @@ fi
 
 FORCE_IMESH=no
 AC_ARG_ENABLE( [imesh],
-[AC_HELP_STRING([--disable-imesh],[Do no build support for iMesh interface.])],
+[AC_HELP_STRING([--disable-imesh],[Do not build support for iMesh interface.])],
 [FORCE_IMESH=yes],
 [enableval=yes] )
 
@@ -977,6 +977,8 @@ if test "x$CGM_MISSING" = "xno"; then
   CPPFLAGS="$old_CPPFLAGS"
   LDFLAGS="$old_LDFLAGS"
   LIBS="$old_LIBS"
+#  LDFLAGS="$old_LDFLAGS"
+#  LIBS="$old_LIBS"
   AC_LANG_POP([C++])
   EXPORT_LDFLAGS="$EXPORT_LDFLAGS $CGM_LDFLAGS"
   EXPORT_LTFLAGS="$EXPORT_LTFLAGS $CGM_LTFLAGS"
