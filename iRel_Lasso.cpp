@@ -138,9 +138,7 @@ void iRel_destroyPair (
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
-  int result = lasso->erase_pair(assoc_pair);
-
-  RETURN(result);
+  CHK_ERROR( lasso->erase_pair(assoc_pair) );
 }
 
 void iRel_findPairs (
@@ -177,10 +175,8 @@ void iRel_setEntEntRelation (
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
-  int result = this_pair->set_assoc_tags(ent1, ent2);
-
   // xxx - need to check whether either is a set, and act accordingly!
-  RETURN(result);
+  CHK_ERROR( this_pair->set_assoc_tags(ent1, ent2) );
 }
 
 void iRel_setEntSetRelation (
@@ -196,10 +192,8 @@ void iRel_setEntSetRelation (
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
-  int result = this_pair->set_assoc_tags(ent1, set2);
-
   // xxx - need to check whether either is a set, and act accordingly!
-  RETURN(result);
+  CHK_ERROR( this_pair->set_assoc_tags(ent1, set2) );
 }
 
 void iRel_setSetEntRelation (
@@ -215,10 +209,8 @@ void iRel_setSetEntRelation (
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
-  int result = this_pair->set_assoc_tags(set1, ent2);
-
   // xxx - need to check whether either is a set, and act accordingly!
-  RETURN(result);
+  CHK_ERROR( this_pair->set_assoc_tags(set1, ent2) );
 }
 
 void iRel_setSetSetRelation (
@@ -234,10 +226,8 @@ void iRel_setSetSetRelation (
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
-  int result = this_pair->set_assoc_tags(set1, set2);
-
   // xxx - need to check whether either is a set, and act accordingly!
-  RETURN(result);
+  CHK_ERROR( this_pair->set_assoc_tags(set1, set2) );
 }
 
 void iRel_setEntEntArrRelation (
@@ -264,7 +254,7 @@ void iRel_setEntEntArrRelation (
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
 
-  RETURN(result);
+  CHK_ERROR(result);
 }
 
 void iRel_setEntSetArrRelation (
@@ -291,7 +281,7 @@ void iRel_setEntSetArrRelation (
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
 
-  RETURN(result);
+  CHK_ERROR(result);
 }
 
 void iRel_setSetEntArrRelation (
@@ -318,7 +308,7 @@ void iRel_setSetEntArrRelation (
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
 
-  RETURN(result);
+  CHK_ERROR(result);
 }
 
 void iRel_setSetSetArrRelation (
@@ -345,7 +335,7 @@ void iRel_setSetSetArrRelation (
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
 
-  RETURN(result);
+  CHK_ERROR(result);
 }
 
 void iRel_setEntArrEntArrRelation (
@@ -370,7 +360,7 @@ void iRel_setEntArrEntArrRelation (
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
 
-  RETURN(result);
+  CHK_ERROR(result);
 }
 
 void iRel_setEntArrSetArrRelation (
@@ -395,7 +385,7 @@ void iRel_setEntArrSetArrRelation (
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
 
-  RETURN(result);
+  CHK_ERROR(result);
 }
 
 void iRel_setSetArrEntArrRelation (
@@ -420,7 +410,7 @@ void iRel_setSetArrEntArrRelation (
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
 
-  RETURN(result);
+  CHK_ERROR(result);
 }
 
 void iRel_setSetArrSetArrRelation (
@@ -445,7 +435,7 @@ void iRel_setSetArrSetArrRelation (
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
 
-  RETURN(result);
+  CHK_ERROR(result);
 }
 
 void iRel_getEntEntRelation (
@@ -463,9 +453,7 @@ void iRel_getEntEntRelation (
   }
 
   int iface_no = (switch_order ? 1 : 0);
-  int result = this_pair->get_assoc_tags(iface_no, &ent1, 1, ent2);
-
-  RETURN(result);
+  CHK_ERROR( this_pair->get_assoc_tags(iface_no, &ent1, 1, ent2) );
 }
 
 void iRel_getEntSetRelation (
@@ -483,9 +471,7 @@ void iRel_getEntSetRelation (
   }
 
   int iface_no = (switch_order ? 1 : 0);
-  int result = this_pair->get_assoc_tags(iface_no, &ent1, 1, set2);
-
-  RETURN(result);
+  CHK_ERROR( this_pair->get_assoc_tags(iface_no, &ent1, 1, set2) );
 }
 
 void iRel_getSetEntRelation (
@@ -503,9 +489,7 @@ void iRel_getSetEntRelation (
   }
 
   int iface_no = (switch_order ? 1 : 0);
-  int result = this_pair->get_assoc_tags(iface_no, &set1, 1, ent2);
-
-  RETURN(result);
+  CHK_ERROR( this_pair->get_assoc_tags(iface_no, &set1, 1, ent2) );
 }
 
 void iRel_getSetSetRelation (
@@ -523,9 +507,7 @@ void iRel_getSetSetRelation (
   }
 
   int iface_no = (switch_order ? 1 : 0);
-  int result = this_pair->get_assoc_tags(iface_no, &set1, 1, set2);
-
-  RETURN(result);
+  CHK_ERROR( this_pair->get_assoc_tags(iface_no, &set1, 1, set2) );
 }
 
 void iRel_getEntSetIterRelation (
@@ -543,9 +525,7 @@ void iRel_getEntSetIterRelation (
   }
 
   int iface_no = (switch_order ? 1 : 0);
-  int result = this_pair->get_assoc_tags(iface_no, &ent1, 1, entset2);
-
-  RETURN(result);
+  CHK_ERROR( this_pair->get_assoc_tags(iface_no, &ent1, 1, entset2) );
 }
 
 void iRel_getEntEntArrRelation (
@@ -585,7 +565,7 @@ void iRel_getEntEntArrRelation (
     ALLOC_CHECK_ARRAY(ent_array_2, 1);
     iRel_getEntEntRelation(instance, pair, ent1, switch_order,
                            *ent_array_2, &result);
-    if (iBase_SUCCESS != result) RETURN(result);
+    CHK_ERROR(result);
 
     KEEP_ARRAY(ent_array_2);
   }
@@ -629,7 +609,7 @@ void iRel_getSetEntArrRelation (
     ALLOC_CHECK_ARRAY(ent_array_2, 1);
     iRel_getSetEntRelation(instance, pair, set1, switch_order,
                            *ent_array_2, &result);
-    if (iBase_SUCCESS != result) RETURN(result);
+    CHK_ERROR(result);
 
     KEEP_ARRAY(ent_array_2);
   }
@@ -804,7 +784,7 @@ void iRel_getSetArrSetArrRelation(
   CHK_ERROR(result);
 
   KEEP_ARRAY(set_array_2);
-  RETURN(result);
+  RETURN(iBase_SUCCESS);
 }
 
 void iRel_getEntArrSetIterArrRelation (
@@ -835,7 +815,6 @@ void iRel_getEntArrSetIterArrRelation (
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
   CHK_ERROR(result);
-
 
   KEEP_ARRAY(entiter);
   RETURN(iBase_SUCCESS);
@@ -1044,7 +1023,7 @@ void iRel_inferAllRelations (
                             &result);
 
   free(ents1); free(ents2);
-  RETURN(result);
+  CHK_ERROR(result);
 }
 
 void iRel_inferAllRelationsAndType (
@@ -1129,7 +1108,7 @@ static void iRel_inferArrRelations (
 
   free(1 == iface_no ? ents1 : ents2);
 
-  RETURN(result);
+  CHK_ERROR(result);
 }
 
 void iRel_inferEntArrRelations (

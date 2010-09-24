@@ -18,7 +18,7 @@ extern "C" iBase_Error iRel_LAST_ERROR;
 #define ERRORR(CODE, MSG) return iRel_processError( (CODE), (MSG) )
 
 #define CHK_ERROR(CODE) do { if ((CODE) != iBase_SUCCESS) \
-                               *ierr = (CODE); } while(false)
+                                *ierr = (CODE); return; } while(false)
 #define CHK_ERRORR(CODE) do { if ((CODE) != iBase_SUCCESS) \
                                 return (CODE); } while(false)
 
