@@ -274,6 +274,13 @@ if test "xyes" = "x$MPI_CXX_HELP_NEEDED"; then
   AC_DEFINE_UNQUOTED([MB_SEEK_END],[$SEEK_END],["Value of C SEEK_END"])
 fi
 
+if test "xyes" = "x$WITH_MPI"; then
+  FATHOM_CHECK_MPE
+  AC_SUBST([WITH_MPE])
+  AC_SUBST([MPE_LIBS])
+  test "xyes" != "x$WITH_MPE" || AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_MPE"
+fi
+
 ################################################################################
 #                              HDF5 OPTIONS
 ################################################################################

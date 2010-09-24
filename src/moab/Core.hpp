@@ -1238,6 +1238,7 @@ private:
   ReaderWriterSet* readerWriterSet;
 
   Error* mError;
+  int writeMPELog;
 };
 
 } // namespace moab 

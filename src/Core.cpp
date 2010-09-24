@@ -19,6 +19,8 @@
 #pragma warning(disable : 4786)
 #endif
 
+#define MOAB_MPE_LOG "moab.mpe"
+
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -78,6 +80,8 @@
 #ifdef XPCOM_MB
 #include "nsMemory.h"
 #endif
+
+#include "moab_mpe.h"
 
 namespace moab {
 
@@ -149,6 +153,10 @@ Core::~Core()
 
 ErrorCode Core::initialize()
 {
+  writeMPELog = ! MPE_Initialized_logging();
+  if (writeMPELog)
+    MPE_Init_log();
+
   geometricDimension = 3;
   materialTag      = 0;
   neumannBCTag     = 0;
@@ -227,6 +235,14 @@ void Core::deinitialize()
   if(mError)
     delete mError;
   mError = 0;
+  
+  if (writeMPELog) {
+    const char* default_log = MOAB_MPE_LOG;
+    const char* logfile = getenv("MPE_LOG_FILE");
+    if (!logfile)
+      logfile = default_log;
+    MPE_Finish_log( logfile );
+  }
 }
 
 ErrorCode Core::query_interface(const std::string& iface_name, void** iface)
