@@ -145,6 +145,7 @@ void test_read_partial_ids();
 
 int main( int argc, char* argv[] )
 {
+/*
   if (argc > 1) {
     if (argc != 2 || strcmp(argv[1],"-k")) {
       std::cerr << "Usage: " << argv[0] << " [-k]" << std::endl;
@@ -183,6 +184,34 @@ int main( int argc, char* argv[] )
   if (argc == 1)
     remove( TEST_FILE );
   return result;
+*/
+
+  REGISTER_TEST(test_read_empty_set);
+  REGISTER_TEST(test_read_non_existant_set);
+  REGISTER_TEST(test_read_one_set_nodes);
+  REGISTER_TEST(test_read_one_set_elems);
+  REGISTER_TEST(test_read_one_set_polyhedra);
+  REGISTER_TEST(test_read_set_sets);
+  REGISTER_TEST(test_read_two_sets_nodes);
+  REGISTER_TEST(test_read_two_sets_elems);
+  REGISTER_TEST(test_read_child_sets_only);
+  REGISTER_TEST(test_read_child_set_contents);
+  REGISTER_TEST(test_read_no_child_sets);
+  REGISTER_TEST(test_read_contained_sets_only);
+  REGISTER_TEST(test_read_contained_set_contents);
+  REGISTER_TEST(test_read_no_contained_sets);
+  REGISTER_TEST(test_read_containing_sets);
+  REGISTER_TEST(test_read_double_tag);
+  REGISTER_TEST(test_read_opaque_tag);
+  REGISTER_TEST(test_read_handle_tag);
+  REGISTER_TEST(test_var_len_tag);
+  REGISTER_TEST(test_read_adjacencies);
+  REGISTER_TEST(test_read_tagged_elems);
+  REGISTER_TEST(test_read_tagged_nodes);
+  REGISTER_TEST(test_read_sides);
+  REGISTER_TEST(test_read_ids);
+  REGISTER_TEST(test_read_partial_ids);
+  return RUN_TESTS( argc, argv );
 }
 
 void test_read_nothing_common( bool non_existant )
