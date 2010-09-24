@@ -15,6 +15,8 @@ extern "C"
   typedef struct iBase_EntityHandle_Private* iBase_EntityHandle;
   typedef struct iBase_EntitySetHandle_Private* iBase_EntitySetHandle;
   typedef struct iBase_TagHandle_Private* iBase_TagHandle;
+  typedef void* iBase_EntityIterator;
+  typedef void* iBase_EntityArrIterator;
 
     /*==========================================================
      * ENTITYTYPE ENUMERATION
