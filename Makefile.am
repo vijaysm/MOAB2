@@ -11,42 +11,46 @@ INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I. -I${IMESH_DIR}/include -I${IGEO
 
 DEFS += $(DEFINES)
 
-LIBS = 
+LIBS =
 
 # stuff for c test program
 rtestc_SOURCES = rtestc.c
 
-LDADD = libiRel.la 
+LDADD = libiRel.la
 
 TESTS = rtestc
 check_PROGRAMS = ${TESTS}
 
-rtestc_DEPENDENCIES = libiRel.la ${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMesh.la 
-rtestc_LDADD = libiRel.la #${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMesh.la 
-#rtestc_LDFLAGS = ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${IMESH_LTFLAGS} ${IMESH_LDFLAGS} 
+rtestc_DEPENDENCIES = libiRel.la ${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMesh.la
+rtestc_LDADD = libiRel.la #${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMesh.la
+#rtestc_LDFLAGS = ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${IMESH_LTFLAGS} ${IMESH_LDFLAGS}
 
 libiRel_la_SOURCES = \
-	iRel_Lasso.cpp \
-	AssocPair.hpp \
+	ArrayManager.hpp \
 	AssocPair.cpp \
-	AssocPairC.hpp \
+	AssocPair.hpp \
 	AssocPairC.cpp \
+	AssocPairC.hpp \
+	iRel_Lasso.cpp \
+	iRel_Lasso.hpp \
+	Lasso.cpp \
 	Lasso.hpp
 
-libiRel_la_include_HEADERS = iRel.h \
-                             iRel_f.h \
-                             iRel_protos.h \
-			     iRel_FCDefs.h
+libiRel_la_include_HEADERS = \
+	iRel.h \
+	iRel_f.h \
+	iRel_protos.h \
+	iRel_FCDefs.h
 
 # The directory in which to install headers
 libiRel_la_includedir = $(includedir)
 libiRel_la_LIBADD = ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${IMESH_LTFLAGS} \
-                    ${IMESH_LDFLAGS} ${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMesh.la 
+                    ${IMESH_LDFLAGS} ${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMesh.la
 
 lib_LTLIBRARIES = libiRel.la
 
 # Automake doesn't seem to have a directory defined for
-# platform-dependent data (or include) files. So put 
+# platform-dependent data (or include) files. So put
 # in $(libdir).  Define a $(cfgdir) to get around automake's
 # check that only libraries are going in $(libdir)
 cfgdir = $(libdir)
@@ -54,7 +58,7 @@ cfg_DATA = iRel-Defs.inc
 
 # By default, iRel-Defs.inc will define these to $(srcdir).  We
 # want to override that during the INSTALL of the file so
-# that the correct values are set (e.g. if someone does 
+# that the correct values are set (e.g. if someone does
 # 'make prefix=/foo install', we don't know the correct install
 # directory until we're doing the install.
 install-data-hook:
