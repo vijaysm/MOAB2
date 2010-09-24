@@ -24,7 +24,7 @@
 #ifndef COUPLER_HPP
 #define COUPLER_HPP
 
-#include "itaps/iBase.h"
+#include "iBase.h"
 #include "moab/Range.hpp"
 #include "moab/Interface.hpp"
 #include "moab/CartVect.hpp"
