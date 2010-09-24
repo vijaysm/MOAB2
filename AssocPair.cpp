@@ -65,15 +65,18 @@ int AssocPair::destroy_tags()
 
 int AssocPair::set_assoc_tags(iBase_EntityHandle ent1, iBase_EntityHandle ent2)
 {
+  iBase_EntityHandle tmp_ent;
   // check that is_setx is consistent with entOrSet
   assert(entOrSet[0] == iRel_ENTITY && entOrSet[1] == iRel_ENTITY);
 
   // check that if we're passing in an ent for a 'both'-type
   // assoc, there's already a set associated to the other ent
   assert((entOrSet[0] != iRel_BOTH ||
-          get_eh_tags(1, &ent2, 1, assocTags[1], &tmp_ent) == iBase_SUCCESS) &&
+          get_tags(1, &ent2, 1, assocTags[1], &tmp_ent, sizeof(tmp_ent))
+          == iBase_SUCCESS) &&
          (entOrSet[1] != iRel_BOTH ||
-          get_eh_tags(0, &ent1, 1, assocTags[0], &tmp_ent) == iBase_SUCCESS));
+          get_tags(0, &ent1, 1, assocTags[0], &tmp_ent, sizeof(tmp_ent))
+          == iBase_SUCCESS));
 
   int result = iBase_SUCCESS;
 
@@ -97,13 +100,15 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1, iBase_EntityHandle ent2)
 int AssocPair::set_assoc_tags(iBase_EntityHandle ent1,
                               iBase_EntitySetHandle set2)
 {
+  iBase_EntityHandle tmp_ent;
   // check that is_setx is consistent with entOrSet
   assert(entOrSet[0] == iRel_ENTITY && entOrSet[1] != iRel_ENTITY);
 
   // check that if we're passing in an ent for a 'both'-type
   // assoc, there's already a set associated to the other ent
   assert( entOrSet[0] != iRel_BOTH ||
-          get_eh_tags(1, &set2, 1, assocTags[1], &tmp_ent) == iBase_SUCCESS);
+          get_tags(1, &set2, 1, assocTags[1], &tmp_ent, sizeof(tmp_ent))
+          == iBase_SUCCESS);
 
   int result = iBase_SUCCESS;
 
@@ -147,13 +152,16 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1,
 int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
                               iBase_EntityHandle ent2)
 {
+  iBase_EntityHandle tmp_ent;
   // check that is_setx is consistent with entOrSet
   assert(entOrSet[0] != iRel_ENTITY && entOrSet[1] == iRel_ENTITY);
 
   // check that if we're passing in an ent for a 'both'-type
   // assoc, there's already a set associated to the other ent
+
   assert( entOrSet[1] != iRel_BOTH ||
-          get_eh_tags(0, &ent1, 1, assocTags[0], &tmp_ent) == iBase_SUCCESS);
+          get_tags(0, &set1, 1, assocTags[0], &tmp_ent, sizeof(tmp_ent))
+          == iBase_SUCCESS);
 
   int result = iBase_SUCCESS;
 
