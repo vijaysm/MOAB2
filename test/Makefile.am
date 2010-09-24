@@ -103,6 +103,8 @@ mbcn_test_SOURCES = $(top_srcdir)/src/moab/CN.hpp \
 
 bsp_tree_poly_test_SOURCES = bsp_tree_poly_test.cpp
 
+EXTRA_DIST = TestUtil.hpp TestRunner.hpp
+
 mb_big_test.g: $(MESHDIR)/mb_big_test.g.gz
 	$(AM_V_GEN)$(ZCAT) $< > $@
 

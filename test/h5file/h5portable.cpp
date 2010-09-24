@@ -8,7 +8,7 @@
 
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
-#include "TestUtil.hpp"
+#include "TestRunner.hpp"
 #include "ReadHDF5.hpp"
 #include "MBTagConventions.hpp"
 #include "FileOptions.hpp"
