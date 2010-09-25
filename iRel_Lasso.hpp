@@ -6,12 +6,8 @@
 
 extern "C" iBase_Error iRel_LAST_ERROR;
 
-#define RETURN(CODE) do { iRel_LAST_ERROR.error_type = *ierr = (CODE);    \
-                       iRel_LAST_ERROR.description[0] = '\0';             \
-                       return; } while(false)
-#define RETURNR(CODE) do { iRel_LAST_ERROR.error_type = (CODE);           \
-                        iRel_LAST_ERROR.description[0] = '\0';            \
-                        return a; } while(false)
+#define RETURN(CODE) ERROR((CODE), "");
+#define RETURNR(CODE) ERRORR((CODE), "");
 
 #define ERROR(CODE, MSG) do { *ierr = iRel_processError( (CODE), (MSG) ); \
                              return; } while(false)

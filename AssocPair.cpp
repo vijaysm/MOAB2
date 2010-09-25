@@ -52,7 +52,7 @@ int AssocPair::create_tags()
     }
   }
 
-  return iBase_SUCCESS;
+  RETURNR(iBase_SUCCESS);
 }
 
 int AssocPair::destroy_tags()
@@ -72,29 +72,23 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1, iBase_EntityHandle ent2)
   // check that if we're passing in an ent for a 'both'-type
   // assoc, there's already a set associated to the other ent
   assert((entOrSet[0] != iRel_BOTH ||
-          get_tags(1, &ent2, 1, assocTags[1], &tmp_ent, sizeof(tmp_ent))
+r          get_tags(1, &ent2, 1, assocTags[1], &tmp_ent, sizeof(tmp_ent))
           == iBase_SUCCESS) &&
          (entOrSet[1] != iRel_BOTH ||
           get_tags(0, &ent1, 1, assocTags[0], &tmp_ent, sizeof(tmp_ent))
           == iBase_SUCCESS));
 
-  int result = iBase_SUCCESS;
-
   // set ent1 assoc tag to point to ent2
   if (entOrSet[1] == iRel_ENTITY) {
-    result = set_tags(0, &ent1, 1, assocTags[0], &ent2,
-                      sizeof(iBase_EntityHandle));
-    if (iBase_SUCCESS != result) return result;
+    CHK_ERRORR( set_tags(0, &ent1, 1, assocTags[0], &ent2, sizeof(ent2)) );
   }
 
   // set ent2 assoc tag to point to ent1
   if (entOrSet[0] == iRel_ENTITY) {
-    result = set_tags(1, &ent2, 1, assocTags[1], &ent1,
-                       sizeof(iBase_EntityHandle));
-    if (iBase_SUCCESS != result) return result;
+    CHK_ERRORR( set_tags(1, &ent2, 1, assocTags[1], &ent1, sizeof(ent1)) );
   }
 
-  return result;
+  RETURNR(iBase_SUCCESS);
 }
 
 int AssocPair::set_assoc_tags(iBase_EntityHandle ent1,
@@ -110,18 +104,12 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1,
           get_tags(1, &set2, 1, assocTags[1], &tmp_ent, sizeof(tmp_ent))
           == iBase_SUCCESS);
 
-  int result = iBase_SUCCESS;
-
   // set ent1 assoc tag to point to ent2
-  result = set_tags(0, &ent1, 1, assocTags[0], &set2,
-                    sizeof(iBase_EntityHandle));
-  if (iBase_SUCCESS != result) return result;
+  CHK_ERRORR( set_tags(0, &ent1, 1, assocTags[0], &set2, sizeof(set2)) );
 
   // set ent2 assoc tag to point to ent1
   if (entOrSet[0] == iRel_ENTITY) {
-    result = set_tags(1, &set2, 1, assocTags[1], &ent1,
-                      sizeof(iBase_EntityHandle));
-    if (iBase_SUCCESS != result) return result;
+    CHK_ERRORR( set_tags(1, &set2, 1, assocTags[1], &ent1, sizeof(ent1)) );
   }
 
   // if either are sets and 'both' type association, get the indiv
@@ -131,22 +119,20 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1,
     int entities_alloc = 0, entities_size, iface_no;
 
     // get ents from set2 & associate to ent1
-    result = get_entities(1, -1, set2, &entities, &entities_alloc,
-                          &entities_size);
-    if (iBase_SUCCESS != result) return result;
+    CHK_ERRORR( get_entities(1, -1, set2, &entities, &entities_alloc,
+                             &entities_size) );
     to_ent = ent1;
     iface_no = 1;
 
     for (int i = 0; i < entities_size; i++) {
-      result = set_tags(iface_no, entities+i, 1, assocTags[iface_no], &to_ent,
-                        sizeof(iBase_EntityHandle));
-      if (iBase_SUCCESS != result) return result;
+      CHK_ERRORR( set_tags(iface_no, entities+i, 1, assocTags[iface_no],
+                           &to_ent, sizeof(to_ent)) );
     }
 
     free(entities);
   }
 
-  return result;
+  RETURNR(iBase_SUCCESS);
 }
 
 int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
@@ -163,19 +149,13 @@ int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
           get_tags(0, &set1, 1, assocTags[0], &tmp_ent, sizeof(tmp_ent))
           == iBase_SUCCESS);
 
-  int result = iBase_SUCCESS;
-
   // set ent1 assoc tag to point to ent2
   if (entOrSet[1] == iRel_ENTITY) {
-    result = set_tags(0, &set1, 1, assocTags[0], &ent2,
-                      sizeof(iBase_EntityHandle));
-    if (iBase_SUCCESS != result) return result;
+    CHK_ERRORR( set_tags(0, &set1, 1, assocTags[0], &ent2, sizeof(ent2)) );
   }
 
   // set ent2 assoc tag to point to ent1
-  result = set_tags(1, &ent2, 1, assocTags[1], &set1,
-                    sizeof(iBase_EntityHandle));
-  if (iBase_SUCCESS != result) return result;
+  CHK_ERRORR( set_tags(1, &ent2, 1, assocTags[1], &set1, sizeof(set1)) );
 
   // if either are sets and 'both' type association, get the indiv
   // entities & set associations for them too
@@ -183,22 +163,20 @@ int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
     iBase_EntityHandle *entities = NULL, to_ent;
     int entities_alloc, entities_size, iface_no;
       // get ents from set1 & associate to ent2
-    result = get_entities(0, -1, set1, &entities, &entities_alloc,
-                          &entities_size);
-    if (iBase_SUCCESS != result) return result;
+    CHK_ERRORR( get_entities(0, -1, set1, &entities, &entities_alloc,
+                             &entities_size) );
     to_ent = ent2;
     iface_no = 0;
 
     for (int i = 0; i < entities_size; i++) {
-      result = set_tags(iface_no, entities+i, 1, assocTags[iface_no], &to_ent,
-                        sizeof(iBase_EntityHandle));
-      if (iBase_SUCCESS != result) return result;
+      CHK_ERRORR( set_tags(iface_no, entities+i, 1, assocTags[iface_no],
+                           &to_ent, sizeof(to_ent)) );
     }
 
     free(entities);
   }
 
-  return result;
+  RETURNR(iBase_SUCCESS);
 }
 
 int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
@@ -207,28 +185,20 @@ int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
   // check that is_setx is consistent with entOrSet
   assert(entOrSet[0] != iRel_ENTITY && entOrSet[1] != iRel_ENTITY);
 
-  int result = iBase_SUCCESS;
-
   // set ent1 assoc tag to point to ent2
-  result = set_tags(0, &set1, 1, assocTags[0], &set2,
-                    sizeof(iBase_EntityHandle));
-  if (iBase_SUCCESS != result) return result;
+  CHK_ERRORR( set_tags(0, &set1, 1, assocTags[0], &set2, sizeof(set2)) );
 
   // set ent2 assoc tag to point to ent1
-  result = set_tags(1, &set2, 1, assocTags[1], &set1,
-                    sizeof(iBase_EntityHandle));
-  if (iBase_SUCCESS != result) return result;
+  CHK_ERRORR( set_tags(1, &set2, 1, assocTags[1], &set1, sizeof(set1)) );
 
-  return result;
+  RETURNR(iBase_SUCCESS);
 }
 
 int AssocPair::get_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
                               int num_entities, iBase_EntityHandle *tag_values)
 {
   if (entOrSet[!iface_no] != iRel_ENTITY) { // other iface is sets
-    iRel_processError(iBase_INVALID_ENTITY_HANDLE,
-                      "Expected EntitySet, got Entity");
-    return iBase_INVALID_ENTITY_HANDLE;
+    ERRORR(iBase_INVALID_ENTITY_HANDLE, "Expected EntitySet, got Entity");
   }
 
   return get_tags(iface_no, entities, num_entities, assocTags[iface_no],
@@ -239,9 +209,7 @@ int AssocPair::get_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
                               int num_sets, iBase_EntityHandle *tag_values)
 {
   if (entOrSet[!iface_no] != iRel_ENTITY) { // other iface is sets
-    iRel_processError(iBase_INVALID_ENTITY_HANDLE,
-                      "Expected EntitySet, got Entity");
-    return iBase_INVALID_ENTITY_HANDLE;
+    ERRORR(iBase_INVALID_ENTITY_HANDLE, "Expected EntitySet, got Entity");
   }
 
   return get_tags(iface_no, sets, num_sets, assocTags[iface_no], tag_values,
@@ -253,9 +221,7 @@ int AssocPair::get_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
                               iBase_EntitySetHandle *tag_values)
 {
   if (entOrSet[!iface_no] == iRel_ENTITY) { // other iface is not sets
-    iRel_processError(iBase_INVALID_ENTITY_HANDLE,
-                      "Expected Entity, got EntitySet");
-    return iBase_INVALID_ENTITY_HANDLE;
+    ERRORR(iBase_INVALID_ENTITY_HANDLE, "Expected Entity, got EntitySet");
   }
 
   return get_tags(iface_no, entities, num_entities, assocTags[iface_no],
@@ -267,9 +233,7 @@ int AssocPair::get_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
                               int num_sets, iBase_EntitySetHandle *tag_values)
 {
   if (entOrSet[!iface_no] == iRel_ENTITY) { // other iface is not sets
-    iRel_processError(iBase_INVALID_ENTITY_HANDLE,
-                      "Expected Entity, got EntitySet");
-    return iBase_INVALID_ENTITY_HANDLE;
+    ERRORR(iBase_INVALID_ENTITY_HANDLE, "Expected Entity, got EntitySet");
   }
 
   return get_tags(iface_no, sets, num_sets, assocTags[iface_no],
@@ -282,34 +246,26 @@ int AssocPair::get_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
                               iBase_EntityIterator *tag_values)
 {
   std::vector<iBase_EntitySetHandle> sets(num_entities);
-  int result = get_assoc_tags(iface_no, entities, num_entities, &sets[0]);
-  if (result != iBase_SUCCESS)
-    return result;
+  CHK_ERRORR( get_assoc_tags(iface_no, entities, num_entities, &sets[0]) );
 
   for(int i=0; i<num_entities; i++) {
-    result = get_iterator(iface_no, sets[i], &tag_values[i]);
-    if (result != iBase_SUCCESS)
-      return result;
+    CHK_ERRORR( get_iterator(iface_no, sets[i], &tag_values[i]) );
   }
 
-  return iBase_SUCCESS;
+  RETURNR(iBase_SUCCESS);
 }
 
 int AssocPair::get_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
                               int num_sets, iBase_EntityIterator *tag_values)
 {
   std::vector<iBase_EntitySetHandle> sets2(num_sets);
-  int result = get_assoc_tags(iface_no, sets, num_sets, &sets2[0]);
-  if (result != iBase_SUCCESS)
-    return result;
+  CHK_ERRORR( get_assoc_tags(iface_no, sets, num_sets, &sets2[0]) );
 
   for(int i=0; i<num_sets; i++) {
-    result = get_iterator(iface_no, sets2[i], &tag_values[i]);
-    if (result != iBase_SUCCESS)
-      return result;
+    CHK_ERRORR( get_iterator(iface_no, sets2[i], &tag_values[i]) );
   }
 
-  return iBase_SUCCESS;
+  RETURNR(iBase_SUCCESS);
 }
 
 int AssocPair::get_gid_tags(const int iface_no, iBase_EntityHandle *entities,

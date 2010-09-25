@@ -13,7 +13,7 @@
       int err;                                                          \
       iGeom_getDescription((iGeom_Instance)ifaceInstances[iface_no],    \
                            this_descr, &err, 120);                      \
-      return iRel_processError(result, this_descr);                     \
+      ERRORR(result, this_descr);                                       \
     }                                                                   \
   } while(false)
 
@@ -23,7 +23,7 @@
       int err;                                                          \
       iMesh_getDescription((iMesh_Instance)ifaceInstances[iface_no],    \
                            this_descr, &err, 120);                      \
-      return iRel_processError(result, this_descr);                     \
+      ERRORR(result, this_descr);                                       \
     }                                                                   \
   } while(false)
 
@@ -110,7 +110,7 @@ int AssocPairC::get_tags(const int iface_no,
   else
     ERRORR(iBase_NOT_SUPPORTED, "Interface should be geometry or mesh.");
 
-  return iBase_SUCCESS;
+  RETURNR(iBase_SUCCESS);
 }
 
 int AssocPairC::get_tags(const int iface_no,
@@ -145,7 +145,7 @@ int AssocPairC::get_tags(const int iface_no,
   else
     ERRORR(iBase_NOT_SUPPORTED, "Interface should be geometry or mesh.");
 
-  return iBase_SUCCESS;
+  RETURNR(iBase_SUCCESS);
 }
 
 int AssocPairC::set_tags(const int iface_no,
@@ -173,7 +173,7 @@ int AssocPairC::set_tags(const int iface_no,
   else
     ERRORR(iBase_NOT_SUPPORTED, "Interface should be geometry or mesh.");
 
-  return iBase_SUCCESS;
+  RETURNR(iBase_SUCCESS);
 }
 
 int AssocPairC::set_tags(const int iface_no,
@@ -205,7 +205,7 @@ int AssocPairC::set_tags(const int iface_no,
   else
     ERRORR(iBase_NOT_SUPPORTED, "Interface should be geometry or mesh.");
 
-  return iBase_SUCCESS;
+  RETURNR(iBase_SUCCESS);
 }
 
 int AssocPairC::get_iterator(const int iface_no,
@@ -229,7 +229,7 @@ int AssocPairC::get_iterator(const int iface_no,
   else
     ERRORR(iBase_NOT_SUPPORTED, "Interface should be geometry or mesh.");
 
-  return iBase_SUCCESS;
+  RETURNR(iBase_SUCCESS);
 }
 
 int AssocPairC::get_all_entities(const int iface_no,
@@ -256,7 +256,7 @@ int AssocPairC::get_all_entities(const int iface_no,
   else
     ERRORR(iBase_NOT_SUPPORTED, "Interface should be geometry or mesh.");
 
-  return iBase_SUCCESS;
+  RETURNR(iBase_SUCCESS);
 }
 
 int AssocPairC::get_all_sets(const int iface_no,
@@ -281,7 +281,7 @@ int AssocPairC::get_all_sets(const int iface_no,
   else
     ERRORR(iBase_NOT_SUPPORTED, "Interface should be geometry or mesh.");
 
-  return iBase_SUCCESS;
+  RETURNR(iBase_SUCCESS);
 }
 
 int AssocPairC::get_entities(const int iface_no,
@@ -310,7 +310,7 @@ int AssocPairC::get_entities(const int iface_no,
   else
     ERRORR(iBase_NOT_SUPPORTED, "Interface should be geometry or mesh.");
 
-  return iBase_SUCCESS;
+  RETURNR(iBase_SUCCESS);
 }
 
 int AssocPairC::get_ents_dims(const int iface_no,
@@ -337,7 +337,7 @@ int AssocPairC::get_ents_dims(const int iface_no,
   else
     ERRORR(iBase_NOT_SUPPORTED, "Interface should be geometry or mesh.");
 
-  return iBase_SUCCESS;
+  RETURNR(iBase_SUCCESS);
 }
 
 int AssocPairC::tag_get_handle(const int iface_no,
@@ -375,7 +375,7 @@ int AssocPairC::tag_get_handle(const int iface_no,
   else
     ERRORR(iBase_NOT_SUPPORTED, "Interface should be geometry or mesh.");
 
-  return iBase_SUCCESS;
+  RETURNR(iBase_SUCCESS);
 }
 
 int AssocPairC::tag_destroy(const int iface_no,
@@ -394,5 +394,5 @@ int AssocPairC::tag_destroy(const int iface_no,
     PROCESS_MERROR;
   }
 
-  return iBase_SUCCESS;
+  RETURNR(iBase_SUCCESS);
 }
