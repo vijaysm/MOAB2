@@ -72,7 +72,7 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1, iBase_EntityHandle ent2)
   // check that if we're passing in an ent for a 'both'-type
   // assoc, there's already a set associated to the other ent
   assert((entOrSet[0] != iRel_BOTH ||
-r          get_tags(1, &ent2, 1, assocTags[1], &tmp_ent, sizeof(tmp_ent))
+          get_tags(1, &ent2, 1, assocTags[1], &tmp_ent, sizeof(tmp_ent))
           == iBase_SUCCESS) &&
          (entOrSet[1] != iRel_BOTH ||
           get_tags(0, &ent1, 1, assocTags[0], &tmp_ent, sizeof(tmp_ent))
