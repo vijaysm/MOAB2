@@ -4,6 +4,8 @@
 AUTOMAKE_OPTIONS = foreign
 BUILT_SOURCES = iRel_protos.h
 
+AM_CPPFLAGS = -DSRCDIR=$(srcdir)
+
 # Don't loose the autoconf include path
 ACLOCAL_AMFLAGS = -I m4
 
@@ -48,6 +50,8 @@ libiRel_la_LIBADD = ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${IMESH_LTFLAGS} \
                     ${IMESH_LDFLAGS} ${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMesh.la
 
 lib_LTLIBRARIES = libiRel.la
+
+EXTRA_DIST = brick.cub
 
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put

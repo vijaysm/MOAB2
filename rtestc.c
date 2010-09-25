@@ -6,6 +6,16 @@
 #include "stdlib.h"
 #include "string.h"
 
+#define DEFAULT_TEST_FILE brick.cub
+
+#define STRINGIFY_(X) #X
+#define STRINGIFY(X) STRINGIFY_(X)
+#ifdef SRCDIR
+#  define DEFAULT_INPUT_FILE STRINGIFY(SRCDIR/DEFAULT_TEST_FILE)
+#else
+#  define DEFAULT_INPUT_FILE STRINGIFY(DEFAULT_TEST_FILE)
+#endif
+
 #define CHECK_SIZE_C(type, array, allocated_size, size)  \
           if (NULL == *array || *allocated_size == 0) {\
             *array = (type *) malloc(sizeof(type) * size); \
@@ -491,8 +501,8 @@ int query_relations_test(iRel_Instance assoc,
 int main( int argc, char *argv[] )
 {
     // Check command line arg
-  char *geom_filename = "brick.cub";
-  char *mesh_filename = "brick.cub";
+  char *geom_filename = DEFAULT_INPUT_FILE;
+  char *mesh_filename = DEFAULT_INPUT_FILE;
 
   if (argc == 2 && !strcmp(argv[1], "-h")) {
     printf("Usage: %s <geom_filename> <mesh_filename>\n",
