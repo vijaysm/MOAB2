@@ -6,20 +6,21 @@
 
 extern "C" iBase_Error iRel_LAST_ERROR;
 
-#define RETURN(CODE) do { iRel_LAST_ERROR.error_type = *ierr = (CODE); \
-                       iRel_LAST_ERROR.description[0] = '\0';          \
+#define RETURN(CODE) do { iRel_LAST_ERROR.error_type = *ierr = (CODE);    \
+                       iRel_LAST_ERROR.description[0] = '\0';             \
                        return; } while(false)
-#define RETURNR(CODE) do { iRel_LAST_ERROR.error_type = (CODE); \
-                        iRel_LAST_ERROR.description[0] = '\0';  \
+#define RETURNR(CODE) do { iRel_LAST_ERROR.error_type = (CODE);           \
+                        iRel_LAST_ERROR.description[0] = '\0';            \
                         return a; } while(false)
 
 #define ERROR(CODE, MSG) do { *ierr = iRel_processError( (CODE), (MSG) ); \
                              return; } while(false)
 #define ERRORR(CODE, MSG) return iRel_processError( (CODE), (MSG) )
 
-#define CHK_ERROR(CODE) do { if ((CODE) != iBase_SUCCESS) \
-                                *ierr = (CODE); return; } while(false)
-#define CHK_ERRORR(CODE) do { if ((CODE) != iBase_SUCCESS) \
+#define CHK_ERROR(CODE) do { *ierr = (CODE);                              \
+                             if ((CODE) != iBase_SUCCESS)                 \
+                               return; } while(false)
+#define CHK_ERRORR(CODE) do { if ((CODE) != iBase_SUCCESS)                \
                                 return (CODE); } while(false)
 
 static inline int
