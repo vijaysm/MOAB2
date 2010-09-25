@@ -21,6 +21,7 @@ extern "C" int getrusage(int, struct rusage *);
 #include <iostream>
 
 #include <iostream>
+#include <assert.h>
 #include "iMesh.h"
 
 // needed to get the proper size for handles
@@ -32,9 +33,10 @@ double LENGTH = 1.0;
 // forward declare some functions
 void query_elem_to_vert(iMesh_Instance mesh);
 void query_vert_to_elem(iMesh_Instance mesh);
-void print_time(const bool print_em, double &tot_time, double &utime, double &stime);
+void print_time(const bool print_em, double &tot_time, double &utime, double &stime,
+                long &imem, long &rmem);
 void build_connect(const int nelem, const int vstart, int *&connect);
-void testB(iMesh_Instance mesh, const int nelem, const double *coords, const int *connect);
+void testB(iMesh_Instance mesh, const int nelem, const double *coords, int *connect);
 void testC(iMesh_Instance mesh, const int nelem, const double *coords);
 void compute_edge(double *start, const int nelem,  const double xint,
                   const int stride);
@@ -72,25 +74,35 @@ int main( int argc, char *argv[] )
   build_coords(nelem, coords);
   assert(NULL != coords);
 
-  int *connect = NULL;
-  build_connect(nelem, 1, connect);
-
     // test B: create mesh using bulk interface
 
     // create an implementation
   iMesh_Instance mesh;
   int result;
-  iMesh_newMesh(NULL, 0, &mesh, &result);
+  iMesh_newMesh(NULL, &mesh, &result, 0);
+  int *connect = NULL;
+
   if (iBase_SUCCESS != result) {
     cerr << "Couldn't create mesh instance." << endl;
+    iMesh_dtor(mesh, &result);
+    return 1;
+  }
+
+  iMesh_setGeometricDimension(mesh, 3, &result);
+  if (iBase_SUCCESS != result) {
+    cerr << "Couldn't set geometric dimension." << endl;
+    iMesh_dtor(mesh, &result);
     return 1;
   }
   
+  
   switch (which_test) {
     case 'B':
+        build_connect(nelem, 1, connect);
+
         // test B: create mesh using bulk interface
-      testB(mesh, nelem, coords, connect);
-      break;
+        testB(mesh, nelem, coords, connect);
+        break;
       
     case 'C':
     // test C: create mesh using individual interface
@@ -98,16 +110,20 @@ int main( int argc, char *argv[] )
       break;
   }
 
+  free(coords);
+  iMesh_dtor(mesh, &result);
+  
   return 0;
 }
 
 void testB(iMesh_Instance mesh, 
            const int nelem, const double *coords,
-           const int *connect) 
+           int *connect) 
 {
   double utime, stime, ttime0, ttime1, ttime2, ttime3;
+  long imem0, rmem0, imem1, rmem1, imem2, rmem2, imem3, rmem3;
   
-  print_time(false, ttime0, utime, stime);
+  print_time(false, ttime0, utime, stime, imem0, rmem0);
   int num_verts = (nelem + 1)*(nelem + 1)*(nelem + 1);
   int num_elems = nelem*nelem*nelem;
   
@@ -120,6 +136,7 @@ void testB(iMesh_Instance mesh,
                      &vertices, &vertices_allocated, &vertices_size, &result);
   if (iBase_SUCCESS != result) {
     cerr << "Couldn't create vertices in bulk call" << endl;
+    free(vertices);
     return;
   }
 
@@ -133,6 +150,10 @@ void testB(iMesh_Instance mesh,
     assert(connect[i]-1 < num_verts);
     sidl_connect[i] = vertices[connect[i]-1];
   }
+
+    // no longer need vertices and connect arrays, free here to reduce overall peak memory usage
+  free(vertices);
+  free(connect);
   
     // create the entities
   iBase_EntityHandle *new_hexes = NULL;
@@ -145,19 +166,26 @@ void testB(iMesh_Instance mesh,
                      &status, &status_allocated, &status_size, &result);
   if (iBase_SUCCESS != result) {
     cerr << "Couldn't create hex elements in bulk call" << endl;
+    free(new_hexes);
+    free(status);
+    free(sidl_connect);
     return;
   }
 
-  print_time(false, ttime1, utime, stime);
+  print_time(false, ttime1, utime, stime, imem1, rmem1);
+
+  free(status);
+  free(new_hexes);
+  free(sidl_connect);
 
     // query the mesh 2 ways
   query_elem_to_vert(mesh);
 
-  print_time(false, ttime2, utime, stime);
+  print_time(false, ttime2, utime, stime, imem2, rmem2);
 
   query_vert_to_elem(mesh);
   
-  print_time(false, ttime3, utime, stime);
+  print_time(false, ttime3, utime, stime, imem3, rmem3);
 
   std::cout << "TSTTb/MOAB ucd blocked: nelem, construct, e_to_v query, v_to_e query = " 
             << nelem << ", "
@@ -165,12 +193,16 @@ void testB(iMesh_Instance mesh,
             << ttime2-ttime1 << ", " 
             << ttime3-ttime2 << " seconds" 
             << std::endl;
+  std::cout << "TSTTb/MOAB ucd blocked memory (rss): initial, after v/e construction, e-v query, v-e query:" 
+            << rmem0 << ", " << rmem1 << ", " << rmem2 << ", " << rmem3 <<  " kb" << std::endl;
+
 }
 
 void testC(iMesh_Instance mesh, const int nelem, const double *coords) 
 {
   double utime, stime, ttime0, ttime1, ttime2, ttime3;
-  print_time(false, ttime0, utime, stime);
+  long imem0, rmem0, imem1, rmem1, imem2, rmem2, imem3, rmem3;
+  print_time(false, ttime0, utime, stime, imem0, rmem0);
 
     // need some dimensions
   int numv = nelem + 1;
@@ -223,16 +255,18 @@ void testC(iMesh_Instance mesh, const int nelem, const double *coords)
     }
   }
 
-  print_time(false, ttime1, utime, stime);
+  print_time(false, ttime1, utime, stime, imem1, rmem1);
 
+  free(sidl_vertices);
+  
     // query the mesh 2 ways
   query_elem_to_vert(mesh);
 
-  print_time(false, ttime2, utime, stime);
+  print_time(false, ttime2, utime, stime, imem2, rmem2);
 
   query_vert_to_elem(mesh);
   
-  print_time(false, ttime3, utime, stime);
+  print_time(false, ttime3, utime, stime, imem3, rmem3);
 
   std::cout << "TSTTb/MOAB ucd indiv: nelem, construct, e_to_v query, v_to_e query = " 
             << nelem << ", "
@@ -240,6 +274,9 @@ void testC(iMesh_Instance mesh, const int nelem, const double *coords)
             << ttime2-ttime1 << ", " 
             << ttime3-ttime2 << " seconds" 
             << std::endl;
+  std::cout << "TSTTb/MOAB ucd indiv memory (rss): initial, after v/e construction, e-v query, v-e query:" 
+            << rmem0 << ", " << rmem1 << ", " << rmem2 << ", " << rmem3 <<  " kb" << std::endl;
+
 }
 
 void query_elem_to_vert(iMesh_Instance mesh)
@@ -249,7 +286,14 @@ void query_elem_to_vert(iMesh_Instance mesh)
 
     // get all the hex elements
   int success;
-  iMesh_getEntities(mesh, 0, iBase_REGION, 
+  iBase_EntitySetHandle root_set;
+  iMesh_getRootSet(mesh, &root_set, &success);
+  if (iBase_SUCCESS != success) {
+    cerr << "Couldn't get root set." << endl;
+    return;
+  }
+  
+  iMesh_getEntities(mesh, root_set, iBase_REGION, 
                     iMesh_HEXAHEDRON, 
                     &all_hexes, &all_hexes_allocated, 
                     &all_hexes_size, &success);
@@ -263,6 +307,10 @@ void query_elem_to_vert(iMesh_Instance mesh)
   int dum_connect_allocated = 0, dum_connect_size;
   double *dum_coords = NULL;
   int dum_coords_size, dum_coords_allocated = 0;
+  int order;
+  iMesh_getDfltStorage(mesh, &order, &success);
+  if (iBase_SUCCESS != success) return;
+
   for (int i = 0; i < all_hexes_size; i++) {
       // get the connectivity of this element; will allocate space on 1st iteration,
       // but will have correct size on subsequent ones
@@ -273,9 +321,8 @@ void query_elem_to_vert(iMesh_Instance mesh)
     if (iBase_SUCCESS == success) {
         // get vertex coordinates; ; will allocate space on 1st iteration,
         // but will have correct size on subsequent ones
-      int order = iBase_UNDETERMINED;
       iMesh_getVtxArrCoords(mesh, dum_connect, dum_connect_size, 
-                            &order,
+                            order,
                             &dum_coords, &dum_coords_allocated, 
                             &dum_coords_size, &success);
 
@@ -301,6 +348,10 @@ void query_elem_to_vert(iMesh_Instance mesh)
       return;
     }
   }
+  
+  free(all_hexes);
+  free(dum_connect);
+  free(dum_coords);
 }
 
 void query_vert_to_elem(iMesh_Instance mesh)
@@ -308,9 +359,16 @@ void query_vert_to_elem(iMesh_Instance mesh)
   iBase_EntityHandle *all_verts = NULL;
   int all_verts_allocated = 0, all_verts_size;
 
-    // get all the vertices elements
+  iBase_EntitySetHandle root_set;
   int success;
-  iMesh_getEntities(mesh, 0, iBase_VERTEX, 
+  iMesh_getRootSet(mesh, &root_set, &success);
+  if (iBase_SUCCESS != success) {
+    cerr << "Couldn't get root set." << endl;
+    return;
+  }
+
+    // get all the vertices elements
+  iMesh_getEntities(mesh, root_set, iBase_VERTEX, 
                     iMesh_POINT, &all_verts, 
                     &all_verts_allocated, &all_verts_size, &success);
   if (iBase_SUCCESS != success) {
@@ -318,8 +376,10 @@ void query_vert_to_elem(iMesh_Instance mesh)
     return;
   }
 
-  iBase_EntityHandle *dum_hexes = NULL;
-  int dum_hexes_allocated = 0, dum_hexes_size;
+    // for this mesh, should never be more than 8 hexes connected to a vertex
+  iBase_EntityHandle *dum_hexes = (iBase_EntityHandle*) calloc(8, sizeof(iBase_EntityHandle));
+  
+  int dum_hexes_allocated = 8, dum_hexes_size;
 
     // now loop over vertices
   for (int i = 0; i < all_verts_size; i++) {
@@ -334,9 +394,13 @@ void query_vert_to_elem(iMesh_Instance mesh)
       return;
     }
   }
+
+  free(dum_hexes);
+  free(all_verts);
 }
 
-void print_time(const bool print_em, double &tot_time, double &utime, double &stime) 
+void print_time(const bool print_em, double &tot_time, double &utime, double &stime,
+                long &imem, long &rmem) 
 {
   struct rusage r_usage;
   getrusage(RUSAGE_SELF, &r_usage);
@@ -348,9 +412,13 @@ void print_time(const bool print_em, double &tot_time, double &utime, double &st
   if (print_em)
     std::cout << "User, system, total time = " << utime << ", " << stime 
               << ", " << tot_time << std::endl;
+
+  imem = rmem = 0;
 #ifndef LINUX
- std::cout << "Max resident set size = " << r_usage.ru_maxrss*4096 << " bytes" << std::endl;
- std::cout << "Int resident set size = " << r_usage.ru_idrss << std::endl;
+  imem = r_usage.ru_idrss;
+  rmem = r_usage.ru_maxrss;
+  std::cout << "Max resident set size = " << r_usage.ru_maxrss << " kbytes" << std::endl;
+  std::cout << "Int resident set size = " << r_usage.ru_idrss << " kbytes" << std::endl;
 #else
   system("ps o args,drs,rss | grep perf | grep -v grep");  // RedHat 9.0 doesnt fill in actual memory data 
 #endif
@@ -407,7 +475,8 @@ void compute_face(double *a, const int nelem,  const double xint,
 void build_coords(const int nelem, double *&coords) 
 {
   double ttime0, ttime1, utime1, stime1;
-  print_time(false, ttime0, utime1, stime1);
+  long imem, rmem;
+  print_time(false, ttime0, utime1, stime1, imem, rmem);
 
     // allocate the memory
   int numv = nelem+1;
@@ -542,7 +611,7 @@ void build_coords(const int nelem, double *&coords)
   }
 #endif
 
-  print_time(false, ttime1, utime1, stime1);
+  print_time(false, ttime1, utime1, stime1, imem, rmem);
   std::cout << "TSTTbinding/MOAB: TFI time = " << ttime1-ttime0 << " sec" 
             << std::endl;
 }

@@ -46,9 +46,9 @@ using namespace moab;
 double LENGTH = 1.0;
 
 void testA(const int nelem, const double *coords);
-void testB(const int nelem, const double *coords, const EntityHandle *connect);
+void testB(const int nelem, const double *coords, int *connect);
 void testC(const int nelem, const double *coords);
-void print_time(const bool print_em, double &tot_time, double &utime, double &stime);
+void print_time(const bool print_em, double &tot_time, double &utime, double &stime, long &imem, long &rmem);
 void query_vert_to_elem();
 void query_elem_to_vert();
 void query_struct_elem_to_vert();
@@ -103,7 +103,8 @@ void compute_face(double *a, const int nelem,  const double xint,
 void build_coords(const int nelem, double *&coords) 
 {
   double ttime0, ttime1, utime1, stime1;
-  print_time(false, ttime0, utime1, stime1);
+  long imem, rmem;
+  print_time(false, ttime0, utime1, stime1, imem, rmem);
     // allocate the memory
   int numv = nelem+1;
   int numv_sq = numv*numv;
@@ -236,16 +237,16 @@ void build_coords(const int nelem, double *&coords)
     }
   }
 #endif
-  print_time(false, ttime1, utime1, stime1);
+  print_time(false, ttime1, utime1, stime1, imem, rmem);
   std::cout << "MOAB: TFI time = " << ttime1-ttime0 << " sec" 
             << std::endl;
 }
 
-void build_connect(const int nelem, const EntityHandle vstart, EntityHandle *&connect) 
+void build_connect(const int nelem, const EntityHandle vstart, int *&connect) 
 {
     // allocate the memory
   int nume_tot = nelem*nelem*nelem;
-  connect = new EntityHandle[8*nume_tot];
+  connect = new int[8*nume_tot];
 
   EntityHandle vijk;
   int numv = nelem + 1;
@@ -254,7 +255,7 @@ void build_connect(const int nelem, const EntityHandle vstart, EntityHandle *&co
   for (int i=0; i < nelem; i++) {
     for (int j=0; j < nelem; j++) {
       for (int k=0; k < nelem; k++) {
-        vijk = vstart+VINDEX(i,j,k);
+        vijk = VINDEX(i,j,k);
         connect[idx++] = vijk;
         connect[idx++] = vijk+1;
         connect[idx++] = vijk+1+numv;
@@ -298,8 +299,7 @@ int main(int argc, char* argv[])
   build_coords(nelem, coords);
   assert(NULL != coords);
 
-  EntityHandle *connect = NULL;
-  build_connect(nelem, 1, connect);
+  int *connect = NULL;
 
   switch (which_test) {
     case 'A':
@@ -308,6 +308,8 @@ int main(int argc, char* argv[])
       break;
       
     case 'B':
+        build_connect(nelem, 1, connect);
+
         // test B: create mesh using bulk interface
       testB(nelem, coords, connect);
       break;
@@ -373,15 +375,16 @@ void query_struct_elem_to_vert()
 }
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
-void print_time(const bool print_em, double &tot_time, double &utime, double &stime) 
+void print_time(const bool print_em, double &tot_time, double &utime, double &stime, long &imem, long &rmem) 
 {
   utime = (double)clock() / CLOCKS_PER_SEC;
   if (print_em)
     std::cout << "Total wall time = " << utime << std::endl;
   tot_time = stime = 0;
+  imem = rmem = 0;
 }
 #else
-void print_time(const bool print_em, double &tot_time, double &utime, double &stime) 
+void print_time(const bool print_em, double &tot_time, double &utime, double &stime, long &imem, long &rmem) 
 {
   struct rusage r_usage;
   getrusage(RUSAGE_SELF, &r_usage);
@@ -394,10 +397,13 @@ void print_time(const bool print_em, double &tot_time, double &utime, double &st
     std::cout << "User, system, total time = " << utime << ", " << stime 
               << ", " << tot_time << std::endl;
 #ifndef LINUX
-  std::cout << "Max resident set size = " << r_usage.ru_maxrss*4096 << " bytes" << std::endl;
+  std::cout << "Max resident set size = " << r_usage.ru_maxrss << " kbytes" << std::endl;
   std::cout << "Int resident set size = " << r_usage.ru_idrss << std::endl;
+  imem = r_usage.ru_idrss;
+  rmem = r_usage.ru_maxrss;
 #else
   system("ps o args,drs,rss | grep perf | grep -v grep");  // RedHat 9.0 doesnt fill in actual memory data 
+  imem = rmem = 0;
 #endif
 }
 #endif
@@ -405,8 +411,9 @@ void print_time(const bool print_em, double &tot_time, double &utime, double &st
 void testA(const int nelem, const double *coords) 
 {
   double ttime0, ttime1, ttime2, ttime3, utime, stime;
+  long imem0, rmem0, imem1, rmem1, imem2, rmem2, imem3, rmem3;
   
-  print_time(false, ttime0, utime, stime);
+  print_time(false, ttime0, utime, stime, imem0, rmem0);
 
     // make a 3d block of vertices
   EntitySequence *dum_seq = NULL;
@@ -444,16 +451,16 @@ void testA(const int nelem, const double *coords)
     assert(MB_SUCCESS == result);
   }
 
-  print_time(false, ttime1, utime, stime);
+  print_time(false, ttime1, utime, stime, imem1, rmem1);
 
     // query the mesh 2 ways
   query_struct_elem_to_vert();
 
-  print_time(false, ttime2, utime, stime);
+  print_time(false, ttime2, utime, stime, imem2, rmem2);
 
   query_vert_to_elem();
   
-  print_time(false, ttime3, utime, stime);
+  print_time(false, ttime3, utime, stime, imem3, rmem3);
 
   std::cout << "MOAB scd: nelem, construct, e_to_v query, v_to_e query = " 
             << nelem << ", "
@@ -461,13 +468,16 @@ void testA(const int nelem, const double *coords)
             << ttime2-ttime1 << ", " 
             << ttime3-ttime2 << " seconds" 
             << std::endl;
+  std::cout << "MOAB scd memory (rss): initial, after v/e construction, e-v query, v-e query:" 
+            << rmem0 << ", " << rmem1 << ", " << rmem2 << ", " << rmem3 <<  " kb" << std::endl;
 }
 
-void testB(const int nelem, const double *coords, const EntityHandle *connect) 
+void testB(const int nelem, const double *coords, int *connect) 
 {
   double ttime0, ttime1, ttime2, ttime3, utime, stime;
+  long imem0, rmem0, imem1, rmem1, imem2, rmem2, imem3, rmem3;
   
-  print_time(false, ttime0, utime, stime);
+  print_time(false, ttime0, utime, stime, imem0, rmem0);
 
   int num_verts = (nelem + 1)*(nelem + 1)*(nelem + 1);
   int num_elems = nelem*nelem*nelem;
@@ -492,20 +502,24 @@ void testB(const int nelem, const double *coords, const EntityHandle *connect)
   EntityHandle *conn = 0;
   result = readMeshIface->get_element_connect(num_elems, 8, MBHEX, 1, estart, conn);
   assert(MB_SUCCESS == result);
-  memcpy(conn, connect, num_elems*8*sizeof(EntityHandle));
+  for (int i = 0; i < num_elems*8; i++)
+    conn[i] = vstart + connect[i];
+
+  free(connect);
+  
   result = readMeshIface->update_adjacencies(estart, num_elems, 8, conn);
   assert(MB_SUCCESS == result);
 
-  print_time(false, ttime1, utime, stime);
+  print_time(false, ttime1, utime, stime, imem1, rmem1);
 
     // query the mesh 2 ways
   query_elem_to_vert();
 
-  print_time(false, ttime2, utime, stime);
+  print_time(false, ttime2, utime, stime, imem2, rmem2);
 
   query_vert_to_elem();
   
-  print_time(false, ttime3, utime, stime);
+  print_time(false, ttime3, utime, stime, imem3, rmem3);
 
   std::cout << "MOAB ucd blocked: nelem, construct, e_to_v query, v_to_e query = " 
             << nelem << ", "
@@ -513,13 +527,16 @@ void testB(const int nelem, const double *coords, const EntityHandle *connect)
             << ttime2-ttime1 << ", " 
             << ttime3-ttime2 << " seconds" 
             << std::endl;
+  std::cout << "MOAB ucd blocked memory (rss): initial, after v/e construction, e-v query, v-e query:" 
+            << rmem0 << ", " << rmem1 << ", " << rmem2 << ", " << rmem3 <<  " kb" << std::endl;
 }
 
 void testC(const int nelem, const double *coords) 
 {
   double ttime0, ttime1, ttime2, ttime3, utime, stime;
+  long imem0, rmem0, imem1, rmem1, imem2, rmem2, imem3, rmem3;
   
-  print_time(false, ttime0, utime, stime);
+  print_time(false, ttime0, utime, stime, imem0, rmem0);
 
     // create the vertices; assume we don't need to keep a list of vertex handles, since they'll
     // be created in sequence
@@ -561,16 +578,16 @@ void testC(const int nelem, const double *coords)
     }
   }
 
-  print_time(false, ttime1, utime, stime);
+  print_time(false, ttime1, utime, stime, imem1, rmem1);
 
     // query the mesh 2 ways
   query_elem_to_vert();
 
-  print_time(false, ttime2, utime, stime);
+  print_time(false, ttime2, utime, stime, imem2, rmem2);
 
   query_vert_to_elem();
   
-  print_time(false, ttime3, utime, stime);
+  print_time(false, ttime3, utime, stime, imem3, rmem3);
 
   std::cout << "MOAB ucd indiv: nelem, construct, e_to_v query, v_to_e query = " 
             << nelem << ", "
@@ -578,4 +595,6 @@ void testC(const int nelem, const double *coords)
             << ttime2-ttime1 << ", " 
             << ttime3-ttime2 << " seconds" 
             << std::endl;
+  std::cout << "MOAB ucd indiv memory (rss): initial, after v/e construction, e-v query, v-e query:" 
+            << rmem0 << ", " << rmem1 << ", " << rmem2 << ", " << rmem3 <<  " kb" << std::endl;
 }
