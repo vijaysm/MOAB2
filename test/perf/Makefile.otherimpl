@@ -1,0 +1,28 @@
+#
+# This makefile can be used without using autoconf,
+# as long as you have IMESH_DIR set to the location
+# of the IMESH implementation you're using and 
+# F77, FC, CC, and CXX point to the appropriate compilers
+#
+
+include ${IMESH_DIR}/lib/iMesh-Defs.inc
+
+default: tstt_perf_binding
+
+tstt_perf_binding: tstt_perf_binding.o
+	${CXX} ${LFLAGS} -o $@ $< -Wl,-Bstatic ${IMESH_LIBS} -Wl,-Bdynamic
+
+.SUFFIXES: .F90 .F .c .cpp
+
+.F90.o:
+	${FC} -c ${IMESH_FCFLAGS} ${IMESH_INCLUDES} ${FCFLAGS} $<
+
+.F.o:
+	${F77} -c ${IMESH_FFLAGS} ${IMESH_INCLUDES} ${FFLAGS} $<
+
+.c.o:
+	${CC} -c ${IMESH_CFLAGS} ${IMESH_INCLUDES} ${CFLAGS} $<
+
+.cpp.o: ${IMESH_DIR}/lib/iMesh-Defs.inc
+	${CXX} -c ${IMESH_CXXFLAGS} ${IMESH_INCLUDES} ${CXXFLAGS} $<
+
