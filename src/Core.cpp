@@ -81,7 +81,9 @@
 #include "nsMemory.h"
 #endif
 
+#ifdef USE_MPI
 #include "moab_mpe.h"
+#endif
 
 namespace moab {
 
@@ -153,9 +155,11 @@ Core::~Core()
 
 ErrorCode Core::initialize()
 {
+#ifdef USE_MPI
   writeMPELog = ! MPE_Initialized_logging();
   if (writeMPELog)
     MPE_Init_log();
+#endif
 
   geometricDimension = 3;
   materialTag      = 0;
@@ -236,6 +240,7 @@ void Core::deinitialize()
     delete mError;
   mError = 0;
   
+#ifdef USE_MPI
   if (writeMPELog) {
     const char* default_log = MOAB_MPE_LOG;
     const char* logfile = getenv("MPE_LOG_FILE");
@@ -243,6 +248,7 @@ void Core::deinitialize()
       logfile = default_log;
     MPE_Finish_log( logfile );
   }
+#endif
 }
 
 ErrorCode Core::query_interface(const std::string& iface_name, void** iface)
