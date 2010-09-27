@@ -1,7 +1,5 @@
 #ifndef MOAB_MPE_H
-#define MOAB_MEP_H
-
-#include "moab_mpi.h"
+#define MOAB_MPE_H
 
 #define MOAB_MPE_FIRST_EVENT 101
 
@@ -15,6 +13,7 @@ extern "C" {
 
 
 #ifdef USE_MPE
+# include "moab_mpi.h"
 # include "mpe.h"
 #else
 
