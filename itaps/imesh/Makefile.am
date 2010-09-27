@@ -25,7 +25,7 @@ if PARALLEL
   AM_CPPFLAGS += -I$(top_srcdir)/src/parallel -I$(top_srcdir)/src/parallel/moab
 
 #  check_PROGRAMS += partest iMeshP_unit_tests moabtest
-  check_PROGRAMS += partest MOAB_iMeshP_unit_tests iMeshP_unitTest
+  check_PROGRAMS += partest MOAB_iMeshP_unit_tests 
 #  moabtest_SOURCES = moabtest.F
 
 #  check_PROGRAMS += ftest
@@ -43,9 +43,6 @@ partest_SOURCES = partest.cpp
 partest_DEPENDENCIES = $(TESTDEPS)
 MOAB_iMeshP_unit_tests_SOURCES = MOAB_iMeshP_unit_tests.cpp
 MOAB_iMeshP_unit_tests_DEPENDENCIES = $(TESTDEPS)
-
-iMeshP_unitTest_SOURCES = iMeshP_unitTest.cc
-iMeshP_unitTest_DEPENDENCIES = $(TESTDEPS)
 
 lib_LTLIBRARIES = libiMesh.la
 
