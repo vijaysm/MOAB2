@@ -259,8 +259,8 @@ void Core::deinitialize()
       logfile = default_log;
     MPE_Finish_log( logfile );
   }
-  if (mpiFinalize)
-    MPI_Finalize();
+  //if (mpiFinalize)
+  //  MPI_Finalize();
 #endif
 }
 
