@@ -156,9 +156,20 @@ Core::~Core()
 ErrorCode Core::initialize()
 {
 #ifdef USE_MPI
-  writeMPELog = ! MPE_Initialized_logging();
-  if (writeMPELog)
-    MPE_Init_log();
+  int flag;
+  if (MPI_SUCCESS == MPI_Initialized(&flag)) {
+    mpiFinalize = !flag;
+    if (mpiFinalize) {
+      char argv0[] = "MOAB";
+      int one = 1;
+      char* argv[] = { argv0, 0 };
+      char** ptr = argv;
+      MPI_Init( &one, &ptr );
+    }
+    writeMPELog = ! MPE_Initialized_logging();
+    if (writeMPELog)
+      MPE_Init_log();
+  }
 #endif
 
   geometricDimension = 3;
@@ -248,6 +259,8 @@ void Core::deinitialize()
       logfile = default_log;
     MPE_Finish_log( logfile );
   }
+  if (mpiFinalize)
+    MPI_Finalize();
 #endif
 }
 
