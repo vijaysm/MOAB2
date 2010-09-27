@@ -1563,9 +1563,9 @@ void iMeshP_createGhostEntsAll( iMesh_Instance instance,
   RETURN(iBase_SUCCESS);
 }
 
-void iMeshP_deleteGhostEnts( iMesh_Instance instance,
-                             iMeshP_PartitionHandle partition_handle,
-                             int *err )
+void iMeshP_deleteGhostEntsAll( iMesh_Instance instance,
+                                iMeshP_PartitionHandle partition_handle,
+                                int *err )
 { FIXME; RETURN(iBase_NOT_SUPPORTED); }
 
 void iMeshP_ghostEntInfo( const iMesh_Instance instance,

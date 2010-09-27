@@ -111,7 +111,6 @@ int main( int argc, char *argv[] )
   }
 
   free(coords);
-  iMesh_dtor(mesh, &result);
   
   return 0;
 }
@@ -120,8 +119,8 @@ void testB(iMesh_Instance mesh,
            const int nelem, const double *coords,
            int *connect) 
 {
-  double utime, stime, ttime0, ttime1, ttime2, ttime3;
-  long imem0, rmem0, imem1, rmem1, imem2, rmem2, imem3, rmem3;
+  double utime, stime, ttime0, ttime1, ttime2, ttime3, ttime4;
+  long imem0, rmem0, imem1, rmem1, imem2, rmem2, imem3, rmem3, imem4, rmem4;
   
   print_time(false, ttime0, utime, stime, imem0, rmem0);
   int num_verts = (nelem + 1)*(nelem + 1)*(nelem + 1);
@@ -187,21 +186,26 @@ void testB(iMesh_Instance mesh,
   
   print_time(false, ttime3, utime, stime, imem3, rmem3);
 
-  std::cout << "TSTTb/MOAB ucd blocked: nelem, construct, e_to_v query, v_to_e query = " 
+  iMesh_dtor(mesh, &result);
+
+  print_time(false, ttime4, utime, stime, imem4, rmem4);
+
+  std::cout << "TSTTb/MOAB ucd blocked: nelem, construct, e_to_v query, v_to_e query, after dtor = " 
             << nelem << ", "
             << ttime1-ttime0 << ", " 
             << ttime2-ttime1 << ", " 
-            << ttime3-ttime2 << " seconds" 
+            << ttime3-ttime2 << ", " 
+            << ttime4-ttime3 << " seconds" 
             << std::endl;
-  std::cout << "TSTTb/MOAB ucd blocked memory (rss): initial, after v/e construction, e-v query, v-e query:" 
-            << rmem0 << ", " << rmem1 << ", " << rmem2 << ", " << rmem3 <<  " kb" << std::endl;
+  std::cout << "TSTTb/MOAB ucd blocked memory (rss): initial, after v/e construction, e-v query, v-e query, after dtor:" 
+            << rmem0 << ", " << rmem1 << ", " << rmem2 << ", " << rmem3 <<  ", " << rmem4 << " kb" << std::endl;
 
 }
 
 void testC(iMesh_Instance mesh, const int nelem, const double *coords) 
 {
-  double utime, stime, ttime0, ttime1, ttime2, ttime3;
-  long imem0, rmem0, imem1, rmem1, imem2, rmem2, imem3, rmem3;
+  double utime, stime, ttime0, ttime1, ttime2, ttime3, ttime4;
+  long imem0, rmem0, imem1, rmem1, imem2, rmem2, imem3, rmem3, imem4, rmem4;
   print_time(false, ttime0, utime, stime, imem0, rmem0);
 
     // need some dimensions
@@ -216,9 +220,8 @@ void testC(iMesh_Instance mesh, const int nelem, const double *coords)
   int result;
 
   for (int i = 0; i < num_verts; i++) {
-
       // create the vertex
-    iMesh_createVtx(mesh, coords[3*i], coords[3*i+1], coords[3*i+2],
+    iMesh_createVtx(mesh, coords[i], coords[i+num_verts], coords[i+2*num_verts],
                     sidl_vertices+i, &result);
     if (iBase_SUCCESS != result) {
       cerr << "Couldn't create vertex in individual call" << endl;
@@ -268,14 +271,19 @@ void testC(iMesh_Instance mesh, const int nelem, const double *coords)
   
   print_time(false, ttime3, utime, stime, imem3, rmem3);
 
-  std::cout << "TSTTb/MOAB ucd indiv: nelem, construct, e_to_v query, v_to_e query = " 
+  iMesh_dtor(mesh, &result);
+
+  print_time(false, ttime4, utime, stime, imem4, rmem4);
+
+  std::cout << "TSTTb/MOAB ucd indiv: nelem, construct, e_to_v query, v_to_e query, after dtor = " 
             << nelem << ", "
             << ttime1-ttime0 << ", " 
             << ttime2-ttime1 << ", " 
-            << ttime3-ttime2 << " seconds" 
+            << ttime3-ttime2 << ", " 
+            << ttime4-ttime3 << " seconds" 
             << std::endl;
-  std::cout << "TSTTb/MOAB ucd indiv memory (rss): initial, after v/e construction, e-v query, v-e query:" 
-            << rmem0 << ", " << rmem1 << ", " << rmem2 << ", " << rmem3 <<  " kb" << std::endl;
+  std::cout << "TSTTb/MOAB ucd indiv memory (rss): initial, after v/e construction, e-v query, v-e query, after dtor:" 
+            << rmem0 << ", " << rmem1 << ", " << rmem2 << ", " << rmem3 <<  ", " << rmem4 << " kb" << std::endl;
 
 }
 
