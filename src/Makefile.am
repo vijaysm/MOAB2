@@ -114,7 +114,9 @@ libMOAB_la_SOURCES = \
   UnstructuredElemSeq.hpp \
   VarLenTag.hpp \
   VertexSequence.hpp \
-  VertexSequence.cpp 
+  VertexSequence.cpp \
+  moab_mpe.h \
+  moab_mpe.c
 
 # The list of header files which are to be installed
 nobase_libMOAB_la_include_HEADERS = \

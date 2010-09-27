@@ -31,7 +31,6 @@ if PARALLEL
      ParallelData.cpp \
      ReadParallel.cpp \
      ReadParallel.hpp \
-     moab_mpe.c \
      crystal.h errmem.h types.h \
      crystal.c errmem.c \
      transfer.c gs.c gs.h tuple_list.c \
@@ -41,7 +40,6 @@ if PARALLEL
 # The list of header files which are to be installed
   MOAB_PARALLEL_HDRS += \
      moab_mpi.h \
-     moab_mpe.h \
      moab_mpi_config.h \
      moab/ParallelComm.hpp \
      moab/ProcConfig.hpp \

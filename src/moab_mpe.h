@@ -72,17 +72,17 @@ void MPE_Comm_global_rank ( MPI_Comm, int, int * );
 #define MPE_Log_PACK_FAIL         MPE_LOG_PACK_FAIL
 
 #define MPE_Init_log() (MPI_SUCCESS)
-#define MPE_Initialized_logging() (1)
+#define MPE_Initialized_logging() 1
 
-#define MPE_Describe_state( A, B, C, D ) (MPI_SUCCESS)
-#define MPE_Describe_event( A, B, C ) (MPI_SUCCESS)
-#define MPE_Log_get_event_number() (0)
-#define MPE_Log_send( A, B, C ) (MPI_SUCCESS)
-#define MPE_Log_receive( A, B, C ) (MPI_SUCCESS)
-#define MPE_Log_event( A, B, C ) (MPI_SUCCESS)
-#define MPE_Start_log() (MPI_SUCCESS)
-#define MPE_Stop_log() (MPI_SUCCESS)
-#define MPE_Finish_log( A ) (MPI_SUCCESS)
+#define MPE_Describe_state( A, B, C, D ) 0
+#define MPE_Describe_event( A, B, C ) 0
+#define MPE_Log_get_event_number() 0
+#define MPE_Log_send( A, B, C ) 0
+#define MPE_Log_receive( A, B, C ) 0
+#define MPE_Log_event( A, B, C ) 0
+#define MPE_Start_log() 0
+#define MPE_Stop_log() 0
+#define MPE_Finish_log( A ) 0
 
 #endif
 
