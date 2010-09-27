@@ -55,39 +55,62 @@ void CxxDebugStream::println( const char* pfx, const char* str )
 
 
 DebugOutput::DebugOutput( DebugOutputStream* impl, unsigned verbosity )
-  : outputImpl(impl), deleteImpl(0), mpiRank(-1), verbosityLimit(verbosity) {}
+  : outputImpl(impl), mpiRank(-1), verbosityLimit(verbosity) 
+    { impl->referenceCount++; assert(impl->referenceCount > 1); }
 DebugOutput::DebugOutput( DebugOutputStream* impl, int rank, unsigned verbosity )
-  : outputImpl(impl), deleteImpl(0), mpiRank(rank), verbosityLimit(verbosity) {}
+  : outputImpl(impl), mpiRank(rank), verbosityLimit(verbosity)
+    { impl->referenceCount++; assert(impl->referenceCount > 1); }
 DebugOutput::DebugOutput( FILE* impl, unsigned verbosity )
-  : outputImpl(new FILEDebugStream(impl)), deleteImpl(outputImpl),
+  : outputImpl(new FILEDebugStream(impl)),
     mpiRank(-1), verbosityLimit(verbosity) {}
 DebugOutput::DebugOutput( FILE* impl, int rank, unsigned verbosity )
-  : outputImpl(new FILEDebugStream(impl)), deleteImpl(outputImpl),
+  : outputImpl(new FILEDebugStream(impl)),
     mpiRank(rank), verbosityLimit(verbosity) {}
 DebugOutput::DebugOutput( std::ostream& str, unsigned verbosity )
-  : outputImpl(new CxxDebugStream(str)), deleteImpl(outputImpl),
+  : outputImpl(new CxxDebugStream(str)),
     mpiRank(-1), verbosityLimit(verbosity) {}
 DebugOutput::DebugOutput( std::ostream& str, int rank, unsigned verbosity )
-  : outputImpl(new CxxDebugStream(str)), deleteImpl(outputImpl),
+  : outputImpl(new CxxDebugStream(str)),
     mpiRank(rank), verbosityLimit(verbosity) {}
 DebugOutput::DebugOutput( const char* pfx, DebugOutputStream* impl, unsigned verbosity )
-  : linePfx(pfx), outputImpl(impl), deleteImpl(0), 
-    mpiRank(-1), verbosityLimit(verbosity) {}
+  : linePfx(pfx), outputImpl(impl), mpiRank(-1), verbosityLimit(verbosity) 
+  { impl->referenceCount++; assert(impl->referenceCount > 1); }
 DebugOutput::DebugOutput( const char* pfx, DebugOutputStream* impl, int rank, unsigned verbosity )
-  : linePfx(pfx), outputImpl(impl), deleteImpl(0), 
-     mpiRank(rank), verbosityLimit(verbosity) {}
+  : linePfx(pfx), outputImpl(impl), mpiRank(rank), verbosityLimit(verbosity)
+  { impl->referenceCount++; assert(impl->referenceCount > 1); }
 DebugOutput::DebugOutput( const char* pfx, FILE* impl, unsigned verbosity )
-  : linePfx(pfx), outputImpl(new FILEDebugStream(impl)), deleteImpl(outputImpl),
+  : linePfx(pfx), outputImpl(new FILEDebugStream(impl)),
     mpiRank(-1), verbosityLimit(verbosity) {}
 DebugOutput::DebugOutput( const char* pfx, FILE* impl, int rank, unsigned verbosity )
-  : linePfx(pfx), outputImpl(new FILEDebugStream(impl)), deleteImpl(outputImpl),
+  : linePfx(pfx), outputImpl(new FILEDebugStream(impl)),
     mpiRank(rank), verbosityLimit(verbosity) {}
 DebugOutput::DebugOutput( const char* pfx, std::ostream& str, unsigned verbosity )
-  : linePfx(pfx), outputImpl(new CxxDebugStream(str)), deleteImpl(outputImpl),
+  : linePfx(pfx), outputImpl(new CxxDebugStream(str)),
     mpiRank(-1), verbosityLimit(verbosity) {}
 DebugOutput::DebugOutput( const char* pfx, std::ostream& str, int rank, unsigned verbosity )
-  : linePfx(pfx), outputImpl(new CxxDebugStream(str)), deleteImpl(outputImpl),
+  : linePfx(pfx), outputImpl(new CxxDebugStream(str)),
     mpiRank(rank), verbosityLimit(verbosity) {}
+
+DebugOutput::DebugOutput( const DebugOutput& copy )
+  : linePfx(copy.linePfx), 
+    outputImpl(copy.outputImpl),
+    mpiRank(copy.mpiRank),
+    verbosityLimit(copy.verbosityLimit)
+{
+  outputImpl->referenceCount++; 
+  assert(outputImpl->referenceCount > 1); 
+}
+
+DebugOutput& DebugOutput::operator=( const DebugOutput& copy )
+{
+  linePfx = copy.linePfx;
+  outputImpl = copy.outputImpl;
+  mpiRank = copy.mpiRank;
+  verbosityLimit = copy.verbosityLimit;
+  outputImpl->referenceCount++; 
+  assert(outputImpl->referenceCount > 1); 
+  return *this;
+}
 
 DebugOutput::~DebugOutput()
 { 
@@ -95,7 +118,12 @@ DebugOutput::~DebugOutput()
     lineBuffer.push_back('\n');
     process_line_buffer();
   }
-  delete deleteImpl; 
+  if (outputImpl) {
+    assert(outputImpl->referenceCount > 0);
+    if (!--outputImpl->referenceCount)
+      delete outputImpl;
+    outputImpl = 0;
+  }
 }
   
 void DebugOutput::use_world_rank() 

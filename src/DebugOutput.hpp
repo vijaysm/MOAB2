@@ -114,6 +114,9 @@ public:
    */
   DebugOutput( const char* pfx, std::ostream& str, int rank, unsigned verbosity = 0 );
 
+  DebugOutput( const DebugOutput& copy );
+  DebugOutput& operator=( const DebugOutput& copy );
+
   /**
    * Destructor flushes any remaining output that wasn't followed
    * by a newline character.
@@ -196,7 +199,7 @@ public:
 private:
   
   std::string linePfx;
-  DebugOutputStream *outputImpl, *deleteImpl;
+  DebugOutputStream *outputImpl;
   int mpiRank;
   unsigned verbosityLimit;
 
@@ -225,7 +228,11 @@ private:
 
 
 class DebugOutputStream {
+protected:
+  friend class DebugOutput;
+  int referenceCount;
 public:
+  DebugOutputStream() : referenceCount(1) {}
   virtual ~DebugOutputStream();
   virtual void println( const char* pfx, const char* str ) = 0;
   virtual void println( int rank, const char* pfx, const char* str ) = 0;
