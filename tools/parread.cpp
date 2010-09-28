@@ -105,7 +105,7 @@ int main( int argc, char* argv[] )
   options << "PARTITION=" << partition_tag_name
           << ";PARALLEL=" << read_mode;
   if (resolve_shared)
-    options << ";RESOLVE_SHARED_ENTS";
+    options << ";PARALLEL_RESOLVE_SHARED_ENTS";
   if (assign_by_id)
     options << ";PARTITION_BY_RANK";
   if (debug_level)

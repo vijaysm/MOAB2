@@ -99,6 +99,14 @@ Set parallel read mode.  Options are:
                  file formats.)
   - FORMAT - depricated (use WRITE_PART)
 
+
+  PARALLEL_RESOLVE_SHARED_ENTS
+
+Resolve which entities are shared between which processes, such
+that propogation of data across processes can be done.  This should
+probably be the defautl behavior, as you almost certainly want this
+unless, perhaps, PARALLEL=BCAST.
+
   
   PARTITION
   PARTITION=<tag_name>
