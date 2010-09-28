@@ -74,15 +74,15 @@ void MPE_Comm_global_rank ( MPI_Comm, int, int * );
 #define MPE_Init_log() (MPI_SUCCESS)
 #define MPE_Initialized_logging() 1
 
-#define MPE_Describe_state( A, B, C, D ) 0
-#define MPE_Describe_event( A, B, C ) 0
-#define MPE_Log_get_event_number() 0
-#define MPE_Log_send( A, B, C ) 0
-#define MPE_Log_receive( A, B, C ) 0
-#define MPE_Log_event( A, B, C ) 0
-#define MPE_Start_log() 0
-#define MPE_Stop_log() 0
-#define MPE_Finish_log( A ) 0
+#define MPE_Describe_state( A, B, C, D )
+#define MPE_Describe_event( A, B, C )
+#define MPE_Log_get_event_number()
+#define MPE_Log_send( A, B, C )
+#define MPE_Log_receive( A, B, C )
+#define MPE_Log_event( A, B, C )
+#define MPE_Start_log()
+#define MPE_Stop_log()
+#define MPE_Finish_log( A )
 
 #endif
 
