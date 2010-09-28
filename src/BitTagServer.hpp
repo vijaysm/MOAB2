@@ -233,6 +233,8 @@ class BitTag
                                    EntityType type,
                                    int& num_entities ) const;
   
+  bool is_tagged( EntityHandle h ) const;
+  
   ErrorCode get_memory_use( unsigned long& total,
                               unsigned long& per_entity ) const;
                               
@@ -462,6 +464,14 @@ inline void BitPage::set_bits( int offset, int count, int per_ent, unsigned char
     set_bits( offset++, per_ent, value );
 }
 
+inline bool BitTag::is_tagged( EntityHandle h ) const
+{
+  EntityType type;
+  size_t page;
+  int offset;
+  unpack( h, type, page, offset );
+  return page < pageList[type].size() && pageList[type][page];
+}
   
 inline BitTag* BitTagServer::get_tag( TagId id )
   { return id-1 >= tagList.size() || !tagList[id-1].in_use() ? 0 : &tagList[id-1]; }

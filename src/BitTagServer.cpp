@@ -60,10 +60,10 @@ void BitTagServer::reset_data()
 }
 
 ErrorCode BitTagServer::get_tags( EntityHandle entity,  
-                                    std::vector<Tag> &tags ) const
+                                  std::vector<Tag> &tags ) const
 {
-  for (size_t i = 0; i < tagList.size(); ++i)
-    if (tagList[i].in_use())
+  for (size_t i = 0; i < tagList.size(); ++i) 
+    if (tagList[i].in_use() && tagList[i].is_tagged(entity))
       tags.push_back( (Tag)(i+1) );
   return MB_SUCCESS;
 }
@@ -334,7 +334,7 @@ ErrorCode BitTag::get_entities( EntityType type, Range& entities ) const
       EntityHandle last = h + per_page - 1;
         // never zero ID
       if (!id) ++h;
-      hint = entities.insert( h, last );
+      hint = entities.insert( hint, h, last );
     }
   }
   return MB_SUCCESS;
