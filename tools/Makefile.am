@@ -113,6 +113,14 @@ else
   dagmc_DIR = 
 endif 
 
+if PARALLEL
+  parread = parread
+else
+  parread =
+endif
+
+noinst_PROGRAMS = $(parread)
+
 SUBDIRS = $(refiner_DIR) \
           $(mbcoupler_DIR) \
           $(mbzoltan_DIR) \
@@ -131,4 +139,5 @@ spheredecomp_SOURCES = SphereDecomp.hpp SphereDecomp.cpp sphere_decomp.cpp
 mbsurfplot_SOURCES = surfplot.cpp
 mbtagprop_SOURCES = parse.cpp parse.hpp propagate_tags.cpp
 mbmem_SOURCES = mbmem.cpp
+parread_SOURCES = parread.cpp
 
