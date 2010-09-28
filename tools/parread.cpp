@@ -4,7 +4,7 @@
 #include <iostream>
 #include <stdlib.h>
 
-const char usage[] = "[-b|-d|-f] [-p <name>] [-R] [-g <level>] <filename>";
+const char usage[] = "[-b|-d|-f] [-p <name>] [-R] [-g <level>] [-O <option>] <filename>";
 
 const char DEFAULT_PARTITION_TAG[] = "PARALLEL_PARTITION";
 
@@ -43,35 +43,44 @@ int main( int argc, char* argv[] )
   bool resolve_shared = true;
   int debug_level = 0;
   const char* filename = 0;
+  std::ostringstream options;
+  options << ";";
   
-  bool expect_tag = false;
-  bool expect_level = false;
+  int expect_tag = 0;
+  int expect_level = 0;
+  int expect_opt = 0;
   bool no_more_flags = false;
   for (int i = 1; i < argc; ++i) {
-    if (expect_tag) {
+    int arg_pos = i;
+    if (expect_tag == i) {
       partition_tag_name = argv[i];
-      expect_tag = false;
+      expect_tag = 0;
     }
-    else if (expect_level) {
+    else if (expect_level == i) {
       char* endptr;
       debug_level = (int)strtol( argv[i], &endptr, 0 );
       if (*endptr || endptr == argv[i] || debug_level < 0) {
         std::cerr << "Expected positive integer value following '-g' flag" << std::endl;
         error(argv[0]);
       }
-      expect_level = false;
+      expect_level = 0;
+    }
+    else if (expect_opt == i) {
+      options << ";" << argv[i];
+      expect_opt = 0;
     }
     else if (argv[i][0] == '-' && !no_more_flags) {
       for (int j = 1; argv[i][j]; ++j) {
         switch (argv[i][j]) {
           case '-': no_more_flags = true; break;
-          case 'p': expect_tag = true; break;
+          case 'p': expect_tag = ++arg_pos; break;
           case 'a': assign_by_id = true; break;
           case 'R': resolve_shared = false; break;
           case 'b': read_mode = BCAST_MODE; break;
           case 'd': read_mode = DELETE_MODE; break;
           case 'f': read_mode = PART_MODE; break;
-          case 'g': expect_level = true; break;
+          case 'g': expect_level = ++arg_pos; break;
+          case 'O': expect_opt = ++arg_pos; break;
           case 'h': help(argv[0]); break;
           default:
             std::cerr << "Unknown flag: -" << argv[i][j] << std::endl;
@@ -96,13 +105,16 @@ int main( int argc, char* argv[] )
     std::cerr << "Expected value following -g flag" << std::endl;
     error(argv[0]);
   }
+  if (expect_opt) {
+    std::cerr << "Expected value following -O flag" << std::endl;
+    error(argv[0]);
+  }
   if (!filename) {
     std::cerr << "No file name specified" << std::endl;
     error(argv[0]);
   }
   
-  std::ostringstream options;
-  options << "PARTITION=" << partition_tag_name
+  options << ";PARTITION=" << partition_tag_name
           << ";PARALLEL=" << read_mode;
   if (resolve_shared)
     options << ";PARALLEL_RESOLVE_SHARED_ENTS";
