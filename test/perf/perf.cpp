@@ -410,8 +410,8 @@ void print_time(const bool print_em, double &tot_time, double &utime, double &st
 
 void testA(const int nelem, const double *coords) 
 {
-  double ttime0, ttime1, ttime2, ttime3, utime, stime;
-  long imem0, rmem0, imem1, rmem1, imem2, rmem2, imem3, rmem3;
+  double ttime0, ttime1, ttime2, ttime3, ttime4, utime, stime;
+  long imem0, rmem0, imem1, rmem1, imem2, rmem2, imem3, rmem3, imem4, rmem4;
   
   print_time(false, ttime0, utime, stime, imem0, rmem0);
 
@@ -462,14 +462,19 @@ void testA(const int nelem, const double *coords)
   
   print_time(false, ttime3, utime, stime, imem3, rmem3);
 
-  std::cout << "MOAB scd: nelem, construct, e_to_v query, v_to_e query = " 
+  delete gMB;
+  
+  print_time(false, ttime4, utime, stime, imem4, rmem4);
+
+  std::cout << "MOAB scd: nelem, construct, e_to_v query, v_to_e query, after dtor = " 
             << nelem << ", "
             << ttime1-ttime0 << ", " 
             << ttime2-ttime1 << ", " 
-            << ttime3-ttime2 << " seconds" 
+            << ttime3-ttime2 << ", " 
+            << ttime4-ttime3 << " seconds" 
             << std::endl;
-  std::cout << "MOAB scd memory (rss): initial, after v/e construction, e-v query, v-e query:" 
-            << rmem0 << ", " << rmem1 << ", " << rmem2 << ", " << rmem3 <<  " kb" << std::endl;
+  std::cout << "MOAB scd memory (rss): initial, after v/e construction, e-v query, v-e query, after dtor:" 
+            << rmem0 << ", " << rmem1 << ", " << rmem2 << ", " << rmem3 << ", " << rmem4 <<  " kb" << std::endl;
 }
 
 void testB(const int nelem, const double *coords, int *connect) 
