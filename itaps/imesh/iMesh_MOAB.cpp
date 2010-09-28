@@ -1415,8 +1415,10 @@ extern "C" {
 
     if (MB_SUCCESS != result) {
       std::string msg("iMesh_createTag: ");
-      if (MB_ALREADY_ALLOCATED == result) 
+      if (MB_ALREADY_ALLOCATED == result) {
         msg += "Tag already exists with name: \"";
+        *tag_handle = (iBase_TagHandle) new_tag;
+      }
       else
         msg += "Failed to create tag with name: \"";
       msg += tag_name;
