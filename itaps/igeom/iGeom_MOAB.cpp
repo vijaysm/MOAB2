@@ -267,10 +267,31 @@ void iGeom_dtor( iGeom_Instance instance, int* err )
   if (i_created) {
 
      // this was supposed to help, but it crashes, still
-     // we have some memory leaks if we do not delete the topo tool
-     // if we delete it, it crashes in the destructor
-     //delete [] _my_geomTopoTool;
-    _my_geomTopoTool = NULL;
+     // we have some memory leaks if we do not delete the topo tool,
+     //   the smooth evaluators, etc
+
+     if (_smooth) {
+         _faces.clear();
+         _edges.clear();
+         int size1 = _my_gsets[1].size();
+         int i = 0;
+         for (i = 0; i < size1; i++)
+            delete _smthCurve[i];
+         delete[] _smthCurve;
+         _smthCurve = NULL;
+         size1 = _my_gsets[2].size();
+         for (i = 0; i < size1; i++)
+            delete _smthFace[i];
+         delete[] _smthFace;
+         _smthFace = NULL;
+         _smooth = false;
+      }
+
+     for (int j=0; j<4; j++)
+        _my_gsets[j].clear();
+     delete  _my_geomTopoTool;
+     _my_geomTopoTool = NULL;
+
     iMesh_dtor(IMESH_INSTANCE(instance), err);
     ERRORR("Failed to destruct instance.");
   }
