@@ -8,6 +8,8 @@
 #include "moab/CartVect.hpp"
 #include <stdlib.h>
 #include <cstring>
+#include <map>
+#include "assert.h"
 
 using namespace moab;
 
@@ -18,6 +20,20 @@ Range _my_gsets[4];
 GeomTopoTool* _my_geomTopoTool = NULL;
 
 bool debug_igeom = false;
+bool debug_surf_eval = false;
+
+// smooth stuff
+bool _smooth; 
+#include "SmoothFaceEval.hpp"
+#include "SmoothCurveEval.hpp"
+
+// these smooth faces and edges will be initialized after reading the file
+// the maps keep the link between EH in moab (geom sets) and
+//   their corresponding smooth counterparts
+std::map <EntityHandle, SmoothFaceEval* > _faces;
+std::map <EntityHandle, SmoothCurveEval* > _edges;
+SmoothFaceEval ** _smthFace = NULL;
+SmoothCurveEval ** _smthCurve = NULL;
 
 #define COPY_RANGE(r, vec) {                      \
     EntityHandle *tmp_ptr = reinterpret_cast<EntityHandle*>(vec);	\
@@ -33,6 +49,179 @@ iGeom_get_adjacent_entities(iGeom_Instance instance,
 			    Range &adj_ents, int* err);
 
 double get_edge_length(double* p1, double* p2);
+
+// copied from CamalPaveDriver from MeshKit;
+// it is used to initialize the smoothing procedure
+
+bool initializeSmoothing(iGeom_Instance instance)
+{
+   //
+   // first of all, we need to retrieve all the surfaces from the (root) set
+   // in icesheet_test we use iGeom, but maybe that is a stretch
+   // get directly the sets with geom dim 2, and from there create the SmoothFaceEval
+   Tag geom_tag, gid_tag;
+   ErrorCode rval = MBI->tag_get_handle(GEOM_DIMENSION_TAG_NAME, geom_tag);
+   rval = MBI->tag_get_handle(GLOBAL_ID_TAG_NAME, gid_tag);
+
+#if 0
+      // traverse the model, dimension 2, 1, 0
+   Range csets, fsets, vsets;
+   //std::vector<moab::EntityHandle> sense_ents;
+   //std::vector<int> senses, pgids;
+   int dim=2;
+   void *dim_ptr = &dim;
+   //bool sense;
+
+   moab::GeomTopoTool * my_geomTopoTool = new moab::GeomTopoTool(MBI);
+
+   rval = my_geomTopoTool->construct_obb_trees();
+   assert(MB_SUCCESS==rval);
+
+
+   fsets.clear();
+   rval = MBI->get_entities_by_type_and_tag(0, MBENTITYSET,
+                                    &geom_tag, &dim_ptr, 1,
+                                    fsets, 1, false);
+   int numSurfaces = fsets.size();
+#endif
+   int numSurfaces = _my_gsets[2].size();
+   //SmoothFaceEval ** smthFace = new SmoothFaceEval *[numSurfaces];
+   _smthFace = new SmoothFaceEval *[numSurfaces];
+   // there should also be a map from surfaces to evaluators
+   //std::map<MBEntityHandle, SmoothFaceEval*> mapSurfaces;
+
+   int i=0;
+   Range::iterator it;
+   for ( it = _my_gsets[2].begin(); it!=_my_gsets[2].end(); it++, i++)
+   {
+      EntityHandle face= *it;
+      _smthFace[i]= new SmoothFaceEval(MBI, face, _my_geomTopoTool);// geom topo tool will be used for searching,
+      // among other things; also for senses in edge sets...
+      _faces[face] = _smthFace[i];
+   }
+#if 0
+   csets.clear();
+   dim = 1; // get now the curves
+   rval = MBI->get_entities_by_type_and_tag(0, MBENTITYSET,
+                                    &geom_tag, &dim_ptr, 1,
+                                    csets, 1, false);
+#endif
+   int numCurves = _my_gsets[1].size();//csets.size();
+   //SmoothCurveEval ** smthCurve = new SmoothCurveEval *[numCurves];
+   _smthCurve = new SmoothCurveEval *[numCurves];
+   // there should also be a map from surfaces to evaluators
+   //std::map<MBEntityHandle, SmoothCurveEval*> mapCurves;
+
+   i=0;
+   for ( it = _my_gsets[1].begin(); it!=_my_gsets[1].end(); it++, i++)
+   {
+      EntityHandle curve= *it;
+      _smthCurve[i]= new SmoothCurveEval(MBI, curve);
+      _edges[curve] = _smthCurve[i];
+   }
+#if 0
+   // create another mapping for vertices (sets of dimension 0)
+   vsets.clear();
+   dim = 0; // get now the vertice sets (dimension 0)
+   rval = MBI->get_entities_by_type_and_tag(0, MBENTITYSET,
+                                    &geom_tag, &dim_ptr, 1,
+                                    vsets, 1, false);
+   int numGeoVertices = vsets.size();
+   //SmoothVertex ** smthVertex = new SmoothVertex *[numGeoVertices];
+   _smthVertex = new SmoothVertex *[numGeoVertices];
+   // there should also be a map from original vertex sets to new vertex sets (or just new vertex??)
+   //std::map<MBEntityHandle, SmoothVertex*> mapVertices;
+
+   i=0;
+   for ( it = vsets.begin(); it!=vsets.end(); it++, i++)
+   {
+      MBEntityHandle vertex= *it;
+      _smthVertex[i]= new SmoothVertex(MBI, vertex, _mbo);
+      _mapVertices[vertex] = _smthVertex[i];
+   }
+#endif
+   // _mb, mapSurfaces, mapCurves, mapVertices are characterizing the geometry/topology of the initial mesh
+
+   //SmoothFaceEval geom_eval(_mb, _set);
+   // initialize the smooth mesh evaluator
+   //
+   //geom_eval.Initialize(): it is decomposed in initializing first the gradients
+   for (i=0; i<numSurfaces; i++)
+   {
+      _smthFace[i]->init_gradient();// this will also retrieve the triangles in each surface
+      _smthFace[i]->compute_tangents_for_each_edge();// this one will consider all edges internal, so the
+      // tangents are all in the direction of the edge; a little bit of waste, as we store
+      // one tangent for each edge node , even though they are equal here...
+      // no loops are considered
+   }
+
+   // this will be used to mark boundary edges, so for them the control points are computed earlier
+   unsigned char value = 0; // default value is "not used"=0 for the tag
+   // unsigned char def_data_bit = 1;// valid by default
+   // rval = mb->tag_create("valid", 1, MB_TAG_BIT, validTag, &def_data_bit);
+   Tag markTag;
+   rval = MBI->tag_create("MARKER", 1, MB_TAG_BIT, markTag, &value); // default value : 0 = not computed yet
+   // each feature edge will need to have a way to retrieve at every moment the surfaces it belongs to
+   // from edge sets, using the sense tag, we can get faces, and from each face, using the map, we can get
+   // the SmoothFaceEval (surface evaluator), that has everything, including the normals!!!
+   assert(rval==MB_SUCCESS);
+
+   // create the tag also for control points on the edges
+   double defCtrlPoints[9] = { 0., 0., 0., 0., 0., 0., 0., 0., 0. };
+   Tag edgeCtrlTag;
+   rval = MBI->tag_create("CONTROLEDGE", 9 * sizeof(double),
+         MB_TAG_DENSE, edgeCtrlTag, &defCtrlPoints);
+   if (MB_SUCCESS != rval)
+      return MB_FAILURE;
+
+   Tag facetCtrlTag;
+   double defControls[18] = { 0. };
+   rval = MBI->tag_create("CONTROLFACE", 18 * sizeof(double),
+         MB_TAG_DENSE, facetCtrlTag, &defControls);
+   assert(rval == MB_SUCCESS);
+
+   Tag facetEdgeCtrlTag;
+   double defControls2[27] = { 0. }; // corresponding to 9 control points on edges, in order from edge 0, 1, 2 ( 1-2, 2-0, 0-1 )
+   rval = MBI->tag_create("CONTROLEDGEFACE", 27 * sizeof(double),
+         MB_TAG_DENSE, facetEdgeCtrlTag, &defControls2);
+   assert(rval == MB_SUCCESS);
+   // if the
+   double min_dot= -1.0; // depends on _angle, but now we ignore it, for the time being
+   for (i=0; i<numCurves; i++)
+   {
+      _smthCurve[i]->compute_tangents_for_each_edge();// do we need surfaces now? or just the chains?
+      // the computed edges will be marked accordingly; later one, only internal edges to surfaces are left
+      _smthCurve[i]->compute_control_points_on_boundary_edges( min_dot,  _faces, edgeCtrlTag, markTag);
+   }
+
+   // when done with boundary edges, compute the control points on all edges in the surfaces
+
+   for (i=0;i<numSurfaces; i++)
+   {
+      // also pass the tags for
+      _smthFace[i]->compute_control_points_on_edges(min_dot, edgeCtrlTag, markTag);
+   }
+
+   // now we should be able to compute the control points for the facets
+
+   for (i=0;i<numSurfaces; i++)
+   {
+      // also pass the tags for edge and facet control points
+      _smthFace[i]->compute_internal_control_points_on_facets(min_dot, facetCtrlTag, facetEdgeCtrlTag);
+   }
+   // we will need to compute the tangents for all edges in the model
+   // they will be needed for control points for each edge
+   // the boundary edges and the feature edges are more complicated
+   // the boundary edges need to consider their loops, but feature edges need to consider loops and the normals
+   // on each connected surface
+
+   // some control points
+   if (debug_surf_eval)
+      for (i=0;i<numSurfaces; i++)
+            _smthFace[i]->DumpModelControlPoints();
+
+   return true;
+}
 
 void iGeom_getDescription( iGeom_Instance instance,
                            char* descr,
@@ -76,6 +265,12 @@ void iGeom_newGeom( char const* options,
 void iGeom_dtor( iGeom_Instance instance, int* err ) 
 {
   if (i_created) {
+
+     // this was supposed to help, but it crashes, still
+     // we have some memory leaks if we do not delete the topo tool
+     // if we delete it, it crashes in the destructor
+     //delete [] _my_geomTopoTool;
+    _my_geomTopoTool = NULL;
     iMesh_dtor(IMESH_INSTANCE(instance), err);
     ERRORR("Failed to destruct instance.");
   }
@@ -90,9 +285,38 @@ void iGeom_load( iGeom_Instance instance,
                  int name_len,
                  int options_len ) 
 {
+  // first remove option for smooth facetting
+  char * smth = "SMOOTH;";
+  const char * res = NULL;
+
+  char * reducedOptions = NULL;
+  int reduced_len = options_len;
+  if (options)
+     res = strstr(options, smth);
+  if ( res )
+  {
+     // extract that option, will not be recognized by our moab/imesh
+     reducedOptions = new char [options_len - 6];
+     int preLen = (int)(res-options);
+     strncpy(reducedOptions, options, preLen);
+     int postLen =options_len - 7 -preLen;
+     
+     char * tmp = reducedOptions + preLen;
+     
+     strncpy(tmp, res+7, postLen);
+     reducedOptions[options_len-7] = 0;
+     reduced_len = options_len - 7;
+     std::cout << reducedOptions << std::endl;
+     _smooth = true;
+     
+  }
+  else
+  {
+     reducedOptions =  const_cast<char *>(options);
+  }
   // load mesh-based geometry
-  iMesh_load(IMESH_INSTANCE(instance), NULL, name, options, err, 
-             name_len, options_len);
+  iMesh_load(IMESH_INSTANCE(instance), NULL, name, reducedOptions, err, 
+             name_len, reduced_len);
   ERRORR("Failure to load geometry.");
   
   // keep mesh-based geometries in Range
@@ -132,9 +356,11 @@ void iGeom_load( iGeom_Instance instance,
     std::cout << "vertex coords=" << x << ", " << y << ", " << z << std::endl;
   }
 
+  if (_smooth)
+     initializeSmoothing(instance);
+
   RETURN(iBase_SUCCESS);
 }
-
   
 void iGeom_save( iGeom_Instance instance,
                  char const* name,
@@ -529,16 +755,27 @@ void iGeom_getEntClosestPt( iGeom_Instance instance,
     double point[3] = {near_x, near_y, near_z};
     double point_out[3];
     EntityHandle root, facet_out;
-    rval = _my_geomTopoTool->get_root(MBH_cast(entity_handle), root);
-    MBERRORR("Failed to get tree root in iGeom_getEntClosestPt.");
-    rval = _my_geomTopoTool->obb_tree()->closest_to_location(point, root,
-							     point_out,
-							     facet_out);
-    MBERRORR("Failed to get closest point in iGeom_getEntClosestPt.");
-    
-    *on_x = point_out[0];
-    *on_y = point_out[1];
-    *on_z = point_out[2];
+    if (_smooth && 2 == type)
+    {
+       EntityHandle geoSet = MBH_cast(entity_handle);
+       SmoothFaceEval*  smthFace = _faces[geoSet];
+       *on_x = near_x; *on_y = near_y; *on_z = near_z;
+       smthFace->move_to_surface(*on_x, *on_y, *on_z);
+
+    }
+    else
+    {
+       rval = _my_geomTopoTool->get_root(MBH_cast(entity_handle), root);
+       MBERRORR("Failed to get tree root in iGeom_getEntClosestPt.");
+       rval = _my_geomTopoTool->obb_tree()->closest_to_location(point, root,
+                             point_out,
+                             facet_out);
+       MBERRORR("Failed to get closest point in iGeom_getEntClosestPt.");
+
+       *on_x = point_out[0];
+       *on_y = point_out[1];
+       *on_z = point_out[2];
+    }
   }
   else RETURN(iBase_INVALID_ENTITY_TYPE);
 
@@ -598,35 +835,46 @@ void iGeom_getEntNrmlXYZ( iGeom_Instance instance,
     ERRORR("Entities passed into gentityNormal must be face or volume.");
   }
 
-  // get closest location and facet
-  double point[3] = {x, y, z};
-  double point_out[3];
-  EntityHandle root, facet_out;
-  _my_geomTopoTool->get_root(MBH_cast(entity_handle), root);
-  ErrorCode rval = _my_geomTopoTool->obb_tree()->closest_to_location(point, root,
+  if (_smooth && 2 == type)
+  {
+     EntityHandle geoSet = MBH_cast(entity_handle);
+     SmoothFaceEval*  smthFace = _faces[geoSet];
+     //*on_x = near_x; *on_y = near_y; *on_z = near_z;
+     smthFace-> normal_at( x, y, z, *nrml_i , *nrml_j, *nrml_k );
+     
+  }
+  else
+  {
+    // get closest location and facet
+    double point[3] = {x, y, z};
+    double point_out[3];
+    EntityHandle root, facet_out;
+    _my_geomTopoTool->get_root(MBH_cast(entity_handle), root);
+    ErrorCode rval = _my_geomTopoTool->obb_tree()->closest_to_location(point, root,
 							   point_out,
 							   facet_out);
-  MBERRORR("Failed to get closest location in iGeom_getEntNrmlXYZ.");
+    MBERRORR("Failed to get closest location in iGeom_getEntNrmlXYZ.");
 
-  // get facet normal
-  const EntityHandle* conn;
-  int len;
-  CartVect coords[3], normal;
-  rval = MBI->get_connectivity(facet_out, conn, len);
-  MBERRORR("Failed to get triangle connectivity in iGeom_getEntNrmlXYZ.");
-  if (len != 3) RETURN(iBase_FAILURE);
+    // get facet normal
+    const EntityHandle* conn;
+    int len;
+    CartVect coords[3], normal;
+    rval = MBI->get_connectivity(facet_out, conn, len);
+    MBERRORR("Failed to get triangle connectivity in iGeom_getEntNrmlXYZ.");
+    if (len != 3) RETURN(iBase_FAILURE);
   
-  rval = MBI->get_coords(conn, len, coords[0].array());
-  MBERRORR("Failed to get triangle coordinates in iGeom_getEntNrmlXYZ.");
+    rval = MBI->get_coords(conn, len, coords[0].array());
+    MBERRORR("Failed to get triangle coordinates in iGeom_getEntNrmlXYZ.");
   
-  coords[1] -= coords[0];
-  coords[2] -= coords[0];
-  normal = coords[1] * coords[2];
-  normal.normalize();
-  *nrml_i = normal[0];
-  *nrml_j = normal[1];
-  *nrml_k = normal[2];
-
+    coords[1] -= coords[0];
+    coords[2] -= coords[0];
+    normal = coords[1] * coords[2];
+    normal.normalize();
+    *nrml_i = normal[0];
+    *nrml_j = normal[1];
+    *nrml_k = normal[2];
+  }
+  *err = 0;
   RETURN(iBase_SUCCESS);
 }
 

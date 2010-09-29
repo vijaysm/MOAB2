@@ -19,7 +19,9 @@ libiGeomMOAB_la_includedir = $(includedir)
 
 libiGeomMOAB_la_SOURCES = \
         iGeom_MOAB.hpp \
-	iGeom_MOAB.cpp 
+	iGeom_MOAB.cpp \
+	SmoothCurveEval.hpp SmoothCurveEval.cpp \
+	SmoothFaceEval.hpp SmoothFaceEval.cpp 
 
 libiGeomMOAB_la_include_HEADERS = \
 	iGeom.h \
@@ -27,12 +29,21 @@ libiGeomMOAB_la_include_HEADERS = \
 	iGeom_f.h
 
 # stuff for test program
-check_PROGRAMS = testgeom
+check_PROGRAMS = testgeom  testSmoothGeom 
 testgeom_SOURCES = testgeom.cc
 testgeom_DEPENDENCIES = libiGeomMOAB.la \
                         $(top_builddir)/itaps/imesh/libiMesh.la \
                         $(top_builddir)/src/libMOAB.la 
 testgeom_LDADD = libiGeomMOAB.la \
+                 $(top_builddir)/itaps/imesh/libiMesh.la \
+                 $(top_builddir)/src/libMOAB.la \
+                 ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
+
+testSmoothGeom_SOURCES = testSmooth.cc 
+testSmoothGeom_DEPENDENCIES = libiGeomMOAB.la \
+                        $(top_builddir)/itaps/imesh/libiMesh.la \
+                        $(top_builddir)/src/libMOAB.la 
+testSmoothGeom_LDADD = libiGeomMOAB.la \
                  $(top_builddir)/itaps/imesh/libiMesh.la \
                  $(top_builddir)/src/libMOAB.la \
                  ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
