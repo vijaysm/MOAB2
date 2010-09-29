@@ -161,4 +161,4 @@ MBCN_protos.h: MBCN.h $(top_srcdir)/itaps/mkprotos.sh
 MOAB_FCDefs.h: FCDefs.h
 	$(AM_V_GEN)cd .. && ./config.status src/MOAB_FCDefs.h
 
-MOSTLYCLEANFILES = MOAB_FCDefs.h
+DISTCLEANFILES = MOAB_FCDefs.h
