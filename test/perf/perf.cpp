@@ -371,6 +371,13 @@ void query_struct_elem_to_vert()
     assert(MB_SUCCESS == result);
     result = gMB->get_coords(&connect[0], connect.size(), dum_coords);
     assert(MB_SUCCESS == result);
+
+    double centroid[3] = {0.0, 0.0, 0.0};
+    for (int j = 0; j < 24; j++) {
+      centroid[0] += dum_coords[j++];
+      centroid[1] += dum_coords[j++];
+      centroid[2] += dum_coords[j++];
+    }
   }
 }
 
