@@ -710,6 +710,7 @@ class RayIntersector : public OrientedBoxTreeTool::Op
 
 ErrorCode OrientedBoxTreeTool::ray_intersect_triangles( 
                           std::vector<double>& intersection_distances_out,
+                          std::vector<EntityHandle>& intersection_facets_out,
                           const Range& boxes,
                           double tolerance,
                           const double ray_point[3],
@@ -766,8 +767,10 @@ ErrorCode OrientedBoxTreeTool::ray_intersect_triangles(
       if( raytri_test_count ) *raytri_test_count += 1; 
 
       double td;
-      if (GeomUtil::ray_tri_intersect( coords, point, dir, tolerance, td, ray_length ))
+      if (GeomUtil::ray_tri_intersect( coords, point, dir, tolerance, td, ray_length )){
         intersection_distances_out.push_back(td);
+        intersection_facets_out.push_back( *t );
+      }
     }
   }
   
@@ -776,6 +779,7 @@ ErrorCode OrientedBoxTreeTool::ray_intersect_triangles(
 
 ErrorCode OrientedBoxTreeTool::ray_intersect_triangles( 
                           std::vector<double>& intersection_distances_out,
+                          std::vector<EntityHandle>& intersection_facets_out,
                           EntityHandle root_set,
                           double tolerance,
                           const double ray_point[3],
@@ -790,7 +794,7 @@ ErrorCode OrientedBoxTreeTool::ray_intersect_triangles(
   if (MB_SUCCESS != rval)
     return rval;
     
-  return ray_intersect_triangles( intersection_distances_out, boxes, 
+  return ray_intersect_triangles( intersection_distances_out, intersection_facets_out, boxes, 
                                   tolerance, ray_point, unit_ray_dir, ray_length, 
                                   accum ? &(accum->ray_tri_tests_count) : NULL );
 }

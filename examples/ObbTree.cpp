@@ -52,9 +52,10 @@ int main(int argc, char **argv) {
   
   // do ray-tracing from box center to x direction
   std::vector<double> intersections;
+  std::vector<moab::EntityHandle> intersection_facets;
   double dir[3] = {1., 0., 0.};
-  rval = tool.ray_intersect_triangles(intersections, tree_root,
-				      10e-12, box_center, dir,
+  rval = tool.ray_intersect_triangles(intersections, intersection_facets, 
+				      tree_root, 10e-12, box_center, dir,
 				      &ray_length);
   if (rval != moab::MB_SUCCESS) {
     std::cerr << "Couldn't ray tracing.";

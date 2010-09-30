@@ -213,7 +213,7 @@ int main( int argc, char* argv[] )
       rval = tool.ray_intersect_sets( intersections, sets, facets, root, 1e-6, 1, point.array(), dir.array(), 0,  stats );
     }
     else {
-      rval = tool.ray_intersect_triangles( intersections, root, 1e-6, point.array(), dir.array(), 0, stats );
+      rval = tool.ray_intersect_triangles( intersections, facets, root, 1e-6, point.array(), dir.array(), 0, stats );
     }
     if (MB_SUCCESS != rval) {
       std::cerr << "Rayfire #" << rays << " failed." << std::endl;

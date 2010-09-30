@@ -933,7 +933,8 @@ static bool do_ray_fire_test( OrientedBoxTreeTool& tool,
       std::cout << "  " << tests[i].description << " " << tests[i].point << " " << tests[i].direction << std::endl;
     
     std::vector<double> intersections;
-    rval = tool.ray_intersect_triangles( intersections, root_set, tolerance, tests[i].point.array(), tests[i].direction.array(), 0, &stats );
+    std::vector<EntityHandle> facets;
+    rval = tool.ray_intersect_triangles( intersections, facets, root_set, tolerance, tests[i].point.array(), tests[i].direction.array(), 0, &stats );
     if (MB_SUCCESS != rval) {
       if (verbosity)
         std::cout << "  Call to OrientedBoxTreeTool::ray_intersect_triangles failed." << std::endl;
@@ -1032,6 +1033,7 @@ static bool do_ray_fire_test( OrientedBoxTreeTool& tool,
     if (!haveSurfTree) {
       Range leaves;
       std::vector<double> intersections;
+      std::vector<EntityHandle> intersection_facets;
       rval = tool.ray_intersect_boxes( leaves, root_set, tolerance, rays[i].array(), rays[i+1].array(), 0, &stats );
       if (MB_SUCCESS != rval) {
         std::cout << "FAILED" << std::endl;
@@ -1055,7 +1057,7 @@ static bool do_ray_fire_test( OrientedBoxTreeTool& tool,
           std::cout << "(Wrote " << name << ") ";
       }      
 
-      rval = tool.ray_intersect_triangles( intersections, leaves, tolerance, rays[i].array(), rays[i+1].array(), 0 );
+      rval = tool.ray_intersect_triangles( intersections, intersection_facets, leaves, tolerance, rays[i].array(), rays[i+1].array(), 0 );
       if (MB_SUCCESS != rval) {
         std::cout << "FAILED" << std::endl;
         result = false;

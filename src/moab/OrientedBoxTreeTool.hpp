@@ -181,6 +181,7 @@ class OrientedBoxTreeTool
      * Intersect a ray with the triangles contained in the tree and return
      * the distance at which the intersection occured.
      *\param distances_out The output list of intersection points on the ray.
+     *\param facets_out    Handles of intersected triangles corresponding to distances_out 
      *\param root_set      The MBENTITYSET representing the root of the tree.
      *\param tolerance     The tolerance to use in intersection checks.
      *\param ray_point     The base point of the ray.
@@ -188,6 +189,7 @@ class OrientedBoxTreeTool
      *\param ray_length    Optional ray length (intersect segment instead of ray.)
      */
     ErrorCode ray_intersect_triangles( std::vector<double>& distances_out,
+                                         std::vector<EntityHandle>& facets_out,
                                          EntityHandle root_set,
                                          double tolerance,
                                          const double ray_point[3],
@@ -220,6 +222,7 @@ class OrientedBoxTreeTool
      */
     ErrorCode ray_intersect_triangles( 
                           std::vector<double>& intersection_distances_out,
+                          std::vector<EntityHandle>& intersection_facets_out,
                           const Range& leaf_boxes_containing_tris,
                           double tolerance,
                           const double ray_point[3],
@@ -237,6 +240,7 @@ class OrientedBoxTreeTool
      *                     (see 'set_build').  For the most common use, this is the
      *                     set corresponding to the geometric surface containing the
      *                     intersected triangle.
+     *\param facets_out    Handles of intersected triangles corresponding to distances_out 
      *\param root_set      The MBENTITYSET representing the root of the tree.
      *\param min_tolerance_intersections This method returns all intersections
      *                     within 'tolerance' of the start of the ray and if 
