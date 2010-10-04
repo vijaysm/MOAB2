@@ -34,9 +34,9 @@ const int mesh_int_tag[] = {1134, -1134};
 const double default_real_tag[] = { -1, -2, -3, -4, -5, -6, -7, -8 };
 const double mesh_real_tag[] = { 8, 7, 6, 5, 4, 3, 2, 1 };
 
-const size_t INTERVALS = 8;
-const size_t NUM_VERT = (INTERVALS+1)*(INTERVALS+1);
-const size_t NUM_QUAD = INTERVALS * INTERVALS;
+const EntityHandle INTERVALS = 8;
+const EntityHandle NUM_VERT = (INTERVALS+1)*(INTERVALS+1);
+const EntityHandle NUM_QUAD = INTERVALS * INTERVALS;
 const double Z = 0.0;
 const double EPS = std::numeric_limits<double>::epsilon();
 
