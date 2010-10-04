@@ -5,7 +5,7 @@ AM_CPPFLAGS += -I$(top_srcdir)/src \
             
 LDADD = $(top_builddir)/src/libMOAB.la
 
-check_PROGRAMS = perf seqperf adj_time tstt_perf_binding
+check_PROGRAMS = perf seqperf adj_time
 noinst_PROGRAMS = point_in_elem
 
 perf_SOURCES = perf.cpp
