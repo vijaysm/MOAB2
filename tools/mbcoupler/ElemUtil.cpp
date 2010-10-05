@@ -48,6 +48,7 @@ class LinearHexMap : public VolMap {
     LinearHexMap( const CartVect* corner_coords ) : corners(corner_coords) {}
     virtual CartVect center_xi() const;
     virtual CartVect evaluate( const CartVect& xi ) const;
+    virtual double evaluate_scalar_field( const CartVect& xi, const double *f_vals ) const;
     virtual Matrix3 jacobian( const CartVect& xi ) const;
   private:
     const CartVect* corners;
@@ -78,6 +79,19 @@ CartVect LinearHexMap::evaluate( const CartVect& xi ) const
   return x;
 }
 
+double LinearHexMap::evaluate_scalar_field( const CartVect& xi, const double *f_vals ) const
+{
+  double f(0.0);
+  for (unsigned i = 0; i < 8; ++i) {
+    const double N_i = (1 + xi[0]*corner_xi[i][0])
+                     * (1 + xi[1]*corner_xi[i][1])
+                     * (1 + xi[2]*corner_xi[i][2]);
+    f += N_i * f_vals[i];
+  }
+  f *= 0.125;
+  return f;
+}
+
 Matrix3 LinearHexMap::jacobian( const CartVect& xi ) const
 {
   Matrix3 J(0.0);
@@ -100,6 +114,55 @@ Matrix3 LinearHexMap::jacobian( const CartVect& xi ) const
   }
   return J *= 0.125;
 }
+
+/**\brief Shape function for linear tetrahedron */
+class LinearTetMap : public VolMap {
+  public:
+    LinearTetMap( const CartVect* corner_coords ) : corners(corner_coords) {}
+    virtual CartVect center_xi() const;
+    virtual CartVect evaluate( const CartVect& xi ) const;
+    virtual Matrix3 jacobian( const CartVect& xi ) const;
+  private:
+    const CartVect* corners;
+    static const double corner_xi[8][3];
+};
+
+const double LinearTetMap::corner_xi[8][3] = { { -1, -1, -1 },
+                                               {  1, -1, -1 },
+                                               {  0,  1, -1 },
+                                               {  0,  1, -1 },
+                                               {  0,  0,  1 },
+                                               {  0,  0,  1 },
+                                               {  0,  0,  1 },
+                                               {  0,  0,  1 } };
+CartVect LinearTetMap::center_xi() const
+  { return CartVect(0.0); }
+
+CartVect LinearTetMap::evaluate( const CartVect& xi ) const
+{
+  CartVect x(0.0);
+  for (unsigned i = 0; i < 8; ++i) {
+    const double N_i = (1 + xi[0]*corner_xi[i][0])
+                     * (1 + xi[1]*corner_xi[i][1])
+                     * (1 + xi[2]*corner_xi[i][2]);
+
+    if ((i == 0) || (i == 1))
+      x += N_i * corners[i];
+    else if (i == 2)
+      x += N_i * corners[2];
+    else
+      x += N_i * corners[3];
+  }
+  x *= 0.125;
+  return x;
+}
+
+Matrix3 LinearTetMap::jacobian( const CartVect& xi ) const
+{
+  Matrix3 x;
+  return x;
+}
+
 
 bool nat_coords_trilinear_hex( const CartVect* corner_coords,
                                const CartVect& x,
@@ -297,7 +360,8 @@ void hex_eval(real *field,
 }
 
 
-// Gaussian quadrature points.  Five 2d arrays are defined.
+// Gaussian quadrature points for a trilinear hex element.
+// Five 2d arrays are defined.
 // One for the single gaussian point solution, 2 point solution, 
 // 3 point solution, 4 point solution and 5 point solution.
 // There are 2 columns, one for Weights and the other for Locations
@@ -327,7 +391,7 @@ const double gauss_5[5][2] = { {  0.2369268851,  -0.9061798459 },
 // over the volume of the trilinear hex defined by the hex_corners
 
 bool integrate_trilinear_hex(const CartVect* hex_corners,
-                             double (*field_fn)(double, double, double),
+                             double *corner_fields,
                              double& field_val,
                              int num_pts)
 {
@@ -386,7 +450,7 @@ bool integrate_trilinear_hex(const CartVect* hex_corners,
         CartVect real_pt = hex.evaluate(normal_pt);
 
         // Calculate the value of F(x(xi,eta,zeta),y(xi,eta,zeta),z(xi,eta,zeta)
-        double field = (*field_fn)(real_pt[0], real_pt[1], real_pt[2]);
+        double field = hex.evaluate_scalar_field(normal_pt, corner_fields);
 
         // Calculate the Jacobian for this "normal" point and its determinant
         Matrix3 J = hex.jacobian(normal_pt);

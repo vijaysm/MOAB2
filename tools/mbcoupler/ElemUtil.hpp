@@ -41,7 +41,7 @@ namespace ElemUtil {
 		double &value);
 
   bool integrate_trilinear_hex(const CartVect* hex_corners,
-                               double (*field_fn)(double, double, double),
+                               double *corner_fields,
                                double& field_val,
                                int num_pts);
 
