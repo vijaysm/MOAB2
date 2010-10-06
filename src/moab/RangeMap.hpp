@@ -52,6 +52,11 @@ public:
   
   inline bool empty() const
     { return data.empty(); }
+    
+  inline const Range& back() const
+    { return data.back(); }
+  inline const Range& front() const
+    { return data.front(); }
   
   /**\brief Insert mapping between range of keys and range of values
    * 
@@ -63,6 +68,16 @@ public:
    */
   inline std::pair<iterator,bool>
   insert( KeyType first_key, ValType first_val, KeyType count );
+  
+  /**\brief Insert mapping between range of keys and range of values
+   * 
+   * Insert mapping from [first_key, first_key+count) to [first_val, first_val+count) 
+   *
+   * Input range of keys many not overlap any other input range.  If it does overlap
+   * an existing range, the second value of the pair will be returned as false
+   * and the iterator will point to (one of) the overlapping ranges.
+   */
+  inline bool merge( const RangeMap<KeyType,ValType,NullVal>& other );
   
   /** Find the value corresponding to the specified key.  Returns NullVal if not found */
   inline ValType find( KeyType key ) const;
@@ -169,6 +184,43 @@ RangeMap<KeyType,ValType,NullVal>::insert( KeyType first_key, ValType first_val,
 }
 
 
+template <typename KeyType, typename ValType, ValType NullVal>
+inline bool
+RangeMap<KeyType,ValType,NullVal>::merge( const RangeMap<KeyType,ValType,NullVal>& other )
+{
+    // grow map sufficiently to hold new ranges
+  RangeList new_data;
+  new_data.reserve( other.data.size() + data.size() );
+  
+    // merge
+  typename RangeList::const_iterator i = other.data.begin();
+  typename RangeList::const_iterator j = data.begin();
+  typename RangeList::const_iterator k;
+  while (i != other.data.end() || j != data.end()) {
+    if (j != data.end() && (i == other.data.end() || j->begin < i->begin)) {
+      k = j; 
+      ++j;
+    }
+    else if (i != other.data.end()) {
+      k = i; 
+      ++i;
+    }
+      
+      // check if we need to merge with the end of the previous block
+    if (new_data.empty()) 
+      new_data.push_back(*k);
+    else if (new_data.back().begin + new_data.back().count > k->begin)
+      return false;
+    else if (new_data.back().begin + new_data.back().count == k->begin
+          && new_data.back().value + new_data.back().count == k->value)
+      new_data.back().count += k->count;
+    else
+      new_data.push_back( *k );
+  }
+  
+  data.swap( new_data );
+  return true;    
+}
 
 template <typename KeyType, typename ValType, ValType NullVal> inline
 ValType RangeMap<KeyType,ValType,NullVal>::find( KeyType key ) const
