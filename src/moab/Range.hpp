@@ -349,6 +349,9 @@ public:
     //! return a subset of this range, by type
   Range subset_by_type(EntityType t) const;
   
+    //! return a subset of this range, by dimension
+  Range subset_by_dimension(int dim) const;
+  
   struct PairNode : public std::pair<EntityHandle,EntityHandle>
   {
 
