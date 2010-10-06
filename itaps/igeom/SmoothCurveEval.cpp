@@ -7,12 +7,8 @@
 
 #include "SmoothCurveEval.hpp"
 //#include "SmoothVertex.hpp"
-//#include "CubitVector.hpp"
 #include "SmoothFaceEval.hpp"
-//#include "CAMALSizeEval.hpp"
-
-// the edge mesher from Camal; we do not really need it
-//#include "CMLEdgeMesher.hpp"
+#include "assert.h"
 
 #include "moab/GeomTopoTool.hpp"
 
@@ -109,7 +105,6 @@ double SmoothCurveEval::u_from_arc_length(double u_root, double arc_leng)
     //! \param x The x coordinate of the evaluated point
     //! \param y The y coordinate of the evaluated point
     //! \param z The z coordinate of the evaluated point
-#if 0
 bool SmoothCurveEval::position_from_u(double u,
                                double& x, double& y, double& z )
 {
@@ -138,7 +133,6 @@ bool SmoothCurveEval::position_from_u(double u,
 
 
 }
-#endif
     //! \brief Move a point near the curve to the closest point on the curve.
     //!
     //! \param x The x coordinate of the point
@@ -317,7 +311,7 @@ void SmoothCurveEval::compute_control_points_on_boundary_edges(double min_dot,
 
 		moab::CartVect chord = P[1]-P[0];
 		_leng+= chord.length();
-		//_fractions.push_back(_leng);
+		_fractions.push_back(_leng);
 		moab::CartVect N[2];
 
 
@@ -370,10 +364,10 @@ void SmoothCurveEval::compute_control_points_on_boundary_edges(double min_dot,
 		unsigned char used = 1;
 		_mb->tag_set_data(markTag, &edge, 1, &used);
 	}
-	/*// now divide fractions, to make them vary from 0 to 1
+	// now divide fractions, to make them vary from 0 to 1
 	assert(_leng>0.);
 	for (e=0; e<_entities.size(); e++)
-		_fractions[e]/=_leng;*/
+		_fractions[e]/=_leng;
 
 
 }

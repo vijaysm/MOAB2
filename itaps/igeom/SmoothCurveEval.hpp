@@ -78,9 +78,9 @@ public:
 	    //! \param x The x coordinate of the evaluated point
 	    //! \param y The y coordinate of the evaluated point
 	    //! \param z The z coordinate of the evaluated point
-	 /* virtual bool position_from_u(double u,
+	  virtual bool position_from_u(double u,
 	                               double& x, double& y, double& z ) ;
-         */
+         
 	    //! \brief Move a point near the curve to the closest point on the curve.
 	    //!
 	    //! \param x The x coordinate of the point
@@ -147,7 +147,7 @@ private:
 	  std::vector<moab::EntityHandle> _entities;// the mesh edges are stored here for fast access
 	  moab::EntityHandle startNode, endNode;// those handles are for the nodes in _mb
 	  double _leng;
-	  // std::vector<double> _fractions;// they are increasing from 0. to 1., do we need these?
+	  std::vector<double> _fractions;// they are increasing from 0. to 1., do we need these?
 	  // this will be decided apriori, and eventually reset for paver
 	  // fractions will be from 0.0.. to 1.0, they will be decided upon the length of the geo edge
 
