@@ -300,13 +300,13 @@ int runner_run_tests( int argc, char* argv[] )
     printf("Skipped %d non-selected tests\n", (int)(RunnerTestCount - num_selected));
   }
   else {
-    printf( "%2d registered tests\n", (int)RunnerTestCount );
+    printf( "%2d tests registered\n", (int)RunnerTestCount );
     if (num_selected == num_run) 
-      printf( "%2d tests selected and ran\n", num_selected );
+      printf( "%2d tests selected\n", num_selected );
     else
-      printf( "%2d of %2d selected tests were ran\n", num_run, num_selected );
+      printf( "%2d of %2d tests ran\n", num_run, num_selected );
     if (num_run < (int)RunnerTestCount)
-      printf( "%2d of %2d registered tests skipped\n", 
+      printf( "%2d of %2d tests skipped\n", 
         (int)RunnerTestCount - num_run, (int)RunnerTestCount );
     printf( "%2d of %2d tests passed\n", num_run - fail_count, num_run );
     if (fail_count) 
