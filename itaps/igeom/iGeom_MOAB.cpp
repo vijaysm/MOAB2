@@ -20,7 +20,7 @@ Range _my_gsets[4];
 GeomTopoTool* _my_geomTopoTool = NULL;
 
 bool debug_igeom = false;
-bool debug_surf_eval = false;
+bool Debug_surf_eval = false;
 
 // smooth stuff
 bool _smooth;
@@ -209,7 +209,7 @@ bool initializeSmoothing(iGeom_Instance instance) {
    // on each connected surface
 
    // some control points
-   if (debug_surf_eval)
+   if (Debug_surf_eval)
       for (i = 0; i < numSurfaces; i++)
          _smthFace[i]->DumpModelControlPoints();
 
@@ -1029,9 +1029,14 @@ void iGeom_getEntBoundBox(iGeom_Instance instance,
             axis[0].array(), axis[1].array(), axis[2].array());
       MBERRORR("Failed to get closest point in iGeom_getEntBoundBox.");
 
+      CartVect absv[3];
+      for (int i=0; i<3; i++)
+      {
+         absv[i]= CartVect( fabs(axis[i][0]), fabs(axis[i][1]), fabs(axis[i][2]) );
+      }
       CartVect min, max;
-      min = center - axis[0] - axis[1] - axis[2];
-      max = center + axis[0] + axis[1] + axis[2];
+      min = center - absv[0] - absv[1] - absv[2];
+      max = center + absv[0] + absv[1] + absv[2];
       *min_x = min[0];
       *min_y = min[1];
       *min_z = min[2];
