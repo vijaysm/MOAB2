@@ -588,7 +588,11 @@ ErrorCode AEntityFactory::get_adjacencies( const EntityHandle source_entity,
     result = get_associated_meshsets( source_entity, target_entities ); 
   }
   else if (target_dimension == (source_type != MBPOLYHEDRON ? 0 : 2)) {
-    result = thisMB->get_connectivity(&source_entity, 1, target_entities);
+    std::vector<EntityHandle> tmp_storage;
+    const EntityHandle* conn;
+    int len = 0;
+    result = thisMB->get_connectivity( source_entity, conn, len, false, &tmp_storage );
+    target_entities.insert( target_entities.end(), conn, conn+len );
   }
   else if (target_dimension == 0 && source_type == MBPOLYHEDRON) {
     result = get_polyhedron_vertices(source_entity, target_entities);
