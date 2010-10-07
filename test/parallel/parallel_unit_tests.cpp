@@ -124,6 +124,8 @@ ErrorCode test_interface_owners( const char* );
 ErrorCode regression_owners_with_ghosting( const char* );
 // Verify all sharing data for vertices with one level of ghosting
 ErrorCode test_ghosted_entity_shared_data( const char* );
+// Test assignment of global IDs
+ErrorCode test_assign_global_ids( const char* );
 /**************************************************************************
                               Main Method
  **************************************************************************/
@@ -211,6 +213,7 @@ int main( int argc, char* argv[] )
   num_errors += RUN_TEST( test_interface_owners, filename );
   num_errors += RUN_TEST( regression_owners_with_ghosting, filename );
   num_errors += RUN_TEST( test_ghosted_entity_shared_data, filename );
+  num_errors += RUN_TEST( test_assign_global_ids, filename );
   
   if (rank == 0) {
     if (!num_errors) 
@@ -1120,4 +1123,123 @@ ErrorCode test_ghosted_entity_shared_data( const char* )
   PCHECK(MB_SUCCESS == rval);
   
   return MB_SUCCESS;
+}
+
+bool check_consistent_ids( Interface& mb,
+                           const EntityHandle* entities,
+                           const int* orig_ids,
+                           int num_ents,
+                           const char* singular_name,
+                           const char* plural_name )
+{
+  ErrorCode rval;  
+  int rank, size, ierr;
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  MPI_Comm_size( MPI_COMM_WORLD, &size );
+
+  Tag id_tag;
+  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag ); CHKERR(rval);
+  std::vector<int> new_ids(num_ents);
+  rval = mb.tag_get_data( id_tag, entities, num_ents, &new_ids[0] ); CHKERR(rval);
+  bool valid = true;
+  for (int i = 0; i < num_ents; ++i) 
+    if (new_ids[i] < 0 || new_ids[i] >= num_ents*size) {
+      std::cerr << "ID out of bounds on proc " << rank 
+                << " : " << new_ids[i] << " not in [0," << num_ents*size-1
+                << "]" << std::endl;
+      valid = false;
+    }
+  if (!valid)
+    return false;
+
+    // Gather up all data on root proc for consistency check
+  std::vector<int> all_orig_ids(num_ents*size), all_new_ids(num_ents*size);
+  ierr = MPI_Gather( (void*)orig_ids, num_ents, MPI_INT, &all_orig_ids[0], num_ents, MPI_INT, 0, MPI_COMM_WORLD );
+  if (ierr)
+    return MB_FAILURE;
+  ierr = MPI_Gather( &new_ids[0], num_ents, MPI_INT, &all_new_ids[0], num_ents, MPI_INT, 0, MPI_COMM_WORLD );
+  if (ierr)
+    return MB_FAILURE;
+  
+    // build a local map from original ID to new ID and use it
+    // to check for consistancy between all procs
+  valid = true;
+  if (0 == rank) {
+      // check for two processors having different global ID for same entity
+    std::vector<int> map(num_ents*size,-1); // index by original ID and contains new ID
+    std::vector<int> owner(num_ents*size,-1); // index by original ID and contains new ID
+    for (int i = 0; i < num_ents*size; ++i) {
+      if (map[all_orig_ids[i]] == -1) {
+        map[all_orig_ids[i]] = all_new_ids[i];
+        owner[all_orig_ids[i]] = i/num_ents;
+      }
+      else if (map[all_orig_ids[i]] != all_new_ids[i]) {
+        std::cerr << "Inconsistant " << singular_name << " IDs between processors "
+                  << owner[all_orig_ids[i]] << " and " << i/num_ents 
+                  << " : " << map[all_orig_ids[i]] << " and "
+                  << all_new_ids[i] << " respectively." << std::endl;
+        valid = false;
+      }
+    }
+      // check for two processors having same global ID for different entities
+    map.clear();
+    for (int i = 0; i < num_ents*size; ++i) {
+      if (all_new_ids[i] >= (int)map.size()) 
+        map.resize( all_new_ids[i] + 1, -1 );
+      if (map[all_new_ids[i]] == -1) {
+        map[all_new_ids[i]] = all_orig_ids[i];
+        owner[all_new_ids[i]] = i/num_ents;
+      }
+      else if (map[all_new_ids[i]] != all_orig_ids[i]) {
+        std::cerr << "ID " << all_new_ids[i] 
+                  << " assigned to different " << plural_name << " on processors "
+                  << owner[all_new_ids[i]] << " and " << i/num_ents << std::endl;
+        valid = false;
+      }
+    }
+  }
+  return valid;
+}
+
+
+ErrorCode test_assign_global_ids( const char* )
+{
+  ErrorCode rval;  
+  Core moab_instance;
+  Interface& mb = moab_instance;
+  ParallelComm pcomm( &mb );
+
+  int rank, size;
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  MPI_Comm_size( MPI_COMM_WORLD, &size );
+  
+    // build distributed quad mesh
+  Range quad_range;
+  EntityHandle verts[9];
+  int vert_ids[9];
+  rval = parallel_create_mesh( mb, vert_ids, verts, quad_range );  PCHECK(MB_SUCCESS == rval);
+  rval = pcomm.resolve_shared_ents( 0, quad_range, 2, 1 ); PCHECK(MB_SUCCESS == rval);
+  
+    // get global ids for quads
+  Tag id_tag;
+  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag ); CHKERR(rval);
+  assert(4u == quad_range.size());
+  EntityHandle quads[4];
+  std::copy( quad_range.begin(), quad_range.end(), quads );
+  int quad_ids[4];
+  rval = mb.tag_get_data( id_tag, quads, 4, quad_ids ); CHKERR(rval);
+  
+    // clear GLOBAL_ID tag
+  int zero[9] = {0};
+  rval = mb.tag_set_data( id_tag, verts, 9, zero ); CHKERR(rval);
+  rval = mb.tag_set_data( id_tag, quads, 4, zero ); CHKERR(rval);
+    
+    // assign new global IDs
+  rval = pcomm.assign_global_ids( 0, 2 ); PCHECK(MB_SUCCESS == rval);
+  
+  bool ok = check_consistent_ids( mb, verts, vert_ids, 9, "vertex", "vertices" );
+  PCHECK(ok);
+  ok &= check_consistent_ids( mb, quads, quad_ids, 6, "quad", "quads" );
+  PCHECK(ok);
+  return ok ? MB_SUCCESS : MB_FAILURE;
 }
