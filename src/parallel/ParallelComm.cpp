@@ -410,11 +410,12 @@ void ParallelComm::remove_pcomm(ParallelComm *pc)
 
 //! assign a global id space, for largest-dimension or all entities (and
 //! in either case for vertices too)
-ErrorCode ParallelComm::assign_global_ids(EntityHandle this_set,
-                                              const int dimension, 
-                                              const int start_id,
-                                              const bool largest_dim_only,
-                                              const bool parallel) 
+ErrorCode ParallelComm::assign_global_ids( EntityHandle this_set,
+                                           const int dimension, 
+                                           const int start_id,
+                                           const bool largest_dim_only,
+                                           const bool parallel,
+                                           const bool owned_only) 
 {
   Range entities[4];
   int local_num_elements[4];
@@ -481,7 +482,13 @@ ErrorCode ParallelComm::assign_global_ids(EntityHandle this_set,
     RRA("Failed to set global id tag in assign_global_ids.");
   }
   
-  return MB_SUCCESS;
+  if (owned_only)
+    return MB_SUCCESS;
+  
+    // Exchange tags
+  for (int dim = 1; dim < 4; dim++) 
+    entities[0].merge( entities[dim] );
+  return exchange_tags( gid_tag, entities[0] );
 }
 
 int ParallelComm::get_buffers(int to_proc, bool *is_new) 
@@ -2850,7 +2857,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
 
     else if (MB_ALREADY_ALLOCATED != result) {
         // just created it, so we need global ids
-      result = assign_global_ids(0, skin_dim+1);
+      result = assign_global_ids(0, skin_dim+1,true,true,true);
       RRA("Failed assigning global ids.");
     }
   }
@@ -3627,7 +3634,8 @@ ErrorCode ParallelComm::check_global_ids(EntityHandle this_set,
                                              const int dimension, 
                                              const int start_id,
                                              const bool largest_dim_only,
-                                             const bool parallel)
+                                             const bool parallel,
+                                             const bool owned_only)
 {
     // global id tag
   Tag gid_tag; int def_val = -1;
@@ -3654,7 +3662,7 @@ ErrorCode ParallelComm::check_global_ids(EntityHandle this_set,
   if (MB_ALREADY_ALLOCATED != result || !dum_range.empty()) {
       // just created it, so we need global ids
     result = assign_global_ids(this_set, dimension, start_id, largest_dim_only,
-                               parallel);
+                               parallel,owned_only);
     RRA("Failed assigning global ids.");
   }
 

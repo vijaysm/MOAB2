@@ -97,19 +97,25 @@ public:
 
     //! assign a global id space, for largest-dimension or all entities (and
     //! in either case for vertices too)
+    //!\param owned_only If true, do not get global IDs for non-owned entities
+    //!                  from remote processors.
   ErrorCode assign_global_ids(EntityHandle this_set,
                                 const int dimension,
                                 const int start_id = 1,
                                 const bool largest_dim_only = true,
-                                const bool parallel = true);
+                                const bool parallel = true,
+                                const bool owned_only = false);
 
     //! check for global ids; based only on tag handle being there or not;
     //! if it's not there, create them for the specified dimensions
+    //!\param owned_only If true, do not get global IDs for non-owned entities
+    //!                  from remote processors.
   ErrorCode check_global_ids(EntityHandle this_set,
                                const int dimension, 
                                const int start_id = 1,
                                const bool largest_dim_only = true,
-                               const bool parallel = true);
+                               const bool parallel = true,
+                               const bool owned_only = false);
   
     // ==================================
     // \section HIGH-LEVEL COMMUNICATION (send/recv/bcast ents, exchange tags)
