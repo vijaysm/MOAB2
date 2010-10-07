@@ -1,12 +1,20 @@
-LDADD = $(top_builddir)/src/libMOAB.la $(ZOLTAN_LIB_FLAGS) $(ZOLTAN_LIBS)
 
 AM_CPPFLAGS += -DIS_BUILDING_MB\
                -I$(top_srcdir)/src \
                -I$(top_srcdir)/src/parallel \
                -I$(top_builddir)/src \
                $(ZOLTAN_INC_FLAGS)
-bin_PROGRAMS = mbzoltan
-mbzoltan_SOURCES = MBZoltan.cpp MBZoltan.hpp main.cpp
-mbzoltan_DEPENDENCIES = $(top_builddir)/src/libMOAB.la
+
+AM_LDFLAGS += $(ZOLTAN_LIB_FLAGS)
+lib_LTLIBRARIES = libmbzoltan.la
+libmbzoltan_la_LIBADD = $(top_builddir)/src/libMOAB.la $(ZOLTAN_LIBS)
+libmbzoltan_la_includedir = $(includedir)
+libmbzoltan_la_SOURCES = MBZoltan.cpp
+libmbzoltan_la_include_HEADERS = MBZoltan.hpp
+
+bin_PROGRAMS = mbzoltan mbpart
+LDADD = libmbzoltan.la
+mbzoltan_SOURCES = main.cpp
+mbpart_SOURCES = mbpart.cpp
 
 
