@@ -133,14 +133,13 @@ public:
                           tuple_list *tl = NULL,
                           bool normalize = true);
 
-    /* \brief Normalize a field over matching subsets of entities
-     * A field existing on the vertices of elements in both meshes is integrated
+    /* \brief Normalize a field over subsets of entities
+     * A field existing on the vertices of elements of a mesh is integrated
      * over subsets of elements identified by the tags and values.  The integrated 
-     * values are normalized between the 2 meshes and a normalization factor is 
-     * applied back onto the subsets of elements.
+     * values are normalized and the normalization factor is saved to a new tag
+     * on the entity sets which contain the elements of a subset.
      * 
-     * \param m1_root_set Entity Set from Mesh 1 from which to select subsets
-     * \param m2_root_set Entity Set from Mesh 2 from which to select subsets
+     * \param root_set Entity Set from the mesh from which to select subsets
      * \param norm_tag Tag containing field data to integrate
      * \param tag_names Array of tag names used for selecting element subsets
      * \param num_tags Number of tag names
@@ -148,27 +147,23 @@ public:
      *       the same length as that for tag names however some entries may be 
      *       NULL indicating that tag should be matched for existence and not value
      * \param integ_type Type of integration to perform
-     * \param field_fn Field function used in integration
      * \param num_integ_pts The number of Gaussian integration points to use in each dimension
      */
-  int normalize_subset(iBase_EntitySetHandle &m1_root_set,
-                       iBase_EntitySetHandle &m2_root_set,
+  int normalize_subset(iBase_EntitySetHandle &root_set,
                        const char            *norm_tag,
                        const char            **tag_names,
                        int                   num_tags,
                        const char            **tag_values,
                        Coupler::IntegType    integ_type,
-                       double (*field_fn) (double, double, double),
                        int                   num_integ_pts);
 
-    /* \brief Normalize a field over matching subsets of entities
-     * A field existing on the vertices of elements in both meshes is integrated
+    /* \brief Normalize a field over subsets of entities
+     * A field existing on the vertices of elements of a mesh is integrated
      * over subsets of elements identified by the tags and values.  The integrated 
-     * values are normalized between the 2 meshes and a normalization factor is 
-     * applied back onto the subsets of elements.
+     * values are normalized and the normalization factor is saved to a new tag
+     * on the entity sets which contain the elements of a subset.
      * 
-     * \param m1_root_set Entity Set from Mesh 1 from which to select subsets
-     * \param m2_root_set Entity Set from Mesh 2 from which to select subsets
+     * \param root_set Entity Set from the mesh from which to select subsets
      * \param norm_tag Tag containing field data to integrate
      * \param tag_handles Array of tag handles used for selecting element subsets
      * \param num_tags Number of tag handles
@@ -176,17 +171,14 @@ public:
      *       the same length as that for tag handles however some entries may be 
      *       NULL indicating that tag should be matched for existence and not value
      * \param integ_type Type of integration to perform
-     * \param field_fn Field function used in integration
      * \param num_integ_pts The number of Gaussian integration points to use in each dimension
      */
-  int normalize_subset(iBase_EntitySetHandle &m1_root_set,
-                       iBase_EntitySetHandle &m2_root_set,
+  int normalize_subset(iBase_EntitySetHandle &root_set,
                        const char            *norm_tag,
                        iBase_TagHandle       *tag_handles,
                        int                   num_tags,
                        const char            **tag_values,
                        Coupler::IntegType    integ_type,
-                       double (*field_fn) (double, double, double),
                        int                   num_integ_pts);
 
     /* \brief Retrieve groups of entities matching tags and values(if present)
@@ -197,13 +189,15 @@ public:
      * \param tag_names Array of tag names used to select entities
      * \param tag_values Array of tag values used to select entities
      * \param num_tags Number of tag names
-     * \param sets_of_ents Pointer to vector of vectors of entity handles found in the search
+     * \param entity_sets Pointer to vector of vectors of entity set handles found in the search
+     * \param entity_groups Pointer to vector of vectors of entity handles from each entity set
      */
-  int get_matching_entities(iBase_EntitySetHandle                          root_set,
-                            const char                                     **tag_names,
-                            const char                                     **tag_values,
-                            int                                            num_tags,
-                            std::vector< std::vector<iBase_EntityHandle> > *sets_of_ents);
+  int get_matching_entities(iBase_EntitySetHandle                             root_set,
+                            const char                                        **tag_names,
+                            const char                                        **tag_values,
+                            int                                               num_tags,
+                            std::vector< std::vector<iBase_EntitySetHandle> > *entity_sets,
+                            std::vector< std::vector<iBase_EntityHandle> >    *entity_groups);
 
     /* \brief Retrieve groups of entities matching tags and values(if present)
      * Retrieve a vector of vectors of entity handles matching the 
@@ -213,17 +207,20 @@ public:
      * \param tag_handles Array of tag handles used to select entities
      * \param tag_values Array of tag values used to select entities
      * \param num_tags Number of tag handles
-     * \param sets_of_ents Pointer to vector of vectors of entity handles found in the search
+     * \param entity_sets Pointer to vector of vectors of entity set handles found in the search
+     * \param entity_groups Pointer to vector of vectors of entity handles from each entity set
      */
-  int get_matching_entities(iBase_EntitySetHandle                          root_set,
-                            iBase_TagHandle                                *tag_handles,
-                            const char                                     **tag_values,
-                            int                                            num_tags,
-                            std::vector< std::vector<iBase_EntityHandle> > *sets_of_ents);
+  int get_matching_entities(iBase_EntitySetHandle                             root_set,
+                            iBase_TagHandle                                   *tag_handles,
+                            const char                                        **tag_values,
+                            int                                               num_tags,
+                            std::vector< std::vector<iBase_EntitySetHandle> > *entity_sets,
+                            std::vector< std::vector<iBase_EntityHandle> >    *entity_groups);
 
     /* \brief Return an array of tuples of tag values for each Entity Set
      * A list of n-tuples will be constructed with 1 n-tuple for each Entity Set.
-     * The n-tuple will have an component for each tag given.
+     * The n-tuple will have an component for each tag given.  It is assumed all
+     * of the tags are integer tags.
      * 
      * \param ent_sets Array of Entity Set handles to use for retrieving tag data
      * \param num_sets Number of Entity Sets
@@ -239,7 +236,8 @@ public:
 
     /* \brief Return an array of tuples of tag values for each Entity Set
      * A list of n-tuples will be constructed with 1 n-tuple for each Entity Set.
-     * The n-tuple will have an component for each tag given.
+     * The n-tuple will have an component for each tag given.  It is assumed all
+     * of the tags are integer tags.
      * 
      * \param ent_sets Array of Entity Set handles to use for retrieving tag data
      * \param num_sets Number of Entity Sets
@@ -255,7 +253,8 @@ public:
 
     /* \brief Consolidate an array of n-tuples lists into one n-tuple list with no duplicates
      * An array of list of n-tuples are consolidated into a single list of n-tuples
-     * with all duplicates removed.
+     * with all duplicates removed.  Only integer columns in the tuple_list are assumed to 
+     * be used.
      *
      * \param all_tuples Array of tuple_lists to consolidate to one
      * \param num_tuples Number of tuple_lists
@@ -271,13 +270,13 @@ public:
      * 
      * \param groups The vector contains vectors of entity handles, each representing a group
      * \param integ_vals The integrated field values for each group
-     * \param field_fn The function defining the field on the entities
+     * \param norm_tag The tag name of the vertex-based field to be integrated
      * \param num_integ_pts The number of Gaussian integration points to use in each dimension
      * \param integ_type Type of integration to perform
      */
   int get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> > &groups,
                            std::vector<double> &integ_vals, 
-                           double (*field_fn) (double, double, double),
+                           const char *norm_tag,
                            int num_integ_pts,
                            Coupler::IntegType integ_type);
 
@@ -285,12 +284,12 @@ public:
      * Multiply a normalization factor with the value of norm_tag for each vertex
      * of each entity in a group.  Save the value back to norm_tag on each vertex.
      *
-     * \param groups The vector contains vectors of entity handles, each representing a group
+     * \param entity_sets The vector contains vectors of entity set handles, each containing the members of a group
      * \param norm_factors The normalization factors for each group
      * \param norm_tag The tag to be normalized on each group
      * \param integ_type Type of integration to perform
      */
-  int apply_group_norm_factor(std::vector< std::vector<iBase_EntityHandle> > &groups,
+  int apply_group_norm_factor(std::vector< std::vector<iBase_EntitySetHandle> > &entity_sets,
                               std::vector<double> &norm_factors, 
                               const char *norm_tag,
                               Coupler::IntegType integ_type);
