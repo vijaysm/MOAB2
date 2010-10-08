@@ -124,7 +124,7 @@ int main( int argc, char* argv[] )
     // interpret first numerical argument as number of parts
   for (i = 0; i < num_args; ++i) {
     char* endptr = 0;
-    long num_parts = strtol( args[i], &endptr, 0 );
+    num_parts = strtol( args[i], &endptr, 0 );
     if (!*endptr && num_parts > 0) 
       break;
   }
