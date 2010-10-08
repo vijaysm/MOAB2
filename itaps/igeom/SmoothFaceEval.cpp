@@ -49,7 +49,7 @@ moab::ErrorCode getFaceSenseFromList(moab::EntityHandle face, std::vector<
    }
    return MB_FAILURE;// face not found in list
 }
-extern bool debug_surf_eval;
+bool debug_surf_eval1 = false;
 
 SmoothFaceEval::SmoothFaceEval(moab::Interface * mb,
       moab::EntityHandle surface_set, moab::GeomTopoTool * gTool) :
@@ -117,7 +117,7 @@ void SmoothFaceEval::move_to_surface(double& x, double& y, double& z) {
 /*
  void SmoothFaceEval::move_to_surface(double& x, double& y, double& z,
  double& u_guess, double& v_guess) {
- if (debug_surf_eval) {
+ if (debug_surf_eval1) {
  std::cout << "move_to_surface called." << std::endl;
  }
  }*/
@@ -273,7 +273,7 @@ int SmoothFaceEval::init_gradient() {
    // reset the normal values after normalization
    _mb->tag_set_data(_gradientTag, _nodes, normalVal);
    // print the loops size and some other stuff
-   if (debug_surf_eval) {
+   if (debug_surf_eval1) {
       std::cout << " normals at  " << numNodes << " nodes" << std::endl;
       int i = 0;
       for (moab::Range::iterator it = _nodes.begin(); it != _nodes.end(); it++, i++) {
@@ -337,7 +337,7 @@ moab::ErrorCode SmoothFaceEval::init_bezier_edge(moab::EntityHandle edge,
    rval = _mb->tag_set_data(_edgeCtrlTag, &edge, 1, &ctrl_pts[0]);
    assert(rval == MB_SUCCESS);
 
-   if (debug_surf_eval) {
+   if (debug_surf_eval1) {
       std::cout << "edge: " << _mb-> id_from_handle(edge) << " tangents: "
             << T[0] << T[1] << std::endl;
       std::cout << "  points: " << P[0] << " " << P[1] << std::endl;
@@ -1921,7 +1921,7 @@ moab::ErrorCode SmoothFaceEval::find_loops() {
    }
    if (startVert != currentVert)
       return MB_FAILURE;
-   if (debug_surf_eval) {
+   if (debug_surf_eval1) {
       // print the loops found so far
       std::cout << "number of loops" << _loopEnds.size() << std::endl;
       for (size_t i = 0; i < _loopEnds.size(); i++) {

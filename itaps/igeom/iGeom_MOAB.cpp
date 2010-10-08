@@ -1179,17 +1179,130 @@ void iGeom_getArrNrmlSense(iGeom_Instance,
       iBase_EntityHandle const* region_handles, int region_handles_size,
       int** sense, int* sense_allocated, int* sense_size, int* err) {
 }
-void iGeom_getEgFcSense(iGeom_Instance, iBase_EntityHandle edge,
+
+/**\brief Get the sense of an edge with respect to a face
+ * Get the sense of an edge with respect to a face.  Sense returned is -1, 0, or 1,
+ * representing "reversed", "both", or "forward".  "both" sense indicates that edge bounds
+ * the face once with each sense.
+ * \param edge Edge being queried
+ * \param face Face being queried
+ * \param sense_out Sense of edge with respect to face
+ */
+
+void iGeom_getEgFcSense(iGeom_Instance instance, iBase_EntityHandle edge,
       iBase_EntityHandle face, int* sense_out, int* err) {
+   // this one is important, for establishing the orientation of the edges in faces
+   // bummer, I "thought" it is already implemented
+   // use senses
+   GETGTT(instance);
+   std::vector<EntityHandle> faces;
+   std::vector<int> senses; // 0 is forward and 1 is backward
+   ErrorCode rval = _my_geomTopoTool->get_senses( MBH_cast(edge), faces, senses);
+   MBERRORR("Failed to get edge senses in iGeom_getEgFcSense.");
+   //
+   int index = -1;
+   EntityHandle mbfaceSet = MBH_cast(face);
+   bool sense_forward = false;
+   bool sense_reverse = false;
+   for (unsigned int i = 0; i<faces.size(); i++)
+   {
+      if (faces[i] == mbfaceSet)
+      {
+         index = i;
+         if (senses[i]==0)
+               sense_forward =true;
+            else
+               sense_reverse = true;
+      }
+   }
+   if (index == -1)
+   {
+      *err = iBase_FAILURE;
+      return;
+   }
+
+   // 0 is not possible for us, but maybe we should consider this?
+   if (sense_forward && sense_reverse)
+      *sense_out = 0; // is it really possible for a nice geometry ?
+   else
+   {
+      if (sense_forward) // only sense forward
+         *sense_out = 1;
+      else if (sense_reverse)
+         *sense_out = -1;
+   }
+   return;
+
 }
 void iGeom_getEgFcArrSense(iGeom_Instance,
       iBase_EntityHandle const* edge_handles, int edge_handles_size,
       iBase_EntityHandle const* face_handles, int face_handles_size,
       int** sense, int* sense_allocated, int* sense_size, int* err) {
 }
-void iGeom_getEgVtxSense(iGeom_Instance, iBase_EntityHandle edge,
+void iGeom_getEgVtxSense(iGeom_Instance instance, iBase_EntityHandle edge,
       iBase_EntityHandle vertex1, iBase_EntityHandle vertex2, int* sense_out,
       int* err) {
+   // need to decide first or second vertex
+   // important for moab
+   iBase_EntityHandle *verts1 = NULL;
+   int verts_alloc1 = 0, verts_size1;
+   iMesh_getEntities(IMESH_INSTANCE(instance),
+         reinterpret_cast<iBase_EntitySetHandle> (vertex1),
+         iBase_ALL_TYPES, iMesh_POINT, &verts1, &verts_alloc1, &verts_size1, err);
+   ERRORR("Failed to get vertices.");
+
+   if (verts_size1 != 1) {
+      *err = iBase_FAILURE;
+      ERRORR("Vertex has multiple points.");
+   }
+   iBase_EntityHandle *verts2 = NULL;
+   int verts_alloc2 = 0, verts_size2;
+   iMesh_getEntities(IMESH_INSTANCE(instance),
+         reinterpret_cast<iBase_EntitySetHandle> (vertex2),
+         iBase_ALL_TYPES, iMesh_POINT, &verts2, &verts_alloc2, &verts_size2, err);
+   ERRORR("Failed to get vertices.");
+
+   if (verts_size2 != 1) {
+      *err = iBase_FAILURE;
+      ERRORR("Vertex has multiple points.");
+   }
+   // now get the edges, and get the first node and the last node in sequence of edges
+   // the order is important...
+   iBase_EntityHandle *medges = NULL;
+   int medges_alloc = 0, medges_size;
+   iMesh_getEntities(IMESH_INSTANCE(instance),
+         reinterpret_cast<iBase_EntitySetHandle> (edge),
+         iBase_ALL_TYPES, iMesh_LINE_SEGMENT, &medges, &medges_alloc, &medges_size, err);
+   ERRORR("Failed to get mesh edges.");
+   // get the first node and the last node, then compare with verts1[0] and verts2[0]
+
+   const EntityHandle* conn;
+   int len;
+   EntityHandle startNode, endNode;
+   ErrorCode rval = MBI->get_connectivity(MBH_cast(medges[0]), conn, len);
+   MBERRORR("Failed to get edge connectivity in iGeom_getEgVtxSense.");
+   startNode = conn[0];
+   rval = MBI->get_connectivity(MBH_cast(medges[medges_size-1]), conn, len);
+   MBERRORR("Failed to get edge connectivity in iGeom_getEgVtxSense.");
+   endNode = conn[1];
+   if (startNode == endNode && MBH_cast(verts1[0])==startNode)
+   {
+      * sense_out = 0; // periodic
+   }
+   if (startNode == MBH_cast(verts1[0]) && endNode == MBH_cast(verts2[0]) )
+   {
+      * sense_out = 1; // forward
+   }
+   if (startNode == MBH_cast(verts2[0]) && endNode == MBH_cast(verts1[0]) )
+   {
+      * sense_out = -1; // reverse
+   }
+
+   free (medges);
+   free(verts1);
+   free(verts2);
+
+   return;
 }
 void iGeom_getEgVtxArrSense(iGeom_Instance,
       iBase_EntityHandle const* edge_handles, int edge_handles_size,
