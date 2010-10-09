@@ -32,9 +32,9 @@ typedef struct {
   nonlocal_info *nlinfo;
   MPI_Comm comm;
 #endif
-} gs_data;
+} moab_gs_data;
 
-gs_data *gs_data_setup(uint n, const long *label, const ulong *ulabel,
+moab_gs_data *moab_gs_data_setup(uint n, const long *label, const ulong *ulabel,
                        uint maxv, const unsigned int nlabels,
                        const unsigned int nulabels,
                        crystal_data *crystal);
@@ -43,10 +43,10 @@ gs_data *gs_data_setup(uint n, const long *label, const ulong *ulabel,
 #  undef crystal_data
 #endif
 
-void gs_data_free(gs_data *data);
-void gs_op(real *u, int op, const gs_data *data);
-void gs_op_vec(real *u, uint n, int op, const gs_data *data);
-void gs_op_many(real **u, uint n, int op, const gs_data *data);
+void moab_gs_data_free(moab_gs_data *data);
+void moab_gs_op(real *u, int op, const moab_gs_data *data);
+void moab_gs_op_vec(real *u, uint n, int op, const moab_gs_data *data);
+void moab_gs_op_many(real **u, uint n, int op, const moab_gs_data *data);
 
 #define GS_OP_ADD 1
 #define GS_OP_MUL 2

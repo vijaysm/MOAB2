@@ -32,7 +32,7 @@
 
   ----------------------------------------------------------------------------*/
 
-void gs_transfer(int dynamic, tuple_list *tl,
+void moab_gs_transfer(int dynamic, tuple_list *tl,
                  unsigned pf, crystal_data *crystal)
 {
   const unsigned mi=tl->mi,ml=tl->ml,mul=tl->mul,mr=tl->mr;

@@ -2905,16 +2905,16 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   
 */
     // call gather-scatter to get shared ids & procs
-  gs_data *gsd;
+  moab_gs_data *gsd;
   assert(sizeof(ulong_) == sizeof(EntityHandle));
   if (sizeof(int) != sizeof(ulong_)) {
     std::vector<long> lgid_data(gid_data.size());
     std::copy(gid_data.begin(), gid_data.end(), lgid_data.begin());
-    gsd = gs_data_setup(skin_ents[0].size(), &lgid_data[0], 
+    gsd = moab_gs_data_setup(skin_ents[0].size(), &lgid_data[0], 
                         (ulong_*)&handle_vec[0], 2, 1, 1, cd);
   }
   else {
-    gsd = gs_data_setup(skin_ents[0].size(), (long*)&gid_data[0], 
+    gsd = moab_gs_data_setup(skin_ents[0].size(), (long*)&gid_data[0], 
                         (ulong_*)&handle_vec[0], 2, 1, 1, cd);
   }
   
@@ -3012,7 +3012,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   result = create_iface_pc_links();
   RRA("Trouble creating interface parent/child links.");
 
-  gs_data_free(gsd);
+  moab_gs_data_free(gsd);
 
 #ifdef DEBUG_MPE
   MPE_Log_event(RESOLVE_END, procConfig.proc_rank(), "Exiting resolve_shared_ents.");

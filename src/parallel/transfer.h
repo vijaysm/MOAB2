@@ -25,7 +25,7 @@ extern "C" {
   crystal: an initialized crystal router structure (cf. crystal.h)
 
   ----------------------------------------------------------------------------*/
-void gs_transfer(int dynamic, tuple_list* tl,
+void moab_gs_transfer(int dynamic, tuple_list* tl,
                  unsigned pf, crystal_data *crystal);
 
 #ifdef __cplusplus

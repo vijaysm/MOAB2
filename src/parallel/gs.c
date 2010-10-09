@@ -112,7 +112,7 @@ typedef struct {
   nonlocal_info *nlinfo;
   MPI_Comm comm;
 #endif
-} gs_data;
+} moab_gs_data;
 
 #define OP_ADD 1
 #define OP_MUL 2
@@ -366,7 +366,7 @@ static void nonlocal_many(real **u, uint n, int op,
    Combined Execution
   --------------------------------------------------------------------------*/
 
-void gs_op(real *u, int op, const gs_data *data)
+void moab_gs_op(real *u, int op, const moab_gs_data *data)
 {
   local_condense(u,op,data->local_cm);
 #ifdef USE_MPI
@@ -375,7 +375,7 @@ void gs_op(real *u, int op, const gs_data *data)
   local_uncondense(u,data->local_cm);
 }
 
-void gs_op_vec(real *u, uint n, int op, const gs_data *data)
+void moab_gs_op_vec(real *u, uint n, int op, const moab_gs_data *data)
 {
 #ifdef USE_MPI
   if(n>data->nlinfo->maxv)
@@ -389,7 +389,7 @@ void gs_op_vec(real *u, uint n, int op, const gs_data *data)
   local_uncondense_vec(u,n,data->local_cm);
 }
 
-void gs_op_many(real **u, uint n, int op, const gs_data *data)
+void moab_gs_op_many(real **u, uint n, int op, const moab_gs_data *data)
 {
   uint i;
 #ifdef USE_MPI
@@ -408,11 +408,11 @@ void gs_op_many(real **u, uint n, int op, const gs_data *data)
    Setup
   --------------------------------------------------------------------------*/
 
-gs_data *gs_data_setup(uint n, const long *label, const ulong *ulabel,
+moab_gs_data *moab_gs_data_setup(uint n, const long *label, const ulong *ulabel,
                        uint maxv, const unsigned int nlabels, const unsigned int nulabels,
                        crystal_data *crystal)
 {
-  gs_data *data=tmalloc(gs_data,1);
+  moab_gs_data *data=tmalloc(moab_gs_data,1);
   tuple_list nonzero, primary;
 #ifdef USE_MPI
   tuple_list shared;
@@ -516,7 +516,7 @@ gs_data *gs_data_setup(uint n, const long *label, const ulong *ulabel,
     for(i=primary.n;i;--i,pi+=3,pl+=nlabels)
       pi[0]=pl[0]%crystal->num;
   }
-  gs_transfer(1,&primary,0,crystal); /* transfer to work procs */
+  moab_gs_transfer(1,&primary,0,crystal); /* transfer to work procs */
   /* primary: (source proc, index on src, useless, label) */
   /* sort by label */
   tuple_list_sort(&primary,3,&crystal->all->buf);
@@ -557,7 +557,7 @@ gs_data *gs_data_setup(uint n, const long *label, const ulong *ulabel,
     }
   }
   tuple_list_free(&primary);
-  gs_transfer(1,&shared,0,crystal); /* transfer to dest procs */
+  moab_gs_transfer(1,&shared,0,crystal); /* transfer to dest procs */
   /* shared list: (useless, proc2, index, label) */
   /* sort by label */
   tuple_list_sort(&shared,3,&crystal->all->buf);
@@ -600,7 +600,7 @@ gs_data *gs_data_setup(uint n, const long *label, const ulong *ulabel,
   return data;
 }
 
-void gs_data_free(gs_data *data)
+void moab_gs_data_free(moab_gs_data *data)
 {
   free(data->local_cm);
 #ifdef USE_MPI
