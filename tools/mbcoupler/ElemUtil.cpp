@@ -24,6 +24,7 @@ class VolMap {
     bool solve_inverse( const CartVect& x, CartVect& xi, double tol ) const ;
 };
 
+
 bool VolMap::solve_inverse( const CartVect& x, CartVect& xi, double tol ) const
 {
   const double error_tol_sqr = tol*tol;
@@ -469,5 +470,173 @@ bool integrate_trilinear_hex(const CartVect* hex_corners,
 }
 
 } // namespace ElemUtil
+
+
+namespace Element {
+
+
+  
+  inline const std::vector<CartVect>& Map::get_vertices() {
+    return this->vertex;
+  };
+  //
+  void Map::set_vertices(const std::vector<CartVect>& v) {
+    if(v.size() != this->vertex.size()) {
+      throw ArgError();
+    }
+    this->vertex = v;
+  };// Map::set_vertices()
+  //
+  CartVect Map::ievaluate(const CartVect& x, double tol, const CartVect& x0 = CartVect(0.0)) const {
+    const double error_tol_sqr = tol*tol;
+    double det;
+    CartVect xi = x0;
+    CartVect delta = evaluate(xi) - x;
+    Matrix3 J;
+    while (delta % delta > error_tol_sqr) {
+      J = jacobian(xi);
+      det = J.determinant();
+      if (det < std::numeric_limits<double>::epsilon())
+        throw Map::EvaluationError();
+      xi -= J.inverse(1.0/det) * delta;
+      delta = evaluate( xi ) - x;
+    }
+    return xi;
+  }// Map::ievaluate()
+
+
+
+
+  const double LinearHex::corner[8][3] = { { -1, -1, -1 },
+                                           {  1, -1, -1 },
+                                           {  1,  1, -1 },
+                                           { -1,  1, -1 },
+                                           { -1, -1,  1 },
+                                           {  1, -1,  1 },
+                                           {  1,  1,  1 },
+                                           { -1,  1,  1 } };
+
+  LinearHex::LinearHex() : Map(8) {
+    for(unsigned int i = 0; i < 8; ++i) {
+      this->vertex[i] = CartVect(this->corner[i][0],this->corner[i][1], this->corner[i][2]);
+    }
+  }// LinearHex::LinearHex()
+
+  /* For each point, its weight and location are stored as an array.
+     Hence, the inner dimension is 2, the outer dimension is gauss_count.
+     We use a one-point Gaussian quadrature, since it integrates linear functions exactly.
+  */
+  static const double gauss[1][2] = { {  2.0,           0.0          } };
+
+  CartVect LinearHex::evaluate( const CartVect& xi ) const {
+    CartVect x(0.0);
+    for (unsigned i = 0; i < 8; ++i) {
+      const double N_i = 
+        (1 + xi[0]*corner[i][0])
+      * (1 + xi[1]*corner[i][1])
+      * (1 + xi[2]*corner[i][2]);
+      x += N_i * this->vertex[i];
+    }
+    x *= 0.125;
+    return x;
+  }// LinearHex::evaluate
+
+  Matrix3 LinearHex::jacobian( const CartVect& xi ) const {
+    Matrix3 J(0.0);
+    for (unsigned i = 0; i < 8; ++i) {
+      const double   xi_p = 1 + xi[0]*corner[i][0];
+      const double  eta_p = 1 + xi[1]*corner[i][1];
+      const double zeta_p = 1 + xi[2]*corner[i][2];
+      const double dNi_dxi   = corner[i][0] * eta_p * zeta_p;
+      const double dNi_deta  = corner[i][1] *  xi_p * zeta_p;
+      const double dNi_dzeta = corner[i][2] *  xi_p *  eta_p;
+      J(0,0) += dNi_dxi   * vertex[i][0];
+      J(1,0) += dNi_dxi   * vertex[i][1];
+      J(2,0) += dNi_dxi   * vertex[i][2];
+      J(0,1) += dNi_deta  * vertex[i][0];
+      J(1,1) += dNi_deta  * vertex[i][1];
+      J(2,1) += dNi_deta  * vertex[i][2];
+      J(0,2) += dNi_dzeta * vertex[i][0];
+      J(1,2) += dNi_dzeta * vertex[i][1];
+      J(2,2) += dNi_dzeta * vertex[i][2];
+    }
+    return J *= 0.125;
+  }// LinearHex::jacobian()
+
+  double LinearHex::evaluate_scalar_field(const CartVect& xi, const double *field_vertex_value) const {
+    double f(0.0);
+    for (unsigned i = 0; i < 8; ++i) {
+      const double N_i = (1 + xi[0]*corner[i][0])
+        * (1 + xi[1]*corner[i][1])
+        * (1 + xi[2]*corner[i][2]);
+      f += N_i * field_vertex_value[i];
+    }
+    f *= 0.125;
+    return f;
+  }// LinearHex::evaluate_scalar_field()
+
+  double LinearHex::integrate_scalar_field(const double *field_vertex_values) const {
+    double I(0.0);
+    for(unsigned int j1 = 0; j1 < this->gauss_count; ++j1) {
+      double x1 = this->gauss[j1][1];
+      double w1 = this->gauss[j1][0];
+      for(unsigned int j2 = 0; j2 < this->gauss_count; ++j2) {
+        double x2 = this->gauss[j2][1];
+        double w2 = this->gauss[j2][0];
+        for(unsigned int j3 = 0; j3 < this->gauss_count; ++j3) {
+          double x3 = this->gauss[j3][1];
+          double w3 = this->gauss[j3][0];
+          CartVect x(x1,x2,x3);
+          I += this->evaluate_scalar_field(x,field_vertex_values)*w1*w2*w3*this->det_jacobian(x);
+        }
+      }
+    }
+    return I;
+  }// LinearHex::integrate_scalar_field()
+
+
+  const double LinearTet::corner[4][3] = { {0,0,0},
+                                           {1,0,0},
+                                           {0,1,0},
+                                           {0,0,1}};
+
+  LinearTet::LinearTet() : Map(4) {
+    for(unsigned int i = 0; i < 4; ++i) {
+      this->vertex[i] = CartVect(this->corner[i][0],this->corner[i][1], this->corner[i][2]);
+    }
+  }// LinearTet::LinearTet()
+
+
+  void LinearTet::set_vertices(const std::vector<CartVect>& v) {
+    this->Map::set_vertices(v);
+    this->T = Matrix3(v[1][0]-v[0][0],v[1][0]-v[0][0],v[2][0]-v[0][0],
+                      v[1][1]-v[0][1],v[1][1]-v[0][1],v[2][1]-v[0][1],
+                      v[1][2]-v[0][2],v[1][2]-v[0][2],v[2][2]-v[0][2]);
+    this->T_inverse = this->T.inverse();
+    this->det_T = this->T.determinant();
+    this->det_T_inverse = 1.0/this->det_T;
+  }// LinearTet::set_vertices()
+
+
+  double LinearTet::evaluate_scalar_field(const CartVect& xi, const double *field_vertex_value) const {
+    double f0 = field_vertex_value[0];
+    double f = f0;
+    for (unsigned i = 1; i < 4; ++i) {
+      f += (field_vertex_value[i]-f0)*xi[i-1];
+    }
+    return f;
+  }// LinearTet::evaluate_scalar_field()
+
+  double LinearTet::integrate_scalar_field(const double *field_vertex_values) const {
+    double I(0.0);
+    for(unsigned int i = 0; i < 4; ++i) {
+      I += field_vertex_values[i];
+    }
+    I *= this->det_T/24.0;
+    return I;
+  }// LinearTet::integrate_scalar_field()
+
+
+}// namespace Element
 
 } // namespace moab
