@@ -202,6 +202,7 @@ private:
   DebugOutputStream *outputImpl;
   int mpiRank;
   unsigned verbosityLimit;
+  double initTime;
 
   void tprint();
 
