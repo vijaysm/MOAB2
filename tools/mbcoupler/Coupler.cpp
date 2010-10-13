@@ -29,6 +29,8 @@ extern "C"
 namespace moab {
 
 bool debug = false;
+int pack_tuples(tuple_list* tl, void **ptr);
+void unpack_tuples(void *ptr, tuple_list** tlp);
 
 Coupler::Coupler(Interface *impl,
                      ParallelComm *pc,
@@ -190,7 +192,7 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
   }
 
     // perform scatter/gather, to gather points to source mesh procs
-  gs_transfer(1, &target_pts, 0, myPc->proc_config().crystal_router());
+  moab_gs_transfer(1, &target_pts, 0, myPc->proc_config().crystal_router());
 
     // after scatter/gather:
     // target_pts.n = # points local proc has to map
@@ -222,7 +224,7 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
   tuple_list_free(&target_pts);
 
     // send target points back to target procs
-  gs_transfer(1, &source_pts, 0, myPc->proc_config().crystal_router());
+  moab_gs_transfer(1, &source_pts, 0, myPc->proc_config().crystal_router());
 
   // store proc/index tuples in targetPts, and/or pass back to application;
   // the tuple this gets stored to looks like:
@@ -355,7 +357,7 @@ ErrorCode Coupler::interpolate(Coupler::Method method,
     // remote pts first
   
     // scatter/gather interpolation points
-  gs_transfer(1, tl_tmp, 0, myPc->proc_config().crystal_router());
+  moab_gs_transfer(1, tl_tmp, 0, myPc->proc_config().crystal_router());
 
     // perform interpolation on local source mesh; put results into
     // tl_tmp->vr[i]
@@ -378,7 +380,7 @@ ErrorCode Coupler::interpolate(Coupler::Method method,
   }
   
     // scatter/gather interpolation data
-  gs_transfer(1, tl_tmp, 0, myPc->proc_config().crystal_router());
+  moab_gs_transfer(1, tl_tmp, 0, myPc->proc_config().crystal_router());
 
   if (!tl) {
       // mapped whole targetPts tuple; put into proper place in interp_vals
@@ -564,8 +566,12 @@ int Coupler::normalize_subset(iBase_EntitySetHandle &root_set,
   //  ErrorCode result = MB_SUCCESS;
   int err = iBase_SUCCESS;
 
-//  // Get an iMesh_Instance from MBCoupler::mbImpl.
-//  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
+  // Setup data for parallel computing
+  int nprocs, rank;
+  err = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  ERRORMPI("Getting number of procs failed.", err);
+  err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  ERRORMPI("Getting rank failed.", err);
 
   // MASTER/SLAVE START #########################################################
   // Broadcast norm_tag, tag_handles, tag_values to procs
@@ -576,19 +582,19 @@ int Coupler::normalize_subset(iBase_EntitySetHandle &root_set,
   // SLAVE START ****************************************************************
   // Search for entities based on tag_handles and tag_values
 
-  std::vector< std::vector<iBase_EntitySetHandle> > entitySets;
-  std::vector< std::vector<iBase_EntityHandle> >    entityGroups;
+  std::vector< std::vector<iBase_EntitySetHandle> > entity_sets;
+  std::vector< std::vector<iBase_EntityHandle> >    entity_groups;
   err = get_matching_entities(root_set, tag_handles, tag_values, num_tags, 
-                              &entitySets, &entityGroups);
+                              &entity_sets, &entity_groups);
   ERRORR("Failed to get matching entities.", err);
 
   // Get the integrated field value for each group(vector) of entities.
   // If no entities are in a group then a zero will be put in the list
   // of return values.
-  unsigned int numEntGrps = entityGroups.size();
-  std::vector<double> integVals(numEntGrps);
+  unsigned int num_ent_grps = entity_groups.size();
+  std::vector<double> integ_vals(num_ent_grps);
 
-  err = get_group_integ_vals(entityGroups, integVals, norm_tag, num_integ_pts, integ_type);
+  err = get_group_integ_vals(entity_groups, integ_vals, norm_tag, num_integ_pts, integ_type);
   ERRORR("Failed to get integrated field values for groups in mesh.", err);
   // SLAVE END   ****************************************************************
 
@@ -597,10 +603,18 @@ int Coupler::normalize_subset(iBase_EntitySetHandle &root_set,
   // values will match the ordering of the entity groups (i.e. vector of vectors)
   // sent from master to slaves earlier.  The values for each entity group will
   // be summed during the transfer.
-  std::vector<double> sumIntegVals(numEntGrps);
-  err = MPI_Reduce(&integVals[0], &sumIntegVals[0], numEntGrps, MPI_DOUBLE, 
-                   MPI_SUM, MASTER_PROC, myPc->proc_config().proc_comm());
-  ERRORMPI("Transfer and reduction of integrated values failed.", err);
+  std::vector<double> sum_integ_vals(num_ent_grps);
+
+  if (nprocs > 1) {
+    // If parallel then send the values back to the master.
+    err = MPI_Reduce(&integ_vals[0], &sum_integ_vals[0], num_ent_grps, MPI_DOUBLE, 
+                     MPI_SUM, MASTER_PROC, myPc->proc_config().proc_comm());
+    ERRORMPI("Transfer and reduction of integrated values failed.", err);
+  }
+  else {
+    // Otherwise just copy the vector
+    sum_integ_vals = integ_vals;
+  }
   // SLAVE/MASTER END   #########################################################
 
   // MASTER START ***************************************************************
@@ -608,18 +622,19 @@ int Coupler::normalize_subset(iBase_EntitySetHandle &root_set,
   // inverse of each integrated field value.  Put the normalization factor 
   // for each group back into the list in the same order.
 
-  for (unsigned int i = 0; i < numEntGrps; i++) {
-    double val = sumIntegVals[i];
-    if (val != 0) sumIntegVals[i] = 1.0/val;
+  for (unsigned int i = 0; i < num_ent_grps; i++) {
+    double val = sum_integ_vals[i];
+    if (val != 0) sum_integ_vals[i] = 1.0/val;
   }
   // MASTER END   ***************************************************************
 
   // MASTER/SLAVE START #########################################################
-  // Broadcast the normalization factors to the procs.
-
-  err = MPI_Bcast(&sumIntegVals[0], numEntGrps, MPI_DOUBLE, MASTER_PROC, 
-                  myPc->proc_config().proc_comm());
-  ERRORMPI("", err);
+  if (nprocs > 1) {
+    // If parallel then broadcast the normalization factors to the procs.
+    err = MPI_Bcast(&sum_integ_vals[0], num_ent_grps, MPI_DOUBLE, MASTER_PROC, 
+                    myPc->proc_config().proc_comm());
+    ERRORMPI("Broadcast of normalization factors failed.", err);
+  }
   // MASTER/SLAVE END   #########################################################
 
   // SLAVE START ****************************************************************
@@ -627,7 +642,7 @@ int Coupler::normalize_subset(iBase_EntitySetHandle &root_set,
   // and the string "_normF" appended.  This new tag will be created on the entity
   // set that contains all of the entities from a group.
 
-  err = apply_group_norm_factor(entitySets, sumIntegVals, norm_tag, integ_type);
+  err = apply_group_norm_factor(entity_sets, sum_integ_vals, norm_tag, integ_type);
   ERRORR("Failed to set the normalization factor for groups in mesh.", err);
   // SLAVE END   ****************************************************************
 
@@ -673,118 +688,191 @@ int Coupler::get_matching_entities(iBase_EntitySetHandle                        
   // Get an iMesh_Instance from MBCoupler::mbImpl.
   iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
 
+  // Setup data for parallel computing
   int err = iBase_SUCCESS;
-  int entSetsSize;
-  int entSetsAlloc=0;
-  iBase_EntitySetHandle *entSets = NULL;  // free at end
+  int nprocs, rank;
+  err = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  ERRORMPI("Getting number of procs failed.", err);
+  err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  ERRORMPI("Getting rank failed.", err);
+
+  int ent_sets_size;
+  int ent_sets_alloc=0;
+  iBase_EntitySetHandle *ent_sets = NULL;  // free at end
 
   // Get Entity Sets that match the tags and values.
   iMesh_getEntSetsByTagsRec(iMeshInst, root_set, tag_handles, 
                             tag_values, num_tags, 0,
-                            &entSets, &entSetsAlloc, &entSetsSize, &err);
+                            &ent_sets, &ent_sets_alloc, &ent_sets_size, &err);
   ERRORR("iMesh_getEntSetsByTagsRec failed.", err);
 
-  tuple_list *tagList = NULL;
-  err = create_tuples(entSets, entSetsSize, tag_handles, num_tags, &tagList);
+  tuple_list *tag_list = NULL;
+  err = create_tuples(ent_sets, ent_sets_size, tag_handles, num_tags, &tag_list);
   ERRORR("Failed to create tuples from entity sets.", err);
 
   // Free up array memory from iMesh call
-  free(entSets);
-  entSets = NULL;
-  entSetsAlloc = 0;
-  entSetsSize = 0;
+  free(ent_sets);
+  ent_sets = NULL;
+  ent_sets_alloc = 0;
+  ent_sets_size = 0;
   // SLAVE END   ****************************************************************
 
-  // SLAVE/MASTER START #########################################################
-  // Send tuple list back to master proc for consolidation
-  
-  // pack the tuple_list in a buffer.
-  
+  // If we are running in a mult-proc session then send tuple list back to master 
+  // proc for consolidation.  Otherwise just copy the pointer to the tuple_list.
+  tuple_list *cons_tuples;
+  if (nprocs > 1) {
+    // SLAVE/MASTER START #########################################################
 
-  // Send all buffers to the master proc for consolidation
-//  MPI_Gatherv();
+    // pack the tuple_list in a buffer.
+    uint *tuple_buf;
+    int tuple_buf_sz;
+    tuple_buf_sz = pack_tuples(tag_list, (void**)&tuple_buf);
 
-  // unpack the tuple_list from the buffer.
+    // Free tag_list here as its not used again if nprocs > 1
+    tuple_list_free(tag_list);
 
-  // SLAVE/MASTER END   #########################################################
+    // Send back the buffer sizes to the master proc
+    int *all_sz = (int*) malloc(nprocs * sizeof(int));
+    MPI_Gather(&tuple_buf_sz, 1, MPI_INT, all_sz, 1, MPI_INT, MASTER_PROC, 
+               myPc->proc_config().proc_comm());
+    ERRORMPI("Gathering buffer sizes failed.", err);
 
-  // MASTER START ***************************************************************
-  // Master proc receives all lists and consolidates to one set with no duplicates.
-//   tuple_list *tuples = tagList;
-//   tuple_list *consTuples = NULL;
-  // TEMPORARY - assignment for serial version
-  tuple_list *consTuples = tagList;
-//   int numTuples = 1;
-//   err = consolidate_tuples(&tuples, numTuples, &consTuples);
-//   ERRORR("Failed to consolidate tuples.", err);
-  // MASTER END   ***************************************************************
+    // Allocate a buffer large enough for all the data
+    uint *all_tuples_buf;
+    int *recv_cnts = (int*) malloc(nprocs * sizeof(int));
 
-  // MASTER/SLAVE START #########################################################
-  // Broadcast condensed tuple list back to all procs.
-  // ***TODO***
-  // MASTER/SLAVE END   #########################################################
+    if (rank == MASTER_PROC) {
+      int total_sz = 0;
+      for (int j = 0; j < nprocs; j++) total_sz += all_sz[j];
+
+      all_tuples_buf = (uint*) malloc(total_sz * sizeof(uint));
+    }
+
+    // Send all buffers to the master proc for consolidation
+    MPI_Gatherv(tuple_buf, tuple_buf_sz, MPI_INT, 
+                all_tuples_buf, recv_cnts, all_sz, MPI_INT, MASTER_PROC,
+                myPc->proc_config().proc_comm());
+    ERRORMPI("Gathering tuple_lists failed.", err);
+    free(tuple_buf);  // malloc'd in pack_tuples
+    free(recv_cnts);  // malloc'd above in all procs
+
+    if (rank == MASTER_PROC) {
+      // unpack the tuple_list from the buffer.
+      tuple_list **tl_array = (tuple_list **) malloc(nprocs * sizeof(tuple_list*));
+      for (int i = 0; i < nprocs; i++)
+        unpack_tuples((void*)all_tuples_buf[all_sz[i]], &tl_array[i]);
+
+      // Free all_tuples_buf here as it is only allocated on the MASTER_PROC
+      free(all_tuples_buf);
+      // SLAVE/MASTER END   #########################################################
+      
+      // MASTER START ***************************************************************
+      // Consolidate all tuple_lists into one tuple_list with no duplicates.
+      err = consolidate_tuples(tl_array, nprocs, &cons_tuples);
+      ERRORR("Failed to consolidate tuples.", err);
+
+      for (int i = 0; i < nprocs; i++)
+        tuple_list_free(tl_array[i]);
+      free(tl_array);
+      // MASTER END   ***************************************************************
+    }
+
+    // Free all_sz as its allocated on all procs
+    free(all_sz);
+
+    // MASTER/SLAVE START #########################################################
+    // Broadcast condensed tuple list back to all procs.
+    uint *ctl_buf;
+    int ctl_buf_sz;
+    if (rank == MASTER_PROC) {
+      ctl_buf_sz = pack_tuples(cons_tuples, (void**) &ctl_buf);
+    }
+
+    // Send buffer size
+    err = MPI_Bcast(&ctl_buf_sz, 1, MPI_INT, MASTER_PROC, myPc->proc_config().proc_comm());
+    ERRORMPI("Broadcasting tuple_list size failed.", err);
+
+    // Allocate a buffer in the other procs
+    if (rank != MASTER_PROC) {
+      ctl_buf = (uint*) malloc(ctl_buf_sz*sizeof(uint));
+    }
+
+    err = MPI_Bcast(ctl_buf, ctl_buf_sz, MPI_INT, MASTER_PROC, myPc->proc_config().proc_comm());
+    ERRORMPI("Broadcasting tuple_list failed.", err);
+
+    if (rank != MASTER_PROC) {
+      unpack_tuples(ctl_buf, &cons_tuples);
+    }
+    free(ctl_buf);
+    // MASTER/SLAVE END   #########################################################
+  }
+  else {
+    cons_tuples = tag_list;
+  }
 
   // SLAVE START ****************************************************************
   // Loop over the tuple list getting the entities with the tags in the tuple_list entry
-  for (unsigned int i = 0; i < consTuples->n; i++) {
+  for (unsigned int i = 0; i < cons_tuples->n; i++) {
     // Get Entity Sets that match the tags and values.
 
     // Convert the data in the tuple_list to an array of pointers to the data
     // in the tuple_list as that is what the iMesh API call is expecting.
-    int **vals = new int*[consTuples->mi];
-    for (unsigned int j = 0; j < consTuples->mi; j++)
-      vals[j] = &(consTuples->vi[(i*consTuples->mi) + j]);
+    int **vals = (int**) malloc(cons_tuples->mi * sizeof(int*));
+    for (unsigned int j = 0; j < cons_tuples->mi; j++)
+      vals[j] = &(cons_tuples->vi[(i*cons_tuples->mi) + j]);
 
     iMesh_getEntSetsByTagsRec(iMeshInst, root_set, tag_handles, 
                               (const char * const *) vals,
-                              consTuples->mi, 0,
-                              &entSets, &entSetsAlloc, &entSetsSize, &err);
+                              cons_tuples->mi, 0,
+                              &ent_sets, &ent_sets_alloc, &ent_sets_size, &err);
     ERRORR("iMesh_getEntSetsByTagsRec failed.", err);
-    if (debug) std::cout << "entSetsSize=" << entSetsSize << std::endl;
+    if (debug) std::cout << "ent_sets_size=" << ent_sets_size << std::endl;
 
     // Free up the array of pointers
     free(vals);
 
-    // Loop over the entity sets and then free the memory for entSets.
-    std::vector<iBase_EntitySetHandle> entSetHandles;
-    std::vector<iBase_EntityHandle> entHandles;
-    for (int j = 0; j < entSetsSize; j++) {
+    // Loop over the entity sets and then free the memory for ent_sets.
+    std::vector<iBase_EntitySetHandle> ent_set_hdls;
+    std::vector<iBase_EntityHandle> ent_hdls;
+    for (int j = 0; j < ent_sets_size; j++) {
       // Save the entity set
-      entSetHandles.push_back(entSets[j]);
+      ent_set_hdls.push_back(ent_sets[j]);
 
       // Get all entities for the entity set
       iBase_EntityHandle *ents = NULL;
-      int entsAlloc = 0;
-      int entsSize = 0;
+      int ents_alloc = 0;
+      int ents_size = 0;
 
-      iMesh_getEntities(iMeshInst, entSets[j], iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES,
-                        &ents, &entsAlloc, &entsSize, &err);
+      iMesh_getEntities(iMeshInst, ent_sets[j], iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES,
+                        &ents, &ents_alloc, &ents_size, &err);
       ERRORR("iMesh_getEntities failed.", err);
-      if (debug) std::cout << "entsSize=" << entsSize << std::endl;
+      if (debug) std::cout << "ents_size=" << ents_size << std::endl;
 
       // Save all of the entities from the entity set and free the memory for ents.
-      for (int k = 0; k < entsSize; k++) {
-        entHandles.push_back(ents[k]);
+      for (int k = 0; k < ents_size; k++) {
+        ent_hdls.push_back(ents[k]);
       }
       free(ents);
-      if (debug) std::cout << "entHandles.size=" << entHandles.size() << std::endl;
+      if (debug) std::cout << "ent_hdls.size=" << ent_hdls.size() << std::endl;
     }
 
     // Free the entity set list for next tuple iteration.
-    free(entSets);
-    entSets = NULL;
-    entSetsAlloc = 0;
-    entSetsSize = 0;
+    free(ent_sets);
+    ent_sets = NULL;
+    ent_sets_alloc = 0;
+    ent_sets_size = 0;
 
-    // Push entSetHandles onto entity_sets, entHandles onto entity_groups
-    // and clear both entSetHandles and entHandles.
-    entity_sets->push_back(entSetHandles);
-    entSetHandles.clear();
-    entity_groups->push_back(entHandles);
-    entHandles.clear();
+    // Push ent_set_hdls onto entity_sets, ent_hdls onto entity_groups
+    // and clear both ent_set_hdls and ent_hdls.
+    entity_sets->push_back(ent_set_hdls);
+    ent_set_hdls.clear();
+    entity_groups->push_back(ent_hdls);
+    ent_hdls.clear();
     if (debug) std::cout << "entity_sets->size=" << entity_sets->size() 
                          << ", entity_groups->size=" << entity_groups->size() << std::endl;
   }
+
+  tuple_list_free(cons_tuples);
   // SLAVE END   ****************************************************************
 
   return err;
@@ -832,7 +920,7 @@ int Coupler::create_tuples(iBase_EntitySetHandle *ent_sets,
   // ASSUMPTION: All tags are of type integer.  This may need to be expanded in future.
 
   // Allocate a tuple_list for the number of entity sets passed in
-  tuple_list *tag_tuples = new tuple_list;
+  tuple_list *tag_tuples = (tuple_list*) malloc(sizeof(tuple_list));
   tuple_list_init_max(tag_tuples, num_tags, 0, 0, 0, num_sets);
   if (tag_tuples->mi == 0)
     ERRORR("Failed to initialize tuple_list.", iBase_FAILURE);
@@ -862,60 +950,68 @@ int Coupler::consolidate_tuples(tuple_list **all_tuples,
 {
   int err = iBase_SUCCESS;
 
-  const unsigned intSize = sizeof(sint);
-  const unsigned numTags = all_tuples[0]->mi;
-  const unsigned intWidth = numTags * intSize;
-
-  int totalRcvTuples = 0;
+  int total_rcv_tuples = 0;
   int offset = 0, copysz = 0;
+  unsigned num_tags = 0;
+  for (int i = 0; i < num_tuples; i++) {
+    if (all_tuples[i] != NULL) {
+      total_rcv_tuples += all_tuples[i]->n;
+      num_tags = all_tuples[i]->mi;
+    }
+  }
+  const unsigned int_size = sizeof(sint);
+  const unsigned int_width = num_tags * int_size;
 
   // Get the total size of all of the tuple_lists in all_tuples.
   for (int i = 0; i < num_tuples; i++) {
-    totalRcvTuples += all_tuples[i]->n;
+    if (all_tuples[i] != NULL)
+      total_rcv_tuples += all_tuples[i]->n;
   }
 
   // Copy the tuple_lists into a single tuple_list.
-  tuple_list *newTupleList = new tuple_list;
-  tuple_list_init_max(newTupleList, numTags, 0, 0, 0, totalRcvTuples);
+  tuple_list *all_tuples_list = (tuple_list*) malloc(sizeof(tuple_list));
+  tuple_list_init_max(all_tuples_list, num_tags, 0, 0, 0, total_rcv_tuples);
   for (int i = 0; i < num_tuples; i++) {
-    copysz = all_tuples[i]->n * intWidth;
-    memcpy(newTupleList->vi+offset, all_tuples[i]->vi, copysz);
-    offset = offset + (all_tuples[i]->n * all_tuples[i]->mi);
-    newTupleList->n = newTupleList->n + all_tuples[i]->n;
+    if (all_tuples[i] != NULL) {
+      copysz = all_tuples[i]->n * int_width;
+      memcpy(all_tuples_list->vi+offset, all_tuples[i]->vi, copysz);
+      offset = offset + (all_tuples[i]->n * all_tuples[i]->mi);
+      all_tuples_list->n = all_tuples_list->n + all_tuples[i]->n;
+    }
   }
 
   // Sort the new tuple_list.  Use a radix type sort, starting with the last (or least significant)
   // tag column in the vi array and working towards the first (or most significant) tag column.
   buffer sort_buffer;
-  buffer_init(&sort_buffer, 2 * totalRcvTuples * intWidth);
-  for (int i = numTags - 1; i >= 0; i--) {
-    tuple_list_sort(newTupleList, i, &sort_buffer);
+  buffer_init(&sort_buffer, 2 * total_rcv_tuples * int_width);
+  for (int i = num_tags - 1; i >= 0; i--) {
+    tuple_list_sort(all_tuples_list, i, &sort_buffer);
   }
 
   // Cycle through the sorted list eliminating duplicates.
   // Keep counters to the current end of the tuple_list (w/out dups) and the last tuple examined.
-  unsigned int endIdx = 0, lastIdx = 1;
-  while (lastIdx < newTupleList->n) {
-    if (memcmp(newTupleList->vi+(endIdx*numTags), newTupleList->vi+(lastIdx*numTags), intWidth) == 0) {
+  unsigned int end_idx = 0, last_idx = 1;
+  while (last_idx < all_tuples_list->n) {
+    if (memcmp(all_tuples_list->vi+(end_idx*num_tags), all_tuples_list->vi+(last_idx*num_tags), int_width) == 0) {
       // Values equal - skip
-      lastIdx += 1;
+      last_idx += 1;
     }
     else {
       // Values different - copy
       // Move up the end index
-      endIdx += 1;
-      memcpy(newTupleList->vi+(endIdx*numTags), newTupleList->vi+(lastIdx*numTags), intWidth);
-      lastIdx += 1;
+      end_idx += 1;
+      memcpy(all_tuples_list->vi+(end_idx*num_tags), all_tuples_list->vi+(last_idx*num_tags), int_width);
+      last_idx += 1;
     }
   }
-  // Update the count in newTupleList
-  newTupleList->n = endIdx + 1;
+  // Update the count in all_tuples_list
+  all_tuples_list->n = end_idx + 1;
 
   // Resize the tuple_list
-  tuple_list_resize(newTupleList, newTupleList->n);
+  tuple_list_resize(all_tuples_list, all_tuples_list->n);
 
   // Set the output parameter
-  *unique_tuples = newTupleList;
+  *unique_tuples = all_tuples_list;
 
   return err;
 }
@@ -934,7 +1030,7 @@ int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> >
 
   std::vector< std::vector<iBase_EntityHandle> >::iterator iter_i;
   std::vector<iBase_EntityHandle>::iterator iter_j;
-  double grpIntgrVal, intgrVal;
+  double grp_intrgr_val, intgr_val;
 
   // Get the tag handle for norm_tag
   iBase_TagHandle norm_hdl;
@@ -952,7 +1048,7 @@ int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> >
   // Loop over the groups(vectors) of entities
   unsigned int i;
   for (i = 0, iter_i = groups.begin(); iter_i != groups.end(); i++, iter_i++) {
-    grpIntgrVal = 0;
+    grp_intrgr_val = 0;
 
     // Loop over the all the entities in the group, integrating 
     // the field_fn over the entity in iter_j
@@ -966,7 +1062,7 @@ int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> >
           ((integ_type == AREA)   && (j_type != iBase_FACE)))
         continue;
       
-      intgrVal = 0;
+      intgr_val = 0;
 
       // Currently assumes we have a hexahedral element.  Will need code
       // to choose between a hex and a tet element.
@@ -977,19 +1073,19 @@ int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> >
 
       // Retrieve the vertices from the element
       iBase_EntityHandle *verts = NULL;
-      int vertsAlloc = 0;
-      int vertsSize = 0;
+      int verts_alloc = 0;
+      int verts_size = 0;
 
-      iMesh_getEntAdj(iMeshInst, (*iter_j), iBase_VERTEX, &verts, &vertsAlloc, &vertsSize, &err);
+      iMesh_getEntAdj(iMeshInst, (*iter_j), iBase_VERTEX, &verts, &verts_alloc, &verts_size, &err);
       ERRORR("Failed to get vertices from entity.", err);
 
-      if (vertsSize < 8)
+      if (verts_size < 8)
         ERRORR("Failed to get 8 vertices.", iBase_FAILURE);
 
       // Put the vertices into a CartVect array
       double x[3];
       double vfield[8];
-      for (int i = 0; i < vertsSize; i++) {
+      for (int i = 0; i < verts_size; i++) {
         iMesh_getVtxCoord(iMeshInst, verts[i], &x[0], &x[1], &x[2], &err);
         corners[i] = x;
         if (norm_type == iBase_INTEGER) {
@@ -1007,17 +1103,18 @@ int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> >
           ERRORR("Bad type for norm_tag.", err);
         }
       }
+      free(verts);
 
       // Perform the integration
-      if (!ElemUtil::integrate_trilinear_hex(corners, vfield, intgrVal, num_integ_vals))
+      if (!ElemUtil::integrate_trilinear_hex(corners, vfield, intgr_val, num_integ_vals))
           ERRORR("Bad parameter to ElemUtil::integrate_trilinear_hex.", iBase_FAILURE);
 
       // Combine the result with those of the group
-      grpIntgrVal += intgrVal;
+      grp_intrgr_val += intgr_val;
     }
 
     // Set the group integrated value in the vector
-    integ_vals[i] = grpIntgrVal;
+    integ_vals[i] = grp_intrgr_val;
   }
 
   return err;
@@ -1052,28 +1149,105 @@ int Coupler::apply_group_norm_factor(std::vector< std::vector<iBase_EntitySetHan
   iBase_TagHandle normf_hdl;
   iMesh_createTag(iMeshInst, normf_tag, 1, iBase_DOUBLE, &normf_hdl, &err, strlen(normf_tag));
   ERRORR("Failed to create normalization factor tag.", err);
+  free(normf_tag);
 
   std::vector< std::vector<iBase_EntitySetHandle> >::iterator iter_i;
   std::vector<iBase_EntitySetHandle>::iterator iter_j;
   std::vector<double>::iterator iter_f;
-  double grpNormFactor = 0.0;
+  double grp_norm_factor = 0.0;
 
   // Loop over the entity sets
   for (iter_i = entity_sets.begin(), iter_f = norm_factors.begin(); 
        (iter_i != entity_sets.end()) && (iter_f != norm_factors.end()); 
        iter_i++, iter_f++) {
-    grpNormFactor = *iter_f;
+    grp_norm_factor = *iter_f;
 
     // Loop over the all the entity sets in iter_i and set the 
     // new normf_tag with the norm factor value on each
     for (iter_j = (*iter_i).begin(); iter_j != (*iter_i).end(); iter_j++) {
 
-      iMesh_setEntSetDblData(iMeshInst, (*iter_j), normf_hdl, grpNormFactor, &err);
+      iMesh_setEntSetDblData(iMeshInst, (*iter_j), normf_hdl, grp_norm_factor, &err);
       ERRORR("Failed to set normalization factor on entity set.", err);
     }
   }
 
   return err;
+}
+
+#define UINT_PER_X(X) ((sizeof(X)+sizeof(uint)-1)/sizeof(uint))
+#define UINT_PER_REAL UINT_PER_X(real)
+#define UINT_PER_LONG UINT_PER_X(slong)
+#define UINT_PER_UNSIGNED UINT_PER_X(unsigned)
+
+// Function for packing tuple_list.  Returns number of uints copied into buffer.
+int pack_tuples(tuple_list* tl, void **ptr)
+{
+  int sz_buf = 1 + 4*UINT_PER_UNSIGNED +
+               tl->n * (tl->mi + 
+                        tl->ml*UINT_PER_LONG + 
+                        tl->mul*UINT_PER_LONG + 
+                        tl->mr*UINT_PER_REAL);
+  
+  uint *buf = (uint*) malloc(sz_buf*sizeof(uint));
+  *ptr = (void*) buf;
+
+  // copy n
+  memcpy(buf, &(tl->n),   sizeof(uint)),                buf+=1;
+  // copy mi
+  memcpy(buf, &(tl->mi),  sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
+  // copy ml
+  memcpy(buf, &(tl->ml),  sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
+  // copy mul
+  memcpy(buf, &(tl->mul), sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
+  // copy mr
+  memcpy(buf, &(tl->mr),  sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
+  // copy vi
+  memcpy(buf, tl->vi,     tl->n*tl->mi*sizeof(sint)),   buf+=tl->n*tl->mi;
+  // copy vl
+  memcpy(buf, tl->vl,     tl->n*tl->ml*sizeof(slong)),  buf+=tl->n*tl->ml*UINT_PER_LONG;
+  // copy vul
+  memcpy(buf, tl->vul,    tl->n*tl->mul*sizeof(ulong)), buf+=tl->n*tl->mul*UINT_PER_LONG;
+  // copy vr
+  memcpy(buf, tl->vr,     tl->n*tl->mr*sizeof(real)),   buf+=tl->n*tl->mr*UINT_PER_REAL;
+
+  return sz_buf;
+}
+
+// Function for packing tuple_list
+void unpack_tuples(void *ptr, tuple_list** tlp)
+{
+  tuple_list *tl = (tuple_list*) malloc(sizeof(tuple_list));
+  *tlp = tl;
+
+  uint nt;
+  unsigned mit, mlt, mult, mrt;
+  uint *buf = (uint*)ptr;
+
+  // get n
+  memcpy(&nt,   buf, sizeof(uint)),          buf+=1;
+  // get mi
+  memcpy(&mit,  buf, sizeof(unsigned)),      buf+=UINT_PER_UNSIGNED;
+  // get ml
+  memcpy(&mlt,  buf, sizeof(unsigned)),      buf+=UINT_PER_LONG;
+  // get mul
+  memcpy(&mult, buf, sizeof(unsigned)),      buf+=UINT_PER_LONG;
+  // get mr
+  memcpy(&mrt,  buf, sizeof(unsigned)),      buf+=UINT_PER_REAL;
+
+  // initalize tl
+  tuple_list_init_max(tl, mit, mlt, mult, mrt, nt);
+  tl->n = nt;
+
+  // get vi
+  memcpy(tl->vi,     buf, tl->n*tl->mi*sizeof(sint)),   buf+=tl->n*tl->mi;
+  // get vl
+  memcpy(tl->vl,     buf, tl->n*tl->ml*sizeof(slong)),  buf+=tl->n*tl->ml*UINT_PER_LONG;
+  // get vul
+  memcpy(tl->vul,    buf, tl->n*tl->mul*sizeof(ulong)), buf+=tl->n*tl->mul*UINT_PER_LONG;
+  // get vr
+  memcpy(tl->vr,     buf, tl->n*tl->mr*sizeof(real)),   buf+=tl->n*tl->mr*UINT_PER_REAL;
+
+  return;
 }
 
 } // namespace_moab
