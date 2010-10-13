@@ -448,7 +448,6 @@ bool integrate_trilinear_hex(const CartVect* hex_corners,
 
         // Calculate the "real" space point given the "normal" point
         CartVect normal_pt(xi_i, eta_j, zeta_k);
-        CartVect real_pt = hex.evaluate(normal_pt);
 
         // Calculate the value of F(x(xi,eta,zeta),y(xi,eta,zeta),z(xi,eta,zeta)
         double field = hex.evaluate_scalar_field(normal_pt, corner_fields);
@@ -526,7 +525,7 @@ namespace Element {
      Hence, the inner dimension is 2, the outer dimension is gauss_count.
      We use a one-point Gaussian quadrature, since it integrates linear functions exactly.
   */
-  static const double gauss[1][2] = { {  2.0,           0.0          } };
+  const double LinearHex::gauss[1][2] = { {  2.0,           0.0          } };
 
   CartVect LinearHex::evaluate( const CartVect& xi ) const {
     CartVect x(0.0);
