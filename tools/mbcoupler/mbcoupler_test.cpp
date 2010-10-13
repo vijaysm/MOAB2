@@ -126,7 +126,12 @@ int main(int argc, char **argv)
 //      "PARALLEL_FORMAT";
       NULL;
 
-  if (pcs[1]->proc_config().proc_rank() == 0 && !out_fname.empty()) {
+  if (!out_fname.empty()) {
+    // get the rank and append to the out_fname.
+    std::stringstream convert;
+    convert << rank;
+    out_fname += convert.str();
+
     result = mbImpl->write_file(out_fname.c_str(), NULL, out_option,
                                 pcs[1]->partition_sets());
     PRINT_LAST_ERROR;
