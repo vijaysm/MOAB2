@@ -14,7 +14,7 @@
 */
 
 #include "quads_to_tris.hpp"
-
+#include "moab/CartVect.hpp"
 using namespace moab;
 
 // Generic function to create two tris from a quad. This can be improved later.
@@ -28,12 +28,37 @@ ErrorCode make_tris_from_quad( Interface *MBI,
   const EntityHandle *quad_conn;
   int n_verts=0;
   result = MBI->get_connectivity( quad, quad_conn, n_verts );
-    assert( 4 == n_verts );
-    assert( MB_SUCCESS == result);
+  assert( 4 == n_verts );
+  assert( MB_SUCCESS == result);
    
+  // find length of diagonals
+  CartVect coords[n_verts];
+  result = MBI->get_coords( quad_conn, n_verts, coords[0].array() );
+  if(MB_SUCCESS != result) return result;
+  CartVect diagA = coords[0] - coords[2];
+  double lenA_sqr= diagA.length_squared();
+  CartVect diagB = coords[1] - coords[3];
+  double lenB_sqr= diagB.length_squared();
+
+  // choose the shortest diagonal
+  EntityHandle tri0_conn[3], tri1_conn[3];
+  if(lenA_sqr < lenB_sqr) {
+    tri0_conn[0] = quad_conn[0];
+    tri0_conn[1] = quad_conn[1];
+    tri0_conn[2] = quad_conn[2];
+    tri1_conn[0] = quad_conn[0];
+    tri1_conn[1] = quad_conn[2];
+    tri1_conn[2] = quad_conn[3];
+  } else {
+    tri0_conn[0] = quad_conn[0];
+    tri0_conn[1] = quad_conn[1];
+    tri0_conn[2] = quad_conn[3];
+    tri1_conn[0] = quad_conn[1];
+    tri1_conn[1] = quad_conn[2];
+    tri1_conn[2] = quad_conn[3];
+  }
+
   // make tris from quad
-  EntityHandle tri0_conn[] = {quad_conn[0], quad_conn[1], quad_conn[3]};
-  EntityHandle tri1_conn[] = {quad_conn[1], quad_conn[2], quad_conn[3]};
   result = MBI->create_element(MBTRI, tri0_conn, 3, tri0);
     assert( MB_SUCCESS == result);
   result = MBI->create_element(MBTRI, tri1_conn, 3, tri1);

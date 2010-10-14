@@ -346,11 +346,11 @@ ErrorCode orient_faces_outward( Interface *MBI, const Range faces,
     // Get the sense of the face wrt the element
     EntityType elem_type = MBI->type_from_handle(adj_elem.front());
     EntityType face_type = MBI->type_from_handle(*i);
-    int side_num, offset;
+    int face_num, offset;
     int sense = 0; 
     const int face_dim = CN::Dimension(face_type); 
     int rval = CN::SideNumber( elem_type, elem_conn, face_conn, face_n_nodes, 
-                             face_dim, side_num, sense, offset );
+                             face_dim, face_num, sense, offset );
     if(0 != rval) return MB_FAILURE;
 
     // If the face is not oriented outward wrt the element, reverse it
