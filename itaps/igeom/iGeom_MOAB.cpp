@@ -1151,14 +1151,127 @@ void iGeom_getVtxArrCoords(iGeom_Instance instance,
    RETURN(iBase_SUCCESS);
 }
 
-void iGeom_getPntRayIntsct(iGeom_Instance, double x, double y, double z,
+void iGeom_getPntRayIntsct(iGeom_Instance instance, double x, double y, double z,
       double dir_x, double dir_y, double dir_z,
       iBase_EntityHandle** intersect_entity_handles,
       int* intersect_entity_handles_allocated,
-      int* intersect_entity_hangles_size, int storage_order,
+      int* intersect_entity_handles_size, int storage_order,
       double** intersect_coords, int* intersect_coords_allocated,
       int* intersect_coords_size, double** param_coords,
       int* param_coords_allocated, int* param_coords_size, int* err) {
+   // this is pretty cool
+   // we will return only surfaces
+   //
+   ErrorCode rval;
+   if (!t_created) {
+      GETGTT(instance);
+      ErrorCode rval = _my_geomTopoTool->construct_obb_trees();
+      MBERRORR("Failed to construct obb tree.");
+      t_created = true;
+   }
+   // OrientedBoxTreeTool
+   // rval = _my_geomTopoTool->obb_tree()->closest_to_location??
+ /*  ray_intersect_sets( std::vector<double>& distances_out,
+   std::vector<EntityHandle>& sets_out,
+   std::vector<EntityHandle>& facets_out,
+   EntityHandle root_set,
+   double tolerance,
+   unsigned min_tolerace_intersections,
+   const double ray_point[3],
+   const double unit_ray_dir[3],
+   const double* ray_length = 0,
+   TrvStats* accum = 0 );*/
+   //ErrorCode rval =  _my_geomTopoTool->obb_tree()->
+
+   // loop through all faces
+   // some tolerances need to be set in advance...
+   int numfaces = _my_gsets[2].size();
+   // do ray fire
+   const double point[] = {x, y, z};
+   const double dir[] = {dir_x, dir_y, dir_z};
+   CartVect P(point);
+   CartVect V(dir);
+   unsigned min_tolerace_intersections = 1000;
+   double tolerance =0.01; // TODO: how is this used ????
+   std::vector<double> distances;
+   std::vector<EntityHandle> facets;
+   std::vector<EntityHandle> sets;
+   int i;
+   for (i=0; i<numfaces; i++)
+   {
+      EntityHandle face = _my_gsets[2][i];
+      EntityHandle rootForFace ;
+      rval = _my_geomTopoTool->get_root(face, rootForFace) ;
+      MBERRORR("Failed to get root of face.");
+      std::vector<double> distances_out;
+      std::vector<EntityHandle> sets_out;
+      std::vector<EntityHandle> facets_out;
+      rval = _my_geomTopoTool->obb_tree()-> ray_intersect_sets(
+          distances_out,
+          sets_out,
+          facets_out,
+          rootForFace,
+          tolerance,
+          min_tolerace_intersections,
+          point,
+          dir);
+      unsigned int j;
+      for (j=0; j<distances_out.size(); j++)
+         distances.push_back(distances_out[j]);
+      for (j=0; j<sets_out.size(); j++)
+         sets.push_back(sets_out[j]);
+      for (j=0; j<facets_out.size(); j++)
+         facets.push_back(facets_out[j]);
+
+      MBERRORR("Failed to get ray intersections.");
+   }
+   // we will say that those lists are the same size, always
+   *param_coords_allocated = *param_coords_size = distances.size();
+   *param_coords = (double*)malloc((*param_coords_size)*sizeof(double));
+
+   *intersect_coords_allocated = *intersect_coords_size = 3 * distances.size();
+   *intersect_coords = (double*)malloc((*intersect_coords_size)*sizeof(double));
+
+   *intersect_entity_handles_allocated = *intersect_entity_handles_size = sets.size();
+   *intersect_entity_handles = (iBase_EntityHandle*)malloc((*intersect_entity_handles_size)*sizeof(iBase_EntityHandle));
+
+   // facets.size == distances.size()!!
+   for (i=0; i<*param_coords_allocated; i++ )
+   {
+      (*param_coords)[i] = distances[i];
+      CartVect intx = P+distances[i]*V;
+      for (int j=0; j<3; j++)
+         (*intersect_coords)[3*i+j] = intx[j];
+      (*intersect_entity_handles)[i] = (iBase_EntityHandle)sets[i];
+   }
+   if (_smooth)
+   {
+      // correct the intersection point and the distance for smooth surfaces
+      for (i=0; i<sets.size(); i++)
+      {
+         //EntityHandle geoSet = MBH_cast(sets[i]);
+         SmoothFaceEval* sFace = _faces[sets[i]];
+         // correct coordinates and distance from point
+         /*moab::ErrorCode ray_intersection_correct(moab::EntityHandle facet, // (IN) the facet where the patch is defined
+                  moab::CartVect &pt, // (IN) shoot from
+                  moab::CartVect &ray, // (IN) ray direction
+                  moab::CartVect &eval_pt, // (INOUT) The intersection point
+                  double & distance, // (IN OUT) the new distance
+                  bool &outside);*/
+         CartVect pos(&(*intersect_coords)[3*i]);
+         double dist = (*param_coords)[i];
+         bool outside = false;
+         rval = sFace->ray_intersection_correct(facets[i],
+               P, V, pos, dist, outside);
+         MBERRORR("Failed to get better point on ray.");
+         (*param_coords)[i] = dist;
+
+         for (int j=0; j<3; j++)
+            (*intersect_coords)[3*i+j] = pos[j];
+      }
+   }
+
+   return;
 }
 
 void iGeom_getPntArrRayIntsct(iGeom_Instance, int storage_order,

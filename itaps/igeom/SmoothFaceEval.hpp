@@ -127,6 +127,16 @@ public:
    int eval_counter() {
       return _evaluationsCounter;
    }
+
+   // new method for ray intersection correction
+   moab::ErrorCode ray_intersection_correct(moab::EntityHandle facet, // (IN) the facet where the patch is defined
+         moab::CartVect &pt, // (IN) shoot from
+         moab::CartVect &ray, // (IN) ray direction
+         moab::CartVect &eval_pt, // (INOUT) The intersection point
+         double & distance, // (IN OUT) the new distance
+         bool &outside); // (OUT) the closest point on patch to pt is on an edge
+
+   //      of the edges.  Otherwise, should be -1)
 private:
 
    //===========================================================================

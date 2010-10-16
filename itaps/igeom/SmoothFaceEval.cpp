@@ -1941,4 +1941,47 @@ moab::ErrorCode SmoothFaceEval::find_loops() {
    return MB_SUCCESS;
 }
 
+moab::ErrorCode SmoothFaceEval::ray_intersection_correct(moab::EntityHandle facet, // (IN) the facet where the patch is defined
+         moab::CartVect &pt, // (IN) shoot from
+         moab::CartVect &ray, // (IN) ray direction
+         moab::CartVect &eval_pt, // (INOUT) The intersection point
+         double & distance, // (IN OUT) the new distance
+         bool &outside)
+{
+   // find a point on the smooth surface
+   moab::CartVect currentPoint = eval_pt;
+   int numIter = 0;
+   double improvement = 1.e20;
+   moab::CartVect diff;
+   while (numIter++ < 5 && improvement > 0.01)
+   {
+      moab::CartVect newPos;
+
+      bool trim = false;// is it needed?
+      bool outside = true;
+      moab::CartVect closestPoint;
+      moab::CartVect normal;
+
+      moab::ErrorCode rval = project_to_facets_main(currentPoint, trim, outside,
+               &newPos, &normal);
+      diff = newPos - currentPoint;
+      improvement = diff.length();
+      // ( pt + t * ray - closest ) % normal = 0;
+      // intersect tangent plane that goes through closest point with the direction
+      // t = normal%(closest-pt) / normal%ray;
+      double dot = normal%ray; // if it is 0, get out while we can
+      if (dot < 0.00001)
+      {
+         // bad convergence, get out, do not modify anything
+         return MB_SUCCESS;
+      }
+      double t = ((newPos-pt)%normal) / (dot);
+      currentPoint = pt + t * ray;
+
+   }
+   eval_pt = currentPoint;
+   diff = currentPoint - pt;
+   distance = diff.length();
+   return MB_SUCCESS;
+}
 

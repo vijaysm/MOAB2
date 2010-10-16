@@ -128,6 +128,8 @@ bool save_entset_test(iGeom_Instance geom);
 bool mesh_size_test(iGeom_Instance geom);
 bool normals_test(iGeom_Instance geom);
 
+bool ray_test(iGeom_Instance geom);
+
 void handle_error_code(const bool result, int &number_failed,
       int &/*number_not_implemented*/, int &number_successful) {
    if (result) {
@@ -214,6 +216,14 @@ int main(int argc, char *argv[]) {
    result = normals_test(geom);
    handle_error_code(result, number_tests_failed, number_tests_not_implemented,
          number_tests_successful);
+   number_tests++;
+   std::cout << "\n";
+
+   // ray tracing test
+   std::cout << "   ray intersection test: \n";
+   result = ray_test(geom);
+   handle_error_code(result, number_tests_failed, number_tests_not_implemented,
+            number_tests_successful);
    number_tests++;
    std::cout << "\n";
    /*
@@ -1039,6 +1049,61 @@ bool normals_test(iGeom_Instance geom) {
          std::cout<<" entity of type " << i << " closest normal to center:\n  " <<
          normal[0] << " " << normal[1] << " " << normal[2] << "\n";
       }
+   }
+
+   return true;
+}
+
+//  test normals evaluations on the surface only
+bool ray_test(iGeom_Instance geom) {
+   int  err;
+   iBase_EntitySetHandle root_set;
+   iGeom_getRootSet(geom, &root_set, &err);
+   CHECK( "ERROR : getRootSet failed!" );
+
+   int top = iBase_FACE;
+
+   SimpleArray<iBase_EntityHandle> faces;
+   iGeom_getEntities(geom, root_set, top, ARRAY_INOUT( faces ), &err );
+   CHECK("Failed to get gentities in adjacencies_test.");
+
+   // check only the first face
+
+   // check adjacencies in both directions
+   double min[3], max[3];
+
+   iBase_EntityHandle first_face = faces[0];
+
+   iGeom_getEntBoundBox(geom, first_face, &min[0], &min[1], &min[2],
+   &max[0], &max[1], &max[2], &err);
+   CHECK("Failed to get bounding box of entity.");
+
+   // assume that the ray shot from the bottom of the box (middle) is a pretty good candidate
+   // in z direction
+   double x = (min[0]+max[0])/2, y = (min[1]+max[1])/2, z = min[2];
+   SimpleArray<iBase_EntityHandle> intersect_entity_handles;
+   SimpleArray<double> intersect_coords;
+   SimpleArray<double> param_coords;
+   iGeom_getPntRayIntsct( geom,  x,  y,  z, // shot from
+                                       0., 0., 1., // direction
+                                       ARRAY_INOUT(intersect_entity_handles),
+                                       iBase_INTERLEAVED,
+                                       ARRAY_INOUT(intersect_coords),
+                                       ARRAY_INOUT(param_coords),
+                                       &err );
+
+   CHECK("Failed to find ray intersections points ");
+   for(int i=0; i<intersect_entity_handles.size(); i++)
+   {
+      int j;
+      iGeom_getEntType( geom, intersect_entity_handles[i],
+                               &j,&err);
+      CHECK("Failed to get type of entity.");
+
+      std::cout<<" entity of type " << j << " n: " << intersect_entity_handles[i]<< "\n"<<
+            intersect_coords[3*i] << " " << intersect_coords[3*i+1] << " "
+            << intersect_coords[3*i+2] << "\n" <<
+            " distance: " << param_coords[i] << "\n";
    }
 
    return true;
