@@ -3,10 +3,11 @@ BUILT_SOURCES = iMesh_protos.h iMeshP_protos.h iMesh_extensions_protos.h
 AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(srcdir)/.. \
                -I$(top_srcdir)/src \
-               -I$(top_builddir)/src  
+               -I$(top_builddir)/src  \
+               -I$(top_srcdir)/test
 
 # stuff for c test program
-check_PROGRAMS = testc_cbind
+check_PROGRAMS = testc_cbind MOAB_iMesh_unit_tests
 EXTRA_DIST = brick.vtk quad9.cub
 
 libiMesh_la_SOURCES = \
@@ -43,6 +44,8 @@ partest_SOURCES = partest.cpp
 partest_DEPENDENCIES = $(TESTDEPS)
 MOAB_iMeshP_unit_tests_SOURCES = MOAB_iMeshP_unit_tests.cpp
 MOAB_iMeshP_unit_tests_DEPENDENCIES = $(TESTDEPS)
+MOAB_iMesh_unit_tests_SOURCES = MOAB_iMesh_unit_tests.cpp
+MOAB_iMesh_unit_tests_DEPENDENCIES = $(TESTDEPS)
 
 lib_LTLIBRARIES = libiMesh.la
 
