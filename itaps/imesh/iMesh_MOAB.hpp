@@ -146,7 +146,7 @@ public:
     else {
       array_size = count;
       if (array_allocated_space < count) {
-        IBASE_ERROR(iBase_BAD_ARRAY_DIMENSION, 
+        IBASE_ERROR(iBase_BAD_ARRAY_SIZE, 
           "Allocated array not large enough to hold returned contents.");
       }
     }
