@@ -79,9 +79,11 @@ using namespace moab;
 #ifdef MESHDIR
 static const char input_file_1[] = STRINGIFY(MESHDIR) "/io/test.cub";
 static const char ho_file[] = STRINGIFY(MESHDIR) "/io/ho_test.cub";
+static const char cubit12_file[] = STRINGIFY(MESHDIR) "/io/cubtest12.cub";
 #else
 static const char input_file_1[] = "test.cub";
 static const char ho_file[] = "ho_test.cub";
+static const char cubit12_file[] = "cubtest12.cub";
 #endif
 
 void read_file( Interface& moab, const char* input_file );
@@ -140,6 +142,8 @@ void test_hex27() { test_ho_elements(MBHEX, 27); }
 
 void test_multiple_files();                    
 
+void test_cubit12();
+
 int main()
 {
   int result = 0;
@@ -165,7 +169,7 @@ int main()
   result += RUN_TEST(test_hex20);
   result += RUN_TEST(test_hex27);
   result += RUN_TEST(test_multiple_files);
-  
+  result += RUN_TEST(test_cubit12);
   return result;
 }
 
@@ -1065,4 +1069,9 @@ void test_multiple_files()
   CHECK( intersect( file2_elem_verts,  file2_verts ) == file2_elem_verts );
 }
 
-  
+void test_cubit12() 
+{
+  Core mb_impl;
+  Interface& mb = mb_impl;
+  read_file( mb, cubit12_file);
+}

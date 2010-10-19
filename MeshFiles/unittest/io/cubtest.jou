@@ -1,0 +1,186 @@
+# tri/tet
+brick x 1
+brick x 1
+brick x 1
+brick x 1
+brick x 1
+brick x 1
+vol 1 to 6 siz .25 sch tetmesh
+mesh vol 1 to 6
+#
+block 100 vert 1
+block 100 element type spring
+block 100 name 'springblock'
+#
+block 201 curve 1
+block 201 element type bar
+block 201 name 'barblock'
+#
+block 202 curve 2
+block 202 element type bar2
+block 202 name 'bar2block'
+#
+block 203 curve 3
+block 203 element type bar3
+block 203 name 'bar3block'
+#
+block 204 curve 4
+block 204 element type beam
+block 204 name 'beamblock'
+#
+block 205 curve 5
+block 205 element type beam2
+block 205 name 'beam2block'
+#
+block 206 curve 6
+block 206 element type beam3
+block 206 name 'beam3block'
+#
+block 207 curve 7
+block 207 element type truss
+block 207 name 'trussblock'
+#
+block 208 curve 8
+block 208 element type truss2
+block 208 name 'truss2block'
+#
+block 209 curve 9
+block 209 element type truss3
+block 209 name 'truss3block'
+#
+block 301 surf 1
+block 301 element type tri
+block 301 name 'triblock'
+#
+block 302 surf 2
+block 302 element type tri3
+block 302 name 'tri3block'
+#
+block 303 surf 3
+block 303 element type tri6
+block 303 name 'tri6block'
+#
+block 304 surf 4
+block 304 element type tri7
+block 304 name 'tri7block'
+#
+block 305 surf 5
+block 305 element type trishell
+block 305 name 'trishellblock'
+#
+block 306 surf 6
+block 306 element type trishell3
+block 306 name 'trishell3block'
+#
+block 307 surf 7
+block 307 element type trishell6
+block 307 name 'trishell6block'
+#
+block 308 surf 8
+block 308 element type trishell7
+block 308 name 'trishell7block'
+#
+block 402 vol 2
+block 402 element type tetra
+block 402 name 'tetrablock'
+#
+block 403 vol 3
+block 403 element type tetra4
+block 403 name 'tetra4block'
+#
+block 404 vol 4
+block 404 element type tetra8
+block 404 name 'tetra8block'
+#
+block 405 vol 5
+block 405 element type tetra10
+block 405 name 'tetra10block'
+#
+block 406 vol 6
+block 406 element type tetra14
+block 406 name 'tetra14block'
+#
+#
+# quad/hex
+brick x 1
+brick x 1
+brick x 1
+brick x 1
+brick x 1
+brick x 1
+brick x 1
+vol 7 to 13 siz .25 sch map
+mesh vol 7 to 13
+#
+block 537 surf 37
+block 537 element type quad
+block 537 name 'quadblock'
+#
+block 538 surf 38
+block 538 element type quad4
+block 538 name 'quad4block'
+#
+block 539 surf 39
+block 539 element type quad5
+block 539 name 'quad5block'
+#
+block 540 surf 40
+block 540 element type quad8
+block 540 name 'quad8block'
+#
+block 541 surf 41
+block 541 element type quad9
+block 541 name 'quad9block'
+#
+block 542 surf 42
+block 542 element type shell
+block 542 name 'shellblock'
+#
+block 543 surf 43
+block 543 element type shell4
+block 543 name 'shell4block'
+#
+block 544 surf 44
+block 544 element type shell8
+block 544 name 'shell8block'
+#
+block 545 surf 45
+block 545 element type shell9
+block 545 name 'shell9block'
+#
+block 546 surf 46
+block 546 element type hexshell
+block 546 name 'hexshellblock'
+#
+block 609 vol 9
+block 609 element type hex
+block 609 name 'hexblock'
+#
+block 610 vol 10
+block 610 element type hex8
+block 610 name 'hex8block'
+#
+block 611 vol 11
+block 611 element type hex9
+block 611 name 'hex9block'
+#
+block 612 vol 12
+block 612 element type hex20
+block 612 name 'hex20block'
+#
+block 613 vol 13
+block 613 element type hex27
+block 613 name 'hex27block'
+#
+# try a few more with element type not assigned before block creation and meshing
+brick x 1
+vol 14 scheme tetmesh size .25
+block 714 vol 14
+mesh vol 14
+#
+brick x 1
+vol 15 scheme map size .25
+block 715 vol 15
+mesh vol 15
+#
+save as 'cubtest12.cub' overwrite
