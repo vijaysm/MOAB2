@@ -948,6 +948,86 @@ ErrorCode mb_upward_adjacencies_test()
   return MB_SUCCESS;
 }
 
+ErrorCode mb_adjacent_create_test() 
+{
+  Core moab;
+  Interface& mb = moab;
+  ErrorCode rval;
+  
+    // create vertices
+  const double coords[][3] = 
+    { {-0.5, -0.5,  0.5 },
+      {-0.5, -0.5, -0.5 },
+      {-0.5,  0.5, -0.5 },
+      {-0.5,  0.5,  0.5 },
+      { 0.5, -0.5,  0.5 },
+      { 0.5, -0.5, -0.5 },
+      { 0.5,  0.5, -0.5 },
+      { 0.5,  0.5,  0.5 } };
+  EntityHandle verts[8] = {0};
+  for (int i = 0; i < 8; ++i) {
+    rval = mb.create_vertex( coords[i], verts[i] );
+    CHKERR(rval);
+  }
+    // create a single hex
+  const EntityHandle hconn[8] = { verts[0], verts[1], verts[2], verts[3], 
+                                  verts[4], verts[5], verts[6], verts[7] };
+  EntityHandle hex;
+  rval = mb.create_element( MBHEX, hconn, 8, hex );
+  CHKERR(rval);
+    // create hex faces
+  std::vector<EntityHandle> quads;
+  rval = mb.get_adjacencies( &hex, 1, 2, true, quads, Interface::UNION );
+  CHKERR(rval);
+  CHECK_EQUAL( (size_t)6, quads.size() );
+    // check that we got each of the 6 expected faces, with outwards
+    // normals assuming CCW order and correct connectivity
+  const EntityHandle faces[6][4] = {
+    { verts[0], verts[1], verts[5], verts[4] },
+    { verts[1], verts[2], verts[6], verts[5] },
+    { verts[2], verts[3], verts[7], verts[6] },
+    { verts[3], verts[0], verts[4], verts[7] },
+    { verts[3], verts[2], verts[1], verts[0] },
+    { verts[4], verts[5], verts[6], verts[7] } };
+  for (int i = 0; i < 6; ++i) { // for each expected face
+    // get sorted list of verts first for easy comparison
+    std::vector<EntityHandle> exp_sorted(4);
+    std::copy( faces[i], faces[i]+4, exp_sorted.begin() );
+    std::sort( exp_sorted.begin(), exp_sorted.end() );
+    // search for matching face in output
+    int j = 0;
+    std::vector<EntityHandle> conn;
+    for (; j < 6; ++j) {
+      conn.clear();
+      rval = mb.get_connectivity( &quads[j], 1, conn );
+      CHKERR(rval);
+      CHECK_EQUAL( (size_t)4, conn.size() );
+      std::vector<EntityHandle> sorted(conn);
+      std::sort( sorted.begin(), sorted.end() );
+      if (sorted == exp_sorted)
+        break;
+    }
+    if (j == 6) {
+      std::cerr << "No adjacent face matching hex face " << i << std::endl;
+      CHECK(j<6);
+    }
+    // check order
+    int k = std::find( conn.begin(), conn.end(), faces[i][0] ) - conn.begin();
+    for (j = 1; j < 4; ++j)
+      if (faces[i][j] != conn[(j+k)%4])
+        break;
+    if (j != 4) {
+      std::cerr << "Incorrect vertex order for hex face " << i << std::endl;
+      std::cerr << "Expected: " << faces[i][0] << ", " << faces[i][1] << ", "
+                                << faces[i][2] << ", " << faces[i][3] << std::endl;
+      std::cerr << "Actual:   " << conn[0] << ", " << conn[1] << ", "
+                                << conn[2] << ", " << conn[3] << std::endl;
+      CHECK(false);
+    }
+  }
+  return MB_SUCCESS;   
+}
+
 ErrorCode nothing_but_type( Range& range, EntityType type )
 { 
 
@@ -8187,6 +8267,7 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_adjacencies_test );
   RUN_TEST( mb_adjacencies_create_delete_test );
   RUN_TEST( mb_upward_adjacencies_test );
+  RUN_TEST( mb_adjacent_create_test );
   RUN_TEST( mb_vertex_coordinate_test );
   RUN_TEST( mb_vertex_tag_test );
   RUN_TEST( mb_temporary_test );
