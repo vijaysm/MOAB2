@@ -165,7 +165,7 @@ bool initializeSmoothing(iGeom_Instance instance) {
    rval = MBI->tag_create("CONTROLEDGE", 9 * sizeof(double), MB_TAG_DENSE,
          edgeCtrlTag, &defCtrlPoints);
    if (MB_SUCCESS != rval)
-      return MB_FAILURE;
+      return false;
 
    Tag facetCtrlTag;
    double defControls[18] = { 0. };
@@ -1270,8 +1270,7 @@ void iGeom_getPntRayIntsct(iGeom_Instance instance, double x, double y, double z
             (*intersect_coords)[3*i+j] = pos[j];
       }
    }
-
-   return;
+   RETURN(iBase_SUCCESS);;
 }
 
 void iGeom_getPntArrRayIntsct(iGeom_Instance, int storage_order,
@@ -1344,7 +1343,7 @@ void iGeom_getEgFcSense(iGeom_Instance instance, iBase_EntityHandle edge,
       else if (sense_reverse)
          *sense_out = -1;
    }
-   return;
+   RETURN(iBase_SUCCESS);
 
 }
 void iGeom_getEgFcArrSense(iGeom_Instance,
@@ -1415,7 +1414,7 @@ void iGeom_getEgVtxSense(iGeom_Instance instance, iBase_EntityHandle edge,
    free(verts1);
    free(verts2);
 
-   return;
+   RETURN(iBase_SUCCESS);
 }
 void iGeom_getEgVtxArrSense(iGeom_Instance,
       iBase_EntityHandle const* edge_handles, int edge_handles_size,
