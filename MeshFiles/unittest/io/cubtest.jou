@@ -183,4 +183,13 @@ vol 15 scheme map size .25
 block 715 vol 15
 mesh vol 15
 #
+# now some nodeset and sideset names
+nodeset 100 surface 1
+nodeset 100 name 'ns100'
+sideset 200 surface 2
+sideset 200 name 'ss200'
+#
+# now a group name
+group 'newgrp' add volume all
+#
 save as 'cubtest12.cub' overwrite
