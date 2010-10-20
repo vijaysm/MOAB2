@@ -2326,6 +2326,11 @@ extern "C" {
         && entity_topology < iMesh_ALL_TOPOLOGIES) {
       type = mb_topology_table[entity_topology];
       use_top = true;
+      if (entity_type != iBase_ALL_TYPES && 
+          entity_type != CN::Dimension(type)) {
+        ERROR(iBase_BAD_TYPE_AND_TOPO,
+              "type and topology are inconsistant");
+      }
     }
     else if (entity_type >= iBase_VERTEX
              && entity_type <= iBase_ALL_TYPES)
