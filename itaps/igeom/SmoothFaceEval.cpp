@@ -58,7 +58,11 @@ SmoothFaceEval::SmoothFaceEval(moab::Interface * mb,
    //_mbOut->create_meshset(MESHSET_SET, _oSet); //will contain the
    // get also the obb_root
    if (_my_geomTopoTool)
+   {
       _my_geomTopoTool->get_root(this->_set, _obb_root);
+      if (debug_surf_eval1)
+            _my_geomTopoTool->obb_tree()->stats(_obb_root, std::cout);
+   }
 }
 
 SmoothFaceEval::~SmoothFaceEval() {

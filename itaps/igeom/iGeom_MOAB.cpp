@@ -83,6 +83,16 @@ bool initializeSmoothing(iGeom_Instance instance) {
    int numSurfaces = _my_gsets[2].size();
    //SmoothFaceEval ** smthFace = new SmoothFaceEval *[numSurfaces];
    _smthFace = new SmoothFaceEval *[numSurfaces];
+   if (!t_created) {
+      GETGTT(instance);
+      rval = _my_geomTopoTool->construct_obb_trees();
+      if (rval != MB_SUCCESS)
+      { 
+         std::cout << "Failed to construct obb tree.\n";
+         return false;
+      }
+      t_created = true;
+   }
    // there should also be a map from surfaces to evaluators
    //std::map<MBEntityHandle, SmoothFaceEval*> mapSurfaces;
 
