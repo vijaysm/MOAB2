@@ -22,9 +22,11 @@ using namespace moab;
 #ifdef MESHDIR
 static const char ho_file[] = STRINGIFY(MESHDIR) "/io/ho_test.g";
 static const char file_one[] = STRINGIFY(MESHDIR) "/mbtest1.g";
+static const char alt_file[] = STRINGIFY(MESHDIR) "/io/hex_2x2x2_ss.exo";
 #else
 static const char ho_file[] = "ho_test.g";
 static const char file_one[] = "mbtest1.g";
+static const char alt_one[] = "hex_2x2x2_ss.exo";
 #endif
 
 void read_file( Interface& moab, 
@@ -83,6 +85,8 @@ void test_read_block_ids();
 void test_read_sideset_ids();
 void test_read_nodeset_ids();
 
+void test_read_alternate_coord_format();
+
 int main()
 {
   int result = 0;
@@ -117,6 +121,8 @@ int main()
   result += RUN_TEST(test_read_block_ids );
   result += RUN_TEST(test_read_sideset_ids);
   result += RUN_TEST(test_read_nodeset_ids);
+
+  result += RUN_TEST(test_read_alternate_coord_format);
   
   return result;
 }
@@ -1010,3 +1016,34 @@ void test_read_nodeset_ids() {
   test_read_ids_common( ho_file, DIRICHLET_SET_TAG_NAME, 0, 0 );
 }
 
+void test_read_alternate_coord_format()
+{
+  Core moab;
+  Interface& mb = moab;
+  ErrorCode rval = mb.load_file( alt_file );
+  CHECK_ERR(rval);
+  
+  const double exp[] = { 0, 0, 0,
+                         1, 0, 0,
+                         1, 1, 0,
+                         0, 1, 0,
+                         0, 0, 1,
+                         1, 0, 1,
+                         1, 1, 1,
+                         0, 1, 1 };
+  
+  Range hexes;
+  rval = mb.get_entities_by_type( 0, MBHEX, hexes );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( (EntityHandle)1, hexes.size() );
+  EntityHandle hex = hexes.front();
+  const EntityHandle* conn;
+  int len;
+  rval = mb.get_connectivity( hex, conn, len );
+  CHECK_ERR(rval);
+  CHECK_EQUAL(8, len);
+  double act[3*8];
+  rval = mb.get_coords( conn, len, act );
+  CHECK_ERR(rval);
+  CHECK_ARRAYS_EQUAL( exp, 3*8, act, 3*8 );
+}
