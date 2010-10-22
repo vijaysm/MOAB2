@@ -643,6 +643,8 @@ extern "C" {
       
       if (iBase_VERTEX == entity_type_requested &&
           TYPE_FROM_HANDLE(*entity_iter) != MBPOLYHEDRON) {
+        if (CN::Dimension(TYPE_FROM_HANDLE(*entity_iter)) == 0)
+          continue;
         result = MBI->get_connectivity(*entity_iter, connect, num_connect, false, &conn_storage);
         if (MB_SUCCESS != result) {
           if (allocated_array)
@@ -666,6 +668,8 @@ extern "C" {
         num_connect = adj_ents.size();
       }
       else {
+        if (CN::Dimension(TYPE_FROM_HANDLE(*entity_iter)) == entity_type_requested)
+          continue;
         adj_ents.clear();
         result = MBI->get_adjacencies( entity_iter, 1, 
                                        entity_type_requested, false, adj_ents );
