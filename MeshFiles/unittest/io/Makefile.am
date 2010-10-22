@@ -1,6 +1,8 @@
 EXTRA_DIST = brick_cubit10.1.cub \
              brick_cubit10.2.cub \
              brick_cubit10.cub \
+	     cubtest12.cub \
+	     cubtest.jou \
 	     gmsh2.msh \
              ho_test.g \
              ho_test.cub \
