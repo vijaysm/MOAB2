@@ -80,13 +80,18 @@ namespace ElemUtil {
       /* FIX: should this be evaluated in real coordinates and be obtained as part of a Newton solve? */
       /**\brief Evaluate the determinate of the inverse Jacobi matrix. */
       virtual double  det_ijacobian(const CartVect& xi) const {return this->jacobian(xi).inverse().determinant();};
-      
+
+      /**\brief Evaluate a scalar field at a point given field values at the vertices. */
+      virtual double   evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const = 0;
+      /**\brief Integrate a scalar field over the element given field values at the vertices. */
+      virtual double   integrate_scalar_field(const double *field_vertex_values) const = 0;
+
       /**\brief Size of the vertices vector. */
       unsigned int size() {return this->vertex.size();}
       /**\brief Retrieve vertices. */
       inline const std::vector<CartVect>& get_vertices();
       /**\brief Set vertices.      */
-      void                                set_vertices(const std::vector<CartVect>& v);
+      virtual void set_vertices(const std::vector<CartVect>& v);
       
       /* Exception thrown when an evaluation fails (e.g., ievaluate fails to converge). */
       class EvaluationError {

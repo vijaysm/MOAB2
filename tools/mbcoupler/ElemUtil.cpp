@@ -116,54 +116,6 @@ Matrix3 LinearHexMap::jacobian( const CartVect& xi ) const
   return J *= 0.125;
 }
 
-/**\brief Shape function for linear tetrahedron */
-class LinearTetMap : public VolMap {
-  public:
-    LinearTetMap( const CartVect* corner_coords ) : corners(corner_coords) {}
-    virtual CartVect center_xi() const;
-    virtual CartVect evaluate( const CartVect& xi ) const;
-    virtual Matrix3 jacobian( const CartVect& xi ) const;
-  private:
-    const CartVect* corners;
-    static const double corner_xi[8][3];
-};
-
-const double LinearTetMap::corner_xi[8][3] = { { -1, -1, -1 },
-                                               {  1, -1, -1 },
-                                               {  0,  1, -1 },
-                                               {  0,  1, -1 },
-                                               {  0,  0,  1 },
-                                               {  0,  0,  1 },
-                                               {  0,  0,  1 },
-                                               {  0,  0,  1 } };
-CartVect LinearTetMap::center_xi() const
-  { return CartVect(0.0); }
-
-CartVect LinearTetMap::evaluate( const CartVect& xi ) const
-{
-  CartVect x(0.0);
-  for (unsigned i = 0; i < 8; ++i) {
-    const double N_i = (1 + xi[0]*corner_xi[i][0])
-                     * (1 + xi[1]*corner_xi[i][1])
-                     * (1 + xi[2]*corner_xi[i][2]);
-
-    if ((i == 0) || (i == 1))
-      x += N_i * corners[i];
-    else if (i == 2)
-      x += N_i * corners[2];
-    else
-      x += N_i * corners[3];
-  }
-  x *= 0.125;
-  return x;
-}
-
-Matrix3 LinearTetMap::jacobian( const CartVect& xi ) const
-{
-  Matrix3 x;
-  return x;
-}
-
 
 bool nat_coords_trilinear_hex( const CartVect* corner_coords,
                                const CartVect& x,
