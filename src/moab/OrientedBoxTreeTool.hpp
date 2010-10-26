@@ -160,6 +160,8 @@ class OrientedBoxTreeTool
         //! print the contents of this structure to given stream
         void print( std::ostream& str ) const ;
 
+        TrvStats() : ray_tri_tests_count(0) {}
+
       private: 
       
         std::vector< unsigned > nodes_visited_count;
