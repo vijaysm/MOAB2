@@ -438,7 +438,7 @@ namespace Element {
     this->vertex = v;
   };// Map::set_vertices()
   //
-  CartVect Map::ievaluate(const CartVect& x, double tol, const CartVect& x0 = CartVect(0.0)) const {
+  CartVect Map::ievaluate(const CartVect& x, double tol, const CartVect& x0) const {
     const double error_tol_sqr = tol*tol;
     double det;
     CartVect xi = x0;

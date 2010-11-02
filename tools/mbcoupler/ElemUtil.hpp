@@ -67,7 +67,7 @@ namespace ElemUtil {
       /**\brief Evaluate the map on \xi (calculate $\vec x = F($\vec \xi)$ )*/
       virtual CartVect evaluate( const CartVect& xi ) const = 0;
       /**\brief Evaluate the inverse map (calculate $\vec \xi = F^-1($\vec x)$ to given tolerance)*/
-      CartVect ievaluate( const CartVect& x, double tol, const CartVect& x0) const ;
+      CartVect ievaluate( const CartVect& x, double tol, const CartVect& x0 = CartVect(0.0)) const ;
       /* FIX: should evaluate and ievaluate return both the value and the Jacobian (first jet)? */
       /**\brief Evaluate the map's Jacobi matrix. */
       virtual Matrix3 jacobian( const CartVect& xi ) const = 0;
