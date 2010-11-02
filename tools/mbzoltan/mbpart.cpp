@@ -32,6 +32,7 @@ void help( const char* argv0 )
             << "-s    Write partition as tagged sets (Default)" << std::endl
             << "-t    Write partition by tagging entities" << std::endl
             << "-b    Write partition as both tagged sets and tagged entities" << std::endl
+            << "-i    Imbalance tolerance (used in PHG, Hypergraph methods)" << std::endl
             << std::endl;
   exit(0);
 }
@@ -57,6 +58,7 @@ int main( int argc, char* argv[] )
   long num_parts;
   bool write_sets = true, write_tags = false;
   bool no_more_flags = false;
+  double imbal_tol = 1.10;
   
   for (i = 1; i < argc; ++i) {
     if (!expected.empty()) {
@@ -100,6 +102,9 @@ int main( int argc, char* argv[] )
         case 'b':
           write_sets = true;
           write_tags = true;
+          break;
+        case 'i':
+          imbal_tol = atof(argv[++i]);
           break;
         default:
           std::cerr << "Unknown option: \"" << argv[i] << '"' << std::endl;
@@ -172,7 +177,7 @@ int main( int argc, char* argv[] )
   }
   
   rval = tool.partition_mesh( num_parts, zoltan_method, other_method,
-                              write_sets, write_tags, part_dim );
+                              imbal_tol, write_sets, write_tags, part_dim );
   if (MB_SUCCESS != rval) {
     std::cerr << "Partitioner failed!" << std::endl;
     std::cerr << "  Error code: " << mb.get_error_string(rval) << " (" << rval << ")" << std::endl;

@@ -85,11 +85,12 @@ using namespace moab;
                              const bool write_as_tags = false);
     
     ErrorCode partition_mesh(const int nparts,
-                               const char *zmethod,
-                               const char *other_method,
-                               const bool write_as_sets = true,
-                               const bool write_as_tags = false,
-                               const int part_dim = 3);
+                             const char *zmethod,
+                             const char *other_method,
+                             double imbal_tol,
+                             const bool write_as_sets = true,
+                             const bool write_as_tags = false,
+                             const int part_dim = 3);
     
     int get_mesh(std::vector<double> &pts, std::vector<int> &ids,
                  std::vector<int> &adjs, std::vector<int> &length,

@@ -22,6 +22,7 @@
 
 #include <iostream>
 #include <assert.h>
+#include <sstream>
 
 #include "MBZoltan.hpp"
 #include "moab/Interface.hpp"
@@ -73,13 +74,13 @@ ErrorCode MBZoltan::balance_mesh(const char *zmethod,
                                    const bool write_as_sets,
                                    const bool write_as_tags) 
 {
-  if (!strcmp(zmethod, "RCB") && !strcmp(zmethod, "RIB") &&
+  if (!strcmp(zmethod, "RR") && !strcmp(zmethod, "RCB") && !strcmp(zmethod, "RIB") &&
       !strcmp(zmethod, "HSFC") && !strcmp(zmethod, "Hypergraph") &&
       !strcmp(zmethod, "PHG") && !strcmp(zmethod, "PARMETIS") &&
       !strcmp(zmethod, "OCTPART")) 
   {
     std::cout << "ERROR node " << mbpc->proc_config().proc_rank() << ": Method must be "
-              << "RCB, RIB, HSFC, Hypergraph (PHG), PARMETIS, or OCTPART"
+              << "RR, RCB, RIB, HSFC, Hypergraph (PHG), PARMETIS, or OCTPART"
               << std::endl;
     return MB_FAILURE;
   }
@@ -92,7 +93,7 @@ ErrorCode MBZoltan::balance_mesh(const char *zmethod,
   // Get a mesh from MOAB and divide it across processors.
 
   ErrorCode result;
-  
+
   if (mbpc->proc_config().proc_rank() == 0) {
     result = assemble_graph(3, pts, ids, adjs, length, elems); RR;
   }
@@ -212,11 +213,12 @@ ErrorCode MBZoltan::balance_mesh(const char *zmethod,
 }
 
 ErrorCode MBZoltan::partition_mesh(const int nparts,
-                                     const char *zmethod,
-                                     const char *other_method,
-                                     const bool write_as_sets,
-                                     const bool write_as_tags,
-                                     const int part_dim) 
+                                   const char *zmethod,
+                                   const char *other_method,
+                                   double imbal_tol,
+                                   const bool write_as_sets,
+                                   const bool write_as_tags,
+                                   const int part_dim) 
 {
     // should only be called in serial
   if (mbpc->proc_config().proc_size() != 1) {
@@ -225,7 +227,7 @@ ErrorCode MBZoltan::partition_mesh(const int nparts,
     return MB_FAILURE;
   }
   
-  if (NULL != zmethod && strcmp(zmethod, "RCB") && strcmp(zmethod, "RIB") &&
+  if (NULL != zmethod && strcmp(zmethod, "RR") && strcmp(zmethod, "RCB") && strcmp(zmethod, "RIB") &&
       strcmp(zmethod, "HSFC") && strcmp(zmethod, "Hypergraph") &&
       strcmp(zmethod, "PHG") && strcmp(zmethod, "PARMETIS") &&
       strcmp(zmethod, "OCTPART")) 
@@ -244,6 +246,29 @@ ErrorCode MBZoltan::partition_mesh(const int nparts,
   // Get a mesh from MOAB and divide it across processors.
 
   ErrorCode result;
+  
+    // short-circuit everything if RR partition is requested
+  if (!strcmp(zmethod, "RR")) {
+      // get all elements
+    result = mbImpl->get_entities_by_dimension(0, 3, elems); RR;
+    
+      // make a trivial assignment vector
+    std::vector<int> assign_vec(elems.size());
+    int num_per = elems.size() / nparts;
+    int extra = elems.size() % nparts;
+    if (extra) num_per++;
+    int nstart = 0;
+    for (int i = 0; i < nparts; i++) {
+      if (i == extra) num_per--;
+      std::fill(&assign_vec[nstart], &assign_vec[nstart+num_per], i);
+      nstart += num_per;
+    }
+    
+    result = write_partition(nparts, elems, &assign_vec[0],
+                             write_as_sets, write_as_tags);
+  
+    return result;
+  }
   
   result = assemble_graph(part_dim, pts, ids, adjs, length, elems); RR;
   
@@ -272,6 +297,12 @@ ErrorCode MBZoltan::partition_mesh(const int nparts,
       SetHypergraph_Parameters("auto");
     else
       SetHypergraph_Parameters(other_method);
+
+    if (imbal_tol) {
+      std::ostringstream str;
+      str << imbal_tol;
+      myZZ->Set_Param("IMBALANCE_TOL", str.str().c_str());     // no debug messages
+    }
   }
   else if (!strcmp(zmethod, "PARMETIS")) {
     if (NULL == other_method)

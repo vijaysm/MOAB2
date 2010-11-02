@@ -37,6 +37,7 @@ int main(int argc, char *argv[])
               << "[partition_dim(default=3)]"
               << "[<method(RCB/RIB/HSFC/Hypergraph(PHG)/PARMETIS/OCTPART)>] "
               << "[<parmetis_method>/<oct_method>]"
+              << "[imbalance_tolerance(default=1.10, use 1.03 to get non-empty parts]"
               << std::endl;
     return 1;
   }
@@ -74,11 +75,19 @@ int main(int argc, char *argv[])
   const char *other_method = NULL, *method = NULL;
   if (argc > 8) method = argv[8];
   if (argc > 9) other_method = argv[9];
+
+  double imbal_tol = 0.0;
+  if (argc > 10) {
+    imbal_tol = atof(argv[10]);
+    if (strcmp(method, "Hypergraph") && strcmp(method, "PHG"))
+      std::cerr << "Warning: imbalance tolerance can only be used with Hypergraph or PHG methods; ignoring."
+                << std::endl;
+  }
   
   int nparts = atoi(argv[1]);
   
   result = mbz->partition_mesh(nparts, method, other_method,
-                               as_sets, as_tags, part_dim); RR;
+                               as_sets, as_tags, part_dim, imbal_tol); RR;
   
   if (write_output) {
     result = mbImpl->write_mesh(argv[4]); RR;
