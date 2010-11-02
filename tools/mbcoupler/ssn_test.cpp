@@ -10,7 +10,9 @@
 #include "ElemUtil.hpp"
 #include <iostream>
 #include <iomanip>
+#include <sstream>
 #include <cstring>
+#include <cstdlib>
 
 extern "C" 
 {
@@ -132,6 +134,12 @@ int main(int argc, char **argv) {
   err = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+  // Create an ofstream to write output.  One file each for each proc.
+  std::stringstream fname;
+  fname << argv[0] << rank << ".out";
+  std::freopen(fname.str().c_str(), "a", stdout);
+  std::freopen(fname.str().c_str(), "a", stderr);
+
   // Create the moab instance
   Interface *mbi = new Core();
   if (NULL == mbi) {
@@ -225,6 +233,8 @@ int main(int argc, char **argv) {
   // source is 1st mesh, target is 2nd mesh
   Range src_elems, targ_elems;
 
+  // ******************************
+  std::cout << "********** Create Coupler **********" << std::endl;
   // Create a coupler
   std::cout << "Creating Coupler..." << std::endl;
   Coupler mbc(mbi, pcs[0], src_elems, 0);
@@ -242,12 +252,67 @@ int main(int argc, char **argv) {
     i++;
   }
 
+  // ******************************
+  std::cout << "********** Test create_tuples **********" << std::endl;
+  // First get some EntitySets for Mesh 1 and Mesh 2
+  iBase_EntitySetHandle *m1EntSets = NULL;
+  iBase_EntitySetHandle *m2EntSets = NULL;
+  int m1EntSetsSize=0;
+  int m2EntSetsSize=0;
+  int m1EntSetsAlloc=0;
+  int m2EntSetsAlloc=0;
+
+  iMesh_getEntSetsByTagsRec(iMeshInst, roots[0], &tagHandles[0], 
+                            &tagValues[0], tagHandles.size(), 0,
+                            &m1EntSets, &m1EntSetsAlloc, &m1EntSetsSize, &err);
+  CHKERR(err, "iMesh_getEntSetsByTagsRec failed on Mesh 1.");
+
+  iMesh_getEntSetsByTagsRec(iMeshInst, roots[1], &tagHandles[0], 
+                            &tagValues[0], tagHandles.size(), 0,
+                            &m2EntSets, &m2EntSetsAlloc, &m2EntSetsSize, &err);
+  CHKERR(err, "iMesh_getEntSetsByTagsRec failed on Mesh 2.");
+
+  // Create tuple_list for each mesh's
+  std::cout << "Creating tuples for mesh 1..." << std::endl;
+  tuple_list *m1TagTuples = NULL;
+  err = mbc.create_tuples(m1EntSets, m1EntSetsSize, 
+                          &tagHandles[0], tagHandles.size(), &m1TagTuples);
+  CHKERR(err, "create_tuples failed");
+
+  std::cout << "   create_tuples returned" << std::endl;
+  print_tuples(m1TagTuples);
+
+  std::cout << "Creating tuples for mesh 2..." << std::endl;
+  tuple_list *m2TagTuples = NULL;
+  err = mbc.create_tuples(m2EntSets, m2EntSetsSize, 
+                          &tagHandles[0], tagHandles.size(), &m2TagTuples);
+  CHKERR(err, "create_tuples failed");
+
+  std::cout << "   create_tuples returned" << std::endl;
+  print_tuples(m2TagTuples);
+
+  // ******************************
+  std::cout << "********** Test consolidate_tuples **********" << std::endl;
+  // In this serial version we only have the tuples from Mesh 1 and Mesh 2.
+  // Just consolidate those for the test.
+  std::cout << "Consolidating tuple_lists for Mesh 1 and Mesh 2..." << std::endl;
+  tuple_list **tplp_arr = (tuple_list**) malloc(2*sizeof(tuple_list*));
+  tuple_list *unique_tpl = NULL;
+  tplp_arr[0] = m1TagTuples;
+  tplp_arr[1] = m2TagTuples;
+
+  err = mbc.consolidate_tuples(tplp_arr, 2, &unique_tpl);
+  CHKERR(err, "consolidate_tuples failed");
+  std::cout << "    consolidate_tuples returned" << std::endl;
+  print_tuples(unique_tpl);
+
+  // ******************************
+  std::cout << "********** Test get_matching_entities **********" << std::endl;
   std::vector< std::vector<iBase_EntitySetHandle> > m1EntitySets;
   std::vector< std::vector<iBase_EntityHandle> > m1EntityGroups;
   std::vector< std::vector<iBase_EntitySetHandle> > m2EntitySets;
   std::vector< std::vector<iBase_EntityHandle> > m2EntityGroups;
 
-  // ********** Test get_matching_entsets **********
   // Get matching entities for Mesh 1
   std::cout << "Get matching entities for mesh 1..." << std::endl;
   err = mbc.get_matching_entities(roots[0], &tagHandles[0], &tagValues[0], tagHandles.size(),
@@ -257,16 +322,28 @@ int main(int argc, char **argv) {
   std::cout << "    get_matching_entities returned " << m1EntityGroups.size() << " entity groups" << std::endl;
   
   // Print out the data in the vector of vectors
-  std::vector< std::vector<iBase_EntityHandle> >::iterator iter_i;
-  std::vector<iBase_EntityHandle>::iterator iter_j;
+  std::vector< std::vector<iBase_EntitySetHandle> >::iterator iter_esi;
+  std::vector< std::vector<iBase_EntityHandle> >::iterator iter_egi;
+  std::vector<iBase_EntitySetHandle>::iterator iter_esj;
+  std::vector<iBase_EntityHandle>::iterator iter_egj;
   Range entSetRg;
   int icnt;
-  for (iter_i = m1EntityGroups.begin(), icnt = 1; iter_i != m1EntityGroups.end(); iter_i++, icnt++) {
-    std::cout << "      Group(" << icnt << ") = ";
+  for (iter_egi = m1EntityGroups.begin(), iter_esi = m1EntitySets.begin(), icnt = 1; 
+       (iter_egi != m1EntityGroups.end()) && (iter_esi != m1EntitySets.end()); 
+       iter_egi++, iter_esi++, icnt++) {
+    std::cout << "      EntityGroup(" << icnt << ") = ";
     std::cout.flush();
     entSetRg.clear();
-    for (iter_j = (*iter_i).begin(); iter_j != (*iter_i).end(); iter_j++)
-      entSetRg.insert((EntityHandle) *iter_j);
+    for (iter_egj = (*iter_egi).begin(); iter_egj != (*iter_egi).end(); iter_egj++)
+      entSetRg.insert((EntityHandle) *iter_egj);
+    debugOut.print(2, "Mesh1 matching Entities: ", entSetRg);
+    std::cout.flush();
+
+    std::cout << "      EntitySet(" << icnt << ") = ";
+    std::cout.flush();
+    entSetRg.clear();
+    for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); iter_esj++)
+      entSetRg.insert((EntityHandle) *iter_esj);
     debugOut.print(2, "Mesh1 matching EntitySets: ", entSetRg);
     std::cout.flush();
   }
@@ -278,52 +355,29 @@ int main(int argc, char **argv) {
   CHKERR(err, "get_matching_entities failed");
 
   std::cout << "    get_matching_entities returned " << m2EntityGroups.size() << " entity groups" << std::endl;
-  for (iter_i = m2EntityGroups.begin(), icnt = 1; iter_i != m2EntityGroups.end(); iter_i++, icnt++) {
-    std::cout << "      Group(" << icnt << ") = ";
+  for (iter_egi = m2EntityGroups.begin(), iter_esi = m2EntitySets.begin(), icnt = 1; 
+       (iter_egi != m2EntityGroups.end()) && (iter_esi != m2EntitySets.end()); 
+       iter_egi++, iter_esi++, icnt++) {
+    std::cout << "      EntityGroup(" << icnt << ") = ";
     std::cout.flush();
     entSetRg.clear();
-    for (iter_j = (*iter_i).begin(); iter_j != (*iter_i).end(); iter_j++)
-      entSetRg.insert((EntityHandle) *iter_j);
+    for (iter_egj = (*iter_egi).begin(); iter_egj != (*iter_egi).end(); iter_egj++)
+      entSetRg.insert((EntityHandle) *iter_egj);
+    debugOut.print(2, "Mesh2 matching Entities: ", entSetRg);
+    std::cout.flush();
+
+    std::cout << "      EntitySet(" << icnt << ") = ";
+    std::cout.flush();
+    entSetRg.clear();
+    for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); iter_esj++)
+      entSetRg.insert((EntityHandle) *iter_esj);
     debugOut.print(2, "Mesh2 matching EntitySets: ", entSetRg);
     std::cout.flush();
   }
 
-//   // ********** Test create_tuples **********
-//   // Create tuple_list for each mesh's
-//   std::cout << "Creating tuples for mesh 1..." << std::endl;
-//   tuple_list *m1TagTuples = NULL;
-//   err = mbc.create_tuples(m1EntSets, m1EntSetsSize, 
-//                           &tagHandles[0], tagHandles.size(), &m1TagTuples);
-//   CHKERR(err, "create_tuples failed");
-
-//   std::cout << "   create_tuples returned" << std::endl;
-//   print_tuples(m1TagTuples);
-
-//   std::cout << "Creating tuples for mesh 2..." << std::endl;
-//   tuple_list *m2TagTuples = NULL;
-//   err = mbc.create_tuples(m2EntSets, m2EntSetsSize, 
-//                           &tagHandles[0], tagHandles.size(), &m2TagTuples);
-//   CHKERR(err, "create_tuples failed");
-
-//   std::cout << "   create_tuples returned" << std::endl;
-//   print_tuples(m2TagTuples);
-
-//   // ********** Test consolidate_tuples **********
-//   // In this serial version we only have the tuples from Mesh 1 and Mesh 2.
-//   // Just consolidate those for the test.
-//   std::cout << "Consolidating tuple_lists for Mesh 1 and Mesh 2..." << std::endl;
-//   tuple_list **tplp_arr = (tuple_list**) malloc(2*sizeof(tuple_list*));
-//   tuple_list *unique_tpl = NULL;
-//   tplp_arr[0] = m1TagTuples;
-//   tplp_arr[1] = m2TagTuples;
-
-//   err = mbc.consolidate_tuples(tplp_arr, 2, &unique_tpl);
-//   CHKERR(err, "consolidate_tuples failed");
-//   std::cout << "    consolidate_tuples returned" << std::endl;
-//   print_tuples(unique_tpl);
-
   if (debug) {
-    // ********** Test print_tuples **********
+    // ******************************
+    std::cout << "********** Test print_tuples **********" << std::endl;
     // temporary test funtion
     std::cout << "Testing print_tuples..." << std::endl;
 
@@ -363,7 +417,8 @@ int main(int argc, char **argv) {
     std::cout << "    print of test_tuples after filling with data..." << std::endl;
     print_tuples(&test_tuple);
 
-    // ********** Test pack_tuples and unpack_tuples **********
+    // ******************************
+    std::cout << "********** Test pack_tuples and unpack_tuples **********" << std::endl;
     void *mp_buf;
     int buf_sz;
     if (rank == 0) {
@@ -396,25 +451,28 @@ int main(int argc, char **argv) {
     print_tuples(rcv_tuples);
   }
 
-  // Test integration function
+  // ******************************
+  std::cout << "********** Test moab::Element::Map::integrate_scalar_field **********" << std::endl;
   // Create a simple hex centered at 0,0,0 with sides of length 2.
-  const CartVect biunit_cube[8] = { CartVect( -1, -1, -1 ),
-                                    CartVect(  1, -1, -1 ),
-                                    CartVect(  1,  1, -1 ),
-                                    CartVect( -1,  1, -1 ),
-                                    CartVect( -1, -1,  1 ),
-                                    CartVect(  1, -1,  1 ),
-                                    CartVect(  1,  1,  1 ),
-                                    CartVect( -1,  1,  1 ) };
+  std::vector<CartVect> biunit_cube(8);
+  biunit_cube[0] = CartVect( -1, -1, -1 );
+  biunit_cube[1] = CartVect(  1, -1, -1 );
+  biunit_cube[2] = CartVect(  1,  1, -1 );
+  biunit_cube[3] = CartVect( -1,  1, -1 );
+  biunit_cube[4] = CartVect( -1, -1,  1 );
+  biunit_cube[5] = CartVect(  1, -1,  1 );
+  biunit_cube[6] = CartVect(  1,  1,  1 );
+  biunit_cube[7] = CartVect( -1,  1,  1 );
 
-  const CartVect zerobase_cube[8] = { CartVect( 0, 0, 0 ),
-                                      CartVect( 2, 0, 0 ),
-                                      CartVect( 2, 2, 0 ),
-                                      CartVect( 0, 2, 0 ),
-                                      CartVect( 0, 0, 2 ),
-                                      CartVect( 2, 0, 2 ),
-                                      CartVect( 2, 2, 2 ),
-                                      CartVect( 0, 2, 2 ) };
+  std::vector<CartVect> zerobase_cube(8);
+  zerobase_cube[0] = CartVect( 0, 0, 0 );
+  zerobase_cube[1] = CartVect( 2, 0, 0 );
+  zerobase_cube[2] = CartVect( 2, 2, 0 );
+  zerobase_cube[3] = CartVect( 0, 2, 0 );
+  zerobase_cube[4] = CartVect( 0, 0, 2 );
+  zerobase_cube[5] = CartVect( 2, 0, 2 );
+  zerobase_cube[6] = CartVect( 2, 2, 2 );
+  zerobase_cube[7] = CartVect( 0, 2, 2 );
 
   double field_val = 0.0;
   // Calculate field values at the corners of both cubes
@@ -433,41 +491,54 @@ int main(int argc, char **argv) {
 
   std::cout << "Integrated values:" << std::endl;
 
-  for (int i = 1; i <=5; i++) {
-    ElemUtil::integrate_trilinear_hex(biunit_cube, bcf, field_val, i);
-    std::cout << "    binunit_cube, const_field(num_pts=" << i << "): field_val=" << field_val << std::endl;
-    field_val = 0.0;
+  Element::LinearHex hexMap;
+  try {
+    for (int i = 1; i <=5; i++) {
+      hexMap.set_vertices(biunit_cube);
+      field_val = hexMap.integrate_scalar_field(bcf);
+      std::cout << "    binunit_cube, const_field(num_pts=" << i << "): field_val=" << field_val << std::endl;
+      field_val = 0.0;
 
-    ElemUtil::integrate_trilinear_hex(biunit_cube, bf1, field_val, i);
-    std::cout << "    binunit_cube, field_1(num_pts=" << i << "): field_val=" << field_val << std::endl;
-    field_val = 0.0;
+      field_val = hexMap.integrate_scalar_field(bf1);
+      std::cout << "    binunit_cube, field_1(num_pts=" << i << "): field_val=" << field_val << std::endl;
+      field_val = 0.0;
 
-    ElemUtil::integrate_trilinear_hex(biunit_cube, bf2, field_val, i);
-    std::cout << "    binunit_cube, field_2(num_pts=" << i << "): field_val=" << field_val << std::endl;
-    field_val = 0.0;
+      field_val = hexMap.integrate_scalar_field(bf2);
+      std::cout << "    binunit_cube, field_2(num_pts=" << i << "): field_val=" << field_val << std::endl;
+      field_val = 0.0;
 
-    ElemUtil::integrate_trilinear_hex(biunit_cube, bf3, field_val, i);
-    std::cout << "    binunit_cube, field_3(num_pts=" << i << "): field_val=" << field_val << std::endl;
-    field_val = 0.0;
+      field_val = hexMap.integrate_scalar_field(bf3);
+      std::cout << "    binunit_cube, field_3(num_pts=" << i << "): field_val=" << field_val << std::endl;
+      field_val = 0.0;
 
-    ElemUtil::integrate_trilinear_hex(zerobase_cube, zcf, field_val, i);
-    std::cout << "    zerobase_cube, const_field(num_pts=" << i << "): field_val=" << field_val << std::endl;
-    field_val = 0.0;
 
-    ElemUtil::integrate_trilinear_hex(zerobase_cube, zf1, field_val, i);
-    std::cout << "    zerobase_cube, field_1(num_pts=" << i << "): field_val=" << field_val << std::endl;
-    field_val = 0.0;
+      hexMap.set_vertices(zerobase_cube);
+      field_val = hexMap.integrate_scalar_field(zcf);
+      std::cout << "    zerobase_cube, const_field(num_pts=" << i << "): field_val=" << field_val << std::endl;
+      field_val = 0.0;
 
-    ElemUtil::integrate_trilinear_hex(zerobase_cube, zf2, field_val, i);
-    std::cout << "    zerobase_cube, field_2(num_pts=" << i << "): field_val=" << field_val << std::endl;
-    field_val = 0.0;
+      field_val = hexMap.integrate_scalar_field(zf1);
+      std::cout << "    zerobase_cube, field_1(num_pts=" << i << "): field_val=" << field_val << std::endl;
+      field_val = 0.0;
 
-    ElemUtil::integrate_trilinear_hex(zerobase_cube, zf3, field_val, i);
-    std::cout << "    zerobase_cube, field_3(num_pts=" << i << "): field_val=" << field_val << std::endl;
-    field_val = 0.0;
+      field_val = hexMap.integrate_scalar_field(zf2);
+      std::cout << "    zerobase_cube, field_2(num_pts=" << i << "): field_val=" << field_val << std::endl;
+      field_val = 0.0;
+
+      field_val = hexMap.integrate_scalar_field(zf3);
+      std::cout << "    zerobase_cube, field_3(num_pts=" << i << "): field_val=" << field_val << std::endl;
+      field_val = 0.0;
+    }
+  }
+  catch (moab::Element::Map::ArgError) {
+    CHKERR(iBase_FAILURE, "Failed to set vertices on Element::Map.");
+  }
+  catch (moab::Element::Map::EvaluationError) {
+    CHKERR(iBase_FAILURE, "Failed to get inverse evaluation of coordinate on Element::Map.");
   }
 
-  // Test get_group_integ_vals
+  // ******************************
+  std::cout << "********** Test get_group_integ_vals **********" << std::endl;
   std::cout << "Get group integrated field values..." << std::endl;
 
   // print the field values at the vertices before change.
@@ -508,8 +579,8 @@ int main(int argc, char **argv) {
   }
   std::cout << std::endl;
 
-  // Test apply_group_norm_factors
-
+  // ******************************
+  std::cout << "********** Test apply_group_norm_factors **********" << std::endl;
   // Make the norm factors by inverting the integration values.
   double val;
   for (unsigned int i = 0; i < m1IntegVals.size(); i++) {
@@ -541,31 +612,39 @@ int main(int argc, char **argv) {
   err = mbc.apply_group_norm_factor(m2EntitySets, m2IntegVals, normTag.c_str(), integ_type);
   CHKERR(err, "Failed to apply norm factors to Mesh 2.");
 
-  // Mesh 1 field values
-  std::cout << "  Normalized entity vertex field values (mesh 1): " << std::endl;
-  print_vertex_fields(mbi, iMeshInst, m1EntityGroups, norm_hdl, integ_type);
-
-  // Mesh 2 field values
-  std::cout << "  Normalized entity vertex field values (mesh 2): " << std::endl;
-  print_vertex_fields(mbi, iMeshInst, m2EntityGroups, norm_hdl, integ_type);
-
-  // Now get the integrated values again.  They should all be 1 if this works.
-  err = mbc.get_group_integ_vals(m1EntityGroups, m1IntegVals, normTag.c_str(), 4, integ_type);
-  CHKERR(err, "Failed to get the Mesh 1 group integration values.");
-  std::cout << "Mesh 1 normalized integrated field values(" << m1IntegVals.size() << "): ";
-  for (iter_ivals = m1IntegVals.begin(); iter_ivals != m1IntegVals.end(); iter_ivals++) {
-    std::cout << (*iter_ivals) << " ";
+  // Get the norm_tag_factor on the EntitySets
+  // Get the handle for the norm factor tag
+  iBase_TagHandle norm_factor_hdl;
+  std::string normFactor = normTag + "_normf";
+  iMesh_getTagHandle(iMeshInst, normFactor.c_str(), &norm_factor_hdl, &err, strlen(normFactor.c_str()));
+  CHKERR(err, "Failed to get norm factor tag handle.");
+  
+  // Mesh 1 values
+  std::cout << "Mesh 1 norm factors per EntitySet...";
+  for (iter_esi = m1EntitySets.begin(); iter_esi != m1EntitySets.end(); iter_esi++) {
+    for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); iter_esj++) {
+      double data = 0;
+      iMesh_getEntSetDblData(iMeshInst, (iBase_EntitySetHandle) *iter_esj, norm_factor_hdl, &data, &err);
+      CHKERR(err, "Failed to get tag data.");
+      std::cout << data << ", ";
+    }
   }
   std::cout << std::endl;
 
-  err = mbc.get_group_integ_vals(m2EntityGroups, m2IntegVals, normTag.c_str(), 4, integ_type);
-  CHKERR(err, "Failed to get the Mesh 2 group integration values.");
-  std::cout << "Mesh 2 normalized integrated field values(" << m2IntegVals.size() << "): ";
-  for (iter_ivals = m2IntegVals.begin(); iter_ivals != m2IntegVals.end(); iter_ivals++) {
-    std::cout << (*iter_ivals) << " ";
+  // Mesh 2 values
+  std::cout << "Mesh 2 norm factors per EntitySet...";
+  for (iter_esi = m2EntitySets.begin(); iter_esi != m2EntitySets.end(); iter_esi++) {
+    for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); iter_esj++) {
+      double data = 0;
+      iMesh_getEntSetDblData(iMeshInst, (iBase_EntitySetHandle) *iter_esj, norm_factor_hdl, &data, &err);
+      CHKERR(err, "Failed to get tag data.");
+      std::cout << data << ", ";
+    }
   }
   std::cout << std::endl;
-
+  
+  // ******************************
+  std::cout << "********** Test normalize_subset **********" << std::endl;
   // Now call the Coupler::normalize_subset routine and see if we get an error.
   std::cout << "Running Coupler::normalize_subset() on mesh 1" << std::endl;
   err = mbc.normalize_subset(roots[0], 
@@ -577,10 +656,18 @@ int main(int argc, char **argv) {
                              4);
   CHKERR(err, "Failure in call to Coupler::normalize_subset() on mesh 1");
 
-  // Print the field values after the above call.
-  // Mesh 1 field values
-  std::cout << "  Normalized entity vertex field values (mesh 1): " << std::endl;
-  print_vertex_fields(mbi, iMeshInst, m1EntityGroups, norm_hdl, integ_type);
+  // Print the normFactor on each EntitySet after the above call.
+  // Mesh 1 values
+  std::cout << "Mesh 1 norm factors per EntitySet...";
+  for (iter_esi = m1EntitySets.begin(); iter_esi != m1EntitySets.end(); iter_esi++) {
+    for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); iter_esj++) {
+      double data = 0;
+      iMesh_getEntSetDblData(iMeshInst, (iBase_EntitySetHandle) *iter_esj, norm_factor_hdl, &data, &err);
+      CHKERR(err, "Failed to get tag data.");
+      std::cout << data << ", ";
+    }
+  }
+  std::cout << std::endl;
 
   std::cout << "Running Coupler::normalize_subset() on mesh 2" << std::endl;
   err = mbc.normalize_subset(roots[1], 
@@ -592,11 +679,20 @@ int main(int argc, char **argv) {
                              4);
   CHKERR(err, "Failure in call to Coupler::normalize_subset() on mesh 2");
 
-  // Mesh 2 field values
-  std::cout << "  Normalized entity vertex field values (mesh 2): " << std::endl;
-  print_vertex_fields(mbi, iMeshInst, m2EntityGroups, norm_hdl, integ_type);
+  // Mesh 2 values
+  std::cout << "Mesh 2 norm factors per EntitySet...";
+  for (iter_esi = m2EntitySets.begin(); iter_esi != m2EntitySets.end(); iter_esi++) {
+    for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); iter_esj++) {
+      double data = 0;
+      iMesh_getEntSetDblData(iMeshInst, (iBase_EntitySetHandle) *iter_esj, norm_factor_hdl, &data, &err);
+      CHKERR(err, "Failed to get tag data.");
+      std::cout << data << ", ";
+    }
+  }
+  std::cout << std::endl;
 
-  // Cleanup
+  // Done, cleanup
+  std::cout << "********** ssn_test DONE! **********" << std::endl;
   MPI_Finalize();
   return 0;
 }
@@ -763,8 +859,7 @@ int print_vertex_fields(Interface* mbi,
       int j_type;
       iMesh_getEntType(iMeshInst, (*iter_j), &j_type, &err);
       CHKERR(err, "Failed to get entity type.");
-      if (((integ_type == Coupler::VOLUME) && (j_type != iBase_REGION)) ||
-          ((integ_type == Coupler::AREA)   && (j_type != iBase_FACE)))
+      if ((integ_type == Coupler::VOLUME) && (j_type != iBase_REGION))
         continue;
 
       // Retrieve the vertices from the element
@@ -774,15 +869,17 @@ int print_vertex_fields(Interface* mbi,
 
       iMesh_getEntAdj(iMeshInst, (*iter_j), iBase_VERTEX, &verts, &vertsAlloc, &vertsSize, &err);
       CHKERR(err, "Failed to get vertices from entity.");
+      std::cout << std::fixed;
       for (int i = 0; i < vertsSize; i++) {
         double data = 0;
         iMesh_getDblData(iMeshInst, verts[i], norm_hdl, &data, &err);
         CHKERR(err, "Failed to get tag data.");
-        std::cout << data << ", ";
+        std::cout << std::setprecision(8) << data << ", ";
       }
       std::cout << std::endl << "        ";
     }
     std::cout << std::endl;
+    std::cout.unsetf(std::ios_base::floatfield);  // turn off fixed notation
   }
 
   return err;
@@ -853,11 +950,11 @@ int pack_tuples(tuple_list* tl, void **ptr)
   // copy mi
   memcpy(buf, &(tl->mi),  sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
   // copy ml
-  memcpy(buf, &(tl->ml),  sizeof(unsigned)),            buf+=UINT_PER_LONG;
+  memcpy(buf, &(tl->ml),  sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
   // copy mul
-  memcpy(buf, &(tl->mul), sizeof(unsigned)),            buf+=UINT_PER_LONG;
+  memcpy(buf, &(tl->mul), sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
   // copy mr
-  memcpy(buf, &(tl->mr),  sizeof(unsigned)),            buf+=UINT_PER_REAL;
+  memcpy(buf, &(tl->mr),  sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
   // copy vi
   memcpy(buf, tl->vi,     tl->n*tl->mi*sizeof(sint)),   buf+=tl->n*tl->mi;
   // copy vl
@@ -885,11 +982,11 @@ void unpack_tuples(void *ptr, tuple_list** tlp)
   // get mi
   memcpy(&mit,  buf, sizeof(unsigned)),      buf+=UINT_PER_UNSIGNED;
   // get ml
-  memcpy(&mlt,  buf, sizeof(unsigned)),      buf+=UINT_PER_LONG;
+  memcpy(&mlt,  buf, sizeof(unsigned)),      buf+=UINT_PER_UNSIGNED;
   // get mul
-  memcpy(&mult, buf, sizeof(unsigned)),      buf+=UINT_PER_LONG;
+  memcpy(&mult, buf, sizeof(unsigned)),      buf+=UINT_PER_UNSIGNED;
   // get mr
-  memcpy(&mrt,  buf, sizeof(unsigned)),      buf+=UINT_PER_REAL;
+  memcpy(&mrt,  buf, sizeof(unsigned)),      buf+=UINT_PER_UNSIGNED;
 
   // initalize tl
   tuple_list_init_max(tl, mit, mlt, mult, mrt, nt);

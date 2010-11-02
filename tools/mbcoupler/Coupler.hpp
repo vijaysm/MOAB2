@@ -46,7 +46,7 @@ public:
 
   enum Method {LINEAR_FE, PLAIN_FE};
 
-  enum IntegType {VOLUME, AREA};
+  enum IntegType {VOLUME};
 
     /* constructor
      * Constructor, which also optionally initializes the coupler
@@ -302,10 +302,10 @@ private:
                         std::vector<EntityHandle> &entities, 
                         std::vector<CartVect> &nat_coords);
   
-  ErrorCode interp_field_for_hex(EntityHandle elem,
-                                   CartVect nat_coord, 
-                                   Tag tag,
-                                   double &field);
+  ErrorCode interp_field(EntityHandle elem,
+                         CartVect nat_coord, 
+                         Tag tag,
+                         double &field);
 
   ErrorCode plain_field_map(EntityHandle elem,
 			      Tag tag,

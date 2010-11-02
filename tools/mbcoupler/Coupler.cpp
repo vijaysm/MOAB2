@@ -368,7 +368,7 @@ ErrorCode Coupler::interpolate(Coupler::Method method,
 
     result = MB_FAILURE;
     if(LINEAR_FE == method){
-      result = interp_field_for_hex(mappedPts->vul[mindex],
+      result = interp_field(mappedPts->vul[mindex],
 				    CartVect(mappedPts->vr+3*mindex), 
 				    tag, tl_tmp->vr[i]);
     }else if (PLAIN_FE == method){
@@ -394,9 +394,9 @@ ErrorCode Coupler::interpolate(Coupler::Method method,
 
       result = MB_FAILURE;
       if(LINEAR_FE == method){
-	result = interp_field_for_hex(mappedPts->vul[mindex],
-				      CartVect(mappedPts->vr+3*mindex), 
-				      tag, interp_vals[*vit]);
+	result = interp_field(mappedPts->vul[mindex],
+			      CartVect(mappedPts->vr+3*mindex), 
+			      tag, interp_vals[*vit]);
       }else if (PLAIN_FE == method){
 	result = plain_field_map(mappedPts->vul[mindex],
 				 tag, interp_vals[*vit]);
@@ -455,54 +455,96 @@ ErrorCode Coupler::nat_param(double xyz[3],
       coords_vert[j][2] = coords[3*j+2];
     }
 
-      //test to find out in which hex the point is
-		
-      // get natural coordinates
-    if (ElemUtil::nat_coords_trilinear_hex(&coords_vert[0], CartVect(xyz), 
-                                             tmp_nat_coords, 1e-10)) {
-      entities.push_back(*iter);
-      nat_coords.push_back(tmp_nat_coords);
-      return MB_SUCCESS;
+      //test to find out in which entity the point is
+      //get the EntityType and create the appropriate Element::Map subtype
+    EntityType etype = mbImpl->type_from_handle(*iter);
+
+    if (etype == MBHEX) {
+      Element::LinearHex hexmap(coords_vert);
+      try {
+        tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), 1e-10);
+      }
+      catch (Element::Map::EvaluationError) {
+        continue;
+      }
     }
+    else if (etype == MBTET){
+      Element::LinearTet tetmap(coords_vert);
+      try {
+        tmp_nat_coords = tetmap.ievaluate(CartVect(xyz));
+      }
+      catch (Element::Map::EvaluationError) {
+        continue;
+      }
+    }
+    else {
+      std::cout << "Entity not Hex or Tet" << std::endl;
+      continue;
+    }
+
+      //if we get here then we've found the coordinates.
+      //save them and the entity and return success.
+    entities.push_back(*iter);
+    nat_coords.push_back(tmp_nat_coords);
+    return MB_SUCCESS;
   }
   
   return MB_SUCCESS;
 }
 
-ErrorCode Coupler::interp_field_for_hex(EntityHandle elem,
-                                            CartVect nat_coord, 
-                                            Tag tag,
-                                            double &field)
+ErrorCode Coupler::interp_field(EntityHandle elem,
+				CartVect nat_coord, 
+				Tag tag,
+				double &field)
 {
-    //set the vertices coordinates in the natural system
-
-  const double xi[8] = {-1,1,1,-1,-1,1,1,-1};
-  const double etha[8] = {-1,-1,1,1,-1,-1,1,1};
-  const double mu[8] = {-1,-1,-1,-1,1,1,1,1};
-  double vfields[MAX_SUB_ENTITIES*MAX_SUB_ENTITY_VERTICES];
+  double vfields[8];  // will work for Hexes or Tets
+  moab::Element::Map *elemMap;
+  int num_verts = 0;
+    // get the EntityType
+  EntityType etype = mbImpl->type_from_handle(elem);
+  if (etype == MBHEX) {
+    elemMap = new moab::Element::LinearHex();
+    num_verts = 8;
+  }
+  else if (etype == MBTET){
+    elemMap = new moab::Element::LinearTet();
+    num_verts = 4;
+  }
+  else {
+    return MB_FAILURE;
+  }
+  
 
     // get the tag values at the vertices
   const EntityHandle *connect;
   int num_connect;
   ErrorCode result = mbImpl->get_connectivity(elem, connect, num_connect);
-  if (MB_SUCCESS != result) return result;
+  if (MB_SUCCESS != result) {
+    free(elemMap);
+    return result;
+  }
   result = mbImpl->tag_get_data(tag, connect, num_connect, vfields);
-  if (MB_SUCCESS != result) return result;
+  if (MB_SUCCESS != result) {
+    free(elemMap);
+    return result;
+  }
   
     //function for the interpolation
   field = 0;
 
-    //calculate the field
-
-    // just hexes for now
-  assert(num_connect <= 8);
+    // check the number of vertices
+  assert(num_connect == num_verts);
   
-  for(int i = 0; i < num_connect; i++)
-  {
-    field += 0.125 * vfields[i] *
-      (1+xi[i]*nat_coord[0]) * (1+etha[i]*nat_coord[1]) * (1+mu[i]*nat_coord[2]);
+    //calculate the field
+  try {
+    field = elemMap->evaluate_scalar_field(nat_coord, vfields);
+  }
+  catch (moab::Element::Map::EvaluationError) {
+    free(elemMap);
+    return MB_FAILURE;
   }
 
+  free(elemMap);
   return MB_SUCCESS;
 }
 
@@ -725,42 +767,45 @@ int Coupler::get_matching_entities(iBase_EntitySetHandle                        
 
     // pack the tuple_list in a buffer.
     uint *tuple_buf;
-    int tuple_buf_sz;
-    tuple_buf_sz = pack_tuples(tag_list, (void**)&tuple_buf);
+    int tuple_buf_len;
+    tuple_buf_len = pack_tuples(tag_list, (void**)&tuple_buf);
 
     // Free tag_list here as its not used again if nprocs > 1
     tuple_list_free(tag_list);
 
     // Send back the buffer sizes to the master proc
-    int *all_sz = (int*) malloc(nprocs * sizeof(int));
-    MPI_Gather(&tuple_buf_sz, 1, MPI_INT, all_sz, 1, MPI_INT, MASTER_PROC, 
+    int *recv_cnts = (int*) malloc(nprocs * sizeof(int));
+    int *offsets   = (int*) malloc(nprocs * sizeof(int));
+    uint *all_tuples_buf = 0;
+
+    MPI_Gather(&tuple_buf_len, 1, MPI_INT, recv_cnts, 1, MPI_INT, MASTER_PROC, 
                myPc->proc_config().proc_comm());
     ERRORMPI("Gathering buffer sizes failed.", err);
 
     // Allocate a buffer large enough for all the data
-    uint *all_tuples_buf;
-    int *recv_cnts = (int*) malloc(nprocs * sizeof(int));
-
     if (rank == MASTER_PROC) {
-      int total_sz = 0;
-      for (int j = 0; j < nprocs; j++) total_sz += all_sz[j];
+      int all_tuples_len = recv_cnts[0];
+      offsets[0] = 0;
+      for (int i = 1; i < nprocs; i++) {
+        offsets[i] = offsets[i-1] + recv_cnts[i-1];
+        all_tuples_len += recv_cnts[i];
+      }
 
-      all_tuples_buf = (uint*) malloc(total_sz * sizeof(uint));
+      all_tuples_buf = (uint*) malloc(all_tuples_len * sizeof(uint));
     }
 
     // Send all buffers to the master proc for consolidation
-    MPI_Gatherv(tuple_buf, tuple_buf_sz, MPI_INT, 
-                all_tuples_buf, recv_cnts, all_sz, MPI_INT, MASTER_PROC,
+    MPI_Gatherv(tuple_buf, tuple_buf_len, MPI_INT, 
+                all_tuples_buf, recv_cnts, offsets, MPI_INT, MASTER_PROC,
                 myPc->proc_config().proc_comm());
     ERRORMPI("Gathering tuple_lists failed.", err);
     free(tuple_buf);  // malloc'd in pack_tuples
-    free(recv_cnts);  // malloc'd above in all procs
 
     if (rank == MASTER_PROC) {
       // unpack the tuple_list from the buffer.
       tuple_list **tl_array = (tuple_list **) malloc(nprocs * sizeof(tuple_list*));
       for (int i = 0; i < nprocs; i++)
-        unpack_tuples((void*)all_tuples_buf[all_sz[i]], &tl_array[i]);
+        unpack_tuples((void*) &all_tuples_buf[offsets[i]], &tl_array[i]);
 
       // Free all_tuples_buf here as it is only allocated on the MASTER_PROC
       free(all_tuples_buf);
@@ -777,8 +822,9 @@ int Coupler::get_matching_entities(iBase_EntitySetHandle                        
       // MASTER END   ***************************************************************
     }
 
-    // Free all_sz as its allocated on all procs
-    free(all_sz);
+    // Free offsets and recv_cnts as they are allocated on all procs
+    free(offsets);
+    free(recv_cnts);
 
     // MASTER/SLAVE START #########################################################
     // Broadcast condensed tuple list back to all procs.
@@ -1037,10 +1083,6 @@ int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> >
   iMesh_getTagHandle(iMeshInst, norm_tag, &norm_hdl, &err, strlen(norm_tag));
   ERRORR("Failed to get norm_tag handle.", err);
 
-  int norm_type;
-  iMesh_getTagType(iMeshInst, norm_hdl, &norm_type, &err);
-  ERRORR("Failed to get norm_tag type.", err);
-
   // Check size of integ_vals vector
   if (integ_vals.size() != groups.size())
     integ_vals.resize(groups.size());
@@ -1058,18 +1100,34 @@ int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> >
       int j_type;
       iMesh_getEntType(iMeshInst, (*iter_j), &j_type, &err);
       ERRORR("Failed to get entity type.", err);
-      if (((integ_type == VOLUME) && (j_type != iBase_REGION)) ||
-          ((integ_type == AREA)   && (j_type != iBase_FACE)))
+      // Skip any entities in the group that are not of the type being considered
+      if ((integ_type == VOLUME) && (j_type != iBase_REGION))
         continue;
       
       intgr_val = 0;
 
-      // Currently assumes we have a hexahedral element.  Will need code
-      // to choose between a hex and a tet element.
+      // Check to see if this is a HEXAHEDRON or a TETRAHEDRON
+      // and setup parameters accordingly.
+      int topo_type;
+      iMesh_getEntTopo(iMeshInst, (*iter_j), &topo_type, &err);
+      ERRORR("Failed to get topology for entity.", err);
+
+      moab::Element::Map *elemMap;
+      int num_verts = 0;
+      if (topo_type == iMesh_HEXAHEDRON) {
+        elemMap = new moab::Element::LinearHex();
+        num_verts = 8;
+      }
+      else if (topo_type == iMesh_TETRAHEDRON) {
+        elemMap = new moab::Element::LinearTet();
+        num_verts = 4;
+      }
+      else
+        ERRORR("Unknown topology type.", iBase_NOT_SUPPORTED);
 
       // Get coordinates of all corner vertices (in normal order) and
       // put in array of CartVec.
-      CartVect corners[8];
+      std::vector<CartVect> vertices(num_verts);
 
       // Retrieve the vertices from the element
       iBase_EntityHandle *verts = NULL;
@@ -1077,40 +1135,72 @@ int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> >
       int verts_size = 0;
 
       iMesh_getEntAdj(iMeshInst, (*iter_j), iBase_VERTEX, &verts, &verts_alloc, &verts_size, &err);
-      ERRORR("Failed to get vertices from entity.", err);
+      if (iBase_SUCCESS != err) {
+        std::cerr << "Failed to get vertices from entity." << std::endl;
+        delete(elemMap);
+        return err;
+      }
 
-      if (verts_size < 8)
-        ERRORR("Failed to get 8 vertices.", iBase_FAILURE);
+      if (verts_size != num_verts) {
+        std::cerr << "Failed to get correct number of vertices." << std::endl;
+        delete(elemMap);
+        free(verts);
+        return iBase_FAILURE;
+      }
 
-      // Put the vertices into a CartVect array
-      double x[3];
-      double vfield[8];
-      for (int i = 0; i < verts_size; i++) {
-        iMesh_getVtxCoord(iMeshInst, verts[i], &x[0], &x[1], &x[2], &err);
-        corners[i] = x;
-        if (norm_type == iBase_INTEGER) {
-          int data;
-          iMesh_getIntData(iMeshInst, verts[i], norm_hdl, &data, &err);
-          ERRORR("Failed to get vertex int data for norm_tag.", err);
-          vfield[i] = (double) data;
-        } else if (norm_type == iBase_DOUBLE) {
-          double data;
-          iMesh_getDblData(iMeshInst, verts[i], norm_hdl, &data, &err);
-          ERRORR("Failed to get vertex double data for norm_tag.", err);
-          vfield[i] = data;
-        } else {
-          err = iBase_FAILURE;
-          ERRORR("Bad type for norm_tag.", err);
-        }
+      // Get the vertex coordinates and the field values at the vertices.
+      double *coords = NULL;
+      int coords_alloc = 0;
+      int coords_size = 0;
+      iMesh_getVtxArrCoords(iMeshInst, verts, verts_size, iBase_INTERLEAVED, &coords, &coords_alloc, &coords_size, &err);
+      if (iBase_SUCCESS != err) {
+        std::cerr << "Failed to get vertex coordinates." << std::endl;
+        delete(elemMap);
+        free(verts);
+        return err;
+      }
+
+      double *vfield = NULL;
+      int vfield_alloc = 0;
+      int vfield_size = 0;
+      iMesh_getDblArrData(iMeshInst, verts, verts_size, norm_hdl, &vfield, &vfield_alloc, &vfield_size, &err);
+      if (iBase_SUCCESS != err) {
+        std::cerr << "Failed to get vertex double data for norm_tag." << std::endl;
+        delete(elemMap);
+        free(verts);
+        free(coords);
+        return err;
+      }
+
+      // Put the vertices into a CartVect vector
+      double *x = coords;
+      for (int i = 0; i < verts_size; i++, x+=3) {
+        vertices[i] = CartVect(x);
       }
       free(verts);
+      free(coords);
 
-      // Perform the integration
-      if (!ElemUtil::integrate_trilinear_hex(corners, vfield, intgr_val, num_integ_vals))
-          ERRORR("Bad parameter to ElemUtil::integrate_trilinear_hex.", iBase_FAILURE);
+      // Set the vertices in the Map and perform the integration
+      try {
+        elemMap->set_vertices(vertices);
+        intgr_val = elemMap->integrate_scalar_field(vfield);
 
-      // Combine the result with those of the group
-      grp_intrgr_val += intgr_val;
+        // Combine the result with those of the group
+        grp_intrgr_val += intgr_val;
+      }
+      catch (moab::Element::Map::ArgError) {
+        std::cerr << "Failed to set vertices on Element::Map." << std::endl;
+        delete(elemMap);
+        free(vfield);
+      }
+      catch (moab::Element::Map::EvaluationError) {
+        std::cerr << "Failed to get inverse evaluation of coordinate on Element::Map." << std::endl;
+        delete(elemMap);
+        free(vfield);
+      }
+
+      delete(elemMap);
+      free(vfield);
     }
 
     // Set the group integrated value in the vector
@@ -1146,9 +1236,13 @@ int Coupler::apply_group_norm_factor(std::vector< std::vector<iBase_EntitySetHan
   tmp_ptr += normf_appd_len;
   *tmp_ptr = '\0';
 
-  iBase_TagHandle normf_hdl;
-  iMesh_createTag(iMeshInst, normf_tag, 1, iBase_DOUBLE, &normf_hdl, &err, strlen(normf_tag));
-  ERRORR("Failed to create normalization factor tag.", err);
+  iBase_TagHandle normf_hdl = NULL;
+  // Check to see if the tag exists.  If not then create it.
+  iMesh_getTagHandle(iMeshInst, normf_tag, &normf_hdl, &err, strlen(normf_tag));
+  if (normf_hdl == NULL) {
+    iMesh_createTag(iMeshInst, normf_tag, 1, iBase_DOUBLE, &normf_hdl, &err, strlen(normf_tag));
+    ERRORR("Failed to create normalization factor tag.", err);
+  }
   free(normf_tag);
 
   std::vector< std::vector<iBase_EntitySetHandle> >::iterator iter_i;
@@ -1228,11 +1322,11 @@ void unpack_tuples(void *ptr, tuple_list** tlp)
   // get mi
   memcpy(&mit,  buf, sizeof(unsigned)),      buf+=UINT_PER_UNSIGNED;
   // get ml
-  memcpy(&mlt,  buf, sizeof(unsigned)),      buf+=UINT_PER_LONG;
+  memcpy(&mlt,  buf, sizeof(unsigned)),      buf+=UINT_PER_UNSIGNED;
   // get mul
-  memcpy(&mult, buf, sizeof(unsigned)),      buf+=UINT_PER_LONG;
+  memcpy(&mult, buf, sizeof(unsigned)),      buf+=UINT_PER_UNSIGNED;
   // get mr
-  memcpy(&mrt,  buf, sizeof(unsigned)),      buf+=UINT_PER_REAL;
+  memcpy(&mrt,  buf, sizeof(unsigned)),      buf+=UINT_PER_UNSIGNED;
 
   // initalize tl
   tuple_list_init_max(tl, mit, mlt, mult, mrt, nt);
