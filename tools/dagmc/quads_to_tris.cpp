@@ -32,7 +32,7 @@ ErrorCode make_tris_from_quad( Interface *MBI,
   assert( MB_SUCCESS == result);
    
   // find length of diagonals
-  CartVect coords[n_verts];
+  std::vector<CartVect> coords(n_verts);
   result = MBI->get_coords( quad_conn, n_verts, coords[0].array() );
   if(MB_SUCCESS != result) return result;
   CartVect diagA = coords[0] - coords[2];
