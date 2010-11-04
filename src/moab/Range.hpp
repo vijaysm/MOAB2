@@ -325,6 +325,8 @@ public:
   
   unsigned long get_memory_use() const;
 
+  double compactness() const;
+  
   void insert( Range::const_iterator begin,
                Range::const_iterator end );
 
@@ -835,6 +837,27 @@ inline EntityHandle Range::operator[](EntityID index) const
   Range::const_iterator i = begin();
   i += index;
   return *i;
+}
+
+inline int Range::index(EntityHandle handle) const 
+{
+  if (handle < *begin() || handle > *rbegin()) return -1;
+  
+  unsigned int i = 0;
+  Range::const_pair_iterator pit = const_pair_begin(); 
+  while (handle > (*pit).second && pit != const_pair_end()) {
+    i += (*pit).second - (*pit).first + 1;
+    pit++;
+  }
+  if (handle < (*pit).first || pit == const_pair_end()) return -1;
+  
+  return i + handle - (*pit).first;
+}
+
+inline double Range::compactness() const 
+{
+  unsigned int num_ents = size();
+  return (num_ents ? ((double)get_memory_use() / (double) (num_ents*sizeof(EntityHandle))) : -1);
 }
     
 template <typename Iterator> 

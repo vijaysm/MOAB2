@@ -971,21 +971,6 @@ void Range::swap( Range &range )
 
 }
 
-int Range::index(EntityHandle handle) const 
-{
-  if (handle < *begin() || handle > *rbegin()) return -1;
-  
-  unsigned int i = 0;
-  Range::const_pair_iterator pit = const_pair_begin(); 
-  while (handle > (*pit).second && pit != const_pair_end()) {
-    i += (*pit).second - (*pit).first + 1;
-    pit++;
-  }
-  if (handle < (*pit).first || pit == const_pair_end()) return -1;
-  
-  return i + handle - (*pit).first;
-}
-
     //! return a subset of this range, by type
 Range Range::subset_by_type(EntityType t) const
 {

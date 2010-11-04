@@ -3865,12 +3865,18 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
                          sent_ents, allsent, entprocs);
   RRA("get_sent_ents failed.");
   
+//  std::cout << "allsent ents compactness (size) = " << allsent.compactness() << " (" 
+//            << allsent.size() << ")" << std::endl;
+
     //===========================================
     // pack and send ents from this proc to others
     //===========================================
   for (p = 0, proc_it = buffProcs.begin(); 
        proc_it != buffProcs.end(); proc_it++, p++) {
 
+//    std::cout << "Sent ents compactness (size) = " << sent_ents[p].compactness() << " (" 
+//              << sent_ents[p].size() << ")" << std::endl;
+    
       // reserve space on front for size and for initial buff size
     localOwnedBuffs[p]->reset_buffer(sizeof(int));
 
