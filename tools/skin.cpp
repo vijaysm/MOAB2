@@ -87,7 +87,7 @@ int main( int argc, char* argv[] )
   
   bool no_more_flags = false;
   char* endptr = 0;
-  long block;
+  long block = 0; // initialize to eliminate compiler warning
   while (i < argc) {
     if (!no_more_flags && argv[i][0] == '-') {
       const int f = i++;

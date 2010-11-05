@@ -18,7 +18,6 @@ int main(int argc, char **argv) {
   moab::ErrorCode rval = mb->load_mesh(argv[1]);
 
   // get all triangles
-  int err;
   moab::EntityHandle tree_root;
   moab::Range tris;
   //moab::OrientedBoxTreeTool::Settings settings;
@@ -66,7 +65,7 @@ int main(int argc, char **argv) {
 	    << start_pnt[1] << " " << start_pnt[2] << std::endl;
   std::cout << "# of intersections : " << intersections.size() << std::endl;
   std::cout << "intersection distances are on";
-  for (int i = 0; i < intersections.size(); i++) {
+  for (unsigned int i = 0; i < intersections.size(); i++) {
     std::cout << " " << intersections[i];
   }
   std::cout << " of ray length " << ray_length << std::endl;

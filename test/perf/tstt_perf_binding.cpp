@@ -69,7 +69,6 @@ int main( int argc, char *argv[] )
     // initialize the data in native format
 
     // pre-build the coords array
-  double ttime0, utime1, stime1, ttime1;
   double *coords;
   build_coords(nelem, coords);
   assert(NULL != coords);
@@ -216,7 +215,6 @@ void testC(iMesh_Instance mesh, const int nelem, const double *coords)
 
     // array to hold vertices created individually
   iBase_EntityHandle *sidl_vertices = (iBase_EntityHandle*) malloc(num_verts*sizeof(iBase_EntityHandle));
-  int one_a = 1, one_b = 1;
   int result;
 
   for (int i = 0; i < num_verts; i++) {
