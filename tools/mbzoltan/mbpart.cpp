@@ -24,7 +24,7 @@ void help( const char* argv0 )
   std::cout << argv0 << usage << std::endl << std::endl
             << "-<n>  Specify dimension of entities to partition.  Default is " << std::endl
             << "       largest dimension entity present in input file" << std::endl
-            << "-z    Specify Zoltan partition method.  One of RCB, RIB, HFSC, PHG, " <<std::endl
+            << "-z    Specify Zoltan partition method.  One of RR, RCB, RIB, HFSC, PHG, " <<std::endl
             << "        or Hypergraph (PHG and Hypergraph are synonymous)." << std::endl
             << "        Default is: " << DEFAULT_ZOLTAN_METHOD << std::endl
             << "-p    Specify Parmetis partition method" << std::endl

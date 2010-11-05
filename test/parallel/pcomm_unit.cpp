@@ -122,9 +122,12 @@ void pack_unpack_noremoteh( Core& moab, Range& entities )
   std::vector<EntityHandle> L2hloc, L2hrem;
   std::vector<unsigned int> L2p;
   buff.reset_ptr(sizeof(int));
+  std::vector<EntityHandle> entities_vec(entities.size());
+  std::copy(entities.begin(), entities.end(), entities_vec.begin());
   rval = pcomm->unpack_buffer(buff.buff_ptr, false, -1, -1, L1hloc, L1hrem, L1p, L2hloc, 
-                              L2hrem, L2p, entities);
+                              L2hrem, L2p, entities_vec);
   CHECK_ERR(rval);
+  std::copy(entities_vec.begin(), entities_vec.end(), range_inserter(entities));
 
   delete pcomm;
 }

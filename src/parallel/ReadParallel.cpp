@@ -479,7 +479,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
         ostr << "Failed in step " << ParallelActionsNames[*vit] << std::endl;
         std::string tmp_str;
         if (MB_SUCCESS == mbImpl->get_last_error(tmp_str)) ostr << tmp_str << std::endl;
-        RR(ostr.str().c_str());
+        RR(ostr.str());
       }
       break;
     }
@@ -560,7 +560,7 @@ ErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
       std::ostringstream ostr;
       ostr << "Too few parts; P = " << proc_rk << ", tag = " << ptag 
            << ", # sets = " << myPcomm->partition_sets().size() << std::endl;
-      RR(ostr.str().c_str());
+      RR(ostr.str());
     }
     
     Range tmp_sets;

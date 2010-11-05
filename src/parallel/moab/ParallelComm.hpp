@@ -530,14 +530,14 @@ public:
                             std::vector<EntityHandle> &L2hloc, 
                             std::vector<EntityHandle> &L2hrem,
                             std::vector<unsigned int> &L2p,
-                            Range &new_ents);
+                          std::vector<EntityHandle> &new_ents);
   
   ErrorCode pack_entities(Range &entities,
                             Buffer *buff,
                             const bool store_remote_handles,
                             const int to_proc,
                             const bool is_iface,
-                            std::vector<std::set<unsigned int> > *entprocs = NULL,
+                            tuple_list *entprocs = NULL,
                             Range *allsent = NULL);
 
     //! unpack entities in buff_ptr
@@ -551,7 +551,7 @@ public:
                               std::vector<EntityHandle> &L2hloc, 
                               std::vector<EntityHandle> &L2hrem,
                               std::vector<unsigned int> &L2p,
-                              Range &new_ents);
+                              std::vector<EntityHandle> &new_ents);
   
     //! Call exchange_all_shared_handles, then compare the results with tag data
     //! on local shared entities.
@@ -631,7 +631,7 @@ private:
                             const int bridge_dim, const int ghost_dim,
                             const int num_layers,
                             Range *sent_ents, Range &allsent,
-                            std::vector<std::set<unsigned int> > &entprocs);
+                            tuple_list &entprocs);
   
     /** \brief Set pstatus values on entities
      *
@@ -713,7 +713,7 @@ private:
                               const bool store_remote_handles,
                               const int to_proc,
                               Range &these_ents,
-                              Range &entities,
+                            std::vector<EntityHandle> &entities,
                               Buffer *buff);
   
   ErrorCode print_buffer(unsigned char *buff_ptr, int mesg_type, int from_proc,
@@ -732,7 +732,7 @@ private:
                         const int to_proc);
   
   ErrorCode unpack_sets(unsigned char *&buff_ptr,
-                          Range &entities,
+                        std::vector<EntityHandle> &entities,
                           const bool store_handles,
                           const int to_proc);
   
@@ -775,7 +775,7 @@ private:
   ErrorCode build_sharedhps_list(const EntityHandle entity,
                                    const unsigned char pstatus,
                                    const int sharedp, 
-                                   const std::set<unsigned int> &entprocs,
+                                   const std::set<unsigned int> &procs,
                                    unsigned int &num_ents,
                                    int *tmp_procs,
                                    EntityHandle *tmp_handles);
@@ -887,13 +887,13 @@ private:
   ErrorCode pack_tag( Tag source_tag,
                         Tag destination_tag,
                         const Range &entities,
-                        const Range &whole_range,
+                      const std::vector<EntityHandle> &whole_range,
                         Buffer *buff,
                         const bool store_remote_handles,
                         const int to_proc );
 
   ErrorCode unpack_tags(unsigned char *&buff_ptr,
-                          Range &entities,
+                        std::vector<EntityHandle> &entities,
                           const bool store_handles,
                           const int to_proc);
   
@@ -964,7 +964,7 @@ private:
                                  EntityHandle *from_vec, 
                                  EntityHandle *to_vec_tmp,
                                  int num_ents, int to_proc,
-                                 const Range &new_ents);
+                                 const std::vector<EntityHandle> &new_ents);
   
     //! same as other version, except from_range and to_range should be
     //! different here
@@ -972,14 +972,14 @@ private:
                                  const Range &from_range, 
                                  Range &to_range,
                                  int to_proc,
-                                 const Range &new_ents);
+                                 const std::vector<EntityHandle> &new_ents);
   
     //! same as other version, except packs range into vector
   ErrorCode get_remote_handles(const bool store_remote_handles,
                                  const Range &from_range, 
                                  EntityHandle *to_vec,
                                  int to_proc,
-                                 const Range &new_ents);
+                                 const std::vector<EntityHandle> &new_ents);
 
   std::vector<unsigned int> &buff_procs();
 
@@ -992,7 +992,7 @@ private:
     //! same as above except puts results in range
   ErrorCode get_local_handles(const Range &remote_handles,
                                 Range &local_handles,
-                                const Range &new_ents);
+                              const std::vector<EntityHandle> &new_ents);
   
     //! same as above except gets new_ents from vector
   ErrorCode get_local_handles(EntityHandle *from_vec,

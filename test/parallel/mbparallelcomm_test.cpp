@@ -197,6 +197,7 @@ int main(int argc, char **argv)
               << "; error message: " << std::endl;
     PRINT_LAST_ERROR;
   }
+  if (0 == rank) ltime = MPI_Wtime();
 
   if (MB_SUCCESS == result)
     std::cerr << "Proc " << rank << ": Success." << std::endl;
@@ -204,7 +205,7 @@ int main(int argc, char **argv)
   if (0 == rank) std::cout << "Times: " 
                            << dtime-stime << " "
                            << rtime-stime << " "
-                           << dtime - ltime
+                           << ltime - dtime
                            << " (total/read/delete)"
                            << std::endl;
 
@@ -396,7 +397,8 @@ ErrorCode test_packing(Interface *mbImpl, const char *filename)
   }
   
     // get 3d entities and pack a buffer with them
-  Range ents, new_ents, whole_range;
+  Range ents, whole_range;
+  std::vector<EntityHandle> new_ents;
   result = mbImpl->get_entities_by_handle(file_set, ents);
   RRA("Getting 3d ents failed.");
   

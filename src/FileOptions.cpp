@@ -210,6 +210,51 @@ ErrorCode FileOptions::get_ints_option( const char* name,
   return MB_SUCCESS;
 }
 
+ErrorCode FileOptions::get_reals_option( const char* name, 
+                                          std::vector<double>& values) const
+{
+  const char* s;
+  ErrorCode rval = get_option( name, s );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+    // empty string
+  if (strempty(s))
+    return MB_TYPE_OUT_OF_RANGE;
+  
+    // parse values
+  while (!strempty(s)) {
+    char* endptr;
+    double sval = strtod( s, &endptr);
+
+#define EATSPACE(a) while ((!strcmp(a, " ") || \
+          !strcmp(a, ",")) && !strempty(a)) a++;
+    EATSPACE(endptr);
+    double eval = sval;
+    if (!strcmp(endptr, "-")) {
+      endptr++;
+      s = endptr;
+      eval = strtol(s, &endptr, 0);
+      EATSPACE(endptr);
+    }
+  
+      // check for overflow (parsing long int, returning int)
+    int value = sval;
+    if (sval != (long int)value)
+      return MB_TYPE_OUT_OF_RANGE;
+    value = eval;
+    if (eval != (long int)value)
+      return MB_TYPE_OUT_OF_RANGE;
+  
+    for (int i = sval; i <= eval; i++)
+      values.push_back(i);
+
+    s = endptr;
+  }
+  
+  return MB_SUCCESS;
+}
+
 ErrorCode FileOptions::get_real_option ( const char* name, double& value ) const
 {
   const char* s;

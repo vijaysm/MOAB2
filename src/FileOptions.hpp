@@ -161,6 +161,21 @@ public:
    */
   ErrorCode get_ints_option( const char* name, std::vector<int>& values) const;
   
+  /**\brief Check for option for which the value is a list of doubles
+   *
+   * Check for an option which is a double list.  The value is expected to
+   * be a comma-separated list of int ranges, where an int range can be 
+   * either a single integer value or a range of integer values separated
+   * by a dash ('-').
+   *
+   *\param name The option name
+   *\param values Output. The list of double values.
+   *\return - MB_SUCCESS if option is found
+   *        - MB_TYPE_OUT_OF_RANGE if options is found, but does not contain an ID list
+   *        - MB_ENTITY_NOT_FOUND if option is not found.
+   */
+  ErrorCode get_reals_option( const char* name, std::vector<double>& values) const;
+  
   /** number of options */
   inline unsigned size() const 
     { return mOptions.size(); }
