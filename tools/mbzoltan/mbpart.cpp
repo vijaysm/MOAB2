@@ -49,17 +49,19 @@ int main( int argc, char* argv[] )
   Interface& mb = moab;
   MBZoltan tool(&mb, false, argc, argv);
  
-  int num_args = 0;
+  int num_args = 0; // number of non-flag arguments (e.g. input file, etc.)
   const char* args[3] = {0}; // non-flag options (num parts, input_file, output_file)
   const char* zoltan_method = DEFAULT_ZOLTAN_METHOD;
   const char* other_method = 0;
-  std::list<const char**> expected;
+  const char* imbal_tol_str = 0;
+  std::list<const char**> expected; // pointers to strings that should be set to arguments
   int i, j, part_dim = -1;
   long num_parts;
   bool write_sets = true, write_tags = false;
   bool no_more_flags = false;
   double imbal_tol = 1.10;
   
+    // Loop over each input argument
   for (i = 1; i < argc; ++i) {
     if (!expected.empty()) {
       if (!argv[i][0] || (!no_more_flags && argv[i][0] == '-')) {
@@ -70,6 +72,9 @@ int main( int argc, char* argv[] )
       expected.pop_front();
     }
     else if (!no_more_flags && argv[i][0] == '-') {
+        // Loop over each flag, allowing multiple flags to 
+        // be combined in  a single argument (e.g. "-i 1.0 -b" 
+        // can be specified as "-ib 1.0").
       for (j = 1; argv[i][j]; ++j) switch (argv[i][j]) {
         case 'h':
           help(argv[0]);
@@ -81,14 +86,20 @@ int main( int argc, char* argv[] )
           part_dim = argv[i][1] - '0';
           break;
         case 'z':
+          // note that we expect the zotlan_method to point to
+          // the next non-flag argument we encounter.
           expected.push_back(&zoltan_method);
           break;
         case 'p':
           zoltan_method = ZOLTAN_PARMETIS_METHOD;
+          // note that we expect the other_method to point to
+          // the next non-flag argument we encounter.
           expected.push_back(&other_method);
           break;
         case 'o':
           zoltan_method = ZOLTAN_OCTPART_METHOD;
+          // note that we expect the other_method to point to
+          // the next non-flag argument we encounter.
           expected.push_back(&other_method);
           break;
         case 's':
@@ -104,7 +115,9 @@ int main( int argc, char* argv[] )
           write_tags = true;
           break;
         case 'i':
-          imbal_tol = atof(argv[++i]);
+          // note that we expect the imbal_tol_str to point to
+          // the next non-flag argument we encounter.
+          expected.push_back(&imbal_tol_str);
           break;
         default:
           std::cerr << "Unknown option: \"" << argv[i] << '"' << std::endl;
@@ -118,13 +131,30 @@ int main( int argc, char* argv[] )
         usage_err(argv[0]);
       }
       
+      // Push all non-flag arguments (input file, output file, num parts)
+      // to the beginning of the list, such that when we're done all
+      // the flags have been processed and the args and num_args constitute
+      // a list of other arguments that did not correspond to flags.
       args[num_args++] = argv[i];
     }
   }
   if (!expected.empty()) {
-    std::cerr << "Expected partition method before end of argument list" << std::endl;
+    std::cerr << "Missing argument" << std::endl;
     usage_err(argv[0]);
   }
+  
+    // if an imbalance tolerance was encountered, parse 
+    // the numerical value now.
+  if (imbal_tol_str) {
+    char* endptr = 0;
+    imbal_tol = strtod( imbal_tol_str, &endptr );
+    if (!*endptr || imbal_tol < 0.0) {
+      std::cerr << "Expected positive real number for imbalance tolerance (-i)"
+                << " but got: \"" << imbal_tol_str << '"' << std::endl;
+      usage_err(argv[0]);
+    }
+  }
+  
   
     // interpret first numerical argument as number of parts
   for (i = 0; i < num_args; ++i) {
@@ -143,7 +173,7 @@ int main( int argc, char* argv[] )
   --num_args;
   
   if (num_args < 2) {
-    const char* type = num_args ? "input" : "output";
+    const char* type = num_args ? "output" : "input";
     std::cerr << "No " << type << " file specified." << std::endl;
     usage_err(argv[0]);
   }
