@@ -581,6 +581,209 @@ ErrorCode ParallelComm::broadcast_entities( const int from_proc,
 #endif
 }
 
+ErrorCode ParallelComm::scatter_entities( const int from_proc,
+					  std::vector<Range> &entities,
+					  const bool adjacencies,
+					  const bool tags)
+{
+#ifndef USE_MPI
+  return MB_FAILURE;
+#else
+  ErrorCode result = MB_SUCCESS;
+  int i, success, buff_size, prev_size;
+  int nProcs = (int)procConfig.proc_size();
+  int* sendCounts = new int[nProcs];
+  int* displacements = new int[nProcs];
+  sendCounts[0] = sizeof(int);
+  displacements[0] = 0;
+  Buffer buff(INITIAL_BUFF_SIZE);
+  buff.reset_ptr(sizeof(int));
+  buff.set_stored_size();
+  unsigned int my_proc = procConfig.proc_rank();
+
+  // get buffer size array for each remote processor
+  if (my_proc == (unsigned int) from_proc) {
+    for (i = 1; i < nProcs; i++) {
+      prev_size = buff.buff_ptr - buff.mem_ptr;
+      buff.reset_ptr(prev_size + sizeof(int));
+      result = add_verts(entities[i]);
+      
+      result = pack_buffer(entities[i], adjacencies, tags, 
+			   false, -1, &buff); 
+      RRA("Failed to compute buffer size in scatter_entities.");
+
+      buff_size = buff.buff_ptr - buff.mem_ptr - prev_size;
+      *((int*)(buff.mem_ptr + prev_size)) = buff_size;
+      sendCounts[i] = buff_size;
+    }
+  }
+  
+  // broadcast buffer size array
+  success = MPI_Bcast(sendCounts, nProcs, MPI_INT, from_proc, procConfig.proc_comm());
+  if (MPI_SUCCESS != success) {
+    result = MB_FAILURE;
+    RRA("MPI_Bcast of buffer size failed.");
+  }
+  
+  for (i = 1; i < nProcs; i++) {
+    displacements[i] = displacements[i-1] + sendCounts[i-1];
+  }
+
+  Buffer rec_buff;
+  rec_buff.reserve(sendCounts[my_proc]);
+
+  // scatter actual geometry
+  success = MPI_Scatterv(buff.mem_ptr, sendCounts, displacements,
+			 MPI_UNSIGNED_CHAR, rec_buff.mem_ptr, sendCounts[my_proc],
+			 MPI_UNSIGNED_CHAR, from_proc, procConfig.proc_comm());
+  
+  if (MPI_SUCCESS != success) {
+    result = MB_FAILURE;
+    RRA("MPI_Scatterv of buffer failed.");
+  }
+
+  // unpack in remote processors
+  if (my_proc != (unsigned int) from_proc) {
+    std::vector<std::vector<EntityHandle> > dum1a, dum1b;
+    std::vector<std::vector<int> > dum1p;
+    std::vector<EntityHandle> dum2, dum4;
+    std::vector<unsigned int> dum3;
+    rec_buff.reset_ptr(sizeof(int));
+    result = unpack_buffer(rec_buff.buff_ptr, false, from_proc, -1, 
+                           dum1a, dum1b, dum1p, dum2, dum2, dum3, dum4);
+    RRA("Failed to unpack buffer in scatter_entities.");
+    std::copy(dum4.begin(), dum4.end(), range_inserter(entities[my_proc]));
+  }
+
+  return MB_SUCCESS;
+#endif
+}
+
+ErrorCode ParallelComm::send_entities(const int to_proc,
+				      Range &orig_ents,
+				      const bool adjs,
+				      const bool tags,
+				      const bool store_remote_handles,
+				      Range &final_ents,
+				      int &incoming, // added
+				      bool wait_all)
+{
+#ifndef USE_MPI
+  return MB_FAILURE;
+#else
+  // pack entities to local buffer
+  ErrorCode result = MB_SUCCESS;
+  int index = get_buffers(to_proc);
+  localOwnedBuffs[index]->reset_ptr(sizeof(int));
+  result = add_verts(orig_ents);
+  RRA("Failed to add vertex in send_entities.");
+  result = pack_buffer(orig_ents, adjs, tags, store_remote_handles,
+		       to_proc, localOwnedBuffs[index]); 
+  RRA("Failed to compute buffer size in send_entities.");
+
+  // send buffer
+  result = send_buffer(to_proc, localOwnedBuffs[index], MB_MESG_ENTS_SIZE,
+		       sendReqs[2*index], recvReqs[2*index + 1],
+		       (int*)(remoteOwnedBuffs[index]->mem_ptr), incoming);
+  RRA("Failed to send buffer.");
+  
+  return MB_SUCCESS;
+
+#endif
+}
+
+ErrorCode ParallelComm::recv_entities(const int from_proc,
+				      const bool store_remote_handles,
+				      Range &final_ents,
+				      int& incoming, // added
+				      bool wait_all)
+{
+#ifndef USE_MPI
+  return MB_FAILURE;
+#else
+  // non-blocking receive for the first message (having size info)
+  ErrorCode result;
+  int ind1 = get_buffers(from_proc);
+  incoming++;
+  PRINT_DEBUG_IRECV(procConfig.proc_rank(), from_proc, 
+		    remoteOwnedBuffs[ind1]->mem_ptr, INITIAL_BUFF_SIZE, 
+		    MB_MESG_ENTS_SIZE, incoming);
+  int success = MPI_Irecv(remoteOwnedBuffs[ind1]->mem_ptr, INITIAL_BUFF_SIZE, 
+			  MPI_UNSIGNED_CHAR, from_proc,
+			  MB_MESG_ENTS_SIZE, procConfig.proc_comm(),
+			  &recvReqs[2*ind1]);
+  if (success != MPI_SUCCESS) {
+    result = MB_FAILURE;
+    RRA("Failed to post irecv in ghost exchange.");
+  }
+
+  // wait and receive messages in while loop
+  if (wait_all) {
+    return recv_messages(from_proc, final_ents, incoming);
+  }
+
+  return MB_SUCCESS;
+#endif
+}
+
+// wait and receive messages in while loop
+// also used only to receive ack messages
+ErrorCode ParallelComm::recv_messages(const int from_proc,
+				      Range &final_ents,
+				      int& incoming)
+{
+#ifndef USE_MPI
+  return MB_FAILURE;
+#else
+  MPI_Status status;
+  ErrorCode result;
+  int ind1 = get_buffers(from_proc);
+  int ind2;
+
+  // wait and receive messages
+  while (incoming) {
+    PRINT_DEBUG_WAITANY(recvReqs, MB_MESG_TAGS_SIZE, procConfig.proc_rank());
+    int success = MPI_Waitany(2, &recvReqs[2*ind1], &ind2, &status);
+    if (MPI_SUCCESS != success) {
+      result = MB_FAILURE;
+      RRA("Failed in waitany in recv_messages.");
+    }
+    
+    PRINT_DEBUG_RECD(status);
+    
+    // ok, received something; decrement incoming counter
+    incoming--;
+    bool done = false;
+    
+    // In case ind is for ack, we need index of one before it
+    ind2 += 2*ind1;
+    unsigned int base_ind = 2*(ind2/2);
+    result = recv_buffer(MB_MESG_ENTS_SIZE, status,
+			 remoteOwnedBuffs[ind2/2],
+			 recvReqs[ind2], recvReqs[ind2+1],
+			 incoming, localOwnedBuffs[ind2/2],
+			 sendReqs[base_ind], sendReqs[base_ind+1],
+			 done);
+    RRA("Failed to receive buffer.");
+    
+    if (done) { // if it is done, unpack buffer
+      std::vector<std::vector<EntityHandle> > dum1a, dum1b;
+      std::vector<std::vector<int> > dum1p;
+      std::vector<EntityHandle> dum2, dum4;
+      std::vector<unsigned int> dum3;
+      remoteOwnedBuffs[ind2/2]->reset_ptr(sizeof(int));
+      result = unpack_buffer(remoteOwnedBuffs[ind2/2]->buff_ptr, false,
+			     ind2/2, -1, dum1a, dum1b, dum1p, dum2,
+			     dum2, dum3, dum4);
+      RRA("Failed to unpack buffer in recev_messages.");
+      std::copy(dum4.begin(), dum4.end(), range_inserter(final_ents));
+    }
+  }
+  
+  return MB_SUCCESS;
+#endif
+}
+
 ErrorCode ParallelComm::pack_buffer(Range &orig_ents, 
                                         const bool adjacencies,
                                         const bool tags,

@@ -118,7 +118,7 @@ public:
                                const bool owned_only = false);
   
     // ==================================
-    // \section HIGH-LEVEL COMMUNICATION (send/recv/bcast ents, exchange tags)
+    // \section HIGH-LEVEL COMMUNICATION (send/recv/bcast/scatter ents, exchange tags)
     // ==================================
 
     /** \brief send entities to another processor, optionally waiting until it's done
@@ -131,17 +131,19 @@ public:
      * \param orig_ents Entities requested to send
      * \param adjs If true, send adjacencies for equiv entities (currently unsupported)
      * \param tags If true, send tag values for all tags assigned to entities
-     * \param store_remote_handles If true, also recv message with handles on destination processor
+     * \param store_remote_handles If true, also recv message with handles on destination processor (currently unsupported)
      * \param final_ents Range containing all entities sent
+     * \param incoming keep track if any messages are coming to this processor (newly added)
      * \param wait_all If true, wait until all messages received/sent complete
      */
   ErrorCode send_entities(const int to_proc,
-                            Range &orig_ents,
-                            const bool adjs,
-                            const bool tags,
-                            const bool store_remote_handles,
-                            Range &final_ents,
-                            bool wait_all = true);
+			  Range &orig_ents,
+			  const bool adjs,
+			  const bool tags,
+			  const bool store_remote_handles,
+			  Range &final_ents,
+			  int &incoming,
+			  bool wait_all = true);
   
     /** \brief Receive entities from another processor, optionally waiting until it's done
      *
@@ -149,15 +151,28 @@ public:
      * If store_remote_handles is true, this call sends back handles assigned to
      * the entities received.
      * \param from_proc Source processor
-     * \param store_remote_handles If true, send message with new entity handles to source processor
+     * \param store_remote_handles If true, send message with new entity handles to source processor (currently unsupported)
      * \param final_ents Range containing all entities received
+     * \param incoming keep track if any messages are coming to this processor (newly added)
      * \param wait_all If true, wait until all messages received/sent complete
      */
   ErrorCode recv_entities(const int from_proc,
-                            const bool store_remote_handles,
-                            Range &final_ents,
-                            bool wait_all = true);
-  
+			  const bool store_remote_handles,
+			  Range &final_ents,
+			  int& incomming,
+			  bool wait_all = true);
+
+    /** \brief Receive messages from another processor in while loop
+     *
+     * Receive messages from another processor.  
+     * \param from_proc Source processor
+     * \param final_ents Range containing all entities received
+     * \param incoming keep track if any messages are coming to this processor (newly added)
+     */
+  ErrorCode recv_messages(const int from_proc,
+			  Range &final_ents,
+			  int& incoming);
+
     /** \brief Exchange ghost cells with neighboring procs
      * Neighboring processors are those sharing an interface 
      * with this processor.  All entities of dimension ghost_dim
@@ -175,6 +190,7 @@ public:
      * \param wait_all If true, function does not return until all send buffers
      *       are cleared.
      */
+
   ErrorCode exchange_ghost_cells(int ghost_dim, int bridge_dim, 
                                    int num_layers,
                                    bool store_remote_handles,
@@ -226,6 +242,19 @@ public:
                                  const bool adjacencies = false,
                                  const bool tags = true );
 
+    /** \brief Scatter entities on from_proc to other processors
+     * This function assumes remote handles are *not* being stored, since (usually)
+     * every processor will know about the whole mesh.
+     * \param from_proc Processor having the mesh to be broadcast
+     * \param entities On return, the entities sent or received in this call
+     * \param adjacencies If true, adjacencies are sent for equiv entities (currently unsupported)
+     * \param tags If true, all non-default-valued tags are sent for sent entities
+     */
+  ErrorCode scatter_entities(const int from_proc,
+			     std::vector<Range> &entities,
+			     const bool adjacencies = false,
+			     const bool tags = true);
+  
     // ==================================
     // \section INITIALIZATION OF PARALLEL DATA (resolve_shared_ents, etc.)
     // ==================================
@@ -611,7 +640,15 @@ public:
   ErrorCode list_entities(const EntityHandle *ents, int num_ents);
   
   ErrorCode list_entities(const Range &ents);
-  
+
+  void set_send_request(int n_request); // set send request array
+
+  void set_recv_request(int n_request); // set recv request array
+
+  //! reset message buffers to their initial state
+  // changed to public function (HJK)
+  void reset_all_buffers();
+
   static const unsigned int INITIAL_BUFF_SIZE;
 
 private:
@@ -1040,13 +1077,16 @@ private:
   std::vector<Buffer*> localOwnedBuffs, remoteOwnedBuffs;
 
     //! reset message buffers to their initial state
-  void reset_all_buffers();
+  //void reset_all_buffers();
 
     //! delete all buffers, freeing up any memory held by them
   void delete_all_buffers();
 
     //! request objects, may be used if store_remote_handles is used
   std::vector<MPI_Request> sendReqs;
+
+    //! receive request objects
+  std::vector<MPI_Request> recvReqs;
 
     //! processor rank for each buffer index
   std::vector<unsigned int> buffProcs;
@@ -1259,6 +1299,16 @@ inline ErrorCode ParallelComm::get_sharing_data(const EntityHandle entity,
   if (MB_SUCCESS == result)
     num_ps = dum_ps;
   return result;
+}
+
+inline void ParallelComm::set_send_request(int n_request)
+{
+  sendReqs.resize(n_request, MPI_REQUEST_NULL);
+}
+
+inline void ParallelComm::set_recv_request(int n_request)
+{
+  recvReqs.resize(n_request, MPI_REQUEST_NULL);
 }
 
 } // namespace moab
