@@ -352,6 +352,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
           
           ReaderIface::IDTag parts = { partition_tag_name.c_str(), 0, 0 };
           ReaderIface::SubsetList sl;
+          sl.num_parts = 0;
           int rank = myPcomm->rank();
           if (partition_by_rank) {
             assert(partition_tag_vals.empty());
