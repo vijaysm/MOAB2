@@ -22,6 +22,8 @@
 #include "moab/Range.hpp"
 #include "moab/OrientedBoxTreeTool.hpp"
 
+#include <map>
+
 namespace moab {
 
 class GeomTopoTool
@@ -74,6 +76,9 @@ private:
   OrientedBoxTreeTool obbTree;
   EntityHandle setOffset;
   std::vector<EntityHandle> rootSets;
+
+  bool contiguous;
+  std::map<EntityHandle, EntityHandle>  mapRootSets;
   EntityHandle oneVolRootSet;
 
     //! compute vertices inclusive and put on tag on sets in geom_sets
@@ -88,9 +93,14 @@ private:
 // get the root of the obbtree for a given entity
 inline ErrorCode GeomTopoTool::get_root(EntityHandle vol_or_surf, EntityHandle &root) 
 {
-  unsigned int index = vol_or_surf - setOffset;
-  root = (index < rootSets.size() ? rootSets[index] : 0);
-  return (root ? MB_SUCCESS : MB_INDEX_OUT_OF_RANGE);
+   if(contiguous)
+   {
+     unsigned int index = vol_or_surf - setOffset;
+     root = (index < rootSets.size() ? rootSets[index] : 0);
+   }
+   else
+      root = mapRootSets[vol_or_surf];
+   return (root ? MB_SUCCESS : MB_INDEX_OUT_OF_RANGE);
 }
 
 inline EntityHandle GeomTopoTool::get_one_vol_root()
