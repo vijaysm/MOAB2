@@ -16,10 +16,10 @@ AC_HELP_STRING([--without-ccmio], [Disable support for CCMIO file format])],
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-ccmio=\"${withval}\""
 ]
 , [CCMIO_ARG=])
-if test "xno" = "x$CCMIO_ARG"; then
-  AC_MSG_RESULT([no])
-else
+if test "xyes" = "x$CCMIO_ARG"; then
   AC_MSG_RESULT([yes])
+else
+  AC_MSG_RESULT([no])
 fi
 
  # if CCMIO support is not disabled
