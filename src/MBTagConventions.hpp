@@ -100,6 +100,6 @@
  * storing or searching for a value must be padded with '\0' chars.
  */
 #define NAME_TAG_NAME "NAME"
-#define NAME_TAG_SIZE 64
+#define NAME_TAG_SIZE 32
 
 #endif
