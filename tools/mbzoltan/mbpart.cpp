@@ -2,6 +2,7 @@
 #include "moab/Core.hpp"
 
 #include <iostream>
+#include <sstream>
 #include <stdlib.h>
 #include <list>
 
@@ -11,7 +12,7 @@ const char DEFAULT_ZOLTAN_METHOD[] = "RCB";
 const char ZOLTAN_PARMETIS_METHOD[] = "PARMETIS";
 const char ZOLTAN_OCTPART_METHOD[] = "OCTPART";
 
-const char usage[] = " <# parts> <infile> <outfile> [-<n>] [{-z|-p|-o} <method>] [-s|-t|-b]";
+const char usage[] = " <# parts> <infile> <outfile> [-<n>] [{-z|-p|-o} <method>] [-s|-t|-b] [-m <pow>]";
 
 void usage_err( const char* argv0 ) {
   std::cerr << argv0 << usage << std::endl;
@@ -32,7 +33,8 @@ void help( const char* argv0 )
             << "-s    Write partition as tagged sets (Default)" << std::endl
             << "-t    Write partition by tagging entities" << std::endl
             << "-b    Write partition as both tagged sets and tagged entities" << std::endl
-            << "-i    Imbalance tolerance (used in PHG, Hypergraph methods)" << std::endl
+            << "-i <tol> Imbalance tolerance (used in PHG, Hypergraph methods)" << std::endl
+            << "-m <pow> Generate multiple partitions, in powers of 2, up to 2^(pow)" << std::endl
             << std::endl;
   exit(0);
 }
@@ -54,12 +56,14 @@ int main( int argc, char* argv[] )
   const char* zoltan_method = DEFAULT_ZOLTAN_METHOD;
   const char* other_method = 0;
   const char* imbal_tol_str = 0;
+  const char* power_str = 0;
   std::list<const char**> expected; // pointers to strings that should be set to arguments
   int i, j, part_dim = -1;
   long num_parts;
   bool write_sets = true, write_tags = false;
   bool no_more_flags = false;
   double imbal_tol = 1.10;
+  int power = -1;
   
     // Loop over each input argument
   for (i = 1; i < argc; ++i) {
@@ -119,6 +123,9 @@ int main( int argc, char* argv[] )
           // the next non-flag argument we encounter.
           expected.push_back(&imbal_tol_str);
           break;
+        case 'm':
+          expected.push_back(&power_str);
+          break;
         default:
           std::cerr << "Unknown option: \"" << argv[i] << '"' << std::endl;
           usage_err(argv[0]);
@@ -155,6 +162,16 @@ int main( int argc, char* argv[] )
     }
   }
   
+    // parse power string
+  if (power_str) {
+    char* endptr = 0;
+    power = strtol( power_str, &endptr, 0 );
+    if (-1 == power || power > 18) {
+      std::cerr << "Expected positive integer number <= 18"
+                << " but got: \"" << power_str << '"' << std::endl;
+      usage_err(argv[0]);
+    }
+  }
   
     // interpret first numerical argument as number of parts
   for (i = 0; i < num_args; ++i) {
@@ -205,28 +222,44 @@ int main( int argc, char* argv[] )
     std::cerr << input_file << " : file does not contain any mesh entities" << std::endl;
     return 2;
   }
+
+  if (power > 0) {
+    num_parts = 2;
+  }  
+  else
+    power = 1;
   
-  rval = tool.partition_mesh( num_parts, zoltan_method, other_method,
-                              imbal_tol, write_sets, write_tags, part_dim );
-  if (MB_SUCCESS != rval) {
-    std::cerr << "Partitioner failed!" << std::endl;
-    std::cerr << "  Error code: " << mb.get_error_string(rval) << " (" << rval << ")" << std::endl;
-    std::string errstr;
-    mb.get_last_error(errstr);
-    if (!errstr.empty())
-      std::cerr << "  Error message: " << errstr << std::endl;
-    return 3;
-  }
+  for (int p = 0; p < power; p++) {
+    rval = tool.partition_mesh( num_parts, zoltan_method, other_method,
+                                imbal_tol, write_sets, write_tags, part_dim );
+    if (MB_SUCCESS != rval) {
+      std::cerr << "Partitioner failed!" << std::endl;
+      std::cerr << "  Error code: " << mb.get_error_string(rval) << " (" << rval << ")" << std::endl;
+      std::string errstr;
+      mb.get_last_error(errstr);
+      if (!errstr.empty())
+        std::cerr << "  Error message: " << errstr << std::endl;
+      return 3;
+    }
   
-  rval = mb.write_file( output_file );
-  if (MB_SUCCESS != rval) {
-    std::cerr << output_file << " : failed to write file." << std::endl;
-    std::cerr << "  Error code: " << mb.get_error_string(rval) << " (" << rval << ")" << std::endl;
-    std::string errstr;
-    mb.get_last_error(errstr);
-    if (!errstr.empty())
-      std::cerr << "  Error message: " << errstr << std::endl;
-    return 2;
+    std::ostringstream tmp_output_file;
+    
+    if (power > 1)
+        // append num_parts to output filename
+      tmp_output_file << output_file << "_" << num_parts << ".h5m";
+
+    rval = mb.write_file( tmp_output_file.str().c_str() );
+    if (MB_SUCCESS != rval) {
+      std::cerr << output_file << " : failed to write file." << std::endl;
+      std::cerr << "  Error code: " << mb.get_error_string(rval) << " (" << rval << ")" << std::endl;
+      std::string errstr;
+      mb.get_last_error(errstr);
+      if (!errstr.empty())
+        std::cerr << "  Error message: " << errstr << std::endl;
+      return 2;
+    }
+
+    num_parts *= 2;
   }
   
   return 0;    
