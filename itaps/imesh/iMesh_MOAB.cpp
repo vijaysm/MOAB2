@@ -15,6 +15,7 @@
 
 #include <iostream>
 #include <cassert>
+#include <cctype>
 #include <cstring>
 #include <stdarg.h>
 #include <stdio.h>
@@ -171,6 +172,37 @@ iMesh_EntityIterator create_itaps_iterator( Range& range, int array_size )
   return reinterpret_cast<iMesh_EntityIterator>(iter);
 }
 
+static int compare_no_case(const char *str1, const char *str2, size_t n) {
+   for (size_t i = 1; i != n && *str1 && toupper(*str1) == toupper(*str2);
+        ++i, ++str1, ++str2);
+   return toupper(*str2) - toupper(*str1);
+}
+
+// Filter out non-MOAB options and remove the "moab:" prefix
+static std::string filter_options(const char *begin, const char *end)
+{
+  const char *opt_begin = begin;
+  const char *opt_end   = begin;
+
+  std::string filtered;
+  bool first = true;
+
+  while (opt_end != end) {
+    opt_end = std::find(opt_begin, end, ' ');
+
+    if (opt_end-opt_begin >= 5 && compare_no_case(opt_begin, "moab:", 5) == 0) {
+      if (!first)
+        filtered.push_back(';');
+      first = false;
+      filtered.append(opt_begin+5, opt_end);
+    }
+
+    opt_begin = opt_end+1;
+  }
+  return filtered;
+}
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -222,9 +254,8 @@ extern "C" {
   void iMesh_newMesh(const char *options, 
                      iMesh_Instance *instance, int *err, int options_len) 
   {
-    std::string tmp_options(options, options_len);
-    eatwhitespace(tmp_options);
-    FileOptions opts((std::string(";") + tmp_options).c_str());
+    std::string tmp_options = filter_options(options, options+options_len);
+    FileOptions opts(tmp_options.c_str());
 
     Interface* core;
 
@@ -264,19 +295,17 @@ extern "C" {
     delete MBI;
     RETURN(iBase_SUCCESS);
   }
-   
+
   void iMesh_load(iMesh_Instance instance,
                   const iBase_EntitySetHandle handle,
                   const char *name, const char *options, 
                   int *err, int name_len, int options_len) 
   {
       // get filename, option & null-terminate
-    std::string tmp_filename(name, name_len), 
-      tmp_options(options, options_len);
+    std::string filename(name, name_len);
+    eatwhitespace(filename);
 
-    eatwhitespace(tmp_filename);
-    eatwhitespace(tmp_options);
-    std::string opts = ";"; opts += tmp_options;
+    std::string opts = filter_options(options, options+options_len);
   
     Range orig_ents;
     ErrorCode result = MBI->get_entities_by_handle( 0, orig_ents );
@@ -288,7 +317,7 @@ extern "C" {
       file_set = reinterpret_cast<const EntityHandle*>(ptr);
     }
   
-    result = MBI->load_file(tmp_filename.c_str(), file_set, opts.c_str());
+    result = MBI->load_file(filename.c_str(), file_set, opts.c_str());
 
     CHKERR(result, "iMesh_load:ERROR loading a mesh.");
 
@@ -311,15 +340,13 @@ extern "C" {
                   int *err, const int name_len, int options_len) 
   {
       // get filename & attempt to NULL-terminate
-    std::string tmp_filename( name, name_len ), tmp_options(options, options_len);
-
-    eatwhitespace(tmp_filename);
-    eatwhitespace(tmp_options);
-    std::string opts = ";"; opts += tmp_options;
+    std::string filename( name, name_len );
+    eatwhitespace(filename);
+    std::string opts = filter_options(options, options+options_len);
 
     EntityHandle set = ENTITY_HANDLE(handle);
-    ErrorCode result = MBI->write_file(tmp_filename.c_str(), NULL, opts.c_str(),
-                                         &set, 1);
+    ErrorCode result = MBI->write_file(filename.c_str(), NULL, opts.c_str(),
+                                       &set, 1);
 
     CHKERR(result, "iMesh_save:ERROR saving a mesh.");
     RETURN(iBase_SUCCESS);
