@@ -373,13 +373,14 @@ public:
                                std::set<int> &procs,
                                int op = Interface::INTERSECT);
   
-    /** \brief Get entities on an inter-processor interface and of specified dimension
-     * If other_proc is -1, any interface entities are returned.  If dim is -1,
+    /** \brief Get shared entities of specified dimension
+     * If other_proc is -1, any shared entities are returned.  If dim is -1,
      * entities of all dimensions on interface are returned.
      * \param other_proc Rank of processor for which interface entities are requested
      * \param shared_ents Entities returned from function
      * \param dim Dimension of interface entities requested
      * \param iface If true, return only entities on the interface
+     * \param owned_filter If true, return only owned shared entities
      */
   ErrorCode get_shared_entities(int other_proc,
                                   Range &shared_ents,
@@ -1133,7 +1134,7 @@ inline ParallelComm::Buffer::~Buffer()
   }
 }
 
-#define DEBUG_BUFFER 1
+#define DEBUG_BUFFER 0
 
 inline void ParallelComm::Buffer::reserve(unsigned int new_size) {
   
