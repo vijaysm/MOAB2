@@ -994,7 +994,7 @@ extern "C" {
   {
     ErrorCode rval = MBI->num_contained_meshsets( ENTITY_HANDLE(entity_set_handle),
                                                     num_sets,
-                                                    std::max(0,num_hops) );
+                                                    std::max(0,num_hops+1) );
     CHKERR(rval, "iMesh_entitysetGetNumberEntitySets:ERROR getting number of entitysets.");
 
     RETURN(iBase_SUCCESS);
@@ -1010,7 +1010,7 @@ extern "C" {
     std::vector<EntityHandle> sets;
     ErrorCode rval = MBI->get_contained_meshsets( ENTITY_HANDLE(entity_set_handle),
                                                     sets, 
-                                                    std::max( num_hops, 0 ) );
+                                                    std::max( num_hops+1, 0 ) );
     CHKERR(rval, "iMesh_entitysetGetEntitySets: problem getting entities by type.");
     ALLOC_CHECK_ARRAY_NOFAIL(contained_entset_handles, sets.size() );
 
@@ -1189,7 +1189,7 @@ extern "C" {
   {
     *num_child = 0;
     ErrorCode result = MBI->num_child_meshsets
-      (ENTITY_HANDLE(entity_set), num_child, num_hops);
+      (ENTITY_HANDLE(entity_set), num_child, num_hops+1);
 
     CHKERR(result,"iMesh_getNumChld: ERROR GetNumChildren failed.");
 
@@ -1203,7 +1203,7 @@ extern "C" {
   {
     *num_parent = 0;
     ErrorCode result = MBI->num_parent_meshsets
-      (ENTITY_HANDLE(entity_set), num_parent, num_hops);
+      (ENTITY_HANDLE(entity_set), num_parent, num_hops+1);
 
     CHKERR(result,"iMesh_getNumPrnt: ERROR GetNumParents failed.");
     RETURN(iBase_SUCCESS);
@@ -1219,7 +1219,7 @@ extern "C" {
     std::vector<EntityHandle> children;
 
     ErrorCode result = MBI->get_child_meshsets
-      (ENTITY_HANDLE(from_entity_set), children, num_hops);
+      (ENTITY_HANDLE(from_entity_set), children, num_hops+1);
 
     CHKERR(result,"ERROR getChildren failed.");
     ALLOC_CHECK_ARRAY_NOFAIL(entity_set_handles, children.size());
@@ -1241,7 +1241,7 @@ extern "C" {
     std::vector<EntityHandle> parents;
 
     ErrorCode result = MBI->get_parent_meshsets
-      (ENTITY_HANDLE(from_entity_set), parents, num_hops);
+      (ENTITY_HANDLE(from_entity_set), parents, num_hops+1);
 
     CHKERR(result,"ERROR getParents failed.");
 
@@ -1476,16 +1476,16 @@ extern "C" {
                                                    ents, Interface::UNION);
         CHKERR(result,"iMesh_destroyTag: problem finding tag.");
         if (!ents.empty()) {
-          ERROR(iBase_FAILURE, "iMesh_destroyTag: forced=false and entities"
-                             " are still assigned this tag.");
+          ERROR(iBase_TAG_IN_USE, "iMesh_destroyTag: forced=false and entities"
+                " are still assigned this tag.");
         }
       }
         // check if tag value is set on mesh
       const void* data_ptr;
       result = MBI->tag_get_data( this_tag, 0, 0, &data_ptr );
       if (MB_SUCCESS == result)
-        ERROR(iBase_FAILURE, "iMesh_destroyTag: forced=false and mesh"
-                             " is still assigned this tag.");
+        ERROR(iBase_TAG_IN_USE, "iMesh_destroyTag: forced=false and mesh"
+              " is still assigned this tag.");
     }
   
       // ok, good to go - either forced or no entities with this tag
