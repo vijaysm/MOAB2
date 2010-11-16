@@ -566,6 +566,54 @@ ErrorCode Coupler::plain_field_map(EntityHandle elem,
   return MB_SUCCESS;
 }
 
+// Normalize a field over the entire mesh represented by the root_set.
+int Coupler::normalize_mesh(iBase_EntitySetHandle &root_set,
+                            const char            *norm_tag,
+                            Coupler::IntegType    integ_type,
+                            int                   num_integ_pts)
+{
+  int err = iBase_SUCCESS;
+
+  // Get an iMesh_Instance from MBCoupler::mbImpl.
+  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
+
+  // SLAVE START ****************************************************************
+  // Search for entities based on tag_handles and tag_values
+
+  std::vector< std::vector<iBase_EntitySetHandle> > entity_sets;
+  std::vector< std::vector<iBase_EntityHandle> >    entity_groups;
+
+  // put the root_set into entity_sets
+  std::vector<iBase_EntitySetHandle> ent_set;
+  ent_set.push_back(root_set);
+  entity_sets.push_back(ent_set);
+
+  // get all entities from root_set and put into entity_groups
+  std::vector<iBase_EntityHandle> entities;
+  iBase_EntityHandle *ents = NULL;
+  int ents_alloc = 0;
+  int ents_size = 0;
+
+  iMesh_getEntities(iMeshInst, root_set, iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES,
+                    &ents, &ents_alloc, &ents_size, &err);
+  ERRORR("iMesh_getEntities failed on root_set.", err);
+
+  // put all of the entities from the entity set into ent_set and free the memory for ents.
+  for (int k = 0; k < ents_size; k++) {
+    entities.push_back(ents[k]);
+  }
+  free(ents);
+
+  entity_groups.push_back(entities);
+
+  // Call do_normalization() to continue common normalization processing
+  err = do_normalization(norm_tag, entity_sets, entity_groups, integ_type, num_integ_pts);
+  ERRORR("Failure in do_normalization().", err);
+  // SLAVE END   ****************************************************************
+
+  return err;
+}
+
 // Normalize a field over the subset of entities identified by the tags and values passed
 int Coupler::normalize_subset(iBase_EntitySetHandle &root_set,
                               const char            *norm_tag,
@@ -605,21 +653,7 @@ int Coupler::normalize_subset(iBase_EntitySetHandle &root_set,
                               Coupler::IntegType    integ_type,
                               int                   num_integ_pts)
 {
-  //  ErrorCode result = MB_SUCCESS;
   int err = iBase_SUCCESS;
-
-  // Setup data for parallel computing
-  int nprocs, rank;
-  err = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-  ERRORMPI("Getting number of procs failed.", err);
-  err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  ERRORMPI("Getting rank failed.", err);
-
-  // MASTER/SLAVE START #########################################################
-  // Broadcast norm_tag, tag_handles, tag_values to procs
-  // This is not needed as we are assuming that each proc invokes this function
-  // after the data has been distributed.
-  // MASTER/SLAVE END   #########################################################
 
   // SLAVE START ****************************************************************
   // Search for entities based on tag_handles and tag_values
@@ -629,6 +663,30 @@ int Coupler::normalize_subset(iBase_EntitySetHandle &root_set,
   err = get_matching_entities(root_set, tag_handles, tag_values, num_tags, 
                               &entity_sets, &entity_groups);
   ERRORR("Failed to get matching entities.", err);
+
+  // Call do_normalization() to continue common normalization processing
+  err = do_normalization(norm_tag, entity_sets, entity_groups, integ_type, num_integ_pts);
+  ERRORR("Failure in do_normalization().", err);
+  // SLAVE END   ****************************************************************
+
+  return err;
+}
+
+int Coupler::do_normalization(const char                                        *norm_tag,
+                              std::vector< std::vector<iBase_EntitySetHandle> > &entity_sets,
+                              std::vector< std::vector<iBase_EntityHandle> >    &entity_groups,
+                              Coupler::IntegType                                integ_type,
+                              int                                               num_integ_pts)
+{
+  // SLAVE START ****************************************************************
+  int err = iBase_SUCCESS;
+
+  // Setup data for parallel computing
+  int nprocs, rank;
+  err = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  ERRORMPI("Getting number of procs failed.", err);
+  err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  ERRORMPI("Getting rank failed.", err);
 
   // Get the integrated field value for each group(vector) of entities.
   // If no entities are in a group then a zero will be put in the list

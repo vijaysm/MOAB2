@@ -133,6 +133,22 @@ public:
                           tuple_list *tl = NULL,
                           bool normalize = true);
 
+    /* \brief Normalize a field over an entire mesh
+     * A field existing on the vertices of elements of a mesh is integrated
+     * over all elements in the mesh.  The integrated value is normalized 
+     * and the normalization factor is saved to a new tag
+     * on the mesh entity set.
+     * 
+     * \param root_set Entity Set representing the entire mesh
+     * \param norm_tag Tag containing field data to integrate
+     * \param integ_type Type of integration to perform
+     * \param num_integ_pts The number of Gaussian integration points to use in each dimension
+     */
+  int normalize_mesh(iBase_EntitySetHandle &root_set,
+                     const char            *norm_tag,
+                     Coupler::IntegType    integ_type,
+                     int                   num_integ_pts);
+
     /* \brief Normalize a field over subsets of entities
      * A field existing on the vertices of elements of a mesh is integrated
      * over subsets of elements identified by the tags and values.  The integrated 
@@ -180,6 +196,22 @@ public:
                        const char            **tag_values,
                        Coupler::IntegType    integ_type,
                        int                   num_integ_pts);
+
+    /* \brief Retrieve groups of entities matching tags and values(if present)
+     * Retrieve a vector of vectors of entity handles matching the 
+     * tags and values.  The entity set passed is used as the search domain.
+     * 
+     * \param norm_tag Tag containing field data to integrate
+     * \param entity_sets Pointer to vector of vectors of entity set handles
+     * \param entity_groups Pointer to vector of vectors of entity handles from each entity set
+     * \param integ_type Type of integration to perform
+     * \param num_integ_pts The number of Gaussian integration points to use in each dimension
+     */
+  int do_normalization(const char                                        *norm_tag,
+                       std::vector< std::vector<iBase_EntitySetHandle> > &entity_sets,
+                       std::vector< std::vector<iBase_EntityHandle> >    &entity_groups,
+                       Coupler::IntegType                                integ_type,
+                       int                                               num_integ_pts);
 
     /* \brief Retrieve groups of entities matching tags and values(if present)
      * Retrieve a vector of vectors of entity handles matching the 

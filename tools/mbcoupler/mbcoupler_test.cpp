@@ -107,7 +107,7 @@ int main(int argc, char **argv)
     // redirect stdout and stderr if dbgFile is not null
   if (!dbgFile.empty()) {
     std::stringstream dfname;
-    dfname << dbgFile << rank << ".out";
+    dfname << dbgFile << rank << ".txt";
     std::freopen(dfname.str().c_str(), "a", stdout);
     std::freopen(dfname.str().c_str(), "a", stderr);
   }
@@ -162,7 +162,7 @@ int main(int argc, char **argv)
   if (!outFile.empty()) {
     // get the rank and append to the out_fname.
     std::stringstream sofname;
-    sofname << outFile << "S" << "R" << rank;
+    sofname << outFile << "S" << "R" << rank << ".h5m";
 
     result = mbImpl->write_file(sofname.str().c_str(), NULL, writeOpts.c_str(),
                                 pcs[0]->partition_sets());
@@ -171,7 +171,7 @@ int main(int argc, char **argv)
 
     for (unsigned int i = 1; i < pcs.size(); i++) {
       std::stringstream tofname;
-      tofname << outFile << "T" << i << "R" << rank;
+      tofname << outFile << "T" << i << "R" << rank << ".h5m";
 
       result = mbImpl->write_file(tofname.str().c_str(), NULL, writeOpts.c_str(),
                                   pcs[i]->partition_sets());
@@ -258,11 +258,11 @@ void print_usage() {
   std::cerr << "    -outfile" << std::endl;
   std::cerr << "        Write out all meshes, post processing, to files starting with <out_file>." << std::endl;
   std::cerr << "        An indication of source(S) or target(T#) is appended to the name along with" << std::endl;
-  std::cerr << "        the rank of the process (R#)." << std::endl;
+  std::cerr << "        the rank of the process (R#) and the file extension \'.h5m\'." << std::endl;
   std::cerr << "    -wopts" << std::endl;
   std::cerr << "        Write out mesh files using options in <woptions>." << std::endl;
   std::cerr << "    -dbgout" << std::endl;
-  std::cerr << "        Write stdout and stderr streams to the file <dbg_file>." << std::endl;
+  std::cerr << "        Write stdout and stderr streams to the file \'<dbg_file>.txt\'." << std::endl;
 }
 
 // Check first character for a '-'.
@@ -583,8 +583,15 @@ ErrorCode test_interpolation(Interface *mbImpl,
 
     // do global normalization if specified
   if (!gNormTag.empty()) {
-    // NOT IMPLEMENTED YET
-    std::cerr << "Global Normalization not implemented yet." << std::endl;
+    int err;
+
+    // Normalize the source mesh
+    err = mbc.normalize_mesh(roots[0], gNormTag.c_str(), Coupler::VOLUME, 4);
+    PRINT_LAST_ERR;
+
+    // Normalize the target mesh
+    err = mbc.normalize_mesh(roots[1], gNormTag.c_str(), Coupler::VOLUME, 4);
+    PRINT_LAST_ERR;
   }
 
   gnorm_time = MPI_Wtime();
