@@ -989,7 +989,7 @@ Range Range::subset_by_dimension( int d ) const
   iterator en;
   if (d < 4) { // dimension 4 is MBENTITYSET
     EntityHandle handle2 = CREATE_HANDLE( CN::TypeDimensionMap[d+1].first, 0 );
-    iterator en = lower_bound( st, end(), handle2 );
+    en = lower_bound( st, end(), handle2 );
   }
   else {
     en = end();
