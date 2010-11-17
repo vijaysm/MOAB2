@@ -2358,6 +2358,7 @@ extern "C" {
       type = mb_topology_table[entity_topology];
       use_top = true;
       if (entity_type != iBase_ALL_TYPES && 
+          entity_topology != iMesh_SEPTAHEDRON &&
           entity_type != CN::Dimension(type)) {
         ERROR(iBase_BAD_TYPE_AND_TOPO,
               "type and topology are inconsistant");
@@ -2499,6 +2500,10 @@ extern "C" {
           (ENTITY_HANDLE(entity_set_handle), MBENTITYSET, num_sets, recursive);
         *num_topo -= num_sets;
       }
+    }
+    else if (iMesh_SEPTAHEDRON == entity_topology) {
+      result = MB_SUCCESS;
+      *num_topo = 0;
     }
     else {
       result = MBI->get_number_entities_by_type(ENTITY_HANDLE(entity_set_handle),
