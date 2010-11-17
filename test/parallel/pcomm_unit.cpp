@@ -1829,12 +1829,18 @@ void test_pack_shared_entities_2d()
   Range verts[4], quads[4];
   ErrorCode rval = create_shared_grid_2d(pc, verts, quads);
 
+  moab[0].list_entities(0,1);
+  
     // exchange interface cells
-  rval = ParallelComm::exchange_ghost_cells(pc, 4, -1, -1, 0, true);
+  rval = ParallelComm::exchange_ghost_cells(pc, 4, -1, -1, 0, 0, true);
   CHECK_ERR(rval);
   
     // now 1 layer of hex ghosts
-  rval = ParallelComm::exchange_ghost_cells(pc, 4, 2, 0, 1, true);
+  rval = ParallelComm::exchange_ghost_cells(pc, 4, 2, 0, 1, 0, true);
+  CHECK_ERR(rval);
+
+    // now 1 layer of hex ghosts w/ edges
+  rval = ParallelComm::exchange_ghost_cells(pc, 4, 2, 0, 1, 1, true);
   CHECK_ERR(rval);
 
   for (unsigned int i = 0; i < 4; i++)
@@ -1858,11 +1864,15 @@ void test_pack_shared_entities_3d()
   ErrorCode rval = create_shared_grid_3d(pc, verts, hexes);
 
     // exchange interface cells
-  rval = ParallelComm::exchange_ghost_cells(pc, 4, -1, -1, 0, true);
+  rval = ParallelComm::exchange_ghost_cells(pc, 4, -1, -1, 0, 0, true);
   CHECK_ERR(rval);
   
     // now 1 layer of hex ghosts
-  rval = ParallelComm::exchange_ghost_cells(pc, 4, 3, 0, 1, true);
+  rval = ParallelComm::exchange_ghost_cells(pc, 4, 3, 0, 1, 0, true);
+  CHECK_ERR(rval);
+
+    // now 1 layer of hex ghosts w/ faces, edges
+  rval = ParallelComm::exchange_ghost_cells(pc, 4, 3, 0, 1, 3, true);
   CHECK_ERR(rval);
 
   for (unsigned int i = 0; i < 4; i++)

@@ -4782,6 +4782,8 @@ ErrorCode mb_range_test()
   EntityHandle h15 = CREATE_HANDLE(MBVERTEX, 15, err);
   EntityHandle h16 = CREATE_HANDLE(MBVERTEX, 16, err);
   EntityHandle h20 = CREATE_HANDLE(MBVERTEX, 20, err);
+  EntityHandle hh1 = CREATE_HANDLE(MBHEX, 1, err);
+  EntityHandle hh3 = CREATE_HANDLE(MBHEX, 3, err);
 
     // equal start/end
   r1.insert(h1, h5);
@@ -4985,6 +4987,15 @@ ErrorCode mb_range_test()
     result = MB_FAILURE;
   }
 
+    // subset_by_dimension test
+  r1.clear();
+  r1.insert(h1);
+  r1.insert(h4);
+  r1.insert(hh1);
+  r1.insert(hh3);
+  r2.clear();
+  r2 = r1.subset_by_dimension(3);
+  
   return result;
 }
 

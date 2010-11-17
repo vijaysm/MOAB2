@@ -118,7 +118,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
 
     // get ghosting options
   std::string ghost_str;
-  int bridge_dim, ghost_dim = -1, num_layers;
+  int bridge_dim, ghost_dim = -1, num_layers, addl_ents = 0;
   result = opts.get_str_option("PARALLEL_GHOSTS", ghost_str);
   if (MB_TYPE_OUT_OF_RANGE == result) {
     ghost_dim = 3;
@@ -127,8 +127,8 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   }
   else if (MB_SUCCESS == result) {
     int num_fields = 
-        sscanf(ghost_str.c_str(), "%d.%d.%d", &ghost_dim, &bridge_dim, &num_layers);
-    if (3 != num_fields) {
+        sscanf(ghost_str.c_str(), "%d.%d.%d.%d", &ghost_dim, &bridge_dim, &num_layers, &addl_ents);
+    if (3 > num_fields) {
       merror->set_last_error( "Didn't read 3 fields from PARALLEL_GHOSTS string\n" );
       return MB_FAILURE;
     }
@@ -230,7 +230,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
                    subset_list, file_id_tag,
                    reader_rank, cputime, 
                    resolve_dim, shared_dim,
-                   ghost_dim, bridge_dim, num_layers);
+                   ghost_dim, bridge_dim, num_layers, addl_ents);
 }
     
 ErrorCode ReadParallel::load_file(const char **file_names,
@@ -251,7 +251,8 @@ ErrorCode ReadParallel::load_file(const char **file_names,
                                     const int shared_dim,
                                     const int ghost_dim,
                                     const int bridge_dim,
-                                    const int num_layers) 
+                                  const int num_layers,
+                                  const int addl_ents) 
 {
   ErrorCode result = MB_SUCCESS;
   if (myPcomm == NULL)
@@ -458,7 +459,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
           myDebug.tprint(1,"Exchanging ghost entities.\n");
 
           tmp_result = myPcomm->exchange_ghost_cells(ghost_dim, bridge_dim, 
-                                                     num_layers, true);
+                                                     num_layers, addl_ents, true);
           break;
         
 //==================

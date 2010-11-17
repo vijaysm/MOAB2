@@ -192,7 +192,7 @@ public:
      */
 
   ErrorCode exchange_ghost_cells(int ghost_dim, int bridge_dim, 
-                                   int num_layers,
+                                 int num_layers, int addl_ents,
                                    bool store_remote_handles,
                                    bool wait_all = true);
 
@@ -202,7 +202,7 @@ public:
   static ErrorCode exchange_ghost_cells(ParallelComm **pc,
                                           unsigned int num_procs,
                                           int ghost_dim, int bridge_dim,
-                                          int num_layers,
+                                        int num_layers, int addl_ents,
                                           bool store_remote_handles);
   
     /** \brief Exchange tags for all shared and ghosted entities
@@ -667,7 +667,7 @@ private:
 
   ErrorCode get_sent_ents(const bool is_iface,
                             const int bridge_dim, const int ghost_dim,
-                            const int num_layers,
+                            const int num_layers, const int addl_ents,
                             Range *sent_ents, Range &allsent,
                             tuple_list &entprocs);
   
@@ -980,6 +980,7 @@ private:
                                    int ghost_dim,
                                    int to_proc, 
                                    int num_layers,
+                                 int addl_ents,
                                    Range &ghosted_ents);
   
     //! add vertices adjacent to entities in this list

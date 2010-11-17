@@ -4016,7 +4016,7 @@ ErrorCode ParallelComm::filter_pstatus( Range &ents,
 }
 
 ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
-                                                 int num_layers,
+                                             int num_layers, int addl_ents,
                                                  bool store_remote_handles,
                                                  bool wait_all)
 {
@@ -4092,7 +4092,7 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
   tuple_list entprocs;
   int dum_ack_buff;
   result = get_sent_ents(is_iface, bridge_dim, ghost_dim, num_layers,
-                         sent_ents, allsent, entprocs);
+                         addl_ents, sent_ents, allsent, entprocs);
   RRA("get_sent_ents failed.");
   
   std::cout << "allsent ents compactness (size) = " << allsent.compactness() << " (" 
@@ -4654,8 +4654,8 @@ ErrorCode ParallelComm::set_sharing_data(EntityHandle ent, unsigned char pstatus
 }
 
 ErrorCode ParallelComm::get_sent_ents(const bool is_iface, 
-                                          const int bridge_dim, const int ghost_dim,
-                                          const int num_layers,
+                                      const int bridge_dim, const int ghost_dim,
+                                      const int num_layers, const int addl_ents,
                                           Range *sent_ents, Range &allsent,
                                       tuple_list &entprocs) 
 {
@@ -4670,7 +4670,7 @@ ErrorCode ParallelComm::get_sent_ents(const bool is_iface,
        proc_it != buffProcs.end(); proc_it++, ind++) {
     if (!is_iface) {
       result = get_ghosted_entities(bridge_dim, ghost_dim, buffProcs[ind],
-                                    num_layers, sent_ents[ind]);
+                                    num_layers, addl_ents, sent_ents[ind]);
       RRA("Failed to get ghost layers.");
     }
     else {
@@ -4721,7 +4721,7 @@ ErrorCode ParallelComm::get_sent_ents(const bool is_iface,
 ErrorCode ParallelComm::exchange_ghost_cells(ParallelComm **pcs,
                                                  unsigned int num_procs,
                                                  int ghost_dim, int bridge_dim,
-                                                 int num_layers,
+                                                 int num_layers, int addl_ents,
                                                  bool store_remote_handles)
 {
     // static version of function, exchanging info through buffers rather 
@@ -4756,7 +4756,7 @@ ErrorCode ParallelComm::exchange_ghost_cells(ParallelComm **pcs,
   tuple_list entprocs[MAX_SHARING_PROCS];
   for (unsigned int p = 0; p < num_procs; p++) {
     pc = pcs[p];
-    result = pc->get_sent_ents(is_iface, bridge_dim, ghost_dim, num_layers,
+    result = pc->get_sent_ents(is_iface, bridge_dim, ghost_dim, num_layers, addl_ents,
                                sent_ents[p], allsent[p], entprocs[p]);
     RRAI(pc->get_moab(), "get_sent_ents failed.");
   
@@ -5013,6 +5013,7 @@ ErrorCode ParallelComm::get_ghosted_entities(int bridge_dim,
                                                  int ghost_dim,
                                                  int to_proc, 
                                                  int num_layers,
+                                             int addl_ents,
                                                  Range &ghosted_ents) 
 {
     // get bridge ents on interface(s)
@@ -5041,6 +5042,37 @@ ErrorCode ParallelComm::get_ghosted_entities(int bridge_dim,
   result = add_verts(ghosted_ents);
   RRA("Couldn't add verts.");
 
+  if (addl_ents) {
+      // first get the ents of ghost_dim
+    Range tmp_ents, tmp_owned, tmp_notowned;
+    tmp_owned = ghosted_ents.subset_by_dimension(ghost_dim);
+    if (tmp_owned.empty()) return result;
+
+    tmp_notowned = tmp_owned;
+    
+      // next, filter by pstatus; can only create adj entities for entities I own
+    result = filter_pstatus(tmp_owned, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &tmp_owned);
+    RRA("Problem filtering owned entities.");
+
+    tmp_notowned -= tmp_owned;
+    
+      // get edges first
+    if (1 == addl_ents || 3 == addl_ents) {
+      result = mbImpl->get_adjacencies(tmp_owned, 1, true, tmp_ents, Interface::UNION);
+      RRA("Couldn't get edge adjacencies for owned ghost entities.");
+      result = mbImpl->get_adjacencies(tmp_notowned, 1, false, tmp_ents, Interface::UNION);
+      RRA("Couldn't get edge adjacencies for notowned ghost entities.");
+    }
+    if (2 == addl_ents || 3 == addl_ents) {
+      result = mbImpl->get_adjacencies(tmp_owned, 2, true, tmp_ents, Interface::UNION);
+      RRA("Couldn't get face adjacencies for owned ghost entities.");
+      result = mbImpl->get_adjacencies(tmp_notowned, 2, false, tmp_ents, Interface::UNION);
+      RRA("Couldn't get face adjacencies for notowned ghost entities.");
+    }
+
+    ghosted_ents.merge(tmp_ents);
+  }
+  
   return result;
 }
 

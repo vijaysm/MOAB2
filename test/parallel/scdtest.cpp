@@ -193,7 +193,7 @@ void resolve_and_exchange()
   // Finally, determine which entites are shared and exchange the
   // ghosted entities:
   error(mbpc->resolve_shared_ents(0, -1, -1));
-  error(mbpc->exchange_ghost_cells(-1, 0, 1, true));
+  error(mbpc->exchange_ghost_cells(-1, 0, 1, 0, true));
 }
 
 void error(ErrorCode err)

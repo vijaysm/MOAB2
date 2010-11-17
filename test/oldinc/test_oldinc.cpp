@@ -71,12 +71,13 @@ int main()
   MBCore mb_core;
   MBInterface& mb = mb_core;
   MBRange range;
-    // initialize the following to NULL to eliminate compiler warnings
+    // initialize and test the following to NULL to eliminate compiler warnings
   MBReaderIface* read_ptr = NULL;
   MBWriterIface* write_ptr = NULL;
   MBReadUtilIface* read_util = NULL;
   MBWriteUtilIface* write_util = NULL;
   MBReaderWriterSet* io_set_ptr = NULL;
+  if (read_ptr || write_ptr || read_util || write_util || io_set_ptr) ;
   
   MBAdaptiveKDTree kdtree_tool(&mb);
   MBBSPTree bsptree_tool(&mb);

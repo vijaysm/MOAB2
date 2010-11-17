@@ -52,7 +52,8 @@ public:
                         const int shared_dim,
                         const int ghost_dim,
                         const int bridge_dim,
-                        const int num_layers);
+                      const int num_layers,
+                      const int addl_ents);
     //! Constructor
   ReadParallel(Interface* impl = NULL, ParallelComm *pc = NULL);
 

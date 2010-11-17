@@ -75,7 +75,7 @@ int main( int argc, char* argv[] )
     rval = rp.load_file(fnames, 1, 0, ReadParallel::POPT_READ_DELETE,
                         ptag_name, 
                         partition_tag_vals, partition_distrib, false, pa_vec, 
-                        fopts, NULL, NULL, i, false, -1, -1, -1, -1, 0);
+                        fopts, NULL, NULL, i, false, -1, -1, -1, -1, 0, 0);
     CHECK_ERR(rval);
   }
   
@@ -83,11 +83,15 @@ int main( int argc, char* argv[] )
   CHECK_ERR(rval);
 
     // exchange interface cells
-  rval = ParallelComm::exchange_ghost_cells(&pc[0], nprocs, -1, -1, 0, true);
+  rval = ParallelComm::exchange_ghost_cells(&pc[0], nprocs, -1, -1, 0, 0, true);
   CHECK_ERR(rval);
   
     // now 1 layer of hex ghosts
-  rval = ParallelComm::exchange_ghost_cells(&pc[0], nprocs, 3, 2, 1, true);
+  rval = ParallelComm::exchange_ghost_cells(&pc[0], nprocs, 3, 2, 1, 0, true);
+  CHECK_ERR(rval);
+
+    // now 1 layer of hex ghosts with face/edges
+  rval = ParallelComm::exchange_ghost_cells(&pc[0], nprocs, 3, 2, 1, 3, true);
   CHECK_ERR(rval);
 
   for (int i = 0; i < nprocs; i++)

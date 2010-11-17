@@ -1049,7 +1049,7 @@ ErrorCode test_interface_owners_common( int num_ghost_layers )
   rval = parallel_create_mesh( mb, ids, verts, quads );  PCHECK(MB_SUCCESS == rval);
   rval = pcomm.resolve_shared_ents( 0, quads, 2, 1 ); PCHECK(MB_SUCCESS == rval);
   if (num_ghost_layers) {
-    rval = pcomm.exchange_ghost_cells( 2, 0, num_ghost_layers, true ); 
+    rval = pcomm.exchange_ghost_cells( 2, 0, num_ghost_layers, 0, true ); 
     PCHECK(MB_SUCCESS == rval);
   }
   
@@ -1116,7 +1116,7 @@ ErrorCode test_ghosted_entity_shared_data( const char* )
   int ids[9];
   rval = parallel_create_mesh( mb, ids, verts, quads );  PCHECK(MB_SUCCESS == rval);
   rval = pcomm.resolve_shared_ents( 0, quads, 2, 1 ); PCHECK(MB_SUCCESS == rval);
-  rval = pcomm.exchange_ghost_cells( 2, 1, 1, true ); 
+  rval = pcomm.exchange_ghost_cells( 2, 1, 1, 0, true ); 
   PCHECK(MB_SUCCESS == rval);
   
   rval = pcomm.check_all_shared_handles();
