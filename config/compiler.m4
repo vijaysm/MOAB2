@@ -190,7 +190,7 @@ if test "xyes" = "x$enable_cc_optimize"; then
   CFLAGS="$CFLAGS -O2 -DNDEBUG"
 fi
 if test "xyes" = "x$enable_fc_optimize"; then
-  FCFLAGS="$FCFLAGS -O2
+  FCFLAGS="$FCFLAGS -O2"
 fi
 
   # Check for 32/64 bit.
