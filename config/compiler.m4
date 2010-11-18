@@ -120,6 +120,7 @@ fi
 #
 #  CFLAGS   - C compiler flags
 #  CXXFLAGS - C++ compiler flags
+#  DEBUG - yes if specified, no otherwise
 #
 #######################################################################################
 AC_DEFUN([FATHOM_COMPILER_FLAGS], [
@@ -159,6 +160,7 @@ AC_ARG_ENABLE( optimize, AC_HELP_STRING([--enable-optimize],[Compile optimized (
 
 # Do enable_optimize by default, unless user has specified
 # custom CXXFLAGS or CFLAGS
+DEBUG=no
 if test "x$enable_debug" = "x"; then
   if test "x$enable_cxx_optimize" = "x"; then
     if test "x$USER_CXXFLAGS" = "x"; then
@@ -179,6 +181,7 @@ fi
 
 # Choose compiler flags from CLI args
 if test "xyes" = "x$enable_debug"; then
+  DEBUG=yes
   CXXFLAGS="$CXXFLAGS -g"
   CFLAGS="$CFLAGS -g"
   FCFLAGS="$FCFLAGS -g"
