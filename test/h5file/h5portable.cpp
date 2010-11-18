@@ -621,9 +621,9 @@ void test_native_read()
   REGISTER_DEP_TEST( test_read_bit_tag_ ## NAME , test_read_set_contents_ ## NAME ); \
   REGISTER_DEP_TEST( test_read_partial_ ## NAME , test_read_elements_ ## NAME ); 
 
-DEFINE_TEST_SET( x86_64 );
-DEFINE_TEST_SET( x86_32 );
-DEFINE_TEST_SET( power_32 );
+DEFINE_TEST_SET( x86_64 )
+DEFINE_TEST_SET( x86_32 )
+DEFINE_TEST_SET( power_32 )
 
 int main( int argc, char* argv[] )
 { 

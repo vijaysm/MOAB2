@@ -97,7 +97,7 @@ enum EntitySetProperty {
 };
 
 #ifdef __cplusplus
-} // namespace moab 
+} /* namespace moab */
 #endif
 
 /*@}*/

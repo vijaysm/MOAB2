@@ -163,13 +163,13 @@ static bool do_error( const char* string, int line )
 static inline bool is_error( bool b )
   { return !b; }
 
-static bool do_error( ErrorCode err, int line )
-{
-  Core tmp_core;
-  fprintf(stderr, "API failed at line %d: %s (%d)\n", 
-    line, tmp_core.get_error_string(err).c_str(), (int)err );
-  return false;
-}
+//static bool do_error( ErrorCode err, int line )
+//{
+//  Core tmp_core;
+//  fprintf(stderr, "API failed at line %d: %s (%d)\n", 
+//    line, tmp_core.get_error_string(err).c_str(), (int)err );
+//  return false;
+//}
 static inline bool is_error( ErrorCode b )
   { return MB_SUCCESS != b; }
 

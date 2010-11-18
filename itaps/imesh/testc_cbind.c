@@ -2212,6 +2212,9 @@ int array_allocation( iMesh_Instance mesh )
   iBase_EntityHandle *verts = NULL;
   int verts_alloc = 0,verts_size;
 
+  iBase_EntityHandle *ents;
+  int ents_alloc, ents_size;
+
   iMesh_newMesh("",&mesh,&err,0);
   if (iBase_SUCCESS != err) return 0;
 
@@ -2226,10 +2229,7 @@ int array_allocation( iMesh_Instance mesh )
   if (iBase_SUCCESS != err) return 0;
   free(verts);
 
-  iBase_EntityHandle *ents;
-  int ents_alloc, ents_size;
-
-    // test for proper allocation when array pointer passed in null but alloc'd size not
+    /* test for proper allocation when array pointer passed in null but alloc'd size not */
   ents_alloc = 3;
   ents = NULL;
   iMesh_getEntities(mesh, root_set, iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES, 
@@ -2238,7 +2238,7 @@ int array_allocation( iMesh_Instance mesh )
     
   free(ents);
     
-    // test for proper allocation when array pointer passed in non-null but alloc'd size 0
+    /* test for proper allocation when array pointer passed in non-null but alloc'd size 0 */
   ents_alloc = 0;
   iMesh_getEntities(mesh, root_set, iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES, 
                     &ents, &ents_alloc, &ents_size, &err);
@@ -2246,7 +2246,7 @@ int array_allocation( iMesh_Instance mesh )
     
   free(ents);
 
-    // test for failure when passed in alloc'd size is smaller than it should be
+    /* test for failure when passed in alloc'd size is smaller than it should be */
   ents_alloc -= 1;
   iMesh_getEntities(mesh, root_set, iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES, 
                     &ents, &ents_alloc, &ents_size, &err);
