@@ -247,6 +247,8 @@ int main( int argc, char* argv[] )
     if (power > 1)
         // append num_parts to output filename
       tmp_output_file << output_file << "_" << num_parts << ".h5m";
+    else
+      tmp_output_file << output_file;
 
     rval = mb.write_file( tmp_output_file.str().c_str() );
     if (MB_SUCCESS != rval) {
