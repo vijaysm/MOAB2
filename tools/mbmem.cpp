@@ -270,7 +270,8 @@ void print_memory_stats( moab::Interface& mb,
 
   if (sysstats) {
     std::FILE* filp = std::fopen("/proc/self/stat", "r");
-    unsigned long vsize, rss;
+    unsigned long vsize;
+    long rss;
     if (filp && 2 == std::fscanf(filp,
                   "%*d " // pid
                   "%*s " // comm

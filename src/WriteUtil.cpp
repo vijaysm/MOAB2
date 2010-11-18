@@ -495,7 +495,7 @@ ErrorCode WriteUtil::get_element_connect(
     if (conn_array == NULL) { // if it is structured mesh
       ErrorCode rval;
       int temp_buff_size = conn_size* sizeof(EntityHandle);
-      for (int i = 0; i < count; i++) { // copy connectivity element by element
+      for (unsigned i = 0; i < count; i++) { // copy connectivity element by element
 	std::vector<EntityHandle> connect;
 	rval = static_cast<ElementSequence*>(*seq_iter)->get_connectivity(*iter,
 									  connect);

@@ -36,9 +36,15 @@ const char GEOM_SENSE_2_TAG_NAME[] = "GEOM_SENSE_2";
 const char GEOM_SENSE_N_ENTS_TAG_NAME[] = "GEOM_SENSE_N_ENTS";
 const char GEOM_SENSE_N_SENSES_TAG_NAME[] = "GEOM_SENSE_N_SENSES";
 
-GeomTopoTool::GeomTopoTool(Interface *impl, bool find_geoments) :
-   mdbImpl(impl), sense2Tag(0), senseNEntsTag(0), senseNSensesTag(0), obbTree(
-         impl), oneVolRootSet(NULL) , contiguous(true) {
+GeomTopoTool::GeomTopoTool(Interface *impl, bool find_geoments)
+ : mdbImpl(impl), 
+   sense2Tag(0), 
+   senseNEntsTag(0), 
+   senseNSensesTag(0), 
+   obbTree(impl), 
+   contiguous(true),
+   oneVolRootSet(NULL)
+{
    ErrorCode result = mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4,
          MB_TAG_SPARSE, geomTag, NULL);
    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) {
