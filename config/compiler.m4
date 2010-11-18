@@ -5,7 +5,7 @@
 #  libtool variable name
 #  variable in which to store result
 #######################################################################################
-AC_DEFUN([ITAPS_LIBTOOL_VAR], [
+AC_DEFUN([FATHOM_LIBTOOL_VAR], [
   echo "SED=$SED" > .tmp
   ./libtool --tag=$1 --config >>.tmp
   echo "echo \$$2" >> .tmp

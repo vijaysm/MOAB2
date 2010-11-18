@@ -257,10 +257,25 @@ m4_ifdef([LT_OUTPUT],[LT_OUTPUT])
 ################################################################################
 #                              Extract libtool config
 ################################################################################
-ITAPS_LIBTOOL_VAR( [CXX], [compiler_lib_search_path], [MOAB_CXX_LINKFLAGS])
-ITAPS_LIBTOOL_VAR( [CXX], [postdeps], [MOAB_CXX_LIBS])
+FATHOM_LIBTOOL_VAR( [CXX], [compiler_lib_search_path], [MOAB_CXX_LINKFLAGS])
+FATHOM_LIBTOOL_VAR( [CXX], [postdeps], [MOAB_CXX_LIBS_TMP])
+MOAB_CXX_LIBS=
+for lib in $MOAB_CXX_LIBS_TMP; do
+  case $lib in
+    -lgcc_s)
+      ;;
+    -lm)
+      ;;
+    -lc)
+      ;;
+    *)
+      MOAB_CXX_LIBS="$MOAB_CXX_LIBS $lib"
+      ;;
+  esac
+done
 AC_SUBST(MOAB_CXX_LINKFLAGS)
 AC_SUBST(MOAB_CXX_LIBS)
+
 
 ################################################################################
 #                             System Headers
