@@ -462,18 +462,32 @@ extern "C" {
                               /*inout*/ int* coords_allocated,
                               /*out*/ int* coords_size, int *err) 
   {
+    int geom_dim;
+    MBI->get_dimension(geom_dim);
 
       // make sure we can hold them all
-    ALLOC_CHECK_ARRAY(coords, 3*vertex_handles_size);
+    ALLOC_CHECK_ARRAY(coords, geom_dim*vertex_handles_size);
   
       // now get all the coordinates
       // coords will come back interleaved by default
     ErrorCode result;
     if (storage_order == iBase_INTERLEAVED) {
-      result = MBI->get_coords(CONST_HANDLE_ARRAY_PTR(vertex_handles), 
-                               vertex_handles_size, *coords);
+      if (3 == geom_dim) {
+        result = MBI->get_coords(CONST_HANDLE_ARRAY_PTR(vertex_handles), 
+                                 vertex_handles_size, *coords);
+      }
+      else {
+        std::vector<double> dum_coords(3*vertex_handles_size);
+        result = MBI->get_coords(CONST_HANDLE_ARRAY_PTR(vertex_handles), 
+                                 vertex_handles_size,
+                                 &dum_coords[0]);
+
+        for (int i = 0; i < vertex_handles_size; i++) {
+          for (int j = 0; j < geom_dim; j++)
+            (*coords)[geom_dim*i + j] = dum_coords[3*i + j];
+        }
+      }
     }
-  
     else {
       std::vector<double> dum_coords(3*vertex_handles_size);
       result = MBI->get_coords(CONST_HANDLE_ARRAY_PTR(vertex_handles), 
@@ -481,15 +495,9 @@ extern "C" {
                                &dum_coords[0]);
       CHKERR(result,"iMesh_getVtxArrCoords: problem getting vertex coords");
 
-      int i;
-      double *x = *coords;
-      double *y = *coords+vertex_handles_size;
-      double *z = *coords+2*vertex_handles_size;
-      std::vector<double>::const_iterator c_iter = dum_coords.begin();
-      for (i = 0; i < vertex_handles_size; i++) {
-        *x = *c_iter; ++x; ++c_iter;
-        *y = *c_iter; ++y; ++c_iter;
-        *z = *c_iter; ++z; ++c_iter;
+      for (int i = 0; i < vertex_handles_size; i++) {
+        for (int j = 0; j < geom_dim; j++)
+          (*coords)[i + vertex_handles_size*j] = dum_coords[3*i + j];
       }
     }
   
@@ -1261,17 +1269,35 @@ extern "C" {
                               /*in*/ const double* new_coords,
                               /*in*/ const int new_coords_size, int *err) 
   {
+    int geom_dim;
+    MBI->get_dimension(geom_dim);
+    if (new_coords_size != geom_dim*vertex_handles_size) {
+      ERROR(iBase_INVALID_ARGUMENT, "iMesh_setVtxArrCoords: Didn't get the right # coordinates.");
+    }
+
     ErrorCode result = MB_SUCCESS, tmp_result;
     if (storage_order == iBase_INTERLEAVED) {
-      result = MBI->set_coords(CONST_HANDLE_ARRAY_PTR(vertex_handles),
-                               vertex_handles_size, new_coords);
+      if (3 == geom_dim) {
+        result = MBI->set_coords(CONST_HANDLE_ARRAY_PTR(vertex_handles),
+                                 vertex_handles_size, new_coords);
+      }
+      else {
+        const EntityHandle *verts = CONST_HANDLE_ARRAY_PTR(vertex_handles);
+        double dummy[3] = {0, 0, 0};
+        for (int i = 0; i < vertex_handles_size; i++) {
+          for (int j = 0; j < geom_dim; j++)
+            dummy[j] = new_coords[geom_dim*i + j];
+          tmp_result = MBI->set_coords(&verts[i], 1, dummy);
+          if (MB_SUCCESS != tmp_result) result = tmp_result;
+        }
+      }
     }
     else {
       const EntityHandle *verts = CONST_HANDLE_ARRAY_PTR(vertex_handles);
-      double dummy[3];
+      double dummy[3] = {0, 0, 0};
       for (int i = 0; i < vertex_handles_size; i++) {
-        dummy[0] = new_coords[i]; dummy[1] = new_coords[vertex_handles_size+i]; 
-        dummy[2] = new_coords[2*vertex_handles_size+i];
+        for (int j = 0; j < geom_dim; j++)
+          dummy[j] = new_coords[i + vertex_handles_size*j];
         tmp_result = MBI->set_coords(&verts[i], 1, dummy);
         if (MB_SUCCESS != tmp_result) result = tmp_result;
       }
@@ -1291,7 +1317,9 @@ extern "C" {
                           /*inout*/ int* new_vertex_handles_allocated,
                           /*inout*/ int* new_vertex_handles_size, int *err) 
   {
-    if (new_coords_size != 3*num_verts) {
+    int geom_dim;
+    MBI->get_dimension(geom_dim);
+    if (new_coords_size != geom_dim*num_verts) {
       ERROR(iBase_INVALID_ARGUMENT, "iMesh_createVtxArr: Didn't get the right # coordinates.");
     }
 
@@ -1302,16 +1330,28 @@ extern "C" {
     EntityHandle *new_verts = HANDLE_ARRAY_PTR(*new_vertex_handles);
 
     if (storage_order == iBase_INTERLEAVED) {
-      for (int i = 0; i < num_verts; i++) {
-        ErrorCode result = MBI->create_vertex(&new_coords[3*i], new_verts[i]);
-        CHKERR(result, "iMesh_createVtxArr: couldn't create vertex.");
+      if (3 == geom_dim) {
+        for (int i = 0; i < num_verts; i++) {
+          ErrorCode result = MBI->create_vertex(&new_coords[3*i], new_verts[i]);
+          CHKERR(result, "iMesh_createVtxArr: couldn't create vertex.");
+        }
+      }
+      else {
+        double tmp[3] = {0, 0, 0};
+        for (int i = 0; i < num_verts; i++) {
+          for (int j = 0; j < geom_dim; j++)
+            tmp[j] = new_coords[geom_dim*i + j];
+          ErrorCode result = MBI->create_vertex(tmp, new_verts[i]);
+          CHKERR(result, "iMesh_createVtxArr: couldn't create vertex.");
+        }
       }
     }
     else {
+      double tmp[3] = {0, 0, 0};
       for (int i = 0; i < num_verts; i++) {
-        double tmp[3] = { new_coords[0*num_verts+i],
-                          new_coords[1*num_verts+i],
-                          new_coords[2*num_verts+i] };
+        for (int j = 0; j < geom_dim; j++)
+          tmp[j] = new_coords[j*num_verts + i];
+
         ErrorCode result = MBI->create_vertex(tmp, new_verts[i]);
         CHKERR(result, "iMesh_createVtxArr: couldn't create vertex.");
       }
@@ -1755,9 +1795,11 @@ extern "C" {
                     
   {
     const double xyz[3] = {x, y, z};
+    int geom_dim;
+    MBI->get_dimension(geom_dim);
   
     iMesh_setVtxArrCoords(instance, &vertex_handle, 1, iBase_BLOCKED,
-                          xyz, 3, err);
+                          xyz, geom_dim, err);
   }
 
   void iMesh_createVtx(iMesh_Instance instance,
@@ -1767,8 +1809,10 @@ extern "C" {
   {
     int dum = 1;
     const double xyz[3] = {x, y, z};
+    int geom_dim;
+    MBI->get_dimension(geom_dim);
     iMesh_createVtxArr(instance, 1, iBase_BLOCKED,
-                       xyz, 3, &new_vertex_handle, &dum, &dum, err);
+                       xyz, geom_dim, &new_vertex_handle, &dum, &dum, err);
   }
                                                    
   void iMesh_createEnt(iMesh_Instance instance,
@@ -2230,9 +2274,9 @@ extern "C" {
                           /*out*/ double *x, /*out*/ double *y, /*out*/ double *z, int *err)
   {
     int order = iBase_BLOCKED;
-    double xyz[3], *tmp_xyz = xyz;
+    double xyz[3] = {0}, *tmp_xyz = xyz;
     int dum = 3;
-  
+
     iMesh_getVtxArrCoords(instance,
                           &vertex_handle, 1, order,
                           &tmp_xyz, &dum, &dum, err);
