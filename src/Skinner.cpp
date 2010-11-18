@@ -1126,9 +1126,12 @@ ErrorCode Skinner::find_skin_vertices_1D( Tag tag,
     tag_vals.resize( adj.size() );
     rval = thisMB->tag_get_data( tag, &adj[0], adj.size(), &tag_vals[0] );
     if (MB_SUCCESS != rval) return rval;
+#ifdef OLD_STD_COUNT
     n = 0;
     std::count( tag_vals.begin(), tag_vals.end(), '\001', n );
-    
+#else
+    n = std::count( tag_vals.begin(), tag_vals.end(), '\001' );
+#endif    
       // If adjacent to only one input edge, then vertex is on skin
     if (n == 1) {
       hint = skin_verts.insert( hint, *it );

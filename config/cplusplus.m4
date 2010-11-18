@@ -201,3 +201,26 @@ if test $fathom_cv_std_vector_templatized_insert = no; then
   NO_VECTOR_TEMPLATE_INSERT=-DNO_VECTOR_TEMPLATE_INSERT
 fi
 ])
+
+#######################################################################################
+# Check if c++ standard library implements old-style std::count
+# The standard specifies that count return the result.
+# The original SGI version accepted an integer reference as its 
+# last argument and incremented that for each match.
+# Sets OLD_STD_COUNT=-DOLD_STD_COUNT
+# if old format is required.
+#######################################################################################
+AC_DEFUN([FATHOM_OLD_STD_COUNT],[
+AC_CACHE_CHECK([if std::copy must be old SGI format],
+               [fathom_cv_std_count_old_sgi],[
+AC_LANG_PUSH([C++])
+AC_COMPILE_IFELSE(
+ [AC_LANG_PROGRAM( [#include <algorithm>], [int* a, b = std::count(a, a, 5);])],
+ [fathom_cv_std_count_old_sgi=no],
+ [fathom_cv_std_count_old_sgi=yes])
+AC_LANG_POP([C++])])
+OLD_STD_COUNT=
+if test $fathom_cv_std_count_old_sgi = yes; then
+  OLD_STD_COUNT=-DOLD_STD_COUNT
+fi
+])

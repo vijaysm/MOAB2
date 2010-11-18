@@ -21,7 +21,7 @@ AC_ARG_ENABLE([fortran],[AC_HELP_STRING([--disable-fortran],
   [No Fortran name mangling in ITAPS/MBCN C headers])],
   [ENABLE_FORTRAN=$enableval],[ENABLE_FORTRAN=yes])
 
-EXTRA_GNU_FLAGS='-Wall -pipe'
+EXTRA_GNU_FLAGS='-Wall -pipe -pedantic'
 FATHOM_CHECK_COMPILERS([yes],[yes],[$ENABLE_FORTRAN])
 AM_CONDITIONAL(PARALLEL,[test "x$WITH_MPI" != "xno"])
 LIBS="-lm"
@@ -60,7 +60,8 @@ AC_CHECK_FUNC([vsnprintf],[AM_CPPFLAGS="$AM_CPPFLAGS -DHAVE_VSNPRINTF"])
 AM_CPPFLAGS="$AM_CPPFLAGS -D_FILE_OFFSET_BITS=64"
 
 FATHOM_VECTOR_TEMPLATE_INSERT
-AM_CPPFLAGS="$AM_CPPFLAGS $NO_VECTOR_TEMPLATE_INSERT"
+FATHOM_OLD_STD_COUNT
+AM_CPPFLAGS="$AM_CPPFLAGS $NO_VECTOR_TEMPLATE_INSERT $OLD_STD_COUNT"
 
 
 ################################################################################
