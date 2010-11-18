@@ -59,6 +59,8 @@ AC_CHECK_FUNC([vsnprintf],[AM_CPPFLAGS="$AM_CPPFLAGS -DHAVE_VSNPRINTF"])
 # is larger that 2GB.
 AM_CPPFLAGS="$AM_CPPFLAGS -D_FILE_OFFSET_BITS=64"
 
+FATHOM_VECTOR_TEMPLATE_INSERT
+AM_CPPFLAGS="$AM_CPPFLAGS $NO_VECTOR_TEMPLATE_INSERT"
 
 
 ################################################################################

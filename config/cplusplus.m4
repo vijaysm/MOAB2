@@ -173,3 +173,31 @@ if test $snl_cv_template_func_specialization = yes; then
 fi
 
 ]) # FATHOM_TEMPLATE_FUNC_SPECIALIZATION
+
+
+#######################################################################################
+# Check if c++ standard library implements templatized vertor insert:
+# v.insert( v.begin(), o.begin(), o.end() ); where 'o' is not a std::vector
+# Sets NO_VECTOR_TEMPLATE_INSERT=-DNO_VECTOR_TEMPLATE_INSERT
+# if support is not found.
+#######################################################################################
+AC_DEFUN([FATHOM_VECTOR_TEMPLATE_INSERT],[
+AC_CACHE_CHECK([if std::vector has templatized insert method],
+               [fathom_cv_std_vector_templatized_insert],[
+AC_LANG_PUSH([C++])
+AC_COMPILE_IFELSE(
+[AC_LANG_PROGRAM(
+[#include <vector>
+ #include <list>],
+[std::vector<int> v;
+ std::list<int> l;
+ v.insert( v.begin(), l.begin(), l.end() );
+])],
+[fathom_cv_std_vector_templatized_insert=yes],
+[fathom_cv_std_vector_templatized_insert=no])
+AC_LANG_POP([C++])])
+NO_VECTOR_TEMPLATE_INSERT=
+if test $fathom_cv_std_vector_templatized_insert = no; then
+  NO_VECTOR_TEMPLATE_INSERT=-DNO_VECTOR_TEMPLATE_INSERT
+fi
+])

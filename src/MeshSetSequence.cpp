@@ -225,8 +225,13 @@ ErrorCode MeshSetSequence::get_type( const SequenceManager* seqman,
   else if (type == MBMAXTYPE) {
     Range tmp;
     ErrorCode rval = get_entities( seqman, handle, tmp, recursive );
-    if (MB_SUCCESS == rval) 
+    if (MB_SUCCESS == rval) {
+#ifdef NO_VECTOR_TEMPLATE_INSERT
+      std::copy( tmp.begin(), tmp.end(), std::back_inserter(entities) );
+#else
       entities.insert( entities.end(), tmp.begin(), tmp.end() );
+#endif
+    }
     return rval;
   }
   else {

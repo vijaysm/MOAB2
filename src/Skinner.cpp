@@ -1113,7 +1113,7 @@ ErrorCode Skinner::find_skin_vertices_1D( Tag tag,
     // Test how many edges each input vertex is adjacent to.
   std::vector<char> tag_vals;
   std::vector<EntityHandle> adj;
-  int count;
+  int n;
   for (Range::const_iterator it = verts.begin(); it != verts.end(); ++it) {
       // get edges adjacent to vertex
     adj.clear();
@@ -1126,10 +1126,11 @@ ErrorCode Skinner::find_skin_vertices_1D( Tag tag,
     tag_vals.resize( adj.size() );
     rval = thisMB->tag_get_data( tag, &adj[0], adj.size(), &tag_vals[0] );
     if (MB_SUCCESS != rval) return rval;
-    count = std::count( tag_vals.begin(), tag_vals.end(), '\001' );
+    n = 0;
+    std::count( tag_vals.begin(), tag_vals.end(), '\001', n );
     
       // If adjacent to only one input edge, then vertex is on skin
-    if (count == 1) {
+    if (n == 1) {
       hint = skin_verts.insert( hint, *it );
     }
   }
