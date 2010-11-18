@@ -6,6 +6,8 @@
 #include "moab/CN.hpp"
 #include "iMesh_extensions.h"
 #include "iostream"
+#include <stdio.h>
+
 
 extern "C" 
 {
@@ -67,7 +69,6 @@ ErrorCode Coupler::initialize_tree()
   Range local_ents;
   AdaptiveKDTree::Settings settings;
   settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION;
-  allBoxes.resize(6*myPc->proc_config().proc_size());
 
     //get entities on the local part
   ErrorCode result = myPc->get_part_entities(local_ents, 3);
@@ -108,6 +109,13 @@ ErrorCode Coupler::initialize_tree()
   int mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
                               &allBoxes[0], 6, MPI_DOUBLE, 
                               myPc->proc_config().proc_comm());
+
+
+  /*  std::ostringstream blah;
+  for(int i=0; i<allBoxes.size(); i++)
+  blah << allBoxes[i] << " ";
+  std::cout<<blah.str()<<"\n";*/
+
 
 #ifndef NDEBUG
   double min[3] = {0,0,0}, max[3] = {0,0,0};
@@ -178,11 +186,12 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
       {
           // if in this proc's box, will send to proc to test further
           // check size, grow if we're at max
-        if (target_pts.n == target_pts.max)
+        if (target_pts.n == target_pts.max) 
           tuple_list_grow(&target_pts);
   
         target_pts.vi[2*target_pts.n] = j;
         target_pts.vi[2*target_pts.n+1] = i/3;
+
         target_pts.vr[3*target_pts.n] = xyz[i];
         target_pts.vr[3*target_pts.n+1] = xyz[i+1];
         target_pts.vr[3*target_pts.n+2] = xyz[i+2];
@@ -239,23 +248,38 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
   // count non-negatives
   int num_pts = 0;
   for (unsigned int i = 0; i < source_pts.n; i++)
-    if (-1 != source_pts.vi[3*i+2]) num_pts++;
+    if (-1 != source_pts.vi[3*i+2]) num_pts++;  
 
     // store information about located points
   targetPts = new tuple_list;
   tuple_list *tl_tmp = targetPts;
-  if (!store_local) tl_tmp = tl;
+  if (!store_local) 
+    tl_tmp = tl;
+
   tuple_list_init_max(tl_tmp, 3, 0, 0, 1, num_pts);
   for (unsigned int i = 0; i < source_pts.n; i++) {
-    if (-1 != source_pts.vi[3*i+2] && !located_pts[3*i+1]) {
-      tl_tmp->vi[3*i] = source_pts.vi[3*i];
-      tl_tmp->vi[3*i+1] = source_pts.vi[3*i+1];
-      tl_tmp->vi[3*i+2] = source_pts.vi[3*i+2];
+    if (-1 != source_pts.vi[3*i+2]) { //why bother sending message saying "i don't have the point" if it gets discarded?
+
+      int locIndex = source_pts.vi[3*i+1];
+      if(located_pts[locIndex]){  
+	//asked 2+ procs if they have point p, they both said yes, we'll keep the one with lowest rank
+	//todo: check that the cases where both say yes are justified (seemed to happen too often in tests)
+	continue;
+      }
+
+      located_pts[locIndex] = 1;
+
+      tl_tmp->vi[3*tl_tmp->n]     = source_pts.vi[3*i];
+      tl_tmp->vi[3*tl_tmp->n + 1] = source_pts.vi[3*i+1];
+      tl_tmp->vi[3*tl_tmp->n + 2] = source_pts.vi[3*i+2];
       tl_tmp->n++;
     }
   }
 
-  assert(tl_tmp->n + localMappedPts.size()/2 == (unsigned int) num_points);
+  int mappedPoints  = tl_tmp->n + localMappedPts.size()/2;
+  int missingPoints = num_points-mappedPoints;
+  printf("point location: wanted %d got %d locally, %d remote, missing %d\n", num_points, localMappedPts.size()/2,  tl_tmp->n, missingPoints);
+  assert(0==missingPoints); //will litely break on curved geometries
   
     // no longer need source_pts
   tuple_list_free(&source_pts);
@@ -284,21 +308,21 @@ ErrorCode Coupler::test_local_box(double *xyz,
   if (MB_SUCCESS != result) return result;
 
     // if we didn't find any ents and we're looking locally, nothing more to do
-  if (entities.empty() && !tl) 
-    return result;
-  
+  if (entities.empty()){
+    if(tl){
+      tl->vi[3*index] = from_proc;
+      tl->vi[3*index+1] = remote_index;
+      tl->vi[3*index+2] = -1;
+    }
+    point_located = false;
+    return MB_SUCCESS;
+  }
+
     // grow if we know we'll exceed size
   if (mappedPts->n+entities.size() >= mappedPts->max)
     tuple_list_grow(mappedPts);
 
-  if (entities.empty() && tl) {
-    tl->vi[3*index] = from_proc;
-    tl->vi[3*index+1] = remote_index;
-    tl->vi[3*index+2] = -1;
-    point_located = false;
-    return MB_SUCCESS;
-  }
-  
+
   std::vector<EntityHandle>::iterator eit = entities.begin();
   std::vector<CartVect>::iterator ncit = nat_coords.begin();
   for (; eit != entities.end(); eit++, ncit++) {
@@ -312,7 +336,8 @@ ErrorCode Coupler::test_local_box(double *xyz,
       // also store local point, mapped point indices
     if (tl) 
     {
-      if (tl->n == tl->max) tuple_list_grow(tl);
+      if (tl->n == tl->max) 
+	tuple_list_grow(tl);
 
         // store in tuple source_pts
       tl->vi[3*tl->n] = from_proc;
@@ -413,7 +438,7 @@ ErrorCode Coupler::interpolate(Coupler::Method method,
 
 ErrorCode Coupler::nat_param(double xyz[3], 
                                  std::vector<EntityHandle> &entities, 
-                                 std::vector<CartVect> &nat_coords)
+                                 std::vector<CartVect> &nat_coords) 
 {
   AdaptiveKDTreeIter treeiter;
   ErrorCode result = myTree->get_tree_iterator(localRoot, treeiter); 
@@ -423,6 +448,8 @@ ErrorCode Coupler::nat_param(double xyz[3],
   }
 
   result = myTree->leaf_containing_point(localRoot, xyz, treeiter);
+  if(MB_ENTITY_NOT_FOUND==result) //point is outside of myTree's bounding box
+    return MB_SUCCESS; 
   if (MB_SUCCESS != result) {
     std::cout << "Problems getting leaf " << std::endl;
     return result;
@@ -488,7 +515,8 @@ ErrorCode Coupler::nat_param(double xyz[3],
     nat_coords.push_back(tmp_nat_coords);
     return MB_SUCCESS;
   }
-  
+
+  //didn't find any elements containing the point
   return MB_SUCCESS;
 }
 
