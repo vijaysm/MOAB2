@@ -2401,9 +2401,13 @@ extern "C" {
         && entity_topology < iMesh_ALL_TOPOLOGIES) {
       type = mb_topology_table[entity_topology];
       use_top = true;
+      
+      // Special-case handling for septahedra since we don't support them
       if (entity_type != iBase_ALL_TYPES && 
-          entity_topology != iMesh_SEPTAHEDRON &&
-          entity_type != CN::Dimension(type)) {
+          ((entity_topology != iMesh_SEPTAHEDRON &&
+            entity_type != CN::Dimension(type)) ||
+           (entity_topology == iMesh_SEPTAHEDRON &&
+            entity_type != iBase_REGION))) {
         ERROR(iBase_BAD_TYPE_AND_TOPO,
               "type and topology are inconsistant");
       }
