@@ -53,6 +53,6 @@ inline ParallelData::ParallelData(Interface *impl,
     : mbImpl(impl), parallelComm(pcomm) 
 {}
 
-};
+}
 
 #endif
