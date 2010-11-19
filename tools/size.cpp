@@ -607,20 +607,22 @@ int main( int argc, char* argv[] )
           }
 
           printf( "%s %d:\n", mesh_type_names[t], id );
-          if (tag_count)
+          if (tag_count) {
             rval = gather_tag_counts( *i, file_counts );
-          else if (!just_list && !just_list_basic)
-            rval = gather_set_stats( *i, file_stats );
-          if (rval != gather_set_stats( *i, file_stats ))
-            fprintf(stderr, "Error processing mesh from file: %s\n", f->c_str());
-          else if (tag_count)
             print_tag_counts( file_counts );
+          }
           else if (just_list)
             mb.list_entities( 0, 1 );
           else if (just_list_basic)
             mb.list_entities( 0, 0 );
-          else
-            print_stats( file_stats );
+          else if (!just_list && !just_list_basic) {
+            rval = gather_set_stats( *i, file_stats );
+
+            if (rval != MB_SUCCESS)
+              fprintf(stderr, "Error processing mesh from file: %s\n", f->c_str());
+            else
+              print_stats( file_stats );
+          }
           file_stats.clear();
           file_counts.clear();
         }
