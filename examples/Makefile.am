@@ -47,7 +47,7 @@ install-data-hook:
 	$(AM_V_at)mv $(DESTDIR)$(exampledir)/examples.make $(ex_make)
 	$(AM_V_at)echo "all: $(check_PROGRAMS)" >>$(ex_make)
 	$(AM_V_at)rule='	$$(CXX) -o $$@ $$< $$(CXXFLAGS) $$(MOAB_INCLUDES) $$(MOAB_LIBS_LINK)'; \
-	$(AM_V_at)for example in $(check_PROGRAMS); do \
+	for example in $(check_PROGRAMS); do \
 	  echo >>$(ex_make); \
 	  echo "$${example}: $${example}.cpp" >>$(ex_make); \
 	  echo "$$rule" >>$(ex_make); \
