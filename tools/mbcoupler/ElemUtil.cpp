@@ -429,14 +429,14 @@ namespace Element {
   
   inline const std::vector<CartVect>& Map::get_vertices() {
     return this->vertex;
-  };
+  }
   //
   void Map::set_vertices(const std::vector<CartVect>& v) {
     if(v.size() != this->vertex.size()) {
       throw ArgError();
     }
     this->vertex = v;
-  };// Map::set_vertices()
+  }// Map::set_vertices()
   //
   CartVect Map::ievaluate(const CartVect& x, double tol, const CartVect& x0) const {
     const double error_tol_sqr = tol*tol;
