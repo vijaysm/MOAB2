@@ -60,10 +60,4 @@ class McnpData {
 
             // Transformation routine
             MCNPError transform_point(double*, double*, int, double*);
-
-            // Parameters
-            static const double pi   = 3.141592653589793;
-            static const double c2pi = 0.1591549430918954;
-            static const double cpi  = 0.3183098861837907;
-
 };

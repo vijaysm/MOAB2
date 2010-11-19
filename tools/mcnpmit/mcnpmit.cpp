@@ -7,6 +7,11 @@
 
 moab::Interface* mb_instance();
 
+// Parameters
+const double pi   = 3.141592653589793;
+const double c2pi = 0.1591549430918954;
+const double cpi  = 0.3183098861837907;
+
 MCNPError next_number(std::string, double&, int&);
 int how_many_numbers(std::string);
 MCNPError read_numbers(std::string, int, std::vector<double>&);
@@ -362,11 +367,7 @@ MCNPError next_number(std::string s, double &d, int &p) {
                         j = slen;
 
                   // Extract the number out of the string
-                  char cn[j-i];
-                  s.copy(cn,j-i,i);
-
-
-                  d = std::atof(cn);
+                  d = std::atof(s.substr(i,j-i).c_str());
                   p = j+1;
 
                   return MCNP_SUCCESS;

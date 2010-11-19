@@ -400,11 +400,7 @@ MCNPError next_double(std::string s, double &d, int &p) {
       if (j > slen)
 	j = slen;
 
-      // Extract the number out of the string
-      char cn[j-i];
-      s.copy(cn,j-i,i);
-
-      d = std::atof(cn);
+      d = std::atof(s.substr(i,j-i).c_str());
       p = j+1;
 
       return MCNP_SUCCESS;
@@ -428,11 +424,7 @@ MCNPError next_int(std::string s, int &k, int &p) {
       if (j > slen)
 	j = slen;
 
-      // Extract the number out of the string
-      char cn[j-i];
-      s.copy(cn,j-i,i);
-
-      k = std::atoi(cn);
+      k = std::atoi(s.substr(i,j-i).c_str());
       p = j+1;
 
       return MCNP_SUCCESS;
