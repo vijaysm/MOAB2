@@ -1578,35 +1578,17 @@ void iMeshP_ghostEntInfo( const iMesh_Instance instance,
                           int *err )
 { FIXME; RETURN(iBase_NOT_SUPPORTED); }
 
-static void append_option( std::string& opt,
+static int append_option( std::string& opt,
                            const char* option,
                            const char* default_value = 0 )
 {
   std::string::size_type i;
 
-    // construct a std::string containing at least the leading
-    // separator.
-  char sep = opt.empty() ? ';' : opt[0];
-  
-    // make sure that the separator is ok (not contained in the option)
-  const char separators[] = ";:,.!@$#%&*^|/\"'\\~%";
-  if (strchr(option,sep) || (default_value && (sep == '=' || strchr(default_value,sep)))) {
-      // need a new separator.  
-    int c, e = sizeof(separators)-1;
-    for (c = 0; c < e; ++c) 
-      if (!strchr(opt.c_str(),separators[c]) &&
-          !strchr(option,separators[c]) &&
-          (!default_value || !strchr(default_value,separators[c])))
-        break;
-    if (c == e) {
-      opt.clear();
-      return;
-    }
-    
-    i = 0;
-    while (std::string::npos != (i = opt.find(sep,i))) 
-      opt[i] = separators[c]; 
-    sep = separators[c];
+  const char sep = ' ';
+
+  if (strchr(option,sep) || (default_value && strchr(default_value,sep))) {
+      // options can't have a separator in them; XXX work around this
+    return iBase_INVALID_ARGUMENT;
   }
   
     // search for the required option
@@ -1629,6 +1611,8 @@ static void append_option( std::string& opt,
       opt += default_value;
     }
   }
+
+  return iBase_SUCCESS;
 }
 
 void iMeshP_loadAll( iMesh_Instance instance,
@@ -1661,12 +1645,14 @@ void iMeshP_loadAll( iMesh_Instance instance,
 
     // add necessary values to options string
   std::string opt( options, options_len );
-  append_option( opt, "PARALLEL" );
-  append_option( opt, "PARTITION_DISTRIBUTE" );
-  append_option( opt, "PARALLEL_RESOLVE_SHARED_ENTS" );
+
+    // currently, we can assume these always succeed
+  append_option( opt, "moab:PARALLEL" );
+  append_option( opt, "moab:PARTITION_DISTRIBUTE" );
+  append_option( opt, "moab:PARALLEL_RESOLVE_SHARED_ENTS" );
   std::ostringstream id;
   id << pcomm->get_id();
-  append_option( opt, "PCOMM", id.str().c_str() );
+  append_option( opt, "moab:PCOMM", id.str().c_str() );
   
     // load the file
   iMesh_load( instance, entity_set_handle, name, opt.c_str(), err, name_len, opt.length() );
