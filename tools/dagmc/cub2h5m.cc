@@ -364,6 +364,9 @@ ErrorCode orient_faces_outward( Interface *MBI, const Range faces,
   return MB_SUCCESS;
 }
 
+/* Isolate dead code in a preproc-killed block - sjackson 11/22/10 */
+#if 0 
+
 /* qsort int comparison function */
 int handle_compare(const void *a, const void *b)
 {
@@ -456,6 +459,8 @@ ErrorCode skin_hex_elems(Interface *MBI, Range elems, const int dim,
   return MB_SUCCESS;
 }
 
+#endif //dead code isolation
+
 // Given a 1D array of data, axis labels, title, and number of bins, create a
 // histogram.
 void plot_histogram( const std::string title, 
@@ -472,7 +477,7 @@ void plot_histogram( const std::string title,
 
   // make bins for histogram
   double bin_width = (max-min)/n_bins;
-  int bins[n_bins];
+  std::vector<int> bins(n_bins);
   for(int i=0; i<n_bins; ++i) bins[i] = 0;
   
   // fill the bins
@@ -489,7 +494,7 @@ void plot_histogram( const std::string title,
   for(int i=0; i<n_bins; ++i) if(max_bin < bins[i]) max_bin = bins[i];
   int bar_height;
   int max_bar_chars = 72;
-  std::string bars[n_bins];
+  std::vector< std::string > bars(n_bins);
   for(int i=0; i<n_bins; ++i) {
     bar_height = (max_bar_chars*bins[i])/max_bin;
     for(int j=0; j<bar_height; ++j) bars[i] += "*";
@@ -549,7 +554,7 @@ double measure(Interface *MBI, const EntityHandle element) {
   ErrorCode result = MBI->get_connectivity( element, conn, num_vertices );
   if(MB_SUCCESS != result) return result;
 
-  CartVect coords[num_vertices];
+  std::vector< CartVect > coords(num_vertices);
   result = MBI->get_coords( conn, num_vertices, coords[0].array() );
   if(MB_SUCCESS != result) return result;
 
