@@ -117,13 +117,14 @@ MBErrorCode ReadTriangleOutput( MBCore *mb, string fileBase ) {
 	continue;
       }
       stringstream tokens(line);
-      int eleId, node;
+      int eleId;
+      unsigned int node;
       tokens >> eleId;
       for (int k=0; k<3; k++)
 	{
 	  tokens >> node;
           // vertex handles start at startv
-          starth[3*j+k] = (MBEntityHandle)(node + (int)startv-1 );
+            starth[3*j+k] = startv + node - 1;
         }
     }
 
