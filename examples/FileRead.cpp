@@ -4,10 +4,11 @@
 #include <string>
 #include <sstream> 
 
-#include "MBCore.hpp"
-#include "MBReadUtilIface.hpp"
+#include "moab/Core.hpp"
+#include "moab/ReadUtilIface.hpp"
 
 using namespace std;
+using namespace moab;
 
 int comment(string & line)
 {
@@ -21,13 +22,13 @@ int comment(string & line)
     return 0; // a line with some data in it, then
 
 }
-MBErrorCode ReadTriangleOutput( MBCore *mb, string fileBase ) {    
+ErrorCode ReadTriangleOutput( Core *mb, string fileBase ) {    
   
   //
   // get the read interface from moab
   void* ptr = 0;
-  mb->query_interface("MBReadUtilIface", &ptr);
-  MBReadUtilIface *iface = reinterpret_cast<MBReadUtilIface*>(ptr);
+  mb->query_interface("ReadUtilIface", &ptr);
+  ReadUtilIface *iface = reinterpret_cast<ReadUtilIface*>(ptr);
   //
   if (NULL == iface)
      {
@@ -74,8 +75,8 @@ MBErrorCode ReadTriangleOutput( MBCore *mb, string fileBase ) {
   //   needed arrays, coordinate arrays
   //   also, it will return a starting handle for the node sequence
   vector<double*> arrays;
-  MBEntityHandle startv;
-  MBErrorCode rval = iface->get_node_coords(2, num_nodes, 0, startv, arrays);
+  EntityHandle startv;
+  ErrorCode rval = iface->get_node_coords(2, num_nodes, 0, startv, arrays);
   for (int i = 0; i < num_nodes; i++)
     {
       getline(nodeFile, line);
@@ -102,8 +103,8 @@ MBErrorCode ReadTriangleOutput( MBCore *mb, string fileBase ) {
       cout << "num triangles:" << num_triangles << endl; 
     }
 
-  MBEntityHandle starte;
-  MBEntityHandle *starth; // the connectivity array that will get populated
+  EntityHandle starte;
+  EntityHandle *starth; // the connectivity array that will get populated
                           // with triangle data
   // allocate block of triangle handles and read connectivity into them
   rval = iface->get_element_connect(num_triangles, 3, MBTRI, 0, starte, starth);
@@ -150,9 +151,9 @@ int main(int argc, char **argv) {
   
 
   // get MOAB instance and read the file                                                                                                  
-  MBCore *mb = new MBCore();
+  Core *mb = new Core();
 
-   MBErrorCode rval = ReadTriangleOutput(mb, filename);
+   ErrorCode rval = ReadTriangleOutput(mb, filename);
 
    if (rval==MB_SUCCESS)
    {

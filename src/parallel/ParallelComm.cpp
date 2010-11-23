@@ -3575,10 +3575,12 @@ ErrorCode ParallelComm::create_interface_sets(std::map<std::vector<int>, Range> 
     interfaceSets.insert(new_set);
 
       // add entities
+    assert(!mit->second.empty());
     result = mbImpl->add_entities(new_set, mit->second); 
     RRA("Failed to add entities to interface set.");
       // tag set with the proc rank(s)
     if (mit->first.size() == 1) {
+      assert((mit->first)[0] != (int)procConfig.proc_rank());
       result = mbImpl->tag_set_data(sharedp_tag, &new_set, 1, 
                                     &(mit->first)[0]); 
       proc_handles[0] = 0;
@@ -3714,7 +3716,8 @@ ErrorCode ParallelComm::tag_shared_ents(int resolve_dim,
       int op = (resolve_dim < shared_dim ? Interface::UNION : Interface::INTERSECT);      
       result = get_sharing_data(connect, num_connect, sharing_procs, op);
       RRA("Failed to get sharing data in tag_shared_ents");
-      if (sharing_procs.empty()) continue;
+      if (sharing_procs.empty() ||
+          (sharing_procs.size() == 1 && *sharing_procs.begin() == (int)procConfig.proc_rank())) continue;
 
         // intersection is the owning proc(s) for this skin ent
       sp_vec.clear();
