@@ -14,7 +14,7 @@ typedef struct {
   sint *vi; slong *vl; ulong *vul; real *vr;
 } tuple_list;
 
-void tuple_list_permute(tuple_list *tl, uint *perm, void *work)
+void moab_tuple_list_permute(tuple_list *tl, uint *perm, void *work)
 {
   const unsigned mi=tl->mi, ml=tl->ml, mul=tl->mul, mr=tl->mr;
   const unsigned int_size  = mi*sizeof(sint),
@@ -43,7 +43,7 @@ void tuple_list_permute(tuple_list *tl, uint *perm, void *work)
   }
 }
 
-void tuple_list_sort(tuple_list *tl, unsigned key, buffer *buf)
+void moab_tuple_list_sort(tuple_list *tl, unsigned key, buffer *buf)
 {
   const unsigned mi=tl->mi, ml=tl->ml, mul=tl->mul, mr=tl->mr;
   const unsigned int_size =  mi*sizeof(sint);
@@ -64,6 +64,6 @@ void tuple_list_sort(tuple_list *tl, unsigned key, buffer *buf)
   else 
     index_sort_long((ulong*)&tl->vul[key-mi-ml],tl->n,mul, work, (void*)work);
 
-  tuple_list_permute(tl,work,work+tl->n);
+  moab_tuple_list_permute(tl,work,work+tl->n);
 }
 

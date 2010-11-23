@@ -49,7 +49,7 @@ crystal_data *ProcConfig::crystal_router(bool construct_if_missing)
 #ifdef USE_MPI
   if (!crystalData && construct_if_missing) {
     crystalData = new crystal_data;
-    crystal_init(crystalData, procComm);
+    moab_crystal_init(crystalData, procComm);
   }
 #endif
 
@@ -60,7 +60,7 @@ ProcConfig::~ProcConfig()
 {
   if (crystalData) {
 #ifdef USE_MPI
-    crystal_free(crystalData);
+    moab_crystal_free(crystalData);
 #endif
     delete crystalData;
     crystalData = 0;

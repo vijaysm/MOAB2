@@ -1117,7 +1117,7 @@ int Coupler::consolidate_tuples(tuple_list **all_tuples,
   buffer sort_buffer;
   buffer_init(&sort_buffer, 2 * total_rcv_tuples * int_width);
   for (int i = num_tags - 1; i >= 0; i--) {
-    tuple_list_sort(all_tuples_list, i, &sort_buffer);
+    moab_tuple_list_sort(all_tuples_list, i, &sort_buffer);
   }
 
   // Cycle through the sorted list eliminating duplicates.

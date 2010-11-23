@@ -305,6 +305,15 @@ public:
     // \section GET PARALLEL DATA (shared/owned/iface entities, etc.)
     // ==================================
 
+    /** \brief Get parallel status of an entity
+     * Returns the parallel status of an entity
+     *
+     * \param entity The entity being queried
+     * \param pstatus_val Parallel status of the entity
+     */
+  ErrorCode get_pstatus(EntityHandle entity,
+                        unsigned char &pstatus_val);
+  
     /** \brief Get entities with the given pstatus bit(s) set
      * Returns any entities whose pstatus tag value v satisfies (v & pstatus_val)
      *

@@ -17,9 +17,9 @@ typedef struct crystal_data {
   uint num, id;
 } crystal_data;
 
-void crystal_init(crystal_data *, MPI_Comm);
-void crystal_free(crystal_data *);
-void crystal_router(crystal_data *);
+void moab_crystal_init(crystal_data *, MPI_Comm);
+void moab_crystal_free(crystal_data *);
+void moab_crystal_router(crystal_data *);
 
 #endif
 

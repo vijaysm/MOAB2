@@ -16,7 +16,7 @@
 #define TUPLE_LIST_H
 
 /* requires "errmem.h" and "types.h" */
-#if !defined(ERRMEM_H) || !defined(TYPES_H) || !defined(MINMAX_H) || !defined(SORT_H)
+#if !defined(ERRMEM_H) || !defined(TYPES_H) || !defined(SORT_H)
 #warning "tuple_list.h" requires "errmem.h" and "types.h" and  "minmax.h" and "sort.h"
 #endif
 
@@ -62,10 +62,10 @@ static void tuple_list_resize(tuple_list *tl, uint max)
 static void tuple_list_grow(tuple_list *tl)
 {
   tuple_list_resize(tl,(tl->max ? tl->max+tl->max/2+1 : 2));
-}
+} 
 
-void tuple_list_permute(tuple_list *tl, uint *perm, void *work);
-void tuple_list_sort(tuple_list *tl, unsigned key, buffer *buf);
+void moab_tuple_list_permute(tuple_list *tl, uint *perm, void *work);
+void moab_tuple_list_sort(tuple_list *tl, unsigned key, buffer *buf);
 
 #endif
 

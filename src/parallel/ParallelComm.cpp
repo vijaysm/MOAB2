@@ -33,7 +33,6 @@ const bool debug = false;
 extern "C" 
 {
 #include "types.h"
-#include "minmax.h"
 #include "gs.h"
 #include "errmem.h"
 #include "sort.h"
@@ -499,6 +498,7 @@ int ParallelComm::get_buffers(int to_proc, bool *is_new)
   std::vector<unsigned int>::iterator vit = 
     std::find(buffProcs.begin(), buffProcs.end(), to_proc);
   if (vit == buffProcs.end()) {
+    assert("shouldn't need buffer to myself" && to_proc != (int)procConfig.proc_rank());
     ind = buffProcs.size();
     buffProcs.push_back((unsigned int)to_proc);
     localOwnedBuffs.push_back(new Buffer(INITIAL_BUFF_SIZE));
@@ -1198,8 +1198,21 @@ ErrorCode ParallelComm::build_sharedhps_list(const EntityHandle entity,
     // now add others, with zero handle for now
   for (std::set<unsigned int>::iterator sit = procs.begin();
        sit != procs.end(); sit++) {
-    assert("these procs shouldn't already be in the shared list" &&
-           std::find(tmp_procs, tmp_procs+tmp_ps, *sit) == tmp_procs+tmp_ps);
+#ifndef NDEBUG
+    if (tmp_ps && std::find(tmp_procs, tmp_procs+tmp_ps, *sit) != tmp_procs+tmp_ps) {
+      std::cerr << "Trouble with something already in shared list on proc " << procConfig.proc_rank()
+                << ".  Entity:" << std::endl;
+      list_entities(&entity, 1);
+      std::cerr << "pstatus = " << (int) pstatus << ", sharedp = " << sharedp << std::endl;
+      std::cerr << "tmp_ps = ";
+      for (int i = 0; i < tmp_ps; i++) std::cerr << tmp_procs[i] << " ";
+      std::cerr << std::endl;
+      std::cerr << "procs = ";
+      for (std::set<unsigned int>::iterator sit2 = procs.begin(); sit2 != procs.end(); sit2++) 
+        std::cerr << *sit2 << " ";
+      assert(false);
+    }
+#endif    
     tmp_procs[num_ents] = *sit;
     tmp_handles[num_ents] = 0;
     num_ents++;
@@ -3108,7 +3121,18 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     // get gids for skin ents in a vector, to pass to gs
   result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &gid_data[0]);
   RRA("Couldn't get gid tag for skin vertices.");
+  gid_data.resize(skin_ents[0].size());
 
+#ifndef NDEBUG 
+    // check for duplicate gids
+  std::vector<int> gid_data_2 = gid_data;
+  std::sort(gid_data_2.begin(), gid_data_2.end());
+  for (unsigned int i = 0; i < gid_data_2.size()-1; i++) {
+    if (gid_data_2[i] == gid_data_2[i+1])
+      std::cerr << "Duplicate vertex gid of " << gid_data_2[i] << std::endl;
+  }
+#endif  
+  
     // put handles in vector for passing to gs setup
   std::copy(skin_ents[0].begin(), skin_ents[0].end(), 
             std::back_inserter(handle_vec));
@@ -3176,7 +3200,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   int max_size = skin_ents[0].size()*(MAX_SHARING_PROCS+1);
   buffer sort_buffer;
   buffer_init(&sort_buffer, max_size);
-  tuple_list_sort(&shared_verts, 0, &sort_buffer);
+  moab_tuple_list_sort(&shared_verts, 0, &sort_buffer);
   buffer_free(&sort_buffer);
 
     // set sharing procs and handles tags on skin ents
@@ -3325,7 +3349,7 @@ ErrorCode ParallelComm::resolve_shared_ents(ParallelComm **pc,
   
   buffer sort_buffer;
   buffer_init(&sort_buffer, tot_verts);
-  tuple_list_sort(&shared_ents, 0, &sort_buffer);
+  moab_tuple_list_sort(&shared_ents, 0, &sort_buffer);
   buffer_free(&sort_buffer);
 
   j = 0; i = 0;
@@ -3722,6 +3746,8 @@ ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
     EntityHandle this_ent = skin_ents[0][this_idx];
     while (j < 2*shared_ents.n && shared_ents.vi[j] == this_idx) {
       j++;
+        // shouldn't have same proc
+      assert(shared_ents.vi[j] != (int)procConfig.proc_rank());
       sharing_procs.push_back( shared_ents.vi[j++] );
       sharing_handles.push_back( shared_ents.vul[i++] );
     }
@@ -3803,7 +3829,10 @@ ErrorCode ParallelComm::get_interface_procs(std::set<unsigned int> &procs_set,
   std::fill(tmp_iface_procs, tmp_iface_procs+MAX_SHARING_PROCS, -1);
   Range::iterator rit;
   for (rit = interfaceSets.begin(), i = 0; rit != interfaceSets.end(); rit++, i++) {
-    if (-1 != iface_proc[i]) procs_set.insert((unsigned int) iface_proc[i]);
+    if (-1 != iface_proc[i]) {
+      assert(iface_proc[i] != (int)procConfig.proc_rank());
+      procs_set.insert((unsigned int) iface_proc[i]);
+    }    
     else {
         // get the sharing_procs tag
       result = mbImpl->tag_get_data(sharedps_tag(), &(*rit), 1,
@@ -3828,6 +3857,14 @@ ErrorCode ParallelComm::get_interface_procs(std::set<unsigned int> &procs_set,
   return MB_SUCCESS;
 }
   
+ErrorCode ParallelComm::get_pstatus(EntityHandle entity,
+                                    unsigned char &pstatus_val)
+{
+  ErrorCode result = mbImpl->tag_get_data(pstatus_tag(), &entity, 1, &pstatus_val);
+  RRA("Couldn't get pastatus tag.");
+  return result;
+}
+
 ErrorCode ParallelComm::get_pstatus_entities(int dim,
                                                  unsigned char pstatus_val,
                                                  Range &pstatus_ents)
@@ -4095,8 +4132,10 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
                          addl_ents, sent_ents, allsent, entprocs);
   RRA("get_sent_ents failed.");
   
+#ifdef DEBUG_COMM
   std::cout << "allsent ents compactness (size) = " << allsent.compactness() << " (" 
             << allsent.size() << ")" << std::endl;
+#endif
 
     //===========================================
     // pack and send ents from this proc to others
@@ -4104,8 +4143,10 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
   for (p = 0, proc_it = buffProcs.begin(); 
        proc_it != buffProcs.end(); proc_it++, p++) {
 
+#ifdef DEBUG_COMM
     std::cout << "Sent ents compactness (size) = " << sent_ents[p].compactness() << " (" 
               << sent_ents[p].size() << ")" << std::endl;
+#endif
     
       // reserve space on front for size and for initial buff size
     localOwnedBuffs[p]->reset_buffer(sizeof(int));
@@ -4712,7 +4753,7 @@ ErrorCode ParallelComm::get_sent_ents(const bool is_iface,
     // sort by handle
   buffer sort_buffer;
   buffer_init(&sort_buffer, npairs);
-  tuple_list_sort(&entprocs, 1, &sort_buffer);
+  moab_tuple_list_sort(&entprocs, 1, &sort_buffer);
   buffer_free(&sort_buffer);
 
   return MB_SUCCESS;

@@ -1896,10 +1896,17 @@ int test_entity_owner( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const 
     // collect all data on root procesor
   std::vector<int> all_data( 2*global_count );
   std::vector<int> displ(size), counts(size);
-  ierr = MPI_Gatherv( &vtxdata[0], vtxdata.size(), MPI_INT,
-                      &all_data[0], &counts[0], &displ[0], MPI_INT, 
-                      0, MPI_COMM_WORLD );
-  CHKERR;
+  if (1 == size) {
+    std::copy(vtxdata.begin(), vtxdata.end(), all_data.begin());
+    counts[0] = vtxdata.size();
+    displ[0] = 0;
+  }
+  else {
+    ierr = MPI_Gatherv( &vtxdata[0], vtxdata.size(), MPI_INT,
+                        &all_data[0], &counts[0], &displ[0], MPI_INT, 
+                        0, MPI_COMM_WORLD );
+    CHKERR;
+  }
   if (rank == 0) {
       // map from vertex tag to indices into data
     std::multimap<int,int> data_map; 

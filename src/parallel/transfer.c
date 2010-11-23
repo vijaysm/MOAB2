@@ -42,7 +42,7 @@ void moab_gs_transfer(int dynamic, tuple_list *tl,
   uint i, j, *buf, *len=0, *buf_end;
 
   /* sort to group by target proc */
-  tuple_list_sort(tl,pf,&crystal->all->buf);
+  moab_tuple_list_sort(tl,pf,&crystal->all->buf);
 
   /* pack into buffer for crystal router */
   buffer_reserve(&crystal->all->buf,(tl->n*(3+tsize))*sizeof(uint));
@@ -67,7 +67,7 @@ void moab_gs_transfer(int dynamic, tuple_list *tl,
     *len += tsize, crystal->all->n += tsize;
   }
   
-  crystal_router(crystal);
+  moab_crystal_router(crystal);
   
   /* unpack */
   buf = crystal->all->buf.ptr, buf_end = buf + crystal->all->n;

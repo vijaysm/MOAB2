@@ -445,9 +445,9 @@ moab_gs_data *moab_gs_data_setup(uint n, const long *label, const ulong *ulabel,
 
   /* sort nonzeros by label: (index ^2, label ^1) */
 #ifndef USE_MPI
-  tuple_list_sort(&nonzero,1,&buf);
+  moab_tuple_list_sort(&nonzero,1,&buf);
 #else
-  tuple_list_sort(&nonzero,1,&crystal->all->buf);
+  moab_tuple_list_sort(&nonzero,1,&crystal->all->buf);
 #endif
 
   /* build list of unique labels w/ lowest associated index:
@@ -491,7 +491,7 @@ moab_gs_data *moab_gs_data_setup(uint n, const long *label, const ulong *ulabel,
   tuple_list_sort(&primary,0,&buf);
   buffer_free(&buf);
 #else
-  tuple_list_sort(&primary,0,&crystal->all->buf);
+  moab_tuple_list_sort(&primary,0,&crystal->all->buf);
 #endif
   
   /* construct local condense map */
@@ -519,7 +519,7 @@ moab_gs_data *moab_gs_data_setup(uint n, const long *label, const ulong *ulabel,
   moab_gs_transfer(1,&primary,0,crystal); /* transfer to work procs */
   /* primary: (source proc, index on src, useless, label) */
   /* sort by label */
-  tuple_list_sort(&primary,3,&crystal->all->buf);
+  moab_tuple_list_sort(&primary,3,&crystal->all->buf);
   /* add sentinel to primary list */
   if(primary.n==primary.max) tuple_list_grow(&primary);
   primary.vl[primary.n] = -1;
@@ -560,9 +560,9 @@ moab_gs_data *moab_gs_data_setup(uint n, const long *label, const ulong *ulabel,
   moab_gs_transfer(1,&shared,0,crystal); /* transfer to dest procs */
   /* shared list: (useless, proc2, index, label) */
   /* sort by label */
-  tuple_list_sort(&shared,3,&crystal->all->buf);
+  moab_tuple_list_sort(&shared,3,&crystal->all->buf);
   /* sort by partner proc */
-  tuple_list_sort(&shared,1,&crystal->all->buf);
+  moab_tuple_list_sort(&shared,1,&crystal->all->buf);
   /* count partner procs */
   {
     uint i, count=0; sint proc=-1,*si=shared.vi;
@@ -579,14 +579,14 @@ moab_gs_data *moab_gs_data_setup(uint n, const long *label, const ulong *ulabel,
     uint *target  = data->nlinfo->target;
     uint *nshared = data->nlinfo->nshared;
     uint *sh_ind  = data->nlinfo->sh_ind;
-    ulong *slabels = data->nlinfo->slabels;
+    slong *slabels = data->nlinfo->slabels;
     ulong *ulabels = data->nlinfo->ulabels;
     uint j;
     for(i=shared.n;i;--i,si+=3) {
       if(si[1]!=proc)
         proc=si[1], *target++ = proc, *nshared++ = 0;
       ++nshared[-1], *sh_ind++=si[2];
-        // don't store 1st slabel
+        /* don't store 1st slabel */
       sl++;
       for (j = 0; j < nlabels-1; j++)
         slabels[j] = sl[j];

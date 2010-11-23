@@ -68,7 +68,7 @@ typedef struct {
   uint num, id;
 } crystal_data;
 
-void crystal_init(crystal_data *p, MPI_Comm comm)
+void moab_crystal_init(crystal_data *p, MPI_Comm comm)
 {
   int num,id;
   buffer_init(&p->buffers[0].buf,1024);
@@ -82,7 +82,7 @@ void crystal_init(crystal_data *p, MPI_Comm comm)
   MPI_Comm_size(comm,&num); p->num=num;
 }
 
-void crystal_free(crystal_data *p)
+void moab_crystal_free(crystal_data *p)
 {
   buffer_free(&p->buffers[0].buf);
   buffer_free(&p->buffers[1].buf);
@@ -146,7 +146,7 @@ static void crystal_send(crystal_data *p, uint target, int recvn)
   t=p->all,p->all=p->keep,p->keep=t;
 }
 
-void crystal_router(crystal_data *p)
+void moab_crystal_router(crystal_data *p)
 {
   uint bl=0, bh, n=p->num, nl, target;
   int recvn;
