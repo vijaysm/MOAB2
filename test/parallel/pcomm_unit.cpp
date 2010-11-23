@@ -1829,7 +1829,7 @@ void test_pack_shared_entities_2d()
   Range verts[4], quads[4];
   ErrorCode rval = create_shared_grid_2d(pc, verts, quads);
 
-  moab[0].list_entities(0,1);
+    //moab[0].list_entities(0,1);
   
     // exchange interface cells
   rval = ParallelComm::exchange_ghost_cells(pc, 4, -1, -1, 0, 0, true);
