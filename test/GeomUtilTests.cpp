@@ -819,6 +819,95 @@ void test_ray_tri_intersect()
   ASSERT(!xsect);
 }
 
+void test_plucker_ray_tri_intersect()
+{
+  bool xsect;
+  double t;
+
+    // define a triangle
+  const CartVect tri[3] = { CartVect(1.0, 0.0, 0.0), 
+                              CartVect(0.0, 1.0, 0.0),
+                              CartVect(0.0, 0.0, 1.0) };
+  
+    // try a ray through the center of the triangle
+  xsect = plucker_ray_tri_intersect( tri, 
+                             CartVect( 0.0, 0.0, 0.0 ),
+                             CartVect( 1.0, 1.0, 1.0 ),
+                             TOL, t );
+  ASSERT(xsect);
+  ASSERT_DOUBLES_EQUAL( 1.0/3.0, t );
+  
+    // try a same ray, but move base point above triangle
+  xsect = plucker_ray_tri_intersect( tri, 
+                             CartVect( 1.0, 1.0, 1.0 ),
+                             CartVect( 1.0, 1.0, 1.0 ),
+                             TOL, t );
+  ASSERT(!xsect);
+  
+    // try a same ray the other direction with base point below triangle
+  xsect = plucker_ray_tri_intersect( tri, 
+                             CartVect( 0.0, 0.0, 0.0 ),
+                             CartVect(-1.0,-1.0,-1.0 ),
+                             TOL, t );
+  ASSERT(!xsect);
+  
+  
+    // try a ray that passes above the triangle
+  xsect = plucker_ray_tri_intersect( tri, 
+                             CartVect( 1.0, 1.0, 1.0 ),
+                             CartVect(-1.0,-1.0, 1.0 ),
+                             TOL, t );
+  ASSERT(!xsect);
+  
+    // try a skew ray
+  xsect = plucker_ray_tri_intersect( tri, 
+                             CartVect( 0.0, 0.0, 0.0 ),
+                             CartVect( 1.0, 1.0,-0.1 ),
+                             TOL, t );
+  ASSERT(!xsect);
+
+    // try a ray that intersects with wrong orientation
+  const int orientation = -1.0;
+  xsect = plucker_ray_tri_intersect( tri, 
+                             CartVect( 0.0, 0.0, 0.0 ),
+                             CartVect( 1.0, 1.0, 1.0 ),
+				     TOL, t, NULL, NULL, &orientation );
+  ASSERT(!xsect);
+
+    // try a ray that intersects beyond the nonneg_ray_len
+  const double nonneg_ray_len = 0.25;
+  xsect = plucker_ray_tri_intersect( tri, 
+                             CartVect( 0.0, 0.0, 0.0 ),
+                             CartVect( 1.0, 1.0, 1.0 ),
+				     TOL, t, &nonneg_ray_len );
+  ASSERT(!xsect);
+
+    // try a ray that intersects behind the origin
+  const double neg_ray_len = -2.0;
+  xsect = plucker_ray_tri_intersect( tri, 
+                             CartVect( 0.0, 0.0, 0.0 ),
+                             CartVect( -1.0, -1.0, -1.0 ),
+				     TOL, t, NULL, &neg_ray_len );
+  ASSERT(xsect);
+
+    // try a ray that intersects a node
+  intersection_type int_type;
+  xsect = plucker_ray_tri_intersect( tri, 
+                             CartVect( 0.0, 0.0, 0.0 ),
+                             CartVect( 1.0, 0.0, 0.0 ),
+				     TOL, t, NULL, NULL, NULL, &int_type);
+  ASSERT(xsect);
+  ASSERT(NODE0 == int_type);
+
+    // try a ray that intersects an edge
+  xsect = plucker_ray_tri_intersect( tri, 
+                             CartVect( 0.0, 0.0, 0.0 ),
+                             CartVect( 1.0, 1.0, 0.0 ),
+				     TOL, t, NULL, NULL, NULL, &int_type);
+  ASSERT(xsect);
+  ASSERT(EDGE0 == int_type);
+}
+
 void test_closest_location_on_tri()
 {
   CartVect result, input;
@@ -1203,6 +1292,7 @@ int main()
   error_count += RUN_TEST(test_box_tet_overlap);
   error_count += RUN_TEST(test_box_hex_overlap);
   error_count += RUN_TEST(test_ray_tri_intersect);
+  error_count += RUN_TEST(test_plucker_ray_tri_intersect);
   error_count += RUN_TEST(test_closest_location_on_tri);
   error_count += RUN_TEST(test_closest_location_on_polygon);
   error_count += RUN_TEST(test_segment_box_intersect);

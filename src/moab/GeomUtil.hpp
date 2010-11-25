@@ -78,6 +78,39 @@ bool ray_tri_intersect( const CartVect vertices[3],
                         const double* ray_length = 0 );
 
 
+/**\brief Plücker test for intersection between a ray and a triangle.
+ *\param vertices            Nodes of the triangle.
+ *\param ray_point           The start point of the ray.
+ *\param ray_unit_direction  The direction of the ray. Must be a unit vector.
+ *\param tolerance           Absolute distance tolerance for point equality
+ *\param t_out               Output: The distance along the ray from ray_point in the
+ *                           direction of ray_unit_direction at which the ray
+ *                           intersected the triangle.
+ *\param nonneg_ray_length   Optional: If non-null, a maximum length for the ray, 
+ *                           converting this function to a segment-tri-intersect 
+ *                           test.
+ *\param neg_ray_length      Optional: If non-null, a maximum length for the ray 
+ *                           behind the origin, converting this function to a 
+ *                           segment-tri-intersect test.
+ *\param orientation         Optional: Reject intersections without the specified
+ *                           orientation of ray with respect to triangle normal
+ *                           vector. Indicate desired orientation by passing
+ *                           1 (forward), -1 (reverse), or 0 (no preference).
+ *\param int_type            Optional Output: The type of intersection; used to
+ *                           identify edge/node intersections.
+ *\return true if intersection, false otherwise.
+ */
+enum intersection_type {NONE, INTERIOR, NODE0, NODE1, NODE2, EDGE0, EDGE1, EDGE2};
+bool plucker_ray_tri_intersect( const CartVect vertices[3],
+                                const CartVect& ray_point,
+                                const CartVect& ray_unit_direction,
+                                double tolerance, /* unused */
+                                double& dist_out,
+                                const double* nonneg_ray_length = 0,
+                                const double* neg_ray_length = 0,
+                                const int* orientation = 0,
+                                intersection_type* int_type = 0);
+
     //! Find range of overlap between ray and axis-aligned box.
     //!
     //!\param box_min   Box corner with minimum coordinate values

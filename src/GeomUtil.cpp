@@ -104,6 +104,197 @@ bool segment_box_intersect( CartVect box_min,
   return seg_start <= seg_end;
 }
 
+/* Function to return the vertex with the lowest coordinates. To force the same
+   ray-edge computation, the Plücker test needs to use consistent edge 
+   representation. This would be more simple with MOAB handles instead of 
+   coordinates... */
+inline bool first( const CartVect& a, const CartVect& b) {
+  if(a[0] < b[0]) {
+    return true;
+  } else if(a[0] == b[0]) {
+    if(a[1] < b[1]) {
+      return true;
+    } else if(a[1] == b[1]) {
+      if(a[2] < b[2]) {
+	return true;
+      } else {
+        return false;
+      }
+    } else {
+      return false;
+    }
+  } else {
+    return false;
+  }
+}
+
+/* This test uses the same edge-ray computation for adjacent triangles so that
+   rays passing close to edges/nodes are handled consistently.
+
+   Reports intersection type for post processing of special cases. Optionally 
+   screen by orientation and negative/nonnegative distance limits.
+
+   If screening by orientation, substantial pruning can occur. Indicate
+   desired orientation by passing 1 (forward), -1 (reverse), or 0 (no preference).
+   Note that triangle orientation is not always the same as surface
+   orientation due to non-manifold surfaces.
+
+   N. Platis and T. Theoharis, "Fast Ray-Tetrahedron Intersection using Plücker
+   Coordinates", Journal of Graphics Tools, Vol. 8, Part 4, Pages 37-48 (2003). */
+bool plucker_ray_tri_intersect( const CartVect vertices[3],
+                                const CartVect& origin,
+                                const CartVect& direction,
+                                double /* tolerance */,
+                                double& dist_out,
+                                const double* nonneg_ray_len,
+                                const double* neg_ray_len,
+                                const int*    orientation,
+			        intersection_type* type ) {
+
+  const CartVect raya = direction;
+  const CartVect rayb = direction*origin;
+
+  // edge 0
+  double pip0;
+  if(first(vertices[0],vertices[1])) {
+    const CartVect edge0a = vertices[1]-vertices[0];
+    const CartVect edge0b = edge0a*vertices[0];
+    pip0 = raya % edge0b + rayb % edge0a;
+  } else {
+    const CartVect edge0a = vertices[0]-vertices[1];
+    const CartVect edge0b = edge0a*vertices[1];
+    pip0 = raya % edge0b + rayb % edge0a;
+    pip0 = -pip0;
+  }
+
+  // try to exit early
+  if(orientation && (*orientation)*pip0 > 0) {
+    if(type) *type = NONE;
+    return false;
+  }
+
+  // edge 1
+  double pip1;
+  if(first(vertices[1],vertices[2])) {
+    const CartVect edge1a = vertices[2]-vertices[1];
+    const CartVect edge1b = edge1a*vertices[1];
+    pip1 = raya % edge1b + rayb % edge1a;
+  } else {
+    const CartVect edge1a = vertices[1]-vertices[2];
+    const CartVect edge1b = edge1a*vertices[2];
+    pip1 = raya % edge1b + rayb % edge1a;
+    pip1 = -pip1;
+  }
+
+  // try to exit early
+  if(orientation) {
+    if( (*orientation)*pip1 > 0) {
+      if(type) *type = NONE;
+      return false;
+    }
+  // If the orientation is not specified, all pips must be the same sign or zero.
+  } else if( (0.0<pip0 && 0.0>pip1) || (0.0>pip0 && 0.0<pip1) ) {
+    if(type) *type = NONE;
+    return false;
+  }
+
+  // edge 2
+  double pip2;
+  if(first(vertices[2],vertices[0])) {
+    const CartVect edge2a = vertices[0]-vertices[2];
+    const CartVect edge2b = edge2a*vertices[2];
+    pip2 = raya % edge2b + rayb % edge2a;
+  } else {
+    const CartVect edge2a = vertices[2]-vertices[0];
+    const CartVect edge2b = edge2a*vertices[0];
+    pip2 = raya % edge2b + rayb % edge2a;
+    pip2 = -pip2;
+  }
+
+  // try to exit early
+  if(orientation) {
+    if( (*orientation)*pip2 > 0) {
+      if(type) *type = NONE;
+      return false;
+    }
+  // If the orientation is not specified, all pips must be the same sign or zero.
+  } else if( (0.0<pip1 && 0.0>pip2) || (0.0>pip1 && 0.0<pip2) ||
+             (0.0<pip0 && 0.0>pip2) || (0.0>pip0 && 0.0<pip2) ) {
+    if(type) *type = NONE;
+    return false;
+  }
+
+  // check for coplanar case to avoid dividing by zero
+  if(0==pip0 && 0==pip1 && 0==pip2) {
+    //std::cout << "plucker: coplanar" << std::endl;
+    if(type) *type = NONE;
+    return false;
+  }
+
+  // get the distance to intersection
+  const double inverse_sum = 1.0/(pip0+pip1+pip2);
+  assert(0.0 != inverse_sum);
+  const CartVect intersection(pip0*inverse_sum*vertices[2]+ 
+         	       	      pip1*inverse_sum*vertices[0]+
+			      pip2*inverse_sum*vertices[1]);
+
+  // To minimize numerical error, get index of largest magnitude direction.
+  int idx;
+  double max_abs_dir = 0;
+  for(unsigned int i=0; i<3; ++i) {
+    if( fabs(direction[i]) > max_abs_dir ) idx = i;
+  } 
+  const double dist = (intersection[idx]-origin[idx])/direction[idx];
+
+  // is the intersection within distance limits?
+  if(nonneg_ray_len && *nonneg_ray_len<dist) {
+    if(type) *type = NONE;
+    return false;
+  }
+  if(neg_ray_len && *neg_ray_len>dist) {
+    if(type) *type = NONE;
+    return false;
+
+  // Unless a neg_ray_len is used, don't return negative distances
+  } else if (!neg_ray_len && 0>dist) {
+    if(type) *type = NONE;
+    return false;
+  }    
+  dist_out = dist;
+ 
+  // check for special cases
+  if(0==pip0 || 0==pip1 || 0==pip2) {
+    if       (0==pip0 && 0==pip1) {
+      //std::cout << "plucker: node1" << std::endl;
+      if(type) *type = NODE1;
+      return true;
+    } else if(0==pip1 && 0==pip2) {
+      //std::cout << "plucker: node2" << std::endl;
+      if(type) *type = NODE2;
+      return true;
+    } else if(0==pip2 && 0==pip0) {
+      //std::cout << "plucker: node0" << std::endl;
+      if(type) *type = NODE0;
+      return true;
+    } else if(0==pip0) {
+      //std::cout << "plucker: edge0" << std::endl;
+      if(type) *type = EDGE0;
+      return true;
+    } else if(0==pip1) {
+      //std::cout << "plucker: edge1" << std::endl;
+      if(type) *type = EDGE1;
+      return true;
+    } else if(0==pip2) {
+      //std::cout << "plucker: edge2" << std::endl;
+      if(type) *type = EDGE2;
+      return true;
+    }
+  }
+
+  // if here, ray intersects interior of tri
+  if(type) *type = INTERIOR;
+  return true;
+}
 
 /* Impelementation copied from cgmMC ray_tri_contact (overlap.C) */
 bool ray_tri_intersect( const CartVect vertices[3],
