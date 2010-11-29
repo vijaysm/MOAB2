@@ -164,8 +164,12 @@ int main(int argc, char **argv)
     std::stringstream sofname;
     sofname << outFile << "S" << "R" << rank << ".h5m";
 
-    result = mbImpl->write_file(sofname.str().c_str(), NULL, writeOpts.c_str(),
-                                pcs[0]->partition_sets());
+    Range partSets = pcs[0]->partition_sets();
+    // If this is the master proc then put the root entity set in the data to be
+    // written to the file
+    if (rank == 0)
+      partSets.insert((EntityHandle) roots[0]);
+    result = mbImpl->write_file(sofname.str().c_str(), NULL, writeOpts.c_str(), partSets);
     PRINT_LAST_ERROR;
     std::cout << "Wrote " << sofname.str() << std::endl;
 
@@ -173,8 +177,13 @@ int main(int argc, char **argv)
       std::stringstream tofname;
       tofname << outFile << "T" << i << "R" << rank << ".h5m";
 
-      result = mbImpl->write_file(tofname.str().c_str(), NULL, writeOpts.c_str(),
-                                  pcs[i]->partition_sets());
+      partSets.clear();
+      partSets = pcs[i]->partition_sets();
+      // If this is the master proc then put the root entity set in the data to be
+      // written to the file
+      if (rank == 0)
+        partSets.insert((EntityHandle) roots[i]);
+      result = mbImpl->write_file(tofname.str().c_str(), NULL, writeOpts.c_str(), partSets);
       PRINT_LAST_ERROR;
       std::cout << "Wrote " << tofname.str() << std::endl;
     }
