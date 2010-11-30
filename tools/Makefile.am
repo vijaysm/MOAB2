@@ -77,12 +77,6 @@ else
   refiner_DIR=
 endif
 
-if ENABLE_mbperf
-  mbperf_DIR = mbperf
-else
-  mbperf_DIR =
-endif
-
 if ENABLE_mbcoupler
   mbcoupler_DIR = mbcoupler
 else
@@ -124,7 +118,6 @@ noinst_PROGRAMS = $(parread)
 SUBDIRS = $(refiner_DIR) \
           $(mbcoupler_DIR) \
           $(mbzoltan_DIR) \
-          $(mbperf_DIR) \
 	  $(mcnpmit_DIR) \
           $(qvdual_DIR) \
           $(dagmc_DIR)

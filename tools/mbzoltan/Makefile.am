@@ -14,7 +14,7 @@ libmbzoltan_la_include_HEADERS = MBZoltan.hpp
 
 bin_PROGRAMS = mbzoltan mbpart
 LDADD = libmbzoltan.la
-mbzoltan_SOURCES = main.cpp
+mbzoltan_SOURCES = mbzoltan.cpp
 mbpart_SOURCES = mbpart.cpp
 
 

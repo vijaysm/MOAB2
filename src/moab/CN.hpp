@@ -347,7 +347,7 @@ public:
     //! \param num_entries Number of indicies in permutation array
     //! \param is_reverse Array is reverse permutation
   static inline
-  void setPermutation(const EntityType t, const int dim, int *pvec, 
+  void setPermutation(const EntityType t, const int dim, short int *pvec, 
                       const int num_entries, const bool is_reverse = false);
 
     //! Reset permutation or reverse permutation vector
@@ -475,13 +475,13 @@ inline short int CN::Dimension(const EntityType t)
 
 inline short int CN::VerticesPerEntity(const EntityType t) 
 {
-  return (MBVERTEX == t ? 1 : mConnectivityMap[t][mConnectivityMap[t][0].topo_dimension-1].num_corners_per_sub_element[0]);
+  return (MBVERTEX == t ? (short int) 1 : mConnectivityMap[t][mConnectivityMap[t][0].topo_dimension-1].num_corners_per_sub_element[0]);
 }
 
 inline short int CN::NumSubEntities(const EntityType t, const int d)
 {
   return (t != MBVERTEX && d > 0 ? mConnectivityMap[t][d-1].num_sub_elements :
-          (d ? -1 : VerticesPerEntity(t)));
+          (d ? (short int) -1 : VerticesPerEntity(t)));
 }
 
   //! return the type of a particular sub-entity.
@@ -565,7 +565,7 @@ inline void CN::HasMidNodes(const EntityType this_type, const int num_nodes,
 }
 
 //! Set permutation or reverse permutation vector
-inline void CN::setPermutation(const EntityType t, const int dim, int *pvec, 
+inline void CN::setPermutation(const EntityType t, const int dim, short int *pvec, 
                                  const int num_entries, const bool is_reverse) 
 {
   short int *this_vec = permuteVec[t][dim], *that_vec = revPermuteVec[t][dim];
@@ -574,7 +574,7 @@ inline void CN::setPermutation(const EntityType t, const int dim, int *pvec,
     that_vec = permuteVec[t][dim];
   }
 
-  for (int i = 0; i < num_entries; i++) {
+  for (short int i = 0; i < num_entries; i++) {
     this_vec[i] = pvec[i];
     that_vec[pvec[i]] = i;
   }
@@ -590,7 +590,7 @@ inline void CN::resetPermutation(const EntityType t, const int dim)
     return;
   }
   
-  for (unsigned int i = 0; i < MAX_SUB_ENTITIES; i++) {
+  for (short unsigned int i = 0; i < MAX_SUB_ENTITIES; i++) {
     revPermuteVec[t][dim][i] = permuteVec[t][dim][i] = i;
   }
   

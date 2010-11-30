@@ -31,7 +31,7 @@ else
   HDF5_TESTS = 
 endif
 
-check_PROGRAMS = $(TESTS) mbparallelcomm_test partcheck
+check_PROGRAMS = $(TESTS) mbparallelcomm_test partcheck structured3
 
 pcomm_unit_SOURCES = pcomm_unit.cpp
 parallel_hdf5_test_SOURCES = parallel_hdf5_test.cc
@@ -43,6 +43,7 @@ pcomm_serial_SOURCES = pcomm_serial.cpp
 mbparallelcomm_test_SOURCES = mbparallelcomm_test.cpp
 scdtest_SOURCES = scdtest.cpp
 partcheck_SOURCES = partcheck.cpp
+structured3_SOURCES = structured3.cpp
 
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = mhdf_ll.h5m

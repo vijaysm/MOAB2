@@ -66,7 +66,7 @@ const int MAX_BCAST_SIZE = (1<<28);
 #undef DEBUG_MSGS
 //#define DEBUG_MSGS 1
 #undef DEBUG_BARRIER
-#define DEBUG_BARRIER 1
+//#define DEBUG_BARRIER 1
 #ifdef DEBUG_MSGS
 std::vector<ParallelComm::Buffer*> msgs;
 #endif
@@ -4312,8 +4312,9 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
 #ifdef DEBUG_BARRIER
       success = MPI_Barrier(procConfig.proc_comm());
 #else
-      success = MPI_Waitall(2*buffProcs.size(), &recv_ent_reqs[0], &status);
-      success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], &status);
+      MPI_Status mult_status[2*MAX_SHARING_PROCS];
+      success = MPI_Waitall(2*buffProcs.size(), &recv_ent_reqs[0], mult_status);
+      success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], mult_status);
 #endif
       if (MPI_SUCCESS != success) {
         result = MB_FAILURE;
@@ -4405,8 +4406,9 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
 #ifdef DEBUG_BARRIER
     success = MPI_Barrier(procConfig.proc_comm());
 #else
-    success = MPI_Waitall(2*buffProcs.size(), &recv_remoteh_reqs[0], &status);
-    success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], &status);
+    MPI_Status mult_status[2*MAX_SHARING_PROCS];
+    success = MPI_Waitall(2*buffProcs.size(), &recv_remoteh_reqs[0], mult_status);
+    success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], mult_status);
 #endif
     if (MPI_SUCCESS != success) {
       result = MB_FAILURE;
@@ -5278,7 +5280,7 @@ ErrorCode ParallelComm::exchange_tags( const std::vector<Tag> &src_tags,
 #ifdef DEBUG_BARRIER  
   success = MPI_Barrier(procConfig.proc_comm());
 #else
-  MPI_Status status;
+  MPI_Status status[2*MAX_SHARING_PROCS];
   success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], status);
 #endif
   if (MPI_SUCCESS != success) {

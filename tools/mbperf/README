@@ -1,9 +1,0 @@
-Test MOAB performance by constructing a mesh and evaluating it in
-various ways.  Source is also in this directory for measuring
-performance of TSTT mesh interface and CUBIT implementation of mesh
-data structures.
-
-See document in <MOAB_DIR>/doc/MOAB-performance.doc for description of
-tests. 
-
-Usage: mbperf <ints_per_side> <A|B|C>

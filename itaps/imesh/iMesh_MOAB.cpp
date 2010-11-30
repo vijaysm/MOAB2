@@ -24,9 +24,13 @@
 MBiMesh::MBiMesh()
     : haveDeletedEntities(false)
 {
-  memset(AdjTable, 0, 16*sizeof(int));
-  for (int i = 0; i < 4; i++) AdjTable[4*i] = AdjTable[i] = 1;
-  AdjTable[15] = 1;
+  int tmp_table[] = {
+      1, 1, 1, 1,
+      1, 0, 2, 2,
+      1, 2, 0, 2,
+      1, 2, 2, 1
+  };
+  memcpy(AdjTable, tmp_table, 16*sizeof(int));
 }
 
 MBiMesh::~MBiMesh() {}
