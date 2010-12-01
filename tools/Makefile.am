@@ -115,7 +115,11 @@ endif
 
 noinst_PROGRAMS = $(parread)
 
-SUBDIRS = $(refiner_DIR) \
+noinst_LTLIBRARIES = libprogram_opt.la
+libprogram_opt_la_SOURCES = program_opt.cpp program_opt.hpp
+
+SUBDIRS = . \
+          $(refiner_DIR) \
           $(mbcoupler_DIR) \
           $(mbzoltan_DIR) \
 	  $(mcnpmit_DIR) \
@@ -133,4 +137,3 @@ mbsurfplot_SOURCES = surfplot.cpp
 mbtagprop_SOURCES = parse.cpp parse.hpp propagate_tags.cpp
 mbmem_SOURCES = mbmem.cpp
 parread_SOURCES = parread.cpp
-
