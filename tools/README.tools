@@ -4,7 +4,6 @@ applications.  Others, like mbzoltan, are useful both as standalone
 tools and as functionality to include in other applications.
 
 Brief description of tools below this directory:
-cgm2moab: grabs facets from geometric model & saves as MOAB model
 converter: converts mesh between any two formats read/written by MOAB
 hexmodops: dual-based hex meshing research support
 mbchaco: static partitioner based on Sandia CHACO library

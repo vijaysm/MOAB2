@@ -3,7 +3,7 @@ AM_CPPFLAGS += -I$(top_srcdir)/src -I$(top_builddir)/src
 lib_LTLIBRARIES = libdagmc.la
 libdagmc_la_SOURCES = DagMC.cpp
 libdagmc_la_includedir = $(includedir)
-libdagmc_la_include_HEADERS = cubfile.h DagMC.hpp
+libdagmc_la_include_HEADERS = DagMC.hpp
 
 if HAVE_CGM
   AM_CPPFLAGS += $(CGM_INCLUDES) $(CGM_CPPFLAGS) -DCGM $(MOAB_CGM_DEFINES)
@@ -15,22 +15,10 @@ else
   netcdf_progs = 
 endif
 
-  cgm2moabbin = cgm2moab
-  cgm2moabman = cgm2moab.man
-else
-  cgm2moabbin=
-  cgm2moabman=
 endif
 
-cgm2moab_SOURCES = main.cc cubfile.c
-cgm2moab_LDFLAGS = $(CGM_LTFLAGS) $(CGM_LDLFAGS)
-cgm2moab_LDADD = $(LDADD) 
-cgm2moab_DEPENDENCIES = libdagmc.la $(top_builddir)/src/libMOAB.la
-
-bin_PROGRAMS = $(cgm2moabbin)
-noinst_PROGRAMS = quads_to_tris $(netcdf_progs) dagmc_preproc 
-man1_MANS = $(cgm2moabman)
-EXTRA_DIST = cgm2moab.man
+bin_PROGRAMS = dagmc_preproc
+noinst_PROGRAMS = quads_to_tris $(netcdf_progs) 
 
 CGM_CPPFLAGS = @CGM_CPPFLAGS@
 CGM_LDFLAGS = @CGM_LDFLAGS@
