@@ -28,10 +28,10 @@ cgm2moab_LDADD = $(LDADD)
 cgm2moab_DEPENDENCIES = libdagmc.la $(top_builddir)/src/libMOAB.la
 
 bin_PROGRAMS = $(cgm2moabbin)
-noinst_PROGRAMS = quads_to_tris $(netcdf_progs)
+noinst_PROGRAMS = quads_to_tris $(netcdf_progs) dagmc_preproc 
 man1_MANS = $(cgm2moabman)
 EXTRA_DIST = cgm2moab.man
-                   
+
 CGM_CPPFLAGS = @CGM_CPPFLAGS@
 CGM_LDFLAGS = @CGM_LDFLAGS@
 CGM_LTFLAGS = @CGM_LTFLAGS@
@@ -52,3 +52,5 @@ update_coords_SOURCES = cub2h5m.cc quads_to_tris.cpp quads_to_tris.hpp
 pt_vol_test_SOURCES = pt_vol_test.cc
 
 ray_fire_test_SOURCES = ray_fire_test.cc
+
+dagmc_preproc_SOURCES = dagmc_preproc.cpp ../program_opt.cpp
