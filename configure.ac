@@ -523,7 +523,6 @@ AC_HELP_STRING([--disable-tools],[Disable all tools by default])],
   # Individual tools
 MB_OPTIONAL_TOOL([mbconvert],    [yes])
 MB_OPTIONAL_TOOL([hexmodops],    [yes])
-MB_OPTIONAL_TOOL([mbperf],       [yes])
 MB_OPTIONAL_TOOL([qvdual],       [no] )
 MB_OPTIONAL_TOOL([mbsize],       [yes])
 MB_OPTIONAL_TOOL([mbskin],       [yes])
@@ -1082,7 +1081,6 @@ AC_CONFIG_FILES([Makefile
                  itaps/igeom/iGeom-Defs.inc
                  tools/Makefile
                  tools/refiner/Makefile
-                 tools/mbperf/Makefile
                  tools/mbcoupler/Makefile
                  tools/mbzoltan/Config.moab
                  tools/mbzoltan/Makefile

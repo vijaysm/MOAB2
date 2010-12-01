@@ -8,7 +8,6 @@ cgm2moab: grabs facets from geometric model & saves as MOAB model
 converter: converts mesh between any two formats read/written by MOAB
 hexmodops: dual-based hex meshing research support
 mbchaco: static partitioner based on Sandia CHACO library
-mbperf: performance tests for MOAB, unstructured and structured
 mbzoltan: static and dynamic partitioner / load balancer, based on
   Sandia Zoltan library
 mcnpmit: tool to interpolate .unv meshes on MCNP meshtal files
