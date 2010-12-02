@@ -1,6 +1,23 @@
-Version beta: 
-- Fixed bug in get_entities_by_type_and_tag for cases with non-zero
-input set which has or doesn't have entities
+Version 4.0:
+* Many improvements to parallel correctness and efficiency
+* Use of MPIO for parallel read of HDF5-based file format
+* Parallel import of file formats utilizing internal communication and/or partial read of files.
+* Partial read of HDF5-based files
+* Import files from: ABAQUS, IDEAS, MCNP5, NASTRAN, Sms, TetGen, Star-CCM+
+* String-based file options for controlling format-specific file options (see README.IO for a 
+  list of options.)
+* Mesh refinement tool
+* Compact storage of structured mesh data
+* Variable-length tag data
+* Alternate, cmake-based build system
+* Support for most recent ITAPS APIs
+* New data coupling tool
+* Python API based on ITAPS APIs
+* Many performance improvements (both runtime and memory), including entity sets, dense tag data, 
+  bit tag data, skinning, and entity deletion.
+* MOAB namespace 
+* Fixed bug in get_entities_by_type_and_tag for cases with non-zero
+  input set which has or doesn't have entities
 
 Version 3.0.0 (SVN tag 3.0.0):
 - Updated QVDual to work with new versions of VTK and removed
