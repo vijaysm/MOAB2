@@ -28,7 +28,8 @@ namespace moab {
 class ElementSequence;
 class Core;
 
-/*!
+/** \class HigherOrderFactory
+ * \brief Functions for converting to/from higher-order elements
  *  \authors Clinton Stimpson
  *  \date    11/25/02
  *  \brief   

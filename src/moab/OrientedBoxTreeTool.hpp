@@ -34,6 +34,9 @@ class OrientedBox;
 class StatData;
 class CartVect;
 
+/** \class OrientedBoxTreeTool
+ * \brief Class for constructing and querying Hierarchical Oriented Bounding Box trees
+ */
 class OrientedBoxTreeTool
 {
   public:

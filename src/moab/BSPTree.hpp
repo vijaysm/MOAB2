@@ -13,7 +13,7 @@
  * 
  */
 
-/**\file AdaptiveKDTree.hpp
+/**\file BSPTree.hpp
  *\author Jason Kraftcheck (kraftche@cae.wisc.edu)
  *\date 2008-05-12
  */
@@ -35,6 +35,9 @@ class BSPTreeIter;
 class Range;
 class BSPTreePoly;
 
+/** \class BSPTree
+ * \brief BSP tree, for sorting and searching entities spatially
+ */
 class BSPTree
 {
 private:
@@ -225,6 +228,9 @@ public:
                                      BSPTreeIter& result );
 };
 
+/** \class BSPTreeIter
+ * \brief Iterate over leaves of a BSPTree
+ */
 class BSPTreeIter
 {
 public:
@@ -328,6 +334,9 @@ public:
   virtual ErrorCode calculate_polyhedron( BSPTreePoly& polyhedron_out ) const;
 };
 
+/** \class BSPTreeBoxIter
+ * \brief Iterate over leaves of a BSPTree
+ */
 class BSPTreeBoxIter : public BSPTreeIter
 {
   private:

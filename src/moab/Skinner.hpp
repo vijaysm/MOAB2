@@ -23,6 +23,14 @@
 
 namespace moab {
 
+/** \class Skinner
+ * \brief Class for constructing and querying skin of a mesh
+ * Class for constructing and querying skin of a mesh, defined as the outside lower-dimensional 
+ * boundary of a mesh or a given set of entities.  This class provides options for finding the
+ * forward- and reverse-oriented members of the skin.  Several methods are available for computing
+ * the skin, e.g. using geometric topology sets, vertex-entity adjacencies, or directly from
+ * (n-1)-dimensional entities.
+ */
 class Skinner 
 {
 

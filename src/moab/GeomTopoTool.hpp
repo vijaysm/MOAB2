@@ -26,6 +26,11 @@
 
 namespace moab {
 
+/** \class GeomTopoTool
+ * \brief Tool for interpreting geometric topology sets in MOAB database
+ * Tool for interpreting geometric topology sets in MOAB database; see MOAB metadata_info
+ * document for information on how geometric topology sets are read and represented.
+ */
 class GeomTopoTool
 {
 public:

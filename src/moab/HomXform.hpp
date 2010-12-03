@@ -16,15 +16,16 @@
 #ifndef MOAB_HOMXFORM
 #define MOAB_HOMXFORM
 
-//
-// Class: HomXform
-//
-// Purpose: Representation and functions for homogeneous transforms
-//
-// A homogeneous transform is a 4x4 matrix for representing and manipulating
-// homogeneous coordinates, which are x' = (x/h, y/h, z/h, h).  See Mortenson,
-// Geometric Modeling, or other texts on geometric modeling for details of homogeneous
-// transforms.
+/*
+ * \file HomXform.hpp
+ *
+ * \brief Representation and functions for homogeneous transforms
+ *
+ * A homogeneous transform is a 4x4 matrix for representing and manipulating
+ * homogeneous coordinates, which are x' = (x/h, y/h, z/h, h).  See Mortenson,
+ * Geometric Modeling, or other texts on geometric modeling for details of homogeneous
+ * transforms.
+ */
 
 #define XFORM(a,b) xForm[4*a+b]
 #define XFORM_INDEX(a,b) 4*a+b
@@ -35,6 +36,9 @@ namespace moab {
 
 class HomXform;
 
+/** \class HomCoord
+ * \brief Homogeneous coordinate vector
+ */
 class HomCoord 
 {
 private:
@@ -113,6 +117,9 @@ public:
 
 };
   
+/** \class HomXform
+ * \brief Homogeneous coordinate transformation matrix
+ */
 class HomXform
 {
 

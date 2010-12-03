@@ -13,24 +13,6 @@
  * 
  */
 
-//-------------------------------------------------------------------------
-// Filename      : Util.hpp
-//
-// Purpose       : This file contains utility functions that can be used
-//                 with MB
-//
-// Special Notes : This is a pure virtual class, to prevent instantiation.
-//                 All functions are static, called like this:
-//                 Util::function_name();
-//
-// Creator       : Ray J. Meyers
-//
-// Date          : 09/01/02
-//
-// Owner         : Ray J. meyers
-//-------------------------------------------------------------------------
-
-
 #ifndef MB_UTIL_HPP
 #define MB_UTIL_HPP
 
@@ -38,6 +20,9 @@
 
 namespace moab {
 
+/** \struct Coord
+ * \brief Structure for storing coordinate data
+ */
 struct  Coord
 {
   double x;
@@ -46,7 +31,10 @@ struct  Coord
 };
 
 
-//! utility function to be use throughout VERDE
+/** \class Util
+ *
+ * \brief Utility functions for normal and centroid for entities
+ */
 class Util
 {
 public:

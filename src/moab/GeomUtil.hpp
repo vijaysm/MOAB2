@@ -26,6 +26,9 @@
 
 namespace moab {
 
+/** \class GeomUtil
+ * \brief Functions for computational geometry on triangles, rays, and boxes
+ */
 namespace GeomUtil {
 
 /** Given a line segment and an axis-aligned box, 

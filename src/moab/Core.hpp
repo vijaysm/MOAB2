@@ -43,6 +43,12 @@ class FileOptions;
 #endif
 
 
+/**\class Core
+ * \brief Implementation of MOAB Interface
+ * Implementation of the MOAB Interface class.  You shouldn't call functions directly
+ * on an object of type Core (use Interface instead), unless you really have to access
+ * non-API functionality.
+ */
 class Core : public Interface 
 {
 

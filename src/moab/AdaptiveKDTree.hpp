@@ -14,8 +14,10 @@
  */
 
 /**\file AdaptiveKDTree.hpp
+ * \class moab::AdaptiveKDTree
  *\author Jason Kraftcheck (kraftche@cae.wisc.edu)
  *\date 2007-04-1
+ * \brief Adaptive KD tree, for sorting and searching entities spatially
  */
 
 #ifndef MOAB_ADAPTIVE_KD_TREE_HPP
