@@ -2359,11 +2359,23 @@ extern "C" {
     EntityHandle temp_set;
     EntityHandle set1 = ENTITY_HANDLE(entity_set_1), 
       set2 = ENTITY_HANDLE(entity_set_2);
-    ErrorCode result = MBI->create_meshset(MESHSET_SET, temp_set);
+
+    int isList1, isList2;
+    iMesh_isList(instance, entity_set_1, &isList1, err);
+    if (*err != iBase_SUCCESS) return;
+    iMesh_isList(instance, entity_set_2, &isList2, err);
+    if (*err != iBase_SUCCESS) return;
+
+    ErrorCode result;
+    if (isList1 && isList2)
+      result = MBI->create_meshset(MESHSET_ORDERED, temp_set);
+    else
+      result = MBI->create_meshset(MESHSET_SET, temp_set);
+    
     if (MB_SUCCESS == result) result = MBI->unite_meshset(temp_set, set1);
     if (MB_SUCCESS == result) result = MBI->subtract_meshset(temp_set, set2);
 
-    CHKERR(result,"iMesh_entitysetSubtract: ERROR subtract failed.");
+    CHKERR(result,"iMesh_subtract: ERROR subtract failed.");
 
     *result_entity_set = (iBase_EntitySetHandle)temp_set;
 
@@ -2378,11 +2390,23 @@ extern "C" {
     EntityHandle temp_set;
     EntityHandle set1 = ENTITY_HANDLE(entity_set_1), 
       set2 = ENTITY_HANDLE(entity_set_2);
-    ErrorCode result = MBI->create_meshset(MESHSET_SET, temp_set);
+
+    int isList1, isList2;
+    iMesh_isList(instance, entity_set_1, &isList1, err);
+    if (*err != iBase_SUCCESS) return;
+    iMesh_isList(instance, entity_set_2, &isList2, err);
+    if (*err != iBase_SUCCESS) return;
+
+    ErrorCode result;
+    if (isList1 && isList2)
+      result = MBI->create_meshset(MESHSET_ORDERED, temp_set);
+    else
+      result = MBI->create_meshset(MESHSET_SET, temp_set);
+
     if (MB_SUCCESS == result) result = MBI->unite_meshset(temp_set, set1);
     if (MB_SUCCESS == result) result = MBI->intersect_meshset(temp_set, set2);
 
-    CHKERR(result,"iMesh_entitysetIntersect: ERROR subtract failed.");
+    CHKERR(result,"iMesh_intersect: ERROR intersect failed.");
 
     *result_entity_set = (iBase_EntitySetHandle)temp_set;
 
@@ -2397,11 +2421,23 @@ extern "C" {
     EntityHandle temp_set;
     EntityHandle set1 = ENTITY_HANDLE(entity_set_1), 
       set2 = ENTITY_HANDLE(entity_set_2);
-    ErrorCode result = MBI->create_meshset(MESHSET_SET, temp_set);
+
+    int isList1, isList2;
+    iMesh_isList(instance, entity_set_1, &isList1, err);
+    if (*err != iBase_SUCCESS) return;
+    iMesh_isList(instance, entity_set_2, &isList2, err);
+    if (*err != iBase_SUCCESS) return;
+
+    ErrorCode result;
+    if (isList1 && isList2)
+      result = MBI->create_meshset(MESHSET_ORDERED, temp_set);
+    else
+      result = MBI->create_meshset(MESHSET_SET, temp_set);
+
     if (MB_SUCCESS == result) result = MBI->unite_meshset(temp_set, set1);
     if (MB_SUCCESS == result) result = MBI->unite_meshset(temp_set, set2);
 
-    CHKERR(result,"iMesh_entitysetIntersect: ERROR subtract failed.");
+    CHKERR(result,"iMesh_unite: ERROR unite failed.");
 
     *result_entity_set = (iBase_EntitySetHandle)temp_set;
 
