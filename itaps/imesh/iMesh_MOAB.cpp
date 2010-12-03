@@ -2371,12 +2371,30 @@ extern "C" {
       result = MBI->create_meshset(MESHSET_ORDERED, temp_set);
     else
       result = MBI->create_meshset(MESHSET_SET, temp_set);
+
+    if (MB_SUCCESS != result)
+      ERROR(result, "iMesh_subtract: couldn't create result set.");
+
+      // if the second set is the root set, the result is always the empty set
+    if (entity_set_2) {
+      if (!entity_set_1) {
+          // subtracting from the root set, so get everything first...
+        Range entities;
+        result = MBI->get_entities_by_handle(0,entities);
+        if (MB_SUCCESS == result)
+          result = MBI->add_entities(temp_set, entities);
+          // ...but not the newly-created set!
+        if (MB_SUCCESS == result)
+          result = MBI->remove_entities(temp_set, &temp_set, 1);
+      }
+      else
+        result = MBI->unite_meshset(temp_set, set1);
+
+      if (MB_SUCCESS == result)
+        result = MBI->subtract_meshset(temp_set, set2);
+    }
     
-    if (MB_SUCCESS == result) result = MBI->unite_meshset(temp_set, set1);
-    if (MB_SUCCESS == result) result = MBI->subtract_meshset(temp_set, set2);
-
-    CHKERR(result,"iMesh_subtract: ERROR subtract failed.");
-
+    CHKERR(result, "iMesh_subtract: ERROR subtract failed.");
     *result_entity_set = (iBase_EntitySetHandle)temp_set;
 
     RETURN(iBase_SUCCESS);
@@ -2403,11 +2421,32 @@ extern "C" {
     else
       result = MBI->create_meshset(MESHSET_SET, temp_set);
 
-    if (MB_SUCCESS == result) result = MBI->unite_meshset(temp_set, set1);
-    if (MB_SUCCESS == result) result = MBI->intersect_meshset(temp_set, set2);
+    if (MB_SUCCESS != result)
+      ERROR(result, "iMesh_intersect: couldn't create result set.");
+
+    if (!entity_set_1 && !entity_set_2) {
+        // intersecting the root set with itself, so get everything...
+      Range entities;
+      result = MBI->get_entities_by_handle(0, entities);
+      if (MB_SUCCESS == result)
+        result = MBI->add_entities(temp_set, entities);
+        // ...but not the newly-created set!
+      if (MB_SUCCESS == result)
+        result = MBI->remove_entities(temp_set, &temp_set, 1);
+    }
+    else if (!entity_set_1) {
+      result = MBI->unite_meshset(temp_set, set2);
+    }
+    else if (!entity_set_2) {
+      result = MBI->unite_meshset(temp_set, set1);
+    }
+    else {
+      result = MBI->unite_meshset(temp_set, set1);
+      if (MB_SUCCESS == result)
+        result = MBI->intersect_meshset(temp_set, set2);
+    }
 
     CHKERR(result,"iMesh_intersect: ERROR intersect failed.");
-
     *result_entity_set = (iBase_EntitySetHandle)temp_set;
 
     RETURN(iBase_SUCCESS);
@@ -2434,8 +2473,25 @@ extern "C" {
     else
       result = MBI->create_meshset(MESHSET_SET, temp_set);
 
-    if (MB_SUCCESS == result) result = MBI->unite_meshset(temp_set, set1);
-    if (MB_SUCCESS == result) result = MBI->unite_meshset(temp_set, set2);
+    if (MB_SUCCESS != result)
+      ERROR(result, "iMesh_unite: couldn't create result set.");
+
+
+    if (entity_set_1 && entity_set_2) {
+      result = MBI->unite_meshset(temp_set, set1);
+      if (MB_SUCCESS == result)
+        result = MBI->unite_meshset(temp_set, set2);
+    }
+    else {
+        // uniting with the root set, so get everything...
+      Range entities;
+      result = MBI->get_entities_by_handle(0, entities);
+      if (MB_SUCCESS == result)
+        result = MBI->add_entities(temp_set, entities);
+        // ...but not the newly-created set!
+      if (MB_SUCCESS == result)
+        result = MBI->remove_entities(temp_set, &temp_set, 1);
+    }
 
     CHKERR(result,"iMesh_unite: ERROR unite failed.");
 
