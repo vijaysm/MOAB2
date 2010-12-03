@@ -654,21 +654,8 @@ ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set)
 
   myDebug.tprint(2,"Gathering related entities.\n");
   
-  result = read_iface->gather_related_ents(myPcomm->partition_sets(), partition_ents,
-                                           &all_sets);
+  result = read_iface->gather_related_ents(myPcomm->partition_sets(), partition_ents, &file_set);
   RR("Failure gathering related entities.");
-
-//     // Collect the empty sets from all_sets
-//   Range orig_empty_sets;
-//   for (Range::iterator rit = all_sets.begin();
-//        rit != all_sets.end(); rit++) {
-//     int num_ents;
-//     result = mbImpl->get_number_entities_by_handle(*rit, num_ents);
-//     RR("Failure getting number of entities.");
-
-//     if (num_ents == 0)
-//       orig_empty_sets.insert(*rit);
-//   }
 
     // get pre-existing entities
   Range file_ents;
@@ -683,8 +670,8 @@ ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set)
   Range deletable_ents = subtract( file_ents, partition_ents);
 
     // cache deletable vs. keepable sets
-  Range deletable_sets = intersect( all_sets, deletable_ents);
-  Range keepable_sets = subtract( all_sets, deletable_sets);
+  Range deletable_sets = deletable_ents.subset_by_type(MBENTITYSET);
+  Range keepable_sets = subtract(file_ents.subset_by_type(MBENTITYSET), deletable_sets);
   
   myDebug.tprint( 2, "Removing deletable entities from keepable sets.\n" );
 
@@ -694,20 +681,6 @@ ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set)
     result = mbImpl->remove_entities(*rit, deletable_ents);
     RR("Failure removing deletable entities.");
   }
-
-//     // Collect the empty sets from keepable_sets and add to deletable_sets
-//   for (Range::iterator rit = keepable_sets.begin();
-//        rit != keepable_sets.end(); rit++) {
-//     int num_ents;
-//     result = mbImpl->get_number_entities_by_handle(*rit, num_ents);
-//     RR("Failure getting number of entities.");
-
-//     if (num_ents == 0)
-//       deletable_sets.insert(*rit);
-//   }
-
-//     // Subtract the original empty_sets from deletable_sets.
-//   deletable_sets = subtract(deletable_sets, orig_empty_sets);
 
   myDebug.tprint( 2, "Deleting deletable entities.\n" );
 
@@ -720,7 +693,7 @@ ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set)
     result = mbImpl->delete_entities(deletable_sets);
   RR("Failure deleting sets in delete_nonlocal_entities.");
 
-  deletable_ents = subtract( deletable_ents, deletable_sets);
+  deletable_ents -= deletable_sets;
 
   if (myPcomm->proc_config().proc_rank() == 0) {
     myDebug.print( 2, "Deletable entities: ", deletable_ents );

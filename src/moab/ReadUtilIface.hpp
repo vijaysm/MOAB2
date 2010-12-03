@@ -81,12 +81,12 @@ public:
      * means down-adjacent to, contained in, etc.
      * \param partition Entities for which to gather related entities
      * \param related_ents Related entities
-     * \param all_sets If non-NULL, all sets in mesh instance are returned
-     * in the pointed-to range
+     * \param file_set If non-NULL, entity sets contained in this set will be checked;
+     *        otherwise, all sets in the instance will be checked
      */
   virtual ErrorCode gather_related_ents(Range &partition,
-                                          Range &related_ents,
-                                          Range *all_sets) = 0;
+                                        Range &related_ents,
+                                        EntityHandle *file_set = NULL) = 0;
   
   virtual ErrorCode create_entity_sets(
     EntityID num_sets,

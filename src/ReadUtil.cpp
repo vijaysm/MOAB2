@@ -197,8 +197,8 @@ ErrorCode ReadUtil::report_error( const char* error, ... )
 }
 
 ErrorCode ReadUtil::gather_related_ents(Range &partition,
-                                            Range &related_ents,
-                                            Range *all_sets) 
+                                        Range &related_ents,
+                                        EntityHandle *file_set) 
 {
     // loop over any sets, getting contained ents
   std::pair<Range::const_iterator, Range::const_iterator> pair_it =
@@ -231,12 +231,16 @@ ErrorCode ReadUtil::gather_related_ents(Range &partition,
   
     // get contains-related sets
   Range tmp_ents3, last_related;
-  if (!all_sets) all_sets = &tmp_ents3;
-  result = mMB->get_entities_by_type(0, MBENTITYSET, *all_sets); RR;
+  if (file_set)
+    result = mMB->get_entities_by_type(*file_set, MBENTITYSET, tmp_ents3);
+  else
+    result = mMB->get_entities_by_type(0, MBENTITYSET, tmp_ents3);
+  RR;
+    
   while (related_ents.size() != last_related.size()) {
     last_related = related_ents;
-    for (Range::iterator rit = all_sets->begin(); 
-         rit != all_sets->end(); rit++) {
+    for (Range::iterator rit = tmp_ents3.begin(); 
+         rit != tmp_ents3.end(); rit++) {
       if (related_ents.find(*rit) != related_ents.end()) continue;
       
       tmp_ents.clear();
@@ -248,7 +252,7 @@ ErrorCode ReadUtil::gather_related_ents(Range &partition,
     }
   }
   
-    // get parent/child-related sets
+    // get child-related sets
   last_related.clear();
   while (related_ents.size() != last_related.size()) {
     last_related = related_ents;
@@ -257,13 +261,25 @@ ErrorCode ReadUtil::gather_related_ents(Range &partition,
 
     for (Range::const_iterator rit = it_pair.first;
          rit != it_pair.second; rit++) {
-        // get all parents/children and add to related ents
-      tmp_ents.clear();
-      result = mMB->get_parent_meshsets(*rit, tmp_ents, 0); RR;
-      related_ents.merge(tmp_ents);
-      
+        // get all children and add to related ents
       tmp_ents.clear();
       result = mMB->get_child_meshsets(*rit, tmp_ents, 0); RR;
+      related_ents.merge(tmp_ents);
+    }
+  }
+
+    // get parent-related sets
+  last_related.clear();
+  while (related_ents.size() != last_related.size()) {
+    last_related = related_ents;
+    std::pair<Range::const_iterator, Range::const_iterator> it_pair = 
+      last_related.equal_range(MBENTITYSET);
+
+    for (Range::const_iterator rit = it_pair.first;
+         rit != it_pair.second; rit++) {
+        // get all parents and add to related ents
+      tmp_ents.clear();
+      result = mMB->get_parent_meshsets(*rit, tmp_ents, 0); RR;
       related_ents.merge(tmp_ents);
     }
   }

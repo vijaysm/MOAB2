@@ -71,8 +71,8 @@ public:
      * in the pointed-to range
      */
   ErrorCode gather_related_ents(Range &partition,
-                                  Range &related_ents,
-                                  Range *all_sets);
+                                Range &related_ents,
+                                EntityHandle *file_set = NULL);
   
   ErrorCode create_entity_sets(
     EntityID num_sets,

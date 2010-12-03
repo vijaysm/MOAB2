@@ -22,7 +22,8 @@ else
   CCMIO_TEST = 
 endif
 
-TESTS = tqdcfr \
+TESTS = readutil_test \
+	tqdcfr \
         vtk_test \
         cub_file_test \
 	$(EXODUS_TEST) \
@@ -49,6 +50,7 @@ ideas_test_SOURCES = $(srcdir)/../TestUtil.hpp ideas_test.cc
 stl_test_SOURCES = $(srcdir)/../TestUtil.hpp stl_test.cc
 smf_test_SOURCES = $(srcdir)/../TestUtil.hpp smf_test.cc
 ccmio_test_SOURCES = $(srcdir)/../TestUtil.hpp ccmio_test.cpp
+readutil_test_SOURCES = $(srcdir)/../TestUtil.hpp readutil_test.cpp
 
 MOSTLYCLEANFILES = dumped_acis.sat  \
                    mb_write.g \
