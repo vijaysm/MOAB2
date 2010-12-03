@@ -765,7 +765,7 @@ extern "C" {
   void iMesh_getEntArr2ndAdj( iMesh_Instance instance,
                               iBase_EntityHandle const* entity_handles,
                               int entity_handles_size,
-                              int order_adjacent_key,
+                              int bridge_entity_type,
                               int requested_entity_type,
                               iBase_EntityHandle** adj_entity_handles,
                               int* adj_entity_handles_allocated,
@@ -777,8 +777,8 @@ extern "C" {
   {
     ErrorCode result = MB_SUCCESS;
 
-    ALLOC_CHECK_ARRAY(offset, entity_handles_size+1 );
-  
+    ALLOC_CHECK_ARRAY(offset, entity_handles_size+1);
+
     const EntityHandle* entity_iter = (const EntityHandle*)entity_handles;
     const EntityHandle* const entity_end = entity_iter + entity_handles_size;
     int* off_iter = *offset;
@@ -787,16 +787,32 @@ extern "C" {
     std::vector<EntityHandle> all_adj_ents;
     MeshTopoUtil mtu(MBI);
     
+    int min_bridge = iBase_VERTEX, max_bridge = iBase_REGION;
+    int min_req    = iBase_VERTEX, max_req    = iBase_REGION;
+    if (iBase_ALL_TYPES != bridge_entity_type)
+      min_bridge = max_bridge = bridge_entity_type;
+    if (iBase_ALL_TYPES != requested_entity_type)
+      min_req = max_req = requested_entity_type;
+
     for ( ; entity_iter != entity_end; ++entity_iter)
     {
       *off_iter = prev_off;
       off_iter++;
       Range adj_ents;
 
-      result = mtu.get_bridge_adjacencies( *entity_iter,
-                                           order_adjacent_key,
-                                           requested_entity_type, adj_ents );
-      CHKERR(result, "iMesh_getEntArrAdj: trouble getting adjacency list.");
+      int source = CN::Dimension(TYPE_FROM_HANDLE(*entity_iter));
+      for (int bridge = min_bridge; bridge <= max_bridge; ++bridge) {
+        if (source == bridge)
+          continue;
+        for (int requested = min_req; requested <= max_req; ++requested) {
+          if (bridge == requested)
+            continue;
+          result = mtu.get_bridge_adjacencies( *entity_iter,
+                                               bridge,
+                                               requested, adj_ents );
+          CHKERR(result, "iMesh_getEntArr2ndAdj: trouble getting adjacency list.");
+        }
+      }
 
       std::copy(adj_ents.begin(), adj_ents.end(), std::back_inserter(all_adj_ents));
       prev_off += adj_ents.size();
@@ -808,7 +824,14 @@ extern "C" {
            sizeof(EntityHandle)*all_adj_ents.size() );
 
     KEEP_ARRAY(offset);
-    RETURN(iBase_SUCCESS);
+
+      // Return an error if the bridge and requested entity types are different
+    if (iBase_ALL_TYPES != bridge_entity_type &&
+        bridge_entity_type == requested_entity_type)
+      ERROR(iBase_INVALID_ARGUMENT, "iMesh_getEntArr2ndAdj: bridge and "
+            "requested entity types must be different.");
+    else
+      RETURN(iBase_SUCCESS);
   }
 
   void iMesh_getAdjEntIndices(iMesh_Instance instance,
