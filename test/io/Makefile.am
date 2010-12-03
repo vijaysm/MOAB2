@@ -22,6 +22,12 @@ else
   CCMIO_TEST = 
 endif
 
+if HAVE_CGM
+  CGM_TEST = read_cgm_test
+else
+  CGM_TEST = 
+endif
+
 TESTS = readutil_test \
 	tqdcfr \
         vtk_test \
@@ -32,7 +38,8 @@ TESTS = readutil_test \
         ideas_test \
         stl_test \
         smf_test \
-	$(CCMIO_TEST)
+	$(CCMIO_TEST) \
+	$(CGM_TEST)
 
 check_PROGRAMS = $(TESTS)
 
@@ -50,6 +57,7 @@ ideas_test_SOURCES = $(srcdir)/../TestUtil.hpp ideas_test.cc
 stl_test_SOURCES = $(srcdir)/../TestUtil.hpp stl_test.cc
 smf_test_SOURCES = $(srcdir)/../TestUtil.hpp smf_test.cc
 ccmio_test_SOURCES = $(srcdir)/../TestUtil.hpp ccmio_test.cpp
+read_cgm_test_SOURCES = $(srcdir)/../TestUtil.hpp read_cgm_test.cpp
 readutil_test_SOURCES = $(srcdir)/../TestUtil.hpp readutil_test.cpp
 
 MOSTLYCLEANFILES = dumped_acis.sat  \

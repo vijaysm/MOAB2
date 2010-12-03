@@ -63,7 +63,7 @@ ErrorCode GeomTopoTool::set_sense(EntityHandle surface, EntityHandle volume,
       rval = mdbImpl->tag_create(GEOM_SENSE_2_TAG_NAME, 2
             * sizeof(EntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, sense2Tag,
             0, true);
-      if (MB_SUCCESS != rval)
+      if (MB_SUCCESS != rval && (MB_ALREADY_ALLOCATED != rval || !sense2Tag))
          return rval;
    }
 
@@ -87,12 +87,12 @@ ErrorCode GeomTopoTool::set_senses(EntityHandle edge,
    if (!senseNEntsTag) {
       rval = mdbImpl->tag_create_variable_length(GEOM_SENSE_N_ENTS_TAG_NAME,
             MB_TAG_SPARSE, MB_TYPE_HANDLE, senseNEntsTag);
-      if (MB_SUCCESS != rval)
+      if (MB_SUCCESS != rval && (MB_ALREADY_ALLOCATED != rval || !senseNEntsTag))
          return rval;
 
       rval = mdbImpl->tag_create_variable_length(GEOM_SENSE_N_SENSES_TAG_NAME,
             MB_TAG_SPARSE, MB_TYPE_INTEGER, senseNSensesTag);
-      if (MB_SUCCESS != rval)
+      if (MB_SUCCESS != rval && (MB_ALREADY_ALLOCATED != rval || !senseNSensesTag))
          return rval;
    }
 
@@ -334,7 +334,7 @@ ErrorCode GeomTopoTool::restore_topology() {
    Tag geom_tag;
    ErrorCode result = mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4,
          MB_TAG_SPARSE, geom_tag, NULL);
-   if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result)
+   if (MB_SUCCESS != result && (MB_ALREADY_ALLOCATED != result || !geom_tag))
       return result;
 
    // get all sets with this tag
@@ -360,7 +360,7 @@ ErrorCode GeomTopoTool::restore_topology() {
       EntityHandle dum_val = 0;
       result = mdbImpl->tag_create("__owner_tag", sizeof(EntityHandle),
             MB_TAG_DENSE, MB_TYPE_HANDLE, owner_tag, &dum_val);
-      if (MB_SUCCESS != result)
+      if (MB_SUCCESS != result && (MB_ALREADY_ALLOCATED != result || !owner_tag))
          continue;
       Range dp1ents;
       std::vector<EntityHandle> owners;
