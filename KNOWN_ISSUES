@@ -3,32 +3,15 @@ the online ticket system at the MOAB website:
     https://trac.mcs.anl.gov/projects/ITAPS/wiki
 
 
-#   Severity  Summary/Details
-=== ========  ===================================================================
-33  critical  Parallel read failure for > 32procs
+#   Severity      Summary/Details
+=== ========      ===================================================================
+#161 enhancement  Need better MBCN test
+#170 enhancement  get_connectivity should optionally return an offset list
+#29  enhancement  Specifying sets not to write 
+#32  enhancement  support writing compressed (szip) HDF5 files 
+#138 enhancement  Error handlers 
+#141 enhancement  reader/writer file set 
+#172 enhancement  environmental variables 
+#174 enhancement  Mechanism for leaving readers instantiated 
+#26  enhancement  pipelining utilities
 
-35  major     MOAB parallel memory leak
-
-149 major     Usage notes for iMesh/iGeom on MOAB/CGM implementations
-
-161 major     Need better MBCN test
-
-163 major     Assertion failure reading 2 meshes in mbcoupler_test
-
-22  minor     iMesh_getAdjTable() is incorrect
-
-29  minor     Specifying sets not to write
-
-30  minor     geometric vertex sets not partitioned
-
-32  minor     support writing compressed (szip) HDF5 files
-
-138 minor     Error handlers
-
-141 minor     reader/writer file set
-
-142 minor     Document use of MBReaderWriterSet
-
-162 minor     Cub file reader fails if file contains named blocks
-
-26  trivial   pipelining utilities
