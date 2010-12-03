@@ -10,6 +10,7 @@ using namespace moab;
 #include <map>
 #include <vector>
 #include <algorithm>
+#include <sstream>
 
 #define DECLARE_TEST(A) \
   bool test_ ## A(); \
@@ -102,6 +103,8 @@ DECLARE_TEST(tensor_attrib_float)
 DECLARE_TEST(tensor_attrib_double)
 
 DECLARE_TEST(subset)
+
+DECLARE_TEST(unstructured_field)
 
 int main( int argc, char* argv[] )
 {
@@ -1465,3 +1468,46 @@ bool test_subset( )
   return true;
 }
 
+// Test technically invalid but somewhat common insertion of
+// FIELD blocks within an UNSTRUCTURED_GRID dataset
+bool test_unstructured_field()
+{
+    // Use existing file defined in 'two_quad_mesh', but
+    // insert a few field data blocks
+  std::istringstream base_data( two_quad_mesh );
+  std::ostringstream file_data;
+  std::string line;
+  while (getline( base_data, line )) {
+    if (0 == line.find("POINTS")) {
+      file_data << "FIELD FieldData 2" << std::endl
+                << "avtOriginalBounds 1 6 float" << std::endl
+                << "-10 10 -10 10 -10 10 " << std::endl
+                << "TIME 1 1 double" << std::endl
+                << "10.543" << std::endl;
+    }
+    else if (0 == line.find("CELLS")) {
+      file_data << "FIELD more_data 2" << std::endl
+                << "first_array 3 2 int" << std::endl
+                << "0 1 2" << std::endl
+                << "3 4 5" << std::endl
+                << "second_array 4 3 bit" << std::endl
+                << "0 0 0 0" << std::endl
+                << "1 1 1 1" << std::endl
+                << "1 0 1 0" << std::endl;
+    }
+    file_data << line << std::endl;
+  }
+  
+  Core core;
+  Interface& mb = core;
+  bool rval = read_file(&mb, file_data.str().c_str());
+  CHECK(rval);
+
+  EntityHandle vert_handles[6], elem_handles[2];
+  rval = match_vertices_and_elements( &mb, MBQUAD, 6, 2, 4, 
+                       two_quad_mesh_coords, two_quad_mesh_conn,
+                       vert_handles, elem_handles ); 
+  CHECK(rval);
+  
+  return true;
+}
