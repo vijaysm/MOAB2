@@ -654,6 +654,29 @@ ErrorCode TagServer::get_data( const Tag tag_handle,
   }
 }
 
+ErrorCode TagServer::tag_iterate( Tag tag_handle,
+                                  Range::iterator& iter,
+                                  const Range::iterator& end,
+                                  void*& data_ptr )
+{
+  const TagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
+  const TagType type = PROP_FROM_TAG_HANDLE(tag_handle);
+  const TagInfo* info = get_tag_info( tag_handle );
+  if (!info)
+    return MB_TAG_NOT_FOUND;
+  const void* const default_val = info->default_value();
+  switch (type) {
+    case MB_TAG_DENSE:
+      return sequenceManager->tag_iterate( tag_id, iter, end, data_ptr, default_val );
+    case MB_TAG_SPARSE:
+        // don't accitentally create storage for invalid handles
+      if (default_val && MB_SUCCESS != sequenceManager->check_valid_entities(&*iter, 1))
+        return MB_ENTITY_NOT_FOUND;
+      return mSparseData->tag_iterate( tag_id, iter, end, data_ptr, default_val );
+    default:
+      return MB_TYPE_OUT_OF_RANGE;
+  }
+}
 
 Tag TagServer::get_handle(const char *tag_name) const
 {

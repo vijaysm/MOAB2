@@ -101,7 +101,7 @@ public:
   ErrorCode set_data(const EntityHandle entity_handle, const void* data, int length);
 
   //! get the variable-length data for an entity id
-  ErrorCode get_data(const EntityHandle entity_handle, const void*& data, int& length);
+  ErrorCode get_data(const EntityHandle entity_handle, void*& data, int& length);
 
   //! removes the data
   ErrorCode remove_data(const EntityHandle entity_handle);

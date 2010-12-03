@@ -122,6 +122,35 @@ public:
                         void const* const* data_pointers,
                         const int* lengths = 0,
                         bool one_value = false );
+
+  /**\brief Access tag data via direct pointer into contiguous blocks
+   *
+   * Iteratively obtain direct access to contiguous blocks of tag
+   * storage.  This function cannot be used with bit tags because
+   * of the compressed bit storage.  This function cannot be used
+   * with variable length tags because it does not provide a mechanism
+   * to determine the length of the value for each entity.  This
+   * function may be used with sparse tags, but if it is used, it
+   * will return data for a single entity at a time.  
+   *
+   *\param tag_handle  The handle of the tag for which to access data
+   *\param iter        As input, the first entity for which to return
+   *                   data.  As output, one past the last entity for
+   *                   which data was returned.
+   *\param end         One past the last entity for which data is desired
+   *\param data_ptr    Output: pointer to tag storage.
+   *  
+   *\Note If this function is called for entities for which no tag value
+   *      has been set, but for which a default value exists, it will 
+   *      force the allocation of explicit storage for each such entity
+   *      even though MOAB would normally not explicitly store tag values
+   *      for such entities.
+   */
+  ErrorCode tag_iterate( TagId tag_handle,
+                         Range::iterator& iter,
+                         const Range::iterator& end,
+                         void*& data_ptr,
+                         const void* default_value );
   
     /** Get fixed-length tag values for array of entities
      *\NOTE Will fail with MB_VARIABLE_DATA_LENGTH if called

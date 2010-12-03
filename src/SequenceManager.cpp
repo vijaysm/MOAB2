@@ -1157,6 +1157,41 @@ ErrorCode SequenceManager::set_tag_data( TagId tag_id,
 }
       
 
+ErrorCode SequenceManager::tag_iterate( TagId tag_id,
+                                        Range::iterator& iter,
+                                        const Range::iterator& end,
+                                        void*& data_ptr_out,
+                                        const void* default_value )
+{
+  if (tag_id >= tagSizes.size() || tagSizes[tag_id] < 1) {
+    if (tag_id < tagSizes.size() && tagSizes[tag_id] == MB_VARIABLE_LENGTH)
+      return MB_VARIABLE_DATA_LENGTH;
+    else
+      return MB_TAG_NOT_FOUND;
+  }
+
+    // If asked for nothing, successfully return nothing.
+  if (iter == end)
+    return MB_SUCCESS;
+  
+  EntitySequence* seq = 0;
+  ErrorCode rval = find( *iter, seq );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  size_t count1 = *(iter.end_of_block()) - *iter + 1;
+  size_t count2 = seq->end_handle() - *iter + 1;
+  size_t count = std::min( count1, count2 );
+  size_t offset = *iter - seq->data()->start_handle();
+  
+  void* tag_array = seq->data()->get_tag_data( tag_id );
+  if (!tag_array)
+    tag_array = seq->data()->create_tag_data( tag_id, tagSizes[tag_id], default_value );
+  data_ptr_out = (unsigned char*)tag_array + offset*tagSizes[tag_id];
+  iter += count;
+  return MB_SUCCESS;
+}
+
 ErrorCode SequenceManager::get_tag_data( TagId tag_id,
                                            const EntityHandle* handles,
                                            int num_handles,

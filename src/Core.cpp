@@ -1977,6 +1977,15 @@ ErrorCode  Core::tag_delete(Tag tag_handle)
   return tag_server()->remove_tag(tag_handle);
 }
 
+ErrorCode Core::tag_iterate( Tag tag_handle,
+                             Range::iterator& iter,
+                             const Range::iterator& end,
+                             void*& data_ptr )
+{
+  return tag_server()->tag_iterate( tag_handle, iter, end, data_ptr );
+}
+
+
 //! gets the tag name string for the tag_handle
 ErrorCode  Core::tag_get_name(const Tag tag_handle, 
                                     std::string& tag_name) const

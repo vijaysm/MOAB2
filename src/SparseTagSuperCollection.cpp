@@ -213,6 +213,58 @@ ErrorCode SparseTagSuperCollection::set_data( TagId tag_handle,
   return result;
 }
 
+ErrorCode SparseTagSuperCollection::tag_iterate( TagId tag_handle,
+                                              Range::iterator& iter,
+                                              const Range::iterator& end,
+                                              void*& data_ptr_out,
+                                              const void* default_value )
+
+{
+    // Note: We are asked to returning a block of contiguous storage
+    //       for some block of contiguous handles for which the tag 
+    //       storage is also contiguous.  As sparse tag storage is
+    //       never contigous, all we can do is return a pointer to the
+    //       data for the first entity.
+
+    // If asked for nothing, successfully return nothing.
+  if (iter == end)
+    return MB_SUCCESS;
+
+  SparseTagCollection* coll = get_collection(tag_handle);
+  if (!coll)
+    return MB_TAG_NOT_FOUND;
+    
+    // not supported for variable-length tags
+  const int length = coll->tag_size();
+  if (length == MB_VARIABLE_LENGTH)
+    return MB_VARIABLE_DATA_LENGTH;
+
+    // get pointer to tag storage for entity pointed to by iter
+  int junk;
+  ErrorCode rval = coll->get_data( *iter, data_ptr_out, junk );
+  if (MB_SUCCESS != rval) {
+      // if no tag value but default_value, then set tag to
+      // default_value and return the new tag storage.  Note:
+      // it is not sufficient to return the passed default_value
+      // pointer because we are returning an non-const pointer that
+      // could be modified by the caller.
+    if (MB_TAG_NOT_FOUND == rval && default_value) {
+      rval = coll->set_data( *iter, default_value );
+      if (MB_SUCCESS != rval)
+        return rval;
+      rval = coll->get_data( *iter, data_ptr_out, junk );
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
+    else {
+      return rval;
+    }
+  }
+    
+    // increment iterator and return
+  ++iter;
+  return MB_SUCCESS;
+}
 
 ErrorCode SparseTagSuperCollection::get_data( TagId tag_handle,
                                                 const EntityHandle* handles,
@@ -270,17 +322,18 @@ ErrorCode SparseTagSuperCollection::get_data( TagId tag_handle,
   ErrorCode rval, result = MB_SUCCESS;
   const EntityHandle *const end = handles + num_handles;
   for (const EntityHandle* i = handles; i != end; ++i, ++data, lengths += length_step) {
-    rval = coll->get_data( *i, *data, *lengths );
-    if (MB_SUCCESS != rval) {
-      if (MB_TAG_NOT_FOUND == rval && default_value) {
-        *data = default_value;
-        *lengths = default_val_length;
-      }
-      else {
-        *data = 0;
-        *lengths = 0;
-        result = rval;
-      }
+    void* ptr;
+    rval = coll->get_data( *i, ptr, *lengths );
+    if (MB_SUCCESS == rval)
+      *data = ptr;
+    else if (MB_TAG_NOT_FOUND == rval && default_value) {
+      *data = default_value;
+      *lengths = default_val_length;
+    }
+    else {
+      *data = 0;
+      *lengths = 0;
+      result = rval;
     }
   }
     
@@ -340,17 +393,19 @@ ErrorCode SparseTagSuperCollection::get_data( TagId tag_handle,
   
   ErrorCode rval, result = MB_SUCCESS;
   for (Range::const_iterator i = handles.begin(); i != handles.end(); ++i, ++data, lengths += length_step) {
-    rval = coll->get_data( *i, *data, *lengths );
-    if (MB_SUCCESS != rval) {
-      if (MB_TAG_NOT_FOUND == rval && default_value) {
-        *data = default_value;
-        *lengths = default_val_length;
-      }
-      else {
-        *data = 0;
-        *lengths = 0;
-        result = rval;
-      }
+    void* ptr;
+    rval = coll->get_data( *i, ptr, *lengths );
+    if (MB_SUCCESS == rval) {
+      *data = ptr;
+    }
+    else if (MB_TAG_NOT_FOUND == rval && default_value) {
+      *data = default_value;
+      *lengths = default_val_length;
+    }
+    else {
+      *data = 0;
+      *lengths = 0;
+      result = rval;
     }
   }
     
