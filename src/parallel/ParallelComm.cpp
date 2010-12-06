@@ -6247,7 +6247,7 @@ ErrorCode ParallelComm::exchange_all_shared_handles(
     std::vector<std::vector<SharedEntityData> > &result)
 {
   int ierr;
-  const int tag = 0x4A41534E;
+  const int tag = 0;
   const MPI_Comm comm = procConfig.proc_comm();
   const int num_proc = buffProcs.size();
   const std::vector<int> procs( buffProcs.begin(), buffProcs.end() );
