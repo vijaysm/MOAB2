@@ -486,7 +486,7 @@ int eseq_test1b(Core *gMB, HomCoord tmp_min, HomCoord tmp_max)
                                         eseq_start, dum_seq);
   if (NULL != dum_seq) eseq = dynamic_cast<StructuredElementSeq*>(dum_seq);
   assert (MB_FAILURE != result && eseq_start != 0 && dum_seq != NULL && eseq != NULL);
-  
+
     // add vertex seq to element seq; first need to construct proper 3pt input (p1 is tmp_min)
   HomCoord p2(tmp_max.i(), tmp_min.j(), tmp_min.k());
   HomCoord p3(tmp_min.i(), tmp_max.j(), tmp_min.k());
@@ -499,6 +499,10 @@ int eseq_test1b(Core *gMB, HomCoord tmp_min, HomCoord tmp_max)
     errors++;
   }
   
+  std::vector<EntityHandle> connect;
+  result = gMB->get_connectivity(&eseq_start, 1, connect);
+  assert(MB_FAILURE != result && connect.size() == 4);
+
     // check/evaluate element sequence
   result = check_element_sequence(eseq, tmp_min, tmp_max, eseq_start);
   if (MB_SUCCESS != result) {

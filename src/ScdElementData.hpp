@@ -203,8 +203,10 @@ inline ErrorCode ScdElementData::get_params(const EntityHandle ehandle,
 inline bool ScdElementData::contains(const HomCoord &temp) const 
 {
     // upper bound is < instead of <= because element params max is one less
-    // than vertex params max
-  return (temp >= elementParams[0] && temp < elementParams[1]);
+    // than vertex params max, except in case of 2d or 1d sequence
+  return (temp >= elementParams[0] && 
+          ((!dIJKm1[1] && temp.j() == elementParams[1].j()) || (dIJKm1[1] && temp.j() < elementParams[1].j())) &&
+          ((!dIJKm1[2] && temp.k() == elementParams[1].k()) || (dIJKm1[2] && temp.k() < elementParams[1].k())));
 }
   
 inline bool ScdElementData::VertexDataRef::contains(const HomCoord &coords) const 
