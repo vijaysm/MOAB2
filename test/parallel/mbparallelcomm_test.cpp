@@ -189,8 +189,6 @@ int main(int argc, char **argv)
   
   if (0 == rank) dtime = MPI_Wtime();
 
-  err = MPI_Finalize();
-
   result = mbImpl->delete_mesh();
   if (MB_SUCCESS != result) {
     std::cerr << "Couldn't delete mesh on rank " << rank
@@ -208,6 +206,8 @@ int main(int argc, char **argv)
                            << ltime - dtime
                            << " (total/read/delete)"
                            << std::endl;
+
+  err = MPI_Finalize();
 
   delete mbImpl;
   
