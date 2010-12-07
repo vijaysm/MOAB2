@@ -121,16 +121,19 @@ public:
                                           unsigned orient_array_length,
                                           const Range& vertices );
   
-    /** Test for intersection of a ray (or line segment) with this box
-     *\param ray_start_point The base point of the ray
-     *\param ray_unit_direction The direction of the ray (must be unit length)
-     *\param distance_tolerance Tolerance to use in intersection checks
-     *\param segment_length Optional length of ray
+    /** Test for intersection of a ray (or line segment) with this box.
+     *  Ray length limits are used to optimize Monte Carlo particle tracking.
+     *\param ray_start_point     The base point of the ray
+     *\param ray_unit_direction  The direction of the ray (must be unit length)
+     *\param distance_tolerance  Tolerance to use in intersection checks
+     *\param nonnegative_ray_len Optional length of ray in forward direction
+     *\param negative_ray_len    Optional length of ray in reverse direction
      */
   bool intersect_ray( const CartVect& ray_start_point,
                       const CartVect& ray_unit_direction,
-                      double distance_tolerance,
-                      const double* segment_length = 0 ) const;
+                      const double    distance_tolerance,
+                      const double*   nonnegatve_ray_len = 0,
+                      const double*   negative_ray_len   = 0 ) const;
                       
     /**\brief Find closest position on/within box to input position.
      * 

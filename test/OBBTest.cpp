@@ -806,6 +806,26 @@ void test_ray_intersect()
   pt = scaled_face( unitbox, 5, 3.0 ); dir = unitbox.center - pt; dir.normalize();
   ASSERT( unitbox.intersect_ray( pt, dir, TOL ) );
   
+    // test ray from outside first face toward box center, with nonnegative ray length
+  pt = scaled_face( unitbox, 0, 3.0 ); dir = unitbox.center - pt; dir.normalize();
+  const double short_pos =  0.99;
+  const double short_neg = -0.99;
+  const double long_pos  =  1.01;
+  const double long_neg  = -1.01;
+  ASSERT(  unitbox.intersect_ray( pt, dir, TOL, &long_pos ) );
+  ASSERT( !unitbox.intersect_ray( pt, dir, TOL, &short_pos ) );
+
+    // test ray from outside first face away from box center, with negative ray length
+  ASSERT(  unitbox.intersect_ray( pt, -dir, TOL, NULL, &long_neg ) );
+  ASSERT( !unitbox.intersect_ray( pt, -dir, TOL, NULL, &short_neg ) );
+
+    // test ray from outside first face toward box center, with both ray lengths
+    // Note that box.intersect_ray requires neg_ray_len<0 and -neg_ray_len<=nonneg_ray_len
+  ASSERT(  unitbox.intersect_ray( pt, dir, TOL, &long_pos,  &long_neg ) );
+  ASSERT( !unitbox.intersect_ray( pt, dir, TOL, &short_pos, &long_neg ) );
+  ASSERT(  unitbox.intersect_ray( pt, dir, TOL, &long_pos,  &short_neg ) );
+  ASSERT( !unitbox.intersect_ray( pt, dir, TOL, &short_pos, &short_neg ) );
+
     // test ray starting inside box and passing through a corner
   pt = scaled_corner( unitbox, 0, 0.3 ); dir = pt - unitbox.center; dir.normalize();
   ASSERT( unitbox.intersect_ray( pt, dir, TOL ) );
