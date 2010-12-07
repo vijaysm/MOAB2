@@ -230,24 +230,7 @@ ErrorCode FileOptions::get_reals_option( const char* name,
 #define EATSPACE(a) while ((!strcmp(a, " ") || \
           !strcmp(a, ",")) && !strempty(a)) a++;
     EATSPACE(endptr);
-    double eval = sval;
-    if (!strcmp(endptr, "-")) {
-      endptr++;
-      s = endptr;
-      eval = strtol(s, &endptr, 0);
-      EATSPACE(endptr);
-    }
-  
-      // check for overflow (parsing long int, returning int)
-    int value = sval;
-    if (sval != (long int)value)
-      return MB_TYPE_OUT_OF_RANGE;
-    value = eval;
-    if (eval != (long int)value)
-      return MB_TYPE_OUT_OF_RANGE;
-  
-    for (int i = sval; i <= eval; i++)
-      values.push_back(i);
+    values.push_back(sval);
 
     s = endptr;
   }

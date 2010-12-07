@@ -164,9 +164,7 @@ public:
   /**\brief Check for option for which the value is a list of doubles
    *
    * Check for an option which is a double list.  The value is expected to
-   * be a comma-separated list of int ranges, where an int range can be 
-   * either a single integer value or a range of integer values separated
-   * by a dash ('-').
+   * be a comma-separated list of double values
    *
    *\param name The option name
    *\param values Output. The list of double values.
