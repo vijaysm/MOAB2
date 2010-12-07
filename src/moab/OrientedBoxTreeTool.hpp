@@ -259,18 +259,38 @@ class OrientedBoxTreeTool
      *\param tolerance     The tolerance to use in intersection checks.
      *\param ray_point     The base point of the ray.
      *\param unit_ray_dir  The ray direction vector (must be unit length)
-     *\param ray_length    Optional ray length (intersect segment instead of ray.)
+     *\param nonneg_ray_len Optional ray length ahead of the ray_point (intersect 
+     *                     segment instead of ray.)
+     *\param accum         Optional class for tree traversal statistics.
+     *\param neg_ray_len   Optional ray length behind the ray_point to search for 
+     *                     intersections.
+     *\param geom_vol      Optional handle of the geometry set being searched. When
+     *                     used, glancing intersections are rejected. Must be used
+     *                     used with sense_tag.
+     *\param sense_tag     Must be used if geom_vol is used. Saves >4% of execution
+     *                     time by avoiding tag_create call.
+     *\param desired_orient Optional ptr used to screen intersections by orientation.
+     *                     Pass 1 to keep intersections with surface normals in the
+     *                     same direction as the ray. Pass -1 for opposite orientation.
+     *                     Requires use of geom_vol.
+     *\param prev_facets   Optional vector of triangles that cannot be returned
+     *                     as intersections.
      */
-    ErrorCode ray_intersect_sets( std::vector<double>& distances_out,
-                                    std::vector<EntityHandle>& sets_out,
-                                    std::vector<EntityHandle>& facets_out,
-                                    EntityHandle root_set,
-                                    double tolerance,
-                                    unsigned min_tolerace_intersections,
-                                    const double ray_point[3],
-                                    const double unit_ray_dir[3],
-                                    const double* ray_length = 0,
-                                    TrvStats* accum = 0 );
+    ErrorCode ray_intersect_sets( std::vector<double>&       distances_out,
+                                  std::vector<EntityHandle>& sets_out,
+                                  std::vector<EntityHandle>& facets_out,
+                                  EntityHandle               root_set,
+                                  double                     tolerance,
+                                  unsigned                   min_tolerace_intersections,
+                                  const double               ray_point[3],
+                                  const double               unit_ray_dir[3],
+                                  const double*              nonneg_ray_len = 0,
+                                  TrvStats*                  accum          = 0,
+                                  const double*              neg_ray_len    = 0,
+                                  const EntityHandle*        geom_vol       = 0,
+                                  const Tag*                 sense_tag      = 0,
+                                  const int*                 desired_orient = 0,
+                                  const std::vector<EntityHandle>* prev_facets = 0 );
     
     /**\brief Find closest surface, facet in surface, and location on facet
      *
@@ -394,8 +414,8 @@ class OrientedBoxTreeTool
          *             leaf, the 'leaf' method will not be called.
          */
         virtual ErrorCode visit( EntityHandle node,
-                                   int depth,
-                                   bool& descend ) = 0;
+                                 int depth,
+				 bool& descend ) = 0;
        
         /**\brief Process a leaf node during tree traversal */
         virtual ErrorCode leaf( EntityHandle node ) = 0;

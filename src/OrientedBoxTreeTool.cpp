@@ -25,6 +25,7 @@
 #include "moab/Range.hpp"
 #include "moab/CN.hpp"
 #include "moab/GeomUtil.hpp"
+#include "moab/GeomTopoTool.hpp"
 #include "MBTagConventions.hpp"
 #include <iostream>
 #include <iomanip>
@@ -37,6 +38,137 @@
 //#define MB_OBB_USE_TYPE_QUERIES
 
 namespace moab {
+
+/**\brief Determine if a ray-edge/node intersection is glancing or piercing.
+ *        This function avoids asking for upward adjacencies to prevent their
+ *        creation.
+ *\param tri           The intersected triangle
+ *\param ray_direction The direction of the ray
+ *\param int_type      The type of intersection (EDGE0, EDGE1, NODE2, ...)
+ *\param close_tris    Vector of triangles in the neighborhood of the intersection
+ *\param close_senses  Vector of surface senses for tris in the neighborhood of
+ *                     the intersection 
+ *\return              True if piercing, false otherwise.
+ */
+bool edge_node_intersect(const EntityHandle                tri,
+                         const CartVect&                   ray_direction,
+                         const GeomUtil::intersection_type int_type,
+                         const std::vector<EntityHandle>&  close_tris,
+                         const std::vector<int>&           close_senses,
+                         const Interface*                  MBI ) {
+
+  // get the node of the triangle
+  const EntityHandle* conn;
+  int len;
+  ErrorCode rval = MBI->get_connectivity( tri, conn, len );
+  if(MB_SUCCESS!=rval || 3!=len) return MB_FAILURE;
+
+  // get adjacent tris (and keep their corresponding senses)
+  std::vector<EntityHandle> adj_tris;
+  std::vector<int>          adj_senses;
+
+  // node intersection
+  if(GeomUtil::NODE0==int_type || GeomUtil::NODE1==int_type || GeomUtil::NODE2==int_type) {
+ 
+    // get the intersected node
+    EntityHandle node;
+    if     (GeomUtil::NODE0==int_type) node = conn[0];
+    else if(GeomUtil::NODE1==int_type) node = conn[1];
+    else                               node = conn[2];
+
+    // get tris adjacent to node
+    for(unsigned i=0; i<close_tris.size(); ++i) {
+      const EntityHandle* con;
+      rval = MBI->get_connectivity( close_tris[i], con, len );
+      if(MB_SUCCESS!=rval || 3!=len) return MB_FAILURE;
+
+      if(node==con[0] || node==con[1] || node==con[2]) {
+        adj_tris.push_back(   close_tris[i]   );
+        adj_senses.push_back( close_senses[i] );
+      }
+    }
+    if( adj_tris.empty() ) {
+      std::cerr << "error: no tris are adjacent to the node" << std::endl;
+      return MB_FAILURE;
+    }
+  // edge intersection
+  } else if(GeomUtil::EDGE0==int_type || GeomUtil::EDGE1==int_type || GeomUtil::EDGE2==int_type) {
+
+    // get the endpoints of the edge
+    EntityHandle endpts[2];
+    if       (GeomUtil::EDGE0==int_type) {
+      endpts[0] = conn[0];
+      endpts[1] = conn[1]; 
+    } else if(GeomUtil::EDGE1==int_type) {
+      endpts[0] = conn[1];
+      endpts[1] = conn[2];
+    } else {
+      endpts[0] = conn[2];
+      endpts[1] = conn[0];
+    }
+
+    // get tris adjacent to edge
+    for(unsigned i=0; i<close_tris.size(); ++i) {
+      const EntityHandle* con;
+      rval = MBI->get_connectivity( close_tris[i], con, len );
+      if(MB_SUCCESS!=rval || 3!=len) return MB_FAILURE;
+
+      // check both orientations in case close_tris are not on the same surface
+      if( (endpts[0]==con[0] && endpts[1]==con[1]) ||
+          (endpts[0]==con[1] && endpts[1]==con[0]) ||
+          (endpts[0]==con[1] && endpts[1]==con[2]) ||
+          (endpts[0]==con[2] && endpts[1]==con[1]) ||
+          (endpts[0]==con[2] && endpts[1]==con[0]) ||
+          (endpts[0]==con[0] && endpts[1]==con[2]) ) {
+        adj_tris.push_back(   close_tris[i]   );
+        adj_senses.push_back( close_senses[i] );
+      }
+    }   
+    // In a 2-manifold each edge is adjacent to exactly 2 tris
+    if(2 != adj_tris.size() ) {
+      std::cerr << "error: edge of a manifold must be topologically adjacent to exactly 2 tris" 
+                << std::endl;
+      MBI->list_entities( endpts, 2 );
+      return true;
+    }
+  } else {
+    std::cerr << "error: special case not an node/edge intersection" << std::endl;
+    return MB_FAILURE;
+  }
+
+  // determine glancing/piercing
+  // If a desired_orientation was used in this call to ray_intersect_sets, 
+  // the plucker_ray_tri_intersect will have already used it. For a piercing
+  // intersection, the normal of all tris must have the same orientation.
+  int sign = 0;
+  for(unsigned i=0; i<adj_tris.size(); ++i) {
+    const EntityHandle* con;
+    rval = MBI->get_connectivity( adj_tris[i], con, len );
+    if(MB_SUCCESS!=rval || 3!=len) return MB_FAILURE;
+    CartVect coords[3];
+    rval = MBI->get_coords( con, len, coords[0].array() );      
+    if(MB_SUCCESS != rval) return MB_FAILURE;
+
+    // get normal of triangle
+    CartVect v0 = coords[1] - coords[0];
+    CartVect v1 = coords[2] - coords[0];
+    CartVect norm = adj_senses[i]*(v0*v1);
+    double dot_prod = norm%ray_direction;
+
+    // if the sign has not yet been decided, choose it
+    if(0==sign && 0!=dot_prod) {
+      if(0<dot_prod) sign = 1;
+      else           sign = -1;
+    }
+
+    // intersection is glancing if tri and ray do not point in same direction
+    // for every triangle
+    if(0!=sign && 0>sign*norm%ray_direction) return false;
+
+  }
+  return true;
+
+}
 
 #if defined(MB_OBB_USE_VECTOR_QUERIES) && defined(MB_OBB_USE_TYPE_QUERIES)
 # undef MB_OBB_USE_TYPE_QUERIES
@@ -468,8 +600,6 @@ ErrorCode OrientedBoxTreeTool::delete_tree( EntityHandle set )
 
 
 /********************** Generic Tree Traversal ****************************/
-
-
 struct Data { EntityHandle set; int depth; };
 ErrorCode OrientedBoxTreeTool::preorder_traverse( EntityHandle set,
                                                       Op& operation, 
@@ -495,6 +625,7 @@ ErrorCode OrientedBoxTreeTool::preorder_traverse( EntityHandle set,
 
     bool descend = true;
     rval = operation.visit( data.set, data.depth, descend );
+    assert(MB_SUCCESS == rval);
     if (MB_SUCCESS != rval)
       return rval;
     
@@ -503,11 +634,13 @@ ErrorCode OrientedBoxTreeTool::preorder_traverse( EntityHandle set,
     
     children.clear();
     rval = instance->get_child_meshsets( data.set, children );
+    assert(MB_SUCCESS == rval);
     if (MB_SUCCESS != rval)
       return rval;
     if (children.empty()) {
       if( accum ){ accum->increment_leaf( data.depth ); }
       rval = operation.leaf( data.set );
+      assert(MB_SUCCESS == rval);
       if (MB_SUCCESS != rval)
         return rval;
     }
@@ -691,8 +824,8 @@ class RayIntersector : public OrientedBoxTreeTool::Op
       { }
   
     virtual ErrorCode visit( EntityHandle node,
-                               int depth,
-                               bool& descend );
+                             int          depth,
+                             bool&        descend );
     virtual ErrorCode leaf( EntityHandle node );
 };
 
@@ -813,8 +946,8 @@ ErrorCode OrientedBoxTreeTool::ray_intersect_boxes(
 }
 
 ErrorCode RayIntersector::visit( EntityHandle node,
-                                   int ,
-                                   bool& descend ) 
+                                 int ,
+                                 bool&        descend ) 
 {
   OrientedBox box;
   ErrorCode rval = tool->box( node, box );
@@ -839,70 +972,151 @@ ErrorCode RayIntersector::leaf( EntityHandle node )
 class RayIntersectSets : public OrientedBoxTreeTool::Op
 {
   private:
+    // Input
     OrientedBoxTreeTool* tool;
-    int minTolInt;
-    const CartVect b, m;
-    const double* len;
-    const double tol;
-    std::vector<double>& intersections;
-    std::vector<EntityHandle>& sets;
-    std::vector<EntityHandle>& facets;    
-    unsigned int* raytri_test_count;
+    const CartVect       ray_origin;
+    const CartVect       ray_direction;
+    const double*        nonneg_ray_len;  /* length to search ahead of ray origin */
+    const double*        neg_ray_len;     /* length to search behind ray origin */
+    const double         tol;             /* used for box.intersect_ray, radius of
+                                             neighborhood for adjacent triangles,
+                                             and old mode of add_intersection */
+    const int            minTolInt;       /* used for old mode of add_intersection */
 
-  EntityHandle lastSet;
-    int lastSetDepth;
-    
-  void add_intersection( double t, EntityHandle facet );
+    // Output
+    std::vector<double>&       intersections;
+    std::vector<EntityHandle>& sets;
+    std::vector<EntityHandle>& facets;
+
+    // Optional Input - to screen RTIs by orientation and edge/node intersection
+    const EntityHandle*  rootSet;         /* used for sphere_intersect */
+    const EntityHandle*  geomVol;         /* used for determining surface sense */
+    const Tag*           senseTag;        /* allows screening by triangle orientation.
+                                             both geomVol and senseTag must be used together. */
+    const int*           desiredOrient;   /* points to desired orientation of ray with
+                                             respect to surf normal, if this feature is used.
+                                             Must point to -1 (reverse) or 1 (forward).
+                                             geomVol and senseTag are needed for this feature */
+    int*                 surfTriOrient;   /* holds desired orientation of tri wrt surface */
+    int                  surfTriOrient_val;
+
+    // Optional Input - to avoid returning these as RTIs
+    const std::vector<EntityHandle>* prevFacets; /* intersections on these triangles 
+                                                    will not be returned */
+
+    // Other Variables
+    unsigned int*        raytri_test_count;
+    EntityHandle         lastSet;
+    int                  lastSetDepth;
+
+    void add_intersection( double t, EntityHandle facet );
     
   public:
-    RayIntersectSets( OrientedBoxTreeTool* tool_ptr,
-                   const double* ray_point,
-                   const double* unit_ray_dir,
-                   const double *ray_length,
-                   double tolerance,
-                   unsigned min_tol_intersections,
-                   std::vector<double>& intersections,
-                   std::vector<EntityHandle>& surfaces,
-                   std::vector<EntityHandle>& facets,
-                   unsigned int* raytri_test_count   )
-      : tool(tool_ptr), minTolInt(min_tol_intersections),
-        b(ray_point), m(unit_ray_dir),
-        len(ray_length), tol(tolerance),
-        intersections(intersections),
-        sets(surfaces), facets(facets), raytri_test_count(raytri_test_count), lastSet(0)
-      { }
-  
+    RayIntersectSets( OrientedBoxTreeTool*       tool_ptr,
+                      const double*              ray_point,
+                      const double*              unit_ray_dir,
+                      const double*              nonneg_ray_length,
+		      const double*              neg_ray_length,
+                      double                     tolerance,
+                      unsigned                   min_tol_intersections,
+                      std::vector<double>&       intersections,
+                      std::vector<EntityHandle>& surfaces,
+                      std::vector<EntityHandle>& facets,
+	              EntityHandle*              root_set,
+		      const EntityHandle*        geom_volume,
+		      const Tag*                 sense_tag,
+		      const int*                 desired_orient,
+	              const std::vector<EntityHandle>* prev_facets,
+                      unsigned int*              raytri_test_count   )
+      : tool(tool_ptr),
+        ray_origin(ray_point), ray_direction(unit_ray_dir),
+        nonneg_ray_len(nonneg_ray_length), neg_ray_len(neg_ray_length), 
+        tol(tolerance), minTolInt(min_tol_intersections),
+        intersections(intersections), sets(surfaces), facets(facets), 
+        rootSet(root_set), geomVol(geom_volume), senseTag(sense_tag),
+        desiredOrient(desired_orient), prevFacets(prev_facets),
+        raytri_test_count(raytri_test_count), lastSet(0)
+      {
+	// specified orientation should be 1 or -1, indicating ray and surface
+        // normal in the same or opposite directions, respectively.
+        if(desiredOrient) {
+          assert(1==*desiredOrient || -1==*desiredOrient);
+          surfTriOrient = &surfTriOrient_val;
+        } else {
+          surfTriOrient = NULL;
+        }
+
+        // check the limits  
+        if(nonneg_ray_len) {
+          assert(0 <= *nonneg_ray_len);
+        } 
+        if(neg_ray_len) {
+          assert(0 > *neg_ray_len);
+        }  
+      }
+   
+
     virtual ErrorCode visit( EntityHandle node,
-                               int depth,
-                               bool& descend );
+                             int          depth,
+			     bool&        descend );
     virtual ErrorCode leaf( EntityHandle node );
 };
 
 ErrorCode RayIntersectSets::visit( EntityHandle node,
-                                     int depth,
-                                     bool& descend ) 
+                                   int          depth,
+				   bool&        descend ) 
 {
   OrientedBox box;
   ErrorCode rval = tool->box( node, box );
+  assert(MB_SUCCESS == rval);
   if (MB_SUCCESS != rval)
     return rval;
   
-  descend = box.intersect_ray( b, m, tol, len);
-  
+  descend = box.intersect_ray( ray_origin, ray_direction, tol, nonneg_ray_len, 
+                               neg_ray_len );
+
   if (lastSet && depth <= lastSetDepth)
     lastSet = 0;
 
   if (descend && !lastSet) {
     Range sets;
     rval = tool->get_moab_instance()->get_entities_by_type( node, MBENTITYSET, sets );
+    assert(MB_SUCCESS == rval);
     if (MB_SUCCESS != rval)
       return rval;
-
+ 
     if (!sets.empty()) {
       if (sets.size() > 1)
         return MB_FAILURE;
       lastSet = *sets.begin();
       lastSetDepth = depth;
+      // Get desired orientation of surface wrt volume. Use this to return only 
+      // exit or entrance intersections.
+      if(geomVol && senseTag && desiredOrient && surfTriOrient) {
+        if(1!=*desiredOrient && -1!=*desiredOrient) {
+	  std::cerr << "error: desired orientation must be 1 (forward) or -1 (reverse)" 
+                    << std::endl;
+        }
+	EntityHandle vols[2];
+	rval = tool->get_moab_instance()->tag_get_data( *senseTag, &lastSet, 1, vols );
+	assert(MB_SUCCESS == rval);
+	if(MB_SUCCESS != rval) return rval;
+	if(vols[0] == vols[1]) {
+	  std::cerr << "error: surface has positive and negative sense wrt same volume" 
+                    << std::endl;
+	  return MB_FAILURE;
+	}
+        // surfTriOrient will be used by plucker_ray_tri_intersect to avoid
+        // intersections with wrong orientation.
+	if       (*geomVol == vols[0]) {
+	  *surfTriOrient = *desiredOrient*1;
+	} else if(*geomVol == vols[1]) {
+	  *surfTriOrient = *desiredOrient*(-1);
+	} else {
+	  assert(false);
+	  return MB_FAILURE;
+	}
+      }
     }
   }
     
@@ -911,6 +1125,7 @@ ErrorCode RayIntersectSets::visit( EntityHandle node,
 
 ErrorCode RayIntersectSets::leaf( EntityHandle node )
 {
+  assert(lastSet);
   if (!lastSet) // if no surface has been visited yet, something's messed up.
     return MB_FAILURE;
   
@@ -925,6 +1140,7 @@ ErrorCode RayIntersectSets::leaf( EntityHandle node )
   std::vector<EntityHandle> tris;
   ErrorCode rval = tool->get_moab_instance()->get_entities_by_handle( node, tris );
 #endif
+  assert(MB_SUCCESS == rval);
   if (MB_SUCCESS != rval)
     return rval;
 
@@ -942,29 +1158,128 @@ ErrorCode RayIntersectSets::leaf( EntityHandle node )
     const EntityHandle* conn;
     int num_conn;
     rval = tool->get_moab_instance()->get_connectivity( *t, conn, num_conn, true );
+    assert(MB_SUCCESS == rval);
     if (MB_SUCCESS != rval)
       return rval;
 
     CartVect coords[3];
     rval = tool->get_moab_instance()->get_coords( conn, 3, coords[0].array() );
+    assert(MB_SUCCESS == rval);
     if (MB_SUCCESS != rval)
       return rval;
 
     if( raytri_test_count ) *raytri_test_count += 1; 
 
-    double td;
-    if (GeomUtil::ray_tri_intersect( coords, b, m, tol, td, len )) 
-        // NOTE: add_intersection may modify the 'len' member, which
-        //       will affect subsequent calls to ray_tri_intersect in 
-        //       this loop.
-      add_intersection( td, *t );
+    double int_dist;
+    GeomUtil::intersection_type int_type = GeomUtil::NONE;
+    // Note: tol is not used in the ray-tri test.
+    if (GeomUtil::plucker_ray_tri_intersect( coords, ray_origin, ray_direction, tol, int_dist, 
+                                     nonneg_ray_len, neg_ray_len, surfTriOrient, &int_type )) {
+      // Do not accept intersections if they are in the vector of previously intersected
+      // facets.
+      if(  prevFacets &&
+	   ((*prevFacets).end() != find((*prevFacets).begin(), (*prevFacets).end(), *t) ) ) continue;
+
+      // Handle special case of edge/node intersection. Accept piercing 
+      // intersections and reject glancing intersections.
+      // The edge_node_intersection function needs to know surface sense wrt volume.
+      // A less-robust implementation could work without sense information.
+      // Would it ever be useful to accept a glancing intersection?
+      if(GeomUtil::INTERIOR != int_type && rootSet && geomVol && senseTag) {
+        // get triangles in the neighborhood of the intersection
+        CartVect int_pt = ray_origin + int_dist*ray_direction;
+	std::vector<EntityHandle> close_tris;
+	std::vector<EntityHandle> close_surfs;
+        rval = tool->sphere_intersect_triangles( int_pt.array(), tol, *rootSet,
+	                                         close_tris, &close_surfs );
+        assert(MB_SUCCESS == rval);
+        if(MB_SUCCESS != rval) return rval; 
+
+        // for each surface, get the surf sense wrt parent volume
+	std::vector<int> close_senses(close_surfs.size());
+        for(unsigned i=0; i<close_surfs.size(); ++i) {
+          EntityHandle vols[2];
+          rval = tool->get_moab_instance()->tag_get_data( *senseTag, &lastSet, 1, vols );
+          assert(MB_SUCCESS == rval);
+          if(MB_SUCCESS != rval) return rval;
+          if(vols[0] == vols[1]) {
+            std::cerr << "error: surf has positive and negative sense wrt same volume" << std::endl;
+            return MB_FAILURE;
+          }
+          if       (*geomVol == vols[0]) {
+            close_senses[i] = 1;
+          } else if(*geomVol == vols[1]) {
+            close_senses[i] = -1;
+          } else {
+            return MB_FAILURE;
+          }
+        }
+	bool piercing = edge_node_intersect( *t, ray_direction, int_type, close_tris,
+                                             close_senses, tool->get_moab_instance() );
+        if(!piercing) continue;
+      }
+      
+        // NOTE: add_intersection may modify the 'neg_ray_len' and 'nonneg_ray_len'
+        //       members, which will affect subsequent calls to ray_tri_intersect 
+        //       in this loop.
+      add_intersection( int_dist, *t );
+    }
   }
   return MB_SUCCESS;
 }
 
-void RayIntersectSets::add_intersection( double t, EntityHandle facet )
-{
-    // If minTolInt is less than zero, return all intersections
+/* Mode 1: Used if neg_ray_len and nonneg_ray_len are specified
+     variables used:     nonneg_ray_len, neg_ray_len
+     variables not used: min_tol_int, tol
+     1) keep the closest nonneg intersection and one negative intersection, if closer
+
+   Mode 2: Used if neg_ray_len is not specified
+     variables used:     min_tol_int, tol, nonneg_ray_len
+     variables not used: neg_ray_len
+     1) if(min_tol_int<0) return all intersections
+     2) otherwise return all inside tolerance and unless there are >min_tol_int
+     inside of tolerance, return the closest outside of tolerance */
+void RayIntersectSets::add_intersection( double t, EntityHandle facet ) {
+
+  // Mode 1, detected by non-null neg_ray_len pointer
+  // keep the closest nonneg intersection and one negative intersection, if closer
+  if(neg_ray_len && nonneg_ray_len) {
+    if(2 != intersections.size()) {
+      intersections.resize(2,0);
+      sets.resize(2,0);
+      facets.resize(2,0);
+      // must initialize this for comparison below
+      intersections[0] = -std::numeric_limits<double>::max();
+    }
+
+    // negative case
+    if(0.0>t) {
+      intersections[0] = t;
+      sets[0]          = lastSet;
+      facets[0]        = facet;
+      neg_ray_len      = &intersections[0];
+    // nonnegative case
+    } else {
+      intersections[1] = t;
+      sets[1]          = lastSet;
+      facets[1]        = facet;
+      nonneg_ray_len   = &intersections[1];
+      // if the intersection is closer than the negative one, remove the negative one
+      if(t < -(*neg_ray_len) ) {
+        intersections[0] = -intersections[1];
+        sets[0]          = 0;
+        facets[0]        = 0;
+        neg_ray_len      = &intersections[0]; 
+      }
+    }
+    //    std::cout << "add_intersection: t = " << t << " neg_ray_len=" << *neg_ray_len
+    //          << " nonneg_ray_len=" << *nonneg_ray_len << std::endl;
+    return;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Mode 2
+  // If minTolInt is less than zero, return all intersections
   if (minTolInt < 0 && t > -tol) {
     intersections.push_back(t);
     sets.push_back(lastSet);
@@ -977,8 +1292,9 @@ void RayIntersectSets::add_intersection( double t, EntityHandle facet )
     // location, an intersection greater than the tolerance away from
     // the base point of the ray.
   int len_idx = -1;
-  if (len && len >= &intersections[0] && len < &intersections[0] + intersections.size())
-    len_idx = len - &intersections[0];
+  if (nonneg_ray_len && nonneg_ray_len >= &intersections[0] && 
+      nonneg_ray_len < &intersections[0] + intersections.size())
+    len_idx = nonneg_ray_len - &intersections[0];
 
     // If the intersection is within tol of the ray base point, we 
     // always add it to the list.
@@ -993,14 +1309,14 @@ void RayIntersectSets::add_intersection( double t, EntityHandle facet )
         facets[len_idx] = facet;
           // From now on, we want only intersections within the tolerance,
           // so update length accordingly
-        len = &tol;
+        nonneg_ray_len = &tol;
       }
         // Otherwise appended to the list and update pointer
       else {
         intersections.push_back(t);
         sets.push_back(lastSet);
         facets.push_back(facet);
-        len = &intersections[len_idx];
+        nonneg_ray_len = &intersections[len_idx];
       }
     }
       // Otherwise just append it
@@ -1012,14 +1328,14 @@ void RayIntersectSets::add_intersection( double t, EntityHandle facet )
         // length such that we will only find further intersections
         // within the tolerance
       if ((int)intersections.size() >= minTolInt)
-        len = &tol;
+        nonneg_ray_len = &tol;
     }
   }
     // Otherwise the intersection is outside the tolerance
     // If we already have an intersection outside the tolerance and
     // this one is closer, replace the existing one with this one.
   else if (len_idx >= 0) {
-    if (t <= *len) {
+    if (t <= *nonneg_ray_len) {
       intersections[len_idx] = t;
       sets[len_idx] = lastSet;
       facets[len_idx] = facet;
@@ -1033,25 +1349,31 @@ void RayIntersectSets::add_intersection( double t, EntityHandle facet )
     facets.push_back(facet);
       // update length.  this is currently the closest intersection, so
       // only want further intersections that are closer than this one.
-    len = &intersections.back();
+    nonneg_ray_len = &intersections.back();
   }
 }
   
 
 ErrorCode OrientedBoxTreeTool::ray_intersect_sets( 
-                                    std::vector<double>& distances_out,
-                                    std::vector<EntityHandle>& sets_out,
-                                    std::vector<EntityHandle>& facets_out,
-                                    EntityHandle root_set,
-                                    double tolerance,
-                                    unsigned min_tolerace_intersections,
-                                    const double ray_point[3],
-                                    const double unit_ray_dir[3],
-                                    const double* ray_length, 
-                                    TrvStats* accum )
+                                    std::vector<double>&             distances_out,
+                                    std::vector<EntityHandle>&       sets_out,
+                                    std::vector<EntityHandle>&       facets_out,
+                                    EntityHandle                     root_set,
+                                    double                           tolerance,
+                                    unsigned                         min_tolerace_intersections,
+                                    const double                     ray_point[3],
+                                    const double                     unit_ray_dir[3],
+                                    const double*                    nonneg_ray_length,
+                                    TrvStats*                        accum,
+                                    const double*                    neg_ray_length,
+                                    const EntityHandle*              geom_vol,
+                                    const Tag*                       sense_tag,
+                                    const int*                       desired_orient,
+                                    const std::vector<EntityHandle>* prev_facets )
 {
-  RayIntersectSets op( this, ray_point, unit_ray_dir, ray_length, tolerance, 
-                       min_tolerace_intersections, distances_out, sets_out, facets_out, 
+  RayIntersectSets op( this, ray_point, unit_ray_dir, nonneg_ray_length, neg_ray_length, tolerance, 
+                       min_tolerace_intersections, distances_out, sets_out, facets_out,
+                       &root_set, geom_vol, sense_tag, desired_orient, prev_facets, 
                        accum ? &(accum->ray_tri_tests_count) : NULL ); 
   return preorder_traverse( root_set, op, accum );
 }
@@ -1367,8 +1689,8 @@ class TreeLayoutPrinter : public OrientedBoxTreeTool::Op
                        Interface* instance );
     
     virtual ErrorCode visit( EntityHandle node, 
-                               int depth,
-                               bool& descend );
+                             int          depth,
+			     bool&        descend );
     virtual ErrorCode leaf( EntityHandle node );
   private:
 
@@ -1384,8 +1706,8 @@ TreeLayoutPrinter::TreeLayoutPrinter( std::ostream& stream,
   {}
 
 ErrorCode TreeLayoutPrinter::visit( EntityHandle node, 
-                                      int depth,
-                                      bool& descend )
+                                    int          depth,
+				    bool&        descend )
 {
   descend = true;
   
@@ -1428,8 +1750,8 @@ class TreeNodePrinter : public OrientedBoxTreeTool::Op
                      OrientedBoxTreeTool* tool_ptr );
     
     virtual ErrorCode visit( EntityHandle node, 
-                               int depth,
-                               bool& descend );
+                             int          depth,
+			     bool&        descend );
                                
     virtual ErrorCode leaf( EntityHandle ) { return MB_SUCCESS; }
   private:
