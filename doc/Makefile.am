@@ -1,6 +1,5 @@
 
-doc_DATA = MOAB-UG.doc \
-           MOABv4-UG.doc \
+doc_DATA = MOABv4-UG.doc \
            MOAB-performance.doc \
            seq.pdf 
            
