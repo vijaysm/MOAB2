@@ -356,11 +356,13 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   
   dbgOut.set_rank( myPcomm->proc_config().proc_rank() );
 
+  debug_barrier();
   dbgOut.tprint(1,"Gathering interface meshes\n");
   rval = gather_interface_meshes();
   if (MB_SUCCESS != rval) return error(rval);
 
     /**************** get tag names for sets likely to be shared ***********/
+  debug_barrier();
   dbgOut.tprint(1,"Getting shared entity sets\n");
   rval = get_sharedset_tags();
   if (MB_SUCCESS != rval) return error(rval);
@@ -368,8 +370,11 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
 
     /**************** Create actual file and write meta info ***************/
 
+  debug_barrier();
   if (myPcomm->proc_config().proc_rank() == 0)
   {
+    dbgOut.tprintf(1,"Creating file: %s\n",filename);
+    
       // create the file
     const char* type_names[MBMAXTYPE];
     memset( type_names, 0, MBMAXTYPE * sizeof(char*) );
@@ -391,13 +396,14 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   
   
      /**************** Create node coordinate table ***************/
- 
+  debug_barrier();
   dbgOut.tprint(1,"creating node table\n");
   rval = create_node_table( dimension );
   if (MB_SUCCESS != rval) return error(rval);
   
     /**************** Create element tables ***************/
 
+  debug_barrier();
   dbgOut.tprint(1,"negotiating element types\n");
   rval = negotiate_type_list();
   if (MB_SUCCESS != rval) return error(rval);
@@ -408,6 +414,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   
     /*************** Exchange file IDs *****************/
 
+  debug_barrier();
   dbgOut.tprint(1,"communicating file ids\n");
   rval = exchange_file_ids();
   if (MB_SUCCESS != rval) return error(rval);
@@ -415,12 +422,14 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
 
     /**************** Create adjacency tables *********************/
   
+  debug_barrier();
   dbgOut.tprint(1,"creating adjacency table\n");
   rval = create_adjacency_tables();
   if (MB_SUCCESS != rval) return error(rval);
   
     /**************** Create meshset tables *********************/
   
+  debug_barrier();
   dbgOut.tprint(1,"creating meshset table\n");
   rval = create_meshset_tables();
   if (MB_SUCCESS != rval) return error(rval);
@@ -442,6 +451,8 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   
     /**************** Create tag data *********************/
 
+  debug_barrier();
+  dbgOut.tprint(1,"creating tag tables\n");
   rval = create_tag_tables();
   if (MB_SUCCESS != rval) return error(rval);
     
