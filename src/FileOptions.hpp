@@ -174,6 +174,19 @@ public:
    */
   ErrorCode get_reals_option( const char* name, std::vector<double>& values) const;
   
+  /**\brief Check for option for which the value is a list of strings
+   *
+   * Check for an option which is a string list.  The value is expected to
+   * be a comma-separated list of string values, with no embedded spaces or commas.
+   *
+   *\param name The option name
+   *\param values Output. The list of string values.
+   *\return - MB_SUCCESS if option is found
+   *        - MB_TYPE_OUT_OF_RANGE if options is found, but does not contain a string list
+   *        - MB_ENTITY_NOT_FOUND if option is not found.
+   */
+  ErrorCode get_strs_option( const char* name, std::vector<std::string>& values) const;
+  
   /** number of options */
   inline unsigned size() const 
     { return mOptions.size(); }

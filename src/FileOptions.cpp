@@ -182,11 +182,11 @@ ErrorCode FileOptions::get_ints_option( const char* name,
     char* endptr;
     long int sval = strtol( s, &endptr, 0 );
 
-#define EATSPACE(a) while ((!strcmp(a, " ") || \
-          !strcmp(a, ",")) && !strempty(a)) a++;
+#define EATSPACE(a) while ((*a == ' ' ||          \
+                            *a == ',') && !strempty(a)) a++;
     EATSPACE(endptr);
     long int eval = sval;
-    if (!strcmp(endptr, "-")) {
+    if (*endptr == '-') {
       endptr++;
       s = endptr;
       eval = strtol(s, &endptr, 0);
@@ -227,8 +227,6 @@ ErrorCode FileOptions::get_reals_option( const char* name,
     char* endptr;
     double sval = strtod( s, &endptr);
 
-#define EATSPACE(a) while ((!strcmp(a, " ") || \
-          !strcmp(a, ",")) && !strempty(a)) a++;
     EATSPACE(endptr);
     values.push_back(sval);
 
@@ -254,6 +252,28 @@ ErrorCode FileOptions::get_real_option ( const char* name, double& value ) const
   value = strtod( s, &endptr );
   if (!strempty(endptr)) // syntax error
     return MB_TYPE_OUT_OF_RANGE;
+  
+  return MB_SUCCESS;
+}
+
+ErrorCode FileOptions::get_strs_option( const char* name, 
+                                        std::vector<std::string>& values) const
+{
+  const char* s;
+  ErrorCode rval = get_option( name, s );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+    // empty string
+  if (strempty(s))
+    return MB_TYPE_OUT_OF_RANGE;
+  
+    // parse values
+  char separator[3] = { ' ', ',', '\0' };
+  char *tmp_str = strdup(s);
+  for (char* i = strtok( tmp_str, separator ); i; i = strtok( 0, separator )) 
+    if (!strempty(i)) // skip empty strings
+      values.push_back( std::string(i));
   
   return MB_SUCCESS;
 }
@@ -387,7 +407,7 @@ using namespace moab;
 
 int main()
 {
-  FileOptions tool( "INT1=1;NUL1;STR1=ABC;DBL1=1.0;dbl2=2.0;DBL3=3.0;INT2=2;nul2;NUL3;INT3=3;str2=once upon a time;str3==fubar=;;" );
+  FileOptions tool( "INT1=1;NUL1;STR1=ABC;DBL1=1.0;dbl2=2.0;DBL3=3.0;INT2=2;nul2;NUL3;INT3=3;str2=once upon a time;str3==fubar=;;INTS=1-3,5,6;DBLS=1.0,2.0, 3.0;STRS=var1, var2_var2;STRS2=" );
 
   std::string s;
   int i;
@@ -490,7 +510,39 @@ int main()
   
     // test size of options string
   unsigned l = tool.size();
-  EQUAL( l, 12u );
+  EQUAL( l, 16u );
+  
+    // test ints option
+  std::vector<int> ivals;
+  rval = tool.get_ints_option("INTS", ivals);
+  CHECK( rval );
+  EQUAL(5, ivals.size());
+  EQUAL(1, ivals[0]);
+  EQUAL(2, ivals[1]);
+  EQUAL(3, ivals[2]);
+  EQUAL(5, ivals[3]);
+  EQUAL(6, ivals[4]);
+
+    // test dbls option
+  std::vector<double> vals;
+  rval = tool.get_reals_option("DBLS", vals);
+  CHECK( rval );
+  EQUAL(3, vals.size());
+  EQUAL(1.0, vals[0]);
+  EQUAL(2.0, vals[1]);
+  EQUAL(3.0, vals[2]);
+  
+    // test strs option
+  std::vector<std::string> svals;
+  rval = tool.get_strs_option("STRS", svals);
+  CHECK( rval );
+  EQUAL(2, svals.size());
+  EQUAL("var1", svals[0]);
+  EQUAL("var2_var2", svals[1]);
+  
+  svals.clear();
+  rval = tool.get_strs_option("STRS2", svals);
+  EQUAL( MB_TYPE_OUT_OF_RANGE, rval );
   
     // We requested every option
   EQUAL( true, tool.all_seen() );
@@ -502,7 +554,7 @@ int main()
   FileOptions tool2( ";+OPT1=ABC+OPT2=" );
   l = tool2.size();
   EQUAL( l, 2 );
-  
+
     // We haven't looked at all of the options yet
   EQUAL( false, tool2.all_seen() );
   rval = tool2.get_unseen_option( s );

@@ -696,6 +696,8 @@ public:
   const_pair_iterator const_pair_end() const { return const_pair_iterator( &mHead ); }
   const_pair_iterator pair_begin() const { return const_pair_iterator( mHead.mNext ); }
   const_pair_iterator pair_end() const { return const_pair_iterator( &mHead ); }
+
+  unsigned int num_sub_ranges() const;
 };
 
  
@@ -878,6 +880,16 @@ Range::iterator Range::insert_list( Iterator begin_iter, Iterator end_iter )
   }
   delete [] sorted;
   return hint;
+}
+
+inline unsigned int Range::num_sub_ranges() const 
+{
+  unsigned int i = 0;
+  Range::const_pair_iterator pit;
+  for (pit = const_pair_begin(), i = 0; 
+       pit != const_pair_end(); pit++, i++);
+
+  return i;
 }
 
 } // namespace moab 
