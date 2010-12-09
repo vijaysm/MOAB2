@@ -21,10 +21,13 @@
 #include "moab/CartVect.hpp"
 #include "Matrix3.hpp"
 
+#include <cmath>
+#include <limits>
+
 namespace moab {
 
 /**
- * \brief Define an affine transformatino
+ * \brief Define an affine transformation
  * \author Jason Kraftcheck (kraftche@cae.wisc.edu)
  * \date August, 2006
  */
@@ -43,12 +46,22 @@ class AffineXform
     static inline AffineXform translation( const double* vector );
     /** rotate about axis through origin */
     static inline AffineXform rotation( double radians, const double* axis );
+    /** define rotation such that if applied to \c from_vec the result aligned with \c to_vec */
+    static        AffineXform rotation( const double* from_vec, const double* to_vec );
     /** reflect about plane through origin */
     static inline AffineXform reflection( const double* plane_normal );
     /** scale about origin */
+    static inline AffineXform scale( double f );
+    /** scale about origin */
     static inline AffineXform scale( const double* fractions );
+    /** scale about a point */
+    static inline AffineXform scale( double f, const double* point );
+    /** scale about a point */
+    static inline AffineXform scale( const double* fractions, const double* point );
     
-    /** incorporate the passed transform into this one */
+    /** incorporate the passed transform into this one such that the
+     *  resulting transform is the cumulative affect of this initial
+     *  transform followed by the passed transform */
     inline void accumulate( const AffineXform& other );
     
     /** apply transform to a point */
@@ -87,12 +100,29 @@ class AffineXform
      * will return false.
      */
     inline bool reflection() const;
+    
+    /** Does this transform do any scaling */
+    inline bool scale() const;
 
   private:
+  
+    static inline AffineXform rotation( double cos_angle,
+                                        double sin_angle,
+                                        const CartVect& unit_axis );
   
     Matrix3 mMatrix;
     CartVect mOffset;
 };
+
+/** create a new transform equivalent to transform \c A followed
+ *  by transform \c B 
+ */
+inline AffineXform operator*( const AffineXform& A, const AffineXform& B )
+{
+  AffineXform result(A);
+  result.accumulate(B);
+  return result;
+}
 
 inline AffineXform::AffineXform()
   : mMatrix(1.0), mOffset(0.0) 
@@ -116,12 +146,16 @@ inline AffineXform AffineXform::rotation( double angle, const double* axis )
 {
   CartVect a(axis);
   a.normalize();
+  return AffineXform::rotation( std::cos(angle), std::sin(angle), a );
+}
 
-  const double c = cos(angle);
-  const double s = sin(angle);
+inline AffineXform AffineXform::rotation( double c,
+                                          double s,
+                                          const CartVect& a )
+{
   const Matrix3 m1(    c,   -a[2]*s, a[1]*s,
-                       a[2]*s,   c,   -a[0]*s,
-                      -a[1]*s, a[0]*s,   c    );
+                     a[2]*s,   c,   -a[0]*s,
+                    -a[1]*s, a[0]*s,   c    );
   return AffineXform( m1 + (1.0-c)*outer_product( a, a ), CartVect(0.0) );
 }
 
@@ -140,6 +174,25 @@ inline AffineXform AffineXform::reflection( const double* plane_normal )
 inline AffineXform AffineXform::scale( const double* f )
 {
   return AffineXform( Matrix3( CartVect(f) ), CartVect( 0.0 ) );
+}
+
+inline AffineXform AffineXform::scale( double f )
+{
+  return AffineXform( Matrix3( CartVect(f) ), CartVect( 0.0 ) );
+}
+
+inline AffineXform AffineXform::scale( double f, const double* point )
+{
+  double fs[] = { f, f, f };
+  return AffineXform::scale( fs, point );
+}
+
+inline AffineXform AffineXform::scale( const double* f, const double* p )
+{
+  double offset[] = { p[0] * (1 - f[0]), 
+                      p[1] * (1 - f[1]),
+                      p[2] * (1 - f[2]) };
+  return AffineXform( Matrix3( CartVect(f) ), CartVect(offset) );
 }
 
 inline void AffineXform::accumulate( const AffineXform& other )
@@ -186,6 +239,11 @@ inline AffineXform AffineXform::inverse() const
 inline bool AffineXform::reflection() const
 {
   return mMatrix.determinant() < 0.0;
+}
+
+inline bool AffineXform::scale() const
+{
+  return fabs(fabs(mMatrix.determinant()) - 1) < std::numeric_limits<double>::epsilon();
 }
   
 } // namespace moab

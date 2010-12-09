@@ -24,9 +24,12 @@
 #include "moab/Interface.hpp"
 #include <assert.h>
 
-#ifndef TEST
 
 namespace moab {
+
+// Don't include tag-related stuff in test build because we don't
+// link to MOAB to test all other functionality.  
+#ifndef TEST
 
 const char* const AFFINE_XFORM_TAG_NAME = "AFFINE_TRANSFORM";
 
@@ -65,11 +68,49 @@ ErrorCode AffineXform::get_tag( Tag& tag_out,
   
   return MB_SUCCESS;
 }
+
+#endif //TEST
+
+AffineXform AffineXform::rotation( const double* from_vec, const double* to_vec )
+{
+  CartVect from(from_vec);
+  CartVect to(to_vec);
+  CartVect a = from * to;
+  double len = a.length();
+  
+  // If input vectors are not parallel (the normal case)
+  if (len >= std::numeric_limits<double>::epsilon()) {
+    from.normalize();
+    to.normalize();
+    return rotation( from % to, (from * to).length(), a/len );
+  }
+  
+  // Vectors are parallel:
+  //
+  // If vectors are in same direction then rotation is identity (no transform)
+  if (from % to >= 0.0)
+    return AffineXform(); 
+    
+  // Parallel vectors in opposite directions:
+  //
+  // NOTE:  This case is ill-defined.  There are infinitely
+  // many rotations that can align the two vectors.  The angle
+  // of rotation is 180 degrees, but the axis of rotation may 
+  // be any unit vector orthogonal to the input vectors.
+  //
+  from.normalize();
+  double lenxy = std::sqrt( from[0]*from[0] + from[1]*from[1] );
+  CartVect axis( -from[0]*from[2]/lenxy, 
+                 -from[1]*from[2]/lenxy,
+                                  lenxy );
+  return rotation( -1, 0, axis );
+}
+
   
 } // namespace moab
 
 
-#else // ******************* Unit Test code ***********************
+#ifdef TEST // ******************* Unit Test code ***********************
 
 using namespace moab;
 
@@ -82,7 +123,7 @@ const double TOL = 1e-6;
 
 int error_count = 0;
 
-void assert_vectors_equal( const CartVect& a, const CartVect& b, 
+void assert_vectors_equal( const double* a, const double* b,
                            const char* sa, const char* sb,
                            int lineno )
 {
@@ -95,6 +136,13 @@ void assert_vectors_equal( const CartVect& a, const CartVect& b,
               << b[0] << ", " << b[1] << ", " << b[2] << "]" << std::endl;
     ++error_count;
   }
+}
+
+void assert_vectors_equal( const CartVect& a, const CartVect& b, 
+                           const char* sa, const char* sb,
+                           int lineno )
+{
+  assert_vectors_equal( a.array(), b.array(), sa, sb, lineno );
 }
 
 void assert_doubles_equal( double a, double b, const char* sa, const char* sb, int lineno )
@@ -244,6 +292,24 @@ void test_rotation()
   ASSERT_VECTORS_EQUAL( output, CartVect( 0, 1, -1 ) );
 }
 
+void test_rotation_from_vec( )
+{
+  CartVect v1( 1, 1, 1 );
+  CartVect v2( 1, 0, 0 );
+  AffineXform rot = AffineXform::rotation( v1.array(), v2.array() );
+  CartVect result;
+  rot.xform_vector( v1.array(), result.array() );
+    // vectors should be parallel, but not same length
+  ASSERT_DOUBLES_EQUAL( result.length(), v1.length() );
+  result.normalize();
+  ASSERT_VECTORS_EQUAL( result, v2 );
+  
+  double v3[] = { -1, 0, 0 };
+  rot = AffineXform::rotation( v3, v2.array() );
+  rot.xform_vector( v3, result.array() );
+  ASSERT_VECTORS_EQUAL( result, v2 );
+}
+
 CartVect refl( const CartVect& vect, const CartVect& norm )
 {
   CartVect n(norm);
@@ -313,6 +379,28 @@ void test_scale()
   ASSERT_VECTORS_EQUAL( output, 0.5*vect1 );
   scale.xform_vector( vect2.array(), output.array() );
   ASSERT_VECTORS_EQUAL( output, 0.5*vect2 );
+}
+
+void test_scale_point()
+{
+  const double point[] = {2,3,4};
+  const double f[] = { 0.2, 0.1, 0.3 };
+  double result[3];
+  AffineXform scale = AffineXform::scale( f, point );
+  scale.xform_point( point, result );
+  ASSERT_VECTORS_EQUAL( result, point );
+  
+  const double delta[3] = { 1, 0, 2 };
+  const double pt2[] = { point[0]+delta[0],
+                         point[1]+delta[1],
+                         point[2]+delta[2] };
+  scale = AffineXform::scale( f, point );
+  scale.xform_point( pt2, result );
+  
+  const double expected[] = { point[0] + f[0]*delta[0],
+                              point[1] + f[1]*delta[1],
+                              point[2] + f[2]*delta[2] };
+  ASSERT_VECTORS_EQUAL( result, expected );
 }
 
 void test_accumulate()
@@ -440,7 +528,9 @@ int main()
   test_translation();
   test_rotation();
   test_reflection();
+  test_rotation_from_vec();
   test_scale();
+  test_scale_point();
   test_accumulate();
   test_inversion();
   test_is_reflection();
