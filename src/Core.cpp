@@ -168,7 +168,7 @@ ErrorCode Core::initialize()
     }
     writeMPELog = ! MPE_Initialized_logging();
     if (writeMPELog)
-      MPE_Init_log();
+      (void)MPE_Init_log();
   }
 #endif
 

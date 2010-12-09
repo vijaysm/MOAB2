@@ -31,7 +31,7 @@ bool EntitySource::create_element(
   std::map<ProcessSet,int>& proc_partition_counts )
 {
   // Get the global IDs of the input vertices
-  int stat;
+  //int stat;
   proc_partition_counts[this->tag_manager->get_element_procs()]++;
   if ( this->mesh_out->create_element( etyp, elem_verts, nconn, elem_handle ) != MB_SUCCESS )
     {

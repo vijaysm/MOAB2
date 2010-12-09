@@ -108,13 +108,13 @@ void MeshOutputFunctor::assign_global_ids( ParallelComm* comm )
 
   std::vector<int> nparts;
   std::vector<int> dparts;
-  unsigned long prank = comm->proc_config().proc_rank();
+  //unsigned long prank = comm->proc_config().proc_rank();
   unsigned long psize = comm->proc_config().proc_size();
   nparts.resize( psize );
   dparts.resize( psize + 1 );
   MPI_Allgather( &lnparts, 1, MPI_INT, &nparts[0], 1, MPI_INT, comm->proc_config().proc_comm() );
-  unsigned long ndefs = 0;
-  for ( int rank = 1; rank <= psize; ++ rank )
+  //unsigned long ndefs = 0;
+  for ( unsigned long rank = 1; rank <= psize; ++ rank )
     {
     dparts[rank] = nparts[rank - 1] + dparts[rank - 1];
 #ifdef MB_DEBUG
@@ -128,7 +128,7 @@ void MeshOutputFunctor::assign_global_ids( ParallelComm* comm )
   MPI_Allgatherv(
     &lpsizes[0], lnparts, MPI_INT,
     &part_sizes[0], &nparts[0], &dparts[0], MPI_INT, comm->proc_config().proc_comm() );
-  for ( int rank = 0; rank < psize; ++ rank )
+  for ( unsigned long rank = 0; rank < psize; ++ rank )
     {
     nparts[rank] *= ProcessSet::SHARED_PROC_BYTES;
     dparts[rank] *= ProcessSet::SHARED_PROC_BYTES;

@@ -436,8 +436,8 @@ void RefinerTagManager::get_common_processes(
     if ( stat == MB_SUCCESS && this->shared_procs_in[0] != -1 )
       {
       got = true;
-      int i;
       /*
+      int i;
       for ( i = 0; i < MAX_SHARING_PROCS && this->shared_procs_in[i] != -1; ++ i )
         std::cout << " m" << this->shared_procs_in[i];
       std::cout << " | ";
