@@ -1,5 +1,5 @@
 #######################################################################################
-# Check for NetCDF library ((C++)
+# Check for NetCDF library
 # Sets HAVE_NETCDF to 'yes' or 'no'
 # If HAVE_NETCDF == yes, then exports:
 #   NETCDF_CPPFLAGS
@@ -91,39 +91,38 @@ if test "xno" != "x$NETCDF_ARG"; then
       [AC_MSG_RESULT([no]); NETCDF_SUFFICIENT_DIMS_VARS=no])
   fi
   
-  AC_MSG_CHECKING([for netcdf.hh])
-  AC_LANG_PUSH([C++])
-  HAVE_NETCDF_HH=no
+  AC_MSG_CHECKING([for netcdf.h])
+  HAVE_NETCDF_H=no
   AC_TRY_COMPILE( 
-[#include "netcdf.hh"], [], [HAVE_NETCDF_HH=yes; NETCDF_DEF=], [
+[#include "netcdf.h"], [], [HAVE_NETCDF_H=yes; NETCDF_DEF=], [
     AC_TRY_COMPILE( 
 [#define STRSTREAM_H_SPEC $NETCDF_DEF
- #include "netcdf.hh"], [], [HAVE_NETCDF_HH=yes], [NAVE_NETCDF_HH=no])])
-  AC_MSG_RESULT([$HAVE_NETCDF_HH])
-  if test $HAVE_NETCDF_HH != yes; then
-    AC_MSG_WARN([NetCDF C++ header not found])
+ #include "netcdf.h"], [], [HAVE_NETCDF_H=yes], [HAVE_NETCDF_H=no])])
+  AC_MSG_RESULT([$HAVE_NETCDF_H])
+  if test $HAVE_NETCDF_H != yes; then
+    AC_MSG_WARN([NetCDF C header not found])
     HAVE_NETCDF=no
   fi
   if test "x$NETCDF_DEF" != "x"; then
     NETCDF_CPPFLAGS="$NETCDF_CPPFLAGS -DSTRSTREAM_H_SPEC=$NETCDF_DEF"
     CPPFLAGS="$CPPFLAGS -DSTRSTREAM_H_SPEC=$NETCDF_DEF"
   fi
-  AC_MSG_CHECKING([[for netcdf_c++ library]])
+  AC_MSG_CHECKING([[for netcdf library]])
   old_LIBS="$LIBS"
-  LIBS="$LIBS -lnetcdf_c++ -lnetcdf"
+  LIBS="$LIBS -lnetcdf"
   AC_TRY_LINK(
-    [#include <netcdf.hh>], [NcFile ncf("foo",NcFile::ReadOnly);],
-    [AC_MSG_RESULT([yes]); NETCDF_LIBS="-lnetcdf_c++ -lnetcdf"], 
+    [#include <netcdf.h>], [int ncFile; nc_create("foo",NC_CLOBBER, &ncFile);],
+    [AC_MSG_RESULT([yes]); NETCDF_LIBS="-lnetcdf"], 
     [AC_MSG_RESULT([no]);
-     AC_MSG_CHECKING([for netcdf_c++ library requiring HDF5-high-level])
+     AC_MSG_CHECKING([for netcdf library requiring HDF5-high-level])
      LIBS="$LIBS -lhdf5_hl $HDF5_LIBS"
      AC_TRY_LINK(
-           [#include <netcdf.hh>], [NcFile ncf("foo",NcFile::ReadOnly);],
-           [AC_MSG_RESULT([yes]); NETCDF_LIBS="-lnetcdf_c++ -lnetcdf -lhdf5_hl"], 
+           [#include <netcdf.h>], [int ncFile; nc_create("foo",NC_CLOBBER, &ncFile);],
+           [AC_MSG_RESULT([yes]); NETCDF_LIBS="-lnetcdf -lhdf5_hl"], 
            [AC_MSG_RESULT([no]); HAVE_NETCDF=no] )    
      ])
   LIBS="$old_LIBS"
-  AC_LANG_POP([C++])
+  AC_LANG_POP([C])
   
   
   
