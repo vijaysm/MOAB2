@@ -70,20 +70,6 @@ EntityHandle Range::size() const
   }
   return size;
 }
-/*! 
-  returns the number of pairs in the list
- */
-EntityHandle Range::psize() const
-{
-  // go through each pair and add up the number of values
-  // we have.
-  EntityHandle size=0;
-  for(PairNode* iter = mHead.mNext; iter != &mHead; iter = iter->mNext)
-  {
-    ++size;
-  }
-  return size;
-}
 
 /*!
   advance iterator

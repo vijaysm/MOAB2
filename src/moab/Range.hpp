@@ -235,7 +235,7 @@ public:
   EntityHandle size() const;
 
   //! return the number of range pairs in the list
-  EntityHandle psize() const;
+  unsigned int psize() const;
   
   //! return whether empty or not 
   //! always use "if(!Ranges::empty())" instead of "if(Ranges::size())"
@@ -697,7 +697,6 @@ public:
   const_pair_iterator pair_begin() const { return const_pair_iterator( mHead.mNext ); }
   const_pair_iterator pair_end() const { return const_pair_iterator( &mHead ); }
 
-  unsigned int num_sub_ranges() const;
 };
 
  
@@ -882,7 +881,7 @@ Range::iterator Range::insert_list( Iterator begin_iter, Iterator end_iter )
   return hint;
 }
 
-inline unsigned int Range::num_sub_ranges() const 
+inline unsigned int Range::psize() const 
 {
   unsigned int i = 0;
   Range::const_pair_iterator pit;
