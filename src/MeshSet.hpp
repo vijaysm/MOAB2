@@ -689,10 +689,10 @@ inline ErrorCode MeshSet::get_non_set_entities( Range& range ) const
     Range::iterator in = range.begin();
     for (size_t idx = 0; idx < count; idx += 2) {
       if (TYPE_FROM_HANDLE(ptr[idx+1]) != MBENTITYSET)
-        in = range.insert( ptr[idx], ptr[idx+1] );
+        in = range.insert( in, ptr[idx], ptr[idx+1] );
       else {
         if (TYPE_FROM_HANDLE(ptr[idx]) != MBENTITYSET)
-          range.insert( ptr[idx], LAST_HANDLE( MBENTITYSET - 1 ) );
+          in = range.insert( in, ptr[idx], LAST_HANDLE( MBENTITYSET - 1 ) );
         break;
       }
     }

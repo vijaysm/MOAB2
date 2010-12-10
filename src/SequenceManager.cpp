@@ -424,7 +424,7 @@ ErrorCode SequenceManager::allocate_mesh_set( EntityHandle handle,
       seq = new MeshSetSequence( handle, 1, flags, block_end - handle + 1 );
     }
     
-    ErrorCode rval = typeData[MBENTITYSET].insert_sequence( seq );
+    rval = typeData[MBENTITYSET].insert_sequence( seq );
     if (MB_SUCCESS != rval) {
       SequenceData* vdata = seq->data();
       delete seq;
@@ -1039,7 +1039,6 @@ ErrorCode SequenceManager::set_tag_data( TagId tag_id,
   
   const char* data = reinterpret_cast<const char*>(values);
 
-  Range::const_pair_iterator p = handles.begin();
   for (Range::const_pair_iterator p = handles.const_pair_begin(); 
        p != handles.const_pair_end(); ++p) {
        
@@ -1102,7 +1101,6 @@ ErrorCode SequenceManager::set_tag_data( TagId tag_id,
 
   const bool step = !one_value;
 
-  Range::const_pair_iterator p = handles.begin();
   for (Range::const_pair_iterator p = handles.const_pair_begin(); 
        p != handles.const_pair_end(); ++p) {
        
@@ -1592,7 +1590,6 @@ ErrorCode SequenceManager::get_entities_with_tag_value( TagId id,
     return MB_SUCCESS;
   }      
 
-  Range::iterator insert = entities_out.begin();
   const TypeSequenceManager& map = entity_map( type );
   for (TypeSequenceManager::const_iterator i = map.begin(); i != map.end(); ++i) {
     if (const void* data = (*i)->data()->get_tag_data(id)) {
@@ -1618,9 +1615,8 @@ ErrorCode SequenceManager::get_entities_with_tag_value( const Range& range,
   if (id >= tagSizes.size() || !tagSizes[id])
     return MB_TAG_NOT_FOUND;
     
-  Range::iterator insert = entities_out.begin();
   Range::const_pair_iterator p = type == MBMAXTYPE ? range.begin() : range.lower_bound(type);         
-  for (Range::const_pair_iterator p = range.const_pair_begin(); 
+  for (; 
        p != range.const_pair_end() && 
        (MBMAXTYPE == type || TYPE_FROM_HANDLE(p->first) == type); 
        ++p) {
@@ -1636,10 +1632,10 @@ ErrorCode SequenceManager::get_entities_with_tag_value( const Range& range,
       const EntityHandle finish = std::min( p->second, seq->end_handle() );
       const void* tag_array = seq->data()->get_tag_data( id );
       if (tag_array) {
-        ByteArrayIterator start( seq->data()->start_handle(), tag_array, tag_info );
-        ByteArrayIterator end( seq->end_handle() + 1, 0, 0 );
-        start += seq->start_handle() - seq->data()->start_handle();
-        find_tag_values_equal( tag_info, value, size, start, end, entities_out );
+        ByteArrayIterator istart( seq->data()->start_handle(), tag_array, tag_info );
+        ByteArrayIterator iend( seq->end_handle() + 1, 0, 0 );
+        istart += seq->start_handle() - seq->data()->start_handle();
+        find_tag_values_equal( tag_info, value, size, istart, iend, entities_out );
       }
       start = finish + 1;
     }

@@ -529,7 +529,7 @@ ErrorCode Core::serial_load_file( const char* file_name,
     ReaderWriterSet::iterator iter;
     for (iter = set->begin(); iter != set->end(); ++iter)
     {
-      ReaderIface* reader = iter->make_reader( this );
+      reader = iter->make_reader( this );
       if (NULL != reader)
       {
         rval = reader->load_file( file_name, file_set, opts, subsets, id_tag );
@@ -576,7 +576,7 @@ ErrorCode Core::serial_read_tag( const char* file_name,
     ReaderWriterSet::iterator iter;
     for (iter = set->begin(); iter != set->end(); ++iter)
     {
-      ReaderIface* reader = iter->make_reader( this );
+      reader = iter->make_reader( this );
       if (NULL != reader)
       {
         rval = reader->read_tag_values( file_name, tag_name, opts, vals, subsets );
@@ -2265,7 +2265,7 @@ ErrorCode Core::delete_entities(const Range &range)
   if (!failed_ents.empty()) {
     Range dum_range = subtract(range, failed_ents);
       // don't test for success, since we'll return failure in this case
-    sequence_manager()->delete_entities(range);
+    sequence_manager()->delete_entities(dum_range);
   }
   else
       // now delete the entities
@@ -2574,10 +2574,10 @@ ErrorCode Core::high_order_node(const EntityHandle parent_handle,
     unsigned subfacet_size = CN::VerticesPerEntity(subfacet_type);
     int subfacet_indices[10];
     assert(subfacet_size <= sizeof(subfacet_indices)/sizeof(subfacet_indices[0]));
-    for (unsigned i = 0; i < subfacet_size; ++i) {
-      subfacet_indices[i] = std::find( parent_conn,
-        parent_conn + num_parent_vertices, subfacet_conn[i] ) - parent_conn;
-      if (subfacet_indices[i] >= num_parent_vertices) {
+    for (unsigned j = 0; j < subfacet_size; ++j) {
+      subfacet_indices[j] = std::find( parent_conn,
+        parent_conn + num_parent_vertices, subfacet_conn[j] ) - parent_conn;
+      if (subfacet_indices[j] >= num_parent_vertices) {
         return MB_FAILURE;
       }
     }
@@ -3305,7 +3305,7 @@ ErrorCode Core::check_adjacencies(const EntityHandle *ents, int num_ents)
     }
   }
   
-  return MB_SUCCESS;
+  return result;
 }
 
 bool Core::is_valid(const EntityHandle this_ent) const

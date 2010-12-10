@@ -1897,8 +1897,8 @@ ErrorCode Skinner::find_skin_vertices_3D( Tag tag,
       for (i = adj.begin(); i != adj.end(); ++i) {
         rval = thisMB->get_connectivity( *i, conn, len, true );
         if (MB_SUCCESS != rval) return rval;
-        const int idx = std::find( conn, conn+len, *it ) - conn;
-        if (idx >= len) {
+        const int idx2 = std::find( conn, conn+len, *it ) - conn;
+        if (idx2 >= len) {
           assert(printed_nonconformal_ho_warning);
           continue;
         }
@@ -1908,7 +1908,7 @@ ErrorCode Skinner::find_skin_vertices_3D( Tag tag,
           // if we aren't returning them.  Otherwise we'll end up creating 
           // duplicates if create_faces is true.
         if (3 == len) {
-          if (adj_tris.find_and_unmark( conn, idx, elem ) && skin_faces) {
+          if (adj_tris.find_and_unmark( conn, idx2, elem ) && skin_faces) {
             if (reversed_faces && face_reversed( elem, conn, MBTRI ))
               reversed_faces->insert( *i );
             else
@@ -1916,7 +1916,7 @@ ErrorCode Skinner::find_skin_vertices_3D( Tag tag,
           }
         }
         else if (4 == len) {
-          if (adj_quads.find_and_unmark( conn, idx, elem ) && skin_faces) {
+          if (adj_quads.find_and_unmark( conn, idx2, elem ) && skin_faces) {
             if (reversed_faces && face_reversed( elem, conn, MBQUAD ))
               reversed_faces->insert( *i );
             else

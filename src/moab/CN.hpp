@@ -579,7 +579,7 @@ inline void CN::setPermutation(const EntityType t, const int dim, short int *pve
     that_vec[pvec[i]] = i;
   }
 
-  this_vec[MAX_SUB_ENTITIES] = that_vec[MAX_SUB_ENTITIES] = num_entries;
+  this_vec[MAX_SUB_ENTITIES] = that_vec[MAX_SUB_ENTITIES] = (short)num_entries;
 }
 
 //! Reset permutation or reverse permutation vector

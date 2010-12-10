@@ -35,6 +35,7 @@
 #include <assert.h>
 #include <math.h>
 #include <algorithm>
+#include <limits>
 
 namespace moab {
 
@@ -69,7 +70,7 @@ void Util::normal(Interface* MB, EntityHandle handle, double& x, double& y, doub
    z = vecs[0][0] * vecs[1][1] - vecs[0][1] * vecs[1][0];
 
    double mag = sqrt(x*x + y*y + z*z);
-   if(mag !=0)
+   if(mag != std::numeric_limits<double>::epsilon())
    {
      x /= mag;
      y /= mag;

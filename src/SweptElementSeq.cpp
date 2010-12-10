@@ -101,7 +101,7 @@ void SweptElementSeq::get_const_memory_use( unsigned long& bytes_per_entity,
                                                  unsigned long& sequence_size ) const
 {
   sequence_size = sizeof(*this);
-//  bytes_per_entity = sdata()->get_memory_use() / sdata()->size();
+  bytes_per_entity = sdata()->get_memory_use() / sdata()->size();
 }
 
 } // namespace moab

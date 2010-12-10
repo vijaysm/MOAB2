@@ -14,6 +14,7 @@ void test_get_set_dense_double();
 void test_get_set_bit();
 void test_get_by_tag( );
 void test_get_by_tag_value( );
+void test_get_by_tag_value_dense( );
 void test_mesh_value();
 void test_get_pointers_sparse();
 void test_get_pointers_dense();
@@ -58,6 +59,7 @@ int main()
   failures += RUN_TEST( test_get_set_bit );
   failures += RUN_TEST( test_get_by_tag );
   failures += RUN_TEST( test_get_by_tag_value );
+  failures += RUN_TEST( test_get_by_tag_value_dense );
   failures += RUN_TEST( test_mesh_value );
   failures += RUN_TEST( test_get_pointers_sparse );
   failures += RUN_TEST( test_get_pointers_dense );
@@ -1016,6 +1018,75 @@ void test_get_by_tag_value( )
   CHECK_EQUAL( arr[0], *i ); ++i;
   CHECK_EQUAL( arr[1], *i ); ++i;
   CHECK_EQUAL( arr[2], *i ); ++i;
+}
+
+void test_get_by_tag_value_dense( )
+{
+    // create mesh and tag
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
+  setup_mesh( mb );
+  const int def_val = 0xABCD;
+  const int fill_val = 0xBEEF;
+  const int find_val = 0xFEED;
+  Tag tag = test_create_tag( mb, "dense_gbv", sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, &def_val );
+  
+    // get some handles to work with
+  Range elements, vertices, results;
+  rval = mb.get_entities_by_type( 0, MBHEX,    elements ); CHECK_ERR(rval);
+  rval = mb.get_entities_by_type( 0, MBVERTEX, vertices ); CHECK_ERR(rval);
+  CHECK( !elements.empty() );
+
+    // set tag on all vertices to fill_val
+  rval = mb.tag_clear_data( tag, vertices, &fill_val ); CHECK_ERR(rval);
+
+    // select three handles
+  CHECK( elements.size() > 4 );
+  EntityHandle arr[3] = { *(elements.begin() +=   elements.size()/4),
+                          *(elements.begin() += 2*elements.size()/4),
+                          *(elements.begin() += 3*elements.size()/4) };
+  int values[3] = { find_val, find_val, find_val };
+  rval = mb.tag_set_data( tag, arr, 3, values );
+  CHECK_ERR( rval );
+  
+    // get the entities tagged with 'find_val'
+  const void* const findarr[1] = { &find_val };
+  results.clear();
+  rval = mb.get_entities_by_type_and_tag( 0, MBHEX, &tag, findarr, 1, results );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( (EntityHandle)3, results.size() );
+  CHECK_EQUAL( arr[0], results.front() );
+  CHECK_EQUAL( arr[1], *++results.begin() );
+  CHECK_EQUAL( arr[2], results.back() );
+  
+    // should get no vertices
+  results.clear();
+  rval = mb.get_entities_by_type_and_tag( 0, MBVERTEX, &tag, findarr, 1, results );
+  CHECK_ERR(rval);
+  CHECK( results.empty() );
+  
+    // try intersecting with an existing range
+  results = elements;
+  results.erase( arr[1] );
+  results.insert( vertices.front() );
+  rval = mb.get_entities_by_type_and_tag( 0, MBHEX, &tag, findarr, 1, results, Interface::INTERSECT );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( (EntityHandle)2, results.size() );
+  CHECK_EQUAL( arr[0], results.front() );
+  CHECK_EQUAL( arr[2], results.back() );
+  
+    // try getting entities with default value 
+  const void* const defarr[1] = { &def_val };
+  results.clear();
+  rval = mb.get_entities_by_type_and_tag( 0, MBHEX, &tag, defarr, 1, results );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( elements.size() - 3, results.size() );
+  Range expected(elements);
+  expected.erase( arr[0] );
+  expected.erase( arr[1] );
+  expected.erase( arr[2] );
+  CHECK( expected == results );
 }
 
 void test_mesh_value( Interface& mb,

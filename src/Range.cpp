@@ -39,15 +39,15 @@
 #  include <boost/pool/singleton_pool.hpp>
    typedef boost::singleton_pool< moab::Range::PairNode , sizeof(moab::Range::PairNode) > 
     PairAlloc;
-   static inline moab::Range::PairNode* alloc_pair()
-    { return new (PairAlloc::malloc()) moab::Range::PairNode; }
+//   static inline moab::Range::PairNode* alloc_pair()
+//    { return new (PairAlloc::malloc()) moab::Range::PairNode; }
    static inline moab::Range::PairNode* alloc_pair(moab::Range::PairNode* n, moab::Range::PairNode* p, moab::EntityHandle f, moab::EntityHandle s)
     { return new (PairAlloc::malloc()) moab::Range::PairNode(n,p,f,s); }
    static inline void free_pair( moab::Range::PairNode* node )
     { node->~PairNode(); PairAlloc::free( node ); }
 #else
-   static inline moab::Range::PairNode* alloc_pair()
-    { return new moab::Range::PairNode; }
+//   static inline moab::Range::PairNode* alloc_pair()
+//    { return new moab::Range::PairNode; }
    static inline moab::Range::PairNode* alloc_pair(moab::Range::PairNode* n, moab::Range::PairNode* p, moab::EntityHandle f, moab::EntityHandle s)
     { return new moab::Range::PairNode(n,p,f,s); }
    static inline void free_pair( moab::Range::PairNode* node )
@@ -1029,7 +1029,7 @@ bool Range::contains( const Range& othr ) const
       // If other node is not entirely contained in this node
       // then other list is not contained in this list
     if (this_node->first > othr_node->first)
-      return false;
+      break;
       // Loop while other node is entirely contained in this node.
     while (othr_node->second <= this_node->second) {
       othr_node = othr_node->mNext;
@@ -1038,7 +1038,7 @@ bool Range::contains( const Range& othr ) const
     }
       // If other node overlapped end of this node
     if (othr_node->first <= this_node->second)
-      return false;
+      break;
   }
   
     // should be unreachable

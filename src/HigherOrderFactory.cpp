@@ -207,9 +207,9 @@ ErrorCode HigherOrderFactory::convert_sequence( ElementSequence* seq,
   Range nodes;
   mMB->get_entities_by_type_and_tag(0, MBVERTEX, &deletable_nodes, NULL, 1, nodes);
 
-  EntityHandle low_meshset;
-  int dum;
-  low_meshset = CREATE_HANDLE(MBENTITYSET, 0, dum);
+  //EntityHandle low_meshset;
+  //int dum;
+  //low_meshset = CREATE_HANDLE(MBENTITYSET, 0, dum);
   
   for(Range::iterator iter = nodes.begin(); iter != nodes.end(); ++iter)
   {
@@ -283,11 +283,11 @@ ErrorCode HigherOrderFactory::add_mid_volume_nodes(ElementSequence* seq)
   {
     // find the centroid of this element
     double tmp_coords[3], sum_coords[3] = {0,0,0};
-    EntitySequence* seq=NULL;
+    EntitySequence* eseq=NULL;
     for(int i=0; i<num_corner_nodes; i++)
     {
-      seq_manager->find(element[i], seq);
-      static_cast<VertexSequence*>(seq)->get_coordinates(
+      seq_manager->find(element[i], eseq);
+      static_cast<VertexSequence*>(eseq)->get_coordinates(
           element[i], tmp_coords[0], tmp_coords[1], tmp_coords[2]
           );
       sum_coords[0] += tmp_coords[0];

@@ -972,8 +972,8 @@ static ErrorCode best_subdivision_plane( int num_planes,
                                          val );
       if (MB_SUCCESS != r)
         return r;
-      const size_t diff = p_count - both.size();
-      if (left.size() == diff || right.size() == diff)
+      const size_t sdiff = p_count - both.size();
+      if (left.size() == sdiff || right.size() == sdiff)
         continue;
       
       if (val >= metric_val)
@@ -1006,7 +1006,7 @@ static ErrorCode best_subdivision_snap_plane( int num_planes,
   const CartVect box_min(iter.box_min());
   const CartVect box_max(iter.box_max());
   const CartVect diff(box_max - box_min);
-  const CartVect tol(eps*diff);
+  //const CartVect tol(eps*diff);
   
   Range entities, vertices;
   r = iter.tool()->moab()->get_entities_by_handle( iter.handle(), entities );

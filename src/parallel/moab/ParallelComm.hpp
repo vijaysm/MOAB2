@@ -544,7 +544,7 @@ public:
     ~Buffer();
     void reset_buffer(size_t buff_pos = 0) {reset_ptr(buff_pos); reserve(INITIAL_BUFF_SIZE);}
     void reset_ptr(size_t buff_pos = 0) {assert((!mem_ptr && !buff_pos)|| (alloc_size >= buff_pos)); buff_ptr = mem_ptr + buff_pos;}
-    void reserve(unsigned int new_size);
+    inline void reserve(unsigned int new_size);
     void set_stored_size() {*((int*)mem_ptr) = (int)(buff_ptr - mem_ptr);}
     int get_stored_size() {return *((int*)mem_ptr);}
           

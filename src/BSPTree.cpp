@@ -418,7 +418,7 @@ ErrorCode BSPTree::merge_leaf( BSPTreeIter& iter )
 
 ErrorCode BSPTreeIter::initialize( BSPTree* tool,
                                        EntityHandle root,
-                                       const double* point )
+                                       const double* /*point*/ )
 {
   treeTool = tool;
   mStack.clear();
@@ -495,7 +495,7 @@ ErrorCode BSPTreeIter::up()
   return MB_SUCCESS;
 }
 
-ErrorCode BSPTreeIter::down( const BSPTree::Plane& plane, Direction dir ) 
+ErrorCode BSPTreeIter::down( const BSPTree::Plane& /*plane*/, Direction dir ) 
 {
   childVect.clear();
   ErrorCode rval = tool()->moab()->get_child_meshsets( mStack.back(), childVect );

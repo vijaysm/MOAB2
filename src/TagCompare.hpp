@@ -221,6 +221,7 @@ typedef TagOneTypeLess <double> TagOneDoubleLess;
 
 template <class Functor,
           class IteratorType>
+static inline
 void find_tag_values( Functor compare,
                       IteratorType begin,
                       IteratorType end,
@@ -234,6 +235,7 @@ void find_tag_values( Functor compare,
 
 template <class Functor,
           class IteratorType>
+static inline
 void find_tag_values( Functor compare,
                       IteratorType begin,
                       IteratorType end,
@@ -252,6 +254,7 @@ void find_tag_values( Functor compare,
  *\param ContainerType : std::vector<EntityHandle> or Range
  */
 template <class IteratorType, class ContainerType>
+static inline
 void find_tag_values_equal( const TagInfo& tag_info,
                             const void* value,
                             int size,

@@ -221,7 +221,7 @@ short int CN::AdjacentSubEntities(const EntityType this_type,
   return 0;
 }
 
-template <typename T> 
+template <typename T> static 
 short int side_number(const T *parent_conn, 
                 const EntityType parent_type,
                 const T *child_conn,

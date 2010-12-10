@@ -248,11 +248,10 @@ ErrorCode AEntityFactory::get_element(const EntityHandle *vertex_list,
       // multiple entities found - look for direct adjacencies
     if (0 != source_entity) {
       
-      const EntityHandle *adj_vec, *adj_iter;
       int num_adjs;
       for (dum = 0; dum < temp_vec_size; dum++) {
         result = get_adjacencies(temp_vec[dum], adj_vec, num_adjs);
-        if ((adj_iter = std::find(adj_vec, (adj_vec+num_adjs), source_entity)) != (adj_vec+num_adjs)) {
+        if (std::find(adj_vec, (adj_vec+num_adjs), source_entity) != (adj_vec+num_adjs)) {
             // found it, return it
           target_entity = temp_vec[dum];
           break;
@@ -1177,8 +1176,8 @@ ErrorCode AEntityFactory::get_up_adjacency_elements(EntityHandle source_entity,
       // get the adjacencies for source_dim+1 to target_dim-1, and the adjacencies from
       // those to target_dim
     std::copy(start_ent_dp1, start_ent_td, range_inserter(tmp_ents));
-    ErrorCode result = thisMB->get_adjacencies(tmp_ents, target_dimension, false,
-                                                 target_ents, Interface::UNION);
+    result = thisMB->get_adjacencies(tmp_ents, target_dimension, false,
+                                       target_ents, Interface::UNION);
     if (MB_SUCCESS != result) return result;
     
       // now copy the explicit adjacencies to target_dimension

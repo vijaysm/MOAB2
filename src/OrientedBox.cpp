@@ -153,6 +153,9 @@ ErrorCode OrientedBox::tag_handle( Tag& handle_out,
   ErrorCode rval = instance->tag_get_handle( name, handle_out );
   if (rval == MB_TAG_NOT_FOUND)
   {
+    if (!create)
+      return rval;
+      
     rval = instance->tag_create( name, 
                                  SIZE,
                                  MB_TAG_DENSE,

@@ -6,7 +6,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-  int MPE_Allocate_event();
+  int MPE_Allocate_event(void);
 #ifdef __cplusplus
  } /* extern "C" */
 #endif

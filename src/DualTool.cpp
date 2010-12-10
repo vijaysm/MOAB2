@@ -486,7 +486,7 @@ ErrorCode DualTool::check_dual_equiv_edges(Range &dual_edges)
     Range dum_edges, verts;
     verts.insert(connect[0]);
     verts.insert(connect[1]);
-    ErrorCode tmp_result = mbImpl->get_adjacencies(verts, 1, false, dum_edges);
+    tmp_result = mbImpl->get_adjacencies(verts, 1, false, dum_edges);
     if (MB_SUCCESS != tmp_result) {
       result = tmp_result;
       continue;
@@ -1923,8 +1923,8 @@ ErrorCode DualTool::split_pair_nonmanifold(EntityHandle *split_quads,
                                              EntityHandle *split_nodes,
                                              std::vector<EntityHandle> *star_dp1,
                                              std::vector<EntityHandle> *star_dp2,
-                                             EntityHandle *other_edges,
-                                             EntityHandle *other_nodes,
+                                             EntityHandle * /*other_edges*/,
+                                             EntityHandle * /*other_nodes*/,
                                              EntityHandle *new_quads,
                                              EntityHandle *new_edges,
                                              EntityHandle *new_nodes)
@@ -2060,7 +2060,7 @@ ErrorCode DualTool::split_pair_nonmanifold(EntityHandle *split_quads,
 }
 
 ErrorCode DualTool::foc_get_addl_ents(std::vector<EntityHandle> *star_dp1, 
-                                        std::vector<EntityHandle> *star_dp2, 
+                                        std::vector<EntityHandle> * /*star_dp2*/, 
                                         EntityHandle *split_edges,
                                         EntityHandle split_node,
                                         Range *addl_ents) 
@@ -2514,6 +2514,7 @@ ErrorCode DualTool::list_entities(const EntityHandle *entities,
     std::cout << std::endl;
     for (EntityType this_type = MBVERTEX; this_type < MBMAXTYPE; this_type++) {
       result = mbImpl->get_entities_by_type(0, this_type, temp_range);
+      if (MB_SUCCESS != result) return result;
     }
   }
   

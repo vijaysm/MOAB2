@@ -261,13 +261,13 @@ ErrorCode WriteUtil::get_element_connect(
       seq_iter_end = mMB->sequence_manager()->entity_map(current_type).end();
 
       // lets find the entity sequence which holds the first entity of this type
-      TypeSequenceManager::const_iterator seq_iter_lookahead = seq_iter;
-      seq_iter_lookahead++;
-      for( ; seq_iter_lookahead != seq_iter_end && 
-          (*seq_iter_lookahead)->start_handle() < *range_iter; )
+      TypeSequenceManager::const_iterator seq_iter_lookahead2 = seq_iter;
+      seq_iter_lookahead2++;
+      for( ; seq_iter_lookahead2 != seq_iter_end && 
+          (*seq_iter_lookahead2)->start_handle() < *range_iter; )
       {
         ++seq_iter;
-        ++seq_iter_lookahead;
+        ++seq_iter_lookahead2;
       }
     }
 

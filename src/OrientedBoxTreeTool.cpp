@@ -50,6 +50,7 @@ namespace moab {
  *                     the intersection 
  *\return              True if piercing, false otherwise.
  */
+static
 bool edge_node_intersect(const EntityHandle                tri,
                          const CartVect&                   ray_direction,
                          const GeomUtil::intersection_type int_type,
@@ -853,7 +854,9 @@ ErrorCode OrientedBoxTreeTool::ray_intersect_triangles(
 {
   ErrorCode rval;
   intersection_distances_out.clear();
+#ifdef MB_OBB_USE_VECTOR_QUERIES
   std::vector<EntityHandle> tris;
+#endif
     
   const CartVect point( ray_point );
   const CartVect dir( unit_ray_dir );

@@ -229,31 +229,39 @@ enum MBMessageTag {MB_MESG_ANY=MPI_ANY_TAG,
 static inline size_t RANGE_SIZE(const Range& rng)
   { return 2*sizeof(EntityHandle)*rng.psize()+sizeof(int); }
 
-static inline void PRINT_DEBUG_ISEND(int from, int to, unsigned char *buff,
+#ifdef DEBUG_COMM
+  #define PRINT_DEBUG_ISEND(A,B,C,D,E)   print_debug_isend((A),(B),(C),(D),(E))
+  #define PRINT_DEBUG_IRECV(A,B,C,D,E,F) print_debug_irecv((A),(B),(C),(D),(E),(F))
+  #define PRINT_DEBUG_RECD(A)            print_debug_recd((A))
+  #define PRINT_DEBUG_WAITANY(A,B,C)     print_debug_waitany((A),(B),(C))
+#else
+  #define PRINT_DEBUG_ISEND(A,B,C,D,E) 
+  #define PRINT_DEBUG_IRECV(A,B,C,D,E,F)
+  #define PRINT_DEBUG_RECD(A) 
+  #define PRINT_DEBUG_WAITANY(A,B,C)
+#endif
+
+
+static inline void print_debug_isend(int from, int to, unsigned char *buff,
                                      int tag, int size) 
 {
-#ifdef DEBUG_COMM
   std::cerr << "Isend, " << from << "->" << to
             << ", buffer ptr = " << (void*)buff << ", tag=" << tag 
             << ", size=" << size << std::endl; std::cerr.flush();
-#endif
 }
 
-static inline void PRINT_DEBUG_IRECV(int to, int from, unsigned char *buff, int size,
+static inline void print_debug_irecv(int to, int from, unsigned char *buff, int size,
                                      int tag, int incoming) 
 {
-#ifdef DEBUG_COMM
   std::cerr << "Irecv, " << to << "<-" << from << ", buffer ptr=" << (void*)buff
             << ", size=" << size << ", tag=" << tag
             << (tag < MB_MESG_REMOTEH_ACK ? ", incoming1=" : 
                 (tag < MB_MESG_TAGS_ACK ? ", incoming2=" : ", incoming="))
             << incoming << std::endl; std::cerr.flush();
-#endif
 }
 
-static inline void PRINT_DEBUG_RECD(MPI_Status status) 
+static inline void print_debug_recd(MPI_Status status) 
 {
-#ifdef DEBUG_COMM
   int this_count;
   int success = MPI_Get_count(&status, MPI_UNSIGNED_CHAR, &this_count);
   if (MPI_SUCCESS != success) this_count = -1;
@@ -261,18 +269,15 @@ static inline void PRINT_DEBUG_RECD(MPI_Status status)
             << ", count = " << this_count 
             << ", tag = " << status.MPI_TAG
             << std::endl; std::cerr.flush();
-#endif    
 }
 
-static inline void PRINT_DEBUG_WAITANY(std::vector<MPI_Request> &reqs, int tag, int proc) 
+static inline void print_debug_waitany(std::vector<MPI_Request> &reqs, int tag, int proc) 
 {
-#ifdef DEBUG_COMM
   std::cerr << "Waitany, p=" << proc
             << (tag < MB_MESG_REMOTEH_ACK ? ", recv_ent_reqs = " : 
                 (tag < MB_MESG_TAGS_ACK ? ", recv_remoteh_reqs = " : ", recv_tag_reqs = "));
   for (unsigned int i = 0; i < reqs.size(); i++) std::cerr << " " << reqs[i];
   std::cerr << std::endl; std::cerr.flush();
-#endif
 }
 
 
@@ -1462,7 +1467,7 @@ ErrorCode ParallelComm::get_remote_handles(const bool store_remote_handles,
 
 ErrorCode ParallelComm::unpack_entities(unsigned char *&buff_ptr,
                                             const bool store_remote_handles,
-                                            const int from_ind,
+                                            const int /*from_ind*/,
                                             const bool is_iface,
                                             std::vector<std::vector<EntityHandle> > &L1hloc,
                                             std::vector<std::vector<EntityHandle> > &L1hrem,
@@ -1859,7 +1864,7 @@ ErrorCode ParallelComm::print_buffer(unsigned char *buff_ptr,
 
   }
   else if (mesg_tag == MB_MESG_TAGS_SIZE || mesg_tag == MB_MESG_TAGS_LARGE) {
-    int num_tags, dum1, num_ents, data_type, tag_size;
+    int num_tags, dum1, data_type, tag_size;
     UNPACK_INT(buff_ptr, num_tags);
     std::cerr << "Number of tags = " << num_tags << std::endl;
     for (int i = 0; i < num_tags; i++) {
@@ -1881,10 +1886,10 @@ ErrorCode ParallelComm::print_buffer(unsigned char *buff_ptr,
       std::vector<EntityHandle> tmp_buff(num_ents);
       UNPACK_EH(buff_ptr, &tmp_buff[0], num_ents);
       int tot_length = 0;
-      for (int i = 0; i < num_ents; i++) {
-        EntityType etype = TYPE_FROM_HANDLE(tmp_buff[i]);
+      for (int j = 0; j < num_ents; j++) {
+        EntityType etype = TYPE_FROM_HANDLE(tmp_buff[j]);
         std::cerr << CN::EntityTypeName(etype) << " " 
-                  << ID_FROM_HANDLE(tmp_buff[i])
+                  << ID_FROM_HANDLE(tmp_buff[j])
                   << ", tag = ";
         if (tag_size == MB_VARIABLE_LENGTH) {
           UNPACK_INT(buff_ptr, dum1);
@@ -2249,7 +2254,9 @@ ErrorCode ParallelComm::get_sharing_data(const EntityHandle entity,
     num_ps = 0;
   }
 
-  assert(0 <= num_ps && MAX_SHARING_PROCS >= num_ps);
+  // num_ps is unsigned, so comparison with zero is pointless
+  //assert(0 <= num_ps && MAX_SHARING_PROCS >= num_ps);
+  assert(MAX_SHARING_PROCS >= num_ps);
   
   return MB_SUCCESS;
 }
@@ -2595,22 +2602,22 @@ ErrorCode ParallelComm::unpack_sets(unsigned char *&buff_ptr,
   return MB_SUCCESS;
 }
 
-ErrorCode ParallelComm::pack_adjacencies(Range &entities,
-                                             Range::const_iterator &start_rit,
-                                             Range &whole_range,
-                                             unsigned char *&buff_ptr,
-                                             int &count,
-                                             const bool just_count,
-                                             const bool store_handles,
-                                             const int to_proc)
+ErrorCode ParallelComm::pack_adjacencies(Range& /*entities*/,
+                                         Range::const_iterator& /*start_rit*/,
+                                         Range& /*whole_range*/,
+                                         unsigned char*& /*buff_ptr*/,
+                                         int& /*count*/,
+                                         const bool /*just_count*/,
+                                         const bool /*store_handles*/,
+                                         const int /*to_proc*/)
 {
   return MB_FAILURE;
 }
 
-ErrorCode ParallelComm::unpack_adjacencies(unsigned char *&buff_ptr,
-                                               Range &entities,
-                                               const bool store_handles,
-                                               const int from_proc)
+ErrorCode ParallelComm::unpack_adjacencies(unsigned char*& /*buff_ptr*/,
+                                               Range& /*entities*/,
+                                               const bool /*store_handles*/,
+                                               const int /*from_proc*/)
 {
   return MB_FAILURE;
 }
@@ -3550,7 +3557,8 @@ ErrorCode ParallelComm::create_interface_sets(int resolve_dim, int shared_dim)
 }
   
 ErrorCode ParallelComm::create_interface_sets(std::map<std::vector<int>, Range> &proc_nranges,
-                                                  int resolve_dim, int shared_dim) 
+                                                  int /*resolve_dim*/, 
+                                                  int /*shared_dim*/) 
 {
   if (proc_nranges.empty()) return MB_SUCCESS;
   
@@ -3732,7 +3740,7 @@ ErrorCode ParallelComm::tag_shared_ents(int resolve_dim,
 ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
                                              Range *skin_ents,
                                              std::map<std::vector<int>, Range> &proc_nranges,
-                                             Range &proc_verts) 
+                                             Range& /*proc_verts*/) 
 {
   Tag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
   ErrorCode result = get_shared_proc_tags(sharedp_tag, sharedps_tag, 
@@ -3946,10 +3954,12 @@ bool ParallelComm::is_iface_proc(EntityHandle this_set,
   std::fill(sharing_procs, sharing_procs+MAX_SHARING_PROCS, -1);
   ErrorCode result = mbImpl->tag_get_data(sharedp_tag(), &this_set, 1,
                                             sharing_procs);
-  if (to_proc == sharing_procs[0]) return true;
+  if (MB_SUCCESS == result && to_proc == sharing_procs[0]) return true;
   
   result = mbImpl->tag_get_data(sharedps_tag(), &this_set, 1,
                                 sharing_procs);
+  if (MB_SUCCESS != result) return false;
+
   for (int i = 0; i < MAX_SHARING_PROCS; i++) {
     if (to_proc == sharing_procs[i]) return true;
     else if (-1 == sharing_procs[i]) return false;
@@ -4492,7 +4502,7 @@ ErrorCode ParallelComm::recv_buffer(int mesg_tag_expected,
                                         const MPI_Status &mpi_status,
                                         Buffer *recv_buff,
                                         MPI_Request &recv_req,
-                                        MPI_Request &ack_recvd_req,
+                                        MPI_Request & /*ack_recvd_req*/,
                                         int &this_incoming,
                                         Buffer *send_buff,
                                         MPI_Request &send_req,
@@ -4841,7 +4851,7 @@ ErrorCode ParallelComm::exchange_ghost_cells(ParallelComm **pcs,
   
   for (unsigned int p = 0; p < num_procs; p++) {
   
-    ParallelComm *pc = pcs[p];
+    pc = pcs[p];
     
     for (ind = 0; ind < pc->buffProcs.size(); ind++) {
         // incoming ghost entities; unpack; returns entities received
@@ -4998,7 +5008,7 @@ ErrorCode ParallelComm::check_sent_ents(Range &allsent)
 ErrorCode ParallelComm::pack_remote_handles(std::vector<EntityHandle> &L1hloc,
                                                 std::vector<EntityHandle> &L1hrem,
                                                 std::vector<int> &L1p,
-                                                unsigned int to_proc,
+                                                unsigned int /*to_proc*/,
                                                 Buffer *buff) 
 {
     // 2 vectors of handles plus ints
@@ -5244,7 +5254,6 @@ ErrorCode ParallelComm::exchange_tags( const std::vector<Tag> &src_tags,
   
     // receive/unpack tags
   while (incoming) {
-    int ind;
     MPI_Status status;
     PRINT_DEBUG_WAITANY(recv_tag_reqs, MB_MESG_TAGS_SIZE, procConfig.proc_rank());
     success = MPI_Waitany(2*buffProcs.size(), &recv_tag_reqs[0], &ind, &status);
@@ -6366,8 +6375,8 @@ ErrorCode ParallelComm::check_local_shared()
 
     // check that non-vertex shared entities are shared by same procs as all
     // their vertices
-  std::pair<Range::const_iterator,Range::const_iterator> vert_it =
-      sharedEnts.equal_range(MBVERTEX);
+  //std::pair<Range::const_iterator,Range::const_iterator> vert_it =
+  //    sharedEnts.equal_range(MBVERTEX);
   std::vector<EntityHandle> dum_connect;
   const EntityHandle *connect;
   int num_connect;
