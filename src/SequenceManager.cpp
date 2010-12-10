@@ -1039,7 +1039,6 @@ ErrorCode SequenceManager::set_tag_data( TagId tag_id,
   
   const char* data = reinterpret_cast<const char*>(values);
 
-  Range::const_pair_iterator p = handles.begin();
   for (Range::const_pair_iterator p = handles.const_pair_begin(); 
        p != handles.const_pair_end(); ++p) {
        
@@ -1102,7 +1101,6 @@ ErrorCode SequenceManager::set_tag_data( TagId tag_id,
 
   const bool step = !one_value;
 
-  Range::const_pair_iterator p = handles.begin();
   for (Range::const_pair_iterator p = handles.const_pair_begin(); 
        p != handles.const_pair_end(); ++p) {
        
@@ -1585,7 +1583,7 @@ ErrorCode SequenceManager::get_entities_with_tag_value( const Range& range,
     
   Range::iterator insert = entities_out.begin();
   Range::const_pair_iterator p = type == MBMAXTYPE ? range.begin() : range.lower_bound(type);         
-  for (Range::const_pair_iterator p = range.const_pair_begin(); 
+  for (; 
        p != range.const_pair_end() && 
        (MBMAXTYPE == type || TYPE_FROM_HANDLE(p->first) == type); 
        ++p) {
