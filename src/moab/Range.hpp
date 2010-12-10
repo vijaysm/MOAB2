@@ -235,7 +235,7 @@ public:
   EntityHandle size() const;
 
   //! return the number of range pairs in the list
-  unsigned int psize() const;
+  size_t psize() const;
   
   //! return whether empty or not 
   //! always use "if(!Ranges::empty())" instead of "if(Ranges::size())"
@@ -881,9 +881,9 @@ Range::iterator Range::insert_list( Iterator begin_iter, Iterator end_iter )
   return hint;
 }
 
-inline unsigned int Range::psize() const 
+inline size_t Range::psize() const 
 {
-  unsigned int i = 0;
+  size_t i = 0;
   Range::const_pair_iterator pit;
   for (pit = const_pair_begin(), i = 0; 
        pit != const_pair_end(); pit++, i++);
