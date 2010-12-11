@@ -239,10 +239,13 @@ bool plucker_ray_tri_intersect( const CartVect vertices[3],
 			      pip2*inverse_sum*vertices[1]);
 
   // To minimize numerical error, get index of largest magnitude direction.
-  int idx;
+  int idx = 0;
   double max_abs_dir = 0;
   for(unsigned int i=0; i<3; ++i) {
-    if( fabs(direction[i]) > max_abs_dir ) idx = i;
+    if( fabs(direction[i]) > max_abs_dir ) {
+      idx = i;
+      max_abs_dir = fabs(direction[i]);
+    }
   } 
   const double dist = (intersection[idx]-origin[idx])/direction[idx];
 
@@ -251,7 +254,7 @@ bool plucker_ray_tri_intersect( const CartVect vertices[3],
     if(type) *type = NONE;
     return false;
   }
-  if(neg_ray_len && *neg_ray_len>dist) {
+  if(neg_ray_len && *neg_ray_len>=dist) {
     if(type) *type = NONE;
     return false;
 
