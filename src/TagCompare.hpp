@@ -266,13 +266,13 @@ void find_tag_values_equal( const TagInfo& tag_info,
     case MB_TYPE_INTEGER:
       switch (tag_info.get_size()) {
         case MB_VARIABLE_LENGTH:
-          find_tag_values( TagVarIntsEqual( value, size ), begin, end, results );
+          find_tag_values<TagVarIntsEqual,IteratorType>( TagVarIntsEqual( value, size ), begin, end, results );
           break;
         case sizeof(int):
-          find_tag_values( TagOneIntEqual( value ), begin, end, results );
+          find_tag_values<TagOneIntEqual,IteratorType>( TagOneIntEqual( value ), begin, end, results );
           break;
         default:
-          find_tag_values( TagIntsEqual( value, size ), begin, end, results );
+          find_tag_values<TagIntsEqual,IteratorType>( TagIntsEqual( value, size ), begin, end, results );
           break;
       }
       break;
@@ -280,13 +280,13 @@ void find_tag_values_equal( const TagInfo& tag_info,
     case MB_TYPE_DOUBLE:
       switch (tag_info.get_size()) {
         case MB_VARIABLE_LENGTH:
-          find_tag_values( TagVarDoublesEqual( value, size ), begin, end, results );
+          find_tag_values<TagVarDoublesEqual,IteratorType>( TagVarDoublesEqual( value, size ), begin, end, results );
           break;
         case sizeof(double):
-          find_tag_values( TagOneDoubleEqual( value ), begin, end, results );
+          find_tag_values<TagOneDoubleEqual,IteratorType>( TagOneDoubleEqual( value ), begin, end, results );
           break;
         default:
-          find_tag_values( TagDoublesEqual( value, size ), begin, end, results );
+          find_tag_values<TagDoublesEqual,IteratorType>( TagDoublesEqual( value, size ), begin, end, results );
           break;
       }
       break;
@@ -294,22 +294,22 @@ void find_tag_values_equal( const TagInfo& tag_info,
     case MB_TYPE_HANDLE:
       switch (tag_info.get_size()) {
         case MB_VARIABLE_LENGTH:
-          find_tag_values( TagVarHandlesEqual( value, size ), begin, end, results );
+          find_tag_values<TagVarHandlesEqual,IteratorType>( TagVarHandlesEqual( value, size ), begin, end, results );
           break;
         case sizeof(EntityHandle):
-          find_tag_values( TagOneHandleEqual( value ), begin, end, results );
+          find_tag_values<TagOneHandleEqual,IteratorType>( TagOneHandleEqual( value ), begin, end, results );
           break;
         default:
-          find_tag_values( TagHandlesEqual( value, size ), begin, end, results );
+          find_tag_values<TagHandlesEqual,IteratorType>( TagHandlesEqual( value, size ), begin, end, results );
           break;
       }
       break;
         
     default:
       if (tag_info.get_size() == MB_VARIABLE_LENGTH) 
-        find_tag_values( TagVarBytesEqual( value, size ), begin, end, results );
+        find_tag_values<TagVarBytesEqual,IteratorType>( TagVarBytesEqual( value, size ), begin, end, results );
       else
-        find_tag_values( TagBytesEqual( value, size ), begin, end, results );
+        find_tag_values<TagBytesEqual,IteratorType>( TagBytesEqual( value, size ), begin, end, results );
       break;
   }
 }
