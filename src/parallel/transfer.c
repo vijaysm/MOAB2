@@ -41,6 +41,9 @@ void moab_gs_transfer(int dynamic, tuple_list *tl,
   sint *ri; slong *rl; ulong *rul; real *rr;
   uint i, j, *buf, *len=0, *buf_end;
 
+  if(pf>=mi)
+    fail("pf expected to be in vi array (%d, %d)", pf, mi);
+
   /* sort to group by target proc */
   moab_tuple_list_sort(tl,pf,&crystal->all->buf);
 
