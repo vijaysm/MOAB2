@@ -282,13 +282,13 @@ void ProgOptions::printUsage( std::ostream& out ){
   for (size_t i = 0 ; i < arg_help_strings.size(); ++i)
   {
     if (!expect_optional_args || i != optional_args_position) 
-      std::cout << '<' << arg_help_strings[i].first->longname << "> "; 
+      out << '<' << arg_help_strings[i].first->longname << "> "; 
     else if (0 == max_optional_args && max_optional_args > 3)
-      std::cout << "[<" << arg_help_strings[i].first->longname << "> ...] ";
+      out << "[<" << arg_help_strings[i].first->longname << "> ...] ";
     else if (1 == max_optional_args)
-      std::cout << "[" << arg_help_strings[i].first->longname << "] ";
+      out << "[" << arg_help_strings[i].first->longname << "] ";
     else for (unsigned j = 0; j < max_optional_args; ++j)
-      std::cout << "[" << arg_help_strings[i].first->longname << (j+1) << "] ";
+      out << "[" << arg_help_strings[i].first->longname << (j+1) << "] ";
   }
     
   out << std::endl;
