@@ -8,7 +8,7 @@
 #include <assert.h>
 #include <string.h>
 
-#include "program_opt.hpp"
+#include "ProgOptions.hpp"
 #ifdef USE_MPI
 # include "moab_mpi.h"
 #endif

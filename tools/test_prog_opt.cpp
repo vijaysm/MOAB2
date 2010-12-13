@@ -1,6 +1,6 @@
 #include "TestUtil.hpp"
 #include "TestRunner.hpp"
-#include "program_opt.hpp"
+#include "ProgOptions.hpp"
 #include <limits>
 #include <stdlib.h>
 #ifdef USE_MPI

@@ -1,4 +1,6 @@
-AM_CPPFLAGS += -I$(top_srcdir)/src -I$(top_builddir)/src 
+AM_CPPFLAGS += -I$(top_srcdir)/src \
+               -I$(top_builddir)/src \
+	       -I$(top_srcdir)/tools
 
 lib_LTLIBRARIES = libdagmc.la
 libdagmc_la_SOURCES = DagMC.cpp
@@ -42,4 +44,4 @@ pt_vol_test_SOURCES = pt_vol_test.cc
 ray_fire_test_SOURCES = ray_fire_test.cc
 
 dagmc_preproc_SOURCES = dagmc_preproc.cpp 
-dagmc_preproc_LDADD = $(LDADD) $(top_builddir)/tools/libprogram_opt.la
+dagmc_preproc_LDADD = $(LDADD) ../libprogram_opt.la

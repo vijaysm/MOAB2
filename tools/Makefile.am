@@ -116,7 +116,7 @@ endif
 noinst_PROGRAMS = $(parread)
 
 noinst_LTLIBRARIES = libprogram_opt.la
-libprogram_opt_la_SOURCES = program_opt.cpp program_opt.hpp
+libprogram_opt_la_SOURCES = ProgOptions.cpp ProgOptions.hpp
 
 SUBDIRS = . \
           $(refiner_DIR) \

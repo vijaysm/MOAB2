@@ -1,4 +1,4 @@
-#include "../program_opt.hpp"
+#include "ProgOptions.hpp"
 
 #include "moab/Core.hpp"
 #include "moab/Interface.hpp"
