@@ -310,9 +310,15 @@ ErrorCode Coupler::test_local_box(double *xyz,
     // if we didn't find any ents and we're looking locally, nothing more to do
   if (entities.empty()){
     if(tl){
-      tl->vi[3*index] = from_proc;
-      tl->vi[3*index+1] = remote_index;
-      tl->vi[3*index+2] = -1;
+
+      if (tl->n == tl->max)
+	tuple_list_grow(tl);
+
+      tl->vi[3*tl->n] = from_proc;
+      tl->vi[3*tl->n+1] = remote_index;
+      tl->vi[3*tl->n+2] = -1;
+      tl->n++;
+
     }
     point_located = false;
     return MB_SUCCESS;
