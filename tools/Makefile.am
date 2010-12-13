@@ -137,3 +137,13 @@ mbsurfplot_SOURCES = surfplot.cpp
 mbtagprop_SOURCES = parse.cpp parse.hpp propagate_tags.cpp
 mbmem_SOURCES = mbmem.cpp
 parread_SOURCES = parread.cpp
+
+
+check_PROGRAMS = test_prog_opt
+
+TESTS = $(check_PROGRAMS)
+
+test_prog_opt_SOURCES = test_prog_opt.cpp
+test_prog_opt_CPPFLAGS = -I$(top_srcdir)/test $(AM_CPPFLAGS) $(CPPFLAGS)
+test_prog_opt_LDADD = libprogram_opt.la
+

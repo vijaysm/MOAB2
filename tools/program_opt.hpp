@@ -49,18 +49,25 @@ public:
 
   /// Set for a flag that, when detected, prints help text and halts program.
   /// Constructor creates such a flag by default, so the user shouldn't need to use this directly.
-  const static int help_flag = 0x1;
+  const static int help_flag = 1<<0;
 
   /// Flag indicating that an option should be given a "cancel" flag.
   /// This creates, for option --foo, an additional option --no-foo that
   /// clears all previously read instances of the foo option
-  const static int add_cancel_opt = 0x1 << 1;
+  const static int add_cancel_opt = 1<<1;
 
   /// When applied to a flag argument (one with template type void), indicate that the 
   /// value 'false' should be stored into the pointer that was given at option creation time.
   /// This overrides the default behavior, which is to store the value 'true'.
-  const static int store_false = 0x1 << 2 ;
+  const static int store_false = 1<<2 ;
 
+  /** Substitue any occurance of the '%' symbol in a string with
+   *  the the MPI rank of this process in MPI_COMM_WORLD.  This
+   *  option has no effect if not compiled with MPI.  This flag
+   *  has no effect for non-string options.
+   */
+  const static int rank_subst = 1<<3;
+  
   ///unimplemented flag for required arguments that may be given multiple times
   //const static int accept_multiple;
 
@@ -126,7 +133,20 @@ public:
    *        If NULL, the value must be queried using getReqArg()
    */
   template <typename T>
-  void addRequiredArg( const std::string& helpname, const std::string& helpstring, T* value = NULL );
+  void addRequiredArg( const std::string& helpname, const std::string& helpstring, T* value = NULL, int flags = 0 );
+
+  /** Add optional positional arguments
+   *
+   * Specify location in ordered argument list at which optional arguments
+   * may occur.  Optional arguments are allowed at only one location
+   * it argument list (this function may not be called more than once.). 
+   * The template parameter may be int, double, or std::string (but not void)
+   * @param count The maximum number of optional arguments.  Specify zero for unlimited.
+   * @param helpname The name to give the argument in the help text
+   * @param helpstring The help text for the arguments
+   */
+  template <typename T>
+  void addOptionalArgs( unsigned max_count, const std::string& helpname, const std::string& helpstring, int flags = 0 );
 
   /** 
    * Print the full help to the given stream
@@ -184,6 +204,14 @@ public:
    */
   template <typename T>
   T getReqArg( const std::string& namestring );
+  
+  /**
+   * Append the values of any required or optional arguments
+   * @param namestring The helpname that was given to addRequiredArg or
+   *                   addOptionalArgs.
+   */
+  template <typename T>
+  void getArgs( const std::string& namestring, std::vector<T>& values );
 
   /** 
    * Prints an error message to std::cerr, along with a brief usage message, 
@@ -204,6 +232,7 @@ protected:
   ProgOpt* lookup_option( const std::string& );
 
   bool evaluate( const ProgOpt& opt, void* target, const std::string& option, unsigned* arg_idx = NULL);
+  bool process_option( ProgOpt* opt, std::string arg, const char* value = 0 );
   
   std::map< std::string, ProgOpt* > long_names;
   std::map< std::string, ProgOpt* > short_names;
@@ -213,6 +242,9 @@ protected:
   std::vector< help_line > option_help_strings;
   std::vector< help_line > arg_help_strings;
   std::vector< std::string > main_help;
+  
+  bool expect_optional_args;
+  unsigned optional_args_position, max_optional_args;
   
   std::string progname;
   
