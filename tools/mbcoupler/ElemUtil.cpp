@@ -444,7 +444,12 @@ namespace Element {
     CartVect xi = x0;
     CartVect delta = evaluate(xi) - x;
     Matrix3 J;
+
+    int iters=0;
     while (delta % delta > error_tol_sqr) {
+      if(++iters>50)
+        throw Map::EvaluationError();
+
       J = jacobian(xi);
       det = J.determinant();
       if (det < std::numeric_limits<double>::epsilon())
