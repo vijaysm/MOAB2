@@ -28,7 +28,7 @@ AC_HELP_STRING([--without-netcdf], [Disable support for ExodusII file format])],
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-netcdf=\"${withval}\""
 ]
 , [NETCDF_ARG=])
-if test "xyes" = "x$NETCDF_ARG"; then
+if test "xno" != "x$NETCDF_ARG"; then
   AC_MSG_RESULT([yes])
 else
   AC_MSG_RESULT([no])
@@ -156,7 +156,7 @@ AC_HELP_STRING([--without-pnetcdf], [Disable support for Pnetcdf-based file form
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-pnetcdf=\"${withval}\""
 ]
 , [PNETCDF_ARG=])
-if test "xyes" = "x$PNETCDF_ARG"; then
+if test "xno" != "x$PNETCDF_ARG"; then
   AC_MSG_RESULT([yes])
 else
   AC_MSG_RESULT([no])
@@ -166,12 +166,6 @@ fi
 HAVE_PNETCDF=no
 if test "xno" != "x$PNETCDF_ARG"; then
   HAVE_PNETCDF=yes
-  HAVE_NETCDF=yes
-
-    # PNETCDF requires MPI too
-  if test "xyes" != "x$WITH_MPI"; then
-    AC_MSG_ERROR([Pnetcdf requires MPI/parallel configuration])
-  fi
 
     # Check for stream headers and set STRSTREAM_H_SPEC accordingly
   AC_LANG_PUSH([C++])
@@ -207,7 +201,16 @@ if test "xno" != "x$PNETCDF_ARG"; then
   
    # Check for C library
   AC_LANG_PUSH([C])
-  AC_CHECK_HEADERS( [pnetcdf.h], [], [AC_MSG_WARN([[Pnetcdf header not found.]]); HAVE_PNETCDF=no] )
+  AC_CHECK_HEADERS( [pnetcdf.h], [], [HAVE_PNETCDF=no] )
+
+    # PNETCDF requires MPI too
+  if test "xyes" != "x$WITH_MPI"; then
+    if test "x" != "x$PNETCDF_ARG"; then
+      AC_MSG_ERROR([Pnetcdf requires MPI/parallel configuration])
+    fi
+    HAVE_PNETCDF=no
+  fi
+
   if test "x" != "x$MIN_NC_MAX_DIMS"; then
     AC_MSG_CHECKING([if NC_MAX_DIMS is at least ${MIN_NC_MAX_DIMS}])
     AC_COMPILE_IFELSE(
@@ -234,7 +237,6 @@ if test "xno" != "x$PNETCDF_ARG"; then
  #include "pnetcdf.h"], [], [HAVE_PNETCDF_H=yes], [HAVE_PNETCDF_H=no])])
   AC_MSG_RESULT([$HAVE_PNETCDF_H])
   if test $HAVE_PNETCDF_H != yes; then
-    AC_MSG_WARN([Pnetcdf C header not found])
     HAVE_PNETCDF=no
   fi
   if test "x$PNETCDF_DEF" != "x"; then
@@ -254,11 +256,10 @@ if test "xno" != "x$PNETCDF_ARG"; then
   CPPFLAGS="$old_CPPFLAGS"
   LDFLAGS="$old_LDFLAGS"
 
+
   if test "x$HAVE_PNETCDF" = "xno"; then
     if test "x$PNETCDF_ARG" != "x"; then 
       AC_MSG_ERROR("Pnetcdf not found or not working")
-    else
-      AC_MSG_WARN("Pnetcdf support disabled")
     fi
     PNETCDF_CPPFLAGS=
     PNETCDF_LDFLAGS=

@@ -619,7 +619,7 @@ ErrorCode ReadParallel::create_partition_sets( std::string &ptag_name,
         result = mbImpl->tag_delete_data(ptag, tagged_sets); RR(" ");
       }
       else if (tagged_sets == myPcomm->partition_sets()) return MB_SUCCESS;
-    }
+  }
 
       // if we get here, we need to assign the tag
     std::vector<int> values(myPcomm->partition_sets().size());
