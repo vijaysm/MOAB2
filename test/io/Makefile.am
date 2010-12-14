@@ -62,5 +62,6 @@ readutil_test_SOURCES = $(srcdir)/../TestUtil.hpp readutil_test.cpp
 
 MOSTLYCLEANFILES = dumped_acis.sat  \
                    mb_write.g \
-                   mb_write2.g
+                   mb_write2.g \
+	           singlecyl_tmp.ccmg
 
