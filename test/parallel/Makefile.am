@@ -46,4 +46,4 @@ partcheck_SOURCES = partcheck.cpp
 structured3_SOURCES = structured3.cpp
 
 # Other files to clean up (e.g. output from tests)
-MOSTLYCLEANFILES = mhdf_ll.h5m
+MOSTLYCLEANFILES = mhdf_ll.h5m tmp0.h5m tmp1.h5m tmp2.h5m tmp3.h5m

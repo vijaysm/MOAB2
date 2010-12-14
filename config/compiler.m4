@@ -83,6 +83,7 @@ if test "xno" != "x$WITH_MPI"; then
   CXX_LIST="mpiCC mpCC mpicxx"
   FC_LIST="mpif90"
   F77_LIST="mpif77"
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-mpi=\"${withval}\""
   
   if test "xyes" == "x$WITH_MPI"; then
     FATHOM_SET_MPI_COMPILER([CC],  [$CC_LIST])

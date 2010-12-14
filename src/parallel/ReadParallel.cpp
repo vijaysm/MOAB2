@@ -599,24 +599,15 @@ ErrorCode ReadParallel::create_partition_sets( std::string &ptag_name,
   ErrorCode result;
 
   Tag ptag;
-  result = mbImpl->tag_get_handle(ptag_name.c_str(), ptag); 
-  RR("Failed getting tag handle in create_partition_sets.");
 
-  result = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET,
-                                                &ptag, NULL, 1,
-                                                myPcomm->partition_sets());
-  RR("Failed to get sets with partition-type tag.");
-
-  if (ptag_name == PARALLEL_PARTITION_TAG_NAME) 
-    return MB_SUCCESS;
+    // tag the partition sets with a standard tag name
+  if (ptag_name.empty()) ptag_name = PARALLEL_PARTITION_TAG_NAME;
   
-
-      // tag the partition sets with a standard tag name
-    result = mbImpl->tag_create(PARALLEL_PARTITION_TAG_NAME, sizeof(int), 
-                                MB_TAG_SPARSE, 
-                                MB_TYPE_INTEGER, ptag, 
-                                0, true);
-    if (MB_ALREADY_ALLOCATED == result) {
+  result = mbImpl->tag_create(ptag_name.c_str(), sizeof(int), 
+                              MB_TAG_SPARSE, 
+                              MB_TYPE_INTEGER, ptag, 
+                              0, true);
+  if (MB_ALREADY_ALLOCATED == result) {
         // this tag already exists; better check to see that tagged sets
         // agree with this partition
       Range tagged_sets;

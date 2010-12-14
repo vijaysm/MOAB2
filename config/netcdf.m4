@@ -28,10 +28,10 @@ AC_HELP_STRING([--without-netcdf], [Disable support for ExodusII file format])],
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-netcdf=\"${withval}\""
 ]
 , [NETCDF_ARG=])
-if test "xno" = "x$NETCDF_ARG"; then
-  AC_MSG_RESULT([no])
-else
+if test "xyes" = "x$NETCDF_ARG"; then
   AC_MSG_RESULT([yes])
+else
+  AC_MSG_RESULT([no])
 fi
 
  # if NetCDF support is not disabled
@@ -141,3 +141,128 @@ if test "xno" != "x$NETCDF_ARG"; then
 fi
 
 ]) # FATHOM_HAVE_NETCDF
+
+AC_DEFUN([FATHOM_CHECK_PNETCDF],[
+
+MIN_NC_MAX_DIMS="$1"
+MIN_NC_MAX_VARS="$2"
+PNETCDF_SUFFICIENT_DIMS_VARS=yes
+
+AC_MSG_CHECKING([if Pnetcdf support is enabled])
+AC_ARG_WITH(pnetcdf, 
+[AC_HELP_STRING([--with-pnetcdf=DIR], [Specify Pnetcdf library to use])
+AC_HELP_STRING([--without-pnetcdf], [Disable support for Pnetcdf-based file formats])],
+[PNETCDF_ARG=$withval
+DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-pnetcdf=\"${withval}\""
+]
+, [PNETCDF_ARG=])
+if test "xyes" = "x$PNETCDF_ARG"; then
+  AC_MSG_RESULT([yes])
+else
+  AC_MSG_RESULT([no])
+fi
+
+ # if Pnetcdf support is not disabled
+HAVE_PNETCDF=no
+if test "xno" != "x$PNETCDF_ARG"; then
+  HAVE_PNETCDF=yes
+  HAVE_NETCDF=yes
+
+    # PNETCDF requires MPI too
+  if test "xyes" != "x$WITH_MPI"; then
+    AC_MSG_ERROR([Pnetcdf requires MPI/parallel configuration])
+  fi
+
+    # Check for stream headers and set STRSTREAM_H_SPEC accordingly
+  AC_LANG_PUSH([C++])
+  AC_CHECK_HEADER( [strstream.h], [PNETCDF_DEF="<strstream.h>"], [
+    AC_CHECK_HEADER( [sstream.h], [PNETCDF_DEF="<sstream.h>"], [
+      AC_CHECK_HEADER( [strstream], [PNETCDF_DEF="<strstream>"], [
+        AC_CHECK_HEADER( [sstream], [PNETCDF_DEF="<sstream>"] )
+  ] ) ] ) ] )
+  AC_LANG_POP([C++])
+  
+    # if a path is specified, update LIBS and INCLUDES accordingly
+  if test "xyes" != "x$PNETCDF_ARG" && test "x" != "x$PNETCDF_ARG"; then
+    if test -d "${PNETCDF_ARG}/lib"; then
+      PNETCDF_LDFLAGS="-L${PNETCDF_ARG}/lib"
+    elif test -d "${PNETCDF_ARG}"; then
+      PNETCDF_LDFLAGS="-L${PNETCDF_ARG}"
+    else
+      AC_MSG_ERROR("$PNETCDF_ARG is not a directory.")
+    fi
+    if test -d "${PNETCDF_ARG}/include"; then
+      PNETCDF_CPPFLAGS="-I${PNETCDF_ARG}/include"
+    elif test -d "${PNETCDF_ARG}/inc"; then
+      PNETCDF_CPPFLAGS="-I${PNETCDF_ARG}/inc"
+    else
+      PNETCDF_CPPFLAGS="-I${PNETCDF_ARG}"
+    fi
+  fi
+  
+  old_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$PNETCDF_CPPFLAGS $CPPFLAGS"
+  old_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$PNETCDF_LDFLAGS $LDFLAGS"
+  
+   # Check for C library
+  AC_LANG_PUSH([C])
+  AC_CHECK_HEADERS( [pnetcdf.h], [], [AC_MSG_WARN([[Pnetcdf header not found.]]); HAVE_PNETCDF=no] )
+  if test "x" != "x$MIN_NC_MAX_DIMS"; then
+    AC_MSG_CHECKING([if NC_MAX_DIMS is at least ${MIN_NC_MAX_DIMS}])
+    AC_COMPILE_IFELSE(
+      [AC_LANG_PROGRAM([#include <pnetcdf.h>],
+                       [[int arr[1 + (int)(NC_MAX_DIMS) - (int)(${MIN_NC_MAX_DIMS})];]])],
+      [AC_MSG_RESULT([yes])],
+      [AC_MSG_RESULT([no]); PNETCDF_SUFFICIENT_DIMS_VARS=no])
+  fi
+  if test "x" != "x$MIN_NC_MAX_VARS"; then
+    AC_MSG_CHECKING([if NC_MAX_VARS is at least ${MIN_NC_MAX_VARS}])
+    AC_COMPILE_IFELSE(
+      [AC_LANG_PROGRAM([#include <pnetcdf.h>],
+                       [[int arr[1 + (int)(NC_MAX_VARS) - (int)(${MIN_NC_MAX_VARS})];]])],
+      [AC_MSG_RESULT([yes])],
+      [AC_MSG_RESULT([no]); PNETCDF_SUFFICIENT_DIMS_VARS=no])
+  fi
+  
+  AC_MSG_CHECKING([for pnetcdf.h])
+  HAVE_PNETCDF_H=no
+  AC_TRY_COMPILE( 
+[#include "pnetcdf.h"], [], [HAVE_PNETCDF_H=yes; PNETCDF_DEF=], [
+    AC_TRY_COMPILE( 
+[#define STRSTREAM_H_SPEC $PNETCDF_DEF
+ #include "pnetcdf.h"], [], [HAVE_PNETCDF_H=yes], [HAVE_PNETCDF_H=no])])
+  AC_MSG_RESULT([$HAVE_PNETCDF_H])
+  if test $HAVE_PNETCDF_H != yes; then
+    AC_MSG_WARN([Pnetcdf C header not found])
+    HAVE_PNETCDF=no
+  fi
+  if test "x$PNETCDF_DEF" != "x"; then
+    PNETCDF_CPPFLAGS="$PNETCDF_CPPFLAGS -DSTRSTREAM_H_SPEC=$PNETCDF_DEF"
+    CPPFLAGS="$CPPFLAGS -DSTRSTREAM_H_SPEC=$PNETCDF_DEF"
+  fi
+  AC_MSG_CHECKING([[for pnetcdf library]])
+  old_LIBS="$LIBS"
+  LIBS="$LIBS -lpnetcdf"
+  AC_TRY_LINK(
+    [#include <pnetcdf.h>], [int ncFile; ncmpi_create(MPI_COMM_SELF, "foo",NC_CLOBBER, MPI_INFO_NULL, &ncFile);],
+    [AC_MSG_RESULT([yes]); PNETCDF_LIBS="-lpnetcdf"], 
+    [AC_MSG_RESULT([no]);])
+  LIBS="$old_LIBS"
+  AC_LANG_POP([C])
+  
+  CPPFLAGS="$old_CPPFLAGS"
+  LDFLAGS="$old_LDFLAGS"
+
+  if test "x$HAVE_PNETCDF" = "xno"; then
+    if test "x$PNETCDF_ARG" != "x"; then 
+      AC_MSG_ERROR("Pnetcdf not found or not working")
+    else
+      AC_MSG_WARN("Pnetcdf support disabled")
+    fi
+    PNETCDF_CPPFLAGS=
+    PNETCDF_LDFLAGS=
+  fi
+fi
+
+]) # FATHOM_HAVE_PNETCDF

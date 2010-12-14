@@ -24,7 +24,7 @@ fi
 
  # if CCMIO support is not disabled
 HAVE_CCMIO=no
-if test "xno" != "x$CCMIO_ARG"; then
+if test "xyes" = "x$CCMIO_ARG"; then
   HAVE_CCMIO=yes
 
     # if a path is specified, update LIBS and INCLUDES accordingly
