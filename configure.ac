@@ -41,6 +41,12 @@ fi
 ])
 
 
+# Check if platform is BlueGene
+AC_MSG_CHECKING([if platform is IBM BlueGene])
+FATHOM_TRY_COMPILER_DEFINE([__bg__],[BLUEGENE=yes],[BLUEGENE=no])
+AC_MSG_RESULT([$BLUEGENE])
+
+
 AC_CHECK_PROG([ZCAT],[gunzip],[gunzip -c],[])
 AC_CHECK_PROG([ZCAT],[gzip],[gzip -cd],[])
 AC_CHECK_PROG([ZCAT],[zcat],[zcat],[])
