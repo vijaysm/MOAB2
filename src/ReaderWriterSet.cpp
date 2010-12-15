@@ -49,6 +49,11 @@
 #  include "ReadNC.hpp"
 #endif
 
+// 2nd include of ReadNC in case we have pnetcdf and not netcdf
+#ifdef PNETCDF_FILE 
+#  include "ReadNC.hpp"
+#endif
+
 #ifdef CCMIO_FILE
 #  include "ReadCCMIO.hpp"
 #  include "WriteCCMIO.hpp"
