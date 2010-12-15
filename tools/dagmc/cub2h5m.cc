@@ -1209,7 +1209,7 @@ int main( int argc, char* argv[] )
   result = MBI->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_SIZE, MB_TAG_SPARSE, 
 			       MB_TYPE_OPAQUE, categoryTag, NULL, true );
   if(MB_SUCCESS != result) return result;
-  result = MBI->tag_create("GEOM_SENSE_2", 2*sizeof(EntityHandle), MB_TAG_DENSE, 
+  result = MBI->tag_create("GEOM_SENSE_2", 2*sizeof(EntityHandle), MB_TAG_SPARSE, 
 			       MB_TYPE_HANDLE, senseTag, NULL, true );
   if(MB_SUCCESS != result) return result;
   result = MBI->tag_create( "GEOM_SIZE", sizeof(double), MB_TAG_DENSE,                                                       

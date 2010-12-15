@@ -315,7 +315,7 @@ int main( int argc, char* argv[] ){
 			 MB_TYPE_INTEGER, idTag, NULL, true );
     CHECKERR( mbi, ret );
 
-    ret = mbi.tag_create("GEOM_SENSE_2", 2*sizeof(EntityHandle), MB_TAG_DENSE, 
+    ret = mbi.tag_create("GEOM_SENSE_2", 2*sizeof(EntityHandle), MB_TAG_SPARSE, 
 			 MB_TYPE_HANDLE, senseTag, NULL, true );
     CHECKERR( mbi, ret );
   
