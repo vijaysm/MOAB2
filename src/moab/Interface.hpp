@@ -35,6 +35,7 @@
 
 #include "moab/Forward.hpp"
 #include "moab/Range.hpp"
+#include "moab/Compiler.hpp"
 
 // include files
 #include <string>

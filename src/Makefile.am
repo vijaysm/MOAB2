@@ -128,6 +128,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/BSPTree.hpp \
   moab/CN.hpp \
   moab/CartVect.hpp \
+  moab/Compiler.hpp \
   moab/Core.hpp \
   moab/EntityType.hpp \
   moab/EntityHandle.hpp \

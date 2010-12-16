@@ -7,6 +7,8 @@
 #include <iosfwd>
 #include <string>
 
+#include "moab/Compiler.hpp"
+
 namespace moab {
 
 class Range;
@@ -152,11 +154,7 @@ public:
     { if (check(verbosity)) print_real(str); }
     
   //!\brief Output the specified printf-formatted output iff output is enabled
-  inline void printf( int verbosity, const char* fmt, ... )
-#ifdef __GNUC__
-    __attribute__((format(printf,3,4)))
-#endif
-    ;
+  inline void printf( int verbosity, const char* fmt, ... ) MB_PRINTF(2);
 
   //!\brief Output the specified string iff output is enabled.
   //! 
@@ -173,11 +171,7 @@ public:
   //!\brief Output the specified printf-formatted output iff output is enabled
   //! 
   //! Include current CPU time (as returned by clock()) in output.
-  inline void tprintf( int verbosity, const char* fmt, ... )
-#ifdef __GNUC__
-    __attribute__((format(printf,3,4)))
-#endif
-    ;
+  inline void tprintf( int verbosity, const char* fmt, ... ) MB_PRINTF(2);
 
    
   //!\brief Print the contents of a moab::Range

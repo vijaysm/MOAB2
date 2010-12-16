@@ -64,7 +64,8 @@
 #ifndef MOAB_ENTITY_REFINER_HPP
 #define MOAB_ENTITY_REFINER_HPP
 
-#include "moab/Types.hpp" // for MB_DLL_EXPORT
+#include "moab/Types.hpp"
+#include "moab/Compiler.hpp" // for MB_DLL_EXPORT
 
 #include <vector>
 

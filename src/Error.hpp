@@ -41,6 +41,7 @@
 #include <stdio.h>
 
 #include "moab/Types.hpp"
+#include "moab/Compiler.hpp"
 
 #ifdef WIN32
 #define VSNPRINTF _vsnprintf
@@ -66,11 +67,7 @@ public:
     return MB_SUCCESS; 
   }
 
-  inline ErrorCode set_last_error(const char* fmt, ...)
-#ifdef __GNUC__
-__attribute__((format(printf,2,3)))
-#endif
-  ;
+  inline ErrorCode set_last_error(const char* fmt, ...) MB_PRINTF(1);
   
   ErrorCode set_last_error( const char* fmt, va_list args )
   {

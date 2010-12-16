@@ -92,11 +92,7 @@ public:
   //! it makes sense to have this as long as Interface has a load_mesh function
   ErrorCode report_error( const std::string& error );
 
-  ErrorCode report_error( const char* error, ... )
-#ifdef __GNUC__
-__attribute__((format(printf,2,3)))
-#endif
-  ;
+  ErrorCode report_error( const char* error, ... ) MB_PRINTF(1);
 
     //! given an ordered list of bounding entities and the sense of
     //! those entities, return an ordered list of vertices

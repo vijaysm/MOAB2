@@ -21,6 +21,7 @@
 #include <vector>
 #include <string>
 #include "moab/Types.hpp"
+#include "moab/Compiler.hpp"
 
 namespace moab {
 
@@ -134,11 +135,7 @@ public:
   virtual ErrorCode report_error( const std::string& error ) = 0;
 
     //! overloaded report_error behaves like the above
-  virtual ErrorCode report_error( const char* error, ... )
-#ifdef __GNUC__
-__attribute__((format(printf,2,3)))
-#endif
-  = 0;
+  virtual ErrorCode report_error( const char* error, ... ) MB_PRINTF(1) = 0;
 
     //! given an ordered list of bounding entities and the sense of
     //! those entities, return an ordered list of vertices

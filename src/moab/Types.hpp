@@ -30,16 +30,6 @@
 namespace moab {
 #endif
 
-#ifdef WIN32
-#ifdef MB_EXPORTS
-#define MB_DLL_EXPORT __declspec(dllexport)
-#else
-#define MB_DLL_EXPORT
-#endif
-#else
-#define MB_DLL_EXPORT
-#endif
-
 /** MOAB error codes */
 enum ErrorCode { MB_SUCCESS = 0,
                    MB_INDEX_OUT_OF_RANGE,

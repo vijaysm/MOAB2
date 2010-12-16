@@ -19,6 +19,7 @@
 
 
 #include "moab/Range.hpp"
+#include "moab/Compiler.hpp"
 #include <vector>
 
 namespace moab {
@@ -325,11 +326,7 @@ public:
   
     //! overloaded report_error behaves like the above
     //! \return status Return status
-  virtual ErrorCode report_error( const char* error, ... ) 
-#ifdef __GNUC__
-__attribute__((format(printf,2,3)))
-#endif
-  = 0;
+  virtual ErrorCode report_error( const char* error, ... ) MB_PRINTF(1) = 0;
 
 };
 
