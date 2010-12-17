@@ -95,6 +95,12 @@ else
   qvdual_DIR=
 endif
 
+if ENABLE_vtkMOABReader
+  vtkMOABReader_DIR = vtkMOABReader
+else
+  vtkMOABReader_DIR = 
+endif
+
 if ENABLE_mcnpmit
   mcnpmit_DIR = mcnpmit
 else
@@ -124,6 +130,7 @@ SUBDIRS = . \
           $(mbzoltan_DIR) \
 	  $(mcnpmit_DIR) \
           $(qvdual_DIR) \
+	  $(vtkMOABReader_DIR) \
           $(dagmc_DIR)
 
 mbconvert_SOURCES = convert.cpp

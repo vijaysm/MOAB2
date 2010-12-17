@@ -32,12 +32,13 @@
 #include "vtkPoints.h"
 #include "vtkUnstructuredGridSource.h"
 
-#include "MBInterface.hpp"
-#include "MBWriteUtilIface.hpp"
-#include "MBRange.hpp"
-#include "DualTool.hpp"
+#include "moab/Interface.hpp"
+#include "moab/WriteUtilIface.hpp"
+#include "moab/Range.hpp"
 
 class vtkIntArray;
+
+using namespace moab;
 
 #include <map>
 
@@ -53,9 +54,6 @@ public:
   vtkSetStringMacro(FileName);
   vtkGetStringMacro(FileName);
 
-  int GetNumberOfDualSurfaces();
-  int GetNumberOfDualCurves();
-  
   virtual void Update();
   
 protected:
@@ -70,49 +68,24 @@ private:
 
 
   static const int vtk_cell_types[];
-  int NumberOfDualSurfaces;
-  int NumberOfDualCurves;
-  int NumberOfDualVertices;
 
   int MaxPointId;
   int MaxCellId;
-  int MaxPrimalId;
-  int DualVertexIdOffset;
 
-  MBTag VtkOffsetIdTag;
+  moab::Tag VtkOffsetIdTag;
   
-  MBRange DualVertexRange;
-
   char *FileName;
   
-  MBErrorCode construct_mesh();
+  moab::ErrorCode construct_mesh();
 
-  MBErrorCode create_points_vertices(MBWriteUtilIface *iface,
-                                     vtkUnstructuredGrid *&ug,
-                                     const MBRange &all_elems);
+  moab::ErrorCode create_points_vertices(moab::WriteUtilIface *iface,
+                                   vtkUnstructuredGrid *&ug,
+                                   const moab::Range &all_elems);
   
-  MBErrorCode create_elements(MBWriteUtilIface *iface,
-                              vtkUnstructuredGrid *&ug);
-  MBErrorCode construct_dual(DualTool &dt);
+  moab::ErrorCode create_elements(moab::WriteUtilIface *iface,
+                                  vtkUnstructuredGrid *&ug);
   
-  MBErrorCode get_vertex_polys(DualTool &dt,
-                               vtkUnstructuredGrid *&ug);
-  
-  int get_dual_surf_polys(DualTool &dt,
-                          MBEntityHandle dual_ent,
-                          const int ds_id,
-                          vtkIntArray *&ds_idarray,
-                          vtkUnstructuredGrid *&ug);
-  
-  int get_dual_curve_polys(DualTool &dt,
-                           MBEntityHandle dual_ent,
-                           const int dc_id,
-                           vtkIntArray *&dc_idarray,
-                           vtkUnstructuredGrid *&ug);
-  
-  MBErrorCode gather_points(DualTool &dt, vtkUnstructuredGrid *&ug);
-
-  MBErrorCode construct_filters();
+  moab::ErrorCode construct_filters();
 
   void add_name(vtkUnstructuredGrid *output, const char *prefix,
                 const int id);

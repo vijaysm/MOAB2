@@ -43,6 +43,7 @@
 #include "moab/ReaderWriterSet.hpp"
 #include "moab/ReaderIface.hpp"
 #include "moab/WriterIface.hpp"
+#include "moab/ScdInterface.hpp"
 
 #include <sys/stat.h>
 #include <errno.h>
@@ -292,6 +293,11 @@ ErrorCode Core::query_interface(const std::string& iface_name, void** iface)
     *iface = (void*)(ExoIIInterface*) new ExoIIUtil(this);
     return MB_SUCCESS;
   }
+  else if(iface_name == "ScdInterface")
+  {
+    *iface = (void*)(ScdInterface*) new ScdInterface(this);
+    return MB_SUCCESS;
+  }
   return MB_FAILURE;
 }
 
@@ -317,6 +323,11 @@ ErrorCode Core::release_interface(const std::string& iface_name, void* iface)
   else if(iface_name == "ExoIIInterface")
   {
     delete (ExoIIInterface*)iface;
+    return MB_SUCCESS;
+  }
+  else if(iface_name == "ScdInterface")
+  {
+    delete (ScdInterface*)iface;
     return MB_SUCCESS;
   }
   

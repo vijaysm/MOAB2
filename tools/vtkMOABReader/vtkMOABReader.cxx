@@ -25,18 +25,20 @@
 #include "vtkExtractUnstructuredGrid.h"
 #include "vtkThreshold.h"
 #include <sstream>
+#include "assert.h"
+#include "MBTagConventions.hpp"
 
 #define IS_BUILDING_MB
-#include "MBCore.hpp"
+#include "moab/Core.hpp"
 #undef IS_BUILDING_MB
+#include "moab/CN.hpp"
 
-#define DUAL_SURF_ATTRIBUTE_NAME "DualSurfaceId"
-#define DUAL_CURVE_ATTRIBUTE_NAME "DualCurveId"
+using namespace moab;
 
-vtkCxxRevisionMacro(vtkMOABReader, "$Revision$");
-vtkStandardNewMacro(vtkMOABReader);
+vtkCxxRevisionMacro(vtkMOABReader, "$Revision$")
+vtkStandardNewMacro(vtkMOABReader)
 
-MBInterface *gMB = NULL;
+moab::Interface *gMB = NULL;
 
 const int vtkMOABReader::vtk_cell_types[] = {
   1, 3, 5, 9, 7, 10, 14, 13, 0, 12, 0, 0, 0};
@@ -46,8 +48,6 @@ const bool use_filters = true;
 
 vtkMOABReader::vtkMOABReader()
 {
-  this->NumberOfDualSurfaces = 0;
-  this->NumberOfDualCurves = 0;
   this->FileName = NULL;
   VtkOffsetIdTag = 0;
   
@@ -66,10 +66,10 @@ void vtkMOABReader::Execute()
   this->DebugOn();
 
     // initialize MOAB & read file
-  if (NULL == gMB) gMB = new MBCore();
+  if (NULL == gMB) gMB = new Core();
   
     // make an offset id tag
-  MBErrorCode result;
+  moab::ErrorCode result;
   if (0 == VtkOffsetIdTag) {
     
     result = gMB->tag_get_handle("__vtk_offset_id_tag", VtkOffsetIdTag);
@@ -100,15 +100,6 @@ void vtkMOABReader::Execute()
     }
   vtkDebugMacro(<<"Constructed mesh...");
 
-  DualTool dt(gMB);
-  result = construct_dual(dt);
-  if (MB_SUCCESS != result)
-    {
-    vtkErrorMacro( << "Failed to construct dual from " << this->GetFileName() );
-    return;
-    }
-  vtkDebugMacro(<<"Constructed dual...");
-
   if (use_filters)
     result = construct_filters();
   if (MB_SUCCESS != result)
@@ -120,17 +111,17 @@ void vtkMOABReader::Execute()
   
 }
 
-MBErrorCode vtkMOABReader::construct_mesh() 
+ErrorCode vtkMOABReader::construct_mesh() 
 {
     // construct the vtk representation of the mesh; just do hexes and quads 
     // for now
-  MBWriteUtilIface *iface = NULL;
-  gMB->query_interface("MBWriteUtilIface", reinterpret_cast<void**>(&iface));
+  moab::WriteUtilIface *iface = NULL;
+  gMB->query_interface("WriteUtilIface", reinterpret_cast<void**>(&iface));
   assert(NULL != iface);
   
     // get all the hexes and quads
-  MBRange all_elems;
-  MBErrorCode result = MB_SUCCESS, tmp_result;
+  moab::Range all_elems;
+  moab::ErrorCode result = MB_SUCCESS, tmp_result;
   for (int dim = 0; dim <= 3; dim++) 
   {
     tmp_result = gMB->get_entities_by_dimension(0, dim, all_elems);
@@ -155,19 +146,17 @@ MBErrorCode vtkMOABReader::construct_mesh()
     return result;
     }
 
-  this->MaxPrimalId = this->MaxCellId;
-
   return MB_SUCCESS;
   
 }
 
-MBErrorCode vtkMOABReader::create_points_vertices(MBWriteUtilIface *iface,
-                                                  vtkUnstructuredGrid *&ug,
-                                                  const MBRange &verts) 
+ErrorCode vtkMOABReader::create_points_vertices(WriteUtilIface *iface,
+                                                vtkUnstructuredGrid *&ug,
+                                                const Range &verts) 
 {
     // get the global id tag
-  MBTag gid_tag;
-  MBErrorCode result = gMB->tag_get_handle(GLOBAL_ID_TAG_NAME, gid_tag);
+  moab::Tag gid_tag;
+  moab::ErrorCode result = gMB->tag_get_handle(GLOBAL_ID_TAG_NAME, gid_tag);
   if (MB_SUCCESS != result) {
     int dum = -1;
     result = gMB->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE,
@@ -185,7 +174,7 @@ MBErrorCode vtkMOABReader::create_points_vertices(MBWriteUtilIface *iface,
   coords[0] = new double[verts.size()];
   coords[1] = new double[verts.size()];
   coords[2] = new double[verts.size()];
-  result = iface->get_node_arrays(3, verts.size(), verts,
+  result = iface->get_node_coords(3, verts.size(), verts,
                                   gid_tag, 0, coords);
   if (MB_SUCCESS != result)
   {
@@ -198,7 +187,7 @@ MBErrorCode vtkMOABReader::create_points_vertices(MBWriteUtilIface *iface,
   int i = 0;
   int dum;
   points->SetNumberOfPoints(verts.size());
-  for (MBRange::const_iterator rit = verts.begin(); rit != verts.end(); rit++)
+  for (moab::Range::const_iterator rit = verts.begin(); rit != verts.end(); rit++)
   {
     result =  gMB->tag_get_data(gid_tag, &(*rit), 1, &dum);
     assert(MB_SUCCESS == result && dum == i);
@@ -209,27 +198,15 @@ MBErrorCode vtkMOABReader::create_points_vertices(MBWriteUtilIface *iface,
   points->Delete();
   this->MaxPointId = verts.size() - 1;
 
-    // create vertices at the nodes; assumes nodes ordered in increasing ids
-    // (which was checked in an assert during point creation)
-  int last_pt;
-  for (i = 0; i < verts.size(); i++) {
-    last_pt = ug->InsertNextCell(vtk_cell_types[MBVERTEX], 1, &i);
-  }
-
-  if (!new_outputs) {
-    assert(last_pt == verts.size()-1 && ug->GetNumberOfCells() == verts.size());
-    this->MaxCellId = verts.size()-1;
-  }
-
   return MB_SUCCESS;
 }
 
-MBErrorCode vtkMOABReader::create_elements(MBWriteUtilIface *iface,
-                                           vtkUnstructuredGrid *&ug)
+ErrorCode vtkMOABReader::create_elements(WriteUtilIface *iface,
+                                         vtkUnstructuredGrid *&ug)
 {
     // get the global id tag
-  MBTag gid_tag;
-  MBErrorCode result = gMB->tag_get_handle(GLOBAL_ID_TAG_NAME, gid_tag);
+  moab::Tag gid_tag;
+  moab::ErrorCode result = gMB->tag_get_handle(GLOBAL_ID_TAG_NAME, gid_tag);
   if (MB_SUCCESS != result) {
     int dum = -1;
     result = gMB->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE,
@@ -243,7 +220,7 @@ MBErrorCode vtkMOABReader::create_elements(MBWriteUtilIface *iface,
   assert(0 != gid_tag);
 
     // get the vertices
-  MBRange verts;
+  Range verts;
   result = gMB->get_entities_by_type(0, MBVERTEX, verts);
   if (MB_SUCCESS != result)
   {
@@ -253,8 +230,7 @@ MBErrorCode vtkMOABReader::create_elements(MBWriteUtilIface *iface,
 
   vtkDebugMacro(<< "Gathered " << verts.size() << " vertices from MOAB.");
   
-    // assign ids to the vertices; keep track of how many so we can set point ids
-    // for dual vertices later
+    // assign ids to the vertices
   result = iface->assign_ids(verts, 0, 0);
   if (MB_SUCCESS != result)
   {
@@ -274,24 +250,25 @@ MBErrorCode vtkMOABReader::create_elements(MBWriteUtilIface *iface,
                 << " points, " << ug->GetNumberOfCells() << " cells.");
   
     // for the remaining elements, add them individually
-  int ids[31];
-  const MBEntityHandle *connect;
+  int ids[CN::MAX_NODES_PER_ELEMENT];
+  const EntityHandle *connect;
   int num_connect;
 
-  for (MBEntityType this_type = MBEDGE; this_type != MBENTITYSET; this_type++) {
+  for (EntityType this_type = MBEDGE; this_type != MBENTITYSET; this_type++) {
 
       // don't try to represent elements vtk doesn't understand
     if (vtk_cell_types[this_type] == 0) continue;
     
-    MBRange elems;
+    Range elems;
     result = gMB->get_entities_by_type(0, this_type, elems);
     if (MB_SUCCESS != result)
     {
       vtkErrorMacro( << "Couldn't get elements. " );
       return result;
     }
-  
-    for (MBRange::iterator rit = elems.begin(); rit != elems.end(); rit++) {
+
+    std::vector<int> eids;
+    for (Range::iterator rit = elems.begin(); rit != elems.end(); rit++) {
       
       // get the connectivity of these elements
       result = gMB->get_connectivity(*rit, connect, num_connect, true);
@@ -310,413 +287,42 @@ MBErrorCode vtkMOABReader::create_elements(MBWriteUtilIface *iface,
       }
 
         // ok, now insert this cell
-      int last_id = ug->InsertNextCell(vtk_cell_types[this_type], num_connect, ids);
+      int last_id = ug->InsertNextCell(vtk_cell_types[this_type], (vtkIdType)num_connect, (vtkIdType*)ids);
+      eids.push_back(last_id);
       if (!new_outputs) {
         assert(last_id == this->MaxCellId+1);
         this->MaxCellId = last_id;
       }
     }
-  }
-  
-  return MB_SUCCESS;
-}
-
-MBErrorCode vtkMOABReader::construct_dual(DualTool &dt) 
-{
-    // construct dual
-  MBErrorCode result = dt.construct_hex_dual();
-  if (MB_SUCCESS != result)
-    {
-    vtkErrorMacro( << "Failed to construct dual. ");
-    assert(false);
-    return result;
-    }
-
-    // find # dual surfaces & curves
-  MBTag ds_tag = dt.dualSurface_tag();
-  MBRange ds_range;
-  result = gMB->get_entities_by_type_and_tag(0, MBENTITYSET, 
-                                             &ds_tag, NULL, 1, ds_range);
-  if (MB_SUCCESS != result)
-    {
-    vtkErrorMacro( << "Failed to get number of dual surfaces. ");
-    return result;
-    }
-  this->NumberOfDualSurfaces = ds_range.size();
-  
-  MBTag dc_tag = dt.dualCurve_tag();
-  MBRange dc_range;
-  result = gMB->get_entities_by_type_and_tag(0, MBENTITYSET, 
-                                             &dc_tag, NULL, 1, dc_range);
-  if (MB_SUCCESS != result)
-    {
-    vtkErrorMacro( << "Failed to get number of dual curves. ");
-    return result;
-    }
-  this->NumberOfDualCurves = dc_range.size();
-  
-  MBEntityHandle dual_ent;
-
-    // get the data set
-  vtkUnstructuredGrid *ug = this->GetOutput();
-  
-    // gather the points defining the whole dual
-  gather_points(dt, ug);
-
-    // get the vertices of the dual and put in the ug
-  get_vertex_polys(dt, ug);
-
-    // get the global id tag
-  int ds_id;
-  MBTag gid_tag;
-  result = gMB->tag_get_handle(GLOBAL_ID_TAG_NAME, gid_tag);
-  if (MB_SUCCESS != result) 
-  {
-    vtkErrorMacro( << "Failed to get global id tag from MOAB. ");
-    return result;
-  }
-
-  vtkIntArray *ds_idarray;
-  if (!new_outputs) {
-      // set up a field data array corresponding to the dual surface id;
-      // will set that on each polygon to use as scalar data later
-    ds_idarray = vtkIntArray::New();
-    ds_idarray->SetName(DUAL_SURF_ATTRIBUTE_NAME);
-    for (int i = this->MaxCellId; i >= 0; i--)
-      ds_idarray->InsertValue(i, -1);
-  }
-
-    // get the polygons for each dual surface and put in ug
-  for (MBRange::iterator rit = ds_range.begin(); rit != ds_range.end(); rit++) {
-    result = gMB->tag_get_data(gid_tag, &(*rit), 1, &ds_id);
-
-    vtkUnstructuredGrid *surf_ug;
     
-    if (new_outputs) {
-        // make a new ug for this dual surf
-      surf_ug = vtkUnstructuredGrid::New();
-      this->AddOutput(surf_ug);
-      this->add_name(surf_ug, "dual_surf_", ds_id);
-        // make the polygons which represent this dual surf; returns the id of the first polygon
-        // set up a field data array corresponding to the dual surface id;
-        // will set that on each polygon to use as scalar data later
-      ds_idarray = vtkIntArray::New();
-      ds_idarray->SetName(DUAL_SURF_ATTRIBUTE_NAME);
-
+    result = gMB->tag_set_data(gid_tag, elems, &eids[0]);
+    if (MB_SUCCESS != result)
+    {
+      vtkErrorMacro( << "Couldn't save element ids. " );
+      return result;
     }
-    else 
-      surf_ug = ug;
-
-    int first = get_dual_surf_polys(dt, *rit, ds_id, ds_idarray, surf_ug);
-    assert(-1 != first);
-
-      // assign the starting polygon id in the dual surface set - id map
-    result = gMB->tag_set_data(VtkOffsetIdTag, &(*rit), 1, &first);
-    assert(MB_SUCCESS == result);
-
-    if (new_outputs) {
-      surf_ug->SetPoints(ug->GetPoints());
-      surf_ug->GetCellData()->AddArray(ds_idarray);
-      ds_idarray->Delete();
-      surf_ug->Delete();
-    }
-  }
-
-    // get the polygons for each dual curve and put in 
-    // 2..NumberOfDualSurfaces+1..2+NumberOfDualSurfaces+NumberOfDualCurves 
-    // polydata instances
-  int dc_id;
-  int max_ds_id = this->MaxCellId;
-  vtkIntArray *dc_idarray;
-  if (!new_outputs) {
-      // set up a field data array corresponding to the dual curve id;
-      // will set that on each polyline to use as scalar data later
-    dc_idarray = vtkIntArray::New();
-    dc_idarray->SetName(DUAL_CURVE_ATTRIBUTE_NAME);
-      // set dual curve ids to default value for dual surf polygons
-    for (int i = this->MaxCellId; i >=0; i--)
-      dc_idarray->InsertValue(i, -1);
-  }
-  
-  for (MBRange::iterator rit = dc_range.begin(); rit != dc_range.end(); rit++) {
-    result = gMB->tag_get_data(gid_tag, &(*rit), 1, &dc_id);
-
-    vtkUnstructuredGrid *curve_ug;
-    if (new_outputs) {
-      
-        // make a new ug for this dual curve
-      curve_ug = vtkUnstructuredGrid::New();
-      this->AddOutput(curve_ug);
-      this->add_name(curve_ug, "dual_curve_", dc_id);
-
-        // set up a field data array corresponding to the dual curve id;
-        // will set that on each polyline to use as scalar data later
-      dc_idarray = vtkIntArray::New();
-      dc_idarray->SetName(DUAL_CURVE_ATTRIBUTE_NAME);
-    }
-    else 
-      curve_ug = ug;
-      
     
-      // make the polylines which represent this dual curve; returns the id of the first polyline
-    int first = get_dual_curve_polys(dt, *rit, dc_id, dc_idarray, curve_ug);
-    assert(-1 != first);
-
-      // assign the starting polygon id in the dual surface set - id map
-    result = gMB->tag_set_data(VtkOffsetIdTag, &(*rit), 1, &first);
-
-    if (new_outputs) {
-      curve_ug->SetPoints(ug->GetPoints());
-      curve_ug->GetCellData()->AddArray(dc_idarray);
-      dc_idarray->Delete();
-      curve_ug->Delete();
-    }
-  }
-
-  if (!new_outputs) {
-      // set ds_idarray to default value for dual curve polylines
-    for (int i = this->MaxCellId; i > max_ds_id; i--)
-      ds_idarray->InsertValue(i, -1);
-
-    ug->GetCellData()->AddArray(dc_idarray);
-    ug->GetCellData()->AddArray(ds_idarray);
-    ds_idarray->Delete();
-    dc_idarray->Delete();
-  }
-
-  return MB_SUCCESS;
-}
-
-MBErrorCode vtkMOABReader::get_vertex_polys(DualTool &dt,
-                                            vtkUnstructuredGrid *&ug)
-{
-  MBTag dcell_tag = dt.isDualCell_tag();
-  assert(0 != dcell_tag);
-
-    // get the vertices
-  int dum_tag = 0x1;
-  int *dum_tag_ptr = &dum_tag;
-  DualVertexRange.clear();
-  MBErrorCode result = gMB->get_entities_by_type_and_tag(0, MBVERTEX, &dcell_tag,
-                                                         (const void **)&dum_tag_ptr, 1, DualVertexRange);
-  if (MB_SUCCESS != result) return result;
-
-    // get the graphics points on the vertices
-  std::vector<DualTool::GraphicsPoint> points;
-  result = dt.get_graphics_points(DualVertexRange, points);
-  if (MB_SUCCESS != result) return result;
-
-    // make another output for the vertices
-  vtkUnstructuredGrid *vug;
-  if (new_outputs) {
-    vug = vtkUnstructuredGrid::New();
-    this->AddOutput(vug);
-    this->add_name(vug, "dual_vertices", 0);
-  }
-  else
-    vug = ug;
-  
-    // need to keep the offset between 1st MOAB vertex and corresponding vtk element id
-  std::vector<DualTool::GraphicsPoint>::const_iterator vit = points.begin(); 
-  this->DualVertexIdOffset = vug->InsertNextCell(vtk_cell_types[MBVERTEX], 1, const_cast<int*>(&(vit->id)));
-  if (!new_outputs) {
-    assert(this->MaxCellId+1 == this->DualVertexIdOffset);
-    this->MaxCellId = this->DualVertexIdOffset;
-  }
-  
-  this->NumberOfDualVertices = points.size();
-
-  int last;
-  
-    // add each graphics point to the cell array
-  for (vit++; vit != points.end(); vit++) {
-    last = vug->InsertNextCell(vtk_cell_types[MBVERTEX], 1, const_cast<int*>(&(vit->id)));
-    if (!new_outputs) {
-      assert(this->MaxCellId+1 == last);
-      this->MaxCellId = last;
-    }
-  }
-
-  if (new_outputs) {
-      // borrow the points array from the reader output
-    vug->SetPoints(ug->GetPoints());
-    vug->Delete();
   }
   
   return MB_SUCCESS;
-}
-
-int vtkMOABReader::get_dual_surf_polys(DualTool &dt,
-                                       MBEntityHandle dual_ent,
-                                       const int ds_id,
-                                       vtkIntArray *&ds_idarray,
-                                       vtkUnstructuredGrid *&ug) 
-{
-    // should be an entity set
-  assert(gMB->type_from_handle(dual_ent) == MBENTITYSET);
-
-  MBRange two_cells;
-  MBErrorCode result = gMB->get_entities_by_handle(dual_ent, two_cells);
-  if (MB_SUCCESS != result) return result;
-  
-  std::vector<DualTool::GraphicsPoint> points;
-  std::vector<int> npts;
-
-  int first = -1, tmp_first;
-  std::vector<int> pt_ids;
-  
-  for (MBRange::iterator rit = two_cells.begin(); rit != two_cells.end(); rit++) {
-      // get the cells for this 2cell
-    points.clear();
-    npts.clear();
-    result = dt.get_graphics_points(*rit, npts, points);
-    if (MB_SUCCESS != result) return result;
-  
-    // add each polygon to the cell array
-    std::vector<DualTool::GraphicsPoint>::iterator vit = points.begin(); 
-    for (std::vector<int>::iterator nit = npts.begin(); nit != npts.end(); 
-         nit++) {
-        // first need to make a list of point ids
-      pt_ids.reserve(*nit);
-      for (int i = 0; i < *nit; i++)
-        pt_ids[i] = vit++->id;
-
-#ifdef NDEBUG
-      for (int i = 0; i < *nit; i++)
-        assert(pt_ids[i] < this->MaxPointId && pt_ids[i] >= 0);
-#endif
-      
-        // now make the actual polygon
-      tmp_first = ug->InsertNextCell(vtk_cell_types[MBPOLYGON], *nit, &pt_ids[0]);
-      if (-1 == first) first = tmp_first;
-
-        // put the dual surface id as a scalar on the data array
-      ds_idarray->InsertValue(tmp_first, ds_id);
-      if (!new_outputs) {
-        assert(this->MaxCellId+1 == tmp_first);
-        this->MaxCellId = tmp_first;
-      }
-    }
-  }
-
-  return first;
-}
-
-int vtkMOABReader::get_dual_curve_polys(DualTool &dt,
-                                        MBEntityHandle dual_ent,
-                                        const int dc_id,
-                                        vtkIntArray *&dc_idarray,
-                                        vtkUnstructuredGrid *&ug) 
-{
-    // should be an entity set
-  assert(gMB->type_from_handle(dual_ent) == MBENTITYSET);
-
-  MBRange one_cells;
-  MBErrorCode result = gMB->get_entities_by_handle(dual_ent, one_cells);
-  if (MB_SUCCESS != result) return result;
-  
-  std::vector<DualTool::GraphicsPoint> points;
-  std::vector<int> npts;
-
-  int first = -1, tmp_first;
-  std::vector<int> pt_ids;
-  
-  for (MBRange::iterator rit = one_cells.begin(); rit != one_cells.end(); rit++) {
-      // get the cells for this 2cell
-    points.clear();
-    npts.clear();
-    result = dt.get_graphics_points(*rit, npts, points);
-    if (MB_SUCCESS != result) return result;
-  
-    // add each polyline to the cell array
-    std::vector<DualTool::GraphicsPoint>::iterator vit = points.begin(); 
-    for (std::vector<int>::iterator nit = npts.begin(); nit != npts.end(); 
-         nit++) {
-        // first need to make a list of point ids
-      pt_ids.reserve(*nit);
-      for (int i = 0; i < *nit; i++)
-        pt_ids[i] = vit++->id;
-
-#ifdef NDEBUG
-      for (int i = 0; i < *nit; i++)
-        assert(pt_ids[i] < this->MaxPointId && pt_ids[i] >= 0);
-#endif
-        // now make the actual polyline; hardwire the polyline type
-      tmp_first = ug->InsertNextCell(VTK_POLY_LINE, *nit, &pt_ids[0]);
-      if (-1 == first) first = tmp_first;
-
-        // put the dual curve id as a scalar on the data array
-      dc_idarray->InsertValue(tmp_first, dc_id);
-      if (!new_outputs) {
-        assert(this->MaxCellId+1 == tmp_first);
-        this->MaxCellId = tmp_first;
-      }
-    }
-  }
-  
-  return first;
-}
-
-MBErrorCode vtkMOABReader::gather_points(DualTool &dt, vtkUnstructuredGrid *&ug)
-{
-  int i;
-  MBRange dum_range;
-  MBEntityHandle dual_ent;
-  std::vector<DualTool::GraphicsPoint> gps;
-
-    // get the dual surface sets
-  MBTag ds_tag = dt.dualSurface_tag();
-  MBErrorCode result = gMB->get_entities_by_type_and_tag(0, MBENTITYSET, 
-                                                         &ds_tag, NULL, 1, dum_range);
-  if (MB_SUCCESS != result) return result;
-
-    // get the points defined on all the entities in these sets, re-assigning
-    // ids at the same time
-  result = dt.get_graphics_points(dum_range, gps, true, MaxPointId+1);
-  if (MB_SUCCESS != result) return result;
-
-    // get the point array
-  vtkPoints *points = ug->GetPoints();
-
-    // increase point array size to hold these
-  assert(points->GetNumberOfPoints() == MaxPointId+1);
-  
-  std::vector<DualTool::GraphicsPoint>::reverse_iterator pit;
-    // iterate from reverse, so we only re-allocate on the point list once
-  for (pit = gps.rbegin(); pit != gps.rend(); pit++) {
-    points->InsertPoint(pit->id, pit->xyz);
-    if (pit->id > this->MaxPointId) this->MaxPointId = pit->id;
-  }
-
-  assert(points->GetNumberOfPoints() == MaxPointId+1);
 }
 
 void vtkMOABReader::PrintSelf(ostream& os, vtkIndent indent)
 {
-  os << indent << "Number of dual surfaces: " << NumberOfDualSurfaces << std::endl;
-  os << indent << "Number of dual curves: " << NumberOfDualCurves << std::endl;
+  os << indent << "Max point id: " << MaxPointId << std::endl;
+  os << indent << "Max cell id: " << MaxCellId << std::endl;
   
   this->Superclass::PrintSelf(os,indent);
 }
 
-int vtkMOABReader::GetNumberOfDualSurfaces()
-{
-  return NumberOfDualSurfaces;
-}
-
-int vtkMOABReader::GetNumberOfDualCurves() 
-{
-  return NumberOfDualCurves;
-}
-
-MBErrorCode vtkMOABReader::construct_filters() 
+ErrorCode vtkMOABReader::construct_filters() 
 {
     // apply threshold and type filters to the output to get multiple actors
     // corresponding to dual surfaces and curves, then group the dual actors
     // together using a group filter
 
   vtkUnstructuredGrid *ug = this->GetOutput(0);
-
+/*
     // first, get the non-dual mesh
   vtkExtractUnstructuredGrid *primal = vtkExtractUnstructuredGrid::New();
   primal->SetInput(this->GetOutput());
@@ -758,7 +364,7 @@ MBErrorCode vtkMOABReader::construct_filters()
   dual_verts->SetCellMinimum(this->DualVertexIdOffset);
   dual_verts->SetCellMaximum(this->DualVertexIdOffset+this->NumberOfDualVertices-1);
   this->add_name(dual_verts->GetOutput(), "dual_verts", 0);
-
+*/
   return MB_SUCCESS;
 }
 

@@ -85,6 +85,8 @@ libMOAB_la_SOURCES = \
   PolyElementSeq.hpp \
   ScdElementData.cpp \
   ScdElementData.hpp \
+  ScdInterface.cpp \
+  ScdInterface.hpp \
   ScdVertexData.cpp \
   ScdVertexData.hpp \
   SequenceData.hpp \
