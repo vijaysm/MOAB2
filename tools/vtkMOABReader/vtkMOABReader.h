@@ -72,20 +72,23 @@ private:
   int MaxPointId;
   int MaxCellId;
 
-  moab::Tag VtkOffsetIdTag;
+  Tag VtkOffsetIdTag;
   
   char *FileName;
   
-  moab::ErrorCode construct_mesh();
+  int construct_mesh();
 
-  moab::ErrorCode create_points_vertices(moab::WriteUtilIface *iface,
+  int create_points_vertices(WriteUtilIface *iface,
                                    vtkUnstructuredGrid *&ug,
-                                   const moab::Range &all_elems);
+                                   const Range &all_elems);
   
-  moab::ErrorCode create_elements(moab::WriteUtilIface *iface,
+  int create_elements(WriteUtilIface *iface,
                                   vtkUnstructuredGrid *&ug);
   
-  moab::ErrorCode construct_filters();
+  int construct_filters();
+
+  int read_tags();
+  
 
   void add_name(vtkUnstructuredGrid *output, const char *prefix,
                 const int id);

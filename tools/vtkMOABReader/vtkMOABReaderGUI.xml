@@ -1,0 +1,6 @@
+  <ParaViewReaders>
+    <Reader name="vtkMOABReader" extensions=".h5m cub ccmg"
+            file_description="MOABfiles">
+    </Reader>
+  </ParaViewReaders>
+

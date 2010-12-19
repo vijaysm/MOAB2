@@ -1,0 +1,28 @@
+<ServerManagerConfiguration>
+  <ProxyGroup name="sources">
+    <!-- ================================================================== -->
+    <SourceProxy name="vtkMOABReader" class="vtkMOABReader" label="MOABReader">
+      <Documentation
+         long_help="Read a MOAB file."
+         short_help="Read a MOAB file.">
+      </Documentation>
+      <StringVectorProperty
+            name="FileName"
+            animateable="0"
+            command="SetFileName"
+            number_of_elements="1">
+        <FileListDomain name="files"/>
+        <Documentation>
+          This property specifies the file name for the PNG reader.
+        </Documentation>
+      </StringVectorProperty>
+ 
+      <Hints>
+        <ReaderFactory extensions="h5m nc g exoII"
+                       file_description="MOAB File Formats" />
+     </Hints>
+    </SourceProxy>
+    <!-- End vtkMOABReader -->
+  </ProxyGroup>
+  <!-- End Filters Group -->
+</ServerManagerConfiguration>

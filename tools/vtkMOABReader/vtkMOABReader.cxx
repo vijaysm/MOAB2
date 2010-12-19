@@ -24,7 +24,11 @@
 #include "vtkUnstructuredGrid.h"
 #include "vtkExtractUnstructuredGrid.h"
 #include "vtkThreshold.h"
+#include "vtkDoubleArray.h"
+#include "vtkIntArray.h"
+#include "vtkPointData.h"
 #include <sstream>
+#include <vector>
 #include "assert.h"
 #include "MBTagConventions.hpp"
 
@@ -70,6 +74,7 @@ void vtkMOABReader::Execute()
   
     // make an offset id tag
   moab::ErrorCode result;
+  int success;
   if (0 == VtkOffsetIdTag) {
     
     result = gMB->tag_get_handle("__vtk_offset_id_tag", VtkOffsetIdTag);
@@ -92,7 +97,7 @@ void vtkMOABReader::Execute()
   vtkUnstructuredGrid *ug = this->GetOutput();
   ug->Allocate();
   
-  result = construct_mesh();
+  success = construct_mesh();
   if (MB_SUCCESS != result)
     {
     vtkErrorMacro( << "Failed to construct mesh from " << this->GetFileName() );
@@ -101,7 +106,7 @@ void vtkMOABReader::Execute()
   vtkDebugMacro(<<"Constructed mesh...");
 
   if (use_filters)
-    result = construct_filters();
+    success = construct_filters();
   if (MB_SUCCESS != result)
     {
     vtkErrorMacro( << "Failed to construct filters ");
@@ -109,9 +114,195 @@ void vtkMOABReader::Execute()
     }
   vtkDebugMacro(<<"Filters constructed...");
   
+    // get all dense tags
+  success = read_tags();
+  vtkDebugMacro(<<"Tags read...");
+  
 }
 
-ErrorCode vtkMOABReader::construct_mesh() 
+int vtkMOABReader::read_tags() 
+{
+    // get all the tags
+  std::vector<Tag> tmptags, all_tags;
+  moab::ErrorCode rval = gMB->tag_get_tags(tmptags);
+  if (MB_SUCCESS != rval) return rval;
+  
+  for (std::vector<Tag>::iterator vit = tmptags.begin(); vit != tmptags.end(); vit++) {
+      // skip sparse tags
+    TagType ttype;
+    rval = gMB->tag_get_type(*vit, ttype);
+    if (MB_SUCCESS == rval && MB_TAG_DENSE == ttype) all_tags.push_back(*vit);
+  }
+
+    // now create field arrays on all 2d and 3d entities
+  Range ents2d, ents3d, verts;
+  rval = gMB->get_entities_by_dimension(0, 2, ents2d);
+  if (MB_SUCCESS != rval) return rval;
+
+  rval = gMB->get_entities_by_dimension(0, 3, ents3d);
+  if (MB_SUCCESS != rval) return rval;
+
+  rval = gMB->get_entities_by_dimension(0, 0, verts);
+  if (MB_SUCCESS != rval) return rval;
+
+  int *gids;
+  void *data;
+  moab::Tag gid_tag;
+  rval = gMB->tag_get_handle(GLOBAL_ID_TAG_NAME, gid_tag);
+  if (MB_SUCCESS != rval) return rval;
+  std::vector<double> tag_dvals;
+  std::vector<int> tag_ivals;
+  vtkIntArray *int_array;
+  vtkDoubleArray *dbl_array;
+  int idef, *idata;
+  double ddef, *ddata;
+  int min, max;
+      
+  for (std::vector<Tag>::iterator vit = all_tags.begin(); vit != all_tags.end(); vit++) {
+    if (*vit == gid_tag) continue;
+    
+      // create a data array
+    DataType dtype;
+    rval = gMB->tag_get_data_type(*vit, dtype);
+    if (MB_SUCCESS != rval) continue;
+    std::string tag_name;
+    bool has_default = false;
+    rval = gMB->tag_get_name(*vit, tag_name);
+    if (MB_SUCCESS != rval) continue;
+    if (MB_TYPE_DOUBLE == dtype) {
+      dbl_array = vtkDoubleArray::New();
+      dbl_array->SetName(tag_name.c_str());
+      if (MB_SUCCESS == gMB->tag_get_default_value(*vit, &ddef))
+        has_default = true;
+    }
+    else if (MB_TYPE_INTEGER == dtype) {
+      int_array = vtkIntArray::New();
+      int_array->SetName(tag_name.c_str());
+      if (MB_SUCCESS == gMB->tag_get_default_value(*vit, &idef))
+        has_default = true;
+    }
+
+    if (MB_SUCCESS != rval) continue;
+
+    Range::iterator rit, rit2;
+    rit = rit2 = ents2d.begin();
+    while (rit != ents2d.end()) {
+        // get tag iterator for gids
+      rval = gMB->tag_iterate(gid_tag, rit, ents2d.end(), (void*&)gids);
+      if (MB_SUCCESS != rval) continue;
+      int count = rit - rit2;
+      
+      rval = gMB->tag_iterate(*vit, rit2, ents2d.end(), data);
+      if (MB_SUCCESS != rval) continue;
+      
+      if (MB_TYPE_DOUBLE == dtype) {
+        ddata = (double*)data;
+        for (int i = 0; i < count; i++)
+          if (!has_default || ddata[i] != ddef)
+            dbl_array->InsertValue(gids[i], ddata[i]);
+      }
+      else if (MB_TYPE_INTEGER == dtype) {
+        idata = (int*)data;
+        for (int i = 0; i < count; i++)
+          if (!has_default || idata[i] != idef)
+            int_array->InsertValue(gids[i], idata[i]);
+      }
+      
+      min = *std::min_element(gids, gids+count);
+      max = *std::max_element(gids, gids+count);
+      vtkDebugMacro(<< "2d: min = " << min << ", max =  " << max);
+    }
+    
+    rit = rit2 = ents3d.begin();
+    while (rit != ents3d.end()) {
+        // get tag iterator for gids
+      rval = gMB->tag_iterate(gid_tag, rit, ents3d.end(), (void*&)gids);
+      if (MB_SUCCESS != rval) continue;
+      int count = rit - rit2;
+      
+      int *gid_data = (int*)data;
+      rval = gMB->tag_iterate(*vit, rit2, ents3d.end(), data);
+      if (MB_SUCCESS != rval) continue;
+      
+      if (MB_TYPE_DOUBLE == dtype)
+        for (int i = 0; i < count; i++)
+          if (!has_default || ddata[i] != ddef)
+            dbl_array->InsertValue(gids[i], ((double*)data)[i]);
+      else if (MB_TYPE_INTEGER == dtype)
+        for (int i = 0; i < count; i++)
+          if (!has_default || idata[i] != idef)
+            int_array->InsertValue(gids[i], ((int*)data)[i]);
+
+      min = *std::min_element(gids, gids+count);
+      max = *std::max_element(gids, gids+count);
+      vtkDebugMacro(<< "3d: min = " << min << ", max =  " << max);
+    }
+    
+    if (MB_TYPE_DOUBLE == dtype) {
+      this->GetOutput()->GetCellData()->AddArray(dbl_array);
+      dbl_array->Delete();
+      vtkDebugMacro(<< "Read " << dbl_array->GetSize() << " values of dbl tag " << tag_name);
+    }
+    else if (MB_TYPE_INTEGER == dtype) {
+      this->GetOutput()->GetCellData()->AddArray(int_array);
+      int_array->Delete();
+      vtkDebugMacro(<< "Read " << int_array->GetSize() << " values of int tag " << tag_name);
+    }
+
+    rit = rit2 = verts.begin();
+    if (MB_TYPE_DOUBLE == dtype) {
+      dbl_array = vtkDoubleArray::New();
+      dbl_array->SetName(tag_name.c_str());
+    }
+    else if (MB_TYPE_INTEGER == dtype) {
+      int_array = vtkIntArray::New();
+      int_array->SetName(tag_name.c_str());
+    }
+    while (rit != verts.end()) {
+        // get tag iterator for gids
+      rval = gMB->tag_iterate(gid_tag, rit, verts.end(), (void*&)gids);
+      if (MB_SUCCESS != rval) continue;
+      int count = rit - rit2;
+      
+      int *gid_data = (int*)data;
+      rval = gMB->tag_iterate(*vit, rit2, verts.end(), data);
+      if (MB_SUCCESS != rval) continue;
+      
+      if (MB_TYPE_DOUBLE == dtype)
+        for (int i = 0; i < count; i++) {
+          assert(gids[i] == i);
+          if (!has_default || ddata[i] != ddef)
+            dbl_array->InsertValue(gids[i], ((double*)data)[i]);
+        }
+      else if (MB_TYPE_INTEGER == dtype)
+        for (int i = 0; i < count; i++) {
+          assert(gids[i] == i);
+          if (!has_default || idata[i] != idef)
+            int_array->InsertValue(gids[i], ((int*)data)[i]);
+        }
+
+      min = *std::min_element(gids, gids+count);
+      max = *std::max_element(gids, gids+count);
+      vtkDebugMacro(<< "verts: min = " << min << ", max =  " << max);
+    }
+    
+    if (MB_TYPE_DOUBLE == dtype) {
+      this->GetOutput()->GetPointData()->AddArray(dbl_array);
+      dbl_array->Delete();
+      vtkDebugMacro(<< "Read " << dbl_array->GetSize() << " values of dbl tag " << tag_name);
+    }
+    else if (MB_TYPE_INTEGER == dtype) {
+      this->GetOutput()->GetPointData()->AddArray(int_array);
+      int_array->Delete();
+      vtkDebugMacro(<< "Read " << int_array->GetSize() << " values of int tag " << tag_name);
+    }
+
+  }
+
+  return 0;
+}
+
+int vtkMOABReader::construct_mesh() 
 {
     // construct the vtk representation of the mesh; just do hexes and quads 
     // for now
@@ -139,7 +330,7 @@ ErrorCode vtkMOABReader::construct_mesh()
   vtkUnstructuredGrid *ug = this->GetOutput();
   
     // create the elements
-  result = this->create_elements(iface, ug);
+  int success = this->create_elements(iface, ug);
   if (MB_SUCCESS != result)
     {
     vtkErrorMacro( << "Problem filling in quad data. " );
@@ -150,7 +341,7 @@ ErrorCode vtkMOABReader::construct_mesh()
   
 }
 
-ErrorCode vtkMOABReader::create_points_vertices(WriteUtilIface *iface,
+int vtkMOABReader::create_points_vertices(WriteUtilIface *iface,
                                                 vtkUnstructuredGrid *&ug,
                                                 const Range &verts) 
 {
@@ -201,7 +392,7 @@ ErrorCode vtkMOABReader::create_points_vertices(WriteUtilIface *iface,
   return MB_SUCCESS;
 }
 
-ErrorCode vtkMOABReader::create_elements(WriteUtilIface *iface,
+int vtkMOABReader::create_elements(WriteUtilIface *iface,
                                          vtkUnstructuredGrid *&ug)
 {
     // get the global id tag
@@ -239,7 +430,7 @@ ErrorCode vtkMOABReader::create_elements(WriteUtilIface *iface,
   }
 
     // create points/vertices in vtk database
-  result = this->create_points_vertices(iface, ug, verts);
+  int success = this->create_points_vertices(iface, ug, verts);
   if (MB_SUCCESS != result)
   {
     vtkErrorMacro( << "Couldn't create points/vertices. " );
@@ -251,8 +442,10 @@ ErrorCode vtkMOABReader::create_elements(WriteUtilIface *iface,
   
     // for the remaining elements, add them individually
   int ids[CN::MAX_NODES_PER_ELEMENT];
+  vtkIdType vtkids[CN::MAX_NODES_PER_ELEMENT];
   const EntityHandle *connect;
   int num_connect;
+  bool first = true;
 
   for (EntityType this_type = MBEDGE; this_type != MBENTITYSET; this_type++) {
 
@@ -287,10 +480,11 @@ ErrorCode vtkMOABReader::create_elements(WriteUtilIface *iface,
       }
 
         // ok, now insert this cell
-      int last_id = ug->InsertNextCell(vtk_cell_types[this_type], (vtkIdType)num_connect, (vtkIdType*)ids);
+      for (int i = 0; i < num_connect; i++) vtkids[i] = ids[i];
+      int last_id = ug->InsertNextCell(vtk_cell_types[this_type], num_connect, vtkids);
       eids.push_back(last_id);
       if (!new_outputs) {
-        assert(last_id == this->MaxCellId+1);
+        assert(first || last_id == this->MaxCellId+1);
         this->MaxCellId = last_id;
       }
     }
@@ -315,7 +509,7 @@ void vtkMOABReader::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os,indent);
 }
 
-ErrorCode vtkMOABReader::construct_filters() 
+int vtkMOABReader::construct_filters() 
 {
     // apply threshold and type filters to the output to get multiple actors
     // corresponding to dual surfaces and curves, then group the dual actors
