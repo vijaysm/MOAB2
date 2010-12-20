@@ -10,3 +10,6 @@ A MOAB reader plugin for VTK/Paraview.  To build:
   the '+' next to the plugin name and check the "Auto Load" box
 - you should now be able to read files using MOAB
 
+Note, this viewer can also view geometric models, at least from the CGM OCC engine; to use,
+build CGM/OCC as shared libraries, link to them from MOAB (with the --with-cgm= configure
+option), and build the vtk viewer as before, but pointing to the CGM-ized MOAB.
