@@ -86,7 +86,6 @@ libMOAB_la_SOURCES = \
   ScdElementData.cpp \
   ScdElementData.hpp \
   ScdInterface.cpp \
-  ScdInterface.hpp \
   ScdVertexData.cpp \
   ScdVertexData.hpp \
   SequenceData.hpp \
@@ -143,6 +142,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/ReadUtilIface.hpp \
   moab/ReaderIface.hpp \
   moab/ReaderWriterSet.hpp \
+  moab/ScdInterface.hpp \
   moab/Skinner.hpp \
   MBTagConventions.hpp \
   moab/Types.hpp \
