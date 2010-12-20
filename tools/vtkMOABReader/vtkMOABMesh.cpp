@@ -213,7 +213,7 @@ ErrorCode vtkMOABMesh::read_tags(EntityHandle file_set)
       if (MB_TYPE_DOUBLE == dtype) {
         ddata = (double*)data;
         for (int i = 0; i < count; i++) {
-          assert(-1 != vids[i]);
+          assert(-1 < vids[i] && vids[i] <= maxCellId);
           if (!has_default || ddata[i] != ddef)
             dbl_array->InsertValue(vids[i], ddata[i]);
         }
@@ -221,7 +221,7 @@ ErrorCode vtkMOABMesh::read_tags(EntityHandle file_set)
       else if (MB_TYPE_INTEGER == dtype) {
         idata = (int*)data;
         for (int i = 0; i < count; i++) {
-          assert(-1 != vids[i]);
+          assert(-1 < vids[i] && vids[i] <= maxCellId);
           if (!has_default || idata[i] != idef)
             int_array->InsertValue(vids[i], idata[i]);
         }
@@ -245,7 +245,7 @@ ErrorCode vtkMOABMesh::read_tags(EntityHandle file_set)
       if (MB_TYPE_DOUBLE == dtype) {
         ddata = (double*)data;
         for (int i = 0; i < count; i++) {
-          assert(-1 != vids[i]);
+          assert(-1 < vids[i] && vids[i] <= maxCellId);
           if (!has_default || ddata[i] != ddef)
             dbl_array->InsertValue(vids[i], ddata[i]);
         }
@@ -253,7 +253,7 @@ ErrorCode vtkMOABMesh::read_tags(EntityHandle file_set)
       else if (MB_TYPE_INTEGER == dtype) {
         idata = (int*)data;
         for (int i = 0; i < count; i++) {
-          assert(-1 != vids[i]);
+          assert(-1 < vids[i] && vids[i] <= maxCellId);
           if (!has_default || idata[i] != idef)
             int_array->InsertValue(vids[i], idata[i]);
         }
@@ -295,7 +295,7 @@ ErrorCode vtkMOABMesh::read_tags(EntityHandle file_set)
       if (MB_TYPE_DOUBLE == dtype) {
         ddata = (double*)data;
         for (int i = 0; i < count; i++) {
-          assert(vids[i] == i);
+          assert(vids[i] >= 0 && vids[i] <= maxPointId);
           if (!has_default || ddata[i] != ddef)
             dbl_array->InsertValue(vids[i], ddata[i]);
         }
@@ -303,7 +303,7 @@ ErrorCode vtkMOABMesh::read_tags(EntityHandle file_set)
       else if (MB_TYPE_INTEGER == dtype) {
         idata = (int*)data;
         for (int i = 0; i < count; i++) {
-          assert(vids[i] == i);
+          assert(vids[i] >= 0 && vids[i] <= maxPointId);
           if (!has_default || idata[i] != idef)
             int_array->InsertValue(vids[i], idata[i]);
         }

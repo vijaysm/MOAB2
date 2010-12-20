@@ -13,12 +13,12 @@
             number_of_elements="1">
         <FileListDomain name="files"/>
         <Documentation>
-          This property specifies the file name for the PNG reader.
+          This property specifies the file name for the MOAB reader.
         </Documentation>
       </StringVectorProperty>
  
       <Hints>
-        <ReaderFactory extensions="h5m nc g exoII"
+        <ReaderFactory extensions="h5m sat brep stp cub"
                        file_description="MOAB File Formats" />
      </Hints>
     </SourceProxy>
