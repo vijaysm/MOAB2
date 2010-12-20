@@ -28,17 +28,7 @@
 #ifndef __vtkMOABReader_h
 #define __vtkMOABReader_h
 
-#include "vtkSetGet.h"
-#include "vtkPoints.h"
 #include "vtkUnstructuredGridSource.h"
-
-#include "moab/Interface.hpp"
-#include "moab/WriteUtilIface.hpp"
-#include "moab/Range.hpp"
-
-class vtkIntArray;
-
-using namespace moab;
 
 #include <map>
 
@@ -66,33 +56,9 @@ private:
   vtkMOABReader(const vtkMOABReader&);  // Not implemented.
   void operator=(const vtkMOABReader&);  // Not implemented.
 
-
-  static const int vtk_cell_types[];
-
-  int MaxPointId;
-  int MaxCellId;
-
-  Tag VtkOffsetIdTag;
+  bool iConstructedMOAB;
   
   char *FileName;
-  
-  int construct_mesh();
-
-  int create_points_vertices(WriteUtilIface *iface,
-                                   vtkUnstructuredGrid *&ug,
-                                   const Range &all_elems);
-  
-  int create_elements(WriteUtilIface *iface,
-                                  vtkUnstructuredGrid *&ug);
-  
-  int construct_filters();
-
-  int read_tags();
-  
-
-  void add_name(vtkUnstructuredGrid *output, const char *prefix,
-                const int id);
-  
 };
 
 #endif
