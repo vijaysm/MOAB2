@@ -1,54 +1,60 @@
 
   # MOAB Library
   set ( MOAB_LIB_SRCS
+    AdaptiveKDTree.cpp
     AEntityFactory.cpp
-    BitTagServer.cpp
+    AffineXform.cpp
+    AxisBox.cpp
+    BitPage.cpp
+    BitTag.cpp
+    BSPTree.cpp
     BSPTreePoly.cpp
+    CN.cpp
+    CartVect.cpp
+    Core.cpp
+    DebugOutput.cpp
+    DenseTag.cpp
     DualTool.cpp
     EntitySequence.cpp
+    Factory.cpp
     FileOptions.cpp
+    GeomUtil.cpp
     GeomTopoTool.cpp
     HigherOrderFactory.cpp
     HomXform.cpp
-    AdaptiveKDTree.cpp
-    AffineXform.cpp
-    AxisBox.cpp
-    BSPTree.cpp
-    CN.cpp
-    CartVect.cpp
     Matrix3.cpp
-    Core.cpp
-    Factory.cpp
-    GeomUtil.cpp
     MeshSet.cpp
+    MeshSetSequence.cpp
+    MeshTag.cpp
+    MeshTopoUtil.cpp
     OrientedBox.cpp
     OrientedBoxTreeTool.cpp
+    PolyElementSeq.cpp
     Range.cpp
     RangeSeqIntersectIter.cpp
     ReadUtil.cpp
     ReaderWriterSet.cpp
-    Skinner.cpp
-    SysUtil.cpp
-    Util.cpp
-    WriteUtil.cpp
-    MeshSetSequence.cpp
-    MeshTopoUtil.cpp
-    PolyElementSeq.cpp
     ScdElementData.cpp
+    ScdInterface.cpp
     ScdVertexData.cpp
     SequenceData.cpp
     SequenceManager.cpp
-    SparseTagSuperCollection.cpp
-    SparseTagCollection.cpp
+    Skinner.cpp
+    SparseTag.cpp
     StructuredElementSeq.cpp
     SweptElementData.cpp
     SweptElementSeq.cpp
     SweptVertexData.cpp
+    SysUtil.cpp
     TagInfo.cpp
-    TagServer.cpp
     TypeSequenceManager.cpp
     UnstructuredElemSeq.cpp
+    Util.cpp
+    VarLenDenseTag.cpp
+    VarLenSparseTag.cpp
     VertexSequence.cpp
+    WriteUtil.cpp
+    moab_mpe.c
   )
   include_directories(
     ${MOAB_SOURCE_DIR}/src

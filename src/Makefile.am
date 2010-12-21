@@ -75,20 +75,14 @@ libMOAB_la_SOURCES = \
   OrientedBox.cpp \
   OrientedBox.hpp \
   OrientedBoxTreeTool.cpp \
+  PolyElementSeq.cpp \
+  PolyElementSeq.hpp \
   Range.cpp \
   RangeSeqIntersectIter.cpp \
   RangeSeqIntersectIter.hpp \
   ReadUtil.cpp \
   ReadUtil.hpp \
   ReaderWriterSet.cpp \
-  Skinner.cpp \
-  SysUtil.cpp \
-  SysUtil.hpp \
-  Util.cpp \
-  WriteUtil.cpp \
-  WriteUtil.hpp \
-  PolyElementSeq.cpp \
-  PolyElementSeq.hpp \
   ScdElementData.cpp \
   ScdElementData.hpp \
   ScdInterface.cpp \
@@ -98,6 +92,7 @@ libMOAB_la_SOURCES = \
   SequenceData.cpp \
   SequenceManager.cpp \
   SequenceManager.hpp \
+  Skinner.cpp \
   SparseTag.cpp \
   SparseTag.hpp \
   StructuredElementSeq.cpp \
@@ -108,6 +103,8 @@ libMOAB_la_SOURCES = \
   SweptElementSeq.hpp \
   SweptVertexData.cpp \
   SweptVertexData.hpp \
+  SysUtil.cpp \
+  SysUtil.hpp \
   TagCompare.hpp \
   TagInfo.cpp \
   TagInfo.hpp \
@@ -115,6 +112,7 @@ libMOAB_la_SOURCES = \
   TypeSequenceManager.hpp \
   UnstructuredElemSeq.cpp \
   UnstructuredElemSeq.hpp \
+  Util.cpp \
   VarLenDenseTag.hpp \
   VarLenDenseTag.cpp \
   VarLenSparseTag.hpp \
@@ -122,6 +120,8 @@ libMOAB_la_SOURCES = \
   VarLenTag.hpp \
   VertexSequence.hpp \
   VertexSequence.cpp \
+  WriteUtil.cpp \
+  WriteUtil.hpp \
   moab_mpe.h \
   moab_mpe.c
 
