@@ -45,9 +45,10 @@ namespace moab {
  *\param tri           The intersected triangle
  *\param ray_direction The direction of the ray
  *\param int_type      The type of intersection (EDGE0, EDGE1, NODE2, ...)
- *\param close_tris    Vector of triangles in the neighborhood of the intersection
- *\param close_senses  Vector of surface senses for tris in the neighborhood of
- *                     the intersection 
+ *\param close_tris    Vector of triangles in the proximity of the intersection
+ *\param close_senses  Vector of surface senses for tris in the proximity of
+ *                     the intersection
+ *\param neighborhood  Vector of triangles in the topological neighborhood of the intersection
  *\return              True if piercing, false otherwise.
  */
 static
@@ -56,7 +57,8 @@ bool edge_node_intersect(const EntityHandle                tri,
                          const GeomUtil::intersection_type int_type,
                          const std::vector<EntityHandle>&  close_tris,
                          const std::vector<int>&           close_senses,
-                         const Interface*                  MBI ) {
+                         const Interface*                  MBI,
+                         std::vector<EntityHandle>*        neighborhood_tris = 0 ) {
 
   // get the node of the triangle
   const EntityHandle* conn;
@@ -137,6 +139,10 @@ bool edge_node_intersect(const EntityHandle                tri,
     return MB_FAILURE;
   }
 
+  // The close tris were in proximity to the intersection. The adj_tris are
+  // topologically adjacent to the intersection (the neighborhood).
+  if(neighborhood_tris) (*neighborhood_tris).assign( adj_tris.begin(), adj_tris.end() );
+
   // determine glancing/piercing
   // If a desired_orientation was used in this call to ray_intersect_sets, 
   // the plucker_ray_tri_intersect will have already used it. For a piercing
@@ -164,7 +170,7 @@ bool edge_node_intersect(const EntityHandle                tri,
 
     // intersection is glancing if tri and ray do not point in same direction
     // for every triangle
-    if(0!=sign && 0>sign*norm%ray_direction) return false;
+    if(0!=sign && 0>sign*dot_prod) return false;
 
   }
   return true;
@@ -1011,6 +1017,8 @@ class RayIntersectSets : public OrientedBoxTreeTool::Op
     unsigned int*        raytri_test_count;
     EntityHandle         lastSet;
     int                  lastSetDepth;
+    std::vector< std::vector<EntityHandle> > neighborhoods;
+    std::vector<EntityHandle> neighborhood;
 
     void add_intersection( double t, EntityHandle facet );
     
@@ -1055,7 +1063,8 @@ class RayIntersectSets : public OrientedBoxTreeTool::Op
         } 
         if(neg_ray_len) {
           assert(0 > *neg_ray_len);
-        }  
+        }
+
       }
    
 
@@ -1180,8 +1189,20 @@ ErrorCode RayIntersectSets::leaf( EntityHandle node )
                                      nonneg_ray_len, neg_ray_len, surfTriOrient, &int_type )) {
       // Do not accept intersections if they are in the vector of previously intersected
       // facets.
-      if(  prevFacets &&
-	   ((*prevFacets).end() != find((*prevFacets).begin(), (*prevFacets).end(), *t) ) ) continue;
+      if( prevFacets &&
+	  ((*prevFacets).end() != find((*prevFacets).begin(), (*prevFacets).end(), *t) ) ) continue;
+
+      // Do not accept intersections if they are in the neighborhood of previous
+      // intersections.
+      bool same_neighborhood = false;
+      for(unsigned i=0; i<neighborhoods.size(); ++i) {
+        if( neighborhoods[i].end() != find(neighborhoods[i].begin(), 
+		 			   neighborhoods[i].end(), *t ) ) {
+          same_neighborhood = true;
+          continue;
+        }
+      }
+      if(same_neighborhood) continue;
 
       // Handle special case of edge/node intersection. Accept piercing 
       // intersections and reject glancing intersections.
@@ -1189,7 +1210,7 @@ ErrorCode RayIntersectSets::leaf( EntityHandle node )
       // A less-robust implementation could work without sense information.
       // Would it ever be useful to accept a glancing intersection?
       if(GeomUtil::INTERIOR != int_type && rootSet && geomVol && senseTag) {
-        // get triangles in the neighborhood of the intersection
+        // get triangles in the proximity of the intersection
         CartVect int_pt = ray_origin + int_dist*ray_direction;
 	std::vector<EntityHandle> close_tris;
 	std::vector<EntityHandle> close_surfs;
@@ -1217,11 +1238,17 @@ ErrorCode RayIntersectSets::leaf( EntityHandle node )
             return MB_FAILURE;
           }
         }
+
+        neighborhood.clear();
 	bool piercing = edge_node_intersect( *t, ray_direction, int_type, close_tris,
-                                             close_senses, tool->get_moab_instance() );
+                                             close_senses, tool->get_moab_instance(), &neighborhood );
         if(!piercing) continue;
-      }
-      
+
+      } else {
+        neighborhood.clear();
+	neighborhood.push_back( *t );
+      }      
+     
         // NOTE: add_intersection may modify the 'neg_ray_len' and 'nonneg_ray_len'
         //       members, which will affect subsequent calls to ray_tri_intersect 
         //       in this loop.
@@ -1287,6 +1314,7 @@ void RayIntersectSets::add_intersection( double t, EntityHandle facet ) {
     intersections.push_back(t);
     sets.push_back(lastSet);
     facets.push_back(facet);
+    neighborhoods.push_back(neighborhood);
     return;
   }
 
