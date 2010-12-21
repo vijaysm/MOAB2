@@ -16,7 +16,11 @@ namespace moab
 {
     
 ScdInterface::ScdInterface(Core *impl, bool boxes) 
-        : mbImpl(impl), searchedBoxes(false)
+        : mbImpl(impl), 
+          searchedBoxes(false),
+          boxMinTag(0),
+          boxMaxTag(0),
+          boxSetTag(0)
 {
   if (boxes) find_boxes(scdBoxes);
 }
