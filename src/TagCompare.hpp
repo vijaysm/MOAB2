@@ -3,6 +3,7 @@
 
 #include "TagInfo.hpp"
 #include "VarLenTag.hpp"
+#include <vector>
 
 namespace moab {
 
@@ -39,6 +40,9 @@ class TagVarBytesEqual {
       const VarLenTag* vdata = reinterpret_cast<const VarLenTag*>(data);
       return (int)vdata->size() == size && !memcmp(value, vdata->data(), size); 
     }
+    bool operator()( const VarLenTag& vdata ) const {
+      return (int)vdata.size() == size && !memcmp(value, vdata.data(), size); 
+    }
 };
 /** Test if variable-length opaque tag values are less than a value */
 class TagVarBytesLess {
@@ -53,6 +57,12 @@ class TagVarBytesLess {
         return 0 <= memcmp( vdata->data(), value, vdata->size() );
       else
         return 0 < memcmp( vdata->data(), value, size );
+    }
+    bool operator()( const VarLenTag& vdata ) const {
+      if ((int)vdata.size() < size) 
+        return 0 <= memcmp( vdata.data(), value, vdata.size() );
+      else
+        return 0 < memcmp( vdata.data(), value, size );
     }
 };
 
@@ -163,6 +173,16 @@ class TagVarTypeEqual
           return false;
       return true;
     }
+        
+    bool operator()( const VarLenTag& vdata ) const {
+      if (vdata.size() != size * sizeof(T))
+        return false;
+      const T* ddata = reinterpret_cast<const T*>(vdata.data());
+      for (int i = 0; i < size; ++i)
+        if (value[i] != ddata[i])
+          return false;
+      return true;
+    }
 };
 
 /** Compare variable-length tags containing a known data type */
@@ -187,6 +207,20 @@ class TagVarTypeLess
       }
       else {
         for (int i = 0; i < vdata->size()/sizeof(T); ++i)
+          if (value[i] <= ddata[i])
+            return false;
+      }
+      return true;
+    }
+    bool operator()( const VarLenTag& vdata ) const {
+      const T* ddata = reinterpret_cast<const T*>(vdata.data());
+      if ((int)vdata.size() < sizeof(T)*size) {
+        for (int i = 0; i < vdata.size()/sizeof(T); ++i)
+          if (value[i] < ddata[i])
+            return false;
+      }
+      else {
+        for (int i = 0; i < vdata.size()/sizeof(T); ++i)
           if (value[i] <= ddata[i])
             return false;
       }
@@ -230,7 +264,7 @@ void find_tag_values( Functor compare,
   Range::iterator insert = results.begin();
   for (IteratorType i = begin; i != end; ++i) 
     if (compare( i->second ))
-      insert = results.insert( insert, i->first, i->first );
+      insert = results.insert( insert, i->first );
 }
 
 template <class Functor,
@@ -241,10 +275,26 @@ void find_tag_values( Functor compare,
                       IteratorType end,
                       std::vector<EntityHandle>& results )
 {
-  Range::iterator insert = results.begin();
   for (IteratorType i = begin; i != end; ++i) 
     if (compare( i->second ))
       results.push_back( i->first );
+}
+
+template <class Functor,
+          class TagMap>
+static inline
+void find_map_values( Functor compare,
+                      Range::const_iterator lower,
+                      Range::const_iterator upper,
+                      const TagMap& tag_map,
+                      Range& results )
+{
+  Range::iterator insert = results.begin();
+  for (; lower != upper; ++lower) {
+    typename TagMap::const_iterator i = tag_map.find( *lower );
+    if (i != tag_map.end() && compare( i->second ))
+      insert = results.insert( insert, *lower );
+  }
 }
 
 /** Find all entities for which a tag has a specific value
@@ -264,52 +314,121 @@ void find_tag_values_equal( const TagInfo& tag_info,
 {
   switch (tag_info.get_data_type()) {
     case MB_TYPE_INTEGER:
-      switch (tag_info.get_size()) {
-        case MB_VARIABLE_LENGTH:
-          find_tag_values<TagVarIntsEqual,IteratorType>( TagVarIntsEqual( value, size ), begin, end, results );
-          break;
-        case sizeof(int):
-          find_tag_values<TagOneIntEqual,IteratorType>( TagOneIntEqual( value ), begin, end, results );
-          break;
-        default:
-          find_tag_values<TagIntsEqual,IteratorType>( TagIntsEqual( value, size ), begin, end, results );
-          break;
-      }
+      if (size == sizeof(int))
+        find_tag_values<TagOneIntEqual,IteratorType>( TagOneIntEqual( value ), begin, end, results );
+      else
+        find_tag_values<TagIntsEqual,IteratorType>( TagIntsEqual( value, size ), begin, end, results );
       break;
         
     case MB_TYPE_DOUBLE:
-      switch (tag_info.get_size()) {
-        case MB_VARIABLE_LENGTH:
-          find_tag_values<TagVarDoublesEqual,IteratorType>( TagVarDoublesEqual( value, size ), begin, end, results );
-          break;
-        case sizeof(double):
-          find_tag_values<TagOneDoubleEqual,IteratorType>( TagOneDoubleEqual( value ), begin, end, results );
-          break;
-        default:
-          find_tag_values<TagDoublesEqual,IteratorType>( TagDoublesEqual( value, size ), begin, end, results );
-          break;
-      }
+      if (size == sizeof(double))
+        find_tag_values<TagOneDoubleEqual,IteratorType>( TagOneDoubleEqual( value ), begin, end, results );
+      else
+        find_tag_values<TagDoublesEqual,IteratorType>( TagDoublesEqual( value, size ), begin, end, results );
       break;
         
     case MB_TYPE_HANDLE:
-      switch (tag_info.get_size()) {
-        case MB_VARIABLE_LENGTH:
-          find_tag_values<TagVarHandlesEqual,IteratorType>( TagVarHandlesEqual( value, size ), begin, end, results );
-          break;
-        case sizeof(EntityHandle):
-          find_tag_values<TagOneHandleEqual,IteratorType>( TagOneHandleEqual( value ), begin, end, results );
-          break;
-        default:
-          find_tag_values<TagHandlesEqual,IteratorType>( TagHandlesEqual( value, size ), begin, end, results );
-          break;
-      }
+      if (size == sizeof(EntityHandle))
+        find_tag_values<TagOneHandleEqual,IteratorType>( TagOneHandleEqual( value ), begin, end, results );
+      else
+        find_tag_values<TagHandlesEqual,IteratorType>( TagHandlesEqual( value, size ), begin, end, results );
       break;
         
     default:
-      if (tag_info.get_size() == MB_VARIABLE_LENGTH) 
-        find_tag_values<TagVarBytesEqual,IteratorType>( TagVarBytesEqual( value, size ), begin, end, results );
+      find_tag_values<TagBytesEqual,IteratorType>( TagBytesEqual( value, size ), begin, end, results );
+      break;
+  }
+}
+template <class IteratorType, class ContainerType>
+static inline
+void find_tag_varlen_values_equal( const TagInfo& tag_info,
+                                   const void* value,
+                                   int size,
+                                   IteratorType begin,
+                                   IteratorType end,
+                                   ContainerType& results )
+{
+  switch (tag_info.get_data_type()) {
+    case MB_TYPE_INTEGER:
+      find_tag_values<TagVarIntsEqual,IteratorType>( TagVarIntsEqual( value, size ), begin, end, results );
+      break;
+    case MB_TYPE_DOUBLE:
+      find_tag_values<TagVarDoublesEqual,IteratorType>( TagVarDoublesEqual( value, size ), begin, end, results );
+      break;
+    case MB_TYPE_HANDLE:
+      find_tag_values<TagVarHandlesEqual,IteratorType>( TagVarHandlesEqual( value, size ), begin, end, results );
+      break;
+    default:
+      find_tag_values<TagVarBytesEqual,IteratorType>( TagVarBytesEqual( value, size ), begin, end, results );
+      break;
+  }
+}
+
+/** Find all entities for which a tag has a specific value
+ *\param IteratorType : an iterator that has map behavior:
+ *                      the value of 'first' is the entity handle.
+ *                      the value of 'second' is a pointer to the tag data.
+ *\param ContainerType : std::vector<EntityHandle> or Range
+ */
+template <class TagMap>
+static inline
+void find_map_values_equal( const TagInfo& tag_info,
+                            const void* value,
+                            int size,
+                            Range::const_iterator begin,
+                            Range::const_iterator end,
+                            const TagMap& tag_map,
+                            Range& results )
+{
+  switch (tag_info.get_data_type()) {
+    case MB_TYPE_INTEGER:
+      if (size == sizeof(int))
+        find_map_values<TagOneIntEqual,TagMap>( TagOneIntEqual( value ), begin, end, tag_map, results );
+       else
+        find_map_values<TagIntsEqual,TagMap>( TagIntsEqual( value, size ), begin, end, tag_map, results );
+      break;
+        
+    case MB_TYPE_DOUBLE:
+      if (size == sizeof(double))
+        find_map_values<TagOneDoubleEqual,TagMap>( TagOneDoubleEqual( value ), begin, end, tag_map, results );
       else
-        find_tag_values<TagBytesEqual,IteratorType>( TagBytesEqual( value, size ), begin, end, results );
+        find_map_values<TagDoublesEqual,TagMap>( TagDoublesEqual( value, size ), begin, end, tag_map, results );
+      break;
+        
+    case MB_TYPE_HANDLE:
+      if (size == sizeof(EntityHandle))
+        find_map_values<TagOneHandleEqual,TagMap>( TagOneHandleEqual( value ), begin, end, tag_map, results );
+      else
+        find_map_values<TagHandlesEqual,TagMap>( TagHandlesEqual( value, size ), begin, end, tag_map, results );
+      break;
+        
+    default:
+      find_map_values<TagBytesEqual,TagMap>( TagBytesEqual( value, size ), begin, end, tag_map, results );
+      break;
+  }
+}
+template <class TagMap>
+static inline
+void find_map_varlen_values_equal( const TagInfo& tag_info,
+                                   const void* value,
+                                   int size,
+                                   Range::const_iterator begin,
+                                   Range::const_iterator end,
+                                   const TagMap& tag_map,
+                                   Range& results )
+{
+  switch (tag_info.get_data_type()) {
+    case MB_TYPE_INTEGER:
+      find_map_values<TagVarIntsEqual,TagMap>( TagVarIntsEqual( value, size ), begin, end, tag_map, results );
+      break;
+    case MB_TYPE_DOUBLE:
+      find_map_values<TagVarDoublesEqual,TagMap>( TagVarDoublesEqual( value, size ), begin, end, tag_map, results );
+      break;
+    case MB_TYPE_HANDLE:
+      find_map_values<TagVarHandlesEqual,TagMap>( TagVarHandlesEqual( value, size ), begin, end, tag_map, results );
+      break;
+    default:
+      find_map_values<TagVarBytesEqual,TagMap>( TagVarBytesEqual( value, size ), begin, end, tag_map, results );
       break;
   }
 }
@@ -317,9 +436,10 @@ void find_tag_values_equal( const TagInfo& tag_info,
 /** Iterator to use in find_tag_values_equal for arrays of data */
 class ByteArrayIterator 
 {
+  public:
+    typedef std::pair<EntityHandle, const char*> data_type;
   private:
     size_t step;
-    typedef std::pair<EntityHandle, const char*> data_type;
     data_type data;
   public:
     ByteArrayIterator( EntityHandle start_handle,
@@ -358,6 +478,36 @@ class ByteArrayIterator
     const data_type* operator->() const 
       { return &data; }
 };
+
+
+static inline
+std::pair<EntityType,EntityType> type_range( EntityType type )
+{
+  if (type == MBMAXTYPE)
+    return std::pair<EntityType,EntityType>(MBVERTEX,MBMAXTYPE);
+  else {
+    EntityType next = type; ++next;
+    return std::pair<EntityType,EntityType>(type,next);
+  }
+}
+
+/** Dummy container that counts insertions rather than maintaining a list of entities */
+class InsertCount {
+private:
+  size_t mCount;
+  
+public:
+  InsertCount( size_t initial_count = 0 ) : mCount(initial_count) {}
+
+  typedef int iterator;
+  iterator begin() const { return 0; }
+  iterator end() const { return mCount; }
+  iterator insert( iterator hint, EntityHandle first, EntityHandle last )
+    { mCount += last - first + 1; return end(); }
+  iterator insert( iterator hint, EntityHandle value )
+    { ++mCount; return end(); }
+};
+
 
 } // namespace moab
 

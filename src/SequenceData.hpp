@@ -10,8 +10,6 @@
 
 namespace moab {
 
-class TagServer;
-
 class SequenceData
 {
 public:
@@ -54,10 +52,10 @@ public:
                 { return reinterpret_cast<AdjacencyDataType const*>(arraySet[0]); }
   
   /**\return array of dense tag data, or NULL if none. */
-  void*       get_tag_data( TagId tag_num )              
+  void*       get_tag_data( unsigned tag_num )              
                 { return tag_num < numTagData  ? arraySet[tag_num+1] : 0; }
   /**\return array of dense tag data, or NULL if none. */
-  void const* get_tag_data( TagId tag_num ) const        
+  void const* get_tag_data( unsigned tag_num ) const        
                 { return tag_num < numTagData  ? arraySet[tag_num+1] : 0; }
   
   /**\brief Allocate array of sequence-specific data
@@ -95,13 +93,11 @@ public:
   /**\brief Allocate array of dense tag data
    *
    * Allocate an array of dense tag data.
-   *\param tag_num        Dense tag ID for which to allocate array.
+   *\param index        Dense tag ID for which to allocate array.
    *\param bytes_per_ent  Bytes to allocate for each entity.
-   *\param initial_val    Value to initialize array with.  If non-null, must
-   *                      be bytes_per_ent long.  If NULL, array will be zeroed.
    *\return The newly allocated array, or NULL if error.
    */
-  void* create_tag_data( TagId tag_num, int bytes_per_ent, const void* initial_val = 0 );
+  void* allocate_tag_array( int index, int bytes_per_ent );
   
   /**\brief Create new SequenceData that is a copy of a subset of this one
     *
@@ -122,12 +118,12 @@ public:
   TypeSequenceManager::SequenceDataPtr seqManData;
   
   /**\brief Move tag data for a subset of this sequences to specified sequence */
-  void move_tag_data( SequenceData* destination, TagServer* tag_server );
+  void move_tag_data( SequenceData* destination, const int* tag_sizes, int num_tag_sizes );
   
   /**\brief Free all tag data arrays */
   void release_tag_data(const int* tag_sizes, int num_tag_sizes);
   /**\brief Free specified tag data array */
-  void release_tag_data( TagId tag_num, int tag_size );
+  void release_tag_data( int index, int tag_size );
   
 protected:
 

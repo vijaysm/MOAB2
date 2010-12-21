@@ -1,6 +1,34 @@
 #include "TagInfo.hpp"
+#include <string.h>  /* memcpy */
+#include <stdlib.h>  /* realloc & free */
+#include <assert.h>
 
 namespace moab {
+
+TagInfo::TagInfo( const char* name, 
+                  int size, 
+                  DataType type,
+                  const void* default_value,
+                  int default_value_size)
+ : mDefaultValue(0),
+   mDefaultValueSize(default_value_size),
+   mDataSize(size),
+   dataType(type)
+{
+  if (default_value) {
+    mDefaultValue = malloc( mDefaultValueSize );
+    memcpy( mDefaultValue, default_value, mDefaultValueSize );
+  }
+  if (name)
+    mTagName = name;
+}
+
+TagInfo::~TagInfo() 
+{
+  free( mDefaultValue );
+  mDefaultValue = 0;
+  mDefaultValueSize = 0;
+}
 
 int TagInfo::size_from_data_type( DataType t )
 {
@@ -13,88 +41,28 @@ int TagInfo::size_from_data_type( DataType t )
    return sizes[t];
 }
 
-
-void TagInfo::invalidate()
+bool TagInfo::equals_default_value( const void* data, int size ) const
 {
-  mTagName.clear();
-  isValid = false;
-  free( mMeshValue );
-  free( mDefaultValue );
-  mDefaultValue = mMeshValue = 0;
-  mDefaultValueSize = mMeshValueSize = 0;
-}
-
+  if (!get_default_value())
+    return false;
   
-TagInfo::TagInfo( const TagInfo& copy )
-  : mDefaultValue(0),
-    mMeshValue(0),
-    mDefaultValueSize(copy.mDefaultValueSize),
-    mMeshValueSize(copy.mMeshValueSize),
-    mDataSize(copy.mDataSize),
-    dataType(copy.dataType),
-    mTagName(copy.mTagName),
-    isValid(copy.isValid)
-{
-  if (mDefaultValueSize) {
-    mDefaultValue = malloc( mDefaultValueSize );
-    memcpy( mDefaultValue, copy.mDefaultValue, mDefaultValueSize );
-  }
-  if (mMeshValueSize) {
-    mMeshValue = malloc( mMeshValueSize );
-    memcpy( mMeshValue, copy.mMeshValue, mMeshValueSize );
-  }
-}
-
-TagInfo& TagInfo::operator=( const TagInfo& copy )
-{
-  if (copy.mDefaultValue) {
-    if (mDefaultValueSize != copy.mDefaultValueSize)
-      mDefaultValue = realloc( mDefaultValue,copy.mDefaultValueSize);
-    mDefaultValueSize = copy.mDefaultValueSize;
-    memcpy( mDefaultValue, copy.mDefaultValue, copy.mDefaultValueSize );
-  }
-  else if (mDefaultValue) {
-    free( mDefaultValue );
-    mDefaultValue = 0;
-    mDefaultValueSize = 0;
-  }
-
-  if (copy.mMeshValue) {
-    if (mMeshValueSize != copy.mMeshValueSize)
-      mMeshValue = realloc( mMeshValue,copy.mMeshValueSize);
-    mMeshValueSize = copy.mMeshValueSize;
-    memcpy( mMeshValue, copy.mMeshValue, copy.mMeshValueSize );
-  }
-  else if (mMeshValue) {
-    free( mMeshValue );
-    mMeshValue = 0;
-    mMeshValueSize = 0;
-  }
+  if (variable_length() && size != get_default_value_size())
+    return false;
   
-  mDataSize = copy.mDataSize;
-  dataType = copy.dataType;
-  mTagName = copy.mTagName;
-  isValid = copy.isValid;
-  return *this;
-}
-
-void TagInfo::set_mesh_value( const void* data, int size )
-{
-  if (mMeshValueSize != size) {
-    mMeshValueSize = size;
-    mMeshValue = realloc( mMeshValue, size );
+  if (!variable_length() && size >=0 && size != get_size())
+    return false;
+    
+  if (get_data_type() == MB_TYPE_BIT) {
+    assert(get_size() <= 8 && get_default_value_size() == 1);
+    unsigned char byte1 = *reinterpret_cast<const unsigned char*>(data);
+    unsigned char byte2 = *reinterpret_cast<const unsigned char*>(get_default_value());
+    unsigned char mask = (unsigned char)((1u << get_size()) - 1);
+    return (byte1&mask) == (byte2&mask);
   }
-  memcpy( mMeshValue, data, size );
+  else {
+    return !memcmp( data, get_default_value(), get_default_value_size() );
+  }
 }
-
-    //! remove mesh value
-void TagInfo::remove_mesh_value() 
-{
-  free( mMeshValue );
-  mMeshValue = 0;
-  mMeshValueSize = 0;
-}
-
   
     // Check that all lengths are valid multiples of the type size.
     // Returns true if all lengths are valid, false othersize.
@@ -107,6 +75,26 @@ bool TagInfo::check_valid_sizes( const int* sizes, int num_sizes ) const
   for (int i = 0; i < num_sizes; ++i)
     sum |= ((unsigned)sizes[i]) % size;
   return (sum == 0);
+}
+
+ErrorCode TagInfo::validate_lengths( const int* lengths, 
+                                     size_t num_lengths ) const
+{
+  int bits = 0;
+  if (variable_length()) {
+    if (!lengths)
+      return MB_VARIABLE_DATA_LENGTH;
+    const unsigned type_size = size_from_data_type( get_data_type() );
+    if (type_size == 1)
+      return MB_SUCCESS;
+    for (size_t i = 0; i < num_lengths; ++i)
+      bits |= lengths[i] % type_size;
+  }
+  else if (lengths) {
+    for (size_t i = 0; i < num_lengths; ++i)
+      bits |= lengths[i] - get_size();
+  }
+  return (0 == bits) ? MB_SUCCESS : MB_INVALID_SIZE;
 }
 
 } // namespace moab

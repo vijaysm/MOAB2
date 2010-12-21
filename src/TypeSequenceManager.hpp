@@ -9,8 +9,6 @@
 
 namespace moab {
 
-class TagServer;
-
 /**\brief Maintain data structures organizing EntitySequence instances
  *
  * EntitySequenceManager is a composition of instances of TypeSequenceManager,
@@ -129,7 +127,9 @@ public:
    * This method is provided for use when changing the
    * number of nodes in elements. 
    */
-  ErrorCode replace_subsequence( EntitySequence* seq_ptr, TagServer* ts );
+  ErrorCode replace_subsequence( EntitySequence* seq_ptr,
+                                 const int* tag_sizes,
+                                 int num_tag_sizes );
   
   TypeSequenceManager() : lastReferenced(0) {}
   

@@ -1031,6 +1031,56 @@ public:
 
     //@{
 
+    /**\brief Bit flags passed to tag_get_handle (bit-wise OR multiple flags) */
+  enum TagGetHandleFlags {
+    TAG_COUNT = 1<<0, //!< Size is in number of values of \c DataType instead of bytes
+    TAG_VARLEN= 1<<1, //!< Create variable-length tag
+    TAG_CREAT = 1<<2, //!< Create tag if it does not already exist
+    TAG_EXCL  = 1<<3, //!< Fail if TAG_CREATE and tag already exists
+    TAG_STORE = 1<<4, //!< Fail if tag exists and has different storage type
+    TAG_ANY   = 1<<5, //!< Do not fail if size, type, or default value do not match.
+    TAG_NOOPQ = 1<<6  //!< Do not accept MB_TYPE_OPAQUE as a match for any type.
+//  TAG_NAME  = 1<<7, //!< If TAG_CREAT, implementaiton may append a unique suffix to make name unique
+//  TAG_CNVRT = 1<<8, //!< Convert storage type if it does not match
+  };
+
+    /**\brief Get a tag handle, possibly creating the tag
+     *
+     *\param name          The tag name
+     *\param size          Tag size in bytes (or multiples of data type
+     *                     size if \c TAG_COUNT is passed in flags).  If \c TAG_VARLEN
+     *                     is specified, this value is taken to be the size of the
+     *                     default value if one is specified and is otherwise ignored.
+     *\param storage       Desired tag storage scheme.
+     *\param type          The type of the data (used for IO)
+     *\param tag_handle    Output: the resulting tag handle.
+     *\param flags         Bitwise OR of values from \c TagGetHandleFlags
+     *\param default_value Optional default value for tag.
+     *\return - \c MB_TAG_ALREADY_ALLOCATED if tag exists and \c TAG_EXCL is specified
+     *        - \c MB_TAG_NOT_FOUND         if tag does not exist and \c TAG_CREAT is not specified
+     *        - \c MB_INVALID_SIZE          if tag value size is not a multiple of 
+     *                                      the size of the data type (and \c TAG_COUNT not specified).
+     *        - \c MB_TYPE_OUT_OF_RANGE     invalid or inconsistent parameter
+     *        - \c MB_VARIABLE_DATA_LENGTH  if \c TAG_VARLEN and \c default_value is non-null and
+     *                                      \c default_value_size is not specified.
+     */
+  virtual ErrorCode tag_get_handle( const char* name,
+                                    int size,
+                                    TagType storage,
+                                    DataType type,
+                                    Tag& tag_handle,
+                                    unsigned flags = 0,
+                                    const void* default_value = 0 ) = 0;
+  
+    /**\brief same as non-const version, except that TAG_CREAT flag is ignored. */
+  virtual ErrorCode tag_get_handle( const char* name,
+                                    int size,
+                                    TagType storage,
+                                    DataType type,
+                                    Tag& tag_handle,
+                                    unsigned flags = 0,
+                                    const void* default_value = 0 ) const = 0;
+
     //! Create a tag with the specified name, type and length
     /** Create a "tag", used to store application-defined data on MB entities.  If MB_ALREADY_ALLOCATED
         is returned, a tag with this name has already been created.  Tags created with this function
@@ -1049,11 +1099,12 @@ public:
           tag_create( "my_tag", sizeof(double), MB_TAG_DENSE, tag_handle, &value );
           \endcode
     */
-  virtual ErrorCode tag_create(const char *tag_name,
-                                 const int tag_size, 
-                                 const TagType type,
-                                 Tag &tag_handle, 
-                                 const void *default_value) = 0;
+  ErrorCode tag_create( const char *tag_name,
+                        const int tag_size, 
+                        const TagType type,
+                        Tag &tag_handle, 
+                        const void *default_value)
+    { return tag_get_handle( tag_name, tag_size, type, MB_TYPE_OPAQUE, tag_handle, TAG_CREAT|TAG_EXCL, default_value ); }
 
     /** \brief Define a new tag.
      *
@@ -1072,13 +1123,15 @@ public:
      *         - MB_FAILURE if inconsistant arguments
      *         - MB_SUCCESS otherwise.
      */
-  virtual ErrorCode tag_create( const      char* name,
-                                  const        int size,
-                                  const  TagType storage,
-                                  const DataType data,
-                                            Tag& handle,
-                                  const      void* def_val,
-                                              bool use_existing = false ) = 0;
+  ErrorCode tag_create( const    char* name,
+                        const      int size,
+                        const  TagType storage,
+                        const DataType data,
+                                  Tag& handle,
+                        const    void* def_val,
+                                  bool use_existing = false )
+    { return tag_get_handle( name, size, storage, data, handle, 
+                (use_existing ? TAG_CREAT : TAG_CREAT|TAG_EXCL), def_val ); }
 
     /**\brief Define a new tag that can store variable-length data.
      *
@@ -1095,13 +1148,15 @@ public:
      *         - MB_FAILURE if inconsistant arguments
      *         - MB_SUCCESS otherwise.
      */
-  virtual ErrorCode tag_create_variable_length( const char* name,
-                                                  TagType   storage,
-                                                  DataType  data_type,
-                                                  Tag&      handle_out,
-                                                  const void* default_value = 0,
-                                                  int         default_val_len = 0 
-                                                 ) = 0;
+  ErrorCode tag_create_variable_length( const char* name,
+                                        TagType   storage,
+                                        DataType  data_type,
+                                        Tag&      handle_out,
+                                        const void* default_value = 0,
+                                        int         default_val_len = 0 )
+    { return tag_get_handle( name, default_val_len, storage, data_type, handle_out, 
+                              TAG_VARLEN|TAG_CREAT|TAG_EXCL,
+                              default_value ); }
 
     //! Get the name of a tag corresponding to a handle
     /** \param tag_handle Tag you want the name of.  
@@ -1115,8 +1170,8 @@ public:
         \param tag_name Name of the desired tag. 
         \param tag_handle Tag handle corresponding to <em>tag_name</em>
     */ 
-  virtual ErrorCode  tag_get_handle(const char *tag_name, 
-                                      Tag &tag_handle) const = 0;
+  virtual ErrorCode tag_get_handle( const char *tag_name, 
+                                    Tag &tag_handle ) const = 0;
 
     //! Get the size of the specified tag
     /** Get the size of the specified tag, in bytes (MB_TAG_SPARSE, MB_TAG_DENSE, MB_TAG_MESH) or
@@ -1184,9 +1239,9 @@ public:
         \param tag_data Pointer to memory into which tag data will be written
     */
   virtual ErrorCode  tag_get_data(const Tag tag_handle, 
-                                    const EntityHandle* entity_handles, 
-                                    const int num_entities, 
-                                    void *tag_data) const = 0;
+                                  const EntityHandle* entity_handles, 
+                                  int num_entities, 
+                                  void *tag_data) const = 0;
 
     //! Get the value of the indicated tag on the specified entities in the specified range
     /** Identical to previous function, except entities are specified using a range instead of a 1d vector.
@@ -1209,10 +1264,10 @@ public:
         \param num_entities Number of entities in 1d vector of entity handles
         \param tag_data Pointer to memory holding tag values to be set, <em>one entry per entity handle</em>
     */
-  virtual ErrorCode  tag_set_data(const Tag tag_handle, 
-                                    const EntityHandle* entity_handles, 
-                                    const int num_entities,
-                                    const void *tag_data ) = 0;
+  virtual ErrorCode  tag_set_data( Tag tag_handle, 
+                                   const EntityHandle* entity_handles, 
+                                   int num_entities,
+                                   const void *tag_data ) = 0;
   
     //! Set the value of the indicated tag on the specified entities in the specified range
     /** Identical to previous function, except entities are specified using a range instead of a 1d vector.
@@ -1220,7 +1275,7 @@ public:
         \param entity_handles Range of entity handles whose tag values are being set
         \param tag_data Pointer to memory holding tag values to be set, <em>one entry per entity handle</em>
     */
-  virtual ErrorCode  tag_set_data(const Tag tag_handle, 
+  virtual ErrorCode  tag_set_data( Tag tag_handle, 
                                     const Range& entity_handles,
                                     const void *tag_data ) = 0;
 
@@ -1240,10 +1295,10 @@ public:
      *                      fixed-length tags.  Required for variable-length tags.
      */
   virtual ErrorCode  tag_get_data(const Tag tag_handle, 
-                                    const EntityHandle* entity_handles, 
-                                    const int num_entities, 
-                                    const void** tag_data,
-                                    int* tag_sizes = 0 ) const = 0;
+                                  const EntityHandle* entity_handles, 
+                                  int num_entities, 
+                                  const void** tag_data,
+                                  int* tag_sizes = 0 ) const = 0;
 
     /**\brief Get pointers to tag data
      *
@@ -1276,11 +1331,11 @@ public:
      *\param tag_sizes      The length of each tag value.  Optional for 
      *                      fixed-length tags.  Required for variable-length tags.
      */
-  virtual ErrorCode  tag_set_data(const Tag tag_handle, 
-                                    const EntityHandle* entity_handles, 
-                                    const int num_entities,
-                                    void const* const* tag_data,
-                                    const int* tag_sizes = 0 ) = 0;
+  virtual ErrorCode  tag_set_data( Tag tag_handle, 
+                                   const EntityHandle* entity_handles, 
+                                   int num_entities,
+                                   void const* const* tag_data,
+                                   const int* tag_sizes = 0 ) = 0;
   
     /**\brief Set tag data given an array of pointers to tag values.
      *
@@ -1294,7 +1349,7 @@ public:
      *\param tag_sizes      The length of each tag value.  Optional for 
      *                      fixed-length tags.  Required for variable-length tags.
      */
-  virtual ErrorCode  tag_set_data(const Tag tag_handle, 
+  virtual ErrorCode  tag_set_data( Tag tag_handle, 
                                     const Range& entity_handles,
                                     void const* const* tag_data,
                                     const int* tag_sizes = 0 ) = 0;
@@ -1330,7 +1385,7 @@ public:
      */
   virtual ErrorCode tag_clear_data( Tag tag_handle,
                                     const EntityHandle* entity_handles,
-                                    const int num_entity_handles,
+                                    int num_entity_handles,
                                     const void* value,
                                     int value_size = 0 ) = 0;
 
@@ -1341,9 +1396,9 @@ public:
         \param entity_handles 1d vector of entity handles from which the tag is being deleted
         \param num_handles Number of entity handles in 1d vector
     */
-  virtual ErrorCode  tag_delete_data( const Tag tag_handle, 
+  virtual ErrorCode  tag_delete_data( Tag tag_handle, 
                                       const EntityHandle *entity_handles,
-                                      const int num_handles) = 0;
+                                      int num_handles) = 0;
 
     //! Delete the data of a range of entity handles and sparse tag
     /** Delete the data of a tag on a range of entity handles.  Only sparse tag data are deleted with this
@@ -1351,7 +1406,7 @@ public:
         \param tag_handle Handle of the (sparse) tag being deleted from entity
         \param entity_range Range of entities from which the tag is being deleted
     */
-  virtual ErrorCode  tag_delete_data( const Tag tag_handle, 
+  virtual ErrorCode  tag_delete_data( Tag tag_handle, 
                                       const Range &entity_range) = 0;
 
   /**\brief Access tag data via direct pointer into contiguous blocks

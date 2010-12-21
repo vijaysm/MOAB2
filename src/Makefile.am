@@ -29,40 +29,49 @@ libMOAB_la_includedir = $(includedir)
 
 # The list of source files, and any header files that do not need to be installed
 libMOAB_la_SOURCES = \
+  AdaptiveKDTree.cpp \
   AEntityFactory.cpp \
   AEntityFactory.hpp \
-  BitTagServer.cpp \
-  BitTagServer.hpp \
+  AffineXform.cpp \
+  AffineXform.hpp \
+  AxisBox.cpp \
+  AxisBox.hpp \
+  BitPage.cpp \
+  BitPage.hpp \
+  BitTag.cpp \
+  BitTag.hpp \
+  BSPTree.cpp \
   BSPTreePoly.cpp \
+  CN.cpp \
+  CartVect.cpp \
+  Core.cpp \
   DebugOutput.cpp \
   DebugOutput.hpp \
+  DenseTag.hpp \
+  DenseTag.cpp \
   DualTool.cpp \
   ElementSequence.hpp \
   EntitySequence.cpp \
   EntitySequence.hpp \
   Error.hpp \
+  Factory.cpp \
   FileOptions.cpp \
   FileOptions.hpp \
+  GeomUtil.cpp \
   GeomTopoTool.cpp \
   HigherOrderFactory.cpp \
   HomXform.cpp \
-  AdaptiveKDTree.cpp \
-  AffineXform.cpp \
-  AffineXform.hpp \
-  AxisBox.cpp \
-  AxisBox.hpp \
-  BSPTree.cpp \
-  CN.cpp \
-  MBCNArrays.hpp \
-  CartVect.cpp \
+  Internals.hpp \
   Matrix3.cpp \
   Matrix3.hpp \
-  Core.cpp \
-  Factory.cpp \
-  GeomUtil.cpp \
-  Internals.hpp \
+  MBCNArrays.hpp \
   MeshSet.cpp \
   MeshSet.hpp \
+  MeshSetSequence.cpp \
+  MeshSetSequence.hpp \
+  MeshTag.hpp \
+  MeshTag.cpp \
+  MeshTopoUtil.cpp \
   OrientedBox.cpp \
   OrientedBox.hpp \
   OrientedBoxTreeTool.cpp \
@@ -78,9 +87,6 @@ libMOAB_la_SOURCES = \
   Util.cpp \
   WriteUtil.cpp \
   WriteUtil.hpp \
-  MeshSetSequence.cpp \
-  MeshSetSequence.hpp \
-  MeshTopoUtil.cpp \
   PolyElementSeq.cpp \
   PolyElementSeq.hpp \
   ScdElementData.cpp \
@@ -92,10 +98,8 @@ libMOAB_la_SOURCES = \
   SequenceData.cpp \
   SequenceManager.cpp \
   SequenceManager.hpp \
-  SparseTagSuperCollection.cpp \
-  SparseTagSuperCollection.hpp \
-  SparseTagCollection.cpp \
-  SparseTagCollection.hpp \
+  SparseTag.cpp \
+  SparseTag.hpp \
   StructuredElementSeq.cpp \
   StructuredElementSeq.hpp \
   SweptElementData.cpp \
@@ -107,12 +111,14 @@ libMOAB_la_SOURCES = \
   TagCompare.hpp \
   TagInfo.cpp \
   TagInfo.hpp \
-  TagServer.cpp \
-  TagServer.hpp \
   TypeSequenceManager.cpp \
   TypeSequenceManager.hpp \
   UnstructuredElemSeq.cpp \
   UnstructuredElemSeq.hpp \
+  VarLenDenseTag.hpp \
+  VarLenDenseTag.cpp \
+  VarLenSparseTag.hpp \
+  VarLenSparseTag.cpp \
   VarLenTag.hpp \
   VertexSequence.hpp \
   VertexSequence.cpp \
@@ -121,41 +127,41 @@ libMOAB_la_SOURCES = \
 
 # The list of header files which are to be installed
 nobase_libMOAB_la_include_HEADERS = \
-  moab/DualTool.hpp \
-  moab/GeomTopoTool.hpp \
-  moab/HigherOrderFactory.hpp \
-  moab/HomXform.hpp \
   moab/AdaptiveKDTree.hpp \
   moab/BSPTree.hpp \
+  moab/BSPTreePoly.hpp \
   moab/CN.hpp \
   moab/CartVect.hpp \
   moab/Compiler.hpp \
   moab/Core.hpp \
+  moab/DualTool.hpp \
+  moab/GeomTopoTool.hpp \
+  moab/HigherOrderFactory.hpp \
+  moab/HomXform.hpp \
   moab/EntityType.hpp \
   moab/EntityHandle.hpp \
   moab/Forward.hpp \
   moab/GeomUtil.hpp \
   moab/Interface.hpp \
+  moab/MeshTopoUtil.hpp \
   moab/OrientedBoxTreeTool.hpp \
-  moab/BSPTreePoly.hpp \
   moab/Range.hpp \
+  moab/RangeMap.hpp \
   moab/ReadUtilIface.hpp \
   moab/ReaderIface.hpp \
   moab/ReaderWriterSet.hpp \
   moab/ScdInterface.hpp \
   moab/Skinner.hpp \
-  MBTagConventions.hpp \
   moab/Types.hpp \
   moab/UnknownInterface.hpp \
   moab/Util.hpp \
   moab/WriteUtilIface.hpp \
   moab/WriterIface.hpp \
-  moab/MeshTopoUtil.hpp \
-  moab/RangeMap.hpp \
   MBEntityType.h \
   MBCN.h \
   MOAB_FCDefs.h \
-  MBCN_protos.h 
+  MBCN_protos.h \
+  MBTagConventions.hpp
 
 MBCN_protos.h: MBCN.h $(top_srcdir)/itaps/mkprotos.sh
 	$(AM_V_GEN)$(top_srcdir)/itaps/mkprotos.sh MBCN MOAB $< $@ MOAB_FCDefs.h

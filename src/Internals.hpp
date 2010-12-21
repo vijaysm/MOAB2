@@ -90,34 +90,6 @@ inline EntityType TYPE_FROM_HANDLE(EntityHandle handle)
   return static_cast<EntityType> (handle >> MB_ID_WIDTH);
 }
 
-typedef unsigned long TagId;
-
-/* Tag format
- * 0xXXZZZZZZ  ( 32 bits total )
- * Z - reserved for internal sub-tag id
- * X - reserved for internal properties & lookup speed
- */
-#define MB_TAG_PROP_WIDTH 2
-#define MB_TAG_SHIFT_WIDTH (8*sizeof(TagId)-MB_TAG_PROP_WIDTH)
-#define MB_TAG_PROP_MASK (~((TagId)0x3 << MB_TAG_SHIFT_WIDTH))
-//        2^MB_TAG_PROP_WIDTH-1 ------^
-
-inline unsigned long ID_FROM_TAG_HANDLE(Tag tag_handle) 
-{
-  return static_cast<TagId>( (TagId)tag_handle & MB_TAG_PROP_MASK );
-}
-
-inline TagType PROP_FROM_TAG_HANDLE(Tag tag_handle)
-{
-  return static_cast<TagType>( (TagId)tag_handle >> MB_TAG_SHIFT_WIDTH );
-}
-
-inline Tag TAG_HANDLE_FROM_ID(TagId tag_id, TagType prop) 
-{
-//  assert( tag_id <= MB_TAG_PROP_MASK );
-  return reinterpret_cast<Tag>( ((TagId)prop)<<MB_TAG_SHIFT_WIDTH | tag_id );
-}  
-
 } // namespace moab
 
 #endif

@@ -230,7 +230,7 @@ ErrorCode HigherOrderFactory::convert_sequence( ElementSequence* seq,
   
   mMB->tag_delete(deletable_nodes);
 
-  status = mMB->sequence_manager()->replace_subsequence( new_seq, mMB->tag_server() );
+  status = mMB->sequence_manager()->replace_subsequence( new_seq );
   if (MB_SUCCESS != status) {
     SequenceData* data = new_seq->data();
     delete new_seq;

@@ -75,7 +75,8 @@ enum DataType {
  *  use void** instead of a uint to prevent them from being confused as 
  *  entity handles.
  */
-typedef void** Tag;
+struct TagInfo;
+typedef struct TagInfo* Tag;
 
 /** Meshset options: properties for meshset creation.
  *  Values are bit flags that may be combined with a bitwise OR (|)

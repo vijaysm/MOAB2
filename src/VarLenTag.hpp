@@ -142,6 +142,13 @@ public:
     { return mData.mPointer.array; }
 #endif
 
+  inline unsigned long mem() const
+#ifdef VAR_LEN_TAG_ELIDE_DATA    
+    { return size() <= INLINE_COUNT ? 0 : size(); }
+#else
+    { return size(); }
+#endif
+
   inline const unsigned char* data() const 
     { return const_cast<VarLenTag*>(this)->data(); }
   

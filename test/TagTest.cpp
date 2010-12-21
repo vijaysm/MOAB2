@@ -1205,14 +1205,6 @@ static void test_delete_type_tag( TagType storage )
   CHECK_ERR( rval );
   CHECK( std::find( tags.begin(), tags.end(), tag ) == tags.end() );
   
-    // check get_data for entity
-  rval = mb.tag_get_data( tag, &handle, 1, &value );  
-  CHECK_EQUAL( MB_TAG_NOT_FOUND, rval );
-  
-    // check get_data for mesh
-  rval = mb.tag_get_data( tag, 0, 0, &value );  
-  CHECK_EQUAL( MB_TAG_NOT_FOUND, rval );
-  
     // check that a new tag w/ the same name can be created
   tag = test_create_tag( mb, tagname, sizeof(double), storage, MB_TYPE_DOUBLE, 0 );
   rval = mb.tag_delete( tag );

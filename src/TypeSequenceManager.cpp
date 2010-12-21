@@ -153,7 +153,8 @@ ErrorCode TypeSequenceManager::insert_sequence( EntitySequence* seq_ptr )
 }
 
 ErrorCode TypeSequenceManager::replace_subsequence( EntitySequence* seq_ptr,
-                                                      TagServer* tag_server )
+                                                    const int* tag_sizes,
+                                                    int num_tag_sizes )
 {
     // find the sequence of interest
   iterator i = lower_bound( seq_ptr->start_handle() );
@@ -170,7 +171,7 @@ ErrorCode TypeSequenceManager::replace_subsequence( EntitySequence* seq_ptr,
     return MB_FAILURE;
     // copy tag data (move owership of var-len data)
   SequenceData* const dead_data = (*i)->data();
-  dead_data->move_tag_data( seq_ptr->data(), tag_server );
+  dead_data->move_tag_data( seq_ptr->data(), tag_sizes, num_tag_sizes );
   
     // split sequences sharing old data into two groups:
     // p->i : first sequence to i
@@ -233,7 +234,7 @@ ErrorCode TypeSequenceManager::replace_subsequence( EntitySequence* seq_ptr,
     for (; p != i; ++p)
       (*p)->data( new_data );
       // copy tag data (move owership of var-len data)
-    dead_data->move_tag_data( new_data, tag_server );
+    dead_data->move_tag_data( new_data, tag_sizes, num_tag_sizes );
     if (!(*new_data->seqManData.firstSequence)->using_entire_data())
       availableList.insert( new_data );
   }
@@ -244,7 +245,7 @@ ErrorCode TypeSequenceManager::replace_subsequence( EntitySequence* seq_ptr,
     for (; i != n; ++i)
       (*i)->data( new_data );
       // copy tag data (move owership of var-len data)
-    dead_data->move_tag_data( new_data, tag_server );
+    dead_data->move_tag_data( new_data, tag_sizes, num_tag_sizes );
     if (!(*new_data->seqManData.firstSequence)->using_entire_data())
       availableList.insert( new_data );
   }

@@ -8,7 +8,6 @@
 namespace moab {
 
 class HomCoord;
-class TagServer;
 
 class SequenceManager 
 {
@@ -78,14 +77,18 @@ class SequenceManager
        * sequence.  Existing sequence will be removed, modified, or split
        * into two prevent it from overlapping the new sequence.
        */
-    ErrorCode replace_subsequence( EntitySequence* new_seq, TagServer* ts );
+    ErrorCode replace_subsequence( EntitySequence* new_seq );
     
       /** Check if passed entity handles are valid */
     ErrorCode check_valid_entities( const Range& entities ) const;
     
-      /** Check if passed entity handles are valid */
+      /** Check if passed entity handles are valid 
+       *\param root_set_okay  If true, do not returnan error if the passed
+       *                      array contains one or more zero-valued handles 
+       */
     ErrorCode check_valid_entities( const EntityHandle entities[],
-                                      size_t num_entities ) const;
+                                    size_t num_entities,
+                                    bool root_set_okay = false ) const;
     
       /** Delete an entity.  Deletes sequence if only contained entity. */
     ErrorCode delete_entity( EntityHandle entity );
@@ -241,228 +244,14 @@ class SequenceManager
   
     /* Dense Tag Functions */
     
-      /** Release all dense tag data storage */
-    void reset_tag_data();
-    
       /** Allocate a tag ID
-       *\param tag_id   The ID to allocate/reserve
        *\param tag_size The size of the tag value for each entity
        */
-    ErrorCode reserve_tag_id( int tag_size, TagId tag_id );
+    ErrorCode reserve_tag_array( int tag_size, int& array_id_out );
     
-      /** Release a reserved tag ID any any associated storage */
-    ErrorCode release_tag( TagId tag_id );
-    
-      /** If tag data is allocated for the specified entity,
-       *  change it to the passed default value.  Otherwise 
-       *  do nothing. 
-       */
-    ErrorCode remove_tag_data( TagId tag_id, 
-                                 EntityHandle handle,
-                                 const void* default_tag_value,
-                                 int default_value_size = 0 );
-                                 
-      /** Set fixed-length tag values.
-       *\NOTE Default value must be given because it is often
-       *      necessary to allocate storage for additional entities
-       *
-       *\NOTE Will fail for variable-length tag data.
-       */
-    ErrorCode set_tag_data( TagId tag_id,
-                              const EntityHandle* handles,
-                              int num_handles,
-                              const void* values,
-                              const void* default_value );
-                              
-      /** Set tag values for array of entity handles
-       *\param tag_id      The tag.
-       *\param handles     Array of entity handles.
-       *\param num_handles Length of 'handles' array.
-       *\param values      Array of pointers to tag values, one pointer for each handle
-       *\param lengths     Length of each tag value.  Ignored for fixed-length tags.
-       *\param default_value Used to initialize any additional tag storage.  Ignored
-       *                   for variable-length tags.
-       *\param one_value   If true, tag on all entities is set to the (same)
-       *                   first passed tag value.
-       */
-    ErrorCode set_tag_data( TagId tag_id,
-                              const EntityHandle* handles,
-                              int num_handles,
-                              void const* const* values,
-                              const int* lengths,
-                              const void* default_value,
-                              bool one_value = false );
-                              
-      /** Set fixed-length tag value for an Range of entities
-       *\NOTE Default value must be given because it is often
-       *      necessary to allocate storage for other entities
-       *\NOTE Will fail for variable-length tag data
-       */
-    ErrorCode set_tag_data( TagId tag_id,
-                              const Range& handles,
-                              const void* values,
-                              const void* default_value );
-                              
-      /** Set tag data for an Range of entities.
-       *
-       *\param tag_id  The tag
-       *\param handles The entities
-       *\param values  An array of pointers, one per entity, pointing to the
-       *               tag value for the corresponding entity.
-       *\param lengths An array of integers, one per entity, indicating the
-       *               length of the tag value for each entity.  Ingored
-       *               for fixed-length tags.
-       *\param default_value The default value for the tag.  Ignored for
-       *               variable-length tags.
-       *\param one_value   If true, tag on all entities is set to the (same)
-       *                   first passed tag value.
-       */
-     ErrorCode set_tag_data( TagId tag_id,
-                               const Range& handles,
-                               void const* const* values,
-                               const int* lengths,
-                               const void* default_value,
-                               bool one_value = false );
-
-  /**\brief Access tag data via direct pointer into contiguous blocks
-   *
-   * Iteratively obtain direct access to contiguous blocks of tag
-   * storage.  This function cannot be used with bit tags because
-   * of the compressed bit storage.  This function cannot be used
-   * with variable length tags because it does not provide a mechanism
-   * to determine the length of the value for each entity.  This
-   * function may be used with sparse tags, but if it is used, it
-   * will return data for a single entity at a time.  
-   *
-   *\param tag_id   The ID of the tag for which to access data
-   *\param iter     As input, the first entity for which to return
-   *                data.  As output, one past the last entity for
-   *                which data was returned.
-   *\param end      One past the last entity for which data is desired
-   *\param data_ptr Output: pointer to tag storage.
-   *  
-   *\Note If this function is called for entities for which no tag value
-   *      has been set, but for which a default value exists, it will 
-   *      force the allocation of explicit storage for each such entity
-   *      even though MOAB would normally not explicitly store tag values
-   *      for such entities.
-   */
-    ErrorCode tag_iterate( TagId tag_id,
-                           Range::iterator& iter,
-                           const Range::iterator& end,
-                           void*& data_ptr,
-                           const void* default_value );
-
-      /** Get fixed-length tag values for array of entities
-       *\NOTE Will fail with MB_VARIABLE_DATA_LENGTH if called
-       *      for variable-length tag.
-       */
-    ErrorCode get_tag_data( TagId tag_id,
-                              const EntityHandle* handles,
-                              int num_handles,
-                              void* values, 
-                              const void* default_value ) const;
-                              
-      /** Get pointers to tag data for array of entities
-       *\param tag_id      The Tag.
-       *\param handles     Array of entity handles.
-       *\param num_handles Length of 'handles' array.
-       *\param tag_ptrs    Pointers to tag values, one pointer for each input handle.
-       *\param lengths     Length of each tag value.  Ignored for fixed-length tags.
-       *\param default_value Pointer to default value for tag, or NULL if none.
-       *\param default_value_length  Length of default tag value.  Ingored for
-       *                   fixed-length tags.
-       */
-    ErrorCode get_tag_data( TagId tag_id,
-                              const EntityHandle* handles,
-                              int num_handles,
-                              const void** tag_ptrs,
-                              int* lengths,
-                              const void* default_value,
-                              int default_value_length ) const;
-                              
-      /** Get fixed-length tag value for an Range of entities
-       *\NOTE Will fail with MB_VARIABLE_DATA_LENGTH if called
-       *      for variable-length tag.
-       */
-    ErrorCode get_tag_data( TagId tag_id,
-                              const Range& handles,
-                              void* values,
-                              const void* default_value ) const;
-                              
-      /** Get pointers to tag data for an Range of entities.
-       *
-       *\param tag_id   The tag.
-       *\param handles  The entities.
-       *\param values   Array of pointers of type 'const void*'.  Array
-       *                must be the same length as the size of 'entities'.
-       *                The array will be populated with pointers to the
-       *                internal storage of the tag data for each entity.
-       *\param lengths  Array of integers.  Will be populated with the 
-       *                length of the tag value for each entity.  Argument
-       *                is optional for fixed-length tags.
-       *\param default_value The default value for the tag.
-       *\param default_value_length The length of the default tag value.
-       */
-    ErrorCode get_tag_data( TagId tag_id,
-                              const Range& handles,
-                              const void** values,
-                              int* lengths,
-                              const void* default_value,
-                              int defaut_value_length ) const;
-  
-      /** Get all tags for which values (possibly the default value)
-       *  have been allocated for a given entity.
-       *\NOTE For variable-length data, will only return tag if
-       *      data length is greater than zero.
-       */
-    ErrorCode get_entity_tags( EntityHandle entity,
-                                 std::vector<Tag>& tags_out ) const;
-
-      /** Get all entities for which storage for a specific tag has
-       *  been allocated.
-       *\NOTE For variable-length data, will only return entities for
-       *      which data length is greater than zero.
-       */
-    ErrorCode get_tagged_entities( TagId tag_id, 
-                                     EntityType type,
-                                     Range& entities_out ) const;
-
-      /** Count all entities for which storage for a specific tag has
-       *  been allocated.
-       *\NOTE For variable-length data, will only count entities for
-       *      which data length is greater than zero.
-       */
-    ErrorCode count_tagged_entities( TagId tag, 
-                                       EntityType type, 
-                                       int& result ) const;
-
-      /** Get entities by type and tag value (intersection) */
-    ErrorCode get_entities_with_tag_value( TagId id,
-                                             const TagInfo& tag_info,
-                                             EntityType type,
-                                             Range& entities_out,
-                                             const void* value,
-                                             int value_size ) const;
-                                             
-      /** Get subset of entities with a type and a tag value (intersection)
-       *\param range Intersect result with this range
-       *\param id    The ID of the tag to match
-       *\param type  Only check entities of this type 
-       *\param entities_out Result (subset of input 'range')
-       *\param value The tag value
-       */
-    ErrorCode get_entities_with_tag_value( const Range& range,
-                                             TagId id,
-                                             const TagInfo& tag_info,
-                                             EntityType type,
-                                             Range& entities_out,
-                                             const void* value,
-                                             int value_size ) const;
-    
-    ErrorCode get_tag_memory_use( TagId id, 
-                                    unsigned long& total, 
-                                    unsigned long& per_entity ) const;
+      /** Release any storage assocociated with a tag ID, and optionally,
+       *  release the reserved tag ID. */
+    ErrorCode release_tag_array( int id, bool release_id );
     
       /**\brief Get default size of POLYGON and POLYHEDRON SequenceData */
     static EntityID default_poly_sequence_size( int entity_connectivity_length );

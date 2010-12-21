@@ -1,5 +1,4 @@
 #include "SequenceData.hpp"
-#include "TagServer.hpp"
 #include "SysUtil.hpp"
 #include "VarLenTag.hpp"
 #include <assert.h>
@@ -67,15 +66,13 @@ void SequenceData::increase_tag_count( unsigned amount )
   numTagData += amount;
 }
 
-void* SequenceData::create_tag_data( TagId tag_num,
-                                     int bytes_per_ent,
-                                     const void* initial_val )
+void* SequenceData::allocate_tag_array( int tag_num, int bytes_per_ent )
 {
-  if (tag_num >= numTagData)
+  if ((unsigned)tag_num >= numTagData)
     increase_tag_count( tag_num - numTagData + 1 );
   
   assert( !arraySet[tag_num + 1] );
-  return create_data( tag_num + 1, bytes_per_ent, initial_val );
+  return create_data( tag_num + 1, bytes_per_ent, 0 );
 }
 
 SequenceData* SequenceData::subset( EntityHandle start,
@@ -127,7 +124,7 @@ void SequenceData::copy_data_subset( int index,
   }
 }
 
-void SequenceData::move_tag_data( SequenceData* destination, TagServer* tag_server )
+void SequenceData::move_tag_data( SequenceData* destination, const int* tag_sizes, int num_tag_sizes )
 {
   assert( destination->start_handle() >= start_handle() );
   assert( destination->end_handle() <= end_handle() );
@@ -140,11 +137,8 @@ void SequenceData::move_tag_data( SequenceData* destination, TagServer* tag_serv
     if (!arraySet[i])
       continue;
     
-    const TagInfo* info = tag_server->get_tag_info( TAG_HANDLE_FROM_ID( i-1, MB_TAG_DENSE ) );
-    if (!info)
-      continue;
-    
-    const int tag_size = info->get_size();
+    assert(i <= (unsigned)num_tag_sizes);
+    const int tag_size = tag_sizes[i-1];
     if (!destination->arraySet[i])
       destination->arraySet[i] = malloc( count * tag_size );
     memcpy( destination->arraySet[i], 
@@ -160,9 +154,9 @@ void SequenceData::release_tag_data( const int* tag_sizes, int num_tag_sizes )
     release_tag_data( i, tag_sizes[i] );
 }
 
-void SequenceData::release_tag_data( TagId tag_num, int tag_size )
+void SequenceData::release_tag_data( int tag_num, int tag_size )
 {
-  if (tag_num < numTagData) {
+  if ((unsigned)tag_num < numTagData) {
     if (tag_size == MB_VARIABLE_LENGTH && arraySet[tag_num+1]) {
       VarLenTag* iter = reinterpret_cast<VarLenTag*>(arraySet[tag_num+1]);
       VarLenTag* const end = iter + size();

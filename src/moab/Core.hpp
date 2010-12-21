@@ -19,6 +19,7 @@
 #include "moab/Interface.hpp"
 #include "moab/ReaderIface.hpp"
 #include <map>
+#include <list>
 
 namespace moab {
 
@@ -26,7 +27,6 @@ class WriteUtil;
 class ReadUtil;
 class AEntityFactory;
 class SequenceManager;
-class TagServer;
 class Error;
 class HomCoord;
 class ReaderWriterSet;
@@ -582,80 +582,35 @@ public:
 
       //-------------------------Tag Stuff-------------------------------------//
 
-  //! Creates a dense tag with a name.
-  /** Use to store data that is larger than 8 bits, on many 
-      EntityHandles across all entity types.  Allows for storage of data of 
-      <em>tag_size</em> bytes on any arbitrary entity.  
-      \param tag_name String name of Tag.
-      \param tag_size Size of data to store on tag, in bytes.  For storing data 
-      1 byte or less in size, use tag_create_bits(...)
-      \param tag_handle Tag to be created.
-      \param default_value Default value tag data is set to when initially created.
 
-      Example: \code
-      std::string tag_name = "my_meshset_tag";
-      int tag_size = sizeof(double); 
-      Tag tag_handle = 0;
-      double value = 100.5;
-      const void *default_value = &value;
-      tag_create_dense( tag_name, 
-              tag_size, default_value ); //Create a dense tag. 
-                                         //The tag will hold data the size of a 
-                                         //double and that data will initially be 
-                                         //set to 100.5  \endcode */
-  virtual ErrorCode tag_create(const char *tag_name,
-                                  const int tag_size, 
-                                  const TagType type,
-                                  Tag &tag_handle, 
-                                  const void *default_value);
-
-    /** \brief Define a new tag.
+    /**\brief Get a tag handle, possibly creating the tag
      *
-     * Define a new tag for storing application-defined data on MB entities.  
-     *
-     * \param name    The name of the tag.
-     * \param size    The size of the tag data in bytes.
-     * \param storage The tag storage type.
-     * \param data    The tag data type.
-     * \param handle  The tag handle (output)
-     * \param def_val Optional default value for tag.
-     * \param use_existing  If true, and a tag with the same name and
-     *                same description exists, successfully return the
-     *                handle of the tag.
-     * \return - MB_ALREADY_ALLOCATED if a tag with name already exists.
-     *         - MB_FAILURE if inconsistant arguments
-     *         - MB_SUCCESS otherwise.
+     *\param name          The tag name
+     *\param size          Tag size in bytes (or multiples of data type
+     *                     size if \c TAG_COUNT is passed in flags)
+     *\param storage       Desired tag storage scheme.
+     *\param type          The type of the data (used for IO)
+     *\param tag_handle    Output: the resulting tag handle.
+     *\param flags         Bitwise OR of values from \c TagGetHandleFlags
+     *\param default_value Optional default value for tag.
+     *\param default_value_size Ignored unless TAG_VARLEN is specified.
      */
-  virtual ErrorCode tag_create( const      char* name,
-                                  const        int size,
-                                  const  TagType storage,
-                                  const DataType data,
-                                            Tag& handle,
-                                  const      void* def_val,
-                                              bool use_existing);
-
-    /**\brief Define a new tag that can store variable-length data.
-     *
-     * Define a new tag for storing application-defined data on MB entities.  
-     *
-     * \param name          The name of the tag.
-     * \param storage       The tag storage type (MB_TAG_BIT not supported).
-     * \param data_type     The tag data type.
-     * \param handle_out    The tag handle (output)
-     * \param default_value Optional default value for tag.
-     * \param default_val_len Length of default value.  Required if
-     *                      default value is specified.
-     * \return - MB_ALREADY_ALLOCATED if a tag with name already exists.
-     *         - MB_FAILURE if inconsistant arguments
-     *         - MB_SUCCESS otherwise.
-     */
-  virtual ErrorCode tag_create_variable_length( const char* name,
-                                                  TagType   storage,
-                                                  DataType  data_type,
-                                                  Tag&      handle_out,
-                                                  const void* default_value = 0,
-                                                  int         default_val_len = 0 
-                                                 );
+  virtual ErrorCode tag_get_handle( const char* name,
+                                    int size,
+                                    TagType storage,
+                                    DataType type,
+                                    Tag& tag_handle,
+                                    unsigned flags = 0,
+                                    const void* default_value = 0 );
+  
+    /**\brief same as non-const version, except that TAG_CREAT flag is ignored. */
+  virtual ErrorCode tag_get_handle( const char* name,
+                                    int size,
+                                    TagType storage,
+                                    DataType type,
+                                    Tag& tag_handle,
+                                    unsigned flags = 0,
+                                    const void* default_value = 0 ) const;
 
   //! Gets the tag name string of the tag_handle.
   /** \param tag_handle Tag you want the name of.  
@@ -669,17 +624,13 @@ public:
   virtual ErrorCode  tag_get_name(const Tag tag_handle, 
                                      std::string& tag_name) const;
 
-  //! Gets tag handle from the tag's string name. 
-  /**
-      \param tag_name Name string of desired tag. 
-      \param tag_handle Tag to be retrieved.
-
-      Example: \code
-      Tag tag_handle = 0;
-      std::string tag_name = "quad_data_flag";
-      tag_get_handle( tag_name, tag_handle ); \endcode */ 
-  virtual ErrorCode  tag_get_handle(const char *tag_name, 
-                                       Tag &tag_handle) const;
+    //! Gets the tag handle corresponding to a name
+    /** If a tag of that name does not exist, returns MB_TAG_NOT_FOUND
+        \param tag_name Name of the desired tag. 
+        \param tag_handle Tag handle corresponding to <em>tag_name</em>
+    */ 
+  virtual ErrorCode tag_get_handle( const char *tag_name, 
+                                    Tag &tag_handle ) const;
 
   //! Get handles for all tags defined on this entity
   virtual ErrorCode tag_get_tags_on_entity(const EntityHandle entity,
@@ -729,12 +680,12 @@ public:
       Example: \code
       int tag_data = 1004;
       tag_set_data( tag_handle, entity_handle, &tag_data ); \endcode */
-  virtual ErrorCode  tag_set_data(const Tag tag_handle, 
-                                     const EntityHandle* entity_handles, 
-                                     const int num_entities,
-                                     const void *tag_data );
+  virtual ErrorCode  tag_set_data( Tag tag_handle, 
+                                   const EntityHandle* entity_handles, 
+                                   int num_entities,
+                                   const void *tag_data );
   
-  virtual ErrorCode  tag_set_data(const Tag tag_handle, 
+  virtual ErrorCode  tag_set_data( Tag tag_handle, 
                                      const Range& entity_handles,
                                      const void *tag_data );
 
@@ -753,10 +704,10 @@ public:
      *                      fixed-length tags.  Required for variable-length tags.
      */
   virtual ErrorCode  tag_get_data(const Tag tag_handle, 
-                                    const EntityHandle* entity_handles, 
-                                    const int num_entities, 
-                                    const void** tag_data,
-                                    int* tag_sizes = 0 ) const;
+                                  const EntityHandle* entity_handles, 
+                                  int num_entities, 
+                                  const void** tag_data,
+                                  int* tag_sizes = 0 ) const;
 
     /**\brief Get pointers to tag data
      *
@@ -787,11 +738,11 @@ public:
      *\param tag_sizes      The length of each tag value.  Optional for 
      *                      fixed-length tags.  Required for variable-length tags.
      */
-  virtual ErrorCode  tag_set_data(const Tag tag_handle, 
-                                    const EntityHandle* entity_handles, 
-                                    const int num_entities,
-                                    void const* const* tag_data ,
-                                    const int* tag_sizes = 0 );
+  virtual ErrorCode  tag_set_data( Tag tag_handle, 
+                                   const EntityHandle* entity_handles, 
+                                   int num_entities,
+                                   void const* const* tag_data ,
+                                   const int* tag_sizes = 0 );
   
     /**\brief Set tag data given an array of pointers to tag values.
      *
@@ -804,10 +755,10 @@ public:
      *\param tag_sizes      The length of each tag value.  Optional for 
      *                      fixed-length tags.  Required for variable-length tags.
      */
-  virtual ErrorCode  tag_set_data(const Tag tag_handle, 
-                                    const Range& entity_handles,
-                                    void const* const* tag_data,
-                                    const int* tag_sizes = 0 );
+  virtual ErrorCode  tag_set_data( Tag tag_handle, 
+                                   const Range& entity_handles,
+                                   void const* const* tag_data,
+                                   const int* tag_sizes = 0 );
 
     /**\brief Set tag data given value.
      *
@@ -840,7 +791,7 @@ public:
      */
   virtual ErrorCode tag_clear_data( Tag tag_handle,
                                     const EntityHandle* entity_handles,
-                                    const int num_entity_handles,
+                                    int num_entity_handles,
                                     const void* value,
                                     int value_size = 0 );
 
@@ -851,9 +802,9 @@ public:
       \param entity_handles 1d vector of entity handles from which the tag is being deleted
       \param num_handles Number of entity handles in 1d vector
   */
-  virtual ErrorCode  tag_delete_data(const Tag tag_handle, 
-                                     const EntityHandle *entity_handles,
-                                     const int num_handles);
+  virtual ErrorCode  tag_delete_data( Tag tag_handle, 
+                                      const EntityHandle *entity_handles,
+                                      int num_handles);
 
   //! Delete the data of a range of entity handles and sparse tag
   /** Delete the data of a tag on a range of entity handles.  Only sparse tag data are deleted with this
@@ -861,7 +812,7 @@ public:
       \param tag_handle Handle of the (sparse) tag being deleted from entity
       \param entity_range Range of entities from which the tag is being deleted
   */
-  virtual ErrorCode  tag_delete_data(const Tag tag_handle, 
+  virtual ErrorCode  tag_delete_data( Tag tag_handle, 
                                      const Range &entity_range);
 
   //! Removes the tag from the database and deletes all of its associated data.
@@ -1093,9 +1044,6 @@ public:
     //int total_num_elements() const;
     //void total_num_elements(const int val);
 
-    //! return a reference to the tag server
-  TagServer* tag_server() {return tagServer;}
-
     //! return a reference to the sequence manager
   SequenceManager* sequence_manager() { return sequenceManager; }
   const SequenceManager* sequence_manager() const { return sequenceManager; }
@@ -1290,7 +1238,9 @@ private:
   Tag globalIdTag;
 
     //! tag server for this interface
-  TagServer* tagServer;
+  std::list<TagInfo*> tagList;
+  inline bool valid_tag_handle( const TagInfo* t ) const
+    { return std::find( tagList.begin(), tagList.end(), t ) != tagList.end(); }
 
   SequenceManager *sequenceManager;
 

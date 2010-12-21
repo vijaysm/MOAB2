@@ -23,7 +23,6 @@
 #include "SequenceManager.hpp"
 #include "ElementSequence.hpp"
 #include "VertexSequence.hpp"
-#include "TagServer.hpp"
 #include "AEntityFactory.hpp"
 #include "MBTagConventions.hpp"
 #include "RangeSeqIntersectIter.hpp"
@@ -221,8 +220,6 @@ ErrorCode WriteUtil::get_element_connect(
   if(!element_array)
     return MB_FAILURE;
 
-  TagServer* tag_server = mMB->tag_server();
-
   Range::const_iterator range_iter = elements.begin();
   Range::const_iterator range_iter_end = elements.end();
 
@@ -284,7 +281,7 @@ ErrorCode WriteUtil::get_element_connect(
         ++tmp_iter)
     {
       // set the element id tag
-      tag_server->set_data(element_id_tag, *tmp_iter, &start_element_id);
+      mMB->tag_set_data(element_id_tag, &*tmp_iter, 1, &start_element_id);
       ++start_element_id;
 
       if (add_sizes) *element_array++ = i;
@@ -293,7 +290,7 @@ ErrorCode WriteUtil::get_element_connect(
       for(int j=0; j<i; j++)
       {
         EntityHandle node = *(conn_array + j + i*(*tmp_iter - start_handle));
-        tag_server->get_data(node_id_tag, node, element_array);
+        mMB->tag_get_data(node_id_tag, &node, 1, element_array);
         element_array++;
       }
     }
@@ -324,8 +321,6 @@ ErrorCode WriteUtil::get_element_connect(
     return MB_FAILURE;
   if(!element_array || elem_array_size < (unsigned)vertices_per_elem)
     return MB_FAILURE;
-
-  TagServer* tag_server = mMB->tag_server();
 
 
   // Sequence iterators
@@ -384,7 +379,7 @@ ErrorCode WriteUtil::get_element_connect(
     conn_array += (conn_size * offset);
     if (vertices_per_elem == conn_size && !add_sizes)
     {
-      ErrorCode rval = tag_server->get_data( node_id_tag, 
+      ErrorCode rval = mMB->tag_get_data( node_id_tag, 
                                                conn_array,
                                                count * conn_size,
                                                output_iter );
@@ -400,7 +395,7 @@ ErrorCode WriteUtil::get_element_connect(
       for (EntityHandle i = 0; i < count; ++i)
       {
         *output_iter++ = min;
-        ErrorCode rval = tag_server->get_data( node_id_tag,
+        ErrorCode rval = mMB->tag_get_data( node_id_tag,
                                                  conn_array,
                                                  min,
                                                  output_iter );
@@ -556,8 +551,6 @@ ErrorCode WriteUtil::gather_nodes_from_elements(
       TYPE_FROM_HANDLE(elements.back()) >= MBENTITYSET)
     return MB_TYPE_OUT_OF_RANGE;
 
-  TagServer* tag_server = mMB->tag_server();
-
   // see if we need to use our own marking tag
   Tag exporting_nodes_tag = 0;
   if(node_bit_mark_tag)
@@ -608,7 +601,7 @@ ErrorCode WriteUtil::gather_nodes_from_elements(
         if(node > upper_bound)
           upper_bound = node;
         unsigned char bit = 0x1;
-        rval = tag_server->set_data(exporting_nodes_tag, &node, 1, &bit);
+        rval = mMB->tag_set_data(exporting_nodes_tag, &node, 1, &bit);
         assert(MB_SUCCESS == rval);
         if (MB_SUCCESS != rval)
           return rval;
@@ -639,7 +632,7 @@ ErrorCode WriteUtil::gather_nodes_from_elements(
           if(node > upper_bound)
             upper_bound = node;
           unsigned char bit = 0x1;
-          rval = tag_server->set_data(exporting_nodes_tag, &node, 1, &bit);
+          rval = mMB->tag_set_data(exporting_nodes_tag, &node, 1, &bit);
           assert(MB_SUCCESS == rval);
           if (MB_SUCCESS != rval)
             return rval;
@@ -668,7 +661,7 @@ ErrorCode WriteUtil::gather_nodes_from_elements(
           if(node > upper_bound)
             upper_bound = node;
           unsigned char bit = 0x1;
-          tag_server->set_data(exporting_nodes_tag, &node, 1, &bit);
+          mMB->tag_set_data(exporting_nodes_tag, &node, 1, &bit);
         }
       }
     }
@@ -680,7 +673,7 @@ ErrorCode WriteUtil::gather_nodes_from_elements(
   for(; upper_bound >= lower_bound; --upper_bound)
   {
     unsigned char node_marked=0;
-    tag_server->get_data(exporting_nodes_tag, &upper_bound, 1, &node_marked);
+    mMB->tag_get_data(exporting_nodes_tag, &upper_bound, 1, &node_marked);
     if(node_marked == 0x1)
       nodes.insert(upper_bound);
   }
@@ -750,8 +743,6 @@ ErrorCode WriteUtil::get_adjacencies( EntityHandle entity,
   const EntityHandle* adj_array;
   int num_adj, id;
 
-  TagServer* tag_server = mMB->tag_server();
- 
     // Get handles of adjacent entities 
   rval = mMB->a_entity_factory()->get_adjacencies( entity, adj_array, num_adj );
   if (MB_SUCCESS != rval)
@@ -769,7 +760,7 @@ ErrorCode WriteUtil::get_adjacencies( EntityHandle entity,
   {
     if (TYPE_FROM_HANDLE( *iter ) != MBENTITYSET)
     {
-      rval = tag_server->get_data( id_tag, iter, 1, &id );
+      rval = mMB->tag_get_data( id_tag, iter, 1, &id );
       if (MB_SUCCESS != rval)
         return rval;
       adj.push_back( id );

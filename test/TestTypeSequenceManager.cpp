@@ -582,7 +582,7 @@ void test_replace_subsequence()
     // try a sequence that is outside all existing data
   SequenceData* data = new SequenceData( 0, 10, 20 );
   DumSeq* seq = new DumSeq( data );
-  rval = seqman.replace_subsequence( seq, 0 );
+  rval = seqman.replace_subsequence( seq, 0, 0 );
   CHECK_EQUAL( MB_FAILURE, rval );
   delete seq;
   delete data;
@@ -590,7 +590,7 @@ void test_replace_subsequence()
     // try a sequence that overlaps the start of the data
   data = new SequenceData( 0, 40, 60 );
   seq = new DumSeq( data );
-  rval = seqman.replace_subsequence( seq, 0 );
+  rval = seqman.replace_subsequence( seq, 0, 0 );
   CHECK_EQUAL( MB_FAILURE, rval );
   delete seq;
   delete data;
@@ -598,7 +598,7 @@ void test_replace_subsequence()
     // try a sequence that is within the data but not within any sequence
   data = new SequenceData( 0, 60, 70 );
   seq = new DumSeq( data );
-  rval = seqman.replace_subsequence( seq, 0 );
+  rval = seqman.replace_subsequence( seq, 0, 0 );
   CHECK_EQUAL( MB_FAILURE, rval );
   delete seq;
   delete data;
@@ -606,7 +606,7 @@ void test_replace_subsequence()
     // try a sequence that overlaps an existing sequence
   data = new SequenceData( 0, 60, 101 );
   seq = new DumSeq( data );
-  rval = seqman.replace_subsequence( seq, 0 );
+  rval = seqman.replace_subsequence( seq, 0, 0 );
   CHECK_EQUAL( MB_FAILURE, rval );
   delete seq;
   delete data;
@@ -615,7 +615,7 @@ void test_replace_subsequence()
     // overlaps an existing sequence
   data = new SequenceData( 0, 150, 200 );
   seq = new DumSeq( 190, 200, data );
-  rval = seqman.replace_subsequence( seq, 0 );
+  rval = seqman.replace_subsequence( seq, 0, 0 );
   CHECK_EQUAL( MB_FAILURE, rval );
   delete seq;
   delete data;
@@ -627,7 +627,7 @@ void test_replace_subsequence()
     // split at start of sequence
   data = new SequenceData( 0, 101, 105 );
   seq = new DumSeq( data );
-  rval = seqman.replace_subsequence( seq, 0 );
+  rval = seqman.replace_subsequence( seq, 0, 0 );
   if (MB_SUCCESS != rval) {
     delete seq;
     delete data;
@@ -639,7 +639,7 @@ void test_replace_subsequence()
     // split at end of sequence
   data = new SequenceData( 0, 750, 800 );
   seq = new DumSeq( data );
-  rval = seqman.replace_subsequence( seq, 0 );
+  rval = seqman.replace_subsequence( seq, 0, 0 );
   if (MB_SUCCESS != rval) {
     delete seq;
     delete data;
@@ -651,7 +651,7 @@ void test_replace_subsequence()
     // split at middle of sequence
   data = new SequenceData( 0, 400, 499 );
   seq = new DumSeq( data );
-  rval = seqman.replace_subsequence( seq, 0 );
+  rval = seqman.replace_subsequence( seq, 0, 0 );
   if (MB_SUCCESS != rval) {
     delete seq;
     delete data;

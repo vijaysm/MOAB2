@@ -1,40 +1,40 @@
-#ifndef TAG_INFO_HPP
-#define TAG_INFO_HPP
+/** \file   MeshTag.hpp
+ *  \author Jason Kraftcheck 
+ *  \date   2010-12-14
+ */
 
-#include "moab/Range.hpp"
-#include <string>
+#ifndef MESH_TAG_HPP
+#define MESH_TAG_HPP
+
+#include "TagInfo.hpp"
 
 namespace moab {
 
-class SequenceManager;
-class Range;
-
-// ! stores information about a tag
-class TagInfo
+/**\brief Tag with only a global/mesh value
+ *
+ * Trivial tag implementation.  No per-entity values.  Only
+ * the global mesh value which is handled by the \c TagInfo
+ * base class.
+ */
+class MeshTag : public TagInfo 
 {
 public:
-
-  //! constructor
-  TagInfo() : mDefaultValue(0),
-              mDefaultValueSize(0),
-              mDataSize(0), 
-              dataType(MB_TYPE_OPAQUE)
-              {}
-
   //! constructor that takes all parameters
-  TagInfo( const char * name, 
+  MeshTag( const char * name, 
            int size, 
            DataType type, 
            const void * default_value,
            int default_value_size);
   
-  virtual ~TagInfo();
+  virtual ~MeshTag();
+
+  virtual TagType get_storage_type() const;
 
   /**\brief Remove/clear tag data for all entities
    *
    * Remove tag values from entities.
    *
-   *\param tag_delete_pending  If true, then release any global
+   *\param delete_pending  If true, then release any global
    *          data associated with the tag in preparation for deleting
    *          the tag itself.
    *
@@ -43,52 +43,8 @@ public:
    *
    *\param seqman    Pointer to mesh entity database
    */
-  virtual ErrorCode release_all_data( SequenceManager* seqman,
-                                      bool tag_delete_pending ) = 0;
+  virtual ErrorCode release_all_data( SequenceManager* seqman, bool delete_pending );
   
-  //! set the name of the tag
-  void set_name( const std::string& name) { mTagName = name; }
-
-  //! get the name of the tag
-  const std::string& get_name() const { return mTagName; }
-
-    //! get length of default value
-  int get_default_value_size() const { return mDefaultValueSize; }
-
-    //! get the default data
-  const void *get_default_value() const { return mDefaultValue; }
-  
-    //! compare the passed value to the default value.
-    //! returns false if no default value.
-  bool equals_default_value( const void* data, int size = -1 ) const;
-  
-  inline DataType get_data_type() const     { return dataType; }
-
-  //! get the size of the data
-  int get_size() const { return mDataSize; }
-  
-  //! Check if variable-length tag
-  bool variable_length() const { return get_size() == MB_VARIABLE_LENGTH; }
-
-  static int size_from_data_type( DataType t );
-  
-    // Check that all lengths are valid multiples of the type size.
-    // Returns true if all lengths are valid, false othersize.
-  bool check_valid_sizes( const int* sizes, int num_sizes ) const;
-
-    /**\return MB_VARIABLE_LENGTH_DATA If variable_length() && lengths is NULL
-     *         MB_INVALID_SIZE         If variable_length() && lengths is not
-     *                                 NULL && any size is not a multiple of
-     *                                 type size.
-     *         MB_INVALID_SIZE         If !variable_length() && lengths is not
-     *                                 NULL && any size is not the tag size.
-     *         MB_SUCCESS              Otherwise.
-     */
-  ErrorCode validate_lengths( const int* lengths, 
-                              size_t num_lengths ) const;
-
-  virtual
-  TagType get_storage_type() const = 0;
 
   /**\brief Get tag value for passed entities
    * 
@@ -105,7 +61,7 @@ public:
   ErrorCode get_data( const SequenceManager* seqman,
                       const EntityHandle* entities,
                       size_t num_entities,
-                      void* data ) const = 0;
+                      void* data ) const;
   
   /**\brief Get tag value for passed entities
    * 
@@ -120,7 +76,7 @@ public:
   virtual
   ErrorCode get_data( const SequenceManager* seqman,
                       const Range& entities,
-                      void* data ) const = 0;
+                      void* data ) const;
                       
   /**\brief Get tag value for passed entities
    * 
@@ -140,7 +96,7 @@ public:
                       const EntityHandle* entities,
                       size_t num_entities,
                       const void** data_ptrs,
-                      int* data_lengths ) const = 0;
+                      int* data_lengths ) const ;
                       
                       
   /**\brief Get tag value for passed entities
@@ -159,7 +115,7 @@ public:
   ErrorCode get_data( const SequenceManager* seqman,
                       const Range& entities,
                       const void** data_ptrs,
-                      int* data_lengths ) const = 0;
+                      int* data_lengths ) const;
   
   /**\brief Set tag value for passed entities
    * 
@@ -175,7 +131,7 @@ public:
   ErrorCode set_data( SequenceManager* seqman,
                       const EntityHandle* entities,
                       size_t num_entities,
-                      const void* data ) = 0;
+                      const void* data );
   
   /**\brief Set tag value for passed entities
    * 
@@ -189,7 +145,7 @@ public:
   virtual
   ErrorCode set_data( SequenceManager* seqman,
                       const Range& entities,
-                      const void* data ) = 0;
+                      const void* data );
                       
   /**\brief Set tag value for passed entities
    * 
@@ -210,7 +166,7 @@ public:
                       const EntityHandle* entities,
                       size_t num_entities,
                       void const* const* data_ptrs,
-                      const int* data_lengths ) = 0;
+                      const int* data_lengths );
                       
                       
   /**\brief Set tag value for passed entities
@@ -230,7 +186,7 @@ public:
   ErrorCode set_data( SequenceManager* seqman,
                       const Range& entities,
                       void const* const* data_ptrs,
-                      const int* data_lengths ) = 0;
+                      const int* data_lengths );
                       
   /**\brief Set tag value for passed entities
    * 
@@ -250,7 +206,7 @@ public:
                         const EntityHandle* entities,
                         size_t num_entities,
                         const void* value_ptr,
-                        int value_len = 0 ) = 0;
+                        int value_len = 0 );
                       
   /**\brief Set tag value for passed entities
    * 
@@ -268,7 +224,7 @@ public:
   ErrorCode clear_data( SequenceManager* seqman,
                         const Range& entities,
                         const void* value_ptr,
-                        int value_len = 0 ) = 0;
+                        int value_len = 0 );
 
   /**\brief Remove/clear tag data for entities
    *
@@ -280,7 +236,7 @@ public:
    */
   virtual ErrorCode remove_data( SequenceManager* seqman,
                                  const EntityHandle* entities,
-                                 size_t num_entities ) = 0;
+                                 size_t num_entities );
 
   /**\brief Remove/clear tag data for entities
    *
@@ -290,7 +246,16 @@ public:
    *\param entities  Entity handles for which to store tag data
    */
   virtual ErrorCode remove_data( SequenceManager* seqman,
-                                 const Range& entities ) = 0;
+                                 const Range& entities );
+
+
+  /**\brief Remove/clear tag data for all entities
+   *
+   * Remove tag values from entities.
+   *
+   *\param seqman    Pointer to mesh entity database
+   */
+  virtual ErrorCode remove_all_entity_data( SequenceManager* seqman );
 
   /**\brief Access tag data via direct pointer into contiguous blocks
    *
@@ -318,7 +283,7 @@ public:
   ErrorCode tag_iterate( SequenceManager* seqman,
                          Range::iterator& iter,
                          const Range::iterator& end,
-                         void*& data_ptr ) = 0;
+                         void*& data_ptr );
 
   /**\brief Get all tagged entities
    *
@@ -337,7 +302,7 @@ public:
   ErrorCode get_tagged_entities( const SequenceManager* seqman,
                                  Range& output_entities,
                                  EntityType type = MBMAXTYPE,
-                                 const Range* intersect = 0 ) const = 0;
+                                 const Range* intersect = 0 ) const;
 
   /**\brief Count all tagged entities
    *
@@ -356,7 +321,7 @@ public:
   ErrorCode num_tagged_entities( const SequenceManager* seqman,
                                  size_t& output_count,
                                  EntityType type = MBMAXTYPE,
-                                 const Range* intersect = 0 ) const = 0;
+                                 const Range* intersect = 0 ) const;
   
   /**\brief Get all tagged entities with tag value
    *
@@ -377,11 +342,11 @@ public:
                                       const void* value,
                                       int value_bytes = 0,
                                       EntityType type = MBMAXTYPE,
-                                      const Range* intersect_entities = 0 ) const = 0;
+                                      const Range* intersect_entities = 0 ) const;
   
   /**\brief Check if entity is tagged */
   virtual
-  bool is_tagged( const SequenceManager* seqman, EntityHandle entity ) const = 0;
+  bool is_tagged( const SequenceManager* seqman, EntityHandle entity ) const;
   
   /**\brief Get memory use for tag data.
    *
@@ -389,43 +354,15 @@ public:
   virtual
   ErrorCode get_memory_use( const SequenceManager* seqman,
                             unsigned long& total,
-                            unsigned long& per_entity ) const = 0;
-
-protected:    
-
-  unsigned long get_memory_use() const
-  {
-    return get_default_value_size() + get_name().size();
-  }
+                            unsigned long& per_entity ) const;
 
 private:
-  
-  TagInfo( const TagInfo& copy );
-  
-  TagInfo& operator=( const TagInfo& copy );
 
-  //! stores the default data, if any
-  void* mDefaultValue;
-  
-  //! store the mesh value, if any
-  void* mMeshValue;
-  
-  //! Size of mDefaultValue and mMeshValue, in bytes
-  //! NOTE: These sizes differ from mDataSize in two cases:
-  //!    a) Variable-length tags
-  //!    b) Bit tags (where mDataSize is bits, not bytes.)
-  int mDefaultValueSize, mMeshValueSize;
-
-  //! stores the size of the data for this tag
-  int mDataSize;
-  
-  //! type of tag data
-  DataType dataType;
-
-  //! stores the tag name
-  std::string mTagName;
+  MeshTag( const MeshTag& );
+  MeshTag& operator=( const MeshTag& );
+  std::vector<unsigned char> mValue;
 };
 
 } // namespace moab
 
-#endif // TAG_INFO_HPP
+#endif // MESH_TAG_HPP

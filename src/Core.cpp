@@ -28,7 +28,6 @@
 #include <algorithm>
 #include "moab/Version.h"
 #include "moab/Core.hpp"
-#include "TagServer.hpp"
 #include "MeshSetSequence.hpp"
 #include "ElementSequence.hpp"
 #include "VertexSequence.hpp"
@@ -44,6 +43,13 @@
 #include "moab/ReaderIface.hpp"
 #include "moab/WriterIface.hpp"
 #include "moab/ScdInterface.hpp"
+
+#include "BitTag.hpp"
+#include "DenseTag.hpp"
+#include "MeshTag.hpp"
+#include "SparseTag.hpp"
+#include "VarLenDenseTag.hpp"
+#include "VarLenSparseTag.hpp"
 
 #include <sys/stat.h>
 #include <errno.h>
@@ -184,10 +190,6 @@ ErrorCode Core::initialize()
   if (!sequenceManager)
     return MB_MEMORY_ALLOCATION_FAILED;
 
-  tagServer = new TagServer( sequenceManager );
-  if (!tagServer)
-    return MB_MEMORY_ALLOCATION_FAILED;
-
   aEntityFactory = new AEntityFactory(this);
   if (!aEntityFactory)
     return MB_MEMORY_ALLOCATION_FAILED;
@@ -235,10 +237,8 @@ void Core::deinitialize()
 
   aEntityFactory = 0;
 
-  if (tagServer)
-    delete tagServer;
-
-  tagServer = 0;
+  while (!tagList.empty()) 
+    tag_delete( tagList.front() );
   
   if (sequenceManager)
     delete sequenceManager;
@@ -700,7 +700,11 @@ ErrorCode Core::delete_mesh()
     delete aEntityFactory;
   aEntityFactory = new AEntityFactory(this);
 
-  tagServer->reset_all_data();
+  for (std::list<TagInfo*>::iterator i = tagList.begin(); i != tagList.end(); ++i) {
+    ErrorCode tmp = (*i)->release_all_data( sequenceManager, false );
+    if (MB_SUCCESS != tmp)
+      result = tmp;
+  }
   
   sequenceManager->clear();
 
@@ -1602,33 +1606,55 @@ ErrorCode Core::get_entities_by_type_and_tag(const EntityHandle meshset,
                                                    const int condition,
                                                    const bool recursive) const
 {
-  if (recursive && type == MBENTITYSET)  // will never return anything
-    return MB_TYPE_OUT_OF_RANGE;
-
   ErrorCode result;
-  Range tmp_range;
+  Range range;
 
-  result = get_entities_by_type( meshset, type, tmp_range, recursive );
+  result = get_entities_by_type( meshset, type, range, recursive );
   if (MB_SUCCESS != result)
     return result;
-
-    // if range is empty, return right away; if intersecting condition, 
-    // empty the list too
-  if (tmp_range.empty()) {
-    if (Interface::INTERSECT == condition) entities.clear();
-    return MB_SUCCESS;
-  }
-  else if (!entities.empty() && Interface::INTERSECT == condition) {
-    entities = intersect( entities, tmp_range);
-    if (entities.empty()) return MB_SUCCESS;
-    tmp_range = entities;
-  }
-    
-  result = tagServer->get_entities_with_tag_values(tmp_range, type, 
-                                                   tags, values, num_tags, 
-                                                   entities, condition); 
+  if (!entities.empty() && Interface::INTERSECT == condition)
+    range = intersect( entities, range);
   
-  return result;
+    // For each tag:
+    //  if operation is INTERSECT remove from 'range' any non-tagged entities
+    //  if operation is UNION add to 'entities' any tagged entities
+  for (int it = 0; it < num_tags && !range.empty(); it++) {
+    if (!valid_tag_handle( tags[it] ))
+      return MB_TAG_NOT_FOUND;
+  
+      // Of the entities in 'range', put in 'tmp_range' the subset
+      // that are tagged as requested for this tag.
+    Range tmp_range;
+
+      // get the sets with this tag/value combo 
+    if (NULL == values || NULL == values[it]) 
+      result = tags[it]->get_tagged_entities( sequenceManager, tmp_range, type, &range );
+    else {
+      result = tags[it]->find_entities_with_value( sequenceManager, tmp_range, values[it], 0, type, &range );
+        // if there is a default value, then we should return all entities
+        // that are untagged
+      if (MB_SUCCESS == result && tags[it]->equals_default_value( values[it] )) {
+        Range all_tagged, untagged;
+        result = tags[it]->get_tagged_entities( sequenceManager, all_tagged, type, &range );
+          // add to 'tmp_range' any untagged entities in 'range'
+        tmp_range.merge( subtract( range, all_tagged ) );
+      }
+    }
+    
+    if (MB_SUCCESS != result)
+      return result;
+
+      // The above calls should have already done the intersect for us.
+    if (Interface::INTERSECT == condition)
+      range.swap( tmp_range );
+    else
+      entities.merge( tmp_range );
+  }
+  
+  if (Interface::INTERSECT == condition)
+    entities.swap( range );
+  
+  return MB_SUCCESS;
 }
 
 ErrorCode Core::get_entities_by_handle(const EntityHandle meshset,
@@ -1778,214 +1804,293 @@ ErrorCode Core::get_number_entities_by_handle(const EntityHandle meshset,
 }
 
 //! return the tag data for a given EntityHandle and Tag
-ErrorCode  Core::tag_get_data(const Tag tag_handle, 
-                                    const EntityHandle* entity_handles, 
-                                    const int num_entities,
-                                    void *tag_data) const
+ErrorCode Core::tag_get_data( const Tag tag_handle, 
+                              const EntityHandle* entity_handles, 
+                              int num_entities,
+                              void *tag_data) const
 {
-  if (NULL == entity_handles && 0 == num_entities) {
-    return tagServer->get_mesh_data(tag_handle, tag_data);
-  }
+  assert(valid_tag_handle( tag_handle ));
 
-  else return tagServer->get_data(tag_handle, entity_handles, num_entities, tag_data);
+  EntityHandle root = 0;
+  if (NULL == entity_handles && 0 == num_entities) {
+    entity_handles = &root;
+    num_entities = 1;
+  }
+  
+  return tag_handle->get_data( sequenceManager, entity_handles, num_entities, tag_data );
 }
 
 //! return the tag data for a given EntityHandle and Tag
-ErrorCode  Core::tag_get_data(const Tag tag_handle, 
-                                    const Range& entity_handles,
-                                    void *tag_data) const
+ErrorCode  Core::tag_get_data( const Tag tag_handle, 
+                               const Range& entity_handles,
+                               void *tag_data) const
 {
-  return tagServer->get_data(tag_handle, entity_handles, tag_data);
+  assert(valid_tag_handle( tag_handle ));
+  return tag_handle->get_data( sequenceManager, entity_handles, tag_data );
 }
 
 //! set the data  for given EntityHandles and Tag
-ErrorCode  Core::tag_set_data(const Tag tag_handle, 
-                                    const EntityHandle* entity_handles, 
-                                    const int num_entities,
-                                    const void *tag_data)
+ErrorCode  Core::tag_set_data( Tag tag_handle, 
+                               const EntityHandle* entity_handles, 
+                               int num_entities,
+                               const void *tag_data)
 {
-  if (NULL == entity_handles && 0 == num_entities)
-    return tagServer->set_mesh_data(tag_handle, tag_data);
+  assert(valid_tag_handle( tag_handle ));
 
-  return tagServer->set_data(tag_handle, entity_handles, num_entities, tag_data);
+  EntityHandle root = 0;
+  if (NULL == entity_handles && 0 == num_entities) {
+    entity_handles = &root;
+    num_entities = 1;
+  }
+  
+  return tag_handle->set_data( sequenceManager, entity_handles, num_entities, tag_data );
 }
 
 //! set the data  for given EntityHandles and Tag
-ErrorCode  Core::tag_set_data(const Tag tag_handle, 
-                                    const Range& entity_handles, 
-                                    const void *tag_data)
+ErrorCode  Core::tag_set_data( Tag tag_handle, 
+                               const Range& entity_handles, 
+                               const void *tag_data)
 {
-  return tagServer->set_data(tag_handle, entity_handles, tag_data);
+  assert(valid_tag_handle( tag_handle ));
+  return tag_handle->set_data( sequenceManager, entity_handles, tag_data );
 }
 
 
 //! return the tag data for a given EntityHandle and Tag
 ErrorCode  Core::tag_get_data( const Tag tag_handle, 
-                                   const EntityHandle* entity_handles, 
-                                   const int num_entities,
-                                   const void** tag_data,
-                                   int* tag_sizes ) const
+                               const EntityHandle* entity_handles, 
+                               int num_entities,
+                               const void** tag_data,
+                               int* tag_sizes ) const
 {
+  assert(valid_tag_handle( tag_handle ));
+
+  EntityHandle root = 0;
   if (NULL == entity_handles && 0 == num_entities) {
-    int size;
-    return tagServer->get_mesh_data(tag_handle, tag_data[0], tag_sizes ? tag_sizes[0] : size );
+    entity_handles = &root;
+    num_entities = 1;
   }
 
-  else return tagServer->get_data(tag_handle, entity_handles, num_entities, tag_data, tag_sizes);
+  return tag_handle->get_data( sequenceManager, entity_handles, num_entities, tag_data, tag_sizes );
 }
 
 //! return the tag data for a given EntityHandle and Tag
 ErrorCode  Core::tag_get_data( const Tag tag_handle, 
-                                   const Range& entity_handles,
-                                   const void** tag_data,
-                                   int* tag_sizes ) const
+                               const Range& entity_handles,
+                               const void** tag_data,
+                               int* tag_sizes ) const
 {
-  return tagServer->get_data(tag_handle, entity_handles, tag_data, tag_sizes );
+  assert(valid_tag_handle( tag_handle ));
+  return tag_handle->get_data( sequenceManager, entity_handles, tag_data, tag_sizes );
 }
 
 //! set the data  for given EntityHandles and Tag
-ErrorCode  Core::tag_set_data( const Tag tag_handle, 
-                                   const EntityHandle* entity_handles, 
-                                   const int num_entities,
-                                   void const* const* tag_data,
-                                   const int* tag_sizes )
+ErrorCode  Core::tag_set_data( Tag tag_handle, 
+                               const EntityHandle* entity_handles, 
+                               int num_entities,
+                               void const* const* tag_data,
+                               const int* tag_sizes )
 {
-  if (NULL == entity_handles && 0 == num_entities)
-    return tagServer->set_mesh_data(tag_handle, tag_data[0], tag_sizes ? tag_sizes[0] : 0);
+  assert(valid_tag_handle( tag_handle ));
 
-  return tagServer->set_data(tag_handle, entity_handles, num_entities, tag_data, tag_sizes);
+  EntityHandle root = 0;
+  if (NULL == entity_handles && 0 == num_entities) {
+    entity_handles = &root;
+    num_entities = 1;
+  }
+  
+  return tag_handle->set_data( sequenceManager, entity_handles, num_entities, tag_data, tag_sizes );
 }
 
 //! set the data  for given EntityHandles and Tag
-ErrorCode  Core::tag_set_data( const Tag tag_handle, 
-                                   const Range& entity_handles, 
-                                   void const* const* tag_data,
-                                   const int* tag_sizes )
+ErrorCode  Core::tag_set_data( Tag tag_handle, 
+                               const Range& entity_handles, 
+                               void const* const* tag_data,
+                               const int* tag_sizes )
 {
-  return tagServer->set_data(tag_handle, entity_handles, tag_data, tag_sizes);
+  assert(valid_tag_handle( tag_handle ));
+  return tag_handle->set_data(sequenceManager, entity_handles, tag_data, tag_sizes);
 }
 
 //! set the data  for given EntityHandles and Tag
-ErrorCode  Core::tag_clear_data( const Tag tag_handle, 
+ErrorCode  Core::tag_clear_data( Tag tag_handle, 
                                  const EntityHandle* entity_handles, 
-                                 const int num_entities,
+                                 int num_entities,
                                  const void* tag_data,
                                  int tag_size )
 {
-  if (NULL == entity_handles && 0 == num_entities)
-    return tagServer->set_mesh_data(tag_handle, tag_data, tag_size);
+  assert(valid_tag_handle( tag_handle ));
 
-  return tagServer->clear_data(tag_handle, entity_handles, num_entities, tag_data, tag_size);
+  EntityHandle root = 0;
+  if (NULL == entity_handles && 0 == num_entities) {
+    entity_handles = &root;
+    num_entities = 1;
+  }
+  
+  return tag_handle->clear_data( sequenceManager, entity_handles, num_entities, tag_data, tag_size );
 }
 
 //! set the data  for given EntityHandles and Tag
-ErrorCode  Core::tag_clear_data( const Tag tag_handle, 
+ErrorCode  Core::tag_clear_data( Tag tag_handle, 
                                  const Range& entity_handles, 
                                  const void* tag_data,
                                  int tag_size )
 {
-  return tagServer->clear_data(tag_handle, entity_handles, tag_data, tag_size);
+  assert(valid_tag_handle( tag_handle ));
+  return tag_handle->clear_data( sequenceManager, entity_handles, tag_data, tag_size );
 }
 
-//! adds a sparse tag for this specific EntityHandle/tag_name combination
-ErrorCode Core::tag_create(const char *tag_name,
-                                 const int tag_size, 
-                                 const TagType tag_type,
-                                 Tag &tag_handle, 
-                                 const void *default_value)
+ErrorCode Core::tag_get_handle( const char* name,
+                                int size,
+                                TagType storage,
+                                DataType type,
+                                Tag& tag_handle,
+                                unsigned flags,
+                                const void* default_value ) 
 {
-  DataType data_type = (tag_type == MB_TAG_BIT) ? MB_TYPE_BIT : MB_TYPE_OPAQUE;
-  return tag_create( tag_name, tag_size, tag_type, data_type, tag_handle, default_value, false );
-}
+  // we always work with sizes in bytes internally
+  if (flags & TAG_COUNT)
+    size *= TagInfo::size_from_data_type( type );
 
-ErrorCode Core::tag_create( const char* name,
-                                const int size,
-                                const TagType storage,
-                                const DataType data,
-                                Tag& handle,
-                                const void* def_val,
-                                bool use_existing )
-{
-    // This API cannot be used for creating variable-length tags with a 
-    // default value, because there is no argument for the length of
-    // the default value.
-  if (def_val && MB_VARIABLE_LENGTH == size)
-    return MB_VARIABLE_DATA_LENGTH;
-  
-  ErrorCode rval = tagServer->add_tag( name, size, storage, data, handle, def_val );
-
-    // If it is okay to use an existing tag of the same name, check that it 
-    // matches the input values.  NOTE: we don't check the storage type for 
-    // the tag because the choice of dense vs. sparse is a matter of optimi-
-    // zation, not correctness.  Bit tags require a redundant MB_TYPE_BIT 
-    // for the data type, so we catch those when we check the data type.
-  if (rval == MB_ALREADY_ALLOCATED && use_existing) {
-    handle = tagServer->get_handle( name );
-    const TagInfo* info = tagServer->get_tag_info( handle );
-    if (info->get_size() == size &&  info->get_data_type() == data)  {
-        // If we were not passed a default value, the caller is presumably
-        // OK with an arbitrary default value, so its OK if there is one
-        // set for the tag.
-      if (!def_val)
-        rval = MB_SUCCESS;
-        // If caller specified a default value, there MUST be an existing one
-        // that matches.  We could just set a default value for the tag, but
-        // given the dense tag representation, it isn't feasible to change
-        // the default value once the tag has been created.  For now, don't 
-        // bother because there isn't any mechanism to set it for sparse tags 
-        // anyway.
-      else if (info->default_value() && !memcmp(info->default_value(), def_val, size))
-        rval = MB_SUCCESS;
+  // search for an existing tag
+  tag_handle = 0;
+  if (name && *name) { // not anonymous tag
+    for (std::list<Tag>::iterator i = tagList.begin(); i != tagList.end(); ++i) {
+      if ((*i)->get_name() == name) {
+        tag_handle = *i;
+        break;
+      }
     }
   }
+ 
+  if (tag_handle) {
+    if (flags & TAG_EXCL)
+      return MB_ALREADY_ALLOCATED;
+    // user asked that we not check anything
+    if (flags & TAG_ANY)
+      return MB_SUCCESS;
+    // user asked that we also match storage types
+    if ((flags & TAG_STORE) && tag_handle->get_storage_type() != storage)
+      return MB_TYPE_OUT_OF_RANGE;
+    // check if data type matches
+    const DataType extype = tag_handle->get_data_type();
+    if (extype != type) {
+      if (flags & TAG_NOOPQ)
+        return MB_TYPE_OUT_OF_RANGE;
+      else if (extype != MB_TYPE_OPAQUE && type != MB_TYPE_OPAQUE)
+        return MB_TYPE_OUT_OF_RANGE;
+    }
+    // check if varlen matches
+    if (!(flags & TAG_VARLEN) == tag_handle->variable_length())
+      return MB_TYPE_OUT_OF_RANGE;
+    // check sizes
+    if (!(flags & TAG_VARLEN) && tag_handle->get_size() != size)
+      return MB_INVALID_SIZE;
+    
+    return MB_SUCCESS;
+  }
 
-  return rval;
+  if (!(flags & TAG_CREAT))
+    return MB_TAG_NOT_FOUND;
+  
+    // if a non-opaque non-bit type was specified, then the size
+    // must be multiple of the size of the type
+  if ((!(flags & TAG_VARLEN) || default_value) && 
+      (size <= 0 || (size % TagInfo::size_from_data_type(type)) != 0))
+    return MB_INVALID_SIZE;
+  
+    // if MB_TYPE_BIT may be used only with MB_TAG_BIT
+  if (storage != MB_TAG_BIT && type == MB_TYPE_BIT)
+    return MB_TYPE_OUT_OF_RANGE;
+  
+    // create the tag
+  switch (storage) {
+    case MB_TAG_DENSE:
+      if (flags & TAG_VARLEN)
+        tag_handle = VarLenDenseTag::create_tag( sequenceManager, name, type, default_value, size );
+      else
+        tag_handle = DenseTag::create_tag( sequenceManager, name, size, type, default_value );
+      break;
+    case MB_TAG_SPARSE:
+      if (flags & TAG_VARLEN)
+        tag_handle = new VarLenSparseTag( name, type, default_value, size );
+      else
+        tag_handle = new SparseTag( name, size, type, default_value );
+      break;
+    case MB_TAG_BIT:
+      if (flags & TAG_VARLEN)
+        return MB_UNSUPPORTED_OPERATION;
+      if (type != MB_TYPE_BIT && type != MB_TYPE_OPAQUE)
+        return MB_TYPE_OUT_OF_RANGE;
+      tag_handle = BitTag::create_tag( name, size, default_value );
+      break;
+    case MB_TAG_MESH:
+      if (flags & TAG_VARLEN)
+        tag_handle = new MeshTag( name, MB_VARIABLE_LENGTH, type, default_value, size );
+      else
+        tag_handle = new MeshTag( name, size, type, default_value, size );
+      break;
+  }
+
+  if (!tag_handle)
+    return MB_INVALID_SIZE;
+  
+  tagList.push_back( tag_handle );
+  return MB_SUCCESS;  
 }
 
-ErrorCode Core::tag_create_variable_length( const char* name,
-                                                TagType storage,
-                                                DataType data,
-                                                Tag& handle,
-                                                const void* def_val,
-                                                int def_val_size )
-{
-  return tagServer->add_tag( name, MB_VARIABLE_LENGTH, storage, data, handle, def_val, def_val_size );
+ErrorCode Core::tag_get_handle( const char* name,
+                                int size,
+                                TagType storage,
+                                DataType type,
+                                Tag& tag_handle,
+                                unsigned flags,
+                                const void* default_value ) const
+{ 
+  return const_cast<Core*>(this)->tag_get_handle( 
+                   name, size, storage, type, tag_handle, 
+                   flags & ~(unsigned)TAG_CREAT, 
+                   default_value ); 
 }
 
 //! removes the tag from the entity
-ErrorCode  Core::tag_delete_data(const Tag tag_handle, 
-                                       const EntityHandle *entity_handles,
-                                       const int num_handles)
+ErrorCode  Core::tag_delete_data( Tag tag_handle, 
+                                  const EntityHandle *entity_handles,
+                                  int num_handles )
 {
-  ErrorCode status = MB_SUCCESS, temp_status;
-  for (int i = 0; i < num_handles; i++) {
-    if (0 == entity_handles[i])
-      temp_status = tagServer->remove_mesh_data(tag_handle);
-    else
-      temp_status = tagServer->remove_data(tag_handle, entity_handles[i]);
-    if (temp_status != MB_SUCCESS) status = temp_status;
-  }
+  assert(valid_tag_handle( tag_handle ));
 
-  return status;
+  EntityHandle root = 0;
+  if (!entity_handles && !num_handles) {
+    entity_handles = &root;
+    num_handles = 1;
+  }
+  
+  return tag_handle->remove_data( sequenceManager, entity_handles, num_handles );
 }
 
 //! removes the tag from the entity
-ErrorCode  Core::tag_delete_data(const Tag tag_handle, 
-                                     const Range &entity_handles)
+ErrorCode  Core::tag_delete_data( Tag tag_handle, 
+                                  const Range &entity_handles )
 {
-  ErrorCode status = MB_SUCCESS, temp_status;
-  for (Range::const_iterator it = entity_handles.begin(); it != entity_handles.end(); it++) {
-    temp_status = tagServer->remove_data(tag_handle, *it);
-    if (temp_status != MB_SUCCESS) status = temp_status;
-  }
-
-  return status;
+  assert(valid_tag_handle( tag_handle ));
+  return tag_handle->remove_data( sequenceManager, entity_handles );
 }
 
 //! removes the tag from MB
-ErrorCode  Core::tag_delete(Tag tag_handle)
+ErrorCode Core::tag_delete(Tag tag_handle)
 {
-  return tag_server()->remove_tag(tag_handle);
+  std::list<TagInfo*>::iterator i = std::find( tagList.begin(), tagList.end(), tag_handle );
+  if (i == tagList.end())
+    return MB_TAG_NOT_FOUND;
+    
+  ErrorCode rval = tag_handle->release_all_data( sequenceManager, true );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  tagList.erase( i );
+  delete tag_handle;
+  return MB_SUCCESS;
 }
 
 ErrorCode Core::tag_iterate( Tag tag_handle,
@@ -1993,133 +2098,141 @@ ErrorCode Core::tag_iterate( Tag tag_handle,
                              const Range::iterator& end,
                              void*& data_ptr )
 {
-  return tag_server()->tag_iterate( tag_handle, iter, end, data_ptr );
+  assert(valid_tag_handle( tag_handle ));
+  return tag_handle->tag_iterate( sequenceManager, iter, end, data_ptr );
 }
 
 
 //! gets the tag name string for the tag_handle
-ErrorCode  Core::tag_get_name(const Tag tag_handle, 
-                                    std::string& tag_name) const
+ErrorCode Core::tag_get_name( const Tag tag_handle, 
+                              std::string& tag_name ) const
 {
-  const TagInfo* tag_info = tagServer->get_tag_info( tag_handle );
-  if(!tag_info)
+  if (!valid_tag_handle( tag_handle ))
     return MB_TAG_NOT_FOUND;
-  
-  tag_name = tag_info->get_name();
+  tag_name = tag_handle->get_name();
   return MB_SUCCESS;
 
 }
 
-//! gets tag handle from its name.
-//! the type must be specified because the same name is valid for multiple types
-ErrorCode  Core::tag_get_handle(const char *tag_name, 
-                                      Tag &tag_handle) const
-{
-  ErrorCode status = MB_TAG_NOT_FOUND;
-
-  tag_handle = tagServer->get_handle( tag_name );
-  
-  if (tag_handle != 0)
-  {
-    status = MB_SUCCESS;
-  }
-
-  return status;
-}
-
+ErrorCode Core::tag_get_handle( const char *tag_name, Tag &tag_handle ) const
+{ return tag_get_handle( tag_name, 0, MB_TAG_MESH, MB_TYPE_OPAQUE, tag_handle, TAG_ANY ); }
+                                    
   //! get size of tag in bytes
 ErrorCode Core::tag_get_size(const Tag tag_handle, int &tag_size) const
 {
-  const TagInfo* tag_info = tagServer->get_tag_info( tag_handle );
-  if(!tag_info)
+  if (!valid_tag_handle( tag_handle ))
     return MB_TAG_NOT_FOUND;
   
-  tag_size = tag_info->get_size();
-  return MB_VARIABLE_LENGTH == tag_size ? MB_VARIABLE_DATA_LENGTH : MB_SUCCESS;
+  if (tag_handle->variable_length()) {
+    tag_size = MB_VARIABLE_LENGTH;
+    return MB_VARIABLE_DATA_LENGTH;
+  }
+  else {
+    tag_size = tag_handle->get_size();
+    return MB_SUCCESS;
+  }
 }
 
-ErrorCode Core::tag_get_data_type( const Tag handle, 
-                                       DataType& type ) const
+ErrorCode Core::tag_get_data_type( const Tag handle, DataType& type ) const
 {
-  const TagInfo* info = tagServer->get_tag_info( handle );
-  if (!info)
+  if (!valid_tag_handle( handle ))
     return MB_TAG_NOT_FOUND;
-  
-  type = info->get_data_type();
+    
+  type = handle->get_data_type();
   return MB_SUCCESS;
 }
 
   //! get default value of the tag
-ErrorCode Core::tag_get_default_value(const Tag tag_handle, void *def_value) const
+ErrorCode Core::tag_get_default_value( const Tag tag_handle, void *def_value ) const
 {
-  int size;
-  return tagServer->get_default_data( tag_handle, def_value, size );
+  if (!valid_tag_handle( tag_handle ))
+    return MB_TAG_NOT_FOUND;
+  
+  if (tag_handle->variable_length())
+    return MB_VARIABLE_DATA_LENGTH;
+  
+  if (!tag_handle->get_default_value())
+    return MB_ENTITY_NOT_FOUND;
+  
+  memcpy( def_value, tag_handle->get_default_value(), tag_handle->get_default_value_size() );
+  return MB_SUCCESS;  
 }
 
 ErrorCode Core::tag_get_default_value( Tag tag, const void*& ptr, int& size ) const
 {
-  return tagServer->get_default_data_ref( tag, ptr, size );
+  if (!valid_tag_handle( tag ))
+    return MB_ENTITY_NOT_FOUND;
+
+  if (!tag->get_default_value())
+    return MB_ENTITY_NOT_FOUND;
+  
+  ptr = tag->get_default_value();
+  size = tag->get_default_value_size();
+  return MB_SUCCESS;
 }
 
   //! get type of tag (sparse, dense, etc.; 0 = dense, 1 = sparse, 2 = bit, 3 = static)
 ErrorCode Core::tag_get_type(const Tag tag_handle, TagType &tag_type) const
 {
-  tag_type = PROP_FROM_TAG_HANDLE(tag_handle);
-  return tag_type < MB_TAG_LAST+1 ? MB_SUCCESS : MB_TAG_NOT_FOUND;
+  assert( valid_tag_handle( tag_handle ) );
+  tag_type = tag_handle->get_storage_type();
+  return MB_SUCCESS;
 }
 
   //! get handles for all tags defined
 ErrorCode Core::tag_get_tags(std::vector<Tag> &tag_handles) const
 {
-  return tagServer->get_tags(tag_handles);
+  std::copy( tagList.begin(), tagList.end(), std::back_inserter(tag_handles) );
+  return MB_SUCCESS;  
 }
 
   //! Get handles for all tags defined on this entity
 ErrorCode Core::tag_get_tags_on_entity(const EntityHandle entity,
-                                            std::vector<Tag> &tag_handles) const 
+                                       std::vector<Tag> &tag_handles) const 
 {
-  if (0 == entity)
-    return tagServer->get_mesh_tags(tag_handles);
-  else return tagServer->get_tags(entity, tag_handles);
+  for (std::list<TagInfo*>::const_iterator i = tagList.begin(); i != tagList.end(); ++i)
+    if ((*i)->is_tagged( sequenceManager, entity ))
+      tag_handles.push_back( *i );
+  return MB_SUCCESS;  
 }
 
 Tag Core::material_tag()
 {
   if (0 == materialTag)
-    tagServer->add_tag(MATERIAL_SET_TAG_NAME, sizeof(int), 
-                       MB_TAG_SPARSE, MB_TYPE_INTEGER, materialTag);
+    tag_get_handle(MATERIAL_SET_TAG_NAME, sizeof(int), 
+                   MB_TAG_SPARSE, MB_TYPE_INTEGER, materialTag,TAG_CREAT);
   return materialTag;
 }
 
 Tag Core::neumannBC_tag()
 {
   if (0 == neumannBCTag)
-    tagServer->add_tag(NEUMANN_SET_TAG_NAME, sizeof(int), 
-                       MB_TAG_SPARSE, MB_TYPE_INTEGER, neumannBCTag);
+    tag_get_handle(NEUMANN_SET_TAG_NAME, sizeof(int), 
+                   MB_TAG_SPARSE, MB_TYPE_INTEGER, neumannBCTag,TAG_CREAT);
   return neumannBCTag;
 }
 
 Tag Core::dirichletBC_tag()
 {
   if (0 == dirichletBCTag)
-    tagServer->add_tag(DIRICHLET_SET_TAG_NAME, sizeof(int), 
-                       MB_TAG_SPARSE, MB_TYPE_INTEGER, dirichletBCTag);
+    tag_get_handle(DIRICHLET_SET_TAG_NAME, sizeof(int), 
+                   MB_TAG_SPARSE, MB_TYPE_INTEGER, dirichletBCTag,TAG_CREAT);
   return dirichletBCTag;
 }
 
 Tag Core::globalId_tag()
 {
   if (0 == globalIdTag)
-    tagServer->add_tag(GLOBAL_ID_TAG_NAME, sizeof(int), 
-                       MB_TAG_DENSE, MB_TYPE_INTEGER, globalIdTag);
+    tag_get_handle(GLOBAL_ID_TAG_NAME, sizeof(int), 
+                   MB_TAG_DENSE, MB_TYPE_INTEGER, globalIdTag,TAG_CREAT);
   return globalIdTag;
 }
 
 Tag Core::geom_dimension_tag()
 {
   if (0 == geomDimensionTag)
-    tagServer->add_tag(GEOM_DIMENSION_TAG_NAME, sizeof(int), 
-                       MB_TAG_SPARSE, MB_TYPE_INTEGER, geomDimensionTag);
+    tag_get_handle(GEOM_DIMENSION_TAG_NAME, sizeof(int), 
+                   MB_TAG_SPARSE, MB_TYPE_INTEGER, geomDimensionTag,TAG_CREAT);
   return geomDimensionTag;
 }
 
@@ -2240,18 +2353,14 @@ ErrorCode Core::delete_entities(const Range &range)
   ErrorCode result = MB_SUCCESS, temp_result;
   Range failed_ents;
   
+  for (std::list<TagInfo*>::iterator i = tagList.begin(); i != tagList.end(); ++i)
+    if (MB_SUCCESS != (temp_result = (*i)->remove_data( sequenceManager, range ) ))
+      result = temp_result;
+  
   for (Range::const_reverse_iterator rit = range.rbegin(); rit != range.rend(); rit++) {
     
       // tell AEntityFactory that this element is going away
     temp_result = aEntityFactory->notify_delete_entity(*rit);
-    if (MB_SUCCESS != temp_result) {
-      result = temp_result;
-      failed_ents.insert(*rit);
-      continue;
-    }
-
-      // reset and/or clean out data associated with this entity handle
-    temp_result = tagServer->reset_data(*rit);
     if (MB_SUCCESS != temp_result) {
       result = temp_result;
       failed_ents.insert(*rit);
@@ -3326,27 +3435,6 @@ bool Core::is_valid(const EntityHandle this_ent) const
   return seq != 0 && result == MB_SUCCESS;
 }
 
-static unsigned long get_num_entities_with_tag( TagServer* ts, 
-                                                Tag tag,
-                                                const Range& entities )
-{
-  if (entities.empty())
-    return 0;
-  
-  int tmp;
-  unsigned long total = 0;
-  EntityType t = TYPE_FROM_HANDLE( entities.front() );
-  EntityType e = TYPE_FROM_HANDLE( entities.back() );
-  ++e;
-  for (; t != e; ++t) {
-    tmp = 0;
-    if (MB_SUCCESS == ts->get_number_entities( entities, tag, t, tmp ))
-      total += tmp;
-  }
-  
-  return total;
-}
-
 void Core::estimated_memory_use_internal( const Range* ents,
                                   unsigned long* total_storage,
                                   unsigned long* total_amortized_storage,
@@ -3417,22 +3505,27 @@ void Core::estimated_memory_use_internal( const Range* ents,
     // get storage for requested list of tags
   if (tag_array) {
     for (unsigned i = 0; i < num_tags; ++i) {
-      unsigned long total, per_ent, count;
-      tagServer->get_memory_use( tag_array[i], total, per_ent );
+      if (!valid_tag_handle(tag_array[i]))
+        continue;
+  
+      unsigned long total = 0, per_ent = 0;
+      tag_array[i]->get_memory_use( sequenceManager, total, per_ent );
       
       if (ents) {
-        count = get_num_entities_with_tag( tagServer, tag_array[i], *ents );
+        size_t count = 0, count2 = 0;
+        tag_array[i]->num_tagged_entities( sequenceManager, count, MBMAXTYPE, ents );
         if (tag_storage)
           tag_storage[i] = count * per_ent;
         if (amortized_tag_storage) {
-          tagServer->get_number_entities( tag_array[i], per_ent );
-          if (per_ent)
-            amortized_tag_storage[i] = (unsigned long)((double)total * count / per_ent);
+          tag_array[i]->num_tagged_entities( sequenceManager, count2 );
+          if (count2)
+            amortized_tag_storage[i] = (unsigned long)((double)total * count / count2);
         }
       }
       else {
+        size_t count = 0;
         if (tag_storage) {
-          tagServer->get_number_entities( tag_array[i], count );
+          tag_array[i]->num_tagged_entities( sequenceManager, count );
           tag_storage[i] = count * per_ent;
         }
         if (amortized_tag_storage)
@@ -3450,23 +3543,25 @@ void Core::estimated_memory_use_internal( const Range* ents,
       
     std::vector<Tag> tags;
     tag_get_tags( tags );
-    for (unsigned i = 0; i < tags.size(); ++i) {
-      unsigned long total, per_ent, count;
-      tagServer->get_memory_use( tags[i], total, per_ent );
+    for (std::list<TagInfo*>::const_iterator i = tagList.begin(); i != tagList.end(); ++i) {
+      unsigned long total = 0, per_ent = 0;
+      (*i)->get_memory_use( sequenceManager, total, per_ent );
       
       if (ents) {
-        count = get_num_entities_with_tag( tagServer, tags[i], *ents );
+        size_t count = 0, count2 = 0;
+        (*i)->num_tagged_entities( sequenceManager, count, MBMAXTYPE, ents );
         if (total_tag_storage)
           *total_tag_storage += count * per_ent;
         if (amortized_total_tag_storage) {
-          tagServer->get_number_entities( tags[i], per_ent );
-          if (per_ent)
-            *amortized_total_tag_storage += (unsigned long)((double)total * count / per_ent);
+          (*i)->num_tagged_entities( sequenceManager, count2 );
+          if (count2)
+            *amortized_total_tag_storage += (unsigned long)((double)total * count / count2);
         }
       }
       else {
+        size_t count = 0;
         if (total_tag_storage) {
-          tagServer->get_number_entities( tags[i], count );
+          (*i)->num_tagged_entities( sequenceManager, count );
           *total_tag_storage += count * per_ent;
         }
         if (amortized_total_tag_storage)
