@@ -393,9 +393,9 @@ public:
 
   //! map of entity id and tag data
 #ifdef HAVE_UNORDERED_MAP
-  typedef UNORDERED_MAP_NS::unordered_map<EntityHandle,void*> myMapType;
+  typedef UNORDERED_MAP_NS::unordered_map<EntityHandle,void*> MapType;
 #else
-  typedef std::map<EntityHandle,void*> myMapType;
+  typedef std::map<EntityHandle,void*> MapType;
 #endif
 
 private:
@@ -426,7 +426,7 @@ private:
   //! allocator for this collection
   SparseTagDataAllocator mAllocator;
 
-  myMapType mData;
+  MapType mData;
 };
 
 } // namespace moab

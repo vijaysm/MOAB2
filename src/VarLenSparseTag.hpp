@@ -379,9 +379,9 @@ public:
 
   //! map of entity id and tag data
 #ifdef HAVE_UNORDERED_MAP
-  typedef UNORDERED_MAP_NS::unordered_map<EntityHandle,VarLenTag> myMapType;
+  typedef UNORDERED_MAP_NS::unordered_map<EntityHandle,VarLenTag> MapType;
 #else
-  typedef std::map<EntityHandle,VarLenTag> myMapType;
+  typedef std::map<EntityHandle,VarLenTag> MapType;
 #endif
 
 private:
@@ -395,7 +395,7 @@ private:
                           const void*& data,
                           int& size) const;
 
-  myMapType mData;
+  MapType mData;
 };
 
 } // namespace moab

@@ -46,7 +46,7 @@ ErrorCode VarLenSparseTag::get_data_ptr( EntityHandle entity_handle,
                                          const void*& ptr,
                                          int& length ) const
 {
-  myMapType::const_iterator iter = mData.find(entity_handle);
+  MapType::const_iterator iter = mData.find(entity_handle);
 
   if (iter != mData.end()) {
     ptr = iter->second.data();
@@ -142,7 +142,7 @@ ErrorCode VarLenSparseTag::set_data( SequenceManager* seqman,
     if (lengths[i])
       mData[entities[i]].set( pointers[i], lengths[i] );
     else {
-      myMapType::iterator iter = mData.find(entities[i]);
+      MapType::iterator iter = mData.find(entities[i]);
       if (iter != mData.end()) {
         iter->second.clear();
         mData.erase(iter);
@@ -170,7 +170,7 @@ ErrorCode VarLenSparseTag::set_data( SequenceManager* seqman,
     if (*lengths)
       mData[*i].set( *pointers, *lengths );
     else {
-      myMapType::iterator iter = mData.find(*i);
+      MapType::iterator iter = mData.find(*i);
       if (iter != mData.end()) {
         iter->second.clear();
         mData.erase(iter);
@@ -235,7 +235,7 @@ ErrorCode VarLenSparseTag::remove_data( SequenceManager*,
 {
   ErrorCode result = MB_SUCCESS;
   for (size_t i = 0; i < num_entities; ++i) {
-    myMapType::iterator p = mData.find(entities[i]);
+    MapType::iterator p = mData.find(entities[i]);
     if (p == mData.end())
       result = MB_TAG_NOT_FOUND;
     else {
@@ -251,7 +251,7 @@ ErrorCode VarLenSparseTag::remove_data( SequenceManager*,
 {
   ErrorCode result = MB_SUCCESS;
   for (Range::iterator i = entities.begin(); i != entities.end(); ++i) {
-    myMapType::iterator p = mData.find(*i);
+    MapType::iterator p = mData.find(*i);
     if (p == mData.end())
       result = MB_TAG_NOT_FOUND;
     else {
@@ -272,11 +272,11 @@ ErrorCode VarLenSparseTag::tag_iterate( SequenceManager*,
 
 
 template <class Container> static inline
-void get_tagged( const VarLenSparseTag::myMapType& mData,
+void get_tagged( const VarLenSparseTag::MapType& mData,
                  EntityType type,
                  Container& output_range )
 {
-  VarLenSparseTag::myMapType::const_iterator iter;
+  VarLenSparseTag::MapType::const_iterator iter;
   typename Container::iterator hint = output_range.begin();
   if (MBMAXTYPE == type) {
     for (iter = mData.begin(); iter != mData.end(); ++iter)
@@ -289,7 +289,7 @@ void get_tagged( const VarLenSparseTag::myMapType& mData,
         hint = output_range.insert( hint, iter->first );    
 #else
     iter = mData.lower_bound( FIRST_HANDLE(type) );
-    VarLenSparseTag::myMapType::const_iterator end = mData.lower_bound( LAST_HANDLE(type)+1 );
+    VarLenSparseTag::MapType::const_iterator end = mData.lower_bound( LAST_HANDLE(type)+1 );
     for (; iter != end; ++iter)
       hint = output_range.insert( hint, iter->first );
 #endif
@@ -297,12 +297,12 @@ void get_tagged( const VarLenSparseTag::myMapType& mData,
 }
 
 template <class Container> static inline
-void get_tagged( const VarLenSparseTag::myMapType& mData,
+void get_tagged( const VarLenSparseTag::MapType& mData,
                  Range::const_iterator begin,
                  Range::const_iterator end,
                  Container& output_range )
 {
-  VarLenSparseTag::myMapType::const_iterator iter;
+  VarLenSparseTag::MapType::const_iterator iter;
   typename Container::iterator hint = output_range.begin();
   for (Range::const_iterator i = begin; i != end; ++i)
     if (mData.find(*i) != mData.end())
@@ -310,7 +310,7 @@ void get_tagged( const VarLenSparseTag::myMapType& mData,
 }
 
 template <class Container> static inline 
-void get_tagged( const VarLenSparseTag::myMapType& mData,
+void get_tagged( const VarLenSparseTag::MapType& mData,
                  Container& entities,
                  EntityType type,
                  const Range* intersect )
@@ -360,7 +360,7 @@ ErrorCode VarLenSparseTag::find_entities_with_value(
   if (value_bytes && value_bytes != get_size())
     return MB_INVALID_SIZE;
   
-  myMapType::const_iterator iter, end;
+  MapType::const_iterator iter, end;
 #ifdef HAVE_UNORDERED_MAP
   if (intersect_entities) {
     std::pair<Range::iterator,Range::iterator> r;
@@ -427,7 +427,7 @@ ErrorCode VarLenSparseTag::get_memory_use( const SequenceManager*,
 
 {
   total = mData.size() * (3*sizeof(void*) + sizeof(VarLenTag));
-  for (myMapType::const_iterator i = mData.begin(); i != mData.end(); ++i)
+  for (MapType::const_iterator i = mData.begin(); i != mData.end(); ++i)
     total += i->second.mem();
   per_entity = total / mData.size();
   total += sizeof(*this) + TagInfo::get_memory_use();

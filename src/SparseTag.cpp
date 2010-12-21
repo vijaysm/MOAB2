@@ -39,7 +39,7 @@ TagType SparseTag::get_storage_type() const
 
 ErrorCode SparseTag::release_all_data( SequenceManager*, bool )
 {
-  for(myMapType::iterator i = mData.begin(); i != mData.end(); ++i)
+  for(MapType::iterator i = mData.begin(); i != mData.end(); ++i)
     mAllocator.destroy(i->second);
   mData.clear();
   return MB_SUCCESS;
@@ -50,9 +50,9 @@ ErrorCode SparseTag::set_data(EntityHandle entity_handle, const void* data)
   ErrorCode ret_val = MB_TAG_NOT_FOUND;
 
 #ifdef HAVE_UNORDERED_MAP
-  myMapType::iterator iterator = mData.find(entity_handle);
+  MapType::iterator iterator = mData.find(entity_handle);
 #else
-  myMapType::iterator iterator = mData.lower_bound(entity_handle);
+  MapType::iterator iterator = mData.lower_bound(entity_handle);
 #endif
   
   // data space already exists
@@ -75,7 +75,7 @@ ErrorCode SparseTag::set_data(EntityHandle entity_handle, const void* data)
 
 ErrorCode SparseTag::get_data_ptr(EntityHandle entity_handle, const void*& ptr) const
 {
-  myMapType::const_iterator iter = mData.find(entity_handle);
+  MapType::const_iterator iter = mData.find(entity_handle);
 
   if (iter != mData.end())
     ptr = iter->second;
@@ -98,7 +98,7 @@ ErrorCode SparseTag::get_data(EntityHandle entity_handle, void* data) const
 
 ErrorCode SparseTag::remove_data( EntityHandle entity_handle )
 {
-  myMapType::iterator i = mData.find(entity_handle);
+  MapType::iterator i = mData.find(entity_handle);
   if (i == mData.end()) 
     return MB_TAG_NOT_FOUND;
   
@@ -338,11 +338,11 @@ ErrorCode SparseTag::tag_iterate( SequenceManager* seqman,
 }
 
 template <class Container> static inline
-void get_tagged( const SparseTag::myMapType& mData,
+void get_tagged( const SparseTag::MapType& mData,
                  EntityType type,
                  Container& output_range )
 {
-  SparseTag::myMapType::const_iterator iter;
+  SparseTag::MapType::const_iterator iter;
   typename Container::iterator hint = output_range.begin();
   if (MBMAXTYPE == type) {
     for (iter = mData.begin(); iter != mData.end(); ++iter)
@@ -355,7 +355,7 @@ void get_tagged( const SparseTag::myMapType& mData,
         hint = output_range.insert( hint, iter->first );    
 #else
     iter = mData.lower_bound( FIRST_HANDLE(type) );
-    SparseTag::myMapType::const_iterator end = mData.lower_bound( LAST_HANDLE(type)+1 );
+    SparseTag::MapType::const_iterator end = mData.lower_bound( LAST_HANDLE(type)+1 );
     for (; iter != end; ++iter)
       hint = output_range.insert( hint, iter->first );
 #endif
@@ -363,12 +363,12 @@ void get_tagged( const SparseTag::myMapType& mData,
 }
 
 template <class Container> static inline
-void get_tagged( const SparseTag::myMapType& mData,
+void get_tagged( const SparseTag::MapType& mData,
                  Range::const_iterator begin,
                  Range::const_iterator end,
                  Container& output_range )
 {
-  SparseTag::myMapType::const_iterator iter;
+  SparseTag::MapType::const_iterator iter;
   typename Container::iterator hint = output_range.begin();
   for (Range::const_iterator i = begin; i != end; ++i)
     if (mData.find(*i) != mData.end())
@@ -376,7 +376,7 @@ void get_tagged( const SparseTag::myMapType& mData,
 }
 
 template <class Container> static inline 
-void get_tagged( const SparseTag::myMapType& mData,
+void get_tagged( const SparseTag::MapType& mData,
                  Container& entities,
                  EntityType type,
                  const Range* intersect )
@@ -425,7 +425,7 @@ ErrorCode SparseTag::find_entities_with_value(
   if (value_bytes && value_bytes != get_size())
     return MB_INVALID_SIZE;
   
-  myMapType::const_iterator iter, end;
+  MapType::const_iterator iter, end;
 #ifdef HAVE_UNORDERED_MAP
   if (intersect_entities) {
     std::pair<Range::iterator,Range::iterator> r;
