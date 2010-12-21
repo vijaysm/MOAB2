@@ -21,6 +21,7 @@
 #include <iomanip>
 #include <time.h>
 #include <assert.h>
+#include <list>
 #include "moab/Core.hpp"
 #include "moab/Skinner.hpp"
 #include "moab/ReadUtilIface.hpp"
@@ -31,27 +32,27 @@ double LENGTH = 1.0;
 const int DEFAULT_INTERVALS = 50;
 
 void create_regular_mesh( int interval, int dimension );
-void skin_common( int interval, int dim, bool use_adj );
-void skin(const int intervals, const int dim) 
+void skin_common( int interval, int dim, int blocks, bool use_adj );
+void skin( int intervals, int dim, int num ) 
   { std::cout << "Skinning w/out adjacencies:" << std::endl;
-    skin_common( intervals, dim, false ); }
-void skin_adj(const int intervals, const int dim)
+    skin_common( intervals, dim, num, false ); }
+void skin_adj( int intervals, int dim, int num )
   { std::cout << "Skinning with adjacencies:" << std::endl;
-    skin_common( intervals, dim, true ); }
+    skin_common( intervals, dim, num, true ); }
 
-void tag_time( TagType storage, bool direct, int intervals, int dim );
+void tag_time( TagType storage, bool direct, int intervals, int dim, int blocks );
 
-void dense_tag( int intervals, int dim ) 
+void dense_tag( int intervals, int dim, int blocks ) 
   { std::cout << "Dense Tag Time:"; 
-    tag_time( MB_TAG_DENSE, false, intervals, dim ); }
-void sparse_tag( int intervals, int dim )
+    tag_time( MB_TAG_DENSE, false, intervals, dim, blocks ); }
+void sparse_tag( int intervals, int dim, int blocks )
   { std::cout << "Sparse Tag Time:"; 
-    tag_time( MB_TAG_SPARSE, false, intervals, dim ); }
-void direct_tag( int intervals, int dim )
+    tag_time( MB_TAG_SPARSE, false, intervals, dim, blocks ); }
+void direct_tag( int intervals, int dim, int blocks )
   { std::cout << "Direct Tag Time:"; 
-    tag_time( MB_TAG_DENSE, true, intervals, dim ); }
+    tag_time( MB_TAG_DENSE, true, intervals, dim, blocks ); }
 
-typedef void (*test_func_t)( const int, const int );
+typedef void (*test_func_t)( int, int, int );
 const struct {
   std::string testName;
   test_func_t testFunc;
@@ -68,12 +69,13 @@ const int TestListSize = sizeof(TestList)/sizeof(TestList[0]);
 void usage( const char* argv0, bool error = true )
 {
   std::ostream& str = error ? std::cerr : std::cout;
-  str << "Usage: " << argv0 << " -i <ints_per_side> -d <dimension> <test_name> [<test_name2> ...]" << std::endl;
+  str << "Usage: " << argv0 << " [-i <ints_per_side>] [-d <dimension>] [-n <test_specifc_int>] <test_name> [<test_name2> ...]" << std::endl;
   str << "       " << argv0 << " [-h|-l]" << std::endl;
   if (error)
     return;
   str << "  -i  : specify interverals per side (num hex = ints^3, default: " << DEFAULT_INTERVALS << std::endl;
-  str << "  -d  : specify element dimension (INGORED BY SOME TESTS), default: 3" << std::endl;
+  str << "  -d  : specify element dimension, default: 3" << std::endl;
+  str << "  -n  : specify an integer value that for which the meaning is test-specific" << std::endl;
   str << "  -h  : print this help text." << std::endl;
   str << "  -l  : list available tests"  << std::endl;
 }
@@ -101,35 +103,28 @@ int main(int argc, char* argv[])
 {
   int intervals = DEFAULT_INTERVALS;
   int dimension = 3;
+  int number = 0;
   std::vector<test_func_t> test_list;
+  std::list<int*> expected_list;
   bool did_help = false;
-  bool expect_ints = false, expect_dim = false;
   for (int i = 1; i < argc; ++i) {
-    if (expect_ints) {
-      expect_ints = false;
+    if (!expected_list.empty()) {
+      int* ptr = expected_list.front();
+      expected_list.pop_front();
       char* endptr;
-      intervals = strtol( argv[i], &endptr, 0 );
-      if (intervals < 1) {
+      *ptr = strtol( argv[i], &endptr, 0 );
+      if (!endptr) {
         usage(argv[0]);
-        std::cerr << "Invalid interval count: " << intervals << std::endl;
-        return 1;
-      }
-    }
-    else if (expect_dim) {
-      expect_dim = false;
-      char* endptr;
-      dimension = strtol( argv[i], &endptr, 0 );
-      if (dimension < 1 || dimension > 3) {
-        usage(argv[0]);
-        std::cerr << "Invalid dimension: " << dimension << std::endl;
+        std::cerr << "Expected integer value, got \"" << argv[i] << '"' << std::endl;
         return 1;
       }
     }
     else if (*argv[i] == '-') { // flag
       for (int j = 1; argv[i][j]; ++j) {
         switch (argv[i][j]) {
-          case 'i': expect_ints = true; break;
-          case 'd': expect_dim  = true; break;
+          case 'i': expected_list.push_back( &intervals ); break;
+          case 'd': expected_list.push_back( &dimension ); break;
+          case 'n': expected_list.push_back( &number    ); break;
           case 'h': did_help = true; usage(argv[0],false); break;
           case 'l': did_help = true; list_tests(); break;
           default:
@@ -153,17 +148,33 @@ int main(int argc, char* argv[])
     }
   }
   
+  if (!expected_list.empty()) {
+    usage(argv[0]);
+    std::cerr << "Missing final argument" <<std::endl;
+    return 1;
+  }
+  
     // error if no input
   if (test_list.empty() && !did_help) {
     usage(argv[0]);
     std::cerr << "No tests specified" << std::endl;
     return 1;
   }
+
+  if (intervals < 1) {
+    std::cerr << "Invalid interval count: " << intervals << std::endl;
+    return 1;
+  }
+  
+  if (dimension < 1 || dimension > 3) {
+    std::cerr << "Invalid dimension: " << dimension << std::endl;
+    return 1;
+  }
   
     // now run the tests
   for (std::vector<test_func_t>::iterator i = test_list.begin(); i != test_list.end(); ++i) {
     test_func_t fptr = *i;
-    fptr(intervals,dimension);
+    fptr(intervals,dimension,number);
   }
   
   return 0;
@@ -240,7 +251,7 @@ void create_regular_mesh( Interface* gMB, int interval, int dim )
   }
 }  
 
-void skin_common( int interval, int dim, bool use_adj ) 
+void skin_common( int interval, int dim, int num, bool use_adj ) 
 {
   Core moab;
   Interface* gMB = &moab;
@@ -267,7 +278,8 @@ void skin_common( int interval, int dim, bool use_adj )
   std::cout << "Got " << verts.size() << " skin vertices in " << d << " seconds." << std::endl;
   
   t = 0;
-  long blocksize = elems.size() / 1000;
+  if (num < 1) num = 1000;
+  long blocksize = elems.size() / num;
   if (!blocksize) blocksize = 1;
   long numblocks = elems.size()/blocksize;
   Range::iterator it = elems.begin();
@@ -333,7 +345,7 @@ void skin_common( int interval, int dim, bool use_adj )
   }
 }
 
-void tag_time( TagType storage, bool direct, int intervals, int dim )
+void tag_time( TagType storage, bool direct, int intervals, int dim, int blocks )
 {
   Core moab;
   Interface& mb = moab;
@@ -376,6 +388,7 @@ void tag_time( TagType storage, bool direct, int intervals, int dim )
   const double v0 = acos(-1.0); // pi
   size_t iter_count = 0;
   double max_diff;
+  const size_t num_verts = verts.size();
   do {
     if (direct) {
       max_diff = 0.0;
@@ -394,7 +407,7 @@ void tag_time( TagType storage, bool direct, int intervals, int dim )
         }
       }
     }
-    else {
+    else if (blocks < 1) {
       max_diff = 0.0;
       mb.tag_get_data( tag, verts, &data[0] );
       for (size_t i = 0; i < data.size(); ++i) { 
@@ -404,6 +417,39 @@ void tag_time( TagType storage, bool direct, int intervals, int dim )
           max_diff = diff;
       }
       mb.tag_set_data( tag, verts, &data[0] );
+    }
+    else {
+      max_diff = 0.0;
+      Range r;
+      Range::iterator it = verts.begin();
+      size_t step = num_verts / blocks;
+      for (int j = 0; j < blocks-1; ++j) {
+        Range::iterator nx = it;
+        nx += step;
+        r.clear();
+        r.merge( it, nx );
+        mb.tag_get_data( tag, r, &data[0] );
+        it = nx;
+
+        for (size_t i = 0; i < step; ++i) { 
+          data[i] = 0.5 * (v0+data[i]);
+          double diff = fabs( data[i] - v0 );
+          if (diff > max_diff)
+            max_diff = diff;
+        }
+        mb.tag_set_data( tag, r, &data[0] );
+      }
+      
+      r.clear();
+      r.merge( it, verts.end() );
+      mb.tag_get_data( tag, r, &data[0] );
+      for (size_t i = 0; i < (num_verts - (blocks-1)*step); ++i) { 
+        data[i] = 0.5 * (v0+data[i]);
+        double diff = fabs( data[i] - v0 );
+        if (diff > max_diff)
+          max_diff = diff;
+      }
+      mb.tag_set_data( tag, r, &data[0] );
     }
     ++iter_count;
 //    std::cout << iter_count << " " << max_diff << std::endl;
