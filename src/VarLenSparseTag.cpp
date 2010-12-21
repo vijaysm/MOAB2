@@ -289,7 +289,7 @@ void get_tagged( const VarLenSparseTag::myMapType& mData,
         hint = output_range.insert( hint, iter->first );    
 #else
     iter = mData.lower_bound( FIRST_HANDLE(type) );
-    myMapType::const_iterator end = mData.lower_bound( LAST_HANDLE(type)+1 );
+    VarLenSparseTag::myMapType::const_iterator end = mData.lower_bound( LAST_HANDLE(type)+1 );
     for (; iter != end; ++iter)
       hint = output_range.insert( hint, iter->first );
 #endif
@@ -360,7 +360,7 @@ ErrorCode VarLenSparseTag::find_entities_with_value(
   if (value_bytes && value_bytes != get_size())
     return MB_INVALID_SIZE;
   
-  myMapType::iterator iter, end;
+  myMapType::const_iterator iter, end;
 #ifdef HAVE_UNORDERED_MAP
   if (intersect_entities) {
     std::pair<Range::iterator,Range::iterator> r;
@@ -392,10 +392,10 @@ ErrorCode VarLenSparseTag::find_entities_with_value(
 #else
   if (intersect_entities) {
     for (Range::const_pair_iterator p = intersect_entities->begin();
-         p != intersect_entities.end(); ++p) {
-      iter = mData.lower_bound( p->first);
+         p != intersect_entities->end(); ++p) {
+      iter = mData.lower_bound( p->first );
       end = mData.upper_bound( p->second );
-      find_tag_varlen_values_equal( *this, tag_value, get_size(), iter, end, 
+      find_tag_varlen_values_equal( *this, value, get_size(), iter, end, 
                                     output_entities);
     }
   }
@@ -408,7 +408,7 @@ ErrorCode VarLenSparseTag::find_entities_with_value(
       iter = mData.lower_bound( CREATE_HANDLE( type, MB_START_ID ) );
       end = mData.upper_bound( CREATE_HANDLE( type, MB_END_ID ) );
     }
-    find_tag_varlen_values_equal( *this, tag_value, get_size(), iter, end, 
+    find_tag_varlen_values_equal( *this, value, get_size(), iter, end, 
                                   output_entities);
   }
 #endif
