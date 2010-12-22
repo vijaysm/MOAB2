@@ -57,12 +57,12 @@ void create_file()
   hid_t data, tagdata[2];
   long junk;
   
+  mhdf_Status status;
+  mhdf_FileHandle file;
+  
   time_t t;
   t = time(NULL);
   history[1] = ctime(&t);
-  
-  mhdf_Status status;
-  mhdf_FileHandle file;
   
   file = mhdf_createFile( filename, 1, elem_types, num_elem_types, &status );
   CHECK(status);
@@ -117,6 +117,7 @@ void write_file_data()
   hid_t handle, handles[2];
   mhdf_Status status;
   mhdf_FileHandle file;
+  int num_node, offset, dim;
   double coords[3*8] = { 0.0, 0.0, 0.0, 
                          0.0, 1.0, 0.0, 
                          0.0, 1.0, 1.0, 
@@ -127,7 +128,6 @@ void write_file_data()
                          0.0, 0.0, 1.0 };
   int i, list[10], tagdata[10];
   for (i = 0; i < 10; i++) tagdata[i] = RANK;
-  int num_node, offset, dim;
   
   
     /* open file */
