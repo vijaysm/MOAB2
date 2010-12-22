@@ -7,6 +7,7 @@
 #include "moab_mpi.h"
 #include <iostream>
 #include <algorithm>
+#include <map>
 #include <sstream>
 #include <assert.h>
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
@@ -1125,12 +1126,12 @@ ErrorCode test_ghosted_entity_shared_data( const char* )
   return MB_SUCCESS;
 }
 
-bool check_consistent_ids( Interface& mb,
-                           const EntityHandle* entities,
-                           const int* orig_ids,
-                           int num_ents,
-                           const char* singular_name,
-                           const char* plural_name )
+ErrorCode check_consistent_ids( Interface& mb,
+                                const EntityHandle* entities,
+                                const int* orig_ids,
+                                int num_ents,
+                                const char* singular_name,
+                                const char* plural_name )
 {
   ErrorCode rval;  
   int rank, size, ierr;
@@ -1141,16 +1142,20 @@ bool check_consistent_ids( Interface& mb,
   rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag ); CHKERR(rval);
   std::vector<int> new_ids(num_ents);
   rval = mb.tag_get_data( id_tag, entities, num_ents, &new_ids[0] ); CHKERR(rval);
-  bool valid = true;
-  for (int i = 0; i < num_ents; ++i) 
-    if (new_ids[i] < 0 || new_ids[i] >= num_ents*size) {
-      std::cerr << "ID out of bounds on proc " << rank 
-                << " : " << new_ids[i] << " not in [0," << num_ents*size-1
-                << "]" << std::endl;
-      valid = false;
-    }
-  if (!valid)
-    return false;
+  // This test is wrong.  a) The caller can select a start ID so there's
+  // no guarantee that the IDs will be in any specific range and b) There
+  // is no reason to expect the global number of entities to be num_ents*size
+  // if there are any shared entities. J.Kraftcheck 2010-12-22
+  //rval = MB_SUCCESS;
+  //for (int i = 0; i < num_ents; ++i) 
+  //  if (new_ids[i] < 0 || new_ids[i] >= num_ents*size) {
+  //    std::cerr << "ID out of bounds on proc " << rank 
+  //              << " : " << new_ids[i] << " not in [0," << num_ents*size-1
+  //              << "]" << std::endl;
+  //    rval = MB_FAILURE;
+  //  }
+  //if (MB_SUCCESS != rval)
+  //  return rval;
 
     // Gather up all data on root proc for consistency check
   std::vector<int> all_orig_ids(num_ents*size), all_new_ids(num_ents*size);
@@ -1163,42 +1168,43 @@ bool check_consistent_ids( Interface& mb,
   
     // build a local map from original ID to new ID and use it
     // to check for consistancy between all procs
-  valid = true;
+  rval = MB_SUCCESS;;
   if (0 == rank) {
       // check for two processors having different global ID for same entity
-    std::vector<int> map(num_ents*size,-1); // index by original ID and contains new ID
-    std::vector<int> owner(num_ents*size,-1); // index by original ID and contains new ID
+    std::map<int,int> idmap; // index by original ID and contains new ID
+    std::map<int,int> owner; // index by original ID and contains owning rank
     for (int i = 0; i < num_ents*size; ++i) {
-      if (map[all_orig_ids[i]] == -1) {
-        map[all_orig_ids[i]] = all_new_ids[i];
+      std::map<int,int>::iterator it = idmap.find(all_orig_ids[i]);
+      if (it == idmap.end()) {
+        idmap[all_orig_ids[i]] = all_new_ids[i];
         owner[all_orig_ids[i]] = i/num_ents;
       }
-      else if (map[all_orig_ids[i]] != all_new_ids[i]) {
+      else if (it->second != all_new_ids[i]) {
         std::cerr << "Inconsistant " << singular_name << " IDs between processors "
                   << owner[all_orig_ids[i]] << " and " << i/num_ents 
-                  << " : " << map[all_orig_ids[i]] << " and "
+                  << " : " << it->second << " and "
                   << all_new_ids[i] << " respectively." << std::endl;
-        valid = false;
+        rval = MB_FAILURE;
       }
     }
       // check for two processors having same global ID for different entities
-    map.clear();
+    idmap.clear();
+    owner.clear();
     for (int i = 0; i < num_ents*size; ++i) {
-      if (all_new_ids[i] >= (int)map.size()) 
-        map.resize( all_new_ids[i] + 1, -1 );
-      if (map[all_new_ids[i]] == -1) {
-        map[all_new_ids[i]] = all_orig_ids[i];
+      std::map<int,int>::iterator it = idmap.find(all_new_ids[i]);
+      if (it == idmap.end()) {
+        idmap[all_new_ids[i]] = all_orig_ids[i];
         owner[all_new_ids[i]] = i/num_ents;
       }
-      else if (map[all_new_ids[i]] != all_orig_ids[i]) {
+      else if (it->second != all_orig_ids[i]) {
         std::cerr << "ID " << all_new_ids[i] 
                   << " assigned to different " << plural_name << " on processors "
                   << owner[all_new_ids[i]] << " and " << i/num_ents << std::endl;
-        valid = false;
+        rval = MB_FAILURE;
       }
     }
   }
-  return valid;
+  return rval;
 }
 
 
@@ -1237,9 +1243,9 @@ ErrorCode test_assign_global_ids( const char* )
     // assign new global IDs
   rval = pcomm.assign_global_ids( 0, 2 ); PCHECK(MB_SUCCESS == rval);
   
-  bool ok = check_consistent_ids( mb, verts, vert_ids, 9, "vertex", "vertices" );
-  PCHECK(ok);
-  ok &= check_consistent_ids( mb, quads, quad_ids, 6, "quad", "quads" );
-  PCHECK(ok);
-  return ok ? MB_SUCCESS : MB_FAILURE;
+  rval = check_consistent_ids( mb, verts, vert_ids, 9, "vertex", "vertices" );
+  PCHECK(MB_SUCCESS == rval);
+  rval = check_consistent_ids( mb, quads, quad_ids, 4, "quad", "quads" );
+  PCHECK(MB_SUCCESS == rval);
+  return rval;
 }
