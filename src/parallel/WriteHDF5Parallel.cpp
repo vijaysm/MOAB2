@@ -1070,7 +1070,7 @@ ErrorCode WriteHDF5Parallel::create_element_tables()
     for (int i = 0; i < numtypes; i++) 
     {
       long prev = 0;
-      for (unsigned int j = 0; j <= myPcomm->proc_config().proc_size(); j++)
+      for (unsigned int j = 0; j < myPcomm->proc_config().proc_size(); j++)
       {
         long tmp = counts[j*numtypes + i];
         if (tmp > my_counts[i]) // put max count in my_counts
@@ -1078,6 +1078,7 @@ ErrorCode WriteHDF5Parallel::create_element_tables()
         counts[j*numtypes+i] = prev;
         prev += tmp;
       }
+      counts[myPcomm->proc_config().proc_size()*numtypes + i] = prev;
     }
   }
   
@@ -1187,7 +1188,7 @@ ErrorCode WriteHDF5Parallel::create_adjacency_tables()
     for (i = 0; i < numtypes; i++) 
     {
       long prev = 0;
-      for (j = 0; j <= myPcomm->proc_config().proc_size(); j++)
+      for (j = 0; j < myPcomm->proc_config().proc_size(); j++)
       {
         long tmp = all[j*numtypes + i];
         if (tmp > local[i])
@@ -1195,6 +1196,7 @@ ErrorCode WriteHDF5Parallel::create_adjacency_tables()
         all[j*numtypes+i] = prev;
         prev += tmp;
       }
+      all[myPcomm->proc_config().proc_size()+numtypes+i] = prev;
     }
 
       // For each element type for which there is no adjacency data,
