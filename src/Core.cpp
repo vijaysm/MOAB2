@@ -1986,6 +1986,12 @@ ErrorCode Core::tag_get_handle( const char* name,
     // check sizes
     if (!(flags & TAG_VARLEN) && tag_handle->get_size() != size)
       return MB_INVALID_SIZE;
+      
+    // If user passed a default value, check that it matches.  
+    // If user did not pass a default value, assume they're OK
+    // with the existing one.
+    if (default_value && !tag_handle->equals_default_value(default_value,size))
+      return MB_ALREADY_ALLOCATED;
     
     return MB_SUCCESS;
   }
