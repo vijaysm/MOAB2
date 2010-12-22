@@ -362,10 +362,10 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   if (MB_SUCCESS != rval) return error(rval);
 
     /**************** get tag names for sets likely to be shared ***********/
-  debug_barrier();
-  dbgOut.tprint(1,"Getting shared entity sets\n");
-  rval = get_sharedset_tags();
-  if (MB_SUCCESS != rval) return error(rval);
+  //debug_barrier();
+  //dbgOut.tprint(1,"Getting shared entity sets\n");
+  //rval = get_sharedset_tags();
+  //if (MB_SUCCESS != rval) return error(rval);
   
 
     /**************** Create actual file and write meta info ***************/
