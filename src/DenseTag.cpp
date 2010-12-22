@@ -361,7 +361,7 @@ ErrorCode DenseTag::set_data( SequenceManager* seqman,
       if (MB_SUCCESS != rval)
         return rval;
       
-      const EntityHandle end = std::min(p->second + 1, start + avail );
+      const EntityHandle end = std::min<EntityHandle>(p->second + 1, start + avail );
       while (start != end) {
         memcpy( array, *pointers, get_size() );
         ++start;

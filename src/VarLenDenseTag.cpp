@@ -310,7 +310,7 @@ ErrorCode VarLenDenseTag::set_data( SequenceManager* seqman,
       if (MB_SUCCESS != rval)
         return rval;
       
-      const EntityHandle end = std::min(p->second + 1, start + avail );
+      const EntityHandle end = std::min<EntityHandle>(p->second + 1, start + avail );
       while (start != end) {
         array->set( *pointers, *lengths );
         ++start;
@@ -402,7 +402,7 @@ ErrorCode VarLenDenseTag::remove_data( SequenceManager* seqman,
       if (MB_SUCCESS != rval)
         return rval;
       
-      const EntityHandle end = std::min(p->second + 1, start + avail );
+      const EntityHandle end = std::min<EntityHandle>(p->second + 1, start + avail );
       if (array) {
         while (start != end) {
           array->clear();
