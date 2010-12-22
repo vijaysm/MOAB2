@@ -505,6 +505,26 @@ AC_ARG_WITH([parmetis],
                esac] )
 
 
+
+################################################################################
+#                            Optional Libraries
+################################################################################
+
+AC_ARG_WITH([vtk],
+  [AC_HELP_STRING([--with-vtk@<:@=DIR@:>@], [Enable VTK support, and specify VTK location])],
+  [WITH_VTK=$withval
+   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-vtk=\"${withval}\""
+  ],[WITH_VTK=])
+
+VTKMOAB_DEFAULT=no
+if test "x$WITH_VTK" != "xno" -a "x$WITH_VTK" != "x"; then
+  VTKMOAB_DEFAULT=yes
+fi
+
+echo "WITH_VTK=$WITH_VTK"
+echo "VTKMOAB_DEFAULT=$VTKMOAB_DEFAULT"
+  
+
 ###############################################################################
 #                           Optional Tools
 ###############################################################################
@@ -539,7 +559,7 @@ AC_HELP_STRING([--disable-tools],[Disable all tools by default])],
 MB_OPTIONAL_TOOL([mbconvert],    [yes])
 MB_OPTIONAL_TOOL([hexmodops],    [yes])
 MB_OPTIONAL_TOOL([qvdual],       [no] )
-MB_OPTIONAL_TOOL([vtkMOABReader],[no] )
+MB_OPTIONAL_TOOL([vtkMOABReader],[${VTKMOAB_DEFAULT}] )
 MB_OPTIONAL_TOOL([mbsize],       [yes])
 MB_OPTIONAL_TOOL([mbskin],       [yes])
 MB_OPTIONAL_TOOL([mbtagprop],    [yes])
@@ -560,6 +580,25 @@ if test "xyes" = "x$ENABLE_refiner"; then
   fi
 fi
 
+if test "xyes" = "x$ENABLE_vtkMOABReader"; then
+  if test "xno" == "x$WITH_VTK"; then
+    AC_MSG_ERROR([vtkMOABReader requires VTK])
+  elif test "x" == "x$WITH_VTK"; then 
+    WITH_VTK=yes
+  fi
+fi
+
+if test "xyes" = "x$ENABLE_qvdual"; then
+  if test "xno" == "x$WITH_VTK"; then
+    AC_MSG_ERROR([qvdual requires VTK])
+  elif test "x" == "x$WITH_VTK"; then 
+    WITH_VTK=yes
+  fi
+fi
+
+echo "WITH_VTK=$WITH_VTK"
+echo "VTKMOAB_DEFAULT=$VTKMOAB_DEFAULT"
+echo "ENABLE_vtkMOABReader=$ENABLE_vtkMOABReader"
 
 ################################################################################
 #                           Zoltan - Part 2 of 2
@@ -625,138 +664,45 @@ AC_SUBST(ZOLTAN_LIB_FLAGS)
 AC_SUBST(ZOLTAN_INC_FLAGS)
 
 ################################################################################
-#                               qvdual
+#                    VTK for qvdual and/or vtkMOABReader
 ################################################################################
+AC_DEFUN([FATHOM_MERGE_LISTS],[
+  $1="$2"
+  # Reverse list two
+  for item3 in $3; do 
+    found=no
+    for item2 in $2; do
+      if test "x$item2" = "x$item3"; then found=yes; fi
+    done
+    if test "$found" = "no"; then $1="${$1} $item3"; fi
+  done
+  $1="${$1} $2"
+])
 
-GRAPHVIZ_MISSING=no
-X_MISSING=no
-VTK_MISSING=no
-QT_MISSING=no
+if test "xno" != "x$WITH_VTK" -a "x" != "x$WITH_VTK"; then
 
-if test $ENABLE_qvdual = yes; then
-
-
-################################################################################
-#                               GraphViz
-################################################################################
-  AC_ARG_WITH([graphviz],
-  [AC_HELP_STRING([--with-graphviz=DIR], [Specify directory containing GraphViz])],
-  [GRAPH_DIR=$withval
-   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-graphviz=\"${withval}\""
-  ],[GRAPH_DIR=])
-
-  case "x$GRAPH_DIR" in
-    xno)
-      GRAPHVIZ_MISSING=yes
-      ;;
-    xyes|x)
-      GRAPH_INC_DIR=
-      GRAPH_DIR=
-      for dir in /usr /usr/local; do
-        if test "x" = "x$GRAPH_DIR"; then
-          AC_CHECK_FILE([${dir}/include/graphviz/gvc.h],[GRAPH_DIR="$dir"])
-        fi
-      done
-      AC_MSG_CHECKING([for GraphViz include dir])
-      if test "x" != x"$GRAPH_DIR"; then
-        GRAPH_INC_DIR="-I${GRAPH_DIR}/include/graphviz"
-      fi
-      AC_MSG_RESULT([$GRAPH_INC_DIR])
-      AC_MSG_CHECKING([for GraphViz library dir])
-      GRAPH_LIB_DIR=
-      for dir in ${GRAPH_DIR}/lib64/graphviz ${GRAPH_DIR}/lib/graphviz /usr/lib64/graphviz /usr/lib/graphviz /usr/local/lib64/graphviz /usr/local/lib/graphviz /lib64/graphviz /lib/graphviz; do
-        if test "x" = "x$GRAPH_LIB_DIR"; then
-          if test -d $dir; then
-            GRAPH_LIB_DIR=-L$dir
-          fi
-        fi
-      done
-      AC_MSG_RESULT([$GRAPH_LIB_DIR])
-      ;;
-    x?*)
-      GRAPH_INC_DIR=
-      for dir in ${GRAPH_DIR}/include/graphviz ${GRAPH_DIR}/include ${GRAPH_DIR}; do
-        if test "x" = "x$GRAPH_INC_DIR"; then
-          AC_CHECK_FILE([${dir}/gvc.h],[GRAPH_INC_DIR="-I$dir"])
-        fi
-      done
-      AC_MSG_CHECKING([for GraphViz include dir])
-      if test "x" = x"$GRAPH_INC_DIR"; then
-        AC_MSG_RESULT([no])
-        GRAPHVIZ_MISSING=yes
-      else
-        AC_MSG_RESULT([$GRAPH_INC_DIR])
-      fi
-      AC_MSG_CHECKING([for GraphViz library dir])
-      GRAPH_LIB_DIR=
-      for dir in ${GRAPH_DIR}/lib/graphviz ${GRAPH_DIR}/lib ${GRAPH_DIR}; do
-        if test "x" = "x$GRAPH_LIB_DIR"; then
-          if test -d $dir; then
-            GRAPH_LIB_DIR=-L$dir
-          fi
-        fi
-      done
-      if test "x" = x"$GRAPH_LIB_DIR"; then
-        AC_MSG_RESULT([no])
-        GRAPHVIZ_MISSING=yes
-      else
-        AC_MSG_RESULT([$GRAPH_LIB_DIR])
-      fi
-      ;;
-  esac
-
-  GRAPH_LIBS="$GRAPH_LIB_DIR -lgvc -lgraph"
-  old_CXXFLAGS="$CXXFLAGS"
-  old_CPPFLAGS="$CPPFLAGS"
-  CXXFLAGS="$GRAPH_INC_DIR"
-  CPPFLAGS="$GRAPH_INC_DIR"
-  old_LIBS="$LIBS"
-  LIBS=$GRAPH_LIBS
-  AC_CHECK_HEADERS([gvc.h],[],[AC_MSG_WARN([Missing GraphViz header]); GRAPHVIZ_MISSING=yes])
-  AC_CHECK_LIB([gvc],[gvContext],[],[AC_MSG_WARN([Cannot find GraphViz library: -lgraph]); GRAPHVIZ_MISSING=yes])
-  LIBS="$old_LIBS"
-  CXXFLAGS="$old_CXXFLAGS"
-  CPPFLAGS="$old_CPPFLAGS"
-
-
-################################################################################
-#                                   X
-################################################################################
   AC_PATH_X
   AC_PATH_XTRA
   if test "xyes" = "x$no_x"; then
-    X_MISSING=yes
+    AC_MSG_ERROR([X11 not found])
   fi
 
-
-################################################################################
-#                                  VTK
-################################################################################
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
-  
-  AC_ARG_WITH([vtk],
-  [AC_HELP_STRING([--with-vtk=DIR], [Specify directory containing VTK])],
-  [VTK_DIR=$withval
-   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-vtk=\"${withval}\""
-  ],[VTK_DIR=])
 
   VTK_INCLUDES=  
-  case "x$VTK_DIR" in
-    xno)
-      VTK_MISSING=yes
-      ;;
+  case "x$WITH_VTK" in
     xyes|x)
       VTK_LIB_DIR=
       VTK_INC_DIR=
-      for dir in /usr/include/vtk /usr/local/include/vtk /include/vtk /usr/include/vtk-5.0 /usr/include/vtk-5.2; do
+      for dir in  /usr/local/include/vtk /usr/local/include/vtk-* /usr/include/vtk  /usr/include/vtk-*; do
         if test "x" = "x$VTK_INC_DIR"; then
           AC_CHECK_FILE([${dir}/vtkRenderer.h],[VTK_INC_DIR="-I$dir"])
         fi
       done
       if test x = x"$VTK_INC_DIR"; then
         AC_CHECK_HEADER([vtkRenderer.h],[],
-                        [VTK_MISSING=yes])
+                        [AC_MSG_ERROR([VTK includes not found])])
       else
         VTK_INCLUDES="$VTK_INC_DIR"
       fi
@@ -770,14 +716,14 @@ if test $ENABLE_qvdual = yes; then
         fi
       done
       if test "x" = "x$VTK_LIB_DIR"; then
-        VTK_MISSING=yes
+        AC_MSG_ERROR([VTK libraries not found])
       fi
       LIBS="$old_LIBS"
       ;;
     x?*)
       VTK_LIB_DIR=
       VTK_INC_DIR=
-      for dir in ${VTK_DIR}/include/vtk ${VTK_DIR}/include/vtk/Rendering ${VTK_DIR}/include ${VTK_DIR}; do
+      for dir in ${WITH_VTK}/include/vtk ${VTK_DIR}/include/vtk/Rendering ${WITH_VTK}/include ${WITH_VTK}; do
         if test "x" = "x$VTK_INC_DIR"; then
           AC_CHECK_FILE([${dir}/vtkRenderer.h],[VTK_INC_DIR="-I$dir"])
         fi
@@ -786,20 +732,20 @@ if test $ENABLE_qvdual = yes; then
         # Check for non-installed VTK source
         AC_CHECK_FILE([${VTK_DIR}/Rendering/vtkRenderer.h],[
           for subdir in . Common Filtering GenericFiltering Graphics Hybrid Imaging Parallel Patented Rendering Utilities Utilities/vtkexpat Utilities/expat Utilities/DICOMParser Utilties/vtkpng Utilities/vtkzlib Utilities/freetype/include/freetype Wrapping; do
-  	  AC_MSG_CHECKING([for directory ${VTK_DIR}/$subdir])
-  	  if test -d ${VTK_DIR}/$subdir; then
-  	    VTK_INC_DIR="$VTK_INC_DIR -I${VTK_DIR}/$subdir"
+  	  AC_MSG_CHECKING([for directory ${WITH_VTK}/$subdir])
+  	  if test -d ${WITH_VTK}/$subdir; then
+  	    VTK_INC_DIR="$VTK_INC_DIR -I${WITH_VTK}/$subdir"
   	    AC_MSG_RESULT([yes])
   	  else
   	    AC_MSG_RESULT([no])
   	  fi
   	done
-  	],[VTK_MISSING=yes]
+  	],[AC_MSG_ERROR([VTK includes not found])]
         )
       fi
       VTK_INCLUDES="$VTK_INC_DIR"
       old_LIBS="$LIBS"
-      for dir in ${VTK_DIR}/lib/vtk ${VTK_DIR}/lib ${VTK_DIR}/bin ${VTK_DIR}; do
+      for dir in ${WITH_VTK}/lib/vtk ${WITH_VTK}/lib ${VTK_DIR}/bin ${WITH_VTK}; do
         if test "x" = "x$VTK_LIB_DIR"; then
           LIBS="$old_LIBS -L$dir"
           unset ac_cv_lib_vtkCommon
@@ -808,7 +754,7 @@ if test $ENABLE_qvdual = yes; then
         fi
       done
       if test "x" = "x$VTK_LIB_DIR"; then
-        VTK_MISSING=yes
+        AC_MSG_ERROR([VTK libraries not found])
       fi
       LIBS="$old_LIBS"
       ;;
@@ -864,19 +810,115 @@ dnl  - Optional library path linker argument (e.g. -L/opt/foo)
   FATHOM_CHECK_LIB_LIST([vtkRendering],  [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   FATHOM_CHECK_LIB_LIST([vtkParallel],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   FATHOM_CHECK_LIB_LIST([vtkHybrid],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([QVTK],          [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   
    # Make sure we found at least vtkCommon and vtkRendering
   if ! echo "x $vtk_libs" | grep lvtkCommon >/dev/null; then
-    AC_MSG_WARN("VTK library 'vtkCommon' not found.")
-    VTK_MISSING=yes
+    AC_MSG_ERROR("VTK library 'vtkCommon' not found.")
   fi
   if ! echo "x $vtk_libs" | grep lvtkRendering >/dev/null; then
-    AC_MSG_WARN("VTK library 'vtkRendering' not found.")
-    VTK_MISSING=yes
+    AC_MSG_ERROR("VTK library 'vtkRendering' not found.")
   fi
   
   AC_LANG_RESTORE
+
+  FATHOM_MERGE_LISTS([XLIBS_tmp],[$X_EXTRA_LIBS -lX11 $X_PRE_LIBS],[$vtk_x_libs])
+  FATHOM_MERGE_LISTS([XLIBS],[$vtk_sys_libs],[$XLIBS_tmp])
+  VTK_LIBS="$LIBS -L$VTK_LIB_DIR $vtk_libs $XLIBS"
+  VTK_INCLUDES="$VTK_INCLUDES"
+  AC_SUBST(VTK_LIBS)
+  AC_SUBST(VTK_INCLUDES)
+  AC_SUBST(VTK_LIB_DIR)
+  AC_SUBST(VTK_INC_DIR)
+fi
+
+################################################################################
+#                               qvdual
+################################################################################
+
+if test $ENABLE_qvdual = yes; then
+
+
+################################################################################
+#                               GraphViz
+################################################################################
+  AC_ARG_WITH([graphviz],
+  [AC_HELP_STRING([--with-graphviz=DIR], [Specify directory containing GraphViz])],
+  [GRAPH_DIR=$withval
+   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-graphviz=\"${withval}\""
+  ],[GRAPH_DIR=])
+
+  case "x$GRAPH_DIR" in
+    xno)
+      GRAPHVIZ_MISSING=yes
+      ;;
+    xyes|x)
+      GRAPH_INC_DIR=
+      GRAPH_DIR=
+      for dir in /usr /usr/local; do
+        if test "x" = "x$GRAPH_DIR"; then
+          AC_CHECK_FILE([${dir}/include/graphviz/gvc.h],[GRAPH_DIR="$dir"])
+        fi
+      done
+      AC_MSG_CHECKING([for GraphViz include dir])
+      if test "x" != x"$GRAPH_DIR"; then
+        GRAPH_INC_DIR="-I${GRAPH_DIR}/include/graphviz"
+      fi
+      AC_MSG_RESULT([$GRAPH_INC_DIR])
+      AC_MSG_CHECKING([for GraphViz library dir])
+      GRAPH_LIB_DIR=
+      for dir in ${GRAPH_DIR}/lib64/graphviz ${GRAPH_DIR}/lib/graphviz /usr/lib64/graphviz /usr/lib/graphviz /usr/local/lib64/graphviz /usr/local/lib/graphviz /lib64/graphviz /lib/graphviz; do
+        if test "x" = "x$GRAPH_LIB_DIR"; then
+          if test -d $dir; then
+            GRAPH_LIB_DIR=-L$dir
+          fi
+        fi
+      done
+      AC_MSG_RESULT([$GRAPH_LIB_DIR])
+      ;;
+    x?*)
+      GRAPH_INC_DIR=
+      for dir in ${GRAPH_DIR}/include/graphviz ${GRAPH_DIR}/include ${GRAPH_DIR}; do
+        if test "x" = "x$GRAPH_INC_DIR"; then
+          AC_CHECK_FILE([${dir}/gvc.h],[GRAPH_INC_DIR="-I$dir"])
+        fi
+      done
+      AC_MSG_CHECKING([for GraphViz include dir])
+      if test "x" = x"$GRAPH_INC_DIR"; then
+        AC_MSG_RESULT([no])
+        AC_MSG_ERROR([Graphviz includes for qvdual not found])
+      else
+        AC_MSG_RESULT([$GRAPH_INC_DIR])
+      fi
+      AC_MSG_CHECKING([for GraphViz library dir])
+      GRAPH_LIB_DIR=
+      for dir in ${GRAPH_DIR}/lib/graphviz ${GRAPH_DIR}/lib ${GRAPH_DIR}; do
+        if test "x" = "x$GRAPH_LIB_DIR"; then
+          if test -d $dir; then
+            GRAPH_LIB_DIR=-L$dir
+          fi
+        fi
+      done
+      if test "x" = x"$GRAPH_LIB_DIR"; then
+        AC_MSG_RESULT([no])
+        AC_MSG_ERROR([Graphviz lib for qvdual not found])
+      else
+        AC_MSG_RESULT([$GRAPH_LIB_DIR])
+      fi
+      ;;
+  esac
+
+  GRAPH_LIBS="$GRAPH_LIB_DIR -lgvc -lgraph"
+  old_CXXFLAGS="$CXXFLAGS"
+  old_CPPFLAGS="$CPPFLAGS"
+  CXXFLAGS="$GRAPH_INC_DIR"
+  CPPFLAGS="$GRAPH_INC_DIR"
+  old_LIBS="$LIBS"
+  LIBS=$GRAPH_LIBS
+  AC_CHECK_HEADERS([gvc.h],[],[AC_MSG_WARN([Missing GraphViz header]); GRAPHVIZ_MISSING=yes])
+  AC_CHECK_LIB([gvc],[gvContext],[],[AC_MSG_WARN([Cannot find GraphViz library: -lgraph]); GRAPHVIZ_MISSING=yes])
+  LIBS="$old_LIBS"
+  CXXFLAGS="$old_CXXFLAGS"
+  CPPFLAGS="$old_CPPFLAGS"
   
   
 ################################################################################
@@ -941,222 +983,20 @@ dnl  - Optional library path linker argument (e.g. -L/opt/foo)
       QT_MISSING=yes
     ])
   ])
+  LIBS="$VTK_LIBS $QT_LIBS"
+  AC_HAVE_LIBRARY([QVTK],[QT_LIBS="-lQVTL $QT_LIBS"],
+                  [AC_MSG_ERROR([QVTK library for qvdual not found])])
   LIBS="$old_LIBS"
   
 ################################################################################
 #                                 X/VTK/QT
 ################################################################################
-  dnl Merge lists of libraries
-  dnl Arguments
-  dnl  - name of output variable
-  dnl  - first list
-  dnl  - second list
-  AC_DEFUN([FATHOM_MERGE_LISTS],[
-    $1="$2"
-    # Reverse list two
-    for item3 in $3; do 
-      found=no
-      for item2 in $2; do
-        if test "x$item2" = "x$item3"; then found=yes; fi
-      done
-      if test "$found" = "no"; then $1="${$1} $item3"; fi
-    done
-    $1="${$1} $2"
-  ])
-  FATHOM_MERGE_LISTS([XLIBS_tmp],[$X_EXTRA_LIBS -lX11 $X_PRE_LIBS],[$vtk_x_libs])
-  FATHOM_MERGE_LISTS([XLIBS],[$vtk_sys_libs],[$XLIBS_tmp])
-  QVDUAL_LIBS="$LIBS $GRAPH_LIBS -L$VTK_LIB_DIR $vtk_libs $QT_LIBS $XLIBS"
+
+  QVDUAL_LIBS="$LIBS $GRAPH_LIBS $QT_LIBS $VTK_LIBS"
   QVDUAL_INCLUDES="$GRAPH_INC_DIR $VTK_INCLUDES $QT_INCLUDES"
-  AC_SUBST(VTK_LIB_DIR)
   AC_SUBST(QVDUAL_LIBS)
   AC_SUBST(QVDUAL_INCLUDES)
 fi
-
-################################################################################
-#                                   X
-################################################################################
-AC_PATH_X
-AC_PATH_XTRA
-if test "xyes" = "x$no_x"; then
-  X_MISSING=yes
-fi
-
-
-################################################################################
-#                                  VTK
-################################################################################
-  AC_LANG_SAVE
-  AC_LANG_CPLUSPLUS
-  
-  AC_ARG_WITH([vtk],
-  [AC_HELP_STRING([--with-vtk=DIR], [Specify directory containing VTK])],
-  [VTK_DIR=$withval
-   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-vtk=\"${withval}\""
-  ],[VTK_DIR=])
-
-  VTK_INCLUDES=  
-  case "x$VTK_DIR" in
-    xno)
-      VTK_MISSING=yes
-      ;;
-    xyes|x)
-      VTK_LIB_DIR=
-      VTK_INC_DIR=
-      for dir in /usr/include/vtk /usr/local/include/vtk /include/vtk /usr/include/vtk-5.0 /usr/include/vtk-5.2; do
-        if test "x" = "x$VTK_INC_DIR"; then
-          AC_CHECK_FILE([${dir}/vtkRenderer.h],[VTK_INC_DIR="-I$dir"])
-        fi
-      done
-      if test x = x"$VTK_INC_DIR"; then
-        AC_CHECK_HEADER([vtkRenderer.h],[],
-                        [VTK_MISSING=yes])
-      else
-        VTK_INCLUDES="$VTK_INC_DIR"
-      fi
-      old_LIBS="$LIBS"
-      for dir in /usr/lib/vtk /usr/lib /usr/bin /usr; do
-        if test "x" = "x$VTK_LIB_DIR"; then
-          LIBS="$old_LIBS -L$dir"
-          unset ac_cv_lib_vtkCommon
-	  unset ac_cv_lib_vtkCommon_main
-          AC_HAVE_LIBRARY([vtkCommon],[VTK_LIB_DIR=$dir])
-        fi
-      done
-      if test "x" = "x$VTK_LIB_DIR"; then
-        VTK_MISSING=yes
-      fi
-      LIBS="$old_LIBS"
-      ;;
-    x?*)
-      VTK_LIB_DIR=
-      VTK_INC_DIR=
-      for dir in ${VTK_DIR}/include/vtk ${VTK_DIR}/include/vtk-5.2 ${VTK_DIR}/include/vtk/Rendering ${VTK_DIR}/include ${VTK_DIR}; do
-        if test "x" = "x$VTK_INC_DIR"; then
-          AC_CHECK_FILE([${dir}/vtkRenderer.h],[VTK_INC_DIR="-I$dir"])
-        fi
-      done
-      if test "x" = "x$VTK_INC_DIR"; then
-        # Check for non-installed VTK source
-        AC_CHECK_FILE([${VTK_DIR}/Rendering/vtkRenderer.h],[
-          for subdir in . Common Filtering GenericFiltering Graphics Hybrid Imaging Parallel Patented Rendering Utilities Utilities/vtkexpat Utilities/expat Utilities/DICOMParser Utilties/vtkpng Utilities/vtkzlib Utilities/freetype/include/freetype Wrapping; do
-  	  AC_MSG_CHECKING([for directory ${VTK_DIR}/$subdir])
-  	  if test -d ${VTK_DIR}/$subdir; then
-  	    VTK_INC_DIR="$VTK_INC_DIR -I${VTK_DIR}/$subdir"
-  	    AC_MSG_RESULT([yes])
-  	  else
-  	    AC_MSG_RESULT([no])
-  	  fi
-  	done
-  	],[VTK_MISSING=yes]
-        )
-      fi
-      VTK_INCLUDES="$VTK_INC_DIR"
-      old_LIBS="$LIBS"
-      for dir in ${VTK_DIR}/lib/vtk ${VTK_DIR}/lib ${VTK_DIR}/bin ${VTK_DIR}; do
-        if test "x" = "x$VTK_LIB_DIR"; then
-          LIBS="$old_LIBS -L$dir"
-          unset ac_cv_lib_vtkCommon
-  	unset ac_cv_lib_vtkCommon_main
-          AC_HAVE_LIBRARY([vtkCommon],[VTK_LIB_DIR=$dir])
-        fi
-      done
-      if test "x" = "x$VTK_LIB_DIR"; then
-        VTK_MISSING=yes
-      fi
-      LIBS="$old_LIBS"
-      ;;
-  esac
-  
-dnl Define a function that checks for the existence of a library
-dnl and if it exists, prepends the corresponding link flag to a 
-dnl sepecified variable
-dnl Arguments:
-dnl  - The library name
-dnl  - The name of the variable to which to prepend the library link flag
-dnl  - List of extra libraries required for link test
-dnl  - Optional library path linker argument (e.g. -L/opt/foo)
-  AC_DEFUN([FATHOM_CHECK_LIB_LIST],[
-    old_LIBS="$LIBS"
-    LIBS="$4 ${$2} $old_LIBS"
-    AC_HAVE_LIBRARY([$1],[$2="-l$1 ${$2}"],[],[$3])
-    LIBS="$old_LIBS"
-  ])
-  
-   # These are ordered such that a given library depends only on those libraries
-   # that preceed it in the list.
-  FATHOM_CHECK_LIB_LIST([pthread],[vtk_sys_libs])
-  FATHOM_CHECK_LIB_LIST([dl],     [vtk_sys_libs])
-  FATHOM_CHECK_LIB_LIST([m],      [vtk_sys_libs])
-  FATHOM_CHECK_LIB_LIST([gcc],    [vtk_sys_libs])
-  x_libs_arg="$X_EXTRA_LIBS -lX11 $X_PRE_LIBS"
-  FATHOM_CHECK_LIB_LIST([Xext],[vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
-  FATHOM_CHECK_LIB_LIST([ICE], [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
-  FATHOM_CHECK_LIB_LIST([SM],  [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
-  FATHOM_CHECK_LIB_LIST([Xt],  [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
-  FATHOM_CHECK_LIB_LIST([GL],  [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
-  FATHOM_CHECK_LIB_LIST([GLU], [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
-  vtk_libs_arg="-L$x_libraries $vtk_x_libs $X_EXTRA_LIBS -lX11 $X_PRE_LIBS $vtk_sys_libs"
-  FATHOM_CHECK_LIB_LIST([vtksys],        [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkCommon],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkDICOMParser],[vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkfreetype],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkexpat],      [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkzlib],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkpng],        [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkjpeg],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtktiff],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkftgl],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkFiltering],  [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkImaging],    [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([verdict],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkGraphics],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkNetCDF],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkexoIIc],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkmetaio],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkIO],         [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkRendering],  [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkParallel],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkHybrid],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([QVTK],          [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  
-   # Make sure we found at least vtkCommon and vtkRendering
-  if ! echo "x $vtk_libs" | grep lvtkCommon >/dev/null; then
-    AC_MSG_WARN("VTK library 'vtkCommon' not found.")
-    VTK_MISSING=yes
-  fi
-  if ! echo "x $vtk_libs" | grep lvtkRendering >/dev/null; then
-    AC_MSG_WARN("VTK library 'vtkRendering' not found.")
-    VTK_MISSING=yes
-  fi
-  
-  AC_LANG_RESTORE
-
-################################################################################
-#                                 X/VTK/QT
-################################################################################
-  dnl Merge lists of libraries
-  dnl Arguments
-  dnl  - name of output variable
-  dnl  - first list
-  dnl  - second list
-  AC_DEFUN([FATHOM_MERGE_LISTS],[
-    $1="$2"
-    # Reverse list two
-    for item3 in $3; do 
-      found=no
-      for item2 in $2; do
-        if test "x$item2" = "x$item3"; then found=yes; fi
-      done
-      if test "$found" = "no"; then $1="${$1} $item3"; fi
-    done
-    $1="${$1} $2"
-  ])
-  FATHOM_MERGE_LISTS([XLIBS_tmp],[$X_EXTRA_LIBS -lX11 $X_PRE_LIBS],[$vtk_x_libs])
-  FATHOM_MERGE_LISTS([XLIBS],[$vtk_sys_libs],[$XLIBS_tmp])
-  VTK_LIBS="$LIBS -L$VTK_LIB_DIR $vtk_libs $XLIBS"
-  VTK_INCLUDES="$VTK_INCLUDES"
-  AC_SUBST(VTK_LIBS)
-  AC_SUBST(VTK_INCLUDES)
 
 ################################################################################
 #                           CGM
@@ -1308,20 +1148,6 @@ AC_MSG_RESULT([C:   $CC $CFLAGS $CPPFLAGS])
 AC_MSG_RESULT([C++: $CXX $CXXFLAGS $CPPFLAGS])
 if test "x" != "x$FC"; then
   AC_MSG_RESULT([Fortran: $FC $FCFLAGS])
-fi
-
-if test "x$GRAPHVIZ_MISSING" = "xyes"; then
-  AC_MSG_WARN([Could not find GraphViz library.  Build will FAIL!!! Try \"--with-graphviz=DIR\"])
-fi
-if test "x$X_MISSING" = "xyes"; then
-  AC_MSG_WARN([Cound not find X client.  Build will FAIL!!!])
-else
-  if test "x$QT_MISSING" = "xyes"; then
-    AC_MSG_WARN([Cound not find QT.  Build will FAIL!!! Try setting \"QTDIR\"])
-  fi
-  if test "x$VTK_MISSING" = "xyes"; then
-    AC_MSG_WARN([Count not find VTK.  Build will FAIL!!! Try \"--with-VTK=DIR\"])
-  fi
 fi
 
 if test "x$HAVE_HDF5" = "xno"; then
