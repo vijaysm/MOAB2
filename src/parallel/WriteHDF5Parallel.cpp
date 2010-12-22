@@ -1196,7 +1196,7 @@ ErrorCode WriteHDF5Parallel::create_adjacency_tables()
         all[j*numtypes+i] = prev;
         prev += tmp;
       }
-      all[myPcomm->proc_config().proc_size()+numtypes+i] = prev;
+      all[myPcomm->proc_config().proc_size()*numtypes+i] = prev;
     }
 
       // For each element type for which there is no adjacency data,
