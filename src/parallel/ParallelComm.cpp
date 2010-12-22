@@ -4,7 +4,6 @@
 #include "moab/ReadUtilIface.hpp"
 #include "SequenceManager.hpp"
 #include "EntitySequence.hpp"
-#include "TagServer.hpp"
 #include "MBTagConventions.hpp"
 #include "moab/Skinner.hpp"
 #include "MBParallelConventions.h"
@@ -14,6 +13,7 @@
 #include "moab/CN.hpp"
 #include "moab/RangeMap.hpp"
 #include "moab/MeshTopoUtil.hpp"
+#include "TagInfo.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -351,7 +351,6 @@ ParallelComm::~ParallelComm()
 
 void ParallelComm::initialize() 
 {
-  tagServer = dynamic_cast<Core*>(mbImpl)->tag_server();
   sequenceManager = dynamic_cast<Core*>(mbImpl)->sequence_manager();
   
     // initialize MPI, if necessary
@@ -2684,30 +2683,29 @@ ErrorCode ParallelComm::packed_tag_size( Tag tag,
   std::vector<int> var_len_sizes;
   std::vector<const void*> var_len_values;
     
-  const TagInfo *tinfo = tagServer->get_tag_info(tag);
     // default value
   count += sizeof(int);
-  if (NULL != tinfo->default_value()) 
-    count += tinfo->default_value_size();
+  if (NULL != tag->get_default_value()) 
+    count += tag->get_default_value_size();
 
     // size, type, data type
   count += 3*sizeof(int);
 
     // name
   count += sizeof(int);
-  count += tinfo->get_name().size();
+  count += tag->get_name().size();
 
     // range of tag
   count += sizeof(int) + tagged_entities.size() * sizeof(EntityHandle);
 
-  if (tinfo->get_size() == MB_VARIABLE_LENGTH) {
+  if (tag->get_size() == MB_VARIABLE_LENGTH) {
     const int num_ent = tagged_entities.size();
       // send a tag size for each entity
     count += num_ent * sizeof(int);
       // send tag data for each entity
     var_len_sizes.resize( num_ent );
     var_len_values.resize( num_ent );
-    ErrorCode result = tagServer->get_data( tag,
+    ErrorCode result = tag->get_data( sequenceManager,
                                               tagged_entities, 
                                               &var_len_values[0], 
                                               &var_len_sizes[0] );
@@ -2716,7 +2714,7 @@ ErrorCode ParallelComm::packed_tag_size( Tag tag,
   }
   else {
       // tag data values for range or vector
-    count += tagged_entities.size() * tinfo->get_size();
+    count += tagged_entities.size() * tag->get_size();
   }
   
   return MB_SUCCESS;
@@ -2735,52 +2733,41 @@ ErrorCode ParallelComm::pack_tag( Tag src_tag,
   std::vector<int> var_len_sizes;
   std::vector<const void*> var_len_values;
 
-  const TagInfo* tinfo = tagServer->get_tag_info(src_tag);
-  if (!tinfo)
-    return MB_TAG_NOT_FOUND;
-    
-  const TagInfo* dst_tinfo;
-  if (src_tag == dst_tag) {
-    dst_tinfo = tinfo;
-  }
-  else {
-    dst_tinfo = tagServer->get_tag_info(dst_tag);
-    if (!dst_tinfo)
-      return MB_TAG_NOT_FOUND;
-    if (dst_tinfo->get_size() != tinfo->get_size())
+  if (src_tag != dst_tag) {
+    if (dst_tag->get_size() != src_tag->get_size())
       return MB_TYPE_OUT_OF_RANGE;
-    if (dst_tinfo->get_data_type() != tinfo->get_data_type() && 
-        dst_tinfo->get_data_type() != MB_TYPE_OPAQUE &&
-            tinfo->get_data_type() != MB_TYPE_OPAQUE)
+    if (dst_tag->get_data_type() != src_tag->get_data_type() && 
+        dst_tag->get_data_type() != MB_TYPE_OPAQUE &&
+        src_tag->get_data_type() != MB_TYPE_OPAQUE)
       return MB_TYPE_OUT_OF_RANGE;
   }
     
     // size, type, data type
   buff->check_space(3*sizeof(int));
-  PACK_INT(buff->buff_ptr, tinfo->get_size());
+  PACK_INT(buff->buff_ptr, src_tag->get_size());
   TagType this_type;
   result = mbImpl->tag_get_type(dst_tag, this_type);
   PACK_INT(buff->buff_ptr, (int)this_type);
-  PACK_INT(buff->buff_ptr, (int)(tinfo->get_data_type()));
+  PACK_INT(buff->buff_ptr, (int)(src_tag->get_data_type()));
 
     // default value
-  if (NULL == tinfo->default_value()) {
+  if (NULL == src_tag->get_default_value()) {
     buff->check_space(sizeof(int));
     PACK_INT(buff->buff_ptr, 0);
   }
   else {
-    buff->check_space(tinfo->default_value_size());
-    PACK_BYTES(buff->buff_ptr, tinfo->default_value(), tinfo->default_value_size());
+    buff->check_space(src_tag->get_default_value_size());
+    PACK_BYTES(buff->buff_ptr, src_tag->get_default_value(), src_tag->get_default_value_size());
   }
 
     // name
-  buff->check_space(tinfo->get_name().size());
-  PACK_BYTES(buff->buff_ptr, dst_tinfo->get_name().c_str(), dst_tinfo->get_name().size());
+  buff->check_space(src_tag->get_name().size());
+  PACK_BYTES(buff->buff_ptr, dst_tag->get_name().c_str(), dst_tag->get_name().size());
 
 #ifdef DEBUG_PACKING
-  std::cerr << "Packing tag \"" << tinfo->get_name() << "\"";
-  if (tinfo != dst_tinfo)
-    std::cerr << " (as tag \"" << dst_tinfo->get_name() << "\")";
+  std::cerr << "Packing tag \"" << src_tag->get_name() << "\"";
+  if (src_tag != dst_tag)
+    std::cerr << " (as tag \"" << dst_tag->get_name() << "\")";
   std::cerr << std::endl;
 #endif    
     // pack entities
@@ -2801,7 +2788,7 @@ ErrorCode ParallelComm::pack_tag( Tag src_tag,
   PACK_EH(buff->buff_ptr, &dum_tagged_entities[0], dum_tagged_entities.size());
 
   const size_t num_ent = tagged_entities.size();
-  if (tinfo->get_size() == MB_VARIABLE_LENGTH) {
+  if (src_tag->get_size() == MB_VARIABLE_LENGTH) {
     var_len_sizes.resize( num_ent, 0 );
     var_len_values.resize( num_ent, 0 );
     result = mbImpl->tag_get_data(src_tag, tagged_entities, &var_len_values[0], 
@@ -2815,13 +2802,13 @@ ErrorCode ParallelComm::pack_tag( Tag src_tag,
     }
   }
   else {
-    buff->check_space(num_ent * tinfo->get_size());
+    buff->check_space(num_ent * src_tag->get_size());
       // should be ok to read directly into buffer, since tags are untyped and
       // handled by memcpy
     result = mbImpl->tag_get_data(src_tag, tagged_entities, buff->buff_ptr);
     RRA("Failed to get tag data in pack_tags.");
-    buff->buff_ptr += num_ent * tinfo->get_size();
-    PC(num_ent*tinfo->get_size(), " void");
+    buff->buff_ptr += num_ent * src_tag->get_size();
+    PC(num_ent*src_tag->get_size(), " void");
   }
 
   return MB_SUCCESS;
@@ -2832,7 +2819,7 @@ ErrorCode ParallelComm::get_tag_send_list( const Range& whole_range,
                                                std::vector<Range>& tag_ranges )
 {
   std::vector<Tag> tmp_tags;
-  ErrorCode result = tagServer->get_tags(tmp_tags);
+  ErrorCode result = mbImpl->tag_get_tags(tmp_tags);
   RRA("Failed to get tags in pack_tags.");
 
   std::vector<Tag>::iterator tag_it;
@@ -2843,7 +2830,7 @@ ErrorCode ParallelComm::get_tag_send_list( const Range& whole_range,
       continue;
 
     Range tmp_range;
-    result = tagServer->get_entities(*tag_it, tmp_range);
+    result = (*tag_it)->get_tagged_entities(sequenceManager, tmp_range);
     RRA("Failed to get entities for tag in pack_tags.");
     tmp_range = intersect( tmp_range, whole_range);
 
@@ -2919,14 +2906,13 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
                                   def_val_ptr);
     if (MB_ALREADY_ALLOCATED == result) {
         // already allocated tag, check to make sure it's the same size, type, etc.
-      const TagInfo *tag_info = tagServer->get_tag_info(tag_name.c_str());
       TagType this_type;
       result = mbImpl->tag_get_type(tag_handle, this_type);
-      if (tag_size != tag_info->get_size() ||
+      if (tag_size != tag_handle->get_size() ||
           tag_type != this_type ||
-          tag_data_type != tag_info->get_data_type() ||
-          (def_val_ptr && !tag_info->default_value()) ||
-          (!def_val_ptr && tag_info->default_value())) {
+          tag_data_type != tag_handle->get_data_type() ||
+          (def_val_ptr && !tag_handle->get_default_value()) ||
+          (!def_val_ptr && tag_handle->get_default_value())) {
         RRA("Didn't get correct tag info when unpacking tag.");
       }
     }
@@ -5226,9 +5212,9 @@ ErrorCode ParallelComm::exchange_tags( const std::vector<Tag> &src_tags,
     for (std::vector<Tag>::const_iterator vit = src_tags.begin(); vit != src_tags.end(); vit++) {
       const void* ptr;
       int size;
-      if (tagServer->get_default_data_ref( *vit, ptr, size ) != MB_SUCCESS) {
+      if (mbImpl->tag_get_default_value( *vit, ptr, size ) != MB_SUCCESS) {
         Range tagged_ents;
-        tagServer->get_entities( *vit, tagged_ents );
+        mbImpl->get_entities_by_type_and_tag( 0, MBMAXTYPE, &*vit, 0, 1, tagged_ents );
         tag_ranges.push_back( intersect( tag_ents, tagged_ents ) );
       } 
       else {

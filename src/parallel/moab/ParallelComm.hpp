@@ -37,7 +37,6 @@ extern "C" {
 
 namespace moab {
 
-class TagServer;
 class SequenceManager;
 template <typename KeyType, typename ValType, ValType NullVal> class RangeMap;
 typedef RangeMap<EntityHandle, EntityHandle, 0> HandleMap;
@@ -1077,9 +1076,6 @@ private:
 
     //! Proc config object, keeps info on parallel stuff
   ProcConfig procConfig;
-  
-    //! Tag server, so we can get more info about tags
-  TagServer *tagServer;
   
     //! Sequence manager, to get more efficient access to entities
   SequenceManager *sequenceManager;
