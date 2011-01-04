@@ -520,9 +520,6 @@ VTKMOAB_DEFAULT=no
 if test "x$WITH_VTK" != "xno" -a "x$WITH_VTK" != "x"; then
   VTKMOAB_DEFAULT=yes
 fi
-
-echo "WITH_VTK=$WITH_VTK"
-echo "VTKMOAB_DEFAULT=$VTKMOAB_DEFAULT"
   
 
 ###############################################################################
@@ -595,10 +592,6 @@ if test "xyes" = "x$ENABLE_qvdual"; then
     WITH_VTK=yes
   fi
 fi
-
-echo "WITH_VTK=$WITH_VTK"
-echo "VTKMOAB_DEFAULT=$VTKMOAB_DEFAULT"
-echo "ENABLE_vtkMOABReader=$ENABLE_vtkMOABReader"
 
 ################################################################################
 #                           Zoltan - Part 2 of 2
