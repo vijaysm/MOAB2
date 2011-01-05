@@ -491,12 +491,12 @@ ErrorCode get_tagged( const SequenceManager* seqman,
                       const Range* intersect )
 {
   if (!intersect)
-    return get_tagged( seqman, mySequenceArray, type, entities );
+    return get_tagged<Container>( seqman, mySequenceArray, type, entities );
   else if (MBMAXTYPE == type)
-    return get_tagged( seqman, mySequenceArray, intersect->begin(), intersect->end(), entities );
+    return get_tagged<Container>( seqman, mySequenceArray, intersect->begin(), intersect->end(), entities );
   else {
     std::pair<Range::iterator,Range::iterator> r = intersect->equal_range(type);
-    return get_tagged( seqman, mySequenceArray, r.first, r.second, entities );
+    return get_tagged<Container>( seqman, mySequenceArray, r.first, r.second, entities );
   }
 }
 

@@ -317,12 +317,12 @@ void get_tagged( const VarLenSparseTag::MapType& mData,
 
 {
   if (!intersect)
-    get_tagged( mData, type, entities );
+    get_tagged<Container>( mData, type, entities );
   else if (MBMAXTYPE == type)
-    get_tagged( mData, intersect->begin(), intersect->end(), entities );
+    get_tagged<Container>( mData, intersect->begin(), intersect->end(), entities );
   else {
     std::pair<Range::iterator,Range::iterator> r = intersect->equal_range(type);
-    get_tagged( mData, r.first, r.second, entities );
+    get_tagged<Container>( mData, r.first, r.second, entities );
   }
 }
 
