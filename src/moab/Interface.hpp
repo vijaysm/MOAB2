@@ -74,7 +74,6 @@ static const MBuuid IDD_MBCore = MBuuid( 0x8956e0a, 0xc300, 0x4005,
 /**
  * \class Interface Interface.hpp "moab/Interface.hpp"
  * \brief Main interface class to MOAB
- * \brief \ref interfacefuncs
  * \nosubgrouping
  */
 #if defined(XPCOM_MB)
@@ -92,8 +91,6 @@ public:
         /** \name Interface */
 
         /**@{*/
-        /**\anchor interfacefuncs
-         */
 
       //! constructor
   Interface() {}
