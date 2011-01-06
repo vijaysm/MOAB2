@@ -72,11 +72,10 @@ static const MBuuid IDD_MBCore = MBuuid( 0x8956e0a, 0xc300, 0x4005,
 
 
 /**
+ * \class Interface Interface.hpp "moab/Interface.hpp"
  * \brief Main interface class to MOAB
- * \author Tim Tautges, Karl Merkley, Ray Meyers, Corey Ernst, Clinton Stimpson,
- * \author Hong-Jun Kim, Jason Kraftcheck
- * \version 1.00
- * \date April, 2004
+ * \brief \ref interfacefuncs
+ * \nosubgrouping
  */
 #if defined(XPCOM_MB)
 class NS_NO_VTABLE Interface : public nsISupports {
@@ -90,9 +89,11 @@ public:
   NS_DEFINE_STATIC_IID_ACCESSOR(MBINTERFACE_IID)
 #endif
 
-      //! \name Interface-level functions
+        /** \name Interface */
 
-      //@{
+        /**@{*/
+        /**\anchor interfacefuncs
+         */
 
       //! constructor
   Interface() {}
@@ -123,11 +124,11 @@ public:
     */
   virtual float impl_version(std::string *version_string = NULL)=0;
 
-    //@}    
+    /**@}*/
 
-    //! \name Type and id utility functions
+    /** \name Type and id */
 
-    //@{
+    /**@{*/
 
     //! Returns the entity type of an EntityHandle.
     /** Returns the EntityType (ie, MeshVertex, MeshQuad, MeshHex ) of <em>handle</em>.
@@ -177,11 +178,11 @@ public:
                                      const EntityID, 
                                      EntityHandle& handle) const =0;
 
-    //@}
+    /**@}*/
 
-    //! \name Mesh input/output functions
+    /** \name Mesh input/output */
 
-    //@{
+    /**@{*/
 
     //! Loads a mesh file into the database.
     /** Loads the file 'file_name'; types of mesh which can be loaded 
@@ -332,26 +333,11 @@ public:
     //! Deletes all mesh entities from this MB instance
   virtual ErrorCode delete_mesh()=0;
 
-    //@}
+    /**@}*/
 
-    //! \name Geometric dimension functions
+    /** \name Coordinates and dimensions */
 
-    //@{
-
-    //! Get overall geometric dimension
-  virtual ErrorCode get_dimension(int &dim) const =0;
-
-    //! Set overall geometric dimension
-    /** Returns error if setting to 3 dimensions, mesh has been created, and 
-     *  there are only 2 dimensions on that mesh
-     */
-  virtual ErrorCode set_dimension(const int dim)=0;
-
-    //@}
-
-    //! \name Vertex coordinate functions
-
-    //@{
+    /**@{*/
 
     //! Get blocked vertex coordinates for all vertices
     /** Blocked = all x, then all y, etc. 
@@ -433,11 +419,20 @@ public:
   virtual ErrorCode  set_coords(Range entity_handles,
                                   const double *coords)=0;
 
-    //@}
+    //! Get overall geometric dimension
+  virtual ErrorCode get_dimension(int &dim) const =0;
 
-    //! \name Connectivity functions
+    //! Set overall geometric dimension
+    /** Returns error if setting to 3 dimensions, mesh has been created, and 
+     *  there are only 2 dimensions on that mesh
+     */
+  virtual ErrorCode set_dimension(const int dim)=0;
 
-    //@{
+    /**@}*/
+
+    /** \name Connectivity */
+
+    /**@{*/
 
     //! Get the connectivity array for all entities of the specified entity type
     /**  This function returns the connectivity of just the corner vertices, no higher order nodes
@@ -533,12 +528,11 @@ public:
                                         EntityHandle *connect,
                                         const int num_connect)=0;
 
-    //! Sets the connectivity for an EntityHandle.  For non-element handles, return an error.
-    //@}
+    /**@}*/
 
-    //! \name Adjacencies functions 
+    /** \name Adjacencies */
 
-    //@{
+    /**@{*/
 
     //! Get the adjacencies associated with a vector of entities to entities of a specfied dimension.
     /** \param from_entities Vector of EntityHandle to get adjacencies of.
@@ -617,14 +611,14 @@ public:
                                          const EntityHandle *to_handles,
                                          const int num_handles) = 0;
 
-    //@}
+    /**@}*/
 
     //! Enumerated type used in get_adjacencies() and other functions
   enum {INTERSECT, UNION};
 
-    //! \name Functions for getting entities
+    /** \name Getting entities */
 
-    //@{
+    /**@{*/
 
     //! Retrieves all entities of a given topological dimension in the database or meshset.
     /** Appends entities to list passed in.
@@ -811,11 +805,11 @@ public:
                                                     int &num_entities,
                                                     const bool recursive = false) const = 0;
 
-    //@}
+    /**@}*/
 
-    //! \name Modifying the mesh
+    /** \name Mesh modification */
 
-    //@{
+    /**@{*/
 
     //! Create an element based on the type and connectivity. 
     /** Create a new element in the database.  Vertices composing this element must already exist,
@@ -892,11 +886,11 @@ public:
     */ 
   virtual ErrorCode delete_entities(const Range &entities) = 0;
 
-    //@}
+    /**@}*/
 
-    //! \name Listing entities
+    /** \name Information */
 
-    //@{
+    /**@{*/
 
     //! List entities to standard output
     /** Lists all data pertaining to entities (i.e. vertex coordinates if vertices, connectivity if
@@ -924,11 +918,105 @@ public:
      */
   virtual ErrorCode list_entity(const EntityHandle entity) const = 0;
 
-    //@}
+    //! Return information about the last error
+    /** \param info std::string into which information on the last error is written.
+     */
+  virtual ErrorCode get_last_error(std::string& info) const = 0;
 
-    //! \name Functions for higher-order elements
+    //! Return string representation of given error code
+    /** \param code Error code for which string is wanted
+     */
+  virtual std::string get_error_string(const ErrorCode code) const = 0;
 
-    //@{
+  /**\brief Calculate amount of memory used to store MOAB data
+   *
+   * This function calculates the amount of memory used to store
+   * MOAB data.  
+   *
+   * There are two possible values for each catagory of memory use.
+   * The exact value and the amortized value.  The exact value is the
+   * amount of memory used to store the data for the specified entities.
+   * The amortized value includes the exact value and an amortized 
+   * estimate of the memory consumed in overhead for storing the values
+   * (indexing structures, access structures, etc.)  
+   *
+   * Note: If ent_array is NULL and total_amortized_storage is *not* NULL,
+   *       the total memory used by MOAB for storing data all will be 
+   *       returned in the address pointed to by total_amortized_storage.
+   *
+   *\param ent_array Array of entities for which to estimate the memory use.
+   *                 If NULL, estimate is done for all entities.
+   *\param num_ents The length of ent_array.  Not used if ent_rray is NULL.
+   *\param total_(amortized_)storage The sum of the memory entity, adjacency,
+   *                   and all tag storage.
+   *\param (amortized_)entity_storage The storage for the entity definitions
+   *                   (connectivity arrays for elements, coordinates for 
+   *                   vertices, list storage within sets, etc.)
+   *\param (amortized_)adjacency_storage The storage for adjacency data.
+   *\param tag_array   An array of tags for which to calculate the memory use.
+   *\param num_tags    The lenght of tag_array
+   *\param (amortized_)tag_storage If tag_array is not NULL, then one value
+   *                   for each tag specifying the memory used for storing 
+   *                   that tag.  If tag_array is NULL and this value is not,
+   *                   the location at which to store the total memory used
+   *                   for all tags.
+   */
+  virtual void estimated_memory_use( const EntityHandle* ent_array = 0,
+                             unsigned long  num_ents = 0,
+                             unsigned long* total_storage = 0,
+                             unsigned long* total_amortized_storage = 0,
+                             unsigned long* entity_storage = 0,
+                             unsigned long* amortized_entity_storage = 0,
+                             unsigned long* adjacency_storage = 0,
+                             unsigned long* amortized_adjacency_storage = 0,
+                             const Tag*   tag_array = 0,
+                             unsigned       num_tags = 0,
+                             unsigned long* tag_storage = 0,
+                             unsigned long* amortized_tag_storage = 0 ) = 0;
+
+  /**\brief Calculate amount of memory used to store MOAB data
+   *
+   * This function calculates the amount of memory used to store
+   * MOAB data.  
+   *
+   * There are two possible values for each catagory of memory use.
+   * The exact value and the amortized value.  The exact value is the
+   * amount of memory used to store the data for the specified entities.
+   * The amortized value includes the exact value and an amortized 
+   * estimate of the memory consumed in overhead for storing the values
+   * (indexing structures, access structures, etc.)  
+   *
+   *\param ents        Entities for which to estimate the memory use.
+   *\param total_(amortized_)storage The sum of the memory entity, adjacency,
+   *                   and all tag storage.
+   *\param (amortized_)entity_storage The storage for the entity definitions
+   *                   (connectivity arrays for elements, coordinates for 
+   *                   vertices, list storage within sets, etc.)
+   *\param (amortized_)adjacency_storage The storage for adjacency data.
+   *\param tag_array   An array of tags for which to calculate the memory use.
+   *\param num_tags    The lenght of tag_array
+   *\param (amortized_)tag_storage If tag_array is not NULL, then one value
+   *                   for each tag specifying the memory used for storing 
+   *                   that tag.  If tag_array is NULL and this value is not,
+   *                   the location at which to store the total memory used
+   *                   for all tags.
+   */
+  virtual void estimated_memory_use( const Range& ents,
+                             unsigned long* total_storage = 0,
+                             unsigned long* total_amortized_storage = 0,
+                             unsigned long* entity_storage = 0,
+                             unsigned long* amortized_entity_storage = 0,
+                             unsigned long* adjacency_storage = 0,
+                             unsigned long* amortized_adjacency_storage = 0,
+                             const Tag*   tag_array = 0,
+                             unsigned       num_tags = 0,
+                             unsigned long* tag_storage = 0,
+                             unsigned long* amortized_tag_storage = 0 ) = 0;
+    /**@}*/
+
+    /** \name Higher-order elements */
+
+    /**@{*/
 
     //! function object for recieving events from MB of higher order nodes added to entities
   class HONodeAddedRemoved
@@ -1025,11 +1113,11 @@ public:
                                    const int side_number,
                                    EntityHandle &target_entity) const = 0;
 
-    //@}
+    /**@}*/
 
-    //! \name Tag functions
+    /** \name Tags */
 
-    //@{
+    /**@{*/
 
     /**\brief Bit flags passed to tag_get_handle (bit-wise OR multiple flags) */
   enum TagGetHandleFlags {
@@ -1468,11 +1556,11 @@ public:
      */
   virtual ErrorCode  tag_delete(Tag tag_handle) = 0;
 
-    //@}
+    /**@}*/
 
-    //! \name Meshset functions
+    /** \name Sets */
 
-    //@{
+    /**@{*/
 
     //! Create a new mesh set
     /** Create a new mesh set.  Meshsets can store entities ordered or unordered. A set can include entities
@@ -1622,11 +1710,11 @@ public:
                                        const EntityHandle *old_entities,
                                        const EntityHandle *new_entities,
                                        int num_entities) = 0;
-    //@}
+    /**@}*/
 
-    //! \name MeshSet parent/child functions
+    /** \name Set parents/children */
 
-    //@{
+    /**@{*/
   
     //! Get parent mesh sets of a mesh set
     /** If <em>num_hops</em> is 1, only immediate parents are returned.  If <em>num_hops</em> is zero,
@@ -1808,108 +1896,9 @@ public:
   virtual ErrorCode remove_child_meshset(EntityHandle parent_meshset, 
                                            const EntityHandle child_meshset) = 0;
 
-    //@}
+    /**@}*/
 
-    //! \name Error condition information 
 
-    //@{
-
-    //! Return information about the last error
-    /** \param info std::string into which information on the last error is written.
-     */
-  virtual ErrorCode get_last_error(std::string& info) const = 0;
-
-    //! Return string representation of given error code
-    /** \param code Error code for which string is wanted
-     */
-  virtual std::string get_error_string(const ErrorCode code) const = 0;
-
-    //@}
-
-  /**\brief Calculate amount of memory used to store MOAB data
-   *
-   * This function calculates the amount of memory used to store
-   * MOAB data.  
-   *
-   * There are two possible values for each catagory of memory use.
-   * The exact value and the amortized value.  The exact value is the
-   * amount of memory used to store the data for the specified entities.
-   * The amortized value includes the exact value and an amortized 
-   * estimate of the memory consumed in overhead for storing the values
-   * (indexing structures, access structures, etc.)  
-   *
-   * Note: If ent_array is NULL and total_amortized_storage is *not* NULL,
-   *       the total memory used by MOAB for storing data all will be 
-   *       returned in the address pointed to by total_amortized_storage.
-   *
-   *\param ent_array Array of entities for which to estimate the memory use.
-   *                 If NULL, estimate is done for all entities.
-   *\param num_ents The length of ent_array.  Not used if ent_rray is NULL.
-   *\param total_(amortized_)storage The sum of the memory entity, adjacency,
-   *                   and all tag storage.
-   *\param (amortized_)entity_storage The storage for the entity definitions
-   *                   (connectivity arrays for elements, coordinates for 
-   *                   vertices, list storage within sets, etc.)
-   *\param (amortized_)adjacency_storage The storage for adjacency data.
-   *\param tag_array   An array of tags for which to calculate the memory use.
-   *\param num_tags    The lenght of tag_array
-   *\param (amortized_)tag_storage If tag_array is not NULL, then one value
-   *                   for each tag specifying the memory used for storing 
-   *                   that tag.  If tag_array is NULL and this value is not,
-   *                   the location at which to store the total memory used
-   *                   for all tags.
-   */
-  virtual void estimated_memory_use( const EntityHandle* ent_array = 0,
-                             unsigned long  num_ents = 0,
-                             unsigned long* total_storage = 0,
-                             unsigned long* total_amortized_storage = 0,
-                             unsigned long* entity_storage = 0,
-                             unsigned long* amortized_entity_storage = 0,
-                             unsigned long* adjacency_storage = 0,
-                             unsigned long* amortized_adjacency_storage = 0,
-                             const Tag*   tag_array = 0,
-                             unsigned       num_tags = 0,
-                             unsigned long* tag_storage = 0,
-                             unsigned long* amortized_tag_storage = 0 ) = 0;
-
-  /**\brief Calculate amount of memory used to store MOAB data
-   *
-   * This function calculates the amount of memory used to store
-   * MOAB data.  
-   *
-   * There are two possible values for each catagory of memory use.
-   * The exact value and the amortized value.  The exact value is the
-   * amount of memory used to store the data for the specified entities.
-   * The amortized value includes the exact value and an amortized 
-   * estimate of the memory consumed in overhead for storing the values
-   * (indexing structures, access structures, etc.)  
-   *
-   *\param ents        Entities for which to estimate the memory use.
-   *\param total_(amortized_)storage The sum of the memory entity, adjacency,
-   *                   and all tag storage.
-   *\param (amortized_)entity_storage The storage for the entity definitions
-   *                   (connectivity arrays for elements, coordinates for 
-   *                   vertices, list storage within sets, etc.)
-   *\param (amortized_)adjacency_storage The storage for adjacency data.
-   *\param tag_array   An array of tags for which to calculate the memory use.
-   *\param num_tags    The lenght of tag_array
-   *\param (amortized_)tag_storage If tag_array is not NULL, then one value
-   *                   for each tag specifying the memory used for storing 
-   *                   that tag.  If tag_array is NULL and this value is not,
-   *                   the location at which to store the total memory used
-   *                   for all tags.
-   */
-  virtual void estimated_memory_use( const Range& ents,
-                             unsigned long* total_storage = 0,
-                             unsigned long* total_amortized_storage = 0,
-                             unsigned long* entity_storage = 0,
-                             unsigned long* amortized_entity_storage = 0,
-                             unsigned long* adjacency_storage = 0,
-                             unsigned long* amortized_adjacency_storage = 0,
-                             const Tag*   tag_array = 0,
-                             unsigned       num_tags = 0,
-                             unsigned long* tag_storage = 0,
-                             unsigned long* amortized_tag_storage = 0 ) = 0;
 };
 
 //! predicate for STL algorithms.  Returns true if the entity handle is
