@@ -47,11 +47,44 @@ void test_read_tags();
 void test_read_global_tags();
 void test_read_sets();
 
+const char PARTITION_TAG[] = "PARTITION";
+
 bool KeepTmpFiles = false;
 bool PauseOnStart = false;
+bool HyperslabAppend = false;
 const int DefaultReadIntervals = 2;
 int ReadDebugLevel = 0;
 int WriteDebugLevel = 0;
+int ReadBlocks = 1;
+
+enum Mode { READ_PART, READ_DELETE, BCAST_DELETE };
+std::string get_read_options( bool by_rank = false, Mode mode = READ_PART )
+{
+  int numproc;
+  MPI_Comm_size( MPI_COMM_WORLD, &numproc );
+  
+    // do parallel read unless only one processor
+  std::ostringstream str;
+  if (numproc > 1) {
+    str << "PARALLEL=";
+    switch (mode) {
+      case READ_PART: str << "READ_PART"; break;
+      case READ_DELETE: str << "READ_DELETE"; break;
+      case BCAST_DELETE: str << "BCAST_DELETE"; break;
+    }
+    str << ";PARTITION=" << PARTITION_TAG << ";";
+    if (by_rank)
+      str << "PARTITION_BY_RANK;";
+  }
+
+  if (ReadDebugLevel)
+    str << "DEBUG_IO=" << ReadDebugLevel << ";";
+
+  if (HyperslabAppend)
+    str << "HYPERSLAB_APPEND;HYPERSLAB_SELECT_LIMIT=2147483647";
+
+  return str.str();
+}
 
 int main( int argc, char* argv[] )
 {
@@ -69,6 +102,12 @@ int main( int argc, char* argv[] )
       ReadIntervals = atoi( argv[i] );
       CHECK( ReadIntervals > 0 );
     }
+    else if (!strcmp( argv[i], "-b")) {
+      ++i;
+      CHECK( i < argc );
+      ReadBlocks = atoi( argv[i] );
+      CHECK( ReadBlocks > 0 );
+    }
     else if (!strcmp( argv[i], "-r")) {
       ++i;
       CHECK( i < argc );
@@ -81,8 +120,10 @@ int main( int argc, char* argv[] )
       WriteDebugLevel = atoi( argv[i] );
       CHECK( WriteDebugLevel > 0 );
     }
+    else if (!strcmp( argv[i], "-A")) 
+      HyperslabAppend = true;
     else {
-      std::cerr << "Usage: " << argv[0] << " [-k] [-p] [-R <intervals>] [-r <level>] [-w <level>]" << std::endl;
+      std::cerr << "Usage: " << argv[0] << " [-k] [-p] [-R <intervals>] [-r <level>] [-w <level>] [-b <blocks>]  [-A]" << std::endl;
       return 1;
     }
   }
@@ -661,6 +702,7 @@ void test_var_length_parallel()
 void create_input_file( const char* file_name, 
                         int intervals, 
                         int num_cpu,
+                        int blocks_per_cpu = 1,
                         const char* ijk_vert_tag_name = 0,
                         const char* ij_set_tag_name = 0,
                         const char* global_tag_name = 0,
@@ -692,8 +734,8 @@ void create_input_file( const char* file_name,
     }
   }
   
-  
-  int iv = intervals+1, ii = num_cpu*intervals+1;
+  const int num_blk = num_cpu * blocks_per_cpu;
+  int iv = intervals+1, ii = num_blk*intervals+1;
   std::vector<EntityHandle> verts(iv*iv*ii);
   int idx = 0;
   for (int i = 0; i < ii; ++i) {
@@ -725,20 +767,20 @@ void create_input_file( const char* file_name,
   }
   
   const int eb = intervals*intervals*intervals;
-  std::vector<EntityHandle> elems(num_cpu*eb);
+  std::vector<EntityHandle> elems(num_blk*eb);
   idx = 0;
-  for (int c = 0; c < num_cpu; ++c) {
+  for (int c = 0; c < num_blk; ++c) {
     for (int i = c*intervals; i < (c+1)*intervals; ++i) {
       for (int j = 0; j < intervals; ++j) {
         for (int k = 0; k < intervals; ++k) {
           EntityHandle conn[8] = { verts[iv*(iv* i +      j    ) + k    ],
-                                     verts[iv*(iv*(i + 1) + j    ) + k    ],
-                                     verts[iv*(iv*(i + 1) + j + 1) + k    ],
-                                     verts[iv*(iv* i      + j + 1) + k    ],
-                                     verts[iv*(iv* i      + j    ) + k + 1],
-                                     verts[iv*(iv*(i + 1) + j    ) + k + 1],
-                                     verts[iv*(iv*(i + 1) + j + 1) + k + 1],
-                                     verts[iv*(iv* i      + j + 1) + k + 1] };
+                                   verts[iv*(iv*(i + 1) + j    ) + k    ],
+                                   verts[iv*(iv*(i + 1) + j + 1) + k    ],
+                                   verts[iv*(iv* i      + j + 1) + k    ],
+                                   verts[iv*(iv* i      + j    ) + k + 1],
+                                   verts[iv*(iv*(i + 1) + j    ) + k + 1],
+                                   verts[iv*(iv*(i + 1) + j + 1) + k + 1],
+                                   verts[iv*(iv* i      + j + 1) + k + 1] };
 
           rval = mb.create_element( MBHEX, conn, 8, elems[idx++] );
           CHECK_ERR(rval);
@@ -748,15 +790,17 @@ void create_input_file( const char* file_name,
   }
   
   Tag part_tag;
-  rval = mb.tag_create( "PARTITION", sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, part_tag, 0 );
+  rval = mb.tag_create( PARTITION_TAG, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, part_tag, 0 );
   CHECK_ERR(rval);
   
   std::vector<EntityHandle> parts(num_cpu);
   for (int i = 0; i < num_cpu; ++i) {
     rval = mb.create_meshset( MESHSET_SET, parts[i] );
     CHECK_ERR(rval);
-    rval = mb.add_entities( parts[i], &elems[i*eb], eb );
-    CHECK_ERR(rval);
+    for (int j = 0; j < blocks_per_cpu; ++j) {
+      rval = mb.add_entities( parts[i], &elems[(num_cpu*j + i)*eb], eb );
+      CHECK_ERR(rval);
+    }
     rval = mb.tag_set_data( part_tag, &parts[i], 1, &i );
     CHECK_ERR(rval);
   }
@@ -781,24 +825,15 @@ void test_read_elements_common( bool by_rank, int intervals, bool print_time )
   MPI_Barrier(MPI_COMM_WORLD); // make sure root has completed writing the file
   
     // do parallel read unless only one processor
-  const char opt1[] = "PARALLEL=READ_PART;PARTITION=PARTITION";
-  const char opt2[] = "PARALLEL=READ_PART;PARTITION=PARTITION;PARTITION_BY_RANK";
-  const char* opt = numproc == 1 ? 0 : by_rank ? opt2 : opt1;
-  std::string str;
-  if (ReadDebugLevel) {
-    std::ostringstream s;
-    s << opt << ";DEBUG_IO=" << ReadDebugLevel;
-    str = s.str();
-    opt = str.c_str();
-  }
-  rval = mb.load_file( file_name, 0, opt );
+  std::string opt = get_read_options( by_rank );
+  rval = mb.load_file( file_name, 0, opt.c_str() );
   MPI_Barrier(MPI_COMM_WORLD); // make sure all procs complete before removing file
   if (0 == rank && !KeepTmpFiles) remove( file_name );
   CHECK_ERR(rval);
       
   
   Tag part_tag;
-  rval = mb.tag_get_handle( "PARTITION", part_tag );
+  rval = mb.tag_get_handle( PARTITION_TAG, part_tag );
   CHECK_ERR(rval);
   
   Range parts;
@@ -846,7 +881,7 @@ void test_read_time()
 
     // if root processor, create hdf5 file for use in testing
   if (0 == rank) 
-    create_input_file( file_name, ReadIntervals, numproc );
+    create_input_file( file_name, ReadIntervals, numproc, ReadBlocks );
   MPI_Barrier( MPI_COMM_WORLD );
   
   // CPU Time for true paralle, wall time for true paralle,
@@ -859,15 +894,8 @@ void test_read_time()
   Interface &mb = moab;
   times[0] = MPI_Wtime();
   tmp_t    = clock();
-  const char* opt = "PARALLEL=READ_PART;PARTITION=PARTITION;PARTITION_BY_RANK";
-  std::string str;
-  if (ReadDebugLevel) {
-    std::ostringstream s;
-    s << opt << ";DEBUG_IO=" << ReadDebugLevel;
-    str = s.str();
-    opt = str.c_str();
-  }
-  rval = mb.load_file( file_name, 0, opt );
+  std::string opt = get_read_options( true, READ_PART );
+  rval = mb.load_file( file_name, 0, opt.c_str() );
   CHECK_ERR(rval);
   times[0] = MPI_Wtime() - times[0];
   times[1] = double(clock() - tmp_t) / CLOCKS_PER_SEC;
@@ -876,10 +904,10 @@ void test_read_time()
     // Time read and delete
   Core moab2;
   Interface& mb2 = moab2;
+  std::string opt2 = get_read_options( true, READ_DELETE );
   times[2] = MPI_Wtime();
   tmp_t    = clock();
-  const char opt2[] = "PARALLEL=READ_DELETE;PARTITION=PARTITION;PARTITION_BY_RANK";
-  rval = mb2.load_file( file_name, 0, opt2 );
+  rval = mb2.load_file( file_name, 0, opt2.c_str() );
   CHECK_ERR(rval);
   times[2] = MPI_Wtime() - times[2];
   times[3] = double(clock() - tmp_t) / CLOCKS_PER_SEC;
@@ -888,10 +916,10 @@ void test_read_time()
     // Time broadcast and delete
   Core moab3;
   Interface& mb3 = moab3;
+  std::string opt3 = get_read_options( true, BCAST_DELETE );
   times[4] = MPI_Wtime();
   tmp_t    = clock();
-  const char opt3[] = "PARALLEL=BCAST_DELETE;PARTITION=PARTITION;PARTITION_BY_RANK";
-  rval = mb3.load_file( file_name, 0, opt3 );
+  rval = mb3.load_file( file_name, 0, opt3.c_str() );
   CHECK_ERR(rval);
   times[4] = MPI_Wtime() - times[4];
   times[5] = double(clock() - tmp_t) / CLOCKS_PER_SEC;
@@ -926,20 +954,12 @@ void test_read_tags()
 
     // if root processor, create hdf5 file for use in testing
   if (0 == rank) 
-    create_input_file( file_name, DefaultReadIntervals, numproc, tag_name );
+    create_input_file( file_name, DefaultReadIntervals, numproc, 1, tag_name );
   MPI_Barrier(MPI_COMM_WORLD); // make sure root has completed writing the file
   
     // do parallel read unless only one processor
-  const char opt1[] = "PARALLEL=READ_PART;PARTITION=PARTITION";
-  const char* opt = numproc == 1 ? 0 : opt1;
-  std::string str;
-  if (ReadDebugLevel) {
-    std::ostringstream s;
-    s << opt << ";DEBUG_IO=" << ReadDebugLevel;
-    str = s.str();
-    opt = str.c_str();
-  }
-  rval = mb.load_file( file_name, 0, opt );
+  std::string opt = get_read_options( );
+  rval = mb.load_file( file_name, 0, opt.c_str() );
   MPI_Barrier(MPI_COMM_WORLD); // make sure all procs complete before removing file
   if (0 == rank && !KeepTmpFiles) remove( file_name );
   CHECK_ERR(rval);
@@ -1006,20 +1026,12 @@ void test_read_global_tags()
 
     // if root processor, create hdf5 file for use in testing
   if (0 == rank) 
-    create_input_file( file_name, 1, numproc, 0, 0, tag_name, &global_val, &def_val );
+    create_input_file( file_name, 1, numproc, 1, 0, 0, tag_name, &global_val, &def_val );
   MPI_Barrier(MPI_COMM_WORLD); // make sure root has completed writing the file
   
     // do parallel read unless only one processor
-  const char opt1[] = "PARALLEL=READ_PART;PARTITION=PARTITION";
-  const char* opt = numproc == 1 ? 0 : opt1;
-  std::string str;
-  if (ReadDebugLevel) {
-    std::ostringstream s;
-    s << opt << ";DEBUG_IO=" << ReadDebugLevel;
-    str = s.str();
-    opt = str.c_str();
-  }
-  rval = mb.load_file( file_name, 0, opt );
+  std::string opt = get_read_options( );
+  rval = mb.load_file( file_name, 0, opt.c_str() );
   MPI_Barrier(MPI_COMM_WORLD); // make sure all procs complete before removing file
   if (0 == rank && !KeepTmpFiles) remove( file_name );
   CHECK_ERR(rval);
@@ -1065,20 +1077,12 @@ void test_read_sets()
 
     // if root processor, create hdf5 file for use in testing
   if (0 == rank) 
-    create_input_file( file_name, DefaultReadIntervals, numproc, 0, tag_name );
+    create_input_file( file_name, DefaultReadIntervals, numproc, 1, 0, tag_name );
   MPI_Barrier(MPI_COMM_WORLD); // make sure root has completed writing the file
   
     // do parallel read unless only one processor
-  const char opt1[] = "PARALLEL=READ_PART;PARTITION=PARTITION";
-  const char* opt = numproc == 1 ? 0 : opt1;
-  std::string str;
-  if (ReadDebugLevel) {
-    std::ostringstream s;
-    s << opt << ";DEBUG_IO=" << ReadDebugLevel;
-    str = s.str();
-    opt = str.c_str();
-  }
-  rval = mb.load_file( file_name, 0, opt );
+  std::string opt = get_read_options( );
+  rval = mb.load_file( file_name, 0, opt.c_str() );
   MPI_Barrier(MPI_COMM_WORLD); // make sure all procs complete before removing file
   if (0 == rank && !KeepTmpFiles) remove( file_name );
   CHECK_ERR(rval);
