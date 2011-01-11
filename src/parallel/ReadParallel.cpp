@@ -599,7 +599,6 @@ ErrorCode ReadParallel::create_partition_sets( std::string &ptag_name,
                                                  EntityHandle file_set )
 {
   int proc_rk = myPcomm->proc_config().proc_rank();
-  Range partition_sets;
   ErrorCode result;
 
   Tag ptag;
@@ -610,7 +609,7 @@ ErrorCode ReadParallel::create_partition_sets( std::string &ptag_name,
   result = mbImpl->tag_create(ptag_name.c_str(), sizeof(int), 
                               MB_TAG_SPARSE, 
                               MB_TYPE_INTEGER, ptag, 
-                              0, true);
+                              0);
   if (MB_ALREADY_ALLOCATED == result) {
         // this tag already exists; better check to see that tagged sets
         // agree with this partition
@@ -619,7 +618,11 @@ ErrorCode ReadParallel::create_partition_sets( std::string &ptag_name,
       result = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET, &ptag, 
                                                     (const void* const*)&proc_rk_ptr, 1,
                                                     tagged_sets); RR(" ");
-      if (!tagged_sets.empty() && tagged_sets != myPcomm->partition_sets()) {
+      if (!tagged_sets.empty() && myPcomm->partition_sets().empty()) {
+        myPcomm->partition_sets() = tagged_sets;
+        return MB_SUCCESS;
+      }
+      else if (!tagged_sets.empty() && tagged_sets != myPcomm->partition_sets()) {
         result = mbImpl->tag_delete_data(ptag, tagged_sets); RR(" ");
       }
       else if (tagged_sets == myPcomm->partition_sets()) return MB_SUCCESS;
