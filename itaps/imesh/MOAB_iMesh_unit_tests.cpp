@@ -1,5 +1,7 @@
 #include "TestRunner.hpp"
 #include "iMesh.h"
+#include "MBiMesh.hpp"
+#include "moab/Core.hpp"
 #include <algorithm>
 
 void test_getEntArrAdj_conn();
@@ -8,6 +10,7 @@ void test_getEntArrAdj_up();
 void test_getEntArrAdj_down();
 void test_getEntArrAdj_invalid_size();
 void test_getEntArrAdj_none();
+void test_existinterface();
 
 int main( int argc, char* argv[] )
 {
@@ -17,6 +20,7 @@ int main( int argc, char* argv[] )
   REGISTER_TEST( test_getEntArrAdj_down );
   REGISTER_TEST( test_getEntArrAdj_invalid_size );
   REGISTER_TEST( test_getEntArrAdj_none );
+  REGISTER_TEST( test_existinterface );
 
   return RUN_TESTS( argc, argv ); 
 }
@@ -380,5 +384,28 @@ void test_getEntArrAdj_none()
   CHECK_EQUAL( 0, off[0] );  
   
   free(off);
+}
+
+void test_existinterface()
+{
+    // test construction of an imesh instance from a core instance
+  moab::Core *core = new moab::Core();
+  MBiMesh mesh(core);
+  iMesh_Instance imesh = reinterpret_cast<iMesh_Instance>(&mesh);
+  
+    // make sure we can call imesh functions
+  int dim, err;
+  iMesh_getGeometricDimension(imesh, &dim, &err);
+  CHECK_EQUAL( iBase_SUCCESS, err );
+
+    // now make sure we can delete the instance without it deleting the MOAB instance
+  iMesh_dtor(imesh, &err);
+  CHECK_EQUAL(err, iBase_SUCCESS);
+  
+  ErrorCode rval = core->get_number_entities_by_dimension(0, 0, dim);
+  CHECK_EQUAL(moab::MB_SUCCESS, rval);
+
+    // finally, delete the MOAB instance
+  delete core;
 }
 

@@ -21,39 +21,6 @@
 #include <stdio.h>
 #define MIN(a,b) (a < b ? a : b)
 
-MBiMesh::MBiMesh()
-    : haveDeletedEntities(false)
-{
-  int tmp_table[] = {
-      1, 1, 1, 1,
-      1, 0, 2, 2,
-      1, 2, 0, 2,
-      1, 2, 2, 1
-  };
-  memcpy(AdjTable, tmp_table, 16*sizeof(int));
-}
-
-MBiMesh::~MBiMesh() {}
-
-ErrorCode MBiMesh::delete_mesh() {
-  haveDeletedEntities = true;
-  return Core::delete_mesh();
-}
-
-ErrorCode MBiMesh::delete_entities( const EntityHandle* a, const int n )
-{
-  if (n > 0)
-    haveDeletedEntities = true;
-  return Core::delete_entities( a, n );
-}
-
-ErrorCode MBiMesh::delete_entities( const Range& r )
-{
-  if (!r.empty())
-    haveDeletedEntities = true;
-  return Core::delete_entities( r );
-}
-
 ErrorCode create_int_ents(Interface *instance,
                             Range &from_ents,
                             const EntityHandle* in_set = 0);
@@ -261,7 +228,8 @@ extern "C" {
     std::string tmp_options = filter_options(options, options+options_len);
     FileOptions opts(tmp_options.c_str());
 
-    Interface* core;
+    MBiMesh **mbi = reinterpret_cast<MBiMesh**>(instance);
+    *mbi = NULL;
 
     ErrorCode result = opts.get_null_option("PARALLEL");
     if (MB_SUCCESS == result) {
@@ -275,7 +243,7 @@ extern "C" {
           // mpi not initialized yet - initialize here
         retval = MPI_Init(&argc, &argv);
       }
-      core = new MBiMesh;
+      *mbi = new MBiMesh(NULL);
 #else
         //mError->set_last_error( "PARALLEL option not valid, this instance"
         //                        " compiled for serial execution.\n" );
@@ -283,10 +251,10 @@ extern "C" {
       return;
 #endif
     }
-    else core = new MBiMesh;
-
-    *instance = reinterpret_cast<iMesh_Instance>(core);
-    if (0 == *instance) {
+    else {
+      *mbi = new MBiMesh(NULL);
+    }
+    if (NULL == *mbi) {
       IBASE_ERROR(iBase_FAILURE, "Failed to instantiate mesh instance.");
       return;
     }
@@ -296,7 +264,7 @@ extern "C" {
 
   void iMesh_dtor(iMesh_Instance instance, int *err) 
   {
-    delete MBI;
+    delete MBI_cast(instance);
     RETURN(iBase_SUCCESS);
   }
 
@@ -567,7 +535,7 @@ extern "C" {
     int i = 0;
     while (i < this_it->requestedSize && this_it->currentPos != this_it->iteratorRange.end())
     {
-      if (MBimesh->is_valid(*this_it->currentPos)) 
+      if (dynamic_cast<Core*>(MBI)->is_valid(*this_it->currentPos)) 
         (*entity_handles)[i++] = (iBase_EntityHandle)*(this_it->currentPos);
       ++(this_it->currentPos);
     }

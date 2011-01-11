@@ -31,9 +31,11 @@ iMesh_EntityIterator create_itaps_iterator( Range& swap_range,
                                             int array_size = 1 ); 
 
 /* Define macro for quick reference to Interface instance */
-static inline Interface* MBI_cast( iMesh_Instance i )  
-  { return reinterpret_cast<Interface*>(i); }         
-#define MBI MBI_cast(instance)
+class MBiMesh;
+
+static inline MBiMesh* MBI_cast( iMesh_Instance i )  
+  { return reinterpret_cast<MBiMesh*>(i); }         
+#define MBI MBI_cast(instance)->mbImpl
 
 /* Most recently returned error code */
 extern "C" iBase_Error iMesh_LAST_ERROR;
@@ -42,31 +44,7 @@ extern "C" iBase_Error iMesh_LAST_ERROR;
                       iMesh_LAST_ERROR.description[0] = '\0'; \
                       return;} while(false)
 
-#include "moab/Core.hpp"
-
-class MBiMesh : public Core
-{
-private:
-  bool haveDeletedEntities;
-public:
-  MBiMesh();
-
-  virtual ~MBiMesh();
-  bool have_deleted_ents( bool reset ) {
-    bool result = haveDeletedEntities;
-    if (reset)
-      haveDeletedEntities = false;
-    return result;
-  }
-
-  virtual ErrorCode delete_mesh();
-  virtual ErrorCode delete_entities( const EntityHandle*, const int );
-  virtual ErrorCode delete_entities( const Range& );
-  int AdjTable[16];
-};
-
-#define MBimesh reinterpret_cast<MBiMesh*>(MBI)
-
+#include "MBiMesh.hpp"
 
 static inline int
 iMesh_processError( int code, const char* desc ) 

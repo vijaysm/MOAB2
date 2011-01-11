@@ -18,7 +18,8 @@ libiMesh_la_include_HEADERS = iMesh.h \
                               iMesh_extensions.h \
                               iMesh_extensions_protos.h \
                               iMesh_f.h \
-                              iMesh_protos.h
+                              iMesh_protos.h \
+			      MBiMesh.hpp
 
 if PARALLEL
   libiMesh_la_SOURCES += iMeshP_MOAB.cpp
