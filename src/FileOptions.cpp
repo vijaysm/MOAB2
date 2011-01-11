@@ -371,6 +371,12 @@ bool FileOptions::all_seen() const
   return std::find( mSeen.begin(), mSeen.end(), false ) == mSeen.end();
 }
 
+void FileOptions::mark_all_seen() const
+{
+  mSeen.clear();
+  mSeen.resize( mOptions.size(), true );
+}
+
 ErrorCode FileOptions::get_unseen_option( std::string& name ) const
 {
   std::vector<bool>::iterator i = std::find( mSeen.begin(), mSeen.end(), false );

@@ -223,7 +223,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
 
   if (print_parallel) pa_vec.push_back(PA_PRINT_PARALLEL);
   
-  return load_file(file_names, num_files, file_set, parallel_mode, 
+  result = load_file(file_names, num_files, file_set, parallel_mode, 
                    partition_tag_name,
                    partition_tag_vals, distrib, 
                    partition_by_rank, pa_vec, opts,
@@ -231,6 +231,10 @@ ErrorCode ReadParallel::load_file(const char **file_names,
                    reader_rank, cputime, 
                    resolve_dim, shared_dim,
                    ghost_dim, bridge_dim, num_layers, addl_ents);
+                   
+  if (parallel_mode == POPT_BCAST_DELETE && !is_reader)
+    opts.mark_all_seen();
+  return result;
 }
     
 ErrorCode ReadParallel::load_file(const char **file_names,

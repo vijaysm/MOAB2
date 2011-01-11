@@ -201,6 +201,9 @@ public:
   /** Check if all options have been looked at */
   bool all_seen() const;
   
+  /** Mark all options as seen.  USed for non-root procs during bcast-delete read */
+  void mark_all_seen() const;
+  
   /** Get first unseen option */
   ErrorCode get_unseen_option( std::string& value ) const;
   
