@@ -390,8 +390,8 @@ void test_existinterface()
 {
     // test construction of an imesh instance from a core instance
   moab::Core *core = new moab::Core();
-  MBiMesh mesh(core);
-  iMesh_Instance imesh = reinterpret_cast<iMesh_Instance>(&mesh);
+  MBiMesh *mesh = new MBiMesh(core);
+  iMesh_Instance imesh = reinterpret_cast<iMesh_Instance>(mesh);
   
     // make sure we can call imesh functions
   int dim, err;
