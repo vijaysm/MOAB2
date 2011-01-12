@@ -386,10 +386,20 @@ ErrorCode ReadParallel::load_file(const char **file_names,
             sl.tag_list_length = 1;
           }
           tmp_result = impl->serial_load_file( *file_names, &file_set, opts, &sl, file_id_tag );
+          if (MB_SUCCESS != tmp_result)
+            break;
+            
+          Tag part_tag;
+          tmp_result = impl->tag_get_handle( partition_tag_name.c_str(), part_tag );
+          if (MB_SUCCESS != tmp_result)
+            break;
           
-          if (MB_SUCCESS == tmp_result)
-            tmp_result = create_partition_sets( partition_tag_name, file_set );
-          } break;
+          tmp_result = impl->get_entities_by_type_and_tag( file_set, MBENTITYSET,
+                             &part_tag, 0, 1, myPcomm->partition_sets() );
+          
+          //if (MB_SUCCESS == tmp_result)
+          //  tmp_result = create_partition_sets( partition_tag_name, file_set );
+        } break;
 
 //==================
       case PA_GET_FILESET_ENTS:
@@ -618,11 +628,7 @@ ErrorCode ReadParallel::create_partition_sets( std::string &ptag_name,
       result = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET, &ptag, 
                                                     (const void* const*)&proc_rk_ptr, 1,
                                                     tagged_sets); RR(" ");
-      if (!tagged_sets.empty() && myPcomm->partition_sets().empty()) {
-        myPcomm->partition_sets() = tagged_sets;
-        return MB_SUCCESS;
-      }
-      else if (!tagged_sets.empty() && tagged_sets != myPcomm->partition_sets()) {
+      if (!tagged_sets.empty() && tagged_sets != myPcomm->partition_sets()) {
         result = mbImpl->tag_delete_data(ptag, tagged_sets); RR(" ");
       }
       else if (tagged_sets == myPcomm->partition_sets()) return MB_SUCCESS;
