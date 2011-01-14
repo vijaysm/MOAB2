@@ -217,13 +217,13 @@ int AssocPairC::get_iterator(const int iface_no,
   if (iface_type(iface_no) == iRel_IGEOM_IFACE) {
     iGeom_initEntIter((iGeom_Instance)ifaceInstances[iface_no], set,
                       iBase_ALL_TYPES,
-                      (iGeom_EntityIterator*)iter, &result);
+                      iter, &result);
     PROCESS_GERROR;
   }
   else if (iface_type(iface_no) == iRel_IMESH_IFACE) {
     iMesh_initEntIter((iMesh_Instance)ifaceInstances[iface_no], set,
                       iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES,
-                      (iMesh_EntityIterator*)iter, &result);
+                      iter, &result);
     PROCESS_MERROR;
   }
   else
