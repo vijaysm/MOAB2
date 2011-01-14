@@ -21,7 +21,7 @@
 #include <stdio.h>
 #define MIN(a,b) (a < b ? a : b)
 
-ErrorCode create_int_ents(Interface *instance,
+ErrorCode create_int_ents(MBiMesh * mbimesh,
                             Range &from_ents,
                             const EntityHandle* in_set = 0);
 #define HANDLE_ARRAY_PTR(array) reinterpret_cast<EntityHandle*>(array)
@@ -299,7 +299,7 @@ extern "C" {
       result = MBI->get_entities_by_handle(0, set_ents);
       CHKERR(result,"");
       set_ents = subtract( set_ents, orig_ents );
-      result = create_int_ents(MBI, set_ents, file_set);
+      result = create_int_ents(MBimesh, set_ents, file_set);
       CHKERR(result,"");
     }
 
@@ -1423,7 +1423,7 @@ extern "C" {
       std::copy(HANDLE_ARRAY_PTR(*new_entity_handles), 
                 HANDLE_ARRAY_PTR(*new_entity_handles)+*new_entity_handles_size,
                 range_inserter(set_ents));
-      result = create_int_ents(MBI, set_ents);
+      result = create_int_ents(MBimesh, set_ents);
       CHKERR(result,"");
     }
 
@@ -1841,7 +1841,7 @@ extern "C" {
     if (MB_SUCCESS == result && (MBimesh->AdjTable[5] || MBimesh->AdjTable[10])) {
       Range set_ents;
       set_ents.insert( tmp_ent );
-      create_int_ents(MBI, set_ents);
+      create_int_ents(MBimesh, set_ents);
     }
   }
 
@@ -2882,15 +2882,16 @@ ErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
   return result;
 }
 
-ErrorCode create_int_ents(Interface *instance,
+ErrorCode create_int_ents(MBiMesh* mbimesh,
                             Range &from_ents,
                             const EntityHandle* in_set) 
 {
-  MBiMesh* mbimesh = dynamic_cast<MBiMesh*>(instance);
+  //MBiMesh* mbimesh = dynamic_cast<MBiMesh*>(instance);
+  assert(mbimesh);
   assert(mbimesh->AdjTable[10] || mbimesh->AdjTable[5]);
   Range int_ents;
   ErrorCode result;
-  
+  Interface * instance = mbimesh->mbImpl;
   if (mbimesh->AdjTable[10]) {
     result = instance->get_adjacencies(from_ents, 2, true, int_ents,
                                   Interface::UNION);
