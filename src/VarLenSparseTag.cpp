@@ -429,7 +429,8 @@ ErrorCode VarLenSparseTag::get_memory_use( const SequenceManager*,
   total = mData.size() * (3*sizeof(void*) + sizeof(VarLenTag));
   for (MapType::const_iterator i = mData.begin(); i != mData.end(); ++i)
     total += i->second.mem();
-  per_entity = total / mData.size();
+  if (mData.size())
+    per_entity = total / mData.size();
   total += sizeof(*this) + TagInfo::get_memory_use();
       
   return MB_SUCCESS;

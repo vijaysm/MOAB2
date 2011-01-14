@@ -617,7 +617,8 @@ ErrorCode VarLenDenseTag::get_memory_use( const SequenceManager* seqman,
   total *= sizeof(VarLenTag);
   total += per_entity + sizeof(*this) + TagInfo::get_memory_use();
   total += meshValue.mem() + sizeof(meshValue);
-  per_entity /= count;
+  if (count)
+    per_entity /= count;
   per_entity += sizeof(VarLenTag);
       
   return MB_SUCCESS;

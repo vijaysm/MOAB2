@@ -873,8 +873,8 @@ void TypeSequenceManager::get_memory_use( EntityHandle first,
     SequenceData* data = (*i)->data();
     if (first < data->end_handle()) {
       append_memory_use( first, last, data, entity_storage, total_storage );
-      first  = data->end_handle() + 1;
     }
+    first  = data->end_handle() + 1;
   }
 }
 
