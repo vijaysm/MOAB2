@@ -43,7 +43,7 @@ GeomTopoTool::GeomTopoTool(Interface *impl, bool find_geoments)
    senseNSensesTag(0), 
    obbTree(impl), 
    contiguous(true),
-   oneVolRootSet(NULL)
+   oneVolRootSet(0)
 {
    ErrorCode result = mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4,
          MB_TAG_SPARSE, geomTag, NULL);

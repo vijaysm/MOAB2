@@ -388,7 +388,7 @@ ErrorCode ReadUtil::assign_ids( Tag id_tag,
   const EntityHandle* const end = ents + num_ents;
   const EntityHandle* i = ents;
   while (i != end) {
-    const EntityHandle* next = std::find( i, end, 0 );
+    const EntityHandle* next = std::find( i, end, 0u );
     size_t size = next - i;
     if (!size) {
       ++i;
