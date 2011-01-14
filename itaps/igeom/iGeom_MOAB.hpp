@@ -3,6 +3,7 @@
 
 #include "iGeom.h"
 #include "moab/Forward.hpp"
+#include "MBiMesh.hpp"
 
 namespace moab { class GeomTopoTool; }
 
@@ -27,7 +28,7 @@ iGeom_EntityIterator create_itaps_iterator( moab::Range& swap_range,
 
 /* Define macro for quick reference to MBInterface instance */
 static inline moab::Interface* MBI_cast( iGeom_Instance i )  
-  { return reinterpret_cast<moab::Interface*>(i); }         
+  { return reinterpret_cast<MBiMesh*>(i)->mbImpl; }
 #define MBI MBI_cast(instance)
 
 /* Define macro for quick reference to moab::Interface instance */
@@ -35,7 +36,7 @@ static inline moab::EntityHandle MBH_cast( iBase_EntityHandle h )
   { return reinterpret_cast<moab::EntityHandle>(h); }         
 
 #define GETGTT(a) {if (_my_geomTopoTool == NULL) _my_geomTopoTool =	\
-	new GeomTopoTool(reinterpret_cast<moab::Interface*>(a));}
+	new GeomTopoTool(reinterpret_cast<MBiMesh*>(a)->mbImpl);}
 
 /* Most recently returned error code */
 //extern "C" iBase_Error iGeom_LAST_ERROR;

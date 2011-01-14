@@ -244,9 +244,9 @@ void iGeom_getErrorType(iGeom_Instance instance,
 
 void iGeom_newGeom(char const* options, iGeom_Instance* instance_out, int* err,
       int options_len) {
-   if (*instance_out && !(reinterpret_cast<Interface*> (instance_out))) {
+   if (*instance_out && !(reinterpret_cast<iMesh_Instance*> (instance_out))) {
       *err = iBase_INVALID_ENTITY_TYPE;
-      ERRORR("Passed in instance must be an Interface*.");
+      ERRORR("Passed in instance must be an iMesh_Instance*.");
    }
 
    // make a new imesh instance
