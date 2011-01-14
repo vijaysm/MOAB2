@@ -88,7 +88,7 @@
     #define MB_DLL_EXPORT
   #endif
   #define MB_DLL_HIDDEN
-#elif defined __GNUC__
+#elif defined __GNUC__ && __GNUC__ > 3
   #define MB_DLL_EXPORT __attribute__((visibility("default")))
   #define MB_DLL_HIDDEN __attribute__((visibility("hidden")))
 #else
