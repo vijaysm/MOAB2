@@ -28,15 +28,19 @@
 #ifndef __vtkMOABReader_h
 #define __vtkMOABReader_h
 
-#include "vtkUnstructuredGridSource.h"
+#include "vtkMultiBlockDataSetAlgorithm.h"
+
+class vtkInformation;
+class vtkInformationVector;
+class vtkMOABReaderPrivate;
 
 #include <map>
 
-class VTK_EXPORT vtkMOABReader : public vtkUnstructuredGridSource
+class VTK_IO_EXPORT vtkMOABReader : public vtkMultiBlockDataSetAlgorithm
 {
 public:
   static vtkMOABReader *New();
-  vtkTypeRevisionMacro(vtkMOABReader,vtkUnstructuredGridSource);
+  vtkTypeMacro(vtkMOABReader,vtkMultiBlockDataSetAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:
@@ -44,21 +48,27 @@ public:
   vtkSetStringMacro(FileName);
   vtkGetStringMacro(FileName);
 
-  virtual void Update();
+  void UpdateProgress(double amount);
   
 protected:
   vtkMOABReader();
   ~vtkMOABReader();
 
-  void Execute();
+  int RequestInformation(vtkInformation *vtkNotUsed(request), 
+                         vtkInformationVector **vtkNotUsed(inputVector), 
+                         vtkInformationVector *outputVector);
 
+  int RequestData(vtkInformation *vtkNotUsed(request), 
+                  vtkInformationVector **vtkNotUsed(inputVector), 
+                  vtkInformationVector *outputVector);
+  
 private:
   vtkMOABReader(const vtkMOABReader&);  // Not implemented.
   void operator=(const vtkMOABReader&);  // Not implemented.
 
-  bool iConstructedMOAB;
-  
   char *FileName;
+
+  vtkMOABReaderPrivate *masterReader;
 };
 
 #endif

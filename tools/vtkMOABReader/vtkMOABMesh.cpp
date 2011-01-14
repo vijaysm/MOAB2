@@ -139,6 +139,15 @@ ErrorCode vtkMOABMesh::Update(EntityHandle file_set)
 
 ErrorCode vtkMOABMesh::read_tags(EntityHandle file_set) 
 {
+  ErrorCode rval = read_dense_tags(file_set);
+  if (MB_SUCCESS != rval) return rval;
+
+  rval = read_sparse_tags(file_set);
+  return rval;
+}
+
+ErrorCode vtkMOABMesh::read_dense_tags(EntityHandle file_set) 
+{  
     // get all the tags
   std::vector<Tag> tmptags, all_tags;
   ErrorCode rval = mbImpl->tag_get_tags(tmptags);
@@ -323,6 +332,101 @@ ErrorCode vtkMOABMesh::read_tags(EntityHandle file_set)
       this->GetOutput()->GetPointData()->AddArray(int_array);
       int_array->Delete();
       MOABMeshErrorMacro(<< "Read " << int_array->GetSize() << " values of int tag " << tag_name);
+    }
+  }
+
+  return MB_SUCCESS;
+}
+
+ErrorCode vtkMOABMesh::read_sparse_tags(EntityHandle file_set) 
+{  
+    // get all the tags
+  std::vector<Tag> tmptags, all_tags;
+  ErrorCode rval = mbImpl->tag_get_tags(tmptags);
+  if (MB_SUCCESS != rval) return rval;
+  
+  for (std::vector<Tag>::iterator vit = tmptags.begin(); vit != tmptags.end(); vit++) {
+      // skip dense tags
+    TagType ttype;
+    DataType dtype;
+    rval = mbImpl->tag_get_type(*vit, ttype);
+    rval = mbImpl->tag_get_data_type(*vit, dtype);
+    if (MB_SUCCESS == rval && MB_TAG_SPARSE == ttype && MB_TYPE_INTEGER == dtype) 
+      all_tags.push_back(*vit);
+  }
+
+    // now create field arrays on all 2d and 3d entities
+  Range sets, ents, verts;
+  vtkIntArray *int_array;
+
+  Tag gid_tag, gdim_tag;
+  rval = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gid_tag);
+  if (MB_SUCCESS != rval) return rval;
+      
+  rval = mbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, gdim_tag);
+  if (MB_SUCCESS != rval) return rval;
+      
+  std::vector<int> vids;
+  for (std::vector<Tag>::iterator vit = all_tags.begin(); vit != all_tags.end(); vit++) {
+    if (*vit == vtkIdTag) continue;
+
+      // if this is a geometry tag, loop
+    int lmax = (*vit == gdim_tag ? 3 : 0);
+    static int lvals[] = {0, 1, 2, 3};
+    static const char *lnames[] = {"GeomVertex", "GeomCurve", "GeomSurface", "GeomVolume"};
+    
+    for (int l = 0; l <= lmax; l++) {
+      sets.clear();
+      int *lval = lvals+l;
+      rval = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET, &(*vit), 
+                                                  (const void* const*)(lmax ? &lval : NULL), 1, sets);
+      if (MB_SUCCESS != rval || sets.empty()) continue;
+      
+        // create a data array
+      std::string tag_name;
+      bool has_default = false;
+      if (lmax) tag_name = std::string(lnames[l]);
+      else {
+        rval = mbImpl->tag_get_name(*vit, tag_name);
+        if (MB_SUCCESS != rval) continue;
+      }
+      if (MB_SUCCESS != rval) continue;
+      int_array = vtkIntArray::New();
+      int_array->SetName(tag_name.c_str());
+      bool had_ents = false;
+      
+        // loop over sets then entities
+      for (Range::iterator rit = sets.begin(); rit != sets.end(); rit++) {
+          // get the tag value
+        int this_val;
+        rval = mbImpl->tag_get_data((lmax ? gid_tag : *vit), &(*rit), 1, &this_val);
+        if (MB_SUCCESS != rval) continue;
+
+          // get the non-vertex entities, and their vtk ids
+        ents.clear();
+        for (int d = 1; d <= 3; d++) {
+          rval = mbImpl->get_entities_by_dimension(*rit, d, ents, true);
+          if (MB_SUCCESS != rval) continue;
+        }
+        if (ents.empty()) continue;
+        vids.resize(ents.size());
+        rval = mbImpl->tag_get_data(vtkIdTag, ents, &vids[0]);
+        if (MB_SUCCESS != rval || ents.empty()) continue;
+
+        std::cout << "Tag " << tag_name << ", value " << this_val << ", entities:" << std::endl;
+        ents.print("   ");
+        
+        for (unsigned int e = 0; e < vids.size(); e++) {
+          assert(-1 != vids[e]);
+          int_array->InsertValue(vids[e], this_val);
+        }
+
+        had_ents = true;
+      }
+
+        // add the data array to the output
+      if (had_ents) this->GetOutput()->GetCellData()->AddArray(int_array);
+      int_array->Delete();
     }
   }
 

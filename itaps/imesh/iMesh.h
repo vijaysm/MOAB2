@@ -141,18 +141,6 @@ extern "C" {
      */
   typedef struct iMesh_Instance_Private* iMesh_Instance;
 
-    /**\brief  Type used to store an iterator returned by iMesh
-     *
-     * Type used to store an iterator returned by iMesh
-     */
-  typedef struct iMesh_EntityIterator_Private* iMesh_EntityIterator;
- 
-    /**\brief  Type used to store an array iterator returned by iMesh
-     *
-     * Type used to store an array iterator returned by iMesh
-     */
-  typedef struct iMesh_EntityArrIterator_Private* iMesh_EntityArrIterator;
-
     /**\brief  Enumerator specifying entity topology
      *
      * Enumerator specifying entity topology.
@@ -486,7 +474,7 @@ extern "C" {
                             /*in*/ const int requested_entity_type,
                             /*in*/ const int requested_entity_topology,
                             /*in*/ const int requested_array_size,
-                            /*out*/ iMesh_EntityArrIterator* entArr_iterator,
+                            /*out*/ iBase_EntityArrIterator* entArr_iterator,
                             /*out*/ int *err);
 
     /**\brief  Get entities contained in array iterator and increment iterator
@@ -511,7 +499,7 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_getNextEntArrIter(iMesh_Instance instance,
-                               /*in*/ iMesh_EntityArrIterator entArr_iterator,
+                               /*in*/ iBase_EntityArrIterator entArr_iterator,
                                /*inout*/ iBase_EntityHandle** entity_handles,
                                /*inout*/ int* entity_handles_allocated,
                                /*out*/ int* entity_handles_size,
@@ -527,7 +515,7 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_resetEntArrIter(iMesh_Instance instance,
-                             /*in*/ iMesh_EntityArrIterator entArr_iterator, 
+                             /*in*/ iBase_EntityArrIterator entArr_iterator, 
                              /*out*/ int *err);
 
 
@@ -539,7 +527,7 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_endEntArrIter(iMesh_Instance instance,
-                           /*in*/ iMesh_EntityArrIterator entArr_iterator, 
+                           /*in*/ iBase_EntityArrIterator entArr_iterator, 
                            /*out*/ int *err);
 
     /**\brief  Get the entity topology for the specified entities
@@ -1902,7 +1890,7 @@ extern "C" {
                          /*in*/ const iBase_EntitySetHandle entity_set_handle,
                          /*in*/ const int requested_entity_type,
                          /*in*/ const int requested_entity_topology,
-                         /*out*/ iMesh_EntityIterator* entity_iterator,
+                         /*out*/ iBase_EntityIterator* entity_iterator,
                          /*out*/ int *err);
 
     /**\brief  Get entity corresponding to an iterator and increment iterator
@@ -1923,7 +1911,7 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_getNextEntIter(iMesh_Instance instance,
-                            /*in*/ iMesh_EntityIterator entity_iterator,
+                            /*in*/ iBase_EntityIterator entity_iterator,
                             /*out*/ iBase_EntityHandle* entity_handle,
                             /*out*/ int *has_data,
                             /*out*/ int *err);
@@ -1936,7 +1924,7 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_resetEntIter(iMesh_Instance instance,
-                          /*in*/ iMesh_EntityIterator entity_iterator,
+                          /*in*/ iBase_EntityIterator entity_iterator,
                           /*out*/ int *err);
 
     /**\brief  Destroy the specified iterator
@@ -1947,7 +1935,7 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_endEntIter(iMesh_Instance instance,
-                        /*in*/ iMesh_EntityIterator entity_iterator,
+                        /*in*/ iBase_EntityIterator entity_iterator,
                         /*out*/ int *err);
 
     /**\brief  Get the entity topology for the specified entity

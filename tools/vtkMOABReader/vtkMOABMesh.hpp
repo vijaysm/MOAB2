@@ -75,6 +75,9 @@ private:
 
   ErrorCode read_tags(EntityHandle file_set);
   
+  ErrorCode read_sparse_tags(EntityHandle file_set);
+
+  ErrorCode read_dense_tags(EntityHandle file_set);
 
   void add_name(vtkUnstructuredGrid *output, const char *prefix,
                 const int id);

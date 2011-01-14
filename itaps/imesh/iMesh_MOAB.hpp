@@ -2,6 +2,7 @@
 #define IMESH_MOAB_HPP
 
 #include "iMesh.h"
+#include "MBiMesh.hpp"
 #include "moab/Forward.hpp"
 #include <cstring>
 #include <cstdlib>
@@ -27,15 +28,8 @@ extern const iBase_TagValueType tstt_data_type_table[MB_MAX_DATA_TYPE+1];
 extern "C" const iBase_ErrorType iBase_ERROR_MAP[MB_FAILURE+1];
 
 /* Create ITAPS iterator */
-iMesh_EntityIterator create_itaps_iterator( Range& swap_range,
+iBase_EntityIterator create_itaps_iterator( Range& swap_range,
                                             int array_size = 1 ); 
-
-/* Define macro for quick reference to Interface instance */
-class MBiMesh;
-
-static inline MBiMesh* MBI_cast( iMesh_Instance i )  
-  { return reinterpret_cast<MBiMesh*>(i); }         
-#define MBI MBI_cast(instance)->mbImpl
 
 /* Most recently returned error code */
 extern "C" iBase_Error iMesh_LAST_ERROR;
@@ -55,7 +49,7 @@ iMesh_processError( int code, const char* desc )
   return (iMesh_LAST_ERROR.error_type = (iBase_ErrorType)code);
 }
 
-#define ERROR(CODE,MSG) do { *err = iMesh_setLastError( MBI, (CODE), (MSG) ); return; } while(false)
+#define ERROR(CODE,MSG) do { *err = iMesh_setLastError( MOABI, (CODE), (MSG) ); return; } while(false)
 #define IBASE_ERROR(CODE,MSG) do { *err = iMesh_processError( (CODE), (MSG) ); return; } while(false)
 
 static inline int iMesh_setLastError( Interface*, int code, const char* msg )

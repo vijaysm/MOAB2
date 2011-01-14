@@ -27,7 +27,9 @@ public:
   moab::Interface *mbImpl;
 };
 
-#define MBimesh reinterpret_cast<MBiMesh*>(instance)
+static inline MBiMesh *mbimeshi_instance(iMesh_Instance instance) {return reinterpret_cast<MBiMesh*>(instance);}
+#define MBIMESHI mbimeshi_instance(instance)
+#define MOABI MBIMESHI->mbImpl
 
 inline MBiMesh::MBiMesh(Interface *impl)
         : haveDeletedEntities(false), iCreatedInterface(false), mbImpl(impl)

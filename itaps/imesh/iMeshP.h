@@ -905,7 +905,7 @@ void iMeshP_initPartBdryEntIter(
             int entity_type, 
             int entity_topology, 
             iMeshP_Part target_part_id, 
-            iMesh_EntityIterator* entity_iterator, 
+            iBase_EntityIterator* entity_iterator, 
             int *err); 
 
 
@@ -946,7 +946,7 @@ void iMeshP_initPartBdryEntArrIter(
             int entity_topology, 
             int array_size, 
             iMeshP_Part target_part_id, 
-            iMesh_EntityArrIterator* entity_iterator, 
+            iBase_EntityArrIterator* entity_iterator, 
             int *err); 
 
 
@@ -1230,7 +1230,7 @@ void iMeshP_initEntIter(
             const iBase_EntitySetHandle entity_set,
             const int requested_entity_type,
             const int requested_entity_topology,
-            iMesh_EntityIterator* entity_iterator,
+            iBase_EntityIterator* entity_iterator,
             int *err);
 
 
@@ -1270,7 +1270,7 @@ void iMeshP_initEntArrIter(
             const int requested_entity_type,
             const int requested_entity_topology,
             const int requested_array_size,
-            iMesh_EntityArrIterator* entArr_iterator,
+            iBase_EntityArrIterator* entArr_iterator,
             int *err);
 
 
