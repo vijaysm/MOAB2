@@ -3,6 +3,7 @@
 
 #include "iGeom.h"
 #include "moab/Forward.hpp"
+#include "iMesh.h"
 #include "MBiMesh.hpp"
 
 namespace moab { class GeomTopoTool; }
