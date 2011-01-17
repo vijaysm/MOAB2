@@ -2399,26 +2399,19 @@ ErrorCode ParallelComm::pack_sets(Range &entities,
   PACK_VOID(buff->buff_ptr, &options[0], all_sets.size()*sizeof(unsigned int));
   
     // vectors/ranges
+  std::vector<EntityHandle> entities_vec(entities.size());
+  std::copy(entities.begin(), entities.end(), entities_vec.begin());
   for (rit = all_sets.begin(), i = 0; rit != all_sets.end(); rit++, i++) {
-      Range set_range;
-      if (options[i] & MESHSET_SET) {
-        Range set_range;
-        result = mbImpl->get_entities_by_handle(*rit, set_range);
-        RRA("Failed to get set entities.");
-
-        buff_size = RANGE_SIZE(set_range);
-        buff->check_space(buff_size);
-        PACK_RANGE(buff->buff_ptr, set_range);
-      }
-      else if (options[i] & MESHSET_ORDERED) {
-        members.clear();
-        result = mbImpl->get_entities_by_handle(*rit, members);
-        RRA("Failed to get entities in ordered set.");
-        
-        buff->check_space(members.size()*sizeof(EntityHandle)+sizeof(int));
-        PACK_INT(buff->buff_ptr, members.size());
-        PACK_EH(buff->buff_ptr, &members[0], members.size());
-      }
+    members.clear();
+    result = mbImpl->get_entities_by_handle(*rit, members);
+    RRA("Failed to get entities in ordered set.");
+    result = get_remote_handles(store_remote_handles, &members[0],
+				&members[0], members.size(),
+				to_proc, entities_vec);
+    RRA("Failed in get_remote_handles.");
+    buff->check_space(members.size()*sizeof(EntityHandle)+sizeof(int));
+    PACK_INT(buff->buff_ptr, members.size());
+    PACK_EH(buff->buff_ptr, &members[0], members.size());
   }
     // pack numbers of parents/children
   unsigned int tot_pch = 0;
@@ -2452,8 +2445,6 @@ ErrorCode ParallelComm::pack_sets(Range &entities,
   }
   assert(members.size() == tot_pch);
   if (!members.empty()) {
-    std::vector<EntityHandle> entities_vec(entities.size());
-    std::copy(entities.begin(), entities.end(), entities_vec.begin());
     result = get_remote_handles(store_remote_handles,
                                 &members[0], &members[0], 
                                 members.size(), to_proc,
