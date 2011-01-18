@@ -2522,25 +2522,14 @@ ErrorCode ParallelComm::unpack_sets(unsigned char *&buff_ptr,
   if (!no_sets) std::sort(entities.begin(), entities.end());
   
   for (rit = new_sets.begin(), i = 0; rit != new_sets.end(); rit++, i++) {
-    if (options_vec[i] & MESHSET_SET) {
-        // unpack entities as a range
-      Range set_range, tmp_range;
-      UNPACK_RANGE(buff_ptr, tmp_range);
-      result = get_local_handles(tmp_range, set_range, entities);      
-      RRA("Failed to get local handles for unordered set contents.");
-      result = mbImpl->add_entities(*rit, set_range);
-      RRA("Failed to add ents to unordered set in unpack.");
-    }
-    else if (options_vec[i] & MESHSET_ORDERED) {
-        // unpack entities as vector, with length
-      UNPACK_INT(buff_ptr, num_ents);
-      members.resize(num_ents);
-      if (num_ents) UNPACK_EH(buff_ptr, &members[0], num_ents);
-      result = get_local_handles(&members[0], num_ents, entities);
-      RRA("Failed to get local handles for ordered set contents.");
-      result = mbImpl->add_entities(*rit, &members[0], num_ents);
-      RRA("Failed to add ents to ordered set in unpack.");
-    }
+    // unpack entities as vector, with length
+    UNPACK_INT(buff_ptr, num_ents);
+    members.resize(num_ents);
+    if (num_ents) UNPACK_EH(buff_ptr, &members[0], num_ents);
+    result = get_local_handles(&members[0], num_ents, entities);
+    RRA("Failed to get local handles for ordered set contents.");
+    result = mbImpl->add_entities(*rit, &members[0], num_ents);
+    RRA("Failed to add ents to ordered set in unpack.");
   }
 
   std::vector<int> num_pch(2*new_sets.size());
