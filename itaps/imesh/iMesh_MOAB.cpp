@@ -402,12 +402,7 @@ extern "C" {
                          int* areHandlesInvarient, 
                          int* err )
   {
-    MBiMesh* mbi = dynamic_cast<MBiMesh*>(MOABI);
-    if (!mbi) {
-      RETURN(iBase_FAILURE);
-    }
-  
-    *areHandlesInvarient = !mbi->have_deleted_ents( !!doReset );
+    *areHandlesInvarient = !MBIMESHI->have_deleted_ents( !!doReset );
     RETURN(iBase_SUCCESS);
   }
 
