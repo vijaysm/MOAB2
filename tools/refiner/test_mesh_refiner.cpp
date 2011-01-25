@@ -18,6 +18,14 @@
 
 using namespace moab;
 
+#define STRINGIFY_(A) #A
+#define STRINGIFY(A) STRINGIFY_(A)
+#ifdef MESHDIR
+std::string TestDir( STRINGIFY(MESHDIR) );
+#else
+std::string TestDir( "./" );
+#endif
+
 int TestMeshRefiner( int argc, char* argv[] )
 {
   int nprocs, rank;
@@ -32,8 +40,17 @@ int TestMeshRefiner( int argc, char* argv[] )
   //sleep(20);
 
   // Create the input mesh and, if -new-mesh is specified, an output mesh
-  const char* ifname = argc > 1 ? argv[1] : "fourVolsBare.cub";
-  bool input_is_output = ( argc > 2 && ! strcmp( argv[2], "-new-mesh" ) ) ? false : true;
+  std::string ifname = argc > 1 ? argv[1] : TestDir + "fourVolsBare.cub";
+  bool input_is_output, do_output = false;
+  std::string output_filename;
+  if ( argc > 2) {
+    if (!strcmp( argv[2], "-new-mesh" )) input_is_output = true;
+    else {
+      do_output = true;
+      output_filename = std::string(argv[2]);
+    }
+  }
+  
   Interface* imesh = new Core; // ( rank, nprocs );
   Interface* omesh = input_is_output ? imesh : new Core; // ( rank, nprocs );
 
@@ -50,31 +67,29 @@ int TestMeshRefiner( int argc, char* argv[] )
     << "PARALLEL=READ_DELETE" << ";" // NB: You can use BCAST_DELETE or READ_DELETE here.
     //<< "PARALLEL=BCAST_DELETE" << ";" // NB: You can use BCAST_DELETE or READ_DELETE here.
     << "PARTITION=MATERIAL_SET" << ";"
-    //<< "PARTITION_DISTRIBUTE" << ";"
-    << "PARTITION_VAL=" << ( rank + 1 ) << ";"
+    << "PARTITION_DISTRIBUTE" << ";"
     << "PARALLEL_RESOLVE_SHARED_ENTS" << ";"
     << "CPUTIME";
 #endif
   set_handle = 0;
-  imesh->load_file( ifname, &set_handle, parallel_options.str().c_str() );
-#  if 0
+  ErrorCode rval = imesh->load_file( ifname.c_str(), &set_handle, parallel_options.str().c_str() );
+  if (MB_SUCCESS != rval) {
+    std::cout << "Trouble reading mesh file " << ifname << ", exiting." << std::endl;
+    return 1;
+  }
+  
   // Print out what we have so far, one process at a time
   for ( int i = 0; i < nprocs; ++ i )
     {
     MPI_Barrier( MPI_COMM_WORLD );
     if ( i == rank )
       {
-      std::cout << "\n************** Rank: " << ( rank + 1 ) << " of: " << nprocs << "\n";
-      imesh->list_entities( 0, 1 );
+      std::cout << "\n************** Rank: " << ( rank ) << " of: " << nprocs << "\n";
+      imesh->list_entities( 0, 0 );
       std::cout << "**************\n\n";
       }
     MPI_Barrier( MPI_COMM_WORLD );
     }
-#  endif // 0
-
-  std::ostringstream ifs;
-  ifs << "prerefiner." << nprocs << "." << rank << ".vtk";
-  imesh->write_mesh( ifs.str().c_str() );
 
   // The refiner will need an implicit function to be used as an indicator function for subdivision:
   EdgeSizeSimpleImplicit* eval = new EdgeSizeSimpleImplicit();
@@ -96,24 +111,25 @@ int TestMeshRefiner( int argc, char* argv[] )
   gettimeofday( &toc, 0 );
   std::cout << "\nTime: " << ( (toc.tv_sec - tic.tv_sec) * 1000 + (toc.tv_usec - tic.tv_usec) / 1000. ) << " ms\n\n";
 
-  std::ostringstream ofs;
-  ofs << "refiner." << nprocs << "." << rank << ".vtk";
-  omesh->write_mesh( ofs.str().c_str() );
+  if (do_output) {
+    parallel_options.clear();
+    parallel_options << "PARALLEL=WRITE_PART";
+    omesh->write_file( output_filename.c_str(), NULL, parallel_options.str().c_str() );
+  }
+  
   // Print out the results, one process at a time
 #ifdef USE_MPI
-#  if 0
   for ( int i = 0; i < nprocs; ++ i )
     {
     MPI_Barrier( MPI_COMM_WORLD );
     if ( i == rank )
       {
-      std::cout << "\n************** Rank: " << ( rank + 1 ) << " of: " << nprocs << "\n";
-      omesh->list_entities( 0, 1 );
+      std::cout << "\n************** Rank: " << ( rank ) << " of: " << nprocs << "\n";
+      omesh->list_entities( 0, 0 );
       std::cout << "**************\n\n";
       }
     MPI_Barrier( MPI_COMM_WORLD );
     }
-#  endif // 0
 #else // USE_MPI
   omesh->list_entities( 0, 1 );
 #endif // USE_MPI

@@ -48,9 +48,11 @@ public:
                          EntityHandle volume,
                          bool forward );
 
-  ErrorCode get_sense( EntityHandle surface,
-                         EntityHandle volume,
-                         bool& forward );
+    //! Get the sense of a lower-dim entity with respect to an upper-dim entity
+    //! Returns MB_ENTITY_NOT_FOUND if no relationship found
+  ErrorCode get_sense( EntityHandle lower,
+                       EntityHandle upper,
+                       bool& forward );
 
     //! Store senses and ents for edges
   ErrorCode get_senses(EntityHandle edge,
@@ -60,6 +62,25 @@ public:
   ErrorCode set_senses(EntityHandle edge,
                        std::vector<EntityHandle> &faces,
                        std::vector<int> &senses);
+
+    /** \brief get the other (d-1)-dimensional entity bounding a set across a (d-2)-dimensional entity
+     *
+     * Given a d-dimensional entity and one (d-1)-dimensional entity, return the (d-1) dimensional
+     * entity across a specified (d-2)-dimensional entity.  For example, given a surface, edge, and vertex,
+     * returns the other edge bounding the surface sharing the vertex.  In the case of degenerate results,
+     * e.g. two loops bounding a surface and sharing a vertex, tries to step in positively-oriented
+     * direction.  This won't always work; in those cases, will return MB_MULTIPLE_ENTITIES_FOUND.
+     *
+     * In the special case where bounded is a curve, then not_this can be a vertex and across zero.
+     * This function returns the other vertex on the curve.
+     */
+  ErrorCode other_entity(EntityHandle bounded, EntityHandle not_this, EntityHandle across,
+                         EntityHandle &other);
+
+    /** \brief return the dimension of the set, or -1 if it's not a geom_dimension set
+     */
+  int dimension(EntityHandle this_set);
+  
   
   ErrorCode find_geomsets(Range *ranges = NULL);
 

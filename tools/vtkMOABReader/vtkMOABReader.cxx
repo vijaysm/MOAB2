@@ -39,7 +39,6 @@
 #include "moab/WriteUtilIface.hpp"
 #include "moab/Range.hpp"
 #include "MBTagConventions.hpp"
-#include "MBParallelConventions.h"
 #include "moab/CN.hpp"
 
 #include <sstream>
