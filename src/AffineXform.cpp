@@ -358,8 +358,14 @@ void test_scale()
 {
   CartVect output;
   
+  AffineXform scale = AffineXform::scale( 1.0 );
+  ASSERT(!scale.scale());
+  scale = AffineXform::scale( -1.0 );
+  ASSERT(!scale.scale());
+  
   //scale in X only
-  AffineXform scale = AffineXform::scale( CartVect(2,1,1).array() );
+  scale = AffineXform::scale( CartVect(2,1,1).array() );
+  ASSERT(scale.scale());
   scale.xform_point( point1.array(), output.array() );
   ASSERT_VECTORS_EQUAL( output, CartVect(2*point1[0],point1[1],point1[2]) );
   scale.xform_point( point2.array(), output.array() );
@@ -371,6 +377,7 @@ void test_scale()
   
   // scale in all
   scale = AffineXform::scale( CartVect(0.5,0.5,0.5).array() );
+  ASSERT(scale.scale());
   scale.xform_point( point1.array(), output.array() );
   ASSERT_VECTORS_EQUAL( output, 0.5*point1 );
   scale.xform_point( point2.array(), output.array() );

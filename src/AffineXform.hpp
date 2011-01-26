@@ -243,7 +243,7 @@ inline bool AffineXform::reflection() const
 
 inline bool AffineXform::scale() const
 {
-  return fabs(fabs(mMatrix.determinant()) - 1) < std::numeric_limits<double>::epsilon();
+  return fabs(fabs(mMatrix.determinant()) - 1) > std::numeric_limits<double>::epsilon();
 }
   
 } // namespace moab
