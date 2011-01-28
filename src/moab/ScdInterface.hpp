@@ -1,5 +1,25 @@
-/** \class ScdInterface
- ** \brief An interface for structured mesh
+/** \file ScdInterface.hpp
+ */
+#ifndef SCD_INTERFACE
+#define SCD_INTERFACE
+
+#include <vector>    
+
+#include "moab/Interface.hpp"
+#include "moab/HomXform.hpp"
+
+namespace moab {
+
+class StructuredElementSeq;
+class EntitySequence;
+class ScdVertexData;
+class EntitySequence;
+class ScdBox;
+class Core;
+
+/** \class ScdInterface ScdInterface.hpp "moab/ScdInterface.hpp"
+ * \brief A structured mesh interface for MOAB-based data
+ *
  * Structured mesh in MOAB is created and accessed through the ScdInterface and ScdBox classes.
  * 
  * \section Construction Construction and Representation
@@ -41,23 +61,7 @@
  * \section Evaluation Evaluation
  * The ScdBox class provides functions for evaluating the mesh based on the ijk parameter space.
  * These functions are inlined where possible, for efficiency.
- */
-#ifndef SCD_INTERFACE
-#define SCD_INTERFACE
-
-#include <vector>    
-
-#include "moab/Interface.hpp"
-#include "moab/HomXform.hpp"
-
-namespace moab {
-
-class StructuredElementSeq;
-class EntitySequence;
-class ScdVertexData;
-class EntitySequence;
-class ScdBox;
-class Core;
+*/
 
 class ScdInterface 
 {
