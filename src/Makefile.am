@@ -65,6 +65,7 @@ libMOAB_la_SOURCES = \
   Matrix3.cpp \
   Matrix3.hpp \
   MBCNArrays.hpp \
+  MergeMesh.cpp \
   MeshSet.cpp \
   MeshSet.hpp \
   MeshSetSequence.cpp \
@@ -143,6 +144,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/Forward.hpp \
   moab/GeomUtil.hpp \
   moab/Interface.hpp \
+  moab/MergeMesh.hpp \
   moab/MeshTopoUtil.hpp \
   moab/OrientedBoxTreeTool.hpp \
   moab/Range.hpp \

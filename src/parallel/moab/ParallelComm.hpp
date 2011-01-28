@@ -40,7 +40,8 @@ namespace moab {
 class SequenceManager;
 template <typename KeyType, typename ValType, ValType NullVal> class RangeMap;
 typedef RangeMap<EntityHandle, EntityHandle, 0> HandleMap;
-
+class ParallelMergeMesh;
+    
 #define MAX_SHARING_PROCS 64
 
 /**
@@ -54,6 +55,8 @@ class ParallelComm
 {
 public:
 
+  friend class ParallelMergeMesh;
+  
     // ==================================
     // \section CONSTRUCTORS/DESTRUCTORS/PCOMM MANAGEMENT
     // ==================================

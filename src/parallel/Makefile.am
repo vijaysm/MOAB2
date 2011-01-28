@@ -29,6 +29,7 @@ if PARALLEL
      ParallelComm.cpp \
      ProcConfig.cpp \
      ParallelData.cpp \
+     ParallelMergeMesh.cpp \
      ReadParallel.cpp \
      ReadParallel.hpp \
      crystal.h errmem.h types.h \
@@ -42,6 +43,7 @@ if PARALLEL
      moab_mpi.h \
      moab_mpi_config.h \
      moab/ParallelComm.hpp \
+     moab/ParallelMergeMesh.hpp \
      moab/ProcConfig.hpp \
      moab/ParallelData.hpp \
      MBParallelConventions.h 
