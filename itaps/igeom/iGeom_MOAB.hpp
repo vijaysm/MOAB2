@@ -24,7 +24,7 @@ extern const iBase_TagValueType tstt_data_type_table[moab::MB_MAX_DATA_TYPE+1];
 extern "C" const iBase_ErrorType iBase_ERROR_MAP[moab::MB_FAILURE+1];
 
 /* Create ITAPS iterator */
-iGeom_EntityIterator create_itaps_iterator( moab::Range& swap_range,
+iBase_EntityIterator create_itaps_iterator( moab::Range& swap_range,
                                             int array_size = 1 ); 
 
 /* Define macro for quick reference to MBInterface instance */

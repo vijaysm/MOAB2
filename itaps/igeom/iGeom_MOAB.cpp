@@ -1855,34 +1855,34 @@ void iGeom_getArrTolerance(iGeom_Instance,
 }
 
 void iGeom_initEntIter(iGeom_Instance, iBase_EntitySetHandle entity_set_handle,
-      int entity_dimension, iGeom_EntityIterator* entity_iterator, int* err) {
+      int entity_dimension, iBase_EntityIterator* entity_iterator, int* err) {
 }
 
 void iGeom_initEntArrIter(iGeom_Instance,
       iBase_EntitySetHandle entity_set_handle, int entity_dimension,
-      int requested_array_size, iGeom_EntityArrIterator* entArr_iterator,
+      int requested_array_size, iBase_EntityArrIterator* entArr_iterator,
       int* err) {
 }
 
-void iGeom_getNextEntIter(iGeom_Instance, iGeom_EntityIterator,
+void iGeom_getNextEntIter(iGeom_Instance, iBase_EntityIterator,
       iBase_EntityHandle* entity_handle, int* has_data, int* err) {
 }
 
-void iGeom_getNextEntArrIter(iGeom_Instance, iGeom_EntityArrIterator,
+void iGeom_getNextEntArrIter(iGeom_Instance, iBase_EntityArrIterator,
       iBase_EntityHandle** entity_handles, int* entity_handles_allocated,
       int* entity_handles_size, int* has_data, int* err) {
 }
 
-void iGeom_resetEntIter(iGeom_Instance, iGeom_EntityIterator, int* err) {
+void iGeom_resetEntIter(iGeom_Instance, iBase_EntityIterator, int* err) {
 }
 
-void iGeom_resetEntArrIter(iGeom_Instance, iGeom_EntityArrIterator, int* err) {
+void iGeom_resetEntArrIter(iGeom_Instance, iBase_EntityArrIterator, int* err) {
 }
 
-void iGeom_endEntIter(iGeom_Instance, iGeom_EntityIterator, int* err) {
+void iGeom_endEntIter(iGeom_Instance, iBase_EntityIterator, int* err) {
 }
 
-void iGeom_endEntArrIter(iGeom_Instance, iGeom_EntityArrIterator, int* err) {
+void iGeom_endEntArrIter(iGeom_Instance, iBase_EntityArrIterator, int* err) {
 }
 
 void iGeom_copyEnt(iGeom_Instance, iBase_EntityHandle source,
