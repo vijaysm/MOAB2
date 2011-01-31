@@ -9,7 +9,7 @@ AM_CPPFLAGS = -DSRCDIR=$(srcdir)
 # Don't loose the autoconf include path
 ACLOCAL_AMFLAGS = -I m4
 
-INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I. -I${IMESH_DIR}/include -I${IGEOM_DIR}/include
+INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I. -I${IGEOM_DIR}/include -I${IMESH_DIR}/include
 
 DEFS += $(DEFINES)
 
