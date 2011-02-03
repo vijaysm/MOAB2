@@ -23,30 +23,41 @@ extern "C"
 
 namespace moab{
 
-// 1)Read Mesh on each Processor -In Driver
+  //Constructor
+  /*1) Get Merge Data and tolerance*/
 ParallelMergeMesh::ParallelMergeMesh(ParallelComm *pc, 
 				     const double epsilon) :
   myPcomm(pc), myEps(epsilon)
 {
 }
 
-ErrorCode ParallelMergeMesh::merge() {
+  //Perform Merge
+  ErrorCode ParallelMergeMesh::merge() {
   Interface *mb = myPcomm->get_moab();
   ErrorCode rval;
 
   /*2)Merge Mesh Locally*/
   Range ents;
-  rval = mb->get_entities_by_dimension(0,0,ents);
+  rval = mb->get_entities_by_dimension(0,3,ents);
   if(rval != MB_SUCCESS){
     return rval;
   }
 
-  //Does not compile
-  //Use meshkit to merge the mesh
+  //Merge Mesh Locally
   moab::MergeMesh merger(mb);
   EntityHandle start = *ents.begin();
-  merger.merge_entities(&start, 
-  			ents.size(),myEps);
+  merger.merge_entities(ents,myEps);
+  if(rval != MB_SUCCESS){
+    std::cerr<<"Local Merge Failed. Error: " << rval << std::endl;
+    return rval;
+  }
+
+  //Rebuild the ents range
+  ents.clear();
+  rval = mb->get_entities_by_dimension(0,3,ents);
+  if(rval != MB_SUCCESS){
+    return rval;
+  }
 
   /*3)Get Skin
     -Get Range of 0 dimensional entities
@@ -55,6 +66,7 @@ ErrorCode ParallelMergeMesh::merge() {
   Skinner skinner(mb);
   rval = skinner.find_skin(ents,0,skinents);
   if(rval != MB_SUCCESS){
+    std::cerr<<"Skinner Failed. Error:"<< rval <<std::endl;
     return rval;
   }
 
@@ -102,7 +114,7 @@ ErrorCode ParallelMergeMesh::merge() {
     toproc1 = toproc1<=maxProc?toproc1:maxProc;
     toproc2 = toproc2<=maxProc?toproc2:maxProc;
 
-    //Make sure we have room for at leart 2 more tuples
+    //Make sure we have room for at least 2 more tuples
     if(tup.n+1 >= tup.max){
       tuple_list_grow(&tup);
     }
@@ -176,7 +188,7 @@ ErrorCode ParallelMergeMesh::merge() {
     while(matches.n+(j-i)*(j-i-1) < matches.max){
       tuple_list_grow(&matches);
     }
-
+ 
     //We now know that tuples i to j (exclusive) match.  
     //If n tuples match, n*(n-1) match tuples will be made
     //tuples are of the form (proc1,proc2,handle1,handle2)
@@ -187,6 +199,8 @@ ErrorCode ParallelMergeMesh::merge() {
 	  matches.vi[matches.n*matches.mi+1]=tup.vi[l*tup.mi];//proc2
 	  matches.vul[matches.n*matches.mul]=tup.vul[k*tup.mul];//handle1
 	  matches.vul[matches.n*matches.mul+1]=tup.vul[l*tup.mul];//handle2*/
+
+	  //Note that tup.mi == tup.mul == 0
 	  matches.vi[mat_i++]=tup.vi[k*tup.mi];//proc1
 	  matches.vi[mat_i++]=tup.vi[l*tup.mi];//proc2
 	  matches.vul[mat_ul++]=tup.vul[k*tup.mul];//handle1
@@ -246,7 +260,6 @@ ErrorCode ParallelMergeMesh::merge() {
       n++; mat_ul+= matches.mul; mat_i += matches.mi;
     }
   }
-
   tuple_list_free(&matches);
   
   /* 15)Match higher-dimensional entities

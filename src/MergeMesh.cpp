@@ -13,21 +13,19 @@
 
 namespace moab {
 
-moab::ErrorCode MergeMesh::merge_entities(moab::EntityHandle *elems,
-                               int elems_size,
-                               const double merge_tol,
-                               const int do_merge,
-                               const int update_sets,
-                               moab::Tag merge_tag)  
+  moab::ErrorCode MergeMesh::merge_entities(moab::EntityHandle *elems,
+					  int elems_size,
+					  const double merge_tol,
+					  const int do_merge,
+					  const int update_sets,
+					  moab::Tag merge_tag) 
 {
   mergeTol = merge_tol;
   mergeTolSq = merge_tol*merge_tol;
-  
   moab::Range tmp_elems;
-  tmp_elems.insert(elems, elems + elems_size);
-  moab::ErrorCode result = merge_entities(tmp_elems, do_merge, update_sets,
+  tmp_elems.insert( elems, elems + elems_size);
+  moab::ErrorCode result = merge_entities(tmp_elems, merge_tol, do_merge, update_sets,
                                       (moab::Tag)merge_tag);
-  
   return result;
 }
 
@@ -42,10 +40,14 @@ void MergeMesh::perform_merge(iBase_TagHandle merge_tag)
 }*/
 
 moab::ErrorCode MergeMesh::merge_entities(moab::Range &elems,
-                                      const int do_merge,
-                                      const int update_sets,
-                                      moab::Tag merge_tag) 
+                                          const double merge_tol,
+                                          const int do_merge,
+                                          const int update_sets,
+                                          moab::Tag merge_tag) 
 {
+  mergeTol = merge_tol;
+  mergeTolSq = merge_tol*merge_tol;
+
   // get the skin of the entities
   moab::Skinner skinner(mbImpl);
   moab::Range skin_range;

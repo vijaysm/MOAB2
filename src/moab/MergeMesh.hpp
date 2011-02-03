@@ -19,12 +19,19 @@ public:
 
     /* \brief Merge vertices in elements passed in
      */
-  moab::ErrorCode merge_entities(moab::EntityHandle *elems,
+   moab::ErrorCode merge_entities(moab::EntityHandle *elems,
                       int elems_size,
                       const double merge_tol,
                       const int do_merge = true,
                       const int update_sets = false,
                       moab::Tag merge_tag = 0);
+
+  moab::ErrorCode merge_entities(moab::Range &elems,
+                                 const double merge_tol,
+                                 const int do_merge = true,
+                                 const int update_sets = false,
+                                 moab::Tag merge_tag = 0);
+  
 
       //- perform the actual merge
   moab::ErrorCode perform_merge(moab::Tag merged_to);
@@ -40,11 +47,6 @@ private:
   moab::ErrorCode find_merged_to(moab::EntityHandle &tree_root,
 				 moab::Tag merged_to);
   
-  moab::ErrorCode merge_entities(moab::Range &elems,
-                             const int do_merge,
-                             const int update_sets,
-                             moab::Tag merge_tag);
-
   moab::Interface *mbImpl;
 
     //- the tag pointing to the entity to which an entity will be merged

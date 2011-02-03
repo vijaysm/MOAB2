@@ -1,6 +1,6 @@
-/* Resolve_Shared_Entities Driver
+/* Parallel Merge Mesh Test
    Nathan Bertram
-   1/17/11
+   1/31/11
 */
 
 #include "moab/ParallelMergeMesh.hpp"
@@ -14,12 +14,13 @@
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
 #include <fstream>
+#include <sstream>
 
 int main(int argc, char * argv[])
 {
   if(argc != 3){
     std::cerr<<"Usage: ./driver <inputfile> <tolerance>"<<std::endl;
-    return 0;
+    return 1;
   }
 
   //Initialize MPI
@@ -29,9 +30,8 @@ int main(int argc, char * argv[])
   MPI_Comm_rank(MPI_COMM_WORLD, &id);
   
   //Read in tolerance
-  char *end;
-  double epsilon = strtod(argv[2], &end);
-  if(end != NULL){
+  double epsilon;
+  if(!(std::istringstream(argv[2])>>epsilon)){
     std::cerr<<"Unable to parse epsilon.  Exiting"<<std::endl;
     MPI_Abort(MPI_COMM_WORLD,1);
     return 1;
@@ -46,10 +46,10 @@ int main(int argc, char * argv[])
     int count = 0;
     while(file.good()){
       getline(file,line);
-      if(id==count){
+      if(id==count && line != ""){
 	rval = mb->load_mesh(line.c_str());
 	if(rval != moab::MB_SUCCESS){
-	  std::cerr<<"Error Opening File "<<file<<std::endl;
+	  std::cerr<<"Error Opening File "<< line <<std::endl;
 	  MPI_Abort(MPI_COMM_WORLD,1);
 	  file.close();
 	  return 1;
@@ -66,12 +66,13 @@ int main(int argc, char * argv[])
   }
 
   //Get a pcomm object
-  moab::ParallelComm pc(mb); 
+  moab::ParallelComm *pc = new moab::ParallelComm(mb); 
  
   //Call the resolve parallel function
-  moab::ParallelMergeMesh pm(&pc,epsilon);
+  moab::ParallelMergeMesh pm(pc,epsilon);
   rval = pm.merge();
   if(rval != moab::MB_SUCCESS){
+    std::cerr<<"Merge Failed"<<std::endl;
     MPI_Abort(MPI_COMM_WORLD,1);
     return 1;
   }
@@ -80,10 +81,12 @@ int main(int argc, char * argv[])
   std::string outfile = "shared_tagged.h5m";
   rval = mb->write_file(outfile.c_str(),0,"PARALLEL=WRITE_PART");
   if(rval != moab::MB_SUCCESS){
+    std::cerr<<"Writing output file failed"<<std::endl;
     MPI_Abort(MPI_COMM_WORLD,1);
     return 1;
   }
 
+  delete pc;
   delete mb;
   MPI_Finalize();
 

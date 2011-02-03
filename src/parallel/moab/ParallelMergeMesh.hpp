@@ -22,7 +22,6 @@ public:
 
 private:
   ParallelComm *myPcomm;
-
   double myEps;
 };
 
