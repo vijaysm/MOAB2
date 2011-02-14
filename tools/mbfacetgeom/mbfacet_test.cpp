@@ -24,6 +24,14 @@
 #include <math.h>
 #include "FBEngine.hpp"
 
+#define STRINGIFY_(A) #A
+#define STRINGIFY(A) STRINGIFY_(A)
+#ifdef MESHDIR
+std::string TestDir( STRINGIFY(MESHDIR) );
+#else
+std::string TestDir( "." );
+#endif
+
 #define PROCESS_ERROR(A, B)  {if (A!=MB_SUCCESS) {  std::cout << B << std::endl; return 1; } }
 
 #define CHECK( STR ) if (rval != MB_SUCCESS) return print_error( STR, rval, __FILE__, __LINE__ )
@@ -54,7 +62,7 @@ void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
 }
 
 int main(int argc, char *argv[]) {
-  std::string filename = "PB.h5m";
+  std::string filename = TestDir + "/PB.h5m";
   std::string engine_opt;
 
   if (argc == 1) {
