@@ -9,7 +9,8 @@ AM_CPPFLAGS += -DIS_BUILDING_MB\
 lib_LTLIBRARIES = libmbfacetgeom.la
 libmbfacetgeom_la_LIBADD = $(top_builddir)/src/libMOAB.la 
 libmbfacetgeom_la_includedir = $(includedir)
-libmbfacetgeom_la_SOURCES = FBEngine.cpp SmoothCurve.cpp SmoothFace.cpp
+libmbfacetgeom_la_SOURCES = FBEngine.cpp SmoothCurve.cpp SmoothFace.cpp \
+                            SmoothCurve.hpp SmoothFace.hpp
 libmbfacetgeom_la_include_HEADERS = FBEngine.hpp
 
 TESTS = facet_test
