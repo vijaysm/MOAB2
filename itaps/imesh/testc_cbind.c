@@ -1308,7 +1308,7 @@ int vertex_int_tag_test(iMesh_Instance mesh,
   iBase_EntityHandle dum_vert = verts[0];
   
   int dum_val = 11, dum_val2;
-  char *dum_val2_ptr = (char*)&dum_val2;
+  void *dum_val2_ptr = &dum_val2;
   int dum_val2_alloc = sizeof(int), dum_val2_size;
 
     /* create a tag */
@@ -1377,7 +1377,7 @@ int vertex_double_tag_test(iMesh_Instance mesh,
 
   iBase_EntityHandle dum_vert = verts[0];
   double dum_val = 1.0e6, dum_val2;
-  char *dum_val2_ptr = (char*)&dum_val2;
+  void *dum_val2_ptr = &dum_val2;
   int dum_val2_alloc = sizeof(double), dum_val2_size;
   
     /* create a tag */
@@ -1450,7 +1450,7 @@ int vertex_struct_tag_test(iMesh_Instance mesh,
   int result;
   iBase_EntityHandle dum_vert = verts[0];
   struct TagStruct dum_struct = {3.0e12, 2, 3}, dum_struct2;
-  char *dum_struct2_ptr = (char*)&dum_struct2;
+  void *dum_struct2_ptr = &dum_struct2;
   int dum_struct_alloc = sizeof(struct TagStruct), dum_struct_size;
 
     /* create a tag */
@@ -1585,7 +1585,7 @@ int entityset_int_tag_test(iMesh_Instance mesh,
 {
   int result;
   int dum_val = 11, dum_val2;
-  char *dum_val2_ptr = (char*)&dum_val2;
+  void *dum_val2_ptr = &dum_val2;
   int dum_val2_alloc = sizeof(int), dum_val2_size;
 
     /* create a tag */
@@ -1650,7 +1650,7 @@ int entityset_double_tag_test(iMesh_Instance mesh,
 {
   int result;
   double dum_val = 1.0e6, dum_val2;
-  char *dum_val2_ptr = (char*)&dum_val2;
+  void *dum_val2_ptr = &dum_val2;
   int dum_val2_alloc = sizeof(double), dum_val2_size;
 
     /* create a tag */
@@ -1715,7 +1715,7 @@ int entityset_struct_tag_test(iMesh_Instance mesh,
 {
   int result;
   struct TagStruct dum_struct = {3.0e12, 2, 3}, dum_struct2;
-  char *dum_struct2_ptr = (char*)&dum_struct2;
+  void *dum_struct2_ptr = &dum_struct2;
   int dum_struct_alloc = sizeof(struct TagStruct), dum_struct_size;
 
     /* create a tag */
@@ -1851,7 +1851,7 @@ int mesh_int_tag_test(iMesh_Instance mesh,
 {
   int result;
   int dum_val = 11, dum_val2;
-  char *dum_val2_ptr = (char*)&dum_val2;
+  void *dum_val2_ptr = &dum_val2;
   int dum_val2_alloc = sizeof(int), dum_val2_size;
 
     /* create a tag */
@@ -1915,7 +1915,7 @@ int mesh_double_tag_test(iMesh_Instance mesh,
 {
   int result;
   double dum_val = 1.0e6, dum_val2;
-  char *dum_val2_ptr = (char*)&dum_val2;
+  void *dum_val2_ptr = &dum_val2;
   int dum_val2_alloc = sizeof(double), dum_val2_size;
 
     /* create a tag */
@@ -1979,7 +1979,7 @@ int mesh_struct_tag_test(iMesh_Instance mesh,
 {
   int result;
   struct TagStruct dum_struct = {3.0e12, 2, 3}, dum_struct2;
-  char *dum_struct2_ptr = (char*)&dum_struct2;
+  void *dum_struct2_ptr = &dum_struct2;
   int dum_struct_alloc = sizeof(struct TagStruct), dum_struct_size;
 
     /* create a tag */
