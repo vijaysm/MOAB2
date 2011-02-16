@@ -115,19 +115,19 @@ if test "xno" != "x$NETCDF_ARG"; then
     [#include <netcdf.hh>], [NcFile ncf("foo",NcFile::ReadOnly);],
     [AC_MSG_RESULT([yes]); NETCDF_LIBS="-lnetcdf_c++ -lnetcdf"], 
     [AC_MSG_RESULT([no]);
+     FATHOM_DETECT_HDF5_LIBS
      AC_MSG_CHECKING([for netcdf_c++ library requiring HDF5-high-level])
      LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
-     NETCDF_LDFLAGS="$NETCDF_LDFLAGS $HDF5_LDFLAGS"
-     LIBS="$LIBS $HDF5_LIBS -lhdf5_hl -lhdf5"
+     LIBS="$LIBS -lhdf5_hl $HDF5_LIBS"
      AC_TRY_LINK(
            [#include <netcdf.hh>], [NcFile ncf("foo",NcFile::ReadOnly);],
-           [AC_MSG_RESULT([yes]); NETCDF_LIBS="-lnetcdf_c++ -lnetcdf -lhdf5_hl -lhdf5"], 
+           [AC_MSG_RESULT([yes]); NETCDF_LIBS="-lnetcdf_c++ -lnetcdf -lhdf5_hl"], 
            [AC_MSG_RESULT([no])
             AC_MSG_CHECKING([for netcdf_c++ library requiring HDF5-high-level and libcurl])
-            LIBS="$LIBS $HDF5_LIBS -lhdf5_hl -lhdf5 -lcurl"
+            LIBS="$LIBS  -lcurl"
             AC_TRY_LINK(
                   [#include <netcdf.hh>], [NcFile ncf("foo",NcFile::ReadOnly);],
-                  [AC_MSG_RESULT([yes]); NETCDF_LIBS="-lnetcdf_c++ -lnetcdf -lhdf5_hl -lhdf5 -lcurl"], 
+                  [AC_MSG_RESULT([yes]); NETCDF_LIBS="-lnetcdf_c++ -lnetcdf -lhdf5_hl -lcurl"], 
                   [AC_MSG_RESULT([no]); HAVE_NETCDF=no] )
           ])
      ])
