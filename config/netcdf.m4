@@ -85,6 +85,8 @@ if test "xno" != "x$NETCDF_ARG"; then
   AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf"], [
     unset ac_cv_lib_netcdf
     unset ac_cv_lib_netcdf_nc_create
+    LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
+    NETCDF_LDFLAGS="$NETCDF_LDFLAGS $HDF5_LDFLAGS"
     AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf -lhdf5_hl -lhdf5"], [
       unset ac_cv_lib_netcdf
       unset ac_cv_lib_netcdf_nc_create
