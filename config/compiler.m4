@@ -6,12 +6,7 @@
 #  variable in which to store result
 #######################################################################################
 AC_DEFUN([FATHOM_LIBTOOL_VAR], [
-  echo "SED=$SED" > .tmp
-  ./libtool --tag=$1 --config >>.tmp
-  echo "echo \$$2" >> .tmp
-  chmod +x .tmp
-  $3=`./.tmp`
-  rm .tmp
+  $3=`./libtool --tag=$1 --config | sed -e 's/^$2=//p' -e 'd' | tr -d '"\n'`
 ])
 
 
@@ -75,7 +70,7 @@ USER_CFLAGS="$CFLAGS"
 
   # Check for Parallel
   # Need to check this early so we can look for the correct compiler
-AC_ARG_WITH( [mpi], AC_HELP_STRING([[--with-mpi(=DIR)]], [Enable parallel support]),
+AC_ARG_WITH( [mpi], AC_HELP_STRING([[--with-mpi@<:@=DIR@:>@]], [Enable parallel support]),
              [WITH_MPI=$withval],[WITH_MPI=no] )
 if test "xno" != "x$WITH_MPI"; then
 

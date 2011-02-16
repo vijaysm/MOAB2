@@ -404,7 +404,7 @@ AC_SUBST(PNETCDF_LIBS)
 #                             Documentation
 #################################################################################
 AC_ARG_ENABLE([doxygen],
-[AC_HELP_STRING([[--enable-doxygen(=DIR)]],[Specify directory where Doxygen program is installed])
+[AC_HELP_STRING([[--enable-doxygen@<:@=DIR@:>@]],[Specify directory where Doxygen program is installed])
 AC_HELP_STRING([--disable-doxygen],[Do not generate API documentation (default)])],
                         [ENABLE_DOXYGEN="$enableval"],[ENABLE_DOXYGEN=no] )
 if test "x$ENABLE_DOXYGEN" = "xyes"; then

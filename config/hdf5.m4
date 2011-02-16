@@ -80,7 +80,7 @@ esac
   # CLI option for HDF5
 AC_MSG_CHECKING([if HDF5 support is enabled])
 AC_ARG_WITH(hdf5, 
-[AC_HELP_STRING([--with-hdf5=DIR], [Specify HDF5 library to use for native file format])
+[AC_HELP_STRING([--with-hdf5@<:@=DIR@:>@], [Specify HDF5 library to use for native file format])
 AC_HELP_STRING([--without-hdf5], [Disable support for native HDF5 file format])],
 [HDF5_ARG=$withval
  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-hdf5=\"${withval}\""
