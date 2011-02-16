@@ -609,6 +609,10 @@ fi
 # build variables.
 if test "xyes" = "x$WITH_ZOLTAN"; then
 
+  if test "xyes" != "x$WITH_MPI"; then
+    AC_MSG_ERROR([Cannot include Zoltan support without MPI.  See --with-mpi])
+  fi
+
     # Test for zoltan headers
   AC_LANG_PUSH([C++])
   old_CPPFLAGS="$CPPFLAGS"
@@ -647,7 +651,7 @@ if test "xyes" = "x$WITH_ZOLTAN"; then
     [unset ac_cv_lib_zoltan_Zoltan_LB_Partition
      AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],
                   [ZOLTAN_LIBS="-lzoltan -lparmetis -lmetis"],
-                  [AC_MSG_ERROR("libzoltan not found in $ZOLTAN_LIB_FLAGS")],
+                  [AC_MSG_ERROR([zoltan library not found or not usable.  Perhaps you need to specify --with-parmetis=@<:@DIR@:>@?])],
                   [-lparmetis -lmetis])])
   LDFLAGS="$old_LDFLAGS"
   
