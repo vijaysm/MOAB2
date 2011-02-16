@@ -1,5 +1,6 @@
 Version 4.0.1:
 * Fix zoltan build on case-insensitive file systems (e.g. MacOS)
+* Fix netcdf build w/ required HDF5 in non-system path
 
 Version 4.0:
 * Many improvements to parallel correctness and efficiency
