@@ -1,4 +1,37 @@
 #######################################################################################
+# Check values of NC_MAX_DIMS and NC_MAX_VARS for ExodusII compatability.
+# 
+# Arguments are: 
+#  1) required value for NC_MAX_DIMS, may be emtpy
+#  2) required value for NC_MAX_VARS, may be emtpy
+#  3) name of header in which to check for values
+#  4) variable in which to store result (set to yes if
+#        limits are sufficient, and on otherwise.)
+#######################################################################################
+AC_DEFUN([FATHOM_CHECK_NETCDF_LIMITS],[
+  MIN_NC_MAX_DIMS="$1"
+  MIN_NC_MAX_VARS="$2"
+  $4=yes
+
+  if test "x" != "x$MIN_NC_MAX_DIMS"; then
+    AC_MSG_CHECKING([if NC_MAX_DIMS is at least ${MIN_NC_MAX_DIMS}])
+    AC_COMPILE_IFELSE(
+      [AC_LANG_PROGRAM([#include <$3>],
+                       [[int arr[1 + (int)(NC_MAX_DIMS) - (int)(${MIN_NC_MAX_DIMS})];]])],
+      [AC_MSG_RESULT([yes])],
+      [AC_MSG_RESULT([no]); $4=no])
+  fi
+  if test "x" != "x$MIN_NC_MAX_VARS"; then
+    AC_MSG_CHECKING([if NC_MAX_VARS is at least ${MIN_NC_MAX_VARS}])
+    AC_COMPILE_IFELSE(
+      [AC_LANG_PROGRAM([#include <netcdf.h>],
+                       [[int arr[1 + (int)(NC_MAX_VARS) - (int)(${MIN_NC_MAX_VARS})];]])],
+      [AC_MSG_RESULT([yes])],
+      [AC_MSG_RESULT([no]); $4=no])
+  fi
+])
+
+#######################################################################################
 # Check for NetCDF library
 # Sets HAVE_NETCDF to 'yes' or 'no'
 # If HAVE_NETCDF == yes, then exports:
@@ -15,10 +48,6 @@
 # either limit is less than the passed minimum.
 #######################################################################################
 AC_DEFUN([FATHOM_CHECK_NETCDF],[
-
-MIN_NC_MAX_DIMS="$1"
-MIN_NC_MAX_VARS="$2"
-NETCDF_SUFFICIENT_DIMS_VARS=yes
 
 AC_MSG_CHECKING([if NetCDF support is enabled])
 AC_ARG_WITH(netcdf, 
@@ -60,39 +89,28 @@ if test "xno" != "x$NETCDF_ARG"; then
   old_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$NETCDF_CPPFLAGS $CPPFLAGS"
   old_LDFLAGS="$LDFLAGS"
-  LDFLAGS="$NETCDF_LDFLAGS $LDFLAGS"
+  LDFLAGS="$NETCDF_LDFLAGS $HDF5_LDFLAGS $LDFLAGS"
   
    # Check for C library
   AC_LANG_PUSH([C])
-  AC_CHECK_HEADERS( [netcdf.h], [], [AC_MSG_WARN([[NetCDF header not found.]]); HAVE_NETCDF=no] )
-  if test "x" != "x$MIN_NC_MAX_DIMS"; then
-    AC_MSG_CHECKING([if NC_MAX_DIMS is at least ${MIN_NC_MAX_DIMS}])
-    AC_COMPILE_IFELSE(
-      [AC_LANG_PROGRAM([#include <netcdf.h>],
-                       [[int arr[1 + (int)(NC_MAX_DIMS) - (int)(${MIN_NC_MAX_DIMS})];]])],
-      [AC_MSG_RESULT([yes])],
-      [AC_MSG_RESULT([no]); NETCDF_SUFFICIENT_DIMS_VARS=no])
-  fi
-  if test "x" != "x$MIN_NC_MAX_VARS"; then
-    AC_MSG_CHECKING([if NC_MAX_VARS is at least ${MIN_NC_MAX_VARS}])
-    AC_COMPILE_IFELSE(
-      [AC_LANG_PROGRAM([#include <netcdf.h>],
-                       [[int arr[1 + (int)(NC_MAX_VARS) - (int)(${MIN_NC_MAX_VARS})];]])],
-      [AC_MSG_RESULT([yes])],
-      [AC_MSG_RESULT([no]); NETCDF_SUFFICIENT_DIMS_VARS=no])
-  fi
+  AC_CHECK_HEADERS( [netcdf.h], 
+                    [FATHOM_CHECK_NETCDF_LIMITS([$1],[$2],[netcdf.h],[NETCDF_SUFFICIENT_DIM_VARS])], 
+                    [AC_MSG_WARN([[NetCDF header not found.]]); HAVE_NETCDF=no] )
   
   AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf"], [
     unset ac_cv_lib_netcdf
     unset ac_cv_lib_netcdf_nc_create
+      # If we haven't already looked for HDF5 libraries, again now incase
+      # they're in the NetCDF lib directory.
+    FATHOM_DETECT_HDF5_LIBS
     LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
-    NETCDF_LDFLAGS="$NETCDF_LDFLAGS $HDF5_LDFLAGS"
-    AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf -lhdf5_hl -lhdf5"], [
+    NETCDF_LDFLAGS="$NETCDF_LDFLAGS"
+    AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf"], [
       unset ac_cv_lib_netcdf
       unset ac_cv_lib_netcdf_nc_create
-      AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf -lhdf5_hl -lhdf5 -lcurl"], 
-        [HAVE_NETCDF=no], [-lhdf5_hl -lhdf5 -lcurl] )],
-      [-lhdf5_hl -lhdf5] )]
+      AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf -lhdf5_hl -lcurl"], 
+        [HAVE_NETCDF=no], [-lhdf5_hl $HDF5_LIBS -lcurl] )],
+      [-lhdf5_hl $HDF5_LIBS] )],
     )
   
   CPPFLAGS="$old_CPPFLAGS"
@@ -114,11 +132,6 @@ fi
 
 AC_DEFUN([FATHOM_CHECK_PNETCDF],[
 
-MIN_NC_MAX_DIMS="$1"
-MIN_NC_MAX_VARS="$2"
-PNETCDF_SUFFICIENT_DIMS_VARS=yes
-
-AC_MSG_CHECKING([if Pnetcdf support is enabled])
 AC_ARG_WITH(pnetcdf, 
 [AC_HELP_STRING([--with-pnetcdf@<:@=DIR@:>@], [Specify Pnetcdf library to use])
 AC_HELP_STRING([--without-pnetcdf], [Disable support for Pnetcdf-based file formats])],
@@ -126,6 +139,18 @@ AC_HELP_STRING([--without-pnetcdf], [Disable support for Pnetcdf-based file form
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-pnetcdf=\"${withval}\""
 ]
 , [PNETCDF_ARG=])
+
+  # PNETCDF requires MPI too
+if test "xyes" != "x$WITH_MPI"; then
+  if test "x" == "x$PNETCDF_ARG"; then
+    PNETCDF_ARG=no
+  elif test "xno" != "xPNETCDF_ARG"; then
+    AC_MSG_ERROR([Pnetcdf requires --with-mpi])
+  fi
+  HAVE_PNETCDF=no
+fi
+
+AC_MSG_CHECKING([if Pnetcdf support is enabled])
 if test "xno" != "x$PNETCDF_ARG"; then
   AC_MSG_RESULT([yes])
 else
@@ -162,40 +187,16 @@ if test "xno" != "x$PNETCDF_ARG"; then
   
    # Check for C library
   AC_LANG_PUSH([C])
-  AC_CHECK_HEADERS( [pnetcdf.h], [], [HAVE_PNETCDF=no] )
+  AC_CHECK_HEADERS( [pnetcdf.h], 
+                    [FATHOM_CHECK_NETCDF_LIMITS([$1],[$2],[pnetcdf.h],[PNETCDF_SUFFICIENT_DIM_VARS])], 
+                    [HAVE_PNETCDF=no] )
 
-    # PNETCDF requires MPI too
-  if test "xyes" != "x$WITH_MPI"; then
-    if test "x" != "x$PNETCDF_ARG"; then
-      AC_MSG_ERROR([Pnetcdf requires MPI/parallel configuration])
-    fi
-    HAVE_PNETCDF=no
-  fi
-
-  if test "x" != "x$MIN_NC_MAX_DIMS"; then
-    AC_MSG_CHECKING([if NC_MAX_DIMS is at least ${MIN_NC_MAX_DIMS}])
-    AC_COMPILE_IFELSE(
-      [AC_LANG_PROGRAM([#include <pnetcdf.h>],
-                       [[int arr[1 + (int)(NC_MAX_DIMS) - (int)(${MIN_NC_MAX_DIMS})];]])],
-      [AC_MSG_RESULT([yes])],
-      [AC_MSG_RESULT([no]); PNETCDF_SUFFICIENT_DIMS_VARS=no])
-  fi
-  if test "x" != "x$MIN_NC_MAX_VARS"; then
-    AC_MSG_CHECKING([if NC_MAX_VARS is at least ${MIN_NC_MAX_VARS}])
-    AC_COMPILE_IFELSE(
-      [AC_LANG_PROGRAM([#include <pnetcdf.h>],
-                       [[int arr[1 + (int)(NC_MAX_VARS) - (int)(${MIN_NC_MAX_VARS})];]])],
-      [AC_MSG_RESULT([yes])],
-      [AC_MSG_RESULT([no]); PNETCDF_SUFFICIENT_DIMS_VARS=no])
-  fi
-  
-  
   AC_CHECK_LIB( [pnetcdf], [ncmpi_create], , [HAVE_PNETCDF=no] )
+
   
- AC_LANG_POP([C])
+  AC_LANG_POP([C])
   CPPFLAGS="$old_CPPFLAGS"
   LDFLAGS="$old_LDFLAGS"
-
 
   if test "x$HAVE_PNETCDF" = "xno"; then
     if test "x$PNETCDF_ARG" != "x"; then 
