@@ -12,8 +12,8 @@ libmbzoltan_la_includedir = $(includedir)
 libmbzoltan_la_SOURCES = MBZoltan.cpp
 libmbzoltan_la_include_HEADERS = MBZoltan.hpp
 
-bin_PROGRAMS = mbzoltan
+bin_PROGRAMS = mbpart
 LDADD = libmbzoltan.la
-mbzoltan_SOURCES = mbpart.cpp
+mbpart_SOURCES = mbpart.cpp
 
 
