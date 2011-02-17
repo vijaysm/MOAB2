@@ -1613,7 +1613,7 @@ extern "C" {
   void iMesh_setEntSetData (iMesh_Instance instance,
                             /*in*/ iBase_EntitySetHandle entity_set_handle,
                             /*in*/ const iBase_TagHandle tag_handle,
-                            /*in*/ const void* tag_value,
+                            /*in*/ const char* tag_value,
                             /*in*/ const int , int *err) 
   {
     ErrorCode result;
@@ -1638,7 +1638,7 @@ extern "C" {
                                /*in*/ const int tag_value, int *err) 
   {
     iMesh_setEntSetData(instance, entity_set, tag_handle, 
-                        &tag_value, 
+                        reinterpret_cast<const char*>(&tag_value), 
                         sizeof(int), err);
   }
 
@@ -1648,7 +1648,7 @@ extern "C" {
                                /*in*/ const double tag_value, int *err) 
   {
     iMesh_setEntSetData(instance, entity_set, tag_handle, 
-                        &tag_value,
+                        reinterpret_cast<const char*>(&tag_value),
                         sizeof(double), err);
   }
 
@@ -1658,7 +1658,7 @@ extern "C" {
                                 /*in*/ const bool tag_value, int *err) 
   {
     iMesh_setEntSetData(instance, entity_set, tag_handle, 
-                        &tag_value, 
+                        reinterpret_cast<const char*>(&tag_value), 
                         sizeof(bool), err);
   }
 
@@ -1668,24 +1668,14 @@ extern "C" {
                               /*in*/ const iBase_EntityHandle tag_value, int *err) 
   {
     iMesh_setEntSetData(instance, entity_set, tag_handle, 
-                        &tag_value, 
+                        reinterpret_cast<const char*>(&tag_value), 
                         sizeof(iBase_EntityHandle), err);
-  }
-
-  void iMesh_setEntSetESHData (iMesh_Instance instance,
-                              /*in*/ iBase_EntitySetHandle entity_set,
-                              /*in*/ const iBase_TagHandle tag_handle,
-                              /*in*/ const iBase_EntitySetHandle tag_value, int *err) 
-  {
-    iMesh_setEntSetData(instance, entity_set, tag_handle, 
-                        &tag_value, 
-                        sizeof(iBase_EntitySetHandle), err);
   }
 
   void iMesh_getEntSetData (iMesh_Instance instance,
                             /*in*/ const iBase_EntitySetHandle entity_set_handle,
                             /*in*/ const iBase_TagHandle tag_handle,
-                            /*inout*/ void** tag_value,
+                            /*inout*/ char** tag_value,
                             /*inout*/ int* tag_value_allocated,
                             /*inout*/ int* tag_value_size, int *err) 
   {
@@ -1713,7 +1703,7 @@ extern "C" {
                                /*in*/ const iBase_TagHandle tag_handle,
                                int *out_data, int *err) 
   {
-    void *tag_ptr = out_data;
+    char *tag_ptr = reinterpret_cast<char*>(out_data);
     int dum_size = sizeof(int);
     iMesh_getEntSetData(instance, entity_set, tag_handle, &tag_ptr, 
                         &dum_size, &dum_size, err);
@@ -1724,7 +1714,7 @@ extern "C" {
                                /*in*/ const iBase_TagHandle tag_handle,
                                double *out_data, int *err) 
   {
-    void *tag_ptr = out_data;
+    char *tag_ptr = reinterpret_cast<char*>(out_data);
     int tag_size = sizeof(double);
     iMesh_getEntSetData(instance, entity_set, tag_handle, &tag_ptr, 
                         &tag_size, &tag_size, err);
@@ -1735,7 +1725,7 @@ extern "C" {
                                 /*in*/ const iBase_TagHandle tag_handle,
                                 int *out_data, int *err) 
   {
-    void *tag_ptr = out_data;
+    char *tag_ptr = reinterpret_cast<char*>(out_data);
     int tag_size = sizeof(bool);
     iMesh_getEntSetData(instance, entity_set, tag_handle, &tag_ptr, 
                         &tag_size, &tag_size, err);
@@ -1746,19 +1736,8 @@ extern "C" {
                               /*in*/ const iBase_TagHandle tag_handle,
                               iBase_EntityHandle *out_data, int *err) 
   {
-    void *tag_ptr = out_data;
-    int tag_size = sizeof(iBase_EntityHandle);
-    iMesh_getEntSetData(instance, entity_set, tag_handle, &tag_ptr, 
-                        &tag_size, &tag_size, err);
-  }
-
-  void iMesh_getEntSetESHData (iMesh_Instance instance,
-                              /*in*/ const iBase_EntitySetHandle entity_set,
-                              /*in*/ const iBase_TagHandle tag_handle,
-                              iBase_EntitySetHandle *out_data, int *err) 
-  {
-    void *tag_ptr = out_data;
-    int tag_size = sizeof(iBase_EntitySetHandle);
+    char *tag_ptr = reinterpret_cast<char*>(out_data);
+    int tag_size = sizeof(EntityHandle);
     iMesh_getEntSetData(instance, entity_set, tag_handle, &tag_ptr, 
                         &tag_size, &tag_size, err);
   }
@@ -1871,7 +1850,7 @@ extern "C" {
                          /*in*/ const iBase_EntityHandle* entity_handles,
                          /*in*/ const int entity_handles_size,
                          /*in*/ const iBase_TagHandle tag_handle,
-                         /*inout*/ void** tag_values,
+                         /*inout*/ char** tag_values,
                          /*inout*/int* tag_values_allocated,
                          /*out*/ int* tag_values_size, int *err) 
   {
@@ -1928,7 +1907,7 @@ extern "C" {
     *tag_values_size *= sizeof(int);
     iMesh_getArrData(instance, entity_handles, 
                      entity_handles_size, tag_handle,
-                     reinterpret_cast<void**>(tag_values), 
+                     reinterpret_cast<char**>(tag_values), 
                      tag_values_allocated, 
                      tag_values_size, err);
     *tag_values_allocated /= sizeof(int);
@@ -1947,7 +1926,7 @@ extern "C" {
     *tag_values_size *= sizeof(double);
     iMesh_getArrData(instance, entity_handles, 
                      entity_handles_size, tag_handle,
-                     reinterpret_cast<void**>(tag_values), 
+                     reinterpret_cast<char**>(tag_values), 
                      tag_values_allocated, tag_values_size, err);
     *tag_values_allocated /= sizeof(double);
     *tag_values_size /= sizeof(double);
@@ -1965,7 +1944,7 @@ extern "C" {
     *tag_value_size *= sizeof(bool);
     iMesh_getArrData(instance, entity_handles, 
                      entity_handles_size, tag_handle,
-                     reinterpret_cast<void**>(tag_value), 
+                     reinterpret_cast<char**>(tag_value), 
                      tag_value_allocated, tag_value_size, err);
     *tag_value_allocated /= sizeof(bool);
     *tag_value_size /= sizeof(bool);
@@ -1983,26 +1962,7 @@ extern "C" {
     *tag_value_size *= sizeof(iBase_EntityHandle);
     iMesh_getArrData(instance, entity_handles, 
                      entity_handles_size, tag_handle,
-                     reinterpret_cast<void**>(tag_value), 
-                     tag_value_allocated, 
-                     tag_value_size, err);
-    *tag_value_allocated /= sizeof(iBase_EntityHandle);
-    *tag_value_size /= sizeof(iBase_EntityHandle);
-  }
-
-  void iMesh_getESHArrData (iMesh_Instance instance,
-                           /*in*/ const iBase_EntityHandle* entity_handles,
-                           /*in*/ const int entity_handles_size,
-                           /*in*/ const iBase_TagHandle tag_handle,
-                           /*inout*/ iBase_EntitySetHandle** tag_value,
-                           /*inout*/ int* tag_value_allocated,
-                           /*out*/ int* tag_value_size, int *err) 
-  {
-    *tag_value_allocated *= sizeof(iBase_EntitySetHandle);
-    *tag_value_size *= sizeof(iBase_EntitySetHandle);
-    iMesh_getArrData(instance, entity_handles, 
-                     entity_handles_size, tag_handle,
-                     reinterpret_cast<void**>(tag_value), 
+                     reinterpret_cast<char**>(tag_value), 
                      tag_value_allocated, 
                      tag_value_size, err);
     *tag_value_allocated /= sizeof(iBase_EntityHandle);
@@ -2013,7 +1973,7 @@ extern "C" {
                          /*in*/ const iBase_EntityHandle* entity_handles,
                          /*in*/ const int entity_handles_size,
                          /*in*/ const iBase_TagHandle tag_handle,
-                         /*in*/ const void* tag_values,
+                         /*in*/ const char* tag_values,
                          /*in*/ const int tag_values_size, int *err) 
   {
     if (0 == entity_handles_size) {
@@ -2048,7 +2008,7 @@ extern "C" {
   {
     iMesh_setArrData(instance, entity_handles, 
                      entity_handles_size, tag_handle, 
-                     tag_values, 
+                     reinterpret_cast<const char*>(tag_values), 
                      sizeof(int)*tag_values_size, err);
   }
 
@@ -2061,7 +2021,7 @@ extern "C" {
   {
     iMesh_setArrData(instance, entity_handles, 
                      entity_handles_size, tag_handle, 
-                     tag_values, 
+                     reinterpret_cast<const char*>(tag_values), 
                      sizeof(double)*tag_values_size, err);
   }
 
@@ -2074,7 +2034,7 @@ extern "C" {
   {
     iMesh_setArrData(instance, entity_handles, 
                      entity_handles_size, tag_handle, 
-                     tag_values, 
+                     reinterpret_cast<const char*>(tag_values), 
                      sizeof(bool)*tag_values_size, err);
   }
 
@@ -2087,21 +2047,8 @@ extern "C" {
   {
     iMesh_setArrData(instance, entity_handles, 
                      entity_handles_size, tag_handle, 
-                     tag_values, 
+                     reinterpret_cast<const char*>(tag_values), 
                      sizeof(iBase_EntityHandle)*tag_values_size, err);
-  }
-
-  void iMesh_setESHArrData (iMesh_Instance instance,
-                           /*in*/ const iBase_EntityHandle* entity_handles,
-                           /*in*/ const int entity_handles_size,
-                           /*in*/ const iBase_TagHandle tag_handle,
-                           /*in*/ const iBase_EntitySetHandle* tag_values,
-                           /*in*/ const int tag_values_size, int *err) 
-  {
-    iMesh_setArrData(instance, entity_handles, 
-                     entity_handles_size, tag_handle, 
-                     tag_values, 
-                     sizeof(iBase_EntitySetHandle)*tag_values_size, err);
   }
 
   void iMesh_rmvArrTag (iMesh_Instance instance,
@@ -2120,7 +2067,7 @@ extern "C" {
   void iMesh_getData (iMesh_Instance instance,
                       /*in*/ const iBase_EntityHandle entity_handle,
                       /*in*/ const iBase_TagHandle tag_handle,
-                      /*out*/ void** tag_value,
+                      /*out*/ char** tag_value,
                       /*inout*/ int *tag_value_allocated,
                       /*out*/ int *tag_value_size, int *err) 
   {
@@ -2134,7 +2081,7 @@ extern "C" {
                          /*in*/ const iBase_TagHandle tag_handle,
                          int *out_data, int *err) 
   {
-    void *val_ptr = out_data;
+    char *val_ptr = reinterpret_cast<char*>(out_data);
     int val_size = sizeof(int);
     iMesh_getArrData(instance, &entity_handle, 1,
                      tag_handle, &val_ptr, &val_size, &val_size, err);
@@ -2145,7 +2092,7 @@ extern "C" {
                          /*in*/ const iBase_TagHandle tag_handle,
                          double *out_data, int *err) 
   {
-    void *val_ptr = out_data;
+    char *val_ptr = reinterpret_cast<char*>(out_data);
     int val_size = sizeof(double);
     iMesh_getArrData(instance, &entity_handle, 1,
                      tag_handle, &val_ptr, &val_size, &val_size, err);
@@ -2156,7 +2103,7 @@ extern "C" {
                           /*in*/ const iBase_TagHandle tag_handle,
                           int *out_data, int *err) 
   {
-    void *val_ptr = out_data;
+    char *val_ptr = reinterpret_cast<char*>(out_data);
       // make the data size a full word, because of sidl needing at least a full word
     int val_size = sizeof(int);
     iMesh_getArrData(instance, &entity_handle, 1,
@@ -2168,19 +2115,8 @@ extern "C" {
                         /*in*/ const iBase_TagHandle tag_handle,
                         iBase_EntityHandle *out_data, int *err) 
   {
-    void *val_ptr = out_data;
+    char *val_ptr = reinterpret_cast<char*>(out_data);
     int dum = sizeof(iBase_EntityHandle);
-    iMesh_getArrData(instance, &entity_handle, 1,
-                     tag_handle, &val_ptr, &dum, &dum, err);
-  }
-
-  void iMesh_getESHData (iMesh_Instance instance,
-                        /*in*/ const iBase_EntityHandle entity_handle,
-                        /*in*/ const iBase_TagHandle tag_handle,
-                        iBase_EntitySetHandle *out_data, int *err) 
-  {
-    void *val_ptr = out_data;
-    int dum = sizeof(iBase_EntitySetHandle);
     iMesh_getArrData(instance, &entity_handle, 1,
                      tag_handle, &val_ptr, &dum, &dum, err);
   }
@@ -2188,7 +2124,7 @@ extern "C" {
   void iMesh_setData (iMesh_Instance instance,
                       /*in*/ iBase_EntityHandle entity_handle,
                       /*in*/ const iBase_TagHandle tag_handle,
-                      /*in*/ const void* tag_value,
+                      /*in*/ const char* tag_value,
                       /*in*/ const int tag_value_size, int *err) 
   {
     iMesh_setArrData(instance, &entity_handle, 1,
@@ -2202,7 +2138,7 @@ extern "C" {
   {
     iMesh_setArrData(instance, &entity_handle, 1,
                      tag_handle, 
-                     &tag_value, 
+                     reinterpret_cast<const char*>(&tag_value), 
                      sizeof(int), err);
   }
 
@@ -2214,7 +2150,7 @@ extern "C" {
   {
     iMesh_setArrData(instance, &entity_handle, 1,
                      tag_handle, 
-                     &tag_value, 
+                     reinterpret_cast<const char*>(&tag_value), 
                      sizeof(double), err);
   }
 
@@ -2225,7 +2161,7 @@ extern "C" {
   {
     iMesh_setArrData(instance, &entity_handle, 1,
                      tag_handle, 
-                     &tag_value, 
+                     reinterpret_cast<const char*>(&tag_value), 
                      sizeof(bool), err);
   }
 
@@ -2236,19 +2172,8 @@ extern "C" {
   {
     iMesh_setArrData(instance, &entity_handle, 1,
                      tag_handle, 
-                     &tag_value, 
+                     reinterpret_cast<const char*>(&tag_value), 
                      sizeof(iBase_EntityHandle), err);
-  }
-
-  void iMesh_setESHData (iMesh_Instance instance,
-                        /*in*/ iBase_EntityHandle entity_handle,
-                        /*in*/ const iBase_TagHandle tag_handle,
-                        /*in*/ const iBase_EntitySetHandle tag_value, int *err) 
-  {
-    iMesh_setArrData(instance, &entity_handle, 1,
-                     tag_handle, 
-                     &tag_value, 
-                     sizeof(iBase_EntitySetHandle), err);
   }
 
   void iMesh_getAllTags (iMesh_Instance instance,
