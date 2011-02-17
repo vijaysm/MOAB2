@@ -103,7 +103,7 @@ int AssocPairC::get_tags(const int iface_no,
   else if (iRel_IMESH_IFACE == iface_type(iface_no)) {
     iMesh_getArrData((iMesh_Instance)ifaceInstances[iface_no],
                      entities, num_entities, tag_handle,
-                     reinterpret_cast<char**>(&tag_values), &tag_values_alloc,
+                     &tag_values, &tag_values_alloc,
                      &tag_values_size, &result);
     PROCESS_MERROR;
   }
@@ -136,7 +136,7 @@ int AssocPairC::get_tags(const int iface_no,
   else if (iface_type(iface_no) == iRel_IMESH_IFACE) {
     for (int i = 0; i < num_sets; i++) {
       iMesh_getEntSetData((iMesh_Instance)ifaceInstances[iface_no],
-                          sets[i], tag_handle, &tag_data, &tag_values_alloc,
+                          sets[i], tag_handle, (void**)(&tag_data), &tag_values_alloc,
                           &tag_values_size, &result);
       tag_data += tag_size;
       PROCESS_MERROR;
