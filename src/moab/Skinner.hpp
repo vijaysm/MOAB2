@@ -86,24 +86,6 @@ public:
                       Range &skin_entities,
                       bool create_vert_elem_adjs = false);
 
-    /**\brief Find vertices on the skin of a set of mesh entities.
-     *\param entities The elements for which to find the skin.  Range
-     *                may NOT contain vertices, polyhedra, or entity sets.
-     *                All elements in range must be of the same dimension.
-     *\param skin_verts Output: the vertices on the skin.
-     *\param skin_elems Optional output: elements representing sides of entities 
-     *                    that are on the skin
-     *\param create_if_missing If skin_elemts is non-null and this is true, 
-     *                    create new elements representing the sides of 
-     *                    entities on the skin.  If this is false, skin_elems
-     *                    will contain only those skin elements that already
-     *                    exist.
-     */
-  ErrorCode find_skin_vertices( const Range& entities,
-                                  Range& skin_verts,
-                                  Range* skin_elems = 0,
-                                  bool create_if_missing = true );
-
   ErrorCode classify_2d_boundary( const Range &boundary,
                                      const Range &bar_elements,
                                      EntityHandle boundary_edges,
