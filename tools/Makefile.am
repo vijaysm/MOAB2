@@ -131,8 +131,7 @@ SUBDIRS = . \
 	  $(mcnpmit_DIR) \
           $(qvdual_DIR) \
 	  $(vtkMOABReader_DIR) \
-          $(dagmc_DIR) \
-          mbfacetgeom
+          $(dagmc_DIR) 
 
 mbconvert_SOURCES = convert.cpp
 mbgsets_SOURCES = gsets.cc
