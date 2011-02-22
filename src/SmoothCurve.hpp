@@ -16,6 +16,7 @@
 #include <map>
 #include <vector>
 
+namespace moab {
 class SmoothFace;
 //class SmoothVertex;
 
@@ -27,7 +28,7 @@ class SmoothCurve
 {
 public:
 	//SmoothCurve(RefEdge * edge, SmoothFace * smoothFaceEval, int loopIndex);
-	SmoothCurve(moab::Interface * mb, moab::EntityHandle curve); // the new constructor, which will use
+	SmoothCurve(Interface * mb, EntityHandle curve); // the new constructor, which will use
 	// sense entities to establish the control points on feature edges (geo edges, sets of mesh edges)
 	virtual ~SmoothCurve();
 
@@ -114,8 +115,8 @@ public:
 	  void compute_tangents_for_each_edge();
 
 	  void compute_control_points_on_boundary_edges(double min_dot,
-			  std::map<moab::EntityHandle, SmoothFace*> & mapSurfaces,
-			  moab::Tag controlPointsTag, moab::Tag markTag);// min_dot is not used now,
+			  std::map<EntityHandle, SmoothFace*> & mapSurfaces,
+			  Tag controlPointsTag, Tag markTag);// min_dot is not used now,
 	  // the edges that are computed will be marked with the marker tag, so after that only the interior edges
 	  // will be left for control points evaluation
 
@@ -130,10 +131,10 @@ public:
 	  void set_mesh_count(int iMeshCount)
 		  { mesh_count=iMeshCount;}*/
 
-	  moab::ErrorCode evaluate_smooth_edge(moab::EntityHandle eh, double &tt,
-	  		moab::CartVect & outv) ;
+	  ErrorCode evaluate_smooth_edge(EntityHandle eh, double &tt,
+	  		CartVect & outv) ;
 
-	  //void create_mesh_edges(std::map<moab::EntityHandle, SmoothVertex*>  & mapVertices);
+	  //void create_mesh_edges(std::map<EntityHandle, SmoothVertex*>  & mapVertices);
 
 private:
 	  //RefEdge * _ref_edge;
@@ -142,20 +143,21 @@ private:
 
 	  int mesh_count;// how many mesh edges will be created on this geo edge set?
 
-	  std::vector<moab::EntityHandle> _entities;// the mesh edges are stored here for fast access
-	  moab::EntityHandle startNode, endNode;// those handles are for the nodes in _mb
+	  std::vector<EntityHandle> _entities;// the mesh edges are stored here for fast access
+	  EntityHandle startNode, endNode;// those handles are for the nodes in _mb
 	  double _leng;
 	  std::vector<double> _fractions;// they are increasing from 0. to 1., do we need these?
 	  // this will be decided apriori, and eventually reset for paver
 	  // fractions will be from 0.0.. to 1.0, they will be decided upon the length of the geo edge
 
-	  moab::Tag _edgeTag;
+	  Tag _edgeTag;
 
-	  moab::Interface * _mb;
-	  moab::EntityHandle _set;
+	  Interface * _mb;
+	  EntityHandle _set;
 
 
 
 };
 
+} // namespace moab
 #endif /* SMOOTHCURVE_HPP_ */

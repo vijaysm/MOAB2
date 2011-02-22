@@ -1,7 +1,7 @@
 #include <iostream>
 #include <map>
 
-#include "FBEngine.hpp"
+#include "moab/FBEngine.hpp"
 #include "moab/Interface.hpp"
 #include "moab/GeomTopoTool.hpp"
 #include "moab/OrientedBoxTreeTool.hpp"
@@ -19,7 +19,7 @@
 #define MBI _mbImpl
 #define MBERRORR(rval, STR) { if (MB_SUCCESS != rval) { std::cout<<STR<<std::endl; return rval; } }
 
-using namespace moab;
+namespace moab {
 
 const bool Debug_surf_eval = false;
 
@@ -551,7 +551,7 @@ ErrorCode FBEngine::getPntRayIntsct( double x, double y, double z,
   //
   ErrorCode rval;
 
-  int numfaces = _my_gsets[2].size();
+  unsigned int numfaces = _my_gsets[2].size();
   // do ray fire
   const double point[] = { x, y, z};
   const double dir[] = { dir_x, dir_y, dir_z};
@@ -562,7 +562,7 @@ ErrorCode FBEngine::getPntRayIntsct( double x, double y, double z,
   //std::vector<double> distances;
   std::vector<EntityHandle> facets;
   //std::vector<EntityHandle> sets;
-  int i;
+  unsigned int i;
   for (i=0; i<numfaces; i++)
   {
     EntityHandle face = _my_gsets[2][i];
@@ -680,4 +680,4 @@ ErrorCode FBEngine::getAdjacentEntities(const EntityHandle from,
 
   return MB_SUCCESS;
 }
-
+} // namespace moab

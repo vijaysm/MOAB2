@@ -11,9 +11,6 @@
 
 namespace moab {
 class GeomTopoTool;
-}
-
-using namespace moab;
 
 // some forward declarations
 class SmoothFace;
@@ -93,4 +90,5 @@ private:
 
 };
 
+} // namespace moab
 #endif /* FBENGINE_HPP_ */

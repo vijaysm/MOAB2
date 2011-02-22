@@ -55,6 +55,7 @@ libMOAB_la_SOURCES = \
   EntitySequence.hpp \
   Error.hpp \
   Factory.cpp \
+  FBEngine.cpp \
   FileOptions.cpp \
   FileOptions.hpp \
   GeomUtil.cpp \
@@ -94,6 +95,10 @@ libMOAB_la_SOURCES = \
   SequenceManager.cpp \
   SequenceManager.hpp \
   Skinner.cpp \
+  SmoothCurve.cpp \
+  SmoothCurve.hpp \
+  SmoothFace.cpp \
+  SmoothFace.hpp \
   SparseTag.cpp \
   SparseTag.hpp \
   StructuredElementSeq.cpp \
@@ -141,6 +146,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/HomXform.hpp \
   moab/EntityType.hpp \
   moab/EntityHandle.hpp \
+  moab/FBEngine.hpp \
   moab/Forward.hpp \
   moab/GeomUtil.hpp \
   moab/Interface.hpp \

@@ -570,7 +570,6 @@ MB_OPTIONAL_TOOL([dagmc],        [yes])
 MB_OPTIONAL_TOOL([gsets],        [yes])
 MB_OPTIONAL_TOOL([mbdepth],      [yes])
 MB_OPTIONAL_TOOL([refiner],      [no])
-MB_OPTIONAL_TOOL([mbfacetgeom],      [yes])
 
 if test "xyes" = "x$ENABLE_refiner"; then
   if test "xyes" != "x$WITH_MPI"; then
@@ -1127,7 +1126,6 @@ AC_CONFIG_FILES([Makefile
                  tools/mcnpmit/Makefile
                  tools/qvdual/Makefile
                  tools/vtkMOABReader/Makefile
-                 tools/mbfacetgeom/Makefile
                  tools/dagmc/Makefile
                  doc/Makefile
                  doc/user.dox

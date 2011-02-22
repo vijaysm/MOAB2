@@ -22,7 +22,7 @@
 #include <assert.h>
 #include <string.h>
 #include <math.h>
-#include "FBEngine.hpp"
+#include "moab/FBEngine.hpp"
 
 #define STRINGIFY_(A) #A
 #define STRINGIFY(A) STRINGIFY_(A)
@@ -36,14 +36,14 @@ std::string TestDir( "." );
 
 #define CHECK( STR ) if (rval != MB_SUCCESS) return print_error( STR, rval, __FILE__, __LINE__ )
 
+using namespace moab;
+
 ErrorCode print_error(const char* desc, ErrorCode rval, const char* file,
     int line) {
   std::cerr << "ERROR: " << desc << std::endl << "  Error code: " << rval
       << std::endl << "  At        : " << file << ':' << line << std::endl;
   return MB_FAILURE; // must always return false or CHECK macro will break
 }
-
-using namespace moab;
 
 ErrorCode root_set_test(FBEngine * pFacet);
 ErrorCode gentityset_test(FBEngine * pFacet);
@@ -374,7 +374,7 @@ ErrorCode  ray_test(FBEngine * pFacet) {
 
 
    CHECK("Failed to find ray intersections points ");
-   for(int i=0; i<intersect_entity_handles.size(); i++)
+   for(unsigned int i=0; i<intersect_entity_handles.size(); i++)
    {
       int j;
       rval = pFacet->getEntType(  intersect_entity_handles[i], &j);

@@ -35,7 +35,8 @@ TESTS = moab_test \
 	tag_test \
 	mesh_set_test \
         mbcn_test \
-        bsp_tree_poly_test
+        bsp_tree_poly_test \
+        mbfacet_test
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 
@@ -102,6 +103,7 @@ mbcn_test_SOURCES = $(top_srcdir)/src/moab/CN.hpp \
                     mbcn_test.cc
 
 bsp_tree_poly_test_SOURCES = bsp_tree_poly_test.cpp
+mbfacet_test_SOURCES = mbfacet_test.cpp
 
 EXTRA_DIST = TestUtil.hpp TestRunner.hpp
 
