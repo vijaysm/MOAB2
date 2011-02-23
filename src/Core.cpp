@@ -301,6 +301,34 @@ ErrorCode Core::query_interface(const std::string& iface_name, void** iface)
   return MB_FAILURE;
 }
 
+ErrorCode Core::query_interface_type( const std::type_info& type, void*& ptr )
+{
+  if (type == typeid(ReadUtilIface)) {
+    if (!mMBReadUtil)
+      mMBReadUtil = new ReadUtil( this, mError );
+    ptr = static_cast<ReadUtilIface*>(mMBReadUtil);
+  }
+  else if (type == typeid(WriteUtilIface)) {
+    if(!mMBWriteUtil)
+      mMBWriteUtil = new WriteUtil(this, mError);
+    ptr = static_cast<WriteUtilIface*>(mMBWriteUtil);
+  }
+  else if (type == typeid(ReaderWriterSet)) {
+    ptr = reader_writer_set();
+  }
+  else if (type == typeid(ExoIIInterface)) {
+    ptr = static_cast<ExoIIInterface*>(new ExoIIUtil(this));
+  }
+  else if (type == typeid(ScdInterface)) {
+    ptr = new ScdInterface(this);
+  }
+  else {
+    ptr = 0;
+    return MB_FAILURE;
+  }
+  return MB_SUCCESS;
+}
+  
 
 ErrorCode Core::release_interface(const std::string& iface_name, void* iface)
 {
@@ -334,6 +362,19 @@ ErrorCode Core::release_interface(const std::string& iface_name, void* iface)
   return MB_FAILURE;
 }
 
+ErrorCode Core::release_interface_type(const std::type_info& type, void* iface)
+{
+  if (type == typeid(ExoIIInterface))
+    delete static_cast<ExoIIInterface*>(iface);
+  else if (type == typeid(ScdInterface))
+    delete static_cast<ScdInterface*>(iface);
+  else if (type != typeid(ReadUtilIface) &&
+           type != typeid(WriteUtilIface) &&
+           type != typeid(ReaderWriterSet))
+    return MB_FAILURE;
+  
+  return MB_SUCCESS;
+}
 
 #ifdef XPCOM_MB
 // provides basic implementation of nsISupports methods
@@ -2280,15 +2321,15 @@ ErrorCode Core::create_vertices(const double *coordinates,
                                     Range &entity_handles ) 
 {
     // Create vertices
-  void* tmp_ptr;
-  ErrorCode result = this->query_interface("ReadUtilIface", &tmp_ptr );
-  if (MB_SUCCESS != result) return result;
-  ReadUtilIface *read_iface = reinterpret_cast<ReadUtilIface*>(tmp_ptr);
+  ReadUtilIface *read_iface;
+  ErrorCode result = Interface::query_interface(read_iface);
+  if (MB_SUCCESS != result) return MB_FAILURE;
   
   std::vector<double*> arrays;
   EntityHandle start_handle_out = 0;
   result = read_iface->get_node_coords( 3, nverts, MB_START_ID, 
                                         start_handle_out, arrays);
+  Interface::release_interface(read_iface);
   if (MB_SUCCESS != result) return result;
   for (int i = 0; i < nverts; i++) {
     arrays[0][i] = coordinates[3*i];

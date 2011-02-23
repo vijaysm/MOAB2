@@ -263,7 +263,7 @@ int main(int, char**)
     // first we need to make a new Core
   Core moab;
   ScdInterface *scdi;
-  ErrorCode rval = moab.query_interface("ScdInterface", (void**)&scdi);
+  ErrorCode rval = moab.Interface::query_interface(scdi);
   if (MB_SUCCESS != rval) {
     std::cout << "Problem getting ScdInterface." << std::endl;
     return 1;

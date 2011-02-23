@@ -358,8 +358,7 @@ int create_3dtri_ucd_sequences(Core *gMB, const int intervals,
 {
   
   ReadUtilIface* readMeshIface;
-  std::string iface_name = "ReadUtilIface";
-  gMB->query_interface(iface_name, reinterpret_cast<void**>(&readMeshIface));
+  gMB->query_interface(readMeshIface);
   
   int num_elements = intervals*intervals*intervals;
   int num_verts = (intervals+1)*(intervals+1)*(intervals+1);

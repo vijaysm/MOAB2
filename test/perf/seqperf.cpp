@@ -66,9 +66,7 @@ long* permutation( long count )
 //! Initialize global variables
 void init() 
 {
-  void* ptr;
-  ErrorCode rval = mb.query_interface( "ReadUtilIface", &ptr );
-  readTool = static_cast<ReadUtilIface*>(ptr);
+  ErrorCode rval = mb.query_interface( readTool );
   if (rval || !readTool) {
     assert(false);
     abort();

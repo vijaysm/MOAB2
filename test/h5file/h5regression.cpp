@@ -34,11 +34,9 @@ void test_write_invalid_elem()
   ReadUtilIface* readtool = 0;
   ErrorCode rval;
   
-  void* ptr = 0;
-  rval = moab.query_interface( "ReadUtilIface", &ptr );
+  rval = moab.query_interface( readtool );
   CHECK_ERR(rval);
-  CHECK( ptr != 0 );
-  readtool = reinterpret_cast<ReadUtilIface*>(ptr);
+  CHECK( readtool != 0 );
   
     // create two nodes
   EntityHandle first_node;

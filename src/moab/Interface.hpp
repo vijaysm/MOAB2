@@ -40,7 +40,7 @@
 // include files
 #include <string>
 #include <functional>
-
+#include <typeinfo>
 
 //! component architecture definitions
 #ifdef XPCOM_MB
@@ -102,10 +102,32 @@ public:
   virtual EntityHandle get_root_set()=0;
   
     //! query an MB internal interface
-  virtual ErrorCode query_interface(const std::string& iface_name, void** iface)=0;
+  virtual ErrorCode query_interface(const std::string& iface_name, void** iface) MB_DEPRECATED =0;
+ 
+    //! Get a pointer to an internal MOAB interface
+    //!\return NULL if not found, iterface pointer otherwise
+  virtual ErrorCode query_interface_type( const std::type_info& iface_type, void*& iface ) = 0;
+  
+    //! Get a pointer to an internal MOAB interface
+    //!\return NULL if not found, iterface pointer otherwise
+  template <class IFace> ErrorCode query_interface(IFace*& ptr)
+    { 
+      void* tmp_ptr;
+      ErrorCode result = query_interface_type(typeid(IFace), tmp_ptr);
+      ptr = reinterpret_cast<IFace*>(tmp_ptr);
+      return result;
+    }
  
     //! release an MB internal interface 
-  virtual ErrorCode release_interface(const std::string& iface_name, void* iface)=0;
+  virtual ErrorCode release_interface(const std::string& iface_name, void* iface) MB_DEPRECATED =0;
+ 
+    //! Release reference to MB interface
+  virtual ErrorCode release_interface_type( const std::type_info& iface_type, void* iface ) = 0;
+  
+  template <class IFace> ErrorCode release_interface(IFace* interface)
+    { return release_interface_type( typeid(IFace), interface ); }
+ 
+    //! Release reference to MB interface
 
     //! Returns the major.minor version number of the interface
     /**

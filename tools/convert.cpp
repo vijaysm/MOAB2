@@ -735,19 +735,17 @@ void list_formats( Interface* gMB )
 {
   const char iface_name[] = "ReaderWriterSet";
   ErrorCode err;
-  void* void_ptr = 0;
-  ReaderWriterSet* set;
+  ReaderWriterSet* set = 0;
   ReaderWriterSet::iterator i;
   std::ostream& str = std::cout;
     
     // get ReaderWriterSet
-  err = gMB->query_interface( iface_name, &void_ptr );
-  if (err != MB_SUCCESS || !void_ptr) {
+  err = gMB->query_interface( set );
+  if (err != MB_SUCCESS || !set) {
     std::cerr << "Internal error:  Interface \"" << iface_name 
               << "\" not available.\n";
     exit(OTHER_ERROR);
   }
-  set = (ReaderWriterSet*)void_ptr;
   
     // get field with for format description
   size_t w = 0;
@@ -776,7 +774,7 @@ void list_formats( Interface* gMB )
   }
   str << std::endl;
   
-  gMB->release_interface( iface_name, void_ptr );
+  gMB->release_interface( set );
   exit(0);
 }
 

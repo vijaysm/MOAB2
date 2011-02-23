@@ -191,10 +191,8 @@ void create_regular_mesh( Interface* gMB, int interval, int dim )
   const int dims[3] = { nvi, dim > 1 ? nvi : 1, dim > 2 ? nvi : 1 };
   int num_vert = dims[0] * dims[1] * dims[2];
 
-  void *ptr = 0;
-  // get the read interface
-  gMB->query_interface("ReadUtilIface", &ptr);
-  ReadUtilIface* readMeshIface = static_cast<ReadUtilIface*>(ptr);
+  ReadUtilIface* readMeshIface;
+  gMB->query_interface(readMeshIface);
   
   EntityHandle vstart;
   std::vector<double*> arrays;

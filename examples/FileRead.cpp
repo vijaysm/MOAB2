@@ -22,15 +22,14 @@ int comment(string & line)
     return 0; // a line with some data in it, then
 
 }
-ErrorCode ReadTriangleOutput( Core *mb, string fileBase ) {    
+ErrorCode ReadTriangleOutput( Interface *mb, string fileBase ) {    
   
   //
   // get the read interface from moab
-  void* ptr = 0;
-  mb->query_interface("ReadUtilIface", &ptr);
-  ReadUtilIface *iface = reinterpret_cast<ReadUtilIface*>(ptr);
+  ReadUtilIface *iface;
+  ErrorCode rval = mb->query_interface(iface);
   //
-  if (NULL == iface)
+  if (MB_SUCCESS != rval)
      {
         cout<<"Can't get interface.\n";
         return MB_FAILURE;
@@ -76,7 +75,7 @@ ErrorCode ReadTriangleOutput( Core *mb, string fileBase ) {
   //   also, it will return a starting handle for the node sequence
   vector<double*> arrays;
   EntityHandle startv;
-  ErrorCode rval = iface->get_node_coords(2, num_nodes, 0, startv, arrays);
+  rval = iface->get_node_coords(2, num_nodes, 0, startv, arrays);
   for (int i = 0; i < num_nodes; i++)
     {
       getline(nodeFile, line);
@@ -129,6 +128,7 @@ ErrorCode ReadTriangleOutput( Core *mb, string fileBase ) {
         }
     }
 
+  mb->release_interface(iface);
   //       
   return MB_SUCCESS;
 }

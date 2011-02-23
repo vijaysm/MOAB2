@@ -41,8 +41,7 @@ ErrorCode gather_related_test()
   
     // now test it
   ReadUtilIface* readMeshIface;
-  std::string iface_name = "ReadUtilIface";
-  mb.query_interface(iface_name, reinterpret_cast<void**>(&readMeshIface));
+  mb.Interface::query_interface(readMeshIface);
 
   Range init_range, set_range, all_sets(A, E);
   init_range.insert(D);

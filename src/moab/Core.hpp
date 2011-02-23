@@ -64,10 +64,17 @@ public:
   MB_DLL_EXPORT ~Core();
   
   //! query an MB internal interface
-  virtual ErrorCode query_interface(const std::string& iface_name, void** iface);
+  virtual ErrorCode query_interface(const std::string& iface_name, void** iface) MB_DEPRECATED;
+ 
+    //! Get a pointer to an internal MOAB interface
+    //!\return NULL if not found, iterface pointer otherwise
+  virtual ErrorCode query_interface_type( const std::type_info& iface_type, void*& iface );
  
   //! release an MB internal interface 
-  virtual ErrorCode release_interface(const std::string& iface_name, void* iface);
+  virtual ErrorCode release_interface(const std::string& iface_name, void* iface) MB_DEPRECATED;
+ 
+    //! Release reference to MB interface
+  virtual ErrorCode release_interface_type( const std::type_info& iface_type, void* iface );
 
 #if defined(XPCOM_MB)
   // this macro expands to all the nsISupports interface functions

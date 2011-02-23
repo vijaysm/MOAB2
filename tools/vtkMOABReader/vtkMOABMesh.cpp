@@ -56,7 +56,7 @@ vtkMOABMesh::vtkMOABMesh(Interface *iface)
 {
   if (!mbImpl) mbImpl = new Core();
 
-  mbImpl->query_interface("WriteUtilIface", reinterpret_cast<void**>(&iFace));
+  mbImpl->query_interface(iFace);
   assert(NULL != iFace);
 
   int def_val = -1;
@@ -94,7 +94,7 @@ vtkMOABMesh::~vtkMOABMesh()
 {
   if (mbImpl) {
     if (iFace)
-      mbImpl->release_interface("WriteUtilIface", reinterpret_cast<void*>(iFace));
+      mbImpl->release_interface(iFace);
 
     delete mbImpl;
   }

@@ -995,8 +995,7 @@ ErrorCode ParallelComm::pack_entities(Range &entities,
   buff->check_space(buff_size);
   
   WriteUtilIface *wu;
-  ErrorCode result = mbImpl->query_interface(std::string("WriteUtilIface"), 
-                                               reinterpret_cast<void**>(&wu));
+  ErrorCode result = mbImpl->query_interface(wu);
   RRA("Couldn't get WriteUtilIface.");
 
   unsigned int num_ents;
@@ -1507,8 +1506,7 @@ ErrorCode ParallelComm::unpack_entities(unsigned char *&buff_ptr,
   bool done = false;
   ReadUtilIface *ru = NULL;
 
-  result = mbImpl->query_interface(std::string("ReadUtilIface"), 
-                                   reinterpret_cast<void**>(&ru));
+  result = mbImpl->query_interface(ru);
   RRA("Failed to get ReadUtilIface.");
 
     // procs the sending proc is telling me I'll be receiving from

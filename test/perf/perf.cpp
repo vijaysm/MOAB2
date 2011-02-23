@@ -496,9 +496,8 @@ void testB(const int nelem, const double *coords, int *connect)
   EntityHandle vstart, estart;
 
   // get the read interface
-  void* ptr = 0;
-  gMB->query_interface("ReadUtilIface", &ptr);
-  ReadUtilIface* readMeshIface = reinterpret_cast<ReadUtilIface*>(ptr);
+  ReadUtilIface* readMeshIface;
+  gMB->query_interface(readMeshIface);
   
   // create a sequence to hold the node coordinates
   // get the current number of entities and start at the next slot

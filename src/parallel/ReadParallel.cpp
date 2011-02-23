@@ -651,9 +651,8 @@ ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set)
 
     // get partition entities and ents related to/used by those
     // get ents in the partition
-  std::string iface_name = "ReadUtilIface";
   ReadUtilIface *read_iface;
-  mbImpl->query_interface(iface_name, reinterpret_cast<void**>(&read_iface));
+  mbImpl->query_interface(read_iface);
   Range partition_ents, all_sets;
 
   myDebug.tprint(2,"Gathering related entities.\n");
