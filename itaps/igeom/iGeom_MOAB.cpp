@@ -1440,7 +1440,7 @@ void iGeom_measure(iGeom_Instance instance,
       (*measures)[i] = 0.;
 
       int type;
-      iGeom_getEntType(instance, entity_handles[0], &type, err);
+      iGeom_getEntType(instance, entity_handles[i], &type, err);
       ERRORR("Failed to get entity type in iGeom_measure.");
 
       if (type == 1) { // edge

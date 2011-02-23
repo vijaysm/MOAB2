@@ -65,6 +65,59 @@ public:
       std::vector<double> & intersect_coords,
       std::vector<double> & param_coords);
 
+  // some new methods, that are needed
+
+  ErrorCode createTag( const char* tag_name,
+                    int tag_num_type_values,
+                    int tag_type,
+                    Tag & tag_handle_out );
+
+  Interface * moab_instance () { return _mbImpl; }
+
+  ErrorCode getArrData(const moab::EntityHandle* entity_handles,
+      int entity_handles_size,
+      Tag tag_handle,
+      void* tag_values_out);
+
+  ErrorCode setArrData(const EntityHandle* entity_handles,
+        int entity_handles_size,
+        Tag tag_handle,
+        const void* tag_values);
+
+  ErrorCode getEntAdj(EntityHandle handle,
+        int type_requested, Range & adjEnts  );
+
+  ErrorCode getEgFcSense(EntityHandle mbedge, EntityHandle mbface, int & sense );
+
+  ErrorCode measure(const EntityHandle * moab_entities, int entities_size,
+      double * measures);
+
+  // to do
+  ErrorCode getEntNrmlSense( EntityHandle face, EntityHandle region,
+      int& sense );
+
+  ErrorCode getEgEvalXYZ( EntityHandle edge,
+                                 double x, double y, double z,
+                                 double& on_x, double& on_y, double& on_z,
+                                 double& tngt_i, double& tngt_j, double& tngt_k,
+                                 double& cvtr_i, double& cvtr_j, double& cvtr_k );
+  ErrorCode getFcEvalXYZ( EntityHandle face,
+                                 double x, double y, double z,
+                                 double& on_x, double& on_y, double& on_z,
+                                 double& nrml_i, double& nrml_j, double& nrml_k,
+                                 double& cvtr1_i, double& cvtr1_j, double& cvtr1_k,
+                                 double& cvtr2_i, double& cvtr2_j, double& cvtr2_k );
+
+  ErrorCode getEgVtxSense( EntityHandle edge, EntityHandle vtx1, EntityHandle vtx2, int& sense );
+
+  ErrorCode getEntURange( EntityHandle edge,
+                                 double& u_min, double& u_max );
+
+  ErrorCode getEntUtoXYZ( EntityHandle edge, double u,
+                                 double& x, double& y, double& z );
+  ErrorCode isEntAdj( EntityHandle entity1, EntityHandle entity2,
+      bool& adjacent_out );
+
 private:
 
   ErrorCode initializeSmoothing();

@@ -14,7 +14,6 @@
 #include "SmoothCurve.hpp"
 #include "SmoothFace.hpp"
 
-
 // this is just to replace MBI with moab interface, which is _mbImpl in this class
 #define MBI _mbImpl
 #define MBERRORR(rval, STR) { if (MB_SUCCESS != rval) { std::cout<<STR<<std::endl; return rval; } }
@@ -30,9 +29,8 @@ double get_edge_length(double* p1, double* p2)
 }
 
 FBEngine::FBEngine(Interface *impl, GeomTopoTool * topoTool, const bool smooth) :
-  _mbImpl(impl), _my_geomTopoTool(topoTool),
-      _t_created(false), _smooth(smooth), _initialized(false),
-      _smthFace(NULL), _smthCurve(NULL)
+  _mbImpl(impl), _my_geomTopoTool(topoTool), _t_created(false),
+      _smooth(smooth), _initialized(false), _smthFace(NULL), _smthCurve(NULL)
 {
   if (!_my_geomTopoTool)
   {
@@ -269,8 +267,7 @@ ErrorCode FBEngine::getEntities(EntityHandle set_handle, int entity_type,
   }
   Range sets;
   // see now if they are in the set passed as input or not
-  ErrorCode rval = MBI->get_entities_by_type(set_handle, MBENTITYSET,
-      sets);
+  ErrorCode rval = MBI->get_entities_by_type(set_handle, MBENTITYSET, sets);
   MBERRORR(rval, "can't get sets in the initial set");
   gentities = intersect(gentities, sets);
 
@@ -377,9 +374,8 @@ ErrorCode FBEngine::getEntBoundBox(EntityHandle gent, double* min_x,
 
   return MB_SUCCESS;
 }
-ErrorCode FBEngine::getEntClosestPt(EntityHandle this_gent,
-    double near_x, double near_y,
-    double near_z, double* on_x, double* on_y, double* on_z)
+ErrorCode FBEngine::getEntClosestPt(EntityHandle this_gent, double near_x,
+    double near_y, double near_z, double* on_x, double* on_y, double* on_z)
 {
   ErrorCode rval;
   int type;
@@ -463,19 +459,19 @@ ErrorCode FBEngine::getVtxCoord(EntityHandle vertex_handle, double * x0,
   return MB_SUCCESS;
 }
 
-ErrorCode FBEngine::gsubtract(EntityHandle entity_set_1, EntityHandle entity_set_2,
-    EntityHandle result_entity_set)
+ErrorCode FBEngine::gsubtract(EntityHandle entity_set_1,
+    EntityHandle entity_set_2, EntityHandle result_entity_set)
 {
   /*result_entity_set = subtract(entity_set_1, entity_set_2);*/
   Range ents1, ents2;
-  ErrorCode rval = MBI->get_entities_by_type( entity_set_1, MBENTITYSET, ents1);
+  ErrorCode rval = MBI->get_entities_by_type(entity_set_1, MBENTITYSET, ents1);
   MBERRORR(rval, "can't get entities from set 1.");
 
-  rval = MBI->get_entities_by_type( entity_set_2, MBENTITYSET, ents2);
+  rval = MBI->get_entities_by_type(entity_set_2, MBENTITYSET, ents2);
   MBERRORR(rval, "can't get entities from set 2.");
 
   ents1 = subtract(ents1, ents2);
-  rval =  MBI->clear_meshset( &result_entity_set, 1);
+  rval = MBI->clear_meshset(&result_entity_set, 1);
   MBERRORR(rval, "can't empty set.");
 
   rval = MBI->add_entities(result_entity_set, ents1);
@@ -484,12 +480,12 @@ ErrorCode FBEngine::gsubtract(EntityHandle entity_set_1, EntityHandle entity_set
   return rval;
 }
 
-ErrorCode FBEngine::getEntNrmlXYZ( EntityHandle entity_handle, double x, double y, double z,
-    double* nrml_i, double* nrml_j, double* nrml_k)
+ErrorCode FBEngine::getEntNrmlXYZ(EntityHandle entity_handle, double x,
+    double y, double z, double* nrml_i, double* nrml_j, double* nrml_k)
 {
   // just do for surface and volume
   int type;
-  ErrorCode rval = getEntType( entity_handle, &type );
+  ErrorCode rval = getEntType(entity_handle, &type);
   MBERRORR(rval, "Failed to get entity type in iGeom_getEntNrmlXYZ.");
 
   if (type != 2 && type != 3)
@@ -507,13 +503,12 @@ ErrorCode FBEngine::getEntNrmlXYZ( EntityHandle entity_handle, double x, double 
   else
   {
     // get closest location and facet
-    double point[3] =
-    { x, y, z};
+    double point[3] = { x, y, z };
     double point_out[3];
     EntityHandle root, facet_out;
     _my_geomTopoTool->get_root(entity_handle, root);
-    rval = _my_geomTopoTool->obb_tree()->closest_to_location(point,
-        root, point_out, facet_out);
+    rval = _my_geomTopoTool->obb_tree()->closest_to_location(point, root,
+        point_out, facet_out);
     MBERRORR(rval , "Failed to get closest location in iGeom_getEntNrmlXYZ.");
 
     // get facet normal
@@ -539,12 +534,11 @@ ErrorCode FBEngine::getEntNrmlXYZ( EntityHandle entity_handle, double x, double 
   return MB_SUCCESS;
 }
 
-ErrorCode FBEngine::getPntRayIntsct( double x, double y, double z,
-    double dir_x, double dir_y, double dir_z,
+ErrorCode FBEngine::getPntRayIntsct(double x, double y, double z, double dir_x,
+    double dir_y, double dir_z,
     std::vector<EntityHandle> &intersect_entity_handles,
     /* int storage_order,*/
-    std::vector<double> & intersect_coords,
-    std::vector<double> & param_coords)
+    std::vector<double> & intersect_coords, std::vector<double> & param_coords)
 {
   // this is pretty cool
   // we will return only surfaces (gentities )
@@ -553,17 +547,17 @@ ErrorCode FBEngine::getPntRayIntsct( double x, double y, double z,
 
   unsigned int numfaces = _my_gsets[2].size();
   // do ray fire
-  const double point[] = { x, y, z};
-  const double dir[] = { dir_x, dir_y, dir_z};
+  const double point[] = { x, y, z };
+  const double dir[] = { dir_x, dir_y, dir_z };
   CartVect P(point);
   CartVect V(dir);
   unsigned min_tolerace_intersections = 1000;
-  double tolerance =0.01; // TODO: how is this used ????
+  double tolerance = 0.01; // TODO: how is this used ????
   //std::vector<double> distances;
   std::vector<EntityHandle> facets;
   //std::vector<EntityHandle> sets;
   unsigned int i;
-  for (i=0; i<numfaces; i++)
+  for (i = 0; i < numfaces; i++)
   {
     EntityHandle face = _my_gsets[2][i];
     EntityHandle rootForFace;
@@ -572,37 +566,31 @@ ErrorCode FBEngine::getPntRayIntsct( double x, double y, double z,
     std::vector<double> distances_out;
     std::vector<EntityHandle> sets_out;
     std::vector<EntityHandle> facets_out;
-    rval = _my_geomTopoTool->obb_tree()-> ray_intersect_sets(
-        distances_out,
-        sets_out,
-        facets_out,
-        rootForFace,
-        tolerance,
-        min_tolerace_intersections,
-        point,
-        dir);
+    rval = _my_geomTopoTool->obb_tree()-> ray_intersect_sets(distances_out,
+        sets_out, facets_out, rootForFace, tolerance,
+        min_tolerace_intersections, point, dir);
     unsigned int j;
-    for (j=0; j<distances_out.size(); j++)
+    for (j = 0; j < distances_out.size(); j++)
       param_coords.push_back(distances_out[j]);
-    for (j=0; j<sets_out.size(); j++)
+    for (j = 0; j < sets_out.size(); j++)
       intersect_entity_handles.push_back(sets_out[j]);
-    for (j=0; j<facets_out.size(); j++)
+    for (j = 0; j < facets_out.size(); j++)
       facets.push_back(facets_out[j]);
 
     MBERRORR(rval, "Failed to get ray intersections.");
   }
   // facets.size == distances.size()!!
-  for (i=0; i<param_coords.size(); i++ )
+  for (i = 0; i < param_coords.size(); i++)
   {
-    CartVect intx = P+param_coords[i]*V;
-    for (int j=0; j<3; j++)
+    CartVect intx = P + param_coords[i] * V;
+    for (int j = 0; j < 3; j++)
       intersect_coords.push_back(intx[j]);
 
   }
   if (_smooth)
   {
     // correct the intersection point and the distance for smooth surfaces
-    for (i=0; i<intersect_entity_handles.size(); i++)
+    for (i = 0; i < intersect_entity_handles.size(); i++)
     {
       //EntityHandle geoSet = MBH_cast(sets[i]);
       SmoothFace* sFace = _faces[intersect_entity_handles[i]];
@@ -613,16 +601,16 @@ ErrorCode FBEngine::getPntRayIntsct( double x, double y, double z,
        moab::CartVect &eval_pt, // (INOUT) The intersection point
        double & distance, // (IN OUT) the new distance
        bool &outside);*/
-      CartVect pos(&(intersect_coords[3*i]));
+      CartVect pos(&(intersect_coords[3 * i]));
       double dist = param_coords[i];
       bool outside = false;
-      rval = sFace->ray_intersection_correct(facets[i],
-          P, V, pos, dist, outside);
+      rval = sFace->ray_intersection_correct(facets[i], P, V, pos, dist,
+          outside);
       MBERRORR(rval, "Failed to get better point on ray.");
       param_coords[i] = dist;
 
-      for (int j=0; j<3; j++)
-        intersect_coords[3*i+j] = pos[j];
+      for (int j = 0; j < 3; j++)
+        intersect_coords[3 * i + j] = pos[j];
     }
   }
   return MB_SUCCESS;
@@ -680,4 +668,293 @@ ErrorCode FBEngine::getAdjacentEntities(const EntityHandle from,
 
   return MB_SUCCESS;
 }
+
+/*// new methods needed
+ ErrorCode FBEngine::getTagHandle( const char* name, moab::Tag & handle_out )
+ {
+ return _mbImpl->tag_get_handle(name, handle_out);
+ }*/
+
+ErrorCode FBEngine::createTag(const char* tag_name, int tag_num_type_values,
+    int tag_type, Tag & tag_handle_out)
+{
+  // not implemented yet, some mapping needed for tag type
+  return MB_FAILURE;
+}
+
+ErrorCode FBEngine::getArrData(const EntityHandle* entity_handles,
+    int entity_handles_size, Tag tag_handle, void* tag_values_out)
+{
+  // responsibility of the user to have tag_values_out properly allocated
+  // only some types of Tags are possible (double, int, etc)
+  int tag_size;
+  ErrorCode rval = MBI->tag_get_size(tag_handle, tag_size);
+  if (MB_SUCCESS != rval)
+    return rval;
+  rval = MBI->tag_get_data(tag_handle, entity_handles, entity_handles_size,
+      tag_values_out);
+  return rval;
+}
+
+ErrorCode FBEngine::setArrData(const EntityHandle* entity_handles,
+    int entity_handles_size, Tag tag_handle, const void* tag_values)
+{
+  // responsibility of the user to have tag_values_out properly allocated
+  // only some types of Tags are possible (double, int, etc)
+  int tag_size;
+  ErrorCode rval = MBI->tag_get_size(tag_handle, tag_size);
+  if (MB_SUCCESS != rval)
+    return rval;
+  rval = MBI->tag_set_data(tag_handle, entity_handles, entity_handles_size,
+      tag_values);
+  return rval;
+}
+
+ErrorCode FBEngine::getEntAdj(EntityHandle handle, int type_requested,
+    Range & adjEnts)
+{
+  return getAdjacentEntities(handle, type_requested, adjEnts);
+}
+
+ErrorCode FBEngine::getEgFcSense(EntityHandle mbedge, EntityHandle mbface,
+    int & sense_out)
+{
+
+  // this one is important, for establishing the orientation of the edges in faces
+  // use senses
+  std::vector<EntityHandle> faces;
+  std::vector<int> senses; // 0 is forward and 1 is backward
+  ErrorCode rval = _my_geomTopoTool->get_senses(mbedge, faces, senses);
+  if (MB_SUCCESS != rval)
+    return rval;
+  //
+  int index = -1;
+
+  bool sense_forward = false;
+  bool sense_reverse = false;
+  for (unsigned int i = 0; i < faces.size(); i++)
+  {
+    if (faces[i] == mbface)
+    {
+      index = i;
+      if (senses[i] == 0)
+        sense_forward = true;
+      else
+        sense_reverse = true;
+    }
+  }
+  if (index == -1)
+  {
+    return MB_FAILURE;
+  }
+
+  // 0 is not possible for us, but maybe we should consider this?
+  if (sense_forward && sense_reverse)
+    sense_out = 0; // is it really possible for a nice geometry ?
+  else
+  {
+    if (sense_forward) // only sense forward
+      sense_out = 1;
+    else if (sense_reverse)
+      sense_out = -1;
+  }
+  return MB_SUCCESS;
+
+}
+// we assume the measures array was allocated correctly
+ErrorCode FBEngine::measure(const EntityHandle * moab_entities,
+    int entities_size, double * measures)
+{
+  ErrorCode rval;
+  for (int i = 0; i < entities_size; i++)
+  {
+    measures[i] = 0.;
+
+    int type;
+    EntityHandle gset=moab_entities[i];
+    rval = getEntType(gset , &type);
+    if (MB_SUCCESS != rval) return rval;
+    if (type == 1)
+    { // edge: get all edges part of the edge set
+      Range entities;
+      rval = MBI->get_entities_by_type(gset, MBEDGE,  entities);
+      if (MB_SUCCESS != rval) return rval;
+
+
+
+      for (Range::iterator it = entities.begin(); it!=entities.end(); it++)
+      {
+        EntityHandle edge=*it;
+        CartVect vv[2];
+        const EntityHandle *conn2=NULL;
+        int  num_nodes;
+        rval = MBI->get_connectivity(edge, conn2, num_nodes);
+        if (MB_SUCCESS != rval || num_nodes!=2)
+          return MB_FAILURE;
+        rval = MBI->get_coords(conn2, 2, (double *) &(vv[0][0]) );
+        if (MB_SUCCESS != rval) return rval;
+
+        vv[0] = vv[1]-vv[0];
+        measures[i] += vv[0].length();
+      }
+    }
+    if (type == 2)
+    { // surface
+      // get triangles in surface; TODO: quads!
+      Range entities;
+      rval = MBI->get_entities_by_type(gset, MBTRI,  entities);
+      if (MB_SUCCESS != rval) return rval;
+
+      for (Range::iterator it = entities.begin(); it!=entities.end(); it++)
+      {
+        EntityHandle tri=*it;
+        CartVect vv[3];
+        const EntityHandle *conn3=NULL;
+        int  num_nodes;
+        rval = MBI->get_connectivity(tri, conn3, num_nodes);
+        if (MB_SUCCESS != rval || num_nodes!=3)
+          return MB_FAILURE;
+        rval = MBI->get_coords(conn3, 3, (double *) &(vv[0][0]) );
+        if (MB_SUCCESS != rval) return rval;
+
+        vv[1] = vv[1]-vv[0];
+        vv[2] = vv[2]-vv[0];
+        vv[0] = vv[1] * vv[2];
+        measures[i] += vv[0].length()/2;// area of triangle
+      }
+
+    }
+  }
+  return MB_SUCCESS;
+}
+
+ErrorCode FBEngine::getEntNrmlSense( EntityHandle face, EntityHandle region,
+      int& sense )
+{
+  return MB_NOT_IMPLEMENTED; // not implemented
+}
+
+ErrorCode FBEngine::getEgEvalXYZ( EntityHandle edge,
+                                 double x, double y, double z,
+                                 double& on_x, double& on_y, double& on_z,
+                                 double& tngt_i, double& tngt_j, double& tngt_k,
+                                 double& cvtr_i, double& cvtr_j, double& cvtr_k )
+{
+  return MB_NOT_IMPLEMENTED; // not implemented
+}
+ErrorCode FBEngine::getFcEvalXYZ( EntityHandle face,
+                                 double x, double y, double z,
+                                 double& on_x, double& on_y, double& on_z,
+                                 double& nrml_i, double& nrml_j, double& nrml_k,
+                                 double& cvtr1_i, double& cvtr1_j, double& cvtr1_k,
+                                 double& cvtr2_i, double& cvtr2_j, double& cvtr2_k )
+{
+  return MB_NOT_IMPLEMENTED; // not implemented
+}
+
+ErrorCode FBEngine::getEgVtxSense( EntityHandle edge, EntityHandle vtx1,
+    EntityHandle vtx2, int& sense )
+{
+  // need to decide first or second vertex
+  // important for moab
+  int type;
+
+  EntityHandle v1, v2;
+  ErrorCode rval = getEntType(vtx1 , &type);
+  if (MB_SUCCESS != rval || type != 0) return MB_FAILURE;
+  // edge: get one vertex as part of the vertex set
+  Range entities;
+  rval = MBI->get_entities_by_type(vtx1, MBVERTEX,  entities);
+  if (MB_SUCCESS != rval) return rval;
+  if (entities.size() <1)
+    return MB_FAILURE;
+  v1 = entities[0]; // the first vertex
+  entities.clear();
+  rval = getEntType(vtx2 , &type);
+  if (MB_SUCCESS != rval || type != 0) return MB_FAILURE;
+  rval = MBI->get_entities_by_type(vtx2, MBVERTEX,  entities);
+  if (MB_SUCCESS != rval) return rval;
+  if (entities.size() <1)
+    return MB_FAILURE;
+  v2 = entities[0]; // the first vertex
+  entities.clear();
+  // now get the edges, and get the first node and the last node in sequence of edges
+  // the order is important...
+  // these are ordered sets !!
+  std::vector<EntityHandle> ents;
+  rval = MBI->get_entities_by_type(edge, MBEDGE,ents);
+  if (MB_SUCCESS != rval) return rval;
+  if (ents.size() <1)
+    return MB_FAILURE;
+
+  const EntityHandle* conn=NULL;
+  int len;
+  EntityHandle startNode, endNode;
+  rval = MBI->get_connectivity(ents[0], conn, len);
+  if (MB_SUCCESS != rval) return rval;
+  startNode = conn[0];
+  rval = MBI->get_connectivity(ents[ents.size()-1], conn, len);
+  if (MB_SUCCESS != rval) return rval;
+
+  endNode = conn[1];
+  sense = 1; //
+  if ( (startNode == endNode) && (v1==startNode))
+  {
+    sense = 0; // periodic
+  }
+  if ( (startNode == v1)  &&  (endNode ==v2) )
+  {
+    sense = 1; // forward
+  }
+  if ( (startNode == v2) && (endNode == v1) )
+  {
+    sense = -1; // reverse
+  }
+  return MB_SUCCESS;
+}
+
+ErrorCode FBEngine::getEntURange( EntityHandle edge,
+                                 double& u_min, double& u_max )
+{
+  SmoothCurve * smoothCurve = _edges[edge];// this is a map
+  // now, call smoothCurve methods
+  smoothCurve -> get_param_range(u_min, u_max);
+  return MB_SUCCESS;
+}
+
+ErrorCode FBEngine::getEntUtoXYZ( EntityHandle edge, double u,
+                                 double& x, double& y, double& z )
+{
+  SmoothCurve * smoothCurve = _edges[edge];// this is a map
+  // now, call smoothCurve methods
+  smoothCurve -> position_from_u(u, x, y, z);
+  return MB_SUCCESS;
+}
+ErrorCode FBEngine::isEntAdj( EntityHandle entity1, EntityHandle entity2,
+      bool& adjacent_out )
+{
+  int type1, type2;
+  ErrorCode rval = getEntType(entity1, &type1);
+  if (MB_SUCCESS != rval) return rval;
+  rval = getEntType(entity2, &type2);
+  if (MB_SUCCESS != rval) return rval;
+
+  Range adjs;
+  if (type1 < type2) {
+     rval = MBI->get_parent_meshsets(entity1, adjs, type2
+           - type1);
+     if (MB_SUCCESS != rval) return rval;// MBERRORR("Failed to get parent meshsets in iGeom_isEntAdj.");
+  } else {
+     rval = MBI->get_child_meshsets(entity2, adjs, type2
+           - type1);
+     if (MB_SUCCESS != rval) return rval;//MBERRORR("Failed to get child meshsets in iGeom_isEntAdj.");
+  }
+
+  adjacent_out = adjs.find(entity2) != _my_gsets[type2].end();
+
+  return MB_SUCCESS;
+}
+
 } // namespace moab
+
+
