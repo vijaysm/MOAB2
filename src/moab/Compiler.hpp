@@ -96,6 +96,14 @@
   #define MB_DLL_HIDDEN
 #endif
 
+/**\def MB_DEPRECATED
+ *\brief Mark function or API as deprecated
+ */
+#if defined(__GNUC__) && (1000 * __GNUC__ + __GNUC_MINOR__ ) > 3000
+#  define MB_DEPRECATED __attribute__((__deprecated__))
+#else
+#  define MB_DEPRECATED
+#endif
 
 /*@}*/
 
