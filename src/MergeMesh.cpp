@@ -26,6 +26,7 @@ namespace moab {
   tmp_elems.insert( elems, elems + elems_size);
   moab::ErrorCode result = merge_entities(tmp_elems, merge_tol, do_merge, update_sets,
                                       (moab::Tag)merge_tag);
+
   return result;
 }
 

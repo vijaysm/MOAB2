@@ -32,29 +32,34 @@ ParallelMergeMesh::ParallelMergeMesh(ParallelComm *pc,
 }
 
   //Perform Merge
-  ErrorCode ParallelMergeMesh::merge() {
+ErrorCode ParallelMergeMesh::merge() 
+{
   Interface *mb = myPcomm->get_moab();
-  ErrorCode rval;
+  int dim;
+  ErrorCode rval = mb->get_dimension(dim);
+  if(rval != MB_SUCCESS){
+    return rval;
+  }
 
   /*2)Merge Mesh Locally*/
   Range ents;
-  rval = mb->get_entities_by_dimension(0,3,ents);
+  rval = mb->get_entities_by_dimension(0,dim,ents);
   if(rval != MB_SUCCESS){
     return rval;
   }
 
   //Merge Mesh Locally
-  moab::MergeMesh merger(mb);
-  EntityHandle start = *ents.begin();
-  merger.merge_entities(ents,myEps);
+  MergeMesh *merger = new MergeMesh(mb);
+  merger->merge_entities(ents,myEps);
   if(rval != MB_SUCCESS){
-    std::cerr<<"Local Merge Failed. Error: " << rval << std::endl;
+    delete merger;
     return rval;
   }
+  delete merger;
 
   //Rebuild the ents range
   ents.clear();
-  rval = mb->get_entities_by_dimension(0,3,ents);
+  rval = mb->get_entities_by_dimension(0,dim,ents);
   if(rval != MB_SUCCESS){
     return rval;
   }
@@ -63,26 +68,29 @@ ParallelMergeMesh::ParallelMergeMesh(ParallelComm *pc,
     -Get Range of 0 dimensional entities
     -Quicker to skin first?*/
   Range skinents;
-  Skinner skinner(mb);
-  rval = skinner.find_skin(ents,0,skinents);
+  Skinner *skinner = new Skinner(mb);
+  rval = skinner->find_skin(ents,0,skinents, false);
   if(rval != MB_SUCCESS){
-    std::cerr<<"Skinner Failed. Error:"<< rval <<std::endl;
+    delete skinner;
     return rval;
   }
-
+  delete skinner;
+ 
   /*4)Get Bounding Box*/
   AdaptiveKDTree kd(mb);
-  double min[3], gmin[3], max[3], gmax[3];
-  rval = kd.bounding_box(skinents,min,max);
+  double min[6], gmin[3], max[6], gmax[3];
+  rval = kd.bounding_box(skinents,min,min+3);
   if(rval != MB_SUCCESS){
     return rval;
   }
 
   /* 5)Communicate to all processors*/
   /* 6)Assemble Global Bounding Box*/
-  MPI_Allreduce(min, gmin, 3, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(max, gmax, 3, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
- 
+// tjt - put all into the same vector, then do 1 allreduce
+//  MPI_Allreduce(min, gmin, 3, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+//  MPI_Allreduce(max, gmax, 3, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(min, gmin, 6, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+
   /* 7)Partition Global Bounding Box 
      -Simple 1 Dimensional Partition for now
      -An element (x,y,z) will be sent to floor((x-min(x))/length) */
@@ -97,6 +105,8 @@ ParallelMergeMesh::ParallelMergeMesh(ParallelComm *pc,
   //Want to use vector, but doesn't appear doable for a range
   rval = mb->get_coords(skinents,x,y,z);
   if(rval != MB_SUCCESS){
+    //Prevent Memory Leak
+    delete []x; delete []y; delete []z;
     return rval;
   }
 
@@ -130,7 +140,7 @@ ParallelMergeMesh::ParallelMergeMesh(ParallelComm *pc,
 
     //Assemble a second tuple if necessary
     if(toproc1 != toproc2){
-      tup.vi[tup_i++]=toproc1;//tup.vi[tup.n*tup.mi]=toproc1; 
+      tup.vi[tup_i++]=toproc2;//tup.vi[tup.n*tup.mi]=toproc1; 
       tup.vul[tup_ul++]=*it;//tup.vul[tup.n*tup.mul]=*it;
       tup.vr[tup_r++]=x[j];//tup.vr[tup.n*tup.mr]=x[j]; 
       tup.vr[tup_r++]=y[j];//tup.vr[tup.n*tup.mr+1]=y[j]; 
@@ -141,9 +151,7 @@ ParallelMergeMesh::ParallelMergeMesh(ParallelComm *pc,
   }
 
   //Delete the coord arrays
-  delete []x;
-  delete []y;
-  delete []z;
+  delete []x; delete []y; delete []z;
 
   /* 10)Gather-Scatter Tuple
      -tup comes out as (remProc,handle,x,y,z) */
@@ -165,8 +173,11 @@ ParallelMergeMesh::ParallelMergeMesh(ParallelComm *pc,
   tuple_list matches;
   tuple_list_init_max(&matches,2,0,2,0,skinents.size());
   double eps2 = myEps*myEps;
+  
+  //Counters for accessing tuples more efficiently
   unsigned long i = 0, mat_i=0, mat_ul=0;
-  j=0; tup_i=0; tup_r=0; tup_ul=0;
+  j=0; tup_r=0;
+
   while(i<tup.n){
     //Proximity Comparison
     double xi = tup.vr[tup_r], 
@@ -185,14 +196,16 @@ ParallelMergeMesh::ParallelMergeMesh(ParallelComm *pc,
     }
 
     //Allocate the tuple list before adding matches
-    while(matches.n+(j-i)*(j-i-1) < matches.max){
+    while(matches.n+(j-i)*(j-i-1) >= matches.max){
       tuple_list_grow(&matches);
     }
  
-    //We now know that tuples i to j (exclusive) match.  
+    //We now know that tuples [i to j) exclusice match.  
     //If n tuples match, n*(n-1) match tuples will be made
     //tuples are of the form (proc1,proc2,handle1,handle2)
     for(unsigned k = i; k<j; k++){
+      int kproc = k*tup.mi, lproc = i*tup.mi;
+      unsigned khand = k*tup.mul, lhand = i*tup.mul;
       for(unsigned l=i; l<j; l++){
 	if(l != k){
 	  /*matches.vi[matches.n*matches.mi]=tup.vi[k*tup.mi];//proc1
@@ -201,17 +214,18 @@ ParallelMergeMesh::ParallelMergeMesh(ParallelComm *pc,
 	  matches.vul[matches.n*matches.mul+1]=tup.vul[l*tup.mul];//handle2*/
 
 	  //Note that tup.mi == tup.mul == 0
-	  matches.vi[mat_i++]=tup.vi[k*tup.mi];//proc1
-	  matches.vi[mat_i++]=tup.vi[l*tup.mi];//proc2
-	  matches.vul[mat_ul++]=tup.vul[k*tup.mul];//handle1
-	  matches.vul[mat_ul++]=tup.vul[l*tup.mul];//handle2
+	  matches.vi[mat_i++]=tup.vi[kproc];//proc1
+	  matches.vi[mat_i++]=tup.vi[lproc];//proc2
+	  matches.vul[mat_ul++]=tup.vul[khand];//handle1
+	  matches.vul[mat_ul++]=tup.vul[lhand];//handle2
 	  matches.n++;
 	}
+	lproc += tup.mi;
+	lhand += tup.mul;
       }
     }//End for(int k...
     i=j;
   }//End while(i<tup.n)
-  
   //Cleanup
   tuple_list_free(&tup);
 
@@ -221,6 +235,7 @@ ParallelMergeMesh::ParallelMergeMesh(ParallelComm *pc,
   //1 represents dynamic list, 0 represents proc index to send tuple to
   moab_gs_transfer(1,&matches,0,&cd);
   moab_crystal_free(&cd);
+
   //Sorts are necessary to check for doubles
   //Sort by remote handle
   moab_tuple_list_sort(&matches,3,&buf);
@@ -246,19 +261,22 @@ ParallelMergeMesh::ParallelMergeMesh(ParallelComm *pc,
 
     //Use update_remote_data to apply tag data
     myPcomm->update_remote_data((EntityHandle)localHand,
-			   (int *)proc,
-			   (EntityHandle *)remHand,
-			   1,1);
+				(int *)proc,
+				(EntityHandle *)remHand,
+				1,1);
 
     //Look for doubles in this list, move past them
     n++; mat_ul+= matches.mul; mat_i += matches.mi;
     while(n < matches.n && 
-	  localHand == matches.vul[mat_ul] &&//[n*matches.mul+2] &&
+	  localHand == matches.vul[mat_ul] &&//[n*matches.mul] &&
 	  *proc == matches.vi[mat_i+1] &&//[n*matches.mi+1] && 
-	  *remHand == matches.vul[mat_ul+1]){//[n*matches.mul+3]){
+	  *remHand == matches.vul[mat_ul+1]){//[n*matches.mul+1]){
       hasDuplicates = true;
       n++; mat_ul+= matches.mul; mat_i += matches.mi;
     }
+  }
+  if(hasDuplicates){
+    std::cerr<<"Duplicates were in the matched list"<<std::endl;
   }
   tuple_list_free(&matches);
   

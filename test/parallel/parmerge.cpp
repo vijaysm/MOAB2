@@ -78,14 +78,19 @@ int main(int argc, char * argv[])
   }
 
   //Write out the file
-  std::string outfile = "shared_tagged.h5m";
-  rval = mb->write_file(outfile.c_str(),0,"PARALLEL=WRITE_PART");
+  std::string outfile = "/home/nbertram/Desktop/meshes/shared_tagged.h5m";
+  rval = mb->write_file(outfile.c_str() ,NULL,"PARALLEL=WRITE_PART");
   if(rval != moab::MB_SUCCESS){
-    std::cerr<<"Writing output file failed"<<std::endl;
+    std::cerr<<"Writing output file failed Code:";
+    //Temporary File error info.
+    std::cerr<<mb->get_error_string(rval)<<std::endl;
+    std::string foo = ""; mb->get_last_error(foo);
+    std::cerr<<"File Error: "<<foo<<std::endl;
     MPI_Abort(MPI_COMM_WORLD,1);
     return 1;
   }
 
+  MPI_Barrier(MPI_COMM_WORLD);
   delete pc;
   delete mb;
   MPI_Finalize();
