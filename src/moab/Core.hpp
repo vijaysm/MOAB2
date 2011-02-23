@@ -585,28 +585,42 @@ public:
 
     /**\brief Get a tag handle, possibly creating the tag
      *
+     * Get a handle used to associate application-defined values
+     * with MOAB entities.  If the tag does not already exist then
+     * \c flags should contain exactly one of \c MB_TAG_SPARSE, 
+     * \c MB_TAG_DENSE, \c MB_TAG_MESH unless \c type is MB_TYPE_BIT,
+     * which implies \c MB_TAG_BIT storage.  
+     * .
      *\param name          The tag name
-     *\param size          Tag size in bytes (or multiples of data type
-     *                     size if \c TAG_COUNT is passed in flags)
-     *\param storage       Desired tag storage scheme.
+     *\param size          Tag size as number of values of of data type per entity
+     *                     (or number of bytes if \c MB_TAG_BYTES is passed in flags).  If \c MB_TAG_VARLEN
+     *                     is specified, this value is taken to be the size of the
+     *                     default value if one is specified and is otherwise ignored.
      *\param type          The type of the data (used for IO)
      *\param tag_handle    Output: the resulting tag handle.
-     *\param flags         Bitwise OR of values from \c TagGetHandleFlags
+     *\param flags         Bitwise OR of values from \c TagType
      *\param default_value Optional default value for tag.
-     *\param default_value_size Ignored unless TAG_VARLEN is specified.
+     *\param created       Optional returned boolean indicating that the
+     *                     was created.
+     *\return - \c MB_TAG_ALREADY_ALLOCATED if tag exists and \c MB_TAG_EXCL is specified
+     *        - \c MB_TAG_NOT_FOUND         if tag does not exist and \c MB_TAG_CREAT is not specified
+     *        - \c MB_INVALID_SIZE          if tag value size is not a multiple of 
+     *                                      the size of the data type (and \c mb_TAG_COUNT not specified).
+     *        - \c MB_TYPE_OUT_OF_RANGE     invalid or inconsistent parameter
+     *        - \c MB_VARIABLE_DATA_LENGTH  if \c MB_TAG_VARLEN and \c default_value is non-null and
+     *                                      \c default_value_size is not specified.
      */
   virtual ErrorCode tag_get_handle( const char* name,
                                     int size,
-                                    TagType storage,
                                     DataType type,
                                     Tag& tag_handle,
                                     unsigned flags = 0,
-                                    const void* default_value = 0 );
+                                    const void* default_value = 0,
+                                    bool* created = 0 );
   
     /**\brief same as non-const version, except that TAG_CREAT flag is ignored. */
   virtual ErrorCode tag_get_handle( const char* name,
                                     int size,
-                                    TagType storage,
                                     DataType type,
                                     Tag& tag_handle,
                                     unsigned flags = 0,

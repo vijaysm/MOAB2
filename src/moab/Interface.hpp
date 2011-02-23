@@ -1116,51 +1116,44 @@ public:
 
     /**@{*/
 
-    /**\brief Bit flags passed to tag_get_handle (bit-wise OR multiple flags) */
-  enum TagGetHandleFlags {
-    TAG_COUNT = 1<<0, //!< Size is in number of values of \c DataType instead of bytes
-    TAG_VARLEN= 1<<1, //!< Create variable-length tag
-    TAG_CREAT = 1<<2, //!< Create tag if it does not already exist
-    TAG_EXCL  = 1<<3, //!< Fail if TAG_CREATE and tag already exists
-    TAG_STORE = 1<<4, //!< Fail if tag exists and has different storage type
-    TAG_ANY   = 1<<5, //!< Do not fail if size, type, or default value do not match.
-    TAG_NOOPQ = 1<<6  //!< Do not accept MB_TYPE_OPAQUE as a match for any type.
-//  TAG_NAME  = 1<<7, //!< If TAG_CREAT, implementaiton may append a unique suffix to make name unique
-//  TAG_CNVRT = 1<<8, //!< Convert storage type if it does not match
-  };
-
     /**\brief Get a tag handle, possibly creating the tag
      *
+     * Get a handle used to associate application-defined values
+     * with MOAB entities.  If the tag does not already exist then
+     * \c flags should contain exactly one of \c MB_TAG_SPARSE, 
+     * \c MB_TAG_DENSE, \c MB_TAG_MESH unless \c type is MB_TYPE_BIT,
+     * which implies \c MB_TAG_BIT storage.  
+     * .
      *\param name          The tag name
-     *\param size          Tag size in bytes (or multiples of data type
-     *                     size if \c TAG_COUNT is passed in flags).  If \c TAG_VARLEN
+     *\param size          Tag size as number of values of of data type per entity
+     *                     (or number of bytes if \c MB_TAG_BYTES is passed in flags).  If \c MB_TAG_VARLEN
      *                     is specified, this value is taken to be the size of the
      *                     default value if one is specified and is otherwise ignored.
-     *\param storage       Desired tag storage scheme.
      *\param type          The type of the data (used for IO)
      *\param tag_handle    Output: the resulting tag handle.
-     *\param flags         Bitwise OR of values from \c TagGetHandleFlags
+     *\param flags         Bitwise OR of values from \c TagType
      *\param default_value Optional default value for tag.
-     *\return - \c MB_TAG_ALREADY_ALLOCATED if tag exists and \c TAG_EXCL is specified
-     *        - \c MB_TAG_NOT_FOUND         if tag does not exist and \c TAG_CREAT is not specified
+     *\param created       Optional returned boolean indicating that the
+     *                     was created.
+     *\return - \c MB_TAG_ALREADY_ALLOCATED if tag exists and \c MB_TAG_EXCL is specified
+     *        - \c MB_TAG_NOT_FOUND         if tag does not exist and \c MB_TAG_CREAT is not specified
      *        - \c MB_INVALID_SIZE          if tag value size is not a multiple of 
-     *                                      the size of the data type (and \c TAG_COUNT not specified).
+     *                                      the size of the data type (and \c mb_TAG_COUNT not specified).
      *        - \c MB_TYPE_OUT_OF_RANGE     invalid or inconsistent parameter
-     *        - \c MB_VARIABLE_DATA_LENGTH  if \c TAG_VARLEN and \c default_value is non-null and
+     *        - \c MB_VARIABLE_DATA_LENGTH  if \c MB_TAG_VARLEN and \c default_value is non-null and
      *                                      \c default_value_size is not specified.
      */
   virtual ErrorCode tag_get_handle( const char* name,
                                     int size,
-                                    TagType storage,
                                     DataType type,
                                     Tag& tag_handle,
                                     unsigned flags = 0,
-                                    const void* default_value = 0 ) = 0;
+                                    const void* default_value = 0,
+                                    bool* created = 0 ) = 0;
   
-    /**\brief same as non-const version, except that TAG_CREAT flag is ignored. */
+    /**\brief same as non-const version, except that MB_TAG_CREAT flag is ignored. */
   virtual ErrorCode tag_get_handle( const char* name,
                                     int size,
-                                    TagType storage,
                                     DataType type,
                                     Tag& tag_handle,
                                     unsigned flags = 0,
@@ -1189,7 +1182,8 @@ public:
                         const TagType type,
                         Tag &tag_handle, 
                         const void *default_value)
-    { return tag_get_handle( tag_name, tag_size, type, MB_TYPE_OPAQUE, tag_handle, TAG_CREAT|TAG_EXCL, default_value ); }
+    { return tag_get_handle( tag_name, tag_size, MB_TYPE_OPAQUE, tag_handle,
+                             type|MB_TAG_CREAT|MB_TAG_EXCL|MB_TAG_BYTES, default_value ); }
 
     /** \brief Define a new tag.
      *
@@ -1215,8 +1209,8 @@ public:
                                   Tag& handle,
                         const    void* def_val,
                                   bool use_existing = false )
-    { return tag_get_handle( name, size, storage, data, handle, 
-                (use_existing ? TAG_CREAT : TAG_CREAT|TAG_EXCL), def_val ); }
+    { return tag_get_handle( name, size, data, handle, 
+                (use_existing?0:MB_TAG_EXCL)|MB_TAG_CREAT|MB_TAG_BYTES|storage, def_val ); }
 
     /**\brief Define a new tag that can store variable-length data.
      *
@@ -1239,8 +1233,8 @@ public:
                                         Tag&      handle_out,
                                         const void* default_value = 0,
                                         int         default_val_len = 0 )
-    { return tag_get_handle( name, default_val_len, storage, data_type, handle_out, 
-                              TAG_VARLEN|TAG_CREAT|TAG_EXCL,
+    { return tag_get_handle( name, default_val_len, data_type, handle_out, 
+                              storage|MB_TAG_VARLEN|MB_TAG_CREAT|MB_TAG_EXCL|MB_TAG_BYTES,
                               default_value ); }
 
     //! Get the name of a tag corresponding to a handle

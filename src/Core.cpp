@@ -1942,15 +1942,24 @@ ErrorCode  Core::tag_clear_data( Tag tag_handle,
 
 ErrorCode Core::tag_get_handle( const char* name,
                                 int size,
-                                TagType storage,
                                 DataType type,
                                 Tag& tag_handle,
                                 unsigned flags,
-                                const void* default_value ) 
+                                const void* default_value,
+                                bool* created ) 
 {
+  if (created) *created = false;
+
   // we always work with sizes in bytes internally
-  if (flags & TAG_COUNT)
+  if (flags & MB_TAG_BYTES) {
+    if (size % TagInfo::size_from_data_type( type ))
+      return MB_INVALID_SIZE;
+  }
+  else {
     size *= TagInfo::size_from_data_type( type );
+  }
+
+  const TagType storage = static_cast<TagType>(flags & 3);
 
   // search for an existing tag
   tag_handle = 0;
@@ -1964,27 +1973,27 @@ ErrorCode Core::tag_get_handle( const char* name,
   }
  
   if (tag_handle) {
-    if (flags & TAG_EXCL)
+    if (flags & MB_TAG_EXCL)
       return MB_ALREADY_ALLOCATED;
     // user asked that we not check anything
-    if (flags & TAG_ANY)
+    if (flags & MB_TAG_ANY)
       return MB_SUCCESS;
     // user asked that we also match storage types
-    if ((flags & TAG_STORE) && tag_handle->get_storage_type() != storage)
+    if ((flags & MB_TAG_STORE) && tag_handle->get_storage_type() != storage)
       return MB_TYPE_OUT_OF_RANGE;
     // check if data type matches
     const DataType extype = tag_handle->get_data_type();
     if (extype != type) {
-      if (flags & TAG_NOOPQ)
+      if (flags & MB_TAG_NOOPQ)
         return MB_TYPE_OUT_OF_RANGE;
       else if (extype != MB_TYPE_OPAQUE && type != MB_TYPE_OPAQUE)
         return MB_TYPE_OUT_OF_RANGE;
     }
     // check if varlen matches
-    if (!(flags & TAG_VARLEN) == tag_handle->variable_length())
+    if (!(flags & MB_TAG_VARLEN) == tag_handle->variable_length())
       return MB_TYPE_OUT_OF_RANGE;
     // check sizes
-    if (!(flags & TAG_VARLEN) && tag_handle->get_size() != size)
+    if (!(flags & MB_TAG_VARLEN) && tag_handle->get_size() != size)
       return MB_INVALID_SIZE;
       
     // If user passed a default value, check that it matches.  
@@ -1996,12 +2005,12 @@ ErrorCode Core::tag_get_handle( const char* name,
     return MB_SUCCESS;
   }
 
-  if (!(flags & TAG_CREAT))
+  if (!(flags & MB_TAG_CREAT))
     return MB_TAG_NOT_FOUND;
   
     // if a non-opaque non-bit type was specified, then the size
     // must be multiple of the size of the type
-  if ((!(flags & TAG_VARLEN) || default_value) && 
+  if ((!(flags & MB_TAG_VARLEN) || default_value) && 
       (size <= 0 || (size % TagInfo::size_from_data_type(type)) != 0))
     return MB_INVALID_SIZE;
   
@@ -2010,52 +2019,52 @@ ErrorCode Core::tag_get_handle( const char* name,
     return MB_TYPE_OUT_OF_RANGE;
   
     // create the tag
-  switch (storage) {
+  switch (flags & (MB_TAG_DENSE|MB_TAG_SPARSE|MB_TAG_MESH|MB_TAG_VARLEN)) {
+    case MB_TAG_DENSE|MB_TAG_VARLEN:
+      tag_handle = VarLenDenseTag::create_tag( sequenceManager, name, type, default_value, size );
+      break;
     case MB_TAG_DENSE:
-      if (flags & TAG_VARLEN)
-        tag_handle = VarLenDenseTag::create_tag( sequenceManager, name, type, default_value, size );
-      else
-        tag_handle = DenseTag::create_tag( sequenceManager, name, size, type, default_value );
+      tag_handle = DenseTag::create_tag( sequenceManager, name, size, type, default_value );
+      break;
+    case MB_TAG_SPARSE|MB_TAG_VARLEN:
+      tag_handle = new VarLenSparseTag( name, type, default_value, size );
       break;
     case MB_TAG_SPARSE:
-      if (flags & TAG_VARLEN)
-        tag_handle = new VarLenSparseTag( name, type, default_value, size );
-      else
-        tag_handle = new SparseTag( name, size, type, default_value );
+      tag_handle = new SparseTag( name, size, type, default_value );
+      break;
+    case MB_TAG_MESH|MB_TAG_VARLEN:
+      tag_handle = new MeshTag( name, MB_VARIABLE_LENGTH, type, default_value, size );
+      break;
+    case MB_TAG_MESH:
+      tag_handle = new MeshTag( name, size, type, default_value, size );
       break;
     case MB_TAG_BIT:
-      if (flags & TAG_VARLEN)
-        return MB_UNSUPPORTED_OPERATION;
-      if (type != MB_TYPE_BIT && type != MB_TYPE_OPAQUE)
+      if (MB_TYPE_BIT != type && MB_TYPE_OPAQUE != type)
         return MB_TYPE_OUT_OF_RANGE;
       tag_handle = BitTag::create_tag( name, size, default_value );
       break;
-    case MB_TAG_MESH:
-      if (flags & TAG_VARLEN)
-        tag_handle = new MeshTag( name, MB_VARIABLE_LENGTH, type, default_value, size );
-      else
-        tag_handle = new MeshTag( name, size, type, default_value, size );
-      break;
-  }
+    default: // some illegal combination (multiple storage types, variable-length bit tag, etc.)
+      return MB_TYPE_OUT_OF_RANGE;  
+  }    
 
   if (!tag_handle)
     return MB_INVALID_SIZE;
-  
+
+  if (created) *created = true;
   tagList.push_back( tag_handle );
   return MB_SUCCESS;  
 }
 
 ErrorCode Core::tag_get_handle( const char* name,
                                 int size,
-                                TagType storage,
                                 DataType type,
                                 Tag& tag_handle,
                                 unsigned flags,
                                 const void* default_value ) const
 { 
   return const_cast<Core*>(this)->tag_get_handle( 
-                   name, size, storage, type, tag_handle, 
-                   flags & ~(unsigned)TAG_CREAT, 
+                   name, size, type, tag_handle, 
+                   flags & ~(unsigned)MB_TAG_CREAT, 
                    default_value ); 
 }
 
@@ -2121,7 +2130,7 @@ ErrorCode Core::tag_get_name( const Tag tag_handle,
 }
 
 ErrorCode Core::tag_get_handle( const char *tag_name, Tag &tag_handle ) const
-{ return tag_get_handle( tag_name, 0, MB_TAG_MESH, MB_TYPE_OPAQUE, tag_handle, TAG_ANY ); }
+{ return tag_get_handle( tag_name, 0, MB_TYPE_OPAQUE, tag_handle, MB_TAG_ANY ); }
                                     
   //! get size of tag in bytes
 ErrorCode Core::tag_get_size(const Tag tag_handle, int &tag_size) const
@@ -2205,40 +2214,40 @@ ErrorCode Core::tag_get_tags_on_entity(const EntityHandle entity,
 Tag Core::material_tag()
 {
   if (0 == materialTag)
-    tag_get_handle(MATERIAL_SET_TAG_NAME, sizeof(int), 
-                   MB_TAG_SPARSE, MB_TYPE_INTEGER, materialTag,TAG_CREAT);
+    tag_get_handle(MATERIAL_SET_TAG_NAME, 1, 
+                   MB_TYPE_INTEGER, materialTag,MB_TAG_CREAT|MB_TAG_SPARSE);
   return materialTag;
 }
 
 Tag Core::neumannBC_tag()
 {
   if (0 == neumannBCTag)
-    tag_get_handle(NEUMANN_SET_TAG_NAME, sizeof(int), 
-                   MB_TAG_SPARSE, MB_TYPE_INTEGER, neumannBCTag,TAG_CREAT);
+    tag_get_handle(NEUMANN_SET_TAG_NAME, 1, 
+                   MB_TYPE_INTEGER, neumannBCTag,MB_TAG_CREAT|MB_TAG_SPARSE);
   return neumannBCTag;
 }
 
 Tag Core::dirichletBC_tag()
 {
   if (0 == dirichletBCTag)
-    tag_get_handle(DIRICHLET_SET_TAG_NAME, sizeof(int), 
-                   MB_TAG_SPARSE, MB_TYPE_INTEGER, dirichletBCTag,TAG_CREAT);
+    tag_get_handle(DIRICHLET_SET_TAG_NAME, 1, 
+                   MB_TYPE_INTEGER, dirichletBCTag,MB_TAG_CREAT|MB_TAG_SPARSE);
   return dirichletBCTag;
 }
 
 Tag Core::globalId_tag()
 {
   if (0 == globalIdTag)
-    tag_get_handle(GLOBAL_ID_TAG_NAME, sizeof(int), 
-                   MB_TAG_DENSE, MB_TYPE_INTEGER, globalIdTag,TAG_CREAT);
+    tag_get_handle(GLOBAL_ID_TAG_NAME, 1, 
+                   MB_TYPE_INTEGER, globalIdTag,MB_TAG_CREAT|MB_TAG_DENSE);
   return globalIdTag;
 }
 
 Tag Core::geom_dimension_tag()
 {
   if (0 == geomDimensionTag)
-    tag_get_handle(GEOM_DIMENSION_TAG_NAME, sizeof(int), 
-                   MB_TAG_SPARSE, MB_TYPE_INTEGER, geomDimensionTag,TAG_CREAT);
+    tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, 
+                   MB_TYPE_INTEGER, geomDimensionTag,MB_TAG_CREAT|MB_TAG_SPARSE);
   return geomDimensionTag;
 }
 

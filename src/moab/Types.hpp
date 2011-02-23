@@ -55,11 +55,20 @@ enum Constants {
 
 /** Specify storage type for tags.  See MOAB users guide for more information. */
 enum TagType {
-  MB_TAG_BIT = 0, /**< size measured in bits instead of bytes, otherwise identical to sparse */
-  MB_TAG_SPARSE,  /**< tags stored in (entity handle, tag value) pairs */
-  MB_TAG_DENSE,   /**< tags stored in vectors directly on entity sequences, cheaper for tags which go on lots of entities */ 
-  MB_TAG_MESH, 
-  MB_TAG_LAST=MB_TAG_MESH};
+  MB_TAG_BIT   = 0,    //!< Tag size specified in bits, tag value is 8 bits or less
+  MB_TAG_SPARSE= 1<<0, //!< Storage optimized for tags on a few entities
+  MB_TAG_DENSE = 1<<1, //!< Storage optimized for tags on most entities of a type
+  MB_TAG_MESH  = 1<<2, //!< Storage for tags on no entities, only the root set/whole mesh.
+  MB_TAG_BYTES = 1<<3, //!< Size is in number of bytes rather than number of values of \c DataType
+  MB_TAG_VARLEN= 1<<4, //!< Create variable-length tag
+  MB_TAG_CREAT = 1<<5, //!< Create tag if it does not already exist
+  MB_TAG_EXCL  = 1<<6, //!< Fail if TAG_CREATE and tag already exists
+  MB_TAG_STORE = 1<<7, //!< Fail if tag exists and has different storage type
+  MB_TAG_ANY   = 1<<8, //!< Do not fail if size, type, or default value do not match.
+  MB_TAG_NOOPQ = 1<<9  //!< Do not accept MB_TYPE_OPAQUE as a match for any type.
+//  MB_TAG_NAME  = 1<<10, //!< If TAG_CREAT, implementaiton may append a unique suffix to make name unique
+//  MB_TAG_CNVRT = 1<<11, //!< Convert storage type if it does not match
+};
 
 /** Specify data type for tags. */
 enum DataType {
