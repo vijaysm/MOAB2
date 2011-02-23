@@ -32,7 +32,6 @@ using moab::MB_TAG_BIT;
 using moab::MB_TAG_SPARSE;
 using moab::MB_TAG_DENSE;
 using moab::MB_TAG_MESH;
-using moab::MB_TAG_LAST;
 
 typedef moab::DataType MBDataType;
 using moab::MB_TYPE_OPAQUE;
