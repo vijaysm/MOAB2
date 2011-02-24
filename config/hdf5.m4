@@ -140,6 +140,7 @@ else
   AC_MSG_RESULT([yes])
 fi
 
+HAVE_HDF5=no
 if test "xno" != "x$HDF5_ARG"; then
   HAVE_HDF5=yes
 
