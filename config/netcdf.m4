@@ -97,15 +97,17 @@ if test "xno" != "x$NETCDF_ARG"; then
                     [FATHOM_CHECK_NETCDF_LIMITS([$1],[$2],[netcdf.h],[NETCDF_SUFFICIENT_DIM_VARS])], 
                     [AC_MSG_WARN([[NetCDF header not found.]]); HAVE_NETCDF=no] )
   
+      # Check if netcdf is usable by itself
   AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf"], [
+      # Check if netcdf is usable with HDF5
     unset ac_cv_lib_netcdf
     unset ac_cv_lib_netcdf_nc_create
       # If we haven't already looked for HDF5 libraries, again now incase
       # they're in the NetCDF lib directory.
     FATHOM_DETECT_HDF5_LIBS
     LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
-    NETCDF_LDFLAGS="$NETCDF_LDFLAGS"
-    AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf"], [
+    AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf -lhdf5_hl"], [
+      # Try one more time with HDF5 and libcurl
       unset ac_cv_lib_netcdf
       unset ac_cv_lib_netcdf_nc_create
       AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf -lhdf5_hl -lcurl"], 
