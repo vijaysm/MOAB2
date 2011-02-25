@@ -46,6 +46,7 @@ enum ErrorCode { MB_SUCCESS = 0,
                    MB_INVALID_SIZE,
                    MB_UNSUPPORTED_OPERATION,
                    MB_UNHANDLED_OPTION,
+                   MB_STRUCTURED_MESH,
                    MB_FAILURE};
 
 /** Misc. integer constants, declared in enum for portability */

@@ -65,7 +65,7 @@ ErrorCode StructuredElementSeq::get_connectivity(
   if (!storage) {
     connect = 0;
     connect_length = 0;
-    return MB_NOT_IMPLEMENTED;
+    return MB_STRUCTURED_MESH;
   }
   
   storage->clear();
@@ -80,7 +80,7 @@ ErrorCode StructuredElementSeq::set_connectivity(
                                         EntityHandle const*,
                                         int )
 {
-  return MB_NOT_IMPLEMENTED;
+  return MB_STRUCTURED_MESH;
 }
 
 EntityHandle* StructuredElementSeq::get_connectivity_array()

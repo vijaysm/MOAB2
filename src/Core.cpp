@@ -3270,6 +3270,7 @@ std::string Core::get_error_string(const ErrorCode code) const
     MB_CASE_STRING(MB_INVALID_SIZE);
     MB_CASE_STRING(MB_UNSUPPORTED_OPERATION);
     MB_CASE_STRING(MB_UNHANDLED_OPTION);
+    MB_CASE_STRING(MB_STRUCTURED_MESH);
     MB_CASE_STRING(MB_FAILURE);
     default: assert(!"unknown error code"); return "(UNKNOWN ERROR CODE)";
   }

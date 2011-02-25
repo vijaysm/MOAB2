@@ -375,6 +375,7 @@ const char* mb_error_str( moab::ErrorCode err )
     case moab::MB_INVALID_SIZE            : return "Invalid Size";
     case moab::MB_UNSUPPORTED_OPERATION   : return "Unsupported Operation";
     case moab::MB_UNHANDLED_OPTION        : return "Unhandled Option";
+    case moab::MB_STRUCTURED_MESH         : return "Structured Mesh";
     case moab::MB_FAILURE                 : return "Failure";
     default                         : return "(unknown)";
   }
