@@ -207,6 +207,10 @@ class WriteHDF5Parallel : public WriteHDF5
     ErrorCode append_serial_tag_data( std::vector<unsigned char>& buffer,
                                       const WriteHDF5::SparseTag& tag );
   
+    ErrorCode write_shared_set_data( hid_t table,
+                                     WriteUtilIface::EntityListType which_data,
+                                     IODebugTrack* dbg_track );
+  
   private:
     
       //! An array of interface mesh which is to be written by

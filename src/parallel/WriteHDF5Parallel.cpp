@@ -2200,25 +2200,41 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
 
   return MB_SUCCESS;
 }
-    
 
-ErrorCode WriteHDF5Parallel::write_shared_set_contents( hid_t table,
-                                            IODebugTrack* dbg_track )
+ErrorCode WriteHDF5Parallel::write_shared_set_data( hid_t table,
+                                   WriteUtilIface::EntityListType which_data,
+                                   IODebugTrack* dbg_track )
 {
-  dbgOut.tprint(1, "write_shared_set_contents\n" );
-
+  herr_t err;
   ErrorCode rval;
-  mhdf_Status status;
   std::vector<EntityHandle> handle_list;
   std::vector<id_t> id_list;
+  std::vector<id_t> big_list;
+  hid_t data_space = H5Dget_space( table );
+  H5Sselect_none( data_space );
   
-  for( std::list<ParallelSet>::const_iterator iter = parallelSets.begin();
-        iter != parallelSets.end(); ++iter)
-  {
+  std::list<ParallelSet>::const_iterator iter;
+  for (iter = parallelSets.begin(); iter != parallelSets.end(); ++iter) {
     handle_list.clear();
-    rval = iFace->get_entities_by_handle( iter->handle, handle_list );
-    if (MB_SUCCESS != rval)
+    long offset;
+    switch (which_data) {
+      case WriteUtilIface::CONTENTS:
+        rval = iFace->get_entities_by_handle( iter->handle, handle_list );
+        offset = iter->contentsOffset;
+        break;
+      case WriteUtilIface::CHILDREN:
+        rval = iFace->get_child_meshsets( iter->handle, handle_list );
+        offset = iter->childrenOffset;
+        break;
+      case WriteUtilIface::PARENTS:
+        rval = iFace->get_parent_meshsets( iter->handle, handle_list );
+        offset = iter->parentsOffset;
+        break;
+    }
+    if (MB_SUCCESS != rval) {
+      H5Sclose( data_space );
       return error(rval);
+    }
     remove_remote_entities( iter->handle, handle_list );
     
     id_list.clear();
@@ -2226,19 +2242,51 @@ ErrorCode WriteHDF5Parallel::write_shared_set_contents( hid_t table,
     if (id_list.empty())
       continue;
     
-    if (dbg_track) dbg_track->record_io( iter->contentsOffset, id_list.size() );
-    mhdf_writeSetData( table, 
-                       iter->contentsOffset, 
-                       id_list.size(),
-                       id_type,
-                       &id_list[0],
-                       &status );
-    CHECK_HDF(status);
+    if (dbg_track) 
+      dbg_track->record_io( offset, id_list.size() );
+      
+    hsize_t start = offset;
+    hsize_t count = id_list.size();
+    err = H5Sselect_hyperslab( data_space, H5S_SELECT_OR, &start, 0, &count, 0 );
+    if (err < 0) {
+      H5Sclose( data_space );
+      writeUtil->report_error( "H5Sselect_hyperslab failed for set contents" );
+      return MB_FAILURE;
+    }
+    std::copy( id_list.begin(), id_list.end(), std::back_inserter(big_list) );
   }
   
+  hid_t mem;
+  if (big_list.empty()) {
+#if H5_VERS_MAJOR > 1 || H5_VERS_MINOR >= 8
+    mem = H5Screate(H5S_NULL); 
+#else
+    mem = H5Screate( H5S_SIMPLE );
+    H5Sselect_none( mem );
+#endif
+  }
+  else {
+    hsize_t dim = big_list.size();
+    mem = H5Screate_simple( 1, &dim, NULL );
+  }
+  
+  err = H5Dwrite( table, H5T_NATIVE_LONG, mem, data_space, writeProp, &big_list[0] );
+  H5Sclose( data_space );
+  H5Sclose( mem );
+  if (err < 0) {
+    dbgOut.tprint(1,"Failed to write shared set descriptions\n");
+    writeUtil->report_error("H5Dwrite of shared set descriptions failed.");
+    return MB_FAILURE;
+  }
+    
+  return MB_SUCCESS;    
+}
 
-  dbgOut.tprint(1, "finished write_shared_set_contents\n" );
-  return MB_SUCCESS;
+ErrorCode WriteHDF5Parallel::write_shared_set_contents( hid_t table,
+                                            IODebugTrack* dbg_track )
+{
+  dbgOut.tprint(1, "write_shared_set_contents\n" );
+  return write_shared_set_data( table, WriteUtilIface::CONTENTS, dbg_track );
 }
     
 
@@ -2246,39 +2294,7 @@ ErrorCode WriteHDF5Parallel::write_shared_set_children( hid_t table,
                                             IODebugTrack* dbg_track )
 {
   dbgOut.tprint(1, "write_shared_set_children\n" );
-
-  ErrorCode rval;
-  mhdf_Status status;
-  std::vector<EntityHandle> handle_list;
-  std::vector<id_t> id_list;
-  
-  dbgOut.printf(2,"Writing children for %lu parallel sets.\n", (unsigned long)parallelSets.size());
-  for( std::list<ParallelSet>::const_iterator iter = parallelSets.begin();
-        iter != parallelSets.end(); ++iter)
-  {
-    handle_list.clear();
-    rval = iFace->get_child_meshsets( iter->handle, handle_list );
-    if (MB_SUCCESS != rval)
-      return error(rval);
-    remove_remote_sets( iter->handle, handle_list );
-    
-    id_list.clear();
-    vector_to_id_list( handle_list, id_list, true );
-    if (!id_list.empty())
-    {
-      if (dbg_track) dbg_track->record_io( iter->childrenOffset, id_list.size() );
-      mhdf_writeSetParentsChildren( table, 
-                                    iter->childrenOffset, 
-                                    id_list.size(),
-                                    id_type,
-                                    &id_list[0],
-                                    &status );
-      CHECK_HDF(status);
-    }
-  }
-
-  dbgOut.tprint(1, "finished write_shared_set_children\n" );
-  return MB_SUCCESS;
+  return write_shared_set_data( table, WriteUtilIface::CHILDREN, dbg_track );
 }
     
 
@@ -2286,39 +2302,7 @@ ErrorCode WriteHDF5Parallel::write_shared_set_parents( hid_t table,
                                             IODebugTrack* dbg_track )
 {
   dbgOut.tprint(1, "write_shared_set_parents\n" );
-
-  ErrorCode rval;
-  mhdf_Status status;
-  std::vector<EntityHandle> handle_list;
-  std::vector<id_t> id_list;
-  
-  dbgOut.printf(2,"Writing parents for %lu parallel sets.\n", (unsigned long)parallelSets.size());
-  for( std::list<ParallelSet>::const_iterator iter = parallelSets.begin();
-        iter != parallelSets.end(); ++iter)
-  {
-    handle_list.clear();
-    rval = iFace->get_parent_meshsets( iter->handle, handle_list );
-    if (MB_SUCCESS != rval)
-      return error(rval);
-    remove_remote_sets( iter->handle, handle_list );
-    
-    id_list.clear();
-    vector_to_id_list( handle_list, id_list, true );
-    if (!id_list.empty())
-    {
-      if (dbg_track) dbg_track->record_io( iter->parentsOffset, id_list.size() );
-      mhdf_writeSetParentsChildren( table, 
-                                    iter->parentsOffset, 
-                                    id_list.size(),
-                                    id_type,
-                                    &id_list[0],
-                                    &status );
-      CHECK_HDF(status);
-    }
-  }
-
-  dbgOut.tprint(1, "finished write_shared_set_parents\n" );
-  return MB_SUCCESS;
+  return write_shared_set_data( table, WriteUtilIface::PARENTS, dbg_track );
 }
 
 ErrorCode WriteHDF5Parallel::write_finished()
