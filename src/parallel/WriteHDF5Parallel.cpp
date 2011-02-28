@@ -28,6 +28,7 @@
 #include <H5Ppublic.h>
 #include <H5FDmpi.h>
 #include <H5FDmpio.h>
+#include <H5Spublic.h>
 
 #include "mhdf.h"
 
@@ -2106,8 +2107,33 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
 
   const id_t start_id = setSet.first_id;
   ErrorCode rval;
-  mhdf_Status status;
   
+    // Count number of parallel sets for which we need to write
+    // the description
+  std::list<ParallelSet>::const_iterator iter;
+  size_t count = 0;
+  for (iter = parallelSets.begin(); iter != parallelSets.end(); ++iter)
+    if (iter->description)
+      ++count;
+  
+    // get a large enough buffer for all of the shared set metadata
+  std::vector<long> tmp_buffer;
+  size_t buffer_size = bufferSize / (4*sizeof(long));
+  long* buffer;
+  if (buffer_size >= count) {
+    buffer = reinterpret_cast<long*>(dataBuffer);
+  }
+  else {
+    tmp_buffer.resize(4 * count);
+    buffer = &tmp_buffer[0];
+  }
+  
+    // get a buffer for offset locations
+  std::vector<hsize_t> coords;
+  coords.reserve(8 * count);
+  
+  
+  long* buff_iter = buffer;
   for( std::list<ParallelSet>::const_iterator iter = parallelSets.begin();
         iter != parallelSets.end(); ++iter)
   {
@@ -2126,16 +2152,51 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
       return error(rval);
       
       // Write the data
-    long data[4] = { iter->contentsOffset + iter->contentsCount - 1, 
-                     iter->childrenOffset + iter->childrenCount - 1, 
-                     iter->parentsOffset  + iter->parentsCount  - 1,
-                     flags };
+    *buff_iter = iter->contentsOffset + iter->contentsCount - 1; ++buff_iter;
+    *buff_iter = iter->childrenOffset + iter->childrenCount - 1; ++buff_iter;
+    *buff_iter = iter->parentsOffset  + iter->parentsCount  - 1, ++buff_iter;
+    *buff_iter = flags;                                          ++buff_iter;
+    coords.push_back( file_id ); coords.push_back( 0 );
+    coords.push_back( file_id ); coords.push_back( 1 );
+    coords.push_back( file_id ); coords.push_back( 2 );
+    coords.push_back( file_id ); coords.push_back( 3 );
+    
     if (dbg_track) dbg_track->record_io( file_id, 1 );
-    mhdf_writeSetMeta( table, file_id, 1, H5T_NATIVE_LONG, data, &status );
-    CHECK_HDF(status);
   }
 
-  dbgOut.tprint( 1,"finished write_shared_set_descriptions\n" );
+  herr_t herr;
+  hid_t space = H5Dget_space( table );
+  hsize_t dims[2] = { count, 4 };
+  hid_t mem;
+  if (count) {
+    mem = H5Screate_simple( 2, dims, NULL );
+    herr = H5Sselect_elements( space, H5S_SELECT_SET, 4*count, &coords[0] );
+  }
+  else {
+#if H5_VERS_MAJOR > 1 || H5_VERS_MINOR >= 8
+    mem = H5Screate(H5S_NULL); 
+#else
+    mem = H5Screate( H5S_SIMPLE );
+    H5Sselect_none( mem );
+#endif
+    herr = H5Sselect_none( space );
+  }
+
+  if (herr < 0) {
+    H5Sclose( mem );
+    H5Sclose( space );
+    dbgOut.tprint(1,"H5Sselect_elements failed\n");
+    writeUtil->report_error("H5Sselect_elements failed");
+    return MB_FAILURE;
+  }
+  herr = H5Dwrite( table, H5T_NATIVE_LONG, mem, space, writeProp, buffer );
+  H5Sclose( space );
+  H5Sclose( mem );
+  if (herr < 0) {
+    dbgOut.tprint(1,"Failed to write shared set descriptions\n");
+    writeUtil->report_error("H5Dwrite of shared set descriptions failed.");
+    return MB_FAILURE;
+  }
 
   return MB_SUCCESS;
 }
