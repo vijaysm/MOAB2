@@ -37,7 +37,6 @@
 #include "MBParallelConventions.h"
 #include "moab/ParallelComm.hpp"
 #include "moab/CN.hpp"
-#include "moab/WriteUtilIface.hpp"
 #include "moab/Range.hpp"
 
 #include "WriteHDF5Parallel.hpp"
@@ -1619,16 +1618,20 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
     // to determine total table size.
   std::vector<long> set_offsets(myPcomm->proc_config().proc_size() + 1);
   VALGRIND_MAKE_VEC_UNDEFINED( set_offsets );
-  long local_count = setSet.range.size();
+  long local_count = setSet.range.size(), max_count = 0;
   result = MPI_Gather( &local_count,    1, MPI_LONG,
                        &set_offsets[0], 1, MPI_LONG,
                        0, myPcomm->proc_config().proc_comm() );
   CHECK_MPI(result);
-  for (unsigned int j = 0; j <= myPcomm->proc_config().proc_size(); j++)
-  {
-    long tmp = set_offsets[j];
-    set_offsets[j] = total_offset;
-    total_offset += tmp;
+  if (myPcomm->proc_config().proc_rank() == 0) {
+    for (unsigned int j = 0; j <= myPcomm->proc_config().proc_size(); j++)
+    {
+      long tmp = set_offsets[j];
+      set_offsets[j] = total_offset;
+      total_offset += tmp;
+      if (max_count < tmp)
+        max_count = tmp;
+    }
   }
   
     // Send each proc its offsets in the set description table.
@@ -1637,6 +1640,10 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
                         &sets_offset,    1, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
   CHECK_MPI(result);
   setSet.offset = (id_t)(sets_offset);
+    // Send each proc the max count so that we can do collective IO
+  result = MPI_Bcast( &max_count, 1, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
+  CHECK_MPI(result);
+  setSet.max_num_ents = max_count;
 
     // Create the set description table
   long total_count_and_start_id[2] = { set_offsets[myPcomm->proc_config().proc_size()], 0 };
@@ -1694,14 +1701,26 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
                        &set_counts[0], 3, MPI_LONG,
                        0, myPcomm->proc_config().proc_comm() );
   CHECK_MPI(result);
-    
-  for (unsigned int j = 0; j < 3*myPcomm->proc_config().proc_size(); ++j)
+  
+  long max_counts[3] = { 0, 0, 0 };
+  if (myPcomm->proc_config().proc_rank() == 0)
   {
-    long tmp = set_counts[j];
-    set_counts[j] = data_offsets[j%3];
-    data_offsets[j%3] += tmp;
+      // calculate offsets for each set, and maximum count for each proccessor
+    for (unsigned int j = 0; j < 3*myPcomm->proc_config().proc_size(); ++j)
+    {
+      long tmp = set_counts[j];
+      set_counts[j] = data_offsets[j%3];
+      data_offsets[j%3] += tmp;
+      if (tmp > max_counts[j%3])
+        max_counts[j%3] = tmp;
+    }
+    
+      // Create set contents and set children tables
+    rval = create_set_tables( data_offsets[0], data_offsets[1], data_offsets[2] );
+    if (MB_SUCCESS != rval) 
+      return error(rval);
   }
-  long all_counts[] = {data_offsets[0], data_offsets[1], data_offsets[2]};
+
   result = MPI_Scatter( &set_counts[0], 3, MPI_LONG,
                         data_offsets,   3, MPI_LONG,
                         0, myPcomm->proc_config().proc_comm() );
@@ -1710,27 +1729,32 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
   setChildrenOffset = data_offsets[1];
   setParentsOffset = data_offsets[2];
   
-    // Create set contents and set children tables
-  if (myPcomm->proc_config().proc_rank() == 0)
-  {
-    rval = create_set_tables( all_counts[0], all_counts[1], all_counts[2] );
-    if (MB_SUCCESS != rval) 
-      return error(rval);
-  }
-  
-    // Send totals to all processors
-  result = MPI_Bcast( all_counts, 3, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
+    // Broadcast both max_counts and total table sizes.
+    // max_counts is necessary for collective IO because each
+    // proc needs to know the total number of writes that must
+    // be done collectively while writing the contents of non-shared
+    // sets. 
+    // Also send the total table sizes, which also accounts for shared
+    // sets, so that processors know whether or not any data is to be
+    // written for the corresponding table.
+  long summary_counts[6] = { max_counts[0], max_counts[1], max_counts[2],
+                             data_offsets[0], data_offsets[1], data_offsets[2] };
+  result = MPI_Bcast( summary_counts, 6, MPI_LONG, 0, 
+                      myPcomm->proc_config().proc_comm() );
   CHECK_MPI(result);
-  writeSetContents = all_counts[0] > 0;
-  writeSetChildren = all_counts[1] > 0;
-  writeSetParents  = all_counts[2] > 0;
+  maxNumSetContents = summary_counts[0];
+  maxNumSetChildren = summary_counts[1];
+  maxNumSetParents  = summary_counts[2];
+  writeSetContents = summary_counts[3] > 0;
+  writeSetChildren = summary_counts[4] > 0;
+  writeSetParents  = summary_counts[5] > 0;
 
   dbgOut.printf(2,"Non-shared set contents: %ld local, %ld global, offset = %ld\n",
-    data_counts[0], all_counts[0], data_offsets[0] );
+    data_counts[0], summary_counts[3], data_offsets[0] );
   dbgOut.printf(2,"Non-shared set children: %ld local, %ld global, offset = %ld\n",
-    data_counts[1], all_counts[1], data_offsets[1] );
+    data_counts[1], summary_counts[4], data_offsets[1] );
   dbgOut.printf(2,"Non-shared set parents: %ld local, %ld global, offset = %ld\n",
-    data_counts[2], all_counts[2], data_offsets[2] );
+    data_counts[2], summary_counts[5], data_offsets[2] );
   
   return MB_SUCCESS;
 }

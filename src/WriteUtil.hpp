@@ -268,15 +268,57 @@ public:
   /**\brief Get list of tags to write.
    *
    * Get the list of tags to write to the file, possibly using
-   * an optional user-specifed tag list.
+   * an optional user-specifed tag list.  This function consolidates
+   * some common code for file writers to use to figure out what
+   * tag data to write to the file.  It provides the following features:
+   *  o filter list based on user-specified array of tag handles
+   *  o filter internal tags (those for which the name is prefixed with
+   *      two underscore characters)
+   *  o filter anonymous tags
+   *  o optionally filter variable-length tags.
    *
    *\author Jason Kraftcheck
+   *\param result_list List of tag handles for which to write data
+   *\param user_tag_list Optional array of tag handles passed by user
+   *                     to write to file.
+   *\param include_variable_length_tags If false, return only fixed-length
+   *                     tags.
    */
   virtual ErrorCode 
   get_tag_list( std::vector<Tag>& result_list,
                 const Tag* user_tag_list = 0, 
                 int user_tag_list_length = 0,
                 bool include_variable_length_tags = true );
+
+  /*\brief Get pointers to internal storage of entity data
+   *
+   * Get pointers to element connectivity or set content storage.
+   *\param query_begin Start of range of entities for which to return results
+   *\param query_end   End of range of entities for which to return results.
+   *\param output_pointer_array Result list of pointers.  Points to either
+   *          element connectivity or set contents.  Note: set contents
+   *          may be in range-compacted format.
+   *\param lengths Optional per-entity length of list.  If passed, then
+   *          always set, for each entity, to the number of values in the
+   *          array passed back in \c output_pointer_array
+   *\param relation If entity is entity set, which set data to return
+   *          (contents array, parent array, or child array).  If
+   *          entity is an element, then CONTENTS for complete connectivity
+   *          or TOPOLOGICAL for only corner vertices.  
+   *\param flags Optional per-entity flag values.  If passed, then
+   *          always set to zero for elements and set to set creation
+   *          flags for entity sets.
+   *\return MB_STRUCTURED_MESH if one or more input elements are stored as
+   *          structured mesh and therefore do not have explicit storage.
+   *        MB_TYPE_OUT_OF_RANGE if called for vertices.
+   */
+  virtual ErrorCode
+  get_entity_list_pointers( Range::const_iterator query_begin,
+                            Range::const_iterator query_end,
+                            EntityHandle const* * output_pointer_array,
+                            EntityListType relation = CONTENTS,
+                            int* lengths = 0,
+                            unsigned char* flags = 0 );
 
   //! tell MB there was an error when writing the mesh
   //! it makes sense to have this as long as Interface has a write_mesh function

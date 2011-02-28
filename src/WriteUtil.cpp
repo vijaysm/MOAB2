@@ -26,6 +26,7 @@
 #include "AEntityFactory.hpp"
 #include "MBTagConventions.hpp"
 #include "RangeSeqIntersectIter.hpp"
+#include "MeshSetSequence.hpp"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -849,6 +850,70 @@ ErrorCode WriteUtil::get_tag_list( std::vector<Tag>& result_list,
   }
   
   return MB_SUCCESS;  
+}
+
+ErrorCode WriteUtil::get_entity_list_pointers( Range::const_iterator begin,
+                                               Range::const_iterator end,
+                                               EntityHandle const* * pointers,
+                                               EntityListType relation,
+                                               int* lengths,
+                                               unsigned char* flags )
+{
+  RangeSeqIntersectIter iter(mMB->sequence_manager());
+  ErrorCode rval = iter.init( begin, end );
+  while (MB_SUCCESS == rval) {
+  
+    EntityType type = TYPE_FROM_HANDLE( iter.get_start_handle() );
+    
+    if (MBENTITYSET == type) {
+      const MeshSetSequence* seq = reinterpret_cast<MeshSetSequence*>(iter.get_sequence());
+      const MeshSet* set;
+      int len; size_t clen;
+      for (EntityHandle h = iter.get_start_handle(); h <= iter.get_end_handle(); ++h) {
+        set = seq->get_set(h);
+        switch (relation) {
+          case CONTENTS: *pointers = set->get_contents( clen ); len = clen; break;
+          case CHILDREN: *pointers = set->get_children( len ); break;
+          case PARENTS:  *pointers = set->get_parents( len ); break;
+        }
+        if (lengths) {
+          *lengths = len;
+          ++lengths;
+        }
+        if (flags) {
+          *flags = set->flags();
+          ++flags;
+        }
+        ++pointers;
+      }
+    }
+    
+    else if (MBVERTEX != type) {
+      const bool topological = (relation == TOPOLOGICAL);
+      int len;
+      const ElementSequence* seq = reinterpret_cast<ElementSequence*>(iter.get_sequence());
+      for (EntityHandle h = iter.get_start_handle(); h <= iter.get_end_handle(); ++h) {
+        rval = seq->get_connectivity( h, *pointers, len, topological );
+        if (MB_SUCCESS != rval) return rval;
+        if (lengths) {
+          *lengths = len;
+          ++lengths;
+        }
+        if (flags) {
+          *flags = 0;
+          ++flags;
+        }
+        ++pointers;
+      }
+    }
+    else {
+      return MB_TYPE_OUT_OF_RANGE;
+    }
+
+    rval = iter.step();
+  }
+  if (MB_FAILURE == rval) return MB_SUCCESS; // at end of list
+  else return rval;
 }
 
 } // namespace moab
