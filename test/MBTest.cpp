@@ -8063,7 +8063,7 @@ ErrorCode mb_root_set_test()
   rval = mb->get_meshset_options( rs, flags );
   CHECK( flags & MESHSET_SET );
   CHECK( !(flags & MESHSET_ORDERED) );
-  CHECK( !(flags & MESHSET_TRACK_OWNER) );
+  CHECK( flags & MESHSET_TRACK_OWNER );
   
     // contains tests
   bool c = mb->contains_entities( rs, &some_set, 1 );
