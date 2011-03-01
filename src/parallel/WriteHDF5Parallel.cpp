@@ -632,6 +632,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
     tag_iter->varDataOffset = 0;
     tag_iter->write = false;
     tag_iter->max_num_ents = 0;
+    tag_iter->max_num_vals = 0;
   }
   
     // Iterate over data from all procs, updating the local list
@@ -681,6 +682,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
       newtag.varDataOffset = 0;
       newtag.write = false;
       newtag.max_num_ents = 0;
+      newtag.max_num_vals = 0;
 
       tag_iter = tagList.insert( tag_iter, newtag );
       ++num_tags;
@@ -698,6 +700,8 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
       tag_iter->write = true;
     if (ptr->num_sparse_ents > tag_iter->max_num_ents)
       tag_iter->max_num_ents = ptr->num_sparse_ents;
+    if (ptr->num_sparse_vals > tag_iter->max_num_vals)
+      tag_iter->max_num_vals = ptr->num_sparse_vals;
   
       // Update global counts
     counts[idx] += ptr->num_sparse_ents;
