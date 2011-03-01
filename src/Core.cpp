@@ -2841,7 +2841,7 @@ ErrorCode Core::get_meshset_options( const EntityHandle ms_handle,
                                           unsigned int& options) const
 {
   if (!ms_handle) { // root set
-    options = MESHSET_SET;
+    options = MESHSET_SET|MESHSET_TRACK_OWNER;
     return MB_SUCCESS;
   }
   
