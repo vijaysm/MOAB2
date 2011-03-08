@@ -115,14 +115,22 @@ class WriteHDF5Parallel : public WriteHDF5
       //! Figure out which mesh local mesh is duplicated on
       //! remote processors and which processor will write
       //! that mesh.
-    ErrorCode gather_interface_meshes();
+      //!\param non_local_ents Output list of entities that are not to
+      //!                  be written by this processor but are
+      //!                  referenced by other entities that are
+      //!                  to be written.
+    ErrorCode gather_interface_meshes( Range& non_local_ents );
     
       //! For entities that will be written by another 
       //! processor but are referenced by entities on this
       //! processor, get the file Ids that will be assigned
       //! to those so they can be referenced by
       //! entities to be written on this processor.
-    ErrorCode exchange_file_ids();
+      //!\param non_local_ents List of entities that are not to
+      //!                  be written by this processor but are
+      //!                  referenced by other entities that are
+      //!                  to be written.
+    ErrorCode exchange_file_ids( const Range& non_local_ents );
     
       //! Create the node table in the file.
     ErrorCode create_node_table( int dimension );
@@ -138,18 +146,10 @@ class WriteHDF5Parallel : public WriteHDF5
       //! Create tables to hold element adjacencies.
     ErrorCode create_adjacency_tables();
     
-      //! Identify and set up meshsets that span multiple
-      //! processors.
-      //!\param offsets Output array of three values.
-    ErrorCode negotiate_shared_meshsets( long* offsets );
-    
       //! Setup meshsets spanning multiple processors
     ErrorCode get_remote_set_data( const MultiProcSetTags::Data& tag,
                                      RemoteSetData& data,
                                      long& offset );
-                                     
-      //! Setup interface meshsets spanning multiple processors
-    ErrorCode get_interface_set_data( RemoteSetData& data, long& offset );
     
       //! Determine offsets in contents and children tables for 
       //! meshsets shared between processors.
@@ -213,11 +213,6 @@ class WriteHDF5Parallel : public WriteHDF5
   
   private:
     
-      //! An array of interface mesh which is to be written by
-      //! remote processors.  Indexed by MPI rank (processor number).
-    std::map<unsigned,Range> interfaceMesh;
-    typedef std::map<unsigned,Range>::iterator proc_iter;
-    
       //! Tag names for identifying multi-processor meshsets
     MultiProcSetTags multiProcSetTags;
     
@@ -239,9 +234,7 @@ class WriteHDF5Parallel : public WriteHDF5
       //! Vector indexed by MPI rank, containing the list
       //! of parallel sets that each processor knows about.
     std::map<unsigned,Range> cpuParallelSets;
-    
-      //! List of parallel sets "owned" by this processor
-    //Range myParallelSets;
+    typedef std::map<unsigned,Range>::iterator proc_iter;
 
     //! pcomm controlling parallel nature of mesh
   ParallelComm *myPcomm;
