@@ -325,9 +325,9 @@ int main(int argc, char* argv[])
   // only one test so far... should probably add second test
   // for really-old-format  entityset parent/child links
   int exitval = 0;
-  //exitval += RUN_TEST( test_ranged_set_with_holes );
-  //exitval += RUN_TEST( test_file_set );
-  //exitval += RUN_TEST( test_small_tree );
+  exitval += RUN_TEST( test_ranged_set_with_holes );
+  exitval += RUN_TEST( test_file_set );
+  exitval += RUN_TEST( test_small_tree );
   exitval += RUN_TEST( regression_mmiller_8_2010 );
   if (do_big_tree_test) {
     exitval += RUN_TEST( test_big_tree );
