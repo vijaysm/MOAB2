@@ -2327,6 +2327,37 @@ ErrorCode WriteHDF5Parallel::exchange_file_ids( const Range& nonlocal )
     }
   }
   
+#ifndef NDEBUG
+    // check that writer is correct with regards to which entities
+    // that it owns by verifying that the file ids that we thought
+    // we were sending where not received instead
+  file_id_vect.resize( imesh.size() );
+  rval = iFace->tag_get_data( file_id_tag, imesh, &file_id_vect[0] );
+  if (MB_SUCCESS != rval) {
+    iFace->tag_delete( file_id_tag );
+    return error(rval);
+  }
+  int invalid_count = 0;
+  j = file_id_vect.begin();
+  for (i = imesh.begin(); i != imesh.end(); ++i, ++j) {
+    EntityHandle h = idMap.find(*i);
+    if (*j != h) {
+      ++invalid_count;
+      dbgOut.printf(1,"Conflicting owneship for %s %ld\n",
+        CN::EntityTypeName(TYPE_FROM_HANDLE(*i)),
+        (long)ID_FROM_HANDLE(*i));
+    }
+  }
+  if (invalid_count) {
+    writeUtil->report_error("%d entities with conflicting ownership found "
+                            "by process %u.  This will result in duplicate "
+                            "entities written to file.\n",
+                            invalid_count, myPcomm->proc_config().proc_rank() );
+    iFace->tag_delete( file_id_tag );
+    return MB_FAILURE;
+  }
+#endif   
+  
   return iFace->tag_delete( file_id_tag );
 }
 
