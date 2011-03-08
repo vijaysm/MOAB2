@@ -4587,41 +4587,182 @@ ErrorCode ParallelComm::recv_buffer(int mesg_tag_expected,
   return MB_SUCCESS;
 }
 
+struct ProcList {
+  int procs[MAX_SHARING_PROCS];
+};
+bool operator<( const ProcList& a, const ProcList& b ) {
+  for (int i = 0; i < MAX_SHARING_PROCS; ++i) {
+    if (a.procs[i] < b.procs[i]) 
+      return true;
+    else if (b.procs[i] < a.procs[i])
+      return false;
+    else if (a.procs[i] < 0)
+      return false; 
+  }
+  return false;
+}
+
 ErrorCode ParallelComm::check_clean_iface(Range &allsent) 
 {
     // allsent is all entities I think are on interface; go over them, looking
     // for zero-valued handles, and fix any I find
 
+    // Keep lists of entities for which teh sharing data changed, grouped
+    // by set of sharing procs.
+  typedef std::map< ProcList, Range > procmap_t;
+  procmap_t old_procs, new_procs;
+
   ErrorCode result = MB_SUCCESS;
   Range::iterator rit;
+  Range::reverse_iterator rvit;
   unsigned char pstatus;
-  int sharedp[MAX_SHARING_PROCS], nump;
+  int nump;
+  ProcList sharedp;
   EntityHandle sharedh[MAX_SHARING_PROCS];
-  for (rit = allsent.begin(); rit != allsent.end(); rit++) {
-    result = get_sharing_data(*rit, sharedp, sharedh, pstatus, nump);
+  for (rvit = allsent.rbegin(); rvit != allsent.rend(); rvit++) {
+    result = get_sharing_data(*rvit, sharedp.procs, sharedh, pstatus, nump);
     RRA("");
     assert("Should be shared with at least one other proc" && 
-           (nump > 1 || sharedp[0] != (int)procConfig.proc_rank()));
-    int numz = 0;
-    for (int i = 0; i < nump; i++) {
-      if (!sharedh[i]) numz++;
-      else if (numz) {
-          // shift downward
-        sharedh[i-numz] = sharedh[i];
-        sharedp[i-numz] = sharedp[i];
+           (nump > 1 || sharedp.procs[0] != (int)procConfig.proc_rank()));
+    assert(nump == MAX_SHARING_PROCS || sharedp.procs[nump] == -1);
+
+      // look for first null handle in list
+    int idx = std::find( sharedh, sharedh+nump, (EntityHandle)0 ) - sharedh;
+    if (idx == nump)
+      continue; // all handles are valid
+    
+    ProcList old_list( sharedp );
+    std::sort( old_list.procs, old_list.procs + nump );
+    old_procs[old_list].insert( *rvit );
+    
+      // remove null handles and corresponding proc ranks from lists
+    int new_nump = idx;
+    bool removed_owner = !idx;
+    for (++idx; idx < nump; ++idx) {
+      if (sharedh[idx]) {
+        sharedh[new_nump] = sharedh[idx];
+        sharedp.procs[new_nump] = sharedp.procs[idx];
+        ++new_nump;
       }
     }
-    if (numz) {
-      for (int i = numz; i > 0; i--) {
-        sharedp[nump-i] = -1;
-        sharedh[nump-i] = 0;
+    sharedp.procs[new_nump] = -1;
+ 
+    if (removed_owner && new_nump > 1) {
+      // The proc that we choose as the entity owner isn't sharing the
+      // entity (doesn't have a copy of it).  We need to pick a different
+      // owner.  Choose the proc with lowest rank.
+      idx = std::min_element( sharedp.procs, sharedp.procs+new_nump ) - sharedp.procs;
+      std::swap( sharedp.procs[0], sharedp.procs[idx] );
+      std::swap( sharedh[0], sharedh[idx] );
+      if (sharedp.procs[0] == (int)proc_config().proc_rank())
+        pstatus &= ~PSTATUS_NOT_OWNED;
+    }
+
+    result = set_sharing_data(*rvit, pstatus, nump, new_nump, sharedp.procs, sharedh);
+    RRA("");
+
+    if (new_nump > 1) {
+      if (new_nump == 2) {
+        if (sharedp.procs[1] != (int)proc_config().proc_rank()) {
+          assert(sharedp.procs[0] == (int)proc_config().proc_rank());
+          sharedp.procs[0] = sharedp.procs[1];
+        }
+        sharedp.procs[1] = -1;
+      } 
+      else {
+        std::sort( sharedp.procs, sharedp.procs + new_nump );
       }
-      result = set_sharing_data(*rit, pstatus, nump, nump-numz, sharedp, sharedh);
-      RRA("");
+      new_procs[sharedp].insert( *rvit );
     }
   }
   
-  return result;
+  if (old_procs.empty()) {
+    assert(new_procs.empty());
+    return MB_SUCCESS;
+  }
+  
+    // update interface sets
+  procmap_t::iterator pmit;
+  //std::vector<unsigned char> pstatus_list;
+  rit = interface_sets().begin();
+  while (rit != interface_sets().end()) {
+    result = get_sharing_data( *rit, sharedp.procs, sharedh, pstatus, nump );
+    RRA("problems getting sharing data for interface set");
+    assert( nump != 2 );
+    std::sort( sharedp.procs, sharedp.procs + nump );
+    assert(nump == MAX_SHARING_PROCS || sharedp.procs[nump] == -1);
+    
+    pmit = old_procs.find( sharedp );
+    if (pmit != old_procs.end()) {
+      result = mbImpl->remove_entities( *rit, pmit->second ); RRA("");
+    }
+  
+    pmit = new_procs.find( sharedp );
+    if (pmit == new_procs.end()) {
+      int count;
+      result = mbImpl->get_number_entities_by_handle( *rit, count ); RRA("");
+      if (!count) {
+        result = mbImpl->delete_entities( &*rit, 1 ); RRA("");
+        rit = interface_sets().erase( rit );
+      }
+      else {  
+        ++rit;
+      }
+    }
+    else {
+      result = mbImpl->add_entities( *rit, pmit->second ); RRA("");
+
+        // remove those that we've processed so that we know which ones
+        // are new.
+      new_procs.erase( pmit );
+      ++rit;
+    }
+  }
+  
+    // create interface sets for new proc id combinations
+  std::fill( sharedh, sharedh + MAX_SHARING_PROCS, 0);
+  for (pmit = new_procs.begin(); pmit != new_procs.end(); ++pmit) {
+    EntityHandle new_set;
+    result = mbImpl->create_meshset(MESHSET_SET, new_set); 
+    RRA("Failed to create interface set.");
+    interfaceSets.insert(new_set);
+
+      // add entities
+    result = mbImpl->add_entities(new_set, pmit->second); 
+    RRA("Failed to add entities to interface set.");
+      // tag set with the proc rank(s)
+    assert(pmit->first.procs[0] >= 0);
+    pstatus = PSTATUS_SHARED|PSTATUS_INTERFACE;
+    if (pmit->first.procs[1] == -1) {
+      int other = pmit->first.procs[0];
+      assert(other != (int)procConfig.proc_rank());
+      result = mbImpl->tag_set_data(sharedp_tag(), &new_set, 1, pmit->first.procs); 
+      RRA("Failed to tag interface set with procs.");
+      sharedh[0] = 0;
+      result = mbImpl->tag_set_data(sharedh_tag(), &new_set, 1, sharedh); 
+      RRA("Failed to tag interface set with procs.");
+      if (other < (int)proc_config().proc_rank())
+        pstatus |= PSTATUS_NOT_OWNED;
+    }
+    else {
+      result = mbImpl->tag_set_data(sharedps_tag(), &new_set, 1, pmit->first.procs );
+      RRA("Failed to tag interface set with procs.");
+      result = mbImpl->tag_set_data(sharedhs_tag(), &new_set, 1, sharedh); 
+      RRA("Failed to tag interface set with procs.");
+      pstatus |= PSTATUS_MULTISHARED;
+      if (pmit->first.procs[0] < (int)proc_config().proc_rank())
+        pstatus |= PSTATUS_NOT_OWNED;
+    }
+    
+    result = mbImpl->tag_set_data(pstatus_tag(), &new_set, 1, &pstatus); 
+    RRA("Failed to tag interface set with pstatus.");
+    
+      // set pstatus on all interface entities in set
+    result = mbImpl->tag_clear_data(pstatus_tag(), pmit->second, &pstatus );
+    RRA("Failed to tag interface entities with pstatus.");
+  }
+  
+  return MB_SUCCESS;
 }
 
 ErrorCode ParallelComm::set_sharing_data(EntityHandle ent, unsigned char pstatus,
@@ -4642,7 +4783,10 @@ ErrorCode ParallelComm::set_sharing_data(EntityHandle ent, unsigned char pstatus
     result = mbImpl->tag_delete_data(sharedhs_tag(), &ent, 1);
     RRA("");
     pstatus ^= PSTATUS_MULTISHARED;
-    if (new_nump < 2) pstatus = 0x0;
+    if (new_nump < 2) 
+      pstatus = 0x0;
+    else if (ps[0] != (int)proc_config().proc_rank())
+      pstatus |= PSTATUS_NOT_OWNED;
   }
   else if (pstatus & PSTATUS_SHARED && new_nump < 2) {
     hs[0] = 0;
