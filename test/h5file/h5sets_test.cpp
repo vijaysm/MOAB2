@@ -293,7 +293,7 @@ void test_tree( int max_depth )
 
 void test_small_tree() 
 { 
-  int max_depth = 5;
+  int max_depth = 8;
   const char* str = getenv("MAX_DEPTH");
   if (str) {
     max_depth = atoi(str);
@@ -322,8 +322,6 @@ int main(int argc, char* argv[])
     }
   }
 
-  // only one test so far... should probably add second test
-  // for really-old-format  entityset parent/child links
   int exitval = 0;
   exitval += RUN_TEST( test_ranged_set_with_holes );
   exitval += RUN_TEST( test_file_set );
