@@ -13,15 +13,15 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_srcdir)/src/parallel \
 	       -I$(top_builddir)/src/parallel 
             
-check_PROGRAMS = h5test \
-                 h5legacy \
-                 h5varlen \
-                 h5sets_test \
-                 h5regression \
-                 h5partial \
-                 h5portable
+TESTS = h5test \
+        h5legacy \
+        h5varlen \
+        h5sets_test \
+        h5regression \
+        h5partial \
+        h5portable
 
-TESTS = $(check_PROGRAMS)
+check_PROGRAMS = $(TESTS) dump_sets
 LDADD = $(top_builddir)/src/libMOAB.la
 
 h5test_SOURCES = h5file_test.cpp
@@ -31,3 +31,6 @@ h5sets_test_SOURCES = h5sets_test.cpp
 h5regression_SOURCES = h5regression.cpp
 h5partial_SOURCES = h5partial.cpp
 h5portable_SOURCES = h5portable.cpp
+
+dump_sets_SOURCES = dump_sets.c
+dump_sets_LDADD = $(top_builddir)/src/io/mhdf/libmhdf.la
