@@ -307,6 +307,8 @@ void test_big_tree()
 
  
 void regression_mmiller_8_2010();
+
+void test_set_flags();
   
 int main(int argc, char* argv[])
 {
@@ -326,6 +328,7 @@ int main(int argc, char* argv[])
   exitval += RUN_TEST( test_ranged_set_with_holes );
   exitval += RUN_TEST( test_file_set );
   exitval += RUN_TEST( test_small_tree );
+  exitval += RUN_TEST( test_set_flags );
   exitval += RUN_TEST( regression_mmiller_8_2010 );
   if (do_big_tree_test) {
     exitval += RUN_TEST( test_big_tree );
@@ -574,4 +577,144 @@ void regression_mmiller_8_2010()
   expected.insert( PYR1+4 );
   expected.insert( PRI1+8 );
   CHECK_EQUAL( expected, range );
+}
+
+// Test to reproduce bug reported by brandom smith on 2011-3-7
+// and test other possible issues with the somewhat inconsistant
+// meshset creation flags.  Bug was fixed in SVN revision 4548.
+void test_set_flags()
+{
+  const char filename[] = "test_set_flags.h5m";
+  ErrorCode rval;
+  Core core;
+  Interface& mb = core;
+
+  // create a bunch of vertices so we have something to put in sets
+  const int nverts = 20;
+  double coords[3*nverts] = {0.0};
+  Range verts;
+  rval = mb.create_vertices( coords, nverts, verts );
+  CHECK_ERR(rval);
+  
+  // Assign IDs to things so that we can identify them in the
+  // data we read back in.
+  Tag tag;
+  rval = mb.tag_get_handle( "GLOBAL_ID", tag ); CHECK_ERR(rval);
+  int ids[nverts];
+  for (int i = 0; i < nverts; ++i)
+    ids[i] = i+1;
+  rval = mb.tag_set_data( tag, verts, ids ); CHECK_ERR(rval);
+  
+  // define two lists of vertex ids corresponding to the
+  // vertices that we are going to put into different sets
+  const int set_verts1[] = { 1, 2, 3, 4, 8, 13, 14, 15 };
+  const int set_verts2[] = { 3, 9, 10, 11, 12, 13, 14, 15, 16, 17 };
+  const int num_verts1 = sizeof(set_verts1)/sizeof(set_verts1[0]);
+  const int num_verts2 = sizeof(set_verts1)/sizeof(set_verts1[0]);
+  
+  // convert to handle lists
+  EntityHandle set_handles1[num_verts1], set_handles2[num_verts2];
+  for (int i = 0; i < num_verts1; ++i)
+    set_handles1[i] = *(verts.begin() + set_verts1[i] - 1);
+  for (int i = 0; i < num_verts2; ++i)
+    set_handles2[i] = *(verts.begin() + set_verts2[i] - 1);
+  
+  // now create some sets with different flag combinations
+  EntityHandle sets[6];
+  rval = mb.create_meshset( 0, sets[0] );
+  rval = mb.create_meshset( MESHSET_TRACK_OWNER, sets[1] );
+  rval = mb.create_meshset( MESHSET_SET, sets[2] );
+  rval = mb.create_meshset( MESHSET_SET|MESHSET_TRACK_OWNER, sets[3] );
+  rval = mb.create_meshset( MESHSET_ORDERED, sets[4] );
+  rval = mb.create_meshset( MESHSET_ORDERED|MESHSET_TRACK_OWNER, sets[5] );
+  
+  // assign IDs to sets so that we can identify them later
+  rval = mb.tag_set_data( tag, sets, 6, ids ); CHECK_ERR(rval);
+  // add entities to sets
+  rval = mb.add_entities( sets[0], set_handles1, num_verts1 ); CHECK_ERR(rval);
+  rval = mb.add_entities( sets[1], set_handles2, num_verts2 ); CHECK_ERR(rval);
+  rval = mb.add_entities( sets[2], set_handles1, num_verts1 ); CHECK_ERR(rval);
+  rval = mb.add_entities( sets[3], set_handles2, num_verts2 ); CHECK_ERR(rval);
+  rval = mb.add_entities( sets[4], set_handles1, num_verts1 ); CHECK_ERR(rval);
+  rval = mb.add_entities( sets[5], set_handles2, num_verts2 ); CHECK_ERR(rval);
+  
+  // now write the file and read it back in
+  rval = mb.write_file( filename, 0, "BUFFER_SIZE=1024;DEBUG_BINIO" ); CHECK_ERR(rval);
+  mb.delete_mesh();
+  rval = mb.load_file( filename );
+  if (!keep_file)
+    remove( filename );
+  CHECK_ERR(rval);
+  rval = mb.tag_get_handle( "GLOBAL_ID", tag ); CHECK_ERR(rval);
+  
+  // find our sets
+  Range tmp;
+  for (int i = 0; i < 6; ++i) {
+    int id = i+1;
+    tmp.clear();
+    const void* vals[] = {&id};
+    rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &tag, vals, 1, tmp ); CHECK_ERR(rval);
+    CHECK_EQUAL( 1u, (unsigned)tmp.size() );
+    sets[i] = tmp.front();
+  }
+  
+  // check that sets have correct flags
+  unsigned opts;
+  rval = mb.get_meshset_options( sets[0], opts ); CHECK_ERR(rval);
+  CHECK_EQUAL( 0u, opts );
+  rval = mb.get_meshset_options( sets[1], opts ); CHECK_ERR(rval);
+  CHECK_EQUAL( (unsigned)MESHSET_TRACK_OWNER, opts );
+  rval = mb.get_meshset_options( sets[2], opts ); CHECK_ERR(rval);
+  CHECK_EQUAL( (unsigned)MESHSET_SET, opts );
+  rval = mb.get_meshset_options( sets[3], opts ); CHECK_ERR(rval);
+  CHECK_EQUAL( (unsigned)(MESHSET_SET|MESHSET_TRACK_OWNER), opts );
+  rval = mb.get_meshset_options( sets[4], opts ); CHECK_ERR(rval);
+  CHECK_EQUAL( (unsigned)MESHSET_ORDERED, opts );
+  rval = mb.get_meshset_options( sets[5], opts ); CHECK_ERR(rval);
+  CHECK_EQUAL( (unsigned)(MESHSET_ORDERED|MESHSET_TRACK_OWNER), opts );
+  
+  // check that sets have correct contents
+  int set_ids1[num_verts1], set_ids2[num_verts2];
+  
+  tmp.clear();
+  rval = mb.get_entities_by_handle( sets[0], tmp ); CHECK_ERR(rval);
+  CHECK_EQUAL( num_verts1, (int)tmp.size() );
+  rval = mb.tag_get_data( tag, tmp, set_ids1 ); CHECK_ERR(rval);
+  std::sort( set_ids1, set_ids1+num_verts1 );
+  CHECK_ARRAYS_EQUAL( set_verts1, num_verts1, set_ids1, num_verts1 );
+  
+  tmp.clear();
+  rval = mb.get_entities_by_handle( sets[1], tmp ); CHECK_ERR(rval);
+  CHECK_EQUAL( num_verts2, (int)tmp.size() );
+  rval = mb.tag_get_data( tag, tmp, set_ids2 ); CHECK_ERR(rval);
+  std::sort( set_ids2, set_ids2+num_verts2 );
+  CHECK_ARRAYS_EQUAL( set_verts2, num_verts2, set_ids2, num_verts2 );
+  
+  tmp.clear();
+  rval = mb.get_entities_by_handle( sets[2], tmp ); CHECK_ERR(rval);
+  CHECK_EQUAL( num_verts1, (int)tmp.size() );
+  rval = mb.tag_get_data( tag, tmp, set_ids1 ); CHECK_ERR(rval);
+  std::sort( set_ids1, set_ids1+num_verts1 );
+  CHECK_ARRAYS_EQUAL( set_verts1, num_verts1, set_ids1, num_verts1 );
+  
+  tmp.clear();
+  rval = mb.get_entities_by_handle( sets[3], tmp ); CHECK_ERR(rval);
+  CHECK_EQUAL( num_verts2, (int)tmp.size() );
+  rval = mb.tag_get_data( tag, tmp, set_ids2 ); CHECK_ERR(rval);
+  std::sort( set_ids2, set_ids2+num_verts2 );
+  CHECK_ARRAYS_EQUAL( set_verts2, num_verts2, set_ids2, num_verts2 );
+  
+  tmp.clear();
+  rval = mb.get_entities_by_handle( sets[4], tmp ); CHECK_ERR(rval);
+  CHECK_EQUAL( num_verts1, (int)tmp.size() );
+  rval = mb.tag_get_data( tag, tmp, set_ids1 ); CHECK_ERR(rval);
+  std::sort( set_ids1, set_ids1+num_verts1 );
+  CHECK_ARRAYS_EQUAL( set_verts1, num_verts1, set_ids1, num_verts1 );
+  
+  tmp.clear();
+  rval = mb.get_entities_by_handle( sets[5], tmp ); CHECK_ERR(rval);
+  CHECK_EQUAL( num_verts2, (int)tmp.size() );
+  rval = mb.tag_get_data( tag, tmp, set_ids2 ); CHECK_ERR(rval);
+  std::sort( set_ids2, set_ids2+num_verts2 );
+  CHECK_ARRAYS_EQUAL( set_verts2, num_verts2, set_ids2, num_verts2 );
 }
