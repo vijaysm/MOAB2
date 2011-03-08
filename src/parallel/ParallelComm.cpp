@@ -3498,6 +3498,7 @@ ErrorCode ParallelComm::create_interface_sets(int resolve_dim, int shared_dim)
     RRA("");
     std::sort(procs, procs+nprocs);
     std::vector<int> tmp_procs(procs, procs + nprocs);
+    assert(tmp_procs.size() != 2);
     proc_nranges[tmp_procs].insert(*rit);
   }
                                                   
@@ -3691,9 +3692,18 @@ ErrorCode ParallelComm::tag_shared_ents(int resolve_dim,
       if (sharing_procs.empty() ||
           (sharing_procs.size() == 1 && *sharing_procs.begin() == (int)procConfig.proc_rank())) continue;
 
+        // Need to specify sharing data correctly for entities or they will
+        // end up in a different interface set than corresponding vertices
+      if (sharing_procs.size() == 2) {
+        std::set<int>::iterator it = sharing_procs.find( proc_config().proc_rank() );
+        assert(it != sharing_procs.end());
+        sharing_procs.erase( it );
+      }
+
         // intersection is the owning proc(s) for this skin ent
       sp_vec.clear();
       std::copy(sharing_procs.begin(), sharing_procs.end(), std::back_inserter(sp_vec));
+      assert(sp_vec.size() != 2);
       proc_nranges[sp_vec].insert(*rit);
     }
   }
@@ -3748,7 +3758,7 @@ ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
     sharing_procs.swap( sharing_procs2 );
     sharing_handles.swap( sharing_handles2 );
     
-    
+    assert(sharing_procs.size() != 2);
     proc_nranges[sharing_procs].insert(this_ent);
 
     unsigned char share_flag = PSTATUS_SHARED, 
