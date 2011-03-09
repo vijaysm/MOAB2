@@ -1466,6 +1466,9 @@ extern "C" {
       case iBase_ENTITY_HANDLE:
         this_size *= sizeof(iBase_EntityHandle);
         break;
+      case iBase_ENTITY_SET_HANDLE:
+        this_size *= sizeof(iBase_EntitySetHandle);
+        break;
       case iBase_BYTES:
         break;
     }
