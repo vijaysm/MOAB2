@@ -810,10 +810,10 @@ static ErrorCode create_two_hex_full_mesh( Interface* mb,
     return rval;
   hex2_faces[0] = hex1_faces[0];
   for (int i = 0; i < 5; ++i) {
-    rval = mb->create_element( MBQUAD, hex1_face_conn[i], 5, hex1_faces[i+1] );
+    rval = mb->create_element( MBQUAD, hex1_face_conn[i], 4, hex1_faces[i+1] );
     if (MB_SUCCESS != rval)
       return rval;
-    rval = mb->create_element( MBQUAD, hex2_face_conn[i], 5, hex2_faces[i+1] );
+    rval = mb->create_element( MBQUAD, hex2_face_conn[i], 4, hex2_faces[i+1] );
     if (MB_SUCCESS != rval)
       return rval;
   }
@@ -834,7 +834,6 @@ static ErrorCode create_two_hex_full_mesh( Interface* mb,
   return MB_SUCCESS;
 }
 
-
 ErrorCode mb_upward_adjacencies_test() 
 {
   ErrorCode rval;
@@ -844,8 +843,7 @@ ErrorCode mb_upward_adjacencies_test()
   // create a simple mesh containing 2 hexes
   EntityHandle vertices[12], hexes[2], hex1_faces[6], hex2_faces[6], hex1_edges[12], hex2_edges[12];
   rval = create_two_hex_full_mesh( mb, vertices, hexes, hex1_faces, hex2_faces, hex1_edges, hex2_edges );
-  if (MB_SUCCESS != rval)
-    return rval;
+  CHKERR(rval);
 
     // test adjacences from dim to 3
   for (int dim = 0; dim < 3; ++dim) {
@@ -855,11 +853,9 @@ ErrorCode mb_upward_adjacencies_test()
     switch (dim) {
       case 0:
         rval = mb->get_connectivity( hexes[0], list1, n );
-        if (MB_SUCCESS != rval)
-          return rval;
+        CHKERR(rval);
         rval = mb->get_connectivity( hexes[1], list2, n );
-        if (MB_SUCCESS != rval)
-          return rval;
+        CHKERR(rval);
         break;
       case 1:
         list1 = hex1_edges;
@@ -872,6 +868,8 @@ ErrorCode mb_upward_adjacencies_test()
         n = 6;
         break;
     }
+      // split entities into those uniquely in hex1, those uniquely in hex2
+      // and those shared between the two
     for (int i = 0; i < n; ++i) {
       if (std::find(list2, list2+n, list1[i]) - list2 == n)
         hex1_ent.push_back(list1[i]);
@@ -880,35 +878,35 @@ ErrorCode mb_upward_adjacencies_test()
       if (std::find(list1, list1+n, list2[i]) - list1 == n)
         hex2_ent.push_back(list2[i]);
     }
-    
+      // for each shared entity check that get_adjacencies returns both hexes
     for (size_t j = 0; j < shared.size(); ++j) {
       std::vector<EntityHandle> adj;
       rval = mb->get_adjacencies( &shared[j], 1, 3, false, adj );
-      if (MB_SUCCESS != rval)
-        return rval;
-      if (adj.size() != 2)
+      CHKERR(rval);
+      if (adj.size() != 2) {
+        std::cout << "Expected 2 hexes adjacent to " << dim << "D entity " << j
+                  << ". Got " << adj.size() << " hexes." << std::endl;
         return MB_FAILURE;
+      }
       if (!(adj[0] == hexes[0] && adj[1] == hexes[1]) &&
-          !(adj[0] == hexes[1] && adj[1] == hexes[0]))
+          !(adj[0] == hexes[1] && adj[1] == hexes[0])) {
+        std::cout << "Got incorrect hexes adjacent to " << dim << "D entity " << j << std::endl;
         return MB_FAILURE;
+      }
     }
     
     for (size_t j = 0; j < hex1_ent.size(); ++j) {
       std::vector<EntityHandle> adj;
       rval = mb->get_adjacencies( &hex1_ent[j], 1, 3, false, adj );
-      if (MB_SUCCESS != rval)
-        return rval;
-      if (adj.size() != 1 || adj[0] != hexes[0])
-        return MB_FAILURE;
+      CHKERR(rval);
+      CHECK(adj.size() == 1 && adj[0] == hexes[0]);
     }
     
     for (size_t j = 0; j < hex2_ent.size(); ++j) {
       std::vector<EntityHandle> adj;
       rval = mb->get_adjacencies( &hex2_ent[j], 1, 3, false, adj );
-      if (MB_SUCCESS != rval)
-        return rval;
-      if (adj.size() != 1 || adj[0] != hexes[1])
-        return MB_FAILURE;
+      CHKERR(rval);
+      CHECK(adj.size() == 1 && adj[0] == hexes[1]);
     }
   }
     
@@ -923,28 +921,29 @@ ErrorCode mb_upward_adjacencies_test()
   for (size_t j = 0; j < all_edges.size(); ++j) {
     std::vector<EntityHandle> edge_hexes, edge_faces, face_hexes;
     rval = mb->get_adjacencies( &all_edges[j], 1, 3, false, edge_hexes );
-    if (MB_SUCCESS != rval)
-      return rval;
+    CHKERR(rval);
     rval = mb->get_adjacencies( &all_edges[j], 1, 2, false, edge_faces );
-    if (MB_SUCCESS != rval)
-      return rval;
+    CHKERR(rval);
     rval = mb->get_adjacencies( &edge_faces[0], edge_faces.size(), 3,
                                 false, face_hexes, Interface::UNION );
-    if (MB_SUCCESS != rval)
-      return rval;
-    if (edge_hexes.size() != face_hexes.size())
+    CHKERR(rval);
+    if (edge_hexes.size() != face_hexes.size()) {
+      std::cout << "Inconsistent adjacency data for edge " << j
+                << ". edge->face->hex resulted in " << face_hexes.size() 
+                << "hexes while edge->hex resulted in " << edge_hexes.size()
+                << std::endl;
       return MB_FAILURE;
+    }
     switch (edge_hexes.size()) {
       case 1:
-        if (edge_hexes[0] != face_hexes[0])
-          return MB_FAILURE;
+        CHECK(edge_hexes[0] == face_hexes[0]);
         break;
       case 2:
-        if (!(edge_hexes[0] == face_hexes[0] && edge_hexes[1] == face_hexes[1]) &&
-            !(edge_hexes[0] == face_hexes[1] && edge_hexes[1] == face_hexes[0]))
-        return MB_FAILURE;
+        CHECK((edge_hexes[0] == face_hexes[0] && edge_hexes[1] == face_hexes[1]) ||
+              (edge_hexes[0] == face_hexes[1] && edge_hexes[1] == face_hexes[0]));
         break;
       default:
+        std::cout << "Got " << edge_hexes.size() << " hexes adjacent to edge " << j << std::endl;
         return MB_FAILURE;
     }
   }
