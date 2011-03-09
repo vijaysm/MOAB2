@@ -96,6 +96,9 @@ ErrorCode load_file_one( Interface* iface )
 /* Create a regular 2x2x2 hex mesh */
 ErrorCode create_some_mesh( Interface* iface );
 
+ErrorCode check_valid_connectivity( Interface* iface );
+
+
   /*!
     @test 
     Vertex Coordinates
@@ -3343,6 +3346,8 @@ ErrorCode mb_entity_conversion_test()
   OffsetHexCenterNodes function_object(MB,0.07, 0.15, 0);
 
   MB->convert_entities(meshset, false, false, true, &function_object);
+  if (MB_SUCCESS != check_valid_connectivity( MB ))
+    return MB_FAILURE;
 
   file_name = "hex_mid_volume_nodes.g";
   error = MB->write_mesh(file_name.c_str());
@@ -3376,6 +3381,8 @@ ErrorCode mb_entity_conversion_test()
   MB->create_meshset(MESHSET_SET, meshset);
   MB->add_entities(meshset, entities);
   MB->convert_entities(meshset, true, true, true);
+  if (MB_SUCCESS != check_valid_connectivity( MB ))
+    return MB_FAILURE;
 
   file_name = "hex_mid_edge_face_vol_nodes.g";
   error = MB->write_mesh(file_name.c_str());
@@ -3412,6 +3419,8 @@ ErrorCode mb_entity_conversion_test()
   MB->create_meshset(MESHSET_SET, meshset);
   MB->add_entities(meshset, entities);
   MB->convert_entities(meshset, true, false, false);
+  if (MB_SUCCESS != check_valid_connectivity( MB ))
+    return MB_FAILURE;
 
   file_name = "hex_mid_edge_nodes.g";
   error = MB->write_mesh(file_name.c_str());
@@ -3420,6 +3429,8 @@ ErrorCode mb_entity_conversion_test()
   
     // convert them back to hex8's
   MB->convert_entities(meshset, false, false, false);
+  if (MB_SUCCESS != check_valid_connectivity( MB ))
+    return MB_FAILURE;
 
   entities.clear();
   MB->get_entities_by_type(0, MBVERTEX, entities);
@@ -3453,6 +3464,8 @@ ErrorCode mb_entity_conversion_test()
   MB->create_meshset(MESHSET_SET, meshset);
   MB->add_entities(meshset, entities);
   MB->convert_entities(meshset, true, false, false);
+  if (MB_SUCCESS != check_valid_connectivity( MB ))
+    return MB_FAILURE;
 
   file_name = "tet_mid_edge_nodes.g";
   error = MB->write_mesh(file_name.c_str());
@@ -3484,6 +3497,8 @@ ErrorCode mb_entity_conversion_test()
   MB->create_meshset(MESHSET_SET, meshset);
   MB->add_entities(meshset, entities);
   MB->convert_entities(meshset, false, true, false);
+  if (MB_SUCCESS != check_valid_connectivity( MB ))
+    return MB_FAILURE;
 
   file_name = "tet_mid_face_nodes.g";
   error = MB->write_mesh(file_name.c_str());
@@ -3519,6 +3534,8 @@ ErrorCode mb_entity_conversion_test()
   MB->create_meshset(MESHSET_SET, meshset);
   MB->add_entities(meshset, entities);
   MB->convert_entities(meshset, true, true, false);
+  if (MB_SUCCESS != check_valid_connectivity( MB ))
+    return MB_FAILURE;
 
   file_name = "tet_mid_edge_face_nodes.g";
   error = MB->write_mesh(file_name.c_str());
@@ -3603,6 +3620,8 @@ ErrorCode mb_entity_conversion_test()
 
     // convert the skin
   MB->convert_entities(export_meshset, true, true, false);
+  if (MB_SUCCESS != check_valid_connectivity( MB ))
+    return MB_FAILURE;
 
     // make sure our first few tri's were untouched
   std::vector<EntityHandle> conn(3);
@@ -8203,6 +8222,53 @@ ErrorCode create_some_mesh( Interface* iface )
   return MB_SUCCESS;            
 }
 
+inline bool contained( const std::vector<EntityHandle>& list, EntityHandle h )
+{
+  std::vector<EntityHandle>::const_iterator i;
+  i = std::lower_bound( list.begin(), list.end(), h );
+  return i != list.end() && *i == h;
+}
+
+ErrorCode check_valid_connectivity( Interface* iface )
+{
+  ErrorCode rval;
+
+  // get sorted array of vertex handles so that we can
+  // check that all vertices in connectivity are valid
+  // handles
+  std::vector<EntityHandle> vertices, storage;
+  rval = iface->get_entities_by_type( 0, MBVERTEX, vertices ); CHKERR(rval);
+  std::sort( vertices.begin(), vertices.end() );
+  
+  // get all the elements
+  Range elements, tmp;
+  for (int d = 1; d < 4; ++d) {
+    tmp.clear();
+    rval = iface->get_entities_by_dimension( 0, d, tmp ); CHKERR(rval);
+    elements.merge(tmp);
+  }
+  
+  // check that all connectivity handles are valid
+  Range::iterator it;
+  ErrorCode result = MB_SUCCESS;
+  for (it = elements.begin(); it != elements.end(); ++it) {
+    const EntityHandle* conn;
+    int len;
+    rval = iface->get_connectivity( *it, conn, len, false, &storage ); CHKERR(rval);
+    for (int i = 0; i < len; ++i) {
+      if (!contained( vertices, conn[i] )) {
+        printf("Invalid handle (%s %d) in connectivity of %s %d\n",
+          CN::EntityTypeName(TYPE_FROM_HANDLE(conn[i])),
+          (int)ID_FROM_HANDLE(conn[i]),
+          CN::EntityTypeName(TYPE_FROM_HANDLE(*it)),
+          (int)ID_FROM_HANDLE(*it));
+        result = MB_FAILURE;
+      }
+    }
+  }
+  
+  return result;
+}
 
 
 static void usage(const char* exe) {
