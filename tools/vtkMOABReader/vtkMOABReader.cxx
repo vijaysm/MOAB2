@@ -104,7 +104,7 @@ private:
   ErrorCode get_top_parent_sets(Range &top_sets);
   
   vtkMultiBlockDataSet *get_mbdataset(vtkMultiBlockDataSet *output,
-                                      EntityHandle eset, bool create_if_missing = false);
+                                      EntityHandle eset);
   
   ErrorCode get_category_name(EntityHandle eset, std::string &cat_name);
 
@@ -1029,8 +1029,11 @@ ErrorCode vtkMOABReaderPrivate::process_tagged_sets(vtkMultiBlockDataSet *output
     ds->GetMetaData(blockI)->Set(vtkCompositeDataSet::NAME(), tag_name.c_str());
 
     for (Range::iterator rit = tag_sets.begin(); rit != tag_sets.end(); rit++) {
-      vtkMultiBlockDataSet *mb = get_mbdataset(tmb, *rit, true);
-      
+      vtkMultiBlockDataSet *mb = NULL;
+      ErrorCode rval = mbImpl->tag_get_data(vtkDSTag, &(*rit), 1, &mb);
+      if (MB_SUCCESS != rval) return rval;
+      if (!mb) mb = get_mbdataset(tmb, *rit);
+
         // get the UG from the multiblock
       assert(mb->GetNumberOfBlocks() > 0);
       vtkUnstructuredGrid *ug = vtkUnstructuredGrid::SafeDownCast(mb->GetBlock(0));
@@ -1056,11 +1059,19 @@ ErrorCode vtkMOABReaderPrivate::process_tagged_sets(vtkMultiBlockDataSet *output
 ErrorCode vtkMOABReaderPrivate::recursive_process_set(vtkMultiBlockDataSet *output, EntityHandle eset)
 {
     // first make sure this set has a multiblock dataset
-  vtkMultiBlockDataSet *mb = get_mbdataset(output, eset, true);
-
+  vtkMultiBlockDataSet *mb = NULL;
+  bool created = false;
+  ErrorCode rval = mbImpl->tag_get_data(vtkDSTag, &eset, 1, &mb);
+  if (MB_SUCCESS != rval) return rval;
+  
+  if (!mb) {
+    mb = get_mbdataset(output, eset);
+    created = true;
+  }
+  
     // get children here, so we know whether to put multiblock dataset or UG into output
   Range children;
-  ErrorCode rval = mbImpl->get_child_meshsets(eset, children);
+  rval = mbImpl->get_child_meshsets(eset, children);
   assert(MB_SUCCESS == rval);
 
     // make this dataset a child of the one passed in
@@ -1074,35 +1085,30 @@ ErrorCode vtkMOABReaderPrivate::recursive_process_set(vtkMultiBlockDataSet *outp
   }
   else 
     output->SetBlock(blockI, mb);
+  
   std::string set_name;
   rval = get_category_name(eset, set_name);
   if (MB_SUCCESS == rval)
     output->GetMetaData(blockI)->Set(vtkCompositeDataSet::NAME(), set_name.c_str());
 
-    // then allocate for children too
-  for (Range::iterator rit = children.begin(); rit != children.end(); rit++) {
-    rval = recursive_process_set(mb, *rit);
-    if (MB_SUCCESS != rval) return rval;
+  if (created) {
+      // if a new mb dataset was created, need to recurse to children too
+    for (Range::iterator rit = children.begin(); rit != children.end(); rit++) {
+      rval = recursive_process_set(mb, *rit);
+      if (MB_SUCCESS != rval) return rval;
+    }
   }
   
   return rval;
 }
 
 vtkMultiBlockDataSet *vtkMOABReaderPrivate::get_mbdataset(vtkMultiBlockDataSet *output,
-                                                          EntityHandle eset, 
-                                                          bool create_if_missing) 
+                                                          EntityHandle eset) 
 {
-    // get a vtkMultiBlockDataSet for the set, or NULL if it isn't one
-  vtkDataSet *tmp_val = NULL;
-  ErrorCode rval = mbImpl->tag_get_data(vtkDSTag, &eset, 1, &tmp_val);
-  if (MB_SUCCESS != rval || (!tmp_val && !create_if_missing)) return NULL;
-  
-  if (tmp_val) return vtkMultiBlockDataSet::SafeDownCast(tmp_val);
-
     // ok, NULL dataset, and we should create it
   vtkMultiBlockDataSet *ds_val;
   ds_val = vtkMultiBlockDataSet::New();
-  rval = mbImpl->tag_set_data(vtkDSTag, &eset, 1, &ds_val);
+  ErrorCode rval = mbImpl->tag_set_data(vtkDSTag, &eset, 1, &ds_val);
   assert(MB_SUCCESS == rval);
 
     // automatically make an EC and a UG
@@ -1129,6 +1135,7 @@ vtkMultiBlockDataSet *vtkMOABReaderPrivate::get_mbdataset(vtkMultiBlockDataSet *
   
     ec_val->SetCellList(ids);
     ec_val->Update();
+    ec_val->Delete();
     ids->Delete();
   }
 
