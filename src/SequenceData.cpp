@@ -17,8 +17,6 @@ void* SequenceData::create_data( int index, int bytes_per_ent, const void* initi
   char* array = (char*)malloc( bytes_per_ent * size() );
   if (initial_value)
     SysUtil::setmem( array, initial_value, bytes_per_ent, size() );
-  else 
-    memset( array, 0, bytes_per_ent * size() );
   
   arraySet[index] = array;
   return array;
@@ -42,7 +40,6 @@ void* SequenceData::create_custom_data( int array_num, size_t total_bytes )
   assert( !arraySet[index] );
 
   void* array = malloc( total_bytes );
-  memset( array, 0, total_bytes );
   arraySet[index] = array;
   return array;
 }
@@ -66,13 +63,13 @@ void SequenceData::increase_tag_count( unsigned amount )
   numTagData += amount;
 }
 
-void* SequenceData::allocate_tag_array( int tag_num, int bytes_per_ent )
+void* SequenceData::allocate_tag_array( int tag_num, int bytes_per_ent, const void* default_value )
 {
   if ((unsigned)tag_num >= numTagData)
     increase_tag_count( tag_num - numTagData + 1 );
   
   assert( !arraySet[tag_num + 1] );
-  return create_data( tag_num + 1, bytes_per_ent, 0 );
+  return create_data( tag_num + 1, bytes_per_ent, default_value );
 }
 
 SequenceData* SequenceData::subset( EntityHandle start,

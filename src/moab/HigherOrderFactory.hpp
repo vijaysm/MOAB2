@@ -95,6 +95,13 @@ private:
                           unsigned src_conn_offset,
                           unsigned dst_conn_offset ); 
 
+  ErrorCode zero_mid_edge_nodes( ElementSequence* dst ); 
+  ErrorCode zero_mid_face_nodes(  ElementSequence* dst ); 
+  ErrorCode zero_mid_volume_nodes( ElementSequence* dst ); 
+  ErrorCode zero_nodes( ElementSequence* dst,
+                        unsigned nodes_per_elem_to_zero,
+                        unsigned dst_conn_offset ); 
+
   ErrorCode remove_mid_edge_nodes( ElementSequence* seq, 
                                      EntityHandle start,
                                      EntityHandle stop,

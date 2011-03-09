@@ -97,7 +97,7 @@ public:
    *\param bytes_per_ent  Bytes to allocate for each entity.
    *\return The newly allocated array, or NULL if error.
    */
-  void* allocate_tag_array( int index, int bytes_per_ent );
+  void* allocate_tag_array( int index, int bytes_per_ent, const void* default_value = 0 );
   
   /**\brief Create new SequenceData that is a copy of a subset of this one
     *

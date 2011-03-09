@@ -186,6 +186,8 @@ ErrorCode HigherOrderFactory::convert_sequence( ElementSequence* seq,
     status = copy_mid_edge_nodes( seq, new_seq );
   else if (seq->has_mid_edge_nodes() && !mid_edge_nodes)
     status = remove_mid_edge_nodes( seq, start, end, deletable_nodes );
+  else if (!seq->has_mid_edge_nodes() && mid_edge_nodes)
+    status = zero_mid_edge_nodes( new_seq );
   if (MB_SUCCESS != status)
     return status;
 
@@ -193,6 +195,8 @@ ErrorCode HigherOrderFactory::convert_sequence( ElementSequence* seq,
     status = copy_mid_face_nodes( seq, new_seq );
   else if (seq->has_mid_face_nodes() && !mid_face_nodes)
     status = remove_mid_face_nodes( seq, start, end, deletable_nodes );
+  else if (!seq->has_mid_face_nodes() && mid_face_nodes)
+    status = zero_mid_face_nodes( new_seq );
   if (MB_SUCCESS != status)
     return status;
  
@@ -200,6 +204,8 @@ ErrorCode HigherOrderFactory::convert_sequence( ElementSequence* seq,
     status = copy_mid_volume_nodes( seq, new_seq );
   else if (seq->has_mid_volume_nodes() && !mid_volume_nodes)
     status = remove_mid_volume_nodes( seq, start, end, deletable_nodes );
+  else if (!seq->has_mid_volume_nodes() && mid_volume_nodes)
+    status = zero_mid_volume_nodes( new_seq );
   if (MB_SUCCESS != status)
     return status;
 
@@ -652,6 +658,17 @@ HigherOrderFactory::copy_mid_edge_nodes( ElementSequence* src, ElementSequence* 
 }
 
 ErrorCode 
+HigherOrderFactory::zero_mid_edge_nodes( ElementSequence* dst )
+{
+  if (!dst->has_mid_edge_nodes())
+    return MB_FAILURE;
+  
+  unsigned num_corners = CN::VerticesPerEntity( dst->type() );
+  unsigned num_edges = (dst->type() == MBEDGE) ? 1 : CN::NumSubEntities( dst->type(), 1 );
+  return zero_nodes( dst, num_edges, num_corners );
+}
+
+ErrorCode 
 HigherOrderFactory::copy_mid_face_nodes( ElementSequence* src, ElementSequence* dst )
 {
   if (!src->has_mid_face_nodes() || !dst->has_mid_face_nodes())
@@ -665,6 +682,19 @@ HigherOrderFactory::copy_mid_face_nodes( ElementSequence* src, ElementSequence* 
     dst_offset += CN::NumSubEntities( dst->type(), 1 );
   unsigned num_faces = (CN::Dimension(src->type()) == 2) ? 1 : CN::NumSubEntities( src->type(), 2 );
   return copy_nodes( src, dst, num_faces, src_offset, dst_offset );
+}
+
+ErrorCode 
+HigherOrderFactory::zero_mid_face_nodes( ElementSequence* dst )
+{
+  if (!dst->has_mid_face_nodes())
+    return MB_FAILURE;
+  
+  unsigned dst_offset = CN::VerticesPerEntity( dst->type() );
+  if (dst->has_mid_edge_nodes())
+    dst_offset += CN::NumSubEntities( dst->type(), 1 );
+  unsigned num_faces = (CN::Dimension(dst->type()) == 2) ? 1 : CN::NumSubEntities( dst->type(), 2 );
+  return zero_nodes( dst, num_faces, dst_offset );
 }
 
 
@@ -685,6 +715,20 @@ HigherOrderFactory::copy_mid_volume_nodes( ElementSequence* src, ElementSequence
   if (dst->has_mid_face_nodes())
     dst_offset += CN::NumSubEntities( dst->type(), 2 );
   return copy_nodes( src, dst, 1, src_offset, dst_offset );
+}
+
+ErrorCode 
+HigherOrderFactory::zero_mid_volume_nodes( ElementSequence* dst )
+{
+  if (!dst->has_mid_volume_nodes())
+    return MB_FAILURE;
+  
+  unsigned dst_offset = CN::VerticesPerEntity( dst->type() );
+  if (dst->has_mid_edge_nodes())
+    dst_offset += CN::NumSubEntities( dst->type(), 1 );
+  if (dst->has_mid_face_nodes())
+    dst_offset += CN::NumSubEntities( dst->type(), 2 );
+  return zero_nodes( dst, 1, dst_offset );
 }
 
 ErrorCode 
@@ -714,6 +758,25 @@ HigherOrderFactory::copy_nodes( ElementSequence* src,
     for (unsigned j = 0; j < nodes_per_elem; ++j)
       dst_conn[j+dst_offset] = src_conn[j+src_offset];
     src_conn += src_stride; 
+    dst_conn += dst_stride;
+  }
+  
+  return MB_SUCCESS;
+}
+
+ErrorCode 
+HigherOrderFactory::zero_nodes(ElementSequence* dst,
+                                unsigned nodes_per_elem,
+                                unsigned offset )
+{
+  unsigned dst_stride = dst->nodes_per_element();
+  EntityHandle* dst_conn = dst->get_connectivity_array();
+  if (!dst_conn)
+    return MB_FAILURE;
+  
+  EntityID count = dst->size();
+  for (EntityID i = 0; i < count; ++i) {
+    std::fill( dst_conn + offset, dst_conn + offset + nodes_per_elem, 0 );
     dst_conn += dst_stride;
   }
   
