@@ -89,10 +89,11 @@ const EntityType mb_topology_table[] =
 // map from TSTT's tag types to MOAB's
 const DataType mb_data_type_table[] = 
 {
+  MB_TYPE_OPAQUE,
   MB_TYPE_INTEGER,
   MB_TYPE_DOUBLE ,
   MB_TYPE_HANDLE ,
-  MB_TYPE_OPAQUE
+  MB_TYPE_HANDLE
 };
 
 // map from MOAB's tag types to tstt's

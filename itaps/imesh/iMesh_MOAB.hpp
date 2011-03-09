@@ -19,7 +19,7 @@ extern const iBase_EntityType tstt_type_table[MBMAXTYPE+1];
 extern const EntityType mb_topology_table[MBMAXTYPE+1];
 
 /* map from TSTT's tag types to MOAB's */
-extern const DataType mb_data_type_table[4];
+extern const DataType mb_data_type_table[iBase_TagValueType_MAX+1];
 
 /* map from MOAB's tag types to tstt's */
 extern const iBase_TagValueType tstt_data_type_table[MB_MAX_DATA_TYPE+1];
