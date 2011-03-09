@@ -868,7 +868,7 @@ ErrorCode WriteUtil::get_entity_list_pointers( Range::const_iterator begin,
     if (MBENTITYSET == type) {
       const MeshSetSequence* seq = reinterpret_cast<MeshSetSequence*>(iter.get_sequence());
       const MeshSet* set;
-      int len; size_t clen;
+      int len = 0; size_t clen;
       for (EntityHandle h = iter.get_start_handle(); h <= iter.get_end_handle(); ++h) {
         set = seq->get_set(h);
         switch (relation) {
