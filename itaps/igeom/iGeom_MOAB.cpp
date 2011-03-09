@@ -2237,7 +2237,7 @@ void iGeom_getEntSetData(iGeom_Instance instance,
       iBase_EntitySetHandle entity_set_handle, iBase_TagHandle tag_handle,
       char** tag_value, int* tag_value_allocated, int* tag_value_size, int *err) {
    iMesh_getEntSetData(IMESH_INSTANCE(instance), entity_set_handle, tag_handle,
-         tag_value, tag_value_allocated, tag_value_size, err);
+         (void**)tag_value, tag_value_allocated, tag_value_size, err);
    ERRORR("Failure to get arbitrary data from entity set.");
 }
 
@@ -2286,7 +2286,7 @@ void iGeom_getArrData(iGeom_Instance instance,
       iBase_TagHandle tag_handle, char** tag_values, int* tag_values_allocated,
       int* tag_values_size, int *err) {
    iMesh_getArrData(IMESH_INSTANCE(instance), entity_handles,
-         entity_handles_size, tag_handle, tag_values, tag_values_allocated,
+         entity_handles_size, tag_handle, (void**)tag_values, tag_values_allocated,
          tag_values_size, err);
    ERRORR("Failure to get tag values of arbitrary type on an array of entities.");
 }
@@ -2369,7 +2369,7 @@ void iGeom_getData(iGeom_Instance instance, iBase_EntityHandle entity_handle,
       iBase_TagHandle tag_handle, char** tag_value, int *tag_value_allocated,
       int *tag_value_size, int *err) {
    iMesh_getData(IMESH_INSTANCE(instance), entity_handle, tag_handle,
-         tag_value, tag_value_allocated, tag_value_size, err);
+         (void**)tag_value, tag_value_allocated, tag_value_size, err);
    ERRORR("Failure to get tag values of an entity.");
 }
 
