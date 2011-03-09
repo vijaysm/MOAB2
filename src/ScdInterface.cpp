@@ -183,7 +183,7 @@ ErrorCode ScdInterface::create_scd_sequence(HomCoord low, HomCoord high, EntityT
   if (MB_SUCCESS != rval) return rval;
 
     // tag the set with the box
-  rval = mbImpl->tag_set_data(box_set_tag(), &scd_set, 1, low.hom_coord());
+  rval = mbImpl->tag_set_data(box_set_tag(), &scd_set, 1, &new_box);
   if (MB_SUCCESS != rval) return rval;
 
   return MB_SUCCESS;
@@ -211,7 +211,7 @@ Tag ScdInterface::box_min_tag(bool create_if_missing)
 {
   if (boxMinTag || !create_if_missing) return boxMinTag;
 
-  ErrorCode rval = mbImpl->tag_create("BOX_MIN", 3*sizeof(int), MB_TAG_DENSE, 
+  ErrorCode rval = mbImpl->tag_create("BOX_MIN", 3*sizeof(int), MB_TAG_SPARSE, 
                                       MB_TYPE_OPAQUE, boxMinTag, NULL, true);
   if (MB_SUCCESS != rval) return 0;
   return boxMinTag;
@@ -221,7 +221,7 @@ Tag ScdInterface::box_max_tag(bool create_if_missing)
 {
   if (boxMaxTag || !create_if_missing) return boxMaxTag;
 
-  ErrorCode rval = mbImpl->tag_create("BOX_MAX", 3*sizeof(int), MB_TAG_DENSE, 
+  ErrorCode rval = mbImpl->tag_create("BOX_MAX", 3*sizeof(int), MB_TAG_SPARSE, 
                                       MB_TYPE_OPAQUE, boxMaxTag, NULL, true);
   if (MB_SUCCESS != rval) return 0;
   return boxMaxTag;
@@ -231,7 +231,7 @@ Tag ScdInterface::box_set_tag(bool create_if_missing)
 {
   if (boxSetTag || !create_if_missing) return boxSetTag;
 
-  ErrorCode rval = mbImpl->tag_create("__BOX_SET", 3*sizeof(int), MB_TAG_DENSE, 
+  ErrorCode rval = mbImpl->tag_create("__BOX_SET", sizeof(ScdBox*), MB_TAG_SPARSE, 
                                       MB_TYPE_OPAQUE, boxSetTag, NULL, true);
   if (MB_SUCCESS != rval) return 0;
   return boxSetTag;
