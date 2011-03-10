@@ -175,6 +175,86 @@ static std::string filter_options(const char *begin, const char *end)
   return filtered;
 }
 
+// Return data about a list of handles for use in check_handle_tag_type.
+// Set output arguments to true if the list contains the corresponding 
+// type of handle.  Leave them unmodified if it does not.
+static inline void ht_content_type( const std::vector<EntityHandle>& h,
+                                    bool saw_ent, bool saw_set, bool saw_root )
+{
+  std::vector<EntityHandle>::const_iterator i;
+  for (i = h.begin(); i != h.end(); ++i) {
+    if (*i == 0)
+      saw_root = true;
+    else if (TYPE_FROM_HANDLE(*i) == MBENTITYSET)
+      saw_set = true;
+    else
+      saw_ent = true;
+  }
+}
+
+// Scan all tag data to try to guess whether the MOAB tag with
+// data of type MB_TYPE_HANDLE is iBase_ENTITY_HANDLE or
+// iBase_ENTITY_SET_HANDLE.
+static ErrorCode check_handle_tag_type( Tag t, MBiMesh* mbi )
+{
+  Interface* mb = mbi->mbImpl;
+  ErrorCode rval;
+  int size;
+  DataType type;
+  rval = mb->tag_get_data_type( t, type );
+  if (MB_SUCCESS != rval) return rval;
+  if (MB_TYPE_HANDLE != type) return MB_TYPE_OUT_OF_RANGE;
+  rval = mb->tag_get_size( t, size );
+  if (MB_SUCCESS != rval) return rval;
+  size /= sizeof(EntityHandle);
+  std::vector<EntityHandle> data(size);
+  
+    // check for global/mesh value
+  bool saw_set = false, saw_ent = false, saw_root = false;
+  EntityHandle root = 0;
+  rval = mb->tag_get_data( t, &root, 1, &data[0] );
+  if (MB_SUCCESS == rval)
+    ht_content_type( data, saw_ent, saw_set, saw_root );
+    
+    // check default value
+  rval = mb->tag_get_default_value( t, &data[0] );
+  if (MB_SUCCESS == rval)
+    ht_content_type( data, saw_ent, saw_set, saw_root );
+  
+    // check all tagged entities
+  Range r;
+  rval = mb->get_entities_by_type_and_tag( 0, MBMAXTYPE, &t, 0, 1, r );
+  if (MB_SUCCESS != rval) return rval;
+  for (Range::iterator i = r.begin(); i != r.end(); ++i) {
+    rval = mb->tag_get_data( t, &*i, 1, &data[0] );
+    if (MB_SUCCESS != rval) return rval;
+    ht_content_type( data, saw_ent, saw_set, saw_root );
+  }
+ 
+    // If tag values were only entities, note type accordingly.
+    // Similarly if all are entity sets, note accordingly.
+    // Because root set (zero handle) is sometimes used to mean NULL
+    // rather than the actual root set, treat that specially.  If
+    // all values are either root set or an entity handle, then 
+    // treat as if all values were non-set handles.   
+  if (saw_set && !saw_ent) 
+    mbi->note_set_handle_tag( t );
+  else if (!saw_set && saw_ent)
+    mbi->note_ent_handle_tag( t );
+  else if (saw_root && !saw_ent)
+    mbi->note_set_handle_tag( t );
+
+  return MB_SUCCESS;
+}
+
+static void remove_var_len_tags( Interface* mb, std::vector<Tag>& tags )
+{
+  int size;
+  size_t r, w = 0;
+  for (r = 0; r < tags.size(); ++r) 
+    if (MB_SUCCESS == mb->tag_get_size( tags[r], size ))
+      tags[w++] = tags[r];
+}
 
 #ifdef __cplusplus
 extern "C" {
@@ -1491,6 +1571,11 @@ extern "C" {
       msg += "\".";
       ERROR(result,msg.c_str());
     }
+    
+    if (tag_type == iBase_ENTITY_HANDLE)
+      MBIMESHI->note_ent_handle_tag( new_tag );
+    else if (tag_type == iBase_ENTITY_SET_HANDLE)
+      MBIMESHI->note_ent_handle_tag( new_tag );
 
     *tag_handle = (iBase_TagHandle) new_tag;
 
@@ -1528,6 +1613,9 @@ extern "C" {
     if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result)
       ERROR(result, "iMesh_destroyTag: problem deleting tag.");
 
+    if (MB_SUCCESS == result)
+      MBIMESHI->note_tag_destroyed( TAG_HANDLE(tag_handle) );
+
     RETURN(iBase_ERROR_MAP[result]);
   }
 
@@ -1553,7 +1641,21 @@ extern "C" {
                                                 this_type);
     CHKERR(result, "iMesh_getTagType: problem getting type.");
 
-    *value_type = tstt_data_type_table[this_type];
+    if (this_type != MB_TYPE_HANDLE) 
+      *value_type = tstt_data_type_table[this_type];
+    else if (MBIMESHI->is_set_handle_tag( TAG_HANDLE(tag_handle) ))
+      *value_type = iBase_ENTITY_SET_HANDLE;
+    else if (MBIMESHI->is_ent_handle_tag( TAG_HANDLE(tag_handle) ))
+      *value_type = iBase_ENTITY_HANDLE;
+    else {
+      result = check_handle_tag_type(TAG_HANDLE(tag_handle), MBIMESHI );
+      CHKERR(result, "iMesh_getTagType: problem guessing handle tag subtype");
+      if (MBIMESHI->is_set_handle_tag( TAG_HANDLE(tag_handle) ))
+        *value_type = iBase_ENTITY_SET_HANDLE;
+      else
+        *value_type = iBase_ENTITY_HANDLE;
+    }
+    
     RETURN(iBase_SUCCESS);
   }
 
@@ -1611,6 +1713,11 @@ extern "C" {
       *tag_handle = 0;
       ERROR(result, msg.c_str());
     }
+    
+      // do not return variable-length tags through ITAPS API
+    int size;
+    if (MB_SUCCESS != MOABI->tag_get_size( TAG_HANDLE(*tag_handle), size ))
+      RETURN(iBase_TAG_NOT_FOUND);
 
     RETURN(iBase_SUCCESS);
   }
@@ -1779,6 +1886,8 @@ extern "C" {
   
     ErrorCode result = MOABI->tag_get_tags_on_entity(eh, all_tags);
     CHKERR(result, "iMesh_entitysetGetAllTagHandles failed.");
+ 
+    remove_var_len_tags( MOABI, all_tags );
  
       // now put those tag handles into sidl array
     ALLOC_CHECK_ARRAY_NOFAIL(tag_handles, all_tags.size());
@@ -2266,6 +2375,8 @@ extern "C" {
   
     ErrorCode result = MOABI->tag_get_tags_on_entity(ENTITY_HANDLE(entity_handle), all_tags);
     CHKERR(result, "iMesh_getAllTags failed.");
+ 
+    remove_var_len_tags( MOABI, all_tags );
     
       // now put those tag handles into sidl array
     ALLOC_CHECK_ARRAY_NOFAIL(tag_handles, all_tags.size());
