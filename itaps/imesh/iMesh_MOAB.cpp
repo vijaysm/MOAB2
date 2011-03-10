@@ -1575,7 +1575,7 @@ extern "C" {
     if (tag_type == iBase_ENTITY_HANDLE)
       MBIMESHI->note_ent_handle_tag( new_tag );
     else if (tag_type == iBase_ENTITY_SET_HANDLE)
-      MBIMESHI->note_ent_handle_tag( new_tag );
+      MBIMESHI->note_set_handle_tag( new_tag );
 
     *tag_handle = (iBase_TagHandle) new_tag;
 
