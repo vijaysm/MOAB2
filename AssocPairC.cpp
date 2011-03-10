@@ -96,7 +96,7 @@ int AssocPairC::get_tags(const int iface_no,
   if (iRel_IGEOM_IFACE == iface_type(iface_no)) {
     iGeom_getArrData((iGeom_Instance)ifaceInstances[iface_no],
                      entities, num_entities, tag_handle,
-                     reinterpret_cast<char**>(&tag_values), &tag_values_alloc,
+                     &tag_values, &tag_values_alloc,
                      &tag_values_size, &result);
     PROCESS_GERROR;
   }
@@ -127,8 +127,9 @@ int AssocPairC::get_tags(const int iface_no,
   if (iface_type(iface_no) == iRel_IGEOM_IFACE) {
     for (int i = 0; i < num_sets; i++) {
       iGeom_getEntSetData((iGeom_Instance)ifaceInstances[iface_no],
-                          sets[i], tag_handle, &tag_data, &tag_values_alloc,
-                          &tag_values_size, &result);
+                          sets[i], tag_handle,
+                          reinterpret_cast<void**>(&tag_data),
+                          &tag_values_alloc, &tag_values_size, &result);
       tag_data += tag_size;
       PROCESS_GERROR;
     }
@@ -136,8 +137,9 @@ int AssocPairC::get_tags(const int iface_no,
   else if (iface_type(iface_no) == iRel_IMESH_IFACE) {
     for (int i = 0; i < num_sets; i++) {
       iMesh_getEntSetData((iMesh_Instance)ifaceInstances[iface_no],
-                          sets[i], tag_handle, &tag_values, &tag_values_alloc,
-                          &tag_values_size, &result);
+                          sets[i], tag_handle,
+                          reinterpret_cast<void**>(&tag_data),
+                          &tag_values_alloc, &tag_values_size, &result);
       tag_data += tag_size;
       PROCESS_MERROR;
     }
