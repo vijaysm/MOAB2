@@ -143,8 +143,12 @@ public:
 			  const bool adjs,
 			  const bool tags,
 			  const bool store_remote_handles,
+			  const bool is_iface,
 			  Range &final_ents,
-			  int &incoming,
+			  int &incoming1,
+			  int &incoming2, // newly added
+			  tuple_list& entprocs, // newly added
+			  std::vector<MPI_Request> &recv_remoteh_reqs, // newly added
 			  bool wait_all = true);
   
     /** \brief Receive entities from another processor, optionally waiting until it's done
@@ -160,21 +164,48 @@ public:
      */
   ErrorCode recv_entities(const int from_proc,
 			  const bool store_remote_handles,
+			  const bool is_iface,
 			  Range &final_ents,
-			  int& incomming,
+			  int& incomming1,
+			  int& incoming2,
+			  std::vector<std::vector<EntityHandle> > &L1hloc,
+			  std::vector<std::vector<EntityHandle> > &L1hrem,
+			  std::vector<std::vector<int> > &L1p,
+			  std::vector<EntityHandle> &L2hloc,
+			  std::vector<EntityHandle> &L2hrem,
+			  std::vector<unsigned int> &L2p,
+			  std::vector<MPI_Request> &recv_remoteh_reqs,
 			  bool wait_all = true);
 
     /** \brief Receive messages from another processor in while loop
      *
      * Receive messages from another processor.  
      * \param from_proc Source processor
+     * \param store_remote_handles If true, send message with new entity handles to source processor (currently unsupported)
      * \param final_ents Range containing all entities received
      * \param incoming keep track if any messages are coming to this processor (newly added)
      */
   ErrorCode recv_messages(const int from_proc,
+			  const bool store_remote_handles,
+			  const bool is_iface,
 			  Range &final_ents,
-			  int& incoming);
+			  int& incoming1,
+			  int& incoming2,
+			  std::vector<std::vector<EntityHandle> > &L1hloc,
+			  std::vector<std::vector<EntityHandle> > &L1hrem,
+			  std::vector<std::vector<int> > &L1p,
+			  std::vector<EntityHandle> &L2hloc,
+			  std::vector<EntityHandle> &L2hrem,
+			  std::vector<unsigned int> &L2p,
+			  std::vector<MPI_Request> &recv_remoteh_reqs);
 
+  ErrorCode recv_remote_handle_messages(const int from_proc,
+					int& incoming2,
+					std::vector<EntityHandle> &L2hloc,
+					std::vector<EntityHandle> &L2hrem,
+					std::vector<unsigned int> &L2p,
+					std::vector<MPI_Request> &recv_remoteh_reqs);
+  
     /** \brief Exchange ghost cells with neighboring procs
      * Neighboring processors are those sharing an interface 
      * with this processor.  All entities of dimension ghost_dim
@@ -298,6 +329,19 @@ public:
                                   int resolve_dim = 3, 
                                   int shared_dim = -1,
                                   const Tag* id_tag = 0);
+
+    /** \brief Resolve shared entities between processors
+     *
+     * Entity skin array is offered by user not by skinner
+     * It is used by other resolve_shared_ents functions above 
+
+     * \param skin_ents[] entity skin array by user
+     */
+  ErrorCode resolve_shared_ents(Range &proc_ents,
+				Range skin_ents[],
+				int resolve_dim = 3,
+				int shared_dim = -1,
+				const Tag* id_tag = 0);
     
   static ErrorCode resolve_shared_ents(ParallelComm **pc, 
                                          const unsigned int np, 
@@ -559,7 +603,9 @@ public:
                           const bool tags,
                           const bool store_remote_handles,
                           const int to_proc,
-                          Buffer *buff);
+   			  Buffer *buff,
+			  tuple_list *entprocs = NULL,
+			  Range *allsent = NULL);
   
   ErrorCode unpack_buffer(unsigned char *buff_ptr,
                             const bool store_remote_handles,
@@ -630,6 +676,10 @@ public:
     //! whether new buffer was allocated
     //! PUBLIC ONLY FOR TESTING!
   int get_buffers(int to_proc, bool *is_new = NULL);
+
+  int get_num_buff_procs();
+
+  std::vector<unsigned int> &buff_procs();
 
     /* \brief Unpack message with remote handles
      * PUBLIC ONLY FOR TESTING!
@@ -1031,7 +1081,7 @@ private:
                                  int to_proc,
                                  const std::vector<EntityHandle> &new_ents);
 
-  std::vector<unsigned int> &buff_procs();
+  //std::vector<unsigned int> &buff_procs();
 
     //! goes through from_vec, and for any with type MBMAXTYPE, replaces with
     //! new_ents value at index corresponding to id of entity in from_vec
@@ -1119,6 +1169,8 @@ private:
   
   int pcommID;
 
+  int ackbuff;
+
 };
 
 inline ParallelComm::Buffer::Buffer(const Buffer &other_buff) 
@@ -1201,6 +1253,11 @@ inline void ParallelComm::delete_all_buffers()
   for (vit = remoteOwnedBuffs.begin(); vit != remoteOwnedBuffs.end(); vit++)
     delete (*vit);
   remoteOwnedBuffs.clear();
+}
+
+inline int ParallelComm::get_num_buff_procs() 
+{
+  return buffProcs.size();
 }
 
 inline std::vector<unsigned int> &ParallelComm::buff_procs() 
