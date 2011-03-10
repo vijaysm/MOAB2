@@ -586,9 +586,9 @@ ErrorCode ParallelComm::broadcast_entities( const int from_proc,
 }
 
 ErrorCode ParallelComm::scatter_entities( const int from_proc,
-					  std::vector<Range> &entities,
-					  const bool adjacencies,
-					  const bool tags)
+                                          std::vector<Range> &entities,
+                                          const bool adjacencies,
+                                          const bool tags)
 {
 #ifndef USE_MPI
   return MB_FAILURE;
@@ -613,7 +613,7 @@ ErrorCode ParallelComm::scatter_entities( const int from_proc,
       result = add_verts(entities[i]);
       
       result = pack_buffer(entities[i], adjacencies, tags, 
-			   false, -1, &buff); 
+                           false, -1, &buff); 
       RRA("Failed to compute buffer size in scatter_entities.");
 
       buff_size = buff.buff_ptr - buff.mem_ptr - prev_size;
@@ -638,8 +638,8 @@ ErrorCode ParallelComm::scatter_entities( const int from_proc,
 
   // scatter actual geometry
   success = MPI_Scatterv(buff.mem_ptr, sendCounts, displacements,
-			 MPI_UNSIGNED_CHAR, rec_buff.mem_ptr, sendCounts[my_proc],
-			 MPI_UNSIGNED_CHAR, from_proc, procConfig.proc_comm());
+                         MPI_UNSIGNED_CHAR, rec_buff.mem_ptr, sendCounts[my_proc],
+                         MPI_UNSIGNED_CHAR, from_proc, procConfig.proc_comm());
   
   if (MPI_SUCCESS != success) {
     result = MB_FAILURE;
@@ -664,17 +664,17 @@ ErrorCode ParallelComm::scatter_entities( const int from_proc,
 }
 
 ErrorCode ParallelComm::send_entities(const int to_proc,
-				      Range &orig_ents,
-				      const bool adjs,
-				      const bool tags,
-				      const bool store_remote_handles,
-				      const bool is_iface,
-				      Range &final_ents,
-				      int &incoming1,
-				      int &incoming2,
-				      tuple_list& entprocs,
-				      std::vector<MPI_Request> &recv_remoteh_reqs,
-				      bool wait_all)
+                                      Range &orig_ents,
+                                      const bool adjs,
+                                      const bool tags,
+                                      const bool store_remote_handles,
+                                      const bool is_iface,
+                                      Range &final_ents,
+                                      int &incoming1,
+                                      int &incoming2,
+                                      tuple_list& entprocs,
+                                      std::vector<MPI_Request> &recv_remoteh_reqs,
+                                      bool wait_all)
 {
 #ifndef USE_MPI
   return MB_FAILURE;
@@ -691,26 +691,26 @@ ErrorCode ParallelComm::send_entities(const int to_proc,
   // filter out entities already shared with destination
   Range tmp_range;
   result = filter_pstatus(orig_ents, PSTATUS_SHARED, PSTATUS_AND,
-			  to_proc, &tmp_range);
+                          to_proc, &tmp_range);
   RRA("Couldn't filter on owner.");
   if (!tmp_range.empty()) {
     orig_ents = subtract(orig_ents, tmp_range);
   }
 
   result = pack_buffer(orig_ents, adjs, tags, store_remote_handles,
-		       to_proc, localOwnedBuffs[ind], &entprocs);
+                       to_proc, localOwnedBuffs[ind], &entprocs);
   RRA("Failed to pack buffer in send_entities.");
 
   // send buffer
   result = send_buffer(to_proc, localOwnedBuffs[ind], MB_MESG_ENTS_SIZE,
-		       sendReqs[2*ind], recvReqs[2*ind + 1],
-		       (int*)(remoteOwnedBuffs[ind]->mem_ptr),
-		       //&ackbuff,
+                       sendReqs[2*ind], recvReqs[2*ind + 1],
+                       (int*)(remoteOwnedBuffs[ind]->mem_ptr),
+                       //&ackbuff,
                        incoming1,
-		       MB_MESG_REMOTEH_SIZE,
-		       (!is_iface && store_remote_handles ? 
-			localOwnedBuffs[ind] : NULL),
-		       &recv_remoteh_reqs[2*ind], &incoming2);
+                       MB_MESG_REMOTEH_SIZE,
+                       (!is_iface && store_remote_handles ? 
+                        localOwnedBuffs[ind] : NULL),
+                       &recv_remoteh_reqs[2*ind], &incoming2);
   RRA("Failed to send buffer.");
 
   return MB_SUCCESS;
@@ -719,19 +719,19 @@ ErrorCode ParallelComm::send_entities(const int to_proc,
 }
 
 ErrorCode ParallelComm::recv_entities(const int from_proc,
-				      const bool store_remote_handles,
-				      const bool is_iface,
-				      Range &final_ents,
-				      int& incoming1,
-				      int& incoming2,
-				      std::vector<std::vector<EntityHandle> > &L1hloc,
-				      std::vector<std::vector<EntityHandle> > &L1hrem,
-				      std::vector<std::vector<int> > &L1p,
-				      std::vector<EntityHandle> &L2hloc,
-				      std::vector<EntityHandle> &L2hrem,
-				      std::vector<unsigned int> &L2p,
-				      std::vector<MPI_Request> &recv_remoteh_reqs,
-				      bool wait_all)
+                                      const bool store_remote_handles,
+                                      const bool is_iface,
+                                      Range &final_ents,
+                                      int& incoming1,
+                                      int& incoming2,
+                                      std::vector<std::vector<EntityHandle> > &L1hloc,
+                                      std::vector<std::vector<EntityHandle> > &L1hrem,
+                                      std::vector<std::vector<int> > &L1p,
+                                      std::vector<EntityHandle> &L2hloc,
+                                      std::vector<EntityHandle> &L2hrem,
+                                      std::vector<unsigned int> &L2p,
+                                      std::vector<MPI_Request> &recv_remoteh_reqs,
+                                      bool wait_all)
 {
 #ifndef USE_MPI
   return MB_FAILURE;
@@ -740,40 +740,40 @@ ErrorCode ParallelComm::recv_entities(const int from_proc,
   ErrorCode result;
   int ind1 = get_buffers(from_proc);
   incoming1++;
-  PRINT_DEBUG_IRECV(procConfig.proc_rank(), from_proc, 
-		    remoteOwnedBuffs[ind1]->mem_ptr, INITIAL_BUFF_SIZE, 
-		    MB_MESG_ENTS_SIZE, incoming1);
-  int success = MPI_Irecv(remoteOwnedBuffs[ind1]->mem_ptr, INITIAL_BUFF_SIZE, 
-			  MPI_UNSIGNED_CHAR, from_proc,
-			  MB_MESG_ENTS_SIZE, procConfig.proc_comm(),
-			  &recvReqs[2*ind1]);
+  PRINT_DEBUG_IRECV(procConfig.proc_rank(), from_proc,
+                    remoteOwnedBuffs[ind1]->mem_ptr, INITIAL_BUFF_SIZE,
+                    MB_MESG_ENTS_SIZE, incoming1);
+  int success = MPI_Irecv(remoteOwnedBuffs[ind1]->mem_ptr, INITIAL_BUFF_SIZE,
+                          MPI_UNSIGNED_CHAR, from_proc,
+                          MB_MESG_ENTS_SIZE, procConfig.proc_comm(),
+                          &recvReqs[2*ind1]);
   if (success != MPI_SUCCESS) {
     result = MB_FAILURE;
     RRA("Failed to post irecv in ghost exchange.");
   }
-
+  
   // receive messages in while loop
   return recv_messages(from_proc, store_remote_handles, is_iface, final_ents,
-		       incoming1, incoming2, L1hloc, L1hrem, L1p, L2hloc,
-		       L2hrem, L2p, recv_remoteh_reqs);
-
+                       incoming1, incoming2, L1hloc, L1hrem, L1p, L2hloc,
+                       L2hrem, L2p, recv_remoteh_reqs);
+  
   return MB_SUCCESS;
 #endif
 }
 
 ErrorCode ParallelComm::recv_messages(const int from_proc,
-				      const bool store_remote_handles,
-				      const bool is_iface,
-				      Range &final_ents,
-				      int& incoming1,
-				      int& incoming2,
-				      std::vector<std::vector<EntityHandle> > &L1hloc,
-				      std::vector<std::vector<EntityHandle> > &L1hrem,
-				      std::vector<std::vector<int> > &L1p,
-				      std::vector<EntityHandle> &L2hloc,
-				      std::vector<EntityHandle> &L2hrem,
-				      std::vector<unsigned int> &L2p,
-				      std::vector<MPI_Request> &recv_remoteh_reqs)
+                                      const bool store_remote_handles,
+                                      const bool is_iface,
+                                      Range &final_ents,
+                                      int& incoming1,
+                                      int& incoming2,
+                                      std::vector<std::vector<EntityHandle> > &L1hloc,
+                                      std::vector<std::vector<EntityHandle> > &L1hrem,
+                                      std::vector<std::vector<int> > &L1p,
+                                      std::vector<EntityHandle> &L2hloc,
+                                      std::vector<EntityHandle> &L2hrem,
+                                      std::vector<unsigned int> &L2p,
+                                      std::vector<MPI_Request> &recv_remoteh_reqs)
 {
 #ifndef USE_MPI
   return MB_FAILURE;
@@ -804,13 +804,13 @@ ErrorCode ParallelComm::recv_messages(const int from_proc,
     unsigned int base_ind = 2*(ind2/2);
 
     result = recv_buffer(MB_MESG_ENTS_SIZE, status,
-			 remoteOwnedBuffs[ind2/2],
+                         remoteOwnedBuffs[ind2/2],
                          //recvbuff,
-			 recvReqs[ind2], recvReqs[ind2+1],
-			 incoming1, localOwnedBuffs[ind2/2],
-			 sendReqs[base_ind], sendReqs[base_ind+1],
-			 done,
-			 (!is_iface && store_remote_handles ? 
+                         recvReqs[ind2], recvReqs[ind2+1],
+                         incoming1, localOwnedBuffs[ind2/2],
+                         sendReqs[base_ind], sendReqs[base_ind+1],
+                         done,
+                         (!is_iface && store_remote_handles ? 
                           localOwnedBuffs[ind2/2] : NULL),
                          MB_MESG_REMOTEH_SIZE,
                          &recv_remoteh_reqs[base_ind], &incoming2);
@@ -820,9 +820,9 @@ ErrorCode ParallelComm::recv_messages(const int from_proc,
       // if it is done, unpack buffer
       remoteOwnedBuffs[ind2/2]->reset_ptr(sizeof(int));
       result = unpack_buffer(remoteOwnedBuffs[ind2/2]->buff_ptr,
-			     store_remote_handles, from_proc, ind2/2,
-			     L1hloc, L1hrem, L1p, L2hloc, L2hrem,
-			     L2p, new_ents);
+                             store_remote_handles, from_proc, ind2/2,
+                             L1hloc, L1hrem, L1p, L2hloc, L2hrem,
+                             L2p, new_ents);
       RRA("Failed to unpack buffer in recev_messages.");
 
       std::copy(new_ents.begin(), new_ents.end(), range_inserter(final_ents));
@@ -832,15 +832,15 @@ ErrorCode ParallelComm::recv_messages(const int from_proc,
       remoteOwnedBuffs[ind2/2]->reset_buffer(sizeof(int));
       
       result = pack_remote_handles(L1hloc[ind2/2], L1hrem[ind2/2], L1p[ind2/2],
-				   from_proc, remoteOwnedBuffs[ind2/2]);
+                                   from_proc, remoteOwnedBuffs[ind2/2]);
       RRA("Failed to pack remote handles.");
       remoteOwnedBuffs[ind2/2]->set_stored_size();
       
       result = send_buffer(buffProcs[ind2/2], remoteOwnedBuffs[ind2/2], 
-			   MB_MESG_REMOTEH_SIZE, 
-			   sendReqs[ind2], recv_remoteh_reqs[ind2+1], 
-			   (int*)(localOwnedBuffs[ind2/2]->mem_ptr),
-			   //&ackbuff,
+                           MB_MESG_REMOTEH_SIZE, 
+                           sendReqs[ind2], recv_remoteh_reqs[ind2+1], 
+                           (int*)(localOwnedBuffs[ind2/2]->mem_ptr),
+                           //&ackbuff,
                            incoming2);
       RRA("Failed to send remote handles.");
     }
@@ -851,11 +851,11 @@ ErrorCode ParallelComm::recv_messages(const int from_proc,
 }
 
 ErrorCode ParallelComm::recv_remote_handle_messages(const int from_proc,
-						    int& incoming2,
-						    std::vector<EntityHandle> &L2hloc,
-						    std::vector<EntityHandle> &L2hrem,
-						    std::vector<unsigned int> &L2p,
-						    std::vector<MPI_Request> &recv_remoteh_reqs)
+                                                    int& incoming2,
+                                                    std::vector<EntityHandle> &L2hloc,
+                                                    std::vector<EntityHandle> &L2hrem,
+                                                    std::vector<unsigned int> &L2p,
+                                                    std::vector<MPI_Request> &recv_remoteh_reqs)
 {
 #ifndef USE_MPI
   return MB_FAILURE;
@@ -867,9 +867,9 @@ ErrorCode ParallelComm::recv_remote_handle_messages(const int from_proc,
 
   while (incoming2) {
     PRINT_DEBUG_WAITANY(recv_remoteh_reqs, MB_MESG_REMOTEH_SIZE,
-			procConfig.proc_rank());
+                        procConfig.proc_rank());
     success = MPI_Waitany(2, &recv_remoteh_reqs[2*ind1],
-			  &ind2, &status);
+                          &ind2, &status);
     if (MPI_SUCCESS != success) {
       result = MB_FAILURE;
       RRA("Failed in waitany in recv_remote_handle_messages.");
@@ -894,8 +894,8 @@ ErrorCode ParallelComm::recv_remote_handle_messages(const int from_proc,
       // incoming remote handles
       localOwnedBuffs[ind2/2]->reset_ptr(sizeof(int));
       result = unpack_remote_handles(buffProcs[ind2/2], 
-				     localOwnedBuffs[ind2/2]->buff_ptr,
-				     L2hloc, L2hrem, L2p);
+                                     localOwnedBuffs[ind2/2]->buff_ptr,
+                                     L2hloc, L2hrem, L2p);
       RRA("Failed to unpack remote handles.");
     }
   }
@@ -905,13 +905,13 @@ ErrorCode ParallelComm::recv_remote_handle_messages(const int from_proc,
 }
 
 ErrorCode ParallelComm::pack_buffer(Range &orig_ents, 
-				    const bool adjacencies,
-				    const bool tags,
-				    const bool store_remote_handles,
-				    const int to_proc,
-				    Buffer *buff,
-				    tuple_list *entprocs,
-				    Range *allsent)
+                                    const bool adjacencies,
+                                    const bool tags,
+                                    const bool store_remote_handles,
+                                    const int to_proc,
+                                    Buffer *buff,
+                                    tuple_list *entprocs,
+                                    Range *allsent)
 {
     // pack the buffer with the entity ranges, adjacencies, and tags sections
     // 
@@ -932,7 +932,7 @@ ErrorCode ParallelComm::pack_buffer(Range &orig_ents,
     // entities
   result = pack_entities(orig_ents, buff,
                          store_remote_handles, to_proc, false,
-			 entprocs, allsent);
+                         entprocs, allsent);
   RRA("Packing entities failed.");
   
     // sets
@@ -2528,8 +2528,8 @@ ErrorCode ParallelComm::pack_sets(Range &entities,
     result = mbImpl->get_entities_by_handle(*rit, members);
     RRA("Failed to get entities in ordered set.");
     result = get_remote_handles(store_remote_handles, &members[0],
-				&members[0], members.size(),
-				to_proc, entities_vec);
+                                &members[0], members.size(),
+                                to_proc, entities_vec);
     RRA("Failed in get_remote_handles.");
     buff->check_space(members.size()*sizeof(EntityHandle)+sizeof(int));
     PACK_INT(buff->buff_ptr, members.size());
@@ -2739,7 +2739,7 @@ ErrorCode ParallelComm::unpack_sets(unsigned char *&buff_ptr,
   UNPACK_INT(buff_ptr, n_uid);
   if (n_uid > 0 && n_uid != num_sets) {
     std::cerr << "The number of Parallel geometry unique ids should be same."
-	      << std::endl;
+              << std::endl;
   }
   if (n_uid > 0) {
     std::vector<int> uids(n_uid);
@@ -2747,8 +2747,8 @@ ErrorCode ParallelComm::unpack_sets(unsigned char *&buff_ptr,
 
     Tag uid_tag; int def_val = 0;
     result = mbImpl->tag_create("PARALLEL_UNIQUE_ID", sizeof(int),
-				MB_TAG_SPARSE, MB_TYPE_INTEGER, uid_tag,
-				&def_val, true);
+                                MB_TAG_SPARSE, MB_TYPE_INTEGER, uid_tag,
+                                &def_val, true);
     if (MB_ALREADY_ALLOCATED != result && MB_SUCCESS != result) {
       RRA("Trouble creating parallel geometry unique id tag.");
     }
@@ -3247,14 +3247,14 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   }
 
   return resolve_shared_ents(proc_ents, skin_ents,
-			     resolve_dim, shared_dim, id_tag);
+                             resolve_dim, shared_dim, id_tag);
 }
 
 ErrorCode ParallelComm::resolve_shared_ents(Range &proc_ents,
-					    Range skin_ents[],
-					    int resolve_dim,
-					    int shared_dim,
-					    const Tag* id_tag)
+                                            Range skin_ents[],
+                                            int resolve_dim,
+                                            int shared_dim,
+                                            const Tag* id_tag)
 { // resolve shared vertices first
   ErrorCode result;
   std::vector<int> gid_data;
@@ -6899,6 +6899,5 @@ ErrorCode ParallelComm::get_shared_entities(int other_proc,
   
   return result;
 }
-
 
 } // namespace moab
