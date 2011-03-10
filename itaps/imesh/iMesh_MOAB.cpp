@@ -1677,6 +1677,16 @@ extern "C" {
                         sizeof(iBase_EntityHandle), err);
   }
 
+  void iMesh_setEntSetESHData (iMesh_Instance instance,
+                               /*in*/ iBase_EntitySetHandle entity_set,
+                               /*in*/ const iBase_TagHandle tag_handle,
+                               /*in*/ const iBase_EntitySetHandle tag_value, int *err) 
+  {
+    iMesh_setEntSetData(instance, entity_set, tag_handle, 
+                        &tag_value, 
+                        sizeof(iBase_EntitySetHandle), err);
+  }
+
   void iMesh_getEntSetData (iMesh_Instance instance,
                             /*in*/ const iBase_EntitySetHandle entity_set_handle,
                             /*in*/ const iBase_TagHandle tag_handle,
