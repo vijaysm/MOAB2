@@ -456,7 +456,7 @@ bool tag_get_set_test(iGeom_Instance geom)
     
     SimpleArray<char> tag_vals;
     iGeom_getArrData( geom, ARRAY_IN( gentity_handles ), this_tag, 
-                      ARRAY_INOUT( tag_vals ), &err );
+        (void**)tag_vals.ptr(), &tag_vals.capacity(), &tag_vals.size(), &err );
     CHECK( "ERROR : can't get tag on entities" );
     
     int* tag_ptr = (int*)(&tag_vals[0]);
@@ -1270,7 +1270,7 @@ static int check_firmness( iGeom_Instance geom,
 
   char* byte_ptr = &firmness[0];
   int err, junk1 = firmness.size(), junk2 = entities.size()*firmness_size;
-  iGeom_getArrData( geom, &entities[0], entities.size(), firmness_tag, &byte_ptr, &junk1, &junk2, &err ); 
+  iGeom_getArrData( geom, &entities[0], entities.size(), firmness_tag, (void**)&byte_ptr, &junk1, &junk2, &err );
   if (iBase_SUCCESS != err)
     return err;
   
@@ -1306,7 +1306,7 @@ static int count_num_with_tag( iGeom_Instance geom,
   for (size_t i = 0; i < ents.size(); ++i) {
     char* ptr = &data[0];
     int junk1 = bytes, junk2;
-    iGeom_getData( geom, ents[i], tag, &ptr, &junk1, &junk2, &err );
+    iGeom_getData( geom, ents[i], tag, (void**)&ptr, &junk1, &junk2, &err );
     if (iBase_TAG_NOT_FOUND == err)
       continue;
     if (iBase_SUCCESS != err)
