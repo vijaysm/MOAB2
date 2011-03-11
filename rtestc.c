@@ -145,7 +145,7 @@ int print_mesh_info(iMesh_Instance mesh, iBase_EntityHandle ment)
           break;
         case iBase_BYTES:
           iMesh_getData(mesh, ment, ment_tags[i],
-                        &dum_handle, &dum_handle_alloc,
+                        (void**)&dum_handle, &dum_handle_alloc,
                         &dum_handle_size, &result);
           if (NULL != dum_handle && dum_handle_size > 0)
             printf("(Opaque value=%c)", dum_handle[0]);
