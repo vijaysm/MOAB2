@@ -1680,8 +1680,10 @@ extern "C" {
       case MB_TYPE_HANDLE:
         *tag_size_val /= sizeof(EntityHandle);
         break;
-      case MB_TYPE_OPAQUE:
       case MB_TYPE_BIT:
+        *tag_size_val = 1;
+        break;
+      case MB_TYPE_OPAQUE:
         break;
     }
   
@@ -1692,8 +1694,16 @@ extern "C" {
                              /*in*/ const iBase_TagHandle tag_handle,
                              int *tag_size_bytes, int *err)
   {
-    ErrorCode result = MOABI->tag_get_size(TAG_HANDLE(tag_handle), *tag_size_bytes);
-    CHKERR(result, "iMesh_getTagSize: problem getting size.");
+    DataType this_type;
+    ErrorCode result = MOABI->tag_get_data_type(TAG_HANDLE(tag_handle), this_type);
+    CHKERR(result, "iMesh_getTagSize: problem getting type.");
+
+    if (MB_TYPE_BIT == this_type)
+      *tag_size_bytes = 1;
+    else {
+      result = MOABI->tag_get_size(TAG_HANDLE(tag_handle), *tag_size_bytes);
+      CHKERR(result, "iMesh_getTagSize: problem getting size.");
+    }
     RETURN(iBase_SUCCESS);
   }
 
