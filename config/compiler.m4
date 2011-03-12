@@ -74,10 +74,10 @@ AC_ARG_WITH( [mpi], AC_HELP_STRING([[--with-mpi@<:@=DIR@:>@]], [Enable parallel 
              [WITH_MPI=$withval],[WITH_MPI=no] )
 if test "xno" != "x$WITH_MPI"; then
 
-  CC_LIST="mpicc mpcc"
-  CXX_LIST="mpiCC mpCC mpicxx"
-  FC_LIST="mpif90"
-  F77_LIST="mpif77"
+  CC_LIST="mpixlc mpicc mpcc"
+  CXX_LIST="mpixlcxx mpiCC mpCC mpicxx"
+  FC_LIST="mpixlf95 mpixlf90 mpif90"
+  F77_LIST="mpixlf77 mpif77"
   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-mpi=\"${withval}\""
   
   if test "xyes" == "x$WITH_MPI"; then
