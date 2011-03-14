@@ -467,7 +467,7 @@ struct serial_tag_data {
   char name[sizeof(unsigned long)];
   
   static size_t len( int name_len ) {
-    return sizeof(serial_tag_data) + name_len - sizeof(name);
+    return sizeof(serial_tag_data) + name_len - sizeof(unsigned long);
   }
   size_t len() const { return len( name_len ); }
 };
