@@ -464,12 +464,10 @@ struct serial_tag_data {
   DataType type;
   int size;
   int name_len;
-  unsigned long num_sparse_ents;
-  unsigned long num_sparse_vals; // not used for fixed-length tags
   char name[sizeof(unsigned long)];
   
   static size_t len( int name_len ) {
-    return sizeof(serial_tag_data) + name_len - sizeof(size_t);
+    return sizeof(serial_tag_data) + name_len - sizeof(name);
   }
   size_t len() const { return len( name_len ); }
 };
@@ -508,15 +506,6 @@ ErrorCode WriteHDF5Parallel::append_serial_tag_data(
     return error(rval);
   ptr->name_len = name_len;
   Range range;
-  rval = get_sparse_tagged_entities( tag, range );
-  if (MB_SUCCESS != rval) return error(rval);
-  ptr->num_sparse_ents = range.size();
-  ptr->num_sparse_vals = 0;
-  if (MB_VARIABLE_LENGTH == ptr->size) {
-    rval = get_tag_data_length( tag, range, ptr->num_sparse_vals );
-    assert(MB_SUCCESS == rval);
-    if (MB_SUCCESS != rval) return error(rval);
-  }
   memset( ptr->name, 0, ptr->name_len );
   memcpy( ptr->name, name.data(), name.size() );
   
@@ -544,7 +533,6 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
   ErrorCode rval;
   int err;
   const int num_proc = myPcomm->proc_config().proc_size();
-  int num_tags = tagList.size();
 
   dbgOut.tprint(1,"communicating tag metadata\n");
   
@@ -561,9 +549,9 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
       return error(rval);
   }
 
-  dbgOut.printf(2,"Exchanging tag data for %d tags.\n", num_tags);
+  dbgOut.printf(2,"Exchanging tag data for %d tags.\n", (int)tagList.size() ); 
 
-    // Exchange tag data between all processors
+    // Exchange tag descriptions between all processors
   int dsize = tag_buffer.size();
   std::vector<int> recvcounts( num_proc );
   err = MPI_Allgather( &dsize, 1, MPI_INT,
@@ -580,30 +568,12 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
                         &all_buffer[0], &recvcounts[0], &displs[0], 
                         MPI_BYTE, myPcomm->proc_config().proc_comm() );
   CHECK_MPI(err);
-  
-    // Zero local values
-  for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) {
-    tag_iter->offset = 0;
-    tag_iter->varDataOffset = 0;
-    tag_iter->write = false;
-    tag_iter->max_num_ents = 0;
-    tag_iter->max_num_vals = 0;
-  }
-  
-    // Iterate over data from all procs, updating the local list
-  std::vector<unsigned char>::const_iterator diter = all_buffer.begin();
-    // Also need to calculate global counts for each tag.
-  std::vector<unsigned long> counts(num_tags, 0), var_counts(num_tags, 0);
-  tag_iter = tagList.begin();
-  size_t idx = 0;
-  unsigned rank = 0; 
-  while (diter < all_buffer.end()) {
-      // displs contains offsets into buffer at which data for each
-      // proc starts, and the total length at the end.  If we've passed
-      // the data for the process ID in 'rank' then increment rank.
-    while (diter - all_buffer.begin() >= (unsigned)displs[rank+1])
-      ++rank;
 
+    // Iterate over data from all procs, updating the local list of tags such that
+    // all procs have the same list of tags in the same order
+  std::vector<unsigned char>::const_iterator diter = all_buffer.begin();
+  tag_iter = tagList.begin();
+  while (diter < all_buffer.end()) {
       // Get struct from buffer
     const serial_tag_data* ptr = reinterpret_cast<const serial_tag_data*>(&*diter);
     
@@ -613,12 +583,10 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
     iFace->tag_get_name( tag_iter->tag_id, n );  // second time we've called, so shouldnt fail
     if (n > name) {
       tag_iter = tagList.begin(); // new proc, start search from beginning
-      idx = 0;
     }
     iFace->tag_get_name( tag_iter->tag_id, n );
     while (n < name) {
       ++tag_iter;
-      ++idx;
       if (tag_iter == tagList.end())
         break;
       iFace->tag_get_name( tag_iter->tag_id, n );
@@ -640,92 +608,115 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
       newtag.max_num_vals = 0;
 
       tag_iter = tagList.insert( tag_iter, newtag );
-      ++num_tags;
-      
-      counts.insert( counts.begin() + idx, 0 );
-      var_counts.insert( var_counts.begin() + idx, 0 );
     }
-    
-      // Update local struct
-    if (rank < myPcomm->proc_config().proc_rank()) {
-      tag_iter->offset += ptr->num_sparse_ents;
-      tag_iter->varDataOffset += ptr->num_sparse_vals;
+    else { // check that tag is as expected
+      DataType type;
+      iFace->tag_get_data_type( tag_iter->tag_id, type );
+      if (type != ptr->type) {
+        writeUtil->report_error("Processes have inconsistent data type for tag \"%s\"", name.c_str() );
+        return MB_FAILURE;
+      }
+      int size;
+      iFace->tag_get_size( tag_iter->tag_id, size );
+      if (type != ptr->type) {
+        writeUtil->report_error("Processes have inconsistent size for tag \"%s\"", name.c_str() );
+        return MB_FAILURE;
+      }
     }
-    if (ptr->num_sparse_ents)
-      tag_iter->write = true;
-    if (ptr->num_sparse_ents > tag_iter->max_num_ents)
-      tag_iter->max_num_ents = ptr->num_sparse_ents;
-    if (ptr->num_sparse_vals > tag_iter->max_num_vals)
-      tag_iter->max_num_vals = ptr->num_sparse_vals;
-  
-      // Update global counts
-    counts[idx] += ptr->num_sparse_ents;
-    var_counts[idx] += ptr->num_sparse_vals;
   
       // Step to next variable-length struct.
     diter += ptr->len();
   }
 
-
-  if (writeTagDense) {
     // Figure out for which tag/element combinations we can
     // write dense tag data.  
-    
+
     // Construct a table of bits,
     // where each row of the table corresponds to a tag
     // and each column to an element group.
-    
+
     // Two extra, because first is nodes and last is sets.
     // (n+7)/8 is ceil(n/8)
   const int bytes_per_tag = (exportList.size() + 9)/8;
   std::vector<unsigned char> data(bytes_per_tag * tagList.size(), 0);
+  std::vector<unsigned char> recv( data.size(), 0 );
   unsigned char* iter = &data[0];
-  for (tag_iter = tagList.begin(); tag_iter != tagList.end();
-       ++tag_iter, iter += bytes_per_tag) {
-       
-    int s;
-    if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_size( tag_iter->tag_id, s ))
-      continue;  
-       
-    std::string n;
-    iFace->tag_get_name( tag_iter->tag_id, n );  // second time we've called, so shouldnt fail
+  if (writeTagDense) {
+    for (tag_iter = tagList.begin(); tag_iter != tagList.end();
+         ++tag_iter, iter += bytes_per_tag) {
 
-    Range tagged;
-    rval = get_sparse_tagged_entities( *tag_iter, tagged );
-    if (MB_SUCCESS != rval)
-      return error(rval);
+      Range tagged;
+      rval = get_sparse_tagged_entities( *tag_iter, tagged );
+      if (MB_SUCCESS != rval)
+        return error(rval);
 
-    int i = 0;
-    if (!nodeSet.range.empty() && tagged.contains( nodeSet.range )) {
-      set_bit( i, iter );
-      dbgOut.printf( 2, "Can write dense data for \"%s\"/Nodes\n", n.c_str());
-    }
-    std::list<ExportSet>::const_iterator ex_iter = exportList.begin();
-    for (++i; ex_iter != exportList.end(); ++i, ++ex_iter) {
-      if (!ex_iter->range.empty() && tagged.contains( ex_iter->range )) {
+      int s;
+      if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_size( tag_iter->tag_id, s )) 
+        continue;  
+
+      std::string n;
+      iFace->tag_get_name( tag_iter->tag_id, n );  // second time we've called, so shouldnt fail
+
+      // Check if we want to write this tag in dense format even if not
+      // all of the entities have a tag value.  The criterion of this
+      // is that the tag be dense, have a default value, and have at
+      // least 2/3 of the entities tagged.
+      bool prefer_dense = false;
+      TagType type;
+      rval = iFace->tag_get_type( tag_iter->tag_id, type );
+      if (MB_SUCCESS != rval)
+        return error(rval);
+      if (MB_TAG_DENSE == type) {
+        const void* defval = 0;
+        rval = iFace->tag_get_default_value( tag_iter->tag_id, defval, s );
+        if (MB_SUCCESS == rval)
+          prefer_dense = true;
+      }
+
+      int i = 0;
+      if (check_dense_format_tag( nodeSet, tagged, prefer_dense )) {
         set_bit( i, iter );
-        dbgOut.printf( 2, "Can write dense data for \"%s\"/%s\n", n.c_str(),
-          ex_iter->name());
+        dbgOut.printf( 2, "Can write dense data for \"%s\"/Nodes\n", n.c_str());
+      }
+      std::list<ExportSet>::const_iterator ex_iter = exportList.begin();
+      for (++i; ex_iter != exportList.end(); ++i, ++ex_iter) {
+        if (check_dense_format_tag( *ex_iter, tagged, prefer_dense )) {
+          set_bit( i, iter );
+          dbgOut.printf( 2, "Can write dense data for \"%s\"/%s\n", n.c_str(),
+            ex_iter->name());
+        }
+      }
+      if (check_dense_format_tag( setSet, tagged, prefer_dense )) {
+        set_bit( i, iter );
+        dbgOut.printf( 2, "Can write dense data for \"%s\"/Sets\n", n.c_str());
       }
     }
-    if (!setSet.range.empty() && tagged.contains( setSet.range )) {
-      set_bit( i, iter );
-      dbgOut.printf( 2, "Can write dense data for \"%s\"/Sets\n", n.c_str());
-    }
-  }
+
+      // Do bit-wise AND of list over all processors (only write dense format
+      // if all proccesses want dense format for this group of entities).
+    err = MPI_Allreduce( &data[0], &recv[0], data.size(), MPI_UNSIGNED_CHAR,
+                         MPI_BAND, myPcomm->proc_config().proc_comm() );
+    CHECK_MPI(err);
+  } // if (writeTagDense)
+
   
-    // Do bit-wise and of table with all processors
-  std::vector<unsigned char> recv( data.size(), 0 );
-  err = MPI_Allreduce( &data[0], &recv[0], data.size(), MPI_UNSIGNED_CHAR,
-                       MPI_BAND, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(err);
+    // Store initial counts for sparse-formatted tag data.
+    // The total number of values to send and receive will be the number of 
+    // tags plus the number of var-len tags because we need to negitiate 
+    // offsets into two different tables for the var-len tags.
+  std::vector<unsigned long> counts;
   
     // Record dense tag/element combinations
   iter = &recv[0];
   const unsigned char* iter2 = &data[0];
   for (tag_iter = tagList.begin(); tag_iter != tagList.end();
        ++tag_iter, iter += bytes_per_tag, iter2 += bytes_per_tag) {
-       
+
+    Range tagged;
+    rval = get_sparse_tagged_entities( *tag_iter, tagged );
+    if (MB_SUCCESS != rval)
+      return error(rval);
+
     std::string n;
     iFace->tag_get_name( tag_iter->tag_id, n );  // second time we've called, so shouldnt fail
 
@@ -733,6 +724,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
     if (get_bit(i, iter)) {
       assert(get_bit(i, iter2));
       tag_iter->denseList.push_back(nodeSet);
+      tagged -= nodeSet.range;
       dbgOut.printf( 2, "Will write dense data for \"%s\"/Nodes\n", n.c_str());
     }
     std::list<ExportSet>::const_iterator ex_iter = exportList.begin();
@@ -742,26 +734,96 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
         tag_iter->denseList.push_back(*ex_iter);
         dbgOut.printf( 2, "WIll write dense data for \"%s\"/%s\n", n.c_str(),
           ex_iter->name());
+        tagged -= ex_iter->range;
       }
     }
     if (get_bit(i, iter)) {
       assert(get_bit(i, iter2));
       tag_iter->denseList.push_back(setSet);
       dbgOut.printf( 2, "Will write dense data for \"%s\"/Sets\n", n.c_str());
+      tagged -= setSet.range;
+    }
+
+    counts.push_back( tagged.size() );
+
+    int s;
+    if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_size( tag_iter->tag_id, s )) {
+      unsigned long data_len;
+      rval = get_tag_data_length( *tag_iter, tagged, data_len );
+      assert(MB_SUCCESS == rval);
+      if (MB_SUCCESS != rval) return error(rval);
+      counts.push_back( data_len );
     }
   }
-  } // endif (writeTagDense)
+  
+  
+    // For each tag, gather counts on root and offsets into tag data
+    // tables back to each process.  The total number of values to send
+    // and receive will be the number of tags plus the number of var-len
+    // tags because we need to negitiate offsets into two different 
+    // tables for the var-len tags.
 
+  std::vector<unsigned long> allcnt(counts.size()*num_proc);
+  err = MPI_Gather( &counts[0], counts.size(), MPI_UNSIGNED_LONG, 
+                    &allcnt[0], counts.size(), MPI_UNSIGNED_LONG,
+                    0, myPcomm->proc_config().proc_comm() );
+  CHECK_MPI(err);
+  
+  std::vector<unsigned long> maxima(counts.size(),0), sums(counts.size(),0);
+  if (0 == myPcomm->proc_config().proc_rank()) {
+    for (unsigned i = 0; i < myPcomm->proc_config().proc_size(); ++i) {
+      for (unsigned j = 0; j < counts.size(); ++j) {
+         if (allcnt[i*counts.size()+j] > maxima[j])
+          maxima[j] = allcnt[i*counts.size()+j];
+        size_t offset = sums[j];
+        sums[j] += allcnt[i*counts.size()+j];
+        allcnt[i*counts.size()+j] = offset;
+      }
+    }
+  }
+  err = MPI_Scatter( &allcnt[0], counts.size(), MPI_UNSIGNED_LONG,
+                     &counts[0], counts.size(), MPI_UNSIGNED_LONG,
+                     0, myPcomm->proc_config().proc_comm() );
+  CHECK_MPI(err);
+  err = MPI_Bcast( &maxima[0], maxima.size(), MPI_UNSIGNED_LONG, 0, 
+                   myPcomm->proc_config().proc_comm() );
+  CHECK_MPI(err);
+  
+    // Copy values into local structs and if root then create tables
+  std::vector<unsigned long>::iterator citer = counts.begin(), miter = maxima.begin();
+  for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) {
+    assert(citer != counts.end() && miter != maxima.end());
+    tag_iter->offset = *citer; ++citer;
+    tag_iter->max_num_ents = *miter; ++miter;
+    tag_iter->write = (0 != tag_iter->max_num_ents);
+    int s;
+    if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_size( tag_iter->tag_id, s )) {
+      assert(citer != counts.end() && miter != maxima.end());
+      tag_iter->varDataOffset = *citer; ++citer;
+      tag_iter->max_num_vals = *miter; ++miter;
+    }
+    else {
+      tag_iter->varDataOffset = 0;
+      tag_iter->max_num_vals = 0;
+    }
+  }
 
     // Create tag tables on root process
   if (0 == myPcomm->proc_config().proc_rank()) {
-    tag_iter = tagList.begin();
-    for (int i = 0; i < num_tags; ++i, ++tag_iter) {
+    citer = sums.begin();
+    for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) {
+      assert(citer != sums.end());
+      unsigned long num_ents = *citer; ++citer;
+      unsigned long num_val = 0;
+      int s;
+      if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_size( tag_iter->tag_id, s )) {
+        assert(citer != sums.end());
+        num_val = *citer; ++citer;
+      }
       dbgOut.printf( 2, "Creating table of size %lu for tag 0x%lx\n", 
-                  var_counts[i] ? var_counts[i] : counts[i], 
-                  (unsigned long)tag_iter->tag_id );
+                     num_val ? num_val : num_ents, (unsigned long)tag_iter->tag_id );
 
-      rval = create_tag( *tag_iter, counts[i], var_counts[i] );
+      rval = create_tag( *tag_iter, num_ents, num_val );
       if (MB_SUCCESS != rval)
         return error(rval);
     }
