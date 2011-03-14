@@ -256,6 +256,17 @@ static void remove_var_len_tags( Interface* mb, std::vector<Tag>& tags )
       tags[w++] = tags[r];
 }
 
+// modify the adjacency table to match the ITAPS spec's expectations
+static void munge_adj_table(int *adjTable, int geom_dim)
+{
+  if (geom_dim == 2) {
+    for (size_t i = 0; i < 16; ++i) {
+      if (i % 4 == 3 || i >= 12)
+        adjTable[i] = iBase_UNAVAILABLE;
+    }
+  }
+}
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -443,8 +454,12 @@ extern "C" {
                           /*inout*/ int* adjacency_table_allocated, 
                           /*out*/ int* adjacency_table_size, int *err)
   {
+    int geom_dim;
+    iMesh_getGeometricDimension(instance, &geom_dim, err);
+
     ALLOC_CHECK_ARRAY_NOFAIL(adjacency_table, 16);
     memcpy(*adjacency_table, MBIMESHI->AdjTable, 16*sizeof(int));
+    munge_adj_table(*adjacency_table, geom_dim);
     RETURN(iBase_SUCCESS);
   }
 
@@ -457,7 +472,11 @@ extern "C" {
       RETURN(iBase_INVALID_ARGUMENT);
     }
 
+    int geom_dim;
+    iMesh_getGeometricDimension(instance, &geom_dim, err);
+
     memcpy(MBIMESHI->AdjTable, adj_table, 16*sizeof(int));
+    munge_adj_table(adj_table, geom_dim);
     RETURN(iBase_SUCCESS);
   }
 
