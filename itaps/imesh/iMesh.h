@@ -928,8 +928,6 @@ extern "C" {
      * \param instance iMesh instance handle
      * \param entity_set Entity set to be destroyed
      * \param *err Pointer to error type returned from function
-     * \note This function will fail with iBase_INVALID_ENTITYSET_HANDLE
-     *       if called with the root set.
      */
   void iMesh_destroyEntSet(iMesh_Instance instance,
                            /*in*/ iBase_EntitySetHandle entity_set,
@@ -937,14 +935,12 @@ extern "C" {
 
     /**\brief  Return whether a specified set is ordered or unordered
      *
-     * Return whether a specified set is ordered \c (*is_list=1) or 
-     * unordered \c (*is_list=0)
+     * Return whether a specified set is ordered (*is_list=1) or 
+     * unordered (*is_list=0)
      * \param instance iMesh instance handle
      * \param entity_set Entity set being queried
      * \param is_list Pointer to flag returned from function
      * \param *err Pointer to error type returned from function
-     * \note This function will return \c (*is_list==0) if passed the
-     *       root set.
      */
   void iMesh_isList(iMesh_Instance instance,
                     /*in*/ const iBase_EntitySetHandle entity_set,
@@ -953,10 +949,7 @@ extern "C" {
 
     /**\brief  Get the number of entity sets contained in a set or interface
      *
-     * Get the number of entity sets contained in a set or interface.  If
-     * a set is input which is not the root set, num_hops indicates the 
-     * maximum number of contained sets from entity_set_handle to one of the
-     * contained sets, not inclusive of the contained set.
+     * Get the number of entity sets contained in a set or interface.
      * \param instance iMesh instance handle
      * \param entity_set_handle Entity set being queried
      * \param num_hops Maximum hops from entity_set_handle to contained set,
@@ -974,10 +967,7 @@ extern "C" {
 
     /**\brief  Get the entity sets contained in a set or interface
      *
-     * Get the entity sets contained in a set or interface.  If
-     * a set is input which is not the root set, num_hops indicates the 
-     * maximum number of contained sets from entity_set_handle to one of the
-     * contained sets, not inclusive of the contained set.
+     * Get the entity sets contained in a set or interface.
      * \param instance iMesh instance handle
      * \param entity_set_handle Entity set being queried
      * \param num_hops Maximum hops from entity_set_handle to contained set,
@@ -1006,8 +996,6 @@ extern "C" {
      * \param entity_handle The entity being added
      * \param entity_set Pointer to the set being added to
      * \param *err Pointer to error type returned from function
-     * \note This function will fail with iBase_INVALID_ENTITYSET_HANDLE
-     *       if called with the root set.
      */
   void iMesh_addEntToSet(iMesh_Instance instance,
                          /*in*/ iBase_EntityHandle entity_handle,
@@ -1022,8 +1010,6 @@ extern "C" {
      * \param entity_handle The entity being removed
      * \param entity_set Pointer to the set being removed from
      * \param *err Pointer to error type returned from function
-     * \note This function will fail with iBase_INVALID_ENTITYSET_HANDLE
-     *       if called with the root set.
      */
   void iMesh_rmvEntFromSet(iMesh_Instance instance,
                            /*in*/ iBase_EntityHandle entity_handle,
@@ -1039,8 +1025,6 @@ extern "C" {
      * \param entity_handles_size Number of entities in entity_handles array
      * \param entity_set Pointer to the set being added to
      * \param *err Pointer to error type returned from function
-     * \note This function will fail with iBase_INVALID_ENTITYSET_HANDLE
-     *       if called with the root set.
      */
   void iMesh_addEntArrToSet(iMesh_Instance instance,
                             /*in*/ const iBase_EntityHandle* entity_handles,
@@ -1057,8 +1041,6 @@ extern "C" {
      * \param entity_handles_size Number of entities in entity_handles array
      * \param entity_set Pointer to the set being removed from
      * \param *err Pointer to error type returned from function
-     * \note This function will fail with iBase_INVALID_ENTITYSET_HANDLE
-     *       if called with the root set.
      */
   void iMesh_rmvEntArrFromSet(iMesh_Instance instance,
                               /*in*/ const iBase_EntityHandle* entity_handles,
@@ -1074,8 +1056,6 @@ extern "C" {
      * \param entity_set_to_add The entity set being added
      * \param entity_set_handle Pointer to the set being added to
      * \param *err Pointer to error type returned from function
-     * \note This function will fail with iBase_INVALID_ENTITYSET_HANDLE
-     *       if called with the root set.
      */
   void iMesh_addEntSet(iMesh_Instance instance,
                        /*in*/ iBase_EntitySetHandle entity_set_to_add,
@@ -1090,8 +1070,6 @@ extern "C" {
      * \param entity_set_to_remove The entity set being removed
      * \param entity_set_handle Pointer to the set being removed from
      * \param *err Pointer to error type returned from function
-     * \note This function will fail with iBase_INVALID_ENTITYSET_HANDLE
-     *       if called with the root set.
      */
   void iMesh_rmvEntSet(iMesh_Instance instance,
                        /*in*/ iBase_EntitySetHandle entity_set_to_remove,
@@ -1100,16 +1078,14 @@ extern "C" {
 
     /**\brief  Return whether an entity is contained in another set
      *
-     * Return whether an entity is contained \c (*is_contained=1) or not 
-     * contained \c (*is_contained=0) in another set
+     * Return whether an entity is contained (*is_contained=1) or not 
+     * contained (*is_contained=0) in another set
      * \param instance iMesh instance handle
      * \param containing_entity_set Entity set being queried
      * \param contained_entity Entity potentially contained in 
      *        containing_entity_set
      * \param is_contained Pointer to flag returned from function
      * \param *err Pointer to error type returned from function
-     * \note This function will always return \c (*is_contained==1) if 
-     *       the passed containing set is the root set.
      */
   void iMesh_isEntContained(iMesh_Instance instance,
                             /*in*/ iBase_EntitySetHandle containing_entity_set,
@@ -1126,8 +1102,6 @@ extern "C" {
      * \param is_contained One value for each input entity, 1 if contained
      *          in set, zero otherwise.
      * \param *err Pointer to error type returned from function
-     * \note This function will return \c ((*is_contained)[*]==0) for
-     *       all passed entities if the passed containing set is the root set.
      */
   void iMesh_isEntArrContained( iMesh_Instance instance,
                          /*in*/ iBase_EntitySetHandle containing_set,
@@ -1148,10 +1122,6 @@ extern "C" {
      *        containing_entity_set
      * \param is_contained Pointer to flag returned from function
      * \param *err Pointer to error type returned from function
-     * \note This function will always return \c (*is_contained==0) if 
-     *       the passed contained set is the root set.  Otherwise it will
-     *       always return \c (*is_contained==0) if the containing set is
-     *       the root set.
      */
   void iMesh_isEntSetContained(iMesh_Instance instance,
                                /*in*/ const iBase_EntitySetHandle containing_entity_set,
@@ -1167,8 +1137,6 @@ extern "C" {
      * \param parent_entity_set Pointer to parent set
      * \param child_entity_set Pointer to child set
      * \param *err Pointer to error type returned from function
-     * \note This function will fail with iBase_INVALID_ENTITYSET_HANDLE
-     *       if either passed set is the root set.
      */
   void iMesh_addPrntChld(iMesh_Instance instance,
                          /*in*/ iBase_EntitySetHandle parent_entity_set,
@@ -1182,8 +1150,6 @@ extern "C" {
      * \param parent_entity_set Pointer to parent set
      * \param child_entity_set Pointer to child set
      * \param *err Pointer to error type returned from function
-     * \note This function will fail with iBase_INVALID_ENTITYSET_HANDLE
-     *       if either passed set is the root set.
      */
   void iMesh_rmvPrntChld(iMesh_Instance instance,
                          /*in*/ iBase_EntitySetHandle parent_entity_set,
@@ -1199,7 +1165,6 @@ extern "C" {
      * \param child_entity_set Pointer to child set
      * \param is_child Pointer to flag returned from function
      * \param *err Pointer to error type returned from function
-     * \note This function will return false if either set is the root set.
      */
   void iMesh_isChildOf(iMesh_Instance instance,
                        /*in*/ const iBase_EntitySetHandle parent_entity_set,
@@ -1209,9 +1174,7 @@ extern "C" {
 
     /**\brief  Get the number of child sets linked from a specified set
      *
-     * Get the number of child sets linked from a specified set.  If num_hops
-     * is not -1, this represents the maximum hops from entity_set to any
-     * child in the count.
+     * Get the number of child sets linked from a specified set.
      * \param instance iMesh instance handle
      * \param entity_set Entity set being queried
      * \param num_hops Maximum hops from entity_set_handle to child set,
@@ -1219,7 +1182,6 @@ extern "C" {
      *        in parent-child structure.
      * \param num_child Pointer to number of children returned from function
      * \param *err Pointer to error type returned from function
-     * \note This function will return \c (*num_child==0) for the root set.
      */
   void iMesh_getNumChld(iMesh_Instance instance,
                         /*in*/ const iBase_EntitySetHandle entity_set,
@@ -1229,9 +1191,7 @@ extern "C" {
 
     /**\brief  Get the number of parent sets linked from a specified set
      *
-     * Get the number of parent sets linked from a specified set.  If num_hops
-     * is not -1, this represents the maximum hops from entity_set to any
-     * parent in the count.
+     * Get the number of parent sets linked from a specified set.
      * \param instance iMesh instance handle
      * \param entity_set Entity set being queried
      * \param num_hops Maximum hops from entity_set_handle to parent set,
@@ -1239,7 +1199,6 @@ extern "C" {
      *        in parent-child structure.
      * \param num_parent Pointer to number of parents returned from function
      * \param *err Pointer to error type returned from function
-     * \note This function will return \c (*num_child==0) for the root set.
      */
   void iMesh_getNumPrnt(iMesh_Instance instance,
                         /*in*/ const iBase_EntitySetHandle entity_set,
@@ -1249,9 +1208,7 @@ extern "C" {
 
     /**\brief  Get the child sets linked from a specified set
      *
-     * Get the child sets linked from a specified set.  If num_hops
-     * is not -1, this represents the maximum hops from entity_set to any
-     * child.
+     * Get the child sets linked from a specified set.
      * \param instance iMesh instance handle
      * \param from_entity_set Entity set being queried
      * \param num_hops Maximum hops from entity_set_handle to child set,
@@ -1264,7 +1221,6 @@ extern "C" {
      * \param *entity_set_handles_size Pointer to occupied size of 
      *        entity_set_handles array
      * \param *err Pointer to error type returned from function
-     * \note This function will return zero handles for the root set.
      */
   void iMesh_getChldn(iMesh_Instance instance,
                       /*in*/ const iBase_EntitySetHandle from_entity_set,
@@ -1276,13 +1232,12 @@ extern "C" {
 
     /**\brief  Get the parent sets linked from a specified set
      *
-     * Get the parent sets linked from a specified set.  If num_hops
-     * is not -1, this represents the maximum hops from entity_set to any
-     * parent.
+     * Get the parent sets linked from a specified set.
      * \param instance iMesh instance handle
      * \param from_entity_set Entity set being queried
      * \param num_hops Maximum hops from entity_set_handle to parent set,
-     *        not inclusive of the parent set
+     *        not inclusive of the parent set. See notes on indirection
+     *        in parent-child structure.
      * \param *entity_set_handles Pointer to array of parent sets
      *        returned from function
      * \param *entity_set_handles_allocated Pointer to allocated size of 
@@ -1290,7 +1245,6 @@ extern "C" {
      * \param *entity_set_handles_size Pointer to occupied size of 
      *        entity_set_handles array
      * \param *err Pointer to error type returned from function
-     * \note This function will return zero handles for the root set.
      */
   void iMesh_getPrnts(iMesh_Instance instance,
                       /*in*/ const iBase_EntitySetHandle from_entity_set,
@@ -1528,8 +1482,6 @@ extern "C" {
      * \param tag_value Pointer to tag data being set on entity set
      * \param tag_value_size Size in bytes of tag data
      * \param *err Pointer to error type returned from function
-     * \note Pass the root set for \c entity_set_handle to indicate
-     *       a tag value on the mesh instance.
      */
   void iMesh_setEntSetData(iMesh_Instance instance,
                            /*in*/ iBase_EntitySetHandle entity_set_handle,
@@ -1547,8 +1499,6 @@ extern "C" {
      * \param tag_handle Tag being set on an entity set
      * \param tag_value Tag value being set on entity set
      * \param *err Pointer to error type returned from function
-     * \note Pass the root set for \c entity_set_handle to indicate
-     *       a tag value on the mesh instance.
      */
   void iMesh_setEntSetIntData(iMesh_Instance instance,
                               /*in*/ iBase_EntitySetHandle entity_set,
@@ -1565,8 +1515,6 @@ extern "C" {
      * \param tag_handle Tag being set on an entity set
      * \param tag_value Tag value being set on entity set
      * \param *err Pointer to error type returned from function
-     * \note Pass the root set for \c entity_set_handle to indicate
-     *       a tag value on the mesh instance.
      */
   void iMesh_setEntSetDblData(iMesh_Instance instance,
                               /*in*/ iBase_EntitySetHandle entity_set,
@@ -1583,8 +1531,6 @@ extern "C" {
      * \param tag_handle Tag being set on an entity set
      * \param tag_value Tag value being set on entity set
      * \param *err Pointer to error type returned from function
-     * \note Pass the root set for \c entity_set_handle to indicate
-     *       a tag value on the mesh instance.
      */
   void iMesh_setEntSetEHData(iMesh_Instance instance,
                              /*in*/ iBase_EntitySetHandle entity_set,
@@ -1627,8 +1573,6 @@ extern "C" {
      * \param *tag_value_size Pointer to occupied size in bytes of tag data
      *        array
      * \param *err Pointer to error type returned from function
-     * \note Pass the root set for \c entity_set_handle to indicate
-     *       a tag value on the mesh instance.
      */
   void iMesh_getEntSetData(iMesh_Instance instance,
                            /*in*/ const iBase_EntitySetHandle entity_set_handle,
@@ -1646,8 +1590,6 @@ extern "C" {
      * \param tag_handle Tag being set on an entity set
      * \param *out_data Pointer to tag value returned from function
      * \param *err Pointer to error type returned from function
-     * \note Pass the root set for \c entity_set_handle to indicate
-     *       a tag value on the mesh instance.
      */
   void iMesh_getEntSetIntData(iMesh_Instance instance,
                               /*in*/ const iBase_EntitySetHandle entity_set,
@@ -1663,8 +1605,6 @@ extern "C" {
      * \param tag_handle Tag being set on an entity set
      * \param *out_data Pointer to tag value returned from function
      * \param *err Pointer to error type returned from function
-     * \note Pass the root set for \c entity_set_handle to indicate
-     *       a tag value on the mesh instance.
      */
   void iMesh_getEntSetDblData(iMesh_Instance instance,
                               /*in*/ const iBase_EntitySetHandle entity_set,
@@ -1680,8 +1620,6 @@ extern "C" {
      * \param tag_handle Tag being set on an entity set
      * \param *out_data Pointer to tag value returned from function
      * \param *err Pointer to error type returned from function
-     * \note Pass the root set for \c entity_set_handle to indicate
-     *       a tag value on the mesh instance.
      */
   void iMesh_getEntSetEHData(iMesh_Instance instance,
                              /*in*/ const iBase_EntitySetHandle entity_set,
@@ -1716,8 +1654,6 @@ extern "C" {
      *        array
      * \param *tag_handles_size Pointer to occupied size of tag_handles array
      * \param *err Pointer to error type returned from function
-     * \note Pass the root set for \c entity_set_handle to indicate
-     *       tag values on the mesh instance.
      */
   void iMesh_getAllEntSetTags(iMesh_Instance instance,
                               /*in*/ const iBase_EntitySetHandle entity_set_handle,
@@ -1733,8 +1669,6 @@ extern "C" {
      * \param entity_set_handle Entity set from which tag is being removed
      * \param tag_handle Tag handle of tag being removed
      * \param *err Pointer to error type returned from function
-     * \note Pass the root set for \c entity_set_handle to indicate
-     *       a tag value on the mesh instance.
      */
   void iMesh_rmvEntSetTag(iMesh_Instance instance,
                           /*in*/ iBase_EntitySetHandle entity_set_handle,
@@ -2453,8 +2387,6 @@ extern "C" {
      * \param entity_set_2 Entity set being subtracted from other set
      * \param result_entity_set Pointer to entity set returned from function
      * \param *err Pointer to error type returned from function
-     * \note If either of the passed entity sets is the root set then the 
-     *       resulting set will be the complement of the other passed set.
      */
 
   void iMesh_subtract(iMesh_Instance instance,
@@ -2471,8 +2403,6 @@ extern "C" {
      * \param entity_set_2 Entity set being intersected with another
      * \param result_entity_set Pointer to entity set returned from function
      * \param *err Pointer to error type returned from function
-     * \note If either of the passed entity sets is the root set then the 
-     *       resulting set will be a copy of other passed set.
      */
   void iMesh_intersect(iMesh_Instance instance,
                        /*in*/ const iBase_EntitySetHandle entity_set_1,
@@ -2488,8 +2418,6 @@ extern "C" {
      * \param entity_set_2 Entity set being united with another
      * \param result_entity_set Pointer to entity set returned from function
      * \param *err Pointer to error type returned from function
-     * \note If either of the passed entity sets is the root set then the 
-     *       resulting set will be a copy of the root set.
      */
   void iMesh_unite(iMesh_Instance instance,
                    /*in*/ const iBase_EntitySetHandle entity_set_1,
