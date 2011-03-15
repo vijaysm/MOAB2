@@ -388,14 +388,16 @@ ErrorCode ReadParallel::load_file(const char **file_names,
           tmp_result = impl->serial_load_file( *file_names, &file_set, opts, &sl, file_id_tag );
           if (MB_SUCCESS != tmp_result)
             break;
-            
-          Tag part_tag;
-          tmp_result = impl->tag_get_handle( partition_tag_name.c_str(), part_tag );
-          if (MB_SUCCESS != tmp_result)
-            break;
+
+          if (!partition_tag_name.empty()) {
+            Tag part_tag;
+            tmp_result = impl->tag_get_handle( partition_tag_name.c_str(), part_tag );
+            if (MB_SUCCESS != tmp_result)
+              break;
           
-          tmp_result = impl->get_entities_by_type_and_tag( file_set, MBENTITYSET,
-                             &part_tag, 0, 1, myPcomm->partition_sets() );
+            tmp_result = impl->get_entities_by_type_and_tag( file_set, MBENTITYSET,
+                                                             &part_tag, 0, 1, myPcomm->partition_sets() );
+          }
           
           //if (MB_SUCCESS == tmp_result)
           //  tmp_result = create_partition_sets( partition_tag_name, file_set );
