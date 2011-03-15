@@ -244,14 +244,14 @@ static void print_range( char* buffer, unsigned long begin, unsigned long end )
 
 void DebugOutput::list_range_real( const char* pfx, const Range& range )
 {
-  if (range.empty()) {
-    print_real("<empty>\n");
-    return;
-  }
-
   if (pfx) {
     lineBuffer.insert( lineBuffer.end(), pfx, pfx+strlen(pfx) );
     lineBuffer.push_back(' ');
+  }
+
+  if (range.empty()) {
+    print_real("<empty>\n");
+    return;
   }
 
   char numbuf[48]; // unsigned 64 bit integer can't have more than 20 decimal digits
