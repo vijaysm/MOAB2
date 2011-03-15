@@ -193,7 +193,7 @@ if test "xno" != "x$PNETCDF_ARG"; then
                     [FATHOM_CHECK_NETCDF_LIMITS([$1],[$2],[pnetcdf.h],[PNETCDF_SUFFICIENT_DIM_VARS])], 
                     [HAVE_PNETCDF=no] )
 
-  AC_CHECK_LIB( [pnetcdf], [ncmpi_create], , [HAVE_PNETCDF=no] )
+  AC_CHECK_LIB( [pnetcdf], [ncmpi_create], [PNETCDF_LIBS="-lpnetcdf"], [HAVE_PNETCDF=no] )
 
   
   AC_LANG_POP([C])
