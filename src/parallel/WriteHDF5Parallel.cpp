@@ -1700,14 +1700,6 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
     if (MB_SUCCESS != rval) 
       return error(rval);
   }
-
-  result = MPI_Scatter( &set_counts[0], 3, MPI_LONG,
-                        data_offsets,   3, MPI_LONG,
-                        0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
-  setContentsOffset = data_offsets[0];
-  setChildrenOffset = data_offsets[1];
-  setParentsOffset = data_offsets[2];
   
     // Broadcast both max_counts and total table sizes.
     // max_counts is necessary for collective IO because each
@@ -1722,6 +1714,14 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
   result = MPI_Bcast( summary_counts, 6, MPI_LONG, 0, 
                       myPcomm->proc_config().proc_comm() );
   CHECK_MPI(result);
+
+  result = MPI_Scatter( &set_counts[0], 3, MPI_LONG,
+                        data_offsets,   3, MPI_LONG,
+                        0, myPcomm->proc_config().proc_comm() );
+  CHECK_MPI(result);
+  setContentsOffset = data_offsets[0];
+  setChildrenOffset = data_offsets[1];
+  setParentsOffset = data_offsets[2];
   maxNumSetContents = summary_counts[0];
   maxNumSetChildren = summary_counts[1];
   maxNumSetParents  = summary_counts[2];
