@@ -166,15 +166,18 @@ int init_signal_handlers()
 #ifdef SIGFPE
   result += sethandler( SIGFPE );
 #endif
-#ifdef SIGUSR1
-  result += sethandler( SIGUSR1 );
-#endif
 #ifdef SIGSEGV
   result += sethandler( SIGSEGV );
+#endif
+/* Catching these causes problems with mpich2 1.3.1p1 and a test
+   should never die due to an uncaught sigusr anyway.
+#ifdef SIGUSR1
+  result += sethandler( SIGUSR1 );
 #endif
 #ifdef SIGUSR2
   result += sethandler( SIGUSR2 );
 #endif
+*/
 #ifdef SIGPIPE
   result += sethandler( SIGPIPE );
 #endif
