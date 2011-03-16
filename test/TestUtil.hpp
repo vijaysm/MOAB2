@@ -142,6 +142,14 @@ int sethandler( int sig ) {
 int init_signal_handlers()
 {
   int result = 0;
+/* Don't trap these.  It is unlikely that a test would ever generate such 
+   a signal on its own and trapping them interfers with a user's ability 
+   to stop a test.  SIGHUP implies that the controlling terminal was closed.  
+   If the user does ctrl-C or ctrl-\ (SIGINT and SIGQUIT, respectively) and
+   we trap these then just the current test stops.  If we leave the default
+   behavior for them then the whole test suite stops.  The latter is likely 
+   the desired behavior.  SIGTERM is the default signal sent by the 'kill'
+   command.
 #ifdef SIGHUP
   result += sethandler( SIGHUP );
 #endif
@@ -151,6 +159,11 @@ int init_signal_handlers()
 #ifdef SIGQUIT
   result += sethandler( SIGQUIT );
 #endif
+#ifdef SIGTERM
+  result += sethandler( SIGTERM );
+#endif
+*/
+
 #ifdef SIGILL
   result += sethandler( SIGILL );
 #endif
@@ -169,8 +182,9 @@ int init_signal_handlers()
 #ifdef SIGSEGV
   result += sethandler( SIGSEGV );
 #endif
-/* Catching these causes problems with mpich2 1.3.1p1 and a test
-   should never die due to an uncaught sigusr anyway.
+
+/* Catching these causes problems with mpich2 1.3.1p1 and a
+   test should never receive such a signal anyway.
 #ifdef SIGUSR1
   result += sethandler( SIGUSR1 );
 #endif
@@ -178,14 +192,18 @@ int init_signal_handlers()
   result += sethandler( SIGUSR2 );
 #endif
 */
-#ifdef SIGPIPE
-  result += sethandler( SIGPIPE );
-#endif
-#ifdef SIGTERM
-  result += sethandler( SIGTERM );
-#endif
+
+/* Don't trap SIGCHLD.  The only way a test should receive
+   such a signal is if it actually forked a child process.
+   That is unlikely, but if it does happen the test probably
+   wants to handle the signal itself.
 #ifdef SIGCHLD
   result += sethandler( SIGCHLD );
+#endif
+*/
+
+#ifdef SIGPIPE
+  result += sethandler( SIGPIPE );
 #endif
 #ifdef SIGIO
   result += sethandler( SIGIO );
