@@ -820,8 +820,8 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
         assert(citer != sums.end());
         num_val = *citer; ++citer;
       }
-      dbgOut.printf( 2, "Creating table of size %lu for tag 0x%lx\n", 
-                     num_val ? num_val : num_ents, (unsigned long)tag_iter->tag_id );
+      dbgOut.printf( 2, "Writing tag description for tag 0x%lx with %lu values\n", 
+                     (unsigned long)tag_iter->tag_id, num_val ? num_val : num_ents );
 
       rval = create_tag( *tag_iter, num_ents, num_val );
       if (MB_SUCCESS != rval)
