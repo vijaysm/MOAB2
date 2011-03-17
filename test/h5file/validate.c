@@ -63,7 +63,8 @@ static long* all_id_ranges( struct mhdf_FileDesc* desc, int include_null, int* n
    file IDs for entities with a specific dimension. */
 static long* get_dim_ranges( struct mhdf_FileDesc* desc, int dim, int* num_ranges_out );
 
-
+/* Merge adjacent ranges */
+static int merge_ranges( long* ranges, int nranges );
 
 /* Misc. high-level helper routines */
 
@@ -116,7 +117,7 @@ static int lcomp( const void* p1, const void* p2 )
 {
   long l1 = *(const long*)p1;
   long l2 = *(const long*)p2;
-  return (l1 - l2)/labs(l1 - l2);
+  return l1 < l2 ? -1 : l1 > l2 ? 1 : 0;
 }
 
 /* Compare start_ids of mhdf_EntDesc pointed to by passed values */
@@ -355,6 +356,8 @@ static long* get_dim_ranges( struct mhdf_FileDesc* desc, int dim, int* num_range
       ranges[j++]   = desc->elems[i].desc.start_id;
       ranges[j++] = desc->elems[i].desc.count;
     }
+    
+  *num_ranges_out = merge_ranges( ranges, *num_ranges_out );
   return ranges;  
 }
 
@@ -797,6 +800,30 @@ static int check_valid_parents_children( long start_id,
   return 0;
 }
 
+static int merge_ranges( long* ranges, int nranges )
+{
+  long i, n;
+
+  if (nranges < 1)
+    return 0;
+
+    /* merge adjacent */
+  qsort( ranges, nranges, 2*sizeof(long), &lcomp );
+  n = 1;
+  for (i = 1; i < nranges; ++i) {
+    if (ranges[2*n-2] + ranges[2*n-1+1] == ranges[2*i]) {
+      ranges[2*n-1] += ranges[2*i+1];
+    }
+    else {
+      ranges[2*n  ] = ranges[i];
+      ranges[2*n+1] = ranges[i+1];
+      ++n;
+    }
+  }
+  
+  return n;
+}
+
 static long* all_id_ranges( struct mhdf_FileDesc* desc, int include_null, int* num_ranges_out )
 {
   int i, num_ranges = 0;
@@ -824,7 +851,9 @@ static long* all_id_ranges( struct mhdf_FileDesc* desc, int include_null, int* n
       ++num_ranges;
     }
   }
-  *num_ranges_out = num_ranges;
+
+  
+  *num_ranges_out = merge_ranges( ranges, num_ranges );
   return ranges;
 }
 
