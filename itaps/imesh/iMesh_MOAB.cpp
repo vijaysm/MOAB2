@@ -259,11 +259,18 @@ static void remove_var_len_tags( Interface* mb, std::vector<Tag>& tags )
 // modify the adjacency table to match the ITAPS spec's expectations
 static void munge_adj_table(int *adjTable, int geom_dim)
 {
+    // If geom_dim is 2, 3D adjacencies are unavailable. This may change!
   if (geom_dim == 2) {
     for (size_t i = 0; i < 16; ++i) {
       if (i % 4 == 3 || i >= 12)
         adjTable[i] = iBase_UNAVAILABLE;
     }
+  }
+
+    // Ensure that diagonal entries are only available/unavailable.
+  for (size_t i = 0; i < 16; i+=5) {
+    if (adjTable[i] != iBase_UNAVAILABLE)
+      adjTable[i] = iBase_AVAILABLE;
   }
 }
 
