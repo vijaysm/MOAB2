@@ -2,6 +2,7 @@
 #define IMESH_MOAB_HPP
 
 #include "iMesh.h"
+#include "MBiMesh.hpp"
 #include "moab/Forward.hpp"
 #include <cstring>
 #include <cstdlib>
@@ -18,7 +19,7 @@ extern const iBase_EntityType tstt_type_table[MBMAXTYPE+1];
 extern const EntityType mb_topology_table[MBMAXTYPE+1];
 
 /* map from TSTT's tag types to MOAB's */
-extern const DataType mb_data_type_table[4];
+extern const DataType mb_data_type_table[iBase_TagValueType_MAX+1];
 
 /* map from MOAB's tag types to tstt's */
 extern const iBase_TagValueType tstt_data_type_table[MB_MAX_DATA_TYPE+1];
@@ -27,13 +28,8 @@ extern const iBase_TagValueType tstt_data_type_table[MB_MAX_DATA_TYPE+1];
 extern "C" const iBase_ErrorType iBase_ERROR_MAP[MB_FAILURE+1];
 
 /* Create ITAPS iterator */
-iMesh_EntityIterator create_itaps_iterator( Range& swap_range,
+iBase_EntityIterator create_itaps_iterator( Range& swap_range,
                                             int array_size = 1 ); 
-
-/* Define macro for quick reference to Interface instance */
-static inline Interface* MBI_cast( iMesh_Instance i )  
-  { return reinterpret_cast<Interface*>(i); }         
-#define MBI MBI_cast(instance)
 
 /* Most recently returned error code */
 extern "C" iBase_Error iMesh_LAST_ERROR;
@@ -42,31 +38,7 @@ extern "C" iBase_Error iMesh_LAST_ERROR;
                       iMesh_LAST_ERROR.description[0] = '\0'; \
                       return;} while(false)
 
-#include "moab/Core.hpp"
-
-class MBiMesh : public Core
-{
-private:
-  bool haveDeletedEntities;
-public:
-  MBiMesh();
-
-  virtual ~MBiMesh();
-  bool have_deleted_ents( bool reset ) {
-    bool result = haveDeletedEntities;
-    if (reset)
-      haveDeletedEntities = false;
-    return result;
-  }
-
-  virtual ErrorCode delete_mesh();
-  virtual ErrorCode delete_entities( const EntityHandle*, const int );
-  virtual ErrorCode delete_entities( const Range& );
-  int AdjTable[16];
-};
-
-#define MBimesh reinterpret_cast<MBiMesh*>(MBI)
-
+#include "MBiMesh.hpp"
 
 static inline int
 iMesh_processError( int code, const char* desc ) 
@@ -77,7 +49,7 @@ iMesh_processError( int code, const char* desc )
   return (iMesh_LAST_ERROR.error_type = (iBase_ErrorType)code);
 }
 
-#define ERROR(CODE,MSG) do { *err = iMesh_setLastError( MBI, (CODE), (MSG) ); return; } while(false)
+#define ERROR(CODE,MSG) do { *err = iMesh_setLastError( MOABI, (CODE), (MSG) ); return; } while(false)
 #define IBASE_ERROR(CODE,MSG) do { *err = iMesh_processError( (CODE), (MSG) ); return; } while(false)
 
 static inline int iMesh_setLastError( Interface*, int code, const char* msg )

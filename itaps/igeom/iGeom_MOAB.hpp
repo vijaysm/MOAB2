@@ -3,6 +3,8 @@
 
 #include "iGeom.h"
 #include "moab/Forward.hpp"
+#include "iMesh.h"
+#include "MBiMesh.hpp"
 
 namespace moab { class GeomTopoTool; }
 
@@ -22,12 +24,12 @@ extern const iBase_TagValueType tstt_data_type_table[moab::MB_MAX_DATA_TYPE+1];
 extern "C" const iBase_ErrorType iBase_ERROR_MAP[moab::MB_FAILURE+1];
 
 /* Create ITAPS iterator */
-iGeom_EntityIterator create_itaps_iterator( moab::Range& swap_range,
+iBase_EntityIterator create_itaps_iterator( moab::Range& swap_range,
                                             int array_size = 1 ); 
 
 /* Define macro for quick reference to MBInterface instance */
 static inline moab::Interface* MBI_cast( iGeom_Instance i )  
-  { return reinterpret_cast<moab::Interface*>(i); }         
+  { return reinterpret_cast<MBiMesh*>(i)->mbImpl; }
 #define MBI MBI_cast(instance)
 
 /* Define macro for quick reference to moab::Interface instance */
@@ -35,7 +37,7 @@ static inline moab::EntityHandle MBH_cast( iBase_EntityHandle h )
   { return reinterpret_cast<moab::EntityHandle>(h); }         
 
 #define GETGTT(a) {if (_my_geomTopoTool == NULL) _my_geomTopoTool =	\
-	new GeomTopoTool(reinterpret_cast<moab::Interface*>(a));}
+	new GeomTopoTool(reinterpret_cast<MBiMesh*>(a)->mbImpl);}
 
 /* Most recently returned error code */
 //extern "C" iBase_Error iGeom_LAST_ERROR;

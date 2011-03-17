@@ -1,11 +1,12 @@
 #include <iostream>
 #include <map>
-#include "iGeom_MOAB.hpp"
 #include "iMesh.h"
 #include "moab/Interface.hpp"
 #include "moab/GeomTopoTool.hpp"
 #include "moab/OrientedBoxTreeTool.hpp"
 #include "moab/CartVect.hpp"
+#include "moab/Range.hpp"
+#include "iGeom_MOAB.hpp"
 #include <stdlib.h>
 #include <cstring>
 #include <map>
@@ -244,9 +245,9 @@ void iGeom_getErrorType(iGeom_Instance instance,
 
 void iGeom_newGeom(char const* options, iGeom_Instance* instance_out, int* err,
       int options_len) {
-   if (*instance_out && !(reinterpret_cast<Interface*> (instance_out))) {
+   if (*instance_out && !(reinterpret_cast<iMesh_Instance*> (instance_out))) {
       *err = iBase_INVALID_ENTITY_TYPE;
-      ERRORR("Passed in instance must be an Interface*.");
+      ERRORR("Passed in instance must be an iMesh_Instance*.");
    }
 
    // make a new imesh instance
@@ -1440,7 +1441,7 @@ void iGeom_measure(iGeom_Instance instance,
       (*measures)[i] = 0.;
 
       int type;
-      iGeom_getEntType(instance, entity_handles[0], &type, err);
+      iGeom_getEntType(instance, entity_handles[i], &type, err);
       ERRORR("Failed to get entity type in iGeom_measure.");
 
       if (type == 1) { // edge
@@ -1855,34 +1856,34 @@ void iGeom_getArrTolerance(iGeom_Instance,
 }
 
 void iGeom_initEntIter(iGeom_Instance, iBase_EntitySetHandle entity_set_handle,
-      int entity_dimension, iGeom_EntityIterator* entity_iterator, int* err) {
+      int entity_dimension, iBase_EntityIterator* entity_iterator, int* err) {
 }
 
 void iGeom_initEntArrIter(iGeom_Instance,
       iBase_EntitySetHandle entity_set_handle, int entity_dimension,
-      int requested_array_size, iGeom_EntityArrIterator* entArr_iterator,
+      int requested_array_size, iBase_EntityArrIterator* entArr_iterator,
       int* err) {
 }
 
-void iGeom_getNextEntIter(iGeom_Instance, iGeom_EntityIterator,
+void iGeom_getNextEntIter(iGeom_Instance, iBase_EntityIterator,
       iBase_EntityHandle* entity_handle, int* has_data, int* err) {
 }
 
-void iGeom_getNextEntArrIter(iGeom_Instance, iGeom_EntityArrIterator,
+void iGeom_getNextEntArrIter(iGeom_Instance, iBase_EntityArrIterator,
       iBase_EntityHandle** entity_handles, int* entity_handles_allocated,
       int* entity_handles_size, int* has_data, int* err) {
 }
 
-void iGeom_resetEntIter(iGeom_Instance, iGeom_EntityIterator, int* err) {
+void iGeom_resetEntIter(iGeom_Instance, iBase_EntityIterator, int* err) {
 }
 
-void iGeom_resetEntArrIter(iGeom_Instance, iGeom_EntityArrIterator, int* err) {
+void iGeom_resetEntArrIter(iGeom_Instance, iBase_EntityArrIterator, int* err) {
 }
 
-void iGeom_endEntIter(iGeom_Instance, iGeom_EntityIterator, int* err) {
+void iGeom_endEntIter(iGeom_Instance, iBase_EntityIterator, int* err) {
 }
 
-void iGeom_endEntArrIter(iGeom_Instance, iGeom_EntityArrIterator, int* err) {
+void iGeom_endEntArrIter(iGeom_Instance, iBase_EntityArrIterator, int* err) {
 }
 
 void iGeom_copyEnt(iGeom_Instance, iBase_EntityHandle source,
@@ -2203,7 +2204,7 @@ void iGeom_getTagType(iGeom_Instance instance, iBase_TagHandle tag_handle,
 
 void iGeom_setEntSetData(iGeom_Instance instance,
       iBase_EntitySetHandle entity_set_handle, iBase_TagHandle tag_handle,
-      const char* tag_value, int tag_value_size, int *err) {
+      const void* tag_value, int tag_value_size, int *err) {
    iMesh_setEntSetData(IMESH_INSTANCE(instance), entity_set_handle, tag_handle,
          tag_value, tag_value_size, err);
    ERRORR("Failure to set arbitrary data to entity set.");
@@ -2233,9 +2234,17 @@ void iGeom_setEntSetEHData(iGeom_Instance instance,
    ERRORR("Failure to set entity handle data to entity set.");
 }
 
+void iGeom_setEntSetESHData(iGeom_Instance instance,
+      iBase_EntitySetHandle entity_set, iBase_TagHandle tag_handle,
+      iBase_EntitySetHandle tag_value, int *err) {
+   iMesh_setEntSetESHData(IMESH_INSTANCE(instance), entity_set, tag_handle,
+         tag_value, err);
+   ERRORR("Failure to set entity set handle data to entity set.");
+}
+
 void iGeom_getEntSetData(iGeom_Instance instance,
       iBase_EntitySetHandle entity_set_handle, iBase_TagHandle tag_handle,
-      char** tag_value, int* tag_value_allocated, int* tag_value_size, int *err) {
+      void** tag_value, int* tag_value_allocated, int* tag_value_size, int *err) {
    iMesh_getEntSetData(IMESH_INSTANCE(instance), entity_set_handle, tag_handle,
          tag_value, tag_value_allocated, tag_value_size, err);
    ERRORR("Failure to get arbitrary data from entity set.");
@@ -2262,7 +2271,15 @@ void iGeom_getEntSetEHData(iGeom_Instance instance,
       iBase_EntityHandle *out_data, int *err) {
    iMesh_getEntSetEHData(IMESH_INSTANCE(instance), entity_set, tag_handle,
          out_data, err);
-   ERRORR("Failure to get double data from entity set.");
+   ERRORR("Failure to get entity handle data from entity set.");
+}
+
+void iGeom_getEntSetESHData(iGeom_Instance instance,
+      iBase_EntitySetHandle entity_set, iBase_TagHandle tag_handle,
+      iBase_EntitySetHandle *out_data, int *err) {
+   iMesh_getEntSetESHData(IMESH_INSTANCE(instance), entity_set, tag_handle,
+         out_data, err);
+   ERRORR("Failure to get entity set handle data from entity set.");
 }
 
 void iGeom_getAllEntSetTags(iGeom_Instance instance,
@@ -2270,7 +2287,7 @@ void iGeom_getAllEntSetTags(iGeom_Instance instance,
       int* tag_handles_allocated, int* tag_handles_size, int *err) {
    iMesh_getAllEntSetTags(IMESH_INSTANCE(instance), entity_set_handle,
          tag_handles, tag_handles_allocated, tag_handles_size, err);
-   ERRORR("Failure to get double data from entity set.");
+   ERRORR("Failure to get all tags on entity set.");
 }
 
 void iGeom_rmvEntSetTag(iGeom_Instance instance,
@@ -2283,7 +2300,7 @@ void iGeom_rmvEntSetTag(iGeom_Instance instance,
 
 void iGeom_getArrData(iGeom_Instance instance,
       const iBase_EntityHandle* entity_handles, int entity_handles_size,
-      iBase_TagHandle tag_handle, char** tag_values, int* tag_values_allocated,
+      iBase_TagHandle tag_handle, void** tag_values, int* tag_values_allocated,
       int* tag_values_size, int *err) {
    iMesh_getArrData(IMESH_INSTANCE(instance), entity_handles,
          entity_handles_size, tag_handle, tag_values, tag_values_allocated,
@@ -2321,9 +2338,19 @@ void iGeom_getEHArrData(iGeom_Instance instance,
    ERRORR("Failure to get entity handle tag values on an array of entities.");
 }
 
+void iGeom_getESHArrData(iGeom_Instance instance,
+      const iBase_EntityHandle* entity_handles, int entity_handles_size,
+      iBase_TagHandle tag_handle, iBase_EntitySetHandle** tag_value,
+      int* tag_value_allocated, int* tag_value_size, int *err) {
+   iMesh_getESHArrData(IMESH_INSTANCE(instance), entity_handles,
+         entity_handles_size, tag_handle, tag_value, tag_value_allocated,
+         tag_value_size, err);
+   ERRORR("Failure to get entity set handle tag values on an array of entities.");
+}
+
 void iGeom_setArrData(iGeom_Instance instance,
       const iBase_EntityHandle* entity_handles, int entity_handles_size,
-      iBase_TagHandle tag_handle, const char* tag_values, int tag_values_size,
+      iBase_TagHandle tag_handle, const void* tag_values, int tag_values_size,
       int *err) {
    iMesh_setArrData(IMESH_INSTANCE(instance), entity_handles,
          entity_handles_size, tag_handle, tag_values, tag_values_size, err);
@@ -2357,6 +2384,15 @@ void iGeom_setEHArrData(iGeom_Instance instance,
    ERRORR("Failure to set entity handle tag values on an array of entities.");
 }
 
+void iGeom_setESHArrData(iGeom_Instance instance,
+      const iBase_EntityHandle* entity_handles, int entity_handles_size,
+      iBase_TagHandle tag_handle, const iBase_EntitySetHandle* tag_values,
+      int tag_values_size, int *err) {
+   iMesh_setESHArrData(IMESH_INSTANCE(instance), entity_handles,
+         entity_handles_size, tag_handle, tag_values, tag_values_size, err);
+   ERRORR("Failure to set entity set handle tag values on an array of entities.");
+}
+
 void iGeom_rmvArrTag(iGeom_Instance instance,
       const iBase_EntityHandle* entity_handles, int entity_handles_size,
       iBase_TagHandle tag_handle, int *err) {
@@ -2366,7 +2402,7 @@ void iGeom_rmvArrTag(iGeom_Instance instance,
 }
 
 void iGeom_getData(iGeom_Instance instance, iBase_EntityHandle entity_handle,
-      iBase_TagHandle tag_handle, char** tag_value, int *tag_value_allocated,
+      iBase_TagHandle tag_handle, void** tag_value, int *tag_value_allocated,
       int *tag_value_size, int *err) {
    iMesh_getData(IMESH_INSTANCE(instance), entity_handle, tag_handle,
          tag_value, tag_value_allocated, tag_value_size, err);
@@ -2396,8 +2432,15 @@ void iGeom_getEHData(iGeom_Instance instance, iBase_EntityHandle entity_handle,
    ERRORR("Failure to get entity handle tag values of an entity.");
 }
 
+void iGeom_getESHData(iGeom_Instance instance, iBase_EntityHandle entity_handle,
+      iBase_TagHandle tag_handle, iBase_EntitySetHandle *out_data, int *err) {
+   iMesh_getESHData(IMESH_INSTANCE(instance), entity_handle, tag_handle,
+         out_data, err);
+   ERRORR("Failure to get entity set handle tag values of an entity.");
+}
+
 void iGeom_setData(iGeom_Instance instance, iBase_EntityHandle entity_handle,
-      iBase_TagHandle tag_handle, const char* tag_value, int tag_value_size,
+      iBase_TagHandle tag_handle, const void* tag_value, int tag_value_size,
       int *err) {
    iMesh_setData(IMESH_INSTANCE(instance), entity_handle, tag_handle,
          tag_value, tag_value_size, err);
@@ -2425,6 +2468,13 @@ void iGeom_setEHData(iGeom_Instance instance, iBase_EntityHandle entity_handle,
    iMesh_setEHData(IMESH_INSTANCE(instance), entity_handle, tag_handle,
          tag_value, err);
    ERRORR("Failure to set entity handle tag values of an entity.");
+}
+
+void iGeom_setESHData(iGeom_Instance instance, iBase_EntityHandle entity_handle,
+      iBase_TagHandle tag_handle, iBase_EntitySetHandle tag_value, int *err) {
+   iMesh_setESHData(IMESH_INSTANCE(instance), entity_handle, tag_handle,
+         tag_value, err);
+   ERRORR("Failure to set entity set handle tag values of an entity.");
 }
 
 void iGeom_getAllTags(iGeom_Instance instance,

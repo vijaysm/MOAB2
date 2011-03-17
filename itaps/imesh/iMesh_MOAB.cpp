@@ -21,40 +21,7 @@
 #include <stdio.h>
 #define MIN(a,b) (a < b ? a : b)
 
-MBiMesh::MBiMesh()
-    : haveDeletedEntities(false)
-{
-  int tmp_table[] = {
-      1, 1, 1, 1,
-      1, 0, 2, 2,
-      1, 2, 0, 2,
-      1, 2, 2, 1
-  };
-  memcpy(AdjTable, tmp_table, 16*sizeof(int));
-}
-
-MBiMesh::~MBiMesh() {}
-
-ErrorCode MBiMesh::delete_mesh() {
-  haveDeletedEntities = true;
-  return Core::delete_mesh();
-}
-
-ErrorCode MBiMesh::delete_entities( const EntityHandle* a, const int n )
-{
-  if (n > 0)
-    haveDeletedEntities = true;
-  return Core::delete_entities( a, n );
-}
-
-ErrorCode MBiMesh::delete_entities( const Range& r )
-{
-  if (!r.empty())
-    haveDeletedEntities = true;
-  return Core::delete_entities( r );
-}
-
-ErrorCode create_int_ents(Interface *instance,
+ErrorCode create_int_ents(MBiMesh * mbimesh,
                             Range &from_ents,
                             const EntityHandle* in_set = 0);
 #define HANDLE_ARRAY_PTR(array) reinterpret_cast<EntityHandle*>(array)
@@ -122,10 +89,11 @@ const EntityType mb_topology_table[] =
 // map from TSTT's tag types to MOAB's
 const DataType mb_data_type_table[] = 
 {
+  MB_TYPE_OPAQUE,
   MB_TYPE_INTEGER,
   MB_TYPE_DOUBLE ,
   MB_TYPE_HANDLE ,
-  MB_TYPE_OPAQUE
+  MB_TYPE_HANDLE
 };
 
 // map from MOAB's tag types to tstt's
@@ -165,7 +133,7 @@ struct RangeIterator
   int requestedSize;
 };
 
-iMesh_EntityIterator create_itaps_iterator( Range& range, int array_size )
+iBase_EntityIterator create_itaps_iterator( Range& range, int array_size )
 {
   RangeIterator* iter = new RangeIterator;
   if (iter) {
@@ -173,7 +141,7 @@ iMesh_EntityIterator create_itaps_iterator( Range& range, int array_size )
     iter->currentPos = iter->iteratorRange.begin();
     iter->requestedSize = array_size;
   }
-  return reinterpret_cast<iMesh_EntityIterator>(iter);
+  return reinterpret_cast<iBase_EntityIterator>(iter);
 }
 
 static int compare_no_case(const char *str1, const char *str2, size_t n) {
@@ -206,6 +174,97 @@ static std::string filter_options(const char *begin, const char *end)
   return filtered;
 }
 
+// Return data about a list of handles for use in check_handle_tag_type.
+// Set output arguments to true if the list contains the corresponding 
+// type of handle.  Leave them unmodified if it does not.
+static inline void ht_content_type( const std::vector<EntityHandle>& h,
+                                    bool saw_ent, bool saw_set, bool saw_root )
+{
+  std::vector<EntityHandle>::const_iterator i;
+  for (i = h.begin(); i != h.end(); ++i) {
+    if (*i == 0)
+      saw_root = true;
+    else if (TYPE_FROM_HANDLE(*i) == MBENTITYSET)
+      saw_set = true;
+    else
+      saw_ent = true;
+  }
+}
+
+// Scan all tag data to try to guess whether the MOAB tag with
+// data of type MB_TYPE_HANDLE is iBase_ENTITY_HANDLE or
+// iBase_ENTITY_SET_HANDLE.
+static ErrorCode check_handle_tag_type( Tag t, MBiMesh* mbi )
+{
+  Interface* mb = mbi->mbImpl;
+  ErrorCode rval;
+  int size;
+  DataType type;
+  rval = mb->tag_get_data_type( t, type );
+  if (MB_SUCCESS != rval) return rval;
+  if (MB_TYPE_HANDLE != type) return MB_TYPE_OUT_OF_RANGE;
+  rval = mb->tag_get_size( t, size );
+  if (MB_SUCCESS != rval) return rval;
+  size /= sizeof(EntityHandle);
+  std::vector<EntityHandle> data(size);
+  
+    // check for global/mesh value
+  bool saw_set = false, saw_ent = false, saw_root = false;
+  EntityHandle root = 0;
+  rval = mb->tag_get_data( t, &root, 1, &data[0] );
+  if (MB_SUCCESS == rval)
+    ht_content_type( data, saw_ent, saw_set, saw_root );
+    
+    // check default value
+  rval = mb->tag_get_default_value( t, &data[0] );
+  if (MB_SUCCESS == rval)
+    ht_content_type( data, saw_ent, saw_set, saw_root );
+  
+    // check all tagged entities
+  Range r;
+  rval = mb->get_entities_by_type_and_tag( 0, MBMAXTYPE, &t, 0, 1, r );
+  if (MB_SUCCESS != rval) return rval;
+  for (Range::iterator i = r.begin(); i != r.end(); ++i) {
+    rval = mb->tag_get_data( t, &*i, 1, &data[0] );
+    if (MB_SUCCESS != rval) return rval;
+    ht_content_type( data, saw_ent, saw_set, saw_root );
+  }
+ 
+    // If tag values were only entities, note type accordingly.
+    // Similarly if all are entity sets, note accordingly.
+    // Because root set (zero handle) is sometimes used to mean NULL
+    // rather than the actual root set, treat that specially.  If
+    // all values are either root set or an entity handle, then 
+    // treat as if all values were non-set handles.   
+  if (saw_set && !saw_ent) 
+    mbi->note_set_handle_tag( t );
+  else if (!saw_set && saw_ent)
+    mbi->note_ent_handle_tag( t );
+  else if (saw_root && !saw_ent)
+    mbi->note_set_handle_tag( t );
+
+  return MB_SUCCESS;
+}
+
+static void remove_var_len_tags( Interface* mb, std::vector<Tag>& tags )
+{
+  int size;
+  size_t r, w = 0;
+  for (r = 0; r < tags.size(); ++r) 
+    if (MB_SUCCESS == mb->tag_get_size( tags[r], size ))
+      tags[w++] = tags[r];
+}
+
+// modify the adjacency table to match the ITAPS spec's expectations
+static void munge_adj_table(int *adjTable, int geom_dim)
+{
+  if (geom_dim == 2) {
+    for (size_t i = 0; i < 16; ++i) {
+      if (i % 4 == 3 || i >= 12)
+        adjTable[i] = iBase_UNAVAILABLE;
+    }
+  }
+}
 
 #ifdef __cplusplus
 extern "C" {
@@ -261,7 +320,8 @@ extern "C" {
     std::string tmp_options = filter_options(options, options+options_len);
     FileOptions opts(tmp_options.c_str());
 
-    Interface* core;
+    MBiMesh **mbi = reinterpret_cast<MBiMesh**>(instance);
+    *mbi = NULL;
 
     ErrorCode result = opts.get_null_option("PARALLEL");
     if (MB_SUCCESS == result) {
@@ -275,7 +335,7 @@ extern "C" {
           // mpi not initialized yet - initialize here
         retval = MPI_Init(&argc, &argv);
       }
-      core = new MBiMesh;
+      *mbi = new MBiMesh(NULL);
 #else
         //mError->set_last_error( "PARALLEL option not valid, this instance"
         //                        " compiled for serial execution.\n" );
@@ -283,10 +343,10 @@ extern "C" {
       return;
 #endif
     }
-    else core = new MBiMesh;
-
-    *instance = reinterpret_cast<iMesh_Instance>(core);
-    if (0 == *instance) {
+    else {
+      *mbi = new MBiMesh(NULL);
+    }
+    if (NULL == *mbi) {
       IBASE_ERROR(iBase_FAILURE, "Failed to instantiate mesh instance.");
       return;
     }
@@ -296,7 +356,7 @@ extern "C" {
 
   void iMesh_dtor(iMesh_Instance instance, int *err) 
   {
-    delete MBI;
+    delete MBIMESHI;
     RETURN(iBase_SUCCESS);
   }
 
@@ -312,7 +372,7 @@ extern "C" {
     std::string opts = filter_options(options, options+options_len);
   
     Range orig_ents;
-    ErrorCode result = MBI->get_entities_by_handle( 0, orig_ents );
+    ErrorCode result = MOABI->get_entities_by_handle( 0, orig_ents );
     CHKERR(result,"Internal error");
   
     const EntityHandle* file_set = 0;
@@ -321,17 +381,17 @@ extern "C" {
       file_set = reinterpret_cast<const EntityHandle*>(ptr);
     }
   
-    result = MBI->load_file(filename.c_str(), file_set, opts.c_str());
+    result = MOABI->load_file(filename.c_str(), file_set, opts.c_str());
 
     CHKERR(result, "iMesh_load:ERROR loading a mesh.");
 
       // create interior edges/faces if requested
-    if (MBimesh->AdjTable[5] || MBimesh->AdjTable[10]) {
+    if (MBIMESHI->AdjTable[5] || MBIMESHI->AdjTable[10]) {
       Range set_ents;
-      result = MBI->get_entities_by_handle(0, set_ents);
+      result = MOABI->get_entities_by_handle(0, set_ents);
       CHKERR(result,"");
       set_ents = subtract( set_ents, orig_ents );
-      result = create_int_ents(MBI, set_ents, file_set);
+      result = create_int_ents(MBIMESHI, set_ents, file_set);
       CHKERR(result,"");
     }
 
@@ -349,7 +409,7 @@ extern "C" {
     std::string opts = filter_options(options, options+options_len);
 
     EntityHandle set = ENTITY_HANDLE(handle);
-    ErrorCode result = MBI->write_file(filename.c_str(), NULL, opts.c_str(),
+    ErrorCode result = MOABI->write_file(filename.c_str(), NULL, opts.c_str(),
                                        &set, 1);
 
     CHKERR(result, "iMesh_save:ERROR saving a mesh.");
@@ -360,7 +420,7 @@ extern "C" {
                         iBase_EntitySetHandle *root_set, int *err) 
   {
     *root_set = 0;
-      //return CAST_TO_VOID(MBI->get_root_set());
+      //return CAST_TO_VOID(MOABI->get_root_set());
     RETURN(iBase_SUCCESS);
 
   }
@@ -368,14 +428,14 @@ extern "C" {
   void iMesh_getGeometricDimension(iMesh_Instance instance,
                                    int *geom_dim, int *err)
   {
-    MBI->get_dimension(*geom_dim);
+    MOABI->get_dimension(*geom_dim);
     RETURN(iBase_SUCCESS);
   }
 
   void iMesh_setGeometricDimension(iMesh_Instance instance,
                                    int geom_dim, int *err)
   {
-    ErrorCode rval = MBI->set_dimension(geom_dim);
+    ErrorCode rval = MOABI->set_dimension(geom_dim);
     CHKERR(rval,"iMesh_setGeometricDimension: failed");
 
     RETURN(iBase_SUCCESS);
@@ -393,8 +453,12 @@ extern "C" {
                           /*inout*/ int* adjacency_table_allocated, 
                           /*out*/ int* adjacency_table_size, int *err)
   {
+    int geom_dim;
+    iMesh_getGeometricDimension(instance, &geom_dim, err);
+
     ALLOC_CHECK_ARRAY_NOFAIL(adjacency_table, 16);
-    memcpy(*adjacency_table, MBimesh->AdjTable, 16*sizeof(int));
+    memcpy(*adjacency_table, MBIMESHI->AdjTable, 16*sizeof(int));
+    munge_adj_table(*adjacency_table, geom_dim);
     RETURN(iBase_SUCCESS);
   }
 
@@ -407,7 +471,11 @@ extern "C" {
       RETURN(iBase_INVALID_ARGUMENT);
     }
 
-    memcpy(MBimesh->AdjTable, adj_table, 16*sizeof(int));
+    int geom_dim;
+    iMesh_getGeometricDimension(instance, &geom_dim, err);
+
+    memcpy(MBIMESHI->AdjTable, adj_table, 16*sizeof(int));
+    munge_adj_table(adj_table, geom_dim);
     RETURN(iBase_SUCCESS);
   }
 
@@ -434,12 +502,7 @@ extern "C" {
                          int* areHandlesInvarient, 
                          int* err )
   {
-    MBiMesh* mbi = dynamic_cast<MBiMesh*>(MBI);
-    if (!mbi) {
-      RETURN(iBase_FAILURE);
-    }
-  
-    *areHandlesInvarient = !mbi->have_deleted_ents( !!doReset );
+    *areHandlesInvarient = !MBIMESHI->have_deleted_ents( !!doReset );
     RETURN(iBase_SUCCESS);
   }
 
@@ -467,7 +530,7 @@ extern "C" {
                               /*out*/ int* coords_size, int *err) 
   {
     int geom_dim;
-    MBI->get_dimension(geom_dim);
+    MOABI->get_dimension(geom_dim);
 
       // make sure we can hold them all
     ALLOC_CHECK_ARRAY(coords, geom_dim*vertex_handles_size);
@@ -477,12 +540,12 @@ extern "C" {
     ErrorCode result;
     if (storage_order == iBase_INTERLEAVED) {
       if (3 == geom_dim) {
-        result = MBI->get_coords(CONST_HANDLE_ARRAY_PTR(vertex_handles), 
+        result = MOABI->get_coords(CONST_HANDLE_ARRAY_PTR(vertex_handles), 
                                  vertex_handles_size, *coords);
       }
       else {
         std::vector<double> dum_coords(3*vertex_handles_size);
-        result = MBI->get_coords(CONST_HANDLE_ARRAY_PTR(vertex_handles), 
+        result = MOABI->get_coords(CONST_HANDLE_ARRAY_PTR(vertex_handles), 
                                  vertex_handles_size,
                                  &dum_coords[0]);
 
@@ -494,7 +557,7 @@ extern "C" {
     }
     else {
       std::vector<double> dum_coords(3*vertex_handles_size);
-      result = MBI->get_coords(CONST_HANDLE_ARRAY_PTR(vertex_handles), 
+      result = MOABI->get_coords(CONST_HANDLE_ARRAY_PTR(vertex_handles), 
                                vertex_handles_size,
                                &dum_coords[0]);
       CHKERR(result,"iMesh_getVtxArrCoords: problem getting vertex coords");
@@ -517,7 +580,7 @@ extern "C" {
                              /*in*/ const int requested_entity_type,
                              /*in*/ const int requested_entity_topology,
                              /*in*/ const int requested_array_size,
-                             /*out*/ iMesh_EntityArrIterator* entArr_iterator,
+                             /*out*/ iBase_EntityArrIterator* entArr_iterator,
                              int *err) 
   {
     EntityType req_type = mb_topology_table[requested_entity_topology];
@@ -527,22 +590,22 @@ extern "C" {
     ErrorCode result;
     if (requested_entity_type == iBase_ALL_TYPES &&
         requested_entity_topology == iMesh_ALL_TOPOLOGIES)
-      result = MBI->get_entities_by_handle( ENTITY_HANDLE(entity_set_handle),
+      result = MOABI->get_entities_by_handle( ENTITY_HANDLE(entity_set_handle),
                                             range );
     else if (requested_entity_topology == iMesh_SEPTAHEDRON)
       result = MB_SUCCESS; // never any septahedrons because MOAB doesn't support them
     else if (MBMAXTYPE != req_type)
-      result = MBI->get_entities_by_type(ENTITY_HANDLE(entity_set_handle),
+      result = MOABI->get_entities_by_type(ENTITY_HANDLE(entity_set_handle),
                                          req_type,
                                          range);
     else
-      result = MBI->get_entities_by_dimension(ENTITY_HANDLE(entity_set_handle),
+      result = MOABI->get_entities_by_dimension(ENTITY_HANDLE(entity_set_handle),
                                               req_dimension,
                                               range);
 
     CHKERR(result, "iMesh_initEntArrIter: ERROR getting entities of proper type or topology." );
 
-    *entArr_iterator = reinterpret_cast<iMesh_EntityArrIterator>
+    *entArr_iterator = reinterpret_cast<iBase_EntityArrIterator>
                        (create_itaps_iterator( range, requested_array_size ));
     RETURN(iBase_SUCCESS);
   }
@@ -551,7 +614,7 @@ extern "C" {
  * Method:  getEntArrNextIter[]
  */
   void iMesh_getNextEntArrIter (iMesh_Instance instance,
-                                /*in*/ iMesh_EntityArrIterator entArr_iterator,
+                                /*in*/ iBase_EntityArrIterator entArr_iterator,
                                 /*inout*/ iBase_EntityHandle** entity_handles,
                                 /*inout*/ int* entity_handles_allocated,
                                 /*out*/ int* entity_handles_size,
@@ -567,7 +630,7 @@ extern "C" {
     int i = 0;
     while (i < this_it->requestedSize && this_it->currentPos != this_it->iteratorRange.end())
     {
-      if (MBimesh->is_valid(*this_it->currentPos)) 
+      if (dynamic_cast<Core*>(MOABI)->is_valid(*this_it->currentPos)) 
         (*entity_handles)[i++] = (iBase_EntityHandle)*(this_it->currentPos);
       ++(this_it->currentPos);
     }
@@ -581,7 +644,7 @@ extern "C" {
  * Method:  resetEntArrIter[]
  */
   void iMesh_resetEntArrIter (iMesh_Instance instance,
-                              /*in*/ iMesh_EntityArrIterator entArr_iterator, int *err) 
+                              /*in*/ iBase_EntityArrIterator entArr_iterator, int *err) 
   {
     RangeIterator *this_it = RANGE_ITERATOR(entArr_iterator);
 
@@ -591,7 +654,7 @@ extern "C" {
   }
 
   void iMesh_endEntArrIter (iMesh_Instance instance,
-                            /*in*/ iMesh_EntityArrIterator entArr_iterator, int *err) 
+                            /*in*/ iBase_EntityArrIterator entArr_iterator, int *err) 
   {
     RangeIterator *this_it = RANGE_ITERATOR(entArr_iterator);
 
@@ -612,7 +675,7 @@ extern "C" {
 
     for (int i = 0; i < entity_handles_size; i++)
       (*topology)[i] = 
-        tstt_topology_table[MBI->type_from_handle(ENTITY_HANDLE(entity_handles[i]))];
+        tstt_topology_table[MOABI->type_from_handle(ENTITY_HANDLE(entity_handles[i]))];
 
     *topology_size = entity_handles_size;
 
@@ -631,7 +694,7 @@ extern "C" {
 
     for (int i = 0; i < entity_handles_size; i++)
       (*etype)[i] = 
-        tstt_type_table[MBI->type_from_handle(ENTITY_HANDLE(entity_handles[i]))];
+        tstt_type_table[MOABI->type_from_handle(ENTITY_HANDLE(entity_handles[i]))];
 
     *etype_size = entity_handles_size;
 
@@ -684,7 +747,7 @@ extern "C" {
           TYPE_FROM_HANDLE(*entity_iter) != MBPOLYHEDRON) {
         if (CN::Dimension(TYPE_FROM_HANDLE(*entity_iter)) == 0)
           continue;
-        result = MBI->get_connectivity(*entity_iter, connect, num_connect, false, &conn_storage);
+        result = MOABI->get_connectivity(*entity_iter, connect, num_connect, false, &conn_storage);
         if (MB_SUCCESS != result) {
           if (allocated_array)
             free(array);
@@ -696,7 +759,7 @@ extern "C" {
         for (int dim = 0; dim < 4; ++dim) {
           if (CN::Dimension(TYPE_FROM_HANDLE(*entity_iter)) == dim)
             continue;
-          result = MBI->get_adjacencies( entity_iter, 1, dim, false, adj_ents, Interface::UNION );
+          result = MOABI->get_adjacencies( entity_iter, 1, dim, false, adj_ents, Interface::UNION );
           if (MB_SUCCESS != result) {
             if (allocated_array)
               free(array);
@@ -710,7 +773,7 @@ extern "C" {
         if (CN::Dimension(TYPE_FROM_HANDLE(*entity_iter)) == entity_type_requested)
           continue;
         adj_ents.clear();
-        result = MBI->get_adjacencies( entity_iter, 1, 
+        result = MOABI->get_adjacencies( entity_iter, 1, 
                                        entity_type_requested, false, adj_ents );
         if (MB_SUCCESS != result) {
           if (allocated_array)
@@ -785,7 +848,7 @@ extern "C" {
     int prev_off = 0;
   
     std::vector<EntityHandle> all_adj_ents;
-    MeshTopoUtil mtu(MBI);
+    MeshTopoUtil mtu(MOABI);
     
     int min_bridge = iBase_VERTEX, max_bridge = iBase_REGION;
     int min_req    = iBase_VERTEX, max_req    = iBase_REGION;
@@ -987,9 +1050,9 @@ extern "C" {
     ErrorCode result;
 
     if (isList)
-      result = MBI->create_meshset(MESHSET_ORDERED, meshset);
+      result = MOABI->create_meshset(MESHSET_ORDERED, meshset);
     else
-      result = MBI->create_meshset(MESHSET_SET, meshset);
+      result = MOABI->create_meshset(MESHSET_SET, meshset);
   
     CHKERR(result,"iMesh_createEntSet: ERROR creating a entityset instance");
   
@@ -1002,7 +1065,7 @@ extern "C" {
                             /*in*/ iBase_EntitySetHandle entity_set, int *err) 
   {
     EntityHandle set = ENTITY_HANDLE(entity_set);
-    ErrorCode result = MBI->delete_entities(&set, 1);
+    ErrorCode result = MOABI->delete_entities(&set, 1);
     CHKERR(result, "iMesh_destroyEntSet: couldn't delete the set.");
 
     RETURN(iBase_SUCCESS);
@@ -1013,7 +1076,7 @@ extern "C" {
                      int *is_list, int *err) 
   {
     unsigned int options;
-    ErrorCode result = MBI->get_meshset_options(ENTITY_HANDLE(entity_set), options);
+    ErrorCode result = MOABI->get_meshset_options(ENTITY_HANDLE(entity_set), options);
     CHKERR(result,"iMesh_isList: couldn't query set.");
     if (options & MESHSET_ORDERED)
       *is_list = true;
@@ -1027,7 +1090,7 @@ extern "C" {
                            /*in*/ const int num_hops,
                            int *num_sets, int *err) 
   {
-    ErrorCode rval = MBI->num_contained_meshsets( ENTITY_HANDLE(entity_set_handle),
+    ErrorCode rval = MOABI->num_contained_meshsets( ENTITY_HANDLE(entity_set_handle),
                                                     num_sets,
                                                     std::max(0,num_hops+1) );
     CHKERR(rval, "iMesh_entitysetGetNumberEntitySets:ERROR getting number of entitysets.");
@@ -1043,7 +1106,7 @@ extern "C" {
                         /*inout*/ int* contained_entset_handles_size, int *err) 
   {
     std::vector<EntityHandle> sets;
-    ErrorCode rval = MBI->get_contained_meshsets( ENTITY_HANDLE(entity_set_handle),
+    ErrorCode rval = MOABI->get_contained_meshsets( ENTITY_HANDLE(entity_set_handle),
                                                     sets, 
                                                     std::max( num_hops+1, 0 ) );
     CHKERR(rval, "iMesh_entitysetGetEntitySets: problem getting entities by type.");
@@ -1061,7 +1124,7 @@ extern "C" {
                             int *err)
   {
     const EntityHandle *ents = CONST_HANDLE_ARRAY_PTR(entity_handles);
-    ErrorCode result = MBI->add_entities(ENTITY_HANDLE(entity_set),
+    ErrorCode result = MOABI->add_entities(ENTITY_HANDLE(entity_set),
                                            ents, entity_handles_size);
 
     CHKERR(result,"iMesh_addEntArrToSet:ERROR adding entities in EntitySet.");
@@ -1082,7 +1145,7 @@ extern "C" {
   {
     const EntityHandle *ents = CONST_HANDLE_ARRAY_PTR(entity_handles);
 
-    ErrorCode result = MBI->remove_entities
+    ErrorCode result = MOABI->remove_entities
       (ENTITY_HANDLE(entity_set), ents, entity_handles_size);
   
     CHKERR(result,"iMesh_rmvEntArrFromSet:ERROR removing entities in EntitySet.");
@@ -1103,7 +1166,7 @@ extern "C" {
                        int *err)
   {
     EntityHandle to_add = ENTITY_HANDLE(entity_set_to_add);
-    ErrorCode result = MBI->add_entities(ENTITY_HANDLE(entity_set_handle), &to_add, 1);
+    ErrorCode result = MOABI->add_entities(ENTITY_HANDLE(entity_set_handle), &to_add, 1);
 
     CHKERR(result,"iMesh_addEntSet:ERROR adding entitysets.");
     RETURN(iBase_SUCCESS);
@@ -1115,7 +1178,7 @@ extern "C" {
                        int *err)
   {
     EntityHandle to_remove = ENTITY_HANDLE(entity_set_to_remove);
-    ErrorCode result = MBI->remove_entities
+    ErrorCode result = MOABI->remove_entities
       (ENTITY_HANDLE(entity_set_handle), &to_remove, 1);
   
     CHKERR(result,"iMesh_rmvEntSet:ERROR removing entitysets in EntitySet.");
@@ -1150,7 +1213,7 @@ extern "C" {
     if (containing_set) {
       for (int i = 0; i < num_entity_handles; ++i) {
         EntityHandle h = ENTITY_HANDLE(entity_handles[i]);
-        (*is_contained)[i] = MBI->contains_entities( set, &h, 1 );
+        (*is_contained)[i] = MOABI->contains_entities( set, &h, 1 );
       }
     }
     else {
@@ -1174,7 +1237,7 @@ extern "C" {
                          /*inout*/ iBase_EntitySetHandle child_entity_set, 
                          int *err) 
   {
-    ErrorCode result = MBI->add_parent_child
+    ErrorCode result = MOABI->add_parent_child
       (ENTITY_HANDLE(parent_entity_set),
        ENTITY_HANDLE(child_entity_set));
 
@@ -1187,7 +1250,7 @@ extern "C" {
                          /*inout*/ iBase_EntitySetHandle child_entity_set, 
                          int *err)
   {
-    ErrorCode result = MBI->remove_parent_child
+    ErrorCode result = MOABI->remove_parent_child
       (ENTITY_HANDLE(parent_entity_set),
        ENTITY_HANDLE(child_entity_set));
   
@@ -1202,7 +1265,7 @@ extern "C" {
   {
     std::vector<EntityHandle> children;
 
-    ErrorCode result = MBI->get_child_meshsets
+    ErrorCode result = MOABI->get_child_meshsets
       (ENTITY_HANDLE(parent_entity_set), children);
 
     CHKERR(result,"iMesh_isChildOf: ERROR IsParentChildRelated failed.");
@@ -1223,7 +1286,7 @@ extern "C" {
                         int *num_child, int *err)
   {
     *num_child = 0;
-    ErrorCode result = MBI->num_child_meshsets
+    ErrorCode result = MOABI->num_child_meshsets
       (ENTITY_HANDLE(entity_set), num_child, num_hops+1);
 
     CHKERR(result,"iMesh_getNumChld: ERROR GetNumChildren failed.");
@@ -1237,7 +1300,7 @@ extern "C" {
                         int *num_parent, int *err)
   {
     *num_parent = 0;
-    ErrorCode result = MBI->num_parent_meshsets
+    ErrorCode result = MOABI->num_parent_meshsets
       (ENTITY_HANDLE(entity_set), num_parent, num_hops+1);
 
     CHKERR(result,"iMesh_getNumPrnt: ERROR GetNumParents failed.");
@@ -1253,7 +1316,7 @@ extern "C" {
   {
     std::vector<EntityHandle> children;
 
-    ErrorCode result = MBI->get_child_meshsets
+    ErrorCode result = MOABI->get_child_meshsets
       (ENTITY_HANDLE(from_entity_set), children, num_hops+1);
 
     CHKERR(result,"ERROR getChildren failed.");
@@ -1275,7 +1338,7 @@ extern "C" {
   {
     std::vector<EntityHandle> parents;
 
-    ErrorCode result = MBI->get_parent_meshsets
+    ErrorCode result = MOABI->get_parent_meshsets
       (ENTITY_HANDLE(from_entity_set), parents, num_hops+1);
 
     CHKERR(result,"ERROR getParents failed.");
@@ -1297,7 +1360,7 @@ extern "C" {
                               /*in*/ const int new_coords_size, int *err) 
   {
     int geom_dim;
-    MBI->get_dimension(geom_dim);
+    MOABI->get_dimension(geom_dim);
     if (new_coords_size != geom_dim*vertex_handles_size) {
       ERROR(iBase_INVALID_ARGUMENT, "iMesh_setVtxArrCoords: Didn't get the right # coordinates.");
     }
@@ -1305,7 +1368,7 @@ extern "C" {
     ErrorCode result = MB_SUCCESS, tmp_result;
     if (storage_order == iBase_INTERLEAVED) {
       if (3 == geom_dim) {
-        result = MBI->set_coords(CONST_HANDLE_ARRAY_PTR(vertex_handles),
+        result = MOABI->set_coords(CONST_HANDLE_ARRAY_PTR(vertex_handles),
                                  vertex_handles_size, new_coords);
       }
       else {
@@ -1314,7 +1377,7 @@ extern "C" {
         for (int i = 0; i < vertex_handles_size; i++) {
           for (int j = 0; j < geom_dim; j++)
             dummy[j] = new_coords[geom_dim*i + j];
-          tmp_result = MBI->set_coords(&verts[i], 1, dummy);
+          tmp_result = MOABI->set_coords(&verts[i], 1, dummy);
           if (MB_SUCCESS != tmp_result) result = tmp_result;
         }
       }
@@ -1325,7 +1388,7 @@ extern "C" {
       for (int i = 0; i < vertex_handles_size; i++) {
         for (int j = 0; j < geom_dim; j++)
           dummy[j] = new_coords[i + vertex_handles_size*j];
-        tmp_result = MBI->set_coords(&verts[i], 1, dummy);
+        tmp_result = MOABI->set_coords(&verts[i], 1, dummy);
         if (MB_SUCCESS != tmp_result) result = tmp_result;
       }
     }
@@ -1345,7 +1408,7 @@ extern "C" {
                           /*inout*/ int* new_vertex_handles_size, int *err) 
   {
     int geom_dim;
-    MBI->get_dimension(geom_dim);
+    MOABI->get_dimension(geom_dim);
     if (new_coords_size != geom_dim*num_verts) {
       ERROR(iBase_INVALID_ARGUMENT, "iMesh_createVtxArr: Didn't get the right # coordinates.");
     }
@@ -1359,7 +1422,7 @@ extern "C" {
     if (storage_order == iBase_INTERLEAVED) {
       if (3 == geom_dim) {
         for (int i = 0; i < num_verts; i++) {
-          ErrorCode result = MBI->create_vertex(&new_coords[3*i], new_verts[i]);
+          ErrorCode result = MOABI->create_vertex(&new_coords[3*i], new_verts[i]);
           CHKERR(result, "iMesh_createVtxArr: couldn't create vertex.");
         }
       }
@@ -1368,7 +1431,7 @@ extern "C" {
         for (int i = 0; i < num_verts; i++) {
           for (int j = 0; j < geom_dim; j++)
             tmp[j] = new_coords[geom_dim*i + j];
-          ErrorCode result = MBI->create_vertex(tmp, new_verts[i]);
+          ErrorCode result = MOABI->create_vertex(tmp, new_verts[i]);
           CHKERR(result, "iMesh_createVtxArr: couldn't create vertex.");
         }
       }
@@ -1379,7 +1442,7 @@ extern "C" {
         for (int j = 0; j < geom_dim; j++)
           tmp[j] = new_coords[j*num_verts + i];
 
-        ErrorCode result = MBI->create_vertex(tmp, new_verts[i]);
+        ErrorCode result = MOABI->create_vertex(tmp, new_verts[i]);
         CHKERR(result, "iMesh_createVtxArr: couldn't create vertex.");
       }
     }
@@ -1433,7 +1496,7 @@ extern "C" {
     ErrorCode tmp_result, result = MB_SUCCESS;
   
     for (int i = 0; i < num_ents; i++) {
-      tmp_result = MBI->create_element(this_type, lower_ents, num_verts,
+      tmp_result = MOABI->create_element(this_type, lower_ents, num_verts,
                                        new_ents[i]);
       if (MB_SUCCESS != tmp_result) {
         (*status)[i] = iBase_CREATION_FAILED;
@@ -1450,12 +1513,12 @@ extern "C" {
     *new_entity_handles_size = num_ents;
     *status_size = num_ents;
  
-    if (MBimesh->AdjTable[5] || MBimesh->AdjTable[10]) {
+    if (MBIMESHI->AdjTable[5] || MBIMESHI->AdjTable[10]) {
       Range set_ents;
       std::copy(HANDLE_ARRAY_PTR(*new_entity_handles), 
                 HANDLE_ARRAY_PTR(*new_entity_handles)+*new_entity_handles_size,
                 range_inserter(set_ents));
-      result = create_int_ents(MBI, set_ents);
+      result = create_int_ents(MBIMESHI, set_ents);
       CHKERR(result,"");
     }
 
@@ -1470,7 +1533,7 @@ extern "C" {
       RETURN(iBase_SUCCESS);
     }
 
-    ErrorCode result = MBI->delete_entities(CONST_HANDLE_ARRAY_PTR(entity_handles),
+    ErrorCode result = MOABI->delete_entities(CONST_HANDLE_ARRAY_PTR(entity_handles),
                                               entity_handles_size);
     CHKERR(result, "iMesh_deleteEntArr: trouble deleting entities.");
 
@@ -1501,11 +1564,14 @@ extern "C" {
       case iBase_ENTITY_HANDLE:
         this_size *= sizeof(iBase_EntityHandle);
         break;
+      case iBase_ENTITY_SET_HANDLE:
+        this_size *= sizeof(iBase_EntitySetHandle);
+        break;
       case iBase_BYTES:
         break;
     }
       
-    ErrorCode result = MBI->tag_create(tmp_tagname.c_str(), this_size,
+    ErrorCode result = MOABI->tag_create(tmp_tagname.c_str(), this_size,
                                          MB_TAG_SPARSE, 
                                          mb_data_type_table[tag_type],
                                          new_tag,
@@ -1523,6 +1589,11 @@ extern "C" {
       msg += "\".";
       ERROR(result,msg.c_str());
     }
+    
+    if (tag_type == iBase_ENTITY_HANDLE)
+      MBIMESHI->note_ent_handle_tag( new_tag );
+    else if (tag_type == iBase_ENTITY_SET_HANDLE)
+      MBIMESHI->note_set_handle_tag( new_tag );
 
     *tag_handle = (iBase_TagHandle) new_tag;
 
@@ -1539,7 +1610,7 @@ extern "C" {
       ErrorCode result;
       Tag this_tag = TAG_HANDLE(tag_handle);
       for (EntityType this_type = MBVERTEX; this_type != MBMAXTYPE; this_type++) {
-        result = MBI->get_entities_by_type_and_tag(0, this_type, &this_tag, NULL, 1, 
+        result = MOABI->get_entities_by_type_and_tag(0, this_type, &this_tag, NULL, 1, 
                                                    ents, Interface::UNION);
         CHKERR(result,"iMesh_destroyTag: problem finding tag.");
         if (!ents.empty()) {
@@ -1549,16 +1620,19 @@ extern "C" {
       }
         // check if tag value is set on mesh
       const void* data_ptr;
-      result = MBI->tag_get_data( this_tag, 0, 0, &data_ptr );
+      result = MOABI->tag_get_data( this_tag, 0, 0, &data_ptr );
       if (MB_SUCCESS == result)
         ERROR(iBase_TAG_IN_USE, "iMesh_destroyTag: forced=false and mesh"
               " is still assigned this tag.");
     }
   
       // ok, good to go - either forced or no entities with this tag
-    ErrorCode result = MBI->tag_delete(TAG_HANDLE(tag_handle));
+    ErrorCode result = MOABI->tag_delete(TAG_HANDLE(tag_handle));
     if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result)
       ERROR(result, "iMesh_destroyTag: problem deleting tag.");
+
+    if (MB_SUCCESS == result)
+      MBIMESHI->note_tag_destroyed( TAG_HANDLE(tag_handle) );
 
     RETURN(iBase_ERROR_MAP[result]);
   }
@@ -1569,7 +1643,7 @@ extern "C" {
                         int out_data_len)
   {
     static ::std::string name;
-    ErrorCode result = MBI->tag_get_name(TAG_HANDLE(tag_handle), name);
+    ErrorCode result = MOABI->tag_get_name(TAG_HANDLE(tag_handle), name);
     CHKERR(result, "iMesh_getTagName: problem getting name.");
 
     strncpy(out_data, name.c_str(), out_data_len);
@@ -1581,11 +1655,25 @@ extern "C" {
                          int *value_type, int *err) 
   {
     DataType this_type;
-    ErrorCode result = MBI->tag_get_data_type(TAG_HANDLE(tag_handle),
+    ErrorCode result = MOABI->tag_get_data_type(TAG_HANDLE(tag_handle),
                                                 this_type);
     CHKERR(result, "iMesh_getTagType: problem getting type.");
 
-    *value_type = tstt_data_type_table[this_type];
+    if (this_type != MB_TYPE_HANDLE) 
+      *value_type = tstt_data_type_table[this_type];
+    else if (MBIMESHI->is_set_handle_tag( TAG_HANDLE(tag_handle) ))
+      *value_type = iBase_ENTITY_SET_HANDLE;
+    else if (MBIMESHI->is_ent_handle_tag( TAG_HANDLE(tag_handle) ))
+      *value_type = iBase_ENTITY_HANDLE;
+    else {
+      result = check_handle_tag_type(TAG_HANDLE(tag_handle), MBIMESHI );
+      CHKERR(result, "iMesh_getTagType: problem guessing handle tag subtype");
+      if (MBIMESHI->is_set_handle_tag( TAG_HANDLE(tag_handle) ))
+        *value_type = iBase_ENTITY_SET_HANDLE;
+      else
+        *value_type = iBase_ENTITY_HANDLE;
+    }
+    
     RETURN(iBase_SUCCESS);
   }
 
@@ -1593,11 +1681,11 @@ extern "C" {
                               /*in*/ const iBase_TagHandle tag_handle,
                               int *tag_size_val, int *err)
   {
-    ErrorCode result = MBI->tag_get_size(TAG_HANDLE(tag_handle), *tag_size_val);
+    ErrorCode result = MOABI->tag_get_size(TAG_HANDLE(tag_handle), *tag_size_val);
     CHKERR(result, "iMesh_getTagSize: problem getting size.");
     
     DataType this_type;
-    result = MBI->tag_get_data_type(TAG_HANDLE(tag_handle), this_type);
+    result = MOABI->tag_get_data_type(TAG_HANDLE(tag_handle), this_type);
     CHKERR(result, "iMesh_getTagSize: problem getting type.");
  
     switch (this_type) {
@@ -1610,8 +1698,10 @@ extern "C" {
       case MB_TYPE_HANDLE:
         *tag_size_val /= sizeof(EntityHandle);
         break;
-      case MB_TYPE_OPAQUE:
       case MB_TYPE_BIT:
+        *tag_size_val = 1;
+        break;
+      case MB_TYPE_OPAQUE:
         break;
     }
   
@@ -1622,8 +1712,16 @@ extern "C" {
                              /*in*/ const iBase_TagHandle tag_handle,
                              int *tag_size_bytes, int *err)
   {
-    ErrorCode result = MBI->tag_get_size(TAG_HANDLE(tag_handle), *tag_size_bytes);
-    CHKERR(result, "iMesh_getTagSize: problem getting size.");
+    DataType this_type;
+    ErrorCode result = MOABI->tag_get_data_type(TAG_HANDLE(tag_handle), this_type);
+    CHKERR(result, "iMesh_getTagSize: problem getting type.");
+
+    if (MB_TYPE_BIT == this_type)
+      *tag_size_bytes = 1;
+    else {
+      result = MOABI->tag_get_size(TAG_HANDLE(tag_handle), *tag_size_bytes);
+      CHKERR(result, "iMesh_getTagSize: problem getting size.");
+    }
     RETURN(iBase_SUCCESS);
   }
 
@@ -1635,7 +1733,7 @@ extern "C" {
     std::string tmp_tagname(tag_name, tag_name_len);
     eatwhitespace(tmp_tagname);
 
-    ErrorCode result = MBI->tag_get_handle(tmp_tagname.c_str(), (Tag&)*tag_handle);
+    ErrorCode result = MOABI->tag_get_handle(tmp_tagname.c_str(), (Tag&)*tag_handle);
     
     if (MB_SUCCESS != result) {
       std::string msg("iMesh_getTagHandle: problem getting handle for tag named '");
@@ -1643,6 +1741,11 @@ extern "C" {
       *tag_handle = 0;
       ERROR(result, msg.c_str());
     }
+    
+      // do not return variable-length tags through ITAPS API
+    int size;
+    if (MB_SUCCESS != MOABI->tag_get_size( TAG_HANDLE(*tag_handle), size ))
+      RETURN(iBase_TAG_NOT_FOUND);
 
     RETURN(iBase_SUCCESS);
   }
@@ -1650,18 +1753,18 @@ extern "C" {
   void iMesh_setEntSetData (iMesh_Instance instance,
                             /*in*/ iBase_EntitySetHandle entity_set_handle,
                             /*in*/ const iBase_TagHandle tag_handle,
-                            /*in*/ const char* tag_value,
+                            /*in*/ const void* tag_value,
                             /*in*/ const int , int *err) 
   {
     ErrorCode result;
 
     if (entity_set_handle == 0)
         // set the tag data on this entity set
-      result = MBI->tag_set_data(TAG_HANDLE(tag_handle),
+      result = MOABI->tag_set_data(TAG_HANDLE(tag_handle),
                                  NULL, 0, tag_value);
     else {
       EntityHandle set = ENTITY_HANDLE(entity_set_handle);
-      result = MBI->tag_set_data(TAG_HANDLE(tag_handle), &set, 1, tag_value);
+      result = MOABI->tag_set_data(TAG_HANDLE(tag_handle), &set, 1, tag_value);
     }
     
     CHKERR(result, "iMesh_setEntSetData: error");
@@ -1675,7 +1778,7 @@ extern "C" {
                                /*in*/ const int tag_value, int *err) 
   {
     iMesh_setEntSetData(instance, entity_set, tag_handle, 
-                        reinterpret_cast<const char*>(&tag_value), 
+                        &tag_value, 
                         sizeof(int), err);
   }
 
@@ -1685,7 +1788,7 @@ extern "C" {
                                /*in*/ const double tag_value, int *err) 
   {
     iMesh_setEntSetData(instance, entity_set, tag_handle, 
-                        reinterpret_cast<const char*>(&tag_value),
+                        &tag_value,
                         sizeof(double), err);
   }
 
@@ -1695,7 +1798,7 @@ extern "C" {
                                 /*in*/ const bool tag_value, int *err) 
   {
     iMesh_setEntSetData(instance, entity_set, tag_handle, 
-                        reinterpret_cast<const char*>(&tag_value), 
+                        &tag_value, 
                         sizeof(bool), err);
   }
 
@@ -1705,14 +1808,24 @@ extern "C" {
                               /*in*/ const iBase_EntityHandle tag_value, int *err) 
   {
     iMesh_setEntSetData(instance, entity_set, tag_handle, 
-                        reinterpret_cast<const char*>(&tag_value), 
+                        &tag_value, 
                         sizeof(iBase_EntityHandle), err);
+  }
+
+  void iMesh_setEntSetESHData (iMesh_Instance instance,
+                               /*in*/ iBase_EntitySetHandle entity_set,
+                               /*in*/ const iBase_TagHandle tag_handle,
+                               /*in*/ const iBase_EntitySetHandle tag_value, int *err) 
+  {
+    iMesh_setEntSetData(instance, entity_set, tag_handle, 
+                        &tag_value, 
+                        sizeof(iBase_EntitySetHandle), err);
   }
 
   void iMesh_getEntSetData (iMesh_Instance instance,
                             /*in*/ const iBase_EntitySetHandle entity_set_handle,
                             /*in*/ const iBase_TagHandle tag_handle,
-                            /*inout*/ char** tag_value,
+                            /*inout*/ void** tag_value,
                             /*inout*/ int* tag_value_allocated,
                             /*inout*/ int* tag_value_size, int *err) 
   {
@@ -1720,15 +1833,15 @@ extern "C" {
     Tag tag = TAG_HANDLE(tag_handle);
 
     int tag_size;
-    ErrorCode result = MBI->tag_get_size(tag, tag_size);
+    ErrorCode result = MOABI->tag_get_size(tag, tag_size);
     CHKERR(result, "iMesh_getEntSetData: couldn't get tag size.");
  
     ALLOC_CHECK_TAG_ARRAY(tag_value, tag_size);
  
     if (eh == 0)
-      result = MBI->tag_get_data(tag, NULL, 0, *tag_value);
+      result = MOABI->tag_get_data(tag, NULL, 0, *tag_value);
     else
-      result = MBI->tag_get_data(tag, &eh, 1, *tag_value);
+      result = MOABI->tag_get_data(tag, &eh, 1, *tag_value);
 
     CHKERR(result, "iMesh_getEntSetData didn't succeed.");
     KEEP_ARRAY(tag_value);
@@ -1740,7 +1853,7 @@ extern "C" {
                                /*in*/ const iBase_TagHandle tag_handle,
                                int *out_data, int *err) 
   {
-    char *tag_ptr = reinterpret_cast<char*>(out_data);
+    void *tag_ptr = out_data;
     int dum_size = sizeof(int);
     iMesh_getEntSetData(instance, entity_set, tag_handle, &tag_ptr, 
                         &dum_size, &dum_size, err);
@@ -1751,7 +1864,7 @@ extern "C" {
                                /*in*/ const iBase_TagHandle tag_handle,
                                double *out_data, int *err) 
   {
-    char *tag_ptr = reinterpret_cast<char*>(out_data);
+    void *tag_ptr = out_data;
     int tag_size = sizeof(double);
     iMesh_getEntSetData(instance, entity_set, tag_handle, &tag_ptr, 
                         &tag_size, &tag_size, err);
@@ -1762,7 +1875,7 @@ extern "C" {
                                 /*in*/ const iBase_TagHandle tag_handle,
                                 int *out_data, int *err) 
   {
-    char *tag_ptr = reinterpret_cast<char*>(out_data);
+    void *tag_ptr = out_data;
     int tag_size = sizeof(bool);
     iMesh_getEntSetData(instance, entity_set, tag_handle, &tag_ptr, 
                         &tag_size, &tag_size, err);
@@ -1773,7 +1886,18 @@ extern "C" {
                               /*in*/ const iBase_TagHandle tag_handle,
                               iBase_EntityHandle *out_data, int *err) 
   {
-    char *tag_ptr = reinterpret_cast<char*>(out_data);
+    void *tag_ptr = out_data;
+    int tag_size = sizeof(EntityHandle);
+    iMesh_getEntSetData(instance, entity_set, tag_handle, &tag_ptr, 
+                        &tag_size, &tag_size, err);
+  }
+
+  void iMesh_getEntSetESHData (iMesh_Instance instance,
+                              /*in*/ const iBase_EntitySetHandle entity_set,
+                              /*in*/ const iBase_TagHandle tag_handle,
+                              iBase_EntitySetHandle *out_data, int *err) 
+  {
+    void *tag_ptr = out_data;
     int tag_size = sizeof(EntityHandle);
     iMesh_getEntSetData(instance, entity_set, tag_handle, &tag_ptr, 
                         &tag_size, &tag_size, err);
@@ -1788,8 +1912,10 @@ extern "C" {
     EntityHandle eh = ENTITY_HANDLE(entity_set_handle);
     std::vector<Tag> all_tags;
   
-    ErrorCode result = MBI->tag_get_tags_on_entity(eh, all_tags);
+    ErrorCode result = MOABI->tag_get_tags_on_entity(eh, all_tags);
     CHKERR(result, "iMesh_entitysetGetAllTagHandles failed.");
+ 
+    remove_var_len_tags( MOABI, all_tags );
  
       // now put those tag handles into sidl array
     ALLOC_CHECK_ARRAY_NOFAIL(tag_handles, all_tags.size());
@@ -1809,7 +1935,7 @@ extern "C" {
       CHKERR(success,"getRootSet failed");
     }
     EntityHandle set = ENTITY_HANDLE(entity_set_handle);
-    ErrorCode result = MBI->tag_delete_data(TAG_HANDLE(tag_handle), &set, 1);
+    ErrorCode result = MOABI->tag_delete_data(TAG_HANDLE(tag_handle), &set, 1);
   
       // don't check return; this tag may have never been set on the entity set
     RETURN(iBase_ERROR_MAP[result]);
@@ -1823,7 +1949,7 @@ extern "C" {
   {
     const double xyz[3] = {x, y, z};
     int geom_dim;
-    MBI->get_dimension(geom_dim);
+    MOABI->get_dimension(geom_dim);
   
     iMesh_setVtxArrCoords(instance, &vertex_handle, 1, iBase_BLOCKED,
                           xyz, geom_dim, err);
@@ -1837,7 +1963,7 @@ extern "C" {
     int dum = 1;
     const double xyz[3] = {x, y, z};
     int geom_dim;
-    MBI->get_dimension(geom_dim);
+    MOABI->get_dimension(geom_dim);
     iMesh_createVtxArr(instance, 1, iBase_BLOCKED,
                        xyz, geom_dim, &new_vertex_handle, &dum, &dum, err);
   }
@@ -1858,7 +1984,7 @@ extern "C" {
       // directly from connectivity
     EntityType this_type = mb_topology_table[new_entity_topology];
     EntityHandle tmp_ent;
-    ErrorCode result = MBI->create_element(this_type,
+    ErrorCode result = MOABI->create_element(this_type,
                                              CONST_HANDLE_ARRAY_PTR(lower_order_entity_handles), 
                                              lower_order_entity_handles_size, 
                                              tmp_ent);
@@ -1870,10 +1996,10 @@ extern "C" {
 
     *err = *status;
 
-    if (MB_SUCCESS == result && (MBimesh->AdjTable[5] || MBimesh->AdjTable[10])) {
+    if (MB_SUCCESS == result && (MBIMESHI->AdjTable[5] || MBIMESHI->AdjTable[10])) {
       Range set_ents;
       set_ents.insert( tmp_ent );
-      create_int_ents(MBI, set_ents);
+      create_int_ents(MBIMESHI, set_ents);
     }
   }
 
@@ -1887,14 +2013,14 @@ extern "C" {
                          /*in*/ const iBase_EntityHandle* entity_handles,
                          /*in*/ const int entity_handles_size,
                          /*in*/ const iBase_TagHandle tag_handle,
-                         /*inout*/ char** tag_values,
+                         /*inout*/ void** tag_values,
                          /*inout*/int* tag_values_allocated,
                          /*out*/ int* tag_values_size, int *err) 
   {
     const EntityHandle *ents = reinterpret_cast<const EntityHandle *>(entity_handles);
     Tag tag = TAG_HANDLE(tag_handle);
     int tag_size;
-    ErrorCode result = MBI->tag_get_size(tag, tag_size);
+    ErrorCode result = MOABI->tag_get_size(tag, tag_size);
     if (MB_SUCCESS != result) {
       int nerr=-1; char tagn[64], msg[256];
       iMesh_getTagName(instance, tag_handle, tagn, &nerr, sizeof(tagn));
@@ -1909,7 +2035,7 @@ extern "C" {
   
     ALLOC_CHECK_TAG_ARRAY(tag_values, tag_size * entity_handles_size);
 
-    result = MBI->tag_get_data(tag, ents, entity_handles_size,
+    result = MOABI->tag_get_data(tag, ents, entity_handles_size,
                                *tag_values);
 
     if (MB_SUCCESS != result) {
@@ -1920,7 +2046,7 @@ extern "C" {
         message += "failed";
     
       std::string name;
-      if (MB_SUCCESS == MBI->tag_get_name( tag, name )) {
+      if (MB_SUCCESS == MOABI->tag_get_name( tag, name )) {
         message += "for tag \"";
         message += name;
         message += "\".";
@@ -1944,7 +2070,7 @@ extern "C" {
     *tag_values_size *= sizeof(int);
     iMesh_getArrData(instance, entity_handles, 
                      entity_handles_size, tag_handle,
-                     reinterpret_cast<char**>(tag_values), 
+                     reinterpret_cast<void**>(tag_values), 
                      tag_values_allocated, 
                      tag_values_size, err);
     *tag_values_allocated /= sizeof(int);
@@ -1963,7 +2089,7 @@ extern "C" {
     *tag_values_size *= sizeof(double);
     iMesh_getArrData(instance, entity_handles, 
                      entity_handles_size, tag_handle,
-                     reinterpret_cast<char**>(tag_values), 
+                     reinterpret_cast<void**>(tag_values), 
                      tag_values_allocated, tag_values_size, err);
     *tag_values_allocated /= sizeof(double);
     *tag_values_size /= sizeof(double);
@@ -1981,7 +2107,7 @@ extern "C" {
     *tag_value_size *= sizeof(bool);
     iMesh_getArrData(instance, entity_handles, 
                      entity_handles_size, tag_handle,
-                     reinterpret_cast<char**>(tag_value), 
+                     reinterpret_cast<void**>(tag_value), 
                      tag_value_allocated, tag_value_size, err);
     *tag_value_allocated /= sizeof(bool);
     *tag_value_size /= sizeof(bool);
@@ -1999,7 +2125,26 @@ extern "C" {
     *tag_value_size *= sizeof(iBase_EntityHandle);
     iMesh_getArrData(instance, entity_handles, 
                      entity_handles_size, tag_handle,
-                     reinterpret_cast<char**>(tag_value), 
+                     reinterpret_cast<void**>(tag_value), 
+                     tag_value_allocated, 
+                     tag_value_size, err);
+    *tag_value_allocated /= sizeof(iBase_EntityHandle);
+    *tag_value_size /= sizeof(iBase_EntityHandle);
+  }
+
+  void iMesh_getESHArrData (iMesh_Instance instance,
+                           /*in*/ const iBase_EntityHandle* entity_handles,
+                           /*in*/ const int entity_handles_size,
+                           /*in*/ const iBase_TagHandle tag_handle,
+                           /*inout*/ iBase_EntitySetHandle** tag_value,
+                           /*inout*/ int* tag_value_allocated,
+                           /*out*/ int* tag_value_size, int *err) 
+  {
+    *tag_value_allocated *= sizeof(iBase_EntityHandle);
+    *tag_value_size *= sizeof(iBase_EntityHandle);
+    iMesh_getArrData(instance, entity_handles, 
+                     entity_handles_size, tag_handle,
+                     reinterpret_cast<void**>(tag_value), 
                      tag_value_allocated, 
                      tag_value_size, err);
     *tag_value_allocated /= sizeof(iBase_EntityHandle);
@@ -2010,7 +2155,7 @@ extern "C" {
                          /*in*/ const iBase_EntityHandle* entity_handles,
                          /*in*/ const int entity_handles_size,
                          /*in*/ const iBase_TagHandle tag_handle,
-                         /*in*/ const char* tag_values,
+                         /*in*/ const void* tag_values,
                          /*in*/ const int tag_values_size, int *err) 
   {
     if (0 == entity_handles_size) {
@@ -2028,7 +2173,7 @@ extern "C" {
       ERROR(iBase_INVALID_ARGUMENT,"iMesh_setArrData: bad tag_values_size passed.");
     }
 
-    ErrorCode result = MBI->tag_set_data(TAG_HANDLE(tag_handle), 
+    ErrorCode result = MOABI->tag_set_data(TAG_HANDLE(tag_handle), 
                                            CONST_HANDLE_ARRAY_PTR(entity_handles),
                                            entity_handles_size,
                                            tag_values);
@@ -2088,12 +2233,25 @@ extern "C" {
                      sizeof(iBase_EntityHandle)*tag_values_size, err);
   }
 
+  void iMesh_setESHArrData (iMesh_Instance instance,
+                           /*in*/ const iBase_EntityHandle* entity_handles,
+                           /*in*/ const int entity_handles_size,
+                           /*in*/ const iBase_TagHandle tag_handle,
+                           /*in*/ const iBase_EntitySetHandle* tag_values,
+                           /*in*/ const int tag_values_size, int *err) 
+  {
+    iMesh_setArrData(instance, entity_handles, 
+                     entity_handles_size, tag_handle, 
+                     reinterpret_cast<const char*>(tag_values), 
+                     sizeof(iBase_EntityHandle)*tag_values_size, err);
+  }
+
   void iMesh_rmvArrTag (iMesh_Instance instance,
                         /*in*/ const iBase_EntityHandle* entity_handles,
                         /*in*/ const int entity_handles_size,
                         /*in*/ const iBase_TagHandle tag_handle, int *err) 
   {
-    ErrorCode result = MBI->tag_delete_data(TAG_HANDLE(tag_handle),
+    ErrorCode result = MOABI->tag_delete_data(TAG_HANDLE(tag_handle),
                                               CONST_HANDLE_ARRAY_PTR(entity_handles),
                                               entity_handles_size);
   
@@ -2104,7 +2262,7 @@ extern "C" {
   void iMesh_getData (iMesh_Instance instance,
                       /*in*/ const iBase_EntityHandle entity_handle,
                       /*in*/ const iBase_TagHandle tag_handle,
-                      /*out*/ char** tag_value,
+                      /*out*/ void** tag_value,
                       /*inout*/ int *tag_value_allocated,
                       /*out*/ int *tag_value_size, int *err) 
   {
@@ -2118,7 +2276,7 @@ extern "C" {
                          /*in*/ const iBase_TagHandle tag_handle,
                          int *out_data, int *err) 
   {
-    char *val_ptr = reinterpret_cast<char*>(out_data);
+    void *val_ptr = out_data;
     int val_size = sizeof(int);
     iMesh_getArrData(instance, &entity_handle, 1,
                      tag_handle, &val_ptr, &val_size, &val_size, err);
@@ -2129,7 +2287,7 @@ extern "C" {
                          /*in*/ const iBase_TagHandle tag_handle,
                          double *out_data, int *err) 
   {
-    char *val_ptr = reinterpret_cast<char*>(out_data);
+    void *val_ptr = out_data;
     int val_size = sizeof(double);
     iMesh_getArrData(instance, &entity_handle, 1,
                      tag_handle, &val_ptr, &val_size, &val_size, err);
@@ -2140,7 +2298,7 @@ extern "C" {
                           /*in*/ const iBase_TagHandle tag_handle,
                           int *out_data, int *err) 
   {
-    char *val_ptr = reinterpret_cast<char*>(out_data);
+    void *val_ptr = out_data;
       // make the data size a full word, because of sidl needing at least a full word
     int val_size = sizeof(int);
     iMesh_getArrData(instance, &entity_handle, 1,
@@ -2152,7 +2310,18 @@ extern "C" {
                         /*in*/ const iBase_TagHandle tag_handle,
                         iBase_EntityHandle *out_data, int *err) 
   {
-    char *val_ptr = reinterpret_cast<char*>(out_data);
+    void *val_ptr = out_data;
+    int dum = sizeof(iBase_EntityHandle);
+    iMesh_getArrData(instance, &entity_handle, 1,
+                     tag_handle, &val_ptr, &dum, &dum, err);
+  }
+
+  void iMesh_getESHData (iMesh_Instance instance,
+                        /*in*/ const iBase_EntityHandle entity_handle,
+                        /*in*/ const iBase_TagHandle tag_handle,
+                        iBase_EntitySetHandle *out_data, int *err) 
+  {
+    void *val_ptr = out_data;
     int dum = sizeof(iBase_EntityHandle);
     iMesh_getArrData(instance, &entity_handle, 1,
                      tag_handle, &val_ptr, &dum, &dum, err);
@@ -2161,7 +2330,7 @@ extern "C" {
   void iMesh_setData (iMesh_Instance instance,
                       /*in*/ iBase_EntityHandle entity_handle,
                       /*in*/ const iBase_TagHandle tag_handle,
-                      /*in*/ const char* tag_value,
+                      /*in*/ const void* tag_value,
                       /*in*/ const int tag_value_size, int *err) 
   {
     iMesh_setArrData(instance, &entity_handle, 1,
@@ -2213,6 +2382,17 @@ extern "C" {
                      sizeof(iBase_EntityHandle), err);
   }
 
+  void iMesh_setESHData (iMesh_Instance instance,
+                        /*in*/ iBase_EntityHandle entity_handle,
+                        /*in*/ const iBase_TagHandle tag_handle,
+                        /*in*/ const iBase_EntitySetHandle tag_value, int *err) 
+  {
+    iMesh_setArrData(instance, &entity_handle, 1,
+                     tag_handle, 
+                     reinterpret_cast<const char*>(&tag_value), 
+                     sizeof(iBase_EntityHandle), err);
+  }
+
   void iMesh_getAllTags (iMesh_Instance instance,
                          /*in*/ const iBase_EntityHandle entity_handle,
                          /*inout*/ iBase_TagHandle** tag_handles,
@@ -2221,8 +2401,10 @@ extern "C" {
   {
     std::vector<Tag> all_tags;
   
-    ErrorCode result = MBI->tag_get_tags_on_entity(ENTITY_HANDLE(entity_handle), all_tags);
+    ErrorCode result = MOABI->tag_get_tags_on_entity(ENTITY_HANDLE(entity_handle), all_tags);
     CHKERR(result, "iMesh_getAllTags failed.");
+ 
+    remove_var_len_tags( MOABI, all_tags );
     
       // now put those tag handles into sidl array
     ALLOC_CHECK_ARRAY_NOFAIL(tag_handles, all_tags.size());
@@ -2243,40 +2425,40 @@ extern "C" {
                           /*in*/ const iBase_EntitySetHandle entity_set_handle,
                           /*in*/ const int requested_entity_type,
                           /*in*/ const int requested_entity_topology,
-                          /*out*/ iMesh_EntityIterator* entity_iterator,
+                          /*out*/ iBase_EntityIterator* entity_iterator,
                           int *err) 
   {
     iMesh_initEntArrIter(instance, entity_set_handle, requested_entity_type,
                          requested_entity_topology, 1, 
-                         reinterpret_cast<iMesh_EntityArrIterator*>(entity_iterator),
+                         reinterpret_cast<iBase_EntityArrIterator*>(entity_iterator),
                          err);
   }
 
   void iMesh_getNextEntIter (iMesh_Instance instance,
-                             /*in*/ iMesh_EntityIterator entity_iterator,
+                             /*in*/ iBase_EntityIterator entity_iterator,
                              /*out*/ iBase_EntityHandle* entity_handle, 
                              int *is_end, int *err) 
   {
     int eh_size = 1;
     iMesh_getNextEntArrIter(instance,
-                            reinterpret_cast<iMesh_EntityArrIterator>(entity_iterator),
+                            reinterpret_cast<iBase_EntityArrIterator>(entity_iterator),
                             &entity_handle, &eh_size, &eh_size, is_end, err);
   
   }
 
   void iMesh_resetEntIter (iMesh_Instance instance,
-                           /*in*/ iMesh_EntityIterator entity_iterator, int *err) 
+                           /*in*/ iBase_EntityIterator entity_iterator, int *err) 
   {
     iMesh_resetEntArrIter(instance,
-                          reinterpret_cast<iMesh_EntityArrIterator>(entity_iterator),
+                          reinterpret_cast<iBase_EntityArrIterator>(entity_iterator),
                           err);  
   }
 
   void iMesh_endEntIter (iMesh_Instance instance,
-                         /*in*/ iMesh_EntityIterator entity_iterator, int *err) 
+                         /*in*/ iBase_EntityIterator entity_iterator, int *err) 
   {
     iMesh_endEntArrIter(instance, 
-                        reinterpret_cast<iMesh_EntityArrIterator>(entity_iterator),
+                        reinterpret_cast<iBase_EntityArrIterator>(entity_iterator),
                         err);
   }
 
@@ -2284,7 +2466,7 @@ extern "C" {
                          /*in*/ const iBase_EntityHandle entity_handle,
                          int *out_topo, int *err) 
   {
-    *out_topo = tstt_topology_table[MBI->type_from_handle(ENTITY_HANDLE(entity_handle))];
+    *out_topo = tstt_topology_table[MOABI->type_from_handle(ENTITY_HANDLE(entity_handle))];
     RETURN(iBase_SUCCESS);
   }
   
@@ -2292,7 +2474,7 @@ extern "C" {
                          /*in*/ const iBase_EntityHandle entity_handle,
                          int *out_type, int *err) 
   {
-    *out_type = tstt_type_table[MBI->type_from_handle(ENTITY_HANDLE(entity_handle))];
+    *out_type = tstt_type_table[MOABI->type_from_handle(ENTITY_HANDLE(entity_handle))];
     RETURN(iBase_SUCCESS);
   }
 
@@ -2368,9 +2550,9 @@ extern "C" {
 
     ErrorCode result;
     if (isList1 && isList2)
-      result = MBI->create_meshset(MESHSET_ORDERED, temp_set);
+      result = MOABI->create_meshset(MESHSET_ORDERED, temp_set);
     else
-      result = MBI->create_meshset(MESHSET_SET, temp_set);
+      result = MOABI->create_meshset(MESHSET_SET, temp_set);
 
     if (MB_SUCCESS != result)
       ERROR(result, "iMesh_subtract: couldn't create result set.");
@@ -2380,18 +2562,18 @@ extern "C" {
       if (!entity_set_1) {
           // subtracting from the root set, so get everything first...
         Range entities;
-        result = MBI->get_entities_by_handle(0,entities);
+        result = MOABI->get_entities_by_handle(0,entities);
         if (MB_SUCCESS == result)
-          result = MBI->add_entities(temp_set, entities);
+          result = MOABI->add_entities(temp_set, entities);
           // ...but not the newly-created set!
         if (MB_SUCCESS == result)
-          result = MBI->remove_entities(temp_set, &temp_set, 1);
+          result = MOABI->remove_entities(temp_set, &temp_set, 1);
       }
       else
-        result = MBI->unite_meshset(temp_set, set1);
+        result = MOABI->unite_meshset(temp_set, set1);
 
       if (MB_SUCCESS == result)
-        result = MBI->subtract_meshset(temp_set, set2);
+        result = MOABI->subtract_meshset(temp_set, set2);
     }
     
     CHKERR(result, "iMesh_subtract: ERROR subtract failed.");
@@ -2417,9 +2599,9 @@ extern "C" {
 
     ErrorCode result;
     if (isList1 && isList2)
-      result = MBI->create_meshset(MESHSET_ORDERED, temp_set);
+      result = MOABI->create_meshset(MESHSET_ORDERED, temp_set);
     else
-      result = MBI->create_meshset(MESHSET_SET, temp_set);
+      result = MOABI->create_meshset(MESHSET_SET, temp_set);
 
     if (MB_SUCCESS != result)
       ERROR(result, "iMesh_intersect: couldn't create result set.");
@@ -2427,23 +2609,23 @@ extern "C" {
     if (!entity_set_1 && !entity_set_2) {
         // intersecting the root set with itself, so get everything...
       Range entities;
-      result = MBI->get_entities_by_handle(0, entities);
+      result = MOABI->get_entities_by_handle(0, entities);
       if (MB_SUCCESS == result)
-        result = MBI->add_entities(temp_set, entities);
+        result = MOABI->add_entities(temp_set, entities);
         // ...but not the newly-created set!
       if (MB_SUCCESS == result)
-        result = MBI->remove_entities(temp_set, &temp_set, 1);
+        result = MOABI->remove_entities(temp_set, &temp_set, 1);
     }
     else if (!entity_set_1) {
-      result = MBI->unite_meshset(temp_set, set2);
+      result = MOABI->unite_meshset(temp_set, set2);
     }
     else if (!entity_set_2) {
-      result = MBI->unite_meshset(temp_set, set1);
+      result = MOABI->unite_meshset(temp_set, set1);
     }
     else {
-      result = MBI->unite_meshset(temp_set, set1);
+      result = MOABI->unite_meshset(temp_set, set1);
       if (MB_SUCCESS == result)
-        result = MBI->intersect_meshset(temp_set, set2);
+        result = MOABI->intersect_meshset(temp_set, set2);
     }
 
     CHKERR(result,"iMesh_intersect: ERROR intersect failed.");
@@ -2469,28 +2651,28 @@ extern "C" {
 
     ErrorCode result;
     if (isList1 && isList2)
-      result = MBI->create_meshset(MESHSET_ORDERED, temp_set);
+      result = MOABI->create_meshset(MESHSET_ORDERED, temp_set);
     else
-      result = MBI->create_meshset(MESHSET_SET, temp_set);
+      result = MOABI->create_meshset(MESHSET_SET, temp_set);
 
     if (MB_SUCCESS != result)
       ERROR(result, "iMesh_unite: couldn't create result set.");
 
 
     if (entity_set_1 && entity_set_2) {
-      result = MBI->unite_meshset(temp_set, set1);
+      result = MOABI->unite_meshset(temp_set, set1);
       if (MB_SUCCESS == result)
-        result = MBI->unite_meshset(temp_set, set2);
+        result = MOABI->unite_meshset(temp_set, set2);
     }
     else {
         // uniting with the root set, so get everything...
       Range entities;
-      result = MBI->get_entities_by_handle(0, entities);
+      result = MOABI->get_entities_by_handle(0, entities);
       if (MB_SUCCESS == result)
-        result = MBI->add_entities(temp_set, entities);
+        result = MOABI->add_entities(temp_set, entities);
         // ...but not the newly-created set!
       if (MB_SUCCESS == result)
-        result = MBI->remove_entities(temp_set, &temp_set, 1);
+        result = MOABI->remove_entities(temp_set, &temp_set, 1);
     }
 
     CHKERR(result,"iMesh_unite: ERROR unite failed.");
@@ -2546,12 +2728,12 @@ extern "C" {
       if (entity_topology == iMesh_SEPTAHEDRON)
         result = MB_SUCCESS;  // MOAB doesn't do septahedrons, so there are never any.
       else
-        result = MBI->get_entities_by_type(handle, type, out_entities, recursive);
+        result = MOABI->get_entities_by_type(handle, type, out_entities, recursive);
     }
     else if (use_type && entity_type != iBase_ALL_TYPES)
-      result = MBI->get_entities_by_dimension(handle, entity_type, out_entities, recursive);
+      result = MOABI->get_entities_by_dimension(handle, entity_type, out_entities, recursive);
     else 
-      result = MBI->get_entities_by_handle(handle, out_entities, recursive);
+      result = MOABI->get_entities_by_handle(handle, out_entities, recursive);
 
     CHKERR(result,"iMesh_GetEntities:ERROR getting entities.");
 
@@ -2608,16 +2790,16 @@ extern "C" {
     *num_type = 0;
     ErrorCode result;
     if (entity_type == iBase_ALL_TYPES) {
-      result = MBI->get_number_entities_by_handle
+      result = MOABI->get_number_entities_by_handle
         (ENTITY_HANDLE(entity_set_handle), *num_type, recursive);
       if (MB_SUCCESS == result && !recursive) {
         int num_sets = 0;
-        result = MBI->get_number_entities_by_type
+        result = MOABI->get_number_entities_by_type
           (ENTITY_HANDLE(entity_set_handle), MBENTITYSET, num_sets, recursive);
         *num_type -= num_sets;
       }
     } else {
-      result = MBI->get_number_entities_by_dimension
+      result = MOABI->get_number_entities_by_dimension
         (ENTITY_HANDLE(entity_set_handle), entity_type, *num_type, recursive);
     }
 
@@ -2658,12 +2840,12 @@ extern "C" {
     *num_topo = 0;
     ErrorCode result;
     if (iMesh_ALL_TOPOLOGIES == entity_topology) {
-      result = MBI->get_number_entities_by_handle(ENTITY_HANDLE(entity_set_handle),
+      result = MOABI->get_number_entities_by_handle(ENTITY_HANDLE(entity_set_handle),
                                                   *num_topo, recursive);
                                        
       if (!recursive && MB_SUCCESS == result) { // remove entity sets from count
         int num_sets;
-        result = MBI->get_number_entities_by_type
+        result = MOABI->get_number_entities_by_type
           (ENTITY_HANDLE(entity_set_handle), MBENTITYSET, num_sets, recursive);
         *num_topo -= num_sets;
       }
@@ -2673,7 +2855,7 @@ extern "C" {
       *num_topo = 0;
     }
     else {
-      result = MBI->get_number_entities_by_type(ENTITY_HANDLE(entity_set_handle),
+      result = MOABI->get_number_entities_by_type(ENTITY_HANDLE(entity_set_handle),
                                          mb_topology_table[entity_topology], 
                                          *num_topo, recursive);
     }
@@ -2742,7 +2924,7 @@ extern "C" {
       if (entity_topology == iMesh_SEPTAHEDRON)
         result = MB_SUCCESS;  // MOAB doesn't do septahedrons, so there are never any.
       else
-        result = MBI->get_entities_by_type_and_tag(handle, type, (Tag*)tag_handles, 
+        result = MOABI->get_entities_by_type_and_tag(handle, type, (Tag*)tag_handles, 
                                                    (const void* const *)tag_vals,
                                                    num_tags_vals, out_entities, 
                                                    Interface::INTERSECT, recursive);
@@ -2752,7 +2934,7 @@ extern "C" {
       for (EntityType tp = CN::TypeDimensionMap[entity_type].first;
            tp <= CN::TypeDimensionMap[entity_type].second; tp++) {
         Range tmp_range;
-        ErrorCode tmp_result = MBI->get_entities_by_type_and_tag(handle, type, (Tag*)tag_handles, 
+        ErrorCode tmp_result = MOABI->get_entities_by_type_and_tag(handle, type, (Tag*)tag_handles, 
                                                                    (const void* const *)tag_vals,
                                                                    num_tags_vals, tmp_range, 
                                                                    Interface::INTERSECT, recursive);
@@ -2761,7 +2943,7 @@ extern "C" {
       }
     }
     else 
-      result = MBI->get_entities_by_type_and_tag(handle, type, (Tag*)tag_handles, 
+      result = MOABI->get_entities_by_type_and_tag(handle, type, (Tag*)tag_handles, 
                                                  (const void* const *)tag_vals,
                                                  num_tags_vals, out_entities,
                                                  Interface::INTERSECT, recursive);
@@ -2776,7 +2958,7 @@ extern "C" {
 
       // filter out entity sets here
     if (iBase_ALL_TYPES == entity_type && iMesh_ALL_TOPOLOGIES == entity_topology) {
-      for (; iter != end_iter && MBI->type_from_handle(*iter) != MBENTITYSET; iter++)
+      for (; iter != end_iter && MOABI->type_from_handle(*iter) != MBENTITYSET; iter++)
         (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
     }
     else {
@@ -2807,7 +2989,7 @@ extern "C" {
     EntityHandle handle = ENTITY_HANDLE(entity_set_handle);
     ErrorCode result;
 
-    result = MBI->get_entities_by_type_and_tag(handle, MBENTITYSET, (Tag*)tag_handles, 
+    result = MOABI->get_entities_by_type_and_tag(handle, MBENTITYSET, (Tag*)tag_handles, 
                                                (const void* const *)tag_vals,
                                                num_tags_vals, out_entities, 
                                                Interface::INTERSECT, recursive);
@@ -2844,10 +3026,10 @@ ErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
     // get all the entities then vertices
   Range vertices, entities;
   entities.clear();
-  ErrorCode result = MBI->get_entities_by_handle(in_set, entities, false);
+  ErrorCode result = MOABI->get_entities_by_handle(in_set, entities, false);
   if (MB_SUCCESS != result) {
     std::string msg("Mesh::tag_set_vertices: getting entities didn't succeed., with error type: ");
-    msg += MBI->get_error_string(result);
+    msg += MOABI->get_error_string(result);
     iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
     *err = iBase_ERROR_MAP[result];
     return MB_FAILURE;
@@ -2858,11 +3040,11 @@ ErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
                  entities.upper_bound(MBENTITYSET));
 
     // get vertices
-  result = MBI->get_adjacencies(entities, 0, false, vertices,
+  result = MOABI->get_adjacencies(entities, 0, false, vertices,
                                 Interface::UNION);
   if (MB_SUCCESS != result) {
     std::string msg("Mesh::tag_set_vertices: getting vertices didn't succeed., with error type: ");
-    msg += MBI->get_error_string(result);
+    msg += MOABI->get_error_string(result);
     iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
     *err = iBase_ERROR_MAP[result];
     return result;
@@ -2871,10 +3053,10 @@ ErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
     // tag each vertex with its index in this list
   int i = 0;
   if (tag == 0) {
-    result = MBI->tag_create("__position_tag", 4, MB_TAG_DENSE, tag, &i);
+    result = MOABI->tag_create("__position_tag", 4, MB_TAG_DENSE, tag, &i);
     if (0 == tag) {
       std::string msg("MBMesh::tag_set_vertices: couldn't make tag., with error type: ");
-      msg += MBI->get_error_string(result);
+      msg += MOABI->get_error_string(result);
       iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
       *err = iBase_ERROR_MAP[result];
       return result;
@@ -2883,10 +3065,10 @@ ErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
   
   Range::iterator vit;
   for (vit = vertices.begin(), i = 0; vit != vertices.end(); vit++, i++) {
-    result = MBI->tag_set_data(tag, &(*vit), 1, &i);
+    result = MOABI->tag_set_data(tag, &(*vit), 1, &i);
     if (MB_SUCCESS != result) {
       std::string msg("MBMesh::tag_set_vertices: couldn't set pos_tag., with error type: ");
-      msg += MBI->get_error_string(result);
+      msg += MOABI->get_error_string(result);
       iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
       *err = iBase_ERROR_MAP[result];
       return result;
@@ -2901,11 +3083,11 @@ ErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
   const EntityHandle *connect;
   int num_connect;
   for (ent_it = entities.begin(); ent_it != entities.end(); ent_it++) {
-    this_type = MBI->type_from_handle(*ent_it);
+    this_type = MOABI->type_from_handle(*ent_it);
     if ((-1 == req_dimension || req_dimension == CN::Dimension(this_type)) &&
         (MBMAXTYPE == req_type || this_type == req_type)) {
       req_entities.insert(*ent_it);
-      result = MBI->get_connectivity(*ent_it, connect, num_connect, false, 
+      result = MOABI->get_connectivity(*ent_it, connect, num_connect, false, 
                                      &connect_v);
       num_verts += num_connect;
     }
@@ -2914,15 +3096,16 @@ ErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
   return result;
 }
 
-ErrorCode create_int_ents(Interface *instance,
+ErrorCode create_int_ents(MBiMesh* mbimesh,
                             Range &from_ents,
                             const EntityHandle* in_set) 
 {
-  MBiMesh* mbimesh = dynamic_cast<MBiMesh*>(instance);
+  //MBiMesh* mbimesh = dynamic_cast<MBiMesh*>(instance);
+  assert(mbimesh);
   assert(mbimesh->AdjTable[10] || mbimesh->AdjTable[5]);
   Range int_ents;
   ErrorCode result;
-  
+  Interface * instance = mbimesh->mbImpl;
   if (mbimesh->AdjTable[10]) {
     result = instance->get_adjacencies(from_ents, 2, true, int_ents,
                                   Interface::UNION);
