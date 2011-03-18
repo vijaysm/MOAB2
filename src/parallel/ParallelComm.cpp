@@ -3373,14 +3373,14 @@ ErrorCode ParallelComm::resolve_shared_ents(Range &proc_ents,
   j = 0; i = 0;
 
     // get ents shared by 1 or n procs
-  std::map<std::vector<int>, Range> proc_nranges;
+  std::map<std::vector<int>, std::vector<EntityHandle> > proc_nvecs;
   Range proc_verts;
   result = mbImpl->get_adjacencies(proc_ents, 0, false, proc_verts,
                                    Interface::UNION);
   RRA("Couldn't get proc_verts.");
   
   result = tag_shared_verts(shared_verts, skin_ents,
-                            proc_nranges, proc_verts);
+                            proc_nvecs, proc_verts);
   RRA("Trouble tagging shared verts.");
 
 #ifdef DEBUG_MPE
@@ -3389,14 +3389,14 @@ ErrorCode ParallelComm::resolve_shared_ents(Range &proc_ents,
 
     // get entities shared by 1 or n procs
   result = tag_shared_ents(resolve_dim, shared_dim, skin_ents,
-                           proc_nranges);
+                           proc_nvecs);
   RRA("Trouble tagging shared entities.");
 
   tuple_list_free(&shared_verts);
   
   if (debug) {
-    for (std::map<std::vector<int>, Range>::const_iterator mit = proc_nranges.begin();
-         mit != proc_nranges.end(); mit++) {
+    for (std::map<std::vector<int>, std::vector<EntityHandle> >::const_iterator mit = proc_nvecs.begin();
+         mit != proc_nvecs.end(); mit++) {
       std::cout << "Iface: ";
       for (std::vector<int>::const_iterator vit = (mit->first).begin();
            vit != (mit->first).end(); vit++) std::cout << " " << *vit;
@@ -3407,7 +3407,7 @@ ErrorCode ParallelComm::resolve_shared_ents(Range &proc_ents,
     // create the sets for each interface; store them as tags on
     // the interface instance
   Range iface_sets;
-  result = create_interface_sets(proc_nranges, resolve_dim, shared_dim);
+  result = create_interface_sets(proc_nvecs, resolve_dim, shared_dim);
   RRA("Trouble creating iface sets.");
 
     // establish comm procs and buffers for them
@@ -3675,7 +3675,7 @@ ErrorCode ParallelComm::set_pstatus_entities(EntityHandle *pstatus_ents,
   
 ErrorCode ParallelComm::create_interface_sets(int resolve_dim, int shared_dim) 
 {
-  std::map<std::vector<int>, Range> proc_nranges;
+  std::map<std::vector<int>, std::vector<EntityHandle> > proc_nvecs;
   
     // build up the list of shared entities
   int procs[MAX_SHARING_PROCS];
@@ -3691,7 +3691,7 @@ ErrorCode ParallelComm::create_interface_sets(int resolve_dim, int shared_dim)
     std::sort(procs, procs+nprocs);
     std::vector<int> tmp_procs(procs, procs + nprocs);
     assert(tmp_procs.size() != 2);
-    proc_nranges[tmp_procs].insert(*rit);
+    proc_nvecs[tmp_procs].push_back(*rit);
   }
                                                   
   Skinner skinner(mbImpl);
@@ -3708,16 +3708,16 @@ ErrorCode ParallelComm::create_interface_sets(int resolve_dim, int shared_dim)
   }
 
   result = tag_shared_ents(resolve_dim, shared_dim, skin_ents,
-                           proc_nranges);
+                           proc_nvecs);
     
-  return create_interface_sets(proc_nranges, resolve_dim, shared_dim);
+  return create_interface_sets(proc_nvecs, resolve_dim, shared_dim);
 }
   
-ErrorCode ParallelComm::create_interface_sets(std::map<std::vector<int>, Range> &proc_nranges,
+ErrorCode ParallelComm::create_interface_sets(std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
                                                   int /*resolve_dim*/, 
                                                   int /*shared_dim*/) 
 {
-  if (proc_nranges.empty()) return MB_SUCCESS;
+  if (proc_nvecs.empty()) return MB_SUCCESS;
   
   int proc_ids[MAX_SHARING_PROCS];
   EntityHandle proc_handles[MAX_SHARING_PROCS];
@@ -3731,8 +3731,8 @@ ErrorCode ParallelComm::create_interface_sets(std::map<std::vector<int>, Range> 
     // create interface sets, tag them, and tag their contents with iface set tag
   std::vector<EntityHandle> tag_vals;
   std::vector<unsigned char> pstatus;
-  for (std::map<std::vector<int>,Range>::iterator mit = proc_nranges.begin();
-       mit != proc_nranges.end(); mit++) {
+  for (std::map<std::vector<int>,std::vector<EntityHandle> >::iterator vit = proc_nvecs.begin();
+       vit != proc_nvecs.end(); vit++) {
       // create the set
     EntityHandle new_set;
     result = mbImpl->create_meshset(MESHSET_SET, new_set); 
@@ -3740,47 +3740,51 @@ ErrorCode ParallelComm::create_interface_sets(std::map<std::vector<int>, Range> 
     interfaceSets.insert(new_set);
 
       // add entities
-    assert(!mit->second.empty());
-    result = mbImpl->add_entities(new_set, mit->second); 
+    assert(!vit->second.empty());
+    result = mbImpl->add_entities(new_set, &(vit->second)[0], (vit->second).size()); 
     RRA("Failed to add entities to interface set.");
       // tag set with the proc rank(s)
-    if (mit->first.size() == 1) {
-      assert((mit->first)[0] != (int)procConfig.proc_rank());
+    if (vit->first.size() == 1) {
+      assert((vit->first)[0] != (int)procConfig.proc_rank());
       result = mbImpl->tag_set_data(sharedp_tag, &new_set, 1, 
-                                    &(mit->first)[0]); 
+                                    &(vit->first)[0]); 
       proc_handles[0] = 0;
       result = mbImpl->tag_set_data(sharedh_tag, &new_set, 1, 
                                     proc_handles); 
     }
     else {
       // pad tag data out to MAX_SHARING_PROCS with -1
-      assert( mit->first.size() <= MAX_SHARING_PROCS );
-      std::copy( mit->first.begin(), mit->first.end(), proc_ids );
-      std::fill( proc_ids + mit->first.size(), proc_ids + MAX_SHARING_PROCS, -1 );
+      assert( vit->first.size() <= MAX_SHARING_PROCS );
+      std::copy( vit->first.begin(), vit->first.end(), proc_ids );
+      std::fill( proc_ids + vit->first.size(), proc_ids + MAX_SHARING_PROCS, -1 );
       result = mbImpl->tag_set_data(sharedps_tag, &new_set, 1, proc_ids );
-      unsigned int ind = std::find(proc_ids, proc_ids+mit->first.size(), procConfig.proc_rank())
+      unsigned int ind = std::find(proc_ids, proc_ids+vit->first.size(), procConfig.proc_rank())
           - proc_ids;
-      assert(ind < mit->first.size());
-      std::fill( proc_handles + mit->first.size(), proc_handles + MAX_SHARING_PROCS, 0);
+      assert(ind < vit->first.size());
+      std::fill( proc_handles + vit->first.size(), proc_handles + MAX_SHARING_PROCS, 0);
       proc_handles[ind] = new_set;
       result = mbImpl->tag_set_data(sharedhs_tag, &new_set, 1, proc_handles); 
     }
     RRA("Failed to tag interface set with procs.");
     
       // get the owning proc, then set the pstatus tag on iface set
-    int min_proc = (mit->first)[0];
+    int min_proc = (vit->first)[0];
     unsigned char pval = (PSTATUS_SHARED | PSTATUS_INTERFACE);
     if (min_proc < (int) procConfig.proc_rank()) pval |= PSTATUS_NOT_OWNED;
-    if (mit->first.size() > 1) pval |= PSTATUS_MULTISHARED;
+    if (vit->first.size() > 1) pval |= PSTATUS_MULTISHARED;
     result = mbImpl->tag_set_data(pstatus_tag, &new_set, 1, &pval); 
     RRA("Failed to tag interface set with pstatus.");
 
       // tag the vertices with the same thing
     pstatus.clear();
-    Range verts = (mit->second).subset_by_type(MBVERTEX);
+    std::vector<EntityHandle> verts;
+    for (std::vector<EntityHandle>::iterator v2it = (vit->second).begin(); v2it != (vit->second).end(); v2it++)
+      if (mbImpl->type_from_handle(*v2it) == MBVERTEX) verts.push_back(*v2it);
     pstatus.resize(verts.size(), pval);
-    result = mbImpl->tag_set_data(pstatus_tag, verts, &pstatus[0]); 
-    RRA("Failed to tag interface set vertices with pstatus.");
+    if (!verts.empty()) {
+      result = mbImpl->tag_set_data(pstatus_tag, &verts[0], verts.size(), &pstatus[0]); 
+      RRA("Failed to tag interface set vertices with pstatus.");
+    }
   }
 
   return MB_SUCCESS;
@@ -3857,9 +3861,9 @@ ErrorCode ParallelComm::create_iface_pc_links()
 }
 
 ErrorCode ParallelComm::tag_shared_ents(int resolve_dim,
-                                            int shared_dim,
-                                            Range *skin_ents,
-                                            std::map<std::vector<int>, Range> &proc_nranges) 
+                                        int shared_dim,
+                                        Range *skin_ents,
+                                        std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs) 
 {
     // set sharing procs tags on other skin ents
   ErrorCode result;
@@ -3896,17 +3900,28 @@ ErrorCode ParallelComm::tag_shared_ents(int resolve_dim,
       sp_vec.clear();
       std::copy(sharing_procs.begin(), sharing_procs.end(), std::back_inserter(sp_vec));
       assert(sp_vec.size() != 2);
-      proc_nranges[sp_vec].insert(*rit);
+      proc_nvecs[sp_vec].push_back(*rit);
     }
   }
 
+#ifndef NDEBUG
+    // shouldn't be any repeated entities in any of the vectors in proc_nvecs
+  for (std::map<std::vector<int>, std::vector<EntityHandle> >::iterator mit = proc_nvecs.begin();
+       mit != proc_nvecs.end(); mit++) {
+    std::vector<EntityHandle> tmp_vec = (mit->second);
+    std::sort(tmp_vec.begin(), tmp_vec.end());
+    std::vector<EntityHandle>::iterator vit = std::unique(tmp_vec.begin(), tmp_vec.end());
+    assert(vit == tmp_vec.end());
+  }
+#endif
+  
   return MB_SUCCESS;
 }
 
 ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
-                                             Range *skin_ents,
-                                             std::map<std::vector<int>, Range> &proc_nranges,
-                                             Range& /*proc_verts*/) 
+                                         Range *skin_ents,
+                                         std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
+                                         Range& /*proc_verts*/) 
 {
   Tag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
   ErrorCode result = get_shared_proc_tags(sharedp_tag, sharedps_tag, 
@@ -3951,7 +3966,7 @@ ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
     sharing_handles.swap( sharing_handles2 );
     
     assert(sharing_procs.size() != 2);
-    proc_nranges[sharing_procs].insert(this_ent);
+    proc_nvecs[sharing_procs].push_back(this_ent);
 
     unsigned char share_flag = PSTATUS_SHARED, 
         ms_flag = (PSTATUS_SHARED | PSTATUS_MULTISHARED);
@@ -3984,6 +3999,17 @@ ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
     sharing_handles.clear();
   }
 
+#ifndef NDEBUG
+    // shouldn't be any repeated entities in any of the vectors in proc_nvecs
+  for (std::map<std::vector<int>, std::vector<EntityHandle> >::iterator mit = proc_nvecs.begin();
+       mit != proc_nvecs.end(); mit++) {
+    std::vector<EntityHandle> tmp_vec = (mit->second);
+    std::sort(tmp_vec.begin(), tmp_vec.end());
+    std::vector<EntityHandle>::iterator vit = std::unique(tmp_vec.begin(), tmp_vec.end());
+    assert(vit == tmp_vec.end());
+  }
+#endif
+  
   return MB_SUCCESS;
 }
   

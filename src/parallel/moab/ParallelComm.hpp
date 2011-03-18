@@ -998,20 +998,20 @@ private:
   
   ErrorCode tag_shared_verts(tuple_list &shared_verts,
                                Range *skin_ents,
-                               std::map<std::vector<int>, Range> &proc_nranges,
+                               std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
                                Range &proc_verts);
   
   ErrorCode tag_shared_ents(int resolve_dim,
                               int shared_dim,
                               Range *skin_ents,
-                              std::map<std::vector<int>, Range> &proc_nranges);
+                              std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs);
 
-    // each iterate in proc_nranges contains a set of procs and the entities *possibly*
+    // each iterate in proc_nvecs contains a set of procs and the entities *possibly*
     // on the interface between those procs; this function makes sets for each,
     // and tags the set with the procs sharing it; interface sets are optionally
     // returned; NOTE: a subsequent step is used to verify entities on the interface
     // and remove them if they're not shared
-  ErrorCode create_interface_sets(std::map<std::vector<int>, Range> &proc_nranges,
+  ErrorCode create_interface_sets(std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
                                     int resolve_dim, int shared_dim);
 
     // do the same but working straight from sharedEnts
