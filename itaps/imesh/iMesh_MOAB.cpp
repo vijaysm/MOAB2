@@ -591,7 +591,25 @@ extern "C" {
                              /*out*/ iBase_EntityArrIterator* entArr_iterator,
                              int *err)
   {
+    CHKENUM(requested_entity_type, iBase_EntityType, iBase_INVALID_ENTITY_TYPE);
+    CHKENUM(requested_entity_topology, iMesh_EntityTopology,
+            iBase_INVALID_ENTITY_TOPOLOGY);
+
     EntityType req_type = mb_topology_table[requested_entity_topology];
+
+    if (requested_entity_topology != iMesh_ALL_TOPOLOGIES) {
+      if (requested_entity_type != iBase_ALL_TYPES) {
+        if (requested_entity_topology != iMesh_SEPTAHEDRON &&
+            requested_entity_type != CN::Dimension(req_type))
+          ERROR(iBase_BAD_TYPE_AND_TOPO, "type and topology are inconsistant");
+
+          // Special-case handling for septahedra since we don't support them
+        else if (requested_entity_topology == iMesh_SEPTAHEDRON &&
+                 requested_entity_type != iBase_REGION)
+          ERROR(iBase_BAD_TYPE_AND_TOPO, "type and topology are inconsistant");
+      }
+    }
+
     int req_dimension = (req_type == MBMAXTYPE ? (int) requested_entity_type : -1);
     Range range;
 
@@ -846,6 +864,9 @@ extern "C" {
                               int* offset_size,
                               int* err )
   {
+    CHKENUM(bridge_entity_type, iBase_EntityType, iBase_INVALID_ENTITY_TYPE);
+    CHKENUM(requested_entity_type, iBase_EntityType, iBase_INVALID_ENTITY_TYPE);
+
     ErrorCode result = MB_SUCCESS;
 
     ALLOC_CHECK_ARRAY(offset, entity_handles_size+1);
@@ -1173,6 +1194,9 @@ extern "C" {
                        /*in*/ iBase_EntitySetHandle entity_set_handle,
                        int *err)
   {
+    if (!entity_set_to_add || !entity_set_handle)
+      ERROR(iBase_INVALID_ARGUMENT, "iMesh_addEntSet: ERROR invalid argument");
+
     EntityHandle to_add = ENTITY_HANDLE(entity_set_to_add);
     ErrorCode result = MOABI->add_entities(ENTITY_HANDLE(entity_set_handle), &to_add, 1);
 
@@ -1185,6 +1209,9 @@ extern "C" {
                        /*in*/ iBase_EntitySetHandle entity_set_handle,
                        int *err)
   {
+    if (!entity_set_to_remove || !entity_set_handle)
+      ERROR(iBase_INVALID_ARGUMENT, "iMesh_rmvEntSet: ERROR invalid argument");
+
     EntityHandle to_remove = ENTITY_HANDLE(entity_set_to_remove);
     ErrorCode result = MOABI->remove_entities
       (ENTITY_HANDLE(entity_set_handle), &to_remove, 1);
@@ -1249,7 +1276,10 @@ extern "C" {
       (ENTITY_HANDLE(parent_entity_set),
        ENTITY_HANDLE(child_entity_set));
 
-    CHKERR(result, "MB Mesh::addPrntChld: ERROR addParentChild failed.");
+    if (result == MB_ENTITY_NOT_FOUND)
+      ERROR(iBase_INVALID_ENTITYSET_HANDLE,
+            "iMesh_addPrntChld: ERROR invalid entity set.");
+    CHKERR(result, "iMesh_addPrntChld: ERROR addParentChild failed.");
     RETURN(iBase_SUCCESS);
   }
 
@@ -1262,6 +1292,9 @@ extern "C" {
       (ENTITY_HANDLE(parent_entity_set),
        ENTITY_HANDLE(child_entity_set));
 
+    if (result == MB_ENTITY_NOT_FOUND)
+      ERROR(iBase_INVALID_ENTITYSET_HANDLE,
+            "iMesh_rmvPrntChld: ERROR invalid entity set.");
     CHKERR(result,"iMesh_rmvPrntChld: ERROR RemoveParentChild failed.");
     RETURN(iBase_SUCCESS);
   }
@@ -1271,11 +1304,18 @@ extern "C" {
                        /*in*/ const iBase_EntitySetHandle child_entity_set,
                        int *is_child, int *err)
   {
+    if (!child_entity_set)
+      ERROR(iBase_INVALID_ENTITYSET_HANDLE,
+            "iMesh_isChildOf: ERROR invalid entity set.");
+
     std::vector<EntityHandle> children;
 
     ErrorCode result = MOABI->get_child_meshsets
       (ENTITY_HANDLE(parent_entity_set), children);
 
+    if (result == MB_ENTITY_NOT_FOUND)
+      ERROR(iBase_INVALID_ENTITYSET_HANDLE,
+            "iMesh_rmvPrntChld: ERROR invalid entity set.");
     CHKERR(result,"iMesh_isChildOf: ERROR IsParentChildRelated failed.");
 
     if (std::find(children.begin(), children.end(), ENTITY_HANDLE(child_entity_set))
@@ -1297,6 +1337,9 @@ extern "C" {
     ErrorCode result = MOABI->num_child_meshsets
       (ENTITY_HANDLE(entity_set), num_child, num_hops+1);
 
+    if (result == MB_ENTITY_NOT_FOUND)
+      ERROR(iBase_INVALID_ENTITYSET_HANDLE,
+            "iMesh_getNumChld: ERROR invalid entity set.");
     CHKERR(result,"iMesh_getNumChld: ERROR GetNumChildren failed.");
 
     RETURN(iBase_SUCCESS);
@@ -1311,6 +1354,9 @@ extern "C" {
     ErrorCode result = MOABI->num_parent_meshsets
       (ENTITY_HANDLE(entity_set), num_parent, num_hops+1);
 
+    if (result == MB_ENTITY_NOT_FOUND)
+      ERROR(iBase_INVALID_ENTITYSET_HANDLE,
+            "iMesh_getNumPrnt: ERROR invalid entity set.");
     CHKERR(result,"iMesh_getNumPrnt: ERROR GetNumParents failed.");
     RETURN(iBase_SUCCESS);
   }
@@ -1327,6 +1373,9 @@ extern "C" {
     ErrorCode result = MOABI->get_child_meshsets
       (ENTITY_HANDLE(from_entity_set), children, num_hops+1);
 
+    if (result == MB_ENTITY_NOT_FOUND)
+      ERROR(iBase_INVALID_ENTITYSET_HANDLE,
+            "iMesh_getChldn: ERROR invalid entity set.");
     CHKERR(result,"ERROR getChildren failed.");
     ALLOC_CHECK_ARRAY_NOFAIL(entity_set_handles, children.size());
 
@@ -1349,6 +1398,9 @@ extern "C" {
     ErrorCode result = MOABI->get_parent_meshsets
       (ENTITY_HANDLE(from_entity_set), parents, num_hops+1);
 
+    if (result == MB_ENTITY_NOT_FOUND)
+      ERROR(iBase_INVALID_ENTITYSET_HANDLE,
+            "iMesh_getPrnts: ERROR invalid entity set.");
     CHKERR(result,"ERROR getParents failed.");
 
     ALLOC_CHECK_ARRAY_NOFAIL(entity_set_handles, parents.size());
@@ -1367,6 +1419,8 @@ extern "C" {
                               /*in*/ const double* new_coords,
                               /*in*/ const int new_coords_size, int *err)
   {
+    CHKENUM(storage_order, iBase_StorageOrder, iBase_INVALID_ARGUMENT);
+
     int geom_dim;
     MOABI->get_dimension(geom_dim);
     if (new_coords_size != geom_dim*vertex_handles_size) {
@@ -2700,33 +2754,29 @@ extern "C" {
                             /*out*/ int* entity_handles_size,
                             /*out*/ int *err)
   {
+    CHKENUM(entity_type, iBase_EntityType, iBase_INVALID_ENTITY_TYPE);
+    CHKENUM(entity_topology, iMesh_EntityTopology,
+            iBase_INVALID_ENTITY_TOPOLOGY);
+
     bool use_top = false;
-    bool use_type = false;
       // initialize just to get rid of compiler warning
     EntityType type = mb_topology_table[iMesh_ALL_TOPOLOGIES];
     std::vector<EntityHandle> out_entities;
 
-    if (entity_topology >= iMesh_POINT
-        && entity_topology < iMesh_ALL_TOPOLOGIES) {
+    if (entity_topology != iMesh_ALL_TOPOLOGIES) {
       type = mb_topology_table[entity_topology];
       use_top = true;
 
-      // Special-case handling for septahedra since we don't support them
-      if (entity_type != iBase_ALL_TYPES &&
-          ((entity_topology != iMesh_SEPTAHEDRON &&
-            entity_type != CN::Dimension(type)) ||
-           (entity_topology == iMesh_SEPTAHEDRON &&
-            entity_type != iBase_REGION))) {
-        ERROR(iBase_BAD_TYPE_AND_TOPO,
-              "type and topology are inconsistant");
+      if (entity_type != iBase_ALL_TYPES) {
+        if (entity_topology != iMesh_SEPTAHEDRON &&
+            entity_type != CN::Dimension(type))
+          ERROR(iBase_BAD_TYPE_AND_TOPO, "type and topology are inconsistant");
+
+          // Special-case handling for septahedra since we don't support them
+        else if (entity_topology == iMesh_SEPTAHEDRON &&
+                 entity_type != iBase_REGION)
+          ERROR(iBase_BAD_TYPE_AND_TOPO, "type and topology are inconsistant");
       }
-    }
-    else if (entity_type >= iBase_VERTEX
-             && entity_type <= iBase_ALL_TYPES)
-      use_type = true;
-    else {
-      ERROR(iBase_BAD_TYPE_AND_TOPO,
-            "iMesh_getEntities:ERROR not valid entity type or topology");
     }
 
     EntityHandle handle = ENTITY_HANDLE(entity_set_handle);
@@ -2738,7 +2788,7 @@ extern "C" {
       else
         result = MOABI->get_entities_by_type(handle, type, out_entities, recursive);
     }
-    else if (use_type && entity_type != iBase_ALL_TYPES)
+    else if (entity_type != iBase_ALL_TYPES)
       result = MOABI->get_entities_by_dimension(handle, entity_type, out_entities, recursive);
     else
       result = MOABI->get_entities_by_handle(handle, out_entities, recursive);
@@ -2795,6 +2845,8 @@ extern "C" {
                              /*out*/ int *num_type,
                              /*out*/ int *err)
   {
+    CHKENUM(entity_type, iBase_EntityType, iBase_INVALID_ENTITY_TYPE);
+
     *num_type = 0;
     ErrorCode result;
     if (entity_type == iBase_ALL_TYPES) {
@@ -2840,6 +2892,9 @@ extern "C" {
                              /*out*/ int *num_topo,
                              /*out*/ int *err)
   {
+    CHKENUM(entity_topology, iMesh_EntityTopology,
+            iBase_INVALID_ENTITY_TOPOLOGY);
+
     if (entity_topology == iMesh_SEPTAHEDRON) {
       *num_topo = 0;
       RETURN(iBase_SUCCESS);
@@ -2906,24 +2961,30 @@ extern "C" {
                               /*out*/ int* entity_handles_size,
                               /*out*/ int *err)
   {
+    CHKENUM(entity_type, iBase_EntityType, iBase_INVALID_ENTITY_TYPE);
+    CHKENUM(entity_topology, iMesh_EntityTopology,
+            iBase_INVALID_ENTITY_TOPOLOGY);
+
     bool use_top = false;
-    bool use_type = false;
       // initialize just to get rid of compiler warning
     EntityType type = mb_topology_table[iMesh_ALL_TOPOLOGIES];
     Range out_entities;
 
-    if (entity_topology >= iMesh_POINT
-        && entity_topology < iMesh_ALL_TOPOLOGIES) {
+    if (entity_topology != iMesh_ALL_TOPOLOGIES) {
       type = mb_topology_table[entity_topology];
       use_top = true;
+
+      if (entity_type != iBase_ALL_TYPES) {
+        if (entity_topology != iMesh_SEPTAHEDRON &&
+            entity_type != CN::Dimension(type))
+          ERROR(iBase_BAD_TYPE_AND_TOPO, "type and topology are inconsistant");
+
+          // Special-case handling for septahedra since we don't support them
+        else if (entity_topology == iMesh_SEPTAHEDRON &&
+                 entity_type != iBase_REGION)
+          ERROR(iBase_BAD_TYPE_AND_TOPO, "type and topology are inconsistant");
+      }
     }
-    else if (entity_type >= iBase_VERTEX
-             && entity_type <= iBase_ALL_TYPES)
-      use_type = true;
-    else {
-      ERROR(iBase_BAD_TYPE_AND_TOPO,
-                         "iMesh_getEntities:ERROR not valid entity type or topology");
-   }
 
     EntityHandle handle = ENTITY_HANDLE(entity_set_handle);
     ErrorCode result = MB_SUCCESS;
@@ -2937,7 +2998,7 @@ extern "C" {
                                                    num_tags_vals, out_entities,
                                                    Interface::INTERSECT, recursive);
     }
-    else if (use_type && entity_type != iBase_ALL_TYPES) {
+    else if (entity_type != iBase_ALL_TYPES) {
         // need to loop over all types of this dimension
       for (EntityType tp = CN::TypeDimensionMap[entity_type].first;
            tp <= CN::TypeDimensionMap[entity_type].second; tp++) {

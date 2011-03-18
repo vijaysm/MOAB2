@@ -3001,7 +3001,7 @@ ErrorCode Core::get_parent_meshsets(const EntityHandle meshset,
                                           std::vector<EntityHandle> &parents,
                                           const int num_hops) const
 {
-  if (0 == meshset) return MB_SUCCESS;
+  if (0 == meshset) return MB_ENTITY_NOT_FOUND;
 
   const EntitySequence *seq;
   ErrorCode rval = sequence_manager()->find( meshset, seq );
@@ -3016,7 +3016,7 @@ ErrorCode Core::get_parent_meshsets(const EntityHandle meshset,
                                         Range &parents,
                                           const int num_hops) const
 {
-  if (0 == meshset) return MB_SUCCESS;
+  if (0 == meshset) return MB_ENTITY_NOT_FOUND;
 
   std::vector<EntityHandle> parent_vec;
   ErrorCode result = get_parent_meshsets(meshset, parent_vec, num_hops);
@@ -3030,7 +3030,7 @@ ErrorCode Core::get_child_meshsets(const EntityHandle meshset,
                                          std::vector<EntityHandle> &children,
                                          const int num_hops) const
 {
-  if (0 == meshset) return MB_SUCCESS;
+  if (0 == meshset) return MB_ENTITY_NOT_FOUND;
 
   const EntitySequence *seq;
   ErrorCode rval = sequence_manager()->find( meshset, seq );
@@ -3045,7 +3045,7 @@ ErrorCode Core::get_child_meshsets(const EntityHandle meshset,
                                         Range &children,
                                           const int num_hops) const
 {
-  if (0 == meshset) return MB_SUCCESS;
+  if (0 == meshset) return MB_ENTITY_NOT_FOUND;
 
   std::vector<EntityHandle> child_vec;
   ErrorCode result = get_child_meshsets(meshset, child_vec, num_hops);
@@ -3091,10 +3091,7 @@ ErrorCode Core::get_contained_meshsets( const EntityHandle meshset,
 ErrorCode Core::num_parent_meshsets(const EntityHandle meshset, int* number,
                                         const int num_hops) const
 {
-  if (0 == meshset) {
-    *number = 0;
-    return MB_SUCCESS;
-  }
+  if (0 == meshset) return MB_ENTITY_NOT_FOUND;
 
   const EntitySequence *seq;
   ErrorCode rval = sequence_manager()->find( meshset, seq );
@@ -3108,10 +3105,7 @@ ErrorCode Core::num_parent_meshsets(const EntityHandle meshset, int* number,
 ErrorCode Core::num_child_meshsets(const EntityHandle meshset, int* number,
                                        const int num_hops) const
 {
-  if (0 == meshset) {
-    *number = 0;
-    return MB_SUCCESS;
-  }
+  if (0 == meshset) return MB_ENTITY_NOT_FOUND;
   
   const EntitySequence *seq;
   ErrorCode rval = sequence_manager()->find( meshset, seq );

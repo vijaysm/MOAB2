@@ -71,6 +71,14 @@ static inline bool iMesh_isError(int code)
 static inline bool iMesh_isError(ErrorCode code)
   { return (MB_SUCCESS != code); }
 
+#define PP_CAT_(a,b) a ## b
+#define PP_CAT(a,b) PP_CAT_(a,b)
+
+#define CHKENUM(VAL,TYPE,ERR)                                   \
+  do {                                                          \
+  if ((VAL) < PP_CAT(TYPE, _MIN) || (VAL) > PP_CAT(TYPE, _MAX)) \
+    ERROR((ERR), "Invalid enumeration value");                  \
+  } while(false)
 
 // Check the array size, and allocate the array if necessary.
 // Free the array upon leaving scope unless KEEP_ARRAY
