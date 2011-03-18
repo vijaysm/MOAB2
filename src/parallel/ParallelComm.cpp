@@ -3259,7 +3259,7 @@ ErrorCode ParallelComm::resolve_shared_ents(Range &proc_ents,
   ErrorCode result;
   std::vector<int> gid_data;
   std::vector<EntityHandle> handle_vec;
-  int skin_dim;
+  int skin_dim = resolve_dim-1;
 
   // global id tag
   Tag gid_tag; int def_val = -1;
