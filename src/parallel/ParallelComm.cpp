@@ -2057,12 +2057,14 @@ ErrorCode ParallelComm::print_buffer(unsigned char *buff_ptr,
 ErrorCode ParallelComm::list_entities(const EntityHandle *ents, int num_ents) 
 {
   if (NULL == ents && 0 == num_ents) {
-    sharedEnts.print("Shared entities:\n");
+    Range shared_ents;
+    std::copy(sharedEnts.begin(), sharedEnts.end(), range_inserter(shared_ents));
+    shared_ents.print("Shared entities:\n");
     return MB_SUCCESS;
   }
   
   else if (NULL == ents && 0 != num_ents) {
-    return list_entities(sharedEnts);
+    return list_entities(&sharedEnts[0], sharedEnts.size());
   }
     
   unsigned char pstat;
@@ -2287,7 +2289,7 @@ ErrorCode ParallelComm::update_remote_data(const EntityHandle new_h,
   result = mbImpl->tag_set_data(pstatus_tag(), &new_h, 1, &pstat);
   RRA("Couldn't set pstatus tag.");
 
-  if (pstat & PSTATUS_SHARED) sharedEnts.insert(new_h);
+  if (pstat & PSTATUS_SHARED) sharedEnts.push_back(new_h);
   
   return MB_SUCCESS;
 }
@@ -3683,15 +3685,15 @@ ErrorCode ParallelComm::create_interface_sets(int resolve_dim, int shared_dim)
   ErrorCode result;
   int nprocs;
   unsigned char pstat;
-  for (Range::iterator rit = sharedEnts.begin(); rit != sharedEnts.end(); rit++) {
-    if (shared_dim != -1 && mbImpl->dimension_from_handle(*rit) > shared_dim)
+  for (std::vector<EntityHandle>::iterator vit = sharedEnts.begin(); vit != sharedEnts.end(); vit++) {
+    if (shared_dim != -1 && mbImpl->dimension_from_handle(*vit) > shared_dim)
       continue;
-    result = get_sharing_data(*rit, procs, handles, pstat, nprocs);
+    result = get_sharing_data(*vit, procs, handles, pstat, nprocs);
     RRA("");
     std::sort(procs, procs+nprocs);
     std::vector<int> tmp_procs(procs, procs + nprocs);
     assert(tmp_procs.size() != 2);
-    proc_nvecs[tmp_procs].push_back(*rit);
+    proc_nvecs[tmp_procs].push_back(*vit);
   }
                                                   
   Skinner skinner(mbImpl);
@@ -3977,7 +3979,7 @@ ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
                                     &sharing_handles[0]);
       result = mbImpl->tag_set_data(pstatus_tag, &this_ent, 1, &share_flag);
       RRA("Couldn't set shared tag on shared vertex.");
-      sharedEnts.insert(this_ent);
+      sharedEnts.push_back(this_ent);
     }
     else {
         // pad lists 
@@ -3990,7 +3992,7 @@ ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
                                     &sharing_handles[0]);
       result = mbImpl->tag_set_data(pstatus_tag, &this_ent, 1, &ms_flag);
       RRA("Couldn't set multi-shared tag on shared vertex.");
-      sharedEnts.insert(this_ent);
+      sharedEnts.push_back(this_ent);
     }
     RRA("Failed setting shared_procs tag on skin vertices.");
 
@@ -5040,7 +5042,8 @@ ErrorCode ParallelComm::set_sharing_data(EntityHandle ent, unsigned char pstatus
   result = mbImpl->tag_set_data(pstatus_tag(), &ent, 1, &pstatus);
   RRA("");
 
-  if (old_nump > 1 && new_nump < 2) sharedEnts.erase(ent);
+  if (old_nump > 1 && new_nump < 2) 
+    sharedEnts.erase(std::find(sharedEnts.begin(), sharedEnts.end(), ent));
 
   return result;
 }
@@ -5539,7 +5542,12 @@ ErrorCode ParallelComm::exchange_tags( const std::vector<Tag> &src_tags,
   sendReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
   
     // take all shared entities if incoming list is empty
-  const Range& entities = entities_in.empty() ? sharedEnts : entities_in;
+  Range entities;
+  if (entities_in.empty()) {
+    std::copy(sharedEnts.begin(), sharedEnts.end(), range_inserter(entities));
+  }
+  else 
+    entities = entities_in;
   
   int dum_ack_buff;
 
@@ -6562,7 +6570,7 @@ ErrorCode ParallelComm::pack_shared_handles(
   int num_sharing, tmp_int;
   SharedEntityData tmp;
   send_data.resize(buffProcs.size());
-  for (Range::iterator i = sharedEnts.begin(); i != sharedEnts.end(); ++i) {
+  for (std::vector<EntityHandle>::iterator i = sharedEnts.begin(); i != sharedEnts.end(); ++i) {
     tmp.remote = *i; // swap local/remote so they're correct on the remote proc.
     rval = get_owner( *i, tmp_int );
     tmp.owner = tmp_int;
@@ -6726,13 +6734,13 @@ ErrorCode ParallelComm::check_local_shared()
   std::vector<std::string> errors;
   std::string dum_err;
   
-  Range::const_iterator rit;
-  for (rit = sharedEnts.begin(); rit != sharedEnts.end(); rit++) {
+  std::vector<EntityHandle>::const_iterator vit;
+  for (vit = sharedEnts.begin(); vit != sharedEnts.end(); vit++) {
 
       // get sharing procs for this ent
-    result = get_sharing_data(*rit, tmp_procs, tmp_hs, pstat, num_ps);
+    result = get_sharing_data(*vit, tmp_procs, tmp_hs, pstat, num_ps);
     if (MB_SUCCESS != result) {
-      bad_ents.insert(*rit);
+      bad_ents.insert(*vit);
       errors.push_back(std::string("Failure getting sharing data."));
       continue;
     }
@@ -6748,31 +6756,31 @@ ErrorCode ParallelComm::check_local_shared()
 
       // if entity is owned and multishared, this must be first proc
     if (!(pstat & PSTATUS_NOT_OWNED) && pstat & PSTATUS_MULTISHARED && 
-        (tmp_procs[0] != (int)procConfig.proc_rank() || tmp_hs[0] != *rit))
+        (tmp_procs[0] != (int)procConfig.proc_rank() || tmp_hs[0] != *vit))
       errors.push_back(std::string("Entity owned and multishared but not first proc or not first handle.")), bad = true;
 
     if (bad) {
-      bad_ents.insert(*rit);
+      bad_ents.insert(*vit);
       continue;
     }
     
-    if (mbImpl->type_from_handle(*rit) == MBVERTEX) continue;
+    if (mbImpl->type_from_handle(*vit) == MBVERTEX) continue;
 
       // copy element's procs to vset and save size
     int orig_ps = num_ps; vset.clear(); 
     std::copy(tmp_procs, tmp_procs+num_ps, std::inserter(vset, vset.begin()));
     
       // get vertices for this ent and intersection of sharing procs
-    result = mbImpl->get_connectivity(*rit, connect, num_connect, false, &dum_connect);
+    result = mbImpl->get_connectivity(*vit, connect, num_connect, false, &dum_connect);
     if (MB_SUCCESS != result) {
-      bad_ents.insert(*rit); 
+      bad_ents.insert(*vit); 
       errors.push_back(std::string("Couldn't get connectivity."));
       continue;
     }
     
     for (int i = 0; i < num_connect; i++) {
       result = get_sharing_data(connect[i], tmp_procs, NULL, pstat, num_ps);
-      if (MB_SUCCESS != result) {bad_ents.insert(*rit); continue;}
+      if (MB_SUCCESS != result) {bad_ents.insert(*vit); continue;}
       if (!num_ps) {vset.clear(); break;}
       std::sort(tmp_procs, tmp_procs+num_ps);
       tmp_set.clear();
@@ -6788,17 +6796,18 @@ ErrorCode ParallelComm::check_local_shared()
                           vset.begin(), vset.end(), std::inserter(tmp_set, tmp_set.end()));
     if (orig_ps != (int)tmp_set.size()) {
       errors.push_back(std::string("Vertex proc set not same size as entity proc set."));
-      bad_ents.insert(*rit);
+      bad_ents.insert(*vit);
     }
   }
   
   if (!bad_ents.empty()) {
     std::cout << "Found bad entities in check_local_shared, proc rank "
               << procConfig.proc_rank() << "," << std::endl;
-    std::vector<std::string>::iterator vit;
-    for (rit = bad_ents.begin(), vit = errors.begin(); rit != bad_ents.end(); rit++, vit++) {
+    std::vector<std::string>::iterator sit;
+    Range::iterator rit;
+    for (rit = bad_ents.begin(), sit = errors.begin(); rit != bad_ents.end(); rit++, sit++) {
       list_entities(&(*rit), 1);
-      std::cout << "Reason: " << *vit << std::endl;
+      std::cout << "Reason: " << *sit << std::endl;
     }
     return MB_FAILURE;
   }
@@ -6854,7 +6863,8 @@ ErrorCode ParallelComm::check_my_shared_handles(
     // now check against what I think data should be
     // get all shared entities
   ErrorCode result;
-  Range all_shared = sharedEnts;
+  Range all_shared;
+  std::copy(sharedEnts.begin(), sharedEnts.end(), range_inserter(all_shared));
   std::vector<EntityHandle> dum_vec;
   all_shared.erase(all_shared.upper_bound(MBPOLYHEDRON), all_shared.end());
 
@@ -6900,10 +6910,11 @@ ErrorCode ParallelComm::get_shared_entities(int other_proc,
   if (-1 != dim) {
     DimensionPair dp = CN::TypeDimensionMap[dim];
     Range dum_range;
-    shared_ents.merge(sharedEnts.lower_bound(dp.first), 
-                      sharedEnts.upper_bound(dp.second));
+    std::copy(sharedEnts.begin(), sharedEnts.end(), range_inserter(dum_range));
+    shared_ents.merge(dum_range.lower_bound(dp.first), 
+                      dum_range.upper_bound(dp.second));
   }
-  else shared_ents = sharedEnts;
+  else std::copy(sharedEnts.begin(), sharedEnts.end(), range_inserter(shared_ents));
 
     // filter by iface
   if (iface) {
