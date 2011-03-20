@@ -131,7 +131,7 @@ iBase_TagHandle itaps_cast<iBase_TagHandle,Tag>( Tag h )
 
 #endif
 
-#define PCOMM ParallelComm::get_pcomm( MBI, itaps_cast<EntityHandle>(partition_handle) )
+#define PCOMM ParallelComm::get_pcomm( MOABI, itaps_cast<EntityHandle>(partition_handle) )
 
 // Need a different function name for Tag because (currently)
 // both Tag and iBase_EntityHandle are void**.
@@ -213,18 +213,18 @@ static void set_intersection_query( iMesh_Instance instance,
   ErrorCode rval;
   
   if (!set1) {
-    rval = get_entities( MBI, itaps_cast<EntityHandle>(set2), type, topo, result );
+    rval = get_entities( MOABI, itaps_cast<EntityHandle>(set2), type, topo, result );
     CHKERR(rval,"Invalid Part handle");
   }
   else if (!set2) {
-    rval = get_entities( MBI, itaps_cast<EntityHandle>(set1), type, topo, result );
+    rval = get_entities( MOABI, itaps_cast<EntityHandle>(set1), type, topo, result );
     CHKERR(rval,"Invalid set handle");
   }
   else {
     Range r1, r2;
-    rval = get_entities( MBI, itaps_cast<EntityHandle>(set1), type, topo, r1 );
+    rval = get_entities( MOABI, itaps_cast<EntityHandle>(set1), type, topo, r1 );
     CHKERR(rval,"Invalid Part handle");
-    rval = get_entities( MBI, itaps_cast<EntityHandle>(set2), type, topo, r2 );
+    rval = get_entities( MOABI, itaps_cast<EntityHandle>(set2), type, topo, r2 );
     CHKERR(rval,"Invalid set handle");
     result.merge( intersect( r1, r2) );
   }
@@ -248,7 +248,7 @@ void iMeshP_createPartitionAll( iMesh_Instance instance,
   *partition_handle = 0;
 
   Tag prtn_tag;
-  ErrorCode rval = MBI->tag_create( PARALLEL_PARITIONING_TAG_NAME, 
+  ErrorCode rval = MOABI->tag_create( PARALLEL_PARITIONING_TAG_NAME, 
                                       sizeof(int), 
                                       MB_TAG_SPARSE,
                                       MB_TYPE_INTEGER, 
@@ -257,10 +257,10 @@ void iMeshP_createPartitionAll( iMesh_Instance instance,
                                       true ); CHKERR(rval,"tag creation failed");
   
   EntityHandle handle;
-  rval = MBI->create_meshset( MESHSET_SET, handle ); CHKERR(rval,"set creation failed");
-  ParallelComm* pcomm = ParallelComm::get_pcomm( MBI, handle, &communicator );
+  rval = MOABI->create_meshset( MESHSET_SET, handle ); CHKERR(rval,"set creation failed");
+  ParallelComm* pcomm = ParallelComm::get_pcomm( MOABI, handle, &communicator );
   if (!pcomm) {
-    MBI->delete_entities( &handle, 1 );
+    MOABI->delete_entities( &handle, 1 );
     RETURN(iBase_FAILURE);
   }
   
@@ -276,7 +276,7 @@ void iMeshP_destroyPartitionAll( iMesh_Instance instance,
   if (pcomm)
     delete pcomm;
   EntityHandle handle = itaps_cast<EntityHandle>(partition_handle);
-  ErrorCode rval = MBI->delete_entities( &handle, 1 ); CHKERR(rval,"entity deletion failed");
+  ErrorCode rval = MOABI->delete_entities( &handle, 1 ); CHKERR(rval,"entity deletion failed");
   RETURN (iBase_SUCCESS);
 }
 
@@ -377,7 +377,7 @@ void iMeshP_getNumPartitions( iMesh_Instance instance,
                               int* err )
 {
   std::vector<ParallelComm*> pcomms;
-  ErrorCode rval = ParallelComm::get_all_pcomm( MBI, pcomms );
+  ErrorCode rval = ParallelComm::get_all_pcomm( MOABI, pcomms );
   CHKERR(rval,"Internal error retreiving PComms");
   
   std::vector<ParallelComm*>::iterator i;
@@ -396,7 +396,7 @@ void iMeshP_getPartitions( iMesh_Instance instance,
                            int *err )
 {
   std::vector<ParallelComm*> pcomms;
-  ErrorCode rval = ParallelComm::get_all_pcomm( MBI, pcomms );
+  ErrorCode rval = ParallelComm::get_all_pcomm( MOABI, pcomms );
   CHKERR(rval,"Internal error retreiving PComms");
   
   std::vector<ParallelComm*>::iterator i;
@@ -503,7 +503,7 @@ void iMeshP_getNumOfTypeAll( iMesh_Instance instance,
     ERROR (iBase_FAILURE,"No PComm");
   
   Range entities;
-  ErrorCode rval = get_entities( MBI,
+  ErrorCode rval = get_entities( MOABI,
                                    itaps_cast<EntityHandle>(entity_set_handle),
                                    entity_type,
                                    iMesh_ALL_TOPOLOGIES,
@@ -534,7 +534,7 @@ void iMeshP_getNumOfTopoAll( iMesh_Instance instance,
     ERROR (iBase_FAILURE,"No PComm");
   
   Range entities;
-  ErrorCode rval = get_entities( MBI,
+  ErrorCode rval = get_entities( MOABI,
                                    itaps_cast<EntityHandle>(entity_set_handle),
                                    iBase_ALL_TYPES,
                                    entity_topology,
@@ -756,7 +756,7 @@ void iMeshP_initPartBdryEntIter( iMesh_Instance instance,
                                  const int entity_type,
                                  const int entity_topology,
                                  const iMeshP_Part nbor_part_id,
-                                 iMesh_EntityIterator* entity_iterator,
+                                 iBase_EntityIterator* entity_iterator,
                                  int* err )
 {
   Range entities;
@@ -778,7 +778,7 @@ void iMeshP_initPartBdryEntArrIter( iMesh_Instance instance,
                                     const int entity_topology,
                                     const int array_size,
                                     const iMeshP_Part nbor_part_id,
-                                    iMesh_EntityArrIterator* entity_iterator,
+                                    iBase_EntityArrIterator* entity_iterator,
                                     int* err )
 {
   Range entities;
@@ -789,7 +789,7 @@ void iMeshP_initPartBdryEntArrIter( iMesh_Instance instance,
                                             nbor_part_id,
                                             entities ); 
   CHKERR(rval,"error getting boundary");
-  *entity_iterator = (iMesh_EntityArrIterator) create_itaps_iterator( entities, array_size );
+  *entity_iterator = (iBase_EntityArrIterator) create_itaps_iterator( entities, array_size );
   RETURN( entity_iterator ? iBase_SUCCESS : iBase_FAILURE );
 }
 
@@ -1024,12 +1024,12 @@ void iMeshP_getAdjEntities( iMesh_Instance instance,
   for (Range::iterator i = r.begin(); i != r.end(); ++i)  {
     if (entity_type_requested || TYPE_FROM_HANDLE(*i) == MBPOLYHEDRON) {
       tmp_storage.clear();
-      rval = MBI->get_adjacencies( &*i, 1, entity_type_requested, false, tmp_storage );
+      rval = MOABI->get_adjacencies( &*i, 1, entity_type_requested, false, tmp_storage );
       CHKERR(rval,"get_adjacencies failed");
       num_adj += tmp_storage.size();
     }
     else {
-      rval = MBI->get_connectivity( *i, conn_ptr, num_conn, false, &tmp_storage );
+      rval = MOABI->get_connectivity( *i, conn_ptr, num_conn, false, &tmp_storage );
       CHKERR(rval,"get_connectivity failed");
       num_adj += num_conn;
     }
@@ -1045,7 +1045,7 @@ void iMeshP_getAdjEntities( iMesh_Instance instance,
     ++offset_iter;
 
     tmp_storage.clear();
-    rval = MBI->get_adjacencies( &*i, 1, entity_type_requested, false, tmp_storage );
+    rval = MOABI->get_adjacencies( &*i, 1, entity_type_requested, false, tmp_storage );
     CHKERR(rval,"get_adjacencies failed");
     for (std::vector<EntityHandle>::iterator j = tmp_storage.begin(); j != tmp_storage.end(); ++j) {
       (*adj_entity_handles)[arr_pos] = itaps_cast<iBase_EntityHandle>(*j);
@@ -1075,7 +1075,7 @@ void iMeshP_initEntIter( iMesh_Instance instance,
                          const iBase_EntitySetHandle entity_set_handle,
                          const int requested_entity_type,
                          const int requested_entity_topology,
-                         iMesh_EntityIterator* entity_iterator,
+                         iBase_EntityIterator* entity_iterator,
                          int *err )
 {
   Range r;
@@ -1096,7 +1096,7 @@ void iMeshP_initEntArrIter( iMesh_Instance instance,
                             const int requested_entity_type,
                             const int requested_entity_topology,
                             const int requested_array_size,
-                            iMesh_EntityArrIterator* entArr_iterator,
+                            iBase_EntityArrIterator* entArr_iterator,
                             int *err )
 {
   Range r;
@@ -1106,7 +1106,7 @@ void iMeshP_initEntArrIter( iMesh_Instance instance,
   if (iBase_SUCCESS != *err)
     return;
   
-  *entArr_iterator = (iMesh_EntityArrIterator)create_itaps_iterator( r, requested_array_size );
+  *entArr_iterator = (iBase_EntityArrIterator)create_itaps_iterator( r, requested_array_size );
   RETURN (iBase_SUCCESS);
 }
 
@@ -1223,7 +1223,7 @@ void iMeshP_getEntStatusArr(iMesh_Instance instance,
     ERROR (iBase_FAILURE,"No PComm");
 
   std::vector<unsigned char> pstatus(entity_handles_size);
-  ErrorCode result = MBI->tag_get_data(pcomm->pstatus_tag(), 
+  ErrorCode result = MOABI->tag_get_data(pcomm->pstatus_tag(), 
                                          itaps_cast<const EntityHandle*>(entity_handles), 
                                          entity_handles_size,
                                          &pstatus[0]); 
@@ -1493,7 +1493,7 @@ void iMeshP_pushTags( iMesh_Instance instance,
   ErrorCode rval;
   Range entities;
   for (EntityType t = types.first; t <= types.second; ++t) {
-    rval = MBI->get_entities_by_type_and_tag( 0, t, &src_tags[0], 0, 1, 
+    rval = MOABI->get_entities_by_type_and_tag( 0, t, &src_tags[0], 0, 1, 
                                               entities, Interface::UNION );
     CHKERR(rval,"error getting entities to push");
   }
@@ -1632,13 +1632,13 @@ void iMeshP_loadAll( iMesh_Instance instance,
     partitioning = itaps_cast<EntityHandle>(partition);
   }
   else {
-    rval = MBI->create_meshset( MESHSET_SET, partitioning );
+    rval = MOABI->create_meshset( MESHSET_SET, partitioning );
     CHKERR(rval,"failed to create meshset");
   }
   
     // get ParallelComm for partition
   MPI_Comm default_comm = MPI_COMM_WORLD;
-  ParallelComm* pcomm = ParallelComm::get_pcomm( MBI, partitioning, &default_comm );
+  ParallelComm* pcomm = ParallelComm::get_pcomm( MOABI, partitioning, &default_comm );
   if (!pcomm) {
     RETURN (iBase_FAILURE);
   }
@@ -1696,7 +1696,7 @@ void iMeshP_saveAll( iMesh_Instance instance,
                              int *err) 
   {
     EntityHandle p = itaps_cast<EntityHandle>(partition_handle);
-    ParallelComm *pc = ParallelComm::get_pcomm(MBI, p);
+    ParallelComm *pc = ParallelComm::get_pcomm(MOABI, p);
     if (!pc) RETURN(iBase_ERROR_MAP[MB_FAILURE]);
 
     Range part_sets;
@@ -1721,7 +1721,7 @@ void iMeshP_saveAll( iMesh_Instance instance,
                                 int *err) 
   {
     EntityHandle p = itaps_cast<EntityHandle>(partition_handle);
-    ParallelComm *pc = ParallelComm::get_pcomm(MBI, p);
+    ParallelComm *pc = ParallelComm::get_pcomm(MOABI, p);
     if (!pc) RETURN(iBase_ERROR_MAP[MB_FAILURE]);
 
     if (rank[0] != (int)pc->proc_config().proc_rank() || rank_size > 1) {
