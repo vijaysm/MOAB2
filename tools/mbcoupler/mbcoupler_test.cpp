@@ -11,6 +11,7 @@
 #include <iomanip>
 #include <sstream>
 #include <assert.h>
+#include "MBiMesh.hpp"
 
 using namespace moab;
 
@@ -116,10 +117,11 @@ int main(int argc, char **argv)
   double stime; //, rtime, setime, dtime, ltime;
   if (0 == rank) stime = MPI_Wtime();
 
-    // create MOAB instance based on that
+  // create MOAB instance based on that
   Interface *mbImpl = new Core();
   if (NULL == mbImpl) return 1;
-  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
+
+  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>( new MBiMesh(mbImpl) );
   
     // read in mesh(es)
   std::vector<ParallelComm *> pcs(meshFiles.size()); 
@@ -197,6 +199,7 @@ int main(int argc, char **argv)
   }
 
   delete mbImpl;
+  //may be leaking iMeshInst, don't care since it's end of program. Remove above deletes?
   
   err = MPI_Finalize();
 
