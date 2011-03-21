@@ -10,6 +10,27 @@ AC_DEFUN([FATHOM_LIBTOOL_VAR], [
 ])
 
 
+#######################################################################################
+# Check if the C++ compiler works.
+# Arguments: action on success and action on failure
+#######################################################################################
+AC_DEFUN([FATHOM_CHECK_CXX_WORKS], [
+  AC_LANG_PUSH([C++])
+  AC_MSG_CHECKING([if $CXX works])
+  AC_COMPILE_IFELSE(
+   [AC_LANG_PROGRAM( [class Cl { int i; public: Cl(int x) : i(x) {} };] [Cl x(5);])],
+   [AC_COMPILE_IFELSE( 
+      [AC_LANG_PROGRAM( [],
+[#ifdef __cplusplus
+   choke me
+ #endif])],
+      [AC_MSG_RESULT([no (accepted invalid input)]); $2], [AC_MSG_RESULT([yes]); $1])],
+    [AC_MSG_RESULT([no (failed on trival valid C++ source)]); $2])
+
+  AC_LANG_POP([C++])
+])
+
+
 ########## Helper function for FATHOM_CHECK_COMPILERS #############
 # args: compiler variable, compiler list, path
 AC_DEFUN([FATHOM_SET_MPI_COMPILER], [
