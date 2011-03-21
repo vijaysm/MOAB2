@@ -1839,6 +1839,7 @@ extern "C" {
                                /*in*/ const iBase_TagHandle tag_handle,
                                /*in*/ const int tag_value, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_INTEGER);
     iMesh_setEntSetData(instance, entity_set, tag_handle,
                         &tag_value,
                         sizeof(int), err);
@@ -1849,6 +1850,7 @@ extern "C" {
                                /*in*/ const iBase_TagHandle tag_handle,
                                /*in*/ const double tag_value, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_DOUBLE);
     iMesh_setEntSetData(instance, entity_set, tag_handle,
                         &tag_value,
                         sizeof(double), err);
@@ -1869,6 +1871,7 @@ extern "C" {
                               /*in*/ const iBase_TagHandle tag_handle,
                               /*in*/ const iBase_EntityHandle tag_value, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_ENTITY_HANDLE);
     iMesh_setEntSetData(instance, entity_set, tag_handle,
                         &tag_value,
                         sizeof(iBase_EntityHandle), err);
@@ -1879,6 +1882,7 @@ extern "C" {
                                /*in*/ const iBase_TagHandle tag_handle,
                                /*in*/ const iBase_EntitySetHandle tag_value, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_ENTITY_SET_HANDLE);
     iMesh_setEntSetData(instance, entity_set, tag_handle,
                         &tag_value,
                         sizeof(iBase_EntitySetHandle), err);
@@ -1915,6 +1919,7 @@ extern "C" {
                                /*in*/ const iBase_TagHandle tag_handle,
                                int *out_data, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_INTEGER);
     void *tag_ptr = out_data;
     int dum_size = sizeof(int);
     iMesh_getEntSetData(instance, entity_set, tag_handle, &tag_ptr,
@@ -1926,6 +1931,7 @@ extern "C" {
                                /*in*/ const iBase_TagHandle tag_handle,
                                double *out_data, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_DOUBLE);
     void *tag_ptr = out_data;
     int tag_size = sizeof(double);
     iMesh_getEntSetData(instance, entity_set, tag_handle, &tag_ptr,
@@ -1948,6 +1954,7 @@ extern "C" {
                               /*in*/ const iBase_TagHandle tag_handle,
                               iBase_EntityHandle *out_data, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_ENTITY_HANDLE);
     void *tag_ptr = out_data;
     int tag_size = sizeof(EntityHandle);
     iMesh_getEntSetData(instance, entity_set, tag_handle, &tag_ptr,
@@ -1959,6 +1966,7 @@ extern "C" {
                               /*in*/ const iBase_TagHandle tag_handle,
                               iBase_EntitySetHandle *out_data, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_ENTITY_SET_HANDLE);
     void *tag_ptr = out_data;
     int tag_size = sizeof(EntityHandle);
     iMesh_getEntSetData(instance, entity_set, tag_handle, &tag_ptr,
@@ -2081,6 +2089,7 @@ extern "C" {
   {
     const EntityHandle *ents = reinterpret_cast<const EntityHandle *>(entity_handles);
     Tag tag = TAG_HANDLE(tag_handle);
+
     int tag_size;
     ErrorCode result = MOABI->tag_get_size(tag, tag_size);
     if (MB_SUCCESS != result) {
@@ -2128,6 +2137,7 @@ extern "C" {
                             /*inout*/ int* tag_values_allocated,
                             /*out*/ int* tag_values_size, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_INTEGER);
     *tag_values_allocated *= sizeof(int);
     *tag_values_size *= sizeof(int);
     iMesh_getArrData(instance, entity_handles,
@@ -2147,6 +2157,7 @@ extern "C" {
                             /*inout*/ int* tag_values_allocated,
                             /*out*/ int* tag_values_size, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_DOUBLE);
     *tag_values_allocated *= sizeof(double);
     *tag_values_size *= sizeof(double);
     iMesh_getArrData(instance, entity_handles,
@@ -2183,6 +2194,7 @@ extern "C" {
                            /*inout*/ int* tag_value_allocated,
                            /*out*/ int* tag_value_size, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_ENTITY_HANDLE);
     *tag_value_allocated *= sizeof(iBase_EntityHandle);
     *tag_value_size *= sizeof(iBase_EntityHandle);
     iMesh_getArrData(instance, entity_handles,
@@ -2202,6 +2214,7 @@ extern "C" {
                            /*inout*/ int* tag_value_allocated,
                            /*out*/ int* tag_value_size, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_ENTITY_SET_HANDLE);
     *tag_value_allocated *= sizeof(iBase_EntityHandle);
     *tag_value_size *= sizeof(iBase_EntityHandle);
     iMesh_getArrData(instance, entity_handles,
@@ -2250,6 +2263,7 @@ extern "C" {
                             /*in*/ const int* tag_values,
                             /*in*/ const int tag_values_size, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_INTEGER);
     iMesh_setArrData(instance, entity_handles,
                      entity_handles_size, tag_handle,
                      reinterpret_cast<const char*>(tag_values),
@@ -2263,6 +2277,7 @@ extern "C" {
                             /*in*/ const double* tag_values,
                             /*in*/ const int tag_values_size, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_DOUBLE);
     iMesh_setArrData(instance, entity_handles,
                      entity_handles_size, tag_handle,
                      reinterpret_cast<const char*>(tag_values),
@@ -2289,6 +2304,7 @@ extern "C" {
                            /*in*/ const iBase_EntityHandle* tag_values,
                            /*in*/ const int tag_values_size, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_ENTITY_HANDLE);
     iMesh_setArrData(instance, entity_handles,
                      entity_handles_size, tag_handle,
                      reinterpret_cast<const char*>(tag_values),
@@ -2302,6 +2318,7 @@ extern "C" {
                            /*in*/ const iBase_EntitySetHandle* tag_values,
                            /*in*/ const int tag_values_size, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_ENTITY_SET_HANDLE);
     iMesh_setArrData(instance, entity_handles,
                      entity_handles_size, tag_handle,
                      reinterpret_cast<const char*>(tag_values),
@@ -2338,6 +2355,7 @@ extern "C" {
                          /*in*/ const iBase_TagHandle tag_handle,
                          int *out_data, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_INTEGER);
     void *val_ptr = out_data;
     int val_size = sizeof(int);
     iMesh_getArrData(instance, &entity_handle, 1,
@@ -2349,6 +2367,7 @@ extern "C" {
                          /*in*/ const iBase_TagHandle tag_handle,
                          double *out_data, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_DOUBLE);
     void *val_ptr = out_data;
     int val_size = sizeof(double);
     iMesh_getArrData(instance, &entity_handle, 1,
@@ -2372,6 +2391,7 @@ extern "C" {
                         /*in*/ const iBase_TagHandle tag_handle,
                         iBase_EntityHandle *out_data, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_ENTITY_HANDLE);
     void *val_ptr = out_data;
     int dum = sizeof(iBase_EntityHandle);
     iMesh_getArrData(instance, &entity_handle, 1,
@@ -2383,6 +2403,7 @@ extern "C" {
                         /*in*/ const iBase_TagHandle tag_handle,
                         iBase_EntitySetHandle *out_data, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_ENTITY_SET_HANDLE);
     void *val_ptr = out_data;
     int dum = sizeof(iBase_EntityHandle);
     iMesh_getArrData(instance, &entity_handle, 1,
@@ -2404,6 +2425,7 @@ extern "C" {
                          /*in*/ const iBase_TagHandle tag_handle,
                          /*in*/ const int tag_value, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_INTEGER);
     iMesh_setArrData(instance, &entity_handle, 1,
                      tag_handle,
                      reinterpret_cast<const char*>(&tag_value),
@@ -2416,6 +2438,7 @@ extern "C" {
                          /*in*/ const iBase_TagHandle tag_handle,
                          /*in*/ const double tag_value, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_DOUBLE);
     iMesh_setArrData(instance, &entity_handle, 1,
                      tag_handle,
                      reinterpret_cast<const char*>(&tag_value),
@@ -2438,6 +2461,7 @@ extern "C" {
                         /*in*/ const iBase_TagHandle tag_handle,
                         /*in*/ const iBase_EntityHandle tag_value, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_ENTITY_HANDLE);
     iMesh_setArrData(instance, &entity_handle, 1,
                      tag_handle,
                      reinterpret_cast<const char*>(&tag_value),
@@ -2449,6 +2473,7 @@ extern "C" {
                         /*in*/ const iBase_TagHandle tag_handle,
                         /*in*/ const iBase_EntitySetHandle tag_value, int *err)
   {
+    CHKTAGTYPE(tag_handle, iBase_ENTITY_SET_HANDLE);
     iMesh_setArrData(instance, &entity_handle, 1,
                      tag_handle,
                      reinterpret_cast<const char*>(&tag_value),

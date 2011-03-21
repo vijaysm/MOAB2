@@ -80,6 +80,16 @@ static inline bool iMesh_isError(ErrorCode code)
     ERROR((ERR), "Invalid enumeration value");                  \
   } while(false)
 
+#define CHKTAGTYPE(TAG,TYPE)                                            \
+  do {                                                                  \
+    DataType type;                                                      \
+    ErrorCode result = MOABI->tag_get_data_type(TAG_HANDLE(TAG), type); \
+    CHKERR(result, "Couldn't get tag data type");                       \
+    if (tstt_data_type_table[type] != (TYPE))                           \
+      ERROR(iBase_INVALID_TAG_HANDLE, "Invalid tag data type");         \
+  } while(false)
+
+
 // Check the array size, and allocate the array if necessary.
 // Free the array upon leaving scope unless KEEP_ARRAY
 // is invoked.
