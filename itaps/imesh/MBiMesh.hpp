@@ -2,6 +2,7 @@
 #define MBIMESH_HPP
 
 #include "moab/Core.hpp"
+#include "moab/Range.hpp"
 #include <vector>
 #include <algorithm>
 

@@ -1616,7 +1616,7 @@ int test_part_boundary_iter( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, 
       std::sort( shared_verts, shared_verts + num_shared_verts );
   
         // test single entity iterator
-      iMesh_EntityIterator siter;
+      iBase_EntityIterator siter;
       iMeshP_initPartBdryEntIter( imesh, prtn, local_handle, iBase_VERTEX, iMesh_POINT,
                                   other_id, &siter, &ierr );
       if (ierr != iBase_SUCCESS) {
@@ -1644,7 +1644,7 @@ int test_part_boundary_iter( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, 
       iMesh_endEntIter( imesh, siter, &ierr );
       
         // test array iterator
-      iMesh_EntityArrIterator aiter;
+      iBase_EntityArrIterator aiter;
       iMeshP_initPartBdryEntArrIter( imesh, prtn, local_handle, iBase_VERTEX, iMesh_POINT,
                                      num_shared_verts, other_id, &aiter, &ierr );
       if (ierr != iBase_SUCCESS) {
