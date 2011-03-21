@@ -25,6 +25,8 @@ AC_DISABLE_SHARED
 AC_PROG_FC
 AC_PROG_LIBTOOL
 
+FATHOM_CHECK_CXX_WORKS([], [AC_MSG_ERROR([Cannot build without C++ compiler])])
+
 if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FC"; then
   AC_FC_WRAPPERS
 fi
