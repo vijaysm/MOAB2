@@ -29,7 +29,7 @@ bool debug = false;
       std::cout << "Failure; message:" << std::endl;\
       mbImpl->get_last_error(tmp_str);\
       std::cout << tmp_str << std::endl;\
-      MPI_Finalize();                                     \
+      MPI_Abort(MPI_COMM_WORLD, result);        \
       return result;\
     }
 
@@ -39,7 +39,7 @@ bool debug = false;
       std::cout << "Failure; message:" << std::endl;\
       mbImpl->get_last_error(tmp_str);\
       std::cout << tmp_str << std::endl;\
-      MPI_Finalize();                                     \
+      MPI_Abort(MPI_COMM_WORLD, result);        \
       return result;\
     }
 
@@ -81,6 +81,16 @@ ErrorCode test_interpolation(Interface *mbImpl,
                              double &interp_time,
                              double &gnorm_time,
                              double &ssnorm_time);
+
+void reduceMax(double &v){
+  double buf;
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Allreduce( &v, &buf, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+  v=buf;
+}
+
 
 int main(int argc, char **argv) 
 {
@@ -151,14 +161,15 @@ int main(int argc, char **argv)
                               instant_time, pointloc_time, interp_time, 
                               gnorm_time, ssnorm_time);
   PRINT_LAST_ERROR;
-  std::cout << "Coupler times:" << std::endl;
-  std::cout << "    instantiation | point location | interpolation | global norm time | subset norm time" << std::endl;
-  std::cout << "    " 
-            << std::setw(13) << instant_time << "   "
-            << std::setw(14) << pointloc_time << "   "
-            << std::setw(13) << interp_time << "   "
-            << std::setw(16) << gnorm_time << "   "
-            << std::setw(16) << ssnorm_time << std::endl;
+
+  
+  reduceMax(instant_time);  
+  reduceMax(pointloc_time);
+  reduceMax(interp_time);
+
+  if(0==rank)
+    printf("\nMax time : %g %g %g (inst loc interp -- %d procs )\n", instant_time, 
+	   pointloc_time, interp_time, nprocs);
 
     // output mesh
   if (!outFile.empty()) {
