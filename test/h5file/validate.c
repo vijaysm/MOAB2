@@ -741,8 +741,9 @@ static int check_valid_parents_children( long start_id,
   const char cldstr[] = "Child";
   const char* name = parents ? parstr : cldstr;
   long i, prev, start, n;
-  long invalid = 0;
+  long invalid = 0, invalid_dup = 0;
   long range[2];
+  int result = 0;
   range[0] = start_id;
   range[1] = count;
   
@@ -785,7 +786,7 @@ static int check_valid_parents_children( long start_id,
     else if (contains_duplicates( contents+start, n )) {
       if (VERBOSE)
         printf("Set %ld (ID %ld) %s list contains duplicate IDs.\n", i, start_id+i, name );
-      ++invalid;
+      ++invalid_dup;
     }
   }
   
@@ -794,10 +795,15 @@ static int check_valid_parents_children( long start_id,
   
   if (invalid) {
     printf( "%ld sets had invalid %s lists.\n", invalid, name );
-    return 1;
+    result = 1;
   }
   
-  return 0;
+  if (invalid_dup) {
+    printf( "%ld sets had duplicate handles in %s lists.\n", invalid_dup, name );
+    result = 1;
+  }
+  
+  return result;
 }
 
 static int merge_ranges( long* ranges, int nranges )
