@@ -80,12 +80,19 @@ static inline bool iMesh_isError(ErrorCode code)
     ERROR((ERR), "Invalid enumeration value");                  \
   } while(false)
 
+// Ensure that a tag's data type matches the expected data type (entity handle
+// and entity set handle tags are compatible with one another).
 #define CHKTAGTYPE(TAG,TYPE)                                            \
   do {                                                                  \
-    DataType type;                                                      \
-    ErrorCode result = MOABI->tag_get_data_type(TAG_HANDLE(TAG), type); \
+    int type, result;                                                   \
+    iMesh_getTagType(instance, (TAG), &type, &result);                  \
     CHKERR(result, "Couldn't get tag data type");                       \
-    if (tstt_data_type_table[type] != (TYPE))                           \
+    if ((type == iBase_ENTITY_HANDLE &&                                 \
+         (TYPE) == iBase_ENTITY_SET_HANDLE) ||                          \
+        (type == iBase_ENTITY_SET_HANDLE &&                             \
+         (TYPE) == iBase_ENTITY_HANDLE))                                \
+      break;                                                            \
+    if (type != (TYPE))                                                 \
       ERROR(iBase_INVALID_TAG_HANDLE, "Invalid tag data type");         \
   } while(false)
 
