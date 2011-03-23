@@ -22,12 +22,13 @@
 
 #include <H5Ppublic.h>
 #include <H5Tpublic.h>
+#include <H5Epublic.h>
 #include <H5FDmpi.h>
 #include <H5FDmpio.h>
 
-const char* filename = "mhdf_ll.h5m";
-const char* proc_tag_name = "proc_id";
-const char* elem_handle = "Hex";
+const char filename[] = "mhdf_ll.h5m";
+const char proc_tag_name[] = "proc_id";
+const char elem_handle[] = "Hex";
 
 int RANK;
 int NUM_PROC;
@@ -249,11 +250,51 @@ void write_file_data()
   mhdf_closeFile( file, &status );
   CHECK(status);
 }
- 
+
+/* Define a dummy error handler to register with HDF5. 
+ * This function doesn't do anything except pass the
+ * error on to the default handler that would have been
+ * called anyway.  It's only purpose is to provide a 
+ * spot to set a break point so we can figure out where
+ * (in our code) that we made an invalid call into HDF5
+ */
+#if defined(H5E_auto_t_vers) && H5E_auto_t_vers > 1
+herr_t (*default_handler)( hid_t, void* );
+static herr_t handle_hdf5_error( hid_t stack, void* data )
+#else
+herr_t (*default_handler)( void* );
+static herr_t handle_hdf5_error( void* data )
+#endif
+{
+  herr_t result = 0;
+  if (default_handler)
+#if defined(H5E_auto_t_vers) && H5E_auto_t_vers > 1
+    result = (default_handler)(stack,data);
+#else
+    result = (default_handler)(data);
+#endif
+  assert(0);
+  return result;
+}
  
 int main( int argc, char* argv[] )
 {
   int rval;
+  void* data;
+  herr_t err;
+
+#if defined(H5Eget_auto_vers) && H5Eget_auto_vers > 1
+  err = H5Eget_auto( H5E_DEFAULT, &default_handler, &data );
+#else
+  err = H5Eget_auto( &default_handler, &data );
+#endif
+  if (err >= 0) {
+#if defined(H5Eset_auto_vers) && H5Eset_auto_vers > 1
+    H5Eset_auto( H5E_DEFAULT, &handle_hdf5_error, data );
+#else
+    H5Eset_auto( &handle_hdf5_error, data );
+#endif
+  }
   
   rval = MPI_Init( &argc, &argv );
   if (rval)

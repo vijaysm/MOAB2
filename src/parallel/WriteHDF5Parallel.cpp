@@ -2149,14 +2149,25 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
   hid_t mem;
   if (count) {
     mem = H5Screate_simple( 2, dims, NULL );
+#if (1000 * H5_VERS_MAJOR + H5_VERS_MINOR) < 1007
+    herr = H5Sselect_elements( space, H5S_SELECT_SET, 4*count, (const hsize_t**)&coords[0] );
+#else
     herr = H5Sselect_elements( space, H5S_SELECT_SET, 4*count, &coords[0] );
+#endif
   }
   else {
 #if H5_VERS_MAJOR > 1 || H5_VERS_MINOR >= 8
     mem = H5Screate(H5S_NULL); 
 #else
-    mem = H5Screate( H5S_SIMPLE );
-    H5Sselect_none( mem );
+    hsize_t one = 1;
+    mem = H5Screate_simple( 1, &one, NULL );
+    herr = H5Sselect_none( mem );
+    if (herr < 0) {
+      H5Sclose( space );
+      H5Sclose( mem );
+      writeUtil->report_error( "H5Sselect_none failed for set contents" );
+      return MB_FAILURE;
+    }
 #endif
     herr = H5Sselect_none( space );
   }
@@ -2240,9 +2251,17 @@ ErrorCode WriteHDF5Parallel::write_shared_set_data( hid_t table,
 #if H5_VERS_MAJOR > 1 || H5_VERS_MINOR >= 8
     mem = H5Screate(H5S_NULL); 
 #else
-    mem = H5Screate( H5S_SIMPLE );
-    H5Sselect_none( mem );
+    hsize_t one = 1;
+    mem = H5Screate_simple( 1, &one, NULL );
+    err = H5Sselect_none( mem );
+    if (err < 0) {
+      H5Sclose( data_space );
+      H5Sclose( mem );
+      writeUtil->report_error( "H5Sselect_none failed for set contents" );
+      return MB_FAILURE;
+    }
 #endif
+    H5Sselect_none(data_space);
   }
   else {
     hsize_t dim = big_list.size();
