@@ -19,15 +19,15 @@
 int main(int argc, char * argv[])
 {
   if(argc != 3){
-    std::cerr<<"Usage: ./driver <inputfile> <tolerance>"<<std::endl;
+    std::cerr<<"Usage: "<<argv[0]<<" <inputfile> <tolerance>"<<std::endl;
     return 1;
   }
 
   //Initialize MPI
-  int numprocs, id;
+  int numprocs, myID;
   MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
-  MPI_Comm_rank(MPI_COMM_WORLD, &id);
+  MPI_Comm_rank(MPI_COMM_WORLD, &myID);
   
   //Read in tolerance
   double epsilon;
@@ -46,10 +46,10 @@ int main(int argc, char * argv[])
     int count = 0;
     while(file.good()){
       getline(file,line);
-      if(id==count && line != ""){
+      if(myID == count && line != ""){
 	rval = mb->load_mesh(line.c_str());
 	if(rval != moab::MB_SUCCESS){
-	  std::cerr<<"Error Opening File "<< line <<std::endl;
+	  std::cerr<<"Error Opening Mesh File "<< line <<std::endl;
 	  MPI_Abort(MPI_COMM_WORLD,1);
 	  file.close();
 	  return 1;
@@ -67,7 +67,7 @@ int main(int argc, char * argv[])
 
   //Get a pcomm object
   moab::ParallelComm *pc = new moab::ParallelComm(mb); 
- 
+
   //Call the resolve parallel function
   moab::ParallelMergeMesh pm(pc,epsilon);
   rval = pm.merge();
@@ -78,19 +78,24 @@ int main(int argc, char * argv[])
   }
 
   //Write out the file
-  std::string outfile = "/home/nbertram/Desktop/meshes/shared_tagged.h5m";
-  rval = mb->write_file(outfile.c_str() ,NULL,"PARALLEL=WRITE_PART");
+  std::stringstream np;
+  np << numprocs;
+  std::string outfile = "/home/nbertram/Desktop/meshes/shared_tagged";
+  outfile = outfile + np.str() + ".h5m";
+  rval = mb->write_file(outfile.c_str() , 0,"PARALLEL=WRITE_PART");
   if(rval != moab::MB_SUCCESS){
     std::cerr<<"Writing output file failed Code:";
     //Temporary File error info.
     std::cerr<<mb->get_error_string(rval)<<std::endl;
     std::string foo = ""; mb->get_last_error(foo);
     std::cerr<<"File Error: "<<foo<<std::endl;
-    MPI_Abort(MPI_COMM_WORLD,1);
     return 1;
   }
 
+  //The barrier may be necessary to stop items from being deleted when needed
+  //But probably not necessary
   MPI_Barrier(MPI_COMM_WORLD);
+  
   delete pc;
   delete mb;
   MPI_Finalize();

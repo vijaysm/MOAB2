@@ -1,13 +1,14 @@
 #ifndef PARALLELMERGEMESH_HPP
 #define PARALLELMERGEMESH_HPP
 
-//Almost compiling
-
-//Need to figure out how to not need this.
-//Most likely a problem with my installation.
-//My installation is installed with --with-mpi and is passing all the make check
-
 #include "moab/Types.hpp"
+extern "C" 
+{
+#include "errmem.h"
+#include "types.h"
+#include "sort.h"
+#include "tuple_list.h"
+}
 
 namespace moab {
 
@@ -23,6 +24,11 @@ public:
 private:
   ParallelComm *myPcomm;
   double myEps;
+
+  static void temp_tuple_swap_real(tuple_list *tup, 
+				    unsigned a, unsigned b);
+  static void temp_tuple_sort_real(tuple_list *tup, 
+				    double eps2=0);
 };
 
 } // namespace moab

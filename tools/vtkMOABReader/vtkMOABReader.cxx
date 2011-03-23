@@ -448,7 +448,8 @@ ErrorCode vtkMOABReaderPrivate::read_dense_tags(EntityHandle file_set)
     std::string tag_name;
     bool has_default = false;
     rval = mbImpl->tag_get_name(*vit, tag_name);
-    if (MB_SUCCESS != rval) continue;
+    if (MB_SUCCESS != rval || 
+        (tag_name.c_str()[0] == '_' && tag_name.c_str()[1] == '_')) continue;
     if (MB_TYPE_DOUBLE == dtype) {
       dbl_array = vtkDoubleArray::New();
       dbl_array->SetName(tag_name.c_str());
@@ -528,10 +529,35 @@ ErrorCode vtkMOABReaderPrivate::read_dense_tags(EntityHandle file_set)
       MOABMeshErrorMacro(<< "3d: min = " << min << ", max =  " << max);
     }
     
+    if (MB_TYPE_DOUBLE == dtype) {
+      this->GetOutput()->GetCellData()->AddArray(dbl_array);
+      dbl_array->Delete();
+      MOABMeshErrorMacro(<< "Read " << dbl_array->GetSize() << " values of dbl tag " << tag_name);
+    }
+    else if (MB_TYPE_INTEGER == dtype) {
+      this->GetOutput()->GetCellData()->AddArray(int_array);
+      int_array->Delete();
+      MOABMeshErrorMacro(<< "Read " << int_array->GetSize() << " values of int tag " << tag_name);
+    }
+
+      // do verts as point data
+    if (MB_TYPE_DOUBLE == dtype) {
+      dbl_array = vtkDoubleArray::New();
+      dbl_array->SetName(tag_name.c_str());
+      if (MB_SUCCESS == mbImpl->tag_get_default_value(*vit, &ddef))
+        has_default = true;
+    }
+    else if (MB_TYPE_INTEGER == dtype) {
+      int_array = vtkIntArray::New();
+      int_array->SetName(tag_name.c_str());
+      if (MB_SUCCESS == mbImpl->tag_get_default_value(*vit, &idef))
+        has_default = true;
+    }
+
     rit = rit2 = verts.begin();
     while (rit != verts.end()) {
         // get tag iterator for vids
-      rval = mbImpl->tag_iterate(vtkCellTag, rit, verts.end(), (void*&)vids);
+      rval = mbImpl->tag_iterate(vtkPointTag, rit, verts.end(), (void*&)vids);
       if (MB_SUCCESS != rval) continue;
       int count = rit - rit2;
       
@@ -541,7 +567,7 @@ ErrorCode vtkMOABReaderPrivate::read_dense_tags(EntityHandle file_set)
       if (MB_TYPE_DOUBLE == dtype) {
         ddata = (double*)data;
         for (int i = 0; i < count; i++) {
-          assert(vids[i] >= 0 && vids[i] < numCellIds);
+          assert(vids[i] >= 0 && vids[i] < numPointIds);
           if (!has_default || ddata[i] != ddef)
             dbl_array->InsertValue(vids[i], ddata[i]);
         }
@@ -549,7 +575,7 @@ ErrorCode vtkMOABReaderPrivate::read_dense_tags(EntityHandle file_set)
       else if (MB_TYPE_INTEGER == dtype) {
         idata = (int*)data;
         for (int i = 0; i < count; i++) {
-          assert(vids[i] >= 0 && vids[i] < numCellIds);
+          assert(vids[i] >= 0 && vids[i] < numPointIds);
           if (!has_default || idata[i] != idef)
             int_array->InsertValue(vids[i], idata[i]);
         }
@@ -561,15 +587,16 @@ ErrorCode vtkMOABReaderPrivate::read_dense_tags(EntityHandle file_set)
     }
     
     if (MB_TYPE_DOUBLE == dtype) {
-      this->GetOutput()->GetCellData()->AddArray(dbl_array);
+      this->GetOutput()->GetPointData()->AddArray(dbl_array);
       dbl_array->Delete();
       MOABMeshErrorMacro(<< "Read " << dbl_array->GetSize() << " values of dbl tag " << tag_name);
     }
     else if (MB_TYPE_INTEGER == dtype) {
-      this->GetOutput()->GetCellData()->AddArray(int_array);
+      this->GetOutput()->GetPointData()->AddArray(int_array);
       int_array->Delete();
       MOABMeshErrorMacro(<< "Read " << int_array->GetSize() << " values of int tag " << tag_name);
     }
+
   }
 
   return MB_SUCCESS;
@@ -745,6 +772,7 @@ ErrorCode vtkMOABReaderPrivate::create_points_vertices(EntityHandle file_set, Ra
   myUG->SetPoints(points);
 
     // create point cells for these points
+/*
   for (unsigned int i = 0; i < verts.size(); i++) {
     vtkIdType vid = vids[i];
     vids[i] = myUG->InsertNextCell(vtk_cell_types[0], 1, &vid);
@@ -757,7 +785,7 @@ ErrorCode vtkMOABReaderPrivate::create_points_vertices(EntityHandle file_set, Ra
     MOABMeshErrorMacro( << "Couldn't set ids on vertex cells. " );
     return result;
   }
-
+*/
   points->Delete();
 
   return MB_SUCCESS;
@@ -823,7 +851,7 @@ ErrorCode vtkMOABReaderPrivate::create_elements(EntityHandle file_set)
       }
 
         // get the id tag for these vertices
-      result = mbImpl->tag_get_data(vtkCellTag, connect, num_connect, ids);
+      result = mbImpl->tag_get_data(vtkPointTag, connect, num_connect, ids);
       if (MB_SUCCESS != result)
       {
         MOABMeshErrorMacro( << "Couldn't get vertex ids for element. " );
@@ -1123,9 +1151,13 @@ vtkMultiBlockDataSet *vtkMOABReaderPrivate::get_mbdataset(vtkMultiBlockDataSet *
   ds_val->GetMetaData((unsigned int)0)->Set(vtkCompositeDataSet::NAME(), set_name.c_str());
 
     // fill the EC from the set contents
-  Range ents;
+  Range ents, verts;
   rval = mbImpl->get_entities_by_handle(eset, ents, true);
   if (MB_SUCCESS != rval) return NULL;
+
+    // filter out vertices
+  verts = ents.subset_by_type(MBVERTEX);
+  ents -= verts;
   if (!ents.empty()) {
       // fill it with the entities
     vtkIdList *ids = vtkIdList::New();
