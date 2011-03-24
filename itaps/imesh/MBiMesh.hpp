@@ -28,7 +28,7 @@ public:
   virtual ErrorCode delete_mesh();
   virtual ErrorCode delete_entities( const EntityHandle*, const int );
   virtual ErrorCode delete_entities( const Range& );
-  int AdjTable[16];
+  iBase_AdjacencyCost AdjTable[16];
   moab::Interface *mbImpl;
   
   inline void note_set_handle_tag( Tag );
@@ -45,13 +45,13 @@ static inline MBiMesh *mbimeshi_instance(iMesh_Instance instance) {return reinte
 inline MBiMesh::MBiMesh(Interface *impl)
         : haveDeletedEntities(false), iCreatedInterface(false), mbImpl(impl)
 {
-  int tmp_table[] = {
-      1, 1, 1, 1,
-      1, 0, 2, 2,
-      1, 2, 0, 2,
-      1, 2, 2, 1
+  iBase_AdjacencyCost tmp_table[] = {
+      iBase_ALL_ORDER_1, iBase_SOME_ORDER_1,    iBase_SOME_ORDER_1,    iBase_ALL_ORDER_1,
+      iBase_ALL_ORDER_1, iBase_UNAVAILABLE,     iBase_SOME_ORDER_LOGN, iBase_SOME_ORDER_LOGN,
+      iBase_ALL_ORDER_1, iBase_SOME_ORDER_LOGN, iBase_UNAVAILABLE,     iBase_SOME_ORDER_LOGN,
+      iBase_ALL_ORDER_1, iBase_SOME_ORDER_LOGN, iBase_SOME_ORDER_LOGN, iBase_ALL_ORDER_1
   };
-  memcpy(AdjTable, tmp_table, 16*sizeof(int));
+  memcpy(AdjTable, tmp_table, 16*sizeof(iBase_AdjacencyCost));
 
   if (!mbImpl) {
     mbImpl = new Core();
