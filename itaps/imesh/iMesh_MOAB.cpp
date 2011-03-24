@@ -14,6 +14,14 @@
 #include "moab_mpi.h"
 #endif
 
+#define STRINGIFY_(X) #X
+#define STRINGIFY(X) STRINGIFY_(X)
+#ifdef HAVE_UNORDERED_MAP
+# include STRINGIFY(HAVE_UNORDERED_MAP)
+#else
+# include <map>
+#endif
+
 #include <iostream>
 #include <cassert>
 #include <cctype>
@@ -2671,9 +2679,63 @@ extern "C" {
       result = MOABI->unite_meshset(temp_set, set1);
     }
     else {
-      result = MOABI->unite_meshset(temp_set, set1);
-      if (MB_SUCCESS == result)
-        result = MOABI->intersect_meshset(temp_set, set2);
+      if (isList1 && isList2) {
+          // ITAPS has very specific rules about the behavior of intersection on
+          // list-type sets. Since MOAB doesn't (and likely will never) work
+          // exactly this way, we implement our own algorithm here.
+
+#ifdef HAVE_UNORDERED_MAP
+        typedef UNORDERED_MAP_NS::unordered_map<EntityHandle, size_t> lookup_t;
+#else
+        typedef std::map<EntityHandle, size_t> lookup_t;
+#endif
+
+          // First, build a lookup table for the second set.
+        lookup_t lookup;
+        {
+          std::vector<EntityHandle> contents2;
+          result = MOABI->get_entities_by_handle(set2, contents2);
+          CHKERR(result,"iMesh_intersect: ERROR intersect failed.");
+
+          for (std::vector<EntityHandle>::iterator i = contents2.begin();
+               i != contents2.end(); ++i) {
+#ifdef HAVE_UNORDERED_MAP
+            lookup_t::iterator j = lookup.find(*i);
+#else
+            lookup_t::iterator j = lookup.lower_bound(*i);
+#endif
+            if (j != lookup.end() && j->first == *i)
+              ++j->second;
+            else
+              lookup.insert(j, lookup_t::value_type(*i, 1));
+          }
+        }
+
+          // Then, iterate over the contents of the first set and check for
+          // their existence in the second set.
+        std::vector<EntityHandle> contents1;
+        result = MOABI->get_entities_by_handle(set1, contents1);
+        CHKERR(result,"iMesh_intersect: ERROR intersect failed.");
+
+        std::vector<EntityHandle>::iterator w = contents1.begin();
+        for (std::vector<EntityHandle>::iterator i = contents1.begin();
+             i != contents1.end(); ++i) {
+          lookup_t::iterator j = lookup.find(*i);
+          if (j != lookup.end() && j->second) {
+            --j->second;
+            *w = *i;
+            ++w;
+          }
+        }
+
+        result = MOABI->add_entities(temp_set, &contents1[0],
+                                     w - contents1.begin());
+      }
+      else {
+        result = MOABI->unite_meshset(temp_set, set1);
+        if (MB_SUCCESS == result)
+          result = MOABI->intersect_meshset(temp_set, set2);
+      }
     }
 
     CHKERR(result,"iMesh_intersect: ERROR intersect failed.");
