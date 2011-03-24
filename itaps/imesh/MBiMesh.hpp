@@ -45,10 +45,10 @@ inline MBiMesh::MBiMesh(Interface *impl)
         : haveDeletedEntities(false), iCreatedInterface(false), mbImpl(impl)
 {
   int tmp_table[] = {
-      1, 1, 1, 1,
-      1, 0, 2, 2,
-      1, 2, 0, 2,
-      1, 2, 2, 1
+      1, 4, 4, 1,
+      1, 0, 5, 5,
+      1, 5, 0, 5,
+      1, 5, 5, 1
   };
   memcpy(AdjTable, tmp_table, 16*sizeof(int));
 
