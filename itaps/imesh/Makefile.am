@@ -12,7 +12,8 @@ EXTRA_DIST = brick.vtk quad9.cub
 
 libiMesh_la_SOURCES = \
 	iMesh_MOAB.cpp \
-	iMesh_MOAB.hpp
+	iMesh_MOAB.hpp \
+	MBIter.hpp
 
 libiMesh_la_include_HEADERS = iMesh.h \
                               iMesh_extensions.h \

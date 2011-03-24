@@ -5,6 +5,7 @@
 #include "moab/MeshTopoUtil.hpp"
 #include "FileOptions.hpp"
 #include "iMesh_MOAB.hpp"
+#include "MBIter.hpp"
 #define IS_BUILDING_MB
 #include "Internals.hpp"
 #undef IS_BUILDING_MB
@@ -30,7 +31,6 @@ ErrorCode create_int_ents(MBiMesh * mbimesh,
 #define CONST_TAG_HANDLE(handle) static_cast<const Tag>(handle)
 #define ENTITY_HANDLE(handle) reinterpret_cast<EntityHandle>(handle)
 #define CONST_ENTITY_HANDLE(handle) reinterpret_cast<const EntityHandle>(handle)
-#define RANGE_ITERATOR(it) reinterpret_cast<RangeIterator*>(it)
 #define CAST_TO_VOID(ptr) reinterpret_cast<void*>(ptr)
 
 // map from MB's entity type to TSTT's entity topology
@@ -126,24 +126,6 @@ const iBase_ErrorType iBase_ERROR_MAP[MB_FAILURE+1] =
   iBase_INVALID_ENTITY_TYPE, // MB_STRUCTURED_MESH
   iBase_FAILURE // MB_FAILURE};
 };
-
-struct RangeIterator
-{
-  Range iteratorRange;
-  Range::iterator currentPos;
-  int requestedSize;
-};
-
-iBase_EntityIterator create_itaps_iterator( Range& range, int array_size )
-{
-  RangeIterator* iter = new RangeIterator;
-  if (iter) {
-    iter->iteratorRange.swap(range);
-    iter->currentPos = iter->iteratorRange.begin();
-    iter->requestedSize = array_size;
-  }
-  return reinterpret_cast<iBase_EntityIterator>(iter);
-}
 
 static int compare_no_case(const char *str1, const char *str2, size_t n) {
    for (size_t i = 1; i != n && *str1 && toupper(*str1) == toupper(*str2);
@@ -610,29 +592,25 @@ extern "C" {
       }
     }
 
-    int req_dimension = (req_type == MBMAXTYPE ? (int) requested_entity_type : -1);
-    Range range;
-
     ErrorCode result;
-    if (requested_entity_type == iBase_ALL_TYPES &&
-        requested_entity_topology == iMesh_ALL_TOPOLOGIES)
-      result = MOABI->get_entities_by_handle( ENTITY_HANDLE(entity_set_handle),
-                                            range );
-    else if (requested_entity_topology == iMesh_SEPTAHEDRON)
-      result = MB_SUCCESS; // never any septahedrons because MOAB doesn't support them
-    else if (MBMAXTYPE != req_type)
-      result = MOABI->get_entities_by_type(ENTITY_HANDLE(entity_set_handle),
-                                         req_type,
-                                         range);
+    unsigned flags;
+    result = MOABI->get_meshset_options( ENTITY_HANDLE(entity_set_handle), flags );
+    CHKERR(result,"Invalid entity set handle");
+    
+    if (flags & MESHSET_ORDERED) 
+      *entArr_iterator = new MBListIter( (iBase_EntityType)requested_entity_type, 
+                                         (iMesh_EntityTopology)requested_entity_topology, 
+                                         ENTITY_HANDLE(entity_set_handle), 
+                                         requested_array_size );
     else
-      result = MOABI->get_entities_by_dimension(ENTITY_HANDLE(entity_set_handle),
-                                              req_dimension,
-                                              range);
-
+      *entArr_iterator = new MBRangeIter( (iBase_EntityType)requested_entity_type, 
+                                          (iMesh_EntityTopology)requested_entity_topology, 
+                                          ENTITY_HANDLE(entity_set_handle), 
+                                          requested_array_size );
+    result = (*entArr_iterator)->reset( MOABI );
+    if (MB_SUCCESS != result)
+      delete *entArr_iterator;
     CHKERR(result, "iMesh_initEntArrIter: ERROR getting entities of proper type or topology." );
-
-    *entArr_iterator = reinterpret_cast<iBase_EntityArrIterator>
-                       (create_itaps_iterator( range, requested_array_size ));
     RETURN(iBase_SUCCESS);
   }
 
@@ -646,23 +624,11 @@ extern "C" {
                                 /*out*/ int* entity_handles_size,
                                 int *has_data, int *err)
   {
-    RangeIterator *this_it = RANGE_ITERATOR(entArr_iterator);
-
       // check the size of the destination array
-    int expected_size = (this_it->requestedSize < (int)this_it->iteratorRange.size() ?
-                         this_it->requestedSize : this_it->iteratorRange.size());
-    ALLOC_CHECK_ARRAY_NOFAIL(entity_handles, expected_size);
-
-    int i = 0;
-    while (i < this_it->requestedSize && this_it->currentPos != this_it->iteratorRange.end())
-    {
-      if (dynamic_cast<Core*>(MOABI)->is_valid(*this_it->currentPos))
-        (*entity_handles)[i++] = (iBase_EntityHandle)*(this_it->currentPos);
-      ++(this_it->currentPos);
-    }
-
-    *has_data = (i!=0);
-    *entity_handles_size = i;
+    ALLOC_CHECK_ARRAY_NOFAIL(entity_handles, entArr_iterator->array_size());
+    entArr_iterator->get_entities( dynamic_cast<Core*>(MOABI), 
+             (EntityHandle*)*entity_handles, *entity_handles_size );
+    *has_data = (*entity_handles_size != 0);
     RETURN(iBase_SUCCESS);
   }
 
@@ -672,20 +638,15 @@ extern "C" {
   void iMesh_resetEntArrIter (iMesh_Instance instance,
                               /*in*/ iBase_EntityArrIterator entArr_iterator, int *err)
   {
-    RangeIterator *this_it = RANGE_ITERATOR(entArr_iterator);
-
-    this_it->currentPos = this_it->iteratorRange.begin();
-
+    ErrorCode result = entArr_iterator->reset( MOABI );
+    CHKERR(result,"Re-query of iterator data for iMesh_resetEntArrIter failed");
     RETURN(iBase_SUCCESS);
   }
 
   void iMesh_endEntArrIter (iMesh_Instance instance,
                             /*in*/ iBase_EntityArrIterator entArr_iterator, int *err)
   {
-    RangeIterator *this_it = RANGE_ITERATOR(entArr_iterator);
-
-    this_it->currentPos = this_it->iteratorRange.end();
-
+    delete entArr_iterator;
     RETURN(iBase_SUCCESS);
   }
 
