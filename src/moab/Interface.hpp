@@ -1521,10 +1521,9 @@ public:
    * will return data for a single entity at a time.  
    *
    *\param tag_handle  The handle of the tag for which to access data
-   *\param iter        As input, the first entity for which to return
-   *                   data.  As output, one past the last entity for
-   *                   which data was returned.
-   *\param end         One past the last entity for which data is desired
+   *\param iter        The first entity for which to return data. 
+   *\param end         One past the last entity for which data is desired.
+   *\param count       The number of entities for which data was returned
    *\param data_ptr    Output: pointer to tag storage.
    *  
    *\Note If this function is called for entities for which no tag value
@@ -1544,24 +1543,22 @@ public:
    * ...
    * Range::iterator iter = ents.begin();
    * while (iter != ents.end()) {
-   *   Range::iterator iter2 = iter; // start of current block
+   *   int count;
    *    // get contiguous block of tag dat
    *   void* ptr;
-   *   err = mb.tag_iterate( tag, iter, ents.end(), ptr );
+   *   err = mb.tag_iterate( tag, iter, ents.end(), count, ptr );
    *   if (err) { ... }
-   *    // for each tag value
-   *   char* data = ptr;
-   *   while (iter2 != iter) {
-   *     do_something( *iter2, data );
-   *     data += bytes;
-   *     ++iter2;
-   *   }
+   *    // do something with tag data
+   *   process_Data( ptr, count );
+   *    // advance to next block of data
+   *   iter += count;
    * }
    *\endcode
    */
   virtual ErrorCode tag_iterate( Tag tag_handle,
-                                 Range::iterator& iter,
-                                 const Range::iterator& end,
+                                 Range::const_iterator begin,
+                                 Range::const_iterator end,
+                                 int& count,
                                  void*& data_ptr ) = 0;
 
     //! Remove a tag from the database and delete all of its associated data

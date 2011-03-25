@@ -366,11 +366,11 @@ void tag_time( TagType storage, bool direct, int intervals, int dim, int blocks 
   if (direct) {
     Range::iterator i, j = verts.begin();
     void* ptr;
+    int count;
     while (j != verts.end()) {
-      i = j;
-      mb.tag_iterate( tag, j, verts.end(), ptr );
+      mb.tag_iterate( tag, i, verts.end(), count, ptr );
       double* arr = reinterpret_cast<double*>(ptr);
-      for (; i != j; ++i, ++arr) 
+      for (j = i + count; i != j; ++i, ++arr) 
         *arr = (11.0 * *i + 7.0)/(*i);
     }
   }
@@ -393,11 +393,11 @@ void tag_time( TagType storage, bool direct, int intervals, int dim, int blocks 
       Range::iterator i, j = verts.begin();
       void* ptr;
       while (j != verts.end()) {
-        i = j;
-        mb.tag_iterate( tag, j, verts.end(), ptr );
+        int count;
+        mb.tag_iterate( tag, i, verts.end(), count, ptr );
         double* arr = reinterpret_cast<double*>(ptr);
         
-        for (; i != j; ++i, ++arr) {
+        for (j = i+count; i != j; ++i, ++arr) {
           *arr = 0.5 * (*arr + v0);
           double diff = fabs(*arr - v0);
           if (diff > max_diff)

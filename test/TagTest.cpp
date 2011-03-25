@@ -2156,32 +2156,31 @@ void test_tag_iterate_common( TagType storage, bool with_default )
   
   // Check that we get back expected values
   i = verts.begin();
-  size_t k = 0;
   void* ptr;
+  int count, total = 0;
   while (i != verts.end()) {
     ptr = 0;
-    Range::iterator j = i;
-    rval = mb.tag_iterate( tag, i, verts.end(), ptr );
+    rval = mb.tag_iterate( tag, i, verts.end(), count, ptr );
     CHECK_ERR(rval);
     
-    size_t count = i - j;
-    assert(k + count <= values.size());
-    CHECK_ARRAYS_EQUAL( &values[k], count, reinterpret_cast<int*>(ptr), count );
-    k += count;
+    assert(total + count <= (int)verts.size());
+    CHECK_ARRAYS_EQUAL( &values[total], count, reinterpret_cast<int*>(ptr), count );
+    i += count;
+    total += count;
   }
   
   // Check that we can set values
   i = verts.begin();
   while (i != verts.end()) {
     ptr = 0;
-    Range::iterator j = i;
-    rval = mb.tag_iterate( tag, i, verts.end(), ptr );
+    rval = mb.tag_iterate( tag, i, verts.end(), count, ptr );
     CHECK_ERR(rval);
     
+    Range::iterator end = i + count;
     int* arr = reinterpret_cast<int*>(ptr);
-    while (j != i) {
-      *arr = static_cast<int>((*j)%NUM_VTX);
-      ++j;
+    while (end != i) {
+      *arr = static_cast<int>((*i)%NUM_VTX);
+      ++i;
       ++arr;
     }
   }
@@ -2190,21 +2189,20 @@ void test_tag_iterate_common( TagType storage, bool with_default )
   i = verts.begin();
   while (i != verts.end()) {
     ptr = 0;
-    Range::iterator j = i;
-    rval = mb.tag_iterate( tag, i, verts.end(), ptr );
+    rval = mb.tag_iterate( tag, i, verts.end(), count, ptr );
     CHECK_ERR(rval);
     
+    Range::iterator end = i + count;
     int* arr = reinterpret_cast<int*>(ptr);
-    while (j != i) {
-      CHECK_EQUAL( *arr, static_cast<int>((*j)%NUM_VTX) );
-      ++j;
+    while (end != i) {
+      CHECK_EQUAL( *arr, static_cast<int>((*i)%NUM_VTX) );
+      ++i;
       ++arr;
     }
   }
   
   // Check that we cannot get tag values for invalid handles
-  i = dead.begin();
-  rval = mb.tag_iterate( tag, i, dead.end(), ptr );
+  rval = mb.tag_iterate( tag, dead.begin(), dead.end(), count, ptr );
   CHECK( MB_ENTITY_NOT_FOUND == rval || MB_TAG_NOT_FOUND == rval );
 }
 void test_tag_iterate_sparse()
@@ -2230,15 +2228,14 @@ void test_tag_iterate_invalid()
   Tag tag;
   const int zero = 0;
   void* ptr;
-  Range::iterator i;
+  int count;
   
   // Check that we cannot iterate over bit tags
   // (this will never be possible because the storage for bit tags
   //  is compressed and therefore cannot be directly accessed.)
   rval = mb.tag_create( "bits", 1, MB_TAG_BIT, MB_TYPE_BIT, tag, &zero);
   CHECK_ERR(rval);
-  i = verts.begin();
-  rval = mb.tag_iterate( tag, i, verts.end(), ptr );
+  rval = mb.tag_iterate( tag, verts.begin(), verts.end(), count, ptr );
   CHECK_EQUAL( MB_TYPE_OUT_OF_RANGE, rval );
   
   // Check that we cannot iterate over variable-length tags
@@ -2246,14 +2243,12 @@ void test_tag_iterate_invalid()
   //  pass back the length of the tag values)
   rval = mb.tag_create_variable_length( "vden", MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &zero, sizeof(int));
   CHECK_ERR(rval);
-  i = verts.begin();
-  rval = mb.tag_iterate( tag, i, verts.end(), ptr );
+  rval = mb.tag_iterate( tag, verts.begin(), verts.end(), count, ptr );
   CHECK_EQUAL( MB_VARIABLE_DATA_LENGTH, rval );
   
   rval = mb.tag_create_variable_length( "vspr", MB_TAG_SPARSE, MB_TYPE_INTEGER, tag, &zero, sizeof(int));
   CHECK_ERR(rval);
-  i = verts.begin();
-  rval = mb.tag_iterate( tag, i, verts.end(), ptr );
+  rval = mb.tag_iterate( tag, verts.begin(), verts.end(), count, ptr );
   CHECK_EQUAL( MB_VARIABLE_DATA_LENGTH, rval );
 }
   

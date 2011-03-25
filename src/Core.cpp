@@ -2150,12 +2150,17 @@ ErrorCode Core::tag_delete(Tag tag_handle)
 }
 
 ErrorCode Core::tag_iterate( Tag tag_handle,
-                             Range::iterator& iter,
-                             const Range::iterator& end,
+                             Range::const_iterator iter,
+                             Range::const_iterator end,
+                             int& count,
                              void*& data_ptr )
 {
+  Range::const_iterator init = iter;
   assert(valid_tag_handle( tag_handle ));
-  return tag_handle->tag_iterate( sequenceManager, iter, end, data_ptr );
+  ErrorCode result = tag_handle->tag_iterate( sequenceManager, iter, end, data_ptr );
+  if (MB_SUCCESS == result)
+    count = iter - init;
+  return result;
 }
 
 
