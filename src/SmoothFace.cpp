@@ -124,6 +124,7 @@ void SmoothFace::move_to_surface(double& x, double& y, double& z)
 
   ErrorCode rval = project_to_facets_main(loc2, trim, outside, &closestPoint,
       NULL);
+  if (MB_SUCCESS != rval) return;
   assert(rval==MB_SUCCESS);
   x = closestPoint[0];
   y = closestPoint[1];
@@ -150,6 +151,7 @@ bool SmoothFace::normal_at(double x, double y, double z, double& nx,
   // not interested in normal
   CartVect normal;
   ErrorCode rval = project_to_facets_main(loc2, trim, outside, NULL, &normal);
+  if (MB_SUCCESS != rval) return false;
   assert(rval==MB_SUCCESS);
   nx = normal[0];
   ny = normal[1];
@@ -392,6 +394,7 @@ ErrorCode SmoothFace::compute_tangents_for_each_edge()
     assert(nnodes == 2);
     CartVect P[2]; // store the coordinates for the nodes
     ErrorCode rval = _mb->get_coords(conn2, 2, (double *) &P[0]);
+    if (MB_SUCCESS != rval) return rval;
     assert(rval==MB_SUCCESS);
     CartVect T[2];
     T[0] = P[1] - P[0];
@@ -916,6 +919,7 @@ void SmoothFace::project_to_facet_plane(EntityHandle tri, CartVect &pt,
   double plane[4];
 
   ErrorCode rval = _mb->tag_get_data(_planeTag, &tri, 1, plane);
+  if (MB_SUCCESS != rval) return;
   assert(rval == MB_SUCCESS);
   // _planeTag
   CartVect normal(&plane[0]);// just first 3 components are used
@@ -1110,14 +1114,14 @@ ErrorCode SmoothFace::project_to_facets(std::vector<EntityHandle> & facet_list,
 {
 
   bool outside_facet, best_outside_facet = true;
-  CartVect close_point, best_point, best_areacoord;
+  double mindist = 1.e20;
+  CartVect close_point, best_point(mindist, mindist, mindist), best_areacoord;
   EntityHandle best_facet = 0L;// no best facet found yet
   EntityHandle facet;
   assert(facet_list.size() > 0);
 
   double big_dist = compareTol * 1.0e3;
 
-  double mindist = 1.e20;
   bool done = false; // maybe not use this
 
   // from the list of close facets, determine the closest point
@@ -1242,7 +1246,7 @@ ErrorCode SmoothFace::project_to_patch(EntityHandle facet, // (IN) the facet whe
   double bestdist = lastdist;
   CartVect bestac = ac;
   CartVect bestpt = newpt;
-  CartVect bestnorm;
+  CartVect bestnorm(0, 0, 0);
 
   // If we are already close enough, then return now
 
@@ -1535,6 +1539,9 @@ void SmoothFace::ac_at_edge(CartVect &fac, // facet area coordinate
     break;
   default:
     assert(0);
+    u = -1; // needed to eliminate warnings about used before set
+    v = -1; // needed to eliminate warnings about used before set
+    w = -1; // needed to eliminate warnings about used before set
     break;
   }
   eac[0] = u;
@@ -2111,6 +2118,7 @@ ErrorCode SmoothFace::ray_intersection_correct(EntityHandle facet, // (IN) the f
 
     ErrorCode rval = project_to_facets_main(currentPoint, trim, outside,
         &newPos, &normal);
+    if (MB_SUCCESS != rval) return rval;
     assert(rval==MB_SUCCESS);
     diff = newPos - currentPoint;
     improvement = diff.length();

@@ -122,6 +122,7 @@ bool SmoothCurve::position_from_u(double u, double& x, double& y, double& z)
 
   CartVect position;
   ErrorCode rval = evaluate_smooth_edge(edge, t, position);
+  if (MB_SUCCESS != rval) return false;
   assert(rval==MB_SUCCESS);
   x = position[0];
   y = position[1];

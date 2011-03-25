@@ -45,14 +45,14 @@ public:
     //!\return MB_MULTIPLE_ENTITIES_FOUND if surface already has a forward volume.
     //!        MB_SUCCESS if successful
     //!        otherwise whatever internal error code occured.
-  ErrorCode set_sense( EntityHandle surface,
-                         EntityHandle volume,
-                         bool forward );
+  ErrorCode set_sense( EntityHandle entity,
+                       EntityHandle wrt_entity,
+                       int sense);
 
-    //! Get the sense of a lower-dim entity with respect to an upper-dim entity
+    //! Get the sense of entity with respect to wrt_entity
     //! Returns MB_ENTITY_NOT_FOUND if no relationship found
-  ErrorCode get_sense( EntityHandle lower,
-                       EntityHandle upper,
+  ErrorCode get_sense( EntityHandle entity,
+                       EntityHandle wrt_entity,
                        bool& forward );
 #endif
   //! Store sense of entity relative to wrt_entity.
@@ -74,8 +74,9 @@ public:
                        std::vector<EntityHandle> &faces,
                        std::vector<int> &senses);
   
-  ErrorCode set_senses(EntityHandle edge,
-                       std::vector<EntityHandle> &faces,
+    //! Set senses of entity with respect to wrt_entities
+  ErrorCode set_senses(EntityHandle entity,
+                       std::vector<EntityHandle> &wrt_entities,
                        std::vector<int> &senses);
 #endif
   ErrorCode get_senses (EntityHandle entity,
