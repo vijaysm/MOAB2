@@ -23,6 +23,8 @@ else
 fi
 
  # if CCMIO support is not disabled
+AC_MSG_CHECKING([if CCMIO support available])
+AC_MSG_RESULT([])
 HAVE_CCMIO=no
 if test "xno" != "x$CCMIO_ARG"; then
   HAVE_CCMIO=yes
@@ -51,9 +53,9 @@ if test "xno" != "x$CCMIO_ARG"; then
   LDFLAGS="$CCMIO_LDFLAGS $LDFLAGS"
   
    # Check for C library
-  AC_CHECK_HEADERS( [ccmio.h], [], [AC_MSG_WARN([[Ccmio header not found.]]); HAVE_CCMIO=no] )
-  AC_CHECK_HEADERS( [ccmioutility.h], [], [AC_MSG_WARN([[Ccmio header not found.]]); HAVE_CCMIO=no] )
-  AC_CHECK_HEADERS( [ccmiocore.h], [], [AC_MSG_WARN([[Ccmio header not found.]]); HAVE_CCMIO=no] )
+  AC_CHECK_HEADERS( [ccmio.h], [], [HAVE_CCMIO=no] )
+  AC_CHECK_HEADERS( [ccmioutility.h], [], [HAVE_CCMIO=no] )
+  AC_CHECK_HEADERS( [ccmiocore.h], [], [HAVE_CCMIO=no] )
   CPPFLAGS="$old_CPPFLAGS"
   LDFLAGS="$old_LDFLAGS"
 
@@ -61,7 +63,8 @@ if test "xno" != "x$CCMIO_ARG"; then
     if test "x$CCMIO_ARG" != "x"; then 
       AC_MSG_ERROR("Ccmio not found or not working")
     else
-      AC_MSG_WARN("Ccmio support disabled")
+      AC_MSG_CHECKING([unsuccessful, Ccmio support disabled])
+      AC_MSG_RESULT([])
     fi
     CCMIO_CPPFLAGS=
     CCMIO_LDFLAGS=
