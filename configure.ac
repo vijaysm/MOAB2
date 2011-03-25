@@ -340,6 +340,7 @@ EXPORT_LDFLAGS="$EXPORT_LDFLAGS $HDF5_LDFLAGS"
 AC_SUBST(HDF5_LIBS)
 
 WARN_PARALLEL_HDF5=no
+WARN_PARALLEL_HDF5_NO_COMPLEX=no
 HAVE_HDF5_PARALLEL=no
 if test "xno" != "x$HAVE_HDF5"; then
   if test "xno" != "x$WITH_MPI"; then
@@ -355,6 +356,15 @@ fi
 AM_CONDITIONAL(PARALLEL_HDF5, [test "xno" != "x$HAVE_HDF5_PARALLEL"])
 if test "xno" != "x$HAVE_HDF5_PARALLEL"; then
   AM_CPPFLAGS="$AM_CPPFLAGS -DHDF5_PARALLEL"
+  
+  AC_MSG_CHECKING([for H5_MPI_COMPLEX_DERIVED_DATATYPE_WORKS])
+  old_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $HDF5_CPPFLAGS"
+  AC_PREPROC_IFELSE([AC_LANG_PROGRAM([#include <h5pubconf.h>],[
+#ifndef H5_MPI_COMPLEX_DERIVED_DATATYPE_WORKS
+  choke me
+#endif])],[AC_MSG_RESULT(yes)],[AC_MSG_RESULT(no); WARN_PARALLEL_HDF5_NO_COMPLEX=yes])
+  CPPFLAGS="$old_CPPFLAGS"
 fi
 
 ################################################################################
@@ -1181,6 +1191,17 @@ if test "x$WARN_PARALLEL_HDF5" = "xyes"; then
 *        MOAB has been configured with parallel and HDF5 support
 *     but the configured HDF5 library does not support parallel IO.
 *            Some parallel IO capabilities will be disabled.
+*************************************************************************])
+fi
+
+if test "x$WARN_PARALLEL_HDF5_NO_COMPLEX" = "xyes"; then
+  AC_MSG_WARN([
+*************************************************************************
+*     Your parallel HDF5 library is configured without 
+*     H5_MPI_COMPLEX_DERIVED_DATATYPE_WORKS .  For the types of IO
+*     patterns MOAB typically does this will result in degrading
+*     collective IO calls to independent IO, which may have a very
+*     significant impact on IO performance.
 *************************************************************************])
 fi
 
