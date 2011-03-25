@@ -254,7 +254,7 @@ void dot_children( std::ostream& s,
                    const Range& sets,
                    bool dashed )
 {
-  bool forward;
+  int sense;
   const char *fstr = "forward", *rstr = "reverse";
   for (Range::iterator i = sets.begin(); i != sets.end(); ++i) {
     Range parents;
@@ -263,8 +263,11 @@ void dot_children( std::ostream& s,
     
     for (Range::iterator j = parents.begin(); j != parents.end(); ++j) {
       const char* linklabel = 0;
-      if (printSVSense && MB_SUCCESS == geomTool.get_sense( *i, *j, forward ))
-        linklabel = forward ? fstr : rstr;
+      if (printSVSense && MB_SUCCESS == geomTool.get_sense( *i, *j, sense ))
+
+        // check here only one sense, as before...
+        linklabel = (sense==(int)SENSE_FORWARD) ? fstr : rstr;
+
       dot_down_link( s, *j, *i, dashed, linklabel);
     }
   }

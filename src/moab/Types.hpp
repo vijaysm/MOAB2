@@ -97,6 +97,13 @@ enum EntitySetProperty {
   MESHSET_ORDERED     = 0x4  /**< order of set contents is preserved */
 };
 
+enum SenseType {
+  SENSE_INVALID      = -2, /**< default, invalid, not defined */
+  SENSE_REVERSE      = -1, /**< reversed */
+  SENSE_BOTH         =  0, /**< both senses valid  */
+  SENSE_FORWARD      =  1  /**< forward  */
+};
+
 #ifdef __cplusplus
 } /* namespace moab */
 #endif

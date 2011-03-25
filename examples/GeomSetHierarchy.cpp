@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
   std::vector<int> senses, pgids;
   int dim, pgid, chgid;
   void *dim_ptr = &dim;
-  bool sense;
+  int sense;
 
   moab::GeomTopoTool gt(mb, true);
   
@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
           if (moab::MB_SUCCESS != rval) continue;
           std::cout << ent_names[dim+1] << " "   << pgid << ", " 
                     << ent_names[dim] << " " << chgid << " sense is: ";
-          if (sense) std::cout << "FORWARD" << std::endl;
+          if (1==sense) std::cout << "FORWARD" << std::endl;
           else std::cout << "REVERSE" << std::endl;
         }
       }
@@ -72,9 +72,9 @@ int main(int argc, char **argv) {
           rval = mb->tag_get_data(gid_tag, &sense_ents[i], 1, &pgid);
           std::cout << ent_names[dim+1] << " "   << pgid << ", " 
                     << ent_names[dim] << " " << chgid << " sense is: ";
-          if (1 == senses[i]) std::cout << "REVERSED" << std::endl;
-          else if (0 == senses[i]) std::cout << "FORWARD" << std::endl;
-          else if (-1 == senses[i]) std::cout << "UNKNOWN" << std::endl;
+          if (-1 == senses[i]) std::cout << "REVERSED" << std::endl;
+          else if (0 == senses[i]) std::cout << "BOTH" << std::endl;
+          else if (1 == senses[i]) std::cout << "FORWARD" << std::endl;
           else std::cout << "(invalid)" << std::endl;
         }
       }

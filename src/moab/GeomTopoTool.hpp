@@ -40,6 +40,7 @@ public:
     //! Restore parent/child links between GEOM_TOPO mesh sets
   ErrorCode restore_topology();
   
+#if 0
     //! Store sense of surface relative to volume.
     //!\return MB_MULTIPLE_ENTITIES_FOUND if surface already has a forward volume.
     //!        MB_SUCCESS if successful
@@ -53,7 +54,21 @@ public:
   ErrorCode get_sense( EntityHandle lower,
                        EntityHandle upper,
                        bool& forward );
+#endif
+  //! Store sense of entity relative to wrt_entity.
+     //!\return MB_MULTIPLE_ENTITIES_FOUND if surface already has a forward volume.
+     //!        MB_SUCCESS if successful
+     //!        otherwise whatever internal error code occured.
+   ErrorCode set_sense( EntityHandle entity,
+                        EntityHandle wrt_entity,
+                        int sense);
 
+     //! Get the sense of entity with respect to wrt_entity
+     //! Returns MB_ENTITY_NOT_FOUND if no relationship found
+   ErrorCode get_sense( EntityHandle entity,
+                        EntityHandle wrt_entity,
+                        int & sense );
+#if 0
     //! Store senses and ents for edges
   ErrorCode get_senses(EntityHandle edge,
                        std::vector<EntityHandle> &faces,
@@ -62,6 +77,14 @@ public:
   ErrorCode set_senses(EntityHandle edge,
                        std::vector<EntityHandle> &faces,
                        std::vector<int> &senses);
+#endif
+  ErrorCode get_senses (EntityHandle entity,
+    std::vector<EntityHandle> &wrt_entities,
+    std::vector<int> &senses);
+
+  ErrorCode set_senses (EntityHandle entity,
+                          std::vector<EntityHandle> &wrt_entities,
+                          std::vector<int> &senses);
 
     /** \brief get the other (d-1)-dimensional entity bounding a set across a (d-2)-dimensional entity
      *
@@ -114,6 +137,13 @@ private:
     //! given a range of geom topology sets, separate by dimension
   ErrorCode separate_by_dimension(const Range &geom_sets,
 				    Range *entities, Tag geom_tag = 0);
+
+  // verify sense face tag
+  ErrorCode check_face_sense_tag(bool create);
+
+  // verify sense edge tags
+  ErrorCode check_edge_sense_tags(bool create);
+
 };
 
 // get the root of the obbtree for a given entity
