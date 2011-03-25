@@ -8078,45 +8078,28 @@ ErrorCode mb_root_set_test()
   CHKERR(rval);
   CHECK( count == (int)sets.size() );
   
-    // Apparently, the expected behavior for 
-    // parent/child queries on the root set
-    // is to successfully return nothing.
+    // The expected behavior for parent/child queries on the root set
+    // is to return an error.
     
-  sets2.clear();
   rval = mb->get_parent_meshsets( rs, sets2 );
-  CHKERR(rval);
-  CHECK(sets2.empty());
-  sets2.clear();
+  CHECK( MB_SUCCESS != rval );
   rval = mb->get_parent_meshsets( rs, sets2, 2 );
-  CHKERR(rval);
-  CHECK(sets2.empty());
+  CHECK( MB_SUCCESS != rval );
     
-  sets2.clear();
   rval = mb->get_child_meshsets( rs, sets2 );
-  CHKERR(rval);
-  CHECK(sets2.empty());
-  sets2.clear();
+  CHECK( MB_SUCCESS != rval );
   rval = mb->get_child_meshsets( rs, sets2, 2 );
-  CHKERR(rval);
-  CHECK(sets2.empty());
+  CHECK( MB_SUCCESS != rval );
     
-  count = 10;
   rval = mb->num_parent_meshsets( rs, &count );
-  CHKERR(rval);
-  CHECK(!count);
-  count = 10;
+  CHECK( MB_SUCCESS != rval );
   rval = mb->num_parent_meshsets( rs, &count, 2 );
-  CHKERR(rval);
-  CHECK(!count);
+  CHECK( MB_SUCCESS != rval );
     
-  count = 10;
   rval = mb->num_child_meshsets( rs, &count );
-  CHKERR(rval);
-  CHECK(!count);
-  count = 10;
+  CHECK( MB_SUCCESS != rval );
   rval = mb->num_child_meshsets( rs, &count, 2 );
-  CHKERR(rval);
-  CHECK(!count);
+  CHECK( MB_SUCCESS != rval );
   
   rval = mb->add_parent_meshset( rs, some_set );
   CHECK(MB_SUCCESS != rval);

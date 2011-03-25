@@ -1577,7 +1577,7 @@ extern "C" {
   void iMesh_getEntSetData(iMesh_Instance instance,
                            /*in*/ const iBase_EntitySetHandle entity_set_handle,
                            /*in*/ const iBase_TagHandle tag_handle,
-                           /*inout*/ void** tag_value,
+                           /*inout*/ void* tag_value,
                            /*inout*/ int* tag_value_allocated,
                            /*out*/ int* tag_value_size,
                            /*out*/ int *err);
@@ -1770,7 +1770,7 @@ extern "C" {
                         /*in*/ const iBase_EntityHandle* entity_handles,
                         /*in*/ const int entity_handles_size,
                         /*in*/ const iBase_TagHandle tag_handle,
-                        /*inout*/ void** tag_values,
+                        /*inout*/ void* tag_values,
                         /*inout*/int* tag_values_allocated,
                         /*out*/ int* tag_values_size,
                         /*out*/ int *err);
@@ -2020,7 +2020,7 @@ extern "C" {
   void iMesh_getData(iMesh_Instance instance,
                      /*in*/ const iBase_EntityHandle entity_handle,
                      /*in*/ const iBase_TagHandle tag_handle,
-                     /*inout*/ void** tag_value,
+                     /*inout*/ void* tag_value,
                      /*inout*/ int *tag_value_allocated,
                      /*out*/ int *tag_value_size,
                      /*out*/ int *err);

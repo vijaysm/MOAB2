@@ -2260,6 +2260,277 @@ int array_allocation( iMesh_Instance mesh )
   return 1;
 }
 
+int compare_single_iter( const char* info,
+                         iMesh_Instance mesh,
+                         iBase_EntitySetHandle set,
+                         iBase_EntityHandle* contents,
+                         int contents_size,
+                         enum iBase_EntityType type,
+                         enum iMesh_EntityTopology topo )
+{
+  iBase_EntityIterator iter = 0;
+  int i, twice, has_data, result = iBase_SUCCESS, result2;
+  iBase_EntityHandle value;
+  
+  iMesh_initEntIter( mesh, set, type, topo, &iter, &result );
+  if (iBase_SUCCESS != result) {
+    printf("%s:%d: Error %d initializing %s iterator for type %d/topo %d\n",
+      __FILE__,__LINE__,result,info,(int)type,(int)topo);
+    return result;
+  }
+  
+  for (twice = 0; twice < 2; ++twice) {
+  
+    for (i = 0; i < contents_size; ++i) {
+      iMesh_getNextEntIter( mesh, iter, &value, &has_data, &result );
+      if (iBase_SUCCESS != result) {
+        printf("%s:%d: Error %d stepping %s iterator for type %d/topo %d\n",
+          __FILE__,__LINE__,result,info,(int)type,(int)topo);
+        goto end_single_iter;
+      }
+
+      if (!has_data) {
+        printf("%s:%d: %s iterator for type %d/topo %d ended prematurely at %d of %d\n",
+          __FILE__,__LINE__,info,(int)type,(int)topo,i,contents_size);
+        result = iBase_FAILURE;
+        goto end_single_iter;
+      }
+
+      if (value != contents[i]) {
+        printf("%s:%d: %s iterator for type %d/topo %d returned incorrect value at %d of %d\n",
+          __FILE__,__LINE__,info,(int)type,(int)topo,i,contents_size);
+        result = iBase_FAILURE;
+        goto end_single_iter;
+      }
+    }
+
+    iMesh_getNextEntIter( mesh, iter, &value, &has_data, &result );
+    if (iBase_SUCCESS != result) {
+      printf("%s:%d: Error %d stepping %s iterator for type %d/topo %d\n",
+        __FILE__,__LINE__,result,info,(int)type,(int)topo);
+      goto end_single_iter;
+    }
+
+    if (has_data) {
+      printf("%s:%d: %s iterator for type %d/topo %d did not end after %d values\n",
+        __FILE__,__LINE__,info,(int)type,(int)topo,contents_size);
+      result = iBase_FAILURE;
+      goto end_single_iter;
+    }
+
+    iMesh_resetEntIter( mesh, iter, &result );
+    if (iBase_SUCCESS != result) {
+      printf("%s:%d: Error %d resetting %s iterator for type %d/topo %d\n",
+        __FILE__,__LINE__,result,info,(int)type,(int)topo);
+      result = iBase_FAILURE;
+      goto end_single_iter;
+    }
+  }
+
+end_single_iter:
+  iMesh_endEntIter( mesh, iter, &result2 );
+  if (iBase_SUCCESS != result2) {
+    printf("%s:%d: Error %d releasing %s iterator for type %d/topo %d\n",
+      __FILE__,__LINE__,result,info,(int)type,(int)topo);
+    if (iBase_SUCCESS == result)
+      result = result2;
+  }
+  return result;
+}
+
+int compare_array_iter( const char* info,
+                        iMesh_Instance mesh,
+                        iBase_EntitySetHandle set,
+                        iBase_EntityHandle* contents,
+                        int contents_size,
+                        int array_size,
+                        enum iBase_EntityType type,
+                        enum iMesh_EntityTopology topo )
+{
+  iBase_EntityArrIterator iter = 0;
+  int i, j, twice, has_data, result = iBase_SUCCESS, result2;
+  iBase_EntityHandle* values;
+  int values_size, values_alloc = array_size;
+  values = (iBase_EntityHandle*)malloc( array_size * sizeof(iBase_EntityHandle) );
+  
+  iMesh_initEntArrIter( mesh, set, type, topo, array_size, &iter, &result );
+  if (iBase_SUCCESS != result) {
+    printf("%s:%d: Error %d initializing %s array iterator for type %d/topo %d\n",
+      __FILE__,__LINE__,result,info,(int)type,(int)topo);
+    free(values);
+    return result;
+  }
+  
+  for (twice = 0; twice < 2; ++twice) {
+    i = 0;
+    while (i < contents_size) {
+      
+      iMesh_getNextEntArrIter( mesh, iter, &values, &values_alloc, &values_size, &has_data, &result );
+      if (iBase_SUCCESS != result) {
+        printf("%s:%d: Error %d stepping %s array iterator for type %d/topo %d\n",
+          __FILE__,__LINE__,result,info,(int)type,(int)topo);
+        goto end_arr_iter;
+      }
+
+      if (!has_data || !values_size) {
+        printf("%s:%d: %s array iterator for type %d/topo %d ended prematurely at %d of %d\n",
+          __FILE__,__LINE__,info,(int)type,(int)topo,i,contents_size);
+        result = iBase_FAILURE;
+        goto end_arr_iter;
+      }
+      
+      if (i + values_size > contents_size) {
+        printf("%s:%d: %s array iterator for type %d/topo %d returned more than %d handles\n",
+          __FILE__,__LINE__,info,(int)type,(int)topo,contents_size);
+        result = iBase_FAILURE;
+        goto end_arr_iter;
+      }
+      
+      if (contents_size - i >= array_size && values_size < array_size) {
+        printf("%s:%d: %s array iterator for type %d/topo %d returned fewer than %d handles\n",
+          __FILE__,__LINE__,info,(int)type,(int)topo,array_size);
+        result = iBase_FAILURE;
+        goto end_arr_iter;
+      }
+
+      for (j = 0; j < values_size; ++j, ++i) {
+        if (values[j] != contents[i]) {
+          printf("%s:%d: %s array iterator for type %d/topo %d returned incorrect value at %d of %d\n",
+            __FILE__,__LINE__,info,(int)type,(int)topo,i,contents_size);
+          result = iBase_FAILURE;
+          goto end_arr_iter;
+        }
+      }
+    }
+
+    iMesh_getNextEntArrIter( mesh, iter, &values, &values_alloc, &values_size, &has_data, &result );
+    if (iBase_SUCCESS != result) {
+      printf("%s:%d: Error %d stepping %s array iterator for type %d/topo %d\n",
+        __FILE__,__LINE__,result,info,(int)type,(int)topo);
+      goto end_arr_iter;
+    }
+
+    if (has_data || values_size) {
+      printf("%s:%d: %s array iterator for type %d/topo %d did not end after %d values\n",
+        __FILE__,__LINE__,info,(int)type,(int)topo,contents_size);
+      result = iBase_FAILURE;
+      goto end_arr_iter;
+    }
+
+    iMesh_resetEntArrIter( mesh, iter, &result );
+    if (iBase_SUCCESS != result) {
+      printf("%s:%d: Error %d resetting %s array iterator for type %d/topo %d\n",
+        __FILE__,__LINE__,result,info,(int)type,(int)topo);
+      result = iBase_FAILURE;
+      goto end_arr_iter;
+    }
+  }
+
+end_arr_iter:
+  free(values);
+  iMesh_endEntArrIter( mesh, iter, &result2 );
+  if (iBase_SUCCESS != result2) {
+    printf("%s:%d: Error %d releasing %s array iterator for type %d/topo %d\n",
+      __FILE__,__LINE__,result,info,(int)type,(int)topo);
+    if (iBase_SUCCESS == result)
+      result = result2;
+  }
+  return result;
+}
+
+
+int test_iterator_common( const char* info,
+                          iMesh_Instance mesh,
+                          iBase_EntitySetHandle set,
+                          int array_size,
+                          enum iBase_EntityType type,
+                          enum iMesh_EntityTopology topo )
+{
+  iBase_EntityHandle *contents = 0;
+  int content_size = 0, content_alloc = 0;
+  int result;
+
+  iMesh_getEntities( mesh, set, type, topo, &contents, &content_alloc, &content_size, &result );
+  CHK(result);
+  if (array_size == 1) 
+    result = compare_single_iter( info, mesh, set, contents, content_size, type, topo );
+  else
+    result = compare_array_iter(  info, mesh, set, contents, content_size, array_size, type, topo );
+  free(contents);
+  return result;
+}
+
+
+int test_iterator( iMesh_Instance mesh )
+{
+  int result, i;
+  iBase_EntitySetHandle root, list, set ,*setptr;
+  iBase_EntityHandle* array = 0;
+  int array_len = 0, array_size = 0;
+  
+  iMesh_getRootSet( mesh, &root, &result );
+  CHK(result);
+
+
+  /* create some sets containing every other handle */
+  iMesh_getEntities( mesh, root, iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES, 
+                     &array, &array_size, &array_len, &result );
+  CHK(result);
+  for (i = 1; i < array_size; i += 2)
+    array[i] = array[i-1];
+  for (i = 0; i < 2; ++i) {
+    setptr = i ? &list : &set;
+    iMesh_createEntSet( mesh, i, setptr, &result );
+    if (iBase_SUCCESS != result)
+      free(array);
+    CHK(result);
+    iMesh_addEntArrToSet( mesh, array, array_size, *setptr, &result );
+    if (iBase_SUCCESS != result)
+      free(array);
+    CHK(result);
+  }
+  free(array);
+
+  /* test single iterator and array iterator for all types */
+  for (i = 0; i < iBase_ALL_TYPES; ++i) {
+    array_size = 2*i+2;
+    result = test_iterator_common( "root", mesh, root, 1, (enum iBase_EntityType)i, iMesh_ALL_TOPOLOGIES );
+    CHK(result);
+    result = test_iterator_common( "root", mesh, root, array_size, (enum iBase_EntityType)i, iMesh_ALL_TOPOLOGIES );
+    CHK(result);
+    result = test_iterator_common( "list", mesh, list, 1, (enum iBase_EntityType)i, iMesh_ALL_TOPOLOGIES );
+    CHK(result);
+    result = test_iterator_common( "list", mesh, list, array_size, (enum iBase_EntityType)i, iMesh_ALL_TOPOLOGIES );
+    CHK(result);
+    result = test_iterator_common( "set", mesh, set, 1, (enum iBase_EntityType)i, iMesh_ALL_TOPOLOGIES );
+    CHK(result);
+    result = test_iterator_common( "set", mesh, set, array_size, (enum iBase_EntityType)i, iMesh_ALL_TOPOLOGIES );
+    CHK(result);
+  }
+
+  /* test single iterator and array iterator for all types */
+  for (i = 0; i < iMesh_ALL_TOPOLOGIES; ++i) {
+    array_size = 2*i+2;
+    result = test_iterator_common( "root", mesh, root, 1, iBase_ALL_TYPES, (enum iMesh_EntityTopology)i );
+    CHK(result);
+    result = test_iterator_common( "root", mesh, root, array_size, iBase_ALL_TYPES, (enum iMesh_EntityTopology)i );
+    CHK(result);
+    result = test_iterator_common( "list", mesh, list, 1, iBase_ALL_TYPES, (enum iMesh_EntityTopology)i );
+    CHK(result);
+    result = test_iterator_common( "list", mesh, list, array_size, iBase_ALL_TYPES, (enum iMesh_EntityTopology)i );
+    CHK(result);
+    result = test_iterator_common( "set", mesh, set, 1, iBase_ALL_TYPES, (enum iMesh_EntityTopology)i );
+    CHK(result);
+    result = test_iterator_common( "set", mesh, set, array_size, iBase_ALL_TYPES, (enum iMesh_EntityTopology)i );
+    CHK(result);
+  }
+
+  return 1;
+}
+
+
+
+
 int main( int argc, char *argv[] )
 {
     /* Check command line arg */
@@ -2373,6 +2644,15 @@ int main( int argc, char *argv[] )
     /* mesh tag test */
   printf("   mesh_tag_test: ");
   result = mesh_tag_test(mesh);
+  handle_error_code(result, &number_tests_failed,
+                    &number_tests_not_implemented,
+                    &number_tests_successful);
+  number_tests++;
+  printf("\n");
+
+    /* iterator test */
+  printf("   test_iterator: ");
+  result = test_iterator(mesh);
   handle_error_code(result, &number_tests_failed,
                     &number_tests_not_implemented,
                     &number_tests_successful);
