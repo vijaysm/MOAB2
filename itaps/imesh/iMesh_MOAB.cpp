@@ -1860,7 +1860,7 @@ extern "C" {
   void iMesh_getEntSetData (iMesh_Instance instance,
                             /*in*/ const iBase_EntitySetHandle entity_set_handle,
                             /*in*/ const iBase_TagHandle tag_handle,
-                            /*inout*/ void** tag_value,
+                            /*inout*/ void* tag_value,
                             /*inout*/ int* tag_value_allocated,
                             /*inout*/ int* tag_value_size, int *err)
   {
@@ -1874,9 +1874,11 @@ extern "C" {
     ALLOC_CHECK_TAG_ARRAY(tag_value, tag_size);
 
     if (eh == 0)
-      result = MOABI->tag_get_data(tag, NULL, 0, *tag_value);
+      result = MOABI->tag_get_data(tag, NULL, 0,
+                                   *static_cast<void**>(tag_value));
     else
-      result = MOABI->tag_get_data(tag, &eh, 1, *tag_value);
+      result = MOABI->tag_get_data(tag, &eh, 1,
+                                   *static_cast<void**>(tag_value));
 
     CHKERR(result, "iMesh_getEntSetData didn't succeed.");
     KEEP_ARRAY(tag_value);
@@ -2052,7 +2054,7 @@ extern "C" {
                          /*in*/ const iBase_EntityHandle* entity_handles,
                          /*in*/ const int entity_handles_size,
                          /*in*/ const iBase_TagHandle tag_handle,
-                         /*inout*/ void** tag_values,
+                         /*inout*/ void* tag_values,
                          /*inout*/int* tag_values_allocated,
                          /*out*/ int* tag_values_size, int *err)
   {
@@ -2076,7 +2078,7 @@ extern "C" {
     ALLOC_CHECK_TAG_ARRAY(tag_values, tag_size * entity_handles_size);
 
     result = MOABI->tag_get_data(tag, ents, entity_handles_size,
-                               *tag_values);
+                                 *static_cast<void**>(tag_values));
 
     if (MB_SUCCESS != result) {
       std::string message("iMesh_getArrData: ");
@@ -2111,7 +2113,7 @@ extern "C" {
     *tag_values_size *= sizeof(int);
     iMesh_getArrData(instance, entity_handles,
                      entity_handles_size, tag_handle,
-                     reinterpret_cast<void**>(tag_values),
+                     tag_values,
                      tag_values_allocated,
                      tag_values_size, err);
     *tag_values_allocated /= sizeof(int);
@@ -2131,7 +2133,7 @@ extern "C" {
     *tag_values_size *= sizeof(double);
     iMesh_getArrData(instance, entity_handles,
                      entity_handles_size, tag_handle,
-                     reinterpret_cast<void**>(tag_values),
+                     tag_values,
                      tag_values_allocated, tag_values_size, err);
     *tag_values_allocated /= sizeof(double);
     *tag_values_size /= sizeof(double);
@@ -2149,7 +2151,7 @@ extern "C" {
     *tag_value_size *= sizeof(bool);
     iMesh_getArrData(instance, entity_handles,
                      entity_handles_size, tag_handle,
-                     reinterpret_cast<void**>(tag_value),
+                     tag_value,
                      tag_value_allocated, tag_value_size, err);
     *tag_value_allocated /= sizeof(bool);
     *tag_value_size /= sizeof(bool);
@@ -2310,7 +2312,7 @@ extern "C" {
   void iMesh_getData (iMesh_Instance instance,
                       /*in*/ const iBase_EntityHandle entity_handle,
                       /*in*/ const iBase_TagHandle tag_handle,
-                      /*out*/ void** tag_value,
+                      /*out*/ void* tag_value,
                       /*inout*/ int *tag_value_allocated,
                       /*out*/ int *tag_value_size, int *err)
   {
