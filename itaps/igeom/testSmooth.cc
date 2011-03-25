@@ -142,7 +142,7 @@ void handle_error_code(const bool result, int &number_failed,
 }
 
 int main(int argc, char *argv[]) {
-   std::string filename = STRINGIFY(MESHDIR) "/brick.stp";
+   std::string filename = STRINGIFY(MESHDIR) "/shell.h5m";
    std::string engine_opt;
 
    if (argc == 1) {
