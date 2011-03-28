@@ -286,27 +286,6 @@ class PartBoundaryIter : public MBRangeIter
     }
 };
 
-static ErrorCode intersect_with_set( Interface* mb, Range& range, EntityHandle set )
-{
-  Range tmp;
-  ErrorCode result;
-  result = mb->get_entities_by_handle( set, tmp );
-  range = intersect( range, tmp );
-  return result;
-}
-
-static ErrorCode intersect_with_set( Interface* mb, std::vector<EntityHandle>& list, 
-                                     EntityHandle set )
-{
-  size_t w = 0;
-  for (size_t r = 0; r < list.size(); ++r) {
-    if (mb->contains_entities( set, &list[r], 1))
-      list[w++] = list[r];
-  }
-  list.resize(w);
-  return MB_SUCCESS;
-}
-
 template <class Container> 
 class SetIntersectIter : public MBIter<Container>
 {
@@ -321,6 +300,27 @@ class SetIntersectIter : public MBIter<Container>
       : MBIter<Container>( type, topology, set, array_size ),
         otherSet( other_set )
       {}
+
+
+    inline ErrorCode intersect_with_set( Interface* mb, Range& range )
+    {
+      Range tmp;
+      ErrorCode result;
+      result = mb->get_entities_by_handle( otherSet, tmp );
+      range = intersect( range, tmp );
+      return result;
+    }
+
+    inline ErrorCode intersect_with_set( Interface* mb, std::vector<EntityHandle>& list )
+    {
+      size_t w = 0;
+      for (size_t r = 0; r < list.size(); ++r) {
+        if (mb->contains_entities( otherSet, &list[r], 1))
+          list[w++] = list[r];
+      }
+      list.resize(w);
+      return MB_SUCCESS;
+    }
   
     virtual ErrorCode reset(Interface* mb) 
     {
@@ -328,7 +328,7 @@ class SetIntersectIter : public MBIter<Container>
       if (MB_SUCCESS != result)
         return result;
       
-      result = intersect_with_set( mb, MBIter<Container>::iterData, otherSet );
+      result = intersect_with_set( mb, MBIter<Container>::iterData );
       MBIter<Container>::iterPos = MBIter<Container>::iterData.begin();
       return result;
     }
