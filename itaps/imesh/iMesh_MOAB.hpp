@@ -27,10 +27,6 @@ extern const iBase_TagValueType tstt_data_type_table[MB_MAX_DATA_TYPE+1];
 /* map from MOAB's ErrorCode to tstt's */
 extern "C" const iBase_ErrorType iBase_ERROR_MAP[MB_FAILURE+1];
 
-/* Create ITAPS iterator */
-iBase_EntityIterator create_itaps_iterator( Range& swap_range,
-                                            int array_size = 1 ); 
-
 /* Most recently returned error code */
 extern "C" iBase_Error iMesh_LAST_ERROR;
 

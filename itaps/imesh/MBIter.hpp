@@ -55,7 +55,7 @@ class iBase_EntityArrIterator_Private
 
 template <class Container> class MBIter : public iBase_EntityArrIterator_Private 
 {
-  private:
+  protected:
     Container iterData;
     typename Container::const_iterator iterPos;
     
@@ -76,7 +76,7 @@ template <class Container> class MBIter : public iBase_EntityArrIterator_Private
           array[count++] = *iterPos;
     }
     
-    ErrorCode reset( Interface* mb ) {
+    virtual ErrorCode reset( Interface* mb ) {
       ErrorCode result;
       iterData.clear();
       if (entTopo != iMesh_ALL_TOPOLOGIES) {
