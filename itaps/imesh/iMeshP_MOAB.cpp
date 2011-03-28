@@ -7,6 +7,7 @@
 #include "FileOptions.hpp"
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
+#include "MBIter.hpp"
 
 #define IS_BUILDING_MB
 #include "Internals.hpp"
@@ -231,7 +232,108 @@ static void set_intersection_query( iMesh_Instance instance,
   
   RETURN (iBase_SUCCESS);
 }
+
+/********************* Iterators **************************/
+
+static ErrorCode get_boundary_entities( ParallelComm* pcomm,
+                                   EntityHandle part_handle,
+                                   int entity_type,
+                                   int entity_topology,
+                                   int adj_part_id,
+                                   Range& entities_out)
+{
+  int* adj_part_id_ptr = (adj_part_id == iMeshP_ALL_PARTS) ? 0 : &adj_part_id;
   
+  Range iface_sets;
+  ErrorCode rval = pcomm->get_interface_sets( 
+                         itaps_cast<EntityHandle>(part_handle),
+                         iface_sets, adj_part_id_ptr ); 
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  for (Range::iterator i = iface_sets.begin(); i != iface_sets.end(); ++i) {
+    rval = get_entities( pcomm->get_moab(), *i, entity_type, entity_topology, entities_out );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  
+  return MB_SUCCESS;
+}
+
+class PartBoundaryIter : public MBRangeIter 
+{
+  private:
+    ParallelComm* pComm;
+    int adjPart;
+  public:
+    PartBoundaryIter( ParallelComm* pcomm,
+                      EntityHandle part_handle,
+                      iBase_EntityType entity_type,
+                      iMesh_EntityTopology entity_topology,
+                      int adj_part_id,
+                      int array_size )
+    : MBRangeIter( entity_type, entity_topology,
+                   part_handle, array_size ),
+      pComm(pcomm), adjPart(adj_part_id)
+    {}
+    
+    virtual ErrorCode reset( Interface* ) {
+      iterData.clear();
+      ErrorCode result = get_boundary_entities( pComm, entSet, entType, entTopo, 
+                                                adjPart, iterData );
+      iterPos = iterData.begin();
+      return result;
+    }
+};
+
+static ErrorCode intersect_with_set( Interface* mb, Range& range, EntityHandle set )
+{
+  Range tmp;
+  ErrorCode result;
+  result = mb->get_entities_by_handle( set, tmp );
+  range = intersect( range, tmp );
+  return result;
+}
+
+static ErrorCode intersect_with_set( Interface* mb, std::vector<EntityHandle>& list, 
+                                     EntityHandle set )
+{
+  size_t w = 0;
+  for (size_t r = 0; r < list.size(); ++r) {
+    if (mb->contains_entities( set, &list[r], 1))
+      list[w++] = list[r];
+  }
+  list.resize(w);
+  return MB_SUCCESS;
+}
+
+template <class Container> 
+class SetIntersectIter : public MBIter<Container>
+{
+  private:
+    EntityHandle otherSet;
+  public:
+    SetIntersectIter( iBase_EntityType type,
+                      iMesh_EntityTopology topology,
+                      EntityHandle set,
+                      EntityHandle other_set,
+                      int array_size )
+      : MBIter<Container>( type, topology, set, array_size ),
+        otherSet( other_set )
+      {}
+  
+    virtual ErrorCode reset(Interface* mb) 
+    {
+      ErrorCode result = MBIter<Container>::reset(mb);
+      if (MB_SUCCESS != result)
+        return result;
+      
+      result = intersect_with_set( mb, MBIter<Container>::iterData, otherSet );
+      MBIter<Container>::iterPos = MBIter<Container>::iterData.begin();
+      return result;
+    }
+};
+ 
 
 
 /********************* iMeshP API **************************/
@@ -681,31 +783,6 @@ void iMeshP_getPartNborsArr( iMesh_Instance instance,
   RETURN(iBase_SUCCESS);
 }
 
-static ErrorCode get_boundary_entities( ParallelComm* pcomm,
-                                   EntityHandle part_handle,
-                                   int entity_type,
-                                   int entity_topology,
-                                   int adj_part_id,
-                                   Range& entities_out)
-{
-  int* adj_part_id_ptr = (adj_part_id == iMeshP_ALL_PARTS) ? 0 : &adj_part_id;
-  
-  Range iface_sets;
-  ErrorCode rval = pcomm->get_interface_sets( 
-                         itaps_cast<EntityHandle>(part_handle),
-                         iface_sets, adj_part_id_ptr ); 
-  if (MB_SUCCESS != rval)
-    return rval;
-  
-  for (Range::iterator i = iface_sets.begin(); i != iface_sets.end(); ++i) {
-    rval = get_entities( pcomm->get_moab(), *i, entity_type, entity_topology, entities_out );
-    if (MB_SUCCESS != rval)
-      return rval;
-  }
-  
-  return MB_SUCCESS;
-}
-
 void iMeshP_getNumPartBdryEnts( iMesh_Instance instance,
                                 const iMeshP_PartitionHandle partition_handle,
                                 const iMeshP_PartHandle part_handle, 
@@ -759,16 +836,15 @@ void iMeshP_initPartBdryEntIter( iMesh_Instance instance,
                                  iBase_EntityIterator* entity_iterator,
                                  int* err )
 {
-  Range entities;
-  ErrorCode rval = get_boundary_entities( PCOMM,
-                                            itaps_cast<EntityHandle>(part_handle),
-                                            entity_type,
-                                            entity_topology,
-                                            nbor_part_id,
-                                            entities ); 
-  CHKERR(rval,"error getting boundary");
-  *entity_iterator = create_itaps_iterator( entities );
-  RETURN( entity_iterator ? iBase_SUCCESS : iBase_FAILURE );
+  iMeshP_initPartBdryEntArrIter( instance,
+                                 partition_handle,
+                                 part_handle,
+                                 entity_type,
+                                 entity_topology,
+                                 1,
+                                 nbor_part_id,
+                                 reinterpret_cast<iBase_EntityArrIterator*>(entity_iterator),
+                                 err );
 }
 
 void iMeshP_initPartBdryEntArrIter( iMesh_Instance instance,
@@ -781,16 +857,17 @@ void iMeshP_initPartBdryEntArrIter( iMesh_Instance instance,
                                     iBase_EntityArrIterator* entity_iterator,
                                     int* err )
 {
-  Range entities;
-  ErrorCode rval = get_boundary_entities( PCOMM,
-                                            itaps_cast<EntityHandle>(part_handle),
-                                            entity_type,
-                                            entity_topology,
-                                            nbor_part_id,
-                                            entities ); 
-  CHKERR(rval,"error getting boundary");
-  *entity_iterator = (iBase_EntityArrIterator) create_itaps_iterator( entities, array_size );
-  RETURN( entity_iterator ? iBase_SUCCESS : iBase_FAILURE );
+  *entity_iterator = new PartBoundaryIter( PCOMM, 
+                                           itaps_cast<EntityHandle>(part_handle), 
+                                           (iBase_EntityType)entity_type,
+                                           (iMesh_EntityTopology)entity_topology, 
+                                           nbor_part_id,
+                                           array_size );
+  ErrorCode result = (*entity_iterator)->reset( MOABI );
+  if (MB_SUCCESS != result)
+    delete *entity_iterator;
+  CHKERR(result, "iMesh_initEntArrIter: ERROR getting entities of proper type or topology." );
+  RETURN(iBase_SUCCESS);
 }
 
 
@@ -1078,15 +1155,15 @@ void iMeshP_initEntIter( iMesh_Instance instance,
                          iBase_EntityIterator* entity_iterator,
                          int *err )
 {
-  Range r;
-  set_intersection_query( instance, part_handle, entity_set_handle,
-                           requested_entity_type, requested_entity_topology,
-                           r, err );
-  if (iBase_SUCCESS != *err)
-    return;
-  
-  *entity_iterator = create_itaps_iterator( r );
-  RETURN (iBase_SUCCESS);
+  iMeshP_initEntArrIter( instance, 
+                         partition_handle, 
+                         part_handle, 
+                         entity_set_handle,
+                         requested_entity_type,
+                         requested_entity_topology,
+                         1,
+                         reinterpret_cast<iBase_EntityArrIterator*>(entity_iterator),
+                         err );
 }
 
 void iMeshP_initEntArrIter( iMesh_Instance instance,
@@ -1099,15 +1176,39 @@ void iMeshP_initEntArrIter( iMesh_Instance instance,
                             iBase_EntityArrIterator* entArr_iterator,
                             int *err )
 {
-  Range r;
-  set_intersection_query( instance, part_handle, entity_set_handle,
-                           requested_entity_type, requested_entity_topology,
-                           r, err );
-  if (iBase_SUCCESS != *err)
-    return;
-  
-  *entArr_iterator = (iBase_EntityArrIterator)create_itaps_iterator( r, requested_array_size );
-  RETURN (iBase_SUCCESS);
+  if (!entity_set_handle || entity_set_handle == part_handle) {
+    iMesh_initEntArrIter( instance, 
+                          part_handle, 
+                          requested_entity_type, 
+                          requested_entity_topology,
+                          requested_array_size,
+                          entArr_iterator, 
+                          err );
+  }
+  else {
+    unsigned flags;
+    ErrorCode result = MOABI->get_meshset_options( itaps_cast<EntityHandle>(entity_set_handle), flags );
+    CHKERR(result,"Invalid entity set handle");
+    if (flags & MESHSET_ORDERED)
+      *entArr_iterator = new SetIntersectIter< std::vector<EntityHandle> >
+                                       ( (iBase_EntityType)requested_entity_type, 
+                                         (iMesh_EntityTopology)requested_entity_topology, 
+                                         itaps_cast<EntityHandle>(entity_set_handle), 
+                                         itaps_cast<EntityHandle>(part_handle),
+                                         requested_array_size );
+    else
+      *entArr_iterator = new SetIntersectIter< Range >
+                                        ( (iBase_EntityType)requested_entity_type, 
+                                          (iMesh_EntityTopology)requested_entity_topology, 
+                                          itaps_cast<EntityHandle>(entity_set_handle), 
+                                          itaps_cast<EntityHandle>(part_handle),
+                                         requested_array_size );
+    result = (*entArr_iterator)->reset( MOABI );
+    if (MB_SUCCESS != result)
+      delete *entArr_iterator;
+    CHKERR(result, "iMesh_initEntArrIter: ERROR getting entities of proper type or topology." );
+    RETURN(iBase_SUCCESS);
+  }    
 }
 
 void iMeshP_getEntOwnerPart( iMesh_Instance instance,
