@@ -1,3 +1,10 @@
+Version 4.0.1:
+* Structured mesh API (see src/moab/ScdInterface.hpp)
+* Parallel read of netcdf-based .nc files using pnetcdf (see doc/metadata_info.pdf)
+* Compatible with iMesh 1.2 (see README.IMESH for details on compliance testing)
+* Updated ParaView plugin (see tools/vtkMOABReader/README for details)
+* Direct access to dense tag storage (see tag_iterate function in src/moab/Interface.hpp)
+
 Version 4.0:
 * Many improvements to parallel correctness and efficiency
 * Use of MPIO for parallel read of HDF5-based file format
