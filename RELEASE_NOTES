@@ -1,11 +1,13 @@
-Version 4.0.1:
+Version 4.1: (in progress)
 * Structured mesh API (see src/moab/ScdInterface.hpp)
 * Parallel read of netcdf-based .nc files using pnetcdf (see doc/metadata_info.pdf)
-* Compatible with iMesh 1.2 (see README.IMESH for details on compliance testing)
 * Updated ParaView plugin (see tools/vtkMOABReader/README for details)
 * Direct access to dense tag storage (see tag_iterate function in src/moab/Interface.hpp)
 * Fix zoltan build on case-insensitive file systems (e.g. MacOS)
 * Fix netcdf build w/ required HDF5 in non-system path
+
+Version 4.0.1:
+* Compatible with iMesh 1.2 (see README.IMESH for details on compliance testing)
 
 Version 4.0:
 * Many improvements to parallel correctness and efficiency
