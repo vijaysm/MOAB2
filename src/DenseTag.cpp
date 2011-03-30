@@ -113,7 +113,7 @@ ErrorCode DenseTag::get_array( SequenceManager* seqman,
   if (!mem && allocate) {
     mem = seq->data()->allocate_tag_array( mySequenceArray, get_size(), get_default_value() );
     if (!mem)
-      return MB_FAILURE;
+      return MB_MEMORY_ALLOCATION_FAILED;
     
     if (!get_default_value()) 
       memset( mem, 0, get_size() * seq->data()->size() );
