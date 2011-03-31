@@ -49,7 +49,9 @@ enum ErrorCode { MB_SUCCESS = 0,
                    MB_STRUCTURED_MESH,
                    MB_FAILURE};
 
+#ifdef __cplusplus
 extern const char* const ErrorCodeStr[];
+#endif
 
 /** Misc. integer constants, declared in enum for portability */
 enum Constants {
@@ -83,7 +85,9 @@ enum DataType {
   MB_MAX_DATA_TYPE = MB_TYPE_HANDLE
 };
 
+#ifdef __cplusplus
 extern const char* const DataTypeStr[];
+#endif
 
 /** Used to reference tags; since they're so different from entities, we
  *  use void** instead of a uint to prevent them from being confused as 
@@ -108,7 +112,9 @@ enum SenseType {
   SENSE_FORWARD      =  1  /**< forward  */
 };
 
+#ifdef __cplusplus
 extern const char* const* const SenseTypeStr;
+#endif
 
 #ifdef __cplusplus
 } /* namespace moab */
