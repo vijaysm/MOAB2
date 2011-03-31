@@ -8,6 +8,7 @@ namespace moab {
 
 class SequenceManager;
 class Range;
+class Error;
 
 // ! stores information about a tag
 class TagInfo
@@ -44,6 +45,7 @@ public:
    *\param seqman    Pointer to mesh entity database
    */
   virtual ErrorCode release_all_data( SequenceManager* seqman,
+                                      Error* error_handler,
                                       bool tag_delete_pending ) = 0;
   
   //! set the name of the tag
@@ -84,7 +86,8 @@ public:
      *                                 NULL && any size is not the tag size.
      *         MB_SUCCESS              Otherwise.
      */
-  ErrorCode validate_lengths( const int* lengths, 
+  ErrorCode validate_lengths( Error* error_handler,
+                              const int* lengths, 
                               size_t num_lengths ) const;
 
   virtual
@@ -103,6 +106,7 @@ public:
    */
   virtual
   ErrorCode get_data( const SequenceManager* seqman,
+                      Error* error_handler,
                       const EntityHandle* entities,
                       size_t num_entities,
                       void* data ) const = 0;
@@ -119,6 +123,7 @@ public:
    */
   virtual
   ErrorCode get_data( const SequenceManager* seqman,
+                      Error* error_handler,
                       const Range& entities,
                       void* data ) const = 0;
                       
@@ -137,6 +142,7 @@ public:
    */
   virtual
   ErrorCode get_data( const SequenceManager* seqman,
+                      Error* error_handler,
                       const EntityHandle* entities,
                       size_t num_entities,
                       const void** data_ptrs,
@@ -157,6 +163,7 @@ public:
    */
   virtual
   ErrorCode get_data( const SequenceManager* seqman,
+                      Error* error_handler,
                       const Range& entities,
                       const void** data_ptrs,
                       int* data_lengths ) const = 0;
@@ -173,6 +180,7 @@ public:
    */
   virtual
   ErrorCode set_data( SequenceManager* seqman,
+                      Error* error_handler,
                       const EntityHandle* entities,
                       size_t num_entities,
                       const void* data ) = 0;
@@ -188,6 +196,7 @@ public:
    */
   virtual
   ErrorCode set_data( SequenceManager* seqman,
+                      Error* error_handler,
                       const Range& entities,
                       const void* data ) = 0;
                       
@@ -207,6 +216,7 @@ public:
    */
   virtual
   ErrorCode set_data( SequenceManager* seqman,
+                      Error* error_handler,
                       const EntityHandle* entities,
                       size_t num_entities,
                       void const* const* data_ptrs,
@@ -228,6 +238,7 @@ public:
    */
   virtual
   ErrorCode set_data( SequenceManager* seqman,
+                      Error* error_handler,
                       const Range& entities,
                       void const* const* data_ptrs,
                       const int* data_lengths ) = 0;
@@ -247,6 +258,7 @@ public:
    */
   virtual
   ErrorCode clear_data( SequenceManager* seqman,
+                        Error* error_handler,
                         const EntityHandle* entities,
                         size_t num_entities,
                         const void* value_ptr,
@@ -266,6 +278,7 @@ public:
    */
   virtual
   ErrorCode clear_data( SequenceManager* seqman,
+                        Error* error_handler,
                         const Range& entities,
                         const void* value_ptr,
                         int value_len = 0 ) = 0;
@@ -279,6 +292,7 @@ public:
    *\param num_entities Length of \c entities array
    */
   virtual ErrorCode remove_data( SequenceManager* seqman,
+                                 Error* error_handler,
                                  const EntityHandle* entities,
                                  size_t num_entities ) = 0;
 
@@ -290,6 +304,7 @@ public:
    *\param entities  Entity handles for which to store tag data
    */
   virtual ErrorCode remove_data( SequenceManager* seqman,
+                                 Error* error_handler,
                                  const Range& entities ) = 0;
 
   /**\brief Access tag data via direct pointer into contiguous blocks
@@ -316,6 +331,7 @@ public:
    */
   virtual
   ErrorCode tag_iterate( SequenceManager* seqman,
+                         Error* error_handler,
                          Range::iterator& iter,
                          const Range::iterator& end,
                          void*& data_ptr ) = 0;
@@ -373,6 +389,7 @@ public:
    */
   virtual
   ErrorCode find_entities_with_value( const SequenceManager* seqman,
+                                      Error* error_handler,
                                       Range& output_entities,
                                       const void* value,
                                       int value_bytes = 0,

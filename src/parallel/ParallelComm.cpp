@@ -3,6 +3,7 @@
 #include "moab/WriteUtilIface.hpp"
 #include "moab/ReadUtilIface.hpp"
 #include "SequenceManager.hpp"
+#include "Error.hpp"
 #include "EntitySequence.hpp"
 #include "MBTagConventions.hpp"
 #include "moab/Skinner.hpp"
@@ -282,13 +283,13 @@ static inline void print_debug_waitany(std::vector<MPI_Request> &reqs, int tag, 
 
 
 #define RR(a) if (MB_SUCCESS != result) {\
-          dynamic_cast<Core*>(mbImpl)->get_error_handler()->set_last_error(a);\
+          errorHandler->set_last_error(a);\
           return result;}
 
 #define RRA(a) if (MB_SUCCESS != result) {\
       std::string tmp_str; mbImpl->get_last_error(tmp_str);\
       tmp_str.append("\n"); tmp_str.append(a);\
-      dynamic_cast<Core*>(mbImpl)->get_error_handler()->set_last_error(tmp_str); \
+      errorHandler->set_last_error(tmp_str); \
       return result;}
 
 #define RRAI(i, a) if (MB_SUCCESS != result) {                \
@@ -351,7 +352,9 @@ ParallelComm::~ParallelComm()
 
 void ParallelComm::initialize() 
 {
-  sequenceManager = dynamic_cast<Core*>(mbImpl)->sequence_manager();
+  Core* core = dynamic_cast<Core*>(mbImpl);
+  sequenceManager = core->sequence_manager();
+  errorHandler = core->get_error_handler();
   
     // initialize MPI, if necessary
   int flag = 1;
@@ -2875,9 +2878,10 @@ ErrorCode ParallelComm::packed_tag_size( Tag tag,
     var_len_sizes.resize( num_ent );
     var_len_values.resize( num_ent );
     ErrorCode result = tag->get_data( sequenceManager,
-                                              tagged_entities, 
-                                              &var_len_values[0], 
-                                              &var_len_sizes[0] );
+                                      errorHandler,
+                                      tagged_entities, 
+                                      &var_len_values[0], 
+                                      &var_len_sizes[0] );
     RRA("Failed to get lenghts of variable-length tag values.");
     count += std::accumulate( var_len_sizes.begin(), var_len_sizes.end(), 0 );
   }

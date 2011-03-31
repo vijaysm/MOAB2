@@ -2,6 +2,7 @@
 #include "EntitySequence.hpp"
 #include "SequenceData.hpp"
 #include "TestUtil.hpp"
+#include "Error.hpp"
 
 using namespace moab;
 
@@ -665,50 +666,51 @@ void test_erase()
 {
   TypeSequenceManager seqman;
   make_basic_sequence( seqman );
+  Error eh;
 
     // verify initial state
   EntityHandle exp1[][2] = { {3, 7}, {100, 111}, {1001, 1001} };
   CHECK( seqman_equal( exp1, 3, seqman ) );
 
     // try erasing invalid handles at start of existing sequence
-  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, seqman.erase( 1000, 1001 ) );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, seqman.erase( &eh, 1000, 1001 ) );
     // try erasing invalid entities at end of existing sequence
-  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, seqman.erase( 3, 8 ) );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, seqman.erase( &eh, 3, 8 ) );
     // verify initial state
   CHECK( seqman_equal( exp1, 3, seqman ) );
   
     // erase from front of sequence
-  CHECK_ERR( seqman.erase( 3, 6 ) );
+  CHECK_ERR( seqman.erase( &eh, 3, 6 ) );
   EntityHandle exp2[][2] = { {7, 7}, {100, 111}, {1001, 1001} };
   CHECK( seqman_equal( exp2, 3, seqman ) );
   
     // erase from end of sequence
-  CHECK_ERR( seqman.erase( 110, 111 ) );
+  CHECK_ERR( seqman.erase( &eh, 110, 111 ) );
   EntityHandle exp3[][2] = { {7, 7}, {100, 109}, {1001, 1001} };
   CHECK( seqman_equal( exp3, 3, seqman ) );
   
     // erase from middle of sequence
-  CHECK_ERR( seqman.erase( 105, 107 ) );
+  CHECK_ERR( seqman.erase( &eh, 105, 107 ) );
   EntityHandle exp4[][2] = { {7, 7}, {100, 104}, {108,109}, {1001, 1001} };
   CHECK( seqman_equal( exp4, 4, seqman ) );
   
     // erase sequence
-  CHECK_ERR( seqman.erase( 7, 7 ) );
+  CHECK_ERR( seqman.erase( &eh, 7, 7 ) );
   EntityHandle exp5[][2] = { {100, 104}, {108,109}, {1001, 1001} };
   CHECK( seqman_equal( exp5, 3, seqman ) );
   
     // erase sequence
-  CHECK_ERR( seqman.erase( 108, 109 ) );
+  CHECK_ERR( seqman.erase( &eh, 108, 109 ) );
   EntityHandle exp6[][2] = { {100, 104}, {1001, 1001} };
   CHECK( seqman_equal( exp6, 2, seqman ) );
   
     // erase sequence
-  CHECK_ERR( seqman.erase( 100, 104 ) );
+  CHECK_ERR( seqman.erase( &eh, 100, 104 ) );
   EntityHandle exp7[][2] = { {1001, 1001} };
   CHECK( seqman_equal( exp7, 1, seqman ) );
   
     // erase sequence
-  CHECK_ERR( seqman.erase( 1001, 1001 ) );
+  CHECK_ERR( seqman.erase( &eh, 1001, 1001 ) );
   CHECK( seqman.empty() );
 }
 

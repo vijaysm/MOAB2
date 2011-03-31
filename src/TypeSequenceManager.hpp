@@ -9,6 +9,8 @@
 
 namespace moab {
 
+class Error;
+
 /**\brief Maintain data structures organizing EntitySequence instances
  *
  * EntitySequenceManager is a composition of instances of TypeSequenceManager,
@@ -191,7 +193,9 @@ public:
     /**\brief Get number of entities represented by all sequences. */
   inline EntityID get_number_entities() const;
   
-  ErrorCode check_valid_handles( EntityHandle first, EntityHandle last ) const;
+  ErrorCode check_valid_handles( Error* error_handler, 
+                                 EntityHandle first, 
+                                 EntityHandle last ) const;
   
     /**\brief Remove entities 
      *
@@ -199,8 +203,8 @@ public:
      * specified entities (e.g. split sequences, delete sequences,
      * free SequenceData instances, etc.)
      */
-  ErrorCode erase( EntityHandle first, EntityHandle last );
-  ErrorCode erase( EntityHandle entity );
+  ErrorCode erase( Error* error_handler, EntityHandle first, EntityHandle last );
+  ErrorCode erase( Error* error_handler, EntityHandle entity );
   
   /**\brief Test if this instance contains no sequences */
   bool empty() const

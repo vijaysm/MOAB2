@@ -8,6 +8,7 @@
 #include "moab/HomXform.hpp"
 #include "PolyElementSeq.hpp"
 #include "SysUtil.hpp"
+#include "Error.hpp"
 
 #include <assert.h>
 #include <new>
@@ -34,7 +35,7 @@ SequenceManager::~SequenceManager()
     // release variable-length tag data
   for (unsigned i = 0; i < tagSizes.size(); ++i)
     if (tagSizes[i] == MB_VARIABLE_LENGTH)
-      release_tag_array( i, false );
+      release_tag_array( 0, i, false );
 }
 
 void SequenceManager::clear()
@@ -70,7 +71,8 @@ EntityID SequenceManager::get_number_entities( ) const
 
 
 
-ErrorCode SequenceManager::check_valid_entities( const Range& entities ) const
+ErrorCode SequenceManager::check_valid_entities( Error* error,
+                                                 const Range& entities ) const
 {
   ErrorCode rval;
   Range::const_pair_iterator i;
@@ -78,17 +80,17 @@ ErrorCode SequenceManager::check_valid_entities( const Range& entities ) const
     const EntityType type1 = TYPE_FROM_HANDLE(i->first);
     const EntityType type2 = TYPE_FROM_HANDLE(i->second);
     if (type1 == type2) {
-      rval = typeData[type1].check_valid_handles( i->first, i->second );
+      rval = typeData[type1].check_valid_handles( error, i->first, i->second );
       if (MB_SUCCESS != rval)
         return rval;
     }
     else {
       int junk;
       EntityHandle split = CREATE_HANDLE( type2, 0, junk );
-      rval = typeData[type1].check_valid_handles( i->first, split-1 );
+      rval = typeData[type1].check_valid_handles( error, i->first, split-1 );
       if (MB_SUCCESS != rval)
         return rval;
-      rval = typeData[type2].check_valid_handles( split, i->second );
+      rval = typeData[type2].check_valid_handles( error, split, i->second );
       if (MB_SUCCESS != rval)
         return rval;
     }
@@ -96,7 +98,8 @@ ErrorCode SequenceManager::check_valid_entities( const Range& entities ) const
   return MB_SUCCESS;
 }
 
-ErrorCode SequenceManager::check_valid_entities( const EntityHandle* entities,
+ErrorCode SequenceManager::check_valid_entities( Error* error_handler,
+                                                 const EntityHandle* entities,
                                                  size_t num_entities,
                                                  bool root_set_okay ) const
 {
@@ -106,21 +109,23 @@ ErrorCode SequenceManager::check_valid_entities( const EntityHandle* entities,
   const EntityHandle* const end = entities + num_entities;
   for (; entities < end; ++entities) {
     rval = find(*entities, ptr);
-    if (MB_SUCCESS != rval && !(root_set_okay && !*entities))
+    if (MB_SUCCESS != rval && !(root_set_okay && !*entities)) {
+      error_handler->set_last_error( "Invalid entity handle 0x%lx", (unsigned long)*entities);
       return rval;
+    }
   }
   
   return MB_SUCCESS;;
 }
 
-ErrorCode SequenceManager::delete_entity( EntityHandle entity )
+ErrorCode SequenceManager::delete_entity( Error* error, EntityHandle entity )
 {
-  return typeData[TYPE_FROM_HANDLE(entity)].erase( entity );
+  return typeData[TYPE_FROM_HANDLE(entity)].erase( error, entity );
 }
 
-ErrorCode SequenceManager::delete_entities( const Range& entities )
+ErrorCode SequenceManager::delete_entities( Error* error, const Range& entities )
 {
-  ErrorCode rval = check_valid_entities( entities );
+  ErrorCode rval = check_valid_entities( error, entities );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -130,17 +135,17 @@ ErrorCode SequenceManager::delete_entities( const Range& entities )
     const EntityType type1 = TYPE_FROM_HANDLE(i->first);
     const EntityType type2 = TYPE_FROM_HANDLE(i->second);
     if (type1 == type2) {
-      rval = typeData[type1].erase( i->first, i->second );
+      rval = typeData[type1].erase( error, i->first, i->second );
       if (MB_SUCCESS != rval)
         return result = rval;
     }
     else {
       int junk;
       EntityHandle split = CREATE_HANDLE( type2, 0, junk );
-      rval = typeData[type1].erase( i->first, split-1 );
+      rval = typeData[type1].erase( error, i->first, split-1 );
       if (MB_SUCCESS != rval)
         return result = rval;
-      rval = typeData[type2].erase( split, i->second );
+      rval = typeData[type2].erase( error, split, i->second );
       if (MB_SUCCESS != rval)
         return result = rval;
     }
@@ -807,10 +812,13 @@ void SequenceManager::get_memory_use( const Range& entities,
   }
 }
 
-ErrorCode SequenceManager::reserve_tag_array( int size, int& index )
+ErrorCode SequenceManager::reserve_tag_array( Error* error_handler, 
+                                              int size, int& index )
 {
-  if (size < 1 && size != MB_VARIABLE_LENGTH)
+  if (size < 1 && size != MB_VARIABLE_LENGTH) {
+    error_handler->set_last_error( "Invalid tag size: %d", size );
     return MB_INVALID_SIZE;
+  }
   
   std::vector<int>::iterator i = std::find( tagSizes.begin(), tagSizes.end(), UNUSED_SIZE );
   if (i == tagSizes.end()) {
@@ -825,10 +833,14 @@ ErrorCode SequenceManager::reserve_tag_array( int size, int& index )
   return MB_SUCCESS;
 }
 
-ErrorCode SequenceManager::release_tag_array( int index, bool release_id )
+ErrorCode SequenceManager::release_tag_array( Error* error_handler, 
+                                              int index, bool release_id )
 {
-  if ((unsigned)index >= tagSizes.size() || UNUSED_SIZE == tagSizes[index])
+  if ((unsigned)index >= tagSizes.size() || UNUSED_SIZE == tagSizes[index]) {
+    if (error_handler)
+      error_handler->set_last_error( "Invalid dense tag index: %d", index );
     return MB_TAG_NOT_FOUND;
+  }
   
   for (EntityType t = MBVERTEX; t <= MBENTITYSET; ++t) {
     TypeSequenceManager& seqs = entity_map(t);

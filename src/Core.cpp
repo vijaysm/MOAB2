@@ -742,7 +742,7 @@ ErrorCode Core::delete_mesh()
   aEntityFactory = new AEntityFactory(this);
 
   for (std::list<TagInfo*>::iterator i = tagList.begin(); i != tagList.end(); ++i) {
-    ErrorCode tmp = (*i)->release_all_data( sequenceManager, false );
+    ErrorCode tmp = (*i)->release_all_data( sequenceManager, mError, false );
     if (MB_SUCCESS != tmp)
       result = tmp;
   }
@@ -1671,7 +1671,7 @@ ErrorCode Core::get_entities_by_type_and_tag(const EntityHandle meshset,
     if (NULL == values || NULL == values[it]) 
       result = tags[it]->get_tagged_entities( sequenceManager, tmp_range, type, &range );
     else {
-      result = tags[it]->find_entities_with_value( sequenceManager, tmp_range, values[it], 0, type, &range );
+      result = tags[it]->find_entities_with_value( sequenceManager, mError, tmp_range, values[it], 0, type, &range );
         // if there is a default value, then we should return all entities
         // that are untagged
       if (MB_SUCCESS == result && tags[it]->equals_default_value( values[it] )) {
@@ -1858,7 +1858,7 @@ ErrorCode Core::tag_get_data( const Tag tag_handle,
     num_entities = 1;
   }
   
-  return tag_handle->get_data( sequenceManager, entity_handles, num_entities, tag_data );
+  return tag_handle->get_data( sequenceManager, mError, entity_handles, num_entities, tag_data );
 }
 
 //! return the tag data for a given EntityHandle and Tag
@@ -1867,7 +1867,7 @@ ErrorCode  Core::tag_get_data( const Tag tag_handle,
                                void *tag_data) const
 {
   assert(valid_tag_handle( tag_handle ));
-  return tag_handle->get_data( sequenceManager, entity_handles, tag_data );
+  return tag_handle->get_data( sequenceManager, mError, entity_handles, tag_data );
 }
 
 //! set the data  for given EntityHandles and Tag
@@ -1884,7 +1884,7 @@ ErrorCode  Core::tag_set_data( Tag tag_handle,
     num_entities = 1;
   }
   
-  return tag_handle->set_data( sequenceManager, entity_handles, num_entities, tag_data );
+  return tag_handle->set_data( sequenceManager, mError, entity_handles, num_entities, tag_data );
 }
 
 //! set the data  for given EntityHandles and Tag
@@ -1893,7 +1893,7 @@ ErrorCode  Core::tag_set_data( Tag tag_handle,
                                const void *tag_data)
 {
   assert(valid_tag_handle( tag_handle ));
-  return tag_handle->set_data( sequenceManager, entity_handles, tag_data );
+  return tag_handle->set_data( sequenceManager, mError, entity_handles, tag_data );
 }
 
 
@@ -1912,7 +1912,7 @@ ErrorCode  Core::tag_get_data( const Tag tag_handle,
     num_entities = 1;
   }
 
-  return tag_handle->get_data( sequenceManager, entity_handles, num_entities, tag_data, tag_sizes );
+  return tag_handle->get_data( sequenceManager, mError, entity_handles, num_entities, tag_data, tag_sizes );
 }
 
 //! return the tag data for a given EntityHandle and Tag
@@ -1922,7 +1922,7 @@ ErrorCode  Core::tag_get_data( const Tag tag_handle,
                                int* tag_sizes ) const
 {
   assert(valid_tag_handle( tag_handle ));
-  return tag_handle->get_data( sequenceManager, entity_handles, tag_data, tag_sizes );
+  return tag_handle->get_data( sequenceManager, mError, entity_handles, tag_data, tag_sizes );
 }
 
 //! set the data  for given EntityHandles and Tag
@@ -1940,7 +1940,7 @@ ErrorCode  Core::tag_set_data( Tag tag_handle,
     num_entities = 1;
   }
   
-  return tag_handle->set_data( sequenceManager, entity_handles, num_entities, tag_data, tag_sizes );
+  return tag_handle->set_data( sequenceManager, mError, entity_handles, num_entities, tag_data, tag_sizes );
 }
 
 //! set the data  for given EntityHandles and Tag
@@ -1950,7 +1950,7 @@ ErrorCode  Core::tag_set_data( Tag tag_handle,
                                const int* tag_sizes )
 {
   assert(valid_tag_handle( tag_handle ));
-  return tag_handle->set_data(sequenceManager, entity_handles, tag_data, tag_sizes);
+  return tag_handle->set_data(sequenceManager, mError, entity_handles, tag_data, tag_sizes);
 }
 
 //! set the data  for given EntityHandles and Tag
@@ -1968,7 +1968,7 @@ ErrorCode  Core::tag_clear_data( Tag tag_handle,
     num_entities = 1;
   }
   
-  return tag_handle->clear_data( sequenceManager, entity_handles, num_entities, tag_data, tag_size );
+  return tag_handle->clear_data( sequenceManager, mError, entity_handles, num_entities, tag_data, tag_size );
 }
 
 //! set the data  for given EntityHandles and Tag
@@ -1978,7 +1978,7 @@ ErrorCode  Core::tag_clear_data( Tag tag_handle,
                                  int tag_size )
 {
   assert(valid_tag_handle( tag_handle ));
-  return tag_handle->clear_data( sequenceManager, entity_handles, tag_data, tag_size );
+  return tag_handle->clear_data( sequenceManager, mError, entity_handles, tag_data, tag_size );
 }
 
 ErrorCode Core::tag_get_handle( const char* name,
@@ -2062,10 +2062,10 @@ ErrorCode Core::tag_get_handle( const char* name,
     // create the tag
   switch (flags & (MB_TAG_DENSE|MB_TAG_SPARSE|MB_TAG_MESH|MB_TAG_VARLEN)) {
     case MB_TAG_DENSE|MB_TAG_VARLEN:
-      tag_handle = VarLenDenseTag::create_tag( sequenceManager, name, type, default_value, size );
+      tag_handle = VarLenDenseTag::create_tag( sequenceManager, mError, name, type, default_value, size );
       break;
     case MB_TAG_DENSE:
-      tag_handle = DenseTag::create_tag( sequenceManager, name, size, type, default_value );
+      tag_handle = DenseTag::create_tag( sequenceManager, mError, name, size, type, default_value );
       break;
     case MB_TAG_SPARSE|MB_TAG_VARLEN:
       tag_handle = new VarLenSparseTag( name, type, default_value, size );
@@ -2122,7 +2122,7 @@ ErrorCode  Core::tag_delete_data( Tag tag_handle,
     num_handles = 1;
   }
   
-  return tag_handle->remove_data( sequenceManager, entity_handles, num_handles );
+  return tag_handle->remove_data( sequenceManager, mError, entity_handles, num_handles );
 }
 
 //! removes the tag from the entity
@@ -2130,7 +2130,7 @@ ErrorCode  Core::tag_delete_data( Tag tag_handle,
                                   const Range &entity_handles )
 {
   assert(valid_tag_handle( tag_handle ));
-  return tag_handle->remove_data( sequenceManager, entity_handles );
+  return tag_handle->remove_data( sequenceManager, mError, entity_handles );
 }
 
 //! removes the tag from MB
@@ -2140,7 +2140,7 @@ ErrorCode Core::tag_delete(Tag tag_handle)
   if (i == tagList.end())
     return MB_TAG_NOT_FOUND;
     
-  ErrorCode rval = tag_handle->release_all_data( sequenceManager, true );
+  ErrorCode rval = tag_handle->release_all_data( sequenceManager, mError, true );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -2157,7 +2157,7 @@ ErrorCode Core::tag_iterate( Tag tag_handle,
 {
   Range::const_iterator init = iter;
   assert(valid_tag_handle( tag_handle ));
-  ErrorCode result = tag_handle->tag_iterate( sequenceManager, iter, end, data_ptr );
+  ErrorCode result = tag_handle->tag_iterate( sequenceManager, mError, iter, end, data_ptr );
   if (MB_SUCCESS == result)
     count = iter - init;
   return result;
@@ -2415,7 +2415,7 @@ ErrorCode Core::delete_entities(const Range &range)
   Range failed_ents;
   
   for (std::list<TagInfo*>::iterator i = tagList.begin(); i != tagList.end(); ++i)
-    if (MB_SUCCESS != (temp_result = (*i)->remove_data( sequenceManager, range ) ))
+    if (MB_SUCCESS != (temp_result = (*i)->remove_data( sequenceManager, mError, range ) ))
       result = temp_result;
   
   for (Range::const_reverse_iterator rit = range.rbegin(); rit != range.rend(); rit++) {
@@ -2446,11 +2446,11 @@ ErrorCode Core::delete_entities(const Range &range)
   if (!failed_ents.empty()) {
     Range dum_range = subtract(range, failed_ents);
       // don't test for success, since we'll return failure in this case
-    sequence_manager()->delete_entities(dum_range);
+    sequence_manager()->delete_entities(mError,dum_range);
   }
   else
       // now delete the entities
-    result = sequence_manager()->delete_entities(range);
+    result = sequence_manager()->delete_entities(mError,range);
 
   return result;
 }

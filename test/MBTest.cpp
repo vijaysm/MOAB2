@@ -52,6 +52,7 @@
 #include "SequenceManager.hpp"
 #include "EntitySequence.hpp"
 #include "RangeSeqIntersectIter.hpp"
+#include "Error.hpp"
 
 using namespace std;
 using namespace moab;
@@ -5862,6 +5863,7 @@ ErrorCode mb_range_seq_intersect_test()
   
   
     // Create some holes
+  Error eh;
   EntityHandle ts1s  = ts1->start_handle();
   EntityHandle dead1 = ts1->start_handle() + 1;
   EntityHandle dead2 = ts1->start_handle() + 2;
@@ -5872,17 +5874,17 @@ ErrorCode mb_range_seq_intersect_test()
   EntityHandle qs1e  = qs1->end_handle();
   EntityHandle dead5 = qs1->start_handle() + nq1/2;
   EntityHandle dead6 = dead5+1;
-  rval = sequences.delete_entity( dead1 );
+  rval = sequences.delete_entity( &eh, dead1 );
   if (MB_SUCCESS != rval) return rval;
-  rval = sequences.delete_entity( dead2 );
+  rval = sequences.delete_entity( &eh, dead2 );
   if (MB_SUCCESS != rval) return rval;
-  rval = sequences.delete_entity( dead3 );
+  rval = sequences.delete_entity( &eh, dead3 );
   if (MB_SUCCESS != rval) return rval;
-  rval = sequences.delete_entity( dead4 );
+  rval = sequences.delete_entity( &eh, dead4 );
   if (MB_SUCCESS != rval) return rval;
-  rval = sequences.delete_entity( dead5 );
+  rval = sequences.delete_entity( &eh, dead5 );
   if (MB_SUCCESS != rval) return rval;
-  rval = sequences.delete_entity( dead6 );
+  rval = sequences.delete_entity( &eh, dead6 );
   if (MB_SUCCESS != rval) return rval;
   
     // Iterate over sequences w/out removing deleted entities

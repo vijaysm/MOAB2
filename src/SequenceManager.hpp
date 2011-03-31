@@ -8,6 +8,7 @@
 namespace moab {
 
 class HomCoord;
+class Error;
 
 class SequenceManager 
 {
@@ -80,21 +81,23 @@ class SequenceManager
     ErrorCode replace_subsequence( EntitySequence* new_seq );
     
       /** Check if passed entity handles are valid */
-    ErrorCode check_valid_entities( const Range& entities ) const;
+    ErrorCode check_valid_entities( Error* error_handler, 
+                                    const Range& entities ) const;
     
       /** Check if passed entity handles are valid 
        *\param root_set_okay  If true, do not returnan error if the passed
        *                      array contains one or more zero-valued handles 
        */
-    ErrorCode check_valid_entities( const EntityHandle entities[],
+    ErrorCode check_valid_entities( Error* error_handler,
+                                    const EntityHandle entities[],
                                     size_t num_entities,
                                     bool root_set_okay = false ) const;
     
       /** Delete an entity.  Deletes sequence if only contained entity. */
-    ErrorCode delete_entity( EntityHandle entity );
+    ErrorCode delete_entity( Error* error_handler, EntityHandle entity );
     
       /** Delete entities */
-    ErrorCode delete_entities( const Range& entities );
+    ErrorCode delete_entities( Error* error_handler, const Range& entities );
     
       /** Allocate a vertex (possibly in an existing sequence) and 
        *  assign it the passed coordinate values.
@@ -247,11 +250,11 @@ class SequenceManager
       /** Allocate a tag ID
        *\param tag_size The size of the tag value for each entity
        */
-    ErrorCode reserve_tag_array( int tag_size, int& array_id_out );
+    ErrorCode reserve_tag_array( Error* error_handler, int tag_size, int& array_id_out );
     
       /** Release any storage assocociated with a tag ID, and optionally,
        *  release the reserved tag ID. */
-    ErrorCode release_tag_array( int id, bool release_id );
+    ErrorCode release_tag_array( Error* error_handler, int id, bool release_id );
     
       /**\brief Get default size of POLYGON and POLYHEDRON SequenceData */
     static EntityID default_poly_sequence_size( int entity_connectivity_length );

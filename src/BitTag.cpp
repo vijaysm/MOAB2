@@ -3,12 +3,13 @@
 #include "moab/Range.hpp"
 #include "TagCompare.hpp"
 #include "SequenceManager.hpp"
+#include "Error.hpp"
 #include <stdlib.h>
 #include <string.h>
 
 namespace moab {
 
-BitTag::~BitTag() { release_all_data(0,true); }
+BitTag::~BitTag() { release_all_data(0,0,true); }
 
 TagType BitTag::get_storage_type() const 
   { return MB_TAG_BIT; }
@@ -49,7 +50,7 @@ ErrorCode BitTag::reserve( unsigned bits )
   return MB_SUCCESS;
 }
 
-ErrorCode BitTag::release_all_data(SequenceManager*, bool)
+ErrorCode BitTag::release_all_data(SequenceManager*, Error*, bool)
 {
   for (EntityType t = (EntityType)0; t != MBMAXTYPE; ++t) {
     for (size_t i = 0; i < pageList[t].size(); ++i)
@@ -60,6 +61,7 @@ ErrorCode BitTag::release_all_data(SequenceManager*, bool)
 }
 
 ErrorCode BitTag::get_data( const SequenceManager*,
+                            Error*,
                             const EntityHandle* handles, 
                             size_t num_handles, 
                             void* gen_data ) const
@@ -80,11 +82,12 @@ ErrorCode BitTag::get_data( const SequenceManager*,
 }
 
 ErrorCode BitTag::set_data( SequenceManager* seqman,
+                            Error* error,
                             const EntityHandle* handles, 
                             size_t num_handles, 
                             const void* gen_data )
 {
-  ErrorCode rval = seqman->check_valid_entities( handles, num_handles, true );
+  ErrorCode rval = seqman->check_valid_entities( error, handles, num_handles, true );
   if (MB_SUCCESS != rval)
     return rval;
 
@@ -104,6 +107,7 @@ ErrorCode BitTag::set_data( SequenceManager* seqman,
 }
 
 ErrorCode BitTag::clear_data( SequenceManager* seqman,
+                              Error* error,
                               const EntityHandle* handles, 
                               size_t num_handles, 
                               const void* value_ptr,
@@ -112,7 +116,7 @@ ErrorCode BitTag::clear_data( SequenceManager* seqman,
   if (value_len)
     return MB_INVALID_SIZE;
 
-  ErrorCode rval = seqman->check_valid_entities( handles, num_handles, true );
+  ErrorCode rval = seqman->check_valid_entities( error, handles, num_handles, true );
   if (MB_SUCCESS != rval)
     return rval;
     
@@ -132,6 +136,7 @@ ErrorCode BitTag::clear_data( SequenceManager* seqman,
 }
 
 ErrorCode BitTag::remove_data( SequenceManager*,
+                               Error*,
                                const EntityHandle* handles, 
                                size_t num_handles )
 {
@@ -148,6 +153,7 @@ ErrorCode BitTag::remove_data( SequenceManager*,
 }
 
 ErrorCode BitTag::get_data( const SequenceManager*,
+                            Error*,
                             const Range& handles, 
                             void* gen_data ) const
 {
@@ -184,10 +190,11 @@ ErrorCode BitTag::get_data( const SequenceManager*,
 }
 
 ErrorCode BitTag::set_data( SequenceManager* seqman,
+                            Error* error,
                             const Range& handles, 
                             const void* gen_data )
 {
-  ErrorCode rval = seqman->check_valid_entities( handles );
+  ErrorCode rval = seqman->check_valid_entities( error, handles );
   if (MB_SUCCESS != rval)
     return rval;
 
@@ -221,6 +228,7 @@ ErrorCode BitTag::set_data( SequenceManager* seqman,
 }
 
 ErrorCode BitTag::clear_data( SequenceManager* seqman,
+                              Error* error,
                               const Range& handles, 
                               const void* value_ptr,
                               int value_len )
@@ -228,7 +236,7 @@ ErrorCode BitTag::clear_data( SequenceManager* seqman,
   if (value_len)
     return MB_INVALID_SIZE;
 
-  ErrorCode rval = seqman->check_valid_entities( handles );
+  ErrorCode rval = seqman->check_valid_entities( error, handles );
   if (MB_SUCCESS != rval)
     return rval;
     
@@ -259,7 +267,7 @@ ErrorCode BitTag::clear_data( SequenceManager* seqman,
   return MB_SUCCESS;
 }
 
-ErrorCode BitTag::remove_data( SequenceManager*, const Range& handles )
+ErrorCode BitTag::remove_data( SequenceManager*, Error*, const Range& handles )
 {
   EntityType type;
   EntityID count;
@@ -284,37 +292,48 @@ ErrorCode BitTag::remove_data( SequenceManager*, const Range& handles )
   return MB_SUCCESS;
 }
 
+static ErrorCode report_unsupported( Error* error )
+{
+  error->set_last_error("Operation not supported for bit tags");
+  return MB_TYPE_OUT_OF_RANGE;
+}
+
 ErrorCode BitTag::get_data( const SequenceManager*,
+                            Error* error,
                             const EntityHandle*,
                             size_t,
                             const void**,
                             int* ) const
-  { return MB_TYPE_OUT_OF_RANGE; }
+  { return report_unsupported(error); }
 
 ErrorCode BitTag::get_data( const SequenceManager*,
+                            Error* error,
                             const Range&,
                             const void**,
                             int* ) const
-  { return MB_TYPE_OUT_OF_RANGE; }
+  { return report_unsupported(error); }
 
 ErrorCode BitTag::set_data( SequenceManager*,
+                            Error* error,
                             const EntityHandle*, 
                             size_t, 
                             void const* const*,
                             const int* )
-  { return MB_TYPE_OUT_OF_RANGE; }
+  { return report_unsupported(error); }
 
 ErrorCode BitTag::set_data( SequenceManager*,
+                            Error* error,
                             const Range&, 
                             void const* const*,
                             const int* )
-  { return MB_TYPE_OUT_OF_RANGE; }
+  { return report_unsupported(error); }
 
 ErrorCode BitTag::tag_iterate( SequenceManager*,
+                               Error* error,
                                Range::iterator&,
                                const Range::iterator&,
                                void*& )
-  { return MB_TYPE_OUT_OF_RANGE; }
+  { return report_unsupported(error); }
 
 template <class Container> inline 
 void BitTag::get_tagged( EntityType type,
@@ -407,14 +426,17 @@ ErrorCode BitTag::num_tagged_entities( const SequenceManager*,
 }
 
 ErrorCode BitTag::find_entities_with_value( const SequenceManager*,
+                                            Error* error,
                                             Range& output_entities,
                                             const void* value,
                                             int value_bytes,
                                             EntityType type ,
                                             const Range* intersect_entities ) const
 {
-  if (value_bytes && value_bytes != 1)
+  if (value_bytes && value_bytes != 1) {
+    error->set_last_error("Inavlid tag size for bit tag: %d bytes\n",value_bytes);
     return MB_INVALID_SIZE;
+  }
     
   const signed char bits = *reinterpret_cast<const unsigned char*>(value);
   if (intersect_entities)

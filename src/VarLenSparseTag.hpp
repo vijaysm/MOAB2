@@ -68,7 +68,9 @@ public:
    *
    *\param seqman    Pointer to mesh entity database
    */
-  virtual ErrorCode release_all_data( SequenceManager* seqman, bool delete_pending );
+  virtual ErrorCode release_all_data( SequenceManager* seqman, 
+                                      Error* error_handler, 
+                                      bool delete_pending );
   
 
   /**\brief Get tag value for passed entities
@@ -84,6 +86,7 @@ public:
    */
   virtual
   ErrorCode get_data( const SequenceManager* seqman,
+                      Error* error_handler, 
                       const EntityHandle* entities,
                       size_t num_entities,
                       void* data ) const;
@@ -100,6 +103,7 @@ public:
    */
   virtual
   ErrorCode get_data( const SequenceManager* seqman,
+                      Error* error_handler, 
                       const Range& entities,
                       void* data ) const;
                       
@@ -118,10 +122,11 @@ public:
    */
   virtual
   ErrorCode get_data( const SequenceManager* seqman,
+                      Error* error_handler, 
                       const EntityHandle* entities,
                       size_t num_entities,
                       const void** data_ptrs,
-                      int* data_lengths ) const;
+                      int* data_lengths ) const ;
                       
                       
   /**\brief Get tag value for passed entities
@@ -138,6 +143,7 @@ public:
    */
   virtual
   ErrorCode get_data( const SequenceManager* seqman,
+                      Error* error_handler, 
                       const Range& entities,
                       const void** data_ptrs,
                       int* data_lengths ) const;
@@ -154,6 +160,7 @@ public:
    */
   virtual
   ErrorCode set_data( SequenceManager* seqman,
+                      Error* error_handler, 
                       const EntityHandle* entities,
                       size_t num_entities,
                       const void* data );
@@ -169,6 +176,7 @@ public:
    */
   virtual
   ErrorCode set_data( SequenceManager* seqman,
+                      Error* error_handler, 
                       const Range& entities,
                       const void* data );
                       
@@ -188,6 +196,7 @@ public:
    */
   virtual
   ErrorCode set_data( SequenceManager* seqman,
+                      Error* error_handler, 
                       const EntityHandle* entities,
                       size_t num_entities,
                       void const* const* data_ptrs,
@@ -209,6 +218,7 @@ public:
    */
   virtual
   ErrorCode set_data( SequenceManager* seqman,
+                      Error* error_handler, 
                       const Range& entities,
                       void const* const* data_ptrs,
                       const int* data_lengths );
@@ -228,6 +238,7 @@ public:
    */
   virtual
   ErrorCode clear_data( SequenceManager* seqman,
+                        Error* error_handler, 
                         const EntityHandle* entities,
                         size_t num_entities,
                         const void* value_ptr,
@@ -247,6 +258,7 @@ public:
    */
   virtual
   ErrorCode clear_data( SequenceManager* seqman,
+                        Error* error_handler, 
                         const Range& entities,
                         const void* value_ptr,
                         int value_len = 0 );
@@ -260,6 +272,7 @@ public:
    *\param num_entities Length of \c entities array
    */
   virtual ErrorCode remove_data( SequenceManager* seqman,
+                                 Error* error_handler, 
                                  const EntityHandle* entities,
                                  size_t num_entities );
 
@@ -271,6 +284,7 @@ public:
    *\param entities  Entity handles for which to store tag data
    */
   virtual ErrorCode remove_data( SequenceManager* seqman,
+                                 Error* error_handler, 
                                  const Range& entities );
 
   /**\brief Access tag data via direct pointer into contiguous blocks
@@ -297,6 +311,7 @@ public:
    */
   virtual
   ErrorCode tag_iterate( SequenceManager* seqman,
+                         Error* error_handler, 
                          Range::iterator& iter,
                          const Range::iterator& end,
                          void*& data_ptr );
@@ -311,7 +326,7 @@ public:
    *\param output_entities Results *appended* to this range
    *\param type     Optional entity type.  If specified, search is
    *                limited to entities of specified type.
-   *\param intersect_entities Opotional intersect list.  If specified,
+   *\param intersect Opotional intersect list.  If specified,
    *                search is restricted to entities in this list.
    */
   virtual
@@ -330,7 +345,7 @@ public:
    *\param output_count This is *incremented* for each detected entity.
    *\param type     Optional entity type.  If specified, search is
    *                limited to entities of specified type.
-   *\param intersect_entities Opotional intersect list.  If specified,
+   *\param intersect Opotional intersect list.  If specified,
    *                search is restricted to entities in this list.
    */
   virtual
@@ -354,6 +369,7 @@ public:
    */
   virtual
   ErrorCode find_entities_with_value( const SequenceManager* seqman,
+                                      Error* error_handler, 
                                       Range& output_entities,
                                       const void* value,
                                       int value_bytes = 0,
@@ -361,8 +377,7 @@ public:
                                       const Range* intersect_entities = 0 ) const;
   
   /**\brief Check if entity is tagged */
-  virtual
-  bool is_tagged( const SequenceManager* seqman, EntityHandle entity ) const;
+  virtual bool is_tagged( const SequenceManager*, EntityHandle h ) const;
   
   /**\brief Get memory use for tag data.
    *
@@ -391,7 +406,8 @@ private:
 
   //! get the variable-length data for an entity id
   inline
-  ErrorCode get_data_ptr( EntityHandle entity_handle, 
+  ErrorCode get_data_ptr( Error* error_handler,
+                          EntityHandle entity_handle, 
                           const void*& data,
                           int& size) const;
 

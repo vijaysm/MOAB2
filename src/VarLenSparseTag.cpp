@@ -20,8 +20,29 @@
 #include "moab/Range.hpp"
 #include "TagCompare.hpp"
 #include "SequenceManager.hpp"
+#include "Error.hpp"
+#include "moab/CN.hpp"
 
 namespace moab {
+
+static ErrorCode not_found( Error* error, EntityHandle h )
+{
+  if (error) {
+    if (h)
+      error->set_last_error( "No tag value for %s %lu", 
+               CN::EntityTypeName(TYPE_FROM_HANDLE(h)), 
+               (unsigned long)ID_FROM_HANDLE(h));
+    else
+      error->set_last_error( "No tag value for root set" );
+  }
+  return MB_TAG_NOT_FOUND;
+}
+
+static ErrorCode not_var_len( Error* error )
+{
+  error->set_last_error( "No size specified for variable-length tag data" );
+  return MB_VARIABLE_DATA_LENGTH;
+}
 
 VarLenSparseTag::VarLenSparseTag( const char* name,
                                   DataType type,
@@ -31,18 +52,19 @@ VarLenSparseTag::VarLenSparseTag( const char* name,
   { }
 
 VarLenSparseTag::~VarLenSparseTag()
-  { release_all_data(0,true); }
+  { release_all_data(0,0,true); }
 
 TagType VarLenSparseTag::get_storage_type() const 
   { return MB_TAG_SPARSE; }
 
-ErrorCode VarLenSparseTag::release_all_data( SequenceManager*, bool )
+ErrorCode VarLenSparseTag::release_all_data( SequenceManager*, Error*, bool )
 {
   mData.clear();
   return MB_SUCCESS;
 }
 
-ErrorCode VarLenSparseTag::get_data_ptr( EntityHandle entity_handle, 
+ErrorCode VarLenSparseTag::get_data_ptr( Error* error,
+                                         EntityHandle entity_handle, 
                                          const void*& ptr,
                                          int& length ) const
 {
@@ -57,84 +79,91 @@ ErrorCode VarLenSparseTag::get_data_ptr( EntityHandle entity_handle,
     length = get_default_value_size();
   }
   else 
-    return MB_TAG_NOT_FOUND;
+    return not_found(error, entity_handle);
   
   return MB_SUCCESS;
 }
 
 ErrorCode VarLenSparseTag::get_data( const SequenceManager*,
+                                     Error* error,
                                      const EntityHandle* ,
                                      size_t ,
                                      void*  ) const
 {
-  return MB_VARIABLE_DATA_LENGTH;
+  return not_var_len(error);
 }
 
 ErrorCode VarLenSparseTag::get_data( const SequenceManager*,
+                                     Error* error,
                                      const Range& entities,
                                      void* data ) const
 {
-  return MB_VARIABLE_DATA_LENGTH;
+  return not_var_len(error);
 }
 
 ErrorCode VarLenSparseTag::get_data( const SequenceManager* ,
+                                     Error* error,
                                      const EntityHandle* entities,
                                      size_t num_entities,
                                      const void** pointers,
                                      int* lengths ) const
 {
   if (!lengths)
-    return MB_VARIABLE_DATA_LENGTH;
+    return not_var_len(error);
 
   ErrorCode rval;
   for (size_t i = 0; i < num_entities; ++i)
-    if (MB_SUCCESS != (rval = get_data_ptr(entities[i], pointers[i], lengths[i])))
+    if (MB_SUCCESS != (rval = get_data_ptr(error, entities[i], pointers[i], lengths[i])))
       return rval;
   return MB_SUCCESS;
 }
  
 ErrorCode VarLenSparseTag::get_data( const SequenceManager*,
+                                     Error* error,
                                      const Range& entities,
                                      const void** pointers,
                                      int* lengths ) const
 {
   if (!lengths)
-    return MB_VARIABLE_DATA_LENGTH;
+    return not_var_len(error);
 
   ErrorCode rval;
   Range::const_iterator i;
   for (i = entities.begin(); i != entities.end(); ++i, ++pointers, ++lengths)
-    if (MB_SUCCESS != (rval = get_data_ptr(*i, *pointers, *lengths)))
+    if (MB_SUCCESS != (rval = get_data_ptr(error, *i, *pointers, *lengths)))
       return rval;
   return MB_SUCCESS;
 }
 
 ErrorCode VarLenSparseTag::set_data( SequenceManager* seqman,
+                                     Error* error,
                                      const EntityHandle* entities,
                                      size_t num_entities,
                                      const void* data )
 {
-  return MB_VARIABLE_DATA_LENGTH;
+  return not_var_len(error);
 }
 
 ErrorCode VarLenSparseTag::set_data( SequenceManager* seqman,
+                                     Error* error,
                                      const Range& entities,
                                      const void* data )
 {
-  return MB_VARIABLE_DATA_LENGTH;
+  return not_var_len(error);
 }
 
 ErrorCode VarLenSparseTag::set_data( SequenceManager* seqman,
+                                     Error* error,
                                      const EntityHandle* entities,
                                      size_t num_entities,
                                      void const* const* pointers,
                                      const int* lengths )
 {
-  ErrorCode rval = validate_lengths( lengths, num_entities );
+  ErrorCode rval = validate_lengths( error, lengths, num_entities );
   if (MB_SUCCESS != rval)
     return rval;
     
-  rval = seqman->check_valid_entities( entities, num_entities, true );
+  rval = seqman->check_valid_entities( error, entities, num_entities, true );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -153,15 +182,16 @@ ErrorCode VarLenSparseTag::set_data( SequenceManager* seqman,
 }
 
 ErrorCode VarLenSparseTag::set_data( SequenceManager* seqman,
+                                     Error* error,
                                      const Range& entities,
                                      void const* const* pointers,
                                      const int* lengths )
 {
-  ErrorCode rval = validate_lengths( lengths, entities.size() );
+  ErrorCode rval = validate_lengths( error, lengths, entities.size() );
   if (MB_SUCCESS != rval)
     return rval;
     
-  rval = seqman->check_valid_entities( entities );
+  rval = seqman->check_valid_entities( error, entities );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -181,21 +211,22 @@ ErrorCode VarLenSparseTag::set_data( SequenceManager* seqman,
 }
 
 ErrorCode VarLenSparseTag::clear_data( SequenceManager* seqman,
+                                       Error* error,
                                        const EntityHandle* entities,
                                        size_t num_entities,
                                        const void* value_ptr,
                                        int value_len )
 {
   if (0 == value_len) {
-    remove_data( seqman, entities, num_entities );
+    remove_data( seqman, 0, entities, num_entities );
     return MB_SUCCESS;
   }
 
-  ErrorCode rval = validate_lengths( &value_len, 1 );
+  ErrorCode rval = validate_lengths( error, &value_len, 1 );
   if (MB_SUCCESS != rval)
     return rval;
 
-  rval = seqman->check_valid_entities( entities, num_entities, true );
+  rval = seqman->check_valid_entities( error, entities, num_entities, true );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -205,20 +236,21 @@ ErrorCode VarLenSparseTag::clear_data( SequenceManager* seqman,
 }
 
 ErrorCode VarLenSparseTag::clear_data( SequenceManager* seqman,
+                                       Error* error,
                                        const Range& entities,
                                        const void* value_ptr,
                                        int value_len )
 {
   if (0 == value_len) {
-    remove_data( seqman, entities );
+    remove_data( seqman, 0, entities );
     return MB_SUCCESS;
   }
 
-  ErrorCode rval = validate_lengths( &value_len, 1 );
+  ErrorCode rval = validate_lengths( error, &value_len, 1 );
   if (MB_SUCCESS != rval)
     return rval;
     
-  rval = seqman->check_valid_entities( entities );
+  rval = seqman->check_valid_entities( error, entities );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -230,6 +262,7 @@ ErrorCode VarLenSparseTag::clear_data( SequenceManager* seqman,
 }
 
 ErrorCode VarLenSparseTag::remove_data( SequenceManager*,
+                                        Error* error,
                                         const EntityHandle* entities,
                                         size_t num_entities )
 {
@@ -237,7 +270,7 @@ ErrorCode VarLenSparseTag::remove_data( SequenceManager*,
   for (size_t i = 0; i < num_entities; ++i) {
     MapType::iterator p = mData.find(entities[i]);
     if (p == mData.end())
-      result = MB_TAG_NOT_FOUND;
+      result = not_found(error,entities[i]);
     else {
       p->second.clear();
       mData.erase(p);
@@ -247,13 +280,14 @@ ErrorCode VarLenSparseTag::remove_data( SequenceManager*,
 }
 
 ErrorCode VarLenSparseTag::remove_data( SequenceManager*,
+                                        Error* error,
                                         const Range& entities )
 {
   ErrorCode result = MB_SUCCESS;
   for (Range::iterator i = entities.begin(); i != entities.end(); ++i) {
     MapType::iterator p = mData.find(*i);
     if (p == mData.end())
-      result = MB_TAG_NOT_FOUND;
+      result = not_found(error,*i);
     else {
       p->second.clear();
       mData.erase(p);
@@ -263,10 +297,12 @@ ErrorCode VarLenSparseTag::remove_data( SequenceManager*,
 }
 
 ErrorCode VarLenSparseTag::tag_iterate( SequenceManager*,
+                                        Error* error,
                                         Range::iterator&,
                                         const Range::iterator&,
                                         void*& )
 {
+  error->set_last_error( "Cannot iterate over variable-length tag data" );
   return MB_VARIABLE_DATA_LENGTH;
 }
 
@@ -351,6 +387,7 @@ ErrorCode VarLenSparseTag::num_tagged_entities( const SequenceManager*,
 
 ErrorCode VarLenSparseTag::find_entities_with_value( 
                               const SequenceManager* seqman,
+                              Error*,
                               Range& output_entities,
                               const void* value,
                               int value_bytes,

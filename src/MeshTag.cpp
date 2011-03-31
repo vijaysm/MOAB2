@@ -6,16 +6,44 @@
 #include "moab/Interface.hpp"
 #include "MeshTag.hpp"
 #include "SysUtil.hpp"
+#include "Error.hpp"
+#include "moab/CN.hpp"
+#include "Internals.hpp"
 
 namespace moab {
 
-static inline bool all_root_set( const EntityHandle* array, size_t len )
+
+static ErrorCode not_root_set( Error* error, EntityHandle h )
+{
+  error->set_last_error( "Cannot get/set mesh/global tag on non-root-set %s %lu",
+         CN::EntityTypeName(TYPE_FROM_HANDLE(h)), 
+         (unsigned long)ID_FROM_HANDLE(h) );
+  return MB_VARIABLE_DATA_LENGTH;
+}
+
+
+static inline bool all_root_set( Error* error, const EntityHandle* array, size_t len )
 {
   for (size_t i = 0; i < len; ++i)
-    if (array[i])
+    if (array[i]) {
+      not_root_set( error, array[i] );
       return false;
+    }
   return true;
 }
+
+static ErrorCode not_found( Error* error )
+{
+  error->set_last_error( "No tag value for global/mesh tag");
+  return MB_TAG_NOT_FOUND;
+}
+
+static ErrorCode var_len( Error* error )
+{
+  error->set_last_error( "No length specified for variable-length tag value");
+  return MB_VARIABLE_DATA_LENGTH;
+}
+
 
 MeshTag::MeshTag( const char * name, 
                   int size, 
@@ -30,15 +58,16 @@ MeshTag::~MeshTag() {}
 TagType MeshTag::get_storage_type() const 
   { return MB_TAG_MESH; }
 
-ErrorCode MeshTag::release_all_data( SequenceManager*, bool )
+ErrorCode MeshTag::release_all_data( SequenceManager*, Error*, bool )
   { return MB_SUCCESS; }
 
 ErrorCode MeshTag::get_data( const SequenceManager*,
+                             Error* error,
                              const EntityHandle* entities,
                              size_t num_entities,
                              void* data ) const
 {
-  if (!all_root_set( entities, num_entities ))
+  if (!all_root_set( error, entities, num_entities ))
     return MB_TAG_NOT_FOUND;
 
   const void* ptr;
@@ -53,7 +82,7 @@ ErrorCode MeshTag::get_data( const SequenceManager*,
     len = get_default_value_size();
   }
   else {
-    return MB_TAG_NOT_FOUND;
+    return not_found(error);
   }
 
   SysUtil::setmem( data, ptr, len, num_entities );
@@ -62,16 +91,20 @@ ErrorCode MeshTag::get_data( const SequenceManager*,
   
 
 ErrorCode MeshTag::get_data( const SequenceManager*,
-                             const Range&,
+                             Error* error,
+                             const Range& r,
                              void* ) const
 {
   if (variable_length())
-    return MB_VARIABLE_DATA_LENGTH;
-  else
-    return MB_TAG_NOT_FOUND;
+    return var_len(error);
+  else if (r.empty())
+    return MB_SUCCESS;
+  else 
+    return not_root_set( error, r.front() );
 }
                       
 ErrorCode MeshTag::get_data( const SequenceManager*,
+                             Error* error,
                              const EntityHandle* entities,
                              size_t num_entities,
                              const void** data_ptrs,
@@ -89,11 +122,11 @@ ErrorCode MeshTag::get_data( const SequenceManager*,
     len = get_default_value_size();
   }
   else {
-    return MB_TAG_NOT_FOUND;
+    return not_found( error );
   }
     
   for (size_t i = 0; i < num_entities; ++i) {
-    if (entities[i]) return MB_TAG_NOT_FOUND; // not root set
+    if (entities[i]) return not_root_set(error,entities[i]); // not root set
     data_ptrs[i] = ptr;
     if (data_lengths)
       data_lengths[i] = len;
@@ -103,21 +136,26 @@ ErrorCode MeshTag::get_data( const SequenceManager*,
                       
                       
 ErrorCode MeshTag::get_data( const SequenceManager*,
-                             const Range&,
+                             Error* error,
+                             const Range& range,
                              const void**,
                              int* ) const
 {
-  return MB_TAG_NOT_FOUND;
+  if (range.empty())
+    return MB_SUCCESS;
+  else
+    return not_root_set( error, range.front() );
 }
   
 ErrorCode MeshTag::set_data( SequenceManager*,
+                             Error* error,
                              const EntityHandle* entities,
                              size_t num_entities,
                              const void* data )
 {
   if (variable_length())
-    return MB_VARIABLE_DATA_LENGTH;
-  if (!all_root_set( entities, num_entities ))
+    return var_len(error);;
+  if (!all_root_set( error, entities, num_entities ))
     return MB_TAG_NOT_FOUND;
   
   if (num_entities > 0) {
@@ -129,25 +167,29 @@ ErrorCode MeshTag::set_data( SequenceManager*,
 }
  
 ErrorCode MeshTag::set_data( SequenceManager*,
-                             const Range&,
+                             Error* error,
+                             const Range& range,
                              const void* )
 {
   if (variable_length())
-    return MB_VARIABLE_DATA_LENGTH;
+    return var_len(error);
+  else if (range.empty())
+    return MB_SUCCESS;
   else
-    return MB_TYPE_OUT_OF_RANGE;
+    return not_root_set( error, range.front() );
 }
 
 ErrorCode MeshTag::set_data( SequenceManager*,
+                             Error* error,
                              const EntityHandle* entities,
                              size_t num_entities,
                              void const* const* data_ptrs,
                              const int* data_lengths )
 {
-  if (!all_root_set( entities, num_entities ))
+  if (!all_root_set( error, entities, num_entities ))
     return MB_TAG_NOT_FOUND;
   
-  ErrorCode valid = validate_lengths( data_lengths, num_entities );
+  ErrorCode valid = validate_lengths( error, data_lengths, num_entities );
   if (MB_SUCCESS != valid)
     return valid;
   
@@ -160,23 +202,28 @@ ErrorCode MeshTag::set_data( SequenceManager*,
                       
                       
 ErrorCode MeshTag::set_data( SequenceManager*,
-                             const Range&,
+                             Error* error,
+                             const Range& range,
                              void const* const*,
                              const int* )
 {
-  return MB_TYPE_OUT_OF_RANGE;
+  if (range.empty())
+    return MB_SUCCESS;
+  else
+    return not_root_set( error, range.front() );
 }
 
 ErrorCode MeshTag::clear_data( SequenceManager*,
+                               Error* error,
                                const EntityHandle* entities,
                                size_t num_entities,
                                const void* value_ptr,
                                int value_len )
 {
-  if (!all_root_set( entities, num_entities ))
+  if (!all_root_set( error, entities, num_entities ))
     return MB_TAG_NOT_FOUND;
   
-  ErrorCode valid = validate_lengths( value_len ? &value_len : 0, 1 );
+  ErrorCode valid = validate_lengths( error, value_len ? &value_len : 0, 1 );
   if (MB_SUCCESS != valid)
     return valid;
   
@@ -189,18 +236,23 @@ ErrorCode MeshTag::clear_data( SequenceManager*,
 }
 
 ErrorCode MeshTag::clear_data( SequenceManager*,
-                               const Range&,
+                               Error* error,
+                               const Range& range,
                                const void*,
                                int )
 {
-  return MB_TYPE_OUT_OF_RANGE;
+  if (range.empty())
+    return MB_SUCCESS;
+  else
+    return not_root_set( error, range.front() );
 }
 
 ErrorCode MeshTag::remove_data( SequenceManager*,
+                                Error* error,
                                 const EntityHandle* entities,
                                 size_t num_entities )
 {
-  if (!all_root_set( entities, num_entities ))
+  if (!all_root_set( error, entities, num_entities ))
     return MB_TAG_NOT_FOUND;
   
   if (num_entities)
@@ -209,22 +261,25 @@ ErrorCode MeshTag::remove_data( SequenceManager*,
 }
 
 ErrorCode MeshTag::remove_data( SequenceManager*,
-                                const Range& )
+                                Error* error,
+                                const Range& range )
 {
-  return MB_TAG_NOT_FOUND;
-}
-
-ErrorCode MeshTag::remove_all_entity_data( SequenceManager* )
-{
-  return MB_SUCCESS;
+  if (range.empty())
+    return MB_SUCCESS;
+  else
+    return not_root_set( error, range.front() );
 }
 
 ErrorCode MeshTag::tag_iterate( SequenceManager*,
-                                Range::iterator&,
-                                const Range::iterator&,
+                                Error* error,
+                                Range::iterator& beg,
+                                const Range::iterator& end,
                                 void*& )
 {
-  return MB_TAG_NOT_FOUND;
+  if (beg == end)
+    return MB_SUCCESS;
+  else
+    return not_root_set( error, *beg );
 }
 
 ErrorCode MeshTag::get_tagged_entities( const SequenceManager*,
@@ -244,6 +299,7 @@ ErrorCode MeshTag::num_tagged_entities( const SequenceManager*,
 }
 
 ErrorCode MeshTag::find_entities_with_value( const SequenceManager*,
+                                             Error*,
                                              Range&,
                                              const void*,
                                              int,

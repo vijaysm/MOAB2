@@ -1,5 +1,6 @@
 #include "TypeSequenceManager.hpp"
 #include "SequenceData.hpp"
+#include "Error.hpp"
 #include <assert.h>
 #include <limits>
 
@@ -585,12 +586,16 @@ EntityHandle TypeSequenceManager::last_free_handle( EntityHandle after_this ) co
     return 0;
 }
 
-ErrorCode TypeSequenceManager::check_valid_handles( EntityHandle first,
-                                                      EntityHandle last ) const
+ErrorCode TypeSequenceManager::check_valid_handles( Error* error_handler,
+                                                    EntityHandle first,
+                                                    EntityHandle last ) const
 {
   const_iterator i = lower_bound( first );
-  if (i == end() || (*i)->start_handle() > first)
+  if (i == end() || (*i)->start_handle() > first) {
+    if (error_handler)
+      error_handler->set_last_error( "Invalid entity hadnle 0x%lx", (unsigned long)first );
     return MB_ENTITY_NOT_FOUND;
+  }
 
   while ((*i)->end_handle() < last) {
     EntityHandle prev_end = (*i)->end_handle();
@@ -602,11 +607,13 @@ ErrorCode TypeSequenceManager::check_valid_handles( EntityHandle first,
   return MB_SUCCESS;
 }
 
-ErrorCode TypeSequenceManager::erase( EntityHandle h )
+ErrorCode TypeSequenceManager::erase( Error* error_handler, EntityHandle h )
 {
   EntitySequence* seq = find(h);
-  if (!seq)
+  if (!seq) {
+    error_handler->set_last_error( "Invalid entity handle: 0x%lx", (unsigned long)h );
     return MB_ENTITY_NOT_FOUND;
+  }
   
   if (seq->start_handle() == h) {
     if (seq->end_handle() != h) {
@@ -623,13 +630,11 @@ ErrorCode TypeSequenceManager::erase( EntityHandle h )
     delete seq;
     if (delete_data)
       delete data;
-    return MB_SUCCESS;
   }
   else if (seq->end_handle() == h) {
     if (seq->using_entire_data())
       availableList.insert( seq->data() );
     seq->pop_back(1);
-    return MB_SUCCESS;
   }
   else {
     iterator i = lower_bound( h );
@@ -639,15 +644,15 @@ ErrorCode TypeSequenceManager::erase( EntityHandle h )
     seq = *i;
     assert(seq->start_handle() == h);
     seq->pop_front(1);
-    return MB_SUCCESS;
   }
+  return MB_SUCCESS;
 }
 
-ErrorCode TypeSequenceManager::erase( EntityHandle first, EntityHandle last )
+ErrorCode TypeSequenceManager::erase( Error* error, EntityHandle first, EntityHandle last )
 {
     // first check that all entities in range are valid
 
-  ErrorCode rval = check_valid_handles( first, last );
+  ErrorCode rval = check_valid_handles( error, first, last );
   if (MB_SUCCESS != rval)
     return rval;
   

@@ -38,6 +38,7 @@ extern "C" {
 namespace moab {
 
 class SequenceManager;
+class Error;
 template <typename KeyType, typename ValType, ValType NullVal> class RangeMap;
 typedef RangeMap<EntityHandle, EntityHandle, 0> HandleMap;
 class ParallelMergeMesh;
@@ -1130,6 +1131,9 @@ private:
   
     //! Sequence manager, to get more efficient access to entities
   SequenceManager *sequenceManager;
+  
+    //! Error handler
+  Error *errorHandler;
   
     //! more data buffers, proc-specific
   std::vector<Buffer*> localOwnedBuffs, remoteOwnedBuffs;
