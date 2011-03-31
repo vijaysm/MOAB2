@@ -140,7 +140,7 @@ ErrorCode VarLenDenseTag::get_array( SequenceManager* seqman,
     mem = seq->data()->allocate_tag_array( mySequenceArray, sizeof(VarLenTag) );
     if (!mem) {
       error->set_last_error( "Memory allocation for var-len tag data failed" );
-      return MB_FAILURE;
+      return MB_MEMORY_ALLOCATION_FAILED;
     }
     
     memset( mem, 0, sizeof(VarLenTag) * seq->data()->size() );
