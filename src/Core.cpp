@@ -3250,29 +3250,9 @@ ErrorCode Core::get_last_error(std::string& info) const
   return mError->get_last_error(info);
 }
 
-#define MB_CASE_STRING(A) case A: return #A;
 std::string Core::get_error_string(const ErrorCode code) const 
 {
-  switch (code) {
-    MB_CASE_STRING(MB_SUCCESS);
-    MB_CASE_STRING(MB_INDEX_OUT_OF_RANGE);
-    MB_CASE_STRING(MB_TYPE_OUT_OF_RANGE);
-    MB_CASE_STRING(MB_MEMORY_ALLOCATION_FAILED);
-    MB_CASE_STRING(MB_ENTITY_NOT_FOUND);
-    MB_CASE_STRING(MB_MULTIPLE_ENTITIES_FOUND);
-    MB_CASE_STRING(MB_TAG_NOT_FOUND);
-    MB_CASE_STRING(MB_FILE_DOES_NOT_EXIST);
-    MB_CASE_STRING(MB_FILE_WRITE_ERROR);
-    MB_CASE_STRING(MB_NOT_IMPLEMENTED);
-    MB_CASE_STRING(MB_ALREADY_ALLOCATED);
-    MB_CASE_STRING(MB_VARIABLE_DATA_LENGTH);
-    MB_CASE_STRING(MB_INVALID_SIZE);
-    MB_CASE_STRING(MB_UNSUPPORTED_OPERATION);
-    MB_CASE_STRING(MB_UNHANDLED_OPTION);
-    MB_CASE_STRING(MB_STRUCTURED_MESH);
-    MB_CASE_STRING(MB_FAILURE);
-    default: assert(!"unknown error code"); return "(UNKNOWN ERROR CODE)";
-  }
+  return (unsigned)code <= (unsigned)MB_FAILURE ? ErrorCodeStr[code] : "INVALID ERROR CODE";
 }
 
 void Core::print(const EntityHandle ms_handle, const char *prefix,

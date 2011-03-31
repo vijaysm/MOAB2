@@ -114,6 +114,7 @@ libMOAB_la_SOURCES = \
   TagCompare.hpp \
   TagInfo.cpp \
   TagInfo.hpp \
+  Types.cpp \
   TypeSequenceManager.cpp \
   TypeSequenceManager.hpp \
   UnstructuredElemSeq.cpp \
