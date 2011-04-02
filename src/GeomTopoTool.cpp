@@ -608,14 +608,25 @@ ErrorCode GeomTopoTool::set_sense(EntityHandle entity, EntityHandle wrt_entity,
       std::vector<EntityHandle>::iterator it = std::find(higher_ents.begin(),
           higher_ents.end(), wrt_entity);
       if (it != higher_ents.end()) {
-        // we should not reset the sense
-        return MB_MULTIPLE_ENTITIES_FOUND;
+        // we should not reset the sense, if the sense is the same
+        // if the sense is different, put BOTH
+        unsigned int idx = it - higher_ents.begin();
+        int oldSense = senses[idx];
+        if (oldSense == sense)
+          return MB_SUCCESS; // sense already set fine
+        if (0!=oldSense && oldSense+sense !=0)
+          return MB_MULTIPLE_ENTITIES_FOUND;
+        senses[idx]=SENSE_BOTH; // allow double senses
+
       }
     }
-    // what happens if a var tag data was already set before, and now it is
-    // reset with a different size??
-    higher_ents.push_back(wrt_entity);
-    senses.push_back(sense);
+    else
+    {
+      // what happens if a var tag data was already set before, and now it is
+      // reset with a different size??
+      higher_ents.push_back(wrt_entity);
+      senses.push_back(sense);
+    }
     // finally, set the senses :
     int dum_size = higher_ents.size() * sizeof(EntityHandle);
     void *dum_ptr = &higher_ents[0];
