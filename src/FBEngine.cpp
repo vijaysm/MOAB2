@@ -727,38 +727,16 @@ ErrorCode FBEngine::getEgFcSense(EntityHandle mbedge, EntityHandle mbface,
   ErrorCode rval = _my_geomTopoTool->get_senses(mbedge, faces, senses);
   if (MB_SUCCESS != rval)
     return rval;
-  //
-  int index = -1;
 
-  bool sense_forward = false;
-  bool sense_reverse = false;
   for (unsigned int i = 0; i < faces.size(); i++)
   {
     if (faces[i] == mbface)
     {
-      index = i;
-      if (senses[i] == 0)
-        sense_forward = true;
-      else
-        sense_reverse = true;
+      sense_out = senses[i];
+      return MB_SUCCESS;
     }
   }
-  if (index == -1)
-  {
-    return MB_FAILURE;
-  }
-
-  // 0 is not possible for us, but maybe we should consider this?
-  if (sense_forward && sense_reverse)
-    sense_out = 0; // is it really possible for a nice geometry ?
-  else
-  {
-    if (sense_forward) // only sense forward
-      sense_out = 1;
-    else if (sense_reverse)
-      sense_out = -1;
-  }
-  return MB_SUCCESS;
+  return MB_FAILURE;
 
 }
 // we assume the measures array was allocated correctly

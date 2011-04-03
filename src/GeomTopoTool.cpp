@@ -604,6 +604,7 @@ ErrorCode GeomTopoTool::set_sense(EntityHandle entity, EntityHandle wrt_entity,
     rval = get_senses(entity, higher_ents, senses);// the tags should be defined here
     // if there are no higher_ents, we are fine, we will just set them
     // if wrt_entity is not among higher_ents, we will add it to the list
+    bool append = true;
     if (!higher_ents.empty()) {
       std::vector<EntityHandle>::iterator it = std::find(higher_ents.begin(),
           higher_ents.end(), wrt_entity);
@@ -613,14 +614,16 @@ ErrorCode GeomTopoTool::set_sense(EntityHandle entity, EntityHandle wrt_entity,
         unsigned int idx = it - higher_ents.begin();
         int oldSense = senses[idx];
         if (oldSense == sense)
-          return MB_SUCCESS; // sense already set fine
+          return MB_SUCCESS; // sense already set fine, do not reset
         if (0!=oldSense && oldSense+sense !=0)
           return MB_MULTIPLE_ENTITIES_FOUND;
         senses[idx]=SENSE_BOTH; // allow double senses
-
+        // do not need to add a new sense, but still need to reset the tag
+        // because of a new value
+        append = false;
       }
     }
-    else
+    if (append)
     {
       // what happens if a var tag data was already set before, and now it is
       // reset with a different size??
