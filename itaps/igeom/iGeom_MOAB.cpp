@@ -1322,38 +1322,17 @@ void iGeom_getEgFcSense(iGeom_Instance instance, iBase_EntityHandle edge,
    ErrorCode rval = _my_geomTopoTool->get_senses( MBH_cast(edge), faces, senses);
    MBERRORR("Failed to get edge senses in iGeom_getEgFcSense.");
    //
-   int index = -1;
-   EntityHandle mbfaceSet = MBH_cast(face);
-   bool sense_forward = false;
-   bool sense_reverse = false;
-   for (unsigned int i = 0; i<faces.size(); i++)
-   {
-      if (faces[i] == mbfaceSet)
+   EntityHandle mbface = MBH_cast(face);
+   for (unsigned int i = 0; i < faces.size(); i++)
+    {
+      if (faces[i] == mbface)
       {
-         index = i;
-         if (senses[i]==0)
-               sense_forward =true;
-            else
-               sense_reverse = true;
+        *sense_out = senses[i];
+        RETURN(iBase_SUCCESS);
       }
-   }
-   if (index == -1)
-   {
-      *err = iBase_FAILURE;
-      return;
-   }
-
-   // 0 is not possible for us, but maybe we should consider this?
-   if (sense_forward && sense_reverse)
-      *sense_out = 0; // is it really possible for a nice geometry ?
-   else
-   {
-      if (sense_forward) // only sense forward
-         *sense_out = 1;
-      else if (sense_reverse)
-         *sense_out = -1;
-   }
-   RETURN(iBase_SUCCESS);
+    }
+   *err = iBase_FAILURE;
+   return;
 
 }
 void iGeom_getEgFcArrSense(iGeom_Instance,
