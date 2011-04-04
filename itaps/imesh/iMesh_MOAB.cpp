@@ -1579,6 +1579,9 @@ extern "C" {
                        int *err,
                        const int tag_name_size)
   {
+    if (tag_size < 0)
+      ERROR(iBase_INVALID_ARGUMENT, "iMesh_createTag: invalid tag size");
+
     Tag new_tag;
     int this_size = tag_size;
 
@@ -1600,6 +1603,8 @@ extern "C" {
         break;
       case iBase_BYTES:
         break;
+      default:
+        ERROR(iBase_INVALID_ARGUMENT, "iMesh_createTag: invalid tag data type");
     }
 
     ErrorCode result = MOABI->tag_create(tmp_tagname.c_str(), this_size,
@@ -2216,14 +2221,14 @@ extern "C" {
       return;
 
     if (tag_values_size != (tag_size * entity_handles_size)) {
-      ERROR(iBase_INVALID_ARGUMENT,"iMesh_setArrData: bad tag_values_size passed.");
+      ERROR(iBase_BAD_ARRAY_SIZE, "iMesh_setArrData: bad tag_values_size passed.");
     }
 
     ErrorCode result = MOABI->tag_set_data(TAG_HANDLE(tag_handle),
                                            CONST_HANDLE_ARRAY_PTR(entity_handles),
                                            entity_handles_size,
                                            tag_values);
-    CHKERR(result,"iMesh_setArrData didn't succeed.");
+    CHKERR(result, "iMesh_setArrData didn't succeed.");
     RETURN(iBase_SUCCESS);
   }
 
