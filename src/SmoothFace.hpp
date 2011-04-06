@@ -116,9 +116,6 @@ public:
   // move from private too
   void DumpModelControlPoints();
 
-  //
-  ErrorCode find_loops();
-
   int eval_counter()
   {
     return _evaluationsCounter;
@@ -178,12 +175,6 @@ private:
 
   //std::vector<double> _fractions;// they are increasing from 0. to 1., do we need these?
   //std::vector<double> _loopLengths;
-
-  // each loop will be actually a vector of EntityHandle, paired with a vector of senses
-  // number of loops is decided by the size of _loopEnds
-  std::vector<EntityHandle> _loops; // set1, set 3, set 5, ...
-  std::vector<char> _senses; // 0 forward, 1 backward: 0, 0, 1, ...
-  std::vector<int> _loopEnds;// the first loop starts at 0 always;
 
   // number of loops is decided by the size of _loopEnds.size()
   // this ref face will be gone, we will replace it with a new call
