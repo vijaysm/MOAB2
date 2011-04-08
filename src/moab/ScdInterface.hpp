@@ -44,7 +44,7 @@ class Core;
  *
  * Structured mesh blocks are returned in the form of ScdBox class objects.  Each ScdBox instance
  * represents a rectangular block of vertices and possibly elements (edges, quads, or hexes).  The
- * entity handles for a ScdBox are guaranteed to be contiguous, starting at a starting valuable
+ * entity handles for a ScdBox are guaranteed to be contiguous, starting at a starting value
  * which is also available through the ScdBox class.  However, vertex handles may or may not be
  * contiguous, depending on the construction method.  The start vertex handle is also available from
  * the ScdBox class.

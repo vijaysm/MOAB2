@@ -26,9 +26,18 @@ private:
   double myEps;
 
   static void temp_tuple_swap_real(tuple_list *tup, 
-				    unsigned a, unsigned b);
-  static void temp_tuple_sort_real(tuple_list *tup, 
-				    double eps2=0);
+				    unsigned a, 
+				   unsigned b);
+
+  static void temp_tuple_sort_real(tuple_list *tup,
+				   double eps2=0);
+
+  static void temp_perform_sort_real(tuple_list *tup, 
+				     int left,
+				     int right,
+				     double eps2);
+
+  static bool greaterThan(tuple_list *tup, int vrI,int vrJ, double eps2);
 };
 
 } // namespace moab

@@ -18,8 +18,8 @@
 
 int main(int argc, char * argv[])
 {
-  if(argc != 3){
-    std::cerr<<"Usage: "<<argv[0]<<" <inputfile> <tolerance>"<<std::endl;
+  if(argc != 4){
+    std::cerr<<"Usage: "<<argv[0]<<" <inputfile> <outputfile> <tolerance>"<<std::endl;
     return 1;
   }
 
@@ -31,7 +31,7 @@ int main(int argc, char * argv[])
   
   //Read in tolerance
   double epsilon;
-  if(!(std::istringstream(argv[2])>>epsilon)){
+  if(!(std::istringstream(argv[3])>>epsilon)){
     std::cerr<<"Unable to parse epsilon.  Exiting"<<std::endl;
     MPI_Abort(MPI_COMM_WORLD,1);
     return 1;
@@ -80,8 +80,7 @@ int main(int argc, char * argv[])
   //Write out the file
   std::stringstream np;
   np << numprocs;
-  std::string outfile = "/home/nbertram/Desktop/meshes/shared_tagged";
-  outfile = outfile + np.str() + ".h5m";
+  std::string outfile(argv[2]);
   rval = mb->write_file(outfile.c_str() , 0,"PARALLEL=WRITE_PART");
   if(rval != moab::MB_SUCCESS){
     std::cerr<<"Writing output file failed Code:";
