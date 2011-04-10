@@ -465,9 +465,12 @@ ErrorCode ReadParallel::load_file(const char **file_names,
 //==================
       case PA_RESOLVE_SHARED_ENTS:
           myDebug.tprint(1,"Resolving shared entities.\n");
-
-          tmp_result = myPcomm->resolve_shared_ents(file_set, resolve_dim, shared_dim,
-                                                    use_id_tag ? file_id_tag : 0);
+	  
+	  if (myPcomm->size() == 1)
+	    tmp_result = MB_SUCCESS;
+	  else
+	    tmp_result = myPcomm->resolve_shared_ents(file_set, resolve_dim, shared_dim,
+						      use_id_tag ? file_id_tag : 0);
           break;
         
 //==================
