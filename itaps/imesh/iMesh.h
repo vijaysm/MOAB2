@@ -322,7 +322,7 @@ extern "C" {
      * \param instance iMesh instance handle
      * \param descr Pointer to a character string to be filled with a
      *        description of the error from the last iMesh function
-     * \param *err Pointer to error type returned from function
+     * \param *err Pointer to error type returned from this function
      * \param descr_len Length of the character string pointed to by descr
      */
   void iMesh_getDescription(iMesh_Instance instance,
