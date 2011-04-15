@@ -142,6 +142,7 @@ private:
   ErrorCode BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHandle e2, EntityHandle n1,
         EntityHandle n2);// nodesAlongPolyline are on entities!
 
+  void print_debug_triangle(EntityHandle triangle);
   Interface * _mbImpl;
 
   GeomTopoTool* _my_geomTopoTool;

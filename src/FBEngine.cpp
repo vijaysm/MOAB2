@@ -1115,7 +1115,7 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
   // use a fill to determine the new sets, up to the polyline
   // points on the polyline will be moved to the closest point location, with some constraints
   // then the sets will be reset, geometry recomputed. new vertices, new edges, etc.
-  int num_points = (int) points.size();
+  int num_points = (int) points.size()/3;
   // if first point is the same as last point, we have a loop for cropping
   // otherwise, we have a trimming line for splitting
 
@@ -1160,8 +1160,8 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
     }
     else // if (et2==MBEDGE || et2==MBTRI)
     {
-      double coord_vert[3] = { points[3 * i], points[3 * i + 1], points[3 * i
-          + 2] };
+      double coord_vert[3] = { points[3 * i+3], points[3 * i + 4], points[3 * i
+          + 5] };
       EntityHandle newVertex;
       rval = _mbImpl->create_vertex(coord_vert, newVertex);
       MBERRORR(rval, "can't create vertex");
@@ -1239,6 +1239,26 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
 
   return MB_SUCCESS;
 }
+void FBEngine::print_debug_triangle(EntityHandle t)
+{
+  std::cout<< " triangle id:" << _mbImpl->id_from_handle(t) << "\n";
+  const EntityHandle * conn3;
+  int nnodes;
+  _mbImpl->get_connectivity(t, conn3, nnodes);
+  // get coords
+  CartVect P[3];
+  _mbImpl->get_coords(conn3, 3, (double*) &P[0]);
+  std::cout <<"  nodes:" << conn3[0] << " " << conn3[1] << " " << conn3[2] << "\n";
+  CartVect PP[3];
+  PP[0] = P[1]-P[0];
+  PP[1] = P[2]-P[1];
+  PP[2] = P[0] - P[2];
+
+  std::cout <<"  pos:" <<  P[0] << " " << P[1] << " " << P[2] << "\n";
+  std::cout <<"   x,y diffs " <<  PP[0][0] <<" " << PP[0][1]  << ",  " << PP[1][0] <<" " << PP[1][1]
+                   << ",  " << PP[2][0] <<" " << PP[2][1]  << "\n";
+  return;
+}
 // actual breaking of triangles
 // case 1: n2 interior to triangle
 ErrorCode FBEngine::BreakTriangle(EntityHandle tri, EntityHandle e1, EntityHandle e3, EntityHandle n1,
@@ -1278,8 +1298,12 @@ ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHand
     EntityHandle newTriangle;
     rval = _mbImpl->create_element(MBTRI, conn, 3, newTriangle);
     MBERRORR(rval, "Failed to create a new triangle");
+    if (debug_splits)
+      print_debug_triangle(newTriangle);
     rval = _mbImpl->create_element(MBTRI, conn+3, 3, newTriangle);// the second triangle
     MBERRORR(rval, "Failed to create a new triangle");
+    if (debug_splits)
+      print_debug_triangle(newTriangle);
     return MB_SUCCESS;
   }
   else if (MBVERTEX == et2)
@@ -1297,8 +1321,12 @@ ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHand
     EntityHandle newTriangle;
     rval = _mbImpl->create_element(MBTRI, conn, 3, newTriangle);
     MBERRORR(rval, "Failed to create a new triangle");
+    if (debug_splits)
+          print_debug_triangle(newTriangle);
     rval = _mbImpl->create_element(MBTRI, conn+3, 3, newTriangle);// the second triangle
     MBERRORR(rval, "Failed to create a new triangle");
+    if (debug_splits)
+          print_debug_triangle(newTriangle);
     return MB_SUCCESS;
   }
   else
@@ -1329,7 +1357,7 @@ ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHand
       std::cout << " edge2: conn22:" << conn22[0] << " "<< conn22[1] <<"  side: " << num2 << "\n";
     }
     int unaffectedSide = 3-num1-num2;
-    int i3 = (unaffectedSide-1)%3;// to 0 is 2, to 1 is 0, to 2 is 1
+    int i3 = (unaffectedSide+2)%3;// to 0 is 2, to 1 is 0, to 2 is 1
     // triangles will be formed with triVertexIndex , n1, n2 (in what order?)
     EntityHandle v1, v2; // to hold the 2 nodes on edges
     if (num1==i3)
@@ -1349,12 +1377,20 @@ ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHand
     EntityHandle conn[9]={ conn3[i3], v1, v2, v1, conn3[i1], conn3[i2],
         v2, v1,  conn3[i2]};
     EntityHandle newTriangle;
+    if (debug_splits)
+       std::cout << "Split 2 edges :\n";
     rval = _mbImpl->create_element(MBTRI, conn, 3, newTriangle);
     MBERRORR(rval, "Failed to create a new triangle");
+    if (debug_splits)
+          print_debug_triangle(newTriangle);
     rval = _mbImpl->create_element(MBTRI, conn+3, 3, newTriangle);// the second triangle
     MBERRORR(rval, "Failed to create a new triangle");
+    if (debug_splits)
+          print_debug_triangle(newTriangle);
     rval = _mbImpl->create_element(MBTRI, conn+6, 3, newTriangle);// the second triangle
     MBERRORR(rval, "Failed to create a new triangle");
+    if (debug_splits)
+          print_debug_triangle(newTriangle);
     return MB_SUCCESS;
   }
 
@@ -1380,6 +1416,12 @@ ErrorCode FBEngine::compute_intersection_points(EntityHandle & face,
       boundary_handle, onBoundary);
   MBERRORR(rval, "failed to get area coordinates");
 
+  if (debug_splits)
+  {
+    std::cout << "  area coordinates: " << area_coord1[0] << " " <<
+        area_coord1[1] << " "<< area_coord1[1] << "\n ";
+    std::cout << "on boundary:" <<  ( onBoundary?boundary_handle : 0) << "\n";
+  }
   CartVect vect(p2 - p1);
   double dist2 = vect.length();
   if (dist2 < tolerance_segment) {
@@ -1603,6 +1645,8 @@ ErrorCode FBEngine::compute_intersection_points(EntityHandle & face,
     points.push_back(p2[1]);
     points.push_back(p2[2]);
     triangles.push_back(to);
+    if (debug_splits)
+        std::cout << "vect.length(): " << vect.length() <<  " p2 added last, also ""to"" triangle\n";
   }
   if (debug_splits)
     std::cout << "nb entities: " << entities.size() <<  " triangles:" << triangles.size() <<
