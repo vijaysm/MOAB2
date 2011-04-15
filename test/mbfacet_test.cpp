@@ -456,7 +456,7 @@ ErrorCode split_test(FBEngine * pFacet)
   }
 
   EntityHandle newFace;
-  rval = pFacet->split_surface(first_face, xyz, direction, newFace);
+  rval = pFacet->split_surface_with_direction(first_face, xyz, direction, newFace);
 
 
   // save the new smooth file, if asked

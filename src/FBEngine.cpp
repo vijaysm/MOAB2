@@ -1026,7 +1026,7 @@ ErrorCode FBEngine::isEntAdj(EntityHandle entity1, EntityHandle entity2,
   return MB_SUCCESS;
 }
 
-ErrorCode FBEngine::split_surface(EntityHandle face, std::vector<double> & xyz,
+ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<double> & xyz,
     double * direction, EntityHandle & newFace)
 {
 
@@ -1120,6 +1120,7 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
   // otherwise, we have a trimming line for splitting
 
   Range triToDelete;
+  Range edgesToDelete;
   ErrorCode rval;
   bool loop = false;
   if (fabs(points[0] - points[3 * num_points - 3]) < tolerance_segment && fabs(
@@ -1143,8 +1144,9 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
     rval = _mbImpl->create_vertex(coord_vert, newVertex);
     MBERRORR(rval, "can't create vertex");
     nodesAlongPolyline.push_back(newVertex);// first node on polyline
+    edgesToDelete.insert(entities[0]);
   } else {
-    // interior of triangle not supported , but we should easily
+    // interior of triangle not supported yet, but we will eventually
     MBERRORR(MB_FAILURE, "can't start in an interior of a triangle (we could though)");
   }
   for (int i = 0; i < num_points-1; i++) {
@@ -1209,7 +1211,8 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
       rval = BreakTriangle( tri, e1, e3, nodesAlongPolyline[i], nodesAlongPolyline[i+1],
           nodesAlongPolyline[i+2]);// nodesAlongPolyline are on entities!
       MBERRORR(rval, "can't break triangle");
-
+      if (et3==MBEDGE)
+          edgesToDelete.insert(e3);
     }
     else
     {
@@ -1220,25 +1223,153 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
       }
       rval = BreakTriangle2( tri, e1, e2, nodesAlongPolyline[i], nodesAlongPolyline[i+1]);
       MBERRORR(rval, "can't break triangle 2");
+      if (et2==MBEDGE)
+        edgesToDelete.insert(e2);
     }
     triToDelete.insert(tri);
 
-
   }
+  // nodesAlongPolyline will define a new geometric edge
+  if (debug_splits)
+  {
+    std::cout<<"nodesAlongPolyline: " << nodesAlongPolyline.size() << "\n";
+    std::cout << "points: " << num_points << "\n";
+  }
+  // if needed, create edges along polyline, or revert the existing ones, to
+  // put them in a new edge set
+  EntityHandle new_geo_edge;
+  rval = create_new_gedge(nodesAlongPolyline, new_geo_edge);
+  MBERRORR(rval, "can't create a new edge");
+
+  // also, these nodes need to be moved to the smooth surface, sometimes before deleting the old
+  // triangles
   // remove the triangles from the set, then delete triangles (also some edges need to be deleted!)
   rval=_mbImpl->delete_entities( triToDelete );
   MBERRORR(rval, "can't delete triangles");
 
-  // delete all edges
-  Range edgs;
-  rval=_mbImpl->get_entities_by_type(0, MBEDGE, edgs);
-  MBERRORR(rval, "can't get edges");
-  rval=_mbImpl->delete_entities(edgs);
+  // delete edges that are broke up in 2
+  rval=_mbImpl->delete_entities(edgesToDelete);
   MBERRORR(rval, "can't delete edges");
-  // first delete some triangles
 
   return MB_SUCCESS;
 }
+
+// if there is an edge between 2 nodes, then check it's orientation, and revert it if needed
+ErrorCode  FBEngine::create_new_gedge(std::vector<EntityHandle> &nodesAlongPolyline, EntityHandle & new_geo_edge)
+{
+
+  ErrorCode rval = _mbImpl->create_meshset(MESHSET_ORDERED, new_geo_edge);
+  MBERRORR(rval, "can't create geo edge");
+
+  Tag geom_tag;
+  rval = _mbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, geom_tag);
+  MBERRORR(rval, "can't get geo tag");
+
+  int dimension =1;
+  rval = MBI->tag_set_data(geom_tag, &new_geo_edge, 1, &dimension);
+  MBERRORR(rval, "can't set geo tag");
+
+  // now, get the edges, or create if not existing
+  std::vector<EntityHandle> mesh_edges;
+  for (unsigned int i=0; i<nodesAlongPolyline.size()-1; i++)
+  {
+    EntityHandle n1 = nodesAlongPolyline[i], n2 = nodesAlongPolyline[i+1];
+
+    EntityHandle nn2[2];
+    nn2[0] = n1;
+    nn2[1] = n2;
+
+    std::vector<EntityHandle> adjacent;
+    rval = _mbImpl->get_adjacencies(nn2, 2, 1, false, adjacent,
+                Interface::INTERSECT);
+    // see if there is an edge between those 2 already
+    if (adjacent.size()>=1)
+    {
+      // check the orientation, and reverse if needed
+      const EntityHandle * conn2;
+      int nnodes;
+      rval = _mbImpl->get_connectivity(adjacent[0], conn2, nnodes);
+      MBERRORR(rval, "can't get connectivity");
+      if (conn2[0]==nn2[0] && conn2[1]==nn2[1])
+      {
+        // everything is fine
+        mesh_edges.push_back(adjacent[0]);
+      }
+      else
+      {
+        // reset connectivity for the edge!
+        rval = _mbImpl->set_connectivity(adjacent[0], nn2, 2);
+        MBERRORR(rval, "can't reset connectivity");
+        mesh_edges.push_back(adjacent[0]);
+      }
+    }
+    else
+    {
+      // there is no edge between n1 and n2, create one
+      EntityHandle mesh_edge;
+      rval = _mbImpl->create_element(MBEDGE, nn2, 2, mesh_edge);
+      MBERRORR(rval, "Failed to create a new edge");
+      mesh_edges.push_back(mesh_edge);
+    }
+  }
+
+  // add loops edges to the edge set
+  rval = _mbImpl->add_entities(new_geo_edge, &mesh_edges[0], mesh_edges.size());// only one edge
+  // check vertex sets for vertex 1 and vertex 2?
+  // get all sets of dimension 0 from database, and see if our ends are here or not
+  Range vertex_sets;
+
+  const int zero = 0;
+  const void* const zero_val[] = { &zero };
+  rval = _mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &geom_tag,
+        zero_val, 1, vertex_sets);
+  // see if ends of geo edge generated is in a geo set 0 or not
+
+  Range ends_geo_edge;
+  ends_geo_edge.insert(nodesAlongPolyline[0]);
+  ends_geo_edge.insert(nodesAlongPolyline[nodesAlongPolyline.size()-1]);
+
+  for (unsigned int k = 0; k<ends_geo_edge.size(); k++ )
+  {
+    EntityHandle node = ends_geo_edge[k];
+    EntityHandle nodeSet;
+    bool found=false;
+    for( Range::iterator vsit=vertex_sets.begin(); vsit!=vertex_sets.end(); vsit++)
+    {
+      EntityHandle vset=*vsit;
+      // is the node part of this set?
+      if (_mbImpl->contains_entities(vset, &node, 1))
+      {
+        // add the parent child relation between sets
+        found = true;
+        nodeSet = vset;
+        break;
+      }
+    }
+    if (!found)
+    {
+      // create a node set and add the node
+
+      rval = _mbImpl->create_meshset(MESHSET_SET, nodeSet);
+      MBERRORR(rval, "Failed to create a new vertex set");
+
+      int dimension =0;
+      rval = _mbImpl->tag_set_data(geom_tag, &nodeSet, 1, &dimension);
+      MBERRORR(rval, "Failed to set the geom dim tag");
+
+      rval = _mbImpl->add_entities(nodeSet, &node, 1);
+      MBERRORR(rval, "Failed to add the node to the set");
+
+    }
+    // arrange
+      //
+    rval = _mbImpl ->add_parent_child( new_geo_edge, nodeSet);
+    MBERRORR(rval, "Failed to add parent child relation");
+  }
+
+  return rval;
+}
+
 void FBEngine::print_debug_triangle(EntityHandle t)
 {
   std::cout<< " triangle id:" << _mbImpl->id_from_handle(t) << "\n";
@@ -1261,8 +1392,8 @@ void FBEngine::print_debug_triangle(EntityHandle t)
 }
 // actual breaking of triangles
 // case 1: n2 interior to triangle
-ErrorCode FBEngine::BreakTriangle(EntityHandle tri, EntityHandle e1, EntityHandle e3, EntityHandle n1,
-  EntityHandle n2, EntityHandle n3)
+ErrorCode FBEngine::BreakTriangle(EntityHandle tri, EntityHandle e1, EntityHandle e3,
+    EntityHandle n1, EntityHandle n2, EntityHandle n3)
 {
   std::cout<< "FBEngine::BreakTriangle not implemented yet\n";
   return MB_FAILURE;

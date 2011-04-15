@@ -119,7 +119,7 @@ public:
   ErrorCode isEntAdj( EntityHandle entity1, EntityHandle entity2,
       bool& adjacent_out );
 
-  ErrorCode split_surface(EntityHandle face, std::vector<double> & xyz, double * direction,
+  ErrorCode split_surface_with_direction(EntityHandle face, std::vector<double> & xyz, double * direction,
       EntityHandle & newFace);
   // these new points will be on edges or triangles, if in interior of triangles
   ErrorCode split_surface(EntityHandle face, std::vector<double> & points,
@@ -143,6 +143,9 @@ private:
         EntityHandle n2);// nodesAlongPolyline are on entities!
 
   void print_debug_triangle(EntityHandle triangle);
+
+  ErrorCode  create_new_gedge(std::vector<EntityHandle> &nodesAlongPolyline, EntityHandle & new_geo_edge);
+
   Interface * _mbImpl;
 
   GeomTopoTool* _my_geomTopoTool;
