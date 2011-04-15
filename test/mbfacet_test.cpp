@@ -13,6 +13,7 @@
  */
 #include "moab/Core.hpp"
 #include <iostream>
+#include <fstream>
 #include <set>
 #include <algorithm>
 #include <vector>
@@ -29,7 +30,7 @@
 #ifdef MESHDIR
 std::string TestDir( STRINGIFY(MESHDIR) );
 #else
-std::string TestDir( "." );
+std::string TestDir(".");
 #endif
 
 #define PROCESS_ERROR(A, B)  {if (A!=MB_SUCCESS) {  std::cout << B << std::endl; return 1; } }
@@ -39,7 +40,8 @@ std::string TestDir( "." );
 using namespace moab;
 
 ErrorCode print_error(const char* desc, ErrorCode rval, const char* file,
-    int line) {
+    int line)
+{
   std::cerr << "ERROR: " << desc << std::endl << "  Error code: " << rval
       << std::endl << "  At        : " << file << ':' << line << std::endl;
   return MB_FAILURE; // must always return false or CHECK macro will break
@@ -50,8 +52,10 @@ ErrorCode gentityset_test(FBEngine * pFacet);
 ErrorCode geometry_evaluation_test(FBEngine * pFacet);
 ErrorCode normals_test(FBEngine * pFacet);
 ErrorCode ray_test(FBEngine * pFacet);
+ErrorCode split_test(FBEngine * pFacet);
 
-void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful) {
+void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
+{
   if (rv == MB_SUCCESS) {
     std::cout << "Success";
     number_successful++;
@@ -61,7 +65,8 @@ void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
   }
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
   std::string filename = TestDir + "/PB.h5m";
   std::string engine_opt;
 
@@ -117,11 +122,19 @@ int main(int argc, char *argv[]) {
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
+  std::cout << "split test: ";
+  rval = split_test(pFacet);
+  handle_error_code(rval, number_tests_failed, number_tests_successful);
+  std::cout << "\n";
 
+  // write the database
+  std::string filename2 = TestDir + "/PBm.vtk";
+  mb->write_file(filename2.c_str());
   return 0;
 }
 
-ErrorCode root_set_test(FBEngine * pFacet) {
+ErrorCode root_set_test(FBEngine * pFacet)
+{
 
   EntityHandle root_set;
   ErrorCode rval = pFacet->getRootSet(&root_set);
@@ -130,7 +143,8 @@ ErrorCode root_set_test(FBEngine * pFacet) {
   return MB_SUCCESS;
 }
 
-ErrorCode gentityset_test(FBEngine * pFacet) {
+ErrorCode gentityset_test(FBEngine * pFacet)
+{
   int num_type = 4;
   EntityHandle ges_array[4];
   int number_array[4];
@@ -181,25 +195,25 @@ ErrorCode gentityset_test(FBEngine * pFacet) {
 
   // make a super set having all entitysets
   EntityHandle super_set;
-  rval = pFacet->createEntSet( 1, &super_set );// 1 is list
+  rval = pFacet->createEntSet(1, &super_set);// 1 is list
   CHECK( "Failed to create a super set in gentityset_test." );
 
   for (int i = 0; i < num_type; i++) {
-    rval = pFacet->addEntSet(   ges_array[i], super_set );
+    rval = pFacet->addEntSet(ges_array[i], super_set);
     CHECK( "Failed to create a super set in gentityset_test." );
   }
 
   //----------TEST BOOLEAN OPERATIONS----------------//
 
   EntityHandle temp_ges1;
-  rval = pFacet->createEntSet( 1, &temp_ges1);
+  rval = pFacet->createEntSet(1, &temp_ges1);
   CHECK( "Failed to create a super set in gentityset_test." );
 
   // Subtract
   // add all EDGEs and FACEs to temp_es1
   // get all EDGE entities
   Range gedges, gfaces, temp_gentities1;
-  rval = pFacet->getEntities( ges_array[1], /* iBase_EDGE*/ 1, gedges );
+  rval = pFacet->getEntities(ges_array[1], /* iBase_EDGE*/1, gedges);
   CHECK( "Failed to get gedge gentities in gentityset_test." );
 
   // add EDGEs to ges1
@@ -207,7 +221,7 @@ ErrorCode gentityset_test(FBEngine * pFacet) {
   CHECK( "Failed to add gedge gentities in gentityset_test." );
 
   // get all FACE gentities
-  rval = pFacet->getEntities(ges_array[2], /*iBase_FACE*/ 2, gfaces );
+  rval = pFacet->getEntities(ges_array[2], /*iBase_FACE*/2, gfaces);
   CHECK( "Failed to get gface gentities in gentityset_test." );
 
   // add FACEs to es1
@@ -215,21 +229,23 @@ ErrorCode gentityset_test(FBEngine * pFacet) {
   CHECK( "Failed to add gface gentities in gentityset_test." );
 
   // subtract EDGEs
-  rval = pFacet->gsubtract( temp_ges1, ges_array[1], temp_ges1);
+  rval = pFacet->gsubtract(temp_ges1, ges_array[1], temp_ges1);
   CHECK( "Failed to subtract gentitysets in gentityset_test." );
 
-  rval = pFacet->getEntities(temp_ges1, 2,  temp_gentities1  );
+  rval = pFacet->getEntities(temp_ges1, 2, temp_gentities1);
   CHECK( "Failed to get gface gentities in gentityset_test." );
 
   if (gfaces.size() != temp_gentities1.size()) {
-    std::cerr << "Number of entitysets after subtraction not correct \
-             in gentityset_test." << std::endl;
+    std::cerr
+        << "Number of entitysets after subtraction not correct \
+             in gentityset_test."
+        << std::endl;
     return MB_FAILURE;
   }
 
   // check there's nothing but gfaces in temp_ges1
   int num_gents;
-  rval = pFacet->getNumOfType( temp_ges1, 1, &num_gents );
+  rval = pFacet->getNumOfType(temp_ges1, 1, &num_gents);
   CHECK( "Failed to get dimensions of gentities in gentityset_test." );
   if (0 != num_gents) {
     std::cerr << "Subtraction failed to remove all edges" << std::endl;
@@ -239,7 +255,8 @@ ErrorCode gentityset_test(FBEngine * pFacet) {
   return MB_SUCCESS;
 }
 
-ErrorCode geometry_evaluation_test(FBEngine * pFacet) {
+ErrorCode geometry_evaluation_test(FBEngine * pFacet)
+{
   int i;
   EntityHandle root_set;
   ErrorCode rval = pFacet->getRootSet(&root_set);
@@ -285,107 +302,164 @@ ErrorCode geometry_evaluation_test(FBEngine * pFacet) {
 }
 
 //  test normals evaluations on the surface only
-ErrorCode normals_test(FBEngine * pFacet) {
-   int i;
-   EntityHandle root_set;
-   ErrorCode rval = pFacet->getRootSet(&root_set);
-   CHECK( "ERROR : getRootSet failed!" );
+ErrorCode normals_test(FBEngine * pFacet)
+{
+  int i;
+  EntityHandle root_set;
+  ErrorCode rval = pFacet->getRootSet(&root_set);
+  CHECK( "ERROR : getRootSet failed!" );
 
-   int top = 0;//iBase_VERTEX;
-   int num_test_top = 4; //iBase_ALL_TYPES;
-   std::vector<std::vector<EntityHandle> >  gentity_vectors(num_test_top);
+  int top = 0;//iBase_VERTEX;
+  int num_test_top = 4; //iBase_ALL_TYPES;
+  std::vector<std::vector<EntityHandle> > gentity_vectors(num_test_top);
 
-   // fill the vectors of each topology entities
-   //
-   for (i = top; i < num_test_top; i++) {
-     Range gentities;
-     rval = pFacet->getEntities(root_set, i, gentities);
-     CHECK("Failed to get gentities in eval tests.");
+  // fill the vectors of each topology entities
+  //
+  for (i = top; i < num_test_top; i++) {
+    Range gentities;
+    rval = pFacet->getEntities(root_set, i, gentities);
+    CHECK("Failed to get gentities in eval tests.");
 
-     gentity_vectors[i].resize(gentities.size());
-     std::copy(gentities.begin(), gentities.end(), gentity_vectors[i].begin());
-   }
+    gentity_vectors[i].resize(gentities.size());
+    std::copy(gentities.begin(), gentities.end(), gentity_vectors[i].begin());
+  }
 
+  // check adjacencies in both directions
+  double min[3], max[3];
+  double normal[3] = { .0, .0, .0 };
+  std::vector<EntityHandle>::iterator vit;
+  for (i = 3/*iBase_REGION*/; i > 1 /*iBase_EDGE*/; i--) {
+    for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); vit++) {
+      EntityHandle this_gent = *vit;
+      rval = pFacet->getEntBoundBox(this_gent, &min[0], &min[1], &min[2],
+          &max[0], &max[1], &max[2]);
+      CHECK("Failed to get bounding box of entity.");
 
-   // check adjacencies in both directions
-   double min[3], max[3];
-   double normal[3] = {.0, .0, .0};
-   std::vector<EntityHandle>::iterator vit;
-   for (i = 3/*iBase_REGION*/; i > 1 /*iBase_EDGE*/; i--) {
-      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); vit++) {
-         EntityHandle this_gent = *vit;
-         rval = pFacet->getEntBoundBox( this_gent, &min[0], &min[1], &min[2],
-         &max[0], &max[1], &max[2]);
-         CHECK("Failed to get bounding box of entity.");
+      rval = pFacet->getEntNrmlXYZ(this_gent, (max[0] + min[0]) / 2, (max[1]
+          + min[1]) / 2, (max[2] + min[2]) / 2, &normal[0], &normal[1],
+          &normal[2]);
 
-         rval = pFacet->getEntNrmlXYZ( this_gent,
-         (max[0]+min[0])/2,
-         (max[1]+min[1])/2,
-         (max[2]+min[2])/2,
-         &normal[0],
-         &normal[1],
-         &normal[2] );
+      CHECK("Failed to get normal to the closest point.");
+      std::cout << " entity of type " << i << " closest normal to center:\n  "
+          << normal[0] << " " << normal[1] << " " << normal[2] << "\n";
+    }
+  }
 
-         CHECK("Failed to get normal to the closest point.");
-         std::cout<<" entity of type " << i << " closest normal to center:\n  " <<
-         normal[0] << " " << normal[1] << " " << normal[2] << "\n";
-      }
-   }
-
-   return MB_SUCCESS;
+  return MB_SUCCESS;
 }
 
 //  ray test
-ErrorCode  ray_test(FBEngine * pFacet) {
+ErrorCode ray_test(FBEngine * pFacet)
+{
 
-   EntityHandle root_set;
-   ErrorCode rval=pFacet->getRootSet( &root_set );
-   CHECK( "ERROR : getRootSet failed!" );
+  EntityHandle root_set;
+  ErrorCode rval = pFacet->getRootSet(&root_set);
+  CHECK( "ERROR : getRootSet failed!" );
 
-   int top = 2; //  iBase_FACE;
+  int top = 2; //  iBase_FACE;
 
-   Range faces;
-   rval = pFacet->getEntities(root_set, top, faces);
-   CHECK("Failed to get faces in ray_test.");
+  Range faces;
+  rval = pFacet->getEntities(root_set, top, faces);
+  CHECK("Failed to get faces in ray_test.");
 
-   // check only the first face
+  // check only the first face
 
-   // check adjacencies in both directions
-   double min[3], max[3];
+  // check adjacencies in both directions
+  double min[3], max[3];
 
-   EntityHandle first_face = faces[0];
+  EntityHandle first_face = faces[0];
 
-   rval = pFacet->getEntBoundBox(first_face, &min[0], &min[1], &min[2],
-   &max[0], &max[1], &max[2]);
-   CHECK("Failed to get bounding box of entity.");
+  rval = pFacet->getEntBoundBox(first_face, &min[0], &min[1], &min[2], &max[0],
+      &max[1], &max[2]);
+  CHECK("Failed to get bounding box of entity.");
 
-   // assume that the ray shot from the bottom of the box (middle) is a pretty good candidate
-   // in z direction
-   double x = (min[0]+max[0])/2, y = (min[1]+max[1])/2, z = min[2];
-   std::vector<EntityHandle> intersect_entity_handles;
-   std::vector<double> intersect_coords;
-   std::vector<double> param_coords;
-   rval = pFacet->getPntRayIntsct( x,  y,  z, // shot from
-                                       0., 0., 1., // direction
-                                       intersect_entity_handles,
-                                       /*iBase_INTERLEAVED,*/
-                                       intersect_coords,
-                                       param_coords);
+  // assume that the ray shot from the bottom of the box (middle) is a pretty good candidate
+  // in z direction
+  double x = (min[0] + max[0]) / 2, y = (min[1] + max[1]) / 2, z = min[2];
+  std::vector<EntityHandle> intersect_entity_handles;
+  std::vector<double> intersect_coords;
+  std::vector<double> param_coords;
+  rval = pFacet->getPntRayIntsct(x, y, z, // shot from
+      0., 0., 1., // direction
+      intersect_entity_handles,
+      /*iBase_INTERLEAVED,*/
+      intersect_coords, param_coords);
+
+  CHECK("Failed to find ray intersections points ");
+  for (unsigned int i = 0; i < intersect_entity_handles.size(); i++) {
+    int j;
+    rval = pFacet->getEntType(intersect_entity_handles[i], &j);
+    CHECK("Failed to get type of entity.");
+
+    std::cout << " entity of type " << j << " n: "
+        << intersect_entity_handles[i] << "\n" << intersect_coords[3 * i]
+        << " " << intersect_coords[3 * i + 1] << " " << intersect_coords[3 * i
+        + 2] << "\n" << " distance: " << param_coords[i] << "\n";
+  }
+
+  return MB_SUCCESS;
+}
+
+// this test is for creating 2 surfaces given a polyline and a direction for piercing.
+ErrorCode split_test(FBEngine * pFacet)
+{
+
+  EntityHandle root_set;
+  ErrorCode rval = pFacet->getRootSet(&root_set);
+  CHECK( "ERROR : getRootSet failed!" );
+
+  int top = 2; //  iBase_FACE;
+
+  Range faces;
+  rval = pFacet->getEntities(root_set, top, faces);
+  CHECK("Failed to get faces in split_test.");
+
+  // check only the first face
+
+  EntityHandle first_face = faces[0];
+  // use the polyPB.txt file to get the trimming polygon
+  std::string polygon_file_name = TestDir + "/polyPB.txt";
+  // read the file with the polygon user data
+
+  std::ifstream datafile(polygon_file_name.c_str(), std::ifstream::in);
+  if (!datafile) {
+    std::cout << "can't read file\n";
+    return MB_FAILURE;
+  }
+  //
+  char temp[100];
+  double direction[3];// normalized
+  double gridSize;
+  datafile.getline(temp, 100);// first line
+
+  // get direction and mesh size along polygon segments, from file
+  sscanf(temp, " %lf %lf %lf %lf ", direction, direction + 1, direction + 2,
+      &gridSize);
+  //NORMALIZE(direction);// just to be sure
+
+  std::vector<double> xyz;
+  while (!datafile.eof()) {
+    datafile.getline(temp, 100);
+    //int id = 0;
+    double x, y, z;
+    int nr = sscanf(temp, "%lf %lf %lf", &x, &y, &z);
+    if (nr == 3) {
+      xyz.push_back(x);
+      xyz.push_back(y);
+      xyz.push_back(z);
+    }
+  }
+  int sizePolygon = (int)xyz.size()/3;
+  if (sizePolygon < 3) {
+    std::cerr << " Not enough points in the polygon" << std::endl;
+    return MB_FAILURE;
+  }
+
+  EntityHandle newFace;
+  rval = pFacet->split_surface(first_face, xyz, direction, newFace);
 
 
-   CHECK("Failed to find ray intersections points ");
-   for(unsigned int i=0; i<intersect_entity_handles.size(); i++)
-   {
-      int j;
-      rval = pFacet->getEntType(  intersect_entity_handles[i], &j);
-      CHECK("Failed to get type of entity.");
-
-      std::cout<<" entity of type " << j << " n: " << intersect_entity_handles[i]<< "\n"<<
-            intersect_coords[3*i] << " " << intersect_coords[3*i+1] << " "
-            << intersect_coords[3*i+2] << "\n" <<
-            " distance: " << param_coords[i] << "\n";
-   }
-
-   return MB_SUCCESS;
+  // save the new smooth file, if asked
+  return MB_SUCCESS;
 }
 

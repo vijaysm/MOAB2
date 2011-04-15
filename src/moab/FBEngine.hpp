@@ -8,6 +8,7 @@
 #include "moab/Types.hpp"
 #include "moab/Interface.hpp"
 #include "moab/Range.hpp"
+#include "moab/CartVect.hpp"
 
 namespace moab {
 class GeomTopoTool;
@@ -118,12 +119,28 @@ public:
   ErrorCode isEntAdj( EntityHandle entity1, EntityHandle entity2,
       bool& adjacent_out );
 
+  ErrorCode split_surface(EntityHandle face, std::vector<double> & xyz, double * direction,
+      EntityHandle & newFace);
+  // these new points will be on edges or triangles, if in interior of triangles
+  ErrorCode split_surface(EntityHandle face, std::vector<double> & points,
+      std::vector<EntityHandle> & entities, std::vector<EntityHandle> & triangles,
+      EntityHandle & newFace);
 private:
 
   ErrorCode initializeSmoothing();
 
   ErrorCode getAdjacentEntities(const EntityHandle from, const int to_dim,
       Range &adj_ents);
+
+  ErrorCode compute_intersection_points(EntityHandle & face, CartVect & p1, CartVect & p2,
+      EntityHandle from, EntityHandle to, CartVect & Dir, std::vector<double> & points,
+      std::vector<EntityHandle> & entities, std::vector<EntityHandle> & triangles);
+
+  ErrorCode BreakTriangle(EntityHandle tri, EntityHandle e1, EntityHandle e3, EntityHandle n1,
+      EntityHandle n2, EntityHandle n3);// nodesAlongPolyline are on entities!
+
+  ErrorCode BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHandle e2, EntityHandle n1,
+        EntityHandle n2);// nodesAlongPolyline are on entities!
 
   Interface * _mbImpl;
 
