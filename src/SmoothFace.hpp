@@ -129,6 +129,7 @@ public:
       double & distance, // (IN OUT) the new distance
       bool &outside); // (OUT) the closest point on patch to pt is on an edge
 
+  void append_smooth_tags(std::vector<Tag> & smoothTags);
   //      of the edges.  Otherwise, should be -1)
 private:
 

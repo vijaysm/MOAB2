@@ -125,6 +125,12 @@ public:
   ErrorCode split_surface(EntityHandle face, std::vector<double> & points,
       std::vector<EntityHandle> & entities, std::vector<EntityHandle> & triangles,
       EntityHandle & newFace);
+
+  // helper for cleaning the stuff
+  // will be called if the topology is modified
+  void clean();
+
+  void delete_smooth_tags();
 private:
 
   ErrorCode initializeSmoothing();
@@ -137,14 +143,23 @@ private:
       std::vector<EntityHandle> & entities, std::vector<EntityHandle> & triangles);
 
   ErrorCode BreakTriangle(EntityHandle tri, EntityHandle e1, EntityHandle e3, EntityHandle n1,
-      EntityHandle n2, EntityHandle n3);// nodesAlongPolyline are on entities!
+      EntityHandle n2, EntityHandle n3, Range & new_triangles);// nodesAlongPolyline are on entities!
 
   ErrorCode BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHandle e2, EntityHandle n1,
-        EntityHandle n2);// nodesAlongPolyline are on entities!
+        EntityHandle n2, Range & new_triangles);// nodesAlongPolyline are on entities!
 
   void print_debug_triangle(EntityHandle triangle);
 
-  ErrorCode  create_new_gedge(std::vector<EntityHandle> &nodesAlongPolyline, EntityHandle & new_geo_edge);
+  ErrorCode  create_new_gedge(std::vector<EntityHandle> &nodesAlongPolyline,
+      EntityHandle & new_geo_edge, Range & geo_vertices);
+
+  // used for splitting surfaces
+  ErrorCode separate (Range & iniTriangles, Range & triToDelete,
+      Range & new_triangles, EntityHandle new_geo_edge, Range & first,
+      Range & second);
+
+  ErrorCode smooth_new_intx_points(EntityHandle face,
+      std::vector<EntityHandle> & nodesAlongPolyline);
 
   Interface * _mbImpl;
 

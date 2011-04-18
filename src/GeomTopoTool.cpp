@@ -872,6 +872,13 @@ ErrorCode GeomTopoTool::check_edge_sense_tags(bool create)
   return MB_SUCCESS;
 }
 
+ErrorCode  GeomTopoTool::add_geo_set(EntityHandle set, int dimension)
+{
+  updated=false;
+  geomRanges[dimension].insert(set);
+  return MB_SUCCESS;
+}
+
 } // namespace moab
 
 

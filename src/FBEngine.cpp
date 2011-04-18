@@ -10,6 +10,7 @@
 #include <cstring>
 #include <map>
 #include <set>
+#include <queue>
 #include "assert.h"
 
 #include "SmoothCurve.hpp"
@@ -28,7 +29,7 @@ unsigned min_tolerace_intersections = 1000;
 double tolerance = 0.01; // TODO: how is this used ????
 double tolerance_segment = 0.000001; // for segments intersection, points collapse
 const bool Debug_surf_eval = false;
-bool debug_splits = false;// false?
+bool debug_splits = true;// false?
 
 // will compute intersection between a segment and slice of a plane
 // output is the intersection point
@@ -190,6 +191,12 @@ FBEngine::FBEngine(Interface *impl, GeomTopoTool * topoTool, const bool smooth) 
 }
 FBEngine::~FBEngine()
 {
+  clean();
+  _smooth = false;
+}
+
+void FBEngine::clean()
+{
   if (_smooth) {
     _faces.clear();
     _edges.clear();
@@ -204,7 +211,7 @@ FBEngine::~FBEngine()
       delete _smthFace[i];
     delete[] _smthFace;
     _smthFace = NULL;
-    _smooth = false;
+    //_smooth = false;
   }
 
   for (int j = 0; j < 4; j++)
@@ -351,6 +358,57 @@ ErrorCode FBEngine::initializeSmoothing()
   return MB_SUCCESS;
 }
 
+// clean up the smooth tags data if created, so the files will be smaller
+// if saved
+// also, recompute the tags if topology is modified
+void FBEngine::delete_smooth_tags()
+{
+  // get all tags from database that are created for smooth data, and
+  // delete them; it will delete all data associated with them
+  // first tags from faces, edges:
+  std::vector<Tag> smoothTags;
+  int size1 = (int)_my_gsets[2].size();
+
+  for (int i=0; i<size1; i++)
+  {
+    // these 2 will append gradient tag and plane tag
+    _smthFace[i]->append_smooth_tags(smoothTags);
+  }
+  // then , get other tags:
+  // "TANGENTS", "MARKER", "CONTROLEDGE", "CONTROLFACE", "CONTROLEDGEFACE"
+  std::string t1("TANGENTS");
+  Tag tag_handle;
+  ErrorCode rval = _mbImpl->tag_get_handle( t1.c_str(), tag_handle );
+  if (rval != MB_TAG_NOT_FOUND)
+    smoothTags.push_back(tag_handle);
+
+  std::string t2("MARKER");
+  rval = _mbImpl->tag_get_handle( t2.c_str(), tag_handle );
+  if (rval != MB_TAG_NOT_FOUND)
+    smoothTags.push_back(tag_handle);
+
+  std::string t3("CONTROLEDGE");
+  rval = _mbImpl->tag_get_handle( t3.c_str(), tag_handle );
+  if (rval != MB_TAG_NOT_FOUND)
+    smoothTags.push_back(tag_handle);
+
+  std::string t4("CONTROLFACE");
+  rval = _mbImpl->tag_get_handle( t4.c_str(), tag_handle );
+  if (rval != MB_TAG_NOT_FOUND)
+    smoothTags.push_back(tag_handle);
+
+  std::string t5("CONTROLEDGEFACE");
+  rval = _mbImpl->tag_get_handle( t5.c_str(), tag_handle );
+  if (rval != MB_TAG_NOT_FOUND)
+    smoothTags.push_back(tag_handle);
+
+  // a lot of tags, delete them
+  for (unsigned int k = 0; k<smoothTags.size(); k++ )
+  {
+    // could be a lot of data
+    _mbImpl->tag_delete(smoothTags[k]);
+  }
+}
 #define COPY_RANGE(r, vec) {                      \
     EntityHandle *tmp_ptr = reinterpret_cast<EntityHandle*>(vec);	\
     std::copy(r.begin(), r.end(), tmp_ptr);}
@@ -1115,13 +1173,19 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
   // use a fill to determine the new sets, up to the polyline
   // points on the polyline will be moved to the closest point location, with some constraints
   // then the sets will be reset, geometry recomputed. new vertices, new edges, etc.
+
+  Range iniTris;
+  Range new_triangles;
+  ErrorCode rval;
+  rval = _mbImpl -> get_entities_by_type(face, MBTRI, iniTris);
+  MBERRORR(rval, "can't get initial triangles");
+  
   int num_points = (int) points.size()/3;
   // if first point is the same as last point, we have a loop for cropping
   // otherwise, we have a trimming line for splitting
 
   Range triToDelete;
   Range edgesToDelete;
-  ErrorCode rval;
   bool loop = false;
   if (fabs(points[0] - points[3 * num_points - 3]) < tolerance_segment && fabs(
       points[1] - points[3 * num_points - 2]) < tolerance_segment && fabs(
@@ -1209,7 +1273,7 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
       }
       // so now we have the same triangle, make sure it is another edge or vertex
       rval = BreakTriangle( tri, e1, e3, nodesAlongPolyline[i], nodesAlongPolyline[i+1],
-          nodesAlongPolyline[i+2]);// nodesAlongPolyline are on entities!
+          nodesAlongPolyline[i+2], new_triangles);// nodesAlongPolyline are on entities!
       MBERRORR(rval, "can't break triangle");
       if (et3==MBEDGE)
           edgesToDelete.insert(e3);
@@ -1221,7 +1285,7 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
         std::cout <<"tri: type: " << _mbImpl->type_from_handle(tri) << " id:" <<
             _mbImpl->id_from_handle(tri) << " e1:" << e1 << " e2:" << e2 << "\n";
       }
-      rval = BreakTriangle2( tri, e1, e2, nodesAlongPolyline[i], nodesAlongPolyline[i+1]);
+      rval = BreakTriangle2( tri, e1, e2, nodesAlongPolyline[i], nodesAlongPolyline[i+1], new_triangles);
       MBERRORR(rval, "can't break triangle 2");
       if (et2==MBEDGE)
         edgesToDelete.insert(e2);
@@ -1238,9 +1302,129 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
   // if needed, create edges along polyline, or revert the existing ones, to
   // put them in a new edge set
   EntityHandle new_geo_edge;
-  rval = create_new_gedge(nodesAlongPolyline, new_geo_edge);
+  Range geo_vertices;
+  rval = create_new_gedge(nodesAlongPolyline, new_geo_edge, geo_vertices);
   MBERRORR(rval, "can't create a new edge");
 
+  // start from a triangle that is not in the triangles to delete
+  // flood fill 
+
+  // we will separate triangles to delete, unaffected, new_triangles,
+  //  nodesAlongPolyline, 
+  Range first, second;
+  rval = separate (iniTris, triToDelete, new_triangles, new_geo_edge,
+      first, second);
+
+  // now, we are done with the computations;
+  // we need to put the new nodes on the smooth surface
+  if (this->_smooth)
+  {
+    rval = smooth_new_intx_points(face, nodesAlongPolyline);
+    MBERRORR(rval, "can't smooth new points");
+  }
+
+  // create the new set
+  rval = _mbImpl->create_meshset(MESHSET_SET, newFace);
+  MBERRORR(rval, "can't create a new face");
+  Tag geom_tag;
+  rval = _mbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, geom_tag);
+  MBERRORR(rval, "can't get geo tag");
+
+  int dimension = 2;
+  rval = MBI->tag_set_data(geom_tag, &newFace, 1, &dimension);
+  MBERRORR(rval, "can't set geo tag");
+
+  // put the first range in the set
+  // now, add the new sets to the _geo_topo_tool
+  _my_geomTopoTool->add_geo_set(newFace, 2);
+  _my_geomTopoTool->add_geo_set(new_geo_edge, 1);
+  for (unsigned int k=0; k< geo_vertices.size(); k++)
+    _my_geomTopoTool->add_geo_set(geo_vertices[k], 0);
+  // new face will have the new edge oriented positively
+  // get a mesh edge from geo edge;
+
+  Range mesh_edges;
+  rval = _mbImpl->get_entities_by_type(new_geo_edge, MBEDGE, mesh_edges);
+  MBERRORR(rval, "can't get new polyline edges");
+
+  // get a positive triangle adjacent to mesh_edge[0]
+  Range adj_tri;
+  EntityHandle firstMeshEdge = mesh_edges[0];
+  rval =  _mbImpl->get_adjacencies(&firstMeshEdge, 1,
+          2, false, adj_tri, Interface::UNION);
+  MBERRORR(rval, "can't get adj_tris to first edge");
+  EntityHandle pTriangle;
+  Range::iterator it=adj_tri.begin();
+  for ( ; it!=adj_tri.end(); it++)
+  {
+    EntityHandle tr=*it;
+    int num1, sense, offset;
+    rval = _mbImpl->side_number(tr, mesh_edges[0], num1, sense, offset);
+    MBERRORR(rval, "edge not adjacent");
+    if (sense==1)
+    {
+      pTriangle = tr;
+      break;
+    }
+  }
+  if (it==adj_tri.end())
+  {
+    MBERRORR(MB_FAILURE, "can't get a positive triangle");
+  }
+  bool firstIsNewFace = true;
+  if ( first.find(pTriangle)!=first.end())
+  {
+    // the positive triangle is in the first range, ok
+    rval = _mbImpl->add_entities(newFace, first);
+    MBERRORR(rval, "can't add triangles to new set");
+    firstIsNewFace = true;
+  }
+  else
+  {
+    // the positive triangle is in the second range
+    rval = _mbImpl->add_entities(newFace, second);
+    MBERRORR(rval, "can't add triangles to new set");
+    firstIsNewFace = false;
+  }
+
+  // both faces will have the edge now
+  rval = _mbImpl ->add_parent_child( face, new_geo_edge);
+  MBERRORR(rval, "can't add parent child relations for new edge");
+
+  rval = _mbImpl ->add_parent_child( newFace, new_geo_edge);
+  MBERRORR(rval, "can't add parent child relations for new edge");
+  // add senses
+  // sense newFace is 1, old face is -1
+  rval = _my_geomTopoTool-> set_sense( new_geo_edge, newFace, 1);
+  MBERRORR(rval, "can't set sense for new edge");
+
+  rval = _my_geomTopoTool-> set_sense( new_geo_edge, face, -1);
+  MBERRORR(rval, "can't set sense for new edge in original face");
+
+  // now, we should remove from the original set all tris, and put the "second" range
+  rval = _mbImpl->remove_entities(face, iniTris);
+  MBERRORR(rval, "can't remove original tris from initial face set");
+
+  // now add the first or second set
+  if (firstIsNewFace)
+  {
+    rval = _mbImpl->add_entities(face, second);
+  }
+  else
+  {
+    rval = _mbImpl->add_entities(face, first);
+  }
+  MBERRORR(rval, "can't add proper set to the original set");
+
+  if (debug_splits)
+  {
+    _mbImpl->write_file("firstFace.vtk", "vtk", 0, &newFace, 1);
+  }
+
+  if (_smooth)
+    delete_smooth_tags();
+  // this will remove the extra smooth faces and edges
+  clean();
   // also, these nodes need to be moved to the smooth surface, sometimes before deleting the old
   // triangles
   // remove the triangles from the set, then delete triangles (also some edges need to be deleted!)
@@ -1254,8 +1438,129 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
   return MB_SUCCESS;
 }
 
+ErrorCode FBEngine::smooth_new_intx_points(EntityHandle face,
+      std::vector<EntityHandle> & nodesAlongPolyline)
+{
+  // first of all, find out all nodes from face; do not move them if they are on the
+  // original face
+  std::vector<double> ini_coords;
+  int num_points = (int)nodesAlongPolyline.size();
+  ini_coords.resize(3*nodesAlongPolyline.size());
+  ErrorCode rval = _mbImpl->get_coords(&(nodesAlongPolyline[0]),
+      num_points, &(ini_coords[0]));
+  MBERRORR(rval, "can't get coordinates");
+
+  // do not move nodes from the original face
+  // first get all triangles, and then all nodes from those triangles
+
+  Range tris;
+  rval = _mbImpl->get_entities_by_type(face, MBTRI, tris);
+  MBERRORR(rval, "can't get triangles");
+
+  Range ini_nodes;
+  rval = _mbImpl->get_connectivity( tris, ini_nodes);
+  MBERRORR(rval, "can't get connectivities");
+
+  SmoothFace* smthFace = _faces[face];
+
+  for (int i=0; i<num_points; i++)
+  {
+    if ( ini_nodes.find(nodesAlongPolyline[i])==ini_nodes.end() )
+    {
+      int i3=3*i;
+      smthFace->move_to_surface(ini_coords[i3], ini_coords[i3+1], ini_coords[i3+2]);
+      // reset the coordinates of this node
+      rval = _mbImpl->set_coords(&(nodesAlongPolyline[i]), 1,
+          &(ini_coords[i3]));
+      MBERRORR(rval, "can't set new coordinates for a node");
+    }
+  }
+
+  return MB_SUCCESS;
+}
+// so, triangles are
+ErrorCode FBEngine::separate (Range & iniTriangles, Range & triToDelete,
+    Range & new_triangles,
+    EntityHandle new_geo_edge, Range & first,  Range & second)
+{
+  //Range unaffectedTriangles = subtract(iniTriangles, triToDelete);
+  // insert in each
+  // start with a new triangle, and flood to get the first range; what is left is the
+  // second range
+  // flood fill is considering edges adjacent to seed triangles; if there is
+  //  an edge in the new_geo_edge, it is skipped; triangles in the
+  // triangles to delete are not added
+  // first, create all edges of the new triangles
+  Range edges_of_new_triangles;
+  ErrorCode rval = _mbImpl->get_adjacencies(new_triangles,
+      1, true, edges_of_new_triangles, Interface::UNION);
+  MBERRORR(rval, "can't get new edges");
+
+  // get the first new triangle: will be part of first set;
+  // flood fill first set, the rest will be in second set
+  //first.insert(new_triangles[0]);
+  // the edges from new_geo_edge will not be crossed
+  Range doNotCrossEdges;
+  rval = _mbImpl->get_entities_by_type(new_geo_edge, MBEDGE, doNotCrossEdges);
+  MBERRORR(rval, "can't get new polyline edges");
+  //
+  std::queue<EntityHandle> firstQueue;
+  firstQueue.push(new_triangles[0]);
+  Range visited;
+  while(!firstQueue.empty())
+  {
+    EntityHandle currentTriangle=firstQueue.front();
+    firstQueue.pop();
+    first.insert(currentTriangle);
+    // add new triangles that share an edge
+    Range currentEdges;
+    rval =  _mbImpl->get_adjacencies(&currentTriangle, 1,
+        1, false, currentEdges, Interface::UNION);
+    MBERRORR(rval, "can't get adjacencies");
+    for (Range::iterator it=currentEdges.begin(); it!=currentEdges.end(); it++)
+    {
+      EntityHandle frontEdge= *it;
+      if ( doNotCrossEdges.find(frontEdge)==doNotCrossEdges.end())
+      {
+        // this is an edge that can be crossed
+        Range adj_tri;
+        rval =  _mbImpl->get_adjacencies(&frontEdge, 1,
+                2, false, adj_tri, Interface::UNION);
+        MBERRORR(rval, "can't get adj_tris");
+        // if the triangle is not in first range, add it to the queue
+        for (Range::iterator it2=adj_tri.begin(); it2!=adj_tri.end(); it2++)
+        {
+          EntityHandle tri2=*it2;
+          if ( (first.find(tri2)==first.end()) &&
+                (triToDelete.find(tri2) == triToDelete.end())
+              && (visited.find(tri2) == visited.end()) )
+          {
+            firstQueue.push(tri2);
+          }
+          visited.insert(tri2);
+        }
+
+      }
+    }
+  }
+  // now "first" should have one set of triangles
+  // second = iniTriangles + new_triangles - triangles to delete - first
+  second =  unite (iniTriangles, new_triangles);
+  // now subtract the ones to delete and the first set
+  Range second2 = subtract (second, triToDelete);
+  second = subtract(second2, first);
+
+  if (debug_splits)
+  {
+    std::cout << "first size: " << first.size() << "  second size:" << second.size() << "\n";
+
+  }
+
+  return MB_SUCCESS;
+}
 // if there is an edge between 2 nodes, then check it's orientation, and revert it if needed
-ErrorCode  FBEngine::create_new_gedge(std::vector<EntityHandle> &nodesAlongPolyline, EntityHandle & new_geo_edge)
+ErrorCode  FBEngine::create_new_gedge(std::vector<EntityHandle> &nodesAlongPolyline, EntityHandle & new_geo_edge,
+    Range & geo_vertices)
 {
 
   ErrorCode rval = _mbImpl->create_meshset(MESHSET_ORDERED, new_geo_edge);
@@ -1361,6 +1666,7 @@ ErrorCode  FBEngine::create_new_gedge(std::vector<EntityHandle> &nodesAlongPolyl
       MBERRORR(rval, "Failed to add the node to the set");
 
     }
+    geo_vertices.insert(nodeSet); //(new or already existing)
     // arrange
       //
     rval = _mbImpl ->add_parent_child( new_geo_edge, nodeSet);
@@ -1393,14 +1699,14 @@ void FBEngine::print_debug_triangle(EntityHandle t)
 // actual breaking of triangles
 // case 1: n2 interior to triangle
 ErrorCode FBEngine::BreakTriangle(EntityHandle tri, EntityHandle e1, EntityHandle e3,
-    EntityHandle n1, EntityHandle n2, EntityHandle n3)
+    EntityHandle n1, EntityHandle n2, EntityHandle n3, Range & new_triangles)
 {
   std::cout<< "FBEngine::BreakTriangle not implemented yet\n";
   return MB_FAILURE;
 }
 // case 2, n1 and n2 on boundary
 ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHandle e2, EntityHandle n1,
-  EntityHandle n2)// nodesAlongPolyline are on entities!
+  EntityHandle n2, Range & new_triangles)// nodesAlongPolyline are on entities!
 {
   // we have the nodes, we just need to reconnect to form new triangles
   ErrorCode rval;
@@ -1429,10 +1735,12 @@ ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHand
     EntityHandle newTriangle;
     rval = _mbImpl->create_element(MBTRI, conn, 3, newTriangle);
     MBERRORR(rval, "Failed to create a new triangle");
+    new_triangles.insert(newTriangle);
     if (debug_splits)
       print_debug_triangle(newTriangle);
     rval = _mbImpl->create_element(MBTRI, conn+3, 3, newTriangle);// the second triangle
     MBERRORR(rval, "Failed to create a new triangle");
+    new_triangles.insert(newTriangle);
     if (debug_splits)
       print_debug_triangle(newTriangle);
     return MB_SUCCESS;
@@ -1452,6 +1760,7 @@ ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHand
     EntityHandle newTriangle;
     rval = _mbImpl->create_element(MBTRI, conn, 3, newTriangle);
     MBERRORR(rval, "Failed to create a new triangle");
+    new_triangles.insert(newTriangle);
     if (debug_splits)
           print_debug_triangle(newTriangle);
     rval = _mbImpl->create_element(MBTRI, conn+3, 3, newTriangle);// the second triangle
@@ -1512,14 +1821,17 @@ ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHand
        std::cout << "Split 2 edges :\n";
     rval = _mbImpl->create_element(MBTRI, conn, 3, newTriangle);
     MBERRORR(rval, "Failed to create a new triangle");
+    new_triangles.insert(newTriangle);
     if (debug_splits)
           print_debug_triangle(newTriangle);
     rval = _mbImpl->create_element(MBTRI, conn+3, 3, newTriangle);// the second triangle
     MBERRORR(rval, "Failed to create a new triangle");
+    new_triangles.insert(newTriangle);
     if (debug_splits)
           print_debug_triangle(newTriangle);
     rval = _mbImpl->create_element(MBTRI, conn+6, 3, newTriangle);// the second triangle
     MBERRORR(rval, "Failed to create a new triangle");
+    new_triangles.insert(newTriangle);
     if (debug_splits)
           print_debug_triangle(newTriangle);
     return MB_SUCCESS;

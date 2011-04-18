@@ -89,7 +89,14 @@ double SmoothFace::area()
   }
   return totArea;
 }
+// these tags will be collected for deletion
+void SmoothFace::append_smooth_tags(std::vector<Tag> & smoothTags)
+{
+  // these are created locally, for each smooth face
+  smoothTags.push_back(_gradientTag);
+  smoothTags.push_back(_planeTag);
 
+}
 void SmoothFace::bounding_box(double box_min[3], double box_max[3])
 {
 

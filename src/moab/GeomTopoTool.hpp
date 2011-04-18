@@ -115,12 +115,15 @@ public:
 
   OrientedBoxTreeTool *obb_tree() {return &obbTree;}
 
+  ErrorCode add_geo_set(EntityHandle set, int dimension);
+
 private:
   Interface *mdbImpl;
   Tag sense2Tag;
   Tag senseNEntsTag, senseNSensesTag;
   Tag geomTag;
   Range geomRanges[4];
+  bool updated;
 
   OrientedBoxTreeTool obbTree;
   EntityHandle setOffset;

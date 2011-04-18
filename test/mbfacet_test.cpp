@@ -52,7 +52,7 @@ ErrorCode gentityset_test(FBEngine * pFacet);
 ErrorCode geometry_evaluation_test(FBEngine * pFacet);
 ErrorCode normals_test(FBEngine * pFacet);
 ErrorCode ray_test(FBEngine * pFacet);
-ErrorCode split_test(FBEngine * pFacet);
+ErrorCode split_test(Interface * mb, FBEngine * pFacet);
 
 void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
 {
@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
   std::cout << "\n";
 
   std::cout << "split test: ";
-  rval = split_test(pFacet);
+  rval = split_test(mb, pFacet);
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
@@ -401,7 +401,7 @@ ErrorCode ray_test(FBEngine * pFacet)
 }
 
 // this test is for creating 2 surfaces given a polyline and a direction for piercing.
-ErrorCode split_test(FBEngine * pFacet)
+ErrorCode split_test(Interface * mb, FBEngine * pFacet)
 {
 
   EntityHandle root_set;
@@ -458,8 +458,13 @@ ErrorCode split_test(FBEngine * pFacet)
   EntityHandle newFace;
   rval = pFacet->split_surface_with_direction(first_face, xyz, direction, newFace);
 
+  if (rval!=MB_SUCCESS)
+    return rval;
+  // save a new database
+  std::string filename = TestDir + "/PB_new.h5m";
+  rval = mb->write_file(filename.c_str());
 
   // save the new smooth file, if asked
-  return MB_SUCCESS;
+  return rval;
 }
 
