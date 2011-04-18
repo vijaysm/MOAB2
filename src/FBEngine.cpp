@@ -29,7 +29,7 @@ unsigned min_tolerace_intersections = 1000;
 double tolerance = 0.01; // TODO: how is this used ????
 double tolerance_segment = 0.000001; // for segments intersection, points collapse
 const bool Debug_surf_eval = false;
-bool debug_splits = true;// false?
+bool debug_splits = false;// false?
 
 // will compute intersection between a segment and slice of a plane
 // output is the intersection point
