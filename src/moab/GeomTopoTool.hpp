@@ -115,14 +115,21 @@ public:
 
   OrientedBoxTreeTool *obb_tree() {return &obbTree;}
 
-  ErrorCode add_geo_set(EntityHandle set, int dimension);
+  // this could make the obb tree out of date
+  ErrorCode add_geo_set(EntityHandle set, int dimension, int global_id  = 0);
+
+  // will assume no geo sets are defined for this surface
+  // will output a mesh_set that contains everything (all sets of interest), for proper output
+  ErrorCode geometrize_surface_set(EntityHandle surface, EntityHandle & output);
 
 private:
   Interface *mdbImpl;
   Tag sense2Tag;
   Tag senseNEntsTag, senseNSensesTag;
   Tag geomTag;
+  Tag gidTag;
   Range geomRanges[4];
+  int maxGlobalId[4]; // one max global id for each dimension
   bool updated;
 
   OrientedBoxTreeTool obbTree;
@@ -139,7 +146,7 @@ private:
   
     //! given a range of geom topology sets, separate by dimension
   ErrorCode separate_by_dimension(const Range &geom_sets,
-				    Range *entities, Tag geom_tag = 0);
+				    Range *entities);
 
   // verify sense face tag
   ErrorCode check_face_sense_tag(bool create);

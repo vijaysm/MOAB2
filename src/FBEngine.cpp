@@ -1326,16 +1326,7 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
   // create the new set
   rval = _mbImpl->create_meshset(MESHSET_SET, newFace);
   MBERRORR(rval, "can't create a new face");
-  Tag geom_tag;
-  rval = _mbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, geom_tag);
-  MBERRORR(rval, "can't get geo tag");
 
-  int dimension = 2;
-  rval = MBI->tag_set_data(geom_tag, &newFace, 1, &dimension);
-  MBERRORR(rval, "can't set geo tag");
-
-  // put the first range in the set
-  // now, add the new sets to the _geo_topo_tool
   _my_geomTopoTool->add_geo_set(newFace, 2);
   _my_geomTopoTool->add_geo_set(new_geo_edge, 1);
   for (unsigned int k=0; k< geo_vertices.size(); k++)
@@ -1566,14 +1557,6 @@ ErrorCode  FBEngine::create_new_gedge(std::vector<EntityHandle> &nodesAlongPolyl
   ErrorCode rval = _mbImpl->create_meshset(MESHSET_ORDERED, new_geo_edge);
   MBERRORR(rval, "can't create geo edge");
 
-  Tag geom_tag;
-  rval = _mbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, geom_tag);
-  MBERRORR(rval, "can't get geo tag");
-
-  int dimension =1;
-  rval = MBI->tag_set_data(geom_tag, &new_geo_edge, 1, &dimension);
-  MBERRORR(rval, "can't set geo tag");
-
   // now, get the edges, or create if not existing
   std::vector<EntityHandle> mesh_edges;
   for (unsigned int i=0; i<nodesAlongPolyline.size()-1; i++)
@@ -1626,8 +1609,13 @@ ErrorCode  FBEngine::create_new_gedge(std::vector<EntityHandle> &nodesAlongPolyl
 
   const int zero = 0;
   const void* const zero_val[] = { &zero };
+  Tag geom_tag;
+  rval = MBI->tag_get_handle(GEOM_DIMENSION_TAG_NAME, geom_tag);
+  MBERRORR(rval, "can't get geom tag");
   rval = _mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &geom_tag,
         zero_val, 1, vertex_sets);
+  MBERRORR(rval, "can't get all vertex sets so far"); // these could be different from
+  // local _gsets, as we might have not updated the local lists
   // see if ends of geo edge generated is in a geo set 0 or not
 
   Range ends_geo_edge;
@@ -1657,10 +1645,6 @@ ErrorCode  FBEngine::create_new_gedge(std::vector<EntityHandle> &nodesAlongPolyl
 
       rval = _mbImpl->create_meshset(MESHSET_SET, nodeSet);
       MBERRORR(rval, "Failed to create a new vertex set");
-
-      int dimension =0;
-      rval = _mbImpl->tag_set_data(geom_tag, &nodeSet, 1, &dimension);
-      MBERRORR(rval, "Failed to set the geom dim tag");
 
       rval = _mbImpl->add_entities(nodeSet, &node, 1);
       MBERRORR(rval, "Failed to add the node to the set");
