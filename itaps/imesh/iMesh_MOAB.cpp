@@ -1983,8 +1983,11 @@ extern "C" {
     EntityHandle set = ENTITY_HANDLE(entity_set_handle);
     ErrorCode result = MOABI->tag_delete_data(TAG_HANDLE(tag_handle), &set, 1);
 
-      // don't check return; this tag may have never been set on the entity set
-    RETURN(iBase_ERROR_MAP[result]);
+      // don't return an error if the tag simply wasn't set on the ent set
+    if (MB_TAG_NOT_FOUND == result)
+      RETURN(iBase_SUCCESS);
+    else
+      RETURN(iBase_ERROR_MAP[result]);
   }
 
   void iMesh_setVtxCoord (iMesh_Instance instance,
@@ -2310,8 +2313,11 @@ extern "C" {
                                               CONST_HANDLE_ARRAY_PTR(entity_handles),
                                               entity_handles_size);
 
-      // don't check return; this tag may have never been set on the entity
-    RETURN(iBase_ERROR_MAP[result]);
+      // don't return an error if the tag simply wasn't set on the entities
+    if (MB_TAG_NOT_FOUND == result)
+      RETURN(iBase_SUCCESS);
+    else
+      RETURN(iBase_ERROR_MAP[result]);
   }
 
   void iMesh_getData (iMesh_Instance instance,
