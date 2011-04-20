@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "moab/GeomTopoTool.hpp"
 
@@ -41,6 +42,9 @@ ErrorCode print_error(const char* desc, ErrorCode rval, const char* file,
   return MB_FAILURE; // must always return false or CHECK macro will break
 }
 
+std::string filename;
+std::string ofile;
+bool remove_output_file;
 ErrorCode geometrize_test(Interface * mb, EntityHandle inputSet);
 
 void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
@@ -56,15 +60,19 @@ void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
 
 int main(int argc, char *argv[])
 {
-  std::string filename = TestDir + "/partBed.smf";
-  std::string engine_opt;
+  filename = TestDir + "/partBed.smf";
+  ofile = "output.h5m";
+
+  remove_output_file = true;
 
   if (argc == 1) {
-    std::cout << "Using default input file: " << filename << std::endl;
-  } else if (argc == 2) {
+    std::cout << "Using default input file and output file " << filename << " " << ofile << std::endl;
+  } else if (argc == 3) {
     filename = argv[1];
+    ofile = argv[2];
+    remove_output_file = false;
   } else {
-    std::cerr << "Usage: " << argv[0] << " [geom_filename]" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " [surface_mesh] [mbgeo_file]" << std::endl;
     return 1;
   }
 
@@ -94,13 +102,17 @@ ErrorCode geometrize_test(Interface * mb, EntityHandle inputSet)
     std::cout<<"Can't geometrize the set\n";
     return rval;
   }
-  std::string ofile("output.h5m");
+
   std::cout<<"writing output file: " << ofile.c_str() << " ";
   rval=mb->write_file(ofile.c_str(), 0, 0, &outSet, 1);
   if (rval !=MB_SUCCESS)
   {
     std::cout<<"Can't write output file\n";
     return rval;
+  }
+  if (remove_output_file)
+  {
+    remove(ofile.c_str());
   }
   return MB_SUCCESS;
 }
