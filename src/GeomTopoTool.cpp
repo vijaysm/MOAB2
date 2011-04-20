@@ -687,22 +687,21 @@ ErrorCode GeomTopoTool::get_senses(EntityHandle entity,
       return rval;
     EntityHandle sense_data[2] = { 0, 0 };
     rval = mdbImpl->tag_get_data(sense2Tag, &entity, 1, sense_data);
-    if (MB_SUCCESS != rval) {
+    if (MB_SUCCESS != rval)
       return rval;
-      if (sense_data[0] != 0 && sense_data[1] == sense_data[0]) {
+    if (sense_data[0] != 0 && sense_data[1] == sense_data[0]) {
+      wrt_entities.push_back(sense_data[0]);
+      senses.push_back(0);// both
+    } else {
+      if (sense_data[0] != 0) {
         wrt_entities.push_back(sense_data[0]);
-        senses.push_back(0);// both
-      } else {
-        if (sense_data[0] != 0) {
-          wrt_entities.push_back(sense_data[0]);
-          senses.push_back(1);
-        }
-        if (sense_data[1] != 0) {
-          wrt_entities.push_back(sense_data[1]);
-          senses.push_back(-1);
-        }
-
+        senses.push_back(1);
       }
+      if (sense_data[1] != 0) {
+        wrt_entities.push_back(sense_data[1]);
+        senses.push_back(-1);
+      }
+
     }
 
   }
