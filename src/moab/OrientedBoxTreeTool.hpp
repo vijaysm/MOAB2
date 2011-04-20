@@ -281,7 +281,7 @@ class OrientedBoxTreeTool
                                   std::vector<EntityHandle>& facets_out,
                                   EntityHandle               root_set,
                                   double                     tolerance,
-                                  unsigned                   min_tolerace_intersections,
+                                  int                        min_tolerace_intersections,
                                   const double               ray_point[3],
                                   const double               unit_ray_dir[3],
                                   const double*              nonneg_ray_len = 0,
