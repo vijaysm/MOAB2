@@ -51,11 +51,7 @@
 
 using namespace moab;
 
-/* Tag to control ACIS dump from .cub file reader */
-const char acis_dump_file_tag_name[] = "__ACISDumpFile";
-
-
-void print_usage( const char* name, std::ostream& stream )
+static void print_usage( const char* name, std::ostream& stream )
 {
   stream << "Usage: " << name << 
     " [-a <sat_file>|-A] [-t] [subset options] [-f format] <input_file> [<input_file2> ...] <output_file>" << std::endl
@@ -96,7 +92,7 @@ void print_usage( const char* name, std::ostream& stream )
     ;
 }
 
-void print_help( const char* name )
+static void print_help( const char* name )
 {
   std::cout << 
   " This program can be used to convert between mesh file\n"
@@ -116,7 +112,7 @@ void print_help( const char* name )
   exit(0);
 }
 
-void usage_error( const char* name )
+static void usage_error( const char* name )
 {
   print_usage( name, std::cerr );
 #ifdef USE_MPI
@@ -126,15 +122,15 @@ void usage_error( const char* name )
 } 
 
 
-void list_formats( Interface* );
-bool parse_id_list( const char* string, std::set<int>&  );
-void print_id_list( const char*, std::ostream& stream, const std::set<int>& list );
-void reset_times();
-void write_times( std::ostream& stream );
-void remove_entities_from_sets( Interface* gMB, Range& dead_entities, Range& empty_sets );
-void remove_from_vector( std::vector<EntityHandle>& vect, const Range& ents_to_remove );
-bool make_opts_string( std::vector<std::string> options, std::string& result );
-std::string percent_subst( const std::string& s, int val );
+static void list_formats( Interface* );
+static bool parse_id_list( const char* string, std::set<int>&  );
+static void print_id_list( const char*, std::ostream& stream, const std::set<int>& list );
+static void reset_times();
+static void write_times( std::ostream& stream );
+static void remove_entities_from_sets( Interface* gMB, Range& dead_entities, Range& empty_sets );
+static void remove_from_vector( std::vector<EntityHandle>& vect, const Range& ents_to_remove );
+static bool make_opts_string( std::vector<std::string> options, std::string& result );
+static std::string percent_subst( const std::string& s, int val );
 
 int main(int argc, char* argv[])
 {
@@ -210,7 +206,7 @@ int main(int argc, char* argv[])
             usage_error(argv[0]);
           }
           if (argv[i-1][1] == 'I') {
-            int dim = atoi( argv[i] );
+            dim = atoi( argv[i] );
             if (dim < 1 || dim > 2) {
               std::cerr << "Invalid dimension value following -I" << std::endl;
               usage_error(argv[0]);
@@ -485,7 +481,7 @@ int main(int argc, char* argv[])
       if (!set_list.empty())
         remove_from_vector( set_list, empty_sets );
       dead_entities.merge( empty_sets );
-      Range tmp_range;
+      tmp_range.clear();
       remove_entities_from_sets( gMB, empty_sets, tmp_range );
       empty_sets = subtract( tmp_range,  dead_entities );
     }
@@ -619,7 +615,7 @@ void print_id_list( const char* head, std::ostream& stream, const std::set<int>&
     
 
 
-void print_time( int clk_per_sec, const char* prefix, clock_t ticks, std::ostream& stream )
+static void print_time( int clk_per_sec, const char* prefix, clock_t ticks, std::ostream& stream )
 {
   ticks *= clk_per_sec/100;
   clock_t centi = ticks % 100;

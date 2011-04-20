@@ -120,21 +120,21 @@ static inline
 void PACK_DBLS( unsigned char*& buff, const double* dbl_val, size_t num )
   { PACK( buff, dbl_val, num ); PC(num, " doubles"); }
 
-static inline
-void PACK_DBL( unsigned char*& buff, const double dbl_val)
-{ PACK_DBLS( buff, &dbl_val, 1 ); }
+//static inline
+//void PACK_DBL( unsigned char*& buff, const double dbl_val)
+//{ PACK_DBLS( buff, &dbl_val, 1 ); }
 
 static inline
 void PACK_EH( unsigned char*& buff, const EntityHandle* eh_val, size_t num )
   { PACK( buff, eh_val, num ); PC(num, " handles"); }
 
-static inline
-void PACK_CHAR_64( unsigned char*& buff, const char* str )
-{
-  memcpy(buff, str, 64 );
-  buff += 64;
-  PC(64, " chars");
-}
+//static inline
+//void PACK_CHAR_64( unsigned char*& buff, const char* str )
+//{
+//  memcpy(buff, str, 64 );
+//  buff += 64;
+//  PC(64, " chars");
+//}
 
 static inline
 void PACK_VOID( unsigned char*& buff, const void* val, size_t num )
@@ -179,13 +179,13 @@ static inline
 void UNPACK_EH( unsigned char*& buff, EntityHandle* eh_val, size_t num )
   { UNPACK(buff, eh_val, num); UPC(num, " handles"); }
 
-static inline
-void UNPACK_CHAR_64( unsigned char*& buff, char* char_val )
-{
-  memcpy( buff, char_val, 64 );
-  buff += 64;
-  UPC(64, " chars");
-}
+//static inline
+//void UNPACK_CHAR_64( unsigned char*& buff, char* char_val )
+//{
+//  memcpy( buff, char_val, 64 );
+//  buff += 64;
+//  UPC(64, " chars");
+//}
 
 static inline
 void UNPACK_VOID( unsigned char*& buff, void* val, size_t num )
@@ -235,13 +235,6 @@ static inline size_t RANGE_SIZE(const Range& rng)
   #define PRINT_DEBUG_IRECV(A,B,C,D,E,F) print_debug_irecv((A),(B),(C),(D),(E),(F))
   #define PRINT_DEBUG_RECD(A)            print_debug_recd((A))
   #define PRINT_DEBUG_WAITANY(A,B,C)     print_debug_waitany((A),(B),(C))
-#else
-  #define PRINT_DEBUG_ISEND(A,B,C,D,E) 
-  #define PRINT_DEBUG_IRECV(A,B,C,D,E,F)
-  #define PRINT_DEBUG_RECD(A) 
-  #define PRINT_DEBUG_WAITANY(A,B,C)
-#endif
-
 
 static inline void print_debug_isend(int from, int to, unsigned char *buff,
                                      int tag, int size) 
@@ -280,6 +273,13 @@ static inline void print_debug_waitany(std::vector<MPI_Request> &reqs, int tag, 
   for (unsigned int i = 0; i < reqs.size(); i++) std::cerr << " " << reqs[i];
   std::cerr << std::endl; std::cerr.flush();
 }
+
+#else
+  #define PRINT_DEBUG_ISEND(A,B,C,D,E) 
+  #define PRINT_DEBUG_IRECV(A,B,C,D,E,F)
+  #define PRINT_DEBUG_RECD(A) 
+  #define PRINT_DEBUG_WAITANY(A,B,C)
+#endif
 
 
 #define RR(a) if (MB_SUCCESS != result) {\
@@ -330,9 +330,9 @@ ParallelComm::ParallelComm(Interface *impl, MPI_Comm comm, int* id )
 }
 
 ParallelComm::ParallelComm(Interface *impl,
-                               std::vector<unsigned char> &tmp_buff, 
-                               MPI_Comm comm,
-                               int* id) 
+                           std::vector<unsigned char> &/*tmp_buff*/, 
+                           MPI_Comm comm,
+                           int* id) 
     : mbImpl(impl), procConfig(comm),
       sharedpTag(0), sharedpsTag(0), 
       sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0),
@@ -672,12 +672,12 @@ ErrorCode ParallelComm::send_entities(const int to_proc,
                                       const bool tags,
                                       const bool store_remote_handles,
                                       const bool is_iface,
-                                      Range &final_ents,
+                                      Range &/*final_ents*/,
                                       int &incoming1,
                                       int &incoming2,
                                       tuple_list& entprocs,
                                       std::vector<MPI_Request> &recv_remoteh_reqs,
-                                      bool wait_all)
+                                      bool /*wait_all*/)
 {
 #ifndef USE_MPI
   return MB_FAILURE;
@@ -734,7 +734,7 @@ ErrorCode ParallelComm::recv_entities(const int from_proc,
                                       std::vector<EntityHandle> &L2hrem,
                                       std::vector<unsigned int> &L2p,
                                       std::vector<MPI_Request> &recv_remoteh_reqs,
-                                      bool wait_all)
+                                      bool /*wait_all*/)
 {
 #ifndef USE_MPI
   return MB_FAILURE;
@@ -760,7 +760,6 @@ ErrorCode ParallelComm::recv_entities(const int from_proc,
                        incoming1, incoming2, L1hloc, L1hrem, L1p, L2hloc,
                        L2hrem, L2p, recv_remoteh_reqs);
   
-  return MB_SUCCESS;
 #endif
 }
 
@@ -908,7 +907,7 @@ ErrorCode ParallelComm::recv_remote_handle_messages(const int from_proc,
 }
 
 ErrorCode ParallelComm::pack_buffer(Range &orig_ents, 
-                                    const bool adjacencies,
+                                    const bool /*adjacencies*/,
                                     const bool tags,
                                     const bool store_remote_handles,
                                     const int to_proc,
@@ -1051,7 +1050,7 @@ int ParallelComm::estimate_ents_buffer_size(Range &entities,
 }
 
 int ParallelComm::estimate_sets_buffer_size(Range &entities,
-                                              const bool store_remote_handles) 
+                                            const bool /*store_remote_handles*/) 
 {
     // number of sets
   int buff_size = sizeof(int);
@@ -1104,9 +1103,9 @@ ErrorCode ParallelComm::pack_entities(Range &entities,
                                           Buffer *buff,
                                           const bool store_remote_handles,
                                           const int to_proc,
-                                          const bool is_iface,
+                                      const bool /*is_iface*/,
                                       tuple_list *entprocs,
-                                          Range *allsent) 
+                                      Range */*allsent*/) 
 {
     // packed information:
     // 1. # entities = E
@@ -1277,7 +1276,11 @@ ErrorCode ParallelComm::pack_entities(Range &entities,
 
 ErrorCode ParallelComm::build_sharedhps_list(const EntityHandle entity,
                                                  const unsigned char pstatus,
-                                                 const int sharedp, 
+                                                 const int 
+#ifndef NDEBUG
+                                             sharedp
+#endif
+                                             , 
                                                  const std::set<unsigned int> &procs,
                                                  unsigned int &num_ents,
                                                  int *tmp_procs,
@@ -1452,8 +1455,7 @@ ErrorCode ParallelComm::get_remote_handles(const bool store_remote_handles,
     int tmp_procs[MAX_SHARING_PROCS];
     int i;
       // go through results, and for 0-valued ones, look for multiple shared proc
-    EntityHandle *tmp_eh;
-    for (tmp_eh = to_vec, i = 0; i < num_ents; i++) {
+    for (i = 0; i < num_ents; i++) {
       if (!to_vec[i]) {
         result = mbImpl->tag_get_data(sharedps_tag, from_vec+i, 1, tmp_procs);
         if (MB_SUCCESS == result) {
@@ -1474,8 +1476,8 @@ ErrorCode ParallelComm::get_remote_handles(const bool store_remote_handles,
             result = MB_FAILURE;
             std::cout << "Failed to find new entity in send list, proc " 
                       << procConfig.proc_rank() << std::endl;
-            for (int j = 0; j <= num_ents; j++) 
-              std::cout << j << ": " << from_vec[j] << " " << to_vec[j] 
+            for (int k = 0; k <= num_ents; k++) 
+              std::cout << k << ": " << from_vec[k] << " " << to_vec[k] 
                         << std::endl;
             RRA("Failed to find new entity in send list.");
           }
@@ -2463,6 +2465,7 @@ ErrorCode ParallelComm::get_local_handles(EntityHandle *from_vec,
   return MB_SUCCESS;
 }
 
+/*
 template <typename T> void
 insert_in_array( T* array, size_t array_size, size_t location, T value )
 {
@@ -2471,6 +2474,7 @@ insert_in_array( T* array, size_t array_size, size_t location, T value )
     array[i] = array[i-1];
   array[location] = value;
 }
+*/
 
 ErrorCode ParallelComm::pack_range_map(Range &key_range, EntityHandle val_start,
                                            HandleMap &handle_map) 
@@ -2610,7 +2614,7 @@ ErrorCode ParallelComm::pack_sets(Range &entities,
     result = mbImpl->tag_get_data(uid_tag, all_sets, &id_data[0]);
     if (MB_TAG_NOT_FOUND != result) {
       RRA("Trouble getting parallel geometry unique ids.");
-      for (int i = 0; i < n_sets; i++) {
+      for (i = 0; i < n_sets; i++) {
         if (id_data[i] != 0) {
           b_pack = true;
           break;
@@ -2623,7 +2627,7 @@ ErrorCode ParallelComm::pack_sets(Range &entities,
       PACK_INT(buff->buff_ptr, n_sets);
       PACK_INTS(buff->buff_ptr, &id_data[0], n_sets);
       std::cout << "set_pack_n_sets=" << n_sets << std::endl;
-      for (int i = 0; i < n_sets; i++) {
+      for (i = 0; i < n_sets; i++) {
         std::cout << "id_data[" << i << "]=" << id_data[i] << std::endl;
       }
     }
@@ -3023,7 +3027,7 @@ ErrorCode ParallelComm::get_tag_send_list( const Range& whole_range,
 ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
                                     std::vector<EntityHandle> &entities,
                                         const bool store_remote_handles,
-                                        const int from_proc)
+                                    const int /*from_proc*/)
 {
     // tags
     // get all the tags
@@ -3122,11 +3126,11 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
       
         // get pointers into buffer for each tag value
       var_len_vals.resize(num_ents);
-      for (std::vector<EntityHandle>::size_type i = 0; 
-           i < (std::vector<EntityHandle>::size_type) num_ents; ++i) {
-        var_len_vals[i] = buff_ptr;
-        buff_ptr += var_lengths[i];
-        UPC(var_lengths[i], " void");
+      for (std::vector<EntityHandle>::size_type j = 0; 
+           j < (std::vector<EntityHandle>::size_type) num_ents; ++j) {
+        var_len_vals[j] = buff_ptr;
+        buff_ptr += var_lengths[j];
+        UPC(var_lengths[j], " void");
       }
       result = mbImpl->tag_set_data( tag_handle, &dum_ents[0], num_ents,
                                      &var_len_vals[0], &var_lengths[0]);
@@ -3185,7 +3189,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   return resolve_shared_ents(this_set, proc_ents, resolve_dim, shared_dim, id_tag);
 }
   
-ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
+ErrorCode ParallelComm::resolve_shared_ents(EntityHandle /*this_set*/,
                                                 Range &proc_ents,
                                                 int resolve_dim,
                                                 int shared_dim,
@@ -4814,7 +4818,7 @@ ErrorCode ParallelComm::recv_buffer(int mesg_tag_expected,
 struct ProcList {
   int procs[MAX_SHARING_PROCS];
 };
-bool operator<( const ProcList& a, const ProcList& b ) {
+static bool operator<( const ProcList& a, const ProcList& b ) {
   for (int i = 0; i < MAX_SHARING_PROCS; ++i) {
     if (a.procs[i] < b.procs[i]) 
       return true;

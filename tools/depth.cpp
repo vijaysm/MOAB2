@@ -15,22 +15,14 @@ enum {
 
 const char* DEFAULT_TAG_NAME = "depth";
 
-void usage( const char* argv0 )
+static void usage( const char* argv0 )
 {
   std::cerr << "Usage: " << argv0 << "[-t <tag name] <input_file> <output_file>" << std::endl
                          << argv0 << "-h" << std::endl;
   exit(SYNTAX_ERROR);
 }
 
-void help( const char* argv0 )
-{
-  std::cout << argv0 << "[-t <tag name] <input_file> <output_file>" << std::endl
-            << "Tag elements with integer depth from boundary" << std::endl
-            << "-t : tag in which to store depth (default: \"" << DEFAULT_TAG_NAME << "\")" << std::endl;
-  exit(NO_ERROR);
-}
-
-void check( ErrorCode rval )
+static void check( ErrorCode rval )
 {
   if (MB_SUCCESS != rval) {
     std::cerr << "Internal error.  Aborting." << std::endl;
@@ -38,7 +30,7 @@ void check( ErrorCode rval )
   }
 }
 
-void tag_depth( Interface& moab, Tag tag );
+static void tag_depth( Interface& moab, Tag tag );
 
 int main( int argc, char* argv[] )
 {
@@ -108,7 +100,7 @@ int main( int argc, char* argv[] )
   return NO_ERROR;
 }
 
-ErrorCode get_adjacent_elems( Interface& mb, const Range& verts, Range& elems )
+static ErrorCode get_adjacent_elems( Interface& mb, const Range& verts, Range& elems )
 {
   elems.clear();
   ErrorCode rval;

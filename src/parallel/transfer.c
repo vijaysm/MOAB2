@@ -13,6 +13,10 @@
 #include "tuple_list.h"
 #include "crystal.h"
 
+extern void moab_gs_transfer(int dynamic, tuple_list *tl,
+                             unsigned pf, crystal_data *crystal);
+
+
 #define UINT_PER_X(X) ((sizeof(X)+sizeof(uint)-1)/sizeof(uint))
 #define UINT_PER_REAL UINT_PER_X(real)
 #define UINT_PER_LONG UINT_PER_X(slong)
@@ -77,11 +81,11 @@ void moab_gs_transfer(int dynamic, tuple_list *tl,
   tl->n = 0;
   ri=tl->vi,rl=tl->vl,rul=tl->vul,rr=tl->vr;
   while(buf != buf_end) {
-    sint p, len;
+    sint llen;
     buf++;        /* target ( == this proc ) */
     p = *buf++;   /* source */
-    len = *buf++; /* length */
-    while(len>0) {
+    llen = *buf++; /* length */
+    while(llen>0) {
       if(tl->n==tl->max) {
         if(!dynamic) { tl->n = tl->max + 1; return; }
         tuple_list_grow(tl);
@@ -93,7 +97,7 @@ void moab_gs_transfer(int dynamic, tuple_list *tl,
       for(j=ml;j;--j) memcpy(rl++,buf,sizeof(slong)), buf+=UINT_PER_LONG;
       for(j=mul;j;--j) memcpy(rul++,buf,sizeof(ulong)), buf+=UINT_PER_LONG;
       for(j=mr;j;--j) memcpy(rr++,buf,sizeof(real )), buf+=UINT_PER_REAL;
-      len-=tsize;
+      llen-=tsize;
     }
   }
 }

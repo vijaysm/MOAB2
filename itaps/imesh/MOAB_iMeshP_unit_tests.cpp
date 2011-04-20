@@ -319,30 +319,6 @@ static int get_entities( iMesh_Instance imesh,
   return err;
 }
 
-static int get_intersection( iMesh_Instance imesh,
-                             iBase_EntitySetHandle set1,
-                             iBase_EntitySetHandle set2,
-                             iBase_EntityType type,
-                             iMesh_EntityTopology topo,
-                             std::vector<iBase_EntityHandle>& entities )
-{
-  std::vector<iBase_EntityHandle> l1, l2;
-  int err;
-  err = get_entities( imesh, set1, type, topo, l1 );
-  if (err)
-    return err;
-  err = get_entities( imesh, set2, type, topo, l2 );
-  if (err)
-    return err;
-  
-  std::sort( l1.begin(), l1.end() );
-  std::sort( l2.begin(), l2.end() );
-  std::set_intersection( l1.begin(), l1.end(),
-                         l2.begin(), l2.end(),
-                         std::back_inserter( entities ) );
-  return iBase_SUCCESS;
-}
-
 static int get_part_quads_and_verts( iMesh_Instance imesh,
                                      iMeshP_PartHandle part,
                                      std::vector<iBase_EntityHandle>& elems,

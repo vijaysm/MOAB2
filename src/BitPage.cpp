@@ -20,14 +20,14 @@ void BitPage::search( unsigned char value, int offset, int count,
 
 BitPage::BitPage( int per_ent, unsigned char init_val )
 {
-  unsigned char mask = (1<<per_ent)-1; // 2^per_ent - 1
-  init_val &= mask;
+  unsigned char mask = (unsigned char)(1<<per_ent)-1; // 2^per_ent - 1
+  init_val &= (unsigned char)mask;
   switch (per_ent) {
     default: assert(false); abort(); break; // must be power of two
       // Note: no breaks. fall through such that all bits in init_val are set
-    case 1: init_val |= (init_val << 1);
-    case 2: init_val |= (init_val << 2);
-    case 4: init_val |= (init_val << 4);
+    case 1: init_val |= (unsigned char)(init_val << 1);
+    case 2: init_val |= (unsigned char)(init_val << 2);
+    case 4: init_val |= (unsigned char)(init_val << 4);
     case 8: ;
   }
   memset( byteArray, init_val, BitTag::PageSize );

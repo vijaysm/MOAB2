@@ -22,7 +22,7 @@
 
 using namespace moab;
 
-void get_time_mem(double &tot_time, double &tot_mem);
+static void get_time_mem(double &tot_time, double &tot_mem);
 
 // Different platforms follow different conventions for usage
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
@@ -42,10 +42,10 @@ const int MIN_EDGE_LEN_DENOM = 4;
  std::cerr << "Internal error at line " << __LINE__ << std::endl; \
  return 3; } } while(false)
 
-ErrorCode merge_duplicate_vertices( Interface&, double epsilon );
-ErrorCode min_edge_length( Interface&, double& result );
+static ErrorCode merge_duplicate_vertices( Interface&, double epsilon );
+static ErrorCode min_edge_length( Interface&, double& result );
 
-void usage( const char* argv0, bool help = false ) 
+static void usage( const char* argv0, bool help = false ) 
 {
   std::ostream& str = help ? std::cout : std::cerr;
 
@@ -418,7 +418,7 @@ void get_time_mem(double &tot_time, double &tot_mem)
   tot_time = utime + stime;
   tot_mem = 0;
   if (0 != r_usage.ru_maxrss) {
-    tot_mem = r_usage.ru_idrss; 
+    tot_mem = (double)r_usage.ru_idrss; 
   }
   else {
       // this machine doesn't return rss - try going to /proc

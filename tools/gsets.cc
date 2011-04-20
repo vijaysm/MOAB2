@@ -19,7 +19,7 @@ bool printSVSense = false;
 Core mb;
 GeomTopoTool geomTool(&mb);
 
-void usage( const char* name, bool brief = true ) {
+static void usage( const char* name, bool brief = true ) {
   std::ostream& str = brief ? std::cerr : std::cout;
   if (!brief)
    str << name << ": A tool to export entity set parent/child relations" << std::endl
@@ -47,10 +47,10 @@ void usage( const char* name, bool brief = true ) {
 }
 
 enum Link { NONE = 0, SOLID, DASHED };
-void write_dot( Link contained, Link children );
-void dot_nodes( std::ostream& s, Range& sets_out );
-void dot_children( std::ostream& s, const Range& sets, bool dashed );
-void dot_contained( std::ostream& s, const Range& sets, bool dashed );
+static void write_dot( Link contained, Link children );
+static void dot_nodes( std::ostream& s, Range& sets_out );
+static void dot_children( std::ostream& s, const Range& sets, bool dashed );
+static void dot_contained( std::ostream& s, const Range& sets, bool dashed );
 
 int main( int argc, char* argv[] )
 {
@@ -150,8 +150,8 @@ void write_dot( Link contained, Link children )
   std::cout << "}" << std::endl;
 }
 
-void dot_get_sets( Range& curr_sets, Range& result_sets, 
-                   Tag tag, void* tag_val = 0 )
+static void dot_get_sets( Range& curr_sets, Range& result_sets, 
+                          Tag tag, void* tag_val = 0 )
 {
   if (!tag)
     return;
@@ -162,8 +162,8 @@ void dot_get_sets( Range& curr_sets, Range& result_sets,
   curr_sets.merge( result_sets );
 }
 
-void dot_write_node( std::ostream& s, EntityHandle h, 
-                     const char* label, int* id = 0 )
+static void dot_write_node( std::ostream& s, EntityHandle h, 
+                            const char* label, int* id = 0 )
 {
   s << 's' << mb.id_from_handle(h) << " [label = \"" << label;
   if (id)
@@ -171,10 +171,10 @@ void dot_write_node( std::ostream& s, EntityHandle h,
   s << "\"];" << std::endl;
 }
 
-void dot_write_id_nodes( std::ostream& s,
-                         const Range& entites,
-                         Tag id_tag,
-                         const char* type_name )
+static void dot_write_id_nodes( std::ostream& s,
+                                const Range& entites,
+                                Tag id_tag,
+                                const char* type_name )
 {
   int id;
   for (Range::iterator i = entites.begin(); i != entites.end(); ++i)
@@ -232,11 +232,11 @@ void dot_nodes( std::ostream& s, Range& sets )
   }
 }
 
-void dot_down_link( std::ostream& s,
-                    EntityHandle parent,
-                    EntityHandle child,
-                    bool dashed,
-                    const char* label = 0 )
+static void dot_down_link( std::ostream& s,
+                           EntityHandle parent,
+                           EntityHandle child,
+                           bool dashed,
+                           const char* label = 0 )
 {
   s << 's' << mb.id_from_handle(parent) << " -> "
     << 's' << mb.id_from_handle(child);

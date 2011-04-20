@@ -12,7 +12,7 @@
 
 using namespace moab;
 
-void fail( ErrorCode error_code, const char* file_name, int line_number );
+static void fail( ErrorCode error_code, const char* file_name, int line_number );
 
 enum TreeType {  UseKDTree, UseNoTree, UseDefaultTree = UseKDTree };
 
@@ -27,7 +27,7 @@ const long HARD_MAX_UNIQUE_POINTS = 100000;
 const long HARD_MIN_UNIQUE_POINTS = 1000;
 const long FRACTION_UNIQUE_POINTS = 100;
 
-void usage( char* argv0, bool help = false )
+static void usage( char* argv0, bool help = false )
 {
   const char* usage_str = "[-k|-v] [-n <N>] [-d <N>] [-e <N>] <input_mesh>";
   if (!help) {
@@ -47,19 +47,19 @@ void usage( char* argv0, bool help = false )
   exit(0);
 }
 
-void generate_random_points( Interface& mesh, size_t num_points,
-                             std::vector<CartVect>& points,
-                             std::vector<EntityHandle>& point_elems );
+static void generate_random_points( Interface& mesh, size_t num_points,
+                                    std::vector<CartVect>& points,
+                                    std::vector<EntityHandle>& point_elems );
 
-void do_kdtree_test( Interface& mesh, int tree_depth, int elem_per_leaf,
-                     long num_test, const std::vector<CartVect>& points,
-                     std::vector<EntityHandle>& point_elems,
-                     clock_t& build_time, clock_t& test_time, size_t& depth );
+static void do_kdtree_test( Interface& mesh, int tree_depth, int elem_per_leaf,
+                            long num_test, const std::vector<CartVect>& points,
+                            std::vector<EntityHandle>& point_elems,
+                            clock_t& build_time, clock_t& test_time, size_t& depth );
 
-void do_linear_test( Interface& mesh, int tree_depth, int elem_per_leaf,
-                     long num_test, const std::vector<CartVect>& points,
-                     std::vector<EntityHandle>& point_elems,
-                     clock_t& build_time, clock_t& test_time, size_t& depth );
+static void do_linear_test( Interface& mesh, int tree_depth, int elem_per_leaf,
+                            long num_test, const std::vector<CartVect>& points,
+                            std::vector<EntityHandle>& point_elems,
+                            clock_t& build_time, clock_t& test_time, size_t& depth );
 
 int main( int argc, char* argv[] )
 {
@@ -198,7 +198,7 @@ const int HexSign[8][3] = { { -1, -1, -1 },
                             {  1,  1,  1 },
                             { -1,  1,  1 } };
 
-CartVect random_point_in_hex( Interface& mb, EntityHandle hex )
+static CartVect random_point_in_hex( Interface& mb, EntityHandle hex )
 {
   const double f = RAND_MAX/2;
   CartVect xi( ((double)rand() - f)/f, 

@@ -49,24 +49,24 @@ public:
 
   /// Set for a flag that, when detected, prints help text and halts program.
   /// Constructor creates such a flag by default, so the user shouldn't need to use this directly.
-  const static int help_flag = 1<<0;
+  static const int help_flag = 1<<0;
 
   /// Flag indicating that an option should be given a "cancel" flag.
   /// This creates, for option --foo, an additional option --no-foo that
   /// clears all previously read instances of the foo option
-  const static int add_cancel_opt = 1<<1;
+  static const int add_cancel_opt = 1<<1;
 
   /// When applied to a flag argument (one with template type void), indicate that the 
   /// value 'false' should be stored into the pointer that was given at option creation time.
   /// This overrides the default behavior, which is to store the value 'true'.
-  const static int store_false = 1<<2 ;
+  static const int store_false = 1<<2 ;
 
   /** Substitue any occurance of the '%' symbol in a string with
    *  the the MPI rank of this process in MPI_COMM_WORLD.  This
    *  option has no effect if not compiled with MPI.  This flag
    *  has no effect for non-string options.
    */
-  const static int rank_subst = 1<<3;
+  static const int rank_subst = 1<<3;
   
   ///unimplemented flag for required arguments that may be given multiple times
   //const static int accept_multiple;

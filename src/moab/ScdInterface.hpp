@@ -563,20 +563,15 @@ inline void ScdBox::box_size(int &i, int &j, int &k) const
   k = boxSize[2];
 }
   
-inline EntityHandle ScdBox::get_element(HomCoord ijk) const 
-{
-  return get_element(ijk[0], ijk[1], ijk[2]);
-}
-  
 inline EntityHandle ScdBox::get_element(int i, int j, int k) const 
 {
   return (!startElem ? MB_ENTITY_NOT_FOUND : 
           startElem + (k-boxMin[2])*boxSizeIJM1 + (j-boxMin[1])*boxSizeIM1 + i-boxMin[0]);
 }
 
-inline EntityHandle ScdBox::get_vertex(HomCoord ijk) const 
+inline EntityHandle ScdBox::get_element(HomCoord ijk) const 
 {
-  return get_vertex(ijk[0], ijk[1], ijk[2]);
+  return get_element(ijk[0], ijk[1], ijk[2]);
 }
   
 inline EntityHandle ScdBox::get_vertex(int i, int j, int k) const 
@@ -586,14 +581,19 @@ inline EntityHandle ScdBox::get_vertex(int i, int j, int k) const
           get_vertex_from_seq(i, j, k));
 }
 
-inline bool ScdBox::contains(int i, int j, int k) const
+inline EntityHandle ScdBox::get_vertex(HomCoord ijk) const 
 {
-  return contains(HomCoord(i, j, k));
+  return get_vertex(ijk[0], ijk[1], ijk[2]);
 }
-
+  
 inline bool ScdBox::contains(const HomCoord ijk) const
 {
   return (ijk >= boxMin && ijk <= boxMax);
+}
+
+inline bool ScdBox::contains(int i, int j, int k) const
+{
+  return contains(HomCoord(i, j, k));
 }
 
 inline void ScdBox::box_set(EntityHandle this_set) 

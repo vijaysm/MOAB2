@@ -33,6 +33,11 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(moab::Core)
 // support for nsIClassInfo
 NS_DECL_CLASSINFO(moab::Core)
 
+MB_EXPORT const char* MoabVersion();
+MB_EXPORT void GetInterface(MBuuid& interface_requested, UnknownInterface** iface);
+MB_EXPORT void DeInitialize();
+MB_EXPORT void ReleaseInterface(UnknownInterface* iface);
+
 static const nsModuleComponentInfo components[] =
 {
   { "MOAB Interface", CORE_CID, CORE_CONTRACTID, CoreConstructor,

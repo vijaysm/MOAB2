@@ -15,7 +15,7 @@
 #include <unistd.h>
 #endif
 
-void usage( const char* argv0, bool help = false )
+static void usage( const char* argv0, bool help = false )
 {
   std::ostream& str = help ? std::cout : std::cerr;
   str << "Usage: " << argv0 << " [-H|-b|-k|-m] <filename> [<filename> ...]" << std::endl
@@ -39,14 +39,14 @@ enum Units { HUMAN, BYTES, KILOBYTES, MEGABYTES, GIGABYTES };
 Units UNITS = HUMAN;
 
   // The core functionality of this example
-void print_memory_stats( moab::Interface& mb,
-                         bool per_type = true,
-                         bool per_tag = true,
-                         bool totals = true,
-                         bool sysstats = true );
+static void print_memory_stats( moab::Interface& mb,
+                                bool per_type = true,
+                                bool per_tag = true,
+                                bool totals = true,
+                                bool sysstats = true );
   
   // Generate a series of meshes for testing
-void do_test_mode();
+static void do_test_mode();
   
   // main routine: read any specified files and call print_memory_stats
 int main( int argc, char* argv[] )
@@ -127,25 +127,25 @@ struct MemStats {
 };
 
  // test if MemStats object indicates no memory
-bool is_zero( const MemStats& stats );
+static bool is_zero( const MemStats& stats );
 
   // populdate a MemStats structg by calling 
   // moab::Interface::estimated_memory_use
-void get_mem_stats( moab::Interface& mb,
-                    MemStats& data,
-                    moab::EntityType type = moab::MBMAXTYPE );
+static void get_mem_stats( moab::Interface& mb,
+                           MemStats& data,
+                           moab::EntityType type = moab::MBMAXTYPE );
 
   // Formatted string representation of memory size value
-std::string memstr( unsigned long val );
+static std::string memstr( unsigned long val );
 
   // Get string describing tag data type
-std::string tag_type_string( moab::Interface& mb, moab::Tag tag );
+static std::string tag_type_string( moab::Interface& mb, moab::Tag tag );
 
   // Get string representation of tag storage type
-std::string tag_storage_string( moab::Interface& mb, moab::Tag tag );
+static std::string tag_storage_string( moab::Interface& mb, moab::Tag tag );
 
   // Center
-std::string center( const char* str, size_t width );
+static std::string center( const char* str, size_t width );
 
 void print_memory_stats( moab::Interface& mb,
                          bool per_type,
@@ -313,10 +313,10 @@ void print_memory_stats( moab::Interface& mb,
         std::cerr << "getrusage failed" << std::endl;
       }
       else {
-        unsigned long rss = sysdata.ru_maxrss;
+        long int tmp_rss = sysdata.ru_maxrss;
         rss *= getpagesize();
         std::cerr << std::endl << "SYSTEM:"
-                  << std::endl << "Resident set size: " << memstr(rss) 
+                  << std::endl << "Resident set size: " << memstr(tmp_rss) 
                   << std::endl;
       }
   #endif
@@ -360,7 +360,7 @@ void get_mem_stats( moab::Interface& mb,
 }
 
 // rounded division
-unsigned long rdiv( unsigned long num, unsigned long den )
+static unsigned long rdiv( unsigned long num, unsigned long den )
 {
   return (num + den/2) / den;
 }
@@ -498,7 +498,7 @@ void do_test_mode()
   const unsigned N = 1000;
   
   // creating some vertices
-  const double coords[3] = { 1, 2, 3 };
+  double coords[3] = { 1, 2, 3 };
   for (unsigned i = 0; i < N; ++i) 
     mb.create_vertex( coords, h );
   std::cout << std::endl << prefix << "Created " << N << " vertices" << std::endl;
@@ -591,7 +591,6 @@ void do_test_mode()
   handles.clear();
   mb.get_entities_by_type( 0, moab::MBVERTEX, handles );
   for (it = handles.begin(); it != handles.end(); ++it) {
-    double coords[3];
     mb.get_coords( &*it, 1, coords );
     mb.tag_set_data( tag, &*it, 1, coords );
   }

@@ -11,12 +11,12 @@ using namespace moab;
 
 Interface *gMB = NULL;
 
-ErrorCode make_atomic_pillow();
-ErrorCode make_face_shrink();
-ErrorCode make_face_open_collapse();
-ErrorCode make_chord_push();
-ErrorCode make_triple_chord_push();
-ErrorCode make_triple_hex_push();
+static ErrorCode make_atomic_pillow();
+static ErrorCode make_face_shrink();
+static ErrorCode make_face_open_collapse();
+static ErrorCode make_chord_push();
+static ErrorCode make_triple_chord_push();
+static ErrorCode make_triple_hex_push();
 
 enum OperationType {ATOMIC_PILLOW = 0, 
                     FACE_OPEN_COLLAPSE, 

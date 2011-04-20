@@ -23,10 +23,10 @@ static bool verbose = false;
  *
  * @param offset Offset to apply to surface to avoid a zero result.
  */
-ErrorCode get_signed_volume( Interface *MBI, 
-                             const EntityHandle surf_set,
-                             const CartVect offset, 
-                             double &signed_volume) 
+static ErrorCode get_signed_volume( Interface *MBI, 
+                                    const EntityHandle surf_set,
+                                    const CartVect offset, 
+                                    double &signed_volume) 
 {
   ErrorCode rval;
   Range tris;
@@ -61,8 +61,8 @@ ErrorCode get_signed_volume( Interface *MBI,
  * Replace the triangles in an old surface with those in a new surface, ensuring
  * that their surfaces senses match before the replacement
  */
-ErrorCode replace_surface( Interface *mbi, EntityHandle old_surf, EntityHandle old_file_set, 
-                           EntityHandle new_surf, const Tag& senseTag )
+static ErrorCode replace_surface( Interface *mbi, EntityHandle old_surf, EntityHandle old_file_set, 
+                                  EntityHandle new_surf, const Tag& senseTag )
 {
 
   ErrorCode rval;
@@ -150,9 +150,9 @@ ErrorCode replace_surface( Interface *mbi, EntityHandle old_surf, EntityHandle o
  * Given an "old" file and a "new" file, replace the facets in any surface of the old
  * file with facets from the new file.  
  */ 
-ErrorCode merge_input_surfs( Interface *mbi, 
-                             const EntityHandle old_file_set, const EntityHandle new_file_set,
-                             const Tag& idTag, const Tag& dimTag, const Tag& senseTag )
+static ErrorCode merge_input_surfs( Interface *mbi, 
+                                    const EntityHandle old_file_set, const EntityHandle new_file_set,
+                                    const Tag& idTag, const Tag& dimTag, const Tag& senseTag )
 {
   ErrorCode rval;
 
@@ -255,7 +255,7 @@ int main( int argc, char* argv[] ){
   // This is more roundabout than necessary, but we don't want *any* of the CGM-specific options
   //   to appear in the option string unless they were explicitly requested 
   double tol;
-  const static int tol_prec = 12;
+  static const int tol_prec = 12;
   if( po.getOpt( "ftol", &tol ) ){
     std::stringstream s;
     s << "FACET_DISTANCE_TOLERANCE=" << std::setprecision(tol_prec) << tol;

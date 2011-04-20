@@ -100,6 +100,8 @@ DualTool::DualTool(Interface *impl)
   result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, 
                               globalIdTag, &dum_int);
   assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
+    // empty statement to avoid warning
+  if (result);
 
   maxHexId = -1;
 }

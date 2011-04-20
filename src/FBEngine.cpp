@@ -172,12 +172,6 @@ ErrorCode area_coordinates(Interface * mbi, EntityHandle tri, CartVect & pnt,
   return MB_SUCCESS;
 }
 
-double get_edge_length(double* p1, double* p2)
-{
-  return std::sqrt((p1[0] - p2[0]) * (p1[0] - p2[0]) + (p1[1] - p2[1]) * (p1[1]
-      - p2[1]) + (p1[2] - p2[2]) * (p1[2] - p2[2]));
-}
-
 FBEngine::FBEngine(Interface *impl, GeomTopoTool * topoTool, const bool smooth) :
   _mbImpl(impl), _my_geomTopoTool(topoTool), _t_created(false),
       _smooth(smooth), _initialized(false), _smthFace(NULL), _smthCurve(NULL)
@@ -415,8 +409,6 @@ void FBEngine::delete_smooth_tags()
 
 /*static inline void
  ProcessError(const char* desc);*/
-
-double get_edge_length(double* p1, double* p2);
 
 ErrorCode FBEngine::getRootSet(EntityHandle * root_set)
 {
@@ -827,8 +819,8 @@ ErrorCode FBEngine::getAdjacentEntities(const EntityHandle from,
  return _mbImpl->tag_get_handle(name, handle_out);
  }*/
 
-ErrorCode FBEngine::createTag(const char* tag_name, int tag_num_type_values,
-    int tag_type, Tag & tag_handle_out)
+ErrorCode FBEngine::createTag(const char* /*tag_name*/, int /*tag_num_type_values*/,
+                              int /*tag_type*/, Tag & /*tag_handle_out*/)
 {
   // not implemented yet, some mapping needed for tag type
   return MB_FAILURE;
@@ -954,23 +946,23 @@ ErrorCode FBEngine::measure(const EntityHandle * moab_entities,
   return MB_SUCCESS;
 }
 
-ErrorCode FBEngine::getEntNrmlSense(EntityHandle face, EntityHandle region,
-    int& sense)
+ErrorCode FBEngine::getEntNrmlSense(EntityHandle /*face*/, EntityHandle /*region*/,
+                                    int& /*sense*/)
 {
   return MB_NOT_IMPLEMENTED; // not implemented
 }
 
-ErrorCode FBEngine::getEgEvalXYZ(EntityHandle edge, double x, double y,
-    double z, double& on_x, double& on_y, double& on_z, double& tngt_i,
-    double& tngt_j, double& tngt_k, double& cvtr_i, double& cvtr_j,
-    double& cvtr_k)
+ErrorCode FBEngine::getEgEvalXYZ(EntityHandle /*edge*/, double /*x*/, double /*y*/,
+                                 double /*z*/, double& /*on_x*/, double& /*on_y*/, double& /*on_z*/, double& /*tngt_i*/,
+                                 double& /*tngt_j*/, double& /*tngt_k*/, double& /*cvtr_i*/, double& /*cvtr_j*/,
+                                 double& /*cvtr_k*/)
 {
   return MB_NOT_IMPLEMENTED; // not implemented
 }
-ErrorCode FBEngine::getFcEvalXYZ(EntityHandle face, double x, double y,
-    double z, double& on_x, double& on_y, double& on_z, double& nrml_i,
-    double& nrml_j, double& nrml_k, double& cvtr1_i, double& cvtr1_j,
-    double& cvtr1_k, double& cvtr2_i, double& cvtr2_j, double& cvtr2_k)
+ErrorCode FBEngine::getFcEvalXYZ(EntityHandle /*face*/, double /*x*/, double /*y*/,
+                                 double /*z*/, double& /*on_x*/, double& /*on_y*/, double& /*on_z*/, double& /*nrml_i*/,
+                                 double& /*nrml_j*/, double& /*nrml_k*/, double& /*cvtr1_i*/, double& /*cvtr1_j*/,
+                                 double& /*cvtr1_k*/, double& /*cvtr2_i*/, double& /*cvtr2_j*/, double& /*cvtr2_k*/)
 {
   return MB_NOT_IMPLEMENTED; // not implemented
 }

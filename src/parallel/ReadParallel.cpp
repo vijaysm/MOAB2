@@ -240,7 +240,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
 ErrorCode ReadParallel::load_file(const char **file_names,
                                     const int num_files,
                                     const EntityHandle* file_set_ptr,
-                                    int parallel_mode, 
+                                  int /*parallel_mode*/, 
                                     std::string &partition_tag_name, 
                                     std::vector<int> &partition_tag_vals, 
                                     bool distrib,
@@ -272,8 +272,6 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   Core *impl = dynamic_cast<Core*>(mbImpl);
 
   std::vector<double> act_times(pa_vec.size()+1);
-  double stime = 0.0;
-  if (cputime) stime = MPI_Wtime();
   std::vector<int>::iterator vit;
   int i, j;
   act_times[0] = MPI_Wtime();

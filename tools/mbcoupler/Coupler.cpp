@@ -278,7 +278,8 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
 
   int mappedPoints  = tl_tmp->n + localMappedPts.size()/2;
   int missingPoints = num_points-mappedPoints;
-  printf("point location: wanted %d got %d locally, %d remote, missing %d\n", num_points, localMappedPts.size()/2,  tl_tmp->n, missingPoints);
+  printf("point location: wanted %d got %u locally, %d remote, missing %d\n", 
+         num_points, localMappedPts.size()/2,  tl_tmp->n, missingPoints);
   assert(0==missingPoints); //will litely break on curved geometries
   
     // no longer need source_pts

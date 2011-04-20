@@ -95,8 +95,8 @@ ErrorCode VarLenSparseTag::get_data( const SequenceManager*,
 
 ErrorCode VarLenSparseTag::get_data( const SequenceManager*,
                                      Error* error,
-                                     const Range& entities,
-                                     void* data ) const
+                                     const Range& /*entities*/,
+                                     void* /*data */) const
 {
   return not_var_len(error);
 }
@@ -135,19 +135,19 @@ ErrorCode VarLenSparseTag::get_data( const SequenceManager*,
   return MB_SUCCESS;
 }
 
-ErrorCode VarLenSparseTag::set_data( SequenceManager* seqman,
+ErrorCode VarLenSparseTag::set_data( SequenceManager* /*seqman*/,
                                      Error* error,
-                                     const EntityHandle* entities,
-                                     size_t num_entities,
-                                     const void* data )
+                                     const EntityHandle* /*entities*/,
+                                     size_t /*num_entities*/,
+                                     const void* /*data*/ )
 {
   return not_var_len(error);
 }
 
-ErrorCode VarLenSparseTag::set_data( SequenceManager* seqman,
+ErrorCode VarLenSparseTag::set_data( SequenceManager* /*seqman*/,
                                      Error* error,
-                                     const Range& entities,
-                                     const void* data )
+                                     const Range& /*entities*/,
+                                     const void* /*data */)
 {
   return not_var_len(error);
 }

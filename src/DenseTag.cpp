@@ -161,10 +161,10 @@ ErrorCode DenseTag::get_data( const SequenceManager* seqman,
                               Error* error,
                               const EntityHandle* entities,
                               size_t num_entities,
-                              void* data ) const
+                              void* adata ) const
 {
   size_t junk;
-  unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
+  unsigned char* ptr = reinterpret_cast<unsigned char*>(adata);
   const EntityHandle *const end = entities + num_entities;
   for (const EntityHandle* i = entities; i != end; ++i, ptr += get_size()) {
     const unsigned char* data = 0;
@@ -382,7 +382,7 @@ ErrorCode DenseTag::set_data( SequenceManager* seqman,
                               Error* error,
                               const Range& entities,
                               void const* const* pointers,
-                              const int* data_lengths )
+                              const int* /*data_lengths*/ )
 {
   ErrorCode rval;
   unsigned char* array;

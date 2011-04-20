@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
+extern void fail(const char *fmt, ...);
+
 void fail(const char *fmt, ...)
 {
   va_list ap;

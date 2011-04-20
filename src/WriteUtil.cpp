@@ -881,7 +881,7 @@ ErrorCode WriteUtil::get_entity_list_pointers( Range::const_iterator begin,
           ++lengths;
         }
         if (flags) {
-          *flags = set->flags();
+          *flags = (unsigned char)set->flags();
           ++flags;
         }
         ++pointers;

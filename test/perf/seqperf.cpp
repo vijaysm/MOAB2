@@ -8,7 +8,9 @@
 #define PRINT_SEQUENCE_COUNT
 
 #ifdef PRINT_SEQUENCE_COUNT
-#  define IS_BUILDING_MB
+#ifndef IS_BUILDING_MB
+#define IS_BUILDING_MB
+#endif
 #  include "EntitySequence.hpp"
 #  ifdef MB_ENTITY_SEQUENCE_HPP
 #    include "EntitySequenceManager.hpp"

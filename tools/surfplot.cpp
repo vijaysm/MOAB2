@@ -14,7 +14,7 @@
 #define SURFACE_NOT_FOUND 4
 #define OTHER_ERROR 5
 
-void usage_error( const char* name )
+static void usage_error( const char* name )
 {
   std::cerr << "Usauge: " << name << 
     " [-g|-p] <Surface_ID> <input_file>" << std::endl
@@ -64,19 +64,19 @@ struct CartVect3D {
       { return sqrt( x*x + y*y + z*z ); }
 };
 
-CartVect3D operator-( const CartVect3D a )
-  { return CartVect3D(-a.z, -a.y, -a.z);  }
+//static CartVect3D operator-( const CartVect3D a )
+//  { return CartVect3D(-a.z, -a.y, -a.z);  }
 
-CartVect3D operator+( const CartVect3D a, const CartVect3D b )
-  { return CartVect3D(a.x+b.x, a.y+b.y, a.z+b.z); }
+//static CartVect3D operator+( const CartVect3D a, const CartVect3D b )
+//  { return CartVect3D(a.x+b.x, a.y+b.y, a.z+b.z); }
 
-CartVect3D operator-( const CartVect3D a, const CartVect3D b )
+static CartVect3D operator-( const CartVect3D a, const CartVect3D b )
   { return CartVect3D(a.x-b.x, a.y-b.y, a.z-b.z); }
 
-double operator%( const CartVect3D a, const CartVect3D b )
+static double operator%( const CartVect3D a, const CartVect3D b )
   { return a.x*b.x + a.y*b.y + a.z*b.z; }
 
-CartVect3D operator*( const CartVect3D a, const CartVect3D b )
+static CartVect3D operator*( const CartVect3D a, const CartVect3D b )
 {
   CartVect3D result;
   result.x = a.y * b.z - a.z * b.y;

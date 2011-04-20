@@ -314,7 +314,7 @@ MeshSet::MeshSet()
 
   //! create an empty meshset
 MeshSet::MeshSet(unsigned flags)
-  : mFlags(flags), mParentCount(ZERO), mChildCount(ZERO), mContentCount(ZERO)
+        : mFlags((unsigned char)flags), mParentCount(ZERO), mChildCount(ZERO), mContentCount(ZERO)
 { }
 
   //! destructor
@@ -335,7 +335,7 @@ ErrorCode MeshSet::set_flags( unsigned flags, EntityHandle my_handle, AEntityFac
     ErrorCode result = convert(flags, my_handle, adjacencies);
     if(MB_SUCCESS != result) return result;
   }
-  mFlags = flags;
+  mFlags = (unsigned char)flags;
   return MB_SUCCESS;
 }
     

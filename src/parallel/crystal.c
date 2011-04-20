@@ -41,7 +41,6 @@
       crystal_free(&crystal); // release acquired memory
 
   ----------------------------------------------------------------------------*/
-
 #ifdef USE_MPI
 
 #include <stdio.h>
@@ -56,7 +55,7 @@
 #ifdef VALGRIND
 #  include <valgrind/memcheck.h>
 #elif !defined(VALGRIND_CHECK_MEM_IS_DEFINED)
-#  define VALGRIND_CHECK_MEM_IS_DEFINED
+#  define VALGRIND_CHECK_MEM_IS_DEFINED(a,b)
 #endif
 
 typedef struct { uint n; buffer buf; } crystal_buf;
@@ -67,6 +66,10 @@ typedef struct {
   MPI_Comm comm;
   uint num, id;
 } crystal_data;
+
+extern void moab_crystal_init(crystal_data *p, MPI_Comm comm);
+extern void moab_crystal_free(crystal_data *p);
+extern void moab_crystal_router(crystal_data *p);
 
 void moab_crystal_init(crystal_data *p, MPI_Comm comm)
 {

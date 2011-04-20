@@ -358,7 +358,7 @@ case "$cxx_compiler:$host_cpu" in
   Intel:*)
     FATHOM_CXX_32BIT=-m32
     FATHOM_CXX_64BIT=-m64
-    FATHOM_CXX_SPECIAL="$EXTRA_INTEL_FLAGS -wd981 -wd383"
+    FATHOM_CXX_SPECIAL="$EXTRA_INTEL_FLAGS -wd981 -wd383 -wd1572 -wd2259"
     ;;
   VisualAge:*)
     FATHOM_CXX_32BIT=-q32
@@ -482,7 +482,7 @@ case "$cc_compiler:$host_cpu" in
   Intel:*)
     FATHOM_CC_32BIT=-m32
     FATHOM_CC_64BIT=-m64
-    FATHOM_CC_SPECIAL="$EXTRA_INTEL_FLAGS -wd981 -wd383"
+    FATHOM_CC_SPECIAL="$EXTRA_INTEL_FLAGS -wd981 -wd383 -wd1572"
     ;;
   GNU:mips*)
     FATHOM_CC_32BIT="-mips32 -mabi=32"

@@ -502,9 +502,9 @@ public:
   typedef int iterator;
   iterator begin() const { return 0; }
   iterator end() const { return mCount; }
-  iterator insert( iterator hint, EntityHandle first, EntityHandle last )
+  iterator insert( iterator /* hint */, EntityHandle first, EntityHandle last )
     { mCount += last - first + 1; return end(); }
-  iterator insert( iterator hint, EntityHandle value )
+  iterator insert( iterator /* hint */, EntityHandle /* value */)
     { ++mCount; return end(); }
 };
 

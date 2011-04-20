@@ -87,7 +87,7 @@
 #ifdef VALGRIND
 #  include <valgrind/memcheck.h>
 #elif !defined(VALGRIND_CHECK_MEM_IS_DEFINED)
-#  define VALGRIND_CHECK_MEM_IS_DEFINED
+#  define VALGRIND_CHECK_MEM_IS_DEFINED(a,b)
 #endif
 
 typedef struct {
@@ -228,14 +228,15 @@ static void nlinfo_free(nonlocal_info *info)
 static void nonlocal(real *u, int op, const nonlocal_info *info, MPI_Comm comm)
 {
   MPI_Status status;
-  uint np = info->np, i;
+  uint np = info->np;
   MPI_Request *reqs = info->reqs;
   uint *targ = info->target;
   uint *nshared = info->nshared;
   uint *sh_ind = info->sh_ind;
   uint id;
   real *buf = info->buf, *start;
-  { int i; MPI_Comm_rank(comm,&i); id=i; }
+  int i;
+  {MPI_Comm_rank(comm,&i); id=i; }
   for(i=0;i<np;++i) {
     uint c = nshared[i];
     start = buf;
@@ -271,7 +272,7 @@ static void nonlocal_vec(real *u, uint n, int op,
                          const nonlocal_info *info, MPI_Comm comm)
 {
   MPI_Status status;
-  uint np = info->np, i;
+  uint np = info->np;
   MPI_Request *reqs = info->reqs;
   uint *targ = info->target;
   uint *nshared = info->nshared;
@@ -279,7 +280,8 @@ static void nonlocal_vec(real *u, uint n, int op,
   uint id;
   real *buf = info->buf, *start;
   uint size = n*sizeof(real);
-  { int i; MPI_Comm_rank(comm,&i); id=i; }
+  int i;
+  {MPI_Comm_rank(comm,&i); id=i; }
   for(i=0;i<np;++i) {
     uint ns=nshared[i], c=ns;
     start = buf;
@@ -317,14 +319,15 @@ static void nonlocal_many(real **u, uint n, int op,
                           const nonlocal_info *info, MPI_Comm comm)
 {
   MPI_Status status;
-  uint np = info->np, i;
+  uint np = info->np;
   MPI_Request *reqs = info->reqs;
   uint *targ = info->target;
   uint *nshared = info->nshared;
   uint *sh_ind = info->sh_ind;
   uint id;
   real *buf = info->buf, *start;
-  { int i; MPI_Comm_rank(comm,&i); id=i; }
+  int i;
+  {MPI_Comm_rank(comm,&i); id=i; }
   for(i=0;i<np;++i) {
     uint c, j, ns = nshared[i];
     start = buf;
@@ -412,6 +415,7 @@ moab_gs_data *moab_gs_data_setup(uint n, const long *label, const ulong *ulabel,
                        uint maxv, const unsigned int nlabels, const unsigned int nulabels,
                        crystal_data *crystal)
 {
+  unsigned int j;
   moab_gs_data *data=tmalloc(moab_gs_data,1);
   tuple_list nonzero, primary;
 #ifdef USE_MPI
@@ -434,7 +438,6 @@ moab_gs_data *moab_gs_data_setup(uint n, const long *label, const ulong *ulabel,
     for(i=0;i<n;++i)
       if(label[i]!=0) {
         nzi[0]=i;
-        unsigned int j;
         for (j = 0; j < nlabels; j++)
           nzl[j]=label[nlabels*i+j];
         for (j = 0; j < nulabels; j++)
@@ -467,7 +470,6 @@ moab_gs_data *moab_gs_data_setup(uint n, const long *label, const ulong *ulabel,
       last=nzl[0];
       pi[0]=i;
       pi[1]=nzi[0];
-      unsigned int j;
       for (j = 0; j < nlabels; j++)
         pl[j]=nzl[j];
       for (j = 0; j < nulabels; j++)
@@ -496,11 +498,11 @@ moab_gs_data *moab_gs_data_setup(uint n, const long *label, const ulong *ulabel,
   
   /* construct local condense map */
   {
-    uint i, n; sint *pi=primary.vi;
+    uint i, ln; sint *pi=primary.vi;
     sint *cm = data->local_cm;
-    for(i=primary.n;i;--i,pi+=3) if((n=pi[2])>1) {
-      uint j; sint *nzi=nonzero.vi+1*pi[0];
-      for(j=n;j;--j,nzi+=1) *cm++ = nzi[0];
+    for(i=primary.n;i;--i,pi+=3) if((ln=pi[2])>1) {
+      sint *nzi=nonzero.vi+1*pi[0];
+      for(j=ln;j;--j,nzi+=1) *cm++ = nzi[0];
       *cm++ = -1;
     }
     *cm++ = -1;
@@ -539,7 +541,6 @@ moab_gs_data *moab_gs_data_setup(uint n, const long *label, const ulong *ulabel,
         si[0] = pi1[0];
         si[1] = pi2[0];
         si[2] = pi1[1];
-        unsigned int j;
         for (j = 0; j < nlabels; j++)
           sl[j] = pl2[j];
         for (j = 0; j < nulabels; j++)
@@ -581,7 +582,6 @@ moab_gs_data *moab_gs_data_setup(uint n, const long *label, const ulong *ulabel,
     uint *sh_ind  = data->nlinfo->sh_ind;
     slong *slabels = data->nlinfo->slabels;
     ulong *ulabels = data->nlinfo->ulabels;
-    uint j;
     for(i=shared.n;i;--i,si+=3) {
       if(si[1]!=proc)
         proc=si[1], *target++ = proc, *nshared++ = 0;

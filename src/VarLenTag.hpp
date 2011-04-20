@@ -70,6 +70,8 @@ protected:
  */
 template <unsigned>
 class VarLenTagDataTemplate {
+public:
+  inline VarLenTagDataTemplate() {}
 protected:
 
   struct MallocData {
@@ -96,6 +98,8 @@ protected:
 
 template <> class VarLenTagDataTemplate<0u>
 {
+public:
+  inline VarLenTagDataTemplate<0u>() {}
 protected:
 
   enum {

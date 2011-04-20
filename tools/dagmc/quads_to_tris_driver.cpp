@@ -6,15 +6,13 @@
 using namespace moab;
 
 #define MBI mb_instance()
-Interface* mb_instance();
+static Interface* mb_instance();
 
 // Read a DAGMC-style file of quads and convert it to tris
 // Input argument is the input filename.
 // Output file will be called input_filename_tris.h5m.
 int main(int argc, char **argv) {
 
-  clock_t start_time;
-  start_time = clock();
   if( 2 > argc ) {
     std::cout << "Need name of input file with quads." << std::endl;
     return 0;

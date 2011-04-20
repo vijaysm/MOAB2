@@ -23,6 +23,8 @@ int main(int argc, char* argv[]){
   iMesh_getRootSet( imesh, &root, &ierr );
   IMESH_ASSERT(ierr);
 
+  iMeshP_createPartitionAll(imesh, MPI_COMM_WORLD, &partn, &ierr);
+  IMESH_ASSERT(ierr);
 
   const char options[] = ";PARTITION=MATERIAL_SET";
   const char filename[] = "64bricks_1mhex.h5m";

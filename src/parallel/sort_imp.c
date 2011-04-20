@@ -46,6 +46,10 @@
 #define COUNT_DIGIT_32(n,i) COUNT_DIGIT_16(n,i); COUNT_DIGIT_16(n,i+16)
 #define COUNT_DIGIT_64(n,i) COUNT_DIGIT_32(n,i); COUNT_DIGIT_32(n,i+32)
 
+extern void sort(const Value *A, Index n, Index stride, Value *out, Value *work);
+extern void index_sort(const Value *A, Index n, Index stride, Index *idx, Data *work);
+
+
 static Value radix_count(const Value *A, const Value *end, Index stride,
                          Index count[DIGITS][DIGIT_VALUES])
 {

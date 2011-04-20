@@ -50,7 +50,7 @@ using namespace moab;
 Interface* iface = 0;
 const char* exe_name = 0;
 
-void usage( bool error = true )
+static void usage( bool error = true )
 {
   std::ostream& s = error ? std::cerr : std::cout;
   
@@ -114,7 +114,7 @@ void usage( bool error = true )
   exit(0);
 }
 
-void about( bool error = true )
+static void about( bool error = true )
 {
   std::ostream& s = error ? std::cerr : std::cout;
   s << "A utility to propogate tag values from the entity sets "
@@ -123,7 +123,7 @@ void about( bool error = true )
   usage(error);
 }
   
-void parse_error( const char* msg, const char* val = 0 )
+static void parse_error( const char* msg, const char* val = 0 )
 {
   std::cerr << msg;
   if (val)

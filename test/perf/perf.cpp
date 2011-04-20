@@ -27,7 +27,9 @@ extern "C" int getrusage(int, struct rusage *);
 #endif
 #endif
 
+#ifndef IS_BUILDING_MB
 #define IS_BUILDING_MB
+#endif
 
 #include <stdlib.h>
 #include <stdio.h>

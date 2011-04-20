@@ -30,9 +30,9 @@
 #include <stdio.h>
 #define MIN(a,b) (a < b ? a : b)
 
-ErrorCode create_int_ents(MBiMesh * mbimesh,
-                            Range &from_ents,
-                            const EntityHandle* in_set = 0);
+static ErrorCode create_int_ents(MBiMesh * mbimesh,
+				 Range &from_ents,
+				 const EntityHandle* in_set = 0);
 #define HANDLE_ARRAY_PTR(array) reinterpret_cast<EntityHandle*>(array)
 #define CONST_HANDLE_ARRAY_PTR(array) reinterpret_cast<const EntityHandle*>(array)
 #define TAG_HANDLE(handle) reinterpret_cast<Tag>(handle)
@@ -169,7 +169,7 @@ static std::string filter_options(const char *begin, const char *end)
 // Set output arguments to true if the list contains the corresponding
 // type of handle.  Leave them unmodified if it does not.
 static inline void ht_content_type( const std::vector<EntityHandle>& h,
-                                    bool saw_ent, bool saw_set, bool saw_root )
+                                    bool &saw_ent, bool &saw_set, bool &saw_root )
 {
   std::vector<EntityHandle>::const_iterator i;
   for (i = h.begin(); i != h.end(); ++i) {
@@ -268,47 +268,23 @@ static void munge_adj_table(int *adjTable, int geom_dim)
 extern "C" {
 #endif
 
-  void eatwhitespace(std::string &this_string);
-
-  ErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
-                                     EntityHandle in_set,
-                                     const int req_dimension,
-                                     const EntityType req_type,
-                                     Tag &tag, Range &req_entities,
-                                     int &num_verts, int *err);
+  static void eatwhitespace(std::string &this_string);
 
   iBase_Error iMesh_LAST_ERROR;
 
-  void iMesh_getErrorType(iMesh_Instance instance,
+  void iMesh_getErrorType(iMesh_Instance,
                           int *error_type, int *err)
   {
     *error_type = iMesh_LAST_ERROR.error_type;
     RETURN(iBase_SUCCESS);
   }
 
-  void iMesh_getDescription(iMesh_Instance instance,
+  void iMesh_getDescription(iMesh_Instance ,
                             char *descr, int *err, int descr_len)
   {
     unsigned int len = MIN(strlen(iMesh_LAST_ERROR.description), ((unsigned int) descr_len));
     strncpy(descr, iMesh_LAST_ERROR.description, len);
     descr[len] = '\0';
-    RETURN(iBase_SUCCESS);
-  }
-
-  void iMesh_setError(iMesh_Instance instance,
-                      int err_type, char *descr, int *err, int descr_len)
-  {
-    iMesh_LAST_ERROR.error_type = static_cast<iBase_ErrorType>(err_type);
-    strncpy(iMesh_LAST_ERROR.description, descr, descr_len);
-    RETURN(iBase_SUCCESS);
-  }
-
-  void iMesh_getError(iMesh_Instance instance,
-                      int *err_type, char *descr, int *err, int descr_len)
-  {
-    *err_type = iMesh_LAST_ERROR.error_type;
-    strncpy(descr, iMesh_LAST_ERROR.description,
-            MIN(strlen(iMesh_LAST_ERROR.description), (unsigned int)descr_len));
     RETURN(iBase_SUCCESS);
   }
 
@@ -338,7 +314,6 @@ extern "C" {
         //mError->set_last_error( "PARALLEL option not valid, this instance"
         //                        " compiled for serial execution.\n" );
       IBASE_ERROR(iBase_ERROR_MAP[MB_NOT_IMPLEMENTED],"Not configured with parallel support");
-      return;
 #endif
     }
     else {
@@ -346,7 +321,6 @@ extern "C" {
     }
     if (NULL == *mbi) {
       IBASE_ERROR(iBase_FAILURE, "Failed to instantiate mesh instance.");
-      return;
     }
 
     RETURN(iBase_SUCCESS);
@@ -414,7 +388,7 @@ extern "C" {
     RETURN(iBase_SUCCESS);
   }
 
-  void iMesh_getRootSet(iMesh_Instance instance,
+  void iMesh_getRootSet(iMesh_Instance ,
                         iBase_EntitySetHandle *root_set, int *err)
   {
     *root_set = 0;
@@ -439,7 +413,7 @@ extern "C" {
     RETURN(iBase_SUCCESS);
   }
 
-  void iMesh_getDfltStorage(iMesh_Instance instance,
+  void iMesh_getDfltStorage(iMesh_Instance ,
                             int *order, int *err)
   {
     *order = iBase_BLOCKED;
@@ -651,7 +625,7 @@ extern "C" {
     RETURN(iBase_SUCCESS);
   }
 
-  void iMesh_endEntArrIter (iMesh_Instance instance,
+  void iMesh_endEntArrIter (iMesh_Instance ,
                             /*in*/ iBase_EntityArrIterator entArr_iterator, int *err)
   {
     delete entArr_iterator;
@@ -1585,7 +1559,7 @@ extern "C" {
     Tag new_tag;
     int this_size = tag_size;
 
-    std::string tmp_tagname(tag_name);
+    std::string tmp_tagname(tag_name, tag_name_size);
     eatwhitespace(tmp_tagname);
 
     switch (tag_type) {
@@ -1830,16 +1804,6 @@ extern "C" {
                         sizeof(double), err);
   }
 
-  void iMesh_setEntSetBoolData (iMesh_Instance instance,
-                                /*in*/ iBase_EntitySetHandle entity_set,
-                                /*in*/ const iBase_TagHandle tag_handle,
-                                /*in*/ const bool tag_value, int *err)
-  {
-    iMesh_setEntSetData(instance, entity_set, tag_handle,
-                        &tag_value,
-                        sizeof(bool), err);
-  }
-
   void iMesh_setEntSetEHData (iMesh_Instance instance,
                               /*in*/ iBase_EntitySetHandle entity_set,
                               /*in*/ const iBase_TagHandle tag_handle,
@@ -1910,17 +1874,6 @@ extern "C" {
     CHKTAGTYPE(tag_handle, iBase_DOUBLE);
     void *tag_ptr = out_data;
     int tag_size = sizeof(double);
-    iMesh_getEntSetData(instance, entity_set, tag_handle, &tag_ptr,
-                        &tag_size, &tag_size, err);
-  }
-
-  void iMesh_getEntSetBoolData (iMesh_Instance instance,
-                                /*in*/ const iBase_EntitySetHandle entity_set,
-                                /*in*/ const iBase_TagHandle tag_handle,
-                                int *out_data, int *err)
-  {
-    void *tag_ptr = out_data;
-    int tag_size = sizeof(bool);
     iMesh_getEntSetData(instance, entity_set, tag_handle, &tag_ptr,
                         &tag_size, &tag_size, err);
   }
@@ -2147,24 +2100,6 @@ extern "C" {
     *tag_values_size /= sizeof(double);
   }
 
-  void iMesh_getBoolArrData (iMesh_Instance instance,
-                             /*in*/ const iBase_EntityHandle* entity_handles,
-                             /*in*/ const int entity_handles_size,
-                             /*in*/ const iBase_TagHandle tag_handle,
-                             /*inout*/ bool** tag_value,
-                             /*inout*/ int* tag_value_allocated,
-                             /*out*/ int* tag_value_size, int *err)
-  {
-    *tag_value_allocated *= sizeof(bool);
-    *tag_value_size *= sizeof(bool);
-    iMesh_getArrData(instance, entity_handles,
-                     entity_handles_size, tag_handle,
-                     tag_value,
-                     tag_value_allocated, tag_value_size, err);
-    *tag_value_allocated /= sizeof(bool);
-    *tag_value_size /= sizeof(bool);
-  }
-
   void iMesh_getEHArrData (iMesh_Instance instance,
                            /*in*/ const iBase_EntityHandle* entity_handles,
                            /*in*/ const int entity_handles_size,
@@ -2263,19 +2198,6 @@ extern "C" {
                      sizeof(double)*tag_values_size, err);
   }
 
-  void iMesh_setBoolArrData (iMesh_Instance instance,
-                             /*in*/ const iBase_EntityHandle* entity_handles,
-                             /*in*/ const int entity_handles_size,
-                             /*in*/ const iBase_TagHandle tag_handle,
-                             /*in*/ const bool* tag_values,
-                             /*in*/ const int tag_values_size, int *err)
-  {
-    iMesh_setArrData(instance, entity_handles,
-                     entity_handles_size, tag_handle,
-                     reinterpret_cast<const char*>(tag_values),
-                     sizeof(bool)*tag_values_size, err);
-  }
-
   void iMesh_setEHArrData (iMesh_Instance instance,
                            /*in*/ const iBase_EntityHandle* entity_handles,
                            /*in*/ const int entity_handles_size,
@@ -2356,18 +2278,6 @@ extern "C" {
                      tag_handle, &val_ptr, &val_size, &val_size, err);
   }
 
-  void iMesh_getBoolData (iMesh_Instance instance,
-                          /*in*/ const iBase_EntityHandle entity_handle,
-                          /*in*/ const iBase_TagHandle tag_handle,
-                          int *out_data, int *err)
-  {
-    void *val_ptr = out_data;
-      // make the data size a full word, because of sidl needing at least a full word
-    int val_size = sizeof(int);
-    iMesh_getArrData(instance, &entity_handle, 1,
-                     tag_handle, &val_ptr, &val_size, &val_size, err);
-  }
-
   void iMesh_getEHData (iMesh_Instance instance,
                         /*in*/ const iBase_EntityHandle entity_handle,
                         /*in*/ const iBase_TagHandle tag_handle,
@@ -2425,17 +2335,6 @@ extern "C" {
                      tag_handle,
                      reinterpret_cast<const char*>(&tag_value),
                      sizeof(double), err);
-  }
-
-  void iMesh_setBoolData (iMesh_Instance instance,
-                          /*in*/ iBase_EntityHandle entity_handle,
-                          /*in*/ const iBase_TagHandle tag_handle,
-                          /*in*/ const bool tag_value, int *err)
-  {
-    iMesh_setArrData(instance, &entity_handle, 1,
-                     tag_handle,
-                     reinterpret_cast<const char*>(&tag_value),
-                     sizeof(bool), err);
   }
 
   void iMesh_setEHData (iMesh_Instance instance,
@@ -3146,86 +3045,6 @@ extern "C" {
 } // extern "C"
 #endif
 
-ErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
-                                   EntityHandle in_set,
-                                   const int req_dimension,
-                                   const EntityType req_type,
-                                   Tag &tag, Range &req_entities,
-                                   int &num_verts, int *err)
-{
-    // get all the entities then vertices
-  Range vertices, entities;
-  entities.clear();
-  ErrorCode result = MOABI->get_entities_by_handle(in_set, entities, false);
-  if (MB_SUCCESS != result) {
-    std::string msg("Mesh::tag_set_vertices: getting entities didn't succeed., with error type: ");
-    msg += MOABI->get_error_string(result);
-    iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
-    *err = iBase_ERROR_MAP[result];
-    return MB_FAILURE;
-  }
-
-    // remove any sets
-  entities.erase(entities.lower_bound(MBENTITYSET),
-                 entities.upper_bound(MBENTITYSET));
-
-    // get vertices
-  result = MOABI->get_adjacencies(entities, 0, false, vertices,
-                                Interface::UNION);
-  if (MB_SUCCESS != result) {
-    std::string msg("Mesh::tag_set_vertices: getting vertices didn't succeed., with error type: ");
-    msg += MOABI->get_error_string(result);
-    iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
-    *err = iBase_ERROR_MAP[result];
-    return result;
-  }
-
-    // tag each vertex with its index in this list
-  int i = 0;
-  if (tag == 0) {
-    result = MOABI->tag_create("__position_tag", 4, MB_TAG_DENSE, tag, &i);
-    if (0 == tag) {
-      std::string msg("MBMesh::tag_set_vertices: couldn't make tag., with error type: ");
-      msg += MOABI->get_error_string(result);
-      iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
-      *err = iBase_ERROR_MAP[result];
-      return result;
-    }
-  }
-
-  Range::iterator vit;
-  for (vit = vertices.begin(), i = 0; vit != vertices.end(); vit++, i++) {
-    result = MOABI->tag_set_data(tag, &(*vit), 1, &i);
-    if (MB_SUCCESS != result) {
-      std::string msg("MBMesh::tag_set_vertices: couldn't set pos_tag., with error type: ");
-      msg += MOABI->get_error_string(result);
-      iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
-      *err = iBase_ERROR_MAP[result];
-      return result;
-    }
-  }
-
-    // winnow the list for entities of the desired type and/or topology
-  num_verts = 0;
-  Range::iterator ent_it;
-  EntityType this_type;
-  std::vector<EntityHandle> connect_v;
-  const EntityHandle *connect;
-  int num_connect;
-  for (ent_it = entities.begin(); ent_it != entities.end(); ent_it++) {
-    this_type = MOABI->type_from_handle(*ent_it);
-    if ((-1 == req_dimension || req_dimension == CN::Dimension(this_type)) &&
-        (MBMAXTYPE == req_type || this_type == req_type)) {
-      req_entities.insert(*ent_it);
-      result = MOABI->get_connectivity(*ent_it, connect, num_connect, false,
-                                     &connect_v);
-      num_verts += num_connect;
-    }
-  }
-
-  return result;
-}
-
 ErrorCode create_int_ents(MBiMesh* mbimesh,
                             Range &from_ents,
                             const EntityHandle* in_set)
@@ -3271,28 +3090,3 @@ void eatwhitespace(std::string &this_string)
     this_string.resize(p+1);
 }
 
-void cfunc_(int arg3, char *mystr, char *mystr2, int arg2,
-            int strsz, int strsz2)
-{
-  char tmpstr1[121], tmpstr2[121];
-  strncpy(tmpstr1, mystr, strsz);
-  tmpstr1[strsz] = '\0';
-  strncpy(tmpstr2, mystr2, strsz2);
-  tmpstr2[strsz2] = '\0';
-
-  std::cout << "String1: " << tmpstr1 << ", string2: " << tmpstr2 << ", arg2 = " << arg2
-            << ", arg3 = " << arg3 << std::endl;
-  return;
-}
-
-void cfptr_(void **instance)
-{
-  *instance = malloc(sizeof(int));
-  int *tmp_inst = (int*) instance;
-  *tmp_inst = 6;
-}
-
-void cfptr2_(void *instance)
-{
-  std::cout << "Instance ptr = " << (size_t) instance << std::endl;
-}

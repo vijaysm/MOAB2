@@ -59,7 +59,7 @@ namespace moab {
 #  include <valgrind/memcheck.h>
 #else
 #  ifndef VALGRIND_CHECK_MEM_IS_DEFINED
-#    define VALGRIND_CHECK_MEM_IS_DEFINED
+#    define VALGRIND_CHECK_MEM_IS_DEFINED(a,b)
 #  endif
 #  ifndef VALGRIND_CHECK_MEM_IS_ADDRESSABLE
 #    define VALGRIND_CHECK_MEM_IS_ADDRESSABLE
@@ -2113,7 +2113,7 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
   
   
   long* buff_iter = buffer;
-  for( std::list<ParallelSet>::const_iterator iter = parallelSets.begin();
+  for( iter = parallelSets.begin();
         iter != parallelSets.end(); ++iter)
   {
     if (!iter->description)

@@ -46,7 +46,7 @@ using namespace moab;
 
 #include "measure.hpp"
 
-void usage( const char* exe )
+static void usage( const char* exe )
 {
   std::cerr << "Usage: " << exe << " [-g] [-m] [-t|-l|-ll] <mesh file list>" << std::endl
             << "-g  : print counts by geometric owner" << std::endl
@@ -96,7 +96,8 @@ struct stat_set
   
   inline void clear()
   {
-    sum = sqr = max = count = 0;
+    sum = sqr = 0.0;
+    max = count = 0;
     min = HUGE_VAL;
   }
 };
@@ -123,7 +124,7 @@ struct set_stats {
 };
 
 
-ErrorCode gather_set_stats( EntityHandle set, set_stats& stats )
+static ErrorCode gather_set_stats( EntityHandle set, set_stats& stats )
 {
   ErrorCode rval = MB_SUCCESS;
   
@@ -184,8 +185,9 @@ struct TagCounts {
   std::string name;
   int counts[MBMAXTYPE];
 };
-ErrorCode gather_tag_counts( EntityHandle set, 
-                             std::vector<TagCounts>& counts )
+
+static ErrorCode gather_tag_counts( EntityHandle set, 
+                                    std::vector<TagCounts>& counts )
 {
   std::vector<Tag> tags;
   mb.tag_get_tags( tags );
@@ -220,7 +222,7 @@ void add_tag_counts( std::vector<TagCounts>& counts,
   }
 }
 
-const char* dashes( unsigned count )
+static const char* dashes( unsigned count )
 {
   static std::vector<char> dashes;
   dashes.clear();
@@ -229,7 +231,7 @@ const char* dashes( unsigned count )
   return &dashes[0];
 }
 
-void print_tag_counts( const std::vector<TagCounts>& counts )
+static void print_tag_counts( const std::vector<TagCounts>& counts )
 {
   if (counts.empty()) {
     printf( "<No tags>\n");
@@ -275,7 +277,7 @@ void print_tag_counts( const std::vector<TagCounts>& counts )
   }
 }
 
-void print_stats( set_stats& stats )
+static void print_stats( set_stats& stats )
 {
   const char* edge_use_name = "1D Side";
   const char* vertex_name = "Vertex";
@@ -299,7 +301,7 @@ void print_stats( set_stats& stats )
   unsigned precision = 5;
   int total_log = -10000;
   
-  unsigned node_count_width = (unsigned)(ceil(log10(stats.nodes))) + 1;
+  unsigned node_count_width = (unsigned)(ceil(log10((double)stats.nodes))) + 1;
   if (count_width < node_count_width)
     count_width = node_count_width;
   
@@ -314,7 +316,7 @@ void print_stats( set_stats& stats )
     if (len > type_width)
       type_width = len;
     
-    unsigned cw = (unsigned)(ceil(log10(s.count))) + 1;
+    unsigned cw = (unsigned)(ceil(log10((double)s.count))) + 1;
     if (cw > count_width)
       count_width = cw;
     
@@ -496,7 +498,7 @@ int main( int argc, char* argv[] )
     {
       Range entities;
       Tag dim_tag = 0, id_tag = 0;
-      ErrorCode rval = mb.tag_get_handle( GEOM_DIMENSION_TAG_NAME, dim_tag );
+      rval = mb.tag_get_handle( GEOM_DIMENSION_TAG_NAME, dim_tag );
       if (MB_TAG_NOT_FOUND == rval) 
       {
         fprintf( stderr, "No geometry tag defined.\n" );
@@ -575,7 +577,7 @@ int main( int argc, char* argv[] )
       {
         Range entities;
         Tag tag = 0;
-        ErrorCode rval = mb.tag_get_handle( mesh_type_tags[t], tag );
+        rval = mb.tag_get_handle( mesh_type_tags[t], tag );
         if (MB_TAG_NOT_FOUND == rval) 
         {
           continue;

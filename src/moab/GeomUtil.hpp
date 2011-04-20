@@ -328,6 +328,10 @@ bool point_in_trilinear_hex(const CartVect *hex,
                             const CartVect& xyz,
                             double etol);
 
+bool nat_coords_trilinear_hex( const CartVect* corner_coords,
+                               const CartVect& x,
+                               CartVect& xi,
+                               double tol );
 } // namespace GeomUtil
 
 } // namespace moab

@@ -43,7 +43,7 @@ void MergeMesh::perform_merge(iBase_TagHandle merge_tag)
 moab::ErrorCode MergeMesh::merge_entities(moab::Range &elems,
                                           const double merge_tol,
                                           const int do_merge,
-                                          const int update_sets,
+                                          const int /*update_sets*/,
                                           moab::Tag merge_tag) 
 {
   mergeTol = merge_tol;

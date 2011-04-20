@@ -43,11 +43,11 @@ inline static bool is_platform_little_endian();
 
   // Parse tag value from a string (vals).  The passed size
   // is the size returned by MOAB (num values * sizeof(type)).
-void* parse_values( const char* vals, DataType type, int size );
+static void* parse_values( const char* vals, DataType type, int size );
 
   // Parse opque tag data as either a hexidecimal number or
   // an ASCII string.
-unsigned char* parse_opaque_value( const char* vals, int size );
+static unsigned char* parse_opaque_value( const char* vals, int size );
 
   // Parse one or more non-opaque tag values in a comma-separated list.
   // The passed size is the size returned by MOAB (num values * sizeof(type)).
@@ -59,7 +59,7 @@ template<typename T> T* parse_values_typed( const char* vals, int size );
 template<typename T> int parse_value( const char*& iter, T& value );
 
   // Convert an ASCII hexidecimal digit to its numerical value.
-int hexdigit( char c );
+static int hexdigit( char c );
 
 
 
