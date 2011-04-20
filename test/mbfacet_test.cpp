@@ -33,6 +33,13 @@ std::string TestDir( STRINGIFY(MESHDIR) );
 std::string TestDir(".");
 #endif
 
+std::string filename;
+std::string filename_out;
+std::string polygon_file_name;
+bool keep_output;
+int number_tests_successful = 0;
+int number_tests_failed = 0;
+
 #define PROCESS_ERROR(A, B)  {if (A!=MB_SUCCESS) {  std::cout << B << std::endl; return 1; } }
 
 #define CHECK( STR ) if (rval != MB_SUCCESS) return print_error( STR, rval, __FILE__, __LINE__ )
@@ -53,6 +60,7 @@ ErrorCode geometry_evaluation_test(FBEngine * pFacet);
 ErrorCode normals_test(FBEngine * pFacet);
 ErrorCode ray_test(FBEngine * pFacet);
 ErrorCode split_test(Interface * mb, FBEngine * pFacet);
+ErrorCode check_split();
 
 void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
 {
@@ -67,20 +75,24 @@ void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
 
 int main(int argc, char *argv[])
 {
-  std::string filename = TestDir + "/PB.h5m";
-  std::string engine_opt;
+  filename = TestDir + "/PB.h5m";
+  polygon_file_name = TestDir + "/polyPB.txt";
+  filename_out = "PB_new.h5m";
+  keep_output = false;
 
   if (argc == 1) {
-    std::cout << "Using default input file: " << filename << std::endl;
-  } else if (argc == 2) {
+    std::cout << "Using default input files: " << filename << " " << polygon_file_name <<
+        " " << std::endl;
+    std::cout << "    default output file: " << filename_out << " will be deleted \n";
+  } else if (argc == 4) {
     filename = argv[1];
+    polygon_file_name = argv[2];
+    filename_out = argv[3];
+    keep_output = true;
   } else {
-    std::cerr << "Usage: " << argv[0] << " [geom_filename]" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " [geom_filename] [polygon_file] [output_file]" << std::endl;
     return 1;
   }
-
-  int number_tests_successful = 0;
-  int number_tests_failed = 0;
 
   Core mbcore;
   Interface * mb = &mbcore;
@@ -127,9 +139,16 @@ int main(int argc, char *argv[])
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
-  // write the database
-  std::string filename2 = TestDir + "/PBm.vtk";
-  mb->write_file(filename2.c_str());
+  std::cout << " check split: ";
+  rval = check_split();
+  handle_error_code(rval, number_tests_failed, number_tests_successful);
+  std::cout << "\n";
+
+  // when we are done, remove modified file if we want to
+  if (!keep_output)
+  {
+    remove(filename_out.c_str());
+  }
   return 0;
 }
 
@@ -418,7 +437,7 @@ ErrorCode split_test(Interface * mb, FBEngine * pFacet)
 
   EntityHandle first_face = faces[0];
   // use the polyPB.txt file to get the trimming polygon
-  std::string polygon_file_name = TestDir + "/polyPB.txt";
+   ;
   // read the file with the polygon user data
 
   std::ifstream datafile(polygon_file_name.c_str(), std::ifstream::in);
@@ -461,10 +480,60 @@ ErrorCode split_test(Interface * mb, FBEngine * pFacet)
   if (rval!=MB_SUCCESS)
     return rval;
   // save a new database
-  std::string filename = TestDir + "/PB_new.h5m";
-  rval = mb->write_file(filename.c_str());
+  rval = mb->write_file(filename_out.c_str());
 
-  // save the new smooth file, if asked
   return rval;
 }
 
+ErrorCode check_split()
+{
+  /*// check loading the file in an empty db
+  delete pFacet;// should clean up the FBEngine
+  ErrorCode rval = mb->delete_mesh();
+  CHECK( "ERROR : delete mesh failed!" );
+*/
+  Core mbcore;
+  Interface * mb = &mbcore;
+
+  ErrorCode rval = mb->load_file(filename_out.c_str());
+  CHECK( "ERROR : can't load modified file!" );
+
+  FBEngine * pFacet = new FBEngine(mb, NULL, true);// smooth facetting, no OBB tree passed
+
+  // repeat tests on modified file
+
+  // should the init be part of constructor or not?
+  // this is where the obb tree is constructed, and smooth faceting initialized, too.
+  rval = pFacet->Init();
+  CHECK("failed to initialize smoothing");
+
+  std::cout << "root set test: ";
+  rval = root_set_test(pFacet);
+  handle_error_code(rval, number_tests_failed, number_tests_successful);
+  std::cout << "\n";
+
+  std::cout << "gentity set test: ";
+  rval = gentityset_test(pFacet);
+  handle_error_code(rval, number_tests_failed, number_tests_successful);
+  std::cout << "\n";
+
+  std::cout << "geometry evals test: ";
+  rval = geometry_evaluation_test(pFacet);
+  handle_error_code(rval, number_tests_failed, number_tests_successful);
+  std::cout << "\n";
+
+  std::cout << "normal evals test: ";
+  rval = normals_test(pFacet);
+  handle_error_code(rval, number_tests_failed, number_tests_successful);
+  std::cout << "\n";
+
+  std::cout << "ray test: ";
+  rval = ray_test(pFacet);
+  handle_error_code(rval, number_tests_failed, number_tests_successful);
+  std::cout << "\n";
+
+  if (number_tests_failed>0)
+    return MB_FAILURE;
+
+  return MB_SUCCESS;
+}
