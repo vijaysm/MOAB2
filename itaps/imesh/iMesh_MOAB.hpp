@@ -70,28 +70,37 @@ static inline bool iMesh_isError(ErrorCode code)
 #define PP_CAT_(a,b) a ## b
 #define PP_CAT(a,b) PP_CAT_(a,b)
 
-#define CHKENUM(VAL,TYPE,ERR)                                   \
-  do {                                                          \
-  if ((VAL) < PP_CAT(TYPE, _MIN) || (VAL) > PP_CAT(TYPE, _MAX)) \
-    ERROR((ERR), "Invalid enumeration value");                  \
+#define CHKENUM(VAL,TYPE,ERR)                                          \
+  do {                                                                 \
+  if ((VAL) < PP_CAT(TYPE, _MIN) || (VAL) > PP_CAT(TYPE, _MAX))        \
+    ERROR((ERR), "Invalid enumeration value");                         \
   } while(false)
 
 // Ensure that a tag's data type matches the expected data type (entity handle
 // and entity set handle tags are compatible with one another).
-#define CHKTAGTYPE(TAG,TYPE)                                            \
-  do {                                                                  \
-    int type, result;                                                   \
-    iMesh_getTagType(instance, (TAG), &type, &result);                  \
-    CHKERR(result, "Couldn't get tag data type");                       \
-    if ((type == iBase_ENTITY_HANDLE &&                                 \
-         (TYPE) == iBase_ENTITY_SET_HANDLE) ||                          \
-        (type == iBase_ENTITY_SET_HANDLE &&                             \
-         (TYPE) == iBase_ENTITY_HANDLE))                                \
-      break;                                                            \
-    if (type != (TYPE))                                                 \
-      ERROR(iBase_INVALID_TAG_HANDLE, "Invalid tag data type");         \
+#define CHKTAGTYPE(TAG,TYPE)                                           \
+  do {                                                                 \
+    int type, result;                                                  \
+    iMesh_getTagType(instance, (TAG), &type, &result);                 \
+    CHKERR(result, "Couldn't get tag data type");                      \
+    if ((type == iBase_ENTITY_HANDLE &&                                \
+         (TYPE) == iBase_ENTITY_SET_HANDLE) ||                         \
+        (type == iBase_ENTITY_SET_HANDLE &&                            \
+         (TYPE) == iBase_ENTITY_HANDLE))                               \
+      break;                                                           \
+    if (type != (TYPE))                                                \
+      ERROR(iBase_INVALID_TAG_HANDLE, "Invalid tag data type");        \
   } while(false)
 
+#define CHKNONEMPTY()                                                  \
+  do {                                                                 \
+    int count, result;                                                 \
+    iMesh_getNumOfType(instance, 0, iBase_ALL_TYPES, &count, &result); \
+    CHKERR(result, "Couldn't get number of entities");                 \
+    if (count == 0)                                                    \
+      ERROR(iBase_INVALID_ENTITY_HANDLE,                               \
+            "Invalid entity handle: mesh is empty");                   \
+  } while(false)
 
 // Check the array size, and allocate the array if necessary.
 // Free the array upon leaving scope unless KEEP_ARRAY

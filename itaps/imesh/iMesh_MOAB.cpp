@@ -1809,6 +1809,8 @@ extern "C" {
                               /*in*/ const iBase_TagHandle tag_handle,
                               /*in*/ const iBase_EntityHandle tag_value, int *err)
   {
+      // XXX: decide how best to handle validating entity handles as tag data
+    CHKNONEMPTY();
     CHKTAGTYPE(tag_handle, iBase_ENTITY_HANDLE);
     iMesh_setEntSetData(instance, entity_set, tag_handle,
                         &tag_value,
@@ -2019,6 +2021,10 @@ extern "C" {
                          /*inout*/int* tag_values_allocated,
                          /*out*/ int* tag_values_size, int *err)
   {
+    if (0 == entity_handles_size)
+      RETURN(iBase_SUCCESS);
+    CHKNONEMPTY();
+
     const EntityHandle *ents = reinterpret_cast<const EntityHandle *>(entity_handles);
     Tag tag = TAG_HANDLE(tag_handle);
 
@@ -2030,10 +2036,6 @@ extern "C" {
       snprintf(msg, sizeof(msg), "iMesh_getArrData: couldn't get size for tag \"%s\"",
                nerr==0?tagn:"unknown");
       ERROR(result, msg);
-    }
-
-    if (0 == entity_handles_size) {
-      RETURN(iBase_SUCCESS);
     }
 
     ALLOC_CHECK_TAG_ARRAY(tag_values, tag_size * entity_handles_size);
@@ -2147,9 +2149,9 @@ extern "C" {
                          /*in*/ const void* tag_values,
                          /*in*/ const int tag_values_size, int *err)
   {
-    if (0 == entity_handles_size) {
+    if (0 == entity_handles_size)
       RETURN(iBase_SUCCESS);
-    }
+    CHKNONEMPTY();
 
     int tag_size;
     iMesh_getTagSizeBytes(instance, tag_handle, &tag_size, err);
@@ -2231,6 +2233,10 @@ extern "C" {
                         /*in*/ const int entity_handles_size,
                         /*in*/ const iBase_TagHandle tag_handle, int *err)
   {
+    if (0 == entity_handles_size)
+      RETURN(iBase_SUCCESS);
+    CHKNONEMPTY();
+
     ErrorCode result = MOABI->tag_delete_data(TAG_HANDLE(tag_handle),
                                               CONST_HANDLE_ARRAY_PTR(entity_handles),
                                               entity_handles_size);
