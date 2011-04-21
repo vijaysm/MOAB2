@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
   std::cout << "\n";
 
   std::cout << "create shell test: ";
-  rval = create_shell_test( mb); // just pass the root set
+  rval = create_shell_test( mb);
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
@@ -404,11 +404,12 @@ ErrorCode create_shell_test(Interface * mb)
   rval = mb->write_mesh(ofile2.c_str());
   assert(MB_SUCCESS==rval);
 
-  // now test loading it up
-  Core mbcore2;
-  Interface * mb2 = &mbcore2;
+  rval = mb->delete_mesh();
+  assert(MB_SUCCESS==rval);
 
-  rval = mb2->load_file(ofile2.c_str());
+  // now test loading it up
+
+  rval = mb->load_file(ofile2.c_str());
   assert(MB_SUCCESS==rval);
 
   if (remove_output_file)
@@ -417,9 +418,9 @@ ErrorCode create_shell_test(Interface * mb)
   }
   // do some tests on geometry
 
-
-
-  moab::GeomTopoTool gTopoTool2(mb2, true);// to find the geomsets
+  // it would be good to have a method on updating the geom topo tool
+  // so we do not have to create another one
+  moab::GeomTopoTool gTopoTool2(mb, true);// to find the geomsets
   Range ranges[4];
   rval =  gTopoTool2.find_geomsets(ranges);
 

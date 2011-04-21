@@ -60,7 +60,7 @@ ErrorCode geometry_evaluation_test(FBEngine * pFacet);
 ErrorCode normals_test(FBEngine * pFacet);
 ErrorCode ray_test(FBEngine * pFacet);
 ErrorCode split_test(Interface * mb, FBEngine * pFacet);
-ErrorCode check_split();
+ErrorCode check_split(Interface * mb, FBEngine * pFacet);
 
 void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
 {
@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
   std::cout << "\n";
 
   std::cout << " check split: ";
-  rval = check_split();
+  rval = check_split(mb, pFacet);
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
@@ -485,20 +485,17 @@ ErrorCode split_test(Interface * mb, FBEngine * pFacet)
   return rval;
 }
 
-ErrorCode check_split()
+ErrorCode check_split(Interface * mb, FBEngine * pFacet)
 {
-  /*// check loading the file in an empty db
+  // check loading the file in an empty db
   delete pFacet;// should clean up the FBEngine
   ErrorCode rval = mb->delete_mesh();
   CHECK( "ERROR : delete mesh failed!" );
-*/
-  Core mbcore;
-  Interface * mb = &mbcore;
 
-  ErrorCode rval = mb->load_file(filename_out.c_str());
+  rval = mb->load_file(filename_out.c_str());
   CHECK( "ERROR : can't load modified file!" );
 
-  FBEngine * pFacet = new FBEngine(mb, NULL, true);// smooth facetting, no OBB tree passed
+  pFacet = new FBEngine(mb, NULL, true);// smooth facetting, no OBB tree passed
 
   // repeat tests on modified file
 
