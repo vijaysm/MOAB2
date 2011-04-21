@@ -2544,52 +2544,64 @@ ErrorCode ParallelComm::pack_sets(Range &entities,
     PACK_INT(buff->buff_ptr, members.size());
     PACK_EH(buff->buff_ptr, &members[0], members.size());
   }
+
+  // pack parent/child sets
+  if (!store_remote_handles) { // only works not store remote handles
     // pack numbers of parents/children
-  unsigned int tot_pch = 0;
-  int num_pch;
-  buff->check_space(2*all_sets.size()*sizeof(int));
-  for (rit = all_sets.begin(), i = 0; rit != all_sets.end(); rit++, i++) {
+    unsigned int tot_pch = 0;
+    int num_pch;
+    buff->check_space(2*all_sets.size()*sizeof(int));
+    for (rit = all_sets.begin(), i = 0; rit != all_sets.end(); rit++, i++) {
       // pack parents
-    result = mbImpl->num_parent_meshsets(*rit, &num_pch);
-    RRA("Failed to get num parents.");
-    PACK_INT(buff->buff_ptr, num_pch);
-    tot_pch += num_pch;
-    result = mbImpl->num_child_meshsets(*rit, &num_pch);
-    RRA("Failed to get num children.");
-    PACK_INT(buff->buff_ptr, num_pch);
-    tot_pch += num_pch;
-  }
+      result = mbImpl->num_parent_meshsets(*rit, &num_pch);
+      RRA("Failed to get num parents.");
+      PACK_INT(buff->buff_ptr, num_pch);
+      tot_pch += num_pch;
+      result = mbImpl->num_child_meshsets(*rit, &num_pch);
+      RRA("Failed to get num children.");
+      PACK_INT(buff->buff_ptr, num_pch);
+      tot_pch += num_pch;
+    }
 
     // now pack actual parents/children
-  members.clear();
-  members.reserve(tot_pch);
-  std::vector<EntityHandle> tmp_pch;
-  for (rit = all_sets.begin(), i = 0; rit != all_sets.end(); rit++, i++) {
-    result = mbImpl->get_parent_meshsets(*rit, tmp_pch);
-    RRA("Failed to get parents.");
-    std::copy(tmp_pch.begin(), tmp_pch.end(), std::back_inserter(members));
-    tmp_pch.clear();
-    result = mbImpl->get_child_meshsets(*rit, tmp_pch);
-    RRA("Failed to get children.");
-    std::copy(tmp_pch.begin(), tmp_pch.end(), std::back_inserter(members));
-    tmp_pch.clear();
-  }
-  assert(members.size() == tot_pch);
-  if (!members.empty()) {
-    result = get_remote_handles(store_remote_handles,
-                                &members[0], &members[0], 
-                                members.size(), to_proc,
-                                entities_vec);
-    RRA("Trouble getting remote handles for set parent/child sets.");
+    members.clear();
+    members.reserve(tot_pch);
+    std::vector<EntityHandle> tmp_pch;
+    for (rit = all_sets.begin(), i = 0; rit != all_sets.end(); rit++, i++) {
+
+      result = mbImpl->get_parent_meshsets(*rit, tmp_pch);
+      RRA("Failed to get parents.");
+      std::copy(tmp_pch.begin(), tmp_pch.end(), std::back_inserter(members));
+      tmp_pch.clear();
+      result = mbImpl->get_child_meshsets(*rit, tmp_pch);
+      RRA("Failed to get children.");
+      std::copy(tmp_pch.begin(), tmp_pch.end(), std::back_inserter(members));
+      tmp_pch.clear();
+    }
+    assert(members.size() == tot_pch);
+    if (!members.empty()) {
+      result = get_remote_handles(store_remote_handles,
+                                  &members[0], &members[0], 
+                                  members.size(), to_proc,
+                                  entities_vec);
+      RRA("Trouble getting remote handles for set parent/child sets.");
 #ifndef NDEBUG
       // check that all handles are either sets or maxtype
-    for (unsigned int __j = 0; __j < members.size(); __j++)
-      assert((TYPE_FROM_HANDLE(members[__j]) == MBMAXTYPE &&
-              ID_FROM_HANDLE(members[__j]) < (int)entities.size()) ||
-             TYPE_FROM_HANDLE(members[__j]) == MBENTITYSET);
+      for (unsigned int __j = 0; __j < members.size(); __j++)
+        assert((TYPE_FROM_HANDLE(members[__j]) == MBMAXTYPE &&
+                ID_FROM_HANDLE(members[__j]) < (int)entities.size()) ||
+               TYPE_FROM_HANDLE(members[__j]) == MBENTITYSET);
 #endif        
-    buff->check_space(members.size()*sizeof(EntityHandle));
-    PACK_EH(buff->buff_ptr, &members[0], members.size());
+      buff->check_space(members.size()*sizeof(EntityHandle));
+      PACK_EH(buff->buff_ptr, &members[0], members.size());
+    }
+  }
+  else {
+    buff->check_space(2*all_sets.size()*sizeof(int));
+    for (rit = all_sets.begin(); rit != all_sets.end(); rit++) {
+      PACK_INT(buff->buff_ptr, 0);
+      PACK_INT(buff->buff_ptr, 0);
+    }
   }
 
     // pack the handles
