@@ -3113,12 +3113,10 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
     std::vector<EntityHandle> dum_ents(num_ents), dum_vals;
     UNPACK_EH(buff_ptr, &dum_ents[0], num_ents);
 
-    if (!store_remote_handles) {
-        // in this case handles are indices into new entity range; need to convert
-        // to local handles
-      result = get_local_handles(&dum_ents[0], num_ents, entities);
-      RRA("Unable to convert to local handles.");
-    }
+    // in this case handles are indices into new entity range; need to convert
+    // to local handles
+    result = get_local_handles(&dum_ents[0], num_ents, entities);
+    RRA("Unable to convert to local handles.");
 
       // if it's a handle type, also convert tag vals in-place in buffer
     if (MB_TYPE_HANDLE == tag_type) {
@@ -6784,7 +6782,8 @@ ErrorCode ParallelComm::check_local_shared()
       continue;
     }
     
-    if (mbImpl->type_from_handle(*vit) == MBVERTEX) continue;
+    EntityType type = mbImpl->type_from_handle(*vit);
+    if (type == MBVERTEX || type == MBENTITYSET) continue;
 
       // copy element's procs to vset and save size
     int orig_ps = num_ps; vset.clear(); 
