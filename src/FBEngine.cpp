@@ -559,12 +559,14 @@ ErrorCode FBEngine::getEntClosestPt(EntityHandle this_gent, double near_x,
   if (type == 0) {
     rval = getVtxCoord(this_gent, on_x, on_y, on_z);
     MBERRORR(rval, "Failed to get vertex coordinates.");
-  } else if (type == 1) {
-    // just copy over the coordinates
-    // should be modified
+  } else if (_smooth && type == 1) {
     *on_x = near_x;
     *on_y = near_y;
     *on_z = near_z;
+    SmoothCurve * smthcurve = _edges[this_gent];
+    // call the new method from smooth edge
+    smthcurve->move_to_curve( *on_x, *on_y, *on_z);
+
   } else if (type == 2 || type == 3) {
     double point[3] = { near_x, near_y, near_z };
     double point_out[3];
@@ -1077,7 +1079,7 @@ ErrorCode FBEngine::isEntAdj(EntityHandle entity1, EntityHandle entity2,
 }
 
 ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<double> & xyz,
-    double * direction, EntityHandle & newFace)
+    double * direction, EntityHandle & newFace, int closed)
 {
 
   // first of all, find all intersection points (piercing in the face along the direction)
@@ -1129,7 +1131,7 @@ ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<
   // starting from 2 points on 2 triangles, and having the direction, get more intersection points
   // between the plane formed by direction and those 2 points, and edges from triangulation (the triangles
   // involved will be part of the same gentity , original face ( moab set)
-  int closed = 1;// closed = 0 if the polyline is not closed
+  //int closed = 1;// closed = 0 if the polyline is not closed
 
   CartVect Dir(direction);
   for (i = 0; i < numIniPoints - 1 + closed; i++) {
@@ -1301,6 +1303,17 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
   // start from a triangle that is not in the triangles to delete
   // flood fill 
 
+  if (!loop)
+  {
+    // we will have to split the boundary edges
+    // first, find the actual boundary, and try to split with the 2 end points (nodes)
+    // get the adjacent edges, and see which one has the end nodes
+
+    rval = split_boundary(face, nodesAlongPolyline[0]);
+    MBERRORR(rval, "can't split with first node");
+    rval = split_boundary(face, nodesAlongPolyline[nodesAlongPolyline.size()-1]);
+    MBERRORR(rval, "can't split with second node)");
+  }
   // we will separate triangles to delete, unaffected, new_triangles,
   //  nodesAlongPolyline, 
   Range first, second;
@@ -2072,6 +2085,240 @@ ErrorCode FBEngine::compute_intersection_points(EntityHandle & face,
      " points.size()/3: " << points.size()/3 <<  "\n";
 
   return MB_SUCCESS;
+}
+
+ErrorCode  FBEngine::split_edge_at_point(EntityHandle edge, CartVect & point,
+    EntityHandle & new_edge)
+{
+  //return MB_NOT_IMPLEMENTED;
+  // first, we need to find the closest point on the smooth edge, then
+  // split the smooth edge, then call the split_edge_at_mesh_node
+  // or maybe just find the closest node??
+  // first of all, we need to find a point on the smooth edge, close by
+  // then split the mesh edge (if needed)
+  // this would be quite a drama, as the new edge has to be inserted in
+  // order for proper geo edge definition
+
+  // first of all, find a closest point
+  // usually called for
+  int dim = _my_geomTopoTool->dimension(edge);
+  if (dim !=1)
+    return MB_FAILURE;
+  if (!_smooth)
+    return MB_FAILURE; // call it only for smooth option...
+  // maybe we should do something for linear too
+
+  SmoothCurve * curve = this->_edges[edge];
+  EntityHandle closeNode;
+  int edgeIndex;
+  double u = curve-> u_from_position(point[0], point[1], point[2],
+      closeNode, edgeIndex) ;
+  if (0==closeNode)
+  {
+    // we really need to split an existing edge
+    // do not do that yet
+    // evaluate from u:
+    /*double pos[3];
+    curve->position_from_u(u,  pos[0], pos[1], pos[2] );*/
+    // create a new node here, and split one edge
+    // change also connectivity, create new triangles on both sides ...
+    std::cout << "not found a close node,  u is: " << u << " edge index: " <<
+        edgeIndex << "\n";
+    return MB_FAILURE;// not implemented yet
+  }
+  return split_edge_at_mesh_node(edge, closeNode, new_edge);
+
+}
+
+ErrorCode FBEngine::split_edge_at_mesh_node(EntityHandle edge, EntityHandle node,
+    EntityHandle & new_edge)
+{
+  // the node should be in the loop
+  int dim = _my_geomTopoTool->dimension(edge);
+  if (dim!=1)
+    return MB_FAILURE; // not an edge
+
+  // now get the edges
+  // the order is important...
+  // these are ordered sets !!
+  std::vector<EntityHandle> ents;
+  ErrorCode rval = _mbImpl->get_entities_by_type(edge, MBEDGE, ents);
+  if (MB_SUCCESS != rval)
+    return rval;
+  if (ents.size() < 1)
+    return MB_FAILURE; // no edges
+
+  const EntityHandle* conn = NULL;
+  int len;
+  // find the edge connected to the splitting node
+  int num_mesh_edges = (int)ents.size();
+  int index_edge;
+  EntityHandle firstNode;
+  for (index_edge = 0; index_edge<num_mesh_edges; index_edge++)
+  {
+    rval = MBI->get_connectivity(ents[index_edge], conn, len);
+    if (MB_SUCCESS != rval)
+      return rval;
+    if (index_edge == 0)
+      firstNode = conn[0];// will be used to decide vertex sets adjacencies
+    if (conn[0] == node)
+    {
+      if (index_edge==0)
+      {
+        new_edge = 0; // no need to split, it is the first node
+        return MB_SUCCESS; // no split
+      }
+      else
+        return MB_FAILURE; // we should have found the node already , wrong
+                           // connectivity
+    }
+    else if (conn[1] == node)
+    {
+      // we found the index of interest
+      break;
+    }
+  }
+  if (index_edge==num_mesh_edges-1)
+  {
+    new_edge = 0; // no need to split, it is the last node node
+    return MB_SUCCESS; // no split
+  }
+
+  // here, we have 0 ... index_edge edges in the first set,
+  // create a vertex set and add the node to it
+
+
+  EntityHandle nodeSet; // the new node set that will be created
+  rval = _mbImpl->create_meshset(MESHSET_SET, nodeSet);
+  MBERRORR(rval, "Failed to create a new vertex set");
+
+  rval = _mbImpl->add_entities(nodeSet, &node, 1);
+  MBERRORR(rval, "Failed to add the node to the set");
+
+  // we need to remove the remaining mesh edges from first set, and add it
+  // to the second set, in order
+
+  rval = _mbImpl->create_meshset(MESHSET_ORDERED, new_edge);
+  MBERRORR(rval, "can't create geo edge");
+
+  int remaining= num_mesh_edges - 1 - index_edge;
+
+  // add edges to the edge set
+  rval = _mbImpl->add_entities(new_edge, &ents[index_edge+1], remaining);
+  MBERRORR(rval, "can't add edges to the new edge");
+
+  // also, remove the second node set from old edge
+  // remove the edges index_edge+1 and up
+
+  rval = _mbImpl->remove_entities(edge, &ents[index_edge+1], remaining);
+  MBERRORR(rval, "can't remove edges from the old edge");
+
+  // need to find the adjacent vertex sets
+  Range vertexRange;
+  rval = getAdjacentEntities(edge, 0, vertexRange);
+
+  EntityHandle firstSet, secondSet;
+  if (vertexRange.size() == 1)
+  {
+    // initially a periodic edge, OK to add the new set to both edges, and the
+    // second set
+    firstSet = secondSet = vertexRange[0];
+  }
+  else
+  {
+    if (vertexRange.size() > 2)
+      return MB_FAILURE; // something must be wrong with too many vertices
+    // find first node
+    int k;
+    for (k=0; k<2; k++)
+    {
+      Range verts;
+      rval = _mbImpl->get_entities_by_type(vertexRange[k], MBVERTEX, verts);
+
+      MBERRORR(rval, "can't get vertices from vertex set");
+      if (verts.size()!=1)
+         MBERRORR(MB_FAILURE, " node set not defined well");
+      if (firstNode == verts[0])
+      {
+        firstSet = vertexRange[k];
+        secondSet = vertexRange[1-k]; // the other set; it is 1 or 0
+        break;
+      }
+    }
+    if (k>=2)
+    {
+      // it means we didn't find the right node set
+      MBERRORR(MB_FAILURE, " can't find the right vertex");
+    }
+    // remove the second set from the connectivity with the
+    //  edge (parent-child relation)
+    //remove_parent_child( EntityHandle parent,
+     //                                          EntityHandle child )
+    rval = _mbImpl->remove_parent_child(edge, secondSet);
+    MBERRORR(rval, " can't remove the second vertex from edge");
+  }
+  // at this point, we just need to add to both edges the new node set (vertex)
+  rval = _mbImpl->add_parent_child(edge, nodeSet);
+  MBERRORR(rval, " can't add new vertex to old edge");
+
+  rval = _mbImpl->add_parent_child(new_edge, nodeSet);
+  MBERRORR(rval, " can't add new vertex to new edge");
+
+// now, add the edge and vertex to geo tool
+
+  rval = _my_geomTopoTool->add_geo_set(new_edge, 1);
+  MBERRORR(rval, " can't add new edge");
+
+  rval = _my_geomTopoTool->add_geo_set(nodeSet, 0);
+  MBERRORR(rval, " can't add new edge");
+
+  // next, get the adjacent faces to initial edge, and add them as parents
+  // to the new edge
+
+  // need to find the adjacent vertex sets
+  Range faceRange;
+  rval = getAdjacentEntities(edge, 2, faceRange);
+
+  // these faces will be adjacent to the new edge!
+
+  for (Range::iterator it= faceRange.begin(); it!=faceRange.end(); it++)
+  {
+    EntityHandle face = *it;
+    // at this point, we just need to add to both edges the new node set (vertex)
+    rval = _mbImpl->add_parent_child(face, new_edge);
+    MBERRORR(rval, " can't add new edge - face parent relation");
+  }
+
+  return MB_SUCCESS;
+}
+
+ErrorCode FBEngine::split_boundary(EntityHandle face, EntityHandle atNode)
+{
+  // find the boundary edges, and split the one that we find it is a part of
+  Range bound_edges;
+  ErrorCode rval = getAdjacentEntities(face, 1, bound_edges);
+  MBERRORR(rval, " can't get boundary edges");
+  for (Range::iterator it =bound_edges.begin(); it!=bound_edges.end(); it++ )
+  {
+    EntityHandle b_edge = *it;
+    // get all edges in range
+    Range mesh_edges;
+    rval = _mbImpl->get_entities_by_dimension(b_edge, 1,
+        mesh_edges);
+    MBERRORR(rval, " can't get mesh edges");
+    Range nodes;
+    rval = _mbImpl->get_connectivity(mesh_edges, nodes);
+    MBERRORR(rval, " can't get nodes from mesh edges");
+
+    if (nodes.find(atNode)!=nodes.end())
+    {
+      // we found our boundary edge candidate
+      EntityHandle new_edge;
+      rval = split_edge_at_mesh_node(b_edge, atNode, new_edge);
+      return rval;
+    }
+  }
+  MBERRORR(MB_FAILURE, " we did not find an appropriate boundary edge"); ; //
 }
 
 } // namespace moab

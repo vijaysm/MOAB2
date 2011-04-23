@@ -61,6 +61,7 @@ ErrorCode normals_test(FBEngine * pFacet);
 ErrorCode ray_test(FBEngine * pFacet);
 ErrorCode split_test(Interface * mb, FBEngine * pFacet);
 ErrorCode check_split(Interface * mb, FBEngine * pFacet);
+ErrorCode split_test_across();
 
 void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
 {
@@ -134,13 +135,19 @@ int main(int argc, char *argv[])
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
-  std::cout << "split test: ";
+  std::cout << "split with loop test ";
   rval = split_test(mb, pFacet);
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
   std::cout << " check split: ";
   rval = check_split(mb, pFacet);
+  handle_error_code(rval, number_tests_failed, number_tests_successful);
+  std::cout << "\n";
+
+  // split_test_across
+  std::cout << " split across test: ";
+  rval = split_test_across();
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
@@ -310,12 +317,36 @@ ErrorCode geometry_evaluation_test(FBEngine * pFacet)
             &max[0], &max[1], &max[2]);
         CHECK("Failed to get bounding box of entity.");
 
+        for (int j=0; j<3; j++)
+          near[j] = (min[j]+max[j])/2.;
         rval = pFacet->getEntClosestPt(this_gent, near[0], near[1], near[2],
             &on[0], &on[1], &on[2]);
         CHECK("Failed to get closest point on entity.");
       }
     }
+    else
+    {
+      // for edges, provide a little better help
+      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); vit++) {
+        EntityHandle this_gent = *vit;
+        // we know that the edge is parametric, with par between 0 and 1
+
+        // some random parameter
+
+        rval = pFacet->getEntUtoXYZ(this_gent, 0.33, near[0], near[1], near[2]);
+        CHECK("Failed to get a new point");
+
+        std::cout << " entity of type " << i << " position:\n  "
+                  << near[0] << " " << near[1] << " " << near[2] << "\n";
+        rval = pFacet->getEntClosestPt(this_gent, near[0], near[1], near[2],
+            &on[0], &on[1], &on[2]);
+        CHECK("Failed to get closest point on entity.");
+        std::cout << "   close by:  "
+                          << on[0] << " " << on[1] << " " << on[2] << "\n";
+      }
+    }
   }
+
 
   return MB_SUCCESS;
 }
@@ -420,6 +451,8 @@ ErrorCode ray_test(FBEngine * pFacet)
 }
 
 // this test is for creating 2 surfaces given a polyline and a direction for piercing.
+// this test is for cropping a surface with a closed loop, no intersection
+// with initial boundary
 ErrorCode split_test(Interface * mb, FBEngine * pFacet)
 {
 
@@ -474,12 +507,14 @@ ErrorCode split_test(Interface * mb, FBEngine * pFacet)
     return MB_FAILURE;
   }
 
-  EntityHandle newFace;
-  rval = pFacet->split_surface_with_direction(first_face, xyz, direction, newFace);
+  EntityHandle newFace;// first test is with closed surface
+  rval = pFacet->split_surface_with_direction(first_face, xyz, direction, newFace, /*closed*/1);
 
   if (rval!=MB_SUCCESS)
     return rval;
   // save a new database
+  delete pFacet;
+  pFacet = NULL;// try not to write the obb tree
   rval = mb->write_file(filename_out.c_str());
 
   return rval;
@@ -488,7 +523,7 @@ ErrorCode split_test(Interface * mb, FBEngine * pFacet)
 ErrorCode check_split(Interface * mb, FBEngine * pFacet)
 {
   // check loading the file in an empty db
-  delete pFacet;// should clean up the FBEngine
+  //delete pFacet;// should clean up the FBEngine
   ErrorCode rval = mb->delete_mesh();
   CHECK( "ERROR : delete mesh failed!" );
 
@@ -534,3 +569,107 @@ ErrorCode check_split(Interface * mb, FBEngine * pFacet)
 
   return MB_SUCCESS;
 }
+// this test will test a split like the one for grounding line
+// use the first and third point of the same polyline
+ErrorCode split_test_across()
+{
+
+  // check loading the file in an empty db
+  //delete pFacet;// should clean up the FBEngine
+  /*pFacet =NULL;
+  ErrorCode rval = mb->delete_mesh();
+  CHECK( "ERROR : delete mesh failed!" );
+
+  rval = mb->load_file(filename_out.c_str());
+  CHECK( "ERROR : can't load modified file!" );
+
+  pFacet = new FBEngine(mb, NULL, true);// smooth facetting, no OBB tree passed*/
+
+  // should the init be part of constructor or not?
+  // this is where the obb tree is constructed, and smooth faceting initialized, too.
+
+  Core mbcore;
+  Interface * mb = &mbcore;
+
+  ErrorCode  rval = mb->load_file(filename_out.c_str());
+  CHECK("failed to load already modified file");
+  FBEngine * pFacet = new FBEngine(mb, NULL, true);
+
+  rval = pFacet->Init();
+  CHECK("failed to initialize smoothing");
+
+  EntityHandle root_set;
+  rval = pFacet->getRootSet(&root_set);
+  CHECK( "ERROR : getRootSet failed!" );
+  int top = 2; //  iBase_FACE;
+
+  Range faces;
+  rval = pFacet->getEntities(root_set, top, faces);
+  CHECK("Failed to get faces in split_test.");
+
+  if (faces.size() !=2)
+  {
+    std::cout << "num faces in splitted model:" << faces.size() << "\n";
+    return MB_FAILURE;//
+  }
+  // check only the second face
+
+  EntityHandle second_face = faces[1];
+  // use the polyPB.txt file to get the trimming polygon
+   ;
+  // read the file with the polygon user data
+
+  std::ifstream datafile(polygon_file_name.c_str(), std::ifstream::in);
+  if (!datafile) {
+    std::cout << "can't read file\n";
+    return MB_FAILURE;
+  }
+  //
+  char temp[100];
+  double direction[3];// normalized
+  double gridSize;
+  datafile.getline(temp, 100);// first line
+
+  // get direction and mesh size along polygon segments, from file
+  sscanf(temp, " %lf %lf %lf %lf ", direction, direction + 1, direction + 2,
+      &gridSize);
+  //NORMALIZE(direction);// just to be sure
+
+  std::vector<double> xyz;
+  while (!datafile.eof()) {
+    datafile.getline(temp, 100);
+    //int id = 0;
+    double x, y, z;
+    int nr = sscanf(temp, "%lf %lf %lf", &x, &y, &z);
+    if (nr == 3) {
+      xyz.push_back(x);
+      xyz.push_back(y);
+      xyz.push_back(z);
+    }
+  }
+  int sizePolygon = (int)xyz.size()/3;
+  if (sizePolygon < 3) {
+    std::cerr << " Not enough points in the polygon" << std::endl;
+    return MB_FAILURE;
+  }
+
+  if (xyz.size()>=9)
+  {
+    xyz[3]=xyz[6];
+    xyz[4]=xyz[7];
+    xyz[5]=xyz[8];
+    xyz.resize(6);// delete the rest of points
+  }
+  // use first and third points, for splitting the face
+  EntityHandle newFace;// this test is with a "grounding" line
+  // the second face should be the one that we want for test
+  rval = pFacet->split_surface_with_direction(second_face, xyz, direction, newFace, /*closed*/0);
+
+  if (rval!=MB_SUCCESS)
+    return rval;
+  // save a new database, with 3 faces, eventually
+  rval = mb->write_file(filename_out.c_str());
+
+  return rval;
+}
+

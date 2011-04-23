@@ -7,7 +7,7 @@
 //#include "SmoothVertex.hpp"
 #include "SmoothFace.hpp"
 #include "assert.h"
-
+#include <iostream>
 #include "moab/GeomTopoTool.hpp"
 
 namespace moab {
@@ -120,8 +120,8 @@ bool SmoothCurve::position_from_u(double u, double& x, double& y, double& z)
 
   EntityHandle edge = _entities[index];
 
-  CartVect position;
-  ErrorCode rval = evaluate_smooth_edge(edge, t, position);
+  CartVect position, tangent;
+  ErrorCode rval = evaluate_smooth_edge(edge, t, position, tangent);
   if (MB_SUCCESS != rval) return false;
   assert(rval==MB_SUCCESS);
   x = position[0];
@@ -139,6 +139,13 @@ bool SmoothCurve::position_from_u(double u, double& x, double& y, double& z)
 void SmoothCurve::move_to_curve(double& x, double& y, double& z)
 {
 
+  // find closest point to the curve, and the parametric position
+  // must be close by, but how close ???
+  EntityHandle v;
+  int edgeIndex;
+  double u = u_from_position( x,  y,   z, v, edgeIndex);
+  position_from_u(u, x, y, z);
+
   return;
 }
 
@@ -150,9 +157,182 @@ void SmoothCurve::move_to_curve(double& x, double& y, double& z)
 //! \param z The z coordinate of the point
 //!
 //! \return The parametric coordinate u on the curve
-double SmoothCurve::u_from_position(double x, double y, double z)
+double SmoothCurve::u_from_position(double x, double y, double z, EntityHandle & v,
+    int & edgeIndex)
 {
-  return 0;// not implemented
+  // this is an iterative process, expensive usually
+  // get first all nodes , and their positions
+  // find the closest node (and edge), and from there do some
+  // iterations up to a point
+  // do not exaggerate with convergence criteria
+
+  v= 0; // we do not have a close by vertex yet
+  CartVect initialPos(x, y, z);
+  double u=0;
+  int nbNodes = (int)_entities.size()*2;// the mesh edges are stored
+  std::vector<EntityHandle> nodesConnec;
+  nodesConnec.resize(nbNodes);
+  ErrorCode rval = this->_mb->get_connectivity(&(_entities[0]), nbNodes/2, nodesConnec);
+  if (MB_SUCCESS!=rval)
+  {
+    std::cout<<"error in getting connectivity\n";
+    return 0;
+  }
+  // collapse nodesConnec, nodes should be in order
+  for (int k=0; k<nbNodes/2; k++)
+  {
+    nodesConnec[k+1] = nodesConnec[2*k+1];
+  }
+  int numNodes = nbNodes/2+1;
+  std::vector<CartVect> coordNodes;
+  coordNodes.resize(numNodes);
+
+  rval = _mb->get_coords(&(nodesConnec[0]), numNodes, (double*)&(coordNodes[0]));
+  if (MB_SUCCESS!=rval)
+  {
+    std::cout<<"error in getting node positions\n";
+    return 0;
+  }
+  // find the closest node, then find the closest edge, based on closest node
+
+  int indexNode;
+  double minDist = 1.e30;
+  // expensive linear search
+  for (int i=0; i<numNodes; i++)
+  {
+    double d1 = (initialPos-coordNodes[i]).length();
+    if (d1<minDist)
+    {
+      indexNode = i;
+      minDist = d1;
+    }
+  }
+  double tolerance = 0.00001; // what is the unit?
+  // something reasonable
+  if (minDist<tolerance)
+  {
+    v = nodesConnec[indexNode];
+    // we are done, just return the proper u (from fractions)
+    if (indexNode==0)
+    {
+      return 0; // first node has u = 0
+    }
+    else
+      return _fractions[indexNode-1]; // fractions[0] > 0!!)
+  }
+  // find the mesh edge; could be previous or next edge
+  edgeIndex = indexNode;// could be the previous one, though!!
+  if (edgeIndex == numNodes-1)
+    edgeIndex--;// we have one less edge, and do not worry about next edge
+  else
+  {
+    if (edgeIndex>0)
+    {
+      // could be the previous; decide based on distance to the other
+      // nodes of the 2 connected edges
+      CartVect  prevNodePos = coordNodes[edgeIndex-1];
+      CartVect  nextNodePos = coordNodes[edgeIndex+1];
+      if ( (prevNodePos-initialPos).length_squared() <
+           (nextNodePos-initialPos).length_squared() )
+      {
+        edgeIndex --;
+      }
+    }
+  }
+  // now, we know for sure that the closest point is somewhere on edgeIndex edge
+  //
+
+  // do newton iteration for local t between 0 and 1
+
+  // copy from evaluation method
+  CartVect P[2]; // P0 and P1
+  CartVect controlPoints[3]; // edge control points
+  double t4, t3, t2, one_minus_t, one_minus_t2, one_minus_t3, one_minus_t4;
+
+  P[0] = coordNodes[edgeIndex];
+  P[1] = coordNodes[edgeIndex+1];
+
+  if (0 == _edgeTag)
+  {
+    rval = _mb->tag_get_handle("CONTROLEDGE", _edgeTag);
+    if (rval != MB_SUCCESS)
+      return 0;
+  }
+  rval = _mb->tag_get_data(_edgeTag, &(_entities[edgeIndex]), 1, (double*) &controlPoints[0]);
+  if (rval != MB_SUCCESS)
+    return rval;
+
+  // starting point
+  double tt = 0.5;// between the 2 ends of the edge
+  int iterations=0;
+  // find iteratively a better point
+  int maxIterations = 10; // not too many
+  CartVect outv;
+  // we will solve minimize F = 0.5 * ( ini - r(t) )^2
+  // so solve  F'(t) = 0
+  // Iteration:  t_ -> t - F'(t)/F"(t)
+  // F'(t) = r'(t) (ini-r(t) )
+  // F"(t) = r"(t) (ini-r(t) ) - (r'(t))^2
+  while (iterations<maxIterations)
+  //
+  {
+    t2 = tt * tt;
+    t3 = t2 * tt;
+    t4 = t3 * tt;
+    one_minus_t = 1. - tt;
+    one_minus_t2 = one_minus_t * one_minus_t;
+    one_minus_t3 = one_minus_t2 * one_minus_t;
+    one_minus_t4 = one_minus_t3 * one_minus_t;
+
+    outv = one_minus_t4 * P[0] + 4. * one_minus_t3 * tt * controlPoints[0] + 6.
+        * one_minus_t2 * t2 * controlPoints[1] + 4. * one_minus_t * t3
+        * controlPoints[2] + t4 * P[1];
+
+    CartVect out_tangent = -4.*one_minus_t3*P[0] +
+              4.*(one_minus_t3 -3.*tt*one_minus_t2)*controlPoints[0] +
+              12.*(tt*one_minus_t2 - t2*one_minus_t)*controlPoints[1] +
+              4.*(3.*t2*one_minus_t - t3)*controlPoints[2] +
+              4.*t3*P[1];
+
+    CartVect second_deriv = 12.*one_minus_t2 * P[0] +
+        4.*( -3.*one_minus_t2 -3.*one_minus_t2 + 6.*tt * one_minus_t)*controlPoints[0] +
+        12.*(one_minus_t2 - 4*tt*one_minus_t + t2)*controlPoints[1] +
+        4.*(6.*tt - 12*t2)*controlPoints[2] +
+        12.*t2*P[1];
+    CartVect diff = outv - initialPos;
+    double F_d =  out_tangent % diff;
+    double F_dd = second_deriv % diff + out_tangent.length_squared();
+
+    if (0==F_dd)
+      break;// get out, we found minimum?
+
+    double delta_t = - F_d/F_dd;
+
+    if (fabs(delta_t) < 0.000001)
+      break;
+    tt = tt+delta_t;
+    if (tt<0)
+    {
+      tt = 0.;
+      v = nodesConnec[edgeIndex];// we are at end of mesh edge
+      break;
+    }
+    if (tt>1)
+    {
+      tt = 1;
+      v = nodesConnec[edgeIndex+1];// we are at one end
+      break;
+    }
+    iterations++;
+  }
+  // so we have t on the segment, convert to u, which should
+  // be between _fractions[edgeIndex] numbers
+  double prevFraction = 0;
+  if (edgeIndex>0)
+    prevFraction = _fractions[edgeIndex-1];
+
+  u =prevFraction + tt*(_fractions[edgeIndex] - prevFraction);
+  return u;
 }
 
 //! \brief Get the starting point of the curve.
@@ -367,7 +547,7 @@ void SmoothCurve::compute_control_points_on_boundary_edges(double min_dot,
 }
 
 ErrorCode SmoothCurve::evaluate_smooth_edge(EntityHandle eh, double &tt,
-    CartVect & outv)
+    CartVect & outv, CartVect & out_tangent)
 {
   CartVect P[2]; // P0 and P1
   CartVect controlPoints[3]; // edge control points
@@ -413,6 +593,11 @@ ErrorCode SmoothCurve::evaluate_smooth_edge(EntityHandle eh, double &tt,
       * one_minus_t2 * t2 * controlPoints[1] + 4. * one_minus_t * t3
       * controlPoints[2] + t4 * P[1];
 
+  out_tangent = -4.*one_minus_t3*P[0] +
+            4.*(one_minus_t3 -3.*tt*one_minus_t2)*controlPoints[0] +
+            12.*(tt*one_minus_t2 - t2*one_minus_t)*controlPoints[1] +
+            4.*(3.*t2*one_minus_t - t3)*controlPoints[2] +
+            4.*t3*P[1];
   return MB_SUCCESS;
 }
 } // namespace moab

@@ -95,7 +95,8 @@ public:
 	    //! \param z The z coordinate of the point
 	    //!
 	    //! \return The parametric coordinate u on the curve
-	  virtual double u_from_position(double x, double y, double z) ;
+	  virtual double u_from_position(double x, double y, double z, EntityHandle & v,
+	      int & indexEdge) ;
 
 	    //! \brief Get the starting point of the curve.
 	    //!
@@ -116,35 +117,14 @@ public:
 
 	  void compute_control_points_on_boundary_edges(double min_dot,
 			  std::map<EntityHandle, SmoothFace*> & mapSurfaces,
-			  Tag controlPointsTag, Tag markTag);// min_dot is not used now,
-	  // the edges that are computed will be marked with the marker tag, so after that only the interior edges
-	  // will be left for control points evaluation
-
-	  // make this public, as we may need it when we call meshing from driver
-//	  CMLEdgeMesher * _cmlEdgeMesher;
-
-/*	  void estimate_mesh_count(double curve_mesh_size, int & num_points_out); // this is based on initial settings
-
-	  int get_mesh_count()
-		  {return mesh_count;}
-
-	  void set_mesh_count(int iMeshCount)
-		  { mesh_count=iMeshCount;}*/
+			  Tag controlPointsTag, Tag markTag);
 
 	  ErrorCode evaluate_smooth_edge(EntityHandle eh, double &tt,
-	  		CartVect & outv) ;
-
-	  //void create_mesh_edges(std::map<EntityHandle, SmoothVertex*>  & mapVertices);
+	  		CartVect & outv, CartVect & out_tangent) ;
 
 private:
-	  //RefEdge * _ref_edge;
-	  //SmoothFace * _smoothFaceEval; // just store the face pointer here,
-	  int _loopIndex;
-
-	  int mesh_count;// how many mesh edges will be created on this geo edge set?
 
 	  std::vector<EntityHandle> _entities;// the mesh edges are stored here for fast access
-	  EntityHandle startNode, endNode;// those handles are for the nodes in _mb
 	  double _leng;
 	  std::vector<double> _fractions;// they are increasing from 0. to 1., do we need these?
 	  // this will be decided apriori, and eventually reset for paver

@@ -120,17 +120,22 @@ public:
       bool& adjacent_out );
 
   ErrorCode split_surface_with_direction(EntityHandle face, std::vector<double> & xyz, double * direction,
-      EntityHandle & newFace);
+      EntityHandle & newFace, int closed);
   // these new points will be on edges or triangles, if in interior of triangles
   ErrorCode split_surface(EntityHandle face, std::vector<double> & points,
       std::vector<EntityHandle> & entities, std::vector<EntityHandle> & triangles,
       EntityHandle & newFace);
+
+  ErrorCode split_edge_at_point(EntityHandle edge, CartVect & point, EntityHandle & new_edge);
+
+  ErrorCode split_edge_at_mesh_node(EntityHandle edge, EntityHandle node, EntityHandle & new_edge);
 
   // helper for cleaning the stuff
   // will be called if the topology is modified
   void clean();
 
   void delete_smooth_tags();
+
 private:
 
   ErrorCode initializeSmoothing();
@@ -160,6 +165,9 @@ private:
 
   ErrorCode smooth_new_intx_points(EntityHandle face,
       std::vector<EntityHandle> & nodesAlongPolyline);
+
+  // having a node, split boundary along that node
+  ErrorCode  split_boundary(EntityHandle face, EntityHandle atNode);
 
   Interface * _mbImpl;
 
