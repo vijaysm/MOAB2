@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
 
   // split_test_across
   std::cout << " split across test: ";
-  rval = split_test_across();
+  //rval = split_test_across();
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
