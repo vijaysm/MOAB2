@@ -12,7 +12,7 @@
       char this_descr[120];                                             \
       int err;                                                          \
       iGeom_getDescription((iGeom_Instance)ifaceInstances[iface_no],    \
-                           this_descr, &err, 120);                      \
+                           this_descr, 120);                            \
       ERRORR(result, this_descr);                                       \
     }                                                                   \
   } while(false)
@@ -20,9 +20,8 @@
 #define PROCESS_MERROR do {                                             \
     if (iBase_SUCCESS != result) {                                      \
       char this_descr[120];                                             \
-      int err;                                                          \
       iMesh_getDescription((iMesh_Instance)ifaceInstances[iface_no],    \
-                           this_descr, &err, 120);                      \
+                           this_descr, 120);                            \
       ERRORR(result, this_descr);                                       \
     }                                                                   \
   } while(false)
@@ -49,7 +48,7 @@ AssocPairC::~AssocPairC()
 
 iBase_Instance AssocPairC::iface_instance(const int iface_no)
 {
-    return ifaceInstances[iface_no];
+  return ifaceInstances[iface_no];
 }
 
 bool AssocPairC::equivalent(iBase_Instance iface0,

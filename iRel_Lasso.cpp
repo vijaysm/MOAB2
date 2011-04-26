@@ -26,20 +26,18 @@ const bool debug = false;
 
 iBase_Error iRel_LAST_ERROR;
 
-void iRel_getErrorType(iRel_Instance instance, int *error_type, int *ierr)
+void iRel_getErrorType(iRel_Instance instance, int *error_type)
 {
   *error_type = iRel_LAST_ERROR.error_type;
-  RETURN(iBase_SUCCESS);
 }
 
-void iRel_getDescription(iRel_Instance instance, char *descr, int *ierr,
+void iRel_getDescription(iRel_Instance instance, char *descr,
                          int descr_len)
 {
   unsigned int len = std::min(strlen(iRel_LAST_ERROR.description),
                               static_cast<size_t>(descr_len));
   strncpy(descr, iRel_LAST_ERROR.description, len);
   descr[len] = '\0';
-  RETURN(iBase_SUCCESS);
 }
 
 void iRel_newRel(/* in */ const char * /* options */,

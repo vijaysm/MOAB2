@@ -438,11 +438,8 @@ int query_relations_test(iRel_Instance assoc,
     printf("Failed to get mesh entities related to geom entities in query_relations_test.\n");
 
     char descr[120];
-    iRel_getDescription(assoc, descr, &result, sizeof(descr)-1);
-    if (iBase_SUCCESS != result)
-      printf("Unable to query error information\n");
-    else
-      printf("Entities missing relations: %s\n", descr);
+    iRel_getDescription(assoc, descr, sizeof(descr)-1);
+    printf("Entities missing relations: %s\n", descr);
 
     int i;
     for (i = 0; i < gentities_size; i++) {

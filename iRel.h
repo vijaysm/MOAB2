@@ -109,18 +109,16 @@ extern "C"
    iRel_SET, 
    iRel_BOTH};
 
-    /**\brief  Get the error type returned from the last iRek function
+    /**\brief  Get the error type returned from the last iRel function
      *
      * Get the error type returned from the last iRel function.  Value
      * returned is a member of the iBase_ErrorType enumeration.
      * \param instance iRel instance handle
      * \param *error_type Error type returned from last iRel function
-     * \param *err Pointer to error type returned from function
      */
   void iRel_getErrorType (
     iRel_Instance instance,
-    /*out*/ int *error_type, 
-    /*out*/ int *ierr);
+    /*out*/ int *error_type);
 
     /**\brief  Get a description of the error returned from the last iRel
      *         function
@@ -129,13 +127,11 @@ extern "C"
      * \param instance iRel instance handle
      * \param descr Pointer to a character string to be filled with a
      *        description of the error from the last iRel function
-     * \param *err Pointer to error type returned from function
      * \param descr_len Length of the character string pointed to by descr
      */
   void iRel_getDescription (
     iRel_Instance instance,
     /*inout*/ char *descr, 
-    /*out*/ int *ierr, 
     /*in*/ int descr_len);
 
     /**\brief  Create a new iRel instance
