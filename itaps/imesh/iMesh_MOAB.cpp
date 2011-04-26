@@ -272,20 +272,16 @@ extern "C" {
 
   iBase_Error iMesh_LAST_ERROR;
 
-  void iMesh_getErrorType(iMesh_Instance,
-                          int *error_type, int *err)
+  void iMesh_getErrorType(iMesh_Instance, int *error_type)
   {
     *error_type = iMesh_LAST_ERROR.error_type;
-    RETURN(iBase_SUCCESS);
   }
 
-  void iMesh_getDescription(iMesh_Instance ,
-                            char *descr, int *err, int descr_len)
+  void iMesh_getDescription(iMesh_Instance, char *descr, int descr_len)
   {
     unsigned int len = MIN(strlen(iMesh_LAST_ERROR.description), ((unsigned int) descr_len));
     strncpy(descr, iMesh_LAST_ERROR.description, len);
     descr[len] = '\0';
-    RETURN(iBase_SUCCESS);
   }
 
   void iMesh_newMesh(const char *options,
