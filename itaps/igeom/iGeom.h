@@ -75,12 +75,10 @@ extern "C" {
      * \param instance iGeom instance handle
      * \param descr Pointer to a character string to be filled with a
      *        description of the error from the last iGeom function
-     * \param *err Pointer to error type returned from function
      * \param descr_len Length of the character string pointed to by descr
      */
   void iGeom_getDescription( iGeom_Instance instance,
                              char* descr,
-                             int* err,
                              int descr_len );
 
     /**\brief  Get the error type returned from the last iGeom function
@@ -89,11 +87,9 @@ extern "C" {
      * returned is a member of the iBase_ErrorType enumeration.
      * \param instance iGeom instance handle
      * \param *error_type Error type returned from last iGeom function
-     * \param *err Pointer to error type returned from function
      */
   void iGeom_getErrorType( iGeom_Instance instance,
-                           /*out*/ int *error_type, 
-                           int *err );
+                           /*out*/ int *error_type );
 
     /**\brief  Construct a new iGeom instance
      *

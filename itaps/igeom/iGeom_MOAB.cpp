@@ -226,20 +226,20 @@ bool initializeSmoothing(iGeom_Instance instance) {
    return true;
 }
 
-void iGeom_getDescription(iGeom_Instance instance, char* descr, int* err,
+void iGeom_getDescription(iGeom_Instance instance, char* descr,
       int descr_len) {
    unsigned int
          len =
                MIN(strlen(iGeom_LAST_ERROR.description), ((unsigned int) descr_len));
    strncpy(descr, iGeom_LAST_ERROR.description, len);
    descr[len] = '\0';
-   RETURN(iBase_SUCCESS);
+   return;
 }
 
 void iGeom_getErrorType(iGeom_Instance instance,
-/*out*/int *error_type, int *err) {
+/*out*/int *error_type) {
    *error_type = iGeom_LAST_ERROR.error_type;
-   RETURN(iBase_SUCCESS);
+   return;
 }
 
 void iGeom_newGeom(char const* options, iGeom_Instance* instance_out, int* err,

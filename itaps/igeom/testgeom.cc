@@ -34,8 +34,7 @@ static bool print_error( const char* desc,
                          int line )
 {
   char buffer[1024];
-  int err2 = err;
-  iGeom_getDescription( geom, buffer, &err2, sizeof(buffer) );
+  iGeom_getDescription( geom, buffer, sizeof(buffer) );
   buffer[sizeof(buffer)-1] = '\0';
   
   std::cerr << "ERROR: " << desc << std::endl
