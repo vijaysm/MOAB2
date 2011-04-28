@@ -4,10 +4,14 @@
   /* iMesh Interface Specification Major Release Number
     */
 #define IMESH_VERSION_MAJOR 1
+/* maintain backward compatibility with old name for this symbol */
+#define IMESH_MAJOR_VERSION IMESH_VERSION_MAJOR
 
   /* iMesh Interface Specification Minor Release Number
     */
 #define IMESH_VERSION_MINOR 3
+/* maintain backward compatibility with old name for this symbol */
+#define IMESH_MINOR_VERSION IMESH_VERSION_MINOR
 
   /* iMesh Interface Specification Patch Release Number
     *
@@ -20,6 +24,8 @@
     * digit for iMesh.
     */
 #define IMESH_VERSION_PATCH 0
+/* maintain backward compatibility with old name for this symbol */
+#define IMESH_PATCH_VERSION IMESH_VERSION_PATCH
 
   /** \mainpage The ITAPS Mesh Interface iMesh
    *
@@ -320,8 +326,9 @@ extern "C" {
 
     /**\brief  Get the error type returned from the last iMesh function
      *
-     * Get the error type returned from the last iMesh function.  Value
-     * returned is a member of the iBase_ErrorType enumeration.
+     * Get the error type returned from the last iMesh function among those
+     * that return an 'int *err' argument. The value returned is a member of
+     * the iBase_ErrorType enumeration.
      * \param instance iMesh instance handle
      * \param *error_type Error type returned from last iMesh function
      */
@@ -331,6 +338,7 @@ extern "C" {
     /**\brief  Get a description of the error returned from the last iMesh function
      *
      * Get a description of the error returned from the last iMesh function
+     * among those that return an 'int *err' argument.
      * \param instance iMesh instance handle
      * \param descr Pointer to a character string to be filled with a
      *        description of the error from the last iMesh function
