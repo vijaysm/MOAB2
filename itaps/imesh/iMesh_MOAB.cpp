@@ -1991,18 +1991,22 @@ extern "C" {
                                              CONST_HANDLE_ARRAY_PTR(lower_order_entity_handles),
                                              lower_order_entity_handles_size,
                                              tmp_ent);
-    if (MB_SUCCESS != result)
+    if (MB_SUCCESS == result) {
+      *new_entity_handle = reinterpret_cast<iBase_EntityHandle>(tmp_ent);
+      *status = iBase_NEW;
+
+      if (MBIMESHI->AdjTable[5] || MBIMESHI->AdjTable[10]) {
+        Range set_ents;
+        set_ents.insert( tmp_ent );
+        create_int_ents(MBIMESHI, set_ents);
+      }
+
+      RETURN(iBase_SUCCESS);
+    }
+    else {
+      *new_entity_handle = 0;
       *status = iBase_CREATION_FAILED;
-    else
-      *status = iBase_SUCCESS;
-    *new_entity_handle = reinterpret_cast<iBase_EntityHandle>(tmp_ent);
-
-    *err = *status;
-
-    if (MB_SUCCESS == result && (MBIMESHI->AdjTable[5] || MBIMESHI->AdjTable[10])) {
-      Range set_ents;
-      set_ents.insert( tmp_ent );
-      create_int_ents(MBIMESHI, set_ents);
+      ERROR(result, "iMesh_createEnt: couldn't create entity");
     }
   }
 
