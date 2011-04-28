@@ -71,8 +71,13 @@ int TestMeshRefiner( int argc, char* argv[] )
     << "PARALLEL_RESOLVE_SHARED_ENTS" << ";"
     << "CPUTIME";
 #endif
-  set_handle = 0;
-  ErrorCode rval = imesh->load_file( ifname.c_str(), &set_handle, parallel_options.str().c_str() );
+  ErrorCode rval = imesh->create_meshset(MESHSET_SET, set_handle);
+  if (MB_SUCCESS != rval) {
+    std::cout << "Trouble creating set, exiting." << std::endl;
+    return 1;
+  }
+
+  rval = imesh->load_file( ifname.c_str(), &set_handle, parallel_options.str().c_str() );
   if (MB_SUCCESS != rval) {
     std::cout << "Trouble reading mesh file " << ifname << ", exiting." << std::endl;
     return 1;

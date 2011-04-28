@@ -19,8 +19,9 @@ extern "C"
 }
 
 #include <algorithm>
-#include "moab_mpi.h"
-
+#ifdef USE_MPI
+#  include "moab_mpi.h"
+#endif
 
 namespace moab{
 

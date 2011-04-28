@@ -25,6 +25,8 @@
 #include "moab/Types.hpp"
 #include <iosfwd>
 #include <limits>
+#include <float.h>
+#include <assert.h>
 
 #ifdef _MSC_VER
 # define finite _finite
@@ -275,6 +277,8 @@ inline double Matrix3::subdet( int r, int c ) const
 {
   const int r1 = (r+1)%3, r2 = (r+2)%3;
   const int c1 = (c+1)%3, c2 = (c+2)%3;
+  assert(r >= 0 && c >= 0);
+  if (r < 0 || c < 0) return DBL_MAX;
   return d[3*r1+c1]*d[3*r2+c2] - d[3*r1+c2]*d[3*r2+c1];
 }
                          

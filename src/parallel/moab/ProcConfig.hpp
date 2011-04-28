@@ -19,12 +19,7 @@
 #include "moab/Types.hpp"
 #include "moab/Range.hpp"
 
-#ifdef USE_MPI
-#  include "moab_mpi.h"
-#else
-  typedef int MPI_Comm;
-# define MPI_COMM_WORLD 0
-#endif
+#include "moab_mpi.h"
 
 struct crystal_data;
 

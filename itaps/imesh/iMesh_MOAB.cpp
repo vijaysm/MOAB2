@@ -1464,6 +1464,9 @@ extern "C" {
                           /*out*/ int* status_size, int *err)
   {
       // for now, throw an error if lower order entity handles aren't vertices
+    if (iMesh_POINT > new_entity_topology || iMesh_SEPTAHEDRON < new_entity_topology) {
+      ERROR(iBase_INVALID_ARGUMENT, "iMesh_createEntArr: invalid topology.");
+    }
     EntityType this_type = mb_topology_table[new_entity_topology];
     int num_ents = 0, num_verts;
     const EntityHandle *lower_ents;

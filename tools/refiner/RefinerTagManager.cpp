@@ -320,7 +320,7 @@ int RefinerTagManager::get_output_gids( int n, const EntityHandle* ents, std::ve
   for ( int i = 0; i < n; ++ i )
     {
     int gid = -1;
-    stat |= this->output_mesh->tag_get_data( this->tag_igid, ents + i, 1, &gid );
+    stat |= this->output_mesh->tag_get_data( this->tag_ogid, ents + i, 1, &gid );
     gids.push_back( gid );
     }
   return stat;

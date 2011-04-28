@@ -1946,6 +1946,7 @@ ErrorCode DualTool::split_pair_nonmanifold(EntityHandle *split_quads,
            star_dp1[1].end())
     new_side = 0;
   assert(-1 != new_side);
+  if (-1 == new_side) return MB_FAILURE;
     
     //=============== split faces
 
@@ -2956,7 +2957,7 @@ ErrorCode DualTool::rev_face_shrink(EntityHandle odedge)
   for (int j = 0; j < 2; j++) {
     for (int i = 0; i < 4; i++) {
       if (mtu.equivalent_entities(side_quads[j][i])) {
-        result = mbImpl->add_adjacencies(side_quads[j][i], &hexes[i], 1, false);
+        result = mbImpl->add_adjacencies(side_quads[j][i], &hexes[j], 1, false);
         if (MB_SUCCESS != result) return result;
       }
     }

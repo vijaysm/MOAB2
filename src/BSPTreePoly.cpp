@@ -668,6 +668,7 @@ bool BSPTreePoly::cut_polyhedron( const CartVect& plane_normal,
       co_edge = co_edge->nextPtr;
     } while (co_edge && co_edge != face->usePtr);
   }
+  if (!edge_ptr) return false;
   
     // Constuct new face and first CoEdge
   faceList = new Face( faceList );

@@ -22,7 +22,7 @@
 #include <iostream>
 #include <sstream>
 
-#include "moab_mpi.h"
+#include "WriteHDF5Parallel.hpp"
 
 #include <H5Tpublic.h>
 #include <H5Ppublic.h>
@@ -40,7 +40,6 @@
 #include "moab/CN.hpp"
 #include "moab/Range.hpp"
 
-#include "WriteHDF5Parallel.hpp"
 #include "IODebugTrack.hpp"
 
 namespace moab {

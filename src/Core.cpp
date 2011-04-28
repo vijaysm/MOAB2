@@ -459,6 +459,12 @@ ErrorCode Core::load_file( const char* file_name,
   ErrorCode rval;
   ReaderIface::IDTag t = { set_tag_name, set_tag_vals, num_set_tag_vals };
   ReaderIface::SubsetList sl = { &t, 1, 0, 0 };
+
+  assert(!file_set || (*file_set && is_valid(*file_set)));
+  if (file_set && !*file_set) {
+    mError->set_last_error( "Non-NULL file set pointer should point to non-NULL set.\n" );
+    return MB_FAILURE;
+  }
   
     // if reading in parallel, call a different reader
   std::string parallel_opt;
