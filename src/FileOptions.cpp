@@ -346,6 +346,32 @@ ErrorCode FileOptions::match_option( const char* name,
   return MB_FAILURE;
 }
 
+ErrorCode FileOptions::get_toggle_option( const char* name,
+                                          bool default_value,
+                                          bool& value ) const
+{
+  static const char* values[] = {
+    "true",  "yes", "1", "on",
+    "false", "no",  "0", "off",
+    0 };
+  const int num_true = 4;
+  
+  int index;
+  ErrorCode result = match_option( name, values, index );
+  if (result == MB_SUCCESS) {
+    value = index < num_true;
+  }
+  else if (result == MB_ENTITY_NOT_FOUND) {
+    value = default_value;
+    result = MB_SUCCESS;
+  }
+  else {
+    result = MB_TYPE_OUT_OF_RANGE;
+  }
+  
+  return result;
+}
+
 
 bool FileOptions::compare( const char* name, const char* option )
 {

@@ -36,16 +36,22 @@ void test_write_elements();
 void test_write_shared_sets();
 void test_var_length_parallel();
 
-void test_read_elements_common( bool by_rank, int intervals, bool print_time );
+void test_read_elements_common( bool by_rank, int intervals, bool print_time,
+                                const char* extra_opts = 0 );
 
 int ReadIntervals = 0;
 void test_read_elements()         { test_read_elements_common( false, ReadIntervals, false ); }
 void test_read_elements_by_rank() { test_read_elements_common(  true, ReadIntervals, false ); }
+void test_bcast_summary()         { test_read_elements_common( false, ReadIntervals, false, "BCAST_SUMMARY=yes" ); }
+void test_read_summary()          { test_read_elements_common( false, ReadIntervals, false, "BCAST_SUMMARY=no" ); }
 void test_read_time();
 
 void test_read_tags();
 void test_read_global_tags();
-void test_read_sets();
+void test_read_sets_common( const char* extra_opts = 0 );
+void test_read_sets()             { test_read_sets_common(); }
+void test_read_sets_bcast_dups()  { test_read_sets_common( "BCAST_DUPLICATE_READS=yes" ); }
+void test_read_sets_read_dups()   { test_read_sets_common( "BCAST_DUPLICATE_READS=no"  ); }
 
 const char PARTITION_TAG[] = "PARTITION";
 
@@ -58,7 +64,20 @@ int WriteDebugLevel = 0;
 int ReadBlocks = 1;
 
 enum Mode { READ_PART, READ_DELETE, BCAST_DELETE };
-std::string get_read_options( bool by_rank = false, Mode mode = READ_PART )
+const Mode DEFAULT_MODE = READ_PART;
+const bool DEFAULT_BY_RANK = false;
+
+std::string get_read_options( bool by_rank = DEFAULT_BY_RANK, 
+                              Mode mode = DEFAULT_MODE,
+                              const char* extra_opts = 0 );
+std::string get_read_options( const char* extra_opts )
+  { return get_read_options( DEFAULT_BY_RANK, DEFAULT_MODE, extra_opts ); }
+std::string get_read_options( bool by_rank, const char* extra_opts )
+  { return get_read_options( by_rank, DEFAULT_MODE, extra_opts ); }
+
+std::string get_read_options( bool by_rank, 
+                              Mode mode,
+                              const char* extra_opts )
 {
   int numproc;
   MPI_Comm_size( MPI_COMM_WORLD, &numproc );
@@ -76,6 +95,9 @@ std::string get_read_options( bool by_rank = false, Mode mode = READ_PART )
     if (by_rank)
       str << "PARTITION_BY_RANK;";
   }
+      
+  if (extra_opts)
+    str << extra_opts << ";";
 
   if (ReadDebugLevel)
     str << "DEBUG_IO=" << ReadDebugLevel << ";";
@@ -156,6 +178,10 @@ int main( int argc, char* argv[] )
     result += RUN_TEST( test_read_global_tags );
     MPI_Barrier(MPI_COMM_WORLD);
     result += RUN_TEST( test_read_sets );
+    MPI_Barrier(MPI_COMM_WORLD);
+    result += RUN_TEST( test_read_sets_bcast_dups );
+    MPI_Barrier(MPI_COMM_WORLD);
+    result += RUN_TEST( test_read_sets_read_dups );
     MPI_Barrier(MPI_COMM_WORLD);
   }
   
@@ -809,7 +835,8 @@ void create_input_file( const char* file_name,
   CHECK_ERR(rval);
 }
 
-void test_read_elements_common( bool by_rank, int intervals, bool print_time )
+void test_read_elements_common( bool by_rank, int intervals, bool print_time,
+                                const char* extra_opts )
 {
   const char *file_name = by_rank ? "test_read_rank.h5m" : "test_read.h5m";
   int numproc, rank;
@@ -825,8 +852,9 @@ void test_read_elements_common( bool by_rank, int intervals, bool print_time )
   MPI_Barrier(MPI_COMM_WORLD); // make sure root has completed writing the file
   
     // do parallel read unless only one processor
-  std::string opt = get_read_options( by_rank );
+  std::string opt = get_read_options( by_rank, extra_opts );
   rval = mb.load_file( file_name, 0, opt.c_str() );
+    
   MPI_Barrier(MPI_COMM_WORLD); // make sure all procs complete before removing file
   if (0 == rank && !KeepTmpFiles) remove( file_name );
   CHECK_ERR(rval);
@@ -1064,7 +1092,7 @@ void test_read_global_tags()
   CHECK_EQUAL( global_val, mesh_gbl_val );
 }
 
-void test_read_sets()
+void test_read_sets_common( const char* extra_opts )
 {
   const char tag_name[] = "test_tag_s";
   const char file_name[] = "test_read_sets.h5m";
@@ -1081,7 +1109,7 @@ void test_read_sets()
   MPI_Barrier(MPI_COMM_WORLD); // make sure root has completed writing the file
   
     // do parallel read unless only one processor
-  std::string opt = get_read_options( );
+  std::string opt = get_read_options( extra_opts );
   rval = mb.load_file( file_name, 0, opt.c_str() );
   MPI_Barrier(MPI_COMM_WORLD); // make sure all procs complete before removing file
   if (0 == rank && !KeepTmpFiles) remove( file_name );

@@ -18,7 +18,7 @@ const char ID_TAG_NAME[] = "test_id_tag";
 
 
 static void test_read_nothing_common( bool non_existant );
-static void test_read_nodes_common( int num_read_sets );
+static void test_read_nodes_common( int num_read_sets, bool blocked_coordinate_io );
 static void test_read_handle_tag_common( bool var_len );
 
 const int MBQUAD_INT = 20; 
@@ -63,7 +63,11 @@ void test_read_non_existant_set()
 
 //! Read in the nodes contained in a set.
 void test_read_one_set_nodes()
-  { test_read_nodes_common(1); }
+  { test_read_nodes_common(1, false); }
+
+//! Read in the nodes contained in a set.
+void test_read_one_set_nodes_blocked()
+  { test_read_nodes_common(1, true); }
 
 //! Read in the elems contained in a set
 void test_read_one_set_elems();
@@ -79,7 +83,7 @@ void test_read_set_sets();
 
 //! Read in the nodes contained in a sets.
 void test_read_two_sets_nodes()
-  { test_read_nodes_common(2); }
+  { test_read_nodes_common(2,false); }
 
 //! Read in the elems contained in a sets
 void test_read_two_sets_elems();
@@ -189,6 +193,7 @@ int main( int argc, char* argv[] )
   REGISTER_TEST(test_read_empty_set);
   REGISTER_TEST(test_read_non_existant_set);
   REGISTER_TEST(test_read_one_set_nodes);
+  REGISTER_TEST(test_read_one_set_nodes_blocked);
   REGISTER_TEST(test_read_one_set_elems);
   REGISTER_TEST(test_read_one_set_polyhedra);
   REGISTER_TEST(test_read_set_sets);
@@ -292,7 +297,7 @@ static void vtx_coords( int set_id, int j, int num_sets, double coords[3] )
   coords[2] = i+0.5;
 }
 
-void test_read_nodes_common( int num_read_sets )
+void test_read_nodes_common( int num_read_sets, bool blocked )
 {
   ErrorCode rval;
   Core moab;
@@ -336,12 +341,20 @@ void test_read_nodes_common( int num_read_sets )
   CHECK_ERR(rval);
   
     // now read back in only the specified number of sets
+  std::string opts(READ_OPTS);
+  if (!opts.empty())
+    opts += ';';
+  if (blocked)
+    opts += "BLOCKED_COORDINATE_IO=yes";
+  else
+    opts += "BLOCKED_COORDINATE_IO=no";
+    
   values.resize( num_read_sets );
   for (int i = 0; i < num_read_sets; ++i) values[i] = 2*(i+1);
   EntityHandle file_set;
   rval = mb.create_meshset( MESHSET_SET, file_set );
   CHECK_ERR(rval);
-  rval = mb.load_file( TEST_FILE, &file_set, READ_OPTS, ID_TAG_NAME, &values[0], num_read_sets );
+  rval = mb.load_file( TEST_FILE, &file_set, opts.c_str(), ID_TAG_NAME, &values[0], num_read_sets );
   CHECK_ERR(rval);
   
   int count, expected = 0;

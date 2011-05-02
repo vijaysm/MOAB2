@@ -59,6 +59,22 @@ public:
    */
   ErrorCode get_null_option( const char* name ) const;
   
+  
+  /**\brief Check for option with boolean (true/false, yes/no) value.
+   *
+   * Check for an option with a true/false value.  Allowable values
+   * are "true", "false", "yes", "no", "1", "0", "on", "off".
+   *\param name The option name
+   *\param default_value The value to return if the option is not specified.
+   *\param value The resulting value.  This argument is set to the passed
+   *            default value if the option is not found.
+   *\return - MB_TYPE_OUT_OF_RANGE if options is found, but has an invalid value
+   *        - MB_SUCCESS otherwise
+   */
+  ErrorCode get_toggle_option( const char* name, 
+                               bool default_value,
+                               bool& value ) const;
+   
   /**\brief Check for option with an integer value.
    *
    * Check for an option with an integer value
