@@ -140,7 +140,7 @@ private:
   Tag gidTag, gdimTag, partTag, catTag;
 };
 
-vtkStandardNewMacro(vtkMOABReaderPrivate);
+vtkStandardNewMacro(vtkMOABReaderPrivate)
 
 inline vtkUnstructuredGrid *vtkMOABReaderPrivate::GetOutput() 
 {
@@ -465,16 +465,17 @@ ErrorCode vtkMOABReaderPrivate::read_dense_tags(EntityHandle file_set)
 
     if (MB_SUCCESS != rval) continue;
 
-    Range::iterator rit, rit2;
-    rit = rit2 = ents2d.begin();
+    Range::iterator rit;
+    rit = ents2d.begin();
     while (rit != ents2d.end()) {
         // get tag iterator for gids
-      rval = mbImpl->tag_iterate(vtkCellTag, rit, ents2d.end(), (void*&)vids);
+      int count;
+      rval = mbImpl->tag_iterate(vtkCellTag, rit, ents2d.end(), count, (void*&)vids);
       if (MB_SUCCESS != rval) continue;
-      int count = rit - rit2;
       
-      rval = mbImpl->tag_iterate(*vit, rit2, ents2d.end(), data);
+      rval = mbImpl->tag_iterate(*vit, rit, ents2d.end(), count, data);
       if (MB_SUCCESS != rval) continue;
+      rit += count;
       
       if (MB_TYPE_DOUBLE == dtype) {
         ddata = (double*)data;
@@ -498,15 +499,16 @@ ErrorCode vtkMOABReaderPrivate::read_dense_tags(EntityHandle file_set)
       MOABMeshErrorMacro(<< "2d: min = " << min << ", max =  " << max);
     }
     
-    rit = rit2 = ents3d.begin();
+    rit = ents3d.begin();
     while (rit != ents3d.end()) {
         // get tag iterator for vids
-      rval = mbImpl->tag_iterate(vtkCellTag, rit, ents3d.end(), (void*&)vids);
+      int count;
+      rval = mbImpl->tag_iterate(vtkCellTag, rit, ents3d.end(), count, (void*&)vids);
       if (MB_SUCCESS != rval) continue;
-      int count = rit - rit2;
       
-      rval = mbImpl->tag_iterate(*vit, rit2, ents3d.end(), data);
+      rval = mbImpl->tag_iterate(*vit, rit, ents3d.end(), count, data);
       if (MB_SUCCESS != rval) continue;
+      rit += count;
       
       if (MB_TYPE_DOUBLE == dtype) {
         ddata = (double*)data;
@@ -554,15 +556,16 @@ ErrorCode vtkMOABReaderPrivate::read_dense_tags(EntityHandle file_set)
         has_default = true;
     }
 
-    rit = rit2 = verts.begin();
+    rit = verts.begin();
     while (rit != verts.end()) {
         // get tag iterator for vids
-      rval = mbImpl->tag_iterate(vtkPointTag, rit, verts.end(), (void*&)vids);
+      int count;
+      rval = mbImpl->tag_iterate(vtkPointTag, rit, verts.end(), count, (void*&)vids);
       if (MB_SUCCESS != rval) continue;
-      int count = rit - rit2;
       
-      rval = mbImpl->tag_iterate(*vit, rit2, verts.end(), data);
+      rval = mbImpl->tag_iterate(*vit, rit, verts.end(), count, data);
       if (MB_SUCCESS != rval) continue;
+      rit += count;
       
       if (MB_TYPE_DOUBLE == dtype) {
         ddata = (double*)data;
@@ -642,7 +645,7 @@ ErrorCode vtkMOABReaderPrivate::read_sparse_tags(EntityHandle file_set)
       
         // create a data array
       std::string tag_name;
-      bool has_default = false;
+      //bool has_default = false;
       if (lmax) tag_name = std::string(lnames[l]);
       else {
         rval = mbImpl->tag_get_name(*vit, tag_name);
@@ -709,7 +712,7 @@ ErrorCode vtkMOABReaderPrivate::construct_mesh(EntityHandle file_set)
   MOABMeshErrorMacro(<< "Read " << all_elems.size() << " entities from MOAB.");
 
     // create the elements
-  int success = this->create_elements(file_set);
+  result = this->create_elements(file_set);
   if (MB_SUCCESS != result)
     {
     MOABMeshErrorMacro( << "Problem filling in quad data. " );
@@ -761,7 +764,6 @@ ErrorCode vtkMOABReaderPrivate::create_points_vertices(EntityHandle file_set, Ra
 
     // put these data into a point array
   vtkPoints *points = vtkPoints::New();
-  int dum;
   points->SetNumberOfPoints(verts.size());
   assert(MB_SUCCESS == result);
   unsigned int i = numPointIds - verts.size();
@@ -812,7 +814,7 @@ ErrorCode vtkMOABReaderPrivate::create_elements(EntityHandle file_set)
   vtkIdType ids[CN::MAX_NODES_PER_ELEMENT];
   const EntityHandle *connect;
   int num_connect;
-  bool first = true;
+  //bool first = true;
 
   for (EntityType this_type = MBEDGE; this_type != MBENTITYSET; this_type++) {
 
