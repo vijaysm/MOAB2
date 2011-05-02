@@ -38,11 +38,11 @@ int main()
 class GetOffsets : public VarLenTag
 {
 public:
-  unsigned pointer_array_offset() { return OFFSET(mData.mPointer.array); }
-  unsigned pointer_size_offset() { return OFFSET(mData.mPointer.size); }
+  unsigned pointer_array_offset() { return OFFSET(mData.mData.mPointer.array); }
+  unsigned pointer_size_offset() { return OFFSET(mData.mData.mPointer.size); }
 #ifdef VAR_LEN_TAG_ELIDE_DATA
-  unsigned inline_array_offset() { return OFFSET(mData.mInline.array); }
-  unsigned inline_size_offset() { return OFFSET(mData.mInline.size); }
+  unsigned inline_array_offset() { return OFFSET(mData.mData.mInline.array); }
+  unsigned inline_size_offset() { return OFFSET(mData.mData.mInline.size); }
 #endif
 };
 struct ExpectedSize
