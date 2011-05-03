@@ -16,11 +16,17 @@ using namespace moab;
   return A; } } while(false)
 
 #ifdef MESHDIR
+#ifdef HAVE_OCC_STEP
+static const char input_file[] = STRINGIFY(MESHDIR) "/io/dum.stp";
+#else
 static const char input_file[] = STRINGIFY(MESHDIR) "/io/dum.sat";
-static const char input_file2[] = STRINGIFY(MESHDIR) "/io/dum.stp";
+#endif
+#else
+#ifdef HAVE_OCC_STEP
+static const char input_file[] = "dum.stp";
 #else
 static const char input_file[] = "dum.sat";
-static const char input_file2[] = "dum.stp";
+#endif
 #endif
 
 void read_multiple_test() 
@@ -28,21 +34,11 @@ void read_multiple_test()
   Core mb;
 
   ErrorCode rval = mb.load_file(input_file);
-  if (rval!=MB_SUCCESS)
-  {
-    std::cout<<"try loading now an stp file, supported by occ\n";
-    // try loading an stp file, maybe
-    rval = mb.load_file(input_file2);
-    CHECK_ERR(rval);
-    // try to load it second time
-    rval = mb.load_file(input_file2);
-    CHECK_ERR(rval);
-  }
-  else
-  {
-    rval = mb.load_file(input_file);
-    CHECK_ERR(rval);
-  }
+  CHECK_ERR(rval);
+  // second load
+  rval = mb.load_file(input_file);
+  CHECK_ERR(rval);
+
 }
   
 int main(int argc, char* argv[])

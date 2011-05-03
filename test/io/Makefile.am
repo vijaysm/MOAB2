@@ -58,6 +58,7 @@ stl_test_SOURCES = $(srcdir)/../TestUtil.hpp stl_test.cc
 smf_test_SOURCES = $(srcdir)/../TestUtil.hpp smf_test.cc
 ccmio_test_SOURCES = $(srcdir)/../TestUtil.hpp ccmio_test.cpp
 read_cgm_test_SOURCES = $(srcdir)/../TestUtil.hpp read_cgm_test.cpp
+read_cgm_test_CXXFLAGS = $(CGM_CPPFLAGS)  $(CXXFLAGS)
 readutil_test_SOURCES = $(srcdir)/../TestUtil.hpp readutil_test.cpp
 
 MOSTLYCLEANFILES = dumped_acis.sat  \
