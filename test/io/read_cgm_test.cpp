@@ -17,8 +17,10 @@ using namespace moab;
 
 #ifdef MESHDIR
 static const char input_file[] = STRINGIFY(MESHDIR) "/io/dum.sat";
+static const char input_file2[] = STRINGIFY(MESHDIR) "/io/dum.stp";
 #else
 static const char input_file[] = "dum.sat";
+static const char input_file2[] = "dum.stp";
 #endif
 
 void read_multiple_test() 
@@ -26,10 +28,21 @@ void read_multiple_test()
   Core mb;
 
   ErrorCode rval = mb.load_file(input_file);
-  CHECK_ERR(rval);
-  
-  rval = mb.load_file(input_file);
-  CHECK_ERR(rval);
+  if (rval!=MB_SUCCESS)
+  {
+    std::cout<<"try loading now an stp file, supported by occ\n";
+    // try loading an stp file, maybe
+    rval = mb.load_file(input_file2);
+    CHECK_ERR(rval);
+    // try to load it second time
+    rval = mb.load_file(input_file2);
+    CHECK_ERR(rval);
+  }
+  else
+  {
+    rval = mb.load_file(input_file);
+    CHECK_ERR(rval);
+  }
 }
   
 int main(int argc, char* argv[])
