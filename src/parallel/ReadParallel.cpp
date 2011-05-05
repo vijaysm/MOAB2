@@ -512,16 +512,27 @@ ErrorCode ReadParallel::load_file(const char **file_names,
       result = tmp_result;
   }
 
-  if (cputime && 0 == myPcomm->proc_config().proc_rank()) {
-    std::cout << "Read times: ";
-    for (i = 1, vit = pa_vec.begin();
-         vit != pa_vec.end(); vit++, i++) 
-      std::cout << act_times[i] - act_times[i-1] << " ";
-    std::cout << "(";
-    for (vit = pa_vec.begin();
-         vit != pa_vec.end(); vit++) 
-      std::cout << ParallelActionsNames[*vit] << "/";
-    std::cout << ")" << std::endl;
+  if (cputime) {
+    for (i = pa_vec.size(); i > 0; i--)
+      act_times[i] -= act_times[i-1];
+  
+      // replace initial time with overall time
+    act_times[0] = MPI_Wtime() - act_times[0];
+      // get the maximum over all procs
+    if (0 != myPcomm->proc_config().proc_rank()) {
+      MPI_Reduce( &act_times[0], 0, pa_vec.size()+1, MPI_DOUBLE, MPI_MAX, 
+                  0, myPcomm->proc_config().proc_comm());
+    }
+    else {
+      MPI_Reduce( MPI_IN_PLACE, &act_times[0], pa_vec.size()+1, MPI_DOUBLE, 
+                  MPI_MAX, 0, myPcomm->proc_config().proc_comm());
+
+      std::cout << "Parallel Read times: " << std::endl;
+      for (i = 1, vit = pa_vec.begin(); vit != pa_vec.end(); vit++, i++) 
+          std::cout << "  " << act_times[i] << " "
+                    << ParallelActionsNames[*vit] << std::endl;
+      std::cout << "  " << act_times[0] << " PARALLEL TOTAL" << std::endl;
+    }
   }
   
   if (MB_SUCCESS == result && file_set_ptr) {
