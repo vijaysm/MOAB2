@@ -159,7 +159,7 @@ private:
       EntityHandle & new_geo_edge, Range & geo_vertices);
 
   // used for splitting surfaces
-  ErrorCode separate (Range & iniTriangles, Range & triToDelete,
+  ErrorCode separate (EntityHandle face, Range & triToDelete,
       Range & new_triangles, EntityHandle new_geo_edge, Range & first,
       Range & second);
 
@@ -168,6 +168,17 @@ private:
 
   // having a node, split boundary along that node
   ErrorCode  split_boundary(EntityHandle face, EntityHandle atNode);
+
+  // see if the node is already part of a vertex set, to not create another one
+  bool  find_vertex_set_for_node(EntityHandle iNode, EntityHandle & oVertexSet);
+
+  // if the splitting edge is not a loop, the original boundary edges will belong to
+  // either original face, or new face
+  // only the new geo edge (splitting) will be part of both, with the
+  // orientation already decided
+  //
+  ErrorCode redistribute_boundary_edges_to_faces(EntityHandle face, EntityHandle newFace,
+      EntityHandle new_geo_edge);
 
   Interface * _mbImpl;
 

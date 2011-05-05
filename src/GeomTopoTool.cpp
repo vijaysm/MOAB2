@@ -39,7 +39,7 @@ const char GEOM_SENSE_N_SENSES_TAG_NAME[] = "GEOM_SENSE_N_SENSES";
 
 GeomTopoTool::GeomTopoTool(Interface *impl, bool find_geoments) :
   mdbImpl(impl), sense2Tag(0), senseNEntsTag(0), senseNSensesTag(0),
-  geomTag(0), gidTag(0), obbTree(impl), contiguous(true), oneVolRootSet(0)
+  geomTag(0), gidTag(0), obbTree(impl, NULL, true), contiguous(true), oneVolRootSet(0)
 {
 
   ErrorCode result = mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4,
@@ -78,6 +78,22 @@ int GeomTopoTool::dimension(EntityHandle this_set)
   return dim;
 }
 
+int GeomTopoTool::global_id(EntityHandle this_set)
+{
+  ErrorCode result;
+  if (0 == gidTag) {
+    result = mdbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gidTag);
+    if (MB_SUCCESS != result)
+      return result;
+  }
+
+  // get the data for those tags
+  int id;
+  result = mdbImpl->tag_get_data(gidTag, &this_set, 1, &id);
+  if (MB_SUCCESS != result)
+    return -1;
+  return id;
+}
 ErrorCode GeomTopoTool::other_entity(EntityHandle bounded,
     EntityHandle not_this, EntityHandle across, EntityHandle &other)
 {

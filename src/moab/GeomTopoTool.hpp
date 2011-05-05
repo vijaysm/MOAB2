@@ -104,6 +104,8 @@ public:
      */
   int dimension(EntityHandle this_set);
   
+  // used mostly for debugging purposes
+  int global_id(EntityHandle this_set);
   
   ErrorCode find_geomsets(Range *ranges = NULL);
 

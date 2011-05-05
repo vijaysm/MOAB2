@@ -1317,7 +1317,7 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
   // we will separate triangles to delete, unaffected, new_triangles,
   //  nodesAlongPolyline, 
   Range first, second;
-  rval = separate (iniTris, triToDelete, new_triangles, new_geo_edge,
+  rval = separate (face, triToDelete, new_triangles, new_geo_edge,
       first, second);
 
   // now, we are done with the computations;
@@ -1412,9 +1412,10 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
   }
   MBERRORR(rval, "can't add proper set to the original set");
 
-  if (debug_splits)
+  if (!loop)
   {
-    _mbImpl->write_file("firstFace.vtk", "vtk", 0, &newFace, 1);
+    rval = redistribute_boundary_edges_to_faces(face, newFace, new_geo_edge);
+    MBERRORR(rval, "fail to reset the proper boundary faces");
   }
 
   if (_smooth)
@@ -1431,6 +1432,11 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
   rval=_mbImpl->delete_entities(edgesToDelete);
   MBERRORR(rval, "can't delete edges");
 
+  if (debug_splits)
+  {
+    _mbImpl->write_file("newFace.vtk", "vtk", 0, &newFace, 1);
+    _mbImpl->write_file("leftoverFace.vtk", "vtk", 0, &face, 1);
+  }
   return MB_SUCCESS;
 }
 
@@ -1475,7 +1481,7 @@ ErrorCode FBEngine::smooth_new_intx_points(EntityHandle face,
   return MB_SUCCESS;
 }
 // so, triangles are
-ErrorCode FBEngine::separate (Range & iniTriangles, Range & triToDelete,
+ErrorCode FBEngine::separate (EntityHandle face, Range & triToDelete,
     Range & new_triangles,
     EntityHandle new_geo_edge, Range & first,  Range & second)
 {
@@ -1487,6 +1493,7 @@ ErrorCode FBEngine::separate (Range & iniTriangles, Range & triToDelete,
   //  an edge in the new_geo_edge, it is skipped; triangles in the
   // triangles to delete are not added
   // first, create all edges of the new triangles
+
   Range edges_of_new_triangles;
   ErrorCode rval = _mbImpl->get_adjacencies(new_triangles,
       1, true, edges_of_new_triangles, Interface::UNION);
@@ -1500,6 +1507,23 @@ ErrorCode FBEngine::separate (Range & iniTriangles, Range & triToDelete,
   rval = _mbImpl->get_entities_by_type(new_geo_edge, MBEDGE, doNotCrossEdges);
   MBERRORR(rval, "can't get new polyline edges");
   //
+  Range iniTriangles;
+  rval = _mbImpl -> get_entities_by_type(face, MBTRI, iniTriangles);
+  MBERRORR(rval, "can't get tri from initial face");
+
+  // get edges of face (adjacencies)
+  // also get the old boundary edges, from face; they will be edges to not cross
+  Range bound_edges;
+  rval = getAdjacentEntities(face, 1, bound_edges);
+  MBERRORR(rval, "can't get boundary edges");
+
+  // add to the do not cross edges range, all edges from initial boundary
+  for (Range::iterator it= bound_edges.begin(); it!=bound_edges.end(); it++)
+  {
+    EntityHandle bound_edge=*it;
+    rval = _mbImpl->get_entities_by_dimension(bound_edge, 1, doNotCrossEdges);
+  }
+
   std::queue<EntityHandle> firstQueue;
   firstQueue.push(new_triangles[0]);
   Range visited;
@@ -1608,20 +1632,9 @@ ErrorCode  FBEngine::create_new_gedge(std::vector<EntityHandle> &nodesAlongPolyl
 
   // add loops edges to the edge set
   rval = _mbImpl->add_entities(new_geo_edge, &mesh_edges[0], mesh_edges.size());// only one edge
+  MBERRORR(rval, "can't add edges to new_geo_set");
   // check vertex sets for vertex 1 and vertex 2?
   // get all sets of dimension 0 from database, and see if our ends are here or not
-  Range vertex_sets;
-
-  const int zero = 0;
-  const void* const zero_val[] = { &zero };
-  Tag geom_tag;
-  rval = MBI->tag_get_handle(GEOM_DIMENSION_TAG_NAME, geom_tag);
-  MBERRORR(rval, "can't get geom tag");
-  rval = _mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &geom_tag,
-        zero_val, 1, vertex_sets);
-  MBERRORR(rval, "can't get all vertex sets so far"); // these could be different from
-  // local _gsets, as we might have not updated the local lists
-  // see if ends of geo edge generated is in a geo set 0 or not
 
   Range ends_geo_edge;
   ends_geo_edge.insert(nodesAlongPolyline[0]);
@@ -1631,19 +1644,8 @@ ErrorCode  FBEngine::create_new_gedge(std::vector<EntityHandle> &nodesAlongPolyl
   {
     EntityHandle node = ends_geo_edge[k];
     EntityHandle nodeSet;
-    bool found=false;
-    for( Range::iterator vsit=vertex_sets.begin(); vsit!=vertex_sets.end(); vsit++)
-    {
-      EntityHandle vset=*vsit;
-      // is the node part of this set?
-      if (_mbImpl->contains_entities(vset, &node, 1))
-      {
-        // add the parent child relation between sets
-        found = true;
-        nodeSet = vset;
-        break;
-      }
-    }
+    bool found=find_vertex_set_for_node(node, nodeSet);
+
     if (!found)
     {
       // create a node set and add the node
@@ -1653,6 +1655,15 @@ ErrorCode  FBEngine::create_new_gedge(std::vector<EntityHandle> &nodesAlongPolyl
 
       rval = _mbImpl->add_entities(nodeSet, &node, 1);
       MBERRORR(rval, "Failed to add the node to the set");
+
+      rval = _my_geomTopoTool->add_geo_set(nodeSet, 0);//
+      MBERRORR(rval, "Failed to commit the node set");
+
+      if (debug_splits)
+      {
+        std::cout<<" create a vertex set " << _mbImpl->id_from_handle(nodeSet) << " global id:"<<
+            this->_my_geomTopoTool->global_id(nodeSet) << " for node " << node <<  "\n";
+      }
 
     }
     geo_vertices.insert(nodeSet); //(new or already existing)
@@ -1934,10 +1945,11 @@ ErrorCode FBEngine::compute_intersection_points(EntityHandle & face,
     std::vector<EntityHandle> adj_tri;
     rval = _mbImpl->get_adjacencies(&currentBoundary, 1, 2, false, adj_tri);
     unsigned int j = 0;
+    EntityHandle tri;
     for (; j < adj_tri.size(); j++) {
-      EntityHandle tri = adj_tri[j];
+      tri = adj_tri[j];
       if (tri == to)
-        break; // break out of while loop, we are done
+        break; // break out of while loop, we are done; this first break will break out of "for" loop
       if (visitedTriangles.find(tri) != visitedTriangles.end())
         continue;// get another triangle, this one was already visited
       // if vertex, look for opposite edge
@@ -2066,6 +2078,8 @@ ErrorCode FBEngine::compute_intersection_points(EntityHandle & face,
      {
      MBERRORR(MB_FAILURE, "did not advance");
      }*/
+    if (tri==to)
+      break;// finally get out of while loop
     vect = p2 - currentPoint;
 
   }
@@ -2101,6 +2115,11 @@ ErrorCode  FBEngine::split_edge_at_point(EntityHandle edge, CartVect & point,
 
   // first of all, find a closest point
   // usually called for
+  if (debug_splits)
+  {
+    std::cout<<"Split edge " << _mbImpl->id_from_handle(edge) << " at point:" <<
+        point << "\n";
+  }
   int dim = _my_geomTopoTool->dimension(edge);
   if (dim !=1)
     return MB_FAILURE;
@@ -2133,10 +2152,18 @@ ErrorCode  FBEngine::split_edge_at_point(EntityHandle edge, CartVect & point,
 ErrorCode FBEngine::split_edge_at_mesh_node(EntityHandle edge, EntityHandle node,
     EntityHandle & new_edge)
 {
-  // the node should be in the loop
+  // the node should be in the list of nodes
+
   int dim = _my_geomTopoTool->dimension(edge);
   if (dim!=1)
     return MB_FAILURE; // not an edge
+
+  if (debug_splits)
+  {
+    std::cout<<"Split edge " << _mbImpl->id_from_handle(edge) << " with global id: "<<
+        _my_geomTopoTool->global_id(edge) << " at node:" <<
+        _mbImpl->id_from_handle(node) << "\n";
+  }
 
   // now get the edges
   // the order is important...
@@ -2180,20 +2207,42 @@ ErrorCode FBEngine::split_edge_at_mesh_node(EntityHandle edge, EntityHandle node
   }
   if (index_edge==num_mesh_edges-1)
   {
-    new_edge = 0; // no need to split, it is the last node node
+    new_edge = 0; // no need to split, it is the last node
     return MB_SUCCESS; // no split
   }
 
   // here, we have 0 ... index_edge edges in the first set,
   // create a vertex set and add the node to it
 
+  if (debug_splits)
+  {
+    std::cout<<"Split edge with " << num_mesh_edges << " mesh edges, at index (0 based) " <<
+        index_edge << "\n";
+  }
 
-  EntityHandle nodeSet; // the new node set that will be created
-  rval = _mbImpl->create_meshset(MESHSET_SET, nodeSet);
-  MBERRORR(rval, "Failed to create a new vertex set");
+  // at this moment, the node set should have been already created in new_geo_edge
+  EntityHandle nodeSet; // the node set that has the node (find it!)
+  bool found=find_vertex_set_for_node(node, nodeSet);
 
-  rval = _mbImpl->add_entities(nodeSet, &node, 1);
-  MBERRORR(rval, "Failed to add the node to the set");
+  if (!found) {
+    // create a node set and add the node
+
+    // must be an error, but create one nevertheless
+    rval = _mbImpl->create_meshset(MESHSET_SET, nodeSet);
+    MBERRORR(rval, "Failed to create a new vertex set");
+
+    rval = _mbImpl->add_entities(nodeSet, &node, 1);
+    MBERRORR(rval, "Failed to add the node to the set");
+
+    rval = _my_geomTopoTool->add_geo_set(nodeSet, 0);//
+    MBERRORR(rval, "Failed to commit the node set");
+
+    if (debug_splits)
+    {
+      std::cout<<" create a vertex set (this should have been created before!)" << _mbImpl->id_from_handle(nodeSet) << " global id:"<<
+          this->_my_geomTopoTool->global_id(nodeSet) <<  "\n";
+    }
+  }
 
   // we need to remove the remaining mesh edges from first set, and add it
   // to the second set, in order
@@ -2264,18 +2313,20 @@ ErrorCode FBEngine::split_edge_at_mesh_node(EntityHandle edge, EntityHandle node
   rval = _mbImpl->add_parent_child(new_edge, nodeSet);
   MBERRORR(rval, " can't add new vertex to new edge");
 
+  // one thing that I forgot: add the secondSet as a child to new edge!!!
+  // (so far, the new edge has only one end vertex!)
+  rval = _mbImpl->add_parent_child(new_edge, secondSet);
+  MBERRORR(rval, " can't add second vertex to new edge");
+
 // now, add the edge and vertex to geo tool
 
   rval = _my_geomTopoTool->add_geo_set(new_edge, 1);
   MBERRORR(rval, " can't add new edge");
 
-  rval = _my_geomTopoTool->add_geo_set(nodeSet, 0);
-  MBERRORR(rval, " can't add new edge");
-
   // next, get the adjacent faces to initial edge, and add them as parents
   // to the new edge
 
-  // need to find the adjacent vertex sets
+  // need to find the adjacent face sets
   Range faceRange;
   rval = getAdjacentEntities(edge, 2, faceRange);
 
@@ -2295,6 +2346,11 @@ ErrorCode FBEngine::split_edge_at_mesh_node(EntityHandle edge, EntityHandle node
 ErrorCode FBEngine::split_boundary(EntityHandle face, EntityHandle atNode)
 {
   // find the boundary edges, and split the one that we find it is a part of
+  if (debug_splits)
+  {
+    std::cout<<"Split face " << _mbImpl->id_from_handle(face) << " at node:" <<
+        _mbImpl->id_from_handle(atNode) << "\n";
+  }
   Range bound_edges;
   ErrorCode rval = getAdjacentEntities(face, 1, bound_edges);
   MBERRORR(rval, " can't get boundary edges");
@@ -2319,6 +2375,109 @@ ErrorCode FBEngine::split_boundary(EntityHandle face, EntityHandle atNode)
     }
   }
   MBERRORR(MB_FAILURE, " we did not find an appropriate boundary edge"); ; //
+}
+
+bool FBEngine::find_vertex_set_for_node(EntityHandle iNode, EntityHandle & oVertexSet)
+{
+  bool found = false;
+  Range vertex_sets;
+
+  const int zero = 0;
+  const void* const zero_val[] = { &zero };
+  Tag geom_tag;
+  ErrorCode rval = MBI->tag_get_handle(GEOM_DIMENSION_TAG_NAME, geom_tag);
+  if (MB_SUCCESS!=rval)
+    return false;
+  rval = _mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &geom_tag,
+        zero_val, 1, vertex_sets);
+  if (MB_SUCCESS!=rval)
+    return false;
+  // local _gsets, as we might have not updated the local lists
+  // see if ends of geo edge generated is in a geo set 0 or not
+
+  for( Range::iterator vsit=vertex_sets.begin(); vsit!=vertex_sets.end(); vsit++)
+  {
+    EntityHandle vset=*vsit;
+    // is the node part of this set?
+    if (_mbImpl->contains_entities(vset, &iNode, 1))
+    {
+
+      found = true;
+      oVertexSet = vset;
+      break;
+    }
+  }
+  return found;
+}
+ErrorCode FBEngine::redistribute_boundary_edges_to_faces(EntityHandle face, EntityHandle newFace,
+      EntityHandle new_geo_edge)
+{
+
+  // so far, original boundary edges are all parent/child relations for face
+  // we should get them all, and see if they are truly adjacent to face or newFace
+  // decide also on the orientation/sense with respect to the triangles
+  Range r1; // range in old face
+  Range r2; // range of tris in new face
+  ErrorCode rval = _mbImpl->get_entities_by_dimension(face, 2, r1);
+  MBERRORR(rval, " can't get triangles from old face");
+  rval = _mbImpl->get_entities_by_dimension(newFace, 2, r2);
+  MBERRORR(rval, " can't get triangles from new face");
+  // right now, all boundary edges are children of face
+  // we need to get them all, and verify if they indeed are adjacent to face
+  Range children;
+  rval = _mbImpl->get_child_meshsets(face, children);// only direct children are of interest
+  MBERRORR(rval, " can't get children sets from face");
+
+  for (Range::iterator it = children.begin(); it!=children.end(); it++)
+  {
+    EntityHandle edge=*it;
+    if (new_geo_edge==edge)
+      continue; // we already set this one fine
+    // get one mesh edge from the edge; we have to get all of them!!
+    if (_my_geomTopoTool->dimension(edge)!=1)
+      continue; // not an edge
+    Range mesh_edges;
+    rval = _mbImpl->get_entities_by_handle(edge, mesh_edges);
+    MBERRORR(rval, " can't get mesh edges from edge");
+    if (mesh_edges.empty())
+      MBERRORR(MB_FAILURE, " no mesh edges");
+    EntityHandle mesh_edge = mesh_edges[0]; // first one is enough
+    //get its triangles; see which one is in r1 or r2; it should not be in both
+    Range triangles;
+    rval = _mbImpl->get_adjacencies(&mesh_edge, 1, 2, false, triangles);
+    MBERRORR(rval, " can't get adjacent triangles");
+    Range intx1 = intersect(triangles, r1);
+    Range intx2 = intersect(triangles, r2);
+    if (!intx1.empty() && !intx2.empty())
+      MBERRORR(MB_FAILURE, " at least one should be empty");
+
+    if (intx2.empty())
+    {
+      // it means it is in the range r1; the sense should be fine, no need to reset
+      // the sense should have been fine, also
+      continue;
+    }
+    // so it must be a triangle in r2;
+    EntityHandle triangle = intx2[0];// one triangle only
+    // remove the edge from boundary of face, and add it to the boundary of newFace
+    // remove_parent_child( EntityHandle parent,  EntityHandle child )
+    rval = _mbImpl->remove_parent_child(face, edge);
+    MBERRORR(rval, " can't remove parent child relation for edge");
+    // add to the new face
+    rval = _mbImpl->add_parent_child(newFace, edge);
+    MBERRORR(rval, " can't add parent child relation for edge");
+
+    // set some sense, based on the sense of the mesh_edge in triangle
+    int num1, sense, offset;
+    rval = _mbImpl->side_number(triangle, mesh_edge, num1, sense, offset);
+    MBERRORR(rval, "mesh edge not adjacent to triangle");
+
+    rval = this->_my_geomTopoTool->set_sense(edge, newFace, sense);
+    MBERRORR(rval, "can't set proper sense of edge in face");
+
+  }
+
+  return MB_SUCCESS;
 }
 
 } // namespace moab
