@@ -613,13 +613,13 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
       iFace->tag_get_data_type( tag_iter->tag_id, type );
       if (type != ptr->type) {
         writeUtil->report_error("Processes have inconsistent data type for tag \"%s\"", name.c_str() );
-        return MB_FAILURE;
+        return error(MB_FAILURE);
       }
       int size;
       iFace->tag_get_size( tag_iter->tag_id, size );
       if (type != ptr->type) {
         writeUtil->report_error("Processes have inconsistent size for tag \"%s\"", name.c_str() );
-        return MB_FAILURE;
+        return error(MB_FAILURE);
       }
     }
   
@@ -2107,11 +2107,10 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
   }
   
     // get a buffer for offset locations
-  std::vector<hsize_t> coords;
-  coords.reserve(8 * count);
+  Range indices;
+  Range::iterator hint;
   
-  
-  long* buff_iter = buffer;
+  mhdf_index_t* buff_iter = buffer;
   for( iter = parallelSets.begin();
         iter != parallelSets.end(); ++iter)
   {
@@ -2134,30 +2133,30 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
     *buff_iter = iter->childrenOffset + iter->childrenCount - 1; ++buff_iter;
     *buff_iter = iter->parentsOffset  + iter->parentsCount  - 1, ++buff_iter;
     *buff_iter = flags;                                          ++buff_iter;
-    coords.push_back( file_id ); coords.push_back( 0 );
-    coords.push_back( file_id ); coords.push_back( 1 );
-    coords.push_back( file_id ); coords.push_back( 2 );
-    coords.push_back( file_id ); coords.push_back( 3 );
+    hint = indices.insert( hint, file_id+1 );
     
     if (dbg_track) dbg_track->record_io( file_id, 1 );
   }
 
-  herr_t herr;
+  herr_t herr = 0;
   hid_t space = H5Dget_space( table );
-  hsize_t dims[2] = { count, 4 };
+  hsize_t dims[2] = { count, 4 }, offsets[2] = { 0, 0 };
   hid_t mem;
+  H5S_seloper_t op = H5S_SELECT_SET;
   if (count) {
     mem = H5Screate_simple( 2, dims, NULL );
-#if (1000 * H5_VERS_MAJOR + H5_VERS_MINOR) < 1007
-    herr = H5Sselect_elements( space, H5S_SELECT_SET, 4*count, (const hsize_t**)&coords[0] );
-#else
-    herr = H5Sselect_elements( space, H5S_SELECT_SET, 4*count, &coords[0] );
-#endif
+    Range::const_pair_iterator pi;
+    dims[1] = 4;
+    for (pi = indices.const_pair_begin(); pi != indices.const_pair_end(); ++pi) {
+      offsets[0] = pi->first-1;
+      dims[0] = pi->second - pi->first + 1;
+      herr = H5Sselect_hyperslab( space, op, offsets, 0, dims, 0 );
+      if (herr < 0)
+        break;
+      op = H5S_SELECT_OR;
+    }
   }
   else {
-//#if H5_VERS_MAJOR > 1 || H5_VERS_MINOR >= 8
-//    mem = H5Screate(H5S_NULL); 
-//#else
     hsize_t one = 1;
     mem = H5Screate_simple( 1, &one, NULL );
     herr = H5Sselect_none( mem );
@@ -2165,9 +2164,8 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
       H5Sclose( space );
       H5Sclose( mem );
       writeUtil->report_error( "H5Sselect_none failed for set contents" );
-      return MB_FAILURE;
+      return error(MB_FAILURE);
     }
-//#endif
     herr = H5Sselect_none( space );
   }
 
@@ -2176,7 +2174,7 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
     H5Sclose( space );
     dbgOut.tprint(1,"H5Sselect_elements failed\n");
     writeUtil->report_error("H5Sselect_elements failed");
-    return MB_FAILURE;
+    return error(MB_FAILURE);
   }
   herr = H5Dwrite( table, MHDF_INDEX_TYPE, mem, space, writeProp, buffer );
   H5Sclose( space );
@@ -2184,7 +2182,7 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
   if (herr < 0) {
     dbgOut.tprint(1,"Failed to write shared set descriptions\n");
     writeUtil->report_error("H5Dwrite of shared set descriptions failed.");
-    return MB_FAILURE;
+    return error(MB_FAILURE);
   }
 
   return MB_SUCCESS;
@@ -2240,7 +2238,7 @@ ErrorCode WriteHDF5Parallel::write_shared_set_data( hid_t table,
     if (err < 0) {
       H5Sclose( data_space );
       writeUtil->report_error( "H5Sselect_hyperslab failed for set contents" );
-      return MB_FAILURE;
+      return error(MB_FAILURE);
     }
     std::copy( id_list.begin(), id_list.end(), std::back_inserter(big_list) );
   }
@@ -2257,7 +2255,7 @@ ErrorCode WriteHDF5Parallel::write_shared_set_data( hid_t table,
       H5Sclose( data_space );
       H5Sclose( mem );
       writeUtil->report_error( "H5Sselect_none failed for set contents" );
-      return MB_FAILURE;
+      return error(MB_FAILURE);
     }
 //#endif
     H5Sselect_none(data_space);
@@ -2267,13 +2265,13 @@ ErrorCode WriteHDF5Parallel::write_shared_set_data( hid_t table,
     mem = H5Screate_simple( 1, &dim, NULL );
   }
   
-  err = H5Dwrite( table, H5T_NATIVE_LONG, mem, data_space, writeProp, &big_list[0] );
+  err = H5Dwrite( table, id_type, mem, data_space, writeProp, &big_list[0] );
   H5Sclose( data_space );
   H5Sclose( mem );
   if (err < 0) {
     dbgOut.tprint(1,"Failed to write shared set descriptions\n");
     writeUtil->report_error("H5Dwrite of shared set descriptions failed.");
-    return MB_FAILURE;
+    return error(MB_FAILURE);
   }
     
   return MB_SUCCESS;    
@@ -2434,7 +2432,7 @@ ErrorCode WriteHDF5Parallel::exchange_file_ids( const Range& nonlocal )
                             "entities written to file.\n",
                             invalid_count, myPcomm->proc_config().proc_rank() );
     iFace->tag_delete( file_id_tag );
-    return MB_FAILURE;
+    return error(MB_FAILURE);
   }
 #endif   
   
