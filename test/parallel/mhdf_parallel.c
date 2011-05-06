@@ -42,6 +42,9 @@ void check( mhdf_Status* status, int line )
   }
 }
 
+typedef int handle_id_t;
+#define id_type H5T_NATIVE_INT
+
 /* create file layout in serial */
 void create_file()
 {
@@ -65,7 +68,7 @@ void create_file()
   t = time(NULL);
   history[1] = ctime(&t);
   
-  file = mhdf_createFile( filename, 1, elem_types, num_elem_types, &status );
+  file = mhdf_createFile( filename, 1, elem_types, num_elem_types, id_type, &status );
   CHECK(status);
   
   mhdf_writeHistory( file, history, history_size, &status );
@@ -114,7 +117,7 @@ void write_file_data()
   const int total_num_hexes = NUM_PROC;
   long first_node, first_elem, first_set, count, ntag;
   unsigned long ucount;
-  long set_desc[4] = { 0, -1, -1, 0 };
+  mhdf_index_t set_desc[4] = { 0, -1, -1, 0 };
   hid_t handle, handles[2];
   mhdf_Status status;
   mhdf_FileHandle file;
@@ -127,14 +130,15 @@ void write_file_data()
                          0.0, 1.0, 0.0, 
                          0.0, 1.0, 1.0, 
                          0.0, 0.0, 1.0 };
-  int i, list[10], tagdata[10];
+  handle_id_t list[10];
+  int i, tagdata[10];
   for (i = 0; i < 10; i++) tagdata[i] = RANK;
   
   
     /* open file */
   handle = H5Pcreate( H5P_FILE_ACCESS );
   H5Pset_fapl_mpio( handle, MPI_COMM_WORLD, MPI_INFO_NULL );
-  file = mhdf_openFileWithOpt( filename, 1, &ucount, handle, &status );
+  file = mhdf_openFileWithOpt( filename, 1, &ucount, id_type, handle, &status );
   CHECK(status);
   H5Pclose( handle );
   
@@ -165,7 +169,7 @@ void write_file_data()
   CHECK(status);
   assert( count == total_num_hexes );
   assert( 8 == dim );
-  mhdf_writeConnectivity( handle, RANK, 1, H5T_NATIVE_INT, list, &status );
+  mhdf_writeConnectivity( handle, RANK, 1, id_type, list, &status );
   CHECK(status);
   mhdf_closeData( file, handle, &status );
   CHECK(status);
@@ -177,16 +181,16 @@ void write_file_data()
   
     /* write set descriptions for per-proc sets */
   set_desc[0] = total_num_nodes + total_num_hexes + 9 + 5*RANK - 1;
-  mhdf_writeSetMeta( handle, 2+RANK, 1, H5T_NATIVE_LONG, set_desc, &status );
+  mhdf_writeSetMeta( handle, 2+RANK, 1, MHDF_INDEX_TYPE, set_desc, &status );
   CHECK(status);
   
     /* write set descriptions for multi-proc sets */
   if (0 == RANK) {
     set_desc[0] = total_num_nodes - 1;
-    mhdf_writeSetMeta( handle, 0, 1, H5T_NATIVE_LONG, set_desc, &status );
+    mhdf_writeSetMeta( handle, 0, 1, MHDF_INDEX_TYPE, set_desc, &status );
     CHECK(status);
     set_desc[0] += total_num_hexes;
-    mhdf_writeSetMeta( handle, 1, 1, H5T_NATIVE_LONG, set_desc, &status );
+    mhdf_writeSetMeta( handle, 1, 1, MHDF_INDEX_TYPE, set_desc, &status );
     CHECK(status);
   }
 
@@ -214,17 +218,17 @@ void write_file_data()
       list[i] = 4 + 4*RANK + first_node + i;
     list[4] = RANK + first_elem;
   }
-  mhdf_writeSetData( handle, offset, count, H5T_NATIVE_INT, list, &status );
+  mhdf_writeSetData( handle, offset, count, id_type, list, &status );
   CHECK(status);
   
     /* write multi-proc sets */
     /* write nodes */
   offset = (0 == RANK) ? 0 : 4 + 4*RANK;
-  mhdf_writeSetData( handle, offset, count-1, H5T_NATIVE_INT, list, &status );
+  mhdf_writeSetData( handle, offset, count-1, id_type, list, &status );
   CHECK(status);
     /* write hex */
   offset = total_num_nodes + RANK;
-  mhdf_writeSetData( handle, offset, 1, H5T_NATIVE_INT, list + count - 1, &status );
+  mhdf_writeSetData( handle, offset, 1, id_type, list + count - 1, &status );
   CHECK(status);
   
   mhdf_closeData( file, handle, &status );
@@ -237,7 +241,7 @@ void write_file_data()
   mhdf_openSparseTagData( file, proc_tag_name, &ntag, &ntag, handles, &status );
   CHECK(status);
   assert( ntag == total_num_nodes + total_num_hexes + NUM_PROC );
-  mhdf_writeSparseTagEntities( handles[0], offset, count, H5T_NATIVE_INT, list, &status );
+  mhdf_writeSparseTagEntities( handles[0], offset, count, id_type, list, &status );
   CHECK(status);
   mhdf_writeTagValues( handles[1], offset, count, H5T_NATIVE_INT, tagdata, &status );
   CHECK(status);

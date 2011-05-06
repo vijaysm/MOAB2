@@ -336,7 +336,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
       type_names[i] = CN::EntityTypeName( i );
    
     dbgOut.tprint(1,"call mhdf_createFile\n");
-    filePtr = mhdf_createFile( filename, overwrite, type_names, MBMAXTYPE, &status );
+    filePtr = mhdf_createFile( filename, overwrite, type_names, MBMAXTYPE, id_type, &status );
     if (!filePtr)
     {
       writeUtil->report_error( "%s\n", mhdf_message( &status ) );
@@ -423,7 +423,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   unsigned long junk;
   hid_t hdf_opt = H5Pcreate( H5P_FILE_ACCESS );
   H5Pset_fapl_mpio( hdf_opt, myPcomm->proc_config().proc_comm(), MPI_INFO_NULL );
-  filePtr = mhdf_openFileWithOpt( filename, 1, &junk, hdf_opt, &status );
+  filePtr = mhdf_openFileWithOpt( filename, 1, &junk, id_type, hdf_opt, &status );
   H5Pclose( hdf_opt );
   if (!filePtr)
   {
@@ -1596,7 +1596,7 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
     // Gather counts of non-shared sets from each proc
     // to determine total table size.
   std::vector<long> set_offsets(myPcomm->proc_config().proc_size() + 1);
-  VALGRIND_MAKE_VEC_UNDEFINED( set_offsets );
+  //VALGRIND_MAKE_VEC_UNDEFINED( set_offsets );
   long local_count = setSet.range.size(), max_count = 0;
   result = MPI_Gather( &local_count,    1, MPI_LONG,
                        &set_offsets[0], 1, MPI_LONG,
@@ -2095,11 +2095,11 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
       ++count;
   
     // get a large enough buffer for all of the shared set metadata
-  std::vector<long> tmp_buffer;
-  size_t buffer_size = bufferSize / (4*sizeof(long));
-  long* buffer;
+  std::vector<mhdf_index_t> tmp_buffer;
+  size_t buffer_size = bufferSize / (4*sizeof(mhdf_index_t));
+  mhdf_index_t* buffer;
   if (buffer_size >= count) {
-    buffer = reinterpret_cast<long*>(dataBuffer);
+    buffer = reinterpret_cast<mhdf_index_t*>(dataBuffer);
   }
   else {
     tmp_buffer.resize(4 * count);
@@ -2178,7 +2178,7 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
     writeUtil->report_error("H5Sselect_elements failed");
     return MB_FAILURE;
   }
-  herr = H5Dwrite( table, H5T_NATIVE_LONG, mem, space, writeProp, buffer );
+  herr = H5Dwrite( table, MHDF_INDEX_TYPE, mem, space, writeProp, buffer );
   H5Sclose( space );
   H5Sclose( mem );
   if (herr < 0) {

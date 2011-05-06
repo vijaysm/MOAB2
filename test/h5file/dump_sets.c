@@ -38,7 +38,7 @@ int main( int argc, char* argv[] )
     ++WIDTH;
   }
   
-  file = mhdf_openFile( argv[1], 0, &max_id, &status ); CHECK;
+  file = mhdf_openFile( argv[1], 0, &max_id, -1, &status ); CHECK;
   dump_sets( file );
   mhdf_closeFile( file, &status ); CHECK;
   return 0;
