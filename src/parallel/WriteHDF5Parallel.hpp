@@ -209,6 +209,12 @@ class WriteHDF5Parallel : public WriteHDF5
     ErrorCode write_shared_set_data( hid_t table,
                                      WriteUtilIface::EntityListType which_data,
                                      IODebugTrack* dbg_track );
+
+      //! helper function for create_tag_tables
+    ErrorCode check_serial_tag_data( 
+                               const std::vector<unsigned char>& buffer,
+                               std::vector<TagDesc*>* missing = 0,
+                               std::vector<TagDesc*>* newlist = 0 );
   
   private:
     

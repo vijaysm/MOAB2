@@ -103,6 +103,37 @@ void VALGRIND_MAKE_VEC_UNDEFINED( std::vector<T>& v ) {
    }
 #endif
 
+static int my_Gatherv( void* sendbuf, 
+                       int sendcount, 
+                       MPI_Datatype sendtype,
+                       std::vector<unsigned char>& recvbuf,
+                       std::vector<int>& recvcounts,
+                       int root, 
+                       MPI_Comm comm )
+{
+  int nproc, rank, bytes, err;
+  MPI_Comm_size( comm, &nproc );
+  MPI_Comm_rank( comm, &rank );
+  MPI_Type_size( sendtype, &bytes );
+  
+  recvcounts.resize( rank == root ? nproc : 0 );
+  err = MPI_Gather( &sendcount, 1, MPI_INT, &recvcounts[0], 1, MPI_INT, root, comm );
+  if (MPI_SUCCESS != err) return err;
+  
+  
+  std::vector<int> disp(recvcounts.size());
+  if (root == rank) {
+    disp[0] = 0;
+    for (int i = 1; i < nproc; ++i)
+      disp[i] = disp[i-1] + recvcounts[i-1];
+    recvbuf.resize( bytes * (disp.back() + recvcounts.back()) );
+  }
+  
+  return MPI_Gatherv( sendbuf, sendcount, sendtype,
+                      &recvbuf[0], &recvcounts[0], &disp[0],
+                      sendtype, root, comm );
+}
+
 
 // This function doesn't do anything useful.  It's just a nice
 // place to set a break point to determine why the reader fails.
@@ -512,67 +543,30 @@ ErrorCode WriteHDF5Parallel::append_serial_tag_data(
 }
    
 
-static void set_bit( int position, unsigned char* bytes )
+ErrorCode WriteHDF5Parallel::check_serial_tag_data( 
+                               const std::vector<unsigned char>& buffer,
+                               std::vector<TagDesc*>* missing,
+                               std::vector<TagDesc*>* newlist )
 {
-  int byte = position/8;
-  int bit = position%8;
-  bytes[byte] |= (((unsigned char)1)<<bit);
-}
-
-static bool get_bit( int position, const unsigned char* bytes )
-{
-  int byte = position/8;
-  int bit = position%8;
-  return 0 != (bytes[byte] & (((unsigned char)1)<<bit));
-}
-
-ErrorCode WriteHDF5Parallel::create_tag_tables()
-{  
-  std::list<TagDesc>::iterator tag_iter;
   ErrorCode rval;
-  int err;
-  const int num_proc = myPcomm->proc_config().proc_size();
 
-  dbgOut.tprint(1,"communicating tag metadata\n");
-  
-    // Sort tagList contents in alphabetical order by tag name
-  tagList.sort( TagNameCompare( iFace ) );
-  
-    // Negotiate total list of tags to write
-  
-    // Build concatenated list of all tag data
-  std::vector<unsigned char> tag_buffer;
-  for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) {
-    rval = append_serial_tag_data( tag_buffer, *tag_iter );
-    if (MB_SUCCESS != rval)
-      return error(rval);
-  }
+    // Use 'write_sparse' field as a 'visited' mark
+  std::list<TagDesc>::iterator tag_iter;
+  if (missing)
+    for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter)
+      tag_iter->write_sparse = true;
 
-  dbgOut.printf(2,"Exchanging tag data for %d tags.\n", (int)tagList.size() ); 
+    // Use a set as a temporary for what will ultimately go in
+    // newlist because we need to pass back newlist in the order
+    // of the tagList member.
+  std::set<TagDesc*> newset;
 
-    // Exchange tag descriptions between all processors
-  int dsize = tag_buffer.size();
-  std::vector<int> recvcounts( num_proc );
-  err = MPI_Allgather( &dsize, 1, MPI_INT,
-                       &recvcounts[0], 1, MPI_INT, 
-                       myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(err);
-    // Put total size in last spot of displs. It simplifies some things.
-  std::vector<int> displs( num_proc+1 );
-  displs[0] = 0;
-  for (int i = 1; i <= num_proc; ++i) 
-    displs[i] = displs[i-1] + recvcounts[i-1];
-  std::vector<unsigned char> all_buffer( displs[num_proc] );
-  err = MPI_Allgatherv( &tag_buffer[0], tag_buffer.size(), MPI_BYTE,
-                        &all_buffer[0], &recvcounts[0], &displs[0], 
-                        MPI_BYTE, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(err);
-
-    // Iterate over data from all procs, updating the local list of tags such that
-    // all procs have the same list of tags in the same order
-  std::vector<unsigned char>::const_iterator diter = all_buffer.begin();
+    // Iterate over data from, updating the local list of tags.
+    // Be carefull to keep tagList sorted such that in the end all 
+    // procs have the same list in the same order.
+  std::vector<unsigned char>::const_iterator diter = buffer.begin();
   tag_iter = tagList.begin();
-  while (diter < all_buffer.end()) {
+  while (diter < buffer.end()) {
       // Get struct from buffer
     const serial_tag_data* ptr = reinterpret_cast<const serial_tag_data*>(&*diter);
     
@@ -607,6 +601,8 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
       newtag.max_num_vals = 0;
 
       tag_iter = tagList.insert( tag_iter, newtag );
+      if (newlist)
+        newset.insert( &*tag_iter );
     }
     else { // check that tag is as expected
       DataType type;
@@ -621,10 +617,149 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
         writeUtil->report_error("Processes have inconsistent size for tag \"%s\"", name.c_str() );
         return error(MB_FAILURE);
       }
+      tag_iter->write_sparse = false;
     }
   
       // Step to next variable-length struct.
     diter += ptr->len();
+  }
+
+    // now pass back any local tags that weren't in the buffer
+  if (missing) {
+    for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) {
+      if (tag_iter->write_sparse) {
+        tag_iter->write_sparse = false;
+        missing->push_back( &*tag_iter );
+      }
+    }
+  }
+  
+    // be careful to populate newlist in the same, sorted, order as tagList
+  if (newlist) {
+    for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) 
+      if (newset.find(&*tag_iter) != newset.end())
+        newlist->push_back(&*tag_iter);
+  }
+  
+  return MB_SUCCESS;
+}
+
+static void set_bit( int position, unsigned char* bytes )
+{
+  int byte = position/8;
+  int bit = position%8;
+  bytes[byte] |= (((unsigned char)1)<<bit);
+}
+
+static bool get_bit( int position, const unsigned char* bytes )
+{
+  int byte = position/8;
+  int bit = position%8;
+  return 0 != (bytes[byte] & (((unsigned char)1)<<bit));
+}
+
+
+ErrorCode WriteHDF5Parallel::create_tag_tables()
+{  
+  std::list<TagDesc>::iterator tag_iter;
+  ErrorCode rval;
+  int err;
+  const int num_proc = myPcomm->proc_config().proc_size();
+  const int rank = myPcomm->proc_config().proc_rank();
+  const MPI_Comm comm = myPcomm->proc_config().proc_comm();
+
+  dbgOut.tprint(1,"communicating tag metadata\n");
+
+  dbgOut.printf(2,"Exchanging tag data for %d tags.\n", (int)tagList.size() ); 
+  
+    // Sort tagList contents in alphabetical order by tag name
+  tagList.sort( TagNameCompare( iFace ) );
+  
+    // Negotiate total list of tags to write
+  
+    // Build concatenated list of all tag data
+  std::vector<unsigned char> tag_buffer;
+  for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) {
+    rval = append_serial_tag_data( tag_buffer, *tag_iter );
+    if (MB_SUCCESS != rval)
+      return error(rval);
+  }
+  
+    // broadcast list from root to all other procs
+  unsigned long size = tag_buffer.size();
+  err = MPI_Bcast( &size, 1, MPI_UNSIGNED_LONG, 0, comm );
+  CHECK_MPI(err);
+  tag_buffer.resize(size);
+  err = MPI_Bcast( &tag_buffer[0], size, MPI_UNSIGNED_CHAR, 0, comm );
+  CHECK_MPI(err);
+  
+    // update local tag list
+  std::vector<TagDesc*> missing;
+  rval = check_serial_tag_data( tag_buffer, &missing, 0 );
+  if (MB_SUCCESS != rval)
+    return error(rval);
+  
+    // check if we're done (0->done, 1->more, 2+->error)
+  int code, lcode = (MB_SUCCESS != rval) ? rval + 2 : missing.empty() ? 0 : 1;
+  err = MPI_Allreduce( &lcode, &code, 1, MPI_INT, MPI_MAX, comm );
+  CHECK_MPI(err);
+  if (code > 1) {
+    writeUtil->report_error("Inconsistent tag definitions between procs.");
+    return error((ErrorCode)(code-2));
+  }  
+  
+  dbgOut.print(1,"Not all procs had same tag definitions, negotiating...\n");
+  
+    // if not done...
+  if (code) {
+      // get tags defined on this proc but not on root proc
+    tag_buffer.clear();
+    for (size_t i = 0; i < missing.size(); ++i) {
+      rval = append_serial_tag_data( tag_buffer, *missing[i] );
+      if (MB_SUCCESS != rval)
+        return error(rval);
+    }
+    
+      // gather extra tag definitions on root processor
+    std::vector<int> junk; // don't care how many from each proc
+    assert(rank || tag_buffer.empty()); // must be empty on root
+    err = my_Gatherv( &tag_buffer[0], tag_buffer.size(),
+                       MPI_UNSIGNED_CHAR, tag_buffer, junk, 0, comm );
+    CHECK_MPI(err);
+    
+      // process serialized tag descriptions on root, and 
+    rval = MB_SUCCESS;
+    if (0 == rank) {
+        // process serialized tag descriptions on root, and 
+      std::vector<TagDesc*> newlist;
+      rval = check_serial_tag_data( tag_buffer, 0, &newlist );
+      tag_buffer.clear();
+        // re-serialize a unique list of new tag defintitions
+      for (size_t i = 0; MB_SUCCESS == rval && i != newlist.size(); ++i) {
+        rval = append_serial_tag_data( tag_buffer, *newlist[i] );
+        if (MB_SUCCESS != rval)
+          return error(rval);
+      }
+    }
+    
+      // broadcast any new tag definitions from root to other procs
+    long size = tag_buffer.size();
+    if (MB_SUCCESS != rval)
+      size = -rval;
+    err = MPI_Bcast( &size, 1, MPI_LONG, 0, comm );
+    CHECK_MPI(err);
+    if (size < 0) {
+      writeUtil->report_error("Inconsistent tag definitions between procs.");
+      return error((ErrorCode)-size);
+    }
+    tag_buffer.resize(size);
+    err = MPI_Bcast( &tag_buffer[0], size, MPI_UNSIGNED_CHAR, 0, comm );
+    CHECK_MPI(err);
+    
+      // process new tag definitions
+    rval = check_serial_tag_data( tag_buffer, 0, 0 );
+    if (MB_SUCCESS != rval)
+      return error(rval);
   }
 
     // Figure out for which tag/element combinations we can
@@ -847,6 +982,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
 
   return MB_SUCCESS;
 }
+
 ErrorCode WriteHDF5Parallel::create_node_table( int dimension )
 {
   int result;
