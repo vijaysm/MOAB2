@@ -204,7 +204,7 @@ class WriteHDF5Parallel : public WriteHDF5
     ErrorCode get_sharedset_tags();
 
     ErrorCode append_serial_tag_data( std::vector<unsigned char>& buffer,
-                                      const WriteHDF5::SparseTag& tag );
+                                      const WriteHDF5::TagDesc& tag );
   
     ErrorCode write_shared_set_data( hid_t table,
                                      WriteUtilIface::EntityListType which_data,

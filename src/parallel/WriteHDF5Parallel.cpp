@@ -447,11 +447,11 @@ class TagNameCompare {
   std::string name1, name2;
 public:
   TagNameCompare( Interface* iface ) : iFace(iface) {}
-  bool operator() (const WriteHDF5::SparseTag& t1, 
-                   const WriteHDF5::SparseTag& t2);
+  bool operator() (const WriteHDF5::TagDesc& t1, 
+                   const WriteHDF5::TagDesc& t2);
 };
-bool TagNameCompare::operator() (const WriteHDF5::SparseTag& t1, 
-                                 const WriteHDF5::SparseTag& t2)
+bool TagNameCompare::operator() (const WriteHDF5::TagDesc& t1, 
+                                 const WriteHDF5::TagDesc& t2)
 {
   iFace->tag_get_name( t1.tag_id, name1 );
   iFace->tag_get_name( t2.tag_id, name2 );
@@ -473,7 +473,7 @@ struct serial_tag_data {
 
 ErrorCode WriteHDF5Parallel::append_serial_tag_data( 
                                          std::vector<unsigned char>& buffer,
-                                         const WriteHDF5::SparseTag& tag )
+                                         const WriteHDF5::TagDesc& tag )
 {
   ErrorCode rval;
   
@@ -528,7 +528,7 @@ static bool get_bit( int position, const unsigned char* bytes )
 
 ErrorCode WriteHDF5Parallel::create_tag_tables()
 {  
-  std::list<SparseTag>::iterator tag_iter;
+  std::list<TagDesc>::iterator tag_iter;
   ErrorCode rval;
   int err;
   const int num_proc = myPcomm->proc_config().proc_size();
@@ -591,7 +591,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
       iFace->tag_get_name( tag_iter->tag_id, n );
     }
     if (tag_iter == tagList.end() || n != name) { // new tag
-      SparseTag newtag;
+      TagDesc newtag;
       
       if (ptr->size == MB_VARIABLE_DATA_LENGTH) 
         rval = iFace->tag_create_variable_length( name.c_str(), ptr->storage, ptr->type, newtag.tag_id, 0 );
@@ -600,9 +600,9 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
       if (MB_SUCCESS != rval)
         return error(rval);
       
-      newtag.offset = 0;
-      newtag.varDataOffset = 0;
-      newtag.write = false;
+      newtag.sparse_offset = 0;
+      newtag.var_data_offset = 0;
+      newtag.write_sparse = false;
       newtag.max_num_ents = 0;
       newtag.max_num_vals = 0;
 
@@ -722,7 +722,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
     int i = 0;
     if (get_bit(i, iter)) {
       assert(get_bit(i, iter2));
-      tag_iter->denseList.push_back(nodeSet);
+      tag_iter->dense_list.push_back(nodeSet);
       tagged -= nodeSet.range;
       dbgOut.printf( 2, "Will write dense data for \"%s\"/Nodes\n", n.c_str());
     }
@@ -730,7 +730,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
     for (++i; ex_iter != exportList.end(); ++i, ++ex_iter) {
       if (get_bit(i, iter)) {
         assert(get_bit(i, iter2));
-        tag_iter->denseList.push_back(*ex_iter);
+        tag_iter->dense_list.push_back(*ex_iter);
         dbgOut.printf( 2, "WIll write dense data for \"%s\"/%s\n", n.c_str(),
           ex_iter->name());
         tagged -= ex_iter->range;
@@ -738,7 +738,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
     }
     if (get_bit(i, iter)) {
       assert(get_bit(i, iter2));
-      tag_iter->denseList.push_back(setSet);
+      tag_iter->dense_list.push_back(setSet);
       dbgOut.printf( 2, "Will write dense data for \"%s\"/Sets\n", n.c_str());
       tagged -= setSet.range;
     }
@@ -792,17 +792,17 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
   std::vector<unsigned long>::iterator citer = counts.begin(), miter = maxima.begin();
   for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) {
     assert(citer != counts.end() && miter != maxima.end());
-    tag_iter->offset = *citer; ++citer;
+    tag_iter->sparse_offset = *citer; ++citer;
     tag_iter->max_num_ents = *miter; ++miter;
-    tag_iter->write = (0 != tag_iter->max_num_ents);
+    tag_iter->write_sparse = (0 != tag_iter->max_num_ents);
     int s;
     if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_size( tag_iter->tag_id, s )) {
       assert(citer != counts.end() && miter != maxima.end());
-      tag_iter->varDataOffset = *citer; ++citer;
+      tag_iter->var_data_offset = *citer; ++citer;
       tag_iter->max_num_vals = *miter; ++miter;
     }
     else {
-      tag_iter->varDataOffset = 0;
+      tag_iter->var_data_offset = 0;
       tag_iter->max_num_vals = 0;
     }
   }
@@ -838,8 +838,8 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
       get_num_sparse_tagged_entities( *tag_iter, size );
       dbgOut.printf(2,"%18s %8lu %8lu %8lu %8lu 0x%7lx\n", name.c_str(), 
         (unsigned long)size, 
-        (unsigned long)tag_iter->offset,
-        (unsigned long)tag_iter->varDataOffset,
+        (unsigned long)tag_iter->sparse_offset,
+        (unsigned long)tag_iter->var_data_offset,
         (unsigned long)tag_iter->max_num_ents,
         (unsigned long)tag_iter->tag_id );
     }
