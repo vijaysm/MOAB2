@@ -85,11 +85,15 @@ int main(int argc, char *argv[])
     std::cout << "Using default input files: " << filename << " " << polygon_file_name <<
         " " << std::endl;
     std::cout << "    default output file: " << filename_out << " will be deleted \n";
-  } else if (argc == 4) {
+  } else if (argc >=4) {
     filename = argv[1];
     polygon_file_name = argv[2];
     filename_out = argv[3];
     keep_output = true;
+    std::cout << "Using input files: " << filename << " " << polygon_file_name <<
+            " " << std::endl;
+    std::cout << "    default output file: " << filename_out << " will be saved \n";
+
   } else {
     std::cerr << "Usage: " << argv[0] << " [geom_filename] [polygon_file] [output_file]" << std::endl;
     return 1;
@@ -147,7 +151,7 @@ int main(int argc, char *argv[])
 
   // split_test_across
   std::cout << " split across test: ";
-  //rval = split_test_across();
+  rval = split_test_across();
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 

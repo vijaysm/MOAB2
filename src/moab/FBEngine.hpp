@@ -180,6 +180,7 @@ private:
   ErrorCode redistribute_boundary_edges_to_faces(EntityHandle face, EntityHandle newFace,
       EntityHandle new_geo_edge);
 
+  ErrorCode set_neumann_tags(EntityHandle face, EntityHandle newFace);
   Interface * _mbImpl;
 
   GeomTopoTool* _my_geomTopoTool;
