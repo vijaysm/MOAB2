@@ -2374,14 +2374,20 @@ ErrorCode FBEngine::split_edge_at_mesh_node(EntityHandle edge, EntityHandle node
   Range faceRange;
   rval = getAdjacentEntities(edge, 2, faceRange);
 
-  // these faces will be adjacent to the new edge!
+  // these faces will be adjacent to the new edge too!
+  // need to set the senses of new edge within faces
 
   for (Range::iterator it= faceRange.begin(); it!=faceRange.end(); it++)
   {
     EntityHandle face = *it;
-    // at this point, we just need to add to both edges the new node set (vertex)
     rval = _mbImpl->add_parent_child(face, new_edge);
     MBERRORR(rval, " can't add new edge - face parent relation");
+    int sense;
+    rval = _my_geomTopoTool->get_sense(edge, face, sense);
+    MBERRORR(rval, " can't get initial sense of edge in the adjacent face");
+    // keep the same sense for the new edge within the faces
+    rval = _my_geomTopoTool->set_sense(new_edge, face, sense);
+    MBERRORR(rval, " can't set sense of new edge in the adjacent face");
   }
 
   return MB_SUCCESS;
