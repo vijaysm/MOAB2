@@ -238,6 +238,70 @@ void WriteHDF5Parallel::MultiProcSetTags::add( const std::string& filter,
                                                const std::string& data )
   { list.push_back( Data(filter,data,filterval) ); }
 
+ErrorCode 
+WriteHDF5Parallel::MultiProcSetTags::Data::get_sets( Interface* moab,
+                                                     Range& sets,
+                                                     Tag& id_tag ) const
+{
+  ErrorCode rval;
+  int size;
+  const void* values[] = { 0, 0 };
+  Tag handles[2];
+
+    // Get first tag handle: this tag is used to filter sets
+    // (we only return sets for which this tag is set)
+
+  rval = moab->tag_get_handle( filterTag.c_str(), handles[0] );
+  if (MB_TAG_NOT_FOUND == rval)
+    return MB_SUCCESS; // return nothing if tag isn't defined on this proc
+  else if (MB_SUCCESS != rval)
+    return error(rval);
+
+    // Get data tag.  This tag contains IDs used to globally identify
+    // sets in the group with the filter_tag.  This might be the same
+    // tag as the filter tag.
+  
+  rval = moab->tag_get_handle( dataTag.c_str(), handles[1] );
+  if (MB_TAG_NOT_FOUND == rval)
+    return MB_SUCCESS; // return nothing if tag isn't defined on this proc
+  else if (MB_SUCCESS != rval)
+    return error(rval);
+  
+  moab->tag_get_size( handles[1], size );
+  if (size != (int)sizeof(int)) {
+    fprintf(stderr, "Cannot use non-int tag data for matching remote sets.\n" );
+    assert(0);
+    return error(MB_FAILURE);
+  }  
+  
+    // We can optionally also filter on the value of the filter tag.
+    // (e.g. GEOM_DIMENSION)
+  
+  if (useFilterValue) {
+    moab->tag_get_size( handles[0], size );
+    if (size != (int)sizeof(int)) {
+      fprintf(stderr, "Cannot use non-int tag data for filtering remote sets.\n" );
+      assert(0);
+      return error(MB_FAILURE);
+    }
+    values[0] = &filterValue;
+  }
+  
+    // If data tag and filter tag are the same, don't pass the
+    // same tag handle in twice (it would work, but would be inefficient)
+  int num_tags = (handles[0] == handles[1]) ? 1 : 2;
+
+    // get the tagged entities
+  id_tag = handles[1];
+  return moab->get_entities_by_type_and_tag( 0,
+                                             MBENTITYSET,
+                                             handles,
+                                             values,
+                                             num_tags, 
+                                             sets );
+}
+
+
 
 WriteHDF5Parallel::WriteHDF5Parallel( Interface* iface)
     : WriteHDF5(iface), myPcomm(NULL), pcommAllocated(false)
@@ -1419,9 +1483,6 @@ ErrorCode WriteHDF5Parallel::create_adjacency_tables()
   
 /** Working data for group of global sets identified by an ID tag */
 struct RemoteSetData {
-  Tag data_tag;    //!< The ID tag for matching sets across processors
-  Tag filter_tag;  //!< Optional tag to filter on (e.g. geometric dimension)
-  int filter_value;  //!< Value of filter_tag for this group
   Range range;     //!< Set handles with data_tag set (and optionally filter_tag == filter_value)
   std::vector<int> counts;       //!< Number of sets with tag on each proc, indexed by MPI rank
   std::vector<int> displs;       //!< Offset in all_values at which the data_tag values for
@@ -1471,61 +1532,13 @@ ErrorCode WriteHDF5Parallel::get_remote_set_data(
   int i;
   int result;
   Range::iterator riter;
+  Tag id_tag;
 
-  rval = iFace->tag_get_handle( tags.filterTag.c_str(), data.filter_tag );
-  if (rval != MB_SUCCESS) return error(rval);
-  if (tags.useFilterValue) 
-  {
-    i = 0;
-    iFace->tag_get_size( data.filter_tag, i );
-    if (i != sizeof(int)) {
-      fprintf(stderr, "Cannot use non-int tag data for filtering remote sets.\n" );
-      assert(0);
-      return error(MB_FAILURE);
-    }  
-    data.filter_value = tags.filterValue;
-  }
-  else
-  {
-    data.filter_value = 0;
-  }
-  
-  rval = iFace->tag_get_handle( tags.dataTag.c_str(), data.data_tag );
-  if (rval != MB_SUCCESS) return error(rval);
-  i = 0;
-  iFace->tag_get_size( data.data_tag, i );
-  if (i != sizeof(int)) {
-    fprintf(stderr, "Cannot use non-int tag data for matching remote sets.\n" );
-    assert(0);
-    return error(MB_FAILURE);
-  }  
-    
+  rval = tags.get_sets( iFace, data.range, id_tag );
+  if (MB_SUCCESS != rval)
+    return error(rval);
 
-  dbgOut.printf(1,"Negotiating multi-proc meshsets for tag: \"%s\"\n", tags.filterTag.c_str());
-
-    // Get sets with tag, or leave range empty if the tag
-    // isn't defined on this processor.
-  if (rval != MB_TAG_NOT_FOUND)
-  {
-    if (tags.useFilterValue) {
-      Tag handles[] = { data.filter_tag, data.data_tag };
-      const void* values[] = {&tags.filterValue, 0 };
-      rval = iFace->get_entities_by_type_and_tag( 0, 
-                                                  MBENTITYSET, 
-                                                  handles,
-                                                  values,
-                                                  2,
-                                                  data.range );
-    }
-    else {
-      rval = iFace->get_entities_by_type_and_tag( 0, 
-                                                  MBENTITYSET, 
-                                                  &data.data_tag,
-                                                  0,
-                                                  1,
-                                                  data.range );
-    }
-    if (rval != MB_SUCCESS) return error(rval);
+  if (!data.range.empty()) {
     Range tmp = intersect( data.range,  setSet.range );
     data.range.swap( tmp );
     range_remove( setSet.range, data.range );
@@ -1553,7 +1566,7 @@ ErrorCode WriteHDF5Parallel::get_remote_set_data(
   VALGRIND_MAKE_VEC_UNDEFINED( data.all_values );
   data.local_values.resize(count);
   VALGRIND_MAKE_VEC_UNDEFINED( data.local_values );
-  rval = iFace->tag_get_data( data.data_tag, data.range, &data.local_values[0] );
+  rval = iFace->tag_get_data( id_tag, data.range, &data.local_values[0] );
   if (MB_SUCCESS != rval)
     return error(rval);
   VALGRIND_CHECK_MEM_IS_DEFINED( &data.local_values[0], count*sizeof(int) );

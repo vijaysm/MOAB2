@@ -264,6 +264,8 @@ class WriteHDF5Parallel::MultiProcSetTags::Data
   std::string dataTag;
   int filterValue;
   bool useFilterValue;
+  
+  ErrorCode get_sets( Interface* moab, Range& sets, Tag& id_tag_out ) const;
 };
 
 } // namespace moab
