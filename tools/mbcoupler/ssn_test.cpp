@@ -37,48 +37,18 @@ using namespace moab;
 
 bool debug = true;
 
-// -----------copied from iMesh_MOAB.hpp------------------
 // Error routines for use with iMesh API
-
-extern "C" const iBase_ErrorType iBase_ERROR_MAP[MB_FAILURE+1];
-
-extern "C" iBase_Error iMesh_LAST_ERROR;
-
-static inline int iMesh_processError( int code, const char* desc ) 
-{
-  strncpy( iMesh_LAST_ERROR.description, desc,
-                sizeof(iMesh_LAST_ERROR.description) );
-  iMesh_LAST_ERROR.description[sizeof(iMesh_LAST_ERROR.description)-1] = '\0';
-  std::cerr << iMesh_LAST_ERROR.description << " - " << code << std::endl;
-  return (iMesh_LAST_ERROR.error_type = (iBase_ErrorType)code);
-}
-
-#define ERROR(CODE,MSG) do { int tmperr = iMesh_setLastError( mbi, (CODE), (MSG) ); MPI_Finalize(); return tmperr; } while(false)
-
-#define IBASE_ERROR(CODE,MSG) do { int tmperr = iMesh_processError( (CODE), (MSG) ); return tmperr; } while(false)
-
-static inline int iMesh_setLastError( Interface*, int code, const char* msg )
-  { return iMesh_processError( code, msg ); }  
-
-static inline int iMesh_setLastError( Interface* mbi, ErrorCode code, const char* msg )
-  { 
-    std::string message(msg);
-    message += "  (MOAB Error Code: ";
-    message += mbi->get_error_string(code);
-    message += ")";
-    return iMesh_processError( iBase_ERROR_MAP[code], message.c_str() ); 
-  }
-
-#define CHKERR(CODE, MSG) \
-  if (iMesh_isError((CODE))) ERROR((CODE),(MSG))
+#define CHKERR(CODE, MSG)                           \
+  do {                                              \
+    if (iMesh_isError((CODE)))                      \
+      std::cerr << MSG << std::endl;                \
+  } while(false)
 
 static inline bool iMesh_isError(int code)
   { return (iBase_SUCCESS != code); }
 
 static inline bool iMesh_isError(ErrorCode code)
   { return (MB_SUCCESS != code); }
-// -------------------------------------------------------
-
 
 // Forward declarations
 void get_file_options(int argc, char **argv, 

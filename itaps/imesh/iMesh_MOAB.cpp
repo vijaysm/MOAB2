@@ -270,18 +270,25 @@ extern "C" {
 
   static void eatwhitespace(std::string &this_string);
 
-  iBase_Error iMesh_LAST_ERROR;
-
-  void iMesh_getErrorType(iMesh_Instance, int *error_type)
+  void iMesh_getErrorType(iMesh_Instance instance, int *error_type)
   {
-    *error_type = iMesh_LAST_ERROR.error_type;
+    if (instance == NULL)
+      *error_type = iBase_FAILURE;
+    else
+      *error_type = MBIMESHI->lastErrorType;
   }
 
-  void iMesh_getDescription(iMesh_Instance, char *descr, int descr_len)
+  void iMesh_getDescription(iMesh_Instance instance, char *descr, int descr_len)
   {
-    unsigned int len = MIN(strlen(iMesh_LAST_ERROR.description), ((unsigned int) descr_len));
-    strncpy(descr, iMesh_LAST_ERROR.description, len);
-    descr[len] = '\0';
+    if (instance == NULL) {
+      strcpy(descr, "iMesh_getDescription: Invalid instance");
+    }
+    else {
+      unsigned int len = MIN(strlen(MBIMESHI->lastErrorDescription),
+                             static_cast<unsigned int>(descr_len));
+      strncpy(descr, MBIMESHI->lastErrorDescription, len);
+      descr[len] = '\0';
+    }
   }
 
   void iMesh_newMesh(const char *options,
@@ -309,23 +316,26 @@ extern "C" {
 #else
         //mError->set_last_error( "PARALLEL option not valid, this instance"
         //                        " compiled for serial execution.\n" );
-      IBASE_ERROR(iBase_ERROR_MAP[MB_NOT_IMPLEMENTED],"Not configured with parallel support");
+      *err = (*mbi)->set_last_error(MB_NOT_IMPLEMENTED,
+                                    "Not configured with parallel support");
+      return;
 #endif
     }
     else {
       *mbi = new MBiMesh(NULL);
     }
     if (NULL == *mbi) {
-      IBASE_ERROR(iBase_FAILURE, "Failed to instantiate mesh instance.");
+      *err = iBase_FAILURE;
+      return;
     }
 
-    RETURN(iBase_SUCCESS);
+    *err = iBase_SUCCESS;
   }
 
   void iMesh_dtor(iMesh_Instance instance, int *err)
   {
     delete MBIMESHI;
-    RETURN(iBase_SUCCESS);
+    *err = iBase_SUCCESS;
   }
 
   void iMesh_load(iMesh_Instance instance,
@@ -362,7 +372,7 @@ extern "C" {
       result = create_int_ents(MBIMESHI, set_ents, file_set);
       CHKERR(result,"");
     }
-
+    printf("Got here...\n");
     RETURN(iBase_SUCCESS);
   }
 
@@ -384,13 +394,12 @@ extern "C" {
     RETURN(iBase_SUCCESS);
   }
 
-  void iMesh_getRootSet(iMesh_Instance ,
+  void iMesh_getRootSet(iMesh_Instance instance,
                         iBase_EntitySetHandle *root_set, int *err)
   {
     *root_set = 0;
       //return CAST_TO_VOID(MOABI->get_root_set());
     RETURN(iBase_SUCCESS);
-
   }
 
   void iMesh_getGeometricDimension(iMesh_Instance instance,
@@ -409,7 +418,7 @@ extern "C" {
     RETURN(iBase_SUCCESS);
   }
 
-  void iMesh_getDfltStorage(iMesh_Instance ,
+  void iMesh_getDfltStorage(iMesh_Instance instance,
                             int *order, int *err)
   {
     *order = iBase_BLOCKED;
@@ -621,7 +630,7 @@ extern "C" {
     RETURN(iBase_SUCCESS);
   }
 
-  void iMesh_endEntArrIter (iMesh_Instance ,
+  void iMesh_endEntArrIter (iMesh_Instance instance,
                             /*in*/ iBase_EntityArrIterator entArr_iterator, int *err)
   {
     delete entArr_iterator;

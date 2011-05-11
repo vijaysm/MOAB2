@@ -4,8 +4,12 @@
 #include "moab/Core.hpp"
 #include <vector>
 #include <algorithm>
+#include <cstring>
 
 using namespace moab;
+
+/* map from MOAB's ErrorCode to tstt's */
+extern "C" const iBase_ErrorType iBase_ERROR_MAP[MB_FAILURE+1];
 
 class MBiMesh
 {
@@ -29,12 +33,17 @@ public:
   virtual ErrorCode delete_entities( const Range& );
   iBase_AdjacencyCost AdjTable[16];
   moab::Interface *mbImpl;
+  int lastErrorType;
+  char lastErrorDescription[120];
   
   inline void note_set_handle_tag( Tag );
   inline void note_ent_handle_tag( Tag );
   inline void note_tag_destroyed( Tag );
   inline bool is_set_handle_tag( Tag ) const;
   inline bool is_ent_handle_tag( Tag ) const;
+
+  inline int set_last_error( int, const char* );
+  inline int set_last_error( ErrorCode, const char* );
 };
 
 static inline MBiMesh *mbimeshi_instance(iMesh_Instance instance) {return reinterpret_cast<MBiMesh*>(instance);}
@@ -42,8 +51,11 @@ static inline MBiMesh *mbimeshi_instance(iMesh_Instance instance) {return reinte
 #define MOABI MBIMESHI->mbImpl
 
 inline MBiMesh::MBiMesh(Interface *impl)
-        : haveDeletedEntities(false), iCreatedInterface(false), mbImpl(impl)
+  : haveDeletedEntities(false), iCreatedInterface(false), mbImpl(impl),
+    lastErrorType(iBase_SUCCESS)
 {
+  lastErrorDescription[0] = '\0';
+
   iBase_AdjacencyCost tmp_table[] = {
       iBase_ALL_ORDER_1, iBase_SOME_ORDER_1,    iBase_SOME_ORDER_1,    iBase_ALL_ORDER_1,
       iBase_ALL_ORDER_1, iBase_UNAVAILABLE,     iBase_SOME_ORDER_LOGN, iBase_SOME_ORDER_LOGN,
@@ -124,6 +136,22 @@ bool MBiMesh::is_set_handle_tag( Tag t ) const
 bool MBiMesh::is_ent_handle_tag( Tag t ) const
 {
   return std::binary_search( entHandleTags.begin(), entHandleTags.end(), t );
+}
+
+int MBiMesh::set_last_error( int code, const char* msg )
+{
+  std::strncpy( lastErrorDescription, msg, sizeof(lastErrorDescription) );
+  lastErrorDescription[sizeof(lastErrorDescription)-1] = '\0';
+  return (lastErrorType = static_cast<iBase_ErrorType>(code));
+}
+
+int MBiMesh::set_last_error( ErrorCode code, const char* msg )
+{
+  std::string message(msg);
+  message += "  (MOAB Error Code: ";
+  message += mbImpl->get_error_string(code);
+  message += ")";
+  return set_last_error( iBase_ERROR_MAP[code], message.c_str() );
 }
 
 #endif

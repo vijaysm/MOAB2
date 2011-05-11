@@ -36,39 +36,58 @@ static inline moab::Interface* MBI_cast( iGeom_Instance i )
 static inline moab::EntityHandle MBH_cast( iBase_EntityHandle h )  
   { return reinterpret_cast<moab::EntityHandle>(h); }         
 
-#define GETGTT(a) {if (_my_geomTopoTool == NULL) _my_geomTopoTool =	\
-	new GeomTopoTool(reinterpret_cast<MBiMesh*>(a)->mbImpl);}
-
-/* Most recently returned error code */
-//extern "C" iBase_Error iGeom_LAST_ERROR;
-
-#define ERRORR(a) {if (iBase_SUCCESS != *err) {iGeom_processError((iBase_ErrorType) *err, a); return;}}
-
-#define MBERRORR(a) {if (MB_SUCCESS != rval) {		\
-      iGeom_processError(iBase_FAILURE, a);		\
-      RETURN(iBase_FAILURE);}}
-
-#define RETURN(a) do {iGeom_LAST_ERROR.error_type = *err = (a); return;} while(false)
-
-#define MBRTN(a) RETURN(iBase_ERROR_MAP[(a)])
-
-#define CHKERR(err) if (MB_SUCCESS != (err)) MBRTN(err)
-
 #define MIN(a,b) (a > b ? b : a)
 
 #define IMESH_INSTANCE(a) reinterpret_cast<iMesh_Instance>(a)
 
-#define CHECK_SIZE(array, allocated, size, type, retval)	\
-  if (0 != allocated && NULL != array && allocated < (size)) {	\
-    iGeom_processError(iBase_MEMORY_ALLOCATION_FAILED,			\
-		       "Allocated array not large enough to hold returned contents."); \
-    RETURN(iBase_MEMORY_ALLOCATION_FAILED);				\
-  }									\
-  if ((size) && ((allocated) == 0 || NULL == (array))) {		\
-    array = (type*)malloc((size)*sizeof(type));				\
-    allocated=(size);							\
-    if (NULL == array) {iGeom_processError(iBase_MEMORY_ALLOCATION_FAILED, \
-					   "Couldn't allocate array.");RETURN(iBase_MEMORY_ALLOCATION_FAILED); } \
-  }
+#define GETGTT(a) {if (_my_geomTopoTool == NULL) _my_geomTopoTool =	\
+	new GeomTopoTool(reinterpret_cast<MBiMesh*>(a)->mbImpl);}
+
+static inline bool iGeom_isError(int code)
+  { return (iBase_SUCCESS != code); }
+static inline bool iGeom_isError(moab::ErrorCode code)
+  { return (MB_SUCCESS != code); }
+
+#define MBIGEOMI mbimeshi_instance(IMESH_INSTANCE(instance))
+
+#define RETURN(CODE)                                                   \
+  do {                                                                 \
+    *err = MBIGEOMI->set_last_error((CODE), "");                       \
+    return;                                                            \
+  } while(false)
+
+#define ERROR(CODE,MSG)                                                \
+  do {                                                                 \
+    *err = MBIGEOMI->set_last_error((CODE), (MSG));                    \
+    return;                                                            \
+  } while(false)
+
+#define CHKERR(CODE,MSG)                                               \
+  do {                                                                 \
+    if (iGeom_isError((CODE)))                                         \
+      ERROR((CODE),(MSG));                                             \
+  } while(false)
+
+#define FWDERR()                                                       \
+  do {                                                                 \
+    if (iGeom_isError(*err))                                           \
+      return;                                                          \
+  } while(false)
+
+#define CHECK_SIZE(array, allocated, size, type, retval)               \
+  do {                                                                 \
+    if (0 != allocated && NULL != array && allocated < (size)) {       \
+      ERROR(iBase_MEMORY_ALLOCATION_FAILED, "Allocated array not "     \
+            "enough to hold returned contents.");                      \
+    }                                                                  \
+    if ((size) && ((allocated) == 0 || NULL == (array))) {             \
+      array = (type*)malloc((size)*sizeof(type));                      \
+      allocated=(size);                                                \
+      if (NULL == array) {                                             \
+        ERROR(iBase_MEMORY_ALLOCATION_FAILED,                          \
+              "Couldn't allocate array.");                             \
+      }                                                                \
+    }                                                                  \
+  } while(false)
 
 #endif // IGEOM_MOAB_HPP
