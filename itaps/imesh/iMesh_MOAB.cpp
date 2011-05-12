@@ -372,7 +372,6 @@ extern "C" {
       result = create_int_ents(MBIMESHI, set_ents, file_set);
       CHKERR(result,"");
     }
-    printf("Got here...\n");
     RETURN(iBase_SUCCESS);
   }
 
