@@ -13,23 +13,31 @@
 # include "moab_mpi.h"
 #endif
 
+
+enum OptType {
+  FLAG = 0,
+  INT, 
+  REAL, 
+  STRING, 
+  INT_VECT
+};
+
+
+template <typename T> inline
+static OptType get_opt_type();
+
+
+template<> OptType get_opt_type<void             >(){ return FLAG;     }
+template<> OptType get_opt_type<int              >(){ return INT;      }
+template<> OptType get_opt_type<double           >(){ return REAL;     }
+template<> OptType get_opt_type<std::string      >(){ return STRING;   }
+template<> OptType get_opt_type<std::vector<int> >(){ return INT_VECT; }
+
 class ProgOpt{
-
-  enum types{
-    FLAG = 0,
-    INT, 
-    REAL, 
-    STRING, 
-    INT_VECT
-  };
-
-  template <typename T> inline
-  static types get_type(){ return FLAG; } //specialized for other types at bottom of this file
-
 
   std::string shortname, longname;
   std::vector< std::string > args;
-  enum types type;
+  OptType type;
   void* storage;
   int flags;
   ProgOpt* cancel_opt;
@@ -50,19 +58,13 @@ class ProgOpt{
   }
 
 public:
-  ProgOpt( const std::string& longname_p, const std::string& shortname_p, int flags_p, types t = FLAG ):
+  ProgOpt( const std::string& longname_p, const std::string& shortname_p, int flags_p, OptType t = FLAG ):
     shortname( shortname_p ), longname( longname_p ), type(t), 
     storage(NULL), flags(flags_p), cancel_opt(NULL)
   {}
-  
+ 
   friend class ProgOptions;
 };
-
-template<> ProgOpt::types ProgOpt::get_type<void>(){ return FLAG; }
-template<> ProgOpt::types ProgOpt::get_type<int>(){ return INT; }
-template<> ProgOpt::types ProgOpt::get_type<double>(){ return REAL; }
-template<> ProgOpt::types ProgOpt::get_type<std::string>(){ return STRING; }
-template<> ProgOpt::types ProgOpt::get_type< std::vector<int> >(){ return INT_VECT; }
 
 ProgOptions::ProgOptions( const std::string& helpstring ) :
     expect_optional_args(false)
@@ -110,7 +112,7 @@ void ProgOptions::addOpt( const std::string& namestring, const std::string& help
   std::string shortname, longname;
   get_namestrings( namestring, &longname, &shortname );
 
-  ProgOpt* opt = new ProgOpt( longname, shortname, flags, ProgOpt::get_type<T>() );
+  ProgOpt* opt = new ProgOpt( longname, shortname, flags, get_opt_type<T>() );
   if( value ) opt->storage = value;
 
 
@@ -122,7 +124,7 @@ void ProgOptions::addOpt( const std::string& namestring, const std::string& help
 
   if( flags & add_cancel_opt ){
     std::string flag = "no-" + (longname.length() ? longname : shortname );
-    ProgOpt* cancel_opt = new ProgOpt( flag, "", flags ^ ProgOptions::store_false, ProgOpt::FLAG );
+    ProgOpt* cancel_opt = new ProgOpt( flag, "", flags ^ ProgOptions::store_false, FLAG );
     if (value) cancel_opt->storage = value;
     
     cancel_opt->cancel_opt = opt;
@@ -140,7 +142,7 @@ void ProgOptions::addRequiredArg( const std::string& helpname,
                                   T* value,
                                   int flags ){
   
-  ProgOpt::types type = ProgOpt::get_type<T>();
+  OptType type = get_opt_type<T>();
 
   ProgOpt* opt = new ProgOpt( helpname, "", flags,  type );
   if( value ) opt->storage = value;
@@ -429,10 +431,10 @@ bool ProgOptions::evaluate( const ProgOpt& opt, void* target, const std::string&
   unsigned idx = arg_idx ? *arg_idx : opt.args.size()-1;
 
   switch( opt.type ){
-  case ProgOpt::FLAG:
+  case FLAG:
     error("Cannot evaluate a flag");
     break;
-  case ProgOpt::INT:
+  case INT:
     {
       int temp;
       int* i = target ? reinterpret_cast<int*>(target) : &temp;
@@ -445,7 +447,7 @@ bool ProgOptions::evaluate( const ProgOpt& opt, void* target, const std::string&
       if( *p != '\0' ){ error("Bad integer argument '" + opt.args.at(idx) + "' to " + option + " option."); }
       return true;
     }
-  case ProgOpt::REAL:
+  case REAL:
     {
       double temp;
       double* i = target ? reinterpret_cast<double*>(target) : &temp;
@@ -460,7 +462,7 @@ bool ProgOptions::evaluate( const ProgOpt& opt, void* target, const std::string&
     
     }
   
-  case ProgOpt::STRING:
+  case STRING:
     {
       std::string temp;
       std::string* i = target ? reinterpret_cast<std::string*>(target) : &temp;
@@ -474,7 +476,7 @@ bool ProgOptions::evaluate( const ProgOpt& opt, void* target, const std::string&
       return true;
     }
   
-  case ProgOpt::INT_VECT:
+  case INT_VECT:
     {
       std::vector<int> temp;
       std::vector<int>* i = target ? reinterpret_cast<std::vector<int>*>(target) : &temp;
@@ -493,7 +495,7 @@ bool ProgOptions::getOpt( const std::string& namestring, T* t ){
  
   ProgOpt* opt = lookup_option( namestring );
 
-  if( ProgOpt::get_type<T>() != opt->type ){
+  if( get_opt_type<T>() != opt->type ){
     error( "Option '" + namestring + "' looked up with incompatible type" );
   }
 
@@ -512,13 +514,13 @@ void ProgOptions::getOptAllArgs( const std::string& namestring, std::vector<T>& 
 
     // special case: if user asks for list of int, but argument
     // was INT_VECT, concatenate all lists
-  if (ProgOpt::get_type<T>() == opt->INT && opt->type == ProgOpt::INT_VECT) {
+  if (get_opt_type<T>() == INT && opt->type == INT_VECT) {
     for (unsigned i = 0; i < opt->args.size(); ++i)
       evaluate( *opt, &values, "", &i );
     return;
   }
   
-  if( ProgOpt::get_type<T>() != opt->type ){
+  if( get_opt_type<T>() != opt->type ){
     error( "Option '" + namestring + "' looked up with incompatible type" );
   }
   
@@ -574,7 +576,7 @@ void ProgOptions::getArgs( const std::string& namestring,
   }
   
   
-  if( ProgOpt::get_type<T>() != opt->type ){
+  if( get_opt_type<T>() != opt->type ){
     error( "Option '" + namestring + "' looked up with incompatible type" );
   }
   
@@ -603,7 +605,7 @@ bool ProgOptions::process_option( ProgOpt* opt, std::string arg, const char* val
     exit( EXIT_SUCCESS );
   }
   
-  if (opt->type != ProgOpt::FLAG) {
+  if (opt->type != FLAG) {
     if (!value)
       return true;
     
@@ -643,7 +645,7 @@ void ProgOptions::parseCommandLine( int argc, char* argv[] ){
     if (!expected_vals.empty()) {
       ProgOpt* opt = expected_vals.front();
       expected_vals.pop_front();
-      assert(opt->type != ProgOpt::FLAG);
+      assert(opt->type != FLAG);
       opt->args.push_back( arg );
       evaluate( *opt, opt->storage, arg );
     }
@@ -743,8 +745,7 @@ void ProgOptions::parseCommandLine( int argc, char* argv[] ){
 }
 
 
-/* Ensure g++ instantiates the template types we expect to use, 
-   and also specialize the ProgOpt::get_type function for each supported type */
+/* Ensure g++ instantiates the template types we expect to use */
 
 #define DECLARE_OPTION_TYPE(T)                                 \
   template void ProgOptions::addOpt<T>( const std::string&, const std::string&, T*, int ); \
