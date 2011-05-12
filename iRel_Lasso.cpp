@@ -24,20 +24,25 @@
 
 const bool debug = false;
 
-iBase_Error iRel_LAST_ERROR;
-
 void iRel_getErrorType(iRel_Instance instance, int *error_type)
 {
-  *error_type = iRel_LAST_ERROR.error_type;
+  if (instance == NULL)
+    *error_type = iBase_FAILURE;
+  else
+    *error_type = LASSOI->lastErrorType;
 }
 
-void iRel_getDescription(iRel_Instance instance, char *descr,
-                         int descr_len)
+void iRel_getDescription(iRel_Instance instance, char *descr, int descr_len)
 {
-  unsigned int len = std::min(strlen(iRel_LAST_ERROR.description),
-                              static_cast<size_t>(descr_len));
-  strncpy(descr, iRel_LAST_ERROR.description, len);
-  descr[len] = '\0';
+  if (instance == NULL) {
+    strcpy(descr, "iRel_getDescription: Invalid instance");
+  }
+  else {
+    unsigned int len = std::min(strlen(LASSOI->lastErrorDescription),
+                                static_cast<size_t>(descr_len));
+    strncpy(descr, LASSOI->lastErrorDescription, len);
+    descr[len] = '\0';
+  }
 }
 
 void iRel_newRel(/* in */ const char * /* options */,
