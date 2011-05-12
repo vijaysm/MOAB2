@@ -91,7 +91,7 @@ class UnknownInterface
 public:
    virtual int QueryInterface
       ( const MBuuid&, UnknownInterface** ) = 0;
-   virtual ~UnknownInterface() {};
+   virtual ~UnknownInterface() {}
 };
 
 } // namespace moab 

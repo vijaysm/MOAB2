@@ -69,8 +69,8 @@ namespace moab {
 class ComponentFactory : public UnknownInterface
 {
 public:
-   ComponentFactory(){};
-   virtual ~ComponentFactory(){};
+   ComponentFactory(){}
+   virtual ~ComponentFactory(){}
    // returns the interface requested from an object
    virtual int QueryInterface( const MBuuid&,
          UnknownInterface** );

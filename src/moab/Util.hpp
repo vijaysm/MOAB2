@@ -49,7 +49,7 @@ public:
 
 private:
 
-  Util(){};
+  Util(){}
 
 };
 

@@ -8,7 +8,7 @@
 #include <vector>
 #include <algorithm>
 
-class iBase_EntityArrIterator_Private 
+struct iBase_EntityArrIterator_Private 
 {
   protected:
     iBase_EntityType entType;
@@ -24,7 +24,7 @@ class iBase_EntityArrIterator_Private
       : entType(type), entTopo(topology), entSet(set), arrSize(array_size)
       {}
 
-    virtual ~iBase_EntityArrIterator_Private() {};
+    virtual ~iBase_EntityArrIterator_Private() {}
 
     int array_size() const { return arrSize; }
 

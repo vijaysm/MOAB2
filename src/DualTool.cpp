@@ -101,7 +101,7 @@ DualTool::DualTool(Interface *impl)
                               globalIdTag, &dum_int);
   assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
     // empty statement to avoid warning
-  if (result);
+  (void)(result);
 
   maxHexId = -1;
 }

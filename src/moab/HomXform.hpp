@@ -70,10 +70,10 @@ public:
   const int *hom_coord() const {return homCoord;}
 
     //! parameter-based access functions
-  int i() const {return homCoord[0];};
-  int j() const {return homCoord[1];};
-  int k() const {return homCoord[2];};
-  int h() const {return homCoord[3];};
+  int i() const {return homCoord[0];}
+  int j() const {return homCoord[1];}
+  int k() const {return homCoord[2];}
+  int h() const {return homCoord[3];}
 
     //! squared length
   int length_squared() const;

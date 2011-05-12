@@ -52,7 +52,7 @@ public:
                 const int imin, const int jmin, const int kmin,
                 const int imax, const int jmax, const int kmax) ;
   
-  virtual ~SweptVertexData() {};
+  virtual ~SweptVertexData() {}
 
     //! get handle of vertex at i, j, k
   EntityHandle get_vertex(const int i, const int j, const int k) const;

@@ -2045,7 +2045,8 @@ void OrientedBoxTreeTool::TrvStats::print( std::ostream& str ) const {
 /********************** Tree Statistics Code ****************************/
 
 
-struct StatData {
+class StatData { 
+public:
   struct Ratio {
     double min, max, sum, sqr;
     int hist[10];

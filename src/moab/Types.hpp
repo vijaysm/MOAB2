@@ -93,8 +93,13 @@ extern const char* const DataTypeStr[];
  *  use void** instead of a uint to prevent them from being confused as 
  *  entity handles.
  */
+#ifdef __cplusplus
+class TagInfo;
+typedef TagInfo* Tag;
+#else
 struct TagInfo;
 typedef struct TagInfo* Tag;
+#endif
 
 /** Meshset options: properties for meshset creation.
  *  Values are bit flags that may be combined with a bitwise OR (|)
