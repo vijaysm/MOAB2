@@ -23,7 +23,7 @@ class ProgOpt{
     INT_VECT
   };
 
-  template <typename T> 
+  template <typename T> inline
   static types get_type(){ return FLAG; } //specialized for other types at bottom of this file
 
 
@@ -57,6 +57,12 @@ public:
   
   friend class ProgOptions;
 };
+
+template<> ProgOpt::types ProgOpt::get_type<void>(){ return FLAG; }
+template<> ProgOpt::types ProgOpt::get_type<int>(){ return INT; }
+template<> ProgOpt::types ProgOpt::get_type<double>(){ return REAL; }
+template<> ProgOpt::types ProgOpt::get_type<std::string>(){ return STRING; }
+template<> ProgOpt::types ProgOpt::get_type< std::vector<int> >(){ return INT_VECT; }
 
 ProgOptions::ProgOptions( const std::string& helpstring ) :
     expect_optional_args(false)
@@ -740,21 +746,20 @@ void ProgOptions::parseCommandLine( int argc, char* argv[] ){
 /* Ensure g++ instantiates the template types we expect to use, 
    and also specialize the ProgOpt::get_type function for each supported type */
 
-#define DECLARE_OPTION_TYPE(T, PO_TYPE)                                 \
+#define DECLARE_OPTION_TYPE(T)                                 \
   template void ProgOptions::addOpt<T>( const std::string&, const std::string&, T*, int ); \
-  template bool ProgOptions::getOpt<T>( const std::string&, T* );       \
-  template<> ProgOpt::types ProgOpt::get_type<T>(){ return PO_TYPE; }
+  template bool ProgOptions::getOpt<T>( const std::string&, T* ); 
 
-#define DECLARE_VALUED_OPTION_TYPE(T, PO_TYPE)                          \
-  DECLARE_OPTION_TYPE(T, PO_TYPE)                                       \
+#define DECLARE_VALUED_OPTION_TYPE(T)                          \
+  DECLARE_OPTION_TYPE(T)                                       \
   template void ProgOptions::getOptAllArgs<T> (const std::string&, std::vector<T>& ); \
   template void ProgOptions::addRequiredArg<T>( const std::string&, const std::string&, T*, int ); \
   template void ProgOptions::addOptionalArgs<T>( unsigned, const std::string&, const std::string&, int ); \
   template T ProgOptions::getReqArg<T>( const std::string& ); \
   template void ProgOptions::getArgs<T>( const std::string&, std::vector<T>& );
  
-DECLARE_OPTION_TYPE(void, ProgOpt::FLAG)
-DECLARE_VALUED_OPTION_TYPE(int,  ProgOpt::INT)
-DECLARE_VALUED_OPTION_TYPE(double, ProgOpt::REAL)
-DECLARE_VALUED_OPTION_TYPE(std::string, ProgOpt::STRING)
-DECLARE_VALUED_OPTION_TYPE(std::vector<int>, ProgOpt::INT_VECT)
+DECLARE_OPTION_TYPE(void)
+DECLARE_VALUED_OPTION_TYPE(int)
+DECLARE_VALUED_OPTION_TYPE(double)
+DECLARE_VALUED_OPTION_TYPE(std::string)
+DECLARE_VALUED_OPTION_TYPE(std::vector<int>)
