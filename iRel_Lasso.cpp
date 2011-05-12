@@ -47,20 +47,18 @@ void iRel_newRel(/* in */ const char * /* options */,
 {
   if (0 != options_len) {
     *instance = NULL;
-    ERROR(iBase_NOT_SUPPORTED, "No options for iRel factory have been "
-          "implemented.");
+    *ierr = iBase_NOT_SUPPORTED;
   }
 
   *instance = new Lasso();
-  RETURN(iBase_SUCCESS);
+  *ierr = iBase_SUCCESS;
 }
 
 void iRel_dtor(iRel_Instance instance, int *ierr)
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  delete lasso;
+  delete LASSOI;
 
-  RETURN(iBase_SUCCESS);
+  *ierr = iBase_SUCCESS;
 }
 
 void iRel_createPair (
@@ -75,14 +73,14 @@ void iRel_createPair (
   int *ierr)
 {
   // assume we want an AssocPairC
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   AssocPair *assoc_pair = new AssocPairC(
-      iface1, static_cast<RelationType>(ent_or_set1),
-      static_cast<IfaceType>(iface_type1),
-      iface2, static_cast<RelationType>(ent_or_set2),
-      static_cast<IfaceType>(iface_type2)
-    );
-  lasso->insert_pair(assoc_pair);
+    instance,
+    iface1, static_cast<RelationType>(ent_or_set1),
+    static_cast<IfaceType>(iface_type1),
+    iface2, static_cast<RelationType>(ent_or_set2),
+    static_cast<IfaceType>(iface_type2)
+  );
+  LASSOI->insert_pair(assoc_pair);
 
   *pair = reinterpret_cast<iRel_PairHandle>(assoc_pair);
   RETURN(iBase_SUCCESS);
@@ -99,18 +97,16 @@ void iRel_getPairInfo (
   int *iface_type2,
   int *ierr)
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *assoc_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == assoc_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
-  *iface1      = assoc_pair->iface_instance(0);
-  *ent_or_set1 = assoc_pair->ent_or_set(0);
-  *iface_type1 = assoc_pair->iface_type(0);
-  *iface2      = assoc_pair->iface_instance(1);
-  *iface_type2 = assoc_pair->iface_type(1);
-  *ent_or_set2 = assoc_pair->ent_or_set(1);
+  *iface1      = ASSOCPAIRI->iface_instance(0);
+  *ent_or_set1 = ASSOCPAIRI->ent_or_set(0);
+  *iface_type1 = ASSOCPAIRI->iface_type(0);
+  *iface2      = ASSOCPAIRI->iface_instance(1);
+  *iface_type2 = ASSOCPAIRI->iface_type(1);
+  *ent_or_set2 = ASSOCPAIRI->ent_or_set(1);
 
   RETURN(iBase_SUCCESS);
 }
@@ -130,13 +126,11 @@ void iRel_destroyPair (
   iRel_PairHandle pair,
   int *ierr)
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *assoc_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == assoc_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
-  CHK_ERROR( lasso->erase_pair(assoc_pair) );
+  CHK_ERROR( LASSOI->erase_pair(ASSOCPAIRI) );
 }
 
 void iRel_findPairs (
@@ -148,9 +142,8 @@ void iRel_findPairs (
   int *ierr
   )
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   std::vector<AssocPair*> tmp_pairs;
-  lasso->find_pairs(iface, tmp_pairs);
+  LASSOI->find_pairs(iface, tmp_pairs);
 
   ALLOC_CHECK_ARRAY_NOFAIL(pairs, tmp_pairs.size());
   for (size_t i=0; i<tmp_pairs.size(); ++i) {
@@ -167,14 +160,12 @@ void iRel_setEntEntRelation (
   iBase_EntityHandle ent2,
   int *ierr)
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == this_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
   // xxx - need to check whether either is a set, and act accordingly!
-  CHK_ERROR( this_pair->set_assoc_tags(ent1, ent2) );
+  CHK_ERROR( ASSOCPAIRI->set_assoc_tags(ent1, ent2) );
 }
 
 void iRel_setEntSetRelation (
@@ -184,14 +175,12 @@ void iRel_setEntSetRelation (
   iBase_EntitySetHandle set2,
   int *ierr)
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == this_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
   // xxx - need to check whether either is a set, and act accordingly!
-  CHK_ERROR( this_pair->set_assoc_tags(ent1, set2) );
+  CHK_ERROR( ASSOCPAIRI->set_assoc_tags(ent1, set2) );
 }
 
 void iRel_setSetEntRelation (
@@ -201,14 +190,12 @@ void iRel_setSetEntRelation (
   iBase_EntityHandle ent2,
   int *ierr)
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == this_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
   // xxx - need to check whether either is a set, and act accordingly!
-  CHK_ERROR( this_pair->set_assoc_tags(set1, ent2) );
+  CHK_ERROR( ASSOCPAIRI->set_assoc_tags(set1, ent2) );
 }
 
 void iRel_setSetSetRelation (
@@ -218,14 +205,12 @@ void iRel_setSetSetRelation (
   iBase_EntitySetHandle set2,
   int *ierr)
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == this_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
   // xxx - need to check whether either is a set, and act accordingly!
-  CHK_ERROR( this_pair->set_assoc_tags(set1, set2) );
+  CHK_ERROR( ASSOCPAIRI->set_assoc_tags(set1, set2) );
 }
 
 void iRel_setEntEntArrRelation (
@@ -444,14 +429,12 @@ void iRel_getEntEntRelation (
   iBase_EntityHandle *ent2,
   int *ierr)
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == this_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
   int iface_no = (switch_order ? 1 : 0);
-  CHK_ERROR( this_pair->get_assoc_tags(iface_no, &ent1, 1, ent2) );
+  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, &ent1, 1, ent2) );
 }
 
 void iRel_getEntSetRelation (
@@ -462,14 +445,12 @@ void iRel_getEntSetRelation (
   iBase_EntitySetHandle *set2,
   int *ierr)
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == this_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
   int iface_no = (switch_order ? 1 : 0);
-  CHK_ERROR( this_pair->get_assoc_tags(iface_no, &ent1, 1, set2) );
+  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, &ent1, 1, set2) );
 }
 
 void iRel_getSetEntRelation (
@@ -480,14 +461,12 @@ void iRel_getSetEntRelation (
   iBase_EntityHandle *ent2,
   int *ierr)
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == this_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
   int iface_no = (switch_order ? 1 : 0);
-  CHK_ERROR( this_pair->get_assoc_tags(iface_no, &set1, 1, ent2) );
+  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, &set1, 1, ent2) );
 }
 
 void iRel_getSetSetRelation (
@@ -498,14 +477,12 @@ void iRel_getSetSetRelation (
   iBase_EntitySetHandle *set2,
   int *ierr)
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == this_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
   int iface_no = (switch_order ? 1 : 0);
-  CHK_ERROR( this_pair->get_assoc_tags(iface_no, &set1, 1, set2) );
+  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, &set1, 1, set2) );
 }
 
 void iRel_getEntSetIterRelation (
@@ -516,14 +493,12 @@ void iRel_getEntSetIterRelation (
   iBase_EntityIterator *entset2,
   int *ierr)
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == this_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
   int iface_no = (switch_order ? 1 : 0);
-  CHK_ERROR( this_pair->get_assoc_tags(iface_no, &ent1, 1, entset2) );
+  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, &ent1, 1, entset2) );
 }
 
 void iRel_getEntEntArrRelation (
@@ -538,15 +513,13 @@ void iRel_getEntEntArrRelation (
 {
   int result;
 
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == this_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
   int iface_no = (switch_order ? 1 : 0);
 
-  if (this_pair->ent_or_set(!iface_no) != iRel_ENTITY) { // iface2 is sets
+  if (ASSOCPAIRI->ent_or_set(!iface_no) != iRel_ENTITY) { // iface2 is sets
     iBase_EntitySetHandle ent_set2 = 0;
 
     iRel_getEntSetRelation(instance, pair,
@@ -554,7 +527,7 @@ void iRel_getEntEntArrRelation (
                            &ent_set2, &result);
     CHK_ERROR(result);
 
-    result = this_pair->get_entities(!iface_no, -1, ent_set2, ent_array_2,
+    result = ASSOCPAIRI->get_entities(!iface_no, -1, ent_set2, ent_array_2,
                                      ent_array_2_allocated, ent_array_2_size);
     CHK_ERROR(result);
   }
@@ -583,22 +556,20 @@ void iRel_getSetEntArrRelation (
 {
   int result;
 
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == this_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
   int iface_no = (switch_order ? 1 : 0);
 
-  if (this_pair->ent_or_set(!iface_no) != iRel_ENTITY) { // iface2 is sets
+  if (ASSOCPAIRI->ent_or_set(!iface_no) != iRel_ENTITY) { // iface2 is sets
     iBase_EntitySetHandle set2 = 0;
 
     iRel_getSetSetRelation(instance, pair,
                            set1, switch_order, &set2, &result);
     CHK_ERROR(result);
 
-    result = this_pair->get_entities(!iface_no, -1, set2, ent_array_2,
+    result = ASSOCPAIRI->get_entities(!iface_no, -1, set2, ent_array_2,
                                      ent_array_2_allocated, ent_array_2_size);
     CHK_ERROR(result);
   }
@@ -629,9 +600,7 @@ void iRel_getEntArrEntArrRelation(
   int *offset_size,
   int *ierr)
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == this_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
@@ -677,9 +646,7 @@ void iRel_getEntArrSetArrRelation(
   int *set_array_2_size,
   int *ierr)
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == this_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
@@ -714,9 +681,7 @@ void iRel_getSetArrEntArrRelation(
   int *offset_size,
   int *ierr)
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == this_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
@@ -763,9 +728,7 @@ void iRel_getSetArrSetArrRelation(
   int *set_array_2_size,
   int *ierr)
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == this_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
@@ -796,9 +759,7 @@ void iRel_getEntArrSetIterArrRelation (
   int *entiter_size,
   int *ierr)
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == this_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
@@ -820,7 +781,7 @@ void iRel_getEntArrSetIterArrRelation (
 
 
 static int
-get_gids_and_dims(AssocPair *assoc_pair,
+get_gids_and_dims(iRel_PairHandle pair,
                   int iface_no,
                   iBase_EntityHandle *ents,
                   int ents_size,
@@ -833,9 +794,9 @@ get_gids_and_dims(AssocPair *assoc_pair,
 
   ents_gids.resize(ents_size);
   if (ent_or_set == iRel_ENTITY)
-    result = assoc_pair->get_gid_tags(iface_no, ents, ents_size, &ents_gids[0]);
+    result = ASSOCPAIRI->get_gid_tags(iface_no, ents, ents_size, &ents_gids[0]);
   else
-    result = assoc_pair->get_gid_tags(iface_no, sets, ents_size, &ents_gids[0]);
+    result = ASSOCPAIRI->get_gid_tags(iface_no, sets, ents_size, &ents_gids[0]);
 
   if (iBase_SUCCESS != result && iBase_TAG_NOT_FOUND != result)
     return result;
@@ -844,12 +805,12 @@ get_gids_and_dims(AssocPair *assoc_pair,
   if (ent_or_set == iRel_ENTITY) {
     int *ents_dims_ptr = &ents_dims[0];
     int ents_dims_alloc = ents_dims.size(), ents_dims_size;
-    result = assoc_pair->get_ents_dims(iface_no, ents, ents_size,
+    result = ASSOCPAIRI->get_ents_dims(iface_no, ents, ents_size,
                                        &ents_dims_ptr, &ents_dims_alloc,
                                        &ents_dims_size);
   }
   else {
-    result = assoc_pair->get_dim_tags(iface_no, sets, ents_size, &ents_dims[0]);
+    result = ASSOCPAIRI->get_dim_tags(iface_no, sets, ents_size, &ents_dims[0]);
   }
 
   if (iBase_SUCCESS != result && iBase_TAG_NOT_FOUND != result)
@@ -859,8 +820,8 @@ get_gids_and_dims(AssocPair *assoc_pair,
 }
 
 static void
-iRel_inferArrArrRelations(Lasso *lasso,
-                          AssocPair *assoc_pair,
+iRel_inferArrArrRelations(iRel_Instance instance,
+                          iRel_PairHandle pair,
                           iBase_EntityHandle *ents1,
                           const int ents1_size,
                           int ent_or_set1,
@@ -874,7 +835,7 @@ iRel_inferArrArrRelations(Lasso *lasso,
   std::vector<int> ents_gids, ents_dims;
   std::map<const int, iBase_EntityHandle> ents_gid_map[4];
 
-  get_gids_and_dims(assoc_pair, 0, ents1, ents1_size, ent_or_set1, ents_gids,
+  get_gids_and_dims(pair, 0, ents1, ents1_size, ent_or_set1, ents_gids,
                     ents_dims);
   for (int i = 0; i < ents1_size; i++) {
     int dim = ents_dims[i];
@@ -882,7 +843,7 @@ iRel_inferArrArrRelations(Lasso *lasso,
       ents_gid_map[dim][ents_gids[i]] = ents1[i];
   }
 
-  get_gids_and_dims(assoc_pair, 1, ents2, ents2_size, ent_or_set2, ents_gids,
+  get_gids_and_dims(pair, 1, ents2, ents2_size, ent_or_set2, ents_gids,
                     ents_dims);
   for (int i = 0; i < ents2_size; i++) {
     int dim = ents_dims[i];
@@ -898,22 +859,22 @@ iRel_inferArrArrRelations(Lasso *lasso,
       // if it matches, set the relation tags for those entities
     if (iter != ents_gid_map[dim].end()) {
       if (ent_or_set1 == iRel_ENTITY && ent_or_set2 == iRel_ENTITY) {
-        result = assoc_pair->set_assoc_tags(
+        result = ASSOCPAIRI->set_assoc_tags(
           (*iter).second,
           ents2[i]);
       }
       else if (ent_or_set1 != iRel_ENTITY && ent_or_set2 == iRel_ENTITY) {
-        result = assoc_pair->set_assoc_tags(
+        result = ASSOCPAIRI->set_assoc_tags(
           (iBase_EntitySetHandle)(*iter).second,
           ents2[i]);
       }
       else if (ent_or_set1 == iRel_ENTITY && ent_or_set2 != iRel_ENTITY) {
-        result = assoc_pair->set_assoc_tags(
+        result = ASSOCPAIRI->set_assoc_tags(
           (*iter).second,
           (iBase_EntitySetHandle)ents2[i]);
       }
       else { // ent_or_set1 != iRel_ENTITY && ent_or_set2 != iRel_ENTITY
-        result = assoc_pair->set_assoc_tags(
+        result = ASSOCPAIRI->set_assoc_tags(
           (iBase_EntitySetHandle)(*iter).second,
           (iBase_EntitySetHandle)ents2[i]);
       }
@@ -926,47 +887,47 @@ iRel_inferArrArrRelations(Lasso *lasso,
 }
 
 void
-iRel_inferEntArrEntArrRelations(Lasso *lasso,
-                                AssocPair *assoc_pair,
+iRel_inferEntArrEntArrRelations(iRel_Instance instance,
+                                iRel_PairHandle pair,
                                 iBase_EntityHandle *ents1,
                                 const int ents1_size,
                                 iBase_EntityHandle *ents2,
                                 const int ents2_size,
                                 int *ierr)
 {
-  iRel_inferArrArrRelations(lasso, assoc_pair, ents1, ents1_size, 0,
+  iRel_inferArrArrRelations(instance, pair, ents1, ents1_size, 0,
                             ents2, ents2_size, 0, ierr);
 }
 
 void
-iRel_inferEntArrSetArrRelations(Lasso *lasso,
-                                AssocPair *assoc_pair,
+iRel_inferEntArrSetArrRelations(iRel_Instance instance,
+                                iRel_PairHandle pair,
                                 iBase_EntityHandle *ents1,
                                 const int ents1_size,
                                 iBase_EntitySetHandle *ents2,
                                 const int ents2_size,
                                 int *ierr)
 {
-  iRel_inferArrArrRelations(lasso, assoc_pair, ents1, ents1_size, 0,
+  iRel_inferArrArrRelations(instance, pair, ents1, ents1_size, 0,
                             (iBase_EntityHandle*)ents2, ents2_size, 1, ierr);
 }
 
 void
-iRel_inferSetArrEntArrRelations(Lasso *lasso,
-                                AssocPair *assoc_pair,
+iRel_inferSetArrEntArrRelations(iRel_Instance instance,
+                                iRel_PairHandle pair,
                                 iBase_EntitySetHandle *ents1,
                                 const int ents1_size,
                                 iBase_EntityHandle *ents2,
                                 const int ents2_size,
                                 int *ierr)
 {
-  iRel_inferArrArrRelations(lasso, assoc_pair, (iBase_EntityHandle*)ents1,
+  iRel_inferArrArrRelations(instance, pair, (iBase_EntityHandle*)ents1,
                             ents1_size, 1, ents2, ents2_size, 0, ierr);
 }
 
 void
-iRel_inferSetArrSetArrRelations(Lasso *lasso,
-                                AssocPair *assoc_pair,
+iRel_inferSetArrSetArrRelations(iRel_Instance instance,
+                                iRel_PairHandle pair,
                                 iBase_EntitySetHandle *ents1,
                                 const int ents1_size,
                                 int is_set1,
@@ -976,7 +937,7 @@ iRel_inferSetArrSetArrRelations(Lasso *lasso,
                                 int *ierr)
 
 {
-  iRel_inferArrArrRelations(lasso, assoc_pair, (iBase_EntityHandle*)ents1,
+  iRel_inferArrArrRelations(instance, pair, (iBase_EntityHandle*)ents1,
                             ents1_size, 1, (iBase_EntityHandle*)ents2,
                             ents2_size, 1, ierr);
 }
@@ -986,9 +947,7 @@ void iRel_inferAllRelations (
   iRel_PairHandle pair,
   int *ierr)
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == this_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Didn't find relation pair.");
   }
 
@@ -997,27 +956,27 @@ void iRel_inferAllRelations (
 
   iBase_EntityHandle *ents1 = NULL;
   int ents1_alloc = 0, ents1_size;
-  if (this_pair->ent_or_set(0) != iRel_ENTITY)
-    result = this_pair->get_all_sets(0, (iBase_EntitySetHandle**)&ents1,
-                                     &ents1_alloc, &ents1_size);
+  if (ASSOCPAIRI->ent_or_set(0) != iRel_ENTITY)
+    result = ASSOCPAIRI->get_all_sets(0, (iBase_EntitySetHandle**)&ents1,
+                                      &ents1_alloc, &ents1_size);
   else
-    result = this_pair->get_all_entities(0, -1, &ents1, &ents1_alloc,
-                                         &ents1_size);
+    result = ASSOCPAIRI->get_all_entities(0, -1, &ents1, &ents1_alloc,
+                                          &ents1_size);
   CHK_ERROR(result);
 
   iBase_EntityHandle *ents2 = NULL;
   int ents2_alloc = 0, ents2_size;
-  if (this_pair->ent_or_set(1) != iRel_ENTITY)
-    result = this_pair->get_all_sets(1, (iBase_EntitySetHandle**)&ents2,
+  if (ASSOCPAIRI->ent_or_set(1) != iRel_ENTITY)
+    result = ASSOCPAIRI->get_all_sets(1, (iBase_EntitySetHandle**)&ents2,
                                      &ents2_alloc, &ents2_size);
   else
-  result = this_pair->get_all_entities(1, -1, &ents2, &ents2_alloc,
+  result = ASSOCPAIRI->get_all_entities(1, -1, &ents2, &ents2_alloc,
                                        &ents2_size);
   CHK_ERROR(result);
 
-  iRel_inferArrArrRelations(lasso, this_pair,
-                            ents1, ents1_size, this_pair->ent_or_set(0),
-                            ents2, ents2_size, this_pair->ent_or_set(1),
+  iRel_inferArrArrRelations(instance, pair,
+                            ents1, ents1_size, ASSOCPAIRI->ent_or_set(0),
+                            ents2, ents2_size, ASSOCPAIRI->ent_or_set(1),
                             &result);
 
   free(ents1); free(ents2);
@@ -1061,17 +1020,15 @@ static void iRel_inferArrRelations (
   int iface_no,
   int *ierr)
 {
-  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  AssocPair *this_pair = reinterpret_cast<AssocPair*>(pair);
-  if (NULL == this_pair) {
+  if (NULL == pair) {
     ERROR(iBase_FAILURE, "Didn't find relation pair.");
   }
 
   if (0 > iface_no || 1 < iface_no) {
     ERROR(iBase_INVALID_ARGUMENT, "Interface number must be 0 or 1");
   }
-  else if (( is_set && this_pair->ent_or_set(iface_no) == iRel_ENTITY) ||
-           (!is_set && this_pair->ent_or_set(iface_no) != iRel_ENTITY)) {
+  else if (( is_set && ASSOCPAIRI->ent_or_set(iface_no) == iRel_ENTITY) ||
+           (!is_set && ASSOCPAIRI->ent_or_set(iface_no) != iRel_ENTITY)) {
     ERROR(iBase_INVALID_ARGUMENT, "is_set must match entOrSet in call to "
           "inferArrRelations");
   }
@@ -1082,27 +1039,27 @@ static void iRel_inferArrRelations (
   int ents1_size = entities_size;
   iBase_EntityHandle *ents2 = NULL;
   int ents2_alloc = 0, ents2_size;
-  if (this_pair->ent_or_set(1-iface_no) != iRel_ENTITY)
-    result = this_pair->get_all_sets(!iface_no,
+  if (ASSOCPAIRI->ent_or_set(1-iface_no) != iRel_ENTITY)
+    result = ASSOCPAIRI->get_all_sets(!iface_no,
                                      (iBase_EntitySetHandle**)&ents2,
                                      &ents2_alloc, &ents2_size);
   else
-    result = this_pair->get_all_entities(!iface_no, -1,
+    result = ASSOCPAIRI->get_all_entities(!iface_no, -1,
                                          &ents2, &ents2_alloc, &ents2_size);
   CHK_ERROR(result);
 
   // switch so that entity lists always go into inferArrArrRelations in
-  // forward order wrt assoc_pair
+  // forward order wrt pair
   if (1 == iface_no) {
     std::swap(ents1, ents2);
     std::swap(ents1_size, ents2_size);
   }
 
-  iRel_inferArrArrRelations(lasso, this_pair,
+  iRel_inferArrArrRelations(instance, pair,
                             ents1, ents1_size,
-                            this_pair->ent_or_set(0),
+                            ASSOCPAIRI->ent_or_set(0),
                             ents2, ents2_size,
-                            this_pair->ent_or_set(1), &result);
+                            ASSOCPAIRI->ent_or_set(1), &result);
 
   free(1 == iface_no ? ents1 : ents2);
 

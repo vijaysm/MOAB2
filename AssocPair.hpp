@@ -79,7 +79,8 @@ public:
   int get_dim_tags(const int iface_no, iBase_EntitySetHandle *sets,
                    int num_sets, int *tag_values);
 protected:
-  AssocPair(RelationType ent_or_set0, IfaceType type0,
+  AssocPair(iRel_Instance instance, 
+            RelationType ent_or_set0, IfaceType type0,
             RelationType ent_or_set1, IfaceType type1);
 
   virtual ~AssocPair();
@@ -128,10 +129,11 @@ protected:
                              iBase_TagHandle *tag_handle) = 0;
 
   virtual int tag_destroy(const int iface_no, iBase_TagHandle tag_handle) = 0;
+
+  iRel_Instance instance;
 private:
   AssocPair();
 
-  Lasso *myLasso;
   int pairId;
 
   RelationType entOrSet[2];
@@ -143,5 +145,12 @@ private:
   static const char *ASSOCIATION_TAG_NAME;
   static int currId;
 };
+
+static inline AssocPair *assocpair_handle(iRel_PairHandle pair)
+{
+  return reinterpret_cast<AssocPair*>(pair);
+}
+#define ASSOCPAIRI assocpair_handle(pair)
+
 
 #endif

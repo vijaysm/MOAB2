@@ -1,16 +1,21 @@
 #ifndef LASSO_HPP
 #define LASSO_HPP
 
+#include "iRel.h"
+
 #include <set>
 #include <vector>
-#include "iRel.h"
+#include <cstring>
 
 class AssocPair;
 
 class Lasso
 {
 public:
-  Lasso(){}
+  Lasso() : lastErrorType(iBase_SUCCESS)
+  {
+    lastErrorDescription[0] = '\0';
+  }
 
   virtual ~Lasso();
 
@@ -26,8 +31,27 @@ public:
 
   int insert_pair(AssocPair *this_pair);
   int erase_pair(AssocPair *this_pair);
+
+  inline int set_last_error(int, const char*);
+
+  int lastErrorType;
+  char lastErrorDescription[120];
 private:
   std::set<AssocPair*> assocPairs;
 };
+
+static inline Lasso *lasso_instance(iRel_Instance instance)
+{
+  return reinterpret_cast<Lasso*>(instance);
+}
+#define LASSOI lasso_instance(instance)
+
+
+int Lasso::set_last_error( int code, const char* msg )
+{
+  std::strncpy( lastErrorDescription, msg, sizeof(lastErrorDescription) );
+  lastErrorDescription[sizeof(lastErrorDescription)-1] = '\0';
+  return (lastErrorType = static_cast<iBase_ErrorType>(code));
+}
 
 #endif // #ifndef LASSO_HPP

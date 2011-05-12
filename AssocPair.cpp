@@ -8,8 +8,10 @@ const char *AssocPair::GEOM_DIMENSION_TAG_NAME = "GEOM_DIMENSION";
 const char *AssocPair::ASSOCIATION_TAG_NAME = "ASSOCIATION";
 int AssocPair::currId = 0;
 
-AssocPair::AssocPair(RelationType ent_or_set0, IfaceType type0,
+AssocPair::AssocPair(iRel_Instance instance,
+                     RelationType ent_or_set0, IfaceType type0,
                      RelationType ent_or_set1, IfaceType type1)
+  : instance(instance)
 {
   ifaceTypes[0] = type0;
   ifaceTypes[1] = type1;
@@ -61,11 +63,12 @@ int AssocPair::destroy_tags()
   for (int i = 0; i < 2; i++) {
     tag_destroy(i, assocTags[i]);
   }
+
+  RETURNR(iBase_SUCCESS);
 }
 
 int AssocPair::set_assoc_tags(iBase_EntityHandle ent1, iBase_EntityHandle ent2)
 {
-  iBase_EntityHandle tmp_ent;
   // check that is_setx is consistent with entOrSet
   assert(entOrSet[0] == iRel_ENTITY && entOrSet[1] == iRel_ENTITY);
 
@@ -94,7 +97,6 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1, iBase_EntityHandle ent2)
 int AssocPair::set_assoc_tags(iBase_EntityHandle ent1,
                               iBase_EntitySetHandle set2)
 {
-  iBase_EntityHandle tmp_ent;
   // check that is_setx is consistent with entOrSet
   assert(entOrSet[0] == iRel_ENTITY && entOrSet[1] != iRel_ENTITY);
 
@@ -138,7 +140,6 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1,
 int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
                               iBase_EntityHandle ent2)
 {
-  iBase_EntityHandle tmp_ent;
   // check that is_setx is consistent with entOrSet
   assert(entOrSet[0] != iRel_ENTITY && entOrSet[1] == iRel_ENTITY);
 

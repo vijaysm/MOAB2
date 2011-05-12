@@ -3,6 +3,7 @@
 #include "iGeom.h"
 #include "iMesh.h"
 #include "iRel.h"
+#include "Lasso.hpp"
 
 #include <string.h>
 #include <stdio.h>
@@ -10,7 +11,6 @@
 #define PROCESS_GERROR do {                                             \
     if (iBase_SUCCESS != result) {                                      \
       char this_descr[120];                                             \
-      int err;                                                          \
       iGeom_getDescription((iGeom_Instance)ifaceInstances[iface_no],    \
                            this_descr, 120);                            \
       ERRORR(result, this_descr);                                       \
@@ -26,13 +26,14 @@
     }                                                                   \
   } while(false)
 
-AssocPairC::AssocPairC(iBase_Instance iface0,
+AssocPairC::AssocPairC(iRel_Instance instance,
+                       iBase_Instance iface0,
                        RelationType ent_or_set0,
                        IfaceType type0,
                        iBase_Instance iface1,
                        RelationType ent_or_set1,
                        IfaceType type1)
-  : AssocPair(ent_or_set0, type0, ent_or_set1, type1)
+  : AssocPair(instance, ent_or_set0, type0, ent_or_set1, type1)
 {
   ifaceInstances[0] = iface0;
   ifaceInstances[1] = iface1;

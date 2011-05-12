@@ -6,7 +6,8 @@
 class AssocPairC : public AssocPair
 {
 public:
-  AssocPairC(iBase_Instance iface0,
+  AssocPairC(iRel_Instance instance,
+             iBase_Instance iface0,
              RelationType ent_or_set0,
              IfaceType type0,
              iBase_Instance iface1,
