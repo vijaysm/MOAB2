@@ -201,7 +201,9 @@ int main( int argc, char* argv[] )
   Range skin_ents;
   Tag matset_tag = 0, neuset_tag = 0;
   result = iface->tag_get_handle(MATERIAL_SET_TAG_NAME, matset_tag);
+  if (MB_SUCCESS != result) return 1;
   result = iface->tag_get_handle(NEUMANN_SET_TAG_NAME, neuset_tag);
+  if (MB_SUCCESS != result) return 1;
 
   if (matsets.empty()) skin_ents = entities;
   else {
@@ -242,6 +244,8 @@ int main( int argc, char* argv[] )
     Range dum_range;
     result = iface->get_adjacencies(&(*skin_ents.begin()), 1, 1, false,
                                     dum_range);
+    if (MB_SUCCESS != result)
+      return 1;
   }
   
   double tmp_time = 0.0, tmp_mem = 0.0;
@@ -371,11 +375,12 @@ int main( int argc, char* argv[] )
     Range this_range, ent_range;
     result = iface->get_entities_by_type_and_tag(0, MBENTITYSET, &matset_tag,
                                                   NULL, 0, this_range);
+    if (MB_SUCCESS != result) return 1;
     if (!this_range.empty()) iface->delete_entities(this_range);
 
     int dum = 10000;
     result = iface->tag_set_data(matset_tag, &skin_set, 1, &dum);
-    
+    if (MB_SUCCESS != result) return 1;
 
     result = iface->write_mesh( output_file, &skin_set, 1);
     if (MB_SUCCESS != result)

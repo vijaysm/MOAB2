@@ -155,6 +155,7 @@ static ErrorCode gather_set_stats( EntityHandle set, set_stats& stats )
       }
       coords.resize( 3*conn.size() );
       rval = mb.get_coords( &conn[0], conn.size(), &coords[0] );
+      if (MB_SUCCESS != rval) return rval;
       stats.stats[type].add( measure( type, conn.size(), &coords[0] ) );
       
       if (type != MBEDGE)
@@ -611,7 +612,10 @@ int main( int argc, char* argv[] )
           printf( "%s %d:\n", mesh_type_names[t], id );
           if (tag_count) {
             rval = gather_tag_counts( *i, file_counts );
-            print_tag_counts( file_counts );
+            if (MB_SUCCESS != rval) 
+              fprintf(stderr, "Error processing tags from file: %s\n", f->c_str());
+            else
+              print_tag_counts( file_counts );
           }
           else if (just_list)
             mb.list_entities( 0, 1 );

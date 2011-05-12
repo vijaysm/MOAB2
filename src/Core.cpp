@@ -1220,6 +1220,10 @@ ErrorCode get_adjacencies_union( Core* gMB,
       else {
         tmp_result = gMB->a_entity_factory()->get_adjacencies( *i, to_dimension, 
                                                    create_if_missing, temp_vec);
+        if (MB_SUCCESS != tmp_result) {
+          result = tmp_result;
+          continue;
+        }
       }
     }
 

@@ -486,7 +486,7 @@ int main(int argc, char* argv[])
       empty_sets = subtract( tmp_range,  dead_entities );
     }
       // Destroy dead entities
-    result = gMB->delete_entities( dead_entities );
+    gMB->delete_entities( dead_entities );
   }
   
     // If user specified sets to write, but none were found, exit.

@@ -101,6 +101,7 @@ int main(int argc, char **argv)
       std::cout << "Operation undefined." << std::endl;
       return 1;
     }
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
   
     // now write to a file
     std::string filename(OperationNames[*vit]);

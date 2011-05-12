@@ -178,7 +178,7 @@ unsigned char* parse_opaque_value( const char* vals, int size )
 template<typename T> T* parse_values_typed( const char* vals, int size )
 {
   size_t tsize = sizeof(T);
-  if (size % tsize != 0) {
+  if ((size % tsize) != 0) {
     std::cerr << "Invalid tag size for type." << std::endl;
     abort();
   }
@@ -311,12 +311,9 @@ int parse_tag_create( char* name, TagSpec& result, Interface* iface )
   {
     *eq2 = '\0';
     ++eq2;
-    val = eq1;
+    val = ('\0' == eq1[0]) ? 0 : eq1;
     type_str = eq2;
   }
-  
-  if (*val == '\0')
-    val = 0;
   
     // parse type data
   char* size_str = strchr( type_str, ':' );
