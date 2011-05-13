@@ -122,7 +122,7 @@ public:
   ErrorCode split_surface_with_direction(EntityHandle face, std::vector<double> & xyz, double * direction,
       EntityHandle & newFace, int closed);
   // these new points will be on edges or triangles, if in interior of triangles
-  ErrorCode split_surface(EntityHandle face, std::vector<double> & points,
+  ErrorCode split_surface(EntityHandle face, std::vector<CartVect> & points,
       std::vector<EntityHandle> & entities, std::vector<EntityHandle> & triangles,
       EntityHandle & newFace);
 
@@ -143,8 +143,8 @@ private:
   ErrorCode getAdjacentEntities(const EntityHandle from, const int to_dim,
       Range &adj_ents);
 
-  ErrorCode compute_intersection_points(EntityHandle & face, CartVect & p1, CartVect & p2,
-      EntityHandle from, EntityHandle to, CartVect & Dir, std::vector<double> & points,
+  ErrorCode compute_intersection_points(EntityHandle & face,
+      EntityHandle from, EntityHandle to, CartVect & Dir, std::vector<CartVect> & points,
       std::vector<EntityHandle> & entities, std::vector<EntityHandle> & triangles);
 
   ErrorCode BreakTriangle(EntityHandle tri, EntityHandle e1, EntityHandle e3, EntityHandle n1,

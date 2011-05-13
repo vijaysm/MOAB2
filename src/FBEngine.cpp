@@ -1086,7 +1086,7 @@ ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<
   // assume it is robust; what if it is not sufficiently robust?
 
   ErrorCode rval;
-  std::vector<double> points; // if the point is interior, it will be matched to a triangle,
+  std::vector<CartVect> points; // if the point is interior, it will be matched to a triangle,
   // otherwise to edges or even nodes
   std::vector<EntityHandle> entities;
   //start with initial points, intersect along the direction, find the facets
@@ -1098,9 +1098,9 @@ ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<
   MBERRORR(rval, "Failed to get root of face.");
 
   const double dir[] = { direction[0], direction[1], direction[2] };
-  std::vector<EntityHandle> triangles;
+  std::vector<EntityHandle> nodes; // get the nodes closest to the ray traces of interest
   std::vector<EntityHandle> trianglesAlong;
-  std::vector<CartVect> intxPoints;
+
   int i = 0;
   for (; i < numIniPoints; i++) {
     const double point[] = { xyz[3 * i], xyz[3 * i + 1], xyz[3 * i + 2] };// or even point( &(xyz[3*i]) ); //
@@ -1118,13 +1118,38 @@ ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<
       std::cout
           << " too many intersection points. Only the first one considered\n";
     }
-    if (sets_out[0] != face)
-      MBERRORR(MB_FAILURE, "Failed intersect given face, bad direction.")
+    std::vector<EntityHandle>::iterator pFace = std::find(sets_out.begin(), sets_out.end(), face);
+
+    if (pFace == sets_out.end())
+      MBERRORR(MB_FAILURE, "Failed to intersect given face, bad direction.");
+    unsigned int index = pFace-sets_out.begin();
+    // get the closest node of the triangle, and modify
     CartVect P(point);
     CartVect Dir(dir);
-    CartVect newPoint = P + distances_out[0] * Dir;
-    intxPoints.push_back(newPoint);
-    triangles.push_back(facets_out[0]);
+    CartVect newPoint = P + distances_out[index] * Dir;
+    // get the triangle coordinates
+    //
+    int nnodes;
+    const EntityHandle * conn3;
+    rval = MBI->get_connectivity(facets_out[index], conn3, nnodes);
+    MBERRORR(rval, "Failed to get connectivity");
+
+    CartVect PP[3];
+    rval = _mbImpl->get_coords(conn3, nnodes, (double*) &PP[0]);
+    MBERRORR(rval, "Failed to get coordinates");
+
+    EntityHandle vertex=conn3[0];
+    double minD2=(newPoint-PP[0]).length_squared();
+    for (int j=1; j<nnodes; j++) // nnodes should be 3, actually
+    {
+      double d2=(newPoint-PP[j]).length_squared();
+      if ( d2 < minD2)
+      {
+        minD2 = d2;
+        vertex = conn3[j];
+      }
+    }
+    nodes.push_back(vertex);
   }
   // now, we have to find more intersection points, either interior to triangles, or on edges, or on vertices
   // use the same tolerance as before
@@ -1136,8 +1161,7 @@ ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<
   CartVect Dir(direction);
   for (i = 0; i < numIniPoints - 1 + closed; i++) {
     int nextIndex = (i + 1) % numIniPoints;
-    rval = compute_intersection_points(face, intxPoints[i],
-        intxPoints[nextIndex], triangles[i], triangles[nextIndex], Dir, points,
+    rval = compute_intersection_points(face, nodes[i], nodes[nextIndex], Dir, points,
         entities, trianglesAlong);
     MBERRORR(rval, "can't get intersection points");
   }
@@ -1151,9 +1175,11 @@ ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<
 /**
  *  this method splits along the polyline defined by points and entities
  *  the polyline will be defined with
+ *  // the entities are now only nodes and edges, no triangles!!!
+ *  the first and last ones are also nodes for sure
  */
 ErrorCode FBEngine::split_surface(EntityHandle face,
-    std::vector<double> & points, std::vector<EntityHandle> & entities,
+    std::vector<CartVect> & points, std::vector<EntityHandle> & entities,
     std::vector<EntityHandle> & triangles, EntityHandle & newFace)
 {
   // if the last point is the same as the first point, assume a loop defined
@@ -1174,16 +1200,14 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
   rval = _mbImpl -> get_entities_by_type(face, MBTRI, iniTris);
   MBERRORR(rval, "can't get initial triangles");
   
-  int num_points = (int) points.size()/3;
+  int num_points = (int) points.size();
   // if first point is the same as last point, we have a loop for cropping
   // otherwise, we have a trimming line for splitting
 
   Range triToDelete;
   Range edgesToDelete;
   bool loop = false;
-  if (fabs(points[0] - points[3 * num_points - 3]) < tolerance_segment && fabs(
-      points[1] - points[3 * num_points - 2]) < tolerance_segment && fabs(
-      points[2] - points[3 * num_points - 1]) < tolerance_segment)
+  if ( (points[0]-points[num_points-1]).length()<tolerance_segment )
     loop = true;
 
   // go along entities, find the triangles they belong to, and create new triangles if needed
@@ -1191,22 +1215,8 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
 
   // we need to start at an edge or at a vertex; we could start in an interior of a triangle, but
   // let's skip that
-  EntityType firstType = _mbImpl->type_from_handle(entities[0]);
   std::vector<EntityHandle> nodesAlongPolyline;
-  if (firstType == MBVERTEX) {
-    nodesAlongPolyline.push_back(entities[0]);// first node on polyline
-  } else if (firstType == MBEDGE) {
-    // first ent an edge, create a node there.
-    double coord_vert[3] = { points[0], points[1], points[2] };
-    EntityHandle newVertex;
-    rval = _mbImpl->create_vertex(coord_vert, newVertex);
-    MBERRORR(rval, "can't create vertex");
-    nodesAlongPolyline.push_back(newVertex);// first node on polyline
-    edgesToDelete.insert(entities[0]);
-  } else {
-    // interior of triangle not supported yet, but we will eventually
-    MBERRORR(MB_FAILURE, "can't start in an interior of a triangle (we could though)");
-  }
+  nodesAlongPolyline.push_back(entities[0]); // it is for sure a node
   for (int i = 0; i < num_points-1; i++) {
     EntityHandle tri = triangles[i]; // this is happening in triangle i
     EntityHandle e1 = entities[i];
@@ -1220,10 +1230,9 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
     }
     else // if (et2==MBEDGE || et2==MBTRI)
     {
-      double coord_vert[3] = { points[3 * i+3], points[3 * i + 4], points[3 * i
-          + 5] };
+      CartVect coord_vert=points[i+1];
       EntityHandle newVertex;
-      rval = _mbImpl->create_vertex(coord_vert, newVertex);
+      rval = _mbImpl->create_vertex((double*)&coord_vert, newVertex);
       MBERRORR(rval, "can't create vertex");
       nodesAlongPolyline.push_back(newVertex);
     }
@@ -1240,7 +1249,7 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
     // there will be at most 5 triangles formed, and at least 4 in that case (also advance i)
     // many cases, if, then, else etc.
     // initially form only triangles, worry about edges later (or not?)
-    if (MBTRI == et2)
+    /*if (MBTRI == et2)
     {
 
       // triangles [i+1] has to be the same, and point to a different entity (edge, or vertex)
@@ -1273,17 +1282,16 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
           edgesToDelete.insert(e3);
     }
     else
+    {*/
+    if (debug_splits)
     {
-      if (debug_splits)
-      {
-        std::cout <<"tri: type: " << _mbImpl->type_from_handle(tri) << " id:" <<
-            _mbImpl->id_from_handle(tri) << " e1:" << e1 << " e2:" << e2 << "\n";
-      }
-      rval = BreakTriangle2( tri, e1, e2, nodesAlongPolyline[i], nodesAlongPolyline[i+1], new_triangles);
-      MBERRORR(rval, "can't break triangle 2");
-      if (et2==MBEDGE)
-        edgesToDelete.insert(e2);
+      std::cout <<"tri: type: " << _mbImpl->type_from_handle(tri) << " id:" <<
+          _mbImpl->id_from_handle(tri) << " e1:" << e1 << " e2:" << e2 << "\n";
     }
+    rval = BreakTriangle2( tri, e1, e2, nodesAlongPolyline[i], nodesAlongPolyline[i+1], new_triangles);
+    MBERRORR(rval, "can't break triangle 2");
+    if (et2==MBEDGE)
+      edgesToDelete.insert(e2);
     triToDelete.insert(tri);
 
   }
@@ -1883,26 +1891,19 @@ ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHand
 //it could be just a list of vertices (easiest case to handle after)
 
 ErrorCode FBEngine::compute_intersection_points(EntityHandle & face,
-    CartVect & p1, CartVect & p2, EntityHandle from, EntityHandle to,
-    CartVect & Dir, std::vector<double> & points,
+    EntityHandle from, EntityHandle to,
+    CartVect & Dir, std::vector<CartVect> & points,
     std::vector<EntityHandle> & entities, std::vector<EntityHandle> & triangles)
 {
   // keep a stack of triangles to process, and do not add those already processed
   // either mark them, or maybe keep them in a local set?
-  // from and to are triangles, start from them
-  double area_coord1[3];
-  EntityHandle boundary_handle;
-  bool onBoundary = false;
-  ErrorCode rval = area_coordinates(_mbImpl, from, p1, area_coord1,
-      boundary_handle, onBoundary);
-  MBERRORR(rval, "failed to get area coordinates");
+  // from and to are now nodes, start from them
+  CartVect p1, p2;// the position of from and to
+  ErrorCode rval = _mbImpl->get_coords(&from, 1, (double *)&p1);
+  MBERRORR(rval, "failed to get 'from' coordinates");
+  rval = _mbImpl->get_coords(&to, 1, (double *)&p2);
+  MBERRORR(rval, "failed to get 'from' coordinates");
 
-  if (debug_splits)
-  {
-    std::cout << "  area coordinates: " << area_coord1[0] << " " <<
-        area_coord1[1] << " "<< area_coord1[1] << "\n ";
-    std::cout << "on boundary:" <<  ( onBoundary?boundary_handle : 0) << "\n";
-  }
   CartVect vect(p2 - p1);
   double dist2 = vect.length();
   if (dist2 < tolerance_segment) {
@@ -1911,83 +1912,32 @@ ErrorCode FBEngine::compute_intersection_points(EntityHandle & face,
   }
   CartVect normPlane = Dir * vect;
   normPlane.normalize();
-
   std::set<EntityHandle> visitedTriangles;
-
-  //visitedTriangles.insert(from); no, we have to see here
-  EntityHandle currentTriangle = from;
   CartVect currentPoint = p1;
   // push the current point if it is empty
   if (points.size() == 0) {
-    points.push_back(p1[0]);
-    points.push_back(p1[1]);
-    points.push_back(p1[2]);
-    entities.push_back(from);
+    points.push_back(p1);
+    entities.push_back(from);// this is a node now
   }
-  int sizeP = (int) points.size() / 3;
 
   // these will be used in many loops
   CartVect intx = p1;// somewhere to start
   double param = -1.;
 
   // first intersection
-  EntityHandle currentBoundary;
-  if (onBoundary) {
-    entities[sizeP - 1] = boundary_handle;// replace the triangle with another entity handle (vertex or edge)
-    currentBoundary = boundary_handle;
-  } else {
-    // find another intersection point, to continue the polyline
-    const EntityHandle * conn3;
-    int nnodes;
-    ErrorCode rval = _mbImpl->get_connectivity(from, conn3, nnodes);
-    MBERRORR(rval, "Failed to get connectivity");
-    assert(3 == nnodes);
-    CartVect P[3];
-    rval = _mbImpl->get_coords(conn3, nnodes, (double*) &P[0]);
-    MBERRORR(rval, "Failed to get coordinates");
-    // what edge will be good?
-    for (int i = 0; i < 3; i++) {
-      int nextI = (i + 1) % 3;
+  EntityHandle currentBoundary = from;// it is a node, in the beginning
 
-      if (intersect_segment_and_plane_slice(P[i], P[nextI], p1, p2, Dir,
-          normPlane, intx, param)) {
-        //
-        EntityHandle nn2[2];
-        nn2[0] = conn3[i];
-        nn2[1] = conn3[nextI];
-        std::vector<EntityHandle> adjacent;
-        rval = _mbImpl->get_adjacencies(nn2, 2, 1, false, adjacent,
-            Interface::INTERSECT);
-        MBERRORR(rval, "Failed to get edges");
-        if (adjacent.size() != 1)
-          MBERRORR(MB_FAILURE, "Failed to get adjacent edges");
-        // should be only one edge here
-        currentBoundary = adjacent[0];
-        points.push_back(intx[0]);
-        points.push_back(intx[1]);
-        points.push_back(intx[2]);
-        entities.push_back(currentBoundary);
-        currentPoint = intx;
-        triangles.push_back(from); // is the current triangle, it is involved in previous point and current
-        //
-        break;
-      }
-    }
-    //MBERRORR(MB_FAILURE, "cannot advance");
-  }
   vect = p2 - currentPoint;
-  while (currentTriangle != to && vect.length() >= tolerance_segment) {
-    // advance towards "to" triangle, from boundary handle
+  while (vect.length() > 0.) {
+    // advance towards "to" node, from boundary handle
     EntityType etype = _mbImpl->type_from_handle(currentBoundary);
-    //if vertex, look for other triangles connected which intersect
+    //if vertex, look for other triangles connected which intersect our plane (defined by p1, p2, dir)
     std::vector<EntityHandle> adj_tri;
     rval = _mbImpl->get_adjacencies(&currentBoundary, 1, 2, false, adj_tri);
     unsigned int j = 0;
     EntityHandle tri;
     for (; j < adj_tri.size(); j++) {
       tri = adj_tri[j];
-      if (tri == to)
-        break; // break out of while loop, we are done; this first break will break out of "for" loop
       if (visitedTriangles.find(tri) != visitedTriangles.end())
         continue;// get another triangle, this one was already visited
       // if vertex, look for opposite edge
@@ -1997,6 +1947,19 @@ ErrorCode FBEngine::compute_intersection_points(EntityHandle & face,
       const EntityHandle * conn3;
       rval = _mbImpl->get_connectivity(tri, conn3, nnodes);
       MBERRORR(rval, "Failed to get connectivity");
+      // if one of the nodes is to, stop right there
+      {
+        if (conn3[0]==to || conn3[1]==to || conn3[2]==to)
+        {
+          visitedTriangles.insert(tri);
+          triangles.push_back(tri);
+          currentPoint = p2;
+          points.push_back(p2);
+          entities.push_back(to);// we are done
+          break;// this is break from for loop, we still need to get out of while
+          // we will get out, because vect will become 0, (p2-p2)
+        }
+      }
       EntityHandle nn2[2];
       if (MBVERTEX == etype) {
         nn2[0] = conn3[0];
@@ -2031,12 +1994,9 @@ ErrorCode FBEngine::compute_intersection_points(EntityHandle & face,
               currentBoundary = edges1[0];
             }
           }
-          currentTriangle = tri;
           visitedTriangles.insert(tri);
           currentPoint = intx;
-          points.push_back(intx[0]);
-          points.push_back(intx[1]);
-          points.push_back(intx[2]);
+          points.push_back(intx);
           entities.push_back(currentBoundary);
           triangles.push_back(tri);
           if (debug_splits)
@@ -2046,7 +2006,7 @@ ErrorCode FBEngine::compute_intersection_points(EntityHandle & face,
           break; // out of for loop over triangles
 
         }
-      } else // this is MBEDGE, we have one triangle to try out
+      } else // this is MBEDGE, we have the other triangle to try out
       {
         //first find the nodes from existing boundary
         int nnodes2;
@@ -2091,12 +2051,9 @@ ErrorCode FBEngine::compute_intersection_points(EntityHandle & face,
                 currentBoundary = edges1[0];
               }
             }
-            currentTriangle = tri;
             visitedTriangles.insert(tri);
             currentPoint = intx;
-            points.push_back(intx[0]);
-            points.push_back(intx[1]);
-            points.push_back(intx[2]);
+            points.push_back(intx);
             entities.push_back(currentBoundary);
             triangles.push_back(tri);
             if (debug_splits)
@@ -2116,28 +2073,11 @@ ErrorCode FBEngine::compute_intersection_points(EntityHandle & face,
      {
      MBERRORR(MB_FAILURE, "did not advance");
      }*/
-    if (tri==to)
-      break;// finally get out of while loop
     vect = p2 - currentPoint;
 
   }
-  // we got to "to" triangle, just add the last point if needed
 
-  if (vect.length() >= tolerance_segment) {
-    // the path reached the last triangle (tri ==to)
-    rval = area_coordinates(_mbImpl, to, p2, area_coord1,
-          boundary_handle, onBoundary);
-    if (onBoundary)
-      entities.push_back(boundary_handle);
-    else
-      entities.push_back(to); // the last entity
-    points.push_back(p2[0]);
-    points.push_back(p2[1]);
-    points.push_back(p2[2]);
-    triangles.push_back(to);
-    if (debug_splits)
-        std::cout << "vect.length(): " << vect.length() <<  " p2 added last, also ""to"" triangle\n";
-  }
+
   if (debug_splits)
     std::cout << "nb entities: " << entities.size() <<  " triangles:" << triangles.size() <<
      " points.size()/3: " << points.size()/3 <<  "\n";
