@@ -1466,6 +1466,8 @@ ErrorCode FBEngine::separate (EntityHandle face, Range & triToDelete,
 
   // get a positive triangle adjacent to mesh_edge[0]
   // add to first triangles to the left, second triangles to the right of the mesh_edges ;
+  std::set<EntityHandle> firstSet;
+  std::set<EntityHandle> secondSet;
   for (Range::iterator it = mesh_edges.begin(); it!=mesh_edges.end(); it++)
   {
     EntityHandle meshEdge = *it;
@@ -1481,28 +1483,16 @@ ErrorCode FBEngine::separate (EntityHandle face, Range & triToDelete,
       rval = _mbImpl->side_number(tr, meshEdge, num1, sense, offset);
       MBERRORR(rval, "edge not adjacent");
       if (sense==1)
-        first.insert(tr);
+        firstSet.insert(tr);
       else
-        second.insert(tr);
+        secondSet.insert(tr);
     }
   }
-
-  Range edges_of_new_triangles;
-  rval = _mbImpl->get_adjacencies(new_triangles,
-      1, true, edges_of_new_triangles, Interface::UNION);
-  MBERRORR(rval, "can't get new edges");
 
   // get the first new triangle: will be part of first set;
   // flood fill first set, the rest will be in second set
   //first.insert(new_triangles[0]);
   // the edges from new_geo_edge will not be crossed
-  Range splittingEdges;
-  rval = _mbImpl->get_entities_by_type(new_geo_edge, MBEDGE, splittingEdges);
-  MBERRORR(rval, "can't get new polyline edges");
-  //
-  Range iniTriangles;
-  rval = _mbImpl -> get_entities_by_type(face, MBTRI, iniTriangles);
-  MBERRORR(rval, "can't get tri from initial face");
 
   // get edges of face (adjacencies)
   // also get the old boundary edges, from face; they will be edges to not cross
@@ -1521,17 +1511,17 @@ ErrorCode FBEngine::separate (EntityHandle face, Range & triToDelete,
   Range doNotCrossEdges = unite(initialBoundaryEdges, mesh_edges);// add the splitting edges !
 
   std::queue<EntityHandle> firstQueue;
-  for (Range::iterator it3 = first.begin(); it3!=first.end(); it3++)
+  for (std::set<EntityHandle>::iterator it3 = firstSet.begin(); it3!=firstSet.end(); it3++)
   {
     EntityHandle firstTri = *it3;
     firstQueue.push(firstTri);
   }
-  Range visited=first;// already decided, do not care about them again
+  std::set<EntityHandle> visited=firstSet;// already decided, do not care about them again
   while(!firstQueue.empty())
   {
     EntityHandle currentTriangle=firstQueue.front();
     firstQueue.pop();
-    first.insert(currentTriangle);
+    firstSet.insert(currentTriangle);
     // add new triangles that share an edge
     Range currentEdges;
     rval =  _mbImpl->get_adjacencies(&currentTriangle, 1,
@@ -1551,7 +1541,7 @@ ErrorCode FBEngine::separate (EntityHandle face, Range & triToDelete,
         for (Range::iterator it2=adj_tri.begin(); it2!=adj_tri.end(); it2++)
         {
           EntityHandle tri2=*it2;
-          if ( (first.find(tri2)==first.end()) &&
+          if ( (firstSet.find(tri2)==firstSet.end()) &&
                 (triToDelete.find(tri2) == triToDelete.end())
               && (visited.find(tri2) == visited.end()) )
           {
@@ -1565,12 +1555,12 @@ ErrorCode FBEngine::separate (EntityHandle face, Range & triToDelete,
   }
   // try a second queue
   std::queue<EntityHandle> secondQueue;
-  for (Range::iterator it4 = second.begin(); it4!=second.end(); it4++)
+  for (std::set<EntityHandle>::iterator it4 = secondSet.begin(); it4!=secondSet.end(); it4++)
   {
     EntityHandle secondTri = *it4;
     secondQueue.push(secondTri);
   }
-  visited=unite(first, second);// already decided, do not care about them again
+  visited=secondSet;// already decided, do not care about them again
   /*// now "first" should have one set of triangles
   // second = iniTriangles + new_triangles - triangles to delete - first
   second =  unite (iniTriangles, new_triangles);
@@ -1582,7 +1572,7 @@ ErrorCode FBEngine::separate (EntityHandle face, Range & triToDelete,
   {
     EntityHandle currentTriangle=secondQueue.front();
     secondQueue.pop();
-    second.insert(currentTriangle);
+    secondSet.insert(currentTriangle);
     // add new triangles that share an edge
     Range currentEdges;
     rval =  _mbImpl->get_adjacencies(&currentTriangle, 1,
@@ -1602,7 +1592,7 @@ ErrorCode FBEngine::separate (EntityHandle face, Range & triToDelete,
         for (Range::iterator it2=adj_tri.begin(); it2!=adj_tri.end(); it2++)
         {
           EntityHandle tri2=*it2;
-          if ( (second.find(tri2)==second.end()) &&
+          if ( (secondSet.find(tri2)==secondSet.end()) &&
                 (triToDelete.find(tri2) == triToDelete.end())
               && (visited.find(tri2) == visited.end()) )
           {
@@ -1622,6 +1612,9 @@ ErrorCode FBEngine::separate (EntityHandle face, Range & triToDelete,
 
   }
 
+  // now create first and second ranges, from firstSet and secondSet
+  std::copy(firstSet.rbegin(), firstSet.rend(), range_inserter(first));
+  std::copy(secondSet.rbegin(), secondSet.rend(), range_inserter(second));
   return MB_SUCCESS;
 }
 // if there is an edge between 2 nodes, then check it's orientation, and revert it if needed
