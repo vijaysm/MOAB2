@@ -45,25 +45,24 @@ void iRel_getDescription(iRel_Instance instance, char *descr, int descr_len)
   }
 }
 
-void iRel_newRel(/* in */ const char * /* options */,
+void iRel_create(/* in */ const char * /* options */,
                  iRel_Instance *instance,
-                 int *ierr,
+                 int *err,
                  const int options_len)
 {
   if (0 != options_len) {
     *instance = NULL;
-    *ierr = iBase_NOT_SUPPORTED;
+    *err = iBase_NOT_SUPPORTED;
   }
 
   *instance = new Lasso();
-  *ierr = iBase_SUCCESS;
+  *err = iBase_SUCCESS;
 }
 
-void iRel_dtor(iRel_Instance instance, int *ierr)
+void iRel_destroy(iRel_Instance instance, int *err)
 {
   delete LASSOI;
-
-  *ierr = iBase_SUCCESS;
+  *err = iBase_SUCCESS;
 }
 
 void iRel_createPair (
@@ -71,19 +70,21 @@ void iRel_createPair (
   iBase_Instance iface1,
   const int ent_or_set1,
   const int iface_type1,
+  const int irel_status1,
   iBase_Instance iface2,
   const int ent_or_set2,
   const int iface_type2,
+  const int irel_status2,
   iRel_PairHandle *pair,
-  int *ierr)
+  int *err)
 {
   // assume we want an AssocPairC
   AssocPair *assoc_pair = new AssocPairC(
     instance,
-    iface1, static_cast<RelationType>(ent_or_set1),
-    static_cast<IfaceType>(iface_type1),
-    iface2, static_cast<RelationType>(ent_or_set2),
-    static_cast<IfaceType>(iface_type2)
+    iface1, static_cast<iRel_RelationType>(ent_or_set1),
+    static_cast<iRel_IfaceType>(iface_type1),
+    iface2, static_cast<iRel_RelationType>(ent_or_set2),
+    static_cast<iRel_IfaceType>(iface_type2)
   );
   LASSOI->insert_pair(assoc_pair);
 
@@ -97,10 +98,12 @@ void iRel_getPairInfo (
   iBase_Instance *iface1,
   int *ent_or_set1,
   int *iface_type1,
+  int *irel_statu1,
   iBase_Instance *iface2,
   int *ent_or_set2,
   int *iface_type2,
-  int *ierr)
+  int *irel_status2,
+  int *err)
 {
   if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
@@ -121,7 +124,17 @@ void iRel_changePairType (
   iRel_PairHandle pair,
   int ent_or_set1,
   int ent_or_set2,
-  int *ierr)
+  int *err)
+{
+  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
+}
+
+void iRel_changePairStatus (
+  iRel_Instance instance,
+  iRel_PairHandle pair,
+  int irel_status1,
+  int irel_status2,
+  int *err)
 {
   ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
 }
@@ -129,7 +142,7 @@ void iRel_changePairType (
 void iRel_destroyPair (
   iRel_Instance instance,
   iRel_PairHandle pair,
-  int *ierr)
+  int *err)
 {
   if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
@@ -144,7 +157,7 @@ void iRel_findPairs (
   iRel_PairHandle **pairs,
   int *pairs_allocated,
   int *pairs_size,
-  int *ierr
+  int *err
   )
 {
   std::vector<AssocPair*> tmp_pairs;
@@ -163,7 +176,7 @@ void iRel_setEntEntRelation (
   iRel_PairHandle pair,
   iBase_EntityHandle ent1,
   iBase_EntityHandle ent2,
-  int *ierr)
+  int *err)
 {
   if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
@@ -178,7 +191,7 @@ void iRel_setEntSetRelation (
   iRel_PairHandle pair,
   iBase_EntityHandle ent1,
   iBase_EntitySetHandle set2,
-  int *ierr)
+  int *err)
 {
   if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
@@ -193,7 +206,7 @@ void iRel_setSetEntRelation (
   iRel_PairHandle pair,
   iBase_EntitySetHandle set1,
   iBase_EntityHandle ent2,
-  int *ierr)
+  int *err)
 {
   if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
@@ -208,7 +221,7 @@ void iRel_setSetSetRelation (
   iRel_PairHandle pair,
   iBase_EntitySetHandle set1,
   iBase_EntitySetHandle set2,
-  int *ierr)
+  int *err)
 {
   if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
@@ -218,114 +231,6 @@ void iRel_setSetSetRelation (
   CHK_ERROR( ASSOCPAIRI->set_assoc_tags(set1, set2) );
 }
 
-void iRel_setEntEntArrRelation (
-  iRel_Instance instance,
-  iRel_PairHandle pair,
-  iBase_EntityHandle ent1,
-  int switch_order,
-  iBase_EntityHandle *ent_array_2,
-  int num_entities,
-  int *ierr)
-{
-  int result = iBase_SUCCESS;
-  for (int i = 0; i < num_entities; i++) {
-    int tmp_result;
-    if (switch_order) {
-      iRel_setEntEntRelation(instance, pair,
-                             ent_array_2[i], ent1, &tmp_result);
-    }
-    else {
-      iRel_setEntEntRelation(instance, pair,
-                             ent1, ent_array_2[i], &tmp_result);
-    }
-
-    if (iBase_SUCCESS != tmp_result) result = tmp_result;
-  }
-
-  CHK_ERROR(result);
-}
-
-void iRel_setEntSetArrRelation (
-  iRel_Instance instance,
-  iRel_PairHandle pair,
-  iBase_EntityHandle ent1,
-  int switch_order,
-  iBase_EntitySetHandle *set_array_2,
-  int num_sets,
-  int *ierr)
-{
-  int result = iBase_SUCCESS;
-  for (int i = 0; i < num_sets; i++) {
-    int tmp_result;
-    if (switch_order) {
-      iRel_setSetEntRelation(instance, pair,
-                             set_array_2[i], ent1, &tmp_result);
-    }
-    else {
-      iRel_setEntSetRelation(instance, pair,
-                             ent1, set_array_2[i], &tmp_result);
-    }
-
-    if (iBase_SUCCESS != tmp_result) result = tmp_result;
-  }
-
-  CHK_ERROR(result);
-}
-
-void iRel_setSetEntArrRelation (
-  iRel_Instance instance,
-  iRel_PairHandle pair,
-  iBase_EntitySetHandle set1,
-  int switch_order,
-  iBase_EntityHandle *ent_array_2,
-  int num_entities,
-  int *ierr)
-{
-  int result = iBase_SUCCESS;
-  for (int i = 0; i < num_entities; i++) {
-    int tmp_result;
-    if (switch_order) {
-      iRel_setEntSetRelation(instance, pair,
-                             ent_array_2[i], set1, &tmp_result);
-    }
-    else {
-      iRel_setSetEntRelation(instance, pair,
-                             set1, ent_array_2[i], &tmp_result);
-    }
-
-    if (iBase_SUCCESS != tmp_result) result = tmp_result;
-  }
-
-  CHK_ERROR(result);
-}
-
-void iRel_setSetSetArrRelation (
-  iRel_Instance instance,
-  iRel_PairHandle pair,
-  iBase_EntitySetHandle set1,
-  int switch_order,
-  iBase_EntitySetHandle *set_array_2,
-  int num_sets,
-  int *ierr)
-{
-  int result = iBase_SUCCESS;
-  for (int i = 0; i < num_sets; i++) {
-    int tmp_result;
-    if (switch_order) {
-      iRel_setSetSetRelation(instance, pair,
-                             set_array_2[i], set1, &tmp_result);
-    }
-    else {
-      iRel_setSetSetRelation(instance, pair,
-                             set1, set_array_2[i], &tmp_result);
-    }
-
-    if (iBase_SUCCESS != tmp_result) result = tmp_result;
-  }
-
-  CHK_ERROR(result);
-}
-
 void iRel_setEntArrEntArrRelation (
   iRel_Instance instance,
   iRel_PairHandle pair,
@@ -333,7 +238,7 @@ void iRel_setEntArrEntArrRelation (
   int num_entities1,
   iBase_EntityHandle *ent_array_2,
   int num_entities2,
-  int *ierr)
+  int *err)
 {
   if (num_entities1 != num_entities2) {
     ERROR(iBase_INVALID_ENTITY_COUNT, "setEntArrEntArrRelation doesn't support "
@@ -358,7 +263,7 @@ void iRel_setEntArrSetArrRelation (
   int num_entities1,
   iBase_EntitySetHandle *set_array_2,
   int num_sets2,
-  int *ierr)
+  int *err)
 {
   if (num_entities1 != num_sets2) {
     ERROR(iBase_INVALID_ENTITY_COUNT, "setEntArrSetArrRelation doesn't support "
@@ -383,7 +288,7 @@ void iRel_setSetArrEntArrRelation (
   int num_sets1,
   iBase_EntityHandle *ent_array_2,
   int num_entities2,
-  int *ierr)
+  int *err)
 {
   if (num_sets1 != num_entities2) {
     ERROR(iBase_INVALID_ENTITY_COUNT, "setSetArrEntArrRelation doesn't support "
@@ -408,7 +313,7 @@ void iRel_setSetArrSetArrRelation (
   int num_sets1,
   iBase_EntitySetHandle *set_array_2,
   int num_sets2,
-  int *ierr)
+  int *err)
 {
   if (num_sets1 != num_sets2) {
     ERROR(iBase_INVALID_ENTITY_COUNT, "setSetArrSetArrRelation doesn't support "
@@ -432,7 +337,7 @@ void iRel_getEntEntRelation (
   iBase_EntityHandle ent1,
   int switch_order,
   iBase_EntityHandle *ent2,
-  int *ierr)
+  int *err)
 {
   if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
@@ -448,7 +353,7 @@ void iRel_getEntSetRelation (
   iBase_EntityHandle ent1,
   int switch_order,
   iBase_EntitySetHandle *set2,
-  int *ierr)
+  int *err)
 {
   if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
@@ -464,7 +369,7 @@ void iRel_getSetEntRelation (
   iBase_EntitySetHandle set1,
   int switch_order,
   iBase_EntityHandle *ent2,
-  int *ierr)
+  int *err)
 {
   if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
@@ -480,7 +385,7 @@ void iRel_getSetSetRelation (
   iBase_EntitySetHandle set1,
   int switch_order,
   iBase_EntitySetHandle *set2,
-  int *ierr)
+  int *err)
 {
   if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
@@ -496,7 +401,7 @@ void iRel_getEntSetIterRelation (
   iBase_EntityHandle ent1,
   int switch_order,
   iBase_EntityIterator *entset2,
-  int *ierr)
+  int *err)
 {
   if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
@@ -504,91 +409,6 @@ void iRel_getEntSetIterRelation (
 
   int iface_no = (switch_order ? 1 : 0);
   CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, &ent1, 1, entset2) );
-}
-
-void iRel_getEntEntArrRelation (
-  iRel_Instance instance,
-  iRel_PairHandle pair,
-  iBase_EntityHandle ent1,
-  int switch_order,
-  iBase_EntityHandle **ent_array_2,
-  int *ent_array_2_allocated,
-  int *ent_array_2_size,
-  int *ierr)
-{
-  int result;
-
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
-
-  int iface_no = (switch_order ? 1 : 0);
-
-  if (ASSOCPAIRI->ent_or_set(!iface_no) != iRel_ENTITY) { // iface2 is sets
-    iBase_EntitySetHandle ent_set2 = 0;
-
-    iRel_getEntSetRelation(instance, pair,
-                           ent1, switch_order,
-                           &ent_set2, &result);
-    CHK_ERROR(result);
-
-    result = ASSOCPAIRI->get_entities(!iface_no, -1, ent_set2, ent_array_2,
-                                     ent_array_2_allocated, ent_array_2_size);
-    CHK_ERROR(result);
-  }
-  else {
-    // otherwise put the set into the ent list
-    ALLOC_CHECK_ARRAY(ent_array_2, 1);
-    iRel_getEntEntRelation(instance, pair, ent1, switch_order,
-                           *ent_array_2, &result);
-    CHK_ERROR(result);
-
-    KEEP_ARRAY(ent_array_2);
-  }
-
-  RETURN(iBase_SUCCESS);
-}
-
-void iRel_getSetEntArrRelation (
-  iRel_Instance instance,
-  iRel_PairHandle pair,
-  iBase_EntitySetHandle set1,
-  int switch_order,
-  iBase_EntityHandle **ent_array_2,
-  int *ent_array_2_allocated,
-  int *ent_array_2_size,
-  int *ierr)
-{
-  int result;
-
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
-
-  int iface_no = (switch_order ? 1 : 0);
-
-  if (ASSOCPAIRI->ent_or_set(!iface_no) != iRel_ENTITY) { // iface2 is sets
-    iBase_EntitySetHandle set2 = 0;
-
-    iRel_getSetSetRelation(instance, pair,
-                           set1, switch_order, &set2, &result);
-    CHK_ERROR(result);
-
-    result = ASSOCPAIRI->get_entities(!iface_no, -1, set2, ent_array_2,
-                                     ent_array_2_allocated, ent_array_2_size);
-    CHK_ERROR(result);
-  }
-  else {
-    // otherwise put the set into the ent list
-    ALLOC_CHECK_ARRAY(ent_array_2, 1);
-    iRel_getSetEntRelation(instance, pair, set1, switch_order,
-                           *ent_array_2, &result);
-    CHK_ERROR(result);
-
-    KEEP_ARRAY(ent_array_2);
-  }
-
-  RETURN(iBase_SUCCESS);
 }
 
 void iRel_getEntArrEntArrRelation(
@@ -600,43 +420,24 @@ void iRel_getEntArrEntArrRelation(
   iBase_EntityHandle **ent_array_2,
   int *ent_array_2_allocated,
   int *ent_array_2_size,
-  int **offset,
-  int *offset_allocated,
-  int *offset_size,
-  int *ierr)
+  int *err)
 {
   if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
   std::vector<iBase_EntityHandle> tmp_ents;
-  int result = iBase_SUCCESS;
-  ALLOC_CHECK_ARRAY(offset, ent_array_1_size+1);
+  int tmp_result, result = iBase_SUCCESS;
+  ALLOC_CHECK_ARRAY(ent_array_2, ent_array_1_size);
 
   for (int i = 0; i < ent_array_1_size; i++) {
-    (*offset)[i] = tmp_ents.size();
-    int tmp_result;
-    iBase_EntityHandle *tmp_array = NULL;
-    int tmp_array_size, tmp_array_allocated;
-    iRel_getEntEntArrRelation(instance, pair, ent_array_1[i], switch_order,
-                              &tmp_array, &tmp_array_allocated,
-                              &tmp_array_size, &tmp_result);
-
-    if (iBase_SUCCESS == result && NULL != tmp_array) {
-      std::copy(tmp_array, tmp_array+tmp_array_size,
-                std::back_inserter(tmp_ents));
-      free(tmp_array);
-    }
-
+    iRel_getEntEntRelation(instance, pair, ent_array_1[i], switch_order,
+                           (*ent_array_2)+i, &tmp_result);
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
   CHK_ERROR(result);
 
-  (*offset)[ent_array_1_size] = tmp_ents.size();
-  ALLOC_CHECK_ARRAY_NOFAIL(ent_array_2, tmp_ents.size());
-  std::copy(tmp_ents.begin(), tmp_ents.end(), *ent_array_2);
-
-  KEEP_ARRAY(offset);
+  KEEP_ARRAY(ent_array_2);
   RETURN(iBase_SUCCESS);
 }
 
@@ -649,7 +450,7 @@ void iRel_getEntArrSetArrRelation(
   iBase_EntitySetHandle **set_array_2,
   int *set_array_2_allocated,
   int *set_array_2_size,
-  int *ierr)
+  int *err)
 {
   if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
@@ -660,13 +461,11 @@ void iRel_getEntArrSetArrRelation(
   ALLOC_CHECK_ARRAY(set_array_2, ent_array_1_size);
 
   for (int i = 0; i < ent_array_1_size; i++) {
-    iRel_getEntSetRelation( instance, pair, ent_array_1[i],
-                            switch_order, (*set_array_2)+i,
-                            &tmp_result );
+    iRel_getEntSetRelation(instance, pair, ent_array_1[i], switch_order,
+                           (*set_array_2)+i, &tmp_result);
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
   CHK_ERROR(result);
-
 
   KEEP_ARRAY(set_array_2);
   RETURN(iBase_SUCCESS);
@@ -681,44 +480,24 @@ void iRel_getSetArrEntArrRelation(
   iBase_EntityHandle **ent_array_2,
   int *ent_array_2_allocated,
   int *ent_array_2_size,
-  int **offset,
-  int *offset_allocated,
-  int *offset_size,
-  int *ierr)
+  int *err)
 {
   if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
   std::vector<iBase_EntityHandle> tmp_ents;
-  int result = iBase_SUCCESS;
-  ALLOC_CHECK_ARRAY(offset, set_array_1_size+1);
+  int tmp_result, result = iBase_SUCCESS;
+  ALLOC_CHECK_ARRAY(ent_array_2, set_array_1_size);
 
   for (int i = 0; i < set_array_1_size; i++) {
-    (*offset)[i] = tmp_ents.size();
-    int tmp_result;
-    iBase_EntityHandle *tmp_array = NULL;
-    int tmp_array_size, tmp_array_allocated;
-    iRel_getSetEntArrRelation(instance, pair,
-                              set_array_1[i],
-                              switch_order,
-                              &tmp_array, &tmp_array_allocated,
-                              &tmp_array_size, &tmp_result);
-    if (iBase_SUCCESS == result && NULL != tmp_array) {
-      std::copy(tmp_array, tmp_array+tmp_array_size,
-                std::back_inserter(tmp_ents));
-      free(tmp_array);
-    }
-
+    iRel_getSetEntRelation(instance, pair, set_array_1[i], switch_order,
+                           (*ent_array_2)+i, &tmp_result);
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
   CHK_ERROR(result);
 
-  (*offset)[set_array_1_size] = tmp_ents.size();
-  ALLOC_CHECK_ARRAY_NOFAIL(ent_array_2, tmp_ents.size());
-  std::copy(tmp_ents.begin(), tmp_ents.end(), *ent_array_2);
-
-  KEEP_ARRAY(offset);
+  KEEP_ARRAY(ent_array_2);
   RETURN(iBase_SUCCESS);
 }
 
@@ -731,7 +510,7 @@ void iRel_getSetArrSetArrRelation(
   iBase_EntitySetHandle **set_array_2,
   int *set_array_2_allocated,
   int *set_array_2_size,
-  int *ierr)
+  int *err)
 {
   if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
@@ -762,7 +541,7 @@ void iRel_getEntArrSetIterArrRelation (
   iBase_EntityIterator **entiter,
   int *entiter_allocated,
   int *entiter_size,
-  int *ierr)
+  int *err)
 {
   if (NULL == pair) {
     ERROR(iBase_FAILURE, "Invalid relation pair.");
@@ -784,6 +563,94 @@ void iRel_getEntArrSetIterArrRelation (
   RETURN(iBase_SUCCESS);
 }
 
+
+void iRel_rmvEntEntRelation(
+  iRel_Instance instance,
+  /*in*/ iRel_PairHandle pair,
+  /*in*/ iBase_EntityHandle ent1,
+  /*in*/ iBase_EntityHandle ent2,
+  /*out*/ int *err)
+{
+  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
+}
+
+void iRel_rmvEntSetRelation(
+  iRel_Instance instance,
+  /*in*/ iRel_PairHandle pair,
+  /*in*/ iBase_EntityHandle ent1,
+  /*in*/ iBase_EntitySetHandle entset2,
+  /*out*/ int *err)
+{
+  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
+}
+
+void iRel_rmvSetEntRelation(
+  iRel_Instance instance,
+  /*in*/ iRel_PairHandle pair,
+  /*in*/ iBase_EntitySetHandle entset1,
+  /*in*/ iBase_EntityHandle ent2,
+  /*out*/ int *err)
+{
+  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
+}
+
+void iRel_rmvSetSetRelation(
+  iRel_Instance instance,
+  /*in*/ iRel_PairHandle pair,
+  /*in*/ iBase_EntitySetHandle entset1,
+  /*in*/ iBase_EntitySetHandle entset2,
+  /*out*/ int *err)
+{
+  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
+}
+
+void iRel_rmvEntArrEntArrRelation(
+  iRel_Instance instance,
+  /*in*/ iRel_PairHandle pair,    
+  /*in*/ iBase_EntityHandle *ent_array_1,
+  /*in*/ int num_ent1,
+  /*in*/ iBase_EntityHandle *ent_array_2,
+  /*in*/ int num_ent2,
+  /*out*/ int *err)
+{
+  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
+}
+
+void iRel_rmvSetArrEntArrRelation(
+  iRel_Instance instance,
+  /*in*/ iRel_PairHandle pair,    
+  /*in*/ iBase_EntitySetHandle *entset_array_1,
+  /*in*/ int num_ent1,
+  /*in*/ iBase_EntityHandle *ent_array_2,
+  /*in*/ int num_ent2,
+  /*out*/ int *err)
+{
+  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
+}
+
+void iRel_rmvEntArrSetArrRelation(
+  iRel_Instance instance,
+  /*in*/ iRel_PairHandle pair,    
+  /*in*/ iBase_EntityHandle *ent_array_1,
+  /*in*/ int num_ent1,
+  /*in*/ iBase_EntitySetHandle *entset_array_2,
+  /*in*/ int num_ent2,
+  /*out*/ int *err)
+{
+  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
+}
+
+void iRel_rmvSetArrSetArrRelation(
+  iRel_Instance instance,
+  /*in*/ iRel_PairHandle pair,    
+  /*in*/ iBase_EntitySetHandle *entset_array_1,
+  /*in*/ int num_ent1,
+  /*in*/ iBase_EntitySetHandle *entset_array_2,
+  /*in*/ int num_ent2,
+  /*out*/ int *err)
+{
+  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
+}
 
 static int
 get_gids_and_dims(iRel_PairHandle pair,
@@ -833,7 +700,7 @@ iRel_inferArrArrRelations(iRel_Instance instance,
                           iBase_EntityHandle *ents2,
                           const int ents2_size,
                           int ent_or_set2,
-                          int *ierr)
+                          int *err)
 {
   int result;
 
@@ -898,10 +765,10 @@ iRel_inferEntArrEntArrRelations(iRel_Instance instance,
                                 const int ents1_size,
                                 iBase_EntityHandle *ents2,
                                 const int ents2_size,
-                                int *ierr)
+                                int *err)
 {
   iRel_inferArrArrRelations(instance, pair, ents1, ents1_size, 0,
-                            ents2, ents2_size, 0, ierr);
+                            ents2, ents2_size, 0, err);
 }
 
 void
@@ -911,10 +778,10 @@ iRel_inferEntArrSetArrRelations(iRel_Instance instance,
                                 const int ents1_size,
                                 iBase_EntitySetHandle *ents2,
                                 const int ents2_size,
-                                int *ierr)
+                                int *err)
 {
   iRel_inferArrArrRelations(instance, pair, ents1, ents1_size, 0,
-                            (iBase_EntityHandle*)ents2, ents2_size, 1, ierr);
+                            (iBase_EntityHandle*)ents2, ents2_size, 1, err);
 }
 
 void
@@ -924,10 +791,10 @@ iRel_inferSetArrEntArrRelations(iRel_Instance instance,
                                 const int ents1_size,
                                 iBase_EntityHandle *ents2,
                                 const int ents2_size,
-                                int *ierr)
+                                int *err)
 {
   iRel_inferArrArrRelations(instance, pair, (iBase_EntityHandle*)ents1,
-                            ents1_size, 1, ents2, ents2_size, 0, ierr);
+                            ents1_size, 1, ents2, ents2_size, 0, err);
 }
 
 void
@@ -939,18 +806,18 @@ iRel_inferSetArrSetArrRelations(iRel_Instance instance,
                                 iBase_EntitySetHandle *ents2,
                                 const int ents2_size,
                                 int is_set2,
-                                int *ierr)
+                                int *err)
 
 {
   iRel_inferArrArrRelations(instance, pair, (iBase_EntityHandle*)ents1,
                             ents1_size, 1, (iBase_EntityHandle*)ents2,
-                            ents2_size, 1, ierr);
+                            ents2_size, 1, err);
 }
 
 void iRel_inferAllRelations (
   iRel_Instance instance,
   iRel_PairHandle pair,
-  int *ierr)
+  int *err)
 {
   if (NULL == pair) {
     ERROR(iBase_FAILURE, "Didn't find relation pair.");
@@ -991,7 +858,7 @@ void iRel_inferAllRelations (
 void iRel_inferAllRelationsAndType (
   iRel_Instance instance,
   iRel_PairHandle *pair,
-  int *ierr)
+  int *err)
 {
   ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
 }
@@ -1001,9 +868,9 @@ void iRel_inferEntRelations (
   iRel_PairHandle pair,
   iBase_EntityHandle entity,
   int iface_no,
-  int *ierr)
+  int *err)
 {
-  iRel_inferEntArrRelations(instance, pair, &entity, 1, iface_no, ierr);
+  iRel_inferEntArrRelations(instance, pair, &entity, 1, iface_no, err);
 }
 
 void iRel_inferSetRelations (
@@ -1011,9 +878,9 @@ void iRel_inferSetRelations (
   iRel_PairHandle pair,
   iBase_EntitySetHandle entity,
   int iface_no,
-  int *ierr)
+  int *err)
 {
-  iRel_inferSetArrRelations(instance, pair, &entity, 1, iface_no, ierr);
+  iRel_inferSetArrRelations(instance, pair, &entity, 1, iface_no, err);
 }
 
 static void iRel_inferArrRelations (
@@ -1023,7 +890,7 @@ static void iRel_inferArrRelations (
   int entities_size,
   bool is_set,
   int iface_no,
-  int *ierr)
+  int *err)
 {
   if (NULL == pair) {
     ERROR(iBase_FAILURE, "Didn't find relation pair.");
@@ -1077,10 +944,10 @@ void iRel_inferEntArrRelations (
   iBase_EntityHandle *entities,
   int entities_size,
   int iface_no,
-  int *ierr)
+  int *err)
 {
   iRel_inferArrRelations(instance, pair, entities, entities_size, false,
-                         iface_no, ierr);
+                         iface_no, err);
 }
 
 void iRel_inferSetArrRelations (
@@ -1089,8 +956,8 @@ void iRel_inferSetArrRelations (
   iBase_EntitySetHandle *entities,
   int entities_size,
   int iface_no,
-  int *ierr)
+  int *err)
 {
   iRel_inferArrRelations(instance, pair, (iBase_EntityHandle*)entities,
-                         entities_size, true, iface_no, ierr);
+                         entities_size, true, iface_no, err);
 }

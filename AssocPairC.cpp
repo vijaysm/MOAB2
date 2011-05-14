@@ -28,11 +28,11 @@
 
 AssocPairC::AssocPairC(iRel_Instance instance,
                        iBase_Instance iface0,
-                       RelationType ent_or_set0,
-                       IfaceType type0,
+                       iRel_RelationType ent_or_set0,
+                       iRel_IfaceType type0,
                        iBase_Instance iface1,
-                       RelationType ent_or_set1,
-                       IfaceType type1)
+                       iRel_RelationType ent_or_set1,
+                       iRel_IfaceType type1)
   : AssocPair(instance, ent_or_set0, type0, ent_or_set1, type1)
 {
   ifaceInstances[0] = iface0;
@@ -201,6 +201,56 @@ int AssocPairC::set_tags(const int iface_no,
       iMesh_setEntSetData((iMesh_Instance)ifaceInstances[iface_no],
                           sets[i], tag_handle, tag_data, tag_size, &result);
       tag_data += tag_size;
+      PROCESS_MERROR;
+    }
+  }
+  else
+    ERRORR(iBase_NOT_SUPPORTED, "Interface should be geometry or mesh.");
+
+  RETURNR(iBase_SUCCESS);
+}
+
+int AssocPairC::rmv_tags(const int iface_no,
+                         iBase_EntityHandle *entities,
+                         const int num_entities,
+                         iBase_TagHandle tag_handle)
+{
+  int result;
+
+  if (iRel_IGEOM_IFACE == iface_type(iface_no)) {
+    iGeom_rmvArrTag((iGeom_Instance)ifaceInstances[iface_no],
+                    entities, num_entities, tag_handle, &result);
+    PROCESS_GERROR;
+  }
+  else if (iRel_IMESH_IFACE == iface_type(iface_no)) {
+    iMesh_rmvArrTag((iMesh_Instance)ifaceInstances[iface_no],
+                     entities, num_entities, tag_handle, &result);
+    PROCESS_MERROR;
+  }
+  else
+    ERRORR(iBase_NOT_SUPPORTED, "Interface should be geometry or mesh.");
+
+  RETURNR(iBase_SUCCESS);
+}
+
+int AssocPairC::rmv_tags(const int iface_no,
+                         iBase_EntitySetHandle *sets,
+                         const int num_sets,
+                         iBase_TagHandle tag_handle)
+{
+  int result;
+
+  if (iRel_IGEOM_IFACE == iface_type(iface_no)) {
+    for (int i = 0; i < num_sets; i++) {
+      iGeom_rmvEntSetTag((iGeom_Instance)ifaceInstances[iface_no],
+                          sets[i], tag_handle, &result);
+      PROCESS_GERROR;
+    }
+  }
+  else if (iRel_IMESH_IFACE == iface_type(iface_no)) {
+    for (int i = 0; i < num_sets; i++) {
+      iMesh_rmvEntSetTag((iMesh_Instance)ifaceInstances[iface_no],
+                         sets[i], tag_handle, &result);
       PROCESS_MERROR;
     }
   }

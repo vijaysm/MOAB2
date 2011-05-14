@@ -7,12 +7,12 @@
 // Free the array upon leaving scope unless KEEP_ARRAY
 // is invoked.
 #define ALLOC_CHECK_ARRAY(array, this_size) \
-  ArrayManager array ## _manager ( reinterpret_cast<void**>(array), *(array ## _allocated), *(array ## _size), this_size, sizeof(**array), ierr ); \
-  if (iBase_SUCCESS != *ierr) return
+  ArrayManager array ## _manager ( reinterpret_cast<void**>(array), *(array ## _allocated), *(array ## _size), this_size, sizeof(**array), err ); \
+  if (iBase_SUCCESS != *err) return
 
 #define ALLOC_CHECK_TAG_ARRAY(array, this_size) \
-  ArrayManager array ## _manager ( reinterpret_cast<void**>(array), *(array ## _allocated), *(array ## _size), this_size, 1, ierr ); \
-  if (iBase_SUCCESS != *ierr) return
+  ArrayManager array ## _manager ( reinterpret_cast<void**>(array), *(array ## _allocated), *(array ## _size), this_size, 1, err ); \
+  if (iBase_SUCCESS != *err) return
 
 #define KEEP_ARRAY(array) \
   array ## _manager .keep_array()

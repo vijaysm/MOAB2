@@ -8,8 +8,8 @@ const char *AssocPair::ASSOCIATION_TAG_NAME = "ASSOCIATION";
 int AssocPair::currId = 0;
 
 AssocPair::AssocPair(iRel_Instance instance,
-                     RelationType ent_or_set0, IfaceType type0,
-                     RelationType ent_or_set1, IfaceType type1)
+                     iRel_RelationType ent_or_set0, iRel_IfaceType type0,
+                     iRel_RelationType ent_or_set1, iRel_IfaceType type1)
   : instance(instance)
 {
   ifaceTypes[0] = type0;
@@ -302,18 +302,18 @@ int AssocPair::get_dim_tags(const int iface_no, iBase_EntitySetHandle *sets,
                   sizeof(int));
 }
 
-IfaceType AssocPair::iface_type(const int iface_no)
+iRel_IfaceType AssocPair::iface_type(const int iface_no)
 {
   return ifaceTypes[iface_no];
 }
 
-RelationType AssocPair::ent_or_set(const int iface_no)
+iRel_RelationType AssocPair::ent_or_set(const int iface_no)
 {
   return entOrSet[iface_no];
 }
 
-bool AssocPair::equivalent(IfaceType type1,
-                           IfaceType type2,
+bool AssocPair::equivalent(iRel_IfaceType type1,
+                           iRel_IfaceType type2,
                            bool *order_switched)
 {
   bool equiv = false;

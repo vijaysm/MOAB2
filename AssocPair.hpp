@@ -11,12 +11,12 @@ class AssocPair
 public:
   friend class Lasso;
 
-  IfaceType iface_type(const int iface_no);
-  RelationType ent_or_set(const int iface_no);
+  iRel_IfaceType iface_type(const int iface_no);
+  iRel_RelationType ent_or_set(const int iface_no);
 
   virtual iBase_Instance iface_instance(const int iface_no) = 0;
 
-  bool equivalent(IfaceType type1, IfaceType type2,
+  bool equivalent(iRel_IfaceType type1, iRel_IfaceType type2,
                   bool *order_switched = NULL);
 
   virtual bool equivalent(iBase_Instance iface1, iBase_Instance iface2,
@@ -80,8 +80,8 @@ public:
                    int num_sets, int *tag_values);
 protected:
   AssocPair(iRel_Instance instance, 
-            RelationType ent_or_set0, IfaceType type0,
-            RelationType ent_or_set1, IfaceType type1);
+            iRel_RelationType ent_or_set0, iRel_IfaceType type0,
+            iRel_RelationType ent_or_set1, iRel_IfaceType type1);
 
   virtual ~AssocPair();
 
@@ -116,6 +116,16 @@ protected:
                        const void *tag_values,
                        const int tag_size) = 0;
 
+  virtual int rmv_tags(const int iface_no,
+                       iBase_EntityHandle *entities,
+                       const int num_entities,
+                       iBase_TagHandle tag_handle) = 0;
+
+  virtual int rmv_tags(const int iface_no,
+                       iBase_EntitySetHandle *sets,
+                       const int num_sets,
+                       iBase_TagHandle tag_handle) = 0;
+
   virtual int get_iterator(const int iface_no,
                            iBase_EntitySetHandle set,
                            iBase_EntityIterator *iter) = 0;
@@ -136,8 +146,8 @@ private:
 
   int pairId;
 
-  RelationType entOrSet[2];
-  IfaceType ifaceTypes[2];
+  iRel_RelationType entOrSet[2];
+  iRel_IfaceType ifaceTypes[2];
   iBase_TagHandle assocTags[2], gidTags[2], dimTags[2];
 
   static const char *GLOBAL_ID_TAG_NAME;

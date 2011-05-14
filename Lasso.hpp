@@ -24,7 +24,7 @@ public:
   AssocPair *find_pair(void *iface0, void *iface1,
                        bool *switched = NULL);
 
-  AssocPair *find_pair(IfaceType type1, IfaceType type2,
+  AssocPair *find_pair(iRel_IfaceType type1, iRel_IfaceType type2,
                        bool *switched = NULL);
 
   void find_pairs(void *iface, std::vector<AssocPair*> &iface_pairs);
@@ -46,8 +46,7 @@ static inline Lasso *lasso_instance(iRel_Instance instance)
 }
 #define LASSOI lasso_instance(instance)
 
-
-int Lasso::set_last_error( int code, const char* msg )
+int Lasso::set_last_error(int code, const char* msg)
 {
   std::strncpy( lastErrorDescription, msg, sizeof(lastErrorDescription) );
   lastErrorDescription[sizeof(lastErrorDescription)-1] = '\0';

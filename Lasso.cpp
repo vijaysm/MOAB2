@@ -21,7 +21,8 @@ AssocPair *Lasso::find_pair(void *iface0, void *iface1, bool *switched)
 }
 
 //! find a pair with the right types
-AssocPair *Lasso::find_pair(IfaceType type1, IfaceType type2, bool *switched)
+AssocPair *Lasso::find_pair(iRel_IfaceType type1, iRel_IfaceType type2,
+                            bool *switched)
 {
   for (std::set<AssocPair*>::iterator i = assocPairs.begin();
        i != assocPairs.end(); ++i) {

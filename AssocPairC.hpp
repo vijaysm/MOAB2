@@ -8,11 +8,11 @@ class AssocPairC : public AssocPair
 public:
   AssocPairC(iRel_Instance instance,
              iBase_Instance iface0,
-             RelationType ent_or_set0,
-             IfaceType type0,
+             iRel_RelationType ent_or_set0,
+             iRel_IfaceType type0,
              iBase_Instance iface1,
-             RelationType ent_or_set1,
-             IfaceType type1);
+             iRel_RelationType ent_or_set1,
+             iRel_IfaceType type1);
 
   virtual ~AssocPairC();
 
@@ -77,6 +77,16 @@ protected:
                        iBase_TagHandle tag_handle,
                        const void *tag_values,
                        const int tag_size);
+
+  virtual int rmv_tags(const int iface_no,
+                       iBase_EntityHandle *entities,
+                       const int num_entities,
+                       iBase_TagHandle tag_handle);
+
+  virtual int rmv_tags(const int iface_no,
+                       iBase_EntitySetHandle *sets,
+                       const int num_sets,
+                       iBase_TagHandle tag_handle);
 
   virtual int get_iterator(const int iface_no,
                            iBase_EntitySetHandle set,
