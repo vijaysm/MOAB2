@@ -230,17 +230,7 @@ private:
   ErrorCode create_explicit_adjs(EntityHandle this_ent);
   
 };
-
-/*! 
-   calling code is notifying this that an entity is going to be deleted
-   from the database
-*/
-inline ErrorCode AEntityFactory::notify_delete_entity(EntityHandle entity)
-{
-  // remove any references to this entity from other entities
-  return remove_all_adjacencies(entity, true);
-}
-  
+ 
 } // namespace moab
 
 #endif

@@ -1512,5 +1512,24 @@ ErrorCode AEntityFactory::get_memory_use( const Range& ents_in,
   amortized += min_per_ent;
   return (rval == MB_FAILURE) ? MB_SUCCESS : rval;
 }   
+
+/*! 
+   calling code is notifying this that an entity is going to be deleted
+   from the database
+*/
+ErrorCode AEntityFactory::notify_delete_entity(EntityHandle entity)
+{
+  if (TYPE_FROM_HANDLE(entity) == MBVERTEX) {
+    std::vector<EntityHandle> adj_entities;
+    for (int dim = 1; dim < 4; ++dim) {
+      get_adjacencies(entity, dim, false, adj_entities);
+      if (!adj_entities.empty())
+        return MB_FAILURE;
+    }
+  }
+
+  // remove any references to this entity from other entities
+  return remove_all_adjacencies(entity, true);
+}
   
 } // namespace moab
