@@ -103,6 +103,15 @@ void VALGRIND_MAKE_VEC_UNDEFINED( std::vector<T>& v ) {
    }
 #endif
 
+class CpuTimer {
+private:
+  double atBirth, atLast;
+public:
+  CpuTimer() : atBirth(MPI_Wtime()), atLast(MPI_Wtime()) {}
+  double since_birth() { return (atLast = MPI_Wtime()) - atBirth; };
+  double elapsed() { double tmp = atLast; return (atLast = MPI_Wtime()) - tmp; }
+};
+
 static int my_Gatherv( void* sendbuf, 
                        int sendcount, 
                        MPI_Datatype sendtype,
@@ -391,7 +400,8 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
                                             const Tag* user_tag_list,
                                             int user_tag_count,
                                             int dimension,
-                                            int pcomm_no)
+                                            int pcomm_no,
+                                            double* times)
 {
   ErrorCode rval;
   mhdf_Status status;
@@ -445,12 +455,14 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   
   
      /**************** Create node coordinate table ***************/
+  CpuTimer timer;
   debug_barrier();
   dbgOut.tprint(1,"creating node table\n");
   topState.start("creating node table");
   rval = create_node_table( dimension );
   topState.end(rval);
   if (MB_SUCCESS != rval) return error(rval);
+  if (times) times[CREATE_NODE_TIME] = timer.elapsed();
   
     /**************** Create element tables ***************/
 
@@ -460,11 +472,13 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   rval = negotiate_type_list();
   topState.end(rval);
   if (MB_SUCCESS != rval) return error(rval);
+  if (times) times[NEGOTIATE_TYPES_TIME] = timer.elapsed();
   dbgOut.tprint(1,"creating element table\n");
   topState.start("creating element tables");
   rval = create_element_tables();
   topState.end(rval);
   if (MB_SUCCESS != rval) return error(rval);
+  if (times) times[CREATE_ELEM_TIME] = timer.elapsed();
   
   
     /*************** Exchange file IDs *****************/
@@ -475,6 +489,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   rval = exchange_file_ids( nonlocal );
   topState.end(rval);
   if (MB_SUCCESS != rval) return error(rval);
+  if (times) times[FILEID_EXCHANGE_TIME] = timer.elapsed();
  
 
     /**************** Create adjacency tables *********************/
@@ -485,15 +500,17 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   rval = create_adjacency_tables();
   topState.end(rval);
   if (MB_SUCCESS != rval) return error(rval);
+  if (times) times[CREATE_ADJ_TIME] = timer.elapsed();
   
     /**************** Create meshset tables *********************/
   
   debug_barrier();
   dbgOut.tprint(1,"creating meshset table\n");
   topState.start("creating meshset tables");
-  rval = create_meshset_tables();
+  rval = create_meshset_tables(times);
   topState.end(rval);
   if (MB_SUCCESS != rval) return error(rval);
+  if (times) times[CREATE_SET_TIME] = timer.elapsed();
   
   
     /* Need to write tags for shared sets this proc is responsible for */
@@ -518,6 +535,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   rval = create_tag_tables();
   topState.end(rval);
   if (MB_SUCCESS != rval) return error(rval);
+  if (times) times[CREATE_TAG_TIME] = timer.elapsed();
     
   /************** Close serial file and reopen parallel *****************/
   
@@ -1741,7 +1759,7 @@ ErrorCode WriteHDF5Parallel::set_shared_set_ids( RemoteSetData& data, long& offs
 }
   
 
-ErrorCode WriteHDF5Parallel::create_meshset_tables()
+ErrorCode WriteHDF5Parallel::create_meshset_tables(double* times)
 {
   ErrorCode rval = MB_SUCCESS;
   int result, i;
@@ -1751,6 +1769,7 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
   START_SERIAL;
   print_type_sets( iFace, &dbgOut, setSet.range );
   END_SERIAL;
+  CpuTimer timer;
 
     // Gather data about multi-processor meshsets - removes sets from setSet.range
   std::vector<RemoteSetData> remote_set_data( multiProcSetTags.list.size() );
@@ -1764,6 +1783,7 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
     if (MB_SUCCESS != rval)
       return error(rval);
   }
+  if (times) times[RESOLVE_SHARED_SET_TIME] = timer.elapsed();
 
   subState.start( "Negotiating offsets for local sets" );
   dbgOut.print(2, "myLocalSets\n");
@@ -1822,6 +1842,7 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
   print_type_sets(iFace, &dbgOut, cpuParallelSets[myPcomm->proc_config().proc_rank()] );
   
   subState.end();
+  if (times) times[LOCAL_SET_OFFSET_TIME] = timer.elapsed();
   
     // Not writing any sets??
   if (!writeSets)
@@ -1846,6 +1867,7 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
   }
   remote_set_data.clear();
   subState.end();
+  if (times) times[SHARED_SET_OFFSET_TIME] = timer.elapsed();
   
     // Exchange IDs for remote/adjacent sets not shared between procs
   //rval = communicate_remote_ids( MBENTITYSET ); assert(MB_SUCCESS == rval);
@@ -1861,6 +1883,7 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
                        &set_counts[0], 3, MPI_LONG,
                        0, myPcomm->proc_config().proc_comm() );
   CHECK_MPI(result);
+  
   
   long max_counts[3] = { 0, 0, 0 };
   if (myPcomm->proc_config().proc_rank() == 0)
@@ -1915,6 +1938,7 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
     data_counts[1], summary_counts[4], data_offsets[1] );
   dbgOut.printf(2,"Non-shared set parents: %ld local, %ld global, offset = %ld\n",
     data_counts[2], summary_counts[5], data_offsets[2] );
+  if (times) times[LOCAL_SET_OFFSET_TIME] += timer.elapsed();
   
   return MB_SUCCESS;
 }
@@ -2671,5 +2695,20 @@ ErrorCode WriteHDF5Parallel::get_sharedset_tags()
     
   return MB_SUCCESS;
 }
+
+
+void WriteHDF5Parallel::print_times( const double* times ) const
+{
+  if (!myPcomm) {
+    WriteHDF5::print_times( times );
+  }
+  else {
+    double recv[NUM_TIMES];
+    MPI_Reduce( (void*)times, recv, NUM_TIMES, MPI_DOUBLE, MPI_MAX, 0, myPcomm->proc_config().proc_comm() );
+    if (0 == myPcomm->proc_config().proc_rank())
+      WriteHDF5::print_times( recv );
+  }
+}
+
 
 } // namespace moab

@@ -100,6 +100,9 @@ class WriteHDF5Parallel : public WriteHDF5
   protected:
     
     virtual void debug_barrier_line(int lineno);
+
+  
+    virtual void print_times( const double* times ) const;
   
       //! Called by normal (non-parallel) writer.  Sets up
       //! necessary data for parallel write.
@@ -109,7 +112,8 @@ class WriteHDF5Parallel : public WriteHDF5
                                      const Tag* user_tag_list = 0,
                                      int user_tag_count = 0,
                                      int dimension = 3,
-                                     int pcomm_no = 0);
+                                     int pcomm_no = 0,
+                                     double* times = 0);
     
       //! Figure out which mesh local mesh is duplicated on
       //! remote processors and which processor will write
@@ -156,7 +160,7 @@ class WriteHDF5Parallel : public WriteHDF5
                                                long* offsets );
     
       //! Create tables for mesh sets
-    ErrorCode create_meshset_tables();
+    ErrorCode create_meshset_tables(double* times);
     
       //! Write tag descriptions and create tables to hold tag data.
     ErrorCode create_tag_tables();
