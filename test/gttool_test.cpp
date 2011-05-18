@@ -45,6 +45,7 @@ ErrorCode print_error(const char* desc, ErrorCode rval, const char* file,
 std::string filename;
 std::string ofile;
 std::string ofile2;
+std::string ofile3;
 bool remove_output_file;
 ErrorCode geometrize_test(Interface * mb, EntityHandle inputSet);
 
@@ -68,19 +69,21 @@ int main(int argc, char *argv[])
   filename = TestDir + "/partBed.smf";
   ofile = "output.h5m";
   ofile2 = "shell.h5m";
+  ofile3 = "shellCopy.h5m";
 
   remove_output_file = true;
 
   if (argc == 1) {
     std::cout << "Using default input file and output files " << filename << " " << ofile <<
-        " " << ofile2 << std::endl;
-  } else if (argc == 4) {
+        " " << ofile2 <<  ofile3 << std::endl;
+  } else if (argc == 5) {
     filename = argv[1];
     ofile = argv[2];
     ofile2 = argv[3];
+    ofile3 = argv[4];
     remove_output_file = false;
   } else {
-    std::cerr << "Usage: " << argv[0] << " [surface_mesh] [mbgeo_file] [shellfile]" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " [surface_mesh] [mbgeo_file] [shellfile] [copyshellfile] " << std::endl;
     return 1;
   }
 
@@ -463,6 +466,20 @@ ErrorCode duplicate_model_test(Interface * mb)
   assert(ranges[2].size()==2);
 
   assert(ranges[3].size()==0);
+
+  // write the model to a test file
+  EntityHandle rootModelSet = newModel->get_root_model_set();
+  std::cout<<"writing duplicated model file: " << ofile3.c_str() << " ";
+  rval=mb->write_file(ofile3.c_str(), 0, 0, &rootModelSet, 1);
+  if (rval !=MB_SUCCESS)
+  {
+    std::cout<<"Can't write output file\n";
+    return rval;
+  }
+  if (remove_output_file)
+  {
+    remove(ofile3.c_str());
+  }
 
   return MB_SUCCESS;
 }

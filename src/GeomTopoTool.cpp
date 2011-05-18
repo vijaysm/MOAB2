@@ -763,8 +763,9 @@ ErrorCode GeomTopoTool::check_face_sense_tag(bool create)
 {
   ErrorCode rval;
   if (!sense2Tag && create) {
+    EntityHandle def_val[2] = {0, 0};
     rval = mdbImpl->tag_create(GEOM_SENSE_2_TAG_NAME, 2 * sizeof(EntityHandle),
-        MB_TAG_SPARSE, MB_TYPE_HANDLE, sense2Tag, 0, true);
+        MB_TAG_SPARSE, MB_TYPE_HANDLE, sense2Tag, def_val, true);
     if (MB_SUCCESS != rval && (MB_ALREADY_ALLOCATED != rval || !sense2Tag))
       return MB_FAILURE;
   }
@@ -1086,11 +1087,12 @@ GeomTopoTool * GeomTopoTool::duplicate_model()
   for (int dim=0; dim<4; dim++)
   {
     int gid = 0;
+    unsigned int set_options = ( (1!=dim) ? MESHSET_SET : MESHSET_ORDERED );
     for (Range::iterator it=geomRanges[dim].begin(); it!=geomRanges[dim].end(); it++)
     {
       EntityHandle set=*it;
       EntityHandle newSet;
-      rval = mdbImpl->create_meshset(MESHSET_SET, newSet);
+      rval = mdbImpl->create_meshset(set_options, newSet);
       if (MB_SUCCESS!=rval)
         return NULL;
       relate[set] = newSet;
@@ -1105,13 +1107,27 @@ GeomTopoTool * GeomTopoTool::duplicate_model()
       rval = mdbImpl->tag_set_data(gidTag, &newSet, 1, &gid);
       if (MB_SUCCESS!=rval)
         return NULL;
-      Range ents;
-      rval = mdbImpl->get_entities_by_handle(set, ents);
-      if (MB_SUCCESS!=rval)
-        return NULL;
-      rval = mdbImpl->add_entities(newSet, ents);
-      if (MB_SUCCESS!=rval)
-        return NULL;
+      if (dim==1)
+      {
+        // the entities are ordered, we need to retrieve them ordered, and set them ordered
+        std::vector<EntityHandle> mesh_edges;
+        rval = mdbImpl->get_entities_by_handle(set, mesh_edges);
+        if (MB_SUCCESS!=rval)
+          return NULL;
+        rval = mdbImpl->add_entities(newSet, &(mesh_edges[0]), (int)mesh_edges.size());
+        if (MB_SUCCESS!=rval)
+          return NULL;
+      }
+      else
+      {
+        Range ents;
+        rval = mdbImpl->get_entities_by_handle(set, ents);
+        if (MB_SUCCESS!=rval)
+          return NULL;
+        rval = mdbImpl->add_entities(newSet, ents);
+        if (MB_SUCCESS!=rval)
+          return NULL;
+      }
       //set parent/child relations if dim>=1
       if (dim>=1)
       {
@@ -1134,11 +1150,45 @@ GeomTopoTool * GeomTopoTool::duplicate_model()
 
   GeomTopoTool * newgtt = new GeomTopoTool(mdbImpl, true, rootModelSet); // will retrieve the
   // sets and put them in ranges
-  newgtt->restore_topology(); // will reset the sense entities, and with this, the model
+
+  // this is the lazy way to it:
+  // newgtt->restore_topology(); // will reset the sense entities, and with this, the model
   // represented by this new gtt will be complete
+  // set senses by peeking at the old model
+  // make sure we have the sense tags defined
+  rval = check_face_sense_tag(true);
+  if (rval!=MB_SUCCESS)
+    return NULL;
+  rval = check_edge_sense_tags(true);
+  if (rval!=MB_SUCCESS)
+    return NULL;
+
+  for (int dd=1; dd<=2; dd++) // do it for surfaces and edges
+  {
+    for (Range::iterator it=geomRanges[dd].begin(); it!=geomRanges[dd].end(); it++)
+    {
+      EntityHandle surf=*it;
+      EntityHandle newSurf = relate[surf];
+      // we can actually look at the tag data, to be more efficient
+      // or use the
+      std::vector<EntityHandle> solids;
+      std::vector<int> senses;
+      rval = this->get_senses(surf, solids, senses);
+      if (MB_SUCCESS!=rval)
+         return NULL;
+      for (unsigned int i = 0; i<solids.size(); i++)
+      {
+        solids[i] = relate[solids[i]];
+      }
+      rval = newgtt->set_senses(newSurf, solids, senses);
+      if (MB_SUCCESS!=rval)
+        return NULL;
+    }
+  }
 
   return newgtt;
 }
+
 } // namespace moab
 
 

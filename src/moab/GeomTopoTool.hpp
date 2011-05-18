@@ -129,6 +129,8 @@ public:
   // modelSet will be a new one
   GeomTopoTool * duplicate_model();
 
+  EntityHandle get_root_model_set() { return modelSet; }
+
 private:
   Interface *mdbImpl;
   Tag sense2Tag;
