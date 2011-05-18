@@ -238,7 +238,27 @@ public:
                                           int ghost_dim, int bridge_dim,
                                         int num_layers, int addl_ents,
                                           bool store_remote_handles);
+
+  /** \brief Exchange owned mesh for input mesh entities and sets
+     * This function should be called collectively over the communicator for this ParallelComm.
+     * If this version is called, all shared exchanged entities should have a value for this
+     * tag (or the tag should have a default value).
+     * \param exchange_procs processor vector exchanged
+     * \param exchange_ents exchanged entities for each processors
+     */
+  ErrorCode exchange_owned_meshs(std::vector<unsigned int>& exchange_procs,
+                                 std::vector<Range*>& exchange_ents,
+                                 bool store_remote_handles,
+                                 bool wait_all = true);
   
+  /** \brief Exchange owned mesh for input mesh entities and sets
+   * This function is called twice by exchange_owned_meshs to exchange entities before sets
+   */
+  ErrorCode exchange_owned_mesh(std::vector<unsigned int>& exchange_procs,
+                                std::vector<Range*>& exchange_ents,
+                                bool store_remote_handles,
+                                bool wait_all);
+
     /** \brief Exchange tags for all shared and ghosted entities
      * This function should be called collectively over the communicator for this ParallelComm.
      * If this version is called, all ghosted/shared entities should have a value for this
