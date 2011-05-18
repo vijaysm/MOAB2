@@ -447,17 +447,23 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
      /**************** Create node coordinate table ***************/
   debug_barrier();
   dbgOut.tprint(1,"creating node table\n");
+  topState.start("creating node table");
   rval = create_node_table( dimension );
+  topState.end(rval);
   if (MB_SUCCESS != rval) return error(rval);
   
     /**************** Create element tables ***************/
 
   debug_barrier();
   dbgOut.tprint(1,"negotiating element types\n");
+  topState.start("negotiating element types");
   rval = negotiate_type_list();
+  topState.end(rval);
   if (MB_SUCCESS != rval) return error(rval);
   dbgOut.tprint(1,"creating element table\n");
+  topState.start("creating element tables");
   rval = create_element_tables();
+  topState.end(rval);
   if (MB_SUCCESS != rval) return error(rval);
   
   
@@ -465,7 +471,9 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
 
   debug_barrier();
   dbgOut.tprint(1,"communicating file ids\n");
+  topState.start("communicating file ids");
   rval = exchange_file_ids( nonlocal );
+  topState.end(rval);
   if (MB_SUCCESS != rval) return error(rval);
  
 
@@ -473,14 +481,18 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   
   debug_barrier();
   dbgOut.tprint(1,"creating adjacency table\n");
+  topState.start("creating adjacency tables");
   rval = create_adjacency_tables();
+  topState.end(rval);
   if (MB_SUCCESS != rval) return error(rval);
   
     /**************** Create meshset tables *********************/
   
   debug_barrier();
   dbgOut.tprint(1,"creating meshset table\n");
+  topState.start("creating meshset tables");
   rval = create_meshset_tables();
+  topState.end(rval);
   if (MB_SUCCESS != rval) return error(rval);
   
   
@@ -502,7 +514,9 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
 
   debug_barrier();
   dbgOut.tprint(1,"creating tag tables\n");
+  topState.start("creating tag tables");
   rval = create_tag_tables();
+  topState.end(rval);
   if (MB_SUCCESS != rval) return error(rval);
     
   /************** Close serial file and reopen parallel *****************/
@@ -732,6 +746,8 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
   const int rank = myPcomm->proc_config().proc_rank();
   const MPI_Comm comm = myPcomm->proc_config().proc_comm();
 
+  subState.start( "negotiating tag list" );
+
   dbgOut.tprint(1,"communicating tag metadata\n");
 
   dbgOut.printf(2,"Exchanging tag data for %d tags.\n", (int)tagList.size() ); 
@@ -825,6 +841,9 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
     if (MB_SUCCESS != rval)
       return error(rval);
   }
+  
+  subState.end();
+  subState.start("negotiate which element/tag combinations are dense");
 
     // Figure out for which tag/element combinations we can
     // write dense tag data.  
@@ -896,7 +915,6 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
                          MPI_BAND, myPcomm->proc_config().proc_comm() );
     CHECK_MPI(err);
   } // if (writeTagDense)
-
   
     // Store initial counts for sparse-formatted tag data.
     // The total number of values to send and receive will be the number of 
@@ -954,6 +972,10 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
     }
   }
   
+
+  subState.end();
+  subState.start("Negotiate offsets for sparse tag info");
+
   
     // For each tag, gather counts on root and offsets into tag data
     // tables back to each process.  The total number of values to send
@@ -1005,6 +1027,8 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
       tag_iter->max_num_vals = 0;
     }
   }
+  
+  subState.end();
 
     // Create tag tables on root process
   if (0 == myPcomm->proc_config().proc_rank()) {
@@ -1732,13 +1756,16 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
   std::vector<RemoteSetData> remote_set_data( multiProcSetTags.list.size() );
   for (i = 0; i< (int)multiProcSetTags.list.size(); i++)
   {
+    subState.start( "Resolving shared sets for tag: ", multiProcSetTags.list[i].filterTag.c_str() );
     rval = get_remote_set_data( multiProcSetTags.list[i],
                                 remote_set_data[i],
                                 total_offset ); 
+    subState.end(rval);
     if (MB_SUCCESS != rval)
       return error(rval);
   }
 
+  subState.start( "Negotiating offsets for local sets" );
   dbgOut.print(2, "myLocalSets\n");
   print_type_sets( iFace, &dbgOut, setSet.range );
 
@@ -1794,9 +1821,13 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
   dbgOut.printf(2,"my Parallel Sets:\n");
   print_type_sets(iFace, &dbgOut, cpuParallelSets[myPcomm->proc_config().proc_rank()] );
   
+  subState.end();
+  
     // Not writing any sets??
   if (!writeSets)
     return MB_SUCCESS;
+  
+  subState.start( "Negotiating offsets for shared set data" );
   
   long start_id = setSet.first_id;
   for (i = 0; i < (int)remote_set_data.size(); ++i)
@@ -1814,6 +1845,7 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables()
       return error(rval);
   }
   remote_set_data.clear();
+  subState.end();
   
     // Exchange IDs for remote/adjacent sets not shared between procs
   //rval = communicate_remote_ids( MBENTITYSET ); assert(MB_SUCCESS == rval);

@@ -86,4 +86,62 @@ void MPE_Comm_global_rank ( MPI_Comm, int, int * );
 
 #endif
 
+#ifdef __cplusplus
+
+namespace moab {
+
+class MPEState {
+private:
+  int sid,eid;
+  bool ok;
+public:
+  MPEState( const char* name, const char* color = 0 )
+    : sid(MPE_Log_get_event_number()),
+      eid(MPE_Log_get_event_number()),
+      ok(true)
+  {
+    MPE_Describe_state( sid, eid, name, color ? color : "yellow" );
+  }
+  
+  MPEState( ) : ok(false) {}
+  bool valid() const { return ok; }
+  
+  void start( int data = 0, const char* str = 0 ) {
+    MPE_Log_event( sid, data, str );
+  }
+  void start( const char* str, int data = 0 ) {
+    MPE_Log_event( sid, data, str ); 
+  }
+  void start( const char* str, const char* str2 ) {
+    MPE_Log_event( sid, 0, (std::string(str).append(str2)).c_str() ); 
+  }
+  void end( int data = 0, const char* str = 0 ) {
+    MPE_Log_event( eid, data, str );
+  }
+  void end( const char* str, int data = 0 ) {
+    MPE_Log_event( eid, data, str ); 
+  }
+};
+
+class MPEEvent {
+private:
+  int id;
+public:
+  MPEEvent( const char* name, const char* color = 0 )
+    : id(MPE_Log_get_event_number())
+  {
+    MPE_Describe_event( id, name, color ? color : "red" );
+  }
+  void log( int data = 0, const char* str = 0 ) {
+    MPE_Log_event( id, data, str );
+  }
+  void log( const char* str, int data = 0 ) {
+    MPE_Log_event( id, data, str ); 
+  }
+};
+
+} /* namespace moab */
+
+#endif /* __cplusplus */
+
 #endif /* MOAB_MPE_H */
