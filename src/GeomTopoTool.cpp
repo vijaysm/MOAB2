@@ -37,9 +37,10 @@ const char GEOM_SENSE_2_TAG_NAME[] = "GEOM_SENSE_2";
 const char GEOM_SENSE_N_ENTS_TAG_NAME[] = "GEOM_SENSE_N_ENTS";
 const char GEOM_SENSE_N_SENSES_TAG_NAME[] = "GEOM_SENSE_N_SENSES";
 
-GeomTopoTool::GeomTopoTool(Interface *impl, bool find_geoments) :
+GeomTopoTool::GeomTopoTool(Interface *impl, bool find_geoments, EntityHandle modelRootSet) :
   mdbImpl(impl), sense2Tag(0), senseNEntsTag(0), senseNSensesTag(0),
-  geomTag(0), gidTag(0), obbTree(impl, NULL, true), contiguous(true), oneVolRootSet(0)
+  geomTag(0), gidTag(0), modelSet(modelRootSet), obbTree(impl, NULL, true),
+  contiguous(true), oneVolRootSet(0)
 {
 
   ErrorCode result = mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4,
@@ -70,6 +71,15 @@ int GeomTopoTool::dimension(EntityHandle this_set)
       return result;
   }
 
+  // check if the geo set belongs to this model
+  if (modelSet)
+  {
+    if(!mdbImpl->contains_entities(modelSet, &this_set, 1 ))
+    {
+      // this g set does not belong to the current model
+      return -1;
+    }
+  }
   // get the data for those tags
   int dim;
   result = mdbImpl->tag_get_data(geomTag, &this_set, 1, &dim);
@@ -85,6 +95,16 @@ int GeomTopoTool::global_id(EntityHandle this_set)
     result = mdbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gidTag);
     if (MB_SUCCESS != result)
       return result;
+  }
+
+  // check if the geo set belongs to this model
+  if (modelSet)
+  {
+    if(!mdbImpl->contains_entities(modelSet, &this_set, 1 ))
+    {
+      // this g set does not belong to the current model
+      return -1;
+    }
   }
 
   // get the data for those tags
@@ -133,7 +153,7 @@ ErrorCode GeomTopoTool::find_geomsets(Range *ranges)
 {
   // get all sets with this tag
   Range geom_sets;
-  ErrorCode result = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET,
+  ErrorCode result = mdbImpl->get_entities_by_type_and_tag(modelSet, MBENTITYSET,
       &geomTag, NULL, 1, geom_sets);
   if (MB_SUCCESS != result || geom_sets.empty())
     return result;
@@ -160,14 +180,14 @@ ErrorCode GeomTopoTool::construct_obb_trees(bool make_one_vol)
   Range surfs, vols, vol_trees;
   const int three = 3;
   const void* const three_val[] = { &three };
-  rval = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &geomTag,
+  rval = mdbImpl->get_entities_by_type_and_tag(modelSet, MBENTITYSET, &geomTag,
       three_val, 1, vols);
   if (MB_SUCCESS != rval)
     return rval;
 
   const int two = 2;
   const void* const two_val[] = { &two };
-  rval = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &geomTag,
+  rval = mdbImpl->get_entities_by_type_and_tag(modelSet, MBENTITYSET, &geomTag,
       two_val, 1, surfs);
   if (MB_SUCCESS != rval)
     return rval;
@@ -294,7 +314,7 @@ ErrorCode GeomTopoTool::restore_topology()
 
   // get all sets with this tag
   Range geom_sets;
-  result = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &geomTag,
+  result = mdbImpl->get_entities_by_type_and_tag(modelSet, MBENTITYSET, &geomTag,
       NULL, 1, geom_sets);
   if (MB_SUCCESS != result || geom_sets.empty())
     return result;
@@ -820,6 +840,13 @@ ErrorCode  GeomTopoTool::add_geo_set(EntityHandle set, int dimension, int global
   if (MB_SUCCESS != result)
       return result;
   geomRanges[dimension].insert(set);
+  // not only that, but also add it to the root model set
+  if (modelSet)
+  {
+    result = mdbImpl->add_entities(modelSet, &set, 1);
+    if (MB_SUCCESS != result)
+      return result;
+  }
 
   // set the global ID value
   // if passed 0, just increase the max id for the dimension

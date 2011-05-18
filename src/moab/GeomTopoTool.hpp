@@ -34,7 +34,7 @@ namespace moab {
 class GeomTopoTool
 {
 public:
-  GeomTopoTool(Interface *impl, bool find_geoments = false);
+  GeomTopoTool(Interface *impl, bool find_geoments = false, EntityHandle modelRootSet = 0);
   ~GeomTopoTool() {}
   
     //! Restore parent/child links between GEOM_TOPO mesh sets
@@ -130,6 +130,8 @@ private:
   Tag senseNEntsTag, senseNSensesTag;
   Tag geomTag;
   Tag gidTag;
+  // the model set encompasses a full topological model
+  EntityHandle modelSet;
   Range geomRanges[4];
   int maxGlobalId[4]; // one max global id for each dimension
   bool updated;
