@@ -50,6 +50,8 @@ ErrorCode geometrize_test(Interface * mb, EntityHandle inputSet);
 
 ErrorCode create_shell_test(Interface * mb);
 
+ErrorCode duplicate_model_test(Interface * mb);
+
 void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
 {
   if (rv == MB_SUCCESS) {
@@ -100,6 +102,11 @@ int main(int argc, char *argv[])
 
   std::cout << "create shell test: ";
   rval = create_shell_test( mb);
+  handle_error_code(rval, number_tests_failed, number_tests_successful);
+  std::cout << "\n";
+
+  std::cout << "duplicate model test: ";
+  rval = duplicate_model_test( mb);
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
@@ -433,6 +440,29 @@ ErrorCode create_shell_test(Interface * mb)
 
   assert(ranges[3].size()==0);
 
+
+  return MB_SUCCESS;
+}
+
+ErrorCode duplicate_model_test(Interface * mb)
+{
+  moab::GeomTopoTool gTopoTool2(mb, true);// to find the geomsets
+
+  GeomTopoTool * newModel = gTopoTool2.duplicate_model();
+  if (NULL == newModel)
+    return MB_FAILURE;
+
+  Range ranges[4];
+  ErrorCode rval = newModel->find_geomsets(ranges);
+
+  assert(MB_SUCCESS==rval);
+  assert(ranges[0].size()==6);
+
+  assert(ranges[1].size()==7);
+
+  assert(ranges[2].size()==2);
+
+  assert(ranges[3].size()==0);
 
   return MB_SUCCESS;
 }

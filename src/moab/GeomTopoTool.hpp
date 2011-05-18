@@ -124,6 +124,11 @@ public:
   // will output a mesh_set that contains everything (all sets of interest), for proper output
   ErrorCode geometrize_surface_set(EntityHandle surface, EntityHandle & output);
 
+  // this would be a deep copy, into a new geom topo tool
+  // sets will be duplicated, but entities not
+  // modelSet will be a new one
+  GeomTopoTool * duplicate_model();
+
 private:
   Interface *mdbImpl;
   Tag sense2Tag;

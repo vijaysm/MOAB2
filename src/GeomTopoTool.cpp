@@ -1059,6 +1059,86 @@ ErrorCode GeomTopoTool::geometrize_surface_set(EntityHandle surface, EntityHandl
   return MB_SUCCESS;
 }
 
+// this would be a deep copy, into a new geom topo tool
+  // sets will be duplicated, but entities not
+  // modelSet will be a new one
+GeomTopoTool * GeomTopoTool::duplicate_model()
+{
+  // will
+  EntityHandle rootModelSet;
+  ErrorCode rval = mdbImpl->create_meshset(MESHSET_SET, rootModelSet);
+  if (MB_SUCCESS!=rval)
+    return NULL;
+  if (0 == geomTag) {
+    rval = mdbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, geomTag);
+    if (MB_SUCCESS != rval)
+      return NULL;
+  }
+  if (0 == gidTag) {
+    rval = mdbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gidTag);
+    if (MB_SUCCESS != rval)
+      return NULL;
+  }
+  // add to the root model set copies of the gsets, with correct sets
+  // keep a map between sets to help in copying parent/child relations
+  std::map <EntityHandle, EntityHandle> relate;
+  // each set will get the same entities as the original
+  for (int dim=0; dim<4; dim++)
+  {
+    int gid = 0;
+    for (Range::iterator it=geomRanges[dim].begin(); it!=geomRanges[dim].end(); it++)
+    {
+      EntityHandle set=*it;
+      EntityHandle newSet;
+      rval = mdbImpl->create_meshset(MESHSET_SET, newSet);
+      if (MB_SUCCESS!=rval)
+        return NULL;
+      relate[set] = newSet;
+      rval = mdbImpl->add_entities(rootModelSet, &newSet, 1);
+      if (MB_SUCCESS!=rval)
+        return NULL;
+      // make it a geo set, and give also global id in order
+      rval = mdbImpl->tag_set_data(geomTag, &newSet, 1, &dim);
+      if (MB_SUCCESS!=rval)
+        return NULL;
+      gid++;// increment global id, everything starts with 1 in the new model!
+      rval = mdbImpl->tag_set_data(gidTag, &newSet, 1, &gid);
+      if (MB_SUCCESS!=rval)
+        return NULL;
+      Range ents;
+      rval = mdbImpl->get_entities_by_handle(set, ents);
+      if (MB_SUCCESS!=rval)
+        return NULL;
+      rval = mdbImpl->add_entities(newSet, ents);
+      if (MB_SUCCESS!=rval)
+        return NULL;
+      //set parent/child relations if dim>=1
+      if (dim>=1)
+      {
+        Range children;
+        // the children of geo sets are only g sets
+        rval = mdbImpl->get_child_meshsets(set, children); // num_hops = 1 by default
+        if (MB_SUCCESS!=rval)
+           return NULL;
+        for (Range::iterator it2=children.begin(); it2!=children.end(); it2++)
+        {
+          EntityHandle newChildSet = relate[*it2];
+          rval = mdbImpl->add_parent_child(newSet, newChildSet);
+          if (MB_SUCCESS!=rval)
+            return NULL;
+        }
+      }
+
+    }
+  }
+
+  GeomTopoTool * newgtt = new GeomTopoTool(mdbImpl, true, rootModelSet); // will retrieve the
+  // sets and put them in ranges
+  newgtt->restore_topology(); // will reset the sense entities, and with this, the model
+  // represented by this new gtt will be complete
+
+  return newgtt;
+}
 } // namespace moab
 
 
