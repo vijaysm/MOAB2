@@ -148,10 +148,10 @@ private:
       std::vector<EntityHandle> & entities, std::vector<EntityHandle> & triangles);
 
   ErrorCode BreakTriangle(EntityHandle tri, EntityHandle e1, EntityHandle e3, EntityHandle n1,
-      EntityHandle n2, EntityHandle n3, Range & new_triangles);// nodesAlongPolyline are on entities!
+      EntityHandle n2, EntityHandle n3);// nodesAlongPolyline are on entities!
 
   ErrorCode BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHandle e2, EntityHandle n1,
-        EntityHandle n2, Range & new_triangles);// nodesAlongPolyline are on entities!
+        EntityHandle n2);// nodesAlongPolyline are on entities!
 
   void print_debug_triangle(EntityHandle triangle);
 
@@ -160,7 +160,7 @@ private:
 
   // used for splitting surfaces
   ErrorCode separate (EntityHandle face, Range & triToDelete,
-      Range & new_triangles, EntityHandle new_geo_edge, Range & first,
+      EntityHandle new_geo_edge, Range & first,
       Range & second);
 
   ErrorCode smooth_new_intx_points(EntityHandle face,
@@ -169,7 +169,7 @@ private:
   // having a node, split boundary along that node
   ErrorCode  split_boundary(EntityHandle face, EntityHandle atNode);
 
-  // see if the node is already part of a vertex set, to not create another one
+  // see if the node is already part of a vertex set, do not create another one
   bool  find_vertex_set_for_node(EntityHandle iNode, EntityHandle & oVertexSet);
 
   // if the splitting edge is not a loop, the original boundary edges will belong to

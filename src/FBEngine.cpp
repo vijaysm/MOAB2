@@ -1195,7 +1195,6 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
   // then the sets will be reset, geometry recomputed. new vertices, new edges, etc.
 
   Range iniTris;
-  Range new_triangles;
   ErrorCode rval;
   rval = _mbImpl -> get_entities_by_type(face, MBTRI, iniTris);
   MBERRORR(rval, "can't get initial triangles");
@@ -1288,7 +1287,7 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
       std::cout <<"tri: type: " << _mbImpl->type_from_handle(tri) << " id:" <<
           _mbImpl->id_from_handle(tri) << " e1:" << e1 << " e2:" << e2 << "\n";
     }
-    rval = BreakTriangle2( tri, e1, e2, nodesAlongPolyline[i], nodesAlongPolyline[i+1], new_triangles);
+    rval = BreakTriangle2( tri, e1, e2, nodesAlongPolyline[i], nodesAlongPolyline[i+1]);
     MBERRORR(rval, "can't break triangle 2");
     if (et2==MBEDGE)
       edgesToDelete.insert(e2);
@@ -1325,7 +1324,7 @@ ErrorCode FBEngine::split_surface(EntityHandle face,
   // we will separate triangles to delete, unaffected, new_triangles,
   //  nodesAlongPolyline, 
   Range first, second;
-  rval = separate (face, triToDelete, new_triangles, new_geo_edge,
+  rval = separate (face, triToDelete, new_geo_edge,
       first, second);
 
   // now, we are done with the computations;
@@ -1444,7 +1443,6 @@ ErrorCode FBEngine::smooth_new_intx_points(EntityHandle face,
 // to the left will be new face, to the right, old face
 // (to the left, positively oriented triangles)
 ErrorCode FBEngine::separate (EntityHandle face, Range & triToDelete,
-    Range & new_triangles,
     EntityHandle new_geo_edge, Range & first,  Range & second)
 {
   //Range unaffectedTriangles = subtract(iniTriangles, triToDelete);
@@ -1491,7 +1489,6 @@ ErrorCode FBEngine::separate (EntityHandle face, Range & triToDelete,
 
   // get the first new triangle: will be part of first set;
   // flood fill first set, the rest will be in second set
-  //first.insert(new_triangles[0]);
   // the edges from new_geo_edge will not be crossed
 
   // get edges of face (adjacencies)
@@ -1738,14 +1735,14 @@ void FBEngine::print_debug_triangle(EntityHandle t)
 // actual breaking of triangles
 // case 1: n2 interior to triangle
 ErrorCode FBEngine::BreakTriangle(EntityHandle tri, EntityHandle e1, EntityHandle e3,
-    EntityHandle n1, EntityHandle n2, EntityHandle n3, Range & new_triangles)
+    EntityHandle n1, EntityHandle n2, EntityHandle n3)
 {
   std::cout<< "FBEngine::BreakTriangle not implemented yet\n";
   return MB_FAILURE;
 }
 // case 2, n1 and n2 on boundary
 ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHandle e2, EntityHandle n1,
-  EntityHandle n2, Range & new_triangles)// nodesAlongPolyline are on entities!
+  EntityHandle n2)// nodesAlongPolyline are on entities!
 {
   // we have the nodes, we just need to reconnect to form new triangles
   ErrorCode rval;
@@ -1774,12 +1771,10 @@ ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHand
     EntityHandle newTriangle;
     rval = _mbImpl->create_element(MBTRI, conn, 3, newTriangle);
     MBERRORR(rval, "Failed to create a new triangle");
-    new_triangles.insert(newTriangle);
     if (debug_splits)
       print_debug_triangle(newTriangle);
     rval = _mbImpl->create_element(MBTRI, conn+3, 3, newTriangle);// the second triangle
     MBERRORR(rval, "Failed to create a new triangle");
-    new_triangles.insert(newTriangle);
     if (debug_splits)
       print_debug_triangle(newTriangle);
     return MB_SUCCESS;
@@ -1799,7 +1794,6 @@ ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHand
     EntityHandle newTriangle;
     rval = _mbImpl->create_element(MBTRI, conn, 3, newTriangle);
     MBERRORR(rval, "Failed to create a new triangle");
-    new_triangles.insert(newTriangle);
     if (debug_splits)
           print_debug_triangle(newTriangle);
     rval = _mbImpl->create_element(MBTRI, conn+3, 3, newTriangle);// the second triangle
@@ -1860,17 +1854,14 @@ ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHand
        std::cout << "Split 2 edges :\n";
     rval = _mbImpl->create_element(MBTRI, conn, 3, newTriangle);
     MBERRORR(rval, "Failed to create a new triangle");
-    new_triangles.insert(newTriangle);
     if (debug_splits)
           print_debug_triangle(newTriangle);
     rval = _mbImpl->create_element(MBTRI, conn+3, 3, newTriangle);// the second triangle
     MBERRORR(rval, "Failed to create a new triangle");
-    new_triangles.insert(newTriangle);
     if (debug_splits)
           print_debug_triangle(newTriangle);
     rval = _mbImpl->create_element(MBTRI, conn+6, 3, newTriangle);// the second triangle
     MBERRORR(rval, "Failed to create a new triangle");
-    new_triangles.insert(newTriangle);
     if (debug_splits)
           print_debug_triangle(newTriangle);
     return MB_SUCCESS;
