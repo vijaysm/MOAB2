@@ -245,11 +245,14 @@ class WriteHDF5Parallel : public WriteHDF5
     std::map<unsigned,Range> cpuParallelSets;
     typedef std::map<unsigned,Range>::iterator proc_iter;
 
-    //! pcomm controlling parallel nature of mesh
-  ParallelComm *myPcomm;
+      //! pcomm controlling parallel nature of mesh
+    ParallelComm *myPcomm;
 
-    //! whether this instance allocated (and dtor should delete) the pcomm
-  bool pcommAllocated;
+      //! whether this instance allocated (and dtor should delete) the pcomm
+    bool pcommAllocated;
+    
+      //! Operation to use to append hyperslab selections
+    H5S_seloper_t hslabOp;
 };
 
 

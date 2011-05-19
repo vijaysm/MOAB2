@@ -313,7 +313,7 @@ WriteHDF5Parallel::MultiProcSetTags::Data::get_sets( Interface* moab,
 
 
 WriteHDF5Parallel::WriteHDF5Parallel( Interface* iface)
-    : WriteHDF5(iface), myPcomm(NULL), pcommAllocated(false)
+    : WriteHDF5(iface), myPcomm(NULL), pcommAllocated(false), hslabOp(H5S_SELECT_OR)
 {
   multiProcSetTags.add(  MATERIAL_SET_TAG_NAME );
   multiProcSetTags.add( DIRICHLET_SET_TAG_NAME );
@@ -562,6 +562,12 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
     dbgOut.print(1,"USING COLLECTIVE IO\n");
     writeProp = H5Pcreate( H5P_DATASET_XFER );
     H5Pset_dxpl_mpio( writeProp, H5FD_MPIO_COLLECTIVE );
+  }
+  
+    /* Test if we can use H5S_APPEND when selecting hyperslabs */
+  if (HDF5_can_append_hyperslabs()) {
+    dbgOut.print(1,"HDF5 library supports H5Sselect_hyperlsab with H5S_SELECT_APPEND"\n);
+    hslabOp = H5S_SELECT_APPEND;
   }
   
   dbgOut.tprint(1,"Exiting parallel_create_file\n");
@@ -2358,7 +2364,7 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
       herr = H5Sselect_hyperslab( space, op, offsets, 0, dims, 0 );
       if (herr < 0)
         break;
-      op = H5S_SELECT_OR;
+      op = hslabOp;
     }
   }
   else {
@@ -2439,7 +2445,7 @@ ErrorCode WriteHDF5Parallel::write_shared_set_data( hid_t table,
       
     hsize_t start = offset;
     hsize_t count = id_list.size();
-    err = H5Sselect_hyperslab( data_space, H5S_SELECT_OR, &start, 0, &count, 0 );
+    err = H5Sselect_hyperslab( data_space, hslabOp, &start, 0, &count, 0 );
     if (err < 0) {
       H5Sclose( data_space );
       writeUtil->report_error( "H5Sselect_hyperslab failed for set contents" );
