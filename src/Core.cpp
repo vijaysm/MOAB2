@@ -43,6 +43,7 @@
 #include "moab/ReaderIface.hpp"
 #include "moab/WriterIface.hpp"
 #include "moab/ScdInterface.hpp"
+#include "moab/SetIterator.hpp"
 
 #include "BitTag.hpp"
 #include "DenseTag.hpp"
@@ -97,7 +98,7 @@ namespace moab {
 using namespace std;
 
 static inline const MeshSet* get_mesh_set( const SequenceManager* sm,
-                                             EntityHandle h )
+                                    EntityHandle h )
 {
   const EntitySequence* seq;
   if (MBENTITYSET != TYPE_FROM_HANDLE(h) || MB_SUCCESS != sm->find( h, seq ))
@@ -106,7 +107,7 @@ static inline const MeshSet* get_mesh_set( const SequenceManager* sm,
 }
 
 static inline MeshSet* get_mesh_set( SequenceManager* sm,
-                                       EntityHandle h )
+                                     EntityHandle h )
 {
   EntitySequence* seq;
   if (MBENTITYSET != TYPE_FROM_HANDLE(h) || MB_SUCCESS != sm->find( h, seq ))
@@ -3254,7 +3255,6 @@ ErrorCode Core::remove_child_meshset(EntityHandle meshset,
   return MB_SUCCESS;
 }
 
-
 ErrorCode Core::get_last_error(std::string& info) const
 {
   return mError->get_last_error(info);
@@ -3479,6 +3479,60 @@ bool Core::is_valid(const EntityHandle this_ent) const
   const EntitySequence* seq = 0;
   ErrorCode result = sequence_manager()->find(this_ent, seq);
   return seq != 0 && result == MB_SUCCESS;
+}
+
+ErrorCode Core::create_set_iterator(EntityHandle meshset,
+                                    EntityType ent_type,
+                                    int ent_dim,
+                                    int chunk_size,
+                                    bool check_valid,
+                                    SetIterator *&set_iter) 
+{
+    // check the type of set
+  unsigned int options;
+  ErrorCode rval = MB_SUCCESS;
+  if (meshset) {
+    rval = get_meshset_options(meshset, options);
+    if (MB_SUCCESS != rval) return rval;
+  }
+  
+  if (!meshset || options & MESHSET_SET) 
+    set_iter = new RangeSetIterator(this, meshset, chunk_size, ent_type, ent_dim, check_valid);
+  else
+    set_iter = new VectorSetIterator(this, meshset, chunk_size, ent_type, ent_dim, check_valid);
+  
+  setIterators.push_back(set_iter);
+  return MB_SUCCESS;
+}
+
+    /** \brief Remove the set iterator from the instance's list
+     * This function is called from the SetIterator destructor, and should not be called directly
+     * from anywhere else.
+     * \param set_iter Set iterator being removed
+     */
+ErrorCode Core::remove_set_iterator(SetIterator *set_iter) 
+{
+  std::vector<SetIterator*>::iterator vit = std::find(setIterators.begin(), setIterators.end(), set_iter);
+  if (vit == setIterators.end()) {
+    mError->set_last_error("Didn't find that iterator.");
+    return MB_FAILURE;
+  }
+  
+  setIterators.erase(vit);
+
+  return MB_SUCCESS;
+}
+
+  /** \brief Get all set iterators associated with the set passed in
+   * \param meshset Meshset for which iterators are requested
+   * \param set_iters Set iterators for the set
+   */
+ErrorCode Core::get_set_iterators(EntityHandle meshset,
+                                  std::vector<SetIterator *> &set_iters) 
+{
+  for (std::vector<SetIterator*>::const_iterator vit = setIterators.begin(); vit != setIterators.end(); vit++)
+    if ((*vit)->ent_set() == meshset) set_iters.push_back(*vit);
+  return MB_SUCCESS;
 }
 
 void Core::estimated_memory_use_internal( const Range* ents,

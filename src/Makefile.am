@@ -94,6 +94,7 @@ libMOAB_la_SOURCES = \
   SequenceData.cpp \
   SequenceManager.cpp \
   SequenceManager.hpp \
+  SetIterator.cpp \
   Skinner.cpp \
   SmoothCurve.cpp \
   SmoothCurve.hpp \
@@ -160,6 +161,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/ReaderIface.hpp \
   moab/ReaderWriterSet.hpp \
   moab/ScdInterface.hpp \
+  moab/SetIterator.hpp \
   moab/Skinner.hpp \
   moab/Types.hpp \
   moab/UnknownInterface.hpp \

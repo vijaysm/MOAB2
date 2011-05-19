@@ -23,6 +23,7 @@ namespace moab {
 
 class Interface;
 class Range;
+class SetIterator;
 class ProcConfig;
 
 typedef std::vector<EntityHandle> HandleVec;

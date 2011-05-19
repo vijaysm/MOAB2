@@ -1908,6 +1908,34 @@ public:
 
     /**@}*/
 
+    /** \name Set iterators */
+
+    /**@{*/
+
+    /** \brief Create an iterator over the set
+     * Create a new iterator that iterates over entities with the specified type or dimension.  
+     * Only one of ent_type or dim can be set; use dim=-1 or ent_type=MBMAXTYPE for the other.
+     * Iterators for list-type (ordered) sets are stable over set modification, unless entity
+     * removed or deleted is the one at the current position of the iterator.  If the check_valid
+     * parameter is passed as true, entities are checked for validity before being passed back by
+     * get_next_entities function (checking entity validity can have a non-negligible cost).
+     *
+     * Iterators returned by this function can be deleted using the normal C++ delete function.
+     * After creating the iterator through this function, further interactions are through methods
+     * on the SetIterator class.
+     * \param meshset The entity set associated with this iterator (use 0 for whole instance)
+     * \param ent_type Entity type associated with this iterator
+     * \param ent_dim Dimension associated with this iterator
+     * \param chunk_size Chunk size of the iterator
+     * \param check_valid If true, entities are checked for validity before being returned 
+     */
+  virtual ErrorCode create_set_iterator(EntityHandle meshset,
+                                        EntityType ent_type,
+                                        int ent_dim,
+                                        int chunk_size,
+                                        bool check_valid,
+                                        SetIterator *&set_iter) = 0;
+    /**@}*/
 
 };
 

@@ -2,6 +2,7 @@
 #include "AEntityFactory.hpp"
 #include "TestUtil.hpp"
 #include "moab/Core.hpp"
+#include "moab/SetIterator.hpp"
 
 using namespace moab;
 
@@ -47,6 +48,11 @@ enum BoolOp { UNITE, INTERSECT, SUBTRACT };
 bool test_boolean( Core& mb, BoolOp op, 
                    unsigned flags1, const Range& set1_ents, 
                    unsigned flags2, const Range& set2_ents );
+void test_iterator(Interface &moab, SetIterator *iter, 
+                   EntityHandle set, EntityType etype, int dim);
+void test_iterators(unsigned int flags, bool type, bool dim);
+void test_all_iterators();
+
 
 void test_add_entities_ordered()          { test_add_entities( MESHSET_ORDERED ); }
 void test_add_entities_set()              { test_add_entities( MESHSET_SET     ); }
@@ -158,6 +164,8 @@ int main()
   err += RUN_TEST(test_clear_set_tracking);
 
   err += RUN_TEST(regression_insert_set_1);
+
+  err += RUN_TEST(test_all_iterators);
   
   if (!err) 
     printf("ALL TESTS PASSED\n");
@@ -1194,3 +1202,175 @@ void regression_insert_set_1()
   }
 }
 
+void test_all_iterators() 
+{
+  test_iterators(MESHSET_SET, true, false);
+  test_iterators(MESHSET_SET, false, true);
+  
+  test_iterators(MESHSET_ORDERED, true, false);
+  test_iterators(MESHSET_ORDERED, false, true);
+}
+
+void test_iterators(unsigned int flags, bool test_type, bool test_dim)
+{
+  if (test_type && test_dim) CHECK_ERR(MB_FAILURE);
+  
+  EntityHandle first_vert, last_vert, first_hex, last_hex;
+  Core mb; make_mesh( mb, first_vert, last_vert, first_hex, last_hex );
+  
+    // Create an entity set
+  EntityHandle set;
+  ErrorCode rval = mb.create_meshset(flags, set );
+  CHECK_ERR(rval);
+
+    // Test iteration over empty set
+  SetIterator *iter;
+  rval = mb.create_set_iterator(set, MBMAXTYPE, -1, 1, false, iter);
+  CHECK_ERR(rval);
+  test_iterator(mb, iter, set, MBMAXTYPE, -1);
+  delete iter;
+  
+  rval = mb.create_set_iterator(set, MBMAXTYPE, -1, 100, false, iter);
+  CHECK_ERR(rval);
+  test_iterator(mb, iter, set, MBMAXTYPE, -1);
+  delete iter;
+  
+  rval = mb.create_set_iterator(set, MBMAXTYPE, 0, 1, false, iter);
+  CHECK_ERR(rval);
+  test_iterator(mb, iter, set, MBMAXTYPE, 0);
+  delete iter;
+  
+  rval = mb.create_set_iterator(set, MBMAXTYPE, 3, 1, false, iter);
+  CHECK_ERR(rval);
+  test_iterator(mb, iter, set, MBMAXTYPE, 3);
+  delete iter;
+  
+    // Add stuff to set
+  Range range;
+  range.insert( first_vert      , first_vert +  10 );
+  range.insert( first_vert + 100, first_vert + 110 );
+  range.insert( first_hex  + 200, first_hex  + 299 );
+  range.insert( last_hex        , last_hex   -  99 );
+  rval = mb.add_entities( set, range );
+  CHECK_ERR(rval);
+  
+  EntityType etype = MBVERTEX;
+  int edim = -1;
+  if (test_dim && !test_type) {
+    edim = 0;
+    etype = MBMAXTYPE;
+  }
+
+    // Test 
+    // chunk size 1
+  rval = mb.create_set_iterator(set, etype, edim, 1, false, iter);
+  CHECK_ERR(rval);
+  test_iterator(mb, iter, set, etype, edim);
+  delete iter;
+
+    // chunk size 3
+  rval = mb.create_set_iterator(set, etype, edim, 3, false, iter);
+  CHECK_ERR(rval);
+  test_iterator(mb, iter, set, etype, edim);
+  delete iter;
+
+    // chunk size 11
+  rval = mb.create_set_iterator(set, etype, edim, 11, false, iter);
+  CHECK_ERR(rval);
+  test_iterator(mb, iter, set, etype, edim);
+  delete iter;
+
+    // chunk size 100
+  rval = mb.create_set_iterator(set, etype, edim, 100, false, iter);
+  CHECK_ERR(rval);
+  test_iterator(mb, iter, set, etype, edim);
+  delete iter;
+
+  if (test_type) {
+      // chunk size 1, all ents
+    rval = mb.create_set_iterator(set, MBMAXTYPE, -1, 1, false, iter);
+    CHECK_ERR(rval);
+    test_iterator(mb, iter, set, MBMAXTYPE, -1);
+    delete iter;
+
+      // chunk size 3, all ents
+    rval = mb.create_set_iterator(set, MBMAXTYPE, -1, 3, false, iter);
+    CHECK_ERR(rval);
+    test_iterator(mb, iter, set, MBMAXTYPE, -1);
+    delete iter;
+
+      // chunk size large, all ents
+    rval = mb.create_set_iterator(set, MBMAXTYPE, -1, 100000, false, iter);
+    CHECK_ERR(rval);
+    test_iterator(mb, iter, set, MBMAXTYPE, -1);
+    delete iter;
+
+    etype = MBEDGE;
+      // edges, chunk size 1
+    rval = mb.create_set_iterator(set, etype, edim, 1, false, iter);
+    CHECK_ERR(rval);
+    test_iterator(mb, iter, set, etype, edim);
+    delete iter;
+
+      // edges, chunk size 100
+    rval = mb.create_set_iterator(set, etype, edim, 100, false, iter);
+    CHECK_ERR(rval);
+    test_iterator(mb, iter, set, etype, edim);
+    delete iter;
+
+    etype = MBHEX;
+    
+      // hexes, chunk size 1
+    rval = mb.create_set_iterator(set, etype, edim, 1, false, iter);
+    CHECK_ERR(rval);
+    test_iterator(mb, iter, set, etype, edim);
+    delete iter;
+
+      // hexes, chunk size 3
+    rval = mb.create_set_iterator(set, etype, edim, 3, false, iter);
+    CHECK_ERR(rval);
+    test_iterator(mb, iter, set, etype, edim);
+    delete iter;
+
+
+      // hexes, chunk size 1000
+    rval = mb.create_set_iterator(set, etype, edim, 1000, false, iter);
+    CHECK_ERR(rval);
+    test_iterator(mb, iter, set, etype, edim);
+    delete iter;
+  }
+}
+
+void test_iterator(Interface &moab, SetIterator *iter, 
+                   EntityHandle set, EntityType etype, int dim) 
+{
+    // iterate over the set, adding to contents
+  std::vector<EntityHandle> entities, entities2;
+  bool atend = false;
+  ErrorCode rval;
+  
+  while (!atend) {
+    rval = iter->get_next_arr(entities, atend);
+    CHECK_ERR(rval);
+  }
+  
+    // check contents against what's in the set
+  if (MBMAXTYPE != etype) {
+    rval = moab.get_entities_by_type(set, etype, entities2);
+    CHECK_ERR(rval);
+  }
+  else if (MBMAXTYPE == etype && -1 == dim) {
+    rval = moab.get_entities_by_handle(set, entities2);
+    CHECK_ERR(rval);
+  }
+  else if (-1 != dim) {
+    rval = moab.get_entities_by_dimension(set, dim, entities2);
+    CHECK_ERR(rval);
+  }
+  else {
+      // error, one of those needs to be true
+    CHECK_ERR(MB_FAILURE);
+  }
+  
+  CHECK_EQUAL(entities.size(), entities2.size());
+}

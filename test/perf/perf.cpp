@@ -42,6 +42,7 @@ extern "C" int getrusage(int, struct rusage *);
 #include "EntitySequence.hpp"
 #include "SequenceManager.hpp"
 #include "moab/HomXform.hpp"
+#include "moab/SetIterator.hpp"
 
 using namespace moab;
 
@@ -50,6 +51,7 @@ double LENGTH = 1.0;
 void testA(const int nelem, const double *coords);
 void testB(const int nelem, const double *coords, int *connect);
 void testC(const int nelem, const double *coords);
+void testD(const int nelem, const double *coords);
 void print_time(const bool print_em, double &tot_time, double &utime, double &stime, long &imem, long &rmem);
 void query_vert_to_elem();
 void query_elem_to_vert();
@@ -294,8 +296,6 @@ int main(int argc, char* argv[])
   std::cout << "number of elements: " << nelem << "; test " 
             << which_test << std::endl;
 
-  gMB = new Core();
-
     // pre-build the coords array
   double *coords = NULL;
   build_coords(nelem, coords);
@@ -303,24 +303,19 @@ int main(int argc, char* argv[])
 
   int *connect = NULL;
 
-  switch (which_test) {
-    case 'A':
-        // test A: create structured mesh
-      testA(nelem, coords);
-      break;
-      
-    case 'B':
-        build_connect(nelem, 1, connect);
+    // test A: create structured mesh
+  testA(nelem, coords);
 
-        // test B: create mesh using bulk interface
-      testB(nelem, coords, connect);
-      break;
-      
-    case 'C':
+  build_connect(nelem, 1, connect);
+
+    // test B: create mesh using bulk interface
+  testB(nelem, coords, connect);
+
     // test C: create mesh using individual interface
-      testC(nelem, coords);
-      break;
-  }
+  testC(nelem, coords);
+  
+    // test D: query mesh using iterators
+  testD(nelem, coords);
   
   return 0;
 }
@@ -359,6 +354,60 @@ void query_vert_to_elem()
     result = gMB->get_adjacencies(&(*vit), 1, 3, false, neighbor_hexes);
     assert(MB_SUCCESS == result);
   }
+}
+
+void query_elem_to_vert_iters(int chunk_size)
+{
+  std::vector<EntityHandle> hexes;
+  SetIterator *iter;
+  ErrorCode result = gMB->create_set_iterator(0, MBHEX, -1, chunk_size, false, iter);
+  assert(MB_SUCCESS == result);
+  const EntityHandle *connect;
+  int num_connect;
+  double dum_coords[24];
+  bool atend = false;
+  while (!atend) {
+    hexes.clear();
+    result = iter->get_next_arr(hexes, atend);
+    assert(MB_SUCCESS == result);
+    for (int i = 0; i < chunk_size; i++) {
+      result = gMB->get_connectivity(hexes[i], connect, num_connect);
+      assert(MB_SUCCESS == result);
+      result = gMB->get_coords(connect, num_connect, dum_coords);
+      assert(MB_SUCCESS == result);
+
+        // compute the centroid
+      double centroid[3] = {0.0, 0.0, 0.0};
+      for (int j = 0; j < 24;) {
+        centroid[0] += dum_coords[j++];
+        centroid[1] += dum_coords[j++];
+        centroid[2] += dum_coords[j++];
+      }
+    }
+  }
+  
+  delete iter;
+}
+
+void query_vert_to_elem_iters(int chunk_size)
+{
+  std::vector<EntityHandle> verts, neighbor_hexes;
+  SetIterator *iter;
+  ErrorCode result = gMB->create_set_iterator(0, MBVERTEX, -1, chunk_size, false, iter);
+  assert(MB_SUCCESS == result);
+  bool atend = false;
+  while (!atend) {
+    verts.clear();
+    result = iter->get_next_arr(verts, atend);
+    assert(MB_SUCCESS == result);
+    for (int i = 0; i < chunk_size; i++) {
+      neighbor_hexes.clear();
+      result = gMB->get_adjacencies(&verts[i], 1, 3, false, neighbor_hexes);
+      assert(MB_SUCCESS == result);
+    }
+  }
+
+  delete iter;
 }
 
 void query_struct_elem_to_vert()
@@ -428,6 +477,7 @@ void testA(const int nelem, const double *coords)
   EntitySequence *dum_seq = NULL;
   ScdVertexData *vseq = NULL;
   StructuredElementSeq *eseq = NULL;
+  gMB = new Core();
   SequenceManager *seq_mgr = dynamic_cast<Core*>(gMB)->sequence_manager();
   HomCoord vseq_minmax[2] = {HomCoord(0,0,0), 
                              HomCoord(nelem, nelem, nelem)};
@@ -499,6 +549,7 @@ void testB(const int nelem, const double *coords, int *connect)
 
   // get the read interface
   ReadUtilIface* readMeshIface;
+  gMB = new Core();
   gMB->query_interface(readMeshIface);
   
   // create a sequence to hold the node coordinates
@@ -564,6 +615,7 @@ void testC(const int nelem, const double *coords)
   double dum_coords[3] = {coords[0], coords[num_verts], coords[2*num_verts]};
   EntityHandle vstart;
 
+  gMB = new Core();
   ErrorCode result = gMB->create_vertex(dum_coords, vstart);
   assert(MB_SUCCESS == result && 1 == vstart);
 
@@ -620,4 +672,82 @@ void testC(const int nelem, const double *coords)
             << std::endl;
   std::cout << "MOAB ucd indiv memory (rss): initial, after v/e construction, e-v query, v-e query, after dtor:" 
             << rmem0 << ", " << rmem1 << ", " << rmem2 << ", " << rmem3 << ", " << rmem4 <<  " kb" << std::endl;
+}
+
+void testD(const int nelem, const double *coords) 
+{
+  double ttime0, ttime1, ttime2, ttime3, ttime4, ttime5, ttime6, utime, stime;
+  long imem0, rmem0, imem1, rmem1, imem2, rmem2, imem3, rmem3, imem4, rmem4, imem5, rmem5, imem6, rmem6;
+  
+  print_time(false, ttime0, utime, stime, imem0, rmem0);
+
+    // create the vertices; assume we don't need to keep a list of vertex handles, since they'll
+    // be created in sequence
+  int numv = nelem + 1;
+  int numv_sq = numv*numv;
+  int num_verts = numv*numv*numv;
+  double dum_coords[3] = {coords[0], coords[num_verts], coords[2*num_verts]};
+  EntityHandle vstart;
+
+  gMB = new Core();
+  ErrorCode result = gMB->create_vertex(dum_coords, vstart);
+  assert(MB_SUCCESS == result && 1 == vstart);
+
+  EntityHandle dum_vert, vijk;
+  int i;
+  for (i = 1; i < num_verts; i++) {
+    dum_coords[0] = coords[i]; 
+    dum_coords[1] = coords[num_verts+i]; 
+    dum_coords[2] = coords[2*num_verts+i];
+    result = gMB->create_vertex(dum_coords, dum_vert);
+    assert(MB_SUCCESS == result);
+  }
+
+  EntityHandle dum_conn[8];
+  for (i=0; i < nelem; i++) {
+    for (int j=0; j < nelem; j++) {
+      for (int k=0; k < nelem; k++) {
+        vijk = vstart+VINDEX(i,j,k);
+        dum_conn[0] = vijk;
+        dum_conn[1] = vijk+1;
+        dum_conn[2] = vijk+1+numv;
+        dum_conn[3] = vijk+numv;
+        dum_conn[4] = vijk+numv*numv;
+        dum_conn[5] = vijk+1+numv*numv;
+        dum_conn[6] = vijk+1+numv+numv*numv;
+        dum_conn[7] = vijk+numv+numv*numv;
+        result = gMB->create_element(MBHEX, dum_conn, 8, dum_vert);
+        assert(MB_SUCCESS == result);
+      }
+    }
+  }
+
+  print_time(false, ttime1, utime, stime, imem1, rmem1);
+
+    // query the mesh 2 ways
+  query_elem_to_vert_iters(1);
+  print_time(false, ttime2, utime, stime, imem2, rmem2);
+  query_vert_to_elem_iters(1);
+  print_time(false, ttime3, utime, stime, imem3, rmem3);
+
+  query_elem_to_vert_iters(100);
+  print_time(false, ttime4, utime, stime, imem4, rmem4);
+  query_vert_to_elem_iters(100);
+  print_time(false, ttime5, utime, stime, imem5, rmem5);
+
+  delete gMB;
+
+  print_time(false, ttime6, utime, stime, imem6, rmem6);
+
+  std::cout << "MOAB ucd iters: nelem, construct, e_to_v query (1), v_to_e query (1), e_to_v query (100), v_to_e query (100), after dtor = " 
+            << nelem << ", "
+            << ttime1-ttime0 << ", " 
+            << ttime2-ttime1 << ", " 
+            << ttime3-ttime2 << ", " 
+            << ttime4-ttime3 << ", " 
+            << ttime5-ttime4 << ", " 
+            << ttime6-ttime5 << " seconds" 
+            << std::endl;
+  std::cout << "MOAB ucd iters memory (rss): initial, after v/e construction, e-v query (1), v-e query (1), e-v query (100), v-e query (100), after dtor:" 
+            << rmem0 << ", " << rmem1 << ", " << rmem2 << ", " << rmem3 << ", " << rmem4 << ", " << rmem5 << ", " << rmem6 << " kb" << std::endl;
 }

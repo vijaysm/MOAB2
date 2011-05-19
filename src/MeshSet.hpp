@@ -462,13 +462,13 @@ inline ErrorCode MeshSet::get_entities(Range& entities) const
 
   //! get all entities in this MeshSet with the specified type
 inline ErrorCode MeshSet::get_entities_by_type(EntityType type,
-                                                   std::vector<EntityHandle> &entity_list
-                                                   ) const
+                                               std::vector<EntityHandle> &entity_list
+                                               ) const
 {
   size_t count;
   const EntityHandle* ptr = get_contents( count );
   if (MBMAXTYPE == type) {
-    return get_entities( entity_list );
+    return get_entities( entity_list);
   }
   else if (vector_based()) {
     std::remove_copy_if( ptr, ptr+count, 

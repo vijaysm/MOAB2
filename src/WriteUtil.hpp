@@ -320,6 +320,36 @@ public:
                             int* lengths = 0,
                             unsigned char* flags = 0 );
 
+  /*\brief Get pointers to internal storage of entity data
+   *
+   * Get pointers to element connectivity or set content storage.
+   *\param entities Pointer to list of entities for which to return results
+   *\param num_entities Number of entities in list
+   *\param output_pointer_array Result list of pointers.  Points to either
+   *          element connectivity or set contents.  Note: set contents
+   *          may be in range-compacted format.
+   *\param lengths Optional per-entity length of list.  If passed, then
+   *          always set, for each entity, to the number of values in the
+   *          array passed back in \c output_pointer_array
+   *\param relation If entity is entity set, which set data to return
+   *          (contents array, parent array, or child array).  If
+   *          entity is an element, then CONTENTS for complete connectivity
+   *          or TOPOLOGICAL for only corner vertices.  
+   *\param flags Optional per-entity flag values.  If passed, then
+   *          always set to zero for elements and set to set creation
+   *          flags for entity sets.
+   *\return MB_STRUCTURED_MESH if one or more input elements are stored as
+   *          structured mesh and therefore do not have explicit storage.
+   *        MB_TYPE_OUT_OF_RANGE if called for vertices.
+   */
+  virtual ErrorCode
+  get_entity_list_pointers( EntityHandle const* entities,
+                            int num_entities,
+                            EntityHandle const* * output_pointer_array,
+                            EntityListType relation = CONTENTS,
+                            int* lengths = 0,
+                            unsigned char* flags = 0 );
+
   //! tell MB there was an error when writing the mesh
   //! it makes sense to have this as long as Interface has a write_mesh function
   ErrorCode report_error( const std::string& error );

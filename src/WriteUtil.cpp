@@ -916,4 +916,65 @@ ErrorCode WriteUtil::get_entity_list_pointers( Range::const_iterator begin,
   else return rval;
 }
 
+ErrorCode WriteUtil::get_entity_list_pointers( EntityHandle const* entities,
+                                               int num_entities,
+                                               EntityHandle const* * pointers,
+                                               EntityListType relation,
+                                               int* lengths,
+                                               unsigned char* flags )
+{
+  SequenceManager *sm = mMB->sequence_manager();
+  const EntitySequence *tmp_seq;
+  ErrorCode rval;
+  for (int i = 0; i < num_entities; i++) {
+    rval = sm->find(entities[i], tmp_seq);
+    if (MB_SUCCESS != rval) return rval;
+    
+    EntityType type = TYPE_FROM_HANDLE(entities[i]);
+    
+    if (MBENTITYSET == type) {
+      const MeshSetSequence* seq = reinterpret_cast<const MeshSetSequence*>(tmp_seq);
+      const MeshSet* set;
+      int len = 0; size_t clen;
+      set = seq->get_set(entities[i]);
+      switch (relation) {
+        case CONTENTS: *pointers = set->get_contents( clen ); len = clen; break;
+        case CHILDREN: *pointers = set->get_children( len ); break;
+        case PARENTS:  *pointers = set->get_parents( len ); break;
+      }
+      if (lengths) {
+        *lengths = len;
+        ++lengths;
+      }
+      if (flags) {
+        *flags = (unsigned char)set->flags();
+        ++flags;
+      }
+      ++pointers;
+    }
+    
+    else if (MBVERTEX != type) {
+      const bool topological = (relation == TOPOLOGICAL);
+      int len;
+      const ElementSequence* seq = reinterpret_cast<const ElementSequence*>(tmp_seq);
+      rval = seq->get_connectivity( entities[i], *pointers, len, topological );
+      if (MB_SUCCESS != rval) return rval;
+      if (lengths) {
+        *lengths = len;
+        ++lengths;
+      }
+      if (flags) {
+        *flags = 0;
+        ++flags;
+      }
+      ++pointers;
+    }
+    else {
+      return MB_TYPE_OUT_OF_RANGE;
+    }
+  }
+  if (MB_FAILURE == rval) return MB_SUCCESS; // at end of list
+  else return rval;
+}
+
 } // namespace moab
