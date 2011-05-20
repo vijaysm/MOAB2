@@ -67,6 +67,9 @@ ErrorCode RangeSetIterator::get_next_arr(std::vector<EntityHandle> &arr,
   int count;
   const EntityHandle *ptr;
   WriteUtilIface *iface;
+  std::vector<EntityHandle> tmp_arr;
+  std::vector<EntityHandle> *tmp_ptr = &arr;
+  if (checkValid) tmp_ptr = &tmp_arr;
   ErrorCode rval;
   if (!pairPtr) {
     Interface *mbImpl = dynamic_cast<Interface*>(myCore);
@@ -91,9 +94,16 @@ ErrorCode RangeSetIterator::get_next_arr(std::vector<EntityHandle> &arr,
     return MB_SUCCESS;
   }
 
-  if (-1 == entDimension) return get_next_by_type(ptr, count, arr, atend);
-  else return get_next_by_dimension(ptr, count, arr, atend);
+  if (-1 == entDimension) rval = get_next_by_type(ptr, count, *tmp_ptr, atend);
+  else rval = get_next_by_dimension(ptr, count, *tmp_ptr, atend);
+  if (MB_SUCCESS != rval) return rval;
   
+  if (checkValid) {
+    for (std::vector<EntityHandle>::iterator vit = tmp_ptr->begin(); vit != tmp_ptr->end(); vit++) {
+      if (myCore->is_valid(*vit)) arr.push_back(*vit);
+    }
+  }
+    
   return MB_SUCCESS;
 }
 
@@ -219,6 +229,10 @@ ErrorCode VectorSetIterator::get_next_arr(std::vector<EntityHandle> &arr,
     return MB_SUCCESS;
   }
   
+  std::vector<EntityHandle> tmp_arr;
+  std::vector<EntityHandle> *tmp_ptr = &arr;
+  if (checkValid) tmp_ptr = &tmp_arr;
+
     // just get the next chunkSize entities, or as many as you can
   int this_ct = 0;
   while (this_ct < (int)chunkSize && iterPos < count) {
@@ -231,6 +245,12 @@ ErrorCode VectorSetIterator::get_next_arr(std::vector<EntityHandle> &arr,
   }
   
   atend = (iterPos == count);
+
+  if (checkValid) {
+    for (std::vector<EntityHandle>::iterator vit = tmp_ptr->begin(); vit != tmp_ptr->end(); vit++) {
+      if (myCore->is_valid(*vit)) arr.push_back(*vit);
+    }
+  }
 
     // step along list, adding entities
   return MB_SUCCESS;

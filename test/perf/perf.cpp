@@ -279,17 +279,17 @@ int main(int argc, char* argv[])
 {
   int nelem = 20;
   if (argc < 3) {
-    std::cout << "Usage: " << argv[0] << " <ints_per_side> <A|B|C>" << std::endl;
+    std::cout << "Usage: " << argv[0] << " <ints_per_side> [A|B|C|D]" << std::endl;
     return 1;
   }
   
   char which_test = '\0';
   
   sscanf(argv[1], "%d", &nelem);
-  sscanf(argv[2], "%c", &which_test);
+  if (argc == 3) sscanf(argv[2], "%c", &which_test);
 
-  if (which_test != 'A' && which_test != 'B' && which_test != 'C') {
-      std::cout << "Must indicate A or B or C for test." << std::endl;
+  if (3 == argc && which_test != 'A' && which_test != 'B' && which_test != 'C' && which_test != 'D') {
+      std::cout << "Must indicate A or B, C or D for test." << std::endl;
       return 1;
   }
   
@@ -304,18 +304,18 @@ int main(int argc, char* argv[])
   int *connect = NULL;
 
     // test A: create structured mesh
-  testA(nelem, coords);
+  if ('\0' == which_test || 'A' == which_test) testA(nelem, coords);
 
   build_connect(nelem, 1, connect);
 
     // test B: create mesh using bulk interface
-  testB(nelem, coords, connect);
+  if ('\0' == which_test || 'B' == which_test) testB(nelem, coords, connect);
 
     // test C: create mesh using individual interface
-  testC(nelem, coords);
+  if ('\0' == which_test || 'C' == which_test) testC(nelem, coords);
   
     // test D: query mesh using iterators
-  testD(nelem, coords);
+  if ('\0' == which_test || 'D' == which_test) testD(nelem, coords);
   
   return 0;
 }
@@ -356,11 +356,11 @@ void query_vert_to_elem()
   }
 }
 
-void query_elem_to_vert_iters(int chunk_size)
+void query_elem_to_vert_iters(int chunk_size, bool check_valid)
 {
   std::vector<EntityHandle> hexes;
   SetIterator *iter;
-  ErrorCode result = gMB->create_set_iterator(0, MBHEX, -1, chunk_size, false, iter);
+  ErrorCode result = gMB->create_set_iterator(0, MBHEX, -1, chunk_size, check_valid, iter);
   assert(MB_SUCCESS == result);
   const EntityHandle *connect;
   int num_connect;
@@ -389,11 +389,11 @@ void query_elem_to_vert_iters(int chunk_size)
   delete iter;
 }
 
-void query_vert_to_elem_iters(int chunk_size)
+void query_vert_to_elem_iters(int chunk_size, bool check_valid)
 {
   std::vector<EntityHandle> verts, neighbor_hexes;
   SetIterator *iter;
-  ErrorCode result = gMB->create_set_iterator(0, MBVERTEX, -1, chunk_size, false, iter);
+  ErrorCode result = gMB->create_set_iterator(0, MBVERTEX, -1, chunk_size, check_valid, iter);
   assert(MB_SUCCESS == result);
   bool atend = false;
   while (!atend) {
@@ -676,8 +676,10 @@ void testC(const int nelem, const double *coords)
 
 void testD(const int nelem, const double *coords) 
 {
-  double ttime0, ttime1, ttime2, ttime3, ttime4, ttime5, ttime6, utime, stime;
-  long imem0, rmem0, imem1, rmem1, imem2, rmem2, imem3, rmem3, imem4, rmem4, imem5, rmem5, imem6, rmem6;
+  double ttime0, ttime1, ttime2, ttime3, ttime4, ttime5, ttime6, ttime7, ttime8, ttime9, ttime10, 
+      utime, stime;
+  long imem0, rmem0, imem1, rmem1, imem2, rmem2, imem3, rmem3, imem4, rmem4, imem5, rmem5, imem6, rmem6,
+      imem7, rmem7, imem8, rmem8, imem9, rmem9, imem10, rmem10;
   
   print_time(false, ttime0, utime, stime, imem0, rmem0);
 
@@ -724,30 +726,50 @@ void testD(const int nelem, const double *coords)
 
   print_time(false, ttime1, utime, stime, imem1, rmem1);
 
-    // query the mesh 2 ways
-  query_elem_to_vert_iters(1);
+    // query the mesh 2 ways with !check_valid
+  query_elem_to_vert_iters(1, false);
   print_time(false, ttime2, utime, stime, imem2, rmem2);
-  query_vert_to_elem_iters(1);
+  query_vert_to_elem_iters(1, false);
   print_time(false, ttime3, utime, stime, imem3, rmem3);
 
-  query_elem_to_vert_iters(100);
+  query_elem_to_vert_iters(100, false);
   print_time(false, ttime4, utime, stime, imem4, rmem4);
-  query_vert_to_elem_iters(100);
+  query_vert_to_elem_iters(100, false);
   print_time(false, ttime5, utime, stime, imem5, rmem5);
+
+    // query the mesh 2 ways with check_valid
+  query_elem_to_vert_iters(1, true);
+  print_time(false, ttime6, utime, stime, imem6, rmem6);
+  query_vert_to_elem_iters(1, true);
+  print_time(false, ttime7, utime, stime, imem7, rmem7);
+
+  query_elem_to_vert_iters(100, true);
+  print_time(false, ttime8, utime, stime, imem8, rmem8);
+  query_vert_to_elem_iters(100, true);
+  print_time(false, ttime9, utime, stime, imem9, rmem9);
 
   delete gMB;
 
-  print_time(false, ttime6, utime, stime, imem6, rmem6);
+  print_time(false, ttime10, utime, stime, imem10, rmem10);
 
-  std::cout << "MOAB ucd iters: nelem, construct, e_to_v query (1), v_to_e query (1), e_to_v query (100), v_to_e query (100), after dtor = " 
-            << nelem << ", "
-            << ttime1-ttime0 << ", " 
+  std::cout << "MOAB ucd iters: nelem, construct, after dtor = "
+            << nelem << ", " << ttime1-ttime0 << ", " << ttime10-ttime9 << std::endl;
+  std::cout << "MOAB ucd iters memory (rss): initial, after v/e construction, after dtor:" 
+            << rmem0 << ", " << rmem1 << ", " << rmem10 << " kb" << std::endl;
+
+  std::cout << "!check_valid: e_to_v query (1), v_to_e query (1), e_to_v query (100), v_to_e query (100) = " 
             << ttime2-ttime1 << ", " 
             << ttime3-ttime2 << ", " 
             << ttime4-ttime3 << ", " 
-            << ttime5-ttime4 << ", " 
-            << ttime6-ttime5 << " seconds" 
-            << std::endl;
-  std::cout << "MOAB ucd iters memory (rss): initial, after v/e construction, e-v query (1), v-e query (1), e-v query (100), v-e query (100), after dtor:" 
-            << rmem0 << ", " << rmem1 << ", " << rmem2 << ", " << rmem3 << ", " << rmem4 << ", " << rmem5 << ", " << rmem6 << " kb" << std::endl;
+            << ttime5-ttime4 << " seconds" << std::endl;
+  std::cout << "Memory (!check_valid): e-v query (1), v-e query (1), e-v query (100), v-e query (100): "
+            << rmem2 << ", " << rmem3 << ", " << rmem4 << ", " << rmem5 << " kb" << std::endl;
+  std::cout << "check_valid: e_to_v query (1), v_to_e query (1), e_to_v query (100), v_to_e query (100) = " 
+            << ttime6-ttime5 << ", " 
+            << ttime7-ttime6 << ", " 
+            << ttime8-ttime7 << ", " 
+            << ttime9-ttime8 << " seconds" << std::endl;
+  std::cout << "Memory (check_valid): e-v query (1), v-e query (1), e-v query (100), v-e query (100): "
+            << rmem6 << ", " << rmem7 << ", " << rmem8 << ", " << rmem9 << " kb" << std::endl;
+  
 }
