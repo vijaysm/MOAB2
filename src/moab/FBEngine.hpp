@@ -136,6 +136,10 @@ public:
 
   void delete_smooth_tags();
 
+  // access to the geom topo tool
+  // be careful what you do with it
+  GeomTopoTool * get_gtt() { return this->_my_geomTopoTool ; }
+
 private:
 
   ErrorCode initializeSmoothing();
@@ -180,7 +184,13 @@ private:
   ErrorCode redistribute_boundary_edges_to_faces(EntityHandle face, EntityHandle newFace,
       EntityHandle new_geo_edge);
 
+  // used as a way to isolate the faces after splitting
   ErrorCode set_neumann_tags(EntityHandle face, EntityHandle newFace);
+
+  // split the quads if needed; it will create a new gtt, which will
+  // contain triangles instead of quads
+  ErrorCode split_quads();
+
   Interface * _mbImpl;
 
   GeomTopoTool* _my_geomTopoTool;

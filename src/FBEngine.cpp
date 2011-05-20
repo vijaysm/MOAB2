@@ -225,6 +225,9 @@ ErrorCode FBEngine::Init()
     ErrorCode rval = _my_geomTopoTool->find_geomsets(_my_gsets);
     assert(rval == MB_SUCCESS);
 
+    rval = split_quads();
+    assert (rval == MB_SUCCESS);
+
     rval = _my_geomTopoTool->construct_obb_trees();
     assert(rval == MB_SUCCESS);
 
@@ -412,7 +415,7 @@ void FBEngine::delete_smooth_tags()
 
 ErrorCode FBEngine::getRootSet(EntityHandle * root_set)
 {
-  *root_set = _mbImpl->get_root_set();
+  *root_set =  _my_geomTopoTool-> get_root_model_set();
   return MB_SUCCESS;
 }
 
@@ -2480,6 +2483,82 @@ ErrorCode FBEngine::set_neumann_tags(EntityHandle face, EntityHandle newFace)
 
   return MB_SUCCESS;
 }
+
+// split the quads if needed; it will create a new gtt, which will
+// contain triangles instead of quads
+ErrorCode FBEngine::split_quads()
+{
+  // first see if we have any quads in the 2d faces
+  //  _my_gsets[2] is a range of surfaces (moab sets of dimension 2)
+  int num_quads=0;
+  for (Range::iterator it=_my_gsets[2].begin(); it!=_my_gsets[2].end(); it++)
+  {
+    EntityHandle surface = *it;
+    int num_q=0;
+    _mbImpl->get_number_entities_by_type(surface, MBQUAD, num_q);
+    num_quads+=num_q;
+  }
+
+  if (num_quads==0)
+    return MB_SUCCESS; // nothing to do
+
+  GeomTopoTool * new_gtt = _my_geomTopoTool->duplicate_model();
+  if (this->_t_created)
+    delete _my_geomTopoTool;
+
+  _t_created = true; // this one is for sure created here, even if the original gtt was not
+
+  // if we were using smart pointers, we would decrease the reference to the _my_geomTopoTool, at least
+  _my_geomTopoTool = new_gtt;
+
+  // replace the _my_gsets with the new ones, from the new set
+  _my_geomTopoTool->find_geomsets(_my_gsets);
+
+  // we have duplicated now the model, and the quads are part of the new _my_gsets[2]
+  // we will split them now, by creating triangles along the smallest diagonal
+  // maybe we will come up with a better criteria, but for the time being, it should be fine.
+  // what we will do: we will remove all quads from the surface sets, and split them
+
+  for (Range::iterator it2=_my_gsets[2].begin(); it2!=_my_gsets[2].end(); it2++)
+  {
+    EntityHandle surface = *it2;
+    Range quads;
+    ErrorCode rval = _mbImpl->get_entities_by_type(surface, MBQUAD, quads);
+    MBERRORR(rval, "can't get quads from the surface set");
+    rval = _mbImpl->remove_entities(surface, quads);
+    MBERRORR(rval, "can't remove quads from the surface set"); // they are not deleted, just removed from the set
+    for (Range::iterator it=quads.begin(); it!=quads.end(); it++)
+    {
+      EntityHandle quad = *it;
+      int nnodes;
+      const EntityHandle * conn;
+      rval = _mbImpl->get_connectivity(quad, conn, nnodes);
+      MBERRORR(rval, "can't get quad connectivity");
+      // get all vertices position, to see which one is the shortest diagonal
+      CartVect pos[4];
+      rval = _mbImpl->get_coords(conn, 4, (double*) &pos[0]);
+      MBERRORR(rval, "can't get node coordinates");
+      bool diag1 = ( (pos[2]-pos[0]).length_squared() < (pos[3]-pos[1]).length_squared() );
+      EntityHandle newTris[2];
+      EntityHandle tri1[3]= { conn[0], conn[1], conn[2] };
+      EntityHandle tri2[3]= { conn[0], conn[2], conn[3] };
+      if (!diag1)
+      {
+        tri1[2] = conn[3];
+        tri2[0] = conn[1];
+      }
+      rval = _mbImpl->create_element(MBTRI, tri1, 3, newTris[0]);
+      MBERRORR(rval, "can't create triangle 1");
+      rval = _mbImpl->create_element(MBTRI, tri2, 3, newTris[1]);
+      MBERRORR(rval, "can't create triangle 2");
+      rval = _mbImpl->add_entities(surface, newTris, 2);
+      MBERRORR(rval, "can't add triangles to the set");
+    }
+    //
+  }
+  return MB_SUCCESS;
+}
+
 } // namespace moab
 
 
