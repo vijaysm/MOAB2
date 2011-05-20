@@ -7,7 +7,7 @@
 #include "moab/WriteUtilIface.hpp"
 #include "MeshSet.hpp"
 #include "Internals.hpp"
-#include "CN.hpp"
+#include "moab/CN.hpp"
 #include "Error.hpp"
 
 namespace moab 

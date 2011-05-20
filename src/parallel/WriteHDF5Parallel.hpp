@@ -3,6 +3,7 @@
 #define WRITE_HDF5_PARALLEL_HPP
 
 #include "WriteHDF5.hpp"
+#include <H5Spublic.h>
 #include <map>
 
 namespace moab {
