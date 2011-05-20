@@ -566,7 +566,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   
     /* Test if we can use H5S_APPEND when selecting hyperslabs */
   if (HDF5_can_append_hyperslabs()) {
-    dbgOut.print(1,"HDF5 library supports H5Sselect_hyperlsab with H5S_SELECT_APPEND"\n);
+    dbgOut.print(1,"HDF5 library supports H5Sselect_hyperlsab with H5S_SELECT_APPEND\n");
     hslabOp = H5S_SELECT_APPEND;
   }
   
