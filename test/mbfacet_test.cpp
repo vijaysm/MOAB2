@@ -36,6 +36,9 @@ std::string TestDir(".");
 std::string filename;
 std::string filename_out;
 std::string polygon_file_name;
+
+std::string quads_file;
+
 bool keep_output;
 int number_tests_successful = 0;
 int number_tests_failed = 0;
@@ -63,6 +66,8 @@ ErrorCode split_test(Interface * mb, FBEngine * pFacet);
 ErrorCode check_split(Interface * mb, FBEngine * pFacet);
 ErrorCode split_test_across();
 
+ErrorCode split_quads_test();
+
 void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
 {
   if (rv == MB_SUCCESS) {
@@ -79,16 +84,20 @@ int main(int argc, char *argv[])
   filename = TestDir + "/PB.h5m";
   polygon_file_name = TestDir + "/polyPB.txt";
   filename_out = "PB_new.h5m";
+  quads_file = TestDir + "/quads.h5m";
+
   keep_output = false;
 
   if (argc == 1) {
     std::cout << "Using default input files: " << filename << " " << polygon_file_name <<
         " " << std::endl;
     std::cout << "    default output file: " << filename_out << " will be deleted \n";
-  } else if (argc >=4) {
+    std::cout << "    quads test file: " << quads_file << "\n";
+  } else if (argc >=5) {
     filename = argv[1];
     polygon_file_name = argv[2];
     filename_out = argv[3];
+    quads_file = argv[4];
     keep_output = true;
     std::cout << "Using input files: " << filename << " " << polygon_file_name <<
             " " << std::endl;
@@ -152,6 +161,11 @@ int main(int argc, char *argv[])
   // split_test_across
   std::cout << " split across test: ";
   rval = split_test_across();
+  handle_error_code(rval, number_tests_failed, number_tests_successful);
+  std::cout << "\n";
+
+  std::cout << " split quads test: ";
+  rval = split_quads_test();
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
@@ -613,7 +627,7 @@ ErrorCode split_test_across()
 
   if (faces.size() !=2)
   {
-    std::cout << "num faces in splitted model:" << faces.size() << "\n";
+    std::cout << "num faces in split model:" << faces.size() << "\n";
     return MB_FAILURE;//
   }
   // check only the second face
@@ -675,5 +689,72 @@ ErrorCode split_test_across()
   rval = mb->write_file(filename_out.c_str());
 
   return rval;
+}
+
+ErrorCode split_quads_test()
+{
+  Core mbcore;
+  Interface * mb = &mbcore;
+
+  ErrorCode  rval = mb->load_file(quads_file.c_str());
+  CHECK("failed to load quads file");
+  FBEngine * pFacet = new FBEngine(mb, NULL, true);
+
+  rval = pFacet->Init();
+  CHECK("failed to initialize smoothing");
+
+  EntityHandle root_set;
+  rval = pFacet->getRootSet(&root_set);
+  CHECK( "ERROR : getRootSet failed!" );
+  int top = 2; //  iBase_FACE;
+
+  Range faces;
+  rval = pFacet->getEntities(root_set, top, faces);
+  CHECK("Failed to get faces in split_test.");
+
+  if (faces.size() !=2)
+  {
+    std::cout << "num faces after loading quads model:" << faces.size() << "\n";
+    return MB_FAILURE;//
+  }
+
+
+  // multiple tests
+  std::cout << "gentity set test: ";
+  rval = gentityset_test(pFacet);
+  handle_error_code(rval, number_tests_failed, number_tests_successful);
+  std::cout << "\n";
+
+  std::cout << "geometry evals test: ";
+  rval = geometry_evaluation_test(pFacet);
+  handle_error_code(rval, number_tests_failed, number_tests_successful);
+  std::cout << "\n";
+
+  std::cout << "normal evals test: ";
+  rval = normals_test(pFacet);
+  handle_error_code(rval, number_tests_failed, number_tests_successful);
+  std::cout << "\n";
+
+  std::cout << "ray test: ";
+  rval = ray_test(pFacet);
+  handle_error_code(rval, number_tests_failed, number_tests_successful);
+  std::cout << "\n";
+
+  // export split triangles model, after deleting the smooth tags
+  pFacet->delete_smooth_tags();
+
+  std::string spl_file=quads_file+".split.h5m";
+  rval = mb->write_file(spl_file.c_str(), 0, 0, &root_set, 1);
+  CHECK("can't write result file");
+
+  if (!keep_output)
+  {
+    remove(spl_file.c_str());
+  }
+
+  if (number_tests_failed>0)
+    return MB_FAILURE;
+
+  return MB_SUCCESS;
 }
 
