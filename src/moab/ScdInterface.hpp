@@ -93,7 +93,8 @@ public:
      * the mesh, call the destroy_mesh function on the ScdBox object first, before destroying it.
      * \param low Lower corner in parameter space
      * \param high Higher corner in parameter space
-     * \param coords Coordinates of vertices, in column-major order
+     * \param coords Coordinates of vertices, in column-major order; if NULL, no coords are set
+     * \param num_coords Number of coordinate values; if zero, no coords are set
      * \param new_box Reference to box of structured mesh
      */
   ErrorCode construct_box(HomCoord low, HomCoord high, double *coords, unsigned int num_coords,

@@ -25,6 +25,7 @@ namespace moab {
 
 class WriteUtil;
 class ReadUtil;
+class ScdInterface;
 class AEntityFactory;
 class SequenceManager;
 class Error;
@@ -1274,6 +1275,7 @@ private:
     // other interfaces for MB
   WriteUtil* mMBWriteUtil;
   ReadUtil* mMBReadUtil;
+  ScdInterface *scdInterface;
 
     //! store the total number of elements defined in this interface
     //int totalNumElements;

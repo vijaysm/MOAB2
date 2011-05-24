@@ -153,9 +153,12 @@ Core::~Core()
     delete mMBWriteUtil;
   if(mMBReadUtil) 
     delete mMBReadUtil;
+  if (scdInterface) 
+    delete scdInterface;
   
   mMBWriteUtil = NULL;
   mMBReadUtil = NULL;
+  scdInterface = NULL;
 
   deinitialize();
 }
@@ -199,7 +202,8 @@ ErrorCode Core::initialize()
 
   mMBWriteUtil = NULL;
   mMBReadUtil = NULL;
-    
+  scdInterface = NULL;
+  
     // Readers and writers try to get pointers to above utils.
     // Do this after pointers are initialized. (Pointers should
     // really be initialized in constructor to avoid this kind
@@ -296,7 +300,9 @@ ErrorCode Core::query_interface(const std::string& iface_name, void** iface)
   }
   else if(iface_name == "ScdInterface")
   {
-    *iface = (void*)(ScdInterface*) new ScdInterface(this);
+    if (!scdInterface) 
+      *iface = (void*)(ScdInterface*) new ScdInterface(this);
+    *iface = scdInterface;
     return MB_SUCCESS;
   }
   return MB_FAILURE;
@@ -321,7 +327,9 @@ ErrorCode Core::query_interface_type( const std::type_info& type, void*& ptr )
     ptr = static_cast<ExoIIInterface*>(new ExoIIUtil(this));
   }
   else if (type == typeid(ScdInterface)) {
-    ptr = new ScdInterface(this);
+    if(!scdInterface)
+      scdInterface = new ScdInterface(this);
+    ptr = scdInterface;
   }
   else {
     ptr = 0;
@@ -356,7 +364,6 @@ ErrorCode Core::release_interface(const std::string& iface_name, void* iface)
   }
   else if(iface_name == "ScdInterface")
   {
-    delete (ScdInterface*)iface;
     return MB_SUCCESS;
   }
   
@@ -367,11 +374,10 @@ ErrorCode Core::release_interface_type(const std::type_info& type, void* iface)
 {
   if (type == typeid(ExoIIInterface))
     delete static_cast<ExoIIInterface*>(iface);
-  else if (type == typeid(ScdInterface))
-    delete static_cast<ScdInterface*>(iface);
   else if (type != typeid(ReadUtilIface) &&
            type != typeid(WriteUtilIface) &&
-           type != typeid(ReaderWriterSet))
+           type != typeid(ReaderWriterSet) &&
+           type != typeid(ScdInterface))
     return MB_FAILURE;
   
   return MB_SUCCESS;
@@ -3334,32 +3340,38 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
     result = this->tag_get_size(*vit, this_size);
     if (MB_SUCCESS != result) continue;
       // use double since this is largest single-valued tag
-    double dbl_val;
-    int int_val;
-    EntityHandle hdl_val;
+    std::vector<double> dbl_vals(this_size/sizeof(double));
+    std::vector<int> int_vals(this_size/sizeof(int));
+    std::vector<EntityHandle> hdl_vals(this_size/sizeof(EntityHandle));
     std::string tag_name;
     result = this->tag_get_name(*vit, tag_name);
     if (MB_SUCCESS != result) continue;
     switch (this_data_type) {
       case MB_TYPE_INTEGER:
-        result = this->tag_get_data(*vit, &ms_handle, 1, &int_val);
+        result = this->tag_get_data(*vit, &ms_handle, 1, &int_vals[0]);
         if (MB_SUCCESS != result) continue;
-        std::cout << indent_prefix << tag_name << " = " << int_val;
-        if ((int)sizeof(int) < this_size) std::cout << " (mult values)";
+        std::cout << indent_prefix << tag_name << " = ";
+        if (this_size < (int)(10*sizeof(int))) 
+          for (int i = 0; i < (int)(this_size/sizeof(int)); i++) std::cout << int_vals[i] << " ";
+        else std::cout << int_vals[0] << "... (mult values)";
         std::cout << std::endl;
         break;
       case MB_TYPE_DOUBLE:
-        result = this->tag_get_data(*vit, &ms_handle, 1, &dbl_val);
+        result = this->tag_get_data(*vit, &ms_handle, 1, &dbl_vals[0]);
         if (MB_SUCCESS != result) continue;
-        std::cout << indent_prefix << tag_name << " = " << dbl_val ;
-        if ((int)sizeof(double) < this_size) std::cout << " (mult values)";
+        std::cout << indent_prefix << tag_name << " = ";
+        if (this_size < (int)(10*sizeof(double))) 
+          for (int i = 0; i < (int)(this_size/sizeof(double)); i++) std::cout << dbl_vals[i] << " ";
+        else std::cout << dbl_vals[0] << "... (mult values)";
         std::cout << std::endl;
         break;
       case MB_TYPE_HANDLE:
-        result = this->tag_get_data(*vit, &ms_handle, 1, &hdl_val);
+        result = this->tag_get_data(*vit, &ms_handle, 1, &hdl_vals[0]);
         if (MB_SUCCESS != result) continue;
-        std::cout << indent_prefix << tag_name << " = " << hdl_val ;
-        if ((int)sizeof(EntityHandle) < this_size) std::cout << " (mult values)";
+        std::cout << indent_prefix << tag_name << " = ";
+        if (this_size < (int)(10*sizeof(EntityHandle))) 
+          for (int i = 0; i < (int)(this_size/sizeof(EntityHandle)); i++) std::cout << hdl_vals[i] << " ";
+        else std::cout << hdl_vals[0] << "... (mult values)";
         std::cout << std::endl;
         break;
       case MB_TYPE_OPAQUE:

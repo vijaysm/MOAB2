@@ -86,35 +86,35 @@ ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, double *coord
     // create a rectangular structured mesh block
   ErrorCode rval;
 
-  Range tmp_range;
-
   HomCoord tmp_size = high - low + HomCoord(1, 1, 1, 0);
-  if ((tmp_size[1] && (int)num_coords <= tmp_size[0]) ||
-      (tmp_size[2] && (int)num_coords <= tmp_size[0]*tmp_size[1]))
+  if ((tmp_size[1] && num_coords && (int)num_coords <= tmp_size[0]) ||
+      (tmp_size[2] && num_coords && (int)num_coords <= tmp_size[0]*tmp_size[1]))
     return MB_FAILURE;
 
   rval = create_scd_sequence(low, high, MBVERTEX, 0, new_box);
   ERRORR(rval, "Trouble creating scd vertex sequence.");
 
-    // set the vertex coordinates
-  double *xc, *yc, *zc;
-  rval = new_box->get_coordinate_arrays(xc, yc, zc);
-  ERRORR(rval, "Couldn't get vertex coordinate arrays.");
+  if (num_coords && coords) {
+      // set the vertex coordinates
+    double *xc, *yc, *zc;
+    rval = new_box->get_coordinate_arrays(xc, yc, zc);
+    ERRORR(rval, "Couldn't get vertex coordinate arrays.");
 
-  unsigned int i = 0;
-  for (int kl = low[2]; kl <= high[2]; kl++) {
-    for (int jl = low[1]; jl <= high[1]; jl++) {
-      for (int il = low[0]; il <= high[0]; il++) {
-        xc[i] = coords[3*i];
-        if (new_box->box_size()[1])
-          yc[i] = coords[3*i+1];
-        if (new_box->box_size()[2])
-          zc[i] = coords[3*i+2];
-        i++;
+    unsigned int i = 0;
+    for (int kl = low[2]; kl <= high[2]; kl++) {
+      for (int jl = low[1]; jl <= high[1]; jl++) {
+        for (int il = low[0]; il <= high[0]; il++) {
+          xc[i] = coords[3*i];
+          if (new_box->box_size()[1])
+            yc[i] = coords[3*i+1];
+          if (new_box->box_size()[2])
+            zc[i] = coords[3*i+2];
+          i++;
+        }
       }
     }
   }
-
+  
     // create element sequence
   SequenceManager *seq_mgr = mbImpl->sequence_manager();
 
@@ -143,10 +143,10 @@ ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, double *coord
                            low + HomCoord(0, 1, 0));
   ERRORR(rval, "Error constructing structured element sequence.");
 
-    // add the new hexes to the scd box set
-  tmp_range.insert(new_box->start_element(), new_box->start_element() + new_box->num_elements());
+    // add the new hexes to the scd box set; vertices were added in call to create_scd_sequence
+  Range tmp_range(new_box->start_element(), new_box->start_element() + new_box->num_elements() - 1);
   rval = mbImpl->add_entities(new_box->box_set(), tmp_range);
-  ERRORR(rval, "Couldn't add new vertices to box set.");
+  ERRORR(rval, "Couldn't add new hexes to box set.");
 
   return MB_SUCCESS;
 }
@@ -177,8 +177,16 @@ ErrorCode ScdInterface::create_scd_sequence(HomCoord low, HomCoord high, EntityT
   new_box = new ScdBox(this, scd_set, tmp_seq);
   if (!new_box) return MB_FAILURE;
 
+    // set the start vertex/element
+  Range new_range;
+  if (MBVERTEX == tp) {
+    new_range.insert(start_ent, start_ent+new_box->num_vertices()-1);
+  }
+  else {
+    new_range.insert(start_ent, start_ent+new_box->num_elements()-1);
+  }
+  
     // put the entities in the box set
-  Range new_range(start_ent, start_ent+new_box->num_elements()-1);
   rval = mbImpl->add_entities(scd_set, new_range);
   if (MB_SUCCESS != rval) return rval;
 
@@ -212,7 +220,7 @@ Tag ScdInterface::box_min_tag(bool create_if_missing)
   if (boxMinTag || !create_if_missing) return boxMinTag;
 
   ErrorCode rval = mbImpl->tag_create("BOX_MIN", 3*sizeof(int), MB_TAG_SPARSE, 
-                                      MB_TYPE_OPAQUE, boxMinTag, NULL, true);
+                                      MB_TYPE_INTEGER, boxMinTag, NULL, true);
   if (MB_SUCCESS != rval) return 0;
   return boxMinTag;
 }
@@ -222,7 +230,7 @@ Tag ScdInterface::box_max_tag(bool create_if_missing)
   if (boxMaxTag || !create_if_missing) return boxMaxTag;
 
   ErrorCode rval = mbImpl->tag_create("BOX_MAX", 3*sizeof(int), MB_TAG_SPARSE, 
-                                      MB_TYPE_OPAQUE, boxMaxTag, NULL, true);
+                                      MB_TYPE_INTEGER, boxMaxTag, NULL, true);
   if (MB_SUCCESS != rval) return 0;
   return boxMaxTag;
 }
@@ -232,14 +240,15 @@ Tag ScdInterface::box_set_tag(bool create_if_missing)
   if (boxSetTag || !create_if_missing) return boxSetTag;
 
   ErrorCode rval = mbImpl->tag_create("__BOX_SET", sizeof(ScdBox*), MB_TAG_SPARSE, 
-                                      MB_TYPE_OPAQUE, boxSetTag, NULL, true);
+                                      MB_TYPE_HANDLE, boxSetTag, NULL, true);
   if (MB_SUCCESS != rval) return 0;
   return boxSetTag;
 }
 
 ScdBox::ScdBox(ScdInterface *sc_impl, EntityHandle box_set,
                EntitySequence *seq1, EntitySequence *seq2) 
-        : scImpl(sc_impl), boxSet(box_set), vertDat(NULL), elemSeq(NULL), startVertex(0), startElem(0)
+        : scImpl(sc_impl), boxSet(box_set), vertDat(NULL), elemSeq(NULL), startVertex(0), startElem(0),
+          boxMin(HomCoord::unitv[0]), boxMax(HomCoord::unitv[0])
 {
   VertexSequence *vseq = dynamic_cast<VertexSequence *>(seq1);
   if (vseq) vertDat = dynamic_cast<ScdVertexData*>(vseq->data());

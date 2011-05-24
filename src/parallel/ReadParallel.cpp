@@ -455,7 +455,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
 
 //==================
       case PA_CHECK_GIDS_SERIAL:
-          myDebug.tprint(1,"Checkig global IDs\n");
+          myDebug.tprint(1,"Checking global IDs\n");
 
           tmp_result = myPcomm->check_global_ids(file_set, 0, 1, true, false);
           break;
