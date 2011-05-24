@@ -426,16 +426,10 @@ void iRel_getEntArrEntArrRelation(
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
-  std::vector<iBase_EntityHandle> tmp_ents;
-  int tmp_result, result = iBase_SUCCESS;
+  int iface_no = (switch_order ? 1 : 0);
   ALLOC_CHECK_ARRAY(ent_array_2, ent_array_1_size);
-
-  for (int i = 0; i < ent_array_1_size; i++) {
-    iRel_getEntEntRelation(instance, pair, ent_array_1[i], switch_order,
-                           (*ent_array_2)+i, &tmp_result);
-    if (iBase_SUCCESS != tmp_result) result = tmp_result;
-  }
-  CHK_ERROR(result);
+  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, ent_array_1, ent_array_1_size,
+                                        *ent_array_2) );
 
   KEEP_ARRAY(ent_array_2);
   RETURN(iBase_SUCCESS);
@@ -456,16 +450,10 @@ void iRel_getEntArrSetArrRelation(
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
-  std::vector<iBase_EntityHandle> tmp_ents;
-  int tmp_result, result = iBase_SUCCESS;
+  int iface_no = (switch_order ? 1 : 0);
   ALLOC_CHECK_ARRAY(set_array_2, ent_array_1_size);
-
-  for (int i = 0; i < ent_array_1_size; i++) {
-    iRel_getEntSetRelation(instance, pair, ent_array_1[i], switch_order,
-                           (*set_array_2)+i, &tmp_result);
-    if (iBase_SUCCESS != tmp_result) result = tmp_result;
-  }
-  CHK_ERROR(result);
+  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, ent_array_1, ent_array_1_size,
+                                        *set_array_2) );
 
   KEEP_ARRAY(set_array_2);
   RETURN(iBase_SUCCESS);
@@ -486,16 +474,10 @@ void iRel_getSetArrEntArrRelation(
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
-  std::vector<iBase_EntityHandle> tmp_ents;
-  int tmp_result, result = iBase_SUCCESS;
+  int iface_no = (switch_order ? 1 : 0);
   ALLOC_CHECK_ARRAY(ent_array_2, set_array_1_size);
-
-  for (int i = 0; i < set_array_1_size; i++) {
-    iRel_getSetEntRelation(instance, pair, set_array_1[i], switch_order,
-                           (*ent_array_2)+i, &tmp_result);
-    if (iBase_SUCCESS != tmp_result) result = tmp_result;
-  }
-  CHK_ERROR(result);
+  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, set_array_1, set_array_1_size,
+                                        *ent_array_2) );
 
   KEEP_ARRAY(ent_array_2);
   RETURN(iBase_SUCCESS);
@@ -516,17 +498,10 @@ void iRel_getSetArrSetArrRelation(
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
-  std::vector<iBase_EntityHandle> tmp_ents;
-  int tmp_result, result = iBase_SUCCESS;
+  int iface_no = (switch_order ? 1 : 0);
   ALLOC_CHECK_ARRAY(set_array_2, set_array_1_size);
-
-  for (int i = 0; i < set_array_1_size; i++) {
-    iRel_getSetSetRelation( instance, pair, set_array_1[i],
-                            switch_order, (*set_array_2)+i,
-                            &tmp_result );
-    if (iBase_SUCCESS != tmp_result) result = tmp_result;
-  }
-  CHK_ERROR(result);
+  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, set_array_1, set_array_1_size,
+                                        *set_array_2) );
 
   KEEP_ARRAY(set_array_2);
   RETURN(iBase_SUCCESS);
@@ -547,17 +522,10 @@ void iRel_getEntArrSetIterArrRelation (
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
-  std::vector<iBase_EntityHandle> tmp_ents;
-  int tmp_result, result = iBase_SUCCESS;
+  int iface_no = (switch_order ? 1 : 0);;
   ALLOC_CHECK_ARRAY(entiter, ent_array_1_size);
-
-  for (int i = 0; i < ent_array_1_size; i++) {
-    iRel_getEntSetIterRelation( instance, pair, ent_array_1[i],
-                                switch_order, (*entiter)+i,
-                                &tmp_result );
-    if (iBase_SUCCESS != tmp_result) result = tmp_result;
-  }
-  CHK_ERROR(result);
+  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, ent_array_1, ent_array_1_size,
+                                        *entiter) );
 
   KEEP_ARRAY(entiter);
   RETURN(iBase_SUCCESS);
