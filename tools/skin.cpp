@@ -50,7 +50,7 @@ static void usage( const char* argv0, bool help = false )
   std::ostream& str = help ? std::cout : std::cerr;
 
   str << "Usage: " << argv0 
-      << " [-b <block_num> [-b ...] ] [-p] [-s <sideset_num>] [-t|-T <name>] [-w] [-v|-V <n>]"
+      << " [-b <block_num> [-b ...] ] [-l] [-m] [-M <n>] [-p] [-s <sideset_num>] [-t|-T <name>] [-w] [-v|-V <n>]"
       << " <input_file> [<output_file>]" << std::endl;
   str << "Help : " << argv0 << " -h" << std::endl;
   if (!help)
