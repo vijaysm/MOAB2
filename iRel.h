@@ -531,86 +531,57 @@ extern "C"
     /*out*/ int *entiter_size,
     /*out*/ int *err);
 
-    /**\brief  Remove a relation between two entities
+    /**\brief  Remove a relation from an entity
      *
-     * Remove a relation between an entity and several entities.
+     * Remove a relation from an entity.  If removing a relation from a set and
+     * that side of the relation is 'both'-type, remove relations for
+     * individual entities in those sets too.
      * \param instance Interface instance
      * \param pair Relation pair handle being queried
-     * \param ent1 1st entity of relation being removed
-     * \param ent2 2nd entity of relation being removed
+     * \param ent entity whose relation is being removed
+     * \param switch_order entity is related to 1st interface (=0) or 2nd
+     *        interface (=1) of relation pair
      * \param *err Pointer to error value, returned from function
      */
-  void iRel_rmvEntEntRelation(
+  void iRel_rmvEntRelation(
     iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,
-    /*in*/ iBase_EntityHandle ent1,
-    /*in*/ iBase_EntityHandle ent2,
+    /*in*/ iRel_PairHandle pair,    
+    /*in*/ iBase_EntityHandle ent,
+    /*in*/ int switch_order,
     /*out*/ int *err);
-  void iRel_rmvEntSetRelation(
+  void iRel_rmvSetRelation(
     iRel_Instance instance,
     /*in*/ iRel_PairHandle pair,
-    /*in*/ iBase_EntityHandle ent1,
-    /*in*/ iBase_EntitySetHandle entset2,
-    /*out*/ int *err);
-  void iRel_rmvSetEntRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,
-    /*in*/ iBase_EntitySetHandle entset1,
-    /*in*/ iBase_EntityHandle ent2,
-    /*out*/ int *err);
-  void iRel_rmvSetSetRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,
-    /*in*/ iBase_EntitySetHandle entset1,
-    /*in*/ iBase_EntitySetHandle entset2,
+    /*in*/ iBase_EntitySetHandle entset,
+    /*in*/ int switch_order,
     /*out*/ int *err);
 
-    /**\brief Remove relations between arrays of entities pairwise, 
-     *        ent_array_1[i]<->ent_array_2[i]
+    /**\brief Remove relations from an array of entities
      *
-     * Remove relations between arrays of entities pairwise, 
-     * ent_array_1[i]<->ent_array_2[i].  If either array
-     * contains sets and that side of the relation is 'both'-type, 
-     * remove relations for individual entities in those sets too.
+     * Remove relations from an array of entities.  If removing a relation from
+     * a set and that side of the relation is 'both'-type, remove relations for
+     * individual entities in those sets too.
      * \param instance Interface instance
      * \param pair Relation pair handle being queried
-     * \param ent_array_1 1st array of entities of relation being removed
-     * \param num_ent1 Number of entities in 1st array
-     * \param ent_array_2 2nd array of entities of relation being removed
-     * \param num_ent2 Number of entities in 2nd array
+     * \param ent_array 1st array of entities of relation being removed
+     * \param num_ent Number of entities in 1st array
+     * \param switch_order ent_array is related to 1st interface (=0) or 2nd
+     *        interface (=1) of relation pair
      * \param *err Pointer to error value, returned from function
      */
-  void iRel_rmvEntArrEntArrRelation(
+  void iRel_rmvEntArrRelation(
     iRel_Instance instance,
     /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntityHandle *ent_array_1,
-    /*in*/ int num_ent1,
-    /*in*/ iBase_EntityHandle *ent_array_2,
-    /*in*/ int num_ent2,
+    /*in*/ iBase_EntityHandle *ent_array,
+    /*in*/ int num_ent,
+    /*in*/ int switch_order,
     /*out*/ int *err);
-  void iRel_rmvSetArrEntArrRelation(
+  void iRel_rmvSetArrRelation(
     iRel_Instance instance,
     /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntitySetHandle *entset_array_1,
-    /*in*/ int num_ent1,
-    /*in*/ iBase_EntityHandle *ent_array_2,
-    /*in*/ int num_ent2,
-    /*out*/ int *err);
-  void iRel_rmvEntArrSetArrRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntityHandle *ent_array_1,
-    /*in*/ int num_ent1,
-    /*in*/ iBase_EntitySetHandle *entset_array_2,
-    /*in*/ int num_ent2,
-    /*out*/ int *err);
-  void iRel_rmvSetArrSetArrRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntitySetHandle *entset_array_1,
-    /*in*/ int num_ent1,
-    /*in*/ iBase_EntitySetHandle *entset_array_2,
-    /*in*/ int num_ent2,
+    /*in*/ iBase_EntitySetHandle *entset_array,
+    /*in*/ int num_ent,
+    /*in*/ int switch_order,
     /*out*/ int *err);
 
     /**\brief  Infer relations between entities in specified pair of interfaces

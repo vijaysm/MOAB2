@@ -377,6 +377,33 @@ int relate_geom_mesh_test(iRel_Instance assoc,
     return 0;
   }
 
+    /* now try deleting this relation */
+  iRel_rmvEntArrRelation(assoc, pair, gentities, gentities_size, 0, &result);
+  if (iBase_SUCCESS != result) {
+    printf("Failed to remove relation in relate_geom_mesh_test.\n");
+    return 0;
+  }
+
+  iBase_EntitySetHandle *out_mentities2 = NULL;
+  int out_mentities2_size = 0, out_mentities2_alloc = 0;
+  iRel_getEntArrSetArrRelation(assoc, pair,
+                               gentities, gentities_size, 0,
+                               &out_mentities2, &out_mentities2_alloc,
+                               &out_mentities2_size,
+                               &result);
+  if (iBase_SUCCESS == result) {
+    printf("Shouldn't have gotten geom entities in relate_geom_mesh_test.\n");
+    return 0;
+  }
+
+    /* restore the relation, since we need it later */
+  iRel_setEntArrSetArrRelation(assoc, pair, gentities, gentities_size,
+                               out_mentities, out_mentities_size, &result);
+  if (iBase_SUCCESS != result) {
+    printf("Failed to restore relation in relate_geom_mesh_test.\n");
+    return 0;
+  }
+
     /* get related geometry entities for mesh entity sets */
   iBase_EntityHandle *out_gentities = NULL;
   int out_gentities_size = 0, out_gentities_alloc = 0;

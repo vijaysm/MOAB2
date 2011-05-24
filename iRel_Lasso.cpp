@@ -564,92 +564,66 @@ void iRel_getEntArrSetIterArrRelation (
 }
 
 
-void iRel_rmvEntEntRelation(
+void iRel_rmvEntRelation(
   iRel_Instance instance,
   /*in*/ iRel_PairHandle pair,
-  /*in*/ iBase_EntityHandle ent1,
-  /*in*/ iBase_EntityHandle ent2,
+  /*in*/ iBase_EntityHandle ent,
+  /*in*/ int switch_order,
   /*out*/ int *err)
 {
-  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
+  if (NULL == pair) {
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
+  }
+
+  int iface_no = (switch_order ? 1 : 0);
+  CHK_ERROR( ASSOCPAIRI->rmv_assoc_tags(iface_no, &ent, 1) );
 }
 
-void iRel_rmvEntSetRelation(
+void iRel_rmvSetRelation(
   iRel_Instance instance,
   /*in*/ iRel_PairHandle pair,
-  /*in*/ iBase_EntityHandle ent1,
-  /*in*/ iBase_EntitySetHandle entset2,
+  /*in*/ iBase_EntitySetHandle entset,
+  /*in*/ int switch_order,
   /*out*/ int *err)
 {
-  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
+  if (NULL == pair) {
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
+  }
+
+  int iface_no = (switch_order ? 1 : 0);
+  CHK_ERROR( ASSOCPAIRI->rmv_assoc_tags(iface_no, &entset, 1) );
 }
 
-void iRel_rmvSetEntRelation(
-  iRel_Instance instance,
-  /*in*/ iRel_PairHandle pair,
-  /*in*/ iBase_EntitySetHandle entset1,
-  /*in*/ iBase_EntityHandle ent2,
-  /*out*/ int *err)
-{
-  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
-}
-
-void iRel_rmvSetSetRelation(
-  iRel_Instance instance,
-  /*in*/ iRel_PairHandle pair,
-  /*in*/ iBase_EntitySetHandle entset1,
-  /*in*/ iBase_EntitySetHandle entset2,
-  /*out*/ int *err)
-{
-  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
-}
-
-void iRel_rmvEntArrEntArrRelation(
+void iRel_rmvEntArrRelation(
   iRel_Instance instance,
   /*in*/ iRel_PairHandle pair,    
-  /*in*/ iBase_EntityHandle *ent_array_1,
-  /*in*/ int num_ent1,
-  /*in*/ iBase_EntityHandle *ent_array_2,
-  /*in*/ int num_ent2,
+  /*in*/ iBase_EntityHandle *ent_array,
+  /*in*/ int num_ent,
+  /*in*/ int switch_order,
   /*out*/ int *err)
 {
-  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
+  if (NULL == pair) {
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
+  }
+
+  int iface_no = (switch_order ? 1 : 0);
+  CHK_ERROR( ASSOCPAIRI->rmv_assoc_tags(iface_no, ent_array, num_ent) );
 }
 
-void iRel_rmvSetArrEntArrRelation(
+void iRel_rmvSetArrRelation(
   iRel_Instance instance,
   /*in*/ iRel_PairHandle pair,    
-  /*in*/ iBase_EntitySetHandle *entset_array_1,
-  /*in*/ int num_ent1,
-  /*in*/ iBase_EntityHandle *ent_array_2,
-  /*in*/ int num_ent2,
+  /*in*/ iBase_EntitySetHandle *entset_array,
+  /*in*/ int num_ent,
+  /*in*/ int switch_order,
   /*out*/ int *err)
 {
-  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
-}
+  if (NULL == pair) {
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
+  }
 
-void iRel_rmvEntArrSetArrRelation(
-  iRel_Instance instance,
-  /*in*/ iRel_PairHandle pair,    
-  /*in*/ iBase_EntityHandle *ent_array_1,
-  /*in*/ int num_ent1,
-  /*in*/ iBase_EntitySetHandle *entset_array_2,
-  /*in*/ int num_ent2,
-  /*out*/ int *err)
-{
-  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
-}
-
-void iRel_rmvSetArrSetArrRelation(
-  iRel_Instance instance,
-  /*in*/ iRel_PairHandle pair,    
-  /*in*/ iBase_EntitySetHandle *entset_array_1,
-  /*in*/ int num_ent1,
-  /*in*/ iBase_EntitySetHandle *entset_array_2,
-  /*in*/ int num_ent2,
-  /*out*/ int *err)
-{
-  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
+  int iface_no = (switch_order ? 1 : 0);
+  CHK_ERROR( ASSOCPAIRI->rmv_assoc_tags(iface_no, entset_array, num_ent) );
 }
 
 static int

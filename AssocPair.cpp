@@ -274,6 +274,18 @@ int AssocPair::get_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
   RETURNR(iBase_SUCCESS);
 }
 
+int AssocPair::rmv_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
+                              int num_entities)
+{
+  return rmv_tags(iface_no, entities, num_entities, assocTags[iface_no]);
+}
+
+int AssocPair::rmv_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
+                              int num_sets)
+{
+  return rmv_tags(iface_no, sets, num_sets, assocTags[iface_no]);
+}
+
 int AssocPair::get_gid_tags(const int iface_no, iBase_EntityHandle *entities,
                             int num_entities, int *tag_values)
 {

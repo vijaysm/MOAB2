@@ -69,6 +69,11 @@ public:
   int get_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
                      int num_sets, iBase_EntityIterator *tag_values);
 
+  int rmv_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
+                     int num_entities);
+  int rmv_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
+                     int num_sets);
+
   int get_gid_tags(const int iface_no, iBase_EntityHandle *entities,
                    int num_entities, int *tag_values);
   int get_gid_tags(const int iface_no, iBase_EntitySetHandle *sets,
