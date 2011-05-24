@@ -277,12 +277,44 @@ int AssocPair::get_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
 int AssocPair::rmv_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
                               int num_entities)
 {
+  // TODO: handle "both" case
+
+  if (entOrSet[!iface_no] == iRel_ENTITY) {
+    std::vector<iBase_EntityHandle> other_entities(num_entities);
+    CHK_ERRORR( get_assoc_tags(iface_no, entities, num_entities,
+                               &other_entities[0]) );
+    CHK_ERRORR( rmv_tags(!iface_no, &other_entities[0], num_entities,
+                         assocTags[!iface_no]) );
+  }
+  else {
+    std::vector<iBase_EntitySetHandle> other_sets(num_entities);
+    CHK_ERRORR( get_assoc_tags(iface_no, entities, num_entities,
+                               &other_sets[0]) );
+    CHK_ERRORR( rmv_tags(!iface_no, &other_sets[0], num_entities,
+                         assocTags[!iface_no]) );
+  }
+
   return rmv_tags(iface_no, entities, num_entities, assocTags[iface_no]);
 }
 
 int AssocPair::rmv_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
                               int num_sets)
 {
+  // TODO: handle "both" case
+
+  if (entOrSet[!iface_no] == iRel_ENTITY) {
+    std::vector<iBase_EntityHandle> other_entities(num_sets);
+    CHK_ERRORR( get_assoc_tags(iface_no, sets, num_sets, &other_entities[0]) );
+    CHK_ERRORR( rmv_tags(!iface_no, &other_entities[0], num_sets,
+                         assocTags[!iface_no]) );
+  }
+  else {
+    std::vector<iBase_EntitySetHandle> other_sets(num_sets);
+    CHK_ERRORR( get_assoc_tags(iface_no, sets, num_sets, &other_sets[0]) );
+    CHK_ERRORR( rmv_tags(!iface_no, &other_sets[0], num_sets,
+                         assocTags[!iface_no]) );
+  }
+
   return rmv_tags(iface_no, sets, num_sets, assocTags[iface_no]);
 }
 
