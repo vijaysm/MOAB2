@@ -392,7 +392,7 @@ int relate_geom_mesh_test(iRel_Instance assoc,
                                &out_mentities2_size,
                                &result);
   if (iBase_SUCCESS == result) {
-    printf("Shouldn't have gotten geom entities in relate_geom_mesh_test.\n");
+    printf("Shouldn't have gotten mesh sets in relate_geom_mesh_test.\n");
     return 0;
   }
 

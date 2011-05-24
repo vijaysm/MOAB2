@@ -17,14 +17,15 @@
 #define CHK_ERROR(CODE)                           \
   do {                                            \
     *err = (CODE);                                \
-    if ((CODE) != iBase_SUCCESS)                  \
+    if (*err != iBase_SUCCESS)                    \
       return;                                     \
   } while(false)
 
 #define CHK_ERRORR(CODE)                          \
   do {                                            \
-    if ((CODE) != iBase_SUCCESS)                  \
-      return (CODE);                              \
+    int err = (CODE);                             \
+    if (err != iBase_SUCCESS)                     \
+      return err;                                 \
   } while(false)
 
 #endif
