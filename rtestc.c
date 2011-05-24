@@ -173,13 +173,11 @@ int load_geom_mesh_test(const char *geom_filename,
 {
     /* load a geom */
   int result;
-#ifdef HAVE_ACIS
   iGeom_load(geom, geom_filename, 0, &result, strlen(geom_filename), 0);
   if (iBase_SUCCESS != result) {
     printf("ERROR : can not load a geometry\n");
     return 0;
   }
-#endif
 
     /* load a mesh */
   iMesh_load(mesh, 0, mesh_filename, 0, &result, strlen(mesh_filename), 0);
