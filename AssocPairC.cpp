@@ -30,10 +30,14 @@ AssocPairC::AssocPairC(iRel_Instance instance,
                        iBase_Instance iface0,
                        iRel_RelationType ent_or_set0,
                        iRel_IfaceType type0,
+                       iRel_RelationStatus status0,
                        iBase_Instance iface1,
                        iRel_RelationType ent_or_set1,
-                       iRel_IfaceType type1)
-  : AssocPair(instance, ent_or_set0, type0, ent_or_set1, type1)
+                       iRel_IfaceType type1,
+                       iRel_RelationStatus status1)
+  : AssocPair(instance,
+              ent_or_set0, type0, status0,
+              ent_or_set1, type1, status1)
 {
   ifaceInstances[0] = iface0;
   ifaceInstances[1] = iface1;

@@ -9,13 +9,18 @@ int AssocPair::currId = 0;
 
 AssocPair::AssocPair(iRel_Instance instance,
                      iRel_RelationType ent_or_set0, iRel_IfaceType type0,
-                     iRel_RelationType ent_or_set1, iRel_IfaceType type1)
+                     iRel_RelationStatus status0,
+                     iRel_RelationType ent_or_set1, iRel_IfaceType type1,
+                     iRel_RelationStatus status1)
   : instance(instance)
 {
   ifaceTypes[0] = type0;
   ifaceTypes[1] = type1;
   entOrSet[0] = ent_or_set0;
   entOrSet[1] = ent_or_set1;
+  status[0] = status0;
+  status[1] = status1;
+
   assocTags[0] = 0;
   assocTags[1] = 0;
   gidTags[0] = 0;
@@ -83,14 +88,12 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1, iBase_EntityHandle ent2)
     ERRORR(iBase_FAILURE, "Couldn't find associated set on right side");
 
   // set ent1 assoc tag to point to ent2
-  if (entOrSet[1] == iRel_ENTITY) {
+  if (status[0] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(0, &ent1, 1, assocTags[0], &ent2, sizeof(ent2)) );
-  }
 
   // set ent2 assoc tag to point to ent1
-  if (entOrSet[0] == iRel_ENTITY) {
+  if (status[1] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(1, &ent2, 1, assocTags[1], &ent1, sizeof(ent1)) );
-  }
 
   RETURNR(iBase_SUCCESS);
 }
@@ -110,12 +113,12 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1,
     ERRORR(iBase_FAILURE, "Couldn't find associated set on left side");
 
   // set ent1 assoc tag to point to ent2
-  CHK_ERRORR( set_tags(0, &ent1, 1, assocTags[0], &set2, sizeof(set2)) );
+  if (status[0] == iRel_ACTIVE)
+    CHK_ERRORR( set_tags(0, &ent1, 1, assocTags[0], &set2, sizeof(set2)) );
 
   // set ent2 assoc tag to point to ent1
-  if (entOrSet[0] == iRel_ENTITY) {
+  if (status[1] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(1, &set2, 1, assocTags[1], &ent1, sizeof(ent1)) );
-  }
 
   // if either are sets and 'both' type association, get the indiv
   // entities & set associations for them too
@@ -155,12 +158,12 @@ int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
     ERRORR(iBase_FAILURE, "Couldn't find associated set on right side");
 
   // set ent1 assoc tag to point to ent2
-  if (entOrSet[1] == iRel_ENTITY) {
+  if (status[0] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(0, &set1, 1, assocTags[0], &ent2, sizeof(ent2)) );
-  }
 
   // set ent2 assoc tag to point to ent1
-  CHK_ERRORR( set_tags(1, &ent2, 1, assocTags[1], &set1, sizeof(set1)) );
+  if (status[1] == iRel_ACTIVE)
+    CHK_ERRORR( set_tags(1, &ent2, 1, assocTags[1], &set1, sizeof(set1)) );
 
   // if either are sets and 'both' type association, get the indiv
   // entities & set associations for them too
@@ -192,10 +195,12 @@ int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
     ERRORR(iBase_FAILURE, "Invalid relation type");
 
   // set ent1 assoc tag to point to ent2
-  CHK_ERRORR( set_tags(0, &set1, 1, assocTags[0], &set2, sizeof(set2)) );
+  if (status[0] == iRel_ACTIVE)
+    CHK_ERRORR( set_tags(0, &set1, 1, assocTags[0], &set2, sizeof(set2)) );
 
   // set ent2 assoc tag to point to ent1
-  CHK_ERRORR( set_tags(1, &set2, 1, assocTags[1], &set1, sizeof(set1)) );
+  if (status[0] == iRel_ACTIVE)
+    CHK_ERRORR( set_tags(1, &set2, 1, assocTags[1], &set1, sizeof(set1)) );
 
   RETURNR(iBase_SUCCESS);
 }
@@ -354,6 +359,11 @@ iRel_IfaceType AssocPair::iface_type(const int iface_no)
 iRel_RelationType AssocPair::ent_or_set(const int iface_no)
 {
   return entOrSet[iface_no];
+}
+
+iRel_RelationStatus AssocPair::relation_status(const int iface_no)
+{
+  return status[iface_no];
 }
 
 bool AssocPair::equivalent(iRel_IfaceType type1,

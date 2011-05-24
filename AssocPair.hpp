@@ -13,6 +13,7 @@ public:
 
   iRel_IfaceType iface_type(const int iface_no);
   iRel_RelationType ent_or_set(const int iface_no);
+  iRel_RelationStatus relation_status(const int iface_no);
 
   virtual iBase_Instance iface_instance(const int iface_no) = 0;
 
@@ -86,7 +87,9 @@ public:
 protected:
   AssocPair(iRel_Instance instance, 
             iRel_RelationType ent_or_set0, iRel_IfaceType type0,
-            iRel_RelationType ent_or_set1, iRel_IfaceType type1);
+            iRel_RelationStatus status0,
+            iRel_RelationType ent_or_set1, iRel_IfaceType type1,
+            iRel_RelationStatus status1);
 
   virtual ~AssocPair();
 
@@ -153,6 +156,7 @@ private:
 
   iRel_RelationType entOrSet[2];
   iRel_IfaceType ifaceTypes[2];
+  iRel_RelationStatus status[2];
   iBase_TagHandle assocTags[2], gidTags[2], dimTags[2];
 
   static const char *GLOBAL_ID_TAG_NAME;

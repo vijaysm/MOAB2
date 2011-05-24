@@ -10,9 +10,11 @@ public:
              iBase_Instance iface0,
              iRel_RelationType ent_or_set0,
              iRel_IfaceType type0,
+             iRel_RelationStatus status0,
              iBase_Instance iface1,
              iRel_RelationType ent_or_set1,
-             iRel_IfaceType type1);
+             iRel_IfaceType type1,
+             iRel_RelationStatus status1);
 
   virtual ~AssocPairC();
 

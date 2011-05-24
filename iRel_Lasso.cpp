@@ -83,8 +83,10 @@ void iRel_createPair (
     instance,
     iface1, static_cast<iRel_RelationType>(ent_or_set1),
     static_cast<iRel_IfaceType>(iface_type1),
+    static_cast<iRel_RelationStatus>(irel_status1),
     iface2, static_cast<iRel_RelationType>(ent_or_set2),
-    static_cast<iRel_IfaceType>(iface_type2)
+    static_cast<iRel_IfaceType>(iface_type2),
+    static_cast<iRel_RelationStatus>(irel_status2)
   );
   LASSOI->insert_pair(assoc_pair);
 
@@ -98,7 +100,7 @@ void iRel_getPairInfo (
   iBase_Instance *iface1,
   int *ent_or_set1,
   int *iface_type1,
-  int *irel_statu1,
+  int *irel_status1,
   iBase_Instance *iface2,
   int *ent_or_set2,
   int *iface_type2,
@@ -109,12 +111,14 @@ void iRel_getPairInfo (
     ERROR(iBase_FAILURE, "Invalid relation pair.");
   }
 
-  *iface1      = ASSOCPAIRI->iface_instance(0);
-  *ent_or_set1 = ASSOCPAIRI->ent_or_set(0);
-  *iface_type1 = ASSOCPAIRI->iface_type(0);
-  *iface2      = ASSOCPAIRI->iface_instance(1);
-  *iface_type2 = ASSOCPAIRI->iface_type(1);
-  *ent_or_set2 = ASSOCPAIRI->ent_or_set(1);
+  *iface1       = ASSOCPAIRI->iface_instance(0);
+  *ent_or_set1  = ASSOCPAIRI->ent_or_set(0);
+  *iface_type1  = ASSOCPAIRI->iface_type(0);
+  *irel_status1 = ASSOCPAIRI->relation_status(0);
+  *iface2       = ASSOCPAIRI->iface_instance(1);
+  *iface_type2  = ASSOCPAIRI->iface_type(1);
+  *ent_or_set2  = ASSOCPAIRI->ent_or_set(1);
+  *irel_status2 = ASSOCPAIRI->relation_status(1);
 
   RETURN(iBase_SUCCESS);
 }
