@@ -67,7 +67,7 @@ static void usage( const char* argv0, bool help = false )
   str << "-m : consolidate duplicate vertices" << std::endl;
   str << "-M <n> : consolidate duplicate vertices with specified tolerance. "
           "(Default: min_edge_length/" << MIN_EDGE_LEN_DENOM << ")" << std::endl;
-
+  str << "-l : List total numbers of entities and vertices in skin." << std::endl;
   exit(0);
 }
 
@@ -82,6 +82,7 @@ int main( int argc, char* argv[] )
   bool use_vert_elem_adjs = false;
   bool merge_vertices = false;
   double merge_epsilon = -1;
+  bool list_skin = false;
   const char* fixed_tag = DEFAULT_FIXED_TAG;
   const char *input_file = 0, *output_file = 0;
   
@@ -100,6 +101,7 @@ int main( int argc, char* argv[] )
           case 'm': merge_vertices = true;     break;
           case '-': no_more_flags = true;      break;
           case 'h': usage( argv[0], true );    break;
+          case 'l': list_skin = true;          break;
           case 'b': 
             if (i == argc || 0 >= (block = strtol(argv[i],&endptr,0)) || *endptr) {
               std::cerr << "Expected positive integer following '-b' flag" << std::endl;
@@ -268,6 +270,16 @@ int main( int argc, char* argv[] )
     return 3;
   }
 
+  if (list_skin) {
+    Range skin_verts;
+    result = iface->get_adjacencies(boundary, 0, true, skin_verts, Interface::UNION);
+    std::cout << "Skin has "; 
+    if (skin_ents.num_of_dimension(3)) 
+      std::cout << boundary.num_of_dimension(2) << " faces and ";
+    else if (skin_ents.num_of_dimension(2)) 
+      std::cout << boundary.num_of_dimension(1) << " edges and ";
+    std::cout << skin_verts.size() << " vertices." << std::endl;
+  }
   if (write_tag) {
       // get tag handle
     Tag tag;

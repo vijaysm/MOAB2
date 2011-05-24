@@ -5,27 +5,30 @@
 #include "moab/Range.hpp"
 #include "moab/CartVect.hpp"
 
+#include <vector>
 #include <algorithm>
 #include <string>
 #include <vector>
 #include <cassert>
 #include <iostream>
+#include <iomanip>
 
 namespace moab {
 
   moab::ErrorCode MergeMesh::merge_entities(moab::EntityHandle *elems,
-					  int elems_size,
-					  const double merge_tol,
-					  const int do_merge,
-					  const int update_sets,
-					  moab::Tag merge_tag) 
+					    int elems_size,
+					    const double merge_tol,
+					    const int do_merge,
+					    const int update_sets,
+					    moab::Tag merge_tag, 
+					    bool do_higher_dim) 
 {
   mergeTol = merge_tol;
   mergeTolSq = merge_tol*merge_tol;
   moab::Range tmp_elems;
   tmp_elems.insert( elems, elems + elems_size);
   moab::ErrorCode result = merge_entities(tmp_elems, merge_tol, do_merge, update_sets,
-                                      (moab::Tag)merge_tag);
+					  (moab::Tag)merge_tag, do_higher_dim);
 
   return result;
 }
@@ -43,9 +46,15 @@ void MergeMesh::perform_merge(iBase_TagHandle merge_tag)
 moab::ErrorCode MergeMesh::merge_entities(moab::Range &elems,
                                           const double merge_tol,
                                           const int do_merge,
-                                          const int /*update_sets*/,
-                                          moab::Tag merge_tag) 
+                                          const int update_sets,
+                                          moab::Tag merge_tag,
+					  bool merge_higher_dim) 
 {
+  //If merge_higher_dim is true, do_merge must also be true
+  if(merge_higher_dim && !do_merge){
+    return moab::MB_FAILURE;
+  }
+
   mergeTol = merge_tol;
   mergeTolSq = merge_tol*merge_tol;
 
@@ -73,11 +82,16 @@ moab::ErrorCode MergeMesh::merge_entities(moab::Range &elems,
   // find matching vertices, mark them
   result = find_merged_to(tree_root, mbMergeTag);
   if (moab::MB_SUCCESS != result) return result;
-  
+
   // merge them if requested
   if (do_merge) {
     result = perform_merge(mbMergeTag);
     if (moab::MB_SUCCESS != result) return result;
+  }
+
+  if(merge_higher_dim && deadEnts.size() != 0){
+    result = merge_higher_dimensions(elems);
+    if(moab::MB_SUCCESS != result) return result;
   }
   
   return moab::MB_SUCCESS;
@@ -85,15 +99,15 @@ moab::ErrorCode MergeMesh::merge_entities(moab::Range &elems,
 
 moab::ErrorCode MergeMesh::perform_merge(moab::Tag merge_tag) 
 {
+  moab::ErrorCode result;
   if (deadEnts.size()==0){
-    std::cout << "\nWarning: Geometries don't have a common face; Nothing to merge" << std::endl;
+    if(printError)std::cout << "\nWarning: Geometries don't have a common face; Nothing to merge" << std::endl;
     return moab::MB_SUCCESS; //nothing to merge carry on with the program
   }
-  if (mbImpl->type_from_handle(*deadEnts.rbegin()) != moab::MBVERTEX) 
+  if  (mbImpl->type_from_handle(*deadEnts.rbegin()) != moab::MBVERTEX) 
     return moab::MB_FAILURE;
-  
   std::vector<moab::EntityHandle> merge_tag_val(deadEnts.size());
-  moab::ErrorCode result = mbImpl->tag_get_data(merge_tag, deadEnts, &merge_tag_val[0]);
+  result = mbImpl->tag_get_data(merge_tag, deadEnts, &merge_tag_val[0]);
   if (moab::MB_SUCCESS != result) return result;
   
   moab::Range::iterator rit;
@@ -101,10 +115,12 @@ moab::ErrorCode MergeMesh::perform_merge(moab::Tag merge_tag)
   for (rit = deadEnts.begin(), i = 0; rit != deadEnts.end(); rit++, i++) {
     assert(merge_tag_val[i]);
     result = mbImpl->merge_entities(merge_tag_val[i], *rit, false, false);
-    if (moab::MB_SUCCESS != result) return result;
+    if (moab::MB_SUCCESS != result) {
+      return result;
+    }
   }
-  
-  return mbImpl->delete_entities(deadEnts);
+  result = mbImpl->delete_entities(deadEnts);
+  return result;
 }
 
 moab::ErrorCode MergeMesh::find_merged_to(moab::EntityHandle &tree_root, 
@@ -186,7 +202,6 @@ moab::ErrorCode MergeMesh::find_merged_to(moab::EntityHandle &tree_root,
 	    inleaf_merged = true;}
           else{
 	    outleaf_merged = true;}
-
           deadEnts.insert(to_ent);
         }
 
@@ -206,4 +221,44 @@ moab::ErrorCode MergeMesh::find_merged_to(moab::EntityHandle &tree_root,
   return moab::MB_SUCCESS;
 }
 
+
+//Determine which higher dimensional entities should be merged
+moab::ErrorCode MergeMesh::merge_higher_dimensions(moab::Range &elems)
+{ 
+  Range skinEnts, adj, matches, moreDeadEnts;  moab::ErrorCode result;
+  moab::Skinner skinner(mbImpl);
+  //Go through each dimension
+  for(int dim = 1; dim <3; dim++){
+    skinEnts.clear();
+    moreDeadEnts.clear();
+    result = skinner.find_skin(elems, dim, skinEnts);
+    //Go through each skin entity and see if it shares adjacancies with another entity
+    for(moab::Range::iterator skinIt = skinEnts.begin(); skinIt != skinEnts.end(); skinIt++){
+      adj.clear();
+      //Get the adjacencies 1 dimension lower
+      result = mbImpl->get_adjacencies(&(*skinIt), 1, dim-1, true, adj);
+      if(result != moab::MB_SUCCESS) return result;
+      //See what other entities share these adjacencies
+      matches.clear();
+      result = mbImpl->get_adjacencies(adj, dim, true, matches, moab::Interface::INTERSECT);
+      if(result != moab::MB_SUCCESS) return result;
+      //If there is more than one entity, then we have some to merge and erase
+      if(matches.size() > 1){
+	for(moab::Range::iterator matchIt = matches.begin(); matchIt != matches.end(); matchIt++){
+	  if(*matchIt != *skinIt){
+	    moreDeadEnts.insert(*matchIt);
+	    result = mbImpl->merge_entities(*skinIt, *matchIt, false, false);
+	    if(result != moab::MB_SUCCESS) return result;
+	    skinEnts.erase(*matchIt);
+	  }
+	}
+      }      
+    }
+    //Delete the entities
+    result = mbImpl->delete_entities(moreDeadEnts);
+    if(result != moab::MB_SUCCESS)return result;
+  }
+  return moab::MB_SUCCESS;
 }
+
+}//End namespace moab

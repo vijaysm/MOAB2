@@ -11,7 +11,7 @@ class MergeMesh
 public:
     /* \brief Constructor
      */
-  MergeMesh(moab::Interface *mbImpl);
+  MergeMesh(moab::Interface *mbImpl, bool printErrorIn = true);
   
     /* \brief Destructor
      */
@@ -24,14 +24,18 @@ public:
                       const double merge_tol,
                       const int do_merge = true,
                       const int update_sets = false,
-                      moab::Tag merge_tag = 0);
+		      moab::Tag merge_tag = 0,
+		      bool do_higher_dim = true);
 
   moab::ErrorCode merge_entities(moab::Range &elems,
                                  const double merge_tol,
                                  const int do_merge = true,
                                  const int update_sets = false,
-                                 moab::Tag merge_tag = 0);
+                                 moab::Tag merge_tag = 0,
+				 bool do_higher_dim = true);
   
+  //Identify higher dimension to be merged
+  moab::ErrorCode merge_higher_dimensions(moab::Range &elems);
 
       //- perform the actual merge
   moab::ErrorCode perform_merge(moab::Tag merged_to);
@@ -54,11 +58,13 @@ private:
 
     //- entities which will go away after the merge
   moab::Range deadEnts;
-  
+
+  //Allow a warning to be suppressed when no merging is done
+  bool printError;
 };
 
-inline MergeMesh::MergeMesh(Interface *impl) 
-  : mbImpl(impl)
+  inline MergeMesh::MergeMesh(Interface *impl, bool printErrorIn) 
+    : mbImpl(impl), printError(printErrorIn)
 {
 }
 
