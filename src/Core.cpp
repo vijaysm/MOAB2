@@ -2057,11 +2057,22 @@ ErrorCode Core::tag_get_handle( const char* name,
       else if (extype != MB_TYPE_OPAQUE && type != MB_TYPE_OPAQUE)
         return MB_TYPE_OUT_OF_RANGE;
     }
-    // check if varlen matches
-    if (!(flags & MB_TAG_VARLEN) == tag_handle->variable_length())
+    
+    // Require that the size value be zero or MB_VARIABLE_LENGTH
+    // for variable length tags.  The caller passing such a size
+    // value is sufficient to indicate that the caller is aware
+    // that it is requesting a variable-length tag, so no need 
+    // to also require/check the MB_TAG_VARLEN bit in the flags.
+    if (tag_handle->variable_length()) {
+      if (size != 0 && size != MB_VARIABLE_LENGTH)
+        return MB_INVALID_SIZE;
+    }
+    // But /do/ fail if MB_TAG_VARLEN flag is set and tag is 
+    // not variable length.
+    else if (flags & MB_TAG_VARLEN)
       return MB_TYPE_OUT_OF_RANGE;
-    // check sizes
-    if (!(flags & MB_TAG_VARLEN) && tag_handle->get_size() != size)
+    // check size for fixed-length tag
+    else if (tag_handle->get_size() != size)
       return MB_INVALID_SIZE;
       
     // If user passed a default value, check that it matches.  
