@@ -191,6 +191,8 @@ private:
   // contain triangles instead of quads
   ErrorCode split_quads();
 
+  ErrorCode boundary_nodes_on_face(EntityHandle face, std::vector<EntityHandle> & boundary_nodes);
+
   Interface * _mbImpl;
 
   GeomTopoTool* _my_geomTopoTool;
