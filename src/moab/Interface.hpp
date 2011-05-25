@@ -1279,6 +1279,9 @@ public:
         bits (MB_TAG_BIT).
         \param tag Handle of the desired tag. 
         \param tag_size Size of the specified tag
+        \return - MB_TAG_NOT_FOUND for invalid tag handles
+                - MB_VARIABLE_DATA_LENGTH for variable-length tags
+                - MB_SUCCESS otherwise
     */ 
   virtual ErrorCode tag_get_size(const Tag tag, int &tag_size) const = 0;
 
