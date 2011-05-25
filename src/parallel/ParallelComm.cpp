@@ -384,7 +384,7 @@ int ParallelComm::add_pcomm(ParallelComm *pc)
   Tag pc_tag = pcomm_tag(mbImpl, true);
   assert(0 != pc_tag);
   
-  ErrorCode root = 0;
+  const EntityHandle root = 0;
   ErrorCode result = mbImpl->tag_get_data(pc_tag, &root, 1, (void*)&pc_array[0]);
   if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
     return -1;
@@ -407,6 +407,7 @@ void ParallelComm::remove_pcomm(ParallelComm *pc)
   std::vector<ParallelComm *> pc_array(MAX_SHARING_PROCS);
   Tag pc_tag = pcomm_tag(mbImpl, true);
   
+  const EntityHandle root = 0;
   ErrorCode result = mbImpl->tag_get_data(pc_tag, &root, 1, (void*)&pc_array[0]);
   std::vector<ParallelComm*>::iterator pc_it = 
     std::find(pc_array.begin(), pc_array.end(), pc);
@@ -415,7 +416,6 @@ void ParallelComm::remove_pcomm(ParallelComm *pc)
     // empty if test to get around compiler warning about unused var
   if (MB_SUCCESS == result);
   *pc_it = NULL;
-  EntityHandle root = 0;
   mbImpl->tag_set_data(pc_tag, &root, 1, (void*)&pc_array[0]);
 }
 
@@ -6508,7 +6508,7 @@ ParallelComm *ParallelComm::get_pcomm(Interface *impl, const int index)
   Tag pc_tag = pcomm_tag(impl, false);
   if (0 == pc_tag) return NULL;
   
-  EntityHandle root = 0;
+  const EntityHandle root = 0;
   ParallelComm *pc_array[MAX_SHARING_PROCS];
   ErrorCode result = impl->tag_get_data(pc_tag, &root, 1, (void*)pc_array);
   if (MB_SUCCESS != result) return NULL;
@@ -6522,7 +6522,7 @@ ErrorCode ParallelComm::get_all_pcomm( Interface* impl, std::vector<ParallelComm
   if (0 == pc_tag)
     return MB_TAG_NOT_FOUND;
   
-  EntityHandle root;
+  const EntityHandle root = 0;
   ParallelComm *pc_array[MAX_SHARING_PROCS];
   ErrorCode rval = impl->tag_get_data( pc_tag, &root, 1, pc_array );
   if (MB_SUCCESS != rval)
@@ -6593,7 +6593,7 @@ ErrorCode ParallelComm::set_partitioning( EntityHandle set)
   Tag pc_tag = pcomm_tag(mbImpl, false);
   if (0 == pc_tag) 
     return MB_FAILURE;
-  EntityHandle root;
+  const EntityHandle root = 0;
   ErrorCode result = mbImpl->tag_get_data(pc_tag, &root, 1, pcomm_arr);
   if (MB_SUCCESS != result) 
     return MB_FAILURE;  
