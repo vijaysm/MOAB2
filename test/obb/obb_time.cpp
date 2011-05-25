@@ -72,7 +72,8 @@ ErrorCode read_tree( Interface* instance,
   if (size != sizeof(EntityHandle) || type != MB_TYPE_HANDLE)
     return MB_FAILURE;
   
-  return instance->tag_get_data( tag, 0, 0, &tree_root_out );
+  const EntityHandle root = 0;
+  return instance->tag_get_data( tag, &root, 1, &tree_root_out );
 }
 
 // global variables for CLI options

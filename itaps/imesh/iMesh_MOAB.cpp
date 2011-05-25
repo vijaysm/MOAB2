@@ -1637,7 +1637,8 @@ extern "C" {
       }
         // check if tag value is set on mesh
       const void* data_ptr;
-      result = MOABI->tag_get_data( this_tag, 0, 0, &data_ptr );
+      EntityHandle root = 0;
+      result = MOABI->tag_get_data( this_tag, &root, 1, &data_ptr );
       if (MB_SUCCESS == result)
         ERROR(iBase_TAG_IN_USE, "iMesh_destroyTag: forced=false and mesh"
               " is still assigned this tag.");
@@ -1775,15 +1776,8 @@ extern "C" {
   {
     ErrorCode result;
 
-    if (entity_set_handle == 0)
-        // set the tag data on this entity set
-      result = MOABI->tag_set_data(TAG_HANDLE(tag_handle),
-                                 NULL, 0, tag_value);
-    else {
-      EntityHandle set = ENTITY_HANDLE(entity_set_handle);
-      result = MOABI->tag_set_data(TAG_HANDLE(tag_handle), &set, 1, tag_value);
-    }
-
+    EntityHandle set = ENTITY_HANDLE(entity_set_handle);
+    result = MOABI->tag_set_data(TAG_HANDLE(tag_handle), &set, 1, tag_value);
     CHKERR(result, "iMesh_setEntSetData: error");
 
     RETURN(iBase_SUCCESS);
@@ -1851,12 +1845,8 @@ extern "C" {
 
     ALLOC_CHECK_TAG_ARRAY(tag_value, tag_size);
 
-    if (eh == 0)
-      result = MOABI->tag_get_data(tag, NULL, 0,
-                                   *static_cast<void**>(tag_value));
-    else
-      result = MOABI->tag_get_data(tag, &eh, 1,
-                                   *static_cast<void**>(tag_value));
+    result = MOABI->tag_get_data(tag, &eh, 1,
+                                 *static_cast<void**>(tag_value));
 
     CHKERR(result, "iMesh_getEntSetData didn't succeed.");
     KEEP_ARRAY(tag_value);
@@ -1937,11 +1927,6 @@ extern "C" {
                            /*in*/ iBase_EntitySetHandle entity_set_handle,
                            /*in*/ const iBase_TagHandle tag_handle, int *err)
   {
-    if (0 == entity_set_handle) {
-      int success;
-      iMesh_getRootSet(instance, &entity_set_handle, &success);
-      CHKERR(success,"getRootSet failed");
-    }
     EntityHandle set = ENTITY_HANDLE(entity_set_handle);
     ErrorCode result = MOABI->tag_delete_data(TAG_HANDLE(tag_handle), &set, 1);
 

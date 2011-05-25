@@ -1186,7 +1186,8 @@ ErrorCode save_tree( Interface* instance,
       return rval;
   }
   
-  rval = instance->tag_set_data( tag, 0, 0, &tree_root );
+  const EntityHandle root = 0;
+  rval = instance->tag_set_data( tag, &root, 1, &tree_root );
   if (MB_SUCCESS != rval)
     return rval;
   

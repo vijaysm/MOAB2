@@ -93,6 +93,46 @@
 #include "moab_mpe.h"
 #endif
 
+// MOAB used to use a NULL handle list and a zero handle count
+// to indicate that tag functions are to operate on the global/mesh
+// value of the tag.  For the 3.0 release MOAB also accepted a handle
+// with a value of 0 to indicate the same.  Now we want to drop the
+// old NULL list method because a) it is one less special case that
+// must be handled in the tag get/set paths and b) it aviods unexpected
+// segfaults when applications requested tag data with an empty list
+// of handles.
+//
+// Define this constant to revert to the old behavior, but also print
+// a warning.
+#define ALLOW_NULL_FOR_MESH_TAG
+//
+// Define this to print an error and abort() when a NULL handle list
+// is passed.  This is intended as an interim solution to help catch
+// spots in code that haven't been updated for the change.
+#undef DISALLOW_EMPTY_HANDLE_LIST_FOR_TAGS
+//
+// The eventual goal is to define neither of the above, eliminating the
+// check and allowing applications to safely request tag data for no
+// entities.
+
+#ifdef ALLOW_NULL_FOR_MESH_TAG
+# define CHECK_MESH_NULL \
+  EntityHandle root = 0; \
+  if (NULL == entity_handles && 0 == num_entities) { \
+    entity_handles = &root; \
+    num_entities = 1; \
+    std::cerr << "WARNING: Accepting empty array to indicate mesh tag" << std::endl; \
+  } 
+#elif defined(DISALLOW_EMPTY_HANDLE_LIST_FOR_TAGS)
+# define CHECK_MESH_NULL \
+  if (NULL == entity_handles) { \
+    std::cerr << "ERROR: Deprecated NULL handle list at " __FILE__ ":" << __LINE__ << std::endl; \
+    abort(); \
+  }
+#else
+# define CHECK_MESH_NULL
+#endif
+
 namespace moab {
 
 using namespace std;
@@ -1868,13 +1908,7 @@ ErrorCode Core::tag_get_data( const Tag tag_handle,
                               void *tag_data) const
 {
   assert(valid_tag_handle( tag_handle ));
-
-  EntityHandle root = 0;
-  if (NULL == entity_handles && 0 == num_entities) {
-    entity_handles = &root;
-    num_entities = 1;
-  }
-  
+  CHECK_MESH_NULL
   return tag_handle->get_data( sequenceManager, mError, entity_handles, num_entities, tag_data );
 }
 
@@ -1894,13 +1928,7 @@ ErrorCode  Core::tag_set_data( Tag tag_handle,
                                const void *tag_data)
 {
   assert(valid_tag_handle( tag_handle ));
-
-  EntityHandle root = 0;
-  if (NULL == entity_handles && 0 == num_entities) {
-    entity_handles = &root;
-    num_entities = 1;
-  }
-  
+  CHECK_MESH_NULL
   return tag_handle->set_data( sequenceManager, mError, entity_handles, num_entities, tag_data );
 }
 
@@ -1922,13 +1950,7 @@ ErrorCode  Core::tag_get_data( const Tag tag_handle,
                                int* tag_sizes ) const
 {
   assert(valid_tag_handle( tag_handle ));
-
-  EntityHandle root = 0;
-  if (NULL == entity_handles && 0 == num_entities) {
-    entity_handles = &root;
-    num_entities = 1;
-  }
-
+  CHECK_MESH_NULL
   return tag_handle->get_data( sequenceManager, mError, entity_handles, num_entities, tag_data, tag_sizes );
 }
 
@@ -1950,13 +1972,7 @@ ErrorCode  Core::tag_set_data( Tag tag_handle,
                                const int* tag_sizes )
 {
   assert(valid_tag_handle( tag_handle ));
-
-  EntityHandle root = 0;
-  if (NULL == entity_handles && 0 == num_entities) {
-    entity_handles = &root;
-    num_entities = 1;
-  }
-  
+  CHECK_MESH_NULL
   return tag_handle->set_data( sequenceManager, mError, entity_handles, num_entities, tag_data, tag_sizes );
 }
 
@@ -1978,13 +1994,7 @@ ErrorCode  Core::tag_clear_data( Tag tag_handle,
                                  int tag_size )
 {
   assert(valid_tag_handle( tag_handle ));
-
-  EntityHandle root = 0;
-  if (NULL == entity_handles && 0 == num_entities) {
-    entity_handles = &root;
-    num_entities = 1;
-  }
-  
+  CHECK_MESH_NULL
   return tag_handle->clear_data( sequenceManager, mError, entity_handles, num_entities, tag_data, tag_size );
 }
 
@@ -2129,17 +2139,11 @@ ErrorCode Core::tag_get_handle( const char* name,
 //! removes the tag from the entity
 ErrorCode  Core::tag_delete_data( Tag tag_handle, 
                                   const EntityHandle *entity_handles,
-                                  int num_handles )
+                                  int num_entities )
 {
   assert(valid_tag_handle( tag_handle ));
-
-  EntityHandle root = 0;
-  if (!entity_handles && !num_handles) {
-    entity_handles = &root;
-    num_handles = 1;
-  }
-  
-  return tag_handle->remove_data( sequenceManager, mError, entity_handles, num_handles );
+  CHECK_MESH_NULL
+  return tag_handle->remove_data( sequenceManager, mError, entity_handles, num_entities );
 }
 
 //! removes the tag from the entity

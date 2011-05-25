@@ -163,7 +163,8 @@ void AdaptiveKDTree::init( const char* tagname_in )
   hid_t handle = H5Tcreate( H5T_COMPOUND, sizeof(Plane) );
   H5Tinsert( handle, "coord", &(p.coord) - &p, H5T_NATIVE_DOUBLE );
   H5Tinsert( handle, "norm", &(p.axis) - &p, H5T_NATIVE_INT );
-  mbInstance->tag_set_data( type_tag, 0, 0, &handle );
+  EntityHandle root = 0;
+  mbInstance->tag_set_data( type_tag, &root, 1, &handle );
 #endif
 #endif
 

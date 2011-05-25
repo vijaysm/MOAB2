@@ -384,7 +384,8 @@ int ParallelComm::add_pcomm(ParallelComm *pc)
   Tag pc_tag = pcomm_tag(mbImpl, true);
   assert(0 != pc_tag);
   
-  ErrorCode result = mbImpl->tag_get_data(pc_tag, 0, 0, (void*)&pc_array[0]);
+  ErrorCode root = 0;
+  ErrorCode result = mbImpl->tag_get_data(pc_tag, &root, 1, (void*)&pc_array[0]);
   if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
     return -1;
   int index = 0;
@@ -395,7 +396,7 @@ int ParallelComm::add_pcomm(ParallelComm *pc)
   }
   else {
     pc_array[index] = pc;
-    mbImpl->tag_set_data(pc_tag, 0, 0, (void*)&pc_array[0]);
+    mbImpl->tag_set_data(pc_tag, &root, 1, (void*)&pc_array[0]);
   }
   return index;
 }
@@ -406,7 +407,7 @@ void ParallelComm::remove_pcomm(ParallelComm *pc)
   std::vector<ParallelComm *> pc_array(MAX_SHARING_PROCS);
   Tag pc_tag = pcomm_tag(mbImpl, true);
   
-  ErrorCode result = mbImpl->tag_get_data(pc_tag, 0, 0, (void*)&pc_array[0]);
+  ErrorCode result = mbImpl->tag_get_data(pc_tag, &root, 1, (void*)&pc_array[0]);
   std::vector<ParallelComm*>::iterator pc_it = 
     std::find(pc_array.begin(), pc_array.end(), pc);
   assert(MB_SUCCESS == result && 
@@ -414,7 +415,8 @@ void ParallelComm::remove_pcomm(ParallelComm *pc)
     // empty if test to get around compiler warning about unused var
   if (MB_SUCCESS == result);
   *pc_it = NULL;
-  mbImpl->tag_set_data(pc_tag, 0, 0, (void*)&pc_array[0]);
+  EntityHandle root = 0;
+  mbImpl->tag_set_data(pc_tag, &root, 1, (void*)&pc_array[0]);
 }
 
 //! assign a global id space, for largest-dimension or all entities (and
@@ -6506,8 +6508,9 @@ ParallelComm *ParallelComm::get_pcomm(Interface *impl, const int index)
   Tag pc_tag = pcomm_tag(impl, false);
   if (0 == pc_tag) return NULL;
   
+  EntityHandle root = 0;
   ParallelComm *pc_array[MAX_SHARING_PROCS];
-  ErrorCode result = impl->tag_get_data(pc_tag, 0, 0, (void*)pc_array);
+  ErrorCode result = impl->tag_get_data(pc_tag, &root, 1, (void*)pc_array);
   if (MB_SUCCESS != result) return NULL;
   
   return pc_array[index];
@@ -6519,8 +6522,9 @@ ErrorCode ParallelComm::get_all_pcomm( Interface* impl, std::vector<ParallelComm
   if (0 == pc_tag)
     return MB_TAG_NOT_FOUND;
   
+  EntityHandle root;
   ParallelComm *pc_array[MAX_SHARING_PROCS];
-  ErrorCode rval = impl->tag_get_data( pc_tag, 0, 0, pc_array );
+  ErrorCode rval = impl->tag_get_data( pc_tag, &root, 1, pc_array );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -6589,7 +6593,8 @@ ErrorCode ParallelComm::set_partitioning( EntityHandle set)
   Tag pc_tag = pcomm_tag(mbImpl, false);
   if (0 == pc_tag) 
     return MB_FAILURE;
-  ErrorCode result = mbImpl->tag_get_data(pc_tag, 0, 0, pcomm_arr);
+  EntityHandle root;
+  ErrorCode result = mbImpl->tag_get_data(pc_tag, &root, 1, pcomm_arr);
   if (MB_SUCCESS != result) 
     return MB_FAILURE;  
   int id = std::find(pcomm_arr,pcomm_arr+MAX_SHARING_PROCS,this) - pcomm_arr;

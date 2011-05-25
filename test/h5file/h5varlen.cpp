@@ -301,12 +301,13 @@ void test_global_value_common( bool mesh_value )
   if (mesh_value) {
     int size = 3*sizeof(EntityHandle);
     const void* ptrarr[] = { handles };
-    rval = mb.tag_set_data( handle_tag, 0, 0, ptrarr, &size );
+    const EntityHandle root = 0;
+    rval = mb.tag_set_data( handle_tag, &root, 1, ptrarr, &size );
     CHECK_ERR(rval);
     
     size = 9*sizeof(double);
     ptrarr[0] = coords;
-    rval = mb.tag_set_data( coord_tag, 0, 0, ptrarr, &size );
+    rval = mb.tag_set_data( coord_tag, &root, 1, ptrarr, &size );
     CHECK_ERR(rval);
   }
   
@@ -328,9 +329,10 @@ void test_global_value_common( bool mesh_value )
   int handle_tag_size = 0, coord_tag_size = 0;
   const void* ptrs[2];
   if (mesh_value) {
-    rval = mb2.tag_get_data( handle_tag, 0, 0, ptrs, &handle_tag_size );
+    const EntityHandle root = 0;
+    rval = mb2.tag_get_data( handle_tag, &root, 1, ptrs, &handle_tag_size );
     CHECK_ERR(rval);
-    rval = mb2.tag_get_data( coord_tag, 0, 0, ptrs+1, &coord_tag_size );
+    rval = mb2.tag_get_data( coord_tag, &root, 1, ptrs+1, &coord_tag_size );
     CHECK_ERR(rval);
   }
   else {
@@ -402,7 +404,8 @@ void test_global_opaque_common( bool mesh_value )
   // if doing mesh tag, set it
   if (mesh_value) {
     const void* ptrarr[] = { data };
-    rval = mb.tag_set_data( tag, 0, 0, ptrarr, &datalen );
+    const EntityHandle root = 0;
+    rval = mb.tag_set_data( tag, &root, 1, ptrarr, &datalen );
     CHECK_ERR(rval);
   }
   
@@ -421,7 +424,8 @@ void test_global_opaque_common( bool mesh_value )
   int tag_size = 0;
   const void* ptrs[1];
   if (mesh_value) {
-    rval = mb2.tag_get_data( tag, 0, 0, ptrs, &tag_size );
+    const EntityHandle root = 0;
+    rval = mb2.tag_get_data( tag, &root, 1, ptrs, &tag_size );
     CHECK_ERR(rval);
   }
   else {

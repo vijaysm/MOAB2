@@ -259,7 +259,8 @@ ErrorCode get_root( Interface* moab, EntityHandle& root )
   if (MB_TYPE_HANDLE != type)
     return MB_TAG_NOT_FOUND;
   
-  return moab->tag_get_data( tag, 0, 0, &root );
+  const EntityHandle mesh = 0;
+  return moab->tag_get_data( tag, &mesh, 1, &root );
 }
 
   
@@ -303,7 +304,8 @@ EntityHandle build_tree( Interface* interface, OrientedBoxTreeTool::Settings set
     std::cout << "Failed to create root tag: \"" << root_tag << '"' << std::endl;
     exit(2);
   }
-  rval = interface->tag_set_data( roottag, 0, 0, &root );
+  const EntityHandle mesh = 0;
+  rval = interface->tag_set_data( roottag, &mesh, 1, &root );
   if (MB_SUCCESS != rval) {
     std::cout << "Failed to set root tag: \"" << root_tag << '"' << std::endl;
     exit(2);

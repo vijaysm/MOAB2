@@ -374,7 +374,8 @@ void create()
     moab_error( "tag_create(htag)" );
   // Set global (mesh) value for tag
   EntityHandle hgbl[] = { 0, hex, dodec };
-  if (MB_SUCCESS != iface->tag_set_data( htag, 0, 0, hgbl ))
+  const EntityHandle root = 0;
+  if (MB_SUCCESS != iface->tag_set_data( htag, &root, 1, hgbl ))
     moab_error( "tag_set_data(hgbl)" );
   // Store first three entiries of dodec connectivity on dodec
   EntityHandle hval[] = { faces[0], faces[1], faces[2] };
@@ -799,8 +800,9 @@ bool compare_tags( EntityHandle dod[] )
     // check global value for handle tag
     // global value should be changed each time a new global is read,
     // so expect one of the two dodecahedrons in the last slot.
-  if (MB_SUCCESS != iface->tag_get_data( tag, 0, 0, hdata ))
-    moab_error( "tag_get_data(0)" );
+  const EntityHandle root = 0;
+  if (MB_SUCCESS != iface->tag_get_data( tag, &root, 1, hdata ))
+    moab_error( "tag_get_data(mesh)" );
   if (iface->type_from_handle(hdata[1]) != MBHEX ||
       hdata[0] != 0 ||
       (hdata[2] != dod[0] && hdata[2] != dod[1])) {

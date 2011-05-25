@@ -1103,10 +1103,11 @@ void test_mesh_value( Interface& mb,
   if (tag_storage == MB_TAG_BIT || tag_type == MB_TYPE_BIT)
     memcmp_size = 1;
   
-  ErrorCode rval = mb.tag_set_data( tag, 0, 0, value );
+  const EntityHandle mesh = 0;
+  ErrorCode rval = mb.tag_set_data( tag, &mesh, 1, value );
   CHECK_ERR(rval);
   std::vector<unsigned char> bytes(memcmp_size, 0);
-  rval = mb.tag_get_data( tag, 0, 0, &bytes[0] );
+  rval = mb.tag_get_data( tag, &mesh, 1, &bytes[0] );
   CHECK_ERR(rval);
   CHECK( !memcmp( value, &bytes[0], memcmp_size ) );
   
@@ -1116,7 +1117,7 @@ void test_mesh_value( Interface& mb,
   Tag tag2 = test_create_tag( mb, name2.c_str(), tag_size, tag_storage, tag_type, value );
   bytes.clear();
   bytes.resize(memcmp_size, 0);
-  rval = mb.tag_get_data( tag2, 0, 0, &bytes[0] );
+  rval = mb.tag_get_data( tag2, &mesh, 1, &bytes[0] );
   CHECK_ERR(rval);
   CHECK( !memcmp( value, &bytes[0], memcmp_size ) );
 }
@@ -1166,8 +1167,9 @@ static void test_delete_type_tag( TagType storage )
   }
   
     // set tag value on mesh
+  const EntityHandle mesh = 0;
   value = 2;
-  rval = mb.tag_set_data( tag, 0, 0, &value );
+  rval = mb.tag_set_data( tag, &mesh, 1, &value );
   
     // delete tag
   rval = mb.tag_delete( tag );
@@ -1733,21 +1735,22 @@ void test_get_set_variable_length_mesh()
   int one = sizeof(int);
   const void* data[1];
   data[0] = values1;
-  rval = mb.tag_set_data( tag, 0, 0, data, &one );
+  const EntityHandle mesh = 0;
+  rval = mb.tag_set_data( tag, &mesh, 1, data, &one );
   CHECK_ERR( rval );
   
   int len;
-  rval = mb.tag_get_data( tag, 0, 0, data, &len );
+  rval = mb.tag_get_data( tag, &mesh, 1, data, &len );
   CHECK_ERR( rval );
   CHECK_EQUAL( (int)sizeof(int), len );
   CHECK_EQUAL( values1[0], *reinterpret_cast<const int*>(data[0]) );
   
   int five = 5*sizeof(int);
   data[0] = values5;
-  rval = mb.tag_set_data( tag, 0, 0, data, &five );
+  rval = mb.tag_set_data( tag, &mesh, 1, data, &five );
   CHECK_ERR( rval );
   
-  rval = mb.tag_get_data( tag, 0, 0, data, &len );
+  rval = mb.tag_get_data( tag, &mesh, 1, data, &len );
   CHECK_ERR( rval );
   CHECK_EQUAL( 5*(int)sizeof(int), len );
   CHECK_EQUAL( values5[0], reinterpret_cast<const int*>(data[0])[0] );
