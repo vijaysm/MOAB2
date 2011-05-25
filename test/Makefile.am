@@ -37,7 +37,8 @@ TESTS = moab_test \
         mbcn_test \
         bsp_tree_poly_test \
         mbfacet_test \
-        gttool_test
+        gttool_test \
+	reorder_test
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 
@@ -88,6 +89,7 @@ kd_tree_tool_SOURCES = kd_tree_tool.cpp
 kd_tree_time_SOURCES = kd_tree_time.cpp
 kd_tree_test_SOURCES = kd_tree_test.cpp
 bsp_tree_test_SOURCES = bsp_tree_test.cpp
+reorder_test_SOURCES = reorder_test.cpp
 
 file_options_test_SOURCES = TestUtil.hpp $(top_srcdir)/src/FileOptions.cpp 
 file_options_test_CPPFLAGS = -DTEST $(AM_CPPFLAGS) $(CPPFLAGS)

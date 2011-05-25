@@ -85,6 +85,7 @@ libMOAB_la_SOURCES = \
   ReadUtil.cpp \
   ReadUtil.hpp \
   ReaderWriterSet.cpp \
+  ReorderTool.cpp \
   ScdElementData.cpp \
   ScdElementData.hpp \
   ScdInterface.cpp \
@@ -160,6 +161,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/ReadUtilIface.hpp \
   moab/ReaderIface.hpp \
   moab/ReaderWriterSet.hpp \
+  moab/ReorderTool.hpp \
   moab/ScdInterface.hpp \
   moab/SetIterator.hpp \
   moab/Skinner.hpp \
