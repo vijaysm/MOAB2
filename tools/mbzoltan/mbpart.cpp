@@ -1,10 +1,13 @@
 #include "MBZoltan.hpp"
 #include "moab/Core.hpp"
+#include "ProgOptions.hpp"
+#include "moab/ReorderTool.hpp"
 
 #include <iostream>
 #include <sstream>
 #include <stdlib.h>
 #include <list>
+#include <time.h>
 
 using namespace moab;
 
@@ -12,32 +15,9 @@ const char DEFAULT_ZOLTAN_METHOD[] = "RCB";
 const char ZOLTAN_PARMETIS_METHOD[] = "PARMETIS";
 const char ZOLTAN_OCTPART_METHOD[] = "OCTPART";
 
-const char usage[] = " <# parts> <infile> <outfile> [-<n>] [{-z|-p|-o} <method>] [-s|-t|-b] [-m <pow>]";
-
-void usage_err( const char* argv0 ) {
-  std::cerr << argv0 << usage << std::endl;
-  std::cerr << argv0 << " -h   # for help" << std::endl;
-  exit(1);
-}
-
-void help( const char* argv0 )
-{
-  std::cout << argv0 << usage << std::endl << std::endl
-            << "-<n>  Specify dimension of entities to partition.  Default is " << std::endl
-            << "       largest dimension entity present in input file" << std::endl
-            << "-z    Specify Zoltan partition method.  One of RR, RCB, RIB, HFSC, PHG, " <<std::endl
-            << "        or Hypergraph (PHG and Hypergraph are synonymous)." << std::endl
-            << "        Default is: " << DEFAULT_ZOLTAN_METHOD << std::endl
-            << "-p    Specify Parmetis partition method" << std::endl
-            << "-o    Specify OctPart partition method" << std::endl
-            << "-s    Write partition as tagged sets (Default)" << std::endl
-            << "-t    Write partition by tagging entities" << std::endl
-            << "-b    Write partition as both tagged sets and tagged entities" << std::endl
-            << "-i <tol> Imbalance tolerance (used in PHG, Hypergraph methods)" << std::endl
-            << "-m <pow> Generate multiple partitions, in powers of 2, up to 2^(pow)" << std::endl
-            << std::endl;
-  exit(0);
-}
+const char BRIEF_DESC[] = 
+ "Use Zoltan to partition MOAB meshes for use on parallel computers";
+std::ostringstream LONG_DESC;
 
 int main( int argc, char* argv[] )
 {
@@ -50,154 +30,79 @@ int main( int argc, char* argv[] )
   Core moab;
   Interface& mb = moab;
   MBZoltan tool(&mb, false, argc, argv);
- 
-  int num_args = 0; // number of non-flag arguments (e.g. input file, etc.)
-  const char* args[3] = {0}; // non-flag options (num parts, input_file, output_file)
-  const char* zoltan_method = DEFAULT_ZOLTAN_METHOD;
-  const char* other_method = 0;
-  const char* imbal_tol_str = 0;
-  const char* power_str = 0;
-  std::list<const char**> expected; // pointers to strings that should be set to arguments
-  int i, j, part_dim = -1;
+  
+  LONG_DESC << "This utility invokes the MBZoltan componemnt of MOAB "
+               "to partition a mesh." << std::endl
+            << "If no partitioning method is specified, the default is "
+               "the Zoltan \"" << DEFAULT_ZOLTAN_METHOD << "\" method" << std::endl;
+  
+  ProgOptions opts(LONG_DESC.str(), BRIEF_DESC);
+  opts.addOpt<int>( "dimension", "Specify dimension of entities to partition."
+                                 "  Default is  largest in file.", 
+                                 0, ProgOptions::int_flag );
+  opts.addOpt<std::string>( "zoltan,z", "Specify Zoltan partition method.  "
+                                         "One of RR, RCB, RIB, HFSC, PHG, " 
+                                         " or Hypergraph (PHG and Hypergraph "
+                                         "are synonymous)." );
+  opts.addOpt<std::string>( "parmetis,p", "Specify Parmetis partition method.");
+  opts.addOpt<std::string>( "octpart,o", "Specify OctPart partition method.");
+  opts.addOpt<void>( "sets,s", "Write partition as tagged sets (Default)" );
+  opts.addOpt<void>( "tags,t",  "Write partition by tagging entities");
+  opts.addOpt<double>( "imbalance,i",  "Imbalance tolerance (used in PHG/Hypergraph method)");
+  opts.addOpt<int>( "power,m", "Generate multiple partitions, in powers of 2, up to 2^(pow)");
+  opts.addOpt<void>( "reorder,R", "Reorder mesh to group entities by partition");
+  opts.addRequiredArg<int>( "#parts", "Number of parts in partition" );
+  opts.addRequiredArg<std::string>( "input_file", "Mesh to partition" );
+  opts.addRequiredArg<std::string>( "output_file", "File to which to write partitioned mesh" );
+  opts.addOpt<void>( ",T", "Print CPU time for each phase.");
+  opts.parseCommandLine( argc, argv ); 
+
+
+  
+  int part_dim = -1;
   long num_parts;
   bool write_sets = true, write_tags = false;
-  bool no_more_flags = false;
   double imbal_tol = 1.10;
   int power = -1;
   
-    // Loop over each input argument
-  for (i = 1; i < argc; ++i) {
-    if (!expected.empty()) {
-      if (!argv[i][0] || (!no_more_flags && argv[i][0] == '-')) {
-        std::cerr << "Expected partition method.  Got \"" << argv[i] << '"' << std::endl;
-        usage_err(argv[0]);
-      }
-      *(expected.front()) = argv[i];
-      expected.pop_front();
-    }
-    else if (!no_more_flags && argv[i][0] == '-') {
-        // Loop over each flag, allowing multiple flags to 
-        // be combined in  a single argument (e.g. "-i 1.0 -b" 
-        // can be specified as "-ib 1.0").
-      for (j = 1; argv[i][j]; ++j) switch (argv[i][j]) {
-        case 'h':
-          help(argv[0]);
-          break;
-        case '-':
-          no_more_flags = true;
-          break;
-        case '0': case '1': case '2': case '3':
-          part_dim = argv[i][1] - '0';
-          break;
-        case 'z':
-          // note that we expect the zotlan_method to point to
-          // the next non-flag argument we encounter.
-          expected.push_back(&zoltan_method);
-          break;
-        case 'p':
-          zoltan_method = ZOLTAN_PARMETIS_METHOD;
-          // note that we expect the other_method to point to
-          // the next non-flag argument we encounter.
-          expected.push_back(&other_method);
-          break;
-        case 'o':
-          zoltan_method = ZOLTAN_OCTPART_METHOD;
-          // note that we expect the other_method to point to
-          // the next non-flag argument we encounter.
-          expected.push_back(&other_method);
-          break;
-        case 's':
-          write_sets = true;
-          write_tags = false;
-          break;
-        case 't':
-          write_sets = false;
-          write_tags = true;
-          break;
-        case 'b':
-          write_sets = true;
-          write_tags = true;
-          break;
-        case 'i':
-          // note that we expect the imbal_tol_str to point to
-          // the next non-flag argument we encounter.
-          expected.push_back(&imbal_tol_str);
-          break;
-        case 'm':
-          expected.push_back(&power_str);
-          break;
-        default:
-          std::cerr << "Unknown option: \"" << argv[i] << '"' << std::endl;
-          usage_err(argv[0]);
-          break;
-      }
-    }
-    else {
-      if (num_args >= (int)(sizeof(args)/sizeof(args[0]))) {
-        std::cerr << "Unexpected argument: \"" << argv[i] << '"' << std::endl;
-        usage_err(argv[0]);
-      }
-      
-      // Push all non-flag arguments (input file, output file, num parts)
-      // to the beginning of the list, such that when we're done all
-      // the flags have been processed and the args and num_args constitute
-      // a list of other arguments that did not correspond to flags.
-      args[num_args++] = argv[i];
-    }
-  }
-  if (!expected.empty()) {
-    std::cerr << "Missing argument" << std::endl;
-    usage_err(argv[0]);
-  }
+  bool print_time = opts.getOpt<void>(",T",0);
   
-    // if an imbalance tolerance was encountered, parse 
-    // the numerical value now.
-  if (imbal_tol_str) {
-    char* endptr = 0;
-    imbal_tol = strtod( imbal_tol_str, &endptr );
-    if (!*endptr || imbal_tol < 0.0) {
-      std::cerr << "Expected positive real number for imbalance tolerance (-i)"
-                << " but got: \"" << imbal_tol_str << '"' << std::endl;
-      usage_err(argv[0]);
+  std::string zoltan_method, other_method;
+  if (!opts.getOpt("zoltan", &zoltan_method))
+    zoltan_method = DEFAULT_ZOLTAN_METHOD;
+  if (opts.getOpt("parmetis", &other_method))
+    zoltan_method = ZOLTAN_PARMETIS_METHOD;
+  if (opts.getOpt("octpart", &other_method))
+    zoltan_method = ZOLTAN_OCTPART_METHOD;
+  
+  write_sets = opts.getOpt<void>("sets",0);
+  write_tags = opts.getOpt<void>("tags",0);
+  if (!write_sets && !write_tags)
+    write_sets = true;
+
+  if (!opts.getOpt("power",&power)) {
+    num_parts = opts.getReqArg<int>("#parts");
+    power = 1;
+  }
+  else if (power < 1 || power > 18) {
+    std::cerr << power << ": invalid power for multiple patitions. Expected value in [1,18]" << std::endl;
+    return 1;
+  }
+  else {
+    num_parts = 2;
+  }
+
+  if (opts.getOpt( "imbalance", &imbal_tol )) {
+    if (imbal_tol < 0.0) {
+      std::cerr << imbal_tol << ": invalid imbalance tolerance" << std::endl;
+      return 1;
     }
   }
   
-    // parse power string
-  if (power_str) {
-    char* endptr = 0;
-    power = strtol( power_str, &endptr, 0 );
-    if (-1 == power || power > 18) {
-      std::cerr << "Expected positive integer number <= 18"
-                << " but got: \"" << power_str << '"' << std::endl;
-      usage_err(argv[0]);
-    }
-  }
-  
-    // interpret first numerical argument as number of parts
-  for (i = 0; i < num_args; ++i) {
-    char* endptr = 0;
-    num_parts = strtol( args[i], &endptr, 0 );
-    if (!*endptr && num_parts > 0) 
-      break;
-  }
-  if (i == num_args) {
-    std::cerr << "Number of parts not specified or not understood" << std::endl;
-    usage_err(argv[0]);
-  }
-    // shift down remaining args
-  for (++i; i < num_args; ++i)
-    args[i-1] = args[i];
-  --num_args;
-  
-  if (num_args < 2) {
-    const char* type = num_args ? "output" : "input";
-    std::cerr << "No " << type << " file specified." << std::endl;
-    usage_err(argv[0]);
-  }
-  const char* input_file = args[0];
-  const char* output_file = args[1];
-  
-  ErrorCode rval = mb.load_file( input_file );
+  std::string input_file = opts.getReqArg<std::string>("input_file");
+  std::string output_file = opts.getReqArg<std::string>("output_file");
+  clock_t t = clock();
+  ErrorCode rval = mb.load_file( input_file.c_str() );
   if (MB_SUCCESS != rval) {
     std::cerr << input_file << " : failed to read file." << std::endl;
     std::cerr << "  Error code: " << mb.get_error_string(rval) << " (" << rval << ")" << std::endl;
@@ -207,8 +112,16 @@ int main( int argc, char* argv[] )
       std::cerr << "  Error message: " << errstr << std::endl;
     return 2;
   }
+  if (print_time)
+    std::cout << "Read input file in " << (clock() - t)/(double)CLOCKS_PER_SEC << " seconds" << std::endl;
   
-  if (part_dim < 0) {
+  if (opts.getOpt("dimension", &part_dim)) {
+    if (part_dim < 0 || part_dim > 3) {
+      std::cerr << part_dim << " : invalid dimension" << std::endl;
+      return 1;
+    }
+  } 
+  else {
     for (int dim = 3; dim >= 0; --dim) {
       int n;
       rval = mb.get_number_entities_by_dimension( 0, dim, n );
@@ -222,15 +135,11 @@ int main( int argc, char* argv[] )
     std::cerr << input_file << " : file does not contain any mesh entities" << std::endl;
     return 2;
   }
-
-  if (power > 0) {
-    num_parts = 2;
-  }  
-  else
-    power = 1;
   
+  ReorderTool reorder(&moab);
   for (int p = 0; p < power; p++) {
-    rval = tool.partition_mesh( num_parts, zoltan_method, other_method,
+    t = clock();
+    rval = tool.partition_mesh( num_parts, zoltan_method.c_str(), other_method.c_str(),
                                 imbal_tol, write_sets, write_tags, part_dim );
     if (MB_SUCCESS != rval) {
       std::cerr << "Partitioner failed!" << std::endl;
@@ -241,6 +150,45 @@ int main( int argc, char* argv[] )
         std::cerr << "  Error message: " << errstr << std::endl;
       return 3;
     }
+    if (print_time) 
+      std::cout << "Generated " << num_parts << " part partitioning in "
+                  << (clock() - t)/(double)CLOCKS_PER_SEC << " seconds" 
+                  << std::endl;
+    
+    if (opts.getOpt<void>("reorder",0)) {
+      Tag tag, order;
+      rval = mb.tag_get_handle( "PARALLEL_PARTITION", 1, MB_TYPE_INTEGER, tag );
+      if (MB_SUCCESS != rval) {
+        std::cerr << "Partitioner did not create PARALLEL_PARTITION tag" << std::endl;
+        return 2;
+      }
+      
+      t = clock();
+      if (write_sets) {
+        Range sets;
+        mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &tag, 0, 1, sets );
+        rval = reorder.handle_order_from_sets_and_adj( sets, order );
+      }
+      else {
+        rval = reorder.handle_order_from_int_tag( tag, -1, order );
+      }
+      if (MB_SUCCESS != rval) {
+        std::cerr << "Failed to calculate reordering!" << std::endl;
+        return 2;
+      }
+      
+      rval = reorder.reorder_entities( order );
+      if (MB_SUCCESS != rval) {
+        std::cerr << "Failed to perform reordering!" << std::endl;
+        return 2;
+      }
+      
+      mb.tag_delete( order );
+      if (print_time) 
+        std::cout << "Reorderd mesh in "
+                  << (clock() - t)/(double)CLOCKS_PER_SEC << " seconds" 
+                  << std::endl;
+    }
   
     std::ostringstream tmp_output_file;
     
@@ -250,9 +198,10 @@ int main( int argc, char* argv[] )
     else
       tmp_output_file << output_file;
 
+    t = clock();
     rval = mb.write_file( tmp_output_file.str().c_str() );
     if (MB_SUCCESS != rval) {
-      std::cerr << output_file << " : failed to write file." << std::endl;
+      std::cerr << tmp_output_file << " : failed to write file." << std::endl;
       std::cerr << "  Error code: " << mb.get_error_string(rval) << " (" << rval << ")" << std::endl;
       std::string errstr;
       mb.get_last_error(errstr);
@@ -260,7 +209,11 @@ int main( int argc, char* argv[] )
         std::cerr << "  Error message: " << errstr << std::endl;
       return 2;
     }
-
+    if (print_time)
+      std::cout << "Wrote \"" << tmp_output_file << "\" in "
+                << (clock() - t)/(double)CLOCKS_PER_SEC << " seconds" 
+                << std::endl;
+                
     num_parts *= 2;
   }
   

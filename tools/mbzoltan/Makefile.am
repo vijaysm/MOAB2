@@ -3,6 +3,7 @@ AM_CPPFLAGS += -DIS_BUILDING_MB\
                -I$(top_srcdir)/src \
                -I$(top_srcdir)/src/parallel \
                -I$(top_builddir)/src \
+	       -I$(srcdir)/.. \
                $(ZOLTAN_INC_FLAGS)
 
 AM_LDFLAGS += $(ZOLTAN_LIB_FLAGS)
@@ -15,5 +16,5 @@ libmbzoltan_la_include_HEADERS = MBZoltan.hpp
 bin_PROGRAMS = mbpart
 LDADD = libmbzoltan.la
 mbpart_SOURCES = mbpart.cpp
-
+mbpart_LDADD = libmbzoltan.la ../libprogram_opt.la
 
