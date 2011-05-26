@@ -42,6 +42,7 @@ class Error;
 template <typename KeyType, typename ValType, ValType NullVal> class RangeMap;
 typedef RangeMap<EntityHandle, EntityHandle, 0> HandleMap;
 class ParallelMergeMesh;
+class DebugOutput;
     
 #define MAX_SHARING_PROCS 64
 
@@ -734,8 +735,22 @@ public:
 
   static const unsigned int INITIAL_BUFF_SIZE;
 
+    //! set the verbosity level of output from this pcomm
+  void set_debug_verbosity(int verb);
+  
 private:
 
+
+  void print_debug_isend(int from, int to, unsigned char *buff,
+                         int tag, int size);
+  
+  void print_debug_irecv(int to, int from, unsigned char *buff, int size,
+                         int tag, int incoming);
+
+  void print_debug_recd(MPI_Status status);
+
+  void print_debug_waitany(std::vector<MPI_Request> &reqs, int tag, int proc);
+  
     // common initialization code, called from various constructors
   void initialize();
   
@@ -1193,6 +1208,9 @@ private:
 
   int ackbuff;
 
+    //! used to set verbosity level and to report output
+  DebugOutput *myDebug;
+  
 };
 
 inline ParallelComm::Buffer::Buffer(const Buffer &other_buff) 

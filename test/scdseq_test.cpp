@@ -80,11 +80,10 @@ ErrorCode check_vertex_sequence(const ScdBox *this_box,
     result = MB_FAILURE;
   }
 
-  int i1, j1, k1, i2, j2, k2, di, dj, dk;
-  this_box->box_min(i1, j1, k1);
-  this_box->box_max(i2, j2, k2);
-  this_box->box_size(di, dj, dk);
-  if (i2-i1+1 != di || j2-j1+1 != dj || k2-k1+1 != dk) {
+  HomCoord ijk1 = this_box->box_min(),
+      ijk2 = this_box->box_max(),
+      dijk = this_box->box_size();
+  if (ijk2 - ijk1 + HomCoord(1,1,1,0) != dijk) {
     std::cout << "min_params/max_params/param_extents functions returned inconsistent results"
               << std::endl;
     result = MB_FAILURE;
@@ -116,11 +115,7 @@ ErrorCode check_element_sequence(const ScdBox *this_box,
     result = MB_FAILURE;
   }
 
-  int i1, j1, k1, i2, j2, k2, di, dj, dk;
-  this_box->box_min(i1, j1, k1);
-  this_box->box_max(i2, j2, k2);
-  this_box->box_size(di, dj, dk);
-  if (i2-i1+1 != di || j2-j1+1 != dj || k2-k1+1 != dk) {
+  if (this_box->box_max() - this_box->box_min() + HomCoord(1,1,1,0) != this_box->box_size()) {
     std::cout << "min_params/max_params/param_extents functions returned inconsistent results"
               << std::endl;
     result = MB_FAILURE;
@@ -144,21 +139,19 @@ ErrorCode evaluate_vertex_sequence(ScdBox *this_box)
   ErrorCode result = MB_SUCCESS;
   
     // first get the parametric extents
-  int imin, jmin, kmin, imax, jmax, kmax, itmp, jtmp, ktmp;
-  this_box->box_min(imin, jmin, kmin);
-  this_box->box_max(imax, jmax, kmax);
+  HomCoord ijk1 = this_box->box_min(), ijk2 = this_box->box_max();
 
     // then the start vertex
   EntityHandle start_handle = this_box->start_vertex();
   
     // now evaluate all the vertices in forward and reverse
   EntityHandle tmp_handle, tmp_handle2;
-  for (int i = imin; i <= imax; i++) {
-    for (int j = jmin; j <= jmax; j++) {
-      for (int k = kmin; k <= kmax; k++) {
+  for (int i = ijk1[0]; i <= ijk2[0]; i++) {
+    for (int j = ijk1[1]; j <= ijk2[1]; j++) {
+      for (int k = ijk1[2]; k <= ijk2[2]; k++) {
           // compute what the vertex handle is supposed to be
-        EntityHandle this_handle = start_handle + (i-imin) + (j-jmin)*(imax-imin+1) + 
-            (k-kmin)*(jmax-jmin+1)*(imax-imin+1);
+        EntityHandle this_handle = start_handle + (i-ijk1[0]) + (j-ijk1[1])*(ijk2[0]-ijk1[0]+1) + 
+            (k-ijk1[2])*(ijk2[1]-ijk1[1]+1)*(ijk2[0]-ijk1[0]+1);
 
           // get_vertex variants
         tmp_handle = this_box->get_vertex(i, j, k);
@@ -176,6 +169,7 @@ ErrorCode evaluate_vertex_sequence(ScdBox *this_box)
           result = MB_FAILURE;
         }
 
+        int itmp, jtmp, ktmp;
         itmp = jtmp = ktmp = 0xdeadbeef;
         ErrorCode tmp_result = this_box->get_params(tmp_handle, itmp, jtmp, ktmp);
         if (MB_SUCCESS != tmp_result || i != itmp || j != jtmp || k != ktmp) {
@@ -202,15 +196,13 @@ ErrorCode evaluate_element_sequence(ScdBox *this_box)
   ErrorCode result = MB_SUCCESS;
   
     // first get the parametric extents
-  int imin, jmin, kmin, imax, jmax, kmax, itmp, jtmp, ktmp;
-  this_box->box_min(imin, jmin, kmin);
-  this_box->box_max(imax, jmax, kmax);
+  HomCoord ijk1 = this_box->box_min(), ijk2 = this_box->box_max();
 
     // now evaluate all the vertices and elements in forward and reverse
   EntityHandle tmp_handle, tmp_handle2;
-  for (int i = imin; i < imax; i++) {
-    for (int j = jmin; j < jmax; j++) {
-      for (int k = kmin; k < kmax; k++) {
+  for (int i = ijk1[0]; i < ijk2[0]; i++) {
+    for (int j = ijk1[1]; j < ijk2[1]; j++) {
+      for (int k = ijk1[2]; k < ijk2[2]; k++) {
 
           // get_vertex variants
         tmp_handle = this_box->get_vertex(i, j, k);
@@ -235,6 +227,7 @@ ErrorCode evaluate_element_sequence(ScdBox *this_box)
         }
         
           // get_params
+        int itmp, jtmp, ktmp;
         itmp = jtmp = ktmp = 0xdeadbeef;
         ErrorCode tmp_result = this_box->get_params(tmp_handle, itmp, jtmp, ktmp);
         if (MB_SUCCESS != tmp_result || i != itmp || j != jtmp || k != ktmp) {

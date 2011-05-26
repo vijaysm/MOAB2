@@ -54,7 +54,7 @@ public:
 
     //! constructors
   HomCoord();
-  HomCoord(const int coords[]);
+  HomCoord(const int coords[], const int num_coords = 4);
   HomCoord(const int coord0, const int coord1, 
            const int coord2, const int coord3);
   HomCoord(const int coord0, const int coord1, 
@@ -177,12 +177,10 @@ inline HomCoord::HomCoord()
   homCoord[3] = 0;
 }
   
-inline HomCoord::HomCoord(const int coords[]) 
+inline HomCoord::HomCoord(const int coords[], const int num_coords) 
 {
-    homCoord[0] = coords[0];
-    homCoord[1] = coords[1];
-    homCoord[2] = coords[2];
-    homCoord[3] = coords[3];
+  for (int i = 0; i < num_coords; i++) homCoord[i] = coords[i];
+  if (num_coords != 4) homCoord[3] = 1;
 }
 
 inline HomCoord::HomCoord(const int coord0, const int coord1, 

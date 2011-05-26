@@ -34,9 +34,9 @@ class Core;
  * 
  * Structured mesh is represented in MOAB down at the element sequence level, which is something
  * applications don't see.  In addition, when structured mesh is created, entity sets are also
- * created and tagged with information about the parametric space.  In particular, the BOX_MIN
- * and BOX_MAX tags are used to indicate the lower and upper corners in parametric space (each of these
- * tags is integer size 3).  Structured mesh blocks are also available through ScdBox class objects
+ * created and tagged with information about the parametric space.  In particular, the BOX_DIMS
+ * tag is used to indicate the lower and upper corners in parametric space (this
+ * tag is integer size 6).  Structured mesh blocks are also available through ScdBox class objects
  * returned by ScdInterface.  These class objects should be treated only as references to the 
  * structured mesh blocks; that is, the structured mesh referenced by these objects is not deleted
  * when the ScdBox instance is destroyed.  Functions for destroying the actual mesh are are available 
@@ -70,7 +70,7 @@ public:
   
     //! Constructor
     /** Constructor; if find_boxes is true, this will search for entity sets marked as
-     * structured blocks, based on the BOX_MIN tag.  Structured mesh blocks will be stored
+     * structured blocks, based on the BOX_DIMS tag.  Structured mesh blocks will be stored
      * in this interface class for future retrieval.  Structured mesh blocks created through
      * this interface will also be stored here.
      * \param impl MOAB instance
@@ -127,17 +127,11 @@ public:
      */
   ErrorCode find_boxes(Range &boxes);
 
-    //! Return the tag marking the lower corner of boxes
+    //! Return the tag marking the lower and upper corners of boxes
     /**
      * \param create_if_missing If the tag does not yet exist, create it
      */
-  Tag box_min_tag(bool create_if_missing = true);
-
-    //! Return the tag marking the upper corner of boxes
-    /**
-     * \param create_if_missing If the tag does not yet exist, create it
-     */
-  Tag box_max_tag(bool create_if_missing = true);
+  Tag box_dims_tag(bool create_if_missing = true);
 
     //! Return the tag marking the ScdBox for a set
     /**
@@ -170,12 +164,9 @@ private:
     //! controls ScdBox objects
   Range scdBoxes;
 
-    //! tag representing box lower corner
-  Tag boxMinTag;
+    //! tag representing box lower and upper corners
+  Tag boxDimsTag;
 
-    //! tag representing box upper corner
-  Tag boxMaxTag;
-  
     //! tag pointing from set to ScdBox
   Tag boxSetTag;
   
@@ -241,39 +232,17 @@ public:
      */
   int num_vertices() const;
   
+    //! Return the parametric coordinates for this box
+    /**
+     * \return IJK parameters of lower and upper corners
+     */
+  const int *box_dims() const;
+  
     //! Return the lower corner parametric coordinates for this box
   HomCoord box_min() const;
   
-    //! Return the lower corner parametric coordinates for this box
-    /**
-     * \param ijk IJK parameters of lower corner
-     */
-  void box_min(int *ijk) const;
-  
-    //! Return the lower corner parametric coordinates for this box
-    /**
-     * \param i I parameter of lower corner
-     * \param j J parameter of lower corner
-     * \param k K parameter of lower corner
-     */
-  void box_min(int &i, int &j, int &k) const;
-  
     //! Return the upper corner parametric coordinates for this box
   HomCoord box_max() const;
-  
-    //! Return the upper corner parametric coordinates for this box
-    /**
-     * \param ijk IJK parameters of upper corner
-     */
-  void box_max(int *ijk) const;
-  
-    //! Return the upper corner parametric coordinates for this box
-    /**
-     * \param i I parameter of upper corner
-     * \param j J parameter of upper corner
-     * \param k K parameter of upper corner
-     */
-  void box_max(int &i, int &j, int &k) const;
   
     //! Return the parameter extents for this box
   HomCoord box_size() const;
@@ -459,11 +428,8 @@ private:
     //! starting element handle for this box
   EntityHandle startElem;
 
-    //! lower corner
-  HomCoord boxMin;
-  
-    //! upper corner
-  HomCoord boxMax;
+    //! lower and upper corners
+  int boxDims[6];
   
     //! parameter extents
   HomCoord boxSize;
@@ -507,44 +473,21 @@ inline int ScdBox::num_vertices() const
       (!boxSize[2] ? 1 : boxSize[2]);
 }
     
+inline const int *ScdBox::box_dims() const 
+{
+  return boxDims;
+}
+
 inline HomCoord ScdBox::box_min() const 
 {
-  return boxMin;
+  return HomCoord(boxDims, 3);
 }
 
-inline void ScdBox::box_min(int *ijk) const 
-{
-  ijk[0] = boxMin[0];
-  ijk[1] = boxMin[1];
-  ijk[2] = boxMin[2];
-}
-  
-inline void ScdBox::box_min(int &i, int &j, int &k) const 
-{
-  i = boxMin[0];
-  j = boxMin[1];
-  k = boxMin[2];
-}
-  
 inline HomCoord ScdBox::box_max() const 
 {
-  return boxMax;
+  return HomCoord(boxDims+3, 3);
 }
 
-inline void ScdBox::box_max(int *ijk) const 
-{
-  ijk[0] = boxMax[0];
-  ijk[1] = boxMax[1];
-  ijk[2] = boxMax[2];
-}
-  
-inline void ScdBox::box_max(int &i, int &j, int &k) const 
-{
-  i = boxMax[0];
-  j = boxMax[1];
-  k = boxMax[2];
-}
-  
 inline HomCoord ScdBox::box_size() const 
 {
   return boxSize;
@@ -567,7 +510,7 @@ inline void ScdBox::box_size(int &i, int &j, int &k) const
 inline EntityHandle ScdBox::get_element(int i, int j, int k) const 
 {
   return (!startElem ? MB_ENTITY_NOT_FOUND : 
-          startElem + (k-boxMin[2])*boxSizeIJM1 + (j-boxMin[1])*boxSizeIM1 + i-boxMin[0]);
+          startElem + (k-boxDims[2])*boxSizeIJM1 + (j-boxDims[1])*boxSizeIM1 + i-boxDims[0]);
 }
 
 inline EntityHandle ScdBox::get_element(HomCoord ijk) const 
@@ -578,7 +521,7 @@ inline EntityHandle ScdBox::get_element(HomCoord ijk) const
 inline EntityHandle ScdBox::get_vertex(int i, int j, int k) const 
 {
   return (!startVertex ? MB_ENTITY_NOT_FOUND : 
-          vertDat ? startVertex + (k-boxMin[2])*boxSizeIJ + (j-boxMin[1])*boxSize[0] + i-boxMin[0] : 
+          vertDat ? startVertex + (k-boxDims[2])*boxSizeIJ + (j-boxDims[1])*boxSize[0] + i-boxDims[0] : 
           get_vertex_from_seq(i, j, k));
 }
 
@@ -589,7 +532,8 @@ inline EntityHandle ScdBox::get_vertex(HomCoord ijk) const
   
 inline bool ScdBox::contains(const HomCoord ijk) const
 {
-  return (ijk >= boxMin && ijk <= boxMax);
+  return (ijk >= HomCoord(boxDims, 3) && 
+          ijk <= HomCoord(boxDims+3, 3));
 }
 
 inline bool ScdBox::contains(int i, int j, int k) const

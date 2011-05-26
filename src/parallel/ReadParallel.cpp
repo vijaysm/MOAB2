@@ -67,8 +67,10 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   
   
   int tmpval;
-  if (MB_SUCCESS == opts.get_int_option("DEBUG_PIO", 1, tmpval))
+  if (MB_SUCCESS == opts.get_int_option("DEBUG_PIO", 1, tmpval)) {
     myDebug.set_verbosity(tmpval);
+    myPcomm->set_debug_verbosity(tmpval);
+  }
   myDebug.tprint(1,"Setting up...\n");
 
     // Get parallel settings

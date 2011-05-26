@@ -18,8 +18,7 @@ namespace moab
 ScdInterface::ScdInterface(Core *impl, bool boxes) 
         : mbImpl(impl), 
           searchedBoxes(false),
-          boxMinTag(0),
-          boxMaxTag(0),
+          boxDimsTag(0),
           boxSetTag(0)
 {
   if (boxes) find_boxes(scdBoxes);
@@ -59,9 +58,9 @@ ErrorCode ScdInterface::find_boxes(std::vector<ScdBox*> &scd_boxes)
 ErrorCode ScdInterface::find_boxes(Range &scd_boxes) 
 {
   ErrorCode rval = MB_SUCCESS;
-  box_min_tag();
+  box_dims_tag();
   if (!searchedBoxes) {
-    rval = mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &boxMinTag, NULL, 1, 
+    rval = mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &boxDimsTag, NULL, 1, 
                                                 scdBoxes, Interface::UNION);
     searchedBoxes = true;
     if (MB_SUCCESS != rval) return rval;
@@ -206,33 +205,23 @@ ErrorCode ScdInterface::create_box_set(const HomCoord low, const HomCoord high,
   scdBoxes.insert(scd_set);
 
     // tag the set with parameter extents
-  rval = mbImpl->tag_set_data(box_min_tag(), &scd_set, 1, low.hom_coord());
-  if (MB_SUCCESS != rval) return rval;
-
-  rval = mbImpl->tag_set_data(box_max_tag(), &scd_set, 1, high.hom_coord());
+  int boxdims[6];
+  for (int i = 0; i < 3; i++) boxdims[i] = low[i];
+  for (int i = 0; i < 3; i++) boxdims[3+i] = high[i];
+  rval = mbImpl->tag_set_data(box_dims_tag(), &scd_set, 1, boxdims);
   if (MB_SUCCESS != rval) return rval;
 
   return rval;
 }
 
-Tag ScdInterface::box_min_tag(bool create_if_missing) 
+Tag ScdInterface::box_dims_tag(bool create_if_missing) 
 {
-  if (boxMinTag || !create_if_missing) return boxMinTag;
+  if (boxDimsTag || !create_if_missing) return boxDimsTag;
 
-  ErrorCode rval = mbImpl->tag_create("BOX_MIN", 3*sizeof(int), MB_TAG_SPARSE, 
-                                      MB_TYPE_INTEGER, boxMinTag, NULL, true);
+  ErrorCode rval = mbImpl->tag_create("BOX_DIMS", 6*sizeof(int), MB_TAG_SPARSE, 
+                                      MB_TYPE_INTEGER, boxDimsTag, NULL, true);
   if (MB_SUCCESS != rval) return 0;
-  return boxMinTag;
-}
-
-Tag ScdInterface::box_max_tag(bool create_if_missing) 
-{
-  if (boxMaxTag || !create_if_missing) return boxMaxTag;
-
-  ErrorCode rval = mbImpl->tag_create("BOX_MAX", 3*sizeof(int), MB_TAG_SPARSE, 
-                                      MB_TYPE_INTEGER, boxMaxTag, NULL, true);
-  if (MB_SUCCESS != rval) return 0;
-  return boxMaxTag;
+  return boxDimsTag;
 }
 
 Tag ScdInterface::box_set_tag(bool create_if_missing) 
@@ -247,16 +236,17 @@ Tag ScdInterface::box_set_tag(bool create_if_missing)
 
 ScdBox::ScdBox(ScdInterface *sc_impl, EntityHandle box_set,
                EntitySequence *seq1, EntitySequence *seq2) 
-        : scImpl(sc_impl), boxSet(box_set), vertDat(NULL), elemSeq(NULL), startVertex(0), startElem(0),
-          boxMin(HomCoord::unitv[0]), boxMax(HomCoord::unitv[0])
+        : scImpl(sc_impl), boxSet(box_set), vertDat(NULL), elemSeq(NULL), startVertex(0), startElem(0)
 {
+  for (int i = 0; i < 6; i++) boxDims[i] = 0;
   VertexSequence *vseq = dynamic_cast<VertexSequence *>(seq1);
   if (vseq) vertDat = dynamic_cast<ScdVertexData*>(vseq->data());
   if (vertDat) {
       // retrieve the parametric space
-    boxMin = vertDat->min_params();
-    boxMax = vertDat->max_params();
-
+    for (int i = 0; i < 3; i++) {
+      boxDims[i] = vertDat->min_params()[i];
+      boxDims[3+i] = vertDat->max_params()[i];
+    }
     startVertex = vertDat->start_handle();
   }
 
@@ -267,14 +257,16 @@ ScdBox::ScdBox(ScdInterface *sc_impl, EntityHandle box_set,
   if (elemSeq) {
     if (vertDat) {
         // check the parametric space to make sure it's consistent
-      assert(elemSeq->sdata()->min_params() == boxMin && 
-             (elemSeq->sdata()->max_params() + HomCoord(1, 1, 1, 0)) == boxMax);
+      assert(elemSeq->sdata()->min_params() == HomCoord(boxDims, 3) && 
+             (elemSeq->sdata()->max_params() + HomCoord(1, 1, 1)) == HomCoord(boxDims, 3));
   
     } 
     else {
         // get the parametric space from the element sequence
-      boxMin = elemSeq->sdata()->min_params();
-      boxMax = elemSeq->sdata()->max_params();
+      for (int i = 0; i < 3; i++) {
+        boxDims[i] = elemSeq->sdata()->min_params()[i];
+        boxDims[3+i] = elemSeq->sdata()->max_params()[i];
+      }
     }
 
     startElem = elemSeq->start_handle();
@@ -282,7 +274,7 @@ ScdBox::ScdBox(ScdInterface *sc_impl, EntityHandle box_set,
 
   assert(vertDat || elemSeq);
   
-  boxSize = boxMax - boxMin + HomCoord(1, 1, 1, 0);
+  boxSize = HomCoord(boxDims+3, 3) - HomCoord(boxDims, 3) + HomCoord(1, 1, 1);
   boxSizeIJ = (boxSize[1] ? boxSize[1] : 1) * boxSize[0];
   boxSizeIJM1 = (boxSize[1] ? (boxSize[1]-1) : 1) * (boxSize[0]-1);
   boxSizeIM1 = boxSize[0]-1;
@@ -354,8 +346,7 @@ ErrorCode ScdBox::elem_seq(EntitySequence *elem_seq)
 {
   elemSeq = dynamic_cast<StructuredElementSeq*>(elem_seq);
   return (elemSeq ? MB_SUCCESS : MB_FAILURE);
-}
-  
+}  
 
 ErrorCode ScdBox::get_params(EntityHandle ent, HomCoord &ijkd) const 
 {

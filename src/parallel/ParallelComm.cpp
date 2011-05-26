@@ -15,6 +15,7 @@
 #include "moab/RangeMap.hpp"
 #include "moab/MeshTopoUtil.hpp"
 #include "TagInfo.hpp"
+#include "DebugOutput.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -24,7 +25,6 @@
 
 #define MIN(a,b) (a < b ? a : b)
 #define MAX(a,b) (a > b ? a : b)
-const bool debug = false;
 
 #include <math.h>
 #include <assert.h>
@@ -43,17 +43,15 @@ extern "C"
 #ifdef USE_MPI
 #include "moab_mpi.h"
 #endif
-#undef DEBUG_MPE
-//#define DEBUG_MPE 1
-#ifdef DEBUG_MPE
-#include "mpe.h"
-int IFACE_START, IFACE_END;
-int GHOST_START, GHOST_END;
-int SHAREDV_START, SHAREDV_END;
-int RESOLVE_START, RESOLVE_END;
-int ENTITIES_START, ENTITIES_END;
-int RHANDLES_START, RHANDLES_END;
-int OWNED_START, OWNED_END;
+#ifdef USE_MPE
+#  include "mpe.h"
+  int IFACE_START, IFACE_END;
+  int GHOST_START, GHOST_END;
+  int SHAREDV_START, SHAREDV_END;
+  int RESOLVE_START, RESOLVE_END;
+  int ENTITIES_START, ENTITIES_END;
+  int RHANDLES_START, RHANDLES_END;
+  int OWNED_START, OWNED_END;
 #endif
 
 namespace moab {
@@ -62,28 +60,19 @@ const unsigned int ParallelComm::INITIAL_BUFF_SIZE = 1024;
 
 const int MAX_BCAST_SIZE = (1<<28);
 
-#undef DEBUG_COMM
-//#define DEBUG_COMM 1
-#undef DEBUG_PACKING
-#undef DEBUG_MSGS
-//#define DEBUG_MSGS 1
-#undef DEBUG_BARRIER
-//#define DEBUG_BARRIER 1
-#ifdef DEBUG_MSGS
 std::vector<ParallelComm::Buffer*> msgs;
-#endif
-#ifdef DEBUG_PACKING
 unsigned int __PACK_num = 0, __UNPACK_num = 0, __PACK_count = 0, __UNPACK_count = 0;
 std::string __PACK_string, __UNPACK_string;
 
-#define PC(n, m) {\
+#ifdef DEBUG_PACKING_TIMES
+#  define PC(n, m) {\
           if (__PACK_num == (unsigned int)n && __PACK_string == m) __PACK_count++;\
           else {\
             if (__PACK_count > 1) std::cerr << " (" << __PACK_count << "x)";\
             __PACK_count = 1; __PACK_string = m; __PACK_num = n;\
             std::cerr << std::endl << "PACK: " << n << m;\
           }}
-#define UPC(n, m) {\
+#  define UPC(n, m) {\
           if (__UNPACK_num == (unsigned int)n && __UNPACK_string == m) __UNPACK_count++;\
           else {\
             if (__UNPACK_count > 1) std::cerr << "(" << __UNPACK_count << "x)";\
@@ -91,8 +80,8 @@ std::string __PACK_string, __UNPACK_string;
             std::cerr << std::endl << "UNPACK: " << n << m;\
           }}
 #else
-#define PC(n, m)
-#define UPC(n, m)
+#  define PC(n, m)
+#  define UPC(n, m)
 #endif
 
 template <typename T> static inline
@@ -231,57 +220,50 @@ enum MBMessageTag {MB_MESG_ANY=MPI_ANY_TAG,
 static inline size_t RANGE_SIZE(const Range& rng)
   { return 2*sizeof(EntityHandle)*rng.psize()+sizeof(int); }
 
-#ifdef DEBUG_COMM
-  #define PRINT_DEBUG_ISEND(A,B,C,D,E)   print_debug_isend((A),(B),(C),(D),(E))
-  #define PRINT_DEBUG_IRECV(A,B,C,D,E,F) print_debug_irecv((A),(B),(C),(D),(E),(F))
-  #define PRINT_DEBUG_RECD(A)            print_debug_recd((A))
-  #define PRINT_DEBUG_WAITANY(A,B,C)     print_debug_waitany((A),(B),(C))
+#define PRINT_DEBUG_ISEND(A,B,C,D,E)   print_debug_isend((A),(B),(C),(D),(E))
+#define PRINT_DEBUG_IRECV(A,B,C,D,E,F) print_debug_irecv((A),(B),(C),(D),(E),(F))
+#define PRINT_DEBUG_RECD(A)            print_debug_recd((A))
+#define PRINT_DEBUG_WAITANY(A,B,C)     print_debug_waitany((A),(B),(C))
 
-static inline void print_debug_isend(int from, int to, unsigned char *buff,
+void ParallelComm::print_debug_isend(int from, int to, unsigned char *buff,
                                      int tag, int size) 
 {
-  std::cerr << "Isend, " << from << "->" << to
-            << ", buffer ptr = " << (void*)buff << ", tag=" << tag 
-            << ", size=" << size << std::endl; std::cerr.flush();
+  myDebug->tprintf(3, "Isend, %d->%d, buffer ptr = %p, tag=%d, size=%d\n",
+                  from, to, (void*)buff, tag, size);
 }
 
-static inline void print_debug_irecv(int to, int from, unsigned char *buff, int size,
+void ParallelComm::print_debug_irecv(int to, int from, unsigned char *buff, int size,
                                      int tag, int incoming) 
 {
-  std::cerr << "Irecv, " << to << "<-" << from << ", buffer ptr=" << (void*)buff
-            << ", size=" << size << ", tag=" << tag
-            << (tag < MB_MESG_REMOTEH_ACK ? ", incoming1=" : 
-                (tag < MB_MESG_TAGS_ACK ? ", incoming2=" : ", incoming="))
-            << incoming << std::endl; std::cerr.flush();
+  myDebug->tprintf(3, "Irecv, %d<-%d, buffer ptr = %p, tag=%d, size=%d",
+                  to, from, (void*)buff, tag, size);
+  if (tag < MB_MESG_REMOTEH_ACK) myDebug->printf(3, ", incoming1=%d\n", incoming);
+  else if (tag < MB_MESG_TAGS_ACK) myDebug->printf(3, ", incoming2=%d\n", incoming);
+  else myDebug->printf(3, ", incoming=%d\n", incoming);
 }
 
-static inline void print_debug_recd(MPI_Status status) 
+void ParallelComm::print_debug_recd(MPI_Status status) 
 {
-  int this_count;
-  int success = MPI_Get_count(&status, MPI_UNSIGNED_CHAR, &this_count);
-  if (MPI_SUCCESS != success) this_count = -1;
-  std::cerr << "Received from " << status.MPI_SOURCE
-            << ", count = " << this_count 
-            << ", tag = " << status.MPI_TAG
-            << std::endl; std::cerr.flush();
+  if (myDebug->get_verbosity() == 3) {
+    int this_count;
+    int success = MPI_Get_count(&status, MPI_UNSIGNED_CHAR, &this_count);
+    if (MPI_SUCCESS != success) this_count = -1;
+    myDebug->tprintf(3, "Received from %d, count = %d, tag = %d\n", 
+                    status.MPI_SOURCE, this_count , status.MPI_TAG);
+  }
 }
 
-static inline void print_debug_waitany(std::vector<MPI_Request> &reqs, int tag, int proc) 
+void ParallelComm::print_debug_waitany(std::vector<MPI_Request> &reqs, int tag, int proc) 
 {
-  std::cerr << "Waitany, p=" << proc
-            << (tag < MB_MESG_REMOTEH_ACK ? ", recv_ent_reqs = " : 
-                (tag < MB_MESG_TAGS_ACK ? ", recv_remoteh_reqs = " : ", recv_tag_reqs = "));
-  for (unsigned int i = 0; i < reqs.size(); i++) std::cerr << " " << reqs[i];
-  std::cerr << std::endl; std::cerr.flush();
+  if (myDebug->get_verbosity() == 3) {
+    myDebug->tprintf(3, "Waitany, p=%d, ", proc);
+    if (tag < MB_MESG_REMOTEH_ACK) myDebug->print(3, ", recv_ent_reqs=");
+    else if (tag < MB_MESG_TAGS_ACK) myDebug->print(3, ", recv_remoteh_reqs=");
+    else myDebug->print(3, ", recv_tag_reqs=");
+    for (unsigned int i = 0; i < reqs.size(); i++) myDebug->printf(3, " %p", (void*)reqs[i]);
+    myDebug->print(3, "\n");
+  }
 }
-
-#else
-  #define PRINT_DEBUG_ISEND(A,B,C,D,E) 
-  #define PRINT_DEBUG_IRECV(A,B,C,D,E,F)
-  #define PRINT_DEBUG_RECD(A) 
-  #define PRINT_DEBUG_WAITANY(A,B,C)
-#endif
-
 
 #define RR(a) if (MB_SUCCESS != result) {\
           errorHandler->set_last_error(a);\
@@ -317,12 +299,11 @@ const char* PARTITIONING_PCOMM_TAG_NAME = "__PRTN_PCOMM";
  */
 #define PARALLEL_COMM_TAG_NAME "__PARALLEL_COMM"
 
-
 ParallelComm::ParallelComm(Interface *impl, MPI_Comm comm, int* id ) 
         : mbImpl(impl), procConfig(comm),
           sharedpTag(0), sharedpsTag(0), 
           sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0),
-          partitionTag(0), globalPartCount(-1), partitioningSet(0)
+          partitionTag(0), globalPartCount(-1), partitioningSet(0), myDebug(NULL)
 {
   initialize();
   
@@ -337,7 +318,8 @@ ParallelComm::ParallelComm(Interface *impl,
     : mbImpl(impl), procConfig(comm),
       sharedpTag(0), sharedpsTag(0), 
       sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0),
-      partitionTag(0), globalPartCount(-1), partitioningSet(0)
+      partitionTag(0), globalPartCount(-1), partitioningSet(0),
+      myDebug(NULL)
 {
   initialize();
   
@@ -349,6 +331,7 @@ ParallelComm::~ParallelComm()
 {
   remove_pcomm(this);
   delete_all_buffers();
+  if (myDebug) delete myDebug;
 }
 
 void ParallelComm::initialize() 
@@ -374,6 +357,8 @@ void ParallelComm::initialize()
   remoteOwnedBuffs.reserve(MAX_SHARING_PROCS);
 
   pcommID = add_pcomm(this);
+
+  if (!myDebug) myDebug = new DebugOutput("ParallelComm", std::cerr);
 }
 
 int ParallelComm::add_pcomm(ParallelComm *pc) 
@@ -975,33 +960,30 @@ ErrorCode ParallelComm::unpack_buffer(unsigned char *buff_ptr,
                                           std::vector<unsigned int> &L2p,
                                       std::vector<EntityHandle> &new_ents) 
 {
-#ifdef DEBUG_PACKING
     unsigned char *tmp_buff = buff_ptr;
-#endif  
     ErrorCode result;
     result = unpack_entities(buff_ptr, store_remote_handles,
                              ind, false, L1hloc, L1hrem, L1p, L2hloc, L2hrem, L2p, new_ents);
   RRA("Unpacking entities failed.");
-#ifdef DEBUG_PACKING
-    std::cerr << "unpack_entities buffer space: " << buff_ptr - tmp_buff << " bytes." << std::endl;
+  if (myDebug->get_verbosity() == 3) {
+    myDebug->tprintf(4, "unpack_entities buffer space: %ld bytes.\n", buff_ptr-tmp_buff);
     tmp_buff = buff_ptr;
-#endif  
+  }
   result = unpack_sets(buff_ptr, new_ents, store_remote_handles, from_proc);
   RRA("Unpacking sets failed.");
-#ifdef DEBUG_PACKING
-    std::cerr << "unpack_sets buffer space: " << buff_ptr - tmp_buff << " bytes." << std::endl;
+  if (myDebug->get_verbosity() == 3) {
+    myDebug->tprintf(4, "unpack_sets buffer space: %ld bytes.\n", buff_ptr - tmp_buff);
     tmp_buff = buff_ptr;
-#endif  
+  }
   result = unpack_tags(buff_ptr, new_ents, store_remote_handles, from_proc);
   RRA("Unpacking tags failed.");
-#ifdef DEBUG_PACKING
-    std::cerr << "unpack_tags buffer space: " << buff_ptr - tmp_buff << " bytes." << std::endl;
+  if (myDebug->get_verbosity() == 3) {
+    myDebug->tprintf(4, "unpack_tags buffer space: %ld bytes.\n", buff_ptr - tmp_buff);
     tmp_buff = buff_ptr;
-#endif  
+  }
 
-#ifdef DEBUG_PACKING
-  std::cerr << std::endl;
-#endif
+  if (myDebug->get_verbosity() == 3)
+    myDebug->print(4, "\n");
   
   return MB_SUCCESS;
 }
@@ -1209,10 +1191,8 @@ ErrorCode ParallelComm::pack_entities(Range &entities,
     PACK_DBLS(buff->buff_ptr, &tmp_coords[0], 3*num_ents);
     RRA("Couldn't get vertex coordinates.");
 
-#ifdef DEBUG_PACKING
-  std::cerr << "Packed " << these_ents.size() << " ents of type " 
-            << CN::EntityTypeName(TYPE_FROM_HANDLE(*these_ents.begin())) << std::endl;
-#endif      
+    myDebug->tprintf(4, "Packed %lu ents of type %s\n", these_ents.size(),
+                    CN::EntityTypeName(TYPE_FROM_HANDLE(*these_ents.begin())));
   }
 
     // now entities; go through range, packing by type and equal # verts per element
@@ -1399,10 +1379,8 @@ ErrorCode ParallelComm::pack_entity_seq(const int nodes_per_entity,
     // substitute destination handles
   RRA("Trouble getting remote handles when packing entities.");
 
-#ifdef DEBUG_PACKING
-  std::cerr << std::endl << "Packed " << these_ents.size() << " ents of type " 
-            << CN::EntityTypeName(TYPE_FROM_HANDLE(*these_ents.begin())) << std::endl;
-#endif      
+  myDebug->tprintf(4, "Packed %lu ents of type %s\n", these_ents.size(),
+                  CN::EntityTypeName(TYPE_FROM_HANDLE(*these_ents.begin())));
 
   return result;
 }
@@ -1645,7 +1623,7 @@ ErrorCode ParallelComm::unpack_entities(unsigned char *&buff_ptr,
   std::set<unsigned int> comm_procs;
 
     // 1. # entities = E
-  int num_ents;
+  int num_ents = 0;
   unsigned char *buff_save = buff_ptr;
   int i, j;
 
@@ -1843,16 +1821,11 @@ ErrorCode ParallelComm::unpack_entities(unsigned char *&buff_ptr,
     }
     
     
-#ifdef DEBUG_PACKING
-      std::cerr << "Unpacked " << num_ents << " ents of type " 
-                << CN::EntityTypeName(TYPE_FROM_HANDLE(this_type)) << std::endl;
-#endif      
-
+    myDebug->tprintf(4, "Unpacked %d ents of type %s", num_ents,
+                    CN::EntityTypeName(TYPE_FROM_HANDLE(this_type)));
   }
 
-#ifdef DEBUG_PACKING
-  std::cerr << std::endl << "Done unpacking entities." << std::endl;
-#endif
+  myDebug->tprintf(4, "Done unpacking entities.\n");
 
     // need to sort here, to enable searching
   std::sort(new_ents.begin(), new_ents.end());
@@ -2645,9 +2618,8 @@ ErrorCode ParallelComm::pack_sets(Range &entities,
     buff->check_space(buff_size);
     PACK_RANGE(buff->buff_ptr, all_sets);
   }
-#ifdef DEBUG_PACKING
-  std::cerr << std::endl << "Done packing sets." << std::endl;
-#endif
+
+  myDebug->tprintf(4, "Done packing sets.\n");
 
   buff->set_stored_size();
   
@@ -2793,9 +2765,8 @@ ErrorCode ParallelComm::unpack_sets(unsigned char *&buff_ptr,
     result = update_remote_data(new_sets, dum_range, from_proc, 0);
     RRA("Couldn't set sharing data for sets");
   }
-#ifdef DEBUG_PACKING
-  std::cerr << std::endl << "Done unpacking sets." << std::endl;
-#endif
+
+  myDebug->tprintf(4, "Done unpacking sets.");
 
   return MB_SUCCESS;
 }
@@ -2862,9 +2833,7 @@ ErrorCode ParallelComm::pack_tags(Range &entities,
       return result;
   }
   
-#ifdef DEBUG_PACKING
-  std::cerr << std::endl << "Done packing tags." << std::endl;
-#endif
+  myDebug->tprintf(4, "Done packing tags.");
 
   buff->set_stored_size();
   
@@ -2964,12 +2933,11 @@ ErrorCode ParallelComm::pack_tag( Tag src_tag,
   buff->check_space(src_tag->get_name().size());
   PACK_BYTES(buff->buff_ptr, dst_tag->get_name().c_str(), dst_tag->get_name().size());
 
-#ifdef DEBUG_PACKING
-  std::cerr << "Packing tag \"" << src_tag->get_name() << "\"";
+  myDebug->tprintf(4, "Packing tag \"%s\"", src_tag->get_name().c_str());
   if (src_tag != dst_tag)
-    std::cerr << " (as tag \"" << dst_tag->get_name() << "\")";
-  std::cerr << std::endl;
-#endif    
+    myDebug->tprintf(4, " (as tag \"%s\")", dst_tag->get_name().c_str());
+  myDebug->tprintf(4, "\n");
+
     // pack entities
   buff->check_space(tagged_entities.size()*sizeof(EntityHandle)+sizeof(int));
   PACK_INT(buff->buff_ptr, tagged_entities.size());
@@ -2977,14 +2945,15 @@ ErrorCode ParallelComm::pack_tag( Tag src_tag,
   result = get_remote_handles(store_remote_handles,
                               tagged_entities, &dum_tagged_entities[0], to_proc,
                               whole_vec);
-#ifdef DEBUG_PACKING
-  if (MB_SUCCESS != result) {
-    std::cerr << "Trouble getting remote handles for tagged entities:" << std::endl;
-    tagged_entities.print("  ");
+  if (myDebug->get_verbosity() == 3) {
+    if (MB_SUCCESS != result) {
+      std::cerr << "Trouble getting remote handles for tagged entities:" << std::endl;
+      tagged_entities.print("  ");
+    }
   }
-#else
-  RRA("Trouble getting remote handles for tagged entities.");
-#endif
+  else
+    RRA("Trouble getting remote handles for tagged entities.");
+
   PACK_EH(buff->buff_ptr, &dum_tagged_entities[0], dum_tagged_entities.size());
 
   const size_t num_ent = tagged_entities.size();
@@ -3091,9 +3060,8 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
     std::string tag_name( reinterpret_cast<char*>(buff_ptr), name_len );
     buff_ptr += name_len;
     UPC(64, " chars");
-#ifdef DEBUG_PACKING
-    std::cerr << "Unpacking tag " << tag_name << std::endl;
-#endif    
+    
+    myDebug->tprintf(4, "Unpacking tag %s\n", tag_name.c_str());
 
       // create the tag
     if (tag_size == MB_VARIABLE_LENGTH) 
@@ -3166,9 +3134,7 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
     }
   }
   
-#ifdef DEBUG_PACKING
-  std::cerr << std::endl << "Done unpacking tags." << std::endl;
-#endif
+  myDebug->tprintf(4, "Done unpacking tags.\n");
 
   return MB_SUCCESS;
 }
@@ -3216,14 +3182,15 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle /*this_set*/,
                                                 int shared_dim,
                                                 const Tag* id_tag) 
 {
-#ifdef DEBUG_MPE
-  define_mpe();
-
-  MPE_Log_event(RESOLVE_START, procConfig.proc_rank(), "Entering resolve_shared_ents.");
+#ifdef USE_MPE
+  if (myDebug->get_verbosity() == 2) {
+    define_mpe();
+    MPE_Log_event(RESOLVE_START, procConfig.proc_rank(), "Entering resolve_shared_ents.");
+  }
 #endif
 
   ErrorCode result;
-  if (debug) std::cerr << "Resolving shared entities." << std::endl;
+  myDebug->tprintf(1, "Resolving shared entities.\n");
 
   if (-1 == shared_dim) {
     if (0 == resolve_dim) {
@@ -3267,7 +3234,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle /*this_set*/,
   result = skinner.find_skin(skin_ents[skin_dim+1], false, skin_ents[skin_dim],
                              0, true);
   RRA("Failed to find skin.");
-  if (debug) std::cerr << "Found skin, now resolving." << std::endl;
+  myDebug->tprintf(1, "Found skin, now resolving.\n");
 
     // get entities adjacent to skin ents from shared_dim down to zero
   for (int this_dim = skin_dim-1; this_dim >= 0; this_dim--) {
@@ -3329,11 +3296,13 @@ ErrorCode ParallelComm::resolve_shared_ents(Range &proc_ents,
     // put handles in vector for passing to gs setup
   std::copy(skin_ents[0].begin(), skin_ents[0].end(), 
             std::back_inserter(handle_vec));
-  
-#ifdef DEBUG_MPE
-  MPE_Log_event(SHAREDV_START, procConfig.proc_rank(), "Creating crystal router.");
-#endif
 
+#ifdef USE_MPE
+  if (myDebug->get_verbosity() == 2) {
+    MPE_Log_event(SHAREDV_START, procConfig.proc_rank(), "Creating crystal router.");
+  }
+#endif
+  
     // get a crystal router
   crystal_data *cd = procConfig.crystal_router();
 
@@ -3414,8 +3383,10 @@ ErrorCode ParallelComm::resolve_shared_ents(Range &proc_ents,
                             proc_nvecs, proc_verts);
   RRA("Trouble tagging shared verts.");
 
-#ifdef DEBUG_MPE
-  MPE_Log_event(SHAREDV_END, procConfig.proc_rank(), "Finished tag_shared_verts.");
+#ifdef USE_MPE
+  if (myDebug->get_verbosity() == 2) {
+    MPE_Log_event(SHAREDV_END, procConfig.proc_rank(), "Finished tag_shared_verts.");
+  }
 #endif
 
     // get entities shared by 1 or n procs
@@ -3425,13 +3396,13 @@ ErrorCode ParallelComm::resolve_shared_ents(Range &proc_ents,
 
   tuple_list_free(&shared_verts);
   
-  if (debug) {
+  if (myDebug->get_verbosity() > 0) {
     for (std::map<std::vector<int>, std::vector<EntityHandle> >::const_iterator mit = proc_nvecs.begin();
          mit != proc_nvecs.end(); mit++) {
-      std::cout << "Iface: ";
+      myDebug->tprintf(1, "Iface: ");
       for (std::vector<int>::const_iterator vit = (mit->first).begin();
-           vit != (mit->first).end(); vit++) std::cout << " " << *vit;
-      std::cout << std::endl;
+           vit != (mit->first).end(); vit++) myDebug->printf(1, " %d", *vit);
+      myDebug->print(1, "\n");
     }
   }
   
@@ -3462,10 +3433,12 @@ ErrorCode ParallelComm::resolve_shared_ents(Range &proc_ents,
 
   moab_gs_data_free(gsd);
 
-#ifdef DEBUG_MPE
-  MPE_Log_event(RESOLVE_END, procConfig.proc_rank(), "Exiting resolve_shared_ents.");
+#ifdef USE_MPE
+  if (myDebug->get_verbosity() == 2) {
+    MPE_Log_event(RESOLVE_END, procConfig.proc_rank(), "Exiting resolve_shared_ents.");
+  }
 #endif
-
+  
 //  std::ostringstream ent_str;
 //  ent_str << "mesh." << procConfig.proc_rank() << ".h5m";
 //  mbImpl->write_mesh(ent_str.str().c_str());
@@ -3476,23 +3449,25 @@ ErrorCode ParallelComm::resolve_shared_ents(Range &proc_ents,
 
 void ParallelComm::define_mpe() 
 {
-#ifdef DEBUG_MPE
-    // define mpe states used for logging
-  int success;
-  MPE_Log_get_state_eventIDs( &IFACE_START, &IFACE_END);
-  MPE_Log_get_state_eventIDs( &GHOST_START, &GHOST_END);
-  MPE_Log_get_state_eventIDs( &SHAREDV_START, &SHAREDV_END);
-  MPE_Log_get_state_eventIDs( &RESOLVE_START, &RESOLVE_END);
-  MPE_Log_get_state_eventIDs( &ENTITIES_START, &ENTITIES_END);
-  MPE_Log_get_state_eventIDs( &RHANDLES_START, &RHANDLES_END);
-  MPE_Log_get_state_eventIDs( &OWNED_START, &OWNED_END);
-  success = MPE_Describe_state(IFACE_START, IFACE_END, "Resolve interface ents", "green");
-  success = MPE_Describe_state(GHOST_START, GHOST_END, "Exchange ghost ents", "red");
-  success = MPE_Describe_state(SHAREDV_START, SHAREDV_END, "Resolve interface vertices", "blue");
-  success = MPE_Describe_state(RESOLVE_START, RESOLVE_END, "Resolve shared ents", "purple");
-  success = MPE_Describe_state(ENTITIES_START, ENTITIES_END, "Exchange shared ents", "yellow");
-  success = MPE_Describe_state(RHANDLES_START, RHANDLES_END, "Remote handles", "cyan");
-  success = MPE_Describe_state(OWNED_START, OWNED_END, "Exchange owned ents", "black");
+#ifdef USE_MPE
+  if (myDebug->get_verbosity() == 2) {
+      // define mpe states used for logging
+    int success;
+    MPE_Log_get_state_eventIDs( &IFACE_START, &IFACE_END);
+    MPE_Log_get_state_eventIDs( &GHOST_START, &GHOST_END);
+    MPE_Log_get_state_eventIDs( &SHAREDV_START, &SHAREDV_END);
+    MPE_Log_get_state_eventIDs( &RESOLVE_START, &RESOLVE_END);
+    MPE_Log_get_state_eventIDs( &ENTITIES_START, &ENTITIES_END);
+    MPE_Log_get_state_eventIDs( &RHANDLES_START, &RHANDLES_END);
+    MPE_Log_get_state_eventIDs( &OWNED_START, &OWNED_END);
+    success = MPE_Describe_state(IFACE_START, IFACE_END, "Resolve interface ents", "green");
+    success = MPE_Describe_state(GHOST_START, GHOST_END, "Exchange ghost ents", "red");
+    success = MPE_Describe_state(SHAREDV_START, SHAREDV_END, "Resolve interface vertices", "blue");
+    success = MPE_Describe_state(RESOLVE_START, RESOLVE_END, "Resolve shared ents", "purple");
+    success = MPE_Describe_state(ENTITIES_START, ENTITIES_END, "Exchange shared ents", "yellow");
+    success = MPE_Describe_state(RHANDLES_START, RHANDLES_END, "Remote handles", "cyan");
+    success = MPE_Describe_state(OWNED_START, OWNED_END, "Exchange owned ents", "black");
+  }
 #endif
 }
 
@@ -4295,25 +4270,21 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
                                                  bool store_remote_handles,
                                                  bool wait_all)
 {
-#ifdef DEBUG_MPE
-  if (!num_layers)
-    MPE_Log_event(IFACE_START, procConfig.proc_rank(), "Starting interface exchange.");
-  else
-    MPE_Log_event(GHOST_START, procConfig.proc_rank(), "Starting ghost exchange.");
+#ifdef USE_MPE
+  if (myDebug->get_verbosity() == 2) {
+    if (!num_layers)
+      MPE_Log_event(IFACE_START, procConfig.proc_rank(), "Starting interface exchange.");
+    else
+      MPE_Log_event(GHOST_START, procConfig.proc_rank(), "Starting ghost exchange.");
+  }
 #endif
 
-#ifdef DEBUG_COMM
-//  std::ostringstream pfile("p");
-//  pfile << "p" << procConfig.proc_rank() << ".txt";
-//  std::cerr.open(pfile.str().c_str(), std::ios_base::trunc);
-  std::cerr << "Entering exchange_ghost_cells with num_layers = " 
-        << num_layers << std::endl; std::cerr.flush();
-#endif
-#ifdef DEBUG_MSGS
-  msgs.clear();
-  msgs.reserve(MAX_SHARING_PROCS);
-#endif
-
+  myDebug->tprintf(1, "Entering exchange_ghost_cells with num_layers = %d\n", num_layers);
+  if (myDebug->get_verbosity() == 4) {
+    msgs.clear();
+    msgs.reserve(MAX_SHARING_PROCS);
+  }
+  
     // if we're only finding out about existing ents, we have to be storing
     // remote handles too
   assert(num_layers > 0 || store_remote_handles);
@@ -4334,9 +4305,12 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     //===========================================
     // post ghost irecv's for ghost entities from all communicating procs
     //===========================================
-#ifdef DEBUG_MPE
-  MPE_Log_event(ENTITIES_START, procConfig.proc_rank(), "Starting entity exchange.");
+#ifdef USE_MPE
+  if (myDebug->get_verbosity() == 2) {
+    MPE_Log_event(ENTITIES_START, procConfig.proc_rank(), "Starting entity exchange.");
+  }
 #endif
+  
     // index reqs the same as buffer/sharing procs indices
   std::vector<MPI_Request> recv_ent_reqs(2*buffProcs.size(), MPI_REQUEST_NULL),
       recv_remoteh_reqs(2*buffProcs.size(), MPI_REQUEST_NULL);
@@ -4369,11 +4343,9 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
   result = get_sent_ents(is_iface, bridge_dim, ghost_dim, num_layers,
                          addl_ents, sent_ents, allsent, entprocs);
   RRA("get_sent_ents failed.");
-  
-#ifdef DEBUG_COMM
-  std::cout << "allsent ents compactness (size) = " << allsent.compactness() << " (" 
-            << allsent.size() << ")" << std::endl;
-#endif
+
+  myDebug->tprintf(1, "allsent ents compactness (size) = %f (%lu)\n", allsent.compactness(),
+                  allsent.size());
 
     //===========================================
     // pack and send ents from this proc to others
@@ -4381,10 +4353,8 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
   for (p = 0, proc_it = buffProcs.begin(); 
        proc_it != buffProcs.end(); proc_it++, p++) {
 
-#ifdef DEBUG_COMM
-    std::cout << "Sent ents compactness (size) = " << sent_ents[p].compactness() << " (" 
-              << sent_ents[p].size() << ")" << std::endl;
-#endif
+    myDebug->tprintf(1, "Sent ents compactness (size) = %f (%lu)\n", sent_ents[p].compactness(),
+                    sent_ents[p].size());
     
       // reserve space on front for size and for initial buff size
     localOwnedBuffs[p]->reset_buffer(sizeof(int));
@@ -4395,11 +4365,10 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
                            &entprocs, &allsent); 
     RRA("Packing entities failed.");
 
-#ifdef DEBUG_MSGS
-    msgs.resize(msgs.size()+1);
-    msgs.back() = new Buffer(*localOwnedBuffs[p]);
-      //result = print_buffer(&ownerSBuffs[ind][0], MB_MESG_ENTS_SIZE, *proc_it, true);
-#endif
+    if (myDebug->get_verbosity() == 4) {
+      msgs.resize(msgs.size()+1);
+      msgs.back() = new Buffer(*localOwnedBuffs[p]);
+    }
 
       // send the buffer (size stored in front in send_buffer)
     result = send_buffer(*proc_it, localOwnedBuffs[p], 
@@ -4461,11 +4430,10 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     RRA("Failed to receive buffer.");
 
     if (done) {
-#ifdef DEBUG_MSGS
-    msgs.resize(msgs.size()+1);
-    msgs.back() = new Buffer(*remoteOwnedBuffs[ind/2]);
-        //print_buffer(&ghostRBuffs[ind/2][0], MB_MESG_ENTS_SIZE, buffProcs[ind/2], false);
-#endif
+      if (myDebug->get_verbosity() == 4) {
+        msgs.resize(msgs.size()+1);
+        msgs.back() = new Buffer(*remoteOwnedBuffs[ind/2]);
+      }
 
         // message completely received - process buffer that was sent
     remoteOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
@@ -4511,10 +4479,12 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     RRA("Requests length doesn't match proc count in ghost exchange.");
   }
     
-#ifdef DEBUG_MPE
-  MPE_Log_event(ENTITIES_END, procConfig.proc_rank(), "Ending entity exchange.");
+#ifdef USE_MPE
+  if (myDebug->get_verbosity() == 2) {
+    MPE_Log_event(ENTITIES_END, procConfig.proc_rank(), "Ending entity exchange.");
+  }
 #endif
-
+  
   if (is_iface) {
       // need to check over entities I sent and make sure I received 
       // handles for them from all expected procs; if not, need to clean
@@ -4533,24 +4503,25 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     if (MB_SUCCESS != result) std::cout << "Failed check." << std::endl;
 #endif
 
-#ifdef DEBUG_MPE
-    MPE_Log_event(IFACE_END, procConfig.proc_rank(), "Ending interface exchange.");
+#ifdef USE_MPE
+    if (myDebug->get_verbosity() == 2) {
+      MPE_Log_event(IFACE_END, procConfig.proc_rank(), "Ending interface exchange.");
+    }
 #endif
-#ifdef DEBUG_COMM
-    std::cerr << "Exiting exchange_ghost_cells" << std::endl; std::cerr.flush();
-#endif
+    myDebug->tprintf(1, "Exiting exchange_ghost_cells\n");
 
       //===========================================
       // wait if requested
       //===========================================
     if (wait_all) {
-#ifdef DEBUG_BARRIER
-      success = MPI_Barrier(procConfig.proc_comm());
-#else
-      MPI_Status mult_status[2*MAX_SHARING_PROCS];
-      success = MPI_Waitall(2*buffProcs.size(), &recv_ent_reqs[0], mult_status);
-      success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], mult_status);
-#endif
+      if (myDebug->get_verbosity() == 5) {
+        success = MPI_Barrier(procConfig.proc_comm());
+      }
+      else {
+        MPI_Status mult_status[2*MAX_SHARING_PROCS];
+        success = MPI_Waitall(2*buffProcs.size(), &recv_ent_reqs[0], mult_status);
+        success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], mult_status);
+      }
       if (MPI_SUCCESS != success) {
         result = MB_FAILURE;
         RRA("Failed in waitall in ghost exchange.");
@@ -4573,12 +4544,11 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
                                  remoteOwnedBuffs[p]);
     RRA("Failed to pack remote handles.");
     remoteOwnedBuffs[p]->set_stored_size();
-    
-#ifdef DEBUG_MSGS
-    msgs.resize(msgs.size()+1);
-    msgs.back() = new Buffer(*remoteOwnedBuffs[p]);
-      //print_buffer(&ownerSBuffs[ind][0], MB_MESG_REMOTEH_SIZE, buffProcs[ind], true);
-#endif  
+
+    if (myDebug->get_verbosity() == 4) {
+      msgs.resize(msgs.size()+1);
+      msgs.back() = new Buffer(*remoteOwnedBuffs[p]);
+    }
     result = send_buffer(buffProcs[p], remoteOwnedBuffs[p], 
                          MB_MESG_REMOTEH_SIZE, 
                          sendReqs[2*p], recv_remoteh_reqs[2*p+1], 
@@ -4613,38 +4583,38 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     RRA("Failed to receive remote handles.");
     if (done) {
         // incoming remote handles
-#ifdef DEBUG_MSGS
-    msgs.resize(msgs.size()+1);
-    msgs.back() = new Buffer(*localOwnedBuffs[ind]);
-      //print_buffer(&remotehRBuffs[ind/2][0], MB_MESG_REMOTEH_SIZE, buffProcs[ind/2], false);
-#endif  
-    localOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
-    result = unpack_remote_handles(buffProcs[ind/2], 
-                                   localOwnedBuffs[ind/2]->buff_ptr,
-                                   L2hloc, L2hrem, L2p);
+      if (myDebug->get_verbosity() == 4) {
+        msgs.resize(msgs.size()+1);
+        msgs.back() = new Buffer(*localOwnedBuffs[ind]);
+      }
+      localOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
+      result = unpack_remote_handles(buffProcs[ind/2], 
+                                     localOwnedBuffs[ind/2]->buff_ptr,
+                                     L2hloc, L2hrem, L2p);
       RRA("Failed to unpack remote handles.");
     }
   }
     
-#ifdef DEBUG_MPE
-  MPE_Log_event(RHANDLES_END, procConfig.proc_rank(), "Ending remote handles.");
+#ifdef USE_MPE
+  if (myDebug->get_verbosity() == 2) {
+    MPE_Log_event(RHANDLES_END, procConfig.proc_rank(), "Ending remote handles.");
+    MPE_Log_event(GHOST_END, procConfig.proc_rank(), 
+                  "Ending ghost exchange (still doing checks).");
+  }
 #endif
-#ifdef DEBUG_MPE
-  MPE_Log_event(GHOST_END, procConfig.proc_rank(), 
-                "Ending ghost exchange (still doing checks).");
-#endif
-
+  
     //===========================================
     // wait if requested
     //===========================================
   if (wait_all) {
-#ifdef DEBUG_BARRIER
-    success = MPI_Barrier(procConfig.proc_comm());
-#else
-    MPI_Status mult_status[2*MAX_SHARING_PROCS];
-    success = MPI_Waitall(2*buffProcs.size(), &recv_remoteh_reqs[0], mult_status);
-    success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], mult_status);
-#endif
+    if (myDebug->get_verbosity() == 5) {
+      success = MPI_Barrier(procConfig.proc_comm());
+    }
+    else {
+      MPI_Status mult_status[2*MAX_SHARING_PROCS];
+      success = MPI_Waitall(2*buffProcs.size(), &recv_remoteh_reqs[0], mult_status);
+      success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], mult_status);
+    }
     if (MPI_SUCCESS != success) {
       result = MB_FAILURE;
       RRA("Failed in waitall in ghost exchange.");
@@ -4657,9 +4627,8 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
   result = check_all_shared_handles(true);
   RRA("Failed check on all shared handles.");
 #endif
-#ifdef DEBUG_COMM
-  std::cerr << "Exiting exchange_ghost_cells" << std::endl; std::cerr.flush();
-#endif
+
+  myDebug->tprintf(1, "Exiting exchange_ghost_cells\n");
 
   return MB_SUCCESS;
 }
@@ -5350,18 +5319,17 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
                                             bool store_remote_handles,
                                             bool wait_all)
 {
-#ifdef DEBUG_MPE
-  MPE_Log_event(OWNED_START, procConfig.proc_rank(), "Starting owned ents exchange.");
+#ifdef USE_MPE
+  if (myDebug->get_verbosity() == 2) {
+    MPE_Log_event(OWNED_START, procConfig.proc_rank(), "Starting owned ents exchange.");
+  }
 #endif
 
-#ifdef DEBUG_COMM
-  std::cerr << "Entering exchange_owned_mesh" << std::endl;
-  std::cerr.flush();
-#endif
-#ifdef DEBUG_MSGS
-  msgs.clear();
-  msgs.reserve(MAX_SHARING_PROCS);
-#endif
+  myDebug->tprintf(1, "Entering exchange_owned_mesh\n");
+  if (myDebug->get_verbosity() == 4) {
+    msgs.clear();
+    msgs.reserve(MAX_SHARING_PROCS);
+  }
   int i, ind, success;
   ErrorCode result = MB_SUCCESS;
   int incoming1 = 0, incoming2 = 0;
@@ -5387,8 +5355,10 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
   //===========================================
   // post ghost irecv's for entities from all communicating procs
   //===========================================
-#ifdef DEBUG_MPE
-  MPE_Log_event(ENTITIES_START, procConfig.proc_rank(), "Starting entity exchange.");
+#ifdef USE_MPE
+  if (myDebug->get_verbosity() == 2) {
+    MPE_Log_event(ENTITIES_START, procConfig.proc_rank(), "Starting entity exchange.");
+  }
 #endif
   // index reqs the same as buffer/sharing procs indices
   std::vector<MPI_Request> recv_ent_reqs(2*buffProcs.size(), MPI_REQUEST_NULL),
@@ -5443,33 +5413,29 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
   buffer_init(&sort_buffer, npairs);
   moab_tuple_list_sort(&entprocs, 1, &sort_buffer);
   buffer_free(&sort_buffer);
-  
-#ifdef DEBUG_COMM
-  std::cout << "allsent ents compactness (size) = " << allsent.compactness() << " (" 
-            << allsent.size() << ")" << std::endl;
-#endif
+
+  myDebug->tprintf(1, "allsent ents compactness (size) = %f (%lu)\n", allsent.compactness(),
+                  allsent.size());
 
   //===========================================
   // pack and send ents from this proc to others
   //===========================================
   for (i = 0; i < n_proc; i++) {
     ind = get_buffers(exchange_procs[i]);
-    
-#ifdef DEBUG_COMM
-    std::cout << "Sent ents compactness (size) = " << exchange_ents[i]->compactness() << " (" 
-              << exchange_ents[i]->size() << ")" << std::endl;
-#endif
+
+    myDebug->tprintf(1, "Sent ents compactness (size) = %f (%lu)\n", exchange_ents[i]->compactness(),
+                     exchange_ents[i]->size());
     
     // reserve space on front for size and for initial buff size
     localOwnedBuffs[ind]->reset_buffer(sizeof(int));
     result = pack_buffer(*exchange_ents[i], false, true,
                          store_remote_handles, buffProcs[ind],
                          localOwnedBuffs[ind], &entprocs, &allsent);
-    
-#ifdef DEBUG_MSGS
-    msgs.resize(msgs.size()+1);
-    msgs.back() = new Buffer(*localOwnedBuffs[ind]);
-#endif
+
+    if (myDebug->get_verbosity() == 4) {
+      msgs.resize(msgs.size()+1);
+      msgs.back() = new Buffer(*localOwnedBuffs[ind]);
+    }
     
     // send the buffer (size stored in front in send_buffer)
     result = send_buffer(exchange_procs[i], localOwnedBuffs[ind], 
@@ -5530,10 +5496,10 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
     RRA("Failed to receive buffer.");
     
     if (done) {
-#ifdef DEBUG_MSGS
-      msgs.resize(msgs.size()+1);
-      msgs.back() = new Buffer(*remoteOwnedBuffs[ind/2]);
-#endif
+      if (myDebug->get_verbosity() == 4) {
+        msgs.resize(msgs.size()+1);
+        msgs.back() = new Buffer(*remoteOwnedBuffs[ind/2]);
+      }
       
       // message completely received - process buffer that was sent
       remoteOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
@@ -5578,10 +5544,12 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
     RRA("Requests length doesn't match proc count in entity exchange.");
   }
 
-#ifdef DEBUG_MPE
-  MPE_Log_event(ENTITIES_END, procConfig.proc_rank(), "Ending entity exchange.");
+#ifdef USE_MPE
+  if (myDebug->get_verbosity() == 2) {
+    MPE_Log_event(ENTITIES_END, procConfig.proc_rank(), "Ending entity exchange.");
+  }
 #endif
-
+  
   //===========================================
   // send local handles for new entity to owner
   //===========================================
@@ -5595,11 +5563,11 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
                                  remoteOwnedBuffs[ind]);
     RRA("Failed to pack remote handles.");
     remoteOwnedBuffs[ind]->set_stored_size();
-    
-#ifdef DEBUG_MSGS
-    msgs.resize(msgs.size()+1);
-    msgs.back() = new Buffer(*remoteOwnedBuffs[ind]);
-#endif  
+
+    if (myDebug->get_verbosity() == 4) {
+      msgs.resize(msgs.size()+1);
+      msgs.back() = new Buffer(*remoteOwnedBuffs[ind]);
+    }
     result = send_buffer(buffProcs[ind], remoteOwnedBuffs[ind], 
                          MB_MESG_REMOTEH_SIZE, 
                          sendReqs[2*ind], recv_remoteh_reqs[2*ind+1], 
@@ -5634,10 +5602,11 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
     RRA("Failed to receive remote handles.");
     if (done) {
       // incoming remote handles
-#ifdef DEBUG_MSGS
-      msgs.resize(msgs.size()+1);
-      msgs.back() = new Buffer(*localOwnedBuffs[ind]);
-#endif  
+      if (myDebug->get_verbosity() == 4) {
+        msgs.resize(msgs.size()+1);
+        msgs.back() = new Buffer(*localOwnedBuffs[ind]);
+      }
+    
       localOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
       result = unpack_remote_handles(buffProcs[ind/2], 
                                      localOwnedBuffs[ind/2]->buff_ptr,
@@ -5646,25 +5615,26 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
     }
   }
   
-#ifdef DEBUG_MPE
-  MPE_Log_event(RHANDLES_END, procConfig.proc_rank(), "Ending remote handles.");
+#ifdef USE_MPE
+  if (myDebug->get_verbosity() == 2) {
+    MPE_Log_event(RHANDLES_END, procConfig.proc_rank(), "Ending remote handles.");
+    MPE_Log_event(OWNED_END, procConfig.proc_rank(), 
+                  "Ending ghost exchange (still doing checks).");
+  }
 #endif
-#ifdef DEBUG_MPE
-  MPE_Log_event(OWNED_END, procConfig.proc_rank(), 
-                "Ending ghost exchange (still doing checks).");
-#endif
-
+  
   //===========================================
   // wait if requested
   //===========================================
   if (wait_all) {
-#ifdef DEBUG_BARRIER
-    success = MPI_Barrier(procConfig.proc_comm());
-#else
-    MPI_Status mult_status[2*MAX_SHARING_PROCS];
-    success = MPI_Waitall(2*buffProcs.size(), &recv_remoteh_reqs[0], mult_status);
-    success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], mult_status);
-#endif
+    if (myDebug->get_verbosity() == 5) {
+      success = MPI_Barrier(procConfig.proc_comm());
+    }
+    else {
+      MPI_Status mult_status[2*MAX_SHARING_PROCS];
+      success = MPI_Waitall(2*buffProcs.size(), &recv_remoteh_reqs[0], mult_status);
+      success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], mult_status);
+    }
     if (MPI_SUCCESS != success) {
       result = MB_FAILURE;
       RRA("Failed in waitall in owned entity exchange.");
@@ -5675,9 +5645,7 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
   result = check_sent_ents(allsent);
   RRA("Failed check on shared entities.");
 #endif
-#ifdef DEBUG_COMM
-  std::cerr << "Exiting exchange_owned_mesh" << std::endl; std::cerr.flush();
-#endif
+  myDebug->tprintf(1, "Exiting exchange_owned_mesh\n");
 
   return MB_SUCCESS;
 }
@@ -5905,9 +5873,7 @@ ErrorCode ParallelComm::exchange_tags( const std::vector<Tag> &src_tags,
   ErrorCode result;
   int success;
 
-#ifdef DEBUG_COMM
-  std::cerr << "Entering exchange_tags" << std::endl; std::cerr.flush();
-#endif
+  myDebug->tprintf(1, "Entering exchange_tags\n");
 
     // get all procs interfacing to this proc
   std::set<unsigned int> exch_procs;
@@ -6032,12 +5998,13 @@ ErrorCode ParallelComm::exchange_tags( const std::vector<Tag> &src_tags,
   }
   
     // ok, now wait
-#ifdef DEBUG_BARRIER  
-  success = MPI_Barrier(procConfig.proc_comm());
-#else
-  MPI_Status status[2*MAX_SHARING_PROCS];
-  success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], status);
-#endif
+  if (myDebug->get_verbosity() == 5) {
+    success = MPI_Barrier(procConfig.proc_comm());
+  }
+  else {
+    MPI_Status status[2*MAX_SHARING_PROCS];
+    success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], status);
+  }
   if (MPI_SUCCESS != success) {
     result = MB_FAILURE;
     RRA("Failure in waitall in tag exchange.");
@@ -6082,10 +6049,8 @@ ErrorCode ParallelComm::exchange_tags( const std::vector<Tag> &src_tags,
       }
     }
   }
-  
-#ifdef DEBUG_COMM
-  std::cerr << "Exiting exchange_tags" << std::endl; std::cerr.flush();
-#endif
+
+  myDebug->tprintf(1, "Exiting exchange_tags");
 
   return MB_SUCCESS;
 }
@@ -7341,6 +7306,11 @@ ErrorCode ParallelComm::get_shared_entities(int other_proc,
   }
   
   return result;
+}
+
+void ParallelComm::set_debug_verbosity(int verb) 
+{
+  myDebug->set_verbosity(verb);
 }
 
 } // namespace moab
