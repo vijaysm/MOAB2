@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <list>
 #include <limits>
+#include <set>
 
 #include <assert.h>
 #include <string.h>
@@ -45,15 +46,15 @@ class ProgOpt{
   const char* get_argstring() const { 
     switch( type ){
     case INT:
-      return "<int>";
+      return "int";
     case INT_VECT:
-      return "<ints>";
+      return "ints";
     case REAL:
-      return "<val>";
+      return "val";
     case FLAG:
       return "";
     default:
-      return "<arg>";
+      return "arg";
     }
   }
 
@@ -66,11 +67,13 @@ public:
   friend class ProgOptions;
 };
 
-ProgOptions::ProgOptions( const std::string& helpstring ) :
+ProgOptions::ProgOptions( const std::string& helpstring, const std::string& briefhelp ) :
     expect_optional_args(false)
 {
-  main_help.push_back( helpstring );
-  addOpt<void>( "help,h", "Show full help text", help_flag );
+  brief_help = briefhelp;
+  if (!helpstring.empty())
+    main_help.push_back( helpstring );
+ addOpt<void>( "help,h", "Show full help text", help_flag );
 }
 
 ProgOptions::~ProgOptions(){
@@ -111,6 +114,16 @@ void ProgOptions::addOpt( const std::string& namestring, const std::string& help
 
   std::string shortname, longname;
   get_namestrings( namestring, &longname, &shortname );
+  
+  if (flags & int_flag) { // short name is implicit for this flag
+    if (!shortname.empty()) 
+      error( "Requested short name with int_flag option" );
+    if (get_opt_type<T>() != INT)
+      error( "Requested int_flag for non-integer option" );
+    if (!number_option_name.empty()) 
+      error( "Requested int_flag for multiple options" );
+    number_option_name = longname;
+  }
 
   ProgOpt* opt = new ProgOpt( longname, shortname, flags, get_opt_type<T>() );
   if( value ) opt->storage = value;
@@ -183,9 +196,11 @@ void ProgOptions::addOptionHelpHeading( const std::string& s ){
 void ProgOptions::printHelp( std::ostream& out ){
   
   /* Print introductory help text */
+  if (!brief_help.empty())
+    out << brief_help << std::endl;
   for( std::vector<std::string>::iterator i = main_help.begin(); i!= main_help.end(); ++i ){
     if( (*i).length() ){
-      out << *i << std::endl;
+      out << std::endl << *i << std::endl;
     }
   }
 
@@ -271,6 +286,12 @@ std::string ProgOptions::get_option_usage_prefix( const  ProgOpt& option ){
     if( has_longname ){ s << " "; }
     
   }
+  else if ( option.flags & int_flag ) {
+    
+    s << "-<n>";
+    if( has_longname ){ s << " "; }
+    
+  }
   if( has_longname ){
     
     if( has_shortname ) s << "[";
@@ -279,7 +300,7 @@ std::string ProgOptions::get_option_usage_prefix( const  ProgOpt& option ){
     
   }
   
-  if( argstr.length() ) s << " " << argstr;
+  if( argstr.length() ) s << " <" << argstr << ">";
   return s.str();
 }
 
@@ -291,7 +312,7 @@ void ProgOptions::printUsage( std::ostream& out ){
   {
     if (!expect_optional_args || i != optional_args_position) 
       out << '<' << arg_help_strings[i].first->longname << "> "; 
-    else if (0 == max_optional_args && max_optional_args > 3)
+    else if (0 == max_optional_args || max_optional_args > 3)
       out << "[<" << arg_help_strings[i].first->longname << "> ...] ";
     else if (1 == max_optional_args)
       out << "[" << arg_help_strings[i].first->longname << "] ";
@@ -306,8 +327,16 @@ void ProgOptions::printUsage( std::ostream& out ){
 
 ProgOpt* ProgOptions::lookup( const std::map<std::string, ProgOpt* >& table, const std::string& arg ){
   std::map<std::string, ProgOpt*>::const_iterator it = table.find( arg );
-  if ( it == table.end() ) return NULL;
-  else return (*it).second;
+  if (it != table.end())
+    return it->second;
+  else if (&table == &short_names && 
+           arg.size() == 1 && 
+           isdigit(arg[0]) &&
+           !number_option_name.empty() &&
+           (it = long_names.find(number_option_name)) != long_names.end())
+    return it->second;
+  else
+    return 0;
 }
 
 ProgOpt* ProgOptions::lookup_option( const std::string& namestring ){
@@ -498,6 +527,9 @@ bool ProgOptions::getOpt( const std::string& namestring, T* t ){
   if( get_opt_type<T>() != opt->type ){
     error( "Option '" + namestring + "' looked up with incompatible type" );
   }
+  
+  if (!t)
+    return true;
 
   // This call to evaluate is inefficient, because opt was already evaluated when it was parsed.
   if( opt->args.size() ){
@@ -597,6 +629,11 @@ void ProgOptions::getArgs( const std::string& namestring,
 bool ProgOptions::process_option( ProgOpt* opt, std::string arg, const char* value )
 {
   if( !opt ){
+    if (arg == "--manpage") {
+      write_man_page(std::cout);
+      exit(0);
+    }
+    
     error ("Unknown option: " + arg );
   }
 
@@ -630,8 +667,12 @@ bool ProgOptions::process_option( ProgOpt* opt, std::string arg, const char* val
 
 
 void ProgOptions::parseCommandLine( int argc, char* argv[] ){
-  
-  this->progname = argv[0];
+  const char* name = strrchr(argv[0],'/');
+  if (name)
+    this->progname = ++name;
+  else
+    this->progname = argv[0];
+
   std::vector<const char*> args;
   std::list<ProgOpt*> expected_vals;
   bool no_more_flags = false;                    
@@ -667,7 +708,11 @@ void ProgOptions::parseCommandLine( int argc, char* argv[] ){
       }
       else for (size_t f = 1; f < arg.length(); ++f) { // for each short opt
         ProgOpt* opt = lookup( short_names, std::string(1,arg[f]) );
-        if (process_option( opt, std::string(1,arg[f]) ))
+        if (opt->flags & int_flag) {
+          const char val[] = { arg[f], 0 };
+          process_option( opt, std::string(1,arg[f]), val );
+        }
+        else if (process_option( opt, std::string(1,arg[f]) ))
           expected_vals.push_back( opt );
       }
     }
@@ -742,6 +787,157 @@ void ProgOptions::parseCommandLine( int argc, char* argv[] ){
     ++arg_val_pos;
   }
   assert(arg_val_pos == args.end());
+}
+
+void ProgOptions::write_man_page( std::ostream& s )
+{
+  // a leading '.' is a control character.  strip it if present.
+  std::string lprogname;
+  if (progname.empty() || progname[0] != '.')
+    lprogname = progname;
+  else {
+    lprogname = progname.substr(1);
+  }
+
+  // Manpage controls:
+  // .TH title
+  // .SH section
+  // .SS subsection
+  // .P  paragraph
+  // .HP hanging paragraph
+  // .B  bold
+  // .I  italic
+  // .B  bold
+  // .I  italic
+  // .RS begin indent
+  // .RE end indent
+  // .RB alternating roman and blold
+  // .BR alternating bold and roman
+
+  std::vector<help_line>::iterator it;
+  std::set<ProgOpt*> skip_list;
+
+  // start man page
+  s << std::endl << ".TH " << lprogname << " 1" << std::endl;
+
+  // write NAME section
+  s << std::endl << ".SH NAME" << std::endl
+    << ".P " << std::endl
+    << lprogname << " \\- ";
+  if (brief_help.empty() && !main_help.empty())
+    s << main_help.front();
+  else
+    s << brief_help;
+  s << std::endl << std::endl;
+
+  // write SYNOPSIS section
+  s << std::endl << ".SH SYNOPSIS" << std::endl
+    << ".HP" << std::endl 
+    << ".B \"" << lprogname << '"' << std::endl;
+  for (it = option_help_strings.begin(); it != option_help_strings.end(); ++it) {
+    if (!it->first || 
+        skip_list.find( it->first ) != skip_list.end() ||
+        it->first->longname == "help")
+      continue;
+    
+    if (it->first->type == FLAG) {
+      char c = '[';
+      s << ".RB";
+      if (!it->first->shortname.empty()) {
+        s << ' ' << c << " \"-" << it->first->shortname << '"';
+        c = '|';
+      }
+      if (!it->first->longname.empty()) {
+        s << ' ' << c << " \"--" << it->first->longname << '"';
+      }
+      if (it->first->cancel_opt) {
+        skip_list.insert( it->first->cancel_opt );
+        if (!it->first->cancel_opt->shortname.empty())
+          s << " | \"-" << it->first->cancel_opt->shortname << '"';
+        if (!it->first->cancel_opt->longname.empty()) 
+          s << " | \"--" << it->first->cancel_opt->longname << '"';
+      }
+      s << " ]" << std::endl;
+    }
+    else if (it->first->flags & int_flag) {
+      s << ".RB [ - <n>| \"--" << it->first->longname
+        << "\" \"=" << it->first->get_argstring() << "]\"" << std::endl;
+    }
+    else {
+      s << ".RB [ ";
+      if (!it->first->shortname.empty()) 
+        s << "\"-" << it->first->shortname << "\" \"\\ " << it->first->get_argstring();
+      if (!it->first->shortname.empty() && !it->first->longname.empty())
+        s << "|\" ";
+      if (!it->first->longname.empty())
+        s << "\"--" << it->first->longname
+          << "\" \"=" << it->first->get_argstring();
+      s << "]\"" << std::endl;
+    }
+  }
+  for (it = arg_help_strings.begin(); it != arg_help_strings.end(); ++it) {
+    if (!it->first)
+      continue;
+    
+    if (!expect_optional_args || (it - arg_help_strings.begin()) != optional_args_position)
+      s << it->first->longname << ' ';
+    else if (1 == max_optional_args)
+      s << '[' << it->first->longname << "] ";
+    else 
+      s << '[' << it->first->longname << " ...] ";
+  }
+  s << std::endl;
+  s << ".HP" << std::endl 
+    << ".B \"" << lprogname << " -h|--help\"" << std::endl;
+  
+    // write DESCRIPTION section
+  s << std::endl << ".SH DESCRIPTION" << std::endl;
+  if (main_help.empty())
+    s << brief_help << std::endl;
+  for (size_t i = 0; i < main_help.size(); ++i) {
+    const std::string::size_type n = main_help[i].size();
+    std::string::size_type j = 0, k;
+    s << std::endl << ".P" << std::endl;
+    while (j != n) {
+      if (main_help[i][j] == '\n') {
+        s << std::endl << ".P" << std::endl;
+        ++j;
+        continue;
+      }
+      k = main_help[i].find( "\n", j );
+      if (k == std::string::npos)
+        k = n;
+      if (main_help[i][j] == '.')
+        s << '\\';
+      s << main_help[i].substr( j, k - j );
+      j = k;
+    }
+  }
+  
+    // write OPTIONS section
+  s << std::endl << ".SH OPTIONS" << std::endl;
+  for (it = arg_help_strings.begin(); it != arg_help_strings.end(); ++it) {
+    if (it->first) 
+      s << ".IP \"" << it->first->longname << '"' << std::endl << it->second << std::endl;
+    else
+      s << ".SS " << it->first->longname << std::endl;
+  }
+  for (it = option_help_strings.begin(); it != option_help_strings.end(); ++it) {
+    if (!it->first) {
+      s << ".SS " << it->second << std::endl;
+      continue;
+    }
+    
+    s << ".IP \"";
+    if (it->first->longname.empty())
+      s << "-" << it->first->shortname;
+    else if (it->first->shortname.empty())
+      s << "--" << it->first->longname;
+    else
+      s << "-" << it->first->shortname << ", --" << it->first->longname;
+    s << '"' << std::endl << it->second << std::endl;
+  }
+  s << std::endl;
 }
 
 

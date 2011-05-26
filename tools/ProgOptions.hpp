@@ -61,12 +61,17 @@ public:
   /// This overrides the default behavior, which is to store the value 'true'.
   static const int store_false = 1<<2 ;
 
+  /// Specify a numerical flag where any positive integer is an acceptable
+  /// value.  E.g. --dimension=3 is equivalent to -3.  Only values in the
+  /// range [0,9] are accepted and the flag type must be integer.
+  static const int int_flag = 1<<3 ;
+
   /** Substitue any occurance of the '%' symbol in a string with
    *  the the MPI rank of this process in MPI_COMM_WORLD.  This
    *  option has no effect if not compiled with MPI.  This flag
    *  has no effect for non-string options.
    */
-  static const int rank_subst = 1<<3;
+  static const int rank_subst = 1<<4;
   
   ///unimplemented flag for required arguments that may be given multiple times
   //const static int accept_multiple;
@@ -76,7 +81,8 @@ public:
    * @param helptext A brief summary of the program's function, to be printed
    *        when the help flag is detected
    */
-  ProgOptions( const std::string& helptext = "" );
+  ProgOptions( const std::string& helptext = "",
+               const std::string& briefdesc = "" );
   ~ProgOptions();
 
   /** Specify a new command-line option
@@ -222,6 +228,11 @@ public:
    */
   void error( const std::string& message );
 
+  /**
+   * Write help data formatted for use as a unix man page.
+   */
+  void write_man_page( std::ostream& to_this_stream );
+  
 protected:
 
   std::string get_option_usage_prefix( const  ProgOpt& option );
@@ -242,11 +253,16 @@ protected:
   std::vector< help_line > option_help_strings;
   std::vector< help_line > arg_help_strings;
   std::vector< std::string > main_help;
+  std::string brief_help;
   
   bool expect_optional_args;
   unsigned optional_args_position, max_optional_args;
   
   std::string progname;
+  
+    // if an option was specified with the int_flag, this
+    // will contain the long name of the option
+  std::string number_option_name;
   
 };
 
