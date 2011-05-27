@@ -31,6 +31,7 @@
 #include "MBTagConventions.hpp"
 #include "moab/Core.hpp"
 #include "AEntityFactory.hpp"
+#include "moab/ScdInterface.hpp"
 
 #ifdef M_PI
 #  define SKINNER_PI M_PI
@@ -235,14 +236,22 @@ ErrorCode Skinner::find_geometric_skin(Range &forward_target_entities)
 }
 
 ErrorCode Skinner::find_skin( const Range& source_entities,
-                                  bool get_vertices,
-                                  Range& output_handles,
-                                  Range* output_reverse_handles,
-                                  bool create_vert_elem_adjs,
-                                  bool create_skin_elements )
+                              bool get_vertices,
+                              Range& output_handles,
+                              Range* output_reverse_handles,
+                              bool create_vert_elem_adjs,
+                              bool create_skin_elements, 
+                              bool look_for_scd)
 {
   if (source_entities.empty())
     return MB_SUCCESS;
+
+  ErrorCode rval;
+  if (look_for_scd) {
+    rval = find_skin_scd(source_entities, get_vertices, output_handles, create_skin_elements);
+      // if it returns success, it's all scd, and we don't need to do anything more
+    if (MB_SUCCESS == rval) return rval;
+  }
 
   Core* this_core = dynamic_cast<Core*>(thisMB);
   if (this_core && create_vert_elem_adjs && 
@@ -262,7 +271,7 @@ ErrorCode Skinner::find_skin( const Range& source_entities,
   if (!source_entities.all_of_dimension(d))
     return MB_TYPE_OUT_OF_RANGE;
   
-  ErrorCode rval = thisMB->get_entities_by_dimension( 0, d-1, prev );
+  rval = thisMB->get_entities_by_dimension( 0, d-1, prev );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -308,6 +317,120 @@ ErrorCode Skinner::find_skin( const Range& source_entities,
   }
   
   return MB_SUCCESS;  
+}
+
+ErrorCode Skinner::find_skin_scd(const Range& source_entities,
+                                 bool get_vertices,
+                                 Range& output_handles,
+                                 bool create_skin_elements) 
+{
+    // get the scd interface and check if it's been initialized
+  ScdInterface *scdi = NULL;
+  ErrorCode rval = thisMB->query_interface(scdi);
+  if (!scdi) return MB_FAILURE;
+  Tag box_dims_tag = scdi->box_dims_tag(false);
+  if (!box_dims_tag) return MB_FAILURE;
+  
+    // ok, there's scd mesh; see if the entities passed in are all in a scd box
+    // a box needs to be wholly included in entities for this to work
+  std::vector<ScdBox*> boxes, myboxes;
+  Range myrange;
+  rval = scdi->find_boxes(boxes);
+  if (MB_SUCCESS != rval) return rval;
+  for (std::vector<ScdBox*>::iterator bit = boxes.begin(); bit != boxes.end(); bit++) {
+    Range belems((*bit)->start_element(), (*bit)->start_element() + (*bit)->num_elements()-1);
+    if (source_entities.contains(belems)) {
+      myboxes.push_back(*bit);
+      myrange.merge(belems);
+    }
+  }
+  if (myboxes.empty() || myrange.size() != source_entities.size()) return MB_FAILURE;
+
+    // ok, we're all structured; get the skin for each box
+  for (std::vector<ScdBox*>::iterator bit = boxes.begin(); bit != boxes.end(); bit++) {
+    rval = skin_box(*bit, get_vertices, output_handles, create_skin_elements);
+    if (MB_SUCCESS != rval) return rval;
+  }
+  
+  return MB_SUCCESS;
+}
+
+ErrorCode Skinner::skin_box(ScdBox *box, bool get_vertices, Range &output_handles, 
+                            bool create_skin_elements) 
+{
+  HomCoord bmin = box->box_min(), bmax = box->box_max();
+
+    // don't support 1d boxes
+  if (bmin.j() == bmax.j() && bmin.k() == bmax.k()) return MB_FAILURE;
+  
+  int dim = (bmin.k() == bmax.k() ? 1 : 2);
+  
+  ErrorCode rval;
+  EntityHandle ent;
+
+    // i=min
+  for (int k = bmin.k(); k < bmax.k(); k++) {
+    for (int j = bmin.j(); j < bmax.j(); j++) {
+      ent = 0;
+      rval = box->get_adj_edge_or_face(dim, bmin.i(), j, k, 0, ent, create_skin_elements);
+      if (MB_SUCCESS != rval) return rval;
+      if (ent) output_handles.insert(ent);
+    }
+  }
+    // i=max
+  for (int k = bmin.k(); k < bmax.k(); k++) {
+    for (int j = bmin.j(); j < bmax.j(); j++) {
+      ent = 0;
+      rval = box->get_adj_edge_or_face(dim, bmax.i(), j, k, 0, ent, create_skin_elements);
+      if (MB_SUCCESS != rval) return rval;
+      if (ent) output_handles.insert(ent);
+    }
+  }
+    // j=min
+  for (int k = bmin.k(); k < bmax.k(); k++) {
+    for (int i = bmin.i(); i < bmax.i(); i++) {
+      ent = 0;
+      rval = box->get_adj_edge_or_face(dim, i, bmin.j(), k, 1, ent, create_skin_elements);
+      if (MB_SUCCESS != rval) return rval;
+      if (ent) output_handles.insert(ent);
+    }
+  }
+    // j=max
+  for (int k = bmin.k(); k < bmax.k(); k++) {
+    for (int i = bmin.i(); i < bmax.i(); i++) {
+      ent = 0;
+      rval = box->get_adj_edge_or_face(dim, i, bmax.j(), k, 1, ent, create_skin_elements);
+      if (MB_SUCCESS != rval) return rval;
+      if (ent) output_handles.insert(ent);
+    }
+  }
+    // k=min
+  for (int j = bmin.j(); j < bmax.j(); j++) {
+    for (int i = bmin.i(); i < bmax.i(); i++) {
+      ent = 0;
+      rval = box->get_adj_edge_or_face(dim, i, j, bmin.k(), 2, ent, create_skin_elements);
+      if (MB_SUCCESS != rval) return rval;
+      if (ent) output_handles.insert(ent);
+    }
+  }
+    // k=max
+  for (int j = bmin.j(); j < bmax.j(); j++) {
+    for (int i = bmin.i(); i < bmax.i(); i++) {
+      ent = 0;
+      rval = box->get_adj_edge_or_face(dim, i, j, bmax.k(), 2, ent, create_skin_elements);
+      if (MB_SUCCESS != rval) return rval;
+      if (ent) output_handles.insert(ent);
+    }
+  }
+
+  if (get_vertices) {
+    Range verts;
+    rval = thisMB->get_adjacencies(output_handles, 0, true, verts, Interface::UNION);
+    if (MB_SUCCESS != rval) return rval;
+    output_handles.merge(verts);
+  }
+  
+  return MB_SUCCESS;
 }
 
 ErrorCode Skinner::find_skin_noadj(const Range &source_entities,

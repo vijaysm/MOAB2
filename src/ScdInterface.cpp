@@ -366,4 +366,59 @@ ErrorCode ScdBox::get_params(EntityHandle ent, HomCoord &ijkd) const
   else return MB_NOT_IMPLEMENTED;
 }
     
+    //! Get the entity of specified dimension adjacent to parametric element
+    /**
+     * \param dim Dimension of adjacent entity being requested
+     * \param i Parametric coordinates of cell being evaluated
+     * \param j Parametric coordinates of cell being evaluated
+     * \param k Parametric coordinates of cell being evaluated
+     * \param dir Direction (0, 1, or 2), for getting adjacent edges (2d, 3d) or faces (3d) 
+     * \param ent EntityHandle of adjacent entity
+     * \param create_if_missing If true, creates the entity if it doesn't already exist
+     */
+ErrorCode ScdBox::get_adj_edge_or_face(int dim, int i, int j, int k, int dir, EntityHandle &ent,
+                                       bool create_if_missing) const 
+{
+    // describe connectivity of sub-element in static array
+    // subconnect[dim-1][dir][numv][ijk] where dimensions are:
+    // [dim-1]: dim=1 or 2, so this is 0 or 1
+    // [dir]: one of 0..2, for ijk directions in a hex
+    // [numv]: number of vertices describing sub entity = 2*dim <= 4
+    // [ijk]: 3 values for i, j, k
+  int subconnect[2][3][4][3] = {
+      {{{0, 0, 0}, {1, 0, 0}, {-1, -1, -1}, {-1, -1, -1}}, // i edge
+       {{0, 0, 0}, {0, 1, 0}, {-1, -1, -1}, {-1, -1, -1}}, // j edge
+       {{0, 0, 0}, {0, 0, 1}, {-1, -1, -1}, {-1, -1, -1}}}, // k edge
+
+      {{{0, 0, 0}, {0, 1, 0}, {0, 1, 1}, {0, 0, 1}}, // i face
+       {{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}, // j face
+       {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}}}}; // k face
+
+  if (i < boxDims[0] || i > boxDims[3] || j < boxDims[1] || j > boxDims[4] || k < boxDims[2] || k > boxDims[5])
+    return MB_FAILURE;
+  
+    // get the vertices making up this entity
+  EntityHandle verts[4];
+  for (int ind = 0; ind < 2*dim; ind++) {
+    verts[ind] = get_vertex(i+subconnect[dim-1][dir][ind][0],
+                            j+subconnect[dim-1][dir][ind][1],
+                            k+subconnect[dim-1][dir][ind][2]);
+    if (!verts[ind]) return MB_FAILURE;
+  }
+  
+  Range ents;
+  ErrorCode rval = scImpl->impl()->get_adjacencies(verts, 2*dim, dim, false, ents);
+  if (MB_SUCCESS != rval) return rval;
+
+  if (ents.size() > 1) return MB_FAILURE;
+  
+  else if (ents.size() == 1) {
+    ent = *ents.begin();
+  }
+  else if (create_if_missing)
+    rval = scImpl->impl()->create_element((1 == dim ? MBEDGE : MBQUAD), verts, 2*dim, ent);
+    
+  return rval;
+}
+    
 } // namespace moab

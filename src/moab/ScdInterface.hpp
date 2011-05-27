@@ -178,7 +178,11 @@ class ScdBox
   
 public:
 
+    //! Destructor
   ~ScdBox();
+
+    //! Return the ScdInterface responsible for this box
+  ScdInterface *sc_impl() const;
 
     //! Add a vertex box to this box
     /* Add a vertex box to the element sequence referenced by this box.  The passed in vbox must
@@ -320,17 +324,20 @@ public:
      */
   ErrorCode get_params(EntityHandle ent, HomCoord &ijkd) const;
   
-    //! Get the entity(ies) of specified dimension adjacent to parametric element
-    /**
+    /** \brief Get the adjacent edge or face at a parametric location
+     * This function gets the left (i=0), front (j=0), or bottom (k=0) edge or face for a parametric element.
+     * Left, front, or bottom is indicated by dir = 0, 1, or 2, resp.  All edges and faces in a structured
+     * mesh block can be accessed using these parameters.
      * \param dim Dimension of adjacent entity being requested
      * \param i Parametric coordinates of cell being evaluated
      * \param j Parametric coordinates of cell being evaluated
      * \param k Parametric coordinates of cell being evaluated
      * \param dir Direction (0, 1, or 2), for getting adjacent edges (2d, 3d) or faces (3d) 
-     * \param ents EntityHandle vector in which results are returned; should be large enough
-     *             to hold results, which could be up to 8 handles
+     * \param ent Entity returned from this function
+     * \param create_if_missing If true, creates the entity if it doesn't already exist
      */
-  ErrorCode get_adjancies(int dim, int i, int j, int k, int dir, EntityHandle *ents) const;
+  ErrorCode get_adj_edge_or_face(int dim, int i, int j, int k, int dir, EntityHandle &ent,
+                                 bool create_if_missing = true) const;
 
     //! Return whether the box contains the parameters passed in
     /**
@@ -440,6 +447,11 @@ private:
   int boxSizeIM1;
   
 };
+
+inline ScdInterface *ScdBox::sc_impl() const 
+{
+  return scImpl;
+}
 
 inline EntityHandle ScdBox::start_vertex() const
 {

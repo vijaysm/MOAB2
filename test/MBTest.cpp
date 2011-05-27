@@ -53,6 +53,7 @@
 #include "EntitySequence.hpp"
 #include "RangeSeqIntersectIter.hpp"
 #include "Error.hpp"
+#include "moab/ScdInterface.hpp"
 
 using namespace std;
 using namespace moab;
@@ -6508,6 +6509,48 @@ ErrorCode mb_skin_volume_test_common( bool use_adj )
   return MB_SUCCESS;
 }
 
+ErrorCode mb_skin_scd_test() 
+{
+    // make a 10x10x5 scd mesh
+  Core moab;
+  Interface *mb = &moab;
+  ScdInterface *scdi;
+  ErrorCode rval = mb->query_interface(scdi);
+  if (MB_SUCCESS != rval) return rval;
+  HomCoord low(0, 0, 0), high(10, 10, 5);
+  ScdBox *this_box;
+  rval = scdi->construct_box(low, high, NULL, 0, this_box);
+  if (MB_SUCCESS != rval) return rval;
+  
+    // now skin it with the structured and original method, and compare results
+  Skinner tool(mb);
+  Range ents(this_box->start_element(), this_box->start_element()+this_box->num_elements()-1),
+      scd_skin_ents, skin_ents;
+  rval = tool.find_skin(ents, false, scd_skin_ents, NULL, true, true, true);
+  if (MB_SUCCESS != rval) return rval;
+
+  rval = tool.find_skin(ents, false, skin_ents, NULL, true, true, false);
+  if (MB_SUCCESS != rval) return rval;
+
+    // should be same number of entities
+  if (scd_skin_ents.size() != skin_ents.size()) return MB_FAILURE;
+  
+  skin_ents.clear();
+  scd_skin_ents.clear();
+  
+    // now test getting faces and vertices, also with existing faces now
+  rval = tool.find_skin(ents, true, scd_skin_ents, NULL, true, true, true);
+  if (MB_SUCCESS != rval) return rval;
+
+  rval = tool.find_skin(ents, true, skin_ents, NULL, true, true, false);
+  if (MB_SUCCESS != rval) return rval;
+
+    // again, should have same numbers
+  if (skin_ents.subset_by_type(MBVERTEX).size() != scd_skin_ents.subset_by_type(MBVERTEX).size()) 
+    return MB_FAILURE;
+  
+  return MB_SUCCESS;
+}
 
 // It is a common problem for readers to incorrectly
 // handle invalid/unknown file types and non-existant 
@@ -8389,6 +8432,7 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_skin_regions_full_test );
   RUN_TEST( mb_skin_adj_regions_full_test );
   RUN_TEST( mb_skin_adjacent_surf_patches );
+  RUN_TEST(mb_skin_scd_test);
   RUN_TEST( mb_read_fail_test );
   RUN_TEST( mb_enum_string_test );
   RUN_TEST( mb_merge_update_test );

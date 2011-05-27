@@ -23,6 +23,8 @@
 
 namespace moab {
 
+class ScdBox;
+    
 /** \class Skinner
  * \brief Class for constructing and querying skin of a mesh
  * Class for constructing and querying skin of a mesh, defined as the outside lower-dimensional 
@@ -68,11 +70,12 @@ public:
      *        will be returned
      */
   ErrorCode find_skin( const Range &entities,
-                         bool get_vertices,
-                         Range &output_handles,
-                         Range *output_reverse_handles = 0,
-                         bool create_vert_elem_adjs = false,
-                         bool create_skin_elements = true);
+                       bool get_vertices,
+                       Range &output_handles,
+                       Range *output_reverse_handles = 0,
+                       bool create_vert_elem_adjs = false,
+                       bool create_skin_elements = true,
+                       bool look_for_scd = false);
 
     /**\brief get skin entities of prescribed dimension
      * \param entities The elements for which to find the skin
@@ -236,6 +239,17 @@ protected:
   bool edge_reversed( EntityHandle face, const EntityHandle edge_ends[2] );
   bool face_reversed( EntityHandle region, const EntityHandle* face_conn, 
                       EntityType face_type );
+
+    //! look for structured box comprising source_entities, and if one is found use
+    //! structured information to find the skin
+  ErrorCode find_skin_scd(const Range& source_entities,
+                          bool get_vertices,
+                          Range& output_handles,
+                          bool create_skin_elements);
+  
+    //! skin a structured box, taking advantage of structured information
+  ErrorCode skin_box(ScdBox *box, bool get_vertices, Range &output_handles, 
+                     bool create_skin_elements);
 };
 
 } // namespace moab 

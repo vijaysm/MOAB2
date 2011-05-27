@@ -59,6 +59,8 @@ int create_2dtri_3_sequences(ScdInterface *scdi,
 int create_3dtri_3_sequences(ScdInterface *scdi,
                              const int int1, const int int2, const int int3, const int int4,
                              ScdBox **vseq, ScdBox **eseq);
+ErrorCode access_adjacencies(ScdBox *box);
+
 
 // first comes general-capability code used by various tests; main and test functions
 // come after these, starting with main
@@ -473,6 +475,12 @@ int eseq_test1b(ScdInterface *scdi, HomCoord tmp_min, HomCoord tmp_max)
     errors++;
   }
 
+  result = access_adjacencies(ebox);
+  if (MB_SUCCESS != result) {
+    std::cout << "Trouble evaluating adjacencies on ebox." << std::endl;
+    errors++;
+  }
+  
   return errors;
 }
 
@@ -515,6 +523,12 @@ int eseq_test1c(ScdInterface *scdi, HomCoord tmp_min, HomCoord tmp_max)
     errors++;
   }
 
+  result = access_adjacencies(ebox);
+  if (MB_SUCCESS != result) {
+    std::cout << "Trouble evaluating adjacencies on ebox." << std::endl;
+    errors++;
+  }
+  
   return errors;
 }
 
@@ -579,9 +593,10 @@ int eseq_test2b(ScdInterface *scdi)
   }
 
     // check/evaluate element sequences
+  ErrorCode result;
   for (int i = 0; i < 3; i++) {
-    ErrorCode result = check_element_sequence(ebox[i], ebox[i]->box_min(), ebox[i]->box_max(), 
-                                              ebox[i]->start_element());
+    result = check_element_sequence(ebox[i], ebox[i]->box_min(), ebox[i]->box_max(), 
+                                    ebox[i]->start_element());
     if (MB_SUCCESS != result) {
       std::cout << "2d composite element sequence " << i << " didn't pass check." << std::endl;
       errors++;
@@ -590,6 +605,14 @@ int eseq_test2b(ScdInterface *scdi)
     result = evaluate_element_sequence(ebox[i]);
     if (MB_SUCCESS != result) {
       std::cout << "2d composite element sequence " << i << " didn't evaluate correctly." << std::endl;
+      errors++;
+    }
+  }
+
+  for (int i = 0; i < 3; i++) {
+    result = access_adjacencies(ebox[i]);
+    if (MB_SUCCESS != result) {
+      std::cout << "Trouble evaluating adjacencies on ebox." << std::endl;
       errors++;
     }
   }
@@ -611,9 +634,10 @@ int eseq_test2c(ScdInterface *scdi)
     // whew; that's done; now check and evaluate
 
     // check/evaluate element sequences
+  ErrorCode result;
   for (int i = 0; i < 3; i++) {
-    ErrorCode result = check_element_sequence(ebox[i], ebox[i]->box_min(), ebox[i]->box_max(), 
-                                              ebox[i]->start_element());
+    result = check_element_sequence(ebox[i], ebox[i]->box_min(), ebox[i]->box_max(), 
+                                    ebox[i]->start_element());
     if (MB_SUCCESS != result) {
       std::cout << "2d tri-composite element sequence " << i << " didn't pass check." << std::endl;
       errors++;
@@ -626,6 +650,14 @@ int eseq_test2c(ScdInterface *scdi)
     }
   }
   
+  for (int i = 0; i < 3; i++) {
+    result = access_adjacencies(ebox[i]);
+    if (MB_SUCCESS != result) {
+      std::cout << "Trouble evaluating adjacencies on ebox." << std::endl;
+      errors++;
+    }
+  }
+
   return errors;
 }
 
@@ -643,9 +675,10 @@ int eseq_test2d(ScdInterface *scdi)
     // whew; that's done; now check and evaluate
 
     // check/evaluate element sequences
+  ErrorCode result;
   for (int i = 0; i < 3; i++) {
-    ErrorCode result = check_element_sequence(ebox[i], ebox[i]->box_min(), ebox[i]->box_max(), 
-                                              ebox[i]->start_element());
+    result = check_element_sequence(ebox[i], ebox[i]->box_min(), ebox[i]->box_max(), 
+                                    ebox[i]->start_element());
     if (MB_SUCCESS != result) {
       std::cout << "3d tri-composite element sequence " << i << " didn't pass check." << std::endl;
       errors++;
@@ -658,6 +691,14 @@ int eseq_test2d(ScdInterface *scdi)
     }
   }
   
+  for (int i = 0; i < 3; i++) {
+    result = access_adjacencies(ebox[i]);
+    if (MB_SUCCESS != result) {
+      std::cout << "Trouble evaluating adjacencies on ebox." << std::endl;
+      errors++;
+    }
+  }
+
   return errors;
 }
 
@@ -1277,3 +1318,97 @@ int create_3dtri_3_sequences(ScdInterface *scdi,
   return errors;
 }
 
+ErrorCode access_adjacencies(ScdBox *box) 
+{
+    // access the adjacencies in this box in a few places
+  HomCoord box_size = box->box_size(), box_min = box->box_min(), box_max = box->box_max();
+  
+  EntityHandle dum_entity;
+  const EntityHandle *connect;
+  int num_connect;
+  ErrorCode rval;
+  bool is_2d = (box_size.k() <= 1);
+
+    // edges first; bottom:
+  for (int dir = 0; dir < 3; dir++) {
+      // don't do 3rd direction for 2d box
+    if (2 == dir && is_2d) continue;
+    
+    rval = box->get_adj_edge_or_face(1, box_min.i(), box_min.j(), box_min.k(), dir, dum_entity, true);
+    if (MB_SUCCESS != rval) return rval;
+  
+      // do a simple API call on that entity to make sure we can
+    rval = box->sc_impl()->impl()->get_connectivity(dum_entity, connect, num_connect);
+    if (MB_SUCCESS != rval) return rval;
+  }
+    // middle:
+  for (int dir = 0; dir < 3; dir++) {
+      // don't do 3rd direction for 2d box
+    if (2 == dir && is_2d) continue;
+    
+    rval = box->get_adj_edge_or_face(1, box_min.i()+.5*box_size.i(), 
+                                     box_min.j()+.5*box_size.j(), box_min.k()+.5*box_size.k(), 
+                                     dir, dum_entity, true);
+    if (MB_SUCCESS != rval) return rval;
+  
+      // do a simple API call on that entity to make sure we can
+    rval = box->sc_impl()->impl()->get_connectivity(dum_entity, connect, num_connect);
+    if (MB_SUCCESS != rval) return rval;
+  }
+  
+    // top:
+  for (int dir = 0; dir < 3; dir++) {
+      // don't do 3rd direction for 2d box
+    if (2 == dir && is_2d) continue;
+    
+    rval = box->get_adj_edge_or_face(1, box_max.i(), box_max.j(), box_max.k(),
+                                     dir, dum_entity, true);
+    if (MB_SUCCESS != rval) return rval;
+  
+      // do a simple API call on that entity to make sure we can
+    rval = box->sc_impl()->impl()->get_connectivity(dum_entity, connect, num_connect);
+    if (MB_SUCCESS != rval) return rval;
+  }
+  
+  if (is_2d) return MB_SUCCESS;
+
+    // now faces; bottom:
+  for (int dir = 0; dir < 3; dir++) {
+    rval = box->get_adj_edge_or_face(2, box_min.i(), box_min.j(), box_min.k(), dir, dum_entity, true);
+    if (MB_SUCCESS != rval) return rval;
+  
+      // do a simple API call on that entity to make sure we can
+    rval = box->sc_impl()->impl()->get_connectivity(dum_entity, connect, num_connect);
+    if (MB_SUCCESS != rval) return rval;
+  }
+    // middle:
+  for (int dir = 0; dir < 3; dir++) {
+      // don't do 3rd direction for 2d box
+    if (2 == dir && is_2d) continue;
+    
+    rval = box->get_adj_edge_or_face(2, box_min.i()+.5*box_size.i(), 
+                                     box_min.j()+.5*box_size.j(), box_min.k()+.5*box_size.k(), 
+                                     dir, dum_entity, true);
+    if (MB_SUCCESS != rval) return rval;
+  
+      // do a simple API call on that entity to make sure we can
+    rval = box->sc_impl()->impl()->get_connectivity(dum_entity, connect, num_connect);
+    if (MB_SUCCESS != rval) return rval;
+  }
+  
+    // top:
+  for (int dir = 0; dir < 3; dir++) {
+      // don't do 3rd direction for 2d box
+    if (2 == dir && is_2d) continue;
+    
+    rval = box->get_adj_edge_or_face(2, box_max.i(), box_max.j(), box_max.k(),
+                                     dir, dum_entity, true);
+    if (MB_SUCCESS != rval) return rval;
+  
+      // do a simple API call on that entity to make sure we can
+    rval = box->sc_impl()->impl()->get_connectivity(dum_entity, connect, num_connect);
+    if (MB_SUCCESS != rval) return rval;
+  }
+
+  return MB_SUCCESS;
+}

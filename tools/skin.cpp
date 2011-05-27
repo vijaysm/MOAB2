@@ -50,7 +50,7 @@ static void usage( const char* argv0, bool help = false )
   std::ostream& str = help ? std::cout : std::cerr;
 
   str << "Usage: " << argv0 
-      << " [-b <block_num> [-b ...] ] [-l] [-m] [-M <n>] [-p] [-s <sideset_num>] [-t|-T <name>] [-w] [-v|-V <n>]"
+      << " [-b <block_num> [-b ...] ] [-l] [-m] [-M <n>] [-p] [-s <sideset_num>] [-S] [-t|-T <name>] [-w] [-v|-V <n>]"
       << " <input_file> [<output_file>]" << std::endl;
   str << "Help : " << argv0 << " -h" << std::endl;
   if (!help)
@@ -61,6 +61,7 @@ static void usage( const char* argv0, bool help = false )
   str << "-b <block_num> : Compute skin only for material set/block <block_num>." << std::endl;
   str << "-p : Print cpu & memory performance." << std::endl;
   str << "-s <sideset_num> : Put skin in neumann set/sideset <sideset_num>." << std::endl;
+  str << "-S : Look for and use structured mesh information to speed up skinning." << std::endl;
   str << "-t : Set '" << DEFAULT_FIXED_TAG << "' tag on skin vertices." << std::endl;
   str << "-T <name> : Create tag with specified name and set to 1 on skin vertices." << std::endl;
   str << "-w : Write out whole mesh (otherwise just writes skin)." << std::endl;
@@ -83,6 +84,7 @@ int main( int argc, char* argv[] )
   bool merge_vertices = false;
   double merge_epsilon = -1;
   bool list_skin = false;
+  bool use_scd = false;
   const char* fixed_tag = DEFAULT_FIXED_TAG;
   const char *input_file = 0, *output_file = 0;
   
@@ -102,6 +104,7 @@ int main( int argc, char* argv[] )
           case '-': no_more_flags = true;      break;
           case 'h': usage( argv[0], true );    break;
           case 'l': list_skin = true;          break;
+          case 'S': use_scd = true;            break;
           case 'b': 
             if (i == argc || 0 >= (block = strtol(argv[i],&endptr,0)) || *endptr) {
               std::cerr << "Expected positive integer following '-b' flag" << std::endl;
@@ -260,7 +263,10 @@ int main( int argc, char* argv[] )
     // skin the mesh
   Range forward_lower, reverse_lower;
   Skinner tool( iface );
-  result = tool.find_skin( skin_ents, false, forward_lower, &reverse_lower );
+  if (use_scd) 
+    result = tool.find_skin( skin_ents, false, forward_lower, NULL, false, true, true);
+  else
+    result = tool.find_skin( skin_ents, false, forward_lower, &reverse_lower );
   Range boundary;
   boundary.merge( forward_lower );
   boundary.merge( reverse_lower );
@@ -408,8 +414,8 @@ int main( int argc, char* argv[] )
     get_time_mem(tot_time, tot_mem);
     std::cout << "Total cpu time = " << tot_time << " seconds." << std::endl;
     std::cout << "Total skin cpu time = " << tot_time-tmp_time << " seconds." << std::endl;
-    std::cout << "Total memory = " << tot_mem/1.0e6 << " MB." << std::endl;
-    std::cout << "Total skin memory = " << (tot_mem-tmp_mem)/1.0e6 << " MB." << std::endl;
+    std::cout << "Total memory = " << tot_mem/1024 << " MB." << std::endl;
+    std::cout << "Total skin memory = " << (tot_mem-tmp_mem)/1024 << " MB." << std::endl;
     std::cout << "Entities: " << std::endl;
     iface->list_entities(0, 0);
   }
@@ -435,7 +441,7 @@ void get_time_mem(double &tot_time, double &tot_mem)
   tot_time = utime + stime;
   tot_mem = 0;
   if (0 != r_usage.ru_maxrss) {
-    tot_mem = (double)r_usage.ru_idrss; 
+    tot_mem = (double)r_usage.ru_maxrss; 
   }
   else {
       // this machine doesn't return rss - try going to /proc

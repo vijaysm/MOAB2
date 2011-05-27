@@ -3231,13 +3231,15 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle /*this_set*/,
 
     // find the skin
   Skinner skinner(mbImpl);
-  result = skinner.find_skin(skin_ents[skin_dim+1], false, skin_ents[skin_dim],
-                             0, true);
+  result = skinner.find_skin(skin_ents[skin_dim+1], true, skin_ents[skin_dim],
+                             NULL, true, true, true);
   RRA("Failed to find skin.");
   myDebug->tprintf(1, "Found skin, now resolving.\n");
 
     // get entities adjacent to skin ents from shared_dim down to zero
-  for (int this_dim = skin_dim-1; this_dim >= 0; this_dim--) {
+  skin_ents[0] = skin_ents[skin_dim].subset_by_type(MBVERTEX);
+  skin_ents[skin_dim] -= skin_ents[0];
+  for (int this_dim = skin_dim-1; this_dim > 0; this_dim--) {
     result = mbImpl->get_adjacencies(skin_ents[skin_dim], this_dim,
                                      true, skin_ents[this_dim],
                                      Interface::UNION);
