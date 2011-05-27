@@ -22,10 +22,16 @@ int main(int argc, char **argv) {
   ErrorCode result;
   std::string filename = argv[1];
   result = MBI->load_file( filename.c_str() );
-    assert( MB_SUCCESS == result );
+  if ( MB_SUCCESS != result ) {
+    std::cout << "Error reading file." << std::endl;
+    return 1;
+  }
 
   result = quads_to_tris( MBI, 0 );
-    assert( MB_SUCCESS == result );
+  if ( MB_SUCCESS != result ) {
+    std::cout << "Error converting to tris." << std::endl;
+    return 1;
+  }
 
 
   // Write the file that has been converted from quads to tris.

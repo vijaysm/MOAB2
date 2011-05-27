@@ -217,7 +217,7 @@ public:
   Range& operator=(const Range& copy);
   
   //! destructor
-  ~Range();
+  inline ~Range();
 
   //! return the beginning const iterator of this range
   inline const_iterator begin() const;
