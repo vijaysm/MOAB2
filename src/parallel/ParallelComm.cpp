@@ -1719,7 +1719,7 @@ ErrorCode ParallelComm::unpack_entities(unsigned char *&buff_ptr,
         //=======================================
       bool created_here = false;
       if (!new_h && !is_iface) {
-        
+
         if (MBVERTEX == this_type) {
             // create a vertex
           result = mbImpl->create_vertex(coords, new_h);
@@ -4779,7 +4779,7 @@ ErrorCode ParallelComm::recv_buffer(int mesg_tag_expected,
       }
 
     }
-    
+
       // send 2nd message
     PRINT_DEBUG_ISEND(procConfig.proc_rank(), from_proc, 
                       send_buff->mem_ptr+INITIAL_BUFF_SIZE,
@@ -4803,7 +4803,7 @@ ErrorCode ParallelComm::recv_buffer(int mesg_tag_expected,
       // message completely received - signal that we're done
     done = true;
   }
-  
+
   return MB_SUCCESS;
 }
 
@@ -5334,6 +5334,10 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
   ErrorCode result = MB_SUCCESS;
   int incoming1 = 0, incoming2 = 0;
 
+  // clear all buffers
+  delete_all_buffers();
+  buffProcs.clear();
+
   // set buffProcs with communicating procs
   int n_proc = exchange_procs.size();
   for (i = 0; i < n_proc; i++) {
@@ -5363,10 +5367,8 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
   // index reqs the same as buffer/sharing procs indices
   std::vector<MPI_Request> recv_ent_reqs(2*buffProcs.size(), MPI_REQUEST_NULL),
     recv_remoteh_reqs(2*buffProcs.size(), MPI_REQUEST_NULL);
-  std::vector<unsigned int>::iterator proc_it;
   sendReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
-  for (i = 0; i < n_proc; i++) {
-    ind = get_buffers(exchange_procs[i]);
+  for (ind = 0; ind < buffProcs.size(); ind++) {
     incoming1++;
     PRINT_DEBUG_IRECV(procConfig.proc_rank(), buffProcs[ind], 
                       remoteOwnedBuffs[ind]->mem_ptr, INITIAL_BUFF_SIZE, 
@@ -5420,15 +5422,12 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
   //===========================================
   // pack and send ents from this proc to others
   //===========================================
-  for (i = 0; i < n_proc; i++) {
-    ind = get_buffers(exchange_procs[i]);
-
-    myDebug->tprintf(1, "Sent ents compactness (size) = %f (%lu)\n", exchange_ents[i]->compactness(),
-                     exchange_ents[i]->size());
-    
+  for (ind = 0; ind < buffProcs.size(); ind++) {
+    myDebug->tprintf(1, "Sent ents compactness (size) = %f (%lu)\n", exchange_ents[ind]->compactness(),
+                     exchange_ents[ind]->size());
     // reserve space on front for size and for initial buff size
     localOwnedBuffs[ind]->reset_buffer(sizeof(int));
-    result = pack_buffer(*exchange_ents[i], false, true,
+    result = pack_buffer(*exchange_ents[ind], false, true,
                          store_remote_handles, buffProcs[ind],
                          localOwnedBuffs[ind], &entprocs, &allsent);
 
@@ -5438,7 +5437,7 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
     }
     
     // send the buffer (size stored in front in send_buffer)
-    result = send_buffer(exchange_procs[i], localOwnedBuffs[ind], 
+    result = send_buffer(exchange_procs[ind], localOwnedBuffs[ind], 
                          MB_MESG_ENTS_SIZE, sendReqs[2*ind], 
                          recv_ent_reqs[2*ind+1], &dum_ack_buff,
                          incoming1,
@@ -5462,7 +5461,7 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
   std::vector<EntityHandle> L2hloc, L2hrem;
   std::vector<unsigned int> L2p;
   std::vector<EntityHandle> new_ents;
-  
+
   while (incoming1) {
     // wait for all recvs of ents before proceeding to sending remote handles,
     // b/c some procs may have sent to a 3rd proc ents owned by me;
@@ -5513,8 +5512,7 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
       }
       
       if (recv_ent_reqs.size() != 2*buffProcs.size()) {
-        // post irecv's for remote handles from new proc; shouldn't be iface, 
-        // since we know about all procs we share with
+        // post irecv's for remote handles from new proc
         recv_remoteh_reqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
         for (unsigned int i = recv_ent_reqs.size(); i < 2*buffProcs.size(); i+=2) {
           localOwnedBuffs[i/2]->reset_buffer();
@@ -5553,14 +5551,12 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
   //===========================================
   // send local handles for new entity to owner
   //===========================================
-  for (i = 0; i < n_proc; i++) {
-    ind = get_buffers(exchange_procs[i]);
-    
+  for (ind = 0; ind < buffProcs.size(); ind++) {
     // reserve space on front for size and for initial buff size
     remoteOwnedBuffs[ind]->reset_buffer(sizeof(int));
     
-    result = pack_remote_handles(L1hloc[ind], L1hrem[ind], L1p[ind], exchange_procs[i],
-                                 remoteOwnedBuffs[ind]);
+    result = pack_remote_handles(L1hloc[ind], L1hrem[ind], L1p[ind],
+                                 buffProcs[ind], remoteOwnedBuffs[ind]);
     RRA("Failed to pack remote handles.");
     remoteOwnedBuffs[ind]->set_stored_size();
 
@@ -5585,7 +5581,7 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
       result = MB_FAILURE;
       RRA("Failed in waitany in owned entity exchange.");
     }
-    
+
     // ok, received something; decrement incoming counter
     incoming2--;
     
@@ -5600,6 +5596,7 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
                          sendReqs[base_ind], sendReqs[base_ind+1],
                          done);
     RRA("Failed to receive remote handles.");
+
     if (done) {
       // incoming remote handles
       if (myDebug->get_verbosity() == 4) {
