@@ -240,7 +240,7 @@ struct CompSortedVect {
   {
     std::vector<EntityHandle>::const_iterator i1, i2;
     for (i1 = v1->begin(), i2 = v2->begin(); i1 != v1->end(); ++i1, ++i2) {
-      if (*i1 > *i2 || i2 == v2->end())
+      if (i2 == v2->end() || *i1 > *i2)
         return false;
       else if (*i1 < *i2)
         return true;
