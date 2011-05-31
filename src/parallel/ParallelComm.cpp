@@ -2518,7 +2518,7 @@ ErrorCode ParallelComm::pack_sets(Range &entities,
     result = mbImpl->tag_get_data(uid_tag, all_sets, &id_data[0]);
     if (MB_TAG_NOT_FOUND != result) {
       RRA("Trouble getting parallel geometry unique ids.");
-      for (int i = 0; i < n_sets; i++) {
+      for (i = 0; i < n_sets; i++) {
         if (id_data[i] != 0) {
           b_pack = true;
           break;
@@ -2673,7 +2673,7 @@ ErrorCode ParallelComm::unpack_sets(unsigned char *&buff_ptr,
     }
 
     // find existing sets
-    for (int i = 0; i < n_uid; i++) {
+    for (i = 0; i < n_uid; i++) {
       EntityHandle set_handle;
       Range temp_sets;
       void* tag_vals[] = { &uids[i] };
@@ -3018,7 +3018,7 @@ ErrorCode ParallelComm::get_tag_send_list( const Range& whole_range,
 
 ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
                                     std::vector<EntityHandle> &entities,
-                                        const bool store_remote_handles,
+                                    const bool /*store_remote_handles*/,
                                     const int /*from_proc*/)
 {
     // tags
@@ -5332,7 +5332,8 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
     msgs.clear();
     msgs.reserve(MAX_SHARING_PROCS);
   }
-  int i, ind, success;
+  unsigned int i;
+  int ind, success;
   ErrorCode result = MB_SUCCESS;
   int incoming1 = 0, incoming2 = 0;
 
@@ -5341,7 +5342,7 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
   buffProcs.clear();
 
   // set buffProcs with communicating procs
-  int n_proc = exchange_procs.size();
+  unsigned int n_proc = exchange_procs.size();
   for (i = 0; i < n_proc; i++) {
     ind = get_buffers(exchange_procs[i]);
     result = add_verts(*exchange_ents[i]);
@@ -5516,7 +5517,7 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
       if (recv_ent_reqs.size() != 2*buffProcs.size()) {
         // post irecv's for remote handles from new proc
         recv_remoteh_reqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
-        for (unsigned int i = recv_ent_reqs.size(); i < 2*buffProcs.size(); i+=2) {
+        for (i = recv_ent_reqs.size(); i < 2*buffProcs.size(); i+=2) {
           localOwnedBuffs[i/2]->reset_buffer();
           incoming2++;
           PRINT_DEBUG_IRECV(procConfig.proc_rank(), buffProcs[i/2], 
