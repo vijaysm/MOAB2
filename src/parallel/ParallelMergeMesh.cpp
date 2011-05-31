@@ -7,21 +7,19 @@
 #include "moab/MergeMesh.hpp"
 #include "moab/ParallelComm.hpp"
 #include "moab/CN.hpp"
+#include "float.h"
+#include <algorithm>
 
 extern "C" 
 {
-  //#include "errmem.h"
-  //#include "types.h"
-  //#include "sort.h"
-  //#include "tuple_list.h"
 #include "crystal.h"
 #include "transfer.h"
 }
 
-#include <algorithm>
 #ifdef USE_MPI
-#  include "moab_mpi.h"
+  #include "moab_mpi.h"
 #endif
+
 
 namespace moab{
 
@@ -33,6 +31,7 @@ namespace moab{
   {
   }
 
+  //Merges elements within a proximity of epsilon
   //Perform Merge
   ErrorCode ParallelMergeMesh::merge() 
   {
@@ -52,7 +51,7 @@ namespace moab{
     }
 
     //Merge Mesh Locally
-    MergeMesh merger(mb);
+    MergeMesh merger(mb, false);
     merger.merge_entities(ents,myEps);
     //We can return if there is only 1 proc
     if(rval != MB_SUCCESS || myPcomm->size() == 1){
@@ -68,7 +67,6 @@ namespace moab{
 
     /*3)Get Skin
       -Get Range of 0 dimensional entities*/
-    //Look into improving by using higher skin
     std::vector<Range> skin_ents(4);
     Skinner skinner(mb);
     for(int skin_dim = dim; skin_dim >= 0; skin_dim--){
@@ -76,20 +74,27 @@ namespace moab{
       if(rval != MB_SUCCESS){
 	return rval;
       }
-      /*ents = skin_ents[skin_dim];
-      ents.clear();
-      rval = mb->get_entities_by_dimension(0,dim,ents);
-      if(rval != MB_SUCCESS){
-	return rval;
-	}*/
     }
  
     /*4)Get Bounding Box*/
-    AdaptiveKDTree kd(mb);
     double box[6], gbox[6];
-    rval = kd.bounding_box(skin_ents[0],box, box+3);
-    if(rval != MB_SUCCESS){
-      return rval;
+    if(skin_ents[0].size() != 0){
+      AdaptiveKDTree kd(mb);
+      rval = kd.bounding_box(skin_ents[0],box, box+3);
+      if(rval != MB_SUCCESS){
+	return rval;
+      }
+    }
+    //If there are no entities...
+    else{
+      for(int i=0;i<6;i++){
+	if(i < 3){
+	  box[i] = DBL_MAX;
+	}
+	else{
+	  box[i] = DBL_MIN;
+	}
+      }
     }
 
     //Invert the max
@@ -130,7 +135,7 @@ namespace moab{
     int maxProc = myPcomm->size()-1;
     unsigned long j=0, tup_i=0,tup_ul=0,tup_r=0;
     for(Range::iterator it = skin_ents[0].begin();it != skin_ents[0].end();it++){
-      //Calculate the toprocessor
+      //Calculate the to processor
       int toproc1 = static_cast<int>(floor((x[j]-gbox[0])/length));    
       int toproc2 = static_cast<int>(floor((x[j]+eps2-gbox[0])/length));
       
@@ -179,14 +184,6 @@ namespace moab{
     buffer_init(&buf, max_size);
     //Sort by x,y,z
     temp_tuple_sort_real(&tup,eps2);
-    //Print out the tuples to check for order
-    if(myPcomm->rank()==0 && false){
-      int g = 0;
-      for(unsigned a=0;a<tup.n-1;a++){
-	std::cout<<tup.vr[g]<<" : "<<tup.vr[g+1]<<" : "<<tup.vr[g+2]<<std::endl;
-	g += tup.mr;
-      }
-    }
 
     /* 12)Match: new tuple list*/
     tuple_list matches;
@@ -258,7 +255,8 @@ namespace moab{
     moab_tuple_list_sort(&matches,1,&buf);
     //Sort by local handle
     moab_tuple_list_sort(&matches,2,&buf);
-    
+    buffer_free(&buf);
+
     //Manipulate the matches list to tag vertices and entities
     //Set up proc ents
     Range proc_ents;
@@ -278,39 +276,7 @@ namespace moab{
 	upper = proc_ents.upper_bound(CN::TypeDimensionMap[dim-1].second);
       proc_ents.erase(lower, upper);
     }
-
-    //Build up a shared verts tup to utilize tag_shared_verts
-    tuple_list shared_verts;
-    tuple_list_init_max(&shared_verts,2,0,1,0,matches.n);
-    tup_i=0; tup_ul=0; i=0; mat_ul = 0; mat_i = 0;
-    unsigned n = 0;
-    while(n<matches.n){
-      unsigned localHand = matches.vul[mat_ul], remHand = matches.vul[mat_ul+1];
-      int remProc = matches.vi[mat_i+1];
-      assert(remProc != (int) myPcomm->rank());
-      //Add to shared verts list
-      shared_verts.vi[tup_i++] = skin_ents[0].index(localHand);
-      shared_verts.vi[tup_i++] = remProc;
-      shared_verts.vul[tup_ul++] = remHand;
-      n++; 
-      mat_ul+=matches.mul; 
-      mat_i += matches.mi;
-      shared_verts.n++;
-      //Move past duplicates
-      while(n < matches.n && 
-	    localHand == matches.vul[mat_ul] &&
-	    remHand == matches.vul[mat_ul+1] &&
-	    remProc == matches.vi[mat_i+1]){
-	n++; 
-	mat_ul+=matches.mul; 
-	mat_i += matches.mi;
-      }
-    }
-    tuple_list_free(&matches);
-
-    //Sort the shared_verts tuples
-    moab_tuple_list_sort(&shared_verts,0,&buf);
-    buffer_free(&buf);
+    
 
     //This vector doesnt appear to be used but its in resolve_shared
     int maxp = -1;
@@ -324,18 +290,17 @@ namespace moab{
     rval = mb->get_adjacencies(proc_ents, 0, false, proc_verts,
 				   Interface::UNION);
     if(rval != MB_SUCCESS){
-      tuple_list_free(&shared_verts);
       return rval;
     }
-    rval = myPcomm->tag_shared_verts(shared_verts,&skin_ents[0],
-				     proc_nranges, proc_verts);
-    tuple_list_free(&shared_verts);
+    rval = myPcomm->tag_shared_verts(matches, proc_nranges, proc_verts);
     if(rval != MB_SUCCESS){
+      tuple_list_free(&matches);
       return rval;
     }
     
     // get entities shared by 1 or n procs
     rval = myPcomm->tag_shared_ents(dim,dim-1, &skin_ents[0],proc_nranges);
+    tuple_list_free(&matches);
     if(rval != MB_SUCCESS){
       return rval;
     }
