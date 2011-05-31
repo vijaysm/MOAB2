@@ -292,7 +292,7 @@ namespace moab{
     if(rval != MB_SUCCESS){
       return rval;
     }
-    rval = myPcomm->tag_shared_verts(matches, proc_nranges, proc_verts);
+    rval = myPcomm->tag_shared_verts(matches, &skin_ents[0], proc_nranges, proc_verts);
     if(rval != MB_SUCCESS){
       tuple_list_free(&matches);
       return rval;
