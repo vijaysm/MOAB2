@@ -56,10 +56,12 @@ public:
   ErrorCode find_geometric_skin(Range &forward_target_entities);
   
     /**\brief will accept entities all of one dimension and 
-     *        return entities of n-1 dimension
+     *        return entities of n-1 dimension; NOTE: get_vertices argument controls whether
+     * vertices or entities of n-1 dimension are returned, and only one of these is allowed
+     * (i.e. this function returns only vertices or (n-1)-dimensional entities, but not both)
      * \param entities The elements for which to find the skin
-     * \param get_vertices If true, vertices on the skin are also returned 
-     *        in the range
+     * \param get_vertices If true, vertices on the skin are returned 
+     *        in the range, otherwise elements are returned
      * \param output_handles Range holding skin entities returned
      * \param output_reverse_handles Range holding entities on skin which 
      *        are reversed wrt entities
