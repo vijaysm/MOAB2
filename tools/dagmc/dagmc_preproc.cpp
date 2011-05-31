@@ -1,12 +1,12 @@
+#include "dagmc_preproc.hpp"
 #include "ProgOptions.hpp"
 
 #include "moab/Core.hpp"
-#include "moab/Interface.hpp"
 #include "moab/Range.hpp"
 #include "moab/CartVect.hpp"
 #include "MBTagConventions.hpp"
+#include "DagMC.hpp"
 
-#include <iostream>
 #include <sstream>
 #include <iomanip>
 #include <cstdlib>
@@ -14,7 +14,30 @@
 
 using namespace moab;
 
-static bool verbose = false;
+bool verbose = false;
+
+void chkerr( Interface* mbi, ErrorCode code, int line, const char* file ){
+
+  if( code != MB_SUCCESS ){
+    std::cerr << "Error: " << mbi->get_error_string(code) << " (" << code << ")" << std::endl;
+    std::string message;
+    if (MB_SUCCESS == mbi->get_last_error(message) && !message.empty())
+      std::cerr << "Error message: " << message << std::endl;
+    std::string fname = file;
+    size_t slash = fname.find_last_of('/');
+    if( slash != fname.npos ){ fname = fname.substr(slash+1); }
+    std::cerr << "At " << fname << " line: " << line  << std::endl;
+    std::exit( EXIT_FAILURE );
+  }
+}
+
+void chkerr( Interface& mbi, ErrorCode code, int line, const char* file ){
+  chkerr( &mbi, code, line, file );
+}
+
+void chkerr( DagMC& dag, ErrorCode code, int line, const char* file ){
+  chkerr( dag.moab_instance(), code, line, file );
+}
 
 /**
  * Estimate the volume of the surface (actually multiplied by a factor of six).
@@ -205,30 +228,22 @@ static ErrorCode merge_input_surfs( Interface *mbi,
   return MB_SUCCESS;
 }
 
-/**
- * Kill the program informatively if code != MB_SUCCESS 
- */
-static void CHECKERR( Interface& mbi, ErrorCode code ){
-  if( code != MB_SUCCESS ){
-    std::cerr << "Error: " << mbi.get_error_string(code) << " (" << code << ")" << std::endl;
-    std::string message;
-      if (MB_SUCCESS == mbi.get_last_error(message) && !message.empty())
-        std::cerr << "Error message: " << message << std::endl;
-    std::exit( EXIT_FAILURE );
-  }
-}
-
-
 int main( int argc, char* argv[] ){
 
   ProgOptions po("dagmc_preproc: a tool for preprocessing CAD and mesh files for DAGMC analysis");
 
   std::string input_file;
   std::string output_file = "dagmc_preproc_out.h5m";
+  int grid = 50;
 
   po.addOpt<void>( ",v", "Verbose output", &verbose );
-  po.addOpt<std::string>( ",o", "Specify output file name (default "+output_file+")", &output_file );
+  po.addOpt<std::string>( "outmesh,o", "Specify output file name (default "+output_file+")", &output_file );
+  po.addOpt<void>("no-outmesh,", "Do not write an output mesh" );
   po.addOpt<std::string>( ",m", "Specify alternate input mesh to override surfaces in input_file" );
+  po.addOpt<std::string>( "obb-vis,O", "Specify obb visualization output file (default none)" );
+  po.addOpt<int>( "obb-vis-divs", "Resolution of obb visualization grid (default 50)", &grid );
+  po.addOpt<void>( "obb-stats,S", "Print obb statistics.  With -v, print verbose statistics." );
+  po.addOpt<std::vector<int> >( "vols,V", "Specify a set of volumes (applies to --obb_vis and --obb_stats, default all)" );
   po.addOptionHelpHeading("Options for loading CAD files");
   po.addOpt<double>( "ftol,f", "Faceting distance tolerance", po.add_cancel_opt );
   po.addOpt<double>( "ltol,l", "Faceting edge length tolerance", po.add_cancel_opt );
@@ -239,6 +254,13 @@ int main( int argc, char* argv[] ){
   po.addRequiredArg<std::string>( "input_file", "Path to input file for preprocessing", &input_file );
 
   po.parseCommandLine( argc, argv );
+
+  /* Check that user has asked for at least one useful thing to be done */
+  bool obb_task = po.numOptSet( "obb-vis" ) || po.numOptSet( "obb-stats" );
+
+  if( po.numOptSet("no-outmesh") && !obb_task ){
+    po.error( "Nothing to do.  Please specify an OBB-related option, or remove --no_outmesh." );
+  }
 
   /* Load input file, with CAD processing options, if specified */
   std::string options;
@@ -305,6 +327,11 @@ int main( int argc, char* argv[] ){
   po.getOptAllArgs( ",m", m_list );
 
   if( m_list.size() > 0 ){
+
+    if( obb_task ){
+      std::cerr << "Warning: using obb features in conjunction with -m may not work correctly!" << std::endl;
+    }
+
     // Create tags
     Tag dimTag, idTag, senseTag;
     ret = mbi.tag_create(GEOM_DIMENSION_TAG_NAME, sizeof(int), MB_TAG_DENSE, 
@@ -340,11 +367,63 @@ int main( int argc, char* argv[] ){
   }
 
   /* Write output file */
+  
+  if( !po.numOptSet( "no-outmesh" ) ){
+    if( verbose ){ std::cout << "Writing " << output_file << std::endl; } 
+    ret= mbi.write_file( output_file.c_str(), NULL, NULL, &input_file_set, 1 );
+    CHECKERR( mbi, ret );
+  }
 
-  if( verbose ){ std::cout << "Writing " << output_file << std::endl; } 
-  ret= mbi.write_file( output_file.c_str(), NULL, NULL, &input_file_set, 1 );
-  CHECKERR( mbi, ret );
+  /* OBB statistics and visualization */
+  if( obb_task ){
 
+   if( verbose ){ std::cout << "Loading data into DagMC" << std::endl; } 
+   DagMC* dag = DagMC::instance(&mbi);
+   ret = dag->load_existing_contents();
+   CHECKERR( *dag, ret );
+   ret = dag->init_OBBTree();
+   CHECKERR( *dag, ret );
+   ret = dag->parse_metadata();
+   CHECKERR( *dag, ret );
+
+   std::vector<int> vols;
+   po.getOpt( "vols", &vols );
+
+   if(vols.size() == 0 ){
+     // add all vols known by DagMC
+     int num_vols = dag->num_entities( 3 );
+     for( int i = 1; i <= num_vols; ++i){ // dag indices are base-1
+       vols.push_back( dag->id_by_index( 3, i ) );
+     }
+   }
+   else{
+     // verify existence of each user-supplied volume
+     for( std::vector<int>::iterator i = vols.begin(); i!=vols.end(); ++i ){
+       if( dag->entity_by_id( 3, *i ) == 0 ){
+	 std::cerr << "Unknown volume ID: " << *i << std::endl;
+	 vols.erase(i--);
+       }
+     }
+   }
+
+   std::string visfile;
+   if( po.getOpt( "obb-vis", &visfile ) ){
+     if( verbose ){ std::cout << "Preparing OBB visualization file" << std::endl; } 
+
+     ret = obbvis_create( *dag, vols, grid, visfile );
+     CHECKERR(mbi, ret);
+   }
+
+   if( po.numOptSet( "obb-stats" ) ){
+     if( verbose ){ std::cout << "Printing OBB stats" << std::endl; }
+
+     ret = obbstat_write( *dag, vols, std::cout );
+     CHECKERR(mbi, ret);
+   }
+
+  }
+
+  
   return 0; 
 
 }

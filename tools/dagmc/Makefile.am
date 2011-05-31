@@ -43,5 +43,6 @@ pt_vol_test_SOURCES = pt_vol_test.cc
 
 ray_fire_test_SOURCES = ray_fire_test.cc
 
-dagmc_preproc_SOURCES = dagmc_preproc.cpp 
+dagmc_preproc_SOURCES = dagmc_preproc.cpp obb_analysis.cpp dagmc_preproc.hpp
 dagmc_preproc_LDADD = $(LDADD) ../libprogram_opt.la
+
