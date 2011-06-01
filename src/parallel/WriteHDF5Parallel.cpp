@@ -846,17 +846,17 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
     }
     
       // broadcast any new tag definitions from root to other procs
-    long size = tag_buffer.size();
+    long this_size = tag_buffer.size();
     if (MB_SUCCESS != rval)
-      size = -rval;
-    err = MPI_Bcast( &size, 1, MPI_LONG, 0, comm );
+      this_size = -rval;
+    err = MPI_Bcast( &this_size, 1, MPI_LONG, 0, comm );
     CHECK_MPI(err);
-    if (size < 0) {
+    if (this_size < 0) {
       writeUtil->report_error("Inconsistent tag definitions between procs.");
-      return error((ErrorCode)-size);
+      return error((ErrorCode)-this_size);
     }
-    tag_buffer.resize(size);
-    err = MPI_Bcast( &tag_buffer[0], size, MPI_UNSIGNED_CHAR, 0, comm );
+    tag_buffer.resize(this_size);
+    err = MPI_Bcast( &tag_buffer[0], this_size, MPI_UNSIGNED_CHAR, 0, comm );
     CHECK_MPI(err);
     
       // process new tag definitions
@@ -1080,10 +1080,10 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
     for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) {
       std::string name;
       iFace->tag_get_name( tag_iter->tag_id, name );
-      size_t size;
-      get_num_sparse_tagged_entities( *tag_iter, size );
+      size_t this_size;
+      get_num_sparse_tagged_entities( *tag_iter, this_size );
       dbgOut.printf(2,"%18s %8lu %8lu %8lu %8lu 0x%7lx\n", name.c_str(), 
-        (unsigned long)size, 
+        (unsigned long)this_size, 
         (unsigned long)tag_iter->sparse_offset,
         (unsigned long)tag_iter->var_data_offset,
         (unsigned long)tag_iter->max_num_ents,

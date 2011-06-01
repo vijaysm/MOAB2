@@ -118,7 +118,7 @@ ErrorCode obbvis_create( DagMC& dag, std::vector<int> &volumes, int grid, std::s
   Range surfs;
   for(  std::vector<int>::iterator it = volumes.begin()+1; it!=volumes.end(); ++it ){
     
-    EntityHandle vol = dag.entity_by_id(3,*it);
+    vol = dag.entity_by_id(3,*it);
     Range it_surfs;
     rval = dag.moab_instance()->get_child_meshsets( vol, it_surfs );
     CHECKERR(dag,rval);
@@ -132,7 +132,7 @@ ErrorCode obbvis_create( DagMC& dag, std::vector<int> &volumes, int grid, std::s
     for( int j = 0; j < grid; ++j ){
       for( int k = 0; k < grid; ++k ){
 
-        int idx = (side * k) + (row * j) + i;
+        idx = (side * k) + (row * j) + i;
 	assert( idx + 1 + row + side > numpoints - 1 );
 
         CartVect loc = CartVect((pgrid+(idx*3)) ) + grid_hex_center_offset ;
@@ -238,7 +238,7 @@ public:
      if( max < count ) max = count;
      
      for( unsigned i = 0; i < ten_buckets_max; ++i ){
-       if( count > std::pow(10,i+1) ){ 
+       if( count > std::pow((double)10,(int)(i+1)) ){ 
 	 ten_buckets[i] += 1; 
 	 OrientedBox box;
 	 rval = tool->box( node, box );
@@ -278,7 +278,7 @@ public:
 
     for (unsigned i = 0; i < ten_buckets_max; ++i ){
       if( ten_buckets[i] ){
-	out << "Leaves exceeding " << std::pow(10,i+1) << " triangles: " << ten_buckets[i];
+        out << "Leaves exceeding " << std::pow((double)10,(int)(i+1)) << " triangles: " << ten_buckets[i];
 	
 	double frac_total_vol =  ten_buckets_vol[i]/tot_vol;
 	double avg_ftv = frac_total_vol / ten_buckets[i];
