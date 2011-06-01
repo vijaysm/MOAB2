@@ -184,8 +184,6 @@ void iRel_setEntEntRelation (
   int *err)
 {
   CHK_PAIR();
-
-  // xxx - need to check whether either is a set, and act accordingly!
   CHK_ERROR( ASSOCPAIRI->set_assoc_tags(ent1, ent2) );
 }
 
@@ -197,8 +195,6 @@ void iRel_setEntSetRelation (
   int *err)
 {
   CHK_PAIR();
-
-  // xxx - need to check whether either is a set, and act accordingly!
   CHK_ERROR( ASSOCPAIRI->set_assoc_tags(ent1, set2) );
 }
 
@@ -210,8 +206,6 @@ void iRel_setSetEntRelation (
   int *err)
 {
   CHK_PAIR();
-
-  // xxx - need to check whether either is a set, and act accordingly!
   CHK_ERROR( ASSOCPAIRI->set_assoc_tags(set1, ent2) );
 }
 
@@ -223,8 +217,6 @@ void iRel_setSetSetRelation (
   int *err)
 {
   CHK_PAIR();
-
-  // xxx - need to check whether either is a set, and act accordingly!
   CHK_ERROR( ASSOCPAIRI->set_assoc_tags(set1, set2) );
 }
 
@@ -237,20 +229,25 @@ void iRel_setEntArrEntArrRelation (
   int num_entities2,
   int *err)
 {
-  if (num_entities1 != num_entities2) {
+  CHK_PAIR();
+
+  if (num_entities1 != num_entities2)
     ERROR(iBase_INVALID_ENTITY_COUNT, "setEntArrEntArrRelation doesn't support "
           "different #'s of entities.");
-  }
 
   int result = iBase_SUCCESS;
+  char descr[200];
   for (int i = 0; i < num_entities1; i++) {
-    int tmp_result;
-    iRel_setEntEntRelation(instance, pair,
-                           ent_array_1[i], ent_array_2[i], &tmp_result);
-    if (iBase_SUCCESS != tmp_result) result = tmp_result;
+    int tmp_result = ASSOCPAIRI->set_assoc_tags(ent_array_1[i], ent_array_2[i]);
+    if (result == iBase_SUCCESS && tmp_result != iBase_SUCCESS) {
+      result = tmp_result;
+      iRel_getDescription(instance, descr, sizeof(descr));
+    }
   }
 
-  CHK_ERROR(result);
+  if (result != iBase_SUCCESS)
+    ERROR(result, descr);
+  RETURN(iBase_SUCCESS);
 }
 
 void iRel_setEntArrSetArrRelation (
@@ -262,20 +259,25 @@ void iRel_setEntArrSetArrRelation (
   int num_sets2,
   int *err)
 {
-  if (num_entities1 != num_sets2) {
+  CHK_PAIR();
+
+  if (num_entities1 != num_sets2)
     ERROR(iBase_INVALID_ENTITY_COUNT, "setEntArrSetArrRelation doesn't support "
           "different #'s of entities.");
-  }
 
   int result = iBase_SUCCESS;
+  char descr[200];
   for (int i = 0; i < num_entities1; i++) {
-    int tmp_result;
-    iRel_setEntSetRelation(instance, pair,
-                           ent_array_1[i], set_array_2[i], &tmp_result);
-    if (iBase_SUCCESS != tmp_result) result = tmp_result;
+    int tmp_result = ASSOCPAIRI->set_assoc_tags(ent_array_1[i], set_array_2[i]);
+    if (result == iBase_SUCCESS && tmp_result != iBase_SUCCESS) {
+      result = tmp_result;
+      iRel_getDescription(instance, descr, sizeof(descr));
+    }
   }
 
-  CHK_ERROR(result);
+  if (result != iBase_SUCCESS)
+    ERROR(result, descr);
+  RETURN(iBase_SUCCESS);
 }
 
 void iRel_setSetArrEntArrRelation (
@@ -287,20 +289,25 @@ void iRel_setSetArrEntArrRelation (
   int num_entities2,
   int *err)
 {
-  if (num_sets1 != num_entities2) {
+  CHK_PAIR();
+
+  if (num_sets1 != num_entities2)
     ERROR(iBase_INVALID_ENTITY_COUNT, "setSetArrEntArrRelation doesn't support "
           "different #'s of entities.");
-  }
 
   int result = iBase_SUCCESS;
+  char descr[200];
   for (int i = 0; i < num_sets1; i++) {
-    int tmp_result;
-    iRel_setSetEntRelation(instance, pair,
-                           set_array_1[i], ent_array_2[i], &tmp_result);
-    if (iBase_SUCCESS != tmp_result) result = tmp_result;
+    int tmp_result = ASSOCPAIRI->set_assoc_tags(set_array_1[i], ent_array_2[i]);
+    if (result == iBase_SUCCESS && tmp_result != iBase_SUCCESS) {
+      result = tmp_result;
+      iRel_getDescription(instance, descr, sizeof(descr));
+    }
   }
 
-  CHK_ERROR(result);
+  if (result != iBase_SUCCESS)
+    ERROR(result, descr);
+  RETURN(iBase_SUCCESS);
 }
 
 void iRel_setSetArrSetArrRelation (
@@ -312,20 +319,25 @@ void iRel_setSetArrSetArrRelation (
   int num_sets2,
   int *err)
 {
-  if (num_sets1 != num_sets2) {
+  CHK_PAIR();
+
+  if (num_sets1 != num_sets2)
     ERROR(iBase_INVALID_ENTITY_COUNT, "setSetArrSetArrRelation doesn't support "
           "different #'s of entities.");
-  }
 
   int result = iBase_SUCCESS;
+  char descr[200];
   for (int i = 0; i < num_sets1; i++) {
-    int tmp_result;
-    iRel_setSetSetRelation(instance, pair,
-                           set_array_1[i], set_array_2[i], &tmp_result);
-    if (iBase_SUCCESS != tmp_result) result = tmp_result;
+    int tmp_result = ASSOCPAIRI->set_assoc_tags(set_array_1[i], set_array_2[i]);
+    if (result == iBase_SUCCESS && tmp_result != iBase_SUCCESS) {
+      result = tmp_result;
+      iRel_getDescription(instance, descr, sizeof(descr));
+    }
   }
 
-  CHK_ERROR(result);
+  if (result != iBase_SUCCESS)
+    ERROR(result, descr);
+  RETURN(iBase_SUCCESS);
 }
 
 void iRel_getEntEntRelation (
@@ -730,9 +742,7 @@ void iRel_inferAllRelations (
   iRel_PairHandle pair,
   int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Didn't find relation pair.");
-  }
+  CHK_PAIR();
 
   // get all entities in those interfaces
   int result;
@@ -803,9 +813,7 @@ static void iRel_inferArrRelations (
   int iface_no,
   int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Didn't find relation pair.");
-  }
+  CHK_PAIR();
 
   if (0 > iface_no || 1 < iface_no) {
     ERROR(iBase_INVALID_ARGUMENT, "Interface number must be 0 or 1");
