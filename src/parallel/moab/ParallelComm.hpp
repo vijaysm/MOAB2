@@ -1032,6 +1032,11 @@ private:
                           const bool store_handles,
                           const int to_proc);
   
+
+  ErrorCode tag_shared_verts(tuple_list &shared_ents,
+			     std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
+			     Range &proc_verts); 
+
   ErrorCode tag_shared_verts(tuple_list &shared_verts,
                                Range *skin_ents,
                                std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,

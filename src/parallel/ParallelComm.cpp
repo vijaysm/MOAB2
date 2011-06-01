@@ -3926,6 +3926,110 @@ ErrorCode ParallelComm::tag_shared_ents(int resolve_dim,
   return MB_SUCCESS;
 }
 
+// Overloaded form of tag_shared_verts
+// Tuple coming in is of form (arbitrary value, remoteProc, localHandle, remoteHandle)
+// Also will check for doubles in the list if the list is sorted
+ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
+                                         std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
+                                         Range& /*proc_verts*/) 
+{
+  Tag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
+  ErrorCode result = get_shared_proc_tags(sharedp_tag, sharedps_tag, 
+                                            sharedh_tag, sharedhs_tag, pstatus_tag);
+  RRA("Trouble getting shared proc tags in tag_shared_verts.");
+  
+  unsigned int j = 0;
+  std::vector<int> sharing_procs, sharing_procs2;
+  std::vector<EntityHandle> sharing_handles, sharing_handles2;
+  
+  //Were on tuple j/2
+  while (j < 2*shared_ents.n) {
+      // count & accumulate sharing procs
+    EntityHandle this_ent = shared_ents.vul[j], other_ent = 0;
+    int other_proc = -1;
+    while (j < 2*shared_ents.n && shared_ents.vul[j] == this_ent) {
+      j++;
+        // shouldn't have same proc
+      assert(shared_ents.vi[j] != (int)procConfig.proc_rank());
+      //Grab the remote data if its not a dublicate
+      if(shared_ents.vul[j] != other_ent || shared_ents.vi[j] != other_proc){
+	sharing_procs.push_back( shared_ents.vi[j] );
+	sharing_handles.push_back( shared_ents.vul[j] );
+      }
+      other_proc = shared_ents.vi[j];
+      other_ent = shared_ents.vul[j];
+      j++;
+    }
+
+    if (sharing_procs.size() > 1) {
+        // add current proc/handle to list
+      sharing_procs.push_back(procConfig.proc_rank());
+      sharing_handles.push_back(this_ent);
+    }
+      
+      // sort sharing_procs and sharing_handles such that
+      // sharing_procs is in ascending order.  Use temporary
+      // lists and binary search to re-order sharing_handles.
+    sharing_procs2 = sharing_procs;
+    std::sort( sharing_procs2.begin(), sharing_procs2.end() );
+    sharing_handles2.resize( sharing_handles.size() );
+    for (size_t k = 0; k < sharing_handles.size(); ++k) {
+      size_t idx = std::lower_bound( sharing_procs2.begin(), 
+                                     sharing_procs2.end(), 
+                                     sharing_procs[k] ) - sharing_procs2.begin();
+      sharing_handles2[idx] = sharing_handles[k];
+    }
+    sharing_procs.swap( sharing_procs2 );
+    sharing_handles.swap( sharing_handles2 );
+    
+    assert(sharing_procs.size() != 2);
+    proc_nvecs[sharing_procs].push_back(this_ent);
+
+    unsigned char share_flag = PSTATUS_SHARED, 
+        ms_flag = (PSTATUS_SHARED | PSTATUS_MULTISHARED);
+    if (sharing_procs.size() == 1) {
+      result = mbImpl->tag_set_data(sharedp_tag, &this_ent, 1,
+                                    &sharing_procs[0]);
+      result = mbImpl->tag_set_data(sharedh_tag, &this_ent, 1,
+                                    &sharing_handles[0]);
+      result = mbImpl->tag_set_data(pstatus_tag, &this_ent, 1, &share_flag);
+      RRA("Couldn't set shared tag on shared vertex.");
+      sharedEnts.push_back(this_ent);
+    }
+    else {
+        // pad lists 
+      assert( sharing_procs.size() <= MAX_SHARING_PROCS );
+      sharing_procs.resize( MAX_SHARING_PROCS, -1 );
+      sharing_handles.resize( MAX_SHARING_PROCS, 0 );
+      result = mbImpl->tag_set_data(sharedps_tag, &this_ent, 1,
+                                    &sharing_procs[0]);
+      result = mbImpl->tag_set_data(sharedhs_tag, &this_ent, 1,
+                                    &sharing_handles[0]);
+      result = mbImpl->tag_set_data(pstatus_tag, &this_ent, 1, &ms_flag);
+      RRA("Couldn't set multi-shared tag on shared vertex.");
+      sharedEnts.push_back(this_ent);
+    }
+    RRA("Failed setting shared_procs tag on skin vertices.");
+
+      // reset sharing proc(s) tags
+    sharing_procs.clear();
+    sharing_handles.clear();
+  }
+
+#ifndef NDEBUG
+    // shouldn't be any repeated entities in any of the vectors in proc_nvecs
+  for (std::map<std::vector<int>, std::vector<EntityHandle> >::iterator mit = proc_nvecs.begin();
+       mit != proc_nvecs.end(); mit++) {
+    std::vector<EntityHandle> tmp_vec = (mit->second);
+    std::sort(tmp_vec.begin(), tmp_vec.end());
+    std::vector<EntityHandle>::iterator vit = std::unique(tmp_vec.begin(), tmp_vec.end());
+    assert(vit == tmp_vec.end());
+  }
+#endif
+  
+  return MB_SUCCESS;
+}
+ 
 ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
                                          Range *skin_ents,
                                          std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
@@ -5369,7 +5473,7 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
   std::vector<MPI_Request> recv_ent_reqs(2*buffProcs.size(), MPI_REQUEST_NULL),
     recv_remoteh_reqs(2*buffProcs.size(), MPI_REQUEST_NULL);
   sendReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
-  for (ind = 0; ind < buffProcs.size(); ind++) {
+  for (ind = 0; ind < (int)buffProcs.size(); ind++) {
     incoming1++;
     PRINT_DEBUG_IRECV(procConfig.proc_rank(), buffProcs[ind], 
                       remoteOwnedBuffs[ind]->mem_ptr, INITIAL_BUFF_SIZE, 
@@ -5423,7 +5527,7 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
   //===========================================
   // pack and send ents from this proc to others
   //===========================================
-  for (ind = 0; ind < buffProcs.size(); ind++) {
+  for (ind = 0; ind < (int)buffProcs.size(); ind++) {
     myDebug->tprintf(1, "Sent ents compactness (size) = %f (%lu)\n", exchange_ents[ind]->compactness(),
                      exchange_ents[ind]->size());
     // reserve space on front for size and for initial buff size
@@ -5552,7 +5656,7 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
   //===========================================
   // send local handles for new entity to owner
   //===========================================
-  for (ind = 0; ind < buffProcs.size(); ind++) {
+  for (ind = 0; ind < (int)buffProcs.size(); ind++) {
     // reserve space on front for size and for initial buff size
     remoteOwnedBuffs[ind]->reset_buffer(sizeof(int));
     

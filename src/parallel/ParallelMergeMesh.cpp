@@ -216,11 +216,11 @@ namespace moab{
       //If n tuples match, n*(n-1) match tuples will be made
       //tuples are of the form (proc1,proc2,handle1,handle2)
       int kproc = i*tup.mi;
-      unsigned khand = i*tup.mul;
-      for(unsigned k = i; k<j; k++){
+      unsigned long khand = i*tup.mul;
+      for(unsigned long k = i; k<j; k++){
 	int lproc = kproc+tup.mi;
-	unsigned lhand = khand+tup.mul;
-	for(unsigned l=k+1; l<j; l++){
+	unsigned long lhand = khand+tup.mul;
+	for(unsigned long l=k+1; l<j; l++){
 	  matches.vi[mat_i++]=tup.vi[kproc];//proc1
 	  matches.vi[mat_i++]=tup.vi[lproc];//proc2
 	  matches.vul[mat_ul++]=tup.vul[khand];//handle1
@@ -292,7 +292,7 @@ namespace moab{
     if(rval != MB_SUCCESS){
       return rval;
     }
-    rval = myPcomm->tag_shared_verts(matches, &skin_ents[0], proc_nranges, proc_verts);
+    rval = myPcomm->tag_shared_verts(matches, proc_nranges, proc_verts);
     if(rval != MB_SUCCESS){
       tuple_list_free(&matches);
       return rval;
@@ -332,12 +332,12 @@ namespace moab{
 
   //Swap around tuples
   void ParallelMergeMesh::temp_tuple_swap_real(tuple_list *tup, 
-					       unsigned a, unsigned b)
+                                               unsigned long a, unsigned long b)
   {
     if(a==b) return;
     //Swap mi
-    int a_val = a*tup->mi, b_val=b*tup->mi;
-    for(unsigned int i=0; i< tup->mi;i++){
+    unsigned long a_val = a*tup->mi, b_val=b*tup->mi;
+    for(unsigned long i=0; i< tup->mi;i++){
       sint t =tup->vi[a_val];
       tup->vi[a_val] = tup->vi[b_val];
       tup->vi[b_val] = t; 
@@ -347,7 +347,7 @@ namespace moab{
     //Swap ml
     a_val = a*tup->ml;
     b_val = b*tup->ml;
-    for(unsigned int i=0; i< tup->ml;i++){
+    for(unsigned long i=0; i< tup->ml;i++){
       slong t =tup->vl[a_val];
       tup->vl[a_val] = tup->vl[b_val];
       tup->vl[b_val] = t;
@@ -357,7 +357,7 @@ namespace moab{
     //Swap mul
     a_val = a*tup->mul;
     b_val = b*tup->mul;
-    for(unsigned int i=0; i< tup->mul;i++){
+    for(unsigned long i=0; i< tup->mul;i++){
       ulong t =tup->vul[a_val];
       tup->vul[a_val] = tup->vul[b_val];
       tup->vul[b_val] = t; 
@@ -367,7 +367,7 @@ namespace moab{
     //Swap mr
     a_val = a*tup->mr;
     b_val = b*tup->mr;
-    for(unsigned int i=0; i< tup->mr;i++){
+    for(unsigned long i=0; i< tup->mr;i++){
       real t =tup->vr[a_val];
       tup->vr[a_val] = tup->vr[b_val];
       tup->vr[b_val] = t; 
@@ -387,21 +387,21 @@ namespace moab{
   //Perform the sorting of a tuple by real
   //To sort an entire tuple_list, call (tup,0,tup.n.epsilon) 
   void ParallelMergeMesh::temp_perform_sort_real(tuple_list *tup, 
-						 int left, 
-						 int right,
-						 double eps2)
+                                                 unsigned long left, 
+                                                 unsigned long right,
+                                                 double eps2)
   {  
     //If list size is only 1 return
     if(left+1 >= right){
       return;
     }
-    int swap = left, tup_l = left*tup->mr, tup_t = tup_l + tup->mr;
+    unsigned long swap = left, tup_l = left*tup->mr, tup_t = tup_l + tup->mr;
 
     //Swap the median with the left position for a (hopefully) better split
     temp_tuple_swap_real(tup,left,(left+right)/2);
 
     //Partition the data
-    for(int t=left+1;t<right;t++){
+    for(unsigned long t=left+1;t<right;t++){
       //If the left value(pivot) is greater than t_val, swap it into swap
       if(greaterThan(tup,tup_l,tup_t,eps2)){
 	swap++;
@@ -418,7 +418,7 @@ namespace moab{
   }
 
   //Note, this takes the actual tup->vr[] index (aka i*tup->mr)
-  bool ParallelMergeMesh::greaterThan(tuple_list *tup, int vrI,int vrJ, double eps2){
+  bool ParallelMergeMesh::greaterThan(tuple_list *tup, unsigned long vrI, unsigned long vrJ, double eps2){
     unsigned check=0;
     while(check < tup->mr){
       //If the values are the same
