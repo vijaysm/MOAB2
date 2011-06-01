@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
     std::cout << "    default output file: " << filename_out << " will be saved \n";
 
   } else {
-    std::cerr << "Usage: " << argv[0] << " [geom_filename] [polygon_file] [output_file]" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " [geom_filename] [polygon_file] [output_file] [quads_file]" << std::endl;
     return 1;
   }
 

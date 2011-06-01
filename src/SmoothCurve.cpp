@@ -12,15 +12,14 @@
 
 namespace moab {
 
-SmoothCurve::SmoothCurve(Interface * mb, EntityHandle curve)
+SmoothCurve::SmoothCurve(Interface * mb, EntityHandle curve, GeomTopoTool * gTool ):
+ _mb(mb), _set(curve), _gtt(gTool)
 {
   //_mbOut->create_meshset(MESHSET_ORDERED, _oSet);
   /*_cmlEdgeMesher = new CMLEdgeMesher (this, CML::STANDARD);
    _cmlEdgeMesher->set_sizing_function(CML::LINEAR_SIZING);*/
   _leng = 0; // not initialized
   _edgeTag = 0; // not initialized
-  _mb = mb;
-  _set = curve;
 }
 SmoothCurve::~SmoothCurve()
 {
@@ -438,10 +437,10 @@ void SmoothCurve::compute_control_points_on_boundary_edges(double min_dot,
   // the surfaces have
   // do we really need min_dot here?
   // first of all, find out the SmoothFace for each surface set that is adjacent here
-  GeomTopoTool gTopoTool(_mb);
+  //GeomTopoTool gTopoTool(_mb);
   std::vector<EntityHandle> faces;
   std::vector<int> senses;
-  ErrorCode rval = gTopoTool.get_senses(_set, faces, senses);
+  ErrorCode rval = _gtt->get_senses(_set, faces, senses);
   if (MB_SUCCESS != rval)
     return;
 

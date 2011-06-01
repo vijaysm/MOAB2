@@ -716,7 +716,7 @@ ErrorCode GeomTopoTool::get_senses(EntityHandle entity,
     const int *senses_data = static_cast<const int*> (dum_ptr);
     std::copy(senses_data, senses_data + num_ents, std::back_inserter(senses));
 
-  } else // face in volume
+  } else // face in volume, edim == 2
   {
     rval = check_face_sense_tag(false);
     if (rval!=MB_SUCCESS)
@@ -741,6 +741,22 @@ ErrorCode GeomTopoTool::get_senses(EntityHandle entity,
     }
 
   }
+  // filter the results with the sets that are in the model at this time
+  unsigned int currentSize =0;
+  Range & possibleEntities = geomRanges[edim+1];
+  for (unsigned int index=0; index<wrt_entities.size(); index++)
+  {
+    EntityHandle wrt_ent=wrt_entities[index];
+    if (possibleEntities.find(wrt_ent)!=possibleEntities.end() )
+    {
+      wrt_entities[currentSize] = wrt_entities[index];
+      senses[currentSize] = senses[index];
+      currentSize++;
+    }
+  }
+  wrt_entities.resize(currentSize);
+  senses.resize(currentSize);
+  //
   return MB_SUCCESS;
 }
 

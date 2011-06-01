@@ -122,9 +122,9 @@ public:
   ErrorCode split_surface_with_direction(EntityHandle face, std::vector<double> & xyz, double * direction,
       EntityHandle & newFace, int closed);
   // these new points will be on edges or triangles, if in interior of triangles
-  ErrorCode split_surface(EntityHandle face, std::vector<CartVect> & points,
-      std::vector<EntityHandle> & entities, std::vector<EntityHandle> & triangles,
-      EntityHandle & newFace);
+  ErrorCode split_surface(EntityHandle face,
+      std::vector<EntityHandle> & chainedEdges,
+      std::vector<EntityHandle> & splittingNodes, EntityHandle & newFace);
 
   ErrorCode split_edge_at_point(EntityHandle edge, CartVect & point, EntityHandle & new_edge);
 
@@ -160,15 +160,15 @@ private:
   void print_debug_triangle(EntityHandle triangle);
 
   ErrorCode  create_new_gedge(std::vector<EntityHandle> &nodesAlongPolyline,
-      EntityHandle & new_geo_edge, Range & geo_vertices);
+      EntityHandle & new_geo_edge);
 
   // used for splitting surfaces
-  ErrorCode separate (EntityHandle face, Range & triToDelete,
-      EntityHandle new_geo_edge, Range & first,
+  ErrorCode separate (EntityHandle face,
+      std::vector<EntityHandle> & chainedEdges, Range & first,
       Range & second);
 
   ErrorCode smooth_new_intx_points(EntityHandle face,
-      std::vector<EntityHandle> & nodesAlongPolyline);
+      std::vector<EntityHandle> & chainedEdges);
 
   // having a node, split boundary along that node
   ErrorCode  split_boundary(EntityHandle face, EntityHandle atNode);
@@ -182,7 +182,7 @@ private:
   // orientation already decided
   //
   ErrorCode redistribute_boundary_edges_to_faces(EntityHandle face, EntityHandle newFace,
-      EntityHandle new_geo_edge);
+      std::vector<EntityHandle> & chainedEdges);
 
   // used as a way to isolate the faces after splitting
   ErrorCode set_neumann_tags(EntityHandle face, EntityHandle newFace);
@@ -193,6 +193,10 @@ private:
 
   ErrorCode boundary_nodes_on_face(EntityHandle face, std::vector<EntityHandle> & boundary_nodes);
 
+  // used for splitting an edge
+  ErrorCode split_internal_edge(EntityHandle & edge, EntityHandle & newVertex);
+  // triangle split
+  ErrorCode divide_triangle(EntityHandle triangle, EntityHandle & newVertex);
   Interface * _mbImpl;
 
   GeomTopoTool* _my_geomTopoTool;
@@ -208,6 +212,11 @@ private:
   std::map<EntityHandle, SmoothCurve*> _edges;
   SmoothFace ** _smthFace;
   SmoothCurve ** _smthCurve;
+
+  Range _piercedTriangles; // triangles to delete
+  Range _newTriangles;
+  Range _piercedEdges;// edges to delete
+  // new edges?
 
 };
 

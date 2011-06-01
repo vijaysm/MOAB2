@@ -18,6 +18,7 @@
 
 namespace moab {
 class SmoothFace;
+class GeomTopoTool;
 //class SmoothVertex;
 
 //class CMLEdgeMesher;
@@ -28,7 +29,7 @@ class SmoothCurve
 {
 public:
 	//SmoothCurve(RefEdge * edge, SmoothFace * smoothFaceEval, int loopIndex);
-	SmoothCurve(Interface * mb, EntityHandle curve); // the new constructor, which will use
+	SmoothCurve(Interface * mb, EntityHandle curve,  GeomTopoTool * gTool); // the new constructor, which will use
 	// sense entities to establish the control points on feature edges (geo edges, sets of mesh edges)
 	virtual ~SmoothCurve();
 
@@ -134,6 +135,7 @@ private:
 
 	  Interface * _mb;
 	  EntityHandle _set;
+	  GeomTopoTool * _gtt;
 
 
 
