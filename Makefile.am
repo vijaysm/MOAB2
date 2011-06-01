@@ -9,23 +9,13 @@ AM_CPPFLAGS = -DSRCDIR=$(srcdir)
 # Don't loose the autoconf include path
 ACLOCAL_AMFLAGS = -I m4
 
+SUBDIRS = test
+
 INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I. -I${IGEOM_DIR}/include -I${IMESH_DIR}/include
 
 DEFS += $(DEFINES)
 
 LIBS =
-
-# stuff for c test program
-rtestc_SOURCES = rtestc.c
-
-LDADD = libiRel.la
-
-TESTS = rtestc
-check_PROGRAMS = ${TESTS}
-
-rtestc_DEPENDENCIES = libiRel.la ${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMesh.la
-rtestc_LDADD = libiRel.la #${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMesh.la
-#rtestc_LDFLAGS = ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${IMESH_LTFLAGS} ${IMESH_LDFLAGS}
 
 libiRel_la_SOURCES = \
 	ArrayManager.hpp \
@@ -51,8 +41,6 @@ libiRel_la_LIBADD = ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${IMESH_LTFLAGS} \
 
 lib_LTLIBRARIES = libiRel.la
 
-EXTRA_DIST = brick.cub
-
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put
 # in $(libdir).  Define a $(cfgdir) to get around automake's
@@ -70,11 +58,8 @@ install-data-hook:
 	echo "IREL_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iRel-Defs.inc
 
 if USE_BABEL
-  SIDL_SUBDIR = #SIDL
-else
-  SIDL_SUBDIR =
+#  SUBDIRS += SIDL
 endif
-SUBDIRS = . $(SIDL_SUBDIR)
 
 CLEANFILES=iRel_protos.h
 FPFX=iRel

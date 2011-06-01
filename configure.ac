@@ -162,6 +162,7 @@ AC_ARG_VAR([FC], [FORTRAN compiler command])
 AC_CONFIG_HEADERS(config.h) # Don't want this, just working around autoheader issue
 AC_CONFIG_HEADERS([iBase_FCDefs.h])
 AC_CONFIG_FILES([Makefile 
+                 test/Makefile
                  iRel-Defs.inc
                  ])
 #		 SIDL/iRel-SIDL-Defs.inc
