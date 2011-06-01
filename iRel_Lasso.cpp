@@ -107,9 +107,7 @@ void iRel_getPairInfo (
   int *irel_status2,
   int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   *iface1       = ASSOCPAIRI->iface_instance(0);
   *ent_or_set1  = ASSOCPAIRI->relation_type(0);
@@ -140,9 +138,7 @@ void iRel_changePairStatus (
   int irel_status2,
   int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   CHK_ERROR( ASSOCPAIRI->change_status(0, static_cast<iRel_RelationStatus>(
                                        irel_status1)) );
@@ -155,9 +151,7 @@ void iRel_destroyPair (
   iRel_PairHandle pair,
   int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   CHK_ERROR( LASSOI->erase_pair(ASSOCPAIRI) );
 }
@@ -189,9 +183,7 @@ void iRel_setEntEntRelation (
   iBase_EntityHandle ent2,
   int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   // xxx - need to check whether either is a set, and act accordingly!
   CHK_ERROR( ASSOCPAIRI->set_assoc_tags(ent1, ent2) );
@@ -204,9 +196,7 @@ void iRel_setEntSetRelation (
   iBase_EntitySetHandle set2,
   int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   // xxx - need to check whether either is a set, and act accordingly!
   CHK_ERROR( ASSOCPAIRI->set_assoc_tags(ent1, set2) );
@@ -219,9 +209,7 @@ void iRel_setSetEntRelation (
   iBase_EntityHandle ent2,
   int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   // xxx - need to check whether either is a set, and act accordingly!
   CHK_ERROR( ASSOCPAIRI->set_assoc_tags(set1, ent2) );
@@ -234,9 +222,7 @@ void iRel_setSetSetRelation (
   iBase_EntitySetHandle set2,
   int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   // xxx - need to check whether either is a set, and act accordingly!
   CHK_ERROR( ASSOCPAIRI->set_assoc_tags(set1, set2) );
@@ -350,9 +336,7 @@ void iRel_getEntEntRelation (
   iBase_EntityHandle *ent2,
   int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
   CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, &ent1, 1, ent2) );
@@ -366,9 +350,7 @@ void iRel_getEntSetRelation (
   iBase_EntitySetHandle *set2,
   int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
   CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, &ent1, 1, set2) );
@@ -382,9 +364,7 @@ void iRel_getSetEntRelation (
   iBase_EntityHandle *ent2,
   int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
   CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, &set1, 1, ent2) );
@@ -398,9 +378,7 @@ void iRel_getSetSetRelation (
   iBase_EntitySetHandle *set2,
   int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
   CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, &set1, 1, set2) );
@@ -414,9 +392,7 @@ void iRel_getEntSetIterRelation (
   iBase_EntityIterator *entset2,
   int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
   CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, &ent1, 1, entset2) );
@@ -433,9 +409,7 @@ void iRel_getEntArrEntArrRelation(
   int *ent_array_2_size,
   int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
   ALLOC_CHECK_ARRAY(ent_array_2, ent_array_1_size);
@@ -457,9 +431,7 @@ void iRel_getEntArrSetArrRelation(
   int *set_array_2_size,
   int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
   ALLOC_CHECK_ARRAY(set_array_2, ent_array_1_size);
@@ -481,9 +453,7 @@ void iRel_getSetArrEntArrRelation(
   int *ent_array_2_size,
   int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
   ALLOC_CHECK_ARRAY(ent_array_2, set_array_1_size);
@@ -505,9 +475,7 @@ void iRel_getSetArrSetArrRelation(
   int *set_array_2_size,
   int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
   ALLOC_CHECK_ARRAY(set_array_2, set_array_1_size);
@@ -529,9 +497,7 @@ void iRel_getEntArrSetIterArrRelation (
   int *entiter_size,
   int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);;
   ALLOC_CHECK_ARRAY(entiter, ent_array_1_size);
@@ -550,9 +516,7 @@ void iRel_rmvEntRelation(
   /*in*/ int switch_order,
   /*out*/ int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
   CHK_ERROR( ASSOCPAIRI->rmv_assoc_tags(iface_no, &ent, 1) );
@@ -565,9 +529,7 @@ void iRel_rmvSetRelation(
   /*in*/ int switch_order,
   /*out*/ int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
   CHK_ERROR( ASSOCPAIRI->rmv_assoc_tags(iface_no, &entset, 1) );
@@ -581,9 +543,7 @@ void iRel_rmvEntArrRelation(
   /*in*/ int switch_order,
   /*out*/ int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
   CHK_ERROR( ASSOCPAIRI->rmv_assoc_tags(iface_no, ent_array, num_ent) );
@@ -597,9 +557,7 @@ void iRel_rmvSetArrRelation(
   /*in*/ int switch_order,
   /*out*/ int *err)
 {
-  if (NULL == pair) {
-    ERROR(iBase_FAILURE, "Invalid relation pair.");
-  }
+  CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
   CHK_ERROR( ASSOCPAIRI->rmv_assoc_tags(iface_no, entset_array, num_ent) );
