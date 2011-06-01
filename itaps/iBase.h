@@ -238,32 +238,6 @@ enum iBase_TagValueType {
 };
 
 /***************************************************************************//**
- * \mainpage The ITAPS Interfaces
- *
- * \authors
- * Fabien Delalondre, RPI;
- * Karen Devine, SNL;
- * Lori Diachin, LLNL;
- * Ellen Hill, LLNL;
- * Jason Kraftcheck, UW;
- * Vitus Leung, SNL;
- * Mark C. Miller, LLNL;
- * Misbah Mubarak, RPI;
- * Carl Ollivier-Gooch, UBC;
- * James Porter, UW;
- * Seegyoung Seol, RPI;
- * Mark Shephard, RPI;
- * Cameron Smith, RPI;
- * Timothy Tautges, ANL;
- *
- * \subpage ibase
- *
- * \subpage imesh
- *
- * \subpage imeshp
- ******************************************************************************/
-
-/***************************************************************************//**
  * \page ibase iBase: ITAPS Base Interface
  ******************************************************************************/
 
@@ -277,8 +251,161 @@ enum iBase_TagValueType {
  ******************************************************************************/
 
 /***************************************************************************//**
+ * \defgroup ErrorHandling Error Handling
+ * \ingroup iBase
+ ******************************************************************************/
+
+/***************************************************************************//**
  * \defgroup Datatypes Datatypes
  * \ingroup iBase
+ ******************************************************************************/
+
+/***************************************************************************//**
+ * \mainpage The ITAPS Interfaces
+ *
+ * \subpage ibase
+ *
+ * \subpage imesh
+ *
+ * \subpage imeshp
+ * 
+ * \subpage igeom
+ *
+ * \subpage error
+ *
+ * \subpage trio
+ *
+ * \subpage strlen
+ *
+ * \subpage options
+ *
+ * \subpage numhops
+ *
+ * \page error Error Handling
+ *
+ * With few exceptions, every iMesh function includes an output argument,
+ * 'int *err', which returns an error code indicating if the function call
+ * may have failed. If the value returned for the 'err' argument is NOT
+ * iBase_SUCCESS, the caller should NOT attempt to interpret (read the
+ * values in) any of the other return arguments of the call. While some
+ * implementations may actually return valid/useful results in other
+ * return arguments of a call that has failed, there is no guarentee that
+ * ALL implementations will do similarly and so depending on such behavior
+ * is neither portable nor safe. This is true even if the returned values
+ * are different from the values of the arguments before the call was
+ * made.
+ *
+ * \page trio Array pointer, allocated and occupied sizes argument trio
+ *
+ * Many of the functions in iMesh have arguments corresponding to lists of 
+ * objects.  In-type arguments for lists consist of a pointer to an array and
+ * a list size.  Lists returned from functions are passed in three arguments,
+ * a pointer to the array representing the list, and pointers to the
+ * allocated and occupied lengths of the array.  These three arguments are 
+ * inout-type arguments, because they can be allocated by the application and
+ * passed into the interface to hold the results of the function.  Lists
+ * which are pre-allocated must be large enough to hold the results of the
+ * function; if this is not the case, an error is generated.  Otherwise, the
+ * occupied size is changed to the size output from the function.  If a list
+ * argument is unallocated (the list pointer points to a NULL value) or if
+ * the incoming value of the allocated size is zero, the list storage will be
+ * allocated by the implementation.
+ *
+ * IN ALL CASES, MEMORY ALLOCATED BY ITAPS INTERFACE IMPLEMENTATIONS IS DONE
+ * USING THE C MALLOC FUNCTION, AND MUST BE DE-ALLOCATED USING THE C FREE
+ * FUNCTION.
+ *
+ * \page strlen String Length Arguments
+ *
+ * Many of the functions in iMesh involve passing a string and also the length
+ * of that string. How is the null character is handled?
+ * For users of the iMesh interface calling iMesh functions, it is optional
+ * as to whether or not to include the null character in computing the length
+ * of the string. So, for example, calling iMesh from a C program, users could
+ * pass strlen(my_string) or strlen(my_string)+1 as the length of the string.
+ *
+ * <em>Note to implementors</em>: However, it should be noted that the situation
+ * is different for implementers of the iMesh interface. In implementing an
+ * iMesh interface function, there can be no assumption that the string is
+ * indeed null terminated. The length argument the caller passes in may or may
+ * NOT include the null character and implementations must be coded to
+ * accommodate this. This requirement is primarily due to differences in how
+ * Fortran and C/C++ handle passing of strings as function arguments.
+ *
+ * \page numhops Indirection in Set-Inclusion and Parent-Child structures
+ *
+ * Various functions to query entities, entity sets and parent or child sets 
+ * as well as the numbers of these involve a num_hops argument. If the set
+ * upon which the query is originated is the root set, the num_hops argument
+ * is irrelevant and is ignored by the implementation. Otherwise, the num_hops
+ * argument represents the maximum number of levels of indirection employed in
+ * satisfying the query not including the originating set. For example, using
+ * value for num_hops of 0 (zero) in iMesh_getEntSets will return all the 
+ * entity sets that are immediately contained in a given set. Likewise, a
+ * value for num_hops of 1 (one) will return all entity sets that are 
+ * immediately contained in the given set plus all entity sets that
+ * are contained in those immediately contained sets (e.g. one level of
+ * indirection). Using a value of -1 for num_hops will return results for
+ * all possible levels of indirection. In other words, using a value of
+ * -1 for num_hops is equivalent to setting the maximum number of levels
+ * of indirection to infinity.
+ *
+ * \page options Option Strings
+ *
+ * A few of the functions in iMesh support arbitrary options passed as a
+ * character string, called an 'Option String'. The format of and handling
+ * of an Option String is as follows...
+ *
+ * 1. Option Strings are INsensitive to case.
+ *
+ * 2. Each option in an Option String is pre-pended with the implementation
+ * name followed by a special character called the separator character.
+ *
+ * 3. The separator is a colon, ':'.
+ *
+ * 4. Multiple options existing in a single Option String are separated by a
+ * special character called the delimiter character.
+ *
+ * 5. The delimiter character is a space, ' '.
+ *
+ * 6. The effect of multiple options in a single Option String is 
+ * INsensitive to order of occurrence in the string.
+ *
+ * 7. By default, implementations silently ignore any options that
+ * do not match on the implementation name part (everything before
+ * the separator character). This way, a caller may included options
+ * in a single string intended for multiple different implementations.
+ *
+ * 8. Implementations may (or may not) warn or error for option strings
+ * that match on implementation name part but are found to be in error
+ * for other reasons the implementation decides.
+ *
+ * 9. Whenever either the separator character, ':', or delimiter character,
+ * ' ', need to appear in an option, they must be escaped with the
+ * backslash character, '\'.
+ *
+ * For example, consider the Options String
+ *
+ *     "grummp:silant FMDB:TwoPhaseIO moab:mpiio_hints\ foo\:bar"
+ *
+ * In the above example, the space serves as the delimiter character
+ * between multiple options in the string. The colon serves as the
+ * implementation-name/option separator character. Because options are
+ * required to be insensitive to case, the caller is free to use case as a
+ * word separator as in 'TwoPhaseIO' and even in the implementation name,
+ * as in 'FMDB:', although 'fmdb:twophaseio' and 'fmdb:TWOPHASEIO' would
+ * all have the same effect. In the moab option, both the separator
+ * character and delimiter character appear in the option and so are
+ * pre-pended (e.g. escaped) with the backslash character.
+ 
+ * GRUMMP will silently ignore the FMDB: and moab: options because they do
+ * NOT match on the implementation name part. However, GRUMMP may
+ * optionally error out, or warn or silently ignore 'grummp:silant' (it was
+ * supposed to be spelled 'silent') as an invalid option.
+ *
+ * Note that iMesh itself currently does not define any options. In order
+ * to discover options a given implementation defines, users are directed
+ * to the developers of the respective implementations.
  ******************************************************************************/
 
 #ifdef __cplusplus
