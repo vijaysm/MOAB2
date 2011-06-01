@@ -112,12 +112,12 @@ void iRel_getPairInfo (
   }
 
   *iface1       = ASSOCPAIRI->iface_instance(0);
-  *ent_or_set1  = ASSOCPAIRI->ent_or_set(0);
+  *ent_or_set1  = ASSOCPAIRI->relation_type(0);
   *iface_type1  = ASSOCPAIRI->iface_type(0);
   *irel_status1 = ASSOCPAIRI->relation_status(0);
   *iface2       = ASSOCPAIRI->iface_instance(1);
   *iface_type2  = ASSOCPAIRI->iface_type(1);
-  *ent_or_set2  = ASSOCPAIRI->ent_or_set(1);
+  *ent_or_set2  = ASSOCPAIRI->relation_type(1);
   *irel_status2 = ASSOCPAIRI->relation_status(1);
 
   RETURN(iBase_SUCCESS);
@@ -140,7 +140,14 @@ void iRel_changePairStatus (
   int irel_status2,
   int *err)
 {
-  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
+  if (NULL == pair) {
+    ERROR(iBase_FAILURE, "Invalid relation pair.");
+  }
+
+  CHK_ERROR( ASSOCPAIRI->change_status(0, static_cast<iRel_RelationStatus>(
+                                       irel_status1)) );
+  CHK_ERROR( ASSOCPAIRI->change_status(1, static_cast<iRel_RelationStatus>(
+                                       irel_status2)) );
 }
 
 void iRel_destroyPair (
@@ -774,7 +781,7 @@ void iRel_inferAllRelations (
 
   iBase_EntityHandle *ents1 = NULL;
   int ents1_alloc = 0, ents1_size;
-  if (ASSOCPAIRI->ent_or_set(0) != iRel_ENTITY)
+  if (ASSOCPAIRI->relation_type(0) != iRel_ENTITY)
     result = ASSOCPAIRI->get_all_sets(0, (iBase_EntitySetHandle**)&ents1,
                                       &ents1_alloc, &ents1_size);
   else
@@ -784,7 +791,7 @@ void iRel_inferAllRelations (
 
   iBase_EntityHandle *ents2 = NULL;
   int ents2_alloc = 0, ents2_size;
-  if (ASSOCPAIRI->ent_or_set(1) != iRel_ENTITY)
+  if (ASSOCPAIRI->relation_type(1) != iRel_ENTITY)
     result = ASSOCPAIRI->get_all_sets(1, (iBase_EntitySetHandle**)&ents2,
                                      &ents2_alloc, &ents2_size);
   else
@@ -793,8 +800,8 @@ void iRel_inferAllRelations (
   CHK_ERROR(result);
 
   iRel_inferArrArrRelations(instance, pair,
-                            ents1, ents1_size, ASSOCPAIRI->ent_or_set(0),
-                            ents2, ents2_size, ASSOCPAIRI->ent_or_set(1),
+                            ents1, ents1_size, ASSOCPAIRI->relation_type(0),
+                            ents2, ents2_size, ASSOCPAIRI->relation_type(1),
                             &result);
 
   free(ents1); free(ents2);
@@ -845,8 +852,8 @@ static void iRel_inferArrRelations (
   if (0 > iface_no || 1 < iface_no) {
     ERROR(iBase_INVALID_ARGUMENT, "Interface number must be 0 or 1");
   }
-  else if (( is_set && ASSOCPAIRI->ent_or_set(iface_no) == iRel_ENTITY) ||
-           (!is_set && ASSOCPAIRI->ent_or_set(iface_no) != iRel_ENTITY)) {
+  else if (( is_set && ASSOCPAIRI->relation_type(iface_no) == iRel_ENTITY) ||
+           (!is_set && ASSOCPAIRI->relation_type(iface_no) != iRel_ENTITY)) {
     ERROR(iBase_INVALID_ARGUMENT, "is_set must match entOrSet in call to "
           "inferArrRelations");
   }
@@ -857,7 +864,7 @@ static void iRel_inferArrRelations (
   int ents1_size = entities_size;
   iBase_EntityHandle *ents2 = NULL;
   int ents2_alloc = 0, ents2_size;
-  if (ASSOCPAIRI->ent_or_set(1-iface_no) != iRel_ENTITY)
+  if (ASSOCPAIRI->relation_type(1-iface_no) != iRel_ENTITY)
     result = ASSOCPAIRI->get_all_sets(!iface_no,
                                      (iBase_EntitySetHandle**)&ents2,
                                      &ents2_alloc, &ents2_size);
@@ -875,9 +882,9 @@ static void iRel_inferArrRelations (
 
   iRel_inferArrArrRelations(instance, pair,
                             ents1, ents1_size,
-                            ASSOCPAIRI->ent_or_set(0),
+                            ASSOCPAIRI->relation_type(0),
                             ents2, ents2_size,
-                            ASSOCPAIRI->ent_or_set(1), &result);
+                            ASSOCPAIRI->relation_type(1), &result);
 
   free(1 == iface_no ? ents1 : ents2);
 

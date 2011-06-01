@@ -12,8 +12,10 @@ public:
   friend class Lasso;
 
   iRel_IfaceType iface_type(const int iface_no);
-  iRel_RelationType ent_or_set(const int iface_no);
+  iRel_RelationType relation_type(const int iface_no);
   iRel_RelationStatus relation_status(const int iface_no);
+
+  int change_status(const int iface_no, iRel_RelationStatus status);
 
   virtual iBase_Instance iface_instance(const int iface_no) = 0;
 
@@ -156,7 +158,7 @@ private:
 
   iRel_RelationType entOrSet[2];
   iRel_IfaceType ifaceTypes[2];
-  iRel_RelationStatus status[2];
+  iRel_RelationStatus relStatus[2];
   iBase_TagHandle assocTags[2], gidTags[2], dimTags[2];
 
   static const char *GLOBAL_ID_TAG_NAME;

@@ -18,15 +18,15 @@ AssocPair::AssocPair(iRel_Instance instance,
   ifaceTypes[1] = type1;
   entOrSet[0] = ent_or_set0;
   entOrSet[1] = ent_or_set1;
-  status[0] = status0;
-  status[1] = status1;
+  relStatus[0] = status0;
+  relStatus[1] = status1;
 
-  assocTags[0] = 0;
-  assocTags[1] = 0;
-  gidTags[0] = 0;
-  gidTags[1] = 0;
-  dimTags[0] = 0;
-  dimTags[1] = 0;
+  assocTags[0] = NULL;
+  assocTags[1] = NULL;
+  gidTags[0] = NULL;
+  gidTags[1] = NULL;
+  dimTags[0] = NULL;
+  dimTags[1] = NULL;
 
   pairId = currId++;
 }
@@ -46,8 +46,9 @@ int AssocPair::create_tags()
   int def_int_value = 0;
 
   for (int i = 0; i < 2; i++) {
-    CHK_ERRORR( tag_get_handle(i, tmp_name.c_str(), 1, iBase_ENTITY_HANDLE,
-                               true, &def_handle_value, assocTags+i) );
+    if (relStatus[i] != iRel_NOTEXIST)
+      CHK_ERRORR( tag_get_handle(i, tmp_name.c_str(), 1, iBase_ENTITY_HANDLE,
+                                 true, &def_handle_value, assocTags+i) );
     CHK_ERRORR( tag_get_handle(i, GLOBAL_ID_TAG_NAME, 1, iBase_INTEGER,
                                true, &def_int_value, gidTags+i) );
 
@@ -65,7 +66,8 @@ int AssocPair::destroy_tags()
 {
   // We assume that subclasses have called create_tags
   for (int i = 0; i < 2; i++) {
-    tag_destroy(i, assocTags[i]);
+    if (assocTags[i])
+      tag_destroy(i, assocTags[i]);
   }
 
   RETURNR(iBase_SUCCESS);
@@ -88,11 +90,11 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1, iBase_EntityHandle ent2)
     ERRORR(iBase_FAILURE, "Couldn't find associated set on right side");
 
   // set ent1 assoc tag to point to ent2
-  if (status[0] == iRel_ACTIVE)
+  if (relStatus[0] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(0, &ent1, 1, assocTags[0], &ent2, sizeof(ent2)) );
 
   // set ent2 assoc tag to point to ent1
-  if (status[1] == iRel_ACTIVE)
+  if (relStatus[1] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(1, &ent2, 1, assocTags[1], &ent1, sizeof(ent1)) );
 
   RETURNR(iBase_SUCCESS);
@@ -113,11 +115,11 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1,
     ERRORR(iBase_FAILURE, "Couldn't find associated set on left side");
 
   // set ent1 assoc tag to point to ent2
-  if (status[0] == iRel_ACTIVE)
+  if (relStatus[0] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(0, &ent1, 1, assocTags[0], &set2, sizeof(set2)) );
 
   // set ent2 assoc tag to point to ent1
-  if (status[1] == iRel_ACTIVE)
+  if (relStatus[1] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(1, &set2, 1, assocTags[1], &ent1, sizeof(ent1)) );
 
   // if either are sets and 'both' type association, get the indiv
@@ -158,11 +160,11 @@ int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
     ERRORR(iBase_FAILURE, "Couldn't find associated set on right side");
 
   // set ent1 assoc tag to point to ent2
-  if (status[0] == iRel_ACTIVE)
+  if (relStatus[0] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(0, &set1, 1, assocTags[0], &ent2, sizeof(ent2)) );
 
   // set ent2 assoc tag to point to ent1
-  if (status[1] == iRel_ACTIVE)
+  if (relStatus[1] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(1, &ent2, 1, assocTags[1], &set1, sizeof(set1)) );
 
   // if either are sets and 'both' type association, get the indiv
@@ -195,11 +197,11 @@ int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
     ERRORR(iBase_FAILURE, "Invalid relation type");
 
   // set ent1 assoc tag to point to ent2
-  if (status[0] == iRel_ACTIVE)
+  if (relStatus[0] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(0, &set1, 1, assocTags[0], &set2, sizeof(set2)) );
 
   // set ent2 assoc tag to point to ent1
-  if (status[0] == iRel_ACTIVE)
+  if (relStatus[0] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(1, &set2, 1, assocTags[1], &set1, sizeof(set1)) );
 
   RETURNR(iBase_SUCCESS);
@@ -208,9 +210,10 @@ int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
 int AssocPair::get_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
                               int num_entities, iBase_EntityHandle *tag_values)
 {
-  if (entOrSet[!iface_no] != iRel_ENTITY) { // other iface is sets
+  if (relStatus[iface_no] == iRel_NOTEXIST)
+    ERRORR(iBase_FAILURE, "Relation does not exist on this side");
+  if (entOrSet[!iface_no] != iRel_ENTITY) // other iface is sets
     ERRORR(iBase_INVALID_ENTITY_HANDLE, "Expected EntitySet, got Entity");
-  }
 
   return get_tags(iface_no, entities, num_entities, assocTags[iface_no],
                   tag_values, sizeof(iBase_EntityHandle));
@@ -219,9 +222,10 @@ int AssocPair::get_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
 int AssocPair::get_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
                               int num_sets, iBase_EntityHandle *tag_values)
 {
-  if (entOrSet[!iface_no] != iRel_ENTITY) { // other iface is sets
+  if (relStatus[iface_no] == iRel_NOTEXIST)
+    ERRORR(iBase_FAILURE, "Relation does not exist on this side");
+  if (entOrSet[!iface_no] != iRel_ENTITY) // other iface is sets
     ERRORR(iBase_INVALID_ENTITY_HANDLE, "Expected EntitySet, got Entity");
-  }
 
   return get_tags(iface_no, sets, num_sets, assocTags[iface_no], tag_values,
                   sizeof(iBase_EntityHandle));
@@ -231,9 +235,10 @@ int AssocPair::get_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
                               int num_entities,
                               iBase_EntitySetHandle *tag_values)
 {
-  if (entOrSet[!iface_no] == iRel_ENTITY) { // other iface is not sets
+  if (relStatus[iface_no] == iRel_NOTEXIST)
+    ERRORR(iBase_FAILURE, "Relation does not exist on this side");
+  if (entOrSet[!iface_no] == iRel_ENTITY) // other iface is not sets
     ERRORR(iBase_INVALID_ENTITY_HANDLE, "Expected Entity, got EntitySet");
-  }
 
   return get_tags(iface_no, entities, num_entities, assocTags[iface_no],
                   reinterpret_cast<iBase_EntityHandle*>(tag_values),
@@ -243,9 +248,10 @@ int AssocPair::get_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
 int AssocPair::get_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
                               int num_sets, iBase_EntitySetHandle *tag_values)
 {
-  if (entOrSet[!iface_no] == iRel_ENTITY) { // other iface is not sets
+  if (relStatus[iface_no] == iRel_NOTEXIST)
+    ERRORR(iBase_FAILURE, "Relation does not exist on this side");
+  if (entOrSet[!iface_no] == iRel_ENTITY) // other iface is not sets
     ERRORR(iBase_INVALID_ENTITY_HANDLE, "Expected Entity, got EntitySet");
-  }
 
   return get_tags(iface_no, sets, num_sets, assocTags[iface_no],
                   reinterpret_cast<iBase_EntityHandle*>(tag_values),
@@ -282,21 +288,27 @@ int AssocPair::get_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
 int AssocPair::rmv_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
                               int num_entities)
 {
+  if (relStatus[iface_no] == iRel_NOTEXIST)
+    ERRORR(iBase_FAILURE, "Relation does not exist on this side");
+
   // TODO: handle "both" case
 
-  if (entOrSet[!iface_no] == iRel_ENTITY) {
-    std::vector<iBase_EntityHandle> other_entities(num_entities);
-    CHK_ERRORR( get_assoc_tags(iface_no, entities, num_entities,
-                               &other_entities[0]) );
-    CHK_ERRORR( rmv_tags(!iface_no, &other_entities[0], num_entities,
-                         assocTags[!iface_no]) );
-  }
-  else {
-    std::vector<iBase_EntitySetHandle> other_sets(num_entities);
-    CHK_ERRORR( get_assoc_tags(iface_no, entities, num_entities,
-                               &other_sets[0]) );
-    CHK_ERRORR( rmv_tags(!iface_no, &other_sets[0], num_entities,
-                         assocTags[!iface_no]) );
+  // Remove the opposite side first
+  if (relStatus[!iface_no] == iRel_ACTIVE) {
+    if (entOrSet[!iface_no] == iRel_ENTITY) {
+      std::vector<iBase_EntityHandle> other_entities(num_entities);
+      CHK_ERRORR( get_assoc_tags(iface_no, entities, num_entities,
+                                 &other_entities[0]) );
+      CHK_ERRORR( rmv_tags(!iface_no, &other_entities[0], num_entities,
+                           assocTags[!iface_no]) );
+    }
+    else {
+      std::vector<iBase_EntitySetHandle> other_sets(num_entities);
+      CHK_ERRORR( get_assoc_tags(iface_no, entities, num_entities,
+                                 &other_sets[0]) );
+      CHK_ERRORR( rmv_tags(!iface_no, &other_sets[0], num_entities,
+                           assocTags[!iface_no]) );
+    }
   }
 
   return rmv_tags(iface_no, entities, num_entities, assocTags[iface_no]);
@@ -305,19 +317,26 @@ int AssocPair::rmv_assoc_tags(const int iface_no, iBase_EntityHandle *entities,
 int AssocPair::rmv_assoc_tags(const int iface_no, iBase_EntitySetHandle *sets,
                               int num_sets)
 {
+  if (relStatus[iface_no] == iRel_NOTEXIST)
+    ERRORR(iBase_FAILURE, "Relation does not exist on this side");
+
   // TODO: handle "both" case
 
-  if (entOrSet[!iface_no] == iRel_ENTITY) {
-    std::vector<iBase_EntityHandle> other_entities(num_sets);
-    CHK_ERRORR( get_assoc_tags(iface_no, sets, num_sets, &other_entities[0]) );
-    CHK_ERRORR( rmv_tags(!iface_no, &other_entities[0], num_sets,
-                         assocTags[!iface_no]) );
-  }
-  else {
-    std::vector<iBase_EntitySetHandle> other_sets(num_sets);
-    CHK_ERRORR( get_assoc_tags(iface_no, sets, num_sets, &other_sets[0]) );
-    CHK_ERRORR( rmv_tags(!iface_no, &other_sets[0], num_sets,
-                         assocTags[!iface_no]) );
+  // Remove the opposite side first
+  if (relStatus[!iface_no] == iRel_ACTIVE) {
+    if (entOrSet[!iface_no] == iRel_ENTITY) {
+      std::vector<iBase_EntityHandle> other_entities(num_sets);
+      CHK_ERRORR( get_assoc_tags(iface_no, sets, num_sets,
+                                 &other_entities[0]) );
+      CHK_ERRORR( rmv_tags(!iface_no, &other_entities[0], num_sets,
+                           assocTags[!iface_no]) );
+    }
+    else {
+      std::vector<iBase_EntitySetHandle> other_sets(num_sets);
+      CHK_ERRORR( get_assoc_tags(iface_no, sets, num_sets, &other_sets[0]) );
+      CHK_ERRORR( rmv_tags(!iface_no, &other_sets[0], num_sets,
+                           assocTags[!iface_no]) );
+    }
   }
 
   return rmv_tags(iface_no, sets, num_sets, assocTags[iface_no]);
@@ -356,14 +375,45 @@ iRel_IfaceType AssocPair::iface_type(const int iface_no)
   return ifaceTypes[iface_no];
 }
 
-iRel_RelationType AssocPair::ent_or_set(const int iface_no)
+iRel_RelationType AssocPair::relation_type(const int iface_no)
 {
   return entOrSet[iface_no];
 }
 
 iRel_RelationStatus AssocPair::relation_status(const int iface_no)
 {
-  return status[iface_no];
+  return relStatus[iface_no];
+}
+
+int AssocPair::change_status(const int iface_no, iRel_RelationStatus status)
+{
+  if (relStatus[iface_no] == status)
+    RETURNR(iBase_SUCCESS);
+
+  if (relStatus[iface_no] == iRel_NOTEXIST) {
+    // Create the assoc tag
+    std::stringstream tag_name_str;
+    tag_name_str << ASSOCIATION_TAG_NAME << pairId;
+    std::string tmp_name(tag_name_str.str());
+    iBase_EntityHandle def_handle_value = 0;
+
+    CHK_ERRORR( tag_get_handle(iface_no, tmp_name.c_str(), 1,
+                               iBase_ENTITY_HANDLE, true, &def_handle_value,
+                               assocTags+iface_no) );
+  }
+  else if (status == iRel_NOTEXIST) {
+    // Destroy the assoc tag
+    CHK_ERRORR( tag_destroy(iface_no, assocTags[iface_no]) );
+    assocTags[iface_no] = NULL;
+  }
+
+  if (status == iRel_ACTIVE) {
+    // Update the assoc tag
+    // TODO: implement me!
+  }
+
+  relStatus[iface_no] = status;
+  RETURNR(iBase_SUCCESS);
 }
 
 bool AssocPair::equivalent(iRel_IfaceType type1,
