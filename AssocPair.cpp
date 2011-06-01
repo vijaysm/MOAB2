@@ -64,7 +64,6 @@ int AssocPair::create_tags()
 
 int AssocPair::destroy_tags()
 {
-  // We assume that subclasses have called create_tags
   for (int i = 0; i < 2; i++) {
     if (assocTags[i])
       tag_destroy(i, assocTags[i]);
@@ -75,8 +74,7 @@ int AssocPair::destroy_tags()
 
 int AssocPair::set_assoc_tags(iBase_EntityHandle ent1, iBase_EntityHandle ent2)
 {
-  // check that is_setx is consistent with entOrSet
-  if (entOrSet[0] != iRel_ENTITY || entOrSet[1] != iRel_ENTITY)
+  if (entOrSet[0] == iRel_SET || entOrSet[1] == iRel_SET)
     ERRORR(iBase_FAILURE, "Invalid relation type");
 
   // check that if we're passing in an ent for a 'both'-type
@@ -89,11 +87,11 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1, iBase_EntityHandle ent2)
                                            sizeof(tmp_ent)) != iBase_SUCCESS)
     ERRORR(iBase_FAILURE, "Couldn't find associated set on right side");
 
-  // set ent1 assoc tag to point to ent2
+  // set ent1 => ent2
   if (relStatus[0] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(0, &ent1, 1, assocTags[0], &ent2, sizeof(ent2)) );
 
-  // set ent2 assoc tag to point to ent1
+  // set ent1 <= ent2
   if (relStatus[1] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(1, &ent2, 1, assocTags[1], &ent1, sizeof(ent1)) );
 
@@ -103,8 +101,7 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1, iBase_EntityHandle ent2)
 int AssocPair::set_assoc_tags(iBase_EntityHandle ent1,
                               iBase_EntitySetHandle set2)
 {
-  // check that is_setx is consistent with entOrSet
-  if (entOrSet[0] != iRel_ENTITY || entOrSet[1] == iRel_ENTITY)
+  if (entOrSet[0] == iRel_SET || entOrSet[1] == iRel_ENTITY)
     ERRORR(iBase_FAILURE, "Invalid relation type");
 
   // check that if we're passing in an ent for a 'both'-type
@@ -114,29 +111,26 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1,
                                            sizeof(tmp_ent)) != iBase_SUCCESS)
     ERRORR(iBase_FAILURE, "Couldn't find associated set on left side");
 
-  // set ent1 assoc tag to point to ent2
+  // set ent1 => set2
   if (relStatus[0] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(0, &ent1, 1, assocTags[0], &set2, sizeof(set2)) );
 
-  // set ent2 assoc tag to point to ent1
+  // set ent1 <= set2
   if (relStatus[1] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(1, &set2, 1, assocTags[1], &ent1, sizeof(ent1)) );
 
-  // if either are sets and 'both' type association, get the indiv
-  // entities & set associations for them too
+  // if the right side is a 'both'-type association, set the contents of set2
+  // to point to ent1 as well
   if (entOrSet[1] == iRel_BOTH) {
-    iBase_EntityHandle *entities = NULL, to_ent;
-    int entities_alloc = 0, entities_size, iface_no;
+    iBase_EntityHandle *entities = NULL;
+    int entities_alloc = 0, entities_size;
 
-    // get ents from set2 & associate to ent1
     CHK_ERRORR( get_entities(1, -1, set2, &entities, &entities_alloc,
                              &entities_size) );
-    to_ent = ent1;
-    iface_no = 1;
 
     for (int i = 0; i < entities_size; i++) {
-      CHK_ERRORR( set_tags(iface_no, entities+i, 1, assocTags[iface_no],
-                           &to_ent, sizeof(to_ent)) );
+      CHK_ERRORR( set_tags(1, entities+i, 1, assocTags[1], &ent1,
+                           sizeof(iBase_EntityHandle)) );
     }
 
     free(entities);
@@ -148,8 +142,7 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1,
 int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
                               iBase_EntityHandle ent2)
 {
-  // check that is_setx is consistent with entOrSet
-  if (entOrSet[0] == iRel_ENTITY || entOrSet[1] != iRel_ENTITY)
+  if (entOrSet[0] == iRel_ENTITY || entOrSet[1] == iRel_SET)
     ERRORR(iBase_FAILURE, "Invalid relation type");
 
   // check that if we're passing in an ent for a 'both'-type
@@ -159,28 +152,26 @@ int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
                                            sizeof(tmp_ent)) != iBase_SUCCESS)
     ERRORR(iBase_FAILURE, "Couldn't find associated set on right side");
 
-  // set ent1 assoc tag to point to ent2
+  // set set1 => ent2
   if (relStatus[0] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(0, &set1, 1, assocTags[0], &ent2, sizeof(ent2)) );
 
-  // set ent2 assoc tag to point to ent1
+  // set ent1 <= set2
   if (relStatus[1] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(1, &ent2, 1, assocTags[1], &set1, sizeof(set1)) );
 
-  // if either are sets and 'both' type association, get the indiv
-  // entities & set associations for them too
+  // if the left side is a 'both'-type association, set the contents of set1
+  // to point to ent2 as well
   if (entOrSet[0] == iRel_BOTH) {
-    iBase_EntityHandle *entities = NULL, to_ent;
-    int entities_alloc, entities_size, iface_no;
-      // get ents from set1 & associate to ent2
+    iBase_EntityHandle *entities = NULL;
+    int entities_alloc, entities_size;
+
     CHK_ERRORR( get_entities(0, -1, set1, &entities, &entities_alloc,
                              &entities_size) );
-    to_ent = ent2;
-    iface_no = 0;
 
     for (int i = 0; i < entities_size; i++) {
-      CHK_ERRORR( set_tags(iface_no, entities+i, 1, assocTags[iface_no],
-                           &to_ent, sizeof(to_ent)) );
+      CHK_ERRORR( set_tags(0, entities+i, 1, assocTags[0], &ent2,
+                           sizeof(iBase_EntityHandle)) );
     }
 
     free(entities);
@@ -192,17 +183,36 @@ int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
 int AssocPair::set_assoc_tags(iBase_EntitySetHandle set1,
                               iBase_EntitySetHandle set2)
 {
-  // check that is_setx is consistent with entOrSet
   if (entOrSet[0] == iRel_ENTITY || entOrSet[1] == iRel_ENTITY)
     ERRORR(iBase_FAILURE, "Invalid relation type");
 
-  // set ent1 assoc tag to point to ent2
+  // set set1 => set2
   if (relStatus[0] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(0, &set1, 1, assocTags[0], &set2, sizeof(set2)) );
 
-  // set ent2 assoc tag to point to ent1
+  // set set1 <= set2
   if (relStatus[0] == iRel_ACTIVE)
     CHK_ERRORR( set_tags(1, &set2, 1, assocTags[1], &set1, sizeof(set1)) );
+
+  // if either side is a 'both'-type association, set the contents of set1
+  // to point to set2 as well (and/or vice-versa)
+  iBase_EntitySetHandle sets[] = {set1, set2};
+  for (int iface_no = 0; iface_no < 2; iface_no++) {
+    if (entOrSet[iface_no] == iRel_BOTH) {
+      iBase_EntityHandle *entities = NULL;
+      int entities_alloc, entities_size;
+
+      CHK_ERRORR( get_entities(iface_no, -1, sets[iface_no], &entities,
+                               &entities_alloc, &entities_size) );
+
+      for (int i = 0; i < entities_size; i++) {
+        CHK_ERRORR( set_tags(iface_no, entities+i, 1, assocTags[iface_no],
+                             &sets[!iface_no], sizeof(iBase_EntitySetHandle)) );
+      }
+
+      free(entities);
+    }
+  }
 
   RETURNR(iBase_SUCCESS);
 }
