@@ -750,7 +750,8 @@ void create_input_file( const char* file_name,
                               MB_TAG_DENSE|MB_TAG_EXCL, global_default_value );
     CHECK_ERR(rval);
     if (global_mesh_value) {
-      rval = mb.tag_set_data( global_tag, 0, 0, global_mesh_value );
+      EntityHandle root = 0;
+      rval = mb.tag_set_data( global_tag, &root, 1, global_mesh_value );
       CHECK_ERR(rval);
     }
   }
@@ -1062,7 +1063,8 @@ void test_read_global_tags()
   rval = mb.tag_get_default_value( tag, &mesh_def_val );
   CHECK_ERR(rval);
   CHECK_EQUAL( def_val, mesh_def_val );
-  rval = mb.tag_get_data( tag, 0, 0, &mesh_gbl_val );
+  EntityHandle root = 0;
+  rval = mb.tag_get_data( tag, &root, 1, &mesh_gbl_val );
   CHECK_ERR(rval);
   CHECK_EQUAL( global_val, mesh_gbl_val );
 }

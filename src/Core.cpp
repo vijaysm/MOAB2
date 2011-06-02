@@ -115,13 +115,18 @@
 // check and allowing applications to safely request tag data for no
 // entities.
 
+static void warn_null_array_mesh_tag()
+{
+  std::cerr << "WARNING: Accepting empty array to indicate mesh tag" << std::endl; \
+}
+
 #ifdef ALLOW_NULL_FOR_MESH_TAG
 # define CHECK_MESH_NULL \
   EntityHandle root = 0; \
   if (NULL == entity_handles && 0 == num_entities) { \
     entity_handles = &root; \
     num_entities = 1; \
-    std::cerr << "WARNING: Accepting empty array to indicate mesh tag" << std::endl; \
+    warn_null_array_mesh_tag(); \
   } 
 #elif defined(DISALLOW_EMPTY_HANDLE_LIST_FOR_TAGS)
 # define CHECK_MESH_NULL \
