@@ -64,8 +64,8 @@ int main(int argc, char **argv) {
   moab::AdaptiveKDTree::Settings settings;
   settings.candidatePlaneSet = moab::AdaptiveKDTree::SUBDIVISION;
 
-  MBI->tag_create("CoordTag", 1, moab::MB_TYPE_INTEGER, coord_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT);
-  MBI->tag_create("RotationTag", 16, moab::MB_TYPE_DOUBLE, rotation_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
+  MBI->tag_get_handle("CoordTag", 1, moab::MB_TYPE_INTEGER, coord_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT);
+  MBI->tag_get_handle("RotationTag", 16, moab::MB_TYPE_DOUBLE, rotation_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
 
   if (skip_build) {
     MBresult = MBI->load_mesh(h5m_filename.c_str());
