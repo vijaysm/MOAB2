@@ -1215,8 +1215,8 @@ int main( int argc, char* argv[] )
   result = MBI->tag_get_handle( "GEOM_SIZE", 1,                                                       
 			    MB_TYPE_DOUBLE, sizeTag, MB_TAG_DENSE|MB_TAG_CREAT );
   if(MB_SUCCESS != result) return result;
-  result = MBI->tag_get_handle(NAME_TAG_NAME, NAME_TAG_SIZE, MB_TAG_SPARSE,
-                           MB_TYPE_OPAQUE, nameTag, MB_TAG_SPARSE|MB_TAG_CREAT );
+  result = MBI->tag_get_handle(NAME_TAG_NAME, NAME_TAG_SIZE,
+          MB_TYPE_OPAQUE, nameTag, MB_TAG_SPARSE|MB_TAG_CREAT );
   if(MB_SUCCESS != result) return result;
 
   // Create triangles from the quads of the cub surface sets and add them to the
