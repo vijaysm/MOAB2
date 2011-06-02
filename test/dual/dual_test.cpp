@@ -85,7 +85,7 @@ int main(int argc, char* argv[])
   Range hp_sets;
   if (num_2d == num_quad) {
       // get sets with the right tag
-    result = gMB->tag_get_handle(DualTool::DUAL_CURVE_TAG_NAME, hp_tag);
+    result = gMB->tag_get_handle(DualTool::DUAL_CURVE_TAG_NAME, 1, MB_TYPE_HANDLE, hp_tag);
     if (MB_SUCCESS == result) {
       result = gMB->get_entities_by_type_and_tag(0, MBENTITYSET, &hp_tag, NULL, 1,
                                                  hp_sets);
@@ -97,7 +97,7 @@ int main(int argc, char* argv[])
   
   if (num_3d == num_hex) {
       // get sets with the right tag
-    result = gMB->tag_get_handle(DualTool::DUAL_SURFACE_TAG_NAME, hp_tag);
+    result = gMB->tag_get_handle(DualTool::DUAL_SURFACE_TAG_NAME, 1, MB_TYPE_HANDLE, hp_tag);
     if (MB_SUCCESS == result) {
       hp_sets.clear();
       result = gMB->get_entities_by_type_and_tag(0, MBENTITYSET, &hp_tag, NULL, 1,

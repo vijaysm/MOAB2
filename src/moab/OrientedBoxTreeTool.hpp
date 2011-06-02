@@ -268,7 +268,7 @@ class OrientedBoxTreeTool
      *                     used, glancing intersections are rejected. Must be used
      *                     used with sense_tag.
      *\param sense_tag     Must be used if geom_vol is used. Saves >4% of execution
-     *                     time by avoiding tag_create call.
+     *                     time by avoiding tag_get_handle call.
      *\param desired_orient Optional ptr used to screen intersections by orientation.
      *                     Pass 1 to keep intersections with surface normals in the
      *                     same direction as the ray. Pass -1 for opposite orientation.

@@ -69,7 +69,7 @@ void test_moab_v3_poly_format()
   
     // get tag for saved values
   Tag centroid;
-  rval = mb.tag_get_handle( "CENTROID", centroid );
+  rval = mb.tag_get_handle( "CENTROID", 3, MB_TYPE_DOUBLE, centroid );
   CHECK_ERR(rval);
   
     // for each face...

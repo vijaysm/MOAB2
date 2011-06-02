@@ -43,16 +43,16 @@ GeomTopoTool::GeomTopoTool(Interface *impl, bool find_geoments, EntityHandle mod
   contiguous(true), oneVolRootSet(0)
 {
 
-  ErrorCode result = mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4,
-      MB_TAG_SPARSE, geomTag, NULL);
-  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) {
+  ErrorCode result = mdbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1,
+      MB_TYPE_INTEGER, geomTag, MB_TAG_CREAT|MB_TAG_SPARSE);
+  if (MB_SUCCESS != result) {
     std::cerr << "Error: Failed to create geometry dimension tag." << std::endl;
   }
   // global id tag is not really needed, but mbsize complains if we do not set it for
   // geometry entities
 
-  result = mdbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE,
-        MB_TYPE_INTEGER, gidTag, 0, true);
+  result = mdbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, 
+        MB_TYPE_INTEGER, gidTag, MB_TAG_CREAT|MB_TAG_DENSE);
   if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) {
     std::cerr << "Error: Failed to create global id tag." << std::endl;
   }
@@ -66,7 +66,7 @@ int GeomTopoTool::dimension(EntityHandle this_set)
 {
   ErrorCode result;
   if (0 == geomTag) {
-    result = mdbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, geomTag);
+    result = mdbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geomTag);
     if (MB_SUCCESS != result)
       return result;
   }
@@ -92,7 +92,7 @@ int GeomTopoTool::global_id(EntityHandle this_set)
 {
   ErrorCode result;
   if (0 == gidTag) {
-    result = mdbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gidTag);
+    result = mdbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gidTag);
     if (MB_SUCCESS != result)
       return result;
   }
@@ -307,7 +307,7 @@ ErrorCode GeomTopoTool::restore_topology()
   ErrorCode result;
   // get the geom topology tag
   if (0 == geomTag) {
-    result = mdbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, geomTag);
+    result = mdbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geomTag);
     if (MB_SUCCESS != result)
       return result;
   }
@@ -333,9 +333,9 @@ ErrorCode GeomTopoTool::restore_topology()
     // each dimension so prev dim's tag data goes away
     Tag owner_tag;
     EntityHandle dum_val = 0;
-    result = mdbImpl->tag_create("__owner_tag", sizeof(EntityHandle),
-        MB_TAG_DENSE, MB_TYPE_HANDLE, owner_tag, &dum_val);
-    if (MB_SUCCESS != result && (MB_ALREADY_ALLOCATED != result || !owner_tag))
+    result = mdbImpl->tag_get_handle("__owner_tag", 1,
+        MB_TYPE_HANDLE, owner_tag, MB_TAG_DENSE|MB_TAG_CREAT, &dum_val);
+    if (MB_SUCCESS != result)
       continue;
     Range dp1ents;
     std::vector<EntityHandle> owners;
@@ -430,7 +430,7 @@ ErrorCode GeomTopoTool::separate_by_dimension(const Range &geom_sets,
 
   if (0 == geomTag) {
 
-    result = mdbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, geomTag);
+    result = mdbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geomTag);
     if (MB_SUCCESS != result)
       return result;
   }
@@ -455,7 +455,7 @@ ErrorCode GeomTopoTool::separate_by_dimension(const Range &geom_sets,
 
   // establish the max global ids so far, per dimension
   if (0 == gidTag) {
-    result = mdbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gidTag);
+    result = mdbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gidTag);
     if (MB_SUCCESS != result)
       return result;
   }
@@ -778,19 +778,13 @@ ErrorCode GeomTopoTool::set_senses(EntityHandle entity, std::vector<
 ErrorCode GeomTopoTool::check_face_sense_tag(bool create)
 {
   ErrorCode rval;
-  if (!sense2Tag && create) {
+  unsigned flags = create ? MB_TAG_SPARSE|MB_TAG_CREAT : MB_TAG_SPARSE;
+  if (!sense2Tag) {
     EntityHandle def_val[2] = {0, 0};
-    rval = mdbImpl->tag_create(GEOM_SENSE_2_TAG_NAME, 2 * sizeof(EntityHandle),
-        MB_TAG_SPARSE, MB_TYPE_HANDLE, sense2Tag, def_val, true);
-    if (MB_SUCCESS != rval && (MB_ALREADY_ALLOCATED != rval || !sense2Tag))
+    rval = mdbImpl->tag_get_handle(GEOM_SENSE_2_TAG_NAME, 2,
+        MB_TYPE_HANDLE, sense2Tag, flags, def_val);
+    if (MB_SUCCESS != rval)
       return MB_FAILURE;
-  }
-  if (!sense2Tag && !create) {
-    rval = mdbImpl->tag_get_handle(GEOM_SENSE_2_TAG_NAME, sense2Tag);
-    if (MB_SUCCESS != rval) {
-      sense2Tag = 0;
-      return MB_FAILURE;
-    }
   }
   return MB_SUCCESS;
 }
@@ -799,31 +793,17 @@ ErrorCode GeomTopoTool::check_face_sense_tag(bool create)
 ErrorCode GeomTopoTool::check_edge_sense_tags(bool create)
 {
   ErrorCode rval;
-  if (!senseNEntsTag && create) {
-    rval = mdbImpl->tag_create_variable_length(GEOM_SENSE_N_ENTS_TAG_NAME,
-        MB_TAG_SPARSE, MB_TYPE_HANDLE, senseNEntsTag);
-    if (MB_SUCCESS != rval && (MB_ALREADY_ALLOCATED != rval || !senseNEntsTag))
+  unsigned flags = MB_TAG_VARLEN|MB_TAG_SPARSE;
+  if (create) flags |= MB_TAG_CREAT;
+  if (!senseNEntsTag) {
+    rval = mdbImpl->tag_get_handle(GEOM_SENSE_N_ENTS_TAG_NAME,
+                                   0, MB_TYPE_HANDLE, senseNEntsTag, flags);
+    if (MB_SUCCESS != rval)
       return MB_FAILURE;
-
-    rval = mdbImpl->tag_create_variable_length(GEOM_SENSE_N_SENSES_TAG_NAME,
-        MB_TAG_SPARSE, MB_TYPE_INTEGER, senseNSensesTag);
-    if (MB_SUCCESS != rval
-        && (MB_ALREADY_ALLOCATED != rval || !senseNSensesTag))
-      return MB_FAILURE;
-  }
-  else if (!senseNEntsTag && !create)
-  {
-    rval = mdbImpl->tag_get_handle(GEOM_SENSE_N_ENTS_TAG_NAME, senseNEntsTag);
-    if (MB_SUCCESS != rval) {
-      senseNEntsTag = 0;
-      return MB_FAILURE;
-    }
     rval = mdbImpl->tag_get_handle(GEOM_SENSE_N_SENSES_TAG_NAME,
-        senseNSensesTag);
-    if (MB_SUCCESS != rval) {
-      senseNSensesTag = 0;
+                                   0, MB_TYPE_INTEGER, senseNSensesTag, flags);
+    if (MB_SUCCESS != rval)
       return MB_FAILURE;
-    }
   }
   return MB_SUCCESS;
 }
@@ -841,13 +821,13 @@ ErrorCode  GeomTopoTool::add_geo_set(EntityHandle set, int dimension, int global
   // get the geom topology tag
   ErrorCode result;
   if (0 == geomTag) {
-    result = mdbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, geomTag);
+    result = mdbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geomTag);
     if (MB_SUCCESS != result)
       return result;
   }
 
   if (0 == gidTag) {
-    result = mdbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gidTag);
+    result = mdbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gidTag);
     if (MB_SUCCESS != result)
       return result;
   }
@@ -1087,12 +1067,12 @@ GeomTopoTool * GeomTopoTool::duplicate_model()
   if (MB_SUCCESS!=rval)
     return NULL;
   if (0 == geomTag) {
-    rval = mdbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, geomTag);
+    rval = mdbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geomTag);
     if (MB_SUCCESS != rval)
       return NULL;
   }
   if (0 == gidTag) {
-    rval = mdbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gidTag);
+    rval = mdbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1,MB_TYPE_INTEGER, gidTag);
     if (MB_SUCCESS != rval)
       return NULL;
   }

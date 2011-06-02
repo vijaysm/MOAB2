@@ -370,7 +370,7 @@ ErrorCode Coupler::interpolate(Coupler::Method method,
                                    bool normalize)
 {
   Tag tag;
-  ErrorCode result = mbImpl->tag_get_handle(interp_tag.c_str(), tag);
+  ErrorCode result = mbImpl->tag_get_handle(interp_tag.c_str(), 1, MB_TYPE_DOUBLE, tag);
   if (MB_SUCCESS != result) return result;
   return interpolate(method, tag, interp_vals, tl, normalize);
 }

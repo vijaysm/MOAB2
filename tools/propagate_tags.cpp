@@ -296,33 +296,7 @@ int main( int argc, char* argv[] )
     DataType data_type;
     CALL( tag_get_data_type, (data_tag.handle, data_type) );
     
-    ErrorCode rval = iface->tag_get_handle( write_tag_name, write_tag );
-    if (MB_FAILURE == rval)
-    {
-      std::cerr << "Unknown error retrieving handle for tag: " << write_tag_name << std::endl;
-      exit( 5 );
-    }
-    else if (MB_TAG_NOT_FOUND == rval)
-    {
-      CALL( tag_create, (write_tag_name, data_size, MB_TAG_SPARSE, data_type, write_tag, 0) );
-    }
-    else
-    {
-      DataType write_type;
-      int write_size;
-      CALL( tag_get_data_type, (write_tag, write_type) );
-      CALL( tag_get_size, (write_tag, write_size) );
-      
-      if (data_size != write_size ||
-          (write_type != MB_TYPE_OPAQUE &&
-           data_type != MB_TYPE_OPAQUE &&
-           write_type != data_type)
-          )
-      {
-        std::cerr << "Data and write tags have incompatible types." << std::endl;
-        exit( 3 );
-      }
-    }
+    CALL( tag_get_handle, (write_tag_name, data_size, data_type, write_tag, MB_TAG_SPARSE|MB_TAG_BYTES|MB_TAG_CREAT) );
   }
   
   

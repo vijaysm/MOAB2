@@ -244,7 +244,7 @@ ErrorCode generate_mesh( Interface& moab, int num_interval )
   
   ErrorCode rval;
   Tag global_id;
-  rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, global_id );
+  rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, global_id );
   if (MB_SUCCESS != rval)
     return rval;
   

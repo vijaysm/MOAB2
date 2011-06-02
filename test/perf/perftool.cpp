@@ -351,7 +351,7 @@ void tag_time( TagType storage, bool direct, int intervals, int dim, int blocks 
   
     // Create tag in which to store data
   Tag tag;
-  mb.tag_create( "data", sizeof(double), storage, MB_TYPE_DOUBLE, tag, 0 );
+  mb.tag_get_handle( "data", 1, MB_TYPE_DOUBLE, tag, storage|MB_TAG_CREAT );
   
     // Make up some arbitrary iterative calculation for timing purposes:
     // set each value v_n = (V + v_n)/2 until all values are within

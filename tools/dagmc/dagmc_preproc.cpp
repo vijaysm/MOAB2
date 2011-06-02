@@ -334,16 +334,16 @@ int main( int argc, char* argv[] ){
 
     // Create tags
     Tag dimTag, idTag, senseTag;
-    ret = mbi.tag_create(GEOM_DIMENSION_TAG_NAME, sizeof(int), MB_TAG_DENSE, 
-			 MB_TYPE_INTEGER, dimTag, NULL, true );
+    ret = mbi.tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, 
+                             dimTag, MB_TAG_SPARSE|MB_TAG_CREAT); 
     CHECKERR( mbi, ret );
 
-    ret = mbi.tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, 
-			 MB_TYPE_INTEGER, idTag, NULL, true );
+    ret = mbi.tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, 
+			     idTag, MB_TAG_DENSE|MB_TAG_CREAT);
     CHECKERR( mbi, ret );
 
-    ret = mbi.tag_create("GEOM_SENSE_2", 2*sizeof(EntityHandle), MB_TAG_SPARSE, 
-			 MB_TYPE_HANDLE, senseTag, NULL, true );
+    ret = mbi.tag_get_handle("GEOM_SENSE_2", 2, MB_TYPE_HANDLE, senseTag, 
+                             MB_TAG_SPARSE|MB_TAG_CREAT );
     CHECKERR( mbi, ret );
   
     for( std::vector<std::string>::iterator i = m_list.begin(); i!=m_list.end(); ++i){

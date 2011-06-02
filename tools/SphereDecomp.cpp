@@ -20,7 +20,7 @@ SphereDecomp::SphereDecomp(Interface *impl)
 ErrorCode SphereDecomp::build_sphere_mesh(const char *sphere_radii_tag_name,
                                             EntityHandle *hex_set) 
 {
-  ErrorCode result = mbImpl->tag_get_handle(sphere_radii_tag_name, sphereRadiiTag); RR;
+  ErrorCode result = mbImpl->tag_get_handle(sphere_radii_tag_name, 1, MB_TYPE_DOUBLE, sphereRadiiTag); RR;
 
     // need to make sure all interior edges and faces are created
   Range all_verts;
@@ -29,8 +29,8 @@ ErrorCode SphereDecomp::build_sphere_mesh(const char *sphere_radii_tag_name,
   result = mtu.construct_aentities(all_verts);
   
     // create tag to hold vertices
-  result = mbImpl->tag_create(SUBDIV_VERTICES_TAG_NAME, 9*sizeof(EntityHandle), 
-                           MB_TAG_DENSE, MB_TYPE_HANDLE, subdivVerticesTag, NULL); RR;
+  result = mbImpl->tag_get_handle(SUBDIV_VERTICES_TAG_NAME, 9, MB_TYPE_HANDLE, 
+                                  subdivVerticesTag, MB_TAG_DENSE|MB_TAG_EXCL); RR;
 
     // compute nodal positions for each dimension element
   result = compute_nodes(1); RR;

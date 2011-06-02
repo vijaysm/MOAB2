@@ -154,11 +154,7 @@ Tag test_create_tag( Interface& mb,
   ErrorCode rval;
   Tag tag;
   
-  if (type == MB_TYPE_OPAQUE) 
-    rval = mb.tag_create( name, bytes, storage, tag, defval );
-  else
-    rval = mb.tag_create( name, bytes, storage, type, tag, defval );
-    
+  rval = mb.tag_get_handle( name, bytes, type, tag, storage|MB_TAG_BYTES|MB_TAG_EXCL, defval );
   if (expect != MB_SUCCESS) {
     CHECK_EQUAL( expect, rval );
     return 0;
@@ -171,7 +167,7 @@ Tag test_create_tag( Interface& mb,
   CHECK( n == name );
   
   Tag tag2;
-  rval = mb.tag_get_handle( name, tag2 );
+  rval = mb.tag_get_handle( name, bytes, type, tag2, MB_TAG_BYTES );
   CHECK_ERR(rval);
   CHECK_EQUAL( tag, tag2 );
   
@@ -202,7 +198,7 @@ Tag test_create_tag( Interface& mb,
   }
   
     // make sure we can't create a second tag w/ the same name
-  rval = mb.tag_create( name, bytes, storage, type, tag2, defval );
+  rval = mb.tag_get_handle( name, bytes, type, tag2, storage|MB_TAG_BYTES|MB_TAG_EXCL, defval );
   CHECK_EQUAL( MB_ALREADY_ALLOCATED, rval );
     // we should get back the handle of the existing tag
   CHECK_EQUAL( tag, tag2 );
@@ -222,7 +218,7 @@ Tag test_create_var_len_tag( Interface& mb,
   ErrorCode rval;
   Tag tag;
   
-  rval = mb.tag_create_variable_length( name, storage, type, tag, defval, defval_size );
+  rval = mb.tag_get_handle( name, defval_size, type, tag, storage|MB_TAG_VARLEN|MB_TAG_BYTES|MB_TAG_EXCL, defval );
   if (expect != MB_SUCCESS) {
     CHECK_EQUAL( expect, rval );
     return 0;
@@ -235,7 +231,7 @@ Tag test_create_var_len_tag( Interface& mb,
   CHECK( n == name );
   
   Tag tag2;
-  rval = mb.tag_get_handle( name, tag2 );
+  rval = mb.tag_get_handle( name, 0, type, tag2 );
   CHECK_ERR(rval);
   CHECK_EQUAL( tag, tag2 );
   
@@ -268,7 +264,7 @@ Tag test_create_var_len_tag( Interface& mb,
   }
   
     // make sure we can't create a second tag w/ the same name
-  rval = mb.tag_create_variable_length( name, storage, type, tag2 );
+  rval = mb.tag_get_handle( name, defval_size, type, tag2, storage|MB_TAG_VARLEN|MB_TAG_EXCL );
   CHECK_EQUAL( MB_ALREADY_ALLOCATED, rval );
     // we should get back the handle of the existing tag
   CHECK_EQUAL( tag, tag2 );
@@ -1180,7 +1176,7 @@ static void test_delete_type_tag( TagType storage )
   rval = mb.tag_get_name( tag, name );
   CHECK_EQUAL( MB_TAG_NOT_FOUND, rval );
   Tag tag2;
-  rval = mb.tag_get_handle( tagname, tag2 );
+  rval = mb.tag_get_handle( tagname, 1, MB_TYPE_INTEGER, tag2 );
   CHECK_EQUAL( MB_TAG_NOT_FOUND, rval );
   int size;
   rval = mb.tag_get_size( tag, size );
@@ -2014,7 +2010,7 @@ void regression_one_entity_by_var_tag()
   CHECK_ERR(rval);
 
   Tag tag;
-  rval = moab.tag_create_variable_length( "testtag", MB_TAG_DENSE, MB_TYPE_INTEGER, tag );
+  rval = moab.tag_get_handle( "testtag", 0, MB_TYPE_INTEGER, tag, MB_TAG_DENSE|MB_TAG_VARLEN|MB_TAG_EXCL );
   CHECK_ERR(rval);
   
   int taglen = sizeof(int);
@@ -2043,11 +2039,11 @@ void regression_tag_on_nonexistent_entity()
   
     // create all three types of tags
   Tag dense, sparse, bit;
-  rval = moab.tag_create( "test_dense", numval, MB_TAG_DENSE, MB_TYPE_INTEGER, dense, 0, false );
+  rval = moab.tag_get_handle( "test_dense", 1, MB_TYPE_INTEGER, dense, MB_TAG_DENSE|MB_TAG_EXCL );
   CHECK_ERR(rval);
-  rval = moab.tag_create( "test_sparse", numval, MB_TAG_SPARSE, MB_TYPE_INTEGER, sparse, 0, false );
+  rval = moab.tag_get_handle( "test_sparse", 1,MB_TYPE_INTEGER, sparse, MB_TAG_SPARSE|MB_TAG_EXCL );
   CHECK_ERR(rval);
-  rval = moab.tag_create( "test_bit", numval, MB_TAG_BIT, MB_TYPE_BIT, bit, 0, false );
+  rval = moab.tag_get_handle( "test_bit", 4, MB_TYPE_BIT, bit, MB_TAG_EXCL );
   CHECK_ERR(rval);
   
     // for each tag type, check all four mechanisms for setting tag data
@@ -2145,8 +2141,8 @@ void test_tag_iterate_common( TagType storage, bool with_default )
   // Create an integer tag
   Tag tag;
   const int defval = 0;
-  rval = mb.tag_create( "TEST_TAG", sizeof(int), storage, MB_TYPE_INTEGER, 
-                         tag, with_default ? &defval : 0 );
+  rval = mb.tag_get_handle( "TEST_TAG", 1, MB_TYPE_INTEGER, tag,
+                         storage|MB_TAG_CREAT, with_default ? &defval : 0 );
   CHECK_ERR(rval);
   
   // Set tag values
@@ -2236,7 +2232,7 @@ void test_tag_iterate_invalid()
   // Check that we cannot iterate over bit tags
   // (this will never be possible because the storage for bit tags
   //  is compressed and therefore cannot be directly accessed.)
-  rval = mb.tag_create( "bits", 1, MB_TAG_BIT, MB_TYPE_BIT, tag, &zero);
+  rval = mb.tag_get_handle( "bits", 1, MB_TYPE_BIT, tag, MB_TAG_EXCL, &zero);
   CHECK_ERR(rval);
   rval = mb.tag_iterate( tag, verts.begin(), verts.end(), count, ptr );
   CHECK_EQUAL( MB_TYPE_OUT_OF_RANGE, rval );
@@ -2244,12 +2240,12 @@ void test_tag_iterate_invalid()
   // Check that we cannot iterate over variable-length tags
   // (this will never be possible because this API function cannot
   //  pass back the length of the tag values)
-  rval = mb.tag_create_variable_length( "vden", MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &zero, sizeof(int));
+  rval = mb.tag_get_handle( "vden", 1, MB_TYPE_INTEGER, tag, MB_TAG_VARLEN|MB_TAG_DENSE|MB_TAG_EXCL, &zero);
   CHECK_ERR(rval);
   rval = mb.tag_iterate( tag, verts.begin(), verts.end(), count, ptr );
   CHECK_EQUAL( MB_VARIABLE_DATA_LENGTH, rval );
   
-  rval = mb.tag_create_variable_length( "vspr", MB_TAG_SPARSE, MB_TYPE_INTEGER, tag, &zero, sizeof(int));
+  rval = mb.tag_get_handle( "vspr", 1, MB_TYPE_INTEGER, tag, MB_TAG_VARLEN|MB_TAG_SPARSE|MB_TAG_EXCL, &zero);
   CHECK_ERR(rval);
   rval = mb.tag_iterate( tag, verts.begin(), verts.end(), count, ptr );
   CHECK_EQUAL( MB_VARIABLE_DATA_LENGTH, rval );

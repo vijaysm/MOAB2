@@ -107,11 +107,11 @@ ErrorCode BSPTree::init_tags( const char* tagname )
   std::string rootname(tagname);
   rootname += "_box";
   
-  ErrorCode rval = moab()->tag_create( tagname, 4*sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, planeTag, 0, true );
+  ErrorCode rval = moab()->tag_get_handle( tagname, 4, MB_TYPE_DOUBLE, planeTag, MB_TAG_CREAT|MB_TAG_DENSE );
   if (MB_SUCCESS != rval)
     planeTag = 0;
   else
-    rval = moab()->tag_create( rootname.c_str(), 24*sizeof(double), MB_TAG_SPARSE, MB_TYPE_DOUBLE, rootTag, 0, true );
+    rval = moab()->tag_get_handle( rootname.c_str(), 24, MB_TYPE_DOUBLE, rootTag, MB_TAG_CREAT|MB_TAG_SPARSE );
   if (MB_SUCCESS != rval)
     rootTag = 0;
   return rval;

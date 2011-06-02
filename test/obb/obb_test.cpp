@@ -680,7 +680,7 @@ static bool do_file( const char* filename )
   Range surfaces;
   if (surfTree != DISABLE) {
     Tag surftag;
-    rval = iface->tag_get_handle( GEOM_DIMENSION_TAG_NAME, surftag );
+    rval = iface->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, surftag );
     if (MB_SUCCESS == rval) {
       int dim = 2;
       const void* tagvalues[] = {&dim};
@@ -1118,7 +1118,7 @@ static bool do_ray_fire_test( OrientedBoxTreeTool& tool,
       
       
       Tag idtag;
-      rval = tool.get_moab_instance()->tag_get_handle( GLOBAL_ID_TAG_NAME, idtag );
+      rval = tool.get_moab_instance()->tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, idtag );
       if (MB_SUCCESS != rval) {
         std::cout << "NO GLOBAL_ID TAG." << std::endl;
         continue;
@@ -1166,25 +1166,9 @@ ErrorCode save_tree( Interface* instance,
   ErrorCode rval;
   Tag tag;
   
-  rval = instance->tag_get_handle( "OBB_ROOT", tag );
-  if (MB_SUCCESS == rval) {
-    int size;
-    DataType type;
-    rval = instance->tag_get_size( tag, size );
-    if (MB_SUCCESS != rval)
-      return rval;
-    rval = instance->tag_get_data_type( tag, type );
-    if (MB_SUCCESS != rval)
-      return rval;
-
-    if (size != sizeof(EntityHandle) || type != MB_TYPE_HANDLE)
-      return MB_FAILURE;
-  }
-  else {
-    rval = instance->tag_create( "OBB_ROOT", sizeof(EntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, tag, 0 );
-    if (MB_SUCCESS != rval)
-      return rval;
-  }
+  rval = instance->tag_get_handle( "OBB_ROOT", 1, MB_TYPE_HANDLE, tag, MB_TAG_SPARSE|MB_TAG_CREAT );
+  if (MB_SUCCESS != rval)
+    return rval;
   
   const EntityHandle root = 0;
   rval = instance->tag_set_data( tag, &root, 1, &tree_root );

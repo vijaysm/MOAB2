@@ -109,27 +109,27 @@ int main( int argc, char* argv[] )
 
   Tag t;
   if (printGeomSets) {
-    if (MB_SUCCESS == mb.tag_get_handle( GEOM_DIMENSION_TAG_NAME, t )) {
+    if (MB_SUCCESS == mb.tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, t )) {
       geomTag = t;
     }
   }
   if (printMeshSets) {
-    if (MB_SUCCESS == mb.tag_get_handle( MATERIAL_SET_TAG_NAME, t )) {
+    if (MB_SUCCESS == mb.tag_get_handle( MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, t )) {
       blockTag = t;
     }
-    if (MB_SUCCESS == mb.tag_get_handle( DIRICHLET_SET_TAG_NAME, t )) {
+    if (MB_SUCCESS == mb.tag_get_handle( DIRICHLET_SET_TAG_NAME, 1, MB_TYPE_INTEGER, t )) {
       nodeTag = t;
     }
-    if (MB_SUCCESS == mb.tag_get_handle( NEUMANN_SET_TAG_NAME, t )) {
+    if (MB_SUCCESS == mb.tag_get_handle( NEUMANN_SET_TAG_NAME, 1, MB_TYPE_INTEGER, t )) {
       sideTag = t;
     }
   }
   if (printNamedSets) {
-    if (MB_SUCCESS == mb.tag_get_handle( NAME_TAG_NAME, t )) {
+    if (MB_SUCCESS == mb.tag_get_handle( NAME_TAG_NAME, NAME_TAG_SIZE, MB_TYPE_OPAQUE, t )) {
       nameTag = t;
     }
   }
-  if (MB_SUCCESS == mb.tag_get_handle( GLOBAL_ID_TAG_NAME, t ))
+  if (MB_SUCCESS == mb.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, t ))
     idTag = t;
   
   write_dot( contained, children );

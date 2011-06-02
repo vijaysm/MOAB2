@@ -57,7 +57,7 @@ void test_read_nodes()
   CHECK_EQUAL( (size_t)19, nodes.size() );
   
   Tag id_tag;
-  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
+  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag );
   CHECK_ERR(rval);
   
   std::vector<int> ids(nodes.size());
@@ -221,7 +221,7 @@ void test_read_tets()
   CHECK_EQUAL( (size_t)2, tets.size() );
   
   Tag id_tag;
-  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
+  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag );
   CHECK_ERR(rval);
   
   std::vector<int> ids(tets.size());
@@ -271,7 +271,7 @@ void test_read_prisms()
   CHECK_EQUAL( (size_t)2, prisms.size() );
   
   Tag id_tag;
-  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
+  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag );
   CHECK_ERR(rval);
   
   std::vector<int> ids(prisms.size());
@@ -324,7 +324,7 @@ void test_read_hexes()
   CHECK_EQUAL( (size_t)1, hexes.size() );
   
   Tag id_tag;
-  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
+  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag );
   CHECK_ERR(rval);
   
   std::vector<int> ids(hexes.size());
@@ -356,7 +356,7 @@ void test_read_material_set1()
   read_file( moab, example );
   
   Tag mat_tag;
-  rval = mb.tag_get_handle( MATERIAL_SET_TAG_NAME, mat_tag );
+  rval = mb.tag_get_handle( MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, mat_tag );
   CHECK_ERR(rval);
   
   Range mat_set_one;  
@@ -385,7 +385,7 @@ void test_read_material_set2()
   read_file( moab, example );
   
   Tag mat_tag;
-  rval = mb.tag_get_handle( MATERIAL_SET_TAG_NAME, mat_tag );
+  rval = mb.tag_get_handle( MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, mat_tag );
   CHECK_ERR(rval);
   
   Range mat_set_two;  

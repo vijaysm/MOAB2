@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
 
 // Create a tag
   Tag tag;
-  error(mbint->tag_create("test_tag", sizeof(double), MB_TAG_DENSE, tag, NULL));
+  error(mbint->tag_get_handle("test_tag", 1, MB_TYPE_DOUBLE, tag, MB_TAG_DENSE|MB_TAG_EXCL));
 
   Range empty_range;
   tag_get_set(tag);
@@ -162,7 +162,7 @@ void create_hexes_and_verts()
     // Set global id's:
   int gid;
   Tag global_id_tag;
-  error(mbint->tag_get_handle(GLOBAL_ID_TAG_NAME, global_id_tag));
+  error(mbint->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, global_id_tag));
   EntityHandle handle = vs;
   int i,j,k;
 	
@@ -206,7 +206,7 @@ void resolve_and_exchange()
 	
     // Add the MATERIAL_SET tag to the entity set:
   Tag tag;
-  error(mbint->tag_get_handle(MATERIAL_SET_TAG_NAME, tag));
+  error(mbint->tag_get_handle(MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, tag));
   error(mbint->tag_set_data(tag, &entity_set, 1, &rank));
 	
     // Set up partition sets. This is where MOAB is actually told what

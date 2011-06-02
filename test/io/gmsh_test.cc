@@ -58,7 +58,7 @@ void test_read_nodes()
   CHECK_EQUAL( (size_t)6, nodes.size() );
   
   Tag id_tag;
-  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
+  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag );
   CHECK_ERR(rval);
   
   std::vector<int> ids(nodes.size());
@@ -129,7 +129,7 @@ void test_read_quads()
   CHECK_EQUAL( (size_t)2, quads.size() );
   
   Tag id_tag;
-  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
+  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag );
   CHECK_ERR(rval);
   
   std::vector<int> ids(quads.size());
@@ -174,7 +174,7 @@ void test_read_material_set()
   read_file( moab, example );
   
   Tag mat_tag;
-  rval = mb.tag_get_handle( MATERIAL_SET_TAG_NAME, mat_tag );
+  rval = mb.tag_get_handle( MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, mat_tag );
   CHECK_ERR(rval);
   
   Range sets;
@@ -207,9 +207,9 @@ void test_read_geom_set()
   read_file( moab, example );
   
   Tag dim_tag, id_tag;
-  rval = mb.tag_get_handle( GEOM_DIMENSION_TAG_NAME, dim_tag );
+  rval = mb.tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, dim_tag );
   CHECK_ERR(rval);
-  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
+  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag );
   CHECK_ERR(rval);
   
   Range sets;

@@ -67,9 +67,10 @@ moab::ErrorCode MergeMesh::merge_entities(moab::Range &elems,
   // create a tag to mark merged-to entity; reuse tree_root
   moab::EntityHandle tree_root = 0;
   if (0 == merge_tag) {
-    result = mbImpl->tag_create("__merge_tag", sizeof(moab::EntityHandle), 
-                                moab::MB_TAG_DENSE, moab::MB_TYPE_HANDLE,
-                                mbMergeTag, &tree_root);
+    result = mbImpl->tag_get_handle("__merge_tag", 1, moab::MB_TYPE_HANDLE, 
+                                    mbMergeTag, 
+                                    moab::MB_TAG_DENSE|moab::MB_TAG_EXCL,
+                                    &tree_root);
     if (moab::MB_SUCCESS != result) return result;
   }
   else mbMergeTag = merge_tag;

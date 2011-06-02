@@ -396,8 +396,8 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
   
     // get the global id tag hanlde
   Tag gid;
-  result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, 4, MB_TAG_DENSE, MB_TYPE_INTEGER,
-                              gid, NULL, true);
+  result = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER,
+                                  gid, MB_TAG_DENSE|MB_TAG_CREAT);
   if (MB_SUCCESS != result) return result;
   
   for (Range::iterator rit = elems.begin(); rit != elems.end(); rit++) {
@@ -459,8 +459,8 @@ ErrorCode MBZoltan::write_partition(const int nparts,
     // get the partition set tag
   Tag part_set_tag;
   int dum_id = -1;
-  result = mbImpl->tag_create("PARALLEL_PARTITION", 4, MB_TAG_SPARSE, MB_TYPE_INTEGER, part_set_tag, &dum_id,
-                              true); RR;
+  result = mbImpl->tag_get_handle("PARALLEL_PARTITION", 1, MB_TYPE_INTEGER,
+                                  part_set_tag, MB_TAG_SPARSE|MB_TAG_CREAT, &dum_id); RR;
   
     // get any sets already with this tag, and clear them
   Range tagged_sets;

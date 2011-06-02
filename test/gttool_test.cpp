@@ -113,7 +113,7 @@ int main(int argc, char *argv[])
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
-  return 0;
+  return number_tests_failed;
 }
 ErrorCode geometrize_test(Interface * mb, EntityHandle inputSet)
 {

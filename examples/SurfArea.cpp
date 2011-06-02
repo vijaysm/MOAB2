@@ -38,8 +38,8 @@ int main(int argc, char **argv) {
   rval = mb->load_file(argv[1]);
 
   // get the tag handle for the tags
-  rval = mb->tag_get_handle(tag_geom, gtag);
-  rval = mb->tag_get_handle(tag_gid, idtag);
+  rval = mb->tag_get_handle(tag_geom, 1, MB_TYPE_INTEGER, gtag);
+  rval = mb->tag_get_handle(tag_gid, 1, MB_TYPE_INTEGER, idtag);
 
   // get all the sets with GEOM_DIMESION tag
   rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, &gtag,

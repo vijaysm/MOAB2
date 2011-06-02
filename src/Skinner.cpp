@@ -59,11 +59,11 @@ void Skinner::initialize()
   void* null_ptr = NULL;
   ErrorCode result;
 
-  result = thisMB->tag_create("skinner adj", sizeof(void*), MB_TAG_DENSE, mAdjTag, &null_ptr);
+  result = thisMB->tag_get_handle("skinner adj", sizeof(void*), MB_TYPE_OPAQUE, mAdjTag, MB_TAG_DENSE|MB_TAG_CREAT, &null_ptr);
   assert(MB_SUCCESS == result);
 
   if(mDeletableMBTag == 0) {
-    result = thisMB->tag_create("skinner deletable", 1, MB_TAG_BIT, mDeletableMBTag, NULL);
+    result = thisMB->tag_get_handle("skinner deletable", 1, MB_TYPE_BIT, mDeletableMBTag, MB_TAG_BIT|MB_TAG_CREAT);
     assert(MB_SUCCESS == result);
   }
   
@@ -188,10 +188,10 @@ ErrorCode Skinner::find_geometric_skin(Range &forward_target_entities)
 
     // look for geom topo sets
   Tag geom_tag;
-  ErrorCode result = thisMB->tag_create(GEOM_DIMENSION_TAG_NAME, 4, 
-                                            MB_TAG_SPARSE, geom_tag, NULL);
+  ErrorCode result = thisMB->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, 
+                                        geom_tag, MB_TAG_SPARSE|MB_TAG_CREAT);
 
-  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result)
+  if (MB_SUCCESS != result)
     return result;
   
     // get face sets (dimension = 2)
@@ -837,8 +837,8 @@ ErrorCode Skinner::classify_2d_boundary( const Range &boundary,
 
   Tag count_tag;
   int default_count = 0;
-  ErrorCode result = thisMB->tag_create("mdbskinner count edges", sizeof(int),
-                                            MB_TAG_DENSE, count_tag, &default_count);
+  ErrorCode result = thisMB->tag_get_handle(0, 1, MB_TYPE_INTEGER,
+                                        count_tag, MB_TAG_DENSE|MB_TAG_CREAT, &default_count);
   assert(MB_SUCCESS == result);
 
  
@@ -1021,15 +1021,11 @@ void Skinner::find_inferred_edges(Range &skin_boundary,
 
   // mark all the entities in the skin boundary
   Tag mark_tag;
-  ErrorCode result = thisMB->tag_create("find inferred edges mark", 1, MB_TAG_BIT, mark_tag, NULL);
+  ErrorCode result = thisMB->tag_get_handle(0, 1, MB_TYPE_BIT, mark_tag, MB_TAG_CREAT);
   assert(MB_SUCCESS == result);
-  for(Range::iterator mark_iter = skin_boundary.begin();
-      mark_iter != skin_boundary.end(); ++mark_iter)
-  {
-    unsigned char bit = true;
-    result = thisMB->tag_set_data(mark_tag, &(*mark_iter), 1, &bit);
-    assert(MB_SUCCESS == result);
-  }
+  unsigned char bit = true;
+  result = thisMB->tag_clear_data(mark_tag, skin_boundary, &bit );
+  assert(MB_SUCCESS == result);
 
   // find the cosine of the reference angle
 
@@ -1161,7 +1157,7 @@ ErrorCode Skinner::find_skin_vertices( const Range& entities,
     // entities.
   Tag tag;
   char bit = all ? 1 : 0;
-  rval = thisMB->tag_create( NULL, 1, MB_TAG_BIT, tag, &bit );
+  rval = thisMB->tag_get_handle( NULL, 1, MB_TYPE_BIT, tag, MB_TAG_CREAT, &bit );
   if (MB_SUCCESS != rval)
     return rval;
   

@@ -653,7 +653,7 @@ ErrorCode test_interpolation(Interface *mbImpl,
 
     // set field values as tag on target vertices
   Tag tag;
-  result = mbImpl->tag_get_handle(interpTag.c_str(), tag); PRINT_LAST_ERROR;
+  result = mbImpl->tag_get_handle(interpTag.c_str(), 1, MB_TYPE_DOUBLE, tag); PRINT_LAST_ERROR;
   result = mbImpl->tag_set_data(tag, targ_verts, &field[0]); PRINT_LAST_ERROR;
 
     // done

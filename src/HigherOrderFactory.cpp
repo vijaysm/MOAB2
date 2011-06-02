@@ -171,7 +171,7 @@ ErrorCode HigherOrderFactory::convert_sequence( ElementSequence* seq,
     return MB_SUCCESS;
   
   Tag deletable_nodes;
-  status = mMB->tag_create("", 1, MB_TAG_BIT, deletable_nodes, NULL);
+  status = mMB->tag_get_handle(0, 1, MB_TYPE_BIT, deletable_nodes, MB_TAG_CREAT|MB_TAG_BIT);
   if (MB_SUCCESS != status)
     return status;
   
@@ -197,8 +197,10 @@ ErrorCode HigherOrderFactory::convert_sequence( ElementSequence* seq,
     status = remove_mid_face_nodes( seq, start, end, deletable_nodes );
   else if (!seq->has_mid_face_nodes() && mid_face_nodes)
     status = zero_mid_face_nodes( new_seq );
-  if (MB_SUCCESS != status)
+  if (MB_SUCCESS != status) {
+    mMB->tag_delete( deletable_nodes );
     return status;
+  }
  
   if (seq->has_mid_volume_nodes() && mid_volume_nodes) 
     status = copy_mid_volume_nodes( seq, new_seq );
@@ -206,8 +208,10 @@ ErrorCode HigherOrderFactory::convert_sequence( ElementSequence* seq,
     status = remove_mid_volume_nodes( seq, start, end, deletable_nodes );
   else if (!seq->has_mid_volume_nodes() && mid_volume_nodes)
     status = zero_mid_volume_nodes( new_seq );
-  if (MB_SUCCESS != status)
+  if (MB_SUCCESS != status) {
+    mMB->tag_delete( deletable_nodes );
     return status;
+  }
 
   // gather nodes that were marked
   Range nodes;

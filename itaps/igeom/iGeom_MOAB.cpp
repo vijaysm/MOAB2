@@ -53,7 +53,7 @@ bool initializeSmoothing(iGeom_Instance instance) {
    // in icesheet_test we use iGeom, but maybe that is a stretch
    // get directly the sets with geom dim 2, and from there create the SmoothFaceEval
    Tag geom_tag, gid_tag;
-   ErrorCode rval = MBI->tag_get_handle(GEOM_DIMENSION_TAG_NAME, geom_tag);
+   ErrorCode rval = MBI->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geom_tag);
    rval = MBI->tag_get_handle(GLOBAL_ID_TAG_NAME, gid_tag);
 
 #if 0
@@ -159,7 +159,7 @@ bool initializeSmoothing(iGeom_Instance instance) {
    // unsigned char def_data_bit = 1;// valid by default
    // rval = mb->tag_create("valid", 1, MB_TAG_BIT, validTag, &def_data_bit);
    Tag markTag;
-   rval = MBI->tag_create("MARKER", 1, MB_TAG_BIT, markTag, &value); // default value : 0 = not computed yet
+   rval = MBI->tag_get_handle("MARKER", 1, MB_TYPE_BIT, markTag, MB_TAG_EXCL, &value); // default value : 0 = not computed yet
    // each feature edge will need to have a way to retrieve at every moment the surfaces it belongs to
    // from edge sets, using the sense tag, we can get faces, and from each face, using the map, we can get
    // the SmoothFaceEval (surface evaluator), that has everything, including the normals!!!
@@ -168,21 +168,21 @@ bool initializeSmoothing(iGeom_Instance instance) {
    // create the tag also for control points on the edges
    double defCtrlPoints[9] = { 0., 0., 0., 0., 0., 0., 0., 0., 0. };
    Tag edgeCtrlTag;
-   rval = MBI->tag_create("CONTROLEDGE", 9 * sizeof(double), MB_TAG_DENSE,
-         edgeCtrlTag, &defCtrlPoints);
+   rval = MBI->tag_get_handle("CONTROLEDGE", 9, MB_TYPE_DOUBLE,
+         edgeCtrlTag, MB_TAG_DENSE|MB_TAG_EXCL, &defCtrlPoints);
    if (MB_SUCCESS != rval)
       return false;
 
    Tag facetCtrlTag;
    double defControls[18] = { 0. };
-   rval = MBI->tag_create("CONTROLFACE", 18 * sizeof(double), MB_TAG_DENSE,
-         facetCtrlTag, &defControls);
+   rval = MBI->tag_create("CONTROLFACE", 18, MB_TYPE_DOUBLE,
+         facetCtrlTag, MB_TAG_DENSE|MB_TAG_EXCL, &defControls);
    assert(rval == MB_SUCCESS);
 
    Tag facetEdgeCtrlTag;
    double defControls2[27] = { 0. }; // corresponding to 9 control points on edges, in order from edge 0, 1, 2 ( 1-2, 2-0, 0-1 )
-   rval = MBI->tag_create("CONTROLEDGEFACE", 27 * sizeof(double), MB_TAG_DENSE,
-         facetEdgeCtrlTag, &defControls2);
+   rval = MBI->tag_create("CONTROLEDGEFACE", 27, MB_TYPE_DOUBLE,
+         facetEdgeCtrlTag, MB_TAG_DENSE|MB_TAG_EXCL, &defControls2);
    assert(rval == MB_SUCCESS);
    // if the
    double min_dot = -1.0; // depends on _angle, but now we ignore it, for the time being

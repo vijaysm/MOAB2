@@ -249,7 +249,7 @@ int parse_tag_spec( char* name, TagSpec& result, Interface* iface )
   } 
   
     // Get tag
-  ErrorCode rval = iface->tag_get_handle( name, result.handle );
+  ErrorCode rval = iface->tag_get_handle( name, 0, MB_TYPE_OPAQUE, result.handle, MB_TAG_ANY );
   if (MB_TAG_NOT_FOUND == rval)
   {
     std::cerr << "Tag not found: " << name << std::endl;
@@ -374,7 +374,7 @@ int parse_tag_create( char* name, TagSpec& result, Interface* iface )
   }
   
     // check if tag exists
-  if (MB_SUCCESS == iface->tag_get_handle( name, result.handle ))
+  if (MB_SUCCESS == iface->tag_get_handle( name, 0, MB_TYPE_OPAQUE, result.handle, MB_TAG_ANY ))
   {
       // make sure it matches
     DataType etype;
@@ -410,11 +410,10 @@ int parse_tag_create( char* name, TagSpec& result, Interface* iface )
   }
   else
   {
-    ErrorCode rval = iface->tag_create( name, 
-                                   tsize*count, 
-                                   type == MB_TYPE_BIT ? MB_TAG_BIT : MB_TAG_SPARSE,
-                                   type,
+    ErrorCode rval = iface->tag_get_handle( name, 
+                                   count, type,
                                    result.handle,
+                                   MB_TAG_SPARSE|MB_TAG_CREAT,
                                    result.value );
     if (MB_SUCCESS != rval)
     {

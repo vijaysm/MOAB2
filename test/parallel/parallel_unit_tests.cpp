@@ -250,16 +250,12 @@ ErrorCode get_sharing_processors( Interface& moab,
   ErrorCode rval;
   
     // get tags for parallel data
-  Tag sharedp_tag, sharedps_tag, pstatus_tag;
-  const char* ptag_names[] = { PARALLEL_SHARED_PROC_TAG_NAME,
-                               PARALLEL_SHARED_PROCS_TAG_NAME,
-                               PARALLEL_STATUS_TAG_NAME };
-  Tag* tag_ptrs[] = { &sharedp_tag, &sharedps_tag, &pstatus_tag };
-  const int ntags = sizeof(ptag_names)/sizeof(ptag_names[0]);
-  for (int i = 0; i < ntags; ++i) {
-    rval = moab.tag_get_handle( ptag_names[i], *tag_ptrs[i] ); 
-    CHKERR(rval);
-  }
+  Tag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
+  rval = moab.tag_get_handle( PARALLEL_SHARED_PROC_TAG_NAME, 1, MB_TYPE_INTEGER, sharedp_tag ); CHKERR(rval);
+  rval = moab.tag_get_handle( PARALLEL_SHARED_PROCS_TAG_NAME, MAX_SHARING_PROCS, MB_TYPE_INTEGER, sharedps_tag ); CHKERR(rval);
+  rval = moab.tag_get_handle( PARALLEL_SHARED_HANDLE_TAG_NAME, 1, MB_TYPE_HANDLE, sharedh_tag ); CHKERR(rval);
+  rval = moab.tag_get_handle( PARALLEL_SHARED_HANDLES_TAG_NAME, MAX_SHARING_PROCS, MB_TYPE_HANDLE, sharedhs_tag ); CHKERR(rval);
+  rval = moab.tag_get_handle( PARALLEL_STATUS_TAG_NAME, 1, MB_TYPE_OPAQUE, pstatus_tag ); CHKERR(rval);
   
   other_procs_out.clear();
   char status;
@@ -377,7 +373,7 @@ ErrorCode parallel_create_mesh( Interface& mb,
   assert(range.size() == 9);
   std::copy( range.begin(), range.end(), vtx_handles );
   range.clear();
-  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag ); CHKERR(rval);
+  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag ); CHKERR(rval);
   rval = mb.tag_set_data( id_tag, vtx_handles, 9, &ids ); CHKERR(rval);
 
   const EntityHandle conn[4][4] = { 
@@ -431,8 +427,8 @@ ErrorCode test_elements_on_several_procs( const char* filename )
   PCHECK(!my_error);
 
   Tag geom_tag, id_tag;
-  rval = moab.tag_get_handle( GEOM_DIMENSION_TAG_NAME, geom_tag ); CHKERR(rval);
-  rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag ); CHKERR(rval);  
+  rval = moab.tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geom_tag ); CHKERR(rval);
+  rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag ); CHKERR(rval);  
   
     // search for geometric entity sets that contain a vertex
     // that is shared by more than two 
@@ -562,8 +558,8 @@ ErrorCode get_expected_ghosts( Interface& moab,
 {
   ErrorCode rval;
   Tag tags[2];
-  rval = moab.tag_get_handle( GEOM_DIMENSION_TAG_NAME, tags[0] ); CHKERR(rval);
-  rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, tags[1] ); CHKERR(rval);  
+  rval = moab.tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, tags[0] ); CHKERR(rval);
+  rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, tags[1] ); CHKERR(rval);  
 
     // get all interface sets, by ID
   Range iface_sets;
@@ -669,8 +665,8 @@ ErrorCode test_ghost_elements( const char* filename,
   rval = moab.load_file( filename, 0, file_opts.str().c_str() );
   CHKERR(rval);
   Tag geom_tag, id_tag;
-  rval = moab.tag_get_handle( GEOM_DIMENSION_TAG_NAME, geom_tag ); CHKERR(rval);
-  rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag ); CHKERR(rval);  
+  rval = moab.tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geom_tag ); CHKERR(rval);
+  rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag ); CHKERR(rval);  
   
     // Get partition sets
   Range partition_geom[4];
@@ -874,8 +870,10 @@ ErrorCode test_ghost_tag_exchange( const char* filename )
     // create a tag to exchange
   Tag dense_test_tag;
   EntityHandle defval = 0;
-  rval = moab.tag_create( "TEST-TAG", sizeof(EntityHandle), MB_TAG_DENSE,
-                           dense_test_tag, &defval ); CHKERR(rval);
+  //rval = moab.tag_get_handle( "TEST-TAG", sizeof(EntityHandle), MB_TAG_DENSE,
+  //                         dense_test_tag, &defval ); CHKERR(rval);
+  rval = moab.tag_get_handle( "TEST-TAG", 1, MB_TYPE_HANDLE, dense_test_tag,
+                              MB_TAG_DENSE|MB_TAG_EXCL, &defval ); CHKERR(rval);
     
     // for all entiites that I own, set tag to handle value
   std::vector<EntityHandle> handles(local.size()), handles2;
@@ -901,8 +899,10 @@ ErrorCode test_ghost_tag_exchange( const char* filename )
 
     // now do it all again for a sparse tag
   Tag sparse_test_tag;
-  rval = moab.tag_create( "TEST-TAG-2", sizeof(int), MB_TAG_DENSE,
-                           MB_TYPE_INTEGER, sparse_test_tag, 0 ); CHKERR(rval);
+  //rval = moab.tag_get_handle( "TEST-TAG-2", sizeof(int), MB_TAG_DENSE,
+  //                         MB_TYPE_INTEGER, sparse_test_tag, 0 ); CHKERR(rval);
+  rval = moab.tag_get_handle( "TEST-TAG-2", 1, MB_TYPE_INTEGER, sparse_test_tag,
+                          MB_TAG_DENSE|MB_TAG_EXCL ); CHKERR(rval);
     
     // for all entiites that I own, set tag to my rank
   std::vector<int> procs1(local.size(), pcomm->proc_config().proc_rank());
@@ -948,8 +948,10 @@ ErrorCode regression_ghost_tag_exchange_no_default( const char* filename )
   
     // create a tag to exchange
   Tag dense_test_tag;
-  rval = moab.tag_create( "TEST-TAG", sizeof(EntityHandle), MB_TAG_DENSE,
-                           dense_test_tag, 0 ); CHKERR(rval);
+  //rval = moab.tag_get_handle( "TEST-TAG", sizeof(EntityHandle), MB_TAG_DENSE,
+  //                         dense_test_tag, 0 ); CHKERR(rval);
+  rval = moab.tag_get_handle( "TEST-TAG", 1, MB_TYPE_HANDLE, dense_test_tag, 
+                              MB_TAG_DENSE|MB_TAG_EXCL); CHKERR(rval);
   
     // exchange tag data
   ParallelComm* pcomm = ParallelComm::get_pcomm(&moab, 0);
@@ -1139,7 +1141,7 @@ ErrorCode check_consistent_ids( Interface& mb,
   MPI_Comm_size( MPI_COMM_WORLD, &size );
 
   Tag id_tag;
-  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag ); CHKERR(rval);
+  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag ); CHKERR(rval);
   std::vector<int> new_ids(num_ents);
   rval = mb.tag_get_data( id_tag, entities, num_ents, &new_ids[0] ); CHKERR(rval);
   // This test is wrong.  a) The caller can select a start ID so there's
@@ -1228,7 +1230,7 @@ ErrorCode test_assign_global_ids( const char* )
   
     // get global ids for quads
   Tag id_tag;
-  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag ); CHKERR(rval);
+  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag ); CHKERR(rval);
   assert(4u == quad_range.size());
   EntityHandle quads[4];
   std::copy( quad_range.begin(), quad_range.end(), quads );

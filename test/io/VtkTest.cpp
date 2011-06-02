@@ -1243,11 +1243,7 @@ bool check_tag_values( Interface* iface,
                        const int* values )
 {
   Tag tag;
-  ErrorCode rval = iface->tag_get_handle( "data", tag ); CHECK(rval);
-  
-  DataType act_type;
-  rval = iface->tag_get_data_type( tag, act_type ); CHECK(rval);
-  CHECK( act_type == tag_type );
+  ErrorCode rval = iface->tag_get_handle( "data", tag_length, tag_type, tag ); CHECK(rval);
   
   int size, *intptr;
   double* dblptr;

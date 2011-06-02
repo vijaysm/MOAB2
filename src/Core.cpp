@@ -2008,6 +2008,16 @@ ErrorCode  Core::tag_clear_data( Tag tag_handle,
   return tag_handle->clear_data( sequenceManager, mError, entity_handles, tag_data, tag_size );
 }
 
+static bool is_zero_bytes( const void* mem, size_t size )
+{
+  const char* iter = reinterpret_cast<const char*>(mem);
+  const char* const end = iter + size;
+  for (; iter != end; ++iter)
+    if (*iter)
+      return false;
+  return true;
+}
+
 ErrorCode Core::tag_get_handle( const char* name,
                                 int size,
                                 DataType type,
@@ -2019,12 +2029,14 @@ ErrorCode Core::tag_get_handle( const char* name,
   if (created) *created = false;
 
   // we always work with sizes in bytes internally
-  if (flags & MB_TAG_BYTES) {
-    if (size % TagInfo::size_from_data_type( type ))
-      return MB_INVALID_SIZE;
-  }
-  else {
-    size *= TagInfo::size_from_data_type( type );
+  if (!((flags & MB_TAG_VARLEN) && size == MB_VARIABLE_LENGTH)) {
+    if (flags & MB_TAG_BYTES) {
+      if (size % TagInfo::size_from_data_type( type ))
+        return MB_INVALID_SIZE;
+    }
+    else {
+      size *= TagInfo::size_from_data_type( type );
+    }
   }
 
   const TagType storage = static_cast<TagType>(flags & 3);
@@ -2078,13 +2090,22 @@ ErrorCode Core::tag_get_handle( const char* name,
     // If user passed a default value, check that it matches.  
     // If user did not pass a default value, assume they're OK
     // with the existing one.
-    if (default_value && !tag_handle->equals_default_value(default_value,size))
+    // If tag does not have a default value but the user passed
+    // one, allow it only if the tag is dense and the passed value
+    // is all zero bytes because dense tags have an implicit default
+    // value of all zeros in some cases.
+    if (default_value && !(flags & MB_TAG_DFTOK) &&
+        !(tag_handle->equals_default_value(default_value,size) ||
+         (!tag_handle->get_default_value() && 
+          tag_handle->get_storage_type() == MB_TAG_DENSE &&
+          is_zero_bytes(default_value,size))))
       return MB_ALREADY_ALLOCATED;
     
     return MB_SUCCESS;
   }
 
-  if (!(flags & MB_TAG_CREAT))
+    // MB_TAG_EXCL implies MB_TAG_CREAT
+  if (!(flags & (MB_TAG_CREAT|MB_TAG_EXCL)))
     return MB_TAG_NOT_FOUND;
   
     // if a non-opaque non-bit type was specified, then the size
@@ -2094,8 +2115,10 @@ ErrorCode Core::tag_get_handle( const char* name,
     return MB_INVALID_SIZE;
   
     // if MB_TYPE_BIT may be used only with MB_TAG_BIT
-  if (storage != MB_TAG_BIT && type == MB_TYPE_BIT)
-    return MB_TYPE_OUT_OF_RANGE;
+  //if (storage != MB_TAG_BIT && type == MB_TYPE_BIT)
+  //    return MB_INVALID_ARG;
+  if (type == MB_TYPE_BIT)
+    flags &= ~(unsigned)(MB_TAG_DENSE|MB_TAG_SPARSE);
   
     // create the tag
   switch (flags & (MB_TAG_DENSE|MB_TAG_SPARSE|MB_TAG_MESH|MB_TAG_VARLEN)) {
@@ -2141,6 +2164,27 @@ ErrorCode Core::tag_get_handle( const char* name,
                                 unsigned flags,
                                 const void* default_value ) const
 { 
+    // If caller specified MB_TAG_EXCL, then we must fail because
+    // this const function can never create a tag.  We need to test
+    // this here because the non-const version of this function 
+    // assumes MB_TAG_CREAT if MB_TAG_EXCL is specified.
+  if (flags & MB_TAG_EXCL) {
+    // anonymous tag?
+    if (!name || !*name)
+      return MB_TAG_NOT_FOUND;
+    
+    // search for an existing tag
+    tag_handle = 0;
+    for (std::list<Tag>::const_iterator i = tagList.begin(); i != tagList.end(); ++i) {
+      if ((*i)->get_name() == name) {
+        tag_handle = *i;
+        return MB_ALREADY_ALLOCATED;
+      }
+    }
+    
+    return MB_TAG_NOT_FOUND;
+  }
+
   return const_cast<Core*>(this)->tag_get_handle( 
                    name, size, type, tag_handle, 
                    flags & ~(unsigned)MB_TAG_CREAT, 

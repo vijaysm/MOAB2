@@ -205,9 +205,9 @@ int main( int argc, char* argv[] )
 
   Range skin_ents;
   Tag matset_tag = 0, neuset_tag = 0;
-  result = iface->tag_get_handle(MATERIAL_SET_TAG_NAME, matset_tag);
+  result = iface->tag_get_handle(MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, matset_tag);
   if (MB_SUCCESS != result) return 1;
-  result = iface->tag_get_handle(NEUMANN_SET_TAG_NAME, neuset_tag);
+  result = iface->tag_get_handle(NEUMANN_SET_TAG_NAME, 1, MB_TYPE_INTEGER, neuset_tag);
   if (MB_SUCCESS != result) return 1;
 
   if (matsets.empty()) skin_ents = entities;
@@ -289,30 +289,9 @@ int main( int argc, char* argv[] )
   if (write_tag) {
       // get tag handle
     Tag tag;
-    result = iface->tag_get_handle( fixed_tag, tag );
-    if (result == MB_SUCCESS)
-    {
-      int size;
-      DataType type;
-      iface->tag_get_size(tag, size);
-      iface->tag_get_data_type(tag, type);
-    
-      if (size != sizeof(int) || type != MB_TYPE_INTEGER)
-      {
-        std::cerr << '"' << fixed_tag << "\" tag defined with incorrect size or type" << std::endl;
-        return 3;
-      }
-    }
-    else if (result == MB_TAG_NOT_FOUND)
-    {
-      int zero = 0;
-      result = iface->tag_create( fixed_tag, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &zero );
-      CHKERROR(result);
-    }
-    else
-    {
-      CHKERROR(result);
-    }
+    int zero = 0;
+    result = iface->tag_get_handle( fixed_tag, 1, MB_TYPE_INTEGER, tag, MB_TAG_DENSE|MB_TAG_CREAT, &zero );
+    CHKERROR(result);
   
       // Set tags
     std::vector<int> ones;
@@ -330,8 +309,8 @@ int main( int argc, char* argv[] )
   if (-1 != neuset_num) {
       // create a neumann set with these entities
     if (0 == neuset_tag) {
-      result = iface->tag_create("NEUMANN_SET_TAG_NAME", sizeof(int), MB_TAG_SPARSE,
-                                  MB_TYPE_INTEGER, neuset_tag, NULL);
+      result = iface->tag_get_handle( "NEUMANN_SET_TAG_NAME", 1, MB_TYPE_INTEGER,
+                                       neuset_tag, MB_TAG_SPARSE|MB_TAG_CREAT );
       if (MB_SUCCESS != result || 0 == neuset_tag) return 1;
     }
     
@@ -355,11 +334,8 @@ int main( int argc, char* argv[] )
       result = iface->add_entities(reverse_neuset, reverse_lower);
       if (MB_SUCCESS != result) return 1;
       Tag sense_tag;
-      result = iface->tag_get_handle("SENSE", sense_tag);
-      if (result == MB_TAG_NOT_FOUND) {
-        int dum_sense = 0;
-        result = iface->tag_create("SENSE", sizeof(int), MB_TAG_SPARSE, sense_tag, &dum_sense);
-      }
+      int dum_sense = 0;
+      result = iface->tag_get_handle("SENSE", 1, MB_TYPE_INTEGER, sense_tag, MB_TAG_SPARSE|MB_TAG_CREAT, &dum_sense);
       if (result != MB_SUCCESS) return 1;
       int sense_val = -1;
       result = iface->tag_set_data(neuset_tag, &reverse_neuset, 1, &sense_val);

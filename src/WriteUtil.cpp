@@ -558,8 +558,8 @@ ErrorCode WriteUtil::gather_nodes_from_elements(
     exporting_nodes_tag = node_bit_mark_tag;
   else
   {
-    mMB->tag_create("__MBWriteUtil::exporting_nodes", 1, MB_TAG_BIT, 
-                     exporting_nodes_tag, NULL);
+    mMB->tag_get_handle("__MBWriteUtil::exporting_nodes", 1, MB_TYPE_BIT, 
+                     exporting_nodes_tag, MB_TAG_CREAT);
   }
 
   // the x,y,z tag handles we need
@@ -695,12 +695,8 @@ ErrorCode WriteUtil::assign_ids(Range &elements,
   ErrorCode result;
   if (0 == id_tag) {
       // get the global id tag
-    result = mMB->tag_get_handle(GLOBAL_ID_TAG_NAME, id_tag);
-    if (MB_TAG_NOT_FOUND == result) {
-      int def_val = -1;
-      result = mMB->tag_create(GLOBAL_ID_TAG_NAME, 4, MB_TAG_DENSE, id_tag, &def_val);
-    }
-    
+    int def_val = 0;
+    result = mMB->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag, MB_TAG_DENSE|MB_TAG_CREAT, &def_val);
     if (MB_SUCCESS != result) return result;
   }
   

@@ -1200,23 +1200,23 @@ int main( int argc, char* argv[] )
     
   // Create tags
   Tag dimTag, idTag, categoryTag, senseTag, sizeTag, nameTag;
-  result = MBI->tag_create(GEOM_DIMENSION_TAG_NAME, sizeof(int), MB_TAG_DENSE, 
-			       MB_TYPE_INTEGER, dimTag, NULL, true );
+  result = MBI->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, dimTag, 
+                               MB_TAG_SPARSE|MB_TAG_CREAT );
   if(MB_SUCCESS != result) return result;
-  result = MBI->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, 
-			       MB_TYPE_INTEGER, idTag, NULL, true );
+  result = MBI->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, 
+			       MB_TYPE_INTEGER, idTag, MB_TAG_DENSE|MB_TAG_CREAT );
   if(MB_SUCCESS != result) return result;
-  result = MBI->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_SIZE, MB_TAG_SPARSE, 
-			       MB_TYPE_OPAQUE, categoryTag, NULL, true );
+  result = MBI->tag_get_handle(CATEGORY_TAG_NAME, CATEGORY_TAG_SIZE, 
+			       MB_TYPE_OPAQUE, categoryTag, MB_TAG_SPARSE|MB_TAG_CREAT );
   if(MB_SUCCESS != result) return result;
-  result = MBI->tag_create("GEOM_SENSE_2", 2*sizeof(EntityHandle), MB_TAG_SPARSE, 
-			       MB_TYPE_HANDLE, senseTag, NULL, true );
+  result = MBI->tag_get_handle("GEOM_SENSE_2", 2, 
+			       MB_TYPE_HANDLE, senseTag, MB_TAG_SPARSE|MB_TAG_CREAT );
   if(MB_SUCCESS != result) return result;
-  result = MBI->tag_create( "GEOM_SIZE", sizeof(double), MB_TAG_DENSE,                                                       
-			    MB_TYPE_DOUBLE, sizeTag, 0, true );
+  result = MBI->tag_get_handle( "GEOM_SIZE", 1,                                                       
+			    MB_TYPE_DOUBLE, sizeTag, MB_TAG_DENSE|MB_TAG_CREAT );
   if(MB_SUCCESS != result) return result;
-  result = MBI->tag_create(NAME_TAG_NAME, NAME_TAG_SIZE, MB_TAG_SPARSE,
-                           MB_TYPE_OPAQUE, nameTag, NULL, true );
+  result = MBI->tag_get_handle(NAME_TAG_NAME, NAME_TAG_SIZE, MB_TAG_SPARSE,
+                           MB_TYPE_OPAQUE, nameTag, MB_TAG_SPARSE|MB_TAG_CREAT );
   if(MB_SUCCESS != result) return result;
 
   // Create triangles from the quads of the cub surface sets and add them to the

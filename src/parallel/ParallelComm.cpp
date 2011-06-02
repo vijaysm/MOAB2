@@ -462,10 +462,9 @@ ErrorCode ParallelComm::assign_global_ids( EntityHandle this_set,
     //assign global ids now
   Tag gid_tag;
   int zero = 0;
-  result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), 
-                              MB_TAG_DENSE, MB_TYPE_INTEGER, gid_tag,
-                              &zero, true);
-  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
+  result = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, 
+                                  gid_tag, MB_TAG_DENSE|MB_TAG_CREAT, &zero);
+  if (MB_SUCCESS != result) return result;
   
   for (int dim = 0; dim < 4; dim++) {
     if (entities[dim].empty()) continue;
@@ -2509,10 +2508,9 @@ ErrorCode ParallelComm::pack_sets(Range &entities,
     int n_sets = all_sets.size();
     bool b_pack = false;
     std::vector<int> id_data(n_sets);
-    result = mbImpl->tag_create("PARALLEL_UNIQUE_ID", sizeof(int),
-                                MB_TAG_SPARSE, MB_TYPE_INTEGER, uid_tag,
-                                NULL, true);
-    if (MB_ALREADY_ALLOCATED != result && MB_SUCCESS != result) {
+    result = mbImpl->tag_get_handle("PARALLEL_UNIQUE_ID", 1, MB_TYPE_INTEGER, 
+                                uid_tag, MB_TAG_SPARSE|MB_TAG_CREAT);
+    if (MB_SUCCESS != result) {
       RRA("Trouble creating parallel geometry unique id tag.");
     }
     result = mbImpl->tag_get_data(uid_tag, all_sets, &id_data[0]);
@@ -2665,10 +2663,9 @@ ErrorCode ParallelComm::unpack_sets(unsigned char *&buff_ptr,
     UNPACK_INTS(buff_ptr, &uids[0], n_uid);
 
     Tag uid_tag; int def_val = 0;
-    result = mbImpl->tag_create("PARALLEL_UNIQUE_ID", sizeof(int),
-                                MB_TAG_SPARSE, MB_TYPE_INTEGER, uid_tag,
-                                &def_val, true);
-    if (MB_ALREADY_ALLOCATED != result && MB_SUCCESS != result) {
+    result = mbImpl->tag_get_handle("PARALLEL_UNIQUE_ID", 1, MB_TYPE_INTEGER,
+                                    uid_tag, MB_TAG_SPARSE|MB_TAG_CREAT, &def_val);
+    if (MB_SUCCESS != result) {
       RRA("Trouble creating parallel geometry unique id tag.");
     }
 
@@ -3065,26 +3062,14 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
 
       // create the tag
     if (tag_size == MB_VARIABLE_LENGTH) 
-      result = mbImpl->tag_create_variable_length( tag_name.c_str(), (TagType)tag_type,
-                                                   (DataType)tag_data_type, tag_handle,
-                                                   def_val_ptr, def_val_size );
+      result = mbImpl->tag_get_handle( tag_name.c_str(), def_val_size, (DataType)tag_data_type,
+                                       tag_handle, MB_TAG_VARLEN|MB_TAG_CREAT|MB_TAG_BYTES|tag_type, 
+                                       def_val_ptr );
     else
-      result = mbImpl->tag_create(tag_name.c_str(), tag_size, (TagType) tag_type, 
-                                  (DataType) tag_data_type, tag_handle,
-                                  def_val_ptr);
-    if (MB_ALREADY_ALLOCATED == result) {
-        // already allocated tag, check to make sure it's the same size, type, etc.
-      TagType this_type;
-      result = mbImpl->tag_get_type(tag_handle, this_type);
-      if (tag_size != tag_handle->get_size() ||
-          tag_type != this_type ||
-          tag_data_type != tag_handle->get_data_type() ||
-          (def_val_ptr && !tag_handle->get_default_value()) ||
-          (!def_val_ptr && tag_handle->get_default_value())) {
-        RRA("Didn't get correct tag info when unpacking tag.");
-      }
-    }
-    else if (MB_SUCCESS != result) return result;
+      result = mbImpl->tag_get_handle( tag_name.c_str(), tag_size, (DataType) tag_data_type,
+                                       tag_handle, MB_TAG_CREAT|MB_TAG_BYTES|tag_type, 
+                                       def_val_ptr);
+    if (MB_SUCCESS != result) return result;
 
       // get handles and convert to local handles
     int num_ents;
@@ -3264,12 +3249,13 @@ ErrorCode ParallelComm::resolve_shared_ents(Range &proc_ents,
   if (id_tag)
     gid_tag = *id_tag;
   else {
-    result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int),
-                                MB_TAG_DENSE, MB_TYPE_INTEGER, gid_tag,
-                                &def_val, true);
+    bool tag_created = false;
+    result = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER,
+                                    gid_tag, MB_TAG_DENSE|MB_TAG_CREAT, 
+                                    &def_val, &tag_created );
     if (MB_FAILURE == result) return result;
 
-    else if (MB_ALREADY_ALLOCATED != result) {
+    else if (tag_created) {
         // just created it, so we need global ids
       result = assign_global_ids(0, skin_dim+1,true,true,true);
       RRA("Failed assigning global ids.");
@@ -3283,9 +3269,9 @@ ErrorCode ParallelComm::resolve_shared_ents(Range &proc_ents,
        rit != skin_ents[0].end(); rit++) 
     gid_data[idx] = idx, idx++;
   Tag idx_tag;
-  result = mbImpl->tag_create("__idx_tag", sizeof(int), MB_TAG_DENSE,
-                              MB_TYPE_INTEGER, idx_tag, &def_val, true);
-  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
+  result = mbImpl->tag_get_handle("__idx_tag", 1, MB_TYPE_INTEGER,
+                                  idx_tag, MB_TAG_DENSE|MB_TAG_CREAT, &def_val ); 
+  if (MB_SUCCESS != result) return result;
   result = mbImpl->tag_set_data(idx_tag, skin_ents[0], &gid_data[0]);
   RRA("Couldn't assign index tag.");
 
@@ -3499,12 +3485,12 @@ ErrorCode ParallelComm::resolve_shared_ents(ParallelComm **pc,
   std::vector<int> gids;
   Range::iterator rit;
   Tag gid_tag;
-  int dum_default = -1;
+  int dum_default = 0;
   for (p = 0; p < np; p++) {
-    rval = pc[p]->get_moab()->tag_create(GLOBAL_ID_TAG_NAME, 
-                                         sizeof(int), MB_TAG_DENSE,
-                                         MB_TYPE_INTEGER, gid_tag, 
-                                         &dum_default, true);
+    rval = pc[p]->get_moab()->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER,
+                                             gid_tag, MB_TAG_DENSE|MB_TAG_CREAT,
+                                             &dum_default );
+    if (MB_SUCCESS != rval) return rval;
     gids.resize(verts[p].size());
     rval = pc[p]->get_moab()->tag_get_data(gid_tag, verts[p], &gids[0]);
     if (MB_SUCCESS != rval) return rval;
@@ -3806,10 +3792,10 @@ ErrorCode ParallelComm::create_iface_pc_links()
     // first tag all entities in the iface sets
   Tag tmp_iface_tag;
   EntityHandle tmp_iface_set = 0;
-  ErrorCode result = mbImpl->tag_create("__tmp_iface", sizeof(EntityHandle),
-                                          MB_TAG_DENSE, MB_TYPE_HANDLE,
-                                          tmp_iface_tag, &tmp_iface_set);
-  if (MB_ALREADY_ALLOCATED != result && MB_SUCCESS != result) 
+  ErrorCode result = mbImpl->tag_get_handle("__tmp_iface", 1, MB_TYPE_HANDLE,
+                                            tmp_iface_tag, MB_TAG_DENSE|MB_TAG_CREAT,
+                                            &tmp_iface_set);
+  if (MB_SUCCESS != result) 
     RRA("Failed to create temporary iface set tag.");
 
   Range iface_ents;
@@ -4224,9 +4210,8 @@ ErrorCode ParallelComm::check_global_ids(EntityHandle this_set,
 {
     // global id tag
   Tag gid_tag; int def_val = -1;
-  ErrorCode result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int),
-                                          MB_TAG_DENSE, MB_TYPE_INTEGER, gid_tag,
-                                          &def_val, true);
+  ErrorCode result = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER,
+                                            gid_tag, MB_TAG_DENSE|MB_TAG_CREAT, &def_val);
   if (MB_ALREADY_ALLOCATED != result &&
       MB_SUCCESS != result) {
     RRA("Failed to create/get gid tag handle.");
@@ -6458,12 +6443,10 @@ Tag ParallelComm::sharedp_tag()
 {
   if (!sharedpTag) {
     int def_val = -1;
-    ErrorCode result = mbImpl->tag_create(PARALLEL_SHARED_PROC_TAG_NAME, 
-                                            sizeof(int), 
-                                            MB_TAG_DENSE,
-                                            MB_TYPE_INTEGER, sharedpTag, 
-                                            &def_val, true);
-    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) 
+    ErrorCode result = mbImpl->tag_get_handle(PARALLEL_SHARED_PROC_TAG_NAME, 
+                                              1, MB_TYPE_INTEGER, sharedpTag,
+                                              MB_TAG_DENSE|MB_TAG_CREAT, &def_val);
+    if (MB_SUCCESS != result) 
       return 0;
   }
   
@@ -6474,11 +6457,10 @@ Tag ParallelComm::sharedp_tag()
 Tag ParallelComm::sharedps_tag()
 {
   if (!sharedpsTag) {
-    ErrorCode result = mbImpl->tag_create(PARALLEL_SHARED_PROCS_TAG_NAME, 
-                                            MAX_SHARING_PROCS*sizeof(int), 
-                                            MB_TAG_SPARSE,
-                                            MB_TYPE_INTEGER, sharedpsTag, NULL, true);
-    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) 
+    ErrorCode result = mbImpl->tag_get_handle(PARALLEL_SHARED_PROCS_TAG_NAME, 
+                                            MAX_SHARING_PROCS, MB_TYPE_INTEGER, 
+                                            sharedpsTag, MB_TAG_SPARSE|MB_TAG_CREAT );
+    if (MB_SUCCESS != result) 
       return 0;
   }
   
@@ -6490,12 +6472,10 @@ Tag ParallelComm::sharedh_tag()
 {
   if (!sharedhTag) {
     EntityHandle def_val = 0;
-    ErrorCode result = mbImpl->tag_create(PARALLEL_SHARED_HANDLE_TAG_NAME, 
-                                            sizeof(EntityHandle), 
-                                            MB_TAG_DENSE,
-                                            MB_TYPE_HANDLE, sharedhTag, 
-                                            &def_val, true);
-    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result)
+    ErrorCode result = mbImpl->tag_get_handle(PARALLEL_SHARED_HANDLE_TAG_NAME, 
+                                            1, MB_TYPE_HANDLE, sharedhTag,
+                                            MB_TAG_DENSE|MB_TAG_CREAT, &def_val);
+    if (MB_SUCCESS != result)
       return 0;
   }
   
@@ -6506,11 +6486,10 @@ Tag ParallelComm::sharedh_tag()
 Tag ParallelComm::sharedhs_tag()
 {  
   if (!sharedhsTag) {
-    ErrorCode result = mbImpl->tag_create(PARALLEL_SHARED_HANDLES_TAG_NAME, 
-                                            MAX_SHARING_PROCS*sizeof(EntityHandle), 
-                                            MB_TAG_SPARSE,
-                                            MB_TYPE_INTEGER, sharedhsTag, NULL, true);
-    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) 
+    ErrorCode result = mbImpl->tag_get_handle(PARALLEL_SHARED_HANDLES_TAG_NAME, 
+                                            MAX_SHARING_PROCS, MB_TYPE_HANDLE, 
+                                            sharedhsTag, MB_TAG_SPARSE|MB_TAG_CREAT);
+    if (MB_SUCCESS != result) 
       return 0;
   }
 
@@ -6522,12 +6501,11 @@ Tag ParallelComm::pstatus_tag()
 {  
   if (!pstatusTag) {
     unsigned char tmp_pstatus = 0;
-    ErrorCode result = mbImpl->tag_create(PARALLEL_STATUS_TAG_NAME, 
-                                            sizeof(unsigned char),
-                                            MB_TAG_DENSE,
-                                            MB_TYPE_OPAQUE, pstatusTag, 
-                                            &tmp_pstatus, true);
-    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result)
+    ErrorCode result = mbImpl->tag_get_handle(PARALLEL_STATUS_TAG_NAME, 
+                                            1, MB_TYPE_OPAQUE, pstatusTag,
+                                            MB_TAG_DENSE|MB_TAG_CREAT,
+                                            &tmp_pstatus);
+    if (MB_SUCCESS != result)
       return 0;
   }
   
@@ -6538,13 +6516,10 @@ Tag ParallelComm::pstatus_tag()
 Tag ParallelComm::partition_tag()
 {  
   if (!partitionTag) {
-    ErrorCode result = mbImpl->tag_create(PARALLEL_PARTITION_TAG_NAME, 
-                                            sizeof(int),
-                                            MB_TAG_SPARSE,
-                                            MB_TYPE_INTEGER, 
-                                            partitionTag, 
-                                            NULL, true);
-    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result)
+    ErrorCode result = mbImpl->tag_get_handle(PARALLEL_PARTITION_TAG_NAME, 
+                                            1, MB_TYPE_INTEGER, partitionTag,
+                                            MB_TAG_SPARSE|MB_TAG_CREAT);
+    if (MB_SUCCESS != result)
       return 0;
   }
   
@@ -6557,17 +6532,11 @@ Tag ParallelComm::pcomm_tag(Interface *impl,
 {
   Tag this_tag = 0;
   ErrorCode result;
-  result = impl->tag_get_handle(PARALLEL_COMM_TAG_NAME, this_tag);
-  if ((MB_TAG_NOT_FOUND == result || 0 == this_tag) &&
-      create_if_missing) {
-    result = impl->tag_create(PARALLEL_COMM_TAG_NAME, 
-                              MAX_SHARING_PROCS*sizeof(ParallelComm*),
-                              MB_TAG_SPARSE,
-                              MB_TYPE_OPAQUE, this_tag,
-                              NULL, true);
-    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result)
-      return 0;
-  }
+  result = impl->tag_get_handle(PARALLEL_COMM_TAG_NAME, 
+                                MAX_SHARING_PROCS*sizeof(ParallelComm*),
+                                MB_TYPE_OPAQUE, this_tag, MB_TAG_SPARSE|MB_TAG_CREAT);
+  if (MB_SUCCESS != result)
+    return 0;
   
   return this_tag;
 }
@@ -6615,12 +6584,9 @@ ParallelComm *ParallelComm::get_pcomm( Interface *impl,
   ParallelComm* result = 0;
   
   Tag prtn_tag;
-  rval = impl->tag_create( PARTITIONING_PCOMM_TAG_NAME, 
-                           sizeof(int),
-                           MB_TAG_SPARSE,
-                           MB_TYPE_INTEGER,
-                           prtn_tag,
-                           0, true );
+  rval = impl->tag_get_handle( PARTITIONING_PCOMM_TAG_NAME, 
+                               1, MB_TYPE_INTEGER, prtn_tag,
+                               MB_TAG_SPARSE|MB_TAG_CREAT );
   if (MB_SUCCESS != rval)
     return 0;
   
@@ -6649,12 +6615,9 @@ ErrorCode ParallelComm::set_partitioning( EntityHandle set)
 {
   ErrorCode rval;
   Tag prtn_tag;
-  rval = mbImpl->tag_create( PARTITIONING_PCOMM_TAG_NAME, 
-                           sizeof(int),
-                           MB_TAG_SPARSE,
-                           MB_TYPE_INTEGER,
-                           prtn_tag,
-                           0, true );
+  rval = mbImpl->tag_get_handle( PARTITIONING_PCOMM_TAG_NAME, 
+                               1, MB_TYPE_INTEGER, prtn_tag,
+                               MB_TAG_SPARSE|MB_TAG_CREAT );
   if (MB_SUCCESS != rval)
     return rval;
 

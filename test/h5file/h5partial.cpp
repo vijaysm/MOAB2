@@ -248,7 +248,7 @@ void test_read_nothing_common( bool non_existant )
   
   // tag all three sets
   Tag id_tag;
-  rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
+  rval = mb.tag_get_handle( ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag, MB_TAG_SPARSE|MB_TAG_EXCL );
   CHECK_ERR(rval);
   int ids[3] = { 5, 7, 9 };
   rval = mb.tag_set_data( id_tag, sets, 3, ids );
@@ -327,7 +327,7 @@ void test_read_nodes_common( int num_read_sets, bool blocked )
  
     // tag both sets
   Tag id_tag;
-  rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
+  rval = mb.tag_get_handle( ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag, MB_TAG_SPARSE|MB_TAG_EXCL );
   CHECK_ERR(rval);
   std::vector<int> values( num_sets );
   for (int i = 0; i < num_sets; ++i) values[i] = i+1;
@@ -373,7 +373,7 @@ void test_read_nodes_common( int num_read_sets, bool blocked )
   CHECK( it != sets2.end() );
   sets2.erase( it );
   
-  rval = mb.tag_get_handle( ID_TAG_NAME, id_tag );
+  rval = mb.tag_get_handle( ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag );
   CHECK_ERR(rval);  
   while (!sets2.empty()) {
     EntityHandle set = sets2.pop_front();
@@ -419,11 +419,11 @@ void create_mesh( bool create_element_sets,
   
     // create tags
   Tag logical_tag, centroid_tag, id_tag;
-  rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
+  rval = mb.tag_get_handle( ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag, MB_TAG_SPARSE|MB_TAG_EXCL );
   CHECK_ERR(rval);
-  rval = mb.tag_create( LOGICAL_NAME, 2*sizeof(int), MB_TAG_DENSE, MB_TYPE_OPAQUE, logical_tag, 0 );
+  rval = mb.tag_get_handle( LOGICAL_NAME, 2*sizeof(int), MB_TYPE_OPAQUE, logical_tag, MB_TAG_DENSE|MB_TAG_EXCL );
   CHECK_ERR(rval);
-  rval = mb.tag_create( CENTROID_NAME, 3*sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, centroid_tag, 0 );
+  rval = mb.tag_get_handle( CENTROID_NAME, 3, MB_TYPE_DOUBLE, centroid_tag, MB_TAG_DENSE|MB_TAG_EXCL );
   CHECK_ERR(rval);
 
   EntityHandle sets[NUM_SETS];
@@ -491,12 +491,11 @@ void create_mesh( bool create_element_sets,
   
   if (adj_elem_tag_name && !var_len_adj_elems) {
     Tag handle_tag;
-    rval = mb.tag_create( adj_elem_tag_name, 
-                          4 * sizeof(EntityHandle), 
-                          MB_TAG_DENSE,
-                          MB_TYPE_HANDLE,
-                          handle_tag,
-                          0 );
+    rval = mb.tag_get_handle( adj_elem_tag_name, 
+                              4,
+                              MB_TYPE_HANDLE,
+                              handle_tag,
+                              MB_TAG_DENSE|MB_TAG_EXCL );
     CHECK_ERR(rval);
     for (int i = 0; i <= MBQUAD_INT; ++i) for(int j = 0; j <= MBQUAD_INT; ++j) {
       EntityHandle val[4] = { (i > 0        && j > 0       ) ? quads[j-1][i-1] : 0,
@@ -509,10 +508,10 @@ void create_mesh( bool create_element_sets,
   }
   else if (adj_elem_tag_name && var_len_adj_elems) {
     Tag handle_tag;
-    rval = mb.tag_create_variable_length( adj_elem_tag_name,
-                                          MB_TAG_DENSE,
-                                          MB_TYPE_HANDLE,
-                                          handle_tag );
+    rval = mb.tag_get_handle( adj_elem_tag_name,
+                              0, MB_TYPE_HANDLE,
+                              handle_tag,
+                              MB_TAG_DENSE|MB_TAG_VARLEN|MB_TAG_EXCL );
     CHECK_ERR(rval);
     for (int i = 0; i <= MBQUAD_INT; ++i) for(int j = 0; j <= MBQUAD_INT; ++j) {
       EntityHandle val[4];
@@ -655,7 +654,7 @@ Tag check_tag( Interface& mb,
 {
   
   Tag tag;
-  ErrorCode rval = mb.tag_get_handle( name, tag );
+  ErrorCode rval = mb.tag_get_handle( name, size, type, tag, MB_TAG_BYTES );
   CHECK_ERR(rval);
 
   TagType storage1;
@@ -670,7 +669,7 @@ Tag check_tag( Interface& mb,
   
   int size1;
   rval = mb.tag_get_size( tag, size1 );
-  if (size < 0) { // variable-length tag
+  if (size <= 0) { // variable-length tag
     CHECK_EQUAL( MB_VARIABLE_DATA_LENGTH, rval );
   }
   else {
@@ -752,7 +751,7 @@ static void test_read_handle_tag_common( bool var_len )
   CHECK_ERR(rval);
   
   Tag tag = check_tag( mb, tag_name, MB_TAG_DENSE, MB_TYPE_HANDLE, 
-                         var_len ? -1 : 4*sizeof(EntityHandle) );
+                         var_len ? 0 : 4*sizeof(EntityHandle) );
   Range verts;
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
@@ -884,7 +883,7 @@ void test_read_one_set_polyhedra()
   }
   
   Tag tri_tag;
-  rval = mb.tag_create( "tris", 2*sizeof(EntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, tri_tag, 0 );
+  rval = mb.tag_get_handle( "tris", 2, MB_TYPE_HANDLE, tri_tag, MB_TAG_SPARSE|MB_TAG_EXCL );
   CHECK_ERR(rval);
   
   std::vector<EntityHandle> quads;
@@ -931,7 +930,7 @@ void test_read_one_set_polyhedra()
   rval = mb.add_entities( sets[1], poly+2, 2 ); CHECK_ERR(rval);
   
   Tag id_tag;
-  rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
+  rval = mb.tag_get_handle( ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag, MB_TAG_SPARSE|MB_TAG_EXCL );
   CHECK_ERR(rval);
   int ids[2] = { 2, 3 };
   rval = mb.tag_set_data( id_tag, sets, 2, ids ); CHECK_ERR(rval);
@@ -975,7 +974,7 @@ void test_read_set_sets()
   Interface& mb = instance;
   
   Tag id_tag;
-  rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
+  rval = mb.tag_get_handle( ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag, MB_TAG_SPARSE|MB_TAG_EXCL );
   CHECK_ERR(rval);
   
     // create sets and assign an ID to each
@@ -1025,7 +1024,7 @@ void test_read_set_sets()
     CHECK_EQUAL( len+1, (int)sets.size() );
     
       // check that we read in the set specified by ID to the reader
-    rval = mb.tag_get_handle( ID_TAG_NAME, id_tag );
+    rval = mb.tag_get_handle( ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag );
     CHECK_ERR(rval);
     sets.clear();
     const void* data[] = { &id };
@@ -1136,7 +1135,7 @@ void test_gather_sets_common( bool contents, GatherTestMode mode )
   Interface& mb = instance;
   
   Tag id_tag;
-  rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
+  rval = mb.tag_get_handle( ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag, MB_TAG_SPARSE|MB_TAG_EXCL );
   CHECK_ERR(rval);
   
     // Create a string of edges from [0,INT] along the X axis each 1 unit in length.
@@ -1196,7 +1195,7 @@ void test_gather_sets_common( bool contents, GatherTestMode mode )
     
     rval = mb.load_file( TEST_FILE, 0, opt.c_str(), ID_TAG_NAME, test_ids+i, 1 );
     CHECK_ERR(rval);
-    rval = mb.tag_get_handle( ID_TAG_NAME, id_tag );
+    rval = mb.tag_get_handle( ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag );
     CHECK_ERR(rval);
     
     check_children( contents, mode, mb, test_ids[i], id_tag, file );
@@ -1212,7 +1211,7 @@ void test_gather_sets_ranged( bool contents, GatherTestMode mode )
   
   Range verts;
   Tag id_tag;
-  rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
+  rval = mb.tag_get_handle( ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag, MB_TAG_SPARSE|MB_TAG_EXCL );
   CHECK_ERR(rval);
   
     // create four groups of vertices, where all vertices in the same group
@@ -1347,7 +1346,7 @@ void test_read_containing_sets()
   CHECK_ERR(rval);
 
   Tag id_tag;
-  rval = mb.tag_get_handle( ID_TAG_NAME, id_tag );
+  rval = mb.tag_get_handle( ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag );
   CHECK_ERR(rval);
   
     // expect all sets adjacent to the specified sets because
@@ -1416,7 +1415,7 @@ void test_read_adjacencies()
   
     // assign IDs to sets
   Tag id_tag;
-  rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
+  rval = mb.tag_get_handle( ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag, MB_TAG_SPARSE|MB_TAG_EXCL );
   CHECK_ERR(rval);
   int ids[2] = { 1, 2 };
   rval = mb.tag_set_data( id_tag, sets, 2, ids );
@@ -1501,7 +1500,7 @@ void test_read_sides()
   
     // assign IDS
   Tag id_tag;
-  rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
+  rval = mb.tag_get_handle( ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag, MB_TAG_SPARSE|MB_TAG_EXCL );
   CHECK_ERR(rval);
   int ids[2] = { 4, 5 };
   rval = mb.tag_set_data( id_tag, sets, 2, ids );
@@ -1558,9 +1557,9 @@ void write_id_test_file()
   
     // create tag handles
   Tag id = 0, gid = 0, dim = 0;
-  mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id, 0 );
-  mb.tag_create( GEOM_DIMENSION_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, dim, 0 );
-  mb.tag_create( GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, gid, 0 );
+  mb.tag_get_handle( ID_TAG_NAME, 1, MB_TYPE_INTEGER, id, MB_TAG_SPARSE|MB_TAG_EXCL );
+  mb.tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, dim, MB_TAG_SPARSE|MB_TAG_EXCL );
+  mb.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid, MB_TAG_DENSE|MB_TAG_EXCL );
   
     // set ID tag on first 10 sets
   rval = mb.tag_set_data( id, sets, sizeof(expected_ids)/sizeof(int), expected_ids );

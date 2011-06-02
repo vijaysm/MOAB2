@@ -19,8 +19,8 @@ int main(int argc, char **argv) {
 
     // get the geometric topology tag handle
   moab::Tag geom_tag, gid_tag;
-  rval = mb->tag_get_handle(GEOM_DIMENSION_TAG_NAME, geom_tag);
-  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, gid_tag);
+  rval = mb->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, moab::MB_TYPE_INTEGER, geom_tag);
+  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, moab::MB_TYPE_INTEGER, gid_tag);
 
     // traverse the model, from dimension 3 downward
   moab::Range psets, chsets;

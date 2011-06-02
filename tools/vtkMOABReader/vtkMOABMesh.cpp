@@ -60,9 +60,10 @@ vtkMOABMesh::vtkMOABMesh(Interface *iface)
   assert(NULL != iFace);
 
   int def_val = -1;
-  ErrorCode rval = mbImpl->tag_create("__vtkIdTag", sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, 
-                                      vtkIdTag, &def_val, true);
-  assert(MB_SUCCESS == rval || MB_ALREADY_ALLOCATED == rval);
+  ErrorCode rval = mbImpl->tag_get_handle("__vtkIdTag", 1, MB_TYPE_INTEGER,
+                                          vtkIdTag, MB_TAG_DENSE|MB_TAG_CREAT, 
+                                          &def_val);
+  assert(MB_SUCCESS == rval);
 }
 
 ErrorCode vtkMOABMesh::load_file(const char *file_name, const char *options, 
@@ -360,10 +361,10 @@ ErrorCode vtkMOABMesh::read_sparse_tags(EntityHandle file_set)
   vtkIntArray *int_array;
 
   Tag gid_tag, gdim_tag;
-  rval = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gid_tag);
+  rval = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid_tag);
   if (MB_SUCCESS != rval) return rval;
       
-  rval = mbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, gdim_tag);
+  rval = mbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, gdim_tag);
   if (MB_SUCCESS != rval) return rval;
       
   std::vector<int> vids;

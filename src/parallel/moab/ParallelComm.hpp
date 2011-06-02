@@ -1325,7 +1325,7 @@ inline ErrorCode ParallelComm::exchange_tags( const char *tag_name,
 {
     // get the tag handle
   std::vector<Tag> tags(1);
-  ErrorCode result = mbImpl->tag_get_handle(tag_name, tags[0]);
+  ErrorCode result = mbImpl->tag_get_handle(tag_name, 0, MB_TYPE_OPAQUE, tags[0], MB_TAG_ANY);
   if (MB_SUCCESS != result) return result;
   else if (!tags[0]) return MB_TAG_NOT_FOUND;
   

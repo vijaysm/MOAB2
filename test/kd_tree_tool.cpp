@@ -584,7 +584,7 @@ void tag_elements( Interface* moab )
   
   Tag tag;
   int zero = 0;
-  moab->tag_create( TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &zero, true );
+  moab->tag_get_handle( TAG_NAME, 1, MB_TYPE_INTEGER, tag, MB_TAG_DENSE|MB_TAG_CREAT, &zero );
   
   AdaptiveKDTreeIter iter;
   tool.get_tree_iterator( root, iter );
@@ -619,7 +619,7 @@ void tag_vertices( Interface* moab )
   
   Tag tag;
   int zero = 0;
-  moab->tag_create( TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &zero, true );
+  moab->tag_get_handle( TAG_NAME, 1, MB_TYPE_INTEGER, tag, MB_TAG_DENSE|MB_TAG_CREAT, &zero );
   
   AdaptiveKDTreeIter iter;
   tool.get_tree_iterator( root, iter );
@@ -663,7 +663,7 @@ void write_tree_blocks( Interface* interface, const char* file )
   Core moab2;
   Tag tag;
   int zero = 0;
-  moab2.tag_create( TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &zero, true );
+  moab2.tag_get_handle( TAG_NAME, 1, MB_TYPE_INTEGER, tag, MB_TAG_DENSE|MB_TAG_CREAT, &zero );
   
   
   AdaptiveKDTreeIter iter;

@@ -322,10 +322,8 @@ ErrorCode ReadParallel::load_file(const char **file_names,
           if (MB_SUCCESS != tmp_result) break;
         
             // mark the file set for this parallel reader
-          tmp_result = mbImpl->tag_create("__file_set", sizeof(int), 
-                                          MB_TAG_SPARSE, 
-                                          MB_TYPE_INTEGER, file_set_tag, 
-                                          0, true);
+          tmp_result = mbImpl->tag_get_handle("__file_set", 1, MB_TYPE_INTEGER,
+                                          file_set_tag, MB_TAG_SPARSE|MB_TAG_CREAT);
           if (MB_SUCCESS != tmp_result) break;
         
           tmp_result = mbImpl->tag_set_data(file_set_tag, &file_set, 1, 
@@ -348,7 +346,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
               != pa_vec.end()) {
             use_id_tag = true;
             if (!file_id_tag) {
-              tmp_result = mbImpl->tag_create( "", sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, id_tag, 0 );
+              tmp_result = mbImpl->tag_get_handle( "", 1, MB_TYPE_INTEGER,id_tag, MB_TAG_DENSE|MB_TAG_CREAT );
               if (MB_SUCCESS != tmp_result)
                 break;
               file_id_tag = &id_tag;
@@ -391,7 +389,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
 
           if (!partition_tag_name.empty()) {
             Tag part_tag;
-            tmp_result = impl->tag_get_handle( partition_tag_name.c_str(), part_tag );
+            tmp_result = impl->tag_get_handle( partition_tag_name.c_str(), 1, MB_TYPE_INTEGER, part_tag );
             if (MB_SUCCESS != tmp_result)
               break;
           
@@ -556,7 +554,7 @@ ErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
   ErrorCode result;
 
   Tag ptag;
-  result = mbImpl->tag_get_handle(ptag_name.c_str(), ptag); 
+  result = mbImpl->tag_get_handle(ptag_name.c_str(), 1, MB_TYPE_INTEGER, ptag); 
   RR("Failed getting tag handle in delete_nonlocal_entities.");
 
   result = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET,
@@ -631,12 +629,13 @@ ErrorCode ReadParallel::create_partition_sets( std::string &ptag_name,
 
     // tag the partition sets with a standard tag name
   if (ptag_name.empty()) ptag_name = PARALLEL_PARTITION_TAG_NAME;
+  bool tag_created = false;
+  result = mbImpl->tag_get_handle( ptag_name.c_str(), 1, MB_TYPE_INTEGER,
+                                   ptag, MB_TAG_SPARSE|MB_TAG_CREAT, 0,
+                                   &tag_created );
+  if (MB_SUCCESS != result) return result;
   
-  result = mbImpl->tag_create(ptag_name.c_str(), sizeof(int), 
-                              MB_TAG_SPARSE, 
-                              MB_TYPE_INTEGER, ptag, 
-                              0);
-  if (MB_ALREADY_ALLOCATED == result) {
+  if (!tag_created) {
         // this tag already exists; better check to see that tagged sets
         // agree with this partition
       Range tagged_sets;

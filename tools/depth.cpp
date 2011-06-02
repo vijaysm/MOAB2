@@ -80,10 +80,11 @@ int main( int argc, char* argv[] )
   
   int init_val = -1;
   Tag tag;
-  rval = mb.tag_create( tagname, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &init_val );
-  if (MB_ALREADY_ALLOCATED == rval) {
+  bool created;
+  rval = mb.tag_get_handle( tagname, 1, MB_TYPE_INTEGER, tag, MB_TAG_DENSE|MB_TAG_CREAT, &init_val, &created );
+  if (!created) {
     rval = mb.tag_delete( tag ); check(rval);
-    rval = mb.tag_create( tagname, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &init_val );
+    rval = mb.tag_get_handle( tagname, 1, MB_TYPE_INTEGER, tag, MB_TAG_DENSE|MB_TAG_CREAT, &init_val, &created );
     check(rval);
   }
   

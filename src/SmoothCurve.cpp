@@ -253,7 +253,7 @@ double SmoothCurve::u_from_position(double x, double y, double z, EntityHandle &
 
   if (0 == _edgeTag)
   {
-    rval = _mb->tag_get_handle("CONTROLEDGE", _edgeTag);
+    rval = _mb->tag_get_handle("CONTROLEDGE", 9, MB_TYPE_DOUBLE, _edgeTag);
     if (rval != MB_SUCCESS)
       return 0;
   }
@@ -386,7 +386,7 @@ void SmoothCurve::compute_tangents_for_each_edge()
   // some checks should be performed on the vertices, but we trust the correctness of the model completely
   // (like the vertices should match in the chain...)
   Tag tangentsTag;
-  ErrorCode rval = _mb->tag_get_handle("TANGENTS", tangentsTag);
+  ErrorCode rval = _mb->tag_get_handle("TANGENTS", 6, MB_TYPE_DOUBLE, tangentsTag);
   if (rval != MB_SUCCESS)
     return; // some error should be thrown
   std::vector<EntityHandle> entities;
@@ -451,7 +451,7 @@ void SmoothCurve::compute_control_points_on_boundary_edges(double min_dot,
   _mb->get_entities_by_type(_set, MBEDGE, _entities); // no recursion!!
   // each edge has the tangent computed already
   Tag tangentsTag;
-  rval = _mb->tag_get_handle("TANGENTS", tangentsTag);
+  rval = _mb->tag_get_handle("TANGENTS", 6, MB_TYPE_DOUBLE, tangentsTag);
   if (rval != MB_SUCCESS)
     return; // some error should be thrown
 
@@ -572,7 +572,7 @@ ErrorCode SmoothCurve::evaluate_smooth_edge(EntityHandle eh, double &tt,
 
   if (0 == _edgeTag)
   {
-    rval = _mb->tag_get_handle("CONTROLEDGE", _edgeTag);
+    rval = _mb->tag_get_handle("CONTROLEDGE", 9, MB_TYPE_DOUBLE, _edgeTag);
     if (rval != MB_SUCCESS)
       return rval;
   }

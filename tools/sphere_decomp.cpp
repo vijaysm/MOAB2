@@ -32,9 +32,12 @@ int main(int argc, char *argv[])
 
   moab::Tag sphere_radii_tag = 0;
   double dum_val = 0.1;
-  result = mbImpl->tag_create(SPHERE_RADII_TAG_NAME, sizeof(double), 
-                              moab::MB_TAG_DENSE, moab::MB_TYPE_DOUBLE, sphere_radii_tag, &dum_val); 
-  if (moab::MB_SUCCESS != result && moab::MB_ALREADY_ALLOCATED != result) {
+  result = mbImpl->tag_get_handle( SPHERE_RADII_TAG_NAME,
+                                   1, moab::MB_TYPE_DOUBLE,
+                                   sphere_radii_tag,
+                                   moab::MB_TAG_DENSE|moab::MB_TAG_CREAT,
+                                   &dum_val); 
+  if (moab::MB_SUCCESS != result) {
     std::cout << "Problem allocating SPHERE_RADII tag." << std::endl;
     return 1;
   }

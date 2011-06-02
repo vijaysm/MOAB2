@@ -655,7 +655,7 @@ public:
         \param tag_handle Tag handle corresponding to <em>tag_name</em>
     */ 
   virtual ErrorCode tag_get_handle( const char *tag_name, 
-                                    Tag &tag_handle ) const;
+                                    Tag &tag_handle ) const MB_DEPRECATED;
 
   //! Get handles for all tags defined on this entity
   virtual ErrorCode tag_get_tags_on_entity(const EntityHandle entity,

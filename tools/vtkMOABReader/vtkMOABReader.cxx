@@ -339,27 +339,45 @@ vtkMOABReaderPrivate::vtkMOABReaderPrivate()
   assert(MB_SUCCESS == rval);
 
   vtkIdType def_val = -1;
-  rval = mbImpl->tag_create("__vtkCellTag", sizeof(vtkIdType), MB_TAG_DENSE, MB_TYPE_INTEGER, 
-                                      vtkCellTag, &def_val, true);
-  assert(MB_SUCCESS == rval || MB_ALREADY_ALLOCATED == rval);
+  //rval = mbImpl->tag_create("__vtkCellTag", sizeof(vtkIdType), MB_TAG_DENSE, MB_TYPE_INTEGER, 
+  //                                    vtkCellTag, &def_val, true);
+  rval = mbImpl->tag_get_handle("__vtkCellTag", 
+                                sizeof(vtkIdType), 
+                                MB_TYPE_OPAQUE, 
+                                vtkCellTag, 
+                                MB_TAG_DENSE|MB_TAG_CREAT,
+                                &def_val);
+  assert(MB_SUCCESS == rval);
 
-  rval = mbImpl->tag_create("__vtkPointTag", sizeof(vtkIdType), MB_TAG_DENSE, MB_TYPE_INTEGER, 
-                            vtkPointTag, &def_val, true);
-  assert(MB_SUCCESS == rval || MB_ALREADY_ALLOCATED == rval);
+  //rval = mbImpl->tag_create("__vtkPointTag", sizeof(vtkIdType), MB_TAG_DENSE, MB_TYPE_INTEGER, 
+  //                          vtkPointTag, &def_val, true);
+  rval = mbImpl->tag_get_handle("__vtkPointTag", 
+                                sizeof(vtkIdType), 
+                                MB_TYPE_OPAQUE, 
+                                vtkPointTag, 
+                                MB_TAG_DENSE|MB_TAG_CREAT,
+                                &def_val);
+  assert(MB_SUCCESS == rval);
 
   vtkDataSet *ds = NULL;
-  rval = mbImpl->tag_create("__vtkDataSet", sizeof(vtkDataSet*), MB_TAG_SPARSE, MB_TYPE_OPAQUE,
-                            vtkDSTag, &ds, true);
+  //rval = mbImpl->tag_create("__vtkDataSet", sizeof(vtkDataSet*), MB_TAG_SPARSE, MB_TYPE_OPAQUE,
+  //                          vtkDSTag, &ds, true);
+  rval = mbImpl->tag_get_handle("__vtkDataSet", 
+                                sizeof(vtkDataSet*), 
+                                MB_TYPE_OPAQUE,
+                                vtkDSTag, 
+                                MB_TAG_SPARSE|MB_TAG_CREAT,
+                                &ds);
   assert(MB_SUCCESS == rval);
   
-  rval = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gidTag);
+  rval = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gidTag);
   assert(MB_SUCCESS == rval);
       
-  rval = mbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, gdimTag);
+  rval = mbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, gdimTag);
       
-  rval = mbImpl->tag_get_handle(PARALLEL_PARTITION_TAG_NAME, partTag);
+  rval = mbImpl->tag_get_handle(PARALLEL_PARTITION_TAG_NAME, 1, MB_TYPE_INTEGER, partTag);
       
-  rval = mbImpl->tag_get_handle(CATEGORY_TAG_NAME, catTag);
+  rval = mbImpl->tag_get_handle(CATEGORY_TAG_NAME, NAME_TAG_SIZE, MB_TYPE_OPAQUE, catTag);
       
 }
 

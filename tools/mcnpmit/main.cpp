@@ -64,8 +64,8 @@ int main(int argc, char **argv) {
   moab::AdaptiveKDTree::Settings settings;
   settings.candidatePlaneSet = moab::AdaptiveKDTree::SUBDIVISION;
 
-  MBI->tag_create("CoordTag", sizeof(int), moab::MB_TAG_DENSE, coord_tag, 0);
-  MBI->tag_create("RotationTag", 16*sizeof(double), moab::MB_TAG_DENSE, rotation_tag, 0);
+  MBI->tag_create("CoordTag", 1, moab::MB_TYPE_INTEGER, coord_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT);
+  MBI->tag_create("RotationTag", 16, moab::MB_TYPE_DOUBLE, rotation_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
 
   if (skip_build) {
     MBresult = MBI->load_mesh(h5m_filename.c_str());
@@ -161,8 +161,8 @@ int main(int argc, char **argv) {
     MBresult = MBI->get_coords( cfd_verts , cfd_coords );  
 
     cfd_iter = cfd_verts.begin();
-    MBresult = MBI->tag_create("heating_tag", sizeof(double), moab::MB_TAG_DENSE, moab::MB_TYPE_DOUBLE, cfd_heating_tag, 0); 
-    MBresult = MBI->tag_create("error_tag", sizeof(double), moab::MB_TAG_DENSE, moab::MB_TYPE_DOUBLE, cfd_error_tag, 0);
+    MBresult = MBI->tag_get_handle("heating_tag", 1, moab::MB_TYPE_DOUBLE, cfd_heating_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT); 
+    MBresult = MBI->tag_get_handle("error_tag", 1, moab::MB_TYPE_DOUBLE, cfd_error_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT);
 
     std::cout << std::endl << "Read in mesh with query points." << std::endl << std::endl;
 

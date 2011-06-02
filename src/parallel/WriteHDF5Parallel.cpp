@@ -155,11 +155,11 @@ static void print_type_sets( Interface* iFace, DebugOutput* str, Range& sets )
     return;
 
   Tag gid, did, bid, sid, nid;
-  iFace->tag_get_handle( GLOBAL_ID_TAG_NAME, gid ); 
-  iFace->tag_get_handle( GEOM_DIMENSION_TAG_NAME, did );
-  iFace->tag_get_handle( MATERIAL_SET_TAG_NAME, bid );
-  iFace->tag_get_handle( DIRICHLET_SET_TAG_NAME, nid );
-  iFace->tag_get_handle( NEUMANN_SET_TAG_NAME, sid );
+  iFace->tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid ); 
+  iFace->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, did );
+  iFace->tag_get_handle( MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, bid );
+  iFace->tag_get_handle( DIRICHLET_SET_TAG_NAME, 1, MB_TYPE_INTEGER, nid );
+  iFace->tag_get_handle( NEUMANN_SET_TAG_NAME, 1, MB_TYPE_INTEGER, sid );
   Range typesets[10];
   const char* typenames[] = {"Block ", "Sideset ", "NodeSet", "Vertex", "Curve", "Surface", "Volume", "Body", "Other"};
   for (Range::iterator riter = sets.begin(); riter != sets.end(); ++riter)
@@ -259,7 +259,7 @@ WriteHDF5Parallel::MultiProcSetTags::Data::get_sets( Interface* moab,
     // Get first tag handle: this tag is used to filter sets
     // (we only return sets for which this tag is set)
 
-  rval = moab->tag_get_handle( filterTag.c_str(), handles[0] );
+  rval = moab->tag_get_handle( filterTag.c_str(), 1, MB_TYPE_INTEGER, handles[0] );
   if (MB_TAG_NOT_FOUND == rval)
     return MB_SUCCESS; // return nothing if tag isn't defined on this proc
   else if (MB_SUCCESS != rval)
@@ -269,7 +269,7 @@ WriteHDF5Parallel::MultiProcSetTags::Data::get_sets( Interface* moab,
     // sets in the group with the filter_tag.  This might be the same
     // tag as the filter tag.
   
-  rval = moab->tag_get_handle( dataTag.c_str(), handles[1] );
+  rval = moab->tag_get_handle( dataTag.c_str(), 1, MB_TYPE_INTEGER, handles[1] );
   if (MB_TAG_NOT_FOUND == rval)
     return MB_SUCCESS; // return nothing if tag isn't defined on this proc
   else if (MB_SUCCESS != rval)
@@ -689,9 +689,9 @@ ErrorCode WriteHDF5Parallel::check_serial_tag_data(
       TagDesc newtag;
       
       if (ptr->size == MB_VARIABLE_DATA_LENGTH) 
-        rval = iFace->tag_create_variable_length( name.c_str(), ptr->storage, ptr->type, newtag.tag_id, 0 );
+        rval = iFace->tag_get_handle( name.c_str(), 0, ptr->type, newtag.tag_id, MB_TAG_VARLEN|MB_TAG_BYTES|MB_TAG_CREAT|ptr->storage );
       else
-        rval = iFace->tag_create( name.c_str(), ptr->size, ptr->storage, ptr->type, newtag.tag_id, 0 );
+        rval = iFace->tag_get_handle( name.c_str(), ptr->size, ptr->type, newtag.tag_id, MB_TAG_BYTES|MB_TAG_CREAT|ptr->storage );
       if (MB_SUCCESS != rval)
         return error(rval);
       
@@ -2547,12 +2547,11 @@ ErrorCode WriteHDF5Parallel::exchange_file_ids( const Range& nonlocal )
     // create tag to store file IDs
   EntityHandle default_val = 0;
   Tag file_id_tag = 0;
-  rval = iFace->tag_create( "__hdf5_ll_fileid", 
-                              sizeof(EntityHandle),
-                              MB_TAG_DENSE,
-                              MB_TYPE_HANDLE,
-                              file_id_tag,
-                              &default_val );
+  rval = iFace->tag_get_handle( "__hdf5_ll_fileid", 
+                                1, MB_TYPE_HANDLE,
+                                file_id_tag,
+                                MB_TAG_DENSE|MB_TAG_CREAT,
+                               &default_val );
   if (MB_SUCCESS != rval)
     return error(rval);
 

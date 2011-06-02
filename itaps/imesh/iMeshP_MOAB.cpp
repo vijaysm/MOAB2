@@ -350,13 +350,11 @@ void iMeshP_createPartitionAll( iMesh_Instance instance,
   *partition_handle = 0;
 
   Tag prtn_tag;
-  ErrorCode rval = MOABI->tag_create( PARALLEL_PARITIONING_TAG_NAME, 
-                                      sizeof(int), 
-                                      MB_TAG_SPARSE,
-                                      MB_TYPE_INTEGER, 
-                                      prtn_tag, 
-                                      0, 
-                                      true ); CHKERR(rval,"tag creation failed");
+  ErrorCode rval = MOABI->tag_get_handle( PARALLEL_PARITIONING_TAG_NAME, 
+                                          1, MB_TYPE_INTEGER, 
+                                          prtn_tag, 
+                                          MB_TAG_SPARSE|MB_TAG_CREAT ); 
+  CHKERR(rval,"tag creation failed");
   
   EntityHandle handle;
   rval = MOABI->create_meshset( MESHSET_SET, handle ); CHKERR(rval,"set creation failed");

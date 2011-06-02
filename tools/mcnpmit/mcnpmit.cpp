@@ -317,8 +317,8 @@ MCNPError McnpData::initialize_tags() {
 
       moab::ErrorCode rval;
 
-      rval = MBI->tag_create(TALLY_TAG, sizeof(double), moab::MB_TAG_DENSE, moab::MB_TYPE_DOUBLE, tally_tag, 0);
-      rval = MBI->tag_create(ERROR_TAG, sizeof(double), moab::MB_TAG_DENSE, moab::MB_TYPE_DOUBLE, relerr_tag, 0);
+      rval = MBI->tag_create(TALLY_TAG, 1, moab::MB_TYPE_DOUBLE, tally_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT);
+      rval = MBI->tag_create(ERROR_TAG, 1, moab::MB_TYPE_DOUBLE, relerr_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT);
 
       return MCNP_SUCCESS;
 

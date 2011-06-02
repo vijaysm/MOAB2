@@ -241,7 +241,7 @@ ErrorCode get_root( Interface* moab, EntityHandle& root )
   Tag tag;
   ErrorCode rval;
 
-  rval = moab->tag_get_handle( root_tag, tag );
+  rval = moab->tag_get_handle( root_tag, 1, MB_TYPE_HANDLE, tag );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -299,7 +299,7 @@ EntityHandle build_tree( Interface* interface, OrientedBoxTreeTool::Settings set
   
     // store tree root
   Tag roottag;
-  rval = interface->tag_create( root_tag, sizeof(EntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, roottag, 0, true );
+  rval = interface->tag_get_handle( root_tag, 1, MB_TYPE_HANDLE, roottag, MB_TAG_CREAT|MB_TAG_SPARSE );
   if (MB_SUCCESS != rval) {
     std::cout << "Failed to create root tag: \"" << root_tag << '"' << std::endl;
     exit(2);
@@ -459,7 +459,7 @@ void tag_triangles( Interface* moab )
 
   Tag tag;
   int zero = 0;
-  moab->tag_create( TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &zero, true );
+  moab->tag_get_handle( TAG_NAME, 1, MB_TYPE_INTEGER, tag, MB_TAG_DENSE|MB_TAG_CREAT, &zero );
   TriTagger op( tag, moab );
   
   OrientedBoxTreeTool tool(moab);
@@ -510,7 +510,7 @@ void tag_vertices( Interface* moab )
 
   Tag tag;
   int zero = 0;
-  moab->tag_create( TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &zero, true );
+  moab->tag_get_handle( TAG_NAME, 1, MB_TYPE_INTEGER, tag, MB_TAG_DENSE|MB_TAG_CREAT, &zero );
   VtxTagger op( tag, moab );
   
   OrientedBoxTreeTool tool(moab);
@@ -561,7 +561,7 @@ void write_tree_blocks( Interface* interface, const char* file )
   Core moab2;
   Tag tag;
   int zero = 0;
-  moab2.tag_create( TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, tag, &zero, true );
+  moab2.tag_get_handle( TAG_NAME, 1, MB_TYPE_INTEGER, tag, MB_TAG_DENSE|MB_TAG_CREAT, &zero );
 
   OrientedBoxTreeTool tool(interface);
   LeafHexer op( &tool, &moab2, tag );

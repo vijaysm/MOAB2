@@ -42,31 +42,11 @@ ErrorCode AffineXform::get_tag( Tag& tag_out,
   if (!tagname)
     tagname = AFFINE_XFORM_TAG_NAME;
  
-  ErrorCode rval;
-  
-  rval = interface->tag_get_handle( tagname, tag_out );
-  
-  if (MB_TAG_NOT_FOUND == rval) 
-    return interface->tag_create( tagname, 
-                                  sizeof(AffineXform),
-                                  MB_TAG_DENSE,
-                                  MB_TYPE_DOUBLE,
-                                  tag_out,
-                                  0 );
-  if (MB_SUCCESS != rval)
-    return rval;
-  
-  int size;
-  rval = interface->tag_get_size( tag_out, size );
-  if (MB_SUCCESS != rval || size != sizeof(AffineXform))
-    return MB_FAILURE;
-  
-  DataType type;
-  rval = interface->tag_get_data_type( tag_out, type );
-  if (MB_SUCCESS != rval || type != MB_TYPE_DOUBLE)
-    return MB_FAILURE;
-  
-  return MB_SUCCESS;
+  return interface->tag_get_handle( tagname, 
+                                    sizeof(AffineXform),
+                                    MB_TYPE_DOUBLE,
+                                    tag_out,
+                                    MB_TAG_BYTES|MB_TAG_CREAT|MB_TAG_DENSE );
 }
 
 #endif //TEST

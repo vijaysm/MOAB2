@@ -499,7 +499,7 @@ int main( int argc, char* argv[] )
     {
       Range entities;
       Tag dim_tag = 0, id_tag = 0;
-      rval = mb.tag_get_handle( GEOM_DIMENSION_TAG_NAME, dim_tag );
+      rval = mb.tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, dim_tag );
       if (MB_TAG_NOT_FOUND == rval) 
       {
         fprintf( stderr, "No geometry tag defined.\n" );
@@ -510,7 +510,7 @@ int main( int argc, char* argv[] )
         return 2;
       }
       
-      rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
+      rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag );
       if (MB_TAG_NOT_FOUND == rval) 
       {
         fprintf( stderr, "No ID tag defined.\n" );
@@ -578,7 +578,7 @@ int main( int argc, char* argv[] )
       {
         Range entities;
         Tag tag = 0;
-        rval = mb.tag_get_handle( mesh_type_tags[t], tag );
+        rval = mb.tag_get_handle( mesh_type_tags[t], 1, MB_TYPE_INTEGER, tag );
         if (MB_TAG_NOT_FOUND == rval) 
         {
           continue;

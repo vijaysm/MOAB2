@@ -75,7 +75,7 @@ void test_var_length_no_data()
   Tag tag;
   
   create_mesh( mb1 );
-  rval = mb1.tag_create_variable_length( "test_tag", MB_TAG_DENSE, MB_TYPE_DOUBLE, tag );
+  rval = mb1.tag_get_handle( "test_tag", 0, MB_TYPE_DOUBLE, tag, MB_TAG_EXCL|MB_TAG_VARLEN|MB_TAG_DENSE );
   CHECK_ERR( rval );
   
   read_write( "test_var_length_no_data.h5m", mb1, mb2 );
@@ -88,7 +88,7 @@ void test_var_length_data_common( const char* filename, Interface& mb1, bool opa
   ErrorCode rval;
   Tag tag;
   DataType type = opaque ? MB_TYPE_OPAQUE : MB_TYPE_INTEGER;
-  rval = mb1.tag_create_variable_length( "test_tag", MB_TAG_SPARSE, type, tag );
+  rval = mb1.tag_get_handle( "test_tag", 0, type, tag, MB_TAG_EXCL|MB_TAG_VARLEN|MB_TAG_SPARSE );
   CHECK_ERR( rval );
   
     // get all entities
@@ -124,7 +124,7 @@ void test_var_length_data_common( const char* filename, Interface& mb1, bool opa
   
     // get new tag handle
   tag = 0;
-  rval = mb2.tag_get_handle( "test_tag", tag );
+  rval = mb2.tag_get_handle( "test_tag", 0, type, tag );
   CHECK_ERR(rval);
   
     // check consistency of tag values
@@ -194,7 +194,7 @@ void test_var_length_big_data()
   Tag tag;
   
   create_mesh( mb1 );
-  rval = mb1.tag_create_variable_length( "test_tag", MB_TAG_SPARSE, MB_TYPE_DOUBLE, tag );
+  rval = mb1.tag_get_handle( "test_tag", 0, MB_TYPE_DOUBLE, tag, MB_TAG_SPARSE|MB_TAG_VARLEN|MB_TAG_EXCL );
   CHECK_ERR( rval );
   
     // choose 3 vertices upon which to set data
@@ -219,7 +219,7 @@ void test_var_length_big_data()
   compare_tags( "test_tag", mb1, mb2 );
   
     // check 3 tagged vertices
-  rval = mb2.tag_get_handle( "test_tag", tag );
+  rval = mb2.tag_get_handle( "test_tag", 0, MB_TYPE_DOUBLE, tag );
   CHECK_ERR(rval);
   range.clear();
   rval = mb2.get_entities_by_type_and_tag( 0, MBVERTEX, &tag, 0, 1, range, Interface::UNION );
@@ -283,17 +283,19 @@ void test_global_value_common( bool mesh_value )
   // create tag to hold vertex data
   Tag handle_tag = 0;
   void* default_val = mesh_value ? 0 : handles;
-  int default_val_size = mesh_value ? 0 : 3*sizeof(EntityHandle);
-  rval = mb.tag_create_variable_length( "handle_tag", MB_TAG_DENSE, MB_TYPE_HANDLE, handle_tag, 
-                                        default_val, default_val_size );
+  int default_val_size = mesh_value ? 0 : 3;
+  rval = mb.tag_get_handle( "handle_tag", default_val_size, MB_TYPE_HANDLE, 
+                            handle_tag, MB_TAG_DENSE|MB_TAG_VARLEN|MB_TAG_EXCL,
+                            default_val );
   CHECK_ERR( rval );
   
   // create tag to hold vertex coordinates
   Tag coord_tag = 0;
   default_val = mesh_value ? 0 : coords;
-  default_val_size = mesh_value ? 0 : 9*sizeof(double);
-  rval = mb.tag_create_variable_length( "coord_tag", MB_TAG_SPARSE, MB_TYPE_DOUBLE, coord_tag, 
-                                        default_val, default_val_size );
+  default_val_size = mesh_value ? 0 : 9;
+  rval = mb.tag_get_handle( "coord_tag", default_val_size, MB_TYPE_DOUBLE, 
+                             coord_tag, MB_TAG_SPARSE|MB_TAG_VARLEN|MB_TAG_EXCL,
+                            default_val );
   CHECK_ERR( rval );
   
   
@@ -320,9 +322,9 @@ void test_global_value_common( bool mesh_value )
   
     // get tag handles
   handle_tag = coord_tag = 0;
-  rval = mb2.tag_get_handle( "handle_tag", handle_tag );
+  rval = mb2.tag_get_handle( "handle_tag", 0, MB_TYPE_HANDLE, handle_tag );
   CHECK_ERR(rval);
-  rval = mb2.tag_get_handle( "coord_tag", coord_tag );
+  rval = mb2.tag_get_handle( "coord_tag", 0, MB_TYPE_DOUBLE, coord_tag );
   CHECK_ERR(rval);
   
     // get tag data
@@ -397,8 +399,8 @@ void test_global_opaque_common( bool mesh_value )
   Tag tag = 0;
   const void* default_val = mesh_value ? 0 : data;
   int default_val_size = mesh_value ? 0 : datalen;
-  rval = mb.tag_create_variable_length( "opaque_tag", MB_TAG_DENSE, MB_TYPE_OPAQUE, tag, 
-                                         default_val, default_val_size );
+  rval = mb.tag_get_handle( "opaque_tag", default_val_size, MB_TYPE_OPAQUE, tag, 
+                            MB_TAG_DENSE|MB_TAG_VARLEN|MB_TAG_EXCL, default_val );
   CHECK_ERR( rval );
   
   // if doing mesh tag, set it
@@ -417,7 +419,7 @@ void test_global_opaque_common( bool mesh_value )
   
     // get tag handles
   tag = 0;
-  rval = mb2.tag_get_handle( "opaque_tag", tag );
+  rval = mb2.tag_get_handle( "opaque_tag", 0, MB_TYPE_OPAQUE, tag );
   CHECK_ERR(rval);
   
     // get tag data
@@ -463,7 +465,8 @@ void test_var_length_handle_tag()
   Range::const_iterator  i;
   
   create_mesh( mb1 );
-  rval = mb1.tag_create_variable_length( "test_tag", MB_TAG_SPARSE, MB_TYPE_HANDLE, tag );
+  rval = mb1.tag_get_handle( "test_tag", 0, MB_TYPE_HANDLE, tag, 
+                             MB_TAG_SPARSE|MB_TAG_VARLEN|MB_TAG_EXCL );
   CHECK_ERR( rval );
   
     // Get all entities
@@ -502,7 +505,7 @@ void test_var_length_handle_tag()
   compare_tags( "test_tag", mb1, mb2 );
   
     // check number of tagged entities
-  rval = mb2.tag_get_handle( "test_tag", tag );
+  rval = mb2.tag_get_handle( "test_tag", 0, MB_TYPE_HANDLE, tag );
   CHECK_ERR(rval);
   range.clear();
   for (EntityType t = MBVERTEX; t != MBENTITYSET; ++t) {
@@ -581,9 +584,9 @@ void compare_tags( const char* name, Interface& mb1, Interface& mb2 )
 {
   ErrorCode rval;
   Tag tag1, tag2;
-  rval = mb1.tag_get_handle( name, tag1 );
+  rval = mb1.tag_get_handle( name, 0, MB_TYPE_OPAQUE, tag1, MB_TAG_ANY );
   CHECK_ERR(rval);
-  rval = mb2.tag_get_handle( name, tag2 );
+  rval = mb2.tag_get_handle( name, 0, MB_TYPE_OPAQUE, tag2, MB_TAG_ANY );
   CHECK_ERR(rval);
   
   int size;

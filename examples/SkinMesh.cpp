@@ -136,8 +136,7 @@ int main(int argc, char **argv) {
 
   // get surface sets
   MBTag geom_tag;
-  rval = mb->tag_create( GEOM_DIMENSION_TAG_NAME, sizeof(int), MB_TAG_DENSE,
-                         MB_TYPE_INTEGER, geom_tag, 0, true );
+  rval = mb->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geom_tag );
   if(MB_SUCCESS != rval) return 0;
   MBRange surf_sets;
   int two = 2;

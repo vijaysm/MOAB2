@@ -56,21 +56,9 @@ ErrorCode read_tree( Interface* instance,
     return rval;
   
   Tag tag;
-  rval = instance->tag_get_handle( "OBB_ROOT", tag );
+  rval = instance->tag_get_handle( "OBB_ROOT", 1, MB_TYPE_HANDLE, tag );
   if (MB_SUCCESS != rval)
     return rval;
-  
-  int size;
-  DataType type;
-  rval = instance->tag_get_size( tag, size );
-  if (MB_SUCCESS != rval)
-    return rval;
-  rval = instance->tag_get_data_type( tag, type );
-  if (MB_SUCCESS != rval)
-    return rval;
-
-  if (size != sizeof(EntityHandle) || type != MB_TYPE_HANDLE)
-    return MB_FAILURE;
   
   const EntityHandle root = 0;
   return instance->tag_get_data( tag, &root, 1, &tree_root_out );

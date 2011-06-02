@@ -179,11 +179,10 @@ ErrorCode mb_vertex_tag_test()
 
     // Add an int Vertex Tag to the database
 
-  int tag_size = sizeof(int);
   Tag tag_id;
 
     // Create a dense tag for all vertices
-  error = MB->tag_create("int_tag", tag_size, MB_TAG_SPARSE, tag_id, 0);
+  error = MB->tag_get_handle("int_tag", 1, MB_TYPE_INTEGER, tag_id, MB_TAG_SPARSE|MB_TAG_EXCL);
   if (error != MB_SUCCESS)
     return error;
 
@@ -229,8 +228,7 @@ ErrorCode mb_vertex_tag_test()
 
     // Add a bool Vertex Tag to the database
 
-  tag_size = sizeof(bool);
-  error = MB->tag_create("bool_tag", tag_size, MB_TAG_SPARSE, tag_id, 0);
+  error = MB->tag_get_handle("bool_tag", sizeof(bool), MB_TYPE_OPAQUE, tag_id, MB_TAG_SPARSE|MB_TAG_EXCL);
   if (error != MB_SUCCESS)
     return error;
 
@@ -248,8 +246,7 @@ ErrorCode mb_vertex_tag_test()
 
     // Add a double Vertex Tag to the database
 
-  tag_size = sizeof(double);
-  error = MB->tag_create("double_tag", tag_size, MB_TAG_SPARSE, tag_id, 0);
+  error = MB->tag_get_handle("double_tag", 1, MB_TYPE_DOUBLE, tag_id, MB_TAG_SPARSE|MB_TAG_EXCL);
   if (error != MB_SUCCESS)
     return error;
 
@@ -272,8 +269,7 @@ ErrorCode mb_vertex_tag_test()
     int test_int;
     double test_double;
   };
-  tag_size = sizeof(TagStruct);
-  error = MB->tag_create("struct_tag", tag_size, MB_TAG_SPARSE, tag_id, 0);
+  error = MB->tag_get_handle("struct_tag", sizeof(TagStruct), MB_TYPE_OPAQUE, tag_id, MB_TAG_SPARSE|MB_TAG_EXCL);
   if (error != MB_SUCCESS)
     return error;
 
@@ -296,7 +292,7 @@ ErrorCode mb_vertex_tag_test()
     // Create sparse tags for 10 random entities including some outside the 
     // range of allowable entities.
 
-  error = MB->tag_create("sparse_int_tag", tag_size, MB_TAG_SPARSE, tag_id, 0);
+  error = MB->tag_get_handle("sparse_int_tag", 1, MB_TYPE_INTEGER, tag_id, MB_TAG_SPARSE|MB_TAG_EXCL);
 
   if (error != MB_SUCCESS )  
     return error;
@@ -347,7 +343,7 @@ ErrorCode mb_vertex_tag_test()
 
     // get the tag handle of the last tag created above
   Tag int_tag_handle;
-  error = MB->tag_get_handle (int_tag_name.c_str(), int_tag_handle);
+  error = MB->tag_get_handle (int_tag_name.c_str(), 1, MB_TYPE_INTEGER, int_tag_handle);
   if (MB_SUCCESS != error) return error;
     
   if (int_tag_handle != tag_id)
@@ -390,7 +386,7 @@ ErrorCode mb_vertex_tag_test()
 
     // delete the dense tag named bool_tag 
   Tag bool_tag_handle;
-  error = MB->tag_get_handle ("bool_tag", bool_tag_handle);
+  error = MB->tag_get_handle ("bool_tag", sizeof(bool), MB_TYPE_OPAQUE, bool_tag_handle);
   if (error != MB_SUCCESS) return error;
 
   error = MB->tag_delete(bool_tag_handle);
@@ -2137,11 +2133,8 @@ ErrorCode mb_mesh_set_appends( int flags )
   const void* vals[] = {&one};
 
     // Test get_entities_by_type_and_tag w/ sparse tag and no value
-  rval = mb->tag_create( "mb_mesh_set_appends_sparse", 
-                         sizeof(int), 
-                         MB_TAG_SPARSE, 
-                         MB_TYPE_INTEGER,
-                         sparse, 0 );
+  rval = mb->tag_get_handle( "mb_mesh_set_appends_sparse", 
+                         1, MB_TYPE_INTEGER, sparse, MB_TAG_SPARSE|MB_TAG_EXCL );
   if (MB_SUCCESS != rval)
     return rval;
   rval = mb->tag_set_data( sparse, &entity, 1, &one );
@@ -2168,11 +2161,9 @@ ErrorCode mb_mesh_set_appends( int flags )
     return MB_FAILURE;
    
     // Test get_entities_by_type_and_tag w/ dense tag
-  rval = mb->tag_create( "mb_mesh_set_appends_dense", 
-                         sizeof(int), 
-                         MB_TAG_DENSE, 
-                         MB_TYPE_INTEGER,
-                         dense, &zero );
+  rval = mb->tag_get_handle( "mb_mesh_set_appends_dense", 
+                         1, MB_TYPE_INTEGER, dense,
+                         MB_TAG_DENSE|MB_TAG_EXCL, &zero );
   if (MB_SUCCESS != rval)
     return rval;
   rval = mb->tag_set_data( dense, &entity, 1, &one );
@@ -2457,7 +2448,9 @@ ErrorCode mb_mesh_set_flag_test()
 
   // number of entities of type MBVERTEX, MBEDGE, MBDTri, MBQUAD, MBTET, and MBHEX
   // in mbtest1.g  (all other values are 0.
-static const unsigned int num_entities[MBMAXTYPE] = {47,12,18,8,22,8};
+static const EntityType types[] = { MBVERTEX, MBEDGE, MBTRI, MBQUAD, MBTET, MBHEX };
+const int num_types = sizeof(types)/sizeof(types[0]);
+static const unsigned int num_entities[num_types+1] = {47,12,18,8,22,8,0};
 
 ErrorCode mb_delete_mesh_test()
 {
@@ -2478,35 +2471,18 @@ ErrorCode mb_delete_mesh_test()
     return error;
 
 
-  Range entities;
-  error = gMB->get_entities_by_type(0,  MBVERTEX, entities);
-  if (error != MB_SUCCESS)
-    return error;
-
-    // As before the number of vertices had better be 83
-  if ( entities.size() != num_entities[MBVERTEX] )
-    return MB_FAILURE;
-
-  Tag tag_handle = 0;
-  EntityType type;
     // step through each element type
-  for (type = MBEDGE; type != MBENTITYSET; type++)
+  for (EntityType type = MBVERTEX; type != MBENTITYSET; type++)
   {
-      // There should be entities
-    error = gMB->tag_get_handle("connectivity", tag_handle);
-    if (error == MB_SUCCESS)
-    {
-      entities.clear();
-      error = gMB->get_entities_by_type_and_tag(0,  type, &tag_handle, NULL, 1, entities);
-      if (error != MB_SUCCESS)
-        return error;
+    // There should be entities
+    Range entities;
+    error = gMB->get_entities_by_type(0,  type, entities);
+    if (error != MB_SUCCESS)
+      return error;
 
-      if (!entities.empty())
-      {
-        if ( entities.size() != num_entities[type] )
-          return MB_FAILURE;
-      }
-    }
+    size_t idx = std::find( types, types+num_types, type ) - types;
+    if ( entities.size() != num_entities[idx] )
+      return MB_FAILURE;
   }
 
   return MB_SUCCESS;
@@ -2881,7 +2857,7 @@ ErrorCode mb_bit_tags_test()
   Range entities;
   MB->get_entities_by_type(0, MBVERTEX, entities);
 
-  if(MB->tag_create("bit on vertex", 3, MB_TAG_BIT, bit_tag, NULL) != MB_SUCCESS)
+  if(MB->tag_get_handle("bit on vertex", 3, MB_TYPE_BIT, bit_tag, MB_TAG_CREAT) != MB_SUCCESS)
   {
     cout << "couldn't create bit tag" << endl;
     return MB_FAILURE;
@@ -2933,7 +2909,7 @@ ErrorCode mb_bit_tags_test()
   // test default value
   const unsigned char default_bits = '\005'; // 0000 0101
   Tag tag2;
-  success = MB->tag_create( "bit with default", 4, MB_TAG_BIT, tag2, &default_bits );
+  success = MB->tag_get_handle( "bit with default", 4, MB_TYPE_BIT, tag2, MB_TAG_CREAT, &default_bits );
   if (MB_SUCCESS != success) {
     cout << "Failed to create bit tag with default value" << std::endl;
     return success;
@@ -2973,15 +2949,15 @@ ErrorCode mb_tags_test()
     return result;
 
   Tag stale_bits, stale_dense, stale_sparse;
-  result = MB->tag_create("stale data", 5, MB_TAG_BIT, stale_bits, NULL);
+  result = MB->tag_get_handle("stale data", 5, MB_TYPE_BIT, stale_bits, MB_TAG_CREAT);
   if (MB_SUCCESS != result)
     return result;
      
   int def_data = 9;
-  result = MB->tag_create("dense stale_data", sizeof(int), MB_TAG_DENSE, stale_dense, &def_data);
+  result = MB->tag_get_handle("dense stale_data", 1, MB_TYPE_INTEGER, stale_dense, MB_TAG_DENSE|MB_TAG_EXCL, &def_data);
   if (MB_SUCCESS != result)
     return result;
-  result = MB->tag_create("sparse stale data", sizeof(int), MB_TAG_SPARSE, stale_sparse, NULL);
+  result = MB->tag_get_handle("sparse stale data", 1, MB_TYPE_INTEGER, stale_sparse, MB_TAG_SPARSE|MB_TAG_EXCL);
   if (MB_SUCCESS != result)
     return result;
 
@@ -3070,7 +3046,7 @@ ErrorCode mb_tags_test()
   int value = 1;
   const void *dum_ptr = &value;
   Tag material_tag;
-  result = MB->tag_get_handle( MATERIAL_SET_TAG_NAME, material_tag);
+  result = MB->tag_get_handle( MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, material_tag);
   if (MB_SUCCESS != result)
     return result;
   if(MB->get_entities_by_type_and_tag( 0, MBENTITYSET, &material_tag, 
@@ -3083,7 +3059,7 @@ ErrorCode mb_tags_test()
  
     //add a dense tag to hexes
   Tag junk_tag;
-  if(MB->tag_create( "junk_tag", sizeof(int), MB_TAG_DENSE, junk_tag, 0) 
+  if(MB->tag_get_handle( "junk_tag", 1, MB_TYPE_INTEGER, junk_tag, MB_TAG_DENSE|MB_TAG_EXCL) 
      != MB_SUCCESS)
     return MB_FAILURE;    
 
@@ -3203,12 +3179,10 @@ ErrorCode mb_common_tag_test( TagType storage )
   
   Tag tag;
   const EntityHandle def_val = ~(EntityHandle)0;
-  ErrorCode rval = mb->tag_create( tagname, 
-                                     sizeof(EntityHandle), 
-                                     storage, 
-                                     MB_TYPE_HANDLE, 
-                                     tag, 
-                                     &def_val );
+  ErrorCode rval = mb->tag_get_handle( tagname, 
+                                       1, MB_TYPE_HANDLE,
+                                       tag, storage|MB_TAG_EXCL,
+                                       &def_val );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -3601,7 +3575,7 @@ ErrorCode mb_entity_conversion_test()
   EntityHandle export_meshset;
   MB->create_meshset( MESHSET_SET, export_meshset);
   Tag material_tag;
-  MB->tag_get_handle(MATERIAL_SET_TAG_NAME, material_tag);
+  MB->tag_get_handle(MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, material_tag);
   int block_id = 100;
   MB->tag_set_data(material_tag, &export_meshset, 1, &block_id);
   entities.clear();
@@ -4462,7 +4436,7 @@ ErrorCode mb_stress_test()
 
     // set the block tag
   Tag tag_handle;
-  ErrorCode result = MB->tag_get_handle( MATERIAL_SET_TAG_NAME, tag_handle ) ;
+  ErrorCode result = MB->tag_get_handle( MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, tag_handle ) ;
   if(result != MB_SUCCESS)
     return result;
 
@@ -6240,7 +6214,7 @@ ErrorCode mb_memory_use_test()
     return MB_FAILURE;
   
   Tag tag;
-  if (MB_SUCCESS != mb.tag_create( "TMP_TAG", sizeof(int), MB_TAG_SPARSE, tag, 0 ))
+  if (MB_SUCCESS != mb.tag_get_handle( "TMP_TAG", 1, MB_TYPE_INTEGER, tag, MB_TAG_SPARSE|MB_TAG_EXCL ))
     return MB_FAILURE;
   mb.estimated_memory_use( r, &min, &am );
   if (min != 6*sizeof(double))
@@ -7898,7 +7872,7 @@ ErrorCode mb_type_is_maxtype_test()
   r1.clear();
   rval = mb->get_entities_by_handle( s1, r1 ); CHKERR(rval);
   Tag t1;
-  rval = mb->tag_create( "maxtype1", sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, t1, 0 );
+  rval = mb->tag_get_handle( "maxtype1", 1, MB_TYPE_INTEGER, t1, MB_TAG_SPARSE|MB_TAG_EXCL );
   CHKERR(rval);
   std::vector<int> d1(r1.size());
   Range::iterator ri;
@@ -7974,7 +7948,7 @@ ErrorCode mb_type_is_maxtype_test()
   r2.insert( r1.front() );
   
   Tag t2;
-  rval = mb->tag_create( "maxtype2", sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, t2, 0 );
+  rval = mb->tag_get_handle( "maxtype2", 1, MB_TYPE_INTEGER, t2, MB_TAG_DENSE|MB_TAG_EXCL );
   CHKERR(rval);
   d1.resize(r2.size());
   ii = d1.begin();;

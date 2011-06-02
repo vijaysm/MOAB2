@@ -222,16 +222,10 @@ EntityHandle make_set( unsigned int options,
     
   ErrorCode rval;
   Tag id_tag;
-  rval = iface->tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
-  if (MB_TAG_NOT_FOUND == rval)
-  {
-    rval = iface->tag_create( GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, 
-                              MB_TYPE_INTEGER, id_tag, 0 );
-    if (MB_SUCCESS != rval)
-      moab_error( "tag_create" );
-  }
-  else if (MB_SUCCESS != rval)
-    moab_error( "tag_create" );
+  rval = iface->tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag,
+                                MB_TAG_CREAT|MB_TAG_DENSE );
+  if (MB_SUCCESS != rval)
+    moab_error( "tag_get_handle" );
   
   if (MB_SUCCESS != iface->tag_set_data( id_tag, &handle, 1, &id ))
     moab_error( "tag_set_data" );
@@ -327,8 +321,8 @@ void create()
   // Create a dense tag 
   int zero = 0;
   Tag tag;
-  if (MB_SUCCESS != iface->tag_create( tagname, 4, MB_TAG_DENSE, tag, &zero ))
-    moab_error( "tag_create" );
+  if (MB_SUCCESS != iface->tag_get_handle( tagname, 1, MB_TYPE_INTEGER, tag, MB_TAG_DENSE|MB_TAG_EXCL, &zero ))
+    moab_error( "tag_get_handle" );
   
   // Put dense tag on all vertices.
   for (int i = 0; i < 20; ++i)
@@ -337,8 +331,8 @@ void create()
       
   // Create bit tag
   Tag tag2;
-  if (MB_SUCCESS != iface->tag_create( bitname, 2, MB_TAG_BIT, tag2, 0 ))
-    moab_error( "tag_create" );
+  if (MB_SUCCESS != iface->tag_get_handle( bitname, 2, MB_TYPE_BIT, tag2, MB_TAG_EXCL ))
+    moab_error( "tag_get_handle" );
   
   // Set tag to 0 on Hex
   char two = '\002';
@@ -352,8 +346,8 @@ void create()
   
   // Create an integer array tag and set some values on the dodecahedron
   Tag itag;
-  if (MB_SUCCESS != iface->tag_create( intname, 2*sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, itag, 0 ))
-    moab_error( "tag_create(MB_TYPE_INT)" );
+  if (MB_SUCCESS != iface->tag_get_handle( intname, 2, MB_TYPE_INTEGER, itag, MB_TAG_SPARSE|MB_TAG_EXCL ))
+    moab_error( "tag_get_handle(MB_TYPE_INT)" );
   int idata[] = { 0xDEADBEEF, 0xDEFACED };
   if (MB_SUCCESS != iface->tag_set_data( itag, &dodec, 1, idata ))
     moab_error( "tag_set_data(itag)" );
@@ -361,8 +355,8 @@ void create()
   // Create a double tag with a non-zero default value, and set on dodecahedron
   Tag dtag;
   double ddef = 3.14159;
-  if (MB_SUCCESS != iface->tag_create( dblname, sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, dtag, &ddef ))
-    moab_error( "tag_create(dtag)" );
+  if (MB_SUCCESS != iface->tag_get_handle( dblname, 1, MB_TYPE_DOUBLE, dtag, MB_TAG_DENSE|MB_TAG_EXCL, &ddef ))
+    moab_error( "tag_get_handle(dtag)" );
   double dval = 0.333;
   if (MB_SUCCESS != iface->tag_set_data( dtag, &dodec, 1, &dval ))
     moab_error( "tag_set_data(dtag)" );
@@ -370,8 +364,8 @@ void create()
   // Create a tag containing entity handles, with default values
   Tag htag;
   EntityHandle hdef[] = { hex, dodec, 0 };
-  if (MB_SUCCESS != iface->tag_create( handlename, 3*sizeof(EntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, htag, hdef ))
-    moab_error( "tag_create(htag)" );
+  if (MB_SUCCESS != iface->tag_get_handle( handlename, 3, MB_TYPE_HANDLE, htag, MB_TAG_SPARSE|MB_TAG_EXCL, hdef ))
+    moab_error( "tag_get_handle(htag)" );
   // Set global (mesh) value for tag
   EntityHandle hgbl[] = { 0, hex, dodec };
   const EntityHandle root = 0;
@@ -438,7 +432,7 @@ bool compare_conn( std::vector<EntityHandle>& conn1,
   std::vector<int> tags[2];
   tags[0].resize( conn1.size() ); tags[1].resize( conn2.size() );
   Tag tag;
-  if (MB_SUCCESS != iface->tag_get_handle( tagname, tag ))
+  if (MB_SUCCESS != iface->tag_get_handle( tagname, 1, MB_TYPE_INTEGER, tag ))
     moab_error( "tag_get_handle" );
   if (MB_SUCCESS != iface->tag_get_data( tag, &conn1[0], conn1.size(), &tags[0][0] ) ||
       MB_SUCCESS != iface->tag_get_data( tag, &conn2[0], conn2.size(), &tags[1][0] ))
@@ -472,7 +466,7 @@ bool compare_sets( int id, const char* tag_name = 0 )
   // get sets
  
   Tag id_tag;
-  if (MB_SUCCESS != iface->tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag ))
+  if (MB_SUCCESS != iface->tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER,id_tag ))
   {
     fprintf(stderr, "Could not find global id tag in file.\n");
     return false;
@@ -539,7 +533,7 @@ bool compare_sets( int id, const char* tag_name = 0 )
   if (tag_name) // compare contents using tag value
   {
     Tag tag;
-    if (MB_SUCCESS != iface->tag_get_handle( tag_name, tag ))
+    if (MB_SUCCESS != iface->tag_get_handle( tag_name, 0, MB_TYPE_OPAQUE, tag, MB_TAG_ANY ))
     {
       fprintf(stderr, "Could not find tag \"%s\" in file.\n", tag_name);
       return false;
@@ -677,7 +671,7 @@ bool compare_tags( EntityHandle dod[] )
 
 
     // Get integer tag handle and characterstics
-  if (MB_SUCCESS != iface->tag_get_handle( intname, tag ))
+  if (MB_SUCCESS != iface->tag_get_handle( intname, 0, MB_TYPE_OPAQUE, tag, MB_TAG_ANY ))
     moab_error( "tag_get_handle(intname)" );
   if (MB_SUCCESS!= iface->tag_get_size( tag, size ))
     moab_error( "tag_get_size()" );
@@ -718,7 +712,7 @@ bool compare_tags( EntityHandle dod[] )
 
 
     // Get double tag handle and characterstics
-  if (MB_SUCCESS != iface->tag_get_handle( dblname, tag ))
+  if (MB_SUCCESS != iface->tag_get_handle( dblname, 0, MB_TYPE_OPAQUE, tag, MB_TAG_ANY ))
     moab_error( "tag_get_handle(dblname)" );
   if (MB_SUCCESS!= iface->tag_get_size( tag, size ))
     moab_error( "tag_get_size()" );
@@ -760,7 +754,7 @@ bool compare_tags( EntityHandle dod[] )
  
 
     // Get handle tag handle and characterstics
-  if (MB_SUCCESS != iface->tag_get_handle( handlename, tag ))
+  if (MB_SUCCESS != iface->tag_get_handle( handlename, 0, MB_TYPE_OPAQUE, tag, MB_TAG_ANY ))
     moab_error( "tag_get_handle(handlename)" );
   if (MB_SUCCESS!= iface->tag_get_size( tag, size ))
     moab_error( "tag_get_size()" );
@@ -842,7 +836,7 @@ bool compare()
   Range::iterator iter;
   
   // get tag
-  if (MB_SUCCESS != iface->tag_get_handle( bitname, elemtag ))
+  if (MB_SUCCESS != iface->tag_get_handle( bitname, 0, MB_TYPE_OPAQUE, elemtag, MB_TAG_ANY ))
     moab_error( "tag_get_handle" );
   
   // get two hexes

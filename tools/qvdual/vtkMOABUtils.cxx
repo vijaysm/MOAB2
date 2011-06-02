@@ -152,46 +152,72 @@ MBErrorCode vtkMOABUtils::init(MBInterface *impl, vtkRenderer *this_ren)
 
 MBErrorCode vtkMOABUtils::create_tags() 
 {
-  MBErrorCode result = vtkMOABUtils::mbImpl->tag_get_handle(vtkCellTagName, vtkCellTag);
-  if (MB_TAG_NOT_FOUND == result) {
+  MBErrorCode result;
+
+  {
     vtkIdType def_val = -1;
-    result = vtkMOABUtils::mbImpl->tag_create(vtkCellTagName, sizeof(vtkIdType), MB_TAG_DENSE, 
-                                vtkCellTag, &def_val);
+    result = vtkMOABUtils::mbImpl->tag_get_handle(vtkCellTagName, 
+                                                  sizeof(vtkIdType), 
+                                                  MB_TYPE_OPAQUE,
+                                                  vtkCellTag, 
+                                                  MB_TAG_DENSE|MB_TAG_CREAT, 
+                                                  &def_val);
+    if (MB_SUCCESS != result) return result;
   }
   
-  result = vtkMOABUtils::mbImpl->tag_get_handle(vtkTopContainsTagName, vtkTopContainsTag);
-  if (MB_TAG_NOT_FOUND == result) {
+  {
     unsigned char def_val = 0x0;
-    result = vtkMOABUtils::mbImpl->tag_create(vtkTopContainsTagName, sizeof(unsigned char), MB_TAG_BIT, 
-                                vtkTopContainsTag, &def_val);
+    result = vtkMOABUtils::mbImpl->tag_get_handle(vtkTopContainsTagName, 
+                                                  1, 
+                                                  MB_TYPE_BIT, 
+                                                  vtkTopContainsTag, 
+                                                  MB_TAG_CREAT,
+                                                  &def_val);
+    if (MB_SUCCESS != result) return result;
   }
   
-  result = vtkMOABUtils::mbImpl->tag_get_handle(vtkTopParentTagName, vtkTopParentTag);
-  if (MB_TAG_NOT_FOUND == result) {
+  {
     unsigned char def_val = 0x0;
-    result = vtkMOABUtils::mbImpl->tag_create(vtkTopParentTagName, sizeof(unsigned char), MB_TAG_BIT, 
-                                vtkTopParentTag, &def_val);
+    result = vtkMOABUtils::mbImpl->tag_get_handle(vtkTopParentTagName, 
+                                                  1, 
+                                                  MB_TAG_BIT, 
+                                                  vtkTopParentTag, 
+                                                  MB_TAG_CREAT,
+                                                  &def_val);
+    if (MB_SUCCESS != result) return result;
   }
   
-  result = vtkMOABUtils::mbImpl->tag_get_handle(vtkSetActorTagName, vtkSetActorTag);
-  if (MB_TAG_NOT_FOUND == result) {
+  {
     vtkActor *def_val = NULL;
-    result = vtkMOABUtils::mbImpl->tag_create(vtkSetActorTagName, sizeof(vtkActor*), MB_TAG_SPARSE, 
-                                vtkSetActorTag, &def_val);
+    result = vtkMOABUtils::mbImpl->tag_get_handle(vtkSetActorTagName, 
+                                                  sizeof(vtkActor*), 
+                                                  MB_TYPE_OPAQUE, 
+                                                  vtkSetActorTag, 
+                                                  MB_TAG_SPASRE|MB_TAG_CREAT,
+                                                  &def_val);
+    if (MB_SUCCESS != result) return result;
   }
   
-  result = vtkMOABUtils::mbImpl->tag_get_handle(vtkSetPropAssemblyTagName, vtkSetPropAssemblyTag);
-  if (MB_TAG_NOT_FOUND == result) {
+  {
     vtkPropAssembly *def_val = NULL;
-    result = vtkMOABUtils::mbImpl->tag_create(vtkSetPropAssemblyTagName, sizeof(vtkPropAssembly*), 
-                                MB_TAG_SPARSE, vtkSetPropAssemblyTag, &def_val);
+    result = vtkMOABUtils::mbImpl->tag_get_handle(vtkSetPropAssemblyTagName, 
+                                                  sizeof(vtkPropAssembly*), 
+                                                  MB_TYPE_OPAQUE,
+                                                  vtkSetPropAssemblyTag, 
+                                                  MB_TAG_SPARSE|MB_TAG_CREAT,
+                                                  &def_val);
+    if (MB_SUCCESS != result) return result;
   }
   
-  result = vtkMOABUtils::mbImpl->tag_get_handle(vtkPointAllocatedTagName, vtkPointAllocatedTag);
-  if (MB_TAG_NOT_FOUND == result) {
+  {
     bool def_val = false;
-    result = vtkMOABUtils::mbImpl->tag_create(vtkPointAllocatedTagName, sizeof(bool), MB_TAG_DENSE, 
-                                vtkPointAllocatedTag, &def_val);
+    result = vtkMOABUtils::mbImpl->tag_get_handle(vtkPointAllocatedTagName, 
+                                                  sizeof(bool), 
+                                                  MB_TYPE_OPAQUE,
+                                                  vtkPointAllocatedTag, 
+                                                  MB_TAG_DENSE|MB_TAG_CREAT,
+                                                  &def_val);
+    if (MB_SUCCESS != result) return result;
   }
 
   return MB_SUCCESS;
@@ -734,14 +760,14 @@ MBEntityHandle vtkMOABUtils::get_set(vtkProp *this_prop)
 MBTag vtkMOABUtils::globalId_tag() 
 {
   if (0 == globalIdTag)
-    vtkMOABUtils::mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, globalIdTag);
+    vtkMOABUtils::mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, globalIdTag);
   return globalIdTag;
 }
 
 MBTag vtkMOABUtils::category_tag() 
 {
   if (0 == categoryTag)
-    vtkMOABUtils::mbImpl->tag_get_handle(CATEGORY_TAG_NAME, categoryTag);
+    vtkMOABUtils::mbImpl->tag_get_handle(CATEGORY_TAG_NAME, NAME_TAG_SIZE, MB_TYPE_OPAQUE, categoryTag);
   return categoryTag;
 }
 

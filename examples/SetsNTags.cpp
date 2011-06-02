@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
 
     // loop over set types
   for (int i = 0; i < 3; i++) {
-    rval = mb->tag_get_handle(tag_nms[i], mtag);
+    rval = mb->tag_get_handle(tag_nms[i], 1, MB_TYPE_INTEGER, mtag);
 
       // get all the sets of that type in the mesh
     sets.clear();

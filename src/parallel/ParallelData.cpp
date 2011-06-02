@@ -16,9 +16,9 @@ ErrorCode ParallelData::get_partition_sets(Range &part_sets,
   ErrorCode result;
   
   if (NULL != tag_name) 
-    result = mbImpl->tag_get_handle(tag_name, part_tag);
+    result = mbImpl->tag_get_handle(tag_name, 1, MB_TYPE_INTEGER, part_tag);
   else
-    result = mbImpl->tag_get_handle(PARALLEL_PARTITION_TAG_NAME, part_tag);
+    result = mbImpl->tag_get_handle(PARALLEL_PARTITION_TAG_NAME, 1, MB_TYPE_INTEGER, part_tag);
     
   if (MB_SUCCESS != result) return result;
   else if (0 == part_tag) return MB_TAG_NOT_FOUND;
@@ -54,11 +54,11 @@ ErrorCode ParallelData::get_interface_sets(std::vector<EntityHandle> &iface_sets
     
     if (0 == i)
       tmp_result = mbImpl->tag_get_handle(PARALLEL_SHARED_PROC_TAG_NAME, 
-                                      proc_tag);
+                                      1, MB_TYPE_INTEGER, proc_tag);
     else
       tmp_result = mbImpl->tag_get_handle(PARALLEL_SHARED_PROCS_TAG_NAME, 
-                                      proc_tag);
-    if (0 == proc_tag) CONTINUE;
+                                      MAX_SHARING_PROCS, MB_TYPE_INTEGER, proc_tag);
+    if (MB_SUCCESS != tmp_result) CONTINUE;
 
     int tsize;
     tmp_result = mbImpl->tag_get_size(proc_tag, tsize);

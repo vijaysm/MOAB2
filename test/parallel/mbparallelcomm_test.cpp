@@ -239,10 +239,10 @@ ErrorCode report_nsets(Interface *mbImpl)
   Range matsets, geomsets, parsets;
   int nsets;
   Tag mtag = 0, gtag = 0, ptag = 0, gidtag;
-  ErrorCode result = mbImpl->tag_get_handle("MATERIAL_SET", mtag);
-  result = mbImpl->tag_get_handle("GEOM_DIMENSION", gtag);
-  result = mbImpl->tag_get_handle("PARALLEL_PARTITION", ptag);
-  result = mbImpl->tag_get_handle("GLOBAL_ID", gidtag);
+  ErrorCode result = mbImpl->tag_get_handle("MATERIAL_SET", 1, MB_TYPE_INTEGER, mtag);
+  result = mbImpl->tag_get_handle("GEOM_DIMENSION", 1, MB_TYPE_INTEGER, gtag);
+  result = mbImpl->tag_get_handle("PARALLEL_PARTITION", 1, MB_TYPE_INTEGER, ptag);
+  result = mbImpl->tag_get_handle("GLOBAL_ID", 1, MB_TYPE_INTEGER, gidtag);
 
   result = mbImpl->get_number_entities_by_type(0, MBENTITYSET, nsets);
   std::cout << "Proc " << rank << ": Total of " << nsets

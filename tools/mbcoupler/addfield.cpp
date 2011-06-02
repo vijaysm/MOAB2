@@ -53,7 +53,7 @@ void putElementField(Interface *mbi, char *tagname, double factor){
 
   const double defVal = 0.;
   Tag fieldTag;
-  mbi->tag_create(tagname, sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, fieldTag, &defVal);
+  mbi->tag_get_handle(tagname, 1, MB_TYPE_DOUBLE, fieldTag, MB_TAG_DENSE|MB_TAG_CREAT, &defVal);
  
   int numHexes = hexes.size();
 
@@ -79,7 +79,7 @@ void putVertexField(Interface *mbi, char *tagname, double factor){
 
   const double defVal = 0.;
   Tag fieldTag;
-  mbi->tag_create(tagname, sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, fieldTag, &defVal);
+  mbi->tag_get_handle(tagname, 1, MB_TYPE_DOUBLE, fieldTag, MB_TAG_DENSE|MB_TAG_CREAT, &defVal);
  
   int numVerts = verts.size();
   for(int i=0; i<numVerts; i++){

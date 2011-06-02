@@ -263,10 +263,10 @@ ErrorCode create_patch(Interface *moab, Range &verts, Range &quads,
   
     // global ids
   Tag gid_tag;
-  int dum_default = -1;
-  result = moab->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE,
-                           MB_TYPE_INTEGER, gid_tag, &dum_default, true);
-  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
+  int dum_default = 0;
+  result = moab->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid_tag,
+                                MB_TAG_DENSE|MB_TAG_CREAT, &dum_default);
+  if (MB_SUCCESS != result) return result;
   result = moab->tag_set_data(gid_tag, verts, gids);
   if (MB_SUCCESS != result) return result;
 
@@ -374,11 +374,10 @@ ErrorCode create_shared_grid_3d(ParallelComm **pc, Range *verts, Range *hexes)
   int dum_default = -1;
 
   for (p = 0; p < P; p++) {
-    rval = pc[p]->get_moab()->tag_create(GLOBAL_ID_TAG_NAME, 
-                                         sizeof(int), MB_TAG_DENSE,
-                                         MB_TYPE_INTEGER, gid_tag, 
-                                         &dum_default, true);
-    if (MB_SUCCESS != rval && MB_ALREADY_ALLOCATED != rval) return rval;
+    rval = pc[p]->get_moab()->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER,
+                                             gid_tag, MB_TAG_DENSE|MB_TAG_CREAT,
+                                             &dum_default);
+    if (MB_SUCCESS != rval) return rval;
 
       // make vertices
     int nverts = nijk[p][0] * nijk[p][1] * nijk[p][2];
@@ -1267,13 +1266,10 @@ void test_pack_tag_data_sparse()
     // coordinates of the first vertex in the elements connectivity list.
   const char sparse_2_int_tag_name[] = "test tag 1";
   Tag sparse_2_int_tag;
-  rval = mb.tag_create( sparse_2_int_tag_name,
-                        2*sizeof(int),
-                        MB_TAG_SPARSE,
-                        MB_TYPE_INTEGER,
+  rval = mb.tag_get_handle( sparse_2_int_tag_name,
+                        2, MB_TYPE_INTEGER,
                         sparse_2_int_tag,
-                        0 );
-  if (MB_ALREADY_ALLOCATED == rval) rval = MB_SUCCESS;
+                        MB_TAG_SPARSE|MB_TAG_CREAT);
   CHECK_ERR(rval);
   bool skip = false;
   for (i = elems.begin(); i != elems.end(); ++i, skip = !skip) {
@@ -1301,7 +1297,7 @@ void test_pack_tag_data_sparse()
   
   
     // check tag meta for sparse_2_int_tag
-  rval = mb.tag_get_handle( sparse_2_int_tag_name, sparse_2_int_tag );
+  rval = mb.tag_get_handle( sparse_2_int_tag_name, 2, MB_TYPE_INTEGER, sparse_2_int_tag );
   CHECK_ERR(rval);
   rval = mb.tag_get_size( sparse_2_int_tag, size );
   CHECK_ERR(rval);
@@ -1361,12 +1357,10 @@ void test_pack_tag_data_dense()
     // in this tag.
   const char dense_1_double_tag_name[] = "test tag 2";
   Tag dense_1_double_tag;
-  rval = mb.tag_create( dense_1_double_tag_name,
-                        sizeof(double),
-                        MB_TAG_DENSE,
-                        MB_TYPE_DOUBLE,
+  rval = mb.tag_get_handle( dense_1_double_tag_name,
+                        1, MB_TYPE_DOUBLE,
                         dense_1_double_tag,
-                        0 );
+                        MB_TAG_DENSE|MB_TAG_EXCL );
   CHECK_ERR(rval);
   for (i = verts.begin(); i != verts.end(); ++i) {
     double coords[3];
@@ -1386,7 +1380,7 @@ void test_pack_tag_data_dense()
   
   
     // check tag meta for dense_1_double_tag
-  rval = mb.tag_get_handle( dense_1_double_tag_name, dense_1_double_tag );
+  rval = mb.tag_get_handle( dense_1_double_tag_name, 1, MB_TYPE_DOUBLE, dense_1_double_tag );
   CHECK_ERR(rval);
   rval = mb.tag_get_size( dense_1_double_tag, size );
   CHECK_ERR(rval);
@@ -1436,11 +1430,11 @@ void test_pack_tag_data_default_value()
     // Set the tag on one element, one vertex,and one set to "TAGGD".
   const char dense_5_opaque_tag_name[] = "This is intentionally a very long tag name in an attempt to test for an arbitrary limitations on tag name length.";
   Tag dense_5_opaque_tag;
-  rval = mb.tag_create( dense_5_opaque_tag_name,
-                        5,
-                        MB_TAG_DENSE,
-                        dense_5_opaque_tag,
-                        "DEFLT" );
+  rval = mb.tag_get_handle( dense_5_opaque_tag_name,
+                            5, MB_TYPE_OPAQUE,
+                            dense_5_opaque_tag,
+                            MB_TAG_DENSE|MB_TAG_EXCL,
+                            "DEFLT" );
   CHECK_ERR(rval);
   EntityHandle set;
   rval = mb.create_meshset( MESHSET_SET, set );
@@ -1464,7 +1458,7 @@ void test_pack_tag_data_default_value()
   CHECK_ERR(rval);
   
     // check tag meta for dense_5_opaque_tag
-  rval = mb.tag_get_handle( dense_5_opaque_tag_name, dense_5_opaque_tag );
+  rval = mb.tag_get_handle( dense_5_opaque_tag_name, 5, MB_TYPE_OPAQUE, dense_5_opaque_tag );
   CHECK_ERR(rval);
   rval = mb.tag_get_size( dense_5_opaque_tag, size );
   CHECK_ERR(rval);
@@ -1527,7 +1521,7 @@ void test_pack_bit_tag_data()
     // Create a bit tag
   const char tag_name[] = "test bit";
   Tag tag;
-  rval = mb.tag_create( tag_name, 3, MB_TAG_BIT, tag, 0 );
+  rval = mb.tag_get_handle( tag_name, 3, MB_TYPE_BIT, tag, MB_TAG_EXCL );
   CHECK_ERR(rval);
   
     // Set bits to 1 unless cooresponding coordinate of 
@@ -1553,7 +1547,7 @@ void test_pack_bit_tag_data()
   CHECK_ERR(rval);
 
     // check tag meta 
-  rval = mb.tag_get_handle( tag_name, tag );
+  rval = mb.tag_get_handle( tag_name, 3, MB_TYPE_BIT, tag );
   CHECK_ERR(rval);
   
   int size;
@@ -1605,10 +1599,12 @@ void test_pack_variable_length_tag()
   
     // create a variable-length tag 
   const char* tag_name = "var_int_tag";
-  const int default_val[] = { 0xBEEF, 0xFEED, 0xDEAD, 0xBAD, 0xBEAD };
+  const int defval_size = 5;
+  const int default_val[defval_size] = { 0xBEEF, 0xFEED, 0xDEAD, 0xBAD, 0xBEAD };
   Tag tag;
-  rval = mb.tag_create_variable_length( tag_name, MB_TAG_DENSE, MB_TYPE_INTEGER,
-                                        tag, default_val, sizeof(default_val) );
+  rval = mb.tag_get_handle( tag_name, defval_size, MB_TYPE_INTEGER, tag, 
+                             MB_TAG_DENSE|MB_TAG_VARLEN|MB_TAG_EXCL,
+                            default_val );
   CHECK_ERR(rval);
   
     // for each vertex, store in the tag an integer between 1 and 3, 
@@ -1634,7 +1630,7 @@ void test_pack_variable_length_tag()
   CHECK_ERR(rval);
 
     // check tag meta 
-  rval = mb.tag_get_handle( tag_name, tag );
+  rval = mb.tag_get_handle( tag_name, 0, MB_TYPE_INTEGER, tag );
   CHECK_ERR(rval);
   
   int size;
@@ -1703,7 +1699,7 @@ void test_pack_tag_handle_data()
   const char* tag_name = "entity tag";
   EntityHandle default_val[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
   Tag tag;
-  rval = mb.tag_create( tag_name, 8*sizeof(EntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, tag, &default_val );
+  rval = mb.tag_get_handle( tag_name, 8, MB_TYPE_HANDLE, tag, MB_TAG_SPARSE|MB_TAG_EXCL, &default_val );
   CHECK_ERR(rval);
   
     // Store on each vertex the handles of the adjacent hexes, padded
@@ -1740,7 +1736,7 @@ void test_pack_tag_handle_data()
   CHECK_ERR(rval);
 
     // check tag meta 
-  rval = mb.tag_get_handle( tag_name, tag );
+  rval = mb.tag_get_handle( tag_name, 8, MB_TYPE_HANDLE, tag );
   CHECK_ERR(rval);
   
   int size;

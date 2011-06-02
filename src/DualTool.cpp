@@ -62,44 +62,68 @@ DualTool::DualTool(Interface *impl)
     : mbImpl(impl)
 {
   EntityHandle dum_handle = 0;
-
-  ErrorCode result = mbImpl->tag_create(DUAL_SURFACE_TAG_NAME, sizeof(EntityHandle), 
-                                          MB_TAG_SPARSE, 
-                                          dualSurfaceTag, &dum_handle);
-  assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
+  ErrorCode result;
   
-  result = mbImpl->tag_create(DUAL_CURVE_TAG_NAME, sizeof(EntityHandle), MB_TAG_SPARSE, 
-                              dualCurveTag, &dum_handle);
-  assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
+  result = mbImpl->tag_get_handle( DUAL_SURFACE_TAG_NAME, 
+                                   1, MB_TYPE_HANDLE, 
+                                   dualSurfaceTag,
+                                   MB_TAG_SPARSE|MB_TAG_CREAT,
+                                   &dum_handle );
+  assert(MB_SUCCESS == result);
+  
+  result = mbImpl->tag_get_handle( DUAL_CURVE_TAG_NAME, 
+                                   1, MB_TYPE_HANDLE, 
+                                   dualCurveTag,
+                                   MB_TAG_SPARSE|MB_TAG_CREAT,
+                                   &dum_handle );
+  assert(MB_SUCCESS == result);
   
   unsigned int dummy = 0;
-  result = mbImpl->tag_create(IS_DUAL_CELL_TAG_NAME, sizeof(unsigned int), MB_TAG_SPARSE, 
-                              isDualCellTag, &dummy);
-  assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
+  result = mbImpl->tag_get_handle( IS_DUAL_CELL_TAG_NAME, 
+                                   1, MB_TYPE_INTEGER,
+                                   isDualCellTag,
+                                   MB_TAG_SPARSE|MB_TAG_CREAT, 
+                                   &dummy);
+  assert(MB_SUCCESS == result);
 
-  result = mbImpl->tag_create(DUAL_ENTITY_TAG_NAME, sizeof(EntityHandle), MB_TAG_DENSE, 
-                              dualEntityTag, &dum_handle);
-  assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
-
-  result = mbImpl->tag_create(EXTRA_DUAL_ENTITY_TAG_NAME, sizeof(EntityHandle), MB_TAG_SPARSE, 
-                              extraDualEntityTag, &dum_handle);
-  assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
+  result = mbImpl->tag_get_handle( DUAL_ENTITY_TAG_NAME, 
+                                   1, MB_TYPE_HANDLE, 
+                                   dualEntityTag,
+                                   MB_TAG_DENSE|MB_TAG_CREAT,
+                                   &dum_handle );
+  assert(MB_SUCCESS == result);
   
-  static const char dum_name[CATEGORY_TAG_SIZE] = "\0";
-  result = mbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_SIZE, MB_TAG_SPARSE, 
-                              categoryTag, dum_name);
-  assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
+  result = mbImpl->tag_get_handle( EXTRA_DUAL_ENTITY_TAG_NAME, 
+                                   1, MB_TYPE_HANDLE, 
+                                   extraDualEntityTag,
+                                   MB_TAG_SPARSE|MB_TAG_CREAT,
+                                   &dum_handle );
+  assert(MB_SUCCESS == result);
+  
+  static const char dum_name[CATEGORY_TAG_SIZE] = {0};
+  result = mbImpl->tag_get_handle( CATEGORY_TAG_NAME,
+                                   CATEGORY_TAG_SIZE, MB_TYPE_OPAQUE,
+                                   categoryTag,
+                                   MB_TAG_SPARSE|MB_TAG_CREAT,
+                                   dum_name );
+  assert(MB_SUCCESS == result);
   
   DualTool::GraphicsPoint dum_pt(0.0, 0.0, 0.0, -1);
-  result = mbImpl->tag_create(DUAL_GRAPHICS_POINT_TAG_NAME, 
-                              sizeof(DualTool::GraphicsPoint), MB_TAG_DENSE, 
-                              dualGraphicsPointTag, &dum_pt);
-  assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
+  result = mbImpl->tag_get_handle(DUAL_GRAPHICS_POINT_TAG_NAME, 
+                                  sizeof(DualTool::GraphicsPoint), MB_TYPE_DOUBLE, 
+                                  dualGraphicsPointTag, 
+                                  MB_TAG_DENSE|MB_TAG_CREAT|MB_TAG_BYTES,
+                                  &dum_pt);
+  assert(MB_SUCCESS == result);
 
   int dum_int = 0;
-  result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, 
-                              globalIdTag, &dum_int);
-  assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
+  result = mbImpl->tag_get_handle( GLOBAL_ID_TAG_NAME, 
+                                   1, MB_TYPE_INTEGER,
+                                   globalIdTag,
+                                   MB_TAG_SPARSE|MB_TAG_CREAT, 
+                                   &dum_int);
+  assert(MB_SUCCESS == result);
+
     // empty statement to avoid warning
   (void)(result);
 
@@ -796,9 +820,9 @@ ErrorCode DualTool::get_dual_hyperplanes(const Interface *impl, const int dim,
   ErrorCode result;
   
   if (dim == 1)
-    result = impl->tag_get_handle(DUAL_CURVE_TAG_NAME, dual_tag );
+    result = impl->tag_get_handle(DUAL_CURVE_TAG_NAME, 1, MB_TYPE_HANDLE, dual_tag );
   else 
-    result = impl->tag_get_handle(DUAL_SURFACE_TAG_NAME, dual_tag );
+    result = impl->tag_get_handle(DUAL_SURFACE_TAG_NAME, 1, MB_TYPE_HANDLE, dual_tag );
 
   if (MB_SUCCESS == result)
     result = impl->get_entities_by_type_and_tag(0, MBENTITYSET, &dual_tag, NULL, 1, dual_ents,
@@ -830,11 +854,15 @@ ErrorCode DualTool::construct_dual_hyperplanes(const int dim,
   
     // get tag name for this dimension hyperplane
   Tag gid_tag;
-  int dum = -1;
-  ErrorCode result = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gid_tag);
-  if (MB_SUCCESS != result) result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, 4, 
-                                                        MB_TAG_DENSE, gid_tag, &dum);
-
+  int dum = 0;
+  ErrorCode result = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 
+                                            1, MB_TYPE_INTEGER, 
+                                            gid_tag,
+                                            MB_TAG_CREAT|MB_TAG_DENSE,
+                                            &dum);
+  if (MB_SUCCESS != result)
+    return result;
+    
   Tag hp_tag = (1 == dim ? dualCurve_tag() : dualSurface_tag());
   
     // two stacks: one completely untreated entities, and the other untreated 
@@ -895,13 +923,10 @@ ErrorCode DualTool::traverse_hyperplane(const Tag hp_tag,
   
   unsigned short mark_val = 0x0;
   Tag mark_tag;
-  result = mbImpl->tag_get_handle("__hyperplane_mark", mark_tag);
-  if (MB_SUCCESS != result) {
-    result = mbImpl->tag_create("__hyperplane_mark", 1, 
-                                MB_TAG_BIT, mark_tag, &mark_val);
-    if (MB_SUCCESS != result) 
-      return result;
-  }
+  result = mbImpl->tag_get_handle("__hyperplane_mark", 1, MB_TYPE_BIT, mark_tag,
+                                  MB_TAG_CREAT|MB_TAG_BIT);
+  if (MB_SUCCESS != result) 
+    return result;
   mark_val = 0x1;
   
   while (0 != this_ent) {
@@ -1426,7 +1451,7 @@ ErrorCode DualTool::atomic_pillow(EntityHandle odedge, EntityHandle &quad1,
     Range sets;
     Tag ms_tag;
     
-    ErrorCode result = mbImpl->tag_get_handle("MATERIAL_SET", ms_tag);
+    ErrorCode result = mbImpl->tag_get_handle("MATERIAL_SET", 1, MB_TYPE_INTEGER, ms_tag);
     if (MB_SUCCESS == result) {
       result = mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &ms_tag, NULL,
                                                     1, sets);

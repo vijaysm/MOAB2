@@ -139,49 +139,19 @@ ErrorCode OrientedBox::tag_handle( Tag& handle_out,
     // We're going to assume this when mapping the OrientedBox
     // to tag data, so assert it.  
 #if MB_ORIENTED_BOX_OUTER_RADIUS
-  const size_t rad_size = sizeof(double);
+  const int rad_size = 1;
 #else
-  const size_t rad_size = 0;
+  const int rad_size = 0;
 #endif
 #if MB_ORIENTED_BOX_UNIT_VECTORS
-  const size_t SIZE = rad_size + 15 * sizeof(double);
+  const int SIZE = rad_size + 15;
 #else
-  const size_t SIZE = rad_size + 12 * sizeof(double);
+  const int SIZE = rad_size + 12;
 #endif
-  assert( sizeof(OrientedBox) == SIZE );
+  assert( sizeof(OrientedBox) == SIZE*sizeof(double) );
   
-  ErrorCode rval = instance->tag_get_handle( name, handle_out );
-  if (rval == MB_TAG_NOT_FOUND)
-  {
-    if (!create)
-      return rval;
-      
-    rval = instance->tag_create( name, 
-                                 SIZE,
-                                 MB_TAG_DENSE,
-                                 MB_TYPE_DOUBLE,
-                                 handle_out,
-                                 0 );
-  }
-  else if (rval == MB_SUCCESS)
-  {
-    DataType type;
-    rval = instance->tag_get_data_type( handle_out, type );
-    if (MB_SUCCESS != rval)
-      return rval;
-    
-    int size;
-    rval = instance->tag_get_size( handle_out, size );
-    if (MB_SUCCESS != rval)
-      return rval;
-    
-    if (type != MB_TYPE_DOUBLE && type != MB_TYPE_OPAQUE)
-      return MB_FAILURE;
-    if ((unsigned)size != SIZE)
-      return MB_FAILURE;
-  }
-  
-  return rval;
+  return instance->tag_get_handle( name, SIZE, MB_TYPE_DOUBLE,
+                                   handle_out, MB_TAG_DENSE|MB_TAG_CREAT );
 }
 
 /**\brief Common code for box calculation

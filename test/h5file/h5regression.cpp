@@ -82,11 +82,11 @@ void test_write_read_many_tags()
     Tag t;
     std::ostringstream name("IntTag");
     name << i;
-    rval = mb.tag_create( name.str().c_str(),
-                          sizeof(int),
-                          i % 2 ? MB_TAG_SPARSE : MB_TAG_DENSE,
+    rval = mb.tag_get_handle( name.str().c_str(),
+                          1, 
                           MB_TYPE_INTEGER,
                           t,
+                          (i % 2 ? MB_TAG_SPARSE : MB_TAG_DENSE)|MB_TAG_EXCL,
                           &i );
     CHECK_ERR(rval);
     tags.push_back(t);
@@ -115,7 +115,7 @@ void test_write_read_many_tags()
     Tag t;
     std::ostringstream name("IntTag");
     name << i;
-    rval = mb.tag_get_handle( name.str().c_str(), t );
+    rval = mb.tag_get_handle( name.str().c_str(), 1, MB_TYPE_INTEGER, t );
     CHECK_ERR(rval);
     
     TagType storage;

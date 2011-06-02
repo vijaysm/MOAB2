@@ -174,7 +174,7 @@ int main(int argc, char *argv[])
   {
     remove(filename_out.c_str());
   }
-  return 0;
+  return number_tests_failed;
 }
 
 ErrorCode root_set_test(FBEngine * pFacet)

@@ -242,7 +242,7 @@ void test_vertices()
   
     // check global ids (should be 1 to 45 for vertices.)
   Tag gid_tag;
-  rval = mb.tag_get_handle( "GLOBAL_ID", gid_tag ); CHECK_ERR(rval);
+  rval = mb.tag_get_handle( "GLOBAL_ID", 1, MB_TYPE_INTEGER, gid_tag ); CHECK_ERR(rval);
   std::vector<int> ids(num_nodes);
   rval = mb.tag_get_data( gid_tag, verts, &ids[0] ); CHECK_ERR(rval);
   std::vector<int> sorted(ids);
@@ -280,7 +280,7 @@ void test_element( const char* filename,
   
     // get global ids
   Tag gid_tag;
-  rval = mb.tag_get_handle( "GLOBAL_ID", gid_tag ); CHECK_ERR(rval);
+  rval = mb.tag_get_handle( "GLOBAL_ID", 1, MB_TYPE_INTEGER, gid_tag ); CHECK_ERR(rval);
   std::vector<int> ids(num_elem);
   rval = mb.tag_get_data( gid_tag, elems, &ids[0] ); CHECK_ERR(rval);
   
@@ -488,8 +488,8 @@ int check_geometric_set( Interface& moab,
   ErrorCode rval;
   Tag gid_tag, dim_tag;
   
-  rval = moab.tag_get_handle( "GLOBAL_ID", gid_tag ); CHECK_ERR(rval);
-  rval = moab.tag_get_handle( "GEOM_DIMENSION", dim_tag ); CHECK_ERR(rval);
+  rval = moab.tag_get_handle( "GLOBAL_ID", 1, MB_TYPE_INTEGER, gid_tag ); CHECK_ERR(rval);
+  rval = moab.tag_get_handle( "GEOM_DIMENSION", 1, MB_TYPE_INTEGER, dim_tag ); CHECK_ERR(rval);
   void* tag_vals[] = { &dim, &id };
   Tag tags[] = { dim_tag, gid_tag };
   Range ents;
@@ -612,8 +612,8 @@ void test_geometric_sets()
   Interface& mb = mb_impl;
   read_file( mb, input_file_1 );
   Tag gid_tag, dim_tag;
-  rval = mb.tag_get_handle( "GLOBAL_ID", gid_tag ); CHECK_ERR(rval);
-  rval = mb.tag_get_handle( "GEOM_DIMENSION", dim_tag ); CHECK_ERR(rval);
+  rval = mb.tag_get_handle( "GLOBAL_ID", 1, MB_TYPE_INTEGER, gid_tag ); CHECK_ERR(rval);
+  rval = mb.tag_get_handle( "GEOM_DIMENSION", 1, MB_TYPE_INTEGER, dim_tag ); CHECK_ERR(rval);
 
     // verify mesh entity counts
   Range verts, curves, surfs, vols;
@@ -711,7 +711,7 @@ void test_blocks()
   Interface& mb = mb_impl;
   read_file( mb, input_file_1 );
   Tag mat_tag;
-  rval = mb.tag_get_handle( MATERIAL_SET_TAG_NAME, mat_tag ); CHECK_ERR(rval);
+  rval = mb.tag_get_handle( MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, mat_tag ); CHECK_ERR(rval);
 
   Range blocks;
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &mat_tag, 0, 1, blocks );
@@ -745,9 +745,9 @@ void test_bc_sets( const char* tag_name, unsigned count,
   Interface& mb = mb_impl;
   read_file( mb, input_file_1 );
   Tag ss_tag, gid_tag, dim_tag;
-  rval = mb.tag_get_handle( tag_name, ss_tag ); CHECK_ERR(rval);
-  rval = mb.tag_get_handle( "GLOBAL_ID", gid_tag ); CHECK_ERR(rval);
-  rval = mb.tag_get_handle( "GEOM_DIMENSION", dim_tag ); CHECK_ERR(rval);
+  rval = mb.tag_get_handle( tag_name, 1, MB_TYPE_INTEGER, ss_tag ); CHECK_ERR(rval);
+  rval = mb.tag_get_handle( "GLOBAL_ID", 1, MB_TYPE_INTEGER, gid_tag ); CHECK_ERR(rval);
+  rval = mb.tag_get_handle( "GEOM_DIMENSION", 1, MB_TYPE_INTEGER, dim_tag ); CHECK_ERR(rval);
 
     // check number of sidesets and IDs
   Range sidesets;
@@ -985,9 +985,9 @@ void test_ho_elements( EntityType type, int num_nodes )
 
   ErrorCode rval;
   Tag ho_tag, block_tag;
-  rval = mb.tag_get_handle( MATERIAL_SET_TAG_NAME, block_tag );
+  rval = mb.tag_get_handle( MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, block_tag );
   CHECK_ERR(rval);
-  rval = mb.tag_get_handle( HAS_MID_NODES_TAG_NAME, ho_tag );
+  rval = mb.tag_get_handle( HAS_MID_NODES_TAG_NAME, 4, MB_TYPE_INTEGER, ho_tag );
   CHECK_ERR(rval);
   
   // get material sets with expected higher-order nodes

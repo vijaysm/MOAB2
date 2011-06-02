@@ -201,15 +201,15 @@ int SmoothFaceEval::init_gradient() {
    unsigned long setId = _mb->id_from_handle(_set);
    char name[50] = { 0 };
    sprintf(name, "GRADIENT%ld", setId);// name should be something like GRADIENT29, where 29 is the set ID of the face
-   rval = _mb->tag_create(name, 3 * sizeof(double), MB_TAG_DENSE, _gradientTag,
-         &defNormal);
+   rval = _mb->tag_get_handle(name, 3, MB_TYPE_DOUBLE, _gradientTag, 
+                              MB_TAG_DENSE|MB_TAG_CREAT, &defNormal);
 
    double defPlane[4] = { 0., 0., 1., 0. };
    // also define a plane tag ; this will be for each triangle
    char namePlaneTag[50] = { 0 };
    sprintf(namePlaneTag, "PLANE%ld", setId);
-   rval = _mb->tag_create("PLANE", 4 * sizeof(double), MB_TAG_DENSE, _planeTag,
-         &defPlane);
+   rval = _mb->tag_get_handle("PLANE", 4, MB_TYPE_DOUBLE, _planeTag, 
+                              MB_TAG_DENSE|MB_TAG_CREAT, &defPlane);
    // the fourth double is for weight, accumulated at each vertex so far
    // maybe not needed in the end
    for (moab::Range::iterator it = _triangles.begin(); it != _triangles.end(); it++) {
@@ -357,9 +357,10 @@ moab::ErrorCode SmoothFaceEval::compute_tangents_for_each_edge()
 // they will be used for control points
 {
    double defTangents[6] = { 0., 0., 0., 0., 0., 0. };
-   moab::ErrorCode rval = _mb->tag_create("TANGENTS", 6 * sizeof(double),
-         MB_TAG_DENSE, _tangentsTag, &defTangents);
-   if (MB_SUCCESS != rval && rval != MB_ALREADY_ALLOCATED)
+   moab::ErrorCode rval = _mb->tag_create("TANGENTS", 6, MB_TYPE_DOUBLE,
+                                          _tangentsTag, MB_TAG_DENSE|MB_TAG_CREAT,
+                                          &defTangents);
+   if (MB_SUCCESS != rval)
       return MB_FAILURE;
 
    // now, compute Tangents for all edges that are not on boundary, so they are not marked
@@ -1792,7 +1793,7 @@ moab::ErrorCode SmoothFaceEval::find_loops() {
    // first, get all the sets of dimension 1 from the _mb
    moab::Tag geom_tag;
    moab::ErrorCode rval =
-         _mb->tag_get_handle(GEOM_DIMENSION_TAG_NAME, geom_tag);
+         _mb->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geom_tag);
 
    if (MB_SUCCESS != rval)
       return rval;

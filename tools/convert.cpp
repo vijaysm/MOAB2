@@ -313,36 +313,17 @@ int main(int argc, char* argv[])
   Tag dim_tag, id_tag;
   if (have_geom) 
   {
-    int size;
-    result = gMB->tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
+    result = gMB->tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag );
     if (MB_SUCCESS != result) 
     {
       std::cerr << "No ID tag defined."  << std::endl;
       have_geom = false;
     }
-    else
-    {
-      result = gMB->tag_get_size( id_tag, size );
-      if (MB_SUCCESS != result || size != sizeof(int))
-      {
-        std::cerr << "ID tag is invalid." << std::endl;
-        have_geom = false;
-      }
-    }
-    result = gMB->tag_get_handle( GEOM_DIMENSION_TAG_NAME, dim_tag );
+    result = gMB->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, dim_tag );
     if (MB_SUCCESS != result) 
     {
       std::cerr << "No geometry tag defined."  << std::endl;
       have_geom = false;
-    }
-    else
-    {
-      result = gMB->tag_get_size( dim_tag, size );
-      if (MB_SUCCESS != result || size != sizeof(int))
-      {
-        std::cerr << "Geometry tag is invalid." << std::endl;
-        have_geom = false;
-      }
     }
   }
   
@@ -386,17 +367,10 @@ int main(int argc, char* argv[])
     
       // Get tag
     Tag tag;
-    result = gMB->tag_get_handle( mesh_tag_names[i], tag );
+    result = gMB->tag_get_handle( mesh_tag_names[i], 1, MB_TYPE_INTEGER, tag );
     if (MB_SUCCESS != result) 
     {
       std::cerr << "Tag not found: " << mesh_tag_names[i] << std::endl;
-      continue;
-    }
-    int size;
-    result = gMB->tag_get_size( tag, size );
-    if (MB_SUCCESS != result || size != sizeof(int))
-    {
-      std::cerr << "Tag invalid: " << mesh_tag_names[i] << std::endl;
       continue;
     }
 

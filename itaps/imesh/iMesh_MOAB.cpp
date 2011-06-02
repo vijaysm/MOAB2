@@ -1569,30 +1569,11 @@ extern "C" {
     std::string tmp_tagname(tag_name, tag_name_size);
     eatwhitespace(tmp_tagname);
 
-    switch (tag_type) {
-      case iBase_INTEGER:
-        this_size *= sizeof(int);
-        break;
-      case iBase_DOUBLE:
-        this_size *= sizeof(double);
-        break;
-      case iBase_ENTITY_HANDLE:
-        this_size *= sizeof(iBase_EntityHandle);
-        break;
-      case iBase_ENTITY_SET_HANDLE:
-        this_size *= sizeof(iBase_EntitySetHandle);
-        break;
-      case iBase_BYTES:
-        break;
-      default:
-        ERROR(iBase_INVALID_ARGUMENT, "iMesh_createTag: invalid tag data type");
-    }
-
-    ErrorCode result = MOABI->tag_create(tmp_tagname.c_str(), this_size,
-                                         MB_TAG_SPARSE,
-                                         mb_data_type_table[tag_type],
-                                         new_tag,
-                                         NULL);
+    ErrorCode result = MOABI->tag_get_handle(tmp_tagname.c_str(), 
+                                             this_size,
+                                             mb_data_type_table[tag_type],
+                                             new_tag,
+                                             MB_TAG_SPARSE|MB_TAG_EXCL);
 
     if (MB_SUCCESS != result) {
       std::string msg("iMesh_createTag: ");
@@ -1751,7 +1732,8 @@ extern "C" {
     std::string tmp_tagname(tag_name, tag_name_len);
     eatwhitespace(tmp_tagname);
 
-    ErrorCode result = MOABI->tag_get_handle(tmp_tagname.c_str(), (Tag&)*tag_handle);
+    ErrorCode result = MOABI->tag_get_handle(tmp_tagname.c_str(), 0, MB_TYPE_OPAQUE,
+                                             (Tag&)*tag_handle, MB_TAG_ANY);
 
     if (MB_SUCCESS != result) {
       std::string msg("iMesh_getTagHandle: problem getting handle for tag named '");

@@ -218,12 +218,12 @@ int main(int argc, char* argv[])
   const int dimension = 2; // surface
   if (surface_id) {
     Tag tags[2];
-    result = moab->tag_get_handle( GEOM_DIMENSION_TAG_NAME, tags[0] );
+    result = moab->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, tags[0] );
     if (MB_SUCCESS != result) {
       std::cerr << "No geometry tag.\n";
       return OTHER_ERROR;
     }
-    result = moab->tag_get_handle( GLOBAL_ID_TAG_NAME, tags[1] );
+    result = moab->tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, tags[1] );
     if (MB_SUCCESS != result) {
       std::cerr << "No ID tag.\n";
       return OTHER_ERROR;

@@ -70,8 +70,8 @@ enum TagType {
   MB_TAG_EXCL  = 1<<6, /**< Fail if TAG_CREATE and tag already exists */
   MB_TAG_STORE = 1<<7, /**< Fail if tag exists and has different storage type */
   MB_TAG_ANY   = 1<<8, /**< Do not fail if size, type, or default value do not match. */
-  MB_TAG_NOOPQ = 1<<9  /**< Do not accept MB_TYPE_OPAQUE as a match for any type. */
-/**<  MB_TAG_NAME  = 1<<10,  If TAG_CREAT, implementaiton may append a unique suffix to make name unique */
+  MB_TAG_NOOPQ = 1<<9, /**< Do not accept MB_TYPE_OPAQUE as a match for any type. */
+  MB_TAG_DFTOK = 1<<10 /**< Do not fail for mismatched default values */
 /**<  MB_TAG_CNVRT = 1<<11,  Convert storage type if it does not match */
 };
 

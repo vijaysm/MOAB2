@@ -218,8 +218,8 @@ Tag ScdInterface::box_dims_tag(bool create_if_missing)
 {
   if (boxDimsTag || !create_if_missing) return boxDimsTag;
 
-  ErrorCode rval = mbImpl->tag_create("BOX_DIMS", 6*sizeof(int), MB_TAG_SPARSE, 
-                                      MB_TYPE_INTEGER, boxDimsTag, NULL, true);
+  ErrorCode rval = mbImpl->tag_get_handle("BOX_DIMS", 6, MB_TYPE_INTEGER, 
+                                          boxDimsTag, MB_TAG_SPARSE|MB_TAG_CREAT);
   if (MB_SUCCESS != rval) return 0;
   return boxDimsTag;
 }
@@ -228,8 +228,8 @@ Tag ScdInterface::box_set_tag(bool create_if_missing)
 {
   if (boxSetTag || !create_if_missing) return boxSetTag;
 
-  ErrorCode rval = mbImpl->tag_create("__BOX_SET", sizeof(ScdBox*), MB_TAG_SPARSE, 
-                                      MB_TYPE_HANDLE, boxSetTag, NULL, true);
+  ErrorCode rval = mbImpl->tag_get_handle("__BOX_SET", sizeof(ScdBox*), MB_TYPE_OPAQUE,
+                                      boxSetTag, MB_TAG_SPARSE|MB_TAG_CREAT);
   if (MB_SUCCESS != rval) return 0;
   return boxSetTag;
 }

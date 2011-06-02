@@ -79,33 +79,26 @@ DrawDual::DrawDual(QLineEdit *pickline1, QLineEdit *pickline2)
     : pickLine1(pickline1), pickLine2(pickline2)
 {
     // make sure we have basic tags we need
+  EntityHandle dum = 0;
   ErrorCode result = MBI->tag_get_handle(DualTool::DUAL_ENTITY_TAG_NAME, 
-                                           dualEntityTagHandle);
-  if (MB_TAG_NOT_FOUND == result) {
-    EntityHandle dum = 0;
-    result = MBI->tag_create(DualTool::DUAL_ENTITY_TAG_NAME, sizeof(EntityHandle), MB_TAG_DENSE,
-                             dualEntityTagHandle, &dum);
-    assert(MB_SUCCESS == result && 0 != dualEntityTagHandle);
-  }
+                                         1, MB_TYPE_HANDLE, dualEntityTagHandle,
+                                         MB_TAG_DENSE|MB_TAG_CREAT, &dum);
 
-  result = MBI->tag_get_handle(DualTool::DUAL_SURFACE_TAG_NAME, dualSurfaceTagHandle);
-  assert(MB_TAG_NOT_FOUND != result);
+  result = MBI->tag_get_handle(DualTool::DUAL_SURFACE_TAG_NAME, 1, MB_TYPE_HANDLE, dualSurfaceTagHandle);
+  assert(MB_SUCCESS == result);
 
-  result = MBI->tag_get_handle(DualTool::DUAL_CURVE_TAG_NAME, dualCurveTagHandle);
-  assert(MB_TAG_NOT_FOUND != result);
+  result = MBI->tag_get_handle(DualTool::DUAL_CURVE_TAG_NAME, 1, MB_TYPE_HANDLE, dualCurveTagHandle);
+  assert(MB_SUCCESS == result);
 
   if (useGraphviz) {
       // initialize dot
     aginit();
   }
   
-  result = MBI->tag_get_handle("__GVEntity", gvEntityHandle);
-  if (MB_TAG_NOT_FOUND == result) {
-    GVEntity *dum = NULL;
-    result = MBI->tag_create("__GVEntity", sizeof(GVEntity*), MB_TAG_DENSE,
-                             gvEntityHandle, &dum);
-    assert(MB_SUCCESS == result && 0 != gvEntityHandle);
-  }
+  GVEntity *dum2 = NULL;
+  result = MBI->tag_get_handle("__GVEntity", sizeof(GVEntity*), MB_TAG_OPAQUE,
+                              gvEntityHandle, MB_TAG_DENSE|MB_TAG_CREAT, &dum2);
+  assert(MB_SUCCESS == result && 0 != gvEntityHandle);
 
   assert(gDrawDual == NULL);
   gDrawDual = this;

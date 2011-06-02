@@ -1817,7 +1817,7 @@ TreeNodePrinter::TreeNodePrinter( std::ostream& stream,
 {
   ErrorCode rval;
   if (id_tag_name) {
-    rval = instance->tag_get_handle( id_tag_name, tag );
+    rval = instance->tag_get_handle( id_tag_name, 1, MB_TYPE_INTEGER, tag );
     if (!rval) {
       std::cerr << "Could not get tag \"" << id_tag_name << "\"\n";
       stream << "Could not get tag \"" << id_tag_name << "\"\n";
@@ -1839,10 +1839,10 @@ TreeNodePrinter::TreeNodePrinter( std::ostream& stream,
     }
   }
   
-  rval = instance->tag_get_handle( GLOBAL_ID_TAG_NAME, gidTag );
+  rval = instance->tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gidTag );
   if (MB_SUCCESS != rval)
     gidTag = 0;
-  rval = instance->tag_get_handle( GEOM_DIMENSION_TAG_NAME, geomTag );
+  rval = instance->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geomTag );
   if (MB_SUCCESS != rval)
     geomTag = 0;
 }   

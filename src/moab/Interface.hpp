@@ -715,7 +715,7 @@ public:
           // get the dirichlet sets in a mesh
           Range dir_sets;
           Tag dir_tag;
-          tag_get_handle(DIRICHLET_SET_TAG_NAME, dir_tag);
+          tag_get_handle(DIRICHLET_SET_TAG_NAME, dir_tag, 1, MB_TYPE_INTEGER);
           get_entities_by_type_and_tag(0, MeshEntitySet, &dir_tag, NULL, 1, dir_sets, 
           Interface::UNION);
           \endcode 
@@ -1203,7 +1203,7 @@ public:
                         const int tag_size, 
                         const TagType type,
                         Tag &tag_handle, 
-                        const void *default_value)
+                        const void *default_value) MB_DEPRECATED
     { return tag_get_handle( tag_name, tag_size, MB_TYPE_OPAQUE, tag_handle,
                              type|MB_TAG_CREAT|MB_TAG_EXCL|MB_TAG_BYTES, default_value ); }
 
@@ -1230,7 +1230,7 @@ public:
                         const DataType data,
                                   Tag& handle,
                         const    void* def_val,
-                                  bool use_existing = false )
+                                  bool use_existing = false ) MB_DEPRECATED
     { return tag_get_handle( name, size, data, handle, 
                 (use_existing?0:MB_TAG_EXCL)|MB_TAG_CREAT|MB_TAG_BYTES|storage, def_val ); }
 
@@ -1254,7 +1254,7 @@ public:
                                         DataType  data_type,
                                         Tag&      handle_out,
                                         const void* default_value = 0,
-                                        int         default_val_len = 0 )
+                                        int         default_val_len = 0 ) MB_DEPRECATED
     { return tag_get_handle( name, default_val_len, data_type, handle_out, 
                               storage|MB_TAG_VARLEN|MB_TAG_CREAT|MB_TAG_EXCL|MB_TAG_BYTES,
                               default_value ); }
@@ -1272,7 +1272,7 @@ public:
         \param tag_handle Tag handle corresponding to <em>tag_name</em>
     */ 
   virtual ErrorCode tag_get_handle( const char *tag_name, 
-                                    Tag &tag_handle ) const = 0;
+                                    Tag &tag_handle ) const MB_DEPRECATED = 0;
 
     //! Get the size of the specified tag
     /** Get the size of the specified tag, in bytes (MB_TAG_SPARSE, MB_TAG_DENSE, MB_TAG_MESH) or

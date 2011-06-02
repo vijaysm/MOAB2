@@ -561,7 +561,7 @@ void do_test_mode()
 
   // set global ID
   moab::Tag tag;
-  rval = mb.tag_get_handle( "GLOBAL_ID", tag );
+  rval = mb.tag_get_handle( "GLOBAL_ID", 1, moab::MB_TYPE_INTEGER, tag );
   if (moab::MB_SUCCESS != rval) {
     std::cerr << "Failed to get GLOBAL_ID tag handle" << std::endl;
     return;
@@ -587,7 +587,7 @@ void do_test_mode()
   print_memory_stats( mb, true, true, true, true );
   
   // create and set a sparse tag
-  mb.tag_create( "mem_test_tag", 3*sizeof(double), moab::MB_TAG_SPARSE, moab::MB_TYPE_DOUBLE, tag, 0 );
+  mb.tag_get_handle( "mem_test_tag", 3, moab::MB_TYPE_DOUBLE, tag, moab::MB_TAG_SPARSE|moab::MB_TAG_CREAT);
   handles.clear();
   mb.get_entities_by_type( 0, moab::MBVERTEX, handles );
   for (it = handles.begin(); it != handles.end(); ++it) {
@@ -598,7 +598,7 @@ void do_test_mode()
   print_memory_stats( mb, true, true, true, true );
   
   // create and set bit tag
-  mb.tag_create( "mem_test_bit", 1, moab::MB_TAG_BIT, moab::MB_TYPE_BIT, tag, 0 );
+  mb.tag_get_handle( "mem_test_bit", 1, moab::MB_TYPE_BIT, tag, moab::MB_TAG_CREAT );
   handles.clear();
   mb.get_entities_by_type( 0, moab::MBTRI, handles );
   for (it = handles.begin(); it != handles.end(); ++it) {

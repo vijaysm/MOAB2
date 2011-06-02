@@ -86,23 +86,23 @@ void create_mesh( const char* filename )
   
   Tag int_tag, real_tag, handle_tag, bit_tag, row_tag;
 
-  rval = mb.tag_create( "int_tag", 2*sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, int_tag, default_int_tag );
+  rval = mb.tag_get_handle( "int_tag", 2, MB_TYPE_INTEGER, int_tag, MB_TAG_DENSE|MB_TAG_EXCL, default_int_tag );
   CHECK_ERR(rval);
   rval = mb.tag_set_data( int_tag, &root, 1, mesh_int_tag );
   CHECK_ERR(rval);
 
-  rval = mb.tag_create( "real_tag", 8*sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, real_tag, default_real_tag );
+  rval = mb.tag_get_handle( "real_tag", 8, MB_TYPE_DOUBLE, real_tag, MB_TAG_DENSE|MB_TAG_EXCL, default_real_tag );
   CHECK_ERR(rval);
   rval = mb.tag_set_data( real_tag, &root, 1, mesh_real_tag );
   CHECK_ERR(rval);
   
-  rval = mb.tag_create( "handle_tag", sizeof(EntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, handle_tag, 0 );
+  rval = mb.tag_get_handle( "handle_tag", 1, MB_TYPE_HANDLE, handle_tag, MB_TAG_SPARSE|MB_TAG_EXCL );
   CHECK_ERR(rval);
   
-  rval = mb.tag_create( "bit_tag", 1, MB_TAG_BIT, MB_TYPE_BIT, bit_tag, 0 );
+  rval = mb.tag_get_handle( "bit_tag", 1, MB_TYPE_BIT, bit_tag, MB_TAG_EXCL );
   CHECK_ERR(rval);
 
-  rval = mb.tag_create( "rowset", sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, row_tag, 0 );
+  rval = mb.tag_get_handle( "rowset", 1, MB_TYPE_INTEGER, row_tag, MB_TAG_SPARSE|MB_TAG_EXCL );
   CHECK_ERR(rval);
   
   
@@ -375,7 +375,7 @@ void test_read_int_tag( const char* filename )
   
     // get the tag
   Tag tag;
-  rval = mb.tag_get_handle( "int_tag", tag );
+  rval = mb.tag_get_handle( "int_tag", 2, MB_TYPE_INTEGER, tag );
   CHECK_ERR(rval);
   
     // check tag properties
@@ -434,7 +434,7 @@ void test_read_real_tag( const char* filename )
   
     // get the tag
   Tag tag;
-  rval = mb.tag_get_handle( "real_tag", tag );
+  rval = mb.tag_get_handle( "real_tag", 8, MB_TYPE_DOUBLE, tag );
   CHECK_ERR(rval);
   
     // check tag properties
@@ -497,7 +497,7 @@ void test_read_handle_tag( const char* filename )
   
     // get the tag
   Tag tag;
-  rval = mb.tag_get_handle( "handle_tag", tag );
+  rval = mb.tag_get_handle( "handle_tag", 1, MB_TYPE_HANDLE, tag );
   CHECK_ERR(rval);
   
     // check tag properties
@@ -541,7 +541,7 @@ void test_read_bit_tag( const char* filename )
   
     // get the tag
   Tag tag;
-  rval = mb.tag_get_handle( "bit_tag", tag );
+  rval = mb.tag_get_handle( "bit_tag", 1, MB_TYPE_BIT, tag );
   CHECK_ERR(rval);
   
     // check tag properties

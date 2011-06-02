@@ -87,35 +87,16 @@ static ErrorCode make_tag( Interface* iface,
                              Tag& tag_handle,
                              std::vector<Tag>& created_tags )
 {
-  int size;
-  switch (type) {
-    case MB_TYPE_DOUBLE:  size = sizeof(double);         break;
-    case MB_TYPE_INTEGER: size = sizeof(int);            break;
-    case MB_TYPE_OPAQUE:  size = 1;                      break;
-    case MB_TYPE_HANDLE:  size = sizeof(EntityHandle); break;
-    default: return MB_FAILURE;
-  }
-  size *= count;
-  
-  ErrorCode rval = iface->tag_create( name.c_str(),
-                                        size,
-                                        storage,
-                                        type,
-                                        tag_handle,
-                                        default_val,
-                                        false );
+  ErrorCode rval = iface->tag_get_handle( name.c_str(),
+                                          count,
+                                          type, 
+                                          tag_handle,
+                                          MB_TAG_CREAT|storage,
+                                          default_val );
+
   if (MB_SUCCESS == rval) 
     created_tags.push_back( tag_handle );
-  else if (MB_ALREADY_ALLOCATED == rval)
-    rval = iface->tag_create( name.c_str(),
-                              size,
-                              MB_TAG_DENSE,
-                              type,
-                              tag_handle,
-                              default_val,
-                              true );
-
-  if (MB_SUCCESS != rval)
+  else
     while( !created_tags.empty() ) {
       iface->tag_delete( created_tags.back() );
       created_tags.pop_back();

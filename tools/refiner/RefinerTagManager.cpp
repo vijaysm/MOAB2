@@ -78,15 +78,15 @@ RefinerTagManager::RefinerTagManager( Interface* in_mesh, Interface* out_mesh )
   // Create the mesh global ID tags if they aren't already there.
   int zero = 0;
   ErrorCode result;
-  result = this->input_mesh->tag_create(
-    GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, this->tag_igid, &zero, true );
-  if ( result != MB_SUCCESS && result != MB_ALREADY_ALLOCATED )
+  result = this->input_mesh->tag_get_handle(
+    GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, this->tag_igid, MB_TAG_DENSE|MB_TAG_CREAT, &zero );
+  if ( result != MB_SUCCESS )
     {
     throw new std::logic_error( "Unable to find input mesh global ID tag \"" GLOBAL_ID_TAG_NAME "\"" );
     }
-  result = this->output_mesh->tag_create(
-    GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, this->tag_ogid, &zero, true );
-  if ( result != MB_SUCCESS && result != MB_ALREADY_ALLOCATED )
+  result = this->output_mesh->tag_get_handle(
+    GLOBAL_ID_TAG_NAME, MB_TYPE_INTEGER, this->tag_ogid, MB_TAG_DENSE|MB_TAG_CREAT, &zero );
+  if ( result != MB_SUCCESS )
     {
     throw new std::logic_error( "Unable to find/create output mesh global ID tag \"" GLOBAL_ID_TAG_NAME "\"" );
     }
@@ -485,8 +485,8 @@ void RefinerTagManager::create_tag_internal( Tag tag_in, int offset )
   this->input_mesh->tag_get_data_type( tag_in, tag_data_type );
   this->input_mesh->tag_get_default_value( tag_in, (void*) &tag_default[0] );
   tag_default.resize( tag_size );
-  ErrorCode res = this->output_mesh->tag_create(
-    tag_name.c_str(), tag_size, tag_type, tag_data_type, tag_rec.first, (void*) &tag_default[0], true );
+  ErrorCode res = this->output_mesh->tag_get_handle(
+    tag_name.c_str(), tag_size, tag_get_data_type, tag_rec.first, tag_type|MB_TAG_BYTES|MB_TAG_EXCL, &tag_default[0] );
 #ifdef MB_DEBUG
   std::cout
     << "Creating output tag: \"" << tag_name.c_str() << "\" handle: " << tag_rec.first

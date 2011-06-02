@@ -256,7 +256,7 @@ void test_tree( int max_depth )
   // create tag in which to store number for each tree node,
   // in depth-first in-order search order.
   Tag tag;
-  rval = mb.tag_get_handle( "GLOBAL_ID", tag ); CHECK_ERR(rval);
+  rval = mb.tag_get_handle( "GLOBAL_ID", 1, MB_TYPE_INTEGER, tag ); CHECK_ERR(rval);
   
   // create a binary tree to a depth of 20 (about 1 million nodes)
   rval = mb.create_meshset( MESHSET_SET, root ); CHECK_ERR(rval);
@@ -277,7 +277,7 @@ void test_tree( int max_depth )
   CHECK_ERR(rval);
   
   // get tree root
-  rval = mb.tag_get_handle( "GLOBAL_ID", tag ); CHECK_ERR(rval);
+  rval = mb.tag_get_handle( "GLOBAL_ID", 1, MB_TYPE_INTEGER, tag ); CHECK_ERR(rval);
   Range roots;
   idx = 1;
   const void* vals[] = {&idx};
@@ -599,7 +599,7 @@ void test_set_flags()
   // Assign IDs to things so that we can identify them in the
   // data we read back in.
   Tag tag;
-  rval = mb.tag_get_handle( "GLOBAL_ID", tag ); CHECK_ERR(rval);
+  rval = mb.tag_get_handle( "GLOBAL_ID", 1, MB_TYPE_INTEGER, tag ); CHECK_ERR(rval);
   int ids[nverts];
   for (int i = 0; i < nverts; ++i)
     ids[i] = i+1;
@@ -645,7 +645,7 @@ void test_set_flags()
   if (!keep_file)
     remove( filename );
   CHECK_ERR(rval);
-  rval = mb.tag_get_handle( "GLOBAL_ID", tag ); CHECK_ERR(rval);
+  rval = mb.tag_get_handle( "GLOBAL_ID", 1, MB_TYPE_INTEGER, tag ); CHECK_ERR(rval);
   
   // find our sets
   Range tmp;

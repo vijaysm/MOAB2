@@ -77,7 +77,7 @@ EntityHandle create_tree( AdaptiveKDTree& tool, unsigned depth, int intervals, T
     return root;
   
   // define a tag to use to store integer values on tree leaves
-  err = tool.moab()->tag_create( TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, *tag_handle, 0, false );
+  err = tool.moab()->tag_get_handle( TAG_NAME, 1, MB_TYPE_INTEGER, *tag_handle, MB_TAG_DENSE|MB_TAG_EXCL );
   CHECK_ERR(err);
 
   // iterate over tree setting data
@@ -222,7 +222,7 @@ void test_tree_readwrite()
   CHECK_ERR(err);
  
   // get tag handle by name, because the handle may have changed
-  err = mb.tag_get_handle( TAG_NAME, tag );
+  err = mb.tag_get_handle( TAG_NAME, 1, MB_TYPE_INTEGER, tag );
   CHECK_ERR(err);
 
   // get root handle for tree

@@ -208,22 +208,17 @@ void print_partitioned_entities( Interface& moab, bool list_non_shared = false )
     
     // get tags for parallel data
   Tag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
-  const char* ptag_names[] = { PARALLEL_SHARED_PROC_TAG_NAME,
-                               PARALLEL_SHARED_PROCS_TAG_NAME,
-                               PARALLEL_SHARED_HANDLE_TAG_NAME,
-                               PARALLEL_SHARED_HANDLES_TAG_NAME,
-                               PARALLEL_STATUS_TAG_NAME };
-  Tag* tag_ptrs[] = { &sharedp_tag, &sharedps_tag, &sharedh_tag, &sharedhs_tag, &pstatus_tag };
-  const int ntags = sizeof(ptag_names)/sizeof(ptag_names[0]);
-  for (int i = 0; i < ntags; ++i) {
-    rval = moab.tag_get_handle( ptag_names[i], *tag_ptrs[i] ); CHECK_ERR(rval);
-  }
+  rval = moab.tag_get_handle( PARALLEL_SHARED_PROC_TAG_NAME, 1, MB_TYPE_INTEGER, sharedp_tag ); CHECK_ERR(rval);
+  rval = moab.tag_get_handle( PARALLEL_SHARED_PROCS_TAG_NAME, MAX_SHARING_PROCS, MB_TYPE_INTEGER, sharedps_tag ); CHECK_ERR(rval);
+  rval = moab.tag_get_handle( PARALLEL_SHARED_HANDLE_TAG_NAME, 1, MB_TYPE_HANDLE, sharedh_tag ); CHECK_ERR(rval);
+  rval = moab.tag_get_handle( PARALLEL_SHARED_HANDLES_TAG_NAME, MAX_SHARING_PROCS, MB_TYPE_HANDLE, sharedhs_tag ); CHECK_ERR(rval);
+  rval = moab.tag_get_handle( PARALLEL_STATUS_TAG_NAME, 1, MB_TYPE_OPAQUE, pstatus_tag ); CHECK_ERR(rval);
   
     // for each geometric entity, check which processor we are sharing
     // entities with
   Tag geom_tag, id_tag;
-  rval = moab.tag_get_handle( GEOM_DIMENSION_TAG_NAME, geom_tag ); CHECK_ERR(rval);
-  rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag ); CHECK_ERR(rval);
+  rval = moab.tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geom_tag ); CHECK_ERR(rval);
+  rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag ); CHECK_ERR(rval);
   const char* topo_names_s[] = { "Vertex", "Curve", "Surface", "Volume" };
 //  const char* topo_names_p[] = { "Vertices", "Curves", "Surfaces", "Volumes" };
   std::ostringstream buffer; // buffer output in an attempt to prevent lines from different processsors being mixed up.
@@ -576,9 +571,9 @@ void test_write_shared_sets()
   CHECK_ERR(rval);
   
   Tag mattag1, mattag2;
-  rval = moab.tag_get_handle( MATERIAL_SET_TAG_NAME, mattag1 );
+  rval = moab.tag_get_handle( MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, mattag1 );
   CHECK_ERR(rval);
-  rval = moab2.tag_get_handle( MATERIAL_SET_TAG_NAME, mattag2 );
+  rval = moab2.tag_get_handle( MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, mattag2 );
   CHECK_ERR(rval);
   
   Range matsets;
@@ -614,7 +609,7 @@ void test_var_length_parallel()
   
   // If this tag doesn't exist, writer will fail
   Tag junk_tag;
-  mb.tag_create( PARALLEL_GID_TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, junk_tag, 0 );
+  mb.tag_get_handle( PARALLEL_GID_TAG_NAME, 1, MB_TYPE_INTEGER, junk_tag, MB_TAG_DENSE|MB_TAG_EXCL );
 
   int numproc, rank;
   MPI_Comm_size( MPI_COMM_WORLD, &numproc );
@@ -626,7 +621,7 @@ void test_var_length_parallel()
   CHECK_ERR(rval);
   
   // Create a var-len tag
-  rval = mb.tag_create_variable_length( tagname, MB_TAG_DENSE, MB_TYPE_INTEGER, vartag );
+  rval = mb.tag_get_handle( tagname, 0, MB_TYPE_INTEGER, vartag, MB_TAG_DENSE|MB_TAG_VARLEN|MB_TAG_EXCL );
   CHECK_ERR(rval);
   
   // Write data on each vertex:
@@ -673,7 +668,7 @@ void test_var_length_parallel()
     rval = mb.load_mesh( filename );
     if (!KeepTmpFiles) 
       remove( filename );
-    rval2 = mb.tag_get_handle( tagname, vartag );
+    rval2 = mb.tag_get_handle( tagname, 0, MB_TYPE_INTEGER, vartag );
   }
   CHECK_ERR(rval);
   CHECK_ERR(rval2);
@@ -741,18 +736,18 @@ void create_input_file( const char* file_name,
   
   Tag ijk_vert_tag = 0, ij_set_tag = 0, global_tag = 0;
   if (ijk_vert_tag_name) {
-    rval = mb.tag_create( ijk_vert_tag_name, 3*sizeof(int), MB_TAG_DENSE, 
-                          MB_TYPE_INTEGER, ijk_vert_tag, 0 );
+    rval = mb.tag_get_handle( ijk_vert_tag_name, 3, MB_TYPE_INTEGER, 
+                          ijk_vert_tag, MB_TAG_EXCL|MB_TAG_DENSE );
     CHECK_ERR(rval);
   }
   if (ij_set_tag_name) {
-    rval = mb.tag_create( ij_set_tag_name, 2*sizeof(int), MB_TAG_SPARSE, 
-                          MB_TYPE_INTEGER, ij_set_tag, 0 );
+    rval = mb.tag_get_handle( ij_set_tag_name, 2, MB_TYPE_INTEGER, ij_set_tag,
+                          MB_TAG_SPARSE|MB_TAG_EXCL );
     CHECK_ERR(rval);
   }
   if (global_tag_name) {
-    rval = mb.tag_create( global_tag_name, sizeof(int), MB_TAG_DENSE, 
-                          MB_TYPE_INTEGER, global_tag, global_default_value );
+    rval = mb.tag_get_handle( global_tag_name, 1, MB_TYPE_INTEGER, global_tag, 
+                              MB_TAG_DENSE|MB_TAG_EXCL, global_default_value );
     CHECK_ERR(rval);
     if (global_mesh_value) {
       rval = mb.tag_set_data( global_tag, 0, 0, global_mesh_value );
@@ -816,7 +811,7 @@ void create_input_file( const char* file_name,
   }
   
   Tag part_tag;
-  rval = mb.tag_create( PARTITION_TAG, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, part_tag, 0 );
+  rval = mb.tag_get_handle( PARTITION_TAG, 1, MB_TYPE_INTEGER, part_tag, MB_TAG_SPARSE|MB_TAG_EXCL );
   CHECK_ERR(rval);
   
   std::vector<EntityHandle> parts(num_cpu);
@@ -861,7 +856,7 @@ void test_read_elements_common( bool by_rank, int intervals, bool print_time,
       
   
   Tag part_tag;
-  rval = mb.tag_get_handle( PARTITION_TAG, part_tag );
+  rval = mb.tag_get_handle( PARTITION_TAG, 1, MB_TYPE_INTEGER, part_tag );
   CHECK_ERR(rval);
   
   Range parts;
@@ -993,23 +988,13 @@ void test_read_tags()
   CHECK_ERR(rval);
       
   Tag tag;
-  rval = mb.tag_get_handle( tag_name, tag );
+  rval = mb.tag_get_handle( tag_name, 3, MB_TYPE_INTEGER, tag );
   CHECK_ERR(rval);
-  
-  int size = -1;
-  rval = mb.tag_get_size( tag, size );
-  CHECK_ERR(rval);
-  CHECK_EQUAL( 3*(int)sizeof(int), size );
   
   TagType storage;
   rval = mb.tag_get_type( tag, storage );
   CHECK_ERR(rval);
   CHECK_EQUAL( MB_TAG_DENSE, storage );
-  
-  DataType type;
-  rval = mb.tag_get_data_type( tag, type );
-  CHECK_ERR(rval);
-  CHECK_EQUAL( MB_TYPE_INTEGER, type );
   
   Range verts, tagged;
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
@@ -1065,23 +1050,13 @@ void test_read_global_tags()
   CHECK_ERR(rval);
       
   Tag tag;
-  rval = mb.tag_get_handle( tag_name, tag );
+  rval = mb.tag_get_handle( tag_name, 1, MB_TYPE_INTEGER, tag );
   CHECK_ERR(rval);
-  
-  int size = -1;
-  rval = mb.tag_get_size( tag, size );
-  CHECK_ERR(rval);
-  CHECK_EQUAL( (int)sizeof(int), size );
   
   TagType storage;
   rval = mb.tag_get_type( tag, storage );
   CHECK_ERR(rval);
   CHECK_EQUAL( MB_TAG_DENSE, storage );
-  
-  DataType type;
-  rval = mb.tag_get_data_type( tag, type );
-  CHECK_ERR(rval);
-  CHECK_EQUAL( MB_TYPE_INTEGER, type );
   
   int mesh_def_val, mesh_gbl_val;
   rval = mb.tag_get_default_value( tag, &mesh_def_val );
@@ -1116,23 +1091,13 @@ void test_read_sets_common( const char* extra_opts )
   CHECK_ERR(rval);
       
   Tag tag;
-  rval = mb.tag_get_handle( tag_name, tag );
+  rval = mb.tag_get_handle( tag_name, 2, MB_TYPE_INTEGER, tag );
   CHECK_ERR(rval);
-  
-  int size = -1;
-  rval = mb.tag_get_size( tag, size );
-  CHECK_ERR(rval);
-  CHECK_EQUAL( 2*(int)sizeof(int), size );
   
   TagType storage;
   rval = mb.tag_get_type( tag, storage );
   CHECK_ERR(rval);
   CHECK_EQUAL( MB_TAG_SPARSE, storage );
-  
-  DataType type;
-  rval = mb.tag_get_data_type( tag, type );
-  CHECK_ERR(rval);
-  CHECK_EQUAL( MB_TYPE_INTEGER, type );
   
   const int iv = DefaultReadIntervals + 1;
   Range sets;
