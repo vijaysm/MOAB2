@@ -225,7 +225,8 @@ class WriteHDF5Parallel : public WriteHDF5
     
       //! Tag names for identifying multi-processor meshsets
     MultiProcSetTags multiProcSetTags;
-    
+  
+  public:  
       //! Struct describing a multi-processor meshset
     struct ParallelSet {
       EntityHandle handle;// set handle on this processor
@@ -237,6 +238,7 @@ class WriteHDF5Parallel : public WriteHDF5
       long parentsCount;    // total numoer of set parents (all processors)
       bool description;     // true if this processor 'ownes' the set
     };
+  private:
     
       //! List of multi-processor meshsets
     std::list<ParallelSet> parallelSets;

@@ -2307,9 +2307,29 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
     // the description
   std::list<ParallelSet>::const_iterator iter;
   size_t count = 0;
-  for (iter = parallelSets.begin(); iter != parallelSets.end(); ++iter)
-    if (iter->description)
+  std::vector<id_t> ids;
+  for (iter = parallelSets.begin(); iter != parallelSets.end(); ++iter) {
+    if (iter->description) {
       ++count;
+      
+      id_t file_id = idMap.find( iter->handle );
+      assert( file_id && file_id >= start_id );
+      ids.push_back( file_id );
+    }
+  }
+  
+    // Sort set handles by file ID, and construct range of file IDs
+    // build range of offsets into dataset
+  Range indices;
+  std::sort( ids.begin(), ids.end() );
+  if (std::unique(ids.begin(), ids.end()) != ids.end()) {
+    std::cerr << "Internal error at " __FILE__ ":" << __LINE__ << std::endl
+              << "Overlapping offsets for shared set descriptions" << std::endl;
+    std::cerr.flush();
+    MPI_Abort( myPcomm->proc_config().proc_comm(), 1 );
+  }
+  for (std::vector<id_t>::reverse_iterator it = ids.rbegin(); it != ids.rend(); ++it)
+    indices.insert( *it );
   
     // get a large enough buffer for all of the shared set metadata
   std::vector<mhdf_index_t> tmp_buffer;
@@ -2324,20 +2344,16 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
   }
   
     // get a buffer for offset locations
-  Range indices;
-  Range::iterator hint;
-  
-  mhdf_index_t* buff_iter = buffer;
-  for( iter = parallelSets.begin();
-        iter != parallelSets.end(); ++iter)
+  for( iter = parallelSets.begin(); iter != parallelSets.end(); ++iter)
   {
     if (!iter->description)
       continue;  // handled by a different processor
     
       // Get offset in table at which to write data
     id_t file_id = idMap.find( iter->handle );
-    assert( file_id && file_id >= start_id );
-    file_id -= start_id;
+    size_t idx = std::lower_bound( ids.begin(), ids.end(), file_id ) - ids.begin();
+    assert(idx < ids.size() && ids[idx] == file_id);
+    mhdf_index_t* mdata = buffer + 4*idx;
     
       // Get flag data
     unsigned int flags;
@@ -2346,13 +2362,12 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
       return error(rval);
       
       // Write the data
-    *buff_iter = iter->contentsOffset + iter->contentsCount - 1; ++buff_iter;
-    *buff_iter = iter->childrenOffset + iter->childrenCount - 1; ++buff_iter;
-    *buff_iter = iter->parentsOffset  + iter->parentsCount  - 1, ++buff_iter;
-    *buff_iter = flags;                                          ++buff_iter;
-    hint = indices.insert( hint, file_id+1 );
+    mdata[0] = iter->contentsOffset + iter->contentsCount - 1;
+    mdata[1] = iter->childrenOffset + iter->childrenCount - 1;
+    mdata[2] = iter->parentsOffset  + iter->parentsCount  - 1,
+    mdata[3] = flags;                                         
     
-    if (dbg_track) dbg_track->record_io( file_id, 1 );
+    if (dbg_track) dbg_track->record_io( file_id - start_id, 1 );
   }
 
   herr_t herr = 0;
@@ -2365,7 +2380,7 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
     Range::const_pair_iterator pi;
     dims[1] = 4;
     for (pi = indices.const_pair_begin(); pi != indices.const_pair_end(); ++pi) {
-      offsets[0] = pi->first-1;
+      offsets[0] = pi->first - start_id;
       dims[0] = pi->second - pi->first + 1;
       herr = H5Sselect_hyperslab( space, op, offsets, 0, dims, 0 );
       if (herr < 0)
@@ -2405,6 +2420,18 @@ ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
   return MB_SUCCESS;
 }
 
+static inline size_t
+psoffset( WriteUtilIface::EntityListType which_data, 
+          const WriteHDF5Parallel::ParallelSet& group )
+{
+  switch (which_data) {
+    case WriteUtilIface::CONTENTS: return group.contentsOffset;
+    case WriteUtilIface::CHILDREN: return group.childrenOffset;
+    case WriteUtilIface::PARENTS:  return group.parentsOffset;
+  }
+  return 0;
+}
+
 ErrorCode WriteHDF5Parallel::write_shared_set_data( hid_t table,
                                    WriteUtilIface::EntityListType which_data,
                                    IODebugTrack* dbg_track )
@@ -2417,29 +2444,51 @@ ErrorCode WriteHDF5Parallel::write_shared_set_data( hid_t table,
   hid_t data_space = H5Dget_space( table );
   H5Sselect_none( data_space );
   
+    // Sort parallel sets by offset into data table so that
+    // the order in the buffer correctly matches the order
+    // the HDF5 lib will expect.
+  const size_t count = parallelSets.size();
+  std::vector<id_t> offsets;
+  std::vector<const ParallelSet*> sets;
+  sets.reserve(count);
+  offsets.reserve(count);
   std::list<ParallelSet>::const_iterator iter;
+  for (iter = parallelSets.begin(); iter != parallelSets.end(); ++iter) 
+    offsets.push_back( psoffset( which_data, *iter ) );
+  std::sort( offsets.begin(), offsets.end() );
+  sets.resize(offsets.size(), 0);
   for (iter = parallelSets.begin(); iter != parallelSets.end(); ++iter) {
+    size_t off = psoffset( which_data, *iter );
+    size_t idx = std::lower_bound( offsets.begin(), offsets.end(), off ) - offsets.begin();
+    while (idx < sets.size() && sets[idx]) 
+      ++idx; // might be duplicates if not writing data for some sets
+    assert(idx < sets.size() && offsets[idx] == off);
+    sets[idx] = &*iter;
+  }
+    
+    // Now fill buffer with data
+  for (size_t i = 0; i < sets.size(); ++i) {
     handle_list.clear();
     long offset;
     switch (which_data) {
       case WriteUtilIface::CONTENTS:
-        rval = iFace->get_entities_by_handle( iter->handle, handle_list );
-        offset = iter->contentsOffset;
+        rval = iFace->get_entities_by_handle( sets[i]->handle, handle_list );
+        offset = sets[i]->contentsOffset;
         break;
       case WriteUtilIface::CHILDREN:
-        rval = iFace->get_child_meshsets( iter->handle, handle_list );
-        offset = iter->childrenOffset;
+        rval = iFace->get_child_meshsets( sets[i]->handle, handle_list );
+        offset = sets[i]->childrenOffset;
         break;
       case WriteUtilIface::PARENTS:
-        rval = iFace->get_parent_meshsets( iter->handle, handle_list );
-        offset = iter->parentsOffset;
+        rval = iFace->get_parent_meshsets( sets[i]->handle, handle_list );
+        offset = sets[i]->parentsOffset;
         break;
     }
     if (MB_SUCCESS != rval) {
       H5Sclose( data_space );
       return error(rval);
     }
-    remove_remote_entities( iter->handle, handle_list );
+    remove_remote_entities( sets[i]->handle, handle_list );
     
     id_list.clear();
     vector_to_id_list( handle_list, id_list, true );
@@ -2460,6 +2509,7 @@ ErrorCode WriteHDF5Parallel::write_shared_set_data( hid_t table,
     std::copy( id_list.begin(), id_list.end(), std::back_inserter(big_list) );
   }
   
+    // Finally, write the data
   hid_t mem;
   if (big_list.empty()) {
 //#if H5_VERS_MAJOR > 1 || H5_VERS_MINOR >= 8
