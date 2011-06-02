@@ -40,6 +40,7 @@
 #include "moab/Range.hpp"
 
 #include "IODebugTrack.hpp"
+#include "FileOptions.hpp"
 
 namespace moab {
 
@@ -396,14 +397,17 @@ ErrorCode WriteHDF5Parallel::gather_interface_meshes(Range& nonowned)
 ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
                                             bool overwrite,
                                             const std::vector<std::string>& qa_records,
+                                            const FileOptions& opts,
                                             const Tag* user_tag_list,
                                             int user_tag_count,
                                             int dimension,
-                                            int pcomm_no,
                                             double* times)
 {
   ErrorCode rval;
   mhdf_Status status;
+
+  int pcomm_no = 0;
+  opts.get_int_option("PARALLEL_COMM", pcomm_no);
 
   myPcomm = ParallelComm::get_pcomm(iFace, pcomm_no);
   if (0 == myPcomm) {
@@ -412,6 +416,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   }
   
   dbgOut.set_rank( myPcomm->proc_config().proc_rank() );
+  dbgOut.limit_output_to_first_N_procs( 32 );
 
   Range nonlocal;
   debug_barrier();
@@ -564,7 +569,9 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   }
   
     /* Test if we can use H5S_APPEND when selecting hyperslabs */
-  if (HDF5_can_append_hyperslabs()) {
+  if (MB_SUCCESS != opts.get_null_option("HYPERSLAB_OR") &&
+     (MB_SUCCESS == opts.get_null_option( "HYPERSLAB_APPEND" )
+      || HDF5_can_append_hyperslabs())) {
     dbgOut.print(1,"HDF5 library supports H5Sselect_hyperlsab with H5S_SELECT_APPEND\n");
     hslabOp = H5S_SELECT_APPEND;
   }

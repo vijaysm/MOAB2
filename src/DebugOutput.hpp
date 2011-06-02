@@ -135,6 +135,10 @@ public:
   //!       or zero if MOAB is build w/out MPI.
   void use_world_rank();
   
+  //!\brief Only print debug output from N processes
+  void limit_output_to_first_N_procs( int N )
+    { if (mpiRank >= N) verbosityLimit = 0; }
+  
   //!\brief Get verbosity limit
   unsigned get_verbosity() const      { return verbosityLimit; }
   //!\brief Set verbosity limit

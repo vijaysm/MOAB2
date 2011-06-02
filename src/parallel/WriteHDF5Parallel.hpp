@@ -110,10 +110,10 @@ class WriteHDF5Parallel : public WriteHDF5
     virtual ErrorCode parallel_create_file( const char* filename,
                                      bool overwrite,
                                      const std::vector<std::string>& qa_records,
+                                     const FileOptions& opts,
                                      const Tag* user_tag_list = 0,
                                      int user_tag_count = 0,
                                      int dimension = 3,
-                                     int pcomm_no = 0,
                                      double* times = 0);
     
       //! Figure out which mesh local mesh is duplicated on

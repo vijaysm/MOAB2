@@ -292,7 +292,7 @@ int main(int argc, char* argv[])
   #endif
       return READ_ERROR;
     }
-    std::cerr << "Read \"" << *j << "\"" << std::endl;
+    if (!proc_id) std::cerr << "Read \"" << *j << "\"" << std::endl;
     if (print_times && !proc_id) write_times( std::cout );
   }
   
@@ -501,7 +501,7 @@ int main(int argc, char* argv[])
     return WRITE_ERROR;
   }
   
-  std::cerr << "Wrote \"" << out << "\"" << std::endl;
+  if (!proc_id) std::cerr << "Wrote \"" << out << "\"" << std::endl;
   if (print_times && !proc_id) write_times( std::cout );
 
 #ifdef USE_MPI
