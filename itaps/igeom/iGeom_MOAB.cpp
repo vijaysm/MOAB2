@@ -54,7 +54,8 @@ bool initializeSmoothing(iGeom_Instance instance) {
    // get directly the sets with geom dim 2, and from there create the SmoothFaceEval
    Tag geom_tag, gid_tag;
    ErrorCode rval = MBI->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geom_tag);
-   rval = MBI->tag_get_handle(GLOBAL_ID_TAG_NAME, gid_tag);
+   rval = MBI->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER,
+       gid_tag, MB_TAG_DENSE|MB_TAG_CREAT );
 
 #if 0
    // traverse the model, dimension 2, 1, 0
@@ -175,13 +176,13 @@ bool initializeSmoothing(iGeom_Instance instance) {
 
    Tag facetCtrlTag;
    double defControls[18] = { 0. };
-   rval = MBI->tag_create("CONTROLFACE", 18, MB_TYPE_DOUBLE,
+   rval = MBI->tag_get_handle("CONTROLFACE", 18, MB_TYPE_DOUBLE,
          facetCtrlTag, MB_TAG_DENSE|MB_TAG_EXCL, &defControls);
    assert(rval == MB_SUCCESS);
 
    Tag facetEdgeCtrlTag;
    double defControls2[27] = { 0. }; // corresponding to 9 control points on edges, in order from edge 0, 1, 2 ( 1-2, 2-0, 0-1 )
-   rval = MBI->tag_create("CONTROLEDGEFACE", 27, MB_TYPE_DOUBLE,
+   rval = MBI->tag_get_handle("CONTROLEDGEFACE", 27, MB_TYPE_DOUBLE,
          facetEdgeCtrlTag, MB_TAG_DENSE|MB_TAG_EXCL, &defControls2);
    assert(rval == MB_SUCCESS);
    // if the

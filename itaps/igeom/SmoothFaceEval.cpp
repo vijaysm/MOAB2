@@ -357,7 +357,7 @@ moab::ErrorCode SmoothFaceEval::compute_tangents_for_each_edge()
 // they will be used for control points
 {
    double defTangents[6] = { 0., 0., 0., 0., 0., 0. };
-   moab::ErrorCode rval = _mb->tag_create("TANGENTS", 6, MB_TYPE_DOUBLE,
+   moab::ErrorCode rval = _mb->tag_get_handle("TANGENTS", 6, MB_TYPE_DOUBLE,
                                           _tangentsTag, MB_TAG_DENSE|MB_TAG_CREAT,
                                           &defTangents);
    if (MB_SUCCESS != rval)
