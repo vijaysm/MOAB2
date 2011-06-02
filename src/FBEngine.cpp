@@ -29,7 +29,11 @@ namespace moab {
 
 unsigned min_tolerace_intersections = 1000;
 double tolerance = 0.01; // TODO: how is this used ????
-double tolerance_segment = 0.000001; // for segments intersection, points collapse
+double tolerance_segment = 0.01; // for segments intersection, points collapse, area coordinates for triangles
+// it should be a relative, not an absolute value
+// as this splitting operation can create small edges, it should be relatively high
+// or, it should be coordinated with the decimation errors
+// we really just want to preserve the integrity of the mesh, we should avoid creating small edges or angles
 const bool Debug_surf_eval = false;
 bool debug_splits = false;
 
@@ -99,6 +103,11 @@ ErrorCode area_coordinates(Interface * mbi, EntityHandle tri, CartVect & pnt,
   CartVect r0(P[0] - pnt);
   CartVect r1(P[1] - pnt);
   CartVect r2(P[2] - pnt);
+  if (debug_splits)
+  {
+    std::cout << " nodes:" << conn3[0] << " "<<  conn3[1] << " " << conn3[2] <<"\n";
+    std::cout << " distances: " << r0.length() << " " << r1.length() << " " << r2.length() << "\n";
+  }
   if (r0.length() < tolerance_segment) {
     area_coord[0] = 1.;
     area_coord[1] = 0.;
@@ -113,7 +122,7 @@ ErrorCode area_coordinates(Interface * mbi, EntityHandle tri, CartVect & pnt,
     boundary_handle = conn3[1];
     return MB_SUCCESS;
   }
-  if (r1.length() < tolerance_segment) {
+  if (r2.length() < tolerance_segment) {
     area_coord[0] = 0.;
     area_coord[1] = 0.;
     area_coord[2] = 1.;
@@ -1169,6 +1178,13 @@ ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<
       rval = area_coordinates(_mbImpl, facets_out[index], newPoint, area_coord, boundary_handle);
       MBERRORR(rval, "Failed to get area coordinates");
 
+      if (debug_splits)
+      {
+        std::cout <<" int point:" << newPoint << " area coord " << area_coord[0] << " "
+           <<  area_coord[1] << " " << area_coord[2] << "\n";
+        std::cout << " triangle: " <<
+            _mbImpl->id_from_handle(facets_out[index]) << " boundary:" <<  boundary_handle <<  "\n";
+      }
       EntityType type;
       if (boundary_handle)
         type = _mbImpl->type_from_handle(boundary_handle);
