@@ -3090,32 +3090,34 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
       RRA("Failed to get local handles for tag vals.");
     }
 
-    if (tag_size == MB_VARIABLE_LENGTH) {
-        // Be careful of alignment here.  If the integers are aligned
-        // in the buffer, we can use them directly.  Otherwise we must
-        // copy them.
-      std::vector<int> var_lengths(num_ents);
-      UNPACK_INTS(buff_ptr, &var_lengths[0], num_ents);
-      UPC(sizeof(int) * num_ents, " void");
-      
-        // get pointers into buffer for each tag value
-      var_len_vals.resize(num_ents);
-      for (std::vector<EntityHandle>::size_type j = 0; 
-           j < (std::vector<EntityHandle>::size_type) num_ents; ++j) {
-        var_len_vals[j] = buff_ptr;
-        buff_ptr += var_lengths[j];
-        UPC(var_lengths[j], " void");
+    if (!dum_ents.empty()) {
+      if (tag_size == MB_VARIABLE_LENGTH) {
+          // Be careful of alignment here.  If the integers are aligned
+          // in the buffer, we can use them directly.  Otherwise we must
+          // copy them.
+        std::vector<int> var_lengths(num_ents);
+        UNPACK_INTS(buff_ptr, &var_lengths[0], num_ents);
+        UPC(sizeof(int) * num_ents, " void");
+
+          // get pointers into buffer for each tag value
+        var_len_vals.resize(num_ents);
+        for (std::vector<EntityHandle>::size_type j = 0; 
+             j < (std::vector<EntityHandle>::size_type) num_ents; ++j) {
+          var_len_vals[j] = buff_ptr;
+          buff_ptr += var_lengths[j];
+          UPC(var_lengths[j], " void");
+        }
+        result = mbImpl->tag_set_data( tag_handle, &dum_ents[0], num_ents,
+                                       &var_len_vals[0], &var_lengths[0]);
+        RRA("Trouble setting tag data when unpacking variable-length tag.");
       }
-      result = mbImpl->tag_set_data( tag_handle, &dum_ents[0], num_ents,
-                                     &var_len_vals[0], &var_lengths[0]);
-      RRA("Trouble setting tag data when unpacking variable-length tag.");
-    }
-    else {
-      result = mbImpl->tag_set_data(tag_handle, &dum_ents[0],
-                                    num_ents, buff_ptr);
-      RRA("Trouble setting range-based tag data when unpacking tag.");
-      buff_ptr += num_ents * tag_size;
-      UPC(num_ents * tag_size, " void");
+      else {
+        result = mbImpl->tag_set_data(tag_handle, &dum_ents[0],
+                                      num_ents, buff_ptr);
+        RRA("Trouble setting range-based tag data when unpacking tag.");
+        buff_ptr += num_ents * tag_size;
+        UPC(num_ents * tag_size, " void");
+      }
     }
   }
   
