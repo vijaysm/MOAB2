@@ -4042,12 +4042,15 @@ ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
   
   unsigned int j = 0, i = 0;
   std::vector<int> sharing_procs, sharing_procs2;
-  std::vector<EntityHandle> sharing_handles, sharing_handles2;
+  std::vector<EntityHandle> sharing_handles, sharing_handles2, skin_verts(skin_ents[0].size());
+  for (Range::iterator rit = skin_ents[0].begin(); rit != skin_ents[0].end(); rit++, i++)
+    skin_verts[i] = *rit;
+  i = 0;
   
   while (j < 2*shared_ents.n) {
       // count & accumulate sharing procs
     int this_idx = shared_ents.vi[j];
-    EntityHandle this_ent = skin_ents[0][this_idx];
+    EntityHandle this_ent = skin_verts[this_idx];
     while (j < 2*shared_ents.n && shared_ents.vi[j] == this_idx) {
       j++;
         // shouldn't have same proc
