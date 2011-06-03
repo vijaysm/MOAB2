@@ -137,7 +137,7 @@ namespace moab{
     for(Range::iterator it = skin_ents[0].begin();it != skin_ents[0].end();it++){
       //Calculate the to processor
       int toproc1 = static_cast<int>(floor((x[j]-gbox[0])/length));    
-      int toproc2 = static_cast<int>(floor((x[j]+eps2-gbox[0])/length));
+      int toproc2 = static_cast<int>(floor((x[j]+myEps-gbox[0])/length));
       
       //Make sure no entities go to an invalid processor
       toproc1 = toproc1<=maxProc?toproc1:maxProc;
@@ -183,7 +183,7 @@ namespace moab{
       skin_ents[0].size()*(MAX_SHARING_PROCS+1)*sizeof(double);
     buffer_init(&buf, max_size);
     //Sort by x,y,z
-    temp_tuple_sort_real(&tup,eps2);
+    tuple_sort_real(&tup,myEps);
 
     /* 12)Match: new tuple list*/
     tuple_list matches;
@@ -198,8 +198,11 @@ namespace moab{
 	zi = tup.vr[tup_r+2];
 
       bool done = false;
-      while(!done && (j+1)<tup.n){
+      while(!done){
 	j++; tup_r+= tup.mr;
+	if(j >= tup.n){
+	  break;
+	}
 	CartVect cv(tup.vr[tup_r]-xi,
 		    tup.vr[tup_r+1]-yi,
 		    tup.vr[tup_r+2]-zi);
@@ -215,29 +218,31 @@ namespace moab{
       //We now know that tuples [i to j) exclusice match.  
       //If n tuples match, n*(n-1) match tuples will be made
       //tuples are of the form (proc1,proc2,handle1,handle2)
-      int kproc = i*tup.mi;
-      unsigned long khand = i*tup.mul;
-      for(unsigned long k = i; k<j; k++){
-	int lproc = kproc+tup.mi;
-	unsigned long lhand = khand+tup.mul;
-	for(unsigned long l=k+1; l<j; l++){
-	  matches.vi[mat_i++]=tup.vi[kproc];//proc1
-	  matches.vi[mat_i++]=tup.vi[lproc];//proc2
-	  matches.vul[mat_ul++]=tup.vul[khand];//handle1
-	  matches.vul[mat_ul++]=tup.vul[lhand];//handle2
-	  matches.n++;
-
-	  matches.vi[mat_i++]=tup.vi[lproc];//proc1
-	  matches.vi[mat_i++]=tup.vi[kproc];//proc2
-	  matches.vul[mat_ul++]=tup.vul[lhand];//handle1
-	  matches.vul[mat_ul++]=tup.vul[khand];//handle2
-	  matches.n++;
-	  lproc += tup.mi;
-	  lhand += tup.mul;
-	}
-	kproc += tup.mi;
-	khand += tup.mul;
-      }//End for(int k...
+      if(i+1 < j){
+	int kproc = i*tup.mi;
+	unsigned long khand = i*tup.mul;
+	for(unsigned long k = i; k<j; k++){
+	  int lproc = kproc+tup.mi;
+	  unsigned long lhand = khand+tup.mul;
+	  for(unsigned long l=k+1; l<j; l++){
+	    matches.vi[mat_i++]=tup.vi[kproc];//proc1
+	    matches.vi[mat_i++]=tup.vi[lproc];//proc2
+	    matches.vul[mat_ul++]=tup.vul[khand];//handle1
+	    matches.vul[mat_ul++]=tup.vul[lhand];//handle2
+	    matches.n++;
+	    
+	    matches.vi[mat_i++]=tup.vi[lproc];//proc1
+	    matches.vi[mat_i++]=tup.vi[kproc];//proc2
+	    matches.vul[mat_ul++]=tup.vul[lhand];//handle1
+	    matches.vul[mat_ul++]=tup.vul[khand];//handle2
+	    matches.n++;
+	    lproc += tup.mi;
+	    lhand += tup.mul;
+	  }
+	  kproc += tup.mi;
+	  khand += tup.mul;
+	}//End for(int k...
+      }
       i = j;
     }//End while(i<tup.n)
     //Cleanup
@@ -331,8 +336,8 @@ namespace moab{
   }
 
   //Swap around tuples
-  void ParallelMergeMesh::temp_tuple_swap_real(tuple_list *tup, 
-                                               unsigned long a, unsigned long b)
+  void ParallelMergeMesh::tuple_swap_real(tuple_list *tup, 
+					  unsigned long a, unsigned long b)
   {
     if(a==b) return;
     //Swap mi
@@ -377,52 +382,55 @@ namespace moab{
   }
 
   //Simple selection sort to test real
-  void ParallelMergeMesh::temp_tuple_sort_real(tuple_list *tup,
-					       double eps2)
+  void ParallelMergeMesh::tuple_sort_real(tuple_list *tup,
+					  double eps)
   {
     //Call the recursive function
-    temp_perform_sort_real(tup, 0, tup->n,eps2);
+    perform_sort_real(tup, 0, tup->n,eps);
   }
 
   //Perform the sorting of a tuple by real
   //To sort an entire tuple_list, call (tup,0,tup.n.epsilon) 
-  void ParallelMergeMesh::temp_perform_sort_real(tuple_list *tup, 
-                                                 unsigned long left, 
-                                                 unsigned long right,
-                                                 double eps2)
+  void ParallelMergeMesh::perform_sort_real(tuple_list *tup, 
+					    unsigned long left, 
+					    unsigned long right,
+					    double eps)
   {  
-    //If list size is only 1 return
+    //If list size is only 1 or 0 return
     if(left+1 >= right){
       return;
     }
     unsigned long swap = left, tup_l = left*tup->mr, tup_t = tup_l + tup->mr;
 
     //Swap the median with the left position for a (hopefully) better split
-    temp_tuple_swap_real(tup,left,(left+right)/2);
+    tuple_swap_real(tup,left,(left+right)/2);
 
     //Partition the data
     for(unsigned long t=left+1;t<right;t++){
       //If the left value(pivot) is greater than t_val, swap it into swap
-      if(greaterThan(tup,tup_l,tup_t,eps2)){
+      if(greater_than(tup,tup_l,tup_t,eps)){
 	swap++;
-	temp_tuple_swap_real(tup,swap,t);
+	tuple_swap_real(tup,swap,t);
       }
       tup_t+=tup->mr;
     }
     //Swap so that position swap is in the correct position
-    temp_tuple_swap_real(tup,left,swap);
+    tuple_swap_real(tup,left,swap);
 
     //Sort left and right of swap
-    temp_perform_sort_real(tup,left,swap,eps2);
-    temp_perform_sort_real(tup,swap+1,right,eps2);
+    perform_sort_real(tup,left,swap,eps);
+    perform_sort_real(tup,swap+1,right,eps);
   }
 
   //Note, this takes the actual tup->vr[] index (aka i*tup->mr)
-  bool ParallelMergeMesh::greaterThan(tuple_list *tup, unsigned long vrI, unsigned long vrJ, double eps2){
+  bool ParallelMergeMesh::greater_than(tuple_list *tup, 
+				       unsigned long vrI, 
+				       unsigned long vrJ, 
+				       double eps){
     unsigned check=0;
     while(check < tup->mr){
       //If the values are the same
-      if(fabs(tup->vr[vrI+check]-tup->vr[vrJ+check]) <= eps2){
+      if(fabs(tup->vr[vrI+check]-tup->vr[vrJ+check]) <= eps){
 	check++;
 	continue;
       }
