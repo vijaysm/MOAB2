@@ -2024,7 +2024,9 @@ ErrorCode FBEngine::compute_intersection_points(EntityHandle & face,
             {
               //find the edge between vertices
               std::vector<EntityHandle> edges1;
-              rval = _mbImpl->get_adjacencies(nn2, 2, 1, false, edges1,
+              // change the create flag to true, because that edge must exist in current triangle
+              // if we want to advance; nn2 are 2 nodes in current triangle!!
+              rval = _mbImpl->get_adjacencies(nn2, 2, 1, true, edges1,
                   Interface::INTERSECT);
               MBERRORR(rval, "Failed to get edges");
               if (edges1.size() != 1)
@@ -2081,7 +2083,9 @@ ErrorCode FBEngine::compute_intersection_points(EntityHandle & face,
               {
                 //find the edge between vertices
                 std::vector<EntityHandle> edges1;
-                rval = _mbImpl->get_adjacencies(nn2, 2, 1, false, edges1,
+                // change the create flag to true, because that edge must exist in current triangle
+                     // if we want to advance; nn2 are 2 nodes in current triangle!!
+                rval = _mbImpl->get_adjacencies(nn2, 2, 1, true, edges1,
                     Interface::INTERSECT);
                 MBERRORR(rval, "Failed to get edges");
                 if (edges1.size() != 1)
@@ -2664,7 +2668,8 @@ ErrorCode FBEngine::split_internal_edge(EntityHandle & edge, EntityHandle & newV
     // node i is opposite to edge i
     int num2 = (num1+1)%3;
     int num3 = (num2+1)%3;
-    EntityHandle t1[]={conn3[num1], conn3[num2], newVertex};
+    // the edge from num1 to num2 is split into 2 edges
+    EntityHandle t1[]={conn3[num2], conn3[num3], newVertex};
     EntityHandle t2[]={conn3[num1], newVertex, conn3[num3]};
     EntityHandle newTriangle, newTriangle2;
     rval = _mbImpl->create_element(MBTRI, t1, 3, newTriangle);
