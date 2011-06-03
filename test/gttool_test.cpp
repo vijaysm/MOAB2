@@ -53,6 +53,8 @@ ErrorCode create_shell_test(Interface * mb);
 
 ErrorCode duplicate_model_test(Interface * mb);
 
+ErrorCode check_model_test(Interface * mb);
+
 void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
 {
   if (rv == MB_SUCCESS) {
@@ -110,6 +112,11 @@ int main(int argc, char *argv[])
 
   std::cout << "duplicate model test: ";
   rval = duplicate_model_test( mb);
+  handle_error_code(rval, number_tests_failed, number_tests_successful);
+  std::cout << "\n";
+
+  std::cout << "check_model test: ";
+  rval = check_model_test( mb);
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
@@ -476,11 +483,38 @@ ErrorCode duplicate_model_test(Interface * mb)
     std::cout<<"Can't write output file\n";
     return rval;
   }
+  // do not delete it yet, delay after the next test
+  /*if (remove_output_file)
+  {
+    remove(ofile3.c_str());
+  }*/
+
+  return MB_SUCCESS;
+}
+ErrorCode check_model_test(Interface * mb)
+{
+  ErrorCode rval = mb->delete_mesh();
+  if (rval !=MB_SUCCESS)
+  {
+    std::cout<<"Can't delete existing mesh\n";
+    return rval;
+  }
+  rval = mb->load_file(ofile3.c_str());
+  assert(MB_SUCCESS==rval);
+
+
+    // do some tests on geometry
+
+    // it would be good to have a method on updating the geom topo tool
+    // so we do not have to create another one
   if (remove_output_file)
   {
     remove(ofile3.c_str());
   }
+  moab::GeomTopoTool gTopoTool(mb, true);
+
+  if (!gTopoTool.check_model())
+    return MB_FAILURE;
 
   return MB_SUCCESS;
 }
-

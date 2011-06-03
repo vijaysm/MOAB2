@@ -131,6 +131,7 @@ public:
 
   EntityHandle get_root_model_set() { return modelSet; }
 
+  bool check_model();
 private:
   Interface *mdbImpl;
   Tag sense2Tag;
