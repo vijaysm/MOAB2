@@ -12,8 +12,10 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
 
 if NETCDF_FILE
   EXODUS_TEST = exodus_test
+  NC_TEST = read_nc
 else
   EXODUS_TEST = 
+  NC_TEST = 
 endif
 
 if CCMIO_FILE
@@ -35,6 +37,7 @@ TESTS = readutil_test \
 	$(EXODUS_TEST) \
         gmsh_test \
 	nastran_test \
+	$(NC_TEST) \
         ideas_test \
         stl_test \
         smf_test \
@@ -53,6 +56,7 @@ cub_file_test_SOURCES = $(srcdir)/../TestUtil.hpp cub_file_test.cc
 exodus_test_SOURCES = $(srcdir)/../TestUtil.hpp exodus_test.cc
 gmsh_test_SOURCES = $(srcdir)/../TestUtil.hpp gmsh_test.cc
 nastran_test_SOURCES = $(srcdir)/../TestUtil.hpp nastran_test.cc
+read_nc_SOURCES = $(srcdir)/../TestUtil.hpp read_nc.cpp
 ideas_test_SOURCES = $(srcdir)/../TestUtil.hpp ideas_test.cc
 stl_test_SOURCES = $(srcdir)/../TestUtil.hpp stl_test.cc
 smf_test_SOURCES = $(srcdir)/../TestUtil.hpp smf_test.cc

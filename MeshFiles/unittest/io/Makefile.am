@@ -1,6 +1,7 @@
 EXTRA_DIST = brick_cubit10.1.cub \
              brick_cubit10.2.cub \
              brick_cubit10.cub \
+	     cam18x40x48.t2.nc \
 	     cubtest12.cub \
 	     cubtest.jou \
 	     dum.sat \
