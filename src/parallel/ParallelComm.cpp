@@ -2510,7 +2510,7 @@ ErrorCode ParallelComm::pack_sets(Range &entities,
     std::vector<int> id_data(n_sets);
     result = mbImpl->tag_get_handle("PARALLEL_UNIQUE_ID", 1, MB_TYPE_INTEGER, 
                                 uid_tag, MB_TAG_SPARSE|MB_TAG_CREAT);
-    if (MB_SUCCESS != result) {
+    if (MB_ALREADY_ALLOCATED != result && MB_SUCCESS != result) {
       RRA("Trouble creating parallel geometry unique id tag.");
     }
     result = mbImpl->tag_get_data(uid_tag, all_sets, &id_data[0]);
@@ -2665,7 +2665,7 @@ ErrorCode ParallelComm::unpack_sets(unsigned char *&buff_ptr,
     Tag uid_tag; int def_val = 0;
     result = mbImpl->tag_get_handle("PARALLEL_UNIQUE_ID", 1, MB_TYPE_INTEGER,
                                     uid_tag, MB_TAG_SPARSE|MB_TAG_CREAT, &def_val);
-    if (MB_SUCCESS != result) {
+    if (MB_ALREADY_ALLOCATED != result && MB_SUCCESS != result) {
       RRA("Trouble creating parallel geometry unique id tag.");
     }
 
