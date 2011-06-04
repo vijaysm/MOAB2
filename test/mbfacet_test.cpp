@@ -743,7 +743,7 @@ ErrorCode split_quads_test()
   // export split triangles model, after deleting the smooth tags
   pFacet->delete_smooth_tags();
 
-  std::string spl_file=quads_file+".split.h5m";
+  std::string spl_file="q.split.h5m";
   rval = mb->write_file(spl_file.c_str(), 0, 0, &root_set, 1);
   CHECK("can't write result file");
 

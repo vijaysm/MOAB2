@@ -20,5 +20,9 @@ EXTRA_DIST  = 125hex.g \
               testquad.g \
               testtet.g \
 	      ptest.cub \
-              64bricks_512hex.h5m 
+              64bricks_512hex.h5m \
+              partBed.smf \
+              PB.h5m  \
+              polyPB.txt \
+              quads.h5m
 
