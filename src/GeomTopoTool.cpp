@@ -304,28 +304,11 @@ ErrorCode GeomTopoTool::restore_topology()
   //     add it to list of parents
   //   . make parent/child links with parents
 
-  ErrorCode result;
-  // get the geom topology tag
-  if (0 == geomTag) {
-    result = mdbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geomTag);
-    if (MB_SUCCESS != result)
-      return result;
-  }
-
-  // get all sets with this tag
-  Range geom_sets;
-  result = mdbImpl->get_entities_by_type_and_tag(modelSet, MBENTITYSET, &geomTag,
-      NULL, 1, geom_sets);
-  if (MB_SUCCESS != result || geom_sets.empty())
-    return result;
-
-  Range entities[4];
-  result = separate_by_dimension(geom_sets, entities);
-  if (MB_SUCCESS != result)
-    return result;
+  // the  geomRanges are already known, separated by dimension
 
   std::vector<EntityHandle> parents;
   Range tmp_parents;
+  ErrorCode result;
 
   // loop over dimensions
   for (int dim = 2; dim >= 0; dim--) {
@@ -339,7 +322,7 @@ ErrorCode GeomTopoTool::restore_topology()
       continue;
     Range dp1ents;
     std::vector<EntityHandle> owners;
-    for (Range::iterator rit = entities[dim + 1].begin(); rit != entities[dim
+    for (Range::iterator rit = geomRanges[dim + 1].begin(); rit != geomRanges[dim
         + 1].end(); rit++) {
       dp1ents.clear();
       result = mdbImpl->get_entities_by_dimension(*rit, dim + 1, dp1ents);
@@ -352,8 +335,8 @@ ErrorCode GeomTopoTool::restore_topology()
         continue;
     }
 
-    for (Range::iterator d_it = entities[dim].begin(); d_it
-        != entities[dim].end(); d_it++) {
+    for (Range::iterator d_it = geomRanges[dim].begin(); d_it
+        != geomRanges[dim].end(); d_it++) {
       Range dents;
       result = mdbImpl->get_entities_by_dimension(*d_it, dim, dents);
       if (MB_SUCCESS != result)
@@ -384,8 +367,8 @@ ErrorCode GeomTopoTool::restore_topology()
           return result;
       }
 
-      // store surface senses
-      if (dim != 2)
+      // store surface senses within regions, and edge senses within surfaces
+      if (dim == 0)
         continue;
       const EntityHandle *conn3, *conn2;
       int len3, len2, err, num, sense, offset;
@@ -403,10 +386,11 @@ ErrorCode GeomTopoTool::restore_topology()
           return MB_FAILURE;
 
         result = set_sense(*d_it, parents[i], sense);
-        if (MB_MULTIPLE_ENTITIES_FOUND == result) {
-          std::cerr << "Warning: Multiple volumes use surface with same sense."
-              << std::endl << "         Some geometric sense data lost."
-              << std::endl;
+        if (MB_MULTIPLE_ENTITIES_FOUND == result ) {
+          if (2==dim)
+            std::cerr << "Warning: Multiple volumes use surface with same sense."
+                << std::endl << "         Some geometric sense data lost."
+                << std::endl;
         } else if (MB_SUCCESS != result) {
           return result;
         }
@@ -742,6 +726,8 @@ ErrorCode GeomTopoTool::get_senses(EntityHandle entity,
 
   }
   // filter the results with the sets that are in the model at this time
+  // this was introduced because extracting some sets (e.g. neumann set, with mbconvert)
+  //   from a model would leave some sense tags not defined correctly
   unsigned int currentSize =0;
   Range & possibleEntities = geomRanges[edim+1];
   for (unsigned int index=0; index<wrt_entities.size(); index++)

@@ -111,7 +111,8 @@ int main(int argc, char *argv[])
   Core mbcore;
   Interface * mb = &mbcore;
 
-  mb->load_file(filename.c_str());
+  ErrorCode rval = mb->load_file(filename.c_str());
+  PROCESS_ERROR(rval,"failed to load input file");
 
   FBEngine * pFacet = new FBEngine(mb, NULL, true);// smooth facetting, no OBB tree passed
 
@@ -120,7 +121,7 @@ int main(int argc, char *argv[])
 
   // should the init be part of constructor or not?
   // this is where the obb tree is constructed, and smooth faceting initialized, too.
-  ErrorCode rval = pFacet->Init();
+  rval = pFacet->Init();
   PROCESS_ERROR(rval,"failed to initialize smoothing");
 
   std::cout << "root set test: ";
@@ -455,14 +456,11 @@ ErrorCode ray_test(FBEngine * pFacet)
 
   CHECK("Failed to find ray intersections points ");
   for (unsigned int i = 0; i < intersect_entity_handles.size(); i++) {
-    int j;
-    rval = pFacet->getEntType(intersect_entity_handles[i], &j);
-    CHECK("Failed to get type of entity.");
 
-    std::cout << " entity of type " << j << " n: "
-        << intersect_entity_handles[i] << "\n" << intersect_coords[3 * i]
-        << " " << intersect_coords[3 * i + 1] << " " << intersect_coords[3 * i
-        + 2] << "\n" << " distance: " << param_coords[i] << "\n";
+    std::cout << " entity of type " << pFacet->moab_instance ()->type_from_handle(intersect_entity_handles[i]) <<
+        " id from handle: " << pFacet->moab_instance ()->id_from_handle(intersect_entity_handles[i])  <<
+        "\n" << intersect_coords[3 * i] << " " << intersect_coords[3 * i + 1] << " "
+        << intersect_coords[3 * i + 2] << "\n" << " distance: " << param_coords[i] << "\n";
   }
 
   return MB_SUCCESS;

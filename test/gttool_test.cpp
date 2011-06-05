@@ -74,16 +74,22 @@ int main(int argc, char *argv[])
   ofile3 = "shellCopy.h5m";
 
   remove_output_file = true;
+  bool only_check = false;
+
 
   if (argc == 1) {
     std::cout << "Using default input file and output files " << filename << " " << ofile <<
-        " " << ofile2 <<  ofile3 << std::endl;
+        " " << ofile2 <<  " " << ofile3 << std::endl;
   } else if (argc == 5) {
     filename = argv[1];
     ofile = argv[2];
     ofile2 = argv[3];
     ofile3 = argv[4];
     remove_output_file = false;
+  } else if (argc==2) {
+    ofile3 = argv[1];// check model only from file
+    only_check = true;
+    remove_output_file = false; // this is input now, do not delete it
   } else {
     std::cerr << "Usage: " << argv[0] << " [surface_mesh] [mbgeo_file] [shellfile] [copyshellfile] " << std::endl;
     return 1;
@@ -95,9 +101,18 @@ int main(int argc, char *argv[])
   Core mbcore;
   Interface * mb = &mbcore;
 
+  // use this as a tool to check a model
+  if (only_check)
+  {
+    if (MB_SUCCESS==check_model_test( mb))
+      std::cout << ofile3 << " passed gtt check\n";
+    return 0;
+  }
+
   mb->load_file(filename.c_str());
 
   //   FBEngine * pFacet = new FBEngine(mb, NULL, true);// smooth facetting, no OBB tree passed
+
 
 
   std::cout << "geometrize test: ";
