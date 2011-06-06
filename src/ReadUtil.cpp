@@ -341,7 +341,7 @@ static ErrorCode check_int_tag( Interface* mb, Tag tag )
 {
   int size;
   DataType type;
-  ErrorCode rval = mb->tag_get_size( tag, size );
+  ErrorCode rval = mb->tag_get_bytes( tag, size );
   if (MB_SUCCESS != rval)
     return rval;
   if (size != sizeof(int))

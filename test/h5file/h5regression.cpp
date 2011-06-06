@@ -129,9 +129,9 @@ void test_write_read_many_tags()
     CHECK_EQUAL( MB_TYPE_INTEGER, type );
     
     int size;
-    rval = mb.tag_get_size( t, size );
+    rval = mb.tag_get_length( t, size );
     CHECK_ERR(rval);
-    CHECK_EQUAL( (int)sizeof(int), size );
+    CHECK_EQUAL( 1, size );
     
     int def;
     rval = mb.tag_get_default_value( t, &def );

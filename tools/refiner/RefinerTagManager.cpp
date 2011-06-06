@@ -148,7 +148,7 @@ int RefinerTagManager::add_vertex_tag( Tag tag_handle )
   int offset = this->vertex_size; // old size is offset of tag being added
   int tag_size;
   TagType tagType;
-  if ( this->input_mesh->tag_get_size( tag_handle, tag_size ) != MB_SUCCESS )
+  if ( this->input_mesh->tag_get_bytes( tag_handle, tag_size ) != MB_SUCCESS )
     return -1;
 
   if ( this->input_mesh->tag_get_type( tag_handle, tagType ) != MB_SUCCESS )
@@ -196,7 +196,7 @@ int RefinerTagManager::add_element_tag( Tag tag_handle )
   int offset = this->element_size; // old size is offset of tag being added
   int tag_size;
   TagType tagType;
-  if ( this->input_mesh->tag_get_size( tag_handle, tag_size ) != MB_SUCCESS )
+  if ( this->input_mesh->tag_get_bytes( tag_handle, tag_size ) != MB_SUCCESS )
     return -1;
 
   if ( this->input_mesh->tag_get_type( tag_handle, tagType ) != MB_SUCCESS )
@@ -480,7 +480,7 @@ void RefinerTagManager::create_tag_internal( Tag tag_in, int offset )
 
   tag_rec.second = offset;
   this->input_mesh->tag_get_name( tag_in, tag_name );
-  this->input_mesh->tag_get_size( tag_in, tag_size );
+  this->input_mesh->tag_get_bytes( tag_in, tag_size );
   this->input_mesh->tag_get_type( tag_in, tag_type );
   this->input_mesh->tag_get_data_type( tag_in, tag_data_type );
   this->input_mesh->tag_get_default_value( tag_in, (void*) &tag_default[0] );

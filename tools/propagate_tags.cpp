@@ -281,7 +281,7 @@ int main( int argc, char* argv[] )
     data_tag.value = 0;
     data_tag.handle = ident_tags[0].handle;
   }
-  CALL( tag_get_size, (data_tag.handle, data_size) );
+  CALL( tag_get_bytes, (data_tag.handle, data_size) );
   
     // If write dat wasn't specified, use data tag 
   if (!write_tag_name)

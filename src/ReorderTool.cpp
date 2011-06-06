@@ -47,7 +47,7 @@ static ErrorCode check_tag_type( Interface* moab,
   rval = moab->tag_get_data_type( tag, act_type );
   CHKERR;
   
-  rval = moab->tag_get_size( tag, act_size );
+  rval = moab->tag_get_bytes( tag, act_size );
   CHKERR;
   
   if (act_type != exp_type || act_size != exp_size)
@@ -500,7 +500,7 @@ ErrorCode ReorderTool::reorder_tag_data( EntityType type, Tag new_handles, Tag t
   if (MB_TYPE_BIT == tagtype)
     tagsize = 1;
   else {
-    rval = mMB->tag_get_size( tag, tagsize );
+    rval = mMB->tag_get_bytes( tag, tagsize );
     if (MB_VARIABLE_DATA_LENGTH == rval)
       tagsize = -1;
     else if (MB_SUCCESS != rval) 
@@ -539,14 +539,25 @@ ErrorCode ReorderTool::reorder_tag_data( EntityType type, Tag new_handles, Tag t
   if (-1 == tagsize) { 
     pointers.resize(old_tagged.size());
     sizes.resize(pointers.size());
-    rval = mMB->tag_get_data( tag, old_tagged, &pointers[0], &sizes[0] );
+    rval = mMB->tag_get_by_ptr( tag, old_tagged, &pointers[0], &sizes[0] );
     CHKERR;
-    buffer.resize( std::accumulate( sizes.begin(), sizes.end(), 0 ) );
+    int total = std::accumulate( sizes.begin(), sizes.end(), 0 );
+    DataType type;
+    mMB->tag_get_data_type( tag, type );
+    int type_size;
+    switch (type) {
+      case MB_TYPE_INTEGER: type_size = sizeof(int);  break;
+      case MB_TYPE_DOUBLE:  type_size = sizeof(double); break;
+      case MB_TYPE_HANDLE:  type_size = sizeof(EntityHandle); break;
+      case MB_TYPE_BIT:     type_size = 1; break;
+      case MB_TYPE_OPAQUE:  type_size = 1; break;
+    }
+    buffer.resize( total*type_size );
     size_t off = 0;
     for (size_t j = 0; j < pointers.size(); ++j) {
-      memcpy( &buffer[off], pointers[j], sizes[j] );
+      memcpy( &buffer[off], pointers[j], type_size*sizes[j] );
       pointers[j] = &buffer[off];
-      off += sizes[j];
+      off += sizes[j] * type_size;
     }
   }
     // if fixed-length tag
@@ -570,7 +581,7 @@ ErrorCode ReorderTool::reorder_tag_data( EntityType type, Tag new_handles, Tag t
   
     // store re-orederd tag data
   if (-1 == tagsize) {
-    rval = mMB->tag_set_data( tag, &newhandles[0], newhandles.size(), &pointers[0], &sizes[0] );
+    rval = mMB->tag_set_by_ptr( tag, &newhandles[0], newhandles.size(), &pointers[0], &sizes[0] );
   }
   else {
     rval = mMB->tag_set_data( tag, &newhandles[0], newhandles.size(), &buffer[0] );

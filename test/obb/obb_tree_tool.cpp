@@ -244,21 +244,7 @@ ErrorCode get_root( Interface* moab, EntityHandle& root )
   rval = moab->tag_get_handle( root_tag, 1, MB_TYPE_HANDLE, tag );
   if (MB_SUCCESS != rval)
     return rval;
-  
-  int size;
-  rval = moab->tag_get_size( tag, size );
-  if (MB_SUCCESS != rval)
-    return rval;
-  if (size != sizeof(EntityHandle))
-    return MB_TAG_NOT_FOUND;
-  
-  DataType type;
-  rval = moab->tag_get_data_type( tag, type );
-  if (MB_SUCCESS != rval)
-    return rval;
-  if (MB_TYPE_HANDLE != type)
-    return MB_TAG_NOT_FOUND;
-  
+ 
   const EntityHandle mesh = 0;
   return moab->tag_get_data( tag, &mesh, 1, &root );
 }

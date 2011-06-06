@@ -665,34 +665,10 @@ bool compare_sets( int id, const char* tag_name = 0 )
 bool compare_tags( EntityHandle dod[] )
 {
   Tag tag;
-  int size;
-  DataType type;
-  TagType store;
-
 
     // Get integer tag handle and characterstics
-  if (MB_SUCCESS != iface->tag_get_handle( intname, 0, MB_TYPE_OPAQUE, tag, MB_TAG_ANY ))
+  if (MB_SUCCESS != iface->tag_get_handle( intname, 2, MB_TYPE_INTEGER, tag, MB_TAG_SPARSE|MB_TAG_STORE ))
     moab_error( "tag_get_handle(intname)" );
-  if (MB_SUCCESS!= iface->tag_get_size( tag, size ))
-    moab_error( "tag_get_size()" );
-  if (MB_SUCCESS != iface->tag_get_data_type( tag, type ))
-    moab_error( "tag_get_data_type()" );
-  if (MB_SUCCESS != iface->tag_get_type( tag, store ))
-    moab_error( "tag_get_type()" );
-    
-    // check that integer tag has correct characteristics
-  if (type != MB_TYPE_INTEGER) {
-    fprintf(stderr, "Incorrect DataType for integer tag.\n" );
-    return false;
-  }
-  if (size != 2*sizeof(int)) {
-    fprintf(stderr, "Incorrect size for integer tag.\n" );
-    return false;
-  }
-  if (store != MB_TAG_SPARSE) {
-    fprintf(stderr, "Incorrect storage type for integer tag.\n" );
-    return false;
-  }
   
     // integer tag should not have a default value
   int idata[4];
@@ -712,28 +688,8 @@ bool compare_tags( EntityHandle dod[] )
 
 
     // Get double tag handle and characterstics
-  if (MB_SUCCESS != iface->tag_get_handle( dblname, 0, MB_TYPE_OPAQUE, tag, MB_TAG_ANY ))
+  if (MB_SUCCESS != iface->tag_get_handle( dblname, 1, MB_TYPE_DOUBLE, tag, MB_TAG_DENSE|MB_TAG_STORE ))
     moab_error( "tag_get_handle(dblname)" );
-  if (MB_SUCCESS!= iface->tag_get_size( tag, size ))
-    moab_error( "tag_get_size()" );
-  if (MB_SUCCESS != iface->tag_get_data_type( tag, type ))
-    moab_error( "tag_get_data_type()" );
-  if (MB_SUCCESS != iface->tag_get_type( tag, store ))
-    moab_error( "tag_get_type()" );
-    
-    // check that double tag has correct characteristics
-  if (type != MB_TYPE_DOUBLE) {
-    fprintf(stderr, "Incorrect DataType for double tag.\n" );
-    return false;
-  }
-  if (size != sizeof(double)) {
-    fprintf(stderr, "Incorrect size for double tag.\n" );
-    return false;
-  }
-  if (store != MB_TAG_DENSE) {
-    fprintf(stderr, "Incorrect storage type for double tag.\n" );
-    return false;
-  }
   
     // check default value of double tag
   double ddata[2];
@@ -754,28 +710,8 @@ bool compare_tags( EntityHandle dod[] )
  
 
     // Get handle tag handle and characterstics
-  if (MB_SUCCESS != iface->tag_get_handle( handlename, 0, MB_TYPE_OPAQUE, tag, MB_TAG_ANY ))
+  if (MB_SUCCESS != iface->tag_get_handle( handlename, 3, MB_TYPE_HANDLE, tag, MB_TAG_SPARSE|MB_TAG_STORE ))
     moab_error( "tag_get_handle(handlename)" );
-  if (MB_SUCCESS!= iface->tag_get_size( tag, size ))
-    moab_error( "tag_get_size()" );
-  if (MB_SUCCESS != iface->tag_get_data_type( tag, type ))
-    moab_error( "tag_get_data_type()" );
-  if (MB_SUCCESS != iface->tag_get_type( tag, store ))
-    moab_error( "tag_get_type()" );
-    
-    // check that handle tag has correct characteristics
-  if (type != MB_TYPE_HANDLE) {
-    fprintf(stderr, "Incorrect DataType for handle tag.\n" );
-    return false;
-  }
-  if (size != 3*sizeof(EntityHandle)) {
-    fprintf(stderr, "Incorrect size for handle tag.\n" );
-    return false;
-  }
-  if (store != MB_TAG_SPARSE) {
-    fprintf(stderr, "Incorrect storage type for handle tag.\n" );
-    return false;
-  }
   
     // check default value of handle tag
     // default value will not change after tag is created.  As we
@@ -836,7 +772,7 @@ bool compare()
   Range::iterator iter;
   
   // get tag
-  if (MB_SUCCESS != iface->tag_get_handle( bitname, 0, MB_TYPE_OPAQUE, elemtag, MB_TAG_ANY ))
+  if (MB_SUCCESS != iface->tag_get_handle( bitname, 2, MB_TYPE_BIT, elemtag ))
     moab_error( "tag_get_handle" );
   
   // get two hexes

@@ -841,13 +841,8 @@ ErrorCode FBEngine::getArrData(const EntityHandle* entity_handles,
 {
   // responsibility of the user to have tag_values_out properly allocated
   // only some types of Tags are possible (double, int, etc)
-  int tag_size;
-  ErrorCode rval = MBI->tag_get_size(tag_handle, tag_size);
-  if (MB_SUCCESS != rval)
-    return rval;
-  rval = MBI->tag_get_data(tag_handle, entity_handles, entity_handles_size,
+  return MBI->tag_get_data(tag_handle, entity_handles, entity_handles_size,
       tag_values_out);
-  return rval;
 }
 
 ErrorCode FBEngine::setArrData(const EntityHandle* entity_handles,
@@ -855,13 +850,8 @@ ErrorCode FBEngine::setArrData(const EntityHandle* entity_handles,
 {
   // responsibility of the user to have tag_values_out properly allocated
   // only some types of Tags are possible (double, int, etc)
-  int tag_size;
-  ErrorCode rval = MBI->tag_get_size(tag_handle, tag_size);
-  if (MB_SUCCESS != rval)
-    return rval;
-  rval = MBI->tag_set_data(tag_handle, entity_handles, entity_handles_size,
+  return MBI->tag_set_data(tag_handle, entity_handles, entity_handles_size,
       tag_values);
-  return rval;
 }
 
 ErrorCode FBEngine::getEntAdj(EntityHandle handle, int type_requested,

@@ -66,7 +66,7 @@ void SimplexTemplateTagAssigner::operator () (
     {
     this->tag_manager->get_input_vertex_tag( i, tag_handle, tag_offset );
     this->tag_manager->get_input_mesh()->tag_get_data_type( tag_handle, data_type );
-    this->tag_manager->get_input_mesh()->tag_get_size( tag_handle, tag_size );
+    this->tag_manager->get_input_mesh()->tag_get_bytes( tag_handle, tag_size );
     
     switch ( data_type )
       {

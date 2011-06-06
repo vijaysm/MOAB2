@@ -662,7 +662,13 @@ public:
                                              std::vector<Tag> &tag_handles) const;
 
   //! get size of tag in bytes
-  virtual ErrorCode tag_get_size(const Tag, int &tag_size) const;
+  virtual ErrorCode tag_get_size(const Tag tag, int &tag_size) const MB_DEPRECATED;
+
+    //! Get the size of the specified tag in bytes
+  virtual ErrorCode tag_get_bytes(const Tag tag, int& bytes_per_tag) const;
+
+    //! Get the array length of a tag
+  virtual ErrorCode tag_get_length(const Tag tag, int &length) const;
 
     //! Get the default value of the specified tag
   virtual ErrorCode tag_get_default_value(const Tag tag, void *def_val) const;
@@ -732,7 +738,7 @@ public:
                                   const EntityHandle* entity_handles, 
                                   int num_entities, 
                                   const void** tag_data,
-                                  int* tag_sizes = 0 ) const;
+                                  int* tag_sizes = 0 ) const MB_DEPRECATED;
 
     /**\brief Get pointers to tag data
      *
@@ -748,7 +754,7 @@ public:
   virtual ErrorCode  tag_get_data(const Tag tag_handle, 
                                     const Range& entity_handles, 
                                     const void** tag_data,
-                                    int* tag_sizes = 0 ) const;
+                                    int* tag_sizes = 0 ) const MB_DEPRECATED;
 
     /**\brief Set tag data given an array of pointers to tag values.
      *
@@ -767,7 +773,7 @@ public:
                                    const EntityHandle* entity_handles, 
                                    int num_entities,
                                    void const* const* tag_data ,
-                                   const int* tag_sizes = 0 );
+                                   const int* tag_sizes = 0 ) MB_DEPRECATED;
   
     /**\brief Set tag data given an array of pointers to tag values.
      *
@@ -783,7 +789,81 @@ public:
   virtual ErrorCode  tag_set_data( Tag tag_handle, 
                                    const Range& entity_handles,
                                    void const* const* tag_data,
+                                   const int* tag_sizes = 0 ) MB_DEPRECATED;
+
+    /**\brief Get pointers to tag data
+     *
+     * For a tag, get the values for a list of passed entity handles.
+     *\note  This function may not be used for bit tags.
+     *\param tag_handle     The tag
+     *\param entity_handles An array of entity handles for which to retreive tag values.
+     *\param num_entities   The length of the 'entity_handles' array.
+     *\param tag_data       An array of 'const void*'.  Array must be at least
+     *                      'num_entitities' long.  Array is populated (output)
+     *                      with pointers to the internal storage for the
+     *                      tag value corresponding to each entity handle.
+     *\param tag_sizes      The length of each tag value.  Optional for 
+     *                      fixed-length tags.  Required for variable-length tags.
+     */
+  virtual ErrorCode  tag_get_by_ptr(const Tag tag_handle, 
+                                  const EntityHandle* entity_handles, 
+                                  int num_entities, 
+                                  const void** tag_data,
+                                  int* tag_sizes = 0 ) const;
+
+    /**\brief Get pointers to tag data
+     *
+     * For a tag, get the values for a list of passed entity handles.
+     *\note  This function may not be used for bit tags.
+     *\param tag_handle     The tag
+     *\param entity_handles The entity handles for which to retreive tag values.
+     *\param tag_data       An array of 'const void*'.  Array is populated (output)
+     *                      with pointers to the internal storage for the
+     *                      tag value corresponding to each entity handle.
+     *\param tag_sizes      The length of each tag value.  Optional for 
+     *                      fixed-length tags.  Required for variable-length tags.
+     */
+  virtual ErrorCode  tag_get_by_ptr(const Tag tag_handle, 
+                                    const Range& entity_handles, 
+                                    const void** tag_data,
+                                    int* tag_sizes = 0 ) const;
+
+    /**\brief Set tag data given an array of pointers to tag values.
+     *
+     * For a tag, set the values for a list of passed entity handles.
+     *\note  This function may not be used for bit tags.
+     *\param tag_handle     The tag
+     *\param entity_handles An array of entity handles for which to set tag values.
+     *\param num_entities   The length of the 'entity_handles' array.
+     *\param tag_data       An array of 'const void*'.  Array must be at least
+     *                      'num_entitities' long.  Array is expected to
+     *                      contain pointers to tag values for the corresponding
+     *                      EntityHandle in 'entity_handles'.
+     *\param tag_sizes      The length of each tag value.  Optional for 
+     *                      fixed-length tags.  Required for variable-length tags.
+     */
+  virtual ErrorCode  tag_set_by_ptr( Tag tag_handle, 
+                                   const EntityHandle* entity_handles, 
+                                   int num_entities,
+                                   void const* const* tag_data,
                                    const int* tag_sizes = 0 );
+  
+    /**\brief Set tag data given an array of pointers to tag values.
+     *
+     * For a tag, set the values for a list of passed entity handles.
+     *\note  This function may not be used for bit tags.
+     *\param tag_handle     The tag
+     *\param entity_handles The entity handles for which to set tag values.
+     *\param tag_data       An array of 'const void*'.  Array is expected to
+     *                      contain pointers to tag values for the corresponding
+     *                      EntityHandle in 'entity_handles'.
+     *\param tag_sizes      The length of each tag value.  Optional for 
+     *                      fixed-length tags.  Required for variable-length tags.
+     */
+  virtual ErrorCode  tag_set_by_ptr( Tag tag_handle, 
+                                    const Range& entity_handles,
+                                    void const* const* tag_data,
+                                    const int* tag_sizes = 0 );
 
     /**\brief Set tag data given value.
      *

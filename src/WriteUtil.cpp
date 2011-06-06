@@ -799,7 +799,7 @@ ErrorCode WriteUtil::get_tag_list( std::vector<Tag>& result_list,
       
       int size;
       if (!include_variable_length_tags &&
-          MB_VARIABLE_DATA_LENGTH == mMB->tag_get_size( user_tag_list[i], size )) {
+          MB_VARIABLE_DATA_LENGTH == mMB->tag_get_length( user_tag_list[i], size )) {
         report_error( "File format cannot store variable-length tag: \"%s\".", name.c_str() );
         return MB_TYPE_OUT_OF_RANGE;
       }
@@ -838,7 +838,7 @@ ErrorCode WriteUtil::get_tag_list( std::vector<Tag>& result_list,
         // if reqested, skip variable-length tags
       int size;
       if (!include_variable_length_tags &&
-          MB_VARIABLE_DATA_LENGTH == mMB->tag_get_size( *i, size ))
+          MB_VARIABLE_DATA_LENGTH == mMB->tag_get_length( *i, size ))
         continue;
       
        result_list.push_back( *i );

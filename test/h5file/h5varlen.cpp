@@ -104,15 +104,15 @@ void test_var_length_data_common( const char* filename, Interface& mb1, bool opa
     EntityHandle h = *i;
       // generate some data to write
     int num_values = h % 6 + 1;
-    EntityType type = mb1.type_from_handle(h);
-    int step = (h%2) ? 1+(int)type : -1-(int)type;
+    EntityType etype = mb1.type_from_handle(h);
+    int step = (h%2) ? 1+(int)etype : -1-(int)etype;
     std::vector<int> tag_data( num_values, num_values );
     for (int j = 1; j < num_values; ++j)
       tag_data[j] = j*step;
       // set tag data
     const void* ptrarr[]= { &tag_data[0] };
-    num_values *= sizeof(int);    
-    rval = mb1.tag_set_data(tag, &h,1, ptrarr, &num_values );
+    if (opaque) num_values *= sizeof(int);
+    rval = mb1.tag_set_by_ptr(tag, &h,1, ptrarr, &num_values );
     CHECK_ERR(rval);
   }
   
@@ -138,14 +138,16 @@ void test_var_length_data_common( const char* filename, Interface& mb1, bool opa
       // get data
     const void* ptrarr[] = { NULL };
     int size;
-    rval = mb2.tag_get_data( tag, &*i, 1, ptrarr, &size );
+    rval = mb2.tag_get_by_ptr( tag, &*i, 1, ptrarr, &size );
     CHECK_ERR(rval);
+    if (opaque) {
+      CHECK_EQUAL( (size_t)0, size % sizeof(int) );
+      size /= sizeof(int);
+    }
     const int* dataptr = reinterpret_cast<const int*>(ptrarr[0]);
     CHECK( NULL != dataptr );
       // check size 
     CHECK( size > 0 );
-    CHECK_EQUAL( 0ul, (unsigned long)(size % sizeof(int)) );
-    size /= sizeof(int);
     CHECK_EQUAL( size, dataptr[0] );
       // check other values
     if (size > 2) {
@@ -210,8 +212,8 @@ void test_var_length_big_data()
   for (int i = 0; i < 3; ++i) {
     calculate_big_value( mb1, verts[i], data.size(), &data[0] );
     const void* ptr = &data[0];
-    const int size = data.size() * sizeof(double);
-    rval = mb1.tag_set_data( tag, verts + i, 1, &ptr, &size );
+    const int size = data.size();
+    rval = mb1.tag_set_by_ptr( tag, verts + i, 1, &ptr, &size );
     CHECK_ERR(rval);
   }
   
@@ -235,9 +237,9 @@ void test_var_length_big_data()
       // get actual value
     const void* ptr;
     int size;
-    rval = mb2.tag_get_data( tag, &h, 1, &ptr, &size );
+    rval = mb2.tag_get_by_ptr( tag, &h, 1, &ptr, &size );
     CHECK_ERR(rval);
-    CHECK_EQUAL( data.size() * sizeof(double), (size_t)size );
+    CHECK_EQUAL( data.size(), (size_t)size );
     
       // compare values
     const double* act_data = reinterpret_cast<const double*>(ptr);
@@ -301,15 +303,15 @@ void test_global_value_common( bool mesh_value )
   
   // if doing mesh tag, set it
   if (mesh_value) {
-    int size = 3*sizeof(EntityHandle);
+    int size = 3;
     const void* ptrarr[] = { handles };
     const EntityHandle root = 0;
-    rval = mb.tag_set_data( handle_tag, &root, 1, ptrarr, &size );
+    rval = mb.tag_set_by_ptr( handle_tag, &root, 1, ptrarr, &size );
     CHECK_ERR(rval);
     
-    size = 9*sizeof(double);
+    size = 9;
     ptrarr[0] = coords;
-    rval = mb.tag_set_data( coord_tag, &root, 1, ptrarr, &size );
+    rval = mb.tag_set_by_ptr( coord_tag, &root, 1, ptrarr, &size );
     CHECK_ERR(rval);
   }
   
@@ -332,9 +334,9 @@ void test_global_value_common( bool mesh_value )
   const void* ptrs[2];
   if (mesh_value) {
     const EntityHandle root = 0;
-    rval = mb2.tag_get_data( handle_tag, &root, 1, ptrs, &handle_tag_size );
+    rval = mb2.tag_get_by_ptr( handle_tag, &root, 1, ptrs, &handle_tag_size );
     CHECK_ERR(rval);
-    rval = mb2.tag_get_data( coord_tag, &root, 1, ptrs+1, &coord_tag_size );
+    rval = mb2.tag_get_by_ptr( coord_tag, &root, 1, ptrs+1, &coord_tag_size );
     CHECK_ERR(rval);
   }
   else {
@@ -345,8 +347,8 @@ void test_global_value_common( bool mesh_value )
   }
   
     // check expected sizes
-  CHECK_EQUAL( 3*sizeof(EntityHandle), (size_t)handle_tag_size );
-  CHECK_EQUAL( 9*sizeof(double), (size_t)coord_tag_size );
+  CHECK_EQUAL( 3, handle_tag_size );
+  CHECK_EQUAL( 9, coord_tag_size );
   CHECK( ptrs[0] != NULL );
   CHECK( ptrs[1] != NULL );
   
@@ -407,7 +409,7 @@ void test_global_opaque_common( bool mesh_value )
   if (mesh_value) {
     const void* ptrarr[] = { data };
     const EntityHandle root = 0;
-    rval = mb.tag_set_data( tag, &root, 1, ptrarr, &datalen );
+    rval = mb.tag_set_by_ptr( tag, &root, 1, ptrarr, &datalen );
     CHECK_ERR(rval);
   }
   
@@ -427,7 +429,7 @@ void test_global_opaque_common( bool mesh_value )
   const void* ptrs[1];
   if (mesh_value) {
     const EntityHandle root = 0;
-    rval = mb2.tag_get_data( tag, &root, 1, ptrs, &tag_size );
+    rval = mb2.tag_get_by_ptr( tag, &root, 1, ptrs, &tag_size );
     CHECK_ERR(rval);
   }
   else {
@@ -482,9 +484,9 @@ void test_var_length_handle_tag()
     EntityHandle h = *i;
     EntityType type = mb1.type_from_handle( h );
     if (type == MBVERTEX) {
-      const int size = sizeof(EntityHandle);
+      const int size = 1;
       const void* ptr = &h;
-      rval = mb1.tag_set_data( tag, &h, 1, &ptr, &size );
+      rval = mb1.tag_set_by_ptr( tag, &h, 1, &ptr, &size );
       CHECK_ERR(rval);
       ++num_tagged_entities;
     }
@@ -493,9 +495,8 @@ void test_var_length_handle_tag()
       const EntityHandle* conn = 0;
       rval = mb1.get_connectivity( h, conn, size );
       CHECK_ERR(rval);
-      size *= sizeof(EntityHandle);
       const void* ptr = conn;
-      rval = mb1.tag_set_data( tag, &h, 1, &ptr, &size );
+      rval = mb1.tag_set_by_ptr( tag, &h, 1, &ptr, &size );
       CHECK_ERR(rval);
       ++num_tagged_entities;
    }
@@ -520,11 +521,9 @@ void test_var_length_handle_tag()
     
     const void* ptr;
     int size;
-    rval = mb2.tag_get_data( tag, &h, 1, &ptr, &size );
+    rval = mb2.tag_get_by_ptr( tag, &h, 1, &ptr, &size );
     CHECK_ERR(rval);
     
-    CHECK_EQUAL( (size_t)0, (size_t)size % sizeof(EntityHandle) );
-    size /= sizeof(EntityHandle);
     const EntityHandle* handles = reinterpret_cast<const EntityHandle*>(ptr);
     
     if (mb2.type_from_handle(h) == MBVERTEX) {
@@ -590,8 +589,8 @@ void compare_tags( const char* name, Interface& mb1, Interface& mb2 )
   CHECK_ERR(rval);
   
   int size;
-  CHECK_EQUAL( MB_VARIABLE_DATA_LENGTH, mb1.tag_get_size( tag1, size ) );
-  CHECK_EQUAL( MB_VARIABLE_DATA_LENGTH, mb2.tag_get_size( tag2, size ) );
+  CHECK_EQUAL( MB_VARIABLE_DATA_LENGTH, mb1.tag_get_length( tag1, size ) );
+  CHECK_EQUAL( MB_VARIABLE_DATA_LENGTH, mb2.tag_get_length( tag2, size ) );
   
   TagType storage1, storage2;
   rval = mb1.tag_get_type( tag1, storage1 );

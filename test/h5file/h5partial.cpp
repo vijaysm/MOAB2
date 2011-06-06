@@ -521,8 +521,7 @@ void create_mesh( bool create_element_sets,
       if (i < MBQUAD_INT && j < MBQUAD_INT) val[num++] = quads[j  ][i  ];
       if (i < MBQUAD_INT && j > 0       ) val[num++] = quads[j-1][i  ];
       const void* ptr = val;
-      num *= sizeof(EntityHandle);
-      rval = mb.tag_set_data( handle_tag, &verts[j][i], 1, &ptr, &num );
+      rval = mb.tag_set_by_ptr( handle_tag, &verts[j][i], 1, &ptr, &num );
       CHECK_ERR(rval);
     }
   }
@@ -654,7 +653,7 @@ Tag check_tag( Interface& mb,
 {
   
   Tag tag;
-  ErrorCode rval = mb.tag_get_handle( name, size, type, tag, MB_TAG_BYTES );
+  ErrorCode rval = mb.tag_get_handle( name, size, type, tag );
   CHECK_ERR(rval);
 
   TagType storage1;
@@ -668,7 +667,7 @@ Tag check_tag( Interface& mb,
   CHECK_EQUAL( type, type1 );
   
   int size1;
-  rval = mb.tag_get_size( tag, size1 );
+  rval = mb.tag_get_length( tag, size1 );
   if (size <= 0) { // variable-length tag
     CHECK_EQUAL( MB_VARIABLE_DATA_LENGTH, rval );
   }
@@ -692,7 +691,7 @@ void test_read_double_tag()
   rval = mb.load_file( TEST_FILE, 0, READ_OPTS, ID_TAG_NAME, ids, 2 );
   CHECK_ERR(rval);
   
-  Tag tag = check_tag( mb, CENTROID_NAME, MB_TAG_DENSE, MB_TYPE_DOUBLE, 3*sizeof(double) );
+  Tag tag = check_tag( mb, CENTROID_NAME, MB_TAG_DENSE, MB_TYPE_DOUBLE, 3 );
   Range verts;
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
@@ -751,7 +750,7 @@ static void test_read_handle_tag_common( bool var_len )
   CHECK_ERR(rval);
   
   Tag tag = check_tag( mb, tag_name, MB_TAG_DENSE, MB_TYPE_HANDLE, 
-                         var_len ? 0 : 4*sizeof(EntityHandle) );
+                         var_len ? 0 : 4 );
   Range verts;
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
@@ -764,10 +763,8 @@ static void test_read_handle_tag_common( bool var_len )
     
     int num;
     const void* ptr;
-    rval = mb.tag_get_data( tag, &*i, 1, &ptr, &num );
+    rval = mb.tag_get_by_ptr( tag, &*i, 1, &ptr, &num );
     CHECK_ERR(rval);
-    CHECK_EQUAL( 0, num % (int)sizeof(EntityHandle) );
-    num /= sizeof(EntityHandle);
     
     if (var_len) {
       CHECK( num > 0 );

@@ -194,9 +194,8 @@ static ErrorCode check_handle_tag_type( Tag t, MBiMesh* mbi )
   rval = mb->tag_get_data_type( t, type );
   if (MB_SUCCESS != rval) return rval;
   if (MB_TYPE_HANDLE != type) return MB_TYPE_OUT_OF_RANGE;
-  rval = mb->tag_get_size( t, size );
+  rval = mb->tag_get_length( t, size );
   if (MB_SUCCESS != rval) return rval;
-  size /= sizeof(EntityHandle);
   std::vector<EntityHandle> data(size);
 
     // check for global/mesh value
@@ -242,7 +241,7 @@ static void remove_var_len_tags( Interface* mb, std::vector<Tag>& tags )
   int size;
   size_t r, w = 0;
   for (r = 0; r < tags.size(); ++r)
-    if (MB_SUCCESS == mb->tag_get_size( tags[r], size ))
+    if (MB_SUCCESS == mb->tag_get_length( tags[r], size ))
       tags[w++] = tags[r];
 }
 
@@ -1619,7 +1618,7 @@ extern "C" {
         // check if tag value is set on mesh
       const void* data_ptr;
       EntityHandle root = 0;
-      result = MOABI->tag_get_data( this_tag, &root, 1, &data_ptr );
+      result = MOABI->tag_get_by_ptr( this_tag, &root, 1, &data_ptr );
       if (MB_SUCCESS == result)
         ERROR(iBase_TAG_IN_USE, "iMesh_destroyTag: forced=false and mesh"
               " is still assigned this tag.");
@@ -1680,29 +1679,8 @@ extern "C" {
                               /*in*/ const iBase_TagHandle tag_handle,
                               int *tag_size_val, int *err)
   {
-    ErrorCode result = MOABI->tag_get_size(TAG_HANDLE(tag_handle), *tag_size_val);
+    ErrorCode result = MOABI->tag_get_length(TAG_HANDLE(tag_handle), *tag_size_val);
     CHKERR(result, "iMesh_getTagSize: problem getting size.");
-
-    DataType this_type;
-    result = MOABI->tag_get_data_type(TAG_HANDLE(tag_handle), this_type);
-    CHKERR(result, "iMesh_getTagSize: problem getting type.");
-
-    switch (this_type) {
-      case MB_TYPE_INTEGER:
-        *tag_size_val /= sizeof(int);
-        break;
-      case MB_TYPE_DOUBLE:
-        *tag_size_val /= sizeof(double);
-        break;
-      case MB_TYPE_HANDLE:
-        *tag_size_val /= sizeof(EntityHandle);
-        break;
-      case MB_TYPE_BIT:
-        *tag_size_val = 1;
-        break;
-      case MB_TYPE_OPAQUE:
-        break;
-    }
 
     RETURN(iBase_SUCCESS);
   }
@@ -1711,17 +1689,8 @@ extern "C" {
                              /*in*/ const iBase_TagHandle tag_handle,
                              int *tag_size_bytes, int *err)
   {
-    DataType this_type;
-    ErrorCode result = MOABI->tag_get_data_type(TAG_HANDLE(tag_handle), this_type);
-    CHKERR(result, "iMesh_getTagSize: problem getting type.");
-
-    if (MB_TYPE_BIT == this_type)
-      *tag_size_bytes = 1;
-    else {
-      result = MOABI->tag_get_size(TAG_HANDLE(tag_handle), *tag_size_bytes);
-      CHKERR(result, "iMesh_getTagSize: problem getting size.");
-    }
-    RETURN(iBase_SUCCESS);
+    ErrorCode result = MOABI->tag_get_bytes(TAG_HANDLE(tag_handle), *tag_size_bytes);
+    CHKERR(result, "iMesh_getTagSize: problem getting size.");
   }
 
   void iMesh_getTagHandle(iMesh_Instance instance,
@@ -1744,7 +1713,7 @@ extern "C" {
 
       // do not return variable-length tags through ITAPS API
     int size;
-    if (MB_SUCCESS != MOABI->tag_get_size( TAG_HANDLE(*tag_handle), size ))
+    if (MB_SUCCESS != MOABI->tag_get_length( TAG_HANDLE(*tag_handle), size ))
       RETURN(iBase_TAG_NOT_FOUND);
 
     RETURN(iBase_SUCCESS);
@@ -1822,7 +1791,7 @@ extern "C" {
     Tag tag = TAG_HANDLE(tag_handle);
 
     int tag_size;
-    ErrorCode result = MOABI->tag_get_size(tag, tag_size);
+    ErrorCode result = MOABI->tag_get_bytes(tag, tag_size);
     CHKERR(result, "iMesh_getEntSetData: couldn't get tag size.");
 
     ALLOC_CHECK_TAG_ARRAY(tag_value, tag_size);
@@ -2007,7 +1976,7 @@ extern "C" {
     Tag tag = TAG_HANDLE(tag_handle);
 
     int tag_size;
-    ErrorCode result = MOABI->tag_get_size(tag, tag_size);
+    ErrorCode result = MOABI->tag_get_bytes(tag, tag_size);
     if (MB_SUCCESS != result) {
       int nerr=-1; char tagn[64], msg[256];
       iMesh_getTagName(instance, tag_handle, tagn, &nerr, sizeof(tagn));

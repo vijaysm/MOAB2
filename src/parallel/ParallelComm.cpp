@@ -2914,7 +2914,9 @@ ErrorCode ParallelComm::pack_tag( Tag src_tag,
   TagType this_type;
   result = mbImpl->tag_get_type(dst_tag, this_type);
   PACK_INT(buff->buff_ptr, (int)this_type);
-  PACK_INT(buff->buff_ptr, (int)(src_tag->get_data_type()));
+  DataType data_type = src_tag->get_data_type();
+  PACK_INT(buff->buff_ptr, (int)data_type);
+  int type_size = TagInfo::size_from_data_type(data_type);
 
     // default value
   if (NULL == src_tag->get_default_value()) {
@@ -2957,14 +2959,14 @@ ErrorCode ParallelComm::pack_tag( Tag src_tag,
   if (src_tag->get_size() == MB_VARIABLE_LENGTH) {
     var_len_sizes.resize( num_ent, 0 );
     var_len_values.resize( num_ent, 0 );
-    result = mbImpl->tag_get_data(src_tag, tagged_entities, &var_len_values[0], 
+    result = mbImpl->tag_get_by_ptr(src_tag, tagged_entities, &var_len_values[0], 
                                   &var_len_sizes[0] );
     RRA("Failed to get variable-length tag data in pack_tags.");
     buff->check_space(num_ent*sizeof(int));
     PACK_INTS(buff->buff_ptr, &var_len_sizes[0], num_ent);
     for (unsigned int i = 0; i < num_ent; ++i) {
       buff->check_space(var_len_sizes[i]);
-      PACK_VOID(buff->buff_ptr, var_len_values[i], var_len_sizes[i]);
+      PACK_VOID(buff->buff_ptr, var_len_values[i], type_size*var_len_sizes[i]);
     }
   }
   else {
@@ -3090,6 +3092,10 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
       RRA("Failed to get local handles for tag vals.");
     }
 
+    DataType data_type;
+    mbImpl->tag_get_data_type( tag_handle, data_type );
+    int type_size = TagInfo::size_from_data_type(data_type);
+
     if (!dum_ents.empty()) {
       if (tag_size == MB_VARIABLE_LENGTH) {
           // Be careful of alignment here.  If the integers are aligned
@@ -3104,10 +3110,10 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
         for (std::vector<EntityHandle>::size_type j = 0; 
              j < (std::vector<EntityHandle>::size_type) num_ents; ++j) {
           var_len_vals[j] = buff_ptr;
-          buff_ptr += var_lengths[j];
+          buff_ptr += var_lengths[j]*type_size;
           UPC(var_lengths[j], " void");
         }
-        result = mbImpl->tag_set_data( tag_handle, &dum_ents[0], num_ents,
+        result = mbImpl->tag_set_by_ptr( tag_handle, &dum_ents[0], num_ents,
                                        &var_len_vals[0], &var_lengths[0]);
         RRA("Trouble setting tag data when unpacking variable-length tag.");
       }
@@ -6124,9 +6130,9 @@ ErrorCode ParallelComm::exchange_tags( const std::vector<Tag> &src_tags,
         RRA("get_entities_by_type_and_tag(type == MBMAXTYPE) failed.");
 
         int size, size2;
-        result = mbImpl->tag_get_size( src_tags[i], size );
+        result = mbImpl->tag_get_bytes( src_tags[i], size );
         RRA("tag_get_size failed.");
-        result = mbImpl->tag_get_size( dst_tags[i], size2 );
+        result = mbImpl->tag_get_bytes( dst_tags[i], size2 );
         RRA("tag_get_size failed.");
         if (size != size2) {
           result = MB_FAILURE;
@@ -6916,7 +6922,7 @@ ErrorCode ParallelComm::get_owning_part( EntityHandle handle,
     // If here, then the entity is shared with at least two other processors.
     // Get the list from the sharedps_tag
   const void* part_id_list = 0;
-  result = mbImpl->tag_get_data( sharedps_tag(), &handle, 1, &part_id_list );
+  result = mbImpl->tag_get_by_ptr( sharedps_tag(), &handle, 1, &part_id_list );
   if (MB_SUCCESS != result)
     return result;
   owning_part_id = ((const int*)part_id_list)[0];
@@ -6927,7 +6933,7 @@ ErrorCode ParallelComm::get_owning_part( EntityHandle handle,
   
     // get remote handles
   const void* handle_list = 0;
-  result = mbImpl->tag_get_data( sharedhs_tag(), &handle, 1, &handle_list );
+  result = mbImpl->tag_get_by_ptr( sharedhs_tag(), &handle, 1, &handle_list );
   if (MB_SUCCESS != result)
     return result;
   

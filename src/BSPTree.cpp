@@ -139,7 +139,7 @@ BSPTree::~BSPTree()
     EntityHandle tree = createdTrees.back();
       // make sure this is a tree (rather than some other, stale handle)
     const void* data_ptr = 0;
-    ErrorCode rval = moab()->tag_get_data( rootTag, &tree, 1, &data_ptr );
+    ErrorCode rval = moab()->tag_get_by_ptr( rootTag, &tree, 1, &data_ptr );
     if (MB_SUCCESS == rval)
       rval = delete_tree( tree );
     if (MB_SUCCESS != rval)

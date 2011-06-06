@@ -380,9 +380,9 @@ void test_read_int_tag( const char* filename )
   
     // check tag properties
   int size;
-  rval = mb.tag_get_size( tag, size );
+  rval = mb.tag_get_length( tag, size );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (int)(2*sizeof(int)), size );
+  CHECK_EQUAL( 2, size );
   TagType storage;
   rval = mb.tag_get_type( tag, storage );
   CHECK_ERR(rval);
@@ -439,9 +439,9 @@ void test_read_real_tag( const char* filename )
   
     // check tag properties
   int size;
-  rval = mb.tag_get_size( tag, size );
+  rval = mb.tag_get_length( tag, size );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (int)(8*sizeof(double)), size );
+  CHECK_EQUAL( 8, size );
   TagType storage;
   rval = mb.tag_get_type( tag, storage );
   CHECK_ERR(rval);
@@ -502,9 +502,9 @@ void test_read_handle_tag( const char* filename )
   
     // check tag properties
   int size;
-  rval = mb.tag_get_size( tag, size );
+  rval = mb.tag_get_length( tag, size );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (int)sizeof(EntityHandle), size );
+  CHECK_EQUAL( 1, size );
   TagType storage;
   rval = mb.tag_get_type( tag, storage );
   CHECK_ERR(rval);
@@ -546,7 +546,7 @@ void test_read_bit_tag( const char* filename )
   
     // check tag properties
   int size;
-  rval = mb.tag_get_size( tag, size );
+  rval = mb.tag_get_length( tag, size );
   CHECK_ERR(rval);
   CHECK_EQUAL( 1, size );
   TagType storage;

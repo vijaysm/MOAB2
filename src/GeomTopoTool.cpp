@@ -555,16 +555,15 @@ ErrorCode GeomTopoTool::set_sense(EntityHandle entity, EntityHandle wrt_entity,
       senses.push_back(sense);
     }
     // finally, set the senses :
-    int dum_size = higher_ents.size() * sizeof(EntityHandle);
+    int dum_size = higher_ents.size();
     void *dum_ptr = &higher_ents[0];
-    rval
-        = mdbImpl->tag_set_data(senseNEntsTag, &entity, 1, &dum_ptr, &dum_size);
+    rval = mdbImpl->tag_set_by_ptr(senseNEntsTag, &entity, 1, &dum_ptr, &dum_size);
     if (MB_SUCCESS != rval)
       return rval;
 
     dum_ptr = &senses[0];
-    dum_size = higher_ents.size() * sizeof(int);
-    rval = mdbImpl->tag_set_data(senseNSensesTag, &entity, 1, &dum_ptr,
+    dum_size = higher_ents.size();
+    rval = mdbImpl->tag_set_by_ptr(senseNSensesTag, &entity, 1, &dum_ptr,
         &dum_size);
     if (MB_SUCCESS != rval)
       return rval;
@@ -682,21 +681,18 @@ ErrorCode GeomTopoTool::get_senses(EntityHandle entity,
       return rval;
     const void *dum_ptr;
     int num_ents;
-    rval
-        = mdbImpl->tag_get_data(senseNEntsTag, &entity, 1, &dum_ptr, &num_ents);
+    rval = mdbImpl->tag_get_by_ptr(senseNEntsTag, &entity, 1, &dum_ptr, &num_ents);
     if (MB_SUCCESS != rval)
       return rval;
 
-    num_ents /= sizeof(EntityHandle);
     const EntityHandle *ents_data = static_cast<const EntityHandle*> (dum_ptr);
     std::copy(ents_data, ents_data + num_ents, std::back_inserter(wrt_entities));
 
-    rval = mdbImpl->tag_get_data(senseNSensesTag, &entity, 1, &dum_ptr,
+    rval = mdbImpl->tag_get_by_ptr(senseNSensesTag, &entity, 1, &dum_ptr,
         &num_ents);
     if (MB_SUCCESS != rval)
       return rval;
 
-    num_ents /= sizeof(int);
     const int *senses_data = static_cast<const int*> (dum_ptr);
     std::copy(senses_data, senses_data + num_ents, std::back_inserter(senses));
 

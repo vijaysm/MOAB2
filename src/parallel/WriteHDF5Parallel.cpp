@@ -253,7 +253,6 @@ WriteHDF5Parallel::MultiProcSetTags::Data::get_sets( Interface* moab,
                                                      Tag& id_tag ) const
 {
   ErrorCode rval;
-  int size;
   const void* values[] = { 0, 0 };
   Tag handles[2];
 
@@ -276,23 +275,10 @@ WriteHDF5Parallel::MultiProcSetTags::Data::get_sets( Interface* moab,
   else if (MB_SUCCESS != rval)
     return error(rval);
   
-  moab->tag_get_size( handles[1], size );
-  if (size != (int)sizeof(int)) {
-    fprintf(stderr, "Cannot use non-int tag data for matching remote sets.\n" );
-    assert(0);
-    return error(MB_FAILURE);
-  }  
-  
     // We can optionally also filter on the value of the filter tag.
     // (e.g. GEOM_DIMENSION)
   
   if (useFilterValue) {
-    moab->tag_get_size( handles[0], size );
-    if (size != (int)sizeof(int)) {
-      fprintf(stderr, "Cannot use non-int tag data for filtering remote sets.\n" );
-      assert(0);
-      return error(MB_FAILURE);
-    }
     values[0] = &filterValue;
   }
   
@@ -637,7 +623,7 @@ ErrorCode WriteHDF5Parallel::append_serial_tag_data(
   if (MB_SUCCESS != rval) return error(rval);
   rval = iFace->tag_get_data_type( tag.tag_id, ptr->type );
   if (MB_SUCCESS != rval) return error(rval);
-  rval = iFace->tag_get_size( tag.tag_id, ptr->size );
+  rval = iFace->tag_get_length( tag.tag_id, ptr->size );
   if (MB_VARIABLE_DATA_LENGTH == rval)
     ptr->size = MB_VARIABLE_LENGTH;
   else if (MB_SUCCESS != rval)
@@ -696,9 +682,9 @@ ErrorCode WriteHDF5Parallel::check_serial_tag_data(
       TagDesc newtag;
       
       if (ptr->size == MB_VARIABLE_DATA_LENGTH) 
-        rval = iFace->tag_get_handle( name.c_str(), 0, ptr->type, newtag.tag_id, MB_TAG_VARLEN|MB_TAG_BYTES|MB_TAG_CREAT|ptr->storage );
+        rval = iFace->tag_get_handle( name.c_str(), 0, ptr->type, newtag.tag_id, MB_TAG_VARLEN|MB_TAG_CREAT|ptr->storage );
       else
-        rval = iFace->tag_get_handle( name.c_str(), ptr->size, ptr->type, newtag.tag_id, MB_TAG_BYTES|MB_TAG_CREAT|ptr->storage );
+        rval = iFace->tag_get_handle( name.c_str(), ptr->size, ptr->type, newtag.tag_id, MB_TAG_CREAT|ptr->storage );
       if (MB_SUCCESS != rval)
         return error(rval);
       
@@ -720,8 +706,8 @@ ErrorCode WriteHDF5Parallel::check_serial_tag_data(
         return error(MB_FAILURE);
       }
       int size;
-      iFace->tag_get_size( tag_iter->tag_id, size );
-      if (type != ptr->type) {
+      iFace->tag_get_length( tag_iter->tag_id, size );
+      if (size != ptr->size) {
         writeUtil->report_error("Processes have inconsistent size for tag \"%s\"", name.c_str() );
         return error(MB_FAILURE);
       }
@@ -898,7 +884,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
         return error(rval);
 
       int s;
-      if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_size( tag_iter->tag_id, s )) 
+      if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_length( tag_iter->tag_id, s )) 
         continue;  
 
       std::string n;
@@ -993,7 +979,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
     counts.push_back( tagged.size() );
 
     int s;
-    if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_size( tag_iter->tag_id, s )) {
+    if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_length( tag_iter->tag_id, s )) {
       unsigned long data_len;
       rval = get_tag_data_length( *tag_iter, tagged, data_len );
       assert(MB_SUCCESS == rval);
@@ -1047,7 +1033,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
     tag_iter->max_num_ents = *miter; ++miter;
     tag_iter->write_sparse = (0 != tag_iter->max_num_ents);
     int s;
-    if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_size( tag_iter->tag_id, s )) {
+    if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_length( tag_iter->tag_id, s )) {
       assert(citer != counts.end() && miter != maxima.end());
       tag_iter->var_data_offset = *citer; ++citer;
       tag_iter->max_num_vals = *miter; ++miter;
@@ -1068,7 +1054,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
       unsigned long num_ents = *citer; ++citer;
       unsigned long num_val = 0;
       int s;
-      if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_size( tag_iter->tag_id, s )) {
+      if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_length( tag_iter->tag_id, s )) {
         assert(citer != sums.end());
         num_val = *citer; ++citer;
       }

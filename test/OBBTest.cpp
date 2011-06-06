@@ -1377,7 +1377,7 @@ static void test_save()
   
     // check tag size
   int size;
-  rval= moab.tag_get_size( tag, size );
+  rval= moab.tag_get_bytes( tag, size );
   ASSERT( MB_SUCCESS == rval );
   ASSERT( size == sizeof(OrientedBox) );
 }

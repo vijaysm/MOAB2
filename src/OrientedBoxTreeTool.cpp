@@ -205,7 +205,7 @@ OrientedBoxTreeTool::~OrientedBoxTreeTool()
     EntityHandle tree = createdTrees.back();
       // make sure this is a tree (rather than some other, stale handle)
     const void* data_ptr = 0;
-    ErrorCode rval = instance->tag_get_data( tagHandle, &tree, 1, &data_ptr );
+    ErrorCode rval = instance->tag_get_by_ptr( tagHandle, &tree, 1, &data_ptr );
     if (MB_SUCCESS == rval)
       rval = delete_tree( tree );
     if (MB_SUCCESS != rval)
@@ -1822,19 +1822,7 @@ TreeNodePrinter::TreeNodePrinter( std::ostream& stream,
       stream << "Could not get tag \"" << id_tag_name << "\"\n";
     }
     else {
-      int size;
-      rval = instance->tag_get_size( tag, size );
-      if (!rval) {
-        std::cerr << "Could not get size for tag \"" << id_tag_name << "\"\n";
-        stream << "Could not get size for tag \"" << id_tag_name << "\"\n";
-      }
-      else if (size != sizeof(int)) {
-        std::cerr << "Tag \"" << id_tag_name << "\" is not an integer\n";
-        stream << "Tag \"" << id_tag_name << "\" is not an integer\n";
-      }
-      else {
-        haveTag = true;
-      }
+      haveTag = true;
     }
   }
   

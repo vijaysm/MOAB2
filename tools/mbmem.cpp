@@ -442,7 +442,7 @@ std::string tag_type_string( moab::Interface& mb, moab::Tag tag )
   }
 
   int size;
-  rval = mb.tag_get_size( tag, size );
+  rval = mb.tag_get_length( tag, size );
   if (moab::MB_VARIABLE_DATA_LENGTH == rval) 
     s << "VAR " << typestr;
   else if (moab::MB_SUCCESS == rval) 

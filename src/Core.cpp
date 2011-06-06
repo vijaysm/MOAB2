@@ -1991,6 +1991,79 @@ ErrorCode  Core::tag_set_data( Tag tag_handle,
   return tag_handle->set_data(sequenceManager, mError, entity_handles, tag_data, tag_sizes);
 }
 
+//! return the tag data for a given EntityHandle and Tag
+ErrorCode  Core::tag_get_by_ptr( const Tag tag_handle, 
+                               const EntityHandle* entity_handles, 
+                               int num_entities,
+                               const void** tag_data,
+                               int* tag_sizes ) const
+{
+  assert(valid_tag_handle( tag_handle ));
+  CHECK_MESH_NULL
+  ErrorCode result = tag_handle->get_data( sequenceManager, mError, entity_handles, num_entities, tag_data, tag_sizes );
+  int typesize = TagInfo::size_from_data_type( tag_handle->get_data_type() );
+  if (tag_sizes && typesize != 1)
+    for (int i = 0; i < num_entities; ++i)
+      tag_sizes[i] /= typesize;
+  return result;
+}
+
+//! return the tag data for a given EntityHandle and Tag
+ErrorCode  Core::tag_get_by_ptr( const Tag tag_handle, 
+                               const Range& entity_handles,
+                               const void** tag_data,
+                               int* tag_sizes ) const
+{
+  assert(valid_tag_handle( tag_handle ));
+  ErrorCode result = tag_handle->get_data( sequenceManager, mError, entity_handles, tag_data, tag_sizes );
+  int typesize = TagInfo::size_from_data_type( tag_handle->get_data_type() );
+  if (tag_sizes && typesize != 1) {
+    int num_entities = entity_handles.size();
+    for (int i = 0; i < num_entities; ++i)
+      tag_sizes[i] /= typesize;
+  }
+  return result;
+}
+
+//! set the data  for given EntityHandles and Tag
+ErrorCode  Core::tag_set_by_ptr( Tag tag_handle, 
+                               const EntityHandle* entity_handles, 
+                               int num_entities,
+                               void const* const* tag_data,
+                               const int* tag_sizes )
+{
+  assert(valid_tag_handle( tag_handle ));
+  CHECK_MESH_NULL
+  std::vector<int> tmp_sizes;
+  int typesize = TagInfo::size_from_data_type( tag_handle->get_data_type() );
+  if (typesize != 1 && tag_sizes) {
+    tmp_sizes.resize(num_entities);
+    for (int i = 0; i < num_entities; ++i)
+      tmp_sizes[i] = tag_sizes[i] * typesize;
+    tag_sizes = &tmp_sizes[0];
+  }
+  return tag_handle->set_data( sequenceManager, mError, entity_handles, num_entities, tag_data, tag_sizes );
+}
+
+//! set the data  for given EntityHandles and Tag
+ErrorCode  Core::tag_set_by_ptr( Tag tag_handle, 
+                               const Range& entity_handles, 
+                               void const* const* tag_data,
+                               const int* tag_sizes )
+{
+  assert(valid_tag_handle( tag_handle ));
+  std::vector<int> tmp_sizes;
+  int typesize = TagInfo::size_from_data_type( tag_handle->get_data_type() );
+  if (typesize != 1 && tag_sizes) {
+    int num_entities = entity_handles.size();
+    tmp_sizes.resize(num_entities);
+    for (int i = 0; i < num_entities; ++i)
+      tmp_sizes[i] = tag_sizes[i] * typesize;
+    tag_sizes = &tmp_sizes[0];
+  }
+  return tag_handle->set_data(sequenceManager, mError, entity_handles, tag_data, tag_sizes);
+}
+
 //! set the data  for given EntityHandles and Tag
 ErrorCode  Core::tag_clear_data( Tag tag_handle, 
                                  const EntityHandle* entity_handles, 
@@ -2000,7 +2073,8 @@ ErrorCode  Core::tag_clear_data( Tag tag_handle,
 {
   assert(valid_tag_handle( tag_handle ));
   CHECK_MESH_NULL
-  return tag_handle->clear_data( sequenceManager, mError, entity_handles, num_entities, tag_data, tag_size );
+  return tag_handle->clear_data( sequenceManager, mError, entity_handles, num_entities, tag_data, 
+                                 tag_size * TagInfo::size_from_data_type( tag_handle->get_data_type() ) );
 }
 
 //! set the data  for given EntityHandles and Tag
@@ -2010,7 +2084,8 @@ ErrorCode  Core::tag_clear_data( Tag tag_handle,
                                  int tag_size )
 {
   assert(valid_tag_handle( tag_handle ));
-  return tag_handle->clear_data( sequenceManager, mError, entity_handles, tag_data, tag_size );
+  return tag_handle->clear_data( sequenceManager, mError, entity_handles, tag_data, 
+                                 tag_size * TagInfo::size_from_data_type( tag_handle->get_data_type() ) );
 }
 
 static bool is_zero_bytes( const void* mem, size_t size )
@@ -2274,6 +2349,43 @@ ErrorCode Core::tag_get_size(const Tag tag_handle, int &tag_size) const
     return MB_SUCCESS;
   }
 }
+                                    
+  //! get size of tag in bytes
+ErrorCode Core::tag_get_bytes(const Tag tag_handle, int &tag_size) const
+{
+  if (!valid_tag_handle( tag_handle ))
+    return MB_TAG_NOT_FOUND;
+  
+  if (tag_handle->variable_length()) {
+    tag_size = MB_VARIABLE_LENGTH;
+    return MB_VARIABLE_DATA_LENGTH;
+  }
+  else if (tag_handle->get_storage_type() == MB_TAG_BIT) {
+    tag_size = 1;
+    return MB_SUCCESS;
+  }
+  else {
+    tag_size = tag_handle->get_size();
+    return MB_SUCCESS;
+  }
+}
+                                    
+  //! get size of tag in $values
+ErrorCode Core::tag_get_length(const Tag tag_handle, int &tag_size) const
+{
+  if (!valid_tag_handle( tag_handle ))
+    return MB_TAG_NOT_FOUND;
+  
+  if (tag_handle->variable_length()) {
+    tag_size = MB_VARIABLE_LENGTH;
+    return MB_VARIABLE_DATA_LENGTH;
+  }
+  else {
+    tag_size = tag_handle->get_size() 
+      / TagInfo::size_from_data_type( tag_handle->get_data_type() );
+    return MB_SUCCESS;
+  }
+}
 
 ErrorCode Core::tag_get_data_type( const Tag handle, DataType& type ) const
 {
@@ -2309,7 +2421,7 @@ ErrorCode Core::tag_get_default_value( Tag tag, const void*& ptr, int& size ) co
     return MB_ENTITY_NOT_FOUND;
   
   ptr = tag->get_default_value();
-  size = tag->get_default_value_size();
+  size = tag->get_default_value_size() / TagInfo::size_from_data_type( tag->get_data_type() );
   return MB_SUCCESS;
 }
 
@@ -3401,12 +3513,12 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
     DataType this_data_type;
     result = this->tag_get_data_type(*vit, this_data_type);
     int this_size;
-    result = this->tag_get_size(*vit, this_size);
+    result = this->tag_get_length(*vit, this_size);
     if (MB_SUCCESS != result) continue;
       // use double since this is largest single-valued tag
-    std::vector<double> dbl_vals(this_size/sizeof(double));
-    std::vector<int> int_vals(this_size/sizeof(int));
-    std::vector<EntityHandle> hdl_vals(this_size/sizeof(EntityHandle));
+    std::vector<double> dbl_vals(this_size);
+    std::vector<int> int_vals(this_size);
+    std::vector<EntityHandle> hdl_vals(this_size);
     std::string tag_name;
     result = this->tag_get_name(*vit, tag_name);
     if (MB_SUCCESS != result) continue;
@@ -3415,8 +3527,8 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
         result = this->tag_get_data(*vit, &ms_handle, 1, &int_vals[0]);
         if (MB_SUCCESS != result) continue;
         std::cout << indent_prefix << tag_name << " = ";
-        if (this_size < (int)(10*sizeof(int))) 
-          for (int i = 0; i < (int)(this_size/sizeof(int)); i++) std::cout << int_vals[i] << " ";
+        if (this_size < 10) 
+          for (int i = 0; i < this_size; i++) std::cout << int_vals[i] << " ";
         else std::cout << int_vals[0] << "... (mult values)";
         std::cout << std::endl;
         break;
@@ -3424,8 +3536,8 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
         result = this->tag_get_data(*vit, &ms_handle, 1, &dbl_vals[0]);
         if (MB_SUCCESS != result) continue;
         std::cout << indent_prefix << tag_name << " = ";
-        if (this_size < (int)(10*sizeof(double))) 
-          for (int i = 0; i < (int)(this_size/sizeof(double)); i++) std::cout << dbl_vals[i] << " ";
+        if (this_size < 10) 
+          for (int i = 0; i < this_size; i++) std::cout << dbl_vals[i] << " ";
         else std::cout << dbl_vals[0] << "... (mult values)";
         std::cout << std::endl;
         break;
@@ -3433,8 +3545,8 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
         result = this->tag_get_data(*vit, &ms_handle, 1, &hdl_vals[0]);
         if (MB_SUCCESS != result) continue;
         std::cout << indent_prefix << tag_name << " = ";
-        if (this_size < (int)(10*sizeof(EntityHandle))) 
-          for (int i = 0; i < (int)(this_size/sizeof(EntityHandle)); i++) std::cout << hdl_vals[i] << " ";
+        if (this_size < 10) 
+          for (int i = 0; i < this_size; i++) std::cout << hdl_vals[i] << " ";
         else std::cout << hdl_vals[0] << "... (mult values)";
         std::cout << std::endl;
         break;

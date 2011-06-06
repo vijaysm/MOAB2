@@ -42,7 +42,7 @@ void tag_syntax( std::ostream& s )
 inline static bool is_platform_little_endian();
 
   // Parse tag value from a string (vals).  The passed size
-  // is the size returned by MOAB (num values * sizeof(type)).
+  // is the number of values returned by MOAB from tag_get_length.
 static void* parse_values( const char* vals, DataType type, int size );
 
   // Parse opque tag data as either a hexidecimal number or
@@ -175,19 +175,12 @@ unsigned char* parse_opaque_value( const char* vals, int size )
 
 
 
-template<typename T> T* parse_values_typed( const char* vals, int size )
+template<typename T> T* parse_values_typed( const char* vals, int count )
 {
-  size_t tsize = sizeof(T);
-  if ((size % tsize) != 0) {
-    std::cerr << "Invalid tag size for type." << std::endl;
-    abort();
-  }
-  
-  int count = size / tsize;
   if (!count)
     return 0;
     
-  T* data = (T*)malloc( size );
+  T* data = (T*)malloc( count * sizeof(T) );
   T* end = data + count;
   if (parse_value<T>( vals, *data ))
   {
@@ -274,7 +267,7 @@ int parse_tag_spec( char* name, TagSpec& result, Interface* iface )
     }
     
     int size;
-    rval = iface->tag_get_size( result.handle, size );
+    rval = iface->tag_get_length( result.handle, size );
     if (MB_SUCCESS != rval)
     {
       std::cerr << "Error retrieving size for tag: " << name << std::endl;
@@ -368,7 +361,7 @@ int parse_tag_create( char* name, TagSpec& result, Interface* iface )
   result.value = 0;
   if (val)
   {
-    result.value = parse_values( val, type, count * tsize );
+    result.value = parse_values( val, type, count );
     if (!result.value)
       return 1;
   }
@@ -380,13 +373,13 @@ int parse_tag_create( char* name, TagSpec& result, Interface* iface )
     DataType etype;
     int esize;
     if (MB_SUCCESS != iface->tag_get_data_type( result.handle, etype ) ||
-        MB_SUCCESS != iface->tag_get_size( result.handle, esize ))
+        MB_SUCCESS != iface->tag_get_length( result.handle, esize ))
     {
       std::cerr << "Error accessing properties of tag: " << name << std::endl;
       return 3;
     }
     
-    if (etype != type || esize != (count*tsize))
+    if (etype != type || esize != count)
     {
       std::cerr << "Tag already exists with different type: " << name << std::endl;
       return 1;

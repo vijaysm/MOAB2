@@ -153,8 +153,8 @@ void build_mesh( )
       
       tag_vals_from_gid( idx, values );
       const void* ptr = &values[0];
-      const int size = values.size() * sizeof(int);
-      rval = mb->tag_set_data( var_data, nodes+idx, 1, &ptr, &size );
+      const int size = values.size();
+      rval = mb->tag_set_by_ptr( var_data, nodes+idx, 1, &ptr, &size );
       CHECK_ERR(rval);
       
       unsigned char bits = bits_from_gid( idx );
@@ -604,13 +604,13 @@ void check_varlen_tag()
   
   std::vector<const void*> ptrs(verts.size());
   std::vector<int> sizes(verts.size());
-  rval = mb->tag_get_data( var_data, verts, &ptrs[0], &sizes[0] );
+  rval = mb->tag_get_by_ptr( var_data, verts, &ptrs[0], &sizes[0] );
   CHECK_ERR(rval);
   
   for (size_t i = 0; i < gids.size(); ++i) {
     std::vector<int> exp;
     tag_vals_from_gid( gids[i], exp );
-    CHECK_ARRAYS_EQUAL( &exp[0], exp.size(), (const int*)ptrs[i], sizes[i]/sizeof(int) );
+    CHECK_ARRAYS_EQUAL( &exp[0], exp.size(), (const int*)ptrs[i], sizes[i] );
   }
 }
 

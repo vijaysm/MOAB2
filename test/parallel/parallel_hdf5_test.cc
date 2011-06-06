@@ -635,9 +635,9 @@ void test_var_length_parallel()
     data[0] = n;
     for (int j = 0; j < n; ++j)
       data[j+1] = rank + j;
-    const int s = (n + 1) * sizeof(int);
+    const int s = (n + 1);
     const void* ptrarr[] = { &data[0] };
-    ErrorCode tmperr = mb.tag_set_data( vartag, &h, 1, ptrarr, &s );
+    ErrorCode tmperr = mb.tag_set_by_ptr( vartag, &h, 1, ptrarr, &s );
     if (MB_SUCCESS != tmperr)
       rval = tmperr;
   }
@@ -675,7 +675,7 @@ void test_var_length_parallel()
   
   // Check that tag is correct
   int tag_size;
-  rval = mb.tag_get_size( vartag, tag_size );
+  rval = mb.tag_get_length( vartag, tag_size );
   CHECK_EQUAL( MB_VARIABLE_DATA_LENGTH, rval );
   TagType storage;
   rval = mb.tag_get_type( vartag, storage );
@@ -696,8 +696,7 @@ void test_var_length_parallel()
     EntityHandle h = *i;
     int size = -1;
     const void* ptrarr[1] = { 0 };
-    rval = mb.tag_get_data( vartag, &h, 1, ptrarr, &size );
-    size /= sizeof(int);
+    rval = mb.tag_get_by_ptr( vartag, &h, 1, ptrarr, &size );
     CHECK_ERR( rval );
     const int* data = reinterpret_cast<const int*>(ptrarr[0]);
     CHECK( size >= 2 );

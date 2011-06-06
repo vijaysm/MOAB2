@@ -1247,11 +1247,12 @@ bool check_tag_values( Interface* iface,
   
   int size, *intptr;
   double* dblptr;
-  rval = iface->tag_get_size( tag, size ); CHECK(rval);
+  rval = iface->tag_get_bytes( tag, size ); CHECK(rval);
   std::vector<unsigned char> data( size * num_entities );
   
   switch (tag_type) {
     case MB_TYPE_BIT:
+      rval = iface->tag_get_length( tag, size ); CHECK(rval);
       CHECK( tag_length == size );
       for (int i = 0; i < num_entities; ++i) {
         unsigned char val;

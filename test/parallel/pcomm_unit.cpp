@@ -1299,9 +1299,9 @@ void test_pack_tag_data_sparse()
     // check tag meta for sparse_2_int_tag
   rval = mb.tag_get_handle( sparse_2_int_tag_name, 2, MB_TYPE_INTEGER, sparse_2_int_tag );
   CHECK_ERR(rval);
-  rval = mb.tag_get_size( sparse_2_int_tag, size );
+  rval = mb.tag_get_length( sparse_2_int_tag, size );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (int)(2*sizeof(int)), size );
+  CHECK_EQUAL( 2, size );
   rval = mb.tag_get_type( sparse_2_int_tag, storage );
   CHECK_ERR(rval);
   CHECK_EQUAL( MB_TAG_SPARSE, storage );
@@ -1382,9 +1382,9 @@ void test_pack_tag_data_dense()
     // check tag meta for dense_1_double_tag
   rval = mb.tag_get_handle( dense_1_double_tag_name, 1, MB_TYPE_DOUBLE, dense_1_double_tag );
   CHECK_ERR(rval);
-  rval = mb.tag_get_size( dense_1_double_tag, size );
+  rval = mb.tag_get_length( dense_1_double_tag, size );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (int)sizeof(double), size );
+  CHECK_EQUAL( 1, size );
   rval = mb.tag_get_type( dense_1_double_tag, storage );
   CHECK_ERR(rval);
   CHECK_EQUAL( MB_TAG_DENSE, storage );
@@ -1460,7 +1460,7 @@ void test_pack_tag_data_default_value()
     // check tag meta for dense_5_opaque_tag
   rval = mb.tag_get_handle( dense_5_opaque_tag_name, 5, MB_TYPE_OPAQUE, dense_5_opaque_tag );
   CHECK_ERR(rval);
-  rval = mb.tag_get_size( dense_5_opaque_tag, size );
+  rval = mb.tag_get_length( dense_5_opaque_tag, size );
   CHECK_ERR(rval);
   CHECK_EQUAL( 5, size );
   rval = mb.tag_get_type( dense_5_opaque_tag, storage );
@@ -1551,7 +1551,7 @@ void test_pack_bit_tag_data()
   CHECK_ERR(rval);
   
   int size;
-  rval = mb.tag_get_size( tag, size );
+  rval = mb.tag_get_length( tag, size );
   CHECK_ERR(rval);
   CHECK_EQUAL( 3, size );
   
@@ -1616,10 +1616,10 @@ void test_pack_variable_length_tag()
     CHECK_ERR(rval);
     
     const int num_coord = 1 + *i % 3;
-    const int data_size = sizeof(int) * (num_coord + 1);
+    const int data_size = num_coord + 1;
     const int data[4] = { num_coord, (int)coords[0], (int)coords[1], (int)coords[2] };
     const void* data_ptrs[1] = { data };
-    rval = mb.tag_set_data( tag, &*i, 1, data_ptrs, &data_size );
+    rval = mb.tag_set_by_ptr( tag, &*i, 1, data_ptrs, &data_size );
     CHECK_ERR(rval);
   }
   
@@ -1634,7 +1634,7 @@ void test_pack_variable_length_tag()
   CHECK_ERR(rval);
   
   int size;
-  rval = mb.tag_get_size( tag, size );
+  rval = mb.tag_get_length( tag, size );
   CHECK_EQUAL( MB_VARIABLE_DATA_LENGTH, rval );
   
   TagType storage;
@@ -1649,9 +1649,9 @@ void test_pack_variable_length_tag()
   const void* defval_ptr;
   rval = mb.tag_get_default_value( tag, defval_ptr, size );
   CHECK_ERR(rval);
-  CHECK_EQUAL( sizeof(default_val), (size_t)size );
+  CHECK_EQUAL( defval_size, size );
   const int* defval_arr = reinterpret_cast<const int*>(defval_ptr);
-  for (size_t j = 0; j < sizeof(default_val)/sizeof(int); ++j)
+  for (int j = 0; j < size; ++j)
     CHECK_EQUAL( default_val[j], defval_arr[j] );
   
     // check tag values
@@ -1662,12 +1662,10 @@ void test_pack_variable_length_tag()
     
     int size;
     const void* valptr;
-    rval = mb.tag_get_data( tag, &*i, 1, &valptr, &size );
+    rval = mb.tag_get_by_ptr( tag, &*i, 1, &valptr, &size );
     CHECK_ERR(rval);
-    CHECK( (size % sizeof(int)) == 0 );
-    int count = size / sizeof(int);
-    CHECK( count > 1 );
-    CHECK( count <= 4 );
+    CHECK( size > 1 );
+    CHECK( size <= 4 );
     
     const int* valarr = reinterpret_cast<const int*>(valptr);
     CHECK( valarr[0] >= 1 );
@@ -1740,9 +1738,9 @@ void test_pack_tag_handle_data()
   CHECK_ERR(rval);
   
   int size;
-  rval = mb.tag_get_size( tag, size );
+  rval = mb.tag_get_length( tag, size );
   CHECK_ERR(rval);
-  CHECK_EQUAL( 8*sizeof(EntityHandle), (size_t)size );
+  CHECK_EQUAL( 8, size );
   
   TagType storage;
   rval = mb.tag_get_type( tag, storage );
