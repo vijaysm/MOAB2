@@ -649,10 +649,13 @@ public:
   virtual ErrorCode  tag_get_name(const Tag tag_handle, 
                                      std::string& tag_name) const;
 
-    //! Gets the tag handle corresponding to a name
-    /** If a tag of that name does not exist, returns MB_TAG_NOT_FOUND
-        \param tag_name Name of the desired tag. 
-        \param tag_handle Tag handle corresponding to <em>tag_name</em>
+   /**\brief Gets the tag handle corresponding to a name
+    *
+    *\deprecated Use tag_get_handle instead
+    *
+    * If a tag of that name does not exist, returns MB_TAG_NOT_FOUND
+    *   \param tag_name Name of the desired tag. 
+    *   \param tag_handle Tag handle corresponding to <em>tag_name</em>
     */ 
   virtual ErrorCode tag_get_handle( const char *tag_name, 
                                     Tag &tag_handle ) const MB_DEPRECATED;
@@ -661,7 +664,10 @@ public:
   virtual ErrorCode tag_get_tags_on_entity(const EntityHandle entity,
                                              std::vector<Tag> &tag_handles) const;
 
-  //! get size of tag in bytes
+  /**\brief get size of tag in bytes
+   *
+   *\deprecated Use tag_get_bytes or tag_get_length instead
+   */
   virtual ErrorCode tag_get_size(const Tag tag, int &tag_size) const MB_DEPRECATED;
 
     //! Get the size of the specified tag in bytes
@@ -723,16 +729,7 @@ public:
 
     /**\brief Get pointers to tag data
      *
-     * For a tag, get the values for a list of passed entity handles.
-     *\param tag_handle     The tag
-     *\param entity_handles An array of entity handles for which to retreive tag values.
-     *\param num_entities   The length of the 'entity_handles' array.
-     *\param tag_data       An array of 'const void*'.  Array must be at least
-     *                      'num_entitities' long.  Array is populated (output)
-     *                      with pointers to the internal storage for the
-     *                      tag value corresponding to each entity handle.
-     *\param tag_sizes      The length of each tag value.  Optional for 
-     *                      fixed-length tags.  Required for variable-length tags.
+     *\deprecated Use tag_get_by_ptr instead.
      */
   virtual ErrorCode  tag_get_data(const Tag tag_handle, 
                                   const EntityHandle* entity_handles, 
@@ -742,14 +739,7 @@ public:
 
     /**\brief Get pointers to tag data
      *
-     * For a tag, get the values for a list of passed entity handles.
-     *\param tag_handle     The tag
-     *\param entity_handles The entity handles for which to retreive tag values.
-     *\param tag_data       An array of 'const void*'.  Array is populated (output)
-     *                      with pointers to the internal storage for the
-     *                      tag value corresponding to each entity handle.
-     *\param tag_sizes      The length of each tag value.  Optional for 
-     *                      fixed-length tags.  Required for variable-length tags.
+     *\deprecated Use tag_get_by_ptr instead.
      */
   virtual ErrorCode  tag_get_data(const Tag tag_handle, 
                                     const Range& entity_handles, 
@@ -758,16 +748,7 @@ public:
 
     /**\brief Set tag data given an array of pointers to tag values.
      *
-     * For a tag, set the values for a list of passed entity handles.
-     *\param tag_handle     The tag
-     *\param entity_handles An array of entity handles for which to set tag values.
-     *\param num_entities   The length of the 'entity_handles' array.
-     *\param tag_data       An array of 'const void*'.  Array must be at least
-     *                      'num_entitities' long.  Array is expected to
-     *                      contain pointers to tag values for the corresponding
-     *                      EntityHandle in 'entity_handles'.
-     *\param tag_sizes      The length of each tag value.  Optional for 
-     *                      fixed-length tags.  Required for variable-length tags.
+     *\deprecated Use tag_st_by_ptr instead.
      */
   virtual ErrorCode  tag_set_data( Tag tag_handle, 
                                    const EntityHandle* entity_handles, 
@@ -777,14 +758,7 @@ public:
   
     /**\brief Set tag data given an array of pointers to tag values.
      *
-     * For a tag, set the values for a list of passed entity handles.
-     *\param tag_handle     The tag
-     *\param entity_handles The entity handles for which to set tag values.
-     *\param tag_data       An array of 'const void*'.  Array is expected to
-     *                      contain pointers to tag values for the corresponding
-     *                      EntityHandle in 'entity_handles'.
-     *\param tag_sizes      The length of each tag value.  Optional for 
-     *                      fixed-length tags.  Required for variable-length tags.
+     *\deprecated Use tag_st_by_ptr instead.
      */
   virtual ErrorCode  tag_set_data( Tag tag_handle, 
                                    const Range& entity_handles,
