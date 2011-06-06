@@ -87,12 +87,16 @@ int main(int argc, char *argv[])
   quads_file = TestDir + "/quads.h5m";
 
   keep_output = false;
-
+  bool only_cropping = false;
   if (argc == 1) {
     std::cout << "Using default input files: " << filename << " " << polygon_file_name <<
-        " " << std::endl;
+        " " << filename_out << " " << quads_file << std::endl;
     std::cout << "    default output file: " << filename_out << " will be deleted \n";
-    std::cout << "    quads test file: " << quads_file << "\n";
+  } else if (argc == 4) {
+    only_cropping = true;
+    filename = argv[1];
+    polygon_file_name = argv[2];
+    filename_out = argv[3];
   } else if (argc >=5) {
     filename = argv[1];
     polygon_file_name = argv[2];
@@ -159,6 +163,8 @@ int main(int argc, char *argv[])
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
+  if (only_cropping)
+    return number_tests_failed;
   // split_test_across
   std::cout << " split across test: ";
   rval = split_test_across();
@@ -684,6 +690,8 @@ ErrorCode split_test_across()
   if (rval!=MB_SUCCESS)
     return rval;
   // save a new database, with 3 faces, eventually
+  delete pFacet;
+  pFacet = NULL;// try not to write the obb tree
   rval = mb->write_file(filename_out.c_str());
 
   return rval;

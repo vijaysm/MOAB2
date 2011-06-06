@@ -392,13 +392,13 @@ void FBEngine::delete_smooth_tags()
   if (rval != MB_TAG_NOT_FOUND)
     smoothTags.push_back(tag_handle);
 
-  rval = _mbImpl->tag_get_handle( "CONTROLEDGE", 18, MB_TYPE_DOUBLE, tag_handle );
+  rval = _mbImpl->tag_get_handle( "CONTROLEDGE", 9, MB_TYPE_DOUBLE, tag_handle );
   if (rval != MB_TAG_NOT_FOUND)
     smoothTags.push_back(tag_handle);
 
-  //rval = _mbImpl->tag_get_handle( "CONTROLFACE", 0, MB_TYPE_DOUBLE, tag_handle );
-  //if (rval != MB_TAG_NOT_FOUND)
-  //  smoothTags.push_back(tag_handle);
+  rval = _mbImpl->tag_get_handle( "CONTROLFACE", 18, MB_TYPE_DOUBLE, tag_handle );
+  if (rval != MB_TAG_NOT_FOUND)
+    smoothTags.push_back(tag_handle);
 
   rval = _mbImpl->tag_get_handle( "CONTROLEDGEFACE", 27, MB_TYPE_DOUBLE, tag_handle );
   if (rval != MB_TAG_NOT_FOUND)
