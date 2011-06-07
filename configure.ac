@@ -111,47 +111,6 @@ AC_SUBST(IMESH_DIR)
 AC_SUBST(IMESH_CONFIG_OPTIONS)
 
 ################################################################################
-#                           Babel
-################################################################################
-AC_ARG_ENABLE( babel, AC_HELP_STRING([--enable-babel[=DIR]],[Enable Babel-based interface, with babel executable/libs/includes located under DIR]),
-               [enable_babel=$enableval], [enable_babel=no] )  
-
-USE_BABEL=no
-if test "x$enable_babel" != "xno"; then
-  if test "x$enable_babel" != "x"; then
-     BABEL_DIR=/usr/local
-  else
-     BABEL_DIR=$enable_babel
-  fi
-  AC_CHECK_FILE([${BABEL_DIR}/bin/babel], [USE_BABEL=yes; 
-         DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-babel=\"${enableval}\""], [USE_BABEL=no])
-
-  if test "x$IGEOM_MISSING" != "xno"; then
-    AC_CHECK_FILE([${IGEOM_DIR}/lib/iGeom-SIDL-Defs.inc],
-                [IGEOM_BABEL_CONFIG_OPTIONS="include ${IGEOM_DIR}/lib/iGeom-SIDL-Defs.inc"],
-                [AC_CHECK_FILE([${IGEOM_DIR}/iGeom-SIDL-Defs.inc],
-                               [IGEOM_BABEL_CONFIG_OPTIONS="include ${IGEOM_DIR}/iGeom-SIDL-Defs.inc"],
-                               [AC_MSG_WARN([Can't enable Babel without a Babel-capable iGeom]); USE_BABEL=no])
-                ])
-  fi
-  if test "x$IMESH_MISSING" != "xno"; then
-    AC_CHECK_FILE([${IMESH_DIR}/lib/iMesh-SIDL-Defs.inc],
-                [IMESH_BABEL_CONFIG_OPTIONS="include ${IMESH_DIR}/lib/iMesh-SIDL-Defs.inc"],
-                [AC_CHECK_FILE([${IMESH_DIR}/iMesh-SIDL-Defs.inc],
-                               [IMESH_BABEL_CONFIG_OPTIONS="include ${IMESH_DIR}/iMesh-SIDL-Defs.inc"],
-                               [AC_MSG_WARN([Can't enable Babel without a Babel-capable iMesh]); USE_BABEL=no])
-                ])
-  fi
-fi
-
-AC_SUBST(BABEL_DIR)
-AC_SUBST(USE_BABEL)
-AC_SUBST(IGEOM_BABEL_CONFIG_OPTIONS)
-AC_SUBST(IMESH_BABEL_CONFIG_OPTIONS)
-AM_CONDITIONAL(USE_BABEL, [test "xno" != "x$USE_BABEL"])
-
-
-################################################################################
 #                           Output Files
 ################################################################################
 AC_SUBST([INCLUDES])
@@ -165,8 +124,6 @@ AC_CONFIG_FILES([Makefile
                  test/Makefile
                  iRel-Defs.inc
                  ])
-#		 SIDL/iRel-SIDL-Defs.inc
-#		 SIDL/Makefile
 
 # Generate iRel_FCDefs.h from iBase_FCDefs.h
 AC_CONFIG_COMMANDS([iRel_FCDefs.h],

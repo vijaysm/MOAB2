@@ -12,7 +12,7 @@
 #include "iRel_Lasso.hpp"
 
 #include "Lasso.hpp"
-#include "AssocPairC.hpp"
+#include "AssocPair.hpp"
 #include "ArrayManager.hpp"
 
 #include <algorithm>
@@ -78,8 +78,7 @@ void iRel_createPair (
   iRel_PairHandle *pair,
   int *err)
 {
-  // assume we want an AssocPairC
-  AssocPair *assoc_pair = new AssocPairC(
+  AssocPair *assoc_pair = new AssocPair(
     instance,
     iface1, static_cast<iRel_RelationType>(ent_or_set1),
     static_cast<iRel_IfaceType>(iface_type1),
@@ -184,7 +183,7 @@ void iRel_setEntEntRelation (
   int *err)
 {
   CHK_PAIR();
-  CHK_ERROR( ASSOCPAIRI->set_assoc_tags(ent1, ent2) );
+  CHK_ERROR( ASSOCPAIRI->set_relation(ent1, ent2) );
 }
 
 void iRel_setEntSetRelation (
@@ -195,7 +194,7 @@ void iRel_setEntSetRelation (
   int *err)
 {
   CHK_PAIR();
-  CHK_ERROR( ASSOCPAIRI->set_assoc_tags(ent1, set2) );
+  CHK_ERROR( ASSOCPAIRI->set_relation(ent1, set2) );
 }
 
 void iRel_setSetEntRelation (
@@ -206,7 +205,7 @@ void iRel_setSetEntRelation (
   int *err)
 {
   CHK_PAIR();
-  CHK_ERROR( ASSOCPAIRI->set_assoc_tags(set1, ent2) );
+  CHK_ERROR( ASSOCPAIRI->set_relation(set1, ent2) );
 }
 
 void iRel_setSetSetRelation (
@@ -217,7 +216,7 @@ void iRel_setSetSetRelation (
   int *err)
 {
   CHK_PAIR();
-  CHK_ERROR( ASSOCPAIRI->set_assoc_tags(set1, set2) );
+  CHK_ERROR( ASSOCPAIRI->set_relation(set1, set2) );
 }
 
 void iRel_setEntArrEntArrRelation (
@@ -238,7 +237,7 @@ void iRel_setEntArrEntArrRelation (
   int result = iBase_SUCCESS;
   char descr[200];
   for (int i = 0; i < num_entities1; i++) {
-    int tmp_result = ASSOCPAIRI->set_assoc_tags(ent_array_1[i], ent_array_2[i]);
+    int tmp_result = ASSOCPAIRI->set_relation(ent_array_1[i], ent_array_2[i]);
     if (result == iBase_SUCCESS && tmp_result != iBase_SUCCESS) {
       result = tmp_result;
       iRel_getDescription(instance, descr, sizeof(descr));
@@ -268,7 +267,7 @@ void iRel_setEntArrSetArrRelation (
   int result = iBase_SUCCESS;
   char descr[200];
   for (int i = 0; i < num_entities1; i++) {
-    int tmp_result = ASSOCPAIRI->set_assoc_tags(ent_array_1[i], set_array_2[i]);
+    int tmp_result = ASSOCPAIRI->set_relation(ent_array_1[i], set_array_2[i]);
     if (result == iBase_SUCCESS && tmp_result != iBase_SUCCESS) {
       result = tmp_result;
       iRel_getDescription(instance, descr, sizeof(descr));
@@ -298,7 +297,7 @@ void iRel_setSetArrEntArrRelation (
   int result = iBase_SUCCESS;
   char descr[200];
   for (int i = 0; i < num_sets1; i++) {
-    int tmp_result = ASSOCPAIRI->set_assoc_tags(set_array_1[i], ent_array_2[i]);
+    int tmp_result = ASSOCPAIRI->set_relation(set_array_1[i], ent_array_2[i]);
     if (result == iBase_SUCCESS && tmp_result != iBase_SUCCESS) {
       result = tmp_result;
       iRel_getDescription(instance, descr, sizeof(descr));
@@ -328,7 +327,7 @@ void iRel_setSetArrSetArrRelation (
   int result = iBase_SUCCESS;
   char descr[200];
   for (int i = 0; i < num_sets1; i++) {
-    int tmp_result = ASSOCPAIRI->set_assoc_tags(set_array_1[i], set_array_2[i]);
+    int tmp_result = ASSOCPAIRI->set_relation(set_array_1[i], set_array_2[i]);
     if (result == iBase_SUCCESS && tmp_result != iBase_SUCCESS) {
       result = tmp_result;
       iRel_getDescription(instance, descr, sizeof(descr));
@@ -351,7 +350,7 @@ void iRel_getEntEntRelation (
   CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
-  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, &ent1, 1, ent2) );
+  CHK_ERROR( ASSOCPAIRI->get_relation(iface_no, &ent1, 1, ent2) );
 }
 
 void iRel_getEntSetRelation (
@@ -365,7 +364,7 @@ void iRel_getEntSetRelation (
   CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
-  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, &ent1, 1, set2) );
+  CHK_ERROR( ASSOCPAIRI->get_relation(iface_no, &ent1, 1, set2) );
 }
 
 void iRel_getSetEntRelation (
@@ -379,7 +378,7 @@ void iRel_getSetEntRelation (
   CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
-  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, &set1, 1, ent2) );
+  CHK_ERROR( ASSOCPAIRI->get_relation(iface_no, &set1, 1, ent2) );
 }
 
 void iRel_getSetSetRelation (
@@ -393,7 +392,7 @@ void iRel_getSetSetRelation (
   CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
-  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, &set1, 1, set2) );
+  CHK_ERROR( ASSOCPAIRI->get_relation(iface_no, &set1, 1, set2) );
 }
 
 void iRel_getEntSetIterRelation (
@@ -407,7 +406,7 @@ void iRel_getEntSetIterRelation (
   CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
-  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, &ent1, 1, entset2) );
+  CHK_ERROR( ASSOCPAIRI->get_relation(iface_no, &ent1, 1, entset2) );
 }
 
 void iRel_getEntArrEntArrRelation(
@@ -425,7 +424,7 @@ void iRel_getEntArrEntArrRelation(
 
   int iface_no = (switch_order ? 1 : 0);
   ALLOC_CHECK_ARRAY(ent_array_2, ent_array_1_size);
-  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, ent_array_1, ent_array_1_size,
+  CHK_ERROR( ASSOCPAIRI->get_relation(iface_no, ent_array_1, ent_array_1_size,
                                         *ent_array_2) );
 
   KEEP_ARRAY(ent_array_2);
@@ -447,7 +446,7 @@ void iRel_getEntArrSetArrRelation(
 
   int iface_no = (switch_order ? 1 : 0);
   ALLOC_CHECK_ARRAY(set_array_2, ent_array_1_size);
-  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, ent_array_1, ent_array_1_size,
+  CHK_ERROR( ASSOCPAIRI->get_relation(iface_no, ent_array_1, ent_array_1_size,
                                         *set_array_2) );
 
   KEEP_ARRAY(set_array_2);
@@ -469,7 +468,7 @@ void iRel_getSetArrEntArrRelation(
 
   int iface_no = (switch_order ? 1 : 0);
   ALLOC_CHECK_ARRAY(ent_array_2, set_array_1_size);
-  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, set_array_1, set_array_1_size,
+  CHK_ERROR( ASSOCPAIRI->get_relation(iface_no, set_array_1, set_array_1_size,
                                         *ent_array_2) );
 
   KEEP_ARRAY(ent_array_2);
@@ -491,7 +490,7 @@ void iRel_getSetArrSetArrRelation(
 
   int iface_no = (switch_order ? 1 : 0);
   ALLOC_CHECK_ARRAY(set_array_2, set_array_1_size);
-  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, set_array_1, set_array_1_size,
+  CHK_ERROR( ASSOCPAIRI->get_relation(iface_no, set_array_1, set_array_1_size,
                                         *set_array_2) );
 
   KEEP_ARRAY(set_array_2);
@@ -513,7 +512,7 @@ void iRel_getEntArrSetIterArrRelation (
 
   int iface_no = (switch_order ? 1 : 0);;
   ALLOC_CHECK_ARRAY(entiter, ent_array_1_size);
-  CHK_ERROR( ASSOCPAIRI->get_assoc_tags(iface_no, ent_array_1, ent_array_1_size,
+  CHK_ERROR( ASSOCPAIRI->get_relation(iface_no, ent_array_1, ent_array_1_size,
                                         *entiter) );
 
   KEEP_ARRAY(entiter);
@@ -531,7 +530,7 @@ void iRel_rmvEntRelation(
   CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
-  CHK_ERROR( ASSOCPAIRI->rmv_assoc_tags(iface_no, &ent, 1) );
+  CHK_ERROR( ASSOCPAIRI->rmv_relation(iface_no, &ent, 1) );
 }
 
 void iRel_rmvSetRelation(
@@ -544,7 +543,7 @@ void iRel_rmvSetRelation(
   CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
-  CHK_ERROR( ASSOCPAIRI->rmv_assoc_tags(iface_no, &entset, 1) );
+  CHK_ERROR( ASSOCPAIRI->rmv_relation(iface_no, &entset, 1) );
 }
 
 void iRel_rmvEntArrRelation(
@@ -558,7 +557,7 @@ void iRel_rmvEntArrRelation(
   CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
-  CHK_ERROR( ASSOCPAIRI->rmv_assoc_tags(iface_no, ent_array, num_ent) );
+  CHK_ERROR( ASSOCPAIRI->rmv_relation(iface_no, ent_array, num_ent) );
 }
 
 void iRel_rmvSetArrRelation(
@@ -572,7 +571,7 @@ void iRel_rmvSetArrRelation(
   CHK_PAIR();
 
   int iface_no = (switch_order ? 1 : 0);
-  CHK_ERROR( ASSOCPAIRI->rmv_assoc_tags(iface_no, entset_array, num_ent) );
+  CHK_ERROR( ASSOCPAIRI->rmv_relation(iface_no, entset_array, num_ent) );
 }
 
 static int
@@ -589,9 +588,9 @@ get_gids_and_dims(iRel_PairHandle pair,
 
   ents_gids.resize(ents_size);
   if (ent_or_set == iRel_ENTITY)
-    result = ASSOCPAIRI->get_gid_tags(iface_no, ents, ents_size, &ents_gids[0]);
+    result = ASSOCPAIRI->get_gids(iface_no, ents, ents_size, &ents_gids[0]);
   else
-    result = ASSOCPAIRI->get_gid_tags(iface_no, sets, ents_size, &ents_gids[0]);
+    result = ASSOCPAIRI->get_gids(iface_no, sets, ents_size, &ents_gids[0]);
 
   if (iBase_SUCCESS != result && iBase_TAG_NOT_FOUND != result)
     return result;
@@ -605,7 +604,7 @@ get_gids_and_dims(iRel_PairHandle pair,
                                        &ents_dims_size);
   }
   else {
-    result = ASSOCPAIRI->get_dim_tags(iface_no, sets, ents_size, &ents_dims[0]);
+    result = ASSOCPAIRI->get_dims(iface_no, sets, ents_size, &ents_dims[0]);
   }
 
   if (iBase_SUCCESS != result && iBase_TAG_NOT_FOUND != result)
@@ -654,22 +653,22 @@ iRel_inferArrArrRelations(iRel_Instance instance,
       // if it matches, set the relation tags for those entities
     if (iter != ents_gid_map[dim].end()) {
       if (ent_or_set1 == iRel_ENTITY && ent_or_set2 == iRel_ENTITY) {
-        result = ASSOCPAIRI->set_assoc_tags(
+        result = ASSOCPAIRI->set_relation(
           (*iter).second,
           ents2[i]);
       }
       else if (ent_or_set1 != iRel_ENTITY && ent_or_set2 == iRel_ENTITY) {
-        result = ASSOCPAIRI->set_assoc_tags(
+        result = ASSOCPAIRI->set_relation(
           (iBase_EntitySetHandle)(*iter).second,
           ents2[i]);
       }
       else if (ent_or_set1 == iRel_ENTITY && ent_or_set2 != iRel_ENTITY) {
-        result = ASSOCPAIRI->set_assoc_tags(
+        result = ASSOCPAIRI->set_relation(
           (*iter).second,
           (iBase_EntitySetHandle)ents2[i]);
       }
       else { // ent_or_set1 != iRel_ENTITY && ent_or_set2 != iRel_ENTITY
-        result = ASSOCPAIRI->set_assoc_tags(
+        result = ASSOCPAIRI->set_relation(
           (iBase_EntitySetHandle)(*iter).second,
           (iBase_EntitySetHandle)ents2[i]);
       }

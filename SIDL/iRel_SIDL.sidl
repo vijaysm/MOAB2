@@ -1,6 +1,0 @@
-import iRel;
-
-package iRel_SIDL version 0.7 {
-  class AssocSidl implements-all Associate, createEnt, Infer { }
-}
-

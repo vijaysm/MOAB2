@@ -21,8 +21,11 @@ libiRel_la_SOURCES = \
 	ArrayManager.hpp \
 	AssocPair.cpp \
 	AssocPair.hpp \
-	AssocPairC.cpp \
-	AssocPairC.hpp \
+	AssocPairSide.hpp \
+	MeshAssocPairSide.cpp \
+	MeshAssocPairSide.hpp \
+	GeomAssocPairSide.cpp \
+	GeomAssocPairSide.hpp \
 	iRel_Lasso.cpp \
 	iRel_Lasso.hpp \
 	Lasso.cpp \
@@ -56,10 +59,6 @@ cfg_DATA = iRel-Defs.inc
 install-data-hook:
 	echo "IREL_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iRel-Defs.inc
 	echo "IREL_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iRel-Defs.inc
-
-if USE_BABEL
-#  SUBDIRS += SIDL
-endif
 
 CLEANFILES=iRel_protos.h
 FPFX=iRel
