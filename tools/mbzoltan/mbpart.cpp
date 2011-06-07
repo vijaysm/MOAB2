@@ -210,7 +210,7 @@ int main( int argc, char* argv[] )
       return 2;
     }
     if (print_time)
-      std::cout << "Wrote \"" << tmp_output_file << "\" in "
+      std::cout << "Wrote \"" << tmp_output_file.str() << "\" in "
                 << (clock() - t)/(double)CLOCKS_PER_SEC << " seconds" 
                 << std::endl;
                 
