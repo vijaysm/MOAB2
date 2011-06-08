@@ -1561,6 +1561,7 @@ extern "C" {
   {
     if (tag_size < 0)
       ERROR(iBase_INVALID_ARGUMENT, "iMesh_createTag: invalid tag size");
+    CHKENUM(tag_type, iBase_TagValueType, iBase_INVALID_ARGUMENT);
 
     Tag new_tag;
     int this_size = tag_size;
