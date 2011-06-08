@@ -280,8 +280,11 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   
     // make a new set for the parallel read
   EntityHandle file_set;
-  result = mbImpl->create_meshset(MESHSET_SET, file_set);
-  if (MB_SUCCESS != result) return result;
+  if (!file_set_ptr || !(*file_set_ptr)) {
+    result = mbImpl->create_meshset(MESHSET_SET, file_set);
+    if (MB_SUCCESS != result) return result;
+  }
+  else file_set = *file_set_ptr;
 
   bool i_read = false;
   Tag id_tag = 0;
@@ -534,13 +537,15 @@ ErrorCode ReadParallel::load_file(const char **file_names,
       std::cout << "  " << act_times[0] << " PARALLEL TOTAL" << std::endl;
     }
   }
-  
+
+/*  
   if (MB_SUCCESS == result && file_set_ptr) {
     Range all_ents;
     result = mbImpl->get_entities_by_handle(file_set, all_ents);
     if (MB_SUCCESS == result)
       result = mbImpl->add_entities(*file_set_ptr, all_ents);
   }
+*/
     
   return result;
 }
