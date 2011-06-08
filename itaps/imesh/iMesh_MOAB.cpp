@@ -1691,6 +1691,8 @@ extern "C" {
   {
     ErrorCode result = MOABI->tag_get_bytes(TAG_HANDLE(tag_handle), *tag_size_bytes);
     CHKERR(result, "iMesh_getTagSize: problem getting size.");
+
+    RETURN(iBase_SUCCESS);
   }
 
   void iMesh_getTagHandle(iMesh_Instance instance,
