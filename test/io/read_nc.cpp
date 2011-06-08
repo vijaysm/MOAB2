@@ -78,6 +78,33 @@ void test_read_onetimestep()
 }
 
 void test_read_nomesh() 
-{}
+{
+  Core moab;
+  Interface& mb = moab;
+
+    // need a set for nomesh to work right
+  EntityHandle set;
+  ErrorCode rval = mb.create_meshset(MESHSET_SET, set);
+  CHECK_ERR(rval);
+  
+  rval = mb.load_file( example, &set, "TIMESTEP=0" );
+  CHECK_ERR(rval);
+  
+    // check for proper tag
+  Tag Ttag0, Ttag1;
+  rval = mb.tag_get_handle("T0", 1, MB_TYPE_DOUBLE, Ttag0);
+  CHECK_ERR(rval);
+  
+  rval = mb.tag_get_handle("T1", 1, MB_TYPE_DOUBLE, Ttag1);
+  CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
+
+    // now read 2nd timestep with nomesh option
+  rval = mb.load_file( example, &set, "TIMESTEP=1;NOMESH" );
+  CHECK_ERR(rval);
+  
+    // check for proper tag
+  rval = mb.tag_get_handle("T1", 1, MB_TYPE_DOUBLE, Ttag1);
+  CHECK_ERR(rval);
+}
 
 
