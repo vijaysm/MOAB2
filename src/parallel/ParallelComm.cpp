@@ -965,19 +965,19 @@ ErrorCode ParallelComm::unpack_buffer(unsigned char *buff_ptr,
                              ind, false, L1hloc, L1hrem, L1p, L2hloc, L2hrem, L2p, new_ents);
   RRA("Unpacking entities failed.");
   if (myDebug->get_verbosity() == 3) {
-    myDebug->tprintf(4, "unpack_entities buffer space: %ld bytes.\n", buff_ptr-tmp_buff);
+    myDebug->tprintf(4, "unpack_entities buffer space: %ld bytes.\n", (long int)(buff_ptr-tmp_buff));
     tmp_buff = buff_ptr;
   }
   result = unpack_sets(buff_ptr, new_ents, store_remote_handles, from_proc);
   RRA("Unpacking sets failed.");
   if (myDebug->get_verbosity() == 3) {
-    myDebug->tprintf(4, "unpack_sets buffer space: %ld bytes.\n", buff_ptr - tmp_buff);
+    myDebug->tprintf(4, "unpack_sets buffer space: %ld bytes.\n", (long int)(buff_ptr - tmp_buff));
     tmp_buff = buff_ptr;
   }
   result = unpack_tags(buff_ptr, new_ents, store_remote_handles, from_proc);
   RRA("Unpacking tags failed.");
   if (myDebug->get_verbosity() == 3) {
-    myDebug->tprintf(4, "unpack_tags buffer space: %ld bytes.\n", buff_ptr - tmp_buff);
+    myDebug->tprintf(4, "unpack_tags buffer space: %ld bytes.\n", (long int)(buff_ptr - tmp_buff));
     tmp_buff = buff_ptr;
   }
 
@@ -1190,7 +1190,7 @@ ErrorCode ParallelComm::pack_entities(Range &entities,
     PACK_DBLS(buff->buff_ptr, &tmp_coords[0], 3*num_ents);
     RRA("Couldn't get vertex coordinates.");
 
-    myDebug->tprintf(4, "Packed %lu ents of type %s\n", these_ents.size(),
+    myDebug->tprintf(4, "Packed %lu ents of type %s\n", (unsigned long)these_ents.size(),
                     CN::EntityTypeName(TYPE_FROM_HANDLE(*these_ents.begin())));
   }
 
@@ -1378,7 +1378,7 @@ ErrorCode ParallelComm::pack_entity_seq(const int nodes_per_entity,
     // substitute destination handles
   RRA("Trouble getting remote handles when packing entities.");
 
-  myDebug->tprintf(4, "Packed %lu ents of type %s\n", these_ents.size(),
+  myDebug->tprintf(4, "Packed %lu ents of type %s\n", (unsigned long)these_ents.size(),
                   CN::EntityTypeName(TYPE_FROM_HANDLE(*these_ents.begin())));
 
   return result;
@@ -4477,7 +4477,7 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
   RRA("get_sent_ents failed.");
 
   myDebug->tprintf(1, "allsent ents compactness (size) = %f (%lu)\n", allsent.compactness(),
-                  allsent.size());
+                  (unsigned long)allsent.size());
 
     //===========================================
     // pack and send ents from this proc to others
@@ -4486,7 +4486,7 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
        proc_it != buffProcs.end(); proc_it++, p++) {
 
     myDebug->tprintf(1, "Sent ents compactness (size) = %f (%lu)\n", sent_ents[p].compactness(),
-                    sent_ents[p].size());
+                    (unsigned long)sent_ents[p].size());
     
       // reserve space on front for size and for initial buff size
     localOwnedBuffs[p]->reset_buffer(sizeof(int));
@@ -5550,14 +5550,14 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
   buffer_free(&sort_buffer);
 
   myDebug->tprintf(1, "allsent ents compactness (size) = %f (%lu)\n", allsent.compactness(),
-                  allsent.size());
+                  (unsigned long)allsent.size());
 
   //===========================================
   // pack and send ents from this proc to others
   //===========================================
   for (ind = 0; ind < (int)buffProcs.size(); ind++) {
     myDebug->tprintf(1, "Sent ents compactness (size) = %f (%lu)\n", exchange_ents[ind]->compactness(),
-                     exchange_ents[ind]->size());
+                     (unsigned long)exchange_ents[ind]->size());
     // reserve space on front for size and for initial buff size
     localOwnedBuffs[ind]->reset_buffer(sizeof(int));
     result = pack_buffer(*exchange_ents[ind], false, true,
