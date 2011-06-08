@@ -4640,7 +4640,6 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
       MPE_Log_event(IFACE_END, procConfig.proc_rank(), "Ending interface exchange.");
     }
 #endif
-    myDebug->tprintf(1, "Exiting exchange_ghost_cells\n");
 
       //===========================================
       // wait if requested
@@ -4659,6 +4658,10 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
         RRA("Failed in waitall in ghost exchange.");
       }
     }
+
+    myDebug->tprintf(1, "Total number of shared entities = %lu.\n", (unsigned long)sharedEnts.size());
+    myDebug->tprintf(1, "Exiting exchange_ghost_cells\n");
+
     return MB_SUCCESS;
   }
 
@@ -4760,6 +4763,7 @@ ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
   RRA("Failed check on all shared handles.");
 #endif
 
+  myDebug->tprintf(1, "Total number of shared entities = %lu.\n", (unsigned long)sharedEnts.size());
   myDebug->tprintf(1, "Exiting exchange_ghost_cells\n");
 
   return MB_SUCCESS;
