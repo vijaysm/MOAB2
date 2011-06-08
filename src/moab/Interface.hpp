@@ -1153,7 +1153,7 @@ public:
      *                     default value if one is specified and is otherwise ignored.
      *\param type          The type of the data (used for IO)
      *\param tag_handle    Output: the resulting tag handle.
-     *\param flags         Bitwise OR of values from \c TagType
+     *\param flags         Bitwise OR of values from TagType
      *\param default_value Optional default value for tag.
      *\param created       Optional returned boolean indicating that the
      *                     was created.
@@ -1164,6 +1164,49 @@ public:
      *        - \c MB_TYPE_OUT_OF_RANGE     invalid or inconsistent parameter
      *        - \c MB_VARIABLE_DATA_LENGTH  if \c MB_TAG_VARLEN and \c default_value is non-null and
      *                                      \c default_value_size is not specified.
+     *
+     *\NOTE A call to tag_get_handle that includes a default value will fail
+     * if the tag already exists with a different default value.  A call without
+     * a default value will succeed if the tag already exists, regardless of 
+     * whether or not the existing tag has a default value.
+     *
+     * Examples:
+     *
+     * Retreive a handle for an existing tag, returning a non-success error
+     * code if the tag does not exist or does not store 1 integer value per
+     * entity:
+     *\code
+     * Tag git_tag;
+     * mb.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid_tag );
+     * \endcode
+     * Get the tag handle, or create it as a dense tag if it does not already 
+     * exist:
+     *\code
+     * Tag gid_tag;
+     * mb.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid_tag, MB_TAG_CREAT|MB_TAG_BIT );
+     * \endcode
+     * Create the tag or *fail* if it already exists:
+     *\code
+     * Tag gid_tag;
+     * mb.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid_tag, MB_TAG_EXCL|MB_TAG_DENSE );
+     * \endcode
+     * Get an existing variable length tag, failing if it does not exist or
+     * is not variable-length or does not contain double values.
+     *\code
+     * Tag vtag;
+     * mb.tag_get_handle( tag_name, 0, MB_TYPE_DOUBLE, vtag );
+     * \endcode
+     * Get the same variable-length tag, but create it with a default value
+     * if it doesn't exist.  Note that if the tag already exists this call
+     * will return a non-success error code if the existing tag has a different
+     * default value.
+     *\code
+     * Tag vtag;
+     * const double default_val = M_PI;
+     * const int def_val_len = 1;
+     * mb.tag_get_handle( tag_name, def_val_len, MB_TYPE_DOUBLE, vtag,
+     *                    MB_TAG_SPARSE|MB_TAG_VARLEN|MB_TAG_CREAT, &default_val );
+     * \endcode
      */
   virtual ErrorCode tag_get_handle( const char* name,
                                     int size,
