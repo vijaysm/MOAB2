@@ -2148,6 +2148,17 @@ ErrorCode ParallelComm::update_remote_data(const EntityHandle new_h,
     for (int i = 0; i < num_ps; i++) {
       idx = std::find(tag_ps, tag_ps+num_exist, ps[i]) - tag_ps;
       if (idx == (int) num_exist) {
+      
+        if (num_exist == MAX_SHARING_PROCS) {
+          std::cerr << "Exceeded MAX_SHARING_PROCS for "
+                    << CN::EntityTypeName( TYPE_FROM_HANDLE(new_h) )
+                    << ' ' << ID_FROM_HANDLE(new_h) 
+                    << " in process " << proc_config().proc_rank()
+                    << std::endl;
+          std::cerr.flush();
+          MPI_Abort( proc_config().proc_comm(), 66 );
+        }
+      
           // if there's only 1 sharing proc, and it's not me, then
           // we'll end up with 3; add me to the front
         if (!i && num_ps == 1 && num_exist == 1 &&
@@ -3756,7 +3767,16 @@ ErrorCode ParallelComm::create_interface_sets(std::map<std::vector<int>, std::ve
     }
     else {
       // pad tag data out to MAX_SHARING_PROCS with -1
-      assert( vit->first.size() <= MAX_SHARING_PROCS );
+      if (vit->first.size() > MAX_SHARING_PROCS) {
+        std::cerr << "Exceeded MAX_SHARING_PROCS for "
+                  << CN::EntityTypeName(TYPE_FROM_HANDLE(new_set))
+                  << ' ' << ID_FROM_HANDLE(new_set) 
+                  << " on process " << proc_config().proc_rank()
+                  << std::endl;
+        std::cerr.flush();
+        MPI_Abort(proc_config().proc_comm(), 66);
+      }
+      //assert( vit->first.size() <= MAX_SHARING_PROCS );
       std::copy( vit->first.begin(), vit->first.end(), proc_ids );
       std::fill( proc_ids + vit->first.size(), proc_ids + MAX_SHARING_PROCS, -1 );
       result = mbImpl->tag_set_data(sharedps_tag, &new_set, 1, proc_ids );
@@ -3992,7 +4012,13 @@ ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
     }
     else {
         // pad lists 
-      assert( sharing_procs.size() <= MAX_SHARING_PROCS );
+      //assert( sharing_procs.size() <= MAX_SHARING_PROCS );
+      if (sharing_procs.size() > MAX_SHARING_PROCS) {
+        std::cerr << "MAX_SHARING_PROCS exceeded for vertex " << this_ent <<
+                     " on process " << proc_config().proc_rank() <<  std::endl;
+        std::cerr.flush();
+        MPI_Abort(proc_config().proc_comm(), 66);
+      }
       sharing_procs.resize( MAX_SHARING_PROCS, -1 );
       sharing_handles.resize( MAX_SHARING_PROCS, 0 );
       result = mbImpl->tag_set_data(sharedps_tag, &this_ent, 1,
@@ -4090,7 +4116,13 @@ ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
     }
     else {
         // pad lists 
-      assert( sharing_procs.size() <= MAX_SHARING_PROCS );
+      //assert( sharing_procs.size() <= MAX_SHARING_PROCS );
+      if (sharing_procs.size() > MAX_SHARING_PROCS) {
+        std::cerr << "MAX_SHARING_PROCS exceeded for vertex " << this_ent <<
+                     " on process " << proc_config().proc_rank() <<  std::endl;
+        std::cerr.flush();
+        MPI_Abort(proc_config().proc_comm(), 66);
+      }
       sharing_procs.resize( MAX_SHARING_PROCS, -1 );
       sharing_handles.resize( MAX_SHARING_PROCS, 0 );
       result = mbImpl->tag_set_data(sharedps_tag, &this_ent, 1,
