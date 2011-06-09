@@ -32,6 +32,7 @@
 #include <limits>
 #include <assert.h>
 #include <math.h>
+#include <float.h>
 
 //#define MB_OBB_USE_VECTOR_QUERIES
 //#define MB_OBB_USE_TYPE_QUERIES
@@ -218,6 +219,8 @@ OrientedBoxTreeTool::Settings::Settings()
     max_depth( 0 ),
     worst_split_ratio( 0.95 ),
     best_split_ratio( 0.4 ),
+    always_use_element_side_splits(false),
+    num_element_for_side_splits(5),
     set_options( MESHSET_SET )
   {}
 
@@ -228,6 +231,7 @@ bool OrientedBoxTreeTool::Settings::valid() const
       && worst_split_ratio <= 1.0
       && best_split_ratio >= 0.0
       && worst_split_ratio >= best_split_ratio
+      && num_element_for_side_splits > 0
       ;
 }
 
@@ -334,16 +338,16 @@ ErrorCode OrientedBoxTreeTool::join_trees( const Range& sets,
  *\param num_intersecting Output, number entities intersecting plane
  */
 static ErrorCode split_box( Interface* instance, 
-                              const OrientedBox& box, 
-                              int axis, 
-                              const Range& entities, 
-                              Range& left_list, 
-                              Range& right_list )
+                            const CartVect& normal,
+                            const CartVect& point,
+                            const Range& entities, 
+                            Range& left_list, 
+                            Range& right_list )
 {
   ErrorCode rval;
   left_list.clear();
   right_list.clear();
-
+  
   std::vector<CartVect> coords;
   for (Range::reverse_iterator i = entities.rbegin(); i != entities.rend(); ++i) {
     const EntityHandle *conn;
@@ -362,7 +366,7 @@ static ErrorCode split_box( Interface* instance,
       centroid += coords[j];
     centroid /= conn_len;
     
-    if ((box.axis[axis] % (centroid - box.center)) < 0.0)
+    if ((normal % (centroid - point)) < 0.0)
       left_list.insert( *i );
     else
       right_list.insert( *i );
@@ -371,6 +375,91 @@ static ErrorCode split_box( Interface* instance,
   return MB_SUCCESS;
 }
 
+static ErrorCode append_element_side_split_planes( Interface* instance,
+                                                   EntityHandle element,
+                                                   std::vector<CartVect>& points,
+                                                   std::vector<CartVect>& normals )
+{
+  ErrorCode rval;
+  CartVect coords[8];
+  const EntityType type = TYPE_FROM_HANDLE(element);
+  const EntityHandle* conn;
+  int n;
+  std::vector<EntityHandle> storage;
+  rval = instance->get_connectivity( element, conn, n, true, &storage );
+  if (MB_SUCCESS != rval) 
+    return rval;
+  
+  if (type == MBPOLYHEDRON) {
+    const EntityHandle* conn2;
+    int n2;
+    std::vector<EntityHandle> storage2;
+    for (int i = 0; i < n; ++i) {
+      rval = instance->get_connectivity( conn[i], conn2, n2, true, &storage2 );
+      if (MB_SUCCESS != rval)
+        return rval;
+      
+      assert(n2 >= 3); // must be a face!
+      rval = instance->get_coords( conn2, 3, coords[0].array() );
+      if (MB_SUCCESS != rval)
+        return rval;
+      
+      CartVect v1 = coords[0] - coords[1];
+      CartVect v2 = coords[2] - coords[1];
+      points.push_back( coords[1] );
+      normals.push_back( v1 * v2 );
+    }
+    return MB_SUCCESS;
+  }
+  
+  assert(n <= 8);
+  rval = instance->get_coords( conn, n, coords[0].array() );
+  if (MB_SUCCESS != rval)
+    return rval;
+    
+  if (type == MBEDGE) {
+    int min_dim = 0;
+    CartVect v = coords[0] - coords[1];
+    if (fabs(v[1]) < fabs(v[0]) || fabs(v[2]) < fabs(v[0])) {
+      if (fabs(v[1]) < fabs(v[2]))
+        min_dim = 1;
+      else
+        min_dim = 2;
+    }
+    CartVect norm(0.0);
+    norm[min_dim] = 1.0;
+    normals.push_back( norm * v );
+  }
+  else if (CN::Dimension(type) == 2) {
+    CartVect v2 = coords[0] - coords[n-1];
+    for (int i = 0; i < n; ++i) {
+      CartVect v1 = coords[i] - coords[(i+1)%n];
+      points.push_back( coords[i] );
+      CartVect n = v1 * v2;
+      normals.push_back( n * v1 );
+      v2 = v1;
+    }
+  }
+  else if (CN::Dimension(type) == 3) {
+    int numsub = CN::NumSubEntities( type, 2 );
+    assert(numsub >= 3);
+    for (int j = 0; j < numsub; ++j) {
+      int nsub;
+      EntityType tsub;
+      const short* subindices = CN::SubEntityVertexIndices(type,2,j,tsub,nsub);
+
+      CartVect v1 = coords[subindices[0]] - coords[subindices[1]];
+      CartVect v2 = coords[subindices[2]] - coords[subindices[1]];
+      points.push_back( coords[subindices[1]] );
+      normals.push_back( v1 * v2 );
+    }
+  }
+  else {
+    return MB_FAILURE;
+  }
+  
+  return MB_SUCCESS;
+}
 
 ErrorCode OrientedBoxTreeTool::build_tree( const Range& entities,
                                                EntityHandle& set,
@@ -408,22 +497,57 @@ ErrorCode OrientedBoxTreeTool::build_tree( const Range& entities,
       // until we find an acceptable split
     double best_ratio = settings.worst_split_ratio; // worst case ratio
     Range best_left_list, best_right_list;
-      // Axes are sorted from shortest to longest, so search backwards
-    for (int axis = 2; best_ratio > settings.best_split_ratio && axis >= 0; --axis) {
-      Range left_list, right_list;
+    if (!settings.always_use_element_side_splits) {
+        // Axes are sorted from shortest to longest, so search backwards
+      for (int axis = 2; best_ratio > settings.best_split_ratio && axis >= 0; --axis) {
+        Range left_list, right_list;
 
-      rval = split_box( instance, box, axis, entities, left_list, right_list );
-      if (MB_SUCCESS != rval) 
-        { delete_tree( set ); return rval; }
-        
-      double ratio = fabs((double)right_list.size() - left_list.size()) / entities.size();
-      
-      if (ratio < best_ratio) {
-        best_ratio = ratio;
-        best_left_list.swap( left_list );
-        best_right_list.swap( right_list );
+        rval = split_box( instance, box.axis[axis], box.center, entities, left_list, right_list );
+        if (MB_SUCCESS != rval) 
+          { delete_tree( set ); return rval; }
+
+        double ratio = fabs((double)right_list.size() - left_list.size()) / entities.size();
+
+        if (ratio < best_ratio) {
+          best_ratio = ratio;
+          best_left_list.swap( left_list );
+          best_right_list.swap( right_list );
+        }
       }
     }
+    
+      // If can't split using axis-aligned planes, try plane through
+      // high-valence vertex
+    if (best_left_list.empty()) {
+      std::vector<CartVect> points, normals;
+      Range::iterator iter = entities.begin();
+      size_t count = entities.size();
+      for (int i = 0; i < settings.num_element_for_side_splits; ++i) {
+        if ((unsigned)i == count)
+          break;
+        
+        rval = append_element_side_split_planes( instance, *iter, points, normals );
+        if (MB_SUCCESS != rval)
+          { delete_tree(set); return rval; }
+        iter += count/settings.num_element_for_side_splits;
+      }
+      
+      for (size_t i = 0; best_ratio > settings.best_split_ratio && i < points.size(); ++i) {
+        Range left_list, right_list;
+
+        rval = split_box( instance, normals[i], points[i], entities, left_list, right_list );
+        if (MB_SUCCESS != rval) 
+          { delete_tree( set ); return rval; }
+
+        double ratio = fabs((double)right_list.size() - left_list.size()) / entities.size();
+
+        if (ratio < best_ratio) {
+          best_ratio = ratio;
+          best_left_list.swap( left_list );
+          best_right_list.swap( right_list );
+        }
+      }
+    }    
     
       // create children
     if (!best_left_list.empty())
