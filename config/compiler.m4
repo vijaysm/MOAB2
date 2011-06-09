@@ -267,6 +267,23 @@ AC_DEFUN([FATHOM_TRY_COMPILER_DEFINE], [
  [$2],[$3])
 ])
 
+#################################################################################
+# Check if the compiler defines a specific preprocessor macro with an integer
+# value greater than or equal to the passed value
+# Arguments:
+#  - preprocessor define to check for
+#  - numeric value to test
+#  - action upon success
+#  - action upon failure
+#################################################################################
+AC_DEFUN([FATHOM_TRY_COMPILER_DEFINE_GE], [
+ AC_COMPILE_IFELSE([
+ AC_LANG_PROGRAM( [[#if !defined($1) || $1 < $2
+   choke me
+ #endif]], []) ],
+ [$3],[$4])
+])
+
 
 #######################################################################################
 # Check for compiler-specific flags.
@@ -291,7 +308,8 @@ else
   cxx_compiler=unknown
   case "$target_os" in
     aix*)
-      FATHOM_TRY_COMPILER_DEFINE([__IBMCPP__],[cxx_compiler=VisualAge])
+      FATHOM_TRY_COMPILER_DEFINE_GE([__IMBCPP__],[800],[cxx_compiler=VisualAge8],
+        [FATHOM_TRY_COMPILER_DEFINE([__IBMCPP__],[cxx_compiler=VisualAge])])
       ;;
     solaris*|sunos*)
       FATHOM_TRY_COMPILER_DEFINE([__SUNPRO_CC],[cxx_compiler=SunWorkshop])
@@ -363,18 +381,15 @@ case "$cxx_compiler:$host_cpu" in
   VisualAge:*)
     FATHOM_CXX_32BIT=-q32
     FATHOM_CXX_64BIT=-q64
-    # Do V5.0 namemangling for compatibility with ACIS, and enable RTTI
-    case "$target_vendor" in
-      bgp)
-        FATHOM_CXX_SPECIAL=""
-        AR="ar"
-        NM="nm -B"
-        ;;
-      *)
-        FATHOM_CXX_SPECIAL="-qrtti=all -qnamemangling=v5"
-        AR="ar"
-        NM="nm -B -X 32_64"
-        ;;
+    FATHOM_CXX_SPECIAL="-qrtti=all"
+    AR="ar -X 32_64"
+    NM="nm -B -X 32_64"
+    esac
+    ;;
+  VisualAge8:*)
+    FATHOM_CXX_32BIT=-q32
+    FATHOM_CXX_64BIT=-q64
+    NM="nm -B -X 32_64"
     esac
     ;;
   MIPSpro:mips)
