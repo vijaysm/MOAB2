@@ -308,7 +308,7 @@ else
   cxx_compiler=unknown
   case "$target_os" in
     aix*)
-      FATHOM_TRY_COMPILER_DEFINE_GE([__IMBCPP__],[800],[cxx_compiler=VisualAge8],
+      FATHOM_TRY_COMPILER_DEFINE_GE([__IBMCPP__],[800],[cxx_compiler=VisualAge8],
         [FATHOM_TRY_COMPILER_DEFINE([__IBMCPP__],[cxx_compiler=VisualAge])])
       ;;
     solaris*|sunos*)
@@ -319,7 +319,8 @@ else
       ;;
     linux*)
       FATHOM_TRY_COMPILER_DEFINE([__INTEL_COMPILER],[cxx_compiler=Intel])
-      FATHOM_TRY_COMPILER_DEFINE([__IBMCPP__],[cxx_compiler=VisualAge])
+      FATHOM_TRY_COMPILER_DEFINE_GE([__IBMCPP__],[800],[cxx_compiler=VisualAge8],
+        [FATHOM_TRY_COMPILER_DEFINE([__IBMCPP__],[cxx_compiler=VisualAge])])
       FATHOM_TRY_COMPILER_DEFINE([__DECCXX_VER],[cxx_compiler=Compaq])
       FATHOM_TRY_COMPILER_DEFINE([__SUNPRO_CC],[cxx_compiler=SunWorkshop])
       FATHOM_TRY_COMPILER_DEFINE([__PGI],[cxx_compiler=PortlandGroup])
@@ -384,13 +385,11 @@ case "$cxx_compiler:$host_cpu" in
     FATHOM_CXX_SPECIAL="-qrtti=all"
     AR="ar -X 32_64"
     NM="nm -B -X 32_64"
-    esac
     ;;
   VisualAge8:*)
     FATHOM_CXX_32BIT=-q32
     FATHOM_CXX_64BIT=-q64
     NM="nm -B -X 32_64"
-    esac
     ;;
   MIPSpro:mips)
     FATHOM_CXX_32BIT=-n32
