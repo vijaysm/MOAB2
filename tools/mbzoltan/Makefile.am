@@ -6,6 +6,10 @@ AM_CPPFLAGS += -DIS_BUILDING_MB\
 	       -I$(srcdir)/.. \
                $(ZOLTAN_INC_FLAGS)
 
+if HAVE_CGM
+AM_CPPFLAGS += $(CGM_CPPFLAGS)
+endif
+
 AM_LDFLAGS += $(ZOLTAN_LIB_FLAGS)
 lib_LTLIBRARIES = libmbzoltan.la
 libmbzoltan_la_LIBADD = $(top_builddir)/src/libMOAB.la $(ZOLTAN_LIBS)

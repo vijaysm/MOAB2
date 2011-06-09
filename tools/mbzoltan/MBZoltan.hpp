@@ -26,6 +26,12 @@
 #include "moab_mpi.h"
 #include "zoltan_cpp.h"
 
+#ifdef CGM
+#include "GeometryQueryTool.hpp"
+#include "DLIList.hpp"
+class RefEntity;
+#endif
+
 extern "C" 
 {
   int mbGetNumberOfAssignedObjects(void *userDefinedData, int *err);
@@ -72,25 +78,33 @@ using namespace moab;
   {
 
   public:
-    MBZoltan( Interface *impl = NULL, 
+    MBZoltan( Interface *impl = NULL,
               const bool use_coords = false,
               int argc = 0, 
-              char **argv = NULL );
+              char **argv = NULL
+#ifdef CGM
+              , GeometryQueryTool *gqt = NULL
+#endif
+              );
 
+    
     ~MBZoltan();
 
     ErrorCode balance_mesh(const char *zmethod,
                              const char *other_method,
                              const bool write_as_sets = true,
                              const bool write_as_tags = false);
-    
-    ErrorCode partition_mesh(const int nparts,
-                             const char *zmethod,
-                             const char *other_method,
-                             double imbal_tol,
-                             const bool write_as_sets = true,
-                             const bool write_as_tags = false,
-                             const int part_dim = 3);
+
+    ErrorCode partition_mesh_geom(const bool part_mesh,
+                                  const int nparts,
+                                  const char *zmethod,
+                                  const char *other_method,
+                                  double imbal_tol,
+                                  const bool write_as_sets = true,
+                                  const bool write_as_tags = false,
+                                  const int part_dim = 3,
+                                  const int obj_weight = 0,
+                                  const int edge_weight = 0);
     
     int get_mesh(std::vector<double> &pts, std::vector<int> &ids,
                  std::vector<int> &adjs, std::vector<int> &length,
@@ -103,6 +117,12 @@ using namespace moab;
                                 const bool write_as_sets,
                                 const bool write_as_tags);
 
+#ifdef CGM
+    ErrorCode write_partition(const int nparts,
+                              DLIList<RefEntity*> entities,
+                              const int *assignment);
+#endif
+    
     ErrorCode write_file(const char *filename, const char *out_file);
   
     void SetOCTPART_Parameters(const char *oct_method);
@@ -147,19 +167,39 @@ using namespace moab;
       // given the dimension, assemble the vertices and store in coords and
       // moab_ids
     ErrorCode assemble_graph(const int dimension, 
-                               std::vector<double> &coords,
-                               std::vector<int> &moab_ids,
-                               std::vector<int> &adjacencies, 
-                               std::vector<int> &length,
-                               Range &elems);
+                             std::vector<double> &coords,
+                             std::vector<int> &moab_ids,
+                             std::vector<int> &adjacencies, 
+                             std::vector<int> &length,
+                             Range &elems);
+    
+#ifdef CGM
+    ErrorCode assemble_graph(const int dimension, 
+                             std::vector<double> &coords,
+                             std::vector<int> &moab_ids,
+                             std::vector<int> &adjacencies, 
+                             std::vector<int> &length,
+                             std::vector<double> &obj_weights,
+                             std::vector<double> &edge_weights,
+                             DLIList<RefEntity*> &entities);
 
+    ErrorCode partition_round_robin(const int dim,
+                                    const int n_part,
+                                    const bool only_shared);
+#endif
+    
     void mbFinalizePoints(int npts, int numExport,
                           ZOLTAN_ID_PTR exportLocalIDs, int *exportProcs,
                           int **assignment);
   
     int mbInitializePoints(int npts, double *pts, int *ids, 
-                           int *adjs, int *length);
-  
+                           int *adjs, int *length,
+                           double *obj_weights = NULL,
+                           double *edge_weights = NULL);
+
+#ifdef CGM
+    GeometryQueryTool *gti;
+#endif
   };
 
 #endif
