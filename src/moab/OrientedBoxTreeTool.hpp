@@ -86,14 +86,6 @@ class OrientedBoxTreeTool
         //! will stop if at least this ratio is achieved for the number of
         //! entities on each side of the split plane.
         double best_split_ratio;
-        //! If true, always use element sides to generate candidate 
-        //! split planes for leaf division instead of bisection planes.  
-        //! If false, only do so if the default bisection planes don't 
-        //! result in an acceptable split.
-        bool always_use_element_side_splits;
-        //! Number of arbitrary elements for which to use sides as
-        //! candidate split planes
-        int num_element_for_side_splits;
         //! Flags used to create entity sets representing tree nodes
         unsigned int set_options;
         //! Check if settings are valid.
