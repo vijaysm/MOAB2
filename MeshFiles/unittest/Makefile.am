@@ -24,5 +24,8 @@ EXTRA_DIST  = 125hex.g \
               partBed.smf \
               PB.h5m  \
               polyPB.txt \
-              quads.h5m
+              quads.h5m \
+              SECrop2.h5m \
+              poly14.txt \
+              BedCrop2.h5m
 

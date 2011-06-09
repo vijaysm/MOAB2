@@ -127,11 +127,13 @@ public:
   // this would be a deep copy, into a new geom topo tool
   // sets will be duplicated, but entities not
   // modelSet will be a new one
-  GeomTopoTool * duplicate_model();
+  ErrorCode duplicate_model(GeomTopoTool *& duplicate);
 
   EntityHandle get_root_model_set() { return modelSet; }
 
   bool check_model();
+  // should be used instead of keeping multiple ranges, for example in FBEngine
+  const Range * geoRanges() { return geomRanges ; }
 private:
   Interface *mdbImpl;
   Tag sense2Tag;

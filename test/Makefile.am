@@ -38,6 +38,7 @@ TESTS = moab_test \
         bsp_tree_poly_test \
         mbfacet_test \
         gttool_test \
+        cropvol_test \
 	reorder_test
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
@@ -108,6 +109,7 @@ mbcn_test_SOURCES = $(top_srcdir)/src/moab/CN.hpp \
 bsp_tree_poly_test_SOURCES = bsp_tree_poly_test.cpp
 mbfacet_test_SOURCES = mbfacet_test.cpp
 gttool_test_SOURCES = gttool_test.cpp
+cropvol_test_SOURCES = crop_vol_test.cpp
 
 EXTRA_DIST = TestUtil.hpp TestRunner.hpp
 

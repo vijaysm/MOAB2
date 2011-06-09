@@ -473,12 +473,13 @@ ErrorCode duplicate_model_test(Interface * mb)
 {
   moab::GeomTopoTool gTopoTool2(mb, true);// to find the geomsets
 
-  GeomTopoTool * newModel = gTopoTool2.duplicate_model();
-  if (NULL == newModel)
+  GeomTopoTool * newModel = NULL;
+  ErrorCode rval = gTopoTool2.duplicate_model(newModel);
+  if (NULL == newModel || rval!=MB_SUCCESS)
     return MB_FAILURE;
 
   Range ranges[4];
-  ErrorCode rval = newModel->find_geomsets(ranges);
+  rval = newModel->find_geomsets(ranges);
 
   assert(MB_SUCCESS==rval);
   assert(ranges[0].size()==6);

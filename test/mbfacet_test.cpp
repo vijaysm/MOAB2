@@ -535,6 +535,7 @@ ErrorCode split_test(Interface * mb, FBEngine * pFacet)
   if (rval!=MB_SUCCESS)
     return rval;
   // save a new database
+  pFacet->delete_smooth_tags();
   delete pFacet;
   pFacet = NULL;// try not to write the obb tree
   rval = mb->write_file(filename_out.c_str());
@@ -690,6 +691,7 @@ ErrorCode split_test_across()
   if (rval!=MB_SUCCESS)
     return rval;
   // save a new database, with 3 faces, eventually
+  pFacet->delete_smooth_tags();
   delete pFacet;
   pFacet = NULL;// try not to write the obb tree
   rval = mb->write_file(filename_out.c_str());
@@ -749,6 +751,8 @@ ErrorCode split_quads_test()
   // export split triangles model, after deleting the smooth tags
   pFacet->delete_smooth_tags();
 
+  delete pFacet;
+  pFacet= NULL;
   std::string spl_file="q.split.h5m";
   rval = mb->write_file(spl_file.c_str(), 0, 0, &root_set, 1);
   CHECK("can't write result file");

@@ -1043,22 +1043,22 @@ ErrorCode GeomTopoTool::geometrize_surface_set(EntityHandle surface, EntityHandl
   // modelSet will be a new one
   // if the original set was null (root), a new model set will be created for
   // original model, and its entities will be the original g sets
-GeomTopoTool * GeomTopoTool::duplicate_model()
+ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate)
 {
   // will
   EntityHandle rootModelSet;
   ErrorCode rval = mdbImpl->create_meshset(MESHSET_SET, rootModelSet);
   if (MB_SUCCESS!=rval)
-    return NULL;
+    return rval;
   if (0 == geomTag) {
     rval = mdbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geomTag);
     if (MB_SUCCESS != rval)
-      return NULL;
+      return rval;
   }
   if (0 == gidTag) {
     rval = mdbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1,MB_TYPE_INTEGER, gidTag);
     if (MB_SUCCESS != rval)
-      return NULL;
+      return rval;
   }
   // add to the root model set copies of the gsets, with correct sets
   // keep a map between sets to help in copying parent/child relations
@@ -1074,39 +1074,39 @@ GeomTopoTool * GeomTopoTool::duplicate_model()
       EntityHandle newSet;
       rval = mdbImpl->create_meshset(set_options, newSet);
       if (MB_SUCCESS!=rval)
-        return NULL;
+        return rval;
       relate[set] = newSet;
       rval = mdbImpl->add_entities(rootModelSet, &newSet, 1);
       if (MB_SUCCESS!=rval)
-        return NULL;
+        return rval;
       // make it a geo set, and give also global id in order
       rval = mdbImpl->tag_set_data(geomTag, &newSet, 1, &dim);
       if (MB_SUCCESS!=rval)
-        return NULL;
+        return rval;
       gid++;// increment global id, everything starts with 1 in the new model!
       rval = mdbImpl->tag_set_data(gidTag, &newSet, 1, &gid);
       if (MB_SUCCESS!=rval)
-        return NULL;
+        return rval;
       if (dim==1)
       {
         // the entities are ordered, we need to retrieve them ordered, and set them ordered
         std::vector<EntityHandle> mesh_edges;
         rval = mdbImpl->get_entities_by_handle(set, mesh_edges);
         if (MB_SUCCESS!=rval)
-          return NULL;
+          return rval;
         rval = mdbImpl->add_entities(newSet, &(mesh_edges[0]), (int)mesh_edges.size());
         if (MB_SUCCESS!=rval)
-          return NULL;
+          return rval;
       }
       else
       {
         Range ents;
         rval = mdbImpl->get_entities_by_handle(set, ents);
         if (MB_SUCCESS!=rval)
-          return NULL;
+          return rval;
         rval = mdbImpl->add_entities(newSet, ents);
         if (MB_SUCCESS!=rval)
-          return NULL;
+          return rval;
       }
       //set parent/child relations if dim>=1
       if (dim>=1)
@@ -1115,20 +1115,20 @@ GeomTopoTool * GeomTopoTool::duplicate_model()
         // the children of geo sets are only g sets
         rval = mdbImpl->get_child_meshsets(set, children); // num_hops = 1 by default
         if (MB_SUCCESS!=rval)
-           return NULL;
+           return rval;
         for (Range::iterator it2=children.begin(); it2!=children.end(); it2++)
         {
           EntityHandle newChildSet = relate[*it2];
           rval = mdbImpl->add_parent_child(newSet, newChildSet);
           if (MB_SUCCESS!=rval)
-            return NULL;
+            return rval;
         }
       }
 
     }
   }
 
-  GeomTopoTool * newgtt = new GeomTopoTool(mdbImpl, true, rootModelSet); // will retrieve the
+  duplicate = new GeomTopoTool(mdbImpl, true, rootModelSet); // will retrieve the
   // sets and put them in ranges
 
   // this is the lazy way to it:
@@ -1138,10 +1138,10 @@ GeomTopoTool * GeomTopoTool::duplicate_model()
   // make sure we have the sense tags defined
   rval = check_face_sense_tag(true);
   if (rval!=MB_SUCCESS)
-    return NULL;
+    return rval;
   rval = check_edge_sense_tags(true);
   if (rval!=MB_SUCCESS)
-    return NULL;
+    return rval;
 
   for (int dd=1; dd<=2; dd++) // do it for surfaces and edges
   {
@@ -1155,14 +1155,14 @@ GeomTopoTool * GeomTopoTool::duplicate_model()
       std::vector<int> senses;
       rval = this->get_senses(surf, solids, senses);
       if (MB_SUCCESS!=rval)
-         return NULL;
+         return rval;
       for (unsigned int i = 0; i<solids.size(); i++)
       {
         solids[i] = relate[solids[i]];
       }
-      rval = newgtt->set_senses(newSurf, solids, senses);
+      rval = duplicate->set_senses(newSurf, solids, senses);
       if (MB_SUCCESS!=rval)
-        return NULL;
+        return rval;
     }
   }
   // if the original root model set for this model is 0 (root set), then create
@@ -1173,18 +1173,18 @@ GeomTopoTool * GeomTopoTool::duplicate_model()
   {
     rval = mdbImpl->create_meshset(MESHSET_SET, modelSet);
     if (MB_SUCCESS != rval)
-      return NULL;
+      return rval;
     // add to this new set all previous sets (which are still in ranges)
     for (int dim=0; dim<4; dim++)
     {
       rval = mdbImpl->add_entities(modelSet, geomRanges[dim]);
       if (MB_SUCCESS != rval)
-        return NULL;
+        return rval;
     }
 
   }
 
-  return newgtt;
+  return MB_SUCCESS;
 }
 
 #define  RETFALSE(a) { std::cout<<a<<"\n"; return false; }

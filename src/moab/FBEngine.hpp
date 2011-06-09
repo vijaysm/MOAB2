@@ -140,6 +140,14 @@ public:
   // be careful what you do with it
   GeomTopoTool * get_gtt() { return this->_my_geomTopoTool ; }
 
+  ErrorCode create_volume_with_direction(EntityHandle newFace1, EntityHandle newFace2, double * direction,
+      EntityHandle & volume);
+
+  // get nodes from edge in order
+  ErrorCode get_nodes_from_edge(EntityHandle gedge, std::vector<EntityHandle> & nodes);
+
+  ErrorCode  weave_lateral_face_from_edges(EntityHandle bEdge, EntityHandle tEdge,  double * direction,
+      EntityHandle & newLatFace);
 private:
 
   ErrorCode initializeSmoothing();
@@ -203,6 +211,9 @@ private:
   bool _t_created;
   bool _smooth;
   bool _initialized;
+  // these are initial ranges, that should not change during geometry gimmicks
+  // those that are added are changing gtt ranges, but they are not yet "smoothed"
+  // when new geometry is created, these ranges are not yet updated
   Range _my_gsets[4];
   // these are used only for smooth evaluations
   // these smooth faces and edges will be initialized after reading the file
