@@ -367,6 +367,10 @@ extern "C" {
       Range set_ents;
       result = MOABI->get_entities_by_handle(0, set_ents);
       CHKERR(result,"");
+      Range sets;
+      result = MOABI->get_entities_by_type(0, MBENTITYSET, sets);
+      CHKERR(result,"");
+      set_ents = subtract( set_ents, sets );
       set_ents = subtract( set_ents, orig_ents );
       result = create_int_ents(MBIMESHI, set_ents, file_set);
       CHKERR(result,"");
