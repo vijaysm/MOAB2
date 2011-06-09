@@ -3489,7 +3489,7 @@ ErrorCode ParallelComm::resolve_shared_ents(ParallelComm **pc,
     Range part_ents, skin_ents;
     rval = pc[p]->get_moab()->get_entities_by_dimension(0, part_dim, part_ents);
     if (MB_SUCCESS != rval) return rval;
-    rval = skinner.find_skin(part_ents, false, skin_ents, 0, true);
+    rval = skinner.find_skin(part_ents, false, skin_ents, 0, true, true, true);
     if (MB_SUCCESS != rval) return rval;
     rval = pc[p]->get_moab()->get_adjacencies(skin_ents, 0, true, verts[p],
                                               Interface::UNION);
@@ -3712,7 +3712,7 @@ ErrorCode ParallelComm::create_interface_sets(int resolve_dim, int shared_dim)
   result = mbImpl->get_entities_by_dimension(0, resolve_dim, skin_ents[resolve_dim]);
   RRA("");
   result = skinner.find_skin(skin_ents[resolve_dim], false, 
-                             skin_ents[resolve_dim-1], 0, true);
+                             skin_ents[resolve_dim-1], 0, true, true, true);
   RRA("Failed to find skin.");
   if (shared_dim > 1) {
     result = mbImpl->get_adjacencies(skin_ents[resolve_dim-1], resolve_dim-2, true,
