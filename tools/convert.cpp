@@ -140,12 +140,10 @@ int main(int argc, char* argv[])
   MPI_Comm_rank( MPI_COMM_WORLD, &proc_id );
 #endif
 
-
-  Interface* gMB;
+  Core core;
+  Interface* gMB = &core;
   ErrorCode result;
   Range range;
-
-  gMB = new Core();
 
   bool append_rank = false;
   bool percent_rank_subst = false;      
