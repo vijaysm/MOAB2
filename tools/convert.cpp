@@ -715,7 +715,7 @@ void list_formats( Interface* gMB )
     exit(OTHER_ERROR);
   }
   
-    // get field with for format description
+    // get field width for format description
   size_t w = 0;
   for (i = set->begin(); i != set->end(); ++i)
     if (i->description().length() > w)
