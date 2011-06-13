@@ -410,7 +410,7 @@ void check_equal( moab::ErrorCode A, moab::ErrorCode B, const char* sA, const ch
   if (A == B)
     return;
   
-  printf( "MBErrorCode Test Failed: %s == %s\n", sA, sB ); 
+  printf( "ErrorCode Test Failed: %s == %s\n", sA, sB ); 
   printf( "  at line %d of '%s'\n", line, file ); 
   printf( "  Expected value: %s (%d)\n", mb_error_str(A), (int)A ); 
   printf( "  Actual value:   %s (%d)\n", mb_error_str(B), (int)B ); 
