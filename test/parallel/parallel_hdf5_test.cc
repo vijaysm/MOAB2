@@ -53,6 +53,10 @@ void test_read_sets()             { test_read_sets_common(); }
 void test_read_sets_bcast_dups()  { test_read_sets_common( "BCAST_DUPLICATE_READS=yes" ); }
 void test_read_sets_read_dups()   { test_read_sets_common( "BCAST_DUPLICATE_READS=no"  ); }
 
+void test_write_different_element_types();
+void test_write_different_tags();
+void test_write_polygons();
+
 const char PARTITION_TAG[] = "PARTITION";
 
 bool KeepTmpFiles = false;
@@ -182,6 +186,12 @@ int main( int argc, char* argv[] )
     result += RUN_TEST( test_read_sets_bcast_dups );
     MPI_Barrier(MPI_COMM_WORLD);
     result += RUN_TEST( test_read_sets_read_dups );
+    MPI_Barrier(MPI_COMM_WORLD);
+    result += RUN_TEST( test_write_different_element_types );
+    MPI_Barrier(MPI_COMM_WORLD);
+    result += RUN_TEST( test_write_different_tags );
+    MPI_Barrier(MPI_COMM_WORLD);
+    result += RUN_TEST( test_write_polygons );
     MPI_Barrier(MPI_COMM_WORLD);
   }
   
@@ -369,7 +379,7 @@ void save_and_load_on_root( Interface& moab, const char* tmp_filename )
   }
   rval = moab.write_file( tmp_filename, 0, opt );
   if (MB_SUCCESS != rval) {
-    std::cerr << "Parallel write filed on processor " << procnum << std::endl;
+    std::cerr << "Parallel write failed on processor " << procnum << std::endl;
     if (procnum == 0 && !KeepTmpFiles)
       remove( tmp_filename );
     CHECK_ERR(rval);
@@ -379,6 +389,14 @@ void save_and_load_on_root( Interface& moab, const char* tmp_filename )
     std::cout << "Wrote file: \"" << tmp_filename << "\"\n";
   
   moab.delete_mesh();
+  std::vector<Tag> tags;
+  rval = moab.tag_get_tags( tags );
+  CHECK_ERR(rval);
+  for (size_t i = 0; i < tags.size(); ++i) {
+    rval = moab.tag_delete( tags[i] );
+    CHECK_ERR(rval);
+  }
+  
   if (procnum == 0) {
     rval = moab.load_file( tmp_filename );
     if (!KeepTmpFiles)
@@ -1131,5 +1149,187 @@ void test_read_sets_common( const char* extra_opts )
     }
   }
 }
+
+
+void test_write_different_element_types()
+{
+  const char file_name[] = "test_write_different_element_types.h5m";
+  int numproc, rank;
+  MPI_Comm_size( MPI_COMM_WORLD, &numproc );
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank    );
+  Core moab;
+  Interface &mb = moab;
+  ErrorCode rval;
+  
+  const EntityType topos[] =  
+   { MBEDGE, MBEDGE, MBQUAD, MBTRI, MBQUAD, MBTRI, MBTET, MBHEX, MBPRISM, MBPYRAMID, MBHEX, MBHEX };
+  const int verts[] = 
+   { 2,      3,      4,      3,     9,      6,     4,     8,     6,       5,         20,    27    };
+  const int ntypes = sizeof(topos)/sizeof(topos[0]);
+  
+  const EntityType mtype = topos[rank%ntypes];
+  const int nvert = verts[rank%ntypes];
+  std::vector<EntityHandle> conn(nvert);
+  for (int i = 0; i < nvert; ++i) {
+    const double coords[] = { rank, i, 0 };
+    rval = mb.create_vertex( coords, conn[i] );
+    CHECK_ERR(rval);
+  }
+  EntityHandle handle;
+  rval = mb.create_element( mtype, &conn[0], nvert, handle );
+  CHECK_ERR(rval);
+  
+  save_and_load_on_root( mb, file_name );
+  
+  if (rank)
+    return;
+  
+  for (int i = 0; i < ntypes; ++i) {
+    const int num_exp = numproc / ntypes + (i < (numproc % ntypes) ? 1 : 0);
+    Range ents;
+    rval = mb.get_entities_by_type( 0, topos[i], ents );
+    CHECK_ERR(rval);
+    int num = 0;
+    for (Range::iterator e = ents.begin(); e != ents.end(); ++e) {
+      const EntityHandle* junk;
+      int len;
+      rval = mb.get_connectivity( *e, junk, len, false );
+      if (len == verts[i])
+        ++num;
+    }
+    
+    CHECK_EQUAL( num_exp, num );
+  }
+}
+
+
+Tag get_tag( Interface& mb, int rank, bool create )
+{
+  DataType type = (DataType)(rank % (MB_MAX_DATA_TYPE+1));
+  TagType storage = (type == MB_TYPE_BIT) ? MB_TAG_BIT :
+                    (rank % 2)            ? MB_TAG_DENSE :
+                                            MB_TAG_SPARSE;
+  int len = rank % 3 + 1;
+  TagType cbit = create ? MB_TAG_EXCL : (TagType)0;
+  TagType vbit = rank% 4 == 1 ? MB_TAG_VARLEN : (TagType)0;
+  std::ostringstream name;
+  name << "TestTag" << rank;
+  const void* defval = 0;
+  const int defint[] = { rank, rank/2, rank+1, rank-1 };
+  const double defreal[] = { 0.1*rank, 1.0/rank, -rank, rank };
+  const int defhandle[] = { 0, 0, 0, 0 };
+  const unsigned char defbit = 0x1;
+  const char defopq[] = "Jason";
+  if (rank % 4 < 2) {
+    switch (type) {
+      case MB_TYPE_BIT: defval = &defbit; break;
+      case MB_TYPE_INTEGER: defval = defint; break;
+      case MB_TYPE_DOUBLE: defval = defreal; break;
+      case MB_TYPE_HANDLE: defval = defhandle; break;
+      case MB_TYPE_OPAQUE: defval = defopq; break;
+    }
+  }
+  
+  Tag result;
+  ErrorCode rval = mb.tag_get_handle( name.str().c_str(),
+                                      len, type,
+                                      result,
+                                      storage|cbit|vbit,
+                                      defval );
+  CHECK_ERR(rval);
+  return result;
+}
+              
+
+void test_write_different_tags()
+{
+  const char file_name[] = "test_write_different_tags.h5m";
+  int numproc, rank;
+  MPI_Comm_size( MPI_COMM_WORLD, &numproc );
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank    );
+  Core moab;
+  Interface &mb = moab;
+  
+  const int min_tags = 8;
+  get_tag( mb, rank, true );
+  for (int idx = rank+numproc; idx < min_tags; idx+=numproc)
+    get_tag( mb, idx, true );
+  
+  save_and_load_on_root( mb, file_name );
+  
+  if (0 == rank) {
+    for (int i = 0; i < std::max(min_tags, numproc); ++i)
+      get_tag( mb, i, false );
+  }
+}
+
+
+void test_write_polygons()
+{
+  const char file_name[] = "test_write_polygons.h5m";
+  int numproc, rank;
+  MPI_Comm_size( MPI_COMM_WORLD, &numproc );
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank    );
+  Core moab;
+  Interface &mb = moab;
+  ErrorCode rval;
+  
+    // create a polygon on each process
+  const double r = 0.70710678118654757;
+  const double points[8][3] = { { 1, 0, rank },
+                                { r, r, rank },
+                                { 0, 1, rank },
+                                {-r, r, rank },
+                                {-1, 0, rank },
+                                {-r,-r, rank },
+                                { 0,-1, rank },
+                                { r,-r, rank } };
+  const int nvtx = rank % 4 + 5;
+  std::vector<EntityHandle> conn(nvtx);
+  for (int i = 0; i < nvtx; ++i) {
+    rval = mb.create_vertex( points[i], conn[i] );
+    CHECK_ERR(rval);
+  }
+  
+  EntityHandle h;
+  rval = mb.create_element( MBPOLYGON, &conn[0], nvtx, h );
+  CHECK_ERR(rval);
+  
+  save_and_load_on_root( mb, file_name );
+
+  if (rank != 0)
+    return;
+  
+    // check results on root process
+    
+    // determine which polygon was created by which proc by 
+    // looking at the z-coordinate of the vertices
+  Range range;
+  rval = mb.get_entities_by_type( 0, MBPOLYGON, range );
+  std::vector<EntityHandle> poly( numproc, 0 );
+  CHECK_EQUAL( numproc, (int)range.size() );
+  for (Range::iterator it = range.begin(); it != range.end(); ++it) {
+    const EntityHandle* conn;
+    int len;
+    rval = mb.get_connectivity( *it, conn, len );
+    CHECK_ERR(rval);
+    double coords[3];
+    rval = mb.get_coords( conn, 1, coords );
+    CHECK_ERR(rval);
+    int r = (int)(coords[2]);
+    CHECK_EQUAL( (EntityHandle)0, poly[r] );
+    poly[r] = *it;
+  }
+  
+    // check that each poly has the expected number of vertices
+  for (int i = 0; i < numproc; ++i) {
+    const EntityHandle* conn;
+    int len;
+    rval = mb.get_connectivity( poly[i], conn, len );
+    CHECK_ERR(rval);
+    CHECK_EQUAL( i % 4 + 5, len );
+  }
+}
+
 
 

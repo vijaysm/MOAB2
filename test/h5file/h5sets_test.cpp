@@ -32,7 +32,7 @@ void read_write_file( Interface& output, Interface& input, EntityHandle* input_s
   CHECK_ERR(rval);
 }
 
-void test_ranged_set_with_holes()
+void test_ranged_set_with_stale_handles()
 {
   Core moab;
   Interface& mb = moab;
@@ -49,6 +49,7 @@ void test_ranged_set_with_holes()
   rval = mb.create_meshset( MESHSET_SET, set );
   CHECK_ERR(rval);
   rval = mb.add_entities( set, verts );
+  CHECK_ERR(rval);
   
   std::vector<EntityHandle> dead_verts;
   for (int i = num_vtx/4; i < num_vtx; i += num_vtx/4 ) {
@@ -64,7 +65,8 @@ void test_ranged_set_with_holes()
   EntityHandle file_set;
   read_write_file( mb, mb2, &file_set );
   Range sets;
-  mb2.get_entities_by_type( 0, MBENTITYSET, sets );
+  rval = mb2.get_entities_by_type( 0, MBENTITYSET, sets );
+  CHECK_ERR(rval);
   CHECK_EQUAL( 2, (int)sets.size() );
   EntityHandle other_set = sets.front() == file_set ? sets.back() : sets.front();
   
@@ -72,6 +74,50 @@ void test_ranged_set_with_holes()
   rval = mb2.get_number_entities_by_type( other_set, MBVERTEX, num_vtx2 );
   CHECK_ERR(rval);
   CHECK_EQUAL( (int)(num_vtx - dead_verts.size()), num_vtx2 );
+}
+
+void test_list_set_with_stale_handles()
+{
+  Core moab;
+  Interface& mb = moab;
+  ErrorCode rval;
+  Range verts;
+  
+  const int num_vtx = 40;
+  std::vector<double> coords( 3*num_vtx, 0.0 );
+  rval = mb.create_vertices( &coords[0], num_vtx, verts );
+  CHECK_ERR(rval);
+  CHECK_EQUAL(num_vtx, (int)verts.size());
+  
+  EntityHandle set;
+  rval = mb.create_meshset( MESHSET_ORDERED, set );
+  CHECK_ERR(rval);
+  rval = mb.add_entities( set, verts );
+  CHECK_ERR(rval);
+  
+  std::vector<EntityHandle> dead_verts;
+  for (int i = num_vtx/4; i < num_vtx; i += num_vtx/4 ) {
+    Range::iterator j = verts.begin();
+    j += i;
+    dead_verts.push_back( *j );
+  }
+  rval = mb.delete_entities( &dead_verts[0], dead_verts.size() );
+  CHECK_ERR(rval);
+  
+  Core moab2;
+  Interface& mb2 = moab2;
+  EntityHandle file_set;
+  read_write_file( mb, mb2, &file_set );
+  Range sets;
+  rval = mb2.get_entities_by_type( 0, MBENTITYSET, sets );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( 2, (int)sets.size() );
+  EntityHandle other_set = sets.front() == file_set ? sets.back() : sets.front();
+  
+  std::vector<EntityHandle> list;
+  rval = mb2.get_entities_by_handle( other_set, list );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( verts.size() - dead_verts.size(), list.size() );
 }
 
 void test_file_set()
@@ -325,7 +371,8 @@ int main(int argc, char* argv[])
   }
 
   int exitval = 0;
-  exitval += RUN_TEST( test_ranged_set_with_holes );
+  exitval += RUN_TEST( test_ranged_set_with_stale_handles );
+  exitval += RUN_TEST( test_list_set_with_stale_handles );
   exitval += RUN_TEST( test_file_set );
   exitval += RUN_TEST( test_small_tree );
   exitval += RUN_TEST( test_set_flags );

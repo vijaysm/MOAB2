@@ -226,7 +226,7 @@ void WriteHDF5Parallel::debug_barrier_line(int lineno)
 {
   const unsigned threshold = 2;
   static unsigned long count = 0;
-  if (dbgOut.get_verbosity() >= threshold) {
+  if (dbgOut.get_verbosity() >= threshold && myPcomm) {
     dbgOut.printf( threshold, "*********** Debug Barrier %lu (@%d)***********\n", ++count, lineno);
     MPI_Barrier( myPcomm->proc_config().proc_comm() );
   }
@@ -588,12 +588,34 @@ struct serial_tag_data {
   DataType type;
   int size;
   int name_len;
+  int def_val_len;
   char name[sizeof(unsigned long)];
   
-  static size_t len( int name_len ) {
-    return sizeof(serial_tag_data) + name_len - sizeof(unsigned long);
+  static size_t pad( size_t len ) {
+    if (len % sizeof(unsigned long))
+      return len + sizeof(unsigned long) - len % sizeof(unsigned long);
+    else
+      return len;
   }
-  size_t len() const { return len( name_len ); }
+  
+  static size_t def_val_bytes( int def_val_len, DataType type ) {
+    switch (type) {
+      case MB_TYPE_BIT:     return def_val_len ? 1 : 0;             break;
+      case MB_TYPE_OPAQUE:  return def_val_len;                     break;
+      case MB_TYPE_INTEGER: return def_val_len*sizeof(int);         break;
+      case MB_TYPE_DOUBLE:  return def_val_len*sizeof(double);      break;
+      case MB_TYPE_HANDLE:  return def_val_len*sizeof(EntityHandle);break;
+    }
+    return 0;
+  }
+  
+  static size_t len( int name_len, int def_val_len, DataType type ) {
+    return sizeof(serial_tag_data) + pad(name_len + def_val_bytes(def_val_len,type)) - sizeof(unsigned long);
+  }
+  size_t len() const { return len( name_len, def_val_len, type ); }
+  void* default_value() { return def_val_len ? name + name_len : 0; }
+  const void* default_value() const { return const_cast<serial_tag_data*>(this)->default_value(); }
+  void set_default_value( const void* val ) { memcpy( default_value(), val, def_val_bytes( def_val_len, type ) ); }
 };
 
 ErrorCode WriteHDF5Parallel::append_serial_tag_data( 
@@ -607,22 +629,31 @@ ErrorCode WriteHDF5Parallel::append_serial_tag_data(
   if (MB_SUCCESS != rval)
     return error(rval);
   
-    // get name length padded to preserve alignement
-  size_t name_len = name.size();
-  if (!name_len) return MB_SUCCESS; // skip tags with no name
-    // we pad such that we always terminate with a null character
-  name_len += sizeof(unsigned long) - (name_len % sizeof(unsigned long));
+    // get name length, including space for null char
+  size_t name_len = name.size() + 1;
+  if (name_len == 1) return MB_SUCCESS; // skip tags with no name
+ 
+  DataType data_type;
+  rval = iFace->tag_get_data_type( tag.tag_id, data_type );
+  if (MB_SUCCESS != rval) return error(rval);
+
+    // get default value
+  int def_val_len;
+  const void* def_val;
+  if (MB_SUCCESS != iFace->tag_get_default_value( tag.tag_id, def_val, def_val_len )) {
+    def_val_len = 0;
+    def_val = 0;
+  }
 
     // allocate struct within buffer
   size_t init_size = buffer.size();
-  buffer.resize( init_size + serial_tag_data::len(name_len) );
+  buffer.resize( init_size + serial_tag_data::len(name_len, def_val_len, data_type) );
   serial_tag_data* ptr = reinterpret_cast<serial_tag_data*>(&buffer[init_size]);
   
     // populate struct
   rval = iFace->tag_get_type( tag.tag_id, ptr->storage );
   if (MB_SUCCESS != rval) return error(rval);
-  rval = iFace->tag_get_data_type( tag.tag_id, ptr->type );
-  if (MB_SUCCESS != rval) return error(rval);
+  ptr->type = data_type;
   rval = iFace->tag_get_length( tag.tag_id, ptr->size );
   if (MB_VARIABLE_DATA_LENGTH == rval)
     ptr->size = MB_VARIABLE_LENGTH;
@@ -632,6 +663,8 @@ ErrorCode WriteHDF5Parallel::append_serial_tag_data(
   Range range;
   memset( ptr->name, 0, ptr->name_len );
   memcpy( ptr->name, name.data(), name.size() );
+  ptr->def_val_len = def_val_len;
+  ptr->set_default_value( def_val );
   
   return MB_SUCCESS;
 }
@@ -681,10 +714,10 @@ ErrorCode WriteHDF5Parallel::check_serial_tag_data(
     if (tag_iter == tagList.end() || n != name) { // new tag
       TagDesc newtag;
       
-      if (ptr->size == MB_VARIABLE_DATA_LENGTH) 
-        rval = iFace->tag_get_handle( name.c_str(), 0, ptr->type, newtag.tag_id, MB_TAG_VARLEN|MB_TAG_CREAT|ptr->storage );
+      if (ptr->size == MB_VARIABLE_LENGTH) 
+        rval = iFace->tag_get_handle( name.c_str(), ptr->def_val_len, ptr->type, newtag.tag_id, MB_TAG_VARLEN|MB_TAG_CREAT|ptr->storage, ptr->default_value() );
       else
-        rval = iFace->tag_get_handle( name.c_str(), ptr->size, ptr->type, newtag.tag_id, MB_TAG_CREAT|ptr->storage );
+        rval = iFace->tag_get_handle( name.c_str(), ptr->size, ptr->type, newtag.tag_id, MB_TAG_CREAT|ptr->storage, ptr->default_value() );
       if (MB_SUCCESS != rval)
         return error(rval);
       
@@ -1100,8 +1133,8 @@ ErrorCode WriteHDF5Parallel::create_node_table( int dimension )
   CHECK_MPI(result);
   
     // create node data in file
-  long first_id_and_max_count[2];
-  if (myPcomm->proc_config().proc_rank() == 0)
+  long first_id_and_max_count[3];
+  if (myPcomm->proc_config().proc_rank() == 0 && num_nodes)
   {
     int total = 0;
     for (unsigned int i = 0; i < myPcomm->proc_config().proc_size(); i++)
@@ -1113,13 +1146,15 @@ ErrorCode WriteHDF5Parallel::create_node_table( int dimension )
     mhdf_closeData( filePtr, handle, &status );
     
     first_id_and_max_count[1] = *std::max_element( node_counts.begin(), node_counts.end() );
+    first_id_and_max_count[2] = total;
   }
     
     // send id offset to every proc
-  result = MPI_Bcast( first_id_and_max_count, 2, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
+  result = MPI_Bcast( first_id_and_max_count, 3, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
   CHECK_MPI(result);
   nodeSet.first_id = (id_t)first_id_and_max_count[0];
-  nodeSet.max_num_ents = (id_t)first_id_and_max_count[1];
+  nodeSet.max_num_ents = first_id_and_max_count[1];
+  nodeSet.total_num_ents = first_id_and_max_count[2];
    
       // calculate per-processor offsets
   if (myPcomm->proc_config().proc_rank() == 0)
@@ -1180,34 +1215,66 @@ struct elemtype {
 ErrorCode WriteHDF5Parallel::negotiate_type_list()
 {
   int result;
+  const MPI_Comm comm = myPcomm->proc_config().proc_comm();
   
   exportList.sort();
-  
-    // Get number of types each processor has
-  int num_types = 2*exportList.size();
-  std::vector<int> counts(myPcomm->proc_config().proc_size());
-  result = MPI_Gather( &num_types, 1, MPI_INT, &counts[0], 1, MPI_INT, 0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
+  int num_types = exportList.size();
   
     // Get list of types on this processor
-  std::vector<int> my_types(num_types);
+  typedef std::vector< std::pair<int,int> > typelist;
+  typelist my_types(num_types);
   VALGRIND_MAKE_VEC_UNDEFINED( my_types );
-  std::vector<int>::iterator viter = my_types.begin();
+  typelist::iterator viter = my_types.begin();
   for (std::list<ExportSet>::iterator eiter = exportList.begin();
        eiter != exportList.end(); ++eiter)
   {
-    *viter = eiter->type;      ++viter;
-    *viter = eiter->num_nodes; ++viter;
+    viter->first = eiter->type;
+    viter->second = eiter->num_nodes; 
+    ++viter;
   }
 
   dbgOut.print( 2,"Local Element Types:\n");
-  viter = my_types.begin();
-  while (viter != my_types.end())
+  for (viter = my_types.begin(); viter != my_types.end(); ++viter)
   {
-    int type = *viter; ++viter;
-    int count = *viter; ++viter;
+    int type = viter->first;
+    int count = viter->second;
     dbgOut.printf(2, "  %s : %d\n", CN::EntityTypeName((EntityType)type), count);
   }
+
+    // Broadcast number of types from root to all nodes
+  int num_types0 = num_types;
+  result = MPI_Bcast( &num_types0, 1, MPI_INT, 0, comm );
+  CHECK_MPI(result);
+    // Broadcast type list from root to all nodes
+  typelist root_types( num_types0 );
+  if (0 == myPcomm->proc_config().proc_rank())
+    root_types = my_types;
+  result = MPI_Bcast( &root_types[0], 2*num_types0, MPI_INT, 0, comm );
+  CHECK_MPI(result);
+  
+    // Build local list of any types that root did not know about
+  typelist non_root_types;
+  viter = root_types.begin();
+  for (typelist::iterator iter = my_types.begin(); iter != my_types.end(); ++iter) {
+    if (viter == root_types.end() || *viter != *iter)
+      non_root_types.push_back( *iter );
+    else
+      ++viter;
+  }
+  
+    // Determine if any process had types not defined on the root
+  int non_root_count = non_root_types.size();
+  int not_done;
+  result = MPI_Allreduce( &non_root_count, &not_done, 1, MPI_INT, MPI_LOR, comm );
+  CHECK_MPI(result);
+  if (!not_done)
+    return MB_SUCCESS;
+  
+    // Get number of types each processor has that root does not
+  std::vector<int> counts(myPcomm->proc_config().proc_size());
+  int two_count = 2*non_root_count;
+  result = MPI_Gather( &two_count, 1, MPI_INT, &counts[0], 1, MPI_INT, 0, comm );
+  CHECK_MPI(result);
 
     // Get list of types from each processor
   std::vector<int> displs(myPcomm->proc_config().proc_size() + 1);
@@ -1216,83 +1283,55 @@ ErrorCode WriteHDF5Parallel::negotiate_type_list()
   for (unsigned long i = 1; i <= myPcomm->proc_config().proc_size(); ++i)
     displs[i] = displs[i-1] + counts[i-1];
   int total = displs[myPcomm->proc_config().proc_size()];
-  std::vector<int> alltypes(total);
+  typelist alltypes(total/2);
   VALGRIND_MAKE_VEC_UNDEFINED( alltypes );
-  VALGRIND_CHECK_MEM_IS_DEFINED( &my_types[0], my_types.size()*sizeof(int) );
-  result = MPI_Gatherv( &my_types[0], my_types.size(), MPI_INT,
-                        &alltypes[0], &counts[0], &displs[0], MPI_INT,
-                        0, myPcomm->proc_config().proc_comm() );
+  VALGRIND_CHECK_MEM_IS_DEFINED( &non_root_types[0], non_root_types.size()*sizeof(int) );
+  result = MPI_Gatherv( &non_root_types[0], 2*non_root_count, MPI_INT,
+                        &alltypes[0], &counts[0], &displs[0], MPI_INT, 0, comm );
   CHECK_MPI(result);
   
-    // Merge type lists
-  std::list<elemtype> type_list;
-  std::list<elemtype>::iterator liter;
-  for (unsigned int i = 0; i < myPcomm->proc_config().proc_size(); ++i)
-  {
-    int* proc_type_list = &alltypes[displs[i]];
-    liter = type_list.begin();
-    for (int j = 0; j < counts[i]; j += 2)
+    // Merge type lists.
+    // Prefer O(n) insertions with O(ln n) search time because
+    // we expect data from a potentially large number of processes,
+    // but with a small total number of element types.
+  if (0 == myPcomm->proc_config().proc_rank()) {
+    for (viter = alltypes.begin(); viter != alltypes.end(); ++viter) {
+      typelist::iterator titer = std::lower_bound( my_types.begin(), my_types.end(), *viter );
+      if (titer == my_types.end() || *titer != *viter)
+        my_types.insert( titer, *viter );
+    }
+
+    dbgOut.print(2, "Global Element Types:\n");
+    for (viter = my_types.begin(); viter != my_types.end(); ++viter)
     {
-      elemtype type( &proc_type_list[j] );
-        // skip until insertion spot
-      for (; liter != type_list.end() && *liter < type; ++liter);
-      
-      if (liter == type_list.end() || *liter != type)
-        liter = type_list.insert( liter, type );
+      dbgOut.printf(2,"  %s : %d\n", CN::EntityTypeName((EntityType)viter->first), viter->second);
     }
   }
   
     // Send total number of types to each processor
-  total = type_list.size();
-  result = MPI_Bcast( &total, 1, MPI_INT, 0, myPcomm->proc_config().proc_comm() );
+  total = my_types.size();
+  result = MPI_Bcast( &total, 1, MPI_INT, 0, comm );
   CHECK_MPI(result);
   
     // Send list of types to each processor
-  std::vector<int> intlist(total * 2);
-  VALGRIND_MAKE_VEC_UNDEFINED( intlist );
-  viter = intlist.begin();
-  for (liter = type_list.begin(); liter != type_list.end(); ++liter)
-  {
-    *viter = liter->mbtype;  ++viter;
-    *viter = liter->numnode; ++viter;
-  }
-  result = MPI_Bcast( &intlist[0], 2*total, MPI_INT, 0, myPcomm->proc_config().proc_comm() );
+  my_types.resize(total);
+  result = MPI_Bcast( &my_types[0], 2*total, MPI_INT, 0, comm );
   CHECK_MPI(result);
-
-  dbgOut.print(2, "Global Element Types:\n");
-  viter = intlist.begin();
-  while (viter != intlist.end())
-  {
-    int type = *viter; ++viter;
-    int count = *viter; ++viter;
-    dbgOut.printf(2,"  %s : %d\n", CN::EntityTypeName((EntityType)type), count);
-  }
   
     // Insert missing types into exportList, with an empty
     // range of entities to export.
   std::list<ExportSet>::iterator ex_iter = exportList.begin();
-  viter = intlist.begin();
-  for (long i = 0; i < total; ++i)
+  viter = my_types.begin();
+  for (viter = my_types.begin(); viter != my_types.end(); ++viter)
   {
-    long mbtype = *viter; ++viter;
-    long numnode = *viter; ++viter;
-    while (ex_iter != exportList.end() && ex_iter->type < mbtype)
+    while (ex_iter != exportList.end() && *ex_iter < *viter)
       ++ex_iter;
     
-    bool equal = ex_iter != exportList.end() && ex_iter->type == mbtype;
-    if (equal)
-    {
-      while (ex_iter != exportList.end() && ex_iter->num_nodes < numnode)
-        ++ex_iter;
-        
-      equal = ex_iter != exportList.end() && ex_iter->num_nodes == numnode;
-    }
-    
-    if (!equal)
+    if (ex_iter == exportList.end() || !(*ex_iter == *viter))
     {
       ExportSet insert;
-      insert.type = (EntityType)mbtype;
-      insert.num_nodes = numnode;
+      insert.type = (EntityType)viter->first;
+      insert.num_nodes = viter->second;
       insert.first_id = 0;
       insert.offset = 0;
       insert.adj_offset = 0;
