@@ -263,7 +263,9 @@ ErrorCode GeomTopoTool::construct_obb_trees(bool make_one_vol)
       trees.clear();
     for (Range::iterator j = tmp_surfs.begin(); j != tmp_surfs.end(); ++j) {
       rval = get_root(*j, root);
-      if (MB_SUCCESS != rval || !root)
+      if (MB_SUCCESS != rval )
+        return rval;
+      if(!root)
         return MB_FAILURE;
       trees.insert(root);
     }
@@ -578,7 +580,7 @@ ErrorCode GeomTopoTool::set_sense(EntityHandle entity, EntityHandle wrt_entity,
     EntityHandle sense_data[2] = { 0, 0 };
     rval = mdbImpl->tag_get_data(sense2Tag, &entity, 1, sense_data);
     if (MB_TAG_NOT_FOUND != rval && MB_SUCCESS != rval)
-      return MB_FAILURE;
+      return rval;
 
     if (0 == sense) {
       if (0 != sense_data[0] && wrt_entity != sense_data[0])
@@ -645,7 +647,7 @@ ErrorCode GeomTopoTool::get_sense(EntityHandle entity, EntityHandle wrt_entity,
     EntityHandle sense_data[2] = { 0, 0 };
     rval = mdbImpl->tag_get_data(sense2Tag, &entity, 1, sense_data);
     if (MB_TAG_NOT_FOUND != rval && MB_SUCCESS != rval)
-      return MB_FAILURE;
+      return rval;
     if ((wrt_entity == sense_data[0]) && (wrt_entity == sense_data[1]))
       sense = 0;
     else if (wrt_entity == sense_data[0])
@@ -766,7 +768,7 @@ ErrorCode GeomTopoTool::check_face_sense_tag(bool create)
     rval = mdbImpl->tag_get_handle(GEOM_SENSE_2_TAG_NAME, 2,
         MB_TYPE_HANDLE, sense2Tag, flags, def_val);
     if (MB_SUCCESS != rval)
-      return MB_FAILURE;
+      return rval;
   }
   return MB_SUCCESS;
 }
@@ -781,11 +783,11 @@ ErrorCode GeomTopoTool::check_edge_sense_tags(bool create)
     rval = mdbImpl->tag_get_handle(GEOM_SENSE_N_ENTS_TAG_NAME,
                                    0, MB_TYPE_HANDLE, senseNEntsTag, flags);
     if (MB_SUCCESS != rval)
-      return MB_FAILURE;
+      return rval;
     rval = mdbImpl->tag_get_handle(GEOM_SENSE_N_SENSES_TAG_NAME,
                                    0, MB_TYPE_INTEGER, senseNSensesTag, flags);
     if (MB_SUCCESS != rval)
-      return MB_FAILURE;
+      return rval;
   }
   return MB_SUCCESS;
 }
@@ -914,7 +916,9 @@ ErrorCode GeomTopoTool::geometrize_surface_set(EntityHandle surface, EntityHandl
     const EntityHandle * conn2;
     int nnodes2;
     rval = mdbImpl-> get_connectivity(current_edge, conn2, nnodes2);
-    if (MB_SUCCESS != rval || nnodes2!=2)
+    if (MB_SUCCESS != rval)
+      return rval;
+    if( nnodes2!=2 )
       return MB_FAILURE;
     EntityHandle start_node = conn2[0];
     EntityHandle next_node = conn2[1];
@@ -960,7 +964,9 @@ ErrorCode GeomTopoTool::geometrize_surface_set(EntityHandle surface, EntityHandl
 
       current_edge = good_edges[0];
       rval = mdbImpl-> get_connectivity(current_edge, conn2, nnodes2);
-      if (MB_SUCCESS != rval || nnodes2!=2)
+      if (MB_SUCCESS != rval )
+        return rval;
+      if( nnodes2!=2)
         return MB_FAILURE;
 
       if (conn2[0] != next_node)
