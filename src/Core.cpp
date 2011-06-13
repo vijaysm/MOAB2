@@ -2156,7 +2156,7 @@ ErrorCode Core::tag_get_handle( const char* name,
     // that it is requesting a variable-length tag, so no need 
     // to also require/check the MB_TAG_VARLEN bit in the flags.
     if (tag_handle->variable_length()) {
-      if (size != 0 && size != MB_VARIABLE_LENGTH)
+      if (size != 0 && size != MB_VARIABLE_LENGTH && !(flags & MB_TAG_VARLEN))
         return MB_INVALID_SIZE;
     }
     // But /do/ fail if MB_TAG_VARLEN flag is set and tag is 
