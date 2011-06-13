@@ -611,9 +611,9 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
   int hexes_alloc = 0, hexes_size;
   iBase_EntitySetHandle hex_set;
   iBase_EntityHandle *adj_faces1 = NULL;
-  int adj_faces1_alloc = 0; /*, adj_faces1_size; */
+  /* int adj_faces1_alloc = 0, adj_faces1_size; */
   int *face_offsets1 = NULL;
-  int face_offsets1_alloc = 0; /*, face_offsets1_size; */
+  /* int face_offsets1_alloc = 0, face_offsets1_size; */
 
     /* get the number of whole mesh */
   int n_whole_mesh = 0;
@@ -1092,11 +1092,11 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
   }
   
     /* get adjacent faces of all hexes */
+/*
   adj_faces1 = NULL;
   adj_faces1_alloc = 0;
   face_offsets1 = NULL;
   face_offsets1_alloc = 0;
-/*
   iMesh_getAdjEntities(mesh, hex_set,
                        iBase_ALL_TYPES,
                        iMesh_HEXAHEDRON, iBase_FACE,
