@@ -1134,17 +1134,18 @@ ErrorCode WriteHDF5Parallel::create_node_table( int dimension )
   
     // create node data in file
   long first_id_and_max_count[3];
-  if (myPcomm->proc_config().proc_rank() == 0 && num_nodes)
+  if (myPcomm->proc_config().proc_rank() == 0)
   {
     int total = 0;
     for (unsigned int i = 0; i < myPcomm->proc_config().proc_size(); i++)
       total += node_counts[i];
     
     nodeSet.total_num_ents = total;
-    hid_t handle = mhdf_createNodeCoords( filePtr, dimension, total, &first_id_and_max_count[0], &status );
-    CHECK_HDF(status);
-    mhdf_closeData( filePtr, handle, &status );
-    
+    if (total) {
+      hid_t handle = mhdf_createNodeCoords( filePtr, dimension, total, &first_id_and_max_count[0], &status );
+      CHECK_HDF(status);
+      mhdf_closeData( filePtr, handle, &status );
+    }
     first_id_and_max_count[1] = *std::max_element( node_counts.begin(), node_counts.end() );
     first_id_and_max_count[2] = total;
   }
