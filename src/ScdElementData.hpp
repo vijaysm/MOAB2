@@ -71,6 +71,9 @@ private:
     //! each parametric direction)
   int dIJKm1[3];
 
+    //! whether scd element rectangle is periodic in i and possibly j
+  bool isPeriodic[2];
+  
     //! bare constructor, so compiler doesn't create one for me
   ScdElementData();
 
@@ -82,7 +85,8 @@ public:
     //! constructor
   ScdElementData( EntityHandle start_handle,
                   const int imin, const int jmin, const int kmin,
-                  const int imax, const int jmax, const int kmax);
+                  const int imax, const int jmax, const int kmax,
+                  bool is_periodic_i = false, bool is_periodic_j = false);
   
   virtual ~ScdElementData();
   
@@ -106,6 +110,15 @@ public:
     //! given a handle, get the corresponding parameters
   ErrorCode get_params(const EntityHandle ehandle,
                           int &i, int &j, int &k) const;
+
+    //! return whether rectangle is periodic in i
+  inline bool is_periodic_i() const {return isPeriodic[0];};
+  
+    //! return whether rectangle is periodic in j
+  inline bool is_periodic_j() const {return isPeriodic[1];};
+
+  inline void is_periodic(bool is_periodic[2]) const 
+      {is_periodic[0] = isPeriodic[0]; is_periodic[1] = isPeriodic[1];}
   
     //! convenience functions for parameter extents
   int i_min() const {return (elementParams[0].hom_coord())[0];}
@@ -148,7 +161,8 @@ public:
   static EntityID calc_num_entities( EntityHandle start_handle,
                                        int irange,
                                        int jrange,
-                                       int krange );
+                                     int krange,
+                                     bool is_periodic_i = false, bool is_periodic_j = false);
 
   unsigned long get_memory_use() const;
 };
@@ -204,9 +218,11 @@ inline bool ScdElementData::contains(const HomCoord &temp) const
 {
     // upper bound is < instead of <= because element params max is one less
     // than vertex params max, except in case of 2d or 1d sequence
-  return (temp >= elementParams[0] && 
-          ((!dIJKm1[1] && temp.j() == elementParams[1].j()) || (dIJKm1[1] && temp.j() < elementParams[1].j())) &&
-          ((!dIJKm1[2] && temp.k() == elementParams[1].k()) || (dIJKm1[2] && temp.k() < elementParams[1].k())));
+  return ((dIJKm1[0] && temp.i() >= elementParams[0].i() && temp.i() < elementParams[0].i()+dIJKm1[0]) &&
+          ((!dIJKm1[1] && temp.j() == elementParams[1].j()) || 
+           (dIJKm1[1] && temp.j() >= elementParams[0].j() && temp.j() < elementParams[0].j()+dIJKm1[1])) &&
+          ((!dIJKm1[2] && temp.k() == elementParams[1].k()) || 
+           (dIJKm1[2] && temp.k() >= elementParams[0].k() && temp.k() < elementParams[0].k()+dIJKm1[2])));
 }
   
 inline bool ScdElementData::VertexDataRef::contains(const HomCoord &coords) const 
@@ -294,16 +310,19 @@ inline ErrorCode ScdElementData::get_params_connectivity(const int i, const int 
 {
   if (contains(HomCoord(i, j, k)) == false) return MB_FAILURE;
   
+  int ip1 = (isPeriodic[0] ? (i+1)%dIJKm1[0] : i+1),
+      jp1 = (isPeriodic[1] ? (j+1)%dIJKm1[1] : j+1);
+  
   connectivity.push_back(get_vertex(i, j, k));
-  connectivity.push_back(get_vertex(i+1, j, k));
+  connectivity.push_back(get_vertex(ip1, j, k));
   if (CN::Dimension(TYPE_FROM_HANDLE(start_handle())) < 2) return MB_SUCCESS;
-  connectivity.push_back(get_vertex(i+1, j+1, k));
-  connectivity.push_back(get_vertex(i, j+1, k));
+  connectivity.push_back(get_vertex(ip1, jp1, k));
+  connectivity.push_back(get_vertex(i, jp1, k));
   if (CN::Dimension(TYPE_FROM_HANDLE(start_handle())) < 3) return MB_SUCCESS;
   connectivity.push_back(get_vertex(i, j, k+1));
-  connectivity.push_back(get_vertex(i+1, j, k+1));
-  connectivity.push_back(get_vertex(i+1, j+1, k+1));
-  connectivity.push_back(get_vertex(i, j+1, k+1));
+  connectivity.push_back(get_vertex(ip1, j, k+1));
+  connectivity.push_back(get_vertex(ip1, jp1, k+1));
+  connectivity.push_back(get_vertex(i, jp1, k+1));
   return MB_SUCCESS;
 }
   

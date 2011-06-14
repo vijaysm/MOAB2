@@ -44,10 +44,22 @@ class Core;
  *
  * Structured mesh blocks are returned in the form of ScdBox class objects.  Each ScdBox instance
  * represents a rectangular block of vertices and possibly elements (edges, quads, or hexes).  The
- * entity handles for a ScdBox are guaranteed to be contiguous, starting at a starting value
+ * edge/quad/hex entity handles for a ScdBox are guaranteed to be contiguous, starting at a starting value
  * which is also available through the ScdBox class.  However, vertex handles may or may not be
  * contiguous, depending on the construction method.  The start vertex handle is also available from
  * the ScdBox class.
+ *
+ * \section Parameters Parametric Space
+ *
+ * Each structured box has a parametric (ijk) space, which can be queried through the ScdBox interface.
+ * For non-periodic boxes, the edge/quad/hex parameter bounds are one less in each dimension than that
+ * of the vertices.  Entity handles are allocated in column-major order, that is, with the i parameter 
+ * varying fastest, then j, then k.
+ *
+ * Boxes can be periodic in i, or j, or both i and j.  If only i or j is periodic, the corresponding mesh
+ * is a ring or annular cylinder; if both i and j are periodic, the corresponding mesh is an annular
+ * torus.  A box cannot be periodic in all three parameters.  If i and/or j is periodic, the parameter extent
+ * in the/each periodic direction is equal to that of the vertices in that direction.
  *
  * \section Adjs Adjacent Entities
  * This interface supports parametric access to intermediate-dimension entities, e.g. adjacent faces
@@ -96,9 +108,11 @@ public:
      * \param coords Coordinates of vertices, in column-major order; if NULL, no coords are set
      * \param num_coords Number of coordinate values; if zero, no coords are set
      * \param new_box Reference to box of structured mesh
+     * \param is_periodic_i True if box is periodic in i direction
+     * \param is_periodic_j True if box is periodic in j direction
      */
   ErrorCode construct_box(HomCoord low, HomCoord high, double *coords, unsigned int num_coords,
-                          ScdBox *& new_box);
+                          ScdBox *& new_box, bool is_periodic_i = false, bool is_periodic_j = false);
 
     //! Create a structured sequence of vertices, quads, or hexes
     /** Starting handle for the sequence is available from the returned ScdBox.  
@@ -109,9 +123,12 @@ public:
      * \param type EntityType, one of MBVERTEX, MBEDGE, MBQUAD, MBHEX
      * \param starting_id Requested start id of entities
      * \param new_box Reference to the newly created box of entities
+     * \param is_periodic_i True if box is periodic in i direction
+     * \param is_periodic_j True if box is periodic in j direction
      */
   ErrorCode create_scd_sequence(HomCoord low, HomCoord high, EntityType type,
-                                int starting_id, ScdBox *&new_box);
+                                int starting_id, ScdBox *&new_box, 
+                                bool is_periodic_i = false, bool is_periodic_j = false);
 
     //! Return all the structured mesh blocks in this MOAB instance
     /** Return the structured blocks in this MOAB instance.  If these were not searched for
@@ -133,6 +150,12 @@ public:
      */
   Tag box_dims_tag(bool create_if_missing = true);
 
+    //! Return the tag marking whether box is periodic in i and j
+    /**
+     * \param create_if_missing If the tag does not yet exist, create it
+     */
+  Tag box_periodic_tag(bool create_if_missing = true);
+
     //! Return the tag marking the ScdBox for a set
     /**
      * \param create_if_missing If the tag does not yet exist, create it
@@ -150,9 +173,12 @@ private:
     /** \param low Lower corner parameters for this box
      * \param high Upper corner parameters for this box
      * \param scd_set Entity set created
+     * \param is_periodic_i True if box is periodic in i direction
+     * \param is_periodic_j True if box is periodic in j direction
      */
   ErrorCode create_box_set(const HomCoord low, const HomCoord high,
-                           EntityHandle &scd_set);
+                           EntityHandle &scd_set,
+                           bool is_periodic_i = false, bool is_periodic_j = false);
   
     //! interface instance
   Core *mbImpl;
@@ -163,6 +189,9 @@ private:
     //! structured mesh blocks; stored as entity set handles since application
     //! controls ScdBox objects
   Range scdBoxes;
+
+    //! tag representing whether box is periodic in i and j
+  Tag boxPeriodicTag;
 
     //! tag representing box lower and upper corners
   Tag boxDimsTag;
@@ -374,6 +403,24 @@ public:
      * \param zc Z coordinate array pointer returned
      */
   ErrorCode get_coordinate_arrays(const double *&xc, const double *&yc, const double *&zc) const;
+
+    //! Return whether box is periodic in i
+    /** Return whether box is periodic in i
+     * \return True if box is periodic in i direction
+     */
+  bool is_periodic_i() const;
+  
+    //! Return whether box is periodic in j
+    /** Return whether box is periodic in j
+     * \return True if box is periodic in j direction
+     */
+  bool is_periodic_j() const;
+  
+    //! Return whether box is periodic in i and j
+    /** Return whether box is periodic in i and j
+     * \param is_periodic_ij Non-zero if periodic in i [0] or j [1]
+     */
+  void is_periodic(bool is_periodic_ij[2]) const;
   
 private:
     //! Constructor
@@ -437,6 +484,9 @@ private:
 
     //! lower and upper corners
   int boxDims[6];
+
+    //! is periodic in i or j
+  bool isPeriodic[2];
   
     //! parameter extents
   HomCoord boxSize;
@@ -475,7 +525,9 @@ inline void ScdBox::start_element(EntityHandle starte)
     
 inline int ScdBox::num_elements() const
 {
-  return (!startElem ? 0 : (boxSize[0]-1) * (-1 == boxSize[1] ? 1 : (boxSize[1]-1)) * 
+  return (!startElem ? 0 : 
+          (boxSize[0]- (isPeriodic[0] ? 0 : 1)) * 
+          (-1 == boxSize[1] ? 1 : (boxSize[1]-(isPeriodic[1] ? 0 : 1))) * 
           (boxSize[2] == -1 ? 1 : (boxSize[2]-1)));
 }
     
@@ -599,5 +651,22 @@ inline ErrorCode ScdBox::get_params(EntityHandle ent, int &i, int &j, int &k) co
   
   return rval;
 }
+
+inline bool ScdBox::is_periodic_i() const 
+{
+  return isPeriodic[0];
+}
+
+inline bool ScdBox::is_periodic_j() const 
+{
+  return isPeriodic[1];
+}
+
+inline void ScdBox::is_periodic(bool is_periodic_ij[2]) const 
+{
+  for (int i = 0; i < 2; i++) 
+    is_periodic_ij[i] = isPeriodic[i];
+}
+
 } // namespace moab
 #endif

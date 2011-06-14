@@ -18,6 +18,7 @@ namespace moab
 ScdInterface::ScdInterface(Core *impl, bool boxes) 
         : mbImpl(impl), 
           searchedBoxes(false),
+          boxPeriodicTag(0),
           boxDimsTag(0),
           boxSetTag(0)
 {
@@ -80,7 +81,7 @@ ScdBox *ScdInterface::get_scd_box(EntityHandle eh)
 }
 
 ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, double *coords, unsigned int num_coords,
-                                      ScdBox *& new_box) 
+                                      ScdBox *& new_box, bool is_periodic_i, bool is_periodic_j) 
 {
     // create a rectangular structured mesh block
   ErrorCode rval;
@@ -124,7 +125,7 @@ ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, double *coord
   EntityType this_tp = MBHEX;
   if (1 >= tmp_size[2]) this_tp = MBQUAD;
   if (1 >= tmp_size[2] && 1 >= tmp_size[1]) this_tp = MBEDGE;
-  rval = seq_mgr->create_scd_sequence(low, high, this_tp, 0, start_ent, tmp_seq);
+  rval = seq_mgr->create_scd_sequence(low, high, this_tp, 0, start_ent, tmp_seq, is_periodic_i, is_periodic_j);
   ERRORR(rval, "Trouble creating scd element sequence.");
 
   new_box->elem_seq(tmp_seq);
@@ -152,7 +153,8 @@ ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, double *coord
 
 
 ErrorCode ScdInterface::create_scd_sequence(HomCoord low, HomCoord high, EntityType tp,
-                                            int starting_id, ScdBox *&new_box)
+                                            int starting_id, ScdBox *&new_box,
+                                            bool is_periodic_i, bool is_periodic_j)
 {
   HomCoord tmp_size = high - low + HomCoord(1, 1, 1, 0);
   if ((tp == MBHEX && 1 >= tmp_size[2]) ||
@@ -165,7 +167,8 @@ ErrorCode ScdInterface::create_scd_sequence(HomCoord low, HomCoord high, EntityT
   EntityHandle start_ent, scd_set;
 
     // construct the sequence
-  ErrorCode rval = seq_mgr->create_scd_sequence(low, high, tp, starting_id, start_ent, tmp_seq);
+  ErrorCode rval = seq_mgr->create_scd_sequence(low, high, tp, starting_id, start_ent, tmp_seq,
+                                                is_periodic_i, is_periodic_j);
   if (MB_SUCCESS != rval) return rval;
 
     // create the set for this rectangle
@@ -197,7 +200,7 @@ ErrorCode ScdInterface::create_scd_sequence(HomCoord low, HomCoord high, EntityT
 }
 
 ErrorCode ScdInterface::create_box_set(const HomCoord low, const HomCoord high,
-                                       EntityHandle &scd_set) 
+                                       EntityHandle &scd_set, bool is_periodic_i, bool is_periodic_j) 
 {
     // create the set and put the entities in it
   ErrorCode rval = mbImpl->create_meshset(MESHSET_SET, scd_set);
@@ -211,7 +214,21 @@ ErrorCode ScdInterface::create_box_set(const HomCoord low, const HomCoord high,
   rval = mbImpl->tag_set_data(box_dims_tag(), &scd_set, 1, boxdims);
   if (MB_SUCCESS != rval) return rval;
 
+  int is_periodic[2] = {is_periodic_i, is_periodic_j};
+  rval = mbImpl->tag_set_data(box_periodic_tag(), &scd_set, 1, is_periodic);
+  if (MB_SUCCESS != rval) return rval;
+  
   return rval;
+}
+
+Tag ScdInterface::box_periodic_tag(bool create_if_missing) 
+{
+  if (boxPeriodicTag || !create_if_missing) return boxPeriodicTag;
+
+  ErrorCode rval = mbImpl->tag_get_handle("BOX_PERIODIC", 2, MB_TYPE_INTEGER, 
+                                          boxPeriodicTag, MB_TAG_SPARSE|MB_TAG_CREAT);
+  if (MB_SUCCESS != rval) return 0;
+  return boxPeriodicTag;
 }
 
 Tag ScdInterface::box_dims_tag(bool create_if_missing) 
@@ -239,6 +256,7 @@ ScdBox::ScdBox(ScdInterface *sc_impl, EntityHandle box_set,
         : scImpl(sc_impl), boxSet(box_set), vertDat(NULL), elemSeq(NULL), startVertex(0), startElem(0)
 {
   for (int i = 0; i < 6; i++) boxDims[i] = 0;
+  for (int i = 0; i < 2; i++) isPeriodic[i] = false;
   VertexSequence *vseq = dynamic_cast<VertexSequence *>(seq1);
   if (vseq) vertDat = dynamic_cast<ScdVertexData*>(vseq->data());
   if (vertDat) {
@@ -270,14 +288,16 @@ ScdBox::ScdBox(ScdInterface *sc_impl, EntityHandle box_set,
     }
 
     startElem = elemSeq->start_handle();
+
+    elemSeq->is_periodic(isPeriodic);
   }
 
   assert(vertDat || elemSeq);
   
   boxSize = HomCoord(boxDims+3, 3) - HomCoord(boxDims, 3) + HomCoord(1, 1, 1);
   boxSizeIJ = (boxSize[1] ? boxSize[1] : 1) * boxSize[0];
-  boxSizeIJM1 = (boxSize[1] ? (boxSize[1]-1) : 1) * (boxSize[0]-1);
-  boxSizeIM1 = boxSize[0]-1;
+  boxSizeIM1 = boxSize[0]-(isPeriodic[0] ? 0 : 1);
+  boxSizeIJM1 = (boxSize[1] ? (boxSize[1]-(isPeriodic[1] ? 0 : 1)) : 1) * boxSizeIM1;
 }
 
 ScdBox::~ScdBox() 
@@ -345,6 +365,13 @@ ErrorCode ScdBox::vert_dat(ScdVertexData *vert_dat)
 ErrorCode ScdBox::elem_seq(EntitySequence *elem_seq)
 {
   elemSeq = dynamic_cast<StructuredElementSeq*>(elem_seq);
+  if (elemSeq) elemSeq->is_periodic(isPeriodic);
+  
+  if (isPeriodic[0])
+    boxSizeIM1 = boxSize[0]-(isPeriodic[0] ? 0 : 1);
+  if (isPeriodic[0] || isPeriodic[1])
+    boxSizeIJM1 = (boxSize[1] ? (boxSize[1]-(isPeriodic[1] ? 0 : 1)) : 1) * boxSizeIM1;
+
   return (elemSeq ? MB_SUCCESS : MB_FAILURE);
 }  
 

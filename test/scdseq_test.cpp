@@ -33,6 +33,9 @@ ErrorCode check_vertex_sequence(const ScdBox *this_box,
 ErrorCode evaluate_vertex_box(ScdBox *this_box);
 
 int test_element_seq(ScdInterface *scdi);
+
+int test_periodic_seq(ScdInterface *scdi);
+
 ErrorCode check_element_sequence(const ScdBox *this_box, 
                                  const HomCoord &min_params,
                                  const HomCoord &max_params,
@@ -202,8 +205,10 @@ ErrorCode evaluate_element_sequence(ScdBox *this_box)
 
     // now evaluate all the vertices and elements in forward and reverse
   EntityHandle tmp_handle, tmp_handle2;
-  for (int i = ijk1[0]; i < ijk2[0]; i++) {
-    for (int j = ijk1[1]; j < ijk2[1]; j++) {
+  int is_periodic_i = (this_box->is_periodic_i() ? 1 : 0),
+      is_periodic_j = (this_box->is_periodic_j() ? 1 : 0);
+  for (int i = ijk1[0]; i < ijk2[0]+is_periodic_i; i++) {
+    for (int j = ijk1[1]; j < ijk2[1]+is_periodic_j; j++) {
       for (int k = ijk1[2]; k < ijk2[2]; k++) {
 
           // get_vertex variants
@@ -270,6 +275,9 @@ int main(int, char**)
     // test creating and evaluating element sequences
   errors += test_element_seq(scdi);
 
+    // test periodic sequences
+  errors += test_periodic_seq(scdi);
+  
   if (errors > 0)
     std::cout << errors << " errors found." << std::endl;
   else
@@ -697,6 +705,65 @@ int eseq_test2d(ScdInterface *scdi)
       std::cout << "Trouble evaluating adjacencies on ebox." << std::endl;
       errors++;
     }
+  }
+
+  return errors;
+}
+
+int test_periodic_seq(ScdInterface *scdi) 
+{
+  int errors = 0;
+  HomCoord TEST_MIN_PARAMS(0,0,0);
+  HomCoord TEST_BOX_MAX(23,11,5);
+
+    // periodic in i
+  ScdBox *new_box;
+  ErrorCode rval = scdi->construct_box(TEST_MIN_PARAMS, TEST_BOX_MAX, NULL, 0, new_box, true, false);
+  if (MB_SUCCESS != rval) errors++;
+  else {
+    rval = evaluate_element_sequence(new_box);
+    if (MB_SUCCESS != rval) errors++;
+  }
+  
+    // periodic in j
+  rval = scdi->construct_box(TEST_MIN_PARAMS, TEST_BOX_MAX, NULL, 0, new_box, false, true);
+  if (MB_SUCCESS != rval) errors++;
+  else {
+    rval = evaluate_element_sequence(new_box);
+    if (MB_SUCCESS != rval) errors++;
+  }
+  
+    // periodic in i and j
+  rval = scdi->construct_box(TEST_MIN_PARAMS, TEST_BOX_MAX, NULL, 0, new_box, true, true);
+  if (MB_SUCCESS != rval) errors++;
+  else {
+    rval = evaluate_element_sequence(new_box);
+    if (MB_SUCCESS != rval) errors++;
+  }
+
+    // 2d, periodic in i
+  TEST_BOX_MAX[2] = 0;
+  rval = scdi->construct_box(TEST_MIN_PARAMS, TEST_BOX_MAX, NULL, 0, new_box, true, false);
+  if (MB_SUCCESS != rval) errors++;
+  else {
+    rval = evaluate_element_sequence(new_box);
+    if (MB_SUCCESS != rval) errors++;
+  }
+  
+    // 2d, periodic in j
+  rval = scdi->construct_box(TEST_MIN_PARAMS, TEST_BOX_MAX, NULL, 0, new_box, false, true);
+  if (MB_SUCCESS != rval) errors++;
+  else {
+    rval = evaluate_element_sequence(new_box);
+    if (MB_SUCCESS != rval) errors++;
+  }
+  
+    // 2d, periodic in i and j
+  rval = scdi->construct_box(TEST_MIN_PARAMS, TEST_BOX_MAX, NULL, 0, new_box, true, true);
+  if (MB_SUCCESS != rval) errors++;
+  else {
+    rval = evaluate_element_sequence(new_box);
+    if (MB_SUCCESS != rval) errors++;
   }
 
   return errors;

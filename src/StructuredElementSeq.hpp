@@ -40,7 +40,8 @@ public:
   StructuredElementSeq(
                 EntityHandle start_handle,
                 const int imin, const int jmin, const int kmin,
-                const int imax, const int jmax, const int kmax);
+                const int imax, const int jmax, const int kmax,
+                bool is_periodic_i = false, bool is_periodic_j = false);
   
   virtual ~StructuredElementSeq();
 
@@ -113,6 +114,24 @@ public:
   ErrorCode get_params_connectivity(const int i, const int j, const int k,
                                 std::vector<EntityHandle>& connectivity) const
     { return sdata()->get_params_connectivity( i, j, k, connectivity ); }
+  
+    //! Return whether box is periodic in i
+    /** Return whether box is periodic in i
+     * \return True if box is periodic in i direction
+     */
+  bool is_periodic_i() const {return sdata()->is_periodic_i();};
+  
+    //! Return whether box is periodic in j
+    /** Return whether box is periodic in j
+     * \return True if box is periodic in j direction
+     */
+  bool is_periodic_j() const {return sdata()->is_periodic_j();};
+  
+    //! Return whether box is periodic in i and j
+    /** Return whether box is periodic in i and j
+     * \param is_periodic_ij Non-zero if periodic in i [0] or j [1]
+     */
+  void is_periodic(bool is_periodic_ij[2]) const {sdata()->is_periodic(is_periodic_ij);};
   
   
     /***************** Methods from ElementSequence *****************/

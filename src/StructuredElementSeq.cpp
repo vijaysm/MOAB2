@@ -25,16 +25,18 @@ namespace moab {
 
 StructuredElementSeq::StructuredElementSeq(EntityHandle start_handle,
                              const int imin, const int jmin, const int kmin,
-                             const int imax, const int jmax, const int kmax) 
+                                           const int imax, const int jmax, const int kmax,
+                                           bool is_periodic_i, bool is_periodic_j) 
   : ElementSequence( start_handle, 
                      ScdElementData::calc_num_entities( start_handle,
                                                         imax-imin,
                                                         jmax-jmin,
-                                                        kmax-kmin ),
+                                                        kmax-kmin,
+                                                        is_periodic_i, is_periodic_j),
                      CN::VerticesPerEntity(TYPE_FROM_HANDLE(start_handle)),
                      new ScdElementData( start_handle, 
                                         imin, jmin, kmin,
-                                        imax, jmax, kmax ) )
+                                         imax, jmax, kmax, is_periodic_i, is_periodic_j ) )
 {
 }
 

@@ -24,14 +24,15 @@
 namespace moab {
 
 EntityID ScdElementData::calc_num_entities(EntityHandle start_handle,
-                                int irange, int jrange, int krange)
+                                           int irange, int jrange, int krange, 
+                                           bool is_periodic_i, bool is_periodic_j)
 {
   size_t result = 1;
   switch (CN::Dimension(TYPE_FROM_HANDLE(start_handle))) {
     default: result = 0; assert( false ); 
     case 3: result *= krange;
-    case 2: result *= jrange;
-    case 1: result *= irange;
+    case 2: result *= (is_periodic_j ? (jrange+1) : jrange);
+    case 1: result *= (is_periodic_i ? (irange+1) : irange);
   }
   return result;
 }
@@ -39,15 +40,19 @@ EntityID ScdElementData::calc_num_entities(EntityHandle start_handle,
 ScdElementData::ScdElementData(
                              EntityHandle start_handle,
                              const int imin, const int jmin, const int kmin,
-                             const int imax, const int jmax, const int kmax) 
+                             const int imax, const int jmax, const int kmax,
+                             bool is_periodic_i, bool is_periodic_j) 
     : SequenceData(0, start_handle,
                    start_handle + 
-                   calc_num_entities( start_handle, imax-imin, jmax-jmin, kmax-kmin )
+                   calc_num_entities( start_handle, imax-imin, jmax-jmin, kmax-kmin, is_periodic_i, is_periodic_j)
                    - 1)
 {
     // need to have meaningful parameters
   assert(imax >= imin && jmax >= jmin && kmax >= kmin);
-    
+
+  isPeriodic[0] = is_periodic_i;
+  isPeriodic[1] = is_periodic_j;
+  
   elementParams[0] = HomCoord(imin, jmin, kmin);
   elementParams[1] = HomCoord(imax, jmax, kmax);
   elementParams[2] = HomCoord(1, 1, 1);
@@ -56,8 +61,8 @@ ScdElementData::ScdElementData(
   dIJK[0] = elementParams[1][0] - elementParams[0][0] + 1;
   dIJK[1] = elementParams[1][1] - elementParams[0][1] + 1;
   dIJK[2] = elementParams[1][2] - elementParams[0][2] + 1;
-  dIJKm1[0] = dIJK[0] - 1;
-  dIJKm1[1] = dIJK[1] - 1;
+  dIJKm1[0] = dIJK[0] - (isPeriodic[0] ? 0 : 1);
+  dIJKm1[1] = dIJK[1] - (isPeriodic[1] ? 0 : 1);
   dIJKm1[2] = dIJK[2] - 1;
 }
 
