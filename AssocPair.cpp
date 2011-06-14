@@ -192,7 +192,7 @@ int AssocPair::set_relation(iBase_EntitySetHandle set1,
     CHK_ERRORR( relSides[0]->set_relation_side(&set1, 1, &set2) );
 
   // set set1 <= set2
-  if (relStatus[0] == iRel_ACTIVE)
+  if (relStatus[1] == iRel_ACTIVE)
     CHK_ERRORR( relSides[1]->set_relation_side(&set2, 1, &set1) );
 
   // if either side is a 'both'-type association, set the contents of set1
@@ -391,19 +391,100 @@ int AssocPair::change_status(const int iface_no, iRel_RelationStatus status)
   if (relStatus[iface_no] == status)
     RETURNR(iBase_SUCCESS);
 
-  if (relStatus[iface_no] == iRel_NOTEXIST)
-    CHK_ERRORR( relSides[iface_no]->create_relation_side() );
-  else if (status == iRel_NOTEXIST) {
+  relStatus[iface_no] = status;
+
+  if (status == iRel_NOTEXIST) {
     // Destroy the assoc tag
     CHK_ERRORR( relSides[iface_no]->destroy_relation_side() );
   }
+  else if (status == iRel_INACTIVE) {
+    // Create the assoc tag
+    CHK_ERRORR( relSides[iface_no]->create_relation_side() );
+  }
+  // Update the assoc tag
+  else if (status == iRel_ACTIVE) {
+    CHK_ERRORR( relSides[iface_no]->destroy_relation_side() );
+    CHK_ERRORR( relSides[iface_no]->create_relation_side() );
 
-  if (status == iRel_ACTIVE) {
-    // Update the assoc tag
-    // TODO: implement me!
+    if (entOrSet[!iface_no] == iRel_ENTITY) {
+      iBase_EntityHandle *entities = NULL;
+      int ent_alloc = 0, ent_size;
+
+      CHK_ERRORR( relSides[!iface_no]->get_related_ents(&entities, &ent_alloc,
+                                                        &ent_size) );
+      if (entOrSet[iface_no] == iRel_ENTITY) {
+        std::vector<iBase_EntityHandle> related_ents(ent_size);
+        int result = relSides[!iface_no]->get_relation_side(
+          entities, ent_size, &related_ents[0]);
+
+        if (result == iBase_SUCCESS) {
+          if (iface_no == 0)
+            for (int i = 0; i < ent_size; i++)
+              CHK_ERRORR( set_relation(related_ents[i], entities[i]) );
+          else
+            for (int i = 0; i < ent_size; i++)
+              CHK_ERRORR( set_relation(entities[i], related_ents[i]) );
+        }
+      }
+      else {
+        std::vector<iBase_EntitySetHandle> related_sets(ent_size);
+        int result = relSides[!iface_no]->get_relation_side(
+          entities, ent_size, &related_sets[0]);
+
+        if (result == iBase_SUCCESS) {
+          if (iface_no == 0)
+            for (int i = 0; i < ent_size; i++)
+              CHK_ERRORR( set_relation(related_sets[i], entities[i]) );
+          else
+            for (int i = 0; i < ent_size; i++)
+              CHK_ERRORR( set_relation(entities[i], related_sets[i]) );
+        }
+      }
+    
+      free(entities);
+    }
+    else {
+      iBase_EntitySetHandle *sets = NULL;
+      int set_alloc = 0, set_size;
+
+      CHK_ERRORR( relSides[!iface_no]->get_related_sets(&sets, &set_alloc,
+                                                        &set_size) );
+      if (entOrSet[iface_no] == iRel_ENTITY) {
+        std::vector<iBase_EntityHandle> related_ents(set_size);
+        int result = relSides[!iface_no]->get_relation_side(
+          sets, set_size, &related_ents[0]);
+
+        if (result == iBase_SUCCESS) {
+          if (iface_no == 0)
+            for (int i = 0; i < set_size; i++)
+              CHK_ERRORR( set_relation(related_ents[i], sets[i]) );
+          else
+            for (int i = 0; i < set_size; i++)
+              CHK_ERRORR( set_relation(sets[i], related_ents[i]) );
+        }
+      }
+      else {
+        std::vector<iBase_EntitySetHandle> related_sets(set_size);
+        int result = relSides[!iface_no]->get_relation_side(
+          sets, set_size, &related_sets[0]);
+
+        if (result == iBase_SUCCESS) {
+          if (iface_no == 0)
+            for (int i = 0; i < set_size; i++)
+              CHK_ERRORR( set_relation(related_sets[i], sets[i]) );
+          else
+            for (int i = 0; i < set_size; i++)
+              CHK_ERRORR( set_relation(sets[i], related_sets[i]) );
+        }
+      }
+    
+      free(sets);
+    }
+  }
+  else {
+    ERRORR(iBase_INVALID_ARGUMENT, "Invalid argument for relation status");
   }
 
-  relStatus[iface_no] = status;
   RETURNR(iBase_SUCCESS);
 }
 

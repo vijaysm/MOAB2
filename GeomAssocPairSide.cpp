@@ -139,6 +139,18 @@ int GeomAssocPairSide::get_ents_dims(iBase_EntityHandle *entities,
   RETURNR(iBase_SUCCESS);
 }
 
+int GeomAssocPairSide::get_related_ents(iBase_EntityHandle **entities,
+                                        int *entities_alloc, int *entities_size)
+{
+  RETURNR(iBase_FAILURE);
+}
+
+int GeomAssocPairSide::get_related_sets(iBase_EntitySetHandle **sets,
+                                        int *sets_alloc, int *sets_size)
+{
+  RETURNR(iBase_FAILURE);
+}
+
 int GeomAssocPairSide::get_relation_side(iBase_EntityHandle *entities,
                                          int num_entities, void *values)
 {

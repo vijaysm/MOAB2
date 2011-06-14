@@ -143,6 +143,7 @@ void iRel_changePairStatus (
                                        irel_status1)) );
   CHK_ERROR( ASSOCPAIRI->change_status(1, static_cast<iRel_RelationStatus>(
                                        irel_status2)) );
+  RETURN(iBase_SUCCESS);
 }
 
 void iRel_destroyPair (

@@ -30,6 +30,11 @@ public:
                             int **ent_types, int *ent_types_alloc,
                             int *ent_types_size);
 
+  virtual int get_related_ents(iBase_EntityHandle **entities,
+                               int *entities_alloc, int *entities_size);
+  virtual int get_related_sets(iBase_EntitySetHandle **sets, int *sets_alloc,
+                               int *sets_size);
+
   virtual int get_relation_side(iBase_EntityHandle *entities, int num_entities,
                                 void *values);
   virtual int get_relation_side(iBase_EntitySetHandle *sets, int num_sets,

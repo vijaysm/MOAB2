@@ -4,6 +4,8 @@
 #include <sstream>
 #include <string>
 
+#include <iMesh_extensions.h>
+
 #include "Lasso.hpp"
 #include "iRel_Lasso.hpp"
 
@@ -141,6 +143,27 @@ int MeshAssocPairSide::get_ents_dims(iBase_EntityHandle *entities,
 
   iMesh_getEntArrType(instance_, entities, entities_size, ent_types,
                       ent_types_alloc, ent_types_size, &result);
+  PROCESS_ERROR;
+  RETURNR(iBase_SUCCESS);
+}
+
+int MeshAssocPairSide::get_related_ents(iBase_EntityHandle **entities,
+                                        int *entities_alloc, int *entities_size)
+{
+  int result;
+  iMesh_getEntsByTagsRec(instance_, 0, iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES,
+                         &relation_tag, NULL, 1, false, entities,
+                         entities_alloc, entities_size, &result);
+  PROCESS_ERROR;
+  RETURNR(iBase_SUCCESS);
+}
+
+int MeshAssocPairSide::get_related_sets(iBase_EntitySetHandle **sets,
+                                        int *sets_alloc, int *sets_size)
+{
+  int result;
+  iMesh_getEntSetsByTagsRec(instance_, 0, &relation_tag, NULL, 1, false, sets,
+                            sets_alloc, sets_size, &result);
   PROCESS_ERROR;
   RETURNR(iBase_SUCCESS);
 }
