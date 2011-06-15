@@ -4,6 +4,7 @@
 
 using namespace moab;
 
+void insert_hint_test();
 void intersect_test();
 void merge_test();
 void const_pair_iterator_test();
@@ -16,6 +17,7 @@ void contains_test();
 int main()
 {
   int rval = 0;
+  rval += RUN_TEST(insert_hint_test);
   rval += RUN_TEST(intersect_test);
   rval += RUN_TEST(merge_test);
   rval += RUN_TEST(const_pair_iterator_test);
@@ -27,7 +29,47 @@ int main()
   return rval;
 }
 
+void insert_hint_test()
+{
+  const EntityHandle pairs[][2] = {
+    { 4980, 4981 },
+    { 4985, 4986 },
+    { 4990, 4990 },
+    { 5886, 5886 },
+    { 5888, 5890 },
+    { 5890, 5890 },
+    { 5886, 5888 },
+    { 5890, 5890 },
+    { 5894, 5894 },
+    { 5899, 5899 } 
+  };
+  const int num_pairs = sizeof(pairs)/sizeof(pairs[0]);
+  const EntityHandle exp_pairs[][2] = {
+    { 4980, 4981 },
+    { 4985, 4986 },
+    { 4990, 4990 },
+    { 5886, 5890 },
+    { 5894, 5894 },
+    { 5899, 5899 } 
+  };
+  const int num_exp = sizeof(exp_pairs)/sizeof(exp_pairs[0]);
+  
+  Range range;
+  Range::iterator it = range.begin();
+  for (int i = 0; i < num_pairs; ++i) 
+    it = range.insert( it, pairs[i][0], pairs[i][1] );
+  
+  Range::const_pair_iterator pit = range.const_pair_begin();
+  for (int i = 0; i < num_exp; ++i) {
+    CHECK( pit != range.const_pair_end() );
+    CHECK_EQUAL( exp_pairs[i][0], pit->first );
+    CHECK_EQUAL( exp_pairs[i][1], pit->second );
+    ++pit;
+  }
+  CHECK( pit == range.const_pair_end() );
+}
 
+// common constants used for a bunch of tests below
 const EntityHandle h1 = CREATE_HANDLE(MBVERTEX, 1);
 const EntityHandle h4 = CREATE_HANDLE(MBVERTEX, 4);
 const EntityHandle h5 = CREATE_HANDLE(MBVERTEX, 5);

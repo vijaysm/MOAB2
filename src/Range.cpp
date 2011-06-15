@@ -314,6 +314,10 @@ Range::iterator Range::insert( Range::iterator prev,
   if (iter != &mHead && iter->first > val2+1)
     iter = mHead.mNext;
   
+    // If hint is bogus then search backwards
+  while (iter != mHead.mNext && iter->mPrev->second >= val1-1)
+    iter = iter->mPrev;
+  
   // Input range is before beginning?
   if (iter->mPrev == &mHead && val2 < iter->first - 1)
   {
