@@ -487,7 +487,7 @@ range_tool<pair_iter_t>::ranged_insert_entities( MeshSet::Count& count,
     }
     
       // merge subsequent blocks in meshset
-    for (;list_read != list_end && list_read[0]+1 <= i->second; list_read += 2) {
+    for (;list_read != list_end && list_read[0] <= i->second; list_read += 2) {
       if (adj)
       	for (EntityHandle h = list_write[1]+1; h < list_read[0]; ++h)
       	  adj->add_adjacency( h, my_handle, false );
