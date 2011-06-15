@@ -468,6 +468,7 @@ range_tool<pair_iter_t>::ranged_insert_entities( MeshSet::Count& count,
       break;
     
       // check if we need to prepend to the current range block
+      // (the else clause)
     if (i->first >= list_read[0]) 
       list_write[0] = list_read[0];
     else {
@@ -488,9 +489,12 @@ range_tool<pair_iter_t>::ranged_insert_entities( MeshSet::Count& count,
     
       // merge subsequent blocks in meshset
     for (;list_read != list_end && list_read[0] <= i->second; list_read += 2) {
-      if (adj)
+      if (adj) {
+        // iterate over gap between range pairs because all of those handles
+        // are contained in the list of new entities to add.
       	for (EntityHandle h = list_write[1]+1; h < list_read[0]; ++h)
       	  adj->add_adjacency( h, my_handle, false );
+      }
       list_write[1] = list_read[1];
     }
     
@@ -527,7 +531,7 @@ range_tool<pair_iter_t>::ranged_insert_entities( MeshSet::Count& count,
     // Second pass: insert non-mergable range pairs
     // All range pairs in the input are either completely disjoint from
     // the ones in the mesh set and must be inserted or are entirely contained
-    // within range pair in the mesh set.
+    // within a range pair in the mesh set.
   assert( begin != end ); // can't have items to insert if given empty input list
   pair_iter_t ri = end; --ri;
   list_write = list + new_list_size - 2;
