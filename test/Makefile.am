@@ -19,7 +19,8 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src 
 
-TESTS = moab_test \
+TESTS = range_test \
+        moab_test \
         homxform_test \
         scdseq_test \
         test_adj \
@@ -61,6 +62,8 @@ MOSTLYCLEANFILES = mb_write.g \
                    tree.h5m 
 
 # Tests and such
+
+range_test_SOURCES = range_test.cpp
 
 moab_test_SOURCES = MBTest.cpp
 moab_test_DEPENDENCIES = \
