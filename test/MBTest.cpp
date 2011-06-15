@@ -43,6 +43,7 @@
 #include "moab/CN.hpp"
 #include "OrientedBox.hpp"
 #include "moab/CartVect.hpp"
+#include "moab/WriteUtilIface.hpp"
 
 #ifndef IS_BUILDING_MB
 #define IS_BUILDING_MB
@@ -2489,7 +2490,7 @@ ErrorCode mb_delete_mesh_test()
 }
 
 
-ErrorCode mb_meshset_tracking_test()
+ErrorCode mb_mesh_set_tracking_test()
 {
   Core moab;
   Interface* MB = &moab;
@@ -2698,6 +2699,220 @@ ErrorCode mb_meshset_tracking_test()
 
   return MB_SUCCESS;
 
+}
+
+
+// Compare internal representation of contents for a list (MESHSET_ORDERED)
+// set to expected contents.  Assumes expected contents are correctly
+// ordered.
+static ErrorCode check_list_meshset_internal( Interface& mb,
+                                              const EntityHandle* expected,
+                                              int num_expected,
+                                              const EntityHandle* contents,
+                                              int length )
+{
+  bool okay = true;
+  for (int i = 0; i < std::min(num_expected, length); ++i) {
+    if (expected[i] != contents[i]) {
+      std::cerr << "List set contents differ at index " << i 
+                << ": expected " << expected[i] << " but got " 
+                << contents[i] << std::endl;
+      okay = false;
+    }
+  }
+  if (num_expected > length) {
+    std::cerr << "List set is missing " << num_expected - length << 
+                 "handles" << std::endl;
+    okay = false;
+  }
+  else if (length > num_expected) {
+    std::cerr << "List set has " << num_expected - length << 
+                 " extra handles" << std::endl;
+    okay = false;
+  }
+  
+  if (okay)
+    return MB_SUCCESS;
+  
+  std::cerr << "Expected contents: ";
+  if (!num_expected)
+    std::cerr << "(empty)";
+  else
+    std::cerr << expected[0];
+  for (int i = 1; i < num_expected; ++i)
+    std::cerr << ", " << expected[i];
+  std::cerr << std::endl;
+  
+  std::cerr << "Actual contents: ";
+  if (!length)
+    std::cerr << "(empty)";
+  else
+    std::cerr << contents[0];
+  for (int i = 1; i < length; ++i)
+    std::cerr << ", " << contents[i];
+  std::cerr << std::endl;
+
+  return MB_FAILURE;
+}
+
+
+// Compare internal representation of contents for a ranged (MESHSET_SET)
+// set to expected contents.  Assumes expected contents are correctly
+// ordered.
+static ErrorCode check_ranged_meshset_internal( Interface& mb,
+                                                const EntityHandle* expected,
+                                                int num_expected,
+                                                const EntityHandle* contents,
+                                                int length )
+{
+  if (length % 2) {
+    std::cerr << "Range set is corrupt.  Odd number of handles in content list" << std::endl;
+    std::cerr << "Actual contents: " << contents[0];
+    for (int i = 1; i < length; ++i)
+      std::cerr << ", " << contents[i];
+    std::cerr << std::endl;
+    return MB_FAILURE;
+  }
+  bool okay = true;
+  for (int i = 0; i < length; i += 2) {
+    if (contents[i] > contents[i+1]) {
+      std::cerr << "Range set has invalid range pair at index " << i
+                << ": [" << contents[i] << ',' << contents[i+1]
+                << ']' << std::endl;
+      okay = false;
+    }
+  }
+  for (int i = 2; i < length; i += 2) {
+    if (contents[i] <= contents[i-1]) {
+      std::cerr << "Range set has incorrectly ordered ranges at index " << i
+                << ": [...," << contents[i-1] << "], [" << contents[i+1]
+                << ",...]" << std::endl;
+      okay = false;
+    }
+  }
+  if (!okay) {
+    std::cerr << "Actual contents: ";
+    if (!length)
+      std::cerr << "(empty)";
+    else
+      std::cerr << '[' << contents[0] << ',' << contents[1] << ']';
+    for (int i = 2; i < length; i += 2) 
+      std::cerr << ", [" << contents[i] << ',' << contents[i+1] << ']';
+    std::cerr << std::endl;
+    return MB_FAILURE;
+  }
+  
+  int j = 0;
+  for (int i = 0; i < length; i += 2) {
+    for (; j < num_expected && expected[j] < contents[i]; ++j) {
+      std::cerr << "Range set missing expected handle: " << expected[j] << std::endl;
+      okay = false;
+    }
+    int k = j;
+    while (k < num_expected && expected[k] <= contents[i+1])
+      ++k;
+    if ((EntityHandle)(k-j) <= (contents[i+1]-contents[i])) {
+      std::cerr << "Handle range [" << contents[i] << ',' << contents[i+1]
+                << "] contains unexpected handles.  Expected handles: ";
+      if (k == j)
+        std::cerr << "(none)" << std::endl;
+      else {
+        std::cerr << expected[j];
+        for (++j; j < k; ++j)
+          std::cerr << ", " << expected[j];
+        std::cerr << std::endl;
+      }
+      okay  = false;
+    }
+    j = k;
+  }
+  
+  if (okay)
+    return MB_SUCCESS;
+    
+  std::cerr << "Expected contents: ";
+  if (!num_expected)
+    std::cerr << "(empty)";
+  else
+    std::cerr << expected[0];
+  for (int i = 1; i < num_expected; ++i)
+    std::cerr << ", " << expected[i];
+  std::cerr << std::endl;
+  
+  std::cerr << "Actual contents: ";
+  if (!length)
+    std::cerr << "(empty)";
+  else
+    std::cerr << '[' << contents[0] << ',' << contents[1] << ']';
+  for (int i = 2; i < length; i += 2) 
+    std::cerr << ", [" << contents[i] << ',' << contents[i+1] << ']';
+  std::cerr << std::endl;
+  
+  return MB_FAILURE;
+}
+
+// Check the internal representation of a meshset
+// to verify that it is correct.
+static ErrorCode check_meshset_internal( Interface& mb,
+                                         EntityHandle set,
+                                         const EntityHandle* expected,
+                                         int num_expected )
+{
+  ErrorCode rval;
+  WriteUtilIface* tool = 0;
+  rval = mb.query_interface( tool );
+  CHKERR(rval);
+  
+  const EntityHandle* contents;
+  int length;
+  unsigned char flags;
+  rval = tool->get_entity_list_pointers( &set, 1, &contents, 
+                      WriteUtilIface::CONTENTS, &length, &flags );
+  ErrorCode rval1 = mb.release_interface( tool );
+  CHKERR(rval);
+  CHKERR(rval1);
+  
+  if (flags & MESHSET_ORDERED)
+    rval = check_list_meshset_internal( mb, expected, num_expected, contents, length );
+  else
+    rval = check_ranged_meshset_internal( mb, expected, num_expected, contents, length );
+  CHKERR(rval);
+  return MB_SUCCESS;
+}
+
+ErrorCode mb_mesh_set_set_add_remove_test()
+{
+  Core core;
+  Interface& mb = core;
+  EntityHandle set;
+  ErrorCode rval = mb.create_meshset( MESHSET_SET, set );
+  CHKERR(rval);
+  
+  EntityHandle list1[] = {10, 16, 18, 20, 24, 27};
+  size_t len1 = sizeof(list1)/sizeof(list1[0]);
+  EntityHandle list2[] = {10, 16, 17, 18, 19, 20, 24, 27};
+  size_t len2 = sizeof(list2)/sizeof(list2[0]);
+  rval = mb.add_entities( set, list1, len1 );
+  CHKERR(rval);
+  rval = check_meshset_internal( mb, set, list1, len2 );
+  CHKERR(rval);
+  rval = mb.add_entities( set, list2, len2 );
+  CHKERR(rval);
+  EntityHandle exp12[] = {10, 16, 17, 18, 19, 20, 24, 27};
+  size_t len12 = sizeof(exp12)/sizeof(exp12[0]);
+  rval = check_meshset_internal( mb, set, exp12, len12 );
+  CHKERR(rval);
+  
+  EntityHandle list3[] = { 15, 16, 18, 20, 21, 24, 28 };
+  size_t len3 = sizeof(list3)/sizeof(list3[0]);
+  rval = mb.remove_entities( set, list3, len3 );
+  CHKERR(rval);
+  EntityHandle exp123[] = { 10, 17, 19, 27 };
+  size_t len123 = sizeof(exp123)/sizeof(exp123[0]);
+  rval = check_meshset_internal( mb, set, exp123, len123 );
+  CHKERR(rval);
+  
+  return MB_SUCCESS;
 }
 
 
@@ -8359,11 +8574,12 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_mesh_set_set_replace_test );
   RUN_TEST( mb_mesh_set_list_replace_test );
   RUN_TEST( mb_mesh_set_flag_test );
+  RUN_TEST( mb_mesh_set_tracking_test );
+  RUN_TEST( mb_mesh_set_set_add_remove_test );
   RUN_TEST( mb_tags_test );
   RUN_TEST( mb_dense_tag_test );
   RUN_TEST( mb_sparse_tag_test );
   RUN_TEST( mb_delete_mesh_test );
-  RUN_TEST( mb_meshset_tracking_test );
   RUN_TEST( mb_higher_order_test );
   RUN_TEST( mb_bit_tags_test );
   RUN_TEST( mb_entity_conversion_test );
