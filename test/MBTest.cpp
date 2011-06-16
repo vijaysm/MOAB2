@@ -2774,6 +2774,8 @@ static ErrorCode check_ranged_meshset_internal( Interface& mb,
     return MB_FAILURE;
   }
   bool okay = true;
+    // check that all range pairs are valid (first handle less than or 
+    // equal to second)
   for (int i = 0; i < length; i += 2) {
     if (contents[i] > contents[i+1]) {
       std::cerr << "Range set has invalid range pair at index " << i
@@ -2782,10 +2784,18 @@ static ErrorCode check_ranged_meshset_internal( Interface& mb,
       okay = false;
     }
   }
+    // check that all range pairs are sorted and non-overlapping
+    // (start of a range must be greater than end of previous range)
   for (int i = 2; i < length; i += 2) {
-    if (contents[i] <= contents[i-1]) {
+    if (contents[i] < contents[i-1]) {
       std::cerr << "Range set has incorrectly ordered ranges at index " << i
-                << ": [...," << contents[i-1] << "], [" << contents[i+1]
+                << ": [...," << contents[i-1] << "], [" << contents[i]
+                << ",...]" << std::endl;
+      okay = false;
+    }
+    if (contents[i] == contents[i-1]+1) {
+      std::cerr << "Range set has pairs that should have been merged at index " << i
+                << ": [...," << contents[i-1] << "], [" << contents[i]
                 << ",...]" << std::endl;
       okay = false;
     }
@@ -2910,6 +2920,69 @@ ErrorCode mb_mesh_set_set_add_remove_test()
   EntityHandle exp123[] = { 10, 17, 19, 27 };
   size_t len123 = sizeof(exp123)/sizeof(exp123[0]);
   rval = check_meshset_internal( mb, set, exp123, len123 );
+  CHKERR(rval);
+  
+  EntityHandle list4[] = { 18, 10, 11, 12, 13, 14, 15, 16 };
+  size_t len4 = sizeof(list4)/sizeof(list4[0]);
+  rval = mb.add_entities( set, list4, len4 );
+  CHKERR(rval);
+  EntityHandle exp14[] = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 27};
+  size_t len14 = sizeof(exp14)/sizeof(exp14[0]);
+  rval = check_meshset_internal( mb, set, exp14, len14 );
+  CHKERR(rval);
+  
+  EntityHandle list5[] = { 9, 10, 12, 13, 14, 15, 19, 20 };
+  rval = mb.remove_entities( set, list5, sizeof(list5)/sizeof(list5[0]) );
+  CHKERR(rval);
+  EntityHandle exp5[] = { 11, 16, 17, 18, 27 };
+  rval = check_meshset_internal( mb, set, exp5, sizeof(exp5)/sizeof(exp5[0]) );
+  CHKERR(rval);
+  
+  EntityHandle list6[] = { 9, 10, 15, 16, 18, 19, 28 };
+  rval = mb.add_entities( set, list6, sizeof(list6)/sizeof(list6[0]) );
+  CHKERR(rval);
+  EntityHandle exp6[] = { 9, 10, 11, 15, 16, 17, 18, 19, 27, 28 };
+  rval = check_meshset_internal( mb, set, exp6, sizeof(exp6)/sizeof(exp6[0]) );
+  CHKERR(rval);
+  
+  EntityHandle list7[] = { 13, 19, 27, 28 };
+  rval = mb.add_entities( set, list7, sizeof(list7)/sizeof(list7[0]) );
+  CHKERR(rval);
+  EntityHandle exp7[] = { 9, 10, 11, 13, 15, 16, 17, 18, 19, 27, 28 };
+  rval = check_meshset_internal( mb, set, exp7, sizeof(exp7)/sizeof(exp7[0]) );
+  CHKERR(rval);
+  
+  EntityHandle list8[] = { 12, 14, 33 };
+  rval = mb.add_entities( set, list8, sizeof(list8)/sizeof(list8[0]) );
+  CHKERR(rval);
+  EntityHandle exp8[] = { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 27, 28, 33 };
+  rval = check_meshset_internal( mb, set, exp8, sizeof(exp8)/sizeof(exp8[0]) );
+  CHKERR(rval);
+  
+  EntityHandle list9[] = { 29, 30, 31, 32, 34 };
+  rval = mb.remove_entities( set, list9, sizeof(list9)/sizeof(list9[0]) );
+  CHKERR(rval);
+  rval = check_meshset_internal( mb, set, exp8, sizeof(exp8)/sizeof(exp8[0]) );
+  CHKERR(rval);
+  
+  EntityHandle list10[] = { 9, 11, 13, 17, 18, 19, 28, 33, 100 };
+  rval = mb.remove_entities( set, list10, sizeof(list10)/sizeof(list10[0]) );
+  CHKERR(rval);
+  EntityHandle exp10[] = { 10, 12, 14, 15, 16, 27 };
+  rval = check_meshset_internal( mb, set, exp10, sizeof(exp10)/sizeof(exp10[0]) );
+  CHKERR(rval);
+  
+  EntityHandle list11[] = { 11, 12, 13, 14, 27, 28 };
+  rval = mb.remove_entities( set, list11, sizeof(list11)/sizeof(list11[0]) );
+  CHKERR(rval);
+  EntityHandle exp11[] = { 10, 15, 16 };
+  rval = check_meshset_internal( mb, set, exp11, sizeof(exp11)/sizeof(exp11[0]) );
+  CHKERR(rval);
+  
+  EntityHandle list12[] = { 1, 10, 15, 16 };
+  rval = mb.remove_entities( set, list12, sizeof(list12)/sizeof(list12[0]) );
+  CHKERR(rval);
+  rval = check_meshset_internal( mb, set, 0, 0 );
   CHKERR(rval);
   
   return MB_SUCCESS;

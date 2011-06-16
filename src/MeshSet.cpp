@@ -400,6 +400,13 @@ static EntityHandle* resize_compact_list( MeshSet::Count& count,
   }
 }
 
+typedef std::pair<EntityHandle,EntityHandle> MeshSetRange;
+
+class MeshSetRComp {
+  public: bool operator()( const MeshSetRange& r, EntityHandle h )
+    { return r.second < h; }
+};
+
 template <typename pair_iter_t> inline ErrorCode
 range_tool<pair_iter_t>::ranged_insert_entities( MeshSet::Count& count, 
                                                  MeshSet::CompactList& clist, 
@@ -408,47 +415,55 @@ range_tool<pair_iter_t>::ranged_insert_entities( MeshSet::Count& count,
                                                  EntityHandle my_handle, 
                                                  AEntityFactory* adj )
 {
-    //first pass:
+     //first pass:
     // 1) merge existing ranges 
     // 2) count number of new ranges that must be inserted
-  ptrdiff_t insert_count = 0;
-  EntityHandle *list;
+  EntityHandle *list_ptr;
   size_t list_size;
   if (count < MeshSet::MANY) {
-    list = clist.hnd;
+    list_ptr = clist.hnd;
     list_size = count;
   }
   else {
-    list = clist.ptr[0];
+    list_ptr = clist.ptr[0];
     list_size = clist.ptr[1] - clist.ptr[0];
   }
-
-  EntityHandle* list_write = list;
-  EntityHandle *const list_end = list + list_size, *list_read = list;
+  
+  MeshSetRange* list = reinterpret_cast<MeshSetRange*>(list_ptr);
+  assert(0 == list_size % 2);
+  assert(2*sizeof(EntityHandle) == sizeof(MeshSetRange));
+  list_size /= 2;
+  MeshSetRange *const list_end = list + list_size;
+  MeshSetRange *list_read = list, *list_write = list;
   pair_iter_t i = begin;
   
+    // count number of range pairs that are straight insertions
+    // (don't overlap any range pair in the current set) that 
+    // could not be inserted during the first pass.
+  size_t insert_count = 0;
+  
+   // merge lists
   while(i != end) {
+    // find first range that intersects the current input range
     
-      // if there are holes in the current array, shuffle blocks 
-      // down until we find the next block to merge with or insert before
-    if (list_read != list_write) {
-      while (list_read != list_end && list_read[1] + 1 < i->first) {
-      	list_write[0] = list_read[0];
-        list_write[1] = list_read[1];
-        list_write += 2;
-        list_read += 2;
-      }
-    }
-      // otherwise do a binary search
-    else {
-      list_write = std::lower_bound( list_write, list_end, i->first - 1 );
-      	// if in middle of range block (odd index), back up to start of block
-      list_write -= (list_write - list)%2;
+    // do binary search if no holes in current set contents
+    if (list_read == list_write) {
+        // subtract one from i->first because if it is one greater
+        // then the the last value of some block, then we want that
+        // block to append to.
+      list_write = std::lower_bound( list_read, list_end, i->first-1, MeshSetRComp() );
       list_read = list_write;
+    }
+    // otherwise shift down until we find where we find a range block
+    // that intersects
+    else while (list_read != list_end && list_read->second + 1 < i->first) {
+      *list_write = *list_read;
+      ++list_write;
+      ++list_read;
     }
     
       // handle any straight insertions of range blocks
-    for ( ; i != end && (list_read == list_end || i->second+1 < list_read[0]); ++i) {
+    for ( ; i != end && (list_read == list_end || i->second+1 < list_read->first); ++i) {
         // If we haven't removed any range pairs, we don't have space to
         // insert here.  Defer the insertion until later.
       if (list_read == list_write) {
@@ -459,74 +474,113 @@ range_tool<pair_iter_t>::ranged_insert_entities( MeshSet::Count& count,
           for (EntityHandle j = i->first; j <= i->second; ++j)
             adj->add_adjacency( j, my_handle, false );
 
-        list_write[0] = i->first;
-        list_write[1] = i->second;
-        list_write += 2;
+        list_write->first = i->first;
+        list_write->second = i->second;
+        ++list_write;
       }
     }
-    if (i == end)
-      break;
     
-      // check if we need to prepend to the current range block
-      // (the else clause)
-    if (i->first >= list_read[0]) 
-      list_write[0] = list_read[0];
-    else {
-      if (adj)
-        for (EntityHandle h = i->first; h < list_read[0]; ++h)
-          adj->add_adjacency( h, my_handle, false );
-      list_write[0] = i->first;
-    }
-    list_write[1] = list_read[1];
-    list_read += 2;
-    
-      // discard any input blocks already in the set
-    for (; i != end && i->second <= list_write[1]; ++i);
-    if (i == end || i->first > list_write[1]+1) {
-      list_write += 2;
-      continue;
-    }
-    
-      // merge subsequent blocks in meshset
-    for (;list_read != list_end && list_read[0] <= i->second; list_read += 2) {
-      if (adj) {
-        // iterate over gap between range pairs because all of those handles
-        // are contained in the list of new entities to add.
-      	for (EntityHandle h = list_write[1]+1; h < list_read[0]; ++h)
-      	  adj->add_adjacency( h, my_handle, false );
+      // merge all the stuff that gets merged into a single range pair
+      // from both the input list and the existing set data
+    if (list_read != list_end) {
+      MeshSetRange working = *list_read; // copy because might be the same as list_write
+      ++list_read;
+      
+        // Check if we need to prepend to the existing block.
+        // We only need to check this for the first input range because
+        // after this working.first will always be the first possible handle
+        // in the merged set of ranges.
+      if (i != end && i->first < working.first && i->second+1 >= working.first) {
+        if (adj)
+          for (EntityHandle h = i->first; h < working.first; ++h)
+            adj->add_adjacency( h, my_handle, false );
+        working.first = i->first;
       }
-      list_write[1] = list_read[1];
+      
+        // Now append from the input list and the remaining set contents
+        // until we've consolidated all overlapping/touching ranges.
+      bool done = false;
+      while (!done) {
+          // does next set contents range touch working range?
+        bool set_overlap = list_read != list_end && list_read->first <= working.second+1;
+          // does next input range touch working range?
+        bool inp_overlap = i != end && i->first <= working.second+1;
+        
+          // if both ranges touch...
+        if (inp_overlap && set_overlap) {
+            // if next set range is contained in working, skip it
+          if (list_read->second <= working.second)
+            ++list_read;
+            // if next input range is contained in working, skip it
+          else if (i->second <= working.second)
+            ++i;
+            // Otherwise set the working end to the smaller of the two 
+            // ends: either the next set end or the next input end.
+            // We want the smaller of the two because the larger might
+            // intersect additional ranges in the other list.
+          else if (list_read->second <= i->second) {
+            working.second = list_read->second;
+            ++list_read;
+          }
+          else {
+            working.second = i->second;
+            ++i;
+          }
+        }
+          // If only the input range intersect the current working range...
+        else if (inp_overlap) {
+            // Would it be more efficient to just extent 'working' to 
+            // the end of the current input range?  We'd end up adding
+            // adjacencies for for entities that are already in the tracking
+            // set and therefore already have the adjacency.
+          EntityHandle last = i->second;
+          if (list_read != list_end && list_read->first < last)
+            last = list_read->first-1;
+          else
+            ++i;
+          
+          if (last > working.second) {
+            if (adj)
+              for (EntityHandle h = working.second + 1; h <= last; ++h)
+                adj->add_adjacency( h, my_handle, false );
+
+            working.second = last;
+          }
+        }
+        else if (set_overlap) {
+          if (working.second < list_read->second)
+            working.second = list_read->second;
+          ++list_read;
+        }
+        else {
+          done = true;
+        }
+      }
+      
+      assert(list_write < list_read);
+      *list_write = working;
+      ++list_write;
     }
-    
-      // check if we need to append to current meshset block
-    if (i->second > list_write[1]) {
-      if (adj)
-      	for (EntityHandle h = list_write[1]+1; h <= i->second; ++h)
-      	  adj->add_adjacency( h, my_handle, false );
-      list_write[1] = i->second;
-    }
-    
-    ++i;
-    list_write += 2;
   }
+  
 
     // shuffle down entries to fill holes
   if (list_read == list_write) 
     list_read = list_write = list_end;
   else while(list_read < list_end) {
-    list_write[0] = list_read[0];
-    list_write[1] = list_read[1];
-    list_read += 2;
-    list_write += 2;
+    *list_write = *list_read;
+    ++list_read;
+    ++list_write;
   }
 
     // adjust allocated array size
   const size_t occupied_size = list_write - list;
-  const size_t new_list_size = occupied_size + 2*insert_count;
-  list = resize_compact_list( count, clist, new_list_size );
+  const size_t new_list_size = occupied_size + insert_count;
+  list_ptr = resize_compact_list( count, clist, 2*new_list_size );
     // done?
   if (!insert_count)
     return MB_SUCCESS;
+  list = reinterpret_cast<MeshSetRange*>(list_ptr);
 
     // Second pass: insert non-mergable range pairs
     // All range pairs in the input are either completely disjoint from
@@ -534,34 +588,33 @@ range_tool<pair_iter_t>::ranged_insert_entities( MeshSet::Count& count,
     // within a range pair in the mesh set.
   assert( begin != end ); // can't have items to insert if given empty input list
   pair_iter_t ri = end; --ri;
-  list_write = list + new_list_size - 2;
-  list_read = list + occupied_size - 2;
-  for ( ; list_write >= list; list_write -= 2 ) {
+  list_write = list + new_list_size - 1;
+  list_read = list + occupied_size - 1;
+  for ( ; list_write >= list; --list_write ) {
     if (list_read >= list) {
-      while (ri->first >= list_read[0] && ri->second <= list_read[1]) {
+      while (ri->first >= list_read->first && ri->second <= list_read->second) {
         assert(ri != begin);
         --ri;
       }
     
-      if (list_read[0] > ri->second) {
-        list_write[0] = list_read[0];
-        list_write[1] = list_read[1];
-        list_read -= 2;
+      if (list_read->first > ri->second) {
+        *list_write = *list_read;
+        --list_read;
         continue;
       }
     }
     
     assert( insert_count > 0 );
     if (adj) 
-      for (EntityHandle j = ri->first; j <= ri->second; ++j) 
-        adj->add_adjacency( j, my_handle, false );
-    list_write[0] = ri->first;
-    list_write[1] = ri->second;
+      for (EntityHandle h = ri->first; h <= ri->second; ++h) 
+        adj->add_adjacency( h, my_handle, false );
+    list_write->first = ri->first;
+    list_write->second = ri->second;
 
       // don't have reverse iterator, so check before decrement
       // if insert_count isn't zero, must be more in range
     if (0 == --insert_count) {
-      assert( list_read == list_write-2 );
+      assert( list_read == list_write-1 );
       break;
     }
     else {
@@ -572,7 +625,7 @@ range_tool<pair_iter_t>::ranged_insert_entities( MeshSet::Count& count,
   assert(!insert_count);
   return MB_SUCCESS;
 }
-  
+ 
 template <typename pair_iter_t> inline ErrorCode
 range_tool<pair_iter_t>::ranged_remove_entities( MeshSet::Count& count, 
                                                  MeshSet::CompactList& clist, 
