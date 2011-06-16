@@ -328,7 +328,7 @@ void test_tree( int max_depth )
   idx = 1;
   const void* vals[] = {&idx};
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &tag, vals, 1, roots );
-  CHECK_EQUAL( (EntityHandle)1, roots.size() );
+  CHECK_EQUAL( (size_t)1, roots.size() );
   root = roots.front();
   
   // check that tree is as we expect it
@@ -392,11 +392,11 @@ void regression_mmiller_8_2010()
   Core moab;
   Interface& mb = moab;
   
-  const EntityHandle num_vtx = 171;
-  const EntityHandle num_pri = 12;
-  const EntityHandle num_pyr = 8;
-  const EntityHandle num_hex = 100;
-  const EntityHandle num_set = 25;
+  const size_t num_vtx = 171;
+  const size_t num_pri = 12;
+  const size_t num_pyr = 8;
+  const size_t num_hex = 100;
+  const size_t num_set = 25;
 
   mb.load_file( STRINGIFY(SRCDIR) "/rocket_ents_in_assm.h5m" );
 

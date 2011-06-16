@@ -50,9 +50,9 @@ void test_moab_v3_poly_format()
   CHECK_ERR(rval);
   
     // check expected number of entities
-  CHECK_EQUAL( (EntityHandle)20, verts.size() );
-  CHECK_EQUAL( (EntityHandle)12, faces.size() );
-  CHECK_EQUAL( (EntityHandle)1,  polyhedrons.size() );
+  CHECK_EQUAL( (size_t)20, verts.size() );
+  CHECK_EQUAL( (size_t)12, faces.size() );
+  CHECK_EQUAL( (size_t)1,  polyhedrons.size() );
   const EntityHandle polyhedron = polyhedrons.front();
   
     // check the polyhedron connectivity list

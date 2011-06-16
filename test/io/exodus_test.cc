@@ -1027,7 +1027,7 @@ void test_read_alternate_coord_format()
   Range hexes;
   rval = mb.get_entities_by_type( 0, MBHEX, hexes );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (EntityHandle)1, hexes.size() );
+  CHECK_EQUAL( (size_t)1, hexes.size() );
   EntityHandle hex = hexes.front();
   const EntityHandle* conn;
   int len;

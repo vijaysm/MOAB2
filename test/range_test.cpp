@@ -284,60 +284,60 @@ void erase_test()
   range.insert( 5, 10 );
   range.insert( 12, 20 );
   result = range.erase( range.begin(), range.begin()+2 );
-  CHECK_EQUAL(  7u, range.front() );
-  CHECK_EQUAL( 20u, range.back() );
-  CHECK_EQUAL( 13u, range.size() );
-  CHECK_EQUAL(  7u, *result );
+  CHECK_EQUAL( (EntityHandle)7, range.front() );
+  CHECK_EQUAL( (EntityHandle)20, range.back() );
+  CHECK_EQUAL( (size_t)13, range.size() );
+  CHECK_EQUAL( (EntityHandle)7, *result );
   
     // test erase first node
   range.clear();
   range.insert( 5, 10 );
   range.insert( 12, 20 );
   result = range.erase( range.begin(), range.begin()+6 );
-  CHECK_EQUAL( 12u, range.front() );
-  CHECK_EQUAL( 20u, range.back() );
-  CHECK_EQUAL(  9u, range.size() );
-  CHECK_EQUAL( 12u, *result );
+  CHECK_EQUAL( (EntityHandle)12, range.front() );
+  CHECK_EQUAL( (EntityHandle)20, range.back() );
+  CHECK_EQUAL( (size_t)9, range.size() );
+  CHECK_EQUAL( (EntityHandle)12, *result );
   
     // test erase from back of first node
   range.clear();
   range.insert( 5, 10 );
   range.insert( 12, 20 );
   result = range.erase( range.begin()+2, range.begin()+6 );
-  CHECK_EQUAL(  5u, range.front() );
-  CHECK_EQUAL( 20u, range.back() );
-  CHECK_EQUAL( 11u, range.size() );
-  CHECK_EQUAL( 12u, *result );
+  CHECK_EQUAL( (EntityHandle)5, range.front() );
+  CHECK_EQUAL( (EntityHandle)20, range.back() );
+  CHECK_EQUAL( (size_t)11, range.size() );
+  CHECK_EQUAL( (EntityHandle)12, *result );
   
     // test erase from middle of first node
   range.clear();
   range.insert( 5, 10 );
   range.insert( 12, 20 );
   result = range.erase( range.begin()+2, range.begin()+5 );
-  CHECK_EQUAL(  5u, range.front() );
-  CHECK_EQUAL( 20u, range.back() );
-  CHECK_EQUAL( 12u, range.size() );
-  CHECK_EQUAL( 10u, *result );
+  CHECK_EQUAL( (EntityHandle)5, range.front() );
+  CHECK_EQUAL( (EntityHandle)20, range.back() );
+  CHECK_EQUAL( (size_t)12, range.size() );
+  CHECK_EQUAL( (EntityHandle)10, *result );
   
     // test erase spanning two nodes
   range.clear();
   range.insert( 5, 10 );
   range.insert( 12, 20 );
   result = range.erase( range.begin()+3, range.begin()+7 );
-  CHECK_EQUAL(  5u, range.front() );
-  CHECK_EQUAL( 20u, range.back() );
-  CHECK_EQUAL( 11u, range.size() );
-  CHECK_EQUAL( 13u, *result );
+  CHECK_EQUAL( (EntityHandle)5, range.front() );
+  CHECK_EQUAL( (EntityHandle)20, range.back() );
+  CHECK_EQUAL( (size_t)11, range.size() );
+  CHECK_EQUAL( (EntityHandle)13, *result );
   
     // test erase of first node and part of second
   range.clear();
   range.insert( 5, 10 );
   range.insert( 12, 20 );
   result = range.erase( range.begin(), range.begin()+7 );
-  CHECK_EQUAL( 13u, range.front() );
-  CHECK_EQUAL( 20u, range.back() );
-  CHECK_EQUAL(  8u, range.size() );
-  CHECK_EQUAL( 13u, *result );
+  CHECK_EQUAL( (EntityHandle)13, range.front() );
+  CHECK_EQUAL( (EntityHandle)20, range.back() );
+  CHECK_EQUAL( (size_t)8, range.size() );
+  CHECK_EQUAL( (EntityHandle)13, *result );
   
     // test erase spanning three nodes
   range.clear();
@@ -345,29 +345,29 @@ void erase_test()
   range.insert( 12, 20 );
   range.insert( 100, 101 );
   result = range.erase( range.begin()+3, range.begin()+16 );
-  CHECK_EQUAL(   5u, range.front() );
-  CHECK_EQUAL( 101u, range.back() );
-  CHECK_EQUAL(   4u, range.size() );
-  CHECK_EQUAL( 101u, *result );
+  CHECK_EQUAL( (EntityHandle)5, range.front() );
+  CHECK_EQUAL( (EntityHandle)101, range.back() );
+  CHECK_EQUAL( (size_t)4, range.size() );
+  CHECK_EQUAL( (EntityHandle)101, *result );
   
     // test erase from start of second node
   range.clear();
   range.insert( 5, 10 );
   range.insert( 12, 20 );
   result = range.erase( range.begin()+6, range.begin()+8 );
-  CHECK_EQUAL(  5u, range.front() );
-  CHECK_EQUAL( 20u, range.back() );
-  CHECK_EQUAL( 13u, range.size() );
-  CHECK_EQUAL( 14u, *result );
+  CHECK_EQUAL( (EntityHandle)5, range.front() );
+  CHECK_EQUAL( (EntityHandle)20, range.back() );
+  CHECK_EQUAL( (size_t)13, range.size() );
+  CHECK_EQUAL( (EntityHandle)14, *result );
   
     // test erase from back of last node
   range.clear();
   range.insert( 5, 10 );
   range.insert( 12, 20 );
   result = range.erase( range.begin()+13, range.end() );
-  CHECK_EQUAL(  5u, range.front() );
-  CHECK_EQUAL( 18u, range.back() );
-  CHECK_EQUAL( 13u, range.size() );
+  CHECK_EQUAL( (EntityHandle)5, range.front() );
+  CHECK_EQUAL( (EntityHandle)18, range.back() );
+  CHECK_EQUAL( (size_t)13, range.size() );
   CHECK( result == range.end() );
   
     // test erase part of first node through end
@@ -375,16 +375,16 @@ void erase_test()
   range.insert( 5, 10 );
   range.insert( 12, 20 );
   result = range.erase( range.begin()+4, range.end() );
-  CHECK_EQUAL( 5u, range.front() );
-  CHECK_EQUAL( 8u, range.back() );
-  CHECK_EQUAL( 4u, range.size() );
+  CHECK_EQUAL( (EntityHandle)5, range.front() );
+  CHECK_EQUAL( (EntityHandle)8, range.back() );
+  CHECK_EQUAL( (size_t)4, range.size() );
   CHECK( result == range.end() );
   
     // test erase of single node
   range.clear();
   range.insert( 5, 10 );
   result = range.erase( range.begin(), range.end() );
-  CHECK_EQUAL( 0u, range.size() );
+  CHECK_EQUAL( (size_t)0, range.size() );
   CHECK( result == range.end() );
   
     // test erase of multi-node range
@@ -393,7 +393,7 @@ void erase_test()
   range.insert( 12, 20 );
   range.insert( 100, 101 );
   result = range.erase( range.begin(), range.end() );
-  CHECK_EQUAL( 0u, range.size() );
+  CHECK_EQUAL( (size_t)0, range.size() );
   CHECK( result == range.end() );
   
     // test erase nothing
@@ -401,10 +401,10 @@ void erase_test()
   range.insert( 5, 10 );
   range.insert( 12, 20 );
   result = range.erase( range.begin()+3, range.begin()+3 );
-  CHECK_EQUAL(  5u, range.front() );
-  CHECK_EQUAL( 20u, range.back() );
-  CHECK_EQUAL( 15u, range.size() );
-  CHECK_EQUAL(  8u, *result );
+  CHECK_EQUAL( (EntityHandle)5, range.front() );
+  CHECK_EQUAL( (EntityHandle)20, range.back() );
+  CHECK_EQUAL( (size_t)15, range.size() );
+  CHECK_EQUAL( (EntityHandle)8, *result );
   
     // test iterators before erase remain valid
   Range::iterator a, b, c;
@@ -428,13 +428,13 @@ void erase_test()
   b = range.begin() + 6;  
   c = range.begin() + 8;
   result = range.erase( range.begin() + 9 );
-  CHECK_EQUAL( 5u, range.front() );
-  CHECK_EQUAL( 20u, range.back() );
-  CHECK_EQUAL( 14u, range.size() );
+  CHECK_EQUAL( (EntityHandle)5, range.front() );
+  CHECK_EQUAL( (EntityHandle)20, range.back() );
+  CHECK_EQUAL( (size_t)14, range.size() );
   CHECK( a == range.begin() );
   CHECK( b == range.begin() + 6 );
   CHECK( c == range.begin() + 8 );
-  CHECK_EQUAL( 16u, *result );
+  CHECK_EQUAL( (EntityHandle)16, *result );
 }
 
 void contains_test() 

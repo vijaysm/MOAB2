@@ -226,7 +226,7 @@ void test_var_length_big_data()
   range.clear();
   rval = mb2.get_entities_by_type_and_tag( 0, MBVERTEX, &tag, 0, 1, range, Interface::UNION );
   CHECK_ERR(rval);
-  CHECK_EQUAL( range.size(), (EntityHandle)3 );
+  CHECK_EQUAL( (size_t)3, range.size() );
   
     // check tag values
   for (Range::const_iterator i = range.begin(); i != range.end(); ++i) {
@@ -479,7 +479,7 @@ void test_var_length_handle_tag()
     // For each entity, if it is a vertex store its own handle
     // in its tag.  Otherwise store the element connectivity list
     // in the tag.  Skip entity sets.
-  EntityHandle num_tagged_entities = 0;
+  size_t num_tagged_entities = 0;
   for (i = range.begin(); i != range.end(); ++i) {
     EntityHandle h = *i;
     EntityType type = mb1.type_from_handle( h );

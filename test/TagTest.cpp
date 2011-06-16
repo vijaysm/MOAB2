@@ -1042,7 +1042,7 @@ void test_get_by_tag_value_dense( )
   results.clear();
   rval = mb.get_entities_by_type_and_tag( 0, MBHEX, &tag, findarr, 1, results );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (EntityHandle)3, results.size() );
+  CHECK_EQUAL( (size_t)3, results.size() );
   CHECK_EQUAL( arr[0], results.front() );
   CHECK_EQUAL( arr[1], *++results.begin() );
   CHECK_EQUAL( arr[2], results.back() );
@@ -1059,7 +1059,7 @@ void test_get_by_tag_value_dense( )
   results.insert( vertices.front() );
   rval = mb.get_entities_by_type_and_tag( 0, MBHEX, &tag, findarr, 1, results, Interface::INTERSECT );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (EntityHandle)2, results.size() );
+  CHECK_EQUAL( (size_t)2, results.size() );
   CHECK_EQUAL( arr[0], results.front() );
   CHECK_EQUAL( arr[2], results.back() );
   
@@ -1853,7 +1853,7 @@ void test_get_ents_with_default_value()
   ptrs[0] = &default_sparse;
   rval = mb.get_entities_by_type_and_tag( 0, MBVERTEX, &tag_sparse, ptrs, 1, result, Interface::INTERSECT );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (EntityHandle)1, result.size() );
+  CHECK_EQUAL( (size_t)1, result.size() );
   CHECK_EQUAL( sets[1].front(), result.front() );
   
   
@@ -2019,7 +2019,7 @@ void regression_one_entity_by_var_tag()
   rval = moab.get_entities_by_type_and_tag( 0, MBVERTEX, &tag, 0, 1, ents );
   CHECK_ERR(rval);
   
-  CHECK_EQUAL( (EntityHandle)1, ents.size() );
+  CHECK_EQUAL( (size_t)1, ents.size() );
   CHECK_EQUAL( vertex, ents.front() );
 }
 

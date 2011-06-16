@@ -392,7 +392,7 @@ void test_get_entities()
 
   Range entities;
   seqman.get_entities( entities );
-  CHECK_EQUAL( (EntityHandle)18, entities.size() );
+  CHECK_EQUAL( (size_t)18, entities.size() );
 
   EntityHandle pairs[][2] = { {3, 7}, {100, 111}, {1001, 1001} };
   CHECK( seqman_equal( pairs, 3, seqman ) );
