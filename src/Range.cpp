@@ -59,11 +59,11 @@ namespace moab {
 /*! 
   returns the number of values this list represents
  */
-EntityHandle Range::size() const
+size_t Range::size() const
 {
   // go through each pair and add up the number of values
   // we have.
-  EntityHandle size=0;
+  size_t size=0;
   for(PairNode* iter = mHead.mNext; iter != &mHead; iter = iter->mNext)
   {
     size += ((iter->second - iter->first) + 1);

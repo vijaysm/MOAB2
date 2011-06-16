@@ -232,7 +232,7 @@ public:
   inline const_reverse_iterator rend() const;
 
   //! return the number of values this Ranges represents
-  EntityHandle size() const;
+  size_t size() const;
 
   //! return the number of range pairs in the list
   size_t psize() const;
