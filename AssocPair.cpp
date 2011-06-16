@@ -366,26 +366,6 @@ int AssocPair::get_dims(const int iface_no, iBase_EntitySetHandle *sets,
   return relSides[iface_no]->get_dims(sets, num_sets, tag_values);
 }
 
-iBase_Instance AssocPair::iface_instance(const int iface_no)
-{
-  return relSides[iface_no]->instance();
-}
-
-iRel_IfaceType AssocPair::iface_type(const int iface_no)
-{
-  return relSides[iface_no]->type();
-}
-
-iRel_RelationType AssocPair::relation_type(const int iface_no)
-{
-  return entOrSet[iface_no];
-}
-
-iRel_RelationStatus AssocPair::relation_status(const int iface_no)
-{
-  return relStatus[iface_no];
-}
-
 int AssocPair::change_status(const int iface_no, iRel_RelationStatus status)
 {
   if (relStatus[iface_no] == status)

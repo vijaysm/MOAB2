@@ -25,10 +25,10 @@ public:
 
   ~AssocPair();
 
-  iBase_Instance iface_instance(int iface_no);
-  iRel_IfaceType iface_type(int iface_no);
-  iRel_RelationType relation_type(int iface_no);
-  iRel_RelationStatus relation_status(int iface_no);
+  iBase_Instance iface_instance(int iface_no) const;
+  iRel_IfaceType iface_type(int iface_no) const;
+  iRel_RelationType relation_type(int iface_no) const;
+  iRel_RelationStatus relation_status(int iface_no) const;
 
   int change_status(int iface_no, iRel_RelationStatus status);
 
@@ -97,6 +97,26 @@ private:
 
   static int currId;
 };
+
+inline iBase_Instance AssocPair::iface_instance(const int iface_no) const
+{
+  return relSides[iface_no]->instance();
+}
+
+inline iRel_IfaceType AssocPair::iface_type(const int iface_no) const
+{
+  return relSides[iface_no]->type();
+}
+
+inline iRel_RelationType AssocPair::relation_type(const int iface_no) const
+{
+  return entOrSet[iface_no];
+}
+
+inline iRel_RelationStatus AssocPair::relation_status(const int iface_no) const
+{
+  return relStatus[iface_no];
+}
 
 static inline AssocPair *assocpair_handle(iRel_PairHandle pair)
 {
