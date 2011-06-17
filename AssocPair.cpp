@@ -127,18 +127,8 @@ int AssocPair::set_relation(iBase_EntityHandle ent1, iBase_EntitySetHandle set2)
 
   // if the right side is a 'both'-type association, set the contents of set2
   // to point to ent1 as well
-  if (entOrSet[1] == iRel_BOTH) {
-    iBase_EntityHandle *entities = NULL;
-    int entities_alloc = 0, entities_size;
-
-    CHK_ERRORR( relSides[1]->get_entities(-1, set2, &entities, &entities_alloc,
-                                          &entities_size) );
-
-    for (int i = 0; i < entities_size; i++)
-      CHK_ERRORR( relSides[1]->set_relation_side(entities+i, 1, &ent1) );
-
-    free(entities);
-  }
+  if (entOrSet[1] == iRel_BOTH)
+    CHK_ERRORR( populate_recursive(1, set2, ent1) );
 
   RETURNR(iBase_SUCCESS);
 }
@@ -165,18 +155,8 @@ int AssocPair::set_relation(iBase_EntitySetHandle set1, iBase_EntityHandle ent2)
 
   // if the left side is a 'both'-type association, set the contents of set1
   // to point to ent2 as well
-  if (entOrSet[0] == iRel_BOTH) {
-    iBase_EntityHandle *entities = NULL;
-    int entities_alloc, entities_size;
-
-    CHK_ERRORR( relSides[0]->get_entities(-1, set1, &entities, &entities_alloc,
-                                          &entities_size) );
-
-    for (int i = 0; i < entities_size; i++)
-      CHK_ERRORR( relSides[0]->set_relation_side(entities+i, 1, &ent2) );
-
-    free(entities);
-  }
+  if (entOrSet[0] == iRel_BOTH)
+    CHK_ERRORR( populate_recursive(0, set1, ent2) );
 
   RETURNR(iBase_SUCCESS);
 }
@@ -197,26 +177,15 @@ int AssocPair::set_relation(iBase_EntitySetHandle set1,
 
   // if either side is a 'both'-type association, set the contents of set1
   // to point to set2 as well (and/or vice-versa)
-  iBase_EntitySetHandle sets[] = {set1, set2};
-  for (int i = 0; i < 2; i++) {
-    if (entOrSet[i] == iRel_BOTH) {
-      iBase_EntityHandle *entities = NULL;
-      int entities_alloc, entities_size;
-
-      CHK_ERRORR( relSides[i]->get_entities(-1, sets[i], &entities,
-                                            &entities_alloc, &entities_size) );
-
-      for (int j = 0; j < entities_size; j++)
-        CHK_ERRORR( relSides[i]->set_relation_side(entities+j, 1, &sets[!i]) );
-
-      free(entities);
-    }
-  }
+  if (entOrSet[0] == iRel_BOTH)
+    CHK_ERRORR( populate_recursive(0, set1, set2) );
+  if (entOrSet[1] == iRel_BOTH)
+    CHK_ERRORR( populate_recursive(1, set2, set1) );
 
   RETURNR(iBase_SUCCESS);
 }
 
-int AssocPair::get_relation(const int iface_no, iBase_EntityHandle *entities,
+int AssocPair::get_relation(int iface_no, iBase_EntityHandle *entities,
                             int num_entities, iBase_EntityHandle *tag_values)
 {
   if (relStatus[iface_no] == iRel_NOTEXIST)
@@ -228,7 +197,7 @@ int AssocPair::get_relation(const int iface_no, iBase_EntityHandle *entities,
                                                tag_values);
 }
 
-int AssocPair::get_relation(const int iface_no, iBase_EntitySetHandle *sets,
+int AssocPair::get_relation(int iface_no, iBase_EntitySetHandle *sets,
                             int num_sets, iBase_EntityHandle *tag_values)
 {
   if (relStatus[iface_no] == iRel_NOTEXIST)
@@ -239,7 +208,7 @@ int AssocPair::get_relation(const int iface_no, iBase_EntitySetHandle *sets,
   return relSides[iface_no]->get_relation_side(sets, num_sets, tag_values);
 }
 
-int AssocPair::get_relation(const int iface_no, iBase_EntityHandle *entities,
+int AssocPair::get_relation(int iface_no, iBase_EntityHandle *entities,
                             int num_entities, iBase_EntitySetHandle *tag_values)
 {
   if (relStatus[iface_no] == iRel_NOTEXIST)
@@ -251,7 +220,7 @@ int AssocPair::get_relation(const int iface_no, iBase_EntityHandle *entities,
                                                tag_values);
 }
 
-int AssocPair::get_relation(const int iface_no, iBase_EntitySetHandle *sets,
+int AssocPair::get_relation(int iface_no, iBase_EntitySetHandle *sets,
                             int num_sets, iBase_EntitySetHandle *tag_values)
 {
   if (relStatus[iface_no] == iRel_NOTEXIST)
@@ -262,7 +231,7 @@ int AssocPair::get_relation(const int iface_no, iBase_EntitySetHandle *sets,
   return relSides[iface_no]->get_relation_side(sets, num_sets, tag_values);
 }
 
-int AssocPair::get_relation(const int iface_no, iBase_EntityHandle *entities,
+int AssocPair::get_relation(int iface_no, iBase_EntityHandle *entities,
                             int num_entities, iBase_EntityIterator *tag_values)
 {
   std::vector<iBase_EntitySetHandle> sets(num_entities);
@@ -274,7 +243,7 @@ int AssocPair::get_relation(const int iface_no, iBase_EntityHandle *entities,
   RETURNR(iBase_SUCCESS);
 }
 
-int AssocPair::get_relation(const int iface_no, iBase_EntitySetHandle *sets,
+int AssocPair::get_relation(int iface_no, iBase_EntitySetHandle *sets,
                             int num_sets, iBase_EntityIterator *tag_values)
 {
   std::vector<iBase_EntitySetHandle> sets2(num_sets);
@@ -286,7 +255,7 @@ int AssocPair::get_relation(const int iface_no, iBase_EntitySetHandle *sets,
   RETURNR(iBase_SUCCESS);
 }
 
-int AssocPair::rmv_relation(const int iface_no, iBase_EntityHandle *entities,
+int AssocPair::rmv_relation(int iface_no, iBase_EntityHandle *entities,
                             int num_entities)
 {
   if (relStatus[iface_no] == iRel_NOTEXIST)
@@ -315,7 +284,7 @@ int AssocPair::rmv_relation(const int iface_no, iBase_EntityHandle *entities,
   return relSides[iface_no]->rmv_relation_side(entities, num_entities);
 }
 
-int AssocPair::rmv_relation(const int iface_no, iBase_EntitySetHandle *sets,
+int AssocPair::rmv_relation(int iface_no, iBase_EntitySetHandle *sets,
                             int num_sets)
 {
   if (relStatus[iface_no] == iRel_NOTEXIST)
@@ -342,31 +311,74 @@ int AssocPair::rmv_relation(const int iface_no, iBase_EntitySetHandle *sets,
   return relSides[iface_no]->rmv_relation_side(sets, num_sets);
 }
 
-int AssocPair::get_gids(const int iface_no, iBase_EntityHandle *entities,
+int AssocPair::get_gids(int iface_no, iBase_EntityHandle *entities,
                         int num_entities, int *tag_values)
 {
   return relSides[iface_no]->get_gids(entities, num_entities, tag_values);
 }
 
-int AssocPair::get_gids(const int iface_no, iBase_EntitySetHandle *sets,
+int AssocPair::get_gids(int iface_no, iBase_EntitySetHandle *sets,
                         int num_sets, int *tag_values)
 {
   return relSides[iface_no]->get_gids(sets, num_sets, tag_values);
 }
 
-int AssocPair::get_dims(const int iface_no, iBase_EntityHandle *entities,
+int AssocPair::get_dims(int iface_no, iBase_EntityHandle *entities,
                         int num_entities, int *tag_values)
 {
   return relSides[iface_no]->get_dims(entities, num_entities, tag_values);
 }
 
-int AssocPair::get_dims(const int iface_no, iBase_EntitySetHandle *sets,
+int AssocPair::get_dims(int iface_no, iBase_EntitySetHandle *sets,
                         int num_sets, int *tag_values)
 {
   return relSides[iface_no]->get_dims(sets, num_sets, tag_values);
 }
 
-int AssocPair::change_status(const int iface_no, iRel_RelationStatus status)
+int AssocPair::change_type(int iface_no, iRel_RelationType type)
+{
+  if (entOrSet[iface_no] == type)
+    RETURNR(iBase_SUCCESS);
+  if (entOrSet[iface_no] == iRel_ENTITY || type == iRel_ENTITY)
+    ERRORR(iBase_FAILURE, "Can only change type from \"set\" to \"both\", or "
+           "vice-versa");
+
+  entOrSet[iface_no] = type;
+  if (relStatus[iface_no] != iRel_ACTIVE)
+    RETURNR(iBase_SUCCESS);
+
+  iBase_EntitySetHandle *sets = NULL;
+  int set_alloc = 0, set_size;
+  CHK_ERRORR( relSides[iface_no]->get_related_sets(&sets, &set_alloc,
+                                                   &set_size) );
+  if (type == iRel_BOTH) {
+    if (entOrSet[!iface_no] == iRel_ENTITY) {
+      std::vector<iBase_EntityHandle> related_ents(set_size);
+      CHK_ERRORR( relSides[iface_no]->get_relation_side(sets, set_size,
+                                                        &related_ents[0]) );
+
+      for (int i = 0; i < set_size; i++)
+        CHK_ERRORR( populate_recursive(iface_no, sets[i], related_ents[i]) );
+    }
+    else {
+      std::vector<iBase_EntitySetHandle> related_sets(set_size);
+      CHK_ERRORR( relSides[iface_no]->get_relation_side(sets, set_size,
+                                                        &related_sets[0]) );
+
+      for (int i = 0; i < set_size; i++)
+        CHK_ERRORR( populate_recursive(iface_no, sets[i], related_sets[i]) );
+    }
+  }
+  else if (type == iRel_SET) {
+    for (int i = 0; i < set_size; i++)
+      CHK_ERRORR( unpopulate_recursive(iface_no, sets[i]) );
+  }
+
+  free(sets);
+  RETURNR(iBase_SUCCESS);
+}
+
+int AssocPair::change_status(int iface_no, iRel_RelationStatus status)
 {
   if (relStatus[iface_no] == status)
     RETURNR(iBase_SUCCESS);
@@ -468,46 +480,92 @@ int AssocPair::change_status(const int iface_no, iRel_RelationStatus status)
   RETURNR(iBase_SUCCESS);
 }
 
-bool AssocPair::equivalent(iBase_Instance iface0,
-                           iBase_Instance iface1,
+bool AssocPair::equivalent(iBase_Instance iface0, iBase_Instance iface1,
                            bool *order_switched)
 {
-  bool equiv = false;
   if (iface0 == relSides[0]->instance() &&
       iface1 == relSides[1]->instance()) {
-    if (NULL != order_switched) *order_switched = false;
-    equiv = true;
+    if (order_switched) *order_switched = false;
+    return true;
   }
   else if (iface0 == relSides[1]->instance() &&
            iface1 == relSides[0]->instance()) {
-    equiv = true;
-    if (NULL != order_switched) *order_switched = true;
+    if (order_switched) *order_switched = true;
+    return true;
   }
-
-  return equiv;
+  else
+    return false;
 }
 
-bool AssocPair::equivalent(iRel_IfaceType type0,
-                           iRel_IfaceType type1,
+bool AssocPair::equivalent(iRel_IfaceType type0, iRel_IfaceType type1,
                            bool *order_switched)
 {
-  bool equiv = false;
   if (type0 == relSides[0]->type() &&
       type1 == relSides[1]->type()) {
-    if (NULL != order_switched) *order_switched = false;
-    equiv = true;
+    if (order_switched) *order_switched = false;
+    return true;
   }
   else if (type0 == relSides[1]->type() &&
            type1 == relSides[0]->type()) {
-    equiv = true;
-    if (NULL != order_switched) *order_switched = true;
+    if (order_switched) *order_switched = true;
+    return true;
   }
-
-  return equiv;
+  else
+    return false;
 }
 
 bool AssocPair::contains(iBase_Instance iface)
 {
   return (iface == relSides[0]->instance() ||
           iface == relSides[1]->instance());
+}
+
+int AssocPair::populate_recursive(int iface_no, iBase_EntitySetHandle set,
+                                  iBase_EntityHandle related_ent)
+{
+  iBase_EntityHandle *entities = NULL;
+  int entities_alloc = 0, entities_size;
+
+  CHK_ERRORR( relSides[iface_no]->get_entities(-1, set, &entities,
+                                               &entities_alloc,
+                                               &entities_size) );
+
+  for (int i = 0; i < entities_size; i++)
+    CHK_ERRORR( relSides[iface_no]->set_relation_side(entities+i, 1,
+                                                      &related_ent) );
+
+  free(entities);
+  RETURNR(iBase_SUCCESS);
+}
+
+int AssocPair::populate_recursive(int iface_no, iBase_EntitySetHandle set,
+                                  iBase_EntitySetHandle related_set)
+{
+  iBase_EntityHandle *entities = NULL;
+  int entities_alloc, entities_size;
+
+  CHK_ERRORR( relSides[iface_no]->get_entities(-1, set, &entities,
+                                               &entities_alloc,
+                                               &entities_size) );
+
+  for (int i = 0; i < entities_size; i++)
+    CHK_ERRORR( relSides[iface_no]->set_relation_side(entities+i, 1,
+                                                      &related_set) );
+
+  free(entities);
+  RETURNR(iBase_SUCCESS);
+}
+
+int AssocPair::unpopulate_recursive(int iface_no, iBase_EntitySetHandle set)
+{
+  iBase_EntityHandle *entities = NULL;
+  int entities_alloc = 0, entities_size;
+
+  CHK_ERRORR( relSides[iface_no]->get_entities(-1, set, &entities,
+                                               &entities_alloc,
+                                               &entities_size) );
+  CHK_ERRORR( relSides[iface_no]->rmv_relation_side(entities, entities_size) );
+
+  free(entities);
+  RETURNR(iBase_SUCCESS);
 }

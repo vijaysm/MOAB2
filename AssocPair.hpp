@@ -30,6 +30,7 @@ public:
   iRel_RelationType relation_type(int iface_no) const;
   iRel_RelationStatus relation_status(int iface_no) const;
 
+  int change_type(int iface_no, iRel_RelationType type);
   int change_status(int iface_no, iRel_RelationStatus status);
 
   bool equivalent(iBase_Instance iface1, iBase_Instance iface2,
@@ -89,6 +90,13 @@ public:
 private:
   AssocPair();
 
+  int populate_recursive(int iface_no, iBase_EntitySetHandle set,
+                         iBase_EntityHandle related_ent);
+  int populate_recursive(int iface_no, iBase_EntitySetHandle set,
+                         iBase_EntitySetHandle related_set);
+
+  int unpopulate_recursive(int iface_no, iBase_EntitySetHandle set);
+
   iRel_Instance instance;
   AssocPairSide *relSides[2];
   iRel_RelationType entOrSet[2];
@@ -98,22 +106,22 @@ private:
   static int currId;
 };
 
-inline iBase_Instance AssocPair::iface_instance(const int iface_no) const
+inline iBase_Instance AssocPair::iface_instance(int iface_no) const
 {
   return relSides[iface_no]->instance();
 }
 
-inline iRel_IfaceType AssocPair::iface_type(const int iface_no) const
+inline iRel_IfaceType AssocPair::iface_type(int iface_no) const
 {
   return relSides[iface_no]->type();
 }
 
-inline iRel_RelationType AssocPair::relation_type(const int iface_no) const
+inline iRel_RelationType AssocPair::relation_type(int iface_no) const
 {
   return entOrSet[iface_no];
 }
 
-inline iRel_RelationStatus AssocPair::relation_status(const int iface_no) const
+inline iRel_RelationStatus AssocPair::relation_status(int iface_no) const
 {
   return relStatus[iface_no];
 }

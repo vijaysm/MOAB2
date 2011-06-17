@@ -127,7 +127,12 @@ void iRel_changePairType (
   int ent_or_set2,
   int *err)
 {
-  ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");
+  CHK_PAIR();
+
+  CHK_ERROR( ASSOCPAIRI->change_type(0, static_cast<iRel_RelationType>(
+                                     ent_or_set1)) );
+  CHK_ERROR( ASSOCPAIRI->change_type(1, static_cast<iRel_RelationType>(
+                                     ent_or_set2)) );
 }
 
 void iRel_changePairStatus (
