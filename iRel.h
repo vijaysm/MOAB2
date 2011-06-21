@@ -1,8 +1,966 @@
 #ifndef _ITAPS_iRel
 #define _ITAPS_iRel
 
-#define IREL_MAJOR_VERSION 1
-#define IREL_MINOR_VERSION 1
+/***************************************************************************//**
+ * \ingroup VersionNumbers
+ * \brief Compile time version number digits
+ *
+ * iRel maintains a major, minor and patch digit in its version number.
+ * Technically speaking, there is not much practical value in patch digit
+ * for an interface specification. A patch release is typically only used
+ * for bug fix releases. Although it is rare, sometimes a bug fix
+ * necessitates an API change. So, we define a patch digit for iRel.
+ ******************************************************************************/
+#define IREL_VERSION_MAJOR 1
+#define IREL_VERSION_MINOR 1
+#define IREL_VERSION_PATCH 0
+
+/***************************************************************************//**
+ * \ingroup VersionNumbers
+ * \brief Maintain backward compatibility with old version symbol names
+ ******************************************************************************/
+#define IREL_MAJOR_VERSION IREL_VERSION_MAJOR
+#define IREL_MINOR_VERSION IREL_VERSION_MINOR
+#define IREL_PATCH_VERSION IREL_VERSION_PATCH
+
+/***************************************************************************//**
+ * \ingroup VersionNumbers
+ * \brief Version Comparison
+ *
+ * Evaluates to true at CPP time if the version of iRel currently being
+ * compiled is greater than or equal to the version specified.
+ ******************************************************************************/
+#define IREL_VERSION_GE(Maj,Min,Pat) ITAPS_VERSION_GE(Maj,Min,Pat)
+
+/***************************************************************************//**
+ * \ingroup VersionNumbers
+ * \brief Compose string represention of the iRel version number
+ ******************************************************************************/
+#define IREL_VERSION_STRING ITAPS_VERSION_STRING_(iRel)
+
+/***************************************************************************//**
+ * \ingroup VersionNumbers
+ * \brief Compose a symbol name derived from the current iRel version number.
+ ******************************************************************************/
+#define IREL_VERSION_TAG ITAPS_VERSION_TAG_(iRel)
+
+/***************************************************************************//**
+ * \ingroup VersionNumbers
+ * \brief Define iRel_create symbol such that it depends on version number.
+ *
+ * Note: We ran into problems with this as it influences or is influenced by
+ * fortran name mangling and so breaks fortran compilation. So, this is
+ * currently disabled.
+ ******************************************************************************/
+#define IREL_CREATE_NAME__(A,B,C) A##_##B##_##C
+#define IREL_CREATE_NAME_(A,B,C) IREL_CREATE_NAME__(A,B,C)
+#define IREL_CREATE_NAME(A) IREL_CREATE_NAME_(A,IREL_VERSION_MAJOR,IREL_VERSION_MINOR)
+/*
+#undef  iRel_create
+#define iRel_create IREL_CREATE_NAME(iRel_create)
+*/
+
+#include "iBase.h"
+#include "iRel_protos.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef void* iRel_Instance;
+typedef struct iRel_PairHandle_Private* iRel_PairHandle;
+
+/***************************************************************************//**
+ * \brief  \enum IfaceType Enumerator specifying interface types
+ *
+ * Enumerator specifying interface types.  This enumeration is
+ * necessary because functions to get entities of a given dimension
+ * are part of the higher-level interfaces (e.g. iGeom, iMesh) instead
+ * of iBase.
+ ******************************************************************************/
+enum iRel_IfaceType {
+    iRel_IfaceType_MIN = 0,
+        /**< facilitates iteration over all values */
+    iRel_IGEOM_IFACE = iRel_IfaceType_MIN, 
+        /**< description unavailable */
+    iRel_IMESH_IFACE, 
+        /**< description unavailable */
+    iRel_IFIELD_IFACE, 
+        /**< description unavailable */
+    iRel_IREL_IFACE,
+        /**< description unavailable */
+    iRel_IfaceType_MAX = iRel_IREL_IFACE
+        /**< facilitates iteration over all values */
+};
+
+/***************************************************************************//**
+ * \brief  \enum RelationType Enumerator specifying relation types
+ *
+ * Enumerator specifying relation types.  A relation has two types, one
+ * for each side of the relation.
+ ******************************************************************************/
+enum iRel_RelationType {
+    iRel_RelationType_MIN = 0,
+        /**< facilitates iteration over all values */
+    iRel_ENTITY = iRel_RelationType_MIN, 
+        /**< description unavailable */
+    iRel_SET, 
+        /**< description unavailable */
+    iRel_BOTH,
+        /**< description unavailable */
+    iRel_RelationType_MAX = iRel_BOTH
+        /**< facilitates iteration over all values */
+};
+
+/***************************************************************************//**
+ * \brief  \enum RelationStatus Enumerator specifying relation status
+ *
+ * Enumerator specifying relation status.  A relation has two statuses, one
+ * for each side of the relation.  Allowed values of this enumeration are:
+ * It is an error to request relations from a side that does not have
+ * iRel_ACTIVE status.
+ ******************************************************************************/
+enum iRel_RelationStatus {
+    iRel_RelationStatus_MIN = 0,
+        /**< facilitates iteration over all values */
+    iRel_ACTIVE = iRel_RelationType_MIN, 
+        /**< the relation on this side is active and up to date */
+    iRel_INACTIVE, 
+        /**< the relation on this side is inactive, and may be out of date */
+    iRel_NOTEXIST,
+        /**< the relation on this side is not stored */
+    iRel_RelationStatus_MAX = iRel_NOTEXIST
+        /**< facilitates iteration over all values */
+};
+
+/***************************************************************************//**
+ * \brief Get the error type returned from the last iRel function
+ *
+ * Get the error type returned from the last iRel function.  Value
+ * returned is a member of the iBase_ErrorType enumeration.
+ ******************************************************************************/
+void iRel_getErrorType(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    int* error_type
+        /**< [out] Error type returned from last iRel function */
+);
+
+/***************************************************************************//**
+ * \brief Get a description of the error returned from the last iRel function
+ *
+ * Get a description of the error returned from the last iRel function
+ ******************************************************************************/
+void iRel_getDescription(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    char* descr,
+        /**< [inout] Pointer to a character string to be filled with a
+        description of the error from the last iRel function */
+    int descr_len
+        /**< [in] Length of the character string pointed to by descr */
+);
+
+/***************************************************************************//**
+ * \brief Create a new iRel instance
+ *
+ * Create a new iRel instance.  Currently no options are implemented.
+ ******************************************************************************/
+void iRel_create(
+    const char* options,
+        /**< const Options for the implementation */
+    iRel_Instance* instance,
+        /**< [in] iRel instance handle */
+    int* err,
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+    const int options_len
+        /**< [in] Length of options string */
+);
+
+/***************************************************************************//**
+ * \brief Destroy the interface object
+ *
+ * Calls destructor on interface object
+ ******************************************************************************/
+void iRel_destroy(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Create a relation pair between two interfaces
+ *
+ * Creates a relation pair between two interfaces, passing
+ * back a handle to the pair.  It is an error to create a relation pair
+ * having both sides iRel_NOTEXIST.  If a relation pair has a side with status
+ * iRel_NOTEXIST, the relation for that side is never stored, and the status
+ * cannot change over the life of the relation pair.  
+ ******************************************************************************/
+void iRel_createPair(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iBase_Instance iface1,
+        /**< [in] 1st interface object in the relation pair */
+    const int ent_or_set1,
+        /**< [in] This relation relates entities, sets, or both from 1st
+        interface object */
+    const int iface_type1,
+        /**< [in] Type of 1st interface */
+    const int irel_status1,
+        /**< [in] The status of 1st side */
+    iBase_Instance iface2,
+        /**< [in] 2nd interface object in the relation pair */
+    const int ent_or_set2,
+        /**< [in] This relation relates entities, sets, or both from 2nd
+        interface object */
+    const int iface_type2,
+        /**< [in] Type of 2nd interface */
+    const int irel_status2,
+        /**< [in] The status of 2nd side */
+    iRel_PairHandle* pair,
+        /**< [out] Pointer to relation pair handle, returned from function */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Get information for this relation handle
+ *
+ * Get information about the interfaces and relation type for this
+ * relation.  Relation type for each side is passed back as integers,
+ * but values will be from RelationType enumeration.
+ ******************************************************************************/
+void iRel_getPairInfo(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] handle of relation pair being queried */
+    iBase_Instance* iface1,
+        /**< [out] Side 1 instance for this relation */
+    int* ent_or_set1,
+        /**< [out] relation type for side 1 of this relation */
+    int* iface_type1,
+        /**< [out] Interface type for side 1 of this relation */
+    int* irel_status1,
+        /**< [out] The status of the first side of this relation */
+    iBase_Instance* iface2,
+        /**< [out] Side 2 instance for this relation */
+    int* ent_or_set2,
+        /**< [out] Relation type for side 2 of this relation */
+    int* iface_type2,
+        /**< [out] Interface type for side 2 of this relation */
+    int* irel_status2,
+        /**< [out] Status of the 2nd side of this relation */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Change the relation type
+ *
+ * Change the type of one or both sides of a relation.  Only changes that
+ * result in no lost information are allowed, e.g. changing a type from SET
+ * to BOTH or vice versa.
+ ******************************************************************************/
+void iRel_changePairType(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being changed */
+    int ent_or_set1,
+        /**< [in] The new type of side 1 of this relation pair */
+    int ent_or_set2,
+        /**< [in] The new type of side 2 of this relation pair */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Change the relation status
+ *
+ * Change the status of one or both sides of a relation.  It is an error to
+ * change the status of both sides to iRel_NOTEXIST.  If a side is changed to
+ * iRel_NOTEXIST, it will no longer be changeable back to iRel_ACTIVE or
+ * iRel_INACTIVE. Changing a side from iRel_INACTIVE to iRel_ACTIVE implies a
+ * traversal of all related entities on the other side, to recover the relations
+ * on the side being changed. Changing both sides from iRel_ACTIVE to something
+ * else is an error, since in that case neither will be able to be updated to
+ * iRel_ACTIVE.
+ ******************************************************************************/
+void iRel_changePairStatus(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being changed */
+    int irel_status1,
+        /**< [in] The new status of side 1 of this relation pair */
+    int irel_status2,
+        /**< [in] The new status of side 2 of this relation pair */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Destroy a relation pair
+ *
+ * Destroy the relation pair corresponding to the handle input
+ ******************************************************************************/
+void iRel_destroyPair(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Handle of relation pair to destroy */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Get relations containing specified interface
+ *
+ * Get relations containing the specified interface
+ ******************************************************************************/
+void iRel_findPairs(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iBase_Instance iface,
+        /**< [in] Specified interface */
+    iRel_PairHandle** pairs,
+        /**< [inout] Pointer to array holding returned relation pairs
+        containing specified interface */
+    int* pairs_allocated,
+        /**< [inout] Pointer to allocated size of relation pairs list */
+    int* pairs_size,
+        /**< [out] Pointer to occupied size of relation pairs list */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Set a relation between two entities
+ *
+ * Set a relation between an entity and several entities. It is an error
+ * to set a relation on a pair with both sides not iRel_ACTIVE.
+ ******************************************************************************/
+void iRel_setEntEntRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntityHandle ent1,
+        /**< [in] 1st entity of relation being set */
+    iBase_EntityHandle ent2,
+        /**< [in] 2nd entity of relation being set */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Set a relation between an entity and an entity set
+ *
+ * Description unavailable.
+ ******************************************************************************/
+void iRel_setEntSetRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntityHandle ent1,
+        /**< [in] entity of relation being set */
+    iBase_EntitySetHandle entset2,
+        /**< [in] entity set of relation being set */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Set a relation between an entity set an an entity
+ *
+ * Description unavailable.
+ ******************************************************************************/
+void iRel_setSetEntRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntitySetHandle entset1,
+        /**< [in] entity set of relation being set */
+    iBase_EntityHandle ent2,
+        /**< [in] entity of relation being set */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Set a relation between two entity sets
+ *
+ * Description unavailable.
+ * Set a relation between an entity and several entities.  It is an error to set
+ * a relation on a pair with both sides not iRel_ACTIVE.
+ ******************************************************************************/
+void iRel_setSetSetRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntitySetHandle entset1,
+        /**< [in] 1st entity set of relation being set */
+    iBase_EntitySetHandle entset2,
+        /**< [in] 2nd entity set of relation being set */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Set relations between arrays of entities pairwise,
+ * ent_array_1[i]<->ent_array_2[i]
+ *
+ * Set relations between arrays of entities pairwise, 
+ * ent_array_1[i]<->ent_array_2[i].  If either array
+ * contains sets and that side of the relation is 'both'-type, 
+ * set relations for individual entities in those sets too.  It is an error to
+ * set a relation on a pair with both sides not iRel_ACTIVE.
+ ******************************************************************************/
+void iRel_setEntArrEntArrRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntityHandle* ent_array_1,
+        /**< [in] 1st array of entities of relation being set */
+    int num_ent1,
+        /**< [in] Number of entities in 1st array */
+    iBase_EntityHandle* ent_array_2,
+        /**< [in] 2nd array of entities of relation being set */
+    int num_ent2,
+        /**< [in] Number of entities in 2nd array */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Set relations between arrays of entity sets and entities
+ *
+ * Description unavailable.
+ ******************************************************************************/
+void iRel_setSetArrEntArrRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntitySetHandle* entset_array_1,
+        /**< [in] 1st array of entities of relation being set */
+    int num_set1,
+        /**< [in] Number of entity sets in 1st array */
+    iBase_EntityHandle* ent_array_2,
+        /**< [in] 2nd array of entities of relation being set */
+    int num_ent2,
+        /**< [in] Number of entities in 2nd array */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Set relations between arrays of entities and entity sets
+ *
+ * Description unavailable.
+ ******************************************************************************/
+void iRel_setEntArrSetArrRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntityHandle* ent_array_1,
+        /**< [in] 1st array of entities of relation being set */
+    int num_ent1,
+        /**< [in] Number of entities in 1st array */
+    iBase_EntitySetHandle* entset_array_2,
+        /**< [in] 2nd array of entities of relation being set */
+    int num_set2,
+        /**< [in] Number of entity sets in 2nd array */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Set relations between arrays of entity sets pairwise,
+ * ent_array_1[i]<->ent_array_2[i]
+ *
+ * Set relations between arrays of entities pairwise, 
+ * ent_array_1[i]<->ent_array_2[i].  If either array
+ * contains sets and that side of the relation is 'both'-type, 
+ * set relations for individual entities in those sets too.  It is an error to
+ * set a relation on a pair with both sides not iRel_ACTIVE.
+ ******************************************************************************/
+void iRel_setSetArrSetArrRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntitySetHandle* entset_array_1,
+        /**< [in] 1st array of entities of relation being set */
+    int num_set1,
+        /**< [in] Number of entities in 1st array */
+    iBase_EntitySetHandle* entset_array_2,
+        /**< [in] 2nd array of entities of relation being set */
+    int num_set2,
+        /**< [in] Number of entities in 2nd array */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Get entity related to specified entity and relation handle
+ *
+ * Get entity related to specified entity and relation handle.  Also
+ * returns whether the related entity is an entity or a set.  It is an error to
+ * get a relation for a side with status iRel_NOTEXIST.
+ ******************************************************************************/
+void iRel_getEntEntRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntityHandle ent1,
+        /**< [in] 1st entity of relation being queried */
+    int switch_order,
+        /**< [in] 1st entity is related to 1st interface (=0) or 2nd interface
+        (=1) of relation pair */
+    iBase_EntityHandle* ent2,
+        /**< [out] Pointer to entity related to ent1 */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Get entity set related to specified entity and relation handle
+ *
+ * Description unavailable.
+ ******************************************************************************/
+void iRel_getEntSetRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntityHandle ent1,
+        /**< [in] entity of relation being queried */
+    int switch_order,
+        /**< [in] 1st entity is related to 1st interface (=0) or 2nd interface
+        (=1) of relation pair */
+    iBase_EntitySetHandle* entset2,
+        /**< [out] Pointer to entity set related to ent1 */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Get entity related to specified entity set and relation handle
+ *
+ * Description unavailable.
+ ******************************************************************************/
+void iRel_getSetEntRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntitySetHandle entset1,
+        /**< [in] entity set of relation being queried */
+    int switch_order,
+        /**< [in] 1st entity is related to 1st interface (=0) or 2nd interface
+        (=1) of relation pair */
+    iBase_EntityHandle* ent2,
+        /**< [out] Pointer to entity related to entset1 */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Get entity set related to specified entity set and relation handle
+ *
+ * Description unavailable.
+ ******************************************************************************/
+void iRel_getSetSetRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntitySetHandle entset1,
+        /**< [in] 1st entity set of relation being queried */
+    int switch_order,
+        /**< [in] 1st entity is related to 1st interface (=0) or 2nd interface
+        (=1) of relation pair */
+    iBase_EntitySetHandle* entset2,
+        /**< [out] Pointer to entity set related to entset1 */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Get entity iterator related to specified entity set and relation
+ * handle.
+ *
+ * Description unavailable.
+ ******************************************************************************/
+void iRel_getEntSetIterRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntityHandle ent1,
+        /**< [in] ent1 1st entity set of relation being queried */
+    int switch_order,
+        /**< [in] 1st entity is related to 1st interface (=0) or 2nd interface
+        (=1) of relation pair */
+    iBase_EntityIterator* entIter,
+        /**< [out] Returned entity iterator */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Get entities related to those in specified array and relation,
+ * pairwise
+ *
+ * Get entities related to those in specified array and relation, pairwise.
+ * Returns sets or entities, depending on relation type and entities in 
+ * ent_array_1.  It is an error to get a relation for a side with status
+ * iRel_NOTEXIST.
+ ******************************************************************************/
+void iRel_getEntArrEntArrRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntityHandle* ent_array_1,
+        /**< [in] Array of entities whose relations are being queried */
+    int ent_array_1_size,
+        /**< [in] Number of entities in ent_array_1 */
+    int switch_order,
+        /**< [in] Entities in ent_array_1 are related with 1st (=0) or 2nd (=1)
+        interface of this relation pair */
+    iBase_EntityHandle** ent_array_2,
+        /**< [inout] Pointer to array of entity handles returned from function */
+    int* ent_array_2_allocated,
+        /**< [inout] Pointer to allocated size of ent_array_2 */
+    int* ent_array_2_size,
+        /**< [out] Pointer to occupied size of ent_array_2 */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Get entity sets related to entities in specified array and relation,
+ * pairwise
+ *
+ * Description unavailable.
+ ******************************************************************************/
+void iRel_getEntArrSetArrRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntityHandle* ent_array_1,
+        /**< [in] Array of entities whose relations are being queried */
+    int ent_array_1_size,
+        /**< [in] Number of entities in ent_array_1 */
+    int switch_order,
+        /**< [in] Entities in ent_array_1 are related with 1st (=0) or 2nd (=1)
+        interface of this relation pair */
+    iBase_EntitySetHandle** entset_array_2,
+        /**< [inout] Pointer to array of entity set handles returned from function */
+    int* entset_array_2_allocated,
+        /**< [inout] Pointer to allocated size of entset_array_2 */
+    int* entset_array_2_size,
+        /**< [out] Pointer to occupied size of entset_array_2 */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Get entities related to entity sets in specified array and relation,
+ * pairwise
+ *
+ * Description unavailable.
+ ******************************************************************************/
+void iRel_getSetArrEntArrRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntitySetHandle* entset_array_1,
+        /**< [in] Array of entity sets whose relations are being queried */
+    int entset_array_1_size,
+        /**< [in] Number of entity sets in entset_array_1 */
+    int switch_order,
+        /**< [in] Entities in ent_array_1 are related with 1st (=0) or 2nd (=1)
+        interface of this relation pair */
+    iBase_EntityHandle** ent_array_2,
+        /**< [inout] Pointer to array of entity handles returned from function */
+    int* ent_array_2_allocated,
+        /**< [inout] Pointer to allocated size of ent_array_2 */
+    int* ent_array_2_size,
+        /**< [out] Pointer to occupied size of ent_array_2 */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Get entity sets related to entity sets in specified array and relation,
+ * pairwise
+ *
+ * Description unavailable.
+ ******************************************************************************/
+void iRel_getSetArrSetArrRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntitySetHandle* entset_array_1,
+        /**< [in] Array of entity sets whose relations are being queried */
+    int entset_array_1_size,
+        /**< [in] Number of entity sets in entset_array_1 */
+    int switch_order,
+        /**< [in] Entities in ent_array_1 are related with 1st (=0) or 2nd (=1)
+        interface of this relation pair */
+    iBase_EntitySetHandle** entset_array_2,
+        /**< [inout] Pointer to array of entity handles returned from function */
+    int* entset_array_2_allocated,
+        /**< [inout] Pointer to allocated size of entset_array_2 */
+    int* entset_array_2_size,
+        /**< [out] Pointer to occupied size of entset_array_2 */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Get entity iterators related to entity sets in specified array and
+ * relation.
+ *
+ * Description unavailable.
+ ******************************************************************************/
+void iRel_getEntArrSetIterArrRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntityHandle* ent_array_1,
+        /**< [in] Array of entities whose relations are being queried */
+    int ent_array_1_size,
+        /**< [in] Number of entities in ent_array_1 */
+    int switch_order,
+        /**< [in] Entities in ent_array_1 are related with 1st (=0) or 2nd (=1)
+        interface of this relation pair */
+    iBase_EntityIterator** entiter,
+        /**< [inout] Pointer to array of entity iterator handles returned from
+        function */
+    int* entiter_allocated,
+        /**< [inout] Pointer to allocated size of entiter */
+    int* entiter_size,
+        /**< [out] Pointer to occupied size of entiter */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Remove a relation from an entity
+ *
+ * Remove a relation from an entity
+ ******************************************************************************/
+void iRel_rmvEntRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntityHandle ent,
+        /**< [in] entity of relation being removed */
+    int switch_order,
+        /**< [in] entity is related to 1st interface (=0) or 2nd interface
+        (=1) of relation pair */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Remove a relation from an entity set
+ *
+ * Remove a relation from an entity set
+ ******************************************************************************/
+void iRel_rmvSetRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntitySetHandle set,
+        /**< [in] entity set of relation being removed */
+    int switch_order,
+        /**< [in] entity set is related to 1st interface (=0) or 2nd interface
+        (=1) of relation pair */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Remove a relation from an array of entities
+ *
+ * Remove a relation from an array of entities
+ ******************************************************************************/
+void iRel_rmvEntArrRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntityHandle* ent_array_1,
+        /**< [in] Array of entities of relation being removed */
+    int num_ent1,
+        /**< [in] Number of entities in array */
+    int switch_order,
+        /**< [in] entities are related to 1st interface (=0) or 2nd interface
+        (=1) of relation pair */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Remove a relation from an array of entity sets
+ *
+ * Remove a relation from an array of entity sets
+ ******************************************************************************/
+void iRel_rmvSetArrRelation(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntitySetHandle* entset_array_1,
+        /**< [in] Array of entity sets of relation being removed */
+    int num_entset1,
+        /**< [in] Number of entity sets in array */
+    int switch_order,
+        /**< [in] entity sets are related to 1st interface (=0) or 2nd interface
+        (=1) of relation pair */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Infer relations between entities in specified pair of interfaces
+ *
+ * Infer relations between entities in specified pair of interfaces.  The
+ * criteria used to infer these relations depends on the interfaces in
+ * the pair, the iRel implementation, and the source of the data in those
+ * interfaces.
+ ******************************************************************************/
+void iRel_inferAllRelations(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Infer relations and relation type between entities in specified pair
+ * of interfaces 
+ *
+ * Infer relations between entities in specified pair of interfaces, and the
+ * relation type used by this iRel implementation.  The criteria used to
+ * infer these relations depends on the interfaces in the pair, the iRel
+ * implementation, and the source of the data in those interfaces.
+ ******************************************************************************/
+void iRel_inferAllRelationsAndType(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle* pair,
+        /**< [in] Relation pair handle created by implementation */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Infer relations corresponding to specified entity and relation pair
+ *
+ * Infer relations corresponding to specified entity and relation pair.  The
+ * criteria used to infer these relations depends on the interfaces in
+ * the pair, the iRel implementation, and the source of the data in those
+ * interfaces.
+ ******************************************************************************/
+void iRel_inferEntRelations(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntityHandle entity,
+        /**< [in] Entity whose relations are being inferred */
+    int iface_no,
+        /**< [in] Entity corresponds to 1st (=0) or 2nd (=1) interface in
+        relation pair */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Brief unavailable
+ *
+ * Description unavailable
+ ******************************************************************************/
+void iRel_inferSetRelations(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] description unknown */
+    iBase_EntitySetHandle entity_set,
+        /**< [in] description unknown */
+    int iface_no,
+        /**< [in] description unknown */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Infer relations corresponding to specified entities and relation pair
+ *
+ * Infer relations corresponding to specified entities and relation pair.
+ * The criteria used to infer these relations depends on the interfaces in
+ * the pair, the iRel implementation, and the source of the data in those
+ * interfaces.
+ ******************************************************************************/
+void iRel_inferEntArrRelations(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] Relation pair handle being queried */
+    iBase_EntityHandle* entities,
+        /**< [in] Array of entities whose relation are being inferred */
+    int entities_size,
+        /**< [in] Number of entities in array */
+    int iface_no,
+        /**< [in] Entities correspond to 1st (=0) or 2nd (=1) interface in
+        relation pair */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \brief Brief unavailable
+ *
+ * Description unavailable
+ ******************************************************************************/
+void iRel_inferSetArrRelations(
+    iRel_Instance instance,
+        /**< [in] iRel instance handle */
+    iRel_PairHandle pair,
+        /**< [in] description unknown */
+    iBase_EntitySetHandle* entity_sets,
+        /**< [in] description unknown */
+    int entities_size,
+        /**< [in] description unknown */
+    int iface_no,
+        /**< [in] description unknown */
+    int* err
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
 
   /** \mainpage The ITAPS Relations Interface iRel
    *
@@ -81,600 +1039,8 @@
    * 
    */
 
-#include "iBase.h"
-#include "iRel_protos.h"
-
-#ifdef __cplusplus
-
-extern "C" 
-{
-#endif
-
-    /**\brief  Type used to store iRel interface handle
-     *
-     * Type used to store iRel interface handle
-     */
-  typedef void* iRel_Instance;
-
-    /**\brief  Type used to store references to relation pairs
-     *
-     * Type used to store references to relation pairs
-     */
-  typedef struct iRel_PairHandle_Private* iRel_PairHandle;
-
-    /**\brief  \enum IfaceType Enumerator specifying interface types
-     *
-     * Enumerator specifying interface types.  This enumeration is
-     * necessary because functions to get entities of a given dimension
-     * are part of the higher-level interfaces (e.g. iGeom, iMesh) instead
-     * of iBase.
-     */
-  enum iRel_IfaceType 
-  {iRel_IfaceType_MIN = 0,
-   iRel_IGEOM_IFACE = iRel_IfaceType_MIN, 
-   iRel_IMESH_IFACE, 
-   iRel_IFIELD_IFACE, 
-   iRel_IREL_IFACE,
-   iRel_IfaceType_MAX = iRel_IREL_IFACE};
-
-    /**\brief  \enum RelationType Enumerator specifying relation types
-     *
-     * Enumerator specifying relation types.  A relation has two types, one
-     * for each side of the relation.
-     */
-  enum iRel_RelationType 
-  {iRel_RelationType_MIN = 0,
-   iRel_ENTITY = iRel_RelationType_MIN, 
-   iRel_SET, 
-   iRel_BOTH,
-   iRel_RelationType_MAX = iRel_BOTH};
-
-    /**\brief  \enum RelationStatus Enumerator specifying relation status
-     *
-     * Enumerator specifying relation status.  A relation has two statuses, one
-     * for each side of the relation.  Allowed values of this enumeration are:
-     *    iRel_ACTIVE: the relation on this side is active and up to date
-     *    iRel_INACTIVE: the relation on this side is inactive, and may be out of date
-     *    iRel_NOTEXIST: the relation on this side is not stored
-     * It is an error to request relations from a side that does not have iRel_ACTIVE status
-     */
-  enum iRel_RelationStatus
-  {iRel_RelationStatus_MIN = 0,
-   iRel_ACTIVE = iRel_RelationType_MIN, 
-   iRel_INACTIVE, 
-   iRel_NOTEXIST,
-   iRel_RelationStatus_MAX = iRel_NOTEXIST};
-
-    /**\brief  Get the error type returned from the last iRel function
-     *
-     * Get the error type returned from the last iRel function.  Value
-     * returned is a member of the iBase_ErrorType enumeration.
-     * \param instance iRel instance handle
-     * \param *error_type Error type returned from last iRel function
-     */
-  void iRel_getErrorType(
-    iRel_Instance instance,
-    /*out*/ int *error_type);
-
-    /**\brief  Get a description of the error returned from the last iRel
-     *         function
-     *
-     * Get a description of the error returned from the last iRel function
-     * \param instance iRel instance handle
-     * \param descr Pointer to a character string to be filled with a
-     *        description of the error from the last iRel function
-     * \param descr_len Length of the character string pointed to by descr
-     */
-  void iRel_getDescription(
-    iRel_Instance instance,
-    /*inout*/ char *descr, 
-    /*in*/ int descr_len);
-
-    /**\brief  Create a new iRel instance
-     *
-     * Create a new iRel instance.  Currently no options are implemented.
-     * \param options Options for the implementation
-     * \param *instance Interface instance
-     * \param *err Pointer to error value, returned from function
-     * \param options_len Length of options string
-     */
-  void iRel_create(
-    const char *options,
-    /*out*/ iRel_Instance *instance,
-    /*out*/ int *err,
-    /*in*/ const int options_len);
-
-    /**\brief  Destroy the interface object
-     *
-     * Calls destructor on interface object
-     * \param instance Interface object handle to destroy
-     * \param *err Pointer to error value, returned from function
-     */
-  void iRel_destroy(
-    iRel_Instance instance,
-    /*out*/ int *err);
-
-    /**\brief  Create a relation pair between two interfaces
-     *
-     * Creates a relation pair between two interfaces, passing
-     * back a handle to the pair.  It is an error to create a relation pair
-     * having both sides iRel_NOTEXIST.  If a relation pair has a side with status
-     * iRel_NOTEXIST, the relation for that side is never stored, and the status
-     * cannot change over the life of the relation pair.  
-     * \param instance Interface instance
-     * \param iface1 1st interface object in the relation pair
-     * \param ent_or_set1 This relation relates entities, sets, or both from
-     *        1st interface object
-     * \param iface_type1 Type of 1st interface
-     * \param irel_status1 The status of 1st side
-     * \param iface2 2nd interface object in the relation pair
-     * \param ent_or_set2 This relation relates entities, sets, or both from
-     *        2nd interface object
-     * \param iface_type2 Type of 2nd interface
-     * \param irel_status2 The status of 2nd side
-     * \param *pair Pointer to relation pair handle, returned from function
-     * \param *err Pointer to error value, returned from function
-     */
-  void iRel_createPair(
-    iRel_Instance instance,
-    /*in*/ iBase_Instance iface1,
-    /*in*/ const int ent_or_set1,
-    /*in*/ const int iface_type1,
-    /*in*/ const int irel_status1,
-    /*in*/ iBase_Instance iface2,
-    /*in*/ const int ent_or_set2,
-    /*in*/ const int iface_type2,
-    /*in*/ const int irel_status2,
-    /*out*/ iRel_PairHandle *pair,
-    /*out*/ int *err);
-
-    /**\brief  Get information for this relation handle
-     *
-     * Get information about the interfaces and relation type for this
-     * relation.  Relation type for each side is passed back as integers,
-     * but values will be from RelationType enumeration.
-     * \param instance Interface instance
-     * \param pair Handle of relation pair being queried
-     * \param *iface1 Side 1 instance for this relation
-     * \param *ent_or_set1 Relation type for side 1 of this relation
-     * \param *iface_type1 Interface type for side 1 of this relation
-     * \param *irel_status1 The status of 1st side of this relation
-     * \param *iface2 Side 2 instance for this relation
-     * \param *ent_or_set2 Relation type for side 2 of this relation
-     * \param *iface_type2 Interface type for side 2 of this relation
-     * \param *irel_status2 The status of 2nd side of this relation
-     * \param *err Pointer to error value, returned from function
-     */
-  void iRel_getPairInfo(
-      iRel_Instance instance,
-      /*in*/ iRel_PairHandle pair,
-      /*out*/ iBase_Instance *iface1,
-      /*out*/ int *ent_or_set1,
-      /*out*/ int *iface_type1,
-      /*out*/ int *irel_status1,
-      /*out*/ iBase_Instance *iface2,
-      /*out*/ int *ent_or_set2,
-      /*out*/ int *iface_type2,
-      /*out*/ int *irel_status2,
-      /*out*/ int *err);
-
-    /**\brief  Change the relation type
-     *
-     * Change the type of one or both sides of a relation.  Only changes that
-     * result in no lost information are allowed, e.g. changing a type from SET
-     * to BOTH or vice versa.
-     *  \param instance Interface instance
-     *  \param pair Relation pair handle being changed
-     *  \param ent_or_set1 The new type of side 1 of this relation pair
-     *  \param ent_or_set2 The new type of side 2 of this relation pair
-     *  \param *err Pointer to error value, returned from function
-     */
-  void iRel_changePairType(
-      /*in*/ iRel_Instance instance,
-      /*in*/ iRel_PairHandle pair,
-      /*in*/ int ent_or_set1,
-      /*in*/ int ent_or_set2,
-      /*out*/ int *err);
-
-    /**\brief  Change the relation status
-     *
-     * Change the status of one or both sides of a relation.  It is an error to
-     * change the status of both sides to iRel_NOTEXIST.  If a side is changed to
-     * iRel_NOTEXIST, it will no longer be changeable back to iRel_ACTIVE or iRel_INACTIVE.
-     * Changing a side from iRel_INACTIVE to iRel_ACTIVE implies a traversal of all
-     * related entities on the other side, to recover the relations on the side being changed.
-     * Changing both sides from iRel_ACTIVE to something else is an error, since in that 
-     * case neither will be able to be updated to iRel_ACTIVE.
-     *  \param instance Interface instance
-     *  \param pair Relation pair handle being changed
-     *  \param status1 The new status of side 1 of this relation pair
-     *  \param status2 The new status of side 2 of this relation pair
-     *  \param *err Pointer to error value, returned from function
-     */
-  void iRel_changePairStatus(
-      /*in*/ iRel_Instance instance,
-      /*in*/ iRel_PairHandle pair,
-      /*in*/ int irel_status1,
-      /*in*/ int irel_status2,
-      /*out*/ int *err);
-
-    /**\brief  Destroy a relation pair
-     *
-     * Destroy the relation pair corresponding to the handle input
-     * \param instance Interface instance
-     * \param pair Handle of relation pair to destroy
-     * \param *err Pointer to error value, returned from function
-     */
-  void iRel_destroyPair(
-    iRel_Instance instance, 
-    /*in*/ iRel_PairHandle pair,
-    /*out*/ int *err);
-
-    /**\brief  Get relations containing specified interface
-     *
-     * Get relations containing the specified interface
-     * \param instance Interface instance
-     * \param iface Specified interface 
-     * \param pairs Pointer to array holding returned relation pairs
-     *        containing specified interface
-     * \param pairs_allocated Pointer to allocated size of relation pairs list
-     * \param pairs_size Pointer to occupied size of relation pairs list
-     * \param *err Pointer to error value, returned from function
-     */
-  void iRel_findPairs(
-    iRel_Instance instance,
-    /*in*/ iBase_Instance iface,
-    /*inout*/ iRel_PairHandle **pairs,
-    /*inout*/ int *pairs_allocated,
-    /*out*/ int *pairs_size,
-    /*out*/ int *err);
-
-    /**\brief  Set a relation between two entities
-     *
-     * Set a relation between an entity and several entities.  It is an error to set
-     * a relation on a pair with both sides not iRel_ACTIVE.
-     * \param instance Interface instance
-     * \param pair Relation pair handle being queried
-     * \param ent1 1st entity of relation being set
-     * \param ent2 2nd entity of relation being set
-     * \param *err Pointer to error value, returned from function
-     */
-  void iRel_setEntEntRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,
-    /*in*/ iBase_EntityHandle ent1,
-    /*in*/ iBase_EntityHandle ent2,
-    /*out*/ int *err);
-  void iRel_setEntSetRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,
-    /*in*/ iBase_EntityHandle ent1,
-    /*in*/ iBase_EntitySetHandle entset2,
-    /*out*/ int *err);
-  void iRel_setSetEntRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,
-    /*in*/ iBase_EntitySetHandle entset1,
-    /*in*/ iBase_EntityHandle ent2,
-    /*out*/ int *err);
-  void iRel_setSetSetRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,
-    /*in*/ iBase_EntitySetHandle entset1,
-    /*in*/ iBase_EntitySetHandle entset2,
-    /*out*/ int *err);
-
-    /**\brief Set relations between arrays of entities pairwise, 
-     *        ent_array_1[i]<->ent_array_2[i]
-     *
-     * Set relations between arrays of entities pairwise, 
-     * ent_array_1[i]<->ent_array_2[i].  If either array
-     * contains sets and that side of the relation is 'both'-type, 
-     * set relations for individual entities in those sets too.  It is an error to set
-     * a relation on a pair with both sides not iRel_ACTIVE.
-     * \param instance Interface instance
-     * \param pair Relation pair handle being queried
-     * \param ent_array_1 1st array of entities of relation being set
-     * \param num_ent1 Number of entities in 1st array
-     * \param ent_array_2 2nd array of entities of relation being set
-     * \param num_ent2 Number of entities in 2nd array
-     * \param *err Pointer to error value, returned from function
-     */
-  void iRel_setEntArrEntArrRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntityHandle *ent_array_1,
-    /*in*/ int num_ent1,
-    /*in*/ iBase_EntityHandle *ent_array_2,
-    /*in*/ int num_ent2,
-    /*out*/ int *err);
-  void iRel_setSetArrEntArrRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntitySetHandle *entset_array_1,
-    /*in*/ int num_ent1,
-    /*in*/ iBase_EntityHandle *ent_array_2,
-    /*in*/ int num_ent2,
-    /*out*/ int *err);
-  void iRel_setEntArrSetArrRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntityHandle *ent_array_1,
-    /*in*/ int num_ent1,
-    /*in*/ iBase_EntitySetHandle *entset_array_2,
-    /*in*/ int num_ent2,
-    /*out*/ int *err);
-  void iRel_setSetArrSetArrRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntitySetHandle *entset_array_1,
-    /*in*/ int num_ent1,
-    /*in*/ iBase_EntitySetHandle *entset_array_2,
-    /*in*/ int num_ent2,
-    /*out*/ int *err);
-
-    /**\brief  Get entity related to specified entity and relation handle
-     *
-     * Get entity related to specified entity and relation handle.  Also
-     * returns whether the related entity is an entity or a set.  It is an error to get
-     * a relation for a side with status iRel_NOTEXIST.
-     * \param instance Interface instance
-     * \param pair Relation pair handle being queried
-     * \param ent1 1st entity of relation being queried
-     * \param switch_order 1st entity is related to 1st interface (=0) or 2nd
-     *        interface (=1) of relation pair
-     * \param *ent2 Pointer to entity related to ent1
-     * \param *err Pointer to error value, returned from function
-    */
-  void iRel_getEntEntRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntityHandle ent1,
-    /*in*/ int switch_order,
-    /*out*/ iBase_EntityHandle *ent2,
-    /*out*/ int *err);
-  void iRel_getEntSetRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntityHandle ent1,
-    /*in*/ int switch_order,
-    /*out*/ iBase_EntitySetHandle *entset2,
-    /*out*/ int *err);
-  void iRel_getSetEntRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntitySetHandle entset1,
-    /*in*/ int switch_order,
-    /*out*/ iBase_EntityHandle *ent2,
-    /*out*/ int *err);
-  void iRel_getSetSetRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntitySetHandle entset1,
-    /*in*/ int switch_order,
-    /*out*/ iBase_EntitySetHandle *entset2,
-    /*out*/ int *err);
-  void iRel_getEntSetIterRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntityHandle ent1,
-    /*in*/ int switch_order,
-    /*out*/ iBase_EntityIterator *entset2,
-    /*out*/ int *err);
-
-    /**\brief  Get entities related to those in specified array and relation,
-     *         pairwise
-     *
-     * Get entities related to those in specified array and relation, pairwise.
-     * Returns sets or entities, depending on relation type and entities in 
-     * ent_array_1.  It is an error to get a relation for a side with status iRel_NOTEXIST.
-     * \param instance Interface instance
-     * \param pair Relation pair handle being queried
-     * \param ent_array_1 Array of entities whose relations are being queried
-     * \param ent_array_1_size Number of entities in ent_array_1
-     * \param switch_order Entities in ent_array_1 are related with 1st (=0) 
-     *        or 2nd (=1) interface of this relation pair
-     * \param *ent_array_2 Pointer to array of entity handles returned from
-     *        function
-     * \param *ent_array_2_allocated Pointer to allocated size of ent_array_2
-     * \param *ent_array_2_size Pointer to occupied size of ent_array_2
-     * \param *err Pointer to error value, returned from function
-     */
-  void iRel_getEntArrEntArrRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntityHandle *ent_array_1,
-    /*in*/ int ent_array_1_size,
-    /*in*/ int switch_order,
-    /*inout*/ iBase_EntityHandle **ent_array_2,
-    /*inout*/ int *ent_array_2_allocated,
-    /*out*/ int *ent_array_2_size,
-    /*out*/ int *err);
-  void iRel_getEntArrSetArrRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntityHandle *ent_array_1,
-    /*in*/ int ent_array_1_size,
-    /*in*/ int switch_order,
-    /*inout*/ iBase_EntitySetHandle **entset_array_2,
-    /*inout*/ int *entset_array_2_allocated,
-    /*out*/ int *entset_array_2_size,
-    /*out*/ int *err);
-  void iRel_getSetArrEntArrRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntitySetHandle *entset_array_1,
-    /*in*/ int entset_array_1_size,
-    /*in*/ int switch_order,
-    /*inout*/ iBase_EntityHandle **ent_array_2,
-    /*inout*/ int *ent_array_2_allocated,
-    /*out*/ int *ent_array_2_size,
-    /*out*/ int *err);
-  void iRel_getSetArrSetArrRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntitySetHandle *entset_array_1,
-    /*in*/ int entset_array_1_size,
-    /*in*/ int switch_order,
-    /*inout*/ iBase_EntitySetHandle **entset_array_2,
-    /*inout*/ int *entset_array_2_allocated,
-    /*out*/ int *entset_array_2_size,
-    /*out*/ int *err);
-  void iRel_getEntArrSetIterArrRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntityHandle *ent_array_1,
-    /*in*/ int ent_array_1_size,
-    /*in*/ int switch_order,
-    /*inout*/ iBase_EntityIterator **entiter,
-    /*inout*/ int *entiter_allocated,
-    /*out*/ int *entiter_size,
-    /*out*/ int *err);
-
-    /**\brief  Remove a relation from an entity
-     *
-     * Remove a relation from an entity.  If removing a relation from a set and
-     * that side of the relation is 'both'-type, remove relations for
-     * individual entities in those sets too.
-     * \param instance Interface instance
-     * \param pair Relation pair handle being queried
-     * \param ent entity whose relation is being removed
-     * \param switch_order entity is related to 1st interface (=0) or 2nd
-     *        interface (=1) of relation pair
-     * \param *err Pointer to error value, returned from function
-     */
-  void iRel_rmvEntRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntityHandle ent,
-    /*in*/ int switch_order,
-    /*out*/ int *err);
-  void iRel_rmvSetRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,
-    /*in*/ iBase_EntitySetHandle entset,
-    /*in*/ int switch_order,
-    /*out*/ int *err);
-
-    /**\brief Remove relations from an array of entities
-     *
-     * Remove relations from an array of entities.  If removing a relation from
-     * a set and that side of the relation is 'both'-type, remove relations for
-     * individual entities in those sets too.
-     * \param instance Interface instance
-     * \param pair Relation pair handle being queried
-     * \param ent_array 1st array of entities of relation being removed
-     * \param num_ent Number of entities in 1st array
-     * \param switch_order ent_array is related to 1st interface (=0) or 2nd
-     *        interface (=1) of relation pair
-     * \param *err Pointer to error value, returned from function
-     */
-  void iRel_rmvEntArrRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntityHandle *ent_array,
-    /*in*/ int num_ent,
-    /*in*/ int switch_order,
-    /*out*/ int *err);
-  void iRel_rmvSetArrRelation(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntitySetHandle *entset_array,
-    /*in*/ int num_ent,
-    /*in*/ int switch_order,
-    /*out*/ int *err);
-
-    /**\brief  Infer relations between entities in specified pair of interfaces
-     *
-     * Infer relations between entities in specified pair of interfaces.  The
-     * criteria used to infer these relations depends on the interfaces in
-     * the pair, the iRel implementation, and the source of the data in those
-     * interfaces.
-     * \param instance Interface instance
-     * \param pair Relation pair handle being queried
-     * \param *err Pointer to error value, returned from function
-     */
-  void iRel_inferAllRelations(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,
-    /*out*/ int *err);
-
-    /**\brief  Infer relations and relation type between entities in specified 
-     *         pair of interfaces 
-     *
-     * Infer relations between entities in specified pair of interfaces, and the
-     * relation type used by this iRel implementation.  The criteria used to
-     * infer these relations depends on the interfaces in the pair, the iRel
-     * implementation, and the source of the data in those interfaces.
-     * \param instance Interface instance
-     * \param pair Relation pair handle created by implementation
-     * \param *err Pointer to error value, returned from function
-     */
-  void iRel_inferAllRelationsAndType(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle *pair,
-    /*out*/ int *err);
-
-    /**\brief  Infer relations corresponding to specified entity and relation
-     *         pair
-     *
-     * Infer relations corresponding to specified entity and relation pair.  The
-     * criteria used to infer these relations depends on the interfaces in
-     * the pair, the iRel implementation, and the source of the data in those
-     * interfaces.
-     * \param instance Interface instance
-     * \param pair Relation pair handle being queried
-     * \param entity Entity whose relations are being inferred
-     * \param iface_no Entity corresponds to 1st (=0) or 2nd (=1) interface
-     *        in relation pair
-     * \param *err Pointer to error value, returned from function
-     */
-  void iRel_inferEntRelations(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntityHandle entity,
-    /*in*/ int iface_no,
-    /*out*/ int *err);
-  void iRel_inferSetRelations(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntitySetHandle entity_set,
-    /*in*/ int iface_no,
-    /*out*/ int *err);
-
-    /**\brief  Infer relations corresponding to specified entities and relation
-     *         pair
-     *
-     * Infer relations corresponding to specified entities and relation pair.
-     * The criteria used to infer these relations depends on the interfaces in
-     * the pair, the iRel implementation, and the source of the data in those
-     * interfaces.
-     * \param instance Interface instance
-     * \param pair Relation pair handle being queried
-     * \param entities Array of entities whose relation are being inferred
-     * \param entities_size Number of entities in array
-     * \param iface_no Entities correspond to 1st (=0) or 2nd (=1) interface
-     *        in relation pair
-     * \param *err Pointer to error value, returned from function
-     */
-  void iRel_inferEntArrRelations(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntityHandle *entities,
-    /*in*/ int entities_size,
-    /*in*/ int iface_no,
-    /*out*/ int *err);
-  void iRel_inferSetArrRelations(
-    iRel_Instance instance,
-    /*in*/ iRel_PairHandle pair,    
-    /*in*/ iBase_EntitySetHandle *entity_sets,
-    /*in*/ int entities_size,
-    /*in*/ int iface_no,
-    /*out*/ int *err);
-
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
 
 #endif /* #ifndef _ITAPS_iRel */
-
