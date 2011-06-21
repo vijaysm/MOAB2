@@ -207,6 +207,9 @@ private:
   ErrorCode divide_triangle(EntityHandle triangle, EntityHandle & newVertex);
   Interface * _mbImpl;
 
+  // this will be used during volume creation
+  ErrorCode set_default_neumann_tags();
+
   GeomTopoTool* _my_geomTopoTool;
   bool _t_created;
   bool _smooth;

@@ -2847,6 +2847,9 @@ ErrorCode FBEngine::create_volume_with_direction(EntityHandle newFace1, EntityHa
     MBERRORR(rval, "can't set lateral face sense to the volume");
   }
 
+  rval = set_default_neumann_tags();
+  MBERRORR(rval, "can't set new neumann tags");
+
   return MB_SUCCESS;
 }
 
@@ -3131,6 +3134,34 @@ ErrorCode  FBEngine::weave_lateral_face_from_edges(EntityHandle bEdge, EntityHan
   // the whole idea of volume maybe is overrated
   // volume should be just quads extruded from bottom ?
   //
+  return MB_SUCCESS;
+}
+// this will be used during creation of the volume, to set unique
+// tags on all surfaces
+// it is changing original tags, so do not use it if you want to preserve
+// initial neumann tags
+ErrorCode FBEngine::set_default_neumann_tags()
+{
+  // these are for debugging purposes only
+  // check the initial tag, then
+  Tag ntag;
+  ErrorCode rval = _mbImpl->tag_get_handle(NEUMANN_SET_TAG_NAME, 1, MB_TYPE_INTEGER, ntag);
+  MBERRORR(rval, "can't get tag handle");
+  // get all surfaces in the model now
+  Range sets[4];
+  rval = _my_geomTopoTool->find_geomsets(sets);
+  MBERRORR(rval, "can't get geo sets");
+  int nfaces = (int)sets[2].size();
+  int * vals = new int [nfaces];
+  for (int i=0; i<nfaces; i++)
+  {
+    vals[i] = i+1;
+  }
+  rval = _mbImpl->tag_set_data(ntag, sets[2], (void*)vals);
+  MBERRORR(rval, "can't set tag values for neumann sets");
+
+  delete [] vals;
+
   return MB_SUCCESS;
 }
 } // namespace moab
