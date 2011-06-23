@@ -1,4 +1,5 @@
 #ifndef MOAB_MPE_H
+#define MOAB_MPE_H
 
 #ifdef USE_MPE
 # include "moab_mpi.h"
