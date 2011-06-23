@@ -131,8 +131,7 @@ libMOAB_la_SOURCES = \
   VertexSequence.cpp \
   WriteUtil.cpp \
   WriteUtil.hpp \
-  moab_mpe.h \
-  moab_mpe.c
+  moab_mpe.h
 
 # The list of header files which are to be installed
 nobase_libMOAB_la_include_HEADERS = \

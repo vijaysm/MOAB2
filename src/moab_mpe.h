@@ -1,16 +1,4 @@
 #ifndef MOAB_MPE_H
-#define MOAB_MPE_H
-
-#define MOAB_MPE_FIRST_EVENT 101
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-  int MPE_Allocate_event(void);
-#ifdef __cplusplus
- } /* extern "C" */
-#endif
-
 
 #ifdef USE_MPE
 # include "moab_mpi.h"
