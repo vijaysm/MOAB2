@@ -5,6 +5,7 @@
 
 #ifdef CGM
 #include "InitCGMA.hpp"
+#include "CubitCompat.hpp"
 #endif
 
 #include <iostream>
@@ -270,8 +271,7 @@ int main( int argc, char* argv[] )
 
       int junk;
       DLIList<RefEntity*> ref_entity_list;
-      CubitStatus status = GeometryQueryTool::instance()->
-        export_solid_model(ref_entity_list,
+      CubitStatus status = CubitCompat_export_solid_model(ref_entity_list,
                            tmp_output_file.str().c_str(),
                            file_type, junk,
                            CubitString(__FILE__));
