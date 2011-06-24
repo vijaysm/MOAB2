@@ -476,12 +476,12 @@ extern "C" {
                           false, num_topo, err);
   }
 
-  void iMesh_areEHValid( iMesh_Instance instance,
-                         int doReset,
-                         int* areHandlesInvarient,
-                         int* err )
+  void iMesh_optimize( iMesh_Instance instance,
+                       int* handles_invalidated,
+                       int* err )
   {
-    *areHandlesInvarient = !MBIMESHI->have_deleted_ents( !!doReset );
+    // TODO: implement this for real
+    *handles_invalidated = 0;
     RETURN(iBase_SUCCESS);
   }
 

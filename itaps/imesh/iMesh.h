@@ -263,10 +263,9 @@ void iMesh_getGeometricDimension(
  * \brief  Set geometric dimension of vertex coordinates
  *
  * Set the geometric dimension of the mesh.  Note:  An application
- * should not expect this function to succeed unless the mesh database
- * is empty (no vertices created, no files read, etc.)
- *
- * \pre iMesh instance must be <em>empty</em>; no vertex entities
+ * should not expect this function to succeed unless the mesh instance
+ * is empty. An empty mesh instance is any mesh instance in which there are 
+ * no vertex entities.
  ******************************************************************************/
 
 void iMesh_setGeometricDimension(
@@ -416,24 +415,36 @@ void iMesh_getNumOfTopo(
 
 /***************************************************************************//**
  * \ingroup  MeshModification
- * \brief  Check if entity handles have changed since last reset or instance
- * construction
+ * \brief Permit implementation to 'optimize' the mesh instance 
  *
- * Return whether entity handles have changed since last reset or since
- * instance construction.  If non-zero value is returned, it is not
- * guaranteed that a handle from before the last call to this function
- * represents the same entity as the same handle value does now.  If
- * doReset is non-zero, resets the starting point for this function.
+ * Its concievable that after a series of operations modifying the mesh
+ * instance, the implementation's internal representation of the mesh may
+ * include data and tie up memory resources that could be 'optimized' away.
+ * For example, if the implementation only marks removed entities for deletion
+ * but does not actually free up memory resources associated those entities,
+ * a call to this function gives the implementation the 'ok' to go ahead and
+ * free up such memory.
+ *
+ * Depending on the implementation as well as the amount and kind of changes
+ * to the mesh that have been made prior to calling it, this call may be
+ * very expensive in time complexity. On the other hand, it is also perfectly
+ * acceptable that an implementation basically treat this operation as a no-op.
+ *
+ * In any event, any entity, entity set, iterator or tag handle obtained prior 
+ * to calling this method will may be invalidated as a result of this call. In
+ * that case, the caller must re-acquire handles after making this call. A
+ * return argument indicates if handles have been invalidated.
  ******************************************************************************/
 
-void iMesh_areEHValid(
+void iMesh_optimize(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
-    int doReset, 
-        /**< [in] Perform a reset on the starting point after which handles are
-             invarant */
-    int* areHandlesInvariant, 
-        /**< [out] Pointer to invariant flag returned from function */
+    int* handles_invalidated,
+        /**< [out] Returned flag indicating if any handles the caller held
+             before calling this function have been invalidated as a result of
+             this call. A value of non-zero returned here indicates that any
+             handles the caller had prior to this call must not be trusted and
+             must be re-acquired by caller. */
     int* err  
         /**< [out] Returned Error status (see iBase_ErrorType) */
 );
@@ -832,24 +843,33 @@ void iMesh_getAdjEntIndices(
  * An entity set in iMesh supports managing its contained members in one of
  * two modes. When an entitiy set is first created, the caller is required
  * to indicate which mode of membership the set will support. The two modes
- * that are supported are a) order-preserving or b) duplicate-preventing.
+ * that are supported are a) order-preserving (isList=1) or
+ * b) duplicate-preventing (isList=0).
  *
  * For order-preserving membership, the implementation will permit duplicate
- * members. However, the implementation will guarantee that the order in which
- * members are added to the set will be the same as the order in which they are
- * queried by the various methods that return the members of a set. This order
+ * entities. However, the implementation will guarantee that the order in which
+ * entities are added to the set will be the same as the order in which they are
+ * queried by the various methods that return the entities of a set. This order
  * preserving guarantee holds across removals. However, it does not hold across
- * removals followed by re-additions of the previously removed members. This
- * kind of an entity set behaves like an STL vector or STL list.
+ * removals followed by re-additions of the previously removed entities. This
+ * kind of an entity set behaves like an STL vector or STL list and is created
+ * by setting isList=1 when creating an entity set.
  *
  * For duplicate-preventing membership, the implementation will guarantee that
- * duplicate members are prevented. Any attempts to add duplicate members to
+ * duplicate entities are prevented. Any attempts to add duplicate entities to
  * such a set will be detected, prevented and silently ignored by the
- * implementation.  This kind of entity set behaves like an STL set.
+ * implementation.  This kind of entity set behaves like an STL set and
+ * is created by setting isList=0 when creating an entity set.
  *
- * Finally, although entity sets may contain two kinds of members, entities
- * or other entity sets, the above statements hold only for the entity members.
- * Behavior for entity set members is presently implementation defined.
+ * Finally, all of the above comments apply only to entity members of an entity
+ * set and do not apply to the entity set members. Order-preserving and
+ * duplicate preventing behavior for entity set members is unspecified. Each
+ * implementation may behave differently for entity set members.
+ * This design was chosen because we could not identify any use cases where
+ * order-preserving behavior for set members was necessary. However, if users
+ * encounter situations where such behavior is desireable or necessary, then
+ * the ITAPS development team can certainly consider adjusting the interface
+ * specification to support it.
  ******************************************************************************/
 
 void iMesh_createEntSet(
