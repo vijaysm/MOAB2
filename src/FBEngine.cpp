@@ -1051,6 +1051,21 @@ ErrorCode FBEngine::getEntUtoXYZ(EntityHandle edge, double u, double& x,
   smoothCurve -> position_from_u(u, x, y, z);
   return MB_SUCCESS;
 }
+
+ErrorCode FBEngine::getEntTgntU( EntityHandle edge,
+                                    double u,
+                                    double& i, double& j, double& k )
+{
+  SmoothCurve * smoothCurve = _edges[edge];// this is a map
+  // now, call smoothCurve methods
+  double tg[3];
+  double x, y, z;
+  smoothCurve -> position_from_u(u, x, y, z, tg);
+  i = tg[0];
+  j = tg[1];
+  k = tg[2];
+  return MB_SUCCESS;
+}
 ErrorCode FBEngine::isEntAdj(EntityHandle entity1, EntityHandle entity2,
     bool& adjacent_out)
 {

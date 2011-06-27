@@ -116,6 +116,11 @@ public:
 
   ErrorCode getEntUtoXYZ( EntityHandle edge, double u,
                                  double& x, double& y, double& z );
+
+  ErrorCode getEntTgntU( EntityHandle edge,
+                                    double u,
+                                    double& i, double& j, double& k );
+
   ErrorCode isEntAdj( EntityHandle entity1, EntityHandle entity2,
       bool& adjacent_out );
 

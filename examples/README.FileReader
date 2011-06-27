@@ -2,13 +2,11 @@ Mesh readers and writers communicate mesh into/out of MOAB from/to disk files.
 Reading a mesh often involves importing large sets of data, for example coordinates of all the nodes in the mesh.  Normally, this process would involve reading data from the file into a temporary data buffer, then copying data from there into its destination in MOAB.  To avoid the expense of copying data, MOAB has implemented a reader/writer interface that provides direct access to blocks of memory used to represent mesh.
 The reader interface, declared in MBReadUtilIface, is used to request blocks of memory for storing coordinate positions and element connectivity.  The pointers returned from these functions point to the actual memory used to represent those data in MOAB.  Once data is written to that memory, no further copying is done.  This not only saves time, but it also eliminates the need to allocate a large memory buffer for intermediate storage of these data. 
 
-In this example, Triangle output files are read into MOAB. The database is saved into a file specified by the user, extension decides the type of the file.
+In this example, Triangle output files are read into MOAB. The database is saved into a file specified by the user, as the second argument
 
 usage 
-fread <triangle_file_base> <output_file>
+FileRead <triangle_file_base> <output_file>
 example provided
-$>  fread A.1 out.vtk
+$>  FileRead A.1 out.vtk
 
-It is assumed that the <>.node file and <>.ele files are existing.
-
-
+It is assumed that the <>.node file and <>.ele files are existing.  

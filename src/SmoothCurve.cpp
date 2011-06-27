@@ -102,7 +102,7 @@ double SmoothCurve::u_from_arc_length(double u_root, double arc_leng)
 //! \param x The x coordinate of the evaluated point
 //! \param y The y coordinate of the evaluated point
 //! \param z The z coordinate of the evaluated point
-bool SmoothCurve::position_from_u(double u, double& x, double& y, double& z)
+bool SmoothCurve::position_from_u(double u, double& x, double& y, double& z, double * tg)
 {
 
   // _fractions are increasing, so find the
@@ -126,6 +126,14 @@ bool SmoothCurve::position_from_u(double u, double& x, double& y, double& z)
   x = position[0];
   y = position[1];
   z = position[2];
+  if (tg)
+  {
+    // we need to do some scaling,
+    double dtdu = 1/(nextFraction - prevFraction);
+    tg[0] = tangent[0] * dtdu;
+    tg[1] = tangent[1] * dtdu;
+    tg[2] = tangent[2] * dtdu;
+  }
 
   return true;
 

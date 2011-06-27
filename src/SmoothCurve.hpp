@@ -78,8 +78,10 @@ public:
 	    //! \param x The x coordinate of the evaluated point
 	    //! \param y The y coordinate of the evaluated point
 	    //! \param z The z coordinate of the evaluated point
+	   // ! \param tg, if not null, return the tangent too at u
 	  virtual bool position_from_u(double u,
-	                               double& x, double& y, double& z ) ;
+	                               double& x, double& y, double& z,
+	                               double * tg = NULL) ;
 
 	    //! \brief Move a point near the curve to the closest point on the curve.
 	    //!
