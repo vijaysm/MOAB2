@@ -1139,6 +1139,7 @@ AC_CONFIG_FILES([Makefile
                  tools/qvdual/Makefile
                  tools/vtkMOABReader/Makefile
                  tools/dagmc/Makefile
+		 tools/vtkMOABReader/CMakeLists.txt
                  doc/Makefile
                  doc/user.dox
                  examples/Makefile
