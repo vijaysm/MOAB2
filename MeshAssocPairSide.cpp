@@ -22,7 +22,7 @@
 #define LASSOI lasso_instance(relation)
 
 static const char *GLOBAL_ID_TAG_NAME = "GLOBAL_ID";
-static const char *MESH_DIMENSION_TAG_NAME = "MESH_DIMENSION";
+static const char *MESH_DIMENSION_TAG_NAME = "GEOM_DIMENSION";
 static const char *RELATION_TAG_NAME = "ASSOCIATION";
 
 MeshAssocPairSide::MeshAssocPairSide(iRel_Instance relation,
