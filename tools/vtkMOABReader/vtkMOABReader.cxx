@@ -1217,11 +1217,11 @@ ErrorCode vtkMOABReaderPrivate::get_category_name(EntityHandle eset, std::string
   
     // geom id
   static const char *lnames[] = {"Vertex", "Curve", "Surface", "Volume"};
-  if (gidTag) {
+  if (gdimTag) {
     int gdim;
     rval = mbImpl->tag_get_data(gdimTag, &eset, 1, &gdim);
-    if (MB_SUCCESS == rval) {
-      assert(0 <= gdim && gdim <= 3);
+    if (MB_SUCCESS == rval && (0 <= gdim && gdim <= 3) ) {
+      //assert(0 <= gdim && gdim <= 3);
       os << lnames[gdim] << id << '\0';
       cat_name = os.str();
       return MB_SUCCESS;
