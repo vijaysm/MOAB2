@@ -27,6 +27,7 @@
 #include "zoltan_cpp.h"
 
 #ifdef CGM
+#include <map>
 #include "GeometryQueryTool.hpp"
 #include "DLIList.hpp"
 class RefEntity;
@@ -104,7 +105,8 @@ using namespace moab;
                                   const bool write_as_tags = false,
                                   const int part_dim = 3,
                                   const int obj_weight = 0,
-                                  const int edge_weight = 0);
+                                  const int edge_weight = 0,
+                                  const bool part_surf = false);
     
     int get_mesh(std::vector<double> &pts, std::vector<int> &ids,
                  std::vector<int> &adjs, std::vector<int> &length,
@@ -120,7 +122,14 @@ using namespace moab;
 #ifdef CGM
     ErrorCode write_partition(const int nparts,
                               DLIList<RefEntity*> entities,
-                              const int *assignment);
+                              const int *assignment,
+                              std::vector<double> &obj_weights,
+                              const bool part_surf);
+
+    ErrorCode partition_surface(const int nparts,
+                                DLIList<RefEntity*> entities,
+                                const int *assignment,
+                                std::vector<double> &obj_weights);
 #endif
     
     ErrorCode write_file(const char *filename, const char *out_file);
@@ -174,6 +183,10 @@ using namespace moab;
                              Range &elems);
     
 #ifdef CGM
+    std::map<int, int> body_vertex_map, surf_vertex_map;
+
+    std::vector<double> obj_weights;
+
     ErrorCode assemble_graph(const int dimension, 
                              std::vector<double> &coords,
                              std::vector<int> &moab_ids,
@@ -183,9 +196,11 @@ using namespace moab;
                              std::vector<double> &edge_weights,
                              DLIList<RefEntity*> &entities);
 
-    ErrorCode partition_round_robin(const int dim,
-                                    const int n_part,
-                                    const bool only_shared);
+    ErrorCode partition_round_robin(const int n_part);
+
+    ErrorCode partition_child_entities(const int dim,
+                                       const int n_part,
+                                       const bool partition_surf);
 #endif
     
     void mbFinalizePoints(int npts, int numExport,

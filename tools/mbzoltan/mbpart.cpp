@@ -56,6 +56,7 @@ int main( int argc, char* argv[] )
   opts.addOpt<int>( "power,m", "Generate multiple partitions, in powers of 2, up to 2^(pow)");
   opts.addOpt<void>( "reorder,R", "Reorder mesh to group entities by partition");
   opts.addOpt<void>( "geom,g", "Specify if partition geometry.");
+  opts.addOpt<void>( "surf,s", "Specify if partition geometry surface.");
   opts.addOpt<int>( "vertex_w,v", "Number of weights associated with a graph vertex.");
   opts.addOpt<int>( "edge_w,e", "Number of weights associated with an edge.");
   opts.addRequiredArg<int>( "#parts", "Number of parts in partition" );
@@ -66,6 +67,7 @@ int main( int argc, char* argv[] )
 
   MBZoltan *tool = NULL;
   bool part_geom = false;
+  bool part_surf = false;
   int part_dim = -1;
   long num_parts;
   bool write_sets = true, write_tags = false;
@@ -76,7 +78,7 @@ int main( int argc, char* argv[] )
   
   bool print_time = opts.getOpt<void>(",T",0);
   
-  part_geom = opts.getOpt<void>("geom",0);
+  part_geom = opts.numOptSet("geom") > 0;
   if (!part_geom) { // partition mesh
     tool = new MBZoltan (&mb, false, argc, argv);
   }
@@ -94,6 +96,8 @@ int main( int argc, char* argv[] )
     return 1;
 #endif
   }
+
+  part_surf = opts.numOptSet("surf") > 0;
 
   std::string zoltan_method, other_method;
   if (!opts.getOpt("zoltan", &zoltan_method))
@@ -133,7 +137,9 @@ int main( int argc, char* argv[] )
   std::string input_file = opts.getReqArg<std::string>("input_file");
   std::string output_file = opts.getReqArg<std::string>("output_file");
   clock_t t = clock();
-  ErrorCode rval = mb.load_file( input_file.c_str() );
+
+  std::string options("FACET_DISTANCE_TOLERANCE=0.1");
+  ErrorCode rval = mb.load_file( input_file.c_str(), 0, options.c_str() );
   if (MB_SUCCESS != rval) {
     std::cerr << input_file << " : failed to read file." << std::endl;
     std::cerr << "  Error code: " << mb.get_error_string(rval) << " (" << rval << ")" << std::endl;
@@ -171,7 +177,8 @@ int main( int argc, char* argv[] )
   for (int p = 0; p < power; p++) {
     t = clock();
     rval = tool->partition_mesh_geom( part_geom, num_parts, zoltan_method.c_str(), other_method.c_str(),
-                                      imbal_tol, write_sets, write_tags, part_dim, obj_weight, edge_weight );
+                                      imbal_tol, write_sets, write_tags, part_dim, obj_weight, edge_weight,
+                                      part_surf );
     if (MB_SUCCESS != rval) {
       std::cerr << "Partitioner failed!" << std::endl;
       std::cerr << "  Error code: " << mb.get_error_string(rval) << " (" << rval << ")" << std::endl;
@@ -186,7 +193,7 @@ int main( int argc, char* argv[] )
                   << (clock() - t)/(double)CLOCKS_PER_SEC << " seconds" 
                   << std::endl;
     
-    if (opts.getOpt<void>("reorder",0)) {
+    if (opts.getOpt<void>("reorder",0) && !part_geom) {
       Tag tag, order;
       rval = mb.tag_get_handle( "PARALLEL_PARTITION", 1, MB_TYPE_INTEGER, tag );
       if (MB_SUCCESS != rval) {
@@ -260,10 +267,10 @@ int main( int argc, char* argv[] )
       std::string::size_type idx = output_file.find_last_of( "." );
       int c_size = output_file.length() - idx;
       const char* file_type = NULL;
-      if (output_file.compare(idx, c_size, ".occ")
-          || output_file.compare(idx, c_size, ".OCC")) file_type = "OCC";
-      else if (output_file.compare(idx, c_size, ".sab")) file_type = "ACIS_SAB";
-      else if (output_file.compare(idx, c_size, ".sat")) file_type = "ACIS_SAT";
+      if (output_file.compare(idx, c_size, ".occ") == 0
+          || output_file.compare(idx, c_size, ".OCC") == 0) file_type = "OCC";
+      else if (output_file.compare(idx, c_size, ".sab") == 0) file_type = "ACIS_SAB";
+      else if (output_file.compare(idx, c_size, ".sat") == 0) file_type = "ACIS_SAT";
       else {
         std::cerr << "File type for " << output_file.c_str() << " not supported." << std::endl;
         return 1;
