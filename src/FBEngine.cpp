@@ -11,6 +11,7 @@
 #include <map>
 #include <set>
 #include <queue>
+#include <algorithm>
 #include "assert.h"
 
 #include "SmoothCurve.hpp"
@@ -1527,6 +1528,8 @@ ErrorCode FBEngine::separate (EntityHandle face,
   // mesh_edges
   for(unsigned int j=0; j<chainedEdges.size(); j++)
   {
+    // this will keep adding edges to the mesh_edges range
+    // when we get out, the mesh_edges will be in this range, but not ordered
     rval = _mbImpl->get_entities_by_type(chainedEdges[j], MBEDGE, mesh_edges);
     MBERRORR(rval, "can't get new polyline edges");
     if (debug_splits)
@@ -1538,9 +1541,31 @@ ErrorCode FBEngine::separate (EntityHandle face,
 
   // get a positive triangle adjacent to mesh_edge[0]
   // add to first triangles to the left, second triangles to the right of the mesh_edges ;
-  std::set<EntityHandle> firstSet;
-  std::set<EntityHandle> secondSet;
-  for (Range::iterator it = mesh_edges.begin(); it!=mesh_edges.end(); it++)
+
+  // create a temp tag, and when done, delete it
+  // default value: 0
+  // 3 to be deleted, pierced
+  // 1 first set
+  // 2 second set
+  // create the tag also for control points on the edges
+  int defVal = 0;
+  Tag separateTag;
+  rval = MBI->tag_get_handle("SEPARATE_TAG", 1, MB_TYPE_INTEGER, separateTag,
+                               MB_TAG_DENSE|MB_TAG_CREAT, &defVal );
+  MBERRORR(rval, "can't create temp tag for separation");
+  // the deleted triangles will get a value 3, from start
+  int delVal = 3;
+  for (Range::iterator it1=this->_piercedTriangles.begin();
+      it1!=_piercedTriangles.end(); it1++)
+  {
+    EntityHandle trToDelete= *it1;
+    rval = _mbImpl->tag_set_data(separateTag, &trToDelete, 1, &delVal );
+    MBERRORR(rval, "can't set delete tag value");
+  }
+
+  // find a triangle that will be in the first range, positively oriented about the splitting edge
+  EntityHandle seed1=0;
+  for (Range::iterator it = mesh_edges.begin(); it!=mesh_edges.end() && !seed1; it++)
   {
     EntityHandle meshEdge = *it;
     Range adj_tri;
@@ -1557,18 +1582,22 @@ ErrorCode FBEngine::separate (EntityHandle face,
       rval = _mbImpl->side_number(tr, meshEdge, num1, sense, offset);
       MBERRORR(rval, "edge not adjacent");
       if (sense==1)
-        firstSet.insert(tr);
-      else
-        secondSet.insert(tr);
+      {
+        //firstSet.insert(tr);
+        if (!seed1)
+        {
+          seed1=tr;
+          break;
+        }
+      }
     }
   }
 
-  // get the first new triangle: will be part of first set;
   // flood fill first set, the rest will be in second set
   // the edges from new_geo_edge will not be crossed
 
   // get edges of face (adjacencies)
-  // also get the old boundary edges, from face; they will be edges to not cross
+  // also get the old boundary edges, from face; they will be edges to not cross, too
   Range bound_edges;
   rval = getAdjacentEntities(face, 1, bound_edges);
   MBERRORR(rval, "can't get boundary edges");
@@ -1583,21 +1612,17 @@ ErrorCode FBEngine::separate (EntityHandle face,
 
   Range doNotCrossEdges = unite(initialBoundaryEdges, mesh_edges);// add the splitting edges !
 
-  // try a second queue
-  std::queue<EntityHandle> secondQueue;
-  for (std::set<EntityHandle>::iterator it4 = secondSet.begin(); it4!=secondSet.end(); it4++)
+  // use a second method, with tags
+  //
+  std::queue<EntityHandle> queue1;
+  queue1.push(seed1);
+  std::vector<EntityHandle> arr1;
+  while(!queue1.empty())
   {
-    EntityHandle secondTri = *it4;
-    secondQueue.push(secondTri);
-  }
-  std::set<EntityHandle> visited=secondSet;// already decided, do not care about them again
-
-
-  while(!secondQueue.empty())
-  {
-    EntityHandle currentTriangle=secondQueue.front();
-    secondQueue.pop();
-    secondSet.insert(currentTriangle);
+    // start copy
+    EntityHandle currentTriangle=queue1.front();
+    queue1.pop();
+    arr1.push_back(currentTriangle);
     // add new triangles that share an edge
     Range currentEdges;
     rval =  _mbImpl->get_adjacencies(&currentTriangle, 1,
@@ -1617,99 +1642,53 @@ ErrorCode FBEngine::separate (EntityHandle face,
         for (Range::iterator it2=adj_tri.begin(); it2!=adj_tri.end(); it2++)
         {
           EntityHandle tri2=*it2;
-          if ( (secondSet.find(tri2)==secondSet.end()) &&
-                (_piercedTriangles.find(tri2) == _piercedTriangles.end())
-              && (visited.find(tri2) == visited.end()) )
-          {
-            secondQueue.push(tri2);
-          }
-          visited.insert(tri2);
+          int val =0;
+          rval = _mbImpl->tag_get_data(separateTag, &tri2, 1, &val );
+          MBERRORR(rval, "can't get tag value");
+          if (val)
+            continue;
+          // else, set it to 1
+          val =1;
+          rval = _mbImpl->tag_set_data(separateTag, &tri2, 1, &val );
+          MBERRORR(rval, "can't get tag value");
+
+          queue1.push(tri2);
         }
-
-      }
-    }
+      }// end edge do not cross
+    }// end while
   }
 
-  std::queue<EntityHandle> firstQueue;
-  for (std::set<EntityHandle>::iterator it3 = firstSet.begin(); it3!=firstSet.end(); it3++)
-  {
-    EntityHandle firstTri = *it3;
-    firstQueue.push(firstTri);
-  }
-  visited=firstSet;// already decided, do not care about them again
-  while(!firstQueue.empty())
-  {
-    EntityHandle currentTriangle=firstQueue.front();
-    firstQueue.pop();
-    firstSet.insert(currentTriangle);
-    if (debug_splits)
-    {
-      std::cout<<" triangle inserted now " <<
-                        _mbImpl->id_from_handle(currentTriangle) << " \n";
-    }
-    // add new triangles that share an edge
-    Range currentEdges;
-    rval =  _mbImpl->get_adjacencies(&currentTriangle, 1,
-        1, true, currentEdges, Interface::UNION);
-    if (debug_splits)
-    {
-      std::cout<<"  --- edges of triangle " <<currentEdges.size() << "\n";
-      _mbImpl->list_entities(currentEdges);
-    }
-    MBERRORR(rval, "can't get adjacencies");
-    for (Range::iterator it=currentEdges.begin(); it!=currentEdges.end(); it++)
-    {
-      EntityHandle frontEdge= *it;
-      if ( doNotCrossEdges.find(frontEdge)==doNotCrossEdges.end())
-      {
-        // this is an edge that can be crossed
-        Range adj_tri;
-        rval =  _mbImpl->get_adjacencies(&frontEdge, 1,
-                2, false, adj_tri, Interface::UNION);
-        MBERRORR(rval, "can't get adj_tris");
-        // if the triangle is not in first range, add it to the queue
-        for (Range::iterator it2=adj_tri.begin(); it2!=adj_tri.end(); it2++)
-        {
-          EntityHandle tri2=*it2;
-          if ( (firstSet.find(tri2)==firstSet.end()) &&
-                (_piercedTriangles.find(tri2) == _piercedTriangles.end())
-              && (visited.find(tri2) == visited.end()) )
-          {
-            if (debug_splits)
-            {
-              std::cout<<" triangle in front " <<
-                                _mbImpl->id_from_handle(tri2) << " from edge: " << _mbImpl->id_from_handle(frontEdge) << " \n";
-            }
-            if (secondSet.find(tri2)!=secondSet.end())
-            {
-              std::cout<<" trying to insert a triangle from second set: " <<
-                  _mbImpl->id_from_handle(tri2) << " \n";
-              print_debug_triangle(tri2);
-              _mbImpl->list_entity(tri2);
-              std::cout<<"from edge: \n";
-              _mbImpl->list_entity(frontEdge);
-              //return MB_FAILURE;
-            }
-            else
-              firstQueue.push(tri2);
-          }
-          visited.insert(tri2);
-        }
+  std::sort(arr1.begin(), arr1.end());
+  //Range first1;
+  std::copy(arr1.rbegin(), arr1.rend(), range_inserter(first));
 
-      }
-    }
-  }
-
-
-  // now create first and second ranges, from firstSet and secondSet
-  std::copy(firstSet.rbegin(), firstSet.rend(), range_inserter(first));
-  std::copy(secondSet.rbegin(), secondSet.rend(), range_inserter(second));
+  //std::cout<< "\n first1.size() " << first1.size() << " first.size(): " << first.size() << "\n";
   if (debug_splits)
   {
-    std::cout << "first size: " << first.size() << "  second size:" << second.size() << "\n";
-
+    EntityHandle tmpSet;
+    _mbImpl->create_meshset(MESHSET_SET, tmpSet);
+    _mbImpl->add_entities(tmpSet, first);
+    _mbImpl->write_file("dbg1.vtk", "vtk", 0, &tmpSet, 1);
   }
-  Range intex = intersect(first, second);
+  // now, decide the set 2:
+  // first, get all ini tris
+  Range initr;
+  rval = _mbImpl -> get_entities_by_type(face, MBTRI, initr);
+  MBERRORR(rval, "can't get tris ");
+  second = unite(initr, _newTriangles);
+  Range second2 = subtract(second, _piercedTriangles);
+  second = subtract(second2, first);
+  _newTriangles.clear();
+  if (debug_splits)
+  {
+    std::cout<< "\n second.size() " << second.size() << " first.size(): " << first.size() << "\n";
+    // debugging code
+    EntityHandle tmpSet2;
+    _mbImpl->create_meshset(MESHSET_SET, tmpSet2);
+    _mbImpl->add_entities(tmpSet2, second);
+    _mbImpl->write_file("dbg2.vtk", "vtk", 0, &tmpSet2, 1);
+  }
+  /*Range intex = intersect(first, second);
   if (!intex.empty() && debug_splits)
   {
     std::cout << "error, the sets should be disjoint\n";
@@ -1717,7 +1696,9 @@ ErrorCode FBEngine::separate (EntityHandle face,
     {
       std::cout<<_mbImpl->id_from_handle(*it1) << "\n";
     }
-  }
+  }*/
+  rval = _mbImpl->tag_delete(separateTag);
+  MBERRORR(rval, "can't delete tag ");
   return MB_SUCCESS;
 }
 // if there is an edge between 2 nodes, then check it's orientation, and revert it if needed
@@ -1876,10 +1857,12 @@ ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHand
     EntityHandle newTriangle;
     rval = _mbImpl->create_element(MBTRI, conn, 3, newTriangle);
     MBERRORR(rval, "Failed to create a new triangle");
+    _newTriangles.insert(newTriangle);
     if (debug_splits)
       print_debug_triangle(newTriangle);
     rval = _mbImpl->create_element(MBTRI, conn+3, 3, newTriangle);// the second triangle
     MBERRORR(rval, "Failed to create a new triangle");
+    _newTriangles.insert(newTriangle);
     if (debug_splits)
       print_debug_triangle(newTriangle);
     return MB_SUCCESS;
@@ -1899,10 +1882,12 @@ ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHand
     EntityHandle newTriangle;
     rval = _mbImpl->create_element(MBTRI, conn, 3, newTriangle);
     MBERRORR(rval, "Failed to create a new triangle");
+    _newTriangles.insert(newTriangle);
     if (debug_splits)
           print_debug_triangle(newTriangle);
     rval = _mbImpl->create_element(MBTRI, conn+3, 3, newTriangle);// the second triangle
     MBERRORR(rval, "Failed to create a new triangle");
+    _newTriangles.insert(newTriangle);
     if (debug_splits)
           print_debug_triangle(newTriangle);
     return MB_SUCCESS;
@@ -1959,14 +1944,17 @@ ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHand
        std::cout << "Split 2 edges :\n";
     rval = _mbImpl->create_element(MBTRI, conn, 3, newTriangle);
     MBERRORR(rval, "Failed to create a new triangle");
+    _newTriangles.insert(newTriangle);
     if (debug_splits)
           print_debug_triangle(newTriangle);
     rval = _mbImpl->create_element(MBTRI, conn+3, 3, newTriangle);// the second triangle
     MBERRORR(rval, "Failed to create a new triangle");
+    _newTriangles.insert(newTriangle);
     if (debug_splits)
           print_debug_triangle(newTriangle);
     rval = _mbImpl->create_element(MBTRI, conn+6, 3, newTriangle);// the second triangle
     MBERRORR(rval, "Failed to create a new triangle");
+    _newTriangles.insert(newTriangle);
     if (debug_splits)
           print_debug_triangle(newTriangle);
     return MB_SUCCESS;
@@ -2733,8 +2721,10 @@ ErrorCode FBEngine::split_internal_edge(EntityHandle & edge, EntityHandle & newV
     EntityHandle newTriangle, newTriangle2;
     rval = _mbImpl->create_element(MBTRI, t1, 3, newTriangle);
     MBERRORR(rval, "can't create triangle");
+    _newTriangles.insert(newTriangle);
     rval = _mbImpl->create_element(MBTRI, t2, 3, newTriangle2);
     MBERRORR(rval, "can't create triangle");
+    _newTriangles.insert(newTriangle2);
     // create edges with this, indirectly
     std::vector<EntityHandle> edges0;
     rval = _mbImpl->get_adjacencies(&newTriangle, 1, 1, true, edges0);
@@ -2768,10 +2758,13 @@ ErrorCode FBEngine::divide_triangle(EntityHandle triangle, EntityHandle & newVer
   EntityHandle newTriangle, newTriangle2, newTriangle3;
   rval = _mbImpl->create_element(MBTRI, t1, 3, newTriangle);
   MBERRORR(rval, "can't create triangle");
+  _newTriangles.insert(newTriangle);
   rval = _mbImpl->create_element(MBTRI, t2, 3, newTriangle3);
   MBERRORR(rval, "can't create triangle");
+  _newTriangles.insert(newTriangle3);
   rval = _mbImpl->create_element(MBTRI, t3, 3, newTriangle2);
   MBERRORR(rval, "can't create triangle");
+  _newTriangles.insert(newTriangle2);
 
   // create all edges
   std::vector<EntityHandle> edges0;
