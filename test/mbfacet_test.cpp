@@ -64,7 +64,6 @@ ErrorCode normals_test(FBEngine * pFacet);
 ErrorCode ray_test(FBEngine * pFacet);
 ErrorCode split_test(Interface * mb, FBEngine * pFacet);
 ErrorCode check_split(Interface * mb, FBEngine * pFacet);
-ErrorCode split_test_across();
 
 ErrorCode split_quads_test();
 
@@ -165,11 +164,6 @@ int main(int argc, char *argv[])
 
   if (only_cropping)
     return number_tests_failed;
-  // split_test_across
-  std::cout << " split across test: ";
-  rval = split_test_across();
-  handle_error_code(rval, number_tests_failed, number_tests_successful);
-  std::cout << "\n";
 
   std::cout << " split quads test: ";
   rval = split_quads_test();
@@ -591,112 +585,6 @@ ErrorCode check_split(Interface * mb, FBEngine * pFacet)
     return MB_FAILURE;
 
   return MB_SUCCESS;
-}
-// this test will test a split like the one for grounding line
-// use the first and third point of the same polyline
-ErrorCode split_test_across()
-{
-
-  // check loading the file in an empty db
-  //delete pFacet;// should clean up the FBEngine
-  /*pFacet =NULL;
-  ErrorCode rval = mb->delete_mesh();
-  CHECK( "ERROR : delete mesh failed!" );
-
-  rval = mb->load_file(filename_out.c_str());
-  CHECK( "ERROR : can't load modified file!" );
-
-  pFacet = new FBEngine(mb, NULL, true);// smooth facetting, no OBB tree passed*/
-
-  // should the init be part of constructor or not?
-  // this is where the obb tree is constructed, and smooth faceting initialized, too.
-
-  Core mbcore;
-  Interface * mb = &mbcore;
-
-  ErrorCode  rval = mb->load_file(filename_out.c_str());
-  CHECK("failed to load already modified file");
-  FBEngine * pFacet = new FBEngine(mb, NULL, true);
-
-  rval = pFacet->Init();
-  CHECK("failed to initialize smoothing");
-
-  EntityHandle root_set;
-  rval = pFacet->getRootSet(&root_set);
-  CHECK( "ERROR : getRootSet failed!" );
-  int top = 2; //  iBase_FACE;
-
-  Range faces;
-  rval = pFacet->getEntities(root_set, top, faces);
-  CHECK("Failed to get faces in split_test.");
-
-  if (faces.size() !=2)
-  {
-    std::cout << "num faces in split model:" << faces.size() << "\n";
-    return MB_FAILURE;//
-  }
-  // check only the second face
-
-  EntityHandle second_face = faces[1];
-  // use the polyPB.txt file to get the trimming polygon
-   ;
-  // read the file with the polygon user data
-
-  std::ifstream datafile(polygon_file_name.c_str(), std::ifstream::in);
-  if (!datafile) {
-    std::cout << "can't read file\n";
-    return MB_FAILURE;
-  }
-  //
-  char temp[100];
-  double direction[3];// normalized
-  double gridSize;
-  datafile.getline(temp, 100);// first line
-
-  // get direction and mesh size along polygon segments, from file
-  sscanf(temp, " %lf %lf %lf %lf ", direction, direction + 1, direction + 2,
-      &gridSize);
-  //NORMALIZE(direction);// just to be sure
-
-  std::vector<double> xyz;
-  while (!datafile.eof()) {
-    datafile.getline(temp, 100);
-    //int id = 0;
-    double x, y, z;
-    int nr = sscanf(temp, "%lf %lf %lf", &x, &y, &z);
-    if (nr == 3) {
-      xyz.push_back(x);
-      xyz.push_back(y);
-      xyz.push_back(z);
-    }
-  }
-  int sizePolygon = (int)xyz.size()/3;
-  if (sizePolygon < 3) {
-    std::cerr << " Not enough points in the polygon" << std::endl;
-    return MB_FAILURE;
-  }
-
-  if (xyz.size()>=9)
-  {
-    xyz[3]=xyz[6];
-    xyz[4]=xyz[7];
-    xyz[5]=xyz[8];
-    xyz.resize(6);// delete the rest of points
-  }
-  // use first and third points, for splitting the face
-  EntityHandle newFace;// this test is with a "grounding" line
-  // the second face should be the one that we want for test
-  rval = pFacet->split_surface_with_direction(second_face, xyz, direction, newFace, /*closed*/0);
-
-  if (rval!=MB_SUCCESS)
-    return rval;
-  // save a new database, with 3 faces, eventually
-  pFacet->delete_smooth_tags();
-  delete pFacet;
-  pFacet = NULL;// try not to write the obb tree
-  rval = mb->write_file(filename_out.c_str());
-
-  return rval;
 }
 
 ErrorCode split_quads_test()

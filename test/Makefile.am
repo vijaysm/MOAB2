@@ -38,6 +38,7 @@ TESTS = range_test \
         mbcn_test \
         bsp_tree_poly_test \
         mbfacet_test \
+        mbground_test \
         gttool_test \
         cropvol_test \
 	reorder_test
@@ -111,6 +112,7 @@ mbcn_test_SOURCES = $(top_srcdir)/src/moab/CN.hpp \
 
 bsp_tree_poly_test_SOURCES = bsp_tree_poly_test.cpp
 mbfacet_test_SOURCES = mbfacet_test.cpp
+mbground_test_SOURCES = mbground_test.cpp
 gttool_test_SOURCES = gttool_test.cpp
 cropvol_test_SOURCES = crop_vol_test.cpp
 
