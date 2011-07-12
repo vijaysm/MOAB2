@@ -158,7 +158,7 @@ ErrorCode GeomTopoTool::find_geomsets(Range *ranges)
   if (MB_SUCCESS != result || geom_sets.empty())
     return result;
 
-  result = separate_by_dimension(geom_sets, geomRanges);
+  result = separate_by_dimension(geom_sets);
   if (MB_SUCCESS != result)
     return result;
 
@@ -409,8 +409,7 @@ ErrorCode GeomTopoTool::restore_topology()
   return result;
 }
 
-ErrorCode GeomTopoTool::separate_by_dimension(const Range &geom_sets,
-    Range *entities)
+ErrorCode GeomTopoTool::separate_by_dimension(const Range &geom_sets)
 {
   ErrorCode result;
 
@@ -430,9 +429,12 @@ ErrorCode GeomTopoTool::separate_by_dimension(const Range &geom_sets,
   Range::const_iterator git;
   std::vector<int>::iterator iit;
 
+  for (int i=0; i<4; i++)
+    this->geomRanges[i].clear();
+
   for (git = geom_sets.begin(), iit = tag_vals.begin(); git != geom_sets.end(); git++, iit++) {
     if (0 <= *iit && 3 >= *iit)
-      entities[*iit].insert(*git);
+      geomRanges[*iit].insert(*git);
     else {
       // assert(false);
       // do nothing for now
@@ -449,7 +451,7 @@ ErrorCode GeomTopoTool::separate_by_dimension(const Range &geom_sets,
   for (int i=0; i<=3; i++)
   {
     maxGlobalId[i] = 0;
-    for (Range::iterator it =entities[i].begin(); it!=entities[i].end(); it++ )
+    for (Range::iterator it =geomRanges[i].begin(); it!=geomRanges[i].end(); it++ )
     {
       EntityHandle set = *it;
       int global_id;

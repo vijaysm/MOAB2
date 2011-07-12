@@ -1328,9 +1328,11 @@ ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<
   // points_i is on entities_i
   // all these edges are oriented correctly
   rval = split_surface(face, chainedEdges, splittingNodes, newFace);
-
+  MBERRORR(rval, "can't split surface");
   //
-  return rval;
+  rval = chain_edges(0.8); // acos(0.8)~= 36 degrees
+  MBERRORR(rval, "can't chain edges");
+  return MB_SUCCESS;
 }
 /**
  *  this method splits along the polyline defined by points and entities
@@ -3169,6 +3171,232 @@ ErrorCode FBEngine::set_default_neumann_tags()
   MBERRORR(rval, "can't set tag values for neumann sets");
 
   delete [] vals;
+
+  return MB_SUCCESS;
+}
+// a reverse operation for splitting an gedge at a mesh node
+ErrorCode FBEngine::chain_edges(double min_dot)
+{
+  Range sets[4];
+  ErrorCode rval;
+  while (1)// break out only if no edges are chained
+  {
+    rval = _my_geomTopoTool->find_geomsets(sets);
+    MBERRORR(rval, "can't get geo sets");
+    // these gentities are "always" current, while the ones in this-> _my_gsets[4] are
+    // the "originals" before FBEngine modifications
+    int nedges=(int)sets[1].size();
+    // as long as we have chainable edges, continue;
+    bool chain=false;
+    for (int i=0; i<nedges; i++)
+    {
+      EntityHandle edge=sets[1][i];
+      EntityHandle next_edge;
+      bool chainable=false;
+      rval = chain_able_edge(edge, min_dot, next_edge, chainable);
+      MBERRORR(rval, "can't determine chain-ability");
+      if ( chainable )
+      {
+        rval = chain_two_edges(edge, next_edge);
+        MBERRORR(rval, "can't chain 2 edges");
+        chain = true;
+        break; // interrupt for loop
+      }
+    }
+    if (!chain)
+    {
+      break; // break out of while loop
+    }
+  }
+  return MB_SUCCESS;
+}
+
+// determine if from the end of edge we can extend with another edge; return also the
+//  extension edge (next_edge)
+ErrorCode FBEngine::chain_able_edge(EntityHandle edge, double min_dot,
+    EntityHandle & next_edge, bool & chainable)
+{
+  // get the end, then get all parents of end
+  // see if some are the starts of
+  chainable = false;
+  EntityHandle v1, v2;
+  ErrorCode rval = get_vert_edges(edge, v1, v2);
+  MBERRORR(rval, "can't get vertices");
+  if (v1==v2)
+    return MB_SUCCESS;// it is periodic, can't chain it with another edge!
+
+  // v2 is a set, get its parents, which should be edges
+  Range edges;
+  rval = _mbImpl->get_parent_meshsets(v2, edges);
+  MBERRORR(rval, "can't get parents of vertex set");
+  // get parents of current edge (faces)
+  Range faces;
+  rval = _mbImpl->get_parent_meshsets(edge, faces);
+  MBERRORR(rval, "can't get parents of edge set");
+  // get also the last edge "tangent" at the vertex
+  std::vector<EntityHandle> mesh_edges;
+  rval = _mbImpl->get_entities_by_type(edge, MBEDGE, mesh_edges);
+  MBERRORR(rval, "can't get mesh edges from edge set");
+  EntityHandle lastMeshEdge= mesh_edges[mesh_edges.size()-1];
+  const EntityHandle * conn2;
+  int len;
+  rval = _mbImpl->get_connectivity(lastMeshEdge, conn2, len);
+  MBERRORR(rval, "can't connectivity of last mesh edge");
+  // get the coordinates of last edge
+  if (len!=2)
+    MBERRORR(MB_FAILURE, "bad number of vertices");
+  CartVect P[2];
+  rval = _mbImpl->get_coords(conn2, len, (double*) &P[0]);
+  MBERRORR(rval, "Failed to get coordinates");
+
+  CartVect vec1(P[1] - P[0]);
+  vec1.normalize();
+  for (Range::iterator edgeIter = edges.begin(); edgeIter!=edges.end(); edgeIter++)
+  {
+    EntityHandle otherEdge = *edgeIter;
+    if (edge==otherEdge)
+      continue;
+    // get faces parents of this edge
+    Range faces2;
+    rval = _mbImpl->get_parent_meshsets(otherEdge, faces2);
+    MBERRORR(rval, "can't get parents of other edge set");
+    if (faces!=faces2)
+      continue;
+    // now, if the first mesh edge is within given angle, we can go on
+    std::vector<EntityHandle> mesh_edges2;
+    rval = _mbImpl->get_entities_by_type(otherEdge, MBEDGE, mesh_edges2);
+    MBERRORR(rval, "can't get mesh edges from other edge set");
+    EntityHandle firstMeshEdge= mesh_edges2[0];
+    const EntityHandle * conn22;
+    int len2;
+    rval = _mbImpl->get_connectivity(firstMeshEdge, conn22, len2);
+    MBERRORR(rval, "can't connectivity of first mesh edge");
+    if (len2!=2)
+      MBERRORR(MB_FAILURE, "bad number of vertices");
+    if (conn2[1]!=conn22[0])
+      continue; // the mesh edges are not one after the other
+    // get the coordinates of first edge
+
+    //CartVect P2[2];
+    rval = _mbImpl->get_coords(conn22, len, (double*) &P[0]);
+    CartVect vec2(P[1] - P[0]);
+    vec2.normalize();
+    if (vec1%vec2 < min_dot)
+      continue;
+    // we found our edge, victory! we can get out
+    next_edge = otherEdge;
+    chainable = true;
+    return MB_SUCCESS;
+
+  }
+
+
+  return MB_SUCCESS;// in general, hard to come by chain-able edges
+}
+ErrorCode FBEngine::chain_two_edges(EntityHandle edge, EntityHandle next_edge)
+{
+  // the biggest thing is to see the sense tags; or maybe not...
+  // they should be correct :)
+  // get the vertex sets
+  EntityHandle v11, v12, v21, v22;
+  ErrorCode rval = get_vert_edges( edge,  v11, v12);
+  MBERRORR(rval, "can't get vert sets");
+  rval = get_vert_edges( next_edge,  v21, v22);
+  MBERRORR(rval, "can't get vert sets");
+  assert(v12==v21);
+  std::vector<EntityHandle> mesh_edges;
+  rval = MBI->get_entities_by_type(next_edge, MBEDGE, mesh_edges);
+  MBERRORR(rval, "can't get mesh edges");
+
+  rval = _mbImpl->add_entities(edge, &mesh_edges[0], (int)mesh_edges.size());
+  MBERRORR(rval, "can't add new mesh edges");
+  // remove the child - parent relation for second vertex of first edge
+  rval = _mbImpl->remove_parent_child(edge, v12);
+  MBERRORR(rval, "can't remove parent - child relation between first edge and middle vertex");
+
+  if (v22!=v11) // the edge would become periodic, do not add again the relationship
+  {
+    rval = _mbImpl->add_parent_child(edge, v22);
+    MBERRORR(rval, "can't add second vertex to edge ");
+  }
+  // we can now safely eliminate next_edge
+  rval = _mbImpl->remove_parent_child(next_edge, v21);
+  MBERRORR(rval, "can't remove child - parent relation ");
+
+  rval = _mbImpl->remove_parent_child(next_edge, v22);
+  MBERRORR(rval, "can't remove child - parent relation ");
+
+  // remove the next_edge relation to the faces
+  Range faces;
+  rval = _mbImpl->get_parent_meshsets(next_edge, faces);
+  MBERRORR(rval, "can't get parent faces ");
+
+  for (Range::iterator it=faces.begin(); it!=faces.end(); it++)
+  {
+    EntityHandle ff=*it;
+    rval = _mbImpl->remove_parent_child(ff, next_edge);
+    MBERRORR(rval, "can't remove parent-edge rel ");
+  }
+
+  rval = _mbImpl->delete_entities(&next_edge, 1);
+  MBERRORR(rval, "can't remove edge set ");
+
+  // delete the vertex set that is idle now (v12 = v21)
+  rval = _mbImpl->delete_entities(&v12, 1);
+  MBERRORR(rval, "can't remove edge set ");
+  return MB_SUCCESS;
+}
+ErrorCode FBEngine::get_vert_edges(EntityHandle edge, EntityHandle & v1, EntityHandle & v2)
+{
+  // need to decide first or second vertex
+  // important for moab
+
+  Range children;
+  //EntityHandle v1, v2;
+  ErrorCode rval = _mbImpl->get_child_meshsets(edge, children);
+  MBERRORR(rval, "can't get child meshsets");
+  if (children.size()==1)
+  {
+    // this is periodic edge, get out early
+    v1 = children[0];
+    v2 = v1;
+    return MB_SUCCESS;
+  }
+  else if (children.size()>2)
+    MBERRORR(MB_FAILURE, "too many vertices in one edge");
+  // edge: get one vertex as part of the vertex set
+  Range entities;
+  rval = MBI->get_entities_by_type(children[0], MBVERTEX, entities);
+  MBERRORR(rval, "can't get entities from vertex set");
+  if (entities.size() < 1)
+    MBERRORR(MB_FAILURE, "no mesh nodes in vertex set");
+  EntityHandle node0 = entities[0]; // the first vertex
+  entities.clear();
+
+  // now get the edges, and get the first node and the last node in sequence of edges
+  // the order is important...
+  // these are ordered sets !!
+  std::vector<EntityHandle> ents;
+  rval = MBI->get_entities_by_type(edge, MBEDGE, ents);
+  MBERRORR(rval, "can't get mesh edges");
+  if (ents.size() < 1)
+    MBERRORR(MB_FAILURE, "no mesh edges in edge set");
+
+  const EntityHandle* conn = NULL;
+  int len;
+  rval = MBI->get_connectivity(ents[0], conn, len);
+  MBERRORR(rval, "can't connectivity of first mesh edge");
+
+  if (conn[0]==node0)
+  {
+    v1 = children[0];
+    v2 = children[1];
+  }
+  else // the other way around, although we should check (we are paranoid)
+  {
+    v2 = children[0];
+    v1 = children[1];
+  }
 
   return MB_SUCCESS;
 }

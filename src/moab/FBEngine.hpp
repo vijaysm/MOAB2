@@ -153,6 +153,24 @@ public:
 
   ErrorCode  weave_lateral_face_from_edges(EntityHandle bEdge, EntityHandle tEdge,  double * direction,
       EntityHandle & newLatFace);
+
+  // chain "chain"-able edges
+  // this could be useful if there are too many points / edges in the splitting
+  // polyline
+  // 2 edges are "chain"-able if
+  /*
+   *  1. they have the same adjacent faces
+   *  2. their orientation is such as the end of one is the start of the other
+   *  3. at meeting point, their tangents make an angle smaller then something
+   *   (cos(angle) > cos (max_angle) = min_dot)
+   */
+  ErrorCode chain_edges(double min_dot);
+
+  // 2 edges will be chained, along with modification of the topology
+  ErrorCode chain_two_edges(EntityHandle edge, EntityHandle next_edge);
+
+  ErrorCode get_vert_edges(EntityHandle edge, EntityHandle & v1, EntityHandle & v2);
+
 private:
 
   ErrorCode initializeSmoothing();
@@ -214,6 +232,8 @@ private:
 
   // this will be used during volume creation
   ErrorCode set_default_neumann_tags();
+
+  ErrorCode chain_able_edge(EntityHandle edge, double min_dot, EntityHandle & next_edge, bool & chainable);
 
   GeomTopoTool* _my_geomTopoTool;
   bool _t_created;

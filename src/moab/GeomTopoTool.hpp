@@ -159,8 +159,7 @@ private:
 				      const Tag verts_tag);
   
     //! given a range of geom topology sets, separate by dimension
-  ErrorCode separate_by_dimension(const Range &geom_sets,
-				    Range *entities);
+  ErrorCode separate_by_dimension(const Range &geom_sets);
 
   // verify sense face tag
   ErrorCode check_face_sense_tag(bool create);
