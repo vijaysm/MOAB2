@@ -424,10 +424,9 @@ void test_tags_retrieval()
 
   // open a file with var len tags (sense tags)
   // they should be filtered out
-  char test_file[] = "../../MeshFiles/unittest/PB.h5m";
+  std::string filename = STRINGIFY(MESHDIR) "/PB.h5m";
 
-  iMesh_load(mesh, root_set, test_file, NULL, &err, strlen(
-      test_file), 0);
+  iMesh_load(mesh, root_set, filename.c_str(), NULL, &err, filename.length(), 0);
   CHECK_EQUAL( iBase_SUCCESS, err );
 
   iBase_EntitySetHandle* contained_set_handles = NULL;
