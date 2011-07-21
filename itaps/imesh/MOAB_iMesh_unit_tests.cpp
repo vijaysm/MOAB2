@@ -11,6 +11,7 @@ void test_getEntArrAdj_down();
 void test_getEntArrAdj_invalid_size();
 void test_getEntArrAdj_none();
 void test_existinterface();
+void test_tags_retrieval();
 
 int main( int argc, char* argv[] )
 {
@@ -21,6 +22,7 @@ int main( int argc, char* argv[] )
   REGISTER_TEST( test_getEntArrAdj_invalid_size );
   REGISTER_TEST( test_getEntArrAdj_none );
   REGISTER_TEST( test_existinterface );
+  REGISTER_TEST( test_tags_retrieval );
 
   return RUN_TESTS( argc, argv ); 
 }
@@ -407,5 +409,61 @@ void test_existinterface()
 
     // finally, delete the MOAB instance
   delete core;
+}
+
+void test_tags_retrieval()
+{
+  iMesh_Instance mesh;
+  int err;
+  iMesh_newMesh("", &mesh, &err, 0);
+  CHECK_EQUAL( iBase_SUCCESS, err );
+
+  iBase_EntitySetHandle root_set;
+  iMesh_getRootSet(mesh, &root_set, &err);
+  CHECK_EQUAL( iBase_SUCCESS, err );
+
+  // open a file with var len tags (sense tags)
+  // they should be filtered out
+  char test_file[] = "../../MeshFiles/unittest/PB.h5m";
+
+  iMesh_load(mesh, root_set, test_file, NULL, &err, strlen(
+      test_file), 0);
+  CHECK_EQUAL( iBase_SUCCESS, err );
+
+  iBase_EntitySetHandle* contained_set_handles = NULL;
+  int contained_set_handles_allocated = 0;
+  int contained_set_handles_size;
+  // get all entity sets
+  iMesh_getEntSets(mesh, root_set, 1,
+      &contained_set_handles,
+      &contained_set_handles_allocated,
+      &contained_set_handles_size,
+      &err  );
+  CHECK_EQUAL( iBase_SUCCESS, err );
+  // get tags for all sets
+  for (int i=0; i< contained_set_handles_size; i++)
+  {
+    iBase_TagHandle* tag_handles = NULL;
+    int tag_handles_allocated=0;
+    int tag_handles_size;
+    iMesh_getAllEntSetTags (mesh,
+        contained_set_handles[i],
+        &tag_handles,
+        &tag_handles_allocated,
+        &tag_handles_size, &err);
+    CHECK_EQUAL( iBase_SUCCESS, err );
+
+    for (int j=0; j<tag_handles_size; j++)
+    {
+      int tagSize;
+      iMesh_getTagSizeValues(mesh, tag_handles[j], &tagSize, &err);
+      CHECK_EQUAL( iBase_SUCCESS, err );
+
+    }
+    free(tag_handles);
+  }
+  free (contained_set_handles);
+
+  return;
 }
 

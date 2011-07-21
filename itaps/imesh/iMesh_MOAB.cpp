@@ -243,6 +243,7 @@ static void remove_var_len_tags( Interface* mb, std::vector<Tag>& tags )
   for (r = 0; r < tags.size(); ++r)
     if (MB_SUCCESS == mb->tag_get_length( tags[r], size ))
       tags[w++] = tags[r];
+  tags.resize(w);
 }
 
 // modify the adjacency table to match the ITAPS spec's expectations
