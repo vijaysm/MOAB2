@@ -728,16 +728,20 @@ ErrorCode GeomTopoTool::get_senses(EntityHandle entity,
   // filter the results with the sets that are in the model at this time
   // this was introduced because extracting some sets (e.g. neumann set, with mbconvert)
   //   from a model would leave some sense tags not defined correctly
+  // also, the geom ent set really needs to be part of the current model set
   unsigned int currentSize =0;
-  Range & possibleEntities = geomRanges[edim+1];
+
   for (unsigned int index=0; index<wrt_entities.size(); index++)
   {
     EntityHandle wrt_ent=wrt_entities[index];
-    if (possibleEntities.find(wrt_ent)!=possibleEntities.end() )
+    if (wrt_ent )
     {
-      wrt_entities[currentSize] = wrt_entities[index];
-      senses[currentSize] = senses[index];
-      currentSize++;
+      if (mdbImpl->contains_entities(modelSet, &wrt_ent, 1))
+      {
+        wrt_entities[currentSize] = wrt_entities[index];
+        senses[currentSize] = senses[index];
+        currentSize++;
+      }
     }
   }
   wrt_entities.resize(currentSize);
