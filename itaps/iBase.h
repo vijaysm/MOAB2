@@ -331,6 +331,9 @@ enum iBase_TagValueType {
  * NOT include the null character and implementations must be coded to
  * accommodate this. This requirement is primarily due to differences in how
  * Fortran and C/C++ handle passing of strings as function arguments.
+ * Furthermore, because of the way Fortran clients pass strings (Fortran always
+ * passes the length of the string as declared in the source code), there
+ * may be trailing spaces in the string that need to be truncated.
  *
  * \page numhops Indirection in Set-Inclusion and Parent-Child structures
  *
