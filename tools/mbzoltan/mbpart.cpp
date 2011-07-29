@@ -138,8 +138,9 @@ int main( int argc, char* argv[] )
   std::string output_file = opts.getReqArg<std::string>("output_file");
   clock_t t = clock();
 
-  std::string options("FACET_DISTANCE_TOLERANCE=0.1");
-  ErrorCode rval = mb.load_file( input_file.c_str(), 0, options.c_str() );
+  const char* options = NULL;
+  if (part_geom) options = "FACET_DISTANCE_TOLERANCE=0.1";
+  ErrorCode rval = mb.load_file( input_file.c_str(), 0, options );
   if (MB_SUCCESS != rval) {
     std::cerr << input_file << " : failed to read file." << std::endl;
     std::cerr << "  Error code: " << mb.get_error_string(rval) << " (" << rval << ")" << std::endl;
