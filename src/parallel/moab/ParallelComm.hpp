@@ -1163,6 +1163,9 @@ private:
     //! where they shouldn't be
   ErrorCode check_sent_ents(Range &allsent);
 
+    //! assign entities to the input processor part
+  ErrorCode assign_entities_part(std::vector<EntityHandle> &entities, const int proc);
+
     //! MB interface associated with this writer
   Interface *mbImpl;
 

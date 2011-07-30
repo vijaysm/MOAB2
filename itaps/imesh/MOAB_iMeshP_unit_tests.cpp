@@ -212,6 +212,7 @@ int test_create_ghost_ents( iMesh_Instance, iMeshP_PartitionHandle prtn, const P
 int test_push_tag_data_iface( iMesh_Instance, iMeshP_PartitionHandle prtn, const PartMap& );
 int test_push_tag_data_ghost( iMesh_Instance, iMeshP_PartitionHandle prtn, const PartMap& );
 
+int test_exchange_ents( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const PartMap& map );
 
 /**************************************************************************
                               Helper Funcions
@@ -463,6 +464,7 @@ int main( int argc, char* argv[] )
   num_errors += RUN_TEST( test_push_tag_data_iface );
   num_errors += RUN_TEST( test_push_tag_data_ghost );
   num_errors += RUN_TEST( test_create_ghost_ents );
+  num_errors += RUN_TEST( test_exchange_ents );
   
     // wait until all procs are done before writing summary data
   std::cout.flush();
@@ -2528,6 +2530,63 @@ int test_create_ghost_ents( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, c
   
   return iBase_SUCCESS;
 }  
+
+/**\brief Test exchange entities
+ *
+ * Test:
+ * - iMeshP_exchEntArrToPartsAll
+ */
+int test_exchange_ents( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const PartMap& map )
+{
+  int ierr, rank, size;
+  int num_err = 0;
+  iMeshP_RequestHandle request;
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  MPI_Comm_size( MPI_COMM_WORLD, &size );
+  
+  std::vector<iBase_EntityHandle> all_elems;
+  std::vector<iMeshP_Part> all_ids;
+  std::vector<iBase_EntityHandle> quads;
+  
+  // get local part handles and part ids
+  std::vector<iMeshP_PartHandle> local_handles;
+  std::vector<iMeshP_Part> local_ids;
+  ierr = get_local_parts( imesh, prtn, local_handles, &local_ids );
+  PCHECK;
+
+  // get loacal quads before exchange
+  quads.clear();
+  ierr = get_entities( imesh, local_handles[0], iBase_FACE, iMesh_QUADRILATERAL, quads );
+  CHKERR;
+  int n_quads = quads.size();
+
+  // send all elements in local processor to all other processors
+  for (size_t i = 0; i < map.get_parts().size(); ++i) {
+    if (map.get_parts()[i] == (unsigned int) rank) continue; // skip own rank
+    
+    for (int j = 0; j < n_quads; j++) {
+      all_elems.push_back(quads[j]);
+      all_ids.push_back(map.get_parts()[i]);
+    }
+  }
+  
+  // exchange entities
+  iMeshP_exchEntArrToPartsAll(imesh, prtn, &all_elems[0], all_elems.size(),
+                              &all_ids[0], 0, 0, &request, &ierr);
+  if (iBase_SUCCESS != ierr) ++num_err;
+  
+  // get local quads after exchange
+  quads.clear();
+  ierr = get_entities( imesh, local_handles[0], iBase_FACE, iMesh_QUADRILATERAL, quads );
+  CHKERR;
+
+  // # of elements should be # of quads * # of processors
+  ASSERT(quads.size() == (unsigned int) n_quads*size);
+  
+  ASSERT(0 == num_err);
+  
+  return iBase_SUCCESS;
+} 
 
 /**\brief Test commuinication of tag data
  *

@@ -1511,7 +1511,53 @@ void iMeshP_exchEntArrToPartsAll( iMesh_Instance instance,
                                   int update_ghost,
                                   iMeshP_RequestHandle *request,
                                   int *err )
-{ FIXME; RETURN(iBase_NOT_SUPPORTED); }
+{
+  if (command_code == 1) {
+    std::cerr << "Entity migration option is not supported." << std::endl;
+    RETURN(iBase_NOT_SUPPORTED);
+  }
+
+  if (update_ghost == 1) {
+    std::cerr << "Gost update option is not supported." << std::endl;
+    RETURN(iBase_NOT_SUPPORTED);
+  }
+
+  // make exchange entity and processor list
+  ErrorCode rval;
+  ParallelComm* pcomm = PCOMM;
+  std::vector<unsigned int> exchange_procs;
+  std::vector< Range* > exchange_ents;
+
+  for (int i = 0; i < entity_handles_size; i++) {
+    int ind = -1;
+    //iMeshP_Part target_p = target_part_ids[i];
+    int target_p;
+    rval = pcomm->get_part_owner(target_part_ids[i], target_p);
+    CHKERR(rval,"ParallelComm::get_part_owner failed");
+
+    std::vector<unsigned int>::iterator vit = 
+      std::find(exchange_procs.begin(), exchange_procs.end(), target_p);
+    if (vit == exchange_procs.end()) {
+      ind = exchange_procs.size();
+      exchange_procs.push_back(target_p);
+      exchange_ents.push_back(new Range);
+    }
+    else ind = vit - exchange_procs.begin();
+    
+    exchange_ents[ind]->insert(itaps_cast<EntityHandle>(entity_handles[i]));
+  }
+  
+  rval = pcomm->exchange_owned_meshs(exchange_procs, exchange_ents,
+                                               true); 
+  CHKERR(rval,"ParallelComm::exchange_owned_meshs failed");
+
+  // delete exchange list
+  std::vector<Range*>::iterator vit;
+  for (vit = exchange_ents.begin(); vit != exchange_ents.end(); vit++)
+    delete (*vit);
+
+  RETURN (iBase_SUCCESS);
+}
 
 void iMeshP_migrateEntity( iMesh_Instance instance,
                            const iMeshP_PartitionHandle partition_handle,

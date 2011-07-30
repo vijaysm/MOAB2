@@ -5647,7 +5647,7 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
         print_buffer(remoteOwnedBuffs[ind/2]->mem_ptr, MB_MESG_ENTS_SIZE, buffProcs[ind/2], false);
         return result;
       }
-      
+
       if (recv_ent_reqs.size() != 2*buffProcs.size()) {
         // post irecv's for remote handles from new proc
         recv_remoteh_reqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
@@ -5671,6 +5671,10 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
       }
     }
   }
+
+  // assign newly created elements to receive processor
+  result = assign_entities_part(new_ents, procConfig.proc_rank());
+  RRA("Failed to assign entities to part.");
 
   // add requests for any new addl procs
   if (recv_ent_reqs.size() != 2*buffProcs.size()) {
@@ -5799,6 +5803,18 @@ ErrorCode ParallelComm::get_iface_entities(int other_proc,
     RRA(" Failed to get entities in iface set.");
   }
   
+  return MB_SUCCESS;
+}
+
+ErrorCode ParallelComm::assign_entities_part(std::vector<EntityHandle> &entities, const int proc)
+{
+  EntityHandle part_set;
+  ErrorCode result = get_part_handle(proc, part_set);
+  RRA(" Failed to get part handle.");
+
+  result = mbImpl->add_entities(part_set, &entities[0], entities.size());
+  RRA(" Failed to add entities to part set.");
+
   return MB_SUCCESS;
 }
 
