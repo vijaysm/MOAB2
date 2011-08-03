@@ -75,6 +75,7 @@ int main(int argc, char *argv[])
 
   remove_output_file = true;
   bool only_check = false;
+  bool only_geometrize = false;
 
 
   if (argc == 1) {
@@ -90,7 +91,14 @@ int main(int argc, char *argv[])
     ofile3 = argv[1];// check model only from file
     only_check = true;
     remove_output_file = false; // this is input now, do not delete it
-  } else {
+  } else if (argc == 3) {
+    filename = argv[1];
+    ofile = argv[2];
+    only_geometrize = true;
+    remove_output_file = false;
+  }
+    else
+  {
     std::cerr << "Usage: " << argv[0] << " [surface_mesh] [mbgeo_file] [shellfile] [copyshellfile] " << std::endl;
     return 1;
   }
@@ -113,13 +121,15 @@ int main(int argc, char *argv[])
 
   //   FBEngine * pFacet = new FBEngine(mb, NULL, true);// smooth facetting, no OBB tree passed
 
-
-
   std::cout << "geometrize test: ";
   ErrorCode rval = geometrize_test( mb, 0); // just pass the root set
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
+  if (only_geometrize)
+  {
+    return number_tests_failed;
+  }
   std::cout << "create shell test: ";
   rval = create_shell_test( mb);
   handle_error_code(rval, number_tests_failed, number_tests_successful);
