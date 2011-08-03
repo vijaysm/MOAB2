@@ -248,7 +248,7 @@ int main( int argc, char* argv[] ){
   po.addOpt<double>( "ftol,f", "Faceting distance tolerance", po.add_cancel_opt );
   po.addOpt<double>( "ltol,l", "Faceting edge length tolerance", po.add_cancel_opt );
   po.addOpt<int>( "atol,a", "Faceting normal angle tolerance (degrees)", po.add_cancel_opt );
-  po.addOpt<void>( "all-curve-warnings", "Verbose warnings about curve tolerances" );
+  po.addOpt<void>( "all-warnings", "Verbose warnings about attributes and curve tolerances" );
   po.addOpt<void>( "no-attribs", "Do not actuate CGM attributes" );
 
   po.addRequiredArg<std::string>( "input_file", "Path to input file for preprocessing", &input_file );
@@ -270,8 +270,8 @@ int main( int argc, char* argv[] ){
     OPTION_APPEND( "CGM_ATTRIBS=no" );
   }
 
-  if( po.numOptSet("all-curve-warnings" ) ){
-    OPTION_APPEND( "VERBOSE_CGM_CURVE_WARNINGS" );
+  if( po.numOptSet("all-warnings" ) ){
+    OPTION_APPEND( "VERBOSE_CGM_WARNINGS" );
   }
 
   // This is more roundabout than necessary, but we don't want *any* of the CGM-specific options
