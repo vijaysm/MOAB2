@@ -2,8 +2,8 @@
 #define IMESH_F_H
 
 #define iMesh_Instance integer
-#define iMesh_EntityIterator integer
-#define iMesh_EntityArrIterator integer
+#define iBase_EntityIterator integer
+#define iBase_EntityArrIterator integer
 
 #endif 
 

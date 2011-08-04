@@ -60,6 +60,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "iMesh.h"
+#include "iMesh_extensions.h"
 #include "moab/Types.hpp"
 extern enum iBase_ErrorType iBase_ERROR_MAP[MB_FAILURE+1];
 
@@ -2527,8 +2528,6 @@ int test_iterator( iMesh_Instance mesh )
 
   return 1;
 }
-
-
 
 
 int main( int argc, char *argv[] )

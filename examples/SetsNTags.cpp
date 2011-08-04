@@ -1,5 +1,6 @@
-#include "MBCore.hpp"
-#include "MBRange.hpp"
+#include "moab/Core.hpp"
+#include "moab/Interface.hpp"
+#include "moab/Range.hpp"
 #include <iostream>
 
 int main(int argc, char **argv) {
@@ -9,29 +10,29 @@ int main(int argc, char **argv) {
   }
 
     // get the material set tag handle
-  MBTag mtag;
-  MBErrorCode rval;
+  moab::Tag mtag;
+  moab::ErrorCode rval;
   const char *tag_nms[] = {"MATERIAL_SET", "DIRICHLET_SET", 
                            "NEUMANN_SET"};
-  MBRange sets, set_ents;
+  moab::Range sets, set_ents;
 
     // instantiate & load a file
-  MBInterface *mb = new MBCore();
+  moab::Interface *mb = new moab::Core();
   rval = mb->load_file(argv[1]);
 
     // loop over set types
   for (int i = 0; i < 3; i++) {
-    rval = mb->tag_get_handle(tag_nms[i], 1, MB_TYPE_INTEGER, mtag);
+    rval = mb->tag_get_handle(tag_nms[i], 1, moab::MB_TYPE_INTEGER, mtag);
 
       // get all the sets of that type in the mesh
     sets.clear();
-    rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, &mtag,
+    rval = mb->get_entities_by_type_and_tag(0, moab::MBENTITYSET, &mtag,
                                             NULL, 1, sets);
 
       // iterate over each set, getting entities
-    MBRange::iterator set_it;
+    moab::Range::iterator set_it;
     for (set_it = sets.begin(); set_it != sets.end(); set_it++)  {
-      MBEntityHandle this_set = *set_it;
+      moab::EntityHandle this_set = *set_it;
 
         // get the id for this set
       int set_id;

@@ -28,6 +28,8 @@ struct iBase_EntityArrIterator_Private
 
     int array_size() const { return arrSize; }
 
+  virtual ErrorCode step(int num_steps, bool &at_end)=0;
+
     // NOTE: input array must be at least arrLen long
     virtual void get_entities( Core* mb, 
                                EntityHandle* array,
@@ -68,7 +70,25 @@ template <class Container> class MBIter : public iBase_EntityArrIterator_Private
         iterPos(iterData.end()) {}
     
     ~MBIter() {}
-    
+
+  typename Container::const_iterator position() const {return iterPos;};
+
+  typename Container::const_iterator end() const {return iterData.end();};
+
+  ErrorCode step(int num_steps, bool &at_end) 
+      {
+        if (0 > num_steps) return MB_FAILURE;
+        
+        while (num_steps && iterPos != iterData.end()) {
+          num_steps--;
+          iterPos++;
+        }
+        if (iterData.end() == iterPos) at_end = true;
+        else at_end = false;
+
+        return MB_SUCCESS;
+      }
+  
     void get_entities( Core* mb, EntityHandle* array, int& count )
     {
       for (count = 0; count < arrSize && iterPos != iterData.end(); ++iterPos)

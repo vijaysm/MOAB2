@@ -706,11 +706,11 @@ if test "xno" != "x$WITH_VTK" -a "x" != "x$WITH_VTK"; then
       VTK_INC_DIR=
       for dir in  /usr/local/include/vtk /usr/local/include/vtk-* /usr/include/vtk  /usr/include/vtk-*; do
         if test "x" = "x$VTK_INC_DIR"; then
-          AC_CHECK_FILE([${dir}/vtkRenderer.h],[VTK_INC_DIR="-I$dir"])
+          AC_CHECK_FILE([${dir}/vtkRenderingInstantiator.h],[VTK_INC_DIR="-I$dir"])
         fi
       done
       if test x = x"$VTK_INC_DIR"; then
-        AC_CHECK_HEADER([vtkRenderer.h],[],
+        AC_CHECK_HEADER([vtkRenderingInstantiator.h],[],
                         [AC_MSG_ERROR([VTK includes not found])])
       else
         VTK_INCLUDES="$VTK_INC_DIR"
@@ -732,14 +732,14 @@ if test "xno" != "x$WITH_VTK" -a "x" != "x$WITH_VTK"; then
     x?*)
       VTK_LIB_DIR=
       VTK_INC_DIR=
-      for dir in ${WITH_VTK}/include/vtk ${VTK_DIR}/include/vtk/Rendering ${WITH_VTK}/include ${WITH_VTK}/include/paraview-* ${WITH_VTK}; do
+      for dir in ${WITH_VTK}/include/vtk ${VTK_DIR}/include/vtk/Rendering ${WITH_VTK}/include ${WITH_VTK}/include/paraview-* ${WITH_VTK}/VTK ${WITH_VTK}; do
         if test "x" = "x$VTK_INC_DIR"; then
-          AC_CHECK_FILE([${dir}/vtkRenderer.h],[VTK_INC_DIR="-I$dir"])
+          AC_CHECK_FILE([${dir}/vtkRenderingInstantiator.h],[VTK_INC_DIR="-I$dir"])
         fi
       done
       if test "x" = "x$VTK_INC_DIR"; then
         # Check for non-installed VTK source
-        AC_CHECK_FILE([${VTK_DIR}/Rendering/vtkRenderer.h],[
+        AC_CHECK_FILE([${VTK_DIR}/Rendering/vtkRenderingInstantiator.h],[
           for subdir in . Common Filtering GenericFiltering Graphics Hybrid Imaging Parallel Patented Rendering Utilities Utilities/vtkexpat Utilities/expat Utilities/DICOMParser Utilties/vtkpng Utilities/vtkzlib Utilities/freetype/include/freetype Wrapping; do
   	  AC_MSG_CHECKING([for directory ${WITH_VTK}/$subdir])
   	  if test -d ${WITH_VTK}/$subdir; then
@@ -754,7 +754,7 @@ if test "xno" != "x$WITH_VTK" -a "x" != "x$WITH_VTK"; then
       fi
       VTK_INCLUDES="$VTK_INC_DIR"
       old_LIBS="$LIBS"
-      for dir in ${WITH_VTK}/lib/vtk ${WITH_VTK}/lib ${VTK_DIR}/bin ${WITH_VTK}; do
+      for dir in ${WITH_VTK}/lib/vtk ${WITH_VTK}/lib ${VTK_DIR}/bin ${WITH_VTK}/bin ${WITH_VTK}; do
         if test "x" = "x$VTK_LIB_DIR"; then
           LIBS="$old_LIBS -L$dir"
           unset ac_cv_lib_vtkCommon
@@ -1145,6 +1145,7 @@ AC_CONFIG_FILES([Makefile
                  examples/Makefile
                  examples/examples.make
                  examples/simple/makefile
+                 examples/itaps/Makefile
                  MeshFiles/Makefile
                  MeshFiles/unittest/Makefile
                  MeshFiles/unittest/io/Makefile

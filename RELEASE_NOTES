@@ -1,4 +1,7 @@
-Version 4.1: (in progress)
+Version 4.5: (in progress)
+* ITAPS: added iMesh_stepIter, iMesh_tagIterate, iMesh_createTagWithOptions (see iMesh_extensions.h)
+
+Version 4.1:
 * Structured mesh API (see src/moab/ScdInterface.hpp)
 * Parallel read of netcdf-based .nc files using pnetcdf (see doc/metadata_info.pdf)
 * Updated ParaView plugin (see tools/vtkMOABReader/README for details)

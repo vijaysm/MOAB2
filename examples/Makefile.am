@@ -40,6 +40,13 @@ nobase_example_DATA = \
                SkinMesh.cpp \
                SurfArea.cpp 
                
+if ENABLE_imesh
+  imesh_DIR = itaps
+else
+  imesh_DIR = 
+endif 
+
+SUBDIRS = $(imesh_DIR)
 
 ex_make = $(DESTDIR)$(exampledir)/makefile
 install-data-hook:

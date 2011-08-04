@@ -158,6 +158,90 @@ extern "C" {
                       /*out*/ int *mbcn_type);
     
 
+  /**\brief Access tag data via direct pointer into contiguous blocks
+   *
+   * Iteratively obtain direct access to contiguous blocks of tag
+   * storage.  This function cannot be used with bit tags because
+   * of the compressed bit storage.  This function cannot be used
+   * with variable length tags because it does not provide a mechanism
+   * to determine the length of the value for each entity.  This
+   * function may be used with sparse tags, but if it is used, it
+   * will return data for a single entity at a time.  
+   *
+   *\Note If this function is called for entities for which no tag value
+   *      has been set, but for which a default value exists, it will 
+   *      force the allocation of explicit storage for each such entity
+   *      even though MOAB would normally not explicitly store tag values
+   *      for such entities.
+   *
+   *\Example:
+   *\code
+   *\endcode
+   */
+  void iMesh_tagIterate(iMesh_Instance instance,
+                        /*in*/ const iBase_TagHandle tag_handle,
+                        iBase_EntityArrIterator entArr_iterator, 
+                          /**< [in] Iterator being queried */
+                        void* tag_value, 
+                          /**< [out] Pointer to pointer that will be set to tag data memory
+                             \ref trio) */
+                        int* count,
+                          /**< [out] Number of contiguous entities in this subrange */
+                        int* err  
+                          /**< [out] Returned Error status (see iBase_ErrorType) */
+                        );
+
+/***************************************************************************//**
+ * \ingroup  EntityIterators
+ * \brief  Step the iterator a specified number of entities
+ *
+ * Step the iterator a specified number of entities.  If this number is greater
+ * than the number of entities left in the iterator, the iterator is placed
+ * at the end and at_end is returned non-zero; otherwise at_end is returned zero.
+ ******************************************************************************/
+
+void iMesh_stepIter(
+    iMesh_Instance instance, 
+        /**< [in] iMesh instance handle */
+    iBase_EntityArrIterator entArr_iterator, 
+        /**< [in] Iterator being queried */
+    int step_length, 
+        /**< [in] Number of entities to step the iterator */
+    int* at_end, 
+        /**< [out] Non-zero if iterator is at the end of the iteration */
+    int* err  
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \ingroup  Tags
+ * \brief  Create a tag with options
+ *
+ * Create a tag with options; allows creation of Dense and Bit tags through iMesh
+ * Allowable options are:
+ * TAG_STORAGE_TYPE={DENSE | SPARSE | BIT | MESH}
+ * TAG_DEFAULT_VALUE=<value> (data type of value should match tag data type)
+ ******************************************************************************/
+
+void iMesh_createTagWithOptions(iMesh_Instance instance,
+                                  /**< [in] iMesh instance handle */
+                                  /*in*/ const char* tag_name,
+                                  /**< [in] tag name*/
+                                  /*in*/ const char* tmp_tag_options,
+                                  /**< [in] options string */
+                                  /*in*/ const int tag_size,
+                                  /**< [in] tag size, in number of values */
+                                  /*in*/ const int tag_type,
+                                  /**< [in] tag data type (int, double, etc.) */
+                                  /*out*/ iBase_TagHandle* tag_handle, 
+                                  /**< [out] handle of new tag */
+                                  /*out*/ int *err,
+                                  /**< [out] error */
+                                  /*in*/ const int tag_name_len,
+                                  /**< [in] length of tag name string */
+                                  /*in*/ const int tag_options_len);
+                                  /**< [in] length of options string */
+    
 #ifdef __cplusplus
 }
 #endif

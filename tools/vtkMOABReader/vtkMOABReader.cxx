@@ -34,6 +34,7 @@
 #include "vtkIntArray.h"
 #include "vtkPointData.h"
 #include "vtkAlgorithmOutput.h"
+#include "vtkTimerLog.h"
 
 #include "moab/Core.hpp"
 #include "moab/WriteUtilIface.hpp"

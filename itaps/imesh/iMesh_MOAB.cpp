@@ -1564,42 +1564,8 @@ extern "C" {
                        int *err,
                        const int tag_name_size)
   {
-    if (tag_size < 0)
-      ERROR(iBase_INVALID_ARGUMENT, "iMesh_createTag: invalid tag size");
-    CHKENUM(tag_type, iBase_TagValueType, iBase_INVALID_ARGUMENT);
-
-    Tag new_tag;
-    int this_size = tag_size;
-
-    std::string tmp_tagname(tag_name, tag_name_size);
-    eatwhitespace(tmp_tagname);
-
-    ErrorCode result = MOABI->tag_get_handle(tmp_tagname.c_str(), 
-                                             this_size,
-                                             mb_data_type_table[tag_type],
-                                             new_tag,
-                                             MB_TAG_SPARSE|MB_TAG_EXCL);
-
-    if (MB_SUCCESS != result) {
-      std::string msg("iMesh_createTag: ");
-      if (MB_ALREADY_ALLOCATED == result) {
-        msg += "Tag already exists with name: \"";
-        *tag_handle = (iBase_TagHandle) new_tag;
-      }
-      else
-        msg += "Failed to create tag with name: \"";
-      msg += tag_name;
-      msg += "\".";
-      ERROR(result,msg.c_str());
-    }
-
-    if (tag_type == iBase_ENTITY_HANDLE)
-      MBIMESHI->note_ent_handle_tag( new_tag );
-    else if (tag_type == iBase_ENTITY_SET_HANDLE)
-      MBIMESHI->note_set_handle_tag( new_tag );
-
-    *tag_handle = (iBase_TagHandle) new_tag;
-
+    iMesh_createTagWithOptions(instance, tag_name, NULL, tag_size, tag_type, tag_handle, err, tag_name_size, 0);
+    
     RETURN(iBase_SUCCESS);
   }
 
@@ -3000,6 +2966,183 @@ extern "C" {
       *mbcn_type = -1;
     else
       *mbcn_type = mb_topology_table[imesh_entity_topology];
+  }
+
+  void iMesh_tagIterate(iMesh_Instance instance,
+                        /*in*/ const iBase_TagHandle tag_handle,
+                        iBase_EntityArrIterator entArr_iterator, 
+                          /**< [in] Iterator being queried */
+                        void* data, 
+                          /**< [out] Pointer to pointer that will be set to tag data memory
+                             \ref trio) */
+                        int* count,
+                          /**< [out] Number of contiguous entities in this subrange */
+                        int* err  
+                          /**< [out] Returned Error status (see iBase_ErrorType) */
+                        ) 
+  {
+    MBRangeIter *ri = dynamic_cast<MBRangeIter*>(entArr_iterator);
+    if (!ri) CHKERR(MB_FAILURE,"Wrong type of iterator, need a range-based iterator for iMesh_tagIterate.");
+  
+    ErrorCode result = MOABI->tag_iterate(TAG_HANDLE(tag_handle), 
+                                          ri->position(), ri->end(), *count, *static_cast<void**>(data));
+    CHKERR(result, "Problem getting tag iterator.");
+
+    RETURN(iBase_SUCCESS);
+  }
+
+  void iMesh_stepIter(
+      iMesh_Instance instance, 
+        /**< [in] iMesh instance handle */
+      iBase_EntityArrIterator entArr_iterator, 
+        /**< [in] Iterator being queried */
+      int step_length, 
+        /**< [in] Number of entities to step the iterator */
+      int* at_end, 
+        /**< [out] Non-zero if iterator is at the end of the iteration */
+      int* err  
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+                      ) 
+  {
+    bool tmp;
+    ErrorCode result = entArr_iterator->step(step_length, tmp);
+    CHKERR(result, "Problem stepping iterator.");
+    *at_end = tmp;
+    RETURN(iBase_SUCCESS);
+  }
+
+  void iMesh_createTagWithOptions(iMesh_Instance instance,
+                                  /*in*/ const char* tag_name,
+                                  /*in*/ const char* tmp_tag_options,
+                                  /*in*/ const int tag_size,
+                                  /*in*/ const int tag_type,
+                                  /*out*/ iBase_TagHandle* tag_handle, 
+                                  /*out*/ int *err,
+                                  /*in*/ const int tag_name_len,
+                                  /*in*/ const int tag_options_len) 
+  {
+    if (tag_size < 0)
+      ERROR(iBase_INVALID_ARGUMENT, "iMesh_createTag: invalid tag size");
+    CHKENUM(tag_type, iBase_TagValueType, iBase_INVALID_ARGUMENT);
+
+    std::string tmp_tagname(tag_name, tag_name_len);
+    eatwhitespace(tmp_tagname);
+
+    moab::TagType storage = MB_TAG_SPARSE;
+    ErrorCode result;
+
+      // declared here 'cuz might have to hold destination of a default value ptr
+    std::string storage_type;
+    const void *def_val = NULL;
+    int def_int;
+    double def_dbl;
+    moab::EntityHandle def_handle;
+  
+    if (0 != tag_options_len) {
+      std::string tag_options = filter_options(tmp_tag_options, tmp_tag_options+tag_options_len);
+      FileOptions opts(tag_options.c_str());
+      const char *option_vals[] = {"SPARSE", "DENSE", "BIT", "MESH"};
+      const moab::TagType opt_types[] = {moab::MB_TAG_SPARSE, moab::MB_TAG_DENSE,
+                                         moab::MB_TAG_BIT, moab::MB_TAG_MESH};
+      int opt_num = -1;
+      result = opts.match_option("TAG_STORAGE_TYPE", option_vals, opt_num);
+      if (MB_FAILURE == result)
+        ERROR(result, "iMesh_createTagWithOptions: option string not recognized.");
+      else if (MB_SUCCESS == result) {
+        assert(opt_num >= 0 && opt_num <= 3);
+        storage = opt_types[opt_num];
+      }
+
+        // now look for default value option; reuse storage_type
+      storage_type.clear();
+      result = opts.get_option("TAG_DEFAULT_VALUE", storage_type);
+      if (MB_SUCCESS == result) {
+          // ok, need to parse the string into a proper default value
+        switch (tag_type) {
+          case iBase_INTEGER:
+              result = opts.get_int_option("TAG_DEFAULT_VALUE", def_int);
+              def_val = &def_int;
+              break;
+          case iBase_DOUBLE:
+              result = opts.get_real_option("TAG_DEFAULT_VALUE", def_dbl);
+              def_val = &def_dbl;
+              break;
+          case iBase_ENTITY_HANDLE:
+                // for default handle, will have to use int
+              result = opts.get_int_option("TAG_DEFAULT_VALUE", def_int);
+              if (0 > def_int)
+                ERROR(result, "iMesh_createTagWithOptions: for default handle-type tag, must use non-negative int on input.");
+              def_handle = (moab::EntityHandle)def_int;
+              def_val = &def_handle;
+              break;
+          case iBase_BYTES:
+              if ((int)storage_type.length() < tag_size) 
+                ERROR(result, "iMesh_createTagWithOptions: default value for byte-type tag must be large enough to store tag value.");
+              def_val = storage_type.c_str();
+              break;
+        }
+      }
+    }
+
+    moab::Tag new_tag;
+    result = MOABI->tag_get_handle(tmp_tagname.c_str(), 
+                                   tag_size,
+                                   mb_data_type_table[tag_type],
+                                   new_tag,
+                                   storage|MB_TAG_EXCL);
+
+    if (MB_SUCCESS != result) {
+      std::string msg("iMesh_createTag: ");
+      if (MB_ALREADY_ALLOCATED == result) {
+        msg += "Tag already exists with name: \"";
+        *tag_handle = (iBase_TagHandle) new_tag;
+      }
+      else
+        msg += "Failed to create tag with name: \"";
+      msg += tag_name;
+      msg += "\".";
+      ERROR(result,msg.c_str());
+    }
+
+    if (tag_type == iBase_ENTITY_HANDLE)
+      MBIMESHI->note_ent_handle_tag( new_tag );
+    else if (tag_type == iBase_ENTITY_SET_HANDLE)
+      MBIMESHI->note_set_handle_tag( new_tag );
+
+    *tag_handle = (iBase_TagHandle) new_tag;
+
+    RETURN(iBase_SUCCESS);
+
+/* old implementation:
+   Tag new_tag;
+   int this_size = tag_size;
+
+   ErrorCode result = MOABI->tag_get_handle(tmp_tagname.c_str(), 
+   this_size,
+   mb_data_type_table[tag_type],
+   new_tag,
+   MB_TAG_SPARSE|MB_TAG_EXCL);
+
+   if (MB_SUCCESS != result) {
+   std::string msg("iMesh_createTag: ");
+   if (MB_ALREADY_ALLOCATED == result) {
+   msg += "Tag already exists with name: \"";
+   *tag_handle = (iBase_TagHandle) new_tag;
+   }
+   else
+   msg += "Failed to create tag with name: \"";
+   msg += tag_name;
+   msg += "\".";
+   ERROR(result,msg.c_str());
+   }
+
+   if (tag_type == iBase_ENTITY_HANDLE)
+   MBIMESHI->note_ent_handle_tag( new_tag );
+   else if (tag_type == iBase_ENTITY_SET_HANDLE)
+   MBIMESHI->note_set_handle_tag( new_tag );
+
+   *tag_handle = (iBase_TagHandle) new_tag;
+   */
   }
 
 #ifdef __cplusplus
