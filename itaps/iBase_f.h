@@ -102,10 +102,12 @@
       integer iBase_INTEGER
       integer iBase_DOUBLE
       integer iBase_ENTITY_HANDLE
+      integer iBase_ENTITY_SET_HANDLE
       integer iBase_BYTES
 
-      parameter (iBase_INTEGER = 0)
-      parameter (iBase_DOUBLE = 1)
-      parameter (iBase_ENTITY_HANDLE = 2)
-      parameter (iBase_BYTES = 3)
+      parameter (iBase_BYTES = 0)
+      parameter (iBase_INTEGER = 1)
+      parameter (iBase_DOUBLE = 2)
+      parameter (iBase_ENTITY_HANDLE = 3)
+      parameter (iBase_ENTITY_SET_HANDLE = 3)
 
