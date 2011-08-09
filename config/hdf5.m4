@@ -1,3 +1,10 @@
+AC_DEFUN([FATHOM_HDF5_LIBS_HELPER],[
+if test $HAVE_LIB_HDF5 = no; then
+   unset "ac_cv_lib_${HDF5_LIBNAME}_H5Fopen"
+   unset "ac_cv_lib_${HDF5_LIBNAME}___H5Fopen"
+   AC_CHECK_LIB( [${HDF5_LIBNAME}], [H5Fopen], [HAVE_LIB_HDF5=yes; HDF5_LIBS="$HDF5_LIBS $1"], [], [$1] )
+fi
+])
 
 #######################################################################################
 # Helper function for FATHOM_CHECK_HDF5 and FATHOM_CHECK_NETCDF
@@ -20,28 +27,17 @@ if test "xyes" != "x$HAVE_LIB_HDF5"; then
   test "x" != "x$HDF5_LIBNAME" || HDF5_LIBNAME=hdf5
   
   HAVE_LIB_HDF5=no
-  AC_CHECK_LIB( [$HDF5_LIBNAME], [H5Fopen], [HAVE_LIB_HDF5=yes] )
-  if test $HAVE_LIB_HDF5 = no; then
+  FATHOM_HDF5_LIBS_HELPER
+  if test $HAVE_ZLIB = yes; then
+    FATHOM_HDF5_LIBS_HELPER([-lz])
+    FATHOM_HDF5_LIBS_HELPER([-lz -lpthread])
+  fi
+  if test $HAVE_SZIP = yes; then
+    FATHOM_HDF5_LIBS_HELPER([-lsz])
+    FATHOM_HDF5_LIBS_HELPER([-lsz -lpthread])
     if test $HAVE_ZLIB = yes; then
-      unset "ac_cv_lib_${HDF5_LIBNAME}_H5Fopen"
-      unset "ac_cv_lib_${HDF5_LIBNAME}___H5Fopen"
-      AC_CHECK_LIB( [${HDF5_LIBNAME}], [H5Fopen], [HAVE_LIB_HDF5=yes; HDF5_LIBS="$HDF5_LIBS -lz"], [], [-lz] )
-    fi
-  fi
-  if test $HAVE_LIB_HDF5 = no; then
-    if test $HAVE_SZIP = yes; then
-      unset "ac_cv_lib_${HDF5_LIBNAME}_H5Fopen"
-      unset "ac_cv_lib_${HDF5_LIBNAME}___H5Fopen"
-      AC_CHECK_LIB( [$HDF5_LIBNAME], [H5Fopen], [HAVE_LIB_HDF5=yes; HDF5_LIBS="$HDF5_LIBS -lsz"], [], [-lsz] )
-    fi
-  fi
-  if test $HAVE_LIB_HDF5 = no; then
-    if test $HAVE_SZIP = yes; then
-      if test $HAVE_ZLIB = yes; then
-        unset "ac_cv_lib_${HDF5_LIBNAME}_H5Fopen"
-        unset "ac_cv_lib_${HDF5_LIBNAME}___H5Fopen"
-        AC_CHECK_LIB( [$HDF5_LIBNAME], [H5Fopen], [HAVE_LIB_HDF5=yes; HDF5_LIBS="$HDF5_LIBS -lsz -lz"], [], [-lz -lsz] )
-      fi
+      FATHOM_HDF5_LIBS_HELPER([-lsz -lz])
+      FATHOM_HDF5_LIBS_HELPER([-lsz -lz -lpthread])
     fi
   fi
 fi
