@@ -25,7 +25,7 @@ EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long'
 EXTRA_INTEL_FLAGS='-Wall'
 FATHOM_CHECK_COMPILERS([yes],[yes],[$ENABLE_FORTRAN])
 AM_CONDITIONAL(PARALLEL,[test "x$WITH_MPI" != "xno"])
-LIBS="-lm"
+LIBS="$LIBS -lm"
 
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
