@@ -1565,8 +1565,6 @@ extern "C" {
                        const int tag_name_size)
   {
     iMesh_createTagWithOptions(instance, tag_name, NULL, tag_size, tag_type, tag_handle, err, tag_name_size, 0);
-    
-    RETURN(iBase_SUCCESS);
   }
 
   void iMesh_destroyTag(iMesh_Instance instance,
