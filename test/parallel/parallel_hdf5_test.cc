@@ -373,7 +373,7 @@ void save_and_load_on_root( Interface& moab, const char* tmp_filename )
   std::string str;
   if (WriteDebugLevel) {
     std::ostringstream s;
-    s << opt << ";DEBUG_IO=" << ReadDebugLevel;
+    s << opt << ";DEBUG_IO=" << WriteDebugLevel;
     str = s.str();
     opt = str.c_str();
   }
@@ -666,7 +666,7 @@ void test_var_length_parallel()
   std::string str;
   if (WriteDebugLevel) {
     std::ostringstream s;
-    s << opt << ";DEBUG_IO=" << ReadDebugLevel;
+    s << opt << ";DEBUG_IO=" << WriteDebugLevel;
     str = s.str();
     opt = str.c_str();
   }
