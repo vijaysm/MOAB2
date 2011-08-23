@@ -121,9 +121,6 @@ endif
 
 noinst_PROGRAMS = $(parread)
 
-noinst_LTLIBRARIES = libprogram_opt.la
-libprogram_opt_la_SOURCES = ProgOptions.cpp ProgOptions.hpp
-
 SUBDIRS = . \
           $(refiner_DIR) \
           $(mbcoupler_DIR) \
@@ -145,12 +142,4 @@ mbtagprop_SOURCES = parse.cpp parse.hpp propagate_tags.cpp
 mbmem_SOURCES = mbmem.cpp
 parread_SOURCES = parread.cpp
 
-
-check_PROGRAMS = test_prog_opt
-
-TESTS = $(check_PROGRAMS)
-
-test_prog_opt_SOURCES = test_prog_opt.cpp
-test_prog_opt_CPPFLAGS = -I$(top_srcdir)/test $(AM_CPPFLAGS) $(CPPFLAGS)
-test_prog_opt_LDADD = libprogram_opt.la
 

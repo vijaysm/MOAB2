@@ -38,6 +38,8 @@ libMOABrefiner_la_include_HEADERS =
 
 libMOABrefiner_la_includedir = $(includedir)
 
+EXTRA_DIST = fourVolsBare.cub
+
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put 
 # in $(libdir).  Define a $(cfgdir) to get around automake's

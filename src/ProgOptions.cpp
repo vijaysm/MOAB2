@@ -9,7 +9,7 @@
 #include <assert.h>
 #include <string.h>
 
-#include "ProgOptions.hpp"
+#include "moab/ProgOptions.hpp"
 #ifdef USE_MPI
 # include "moab_mpi.h"
 #endif

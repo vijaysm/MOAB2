@@ -5,8 +5,20 @@
 #include "StructuredElementSeq.hpp"
 #include "VertexSequence.hpp"
 #include "ScdVertexData.hpp"
+#ifdef USE_MPI
+#  include "moab/ParallelComm.hpp"
+extern "C" 
+{
+#  include "types.h"
+#  include "gs.h"
+#  include "errmem.h"
+#  include "sort.h"
+#  include "tuple_list.h"
+}
+#endif
 #include "assert.h"
 #include <iostream>
+#include <functional>
 
 #define ERRORR(rval, str) {if (MB_SUCCESS != rval)                    \
       {std::cerr << str; return rval; }}
@@ -20,6 +32,8 @@ ScdInterface::ScdInterface(Core *impl, bool boxes)
           searchedBoxes(false),
           boxPeriodicTag(0),
           boxDimsTag(0),
+          globalBoxDimsTag(0),
+          partMethodTag(0),
           boxSetTag(0)
 {
   if (boxes) find_boxes(scdBoxes);
@@ -28,8 +42,11 @@ ScdInterface::ScdInterface(Core *impl, bool boxes)
   // Destructor
 ScdInterface::~ScdInterface() 
 {
-  for (Range::iterator rit = scdBoxes.begin(); rit != scdBoxes.end(); rit++)
-    delete get_scd_box(*rit);
+  std::vector<ScdBox*> tmp_boxes;
+  tmp_boxes.swap(scdBoxes);
+  
+  for (std::vector<ScdBox*>::iterator rit = tmp_boxes.begin(); rit != tmp_boxes.end(); rit++)
+    delete *rit;
 
   if (box_set_tag(false)) 
     mbImpl->tag_delete(box_set_tag());
@@ -60,14 +77,21 @@ ErrorCode ScdInterface::find_boxes(Range &scd_boxes)
 {
   ErrorCode rval = MB_SUCCESS;
   box_dims_tag();
+  Range boxes;
   if (!searchedBoxes) {
     rval = mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &boxDimsTag, NULL, 1, 
-                                                scdBoxes, Interface::UNION);
+                                                boxes, Interface::UNION);
     searchedBoxes = true;
-    if (MB_SUCCESS != rval) return rval;
+    if (!boxes.empty()) {
+      scdBoxes.resize(boxes.size());
+      rval = mbImpl->tag_get_data(boxSetTag, boxes, &scdBoxes[0]);
+      std::remove_if(scdBoxes.begin(), scdBoxes.end(), std::bind2nd(std::equal_to<ScdBox*>(), NULL) ) ;
+    }
   }
 
-  scd_boxes.merge(scdBoxes);
+  for (std::vector<ScdBox*>::iterator vit = scdBoxes.begin(); vit != scdBoxes.end(); vit++)
+    scd_boxes.insert((*vit)->box_set());
+  
   return rval;
 }
 
@@ -205,7 +229,6 @@ ErrorCode ScdInterface::create_box_set(const HomCoord low, const HomCoord high,
     // create the set and put the entities in it
   ErrorCode rval = mbImpl->create_meshset(MESHSET_SET, scd_set);
   if (MB_SUCCESS != rval) return rval;
-  scdBoxes.insert(scd_set);
 
     // tag the set with parameter extents
   int boxdims[6];
@@ -241,6 +264,26 @@ Tag ScdInterface::box_dims_tag(bool create_if_missing)
   return boxDimsTag;
 }
 
+Tag ScdInterface::global_box_dims_tag(bool create_if_missing) 
+{
+  if (globalBoxDimsTag || !create_if_missing) return globalBoxDimsTag;
+
+  ErrorCode rval = mbImpl->tag_get_handle("GLOBAL_BOX_DIMS", 6, MB_TYPE_INTEGER, 
+                                          globalBoxDimsTag, MB_TAG_SPARSE|MB_TAG_CREAT);
+  if (MB_SUCCESS != rval) return 0;
+  return globalBoxDimsTag;
+}
+
+Tag ScdInterface::part_method_tag(bool create_if_missing) 
+{
+  if (partMethodTag || !create_if_missing) return partMethodTag;
+
+  ErrorCode rval = mbImpl->tag_get_handle("PARTITION_METHOD", 1, MB_TYPE_INTEGER, 
+                                          partMethodTag, MB_TAG_SPARSE|MB_TAG_CREAT);
+  if (MB_SUCCESS != rval) return 0;
+  return partMethodTag;
+}
+
 Tag ScdInterface::box_set_tag(bool create_if_missing) 
 {
   if (boxSetTag || !create_if_missing) return boxSetTag;
@@ -251,11 +294,39 @@ Tag ScdInterface::box_set_tag(bool create_if_missing)
   return boxSetTag;
 }
 
+    //! Remove the box from the list on ScdInterface
+ErrorCode ScdInterface::remove_box(ScdBox *box) 
+{
+  std::vector<ScdBox*>::iterator vit = std::find(scdBoxes.begin(), scdBoxes.end(), box);
+  if (vit != scdBoxes.end()) {
+    scdBoxes.erase(vit);
+    return MB_SUCCESS;
+  }
+  else return MB_FAILURE;
+}
+  
+    //! Add the box to the list on ScdInterface
+ErrorCode ScdInterface::add_box(ScdBox *box) 
+{
+  scdBoxes.push_back(box);
+  return MB_SUCCESS;
+}
+
+ErrorCode ScdInterface::get_boxes(std::vector<ScdBox*> &boxes) 
+{
+  std::copy(scdBoxes.begin(), scdBoxes.end(), std::back_inserter(boxes));
+  return MB_SUCCESS;
+}
+
 ScdBox::ScdBox(ScdInterface *sc_impl, EntityHandle box_set,
                EntitySequence *seq1, EntitySequence *seq2) 
-        : scImpl(sc_impl), boxSet(box_set), vertDat(NULL), elemSeq(NULL), startVertex(0), startElem(0)
+        : scImpl(sc_impl), boxSet(box_set), vertDat(NULL), elemSeq(NULL), startVertex(0), startElem(0),
+          partMethod(-1)
 {
-  for (int i = 0; i < 6; i++) boxDims[i] = 0;
+  for (int i = 0; i < 6; i++) {
+    boxDims[i] = 0;
+    globalBoxDims[i] = 0;
+  }  
   for (int i = 0; i < 2; i++) isPeriodic[i] = false;
   VertexSequence *vseq = dynamic_cast<VertexSequence *>(seq1);
   if (vseq) vertDat = dynamic_cast<ScdVertexData*>(vseq->data());
@@ -266,6 +337,15 @@ ScdBox::ScdBox(ScdInterface *sc_impl, EntityHandle box_set,
       boxDims[3+i] = vertDat->max_params()[i];
     }
     startVertex = vertDat->start_handle();
+  }
+  else if (sc_impl->boxDimsTag) {
+      // look for parametric space info on set
+    ErrorCode rval = sc_impl->mbImpl->tag_get_data(sc_impl->boxDimsTag, &box_set, 1, boxDims);
+    if (MB_SUCCESS == rval) {
+      Range verts;
+      sc_impl->mbImpl->get_entities_by_dimension(box_set, 0, verts);
+      if (!verts.empty()) startVertex = *verts.begin();
+    }
   }
 
   elemSeq = dynamic_cast<StructuredElementSeq *>(seq2);
@@ -291,13 +371,27 @@ ScdBox::ScdBox(ScdInterface *sc_impl, EntityHandle box_set,
 
     elemSeq->is_periodic(isPeriodic);
   }
+  else {
+    Range elems;
+    sc_impl->mbImpl->get_entities_by_dimension(box_set, (boxDims[2] == boxDims[5] ? 2 : 3), elems);
+    if (!elems.empty()) startElem = *elems.begin();
+    int dum[2];
+    ErrorCode rval = sc_impl->mbImpl->tag_get_data(sc_impl->boxPeriodicTag, &box_set, 1, dum);
+    if (MB_SUCCESS == rval) {
+      isPeriodic[0] = (dum[0] ? true : false);
+      isPeriodic[1] = (dum[1] ? true : false);
+    }
+  }
 
-  assert(vertDat || elemSeq);
+  assert(vertDat || elemSeq || 
+         boxDims[0] != boxDims[3]|| boxDims[1] != boxDims[4]|| boxDims[2] != boxDims[5]);
   
   boxSize = HomCoord(boxDims+3, 3) - HomCoord(boxDims, 3) + HomCoord(1, 1, 1);
   boxSizeIJ = (boxSize[1] ? boxSize[1] : 1) * boxSize[0];
   boxSizeIM1 = boxSize[0]-(isPeriodic[0] ? 0 : 1);
   boxSizeIJM1 = (boxSize[1] ? (boxSize[1]-(isPeriodic[1] ? 0 : 1)) : 1) * boxSizeIM1;
+
+  scImpl->add_box(this);
 }
 
 ScdBox::~ScdBox() 
@@ -305,6 +399,7 @@ ScdBox::~ScdBox()
     // reset the tag on the set
   ScdBox *tmp_ptr = NULL;
   if (boxSet) scImpl->mbImpl->tag_set_data(scImpl->box_set_tag(), &boxSet, 1, &tmp_ptr);
+  scImpl->remove_box(this);
 }
 
 EntityHandle ScdBox::get_vertex_from_seq(int i, int j, int k) const
@@ -326,6 +421,7 @@ ErrorCode ScdBox::add_vbox(ScdBox *vbox,
                            const HomCoord &bb_min,
                            const HomCoord &bb_max)
 {
+  if (!vbox->vertDat) return MB_FAILURE;
   ScdVertexData *dum_data = dynamic_cast<ScdVertexData*>(vbox->vertDat);
   ErrorCode rval = elemSeq->sdata()->add_vsequence(dum_data, from1, to1, from2, to2, from3, to3,
                                                    bb_input, bb_min, bb_max);
@@ -448,4 +544,508 @@ ErrorCode ScdBox::get_adj_edge_or_face(int dim, int i, int j, int k, int dir, En
   return rval;
 }
     
+ErrorCode ScdInterface::compute_partition_alljorkori(int np, int nr, const int *gijk, int *lijk) 
+{
+    // partition *the elements* over the parametric space; 1d partition for now, in the j, k, or i
+    // parameters
+#ifdef USE_MPI
+  if (-1 != lijk[1] && (gijk[4] - gijk[1]) > np) {
+    int dj = (gijk[4] - gijk[1]) / np;
+    int extra = (gijk[4] - gijk[1]) % np;
+    lijk[1] = gijk[1] + nr*dj + 
+        std::min(nr, extra);
+    lijk[4] = lijk[1] + dj + (nr < extra ? 1 : 0);
+
+    lijk[2] = gijk[2]; lijk[5] = gijk[5];
+    lijk[0] = gijk[0]; lijk[3] = gijk[3];
+  }
+  else if (-1 != lijk[2] && (gijk[5] - gijk[2]) > np) {
+    int dk = (gijk[5] - gijk[2]) / np;
+    int extra = (gijk[5] - gijk[2]) % np;
+    lijk[2] = gijk[2] + nr*dk + 
+        std::min(nr, extra);
+    lijk[5] = lijk[2] + dk + (nr < extra ? 1 : 0);
+
+    lijk[1] = gijk[1]; lijk[4] = gijk[4];
+    lijk[0] = gijk[0]; lijk[3] = gijk[3];
+  }
+  else if (-1 != lijk[0] && (gijk[3] - gijk[0]) > np) {
+    int di = (gijk[3] - gijk[0]) / np;
+    int extra = (gijk[3] - gijk[0]) % np;
+    lijk[0] = gijk[0] + nr*di + 
+        std::min(nr, extra);
+    lijk[3] = lijk[0] + di + (nr < extra ? 1 : 0);
+
+    lijk[2] = gijk[2]; lijk[5] = gijk[5];
+    lijk[1] = gijk[1]; lijk[4] = gijk[4];
+  }
+  else
+    ERRORR(MB_FAILURE, "Couldn't find a suitable partition.");
+#else
+  lijk[0] = gijk[0];
+  lijk[3] = gijk[3];
+  lijk[1] = gijk[1];
+  lijk[4] = gijk[4];
+  lijk[2] = gijk[2];
+  lijk[5] = gijk[5];
+#endif
+  
+  return MB_SUCCESS;
+}
+
+ErrorCode ScdInterface::compute_partition_alljkbal(int np, int nr, const int *gijk, int *lijk, int *njp) 
+{
+    // improved, possibly 2-d partition
+  std::vector<double> kfactors;
+  kfactors.push_back(1);
+  int K = gijk[5] - gijk[2];
+  for (int i = 2; i < K; i++) 
+    if (!(K%i) && !(np%i)) kfactors.push_back(i);
+  kfactors.push_back(K);
+  
+    // compute the ideal nj and nk
+  int J = gijk[4] - gijk[1];
+  double njideal = sqrt(((double)(np*J))/((double)K));
+  double nkideal = (njideal*K)/J;
+  
+  int nk, nj;
+  if (nkideal < 1.0) {
+    nk = 1;
+    nj = np;
+  }
+  else {
+    std::vector<double>::iterator vit = std::lower_bound(kfactors.begin(), kfactors.end(), nkideal);
+    if (vit == kfactors.begin()) nk = 1;
+    else nk = (int)*(--vit);
+    nj = np / nk;
+  }
+
+  int dk = K / nk;
+  int dj = J / nj;
+  
+  lijk[2] = (nr % nk) * dk;
+  lijk[5] = lijk[2] + dk;
+  
+  int extra = J % nj;
+  
+  lijk[1] = gijk[1] + (nr / nk) * dj + std::min(nr / nk, extra);
+  lijk[4] = lijk[1] + dj + (nr / nk < extra ? 1 : 0);
+
+  lijk[0] = gijk[0];
+  lijk[3] = gijk[3];
+
+  if (njp) *njp = nj;
+  
+  return MB_SUCCESS;
+}
+
+ErrorCode ScdInterface::compute_partition_sqij(int np, int nr, const int *gijk, int *lijk,
+                                               int *pip) 
+{
+    // square IxJ partition
+
+  std::vector<double> pfactors, ppfactors;
+  for (int i = 2; i <= np; i++) 
+    if (!(np%i)) {
+      pfactors.push_back(i);
+      ppfactors.push_back(((double)(i*i))/np);
+    }
+  
+    // ideally, Px/Py = I/J
+  double ijratio = ((double)(gijk[3]-gijk[0]))/((double)(gijk[4]-gijk[1]));
+
+  unsigned int ind = std::lower_bound(ppfactors.begin(), ppfactors.end(), ijratio) - ppfactors.begin();
+  if (ind && fabs(ppfactors[ind-1]-ijratio) < fabs(ppfactors[ind]-ijratio)) ind--;
+  
+  int pi = pfactors[ind];
+  int pj = np / pi;
+
+  int I = (gijk[3] - gijk[0]), J = (gijk[4] - gijk[1]);
+  int iextra = I%pi, jextra = J%pj, i = I/pi, j = J/pj;
+  int nri = nr % pi, nrj = nr / pi;
+  if (lijk) {
+    lijk[0] = i*nri + std::min(iextra, nri);
+    lijk[3] = lijk[0] + i + (nri < iextra ? 1 : 0);
+    lijk[1] = j*nrj + std::min(jextra, nrj);
+    lijk[4] = lijk[1] + j + (nrj < jextra ? 1 : 0);
+
+    lijk[2] = gijk[2];
+    lijk[5] = gijk[5];
+  }
+  
+  if (pip) *pip = pi;
+  
+  return MB_SUCCESS;
+}
+
+ErrorCode ScdInterface::compute_partition_sqjk(int np, int nr, const int *gijk, int *lijk, int *pjp) 
+{
+    // square JxK partition
+
+  std::vector<double> pfactors, ppfactors;
+  for (int p = 2; p <= np; p++) 
+    if (!(np%p)) {
+      pfactors.push_back(p);
+      ppfactors.push_back(((double)(p*p))/np);
+    }
+  
+    // ideally, Pj/Pk = J/K
+  double jkratio = ((double)(gijk[4]-gijk[1]))/((double)(gijk[5]-gijk[2]));
+
+  unsigned int ind = std::lower_bound(ppfactors.begin(), ppfactors.end(), jkratio) - ppfactors.begin();
+  if (ind && fabs(ppfactors[ind-1]-jkratio) < fabs(ppfactors[ind]-jkratio)) ind--;
+  
+  int pj = pfactors[ind];
+  int pk = np / pj;
+
+  int K = (gijk[5] - gijk[2]), J = (gijk[4] - gijk[1]);
+  int jextra = J%pj, kextra = K%pk, j = J/pj, k = K/pk;
+  int nrj = nr % pj, nrk = nr / pj;
+  lijk[1] = j*nrj + std::min(jextra, nrj);
+  lijk[4] = lijk[1] + j + (nrj < jextra ? 1 : 0);
+  lijk[2] = k*nrk + std::min(kextra, nrk);
+  lijk[5] = lijk[2] + k + (nrk < kextra ? 1 : 0);
+
+  lijk[0] = gijk[0];
+  lijk[3] = gijk[3];
+
+  if (pjp) *pjp = pj;
+  
+  return MB_SUCCESS;
+}
+
+ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, EntityHandle seth) 
+{
+#ifdef USE_MPI
+    // first, look for box data on the set
+  ScdBox *box = get_scd_box(seth);
+  Range tmp_range;
+  ErrorCode rval;
+  if (!box) {
+      // look for contained boxes
+    rval = mbImpl->get_entities_by_type(seth, MBENTITYSET, tmp_range);
+    if (MB_SUCCESS != rval) return rval;
+    for (Range::iterator rit = tmp_range.begin(); rit != tmp_range.end(); rit++) {
+      box = get_scd_box(*rit);
+      if (box) break;
+    }
+  }
+  
+  if (!box) return MB_FAILURE;
+  else {
+      // check the # ents in the box against the num in the set, to make sure it's only 1 box;
+      // reuse tmp_range
+    tmp_range.clear();
+    rval = mbImpl->get_entities_by_dimension(seth, box->box_dimension(), tmp_range);
+    if (MB_SUCCESS != rval) return rval;
+    if (box->num_elements() != (int)tmp_range.size()) return MB_FAILURE;
+  }
+    
+  const int *gdims = box->global_box_dims();
+  if ((gdims[0] == gdims[3] && gdims[1] == gdims[4] && gdims[2] == gdims[5]) ||
+      -1 == box->part_method()) return MB_FAILURE;
+
+    // ok, we have a partitioned box; get the vertices shared with other processors
+  std::vector<int> procs, offsets, shared_indices;
+  rval = get_shared_vertices(pcomm, box, procs, offsets, shared_indices);
+  if (MB_SUCCESS != rval) return rval;
+
+    // post receives for start handles once we know how many to look for
+  std::vector<MPI_Request> recv_reqs(procs.size(), MPI_REQUEST_NULL), 
+      send_reqs(procs.size(), MPI_REQUEST_NULL);
+  std::vector<EntityHandle> rhandles(4*procs.size()), shandles(4);
+  for (unsigned int i = 0; i < procs.size(); i++) {
+    int success = MPI_Irecv(&rhandles[4*i], 4*sizeof(EntityHandle),
+                            MPI_UNSIGNED_CHAR, procs[i],
+                            1, pcomm->proc_config().proc_comm(), 
+                            &recv_reqs[i]);
+    if (success != MPI_SUCCESS) return MB_FAILURE;
+  }
+
+    // send our own start handles
+  shandles[0] = box->start_vertex();
+  shandles[1] = 0;
+  if (box->box_dimension() == 2) {
+    shandles[2] = box->start_element();
+    shandles[3] = 0;
+  }
+  else {
+    shandles[2] = 0;
+    shandles[3] = box->start_element();
+  }
+  for (unsigned int i = 0; i < procs.size(); i++) {
+    int success = MPI_Isend(&shandles[0], 4*sizeof(EntityHandle), MPI_UNSIGNED_CHAR, procs[i], 
+                            1, pcomm->proc_config().proc_comm(), &send_reqs[i]);
+    if (success != MPI_SUCCESS) return MB_FAILURE;
+  }
+  
+    // receive start handles and save info to a tuple list
+  int incoming = procs.size();
+  int p, j, k;
+  MPI_Status status;
+  tuple_list shared_data;
+  tuple_list_init_max(&shared_data, 1, 0, 2, 0, 
+                      shared_indices.size()/2);
+  j = 0; k = 0;
+  while (incoming) {
+    int success = MPI_Waitany(procs.size(), &recv_reqs[0], &p, &status);
+    if (MPI_SUCCESS != success) return MB_FAILURE;
+    unsigned int num_indices = (offsets[p+1]-offsets[p])/2;
+    int *lh = &shared_indices[offsets[p]], *rh = lh + num_indices;
+    for (unsigned int i = 0; i < num_indices; i++) {
+      shared_data.vi[j++] = procs[p];
+      shared_data.vul[k++] = shandles[0] + lh[i];
+      shared_data.vul[k++] = rhandles[4*p] + rh[i];
+    }
+    incoming--;
+  }
+
+    // sort by local handle
+  buffer sort_buffer;
+  buffer_init(&sort_buffer, shared_indices.size()/2);
+  moab_tuple_list_sort(&shared_data, 1, &sort_buffer);
+  buffer_free(&sort_buffer);
+  
+    // process into sharing data
+  std::map<std::vector<int>, std::vector<EntityHandle> > proc_nvecs;
+  Range dum;
+  rval = pcomm->tag_shared_verts(shared_data, proc_nvecs, dum, 0);
+  if (MB_SUCCESS != rval) return rval;
+  
+    // create interface sets
+  rval = pcomm->create_interface_sets(proc_nvecs, -1, -1);
+  if (MB_SUCCESS != rval) return rval;
+  
+  return MB_SUCCESS;
+  
+#else
+  return MB_FAILURE;
+#endif
+}
+
+ErrorCode ScdInterface::get_neighbor_alljkbal(ParallelComm *pcomm, ScdBox *box, int pfrom, int *dijk, 
+                                              int &pto, int *bdy_ind, int *rdims, int *facedims) 
+{
+#ifdef USE_MPI
+  if (dijk[0] != 0) {
+    pto = -1;
+    return MB_SUCCESS;
+  }
+  
+  const int *gdims = box->global_box_dims(), *ldims = box->box_dims();
+  
+  int nr = pcomm->proc_config().proc_rank(), np = pcomm->proc_config().proc_size();
+  pto = -1;
+  bdy_ind[0] = bdy_ind[1] = -1;
+  int pj, pk; // pj, pk: # procs in j, k directions
+  ErrorCode rval = compute_partition_alljkbal(np, nr, box->global_box_dims(), facedims, &pj);
+  if (MB_SUCCESS != rval) return rval;
+  pk = np / pj;
+  assert(pj * pk == np);
+  pto = -1;
+  if ((nr < pj && -1 == dijk[1] && !box->is_periodic_j()) ||  // down and not periodic
+      (nr > np-pj && 1 == dijk[1] && !box->is_periodic_j()))  // up and not periodic
+    return MB_SUCCESS;
+    
+  if (0 != dijk[1]) {
+    pto = (nr + dijk[1]*(gdims[4]-gdims[1])/pj) % np;
+    facedims[1] = facedims[4] = (-1 == dijk[1] ? facedims[1] : facedims[4]);
+  }
+  else if (0 != dijk[2]) {
+    pto = (nr + dijk[2]) % np;
+    facedims[2] = facedims[5] = (-1 == dijk[2] ? facedims[2] : facedims[5]);
+  }
+
+  if (dijk[1] == -1 && box->is_periodic_j() && ldims[1] == gdims[1]) bdy_ind[1] = 1;
+
+  return MB_SUCCESS;
+#else
+  return MB_FAILURE;
+#endif  
+}
+
+ErrorCode ScdInterface::get_neighbor_sqij(ParallelComm *pcomm, ScdBox *box, int pfrom, int *dijk, 
+                                          int &pto, int *bdy_ind, int *rdims, int *facedims) 
+{
+#ifdef USE_MPI
+  if (dijk[2] != 0) {
+    pto = -1;
+    return MB_SUCCESS;
+  }
+  
+  const int *gdims = box->global_box_dims(), *ldims = box->box_dims();
+  
+  int nr = pcomm->proc_config().proc_rank(), np = pcomm->proc_config().proc_size();
+  pto = -1;
+  bdy_ind[0] = bdy_ind[1] = -1;
+  int pi, pj; // pi, pj: # procs in i, j directions
+  ErrorCode rval = compute_partition_sqij(np, nr, box->global_box_dims(), facedims, &pi);
+  if (MB_SUCCESS != rval) return rval;
+  pj = np / pi;
+  assert(pi * pj == np);
+  pto = -1;
+  if ((nr < pi && -1 == dijk[0] && !box->is_periodic_i()) ||  // left and not periodic
+      (nr > np-pi && 1 == dijk[0] && !box->is_periodic_i()) ||  // right and not periodic
+      (!(nr%pi) && -1 == dijk[1] && !box->is_periodic_j()) || // bottom and not periodic
+      (nr%pi == pi-1 && 1 == dijk[1] && !box->is_periodic_j()))  // top and not periodic
+    return MB_SUCCESS;
+    
+  if (0 != dijk[0]) {
+    pto = (nr + dijk[0]*(gdims[3]-gdims[0])/pi) % np;
+    facedims[0] = facedims[3] = (-1 == dijk[0] ? facedims[0] : facedims[3]);
+  }
+  else if (0 != dijk[1]) {
+    pto = (nr + dijk[1]) % np;
+    facedims[1] = facedims[4] = (-1 == dijk[1] ? facedims[1] : facedims[4]);
+  }
+
+  if (dijk[0] == -1 && box->is_periodic_i() && ldims[0] == gdims[0]) bdy_ind[0] = 1;
+  if (dijk[1] == -1 && box->is_periodic_j() && ldims[1] == gdims[1]) bdy_ind[1] = 1;
+
+  return MB_SUCCESS;
+#else
+  return MB_FAILURE;
+#endif  
+}
+
+ErrorCode ScdInterface::get_neighbor_sqjk(ParallelComm *pcomm, ScdBox *box, int pfrom, int *dijk, 
+                                          int &pto, int *bdy_ind, int *rdims, int *facedims) 
+{
+#ifdef USE_MPI
+  if (dijk[0] != 0) {
+    pto = -1;
+    return MB_SUCCESS;
+  }
+  
+  const int *gdims = box->global_box_dims(), *ldims = box->box_dims();
+  
+  int nr = pcomm->proc_config().proc_rank(), np = pcomm->proc_config().proc_size();
+  pto = -1;
+  bdy_ind[0] = bdy_ind[1] = -1;
+  int pj, pk; // pj, pk: # procs in j, k directions
+  ErrorCode rval = compute_partition_sqjk(np, nr, box->global_box_dims(), facedims, &pj);
+  if (MB_SUCCESS != rval) return rval;
+  pk = np / pj;
+  assert(pj * pk == np);
+  pto = -1;
+  if ((nr < pj && -1 == dijk[1] && !box->is_periodic_j()) ||  // down and not periodic
+      (nr > np-pj && 1 == dijk[1] && !box->is_periodic_j()))  // up and not periodic
+    return MB_SUCCESS;
+    
+  if (0 != dijk[1]) {
+    pto = (nr + dijk[1]*(gdims[4]-gdims[1])/pj) % np;
+    facedims[1] = facedims[4] = (-1 == dijk[1] ? facedims[1] : facedims[4]);
+  }
+  else if (0 != dijk[2]) {
+    pto = (nr + dijk[2]) % np;
+    facedims[2] = facedims[5] = (-1 == dijk[2] ? facedims[2] : facedims[5]);
+  }
+
+  if (dijk[1] == -1 && box->is_periodic_j() && ldims[1] == gdims[1]) bdy_ind[1] = 1;
+
+  return MB_SUCCESS;
+#else
+  return MB_FAILURE;
+#endif  
+}
+
+ErrorCode ScdInterface::get_neighbor_alljorkori(ParallelComm *pcomm, ScdBox *box, int pfrom, int *dijk, 
+                                                int &pto, int *bdy_ind, int *rdims, int *facedims) 
+{
+#ifdef USE_MPI
+  const int *gdims = box->global_box_dims(), *ldims = box->box_dims();
+  int ind = -1;
+  for (int i = 0; i < 3; i++)
+    if (gdims[i] != ldims[i] || gdims[i+3] != ldims[i+3]) ind = i;
+  if (!dijk[ind]) {
+    pto = -1;
+    return MB_SUCCESS;
+  }
+  std::copy(gdims, gdims+6, facedims);
+  
+  int nr = pcomm->proc_config().proc_rank(), np = pcomm->proc_config().proc_size();
+  pto = -1;
+  bdy_ind[0] = bdy_ind[1] = -1;
+  if ((dijk[0] && dijk[1] && dijk[2]) ||
+      (fabs(dijk[0]) + fabs(dijk[1]) + fabs(dijk[2]) != 1)) return MB_SUCCESS;
+  
+  if (ldims[ind] == gdims[ind] &&
+      ind < 2 && dijk[ind] == -1 && 
+      ((box->is_periodic_i() && 0 == ind) || (box->is_periodic_j() && 1 == ind))) 
+    bdy_ind[ind] = 1;
+
+  if (-1 == dijk[ind] && pfrom) {
+      // actual left neighbor
+    pto = pfrom-1;
+    facedims[ind+3] = facedims[ind];
+    return compute_partition(ALLJORKORI, np, pto, box->global_box_dims(), rdims);
+  }
+  else if (1 == dijk[ind] && pfrom < np-1) {
+      // actual right neighbor
+    pto = pfrom+1;
+    facedims[ind] = facedims[ind+3];
+    return compute_partition(ALLJORKORI, np, pto, box->global_box_dims(), rdims);
+  }
+  else if (-1 == dijk[ind] && !nr && 
+           ((0 == ind && box->is_periodic_i()) || (1 == ind && box->is_periodic_j()))) {
+      // left across periodic bdy
+    pto = np - 1;
+    bdy_ind[ind] = 1;
+    facedims[ind+3] = facedims[ind];
+    return compute_partition(ALLJORKORI, np, pto, box->global_box_dims(), rdims);
+  }
+  else if (1 == dijk[ind] && nr == np-1 && 
+           ((0 == ind && box->is_periodic_i()) || (1 == ind && box->is_periodic_j()))) {
+      // right across periodic bdy
+    pto = 0;
+    bdy_ind[ind] = 1;
+    facedims[ind] = facedims[ind+3];
+    return compute_partition(ALLJORKORI, np, pto, box->global_box_dims(), rdims);
+  }
+  else {
+    return MB_SUCCESS;
+  }
+#else
+  return MB_FAILURE;
+#endif  
+}
+  
+  //! get shared vertices for alljorkori partition scheme
+ErrorCode ScdInterface::get_shared_vertices(ParallelComm *pcomm, ScdBox *box, 
+                                            std::vector<int> &procs,
+                                            std::vector<int> &offsets, std::vector<int> &shared_indices) 
+{
+#ifdef USE_MPI
+    // get index of partitioned dimension
+  const int *ldims = box->box_dims();
+  unsigned int nr = pcomm->proc_config().proc_rank();
+  ErrorCode rval;
+  int ijkrem[6], ijkface[6];
+
+  for (int k = -1; k <= 1; k ++) {
+    for (int j = -1; j <= 1; j ++) {
+      for (int i = -1; i <= 1; i ++) {
+        if (!i && !j && !k) continue;
+        std::copy(ldims, ldims+6, ijkface);
+        int pto, bdy_ind[2];
+        rval = get_neighbor(pcomm, box, nr, i, j, k, pto, bdy_ind, ijkrem, ijkface);
+        if (MB_SUCCESS != rval) return rval;
+        if (-1 != pto) {
+          procs.push_back(pto);
+          offsets.push_back(shared_indices.size());
+          rval = get_indices(bdy_ind, ldims, ijkrem, ijkface, shared_indices);
+          if (MB_SUCCESS != rval) return rval;
+        }
+      }
+    }
+  }
+
+  offsets.push_back(shared_indices.size());
+
+  return MB_SUCCESS;
+#else
+  return MB_FAILURE;
+#endif
+}
+
 } // namespace moab

@@ -1,5 +1,5 @@
 #include "dagmc_preproc.hpp"
-#include "ProgOptions.hpp"
+#include "moab/ProgOptions.hpp"
 
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"

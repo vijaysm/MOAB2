@@ -1,6 +1,6 @@
 #include "TestUtil.hpp"
 #include "TestRunner.hpp"
-#include "ProgOptions.hpp"
+#include "moab/ProgOptions.hpp"
 #include <limits>
 #include <stdlib.h>
 #ifdef USE_MPI

@@ -41,7 +41,8 @@ TESTS = range_test \
         mbground_test \
         gttool_test \
         cropvol_test \
-	reorder_test
+	reorder_test \
+	test_prog_opt
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 
@@ -115,6 +116,13 @@ mbfacet_test_SOURCES = mbfacet_test.cpp
 mbground_test_SOURCES = mbground_test.cpp
 gttool_test_SOURCES = gttool_test.cpp
 cropvol_test_SOURCES = crop_vol_test.cpp
+
+test_prog_opt_SOURCES = test_prog_opt.cpp
+test_prog_opt_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS)
+
+if PARALLEL
+test_prog_opt_CPPFLAGS += -I$(top_srcdir)/src/parallel
+endif
 
 EXTRA_DIST = TestUtil.hpp TestRunner.hpp
 

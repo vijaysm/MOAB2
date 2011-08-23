@@ -74,7 +74,7 @@ ErrorCode obbvis_create( DagMC& dag, std::vector<int> &volumes, int grid, std::s
   
   /* Compute the vertices of the visualization grid.  Calculation points are at the center 
      of each cell in this grid, so make grid+1 vertices in each direction. */
-  int numpoints = pow(grid+1,3);
+  int numpoints = pow((double)(grid+1),3);
   double* pgrid = new double[ numpoints * 3 ];
   int idx = 0;
 

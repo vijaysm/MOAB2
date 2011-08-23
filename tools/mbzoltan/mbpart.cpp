@@ -1,6 +1,6 @@
 #include "MBZoltan.hpp"
 #include "moab/Core.hpp"
-#include "ProgOptions.hpp"
+#include "moab/ProgOptions.hpp"
 #include "moab/ReorderTool.hpp"
 
 #ifdef CGM

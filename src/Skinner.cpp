@@ -328,8 +328,6 @@ ErrorCode Skinner::find_skin_scd(const Range& source_entities,
   ScdInterface *scdi = NULL;
   ErrorCode rval = thisMB->query_interface(scdi);
   if (!scdi) return MB_FAILURE;
-  Tag box_dims_tag = scdi->box_dims_tag(false);
-  if (!box_dims_tag) return MB_FAILURE;
   
     // ok, there's scd mesh; see if the entities passed in are all in a scd box
     // a box needs to be wholly included in entities for this to work

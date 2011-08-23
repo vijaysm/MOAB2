@@ -16,6 +16,7 @@
 #include "moab/MeshTopoUtil.hpp"
 #include "TagInfo.hpp"
 #include "DebugOutput.hpp"
+#include "moab/ScdInterface.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -3144,12 +3145,21 @@ ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
 }
 
 ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
-                                                int resolve_dim,
-                                                int shared_dim,
-                                                const Tag* id_tag) 
+                                            int resolve_dim,
+                                            int shared_dim,
+                                            const Tag* id_tag) 
 {
   ErrorCode result;
   Range proc_ents;
+
+    // check for structured mesh, and do it differently if it is
+  ScdInterface *scdi;
+  result = mbImpl->query_interface(scdi);
+  if (scdi) {
+    result = scdi->tag_shared_vertices(this, this_set);
+    if (MB_SUCCESS == result) return result;
+  }
+  
       // get the entities in the partition sets
   for (Range::iterator rit = partitionSets.begin(); rit != partitionSets.end(); rit++) {
     Range tmp_ents;
@@ -3945,18 +3955,20 @@ ErrorCode ParallelComm::tag_shared_ents(int resolve_dim,
 // Also will check for doubles in the list if the list is sorted
 ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
                                          std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
-                                         Range& /*proc_verts*/) 
+                                         Range& /*proc_verts*/,
+                                         unsigned int i_extra) 
 {
   Tag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
   ErrorCode result = get_shared_proc_tags(sharedp_tag, sharedps_tag, 
                                             sharedh_tag, sharedhs_tag, pstatus_tag);
   RRA("Trouble getting shared proc tags in tag_shared_verts.");
   
-  unsigned int j = 0;
+  unsigned int j = 0, i = 0;
   std::vector<int> sharing_procs, sharing_procs2;
   std::vector<EntityHandle> sharing_handles, sharing_handles2;
   
   //Were on tuple j/2
+  if (i_extra) i += i_extra;
   while (j < 2*shared_ents.n) {
       // count & accumulate sharing procs
     EntityHandle this_ent = shared_ents.vul[j], other_ent = 0;
@@ -3964,15 +3976,15 @@ ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
     while (j < 2*shared_ents.n && shared_ents.vul[j] == this_ent) {
       j++;
         // shouldn't have same proc
-      assert(shared_ents.vi[j] != (int)procConfig.proc_rank());
+      assert(shared_ents.vi[i] != (int)procConfig.proc_rank());
       //Grab the remote data if its not a dublicate
-      if(shared_ents.vul[j] != other_ent || shared_ents.vi[j] != other_proc){
-	sharing_procs.push_back( shared_ents.vi[j] );
+      if(shared_ents.vul[j] != other_ent || shared_ents.vi[i] != other_proc){
+	sharing_procs.push_back( shared_ents.vi[i] );
 	sharing_handles.push_back( shared_ents.vul[j] );
       }
-      other_proc = shared_ents.vi[j];
+      other_proc = shared_ents.vi[i];
       other_ent = shared_ents.vul[j];
-      j++;
+      j++; i += 1 + i_extra;
     }
 
     if (sharing_procs.size() > 1) {

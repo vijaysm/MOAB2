@@ -16,6 +16,7 @@ class ScdVertexData;
 class EntitySequence;
 class ScdBox;
 class Core;
+class ParallelComm;
 
 /** \class ScdInterface ScdInterface.hpp "moab/ScdInterface.hpp"
  * \brief A structured mesh interface for MOAB-based data
@@ -130,25 +131,44 @@ public:
                                 int starting_id, ScdBox *&new_box, 
                                 bool is_periodic_i = false, bool is_periodic_j = false);
 
-    //! Return all the structured mesh blocks in this MOAB instance
+    //! Return all the structured mesh blocks in this MOAB instance, as ScdBox objects
     /** Return the structured blocks in this MOAB instance.  If these were not searched for
      * at instantiation time, then the search is done now.
      * \param boxes Vector of ScdBox objects representing structured mesh blocks
      */
   ErrorCode find_boxes(std::vector<ScdBox*> &boxes);
 
-    //! Return all the structured mesh blocks in this MOAB instance
+    //! Return all the structured mesh blocks in this MOAB instance, as entity set handles
     /** Return the structured blocks in this MOAB instance.  If these were not searched for
      * at instantiation time, then the search is done now.
      * \param boxes Range of entity set objects representing structured mesh blocks
      */
   ErrorCode find_boxes(Range &boxes);
 
+    //! Return all the structured mesh blocks known by ScdInterface (does not search)
+    /** Return the structured blocks in this ScdInterface instance.  Does not search for new boxes,
+     * just returns the contents of the list.
+     * \param boxes Structured boxes
+     */
+  ErrorCode get_boxes(std::vector<ScdBox*> &boxes);
+
     //! Return the tag marking the lower and upper corners of boxes
     /**
      * \param create_if_missing If the tag does not yet exist, create it
      */
   Tag box_dims_tag(bool create_if_missing = true);
+
+    //! Return the tag marking the global lower and upper corners of boxes
+    /**
+     * \param create_if_missing If the tag does not yet exist, create it
+     */
+  Tag global_box_dims_tag(bool create_if_missing = true);
+
+    //! Return the tag marking the partitioning method used to partition the box in parallel
+    /**
+     * \param create_if_missing If the tag does not yet exist, create it
+     */
+  Tag part_method_tag(bool create_if_missing = true);
 
     //! Return the tag marking whether box is periodic in i and j
     /**
@@ -167,6 +187,37 @@ public:
      * \param eh Entity whose box is being queried
      */
   ScdBox *get_scd_box(EntityHandle eh);
+
+    //! Partition method enumeration
+  enum PartitionMethod {ALLJORKORI=0, ALLJKBAL, SQIJ, SQJK};
+  
+    //! Compute a partition of structured parameter space
+    /** Compute a partition of structured parameter space
+     * \param part_method Partition method; should be from PartitionMethod enum, or -1
+     * \param np #procs
+     * \param nr Rank of this proc
+     * \param iMin/jMax Global minimum/maximum i parameter
+     * \param jMin/jMax Global minimum/maximum j parameter
+     * \param kMin/kMax Global minimum/maximum k parameter
+     * \param iMin/jMax Local minimum/maximum i parameter
+     * \param jMin/jMax Local minimum/maximum j parameter
+     * \param kMin/kMax Local minimum/maximum k parameter
+     */
+  static ErrorCode compute_partition(int part_method,
+                                     int np, int nr,
+                                     const int *gijk, int *lijk);
+  
+    //! Tag vertices with sharing data for parallel representations
+    /** Given the ParallelComm object to use, tag the vertices shared with other processors
+     */
+  ErrorCode tag_shared_vertices(ParallelComm *pcomm, EntityHandle seth);
+  
+protected:
+    //! Remove the box from the list on ScdInterface
+  ErrorCode remove_box(ScdBox *box);
+  
+    //! Add the box to the list on ScdInterface
+  ErrorCode add_box(ScdBox *box);
   
 private:
     //! Create an entity set for a box, and tag with the parameters
@@ -180,21 +231,84 @@ private:
                            EntityHandle &scd_set,
                            bool is_periodic_i = false, bool is_periodic_j = false);
   
-    //! interface instance
+    //! Compute a partition of structured parameter space
+    /** Partitions the structured parametric space by partitioning j, k, or i only.
+     * If j is greater than #procs, partition that, else k, else i.
+     * For description of arguments, see ScdInterface::compute_partition.
+     */
+  static ErrorCode compute_partition_alljorkori(int np, int nr,
+                                                const int *gijk, int *lijk);
+  
+    //! Compute a partition of structured parameter space
+    /** Partitions the structured parametric space by partitioning j, and possibly k,
+     * seeking square regions of jk space
+     * For description of arguments, see ScdInterface::compute_partition.
+     */
+  static ErrorCode compute_partition_alljkbal(int np, int nr, const int *gijk, int *lijk,
+                                              int *pjp = NULL);
+
+    //! Compute a partition of structured parameter space
+    /** Partitions the structured parametric space by seeking square ij partitions
+     * For description of arguments, see ScdInterface::compute_partition.
+     */
+  static ErrorCode compute_partition_sqij(int np, int nr, const int *gijk, int *lijk,
+                                          int *pip = NULL);
+  
+    //! Compute a partition of structured parameter space
+    /** Partitions the structured parametric space by seeking square jk partitions
+     * For description of arguments, see ScdInterface::compute_partition.
+     */
+  static ErrorCode compute_partition_sqjk(int np, int nr, const int *gijk, int *lijk,
+                                          int *pjp = NULL);
+
+    //! Get vertices shared with other processors
+    /** Shared vertices returned as indices into each proc's handle space
+     * \param box Box used to get parametric space info
+     * \param procs Procs this proc shares vertices with
+     * \param offsets Offsets into indices list for each proc
+     * \param shared_indices local/remote indices of shared vertices
+     */
+  static ErrorCode get_shared_vertices(ParallelComm *pcomm, ScdBox *box, std::vector<int> &procs,
+                                       std::vector<int> &offsets, std::vector<int> &shared_indices);
+
+  static ErrorCode get_indices(const int *bdy_ind, const int *ldims, int *rdims, int *face_dims, 
+                               std::vector<int> &shared_indices);
+  
+  static ErrorCode get_neighbor(ParallelComm *pcomm, ScdBox *box, int pfrom, int di, int dj, int dk, 
+                                int &pto, int *bdy_ind, int *rdims, int *facedims);
+  
+  static ErrorCode get_neighbor_alljorkori(ParallelComm *pcomm, ScdBox *box, int pfrom, int *dijk, 
+                                           int &pto, int *bdy_ind, int *rdims, int *facedims);
+  
+  static ErrorCode get_neighbor_alljkbal(ParallelComm *pcomm, ScdBox *box, int pfrom, int *dijk, 
+                                         int &pto, int *bdy_ind, int *rdims, int *facedims);
+  
+  static ErrorCode get_neighbor_sqij(ParallelComm *pcomm, ScdBox *box, int pfrom, int *dijk, 
+                                     int &pto, int *bdy_ind, int *rdims, int *facedims);
+  
+  static ErrorCode get_neighbor_sqjk(ParallelComm *pcomm, ScdBox *box, int pfrom, int *dijk, 
+                                     int &pto, int *bdy_ind, int *rdims, int *facedims);
+  
+  //! interface instance
   Core *mbImpl;
 
     //! whether we've searched the database for boxes yet
   bool searchedBoxes;
   
-    //! structured mesh blocks; stored as entity set handles since application
-    //! controls ScdBox objects
-  Range scdBoxes;
+    //! structured mesh blocks; stored as ScdBox objects, can get sets from those
+  std::vector<ScdBox*> scdBoxes;
 
     //! tag representing whether box is periodic in i and j
   Tag boxPeriodicTag;
 
     //! tag representing box lower and upper corners
   Tag boxDimsTag;
+
+    //! tag representing global lower and upper corners
+  Tag globalBoxDimsTag;
+
+    //! tag representing partition method
+  Tag partMethodTag;
 
     //! tag pointing from set to ScdBox
   Tag boxSetTag;
@@ -270,6 +384,24 @@ public:
      * \return IJK parameters of lower and upper corners
      */
   const int *box_dims() const;
+  
+    //! Return the parametric coordinates for the entire mesh
+    /**
+     * \return IJK parameters of lower and upper corners of global parametric space
+     */
+  const int *global_box_dims() const;
+  
+    //! Set the parametric coordinates for the entire mesh
+    /**
+     * \param box_dims Lower and upper corners of global parametric space
+     */
+  void set_global_box_dims(int *box_dims);
+  
+    //! Get the partMethod member
+  int part_method() const;
+  
+    //! Set the partMethod member
+  void part_method(int method);
   
     //! Return the lower corner parametric coordinates for this box
   HomCoord box_min() const;
@@ -485,6 +617,12 @@ private:
     //! lower and upper corners
   int boxDims[6];
 
+    //! lower and upper corners of global box
+  int globalBoxDims[6];
+
+    //! partition method used to partition global parametric space
+  int partMethod;
+  
     //! is periodic in i or j
   bool isPeriodic[2];
   
@@ -497,6 +635,70 @@ private:
   int boxSizeIM1;
   
 };
+
+inline ErrorCode ScdInterface::compute_partition(int part_method, int np, int nr,
+                                                 const int *gijk, int *lijk)
+{
+  ErrorCode rval = MB_SUCCESS;
+  switch (part_method) {
+    case ALLJORKORI:
+    case -1:
+        rval = compute_partition_alljorkori(np, nr, gijk, lijk);
+        break;
+    case ALLJKBAL:
+        rval = compute_partition_alljkbal(np, nr, gijk, lijk);
+        break;
+    case SQIJ:
+        rval = compute_partition_sqij(np, nr, gijk, lijk);
+        break;
+    case SQJK:
+        rval = compute_partition_sqjk(np, nr, gijk, lijk);
+        break;
+  }
+
+  return rval;
+}
+
+#define GTOL(gijk, i, j, k) ((k-gijk[2])*(gijk[3]-gijk[0]+1)*(gijk[4]-gijk[1]+1) + (j-gijk[1])*(gijk[3]-gijk[0]+1) + i-gijk[0])
+inline ErrorCode ScdInterface::get_indices(const int *bdy_ind, const int *ldims, int *rdims, int *face_dims, 
+                                           std::vector<int> &shared_indices) 
+{
+  for (int k = face_dims[2]; k <= face_dims[5]; k++)
+    for (int j = face_dims[1]; j <= face_dims[4]; j++)
+      for (int i = face_dims[0]; i <= face_dims[3]; i++)
+        shared_indices.push_back(GTOL(ldims, i, j, k));
+
+  if (bdy_ind[0] >= 0) face_dims[0] = face_dims[3] = rdims[3];
+  if (bdy_ind[1] >= 0) face_dims[1] = face_dims[4] = rdims[4];
+  
+  for (int k = face_dims[2]; k <= face_dims[5]; k++)
+    for (int j = face_dims[1]; j <= face_dims[4]; j++)
+      for (int i = face_dims[0]; i <= face_dims[3]; i++)
+        shared_indices.push_back(GTOL(rdims, i, j, k));
+
+  return MB_SUCCESS;
+}
+#undef GTOL
+  
+inline ErrorCode ScdInterface::get_neighbor(ParallelComm *pcomm, ScdBox *box, int pfrom, int di, int dj, int dk, 
+                                            int &pto, int *bdy_ind, int *rdims, int *facedims) 
+{
+  int dijk[3] = {di, dj, dk};
+  
+  switch (box->part_method()) {
+    case ALLJORKORI:
+    case -1:
+        return get_neighbor_alljorkori(pcomm, box, pfrom, dijk, pto, bdy_ind, rdims, facedims);
+    case ALLJKBAL:
+        return get_neighbor_alljkbal(pcomm, box, pfrom, dijk, pto, bdy_ind, rdims, facedims);
+    case SQIJ:
+        return get_neighbor_sqij(pcomm, box, pfrom, dijk, pto, bdy_ind, rdims, facedims);
+    case SQJK:
+        return get_neighbor_sqjk(pcomm, box, pfrom, dijk, pto, bdy_ind, rdims, facedims);
+  }
+
+  return MB_FAILURE;
+}
 
 inline ScdInterface *ScdBox::sc_impl() const 
 {
@@ -540,6 +742,26 @@ inline int ScdBox::num_vertices() const
 inline const int *ScdBox::box_dims() const 
 {
   return boxDims;
+}
+
+inline const int *ScdBox::global_box_dims() const 
+{
+  return globalBoxDims;
+}
+
+inline void ScdBox::set_global_box_dims(int *box_dims)
+{
+  for (int i = 0; i < 6; i++) globalBoxDims[i] = box_dims[i];
+}
+
+inline int ScdBox::part_method() const 
+{
+  return partMethod;
+}
+
+inline void ScdBox::part_method(int method)
+{
+  partMethod = method;
 }
 
 inline HomCoord ScdBox::box_min() const 

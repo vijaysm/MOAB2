@@ -466,6 +466,7 @@ AC_ARG_WITH( [zoltan-arch],
                x*)
                  ZOLTAN_ARCH="$withval"
                  ZOLTAN_DEFAULT=yes
+                 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-zoltan-arch=\"${withval}\""
                  ;;
                esac])
 
@@ -490,6 +491,7 @@ AC_ARG_WITH( [zoltan],
                  else
                    ZOLTAN_INC_FLAGS="-I$withval"
                  fi
+                 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-zoltan=\"${withval}\""
                  ;;
                esac],[WITH_ZOLTAN=$ZOLTAN_DEFAULT] )
 
@@ -512,7 +514,8 @@ AC_ARG_WITH([parmetis],
                  else
                    ZOLTAN_LIB_FLAGS="-L$withval"
                  fi
-                 ;;
+                 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-parmetis=\"${withval}\""
+		 ;;
                esac] )
 
 

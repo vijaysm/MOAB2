@@ -236,7 +236,7 @@ ReorderTool::handle_order_from_sets_and_adj( const Range& sets,
     // Compare function to use for a map keyed on pointers to sorted vectors
 struct CompSortedVect {
   bool operator()( const std::vector<EntityHandle>* v1,
-                   const std::vector<EntityHandle>* v2 )
+                   const std::vector<EntityHandle>* v2 ) const
   {
     std::vector<EntityHandle>::const_iterator i1, i2;
     for (i1 = v1->begin(), i2 = v2->begin(); i1 != v1->end(); ++i1, ++i2) {

@@ -79,6 +79,7 @@ libMOAB_la_SOURCES = \
   OrientedBoxTreeTool.cpp \
   PolyElementSeq.cpp \
   PolyElementSeq.hpp \
+  ProgOptions.cpp \
   Range.cpp \
   RangeSeqIntersectIter.cpp \
   RangeSeqIntersectIter.hpp \
@@ -155,6 +156,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/MergeMesh.hpp \
   moab/MeshTopoUtil.hpp \
   moab/OrientedBoxTreeTool.hpp \
+  moab/ProgOptions.hpp \
   moab/Range.hpp \
   moab/RangeMap.hpp \
   moab/ReadUtilIface.hpp \

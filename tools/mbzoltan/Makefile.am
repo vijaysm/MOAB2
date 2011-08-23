@@ -20,5 +20,5 @@ libmbzoltan_la_include_HEADERS = MBZoltan.hpp
 bin_PROGRAMS = mbpart
 LDADD = libmbzoltan.la
 mbpart_SOURCES = mbpart.cpp
-mbpart_LDADD = libmbzoltan.la ../libprogram_opt.la
+mbpart_LDADD = libmbzoltan.la 
 

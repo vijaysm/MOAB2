@@ -721,6 +721,22 @@ public:
                                   unsigned int to_proc,
                                   Buffer *buff);
   
+    // each iterate in proc_nvecs contains a set of procs and the entities *possibly*
+    // on the interface between those procs; this function makes sets for each,
+    // and tags the set with the procs sharing it; interface sets are optionally
+    // returned; NOTE: a subsequent step is used to verify entities on the interface
+    // and remove them if they're not shared
+  ErrorCode create_interface_sets(std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
+                                    int resolve_dim, int shared_dim);
+
+    // do the same but working straight from sharedEnts
+  ErrorCode create_interface_sets(int resolve_dim, int shared_dim);
+
+  ErrorCode tag_shared_verts(tuple_list &shared_ents,
+                             std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
+                             Range &proc_verts,
+                             unsigned int i_extra = 1); 
+
   ErrorCode list_entities(const EntityHandle *ents, int num_ents);
   
   ErrorCode list_entities(const Range &ents);
@@ -1033,10 +1049,6 @@ private:
                           const int to_proc);
   
 
-  ErrorCode tag_shared_verts(tuple_list &shared_ents,
-			     std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
-			     Range &proc_verts); 
-
   ErrorCode tag_shared_verts(tuple_list &shared_verts,
                                Range *skin_ents,
                                std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
@@ -1046,17 +1058,6 @@ private:
                               int shared_dim,
                               Range *skin_ents,
                               std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs);
-
-    // each iterate in proc_nvecs contains a set of procs and the entities *possibly*
-    // on the interface between those procs; this function makes sets for each,
-    // and tags the set with the procs sharing it; interface sets are optionally
-    // returned; NOTE: a subsequent step is used to verify entities on the interface
-    // and remove them if they're not shared
-  ErrorCode create_interface_sets(std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
-                                    int resolve_dim, int shared_dim);
-
-    // do the same but working straight from sharedEnts
-  ErrorCode create_interface_sets(int resolve_dim, int shared_dim);
 
     // after verifying shared entities, now parent/child links between sets can be established
   ErrorCode create_iface_pc_links();
