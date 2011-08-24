@@ -1211,7 +1211,7 @@ Tag get_tag( Interface& mb, int rank, bool create )
                                             MB_TAG_SPARSE;
   int len = rank % 3 + 1;
   TagType cbit = create ? MB_TAG_EXCL : (TagType)0;
-  TagType vbit = rank% 4 == 1 ? MB_TAG_VARLEN : (TagType)0;
+  TagType vbit = rank% 4 == 1 && storage != MB_TAG_BIT ? MB_TAG_VARLEN : (TagType)0;
   std::ostringstream name;
   name << "TestTag" << rank;
   const void* defval = 0;
