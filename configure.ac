@@ -298,7 +298,7 @@ fi
 ################################################################################
 
 dnl FATHOM_CHECK_BOOST( [boost/pool/object_pool.hpp] )
-MK_CHECK_UNORDERED_MAP([CPPFLAGS="$CPPFLAGS -DUNORDERED_MAP_NS=$result -DHAVE_UNORDERED_MAP=${incdir}unordered_map"])
+MK_CHECK_UNORDERED_MAP([CPPFLAGS="$CPPFLAGS -DUNORDERED_MAP_NS=$result -DHAVE_UNORDERED_MAP=${incdir}unordered_map -DHAVE_UNORDERED_SET=${incdir}unordered_set"])
 
 ################################################################################
 #                              MPI OPTIONS

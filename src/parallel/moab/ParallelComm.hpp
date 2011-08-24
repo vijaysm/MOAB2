@@ -43,6 +43,7 @@ template <typename KeyType, typename ValType, ValType NullVal> class RangeMap;
 typedef RangeMap<EntityHandle, EntityHandle, 0> HandleMap;
 class ParallelMergeMesh;
 class DebugOutput;
+class SharedSetData;
     
 #define MAX_SHARING_PROCS 64
 
@@ -368,6 +369,24 @@ public:
   static ErrorCode resolve_shared_ents(ParallelComm **pc, 
                                          const unsigned int np, 
                                          const int to_dim);
+    /** Remove shared sets.
+     *
+     * Generates list of candidate sets using from those (directly)
+     * contained in passed set and passes them to the other version
+     * of \c resolve_shared_sets.
+     *\param this_set  Set directly containing candidate sets (e.g. file set)
+     *\param id_tag    Tag containing global IDs for entity sets.
+     */
+  ErrorCode resolve_shared_sets( EntityHandle this_set, const Tag* id_tag = 0 );
+  
+    /** Remove shared sets.
+     *
+     * Use values of id_tag to match sets across processes and populate
+     * sharing data for sets.
+     *\param candidate_sets  Sets to consider as potentially shared.
+     *\param id_tag    Tag containing global IDs for entity sets.
+     */
+  ErrorCode resolve_shared_sets( Range& candidate_sets, Tag id_tag );
   
     // ==================================
     // \section GET PARALLEL DATA (shared/owned/iface entities, etc.)
@@ -477,6 +496,38 @@ public:
 
     //! get processors with which this processor communicates
   ErrorCode get_comm_procs(std::set<unsigned int> &procs);
+  
+    // ==================================
+    // \section SHARED SETS
+    // ==================================
+    
+    //! Get array of process IDs sharing a set.  Returns zero
+    //! and passes back NULL if set is not shared.
+  ErrorCode get_entityset_procs( EntityHandle entity_set,
+                                 std::vector<unsigned>& ranks ) const;
+  
+    //! Get rank of the owner of a shared set.  
+    //! Returns this proc if set is not shared.
+    //! Optionally returns hanlde on owning process for shared set.
+  ErrorCode get_entityset_owner( EntityHandle entity_set,
+                                 unsigned& owner_rank,
+                                 EntityHandle* remote_handle = 0 ) const;
+  
+    //! Given set owner and handle on owner, find local set handle
+  ErrorCode get_entityset_local_handle( unsigned owning_rank,
+                                        EntityHandle remote_handle,
+                                        EntityHandle& local_handle ) const;
+  
+    //! Get all shared sets
+  ErrorCode get_shared_sets( Range& result ) const;                               
+  
+    //! Get ranks of all processes that own at least one set that is 
+    //! shared with this process.  Will include the rank of this process
+    //! if this process owns any shared set.
+  ErrorCode get_entityset_owners( std::vector<unsigned>& ranks ) const;
+  
+    //! Get shared sets owned by process with specified rank.
+  ErrorCode get_owned_sets( unsigned owning_rank, Range& sets_out ) const;
   
     // ==================================
     // \section LOW-LEVEL DATA (tags, sets on interface/partition, etc.)
@@ -1219,6 +1270,9 @@ private:
 
     //! used to set verbosity level and to report output
   DebugOutput *myDebug;
+  
+    //! Data about shared sets
+  SharedSetData* sharedSetData;
   
 };
 

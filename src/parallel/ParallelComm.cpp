@@ -16,6 +16,7 @@
 #include "moab/MeshTopoUtil.hpp"
 #include "TagInfo.hpp"
 #include "DebugOutput.hpp"
+#include "SharedSetData.hpp"
 #include "moab/ScdInterface.hpp"
 
 #include <iostream>
@@ -23,9 +24,6 @@
 #include <algorithm>
 #include <functional>
 #include <numeric>
-
-#define MIN(a,b) (a < b ? a : b)
-#define MAX(a,b) (a > b ? a : b)
 
 #include <math.h>
 #include <assert.h>
@@ -304,7 +302,9 @@ ParallelComm::ParallelComm(Interface *impl, MPI_Comm comm, int* id )
         : mbImpl(impl), procConfig(comm),
           sharedpTag(0), sharedpsTag(0), 
           sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0),
-          partitionTag(0), globalPartCount(-1), partitioningSet(0), myDebug(NULL)
+          partitionTag(0), globalPartCount(-1), partitioningSet(0), 
+          myDebug(NULL), 
+          sharedSetData( new SharedSetData(*impl,procConfig.proc_rank()) )
 {
   initialize();
   
@@ -320,7 +320,8 @@ ParallelComm::ParallelComm(Interface *impl,
       sharedpTag(0), sharedpsTag(0), 
       sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0),
       partitionTag(0), globalPartCount(-1), partitioningSet(0),
-      myDebug(NULL)
+      myDebug(NULL),
+      sharedSetData( new SharedSetData(*impl,procConfig.proc_rank()) )
 {
   initialize();
   
@@ -332,7 +333,8 @@ ParallelComm::~ParallelComm()
 {
   remove_pcomm(this);
   delete_all_buffers();
-  if (myDebug) delete myDebug;
+  delete myDebug;
+  delete sharedSetData;
 }
 
 void ParallelComm::initialize() 
@@ -3695,7 +3697,260 @@ ErrorCode ParallelComm::set_pstatus_entities(EntityHandle *pstatus_ents,
   
   return MB_SUCCESS;
 }
+
+static size_t choose_owner_idx( const std::vector<unsigned>& proc_list )
+{
+  // Try to assign owners randomly so we get a good distribution,
+  // (note: specifying the same seed on all procs is essential)
+  unsigned val = 0;
+  for (size_t i = 0; i < proc_list.size(); ++i)
+    val ^= proc_list[i];
+  return rand_r(&val) % proc_list.size();   
+}
+
+struct set_tuple
+{
+  unsigned idx;
+  unsigned proc;
+  EntityHandle handle;
+  inline bool operator<(set_tuple other) const
+    { return (idx == other.idx) ? (proc < other.proc) : (idx < other.idx); }
+};
+
+ErrorCode ParallelComm::resolve_shared_sets(EntityHandle file, const Tag* idtag)
+{
+
+    // find all sets with any of the following tags:
+
+  const char* const shared_set_tag_names[] = { GEOM_DIMENSION_TAG_NAME,
+                                               MATERIAL_SET_TAG_NAME,
+                                               DIRICHLET_SET_TAG_NAME,
+                                               NEUMANN_SET_TAG_NAME,
+                                               PARALLEL_PARTITION_TAG_NAME };
+  int num_tags = sizeof(shared_set_tag_names)/sizeof(shared_set_tag_names[0]);
+  Range candidate_sets;
+  ErrorCode result;
+
+    // If we're not given an ID tag to use to globally identify sets,
+    // then fall back to using known tag values
+  if (!idtag) {
+    Tag gid, tag;
+    result = mbImpl->tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid );
+    if (MB_SUCCESS == result) 
+      result = mbImpl->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, tag );
+    if (MB_SUCCESS == result) {
+      for (int d = 0; d < 4; ++d) {
+        candidate_sets.clear();
+        const void* vals[] = { &d };
+        result = mbImpl->get_entities_by_type_and_tag( file, MBENTITYSET, &tag, vals, 1, candidate_sets );
+        if (MB_SUCCESS == result)
+          resolve_shared_sets( candidate_sets, gid );
+      }
+    }
+    
+    for (int i = 1; i < num_tags; ++i) {
+      result = mbImpl->tag_get_handle( shared_set_tag_names[i], 1, MB_TYPE_INTEGER, tag );
+      if (MB_SUCCESS == result) {
+        candidate_sets.clear();
+        result = mbImpl->get_entities_by_type_and_tag( file, MBENTITYSET, &tag, 0, 1, candidate_sets );
+        if (MB_SUCCESS == result)
+          resolve_shared_sets( candidate_sets, tag );
+      }
+    }
+    return MB_SUCCESS;
+  } 
+
+
+  for (int i = 0; i < num_tags; ++i) {
+    Tag tag;
+    result = mbImpl->tag_get_handle( shared_set_tag_names[i], 1, MB_TYPE_INTEGER,
+                                     tag, MB_TAG_ANY );
+    if (MB_SUCCESS != result)
+      continue;
+    
+    mbImpl->get_entities_by_type_and_tag( file, MBENTITYSET, &tag, 0, 1, candidate_sets, Interface::UNION );
+  }
   
+    // find any additional sets that contain shared entities
+  Range::iterator hint = candidate_sets.begin();
+  Range all_sets;
+  mbImpl->get_entities_by_type( file, MBENTITYSET, all_sets );
+  all_sets = subtract( all_sets, candidate_sets );
+  Range::iterator it = all_sets.begin();
+  while (it != all_sets.end()) {
+    Range contents;
+    mbImpl->get_entities_by_handle( *it, contents );
+    contents.erase( contents.lower_bound( MBENTITYSET ), contents.end() );
+    filter_pstatus( contents, PSTATUS_SHARED, PSTATUS_OR );
+    if (contents.empty()) {
+      ++it;
+    }
+    else {
+      hint = candidate_sets.insert( hint, *it );
+      it = all_sets.erase( it );
+    }
+  }
+  
+    // find any additionl sets that contain or are parents of potential shared sets
+  Range prev_list = candidate_sets;
+  while (!prev_list.empty()) {
+    it = all_sets.begin();
+    Range new_list;
+    hint = new_list.begin();
+    while (it != all_sets.end()) {
+      Range contents;
+      mbImpl->get_entities_by_type( *it, MBENTITYSET, contents );
+      if (!intersect(prev_list,contents).empty()) {
+        hint = new_list.insert( hint, *it );
+        it = all_sets.erase(it);
+      }
+      else {
+        new_list.clear();
+        mbImpl->get_child_meshsets( *it, contents );
+        if (!intersect(prev_list,contents).empty()) {
+          hint = new_list.insert( hint, *it );
+          it = all_sets.erase(it);
+        }
+        else {
+          ++it;
+        }
+      }
+    }
+    
+    candidate_sets.merge( new_list );
+    prev_list.swap(new_list);
+  }
+  
+  return resolve_shared_sets( candidate_sets, *idtag );
+}
+
+#ifndef NDEBUG
+bool is_sorted_unique( std::vector<unsigned>& v )
+{
+  for (size_t i = 1; i < v.size(); ++i)
+    if (v[i-1] >= v[i])
+      return false;
+  return true;
+}
+#endif
+
+ErrorCode ParallelComm::resolve_shared_sets(Range& sets, Tag idtag)
+{
+  ErrorCode result;
+  const unsigned rank = proc_config().proc_rank();
+  MPI_Comm comm = proc_config().proc_comm();
+
+    // build sharing list for all sets
+  
+    // get ids for sets in a vector, to pass to gs
+  const size_t nsets = sets.size();
+  std::vector<long> larray(nsets); // allocate sufficient space for longs
+  int* ids = reinterpret_cast<int*>(&larray[0]); // but work with ints
+  result = mbImpl->tag_get_data(idtag, sets, ids);
+  RRA("Couldn't get global ids for sets.");
+
+    // convert from int to long if necessary
+  if (sizeof(long) > sizeof(int)) {
+    size_t i = nsets;
+    while (i) {
+      --i;
+      larray[i] = ids[i];
+    }
+  }
+    
+    // get handle array for sets
+  assert(sizeof(EntityHandle) <= sizeof(unsigned long));
+  std::vector<unsigned long> handles(nsets);
+  std::copy( sets.begin(), sets.end(), handles.begin() );
+
+    // do communication of data
+  crystal_data *cd = procConfig.crystal_router();
+  moab_gs_data *gsd = moab_gs_data_setup( nsets, &larray[0], &handles[0], 2, 1, 1, cd );
+  if (NULL == gsd) {
+    result = MB_FAILURE;
+    RRA("Couldn't create gs data.");
+  }
+ 
+    // convert from global IDs grouped by process rank to list
+    // of <idx,rank> pairs so that we can sort primarily
+    // by idx and secondarily by rank (we want lists of procs for each
+    // idx, not lists if indices for each proc).
+  size_t ntuple = 0;
+  for (unsigned p = 0; p < gsd->nlinfo->np; p++) 
+    ntuple += gsd->nlinfo->nshared[p];
+  std::vector< set_tuple > tuples;
+  tuples.reserve( ntuple );
+  size_t j = 0;
+  for (unsigned p = 0; p < gsd->nlinfo->np; p++) {
+    for (unsigned np = 0; np < gsd->nlinfo->nshared[p]; np++) {
+      set_tuple t;
+      t.idx = gsd->nlinfo->sh_ind[j];
+      t.proc = gsd->nlinfo->target[p];
+      t.handle = gsd->nlinfo->ulabels[j];
+      tuples.push_back( t );
+      ++j;
+    }
+  }
+  std::sort( tuples.begin(), tuples.end() );
+  
+    // release crystal router stuff
+  moab_gs_data_free( gsd );
+
+    // storing sharing data for each set
+  size_t ti = 0;
+  unsigned idx = 0;
+  std::vector<unsigned> procs;
+  Range::iterator si = sets.begin();
+  while (si != sets.end() && ti < tuples.size()) {
+    assert(idx <= tuples[ti].idx);
+    if (idx < tuples[ti].idx) 
+      si += (tuples[ti].idx - idx);
+    idx = tuples[ti].idx;
+    
+    procs.clear();
+    size_t ti_init = ti;
+    while (ti < tuples.size() && tuples[ti].idx == idx) {
+      procs.push_back( tuples[ti].proc );
+      ++ti;
+    }
+    assert( is_sorted_unique( procs ) );
+    
+    result = sharedSetData->set_sharing_procs( *si, procs );
+    if (MB_SUCCESS != result) {
+      std::cerr << "Failure at " __FILE__ ":" << __LINE__ << std::endl;
+      std::cerr.flush();
+      MPI_Abort( comm, 1 );
+    }
+    
+      // add this proc to list of sharing procs in correct position
+      // so that all procs select owner based on same list
+    std::vector<unsigned>::iterator it = std::lower_bound( procs.begin(), procs.end(), rank );
+    assert(it == procs.end() || *it > rank);
+    procs.insert( it, rank );
+    size_t owner_idx = choose_owner_idx(procs);
+    EntityHandle owner_handle;
+    if (procs[owner_idx] == rank)
+      owner_handle = *si;
+    else if (procs[owner_idx] > rank)
+      owner_handle = tuples[ti_init+owner_idx-1].handle;
+    else
+      owner_handle = tuples[ti_init+owner_idx].handle;
+    result = sharedSetData->set_owner( *si, procs[owner_idx], owner_handle );
+    if (MB_SUCCESS != result) {
+      std::cerr << "Failure at " __FILE__ ":" << __LINE__ << std::endl;
+      std::cerr.flush();
+      MPI_Abort( comm, 1 );
+    }
+
+    ++si;
+    ++idx;
+  }
+  
+  return MB_SUCCESS;
+}
+
+
+
 ErrorCode ParallelComm::create_interface_sets(int resolve_dim, int shared_dim) 
 {
   std::map<std::vector<int>, std::vector<EntityHandle> > proc_nvecs;
@@ -7451,6 +7706,45 @@ ErrorCode ParallelComm::get_shared_entities(int other_proc,
 void ParallelComm::set_debug_verbosity(int verb) 
 {
   myDebug->set_verbosity(verb);
+}
+
+ErrorCode ParallelComm::get_entityset_procs( EntityHandle set,
+                                             std::vector<unsigned>& ranks ) const
+{
+  return sharedSetData->get_sharing_procs( set, ranks );
+}
+
+ErrorCode ParallelComm::get_entityset_owner( EntityHandle entity_set,
+                                             unsigned& owner_rank,
+                                             EntityHandle* remote_handle ) const
+{
+  if (remote_handle)
+    return sharedSetData->get_owner( entity_set, owner_rank, *remote_handle );
+  else
+    return sharedSetData->get_owner( entity_set, owner_rank );
+}
+
+  
+ErrorCode ParallelComm::get_entityset_local_handle( unsigned owning_rank,
+                                        EntityHandle remote_handle,
+                                        EntityHandle& local_handle ) const
+{
+  return sharedSetData->get_local_handle( owning_rank, remote_handle, local_handle );
+}
+
+ErrorCode ParallelComm::get_shared_sets( Range& result ) const                      
+{
+  return sharedSetData->get_shared_sets( result );
+}
+
+ErrorCode ParallelComm::get_entityset_owners( std::vector<unsigned>& ranks ) const
+{
+  return sharedSetData->get_owning_procs( ranks );
+}
+
+ErrorCode ParallelComm::get_owned_sets( unsigned owning_rank, Range& sets_out ) const
+{
+  return sharedSetData->get_shared_sets( owning_rank, sets_out );
 }
 
 } // namespace moab

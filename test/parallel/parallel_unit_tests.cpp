@@ -80,10 +80,20 @@ ErrorCode get_sharing_processors( Interface& moab,
 // 5-----10-----15-----20-----25-----30-----
 //
 // Element IDs will be [4*rank+1,4*rank+5]
+//
+// If output_sets is non-null, it will be populated with 2 or 3 
+// set handles.  A set handle is created for each group of four
+// adjacent processes, such that one is created across procs 0 to 4,
+// one is created for procs 2 to 5, etc.  An additional set is created
+// that spans all of the processes.  The set spanning all procs is 
+// returned first.  The other two sets are returned in the order of the
+// largest contained process rank, where the last entry is zero if 
+// there is only one additional set.
 ErrorCode parallel_create_mesh( Interface& mb,
-                                  int output_vertx_ids[9],
-                                  EntityHandle output_vertex_handles[9],
-                                  Range& output_elements );
+                                int output_vertx_ids[9],
+                                EntityHandle output_vertex_handles[9],
+                                Range& output_elements,
+                                EntityHandle output_sets[3] = 0 );
 
 // Test if is_my_error is non-zero on any processor in MPI_COMM_WORLD
 int is_any_proc_error( int is_my_error );
@@ -114,6 +124,8 @@ ErrorCode regression_owners_with_ghosting( const char* );
 ErrorCode test_ghosted_entity_shared_data( const char* );
 // Test assignment of global IDs
 ErrorCode test_assign_global_ids( const char* );
+// Test shared sets
+ErrorCode test_shared_sets( const char* );
 /**************************************************************************
                               Main Method
  **************************************************************************/
@@ -202,6 +214,7 @@ int main( int argc, char* argv[] )
   num_errors += RUN_TEST( regression_owners_with_ghosting, filename );
   num_errors += RUN_TEST( test_ghosted_entity_shared_data, filename );
   num_errors += RUN_TEST( test_assign_global_ids, filename );
+  num_errors += RUN_TEST( test_shared_sets, 0 );
   
   if (rank == 0) {
     if (!num_errors) 
@@ -262,9 +275,10 @@ int is_any_proc_error( int is_my_error )
 
 
 ErrorCode parallel_create_mesh( Interface& mb,
-                                  int vtx_ids[9],
-                                  EntityHandle vtx_handles[9],
-                                  Range& range )
+                                int vtx_ids[9],
+                                EntityHandle vtx_handles[9],
+                                Range& range,
+                                EntityHandle* entity_sets )
 {
     // Each processor will create four quads.
     // Groups of four quads will be arranged as follows:
@@ -341,6 +355,25 @@ ErrorCode parallel_create_mesh( Interface& mb,
     range.insert(h);
     rval = mb.tag_set_data( id_tag, &h, 1, &id ); CHKERR(rval);
   }
+  
+  if (!entity_sets)
+    return MB_SUCCESS;
+  
+  int set_ids[3] = { size+1, rank/2, rank/2+1 };
+  int nsets = 0;
+  rval = mb.create_meshset( MESHSET_SET, entity_sets[nsets++] ); CHKERR(rval);
+  rval = mb.create_meshset( MESHSET_SET, entity_sets[nsets++] ); CHKERR(rval);
+  entity_sets[nsets] = 0;
+  if (rank < 2) { // if first (left-most) column
+    set_ids[1] = set_ids[2];
+  }
+  else if (rank/2 < (size-1)/2) { // if not last (right-most) column
+    rval = mb.create_meshset( MESHSET_SET, entity_sets[nsets++] ); CHKERR(rval);
+  }
+  for (int i = 0; i < nsets; ++i) {
+    rval = mb.add_entities( entity_sets[0], range ); CHKERR(rval);
+  }
+  rval = mb.tag_set_data( id_tag, entity_sets, nsets, set_ids ); CHKERR(rval);
   
   return MB_SUCCESS;
 }
@@ -1216,3 +1249,169 @@ ErrorCode test_assign_global_ids( const char* )
   PCHECK(MB_SUCCESS == rval);
   return rval;
 }
+
+ErrorCode test_shared_sets( const char* )
+{
+  ErrorCode rval;  
+  Core moab_instance;
+  Interface& mb = moab_instance;
+  ParallelComm pcomm( &mb );
+
+  int rank_i, size_i;
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank_i );
+  MPI_Comm_size( MPI_COMM_WORLD, &size_i );
+  const unsigned rank = rank_i;
+  const unsigned nproc = size_i;
+  
+    // build distributed quad mesh
+  Range quads, sets;
+  EntityHandle verts[9], set_arr[3];
+  int ids[9];
+  rval = parallel_create_mesh( mb, ids, verts, quads, set_arr );  PCHECK(MB_SUCCESS == rval);
+  rval = pcomm.resolve_shared_ents( 0, quads, 2, 1 ); PCHECK(MB_SUCCESS == rval);
+  sets.insert( set_arr[0] );
+  sets.insert( set_arr[1] );
+  if (set_arr[2]) {
+    sets.insert( set_arr[2] );
+  }
+  else {
+    set_arr[2] = set_arr[1];
+  }
+    
+  Tag id_tag;
+  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag ); CHKERR(rval);
+  rval = pcomm.resolve_shared_sets( sets, id_tag ); PCHECK(MB_SUCCESS == rval);
+  
+    // check that set data is consistent
+  ErrorCode ok = MB_SUCCESS;
+  for (size_t i = 0; i < 3; ++i) {
+    unsigned owner;
+    EntityHandle owner_handle, local;
+    rval = pcomm.get_entityset_owner( set_arr[i], owner, &owner_handle );
+    if (MB_SUCCESS != rval)
+      ok = rval;
+    else if (owner == rank) {
+      if (owner_handle != set_arr[i]) {
+        std::cerr << __FILE__ << ":" << __LINE__ << " rank " << rank <<
+                "invalid remote handle for owned set" << std::endl;
+        ok = MB_FAILURE;
+      }
+    }
+    else if (MB_SUCCESS != pcomm.get_entityset_local_handle( owner, owner_handle, local ))
+      ok = MB_FAILURE;
+    else if (local != set_arr[i]) {
+      std::cerr << __FILE__ << ":" << __LINE__ << " rank " << rank <<
+                "invalid local handle for remote data" << std::endl;
+      ok = MB_FAILURE;
+    }
+  }
+  PCHECK(MB_SUCCESS == ok);
+
+  const unsigned col = rank / 2; // which column is proc in
+  const unsigned colrank = 2*col;// rank of first of two procs in col (rank if rank is even, rank-1 if rank is odd)
+  unsigned mins[3] = { 0, 0, 0 };
+  unsigned maxs[3] = { nproc-1, 0, 0 };
+  if (rank < 2) { // if in first (left-most) column, then 
+    mins[1] = mins[2] = 0;
+    maxs[1] = maxs[2] = std::min( 3u, nproc-1 );
+  }
+  else if (col == (nproc-1)/2) { // else if last (right-most) column, then 
+    mins[1] = mins[2] = colrank-2;
+    maxs[1] = maxs[2] = std::min( colrank+1, nproc-1 );
+  }
+  else { // if inside column, then
+    mins[1] = colrank-2;
+    mins[2] = colrank;
+    maxs[1] = std::min( colrank+1, nproc-1 );
+    maxs[2] = std::min( colrank+3, nproc-1 );
+  }
+  
+    // check expected sharing lists
+    // set 0 is shared between all procs in the range [ mins[0], maxs[0] ]
+  std::vector<unsigned> expected, list;
+  for (size_t i = 0; i < 3; ++i) {
+    expected.clear();
+    for (unsigned r = mins[i]; r <= std::min( maxs[i], nproc-1 ); ++r) 
+      if (r != rank)
+        expected.push_back(r);
+    list.clear();
+    rval = pcomm.get_entityset_procs( set_arr[i], list );
+    if (MB_SUCCESS != rval)
+      ok = rval;
+    else {
+      std::sort( list.begin(), list.end() );
+      if (expected != list) {
+        std::cerr << __FILE__ << ":" << __LINE__ << " rank " << rank <<
+                " incorrect sharing list for entity set" << std::endl;
+        ok = MB_FAILURE;
+      }
+    }
+  }
+  PCHECK(MB_SUCCESS == ok);
+
+    // check consistent owners 
+  unsigned send_list[6], set_owners[3];
+  std::vector<unsigned> recv_list(6*nproc);
+  for (size_t i = 0; i < 3; ++i) {
+    mb.tag_get_data( id_tag, set_arr+i, 1, &send_list[2*i] );
+    pcomm.get_entityset_owner( set_arr[i], set_owners[i] );
+    send_list[2*i+1] = set_owners[i];
+  }
+  MPI_Allgather( send_list, 6, MPI_UNSIGNED, &recv_list[0], 6, MPI_UNSIGNED, MPI_COMM_WORLD );
+  std::map<unsigned,unsigned> owners;
+  for (unsigned i = 0; i < 6*nproc; i+= 2) {
+    unsigned id = recv_list[i];
+    unsigned owner = recv_list[i+1];
+    if (owners.find(id) == owners.end())
+      owners[id] = owner;
+    else if (owners[id] != owner) {
+      std::cerr << __FILE__ << ":" << __LINE__ << " rank " << rank <<
+                " mismatched owners (" << owners[id] << " and " << owner
+                << ") for set with ID " << id << std::endl;
+      ok = MB_FAILURE;
+    }
+  }
+  PCHECK(MB_SUCCESS == ok);
+  
+    // test PComm::get_entityset_owners
+  std::vector<unsigned> act_owners, exp_owners;
+  for (size_t i = 0; i < 3; ++i) {
+    exp_owners.push_back(set_owners[i]);
+  }
+  ok = pcomm.get_entityset_owners( act_owners );
+  PCHECK(MB_SUCCESS == ok);
+  //PCHECK(std::find(act_owners.begin(),act_owners.end(),rank) == act_owners.end());
+  std::sort( act_owners.begin(), act_owners.end() );
+  std::sort( exp_owners.begin(), exp_owners.end() );
+  exp_owners.erase( std::unique( exp_owners.begin(), exp_owners.end() ), exp_owners.end() );
+  PCHECK( exp_owners == act_owners );
+
+    // test PComm::get_owned_sets
+  ok = MB_SUCCESS;
+  for (unsigned i = 0; i < nproc; ++i) {
+    sets.clear();
+    if (MB_SUCCESS != pcomm.get_owned_sets( i, sets )) {
+      std::cerr << __FILE__ << ":" << __LINE__ << " rank " << rank <<
+                " failed to get shared set list for sets owned by rank " <<
+                set_owners[i] << std::endl;
+      continue;
+    }
+    
+    Range expected;
+    for (size_t j = 0; j < 3; ++j)
+      if (set_owners[j] == i)
+        expected.insert( set_arr[j] );
+    
+    if (expected != sets) {
+      std::cerr << __FILE__ << ":" << __LINE__ << " rank " << rank 
+                << " has incorrect shared set list for sets owned by rank " 
+                << set_owners[i] << std::endl << "Expected: " << expected << std::endl
+                << "Actual: " << sets << std::endl;
+      ok = MB_FAILURE;
+    }
+  }
+  PCHECK( MB_SUCCESS == ok );
+
+  return MB_SUCCESS;
+}
+  

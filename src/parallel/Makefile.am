@@ -32,6 +32,8 @@ if PARALLEL
      ParallelMergeMesh.cpp \
      ReadParallel.cpp \
      ReadParallel.hpp \
+     SharedSetData.cpp \
+     SharedSetData.hpp \
      crystal.h \
      crystal.c errmem.c \
      transfer.c gs.c gs.h tuple_list.c \
