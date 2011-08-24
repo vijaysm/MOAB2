@@ -24,78 +24,10 @@ class WriteHDF5Parallel : public WriteHDF5
     static WriterIface* factory( Interface* );
     
       /** Consturctor
-       *
-       * This constructor will automatically register the tags for
-       * material set (block), dirichlet set (nodeset), neumann set
-       * (sideset), and geometry grouping sets for use in identifying
-       * sets that are shared across multiple processors.  To explicitly
-       * disable this functionality, call one of the other construtors
-       * with an empty list of tags.
        */
     WriteHDF5Parallel( Interface* iface );
-     
-    
-      /** Constructor
-       *\param multiproc_set_tags Null-terminated list strings.
-       *
-       * multiproc_set_tags is a null-terminated list of tag names.
-       * Each tag specified must have an native integer (int) data 
-       * type.  The tag data is used to identify meshsets that span
-       * multiple processors such that they are written as a single
-       * meshset in the resulting file.  
-       *
-       * NOTE: This list must be identical on all processors, including
-       *       the order!
-       */
-    WriteHDF5Parallel( Interface* iface,
-                       const std::vector<std::string>& multiproc_set_tags );
 
-  virtual ~WriteHDF5Parallel();
-  
-    /**\brief Define tags used to identify sets spanning multiple procesors */
-    class MultiProcSetTags {
-      friend class WriteHDF5Parallel;
-      public:
-
-        /**Specify the name of a tag used to identify parallel entity sets.
-         * The tag must have an native integer (int) data type.  The value
-         * of the tag will be used to match sets on different processors.
-         */
-      void add( const std::string& name );
- 
-        /**Specify separate tags for identifying parallel entity sets and
-         * matching them across processors.
-         *\param filter_name The name of a tag used to identify parallel entity sets
-         *\param value_name  The name of a tag having a native integer (int) data
-         *                   type.  The value of this tag is used as an ID to match
-         *                   entity sets on different processors.
-         */
-      void add( const std::string& filter_name, const std::string& value_name );
- 
-        /**Specify separate tags for identifying parallel entity sets and
-         * matching them across processors.
-         *\param filter_name The name of a tag used to identify parallel entity sets.
-         *                   The data type of this tag must be a native integer (int).
-         *\param filter_value The value of the filter_name tag to use to identify
-         *                   parallel entity sets.
-         *\param value_name  The name of a tag having a native integer (int) data
-         *                   type.  The value of this tag is used as an ID to match
-         *                   entity sets on different processors.
-         */
-      void add( const std::string& filter_name, int filter_value, const std::string& value_name );
-      
-      private:
-      class Data;
-      std::vector<Data> list;
-    };
-     
-      /** Constructor
-       *\param multiproc_set_tags Data used to identify sets spanning multiple processors.
-       *                          NOTE:  This must be identical on all processors, including
-       *                          the order in which tags were added to the object!
-       */
-    WriteHDF5Parallel( Interface* iface, const MultiProcSetTags& multiproc_set_tags );
-      
+    virtual ~WriteHDF5Parallel();
     
   
   protected:
@@ -136,6 +68,29 @@ class WriteHDF5Parallel : public WriteHDF5
       //!                  to be written.
     ErrorCode exchange_file_ids( const Range& non_local_ents );
     
+      //! Get remote ids for shared sets
+    ErrorCode communicate_shared_set_ids( const Range& owned, const Range& remote );
+    
+      //! Pack set data for communication.  
+      //!
+      //! If set_data_length is insufficient for the set data,
+      //! the length entries at indices 1, 2, and 3 of set_data
+      //! will be set with the necessary lengths, but no data will
+      //! be written to set_data beyond that.
+    ErrorCode pack_set( Range::const_iterator set,
+                        unsigned long* set_data,
+                        size_t set_data_length );
+  
+      //! Unpack set data from communication
+    ErrorCode unpack_set( EntityHandle set, 
+                          const unsigned long* set_data, 
+                          size_t set_data_length );
+                          
+      //! Communicate set contents between processors such that each
+      //! owner knows the contents, parents, & child lists from all
+      //! processors that have a copy of the set.
+    ErrorCode communicate_shared_set_data( const Range& owned, const Range& remote );
+    
       //! Create the node table in the file.
     ErrorCode create_node_table( int dimension );
     
@@ -150,54 +105,11 @@ class WriteHDF5Parallel : public WriteHDF5
       //! Create tables to hold element adjacencies.
     ErrorCode create_adjacency_tables();
     
-      //! Setup meshsets spanning multiple processors
-    ErrorCode get_remote_set_data( const MultiProcSetTags::Data& tag,
-                                     RemoteSetData& data,
-                                     long& offset );
-    
-      //! Determine offsets in contents and children tables for 
-      //! meshsets shared between processors.
-    ErrorCode negotiate_remote_set_contents( RemoteSetData& data,
-                                               long* offsets );
-    
       //! Create tables for mesh sets
     ErrorCode create_meshset_tables(double* times);
     
       //! Write tag descriptions and create tables to hold tag data.
     ErrorCode create_tag_tables();
-    
-      //! Mark multiple-processor meshsets with correct file Id
-      //! from the set description offset stored in that tag by
-      //! negotiate_shared_meshsets(..).
-    ErrorCode set_shared_set_ids( RemoteSetData& data, long& start_id );
-      
-      //! Write set descriptions for multi-processor meshsets.
-      //! Virtual function called by non-parallel code after
-      //! the normal (single-processor) meshset descriptions have
-      //! been written.
-    ErrorCode write_shared_set_descriptions( hid_t table, IODebugTrack* );
-       
-      //! Write set contents for multi-processor meshsets.
-      //! Virtual function called by non-parallel code after
-      //! the normal (single-processor) meshset contents have
-      //! been written.
-    ErrorCode write_shared_set_contents( hid_t table, IODebugTrack* );
-       
-      //! Write set children for multi-processor meshsets.
-      //! Virtual function called by non-parallel code after
-      //! the normal (single-processor) meshset children have
-      //! been written.
-    ErrorCode write_shared_set_children( hid_t table, IODebugTrack* );
-       
-      //! Write set children for multi-processor meshsets.
-      //! Virtual function called by non-parallel code after
-      //! the normal (single-processor) meshset children have
-      //! been written.
-    ErrorCode write_shared_set_parents( hid_t table, IODebugTrack* );
-  
-      //! Virtual function overridden from WriteHDF5.  
-      //! Release memory by clearing member lists.
-    ErrorCode write_finished();
    
       //! Remove any remote mesh entities from the passed range.
     void remove_remote_entities( EntityHandle relative, Range& range );
@@ -210,10 +122,6 @@ class WriteHDF5Parallel : public WriteHDF5
 
     ErrorCode append_serial_tag_data( std::vector<unsigned char>& buffer,
                                       const WriteHDF5::TagDesc& tag );
-  
-    ErrorCode write_shared_set_data( hid_t table,
-                                     WriteUtilIface::EntityListType which_data,
-                                     IODebugTrack* dbg_track );
 
       //! helper function for create_tag_tables
     ErrorCode check_serial_tag_data( 
@@ -221,32 +129,55 @@ class WriteHDF5Parallel : public WriteHDF5
                                std::vector<TagDesc*>* missing = 0,
                                std::vector<TagDesc*>* newlist = 0 );
   
-  private:
-    
-      //! Tag names for identifying multi-processor meshsets
-    MultiProcSetTags multiProcSetTags;
-  
-  public:  
-      //! Struct describing a multi-processor meshset
-    struct ParallelSet {
-      EntityHandle handle;// set handle on this processor
-      long contentsOffset;  // offset in table at which to write set contents
-      long childrenOffset;  // offset in table at which to write set children
-      long parentsOffset;   // offset in table at which to write set parents
-      long contentsCount;   // total size of set contents (all processors)
-      long childrenCount;   // total number of set children (all processors)
-      long parentsCount;    // total numoer of set parents (all processors)
-      bool description;     // true if this processor 'ownes' the set
+      /**\brief Argument ot create_dataset */
+    struct DataSetCreator {
+      virtual ErrorCode operator()( WriteHDF5* writer,
+                                    long data_set_size,
+                                    const ExportSet* group, 
+                                    long& start_id_out ) const = 0;
     };
+    struct NoopDescCreator : public DataSetCreator {
+      ErrorCode operator()( WriteHDF5*, long, const ExportSet*, long& start_id ) const
+      { start_id = -1; return MB_SUCCESS; }
+    };
+    
+      /**\brief Do typical communication for dataset creation
+       *
+       * Given the number of entities each processor intends to write,
+       * do necessary communication and create dataset on root, passing
+       * back misc info to each proc.
+       *
+       *\param creator             Functor to do actual dataset creation.  Used 
+       *                           only on root process.
+       *\param num_datasets        The number of datasets to create.
+       *\param groups              Third argument passed to DataSetCreator.
+       *                           Array of length \c num_datasets pr NULL.
+       *\param num_owned_entities  The number of entities this proc will write.
+       *                           Array of length \c num_datasets .
+       *\param offsets_out         Output: The offset in the dataset at which 
+       *                           this process should write.  
+       *                           Array of length \c num_datasets .
+       *\param max_proc_ents_out   Output: The maximun number of entities that 
+       *                           any proc will write
+       *                           Array of length \c num_datasets .
+       *\param total_ents_out      Output: The size of the created dataset (sum 
+       *                           of counts over all procs)
+       *                           Array of length \c num_datasets .
+       *\param first_ids_out       Output: The first ID of the first entity in the 
+       *                           data set.  First ID for this proc's entities is 
+       *                           first_id_out+offset_out
+       *                           Array of length \c num_datasets or NULL.
+       */
+    ErrorCode create_dataset( int num_datasets,
+                              const long* num_owned_entities,
+                              long* offsets_out,
+                              long* max_proc_ents_out,
+                              long* total_ents_out,
+                              const DataSetCreator& creator = NoopDescCreator(),
+                              ExportSet* groups[] = 0,
+                              id_t* first_ids_out = NULL );
+  
   private:
-    
-      //! List of multi-processor meshsets
-    std::list<ParallelSet> parallelSets;
-    
-      //! Vector indexed by MPI rank, containing the list
-      //! of parallel sets that each processor knows about.
-    std::map<unsigned,Range> cpuParallelSets;
-    typedef std::map<unsigned,Range>::iterator proc_iter;
 
       //! pcomm controlling parallel nature of mesh
     ParallelComm *myPcomm;
@@ -256,26 +187,6 @@ class WriteHDF5Parallel : public WriteHDF5
     
       //! Operation to use to append hyperslab selections
     H5S_seloper_t hslabOp;
-};
-
-
-
-class WriteHDF5Parallel::MultiProcSetTags::Data
-{
-  public:
-  Data( const std::string& name ) 
-   : filterTag(name), dataTag(name), useFilterValue(false) {}
-  Data( const std::string& fname, const std::string& dname )
-   : filterTag(fname), dataTag(dname), useFilterValue(false) {}
-  Data( const std::string& fname, const std::string& dname, int fval )
-   : filterTag(fname), dataTag(dname), filterValue(fval), useFilterValue(true) {}
-   
-  std::string filterTag;
-  std::string dataTag;
-  int filterValue;
-  bool useFilterValue;
-  
-  ErrorCode get_sets( Interface* moab, Range& sets, Tag& id_tag_out ) const;
 };
 
 } // namespace moab

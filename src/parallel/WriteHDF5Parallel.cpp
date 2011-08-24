@@ -44,13 +44,45 @@
 
 namespace moab {
 
+// This function doesn't do anything useful.  It's just a nice
+// place to set a break point to determine why the reader fails.
+static inline ErrorCode error( ErrorCode rval )
+  { return rval; }
+
+const char* mpi_err_str( int errorcode ) {
+  static char buffer[2048];
+  int len = sizeof(buffer);
+  MPI_Error_string( errorcode, buffer, &len );
+  buffer[std::min((size_t)len,sizeof(buffer)-1)] = '\0';
+  return buffer;
+}
+
+#define MPI_FAILURE_MSG(A) "MPI Failure at " __FILE__ ":%d : (Code %d) %s\n", \
+                           __LINE__, (int)(A), mpi_err_str((A))
+
 #define CHECK_MPI(A) do { if (MPI_SUCCESS != (A)) { \
-  writeUtil->report_error( "MPI Failure at " __FILE__ ":%d\n", __LINE__ ); \
+  writeUtil->report_error( MPI_FAILURE_MSG((A)) ); \
+  dbgOut.printf(1, MPI_FAILURE_MSG((A)) ); \
   return error(MB_FAILURE); } } while(false)
 
+#define MB_FAILURE_MSG(A) "MOAB_Failure at " __FILE__ ":%d : %s (%d)\n", \
+                          __LINE__, ErrorCodeStr[(A)], (int)(A)
+
+#define CHECK_MB(A) do { if (MB_SUCCESS != (A)) { \
+  writeUtil->report_error( MB_FAILURE_MSG(A) ); \
+  dbgOut.printf(1, MB_FAILURE_MSG((A)) ); \
+  return error(A); } } while(false)
+
+#define HDF_FAILURE_MSG(A) "MHDF Failure at " __FILE__ ":%d : %s\n", \
+                           __LINE__, mhdf_message(&(A))
+
 #define CHECK_HDF(A) do { if (mhdf_isError(&(A))) { \
-  writeUtil->report_error( "MHDF Failure at " __FILE__ ":%d : %s\n", \
-    __LINE__, mhdf_message(&(A)) ); \
+  writeUtil->report_error( HDF_FAILURE_MSG(A) ); \
+  dbgOut.printf(1, HDF_FAILURE_MSG((A)) ); \
+  return error(MB_FAILURE); } } while(false)
+
+#define CHECK_HDFN(A) do { if (mhdf_isError(&(A))) { \
+  file->write_util()->report_error( HDF_FAILURE_MSG(A) ); \
   return error(MB_FAILURE); } } while(false)
 
 
@@ -143,12 +175,6 @@ static int my_Gatherv( void* sendbuf,
                       sendtype, root, comm );
 }
 
-
-// This function doesn't do anything useful.  It's just a nice
-// place to set a break point to determine why the reader fails.
-static inline ErrorCode error( ErrorCode rval )
-  { return rval; }
-
 static void print_type_sets( Interface* iFace, DebugOutput* str, Range& sets )
 {
   const unsigned VB = 2;
@@ -195,31 +221,6 @@ static void print_type_sets( Interface* iFace, DebugOutput* str, Range& sets )
   str->printf(VB,"Total: %lu\n", (unsigned long)sets.size());
 }
 
-
-static void range_remove( Range& from, const Range& removed )
-{
-  
-/* The following should be more efficient, but isn't due
-   to the inefficient implementation of Range::erase(iter,iter)
-  Range::const_iterator s, e, n = from.begin();
-  for (Range::const_pair_iterator p = removed.pair_begin();
-       p != removed.pair_end(); ++p)
-  {
-    e = s = Range::lower_bound(n, from.end(), (*p).first);
-    e = Range::lower_bound(s, from.end(), (*p).second);
-    if (e != from.end() && *e == (*p).second)
-      ++e;
-    n = from.erase( s, e );
-  }
-*/
-
-  if (removed.size())
-  {
-    Range tmp = subtract( from, removed);
-    from.swap( tmp );
-  }
-}
-
 #define debug_barrier() debug_barrier_line(__LINE__)
 
 void WriteHDF5Parallel::debug_barrier_line(int lineno)
@@ -234,96 +235,10 @@ void WriteHDF5Parallel::debug_barrier_line(int lineno)
 
 WriterIface* WriteHDF5Parallel::factory( Interface* iface )
   { return new WriteHDF5Parallel( iface ); }
-
-void WriteHDF5Parallel::MultiProcSetTags::add( const std::string& name )
-  { list.push_back( Data(name) ); }
-
-void WriteHDF5Parallel::MultiProcSetTags::add( const std::string& filter, 
-                                               const std::string& data )
-  { list.push_back( Data(filter,data) ); }
-
-void WriteHDF5Parallel::MultiProcSetTags::add( const std::string& filter, 
-                                               int filterval,
-                                               const std::string& data )
-  { list.push_back( Data(filter,data,filterval) ); }
-
-ErrorCode 
-WriteHDF5Parallel::MultiProcSetTags::Data::get_sets( Interface* moab,
-                                                     Range& sets,
-                                                     Tag& id_tag ) const
-{
-  ErrorCode rval;
-  const void* values[] = { 0, 0 };
-  Tag handles[2];
-
-    // Get first tag handle: this tag is used to filter sets
-    // (we only return sets for which this tag is set)
-
-  rval = moab->tag_get_handle( filterTag.c_str(), 1, MB_TYPE_INTEGER, handles[0] );
-  if (MB_TAG_NOT_FOUND == rval)
-    return MB_SUCCESS; // return nothing if tag isn't defined on this proc
-  else if (MB_SUCCESS != rval)
-    return error(rval);
-
-    // Get data tag.  This tag contains IDs used to globally identify
-    // sets in the group with the filter_tag.  This might be the same
-    // tag as the filter tag.
-  
-  rval = moab->tag_get_handle( dataTag.c_str(), 1, MB_TYPE_INTEGER, handles[1] );
-  if (MB_TAG_NOT_FOUND == rval)
-    return MB_SUCCESS; // return nothing if tag isn't defined on this proc
-  else if (MB_SUCCESS != rval)
-    return error(rval);
-  
-    // We can optionally also filter on the value of the filter tag.
-    // (e.g. GEOM_DIMENSION)
-  
-  if (useFilterValue) {
-    values[0] = &filterValue;
-  }
-  
-    // If data tag and filter tag are the same, don't pass the
-    // same tag handle in twice (it would work, but would be inefficient)
-  int num_tags = (handles[0] == handles[1]) ? 1 : 2;
-
-    // get the tagged entities
-  id_tag = handles[1];
-  return moab->get_entities_by_type_and_tag( 0,
-                                             MBENTITYSET,
-                                             handles,
-                                             values,
-                                             num_tags, 
-                                             sets );
-}
-
-
-
 WriteHDF5Parallel::WriteHDF5Parallel( Interface* iface)
     : WriteHDF5(iface), myPcomm(NULL), pcommAllocated(false), hslabOp(H5S_SELECT_OR)
 {
-  multiProcSetTags.add(  MATERIAL_SET_TAG_NAME );
-  multiProcSetTags.add( DIRICHLET_SET_TAG_NAME );
-  multiProcSetTags.add(   NEUMANN_SET_TAG_NAME );
-  multiProcSetTags.add( GEOM_DIMENSION_TAG_NAME, 0, GLOBAL_ID_TAG_NAME );
-  multiProcSetTags.add( GEOM_DIMENSION_TAG_NAME, 1, GLOBAL_ID_TAG_NAME );
-  multiProcSetTags.add( GEOM_DIMENSION_TAG_NAME, 2, GLOBAL_ID_TAG_NAME );
-  multiProcSetTags.add( GEOM_DIMENSION_TAG_NAME, 3, GLOBAL_ID_TAG_NAME );
 }
-
-WriteHDF5Parallel::WriteHDF5Parallel( Interface* iface,
-                                      const std::vector<std::string>& tag_names )
-  : WriteHDF5(iface), myPcomm(NULL), pcommAllocated(false)
-{
-  for(std::vector<std::string>::const_iterator i = tag_names.begin();
-      i != tag_names.end(); ++i)
-    multiProcSetTags.add( *i );
-}
-
-WriteHDF5Parallel::WriteHDF5Parallel( Interface* iface,
-                                      const MultiProcSetTags& set_tags )
-    : WriteHDF5(iface), multiProcSetTags(set_tags), myPcomm(NULL), 
-      pcommAllocated(false)
-{}
 
 WriteHDF5Parallel::~WriteHDF5Parallel()
 {
@@ -502,26 +417,13 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   if (MB_SUCCESS != rval) return error(rval);
   if (times) times[CREATE_SET_TIME] = timer.elapsed();
   
-  
-    /* Need to write tags for shared sets this proc is responsible for */
-  
-  Range parallel_sets;
-  for (std::list<ParallelSet>::const_iterator psiter = parallelSets.begin();
-       psiter != parallelSets.end(); ++psiter)
-    if (psiter->description)
-      parallel_sets.insert( psiter->handle );
-  
-  setSet.range.merge( parallel_sets );
-  rval = gather_tags( user_tag_list, user_tag_count );
-  if (MB_SUCCESS != rval)
-    return error(rval);
-  range_remove( setSet.range, parallel_sets );   
-  
     /**************** Create tag data *********************/
 
   debug_barrier();
   dbgOut.tprint(1,"creating tag tables\n");
   topState.start("creating tag tables");
+  rval = gather_tags( user_tag_list, user_tag_count );
+  if (MB_SUCCESS != rval) return error(rval);
   rval = create_tag_tables();
   topState.end(rval);
   if (MB_SUCCESS != rval) return error(rval);
@@ -791,7 +693,6 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
   std::list<TagDesc>::iterator tag_iter;
   ErrorCode rval;
   int err;
-  const int num_proc = myPcomm->proc_config().proc_size();
   const int rank = myPcomm->proc_config().proc_rank();
   const MPI_Comm comm = myPcomm->proc_config().proc_comm();
 
@@ -809,9 +710,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
     // Build concatenated list of all tag data
   std::vector<unsigned char> tag_buffer;
   for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) {
-    rval = append_serial_tag_data( tag_buffer, *tag_iter );
-    if (MB_SUCCESS != rval)
-      return error(rval);
+    rval = append_serial_tag_data( tag_buffer, *tag_iter ); CHECK_MB(rval);
   }
   
     // broadcast list from root to all other procs
@@ -824,9 +723,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
   
     // update local tag list
   std::vector<TagDesc*> missing;
-  rval = check_serial_tag_data( tag_buffer, &missing, 0 );
-  if (MB_SUCCESS != rval)
-    return error(rval);
+  rval = check_serial_tag_data( tag_buffer, &missing, 0 ); CHECK_MB(rval);
   
     // check if we're done (0->done, 1->more, 2+->error)
   int code, lcode = (MB_SUCCESS != rval) ? rval + 2 : missing.empty() ? 0 : 1;
@@ -837,16 +734,14 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
     return error((ErrorCode)(code-2));
   }  
   
-  dbgOut.print(1,"Not all procs had same tag definitions, negotiating...\n");
-  
     // if not done...
   if (code) {
+    dbgOut.print(1,"Not all procs had same tag definitions, negotiating...\n");
+
       // get tags defined on this proc but not on root proc
     tag_buffer.clear();
     for (size_t i = 0; i < missing.size(); ++i) {
-      rval = append_serial_tag_data( tag_buffer, *missing[i] );
-      if (MB_SUCCESS != rval)
-        return error(rval);
+      rval = append_serial_tag_data( tag_buffer, *missing[i] ); CHECK_MB(rval);
     }
     
       // gather extra tag definitions on root processor
@@ -865,9 +760,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
       tag_buffer.clear();
         // re-serialize a unique list of new tag defintitions
       for (size_t i = 0; MB_SUCCESS == rval && i != newlist.size(); ++i) {
-        rval = append_serial_tag_data( tag_buffer, *newlist[i] );
-        if (MB_SUCCESS != rval)
-          return error(rval);
+        rval = append_serial_tag_data( tag_buffer, *newlist[i] ); CHECK_MB(rval);
       }
     }
     
@@ -886,9 +779,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
     CHECK_MPI(err);
     
       // process new tag definitions
-    rval = check_serial_tag_data( tag_buffer, 0, 0 );
-    if (MB_SUCCESS != rval)
-      return error(rval);
+    rval = check_serial_tag_data( tag_buffer, 0, 0 ); CHECK_MB(rval);
   }
   
   subState.end();
@@ -907,14 +798,12 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
   std::vector<unsigned char> data(bytes_per_tag * tagList.size(), 0);
   std::vector<unsigned char> recv( data.size(), 0 );
   unsigned char* iter = &data[0];
-  if (writeTagDense) {
+  if (writeTagDense && !data.empty()) {
     for (tag_iter = tagList.begin(); tag_iter != tagList.end();
          ++tag_iter, iter += bytes_per_tag) {
 
       Range tagged;
-      rval = get_sparse_tagged_entities( *tag_iter, tagged );
-      if (MB_SUCCESS != rval)
-        return error(rval);
+      rval = get_sparse_tagged_entities( *tag_iter, tagged ); CHECK_MB(rval);
 
       int s;
       if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_length( tag_iter->tag_id, s )) 
@@ -929,9 +818,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
       // least 2/3 of the entities tagged.
       bool prefer_dense = false;
       TagType type;
-      rval = iFace->tag_get_type( tag_iter->tag_id, type );
-      if (MB_SUCCESS != rval)
-        return error(rval);
+      rval = iFace->tag_get_type( tag_iter->tag_id, type ); CHECK_MB(rval);
       if (MB_TAG_DENSE == type) {
         const void* defval = 0;
         rval = iFace->tag_get_default_value( tag_iter->tag_id, defval, s );
@@ -967,9 +854,9 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
   
     // Store initial counts for sparse-formatted tag data.
     // The total number of values to send and receive will be the number of 
-    // tags plus the number of var-len tags because we need to negitiate 
+    // tags plus the number of var-len tags because we need to negotiate 
     // offsets into two different tables for the var-len tags.
-  std::vector<unsigned long> counts;
+  std::vector<long> counts;
   
     // Record dense tag/element combinations
   iter = &recv[0];
@@ -978,9 +865,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
        ++tag_iter, iter += bytes_per_tag, iter2 += bytes_per_tag) {
 
     Range tagged;
-    rval = get_sparse_tagged_entities( *tag_iter, tagged );
-    if (MB_SUCCESS != rval)
-      return error(rval);
+    rval = get_sparse_tagged_entities( *tag_iter, tagged ); CHECK_MB(rval);
 
     std::string n;
     iFace->tag_get_name( tag_iter->tag_id, n );  // second time we've called, so shouldnt fail
@@ -1014,9 +899,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
     int s;
     if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_length( tag_iter->tag_id, s )) {
       unsigned long data_len;
-      rval = get_tag_data_length( *tag_iter, tagged, data_len );
-      assert(MB_SUCCESS == rval);
-      if (MB_SUCCESS != rval) return error(rval);
+      rval = get_tag_data_length( *tag_iter, tagged, data_len ); CHECK_MB(rval);
       counts.push_back( data_len );
     }
   }
@@ -1025,51 +908,23 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
   subState.end();
   subState.start("Negotiate offsets for sparse tag info");
 
-  
-    // For each tag, gather counts on root and offsets into tag data
-    // tables back to each process.  The total number of values to send
-    // and receive will be the number of tags plus the number of var-len
-    // tags because we need to negitiate offsets into two different 
-    // tables for the var-len tags.
-
-  std::vector<unsigned long> allcnt(counts.size()*num_proc);
-  err = MPI_Gather( &counts[0], counts.size(), MPI_UNSIGNED_LONG, 
-                    &allcnt[0], counts.size(), MPI_UNSIGNED_LONG,
-                    0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(err);
-  
-  std::vector<unsigned long> maxima(counts.size(),0), sums(counts.size(),0);
-  if (0 == myPcomm->proc_config().proc_rank()) {
-    for (unsigned i = 0; i < myPcomm->proc_config().proc_size(); ++i) {
-      for (unsigned j = 0; j < counts.size(); ++j) {
-         if (allcnt[i*counts.size()+j] > maxima[j])
-          maxima[j] = allcnt[i*counts.size()+j];
-        size_t offset = sums[j];
-        sums[j] += allcnt[i*counts.size()+j];
-        allcnt[i*counts.size()+j] = offset;
-      }
-    }
-  }
-  err = MPI_Scatter( &allcnt[0], counts.size(), MPI_UNSIGNED_LONG,
-                     &counts[0], counts.size(), MPI_UNSIGNED_LONG,
-                     0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(err);
-  err = MPI_Bcast( &maxima[0], maxima.size(), MPI_UNSIGNED_LONG, 0, 
-                   myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(err);
+  std::vector<long> offsets(counts.size()), maxima(counts.size()), totals(counts.size());
+  rval = create_dataset( counts.size(), &counts[0], &offsets[0], &maxima[0], &totals[0] );
+  CHECK_MB(rval);
   
     // Copy values into local structs and if root then create tables
-  std::vector<unsigned long>::iterator citer = counts.begin(), miter = maxima.begin();
-  for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) {
-    assert(citer != counts.end() && miter != maxima.end());
-    tag_iter->sparse_offset = *citer; ++citer;
-    tag_iter->max_num_ents = *miter; ++miter;
-    tag_iter->write_sparse = (0 != tag_iter->max_num_ents);
+  size_t idx = 0;
+  for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter, ++idx) {
+    assert(idx < counts.size());
+    tag_iter->sparse_offset = offsets[idx];
+    tag_iter->max_num_ents = maxima[idx];
+    tag_iter->write_sparse = (0 != totals[idx]);
     int s;
     if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_length( tag_iter->tag_id, s )) {
-      assert(citer != counts.end() && miter != maxima.end());
-      tag_iter->var_data_offset = *citer; ++citer;
-      tag_iter->max_num_vals = *miter; ++miter;
+      ++idx;
+      assert(idx < counts.size());
+      tag_iter->var_data_offset = offsets[idx];
+      tag_iter->max_num_vals = maxima[idx];
     }
     else {
       tag_iter->var_data_offset = 0;
@@ -1081,15 +936,16 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
 
     // Create tag tables on root process
   if (0 == myPcomm->proc_config().proc_rank()) {
-    citer = sums.begin();
-    for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) {
-      assert(citer != sums.end());
-      unsigned long num_ents = *citer; ++citer;
+    size_t idx = 0;
+    for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter, ++idx) {
+      assert(idx < totals.size());
+      unsigned long num_ents = totals[idx];
       unsigned long num_val = 0;
       int s;
       if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_length( tag_iter->tag_id, s )) {
-        assert(citer != sums.end());
-        num_val = *citer; ++citer;
+        ++idx;
+        assert(idx < totals.size());
+        num_val = totals[idx];
       }
       dbgOut.printf( 2, "Writing tag description for tag 0x%lx with %lu values\n", 
                      (unsigned long)tag_iter->tag_id, num_val ? num_val : num_ents );
@@ -1120,70 +976,127 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
   return MB_SUCCESS;
 }
 
-ErrorCode WriteHDF5Parallel::create_node_table( int dimension )
+struct DatasetVals {
+  long start_id;
+  long max_count;
+  long total;  
+};
+
+ErrorCode WriteHDF5Parallel::create_dataset( int num_datasets,
+                                             const long* num_owned,
+                                             long* offsets_out,
+                                             long* max_proc_entities,
+                                             long* total_entities,
+                                             const DataSetCreator& creator,
+                                             ExportSet* groups[],
+                                             id_t* first_ids_out )
 {
   int result;
-  mhdf_Status status;
+  ErrorCode rval;
+  const unsigned rank  = myPcomm->proc_config().proc_rank();
+  const unsigned nproc = myPcomm->proc_config().proc_size();
+  const MPI_Comm comm  = myPcomm->proc_config().proc_comm();
  
-    // gather node counts for each processor
-  std::vector<long> node_counts(myPcomm->proc_config().proc_size());
-  long num_nodes = nodeSet.range.size();
-  VALGRIND_CHECK_MEM_IS_DEFINED( &num_nodes, sizeof(long) );
-  result = MPI_Gather( &num_nodes, 1, MPI_LONG, &node_counts[0], 1, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
+    // gather entity counts for each processor on root
+  std::vector<long> counts( rank ? 0 : nproc * num_datasets );
+  VALGRIND_CHECK_MEM_IS_DEFINED( &num_owned, sizeof(long) );
+  result = MPI_Gather( const_cast<long*>(num_owned), num_datasets, MPI_LONG, &counts[0], num_datasets, MPI_LONG, 0, comm );
   CHECK_MPI(result);
   
     // create node data in file
-  long first_id_and_max_count[3];
-  if (myPcomm->proc_config().proc_rank() == 0)
+  assert(sizeof(DatasetVals) == 3*sizeof(long));
+  DatasetVals zero_val = { 0, 0 ,0 };
+  std::vector<DatasetVals> cumulative(num_datasets,zero_val);
+  if (rank == 0)
   {
-    int total = 0;
-    for (unsigned int i = 0; i < myPcomm->proc_config().proc_size(); i++)
-      total += node_counts[i];
-    
-    nodeSet.total_num_ents = total;
-    if (total) {
-      hid_t handle = mhdf_createNodeCoords( filePtr, dimension, total, &first_id_and_max_count[0], &status );
-      CHECK_HDF(status);
-      mhdf_closeData( filePtr, handle, &status );
+    for (unsigned i = 0; i < nproc; i++) {
+      const long* proc_data = &counts[i*num_datasets];
+      for (int index = 0; index < num_datasets; ++index) {
+        cumulative[index].total += proc_data[index];
+        if (proc_data[index] > cumulative[index].max_count)
+          cumulative[index].max_count = proc_data[index];
+      }
     }
-    first_id_and_max_count[1] = *std::max_element( node_counts.begin(), node_counts.end() );
-    first_id_and_max_count[2] = total;
+    
+    for (int index = 0; index < num_datasets; ++index) {
+      if (cumulative[index].total) {
+        rval = creator( this, 
+                        cumulative[index].total,
+                        groups ? groups[index] : 0,
+                        cumulative[index].start_id );
+        CHECK_MB(rval);
+      }
+      else {
+        cumulative[index].start_id = -1;
+      }
+    }
   }
     
     // send id offset to every proc
-  result = MPI_Bcast( first_id_and_max_count, 3, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
+  result = MPI_Bcast( &cumulative[0], 3*num_datasets, MPI_LONG, 0, comm );
   CHECK_MPI(result);
-  nodeSet.first_id = (id_t)first_id_and_max_count[0];
-  nodeSet.max_num_ents = first_id_and_max_count[1];
-  nodeSet.total_num_ents = first_id_and_max_count[2];
+  for (int index = 0; index < num_datasets; ++index) {
+    if (first_ids_out)
+      first_ids_out[index] = (id_t)cumulative[index].start_id;
+    max_proc_entities[index] = cumulative[index].max_count;
+    total_entities[index] = cumulative[index].total;
+  }
    
       // calculate per-processor offsets
-  if (myPcomm->proc_config().proc_rank() == 0)
+  if (rank == 0)
   {
-    int prev_size = node_counts[0];
-    node_counts[0] = 0;
-    for (unsigned int i = 1; i < myPcomm->proc_config().proc_size(); ++i)
+    std::vector<long> prev_size(counts.begin(), counts.begin() + num_datasets);
+    std::fill( counts.begin(), counts.begin() + num_datasets, 0L );
+    for (unsigned i = 1; i < nproc; ++i)
     {
-      int mysize = node_counts[i];
-      node_counts[i] = node_counts[i-1] + prev_size;
-      prev_size = mysize;
+      long* prev_data = &counts[(i-1)*num_datasets];
+      long* proc_data = &counts[i*num_datasets];
+      for (int j = 0; j < num_datasets; ++j) {
+        long mysize = proc_data[j];
+        proc_data[j] = prev_data[j] + prev_size[j];
+        prev_size[j] = mysize;
+      }
     }
   }
   
-    // send each proc it's offset in the node table
-  long offset;
-  if (myPcomm->rank() == 0) {
-    VALGRIND_CHECK_MEM_IS_DEFINED( &node_counts[0], sizeof(long) );
+    // send each proc it's offset in the table
+  if (rank == 0) {
+    VALGRIND_CHECK_MEM_IS_DEFINED( &counts[0], num_datasets*nproc*sizeof(long) );
   }
-  result = MPI_Scatter( &node_counts[0], 1, MPI_LONG, 
-                        &offset, 1, MPI_LONG,
-                        0, myPcomm->proc_config().proc_comm() );
+  result = MPI_Scatter( &counts[0], num_datasets, MPI_LONG, offsets_out, num_datasets, MPI_LONG, 0, comm );
   CHECK_MPI(result);
-  nodeSet.offset = offset;
 
-  return assign_ids( nodeSet.range, nodeSet.first_id + nodeSet.offset );
+  return MB_SUCCESS;
 }
 
+ErrorCode WriteHDF5Parallel::create_node_table( int dimension )
+{
+  nodeSet.num_nodes = dimension; // put it here so NodeSetCreator can access it
+  struct NodeSetCreator : public DataSetCreator {
+    ErrorCode operator()( WriteHDF5* file, long count, const ExportSet* group, long& start_id ) const
+    { 
+      mhdf_Status status;
+      hid_t handle = mhdf_createNodeCoords( file->file_ptr(), group->num_nodes, count, &start_id, &status ); 
+      CHECK_HDFN(status);
+      mhdf_closeData( file->file_ptr(), handle, &status );
+      CHECK_HDFN(status);
+      return MB_SUCCESS;
+    }
+  };
+
+  const long count = nodeSet.range.size();
+  ExportSet* array[] = { &nodeSet };
+  ErrorCode rval = create_dataset( 1, 
+                                   &count,
+                                   &nodeSet.offset,
+                                   &nodeSet.max_num_ents,
+                                   &nodeSet.total_num_ents,
+                                   NodeSetCreator(), 
+                                   array,
+                                   &nodeSet.first_id );
+  CHECK_MB(rval);
+  return assign_ids( nodeSet.range, nodeSet.first_id + nodeSet.offset );
+}  
 
 
 struct elemtype {
@@ -1345,95 +1258,39 @@ ErrorCode WriteHDF5Parallel::negotiate_type_list()
 
 ErrorCode WriteHDF5Parallel::create_element_tables()
 {
-  int result;
-  ErrorCode rval;
-  std::list<ExportSet>::iterator ex_iter;
-  std::vector<long>::iterator viter;
+  struct ElemSetCreator : public DataSetCreator {
+    ErrorCode operator()( WriteHDF5* file, long size, const ExportSet* ex, long& start_id ) const
+      { return file->create_elem_table( *ex, size, start_id );  }
+  };
   
-    // Get number of each element type from each processor
   const int numtypes = exportList.size();
-  std::vector<long> my_counts(numtypes);
-  std::vector<long> counts(numtypes * myPcomm->proc_config().proc_size() + numtypes);
-  VALGRIND_MAKE_VEC_UNDEFINED( my_counts );
-  VALGRIND_MAKE_VEC_UNDEFINED( counts );
-  viter = my_counts.begin();
-  for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
-    { *viter = ex_iter->range.size(); ++viter; }
+  std::vector<ExportSet*> groups(numtypes);
+  std::vector<long> counts(numtypes), offsets(numtypes), max_ents(numtypes), total_ents(numtypes);
+  std::vector<id_t> start_ids(numtypes);
   
-  VALGRIND_CHECK_MEM_IS_DEFINED( &my_counts[0], numtypes*sizeof(long) );
-  result = MPI_Gather( &my_counts[0], numtypes, MPI_LONG,
-                       &counts[0],    numtypes, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
-  
-    // Convert counts to offsets
-  if (myPcomm->proc_config().proc_rank() == 0) {
-    for (int i = 0; i < numtypes; i++) 
-    {
-      long prev = 0;
-      for (unsigned int j = 0; j < myPcomm->proc_config().proc_size(); j++)
-      {
-        long tmp = counts[j*numtypes + i];
-        if (tmp > my_counts[i]) // put max count in my_counts
-          my_counts[i] = tmp;
-        counts[j*numtypes+i] = prev;
-        prev += tmp;
-      }
-      counts[myPcomm->proc_config().proc_size()*numtypes + i] = prev;
-    }
+  size_t idx = 0;
+  std::list<ExportSet>::iterator ex_iter;
+  for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter, ++idx) { 
+    groups[idx] = &*ex_iter;
+    counts[idx] = ex_iter->range.size();
   }
+  ErrorCode rval = create_dataset( numtypes,
+                                   &counts[0],
+                                   &offsets[0],
+                                   &max_ents[0],
+                                   &total_ents[0],
+                                   ElemSetCreator(), 
+                                   &groups[0],
+                                   &start_ids[0] );
+  CHECK_MB(rval);
   
-    // Broadcast max count for each type
-  result = MPI_Bcast( &my_counts[0], numtypes, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
-  viter = my_counts.begin();
-  for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
-    ex_iter->max_num_ents = *(viter++);
-  
-    // Send offsets to each processor
-  if (myPcomm->rank() == 0) {
-    VALGRIND_CHECK_MEM_IS_DEFINED( &counts[0], counts.size()*sizeof(long) );
-  }
-  result = MPI_Scatter( &counts[0],    numtypes, MPI_LONG,
-                        &my_counts[0], numtypes, MPI_LONG,
-                        0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
-  
-    // Update store offsets in ExportSets
-  viter = my_counts.begin();
-  for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
-    ex_iter->offset = (id_t)*(viter++);
-  
-    // Create element tables
-  std::vector<long> start_ids(numtypes);
-  VALGRIND_MAKE_VEC_UNDEFINED( start_ids );
-  if (myPcomm->proc_config().proc_rank() == 0)
-  {
-    viter = start_ids.begin();
-    long* citer = &counts[numtypes * myPcomm->proc_config().proc_size()];
-    for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
-    {
-      ex_iter->total_num_ents = *citer;
-      rval = create_elem_tables( *ex_iter, *viter );
-      if (MB_SUCCESS != rval)
-        return error(rval);
-      ++citer;
-      ++viter;
-    }
-  }
-  
-    // send start IDs to each processor
-  result = MPI_Bcast( &start_ids[0], numtypes, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
-  
-    // Assign IDs to local elements
-  viter = start_ids.begin();
-  for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
-  {
-    ex_iter->first_id = *(viter++);
-    id_t myfirst = (id_t)(ex_iter->first_id + ex_iter->offset);
-    rval = assign_ids( ex_iter->range, myfirst );
-    if (MB_SUCCESS != rval)
-      return error(rval);
+  for (idx = 0, ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter, ++idx) { 
+    ex_iter->first_id = start_ids[idx];
+    ex_iter->offset = offsets[idx];
+    ex_iter->max_num_ents = max_ents[idx];
+    ex_iter->total_num_ents = total_ents[idx];
+    rval = assign_ids( ex_iter->range, ex_iter->first_id + ex_iter->offset );
+    CHECK_MB(rval);
   }
   
   return MB_SUCCESS;
@@ -1441,542 +1298,669 @@ ErrorCode WriteHDF5Parallel::create_element_tables()
   
 ErrorCode WriteHDF5Parallel::create_adjacency_tables()
 {
-  ErrorCode rval;
-  mhdf_Status status;
-  unsigned int j;
-  int i, result;
+  struct AdjSetCreator : public DataSetCreator {
+    ErrorCode operator()( WriteHDF5* file, long size, const ExportSet* ex, long& start_id ) const
+    {
+      mhdf_Status status;
+      hid_t handle = mhdf_createAdjacency( file->file_ptr(), 
+                                           ex->name(),
+                                           size,
+                                           &status );
+      CHECK_HDFN(status);
+      mhdf_closeData( file->file_ptr(), handle, &status );
+      CHECK_HDFN(status);
+      start_id = -1;
+      return MB_SUCCESS;
+    }
+  };
 
+  std::vector<ExportSet*> groups;
 #ifdef WRITE_NODE_ADJACENCIES  
-  const int numtypes = exportList.size()+1;
-#else
-  const int numtypes = exportList.size();
+  groups.push_back( &nodeSet );
 #endif
-  std::vector<long>::iterator viter;
   std::list<ExportSet>::iterator ex_iter;
-  std::vector<long> local(numtypes), all(myPcomm->proc_config().proc_size() * numtypes + numtypes);
-  VALGRIND_MAKE_VEC_UNDEFINED( local );
-  VALGRIND_MAKE_VEC_UNDEFINED( all );
-  
-    // Get adjacency counts for local processor
-  viter = local.begin();
-  id_t num_adj;
-#ifdef WRITE_NODE_ADJACENCIES  
-  rval = count_adjacencies( nodeSet.range, num_adj );
-  assert (MB_SUCCESS == rval);
-  *viter = num_adj; ++viter;
-#endif
+  for (std::list<ExportSet>::iterator ex_iter = exportList.begin(); 
+       ex_iter != exportList.end(); ++ex_iter)
+    groups.push_back( &*ex_iter );
 
-  for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
-  {
-    rval = count_adjacencies( ex_iter->range, num_adj );
-    if (MB_SUCCESS != rval)
-      return error(rval);
-    *viter = num_adj; ++viter;
-  }
-  
-    // Send local adjacency counts to root processor
-  VALGRIND_CHECK_MEM_IS_DEFINED( &local[0], numtypes*sizeof(long) );
-  result = MPI_Gather( &local[0], numtypes, MPI_LONG,
-                       &all[0],   numtypes, MPI_LONG, 
-                       0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
-  
-  
-      // Record in 'local' the maximum adjacency count for each type
-  if (myPcomm->rank() == 0) {
-      // Convert counts to offsets
-    for (i = 0; i < numtypes; i++) 
-    {
-      long prev = 0;
-      for (j = 0; j < myPcomm->proc_config().proc_size(); j++)
-      {
-        long tmp = all[j*numtypes + i];
-        if (tmp > local[i])
-          local[i] = tmp;
-        all[j*numtypes+i] = prev;
-        prev += tmp;
-      }
-      all[myPcomm->proc_config().proc_size()*numtypes+i] = prev;
-    }
-
-      // For each element type for which there is no adjacency data,
-      // send -1 to all processors as the offset.
-    for (i = 0; i < numtypes; ++i)
-      if (all[numtypes*myPcomm->proc_config().proc_size()+i] == 0)
-        for (j = 0; j < myPcomm->proc_config().proc_size(); ++j)
-          all[j*numtypes+i] = -1;
-  }
-  
-    // Broadcast maximum count for each type
-  result = MPI_Bcast( &local[0], numtypes, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
-  viter = local.begin();
-  for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
-    ex_iter->max_num_adjs = *(viter++);
-  
-  
-    // Send offsets back to each processor
-  result = MPI_Scatter( &all[0],   numtypes, MPI_LONG,
-                        &local[0], numtypes, MPI_LONG,
-                        0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
-  
-    // Record the adjacency offset in each ExportSet
-  viter = local.begin();
-#ifdef WRITE_NODE_ADJACENCIES  
-  nodeSet.adj_offset = *viter; ++viter;
-#endif
-  for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
-    { ex_iter->adj_offset = *viter; ++viter; }
-  
-    // Create data tables in file
-  if (myPcomm->proc_config().proc_rank() == 0)
-  {
-    viter = all.begin() + (numtypes * myPcomm->proc_config().proc_size());
-#ifdef WRITE_NODE_ADJACENCIES  
-    if (*viter) {
-      hid_t handle = mhdf_createAdjacency( filePtr, 
-                                           mhdf_node_type_handle(),
-                                           *viter,
-                                           &status );
-      CHECK_HDF(status);
-      mhdf_closeData( filePtr, handle, &status );
-    }
-    ++viter;
-#endif
-    for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter, ++viter)
-    {
-      if (!*viter) 
-        continue;
-      
-      hid_t handle = mhdf_createAdjacency( filePtr,
-                                           ex_iter->name(),
-                                           *viter,
-                                           &status );
-      CHECK_HDF(status);
-      mhdf_closeData( filePtr, handle, &status );
-    }
+  ErrorCode rval;
+  const int numtypes = groups.size();
+  std::vector<long> counts(numtypes);
+  std::vector<long> offsets(numtypes);
+  std::vector<long> max_ents(numtypes);
+  std::vector<long> totals(numtypes);
+  for (int i = 0; i < numtypes; ++i) {
+    id_t count;
+    rval = count_adjacencies( groups[i]->range, count );
+    counts[i] = count;
+    CHECK_MB(rval);
   }
 
+  rval = create_dataset( numtypes,
+                         &counts[0],
+                         &offsets[0],
+                         &max_ents[0],
+                         &totals[0],
+                         AdjSetCreator(),
+                         &groups[0] );
+  CHECK_MB(rval);
+  
+  for (int i = 0; i < numtypes; ++i) {
+    groups[i]->max_num_adjs = max_ents[i];
+    groups[i]->adj_offset = offsets[i];
+  }
   return MB_SUCCESS;
 }
-  
-/** Working data for group of global sets identified by an ID tag */
-struct RemoteSetData {
-  Range range;     //!< Set handles with data_tag set (and optionally filter_tag == filter_value)
-  std::vector<int> counts;       //!< Number of sets with tag on each proc, indexed by MPI rank
-  std::vector<int> displs;       //!< Offset in all_values at which the data_tag values for
-                                 //!< each processor begin. displs[n] = sum(i from 0 to n-1)(counts[i])
-  std::vector<int> all_values;   //!< data_tag values for sets on all processors, 
-                                 //!< counts[0] values for proc 0, then counts[1] values for proc 
-                                 //!< 1, etc.
-  std::vector<int> local_values; //!< data_tag values for sets that exist on this processor
-};
 
-/*
-static void print_remote_set_data( DebugOutput* ds, Interface* mb,
-                            const struct RemoteSetData& data,
-                            const char* pfx = "" )
+ErrorCode WriteHDF5Parallel::communicate_shared_set_ids( const Range& owned,
+                                                         const Range& remote )
 {
-  std::string n1,n2;
-  if (data.data_tag)
-    mb->tag_get_name( data.data_tag, n1 );
-  if (data.filter_tag)
-    mb->tag_get_name( data.filter_tag, n2 );
+    // Need an MPI type that we can put handles in
+  assert(sizeof(unsigned long) >= sizeof(EntityHandle));
 
-  ds->printf( 2, "data_tag:     \"%s\"\n", n1.c_str() );
-  ds->printf( 2, "filter_tag:   \"%s\"\n", n2.c_str() );
-  ds->printf( 2, "filter_value:  %d\n", data.filter_value );
-  ds->print( 2, "range:        ", data.range );
-  ds->print( 2, "counts:" );
-  for (size_t i = 0; i < data.counts.size(); ++i)
-    ds->printf( 2, " %d,", data.counts[i] );
-  ds->print( 2, "\ndispls:" );
-  for (size_t i = 0; i < data.displs.size(); ++i)
-    ds->printf( 2, " %d,", data.displs[i] );
-  ds->print( 2, "\nall_values:" );
-  for (size_t i = 0; i < data.all_values.size(); ++i)
-    ds->printf( 2, " %d,", data.all_values[i] );
-  ds->print( 2, "\nlocal_values:" );
-  for (size_t i = 0; i < data.local_values.size(); ++i)
-    ds->printf( 2, " %d,", data.local_values[i] );
-  ds->print( 2, "\n\n" );
+  ErrorCode rval;
+  int mperr;
+  const int TAG = 0xDEADF00;
+  //const unsigned rank = myPcomm->proc_config().proc_rank();
+  const MPI_Comm comm = myPcomm->proc_config().proc_comm();
+
+  dbgOut.tprint(1,"COMMUNICATING SHARED SET IDS\n");
+  dbgOut.print(6, "Owned, shared sets: ", owned );
+
+    // Post receive buffers for all procs for which we share sets
+
+  std::vector<unsigned> procs;
+  rval = myPcomm->get_entityset_owners( procs ); CHECK_MB(rval);
+  std::vector<unsigned>::iterator it = std::find(procs.begin(), procs.end(), 
+                                            myPcomm->proc_config().proc_rank());
+  if (it != procs.end())
+    procs.erase(it);
+  
+  std::vector<MPI_Request> recv_req(procs.size(), MPI_REQUEST_NULL);
+  std::vector< std::vector<unsigned long> > recv_buf(procs.size());
+  
+  size_t recv_count = 0;
+  for (size_t i = 0; i < procs.size(); ++i) {
+    Range tmp;
+    rval = myPcomm->get_owned_sets( procs[i], tmp ); CHECK_MB(rval);
+    size_t count = intersect( tmp, remote ).size(); // necessary because we might not be writing all of the database
+    if (count) {
+      dbgOut.printf( 6, "Sets owned by proc %u (remote handles): ", procs[i] );
+      if (dbgOut.get_verbosity() >= 6) {
+        Range remote_handles;
+        tmp = intersect( tmp, remote );
+        for (Range::iterator j = tmp.begin(); j != tmp.end(); ++j) {
+          unsigned r;
+          EntityHandle h;
+          myPcomm->get_entityset_owner( *j, r, &h );
+          assert(r == procs[i]);
+          remote_handles.insert( h );
+        }
+        dbgOut.print( 6, remote_handles );
+      }
+      recv_count++;
+      recv_buf[i].resize(2*count+1);
+      dbgOut.printf(5,"Posting receive buffer of size %lu for proc %u (%lu of %lu owned sets)\n",
+                      (unsigned long)recv_buf[i].size(), procs[i], count, tmp.size());
+      mperr = MPI_Irecv( &recv_buf[i][0], recv_buf[i].size(), MPI_UNSIGNED_LONG,
+                         procs[i], TAG, comm, &recv_req[i] ); CHECK_MPI(mperr);
+    }
+  }
+    
+    // Send set ids to all procs with which we share them
+    
+    // first build per-process lists of sets for which we need to send data
+  std::map<unsigned,Range> send_sets;
+  std::vector<unsigned> set_procs;
+  for (Range::reverse_iterator i = owned.rbegin(); i != owned.rend(); ++i) {
+    set_procs.clear();
+    rval = myPcomm->get_entityset_procs( *i, set_procs ); CHECK_MB(rval);
+    for (size_t j = 0; j < set_procs.size(); ++j)
+      if (set_procs[j] != myPcomm->proc_config().proc_rank())
+        send_sets[set_procs[j]].insert( *i );
+  }
+  assert(send_sets.find(myPcomm->proc_config().proc_rank()) == send_sets.end());
+  
+    // now send the data
+  std::vector< std::vector<unsigned long> > send_buf(send_sets.size());
+  std::vector< MPI_Request > send_req(send_sets.size());
+  std::map<unsigned,Range>::iterator si = send_sets.begin();
+  for (size_t i = 0; si != send_sets.end(); ++si, ++i) {
+    dbgOut.printf(6,"Sending data for shared sets to proc %u: ",si->first);
+    dbgOut.print(6,si->second);
+  
+    assert(sizeof(unsigned long) >= sizeof(EntityHandle));
+    send_buf[i].reserve( 2*si->second.size()+1 );
+    send_buf[i].push_back( si->second.size() );
+    for (Range::iterator j = si->second.begin(); j != si->second.end(); ++j) {
+      send_buf[i].push_back( *j );
+      send_buf[i].push_back( idMap.find( *j ) );
+    }
+    dbgOut.printf(5,"Sending buffer of size %lu to proc %u (%lu of %lu owned sets)\n",
+                    (unsigned long)send_buf[i].size(), si->first, si->second.size(), owned.size());
+    mperr = MPI_Isend( &send_buf[i][0], send_buf[i].size(), MPI_UNSIGNED_LONG,
+                       si->first, TAG, comm, &send_req[i] );
+  }
+
+    // Process received data
+  MPI_Status status;
+  int idx;
+  while (recv_count--) {
+    mperr = MPI_Waitany( recv_req.size(), &recv_req[0], &idx, &status );
+    CHECK_MPI(mperr);
+    
+    assert((unsigned)status.MPI_SOURCE == procs[idx]);
+    assert(2*recv_buf[idx].front()+1 == recv_buf[idx].size());
+    const size_t n = std::min( recv_buf[idx].front(), (recv_buf[idx].size()-1)/2 );
+    dbgOut.printf(5,"Received buffer of size %lu from proc %d\n",
+                  (unsigned long)(2*n+1), (int)status.MPI_SOURCE );
+    
+    for (size_t i = 0; i < n; ++i) {
+      EntityHandle handle;
+      rval = myPcomm->get_entityset_local_handle( procs[idx], recv_buf[idx][2*i+1], handle );
+      CHECK_MB(rval);
+      if (!idMap.insert( handle, recv_buf[idx][2*i+2], 1 ).second)
+        error(MB_FAILURE); // conflicting IDs??????
+    }
+    
+    recv_req[idx] = MPI_REQUEST_NULL;
+  }
+  assert( MPI_SUCCESS == MPI_Waitany( recv_req.size(), &recv_req[0], &idx, &status )
+       && MPI_UNDEFINED == idx ); // check that we got them all
+  
+    // Wait for all sends to complete before we release send
+    // buffers (implicitly releases when we return from this function)
+    
+  std::vector<MPI_Status> stats( send_req.size() );
+  mperr = MPI_Waitall( send_req.size(), &send_req[0], &stats[0] );
+  CHECK_MPI(mperr);
+  
+  return MB_SUCCESS;  
 }
-*/
 
-ErrorCode WriteHDF5Parallel::get_remote_set_data( 
-                        const WriteHDF5Parallel::MultiProcSetTags::Data& tags,
-                        RemoteSetData& data, long& offset )
+ErrorCode WriteHDF5Parallel::pack_set( Range::const_iterator it,
+                                       unsigned long* buffer,
+                                       size_t buffer_size )
 {
   ErrorCode rval;
-  int i;
-  int result;
-  Range::iterator riter;
-  Tag id_tag;
-
-  rval = tags.get_sets( iFace, data.range, id_tag );
-  if (MB_SUCCESS != rval)
-    return error(rval);
-
-  if (!data.range.empty()) {
-    Range tmp = intersect( data.range,  setSet.range );
-    data.range.swap( tmp );
-    range_remove( setSet.range, data.range );
-  }
+  const EntityHandle* ptr;
+  int len;
+  unsigned char flags;
+  std::vector<id_t> tmp;
+  size_t newlen;
   
-  dbgOut.printf(1,"Found %lu meshsets with \"%s\" tag.\n", (unsigned long)data.range.size(), tags.filterTag.c_str() );
-
-    // Exchange number of sets with tag between all processors
-  data.counts.resize(myPcomm->proc_config().proc_size());
-  VALGRIND_MAKE_VEC_UNDEFINED( data.counts );
-  int count = data.range.size();
-  result = MPI_Allgather( &count,          1, MPI_INT, 
-                          &data.counts[0], 1, MPI_INT,
-                          myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
-
-    // Exchange tag values for sets between all processors
-  data.displs.resize(myPcomm->proc_config().proc_size()+1);
-  VALGRIND_MAKE_VEC_UNDEFINED( data.displs );
-  data.displs[0] = 0;
-  for (unsigned int j = 1; j <= myPcomm->proc_config().proc_size(); j++)
-    data.displs[j] = data.displs[j-1] + data.counts[j-1];
-  int total = data.displs[myPcomm->proc_config().proc_size()];
-  data.all_values.resize(total);
-  VALGRIND_MAKE_VEC_UNDEFINED( data.all_values );
-  data.local_values.resize(count);
-  VALGRIND_MAKE_VEC_UNDEFINED( data.local_values );
-  rval = iFace->tag_get_data( id_tag, data.range, &data.local_values[0] );
-  if (MB_SUCCESS != rval)
-    return error(rval);
-  VALGRIND_CHECK_MEM_IS_DEFINED( &data.local_values[0], count*sizeof(int) );
-  result = MPI_Allgatherv( &data.local_values[0], count, MPI_INT,
-                           &data.all_values[0], &data.counts[0], &data.displs[0], MPI_INT,
-                           myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
-
-
-    // Remove from the list any sets that are unique to one processor
-  std::vector<int> sorted( data.all_values );
-  std::sort( sorted.begin(), sorted.end() );
-  int r = 0, w = 0;
-  for (unsigned j = 0; j < myPcomm->proc_config().proc_size(); ++j)
-  {
-    const int start = w;
-    for (i = 0; i < data.counts[j]; ++i)
-    {
-      std::vector<int>::iterator p 
-        = std::lower_bound( sorted.begin(), sorted.end(), data.all_values[r] );
-      ++p;
-      if (p != sorted.end() && *p == data.all_values[r])
-      {
-        data.all_values[w] = data.all_values[r];
-        ++w;
-      }
-      ++r;
-    }
-    data.counts[j] = w - start;
-  }
-  total = w;
-  data.all_values.resize( total );
-  r = w = 0;
-  for (i = 0; i < count; ++i)
-  {
-    std::vector<int>::iterator p 
-      = std::lower_bound( sorted.begin(), sorted.end(), data.local_values[r] );
-    ++p;
-    if (p != sorted.end() && *p == data.local_values[r])
-    {
-      data.local_values[w] = data.local_values[r];
-      ++w;
-    }
-    else
-    {
-      riter = data.range.begin();
-      riter += w;
-      setSet.range.insert( *riter );
-      data.range.erase( riter );
-    }
-    ++r;
-  }
-  count = data.range.size();
-  assert( count == data.counts[myPcomm->proc_config().proc_rank()] );
-  assert( count == w );
-  data.local_values.resize( count );
-  sorted.clear(); // release storage
+    // buffer must always contain at least flags and desired sizes
+  assert(buffer_size >= 4);
+  buffer_size -= 4;
   
-    // recalculate displacements for updated counts
-  data.displs[0] = 0;
-  for (unsigned int j = 1; j <= myPcomm->proc_config().proc_size(); j++)
-    data.displs[j] = data.displs[j-1] + data.counts[j-1];
+  Range::const_iterator nd = it; ++nd;
+  rval = writeUtil->get_entity_list_pointers( it, nd, &ptr, WriteUtilIface::CONTENTS, &len, &flags );
+  CHECK_MB(rval);
   
-    // Find sets that span multple processors and update appropriately.
-    // The first processor (sorted by MPI rank) that contains a given set
-    // will be responsible for writing the set description.  All multi-
-    // processor sets will be written at the beginning of the set tables.
-    // Processors will write set contents/children for a given set in
-    // the order of their MPI rank.
-    //
-    // Identify which meshsets will be managed by this processor and
-    // the corresponding offset in the set description table. 
-  int cpu = 0;
-  std::set<int> seen;
-  for (i = 0; i < total; ++i)
-  {
-    if (data.displs[cpu+1] == i)
-      ++cpu;
-
-    if (seen.insert(data.all_values[i]).second)
-      ++offset;
-
-    std::vector<int>::iterator loc 
-      = std::find( data.local_values.begin(), data.local_values.end(), data.all_values[i] );
-    if (loc != data.local_values.end()) 
-    {
-      riter = data.range.begin();
-      riter += loc - data.local_values.begin();
-      cpuParallelSets[cpu].insert( *riter );
-    }
+  if (len && !(flags & MESHSET_ORDERED)) {
+    tmp.clear();
+    bool blocked = false;
+    assert( 0 == len % 2 );
+    rval = range_to_blocked_list( ptr, len/2, tmp, blocked );
+    if (blocked)
+      flags |= mhdf_SET_RANGE_BIT;
   }
+  else {
+    tmp.resize( len );
+    rval = vector_to_id_list( ptr, len, &tmp[0], newlen, true );
+    tmp.resize( newlen );
+  }
+  CHECK_MB(rval);
+  
+  buffer[0] = flags;
+  buffer[1] = tmp.size();
+  if (buffer_size <= tmp.size())
+    std::copy( tmp.begin(), tmp.end(), buffer + 4 );
+  
+  rval = writeUtil->get_entity_list_pointers( it, nd, &ptr, WriteUtilIface::CHILDREN, &len );
+  CHECK_MB(rval);
+  tmp.resize( len );
+  rval = vector_to_id_list( ptr, len, &tmp[0], newlen, true );
+  tmp.resize( newlen );
+  buffer[2] = tmp.size();
+  if (buffer_size - buffer[1] <= tmp.size())
+    std::copy( tmp.begin(), tmp.end(), buffer + 4 + buffer[1] );
+  
+  rval = writeUtil->get_entity_list_pointers( it, nd, &ptr, WriteUtilIface::PARENTS, &len );
+  CHECK_MB(rval);
+  tmp.resize( len );
+  rval = vector_to_id_list( ptr, len, &tmp[0], newlen, true );
+  tmp.resize( newlen );
+  buffer[3] = tmp.size();
+  if (buffer_size - buffer[1] - buffer[2] <= tmp.size())
+    std::copy( tmp.begin(), tmp.end(), buffer + 4 + buffer[1] + buffer[2]);
   
   return MB_SUCCESS;
 }
 
-ErrorCode WriteHDF5Parallel::set_shared_set_ids( RemoteSetData& data, long& offset )
+template<typename TYPE>
+static void convert_to_ranged_ids( const TYPE* buffer, 
+                                   size_t len,
+                                   std::vector<WriteHDF5::id_t>& result )
 {
-    // Determine File ID for each shared set.
-  std::map<int,long> val_id_map; // Map from tag value to file ID for set
-  for (size_t i = 0; i < data.all_values.size(); ++i)
-  {
-    std::map<int,long>::iterator p = val_id_map.find( data.all_values[i] );
-    if (p == val_id_map.end())
-      val_id_map[data.all_values[i]] = offset++;
+  if (!len) {
+    result.clear();
+    return;
   }
-  Range::const_iterator riter = data.range.begin();
-  for (size_t i = 0; i < data.local_values.size(); ++i, ++riter)
-  {
-    std::map<int,long>::iterator p = val_id_map.find( data.local_values[i] );
-    assert( p != val_id_map.end() );
-    long id = p->second;
-    
-    if (!idMap.insert( *riter, id, 1 ).second) {
-      for (unsigned x = 0; x < myPcomm->size(); ++x) {
-        MPI_Barrier( myPcomm->proc_config().proc_comm() );      
-        if (x != myPcomm->rank()) continue;   
 
-        std::ostringstream s;
-        s << "[" << myPcomm->rank() << "] ";
-        std::string pfx1 = s.str();
-        s << "  ";
-        std::string pfx2 = s.str();
+  result.resize( len*2 );
+  std::copy( buffer, buffer+len, result.begin()+len );
+  std::sort( result.begin()+len, result.end() );
+  std::vector<WriteHDF5::id_t>::iterator w = result.begin();
+  std::vector<WriteHDF5::id_t>::const_iterator r = result.begin()+len;
+  *w = *r; ++w;
+  *w = *r; ++r;
+  for (; r != result.end(); ++r) {
+    if (*r == *w + 1) {
+      ++*w;
+    }
+    else {
+      ++w; *w = *r; 
+      ++w; *w = *r;
+    }
+  }
+  ++w;
+  result.erase( w, result.end() );
+}
 
-        std::cerr << pfx1 << "Duplicate shared set handle or internal accounting error" << std::endl;
-        //std::cerr << pfx1 << "RemoteSetData:  " << std::endl;
-        //print_remote_set_data( &dbgOut, iFace, data, pfx2.c_str() );
-
-        std::cerr << pfx1 << "val_id_map: " << std::endl;
-        for (p = val_id_map.begin(); p != val_id_map.end(); ++p)
-          std::cerr << pfx2 << p->first << "->" << p->second << std::endl;
-
-        std::cerr << pfx1 << "idMap: " << std::endl;
-        print_id_map( std::cerr, pfx2.c_str() );
-
-        std::cerr << pfx1 << "Failed at: (" << i << ") " << data.local_values[i] 
-                  << "->" << id << " for " 
-                  << CN::EntityTypeName(TYPE_FROM_HANDLE(*riter)) 
-                  << " " << ID_FROM_HANDLE(*riter) << std::endl;
-        std::cerr.flush();
+static void merge_ranged_ids( const unsigned long* range_list,
+                              size_t len,
+                              std::vector<WriteHDF5::id_t>& result )
+{
+  typedef WriteHDF5::id_t id_t;
+  assert(0 == len%2);
+  assert(0 == result.size()%2);
+  assert(sizeof(std::pair<id_t,id_t>) == 2*sizeof(id_t));
+  
+  result.insert( result.end(), range_list, range_list+len );
+  size_t plen = result.size()/2;
+  if (plen > 1) {
+    std::pair<id_t,id_t> *plist = reinterpret_cast<std::pair<id_t,id_t>*>(&result[0]);
+    std::sort( plist, plist+plen );
+    std::pair<id_t,id_t> *wr = plist, *pend = plist+plen;
+    std::sort( plist, pend );
+    for (std::pair<id_t,id_t> *iter = plist+1; iter != pend; ++iter) {
+      if (wr->second+1 < iter->first) {
+        ++wr;
+        *wr = *iter;
       }
-      
-      assert(false);
-      return error(MB_FAILURE);
+      else {
+        wr->second = std::max( wr->second, iter->second );
+      }
+    }
+    ++wr;
+    result.resize( 2*(wr - plist) ); 
+  }
+}
+
+static void merge_vector_ids( const unsigned long* list,
+                              size_t len,
+                              std::vector<WriteHDF5::id_t>& result )
+{
+  result.insert( result.end(), list, list+len );
+}
+
+ErrorCode WriteHDF5Parallel::unpack_set( EntityHandle set,
+                                         const unsigned long* buffer,
+                                         size_t buffer_size )
+{
+    // use local variables for readability
+  assert(buffer_size >= 4);
+  assert(buffer[1]+buffer[2]+buffer[3] <= buffer_size);
+  const unsigned long flags       = buffer[0];
+  unsigned long num_content = buffer[1];
+  const unsigned long num_child   = buffer[2];
+  const unsigned long num_parent  = buffer[3];
+  const unsigned long* contents = buffer + 4;
+  const unsigned long* children = contents + num_content;
+  const unsigned long* parents  = children + num_child;
+  
+  SpecialSetData* data = find_set_data( set ); assert(!!data);
+  if (!data) return MB_FAILURE;
+  
+    // If either the current data or the new data is in ranged format,
+    // then change the other to ranged format if it isn't already
+  std::vector<id_t> tmp;
+  if ((flags & mhdf_SET_RANGE_BIT) != (data->setFlags & mhdf_SET_RANGE_BIT)) {
+    if (flags & mhdf_SET_RANGE_BIT) {
+      tmp = data->contentIds;
+      convert_to_ranged_ids( &tmp[0], tmp.size(), data->contentIds );
+      data->setFlags &= mhdf_SET_RANGE_BIT;
+    }
+    else {
+      tmp.clear();
+      convert_to_ranged_ids( contents, num_content, tmp );
+      num_content = tmp.size();
+      if (sizeof(id_t) < sizeof(long)) {
+        size_t old_size = tmp.size();
+        tmp.resize( sizeof(long) * old_size / sizeof(id_t) );
+        unsigned long* array = reinterpret_cast<unsigned long*>(&tmp[0]);
+        for (size_t i = old_size-1; i >= 0; --i)
+          array[i] = tmp[i];
+        contents = array;
+      }
+      else if (sizeof(id_t) > sizeof(long)) {
+        unsigned long* array = reinterpret_cast<unsigned long*>(&tmp[0]);
+        std::copy( tmp.begin(), tmp.end(), array );
+      }
+      contents = &tmp[0];
     }
   }
   
+  if (flags & mhdf_SET_RANGE_BIT)
+    merge_ranged_ids( contents, num_content, data->contentIds );
+  else
+    merge_vector_ids( contents, num_content, data->contentIds );
+    
+  merge_vector_ids( children, num_child,  data->childIds  );
+  merge_vector_ids( parents,  num_parent, data->parentIds );
   return MB_SUCCESS;
 }
+
+ErrorCode WriteHDF5Parallel::communicate_shared_set_data( const Range& owned,
+                                                          const Range& remote )
+{
+    // Need an MPI type that we can put file IDs in
+  assert(sizeof(unsigned long) >= sizeof(id_t));
+
+  ErrorCode rval;
+  int mperr;
+  const unsigned rank = myPcomm->proc_config().proc_rank();
+  const MPI_Comm comm = myPcomm->proc_config().proc_comm();
+
+  dbgOut.tprintf(1,"COMMUNICATING SHARED SET DATA (%lu owned & %lu remote)\n",
+                   (unsigned long)owned.size(), (unsigned long)remote.size() );
+
+    // Calculate the total number of messages to be in transit (send and receive)
+  size_t nummess = 0;
+  std::vector<unsigned> procs;;
+  Range shared(owned);
+  shared.merge(remote);
+  for (Range::iterator i = shared.begin(); i != shared.end(); ++i) {
+    procs.clear();
+    rval = myPcomm->get_entityset_procs( *i, procs ); CHECK_MB(rval);
+    nummess += procs.size(); 
+  }
   
+  
+    // Choose a receive buffer size.  We need 4*sizeof(long) minimum,
+    // but that is almost useless so use 16*sizeof(long) as the minimum
+    // instead.  Choose an upper limit such that we don't exceed 32 MB 
+    // of allocated memory (unless we absolutely must to meet the minimum.)
+    // Also, don't initially choose buffers larger than 128*sizeof(long).
+  const size_t MAX_BUFFER_MEM = 32*1024*1024 / sizeof(long);
+  const size_t INIT_BUFFER_SIZE = 128;
+  const size_t MIN_BUFFER_SIZE = 16;
+  size_t init_buff_size = INIT_BUFFER_SIZE;
+  if (init_buff_size * nummess > MAX_BUFFER_MEM)
+    init_buff_size = MAX_BUFFER_MEM / nummess;
+  if (init_buff_size < MIN_BUFFER_SIZE)
+    init_buff_size = MIN_BUFFER_SIZE;
+    
+  dbgOut.printf(2,"Using buffer size of %lu for an expected message count of %lu\n",
+                  (unsigned long)init_buff_size, (unsigned long)nummess);
+
+    // count number of recvs
+  size_t numrecv = 0;
+  for (Range::iterator i = owned.begin(); i != owned.end(); ++i) {
+    procs.clear();
+    rval = myPcomm->get_entityset_procs( *i, procs ); CHECK_MB(rval);
+    numrecv += procs.size();
+    if (std::find(procs.begin(),procs.end(),rank) != procs.end())
+      --numrecv;
+  }
+
+
+    // post receive buffers for all owned sets for all sharing procs
+  std::vector<MPI_Request> recv_req(numrecv);
+  std::vector< std::vector<unsigned long> > recv_buf(numrecv,std::vector<unsigned long>(init_buff_size));
+  int idx = 0;
+  for (Range::iterator i = owned.begin(); i != owned.end(); ++i) {
+    procs.clear();
+    rval = myPcomm->get_entityset_procs( *i, procs ); CHECK_MB(rval);
+    for (size_t j = 0; j < procs.size(); ++j) {
+      if (procs[j] == rank)
+        continue;
+      int tag = ID_FROM_HANDLE(*i);
+      if (*i != CREATE_HANDLE(MBENTITYSET,tag)) {
+        assert(false);
+        CHECK_MB(MB_FAILURE);
+      }
+      dbgOut.printf(5,"Posting buffer to receive set %d from proc %u\n", tag, procs[j] );
+      mperr = MPI_Irecv( &recv_buf[idx][0], init_buff_size, MPI_UNSIGNED_LONG,
+                         procs[j], tag, comm, &recv_req[idx] );
+      CHECK_MPI(mperr);
+      ++idx;
+    }
+  }
+  assert( (size_t)idx == numrecv );
+  
+    // now send set data for all remote sets that I know about
+  std::vector<MPI_Request> send_req(remote.size());
+  std::vector< std::vector<unsigned long> > send_buf(remote.size());
+  idx = 0;
+  for (Range::iterator i = remote.begin(); i != remote.end(); ++i, ++idx) {
+    send_buf[idx].resize( init_buff_size );
+    rval = pack_set( i, &send_buf[idx][0], init_buff_size ); CHECK_MB(rval);
+    EntityHandle remote_handle;
+    unsigned owner;
+    rval = myPcomm->get_entityset_owner( *i, owner, &remote_handle ); CHECK_MB(rval);
+    
+    int tag = ID_FROM_HANDLE(remote_handle);
+    assert(remote_handle == CREATE_HANDLE(MBENTITYSET,tag));
+    dbgOut.printf(5,"Sending %lu values for set %d to proc %u\n",
+                    send_buf[idx][1]+send_buf[idx][2]+send_buf[idx][3]+4, tag, owner );
+    mperr = MPI_Isend( &send_buf[idx][0], init_buff_size, MPI_UNSIGNED_LONG, 
+                       owner, tag, comm, &send_req[idx] );
+    CHECK_MPI(mperr);
+  }
+  
+    // now initialize local data for managing contents of owned, shared sets
+  assert(specialSets.empty());
+  specialSets.clear();
+  specialSets.reserve( owned.size() );
+  for (Range::iterator i = owned.begin(); i != owned.end(); ++i) {
+    SpecialSetData data;
+    data.setHandle = *i;
+    rval = iFace->get_meshset_options( *i, data.setFlags );
+    CHECK_MB(rval);
+    specialSets.push_back( data );
+    std::vector<EntityHandle> list;
+    if (data.setFlags & MESHSET_ORDERED) {
+      list.clear();
+      rval = iFace->get_entities_by_handle( *i, list );
+      CHECK_MB(rval);
+      rval = vector_to_id_list( list, specialSets.back().contentIds, true );
+      CHECK_MB(rval);
+    }
+    else {
+      Range range;
+      rval = iFace->get_entities_by_handle( *i, range );
+      CHECK_MB(rval);
+      bool ranged;
+      rval = range_to_blocked_list( range, specialSets.back().contentIds, ranged );
+      if (ranged)
+       specialSets.back().setFlags |= mhdf_SET_RANGE_BIT;
+    }
+    list.clear();
+    rval = iFace->get_parent_meshsets( *i, list );
+    CHECK_MB(rval);
+    rval = vector_to_id_list( list, specialSets.back().parentIds, true );
+    CHECK_MB(rval);
+    rval = iFace->get_child_meshsets( *i, list );
+    CHECK_MB(rval);
+    rval = vector_to_id_list( list, specialSets.back().childIds, true );
+    CHECK_MB(rval);
+  }
+  
+    // process received buffers, repost larger buffers where necessary
+  size_t remaining = numrecv;
+  numrecv = 0;
+  while (remaining--) {
+    std::vector<unsigned long> dead;
+    MPI_Status status;
+    mperr = MPI_Waitany( recv_req.size(), &recv_req[0], &idx, &status );
+    CHECK_MPI(mperr);
+    EntityHandle handle = CREATE_HANDLE( MBENTITYSET, status.MPI_TAG );
+    std::vector<unsigned long>& buff = recv_buf[idx];
+    size_t size = buff[1]+buff[2]+buff[3]+4;
+    dbgOut.printf(5,"Received %lu values for set %d from proc %d\n",
+                    (unsigned long)size, status.MPI_TAG, status.MPI_SOURCE);
+    if (size <= init_buff_size) {
+      rval = unpack_set( handle, &buff[0], init_buff_size );
+      CHECK_MB(rval);
+      dead.swap(buff); // release memory
+    }
+    else {
+        // data was too big for init_buff_size
+        // repost with larger buffer
+      buff.resize( size );
+      dbgOut.printf(5,"Re-Posting buffer to receive set %d from proc %d with size %lu\n", 
+                      status.MPI_TAG, status.MPI_SOURCE, (unsigned long)size );
+      mperr = MPI_Irecv( &buff[0], size, MPI_UNSIGNED_LONG, status.MPI_SOURCE, 
+                         status.MPI_TAG, comm, &recv_req[idx] );
+      CHECK_MPI(mperr);
+      ++numrecv;
+    }
+    
+    recv_req[idx] = MPI_REQUEST_NULL;
+  }
+  
+  
+    // wait for sends to complete
+  MPI_Waitall( send_req.size(), &send_req[0], MPI_STATUSES_IGNORE );
+  
+    // re-send sets that didn't fit initial buffer size
+  idx = 0;
+  for (Range::iterator i = remote.begin(); i != remote.end(); ++i, ++idx) {
+    std::vector<unsigned long>& buff = send_buf[idx];
+    size_t size = buff[1]+buff[2]+buff[3]+4;
+    if (size <= init_buff_size)
+      continue;
+    
+    buff.resize( size );
+    rval = pack_set( i, &buff[0], size ); CHECK_MB(rval);
+    EntityHandle remote_handle;
+    unsigned owner;
+    rval = myPcomm->get_entityset_owner( *i, owner, &remote_handle ); CHECK_MB(rval);
+    
+    int tag = ID_FROM_HANDLE(remote_handle);
+    assert(*i == CREATE_HANDLE(MBENTITYSET,tag));
+    dbgOut.printf(5,"Sending %lu values for set %d to proc %u\n",
+                    (unsigned long)size, tag, owner );
+    mperr = MPI_Isend( &buff[0], size, MPI_UNSIGNED_LONG, 
+                       owner, tag, comm, &send_req[idx] );
+    CHECK_MPI(mperr);
+  }
+  
+    // process received buffers
+  remaining = numrecv;
+  while (remaining--) {
+    std::vector<unsigned long> dead;
+    MPI_Status status;
+    mperr = MPI_Waitany( recv_req.size(), &recv_req[0], &idx, &status );
+    CHECK_MPI(mperr);
+    EntityHandle handle = CREATE_HANDLE( MBENTITYSET, status.MPI_TAG );
+    std::vector<unsigned long>& buff = recv_buf[idx];
+    dbgOut.printf(5,"Received %lu values for set %d from proc %d\n",
+                    4+buff[1]+buff[2]+buff[3], status.MPI_TAG, status.MPI_SOURCE);
+    rval = unpack_set( handle, &buff[0], buff.size() );
+    CHECK_MB(rval);
+    dead.swap(buff); // release memory
+    
+    recv_req[idx] = MPI_REQUEST_NULL;
+  }
+    
+    // wait for sends to complete
+  MPI_Waitall( send_req.size(), &send_req[0], MPI_STATUSES_IGNORE );
+  
+  return MB_SUCCESS;
+}
+
 
 ErrorCode WriteHDF5Parallel::create_meshset_tables(double* times)
 {
   ErrorCode rval = MB_SUCCESS;
-  int result, i;
-  long total_offset = 0;
   Range::const_iterator riter;
+  const unsigned rank = myPcomm->proc_config().proc_rank();
 
   START_SERIAL;
   print_type_sets( iFace, &dbgOut, setSet.range );
   END_SERIAL;
   CpuTimer timer;
 
-    // Gather data about multi-processor meshsets - removes sets from setSet.range
-  std::vector<RemoteSetData> remote_set_data( multiProcSetTags.list.size() );
-  for (i = 0; i< (int)multiProcSetTags.list.size(); i++)
-  {
-    subState.start( "Resolving shared sets for tag: ", multiProcSetTags.list[i].filterTag.c_str() );
-    rval = get_remote_set_data( multiProcSetTags.list[i],
-                                remote_set_data[i],
-                                total_offset ); 
-    subState.end(rval);
-    if (MB_SUCCESS != rval)
-      return error(rval);
-  }
-  if (times) times[RESOLVE_SHARED_SET_TIME] = timer.elapsed();
+    // remove remote sets from setSets
+  Range shared, owned, remote;
+  rval = myPcomm->get_shared_sets( shared ); CHECK_MB(rval);
+  shared = intersect( shared, setSet.range );
+  rval = myPcomm->get_owned_sets( rank, owned ); CHECK_MB(rval);
+  owned = intersect( owned, setSet.range );
+  remote = subtract( shared, owned );
+  setSet.range = subtract( setSet.range, remote );
 
-  subState.start( "Negotiating offsets for local sets" );
-  dbgOut.print(2, "myLocalSets\n");
-  print_type_sets( iFace, &dbgOut, setSet.range );
+    // create set meta table
+  struct SetDescCreator : public DataSetCreator {
+    ErrorCode operator()( WriteHDF5* writer, long size, const ExportSet*, long& start_id ) const
+    { return writer->create_set_meta( size, start_id ); }
+  };
+  long count = setSet.range.size();
+  rval = create_dataset( 1, &count, 
+                         &setSet.offset, 
+                         &setSet.max_num_ents, 
+                         &setSet.total_num_ents, 
+                         SetDescCreator(), NULL, 
+                         &setSet.first_id );
+  CHECK_MB(rval);
+  rval = assign_ids( setSet.range, setSet.first_id + setSet.offset );
+  CHECK_MB(rval);
+  if (times) times[SET_OFFSET_TIME] = timer.elapsed();
+  
+    // exchange file IDS for sets between all procs
+  rval = communicate_shared_set_ids( owned, remote ); CHECK_MB(rval);
+  if (times) times[SHARED_SET_IDS] = timer.elapsed();
+  
+    // communicate remote set contents,children,etc.
+  rval = communicate_shared_set_data( owned, remote ); CHECK_MB(rval);
+  if (times) times[SHARED_SET_CONTENTS] = timer.elapsed();
 
-    // Gather counts of non-shared sets from each proc
-    // to determine total table size.
-  std::vector<long> set_offsets(myPcomm->proc_config().proc_size() + 1);
-  //VALGRIND_MAKE_VEC_UNDEFINED( set_offsets );
-  long local_count = setSet.range.size(), max_count = 0;
-  result = MPI_Gather( &local_count,    1, MPI_LONG,
-                       &set_offsets[0], 1, MPI_LONG,
-                       0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
-  if (myPcomm->proc_config().proc_rank() == 0) {
-    for (unsigned int j = 0; j <= myPcomm->proc_config().proc_size(); j++)
-    {
-      long tmp = set_offsets[j];
-      set_offsets[j] = total_offset;
-      total_offset += tmp;
-      if (max_count < tmp)
-        max_count = tmp;
-    }
-  }
-  
-    // Send each proc its offsets in the set description table.
-  long sets_offset;
-  result = MPI_Scatter( &set_offsets[0], 1, MPI_LONG,
-                        &sets_offset,    1, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
-  setSet.offset = (id_t)(sets_offset);
-    // Send each proc the max count so that we can do collective IO
-  result = MPI_Bcast( &max_count, 1, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
-  setSet.max_num_ents = max_count;
-
-    // Create the set description table
-  long total_count_and_start_id[2] = { set_offsets[myPcomm->proc_config().proc_size()], 0 };
-  if (myPcomm->proc_config().proc_rank() == 0 && total_count_and_start_id[0] > 0)
-  {
-    setSet.total_num_ents = total_count_and_start_id[0];
-    rval = create_set_meta( total_count_and_start_id[1] );
-    if (MB_SUCCESS != rval)
-      return error(rval);
-  }
-  
-    // Send totals to all procs.
-  result = MPI_Bcast( total_count_and_start_id, 2, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
-  setSet.first_id = total_count_and_start_id[1];
-  writeSets = total_count_and_start_id[0] > 0;
-
-  dbgOut.printf(2,"Non-shared sets: %ld local, %ld global, offset = %ld, first_id = %ld\n",
-    local_count, total_count_and_start_id[0], sets_offset, total_count_and_start_id[1] );
-  dbgOut.printf(2,"my Parallel Sets:\n");
-  print_type_sets(iFace, &dbgOut, cpuParallelSets[myPcomm->proc_config().proc_rank()] );
-  
-  subState.end();
-  if (times) times[LOCAL_SET_OFFSET_TIME] = timer.elapsed();
-  
-    // Not writing any sets??
-  if (!writeSets)
-    return MB_SUCCESS;
-  
-  subState.start( "Negotiating offsets for shared set data" );
-  
-  long start_id = setSet.first_id;
-  for (i = 0; i < (int)remote_set_data.size(); ++i)
-    set_shared_set_ids( remote_set_data[i], start_id );
-  
-    // Assign set IDs
-  assign_ids( setSet.range, setSet.first_id + setSet.offset );
-  
-    // Communicate sizes for remote sets
-  long data_offsets[3] = { 0, 0, 0 };
-  for (i = 0; i < (int)remote_set_data.size(); ++i)
-  {
-    rval = negotiate_remote_set_contents( remote_set_data[i], data_offsets ); 
-    if (MB_SUCCESS != rval)
-      return error(rval);
-  }
-  remote_set_data.clear();
-  subState.end();
-  if (times) times[SHARED_SET_OFFSET_TIME] = timer.elapsed();
-  
-    // Exchange IDs for remote/adjacent sets not shared between procs
-  //rval = communicate_remote_ids( MBENTITYSET ); assert(MB_SUCCESS == rval);
-  
-    // Communicate counts for local sets
-  long data_counts[3];
+    // Communicate counts for owned sets
+  long data_counts[3]; // { #contents, #children, #parents }
   rval = count_set_size( setSet.range, data_counts[0], data_counts[1], data_counts[2] );
-  if (MB_SUCCESS != rval) 
-    return error(rval);
-  std::vector<long> set_counts(3*myPcomm->proc_config().proc_size());
-  VALGRIND_MAKE_VEC_UNDEFINED( set_counts );
-  result = MPI_Gather( data_counts,    3, MPI_LONG,
-                       &set_counts[0], 3, MPI_LONG,
-                       0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
+  CHECK_MB(rval);
+  if (times) times[SET_OFFSET_TIME] += timer.elapsed();
   
+  long offsets[3], max_counts[3], totals[3];
+  rval = create_dataset( 3, data_counts, offsets, max_counts, totals );
+  CHECK_MB(rval);
   
-  long max_counts[3] = { 0, 0, 0 };
-  if (myPcomm->proc_config().proc_rank() == 0)
-  {
-      // calculate offsets for each set, and maximum count for each proccessor
-    for (unsigned int j = 0; j < 3*myPcomm->proc_config().proc_size(); ++j)
-    {
-      long tmp = set_counts[j];
-      set_counts[j] = data_offsets[j%3];
-      data_offsets[j%3] += tmp;
-      if (tmp > max_counts[j%3])
-        max_counts[j%3] = tmp;
-    }
-    
-      // Create set contents and set children tables
-    rval = create_set_tables( data_offsets[0], data_offsets[1], data_offsets[2] );
-    if (MB_SUCCESS != rval) 
-      return error(rval);
+    // create the datasets
+  if (0 == myPcomm->proc_config().proc_rank()) {
+    rval = create_set_tables( totals[0], totals[1], totals[2] );
+    CHECK_MB(rval);
   }
-  
-    // Broadcast both max_counts and total table sizes.
-    // max_counts is necessary for collective IO because each
-    // proc needs to know the total number of writes that must
-    // be done collectively while writing the contents of non-shared
-    // sets. 
-    // Also send the total table sizes, which also accounts for shared
-    // sets, so that processors know whether or not any data is to be
-    // written for the corresponding table.
-  long summary_counts[6] = { max_counts[0], max_counts[1], max_counts[2],
-                             data_offsets[0], data_offsets[1], data_offsets[2] };
-  result = MPI_Bcast( summary_counts, 6, MPI_LONG, 0, 
-                      myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
 
-  result = MPI_Scatter( &set_counts[0], 3, MPI_LONG,
-                        data_offsets,   3, MPI_LONG,
-                        0, myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
-  setContentsOffset = data_offsets[0];
-  setChildrenOffset = data_offsets[1];
-  setParentsOffset = data_offsets[2];
-  maxNumSetContents = summary_counts[0];
-  maxNumSetChildren = summary_counts[1];
-  maxNumSetParents  = summary_counts[2];
-  writeSetContents = summary_counts[3] > 0;
-  writeSetChildren = summary_counts[4] > 0;
-  writeSetParents  = summary_counts[5] > 0;
+    // Store communicated global data
+  setContentsOffset = offsets[0];
+  setChildrenOffset = offsets[1];
+  setParentsOffset = offsets[2];
+  maxNumSetContents = max_counts[0];
+  maxNumSetChildren = max_counts[1];
+  maxNumSetParents  = max_counts[2];
+  writeSetContents = totals[0] > 0;
+  writeSetChildren = totals[1] > 0;
+  writeSetParents  = totals[2] > 0;
 
-  dbgOut.printf(2,"Non-shared set contents: %ld local, %ld global, offset = %ld\n",
-    data_counts[0], summary_counts[3], data_offsets[0] );
-  dbgOut.printf(2,"Non-shared set children: %ld local, %ld global, offset = %ld\n",
-    data_counts[1], summary_counts[4], data_offsets[1] );
-  dbgOut.printf(2,"Non-shared set parents: %ld local, %ld global, offset = %ld\n",
-    data_counts[2], summary_counts[5], data_offsets[2] );
-  if (times) times[LOCAL_SET_OFFSET_TIME] += timer.elapsed();
+  dbgOut.printf(2,"set contents: %ld local, %ld global, offset = %ld\n",
+    data_counts[0], totals[0], offsets[0] );
+  dbgOut.printf(2,"set children: %ld local, %ld global, offset = %ld\n",
+    data_counts[1], totals[1], offsets[1] );
+  dbgOut.printf(2,"set parents: %ld local, %ld global, offset = %ld\n",
+    data_counts[2], totals[2], offsets[2] );
   
   return MB_SUCCESS;
 }
@@ -2005,27 +1989,7 @@ void WriteHDF5Parallel::remove_remote_sets( EntityHandle relative,
                                             Range& range )
 {
   Range result( intersect( range,  setSet.range ) );
-  //result.merge( intersect( range, yParallelSets ) );
   Range remaining( subtract( range, result ) );
-  
-  for(Range::iterator i = remaining.begin(); i != remaining.end(); ++i)
-  {
-      // Look for the first CPU which knows about both sets.
-    proc_iter cpu;
-    for (cpu = cpuParallelSets.begin(); cpu != cpuParallelSets.end(); ++cpu)
-      if (cpu->second.find(relative) != cpu->second.end() &&
-          cpu->second.find(*i) != cpu->second.end())
-        break;
-      // If we didn't find one, it may indicate a bug.  However,
-      // it could also indicate that it is a link to some set that
-      // exists on this processor but is not being written, because
-      // the caller requested that some subset of the mesh be written.
-    //assert(cpu < myPcomm->proc_config().proc_size());
-      // If I'm the first set that knows about both, I'll handle it.
-    if (cpu->first == myPcomm->proc_config().proc_rank())
-      result.insert( *i );
-  }
-  
   range.swap( result );
 }
   
@@ -2078,529 +2042,6 @@ void WriteHDF5Parallel::remove_remote_sets( EntityHandle relative,
   if (write != vect.size())
     vect.resize(write);
 }
-
-// Given a RemoteSetData object describing the set information for a 
-// single tag (or tag pair), populate the list of parallel sets
-// (this->parallelSets) with the per-entityset data.
-ErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& data,
-                                                              long* offsets /* long[3] */ )
-{
-  unsigned i;
-  ErrorCode rval;
-  Range::const_iterator riter;
-  int result;
-  const unsigned count = data.range.size();
-  const unsigned total = data.all_values.size();
-  std::vector<int>::iterator viter, viter2;
-
-    // Calculate counts for each meshset
-  std::vector<long> local_sizes(3*count);
-  VALGRIND_MAKE_VEC_UNDEFINED( local_sizes );
-  std::vector<long>::iterator sizes_iter = local_sizes.begin();
-  Range tmp_range;
-  std::vector<EntityHandle> child_list;
-  for (riter = data.range.begin(); riter != data.range.end(); ++riter)
-  {
-      // Count contents
-    *sizes_iter = 0;
-    tmp_range.clear();
-    rval = iFace->get_entities_by_handle( *riter, tmp_range );
-    if (MB_SUCCESS != rval)
-      return error(rval);
-    remove_remote_entities( *riter, tmp_range );
-    for (Range::iterator iter = tmp_range.begin(); iter != tmp_range.end(); ++iter)
-      if (0 != idMap.find( *iter ))
-        ++*sizes_iter;
-    ++sizes_iter;
-    
-      // Count children
-    *sizes_iter = 0;
-    child_list.clear();
-    rval = iFace->get_child_meshsets( *riter, child_list );
-    if (MB_SUCCESS != rval)
-      return error(rval);
-    remove_remote_sets( *riter, child_list );
-    for (std::vector<EntityHandle>::iterator iter = child_list.begin();
-         iter != child_list.end(); ++iter)
-      if (0 != idMap.find( *iter ))
-        ++*sizes_iter;
-    ++sizes_iter;
-    
-      // Count parents
-    *sizes_iter = 0;
-    child_list.clear();
-    rval = iFace->get_parent_meshsets( *riter, child_list );
-    if (MB_SUCCESS != rval)
-      return error(rval);
-    remove_remote_sets( *riter, child_list );
-    for (std::vector<EntityHandle>::iterator iter = child_list.begin();
-         iter != child_list.end(); ++iter)
-      if (0 != idMap.find( *iter ))
-        ++*sizes_iter;
-    ++sizes_iter;
-  }
-  
-    // Exchange sizes for sets between all processors.
-  std::vector<long> all_sizes(3*total);
-  VALGRIND_MAKE_VEC_UNDEFINED( all_sizes );
-  std::vector<int> counts(myPcomm->proc_config().proc_size()), displs(myPcomm->proc_config().proc_size());
-  VALGRIND_MAKE_VEC_UNDEFINED( counts );
-  VALGRIND_MAKE_VEC_UNDEFINED( displs );
-  for (i = 0; i < (unsigned)myPcomm->proc_config().proc_size(); i++)
-    counts[i] = 3 * data.counts[i];
-  displs[0] = 0;
-  for (i = 1; i < (unsigned)myPcomm->proc_config().proc_size(); i++)
-    displs[i] = displs[i-1] + counts[i-1];
-  VALGRIND_CHECK_MEM_IS_DEFINED( &local_sizes[0], 3*count*sizeof(long) );
-  result = MPI_Allgatherv( &local_sizes[0], 3*count, MPI_LONG,
-                           &all_sizes[0], &counts[0], &displs[0], MPI_LONG,
-                           myPcomm->proc_config().proc_comm() );
-  CHECK_MPI(result);
-
-  
-    // Update information in-place in the array from the Allgatherv.
-    
-    // Change the corresponding sizes for the first instance of a tag
-    // value such that it ends up being the total size of the set.
-    // Change the size to -1 for the later instances of a tag value.
-    //
-    // For the sets that this processor has, update the offsets at
-    // which the set data is to be written.  Store the offset of the data
-    // on this processor for the set *relative* to the start of the
-    // data of *the set*.
-  std::vector<long> local_offsets(3*count);
-  VALGRIND_MAKE_VEC_UNDEFINED( local_offsets );
-  std::map<int,int> tagsort;  // Map of {tag value, index of first set w/ value}
-  for (i = 0; i < total; ++i)
-  {
-    const std::map<int,int>::iterator p = tagsort.find( data.all_values[i] );
-    const unsigned r = (unsigned)(i - data.displs[myPcomm->proc_config().proc_rank()]);  // offset in "local" array
-    
-      // If this is the first instance of this tag value, 
-      // then the processor with this instance is responsible
-      // for writing the tag description
-    if ( p == tagsort.end() )  
-    {
-      tagsort[data.all_values[i]] = i;
-        // If within the range for this processor, save offsets
-      if (r < (unsigned)count) 
-      {
-        local_offsets[3*r] = local_offsets[3*r+1] = local_offsets[3*r+2] = 0;
-      }
-    }
-      // Otherwise update the total size in the table
-      // for the processor that is responsible for writing
-      // the data and mark the data for the current processor
-      // with a -1.
-    else 
-    {
-        // If within the range for this processor, save offsets
-      int j = p->second;
-      if (r < (unsigned)count) 
-      {
-          // the offset for this processor, from the start of the data
-          // for this group of sets, is the current total count for the
-          // group of sets.
-        local_offsets[3*r  ] = all_sizes[3*j  ];  // contents
-        local_offsets[3*r+1] = all_sizes[3*j+1];  // children
-        local_offsets[3*r+2] = all_sizes[3*j+2];  // parents
-      }
-      
-        // update the total count for the set in the first position in
-        // all_sizes at which the set occurs (the one corresponding to
-        // the processor that owns the set.)
-      all_sizes[3*j  ] += all_sizes[3*i  ]; // contents
-      all_sizes[3*j+1] += all_sizes[3*i+1]; // children
-      all_sizes[3*j+2] += all_sizes[3*i+2]; // parents
-        // set the size to -1 in the positions corresponding to non-owning processor
-      all_sizes[3*i  ] = all_sizes[3*i+1] = all_sizes[3*i+2] = -1;
-    }
-  }  
-    
-  
-    // Store the total size of each set (rather than the
-    // number of entities local to this processor) in the
-    // local_sizes array for each meshset.  Only need this
-    // for the sets this processor is writing the description
-    // for, but it's easier to get it for all of them.
-  sizes_iter = local_sizes.begin();
-  viter = data.local_values.begin();
-  for (riter = data.range.begin(); riter != data.range.end(); ++riter, ++viter)
-  {
-    const std::map<int,int>::iterator p = tagsort.find( *viter ); 
-    assert( p != tagsort.end() );
-    int j = 3 * p->second;
-    *sizes_iter = all_sizes[j  ]; ++sizes_iter;  // contents
-    *sizes_iter = all_sizes[j+1]; ++sizes_iter;  // children
-    *sizes_iter = all_sizes[j+2]; ++sizes_iter;  // parents
-  }
-  
-    // Now calculate the offset of the data for each (entire, parallel) set in
-    // the set contents, children and parents tables.  offsets is long[3], and
-    // is both input and output of this function.  We increment offsets by the
-    // total count (over all processors) for each set such that it contains
-    // the next open row in the table.  This will be passed back into this
-    // function for the next tag (or tag pair) such that ultimately it will
-    // contain the beginning of the non-shared set data in each of the three tables.
-    // all_sizes is re-used to store the global offset in each table for each 
-    // set with the tag.
-  for (i = 0; i < all_sizes.size(); ++i)
-  {
-    if (all_sizes[i] >= 0) // value is -1 (from above) if not this processor
-    {
-      int j = i % 3;              // contents, children or parents list ?
-      long tmp = offsets[j];      // save current, running offset
-      offsets[j] += all_sizes[i]; // next set's offset is current plus the size of this set
-      all_sizes[i] = tmp;         // size of this set is running offset.
-    }
-  }
-  
-    // Local offsets for this processor are stored as values relative to the
-    // start of each set's data.  Convert them to offsets relative to the
-    // start of all the set data.  Add the offset *from* the start of the set
-    // data (local_offsets) to the offset *of* the start of the set data 
-    // (stored in all_sizes in the previous loop) 
-  std::vector<long>::iterator offset_iter = local_offsets.begin();
-  viter = data.local_values.begin();
-  for (riter = data.range.begin(); riter != data.range.end(); ++riter, ++viter)
-  {
-    const std::map<int,int>::iterator p = tagsort.find( *viter );
-    assert( p != tagsort.end() );
-    int j = 3 * p->second;
-    *offset_iter += all_sizes[j  ]; ++offset_iter; // contents
-    *offset_iter += all_sizes[j+1]; ++offset_iter; // children
-    *offset_iter += all_sizes[j+2]; ++offset_iter; // parents
-  }
-
-#ifdef DEBUG  
-START_SERIAL; if (counts[myPcomm->proc_config().proc_rank()]) {
-std::string name1, name2;
-iFace->tag_get_name( data.data_tag, name1 );
-iFace->tag_get_name( data.filter_tag, name2 );
-printdebug("Remote set data\n" );
-printdebug("    %13s %13s owner local_offsets total_counts\n", name1.c_str(), name2.c_str());
-for (unsigned d = 0; d < (unsigned)counts[myPcomm->proc_config().proc_rank()]; ++d) {
-switch(d%3) {
-  case 0: // data/contents
-printdebug("   %13d %13d %5s %13d %12d\n", data.all_values[(d+displs[myPcomm->proc_config().proc_rank()])/3], 
- data.filter_value, 
- all_sizes[d+displs[myPcomm->proc_config().proc_rank()]] < 0 ? "no" : "yes", 
- local_offsets[d], local_sizes[d] );
-  break;
-  case 1: // children
-printdebug("                          (children) %13d %12d\n", local_offsets[d], local_sizes[d] );
-  break;
-  case 2: // parents
-printdebug("                           (parents) %13d %12d\n", local_offsets[d], local_sizes[d] );
-  break;
-} 
-}
-} 
-END_SERIAL;
-#endif
-  
-    // Store each parallel meshset in the list
-  sizes_iter = local_sizes.begin();
-  offset_iter = local_offsets.begin();
-  std::vector<long>::iterator all_iter = all_sizes.begin() + displs[myPcomm->proc_config().proc_rank()];
-  for (riter = data.range.begin(); riter != data.range.end(); ++riter)
-  {
-    ParallelSet info;
-    info.handle = *riter;
-    info.contentsOffset = *offset_iter; ++offset_iter;
-    info.childrenOffset = *offset_iter; ++offset_iter;
-    info.parentsOffset = *offset_iter; ++offset_iter;
-    info.contentsCount = *sizes_iter; ++sizes_iter;
-    info.childrenCount = *sizes_iter; ++sizes_iter;
-    info.parentsCount = *sizes_iter; ++sizes_iter;
-    info.description = *all_iter >= 0; all_iter += 3;
-    parallelSets.push_back( info );
-  }
-  
-  return MB_SUCCESS;
-}
-
-
-ErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table,
-                                              IODebugTrack* dbg_track )
-{
-  dbgOut.tprint( 1, "write_shared_set_descriptions\n" );
-
-  const id_t start_id = setSet.first_id;
-  ErrorCode rval;
-  
-    // Count number of parallel sets for which we need to write
-    // the description
-  std::list<ParallelSet>::const_iterator iter;
-  size_t count = 0;
-  std::vector<id_t> ids;
-  for (iter = parallelSets.begin(); iter != parallelSets.end(); ++iter) {
-    if (iter->description) {
-      ++count;
-      
-      id_t file_id = idMap.find( iter->handle );
-      assert( file_id && file_id >= start_id );
-      ids.push_back( file_id );
-    }
-  }
-  
-    // Sort set handles by file ID, and construct range of file IDs
-    // build range of offsets into dataset
-  Range indices;
-  std::sort( ids.begin(), ids.end() );
-  if (std::unique(ids.begin(), ids.end()) != ids.end()) {
-    std::cerr << "Internal error at " __FILE__ ":" << __LINE__ << std::endl
-              << "Overlapping offsets for shared set descriptions" << std::endl;
-    std::cerr.flush();
-    MPI_Abort( myPcomm->proc_config().proc_comm(), 1 );
-  }
-  for (std::vector<id_t>::reverse_iterator it = ids.rbegin(); it != ids.rend(); ++it)
-    indices.insert( *it );
-  
-    // get a large enough buffer for all of the shared set metadata
-  std::vector<mhdf_index_t> tmp_buffer;
-  size_t buffer_size = bufferSize / (4*sizeof(mhdf_index_t));
-  mhdf_index_t* buffer;
-  if (buffer_size >= count) {
-    buffer = reinterpret_cast<mhdf_index_t*>(dataBuffer);
-  }
-  else {
-    tmp_buffer.resize(4 * count);
-    buffer = &tmp_buffer[0];
-  }
-  
-    // get a buffer for offset locations
-  for( iter = parallelSets.begin(); iter != parallelSets.end(); ++iter)
-  {
-    if (!iter->description)
-      continue;  // handled by a different processor
-    
-      // Get offset in table at which to write data
-    id_t file_id = idMap.find( iter->handle );
-    size_t idx = std::lower_bound( ids.begin(), ids.end(), file_id ) - ids.begin();
-    assert(idx < ids.size() && ids[idx] == file_id);
-    mhdf_index_t* mdata = buffer + 4*idx;
-    
-      // Get flag data
-    unsigned int flags;
-    rval = iFace->get_meshset_options( iter->handle, flags );
-    if (MB_SUCCESS != rval)
-      return error(rval);
-      
-      // Write the data
-    mdata[0] = iter->contentsOffset + iter->contentsCount - 1;
-    mdata[1] = iter->childrenOffset + iter->childrenCount - 1;
-    mdata[2] = iter->parentsOffset  + iter->parentsCount  - 1,
-    mdata[3] = flags;                                         
-    
-    if (dbg_track) dbg_track->record_io( file_id - start_id, 1 );
-  }
-
-  herr_t herr = 0;
-  hid_t space = H5Dget_space( table );
-  hsize_t dims[2] = { count, 4 }, offsets[2] = { 0, 0 };
-  hid_t mem;
-  H5S_seloper_t op = H5S_SELECT_SET;
-  if (count) {
-    mem = H5Screate_simple( 2, dims, NULL );
-    Range::const_pair_iterator pi;
-    dims[1] = 4;
-    for (pi = indices.const_pair_begin(); pi != indices.const_pair_end(); ++pi) {
-      offsets[0] = pi->first - start_id;
-      dims[0] = pi->second - pi->first + 1;
-      herr = H5Sselect_hyperslab( space, op, offsets, 0, dims, 0 );
-      if (herr < 0)
-        break;
-      op = hslabOp;
-    }
-  }
-  else {
-    hsize_t one = 1;
-    mem = H5Screate_simple( 1, &one, NULL );
-    herr = H5Sselect_none( mem );
-    if (herr < 0) {
-      H5Sclose( space );
-      H5Sclose( mem );
-      writeUtil->report_error( "H5Sselect_none failed for set contents" );
-      return error(MB_FAILURE);
-    }
-    herr = H5Sselect_none( space );
-  }
-
-  if (herr < 0) {
-    H5Sclose( mem );
-    H5Sclose( space );
-    dbgOut.tprint(1,"H5Sselect_elements failed\n");
-    writeUtil->report_error("H5Sselect_elements failed");
-    return error(MB_FAILURE);
-  }
-  herr = H5Dwrite( table, MHDF_INDEX_TYPE, mem, space, writeProp, buffer );
-  H5Sclose( space );
-  H5Sclose( mem );
-  if (herr < 0) {
-    dbgOut.tprint(1,"Failed to write shared set descriptions\n");
-    writeUtil->report_error("H5Dwrite of shared set descriptions failed.");
-    return error(MB_FAILURE);
-  }
-
-  return MB_SUCCESS;
-}
-
-static inline size_t
-psoffset( WriteUtilIface::EntityListType which_data, 
-          const WriteHDF5Parallel::ParallelSet& group )
-{
-  switch (which_data) {
-    case WriteUtilIface::CONTENTS: return group.contentsOffset;
-    case WriteUtilIface::CHILDREN: return group.childrenOffset;
-    case WriteUtilIface::PARENTS:  return group.parentsOffset;
-  }
-  return 0;
-}
-
-ErrorCode WriteHDF5Parallel::write_shared_set_data( hid_t table,
-                                   WriteUtilIface::EntityListType which_data,
-                                   IODebugTrack* dbg_track )
-{
-  herr_t err;
-  ErrorCode rval;
-  std::vector<EntityHandle> handle_list;
-  std::vector<id_t> id_list;
-  std::vector<id_t> big_list;
-  hid_t data_space = H5Dget_space( table );
-  H5Sselect_none( data_space );
-  
-    // Sort parallel sets by offset into data table so that
-    // the order in the buffer correctly matches the order
-    // the HDF5 lib will expect.
-  const size_t count = parallelSets.size();
-  std::vector<id_t> offsets;
-  std::vector<const ParallelSet*> sets;
-  sets.reserve(count);
-  offsets.reserve(count);
-  std::list<ParallelSet>::const_iterator iter;
-  for (iter = parallelSets.begin(); iter != parallelSets.end(); ++iter) 
-    offsets.push_back( psoffset( which_data, *iter ) );
-  std::sort( offsets.begin(), offsets.end() );
-  sets.resize(offsets.size(), 0);
-  for (iter = parallelSets.begin(); iter != parallelSets.end(); ++iter) {
-    size_t off = psoffset( which_data, *iter );
-    size_t idx = std::lower_bound( offsets.begin(), offsets.end(), off ) - offsets.begin();
-    while (idx < sets.size() && sets[idx]) 
-      ++idx; // might be duplicates if not writing data for some sets
-    assert(idx < sets.size() && offsets[idx] == off);
-    sets[idx] = &*iter;
-  }
-    
-    // Now fill buffer with data
-  for (size_t i = 0; i < sets.size(); ++i) {
-    handle_list.clear();
-    long offset;
-    switch (which_data) {
-      case WriteUtilIface::CONTENTS:
-        rval = iFace->get_entities_by_handle( sets[i]->handle, handle_list );
-        offset = sets[i]->contentsOffset;
-        break;
-      case WriteUtilIface::CHILDREN:
-        rval = iFace->get_child_meshsets( sets[i]->handle, handle_list );
-        offset = sets[i]->childrenOffset;
-        break;
-      case WriteUtilIface::PARENTS:
-        rval = iFace->get_parent_meshsets( sets[i]->handle, handle_list );
-        offset = sets[i]->parentsOffset;
-        break;
-    }
-    if (MB_SUCCESS != rval) {
-      H5Sclose( data_space );
-      return error(rval);
-    }
-    remove_remote_entities( sets[i]->handle, handle_list );
-    
-    id_list.clear();
-    vector_to_id_list( handle_list, id_list, true );
-    if (id_list.empty())
-      continue;
-    
-    if (dbg_track) 
-      dbg_track->record_io( offset, id_list.size() );
-      
-    hsize_t start = offset;
-    hsize_t count = id_list.size();
-    err = H5Sselect_hyperslab( data_space, hslabOp, &start, 0, &count, 0 );
-    if (err < 0) {
-      H5Sclose( data_space );
-      writeUtil->report_error( "H5Sselect_hyperslab failed for set contents" );
-      return error(MB_FAILURE);
-    }
-    std::copy( id_list.begin(), id_list.end(), std::back_inserter(big_list) );
-  }
-  
-    // Finally, write the data
-  hid_t mem;
-  if (big_list.empty()) {
-//#if H5_VERS_MAJOR > 1 || H5_VERS_MINOR >= 8
-//    mem = H5Screate(H5S_NULL); 
-//#else
-    hsize_t one = 1;
-    mem = H5Screate_simple( 1, &one, NULL );
-    err = H5Sselect_none( mem );
-    if (err < 0) {
-      H5Sclose( data_space );
-      H5Sclose( mem );
-      writeUtil->report_error( "H5Sselect_none failed for set contents" );
-      return error(MB_FAILURE);
-    }
-//#endif
-    H5Sselect_none(data_space);
-  }
-  else {
-    hsize_t dim = big_list.size();
-    mem = H5Screate_simple( 1, &dim, NULL );
-  }
-  
-  err = H5Dwrite( table, id_type, mem, data_space, writeProp, &big_list[0] );
-  H5Sclose( data_space );
-  H5Sclose( mem );
-  if (err < 0) {
-    dbgOut.tprint(1,"Failed to write shared set descriptions\n");
-    writeUtil->report_error("H5Dwrite of shared set descriptions failed.");
-    return error(MB_FAILURE);
-  }
-    
-  return MB_SUCCESS;    
-}
-
-ErrorCode WriteHDF5Parallel::write_shared_set_contents( hid_t table,
-                                            IODebugTrack* dbg_track )
-{
-  dbgOut.tprint(1, "write_shared_set_contents\n" );
-  return write_shared_set_data( table, WriteUtilIface::CONTENTS, dbg_track );
-}
-    
-
-ErrorCode WriteHDF5Parallel::write_shared_set_children( hid_t table,
-                                            IODebugTrack* dbg_track )
-{
-  dbgOut.tprint(1, "write_shared_set_children\n" );
-  return write_shared_set_data( table, WriteUtilIface::CHILDREN, dbg_track );
-}
-    
-
-ErrorCode WriteHDF5Parallel::write_shared_set_parents( hid_t table,
-                                            IODebugTrack* dbg_track )
-{
-  dbgOut.tprint(1, "write_shared_set_parents\n" );
-  return write_shared_set_data( table, WriteUtilIface::PARENTS, dbg_track );
-}
-
-ErrorCode WriteHDF5Parallel::write_finished()
-{
-  parallelSets.clear();
-  cpuParallelSets.clear();
-  //myParallelSets.clear();
-  return WriteHDF5::write_finished();
-}
-
 
 ErrorCode WriteHDF5Parallel::exchange_file_ids( const Range& nonlocal )
 {
@@ -2729,58 +2170,6 @@ ErrorCode WriteHDF5Parallel::exchange_file_ids( const Range& nonlocal )
 #endif   
   
   return iFace->tag_delete( file_id_tag );
-}
-
-
-ErrorCode WriteHDF5Parallel::get_sharedset_tags() 
-{
-    // get all the sets
-  Range all_sets;
-  ErrorCode result = iFace->get_entities_by_type_and_tag(0, MBENTITYSET, NULL, NULL, 0,
-                                                           all_sets);
-  if (MB_SUCCESS != result) return error(result);
-  if (all_sets.empty()) return MB_SUCCESS;
-  
-    // get all the tags on those sets & test against known exceptions
-  std::set<Tag> all_tags;
-  std::vector<Tag> all_tagsv;
-  std::string tag_name;
-  
-  for (Range::iterator rit = all_sets.begin(); rit != all_sets.end(); rit++) {
-    all_tagsv.clear();
-    result = iFace->tag_get_tags_on_entity(*rit, all_tagsv);
-    if (MB_SUCCESS != result) return error(result);
-
-    for (std::vector<Tag>::iterator vit = all_tagsv.begin(); vit != all_tagsv.end(); vit++) {
-        // don't look at tags already selected
-      if (std::find(all_tags.begin(), all_tags.end(), *vit) != all_tags.end()) continue;
-
-        // get name
-      result = iFace->tag_get_name(*vit, tag_name);
-      if (MB_SUCCESS != result) return error(result);
-
-        // look for known exclusions
-      const char *tag_cstr = tag_name.c_str();
-      if (
-        !((tag_cstr[0] == '_' && tag_cstr[1] == '_') ||
-          tag_name == PARALLEL_SHARED_PROC_TAG_NAME ||
-          tag_name == PARALLEL_SHARED_PROCS_TAG_NAME ||
-          tag_name == PARALLEL_SHARED_HANDLE_TAG_NAME ||
-          tag_name == PARALLEL_SHARED_HANDLES_TAG_NAME ||
-          tag_name == PARALLEL_STATUS_TAG_NAME 
-          ))
-        all_tags.insert(*vit);
-    }
-  }
-  
-    // now add the tag names to the list
-  for (std::set<Tag>::iterator sit = all_tags.begin(); sit != all_tags.end(); sit++) {
-    result = iFace->tag_get_name(*sit, tag_name);
-    if (MB_SUCCESS != result) return error(result);
-    multiProcSetTags.add( tag_name);
-  }
-    
-  return MB_SUCCESS;
 }
 
 

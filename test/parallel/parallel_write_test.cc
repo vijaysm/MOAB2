@@ -9,6 +9,7 @@
 #include <math.h>
 #include <assert.h>
 #include <stdio.h>
+#include <sstream>
 
 using namespace moab;
 
@@ -36,12 +37,13 @@ const char* DEFAULT_FILE_NAME = "parallel_write_test.h5m";
 // root of the comm size such that there are no disjoint regions.
 ErrorCode generate_mesh( Interface& moab, int intervals );
 
-const char args[] = "[-i <intervals>] [-o <filename>] [-g <filename>]";
+const char args[] = "[-i <intervals>] [-o <filename>] [-L <filename>] [-g <n>]";
 void help() {
   std::cout << "parallel_write_test " << args << std::endl
             << "  -i <N>    Each processor owns an NxNxN cube of hex elements (default: " << DEFAULT_INTERVALS << ")" << std::endl
             << "  -o <name> Retain output file and name it as specified." << std::endl
-            << "  -g <name> Write local mesh to file name prefixed with MPI rank" << std::endl
+            << "  -L <name> Write local mesh to file name prefixed with MPI rank" << std::endl
+            << "  -g <n>    Specify writer debug output level" << std::endl
             << "  -R        Skip resolve of shared entities (interface ents will be duplicated in file)" << std::endl
             << std::endl
             << "This program creates a (non-strict) subset of a regular hex mesh "
@@ -91,12 +93,13 @@ int main( int argc, char* argv[] )
     // settings controlled by CL flags
   const char* output_file_name = 0;
   const char* indiv_file_name = 0;
-  int intervals = 0;
+  int intervals = 0, debug_level = 0;
     // state for CL flag processing
   bool expect_intervals = false;
   bool expect_file_name = false;
   bool expect_indiv_file = false;
   bool skip_resolve_shared = false;
+  bool expect_debug_level = false;
     // process CL args
   for (int i = 1; i < argc; ++i) {
     if (expect_intervals) {
@@ -116,14 +119,24 @@ int main( int argc, char* argv[] )
       output_file_name = argv[i];
       expect_file_name = false;
     }
+    else if (expect_debug_level) {
+      debug_level = atoi(argv[i]);
+      if (debug_level < 1) {
+        std::cerr << "Invalid argument following -g flag: \"" << argv[i] << '"' << std::endl;
+        return 1;
+      }
+      expect_debug_level = false;
+    }
     else if (!strcmp( "-i", argv[i]))
       expect_intervals = true;
     else if (!strcmp( "-o", argv[i]))
       expect_file_name = true;
-    else if (!strcmp( "-g", argv[i]))
+    else if (!strcmp( "-L", argv[i]))
       expect_indiv_file = true;
     else if (!strcmp( "-R", argv[i]))
       skip_resolve_shared = true;
+    else if (!strcmp( "-g", argv[i]))
+      expect_debug_level = true;
     else if (!strcmp( "-h", argv[i])) {
       help();
       return 0;
@@ -200,7 +213,11 @@ TPRINT("Beginning parallel write");
   double write_time = MPI_Wtime();
     // Do parallel write
   clock_t t = clock();
-  rval = moab.write_file( output_file_name, "MOAB", "PARALLEL=WRITE_PART" );
+  std::ostringstream opts;
+  opts << "PARALLEL=WRITE_PART";
+  if (debug_level > 0)
+    opts << ";DEBUG_IO=" << debug_level;
+  rval = moab.write_file( output_file_name, "MOAB", opts.str().c_str() );
   t = clock() - t;
   if (MB_SUCCESS != rval) {
     std::string msg;
