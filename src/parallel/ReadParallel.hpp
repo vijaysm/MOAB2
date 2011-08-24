@@ -70,6 +70,7 @@ public:
                         PA_GET_FILESET_ENTS, 
                         PA_RESOLVE_SHARED_ENTS,
                         PA_EXCHANGE_GHOSTS, 
+                        PA_RESOLVE_SHARED_SETS,
                         PA_PRINT_PARALLEL};
 
   static const char *ParallelActionsNames[];

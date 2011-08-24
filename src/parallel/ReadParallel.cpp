@@ -32,6 +32,7 @@ const char *ReadParallel::ParallelActionsNames[] = {
     "PARALLEL GET_FILESET_ENTS",
     "PARALLEL RESOLVE_SHARED_ENTS",
     "PARALLEL EXCHANGE_GHOSTS",
+    "PARALLEL RESOLVE_SHARED_SETS",
     "PARALLEL PRINT_PARALLEL"
 };
 
@@ -222,6 +223,8 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   if (-2 != resolve_dim) pa_vec.push_back(PA_RESOLVE_SHARED_ENTS);
 
   if (-1 != ghost_dim) pa_vec.push_back(PA_EXCHANGE_GHOSTS);
+
+  if (-2 != resolve_dim) pa_vec.push_back(PA_RESOLVE_SHARED_SETS);
 
   if (print_parallel) pa_vec.push_back(PA_PRINT_PARALLEL);
   
@@ -483,6 +486,16 @@ ErrorCode ReadParallel::load_file(const char **file_names,
           break;
         
 //==================
+      case PA_RESOLVE_SHARED_SETS:
+          myDebug.tprint(1,"Resolving shared sets.\n");
+	  
+	  if (myPcomm->size() == 1)
+	    tmp_result = MB_SUCCESS;
+	  else
+	    tmp_result = myPcomm->resolve_shared_sets(file_set, use_id_tag ? file_id_tag : 0);
+          break;
+        
+//==================
       case PA_PRINT_PARALLEL:
           myDebug.tprint(1,"Printing parallel information.\n");
 
@@ -704,6 +717,8 @@ ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set)
     result = mbImpl->remove_entities(*rit, deletable_ents);
     RR("Failure removing deletable entities.");
   }
+  result = mbImpl->remove_entities( file_set, deletable_ents );
+  RR("Failure removing deletable entities.");
 
   myDebug.tprint( 2, "Deleting deletable entities.\n" );
 
