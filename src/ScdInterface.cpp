@@ -663,6 +663,9 @@ ErrorCode ScdInterface::compute_partition_sqij(int np, int nr, const int *gijk, 
   int I = (gijk[3] - gijk[0]), J = (gijk[4] - gijk[1]);
   int iextra = I%pi, jextra = J%pj, i = I/pi, j = J/pj;
   int nri = nr % pi, nrj = nr / pi;
+//
+// pi, pj = # blocks in i, j directions
+// nri, nrj = column, row of this processor's block
   if (lijk) {
     lijk[0] = i*nri + std::min(iextra, nri);
     lijk[3] = lijk[0] + i + (nri < iextra ? 1 : 0);
@@ -838,26 +841,65 @@ ErrorCode ScdInterface::get_neighbor_alljkbal(ParallelComm *pcomm, ScdBox *box, 
   pto = -1;
   bdy_ind[0] = bdy_ind[1] = -1;
   int pj, pk; // pj, pk: # procs in j, k directions
-  ErrorCode rval = compute_partition_alljkbal(np, nr, box->global_box_dims(), facedims, &pj);
+  ErrorCode rval = compute_partition_alljkbal(np, nr, box->global_box_dims(), rdims, &pj);
   if (MB_SUCCESS != rval) return rval;
   pk = np / pj;
   assert(pj * pk == np);
   pto = -1;
-  if ((nr < pj && -1 == dijk[1] && !box->is_periodic_j()) ||  // down and not periodic
-      (nr > np-pj && 1 == dijk[1] && !box->is_periodic_j()))  // up and not periodic
+  if (1 == pk && dijk[2]) return MB_SUCCESS; // 1d in j means no neighbors with dk != 0
+  if ((nr < pk && -1 == dijk[1] && !box->is_periodic_j()) ||  // down and not periodic
+      (nr >= np-pk && 1 == dijk[1] && !box->is_periodic_j()))  // up and not periodic
     return MB_SUCCESS;
     
+  pto = nr;
+  
   if (0 != dijk[1]) {
-    pto = (nr + dijk[1]*(gdims[4]-gdims[1])/pj) % np;
-    facedims[1] = facedims[4] = (-1 == dijk[1] ? facedims[1] : facedims[4]);
+    pto = (pto + dijk[1]*pk) % np;
+    assert (pto >= 0 && pto < np);
+    int dj = (gdims[4] - gdims[1]) / pj, extra = (gdims[4] - gdims[1]) % dj;
+    if (-1 == dijk[1]) {
+      facedims[4] = facedims[1];
+      rdims[4] = rdims[1];
+      rdims[1] -= dj;
+      if (pto < extra) rdims[1]--;
+    }
+    else {
+      facedims[1] = facedims[4];
+      rdims[1] = rdims[4];
+      rdims[4] += dj;
+      if (pto < extra) rdims[4]++;
+    }
   }
-  else if (0 != dijk[2]) {
-    pto = (nr + dijk[2]) % np;
+  if (0 != dijk[2]) {
+    pto = (pto + dijk[2]) % np;
+    assert (pto >= 0 && pto < np);
     facedims[2] = facedims[5] = (-1 == dijk[2] ? facedims[2] : facedims[5]);
+    int dk = (gdims[5] - gdims[2]) / pk;
+    if (-1 == dijk[2]) {
+      facedims[5] = facedims[2];
+      rdims[5] = rdims[2];
+      rdims[2] -= dk;
+    }
+    else {
+      facedims[2] = facedims[5];
+      rdims[2] = rdims[5];
+      rdims[5] += dk;
+    }
   }
 
   if (dijk[1] == -1 && box->is_periodic_j() && ldims[1] == gdims[1]) bdy_ind[1] = 1;
 
+  assert(-1 == pto ||
+         (rdims[0] >= box->global_box_dims()[0] && rdims[3] <= box->global_box_dims()[3] && 
+          rdims[1] >= box->global_box_dims()[1] && rdims[4] <= box->global_box_dims()[4] && 
+          rdims[2] >= box->global_box_dims()[2] && rdims[5] <= box->global_box_dims()[5] &&
+          facedims[0] >= rdims[0] && facedims[3] <= rdims[3] &&
+          facedims[1] >= rdims[1] && facedims[4] <= rdims[4] &&
+          facedims[2] >= rdims[2] && facedims[5] <= rdims[5] &&
+          facedims[0] >= ldims[0] && facedims[3] <= ldims[3] &&
+          facedims[1] >= ldims[1] && facedims[4] <= ldims[4] &&
+          facedims[2] >= ldims[2] && facedims[5] <= ldims[5]));
+  
   return MB_SUCCESS;
 #else
   return MB_FAILURE;
@@ -879,28 +921,68 @@ ErrorCode ScdInterface::get_neighbor_sqij(ParallelComm *pcomm, ScdBox *box, int 
   pto = -1;
   bdy_ind[0] = bdy_ind[1] = -1;
   int pi, pj; // pi, pj: # procs in i, j directions
-  ErrorCode rval = compute_partition_sqij(np, nr, box->global_box_dims(), facedims, &pi);
+    // guess pi
+  ErrorCode rval = compute_partition_sqij(np, nr, box->global_box_dims(), rdims, &pi);
   if (MB_SUCCESS != rval) return rval;
   pj = np / pi;
   assert(pi * pj == np);
   pto = -1;
-  if ((nr < pi && -1 == dijk[0] && !box->is_periodic_i()) ||  // left and not periodic
-      (nr > np-pi && 1 == dijk[0] && !box->is_periodic_i()) ||  // right and not periodic
-      (!(nr%pi) && -1 == dijk[1] && !box->is_periodic_j()) || // bottom and not periodic
-      (nr%pi == pi-1 && 1 == dijk[1] && !box->is_periodic_j()))  // top and not periodic
+  if ((!(nr%pi) && -1 == dijk[0] && !box->is_periodic_i()) ||  // left and not periodic
+      ((nr%pi) == pi-1 && 1 == dijk[0] && !box->is_periodic_i()) ||  // right and not periodic
+      (!(nr/pi) && -1 == dijk[1] && !box->is_periodic_j()) || // bottom and not periodic
+      (nr/pi == pj-1 && 1 == dijk[1] && !box->is_periodic_j()))  // top and not periodic
     return MB_SUCCESS;
-    
+  
+  pto = nr;
+  int dj = (gdims[4] - gdims[1]) / pj, jextra = (gdims[4] - gdims[1]) % dj,
+      di = (gdims[3] - gdims[0]) / pi, iextra = (gdims[3] - gdims[0]) % di;
+  
   if (0 != dijk[0]) {
-    pto = (nr + dijk[0]*(gdims[3]-gdims[0])/pi) % np;
-    facedims[0] = facedims[3] = (-1 == dijk[0] ? facedims[0] : facedims[3]);
+    pto = (pto + dijk[0]) % np;
+    assert (pto >= 0 && pto < np);
+    if (-1 == dijk[0]) {
+      facedims[3] = facedims[0];
+      rdims[3] = rdims[0];
+      rdims[0] -= di;
+      if (pto < iextra) rdims[0]--;
+    }
+    else {
+      facedims[0] = facedims[3];
+      rdims[0] = rdims[3];
+      rdims[3] += di;
+      if (pto < iextra) rdims[3]++;
+    }
   }
-  else if (0 != dijk[1]) {
-    pto = (nr + dijk[1]) % np;
-    facedims[1] = facedims[4] = (-1 == dijk[1] ? facedims[1] : facedims[4]);
+  if (0 != dijk[1]) {
+    pto = (pto + dijk[1]*pi) % np;
+    assert (pto >= 0 && pto < np);
+    if (-1 == dijk[1]) {
+      facedims[4] = facedims[1];
+      rdims[4] = rdims[1];
+      rdims[1] -= dj;
+      if (pto < jextra) rdims[1]--;
+    }
+    else {
+      facedims[1] = facedims[4];
+      rdims[1] = rdims[4];
+      rdims[4] += dj;
+      if (pto < jextra) rdims[4]++;
+    }
   }
 
   if (dijk[0] == -1 && box->is_periodic_i() && ldims[0] == gdims[0]) bdy_ind[0] = 1;
   if (dijk[1] == -1 && box->is_periodic_j() && ldims[1] == gdims[1]) bdy_ind[1] = 1;
+
+  assert(-1 == pto ||
+         (rdims[0] >= box->global_box_dims()[0] && rdims[3] <= box->global_box_dims()[3] && 
+          rdims[1] >= box->global_box_dims()[1] && rdims[4] <= box->global_box_dims()[4] && 
+          rdims[2] >= box->global_box_dims()[2] && rdims[5] <= box->global_box_dims()[5] &&
+          facedims[0] >= rdims[0] && facedims[3] <= rdims[3] &&
+          facedims[1] >= rdims[1] && facedims[4] <= rdims[4] &&
+          facedims[2] >= rdims[2] && facedims[5] <= rdims[5] &&
+          facedims[0] >= ldims[0] && facedims[3] <= ldims[3] &&
+          facedims[1] >= ldims[1] && facedims[4] <= ldims[4] &&
+          facedims[2] >= ldims[2] && facedims[5] <= ldims[5]));
 
   return MB_SUCCESS;
 #else
@@ -923,25 +1005,67 @@ ErrorCode ScdInterface::get_neighbor_sqjk(ParallelComm *pcomm, ScdBox *box, int 
   pto = -1;
   bdy_ind[0] = bdy_ind[1] = -1;
   int pj, pk; // pj, pk: # procs in j, k directions
-  ErrorCode rval = compute_partition_sqjk(np, nr, box->global_box_dims(), facedims, &pj);
+  ErrorCode rval = compute_partition_sqjk(np, nr, box->global_box_dims(), rdims, &pj);
   if (MB_SUCCESS != rval) return rval;
   pk = np / pj;
   assert(pj * pk == np);
   pto = -1;
-  if ((nr < pj && -1 == dijk[1] && !box->is_periodic_j()) ||  // down and not periodic
-      (nr > np-pj && 1 == dijk[1] && !box->is_periodic_j()))  // up and not periodic
+  if ((!(nr%pj) && -1 == dijk[1] && !box->is_periodic_j()) ||  // down and not periodic
+      ((nr%pj) ==  pj-1 && 1 == dijk[1] && !box->is_periodic_j()) ||  // up and not periodic
+      (!(nr/pj) && -1 == dijk[2]) || // k- bdy 
+      ((nr/pj) == pk-1 && 1 == dijk[2])) // k+ bdy
     return MB_SUCCESS;
     
+  pto = nr;
+  int dj = (gdims[4] - gdims[1]) / pj, jextra = (gdims[4] - gdims[1]) % dj,
+      dk = (gdims[5] - gdims[2]) / pk, kextra = (gdims[5] - gdims[2]) % dk;
+  
   if (0 != dijk[1]) {
-    pto = (nr + dijk[1]*(gdims[4]-gdims[1])/pj) % np;
-    facedims[1] = facedims[4] = (-1 == dijk[1] ? facedims[1] : facedims[4]);
+    pto = (pto + dijk[1]) % np;
+    assert (pto >= 0 && pto < np);
+    if (-1 == dijk[1]) {
+      facedims[4] = facedims[1];
+      rdims[4] = rdims[1];
+      rdims[1] -= dj;
+      if (pto < jextra) rdims[1]--;
+    }
+    else {
+      facedims[1] = facedims[4];
+      rdims[1] = rdims[4];
+      rdims[4] += dj;
+      if (pto < jextra) rdims[1]++;
+    }
   }
-  else if (0 != dijk[2]) {
-    pto = (nr + dijk[2]) % np;
-    facedims[2] = facedims[5] = (-1 == dijk[2] ? facedims[2] : facedims[5]);
+  if (0 != dijk[2]) {
+    pto = (pto + dijk[2]*pj) % np;
+    assert (pto >= 0 && pto < np);
+    if (-1 == dijk[2]) {
+      facedims[5] = facedims[2];
+      rdims[5] = rdims[2];
+      rdims[2] -= dk;
+      if (pto < kextra) rdims[2]--;
+    }
+    else {
+      facedims[2] = facedims[5];
+      rdims[2] = rdims[5];
+      rdims[5] += dk;
+      if (pto < kextra) rdims[2]++;
+    }
   }
 
+  bdy_ind[0] = 0;
   if (dijk[1] == -1 && box->is_periodic_j() && ldims[1] == gdims[1]) bdy_ind[1] = 1;
+
+  assert(-1 == pto ||
+         (rdims[0] >= box->global_box_dims()[0] && rdims[3] <= box->global_box_dims()[3] && 
+          rdims[1] >= box->global_box_dims()[1] && rdims[4] <= box->global_box_dims()[4] && 
+          rdims[2] >= box->global_box_dims()[2] && rdims[5] <= box->global_box_dims()[5] &&
+          facedims[0] >= rdims[0] && facedims[3] <= rdims[3] &&
+          facedims[1] >= rdims[1] && facedims[4] <= rdims[4] &&
+          facedims[2] >= rdims[2] && facedims[5] <= rdims[5] &&
+          facedims[0] >= ldims[0] && facedims[3] <= ldims[3] &&
+          facedims[1] >= ldims[1] && facedims[4] <= ldims[4] &&
+          facedims[2] >= ldims[2] && facedims[5] <= ldims[5]));
 
   return MB_SUCCESS;
 #else
@@ -961,13 +1085,15 @@ ErrorCode ScdInterface::get_neighbor_alljorkori(ParallelComm *pcomm, ScdBox *box
     pto = -1;
     return MB_SUCCESS;
   }
-  std::copy(gdims, gdims+6, facedims);
+  std::copy(ldims, ldims+6, facedims);
   
   int nr = pcomm->proc_config().proc_rank(), np = pcomm->proc_config().proc_size();
   pto = -1;
   bdy_ind[0] = bdy_ind[1] = -1;
   if ((dijk[0] && dijk[1] && dijk[2]) ||
       (fabs(dijk[0]) + fabs(dijk[1]) + fabs(dijk[2]) != 1)) return MB_SUCCESS;
+  
+  ErrorCode rval = MB_SUCCESS;
   
   if (ldims[ind] == gdims[ind] &&
       ind < 2 && dijk[ind] == -1 && 
@@ -978,13 +1104,13 @@ ErrorCode ScdInterface::get_neighbor_alljorkori(ParallelComm *pcomm, ScdBox *box
       // actual left neighbor
     pto = pfrom-1;
     facedims[ind+3] = facedims[ind];
-    return compute_partition(ALLJORKORI, np, pto, box->global_box_dims(), rdims);
+    rval = compute_partition(ALLJORKORI, np, pto, box->global_box_dims(), rdims);
   }
   else if (1 == dijk[ind] && pfrom < np-1) {
       // actual right neighbor
     pto = pfrom+1;
     facedims[ind] = facedims[ind+3];
-    return compute_partition(ALLJORKORI, np, pto, box->global_box_dims(), rdims);
+    rval = compute_partition(ALLJORKORI, np, pto, box->global_box_dims(), rdims);
   }
   else if (-1 == dijk[ind] && !nr && 
            ((0 == ind && box->is_periodic_i()) || (1 == ind && box->is_periodic_j()))) {
@@ -992,7 +1118,7 @@ ErrorCode ScdInterface::get_neighbor_alljorkori(ParallelComm *pcomm, ScdBox *box
     pto = np - 1;
     bdy_ind[ind] = 1;
     facedims[ind+3] = facedims[ind];
-    return compute_partition(ALLJORKORI, np, pto, box->global_box_dims(), rdims);
+    rval = compute_partition(ALLJORKORI, np, pto, box->global_box_dims(), rdims);
   }
   else if (1 == dijk[ind] && nr == np-1 && 
            ((0 == ind && box->is_periodic_i()) || (1 == ind && box->is_periodic_j()))) {
@@ -1000,11 +1126,21 @@ ErrorCode ScdInterface::get_neighbor_alljorkori(ParallelComm *pcomm, ScdBox *box
     pto = 0;
     bdy_ind[ind] = 1;
     facedims[ind] = facedims[ind+3];
-    return compute_partition(ALLJORKORI, np, pto, box->global_box_dims(), rdims);
+    rval = compute_partition(ALLJORKORI, np, pto, box->global_box_dims(), rdims);
   }
-  else {
-    return MB_SUCCESS;
-  }
+
+  assert(-1 == pto ||
+         (rdims[0] >= box->global_box_dims()[0] && rdims[3] <= box->global_box_dims()[3] && 
+          rdims[1] >= box->global_box_dims()[1] && rdims[4] <= box->global_box_dims()[4] && 
+          rdims[2] >= box->global_box_dims()[2] && rdims[5] <= box->global_box_dims()[5] &&
+          facedims[0] >= rdims[0] && facedims[3] <= rdims[3] &&
+          facedims[1] >= rdims[1] && facedims[4] <= rdims[4] &&
+          facedims[2] >= rdims[2] && facedims[5] <= rdims[5] &&
+          facedims[0] >= ldims[0] && facedims[3] <= ldims[3] &&
+          facedims[1] >= ldims[1] && facedims[4] <= ldims[4] &&
+          facedims[2] >= ldims[2] && facedims[5] <= ldims[5]));
+
+  return rval;
 #else
   return MB_FAILURE;
 #endif  
@@ -1031,6 +1167,7 @@ ErrorCode ScdInterface::get_shared_vertices(ParallelComm *pcomm, ScdBox *box,
         rval = get_neighbor(pcomm, box, nr, i, j, k, pto, bdy_ind, ijkrem, ijkface);
         if (MB_SUCCESS != rval) return rval;
         if (-1 != pto) {
+          assert(std::find(procs.begin(), procs.end(), pto) == procs.end());
           procs.push_back(pto);
           offsets.push_back(shared_indices.size());
           rval = get_indices(bdy_ind, ldims, ijkrem, ijkface, shared_indices);
