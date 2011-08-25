@@ -1042,18 +1042,28 @@ ErrorCode WriteHDF5Parallel::create_dataset( int num_datasets,
     total_entities[index] = cumulative[index].total;
   }
    
-      // calculate per-processor offsets
+      // convert array of per-process counts to per-process offsets
   if (rank == 0)
   {
+      // initialize prev_size with data sizes for root process
     std::vector<long> prev_size(counts.begin(), counts.begin() + num_datasets);
+      // root process gets offset zero
     std::fill( counts.begin(), counts.begin() + num_datasets, 0L );
+      // for each proc other than this one (root)
     for (unsigned i = 1; i < nproc; ++i)
     {
+        // get pointer to offsets for previous process in list
       long* prev_data = &counts[(i-1)*num_datasets];
+        // get poitner to offsets for this process in list
       long* proc_data = &counts[i*num_datasets];
+        // for each data set
       for (int j = 0; j < num_datasets; ++j) {
+          // get size of data in dataset from process i
         long mysize = proc_data[j];
+          // offset for process i is offset of prevous process plus
+          // number of values previous process will write
         proc_data[j] = prev_data[j] + prev_size[j];
+          // store my size, as it is no longer available in 'counts'
         prev_size[j] = mysize;
       }
     }
@@ -1640,7 +1650,7 @@ ErrorCode WriteHDF5Parallel::unpack_set( EntityHandle set,
         size_t old_size = tmp.size();
         tmp.resize( sizeof(long) * old_size / sizeof(id_t) );
         unsigned long* array = reinterpret_cast<unsigned long*>(&tmp[0]);
-        for (size_t i = old_size-1; i >= 0; --i)
+        for (long i = ((long)old_size)-1; i >= 0; --i)
           array[i] = tmp[i];
         contents = array;
       }
