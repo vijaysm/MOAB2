@@ -71,6 +71,11 @@ Max. facet edge length, default:0.
 
 Actuation of all CGM attributes, default:no.
 
+  DEBUG_IO=n
+  
+Set threashold for debug messages from low-level (format-specific) 
+reader/writer.  Default is 0 (none).
+
 -------------------
 Parallel IO Options
 -------------------
@@ -165,7 +170,7 @@ MOAB Native (HDF5-based MHDF) format
 
    ELEMENTS={EXPLICIT|NODES|SIDES}
 
-If reading only part of a file, specify which additional elements to read
+If reading only part of a file, specify which elements to read
 in addition to those contained in the specified set.  The options are:
    EXPLICIT    - read only explicitly designated elements
    NODES       - read any element for which all the nodes are being read.
@@ -177,7 +182,7 @@ case NODES will be used.
    CHILDREN={NONE|SETS|CONTENTS}
    SETS={NONE|SETS|CONTETS}
 
-If reading only part of a file, specify which whether or not child or
+If reading only part of a file, specify whether or not child or
 contained sets (CHILDREN an SETS, respectively) of input sets are to be read.  
 The options are:
    NONE     - Do not read sets because they are children of designated sets.
@@ -189,3 +194,55 @@ The options are:
    BUFFER_SIZE=<BYTES>
    
 Reduce buffer size for debugging purposes.
+
+   KEEP
+
+For debugging purposes, retain partially written file if a failure
+occurs during the write process.
+
+   BLOCKED_COORDINATE_IO={yes|no}
+   
+During read of HDF5 file, read vertex coordinates in blocked format 
+(read all X coordinates, followed by all Y coordinates, etc.)  Default
+is 'no'.
+
+   BCAST_SUMMARY={yes|no}
+   
+During parallel read of HDF5 file, read file summary data on root process
+as serial IO and broadcast summary to other processes.  All processes then
+re-open file for parallel IO.  If 'no', file is opened only once by all
+processes for parallel IO and all processes read summary data.  Default is
+'yes'.
+
+   BCAST_DUPLICATE_READS={yes|no}
+
+Work around MPI IO limitations when all processes read an indentical region of
+a file by reading the data only on the root process and using MPI_Bcast to
+send the data to other processes.  Default is 'yes'.
+
+   HYPERSLAB_OR 
+
+During partial or parallel read, use documented (default) method for
+building HDF5 hyperslabs.  This option is deprecated.  Reader should
+automatically detect if HYPERSLAB_APPEND works and if not will default
+to HYPERSLAB_OR.  This option is retaind for debugging purposes only.
+
+   HYPERSLAB_APPEND
+  
+During partial or parallel read using a modified (i.e. hacked) HDF5
+library, utilize hack for more efficient hyperslab selection construction.
+This option is deprecated.  Reader should automatically detect if 
+HYPERSLAB_APPEND works and if not will default to HYPERSLAB_OR.
+
+   HYPERSLAB_SELECT_LIMIT=n
+   
+Set upper bound on the number of HDF5 hyperslabs that can be combined for
+a single read from an dataset.  The defualt is defined by 
+DEFUALT_HYPERSLAB_SELECT_LIMIT in ReadHDF5Dataset.cpp (200 at the time
+this was written).  If HYPERSLAB_APPEND is specified and this option is
+not, then the default is no limit.  This limit should be removed for 
+future HDF5 releases (> 1.8.x) as said future releases will no longer 
+require the HYPERSLAB_APPEND hack in order to avoid O(n^2) hyperslab 
+selection behavior.
+
+
