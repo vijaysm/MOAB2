@@ -3843,25 +3843,23 @@ ErrorCode ParallelComm::resolve_shared_sets(Range& sets, Tag idtag)
     // build sharing list for all sets
   
     // get ids for sets in a vector, to pass to gs
-  const size_t nsets = sets.size();
-  std::vector<long> larray(nsets); // allocate sufficient space for longs
-  int* ids = reinterpret_cast<int*>(&larray[0]); // but work with ints
-  result = mbImpl->tag_get_data(idtag, sets, ids);
-  RRA("Couldn't get global ids for sets.");
-
-    // convert from int to long if necessary
-  if (sizeof(long) > sizeof(int)) {
-    size_t i = nsets;
-    while (i) {
-      --i;
-      larray[i] = ids[i];
+  std::vector<long> larray; // allocate sufficient space for longs
+  std::vector<unsigned long> handles;
+  Range tmp_sets;
+  for (Range::iterator rit = sets.begin(); rit != sets.end(); rit++) {
+    int dum;
+    result = mbImpl->tag_get_data(idtag, &(*rit), 1, &dum);
+    if (MB_SUCCESS == result) {
+      larray.push_back(dum);
+      handles.push_back(*rit);
+      tmp_sets.insert(tmp_sets.end(), *rit);
     }
   }
+  
+  const size_t nsets = handles.size();
     
     // get handle array for sets
   assert(sizeof(EntityHandle) <= sizeof(unsigned long));
-  std::vector<unsigned long> handles(nsets);
-  std::copy( sets.begin(), sets.end(), handles.begin() );
 
     // do communication of data
   crystal_data *cd = procConfig.crystal_router();
@@ -3900,8 +3898,8 @@ ErrorCode ParallelComm::resolve_shared_sets(Range& sets, Tag idtag)
   size_t ti = 0;
   unsigned idx = 0;
   std::vector<unsigned> procs;
-  Range::iterator si = sets.begin();
-  while (si != sets.end() && ti < tuples.size()) {
+  Range::iterator si = tmp_sets.begin();
+  while (si != tmp_sets.end() && ti < tuples.size()) {
     assert(idx <= tuples[ti].idx);
     if (idx < tuples[ti].idx) 
       si += (tuples[ti].idx - idx);
