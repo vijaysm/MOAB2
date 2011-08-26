@@ -1145,6 +1145,7 @@ AC_CONFIG_FILES([Makefile
 		 tools/vtkMOABReader/CMakeLists.txt
                  doc/Makefile
                  doc/user.dox
+                 doc/config.tex
                  examples/Makefile
                  examples/examples.make
                  examples/simple/makefile
