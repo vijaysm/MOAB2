@@ -8,6 +8,13 @@
 \begin{document}
 \section{\texttt{EntitySequence} \& \texttt{SequenceData}}
 
+\begin{figure*}[htbp]
+\begin{center}
+\includegraphics[width=6in]{seq-data.eps}
+\caption{EntitySequences For One SequenceData}
+\end{center}
+\end{figure*}
+
 The \texttt{SequenceData} class manages as set of arrays of per-entity values.  Each \texttt{SequenceData} has a start and end handle denoting the block of entities for which the arrays contain data.  The arrays managed by a \texttt{SequenceData} instance are divided into three groups:
 \begin{itemize}
 \item Type-specific data (connectivity, coordinates, etc.): zero or more arrays.
@@ -28,6 +35,14 @@ Each \texttt{EntitySequence} implementation also provides an implementation of t
 
 
 \section{\texttt{TypeSequenceManager} \& \texttt{SequenceManager}}
+
+
+\begin{figure*}[htbp]
+\begin{center}
+\includegraphics[width=6in]{seq-uml-class.eps}
+\caption{SequenceManager and Related Classes}
+\end{center}
+\end{figure*}
 
 The \texttt{TypeSequenceManager} class maintains an organized set of \texttt{EntitySequence} instances and corresponding \texttt{SequenceData} instances. It is used to manage all such instances for entities of a single \texttt{MBEntityType}.  \texttt{TypeSequenceManager} enforces the following four rules on its contained data:
 \begin{enumerate}
