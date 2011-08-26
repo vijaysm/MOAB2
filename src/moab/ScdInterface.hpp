@@ -3,10 +3,12 @@
 #ifndef SCD_INTERFACE
 #define SCD_INTERFACE
 
-#include <vector>    
-
 #include "moab/Interface.hpp"
 #include "moab/HomXform.hpp"
+
+#include <iostream>
+#include <vector>    
+#include "assert.h"
 
 namespace moab {
 
@@ -289,6 +291,8 @@ private:
   static ErrorCode get_neighbor_sqjk(ParallelComm *pcomm, ScdBox *box, int pfrom, int *dijk, 
                                      int &pto, int *bdy_ind, int *rdims, int *facedims);
   
+  static int gtol(const int *gijk, int i, int j, int k);
+
   //! interface instance
   Core *mbImpl;
 
@@ -659,14 +663,193 @@ inline ErrorCode ScdInterface::compute_partition(int part_method, int np, int nr
   return rval;
 }
 
-#define GTOL(gijk, i, j, k) ((k-gijk[2])*(gijk[3]-gijk[0]+1)*(gijk[4]-gijk[1]+1) + (j-gijk[1])*(gijk[3]-gijk[0]+1) + i-gijk[0])
+inline ErrorCode ScdInterface::compute_partition_alljorkori(int np, int nr, const int *gijk, int *lijk) 
+{
+    // partition *the elements* over the parametric space; 1d partition for now, in the j, k, or i
+    // parameters
+#ifdef USE_MPI
+  if (-1 != lijk[1] && (gijk[4] - gijk[1]) > np) {
+    int dj = (gijk[4] - gijk[1]) / np;
+    int extra = (gijk[4] - gijk[1]) % np;
+    lijk[1] = gijk[1] + nr*dj + 
+        std::min(nr, extra);
+    lijk[4] = lijk[1] + dj + (nr < extra ? 1 : 0);
+
+    lijk[2] = gijk[2]; lijk[5] = gijk[5];
+    lijk[0] = gijk[0]; lijk[3] = gijk[3];
+  }
+  else if (-1 != lijk[2] && (gijk[5] - gijk[2]) > np) {
+    int dk = (gijk[5] - gijk[2]) / np;
+    int extra = (gijk[5] - gijk[2]) % np;
+    lijk[2] = gijk[2] + nr*dk + 
+        std::min(nr, extra);
+    lijk[5] = lijk[2] + dk + (nr < extra ? 1 : 0);
+
+    lijk[1] = gijk[1]; lijk[4] = gijk[4];
+    lijk[0] = gijk[0]; lijk[3] = gijk[3];
+  }
+  else if (-1 != lijk[0] && (gijk[3] - gijk[0]) > np) {
+    int di = (gijk[3] - gijk[0]) / np;
+    int extra = (gijk[3] - gijk[0]) % np;
+    lijk[0] = gijk[0] + nr*di + 
+        std::min(nr, extra);
+    lijk[3] = lijk[0] + di + (nr < extra ? 1 : 0);
+
+    lijk[2] = gijk[2]; lijk[5] = gijk[5];
+    lijk[1] = gijk[1]; lijk[4] = gijk[4];
+  }
+  else {
+    std::cerr << "Couldn't find a suitable partition." << std::endl;
+    return MB_FAILURE;
+  }
+#else
+  lijk[0] = gijk[0];
+  lijk[3] = gijk[3];
+  lijk[1] = gijk[1];
+  lijk[4] = gijk[4];
+  lijk[2] = gijk[2];
+  lijk[5] = gijk[5];
+#endif
+  
+  return MB_SUCCESS;
+}
+
+inline ErrorCode ScdInterface::compute_partition_alljkbal(int np, int nr, const int *gijk, int *lijk, int *njp) 
+{
+    // improved, possibly 2-d partition
+  std::vector<double> kfactors;
+  kfactors.push_back(1);
+  int K = gijk[5] - gijk[2];
+  for (int i = 2; i < K; i++) 
+    if (!(K%i) && !(np%i)) kfactors.push_back(i);
+  kfactors.push_back(K);
+  
+    // compute the ideal nj and nk
+  int J = gijk[4] - gijk[1];
+  double njideal = sqrt(((double)(np*J))/((double)K));
+  double nkideal = (njideal*K)/J;
+  
+  int nk, nj;
+  if (nkideal < 1.0) {
+    nk = 1;
+    nj = np;
+  }
+  else {
+    std::vector<double>::iterator vit = std::lower_bound(kfactors.begin(), kfactors.end(), nkideal);
+    if (vit == kfactors.begin()) nk = 1;
+    else nk = (int)*(--vit);
+    nj = np / nk;
+  }
+
+  int dk = K / nk;
+  int dj = J / nj;
+  
+  lijk[2] = (nr % nk) * dk;
+  lijk[5] = lijk[2] + dk;
+  
+  int extra = J % nj;
+  
+  lijk[1] = gijk[1] + (nr / nk) * dj + std::min(nr / nk, extra);
+  lijk[4] = lijk[1] + dj + (nr / nk < extra ? 1 : 0);
+
+  lijk[0] = gijk[0];
+  lijk[3] = gijk[3];
+
+  if (njp) *njp = nj;
+  
+  return MB_SUCCESS;
+}
+
+inline ErrorCode ScdInterface::compute_partition_sqij(int np, int nr, const int *gijk, int *lijk,
+                                                      int *pip) 
+{
+    // square IxJ partition
+
+  std::vector<double> pfactors, ppfactors;
+  for (int i = 2; i <= np; i++) 
+    if (!(np%i)) {
+      pfactors.push_back(i);
+      ppfactors.push_back(((double)(i*i))/np);
+    }
+  
+    // ideally, Px/Py = I/J
+  double ijratio = ((double)(gijk[3]-gijk[0]))/((double)(gijk[4]-gijk[1]));
+
+  unsigned int ind = std::lower_bound(ppfactors.begin(), ppfactors.end(), ijratio) - ppfactors.begin();
+  if (ind && fabs(ppfactors[ind-1]-ijratio) < fabs(ppfactors[ind]-ijratio)) ind--;
+  
+  int pi = pfactors[ind];
+  int pj = np / pi;
+
+  int I = (gijk[3] - gijk[0]), J = (gijk[4] - gijk[1]);
+  int iextra = I%pi, jextra = J%pj, i = I/pi, j = J/pj;
+  int nri = nr % pi, nrj = nr / pi;
+//
+// pi, pj = # blocks in i, j directions
+// nri, nrj = column, row of this processor's block
+  if (lijk) {
+    lijk[0] = i*nri + std::min(iextra, nri);
+    lijk[3] = lijk[0] + i + (nri < iextra ? 1 : 0);
+    lijk[1] = j*nrj + std::min(jextra, nrj);
+    lijk[4] = lijk[1] + j + (nrj < jextra ? 1 : 0);
+
+    lijk[2] = gijk[2];
+    lijk[5] = gijk[5];
+  }
+  
+  if (pip) *pip = pi;
+  
+  return MB_SUCCESS;
+}
+
+inline ErrorCode ScdInterface::compute_partition_sqjk(int np, int nr, const int *gijk, int *lijk, int *pjp) 
+{
+    // square JxK partition
+
+  std::vector<double> pfactors, ppfactors;
+  for (int p = 2; p <= np; p++) 
+    if (!(np%p)) {
+      pfactors.push_back(p);
+      ppfactors.push_back(((double)(p*p))/np);
+    }
+  
+    // ideally, Pj/Pk = J/K
+  double jkratio = ((double)(gijk[4]-gijk[1]))/((double)(gijk[5]-gijk[2]));
+
+  unsigned int ind = std::lower_bound(ppfactors.begin(), ppfactors.end(), jkratio) - ppfactors.begin();
+  if (ind && fabs(ppfactors[ind-1]-jkratio) < fabs(ppfactors[ind]-jkratio)) ind--;
+  
+  int pj = pfactors[ind];
+  int pk = np / pj;
+
+  int K = (gijk[5] - gijk[2]), J = (gijk[4] - gijk[1]);
+  int jextra = J%pj, kextra = K%pk, j = J/pj, k = K/pk;
+  int nrj = nr % pj, nrk = nr / pj;
+  lijk[1] = j*nrj + std::min(jextra, nrj);
+  lijk[4] = lijk[1] + j + (nrj < jextra ? 1 : 0);
+  lijk[2] = k*nrk + std::min(kextra, nrk);
+  lijk[5] = lijk[2] + k + (nrk < kextra ? 1 : 0);
+
+  lijk[0] = gijk[0];
+  lijk[3] = gijk[3];
+
+  if (pjp) *pjp = pj;
+  
+  return MB_SUCCESS;
+}
+
+inline int ScdInterface::gtol(const int *gijk, int i, int j, int k) 
+{
+  return ((k-gijk[2])*(gijk[3]-gijk[0]+1)*(gijk[4]-gijk[1]+1) + (j-gijk[1])*(gijk[3]-gijk[0]+1) + i-gijk[0]);
+}
+
 inline ErrorCode ScdInterface::get_indices(const int *bdy_ind, const int *ldims, int *rdims, int *face_dims, 
                                            std::vector<int> &shared_indices) 
 {
   for (int k = face_dims[2]; k <= face_dims[5]; k++)
     for (int j = face_dims[1]; j <= face_dims[4]; j++)
       for (int i = face_dims[0]; i <= face_dims[3]; i++)
-        shared_indices.push_back(GTOL(ldims, i, j, k));
+        shared_indices.push_back(gtol(ldims, i, j, k));
 
   if (bdy_ind[0] >= 0) face_dims[0] = face_dims[3] = rdims[3];
   if (bdy_ind[1] >= 0) face_dims[1] = face_dims[4] = rdims[4];
@@ -674,11 +857,10 @@ inline ErrorCode ScdInterface::get_indices(const int *bdy_ind, const int *ldims,
   for (int k = face_dims[2]; k <= face_dims[5]; k++)
     for (int j = face_dims[1]; j <= face_dims[4]; j++)
       for (int i = face_dims[0]; i <= face_dims[3]; i++)
-        shared_indices.push_back(GTOL(rdims, i, j, k));
+        shared_indices.push_back(gtol(rdims, i, j, k));
 
   return MB_SUCCESS;
 }
-#undef GTOL
   
 inline ErrorCode ScdInterface::get_neighbor(ParallelComm *pcomm, ScdBox *box, int pfrom, int di, int dj, int dk, 
                                             int &pto, int *bdy_ind, int *rdims, int *facedims) 
