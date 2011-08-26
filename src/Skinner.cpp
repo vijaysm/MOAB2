@@ -47,7 +47,7 @@ Skinner::~Skinner()
 }
 
 
-void Skinner::initialize()
+ErrorCode Skinner::initialize()
 {
   // go through and mark all the target dimension entities
   // that already exist as not deleteable
@@ -57,14 +57,14 @@ void Skinner::initialize()
   DimensionPair target_ent_types = CN::TypeDimensionMap[mTargetDim];
 
   void* null_ptr = NULL;
-  ErrorCode result;
 
-  result = thisMB->tag_get_handle("skinner adj", sizeof(void*), MB_TYPE_OPAQUE, mAdjTag, MB_TAG_DENSE|MB_TAG_CREAT, &null_ptr);
-  assert(MB_SUCCESS == result);
+  ErrorCode result = thisMB->tag_get_handle("skinner adj", sizeof(void*), MB_TYPE_OPAQUE, mAdjTag, 
+                                            MB_TAG_DENSE|MB_TAG_CREAT, &null_ptr);
+  if (MB_SUCCESS != result) return result;
 
   if(mDeletableMBTag == 0) {
     result = thisMB->tag_get_handle("skinner deletable", 1, MB_TYPE_BIT, mDeletableMBTag, MB_TAG_BIT|MB_TAG_CREAT);
-    assert(MB_SUCCESS == result);
+    if (MB_SUCCESS != result) return result;
   }
   
   Range entities;
@@ -89,16 +89,17 @@ void Skinner::initialize()
         add_adjacency(*iter);
     }
   }
+
+  return MB_SUCCESS;
 }
 
-void Skinner::deinitialize()
+ErrorCode Skinner::deinitialize()
 {
-  ErrorCode result = MB_SUCCESS;
-  
+  ErrorCode result;
   if (0 != mDeletableMBTag) {
     result = thisMB->tag_delete( mDeletableMBTag);
     mDeletableMBTag = 0;
-    assert(MB_SUCCESS == result);
+    if (MB_SUCCESS != result) return result;
   }
 
   // remove the adjaceny tag
@@ -108,33 +109,35 @@ void Skinner::deinitialize()
     for (EntityType t = MBVERTEX; t != MBMAXTYPE; ++t) {
       Range entities;
       result = thisMB->get_entities_by_type_and_tag( 0, t, &mAdjTag, 0, 1, entities );
-      assert(MB_SUCCESS == result);
+      if (MB_SUCCESS != result) return result;
       adj_arr.resize( entities.size() );
       result = thisMB->tag_get_data( mAdjTag, entities, &adj_arr[0] );
-      assert(MB_SUCCESS == result);
+      if (MB_SUCCESS != result) return result;
       for (i = adj_arr.begin(); i != adj_arr.end(); ++i)
         delete *i;
     }
   
     result = thisMB->tag_delete(mAdjTag);
     mAdjTag = 0;
-    assert(MB_SUCCESS == result);
+    if (MB_SUCCESS != result) return result;
   }
+
+  return MB_SUCCESS;
 }
 
 
-void Skinner::add_adjacency(EntityHandle entity)
+ErrorCode Skinner::add_adjacency(EntityHandle entity)
 {
   std::vector<EntityHandle> *adj = NULL;
   const EntityHandle *nodes;
   int num_nodes;
   ErrorCode result = thisMB->get_connectivity(entity, nodes, num_nodes, true);
-  assert(MB_SUCCESS == result);
+  if (MB_SUCCESS != result) return result;
   const EntityHandle *iter =
     std::min_element(nodes, nodes+num_nodes);
 
   if(iter == nodes+num_nodes)
-    return;
+    return MB_SUCCESS;
 
   // add this entity to the node
   if(thisMB->tag_get_data(mAdjTag, iter, 1, &adj) == MB_SUCCESS && adj != NULL)
@@ -147,8 +150,10 @@ void Skinner::add_adjacency(EntityHandle entity)
     adj = new std::vector<EntityHandle>;
     adj->push_back(entity);
     result = thisMB->tag_set_data(mAdjTag, iter, 1, &adj);
-    assert(MB_SUCCESS == result);
+    if (MB_SUCCESS != result) return result;
   }
+
+  return MB_SUCCESS;
 }
 
 void Skinner::add_adjacency(EntityHandle entity, 
@@ -837,7 +842,7 @@ ErrorCode Skinner::classify_2d_boundary( const Range &boundary,
   int default_count = 0;
   ErrorCode result = thisMB->tag_get_handle(0, 1, MB_TYPE_INTEGER,
                                         count_tag, MB_TAG_DENSE|MB_TAG_CREAT, &default_count);
-  assert(MB_SUCCESS == result);
+  if (MB_SUCCESS != result) return result;
 
  
   Range::const_iterator iter, end_iter;

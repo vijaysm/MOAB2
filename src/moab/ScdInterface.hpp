@@ -238,30 +238,30 @@ private:
      * If j is greater than #procs, partition that, else k, else i.
      * For description of arguments, see ScdInterface::compute_partition.
      */
-  static ErrorCode compute_partition_alljorkori(int np, int nr,
-                                                const int *gijk, int *lijk);
+  inline static ErrorCode compute_partition_alljorkori(int np, int nr,
+                                                       const int *gijk, int *lijk);
   
     //! Compute a partition of structured parameter space
     /** Partitions the structured parametric space by partitioning j, and possibly k,
      * seeking square regions of jk space
      * For description of arguments, see ScdInterface::compute_partition.
      */
-  static ErrorCode compute_partition_alljkbal(int np, int nr, const int *gijk, int *lijk,
-                                              int *pjp = NULL);
+  inline static ErrorCode compute_partition_alljkbal(int np, int nr, const int *gijk, int *lijk,
+                                                     int *pjp = NULL);
 
     //! Compute a partition of structured parameter space
     /** Partitions the structured parametric space by seeking square ij partitions
      * For description of arguments, see ScdInterface::compute_partition.
      */
-  static ErrorCode compute_partition_sqij(int np, int nr, const int *gijk, int *lijk,
-                                          int *pip = NULL);
+  inline static ErrorCode compute_partition_sqij(int np, int nr, const int *gijk, int *lijk,
+                                                 int *pip = NULL);
   
     //! Compute a partition of structured parameter space
     /** Partitions the structured parametric space by seeking square jk partitions
      * For description of arguments, see ScdInterface::compute_partition.
      */
-  static ErrorCode compute_partition_sqjk(int np, int nr, const int *gijk, int *lijk,
-                                          int *pjp = NULL);
+  inline static ErrorCode compute_partition_sqjk(int np, int nr, const int *gijk, int *lijk,
+                                                 int *pjp = NULL);
 
     //! Get vertices shared with other processors
     /** Shared vertices returned as indices into each proc's handle space
@@ -329,7 +329,7 @@ public:
   ~ScdBox();
 
     //! Return the ScdInterface responsible for this box
-  ScdInterface *sc_impl() const;
+  inline ScdInterface *sc_impl() const;
 
     //! Add a vertex box to this box
     /* Add a vertex box to the element sequence referenced by this box.  The passed in vbox must
@@ -363,64 +363,64 @@ public:
   bool boundary_complete() const;
 
     //! Return highest topological dimension of box
-  int box_dimension() const;
+  inline int box_dimension() const;
   
     //! Starting vertex handle for this box
-  EntityHandle start_vertex() const;
+  inline EntityHandle start_vertex() const;
   
     //! Starting entity handle for this box
     /** If this is a vertex box, the start vertex handle is returned.
      */
-  EntityHandle start_element() const;
+  inline EntityHandle start_element() const;
 
     //! Return the number of elements in the box
     /* Number of elements is (boxSize[0]-1)(boxSize[1]-1)(boxSize[2]-1)
      */
-  int num_elements() const;
+  inline int num_elements() const;
   
     //! Return the number of vertices in the box
     /* Number of vertices is boxSize[0] * boxSize[1] * boxSize[2]
      */
-  int num_vertices() const;
+  inline int num_vertices() const;
   
     //! Return the parametric coordinates for this box
     /**
      * \return IJK parameters of lower and upper corners
      */
-  const int *box_dims() const;
+  inline const int *box_dims() const;
   
     //! Return the parametric coordinates for the entire mesh
     /**
      * \return IJK parameters of lower and upper corners of global parametric space
      */
-  const int *global_box_dims() const;
+  inline const int *global_box_dims() const;
   
     //! Set the parametric coordinates for the entire mesh
     /**
      * \param box_dims Lower and upper corners of global parametric space
      */
-  void set_global_box_dims(int *box_dims);
+  inline void set_global_box_dims(int *box_dims);
   
     //! Get the partMethod member
-  int part_method() const;
+  inline int part_method() const;
   
     //! Set the partMethod member
-  void part_method(int method);
+  inline void part_method(int method);
   
     //! Return the lower corner parametric coordinates for this box
-  HomCoord box_min() const;
+  inline HomCoord box_min() const;
   
     //! Return the upper corner parametric coordinates for this box
-  HomCoord box_max() const;
+  inline HomCoord box_max() const;
   
     //! Return the parameter extents for this box
-  HomCoord box_size() const;
+  inline HomCoord box_size() const;
   
     //! Return the parametric extents for this box
     /**
      * \param ijk IJK extents of this box
      */
-  void box_size(int *ijk) const;
+  inline void box_size(int *ijk) const;
   
     //! Return the parametric extents for this box
     /**

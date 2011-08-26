@@ -111,15 +111,15 @@ public:
 
 protected:
   
-  void initialize();
+  ErrorCode initialize();
   
-  void deinitialize();
+  ErrorCode deinitialize();
 
   ErrorCode find_skin_noadj( const Range &source_entities,
                                Range &forward_target_entities,
                                Range &reverse_target_entities );
 
-  void add_adjacency(EntityHandle entity);
+  ErrorCode add_adjacency(EntityHandle entity);
   
   void add_adjacency(EntityHandle entity, const EntityHandle *conn,
                      const int num_nodes);
