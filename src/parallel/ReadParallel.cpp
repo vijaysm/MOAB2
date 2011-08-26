@@ -292,6 +292,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   bool i_read = false;
   Tag id_tag = 0;
   bool use_id_tag = false;
+  Range ents;
 
   for (i = 1, vit = pa_vec.begin();
        vit != pa_vec.end(); vit++, i++) {
@@ -475,6 +476,17 @@ ErrorCode ReadParallel::load_file(const char **file_names,
 	  else
 	    tmp_result = myPcomm->resolve_shared_ents(file_set, resolve_dim, shared_dim,
 						      use_id_tag ? file_id_tag : 0);
+            if (MB_SUCCESS != tmp_result) break;
+            
+#ifndef NDEBUG            
+              // check number of owned vertices through pcomm's public interface
+            tmp_result = mbImpl->get_entities_by_type(0, MBVERTEX, ents);
+            if (MB_SUCCESS == tmp_result) 
+              tmp_result = myPcomm->filter_pstatus(ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);
+            if (MB_SUCCESS == tmp_result) 
+              myDebug.tprintf(1, "Proc %d reports %lu owned vertices.\n", myPcomm->proc_config().proc_rank(),
+                              ents.size());
+#endif
           break;
         
 //==================

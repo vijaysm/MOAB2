@@ -3159,7 +3159,10 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   result = mbImpl->query_interface(scdi);
   if (scdi) {
     result = scdi->tag_shared_vertices(this, this_set);
-    if (MB_SUCCESS == result) return result;
+    if (MB_SUCCESS == result) {
+      myDebug->tprintf(1, "Total number of shared entities = %lu.\n", (unsigned long)sharedEnts.size());
+      return result;
+    }
   }
   
       // get the entities in the partition sets
@@ -4232,6 +4235,7 @@ ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
       assert(shared_ents.vi[i] != (int)procConfig.proc_rank());
       //Grab the remote data if its not a dublicate
       if(shared_ents.vul[j] != other_ent || shared_ents.vi[i] != other_proc){
+        assert(0 != shared_ents.vul[j]);
 	sharing_procs.push_back( shared_ents.vi[i] );
 	sharing_handles.push_back( shared_ents.vul[j] );
       }

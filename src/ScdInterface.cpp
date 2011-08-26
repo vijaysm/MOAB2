@@ -735,14 +735,13 @@ ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, EntityHandle se
   }
   
   if (!box) return MB_FAILURE;
-  else {
-      // check the # ents in the box against the num in the set, to make sure it's only 1 box;
-      // reuse tmp_range
-    tmp_range.clear();
-    rval = mbImpl->get_entities_by_dimension(seth, box->box_dimension(), tmp_range);
-    if (MB_SUCCESS != rval) return rval;
-    if (box->num_elements() != (int)tmp_range.size()) return MB_FAILURE;
-  }
+
+    // check the # ents in the box against the num in the set, to make sure it's only 1 box;
+    // reuse tmp_range
+  tmp_range.clear();
+  rval = mbImpl->get_entities_by_dimension(seth, box->box_dimension(), tmp_range);
+  if (MB_SUCCESS != rval) return rval;
+  if (box->num_elements() != (int)tmp_range.size()) return MB_FAILURE;
     
   const int *gdims = box->global_box_dims();
   if ((gdims[0] == gdims[3] && gdims[1] == gdims[4] && gdims[2] == gdims[5]) ||
@@ -799,6 +798,7 @@ ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, EntityHandle se
       shared_data.vi[j++] = procs[p];
       shared_data.vul[k++] = shandles[0] + lh[i];
       shared_data.vul[k++] = rhandles[4*p] + rh[i];
+      shared_data.n++;
     }
     incoming--;
   }
@@ -818,6 +818,11 @@ ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, EntityHandle se
     // create interface sets
   rval = pcomm->create_interface_sets(proc_nvecs, -1, -1);
   if (MB_SUCCESS != rval) return rval;
+
+#ifndef NDEBUG
+  rval = pcomm->check_all_shared_handles();
+  if (MB_SUCCESS != rval) return rval;
+#endif
   
   return MB_SUCCESS;
   
@@ -1053,7 +1058,6 @@ ErrorCode ScdInterface::get_neighbor_sqjk(ParallelComm *pcomm, ScdBox *box, int 
     }
   }
 
-  bdy_ind[0] = 0;
   if (dijk[1] == -1 && box->is_periodic_j() && ldims[1] == gdims[1]) bdy_ind[1] = 1;
 
   assert(-1 == pto ||
