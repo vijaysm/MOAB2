@@ -1,9 +1,26 @@
 #ifndef IBASE_F_H
 #define IBASE_F_H
 
-#define iBase_EntityHandle integer
-#define iBase_EntitySetHandle integer
-#define iBase_TagHandle integer
+#ifdef __GFORTRAN__
+#  define IMESH_HANDLE_T integer*__SIZEOF_SIZE_T__
+#elif defined(__INTEL_COMPILER)
+#  ifdef __X86_64
+#    define IMESH_HANDLE_T integer*8
+#  else
+#    define IMESH_HANDLE_T integer*4
+#  endif
+#elif defined(__XLCPP__)
+% This doesn't work.  I cannot find a pre-defined macro to identify IBM XL Fortran
+        USE, INTRINSIC :: ISO_C_BINDING
+#  define IMESH_HANDLE_T C_PTR
+#else
+% Appliction must define PTRSIZE for unrecognized compilers
+#  define IMESH_HANDLE_T INTEGER*PTRSIZE
+#endif
+
+#define iBase_EntityHandle IMESH_HANDLE_T
+#define iBase_EntitySetHandle IMESH_HANDLE_T
+#define iBase_TagHandle IMESH_HANDLE_T
 
 #endif
 
