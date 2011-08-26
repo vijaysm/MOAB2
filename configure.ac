@@ -230,6 +230,11 @@ if test "x$ENABLE_igeom" = "xyes"; then
   fi
 fi
 
+AM_FCFLAGS="$AM_FCFLAGS -DPTRSIZE=${SIZEOF_VOID_P}"
+AM_FFLAGS="$AM_FFLAGS -DPTRSIZE=${SIZEOF_VOID_P}"
+AC_SUBST(AM_FCFLAGS)
+AC_SUBST(AM_FFLAGS)
+
 ################################################################################
 #                              Version Stuff
 ################################################################################

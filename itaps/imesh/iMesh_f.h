@@ -1,9 +1,9 @@
 #ifndef IMESH_F_H
 #define IMESH_F_H
 
-#define iMesh_Instance integer
-#define iBase_EntityIterator integer
-#define iBase_EntityArrIterator integer
+#define iMesh_Instance integer*PTRSIZE
+#define iBase_EntityIterator integer*PTRSIZE
+#define iBase_EntityArrIterator integer*PTRSIZE
 
 #endif 
 
