@@ -4220,8 +4220,9 @@ ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
   RRA("Trouble getting shared proc tags in tag_shared_verts.");
   
   unsigned int j = 0, i = 0;
-  std::vector<int> sharing_procs, sharing_procs2;
-  std::vector<EntityHandle> sharing_handles, sharing_handles2;
+  std::vector<int> sharing_procs, sharing_procs2, tag_procs;
+  std::vector<EntityHandle> sharing_handles, sharing_handles2, tag_lhandles, tag_rhandles;
+  std::vector<unsigned char> pstatus;
   
   //Were on tuple j/2
   if (i_extra) i += i_extra;
@@ -4248,22 +4249,22 @@ ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
         // add current proc/handle to list
       sharing_procs.push_back(procConfig.proc_rank());
       sharing_handles.push_back(this_ent);
-    }
       
-      // sort sharing_procs and sharing_handles such that
-      // sharing_procs is in ascending order.  Use temporary
-      // lists and binary search to re-order sharing_handles.
-    sharing_procs2 = sharing_procs;
-    std::sort( sharing_procs2.begin(), sharing_procs2.end() );
-    sharing_handles2.resize( sharing_handles.size() );
-    for (size_t k = 0; k < sharing_handles.size(); ++k) {
-      size_t idx = std::lower_bound( sharing_procs2.begin(), 
-                                     sharing_procs2.end(), 
-                                     sharing_procs[k] ) - sharing_procs2.begin();
-      sharing_handles2[idx] = sharing_handles[k];
+        // sort sharing_procs and sharing_handles such that
+        // sharing_procs is in ascending order.  Use temporary
+        // lists and binary search to re-order sharing_handles.
+      sharing_procs2 = sharing_procs;
+      std::sort( sharing_procs2.begin(), sharing_procs2.end() );
+      sharing_handles2.resize( sharing_handles.size() );
+      for (size_t k = 0; k < sharing_handles.size(); ++k) {
+        size_t idx = std::lower_bound( sharing_procs2.begin(), 
+                                       sharing_procs2.end(), 
+                                       sharing_procs[k] ) - sharing_procs2.begin();
+        sharing_handles2[idx] = sharing_handles[k];
+      }
+      sharing_procs.swap( sharing_procs2 );
+      sharing_handles.swap( sharing_handles2 );
     }
-    sharing_procs.swap( sharing_procs2 );
-    sharing_handles.swap( sharing_handles2 );
     
     assert(sharing_procs.size() != 2);
     proc_nvecs[sharing_procs].push_back(this_ent);
@@ -4271,13 +4272,10 @@ ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
     unsigned char share_flag = PSTATUS_SHARED, 
         ms_flag = (PSTATUS_SHARED | PSTATUS_MULTISHARED);
     if (sharing_procs.size() == 1) {
-      result = mbImpl->tag_set_data(sharedp_tag, &this_ent, 1,
-                                    &sharing_procs[0]);
-      result = mbImpl->tag_set_data(sharedh_tag, &this_ent, 1,
-                                    &sharing_handles[0]);
-      result = mbImpl->tag_set_data(pstatus_tag, &this_ent, 1, &share_flag);
-      RRA("Couldn't set shared tag on shared vertex.");
-      sharedEnts.push_back(this_ent);
+      tag_procs.push_back(sharing_procs[0]);
+      tag_lhandles.push_back(this_ent);
+      tag_rhandles.push_back(sharing_handles[0]);
+      pstatus.push_back(share_flag);
     }
     else {
         // pad lists 
@@ -4305,6 +4303,16 @@ ErrorCode ParallelComm::tag_shared_verts(tuple_list &shared_ents,
     sharing_handles.clear();
   }
 
+  if (!tag_procs.empty()) {
+    result = mbImpl->tag_set_data(sharedp_tag, &tag_lhandles[0], tag_procs.size(),
+                                  &tag_procs[0]);
+    result = mbImpl->tag_set_data(sharedh_tag, &tag_lhandles[0], tag_procs.size(),
+                                  &tag_rhandles[0]);
+    result = mbImpl->tag_set_data(pstatus_tag, &tag_lhandles[0], tag_procs.size(), &pstatus[0]);
+    RRA("Couldn't set shared tag on shared vertex.");
+    std::copy(tag_lhandles.begin(), tag_lhandles.end(), std::back_inserter(sharedEnts));
+  }
+  
 #ifndef NDEBUG
     // shouldn't be any repeated entities in any of the vectors in proc_nvecs
   for (std::map<std::vector<int>, std::vector<EntityHandle> >::iterator mit = proc_nvecs.begin();
