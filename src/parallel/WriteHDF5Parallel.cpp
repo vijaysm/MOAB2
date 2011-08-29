@@ -1461,7 +1461,7 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_ids( const Range& owned,
     
     assert((unsigned)status.MPI_SOURCE == procs[idx]);
     assert(2*recv_buf[idx].front()+1 == recv_buf[idx].size());
-    const size_t n = std::min( recv_buf[idx].front(), (recv_buf[idx].size()-1)/2 );
+    const size_t n = std::min<size_t>( recv_buf[idx].front(), (recv_buf[idx].size()-1)/2 );
     dbgOut.printf(5,"Received buffer of size %lu from proc %d\n",
                   (unsigned long)(2*n+1), (int)status.MPI_SOURCE );
     
@@ -1658,7 +1658,7 @@ ErrorCode WriteHDF5Parallel::unpack_set( EntityHandle set,
         unsigned long* array = reinterpret_cast<unsigned long*>(&tmp[0]);
         std::copy( tmp.begin(), tmp.end(), array );
       }
-      contents = &tmp[0];
+      contents = reinterpret_cast<unsigned long*>(&tmp[0]);
     }
   }
   
