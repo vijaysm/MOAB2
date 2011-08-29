@@ -14,8 +14,9 @@ SUFFIXES = .dia .eps .dvi .pdf .ps .tex
 .dia.eps: 
 	dia -e $@ -t eps $<
 
-.dvi.pdf:
-	dvipdf $< $@	
+#.dvi.pdf:
+#	dvipdf $< $@	
+
 .dvi.ps:
 	dvips $< $@	
 
@@ -24,6 +25,6 @@ SUFFIXES = .dia .eps .dvi .pdf .ps .tex
 	latex $<
 	latex $<
 
-seq.dvi: seq.tex $(seq_dia)
+seq.dvi: seq.tex $(seq_dia:.dia=.eps)
 
-MOSTLYCLEANFILES = *.aux *.bbl *.blg *.lof *.log *.log *.toc
+MOSTLYCLEANFILES = *.aux *.bbl *.blg *.lof *.log *.log *.toc *.dvi 
