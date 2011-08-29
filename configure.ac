@@ -25,6 +25,7 @@ EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long'
 EXTRA_INTEL_FLAGS='-Wall'
 FATHOM_CHECK_COMPILERS([yes],[yes],[$ENABLE_FORTRAN])
 AM_CONDITIONAL(PARALLEL,[test "x$WITH_MPI" != "xno"])
+AM_CONDITIONAL(ENABLE_FORTRAN,[test "x$ENABLE_FORTRAN" != "xno"])
 LIBS="$LIBS -lm"
 
 AC_PROG_LN_S
@@ -229,11 +230,6 @@ if test "x$ENABLE_igeom" = "xyes"; then
     AC_MSG_ERROR([Cannot build iGeom API with sizeof(EntityHandle) != sizeof(void*)])
   fi
 fi
-
-AM_FCFLAGS="$AM_FCFLAGS -DPTRSIZE=${SIZEOF_VOID_P}"
-AM_FFLAGS="$AM_FFLAGS -DPTRSIZE=${SIZEOF_VOID_P}"
-AC_SUBST(AM_FCFLAGS)
-AC_SUBST(AM_FFLAGS)
 
 ################################################################################
 #                              Version Stuff
