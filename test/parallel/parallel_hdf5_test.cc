@@ -56,6 +56,7 @@ void test_read_sets_read_dups()   { test_read_sets_common( "BCAST_DUPLICATE_READ
 void test_write_different_element_types();
 void test_write_different_tags();
 void test_write_polygons();
+void test_write_unbalanced();
 
 const char PARTITION_TAG[] = "PARTITION";
 
@@ -192,6 +193,8 @@ int main( int argc, char* argv[] )
     result += RUN_TEST( test_write_different_tags );
     MPI_Barrier(MPI_COMM_WORLD);
     result += RUN_TEST( test_write_polygons );
+    MPI_Barrier(MPI_COMM_WORLD);
+    result += RUN_TEST( test_write_unbalanced );
     MPI_Barrier(MPI_COMM_WORLD);
   }
   
@@ -1332,4 +1335,91 @@ void test_write_polygons()
 }
 
 
+// Some processes have no mesh to write
+void test_write_unbalanced()
+{
+  const char file_name[] = "test_write_unbalanced.h5m";
+  int numproc, rank;
+  MPI_Comm_size( MPI_COMM_WORLD, &numproc );
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank    );
+  Core moab;
+  Interface &mb = moab;
+  ErrorCode rval;
+  Tag idtag;
+  
+  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, idtag, MB_TAG_CREAT );
+  CHECK_ERR(rval);
+  
+    // create a shared set
+  const int two = 2;
+  Range entities, sets;
 
+  EntityHandle set;
+  rval = mb.create_meshset( MESHSET_SET, set );
+  CHECK_ERR(rval);
+  rval = mb.tag_set_data( idtag, &set, 1, &two );
+  CHECK_ERR(rval);
+  sets.insert( set );
+
+    // create a quad on every odd processor
+  if (rank % 2) {
+    const double coords[4][3] = { { rank,   0, 0 },
+                                  { rank+2, 0, 0 },
+                                  { rank+2, 2, 0 },
+                                  { rank,   2, 0 } };
+    EntityHandle conn[4], quad;
+    for (int i = 0; i < 4; ++i)
+      mb.create_vertex( coords[i], conn[i] );
+    mb.create_element( MBQUAD, conn, 4, quad );
+    
+    const int ids[4] = { rank, rank+2, rank+3, rank+1 };
+    rval = mb.tag_set_data( idtag, conn, 4, ids );
+    CHECK_ERR(rval);
+    
+    rval = mb.add_entities( set, &quad, 1 );
+    CHECK_ERR(rval);
+    
+    entities.insert(quad);
+  }
+  
+    // set up sharing data
+  ParallelComm* pcomm = ParallelComm::get_pcomm( &mb, 0 );
+  if (0 == pcomm)
+    pcomm = new ParallelComm( &mb, MPI_COMM_WORLD );
+  rval = pcomm->resolve_shared_ents( 0, entities, 2, 0, &idtag );
+  CHECK_ERR(rval);
+  rval = pcomm->resolve_shared_sets( sets, idtag );
+  CHECK_ERR(rval);
+  
+    // do parallel write and serial load
+  save_and_load_on_root( mb, file_name );
+
+  if (rank != 0)
+    return;
+
+    // check that we got what we expected
+  Range quads, verts;
+  rval = mb.get_entities_by_type( 0, MBQUAD, quads );
+  CHECK_ERR(rval);
+  rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
+  CHECK_ERR(rval);
+  
+  const size_t nquads = numproc/2;
+  const size_t nverts = nquads ? 2+2*nquads : 0;
+  CHECK_EQUAL( nquads, quads.size() );
+  CHECK_EQUAL( nverts, verts.size() );
+  
+  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, idtag );
+  CHECK_ERR(rval);
+  sets.clear();
+  const void* vals[] = { &two };
+  rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &idtag, vals, 1, sets );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( (size_t)1, sets.size() );
+  
+  entities.clear();
+  rval = mb.get_entities_by_handle( sets.front(), entities );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( nquads, entities.size() );
+  CHECK_EQUAL( quads, entities );
+}
