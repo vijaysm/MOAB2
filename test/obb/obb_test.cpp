@@ -6,6 +6,10 @@
 #include "moab/GeomUtil.hpp"
 #include "moab/CN.hpp"
 
+#ifdef USE_MPI
+#include "moab_mpi.h"
+#endif
+
 #include <iostream>
 #include <sstream>
 #include <stdlib.h>
@@ -119,6 +123,11 @@ void parse_ray( int& i, int argc, char* argv[] );
 
 int main( int argc, char* argv[] )
 {
+#ifdef USE_MPI
+  int fail = MPI_Init(&argc, &argv);
+  if (fail) return fail;
+#endif
+
   std::vector<const char*> file_names;
   bool flags = true;
   for (int i = 1; i < argc; ++i) {
@@ -204,6 +213,11 @@ int main( int argc, char* argv[] )
   for (unsigned j = 0; j < file_names.size(); ++j)
     if (!do_file( file_names[j] ))
       ++exit_val;
+
+#ifdef USE_MPI
+  fail = MPI_Finalize();
+  if (fail) return fail;
+#endif
   
   return exit_val ? exit_val + 2 : 0;
 }
