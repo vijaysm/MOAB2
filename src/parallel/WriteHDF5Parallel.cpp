@@ -1524,7 +1524,7 @@ ErrorCode WriteHDF5Parallel::pack_set( Range::const_iterator it,
   
   buffer[0] = flags;
   buffer[1] = tmp.size();
-  if (buffer_size <= tmp.size())
+  if (tmp.size() <= buffer_size)
     std::copy( tmp.begin(), tmp.end(), buffer + 4 );
   
   rval = writeUtil->get_entity_list_pointers( it, nd, &ptr, WriteUtilIface::CHILDREN, &len );
@@ -1533,7 +1533,7 @@ ErrorCode WriteHDF5Parallel::pack_set( Range::const_iterator it,
   rval = vector_to_id_list( ptr, len, &tmp[0], newlen, true );
   tmp.resize( newlen );
   buffer[2] = tmp.size();
-  if (buffer_size - buffer[1] <= tmp.size())
+  if (tmp.size() <= buffer_size - buffer[1])
     std::copy( tmp.begin(), tmp.end(), buffer + 4 + buffer[1] );
   
   rval = writeUtil->get_entity_list_pointers( it, nd, &ptr, WriteUtilIface::PARENTS, &len );
@@ -1542,7 +1542,7 @@ ErrorCode WriteHDF5Parallel::pack_set( Range::const_iterator it,
   rval = vector_to_id_list( ptr, len, &tmp[0], newlen, true );
   tmp.resize( newlen );
   buffer[3] = tmp.size();
-  if (buffer_size - buffer[1] - buffer[2] <= tmp.size())
+  if (tmp.size() <= buffer_size - buffer[1] - buffer[2])
     std::copy( tmp.begin(), tmp.end(), buffer + 4 + buffer[1] + buffer[2]);
   
   return MB_SUCCESS;
@@ -1926,6 +1926,8 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables(double* times)
                          SetDescCreator(), NULL, 
                          &setSet.first_id );
   CHECK_MB(rval);
+  writeSets = setSet.max_num_ents > 0;
+  
   rval = assign_ids( setSet.range, setSet.first_id + setSet.offset );
   CHECK_MB(rval);
   if (times) times[SET_OFFSET_TIME] = timer.elapsed();
