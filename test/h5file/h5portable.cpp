@@ -630,9 +630,18 @@ DEFINE_TEST_SET( power_32 )
 
 int main( int argc, char* argv[] )
 { 
+#ifdef USE_MPI
+  int fail = MPI_Init(&argc, &argv);
+  if (fail) return fail;
+#endif
   REGISTER_TEST( test_native_read );
   REGISTER_TEST_SET( x86_64 );
   REGISTER_TEST_SET( x86_32 );
   REGISTER_TEST_SET( power_32 );
-  return RUN_TESTS( argc, argv );
+  int result = RUN_TESTS( argc, argv );
+#ifdef USE_MPI
+  fail = MPI_Finalize();
+  if (fail) return fail;
+#endif
+  return result;
 }
