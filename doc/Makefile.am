@@ -4,7 +4,8 @@ doc_DATA = MOAB-UG.doc \
            seq.pdf 
 
 seq_dia = seq-uml-class.dia \
-          seq-data.dia
+          seq-data.dia \
+          MeshSet.dia
            
 EXTRA_DIST  = $(doc_DATA) \
 	      seq.tex $(seq_dia)

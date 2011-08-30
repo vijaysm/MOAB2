@@ -5,7 +5,7 @@
 
 \title{MOAB Entity Storage}
 \author{Jason Kraftcheck}
-\date{November 12, 2007}
+\date{August, 2011}
 
 \begin{document}
 \section{\texttt{EntitySequence} \& \texttt{SequenceData}}
@@ -46,7 +46,7 @@ Each \texttt{EntitySequence} implementation also provides an implementation of t
 \end{center}
 \end{figure*}
 
-The \texttt{TypeSequenceManager} class maintains an organized set of \texttt{EntitySequence} instances and corresponding \texttt{SequenceData} instances. It is used to manage all such instances for entities of a single \texttt{MBEntityType}.  \texttt{TypeSequenceManager} enforces the following four rules on its contained data:
+The \texttt{TypeSequenceManager} class maintains an organized set of \texttt{EntitySequence} instances and corresponding \texttt{SequenceData} instances. It is used to manage all such instances for entities of a single \texttt{EntityType}.  \texttt{TypeSequenceManager} enforces the following four rules on its contained data:
 \begin{enumerate}
 \item No two \texttt{SequenceData} instances may overlap.
 \item No two \texttt{EntitySequence} instances may overlap.
@@ -62,15 +62,44 @@ The second important data member of \texttt{TypeSequenceManager} is a pointer to
 
 The third data member of \texttt{TypeSequenceManager} is a \texttt{std::set} of \texttt{SequenceData} instances that are not completely covered by a \texttt{EntitySequence} instance\footnote{Given rule four for the data managed by a \texttt{TypeSequenceManager}, any \texttt{SequenceData} for which all handles are allocated will be referenced by exactly one \texttt{EntitySequence}.}.  This list is searched when allocating new handles.  \texttt{TypeSequenceManager} also embeds in each \texttt{SequenceData} instance a reference to the first corresponding \texttt{EntitySequence} so that it may be located quickly from only the \texttt{SequenceData} pointer.
 
-The \texttt{SequenceManager} class contains an array of \texttt{TypeSequenceManager} instances, one for each \texttt{MBEntityType}.  It also provides all type-specific operations such as allocating the correct \texttt{EntitySequence} subtype for a given \texttt{MBEntityType}.  
+The \texttt{SequenceManager} class contains an array of \texttt{TypeSequenceManager} instances, one for each \texttt{EntityType}.  It also provides all type-specific operations such as allocating the correct \texttt{EntitySequence} subtype for a given \texttt{EntityType}.  
 
 
 \section{Structured Mesh}
 
 Structured mesh storage is implemented using subclasses of \texttt{SequenceData}: \texttt{ScdElementData} and \texttt{ScdVertexData}. The \texttt{StructuredElementSeq} class is used to access the structured element connectivity.  A standard \texttt{VertexSequence} instance is used to access the \texttt{ScdVertexData} because the vertex data storage is the same as for unstructured mesh.
 
-\section{\texttt{MeshSetSequence}}
+\section{Entity Sets}
 
-The representation of mesh sets within a \texttt{MeshSetSequence} results in significant complication of the code for working with the data model described in this document.  Much common code for allocating handles, sequences, etc. could be moved from type-specific functions in \texttt{SequenceManager} to general purpose methods in \texttt{TypeSequenceManager}, where such general purpose methods would rely on factory/clone methods provided by \texttt{EntitySequence} implementations to handle tasks such as creating new sequences or new data instances.  However, the current entity set representation requires that the \texttt{MeshSetSequence} know the type of any mesh sets (vector vs. range) when the corresponding handle is allocated.  This necessitates an separate code path for entity sets for all handle allocation tasks.  A new representation for entity sets that utilized a common, simple data structure as opposed to the current \texttt{std::vector} and \texttt{MBRange} storage mechanisms could defer the handling of the set type until a later time (after handle allocation), eliminating the special handling of entity sets during handle allocation.
+\subsection{\texttt{MeshSetSequence}}
+
+The \texttt{MeshSetSequence} class is the same as most other subclasses of \texttt{EntitySequence} in that it utilizes \texttt{SequenceData} to store
+its data.  A single array in the \texttt{SequenceData} is used to store 
+instances of the \texttt{MeshSet} class, one per allocated \texttt{EntityHandle}.  \texttt{SequenceData} allocates all of its managed
+arrays using \texttt{malloc} and \texttt{free} as simple arrays of bytes.  \texttt{MeshSetSequence} does in-place construction and destruction of \texttt{MeshSet} instances within that array.  This is similar to what is done
+by \texttt{std::vector} and other container classes that may own more
+storage than is required at a given time for contained objects.
+
+\subsection{\texttt{MeshSet}}
+
+\begin{figure*}[htbp]
+\begin{center}
+\includegraphics[width=4.5in]{MeshSet.eps}
+\caption{SequenceManager and Related Classes \label{fig:MeshSet}}
+\end{center}
+\end{figure*}
+
+The \texttt{MeshSet} class is used to represent a single entity set instance in MOAB.  The class is optimized to minimize storage (further possible improvements in storage size are discussed later.)  
+
+Figure \ref{fig:MeshSet} shows the memory layout of an instance of the \texttt{MeshSet} class.  The \texttt{flags} member holds the set creation bit flags: \texttt{MESHSET\_TRACK\_OWNER}, \texttt{MESHSET\_SET}, and \texttt{MESHSET\_ORDERED}.  The presence of the \texttt{MESHSET\_TRACK\_OWNER}
+indicates that reverse links from the contained entities back to the owning set should be maintained in the adjacency list of each entity.  The \texttt{MESHSET\_SET} and \texttt{MESHSET\_ORDERED} bits are mutually exclusive, and as such most code only tests for the \texttt{MESHSET\_ORDERED}, meaning that in practice the \texttt{MESHSET\_SET} bit is ignored.  \texttt{MESHSET\_ORDERED} indicates that the set may contain duplicate handles and that the order that the handles are added to the set should be preserved.  In practice, such sets are stored as a simple list of handles.  \texttt{MESHSET\_SET} (or in practice, the lack of \texttt{MESHSET\_ORDERED}) indicates that the order of the handles need not be preserved and that the set may not contain duplicate handles.  Such sets are stored in a sorted range-compacted format similar to that of the \texttt{Range} class.
+
+The memory for storing contents, parents, and children are each handled in the same way.  The data in the class is composed of a 2-bit `size' field and two values, where the two values may either be two handles or two pointers.  The size bit-fields are grouped together to reduce the required amount of memory.  If the numerical value of the 2-bit size field is 0 then the corresponding list is empty.  If the 2-bit size field is either 1 or 2, then the contents of the corresponding list are stored directly in the corresponding two data fields of the \texttt{MeshSet} object.  If the 2-bit size field has a value of 3 (11 binary), then the corresponding two data fields store the begin and end pointers of an external array of handles.  The number of handles in the external array can be obtained by taking the difference of the start and end pointers.  Note that unlike \texttt{std::vector}, we do not store both an allocated and used size.  We store only the `used' size and call \texttt{std::realloc} whenever the used size is modified, thus we rely on the \texttt{std::malloc} implementation in the standard C library to track `allocated' size for us.  In practice this performs well but does not return memory to the `system' when lists shrink (unless they shrink to zero).  This overall scheme could exhibit poor performance if the size of one of the data lists in the set frequently changes between less than two and more than two handles, as this will result in frequent releasing and re-allocating of the memory for the corresponding array.
+
+If the \texttt{MESHSET\_ORDERED} flag is {\em not} present, then the set contents list (parent and child lists are unaffected) is stored in a range-compacted format.  In this format the number of handles stored in the array is always a multiple of two.  Each consecutive pair of handles indicate the start and end, inclusive, of a range of handles contained in the set.  All such handle range pairs are stored in sorted order and do not overlap.  Nor is the end handle of one range ever one less than the start handle of the next.  All such `adjacent' range pairs are merged into a single pair.  The code for insertion and removal of handles from range-formatted set content lists is fairly complex.  The implementation will guarantee that a given call to insert entities into a range or remove entities from a range is never worse than O(ln n) + O(m + n), where `n' is the number of handles to insert and `m' is the number of handles already contained in the set.  So it is generally much more efficient to build \texttt{Range}s of handles to insert (and remove) and call MOAB to insert (or remove) the entire list at once rather than making may calls to insert (or remove) one or a few handles from the contents of a set.
+
+The set storage could probably be further minimized by allowing up to six handles in one of the lists to be elided.  That is, as there are six potential `slots' in the \texttt{MeshSet} object then if two of the lists are empty it should be possible to store up to six values of the remaining list directly in the \texttt{MeshSet} object.  However, the additional runtime cost of such complexity could easily outweigh any storage advantage.  Further investigation into this has not been done because the primary motivation for the storage optimization was to support binary trees.
+
+Another possible optimization of storage would be to remove the \texttt{MeshSet} object entirely and instead store the data in a `blocked' format.  The corresponding \texttt{SequenceData} would contain four arrays: flags, parents, children, and contents instead of a single array of \texttt{MeshSet} objects.  If this were done then no storage need ever be allocated for parent or child links if none of the sets in a \texttt{SequenceData} has parent or child links.  The effectiveness of the storage reduction would depend greatly on how sets get grouped into \texttt{SequenceData}s.  This alternate storage scheme might also allow for better cache utilization as it would group like data together.  It is often the case that application code that is querying the contents of one set will query the contents of many but never query the parents or children of any set.  Or that an application will query only parent or child links of a set without every querying other set properties.  The downside of this solution is that it makes the implementation a little less modular and maintainable because the existing logic contained in the \texttt{MeshSet} class would need to be spread throughout the \texttt{MeshSetSequence} class.
 
 \end{document}
