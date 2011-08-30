@@ -5,6 +5,10 @@
 #include "WriteHDF5.hpp"
 #include "FileOptions.hpp"
 
+#ifdef USE_MPI
+#include "moab_mpi.h"
+#endif
+
 #include <algorithm>
 #include <iostream>
 #include <sstream>
@@ -20,9 +24,20 @@ void test_write_read_many_tags();
 
 int main(int argc, char* argv[])
 {
+#ifdef USE_MPI
+  int fail = MPI_Init(&argc, &argv);
+  if (fail) return fail;
+#endif
+
   int exitval = 0;
   exitval += RUN_TEST( test_write_invalid_elem );
   exitval += RUN_TEST( test_write_read_many_tags );
+
+#ifdef USE_MPI
+  fail = MPI_Finalize();
+  if (fail) return fail;
+#endif
+
   return exitval;
 }
 

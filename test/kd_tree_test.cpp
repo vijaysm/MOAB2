@@ -3,6 +3,10 @@
 #include "moab/Range.hpp"
 #include "moab/CartVect.hpp"
 
+#ifdef USE_MPI
+#include "moab_mpi.h"
+#endif
+
 #include <math.h>
 #include <assert.h>
 #include <float.h>
@@ -26,8 +30,13 @@ void test_tree_delete();
 void test_iterator_back();
 void test_point_search();
 
-int main()
+int main(int argc, char **argv)
 {
+#ifdef USE_MPI
+  int fail = MPI_Init(&argc, &argv);
+  if (fail) return fail;
+#endif
+
   int err = RUN_TEST(test_tree_create);
   if (err)  // can't run other tests if can't create tree
     return 1;
@@ -39,6 +48,11 @@ int main()
   err += RUN_TEST(test_iterator_back);
   err += RUN_TEST(test_point_search);
   
+#ifdef USE_MPI
+  fail = MPI_Finalize();
+  if (fail) return fail;
+#endif
+
   return err;
 }
 

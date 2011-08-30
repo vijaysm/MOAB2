@@ -9,6 +9,10 @@ static const char example[] = STRINGIFY(MESHDIR) "/io/cam18x40x48.t2.nc";
 static const char example[] = "/io/cam18x40x48.nc";
 #endif
 
+#ifdef USE_MPI
+#include "moab_mpi.h"
+#endif
+
 void read_file( Interface& moab, const char* input_file );
 void test_read_all();
 void test_read_onevar();
@@ -16,15 +20,25 @@ void test_read_onetimestep();
 void test_read_nomesh();
 void test_read_novars();
 
-int main()
+int main(int argc, char *argv[])
 {
   int result = 0;
+
+#ifdef USE_MPI
+  int fail = MPI_Init(&argc, &argv);
+  if (fail) return 1;
+#endif
   
   result += RUN_TEST(test_read_all);
   result += RUN_TEST(test_read_onevar);
   result += RUN_TEST(test_read_onetimestep);
   result += RUN_TEST(test_read_nomesh);
   result += RUN_TEST(test_read_novars);
+  
+#ifdef USE_MPI
+  fail = MPI_Finalize();
+  if (fail) return 1;
+#endif
   
   return result;
 }

@@ -19,6 +19,10 @@ endif
 
 endif
 
+if PARALLEL
+  AM_CPPFLAGS += -I$(top_srcdir)/src/parallel
+endif
+
 bin_PROGRAMS = dagmc_preproc
 noinst_PROGRAMS = quads_to_tris $(netcdf_progs) 
 

@@ -2,6 +2,10 @@
 #include "moab/Range.hpp"
 #include "TestUtil.hpp"
 
+#ifdef USE_MPI
+#include "moab_mpi.h"
+#endif
+
 #include <algorithm>
 #include <iostream>
 #include <sstream>
@@ -358,6 +362,11 @@ void test_set_flags();
   
 int main(int argc, char* argv[])
 {
+#ifdef USE_MPI
+  int fail = MPI_Init(&argc, &argv);
+  if (fail) return fail;
+#endif
+
   bool do_big_tree_test = false;
   for (int i = 1; i < argc; ++i) {
     if (std::string(argv[i]) == "-k")
@@ -380,6 +389,12 @@ int main(int argc, char* argv[])
   if (do_big_tree_test) {
     exitval += RUN_TEST( test_big_tree );
   }
+
+#ifdef USE_MPI
+  fail = MPI_Finalize();
+  if (fail) return fail;
+#endif
+
   return exitval;
 }
 

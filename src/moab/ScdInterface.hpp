@@ -209,6 +209,12 @@ public:
                                      int np, int nr,
                                      const int *gijk, int *lijk);
   
+  static ErrorCode get_neighbor(int pfrom, int np, int part_method,
+                                const int *gdims, const int *ldims,
+                                bool periodic_i, bool periodic_j,
+                                int di, int dj, int dk,
+                                int &pto, int *bdy_ind, int *rdims, int *facedims);
+  
     //! Tag vertices with sharing data for parallel representations
     /** Given the ParallelComm object to use, tag the vertices shared with other processors
      */
@@ -276,19 +282,28 @@ private:
   static ErrorCode get_indices(const int *bdy_ind, const int *ldims, int *rdims, int *face_dims, 
                                std::vector<int> &shared_indices);
   
-  static ErrorCode get_neighbor(ParallelComm *pcomm, ScdBox *box, int pfrom, int di, int dj, int dk, 
-                                int &pto, int *bdy_ind, int *rdims, int *facedims);
-  
-  static ErrorCode get_neighbor_alljorkori(ParallelComm *pcomm, ScdBox *box, int pfrom, int *dijk, 
+  static ErrorCode get_neighbor_alljorkori(int pfrom, int np,
+                                           const int *gdims, const int *ldims,
+                                           bool periodic_i, bool periodic_j,
+                                           int *dijk, 
                                            int &pto, int *bdy_ind, int *rdims, int *facedims);
   
-  static ErrorCode get_neighbor_alljkbal(ParallelComm *pcomm, ScdBox *box, int pfrom, int *dijk, 
+  static ErrorCode get_neighbor_alljkbal(int pfrom, int np,
+                                         const int *gdims, const int *ldims,
+                                         bool periodic_i, bool periodic_j,
+                                         int *dijk, 
                                          int &pto, int *bdy_ind, int *rdims, int *facedims);
   
-  static ErrorCode get_neighbor_sqij(ParallelComm *pcomm, ScdBox *box, int pfrom, int *dijk, 
+  static ErrorCode get_neighbor_sqij(int pfrom, int np,
+                                     const int *gdims, const int *ldims,
+                                     bool periodic_i, bool periodic_j,
+                                     int *dijk, 
                                      int &pto, int *bdy_ind, int *rdims, int *facedims);
   
-  static ErrorCode get_neighbor_sqjk(ParallelComm *pcomm, ScdBox *box, int pfrom, int *dijk, 
+  static ErrorCode get_neighbor_sqjk(int pfrom, int np,
+                                     const int *gdims, const int *ldims,
+                                     bool periodic_i, bool periodic_j,
+                                     int *dijk, 
                                      int &pto, int *bdy_ind, int *rdims, int *facedims);
   
   static int gtol(const int *gijk, int i, int j, int k);
@@ -601,7 +616,7 @@ private:
 
     //! interface instance
   ScdInterface *scImpl;
-  
+
     //! entity set representing this box
   EntityHandle boxSet;
 
@@ -667,8 +682,7 @@ inline ErrorCode ScdInterface::compute_partition_alljorkori(int np, int nr, cons
 {
     // partition *the elements* over the parametric space; 1d partition for now, in the j, k, or i
     // parameters
-#ifdef USE_MPI
-  if (-1 != lijk[1] && (gijk[4] - gijk[1]) > np) {
+  if (gijk[4] - gijk[1] > np) {
     int dj = (gijk[4] - gijk[1]) / np;
     int extra = (gijk[4] - gijk[1]) % np;
     lijk[1] = gijk[1] + nr*dj + 
@@ -678,7 +692,7 @@ inline ErrorCode ScdInterface::compute_partition_alljorkori(int np, int nr, cons
     lijk[2] = gijk[2]; lijk[5] = gijk[5];
     lijk[0] = gijk[0]; lijk[3] = gijk[3];
   }
-  else if (-1 != lijk[2] && (gijk[5] - gijk[2]) > np) {
+  else if (gijk[5] - gijk[2] > np) {
     int dk = (gijk[5] - gijk[2]) / np;
     int extra = (gijk[5] - gijk[2]) % np;
     lijk[2] = gijk[2] + nr*dk + 
@@ -688,7 +702,7 @@ inline ErrorCode ScdInterface::compute_partition_alljorkori(int np, int nr, cons
     lijk[1] = gijk[1]; lijk[4] = gijk[4];
     lijk[0] = gijk[0]; lijk[3] = gijk[3];
   }
-  else if (-1 != lijk[0] && (gijk[3] - gijk[0]) > np) {
+  else if (gijk[3] - gijk[0] > np) {
     int di = (gijk[3] - gijk[0]) / np;
     int extra = (gijk[3] - gijk[0]) % np;
     lijk[0] = gijk[0] + nr*di + 
@@ -699,18 +713,10 @@ inline ErrorCode ScdInterface::compute_partition_alljorkori(int np, int nr, cons
     lijk[1] = gijk[1]; lijk[4] = gijk[4];
   }
   else {
-    std::cerr << "Couldn't find a suitable partition." << std::endl;
+      // Couldn't find a suitable partition...
     return MB_FAILURE;
   }
-#else
-  lijk[0] = gijk[0];
-  lijk[3] = gijk[3];
-  lijk[1] = gijk[1];
-  lijk[4] = gijk[4];
-  lijk[2] = gijk[2];
-  lijk[5] = gijk[5];
-#endif
-  
+
   return MB_SUCCESS;
 }
 
@@ -816,8 +822,10 @@ inline ErrorCode ScdInterface::compute_partition_sqjk(int np, int nr, const int 
     // ideally, Pj/Pk = J/K
   double jkratio = ((double)(gijk[4]-gijk[1]))/((double)(gijk[5]-gijk[2]));
 
-  unsigned int ind = std::lower_bound(ppfactors.begin(), ppfactors.end(), jkratio) - ppfactors.begin();
-  if (ind && fabs(ppfactors[ind-1]-jkratio) < fabs(ppfactors[ind]-jkratio)) ind--;
+  std::vector<double>::iterator vit  = std::lower_bound(ppfactors.begin(), ppfactors.end(), jkratio);
+  if (vit == ppfactors.end()) vit--;
+  else if (vit != ppfactors.begin() && fabs(*(vit-1)-jkratio) < fabs((*vit)-jkratio)) vit--;
+  int ind = vit - ppfactors.begin();
   
   int pj = pfactors[ind];
   int pk = np / pj;
@@ -862,21 +870,28 @@ inline ErrorCode ScdInterface::get_indices(const int *bdy_ind, const int *ldims,
   return MB_SUCCESS;
 }
   
-inline ErrorCode ScdInterface::get_neighbor(ParallelComm *pcomm, ScdBox *box, int pfrom, int di, int dj, int dk, 
+inline ErrorCode ScdInterface::get_neighbor(int pfrom, int np, int part_method,
+                                            const int *gdims, const int *ldims,
+                                            bool periodic_i, bool periodic_j,
+                                            int di, int dj, int dk,
                                             int &pto, int *bdy_ind, int *rdims, int *facedims) 
 {
   int dijk[3] = {di, dj, dk};
   
-  switch (box->part_method()) {
+  switch (part_method) {
     case ALLJORKORI:
     case -1:
-        return get_neighbor_alljorkori(pcomm, box, pfrom, dijk, pto, bdy_ind, rdims, facedims);
+        return get_neighbor_alljorkori(pfrom, np, gdims, ldims, periodic_i, periodic_j,
+                                       dijk, pto, bdy_ind, rdims, facedims);
     case ALLJKBAL:
-        return get_neighbor_alljkbal(pcomm, box, pfrom, dijk, pto, bdy_ind, rdims, facedims);
+        return get_neighbor_alljkbal(pfrom, np, gdims, ldims, periodic_i, periodic_j,
+                                     dijk, pto, bdy_ind, rdims, facedims);
     case SQIJ:
-        return get_neighbor_sqij(pcomm, box, pfrom, dijk, pto, bdy_ind, rdims, facedims);
+        return get_neighbor_sqij(pfrom, np, gdims, ldims, periodic_i, periodic_j,
+                                 dijk, pto, bdy_ind, rdims, facedims);
     case SQJK:
-        return get_neighbor_sqjk(pcomm, box, pfrom, dijk, pto, bdy_ind, rdims, facedims);
+        return get_neighbor_sqjk(pfrom, np, gdims, ldims, periodic_i, periodic_j,
+                                 dijk, pto, bdy_ind, rdims, facedims);
   }
 
   return MB_FAILURE;
@@ -988,8 +1003,7 @@ inline EntityHandle ScdBox::get_element(HomCoord ijk) const
   
 inline EntityHandle ScdBox::get_vertex(int i, int j, int k) const 
 {
-  return (!startVertex ? MB_ENTITY_NOT_FOUND : 
-          vertDat ? startVertex + (k-boxDims[2])*boxSizeIJ + (j-boxDims[1])*boxSize[0] + i-boxDims[0] : 
+  return (vertDat ? startVertex + (k-boxDims[2])*boxSizeIJ + (j-boxDims[1])*boxSize[0] + i-boxDims[0] : 
           get_vertex_from_seq(i, j, k));
 }
 

@@ -1,6 +1,11 @@
 #include "moab/Core.hpp"
 #include "TestUtil.hpp"
 #include "moab/Range.hpp"
+
+#ifdef USE_MPI
+#include "moab_mpi.h"
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -45,6 +50,11 @@ while (false)
 
 int main(int argc, char* argv[])
 {
+#ifdef USE_MPI
+  int fail = MPI_Init(&argc, &argv);
+  if (fail) return fail;
+#endif
+
   if (argc != 1) {
     if (argc != 2 || strcmp(argv[1],"-k")) {
       fprintf( stderr, "Usage: %s [-k]\n", argv[0] );
@@ -64,6 +74,12 @@ int main(int argc, char* argv[])
   err_count += RUN_TEST( test_var_length_default_opaque );
   err_count += RUN_TEST( test_var_length_handle_tag );
   err_count += RUN_TEST( test_var_length_data_big );
+
+#ifdef USE_MPI
+  fail = MPI_Finalize();
+  if (fail) return fail;
+#endif
+
   return err_count;
 }
 

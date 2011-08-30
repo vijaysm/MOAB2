@@ -120,7 +120,12 @@ cropvol_test_SOURCES = crop_vol_test.cpp
 test_prog_opt_SOURCES = test_prog_opt.cpp
 test_prog_opt_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS)
 
+moab_test_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS)
+kd_tree_test_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS)
+
 if PARALLEL
+moab_test_CPPFLAGS += -I$(top_srcdir)/src/parallel
+kd_tree_test_CPPFLAGS = -I$(top_srcdir)/src/parallel
 test_prog_opt_CPPFLAGS += -I$(top_srcdir)/src/parallel
 endif
 

@@ -45,6 +45,10 @@
 #include "moab/CartVect.hpp"
 #include "moab/WriteUtilIface.hpp"
 
+#ifdef USE_MPI
+#include "moab_mpi.h"
+#endif
+
 #ifndef IS_BUILDING_MB
 #define IS_BUILDING_MB
 #endif
@@ -8072,6 +8076,11 @@ static void _run_test( TestFunc func, const char* func_str )
 
 int main(int argc, char* argv[])
 {
+#ifdef USE_MPI
+  int fail = MPI_Init(&argc, &argv);
+  if (fail) return fail;
+#endif
+
   argv0 = argv[0];
 
     // Check command line arg to see if we should avoid doing the stress test
@@ -8179,6 +8188,11 @@ int main(int argc, char* argv[])
        << "   Number Successful:      " << number_tests - number_tests_failed << "\n"
        << "   Number Failed:          " << number_tests_failed 
        << "\n\n";
+
+#ifdef USE_MPI
+  fail = MPI_Finalize();
+  if (fail) return fail;
+#endif
 
   return number_tests_failed;
 }

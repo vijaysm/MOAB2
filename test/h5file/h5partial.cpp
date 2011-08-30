@@ -4,6 +4,11 @@
 #include "ReadHDF5.hpp"
 #include "MBTagConventions.hpp"
 #include "FileOptions.hpp"
+
+#ifdef USE_MPI
+#include "moab_mpi.h"
+#endif
+
 #include <vector>
 #include <stdlib.h>
 #include <iostream>
@@ -149,46 +154,10 @@ void test_read_partial_ids();
 
 int main( int argc, char* argv[] )
 {
-/*
-  if (argc > 1) {
-    if (argc != 2 || strcmp(argv[1],"-k")) {
-      std::cerr << "Usage: " << argv[0] << " [-k]" << std::endl;
-      return 1;
-    }
-  }
-  
-  int result = 0;
-  
-  result += RUN_TEST(test_read_empty_set);
-  result += RUN_TEST(test_read_non_existant_set);
-  result += RUN_TEST(test_read_one_set_nodes);
-  result += RUN_TEST(test_read_one_set_elems);
-  result += RUN_TEST(test_read_one_set_polyhedra);
-  result += RUN_TEST(test_read_set_sets);
-  result += RUN_TEST(test_read_two_sets_nodes);
-  result += RUN_TEST(test_read_two_sets_elems);
-  result += RUN_TEST(test_read_child_sets_only);
-  result += RUN_TEST(test_read_child_set_contents);
-  result += RUN_TEST(test_read_no_child_sets);
-  result += RUN_TEST(test_read_contained_sets_only);
-  result += RUN_TEST(test_read_contained_set_contents);
-  result += RUN_TEST(test_read_no_contained_sets);
-  result += RUN_TEST(test_read_containing_sets);
-  result += RUN_TEST(test_read_double_tag);
-  result += RUN_TEST(test_read_opaque_tag);
-  result += RUN_TEST(test_read_handle_tag);
-  result += RUN_TEST(test_var_len_tag);
-  result += RUN_TEST(test_read_adjacencies);
-  result += RUN_TEST(test_read_tagged_elems);
-  result += RUN_TEST(test_read_tagged_nodes);
-  result += RUN_TEST(test_read_sides);
-  result += RUN_TEST(test_read_ids);
-  result += RUN_TEST(test_read_partial_ids);
-
-  if (argc == 1)
-    remove( TEST_FILE );
-  return result;
-*/
+#ifdef USE_MPI
+  int fail = MPI_Init(&argc, &argv);
+  if (fail) return fail;
+#endif
 
   REGISTER_TEST(test_read_empty_set);
   REGISTER_TEST(test_read_non_existant_set);
@@ -216,7 +185,14 @@ int main( int argc, char* argv[] )
   REGISTER_TEST(test_read_sides);
   REGISTER_TEST(test_read_ids);
   REGISTER_TEST(test_read_partial_ids);
-  return RUN_TESTS( argc, argv );
+  int result = RUN_TESTS( argc, argv );
+
+#ifdef USE_MPI
+  fail = MPI_Finalize();
+  if (fail) return fail;
+#endif
+
+  return result;
 }
 
 void test_read_nothing_common( bool non_existant )

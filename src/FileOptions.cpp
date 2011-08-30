@@ -274,6 +274,7 @@ ErrorCode FileOptions::get_strs_option( const char* name,
   for (char* i = strtok( tmp_str, separator ); i; i = strtok( 0, separator )) 
     if (!strempty(i)) // skip empty strings
       values.push_back( std::string(i));
+  free(tmp_str);
   
   return MB_SUCCESS;
 }

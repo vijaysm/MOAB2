@@ -135,6 +135,9 @@ public:
     //! test whether this sequence contains these parameters
   inline bool contains(const HomCoord &coords) const;
 
+    //! test whether *vertex parameterization* in this sequence contains these parameters
+  inline bool contains_vertex(const HomCoord &coords) const;
+
     //! get connectivity of an entity given entity's parameters
   inline ErrorCode get_params_connectivity(const int i, const int j, const int k,
                                        std::vector<EntityHandle>& connectivity) const;
@@ -225,6 +228,17 @@ inline bool ScdElementData::contains(const HomCoord &temp) const
            (dIJKm1[2] && temp.k() >= elementParams[0].k() && temp.k() < elementParams[0].k()+dIJKm1[2])));
 }
   
+inline bool ScdElementData::contains_vertex(const HomCoord &temp) const 
+{
+    // upper bound is < instead of <= because element params max is one less
+    // than vertex params max, except in case of 2d or 1d sequence
+  return ((dIJK[0] && temp.i() >= elementParams[0].i() && temp.i() < elementParams[0].i()+dIJK[0]) &&
+          ((!dIJK[1] && temp.j() == elementParams[1].j()) || 
+           (dIJK[1] && temp.j() >= elementParams[0].j() && temp.j() < elementParams[0].j()+dIJK[1])) &&
+          ((!dIJK[2] && temp.k() == elementParams[1].k()) || 
+           (dIJK[2] && temp.k() >= elementParams[0].k() && temp.k() < elementParams[0].k()+dIJK[2])));
+}
+  
 inline bool ScdElementData::VertexDataRef::contains(const HomCoord &coords) const 
 {
   return (minmax[0] <= coords && minmax[1] >= coords);
@@ -246,7 +260,9 @@ inline EntityHandle ScdElementData::get_vertex(const HomCoord &coords) const
      if ((*it).minmax[0] <= coords && (*it).minmax[1] >= coords) {
          // first get the vertex block-local parameters
        HomCoord local_coords = coords / (*it).xform;
-    
+
+       assert(contains_vertex(local_coords));
+
       // now get the vertex handle for those coords
        return (*it).srcSeq->get_vertex(local_coords);
      }
