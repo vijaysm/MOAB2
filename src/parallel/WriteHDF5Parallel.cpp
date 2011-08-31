@@ -1362,6 +1362,66 @@ ErrorCode WriteHDF5Parallel::create_adjacency_tables()
   return MB_SUCCESS;
 }
 
+const unsigned SSVB = 3;
+
+void WriteHDF5Parallel::print_set_sharing_data( const Range& range, const char* label, Tag idt )
+{
+  dbgOut.printf(SSVB,"set\tid\towner\t%-*s\tfid\tshared\n",(int)(sizeof(EntityHandle)*2),"handle");
+  for (Range::iterator it = range.begin(); it != range.end(); ++it) {
+    int id;
+    iFace->tag_get_data( idt, &*it, 1, &id );
+    EntityHandle handle = 0;
+    unsigned owner = 0;
+    id_t file_id = 0;
+    myPcomm->get_entityset_owner( *it, owner, &handle );
+    if (!idMap.find( *it, file_id ))
+      file_id = 0;
+    dbgOut.printf(SSVB,"%s\t%d\t%u\t%lx\t%lu\t", label, id, owner, (unsigned long)handle, (unsigned long)file_id);
+    std::vector<unsigned> procs;
+    myPcomm->get_entityset_procs( *it, procs );
+    if (procs.empty())
+      dbgOut.print(SSVB,"<none>\n");
+    else {
+      for (unsigned i = 0; i < procs.size()-1; ++i)
+        dbgOut.printf(SSVB,"%u,", procs[i]);
+      dbgOut.printf(SSVB,"%u\n",procs.back());
+    }
+  }
+}
+
+
+void WriteHDF5Parallel::print_shared_sets()
+{
+  const char* tag_names[][2] = { { MATERIAL_SET_TAG_NAME, "block" },
+                                 { DIRICHLET_SET_TAG_NAME, "nodeset" },
+                                 { NEUMANN_SET_TAG_NAME, "sideset" },
+                                 { 0, 0 } };
+  
+  for (int i = 0; tag_names[i][0]; ++i) {
+    Tag tag;
+    if (MB_SUCCESS != iFace->tag_get_handle( tag_names[i][0], 1, MB_TYPE_INTEGER, tag ))
+      continue;
+    
+    Range tagged;
+    iFace->get_entities_by_type_and_tag( 0, MBENTITYSET, &tag, 0, 1, tagged );
+    print_set_sharing_data( tagged, tag_names[i][1], tag );
+  }
+  
+  Tag geom, id;
+  if (MB_SUCCESS != iFace->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geom ))
+    return;
+  if (MB_SUCCESS != iFace->tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id ))
+    return;
+  
+  const char* geom_names[] = { "vertex", "curve", "surface", "volume" };
+  for (int d = 0; d <= 3; ++d) {
+    Range tagged;
+    const void* vals[] = { &d };
+    iFace->get_entities_by_type_and_tag( 0, MBENTITYSET, &geom, vals, 1, tagged );
+    print_set_sharing_data( tagged, geom_names[d], id );
+  }
+}
+
 ErrorCode WriteHDF5Parallel::communicate_shared_set_ids( const Range& owned,
                                                          const Range& remote )
 {
@@ -1485,8 +1545,35 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_ids( const Range& owned,
   mperr = MPI_Waitall( send_req.size(), &send_req[0], &stats[0] );
   CHECK_MPI(mperr);
   
+  if (dbgOut.get_verbosity() >= SSVB)
+    print_shared_sets();
+  
   return MB_SUCCESS;  
 }
+
+//void get_global_ids( Interface* iFace, const unsigned long* ptr,
+//                     size_t len, unsigned flags, 
+//                     std::vector<int>& ids )
+//{
+//  Tag idtag;
+//  iFace->tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, idtag );
+//  for (size_t i = 0; i < len; ++i) {
+//    if (flags & MESHSET_ORDERED) {
+//      int tmp;
+//      iFace->tag_get_data( idtag, ptr + i, 1, &tmp );
+//      ids.push_back( tmp );
+//      continue;
+//    }
+//
+//    EntityHandle s = ptr[i];
+//    EntityHandle e = ptr[++i];
+//    for (; s <= e; ++s) {
+//      int tmp;
+//      iFace->tag_get_data( idtag, &s, 1, &tmp );
+//      ids.push_back( tmp );
+//    }
+//  }
+//}
 
 ErrorCode WriteHDF5Parallel::pack_set( Range::const_iterator it,
                                        unsigned long* buffer,
@@ -1506,6 +1593,17 @@ ErrorCode WriteHDF5Parallel::pack_set( Range::const_iterator it,
   Range::const_iterator nd = it; ++nd;
   rval = writeUtil->get_entity_list_pointers( it, nd, &ptr, WriteUtilIface::CONTENTS, &len, &flags );
   CHECK_MB(rval);
+
+//Tag mattag;
+//iFace->tag_get_handle( MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, mattag );
+//int block;
+//if (MB_SUCCESS != iFace->tag_get_data( mattag, &*it, 1, &block ))
+//  block = 0;
+//
+//if (block) {
+//  std::vector<int> ids;
+//  get_global_ids( iFace, ptr, len, flags, ids );
+//}
   
   if (len && !(flags & MESHSET_ORDERED)) {
     tmp.clear();
@@ -1632,6 +1730,12 @@ ErrorCode WriteHDF5Parallel::unpack_set( EntityHandle set,
   
   SpecialSetData* data = find_set_data( set ); assert(!!data);
   if (!data) return MB_FAILURE;
+
+//Tag mattag;
+//iFace->tag_get_handle( MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, mattag );
+//int block;
+//if (MB_SUCCESS != iFace->tag_get_data( mattag, &set, 1, &block ))
+//  block = 0;
   
     // If either the current data or the new data is in ranged format,
     // then change the other to ranged format if it isn't already
@@ -1769,12 +1873,20 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_data( const Range& owned,
                        owner, tag, comm, &send_req[idx] );
     CHECK_MPI(mperr);
   }
+
+//Tag mattag;
+//iFace->tag_get_handle( MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, mattag );
   
     // now initialize local data for managing contents of owned, shared sets
   assert(specialSets.empty());
   specialSets.clear();
   specialSets.reserve( owned.size() );
   for (Range::iterator i = owned.begin(); i != owned.end(); ++i) {
+//int block;
+//if (MB_SUCCESS != iFace->tag_get_data( mattag, &*i, 1, &block ))
+//  block = 0;
+//std::vector<int> ids;
+
     SpecialSetData data;
     data.setHandle = *i;
     rval = iFace->get_meshset_options( *i, data.setFlags );
@@ -1787,6 +1899,7 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_data( const Range& owned,
       CHECK_MB(rval);
       rval = vector_to_id_list( list, specialSets.back().contentIds, true );
       CHECK_MB(rval);
+//if (block) get_global_ids( iFace, &list[0], list.size(), MESHSET_ORDERED, ids );
     }
     else {
       Range range;
@@ -1796,7 +1909,16 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_data( const Range& owned,
       rval = range_to_blocked_list( range, specialSets.back().contentIds, ranged );
       if (ranged)
        specialSets.back().setFlags |= mhdf_SET_RANGE_BIT;
+//if (block) {
+//  std::vector<EntityHandle> tmp;
+//  for (Range::const_pair_iterator pi = range.const_pair_begin(); pi != range.const_pair_end(); ++pi) {
+//    tmp.push_back( pi->first );
+//    tmp.push_back( pi->second );
+//  }
+//  get_global_ids( iFace, &tmp[0], tmp.size(), ranged ? 0 : MESHSET_ORDERED, ids );
+//}
     }
+
     list.clear();
     rval = iFace->get_parent_meshsets( *i, list );
     CHECK_MB(rval);
