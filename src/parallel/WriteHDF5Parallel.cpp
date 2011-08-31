@@ -1179,7 +1179,7 @@ ErrorCode WriteHDF5Parallel::negotiate_type_list()
     // Build local list of any types that root did not know about
   typelist non_root_types;
   viter = root_types.begin();
-  for (typelist::iterator iter = my_types.begin(); iter != my_types.end(); ++iter) {
+   for (typelist::iterator iter = my_types.begin(); iter != my_types.end(); ++iter) {
     if (viter == root_types.end() || *viter != *iter)
       non_root_types.push_back( *iter );
     else
@@ -1191,61 +1191,66 @@ ErrorCode WriteHDF5Parallel::negotiate_type_list()
   int not_done;
   result = MPI_Allreduce( &non_root_count, &not_done, 1, MPI_INT, MPI_LOR, comm );
   CHECK_MPI(result);
-  if (!not_done)
-    return MB_SUCCESS;
-  
-    // Get number of types each processor has that root does not
-  std::vector<int> counts(myPcomm->proc_config().proc_size());
-  int two_count = 2*non_root_count;
-  result = MPI_Gather( &two_count, 1, MPI_INT, &counts[0], 1, MPI_INT, 0, comm );
-  CHECK_MPI(result);
+  if (not_done) {
+      // Get number of types each processor has that root does not
+    std::vector<int> counts(myPcomm->proc_config().proc_size());
+    int two_count = 2*non_root_count;
+    result = MPI_Gather( &two_count, 1, MPI_INT, &counts[0], 1, MPI_INT, 0, comm );
+    CHECK_MPI(result);
 
-    // Get list of types from each processor
-  std::vector<int> displs(myPcomm->proc_config().proc_size() + 1);
-  VALGRIND_MAKE_VEC_UNDEFINED( displs );
-  displs[0] = 0;
-  for (unsigned long i = 1; i <= myPcomm->proc_config().proc_size(); ++i)
-    displs[i] = displs[i-1] + counts[i-1];
-  int total = displs[myPcomm->proc_config().proc_size()];
-  typelist alltypes(total/2);
-  VALGRIND_MAKE_VEC_UNDEFINED( alltypes );
-  VALGRIND_CHECK_MEM_IS_DEFINED( &non_root_types[0], non_root_types.size()*sizeof(int) );
-  result = MPI_Gatherv( &non_root_types[0], 2*non_root_count, MPI_INT,
-                        &alltypes[0], &counts[0], &displs[0], MPI_INT, 0, comm );
-  CHECK_MPI(result);
-  
-    // Merge type lists.
-    // Prefer O(n) insertions with O(ln n) search time because
-    // we expect data from a potentially large number of processes,
-    // but with a small total number of element types.
-  if (0 == myPcomm->proc_config().proc_rank()) {
-    for (viter = alltypes.begin(); viter != alltypes.end(); ++viter) {
-      typelist::iterator titer = std::lower_bound( my_types.begin(), my_types.end(), *viter );
-      if (titer == my_types.end() || *titer != *viter)
-        my_types.insert( titer, *viter );
+      // Get list of types from each processor
+    std::vector<int> displs(myPcomm->proc_config().proc_size() + 1);
+    VALGRIND_MAKE_VEC_UNDEFINED( displs );
+    displs[0] = 0;
+    for (unsigned long i = 1; i <= myPcomm->proc_config().proc_size(); ++i)
+      displs[i] = displs[i-1] + counts[i-1];
+    int total = displs[myPcomm->proc_config().proc_size()];
+    typelist alltypes(total/2);
+    VALGRIND_MAKE_VEC_UNDEFINED( alltypes );
+    VALGRIND_CHECK_MEM_IS_DEFINED( &non_root_types[0], non_root_types.size()*sizeof(int) );
+    result = MPI_Gatherv( &non_root_types[0], 2*non_root_count, MPI_INT,
+                          &alltypes[0], &counts[0], &displs[0], MPI_INT, 0, comm );
+    CHECK_MPI(result);
+
+      // Merge type lists.
+      // Prefer O(n) insertions with O(ln n) search time because
+      // we expect data from a potentially large number of processes,
+      // but with a small total number of element types.
+    if (0 == myPcomm->proc_config().proc_rank()) {
+      for (viter = alltypes.begin(); viter != alltypes.end(); ++viter) {
+        typelist::iterator titer = std::lower_bound( my_types.begin(), my_types.end(), *viter );
+        if (titer == my_types.end() || *titer != *viter)
+          my_types.insert( titer, *viter );
+      }
+
+      dbgOut.print(2, "Global Element Types:\n");
+      for (viter = my_types.begin(); viter != my_types.end(); ++viter)
+      {
+        dbgOut.printf(2,"  %s : %d\n", CN::EntityTypeName((EntityType)viter->first), viter->second);
+      }
     }
 
-    dbgOut.print(2, "Global Element Types:\n");
-    for (viter = my_types.begin(); viter != my_types.end(); ++viter)
-    {
-      dbgOut.printf(2,"  %s : %d\n", CN::EntityTypeName((EntityType)viter->first), viter->second);
-    }
+      // Send total number of types to each processor
+    total = my_types.size();
+    result = MPI_Bcast( &total, 1, MPI_INT, 0, comm );
+    CHECK_MPI(result);
+
+      // Send list of types to each processor
+    my_types.resize(total);
+    result = MPI_Bcast( &my_types[0], 2*total, MPI_INT, 0, comm );
+    CHECK_MPI(result);
   }
-  
-    // Send total number of types to each processor
-  total = my_types.size();
-  result = MPI_Bcast( &total, 1, MPI_INT, 0, comm );
-  CHECK_MPI(result);
-  
-    // Send list of types to each processor
-  my_types.resize(total);
-  result = MPI_Bcast( &my_types[0], 2*total, MPI_INT, 0, comm );
-  CHECK_MPI(result);
+  else {
+      // special case: if root had types but some subset of procs did not
+      // have those types, but there are no types that the root doesn't
+      // know about then we still need to update processes that are missing
+      // types.
+    my_types.swap( root_types );
+  }
   
     // Insert missing types into exportList, with an empty
     // range of entities to export.
   std::list<ExportSet>::iterator ex_iter = exportList.begin();
-  viter = my_types.begin();
   for (viter = my_types.begin(); viter != my_types.end(); ++viter)
   {
     while (ex_iter != exportList.end() && *ex_iter < *viter)
