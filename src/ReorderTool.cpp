@@ -576,7 +576,12 @@ ErrorCode ReorderTool::reorder_tag_data( EntityType type, Tag new_handles, Tag t
                  reinterpret_cast<EntityHandle*>(&buffer2[0]), 
                  buffer.size() / sizeof(EntityHandle) );
     CHKERR;
-    buffer.swap(buffer2);
+      // if var-length tag then do not do swap because pointers[] contains pointers
+      // into old buffer
+    if (-1 == tagsize)
+      memcpy( &buffer[0], &buffer2[0], buffer.size() );
+    else
+      buffer.swap(buffer2);
   }
   
     // store re-orederd tag data
