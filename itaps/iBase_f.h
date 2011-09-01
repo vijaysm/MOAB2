@@ -1,29 +1,37 @@
 #ifndef IBASE_F_H
 #define IBASE_F_H
 
-#ifdef PTRSIZE
-c user-defined override
-#  define IMESH_HANDLE_T INTEGER*PTRSIZE
+#ifdef POINTER_SIZE
+c  user-defined override
+#  define IBASE_HANDLE_T INTEGER*POINTER_SIZE
 #elif defined(__SIZEOF_SIZE_T__)
-c gfortran
-#  define IMESH_HANDLE_T integer*__SIZEOF_SIZE_T__
+c  gfortran
+#  define IBASE_HANDLE_T integer*__SIZEOF_SIZE_T__
+#elif defined(__GNUC__) && defined (_LANGUAGE_FORTRAN)
+c  gfortran 4.2 and earlier
+#  ifdef _LP64
+#    define IBASE_HANDLE_T integer*8
+#  else
+c    NOTE: not integer*4 (see meaning of _LP64 in GNU docs)
+#    define IBASE_HANDLE_T integer
+#  endif
 #elif defined(__INTEL_COMPILER)
 #  ifdef __X86_64
-#    define IMESH_HANDLE_T integer*8
+#    define IBASE_HANDLE_T integer*8
 #  else
-#    define IMESH_HANDLE_T integer*4
+#    define IBASE_HANDLE_T integer*4
 #  endif
-#elif defined(__XLCPP__)
-c This doesn't work.  I cannot find a pre-defined macro to identify IBM XL Fortran
+#elif defined(__XLCPP__) || defined(__bgp__) || defined(__bgq__)
+c  __XLCPP__ doesn't work for IBM.  AT least make things work for BGP and BGQ
         USE, INTRINSIC :: ISO_C_BINDING
-#  define IMESH_HANDLE_T C_PTR
+#  define IBASE_HANDLE_T C_PTR
 #else
-#  error "Unknown compiler.  Please define PTRSIZE."
+#  error "Unknown compiler.  Please define POINTER_SIZE."
 #endif
 
-#define iBase_EntityHandle IMESH_HANDLE_T
-#define iBase_EntitySetHandle IMESH_HANDLE_T
-#define iBase_TagHandle IMESH_HANDLE_T
+#define iBase_EntityHandle IBASE_HANDLE_T
+#define iBase_EntitySetHandle IBASE_HANDLE_T
+#define iBase_TagHandle IBASE_HANDLE_T
 
 #endif
 

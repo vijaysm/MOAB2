@@ -3,9 +3,9 @@
 
 #include "iBase_f.h"
 
-#define iMesh_Instance IMESH_HANDLE_T
-#define iBase_EntityIterator IMESH_HANDLE_T
-#define iBase_EntityArrIterator IMESH_HANDLE_T
+#define iMesh_Instance IBASE_HANDLE_T
+#define iBase_EntityIterator IBASE_HANDLE_T
+#define iBase_EntityArrIterator IBASE_HANDLE_T
 
       integer iMesh_POINT
       integer iMesh_LINE_SEGMENT

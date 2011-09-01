@@ -1,11 +1,12 @@
 #ifndef IGEOM_F_H
 #define IGEOM_F_H
 
-#define iGeom_Instance integer
-#define iGeom_EntityIterator integer
-#define iGeom_EntityArrIterator integer
+#include "iBase_f.h"
+
+#define iGeom_Instance IBASE_HANDLE_T
+#define iGeom_EntityIterator IBASE_HANDLE_T
+#define iGeom_EntityArrIterator IBASE_HANDLE_T
 
 #endif 
 
-#include "iBase_f.h"
 
