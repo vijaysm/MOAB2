@@ -763,8 +763,8 @@ ErrorCode create_1d_3_sequences(ScdInterface *scdi,
 ErrorCode create_2d_3_sequences(ScdInterface *scdi,
                                 ScdBox **vbox, ScdBox **ebox) 
 {
-    // create 3 rectangular eboxuences attached end to end and back (periodic); sequences are 
-    // assorted orientations, eboxuences have globally-consistent (periodic in i) parameter space
+    // create 3 rectangular sequences attached end to end and back (periodic); sequences are 
+    // assorted orientations, sequences have globally-consistent (periodic in i) parameter space
 
     // set vbox parametric spaces directly
   HomCoord vbox0_minmax[2] = {HomCoord(0,0,0), HomCoord(5,5,0)};
@@ -821,9 +821,14 @@ ErrorCode create_2d_3_sequences(ScdInterface *scdi,
     // add shared side from first vbox to this ebox; parameter space should be the same since
     // we're adding to that parameter space
   result = ebox[1]->add_vbox(vbox[0],
-                             vbox0_minmax[0], vbox0_minmax[0],
-                             vbox0_minmax[1], vbox0_minmax[1],
-                             vbox0_minmax[0], vbox0_minmax[0],
+                               // p1: lower right of box 0, lower left of box 1
+                             HomCoord(vbox0_minmax[1].i(), vbox0_minmax[0].j(), 0), ebox[1]->box_min(),
+                               // p2: one up from p1
+                             HomCoord(vbox0_minmax[1].i(), vbox0_minmax[0].j(), 0)+HomCoord::unitv[1], 
+                             ebox[1]->box_min()+HomCoord::unitv[1],
+                               // p3: one right of p1
+                             HomCoord(vbox0_minmax[1].i(), vbox0_minmax[0].j(), 0)+HomCoord::unitv[0], 
+                             ebox[1]->box_min()+HomCoord::unitv[0],
                                // set bb such that it's the right side of the vbox, left of local ebox
                              true,
                              ebox[1]->box_min(),
@@ -832,7 +837,7 @@ ErrorCode create_2d_3_sequences(ScdInterface *scdi,
   
     // add second vbox to this ebox, with different orientation but all of it (no bb input)
   result = ebox[1]->add_vbox(vbox[1],
-                               // p1: one right of top left
+                               // p1: one right of top left of ebox1
                              vbox1_minmax[0], 
                              HomCoord(ebox[1]->box_min().i()+1, ebox[1]->box_max().j(), 0),
                                // p2: one right from p1
@@ -874,12 +879,12 @@ ErrorCode create_2d_3_sequences(ScdInterface *scdi,
     // a side only of that vbox
   result = ebox[2]->add_vbox(vbox[0],
                                // p1: bottom right
-                             vbox1_minmax[0], HomCoord(ebox[2]->box_max().i(), ebox[2]->box_min().j(),0),
+                             vbox0_minmax[0], HomCoord(ebox[2]->box_max().i(), ebox[2]->box_min().j(),0),
                                // p2: one right from p1
-                             vbox1_minmax[0]+HomCoord::unitv[0], 
+                             vbox0_minmax[0]+HomCoord::unitv[0], 
                              HomCoord(ebox[2]->box_max().i()+1, ebox[2]->box_min().j(),0),
                                // p3: one up from p1
-                             vbox1_minmax[0]+HomCoord::unitv[1],
+                             vbox0_minmax[0]+HomCoord::unitv[1],
                              HomCoord(ebox[2]->box_max().i(), ebox[2]->box_min().j()+1,0),
                                // bb input such that we only get left side of ebox parameter space
                              true,
@@ -906,7 +911,7 @@ ErrorCode create_2dtri_3_sequences(ScdInterface *scdi,
                                    const int int1, const int int2, const int int3,
                                    ScdBox **vbox, ScdBox **ebox) 
 {
-    // create 3 rectangular eboxuences arranged such that the all share a common (tri-valent) corner;
+    // create 3 rectangular sequences arranged such that the all share a common (tri-valent) corner;
     // orient each region such that its origin is at the tri-valent corner and the k direction is
     // out of the page
     //
@@ -1123,11 +1128,11 @@ ErrorCode create_3dtri_3_sequences(ScdInterface *scdi,
     // add shared side from first vbox to this ebox, with bb to get just the face
   result = ebox[1]->add_vbox(vbox[0],
                                // p1: origin in both systems
-                             vbox0_minmax[0], ebox0_minmax[0],
+                             vbox0_minmax[0], ebox1_minmax[0],
                                // p2: one unit along the shared line (i in one, j in other)
-                             vbox0_minmax[0]+HomCoord::unitv[0], ebox0_minmax[0]+HomCoord::unitv[1],
+                             vbox0_minmax[0]+HomCoord::unitv[0], ebox1_minmax[0]+HomCoord::unitv[1],
                                // p3: +k in both (not arbitrary, since interface is 2d)
-                             vbox0_minmax[0]+HomCoord::unitv[2], ebox0_minmax[0]+HomCoord::unitv[2],
+                             vbox0_minmax[0]+HomCoord::unitv[2], ebox1_minmax[0]+HomCoord::unitv[2],
                                // set bb such that it's the jmin side of vbox
                              true,
                              ebox[1]->box_min(),
@@ -1306,7 +1311,7 @@ void test_parallel_partitions()
   ScdInterface *scdi;
   ErrorCode rval = moab.Interface::query_interface(scdi);
   CHECK_ERR(rval);
-  int gdims[] = {0, 0, 0, 360, 180, 26};
+  int gdims[] = {0, 0, 0, 3600, 1800, 26};
 
     // test for various numbers of procs, powers of two
   int maxpow = 10;

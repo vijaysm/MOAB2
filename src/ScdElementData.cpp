@@ -53,14 +53,14 @@ ScdElementData::ScdElementData(
   isPeriodic[0] = is_periodic_i;
   isPeriodic[1] = is_periodic_j;
   
-  elementParams[0] = HomCoord(imin, jmin, kmin);
-  elementParams[1] = HomCoord(imax, jmax, kmax);
-  elementParams[2] = HomCoord(1, 1, 1);
+  boxParams[0] = HomCoord(imin, jmin, kmin);
+  boxParams[1] = HomCoord(imax, jmax, kmax);
+  boxParams[2] = HomCoord(1, 1, 1);
   
     // assign and compute parameter stuff
-  dIJK[0] = elementParams[1][0] - elementParams[0][0] + 1;
-  dIJK[1] = elementParams[1][1] - elementParams[0][1] + 1;
-  dIJK[2] = elementParams[1][2] - elementParams[0][2] + 1;
+  dIJK[0] = boxParams[1][0] - boxParams[0][0] + 1;
+  dIJK[1] = boxParams[1][1] - boxParams[0][1] + 1;
+  dIJK[2] = boxParams[1][2] - boxParams[0][2] + 1;
   dIJKm1[0] = dIJK[0] - (isPeriodic[0] ? 0 : 1);
   dIJKm1[1] = dIJK[1] - (isPeriodic[1] ? 0 : 1);
   dIJKm1[2] = dIJK[2] - 1;
@@ -132,8 +132,8 @@ bool ScdElementData::boundary_complete() const
     // if minlist.size = 1 & maxlist.size = 1 & minlist[0] = esequence.min &
     //         maxlist[0] = esequence.max+(1,1,1)
   if (minlist.size() == 1 && maxlist.size() == 1 &&
-      minlist[0].minmax[0] == elementParams[0] && 
-      maxlist[0].minmax[1] == elementParams[1])
+      minlist[0].minmax[0] == boxParams[0] && 
+      maxlist[0].minmax[1] == boxParams[1])
       //   complete
     return true;
     // else

@@ -60,8 +60,9 @@ public:
 
 private:
 
-    //! parameter min/max/stride, in homogeneous coords ijkh
-  HomCoord elementParams[3];
+    //! parameter min/max/stride for vertices, in homogeneous coords ijkh; elements
+    //! are one less than max
+  HomCoord boxParams[3];
 
     //! difference between max and min params plus one (i.e. # VERTICES in
     //! each parametric direction)
@@ -121,12 +122,12 @@ public:
       {is_periodic[0] = isPeriodic[0]; is_periodic[1] = isPeriodic[1];}
   
     //! convenience functions for parameter extents
-  int i_min() const {return (elementParams[0].hom_coord())[0];}
-  int j_min() const {return (elementParams[0].hom_coord())[1];}
-  int k_min() const {return (elementParams[0].hom_coord())[2];}
-  int i_max() const {return (elementParams[1].hom_coord())[0];}
-  int j_max() const {return (elementParams[1].hom_coord())[1];}
-  int k_max() const {return (elementParams[1].hom_coord())[2];}
+  int i_min() const {return (boxParams[0].hom_coord())[0];}
+  int j_min() const {return (boxParams[0].hom_coord())[1];}
+  int k_min() const {return (boxParams[0].hom_coord())[2];}
+  int i_max() const {return (boxParams[1].hom_coord())[0];}
+  int j_max() const {return (boxParams[1].hom_coord())[1];}
+  int k_max() const {return (boxParams[1].hom_coord())[2];}
 
     //! test the bounding vertex sequences and determine whether they fully
     //! define the vertices covering this element block's parameter space
@@ -177,12 +178,12 @@ inline EntityHandle ScdElementData::get_element(const int i, const int j, const 
 
 inline const HomCoord &ScdElementData::min_params() const
 {
-  return elementParams[0];
+  return boxParams[0];
 }
 
 inline const HomCoord &ScdElementData::max_params() const
 {
-  return elementParams[1];
+  return boxParams[1];
 }
 
   //! get the number of vertices in each direction, inclusive
@@ -206,9 +207,9 @@ inline ErrorCode ScdElementData::get_params(const EntityHandle ehandle,
   j = (hdiff - (k*dIJKm1[0]*dIJKm1[1])) / dIJKm1[0];
   i = hdiff % dIJKm1[0];
 
-  k += elementParams[0].k();
-  j += elementParams[0].j();
-  i += elementParams[0].i();
+  k += boxParams[0].k();
+  j += boxParams[0].j();
+  i += boxParams[0].i();
 
   return (ehandle >= start_handle() &&
           ehandle < start_handle()+size() &&
@@ -221,22 +222,22 @@ inline bool ScdElementData::contains(const HomCoord &temp) const
 {
     // upper bound is < instead of <= because element params max is one less
     // than vertex params max, except in case of 2d or 1d sequence
-  return ((dIJKm1[0] && temp.i() >= elementParams[0].i() && temp.i() < elementParams[0].i()+dIJKm1[0]) &&
-          ((!dIJKm1[1] && temp.j() == elementParams[1].j()) || 
-           (dIJKm1[1] && temp.j() >= elementParams[0].j() && temp.j() < elementParams[0].j()+dIJKm1[1])) &&
-          ((!dIJKm1[2] && temp.k() == elementParams[1].k()) || 
-           (dIJKm1[2] && temp.k() >= elementParams[0].k() && temp.k() < elementParams[0].k()+dIJKm1[2])));
+  return ((dIJKm1[0] && temp.i() >= boxParams[0].i() && temp.i() < boxParams[0].i()+dIJKm1[0]) &&
+          ((!dIJKm1[1] && temp.j() == boxParams[1].j()) || 
+           (dIJKm1[1] && temp.j() >= boxParams[0].j() && temp.j() < boxParams[0].j()+dIJKm1[1])) &&
+          ((!dIJKm1[2] && temp.k() == boxParams[1].k()) || 
+           (dIJKm1[2] && temp.k() >= boxParams[0].k() && temp.k() < boxParams[0].k()+dIJKm1[2])));
 }
   
 inline bool ScdElementData::contains_vertex(const HomCoord &temp) const 
 {
     // upper bound is < instead of <= because element params max is one less
     // than vertex params max, except in case of 2d or 1d sequence
-  return ((dIJK[0] && temp.i() >= elementParams[0].i() && temp.i() < elementParams[0].i()+dIJK[0]) &&
-          ((!dIJK[1] && temp.j() == elementParams[1].j()) || 
-           (dIJK[1] && temp.j() >= elementParams[0].j() && temp.j() < elementParams[0].j()+dIJK[1])) &&
-          ((!dIJK[2] && temp.k() == elementParams[1].k()) || 
-           (dIJK[2] && temp.k() >= elementParams[0].k() && temp.k() < elementParams[0].k()+dIJK[2])));
+  return ((dIJK[0] && temp.i() >= boxParams[0].i() && temp.i() < boxParams[0].i()+dIJK[0]) &&
+          ((!dIJK[1] && temp.j() == boxParams[1].j()) || 
+           (dIJK[1] && temp.j() >= boxParams[0].j() && temp.j() < boxParams[0].j()+dIJK[1])) &&
+          ((!dIJK[2] && temp.k() == boxParams[1].k()) || 
+           (dIJK[2] && temp.k() >= boxParams[0].k() && temp.k() < boxParams[0].k()+dIJK[2])));
 }
   
 inline bool ScdElementData::VertexDataRef::contains(const HomCoord &coords) const 
@@ -261,7 +262,7 @@ inline EntityHandle ScdElementData::get_vertex(const HomCoord &coords) const
          // first get the vertex block-local parameters
        HomCoord local_coords = coords / (*it).xform;
 
-       assert(contains_vertex(local_coords));
+       assert((*it).srcSeq->contains(local_coords));
 
       // now get the vertex handle for those coords
        return (*it).srcSeq->get_vertex(local_coords);
