@@ -1311,7 +1311,7 @@ void test_parallel_partitions()
   ScdInterface *scdi;
   ErrorCode rval = moab.Interface::query_interface(scdi);
   CHECK_ERR(rval);
-  int gdims[] = {0, 0, 0, 3600, 1800, 26};
+  int gdims[] = {0, 0, 0, 48, 40, 18};
 
     // test for various numbers of procs, powers of two
   int maxpow = 10;
@@ -1369,12 +1369,14 @@ ErrorCode test_parallel_partition(int *gdims, int nprocs, int part_method)
                                             gdims, rdims_a, false, false, 
                                             -1*i, -1*j, -1*k, pfrom, bdy_ind_b, rdims_b, facedims_b);
           if (MB_SUCCESS != rval) return rval;
-          if (facedims_a[0] < rdims_b[0] || facedims_b[0] > rdims_b[3] ||
-              facedims_a[1] < rdims_b[1] || facedims_b[1] > rdims_b[4] ||
-              facedims_a[2] < rdims_b[2] || facedims_b[2] > rdims_b[5]) CHECK_ERR(MB_FAILURE);
-          if (bdy_ind_a[0] != bdy_ind_b[0] || bdy_ind_a[1] != bdy_ind_b[1]) CHECK_ERR(MB_FAILURE);
-          for (int ind = 0; ind < 6; ind++) 
+          for (int ind = 0; ind < 3; ind++)
+            if (facedims_a[ind] < rdims_b[ind] || facedims_b[ind] > rdims_b[ind+3]) CHECK_ERR(MB_FAILURE);
+          for (int ind = 0; ind < 6; ind++) {
             if (facedims_a[ind] != facedims_b[ind]) CHECK_ERR(MB_FAILURE);
+            if (rdims_b[ind] != ldims[ind]) CHECK_ERR(MB_FAILURE);
+          }
+          
+          if (bdy_ind_a[0] != bdy_ind_b[0] || bdy_ind_a[1] != bdy_ind_b[1]) CHECK_ERR(MB_FAILURE);
         } // i
       } // j
     } // k
