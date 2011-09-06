@@ -791,13 +791,13 @@ ErrorCode ScdInterface::get_neighbor_sqij(int nr, int np,
       facedims[3] = facedims[0];
       rdims[3] = rdims[0];
       rdims[0] -= di;
-      if (pto < iextra) rdims[0]--;
+      if (pto%pi < iextra) rdims[0]--;
     }
     else {
       facedims[0] = facedims[3];
       rdims[0] = rdims[3];
       rdims[3] += di;
-      if (pto < iextra) rdims[3]++;
+      if (pto%pi < iextra) rdims[3]++;
     }
   }
   if (0 != dijk[1]) {
@@ -807,13 +807,13 @@ ErrorCode ScdInterface::get_neighbor_sqij(int nr, int np,
       facedims[4] = facedims[1];
       rdims[4] = rdims[1];
       rdims[1] -= dj;
-      if (pto < jextra) rdims[1]--;
+      if (pto/pi < jextra) rdims[1]--;
     }
     else {
       facedims[1] = facedims[4];
       rdims[1] = rdims[4];
       rdims[4] += dj;
-      if (pto < jextra) rdims[4]++;
+      if (pto/pi < jextra) rdims[4]++;
     }
   }
 
@@ -875,13 +875,13 @@ ErrorCode ScdInterface::get_neighbor_sqjk(int nr, int np,
       facedims[4] = facedims[1];
       rdims[4] = rdims[1];
       rdims[1] -= dj;
-      if (pto < jextra) rdims[1]--;
+      if (pto%pj < jextra) rdims[1]--;
     }
     else {
       facedims[1] = facedims[4];
       rdims[1] = rdims[4];
       rdims[4] += dj;
-      if (pto < jextra) rdims[4]++;
+      if (pto%pj < jextra) rdims[4]++;
     }
   }
   if (0 != dijk[2]) {
@@ -891,13 +891,13 @@ ErrorCode ScdInterface::get_neighbor_sqjk(int nr, int np,
       facedims[5] = facedims[2];
       rdims[5] = rdims[2];
       rdims[2] -= dk;
-      if (pto < kextra) rdims[2]--;
+      if (pto/pj < kextra) rdims[2]--;
     }
     else {
       facedims[2] = facedims[5];
       rdims[2] = rdims[5];
       rdims[5] += dk;
-      if (pto < kextra) rdims[5]++;
+      if (pto/pj < kextra) rdims[5]++;
     }
   }
 
