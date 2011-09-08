@@ -1382,7 +1382,7 @@ ErrorCode AEntityFactory::create_explicit_adjs(EntityHandle this_ent)
   ErrorCode result;
   result = thisMB->get_adjacencies(&this_ent, 1, 
                                    thisMB->dimension_from_handle(this_ent)+1, 
-                                   true, all_adjs, Interface::UNION);
+                                   false, all_adjs, Interface::UNION);
   if (MB_SUCCESS != result) return result;
   
     //     - create explicit adjacency to these entities
