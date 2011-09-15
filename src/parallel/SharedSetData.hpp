@@ -133,7 +133,7 @@ private:
   };
 
   typedef std::map<unsigned,ProcHandleMapType> RHMap;
-  typedef std::set<std::vector<unsigned>,less_vect_indr> RProcMap;
+  typedef std::set<std::vector<unsigned>,less_vect> RProcMap;
 #endif
   
     /** Map for lookup of ProcHandleMapType instance by rank */
