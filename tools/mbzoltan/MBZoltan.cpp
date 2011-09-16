@@ -247,7 +247,8 @@ ErrorCode MBZoltan::partition_mesh_geom(const bool part_geom,
                                         const int part_dim,
                                         const int obj_weight,
                                         const int edge_weight,
-                                        const bool part_surf) 
+                                        const bool part_surf,
+                                        const bool ghost) 
 {
     // should only be called in serial
   if (mbpc->proc_config().proc_size() != 1) {
@@ -446,7 +447,7 @@ ErrorCode MBZoltan::partition_mesh_geom(const bool part_geom,
   else {
 #ifdef CGM
     result = write_partition(nparts, entities, assign_parts,
-                             obj_weights, part_surf);
+                             obj_weights, part_surf, ghost);
 #endif
   }
 
@@ -642,7 +643,8 @@ ErrorCode MBZoltan::write_partition(const int nparts,
                                     DLIList<RefEntity*> entities,
                                     const int *assignment,
                                     std::vector<double> &obj_weights,
-                                    const bool part_surf)
+                                    const bool part_surf,
+                                    const bool ghost)
 {
   ErrorCode result;
 
@@ -716,7 +718,7 @@ ErrorCode MBZoltan::write_partition(const int nparts,
         int merge_id = TDUniqueId::get_unique_id(entity);
         TDParallel *td_par = (TDParallel *) entity->get_TD(&TDParallel::is_parallel);
         if (td_par == NULL) td_par = new TDParallel(entity, NULL, &shared_procs,
-                                                    merge_id, 1);
+                                                    NULL, merge_id, 1);
         
         if (debug) {
           std::cout << "surf" << entity->id() << "_is_partitioned_to_p";
@@ -735,7 +737,7 @@ ErrorCode MBZoltan::write_partition(const int nparts,
   }
 
   // partition shared edges and vertex
-  result = partition_child_entities(1, nparts, part_surf); RR;
+  result = partition_child_entities(1, nparts, part_surf, ghost); RR;
   result = partition_child_entities(0, nparts, part_surf); RR;
 
   return MB_SUCCESS;
@@ -811,7 +813,7 @@ ErrorCode MBZoltan::partition_surface(const int nparts,
                   shared_procs.append(min_proc);
                   shared_procs.append(max_proc);
                   td_par = new TDParallel(face, NULL, &shared_procs,
-                                          merge_id, 1);
+                                          NULL, merge_id, 1);
 
                   if (debug) {
                     std::cout << "non-shared surface " << face->id()
@@ -947,7 +949,8 @@ ErrorCode MBZoltan::partition_round_robin(const int n_part)
                 shared_procs.reverse();
 	      }
               loads[shared_procs[0]] = loads[shared_procs[0]] + entity->measure();
-	      td_par = new TDParallel(entity, NULL, &shared_procs, merge_id, 1);
+	      td_par = new TDParallel(entity, NULL, &shared_procs, NULL,
+                                      merge_id, 1);
 	    }
 	    else if (entity->entity_type_info() == typeid(RefEdge) ||
 		     entity->entity_type_info() == typeid(RefVertex)) {
@@ -962,7 +965,8 @@ ErrorCode MBZoltan::partition_round_robin(const int n_part)
               ve_loads[min_p] = ve_loads[min_p] + entity->measure();
               shared_procs.remove(min_p);
               shared_procs.insert_first(min_p);
-	      td_par = new TDParallel(entity, NULL, &shared_procs, merge_id, 1);
+	      td_par = new TDParallel(entity, NULL, &shared_procs, NULL,
+                                      merge_id, 1);
 	    }
 	  }
 	}
@@ -973,9 +977,11 @@ ErrorCode MBZoltan::partition_round_robin(const int n_part)
   return MB_SUCCESS;
 }
 
+// partition child entities to one of parent entity shared processors
 ErrorCode MBZoltan::partition_child_entities(const int dim,
                                              const int n_part,
-                                             const bool partition_surf)
+                                             const bool part_surf,
+                                             const bool ghost)
 {
   DLIList<RefEntity*> entity_list;
   if (dim == 0) gti->ref_entity_list("vertex", entity_list, CUBIT_FALSE);
@@ -997,14 +1003,12 @@ ErrorCode MBZoltan::partition_child_entities(const int dim,
     RefEntity* entity = entity_list.get_and_step();
     TopologyEntity *te = CAST_TO(entity, TopologyEntity);
 
-    if (!partition_surf && te->bridge_manager()->number_of_bridges() < 2) continue;
+    if (!part_surf && te->bridge_manager()->number_of_bridges() < 2) continue;
 
     DLIList<int> shared_procs;
-    DLIList<RefFace*> parents;
-    (dynamic_cast<TopologyEntity*> (entity))->ref_faces(parents);
+    DLIList<Body*> parents;
+    (dynamic_cast<TopologyEntity*> (entity))->bodies(parents);
     int n_parents = parents.size();
-    //int* s_proc = new int[n_parents];
-    //std::map<int, int> proc_load_map;
     std::set<int> s_proc;
     parents.reset();
     
@@ -1012,21 +1016,21 @@ ErrorCode MBZoltan::partition_child_entities(const int dim,
     for (j = 0 ; j < n_parents; j++) {
       RefEntity *parent = parents.get_and_step();
       TDParallel *parent_td = (TDParallel *) parent->get_TD(&TDParallel::is_parallel);
-      
+
       if (parent_td != NULL) {
-        //s_proc[j] = parent_td->get_charge_proc();
         DLIList<int>* parent_procs = parent_td->get_shared_proc_list();
         int n_shared = parent_procs->size();
         parent_procs->reset();
         for (k = 0; k < n_shared; k++) {
-          s_proc.insert(parent_procs->get_and_step());
+          int p = parent_procs->get_and_step();
+          s_proc.insert(p);
         }
       }
     }
     
     // find the minimum load processor and put it
     // at the front of the shared_procs list
-    if (!s_proc.empty()) {
+    if (s_proc.size() > 1) {
       int min_proc;
       double min_load = std::numeric_limits<double>::max();
       std::set<int>::iterator iter = s_proc.begin();
@@ -1037,7 +1041,7 @@ ErrorCode MBZoltan::partition_child_entities(const int dim,
           min_proc = *iter;
         }
       }
-      //int min_proc = s_proc[min_proc];
+
       if (dim == 1) loads[min_proc] += entity->measure();
       else if (dim == 0) loads[min_proc] += 1.;
       shared_procs.append(min_proc);
@@ -1049,11 +1053,27 @@ ErrorCode MBZoltan::partition_child_entities(const int dim,
         }
       }
       
+      // add ghost geometries to shared processors for edge
+      if (ghost) {
+        CubitString sp = entity->entity_name();
+        parents.reset();
+        for (j = 0; j < n_parents; j++) {
+          RefEntity *parent_vol = CAST_TO(parents.get_and_step(), RefEntity);
+          TDParallel *parent_td = (TDParallel *) parent_vol->get_TD(&TDParallel::is_parallel);
+          CubitString pv = parent_vol->entity_name();
+          int n_shared_proc = shared_procs.size();
+          
+          for (k = 0; k < n_shared_proc; k++) {
+            parent_td->add_ghost_proc(shared_procs[k]);
+          }
+        }
+      }
+      
       // initialize tool data
       int merge_id = TDUniqueId::get_unique_id(entity);
       TDParallel *td_par = (TDParallel *) entity->get_TD(&TDParallel::is_parallel);
       if (td_par == NULL) td_par = new TDParallel(entity, NULL, &shared_procs,
-                                                  merge_id, 1);
+                                                  NULL, merge_id, 1);
     }
   }
 

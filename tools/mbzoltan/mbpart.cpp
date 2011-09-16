@@ -57,6 +57,7 @@ int main( int argc, char* argv[] )
   opts.addOpt<void>( "reorder,R", "Reorder mesh to group entities by partition");
   opts.addOpt<void>( "geom,g", "Specify if partition geometry.");
   opts.addOpt<void>( "surf,s", "Specify if partition geometry surface.");
+  opts.addOpt<void>( "ghost,h", "Specify if partition ghost geometry body.");
   opts.addOpt<int>( "vertex_w,v", "Number of weights associated with a graph vertex.");
   opts.addOpt<int>( "edge_w,e", "Number of weights associated with an edge.");
   opts.addRequiredArg<int>( "#parts", "Number of parts in partition" );
@@ -68,6 +69,7 @@ int main( int argc, char* argv[] )
   MBZoltan *tool = NULL;
   bool part_geom = false;
   bool part_surf = false;
+  bool ghost = false;
   int part_dim = -1;
   long num_parts;
   bool write_sets = true, write_tags = false;
@@ -98,6 +100,7 @@ int main( int argc, char* argv[] )
   }
 
   part_surf = opts.numOptSet("surf") > 0;
+  ghost = opts.numOptSet("ghost") > 0;
 
   std::string zoltan_method, other_method;
   if (!opts.getOpt("zoltan", &zoltan_method))
@@ -179,7 +182,7 @@ int main( int argc, char* argv[] )
     t = clock();
     rval = tool->partition_mesh_geom( part_geom, num_parts, zoltan_method.c_str(), other_method.c_str(),
                                       imbal_tol, write_sets, write_tags, part_dim, obj_weight, edge_weight,
-                                      part_surf );
+                                      part_surf, ghost );
     if (MB_SUCCESS != rval) {
       std::cerr << "Partitioner failed!" << std::endl;
       std::cerr << "  Error code: " << mb.get_error_string(rval) << " (" << rval << ")" << std::endl;

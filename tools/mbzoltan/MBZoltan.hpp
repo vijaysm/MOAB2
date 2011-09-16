@@ -106,7 +106,8 @@ using namespace moab;
                                   const int part_dim = 3,
                                   const int obj_weight = 0,
                                   const int edge_weight = 0,
-                                  const bool part_surf = false);
+                                  const bool part_surf = false,
+                                  const bool ghost = false);
     
     int get_mesh(std::vector<double> &pts, std::vector<int> &ids,
                  std::vector<int> &adjs, std::vector<int> &length,
@@ -124,7 +125,8 @@ using namespace moab;
                               DLIList<RefEntity*> entities,
                               const int *assignment,
                               std::vector<double> &obj_weights,
-                              const bool part_surf);
+                              const bool part_surf,
+                              const bool ghost);
 
     ErrorCode partition_surface(const int nparts,
                                 DLIList<RefEntity*> entities,
@@ -200,7 +202,8 @@ using namespace moab;
 
     ErrorCode partition_child_entities(const int dim,
                                        const int n_part,
-                                       const bool partition_surf);
+                                       const bool partition_surf,
+                                       const bool ghost = false);
 #endif
     
     void mbFinalizePoints(int npts, int numExport,
