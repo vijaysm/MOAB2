@@ -986,10 +986,8 @@ ErrorCode MBZoltan::partition_child_entities(const int dim,
   DLIList<RefEntity*> entity_list;
   if (dim == 0) gti->ref_entity_list("vertex", entity_list, CUBIT_FALSE);
   else if (dim == 1) gti->ref_entity_list("curve", entity_list, CUBIT_FALSE);
-  else if (dim == 2) gti->ref_entity_list("surfface", entity_list, CUBIT_FALSE);
-  else if (dim == 3) gti->ref_entity_list("body", entity_list, CUBIT_FALSE);
   else {
-    std::cerr << "Dimention should be from 0 to 3." << std::endl;
+    std::cerr << "Dimention should be from 0 to 1." << std::endl;
     return MB_FAILURE;
   }
 
@@ -999,7 +997,7 @@ ErrorCode MBZoltan::partition_child_entities(const int dim,
   for (i = 0; i < n_part; i++) loads[i] = 0.;
   entity_list.reset();
 
-  for (i = 0; i < n_entity; i++) {
+  for (i = 0; i < n_entity; i++) { // for all entities
     RefEntity* entity = entity_list.get_and_step();
     TopologyEntity *te = CAST_TO(entity, TopologyEntity);
 
@@ -1024,6 +1022,30 @@ ErrorCode MBZoltan::partition_child_entities(const int dim,
         for (k = 0; k < n_shared; k++) {
           int p = parent_procs->get_and_step();
           s_proc.insert(p);
+        }
+      }
+    }
+
+    if (part_surf) { // also get shared procs from parent surfaces
+      DLIList<RefFace*> parent_faces;
+      (dynamic_cast<TopologyEntity*> (entity))->ref_faces(parent_faces);
+      int n_pface = parent_faces.size();
+      parent_faces.reset();
+      
+      // get shared processors from parent faces
+      for (j = 0 ; j < n_pface; j++) {
+        RefEntity *parent = parent_faces.get_and_step();
+        TDParallel *parent_td = (TDParallel *) parent->get_TD(&TDParallel::is_parallel);
+        
+        if (parent_td != NULL) {
+          DLIList<int>* parent_procs = parent_td->get_shared_proc_list();
+          int n_shared = parent_procs->size();
+          parent_procs->reset();
+
+          for (k = 0; k < n_shared; k++) {
+            int p = parent_procs->get_and_step();
+            s_proc.insert(p);
+          }
         }
       }
     }
@@ -1055,12 +1077,10 @@ ErrorCode MBZoltan::partition_child_entities(const int dim,
       
       // add ghost geometries to shared processors for edge
       if (ghost) {
-        CubitString sp = entity->entity_name();
         parents.reset();
-        for (j = 0; j < n_parents; j++) {
+        for (j = 0; j < n_parents; j++) { // for all parent bodies
           RefEntity *parent_vol = CAST_TO(parents.get_and_step(), RefEntity);
           TDParallel *parent_td = (TDParallel *) parent_vol->get_TD(&TDParallel::is_parallel);
-          CubitString pv = parent_vol->entity_name();
           int n_shared_proc = shared_procs.size();
           
           for (k = 0; k < n_shared_proc; k++) {
