@@ -1691,6 +1691,26 @@ extern "C" {
     RETURN(iBase_SUCCESS);
   }
 
+  void iMesh_getAllIfaceTags (iMesh_Instance instance,
+                              /*inout*/ iBase_TagHandle** tag_handles,
+                              /*inout*/ int* tag_handles_allocated,
+                              /*out*/ int* tag_handles_size, int *err)
+  {
+    std::vector<Tag> all_tags;
+
+    ErrorCode result = MOABI->tag_get_tags(all_tags);
+    CHKERR(result, "iMesh_getAllIfaceTags failed.");
+
+    remove_var_len_tags( MOABI, all_tags );
+
+      // now put those tag handles into sidl array
+    ALLOC_CHECK_ARRAY_NOFAIL(tag_handles, all_tags.size());
+    memcpy(*tag_handles, &all_tags[0], all_tags.size()*sizeof(Tag));
+    *tag_handles_size = all_tags.size();
+
+    RETURN(iBase_SUCCESS);
+  }
+
   void iMesh_setEntSetData (iMesh_Instance instance,
                             /*in*/ iBase_EntitySetHandle entity_set_handle,
                             /*in*/ const iBase_TagHandle tag_handle,

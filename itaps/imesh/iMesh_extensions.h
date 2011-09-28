@@ -214,6 +214,19 @@ void iMesh_stepIter(
 );
 
 /***************************************************************************//**
+ * \ingroup  Tags 
+ * \brief  Get all the tags associated with the entire interface
+ *
+ * Get all the tags associated with the entire interface
+ ******************************************************************************/
+
+void iMesh_getAllIfaceTags(iMesh_Instance instance,
+                           /*inout*/ iBase_TagHandle **tag_handles,
+                           /*inout*/ int *tag_handles_allocated,
+                           /*out*/ int *tag_handles_size,
+                           /*out*/ int *err);
+
+/***************************************************************************//**
  * \ingroup  Tags
  * \brief  Create a tag with options
  *
