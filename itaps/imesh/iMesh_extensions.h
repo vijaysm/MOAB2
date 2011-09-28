@@ -116,9 +116,9 @@ extern "C" {
                               /*out*/ int* entity_handles_size,
                               /*out*/ int *err);
 
-    /**\brief  Get entity sets with specified type, topology, tag(s) and (optionally) tag value(s)
+    /**\brief  Get entity sets with specified tag(s) and (optionally) tag value(s)
      *
-     * Get entity sets with the specified type, topology, tag(s), and optionally tag value(s).
+     * Get entity sets with the specified tag(s) and optionally tag value(s).
      * If tag values pointer is input as zero, entities with specified tag(s) are returned,
      * regardless of their value.
      * \param instance iMesh instance handle
