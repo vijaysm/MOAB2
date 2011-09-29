@@ -858,6 +858,8 @@ ErrorCode GeomTopoTool::geometrize_surface_set(EntityHandle surface, EntityHandl
   // we may even have to
   // proper care has to be given to the orientation, material to the left!!!
   // at some point we may have to reorient triangles, not only edges, for proper definition
+  bool debugFlag = false;
+
   Range surface_ents, edge_ents, loop_range;
 
   // most of these should be triangles and quads
@@ -896,6 +898,16 @@ ErrorCode GeomTopoTool::geometrize_surface_set(EntityHandle surface, EntityHandl
   rval = tool.find_skin(surface_ents, 1, edge_ents);
   if (MB_SUCCESS != rval)
     return rval;
+  if (debugFlag)
+  {
+    std::cout<< "skinning edges: " << edge_ents.size() << "\n";
+    for (Range::iterator it= edge_ents.begin(); it!=edge_ents.end(); it++)
+    {
+      EntityHandle ed=*it;
+      std::cout<< "edge: " << mdbImpl->id_from_handle(ed) << " type:" << mdbImpl->type_from_handle(ed)<< "\n" ;
+      std::cout << mdbImpl->list_entity(ed);
+    }
+  }
 
   std::vector<EntityHandle> edges_loop;
 
@@ -907,6 +919,11 @@ ErrorCode GeomTopoTool::geometrize_surface_set(EntityHandle surface, EntityHandl
   {
     // get the first edge, and start a loop with it
     EntityHandle current_edge = pool_of_edges[0];
+    if (debugFlag)
+    {
+      std::cout << "Start current edge: "<<  mdbImpl->id_from_handle(current_edge) <<"\n ";
+      std::cout << mdbImpl->list_entity(current_edge);
+    }
     // get its triangle / quad and see its orientation
     std::vector<EntityHandle> tris;
     rval = mdbImpl->get_adjacencies(&current_edge, 1, 2, false, tris);
@@ -935,8 +952,11 @@ ErrorCode GeomTopoTool::geometrize_surface_set(EntityHandle surface, EntityHandl
       rval = mdbImpl-> set_connectivity(current_edge, nn2, 2);
       if (MB_SUCCESS != rval)
         return rval;
-      start_node = conn2[1]; // or nn2[0]
-      next_node = conn2[0];// or nn2[1]
+      start_node = nn2[0]; // or conn2[0] !!! beware: conn2 is modified
+      next_node = nn2[1];// or conn2[1]   !!!
+      // reset conectivity of edge
+      if (debugFlag)
+        std::cout << " current edge needs reversed\n";
     }
     // start a new loop of edges
     edges_loop.clear(); // every edge loop starts fresh
@@ -944,6 +964,13 @@ ErrorCode GeomTopoTool::geometrize_surface_set(EntityHandle surface, EntityHandl
     used_edges.insert(current_edge);
     pool_of_edges.erase(current_edge);
 
+    if (debugFlag)
+    {
+     std::cout << " start node: " << start_node << "\n";
+     std::cout << mdbImpl->list_entity(start_node);
+     std::cout << " next node: " << next_node << "\n";
+     std::cout << mdbImpl->list_entity(next_node);
+    }
     while (next_node != start_node)
     {
       // find the next edge in the skin
@@ -963,6 +990,7 @@ ErrorCode GeomTopoTool::geometrize_surface_set(EntityHandle surface, EntityHandl
       }
       if (good_edges.size()!=1)
       {
+        std::cout<< " good_edges.size()=" <<  good_edges.size() << " STOP\n";
         // cannot complete the loop
         return MB_FAILURE;
       }
@@ -977,17 +1005,45 @@ ErrorCode GeomTopoTool::geometrize_surface_set(EntityHandle surface, EntityHandl
 
       if (conn2[0] != next_node)
       {
+        if (conn2[1]!=next_node)
+        {
+          // the edge is not connected then to current edge
+          // bail out
+          std::cout<< "edge " << mdbImpl->id_from_handle (current_edge) << " not connected to node "<<
+              next_node << "\n";
+          return MB_FAILURE;
+        }
+        if (debugFlag)
+        {
+         std::cout << " revert edge " << mdbImpl->id_from_handle (current_edge) << "\n";
+         std::cout << mdbImpl->list_entity(current_edge);
+        }
         // orientation should be reversed
         EntityHandle nn2[2]={conn2[1], conn2[0]};
         rval = mdbImpl-> set_connectivity(current_edge, nn2, 2);
         if (MB_SUCCESS != rval)
           return rval;
-        next_node = conn2[0];
+
+        {
+         std::cout << "after revert edge " << mdbImpl->id_from_handle (current_edge) << "\n";
+         std::cout << mdbImpl->list_entity(current_edge);
+         std::cout << " conn2: " << conn2[0] << " " << conn2[1] << "\n";
+        }
       }
-      else
+      // before reversion, conn2 was something { n1, next_node}
+      // after reversion, conn2 became {next_node, n1}, so the
+      // new next node will be still conn2[1]; big surprise, as
+      //  I didn' expect the conn2 to change.
+      // it seems that const EntityHandle * conn2 means conn2 cannot be
+      // changed, but what is pointed to by it will change when we reset connectivity for edge
+      next_node = conn2[1];
+
+      if (debugFlag)
       {
-        // orientation is fine
-        next_node = conn2[1];
+        std::cout << " current edge: "<<  mdbImpl->id_from_handle(current_edge) <<"\n ";
+        std::cout << mdbImpl->list_entity(current_edge);
+        std::cout << "next node: " << next_node << "\n ";
+        std::cout << mdbImpl->list_entity(next_node);
       }
       edges_loop.push_back(current_edge);
       used_edges.insert(current_edge);
@@ -1043,6 +1099,12 @@ ErrorCode GeomTopoTool::geometrize_surface_set(EntityHandle surface, EntityHandl
     rval = mdbImpl->add_entities(output, &vertex, 1);
     if (MB_SUCCESS != rval)
       return rval;
+
+    if (debugFlag)
+    {
+      std::cout << "add edge with start node " << start_node <<
+           " with " << edges_loop.size() << " edges\n";
+    }
 
   }
 
