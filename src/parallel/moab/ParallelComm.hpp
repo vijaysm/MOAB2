@@ -690,7 +690,8 @@ public:
                             std::vector<EntityHandle> &L2hloc, 
                             std::vector<EntityHandle> &L2hrem,
                             std::vector<unsigned int> &L2p,
-                          std::vector<EntityHandle> &new_ents);
+                          std::vector<EntityHandle> &new_ents,
+                          const bool created_iface = false);
   
   ErrorCode pack_entities(Range &entities,
                             Buffer *buff,
@@ -711,7 +712,8 @@ public:
                               std::vector<EntityHandle> &L2hloc, 
                               std::vector<EntityHandle> &L2hrem,
                               std::vector<unsigned int> &L2p,
-                              std::vector<EntityHandle> &new_ents);
+                              std::vector<EntityHandle> &new_ents,
+                            const bool created_iface = false);
   
     //! Call exchange_all_shared_handles, then compare the results with tag data
     //! on local shared entities.

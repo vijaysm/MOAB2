@@ -960,12 +960,13 @@ ErrorCode ParallelComm::unpack_buffer(unsigned char *buff_ptr,
                                           std::vector<EntityHandle> &L2hloc, 
                                           std::vector<EntityHandle> &L2hrem,
                                           std::vector<unsigned int> &L2p,
-                                      std::vector<EntityHandle> &new_ents) 
+                                      std::vector<EntityHandle> &new_ents,
+                                      const bool created_iface) 
 {
     unsigned char *tmp_buff = buff_ptr;
     ErrorCode result;
     result = unpack_entities(buff_ptr, store_remote_handles,
-                             ind, false, L1hloc, L1hrem, L1p, L2hloc, L2hrem, L2p, new_ents);
+                             ind, false, L1hloc, L1hrem, L1p, L2hloc, L2hrem, L2p, new_ents, created_iface);
   RRA("Unpacking entities failed.");
   if (myDebug->get_verbosity() == 3) {
     myDebug->tprintf(4, "unpack_entities buffer space: %ld bytes.\n", (long int)(buff_ptr-tmp_buff));
@@ -1585,7 +1586,8 @@ ErrorCode ParallelComm::unpack_entities(unsigned char *&buff_ptr,
                                             std::vector<EntityHandle> &L2hloc, 
                                             std::vector<EntityHandle> &L2hrem,
                                             std::vector<unsigned int> &L2p,
-                                        std::vector<EntityHandle> &new_ents) 
+                                        std::vector<EntityHandle> &new_ents,
+                                        const bool created_iface) 
 {
     // general algorithm:
     // - unpack # entities
@@ -1769,7 +1771,8 @@ ErrorCode ParallelComm::unpack_entities(unsigned char *&buff_ptr,
           // update sharing data and pstatus, adjusting order if iface
         result = update_remote_data(new_h, &ps[0], &hs[0], num_ps, 
                                     (is_iface ? PSTATUS_INTERFACE :
-                                     (created_here ? (PSTATUS_GHOST | PSTATUS_NOT_OWNED) : 0)));
+                                     (created_here ? (created_iface ? 0 : PSTATUS_GHOST 
+                                                      | PSTATUS_NOT_OWNED) : 0)));
         RRA("");
 
           // need to send this new handle to all sharing procs
@@ -5918,7 +5921,8 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
       remoteOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
       result = unpack_buffer(remoteOwnedBuffs[ind/2]->buff_ptr,
                              store_remote_handles, buffProcs[ind/2], ind/2,
-                             L1hloc, L1hrem, L1p, L2hloc, L2hrem, L2p, new_ents);
+                             L1hloc, L1hrem, L1p, L2hloc, L2hrem, L2p,
+                             new_ents, true);
       if (MB_SUCCESS != result) {
         std::cout << "Failed to unpack entities.  Buffer contents:" << std::endl;
         print_buffer(remoteOwnedBuffs[ind/2]->mem_ptr, MB_MESG_ENTS_SIZE, buffProcs[ind/2], false);
