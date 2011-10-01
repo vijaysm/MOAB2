@@ -869,10 +869,13 @@ ErrorCode GeomTopoTool::geometrize_surface_set(EntityHandle surface, EntityHandl
     return rval;
     // mb
 
-  EntityHandle face ;
-  rval = mdbImpl->create_meshset(MESHSET_SET, face);
-  if (MB_SUCCESS != rval)
+  EntityHandle face =  surface;
+  if (!surface)// in the case it is root set, create another set
+  {
+    rval = mdbImpl->create_meshset(MESHSET_SET, face);
+    if (MB_SUCCESS != rval)
     return rval;
+  }
   // set the geo tag
   rval = add_geo_set(face, 2);
   if (MB_SUCCESS != rval)
@@ -890,9 +893,12 @@ ErrorCode GeomTopoTool::geometrize_surface_set(EntityHandle surface, EntityHandl
   // how many edges do we need to create?
   // depends on how many loops we have
   // also, we should avoid non-manifold topology
-  rval = mdbImpl->add_entities(face, surface_ents);
-  if (MB_SUCCESS != rval)
-    return rval;
+  if (!surface) {// in this case, surface is root, so we have to add entities
+    rval = mdbImpl->add_entities(face, surface_ents);
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+
 
   Skinner tool(mdbImpl);
   rval = tool.find_skin(surface_ents, 1, edge_ents);
