@@ -247,19 +247,23 @@ public:
      * tag (or the tag should have a default value).
      * \param exchange_procs processor vector exchanged
      * \param exchange_ents exchanged entities for each processors
+     * \param migrate if the owner if entities are changed or not
      */
   ErrorCode exchange_owned_meshs(std::vector<unsigned int>& exchange_procs,
                                  std::vector<Range*>& exchange_ents,
                                  bool store_remote_handles,
-                                 bool wait_all = true);
+                                 bool wait_all = true,
+                                 bool migrate = false);
   
   /** \brief Exchange owned mesh for input mesh entities and sets
    * This function is called twice by exchange_owned_meshs to exchange entities before sets
+   * \param migrate if the owner if entities are changed or not
    */
   ErrorCode exchange_owned_mesh(std::vector<unsigned int>& exchange_procs,
                                 std::vector<Range*>& exchange_ents,
                                 bool store_remote_handles,
-                                bool wait_all);
+                                bool wait_all,
+                                bool migrate = false);
 
     /** \brief Exchange tags for all shared and ghosted entities
      * This function should be called collectively over the communicator for this ParallelComm.
@@ -712,7 +716,7 @@ public:
                               std::vector<EntityHandle> &L2hloc, 
                               std::vector<EntityHandle> &L2hrem,
                               std::vector<unsigned int> &L2p,
-                              std::vector<EntityHandle> &new_ents,
+                            std::vector<EntityHandle> &new_ents,
                             const bool created_iface = false);
   
     //! Call exchange_all_shared_handles, then compare the results with tag data
@@ -1219,6 +1223,9 @@ private:
 
     //! assign entities to the input processor part
   ErrorCode assign_entities_part(std::vector<EntityHandle> &entities, const int proc);
+
+    //! remove entities to the input processor part
+  ErrorCode remove_entities_part(Range &entities, const int proc);
 
     //! MB interface associated with this writer
   Interface *mbImpl;

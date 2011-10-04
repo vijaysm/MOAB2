@@ -5699,7 +5699,8 @@ ErrorCode ParallelComm::exchange_ghost_cells(ParallelComm **pcs,
 ErrorCode ParallelComm::exchange_owned_meshs(std::vector<unsigned int>& exchange_procs,
                                              std::vector<Range*>& exchange_ents,
                                              bool store_remote_handles,
-                                             bool wait_all)
+                                             bool wait_all,
+                                             bool migrate)
 {
   // filter out entities already shared with destination
   // exchange twice for entities and sets
@@ -5717,12 +5718,12 @@ ErrorCode ParallelComm::exchange_owned_meshs(std::vector<unsigned int>& exchange
 
   // exchange entities first
   result = exchange_owned_mesh(exchange_procs, exchange_ents,
-                               store_remote_handles, wait_all);
+                               store_remote_handles, wait_all, migrate);
   RRA("Couldn't exchange owned mesh entities.");
 
   // exchange sets
   result = exchange_owned_mesh(exchange_procs_sets, exchange_sets,
-                               store_remote_handles, wait_all);
+                               store_remote_handles, wait_all, migrate);
   RRA("Couldn't exchange owned mesh sets.");
 
   for (int i = 0; i < n_proc; i++) delete exchange_sets[i];
@@ -5733,7 +5734,8 @@ ErrorCode ParallelComm::exchange_owned_meshs(std::vector<unsigned int>& exchange
 ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_procs,
                                             std::vector<Range*>& exchange_ents,
                                             bool store_remote_handles,
-                                            bool wait_all)
+                                            bool wait_all,
+                                            bool migrate)
 {
 #ifdef USE_MPE
   if (myDebug->get_verbosity() == 2) {
@@ -5953,9 +5955,13 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
     }
   }
 
-  // assign newly created elements to receive processor
+  // assign and remove newly created elements from/to receive processor
   result = assign_entities_part(new_ents, procConfig.proc_rank());
   RRA("Failed to assign entities to part.");
+  if (migrate) {
+    result = remove_entities_part(allsent, procConfig.proc_rank());
+    RRA("Failed to remove entities to part.");
+  }
 
   // add requests for any new addl procs
   if (recv_ent_reqs.size() != 2*buffProcs.size()) {
@@ -6093,8 +6099,24 @@ ErrorCode ParallelComm::assign_entities_part(std::vector<EntityHandle> &entities
   ErrorCode result = get_part_handle(proc, part_set);
   RRA(" Failed to get part handle.");
 
-  result = mbImpl->add_entities(part_set, &entities[0], entities.size());
-  RRA(" Failed to add entities to part set.");
+  if (part_set > 0) {
+    result = mbImpl->add_entities(part_set, &entities[0], entities.size());
+    RRA(" Failed to add entities to part set.");
+  }
+
+  return MB_SUCCESS;
+}
+
+ErrorCode ParallelComm::remove_entities_part(Range &entities, const int proc)
+{
+  EntityHandle part_set;
+  ErrorCode result = get_part_handle(proc, part_set);
+  RRA(" Failed to get part handle.");
+
+  if (part_set > 0) {
+    result = mbImpl->remove_entities(part_set, entities);
+    RRA(" Failed to remove entities to part set.");
+  }
 
   return MB_SUCCESS;
 }
