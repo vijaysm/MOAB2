@@ -231,6 +231,10 @@ static ErrorCode merge_input_surfs( Interface *mbi,
 int main( int argc, char* argv[] ){
 
   ProgOptions po("dagmc_preproc: a tool for preprocessing CAD and mesh files for DAGMC analysis");
+  std::string dagversion;
+  DagMC::version( &dagversion );
+  po.setVersion( dagversion );
+
 
   std::string input_file;
   std::string output_file = "dagmc_preproc_out.h5m";
