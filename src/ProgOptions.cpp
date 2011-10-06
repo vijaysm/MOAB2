@@ -722,7 +722,7 @@ void ProgOptions::parseCommandLine( int argc, char* argv[] ){
       }
       else for (size_t f = 1; f < arg.length(); ++f) { // for each short opt
         ProgOpt* opt = lookup( short_names, std::string(1,arg[f]) );
-        if (opt->flags & int_flag) {
+        if (opt && (opt->flags & int_flag) ) {
           const char val[] = { arg[f], 0 };
           process_option( opt, std::string(1,arg[f]), val );
         }
