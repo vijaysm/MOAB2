@@ -49,7 +49,7 @@ if PARALLEL
      moab/ParallelData.hpp \
      MBParallelConventions.h \
      types.h minmax.h errmem.h \
-     sort.h tuple_list.h
+     transfer.h crystal.h sort.h tuple_list.h
 
 if PARALLEL_HDF5
 #  libMOABpar_la_LIBADD = $(top_builddir)/mhdf/libmhdf.la
