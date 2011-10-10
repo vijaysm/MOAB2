@@ -183,7 +183,7 @@ ErrorCode volume_test (FBEngine * pFacet)
   pFacet->delete_smooth_tags();
   delete pFacet;
   pFacet = NULL;// try not to write the obb tree
-  rval = mb->write_file(vol_file.c_str());
+  rval = mb->write_file(vol_file.c_str(), NULL, NULL, &volume, 1);
 
   return rval;
 
