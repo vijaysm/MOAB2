@@ -309,7 +309,8 @@ INPUT                  = @top_srcdir@/src/moab \
                          @top_srcdir@/src/MBTagConventions.hpp \
                          @top_srcdir@/src/MBCN.h \
                          @top_srcdir@/src/MBEntityType.h \
-                         @top_srcdir@/src/parallel/MBParallelConventions.h
+                         @top_srcdir@/src/parallel/MBParallelConventions.h \
+                         @top_srcdir@/tools/dagmc/DagMC.hpp
 
 # If the value of the INPUT tag contains directories, you can use the 
 # FILE_PATTERNS tag to specify one or more wildcard pattern (like *.cpp 
