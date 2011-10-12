@@ -19,7 +19,14 @@ extern "C"
 /*
   Class to merge meshes in parallel
   Requires a ParallelComm and tolerance epsilon
-  Currently uses a 1 dimensional partition of the global box
+  Currently uses a 3 dimensional partition of the global box
+
+  Public Usage:
+
+  //Initialize MPI, Load/Create Individual Meshes, Get ParallelComm...
+  ParallelMergeMesh pmm(PComm, .000001);
+  pmm.merge();
+  
 */
 
 namespace moab {
