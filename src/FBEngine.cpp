@@ -826,18 +826,44 @@ ErrorCode FBEngine::getAdjacentEntities(const EntityHandle from,
   return MB_SUCCESS;
 }
 
-/*// new methods needed
- ErrorCode FBEngine::getTagHandle( const char* name, moab::Tag & handle_out )
- {
- return _mbImpl->tag_get_handle(name, handle_out);
- }*/
+// so far, this one is
+// used only for __MKModelEntityGeo tag
 
-ErrorCode FBEngine::createTag(const char* /*tag_name*/, int /*tag_num_type_values*/,
-                              int /*tag_type*/, Tag & /*tag_handle_out*/)
+ErrorCode FBEngine::createTag(const char* tag_name, int tag_size, int tag_type,
+    Tag & tag_handle_out)
 {
-  // not implemented yet, some mapping needed for tag type
-  return MB_FAILURE;
+  // this is copied from iMesh_MOAB.cpp; different name to not have trouble
+  // with it
+  // also, we do not want to depend on iMesh.h...
+  // iMesh is more complicated, because of the options passed
+
+  DataType mb_data_type_table2[] = { MB_TYPE_OPAQUE, MB_TYPE_INTEGER,
+      MB_TYPE_DOUBLE, MB_TYPE_HANDLE, MB_TYPE_HANDLE };
+  moab::TagType storage = MB_TAG_SPARSE;
+  ErrorCode result;
+
+  result = MBI->tag_get_handle(tag_name, tag_size,
+      mb_data_type_table2[tag_type], tag_handle_out, storage | MB_TAG_EXCL);
+
+  if (MB_SUCCESS != result) {
+    std::string msg("iMesh_createTag: ");
+    if (MB_ALREADY_ALLOCATED == result) {
+      msg += "Tag already exists with name: \"";
+      msg += tag_name;
+      std::cout<<msg << "\n";
+    }
+    else
+    {
+      std::cout<< "Failed to create tag with name: " << tag_name << "\n";
+      return MB_FAILURE;
+    }
+
+  }
+
+  // end copy
+  return MB_SUCCESS;
 }
+
 
 ErrorCode FBEngine::getArrData(const EntityHandle* entity_handles,
     int entity_handles_size, Tag tag_handle, void* tag_values_out)
