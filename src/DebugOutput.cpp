@@ -9,6 +9,8 @@
 
 #ifdef USE_MPI
 #  include "moab_mpi.h"
+#else
+#  include "time.h"
 #endif
 
 namespace moab {
