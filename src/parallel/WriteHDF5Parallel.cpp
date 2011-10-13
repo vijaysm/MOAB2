@@ -1952,6 +1952,7 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_data( const Range& owned,
       rval = unpack_set( handle, &buff[0], init_buff_size );
       CHECK_MB(rval);
       dead.swap(buff); // release memory
+      recv_req[idx] = MPI_REQUEST_NULL;
     }
     else {
         // data was too big for init_buff_size
@@ -1963,9 +1964,8 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_data( const Range& owned,
                          status.MPI_TAG, comm, &recv_req[idx] );
       CHECK_MPI(mperr);
       ++numrecv;
-    }
-    
-    recv_req[idx] = MPI_REQUEST_NULL;
+    } 
+    //recv_req[idx] = MPI_REQUEST_NULL;
   }
   
   
