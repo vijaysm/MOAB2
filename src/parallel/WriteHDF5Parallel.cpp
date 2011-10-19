@@ -1836,7 +1836,9 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_data( const Range& owned,
 
 
     // post receive buffers for all owned sets for all sharing procs
-  std::vector<MPI_Request> recv_req(numrecv);
+  std::vector<MPI_Request> recv_req(numrecv, MPI_REQUEST_NULL);
+  std::vector<MPI_Request> lrecv_req(numrecv, MPI_REQUEST_NULL);
+
   std::vector< std::vector<unsigned long> > recv_buf(numrecv,std::vector<unsigned long>(init_buff_size));
   int idx = 0;
   for (Range::iterator i = owned.begin(); i != owned.end(); ++i) {
@@ -1952,7 +1954,6 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_data( const Range& owned,
       rval = unpack_set( handle, &buff[0], init_buff_size );
       CHECK_MB(rval);
       dead.swap(buff); // release memory
-      recv_req[idx] = MPI_REQUEST_NULL;
     }
     else {
         // data was too big for init_buff_size
@@ -1961,11 +1962,11 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_data( const Range& owned,
       dbgOut.printf(5,"Re-Posting buffer to receive set %d from proc %d with size %lu\n", 
                       status.MPI_TAG, status.MPI_SOURCE, (unsigned long)size );
       mperr = MPI_Irecv( &buff[0], size, MPI_UNSIGNED_LONG, status.MPI_SOURCE, 
-                         status.MPI_TAG, comm, &recv_req[idx] );
+                         status.MPI_TAG, comm, &lrecv_req[idx] );
       CHECK_MPI(mperr);
       ++numrecv;
     } 
-    //recv_req[idx] = MPI_REQUEST_NULL;
+    recv_req[idx] = MPI_REQUEST_NULL;
   }
   
   
@@ -2000,7 +2001,7 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_data( const Range& owned,
   while (remaining--) {
     std::vector<unsigned long> dead;
     MPI_Status status;
-    mperr = MPI_Waitany( recv_req.size(), &recv_req[0], &idx, &status );
+    mperr = MPI_Waitany( lrecv_req.size(), &lrecv_req[0], &idx, &status );
     CHECK_MPI(mperr);
     EntityHandle handle = CREATE_HANDLE( MBENTITYSET, status.MPI_TAG );
     std::vector<unsigned long>& buff = recv_buf[idx];
@@ -2010,7 +2011,7 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_data( const Range& owned,
     CHECK_MB(rval);
     dead.swap(buff); // release memory
     
-    recv_req[idx] = MPI_REQUEST_NULL;
+    lrecv_req[idx] = MPI_REQUEST_NULL;
   }
     
     // wait for sends to complete
