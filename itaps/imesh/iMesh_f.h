@@ -1,11 +1,13 @@
 #ifndef IMESH_F_H
 #define IMESH_F_H
 
-#include "iBase_f.h"
-
 #define iMesh_Instance IBASE_HANDLE_T
 #define iBase_EntityIterator IBASE_HANDLE_T
 #define iBase_EntityArrIterator IBASE_HANDLE_T
+
+#endif
+
+#include "iBase_f.h"
 
       integer iMesh_POINT
       integer iMesh_LINE_SEGMENT
@@ -45,4 +47,3 @@
       parameter (iMesh_GLOBAL_TRAVERSAL = 3)
 
 
-#endif
