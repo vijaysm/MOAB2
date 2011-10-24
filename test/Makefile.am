@@ -125,7 +125,7 @@ kd_tree_test_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS)
 
 if PARALLEL
 moab_test_CPPFLAGS += -I$(top_srcdir)/src/parallel
-kd_tree_test_CPPFLAGS = -I$(top_srcdir)/src/parallel
+kd_tree_test_CPPFLAGS += -I$(top_srcdir)/src/parallel
 test_prog_opt_CPPFLAGS += -I$(top_srcdir)/src/parallel
 endif
 
