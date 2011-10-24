@@ -5716,6 +5716,12 @@ ErrorCode ParallelComm::exchange_owned_meshs(std::vector<unsigned int>& exchange
     exchange_procs_sets.push_back(exchange_procs[i]);
   }
 
+  // check and clean incorrect shared tags
+  result = clean_shared_tags(exchange_ents);
+  RRA("Couldn't clean shared tags.");
+  result = clean_shared_tags(exchange_sets);
+  RRA("Couldn't clean shared tags.");
+
   // exchange entities first
   result = exchange_owned_mesh(exchange_procs, exchange_ents,
                                store_remote_handles, wait_all, migrate);
@@ -5727,6 +5733,53 @@ ErrorCode ParallelComm::exchange_owned_meshs(std::vector<unsigned int>& exchange
   RRA("Couldn't exchange owned mesh sets.");
 
   for (int i = 0; i < n_proc; i++) delete exchange_sets[i];
+
+  // set shared information
+  Tag sharedp = sharedp_tag();
+  Tag sharedps = sharedps_tag();
+  Tag pstatus = pstatus_tag();
+  Range tagged_ents;
+  
+  // get shared proc tag entities and add shared pstatus
+  result = mbImpl->get_entities_by_type_and_tag(0, MBMAXTYPE, &sharedp, 0, 1,
+                                                tagged_ents);
+  RRA("Failed to get sharing proc tag in remote_handles.");
+  
+  std::vector<int> shared_procs(tagged_ents.size());
+  result = mbImpl->tag_get_data(sharedp, tagged_ents, &shared_procs[0]);
+  Range::iterator it = tagged_ents.begin();
+  Range::iterator eit = tagged_ents.end();
+  for (int i = 0; it != eit; it++, i++) {
+    unsigned char pstat;
+    pstat |= PSTATUS_SHARED;
+    result = mbImpl->tag_set_data(pstatus_tag(), &(*it), 1, &pstat);
+    RRA("Couldn't set pstatus tag.");
+    sharedEnts.push_back(*it);
+  }
+
+  // get shared proc tag entities and add shared pstatus
+  tagged_ents.clear();
+  result = mbImpl->get_entities_by_type_and_tag(0, MBMAXTYPE, &sharedps, 0, 1,
+                                                tagged_ents);
+  RRA("Failed to get sharing proc tag in remote_handles.");
+
+  it = tagged_ents.begin();
+  eit = tagged_ents.end();
+  for (; it != eit; it++) {
+    unsigned char pstat;
+    int sharing_procs[MAX_SHARING_PROCS];
+    result = mbImpl->tag_get_data(sharedps_tag(), &(*it), 1, sharing_procs);
+    RRA("Failed to get sharing proc tag in remote_handles.");
+    
+    pstat |= PSTATUS_MULTISHARED;
+    if (sharing_procs[0] != (int)procConfig.proc_rank()) {
+      pstat |= PSTATUS_NOT_OWNED;
+    }
+    result = mbImpl->tag_set_data(pstatus_tag(), &(*it), 1, &pstat);
+    RRA("Couldn't set pstatus tag.");
+
+    sharedEnts.push_back(*it);
+  }
 
   return MB_SUCCESS;
 }
@@ -7737,6 +7790,33 @@ ErrorCode ParallelComm::get_shared_entities(int other_proc,
   }
   
   return result;
+}
+
+ErrorCode ParallelComm::clean_shared_tags(std::vector<Range*>& exchange_ents)
+{
+  for (int i = 0; i < exchange_ents.size(); i++) {
+    Range* ents = exchange_ents[i];
+    int num_ents = ents->size();
+    Range::iterator it = ents->begin();
+    Range::iterator eit = ents->end();
+
+    for ( int n = 0; n < num_ents; n++ ) {
+      int sharing_proc;
+      ErrorCode result = mbImpl->tag_get_data(sharedp_tag(), &(*ents->begin()), 1,
+                                              &sharing_proc);
+      if (result != MB_TAG_NOT_FOUND && sharing_proc == -1) {
+        result = mbImpl->tag_delete_data(sharedp_tag(), &(*it), 1);
+        RRA("Couldn't delete shared processor tag data.");
+        result = mbImpl->tag_delete_data(sharedh_tag(), &(*it), 1);
+        RRA("Couldn't delete shared handle tag data.");
+        result = mbImpl->tag_delete_data(pstatus_tag(), &(*it), 1);
+        RRA("Couldn't delete pstatus tag data.");
+      }
+      it++;
+    }
+  }
+
+  return MB_SUCCESS;
 }
 
 void ParallelComm::set_debug_verbosity(int verb) 

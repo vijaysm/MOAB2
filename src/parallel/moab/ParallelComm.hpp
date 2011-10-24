@@ -656,6 +656,9 @@ public:
   
   Interface* get_moab() const { return mbImpl; }
 
+  
+  ErrorCode clean_shared_tags(std::vector<Range*>& exchange_ents);
+
   class Buffer {
   public:
     unsigned char *mem_ptr;
@@ -832,7 +835,7 @@ private:
                                int *ps, EntityHandle *hs);
   
   ErrorCode check_clean_iface(Range &allsent);
-  
+
   void define_mpe();
 
   ErrorCode get_sent_ents(const bool is_iface,
