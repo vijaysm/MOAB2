@@ -810,17 +810,26 @@ ErrorCode FBEngine::getAdjacentEntities(const EntityHandle from,
   ErrorCode rval;
   adjs.clear();
   if (to_dim > this_dim) {
-    int number;
-    rval = MBI->num_parent_meshsets(from, &number, 0);
-    rval = MBI->get_parent_meshsets(from, adjs);
-    adjs.clear();
-    rval = MBI->get_parent_meshsets(from, adjs, to_dim - this_dim);
+    int diffDim = to_dim-this_dim;
+    rval = MBI->get_parent_meshsets(from, adjs, diffDim);
+    if (diffDim>1)
+    {
+      // subtract the parents that come with diffDim-1 hops
+      Range extra;
+      rval = MBI->get_parent_meshsets(from, extra, diffDim-1);
+      adjs = subtract(adjs, extra);
+    }
+
   } else {
-    int number;
-    rval = MBI->num_child_meshsets(from, &number, 0);
-    rval = MBI->get_child_meshsets(from, adjs);
-    adjs.clear();
-    rval = MBI->get_child_meshsets(from, adjs, this_dim - to_dim);
+    int diffDim = this_dim - to_dim;
+    rval = MBI->get_child_meshsets(from, adjs, diffDim);
+    if (diffDim > 1)
+    {
+      // subtract the children that come with diffDim-1 hops
+      Range extra;
+      rval = MBI->get_child_meshsets(from, extra, diffDim-1);
+      adjs = subtract(adjs, extra);
+    }
   }
 
   return MB_SUCCESS;
