@@ -2489,6 +2489,7 @@ ErrorCode FBEngine::split_boundary(EntityHandle face, EntityHandle atNode)
     }
   }
   MBERRORR(MB_FAILURE, " we did not find an appropriate boundary edge"); ; //
+  return MB_FAILURE; // needed to suppress compile warning
 }
 
 bool FBEngine::find_vertex_set_for_node(EntityHandle iNode, EntityHandle & oVertexSet)
