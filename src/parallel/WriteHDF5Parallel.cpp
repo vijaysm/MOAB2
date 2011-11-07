@@ -316,6 +316,14 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
     pcommAllocated = true;
   }
   
+  MPI_Info info = MPI_INFO_NULL;
+  std::string cb_size;
+  rval = opts.get_str_option("CB_BUFFER_SIZE", cb_size);
+  if (MB_SUCCESS == rval) {
+    MPI_Info_create (&info);
+    MPI_Info_set (info, "cb_buffer_size", const_cast<char*>(cb_size.c_str()));
+  }
+  
   dbgOut.set_rank( myPcomm->proc_config().proc_rank() );
   dbgOut.limit_output_to_first_N_procs( 32 );
   
@@ -441,7 +449,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   dbgOut.tprint(1,"(re)opening file in parallel mode\n");
   unsigned long junk;
   hid_t hdf_opt = H5Pcreate( H5P_FILE_ACCESS );
-  H5Pset_fapl_mpio( hdf_opt, myPcomm->proc_config().proc_comm(), MPI_INFO_NULL );
+  H5Pset_fapl_mpio( hdf_opt, myPcomm->proc_config().proc_comm(), info );
   filePtr = mhdf_openFileWithOpt( filename, 1, &junk, id_type, hdf_opt, &status );
   H5Pclose( hdf_opt );
   if (!filePtr)
