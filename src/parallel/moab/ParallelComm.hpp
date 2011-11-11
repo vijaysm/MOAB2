@@ -251,7 +251,6 @@ public:
      */
   ErrorCode exchange_owned_meshs(std::vector<unsigned int>& exchange_procs,
                                  std::vector<Range*>& exchange_ents,
-                                 std::map<std::vector<int>, std::vector<EntityHandle> >& proc_nvecs,
                                  bool store_remote_handles,
                                  bool wait_all = true,
                                  bool migrate = false);
@@ -1415,7 +1414,7 @@ inline ErrorCode ParallelComm::exchange_tags( Tag tagh,
   
 inline ErrorCode ParallelComm::get_comm_procs(std::set<unsigned int> &procs) 
 {
-  ErrorCode result = get_interface_procs(procs, true);
+  ErrorCode result = get_interface_procs(procs);
   if (MB_SUCCESS != result) return result;
 
   std::copy(buffProcs.begin(), buffProcs.end(), std::inserter(procs, procs.begin()));
