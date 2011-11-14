@@ -2,17 +2,17 @@
 #define IBASE_F_H
 
 #ifdef POINTER_SIZE
-c  user-defined override
+!  user-defined override
 #  define IBASE_HANDLE_T INTEGER*POINTER_SIZE
 #elif defined(__SIZEOF_SIZE_T__)
-c  gfortran
+!  gfortran
 #  define IBASE_HANDLE_T integer*__SIZEOF_SIZE_T__
 #elif defined(__GNUC__) && defined (_LANGUAGE_FORTRAN)
-c  gfortran 4.2 and earlier
+!  gfortran 4.2 and earlier
 #  ifdef _LP64
 #    define IBASE_HANDLE_T integer*8
 #  else
-c    NOTE: not integer*4 (see meaning of _LP64 in GNU docs)
+!    NOTE: not integer*4 (see meaning of _LP64 in GNU docs)
 #    define IBASE_HANDLE_T integer
 #  endif
 #elif defined(__INTEL_COMPILER)
@@ -22,7 +22,7 @@ c    NOTE: not integer*4 (see meaning of _LP64 in GNU docs)
 #    define IBASE_HANDLE_T integer*4
 #  endif
 #elif defined(__XLCPP__) || defined(__bgp__) || defined(__bgq__)
-c  __XLCPP__ doesn't work for IBM.  AT least make things work for BGP and BGQ
+!  __XLCPP__ doesn't work for IBM.  AT least make things work for BGP and BGQ
         USE, INTRINSIC :: ISO_C_BINDING
 #  define IBASE_HANDLE_T C_PTR
 #else

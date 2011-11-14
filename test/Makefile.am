@@ -19,6 +19,10 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src 
 
+if PARALLEL
+  AM_CPPFLAGS += -I$(top_srcdir)/src/parallel
+endif
+
 TESTS = range_test \
         moab_test \
         homxform_test \

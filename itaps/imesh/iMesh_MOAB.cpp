@@ -3,15 +3,18 @@
 #include "moab/Range.hpp"
 #include "moab/CN.hpp"
 #include "moab/MeshTopoUtil.hpp"
+#include "moab/ScdInterface.hpp"
 #include "FileOptions.hpp"
 #include "iMesh_MOAB.hpp"
 #include "MBIter.hpp"
+#include "MBTagConventions.hpp"
 #define IS_BUILDING_MB
 #include "Internals.hpp"
 #undef IS_BUILDING_MB
 
 #ifdef USE_MPI
 #include "moab_mpi.h"
+#include "moab/ParallelComm.hpp"
 #endif
 
 #define STRINGIFY_(X) #X
@@ -3210,5 +3213,115 @@ void eatwhitespace(std::string &this_string)
   std::string::size_type p = this_string.find_last_not_of(" ");
   if (p != this_string.npos)
     this_string.resize(p+1);
+}
+
+void iMesh_createStructuredMesh(iMesh_Instance instance,
+                                /*in*/ int *local_dims,
+                                /*in*/ int *global_dims,
+                                /*in*/ double *i_vals,
+                                /*in*/ double *j_vals,
+                                /*in*/ double *k_vals,
+                                /*in*/ int resolve_shared,
+                                /*in*/ int ghost_dim,
+                                /*in*/ int bridge_dim,
+                                /*in*/ int num_layers,
+                                /*in*/ int addl_ents,
+                                /*inout*/ iBase_EntitySetHandle* set_handle, 
+                                /*out*/ int *err) 
+{
+  ScdInterface *scdi = NULL;
+  ErrorCode rval = MOABI->query_interface(scdi);
+  CHKERR(rval, "Couldn't get structured mesh interface.");
+  
+  Range tmp_range;
+  ScdBox *scd_box;
+  rval = scdi->construct_box(HomCoord(local_dims[0], local_dims[1], (-1 != local_dims[2] ? local_dims[2] : 0), 1),
+                             HomCoord(local_dims[3], local_dims[4], (-1 != local_dims[5] ? local_dims[5] : 0), 1),
+                             NULL, 0, scd_box);
+  CHKERR(rval, "Trouble creating scd vertex sequence.");
+
+    // set the global box parameters
+  scd_box->set_global_box_dims(global_dims);
+
+  if (set_handle) {
+    if (!(*set_handle)) {
+        // make a new set
+      EntityHandle tmp_set;
+      rval = MOABI->create_meshset(MESHSET_SET, tmp_set);
+      CHKERR(rval, "Couldn't create entity set.");
+      *set_handle = (iBase_EntitySetHandle)tmp_set;
+    }
+
+      // add box set and new vertices, elements to the file set
+    tmp_range.insert(scd_box->start_vertex(), scd_box->start_vertex()+scd_box->num_vertices()-1);
+    tmp_range.insert(scd_box->start_element(), scd_box->start_element()+scd_box->num_elements()-1);
+    tmp_range.insert(scd_box->box_set());
+    rval = MOABI->add_entities(ENTITY_HANDLE(*set_handle), tmp_range);
+    CHKERR(rval, "Couldn't add new vertices to file set.");
+  }
+  
+    // get a ptr to global id memory
+  void *data;
+  int count;
+  const Range::iterator topv = tmp_range.upper_bound(tmp_range.begin(), tmp_range.end(),
+                                                     scd_box->start_vertex() + scd_box->num_vertices());
+
+  Tag gid_tag;
+  rval = MOABI->tag_get_handle(GLOBAL_ID_TAG_NAME,
+                               1, MB_TYPE_INTEGER,
+                               gid_tag,
+                               MB_TAG_DENSE|MB_TAG_CREAT);
+  CHKERR(rval, "Couldn't get GLOBAL_ID tag.");
+  
+  rval = MOABI->tag_iterate(gid_tag, tmp_range.begin(), topv, count, data);
+  CHKERR(rval, "Failed to get tag iterator.");
+  assert(count == scd_box->num_vertices());
+  int *gid_data = (int*)data;
+
+  if (i_vals || j_vals || k_vals) {
+    
+      // set the vertex coordinates
+    double *xc, *yc, *zc;
+    rval = scd_box->get_coordinate_arrays(xc, yc, zc);
+    CHKERR(rval, "Couldn't get vertex coordinate arrays.");
+
+    int i, j, k, il, jl, kl;
+    int dil = local_dims[3] - local_dims[0] + 1;
+    int djl = local_dims[4] - local_dims[1] + 1;
+    int di = (global_dims ? global_dims[3] - global_dims[0] + 1 : dil);
+    int dj = (global_dims ? global_dims[4] - global_dims[1] + 1 : djl);
+    for (kl = local_dims[2]; kl <= local_dims[5]; kl++) {
+      k = kl - local_dims[2];
+      for (jl = local_dims[1]; jl <= local_dims[4]; jl++) {
+        j = jl - local_dims[1];
+        for (il = local_dims[0]; il <= local_dims[3]; il++) {
+          i = il - local_dims[0];
+          unsigned int pos = i + j*dil + k*dil*djl;
+          xc[pos] = (i_vals ? i_vals[i] : -1.0);
+          yc[pos] = (j_vals ? j_vals[j] : -1.0);
+          zc[pos] = (-1 == local_dims[2] ? 0.0 : (k_vals ? k_vals[k] : -1.0));
+          *gid_data = (-1 != kl ? kl*di*dj : 0) + jl*di + il + 1;
+          gid_data++;
+        }
+      }
+    }
+  }
+
+#ifdef USE_MPI  
+    // do parallel stuff, if requested
+  if (resolve_shared) {
+    ParallelComm *pcomm = ParallelComm::get_pcomm(MOABI, 0);
+
+    rval = pcomm->resolve_shared_ents(0, MOABI->dimension_from_handle(scd_box->start_element()), 0, &gid_tag);
+    CHKERR(rval, "Trouble resolving shared vertices.");
+    
+    if (-1 != ghost_dim) {
+      rval = pcomm->exchange_ghost_cells(ghost_dim, bridge_dim, num_layers, addl_ents, true);
+      CHKERR(rval, "Trouble exchanging ghosts.");
+    }
+  }
+#endif
+  
+  RETURN(iBase_SUCCESS);
 }
 

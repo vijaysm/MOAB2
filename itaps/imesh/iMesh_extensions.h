@@ -255,6 +255,55 @@ void iMesh_createTagWithOptions(iMesh_Instance instance,
                                   /*in*/ const int tag_options_len);
                                   /**< [in] length of options string */
     
+/***************************************************************************//**
+ * \ingroup  ScdMesh
+ * \brief  Create a structured mesh
+ *
+ * Create a structured mesh, with local and (optionally) global ijk parameters and
+ * optional physical positions.  If running in parallel, can request shared vertex resolution
+ * and optional number and type of ghost layers of elements.  Global parameters are used to compute
+ * global ids, which are used in shared vertex resolution.
+ ******************************************************************************/
+
+    void iMesh_createStructuredMesh(
+        iMesh_Instance instance,
+          /**< [in] iMesh instance handle */
+        int *local_dims,
+          /**< [in] Min/max corners of local ijk parameters, -1 for unused dimensions */
+        int *global_dims,
+          /**< [in] Min/max corners of global ijk parameters, -1 for unused dimensions; NULL if running in serial. */
+        double *i_vals,
+          /**< [in] Physical positions of i values, NULL if not placed in physical space. */
+        double *j_vals,
+          /**< [in] Physical positions of j values, NULL if not placed in physical space. */
+        double *k_vals,
+          /**< [in] Physical positions of k values, NULL if not placed in physical space. */
+        int resolve_shared,
+          /**< [in] Non-zero if running in parallel and resolution of shared vertices is desired, zero otherwise. */
+        int ghost_dim,
+          /**< [in] Dimension of entities to ghost, -1 if none desired. */
+        int bridge_dim,
+          /**< [in] Dimension of bridge entities used to compute ghosts, -1 if no ghosts desired. */
+        int num_layers,
+          /**< [in] Number of layers of ghosts desired, -1 if no ghosts desired. */
+        int addl_ents,
+          /**< [in] Dimension of addition entities adjacent to ghosts to exchange. */
+        iBase_EntitySetHandle* set_handle, 
+          /**< [inout] Entity set handle in which to put box and vertices/elements, NULL if not desired, *NULL if function should create one. */
+        int *err
+          /**< [out] Error flag. */
+                                    );
+
+/***************************************************************************//**
+ * \defgroup ScdMesh Structured Mesh
+ * \ingroup iMeshExtensions
+ ******************************************************************************/
+
+/***************************************************************************//**
+ * \defgroup iMeshExtensions iMesh Extensions
+ * \ingroup iMesh
+ ******************************************************************************/
+
 #ifdef __cplusplus
 }
 #endif

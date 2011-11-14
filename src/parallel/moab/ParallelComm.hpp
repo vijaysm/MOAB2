@@ -222,6 +222,7 @@ public:
      * \param ghost_dim Dimension of ghost entities to be exchanged
      * \param bridge_dim Dimension of entities used to measure layers from interface
      * \param num_layers Number of layers of ghosts requested
+     * \param addl_ents Dimension of additional adjacent entities to exchange with ghosts, 0 if none
      * \param store_remote_handles If true, send message with new entity handles to source processor
      * \param wait_all If true, function does not return until all send buffers
      *       are cleared.
