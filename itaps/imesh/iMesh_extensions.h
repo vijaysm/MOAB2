@@ -224,7 +224,8 @@ void iMesh_getAllIfaceTags(iMesh_Instance instance,
                            /*inout*/ iBase_TagHandle **tag_handles,
                            /*inout*/ int *tag_handles_allocated,
                            /*out*/ int *tag_handles_size,
-                           /*out*/ int *err);
+                           /*out*/ int *err
+);
 
 /***************************************************************************//**
  * \ingroup  Tags
@@ -265,7 +266,7 @@ void iMesh_createTagWithOptions(iMesh_Instance instance,
  * global ids, which are used in shared vertex resolution.
  ******************************************************************************/
 
-    void iMesh_createStructuredMesh(
+void iMesh_createStructuredMesh(
         iMesh_Instance instance,
           /**< [in] iMesh instance handle */
         int *local_dims,
@@ -292,7 +293,7 @@ void iMesh_createTagWithOptions(iMesh_Instance instance,
           /**< [inout] Entity set handle in which to put box and vertices/elements, NULL if not desired, *NULL if function should create one. */
         int *err
           /**< [out] Error flag. */
-                                    );
+);
 
 /***************************************************************************//**
  * \defgroup ScdMesh Structured Mesh
