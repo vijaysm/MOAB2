@@ -927,7 +927,7 @@ inline int ScdBox::num_elements() const
   return (!startElem ? 0 : 
           (boxSize[0]- (isPeriodic[0] ? 0 : 1)) * 
           (-1 == boxSize[1] ? 1 : (boxSize[1]-(isPeriodic[1] ? 0 : 1))) * 
-          (boxSize[2] == -1 ? 1 : (boxSize[2]-1)));
+          (boxSize[2] == -1 || boxSize[2] == 1 ? 1 : (boxSize[2]-1)));
 }
     
 inline int ScdBox::num_vertices() const

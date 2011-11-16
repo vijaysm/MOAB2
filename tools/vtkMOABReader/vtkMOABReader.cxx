@@ -421,8 +421,8 @@ ErrorCode vtkMOABReaderPrivate::load_file(const char *file_name, const char *opt
 
     // check for spectral element tags, since that controls how mesh is created
   Tag semt;
-  rval = mbImpl->tag_get_handle("SEM_DIMS", 3, MB_TYPE_INTEGER, semt);
-  if (MB_SUCCESS == rval) {
+  ErrorCode tmp_rval = mbImpl->tag_get_handle("SEM_DIMS", 3, MB_TYPE_INTEGER, semt);
+  if (MB_SUCCESS == tmp_rval) {
     EntityHandle seth = 0;
     rval = mbImpl->tag_get_data(semt, &seth, 1, semDims);
     RC(rval, << "Problem reading SEM_DIMS tag.");
@@ -1454,6 +1454,11 @@ vtkMultiBlockDataSet *vtkMOABReaderPrivate::get_mbdataset(vtkMultiBlockDataSet *
       if (MB_SUCCESS != rval) return NULL;
     }
 
+#ifndef NDEBUG
+    int_ptr = ids->GetPointer(0);
+    for (int i = ids->GetNumberOfIds()-1; i >= 0; i--) 
+      assert(int_ptr[i] <= numCellIds);
+#endif    
     ec_val->SetCellList(ids);
     ec_val->Update();
     ec_val->Delete();

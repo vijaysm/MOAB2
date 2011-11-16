@@ -289,6 +289,10 @@ void iMesh_createStructuredMesh(
           /**< [in] Number of layers of ghosts desired, -1 if no ghosts desired. */
         int addl_ents,
           /**< [in] Dimension of addition entities adjacent to ghosts to exchange. */
+        int vert_gids,
+          /**< [in] If non-zero, assigns global ids to vertices, according to global parameterization. */
+        int elem_gids,
+          /**< [in] If non-zero, assigns global ids to elements, according to global parameterization. */
         iBase_EntitySetHandle* set_handle, 
           /**< [inout] Entity set handle in which to put box and vertices/elements, NULL if not desired, *NULL if function should create one. */
         int *err

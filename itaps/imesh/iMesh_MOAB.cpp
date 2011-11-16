@@ -3226,6 +3226,8 @@ void iMesh_createStructuredMesh(iMesh_Instance instance,
                                 /*in*/ int bridge_dim,
                                 /*in*/ int num_layers,
                                 /*in*/ int addl_ents,
+                                /*in*/ int vert_gids,
+                                /*in*/ int elem_gids,
                                 /*inout*/ iBase_EntitySetHandle* set_handle, 
                                 /*out*/ int *err) 
 {
@@ -3243,6 +3245,10 @@ void iMesh_createStructuredMesh(iMesh_Instance instance,
     // set the global box parameters
   scd_box->set_global_box_dims(global_dims);
 
+  tmp_range.insert(scd_box->start_vertex(), scd_box->start_vertex()+scd_box->num_vertices()-1);
+  tmp_range.insert(scd_box->start_element(), scd_box->start_element()+scd_box->num_elements()-1);
+  tmp_range.insert(scd_box->box_set());
+
   if (set_handle) {
     if (!(*set_handle)) {
         // make a new set
@@ -3253,9 +3259,6 @@ void iMesh_createStructuredMesh(iMesh_Instance instance,
     }
 
       // add box set and new vertices, elements to the file set
-    tmp_range.insert(scd_box->start_vertex(), scd_box->start_vertex()+scd_box->num_vertices()-1);
-    tmp_range.insert(scd_box->start_element(), scd_box->start_element()+scd_box->num_elements()-1);
-    tmp_range.insert(scd_box->box_set());
     rval = MOABI->add_entities(ENTITY_HANDLE(*set_handle), tmp_range);
     CHKERR(rval, "Couldn't add new vertices to file set.");
   }
@@ -3263,22 +3266,41 @@ void iMesh_createStructuredMesh(iMesh_Instance instance,
     // get a ptr to global id memory
   void *data;
   int count;
-  const Range::iterator topv = tmp_range.upper_bound(tmp_range.begin(), tmp_range.end(),
-                                                     scd_box->start_vertex() + scd_box->num_vertices());
+  Range::const_iterator topv, bote, tope;
 
-  Tag gid_tag;
-  rval = MOABI->tag_get_handle(GLOBAL_ID_TAG_NAME,
-                               1, MB_TYPE_INTEGER,
-                               gid_tag,
-                               MB_TAG_DENSE|MB_TAG_CREAT);
-  CHKERR(rval, "Couldn't get GLOBAL_ID tag.");
+  Tag gid_tag = 0;
+  int *v_gid_data = NULL, *e_gid_data = NULL;
+  if (vert_gids || elem_gids) {
+    rval = MOABI->tag_get_handle(GLOBAL_ID_TAG_NAME,
+                                 1, MB_TYPE_INTEGER,
+                                 gid_tag,
+                                 MB_TAG_DENSE|MB_TAG_CREAT);
+    CHKERR(rval, "Couldn't get GLOBAL_ID tag.");
+  }
   
-  rval = MOABI->tag_iterate(gid_tag, tmp_range.begin(), topv, count, data);
-  CHKERR(rval, "Failed to get tag iterator.");
-  assert(count == scd_box->num_vertices());
-  int *gid_data = (int*)data;
+  if (vert_gids) {
+    topv = tmp_range.upper_bound(tmp_range.begin(), tmp_range.end(),
+                                 scd_box->start_vertex() + scd_box->num_vertices());
 
-  if (i_vals || j_vals || k_vals) {
+    rval = MOABI->tag_iterate(gid_tag, tmp_range.begin(), topv, count, data);
+    CHKERR(rval, "Failed to get tag iterator.");
+    assert(count == scd_box->num_vertices());
+    v_gid_data = (int*)data;
+  }
+  
+  if (elem_gids) {
+    bote = tmp_range.lower_bound(tmp_range.begin(), tmp_range.end(),
+                                 scd_box->start_element());
+    tope = tmp_range.upper_bound(tmp_range.begin(), tmp_range.end(),
+                                 *bote + scd_box->num_elements());
+
+    rval = MOABI->tag_iterate(gid_tag, bote, tope, count, data);
+    CHKERR(rval, "Failed to get tag iterator.");
+    assert(count == scd_box->num_elements());
+    e_gid_data = (int*)data;
+  }
+  
+  if (i_vals || j_vals || k_vals || v_gid_data || e_gid_data) {
     
       // set the vertex coordinates
     double *xc, *yc, *zc;
@@ -3300,8 +3322,14 @@ void iMesh_createStructuredMesh(iMesh_Instance instance,
           xc[pos] = (i_vals ? i_vals[i] : -1.0);
           yc[pos] = (j_vals ? j_vals[j] : -1.0);
           zc[pos] = (-1 == local_dims[2] ? 0.0 : (k_vals ? k_vals[k] : -1.0));
-          *gid_data = (-1 != kl ? kl*di*dj : 0) + jl*di + il + 1;
-          gid_data++;
+          if (v_gid_data) {
+            *v_gid_data = (-1 != kl ? kl*di*dj : 0) + jl*di + il + 1;
+            v_gid_data++;
+          }
+          if (e_gid_data && kl < local_dims[5] && jl < local_dims[4] && il < local_dims[3]) {
+            *e_gid_data = (-1 != kl ? kl*(di-1)*(dj-1) : 0) + jl*(di-1) + il + 1;
+            e_gid_data++;
+          }
         }
       }
     }
@@ -3311,14 +3339,16 @@ void iMesh_createStructuredMesh(iMesh_Instance instance,
     // do parallel stuff, if requested
   if (resolve_shared) {
     ParallelComm *pcomm = ParallelComm::get_pcomm(MOABI, 0);
+    if (pcomm) {
 
-    rval = pcomm->resolve_shared_ents(0, MOABI->dimension_from_handle(scd_box->start_element()), 0, &gid_tag);
-    CHKERR(rval, "Trouble resolving shared vertices.");
+      rval = pcomm->resolve_shared_ents(0, MOABI->dimension_from_handle(scd_box->start_element()), 0, &gid_tag);
+      CHKERR(rval, "Trouble resolving shared vertices.");
     
-    if (-1 != ghost_dim) {
-      rval = pcomm->exchange_ghost_cells(ghost_dim, bridge_dim, num_layers, addl_ents, true);
-      CHKERR(rval, "Trouble exchanging ghosts.");
-    }
+      if (-1 != ghost_dim) {
+        rval = pcomm->exchange_ghost_cells(ghost_dim, bridge_dim, num_layers, addl_ents, true);
+        CHKERR(rval, "Trouble exchanging ghosts.");
+      }
+    }    
   }
 #endif
   

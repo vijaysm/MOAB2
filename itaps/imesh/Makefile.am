@@ -13,7 +13,7 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
 check_PROGRAMS = testc_cbind MOAB_iMesh_unit_tests MOAB_iMesh_extensions_tests
 
 if ENABLE_FORTRAN
-  check_PROGRAMS += ScdMesh
+  check_PROGRAMS += ScdMeshF90 ScdMeshF77
 endif
 
 EXTRA_DIST = brick.vtk quad9.cub
@@ -59,8 +59,11 @@ MOAB_iMesh_unit_tests_DEPENDENCIES = $(TESTDEPS)
 MOAB_iMesh_extensions_tests_SOURCES = MOAB_iMesh_extensions_tests.cpp
 MOAB_iMesh_extensions_tests_DEPENDENCIES = $(TESTDEPS)
 
-ScdMesh_SOURCES = ScdMesh.F90
-ScdMesh_DEPENDENCIES = $(TESTDEPS)
+ScdMeshF90_SOURCES = ScdMeshF90.F90
+ScdMeshF90_DEPENDENCIES = $(TESTDEPS)
+
+ScdMeshF77_SOURCES = ScdMeshF77.F
+ScdMeshF77_DEPENDENCIES = $(TESTDEPS)
 
 lib_LTLIBRARIES = libiMesh.la
 
