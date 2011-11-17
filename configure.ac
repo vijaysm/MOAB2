@@ -67,6 +67,21 @@ if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FC"; then
 fi
 
 ################################################################################
+#                           Check for need for extra flags to support cray pointers
+################################################################################
+if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$F77"; then
+  PAC_PROG_F77_CRAY_POINTER([
+    FFLAGS="$FFLAGS $CRAYPTR_FFLAGS"
+  ])
+fi
+
+if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FC"; then
+  PAC_PROG_FC_CRAY_POINTER([
+    FFLAGS="$FCFLAGS $CRAYPTR_FCFLAGS"
+  ])
+fi
+
+################################################################################
 #                           Basic Portability Stuff
 ################################################################################
 AC_CHECK_FUNC([vsnprintf],[AM_CPPFLAGS="$AM_CPPFLAGS -DHAVE_VSNPRINTF"])
