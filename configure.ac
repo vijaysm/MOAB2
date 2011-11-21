@@ -77,7 +77,7 @@ fi
 
 if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FC"; then
   PAC_PROG_FC_CRAY_POINTER([
-    FFLAGS="$FCFLAGS $CRAYPTR_FCFLAGS"
+    FCFLAGS="$FCFLAGS $CRAYPTR_FCFLAGS"
   ])
 fi
 
@@ -1179,6 +1179,9 @@ AC_MSG_RESULT([C:   $CC $CFLAGS $CPPFLAGS])
 AC_MSG_RESULT([C++: $CXX $CXXFLAGS $CPPFLAGS])
 if test "x" != "x$FC"; then
   AC_MSG_RESULT([Fortran: $FC $FCFLAGS])
+fi
+if test "x" != "x$F77"; then
+  AC_MSG_RESULT([Fortran: $F77 $FFLAGS])
 fi
 
 if test "x$HAVE_HDF5" = "xno"; then

@@ -155,6 +155,8 @@ fi
 # before setting up libtool so that it can override libtool settings.
 CFLAGS="$USER_CFLAGS $FATHOM_CC_SPECIAL"
 CXXFLAGS="$USER_CXXFLAGS $FATHOM_CXX_SPECIAL"
+FFLAGS="$USER_FFLAGS $FATHOM_F77_SPECIAL"
+FCFLAGS="$USER_FCFLAGS $FATHOM_FC_SPECIAL"
 
 # On IBM/AIX, the check for OBJEXT fails for the mpcc compiler.
 # (Comment out this hack, it should be fixed correctly now)
@@ -194,6 +196,11 @@ if test "x$enable_debug" = "x"; then
       enable_fc_optimize=yes
     fi
   fi
+  if test "x$enable_f77_optimize" = "x"; then
+    if test "x$USER_FFLAGS" = "x"; then
+      enable_f77_optimize=yes
+    fi
+  fi
 fi
 
 # Choose compiler flags from CLI args
@@ -202,6 +209,7 @@ if test "xyes" = "x$enable_debug"; then
   CXXFLAGS="$CXXFLAGS -g"
   CFLAGS="$CFLAGS -g"
   FCFLAGS="$FCFLAGS -g"
+  FFLAGS="$FFLAGS -g"
 fi
 if test "xyes" = "x$enable_cxx_optimize"; then
   CXXFLAGS="$CXXFLAGS -O2 -DNDEBUG"
@@ -211,6 +219,9 @@ if test "xyes" = "x$enable_cc_optimize"; then
 fi
 if test "xyes" = "x$enable_fc_optimize"; then
   FCFLAGS="$FCFLAGS -O2"
+fi
+if test "xyes" = "x$enable_f77_optimize"; then
+  FFLAGS="$FFLAGS -O2"
 fi
 
   # Check for 32/64 bit.
