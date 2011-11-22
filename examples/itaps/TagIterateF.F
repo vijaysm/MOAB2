@@ -14,7 +14,7 @@ c declarations
       iBase_EntityHandle root_set
       iBase_EntityArrIterator iter
       iBase_TagHandle tagh
-      integer*8 rpents, ents, rpdata
+      IBASE_HANDLE_T rpents, ents, rpdata
       real*8 tag_data
       pointer (rpdata, tag_data(0:*))
       pointer (rpents, ents(0:*))

@@ -11,8 +11,8 @@ c Usage: FindConnect
 
 c declarations
       iMesh_Instance mesh
-      integer*8 ents
-      integer*8 rpverts, rpallverts, ipoffsets
+      iBase_EntityHandle  ents
+      IBASE_HANDLE_T rpverts, rpallverts, ipoffsets
       pointer (rpents, ents(0:*))
       pointer (rpverts, verts(0:*))
       pointer (rpallverts, allverts(0:*))
