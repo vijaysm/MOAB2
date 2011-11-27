@@ -1771,10 +1771,10 @@ ErrorCode ParallelComm::unpack_entities(unsigned char *&buff_ptr,
           // update sharing data and pstatus, adjusting order if iface
         result = update_remote_data(new_h, &ps[0], &hs[0], num_ps, 
                                     (is_iface ? PSTATUS_INTERFACE :
-                                     (created_here ? (created_iface ? 0 : PSTATUS_GHOST 
-                                                      | PSTATUS_NOT_OWNED) : 0)));
+                                     (created_here ? (created_iface ? PSTATUS_NOT_OWNED:
+                                                      PSTATUS_GHOST | PSTATUS_NOT_OWNED) : 0)));
         RRA("");
-
+        
           // need to send this new handle to all sharing procs
         if (!is_iface) {
           for (j = 0; j < num_ps; j++) {
@@ -5716,12 +5716,6 @@ ErrorCode ParallelComm::exchange_owned_meshs(std::vector<unsigned int>& exchange
     exchange_procs_sets.push_back(exchange_procs[i]);
   }
 
-  // check and clean incorrect shared tags
-  result = clean_shared_tags(exchange_ents);
-  RRA("Couldn't clean shared tags.");
-  result = clean_shared_tags(exchange_sets);
-  RRA("Couldn't clean shared tags.");
-
   // exchange entities first
   result = exchange_owned_mesh(exchange_procs, exchange_ents,
                                store_remote_handles, wait_all, migrate);
@@ -5734,52 +5728,26 @@ ErrorCode ParallelComm::exchange_owned_meshs(std::vector<unsigned int>& exchange
 
   for (int i = 0; i < n_proc; i++) delete exchange_sets[i];
 
-  // set shared information
-  Tag sharedp = sharedp_tag();
-  Tag sharedps = sharedps_tag();
-  Tag pstatus = pstatus_tag();
-  Range tagged_ents;
-  
-  // get shared proc tag entities and add shared pstatus
-  result = mbImpl->get_entities_by_type_and_tag(0, MBMAXTYPE, &sharedp, 0, 1,
-                                                tagged_ents);
-  RRA("Failed to get sharing proc tag in remote_handles.");
-  
-  std::vector<int> shared_procs(tagged_ents.size());
-  result = mbImpl->tag_get_data(sharedp, tagged_ents, &shared_procs[0]);
-  Range::iterator it = tagged_ents.begin();
-  Range::iterator eit = tagged_ents.end();
-  for (int i = 0; it != eit; it++, i++) {
-    unsigned char pstat;
-    pstat |= PSTATUS_SHARED;
-    result = mbImpl->tag_set_data(pstatus_tag(), &(*it), 1, &pstat);
-    RRA("Couldn't set pstatus tag.");
-    sharedEnts.push_back(*it);
+  // build up the list of shared entities
+  std::map<std::vector<int>, std::vector<EntityHandle> > proc_nvecs;
+  int procs[MAX_SHARING_PROCS];
+  EntityHandle handles[MAX_SHARING_PROCS];
+  int nprocs;
+  unsigned char pstat;
+  for (std::vector<EntityHandle>::iterator vit = sharedEnts.begin(); vit != sharedEnts.end(); vit++) {
+    if (mbImpl->dimension_from_handle(*vit) > 2)
+      continue;
+    result = get_sharing_data(*vit, procs, handles, pstat, nprocs);
+    RRA("");
+    std::sort(procs, procs+nprocs);
+    std::vector<int> tmp_procs(procs, procs + nprocs);
+    assert(tmp_procs.size() != 2);
+    proc_nvecs[tmp_procs].push_back(*vit);
   }
 
-  // get shared proc tag entities and add shared pstatus
-  tagged_ents.clear();
-  result = mbImpl->get_entities_by_type_and_tag(0, MBMAXTYPE, &sharedps, 0, 1,
-                                                tagged_ents);
-  RRA("Failed to get sharing proc tag in remote_handles.");
-
-  it = tagged_ents.begin();
-  eit = tagged_ents.end();
-  for (; it != eit; it++) {
-    unsigned char pstat;
-    int sharing_procs[MAX_SHARING_PROCS];
-    result = mbImpl->tag_get_data(sharedps_tag(), &(*it), 1, sharing_procs);
-    RRA("Failed to get sharing proc tag in remote_handles.");
-    
-    pstat |= PSTATUS_MULTISHARED;
-    if (sharing_procs[0] != (int)procConfig.proc_rank()) {
-      pstat |= PSTATUS_NOT_OWNED;
-    }
-    result = mbImpl->tag_set_data(pstatus_tag(), &(*it), 1, &pstat);
-    RRA("Couldn't set pstatus tag.");
-
-    sharedEnts.push_back(*it);
-  }
+  // create interface sets from shared entities
+  result = create_interface_sets(proc_nvecs, 3, 2);
+  RRA("Trouble creating iface sets.");
 
   return MB_SUCCESS;
 }
@@ -5805,10 +5773,6 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
   int ind, success;
   ErrorCode result = MB_SUCCESS;
   int incoming1 = 0, incoming2 = 0;
-
-  // clear all buffers
-  delete_all_buffers();
-  buffProcs.clear();
 
   // set buffProcs with communicating procs
   unsigned int n_proc = exchange_procs.size();
@@ -5840,7 +5804,8 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
   std::vector<MPI_Request> recv_ent_reqs(2*buffProcs.size(), MPI_REQUEST_NULL),
     recv_remoteh_reqs(2*buffProcs.size(), MPI_REQUEST_NULL);
   sendReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
-  for (ind = 0; ind < (int)buffProcs.size(); ind++) {
+  for (i = 0; i < n_proc; i++) {
+    ind = get_buffers(exchange_procs[i]);
     incoming1++;
     PRINT_DEBUG_IRECV(procConfig.proc_rank(), buffProcs[ind], 
                       remoteOwnedBuffs[ind]->mem_ptr, INITIAL_BUFF_SIZE, 
@@ -5894,12 +5859,13 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
   //===========================================
   // pack and send ents from this proc to others
   //===========================================
-  for (ind = 0; ind < (int)buffProcs.size(); ind++) {
-    myDebug->tprintf(1, "Sent ents compactness (size) = %f (%lu)\n", exchange_ents[ind]->compactness(),
-                     (unsigned long)exchange_ents[ind]->size());
+  for (i = 0; i < n_proc; i++) {
+    ind = get_buffers(exchange_procs[i]);
+    myDebug->tprintf(1, "Sent ents compactness (size) = %f (%lu)\n", exchange_ents[i]->compactness(),
+                     (unsigned long)exchange_ents[i]->size());
     // reserve space on front for size and for initial buff size
     localOwnedBuffs[ind]->reset_buffer(sizeof(int));
-    result = pack_buffer(*exchange_ents[ind], false, true,
+    result = pack_buffer(*exchange_ents[i], false, true,
                          store_remote_handles, buffProcs[ind],
                          localOwnedBuffs[ind], &entprocs, &allsent);
 
@@ -5909,7 +5875,7 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
     }
     
     // send the buffer (size stored in front in send_buffer)
-    result = send_buffer(exchange_procs[ind], localOwnedBuffs[ind], 
+    result = send_buffer(exchange_procs[i], localOwnedBuffs[ind], 
                          MB_MESG_ENTS_SIZE, sendReqs[2*ind], 
                          recv_ent_reqs[2*ind+1], &dum_ack_buff,
                          incoming1,
@@ -6032,7 +5998,8 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
   //===========================================
   // send local handles for new entity to owner
   //===========================================
-  for (ind = 0; ind < (int)buffProcs.size(); ind++) {
+  for (i = 0; i < n_proc; i++) {
+    ind = get_buffers(exchange_procs[i]);
     // reserve space on front for size and for initial buff size
     remoteOwnedBuffs[ind]->reset_buffer(sizeof(int));
     
