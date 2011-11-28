@@ -1,11 +1,10 @@
 #include <iostream>
 #include <map>
 #include "iGeom_MOAB.hpp"
-#include "iMesh.h"
-#include "moab/Interface.hpp"
 #include "moab/GeomTopoTool.hpp"
 #include "moab/OrientedBoxTreeTool.hpp"
 #include "moab/CartVect.hpp"
+#include "FileOptions.hpp"
 #include <stdlib.h>
 #include <cstring>
 #include <map>
@@ -13,347 +12,128 @@
 
 using namespace moab;
 
-bool i_created = false; // if interface is created
-bool t_created = false;
-Range _my_gsets[4];
-GeomTopoTool* _my_geomTopoTool = NULL;
+static int compare_no_case1(const char *str1, const char *str2, size_t n) {
+   for (size_t i = 1; i != n && *str1 && toupper(*str1) == toupper(*str2);
+        ++i, ++str1, ++str2);
+   return toupper(*str2) - toupper(*str1);
+}
+// Filter out non-MOAB options and remove the "moab:" prefix
+static std::string filter_options1(const char *begin, const char *end)
+{
+  const char *opt_begin = begin;
+  const char *opt_end   = begin;
+
+  std::string filtered;
+  bool first = true;
+
+  while (opt_end != end) {
+    opt_end = std::find(opt_begin, end, ' ');
+
+    if (opt_end-opt_begin >= 5 && compare_no_case1(opt_begin, "moab:", 5) == 0) {
+      if (!first)
+        filtered.push_back(';');
+      first = false;
+      filtered.append(opt_begin+5, opt_end);
+    }
+
+    opt_begin = opt_end+1;
+  }
+  return filtered;
+}
 
 bool debug_igeom = false;
 bool Debug_surf_eval = false;
-
-// smooth stuff
-bool _smooth;
-#include "SmoothFaceEval.hpp"
-#include "SmoothCurveEval.hpp"
-
-// these smooth faces and edges will be initialized after reading the file
-// the maps keep the link between EH in moab (geom sets) and
-//   their corresponding smooth counterparts
-std::map<EntityHandle, SmoothFaceEval*> _faces;
-std::map<EntityHandle, SmoothCurveEval*> _edges;
-SmoothFaceEval ** _smthFace = NULL;
-SmoothCurveEval ** _smthCurve = NULL;
 
 #define COPY_RANGE(r, vec) {                      \
     EntityHandle *tmp_ptr = reinterpret_cast<EntityHandle*>(vec);	\
     std::copy(r.begin(), r.end(), tmp_ptr);}
 
-static void
-iGeom_get_adjacent_entities(iGeom_Instance instance, const EntityHandle from,
-      const int to_dim, Range &adj_ents, int* err);
+#define TAG_HANDLE(tagh) reinterpret_cast<Tag>(tagh)
 
-double get_edge_length(double* p1, double* p2);
-
-// copied from CamalPaveDriver from MeshKit;
-// it is used to initialize the smoothing procedure
-
-bool initializeSmoothing(iGeom_Instance instance) {
-   //
-   // first of all, we need to retrieve all the surfaces from the (root) set
-   // in icesheet_test we use iGeom, but maybe that is a stretch
-   // get directly the sets with geom dim 2, and from there create the SmoothFaceEval
-   Tag geom_tag, gid_tag;
-   ErrorCode rval = MBI->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geom_tag);
-   rval = MBI->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER,
-       gid_tag, MB_TAG_DENSE|MB_TAG_CREAT );
-
-#if 0
-   // traverse the model, dimension 2, 1, 0
-   Range csets, fsets, vsets;
-   //std::vector<moab::EntityHandle> sense_ents;
-   //std::vector<int> senses, pgids;
-   int dim=2;
-   void *dim_ptr = &dim;
-   //bool sense;
-
-   moab::GeomTopoTool * my_geomTopoTool = new moab::GeomTopoTool(MBI);
-
-   rval = my_geomTopoTool->construct_obb_trees();
-   assert(MB_SUCCESS==rval);
-
-   fsets.clear();
-   rval = MBI->get_entities_by_type_and_tag(0, MBENTITYSET,
-         &geom_tag, &dim_ptr, 1,
-         fsets, 1, false);
-   int numSurfaces = fsets.size();
-#endif
-   int numSurfaces = _my_gsets[2].size();
-   //SmoothFaceEval ** smthFace = new SmoothFaceEval *[numSurfaces];
-   _smthFace = new SmoothFaceEval *[numSurfaces];
-   if (!t_created) {
-      GETGTT(instance);
-      rval = _my_geomTopoTool->construct_obb_trees();
-      if (rval != MB_SUCCESS)
-      { 
-         std::cout << "Failed to construct obb tree.\n";
-         return false;
-      }
-      t_created = true;
-   }
-   // there should also be a map from surfaces to evaluators
-   //std::map<MBEntityHandle, SmoothFaceEval*> mapSurfaces;
-
-   int i = 0;
-   Range::iterator it;
-   for (it = _my_gsets[2].begin(); it != _my_gsets[2].end(); it++, i++) {
-      EntityHandle face = *it;
-      _smthFace[i] = new SmoothFaceEval(MBI, face, _my_geomTopoTool);// geom topo tool will be used for searching,
-      // among other things; also for senses in edge sets...
-      _faces[face] = _smthFace[i];
-   }
-#if 0
-   csets.clear();
-   dim = 1; // get now the curves
-   rval = MBI->get_entities_by_type_and_tag(0, MBENTITYSET,
-         &geom_tag, &dim_ptr, 1,
-         csets, 1, false);
-#endif
-   int numCurves = _my_gsets[1].size();//csets.size();
-   //SmoothCurveEval ** smthCurve = new SmoothCurveEval *[numCurves];
-   _smthCurve = new SmoothCurveEval *[numCurves];
-   // there should also be a map from surfaces to evaluators
-   //std::map<MBEntityHandle, SmoothCurveEval*> mapCurves;
-
-   i = 0;
-   for (it = _my_gsets[1].begin(); it != _my_gsets[1].end(); it++, i++) {
-      EntityHandle curve = *it;
-      _smthCurve[i] = new SmoothCurveEval(MBI, curve);
-      _edges[curve] = _smthCurve[i];
-   }
-#if 0
-   // create another mapping for vertices (sets of dimension 0)
-   vsets.clear();
-   dim = 0; // get now the vertice sets (dimension 0)
-   rval = MBI->get_entities_by_type_and_tag(0, MBENTITYSET,
-         &geom_tag, &dim_ptr, 1,
-         vsets, 1, false);
-   int numGeoVertices = vsets.size();
-   //SmoothVertex ** smthVertex = new SmoothVertex *[numGeoVertices];
-   _smthVertex = new SmoothVertex *[numGeoVertices];
-   // there should also be a map from original vertex sets to new vertex sets (or just new vertex??)
-   //std::map<MBEntityHandle, SmoothVertex*> mapVertices;
-
-   i=0;
-   for ( it = vsets.begin(); it!=vsets.end(); it++, i++)
-   {
-      MBEntityHandle vertex= *it;
-      _smthVertex[i]= new SmoothVertex(MBI, vertex, _mbo);
-      _mapVertices[vertex] = _smthVertex[i];
-   }
-#endif
-   // _mb, mapSurfaces, mapCurves, mapVertices are characterizing the geometry/topology of the initial mesh
-
-   //SmoothFaceEval geom_eval(_mb, _set);
-   // initialize the smooth mesh evaluator
-   //
-   //geom_eval.Initialize(): it is decomposed in initializing first the gradients
-   for (i = 0; i < numSurfaces; i++) {
-      _smthFace[i]->init_gradient();// this will also retrieve the triangles in each surface
-      _smthFace[i]->compute_tangents_for_each_edge();// this one will consider all edges internal, so the
-      // tangents are all in the direction of the edge; a little bit of waste, as we store
-      // one tangent for each edge node , even though they are equal here...
-      // no loops are considered
-   }
-
-   // this will be used to mark boundary edges, so for them the control points are computed earlier
-   unsigned char value = 0; // default value is "not used"=0 for the tag
-   // unsigned char def_data_bit = 1;// valid by default
-   // rval = mb->tag_create("valid", 1, MB_TAG_BIT, validTag, &def_data_bit);
-   Tag markTag;
-   rval = MBI->tag_get_handle("MARKER", 1, MB_TYPE_BIT, markTag, MB_TAG_EXCL, &value); // default value : 0 = not computed yet
-   // each feature edge will need to have a way to retrieve at every moment the surfaces it belongs to
-   // from edge sets, using the sense tag, we can get faces, and from each face, using the map, we can get
-   // the SmoothFaceEval (surface evaluator), that has everything, including the normals!!!
-   assert(rval==MB_SUCCESS);
-
-   // create the tag also for control points on the edges
-   double defCtrlPoints[9] = { 0., 0., 0., 0., 0., 0., 0., 0., 0. };
-   Tag edgeCtrlTag;
-   rval = MBI->tag_get_handle("CONTROLEDGE", 9, MB_TYPE_DOUBLE,
-         edgeCtrlTag, MB_TAG_DENSE|MB_TAG_EXCL, &defCtrlPoints);
-   if (MB_SUCCESS != rval)
-      return false;
-
-   Tag facetCtrlTag;
-   double defControls[18] = { 0. };
-   rval = MBI->tag_get_handle("CONTROLFACE", 18, MB_TYPE_DOUBLE,
-         facetCtrlTag, MB_TAG_DENSE|MB_TAG_EXCL, &defControls);
-   assert(rval == MB_SUCCESS);
-
-   Tag facetEdgeCtrlTag;
-   double defControls2[27] = { 0. }; // corresponding to 9 control points on edges, in order from edge 0, 1, 2 ( 1-2, 2-0, 0-1 )
-   rval = MBI->tag_get_handle("CONTROLEDGEFACE", 27, MB_TYPE_DOUBLE,
-         facetEdgeCtrlTag, MB_TAG_DENSE|MB_TAG_EXCL, &defControls2);
-   assert(rval == MB_SUCCESS);
-   // if the
-   double min_dot = -1.0; // depends on _angle, but now we ignore it, for the time being
-   for (i = 0; i < numCurves; i++) {
-      _smthCurve[i]->compute_tangents_for_each_edge();// do we need surfaces now? or just the chains?
-      // the computed edges will be marked accordingly; later one, only internal edges to surfaces are left
-      _smthCurve[i]->compute_control_points_on_boundary_edges(min_dot, _faces,
-            edgeCtrlTag, markTag);
-   }
-
-   // when done with boundary edges, compute the control points on all edges in the surfaces
-
-   for (i = 0; i < numSurfaces; i++) {
-      // also pass the tags for
-      _smthFace[i]->compute_control_points_on_edges(min_dot, edgeCtrlTag,
-            markTag);
-   }
-
-   // now we should be able to compute the control points for the facets
-
-   for (i = 0; i < numSurfaces; i++) {
-      // also pass the tags for edge and facet control points
-      _smthFace[i]->compute_internal_control_points_on_facets(min_dot,
-            facetCtrlTag, facetEdgeCtrlTag);
-   }
-   // we will need to compute the tangents for all edges in the model
-   // they will be needed for control points for each edge
-   // the boundary edges and the feature edges are more complicated
-   // the boundary edges need to consider their loops, but feature edges need to consider loops and the normals
-   // on each connected surface
-
-   // some control points
-   if (Debug_surf_eval)
-      for (i = 0; i < numSurfaces; i++)
-         _smthFace[i]->DumpModelControlPoints();
-
-   return true;
-}
+#define COPY_DOUBLEVEC(r, vec) {                      \
+  double *tmp_ptr = reinterpret_cast<double*>(vec); \
+  std::copy(r.begin(), r.end(), tmp_ptr);}
 
 void iGeom_getDescription(iGeom_Instance instance, char* descr, int descr_len) {
-  iMesh_getDescription(reinterpret_cast<iMesh_Instance>(instance), descr,
-                       descr_len);
+  iMesh_getDescription( IMESH_INSTANCE(instance), descr, descr_len);
 }
 
 void iGeom_getErrorType(iGeom_Instance instance, /*out*/int *error_type) {
-  iMesh_getErrorType(reinterpret_cast<iMesh_Instance>(instance), error_type);
+  iMesh_getErrorType( IMESH_INSTANCE(instance), /*out*/error_type) ;
 }
 
 void iGeom_newGeom(char const* options, iGeom_Instance* instance_out, int* err,
       int options_len) {
-   // make a new imesh instance
-   iMesh_newMesh(options, reinterpret_cast<iMesh_Instance*> (instance_out),
-         err, options_len);
-   FWDERR();
 
-   i_created = true;
+  std::string tmp_options = filter_options1(options, options+options_len);
+  FileOptions opts(tmp_options.c_str());
+  // process some options?
 
-   *err = iBase_SUCCESS;
+  MBiGeom **mbigeom = reinterpret_cast<MBiGeom**> (instance_out);
+  *mbigeom = NULL;
+  *mbigeom = new MBiGeom();
+  *err = iBase_SUCCESS;
 }
 
 void iGeom_dtor(iGeom_Instance instance, int* err) {
-   if (i_created) {
-
-      // this was supposed to help, but it crashes, still
-      // we have some memory leaks if we do not delete the topo tool,
-      //   the smooth evaluators, etc
-
-      if (_smooth) {
-         _faces.clear();
-         _edges.clear();
-         int size1 = _my_gsets[1].size();
-         int i = 0;
-         for (i = 0; i < size1; i++)
-            delete _smthCurve[i];
-         delete[] _smthCurve;
-         _smthCurve = NULL;
-         size1 = _my_gsets[2].size();
-         for (i = 0; i < size1; i++)
-            delete _smthFace[i];
-         delete[] _smthFace;
-         _smthFace = NULL;
-         _smooth = false;
-      }
-
-      for (int j = 0; j < 4; j++)
-         _my_gsets[j].clear();
-      delete _my_geomTopoTool;
-      _my_geomTopoTool = NULL;
-
-      iMesh_dtor(IMESH_INSTANCE(instance), err);
-      FWDERR();
-   }
-
-   RETURN(iBase_SUCCESS);
+  delete FBE_cast(instance);
+  *err = iBase_SUCCESS;
 }
 
 void iGeom_load(iGeom_Instance instance, char const* name, char const* options,
-      int* err, int name_len, int options_len) {
-   // first remove option for smooth facetting
-   const char smth[] = "SMOOTH;";
-   const char * res = NULL;
+    int* err, int name_len, int options_len) {
+  // first remove option for smooth facetting
 
-   char * reducedOptions = NULL;
-   int reduced_len = options_len;
-   if (options)
-      res = strstr(options, smth);
-   if (res) {
-      // extract that option, will not be recognized by our moab/imesh
-      reducedOptions = new char[options_len - 6];
-      int preLen = (int) (res - options);
-      strncpy(reducedOptions, options, preLen);
-      int postLen = options_len - 7 - preLen;
+  const char smth[] = "SMOOTH;";
+  bool smooth = false;
+  const char * res = NULL;
 
-      char * tmp = reducedOptions + preLen;
+  char * reducedOptions = NULL;
+  int reduced_len = options_len;
+  if (options)
+    res = strstr(options, smth);
+  if (res) {
+    // extract that option, will not be recognized by our moab/imesh
+    reducedOptions = new char[options_len - 6];
+    int preLen = (int) (res - options);
+    strncpy(reducedOptions, options, preLen);
+    int postLen = options_len - 7 - preLen;
 
-      strncpy(tmp, res + 7, postLen);
-      reducedOptions[options_len - 7] = 0;
-      reduced_len = options_len - 7;
-      std::cout << reducedOptions << std::endl;
-      _smooth = true;
+    char * tmp = reducedOptions + preLen;
 
-   } else {
-      reducedOptions = const_cast<char *> (options);
-   }
-   // load mesh-based geometry
-   iMesh_load(IMESH_INSTANCE(instance), NULL, name, reducedOptions, err,
-         name_len, reduced_len);
-   FWDERR();
+    strncpy(tmp, res + 7, postLen);
+    reducedOptions[options_len - 7] = 0;
+    reduced_len = options_len - 7;
+    std::cout << reducedOptions << std::endl;
+    smooth = true;
 
-   // keep mesh-based geometries in Range
-   GETGTT(instance);
-   ErrorCode rval = _my_geomTopoTool->find_geomsets(_my_gsets);
-   CHKERR(rval, "Failure to keep geometry list.");
+  } else {
+    reducedOptions = const_cast<char *> (options);
+  }
+  // load mesh-based geometry
+  const EntityHandle* file_set = 0;
+  ErrorCode rval = MBI->load_file(name, file_set, reducedOptions);
+  CHKERR(rval, "can't load mesh file");
 
-   if (debug_igeom) {
-      iBase_EntityHandle *entities;
-      int entities_alloc, entities_size;
-      for (int i = 0; i < iMesh_ALL_TOPOLOGIES; i++) {
-         entities = NULL;
-         entities_alloc = 0;
-         iMesh_getEntities(IMESH_INSTANCE(instance), NULL, iBase_ALL_TYPES, i,
-               &entities, &entities_alloc, &entities_size, err);
-         FWDERR();
-         std::cout << "type_geom=" << i << ", number=" << entities_size
-               << std::endl;
-      }
+  FBEngine * fbe = FBE_cast(instance);
+  if (fbe == NULL) {
+    *err = iBase_FAILURE;
+    return;
+  }
+  GeomTopoTool * gtt = GETGTT(instance);
+  if (gtt == NULL) {
+    *err = iBase_FAILURE;
+    return;
+  }
+  // keep mesh-based geometries in Range
+  rval = gtt->find_geomsets();
+  CHKERR(rval, "Failure to find geometry lists.");
 
-      iBase_EntitySetHandle *esets = NULL;
-      int esets_alloc = 0, esets_size;
-      iMesh_getEntSets(IMESH_INSTANCE(instance), NULL, 1, &esets, &esets_alloc,
-            &esets_size, err);
-      FWDERR();
-      std::cout << "entity_geom set number=" << esets_size << std::endl;
+  if (smooth) fbe->set_smooth();// assumes that initialization did not happen yet
 
-      entities = NULL;
-      entities_alloc = 0;
-      iMesh_getEntities(IMESH_INSTANCE(instance),
-            reinterpret_cast<iBase_EntitySetHandle> (*(_my_gsets[0].begin())),
-            iBase_ALL_TYPES, 0, &entities, &entities_alloc, &entities_size, err);
-      FWDERR();
+  fbe->Init();// major computation
 
-      double x, y, z;
-      iMesh_getVtxCoord(IMESH_INSTANCE(instance), entities[0], &x, &y, &z, err);
-      std::cout << "vertex coords=" << x << ", " << y << ", " << z << std::endl;
-   }
-
-   if (_smooth)
-      initializeSmoothing(instance);
-
-   RETURN(iBase_SUCCESS);
+  RETURN(iBase_SUCCESS);
 }
 
 void iGeom_save(iGeom_Instance instance, char const* name, char const* options,
@@ -364,7 +144,11 @@ void iGeom_save(iGeom_Instance instance, char const* name, char const* options,
 
 void iGeom_getRootSet(iGeom_Instance instance, iBase_EntitySetHandle* root_set,
       int* err) {
-   iMesh_getRootSet(IMESH_INSTANCE(instance), root_set, err);
+  EntityHandle modelSet;
+  ErrorCode rval = FBE_cast(instance)->getRootSet(&modelSet);
+  CHKERR(rval,"can't get root set ");
+  *root_set =  (iBase_EntitySetHandle)modelSet;
+  RETURN(iBase_SUCCESS);
 }
 
 void iGeom_getBoundBox(iGeom_Instance instance, double* min_x, double* min_y,
@@ -376,24 +160,18 @@ void iGeom_getEntities(iGeom_Instance instance,
       iBase_EntitySetHandle set_handle, int entity_type,
       iBase_EntityHandle** entity_handles, int* entity_handles_allocated,
       int* entity_handles_size, int* err) {
-   int i;
+
    if (0 > entity_type || 4 < entity_type) {
       ERROR(iBase_INVALID_ENTITY_TYPE, "Bad entity type.");
-   } else if (entity_type < 4) {
-      *entity_handles_size = _my_gsets[entity_type].size();
-      CHECK_SIZE(*entity_handles, *entity_handles_allocated,
-            *entity_handles_size, iBase_EntityHandle, NULL);
-      COPY_RANGE(_my_gsets[entity_type], *entity_handles);
-   } else {
-      *entity_handles_size = 0;
-      Range total_range;
-      for (i = 0; i < 4; i++) {
-         total_range.merge(_my_gsets[i]);
-      }
-      *entity_handles_size = total_range.size();
-      CHECK_SIZE(*entity_handles, *entity_handles_allocated,
-            *entity_handles_size, iBase_EntityHandle, NULL);
-      COPY_RANGE(total_range, *entity_handles);
+   } else/* 0<= entity_type <= 4) */ {
+     Range gentities;
+     ErrorCode rval= FBE_cast(instance)->getEntities((EntityHandle)set_handle, entity_type, gentities);
+     CHKERR(rval,"can't get entities ");
+     *entity_handles_size = gentities.size();
+
+     CHECK_SIZE(*entity_handles, *entity_handles_allocated,
+          *entity_handles_size, iBase_EntityHandle, NULL);
+     COPY_RANGE(gentities, *entity_handles);
    }
 
    RETURN(iBase_SUCCESS);
@@ -404,21 +182,20 @@ void iGeom_getNumOfType(iGeom_Instance instance,
    if (0 > entity_type || 3 < entity_type) {
       ERROR(iBase_INVALID_ENTITY_TYPE, "Bad entity type.");
    }
-   *num_out = _my_gsets[entity_type].size();
+   ErrorCode rval = FBE_cast(instance)->getNumOfType((EntityHandle)set_handle, entity_type, num_out);
+   CHKERR(rval,"can't get number of type ");
 
    RETURN(iBase_SUCCESS);
 }
 
+
 void iGeom_getEntType(iGeom_Instance instance,
       iBase_EntityHandle entity_handle, int* type, int* err) {
-   for (int i = 0; i < 4; i++) {
-      if (_my_gsets[i].find(MBH_cast(entity_handle)) != _my_gsets[i].end()) {
-         *type = i;
-         RETURN(iBase_SUCCESS);
-      }
-   }
 
-   ERROR(iBase_INVALID_ENTITY_TYPE, "Entity not a geometry entity.");
+  ErrorCode rval = FBE_cast(instance)->getEntType((EntityHandle)entity_handle, type);
+  CHKERR(rval,"can't get entity type ");
+
+  RETURN(iBase_SUCCESS);
 }
 
 void iGeom_getArrType(iGeom_Instance instance,
@@ -444,9 +221,10 @@ void iGeom_getEntAdj(iGeom_Instance instance, iBase_EntityHandle entity_handle,
    Range adjs;
    EntityHandle this_ent = MBH_cast(entity_handle);
 
-   // get adjacent
-   iGeom_get_adjacent_entities(instance, this_ent, to_dimension, adjs, err);
-   CHKERR(*err, "Failed to get adjacent entities in iGeom_getEntAdj.");
+   ErrorCode rval = FBE_cast(instance)->getEntAdj(this_ent, to_dimension,
+       adjs);
+
+   CHKERR(rval, "Failed to get adjacent entities in iGeom_getEntAdj.");
 
    // copy adjacent entities
    *adj_entities_size = adjs.size();
@@ -457,6 +235,7 @@ void iGeom_getEntAdj(iGeom_Instance instance, iBase_EntityHandle entity_handle,
    RETURN(iBase_SUCCESS);
 }
 
+// I suspect this is wrong
 void iGeom_getArrAdj(iGeom_Instance instance,
       iBase_EntityHandle const* entity_handles, int entity_handles_size,
       int requested_entity_type, iBase_EntityHandle** adj_entity_handles,
@@ -471,10 +250,10 @@ void iGeom_getArrAdj(iGeom_Instance instance,
    for (int i = 0; i < entity_handles_size; ++i) {
       (*offset)[i] = total_range.size();
       temp_range.clear();
-      iGeom_get_adjacent_entities(instance, MBH_cast(entity_handles[i]),
-            requested_entity_type, temp_range, err);
-      CHKERR(*err, "Failed to get adjacent entities in iGeom_getArrAdj.");
-
+      ErrorCode rval = FBE_cast(instance)->getEntAdj( MBH_cast(entity_handles[i]),
+          requested_entity_type,
+          temp_range);
+      CHKERR(rval, "Failed to get adjacent entities in iGeom_getArrAdj.");
       total_range.merge(temp_range);
    }
    int nTot = total_range.size();
@@ -494,15 +273,18 @@ void iGeom_getEnt2ndAdj(iGeom_Instance instance,
       iBase_EntityHandle** adjacent_entities, int* adjacent_entities_allocated,
       int* adjacent_entities_size, int* err) {
    Range to_ents, bridge_ents, tmp_ents;
-   iGeom_get_adjacent_entities(instance, MBH_cast(entity_handle),
-         bridge_dimension, bridge_ents, err);
-   CHKERR(*err, "Failed to get adjacent entities in iGeom_getEnt2ndAdj.");
+   ErrorCode rval = FBE_cast(instance)->getEntAdj(MBH_cast(entity_handle), bridge_dimension,
+       bridge_ents);
+
+   CHKERR(rval, "Failed to get adjacent entities in iGeom_getEnt2ndAdj.");
 
    Range::iterator iter, jter, kter, end_jter;
    Range::iterator end_iter = bridge_ents.end();
    for (iter = bridge_ents.begin(); iter != end_iter; iter++) {
-      iGeom_get_adjacent_entities(instance, *iter, to_dimension, tmp_ents, err);
-      CHKERR(*err, "Failed to get adjacent entities in iGeom_getEnt2ndAdj.");
+     rval = FBE_cast(instance)->getEntAdj(*iter, to_dimension,
+         tmp_ents);
+
+      CHKERR(rval, "Failed to get adjacent entities in iGeom_getEnt2ndAdj.");
 
       for (jter = tmp_ents.begin(); jter != end_jter; jter++) {
          if (to_ents.find(*jter) == to_ents.end()) {
@@ -520,74 +302,28 @@ void iGeom_getEnt2ndAdj(iGeom_Instance instance,
    RETURN(iBase_SUCCESS);
 }
 
+
 void iGeom_getArr2ndAdj(iGeom_Instance instance,
       iBase_EntityHandle const* entity_handles, int entity_handles_size,
       int order_adjacent_key, int requested_entity_type,
       iBase_EntityHandle** adj_entity_handles,
       int* adj_entity_handles_allocated, int* adj_entity_handles_size,
       int** offset, int* offset_allocated, int* offset_size, int* err) {
-   CHECK_SIZE(*offset, *offset_allocated, entity_handles_size + 1, int, NULL);
-   Range bridge_range, temp_range, entity_range, total_range;
-
-   for (int i = 0; i < entity_handles_size; ++i) {
-      bridge_range.clear();
-      entity_range.clear();
-      iGeom_get_adjacent_entities(instance, MBH_cast(entity_handles[i]),
-            order_adjacent_key, bridge_range, err);
-      CHKERR(*err, "Failed to get adjacent entities in iGeom_getArr2ndAdj.");
-
-      Range::iterator iter, jter, end_jter;
-      Range::iterator end_iter = bridge_range.end();
-      for (iter = bridge_range.begin(); iter != end_iter; iter++) {
-         temp_range.clear();
-         iGeom_get_adjacent_entities(instance, *iter, requested_entity_type,
-               temp_range, err);
-         CHKERR(*err, "Failed to get adjacent entities in iGeom_getArr2ndAdj.");
-
-         for (jter = temp_range.begin(); jter != end_jter; jter++) {
-            if (entity_range.find(*jter) == entity_range.end()) {
-               entity_range.insert(*jter);
-            }
-         }
-      }
-
-      (*offset)[i] = total_range.size();
-      total_range.merge(entity_range);
-   }
-   *adj_entity_handles_size = total_range.size();
-   (*offset)[entity_handles_size] = *adj_entity_handles_size;
-
-   CHECK_SIZE(*adj_entity_handles, *adj_entity_handles_allocated,
-         *adj_entity_handles_size, iBase_EntityHandle, NULL);
-   COPY_RANGE(total_range, *adj_entity_handles);
-
-   RETURN(iBase_SUCCESS);
+   // not implemented
+// who would need this monster, anyway?
+   RETURN(iBase_FAILURE);
 }
 
 void iGeom_isEntAdj(iGeom_Instance instance, iBase_EntityHandle entity_handle1,
       iBase_EntityHandle entity_handle2, int* are_adjacent, int* err) {
-   int type1, type2;
-   iGeom_getEntType(instance, entity_handle1, &type1, err);
-   FWDERR();
-   iGeom_getEntType(instance, entity_handle2, &type2, err);
-   FWDERR();
 
-   ErrorCode rval;
-   Range adjs;
-   if (type1 < type2) {
-      rval = MBI->get_parent_meshsets(MBH_cast(entity_handle1), adjs, type2
-            - type1);
-      CHKERR(rval, "Failed to get parent meshsets in iGeom_isEntAdj.");
-   } else {
-      rval = MBI->get_child_meshsets(MBH_cast(entity_handle1), adjs, type2
-            - type1);
-      CHKERR(rval, "Failed to get child meshsets in iGeom_isEntAdj.");
-   }
+  bool adjacent_out;
+  ErrorCode rval = FBE_cast(instance)->isEntAdj(MBH_cast(entity_handle1), MBH_cast(entity_handle2),
+     adjacent_out);
+  CHKERR(rval, "Failed to get adjacent info");
+  *are_adjacent = (int)adjacent_out; // 0 or 1, really
 
-   *are_adjacent = adjs.find(MBH_cast(entity_handle2))
-         != _my_gsets[type2].end();
-
-   RETURN(iBase_SUCCESS);
+  RETURN(iBase_SUCCESS);
 }
 
 void iGeom_isArrAdj(iGeom_Instance instance,
@@ -635,55 +371,14 @@ void iGeom_isArrAdj(iGeom_Instance instance,
 void iGeom_getEntClosestPt(iGeom_Instance instance,
       iBase_EntityHandle entity_handle, double near_x, double near_y,
       double near_z, double* on_x, double* on_y, double* on_z, int* err) {
-   ErrorCode rval;
-   int type;
-   iGeom_getEntType(instance, entity_handle, &type, err);
-   FWDERR();
 
-   if (type == 0) {
-      iGeom_getVtxCoord(instance, entity_handle, on_x, on_y, on_z, err);
-      FWDERR();
-   } else if (type == 1) {
-      // just copy over the coordinates
-      // should be modified
-      *on_x = near_x;
-      *on_y = near_y;
-      *on_z = near_z;
-   } else if (type == 2 || type == 3) {
-      if (!t_created) {
-         GETGTT(instance);
-         rval = _my_geomTopoTool->construct_obb_trees();
-         CHKERR(rval, "Failed to construct obb tree.");
-         t_created = true;
-      }
-
-      double point[3] = { near_x, near_y, near_z };
-      double point_out[3];
-      EntityHandle root, facet_out;
-      if (_smooth && 2 == type) {
-         EntityHandle geoSet = MBH_cast(entity_handle);
-         SmoothFaceEval* smthFace = _faces[geoSet];
-         *on_x = near_x;
-         *on_y = near_y;
-         *on_z = near_z;
-         smthFace->move_to_surface(*on_x, *on_y, *on_z);
-
-      } else {
-         rval = _my_geomTopoTool->get_root(MBH_cast(entity_handle), root);
-         CHKERR(rval, "Failed to get tree root in iGeom_getEntClosestPt.");
-         rval = _my_geomTopoTool->obb_tree()->closest_to_location(point, root,
-               point_out, facet_out);
-         CHKERR(rval, "Failed to get closest point in iGeom_getEntClosestPt.");
-
-         *on_x = point_out[0];
-         *on_y = point_out[1];
-         *on_z = point_out[2];
-      }
-   } else
-      RETURN(iBase_INVALID_ENTITY_TYPE);
+   ErrorCode rval = FBE_cast(instance)->getEntClosestPt(MBH_cast(entity_handle), near_x,
+        near_y, near_z, on_x, on_y, on_z);
+   CHKERR(rval, "Failed to get closest point");
 
    RETURN(iBase_SUCCESS);
 }
+
 
 void iGeom_getArrClosestPt(iGeom_Instance instance,
       iBase_EntityHandle const* entity_handles, int entity_handles_size,
@@ -714,54 +409,11 @@ void iGeom_getArrClosestPt(iGeom_Instance instance,
 void iGeom_getEntNrmlXYZ(iGeom_Instance instance,
       iBase_EntityHandle entity_handle, double x, double y, double z,
       double* nrml_i, double* nrml_j, double* nrml_k, int* err) {
-   // just do for surface and volume
-   int type;
-   iGeom_getEntType(instance, entity_handle, &type, err);
-   FWDERR();
 
-   if (type != 2 && type != 3) {
-      ERROR(iBase_INVALID_ENTITY_TYPE,
-            "Entities passed into gentityNormal must be face or volume.");
-   }
-
-   if (_smooth && 2 == type) {
-      EntityHandle geoSet = MBH_cast(entity_handle);
-      SmoothFaceEval* smthFace = _faces[geoSet];
-      //*on_x = near_x; *on_y = near_y; *on_z = near_z;
-      smthFace-> normal_at(x, y, z, *nrml_i, *nrml_j, *nrml_k);
-
-   } else {
-      // get closest location and facet
-      double point[3] = { x, y, z };
-      double point_out[3];
-      EntityHandle root, facet_out;
-      _my_geomTopoTool->get_root(MBH_cast(entity_handle), root);
-      ErrorCode rval = _my_geomTopoTool->obb_tree()->closest_to_location(point,
-            root, point_out, facet_out);
-      CHKERR(rval, "Failed to get closest location in iGeom_getEntNrmlXYZ.");
-
-      // get facet normal
-      const EntityHandle* conn;
-      int len;
-      CartVect coords[3], normal;
-      rval = MBI->get_connectivity(facet_out, conn, len);
-      CHKERR(rval, "Failed to get triangle connectivity in iGeom_getEntNrmlXYZ.");
-      if (len != 3)
-         RETURN(iBase_FAILURE);
-
-      rval = MBI->get_coords(conn, len, coords[0].array());
-      CHKERR(rval, "Failed to get triangle coordinates in iGeom_getEntNrmlXYZ.");
-
-      coords[1] -= coords[0];
-      coords[2] -= coords[0];
-      normal = coords[1] * coords[2];
-      normal.normalize();
-      *nrml_i = normal[0];
-      *nrml_j = normal[1];
-      *nrml_k = normal[2];
-   }
-   *err = 0;
-   RETURN(iBase_SUCCESS);
+  ErrorCode rval = FBE_cast(instance)->getEntNrmlXYZ(MBH_cast(entity_handle),  x,
+       y,  z,   nrml_i,  nrml_j,  nrml_k);
+  CHKERR(rval, "Failed to get normal");
+  RETURN(iBase_SUCCESS);
 }
 
 void iGeom_getArrNrmlXYZ(iGeom_Instance instance,
@@ -846,39 +498,15 @@ void iGeom_getEntNrmlPlXYZ(iGeom_Instance instance,
              "Entities passed into gentityNormal must be face or volume.");
    }
 
-   // get closest location and facet
-   double point[3] = { x, y, z };
-   double point_out[3];
-   EntityHandle root, facet_out;
-   _my_geomTopoTool->get_root(MBH_cast(entity_handle), root);
-   ErrorCode rval = _my_geomTopoTool->obb_tree()->closest_to_location(point,
-         root, point_out, facet_out);
-   CHKERR(rval, "Failed to get closest location in iGeom_getEntNrmlPlXYZ.");
+   // do 2 searches, so it is not fast enough
+   iGeom_getEntClosestPt(instance,
+          entity_handle, x, y, z,  pt_x, pt_y, pt_z,  err);
 
-   // get closest point
-   *pt_x = point_out[0];
-   *pt_y = point_out[1];
-   *pt_z = point_out[2];
-
-   // get facet normal
-   const EntityHandle* conn;
-   int len;
-   CartVect coords[3], normal;
-   rval = MBI->get_connectivity(facet_out, conn, len);
-   CHKERR(rval, "Failed to get triangle connectivity in iGeom_getEntNrmlPlXYZ.");
-   if (len != 3)
-      RETURN(iBase_FAILURE);
-
-   rval = MBI->get_coords(conn, len, coords[0].array());
-   CHKERR(rval, "Failed to get triangle coordinates in iGeom_getEntNrmlPlXYZ.");
-
-   coords[1] -= coords[0];
-   coords[2] -= coords[0];
-   normal = coords[1] * coords[2];
-   normal.normalize();
-   *nrml_i = normal[0];
-   *nrml_j = normal[1];
-   *nrml_k = normal[2];
+   FWDERR();
+   iGeom_getEntNrmlXYZ(instance,
+         entity_handle, *pt_x, *pt_y, *pt_z,
+          nrml_i,   nrml_j,  nrml_k,   err);
+   FWDERR();
 
    RETURN(iBase_SUCCESS);
 }
@@ -998,23 +626,21 @@ void iGeom_getEntBoundBox(iGeom_Instance instance,
       max_y = min_y;
       max_z = min_z;
    } else if (type == 1) {
+     // it could be relatively easy to support
       *err = iBase_NOT_SUPPORTED;
       FWDERR();
    } else if (type == 2 || type == 3) {
-      if (!t_created) {
-         GETGTT(instance);
-         rval = _my_geomTopoTool->construct_obb_trees();
-         CHKERR(rval, "Failed to construct obb tree.");
-         t_created = true;
-      }
 
       EntityHandle root;
       CartVect center, axis[3];
-      rval = _my_geomTopoTool->get_root(MBH_cast(entity_handle), root);
+      GeomTopoTool * gtt = GETGTT(instance);
+      if (!gtt)
+        ERROR(iBase_FAILURE, "Can't get geom topo tool.");
+      rval = gtt->get_root(MBH_cast(entity_handle), root);
       CHKERR(rval, "Failed to get tree root in iGeom_getEntBoundBox.");
-      rval = _my_geomTopoTool->obb_tree()->box(root, center.array(),
+      rval = gtt->obb_tree()->box(root, center.array(),
             axis[0].array(), axis[1].array(), axis[2].array());
-      CHKERR(rval, "Failed to get closest point in iGeom_getEntBoundBox.");
+      CHKERR(rval, "Failed to get box from obb tree.");
 
       CartVect absv[3];
       for (int i=0; i<3; i++)
@@ -1080,28 +706,8 @@ void iGeom_getArrBoundBox(iGeom_Instance instance,
 void iGeom_getVtxCoord(iGeom_Instance instance,
       iBase_EntityHandle vertex_handle, double* x, double* y, double* z,
       int* err) {
-   int type;
-   iGeom_getEntType(instance, vertex_handle, &type, err);
-   FWDERR();
-
-   if (type != 0) {
-      ERROR(iBase_INVALID_ENTITY_TYPE, "Entity is not a vertex type.");
-   }
-
-   iBase_EntityHandle *verts = NULL;
-   int verts_alloc = 0, verts_size;
-   iMesh_getEntities(IMESH_INSTANCE(instance),
-         reinterpret_cast<iBase_EntitySetHandle> (vertex_handle),
-         iBase_ALL_TYPES, iMesh_POINT, &verts, &verts_alloc, &verts_size, err);
-   FWDERR();
-
-   if (verts_size != 1) {
-      ERROR(iBase_FAILURE, "Vertex has multiple points.");
-   }
-
-   iMesh_getVtxCoord(IMESH_INSTANCE(instance), verts[0], x, y, z, err);
-   FWDERR();
-
+   ErrorCode rval = FBE_cast(instance)->getVtxCoord(MBH_cast(vertex_handle), x, y, z);
+   CHKERR(rval, "Failed to vertex position");
    RETURN(iBase_SUCCESS);
 }
 
@@ -1147,115 +753,40 @@ void iGeom_getPntRayIntsct(iGeom_Instance instance, double x, double y, double z
    // this is pretty cool
    // we will return only surfaces
    //
-   ErrorCode rval;
-   if (!t_created) {
-      GETGTT(instance);
-      ErrorCode rval = _my_geomTopoTool->construct_obb_trees();
-      CHKERR(rval, "Failed to construct obb tree.");
-      t_created = true;
-   }
-   // OrientedBoxTreeTool
-   // rval = _my_geomTopoTool->obb_tree()->closest_to_location??
- /*  ray_intersect_sets( std::vector<double>& distances_out,
-   std::vector<EntityHandle>& sets_out,
-   std::vector<EntityHandle>& facets_out,
-   EntityHandle root_set,
-   double tolerance,
-   unsigned min_tolerace_intersections,
-   const double ray_point[3],
-   const double unit_ray_dir[3],
-   const double* ray_length = 0,
-   TrvStats* accum = 0 );*/
-   //ErrorCode rval =  _my_geomTopoTool->obb_tree()->
+  // storage order is ignored
+  std::vector<EntityHandle> intersect_handles;
+  std::vector<double> coords;
+  std::vector<double> params;
+  ErrorCode rval = FBE_cast(instance)->getPntRayIntsct(x, y, z, dir_x,
+       dir_y, dir_z,intersect_handles, coords, params);
+  CHKERR(rval,"can't get ray intersections ");
+  *intersect_entity_handles_size = (int)intersect_handles.size();
 
-   // loop through all faces
-   // some tolerances need to be set in advance...
-   int numfaces = _my_gsets[2].size();
-   // do ray fire
-   const double point[] = {x, y, z};
-   const double dir[] = {dir_x, dir_y, dir_z};
-   CartVect P(point);
-   CartVect V(dir);
-   unsigned min_tolerace_intersections = 1000;
-   double tolerance =0.01; // TODO: how is this used ????
-   std::vector<double> distances;
-   std::vector<EntityHandle> facets;
-   std::vector<EntityHandle> sets;
-   int i;
-   for (i=0; i<numfaces; i++)
-   {
-      EntityHandle face = _my_gsets[2][i];
-      EntityHandle rootForFace ;
-      rval = _my_geomTopoTool->get_root(face, rootForFace) ;
-      CHKERR(rval, "Failed to get root of face.");
-      std::vector<double> distances_out;
-      std::vector<EntityHandle> sets_out;
-      std::vector<EntityHandle> facets_out;
-      rval = _my_geomTopoTool->obb_tree()-> ray_intersect_sets(
-          distances_out,
-          sets_out,
-          facets_out,
-          rootForFace,
-          tolerance,
-          min_tolerace_intersections,
-          point,
-          dir);
-      unsigned int j;
-      for (j=0; j<distances_out.size(); j++)
-         distances.push_back(distances_out[j]);
-      for (j=0; j<sets_out.size(); j++)
-         sets.push_back(sets_out[j]);
-      for (j=0; j<facets_out.size(); j++)
-         facets.push_back(facets_out[j]);
+  CHECK_SIZE(*intersect_entity_handles, *intersect_entity_handles_allocated,
+      *intersect_entity_handles_size, iBase_EntityHandle, NULL);
+  *intersect_coords_size = 3*(int)intersect_handles.size();
+  CHECK_SIZE(*intersect_coords, *intersect_coords_allocated,
+      *intersect_coords_size, double, NULL);
+  *param_coords_size=(int)intersect_handles.size();
+  CHECK_SIZE(*param_coords, *param_coords_allocated,
+      *param_coords_size, double, NULL);
 
-      CHKERR(rval, "Failed to get ray intersections.");
-   }
-   // we will say that those lists are the same size, always
-   *param_coords_allocated = *param_coords_size = distances.size();
-   *param_coords = (double*)malloc((*param_coords_size)*sizeof(double));
+  COPY_RANGE(intersect_handles, *intersect_entity_handles);
 
-   *intersect_coords_allocated = *intersect_coords_size = 3 * distances.size();
-   *intersect_coords = (double*)malloc((*intersect_coords_size)*sizeof(double));
+  COPY_DOUBLEVEC(params, *param_coords);
+  if (storage_order == iBase_BLOCKED) {
+    int sz=(int)intersect_handles.size();
+    for (int i=0; i<sz; i++)
+    {
+      *intersect_coords[i]=coords[3*i];
+      *intersect_coords[sz+i]=coords[3*i+1];
+      *intersect_coords[2*sz+i]=coords[3*i+2];
+    }
+  } else {
+    COPY_DOUBLEVEC(coords, *intersect_coords);
+  }
 
-   *intersect_entity_handles_allocated = *intersect_entity_handles_size = sets.size();
-   *intersect_entity_handles = (iBase_EntityHandle*)malloc((*intersect_entity_handles_size)*sizeof(iBase_EntityHandle));
-
-   // facets.size == distances.size()!!
-   for (i=0; i<*param_coords_allocated; i++ )
-   {
-      (*param_coords)[i] = distances[i];
-      CartVect intx = P+distances[i]*V;
-      for (int j=0; j<3; j++)
-         (*intersect_coords)[3*i+j] = intx[j];
-      (*intersect_entity_handles)[i] = (iBase_EntityHandle)sets[i];
-   }
-   if (_smooth)
-   {
-      // correct the intersection point and the distance for smooth surfaces
-      for (i=0; i<sets.size(); i++)
-      {
-         //EntityHandle geoSet = MBH_cast(sets[i]);
-         SmoothFaceEval* sFace = _faces[sets[i]];
-         // correct coordinates and distance from point
-         /*moab::ErrorCode ray_intersection_correct(moab::EntityHandle facet, // (IN) the facet where the patch is defined
-                  moab::CartVect &pt, // (IN) shoot from
-                  moab::CartVect &ray, // (IN) ray direction
-                  moab::CartVect &eval_pt, // (INOUT) The intersection point
-                  double & distance, // (IN OUT) the new distance
-                  bool &outside);*/
-         CartVect pos(&(*intersect_coords)[3*i]);
-         double dist = (*param_coords)[i];
-         bool outside = false;
-         rval = sFace->ray_intersection_correct(facets[i],
-               P, V, pos, dist, outside);
-         CHKERR(rval, "Failed to get better point on ray.");
-         (*param_coords)[i] = dist;
-
-         for (int j=0; j<3; j++)
-            (*intersect_coords)[3*i+j] = pos[j];
-      }
-   }
-   RETURN(iBase_SUCCESS);;
+   RETURN(iBase_SUCCESS);
 }
 
 void iGeom_getPntArrRayIntsct(iGeom_Instance, int storage_order,
@@ -1267,7 +798,9 @@ void iGeom_getPntArrRayIntsct(iGeom_Instance, int storage_order,
       int* intersect_coords_allocated, int* intersect_coords_size,
       double** param_coords, int* param_coords_allocated,
       int* param_coords_size, int* err) {
+  // not implemented
 }
+
 void iGeom_getEntNrmlSense(iGeom_Instance, iBase_EntityHandle face,
       iBase_EntityHandle region, int* sense_out, int* err) {
 }
@@ -1291,23 +824,11 @@ void iGeom_getEgFcSense(iGeom_Instance instance, iBase_EntityHandle edge,
    // this one is important, for establishing the orientation of the edges in faces
    // bummer, I "thought" it is already implemented
    // use senses
-   GETGTT(instance);
-   std::vector<EntityHandle> faces;
-   std::vector<int> senses; // 0 is forward and 1 is backward
-   ErrorCode rval = _my_geomTopoTool->get_senses( MBH_cast(edge), faces, senses);
-   CHKERR(rval, "Failed to get edge senses in iGeom_getEgFcSense.");
-   //
-   EntityHandle mbface = MBH_cast(face);
-   for (unsigned int i = 0; i < faces.size(); i++)
-    {
-      if (faces[i] == mbface)
-      {
-        *sense_out = senses[i];
-        RETURN(iBase_SUCCESS);
-      }
-    }
-   *err = iBase_FAILURE;
-   return;
+  ErrorCode rval = FBE_cast(instance)->getEgFcSense(MBH_cast(edge), MBH_cast (face),
+     *sense_out);
+
+  CHKERR(rval, "Failed to get edge senses in iGeom_getEgFcSense.");
+  RETURN(iBase_SUCCESS);
 
 }
 void iGeom_getEgFcArrSense(iGeom_Instance,
@@ -1315,68 +836,15 @@ void iGeom_getEgFcArrSense(iGeom_Instance,
       iBase_EntityHandle const* face_handles, int face_handles_size,
       int** sense, int* sense_allocated, int* sense_size, int* err) {
 }
+
 void iGeom_getEgVtxSense(iGeom_Instance instance, iBase_EntityHandle edge,
       iBase_EntityHandle vertex1, iBase_EntityHandle vertex2, int* sense_out,
       int* err) {
-   // need to decide first or second vertex
-   // important for moab
-   iBase_EntityHandle *verts1 = NULL;
-   int verts_alloc1 = 0, verts_size1;
-   iMesh_getEntities(IMESH_INSTANCE(instance),
-         reinterpret_cast<iBase_EntitySetHandle> (vertex1),
-         iBase_ALL_TYPES, iMesh_POINT, &verts1, &verts_alloc1, &verts_size1, err);
-   FWDERR();
 
-   if (verts_size1 != 1) {
-      ERROR(iBase_FAILURE, "Vertex has multiple points.");
-   }
-   iBase_EntityHandle *verts2 = NULL;
-   int verts_alloc2 = 0, verts_size2;
-   iMesh_getEntities(IMESH_INSTANCE(instance),
-         reinterpret_cast<iBase_EntitySetHandle> (vertex2),
-         iBase_ALL_TYPES, iMesh_POINT, &verts2, &verts_alloc2, &verts_size2, err);
-   FWDERR();
-
-   if (verts_size2 != 1) {
-      ERROR(iBase_FAILURE, "Vertex has multiple points.");
-   }
-   // now get the edges, and get the first node and the last node in sequence of edges
-   // the order is important...
-   iBase_EntityHandle *medges = NULL;
-   int medges_alloc = 0, medges_size;
-   iMesh_getEntities(IMESH_INSTANCE(instance),
-         reinterpret_cast<iBase_EntitySetHandle> (edge),
-         iBase_ALL_TYPES, iMesh_LINE_SEGMENT, &medges, &medges_alloc, &medges_size, err);
-   FWDERR();
-   // get the first node and the last node, then compare with verts1[0] and verts2[0]
-
-   const EntityHandle* conn;
-   int len;
-   EntityHandle startNode, endNode;
-   ErrorCode rval = MBI->get_connectivity(MBH_cast(medges[0]), conn, len);
-   CHKERR(rval, "Failed to get edge connectivity in iGeom_getEgVtxSense.");
-   startNode = conn[0];
-   rval = MBI->get_connectivity(MBH_cast(medges[medges_size-1]), conn, len);
-   CHKERR(rval, "Failed to get edge connectivity in iGeom_getEgVtxSense.");
-   endNode = conn[1];
-   if (startNode == endNode && MBH_cast(verts1[0])==startNode)
-   {
-      * sense_out = 0; // periodic
-   }
-   if (startNode == MBH_cast(verts1[0]) && endNode == MBH_cast(verts2[0]) )
-   {
-      * sense_out = 1; // forward
-   }
-   if (startNode == MBH_cast(verts2[0]) && endNode == MBH_cast(verts1[0]) )
-   {
-      * sense_out = -1; // reverse
-   }
-
-   free (medges);
-   free(verts1);
-   free(verts2);
-
-   RETURN(iBase_SUCCESS);
+  ErrorCode rval = FBE_cast(instance)->getEgVtxSense(MBH_cast(edge), MBH_cast(vertex1),
+      MBH_cast(vertex2), *sense_out);
+  CHKERR(rval, "Failed to get vertex sense wrt edge in iGeom_getEgVtxSense");
+  RETURN(iBase_SUCCESS);
 }
 void iGeom_getEgVtxArrSense(iGeom_Instance,
       iBase_EntityHandle const* edge_handles, int edge_handles_size,
@@ -1384,232 +852,73 @@ void iGeom_getEgVtxArrSense(iGeom_Instance,
       iBase_EntityHandle const* vertex_handles_2, int vertex_handles_2_size,
       int** sense, int* sense_allocated, int* sense_size, int* err) {
 }
+
 void iGeom_measure(iGeom_Instance instance,
       iBase_EntityHandle const* entity_handles, int entity_handles_size,
       double** measures, int* measures_allocated, int* measures_size, int* err) {
-   CHECK_SIZE(*measures, *measures_allocated, entity_handles_size, double, NULL);
-   for (int i = 0; i < entity_handles_size; i++) {
-      (*measures)[i] = 0.;
 
-      int type;
-      iGeom_getEntType(instance, entity_handles[i], &type, err);
-      FWDERR();
-
-      if (type == 1) { // edge
-         iBase_EntityHandle *edges = NULL;
-         int edges_alloc = 0, edges_size;
-         iMesh_getEntities(IMESH_INSTANCE(instance),
-               reinterpret_cast<iBase_EntitySetHandle> (entity_handles[i]),
-               iBase_ALL_TYPES, iMesh_LINE_SEGMENT, &edges, &edges_alloc,
-               &edges_size, err);
-         FWDERR();
-
-         iBase_EntityHandle *adj = NULL;
-         int adj_alloc = 0, adj_size;
-         int* offset = NULL;
-         int offset_alloc, offset_size;
-         iMesh_getEntArrAdj(IMESH_INSTANCE(instance), edges, edges_size,
-               iBase_VERTEX, &adj, &adj_alloc, &adj_size, &offset,
-               &offset_alloc, &offset_size, err);
-         FWDERR();
-
-         for (int j = 0; j < edges_size; j++) {
-            double p1[3], p2[3];
-            iMesh_getVtxCoord(IMESH_INSTANCE(instance), adj[offset[j]], &p1[0],
-                  &p1[1], &p1[2], err);
-            FWDERR();
-            iMesh_getVtxCoord(IMESH_INSTANCE(instance), adj[offset[j] + 1],
-                  &p2[0], &p2[1], &p2[2], err);
-            FWDERR();
-            (*measures)[i] += get_edge_length(p1, p2);
-         }
-      }
-      if (type == 2) { // surface
-         // get triangles in surface
-         iBase_EntityHandle *tris = NULL;
-         int tris_alloc = 0, tris_size;
-         iMesh_getEntities(IMESH_INSTANCE(instance),
-               reinterpret_cast<iBase_EntitySetHandle> (entity_handles[i]),
-               iBase_ALL_TYPES, iMesh_TRIANGLE, &tris, &tris_alloc, &tris_size,
-               err);
-         FWDERR();
-
-         iBase_EntityHandle *adj = NULL;
-         int adj_alloc = 0, adj_size;
-         int* offset = NULL;
-         int offset_alloc, offset_size;
-         iMesh_getEntArrAdj(IMESH_INSTANCE(instance), tris, tris_size,
-               iBase_VERTEX, &adj, &adj_alloc, &adj_size, &offset,
-               &offset_alloc, &offset_size, err);
-         FWDERR();
-
-         // calculate sum of area of triangles
-         double* p;
-         CartVect coords[3];
-         for (int j = 0; j < tris_size; j++) {
-            for (int k = 0; k < 3; k++) {
-               p = coords[k].array();
-               iMesh_getVtxCoord(IMESH_INSTANCE(instance), adj[offset[j] + k],
-                     p, p + 1, p + 2, err);
-               FWDERR();
-            }
-            coords[1] -= coords[0];
-            coords[2] -= coords[0];
-            coords[0] = coords[1] * coords[2];
-            (*measures)[i] += coords[0].length();
-         }
-         (*measures)[i] *= .5;
-      }
-   }
-
-   RETURN(iBase_SUCCESS);
+  CHECK_SIZE(*measures, *measures_allocated, entity_handles_size, double, NULL);
+  ErrorCode rval = FBE_cast(instance)->measure((EntityHandle *) (entity_handles) ,
+      entity_handles_size,  *measures);
+  CHKERR(rval, "Failed to get measures");
+  RETURN(iBase_SUCCESS);
 }
 
 void iGeom_getFaceType(iGeom_Instance, iBase_EntityHandle face_handle,
       char* face_type, int* err, int* face_type_length) {
 }
-void iGeom_getParametric(iGeom_Instance, int* is_parametric, int* err) {
+void iGeom_getParametric(iGeom_Instance instance, int* is_parametric, int* err) {
+  *is_parametric = 0; //(false)
+  RETURN(iBase_SUCCESS);
 }
-void iGeom_isEntParametric(iGeom_Instance, iBase_EntityHandle entity_handle,
+void iGeom_isEntParametric(iGeom_Instance instance, iBase_EntityHandle entity_handle,
       int* parametric, int* err) {
+  int type = -1;
+  iGeom_getEntType(instance, entity_handle, &type, err);
+  if (type==1)
+    *parametric = 1;// true
+  else
+    *parametric = 0; // false
+  RETURN(iBase_SUCCESS);
 }
 void iGeom_isArrParametric(iGeom_Instance,
       iBase_EntityHandle const* entity_handles, int entity_handles_size,
       int** is_parametric, int* is_parametric_allocated,
       int* is_parametric_size, int* err) {
+  // not implemented
 }
-void iGeom_getEntUVtoXYZ(iGeom_Instance, iBase_EntityHandle entity_handle,
+void iGeom_getEntUVtoXYZ(iGeom_Instance instance, iBase_EntityHandle entity_handle,
       double u, double v, double* x, double* y, double* z, int* err) {
+  RETURN(iBase_NOT_SUPPORTED);
 }
-void iGeom_getArrUVtoXYZ(iGeom_Instance,
+void iGeom_getArrUVtoXYZ(iGeom_Instance ,
       iBase_EntityHandle const* entity_handles, int entity_handles_size,
       int storage_order, double const* uv, int uv_size, double** coordinates,
       int* coordinates_allocated, int* coordinates_size, int* err) {
 }
 
+
 void iGeom_getEntUtoXYZ(iGeom_Instance instance,
       iBase_EntityHandle entity_handle, double u, double* x, double* y,
       double* z, int* err) {
-   int type, i, j;
-   double tot_length = 0., old_length;
+   int type ;
    iGeom_getEntType(instance, entity_handle, &type, err);
    FWDERR();
 
-   if (type == 1) { // edge
-      if (_smooth)
-      {
-         // first, find the edge
-         EntityHandle geoSet = MBH_cast(entity_handle);
-         SmoothCurveEval* smthEdge = _edges[geoSet];
-         smthEdge ->position_from_u( u, *x, *y, *z );
-         RETURN(iBase_SUCCESS);
-      }
-      else
-      {
-         // get edges and verticies of this geometry
-         iBase_EntityHandle *edges = NULL;
-         int edges_alloc = 0, edges_size;
-         iMesh_getEntities(IMESH_INSTANCE(instance),
-               reinterpret_cast<iBase_EntitySetHandle> (entity_handle),
-               iBase_ALL_TYPES, iMesh_LINE_SEGMENT, &edges, &edges_alloc,
-               &edges_size, err);
-         FWDERR();
+   if (type != 1)  // not edge
+     RETURN(iBase_NOT_SUPPORTED);
 
-         iBase_EntityHandle *verts = NULL;
-         int verts_alloc = 0, verts_size;
-         int* offset = NULL;
-         int offset_alloc, offset_size;
-         iMesh_getEntArrAdj(IMESH_INSTANCE(instance), edges, edges_size,
-               iBase_VERTEX, &verts, &verts_alloc, &verts_size, &offset,
-               &offset_alloc, &offset_size, err);
-         FWDERR();
-
-         // make vertex loop
-         std::vector<iBase_EntityHandle> loop_verts;
-         std::map<iBase_EntityHandle, int> edge_map;
-         std::map<iBase_EntityHandle, int>::iterator iter;
-         for (i = 1; i < edges_size; i++) {
-            edge_map[edges[i]] = i;
-         }
-         iBase_EntityHandle start_vertex = verts[offset[0]];
-         iBase_EntityHandle end_vertex = verts[offset[0] + 1];
-         for (i = 0; i < edges_size; i++) {
-            loop_verts.push_back(start_vertex);
-            //edge_map.erase(edges[i]);
-
-            iBase_EntityHandle *adj_edges = NULL;
-            int adj_edges_alloc = 0, adj_edges_size;
-            iMesh_getEntAdj(IMESH_INSTANCE(instance), end_vertex, iBase_EDGE,
-                  &adj_edges, &adj_edges_alloc, &adj_edges_size, err);
-            FWDERR();
-
-            for (j = 0; j < adj_edges_size; j++) {
-               iter = edge_map.find(adj_edges[j]);
-               if (iter != edge_map.end()) {
-                  if (end_vertex == verts[offset[iter->second]]) {
-                     start_vertex = end_vertex;
-                     end_vertex = verts[offset[iter->second] + 1];
-                     edge_map.erase(iter->first);
-                     break;
-                  } else if (end_vertex == verts[offset[iter->second] + 1]) {
-                     start_vertex = end_vertex;
-                     end_vertex = verts[offset[iter->second]];
-                     edge_map.erase(iter->first);
-                     break;
-                  }
-               }
-            }
-         }
-
-         if (debug_igeom) {
-            iBase_EntitySetHandle set;
-            iMesh_createEntSet(IMESH_INSTANCE(instance), true, &set, err);
-            FWDERR();
-            iMesh_addEntArrToSet(IMESH_INSTANCE(instance), &loop_verts[0],
-                  loop_verts.size(), set, err);
-            FWDERR();
-
-            iBase_EntityHandle *ver = NULL;
-            int ver_alloc = 0, ver_size;
-            iMesh_getEntities(IMESH_INSTANCE(instance), set, iBase_ALL_TYPES,
-                  iMesh_POINT, &ver, &ver_alloc, &ver_size, err);
-            FWDERR();
-            std::cout << "ver_size=" << ver_size << std::endl;
-            iMesh_save(IMESH_INSTANCE(instance), set, "loop.vtk", 0, err, 8, 0);
-         }
-
-         // find proper point in vertex loop with u
-         int n_verts = loop_verts.size();
-         if (n_verts == edges_size) {
-            for (i = 0; i < n_verts; i++) {
-               double p1[3], p2[3];
-               iMesh_getVtxCoord(IMESH_INSTANCE(instance),
-                     loop_verts[i % n_verts], &p1[0], &p1[1], &p1[2], err);
-               FWDERR();
-               iMesh_getVtxCoord(IMESH_INSTANCE(instance), loop_verts[(i + 1)
-                     % n_verts], &p2[0], &p2[1], &p2[2], err);
-               FWDERR();
-               old_length = tot_length;
-               tot_length += get_edge_length(p1, p2);
-               if (tot_length > u) {
-                  double portion = (u - old_length) / (tot_length - old_length);
-                  *x = p1[0] + portion * (p2[0] - p1[0]);
-                  *y = p1[1] + portion * (p2[1] - p1[1]);
-                  *z = p1[2] + portion * (p2[2] - p1[2]);
-                  RETURN(iBase_SUCCESS);
-               }
-            }
-         }
-         ERROR(iBase_FAILURE, "Failed to xyz point for u.");
-      }
-   } else
-      RETURN(iBase_NOT_SUPPORTED);
+   ErrorCode rval = FBE_cast(instance)->getEntUtoXYZ(
+       (EntityHandle) entity_handle, u, *x, *y, *z );
+   CHKERR(rval, "Failed to get position from parameter");
+   RETURN(iBase_SUCCESS);
 }
 
 void iGeom_getArrUtoXYZ(iGeom_Instance,
       iBase_EntityHandle const* entity_handles, int entity_handles_size,
       double const* u, int u_size, int storage_order, double** on_coords,
       int* on_coords_allocated, int* on_coords_size, int* err) {
+  // not implemented
 }
 void iGeom_getEntXYZtoUV(iGeom_Instance, iBase_EntityHandle entity_handle,
       double x, double y, double z, double* u, double* v, int* err) {
@@ -1641,56 +950,11 @@ void iGeom_getEntUVRange(iGeom_Instance, iBase_EntityHandle entity_handle,
 
 void iGeom_getEntURange(iGeom_Instance instance,
       iBase_EntityHandle entity_handle, double* u_min, double* u_max, int* err) {
-   int type;
-   iGeom_getEntType(instance, entity_handle, &type, err);
-   FWDERR();
-
-   if (type == 1) { // edge
-      if (_smooth)
-      {
-         // first, find the edge
-         EntityHandle geoSet = MBH_cast(entity_handle);
-         SmoothCurveEval* smthEdge = _edges[geoSet];
-         smthEdge ->get_param_range(*u_min, *u_max);
-         RETURN(iBase_SUCCESS);
-      }
-      else
-      {
-         iBase_EntityHandle *edges = NULL;
-         int edges_alloc = 0, edges_size;
-         iMesh_getEntities(IMESH_INSTANCE(instance),
-               reinterpret_cast<iBase_EntitySetHandle> (entity_handle),
-               iBase_ALL_TYPES, iMesh_LINE_SEGMENT, &edges, &edges_alloc,
-               &edges_size, err);
-         FWDERR();
-
-         iBase_EntityHandle *adj = NULL;
-         int adj_alloc = 0, adj_size;
-         int* offset = NULL;
-         int offset_alloc, offset_size;
-         iMesh_getEntArrAdj(IMESH_INSTANCE(instance), edges, edges_size,
-               iBase_VERTEX, &adj, &adj_alloc, &adj_size, &offset, &offset_alloc,
-               &offset_size, err);
-         FWDERR();
-
-         *u_min = *u_max = 0.;
-         for (int j = 0; j < edges_size; j++) {
-            double p1[3], p2[3];
-            iMesh_getVtxCoord(IMESH_INSTANCE(instance), adj[offset[j]], &p1[0],
-                  &p1[1], &p1[2], err);
-            FWDERR();
-            iMesh_getVtxCoord(IMESH_INSTANCE(instance), adj[offset[j] + 1],
-                  &p2[0], &p2[1], &p2[2], err);
-            FWDERR();
-            *u_max += get_edge_length(p1, p2);
-         }
-      }
-   } else
-      RETURN(iBase_NOT_SUPPORTED);
-
-   RETURN(iBase_SUCCESS);
+  ErrorCode rval = FBE_cast(instance)->getEntURange((EntityHandle) entity_handle,
+                 *u_min,  *u_max );
+  CHKERR(rval, "Failed to get range");
+  RETURN(iBase_SUCCESS);
 }
-
 void iGeom_getArrUVRange(iGeom_Instance,
       iBase_EntityHandle const* entity_handles, int entity_handles_size,
       int storage_order, double** uv_min, int* uv_min_allocated,
@@ -1846,31 +1110,11 @@ void iGeom_sweepEntAboutAxis(iGeom_Instance, iBase_EntityHandle geom_entity,
 }
 
 void iGeom_deleteAll(iGeom_Instance instance, int* err) {
-   ErrorCode rval;
-   for (int i = 0; i < 4; i++) {
-      rval = MBI->delete_entities(_my_gsets[i]);
-      CHKERR(rval, "Failed to delete entities in iGeom_deleteAll.");
-      _my_gsets[i].clear();
-   }
-
-   RETURN(iBase_SUCCESS);
+  // it means deleting some sets from moab db ; is this what we want?
 }
 
 void iGeom_deleteEnt(iGeom_Instance instance, iBase_EntityHandle entity_handle,
       int* err) {
-   int type;
-   iGeom_getEntType(instance, entity_handle, &type, err);
-   FWDERR();
-
-   Range::iterator iter = _my_gsets[type].find(MBH_cast(entity_handle));
-   if (iter == _my_gsets[type].end()) {
-      RETURN(iBase_INVALID_ENTITY_HANDLE);
-   }
-   _my_gsets[type].erase(iter);
-
-   EntityHandle this_entity = MBH_cast(entity_handle);
-   ErrorCode rval = MBI->delete_entities(&this_entity, 1);
-   CHKERR(rval, "Failed to delete entity.");
 }
 
 void iGeom_createSphere(iGeom_Instance, double radius,
@@ -1941,6 +1185,7 @@ void iGeom_imprintEnts(iGeom_Instance, iBase_EntityHandle const* geom_entities,
 void iGeom_mergeEnts(iGeom_Instance, iBase_EntityHandle const* geom_entities,
       int geom_entities_size, double tolerance, int* err) {
 }
+// start copy old
 
 void iGeom_createEntSet(iGeom_Instance instance, int isList,
       iBase_EntitySetHandle* entity_set_created, int *err) {
@@ -2096,9 +1341,12 @@ void iGeom_createTag(iGeom_Instance instance, const char* tag_name,
          tag_handle, err, tag_name_len);
 }
 
+
 void iGeom_destroyTag(iGeom_Instance instance, iBase_TagHandle tag_handle,
       int forced, int *err) {
-   iMesh_destroyTag(IMESH_INSTANCE(instance), tag_handle, forced, err);
+  ErrorCode rval = MBI->tag_delete(TAG_HANDLE(tag_handle));
+  CHKERR(rval, "Failed to delete tag");
+  RETURN(iBase_SUCCESS);
 }
 
 void iGeom_getTagName(iGeom_Instance instance, iBase_TagHandle tag_handle,
@@ -2396,49 +1644,4 @@ void iGeom_unite(iGeom_Instance instance, iBase_EntitySetHandle entity_set_1,
       iBase_EntitySetHandle* result_entity_set, int *err) {
 }
 
-static void iGeom_get_adjacent_entities(iGeom_Instance instance,
-      const EntityHandle from, const int to_dim, Range &adjs,
-      //std::vector<EntityHandle>& adjs,
-      int* err) {
-   int this_dim = -1;
-   for (int i = 0; i < 4; i++) {
-      if (_my_gsets[i].find(from) != _my_gsets[i].end()) {
-         this_dim = i;
-         break;
-      }
-   }
-
-   // check target dimension
-   if (-1 == this_dim) {
-      ERROR(iBase_FAILURE, "Entity not a geometry entity.");
-   } else if (0 > to_dim || 3 < to_dim) {
-      ERROR(iBase_FAILURE, "To dimension must be between 0 and 3.");
-   } else if (to_dim == this_dim) {
-      ERROR(iBase_FAILURE,
-            "To dimension must be different from entity dimension.");
-   }
-
-   ErrorCode rval;
-   adjs.clear();
-   if (to_dim > this_dim) {
-      int number;
-      rval = MBI->num_parent_meshsets(from, &number, 0);
-      rval = MBI->get_parent_meshsets(from, adjs);
-      adjs.clear();
-      rval = MBI->get_parent_meshsets(from, adjs, to_dim - this_dim);
-   } else {
-      int number;
-      rval = MBI->num_child_meshsets(from, &number, 0);
-      rval = MBI->get_child_meshsets(from, adjs);
-      adjs.clear();
-      rval = MBI->get_child_meshsets(from, adjs, this_dim - to_dim);
-   }
-
-   RETURN(iBase_SUCCESS);
-}
-
-double get_edge_length(double* p1, double* p2) {
-   return std::sqrt((p1[0] - p2[0]) * (p1[0] - p2[0]) + (p1[1] - p2[1])
-         * (p1[1] - p2[1]) + (p1[2] - p2[2]) * (p1[2] - p2[2]));
-}
 

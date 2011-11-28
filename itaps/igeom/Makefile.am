@@ -19,9 +19,7 @@ libiGeomMOAB_la_includedir = $(includedir)
 
 libiGeomMOAB_la_SOURCES = \
         iGeom_MOAB.hpp \
-	iGeom_MOAB.cpp \
-	SmoothCurveEval.hpp SmoothCurveEval.cpp \
-	SmoothFaceEval.hpp SmoothFaceEval.cpp 
+	iGeom_MOAB.cpp 
 
 libiGeomMOAB_la_include_HEADERS = \
 	iGeom.h \

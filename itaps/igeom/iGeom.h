@@ -454,7 +454,36 @@ extern "C" {
                               int* err );
 
     /**\brief  Get closest point for an array of entities and points
-     *
+     * For surfaces, closest point could be on the void space inside it.
+     * Get closest point for an array of entities and points.  If either the
+     * number of entities or number of coordinate triples is unity, then all
+     * points or entities are queried for that entity or point, respectively,
+     * otherwise each point corresponds to each entity.  storage_order should be
+     * a value in the iBase_StorageOrder enum.
+     * \param instance iGeom instance handle
+     * \param entity_handles Entity(ies) being queried
+     * \param entity_handles_size Number of entities being queried
+     * \param storage_order Storage order of input points
+     * \param near_coordinates Coordinates of starting point(s)
+     * \param near_coordinates_size Number of values in near_coordinates array
+     * \param on_coordinates Coordinates of closest points
+     * \param on_coordinates_allocated Allocated size of closest point array
+     * \param on_coordinates_size Occupied size of closest point array
+     * \param *err Pointer to error type returned from function
+     */
+
+  void iGeom_getEntClosestPtTrimmed( iGeom_Instance instance,
+                                     iBase_EntityHandle entity_handle,
+                                     double near_x,
+                                     double near_y,
+                                     double near_z,
+                                     double* on_x,
+                                     double* on_y,
+                                     double* on_z,
+                                     int* err );
+
+    /**\brief  Get closest point for an array of entities and points
+     * For surfaces, it made sure the closest point in on surface.
      * Get closest point for an array of entities and points.  If either the
      * number of entities or number of coordinate triples is unity, then all
      * points or entities are queried for that entity or point, respectively,
@@ -3920,6 +3949,27 @@ extern "C" {
                     iBase_EntitySetHandle entity_set_2,
                     iBase_EntitySetHandle* result_entity_set, 
                     int *err );
+
+    /**\brief  Return facet information from solid modeling engine
+     *
+     * Return facet information from solid modeling engine
+     * \param instance iGeom instance handle
+     * \param entity_handle Entity being queried
+     * \param dist_tolerance Tolerance guidance for faceting engine
+     * \param points List of vertices in faceting of curve or surface
+     * \param points_allocated Allocated size of vertex list array
+     * \param points_size Occupied size of vertex list array
+     * \param facets List of facets in faceting of surface
+     * \param facets_allocated Allocated size of facet list array
+     * \param facets_size Occupied size of facet list array
+     * \param *err Pointer to error type returned from function
+     */
+  void iGeom_getFacets(iGeom_Instance instance,
+                       iBase_EntityHandle entity,
+                       double dist_tolerance,
+                       double **points, int *points_allocated, int *points_size,
+                       int **facets, int *facets_allocated, int *facets_size,
+                       int *err);
 
 #ifdef __cplusplus
 } // extern "C"

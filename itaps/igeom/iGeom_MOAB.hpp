@@ -2,63 +2,80 @@
 #define IGEOM_MOAB_HPP
 
 #include "iGeom.h"
-#include "moab/Forward.hpp"
+//#include "moab/Forward.hpp"
+#include "moab/Interface.hpp"
+#include "moab/FBEngine.hpp"
 #include "iMesh.h"
 #include "MBiMesh.hpp"
-
-namespace moab { class GeomTopoTool; }
-
-/* map from MB's entity type to TSTT's entity type */
-extern const iBase_EntityType tstt_type_table[moab::MBMAXTYPE+1];
-
-/* map to MB's entity type from TSTT's entity topology */
-extern const moab::EntityType mb_topology_table[moab::MBMAXTYPE+1];
-
-/* map from TSTT's tag types to MOAB's */
-extern const moab::DataType mb_data_type_table[4];
-
-/* map from MOAB's tag types to tstt's */
-extern const iBase_TagValueType tstt_data_type_table[moab::MB_MAX_DATA_TYPE+1];
 
 /* map from MOAB's MBErrorCode to tstt's */
 extern "C" const iBase_ErrorType iBase_ERROR_MAP[moab::MB_FAILURE+1];
 
-/* Create ITAPS iterator */
-iBase_EntityIterator create_itaps_iterator( moab::Range& swap_range,
-                                            int array_size = 1 ); 
-
+// the igeom moab instance should privide easy access to
+// moab::Interface, FBEngine *, and equivalent MBiMesh instance, because a lot
+// of code can be shared among iMesh and iGeom, especially
+// with respect to tags and sets
+// when a moab iGeom is instanced, moab will be instanced, and FBEngine too
+//
+class MBiGeom
+{
+  MBiMesh * _mbimesh;
+  moab::FBEngine * _fbe;
+public:
+  MBiGeom ()
+  {
+    // this will instance a moab Core, too
+    _mbimesh = new MBiMesh(NULL);
+    moab::Interface * mbi = _mbimesh->mbImpl;
+    // pass mbi, so they will point to the same implementation
+    _fbe = new FBEngine(mbi);
+  }
+  ~MBiGeom()
+  {
+    // some cleanup here
+    delete _fbe;
+    delete _mbimesh;
+  }
+  moab::Interface * moabItf() { return _mbimesh->mbImpl;}
+  moab::FBEngine * FBItf() { return _fbe;}
+  MBiMesh * mbimesh() { return _mbimesh; }
+};
 /* Define macro for quick reference to MBInterface instance */
 static inline moab::Interface* MBI_cast( iGeom_Instance i )  
-  { return reinterpret_cast<MBiMesh*>(i)->mbImpl; }
+  { return reinterpret_cast<MBiGeom*>(i)->moabItf(); }
+
 #define MBI MBI_cast(instance)
+
+static inline moab::FBEngine* FBE_cast( iGeom_Instance i )
+  { return reinterpret_cast<MBiGeom*>(i) -> FBItf(); }
 
 /* Define macro for quick reference to moab::Interface instance */
 static inline moab::EntityHandle MBH_cast( iBase_EntityHandle h )  
   { return reinterpret_cast<moab::EntityHandle>(h); }         
 
-#define MIN(a,b) (a > b ? b : a)
-
-#define IMESH_INSTANCE(a) reinterpret_cast<iMesh_Instance>(a)
-
-#define GETGTT(a) {if (_my_geomTopoTool == NULL) _my_geomTopoTool =	\
-	new GeomTopoTool(reinterpret_cast<MBiMesh*>(a)->mbImpl);}
+#define GETGTT(a) (reinterpret_cast<MBiGeom*>(a)->FBItf()->get_gtt())
 
 static inline bool iGeom_isError(int code)
   { return (iBase_SUCCESS != code); }
 static inline bool iGeom_isError(moab::ErrorCode code)
-  { return (MB_SUCCESS != code); }
+  { return (moab::MB_SUCCESS != code); }
 
-#define MBIGEOMI mbimeshi_instance(IMESH_INSTANCE(instance))
+// easy access to imesh instance, used for tags, sets methods
+#define IMESH_INSTANCE(i) reinterpret_cast<iMesh_Instance>( reinterpret_cast<MBiGeom*>(i)->mbimesh() )
+
+// this assumes that iGeom instance is always instance
+// uses MBiGeom class which sets the error
+#define MBIM reinterpret_cast<MBiGeom*>(instance)->mbimesh()
 
 #define RETURN(CODE)                                                   \
   do {                                                                 \
-    *err = MBIGEOMI->set_last_error((CODE), "");                       \
+    *err = MBIM->set_last_error((CODE), "");                       \
     return;                                                            \
   } while(false)
 
 #define ERROR(CODE,MSG)                                                \
   do {                                                                 \
-    *err = MBIGEOMI->set_last_error((CODE), (MSG));                    \
+    *err = MBIM->set_last_error((CODE), (MSG));                    \
     return;                                                            \
   } while(false)
 

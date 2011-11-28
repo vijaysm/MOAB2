@@ -171,6 +171,7 @@ public:
 
   ErrorCode get_vert_edges(EntityHandle edge, EntityHandle & v1, EntityHandle & v2);
 
+  void set_smooth() { _smooth = true;}
 private:
 
   ErrorCode initializeSmoothing();
