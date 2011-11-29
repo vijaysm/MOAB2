@@ -1,7 +1,7 @@
-#ifndef IGEOM_MOAB_HPP
-#define IGEOM_MOAB_HPP
+#ifndef FBIGEOM_MOAB_HPP
+#define FBIGEOM_MOAB_HPP
 
-#include "iGeom.h"
+#include "FBiGeom.h"
 //#include "moab/Forward.hpp"
 #include "moab/Interface.hpp"
 #include "moab/FBEngine.hpp"
@@ -41,12 +41,12 @@ public:
   MBiMesh * mbimesh() { return _mbimesh; }
 };
 /* Define macro for quick reference to MBInterface instance */
-static inline moab::Interface* MBI_cast( iGeom_Instance i )  
+static inline moab::Interface* MBI_cast( FBiGeom_Instance i )  
   { return reinterpret_cast<MBiGeom*>(i)->moabItf(); }
 
 #define MBI MBI_cast(instance)
 
-static inline moab::FBEngine* FBE_cast( iGeom_Instance i )
+static inline moab::FBEngine* FBE_cast( FBiGeom_Instance i )
   { return reinterpret_cast<MBiGeom*>(i) -> FBItf(); }
 
 /* Define macro for quick reference to moab::Interface instance */
@@ -55,9 +55,9 @@ static inline moab::EntityHandle MBH_cast( iBase_EntityHandle h )
 
 #define GETGTT(a) (reinterpret_cast<MBiGeom*>(a)->FBItf()->get_gtt())
 
-static inline bool iGeom_isError(int code)
+static inline bool FBiGeom_isError(int code)
   { return (iBase_SUCCESS != code); }
-static inline bool iGeom_isError(moab::ErrorCode code)
+static inline bool FBiGeom_isError(moab::ErrorCode code)
   { return (moab::MB_SUCCESS != code); }
 
 // easy access to imesh instance, used for tags, sets methods
@@ -81,13 +81,13 @@ static inline bool iGeom_isError(moab::ErrorCode code)
 
 #define CHKERR(CODE,MSG)                                               \
   do {                                                                 \
-    if (iGeom_isError((CODE)))                                         \
+    if (FBiGeom_isError((CODE)))                                       \
       ERROR((CODE),(MSG));                                             \
   } while(false)
 
 #define FWDERR()                                                       \
   do {                                                                 \
-    if (iGeom_isError(*err))                                           \
+    if (FBiGeom_isError(*err))                                         \
       return;                                                          \
   } while(false)
 
@@ -107,4 +107,4 @@ static inline bool iGeom_isError(moab::ErrorCode code)
     }                                                                  \
   } while(false)
 
-#endif // IGEOM_MOAB_HPP
+#endif // FBIGEOM_MOAB_HPP

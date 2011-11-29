@@ -1148,7 +1148,7 @@ AC_CONFIG_FILES([Makefile
                  itaps/imesh/Makefile
                  itaps/imesh/iMesh-Defs.inc
 		 itaps/igeom/Makefile
-                 itaps/igeom/iGeom-Defs.inc
+                 itaps/igeom/FBiGeom-Defs.inc
                  tools/Makefile
                  tools/refiner/Makefile
                  tools/mbcoupler/Makefile
