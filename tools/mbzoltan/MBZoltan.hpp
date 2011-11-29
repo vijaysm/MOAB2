@@ -96,7 +96,7 @@ using namespace moab;
                              const bool write_as_sets = true,
                              const bool write_as_tags = false);
 
-    ErrorCode partition_mesh_geom(const bool part_mesh,
+    ErrorCode partition_mesh_geom(const double part_geom_mesh_size,
                                   const int nparts,
                                   const char *zmethod,
                                   const char *other_method,
@@ -196,7 +196,8 @@ using namespace moab;
                              std::vector<int> &length,
                              std::vector<double> &obj_weights,
                              std::vector<double> &edge_weights,
-                             DLIList<RefEntity*> &entities);
+                             DLIList<RefEntity*> &entities,
+                             const double part_geom_mesh_size);
 
     ErrorCode partition_round_robin(const int n_part);
 
@@ -204,6 +205,9 @@ using namespace moab;
                                        const int n_part,
                                        const bool partition_surf,
                                        const bool ghost = false);
+
+    double estimate_face_mesh_load(RefEntity* face, const double h);
+    double estimate_face_comm_load(RefEntity* face, const double h);
 #endif
     
     void mbFinalizePoints(int npts, int numExport,

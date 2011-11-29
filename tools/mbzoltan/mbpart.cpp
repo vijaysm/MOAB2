@@ -55,7 +55,8 @@ int main( int argc, char* argv[] )
   opts.addOpt<double>( "imbalance,i",  "Imbalance tolerance (used in PHG/Hypergraph method)");
   opts.addOpt<int>( "power,m", "Generate multiple partitions, in powers of 2, up to 2^(pow)");
   opts.addOpt<void>( "reorder,R", "Reorder mesh to group entities by partition");
-  opts.addOpt<void>( "geom,g", "Specify if partition geometry.");
+  //opts.addOpt<void>( "geom,g", "Specify if partition geometry.");
+  opts.addOpt<double>( "geom,g", "Specify if partition geometry and mesh size.");
   opts.addOpt<void>( "surf,s", "Specify if partition geometry surface.");
   opts.addOpt<void>( "ghost,h", "Specify if partition ghost geometry body.");
   opts.addOpt<int>( "vertex_w,v", "Number of weights associated with a graph vertex.");
@@ -67,7 +68,8 @@ int main( int argc, char* argv[] )
   opts.parseCommandLine( argc, argv ); 
 
   MBZoltan *tool = NULL;
-  bool part_geom = false;
+  //bool part_geom = false;
+  double part_geom_mesh_size = -1.0;
   bool part_surf = false;
   bool ghost = false;
   int part_dim = -1;
@@ -80,8 +82,16 @@ int main( int argc, char* argv[] )
   
   bool print_time = opts.getOpt<void>(",T",0);
   
-  part_geom = opts.numOptSet("geom") > 0;
-  if (!part_geom) { // partition mesh
+  // check if partition geometry, if it is, should get mesh size for the geometry
+  //part_geom = opts.numOptSet("geom") > 0;
+  if (opts.getOpt( "geom", &part_geom_mesh_size )) {
+    if (part_geom_mesh_size < 0.0) {
+      std::cerr << part_geom_mesh_size << ": invalid geometry partition mesh size." << std::endl;
+      return 1;
+    }
+  }
+  //if (!part_geom) { // partition mesh
+  if (part_geom_mesh_size < 0.) { // partition mesh
     tool = new MBZoltan (&mb, false, argc, argv);
   }
   else { // partition geometry
@@ -142,7 +152,8 @@ int main( int argc, char* argv[] )
   clock_t t = clock();
 
   const char* options = NULL;
-  if (part_geom) options = "FACET_DISTANCE_TOLERANCE=0.1";
+  //if (part_geom) options = "FACET_DISTANCE_TOLERANCE=0.1";
+  if (part_geom_mesh_size) options = "FACET_DISTANCE_TOLERANCE=0.1";
   ErrorCode rval = mb.load_file( input_file.c_str(), 0, options );
   if (MB_SUCCESS != rval) {
     std::cerr << input_file << " : failed to read file." << std::endl;
@@ -180,7 +191,7 @@ int main( int argc, char* argv[] )
   ReorderTool reorder(&moab);
   for (int p = 0; p < power; p++) {
     t = clock();
-    rval = tool->partition_mesh_geom( part_geom, num_parts, zoltan_method.c_str(), other_method.c_str(),
+    rval = tool->partition_mesh_geom( part_geom_mesh_size, num_parts, zoltan_method.c_str(), other_method.c_str(),
                                       imbal_tol, write_sets, write_tags, part_dim, obj_weight, edge_weight,
                                       part_surf, ghost );
     if (MB_SUCCESS != rval) {
@@ -197,7 +208,7 @@ int main( int argc, char* argv[] )
                   << (clock() - t)/(double)CLOCKS_PER_SEC << " seconds" 
                   << std::endl;
     
-    if (opts.getOpt<void>("reorder",0) && !part_geom) {
+    if (opts.getOpt<void>("reorder",0) && part_geom_mesh_size < 0.) {
       Tag tag, order;
       rval = mb.tag_get_handle( "PARALLEL_PARTITION", 1, MB_TYPE_INTEGER, tag );
       if (MB_SUCCESS != rval) {
@@ -239,7 +250,7 @@ int main( int argc, char* argv[] )
       std::string::size_type idx = output_file.find_last_of( "." );
       if (idx == std::string::npos) {
         tmp_output_file << output_file << "_" << num_parts;
-        if (!part_geom) tmp_output_file << ".h5m";
+        if (part_geom_mesh_size < 0.) tmp_output_file << ".h5m";
         else {
           std::cerr << "output file type is not specified." << std::endl;
           return 1;
@@ -254,7 +265,7 @@ int main( int argc, char* argv[] )
       tmp_output_file << output_file;
 
     t = clock();
-    if (!part_geom) {
+    if (part_geom_mesh_size < 0.) {
       rval = mb.write_file( tmp_output_file.str().c_str() );
       if (MB_SUCCESS != rval) {
         std::cerr << tmp_output_file << " : failed to write file." << std::endl;

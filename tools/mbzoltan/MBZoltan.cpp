@@ -237,7 +237,7 @@ ErrorCode MBZoltan::balance_mesh(const char *zmethod,
   return MB_SUCCESS;
 }
 
-ErrorCode MBZoltan::partition_mesh_geom(const bool part_geom,
+ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
                                         const int nparts,
                                         const char *zmethod,
                                         const char *other_method,
@@ -283,7 +283,7 @@ ErrorCode MBZoltan::partition_mesh_geom(const bool part_geom,
   
     // short-circuit everything if RR partition is requested
   if (!strcmp(zmethod, "RR")) {
-    if (!part_geom) {
+    if (part_geom_mesh_size < 0.) {
       // get all elements
       result = mbImpl->get_entities_by_dimension(0, 3, elems); RR;
 
@@ -311,13 +311,14 @@ ErrorCode MBZoltan::partition_mesh_geom(const bool part_geom,
     return result;
   }
   
-  if (!part_geom) {
+  if (part_geom_mesh_size < 0.) {
+    //if (!part_geom) {
     result = assemble_graph(part_dim, pts, ids, adjs, length, elems); RR;
   }
   else {
 #ifdef CGM
     result = assemble_graph(part_dim, pts, ids, adjs, length, obj_weights,
-                            edge_weights, entities); RR;
+                            edge_weights, entities, part_geom_mesh_size); RR;
 
     if (debug) {
       int n_ids = ids.size();
@@ -440,7 +441,8 @@ ErrorCode MBZoltan::partition_mesh_geom(const bool part_geom,
   if (ZOLTAN_OK != retval) return MB_FAILURE;
   
   // take results & write onto MOAB partition sets
-  if (!part_geom) {
+  if (part_geom_mesh_size < 0.) {
+    //if (!part_geom) {
     result = write_partition(nparts, elems, assign_parts,
                              write_as_sets, write_as_tags);
   }
@@ -549,7 +551,8 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
                                    std::vector<int> &length,
                                    std::vector<double> &obj_weights,
                                    std::vector<double> &edge_weights,
-                                   DLIList<RefEntity*> &entities) 
+                                   DLIList<RefEntity*> &entities,
+                                   const double part_geom_mesh_size) 
 {
   // get body vertex weights
   DLIList<RefEntity*> body_list;
@@ -562,10 +565,14 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
   for (int i = 0; i < n_bodies; i++) {
     RefEntity *body = body_list.get_and_step();
     std::cout << "body=" << body->id() << std::endl;
+
+    // volume mesh generation load estimation
     double vertex_w = body->measure();
-    DLIList<RefFace*> shared_surfs;
+    vertex_w /= part_geom_mesh_size*part_geom_mesh_size*part_geom_mesh_size;
+    vertex_w = 3.8559e-5*vertex_w*log(vertex_w);
 
     // add child face weights
+    DLIList<RefFace*> shared_surfs;
     DLIList<RefFace*> faces;
     (dynamic_cast<TopologyEntity*> (body))->ref_faces(faces);
     int n_face = faces.size();
@@ -577,7 +584,7 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
         shared_surfs.append(face);
       }
       else { // non-shared
-        vertex_w += face->measure();
+        vertex_w += estimate_face_mesh_load(face, face->measure());
       }
     }
 
@@ -607,9 +614,10 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
         all_shared_surfs.append(face);
         std::cout << "face2=" << face->id() << std::endl;
       }
-      vertex_w = face->measure();
+      //vertex_w = face->measure();
       adjacencies.push_back(temp_index);
-      edge_weights.push_back(vertex_w/100.);
+      //edge_weights.push_back(vertex_w/100.);
+      edge_weights.push_back(estimate_face_comm_load(face, part_geom_mesh_size));
     }
     length.push_back(n_shared);
   }
@@ -620,9 +628,11 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
   all_shared_surfs.reset();
   for (int i = 0; i < n_all_shared_surf; i++) {
     RefEntity *face = all_shared_surfs.get_and_step();
-    double vertex_w = face->measure();
+    //double vertex_w = face->measure();
     moab_ids.push_back(surf_vertex_map[face->id()]);
-    obj_weights.push_back(vertex_w);
+    //obj_weights.push_back(vertex_w);
+    obj_weights.push_back(estimate_face_mesh_load(face,
+                                                  part_geom_mesh_size));
     
     DLIList<Body*> parents;
     dynamic_cast<TopologyEntity*> (face)->bodies(parents);
@@ -630,13 +640,50 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
     parents.reset();
     for (int j = 0; j < n_parents; j++) {
       adjacencies.push_back(parents.get_and_step()->id()); // add adjacency
-      edge_weights.push_back(vertex_w/100.); // add edge weight
+      //edge_weights.push_back(vertex_w/100.); // add edge weight
+      edge_weights.push_back(estimate_face_comm_load(face,
+                                                     part_geom_mesh_size));
     }
     length.push_back(n_parents);
     entities.append(dynamic_cast<RefEntity*> (face));
   }
 
   return MB_SUCCESS;
+}
+
+double MBZoltan::estimate_face_mesh_load(RefEntity* face, const double h)
+{
+  GeometryType type = CAST_TO(face, RefFace)->geometry_type();
+
+  if (type == PLANE_SURFACE_TYPE) {
+    return 1.536168737505151e-4*h*log(h);
+  }
+  else if (type == SPLINE_SURFACE_TYPE) {
+    return 5.910511018383144e-4*h*log(h);
+  }
+  else if (type == CONE_SURFACE_TYPE ||
+	   type == SPHERE_SURFACE_TYPE ||
+	   type == TORUS_SURFACE_TYPE) {
+    return 2.352511671418708e-4*h*log(h);
+  }
+}
+
+double MBZoltan::estimate_face_comm_load(RefEntity* face, const double h)
+{
+  double peri = 0.;
+  DLIList<DLIList<RefEdge*>*> ref_edge_loops;
+  CAST_TO(face, RefFace)->ref_edge_loops(ref_edge_loops);
+  ref_edge_loops.reset();
+
+  for (int i = 0; i < ref_edge_loops.size(); i++) {
+    DLIList<RefEdge*>* eloop = ref_edge_loops.get_and_step();
+    eloop->reset();
+    for (int j = 0; j < eloop->size(); j++) {
+      peri += eloop->get_and_step()->measure();
+    }
+  }
+  
+  return 104*face->measure()/sqrt(3)/h/h + 56/3*peri/h;
 }
 
 ErrorCode MBZoltan::write_partition(const int nparts,
@@ -739,6 +786,29 @@ ErrorCode MBZoltan::write_partition(const int nparts,
   // partition shared edges and vertex
   result = partition_child_entities(1, nparts, part_surf, ghost); RR;
   result = partition_child_entities(0, nparts, part_surf); RR;
+
+  if (debug) {
+    entities.reset();
+    for (int i = 0; i < n_entities; i++) {
+      RefEntity *entity = entities.get_and_step();
+      if (entity->entity_type_info() == typeid(Body)) {
+        TDParallel *td_par = (TDParallel *) entity->get_TD(&TDParallel::is_parallel);
+        CubitString st = entity->entity_name();
+        DLIList<int>* sp = td_par->get_shared_proc_list();
+        int n_sp = sp->size();
+        sp->reset();
+        for (int j = 0; j < n_sp; j++) {
+          std::cout << "partitioned_" << st.c_str() << ",proc=" << sp->get_and_step() << std::endl;
+        }
+        DLIList<int>* gp = td_par->get_ghost_proc_list();
+        int n_gp = gp->size();
+        sp->reset();
+        for (int j = 0; j < n_gp; j++) {
+          std::cout << "partitioned_" << st.c_str() << ",ghost=" << gp->get_and_step() << std::endl;
+        }
+      }
+    }
+  }
 
   return MB_SUCCESS;
 }
@@ -1634,4 +1704,3 @@ void mbGetEdgeList(void *userDefinedData, int numGlobalIds, int numLids,
 	}
     }
 }
-
