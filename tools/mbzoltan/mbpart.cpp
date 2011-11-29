@@ -55,9 +55,8 @@ int main( int argc, char* argv[] )
   opts.addOpt<double>( "imbalance,i",  "Imbalance tolerance (used in PHG/Hypergraph method)");
   opts.addOpt<int>( "power,m", "Generate multiple partitions, in powers of 2, up to 2^(pow)");
   opts.addOpt<void>( "reorder,R", "Reorder mesh to group entities by partition");
-  //opts.addOpt<void>( "geom,g", "Specify if partition geometry.");
   opts.addOpt<double>( "geom,g", "Specify if partition geometry and mesh size.");
-  opts.addOpt<void>( "surf,s", "Specify if partition geometry surface.");
+  opts.addOpt<void>( "surf,f", "Specify if partition geometry surface.");
   opts.addOpt<void>( "ghost,h", "Specify if partition ghost geometry body.");
   opts.addOpt<int>( "vertex_w,v", "Number of weights associated with a graph vertex.");
   opts.addOpt<int>( "edge_w,e", "Number of weights associated with an edge.");
@@ -68,7 +67,6 @@ int main( int argc, char* argv[] )
   opts.parseCommandLine( argc, argv ); 
 
   MBZoltan *tool = NULL;
-  //bool part_geom = false;
   double part_geom_mesh_size = -1.0;
   bool part_surf = false;
   bool ghost = false;
@@ -83,14 +81,13 @@ int main( int argc, char* argv[] )
   bool print_time = opts.getOpt<void>(",T",0);
   
   // check if partition geometry, if it is, should get mesh size for the geometry
-  //part_geom = opts.numOptSet("geom") > 0;
   if (opts.getOpt( "geom", &part_geom_mesh_size )) {
     if (part_geom_mesh_size < 0.0) {
       std::cerr << part_geom_mesh_size << ": invalid geometry partition mesh size." << std::endl;
       return 1;
     }
   }
-  //if (!part_geom) { // partition mesh
+
   if (part_geom_mesh_size < 0.) { // partition mesh
     tool = new MBZoltan (&mb, false, argc, argv);
   }
@@ -152,7 +149,6 @@ int main( int argc, char* argv[] )
   clock_t t = clock();
 
   const char* options = NULL;
-  //if (part_geom) options = "FACET_DISTANCE_TOLERANCE=0.1";
   if (part_geom_mesh_size) options = "FACET_DISTANCE_TOLERANCE=0.1";
   ErrorCode rval = mb.load_file( input_file.c_str(), 0, options );
   if (MB_SUCCESS != rval) {
