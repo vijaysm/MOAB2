@@ -20,7 +20,7 @@
 #define LASSOI lasso_instance(relation)
 
 static const char *GLOBAL_ID_TAG_NAME = "GLOBAL_ID";
-static const char *RELATION_TAG_NAME = "ASSOCIATION";
+static const char *RELATION_TAG_NAME = "__GEOM_ASSOCIATION";
 
 GeomAssocPairSide::GeomAssocPairSide(iRel_Instance relation,
                                      iBase_Instance instance, int id) :

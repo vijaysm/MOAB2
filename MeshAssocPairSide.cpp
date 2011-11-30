@@ -23,7 +23,7 @@
 
 static const char *GLOBAL_ID_TAG_NAME = "GLOBAL_ID";
 static const char *MESH_DIMENSION_TAG_NAME = "GEOM_DIMENSION";
-static const char *RELATION_TAG_NAME = "ASSOCIATION";
+static const char *RELATION_TAG_NAME = "__MESH_ASSOCIATION";
 
 MeshAssocPairSide::MeshAssocPairSide(iRel_Instance relation,
                                      iBase_Instance instance, int id) :
