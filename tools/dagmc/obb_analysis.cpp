@@ -116,7 +116,7 @@ ErrorCode obbvis_create( DagMC& dag, std::vector<int> &volumes, int grid, std::s
   // collect all the surfaces from the requested volumes to iterate over --
   // this prevents checking a shared surface more than once.
   Range surfs;
-  for(  std::vector<int>::iterator it = volumes.begin()+1; it!=volumes.end(); ++it ){
+  for(  std::vector<int>::iterator it = volumes.begin(); it!=volumes.end(); ++it ){
     
     vol = dag.entity_by_id(3,*it);
     Range it_surfs;
