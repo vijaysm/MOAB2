@@ -3,8 +3,16 @@
 #include <cstdlib>
 
 #include "Lasso.hpp"
+
+#ifdef ENABLE_IGEOM
 #include "GeomAssocPairSide.hpp"
+#endif
+#ifdef ENABLE_FBIGEOM
+#include "FBGeomAssocPairSide.hpp"
+#endif
+#ifdef ENABLE_IMESH
 #include "MeshAssocPairSide.hpp"
+#endif
 
 int AssocPair::currId = 0;
 
@@ -25,12 +33,21 @@ AssocPair::AssocPair(iRel_Instance instance,
   iRel_IfaceType types[] = {type0, type1};
   for (int i = 0; i < 2; i++) {
     switch (types[i]) {
+#ifdef ENABLE_IGEOM
     case iRel_IGEOM_IFACE:
       relSides[i] = new GeomAssocPairSide(instance, ifaces[i], pairId);
       break;
+#endif
+#ifdef ENABLE_FBIGEOM
+    case iRel_FBIGEOM_IFACE:
+      relSides[i] = new FBGeomAssocPairSide(instance, ifaces[i], pairId);
+      break;
+#endif
+#ifdef ENABLE_IMESH
     case iRel_IMESH_IFACE:
       relSides[i] = new MeshAssocPairSide(instance, ifaces[i], pairId);
       break;
+#endif
     default:
       relSides[i] = NULL;
     }

@@ -75,6 +75,42 @@ case "x$IGEOM_DIR" in
 esac
 AC_SUBST(IGEOM_DIR)
 AC_SUBST(IGEOM_CONFIG_OPTIONS)
+AM_CONDITIONAL([ENABLE_IGEOM], [test x$IGEOM_MISSING = xno])
+
+################################################################################
+#                           FBiGeom
+################################################################################
+AC_ARG_WITH(fbigeom, 
+[AC_HELP_STRING([--with-fbigeom=DIR], [Specify directory containing FBiGeom libs/includes or dirs under which lib/ and include/ are located])],
+[FBIGEOM_DIR=$withval
+ DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-fbigeom=\"${withval}\""
+ ], [FBIGEOM_DIR=])
+case "x$FBIGEOM_DIR" in
+  xno|x)
+    FBIGEOM_MISSING=yes
+    ;;
+  xyes)
+    AC_MSG_ERROR([--with-fbigeom requires an argument])
+    ;;
+  *)
+    if ! test -d "$FBIGEOM_DIR"; then
+      AC_MSG_WARN([$FBIGEOM_DIR : not a directory.])
+    fi
+    FBIGEOM_MISSING=no
+    AC_CHECK_FILE([${FBIGEOM_DIR}/lib/iGeom-Defs.inc],
+                  [FBIGEOM_CONFIG_OPTIONS="include ${FBIGEOM_DIR}/lib/FBiGeom-Defs.inc";
+                   DEFINES="$DEFINES -DFBIGEOM"],
+                  [AC_CHECK_FILE([${FBIGEOM_DIR}/FBiGeom-Defs.inc],
+                                 [FBIGEOM_CONFIG_OPTIONS="include ${FBIGEOM_DIR}/FBiGeom-Defs.inc";
+                   DEFINES="$DEFINES -DFBIGEOM"],
+                                 [AC_MSG_WARN([$FBIGEOM_DIR : not a configured iGeom]); 
+                                  FBIGEOM_MISSING=yes])
+                  ])
+    ;;
+esac
+AC_SUBST(FBIGEOM_DIR)
+AC_SUBST(FBIGEOM_CONFIG_OPTIONS)
+AM_CONDITIONAL([ENABLE_FBIGEOM], [test x$FBIGEOM_MISSING = xno])
 
 ################################################################################
 #                           iMesh
@@ -109,6 +145,7 @@ case "x$IMESH_DIR" in
 esac
 AC_SUBST(IMESH_DIR)
 AC_SUBST(IMESH_CONFIG_OPTIONS)
+AM_CONDITIONAL([ENABLE_IMESH], [test x$IMESH_MISSING = xno])
 
 ################################################################################
 #                           Output Files
@@ -131,12 +168,3 @@ AC_CONFIG_COMMANDS([iRel_FCDefs.h],
 # Remove iRel_protos.h if old format
 AC_CONFIG_COMMANDS_POST([grep IREL_FC_FUNC iRel_protos.h >/dev/null 2>&1 || rm -f iRel_protos.h])
 AC_OUTPUT
-
-if test "x$IGEOM_MISSING" = "xyes"; then
-  AC_MSG_WARN([iRel build will fail!  iGeom not found!])
-fi
-
-if test "x$IMESH_MISSING" = "xyes"; then
-  AC_MSG_WARN([iRel build will fail!  iMesh not found!])
-fi
-

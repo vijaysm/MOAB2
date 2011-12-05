@@ -1,5 +1,6 @@
 @IGEOM_CONFIG_OPTIONS@
 @IMESH_CONFIG_OPTIONS@
+@FBIGEOM_CONFIG_OPTIONS@
 
 AUTOMAKE_OPTIONS = foreign
 BUILT_SOURCES = iRel_protos.h
@@ -11,10 +12,8 @@ ACLOCAL_AMFLAGS = -I m4
 
 SUBDIRS = test
 
-INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I. -I${IGEOM_DIR}/include -I${IMESH_DIR}/include
-
+INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I.
 DEFS += $(DEFINES)
-
 LIBS =
 
 libiRel_la_SOURCES = \
@@ -22,10 +21,6 @@ libiRel_la_SOURCES = \
 	AssocPair.cpp \
 	AssocPair.hpp \
 	AssocPairSide.hpp \
-	MeshAssocPairSide.cpp \
-	MeshAssocPairSide.hpp \
-	GeomAssocPairSide.cpp \
-	GeomAssocPairSide.hpp \
 	iRel_Lasso.cpp \
 	iRel_Lasso.hpp \
 	Lasso.cpp \
@@ -39,10 +34,39 @@ libiRel_la_include_HEADERS = \
 
 # The directory in which to install headers
 libiRel_la_includedir = $(includedir)
-libiRel_la_LIBADD = ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${IMESH_LTFLAGS} \
-                    ${IMESH_LDFLAGS} ${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMesh.la
+libiRel_la_LIBADD =
 
 lib_LTLIBRARIES = libiRel.la
+
+if ENABLE_IGEOM
+    AM_CPPFLAGS += -DENABLE_IGEOM
+    INCLUDES += -I${IGEOM_DIR}/include
+    libiRel_la_SOURCES += \
+        GeomAssocPairSide.cpp \
+        GeomAssocPairSide.hpp
+    libiRel_la_LIBADD += \
+        ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${IGEOM_DIR}/lib/libiGeom.la
+endif
+
+if ENABLE_FBIGEOM
+    AM_CPPFLAGS += -DENABLE_FBIGEOM
+    INCLUDES += -I${FBIGEOM_DIR}/include
+    libiRel_la_SOURCES += \
+        FBGeomAssocPairSide.cpp \
+        FBGeomAssocPairSide.hpp
+    libiRel_la_LIBADD += \
+        ${FBIGEOM_LTFLAGS} ${FBIGEOM_LDFLAGS} ${FBIGEOM_DIR}/lib/libFBiGeom.la
+endif
+
+if ENABLE_IMESH
+    AM_CPPFLAGS += -DENABLE_IMESH
+    INCLUDES += -I${IMESH_DIR}/include
+    libiRel_la_SOURCES += \
+        MeshAssocPairSide.cpp \
+        MeshAssocPairSide.hpp
+    libiRel_la_LIBADD += \
+        ${IMESH_LTFLAGS} ${IMESH_LDFLAGS} ${IMESH_DIR}/lib/libiMesh.la
+endif
 
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put

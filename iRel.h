@@ -89,7 +89,9 @@ enum iRel_IfaceType {
         /**< description unavailable */
     iRel_IREL_IFACE,
         /**< description unavailable */
-    iRel_IfaceType_MAX = iRel_IREL_IFACE
+    iRel_FBIGEOM_IFACE,
+        /**< description unavailable */
+    iRel_IfaceType_MAX = iRel_FBIGEOM_IFACE
         /**< facilitates iteration over all values */
 };
 

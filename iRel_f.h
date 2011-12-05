@@ -3,13 +3,15 @@
 
       integer iRel_IGEOM_IFACE
       integer iRel_IMESH_IFACE
-      integer iRel_IFIELD_IFACE 
+      integer iRel_IFIELD_IFACE
       integer iRel_IREL_IFACE
+      integer iRel_FBIGEOM_IFACE
 
       parameter (iRel_IGEOM_IFACE = 0)
       parameter (iRel_IMESH_IFACE = 1)
       parameter (iRel_IFIELD_IFACE = 2)
       parameter (iRel_IREL_IFACE = 3)
+      parameter (iRel_FBIGEOM_IFACE = 3)
 
       integer iRel_ENTITY
       integer iRel_SET
