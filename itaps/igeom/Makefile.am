@@ -32,7 +32,7 @@ testgeom_SOURCES = testgeom.cc
 testgeom_DEPENDENCIES = libFBiGeomMOAB.la \
                         $(top_builddir)/itaps/imesh/libiMesh.la \
                         $(top_builddir)/src/libMOAB.la 
-testgeom_LDADD = libiGeomMOAB.la \
+testgeom_LDADD = libFBiGeomMOAB.la \
                  $(top_builddir)/itaps/imesh/libiMesh.la \
                  $(top_builddir)/src/libMOAB.la \
                  ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
@@ -41,7 +41,7 @@ testSmoothGeom_SOURCES = testSmooth.cc
 testSmoothGeom_DEPENDENCIES = libFBiGeomMOAB.la \
                         $(top_builddir)/itaps/imesh/libiMesh.la \
                         $(top_builddir)/src/libMOAB.la 
-testSmoothGeom_LDADD = libiGeomMOAB.la \
+testSmoothGeom_LDADD = libFBiGeomMOAB.la \
                  $(top_builddir)/itaps/imesh/libiMesh.la \
                  $(top_builddir)/src/libMOAB.la \
                  ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
