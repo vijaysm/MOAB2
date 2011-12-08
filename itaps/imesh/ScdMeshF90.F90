@@ -67,7 +67,7 @@ call iMesh_getNumOfType(%VAL(mesh), %VAL(root_set), %VAL(iBase_FACE), num_region
 call iMesh_getNumOfType(%VAL(mesh), %VAL(root_set), %VAL(iBase_VERTEX), num_verts, ier); ERROR(ier);
 
 call iMesh_initEntArrIter(%VAL(mesh), %VAL(root_set), %VAL(iBase_FACE), %VAL(iMesh_QUADRILATERAL),%VAL(num_quads), &
-  iter, ier); ERROR(ier);
+  %VAL(0), iter, ier); ERROR(ier);
 
 call iMesh_createTagWithOptions(%VAL(mesh), "XM1", "moab:TAG_STORAGE_TYPE=DENSE; moab:TAG_DEFAULT_VALUE=0.0", &
   %VAL(5), %VAL(iBase_DOUBLE), tagh, ier); ERROR(ier);
