@@ -1180,6 +1180,7 @@ void iMeshP_initEntArrIter( iMesh_Instance instance,
                           requested_entity_type, 
                           requested_entity_topology,
                           requested_array_size,
+                          0, // TODO: update this function for "resilient" arg
                           entArr_iterator, 
                           err );
   }

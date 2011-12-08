@@ -37,7 +37,7 @@ c get the number of regions
 c get an iterator over regions
       call iMesh_initEntArrIter(%VAL(mesh), %VAL(root_set), 
      1 %VAL(iBase_REGION), %VAL(iMesh_ALL_TOPOLOGIES),%VAL(num_regions),
-     1 iter, ierr) 
+     1 %VAL(0), iter, ierr) 
 
 c create a tag to put on the regions
       call iMesh_createTagWithOptions(%VAL(mesh), "dumtag", 

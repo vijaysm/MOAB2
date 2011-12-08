@@ -81,7 +81,7 @@
       
       call iMesh_initEntArrIter(%VAL(mesh), %VAL(root_set), 
      1  %VAL(iBase_FACE), %VAL(iMesh_QUADRILATERAL),%VAL(num_quads), 
-     1  iter, ier) 
+     1  %VAL(0), iter, ier) 
       
       call iMesh_createTagWithOptions(%VAL(mesh), "XM1", 
      1  "moab:TAG_STORAGE_TYPE=DENSE; moab:TAG_DEFAULT_VALUE=0.0",

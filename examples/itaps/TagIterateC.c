@@ -40,7 +40,7 @@ int main( int argc, char *argv[] )
   CHKERR(err, "Failed to get number of regions.");
   
     /* get an iterator to all regions in the model */
-  iMesh_initEntArrIter( mesh, root_set, iBase_REGION, iMesh_ALL_TOPOLOGIES, num_regions, &iter, &err );
+  iMesh_initEntArrIter( mesh, root_set, iBase_REGION, iMesh_ALL_TOPOLOGIES, num_regions, 0, &iter, &err );
   CHKERR(err, "Failed to create iterator over regions.");
 
     /* create a tag to put on the regions */
