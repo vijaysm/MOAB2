@@ -32,13 +32,13 @@ int main( int argc, char* argv[] )
     return 1;
   }
   
+  file = mhdf_openFile( argv[1], 0, &max_id, -1, &status ); CHECK;
+  
   WIDTH = 1;
   while (max_id > 10) {
     max_id /= 10;
     ++WIDTH;
   }
-  
-  file = mhdf_openFile( argv[1], 0, &max_id, -1, &status ); CHECK;
   dump_sets( file );
   mhdf_closeFile( file, &status ); CHECK;
   return 0;
