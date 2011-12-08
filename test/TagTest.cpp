@@ -187,7 +187,7 @@ Tag test_create_tag( Interface& mb,
   int bytes;
   rval = mb.tag_get_bytes( tag, bytes );
   CHECK_ERR(rval);
-  int exp_bytes;
+  int exp_bytes = 0;
   switch (type) {
     case MB_TYPE_INTEGER: exp_bytes = num_vals * sizeof(int); break;
     case MB_TYPE_DOUBLE: exp_bytes = num_vals * sizeof(double); break;
@@ -375,7 +375,7 @@ void test_get_set( const char* name,
   CHECK_ERR(rval);
   CHECK( !entities.empty() );
   
-  int bytes;
+  int bytes = 0;
   switch (type) {
     case MB_TYPE_INTEGER: bytes = vals_per_ent*sizeof(int); break;
     case MB_TYPE_DOUBLE : bytes = vals_per_ent*sizeof(double); break;
@@ -1553,7 +1553,7 @@ void test_get_set_variable_length( const char* name,
   CHECK_EQUAL( lengths[0], data_len );
   CHECK( !memcmp( values[0], data_ptr, data_len ) );
 
-  int typesize;
+  int typesize = 0;
   switch (type) {
     case MB_TYPE_INTEGER: typesize = sizeof(int); break;
     case MB_TYPE_DOUBLE:  typesize = sizeof(double); break;
