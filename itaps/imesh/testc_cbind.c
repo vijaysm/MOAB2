@@ -2273,7 +2273,7 @@ int compare_single_iter( const char* info,
   int i, twice, has_data, result = iBase_SUCCESS, result2;
   iBase_EntityHandle value;
   
-  iMesh_initEntIter( mesh, set, type, topo, &iter, &result );
+  iMesh_initEntIter( mesh, set, type, topo, 0, &iter, &result );
   if (iBase_SUCCESS != result) {
     printf("%s:%d: Error %d initializing %s iterator for type %d/topo %d\n",
       __FILE__,__LINE__,result,info,(int)type,(int)topo);
@@ -2354,7 +2354,7 @@ int compare_array_iter( const char* info,
   int values_size, values_alloc = array_size;
   values = (iBase_EntityHandle*)malloc( array_size * sizeof(iBase_EntityHandle) );
   
-  iMesh_initEntArrIter( mesh, set, type, topo, array_size, &iter, &result );
+  iMesh_initEntArrIter( mesh, set, type, topo, array_size, 0, &iter, &result );
   if (iBase_SUCCESS != result) {
     printf("%s:%d: Error %d initializing %s array iterator for type %d/topo %d\n",
       __FILE__,__LINE__,result,info,(int)type,(int)topo);

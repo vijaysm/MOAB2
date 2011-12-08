@@ -51,7 +51,8 @@ void test_tag_iterate()
   iBase_EntityArrIterator iter;
   int count, atend;
   double *data;
-  iMesh_initEntArrIter( mesh, root_set, iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES, 6, &iter, &err );
+  iMesh_initEntArrIter( mesh, root_set, iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES,
+                        6, 0, &iter, &err );
   CHECK_EQUAL( iBase_SUCCESS, err );
   iMesh_tagIterate(mesh, tagh, iter, &data, &count, &err);
   CHECK_EQUAL( iBase_SUCCESS, err );
@@ -64,7 +65,8 @@ void test_tag_iterate()
   CHECK_EQUAL( iBase_SUCCESS, err );
   
     /* get an iterator over the set with two subranges, and check tag iterator for that */
-  iMesh_initEntArrIter( mesh, entset, iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES, 6, &iter, &err );
+  iMesh_initEntArrIter( mesh, entset, iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES, 6,
+                        0, &iter, &err );
   CHECK_EQUAL( iBase_SUCCESS, err );
   iMesh_tagIterate(mesh, tagh, iter, &data, &count, &err);
   CHECK_EQUAL( iBase_SUCCESS, err );
