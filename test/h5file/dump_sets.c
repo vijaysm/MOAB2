@@ -35,7 +35,7 @@ int main( int argc, char* argv[] )
   file = mhdf_openFile( argv[1], 0, &max_id, -1, &status ); CHECK;
   
   WIDTH = 1;
-  while (max_id > 10) {
+  while (max_id >= 10) {
     max_id /= 10;
     ++WIDTH;
   }
