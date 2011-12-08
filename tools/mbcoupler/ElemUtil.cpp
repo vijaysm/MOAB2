@@ -565,12 +565,12 @@ namespace Element {
 
   void LinearTet::set_vertices(const std::vector<CartVect>& v) {
     this->Map::set_vertices(v);
-    this->T = Matrix3(v[1][0]-v[0][0],v[1][0]-v[0][0],v[2][0]-v[0][0],
-                      v[1][1]-v[0][1],v[1][1]-v[0][1],v[2][1]-v[0][1],
-                      v[1][2]-v[0][2],v[1][2]-v[0][2],v[2][2]-v[0][2]);
+    this->T = Matrix3(v[1][0]-v[0][0],v[2][0]-v[0][0],v[3][0]-v[0][0],
+                      v[1][1]-v[0][1],v[2][1]-v[0][1],v[3][1]-v[0][1],
+                      v[1][2]-v[0][2],v[2][2]-v[0][2],v[3][2]-v[0][2]);
     this->T_inverse = this->T.inverse();
     this->det_T = this->T.determinant();
-    this->det_T_inverse = 1.0/this->det_T;
+    this->det_T_inverse = (0.0 == this->det_T ? HUGE : 1.0/this->det_T);
   }// LinearTet::set_vertices()
 
 

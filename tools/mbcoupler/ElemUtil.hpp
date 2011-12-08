@@ -61,7 +61,7 @@ namespace ElemUtil {
     class Map {
     public:
       /**\brief Construct a Map defined by the given std::vector of vertices. */
-      Map(const std::vector<CartVect>& v) {this->vertex = v;};
+      Map(const std::vector<CartVect>& v) {this->vertex.resize(v.size()); this->set_vertices(v);};
       /**\brief Construct a Map defined by n vertices. */
       Map(const unsigned int n) {this->vertex = std::vector<CartVect>(n);};
       /**\brief Evaluate the map on \xi (calculate $\vec x = F($\vec \xi)$ )*/
