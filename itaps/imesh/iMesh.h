@@ -97,7 +97,7 @@ enum iMesh_EntityTopology {
     iMesh_HEXAHEDRON,
         /**< a specific 3D entity bounded by 6 quadrilateral entities */
     iMesh_PRISM,
-        /**< a speicifc 3D entity bounded by a combination of 3 quadrilateral
+        /**< a specific 3D entity bounded by a combination of 3 quadrilateral
             entities and 2 triangle entities */
     iMesh_PYRAMID,
         /**< a specific 3D entity bounded by a combination of 1 quadrilateral
@@ -105,7 +105,7 @@ enum iMesh_EntityTopology {
     iMesh_SEPTAHEDRON,
         /**< a hexahedral entity with one collapsed edge */
     iMesh_ALL_TOPOLOGIES,
-        /**< used only in queires to request information about all topologies */
+        /**< used only in queries to request information about all topologies */
     iMesh_EntityTopology_MAX = iMesh_ALL_TOPOLOGIES
         /**< MAX symbol used to facilitate iteration over topologies */
 };
@@ -535,6 +535,9 @@ void iMesh_initEntArrIter(
     const int requested_array_size, 
         /**< [in] Size of chunks of handles returned for each value of the
              iterator */
+    const int resilient,
+        /**< [in] If zero, return a non-resilient iterator.
+                  Otherwise, a resilient iterator (\ref resilient) */
     iBase_EntityArrIterator* entArr_iterator, 
         /**< [out] Pointer to iterator returned from function */
     int* err  
@@ -790,7 +793,7 @@ void iMesh_getAdjEntIndices(
         /**< [in] If not iBase_ALL_TYPES, act only on the subset of entities
            contained in entity_set_handle of the specified type. */
     int entity_topology_requester, 
-        /**< [in] If not iMesh_ALL_TOPOLOGIES, act only on the subest of
+        /**< [in] If not iMesh_ALL_TOPOLOGIES, act only on the subset of
            entities contained in entity_set_handle of specified topology. */
     int entity_type_requested, 
         /**< [in] The type of the adjacent entities to return */
@@ -867,7 +870,7 @@ void iMesh_getAdjEntIndices(
  * implementation may behave differently for entity set members.
  * This design was chosen because we could not identify any use cases where
  * order-preserving behavior for set members was necessary. However, if users
- * encounter situations where such behavior is desireable or necessary, then
+ * encounter situations where such behavior is desirable or necessary, then
  * the ITAPS development team can certainly consider adjusting the interface
  * specification to support it.
  ******************************************************************************/
@@ -2487,6 +2490,9 @@ void iMesh_initEntIter(
         /**< [in] Type of entity to iterate */
     const int requested_entity_topology, 
         /**< [in] Topology of entity to iterate */
+    const int resilient,
+        /**< [in] If zero, return a non-resilient iterator.
+                  Otherwise, a resilient iterator (\ref resilient) */
     iBase_EntityIterator* entity_iterator, 
         /**< [out] Pointer to iterator returned from function */
     int* err  

@@ -9,10 +9,10 @@
  * Technically speaking, there is not much practical value in patch digit
  * for an interface specification. A patch release is typically only used
  * for bug fix releases. Although it is rare, sometimes a bug fix
- * necessitates an API change. So, we define a patch digit for iMesh.
+ * necessitates an API change. So, we define a patch digit for iBase.
  *
  * Although each interface in ITAPS has been designed to support its own
- * uniqe version numbers, apart from other ITAPS interfaces, as currently
+ * unique version numbers, apart from other ITAPS interfaces, as currently
  * used, we require all ITAPS interfaces to use the same ITAPS-wide version
  * number derived from the version number defined by these three digits.
  ******************************************************************************/
@@ -114,7 +114,7 @@ enum iBase_EntityType {
     iBase_REGION,
         /**< A topological dimension 3 entity */
     iBase_ALL_TYPES,
-        /**< used only in queires to request information about all types */
+        /**< used only in queries to request information about all types */
     iBase_EntityType_MAX = iBase_ALL_TYPES
         /**< facilitates iteration over all values */
 };
@@ -409,6 +409,152 @@ enum iBase_TagValueType {
  * Note that iMesh itself currently does not define any options. In order
  * to discover options a given implementation defines, users are directed
  * to the developers of the respective implementations.
+ *
+ * \page resilient Resilient and Non-Resilient Iterators
+ *
+ * A resilient iterator is one that can deal with modifications to the container
+ * it is iterating over.
+ *
+ * A common concern about an iterator is how it behaves when the container
+ * over which it is iterating is modified. For example, in STL, iterators
+ * for std::set<> and std::map<> and std::list<> containers are guaranteed
+ * to <em>work</em> in the presence of modifications to the associated
+ * containers with one exception; they don't handle the case when the
+ * container member the iterator is currently pointed at is deleted. However,
+ * iterators for std::vector<> are not guaranteed to work under any kinds of
+ * modification.
+ *
+ * In the ITAPS interfaces, a <em>resilient</em> iterator is one that makes
+ * certain guarantees (described below) about how it behaves when the
+ * container being iterated is modified. On the other hand, a
+ * <em>non-resilient</em> is one that does not make such guarantees.
+ *
+ * In all cases, the <em>container</em> associated with an iterator in the
+ * ITAPS interfaces is an entity set of some sort. This is the only container
+ * type for which iterators are defined.
+ *
+ * Here, we characterize the behavior of iterators in the presence of
+ * container modifications. There are a number of (subtle) aspects to
+ * keep in mind.
+ *
+ * 1. There are set-type (<em>duplicate preventing</em>) sets and list-type
+ * (<em>order preserving</em>) sets and iterators behave differently for each.
+ *
+ * 2. Sets can have <em>set</em> members and <em>entity</em> members. However,
+ * iterators are currently defined to iterate over <em>only</em> the entity
+ * members. That said, the question arises as to whether modifications that
+ * involve only set members nonetheless <em>effect</em> iterator behavior.
+ *
+ * 3. There are array-type iterators that upon each step in the iteration
+ * return a whole array of entity member handles and single entity iterators
+ * that upon each step return just a single entity member handle.
+ *
+ * 4. The iterators support type/topology <em>filtering</em>. Iterators do not
+ * (always) strictly iterate over <em>all</em> entities in a set; just
+ * <em>all</em> entities matching the type/topology criteria. When
+ * type/topology specifies either all types or all topologies, then indeed
+ * the iterator will iterate over all entities.
+ *
+ * 5. There are add/remove operations that add/remove <em>entity members</em> or
+ * <em>set members</em> to a set.
+ *
+ * 6. There are create/delete operations that create and delete
+ * <em>entities</em> from the whole iMesh_Instance.
+ *
+ * 7. There are create/destroy operations that create and destroy
+ * <em>sets</em> from the whole interface instance. 
+ *
+ * 8. There is the <em>root set</em> which is special and may have different
+ * iterator behavior than all other sets. By definition, the root set is a set-type
+ * (<em>duplicate prevent</em>) set.
+ *
+ * Modification means addition/removal and/or create/destroy and/or create/delete
+ * <em>after</em> iterator initialization. When we talk about
+ * <em>container modification</em> here, we are talking about any of the
+ * following operations.
+ *
+ * A. addition and removal of entity members
+ * \code
+ * void iMesh_rmvEntFromSet(iMesh_Instance instance,
+ * void iMesh_rmvEntArrFromSet(iMesh_Instance instance,
+ * void iMesh_addEntToSet(iMesh_Instance instance,
+ * void iMesh_addEntArrToSet(iMesh_Instance instance,
+ * \endcode
+ * B. addition and removal of set members
+ * \code
+ * void iMesh_rmvEntSet(iMesh_Instance instance,
+ * void iMesh_addEntSet(iMesh_Instance instance,
+ * \endcode
+ * C. deletion of entities from whole iMesh_Instance
+ * \code
+ * void iMesh_deleteEntArr(iMesh_Instance instance,
+ * void iMesh_deleteEnt(iMesh_Instance instance,
+ * \endcode
+ * D. creation of entities (effects root set)
+ * \code
+ * void iMesh_createEntSet(iMesh_Instance instance,
+ * void iMesh_createVtxArr(iMesh_Instance instance,
+ * void iMesh_createEntArr(iMesh_Instance instance,
+ * void iMesh_createVtx(iMesh_Instance instance,
+ * void iMesh_createEnt(iMesh_Instance instance,
+ * \endcode
+ * E. destruction of entity sets
+ * \code
+ * void iMesh_destroyEntSet(iMesh_Instance instance,
+ * \endcode
+
+ * By container modification, we mean that of the above operations occur on
+ * the container between iterator initialization and reset.
+ *
+ * For purposes of this discussion, there is no distinction between any of
+ * these <em>kinds of</em> modifications. What is true for any is true for
+ * all. Below, the words <em>add</em> and <em>remove</em> are used to
+ * represent any of the modifications that add members or remove members
+ * regardless of the <em>kind of operation</em> above.
+ *
+ * Resilient iterators are not effected by modifications involving set members:
+ *
+ * Iterators are currently defined to iterate over *only* the entity members
+ * of a container. In particular, if the container is modified by
+ * adding/removing sets from the container, this will have no impact on
+ * the iterator.  This is true for set-type sets and list-type sets.
+ *
+ * Resilient iterator's <em>current position</em> not effected by modification:
+ *
+ * If the container is modified, the iterator will continue to properly
+ * <em>keep track of</em> the member it was currently pointing at. If a
+ * modification occurs that removes the member it was currently pointing at,
+ * the iterator will be advanced to the <em>next</em> (not already deleted)
+ * member it would have proceeded to. In this way, the iterator is guaranteed
+ * to always point at a valid member or to the end of the set, in the case
+ * that the member being removed is the last one.
+ *
+ * A resilient iterator must skip over removed members:
+ *
+ * If the container is modified by removing members, the iterator will guarantee
+ * not to <em>land on</em> (e.g. return) those members as iteration proceeds.
+ * This is true of set-type sets and list-type sets.
+ *
+ * A resilient iterator on set-type sets <em>may</em> fail to return added members:
+ *
+ * If the container is a set-type (<em>duplicate preventing</em>) container and
+ * it is modified by adding members, the iterator <em>may</em> skip over (e.g.
+ * fail to return) members that have been added. In other words, there is no
+ * guarantee in this circumstance that an iterator will return added members.
+ *
+ * A resilient iterator on list-type sets <em>must</em> return added members.
+ * If it is a list-type (<em>order preserving</em>) container, then the iterator
+ * <em>must</em> guarantee to return the added members.
+ *
+ * A non-resilient iterator may or may not behave like a resilient iterator in 
+ * some or all of the circumstances described above. There are no guarantees
+ * about how a non-resilient iterator will behave. The behavior of a non-resilient
+ * iterator in the presence of container modifications is left entirely up
+ * to the implementation.
+ *
+ * If upon initializing an iterator, an application requests it be resilient and
+ * the implementation is unable to support that, the iterator initialization
+ * request shall fail and return error iBase_NOT_SUPPORTED.
  ******************************************************************************/
 
 #ifdef __cplusplus

@@ -563,12 +563,15 @@ extern "C" {
                              /*in*/ const int requested_entity_type,
                              /*in*/ const int requested_entity_topology,
                              /*in*/ const int requested_array_size,
+                             /*in*/ const int resilient,
                              /*out*/ iBase_EntityArrIterator* entArr_iterator,
                              int *err)
   {
     CHKENUM(requested_entity_type, iBase_EntityType, iBase_INVALID_ENTITY_TYPE);
     CHKENUM(requested_entity_topology, iMesh_EntityTopology,
             iBase_INVALID_ENTITY_TOPOLOGY);
+    if (resilient)
+        ERROR(iBase_NOT_SUPPORTED, "reslient iterators not supported");
 
     EntityType req_type = mb_topology_table[requested_entity_topology];
 
@@ -2341,11 +2344,12 @@ extern "C" {
                           /*in*/ const iBase_EntitySetHandle entity_set_handle,
                           /*in*/ const int requested_entity_type,
                           /*in*/ const int requested_entity_topology,
+                          /*in*/ const int resilient,
                           /*out*/ iBase_EntityIterator* entity_iterator,
                           int *err)
   {
     iMesh_initEntArrIter(instance, entity_set_handle, requested_entity_type,
-                         requested_entity_topology, 1,
+                         requested_entity_topology, 1, resilient,
                          reinterpret_cast<iBase_EntityArrIterator*>(entity_iterator),
                          err);
   }
