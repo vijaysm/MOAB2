@@ -97,7 +97,7 @@ case "x$FBIGEOM_DIR" in
       AC_MSG_WARN([$FBIGEOM_DIR : not a directory.])
     fi
     FBIGEOM_MISSING=no
-    AC_CHECK_FILE([${FBIGEOM_DIR}/lib/iGeom-Defs.inc],
+    AC_CHECK_FILE([${FBIGEOM_DIR}/lib/FBiGeom-Defs.inc],
                   [FBIGEOM_CONFIG_OPTIONS="include ${FBIGEOM_DIR}/lib/FBiGeom-Defs.inc";
                    DEFINES="$DEFINES -DFBIGEOM"],
                   [AC_CHECK_FILE([${FBIGEOM_DIR}/FBiGeom-Defs.inc],

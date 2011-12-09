@@ -2,7 +2,7 @@
 #define FBGEOMASSOCPAIRSIDE_HPP
 
 #include "AssocPairSide.hpp"
-#include <iGeom.h>
+#include <FBiGeom.h>
 
 class FBGeomAssocPairSide : public AssocPairSide
 {

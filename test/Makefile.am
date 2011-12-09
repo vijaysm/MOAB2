@@ -4,7 +4,10 @@ AM_CPPFLAGS = -DSRCDIR=$(srcdir)
 
 INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I. -I${IGEOM_DIR}/include -I${IMESH_DIR}/include
 
-TESTS = test_entset test_both test_status
+TESTS = test_entset test_both test_status 
+if ENABLE_FBIGEOM
+  TESTS+= test_entsetFB
+endif
 check_PROGRAMS = ${TESTS}
 
 # stuff for c test programs
@@ -29,4 +32,14 @@ test_status_DEPENDENCIES = \
 	$(LDADD)
 test_status_LDADD = $(LDADD)
 
+if ENABLE_FBIGEOM
+test_entsetFB_SOURCES = test_entsetFB.cpp TestUtil.hpp
+test_entsetFB_DEPENDENCIES = \
+        ${FBIGEOM_DIR}/lib/libFBiGeomMOAB.la \
+        ${IMESH_DIR}/lib/libiMesh.la \
+        $(LDADD)
+endif
 EXTRA_DIST = brick.cub
+if ENABLE_FBIGEOM
+   EXTRA_DIST+= shell.h5m shellQuad.h5m
+endif 

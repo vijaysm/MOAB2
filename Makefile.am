@@ -55,7 +55,7 @@ if ENABLE_FBIGEOM
         FBGeomAssocPairSide.cpp \
         FBGeomAssocPairSide.hpp
     libiRel_la_LIBADD += \
-        ${FBIGEOM_LTFLAGS} ${FBIGEOM_LDFLAGS} ${FBIGEOM_DIR}/lib/libFBiGeom.la
+        ${FBIGEOM_LTFLAGS} ${FBIGEOM_LDFLAGS} ${FBIGEOM_DIR}/lib/libFBiGeomMOAB.la
 endif
 
 if ENABLE_IMESH
