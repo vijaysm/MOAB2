@@ -33,7 +33,7 @@ test_status_DEPENDENCIES = \
 test_status_LDADD = $(LDADD)
 
 if ENABLE_FBIGEOM
-test_entsetFB_SOURCES = test_entsetFB.cpp TestUtil.hpp
+test_entsetFB_SOURCES = test_entsetFB.c TestUtil.hpp
 test_entsetFB_DEPENDENCIES = \
         ${FBIGEOM_DIR}/lib/libFBiGeomMOAB.la \
         ${IMESH_DIR}/lib/libiMesh.la \
