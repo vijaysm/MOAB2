@@ -253,8 +253,9 @@ int MeshAssocPairSide::get_iterator(iBase_EntitySetHandle set,
                                     iBase_EntityIterator *iter)
 {
   int result;
+  int resilient=0;
   iMesh_initEntIter(instance_, set, iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES,
-                    iter, &result);
+                    resilient, iter, &result);
   RETURNR(iBase_SUCCESS);
 }
 
