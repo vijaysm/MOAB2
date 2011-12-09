@@ -201,7 +201,8 @@ void FBiGeom_getEntType(FBiGeom_Instance instance,
 void FBiGeom_getArrType(FBiGeom_Instance instance,
       iBase_EntityHandle const* entity_handles, int entity_handles_size,
       int** type, int* type_allocated, int* type_size, int* err) {
-   CHECK_SIZE(*type, *type_allocated, *type_size, int, NULL);
+   CHECK_SIZE(*type, *type_allocated, entity_handles_size, int, NULL);
+   *type_size=entity_handles_size;
 
    int tmp_err;
 
