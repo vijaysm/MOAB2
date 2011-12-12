@@ -482,22 +482,37 @@ ErrorCode FBEngine::addEntSet(EntityHandle entity_set_to_add,
 
 ErrorCode FBEngine::getNumOfType(EntityHandle set, int ent_type, int * pNum)
 {
-  if (0 > ent_type || 3 < ent_type) {
+  if (0 > ent_type || 4 < ent_type) {
     std::cout << "Invalid type\n";
     return MB_FAILURE;
   }
-  int num_sets;
-  ErrorCode rval = MBI->get_number_entities_by_type(set, MBENTITYSET, num_sets);
+  // get sets of geom dimension tag from here, and intersect with the gentities from goe
+  // ranges
 
-  MBERRORR(rval, "Failed to get number of sets in the original set.");
+  // get the geom dimensions sets in the set (AKA gentities)
+  Range geom_sets;
+  Tag geom_tag;
+  ErrorCode rval = _mbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geom_tag,
+                                              MB_TAG_SPARSE|MB_TAG_CREAT);
+  MBERRORR(rval, "Failed to get geom tag.");
+  rval = _mbImpl->get_entities_by_type_and_tag(set, MBENTITYSET, &geom_tag, NULL, 1, geom_sets,
+			Interface::UNION);
+  MBERRORR(rval, "Failed to get gentities from set");
 
-  // get also all sets in the set
-  Range sets;
-  rval = _mbImpl->get_entities_by_type(set, MBENTITYSET, sets, false); // nonrecursive
-
-  // see how many are in the range
-  sets = intersect(sets, _my_geomTopoTool->geoRanges()[ent_type]);
-  *pNum = sets.size();
+  if (ent_type==4)
+  {
+	  *pNum=0;
+	  for (int k=0; k<=3; k++)
+	  {
+	    Range gEntsOfTypeK = intersect(geom_sets, _my_geomTopoTool->geoRanges()[k]);
+	    *pNum += (int)gEntsOfTypeK.size();
+	  }
+  }
+  else
+  {
+    Range gEntsOfType = intersect(geom_sets, _my_geomTopoTool->geoRanges()[ent_type]);
+    *pNum = (int)gEntsOfType.size();
+  }
   // we do not really check if it is in the set or not;
   // _my_gsets[i].find(gent) != _my_gsets[i].end()
   return MB_SUCCESS;

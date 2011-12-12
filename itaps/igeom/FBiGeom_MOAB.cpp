@@ -179,7 +179,7 @@ void FBiGeom_getEntities(FBiGeom_Instance instance,
 
 void FBiGeom_getNumOfType(FBiGeom_Instance instance,
       iBase_EntitySetHandle set_handle, int entity_type, int* num_out, int* err) {
-   if (0 > entity_type || 3 < entity_type) {
+   if (0 > entity_type || 4 < entity_type) {
       ERROR(iBase_INVALID_ENTITY_TYPE, "Bad entity type.");
    }
    ErrorCode rval = FBE_cast(instance)->getNumOfType((EntityHandle)set_handle, entity_type, num_out);
