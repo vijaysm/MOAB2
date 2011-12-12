@@ -1064,12 +1064,6 @@ void FBiGeom_isFcArrDegenerate(FBiGeom_Instance,
       int* err) {
 }
 
-void FBiGeom_getArrTolerance(FBiGeom_Instance,
-      iBase_EntityHandle const* entity_handles, int entity_handles_size,
-      double** tolerances, int* tolerances_allocated, int* tolerances_size,
-      int* err) {
-}
-
 void FBiGeom_initEntIter(FBiGeom_Instance, iBase_EntitySetHandle entity_set_handle,
       int entity_dimension, iBase_EntityIterator* entity_iterator, int* err) {
 }
@@ -1645,4 +1639,204 @@ void FBiGeom_unite(FBiGeom_Instance instance, iBase_EntitySetHandle entity_set_1
       iBase_EntitySetHandle* result_entity_set, int *err) {
 }
 
+// TODO methods not yet implemented
+void FBiGeom_getEntClosestPtTrimmed( FBiGeom_Instance instance,
+    iBase_EntityHandle entity_handle,
+    double near_x,
+    double near_y,
+    double near_z,
+    double* on_x,
+    double* on_y,
+    double* on_z,
+    int* err )
+{
+  RETURN(iBase_FAILURE);
+}
+
+void FBiGeom_getFcCvtrXYZ( FBiGeom_Instance instance,
+                           iBase_EntityHandle face_handle,
+                           double x,
+                           double y,
+                           double z,
+                           double* cvtr1_i,
+                           double* cvtr1_j,
+                           double* cvtr1_k,
+                           double* cvtr2_i,
+                           double* cvtr2_j,
+                           double* cvtr2_k,
+                           int* err )
+{
+  RETURN(iBase_FAILURE);
+}
+
+void FBiGeom_getEgCvtrXYZ( FBiGeom_Instance instance,
+                           iBase_EntityHandle edge_handle,
+                           double x,
+                           double y,
+                           double z,
+                           double* cvtr_i,
+                           double* cvtr_j,
+                           double* cvtr_k,
+                           int* err )
+{
+  RETURN(iBase_FAILURE);
+}
+
+void FBiGeom_getEntArrCvtrXYZ( FBiGeom_Instance instance,
+                               iBase_EntityHandle const* entity_handles,
+                               int entity_handles_size,
+                               int storage_order,
+                               double const* coords,
+                               int coords_size,
+                               double** cvtr_1,
+                               int* cvtr_1_allocated,
+                               int* cvtr_1_size,
+                               double** cvtr_2,
+                               int* cvtr_2_allocated,
+                               int* cvtr_2_size,
+                               int* err )
+{
+  RETURN(iBase_FAILURE);
+}
+
+void FBiGeom_getEgEvalXYZ( FBiGeom_Instance instance,
+                           iBase_EntityHandle edge_handle,
+                           double x,
+                           double y,
+                           double z,
+                           double* on_x,
+                           double* on_y,
+                           double* on_z,
+                           double* tgnt_i,
+                           double* tgnt_j,
+                           double* tgnt_k,
+                           double* cvtr_i,
+                           double* cvtr_j,
+                           double* cvtr_k,
+                           int* err )
+{
+  RETURN(iBase_FAILURE);
+}
+
+void FBiGeom_getFcEvalXYZ( FBiGeom_Instance instance,
+                           iBase_EntityHandle face_handle,
+                           double x,
+                           double y,
+                           double z,
+                           double* on_x,
+                           double* on_y,
+                           double* on_z,
+                           double* nrml_i,
+                           double* nrml_j,
+                           double* nrml_k,
+                           double* cvtr1_i,
+                           double* cvtr1_j,
+                           double* cvtr1_k,
+                           double* cvtr2_i,
+                           double* cvtr2_j,
+                           double* cvtr2_k,
+                           int* err )
+{
+  RETURN(iBase_FAILURE);
+}
+
+void FBiGeom_getArrEgEvalXYZ( FBiGeom_Instance instance,
+                              iBase_EntityHandle const* edge_handles,
+                              int edge_handles_size,
+                              int storage_order,
+                              double const* coords,
+                              int coords_size,
+                              double** on_coords,
+                              int* on_coords_allocated,
+                              int* on_coords_size,
+                              double** tangent,
+                              int* tangent_allocated,
+                              int* tangent_size,
+                              double** cvtr,
+                              int* cvtr_allocated,
+                              int* cvtr_size,
+                              int* err )
+{
+  RETURN(iBase_FAILURE);
+}
+
+void FBiGeom_getArrFcEvalXYZ( FBiGeom_Instance instance,
+                              iBase_EntityHandle const* face_handles,
+                              int face_handles_size,
+                              int storage_order,
+                              double const* coords,
+                              int coords_size,
+                              double** on_coords,
+                              int* on_coords_allocated,
+                              int* on_coords_size,
+                              double** normal,
+                              int* normal_allocated,
+                              int* normal_size,
+                              double** cvtr1,
+                              int* cvtr1_allocated,
+                              int* cvtr1_size,
+                              double** cvtr2,
+                              int* cvtr2_allocated,
+                              int* cvtr2_size,
+                              int* err )
+{
+  RETURN(iBase_FAILURE);
+}
+
+void FBiGeom_getPntClsf( FBiGeom_Instance instance,
+                         double x,
+                         double y,
+                         double z,
+                         iBase_EntityHandle* entity_handle,
+                         int* err )
+{
+  RETURN(iBase_FAILURE);
+}
+
+void FBiGeom_getPntArrClsf( FBiGeom_Instance instance,
+                            int storage_order,
+                            double const* coords,
+                            int coords_size,
+                            iBase_EntityHandle** entity_handles,
+                            int* entity_handles_allocated,
+                            int* entity_handles_size,
+                            int* err )
+{
+  RETURN(iBase_FAILURE);
+}
+
+void FBiGeom_getFacets(FBiGeom_Instance instance,
+                       iBase_EntityHandle entity,
+                       double dist_tolerance,
+                       double **points, int *points_allocated, int *points_size,
+                       int **facets, int *facets_allocated, int *facets_size,
+                       int *err)
+{
+  RETURN(iBase_FAILURE);
+}
+
+void FBiGeom_getEntTolerance( FBiGeom_Instance instance,
+                              iBase_EntityHandle entity_handle,
+                              double* tolerance,
+                              int* err )
+{
+  RETURN(iBase_FAILURE);
+}
+void FBiGeom_getArrTolerance( FBiGeom_Instance instance,
+                              iBase_EntityHandle const* entity_handles,
+                              int entity_handles_size,
+                              double** tolerances,
+                              int* tolerances_allocated,
+                              int* tolerances_size,
+                              int* err )
+{
+  RETURN(iBase_FAILURE);
+}
+void FBiGeom_getTolerance( FBiGeom_Instance instance,
+                           int* type,
+                           double* tolerance,
+                           int* err )
+{
+  RETURN(iBase_FAILURE);
+}
 
