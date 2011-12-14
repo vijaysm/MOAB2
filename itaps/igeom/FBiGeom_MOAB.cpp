@@ -75,6 +75,29 @@ void FBiGeom_newGeom(char const* options, FBiGeom_Instance* instance_out, int* e
   *err = iBase_SUCCESS;
 }
 
+void FBiGeom_newGeomFromMesh(iMesh_Instance mesh, iBase_EntitySetHandle set,
+                        const char *options, FBiGeom_Instance *geom,
+                        int *err, int options_len)
+{
+  MBiMesh * mbimesh = reinterpret_cast<MBiMesh *>(mesh);
+  moab::Interface * mbi = mbimesh->mbImpl;
+  moab::EntityHandle rootSet = reinterpret_cast<moab::EntityHandle> (set);
+  moab::GeomTopoTool * gtt = new moab::GeomTopoTool(mbi, true, rootSet);
+  bool smooth = false; // decide from options
+  char smth[] = "SMOOTH;";
+  const char * res = strstr(options, smth);
+  if (res!=NULL)
+    smooth = true;
+  moab::FBEngine * fbe = new moab::FBEngine(mbi, gtt, smooth);
+  MBiGeom **mbigeom = reinterpret_cast<MBiGeom**> (geom);
+  *mbigeom = NULL;
+  *mbigeom = new MBiGeom(mbimesh, fbe);
+  // will do now the initialization of the engine;
+  // heavy duty computation
+  fbe->Init();
+  *err = iBase_SUCCESS;
+
+}
 void FBiGeom_dtor(FBiGeom_Instance instance, int* err) {
   delete FBE_cast(instance);
   *err = iBase_SUCCESS;

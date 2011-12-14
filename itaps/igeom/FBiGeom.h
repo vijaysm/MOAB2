@@ -59,6 +59,7 @@
 
 #include "iBase.h"
 #include "FBiGeom_protos.h"
+//#include "iMesh.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -104,6 +105,21 @@ extern "C" {
                       int* err,
                       int options_len );
 
+  /**\brief  Construct a new FBiGeom instance
+       *
+       * Construct a new FBiGeom instance, using an existing moab iMesh instance
+       * and a root set that encapsulates the topological model
+       * \param mesh iMesh_Instance
+       * \param set  root set for the mesh based geometry
+       * \param options Pointer to implementation-specific options string
+       * \param instance Pointer to FBiGeom instance handle returned from function
+       * \param *err Pointer to error type returned from function
+       * \param options_len Length of the character string pointed to by options
+       */
+
+/*  void FBiGeom_newGeomFromMesh( iMesh_Instance mesh, iBase_EntitySetHandle set,
+                          const char *options, FBiGeom_Instance *geom,
+                          int *err, int options_len);*/
     /**\brief  Destroy an FBiGeom instance
      *
      * Destroy an FBiGeom instance

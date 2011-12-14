@@ -21,6 +21,7 @@ class MBiGeom
 {
   MBiMesh * _mbimesh;
   moab::FBEngine * _fbe;
+  bool _mbimeshCreated, _fbeCreated;
 public:
   MBiGeom ()
   {
@@ -29,12 +30,19 @@ public:
     moab::Interface * mbi = _mbimesh->mbImpl;
     // pass mbi, so they will point to the same implementation
     _fbe = new FBEngine(mbi);
+    _mbimeshCreated = _fbeCreated = true;
+  }
+  MBiGeom (MBiMesh * mbimesh, moab::FBEngine * fbe)
+  {
+    _mbimesh = mbimesh;
+    _fbe = fbe;
+    _mbimeshCreated = _fbeCreated = false;
   }
   ~MBiGeom()
   {
     // some cleanup here
-    delete _fbe;
-    delete _mbimesh;
+    if (_fbeCreated) delete _fbe;
+    if (_mbimeshCreated) delete _mbimesh;
   }
   moab::Interface * moabItf() { return _mbimesh->mbImpl;}
   moab::FBEngine * FBItf() { return _fbe;}

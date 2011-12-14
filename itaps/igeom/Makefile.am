@@ -27,7 +27,7 @@ libFBiGeomMOAB_la_include_HEADERS = \
 	FBiGeom_f.h
 
 # stuff for test program
-check_PROGRAMS = testgeom  testSmoothGeom 
+check_PROGRAMS = testgeom  testSmoothGeom testSmooth2
 testgeom_SOURCES = testgeom.cc
 testgeom_DEPENDENCIES = libFBiGeomMOAB.la \
                         $(top_builddir)/itaps/imesh/libiMesh.la \
@@ -42,6 +42,15 @@ testSmoothGeom_DEPENDENCIES = libFBiGeomMOAB.la \
                         $(top_builddir)/itaps/imesh/libiMesh.la \
                         $(top_builddir)/src/libMOAB.la 
 testSmoothGeom_LDADD = libFBiGeomMOAB.la \
+                 $(top_builddir)/itaps/imesh/libiMesh.la \
+                 $(top_builddir)/src/libMOAB.la \
+                 ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
+                 
+testSmooth2_SOURCES = testSmooth2.cc
+testSmooth2_DEPENDENCIES = libFBiGeomMOAB.la \
+                        $(top_builddir)/itaps/imesh/libiMesh.la \
+                        $(top_builddir)/src/libMOAB.la 
+testSmooth2_LDADD = libFBiGeomMOAB.la \
                  $(top_builddir)/itaps/imesh/libiMesh.la \
                  $(top_builddir)/src/libMOAB.la \
                  ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
