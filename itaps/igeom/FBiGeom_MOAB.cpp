@@ -825,8 +825,13 @@ void FBiGeom_getPntArrRayIntsct(FBiGeom_Instance, int storage_order,
   // not implemented
 }
 
-void FBiGeom_getEntNrmlSense(FBiGeom_Instance, iBase_EntityHandle face,
+void FBiGeom_getEntNrmlSense(FBiGeom_Instance instance, iBase_EntityHandle face,
       iBase_EntityHandle region, int* sense_out, int* err) {
+  moab::EntityHandle mbregion = (moab::EntityHandle) region;
+  moab::EntityHandle mbface = (moab::EntityHandle) face;
+  moab::ErrorCode rval = FBE_cast(instance)->getEgFcSense(  mbface, mbregion, *sense_out );
+  CHKERR(rval,"can't get normal sense ");
+  RETURN(iBase_SUCCESS);
 }
 void FBiGeom_getArrNrmlSense(FBiGeom_Instance,
       iBase_EntityHandle const* face_handles, int face_handles_size,
@@ -888,8 +893,14 @@ void FBiGeom_measure(FBiGeom_Instance instance,
   RETURN(iBase_SUCCESS);
 }
 
-void FBiGeom_getFaceType(FBiGeom_Instance, iBase_EntityHandle face_handle,
+void FBiGeom_getFaceType(FBiGeom_Instance instance, iBase_EntityHandle face_handle,
       char* face_type, int* err, int* face_type_length) {
+  std::string type = "nonplanar"; // for swept faces created with rays between surfaces,
+  // we could actually create planar surfaces; maybe we should recognize them as such
+  face_type = new char[type.length()+1];
+  strcpy(face_type, type.c_str());
+  *face_type_length = type.length()+1;
+  RETURN(iBase_SUCCESS);
 }
 void FBiGeom_getParametric(FBiGeom_Instance instance, int* is_parametric, int* err) {
   *is_parametric = 0; //(false)
@@ -1226,6 +1237,8 @@ void FBiGeom_isList(FBiGeom_Instance instance, iBase_EntitySetHandle entity_set,
 void FBiGeom_getNumEntSets(FBiGeom_Instance instance,
       iBase_EntitySetHandle entity_set_handle, int num_hops, int *num_sets,
       int *err) {
+  // TODO  here, we should really get only the entity sets that have gents as members
+  // we have the convention that entity sets of geom dimension 4
    iMesh_getNumEntSets(IMESH_INSTANCE(instance), entity_set_handle, num_hops,
          num_sets, err);
 }
@@ -1235,6 +1248,8 @@ void FBiGeom_getEntSets(FBiGeom_Instance instance,
       iBase_EntitySetHandle** contained_set_handles,
       int* contained_set_handles_allocated, int* contained_set_handles_size,
       int *err) {
+  // TODO  here, we should really get only the entity sets that have gents as members
+    // we have the convention that entity sets of geom dimension 4
    iMesh_getEntSets(IMESH_INSTANCE(instance), entity_set_handle, num_hops,
          contained_set_handles, contained_set_handles_allocated,
          contained_set_handles_size, err);
@@ -1727,22 +1742,28 @@ void FBiGeom_getEntArrCvtrXYZ( FBiGeom_Instance instance,
 }
 
 void FBiGeom_getEgEvalXYZ( FBiGeom_Instance instance,
-                           iBase_EntityHandle edge_handle,
+                           iBase_EntityHandle edge,
                            double x,
                            double y,
                            double z,
                            double* on_x,
                            double* on_y,
                            double* on_z,
-                           double* tgnt_i,
-                           double* tgnt_j,
-                           double* tgnt_k,
+                           double* tngt_i,
+                           double* tngt_j,
+                           double* tngt_k,
                            double* cvtr_i,
                            double* cvtr_j,
                            double* cvtr_k,
                            int* err )
 {
-  RETURN(iBase_FAILURE);
+  ErrorCode rval = FBE_cast(instance)->getEgEvalXYZ( (moab::EntityHandle) edge,
+                                     x, y, z,
+                                     *on_x, *on_y, *on_z,
+                                     *tngt_i, *tngt_j, *tngt_k,
+                                     *cvtr_i, *cvtr_j, *cvtr_k );
+  CHKERR(rval,"can't get point on edge ");
+  RETURN(iBase_SUCCESS);
 }
 
 void FBiGeom_getFcEvalXYZ( FBiGeom_Instance instance,
@@ -1778,7 +1799,7 @@ void FBiGeom_getFcEvalXYZ( FBiGeom_Instance instance,
 
   *cvtr1_i=*cvtr1_j=*cvtr1_k= *cvtr2_i= *cvtr2_j=  *cvtr2_k=0.;
   // first get closest point, then normal, separately
-  moab::ErrorCode rval = FBE_cast(instance)->getEntClosestPt((moab::EntityHandle) face_handle,
+  ErrorCode rval = FBE_cast(instance)->getEntClosestPt((moab::EntityHandle) face_handle,
        x, y, z,
          on_x,  on_y, on_z );
   CHKERR(rval,"can't get closest point on surface ");
