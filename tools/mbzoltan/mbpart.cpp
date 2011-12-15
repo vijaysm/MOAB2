@@ -149,7 +149,7 @@ int main( int argc, char* argv[] )
   clock_t t = clock();
 
   const char* options = NULL;
-  if (part_geom_mesh_size) options = "FACET_DISTANCE_TOLERANCE=0.1";
+  if (part_geom_mesh_size > 0.) options = "FACET_DISTANCE_TOLERANCE=0.1";
   ErrorCode rval = mb.load_file( input_file.c_str(), 0, options );
   if (MB_SUCCESS != rval) {
     std::cerr << input_file << " : failed to read file." << std::endl;
