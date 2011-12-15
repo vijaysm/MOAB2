@@ -1024,8 +1024,12 @@ void FBiGeom_getArrNrmlUV(FBiGeom_Instance, iBase_EntityHandle const* face_handl
       int parameters_size, double** normals, int* normals_allocated,
       int* normals_size, int* err) {
 }
-void FBiGeom_getEntTgntU(FBiGeom_Instance, iBase_EntityHandle entity_handle,
+void FBiGeom_getEntTgntU(FBiGeom_Instance instance, iBase_EntityHandle entity_handle,
       double u, double* tgnt_i, double* tgnt_j, double* tgnt_k, int* err) {
+  ErrorCode rval = FBE_cast(instance)->getEntTgntU( (moab::EntityHandle)entity_handle ,   u,
+      *tgnt_i, *tgnt_j,  *tgnt_k);
+  CHKERR(rval, "Failed to get tangent from u");
+  RETURN(iBase_SUCCESS);
 }
 void FBiGeom_getArrTgntU(FBiGeom_Instance, iBase_EntityHandle const* edge_handles,
       int edge_handles_size, int storage_order, double const* parameters,
@@ -1760,7 +1764,29 @@ void FBiGeom_getFcEvalXYZ( FBiGeom_Instance instance,
                            double* cvtr2_k,
                            int* err )
 {
-  RETURN(iBase_FAILURE);
+  /*
+  moab::ErrorCode rval = _fbEngine->getFcEvalXYZ( (moab::EntityHandle) face,
+                            x,  y, z,
+                            on_x, on_y, on_z,
+                            nrml_i, nrml_j, nrml_k,
+                            cvtr1_i, cvtr1_j, cvtr1_k,
+                            cvtr2_i, cvtr2_j,  cvtr2_k );*/
+  // camal really does not use curvatures
+  // the most it is calling for normals and for closest point
+  // return all curvatures = 0 for the time being, because we
+  // know camal is not requesting them
+
+  *cvtr1_i=*cvtr1_j=*cvtr1_k= *cvtr2_i= *cvtr2_j=  *cvtr2_k=0.;
+  // first get closest point, then normal, separately
+  moab::ErrorCode rval = FBE_cast(instance)->getEntClosestPt((moab::EntityHandle) face_handle,
+       x, y, z,
+         on_x,  on_y, on_z );
+  CHKERR(rval,"can't get closest point on surface ");
+  rval = FBE_cast(instance)->getEntNrmlXYZ( (moab::EntityHandle) face_handle,
+        x,   y,  z,
+        nrml_i, nrml_j, nrml_k ); // some inconsistency here, we use pointers, not refs
+  CHKERR(rval,"can't get normal on closest point on surface ");
+  RETURN(iBase_SUCCESS);
 }
 
 void FBiGeom_getArrEgEvalXYZ( FBiGeom_Instance instance,
