@@ -463,7 +463,7 @@ ErrorCode create_shell_test(Interface * mb)
   // it would be good to have a method on updating the geom topo tool
   // so we do not have to create another one
   moab::GeomTopoTool gTopoTool2(mb, true);// to find the geomsets
-  Range ranges[4];
+  Range ranges[5];
   rval =  gTopoTool2.find_geomsets(ranges);
 
   assert(MB_SUCCESS==rval);
@@ -474,6 +474,8 @@ ErrorCode create_shell_test(Interface * mb)
   assert(ranges[2].size()==2);
 
   assert(ranges[3].size()==0);
+
+  assert(ranges[4].size()==0);
 
 
   return MB_SUCCESS;
@@ -488,7 +490,7 @@ ErrorCode duplicate_model_test(Interface * mb)
   if (NULL == newModel || rval!=MB_SUCCESS)
     return MB_FAILURE;
 
-  Range ranges[4];
+  Range ranges[5];
   rval = newModel->find_geomsets(ranges);
 
   assert(MB_SUCCESS==rval);

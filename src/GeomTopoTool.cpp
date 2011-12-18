@@ -57,7 +57,7 @@ GeomTopoTool::GeomTopoTool(Interface *impl, bool find_geoments, EntityHandle mod
     std::cerr << "Error: Failed to create global id tag." << std::endl;
   }
 
-  maxGlobalId[0] = maxGlobalId[1] = maxGlobalId[2] = maxGlobalId[3] =0;
+  maxGlobalId[0] = maxGlobalId[1] = maxGlobalId[2] = maxGlobalId[3] =maxGlobalId[4] =0;
   if (find_geoments)
     find_geomsets();
 }
@@ -163,7 +163,7 @@ ErrorCode GeomTopoTool::find_geomsets(Range *ranges)
     return result;
 
   if (ranges) {
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 5; i++)
     {
       ranges[i] = geomRanges[i];
     }
@@ -429,11 +429,11 @@ ErrorCode GeomTopoTool::separate_by_dimension(const Range &geom_sets)
   Range::const_iterator git;
   std::vector<int>::iterator iit;
 
-  for (int i=0; i<4; i++)
+  for (int i=0; i<5; i++)
     this->geomRanges[i].clear();
 
   for (git = geom_sets.begin(), iit = tag_vals.begin(); git != geom_sets.end(); git++, iit++) {
-    if (0 <= *iit && 3 >= *iit)
+    if (0 <= *iit && 4 >= *iit)
       geomRanges[*iit].insert(*git);
     else {
       // assert(false);
@@ -448,7 +448,7 @@ ErrorCode GeomTopoTool::separate_by_dimension(const Range &geom_sets)
       return result;
   }
 
-  for (int i=0; i<=3; i++)
+  for (int i=0; i<=4; i++)
   {
     maxGlobalId[i] = 0;
     for (Range::iterator it =geomRanges[i].begin(); it!=geomRanges[i].end(); it++ )
@@ -800,7 +800,7 @@ ErrorCode GeomTopoTool::check_edge_sense_tags(bool create)
 
 ErrorCode  GeomTopoTool::add_geo_set(EntityHandle set, int dimension, int global_id)
 {
-  if (dimension <0 || dimension > 3)
+  if (dimension <0 || dimension > 4)
     return MB_FAILURE;
   // see if it is not already set
   if (geomRanges[dimension].find(set) != geomRanges[dimension].end())
@@ -1144,7 +1144,7 @@ ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate)
   // keep a map between sets to help in copying parent/child relations
   std::map <EntityHandle, EntityHandle> relate;
   // each set will get the same entities as the original
-  for (int dim=0; dim<4; dim++)
+  for (int dim=0; dim<5; dim++)
   {
     int gid = 0;
     unsigned int set_options = ( (1!=dim) ? MESHSET_SET : MESHSET_ORDERED );
@@ -1255,7 +1255,7 @@ ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate)
     if (MB_SUCCESS != rval)
       return rval;
     // add to this new set all previous sets (which are still in ranges)
-    for (int dim=0; dim<4; dim++)
+    for (int dim=0; dim<5; dim++)
     {
       rval = mdbImpl->add_entities(modelSet, geomRanges[dim]);
       if (MB_SUCCESS != rval)

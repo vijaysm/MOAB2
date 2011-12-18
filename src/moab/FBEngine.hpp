@@ -243,7 +243,7 @@ private:
   // these are initial ranges, that should not change during geometry gimmicks
   // those that are added are changing gtt ranges, but they are not yet "smoothed"
   // when new geometry is created, these ranges are not yet updated
-  Range _my_gsets[4];
+  Range _my_gsets[5];
   // these are used only for smooth evaluations
   // these smooth faces and edges will be initialized after reading the file
   // the maps keep the link between EH in moab (geom sets) and

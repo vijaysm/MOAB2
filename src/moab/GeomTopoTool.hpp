@@ -142,8 +142,9 @@ private:
   Tag gidTag;
   // the model set encompasses a full topological model
   EntityHandle modelSet;
-  Range geomRanges[4];
-  int maxGlobalId[4]; // one max global id for each dimension
+  Range geomRanges[5];// add one more dimension, for set of gentities; by default, they will
+                      // have geom_dimension 4
+  int maxGlobalId[5]; // one max global id for each dimension
   bool updated;
 
   OrientedBoxTreeTool obbTree;

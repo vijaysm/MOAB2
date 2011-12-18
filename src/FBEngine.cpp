@@ -216,7 +216,7 @@ void FBEngine::clean()
     //_smooth = false;
   }
 
-  for (int j = 0; j < 4; j++)
+  for (int j = 0; j < 5; j++)
     _my_gsets[j].clear();
   if (_t_created)
     delete _my_geomTopoTool;
@@ -3209,7 +3209,7 @@ ErrorCode FBEngine::set_default_neumann_tags()
   ErrorCode rval = _mbImpl->tag_get_handle(NEUMANN_SET_TAG_NAME, 1, MB_TYPE_INTEGER, ntag);
   MBERRORR(rval, "can't get tag handle");
   // get all surfaces in the model now
-  Range sets[4];
+  Range sets[5];
   rval = _my_geomTopoTool->find_geomsets(sets);
   MBERRORR(rval, "can't get geo sets");
   int nfaces = (int)sets[2].size();
@@ -3228,13 +3228,13 @@ ErrorCode FBEngine::set_default_neumann_tags()
 // a reverse operation for splitting an gedge at a mesh node
 ErrorCode FBEngine::chain_edges(double min_dot)
 {
-  Range sets[4];
+  Range sets[5];
   ErrorCode rval;
   while (1)// break out only if no edges are chained
   {
     rval = _my_geomTopoTool->find_geomsets(sets);
     MBERRORR(rval, "can't get geo sets");
-    // these gentities are "always" current, while the ones in this-> _my_gsets[4] are
+    // these gentities are "always" current, while the ones in this-> _my_gsets[0:4] are
     // the "originals" before FBEngine modifications
     int nedges=(int)sets[1].size();
     // as long as we have chainable edges, continue;

@@ -5,6 +5,7 @@
 #include "moab/OrientedBoxTreeTool.hpp"
 #include "moab/CartVect.hpp"
 #include "FileOptions.hpp"
+#include "MBTagConventions.hpp"
 #include <stdlib.h>
 #include <cstring>
 #include <map>
@@ -1235,12 +1236,32 @@ void FBiGeom_isList(FBiGeom_Instance instance, iBase_EntitySetHandle entity_set,
 }
 
 void FBiGeom_getNumEntSets(FBiGeom_Instance instance,
-      iBase_EntitySetHandle entity_set_handle, int num_hops, int *num_sets,
+      iBase_EntitySetHandle entity_set_handle, int  /*num_hops*/, int *num_sets,
       int *err) {
-  // TODO  here, we should really get only the entity sets that have gents as members
-  // we have the convention that entity sets of geom dimension 4
-   iMesh_getNumEntSets(IMESH_INSTANCE(instance), entity_set_handle, num_hops,
-         num_sets, err);
+ //  here, we get only the entity sets that have gents as members
+  // we have the convention that entity sets of geom dimension 4 are
+  // sets of geo entities; they should contain only gentities as elements (or other sets of gents)
+   // we should also consider the number of hops
+  // first, get all sets of geo dim 4 from the entity_set_handle; then intersect with
+  // the range from geom topo tool
+  Tag geomTag;
+  ErrorCode rval = MBI->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geomTag);
+  if (MB_SUCCESS != rval)
+    RETURN(iBase_FAILURE);
+  GeomTopoTool * gtt = GETGTT(instance);
+  const Range * gRange =gtt-> geoRanges();
+  // get all sets of geom dimension 4 from the entity set
+  EntityHandle moabSet = (EntityHandle)entity_set_handle;
+  const int four = 4;
+  const void* const four_val[] = { &four };
+  Range tmp;
+  rval = MBI->get_entities_by_type_and_tag(moabSet, MBENTITYSET, &geomTag,
+        four_val, 1, tmp);
+  CHKERR(rval,"can't get sets of geo dim 4 ");
+  tmp=intersect(tmp, gRange[4]);
+  *num_sets = tmp.size();// ignore, for the time being, number of hops
+
+  RETURN(iBase_SUCCESS);
 }
 
 void FBiGeom_getEntSets(FBiGeom_Instance instance,
@@ -1248,11 +1269,30 @@ void FBiGeom_getEntSets(FBiGeom_Instance instance,
       iBase_EntitySetHandle** contained_set_handles,
       int* contained_set_handles_allocated, int* contained_set_handles_size,
       int *err) {
-  // TODO  here, we should really get only the entity sets that have gents as members
-    // we have the convention that entity sets of geom dimension 4
-   iMesh_getEntSets(IMESH_INSTANCE(instance), entity_set_handle, num_hops,
-         contained_set_handles, contained_set_handles_allocated,
-         contained_set_handles_size, err);
+  //  we get only the entity sets that have gents as members
+  // we keep the convention that entity sets of geom dimension 4 are
+  // sets of geo entities; they should contain only gentities as elements (or other sets of gents)
+  Tag geomTag;
+  ErrorCode rval = MBI->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, geomTag);
+  if (MB_SUCCESS != rval)
+    RETURN(iBase_FAILURE);
+  GeomTopoTool * gtt = GETGTT(instance);
+  const Range * gRange =gtt-> geoRanges();
+  // get all sets of geom dimension 4 from the entity set
+  EntityHandle moabSet = (EntityHandle)entity_set_handle;
+  const int four = 4;
+  const void* const four_val[] = { &four };
+  Range tmp;
+  rval = MBI->get_entities_by_type_and_tag(moabSet, MBENTITYSET, &geomTag,
+        four_val, 1, tmp);
+  CHKERR(rval,"can't get sets of geo dim 4 ");
+  tmp=intersect(tmp, gRange[4]);
+  *contained_set_handles_size = tmp.size();
+  CHECK_SIZE(*contained_set_handles, *contained_set_handles_allocated,
+            *contained_set_handles_size, iBase_EntitySetHandle, NULL);
+  COPY_RANGE(tmp, *contained_set_handles);
+
+  RETURN(iBase_SUCCESS);
 }
 
 void FBiGeom_addEntToSet(FBiGeom_Instance instance,
