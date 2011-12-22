@@ -160,7 +160,7 @@ public:
    *        MB_ENTITY_NOT_FOUND if the option was not specified
    *        MB_FAILURE if the option value doesn't match the passed string/
    */
-  ErrorCode match_option( const char* name, const char* value ) const;
+  ErrorCode match_option( const char* name, const char* value) const;
   
   /**\brief Check for option for which the value is a list of ints
    *

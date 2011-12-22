@@ -2680,7 +2680,7 @@ ErrorCode Core::list_entities(const EntityHandle *entities,
       result = this->get_entities_by_type(0, MBENTITYSET, sets);
       if (MB_SUCCESS != result) return result;
       for (Range::iterator rit = sets.begin(); rit != sets.end(); rit++) {
-        this->print(*rit, "", false);
+        this->print(*rit, "", true);
         result = this->get_number_entities_by_handle(*rit, num_ents);
         std::cout << "(" << num_ents << " total entities)" << std::endl;
       }
@@ -3455,9 +3455,8 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
   
   if (0 != ms_handle) {
     get_entities_by_handle( ms_handle, entities );
-    if (!first_call)
-      std::cout << prefix << "MBENTITYSET " << ID_FROM_HANDLE(ms_handle) 
-                << std::endl;
+    std::cout << prefix << "MBENTITYSET " << ID_FROM_HANDLE(ms_handle) 
+              << std::endl;
   }
   else {
     get_entities_by_dimension(0, 3, entities);

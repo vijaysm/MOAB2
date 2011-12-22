@@ -154,4 +154,34 @@ public:
     { arrayPtr = 0; }
 };
 
+inline int compare_no_case(const char *str1, const char *str2, size_t n) {
+   for (size_t i = 1; i != n && *str1 && toupper(*str1) == toupper(*str2);
+        ++i, ++str1, ++str2);
+   return toupper(*str2) - toupper(*str1);
+}
+
+// Filter out non-MOAB options and remove the "moab:" prefix
+inline std::string filter_options(const char *begin, const char *end)
+{
+  const char *opt_begin = begin;
+  const char *opt_end   = begin;
+
+  std::string filtered;
+  bool first = true;
+
+  while (opt_end != end) {
+    opt_end = std::find(opt_begin, end, ' ');
+
+    if (opt_end-opt_begin >= 5 && compare_no_case(opt_begin, "moab:", 5) == 0) {
+      if (!first)
+        filtered.push_back(';');
+      first = false;
+      filtered.append(opt_begin+5, opt_end);
+    }
+
+    opt_begin = opt_end+1;
+  }
+  return filtered;
+}
+
 #endif // IMESH_MOAB_HPP

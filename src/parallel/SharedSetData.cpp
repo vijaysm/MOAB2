@@ -14,7 +14,7 @@ SharedSetData::SharedSetData(Interface& moab, unsigned rank)
   : mb(moab), myRank(rank), sharedSetTag(0)
 {
   SharedSetTagData zero = { 0, rank, 0 };
-  ErrorCode rval = mb.tag_get_handle( 0, sizeof(SharedSetTagData), MB_TYPE_OPAQUE,
+  ErrorCode rval = mb.tag_get_handle( "__sharedSetTag", sizeof(SharedSetTagData), MB_TYPE_OPAQUE,
                                       sharedSetTag, MB_TAG_CREAT|MB_TAG_SPARSE, &zero );
   assert(MB_SUCCESS == rval);
   if (MB_SUCCESS != rval)

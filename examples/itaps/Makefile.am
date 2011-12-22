@@ -1,7 +1,6 @@
+check_PROGRAMS = TagIterateC ListSetsNTagsCXX
 if ENABLE_FORTRAN
-check_PROGRAMS = FindConnectF TagIterateC TagIterateF
-else
-check_PROGRAMS = TagIterateC
+check_PROGRAMS += FindConnectF TagIterateF ListSetsNTagsF90
 endif
 
 AM_CPPFLAGS += -I$(top_srcdir)/itaps/imesh \
@@ -22,3 +21,9 @@ TagIterateC_DEPENDENCIES = $(TESTDEPS)
 
 TagIterateF_SOURCES = TagIterateF.F
 TagIterateF_DEPENDENCIES = $(TESTDEPS)
+
+ListSetsNTagsF90_SOURCES = ListSetsNTagsF90.F90
+ListSetsNTagsF90_DEPENDENCIES = $(TESTDEPS)
+
+ListSetsNTagsCXX_SOURCES = ListSetsNTagsCXX.cpp
+ListSetsNTagsCXX_DEPENDENCIES = $(TESTDEPS)

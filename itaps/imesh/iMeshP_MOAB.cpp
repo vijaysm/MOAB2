@@ -134,6 +134,8 @@ iBase_TagHandle itaps_cast<iBase_TagHandle,Tag>( Tag h )
 
 #define PCOMM ParallelComm::get_pcomm( MOABI, itaps_cast<EntityHandle>(partition_handle) )
 
+/*** static function implemented in iMesh_MOAB.cpp ***/
+
 // Need a different function name for Tag because (currently)
 // both Tag and iBase_EntityHandle are void**.
 iBase_TagHandle itaps_tag_cast( Tag t )
@@ -1724,7 +1726,9 @@ void iMeshP_ghostEntInfo( const iMesh_Instance instance,
                           int *err )
 { FIXME; RETURN(iBase_NOT_SUPPORTED); }
 
-static int append_option( std::string& opt,
+// append the specified option if it isn't already there; returns whether this
+// function actually appended it or not
+static bool append_option( std::string& opt,
                            const char* option,
                            const char* default_value = 0 )
 {
@@ -1749,16 +1753,16 @@ static int append_option( std::string& opt,
     i = end;
   }
   
-    // if string doesn't already contain the option, append it.
-  if (i == std::string::npos) {
-    opt += search;
-    if (default_value) {
-      opt += "=";
-      opt += default_value;
-    }
+    // if string already contained the option, just return
+  if (i != std::string::npos) return false;
+  
+  opt += search;
+  if (default_value) {
+    opt += "=";
+    opt += default_value;
   }
 
-  return iBase_SUCCESS;
+  return true;
 }
 
 void iMeshP_loadAll( iMesh_Instance instance,
@@ -1790,15 +1794,16 @@ void iMeshP_loadAll( iMesh_Instance instance,
   }
 
     // add necessary values to options string
-  std::string opt( options, options_len );
+  std::string opt = std::string(options, options+options_len);
 
-    // currently, we can assume these always succeed
-  append_option( opt, "moab:PARALLEL" );
-  append_option( opt, "moab:PARTITION_DISTRIBUTE" );
-  append_option( opt, "moab:PARALLEL_RESOLVE_SHARED_ENTS" );
-  std::ostringstream id;
-  id << pcomm->get_id();
-  append_option( opt, "moab:PCOMM", id.str().c_str() );
+  if (append_option( opt, "moab:PARALLEL" )) {
+      // only append these other ones if the parallel option wasn't there originally
+    append_option( opt, "moab:PARTITION_DISTRIBUTE" );
+    append_option( opt, "moab:PARALLEL_RESOLVE_SHARED_ENTS" );
+    std::ostringstream id;
+    id << pcomm->get_id();
+    append_option( opt, "moab:PCOMM", id.str().c_str() );
+  }
   
     // load the file
   iMesh_load( instance, entity_set_handle, name, opt.c_str(), err, name_len, opt.length() );

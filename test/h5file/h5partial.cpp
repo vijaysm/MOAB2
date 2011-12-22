@@ -54,8 +54,8 @@ static Tag check_tag( Interface& mb,
                         int size );
 
 enum GatherTestMode { GATHER_SETS, GATHER_CONTENTS, GATHER_NONE };
-void test_gather_sets_common( bool contained_sets, GatherTestMode mode );
-void test_gather_sets_ranged( bool contained_sets, GatherTestMode mode );
+void test_gather_sets_common( bool contained_sets, GatherTestMode mode, bool no_parent_containing_sets = false );
+void test_gather_sets_ranged( bool contained_sets, GatherTestMode mode, bool no_parent_containing_sets = false );
 
 
 //! Read a set containing no entities
@@ -97,27 +97,27 @@ void test_read_two_sets_elems();
 //! containing read entities, or contained in an explcitly designated
 //! set, any child sets are also read.  Check that here.
 void test_read_child_sets_only()
-{ test_gather_sets_common( false, GATHER_SETS );
-  test_gather_sets_ranged( false, GATHER_SETS ); }
+{ test_gather_sets_common( false, GATHER_SETS);
+  test_gather_sets_ranged( false, GATHER_SETS); }
 void test_read_child_set_contents()
-{ test_gather_sets_common( false, GATHER_CONTENTS ); 
-  test_gather_sets_ranged( false, GATHER_CONTENTS ); }
+{ test_gather_sets_common( false, GATHER_CONTENTS); 
+  test_gather_sets_ranged( false, GATHER_CONTENTS); }
 void test_read_no_child_sets()
-{ test_gather_sets_common( false, GATHER_NONE );
-  test_gather_sets_ranged( false, GATHER_NONE ); }
+{ test_gather_sets_common( false, GATHER_NONE);
+  test_gather_sets_ranged( false, GATHER_NONE); }
 
 //! For any set selected to be read by either explicit designation,
 //! containing read entities, or contained in an explcitly designated
 //! set, any contained sets are also read.  Check that here.
 void test_read_contained_sets_only()
-{ test_gather_sets_common( true, GATHER_SETS );
-  test_gather_sets_ranged( true, GATHER_SETS ); }
+{ test_gather_sets_common( true, GATHER_SETS, true);
+  test_gather_sets_ranged( true, GATHER_SETS); }
 void test_read_contained_set_contents()
-{ test_gather_sets_common( true, GATHER_CONTENTS );
-  test_gather_sets_ranged( true, GATHER_CONTENTS ); }
+{ test_gather_sets_common( true, GATHER_CONTENTS, true );
+  test_gather_sets_ranged( true, GATHER_CONTENTS); }
 void test_read_no_contained_sets()
-{ test_gather_sets_common( true, GATHER_NONE );
-  test_gather_sets_ranged( true, GATHER_NONE ); }
+{ test_gather_sets_common( true, GATHER_NONE, true );
+  test_gather_sets_ranged( true, GATHER_NONE); }
 
 //! Read in the sets contained in a set.  
 //! Should read all sets containing read elements or nodes
@@ -1101,7 +1101,7 @@ static void check_children( bool contents, GatherTestMode mode, Interface& mb, i
 
 
 const char* set_read_opts[] = { "SETS", "CONTENTS", "NONE" };
-void test_gather_sets_common( bool contents, GatherTestMode mode )
+void test_gather_sets_common( bool contents, GatherTestMode mode, bool no_parent_containing_sets )
 {
   ErrorCode rval;
   Core instance;
@@ -1155,6 +1155,8 @@ void test_gather_sets_common( bool contents, GatherTestMode mode )
     opt += ";SETS=NONE;CHILDREN=";
   opt += set_read_opts[mode];
 
+  if (no_parent_containing_sets) opt += ";NO_SET_CONTAINING_PARENTS";
+
   const int test_ids[] = { 2, 7, INT/3-1, INT/2+1, INT-3 };
   const int num_test_ids = sizeof(test_ids)/sizeof(int);
   for (int i = 0; i < num_test_ids; ++i) {
@@ -1176,7 +1178,7 @@ void test_gather_sets_common( bool contents, GatherTestMode mode )
 }
 
 
-void test_gather_sets_ranged( bool contents, GatherTestMode mode )
+void test_gather_sets_ranged( bool contents, GatherTestMode mode, bool no_parent_containing_sets )
 {
   ErrorCode rval;
   Core instance;
@@ -1232,6 +1234,8 @@ void test_gather_sets_ranged( bool contents, GatherTestMode mode )
   else
     opt += ";SETS=NONE;CHILDREN=";
   opt += set_read_opts[mode];
+
+  if (no_parent_containing_sets) opt += ";NO_PARENT_CONTAINING_SETS";
 
   EntityHandle file;
   const int read_id = 3;
