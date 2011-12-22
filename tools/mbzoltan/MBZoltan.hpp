@@ -56,6 +56,10 @@ extern "C"
                      ZOLTAN_ID_PTR gids, ZOLTAN_ID_PTR lids, int *numEdges,
                      ZOLTAN_ID_PTR nborGlobalIds, int *nborProcs, int wgt_dim,
                      float *edge_wgts, int *err);
+
+  void mbGetPart(void *userDefinedData, int numGlobalIds, int numLids,
+                 int numObjs, ZOLTAN_ID_PTR gids, ZOLTAN_ID_PTR lids,
+                 int *part, int *err);
   
   void mbShowError(int val, const char *s, int me);
   
@@ -196,8 +200,10 @@ using namespace moab;
                              std::vector<int> &length,
                              std::vector<double> &obj_weights,
                              std::vector<double> &edge_weights,
+                             std::vector<int> &parts,
                              DLIList<RefEntity*> &entities,
-                             const double part_geom_mesh_size);
+                             const double part_geom_mesh_size,
+                             const int n_part);
 
     ErrorCode partition_round_robin(const int n_part);
 
@@ -217,7 +223,8 @@ using namespace moab;
     int mbInitializePoints(int npts, double *pts, int *ids, 
                            int *adjs, int *length,
                            double *obj_weights = NULL,
-                           double *edge_weights = NULL);
+                           double *edge_weights = NULL,
+                           int *parts = NULL);
 
 #ifdef CGM
     GeometryQueryTool *gti;

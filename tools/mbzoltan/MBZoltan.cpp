@@ -61,6 +61,7 @@ static int *NborGlobalId=NULL;
 static int *NborProcs=NULL;
 static double *ObjWeights=NULL;
 static double *EdgeWeights=NULL;
+static int *Parts=NULL;
 
 const bool debug = false;
 
@@ -270,7 +271,7 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
 
   std::vector<double> pts; // x[0], y[0], z[0], ... from MOAB
   std::vector<int> ids; // point ids from MOAB
-  std::vector<int> adjs, length;
+  std::vector<int> adjs, length, parts;
   std::vector<double> obj_weights, edge_weights;
   Range elems;
 #ifdef CGM
@@ -318,7 +319,8 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
   else {
 #ifdef CGM
     result = assemble_graph(part_dim, pts, ids, adjs, length, obj_weights,
-                            edge_weights, entities, part_geom_mesh_size); RR;
+                            edge_weights, parts, entities,
+                            part_geom_mesh_size, nparts); RR;
 
     if (debug) {
       int n_ids = ids.size();
@@ -327,7 +329,8 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
       for (int i = 0; i < n_ids; i++) {
         std::cout << "graph_input_ids[" << i << "]=" << ids[i]
                   << ",obj_weights=" << obj_weights[i]
-                  << ",entity_id=" << entities.get_and_step()->id() << std::endl;
+                  << ",entity_id=" << entities.get_and_step()->id()
+                  << ",part=" << parts[i] << std::endl;
         for (int j = 0; j < length[i]; j++) {
           std::cout << "adjs[" << j << "]=" << adjs[i_leng] 
                     << ",edge_weights=" << edge_weights[i_leng]<< std::endl;
@@ -344,7 +347,7 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
   if (edge_weights.size() > 0) e_wgt = &edge_weights[0];
     
   myNumPts = mbInitializePoints((int)ids.size(), &pts[0], &ids[0], &adjs[0],
-                                &length[0], o_wgt, e_wgt);
+                                &length[0], o_wgt, e_wgt, &parts[0]);
   
 
   // Initialize Zoltan.  This is a C call.  The simple C++ code 
@@ -421,6 +424,7 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
   myZZ->Set_Geom_Multi_Fn(mbGetObject, NULL);
   myZZ->Set_Num_Edges_Multi_Fn(mbGetNumberOfEdges, NULL);
   myZZ->Set_Edge_List_Multi_Fn(mbGetEdgeList, NULL);
+  myZZ->Set_Part_Multi_Fn(mbGetPart, NULL);
 
   // Perform the load balancing partitioning
 
@@ -551,8 +555,10 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
                                    std::vector<int> &length,
                                    std::vector<double> &obj_weights,
                                    std::vector<double> &edge_weights,
+                                   std::vector<int> &parts,
                                    DLIList<RefEntity*> &entities,
-                                   const double part_geom_mesh_size) 
+                                   const double part_geom_mesh_size,
+                                   const int n_part) 
 {
   // get body vertex weights
   DLIList<RefEntity*> body_list;
@@ -561,17 +567,30 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
   int n_bodies = body_list.size();
   int body_map_index = 1;
   int surf_map_index = n_bodies + 1;
+  int n_bodies_proc = n_bodies/n_part; // # of entities per processor
+  int i_bodies_proc = n_bodies_proc; // entity index limit for each processor
+  int proc = 0;
+
   body_list.reset();
   for (int i = 0; i < n_bodies; i++) {
-    RefEntity *body = body_list.get_and_step();
-    std::cout << "body=" << body->id() << std::endl;
+    // assign part in round-robin
+    if (i == i_bodies_proc) {
+      proc++;
+      if (proc < n_part) i_bodies_proc += n_bodies_proc;
+      else {
+        proc %= n_part;
+        i_bodies_proc++;
+      }
+    }
+    parts.push_back(proc);
 
     // volume mesh generation load estimation
+    RefEntity *body = body_list.get_and_step();
     double vertex_w = body->measure();
     vertex_w /= part_geom_mesh_size*part_geom_mesh_size*part_geom_mesh_size;
     vertex_w = 3.8559e-5*vertex_w*log(vertex_w);
 
-    // add child face weights
+    // add child non-interface face weights
     DLIList<RefFace*> shared_surfs;
     DLIList<RefFace*> faces;
     (dynamic_cast<TopologyEntity*> (body))->ref_faces(faces);
@@ -592,17 +611,17 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
     body_vertex_map[body->id()] = temp_index;
     moab_ids.push_back(temp_index); // add body as graph vertex
     obj_weights.push_back(vertex_w); // add weight for body graph vertex
-    CubitVector body_center = body->center_point();
-    coords.push_back(body_center.x());
-    coords.push_back(body_center.y());
-    coords.push_back(body_center.z());
+
+    if (debug) {
+      std::cout << "body=" << body->id() << ",graph_id=" << temp_index
+                << ",weight=" << vertex_w << ",part=" << proc << std::endl;
+    }
 
     // treat shared surfaces connected to this body
     int n_shared = shared_surfs.size();
     shared_surfs.reset();
     for (int k = 0; k < n_shared; k++) { // add adjacencies
       RefFace *face = shared_surfs.get_and_step();
-      std::cout << "face1=" << face->id() << std::endl;
       int temp_index;
       std::map<int, int>::iterator iter = surf_vertex_map.find(face->id());
       if (iter != surf_vertex_map.end()) {
@@ -612,12 +631,15 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
 	temp_index = surf_map_index++;
 	surf_vertex_map[face->id()] = temp_index;
         all_shared_surfs.append(face);
-        std::cout << "face2=" << face->id() << std::endl;
       }
-      //vertex_w = face->measure();
       adjacencies.push_back(temp_index);
-      //edge_weights.push_back(vertex_w/100.);
-      edge_weights.push_back(estimate_face_comm_load(face, part_geom_mesh_size));
+      double tmp_sw = estimate_face_comm_load(face, part_geom_mesh_size);
+      edge_weights.push_back(tmp_sw);
+
+      if (debug) {
+        std::cout << "adjac=" << temp_index << ",weight="
+                  << tmp_sw << std::endl;
+      }
     }
     length.push_back(n_shared);
   }
@@ -628,43 +650,64 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
   all_shared_surfs.reset();
   for (int i = 0; i < n_all_shared_surf; i++) {
     RefEntity *face = all_shared_surfs.get_and_step();
-    //double vertex_w = face->measure();
     moab_ids.push_back(surf_vertex_map[face->id()]);
-    //obj_weights.push_back(vertex_w);
-    obj_weights.push_back(estimate_face_mesh_load(face,
-                                                  part_geom_mesh_size));
-    
+    double face_mesh_load = estimate_face_mesh_load(face,
+                                                    part_geom_mesh_size);
+    obj_weights.push_back(face_mesh_load);
+
+    // set surface object graph edges
+    int min_ind = -1;
+    double min_load = std::numeric_limits<double>::max();;
     DLIList<Body*> parents;
     dynamic_cast<TopologyEntity*> (face)->bodies(parents);
     int n_parents = parents.size();
     parents.reset();
     for (int j = 0; j < n_parents; j++) {
-      adjacencies.push_back(parents.get_and_step()->id()); // add adjacency
-      //edge_weights.push_back(vertex_w/100.); // add edge weight
+      int body_gid = body_vertex_map[parents.get_and_step()->id()];
+      adjacencies.push_back(body_gid); // add adjacency
       edge_weights.push_back(estimate_face_comm_load(face,
                                                      part_geom_mesh_size));
+      
+      if (obj_weights[body_gid - 1] < min_load) {
+        min_ind = body_gid - 1;
+        min_load = obj_weights[min_ind];
+      }
     }
     length.push_back(n_parents);
     entities.append(dynamic_cast<RefEntity*> (face));
+    obj_weights[min_ind] += face_mesh_load;
+    parts.push_back(parts[min_ind]);
+
+    if (debug) {
+      std::cout << "shared_surf=" << face->id() << ",graph_id="
+                << surf_vertex_map[face->id()]
+                << ",weight=" << face_mesh_load
+                << ",part=" << parts[min_ind] << std::endl;
+    }
   }
 
+  for (int i = 0; i < obj_weights.size(); i++) if (obj_weights[i] < 1.) obj_weights[i] = 1.;
+  for (int i = 0; i < edge_weights.size(); i++) if (edge_weights[i] < 1.) edge_weights[i] = 1.;
+  
   return MB_SUCCESS;
 }
 
 double MBZoltan::estimate_face_mesh_load(RefEntity* face, const double h)
 {
   GeometryType type = CAST_TO(face, RefFace)->geometry_type();
+  double n = face->measure()/h/h;
+  double n_logn = n*log(n);
 
   if (type == PLANE_SURFACE_TYPE) {
-    return 1.536168737505151e-4*h*log(h);
+    return 1.536168737505151e-4*n_logn;
   }
   else if (type == SPLINE_SURFACE_TYPE) {
-    return 5.910511018383144e-4*h*log(h);
+    return 5.910511018383144e-4*n_logn;
   }
   else if (type == CONE_SURFACE_TYPE ||
 	   type == SPHERE_SURFACE_TYPE ||
 	   type == TORUS_SURFACE_TYPE) {
-    return 2.352511671418708e-4*h*log(h);
+    return 2.352511671418708e-4*n_logn;
   }
 }
 
@@ -683,7 +726,8 @@ double MBZoltan::estimate_face_comm_load(RefEntity* face, const double h)
     }
   }
   
-  return 104*face->measure()/sqrt(3)/h/h + 56/3*peri/h;
+  //return 104*face->measure()/sqrt(3)/h/h + 56/3*peri/h;
+  return (104*face->measure()/sqrt(3)/h/h + 56/3*peri/h)/700000.;
 }
 
 ErrorCode MBZoltan::write_partition(const int nparts,
@@ -1344,7 +1388,8 @@ void MBZoltan::SetOCTPART_Parameters(const char *oct_method)
 
 int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids, 
                                  int *adjs, int *length,
-                                 double *obj_weights, double *edge_weights)
+                                 double *obj_weights, double *edge_weights,
+                                 int *parts)
 {
   unsigned int i;
   int j;
@@ -1449,6 +1494,7 @@ int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids,
   NborProcs = nborProcs;
   ObjWeights = obj_weights;
   EdgeWeights = edge_weights;
+  Parts = parts;
           
   return mySize;
 }     
@@ -1703,4 +1749,23 @@ void mbGetEdgeList(void *userDefinedData, int numGlobalIds, int numLids,
           idSum++;
 	}
     }
+}
+
+void mbGetPart(void *userDefinedData, int numGlobalIds, int numLids,
+               int numObjs, ZOLTAN_ID_PTR gids, ZOLTAN_ID_PTR lids,
+               int *part, int *err)
+{
+  int i, id;
+  int next = 0;
+
+  for (i = 0; i < numObjs; i++) {
+    id = lids[i];
+    
+    if ((id < 0) || (id >= NumPoints)) {
+      *err = 1;
+      return;
+    }
+    
+    part[next++] = Parts[id];
+  }
 }
