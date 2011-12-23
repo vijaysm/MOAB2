@@ -117,6 +117,7 @@ AC_CHECK_HEADER([stdlib.h],   [AC_DEFINE(MOAB_HAVE_STDLIB_H,    [], [MOAB qualif
 SIZEOF_MBENTITYHANDLE=0
 AC_CHECK_SIZEOF([void *])
 SIZEOF_VOID_P=$ac_cv_sizeof_void_p
+AC_SUBST(SIZEOF_VOID_P)
 AC_ARG_ENABLE([64bit-handles],
   [AC_HELP_STRING([--enable-64bit-handles],[Force EntityHandle to be 64 bits])],
   [AC_CHECK_TYPE([uint64_t],
@@ -1144,6 +1145,7 @@ AC_CONFIG_FILES([Makefile
                  test/io/Makefile
                  test/parallel/Makefile
                  test/oldinc/Makefile
+		 itaps/iBase_f.h
                  itaps/Makefile
                  itaps/imesh/Makefile
                  itaps/imesh/iMesh-Defs.inc
