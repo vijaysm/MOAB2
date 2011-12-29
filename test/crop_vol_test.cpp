@@ -17,6 +17,7 @@
 #include <fstream>
 #include <string.h>
 #include "moab/FBEngine.hpp"
+#include "moab/GeomTopoTool.hpp"
 
 #define STRINGIFY_(A) #A
 #define STRINGIFY(A) STRINGIFY_(A)
@@ -177,13 +178,20 @@ ErrorCode volume_test (FBEngine * pFacet)
 
   EntityHandle volume;
   rval = pFacet->create_volume_with_direction(newFace1, newFace2, direction, volume);
-  CHECK("Failed to crop second face.");
+  CHECK("Failed to create volume.");
 
   Interface * mb = pFacet->moab_instance ();
   pFacet->delete_smooth_tags();
+  // duplicate -- extract a new geom topo tool
+  GeomTopoTool * gtt = pFacet-> get_gtt();
+  GeomTopoTool * duplicate = NULL;
+  rval = gtt->duplicate_model(duplicate, volume);
+  CHECK("Failed to extract volume.");
+  EntityHandle newRootSet = duplicate->get_root_model_set() ;
   delete pFacet;
   pFacet = NULL;// try not to write the obb tree
-  rval = mb->write_file(vol_file.c_str(), NULL, NULL, &volume, 1);
+  delete duplicate;
+  rval = mb->write_file(vol_file.c_str(), NULL, NULL, &newRootSet, 1);
 
   return rval;
 

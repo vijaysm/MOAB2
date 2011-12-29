@@ -1118,12 +1118,24 @@ ErrorCode GeomTopoTool::geometrize_surface_set(EntityHandle surface, EntityHandl
   return MB_SUCCESS;
 }
 
-// this would be a deep copy, into a new geom topo tool
-  // sets will be duplicated, but entities not
-  // modelSet will be a new one
-  // if the original set was null (root), a new model set will be created for
-  // original model, and its entities will be the original g sets
-ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate)
+
+/*
+ *  This would create a deep copy, into a new geom topo tool
+ * sets will be duplicated, but entities not
+ * modelSet will be a new one
+ * if the original set was null (root), a new model set will be created for
+ * original model, and its entities will be the original g sets
+ * Scenario: split a face along a ground line, then write only one surface
+ *   the common line has 2 faces in var len tag for sense edge; if we write only one
+ *   surface to a new database, the var len tag of the edge will be extracted with 2 values, but
+ *   only one value will make sense, the other will be zero.
+ *
+ *   There is no workaround; we need to create a duplicate model that has only that surface
+ *   and its children (and grand-children). Then the var len sense edge-face tags will have
+ *   the right size.
+ *
+ */
+ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate, EntityHandle geomSet)
 {
   // will
   EntityHandle rootModelSet;
@@ -1140,6 +1152,19 @@ ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate)
     if (MB_SUCCESS != rval)
       return rval;
   }
+  // extract from the geomSet the dimension, children, and grand-children
+  Range depSets;// dependents of the geomSet, including the geomSet
+  // add in this range all the dependents of this, to filter the ones that need to be deep copied
+
+  if (geomSet)
+  {
+    rval = mdbImpl->get_child_meshsets(geomSet, depSets, 0); // 0 for numHops means that all
+    // dependents are returned, not only the direct children.
+    if (MB_SUCCESS != rval)
+      return rval;
+    depSets.insert(geomSet);
+  }
+
   // add to the root model set copies of the gsets, with correct sets
   // keep a map between sets to help in copying parent/child relations
   std::map <EntityHandle, EntityHandle> relate;
@@ -1151,6 +1176,8 @@ ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate)
     for (Range::iterator it=geomRanges[dim].begin(); it!=geomRanges[dim].end(); it++)
     {
       EntityHandle set=*it;
+      if (geomSet != 0 && depSets.find(set)==depSets.end())
+        continue; // this means that this set is not of interest, skip it
       EntityHandle newSet;
       rval = mdbImpl->create_meshset(set_options, newSet);
       if (MB_SUCCESS!=rval)
@@ -1228,6 +1255,8 @@ ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate)
     for (Range::iterator it=geomRanges[dd].begin(); it!=geomRanges[dd].end(); it++)
     {
       EntityHandle surf=*it;
+      if (geomSet != 0 && depSets.find(surf)==depSets.end())
+        continue; // this means that this set is not of interest, skip it
       EntityHandle newSurf = relate[surf];
       // we can actually look at the tag data, to be more efficient
       // or use the
@@ -1236,11 +1265,18 @@ ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate)
       rval = this->get_senses(surf, solids, senses);
       if (MB_SUCCESS!=rval)
          return rval;
+      std::vector<EntityHandle> newSolids;
+      std::vector<int> newSenses;
       for (unsigned int i = 0; i<solids.size(); i++)
       {
-        solids[i] = relate[solids[i]];
+        if (geomSet != 0 && depSets.find(solids[i])==depSets.end())
+          continue; // this means that this set is not of interest, skip it
+        EntityHandle newSolid = relate[solids[i]];
+        // see which "solids" are in the new model
+        newSolids.push_back(newSolid);
+        newSenses.push_back(senses[i]);
       }
-      rval = duplicate->set_senses(newSurf, solids, senses);
+      rval = duplicate->set_senses(newSurf, newSolids, newSenses);
       if (MB_SUCCESS!=rval)
         return rval;
     }
@@ -1263,7 +1299,6 @@ ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate)
     }
 
   }
-
   return MB_SUCCESS;
 }
 

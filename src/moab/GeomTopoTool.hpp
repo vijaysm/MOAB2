@@ -39,22 +39,7 @@ public:
   
     //! Restore parent/child links between GEOM_TOPO mesh sets
   ErrorCode restore_topology();
-  
-#if 0
-    //! Store sense of surface relative to volume.
-    //!\return MB_MULTIPLE_ENTITIES_FOUND if surface already has a forward volume.
-    //!        MB_SUCCESS if successful
-    //!        otherwise whatever internal error code occured.
-  ErrorCode set_sense( EntityHandle surface,
-                         EntityHandle volume,
-                         bool forward );
 
-    //! Get the sense of a lower-dim entity with respect to an upper-dim entity
-    //! Returns MB_ENTITY_NOT_FOUND if no relationship found
-  ErrorCode get_sense( EntityHandle lower,
-                       EntityHandle upper,
-                       bool& forward );
-#endif
   //! Store sense of entity relative to wrt_entity.
      //!\return MB_MULTIPLE_ENTITIES_FOUND if surface already has a forward volume.
      //!        MB_SUCCESS if successful
@@ -68,16 +53,7 @@ public:
    ErrorCode get_sense( EntityHandle entity,
                         EntityHandle wrt_entity,
                         int & sense );
-#if 0
-    //! Store senses and ents for edges
-  ErrorCode get_senses(EntityHandle edge,
-                       std::vector<EntityHandle> &faces,
-                       std::vector<int> &senses);
-  
-  ErrorCode set_senses(EntityHandle edge,
-                       std::vector<EntityHandle> &faces,
-                       std::vector<int> &senses);
-#endif
+
   ErrorCode get_senses (EntityHandle entity,
     std::vector<EntityHandle> &wrt_entities,
     std::vector<int> &senses);
@@ -126,8 +102,9 @@ public:
 
   // this would be a deep copy, into a new geom topo tool
   // sets will be duplicated, but entities not
-  // modelSet will be a new one
-  ErrorCode duplicate_model(GeomTopoTool *& duplicate);
+  // modelSet will be a new one;
+  // if the gent!=0, it will duplicate in a new gtt just the gent and its children
+  ErrorCode duplicate_model(GeomTopoTool *& duplicate, EntityHandle gent = 0);
 
   EntityHandle get_root_model_set() { return modelSet; }
 
