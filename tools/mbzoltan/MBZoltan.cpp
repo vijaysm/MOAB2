@@ -424,7 +424,9 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
   myZZ->Set_Geom_Multi_Fn(mbGetObject, NULL);
   myZZ->Set_Num_Edges_Multi_Fn(mbGetNumberOfEdges, NULL);
   myZZ->Set_Edge_List_Multi_Fn(mbGetEdgeList, NULL);
-  myZZ->Set_Part_Multi_Fn(mbGetPart, NULL);
+  if (part_geom_mesh_size > 0.) {
+    myZZ->Set_Part_Multi_Fn(mbGetPart, NULL);
+  }
 
   // Perform the load balancing partitioning
 
