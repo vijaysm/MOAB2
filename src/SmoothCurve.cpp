@@ -202,7 +202,7 @@ double SmoothCurve::u_from_position(double x, double y, double z, EntityHandle &
   }
   // find the closest node, then find the closest edge, based on closest node
 
-  int indexNode;
+  int indexNode = 0;
   double minDist = 1.e30;
   // expensive linear search
   for (int i=0; i<numNodes; i++)

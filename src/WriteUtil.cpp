@@ -921,7 +921,7 @@ ErrorCode WriteUtil::get_entity_list_pointers( EntityHandle const* entities,
 {
   SequenceManager *sm = mMB->sequence_manager();
   const EntitySequence *tmp_seq;
-  ErrorCode rval;
+  ErrorCode rval = MB_SUCCESS;
   for (int i = 0; i < num_entities; i++) {
     rval = sm->find(entities[i], tmp_seq);
     if (MB_SUCCESS != rval) return rval;

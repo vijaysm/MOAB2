@@ -27,6 +27,9 @@ RangeSetIterator::RangeSetIterator(Core *core, EntityHandle ent_set, int chunk_s
       // special case for the root set, have to keep a local array
     ErrorCode rval = build_pair_vec();
     assert(MB_SUCCESS == rval);
+
+      // empty statement to avoid warning
+    (void)(rval);
   }
 }
 

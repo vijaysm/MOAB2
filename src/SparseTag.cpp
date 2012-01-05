@@ -354,7 +354,7 @@ ErrorCode SparseTag::tag_iterate( SequenceManager* seqman,
     return rval;
 
     // get pointer to tag storage for entity pointed to by iter
-  const void* ptr;
+  const void* ptr = NULL;
   rval = get_data_ptr( 0, *iter, ptr );
   if (MB_SUCCESS == rval) 
     data_ptr = const_cast<void*>(ptr);
