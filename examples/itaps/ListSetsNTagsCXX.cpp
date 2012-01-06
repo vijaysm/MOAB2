@@ -71,10 +71,9 @@ int main( int argc, char *argv[] )
       for (j = 0; j < tags_size; j++) {
         char tname[128];
         std::vector<int> int_val;
-        int tname_size = 128;
         std::vector<double> dbl_val;
-        iMesh_getTagName(mesh, tags[j], tname, &err, tname_size);
-        tname[tname_size] = '\0';
+        iMesh_getTagName(mesh, tags[j], tname, &err, sizeof(tname));
+        tname[sizeof(tname)-1] = '\0';
         int tag_type, tag_size;
         iMesh_getTagType(mesh, tags[j], &tag_type, &err);
         ERRORR("Failed to get tag type.");
