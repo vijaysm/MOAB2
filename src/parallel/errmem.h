@@ -15,6 +15,12 @@
 
 #ifdef __GNUC__
 void fail(const char *fmt, ...) __attribute__ ((noreturn));
+
+static void buffer_init_(buffer *b, size_t size, const char *file)
+  __attribute__ ((unused));
+static void buffer_reserve_(buffer *b, size_t min, const char *file)
+  __attribute__ ((unused));
+static void buffer_free(buffer *b) __attribute__ ((unused));
 #else
 void fail(const char *fmt, ...);
 #endif
