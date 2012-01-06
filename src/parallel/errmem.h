@@ -15,14 +15,10 @@
 
 #ifdef __GNUC__
 void fail(const char *fmt, ...) __attribute__ ((noreturn));
-
-static void buffer_init_(buffer *b, size_t size, const char *file)
-  __attribute__ ((unused));
-static void buffer_reserve_(buffer *b, size_t min, const char *file)
-  __attribute__ ((unused));
-static void buffer_free(buffer *b) __attribute__ ((unused));
+#define MAYBE_UNUSED __attribute__ ((unused))
 #else
 void fail(const char *fmt, ...);
+#define MAYBE_UNUSED
 #endif
 
 #if 0
@@ -51,10 +47,14 @@ static void *srealloc(void *ptr, size_t size, const char *file)
   ((type*) srealloc((ptr),(count)*sizeof(type),__FILE__) )
 
 typedef struct { size_t size; void *ptr; } buffer;
+
+static void buffer_init_(buffer *b, size_t size, const char *file) MAYBE_UNUSED;
 static void buffer_init_(buffer *b, size_t size, const char *file)
 {
   b->size=size, b->ptr=smalloc(size,file);
 }
+static void buffer_reserve_(buffer *b, size_t min, const char *file)
+  MAYBE_UNUSED;
 static void buffer_reserve_(buffer *b, size_t min, const char *file)
 {
   size_t size = b->size;
@@ -64,6 +64,7 @@ static void buffer_reserve_(buffer *b, size_t min, const char *file)
     b->ptr=srealloc(b->ptr,size,file);
   }
 }
+static void buffer_free(buffer *b) MAYBE_UNUSED;
 static void buffer_free(buffer *b) { free(b->ptr); }
 
 #define buffer_init(b,size) buffer_init_(b,size,__FILE__)
