@@ -32,6 +32,14 @@ static void *smalloc(size_t size, const char *file)
   return res;
 }
 
+static void *scalloc(size_t nmemb, size_t size, const char *file)
+{
+  void *res = calloc(nmemb, size);
+  if(!res && nmemb)
+    fail("%s: allocation of %d bytes failed\n",file,(int)size*nmemb);
+  return res;
+}
+
 static void *srealloc(void *ptr, size_t size, const char *file)
 {
   void *res = realloc(ptr, size);
