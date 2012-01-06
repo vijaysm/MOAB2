@@ -24,6 +24,7 @@
 #include <string.h>
 #include <math.h>
 #include "moab/FBEngine.hpp"
+#include "moab/GeomTopoTool.hpp"
 
 #define STRINGIFY_(A) #A
 #define STRINGIFY(A) STRINGIFY_(A)
@@ -530,9 +531,19 @@ ErrorCode split_test(Interface * mb, FBEngine * pFacet)
     return rval;
   // save a new database
   pFacet->delete_smooth_tags();
+  // get a new gtt tool
+
+  // duplicate -- extract a new geom topo tool
+  GeomTopoTool * gtt = pFacet-> get_gtt();
+  GeomTopoTool * duplicate = NULL;
+  std::vector<EntityHandle> gents;
+  gents.push_back(newFace);
+  rval = gtt->duplicate_model(duplicate, &gents);
+  CHECK("Failed to extract surface.");
+  EntityHandle newRootSet = duplicate->get_root_model_set() ;
   delete pFacet;
   pFacet = NULL;// try not to write the obb tree
-  rval = mb->write_file(filename_out.c_str());
+  rval = mb->write_file(filename_out.c_str(), NULL, NULL, &newRootSet, 1);
 
   return rval;
 }

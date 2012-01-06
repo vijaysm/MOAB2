@@ -1120,7 +1120,7 @@ ErrorCode GeomTopoTool::geometrize_surface_set(EntityHandle surface, EntityHandl
 
 
 /*
- *  This would create a deep copy, into a new geom topo tool
+ *  This would create a deep copy of the geom topo model, into a new geom topo tool
  * sets will be duplicated, but entities not
  * modelSet will be a new one
  * if the original set was null (root), a new model set will be created for
@@ -1135,7 +1135,7 @@ ErrorCode GeomTopoTool::geometrize_surface_set(EntityHandle surface, EntityHandl
  *   the right size.
  *
  */
-ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate, EntityHandle geomSet)
+ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate, std::vector<EntityHandle> * pvGEnts)
 {
   // will
   EntityHandle rootModelSet;
@@ -1156,13 +1156,20 @@ ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate, EntityHandle 
   Range depSets;// dependents of the geomSet, including the geomSet
   // add in this range all the dependents of this, to filter the ones that need to be deep copied
 
-  if (geomSet)
+  if (pvGEnts!=NULL)
   {
-    rval = mdbImpl->get_child_meshsets(geomSet, depSets, 0); // 0 for numHops means that all
-    // dependents are returned, not only the direct children.
-    if (MB_SUCCESS != rval)
-      return rval;
-    depSets.insert(geomSet);
+    unsigned int numGents = pvGEnts->size();
+    for (unsigned int k = 0; k<numGents; k++)
+    {
+      EntityHandle geomSet=(*pvGEnts)[k];
+      // will keep accumulating to the depSets range
+      rval = mdbImpl->get_child_meshsets(geomSet, depSets, 0); // 0 for numHops means that all
+      // dependents are returned, not only the direct children.
+      if (MB_SUCCESS != rval)
+        return rval;
+      depSets.insert(geomSet);
+    }
+
   }
 
   // add to the root model set copies of the gsets, with correct sets
@@ -1176,7 +1183,7 @@ ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate, EntityHandle 
     for (Range::iterator it=geomRanges[dim].begin(); it!=geomRanges[dim].end(); it++)
     {
       EntityHandle set=*it;
-      if (geomSet != 0 && depSets.find(set)==depSets.end())
+      if (pvGEnts != NULL && depSets.find(set)==depSets.end())
         continue; // this means that this set is not of interest, skip it
       EntityHandle newSet;
       rval = mdbImpl->create_meshset(set_options, newSet);
@@ -1255,7 +1262,7 @@ ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate, EntityHandle 
     for (Range::iterator it=geomRanges[dd].begin(); it!=geomRanges[dd].end(); it++)
     {
       EntityHandle surf=*it;
-      if (geomSet != 0 && depSets.find(surf)==depSets.end())
+      if (pvGEnts != NULL && depSets.find(surf)==depSets.end())
         continue; // this means that this set is not of interest, skip it
       EntityHandle newSurf = relate[surf];
       // we can actually look at the tag data, to be more efficient
@@ -1269,7 +1276,7 @@ ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate, EntityHandle 
       std::vector<int> newSenses;
       for (unsigned int i = 0; i<solids.size(); i++)
       {
-        if (geomSet != 0 && depSets.find(solids[i])==depSets.end())
+        if (pvGEnts != NULL && depSets.find(solids[i])==depSets.end())
           continue; // this means that this set is not of interest, skip it
         EntityHandle newSolid = relate[solids[i]];
         // see which "solids" are in the new model

@@ -185,7 +185,9 @@ ErrorCode volume_test (FBEngine * pFacet)
   // duplicate -- extract a new geom topo tool
   GeomTopoTool * gtt = pFacet-> get_gtt();
   GeomTopoTool * duplicate = NULL;
-  rval = gtt->duplicate_model(duplicate, volume);
+  std::vector<EntityHandle> gents;
+  gents.push_back(volume);
+  rval = gtt->duplicate_model(duplicate, &gents);
   CHECK("Failed to extract volume.");
   EntityHandle newRootSet = duplicate->get_root_model_set() ;
   delete pFacet;

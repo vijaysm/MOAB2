@@ -103,8 +103,11 @@ public:
   // this would be a deep copy, into a new geom topo tool
   // sets will be duplicated, but entities not
   // modelSet will be a new one;
-  // if the gent!=0, it will duplicate in a new gtt just the gent and its children
-  ErrorCode duplicate_model(GeomTopoTool *& duplicate, EntityHandle gent = 0);
+  // will take as input a pointer to a std::vector of gents (surfaces and volumes, usually),
+  // which will serve to filter the gents from modelSet (only dependents will be part of the new gtt)
+  // if the pointer is null, all gsets in the original modelSet are duplicated
+
+  ErrorCode duplicate_model(GeomTopoTool *& duplicate, std::vector<EntityHandle> * pvGEnts = NULL);
 
   EntityHandle get_root_model_set() { return modelSet; }
 
