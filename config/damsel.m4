@@ -22,11 +22,11 @@ else
   AC_MSG_RESULT([no])
 fi
 
- # if DAMSEL support is not disabled
+ # if DAMSEL support is enabled
 AC_MSG_CHECKING([if DAMSEL support available])
 AC_MSG_RESULT([])
 HAVE_DAMSEL=no
-if test "xno" != "x$DAMSEL_ARG"; then
+if test "x" != "x$DAMSEL_ARG" && test "xno" != "x$DAMSEL_ARG"; then
   HAVE_DAMSEL=yes
 
     # if a path is specified, update LIBS and INCLUDES accordingly
