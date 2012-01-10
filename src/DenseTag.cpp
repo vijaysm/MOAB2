@@ -125,9 +125,10 @@ ErrorCode DenseTag::get_array( const SequenceManager* seqman,
 ErrorCode DenseTag::get_array( const EntitySequence* seq, 
                                const unsigned char* const& ptr) const
 {
-  const void* mem = seq->data()->get_tag_data( mySequenceArray );
-  if (mem) 
-    mem += get_size() * (seq->start_handle() - seq->data()->start_handle());
+  ptr = reinterpret_cast<unsigned char*>(seq->data()->get_tag_data( mySequenceArray ));
+  if (ptr)
+    ptr += get_size() * (seq->start_handle() - seq->data()->start_handle());
+  
   return MB_SUCCESS;
 }
 
