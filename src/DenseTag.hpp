@@ -407,6 +407,17 @@ public:
   ErrorCode get_array( const EntitySequence* seq, 
                        const unsigned char* const& ptr) const;
   
+  /**\brief Get non-read-only tag storage for entire sequence
+   *
+   *\param seq     Sequence 
+   *\param ptr     Pointer to dag storage.  This pointer will be set
+   *               to null and \c MB_SUCCESS will be returned if no tag storage has been allocated.
+   *\return        MB_SUCCESS if sequence is valid (regardless of whether
+   *               or not any tag storage is allocated). 
+   */
+  ErrorCode get_array( const EntitySequence* seq, 
+                       const unsigned char* & ptr) const;
+  
 private:
   
   DenseTag( const DenseTag& );

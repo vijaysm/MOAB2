@@ -123,9 +123,15 @@ ErrorCode DenseTag::get_array( const SequenceManager* seqman,
 }
 
 ErrorCode DenseTag::get_array( const EntitySequence* seq, 
-                               const unsigned char* const& ptr) const
+                               const unsigned char* const & ptr) const
 {
-  ptr = reinterpret_cast<unsigned char*>(seq->data()->get_tag_data( mySequenceArray ));
+  return get_array(seq, ptr);
+}
+
+ErrorCode DenseTag::get_array( const EntitySequence* seq, 
+                               const unsigned char* & ptr) const
+{
+  ptr = reinterpret_cast<const unsigned char*>(seq->data()->get_tag_data( mySequenceArray ));
   if (ptr)
     ptr += get_size() * (seq->start_handle() - seq->data()->start_handle());
   
@@ -210,7 +216,7 @@ ErrorCode DenseTag::get_data( const SequenceManager* seqman,
 {
   ErrorCode rval;
   size_t avail;
-  const unsigned char* array;
+  const unsigned char* array = NULL; // initialize to get rid of warning
   unsigned char* data = reinterpret_cast<unsigned char*>(values);
 
   for (Range::const_pair_iterator p = entities.const_pair_begin(); 
@@ -248,7 +254,7 @@ ErrorCode DenseTag::get_data( const SequenceManager* seqman,
   ErrorCode result;
   const EntityHandle *const end = entities + num_entities;
   size_t junk;
-  const unsigned char* ptr;
+  const unsigned char* ptr = NULL; // initialize to get rid of warning
 
   if (data_lengths) {
     const int len = get_size();
@@ -627,7 +633,7 @@ ErrorCode DenseTag::find_entities_with_value( const SequenceManager* seqman,
     }
   }
   else {
-    const unsigned char* array;
+    const unsigned char* array = NULL; // initialize to get rid of warning
     size_t count;
     ErrorCode rval;
      
@@ -665,7 +671,7 @@ ErrorCode DenseTag::find_entities_with_value( const SequenceManager* seqman,
 
 bool DenseTag::is_tagged( const SequenceManager* seqman, EntityHandle h) const
 {
-  const unsigned char* ptr;
+  const unsigned char* ptr = NULL; // initialize to get rid of warning
   size_t count;
   return MB_SUCCESS == get_array( seqman, 0, h, ptr, count ) && 0 != ptr;
 } 
