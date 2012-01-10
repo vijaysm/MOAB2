@@ -2,7 +2,7 @@
 #include "EntitySequence.hpp"
 #include "SequenceData.hpp"
 #include "TestUtil.hpp"
-#include "Error.hpp"
+#include "moab/Error.hpp"
 
 using namespace moab;
 

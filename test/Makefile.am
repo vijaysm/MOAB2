@@ -46,7 +46,8 @@ TESTS = range_test \
         gttool_test \
         cropvol_test \
 	reorder_test \
-	test_prog_opt
+	test_prog_opt \
+	coords_connect_iterate
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 
@@ -126,6 +127,9 @@ test_prog_opt_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS)
 
 moab_test_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS)
 kd_tree_test_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS)
+
+coords_connect_iterate_SOURCES = coords_connect_iterate.cpp
+coords_connect_iterate_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS)
 
 if PARALLEL
 moab_test_CPPFLAGS += -I$(top_srcdir)/src/parallel

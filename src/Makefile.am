@@ -53,7 +53,6 @@ libMOAB_la_SOURCES = \
   ElementSequence.hpp \
   EntitySequence.cpp \
   EntitySequence.hpp \
-  Error.hpp \
   Factory.cpp \
   FBEngine.cpp \
   FileOptions.cpp \
@@ -144,6 +143,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/Compiler.hpp \
   moab/Core.hpp \
   moab/DualTool.hpp \
+  moab/Error.hpp \
   moab/GeomTopoTool.hpp \
   moab/HigherOrderFactory.hpp \
   moab/HomXform.hpp \

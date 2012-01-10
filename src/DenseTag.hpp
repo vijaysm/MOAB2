@@ -10,7 +10,8 @@
 
 namespace moab {
 
-
+class EntitySequence;
+    
 /**\brief Dense storage of fixed-length tag data
  *
  * Implement normal dense tag.
@@ -373,6 +374,39 @@ public:
                             unsigned long& total,
                             unsigned long& per_entity ) const;
 
+  /**\brief Get read-only tag storage
+   *
+   *\param seqman  Sequence manager
+   *\param error   Error object through which to report errors
+   *\param h       First entity for which to return storage.
+   *\param ptr     Pointer to dag storage.  This pointer will be set
+   *               to null and \c MB_SUCCESS will be returned if the handle
+   *               is valid but no tag storage has been allocated.
+   *\param count   Number of consecutive entities for which tag storage
+   *               is returned.  This value will be valid even if null
+   *               is returned for \c ptr and indicates the number of
+   *               consecutive entities for which no tag storage has been
+   *               allocated.
+   *\return        MB_SUCCESS if handle is valid (regardless of whether
+   *               or not any tag storage is allocated). 
+   */
+  ErrorCode get_array( const SequenceManager* seqman, 
+                       Error* error,
+                       EntityHandle h, 
+                       const unsigned char* const& ptr,
+                       size_t& count ) const;
+  
+  /**\brief Get read-only tag storage for entire sequence
+   *
+   *\param seq     Sequence 
+   *\param ptr     Pointer to dag storage.  This pointer will be set
+   *               to null and \c MB_SUCCESS will be returned if no tag storage has been allocated.
+   *\return        MB_SUCCESS if sequence is valid (regardless of whether
+   *               or not any tag storage is allocated). 
+   */
+  ErrorCode get_array( const EntitySequence* seq, 
+                       const unsigned char* const& ptr) const;
+  
 private:
   
   DenseTag( const DenseTag& );

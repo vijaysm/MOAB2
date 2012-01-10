@@ -57,7 +57,7 @@
 #include "SequenceManager.hpp"
 #include "EntitySequence.hpp"
 #include "RangeSeqIntersectIter.hpp"
-#include "Error.hpp"
+#include "moab/Error.hpp"
 #include "moab/ScdInterface.hpp"
 
 using namespace std;

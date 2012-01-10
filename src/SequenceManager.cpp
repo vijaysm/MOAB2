@@ -8,7 +8,7 @@
 #include "moab/HomXform.hpp"
 #include "PolyElementSeq.hpp"
 #include "SysUtil.hpp"
-#include "Error.hpp"
+#include "moab/Error.hpp"
 
 #include <assert.h>
 #include <new>

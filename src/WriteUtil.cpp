@@ -19,7 +19,7 @@
 
 #include "WriteUtil.hpp"
 #include "moab/Core.hpp"
-#include "Error.hpp"
+#include "moab/Error.hpp"
 #include "SequenceManager.hpp"
 #include "ElementSequence.hpp"
 #include "VertexSequence.hpp"
@@ -68,6 +68,28 @@ ErrorCode WriteUtil::check_doesnt_exist( const char* file_name )
   }
 }
 
+//! Gather all entities in the mesh, or in the sets specified
+ErrorCode WriteUtil::gather_entities(Range &all_ents,
+                                       /**< range in which entities are returned */
+                                     const EntityHandle *ent_sets, 
+                                       /**< entity sets whose contents are to be gathered */
+                                     const int num_sets
+                                       /**< number of sets in list */
+                                     ) 
+{
+  ErrorCode rval;
+  if (!ent_sets || num_sets == 0) {
+    rval = mMB->get_entities_by_handle(0, all_ents);
+  }
+  else {
+    for (int i = 0; i < num_sets; i++) {
+      ErrorCode tmp_rval = mMB->get_entities_by_handle(ent_sets[i], all_ents);
+      if (MB_SUCCESS != tmp_rval) rval = tmp_rval;
+    }
+  }
+  
+  return rval;
+}
 
 ErrorCode WriteUtil::get_node_coords(
     const int num_arrays,

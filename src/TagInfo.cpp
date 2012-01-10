@@ -1,5 +1,5 @@
 #include "TagInfo.hpp"
-#include "Error.hpp"
+#include "moab/Error.hpp"
 #include <string.h>  /* memcpy */
 #include <stdlib.h>  /* realloc & free */
 #include <assert.h>

@@ -2,7 +2,7 @@
 #include "moab/Core.hpp"
 #include "moab/ProcConfig.hpp"
 #include "FileOptions.hpp"
-#include "Error.hpp"
+#include "moab/Error.hpp"
 #include "moab/ReaderWriterSet.hpp"
 #include "moab/ReadUtilIface.hpp"
 #include "moab/ParallelComm.hpp"
@@ -20,7 +20,7 @@ namespace moab {
 const bool debug = false;
 
 #define RR(a) if (MB_SUCCESS != result) {                               \
-      dynamic_cast<Core*>(mbImpl)->get_error_handler()->set_last_error(a); \
+      mError->set_last_error(a); \
       return result;}
 
 const char *ReadParallel::ParallelActionsNames[] = {
@@ -55,6 +55,8 @@ ReadParallel::ReadParallel(Interface* impl,
   myDebug.set_rank( myPcomm->proc_config().proc_rank() );
   if (debug) // for backwards compatability, enable all debug output if constant is true
     myDebug.set_verbosity(10);
+
+  impl->query_interface(mError);
 }
 
 ErrorCode ReadParallel::load_file(const char **file_names,
@@ -64,9 +66,6 @@ ErrorCode ReadParallel::load_file(const char **file_names,
                                     const ReaderIface::SubsetList* subset_list,
                                     const Tag* file_id_tag ) 
 {
-  Error *merror = ((Core*)mbImpl)->get_error_handler();
-  
-  
   int tmpval;
   if (MB_SUCCESS == opts.get_int_option("DEBUG_PIO", 1, tmpval)) {
     myDebug.set_verbosity(tmpval);
@@ -77,9 +76,9 @@ ErrorCode ReadParallel::load_file(const char **file_names,
     // Get parallel settings
   int parallel_mode;
   ErrorCode result = opts.match_option( "PARALLEL", parallelOptsNames, 
-                                          parallel_mode );
+                                        parallel_mode );
   if (MB_FAILURE == result) {
-    merror->set_last_error( "Unexpected value for 'PARALLEL' option\n" );
+    mError->set_last_error( "Unexpected value for 'PARALLEL' option\n" );
     return MB_FAILURE;
   }
   else if (MB_ENTITY_NOT_FOUND == result) {
@@ -132,7 +131,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
     int num_fields = 
         sscanf(ghost_str.c_str(), "%d.%d.%d.%d", &ghost_dim, &bridge_dim, &num_layers, &addl_ents);
     if (3 > num_fields) {
-      merror->set_last_error( "Didn't read 3 fields from PARALLEL_GHOSTS string\n" );
+      mError->set_last_error( "Didn't read 3 fields from PARALLEL_GHOSTS string\n" );
       return MB_FAILURE;
     }
   }
@@ -149,7 +148,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
     int num_fields = 
         sscanf(shared_str.c_str(), "%d.%d", &resolve_dim, &shared_dim);
     if (2 != num_fields) {
-      merror->set_last_error( "Didn't read 2 fields from PARALLEL_RESOLVE_SHARED_ENTS string\n" );
+      mError->set_last_error( "Didn't read 2 fields from PARALLEL_RESOLVE_SHARED_ENTS string\n" );
       return MB_FAILURE;
     }
   }
@@ -160,7 +159,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   if (MB_ENTITY_NOT_FOUND == result)
     reader_rank = 0;
   else if (MB_SUCCESS != result) {
-    merror->set_last_error( "Unexpected value for 'MPI_IO_RANK' option\n" );
+    mError->set_last_error( "Unexpected value for 'MPI_IO_RANK' option\n" );
     return MB_FAILURE;
   }
 
@@ -173,7 +172,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   if (MB_SUCCESS == opts.get_null_option("PARTITION_BY_RANK")) {
     partition_by_rank = true;
     if (!partition_tag_vals.empty()) {
-      merror->set_last_error("Cannot specify both PARTITION_VALS and PARTITION_BY_RANK");
+      mError->set_last_error("Cannot specify both PARTITION_VALS and PARTITION_BY_RANK");
       return MB_FAILURE;
     }
   }
@@ -267,8 +266,6 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   if (myPcomm == NULL)
     myPcomm = new ParallelComm(mbImpl);
 
-  Error *merror = ((Core*)mbImpl)->get_error_handler();
-
   Range entities; 
   Tag file_set_tag = 0;
   int other_sets = 0;
@@ -342,7 +339,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
 
           i_read = true;
           if (num_files != 1) {
-            merror->set_last_error("Multiple file read not supported for READ_PART");
+            mError->set_last_error("Multiple file read not supported for READ_PART");
             return MB_NOT_IMPLEMENTED;
           }
           

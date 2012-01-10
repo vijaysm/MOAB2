@@ -38,7 +38,7 @@
 #include "moab/CN.hpp"
 #include "moab/HigherOrderFactory.hpp"
 #include "SequenceManager.hpp"
-#include "Error.hpp"
+#include "moab/Error.hpp"
 #include "moab/ReaderWriterSet.hpp"
 #include "moab/ReaderIface.hpp"
 #include "moab/WriterIface.hpp"
@@ -338,6 +338,11 @@ ErrorCode Core::query_interface(const std::string& iface_name, void** iface)
     *iface = reader_writer_set();
     return MB_SUCCESS;
   }
+  else if(iface_name == "Error")
+  {
+    *iface = mError;
+    return MB_SUCCESS;
+  }
   else if(iface_name == "ExoIIInterface")
   {
     *iface = (void*)(ExoIIInterface*) new ExoIIUtil(this);
@@ -367,6 +372,9 @@ ErrorCode Core::query_interface_type( const std::type_info& type, void*& ptr )
   }
   else if (type == typeid(ReaderWriterSet)) {
     ptr = reader_writer_set();
+  }
+  else if (type == typeid(Error)) {
+    ptr = mError;
   }
   else if (type == typeid(ExoIIInterface)) {
     ptr = static_cast<ExoIIInterface*>(new ExoIIUtil(this));
@@ -402,6 +410,10 @@ ErrorCode Core::release_interface(const std::string& iface_name, void* iface)
   {
     return MB_SUCCESS;
   }
+  else if(iface_name == "Error")
+  {
+    return MB_SUCCESS;
+  }
   else if(iface_name == "ExoIIInterface")
   {
     delete (ExoIIInterface*)iface;
@@ -422,6 +434,7 @@ ErrorCode Core::release_interface_type(const std::type_info& type, void* iface)
   else if (type != typeid(ReadUtilIface) &&
            type != typeid(WriteUtilIface) &&
            type != typeid(ReaderWriterSet) &&
+           type != typeid(Error) &&
            type != typeid(ScdInterface))
     return MB_FAILURE;
   
@@ -871,6 +884,38 @@ ErrorCode Core::get_vertex_coordinates(std::vector<double> &coords) const
   }
   
   return result;
+}
+
+ErrorCode Core::coords_iterate(Range::const_iterator iter,
+                               Range::const_iterator end,
+                               int& count,
+                               double*& xcoords_ptr,
+                               double*& ycoords_ptr,
+                               double*& zcoords_ptr)
+{
+  EntitySequence *seq;
+  ErrorCode rval = sequence_manager()->find(*iter, seq);
+  if (MB_SUCCESS != rval) {
+    mError->set_last_error("Couldn't find sequence for start handle.");
+    xcoords_ptr = ycoords_ptr = zcoords_ptr = NULL;
+    return rval;
+  }
+  VertexSequence *vseq = dynamic_cast<VertexSequence*>(seq);
+  if (!vseq) {
+    mError->set_last_error("Couldn't find sequence for start handle.");
+    return MB_ENTITY_NOT_FOUND;
+  }
+  
+  unsigned int offset = *iter - vseq->data()->start_handle();
+  xcoords_ptr = reinterpret_cast<double*>(vseq->data()->get_sequence_data(0)) + offset;
+  ycoords_ptr = reinterpret_cast<double*>(vseq->data()->get_sequence_data(1)) + offset;
+  zcoords_ptr = reinterpret_cast<double*>(vseq->data()->get_sequence_data(2)) + offset;
+
+  EntityHandle real_end = *(iter.end_of_block());
+  if (*end) real_end = std::min(real_end, *end);
+  count = real_end - *iter + 1;
+  
+  return MB_SUCCESS;
 }
 
 ErrorCode  Core::get_coords(const Range& entities, double *coords) const
@@ -1504,6 +1549,43 @@ ErrorCode Core::get_connectivity( const Range& from_entities,
     }
   }
   return result;
+}
+
+ErrorCode Core::connect_iterate(Range::const_iterator iter,
+                                Range::const_iterator end,
+                                int& count,
+                                EntityHandle *&connect)
+{
+    // Make sure the entity should have a connectivity.
+  EntityType type = TYPE_FROM_HANDLE(*iter);
+  
+    // WARNING: This is very dependent on the ordering of the EntityType enum
+  if(type <= MBVERTEX || type >= MBENTITYSET)
+    return MB_TYPE_OUT_OF_RANGE;
+
+  EntitySequence* seq = NULL;
+
+    // We know that connectivity is stored in an EntitySequence so jump straight
+    // to the entity sequence
+  ErrorCode rval = sequence_manager()->find(*iter, seq);
+  if (!seq || rval != MB_SUCCESS) 
+    return MB_ENTITY_NOT_FOUND;
+
+  ElementSequence *eseq = dynamic_cast<ElementSequence*>(seq);
+  
+  connect = eseq->get_connectivity_array();
+  if (!connect) {
+    mError->set_last_error("Couldn't find connectivity array for start handle.");
+    return MB_FAILURE;
+  }
+
+  connect += eseq->nodes_per_element() * (*iter - eseq->start_handle());
+
+  EntityHandle real_end = *(iter.end_of_block());
+  if (*end) real_end = std::min(real_end, *end);
+  count = real_end - *iter + 1;
+  
+  return MB_SUCCESS;
 }
 
 ErrorCode Core::get_vertices( const Range& from_entities,
@@ -2607,9 +2689,12 @@ ErrorCode Core::delete_entities(const Range &range)
   ErrorCode result = MB_SUCCESS, temp_result;
   Range failed_ents;
   
-  for (std::list<TagInfo*>::iterator i = tagList.begin(); i != tagList.end(); ++i)
-    if (MB_SUCCESS != (temp_result = (*i)->remove_data( sequenceManager, mError, range ) ))
+  for (std::list<TagInfo*>::iterator i = tagList.begin(); i != tagList.end(); ++i) {
+    temp_result = (*i)->remove_data( sequenceManager, mError, range );
+      // ok if the error is tag_not_found, some ents may not have every tag on them
+    if (MB_SUCCESS != temp_result && MB_TAG_NOT_FOUND != temp_result)
       result = temp_result;
+  }
   
   for (Range::const_reverse_iterator rit = range.rbegin(); rit != range.rend(); rit++) {
     
@@ -2653,9 +2738,51 @@ ErrorCode Core::delete_entities(const Range &range)
 ErrorCode Core::delete_entities(const EntityHandle *entities,
                                     const int num_entities)
 {
-  Range range;
-  std::copy(entities, entities+num_entities, range_inserter(range));
-  return delete_entities(range);
+  ErrorCode result = MB_SUCCESS, temp_result;
+  Range failed_ents;
+  
+  for (std::list<TagInfo*>::iterator i = tagList.begin(); i != tagList.end(); ++i) {
+    temp_result = (*i)->remove_data( sequenceManager, mError, entities, num_entities);
+      // ok if the error is tag_not_found, some ents may not have every tag on them
+    if (MB_SUCCESS != temp_result && MB_TAG_NOT_FOUND != temp_result)
+      result = temp_result;
+  }
+  
+  for (int i = 0; i < num_entities; i++) {
+    
+      // tell AEntityFactory that this element is going away
+    bool failed = false;
+    temp_result = aEntityFactory->notify_delete_entity(entities[i]);
+    if (MB_SUCCESS != temp_result) {
+      result = temp_result;
+      failed = true;
+    }
+
+    if (TYPE_FROM_HANDLE(entities[i]) == MBENTITYSET) {
+      if (MeshSet* ptr = get_mesh_set( sequence_manager(), entities[i] )) {
+        int j, count;
+        const EntityHandle* rel;
+        ptr->clear( entities[i], a_entity_factory() );
+        rel = ptr->get_parents( count );
+        for (j = 0; j < count; ++j)
+          remove_child_meshset( rel[j], entities[i] );
+        rel = ptr->get_children( count );
+        for (j = 0; j < count; ++j)
+          remove_parent_meshset( rel[j], entities[i] );
+      }
+    }
+
+    if (failed) 
+        // don't test for success, since we'll return failure in this case
+      sequence_manager()->delete_entity(mError, entities[i]);
+    else {
+        // now delete the entity
+      temp_result = sequence_manager()->delete_entity(mError, entities[i]);
+      if (MB_SUCCESS != temp_result) result = temp_result;
+    }
+  }
+  
+  return result;
 }
 
 ErrorCode Core::list_entities(const EntityHandle *entities,

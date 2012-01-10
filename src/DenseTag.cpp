@@ -9,7 +9,7 @@
 #include "SysUtil.hpp"
 #include "SequenceManager.hpp"
 #include "SequenceData.hpp"
-#include "Error.hpp"
+#include "moab/Error.hpp"
 #include "moab/CN.hpp"
 #include <utility>
 
@@ -86,6 +86,15 @@ ErrorCode DenseTag::release_all_data( SequenceManager* seqman,
 ErrorCode DenseTag::get_array( const SequenceManager* seqman, 
                                Error* error,
                                EntityHandle h, 
+                               const unsigned char* const& ptr,
+                               size_t& count ) const
+{
+  return get_array(seqman, error, h, ptr, count);
+}
+
+ErrorCode DenseTag::get_array( const SequenceManager* seqman, 
+                               Error* error,
+                               EntityHandle h, 
                                const unsigned char*& ptr,
                                size_t& count ) const
 {
@@ -110,6 +119,15 @@ ErrorCode DenseTag::get_array( const SequenceManager* seqman,
   if (ptr)
     ptr += get_size() * (h - seq->data()->start_handle());
 
+  return MB_SUCCESS;
+}
+
+ErrorCode DenseTag::get_array( const EntitySequence* seq, 
+                               const unsigned char* const& ptr) const
+{
+  const void* mem = seq->data()->get_tag_data( mySequenceArray );
+  if (mem) 
+    mem += get_size() * (seq->start_handle() - seq->data()->start_handle());
   return MB_SUCCESS;
 }
 

@@ -20,7 +20,7 @@
 #include "moab/Range.hpp"
 #include "TagCompare.hpp"
 #include "SequenceManager.hpp"
-#include "Error.hpp"
+#include "moab/Error.hpp"
 #include "moab/CN.hpp"
 
 namespace moab {

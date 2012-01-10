@@ -40,6 +40,15 @@ public:
     //! if file does exist, or MB_FAILURE for some other error condition.
   virtual ErrorCode check_doesnt_exist( const char* file_name ) = 0;
 
+    //! Gather all entities in the mesh, or in the sets specified
+  virtual ErrorCode gather_entities(Range &all_ents,
+                                      /**< range in which entities are returned */
+                                    const EntityHandle *ent_sets = NULL, 
+                                      /**< entity sets whose contents are to be gathered */
+                                    int num_sets = 0
+                                      /**< number of sets in list */
+                                    ) = 0;
+
     //! Given information about the nodes to be written, and pointers to memory
     //! to which coordinates will be written, writes coordinate data there, and
     //! also assigns global ids to nodes & writes to a tag, if a tag is specified

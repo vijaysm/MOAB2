@@ -15,7 +15,7 @@
 #include "ScdVertexData.hpp"
 #include "StructuredElementSeq.hpp"
 #include "SequenceManager.hpp"
-#include "Error.hpp"
+#include "moab/Error.hpp"
 #include "moab_mpi.h"
 #include <iostream>
 #include <sstream>
@@ -36,10 +36,8 @@ using namespace moab;
         else std::cerr << last_error << std::endl;\
         }
 #define RRA(a) if (MB_SUCCESS != result) {\
-      std::string tmp_str; mbImpl->get_last_error(tmp_str);\
-      tmp_str.append("\n"); tmp_str.append(a);\
-      dynamic_cast<Core*>(mbImpl)->get_error_handler()->set_last_error(tmp_str); \
-      return result;}
+    std::cerr << a; return result;}
+    
 
 ErrorCode create_linear_mesh(Interface *mbImpl,
                                int N, int M, int &nshared);

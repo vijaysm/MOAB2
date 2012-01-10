@@ -11,6 +11,7 @@ namespace moab {
 
 class ReadUtilIface;
 class ParallelComm;
+class Error;
 
 class ReadParallel
 {
@@ -102,6 +103,8 @@ private:
   ParallelComm *myPcomm;
   
   DebugOutput myDebug;
+
+  Error *mError;
 };
 
 inline ErrorCode ReadParallel::load_file(const char *file_name,

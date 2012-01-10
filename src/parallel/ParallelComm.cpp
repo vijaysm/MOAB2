@@ -3,13 +3,12 @@
 #include "moab/WriteUtilIface.hpp"
 #include "moab/ReadUtilIface.hpp"
 #include "SequenceManager.hpp"
-#include "Error.hpp"
+#include "moab/Error.hpp"
 #include "EntitySequence.hpp"
 #include "MBTagConventions.hpp"
 #include "moab/Skinner.hpp"
 #include "MBParallelConventions.h"
 #include "moab/Core.hpp"
-#include "Error.hpp"
 #include "ElementSequence.hpp"
 #include "moab/CN.hpp"
 #include "moab/RangeMap.hpp"
@@ -274,10 +273,10 @@ void ParallelComm::print_debug_waitany(std::vector<MPI_Request> &reqs, int tag, 
       errorHandler->set_last_error(tmp_str); \
       return result;}
 
-#define RRAI(i, a) if (MB_SUCCESS != result) {                \
+#define RRAI(i, e, a) if (MB_SUCCESS != result) {            \
       std::string tmp_str; i->get_last_error(tmp_str);\
       tmp_str.append("\n"); tmp_str.append(a);\
-      dynamic_cast<Core*>(i)->get_error_handler()->set_last_error(tmp_str); \
+      e->set_last_error(tmp_str); \
       return result;}
 
 /** Name of tag used to store ParallelComm Index on mesh paritioning sets */
@@ -341,7 +340,7 @@ void ParallelComm::initialize()
 {
   Core* core = dynamic_cast<Core*>(mbImpl);
   sequenceManager = core->sequence_manager();
-  errorHandler = core->get_error_handler();
+  mbImpl->query_interface(errorHandler);
   
     // initialize MPI, if necessary
   int flag = 1;
@@ -5548,6 +5547,12 @@ ErrorCode ParallelComm::exchange_ghost_cells(ParallelComm **pcs,
   ParallelComm *pc;
   ErrorCode result = MB_SUCCESS;
 
+  std::vector<Error*> ehs(num_procs);
+  for (unsigned int i = 0; i < num_procs; i++) {
+    result = pcs[i]->get_moab()->query_interface(ehs[i]);
+    assert (MB_SUCCESS == result);
+  }
+  
     // when this function is called, buffProcs should already have any 
     // communicating procs
 
@@ -5569,7 +5574,7 @@ ErrorCode ParallelComm::exchange_ghost_cells(ParallelComm **pcs,
     pc = pcs[p];
     result = pc->get_sent_ents(is_iface, bridge_dim, ghost_dim, num_layers, addl_ents,
                                sent_ents[p], allsent[p], entprocs[p]);
-    RRAI(pc->get_moab(), "get_sent_ents failed.");
+    RRAI(pc->get_moab(), ehs[p], "get_sent_ents failed.");
   
     //===========================================
     // pack entities into buffers
@@ -5581,7 +5586,7 @@ ErrorCode ParallelComm::exchange_ghost_cells(ParallelComm **pcs,
       result = pc->pack_entities(sent_ents[p][ind], pc->localOwnedBuffs[ind],
                                  store_remote_handles, pc->buffProcs[ind], is_iface,
                                  &entprocs[p], &allsent[p]); 
-      RRAI(pc->get_moab(), "Packing entities failed.");
+      RRAI(pc->get_moab(), ehs[p], "Packing entities failed.");
     }
 
     tuple_list_free(&entprocs[p]);
@@ -5623,7 +5628,7 @@ ErrorCode ParallelComm::exchange_ghost_cells(ParallelComm **pcs,
                                           store_remote_handles, ind, is_iface,
                                           L1hloc[to_p], L1hrem[to_p], L1p[to_p], L2hloc[to_p], 
                                           L2hrem[to_p], L2p[to_p], new_ents[to_p]);
-      RRAI(pc->get_moab(), "Failed to unpack entities.");
+      RRAI(pc->get_moab(), ehs[p], "Failed to unpack entities.");
     }
   }
 
@@ -5633,16 +5638,16 @@ ErrorCode ParallelComm::exchange_ghost_cells(ParallelComm **pcs,
       // them up
     for (unsigned int p = 0; p < num_procs; p++) {
       result = pcs[p]->check_clean_iface(allsent[p]);
-      RRAI(pcs[p]->get_moab(), "Failed check on shared entities.");
+      RRAI(pcs[p]->get_moab(), ehs[p], "Failed check on shared entities.");
     }
 
 #ifndef NDEBUG
     for (unsigned int p = 0; p < num_procs; p++) {
       result = pcs[p]->check_sent_ents(allsent[p]);
-      RRAI(pcs[p]->get_moab(), "Failed check on shared entities.");
+      RRAI(pcs[p]->get_moab(), ehs[p], "Failed check on shared entities.");
     }
     result = check_all_shared_handles(pcs, num_procs);
-    RRAI(pcs[0]->get_moab(), "Failed check on all shared handles.");
+    RRAI(pcs[0]->get_moab(), ehs[0], "Failed check on all shared handles.");
 #endif
     return MB_SUCCESS;
   }
@@ -5661,7 +5666,7 @@ ErrorCode ParallelComm::exchange_ghost_cells(ParallelComm **pcs,
       pc->localOwnedBuffs[ind]->reset_ptr(sizeof(int));
       result = pc->pack_remote_handles(L1hloc[p][ind], L1hrem[p][ind], L1p[p][ind], *proc_it,
                                        pc->localOwnedBuffs[ind]);
-      RRAI(pc->get_moab(), "Failed to pack remote handles.");
+      RRAI(pc->get_moab(), ehs[p], "Failed to pack remote handles.");
     }
   }
   
@@ -5679,18 +5684,18 @@ ErrorCode ParallelComm::exchange_ghost_cells(ParallelComm **pcs,
       result = pcs[to_p]->unpack_remote_handles(p, 
                                                 pc->localOwnedBuffs[ind]->buff_ptr,
                                                 L2hloc[to_p], L2hrem[to_p], L2p[to_p]);
-      RRAI(pc->get_moab(), "Failed to unpack remote handles.");
+      RRAI(pc->get_moab(), ehs[p], "Failed to unpack remote handles.");
     }
   }
     
 #ifndef NDEBUG
   for (unsigned int p = 0; p < num_procs; p++) {
     result = pcs[p]->check_sent_ents(allsent[p]);
-    RRAI(pcs[p]->get_moab(), "Failed check on shared entities.");
+    RRAI(pcs[p]->get_moab(), ehs[p], "Failed check on shared entities.");
   }
   
   result = ParallelComm::check_all_shared_handles(pcs, num_procs);
-  RRAI(pcs[0]->get_moab(), "Failed check on all shared handles.");
+  RRAI(pcs[0]->get_moab(), ehs[0], "Failed check on all shared handles.");
 #endif
 
   return MB_SUCCESS;
@@ -7761,7 +7766,7 @@ ErrorCode ParallelComm::get_shared_entities(int other_proc,
 
 ErrorCode ParallelComm::clean_shared_tags(std::vector<Range*>& exchange_ents)
 {
-  for (int i = 0; i < exchange_ents.size(); i++) {
+  for (unsigned int i = 0; i < exchange_ents.size(); i++) {
     Range* ents = exchange_ents[i];
     int num_ents = ents->size();
     Range::iterator it = ents->begin();

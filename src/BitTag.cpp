@@ -3,7 +3,7 @@
 #include "moab/Range.hpp"
 #include "TagCompare.hpp"
 #include "SequenceManager.hpp"
-#include "Error.hpp"
+#include "moab/Error.hpp"
 #include <stdlib.h>
 #include <string.h>
 
@@ -292,7 +292,7 @@ ErrorCode BitTag::remove_data( SequenceManager*, Error*, const Range& handles )
   return MB_SUCCESS;
 }
 
-static ErrorCode report_unsupported( Error* error )
+static ErrorCode report_unsupported( Error* error)
 {
   error->set_last_error("Operation not supported for bit tags");
   return MB_TYPE_OUT_OF_RANGE;

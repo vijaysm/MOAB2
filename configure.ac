@@ -402,6 +402,23 @@ AC_SUBST(CCMIO_LIBS)
 
 
 ################################################################################
+#                             DAMSEL OPTIONS
+################################################################################
+
+old_LDFLAGS="$LDFLAGS"
+LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
+FATHOM_CHECK_DAMSEL
+LDFLAGS="$old_LDFLAGS"
+if test "xno" != "x$HAVE_DAMSEL"; then
+  AM_CPPFLAGS="$AM_CPPFLAGS -DAMSEL_FILE"
+fi
+AM_CONDITIONAL(DAMSEL_FILE, [test "xno" != "x$HAVE_DAMSEL"])
+AM_CPPFLAGS="$DAMSEL_CPPFLAGS $AM_CPPFLAGS"
+EXPORT_LDFLAGS="$DAMSEL_LDFLAGS $EXPORT_LDFLAGS"
+AC_SUBST(DAMSEL_LIBS)
+
+
+################################################################################
 #                             NetCDF OPTIONS
 ################################################################################
 

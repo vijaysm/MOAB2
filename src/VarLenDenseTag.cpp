@@ -10,7 +10,7 @@
 #include "SequenceManager.hpp"
 #include "SequenceData.hpp"
 #include "RangeSeqIntersectIter.hpp"
-#include "Error.hpp"
+#include "moab/Error.hpp"
 #include "moab/CN.hpp"
 #include <utility>
 

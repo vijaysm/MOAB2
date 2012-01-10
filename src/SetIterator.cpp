@@ -8,7 +8,7 @@
 #include "MeshSet.hpp"
 #include "Internals.hpp"
 #include "moab/CN.hpp"
-#include "Error.hpp"
+#include "moab/Error.hpp"
 
 namespace moab 
 {
@@ -162,7 +162,9 @@ ErrorCode RangeSetIterator::get_next_by_dimension(const EntityHandle *&ptr, int 
 {
     // iterating by dimension - type should be maxtype
   if (entType != MBMAXTYPE) {
-    myCore->get_error_handler()->set_last_error("Both dimension and type should not be set on an iterator.");
+    Error *error;
+    dynamic_cast<Interface*>(myCore)->query_interface(error);
+    error->set_last_error("Both dimension and type should not be set on an iterator.");
     return MB_FAILURE;
   }
     

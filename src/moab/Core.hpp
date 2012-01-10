@@ -171,6 +171,14 @@ public:
    */
   virtual ErrorCode get_vertex_coordinates(std::vector<double> &coords) const;
 
+    //! get pointers to coordinate data
+  virtual ErrorCode coords_iterate(Range::const_iterator iter,
+                                   Range::const_iterator end,
+                                   int& count,
+                                   double*& xcoords_ptr,
+                                   double*& ycoords_ptr,
+                                   double*& zcoords_ptr);
+  
   //! get the coordinate information for this handle if it is of type Vertex
   //! otherwise, return an error
   virtual ErrorCode  get_coords(const Range &entity_handles, 
@@ -205,6 +213,12 @@ public:
     virtual ErrorCode get_connectivity_by_type(const EntityType type, 
                                                   std::vector<EntityHandle> &connect) const;
 
+    //! get pointer to connectivity data
+  virtual ErrorCode connect_iterate(Range::const_iterator iter,
+                                    Range::const_iterator end,
+                                    int& count,
+                                    EntityHandle *&connect);
+  
       //! Gets the connectivity for an element EntityHandle. 
       /** For non-element handles (ie, MeshSets), 
           returns an error. Connectivity data is copied from the database into the vector 
@@ -1145,8 +1159,6 @@ public:
   
     //! return set of registered IO tools
   ReaderWriterSet* reader_writer_set() { return readerWriterSet; }
-
-  Error* get_error_handler() { return mError; }
 
 //-----------------MeshSet Interface Functions------------------//
 

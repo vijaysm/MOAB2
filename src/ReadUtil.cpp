@@ -24,7 +24,7 @@
 #include "ReadUtil.hpp"
 #include "moab/Core.hpp"
 #include "AEntityFactory.hpp"
-#include "Error.hpp"
+#include "moab/Error.hpp"
 #include "SequenceManager.hpp"
 #include "VertexSequence.hpp"
 #include "ElementSequence.hpp"

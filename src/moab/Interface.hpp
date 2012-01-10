@@ -369,6 +369,26 @@ public:
     */
   virtual ErrorCode get_vertex_coordinates(std::vector<double> &coords) const =0;
 
+    //! get pointers to coordinate data
+    /** BEWARE, THIS GIVES ACCESS TO MOAB'S INTERNAL STORAGE, USE WITH CAUTION!
+     * This function returns pointers to MOAB's internal storage for vertex coordinates.
+     * Access is similar to tag_iterate, see documentation for that function for details
+     * about arguments and a coding example.
+     */
+  virtual ErrorCode coords_iterate(Range::const_iterator iter,
+                                     /**< Iterator to first entity you want coordinates for */
+                                   Range::const_iterator end,
+                                     /**< Iterator to last entity you want coordinates for */
+                                   int& count,
+                                     /**< Number of entities for which returned pointers are valid/contiguous */
+                                   double*& xcoords_ptr,
+                                     /**< Pointer to x coordinate storage for these entities */
+                                   double*& ycoords_ptr,
+                                     /**< Pointer to y coordinate storage for these entities */
+                                   double*& zcoords_ptr
+                                     /**< Pointer to z coordinate storage for these entities */
+                                   ) = 0;
+
     //! Gets xyz coordinate information for range of vertices
     /** Length of 'coords' should be at least 3*<em>entity_handles.size()</em> before making call.
         \param entity_handles Range of vertex handles (error if not of type MeshVertex)
@@ -453,6 +473,25 @@ public:
 
     /**@{*/
 
+    //! get pointers to connectivity data
+    /** BEWARE, THIS GIVES ACCESS TO MOAB'S INTERNAL STORAGE, USE WITH CAUTION!
+     * This function returns a pointer to MOAB's internal storage for entity connectivity.
+     * For each contiguous sub-range of entities, those entities are guaranteed to have
+     * the same number of vertices (since they're in the same ElementSequence).  Count
+     * is given in terms of entities, not elements of the connectivity array.
+     * Access is similar to tag_iterate, see documentation for that function for details
+     * about arguments and a coding example.
+     */
+  virtual ErrorCode connect_iterate(Range::const_iterator iter,
+                                      /**< Iterator to first entity you want coordinates for */
+                                    Range::const_iterator end,
+                                      /**< Iterator to last entity you want coordinates for */
+                                    int& count,
+                                      /**< Number of entities for which returned pointers are valid/contiguous */
+                                    EntityHandle *&connect
+                                      /**< Pointer to connectivity storage for these entities */
+                                    ) = 0;
+  
     //! Get the connectivity array for all entities of the specified entity type
     /**  This function returns the connectivity of just the corner vertices, no higher order nodes
          \param type The entity type of elements whose connectivity is to be returned

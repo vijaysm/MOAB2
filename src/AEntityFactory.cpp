@@ -19,7 +19,7 @@
 #include "Internals.hpp"
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
-#include "Error.hpp"
+#include "moab/Error.hpp"
 #include "moab/CN.hpp"
 #include "moab/MeshTopoUtil.hpp"
 #include "EntitySequence.hpp"

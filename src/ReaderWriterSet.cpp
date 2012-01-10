@@ -14,7 +14,7 @@
  */
 
 #include "moab/Core.hpp"
-#include "Error.hpp"
+#include "moab/Error.hpp"
 
 #include "moab/ReaderWriterSet.hpp"
 #include "moab/ReaderIface.hpp"

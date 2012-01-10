@@ -6,7 +6,7 @@
 #include "moab/Interface.hpp"
 #include "MeshTag.hpp"
 #include "SysUtil.hpp"
-#include "Error.hpp"
+#include "moab/Error.hpp"
 #include "moab/CN.hpp"
 #include "Internals.hpp"
 
