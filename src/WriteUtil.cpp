@@ -77,7 +77,7 @@ ErrorCode WriteUtil::gather_entities(Range &all_ents,
                                        /**< number of sets in list */
                                      ) 
 {
-  ErrorCode rval;
+  ErrorCode rval = MB_SUCCESS;
   if (!ent_sets || num_sets == 0) {
     rval = mMB->get_entities_by_handle(0, all_ents);
   }
