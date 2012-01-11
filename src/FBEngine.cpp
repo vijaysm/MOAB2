@@ -1260,6 +1260,8 @@ ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<
             MBERRORR(rval, "can't create vertex");
             nodes.push_back(newVertex);
             split_internal_edge(candidateEdge, newVertex);
+            splittingNodes.push_back(newVertex);
+            _brokenEdges[newVertex] = candidateEdge;
             _piercedEdges.insert(candidateEdge);
           }
           break; // break from the loop over boundary edges, we are interested in the first
@@ -2513,6 +2515,237 @@ ErrorCode FBEngine::split_edge_at_mesh_node(EntityHandle edge, EntityHandle node
   return MB_SUCCESS;
 }
 
+ErrorCode FBEngine::split_bedge_at_new_mesh_node(EntityHandle edge, EntityHandle node, EntityHandle brokenEdge,
+      EntityHandle & new_edge)
+{
+  // the node should be in the list of nodes
+
+  int dim = _my_geomTopoTool->dimension(edge);
+  if (dim != 1)
+    return MB_FAILURE; // not an edge
+
+  if (debug_splits) {
+    std::cout << "Split edge " << _mbImpl->id_from_handle(edge)
+        << " with global id: " << _my_geomTopoTool->global_id(edge)
+        << " at new node:" << _mbImpl->id_from_handle(node) << "breaking mesh edge" <<
+              _mbImpl->id_from_handle(brokenEdge)<< "\n";
+  }
+
+  // now get the edges
+  // the order is important...
+  // these are ordered sets !!
+  std::vector<EntityHandle> ents;
+  ErrorCode rval = _mbImpl->get_entities_by_type(edge, MBEDGE, ents);
+  if (MB_SUCCESS != rval)
+    return rval;
+  if (ents.size() < 1)
+    return MB_FAILURE; // no edges
+
+  const EntityHandle* conn = NULL;
+  int len;
+  // the edge connected to the splitting node is brokenEdge
+  // find the small edges it is broken into, which are connected to
+  // new vertex (node) and its ends; also, if necessary, reorient these small edges
+  // for proper orientation
+  rval = _mbImpl->get_connectivity(brokenEdge, conn, len);
+  MBERRORR(rval, "Failed to get connectivity of broken edge");
+
+  // we already created the new edges, make sure they are oriented fine; if not, revert them
+  EntityHandle conn02[]={conn[0], node}; // first node and new node
+  // default, intersect
+  std::vector<EntityHandle> adj_edges;
+  rval = _mbImpl->get_adjacencies(conn02, 2, 1, false, adj_edges);
+  if (adj_edges.size()<1 || rval !=MB_SUCCESS)
+    MBERRORR(MB_FAILURE, " Can't find small split edge");
+
+  // get this edge connectivity;
+  EntityHandle firstEdge=adj_edges[0];
+  const EntityHandle * connActual;
+  rval = _mbImpl->get_connectivity(firstEdge, connActual, len);
+  MBERRORR(rval, "Failed to get connectivity of first split edge");
+  // if it is the same as conn02, we are happy
+  if (conn02[0]!=connActual[0])
+  {
+    // reset connectivity of edge
+    rval = _mbImpl->set_connectivity(firstEdge, conn02, 2);
+    MBERRORR(rval, "Failed to reset connectivity of first split edge");
+  }
+  //  now treat the second edge
+  adj_edges.clear(); //
+  EntityHandle conn21[]={node, conn[1]}; //  new node and second node
+  rval = _mbImpl->get_adjacencies(conn21, 2, 1, false, adj_edges);
+  if (adj_edges.size()<1 || rval !=MB_SUCCESS)
+    MBERRORR(MB_FAILURE, " Can't find second small split edge");
+
+  // get this edge connectivity;
+  EntityHandle secondEdge=adj_edges[0];
+  rval = _mbImpl->get_connectivity(firstEdge, connActual, len);
+  MBERRORR(rval, "Failed to get connectivity of first split edge");
+  // if it is the same as conn21, we are happy
+  if (conn21[0]!=connActual[0])
+  {
+    // reset connectivity of edge
+    rval = _mbImpl->set_connectivity(secondEdge, conn21, 2);
+    MBERRORR(rval, "Failed to reset connectivity of first split edge");
+  }
+
+  int num_mesh_edges = (int) ents.size();
+  int index_edge;// this is the index of the edge that will be removed (because it is split)
+  // the rest of edges will be put in order in the (remaining) edge and new edge
+
+  for (index_edge = 0; index_edge < num_mesh_edges; index_edge++)
+    if (brokenEdge==ents[index_edge])
+      break;
+  if (index_edge>=num_mesh_edges)
+    MBERRORR(MB_FAILURE, "can't find the broken edge");
+
+  //so the edges up to index_edge and firstEdge, will form the "old" edge
+  // the edges secondEdge and from index_edge+1 to end will form the new_edge
+
+  // here, we have 0 ... index_edge edges in the first set,
+  // create a vertex set and add the node to it
+
+  if (debug_splits) {
+    std::cout << "Split edge with " << num_mesh_edges
+        << " mesh edges, at index (0 based) " << index_edge << "\n";
+  }
+
+  // at this moment, the node set should have been already created in new_geo_edge
+  EntityHandle nodeSet; // the node set that has the node (find it!)
+  bool found = find_vertex_set_for_node(node, nodeSet);
+
+  if (!found) {
+    // create a node set and add the node
+
+    // must be an error, but create one nevertheless
+    rval = _mbImpl->create_meshset(MESHSET_SET, nodeSet);
+    MBERRORR(rval, "Failed to create a new vertex set");
+
+    rval = _mbImpl->add_entities(nodeSet, &node, 1);
+    MBERRORR(rval, "Failed to add the node to the set");
+
+    rval = _my_geomTopoTool->add_geo_set(nodeSet, 0);//
+    MBERRORR(rval, "Failed to commit the node set");
+
+    if (debug_splits) {
+      std::cout
+          << " create a vertex set (this should have been created before!)"
+          << _mbImpl->id_from_handle(nodeSet) << " global id:"
+          << this->_my_geomTopoTool->global_id(nodeSet) << "\n";
+    }
+  }
+
+  // we need to remove the remaining mesh edges from first set, and add it
+  // to the second set, in order
+
+  rval = _mbImpl->create_meshset(MESHSET_ORDERED, new_edge);
+  MBERRORR(rval, "can't create geo edge");
+
+  int remaining = num_mesh_edges - 1 - index_edge;
+
+  // add edges to the new edge set
+  rval = _mbImpl->add_entities(new_edge, &secondEdge, 1); // add the second split edge to new edge
+  MBERRORR(rval, "can't add second split edge to the new edge");
+  // then add the rest
+  rval = _mbImpl->add_entities(new_edge, &ents[index_edge + 1], remaining);
+  MBERRORR(rval, "can't add edges to the new edge");
+
+  // also, remove the second node set from old edge
+  // remove the edges index_edge and up
+
+  rval = _mbImpl->remove_entities(edge, &ents[index_edge], remaining+1);// include the
+  MBERRORR(rval, "can't remove edges from the old edge");
+  // add the firstEdge too
+  rval = _mbImpl->add_entities(edge, &firstEdge, 1); // add the second split edge to new edge
+  MBERRORR(rval, "can't add first split edge to the old edge");
+
+  // need to find the adjacent vertex sets
+  Range vertexRange;
+  rval = getAdjacentEntities(edge, 0, vertexRange);
+
+  EntityHandle firstSet, secondSet;
+  if (vertexRange.size() == 1) {
+    // initially a periodic edge, OK to add the new set to both edges, and the
+    // second set
+    firstSet = secondSet = vertexRange[0];
+  } else {
+    if (vertexRange.size() > 2)
+      return MB_FAILURE; // something must be wrong with too many vertices
+    // find first node
+    EntityHandle firstNode;
+
+    rval = MBI->get_connectivity(ents[0], conn, len);
+    if (MB_SUCCESS != rval)
+      return rval;
+    firstNode = conn[0]; // this is the first node of the initial edge
+                         // we will use it to identify the vertex set associated with it
+    int k;
+    for (k = 0; k < 2; k++) {
+      Range verts;
+      rval = _mbImpl->get_entities_by_type(vertexRange[k], MBVERTEX, verts);
+
+      MBERRORR(rval, "can't get vertices from vertex set");
+      if (verts.size() != 1)
+        MBERRORR(MB_FAILURE, " node set not defined well");
+      if (firstNode == verts[0]) {
+        firstSet = vertexRange[k];
+        secondSet = vertexRange[1 - k]; // the other set; it is 1 or 0
+        break;
+      }
+    }
+    if (k >= 2) {
+      // it means we didn't find the right node set
+      MBERRORR(MB_FAILURE, " can't find the right vertex");
+    }
+    // remove the second set from the connectivity with the
+    //  edge (parent-child relation)
+    //remove_parent_child( EntityHandle parent,
+    //                                          EntityHandle child )
+    rval = _mbImpl->remove_parent_child(edge, secondSet);
+    MBERRORR(rval, " can't remove the second vertex from edge");
+  }
+  // at this point, we just need to add to both edges the new node set (vertex)
+  rval = _mbImpl->add_parent_child(edge, nodeSet);
+  MBERRORR(rval, " can't add new vertex to old edge");
+
+  rval = _mbImpl->add_parent_child(new_edge, nodeSet);
+  MBERRORR(rval, " can't add new vertex to new edge");
+
+  // one thing that I forgot: add the secondSet as a child to new edge!!!
+  // (so far, the new edge has only one end vertex!)
+  rval = _mbImpl->add_parent_child(new_edge, secondSet);
+  MBERRORR(rval, " can't add second vertex to new edge");
+
+  // now, add the edge and vertex to geo tool
+
+  rval = _my_geomTopoTool->add_geo_set(new_edge, 1);
+  MBERRORR(rval, " can't add new edge");
+
+  // next, get the adjacent faces to initial edge, and add them as parents
+  // to the new edge
+
+  // need to find the adjacent face sets
+  Range faceRange;
+  rval = getAdjacentEntities(edge, 2, faceRange);
+
+  // these faces will be adjacent to the new edge too!
+  // need to set the senses of new edge within faces
+
+  for (Range::iterator it = faceRange.begin(); it != faceRange.end(); it++) {
+    EntityHandle face = *it;
+    rval = _mbImpl->add_parent_child(face, new_edge);
+    MBERRORR(rval, " can't add new edge - face parent relation");
+    int sense;
+    rval = _my_geomTopoTool->get_sense(edge, face, sense);
+    MBERRORR(rval, " can't get initial sense of edge in the adjacent face");
+    // keep the same sense for the new edge within the faces
+    rval = _my_geomTopoTool->set_sense(new_edge, face, sense);
+    MBERRORR(rval, " can't set sense of new edge in the adjacent face");
+  }
+
+  return MB_SUCCESS;
+}
+
 ErrorCode FBEngine::split_boundary(EntityHandle face, EntityHandle atNode)
 {
   // find the boundary edges, and split the one that we find it is a part of
@@ -2524,6 +2757,8 @@ ErrorCode FBEngine::split_boundary(EntityHandle face, EntityHandle atNode)
   Range bound_edges;
   ErrorCode rval = getAdjacentEntities(face, 1, bound_edges);
   MBERRORR(rval, " can't get boundary edges");
+  bool brokEdge = _brokenEdges.find(atNode)!=_brokenEdges.end();
+
   for (Range::iterator it =bound_edges.begin(); it!=bound_edges.end(); it++ )
   {
     EntityHandle b_edge = *it;
@@ -2532,18 +2767,33 @@ ErrorCode FBEngine::split_boundary(EntityHandle face, EntityHandle atNode)
     rval = _mbImpl->get_entities_by_dimension(b_edge, 1,
         mesh_edges);
     MBERRORR(rval, " can't get mesh edges");
-    Range nodes;
-    rval = _mbImpl->get_connectivity(mesh_edges, nodes);
-    MBERRORR(rval, " can't get nodes from mesh edges");
-
-    if (nodes.find(atNode)!=nodes.end())
+    if (brokEdge)
     {
-      // we found our boundary edge candidate
-      EntityHandle new_edge;
-      rval = split_edge_at_mesh_node(b_edge, atNode, new_edge);
-      return rval;
+      EntityHandle brokenEdge = _brokenEdges[atNode];
+      if (mesh_edges.find(brokenEdge)!=mesh_edges.end())
+      {
+        EntityHandle new_edge;
+        rval = split_bedge_at_new_mesh_node(b_edge, atNode, brokenEdge, new_edge);
+        return rval;
+      }
+    }
+    else
+    {
+      Range nodes;
+      rval = _mbImpl->get_connectivity(mesh_edges, nodes);
+      MBERRORR(rval, " can't get nodes from mesh edges");
+
+      if (nodes.find(atNode)!=nodes.end())
+      {
+        // we found our boundary edge candidate
+        EntityHandle new_edge;
+        rval = split_edge_at_mesh_node(b_edge, atNode, new_edge);
+        return rval;
+      }
     }
   }
+  // if the node was not found in any "current" boundary, it broke an existing
+  // boundary edge
   MBERRORR(MB_FAILURE, " we did not find an appropriate boundary edge"); ; //
   return MB_FAILURE; // needed to suppress compile warning
 }

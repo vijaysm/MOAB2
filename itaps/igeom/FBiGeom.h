@@ -59,7 +59,7 @@
 
 #include "iBase.h"
 #include "FBiGeom_protos.h"
-//#include "iMesh.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -3988,7 +3988,7 @@ extern "C" {
                        int *err);
 
 #ifdef __cplusplus
-} // extern "C"
+} /* extern "C" */
 #endif
 
 #endif

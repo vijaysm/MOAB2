@@ -24,6 +24,7 @@
 #include <string.h>
 #include <math.h>
 #include "moab/FBEngine.hpp"
+#include "moab/GeomTopoTool.hpp"
 
 #define STRINGIFY_(A) #A
 #define STRINGIFY(A) STRINGIFY_(A)
@@ -55,6 +56,7 @@ ErrorCode print_error(const char* desc, ErrorCode rval, const char* file,
 }
 
 ErrorCode split_test_across();
+ErrorCode verify_split();
 
 void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
 {
@@ -111,6 +113,10 @@ int main(int argc, char *argv[])
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
+  std::cout << " verify split ";
+  rval = verify_split();
+  handle_error_code(rval, number_tests_failed, number_tests_successful);
+  std::cout << "\n";
   // when we are done, remove modified file if we want to
   if (!keep_output)
   {
@@ -203,4 +209,18 @@ ErrorCode split_test_across()
 
   return rval;
 }
+ErrorCode verify_split()
+{
+  Core mbcore;
+  Interface * mb = &mbcore;
 
+  ErrorCode  rval = mb->load_file(filename_out.c_str());
+  if (rval!=MB_SUCCESS)
+    return rval;
+  moab::GeomTopoTool gTopoTool(mb, true);
+
+  if (!gTopoTool.check_model())
+    return MB_FAILURE;
+
+  return MB_SUCCESS;
+}

@@ -309,7 +309,7 @@ int main(int argc, char *argv[]) {
 
 bool smooth_test(const std::string filename, FBiGeom_Instance geom) {
    int err;
-   char * opts = "SMOOTH;";
+   char opts[] = "SMOOTH;";
    FBiGeom_load(geom, &filename[0], opts, &err, filename.length(), 8);
    //FBiGeom_load( geom, &filename[0], 0, &err, filename.length(), 0 );
    CHECK( "ERROR : can not load a geometry" );

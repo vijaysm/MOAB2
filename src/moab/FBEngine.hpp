@@ -135,6 +135,8 @@ public:
 
   ErrorCode split_edge_at_mesh_node(EntityHandle edge, EntityHandle node, EntityHandle & new_edge);
 
+  ErrorCode split_bedge_at_new_mesh_node(EntityHandle b_edge, EntityHandle atNode, EntityHandle brokenEdge,
+      EntityHandle & new_edge);
   // helper for cleaning the stuff
   // will be called if the topology is modified
   void clean();
@@ -258,6 +260,8 @@ private:
   Range _piercedTriangles; // triangles to delete
   Range _newTriangles;
   Range _piercedEdges;// edges to delete
+  std::map<EntityHandle, EntityHandle> _brokenEdges; // this is a map between splitting nodes and edges that
+  // are broken on the boundary, by the polyline; the edges will be deleted in the end
   // new edges?
 
 };
