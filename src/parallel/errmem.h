@@ -25,6 +25,7 @@ void fail(const char *fmt, ...);
 {}
 #endif
 
+static void *smalloc(size_t size, const char *file) MAYBE_UNUSED;
 static void *smalloc(size_t size, const char *file)
 {
   void *res = malloc(size);
@@ -32,6 +33,7 @@ static void *smalloc(size_t size, const char *file)
   return res;
 }
 
+static void *scalloc(size_t nmemb, size_t size, const char *file) MAYBE_UNUSED;
 static void *scalloc(size_t nmemb, size_t size, const char *file)
 {
   void *res = calloc(nmemb, size);
@@ -40,6 +42,7 @@ static void *scalloc(size_t nmemb, size_t size, const char *file)
   return res;
 }
 
+static void *srealloc(void *ptr, size_t size, const char *file) MAYBE_UNUSED;
 static void *srealloc(void *ptr, size_t size, const char *file)
 {
   void *res = realloc(ptr, size);
