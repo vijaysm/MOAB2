@@ -1155,11 +1155,15 @@ ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<
 
   // first of all, find all intersection points (piercing in the face along the direction)
   // assume it is robust; what if it is not sufficiently robust?
+  // if the polyline is open, find the intersection with the boundary edges, of the
+  // polyline extruded at ends
 
   ErrorCode rval;
 
   // then find the position
   int numIniPoints = (int) xyz.size() / 3;
+  if (  (closed && numIniPoints < 3)  ||  (!closed && numIniPoints<2) )
+    MBERRORR(MB_FAILURE, "not enough polyline points ");
   EntityHandle rootForFace;
 
   rval = _my_geomTopoTool->get_root(face, rootForFace);
@@ -1175,6 +1179,7 @@ ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<
   std::vector<CartVect> b_pos;
   std::vector<EntityHandle> boundary_nodes;
   std::vector<EntityHandle> splittingNodes;
+  Range boundary_mesh_edges;
   if (!closed)
   {
     rval = boundary_nodes_on_face(face, boundary_nodes);
@@ -1182,31 +1187,88 @@ ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<
     b_pos.resize(boundary_nodes.size());
     rval = _mbImpl->get_coords(&(boundary_nodes[0]), boundary_nodes.size(), (double *)(&b_pos[0][0]));
     MBERRORR(rval, "Failed to get coordinates for boundary nodes.");
+    rval = boundary_mesh_edges_on_face(face, boundary_mesh_edges);
+    MBERRORR(rval, "Failed to get mesh boundary edges for face.");
   }
   //
   int i = 0;
+  CartVect dirct(direction);
+  dirct.normalize(); // maybe an overkill?
   for (; i < numIniPoints; i++) {
 
     const double point[] = { xyz[3 * i], xyz[3 * i + 1], xyz[3 * i + 2] };// or even point( &(xyz[3*i]) ); //
+    CartVect p1(point);
     if (!closed && ( (0==i) || (numIniPoints-1==i) ) )
     {
-      // find the closest boundary point based on absolute distance
-      // (we do not consider the shooting direction at all...)
-      CartVect pierce(point);
-      int index = 0;
-      double dist2min= (pierce-b_pos[0]).length_squared();
-      for ( unsigned int j = 1; j<boundary_nodes.size(); ++j )
+
+      // find the intersection point between a plane and boundary mesh edges
+      // this will be the closest point on the boundary of face
+      /// the segment is the first or last segment in the polyline
+      int i1 = i+1;
+      if (i==numIniPoints-1) i1= i-1;// previous point if the last
+      // the direction is from point to point1
+      const double point1[] = { xyz[3 * i1], xyz[3 * i1 + 1], xyz[3 * i1 + 2] };
+      CartVect p2(point1);
+      CartVect normPlane=(p2-p1)*dirct;
+      normPlane.normalize();
+      //(roughly, from p1 to p2, perpendicular to dirct, in the "xy" plane
+      // if the intx point is "outside" p1 - p2, skip if the intx point is closer to p2
+      CartVect perpDir = dirct*normPlane;
+      Range::iterator ite=boundary_mesh_edges.begin();
+      // do a linear search for the best intersection point position (on a boundary edge)
+      for ( ; ite!=boundary_mesh_edges.end(); ite++)
       {
-        double d2 = (pierce-b_pos[j]).length_squared();
-        if ( d2<dist2min )
+        EntityHandle candidateEdge = *ite;
+        const EntityHandle * conn2;
+        int nno;
+        rval= _mbImpl->get_connectivity(candidateEdge, conn2, nno);
+        MBERRORR(rval, "Failed to get conn for boundary edge");
+        CartVect pts[2];
+        rval = _mbImpl->get_coords(conn2, 2, &(pts[0][0]));
+        MBERRORR(rval, "Failed to get coords of nodes for boundary edge");
+        CartVect intx_point;
+        double parPos;
+        bool intersect = intersect_segment_and_plane_slice(pts[0], pts[1],
+            p1, p2, dirct, normPlane, intx_point,  parPos);
+        if (intersect)
         {
-          dist2min = d2;
-          index = j;
+          double proj1 = (intx_point-p1)%perpDir;
+          double proj2 = (intx_point-p2)%perpDir;
+          if ( (proj1*proj2>0) // this means outside of the imaginary p1 - p2 segment in xy plane
+                 &&
+                ( fabs(proj1) > fabs(proj2) ) // this means it is closer to p2 than p1
+              )
+            continue; // basically, this means the intersection point is with a
+                      //  boundary edge on the other side, closer to p2 than p1, so we skip it
+          if (parPos==0)
+          {
+            //close to vertex 1, nothing to do
+            nodes.push_back(conn2[0]);
+            splittingNodes.push_back(conn2[0]);
+          }
+          else if (parPos ==1.)
+          {
+            //close to vertex 2, nothing to do
+            nodes.push_back(conn2[1]);
+            splittingNodes.push_back(conn2[1]);
+          }
+          else
+          {
+            // break the edge, create a new node at intersection point (will be smoothed out)
+            EntityHandle newVertex;
+            rval = _mbImpl->create_vertex(&(intx_point[0]), newVertex);
+            MBERRORR(rval, "can't create vertex");
+            nodes.push_back(newVertex);
+            split_internal_edge(candidateEdge, newVertex);
+            _piercedEdges.insert(candidateEdge);
+          }
+          break; // break from the loop over boundary edges, we are interested in the first
+                 //      split (hopefully, the only split)
         }
       }
-      // this will be the closest point on the boundary of face
-      nodes.push_back(boundary_nodes[index]);
-      splittingNodes.push_back(boundary_nodes[index]);
+      if (ite==boundary_mesh_edges.end())
+        MBERRORR(MB_FAILURE, "Failed to find boundary intersection edge. Bail out");
+
     }
     else
     {
@@ -1264,36 +1326,15 @@ ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<
         EntityHandle newVertex;
         rval = _mbImpl->create_vertex(&(newPoint[0]), newVertex);
         if (boundary_handle)// this is edge
+        {
           split_internal_edge(boundary_handle, newVertex);
+          _piercedEdges.insert(boundary_handle);// to be removed at the end
+        }
         else
           divide_triangle(facets_out[index], newVertex);
 
         nodes.push_back(newVertex);
       }
-      /*CartVect Dir(dir);
-      CartVect newPoint = P + distances_out[index] * Dir;
-      // get the triangle coordinates
-      //
-      int nnodes;
-      const EntityHandle * conn3;
-      rval = MBI->get_connectivity(facets_out[index], conn3, nnodes);
-      MBERRORR(rval, "Failed to get connectivity");
-
-      CartVect PP[3];
-      rval = _mbImpl->get_coords(conn3, nnodes, (double*) &PP[0]);
-      MBERRORR(rval, "Failed to get coordinates");
-
-      EntityHandle vertex=conn3[0];
-      double minD2=(newPoint-PP[0]).length_squared();
-      for (int j=1; j<nnodes; j++) // nnodes should be 3, actually
-      {
-        double d2=(newPoint-PP[j]).length_squared();
-        if ( d2 < minD2)
-        {
-          minD2 = d2;
-          vertex = conn3[j];
-        }
-      }*/
 
     }
   }
@@ -2713,7 +2754,24 @@ ErrorCode FBEngine::split_quads()
   }
   return MB_SUCCESS;
 }
-
+ErrorCode FBEngine::boundary_mesh_edges_on_face(EntityHandle face, Range & boundary_mesh_edges)
+{
+  // this list is used only for finding the intersecting mesh edge for starting the
+  // polygonal cutting line at boundary (if !closed)
+  Range bound_edges;
+  ErrorCode rval = getAdjacentEntities(face, 1, bound_edges);
+  MBERRORR(rval, " can't get boundary edges");
+  for (Range::iterator it =bound_edges.begin(); it!=bound_edges.end(); it++ )
+  {
+    EntityHandle b_edge = *it;
+    // get all edges in range
+    //Range mesh_edges;
+    rval = _mbImpl->get_entities_by_dimension(b_edge, 1,
+       boundary_mesh_edges);
+    MBERRORR(rval, " can't get mesh edges");
+  }
+  return MB_SUCCESS;
+}
 ErrorCode FBEngine::boundary_nodes_on_face(EntityHandle face, std::vector<EntityHandle> & boundary_nodes)
 {
   // even if we repeat some nodes, it is OK
@@ -2751,7 +2809,7 @@ ErrorCode FBEngine::split_internal_edge(EntityHandle & edge, EntityHandle & newV
   adj_tri = subtract(adj_tri, _piercedTriangles);
   if (adj_tri.size()>=3)
   {
-    MBERRORR(MB_FAILURE, "non manifold geometry");
+    std::cout<< "WARNING: non manifold geometry. Are you sure?";
   }
   for (Range::iterator it=adj_tri.begin(); it!=adj_tri.end(); ++it)
   {

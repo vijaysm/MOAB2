@@ -225,6 +225,8 @@ private:
 
   ErrorCode boundary_nodes_on_face(EntityHandle face, std::vector<EntityHandle> & boundary_nodes);
 
+  ErrorCode boundary_mesh_edges_on_face(EntityHandle face, Range & boundary_mesh_edges);
+
   // used for splitting an edge
   ErrorCode split_internal_edge(EntityHandle & edge, EntityHandle & newVertex);
   // triangle split
