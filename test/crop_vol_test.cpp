@@ -169,11 +169,11 @@ ErrorCode volume_test (FBEngine * pFacet)
     return MB_FAILURE;
   }
   EntityHandle newFace1;// first test is with closed surface
-  rval = pFacet->split_surface_with_direction(faces[0], xyz, direction, newFace1, /*closed*/1);
+  rval = pFacet->split_surface_with_direction(faces[0], xyz, direction,  /*closed*/1, /*min_dot */0.8, newFace1);
   CHECK("Failed to crop first face.");
 
   EntityHandle newFace2;// first test is with closed surface
-  rval = pFacet->split_surface_with_direction(faces[1], xyz, direction, newFace2, /*closed*/1);
+  rval = pFacet->split_surface_with_direction(faces[1], xyz, direction, /*closed*/1, /*min_dot */0.8, newFace2);
   CHECK("Failed to crop second face.");
 
   EntityHandle volume;

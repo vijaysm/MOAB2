@@ -525,7 +525,7 @@ ErrorCode split_test(Interface * mb, FBEngine * pFacet)
   }
 
   EntityHandle newFace;// first test is with closed surface
-  rval = pFacet->split_surface_with_direction(first_face, xyz, direction, newFace, /*closed*/1);
+  rval = pFacet->split_surface_with_direction(first_face, xyz, direction,   /*closed*/1, /*min_dot */0.8, newFace);
 
   if (rval!=MB_SUCCESS)
     return rval;

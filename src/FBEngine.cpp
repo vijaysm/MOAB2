@@ -1149,8 +1149,8 @@ ErrorCode FBEngine::isEntAdj(EntityHandle entity1, EntityHandle entity2,
   return MB_SUCCESS;
 }
 
-ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<double> & xyz,
-    double * direction, EntityHandle & newFace, int closed)
+ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<double> & xyz, double * direction,
+    int closed, double min_dot, EntityHandle & oNewFace )
 {
 
   // first of all, find all intersection points (piercing in the face along the direction)
@@ -1420,10 +1420,10 @@ ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<
   // the segment between point_i and point_i+1 is in trianglesAlong_i
   // points_i is on entities_i
   // all these edges are oriented correctly
-  rval = split_surface(face, chainedEdges, splittingNodes, newFace);
+  rval = split_surface(face, chainedEdges, splittingNodes, oNewFace);
   MBERRORR(rval, "can't split surface");
   //
-  rval = chain_edges(0.8); // acos(0.8)~= 36 degrees
+  rval = chain_edges(min_dot); // acos(0.8)~= 36 degrees
   MBERRORR(rval, "can't chain edges");
   return MB_SUCCESS;
 }

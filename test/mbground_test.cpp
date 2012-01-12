@@ -197,7 +197,7 @@ ErrorCode split_test_across()
 
   EntityHandle newFace;// this test is with a "grounding" line
   // the second face should be the one that we want for test
-  rval = pFacet->split_surface_with_direction(second_face, xyz, direction, newFace, /*closed*/0);
+  rval = pFacet->split_surface_with_direction(second_face, xyz, direction, /*closed*/0, /*min_dot */0.8, newFace);
 
   if (rval!=MB_SUCCESS)
     return rval;

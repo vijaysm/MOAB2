@@ -125,7 +125,7 @@ public:
       bool& adjacent_out );
 
   ErrorCode split_surface_with_direction(EntityHandle face, std::vector<double> & xyz, double * direction,
-      EntityHandle & newFace, int closed);
+      int closed, double min_dot, EntityHandle & oNewFace );
   // these new points will be on edges or triangles, if in interior of triangles
   ErrorCode split_surface(EntityHandle face,
       std::vector<EntityHandle> & chainedEdges,
