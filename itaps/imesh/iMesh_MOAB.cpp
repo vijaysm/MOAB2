@@ -3084,7 +3084,7 @@ extern "C" {
                                    tag_size,
                                    mb_data_type_table[tag_type],
                                    new_tag,
-                                   storage|MB_TAG_EXCL);
+                                   storage|MB_TAG_EXCL, def_val);
 
     if (MB_SUCCESS != result) {
       std::string msg("iMesh_createTag: ");

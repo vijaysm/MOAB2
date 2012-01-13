@@ -7,6 +7,7 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(srcdir)/.. \
                -I$(top_srcdir)/src \
                -I$(top_builddir)/src  \
+               -I$(top_builddir)/itaps  \
                -I$(top_srcdir)/test
 
 # stuff for c test program

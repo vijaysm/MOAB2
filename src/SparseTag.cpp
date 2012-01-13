@@ -323,9 +323,8 @@ ErrorCode SparseTag::remove_data( SequenceManager*,
                                   Error* error,
                                   const Range& entities )
 {
-  ErrorCode rval;
   for (Range::const_iterator i = entities.begin(); i != entities.end(); ++i)
-    if (MB_SUCCESS != (rval = remove_data(error,*i)))
+    if (MB_SUCCESS != remove_data(error,*i))
       return MB_TAG_NOT_FOUND;
   return MB_SUCCESS;
 }

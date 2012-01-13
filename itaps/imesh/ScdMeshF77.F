@@ -56,7 +56,7 @@
       global_dims(6)=-1
       
       call iMesh_newMesh('MOAB', mesh, ier)
-      ERROR(ier);
+      ERROR(ier)
       
       handle = 0
       call iMesh_createStructuredMesh(%VAL(mesh), local_dims, 
@@ -68,15 +68,15 @@
       ERROR(ier)
       
       call iMesh_getGeometricDimension(%VAL(mesh), geom_dim, ier)
-      ERROR(ier);
+      ERROR(ier)
 
       call iMesh_getNumOfType(%VAL(mesh), %VAL(root_set), 
      1  %VAL(iBase_FACE), num_quads, ier)
-      ERROR(ier);
+      ERROR(ier)
       
       call iMesh_getNumOfType(%VAL(mesh), %VAL(root_set), 
      1  %VAL(iBase_VERTEX), num_verts, ier)
-      ERROR(ier);
+      ERROR(ier)
       
       
       call iMesh_initEntArrIter(%VAL(mesh), %VAL(root_set), 
