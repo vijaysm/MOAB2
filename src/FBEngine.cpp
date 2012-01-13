@@ -2346,14 +2346,12 @@ ErrorCode FBEngine::split_edge_at_mesh_node(EntityHandle edge, EntityHandle node
   // find the edge connected to the splitting node
   int num_mesh_edges = (int)ents.size();
   int index_edge;
-  EntityHandle firstNode;
+  EntityHandle firstNode = conn[0]; // will be used to decide vertex sets adjacencies
   for (index_edge = 0; index_edge<num_mesh_edges; index_edge++)
   {
     rval = MBI->get_connectivity(ents[index_edge], conn, len);
     if (MB_SUCCESS != rval)
       return rval;
-    if (index_edge == 0)
-      firstNode = conn[0];// will be used to decide vertex sets adjacencies
     if (conn[0] == node)
     {
       if (index_edge==0)

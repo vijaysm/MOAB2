@@ -551,6 +551,7 @@ ErrorCode ReorderTool::reorder_tag_data( EntityType type, Tag new_handles, Tag t
       case MB_TYPE_HANDLE:  type_size = sizeof(EntityHandle); break;
       case MB_TYPE_BIT:     type_size = 1; break;
       case MB_TYPE_OPAQUE:  type_size = 1; break;
+      default:              return MB_TYPE_OUT_OF_RANGE;
     }
     buffer.resize( total*type_size );
     size_t off = 0;
