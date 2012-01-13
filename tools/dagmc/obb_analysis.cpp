@@ -101,7 +101,8 @@ ErrorCode obbvis_create( DagMC& dag, std::vector<int> &volumes, int grid, std::s
   CHECKERR( mb2, rval );
   
   Tag lttag;
-  rval = mb2.tag_create( "LEAFTRIS", sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, lttag, 0, 0 );
+  rval = mb2.tag_get_handle( "LEAFTRIS", sizeof(int), MB_TYPE_INTEGER, lttag,
+                             MB_TAG_EXCL|MB_TAG_CREAT|MB_TAG_BYTES|MB_TAG_DENSE, 0);
   CHECKERR( mb2, rval );
 
   int row = grid + 1;
