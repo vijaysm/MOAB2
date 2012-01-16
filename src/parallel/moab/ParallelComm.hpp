@@ -242,6 +242,11 @@ public:
                                         int num_layers, int addl_ents,
                                           bool store_remote_handles);
 
+  /** \brief Post "MPI_Irecv" before meshing
+     * \param exchange_procs processor vector exchanged
+     */
+  ErrorCode post_irecv(std::vector<unsigned int>& exchange_procs);
+  
   /** \brief Exchange owned mesh for input mesh entities and sets
      * This function should be called collectively over the communicator for this ParallelComm.
      * If this version is called, all shared exchanged entities should have a value for this
@@ -252,9 +257,12 @@ public:
      */
   ErrorCode exchange_owned_meshs(std::vector<unsigned int>& exchange_procs,
                                  std::vector<Range*>& exchange_ents,
+                                 std::vector<MPI_Request>& recv_ent_reqs,
+                                 std::vector<MPI_Request>& recv_remoteh_reqs,
                                  bool store_remote_handles,
                                  bool wait_all = true,
-                                 bool migrate = false);
+                                 bool migrate = false,
+                                 int dim = 0);
   
   /** \brief Exchange owned mesh for input mesh entities and sets
    * This function is called twice by exchange_owned_meshs to exchange entities before sets
@@ -262,6 +270,9 @@ public:
    */
   ErrorCode exchange_owned_mesh(std::vector<unsigned int>& exchange_procs,
                                 std::vector<Range*>& exchange_ents,
+                                std::vector<MPI_Request>& recv_ent_reqs,
+                                std::vector<MPI_Request>& recv_remoteh_reqs,
+                                const bool recv_posted,
                                 bool store_remote_handles,
                                 bool wait_all,
                                 bool migrate = false);
@@ -1256,7 +1267,7 @@ private:
   std::vector<MPI_Request> sendReqs;
 
     //! receive request objects
-  std::vector<MPI_Request> recvReqs;
+  std::vector<MPI_Request> recvReqs, recvRemotehReqs;
 
     //! processor rank for each buffer index
   std::vector<unsigned int> buffProcs;

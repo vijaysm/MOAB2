@@ -1550,8 +1550,10 @@ void iMeshP_exchEntArrToPartsAll( iMesh_Instance instance,
     exchange_ents[ind]->insert(itaps_cast<EntityHandle>(entity_handles[i]));
   }
   
+  std::vector<MPI_Request> recv_ent_reqs, recv_remoteh_reqs;
   rval = pcomm->exchange_owned_meshs(exchange_procs, exchange_ents,
-                                               true); 
+                                     recv_ent_reqs, recv_remoteh_reqs,
+                                     true); 
   CHKERR(rval,"ParallelComm::exchange_owned_meshs failed");
 
   // delete exchange list

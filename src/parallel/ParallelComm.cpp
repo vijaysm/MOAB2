@@ -5701,11 +5701,49 @@ ErrorCode ParallelComm::exchange_ghost_cells(ParallelComm **pcs,
   return MB_SUCCESS;
 }
 
+ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& exchange_procs)
+{
+  // set buffers
+  int n_proc = exchange_procs.size();
+  for (int i = 0; i < n_proc; i++) get_buffers(exchange_procs[i]);
+  reset_all_buffers();
+
+  // post ghost irecv's for entities from all communicating procs
+  // index reqs the same as buffer/sharing procs indices
+  int success;
+  ErrorCode result;
+  recvReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
+  recvRemotehReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
+  sendReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
+
+  int incoming = 0;
+  for (int i = 0; i < n_proc; i++) {
+    int ind = get_buffers(exchange_procs[i]);
+    incoming++;
+    PRINT_DEBUG_IRECV(procConfig.proc_rank(), buffProcs[ind], 
+                      remoteOwnedBuffs[ind]->mem_ptr, INITIAL_BUFF_SIZE, 
+                      MB_MESG_ENTS_SIZE, incoming);
+    success = MPI_Irecv(remoteOwnedBuffs[ind]->mem_ptr, INITIAL_BUFF_SIZE, 
+                        MPI_UNSIGNED_CHAR, buffProcs[ind],
+                        MB_MESG_ENTS_SIZE, procConfig.proc_comm(), 
+                        &recvReqs[2*ind]);
+    if (success != MPI_SUCCESS) {
+      result = MB_FAILURE;
+      RRA("Failed to post irecv in owned entity exchange.");
+    }
+  }
+
+  return MB_SUCCESS;
+}
+
 ErrorCode ParallelComm::exchange_owned_meshs(std::vector<unsigned int>& exchange_procs,
                                              std::vector<Range*>& exchange_ents,
+                                             std::vector<MPI_Request>& recv_ent_reqs,
+                                             std::vector<MPI_Request>& recv_remoteh_reqs,
                                              bool store_remote_handles,
                                              bool wait_all,
-                                             bool migrate)
+                                             bool migrate,
+                                             int dim)
 {
   // filter out entities already shared with destination
   // exchange twice for entities and sets
@@ -5721,15 +5759,32 @@ ErrorCode ParallelComm::exchange_owned_meshs(std::vector<unsigned int>& exchange
     exchange_procs_sets.push_back(exchange_procs[i]);
   }
 
-  // exchange entities first
-  result = exchange_owned_mesh(exchange_procs, exchange_ents,
-                               store_remote_handles, wait_all, migrate);
-  RRA("Couldn't exchange owned mesh entities.");
-
-  // exchange sets
-  result = exchange_owned_mesh(exchange_procs_sets, exchange_sets,
-                               store_remote_handles, wait_all, migrate);
-  RRA("Couldn't exchange owned mesh sets.");
+  
+  if (dim == 2) {
+    // exchange entities first
+    result = exchange_owned_mesh(exchange_procs, exchange_ents,
+                                 recvReqs, recvRemotehReqs, true,
+                                 store_remote_handles, wait_all, migrate);
+    RRA("Couldn't exchange owned mesh entities.");
+    
+    // exchange sets
+    result = exchange_owned_mesh(exchange_procs_sets, exchange_sets,
+                                 recvReqs, recvRemotehReqs, false,
+                                 store_remote_handles, wait_all, migrate);
+  }
+  else {
+    // exchange entities first
+    result = exchange_owned_mesh(exchange_procs, exchange_ents,
+                                 recv_ent_reqs, recv_remoteh_reqs, false,
+                                 store_remote_handles, wait_all, migrate);
+    RRA("Couldn't exchange owned mesh entities.");
+    
+    // exchange sets
+    result = exchange_owned_mesh(exchange_procs_sets, exchange_sets,
+                                 recv_ent_reqs, recv_remoteh_reqs, false,
+                                 store_remote_handles, wait_all, migrate);
+    RRA("Couldn't exchange owned mesh sets.");
+  }
 
   for (int i = 0; i < n_proc; i++) delete exchange_sets[i];
 
@@ -5759,6 +5814,9 @@ ErrorCode ParallelComm::exchange_owned_meshs(std::vector<unsigned int>& exchange
 
 ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_procs,
                                             std::vector<Range*>& exchange_ents,
+                                            std::vector<MPI_Request>& recv_ent_reqs,
+                                            std::vector<MPI_Request>& recv_remoteh_reqs,
+                                            const bool recv_posted,
                                             bool store_remote_handles,
                                             bool wait_all,
                                             bool migrate)
@@ -5795,7 +5853,6 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
       *exchange_ents[i] = subtract(*exchange_ents[i], tmp_range);
     }
   }
-  reset_all_buffers();
 
   //===========================================
   // post ghost irecv's for entities from all communicating procs
@@ -5805,26 +5862,32 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
     MPE_Log_event(ENTITIES_START, procConfig.proc_rank(), "Starting entity exchange.");
   }
 #endif
+  
   // index reqs the same as buffer/sharing procs indices
-  std::vector<MPI_Request> recv_ent_reqs(2*buffProcs.size(), MPI_REQUEST_NULL),
-    recv_remoteh_reqs(2*buffProcs.size(), MPI_REQUEST_NULL);
-  sendReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
-  for (i = 0; i < n_proc; i++) {
-    ind = get_buffers(exchange_procs[i]);
-    incoming1++;
-    PRINT_DEBUG_IRECV(procConfig.proc_rank(), buffProcs[ind], 
-                      remoteOwnedBuffs[ind]->mem_ptr, INITIAL_BUFF_SIZE, 
-                      MB_MESG_ENTS_SIZE, incoming1);
-    success = MPI_Irecv(remoteOwnedBuffs[ind]->mem_ptr, INITIAL_BUFF_SIZE, 
-                        MPI_UNSIGNED_CHAR, buffProcs[ind],
-                        MB_MESG_ENTS_SIZE, procConfig.proc_comm(), 
-                        &recv_ent_reqs[2*ind]);
-    if (success != MPI_SUCCESS) {
-      result = MB_FAILURE;
-      RRA("Failed to post irecv in owned entity exchange.");
+  if (!recv_posted) {
+    reset_all_buffers();
+    recv_ent_reqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
+    recv_remoteh_reqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
+    sendReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
+
+    for (i = 0; i < n_proc; i++) {
+      ind = get_buffers(exchange_procs[i]);
+      incoming1++;
+      PRINT_DEBUG_IRECV(procConfig.proc_rank(), buffProcs[ind], 
+                        remoteOwnedBuffs[ind]->mem_ptr, INITIAL_BUFF_SIZE, 
+                        MB_MESG_ENTS_SIZE, incoming1);
+      success = MPI_Irecv(remoteOwnedBuffs[ind]->mem_ptr, INITIAL_BUFF_SIZE, 
+                          MPI_UNSIGNED_CHAR, buffProcs[ind],
+                          MB_MESG_ENTS_SIZE, procConfig.proc_comm(), 
+                          &recv_ent_reqs[2*ind]);
+      if (success != MPI_SUCCESS) {
+        result = MB_FAILURE;
+        RRA("Failed to post irecv in owned entity exchange.");
+      }
     }
   }
-
+  else incoming1 += n_proc;
+ 
   //===========================================
   // get entities to be sent to neighbors
   // need to get procs each entity is sent to
@@ -5936,7 +5999,7 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
                          MB_MESG_REMOTEH_SIZE,
                          &recv_remoteh_reqs[base_ind], &incoming2);
     RRA("Failed to receive buffer.");
-    
+
     if (done) {
       if (myDebug->get_verbosity() == 4) {
         msgs.resize(msgs.size()+1);
@@ -5999,7 +6062,7 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
     MPE_Log_event(ENTITIES_END, procConfig.proc_rank(), "Ending entity exchange.");
   }
 #endif
-  
+
   //===========================================
   // send local handles for new entity to owner
   //===========================================
@@ -6064,7 +6127,7 @@ ErrorCode ParallelComm::exchange_owned_mesh(std::vector<unsigned int>& exchange_
       RRA("Failed to unpack remote handles.");
     }
   }
-  
+
 #ifdef USE_MPE
   if (myDebug->get_verbosity() == 2) {
     MPE_Log_event(RHANDLES_END, procConfig.proc_rank(), "Ending remote handles.");
