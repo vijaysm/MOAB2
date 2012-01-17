@@ -321,7 +321,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   rval = opts.get_str_option("CB_BUFFER_SIZE", cb_size);
   if (MB_SUCCESS == rval) {
     MPI_Info_create (&info);
-    MPI_Info_set (info, "cb_buffer_size", const_cast<char*>(cb_size.c_str()));
+    MPI_Info_set (info, const_cast<char*>("cb_buffer_size"), const_cast<char*>(cb_size.c_str()));
   }
   
   dbgOut.set_rank( myPcomm->proc_config().proc_rank() );
@@ -1821,7 +1821,8 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_data( const Range& owned,
     // of allocated memory (unless we absolutely must to meet the minimum.)
     // Also, don't initially choose buffers larger than 128*sizeof(long).
   const size_t MAX_BUFFER_MEM = 32*1024*1024 / sizeof(long);
-  const size_t INIT_BUFFER_SIZE = 128;
+  //const size_t INIT_BUFFER_SIZE = 128;
+  const size_t INIT_BUFFER_SIZE = 1024;
   const size_t MIN_BUFFER_SIZE = 16;
   size_t init_buff_size = INIT_BUFFER_SIZE;
   if (init_buff_size * nummess > MAX_BUFFER_MEM)

@@ -377,7 +377,7 @@ void create()
     moab_error( "tag_set_data(hgbl)" );
     
   // create some sets
-  EntityHandle face_set, vertex_set, region_set, empty_set, set_set;
+  EntityHandle face_set, vertex_set, region_set, empty_set;
   EntityHandle regions[] = { dodec, hex };
   const unsigned empty_flags = MESHSET_ORDERED|MESHSET_TRACK_OWNER;
   face_set   = make_set( MESHSET_SET,     faces,    12, false, FACE_SET_ID    );
@@ -385,7 +385,7 @@ void create()
   region_set = make_set( MESHSET_SET,     regions,   2, false, REGION_SET_ID  );
   empty_set  = make_set( empty_flags,     0,         0, true,  EMPTY_SET_ID   );
   EntityHandle sets[] = {face_set, vertex_set, region_set, empty_set};
-  set_set    = make_set( MESHSET_ORDERED, sets,      4, false, SET_SET_ID     );
+  make_set( MESHSET_ORDERED, sets,      4, false, SET_SET_ID     );
   
   // create some set parent-child links
   if (MB_SUCCESS != iface->add_parent_child( face_set, vertex_set))

@@ -173,7 +173,7 @@ ErrorCode evaluate_vertex_sequence(ScdBox *this_box)
         }
         
         tmp_handle2 = this_box->get_vertex(HomCoord(i, j, k));
-        if (this_box->get_vertex(HomCoord(i, j, k)) != this_handle) {
+        if (tmp_handle2 != this_handle) {
           std::cout << "vertex seq: get_vertex(HomCoord) didn't work, i, j, k = " << i << ", " 
                     << j << ", " << k << "." << std::endl;
           result = MB_FAILURE;

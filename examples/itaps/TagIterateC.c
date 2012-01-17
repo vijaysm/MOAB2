@@ -35,6 +35,8 @@ int main( int argc, char *argv[] )
   iMesh_getRootSet(mesh, &root_set, &err);
   CHKERR(err, "Failed to return a root set.\n");
 
+  iMesh_load(mesh, root_set, filename, NULL, &err, strlen(filename), 0);
+
     /* get the number of regions in the mesh */
   iMesh_getNumOfType(mesh, root_set, iBase_REGION, &num_regions, &err);
   CHKERR(err, "Failed to get number of regions.");

@@ -1276,8 +1276,6 @@ void test_build_from_tri()
     }
   }
   
-  const CartVect size = 0.5 * box.dimensions();
-  
     // Vrify that all points are contained in box 
     // and that box fits points tightly.
     // Triangles line in xy plane, so assuming axes are

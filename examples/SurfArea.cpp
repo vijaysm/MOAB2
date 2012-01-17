@@ -36,14 +36,18 @@ int main(int argc, char **argv) {
   // load a file
   mb = new Core();
   rval = mb->load_file(argv[1]);
+  if (MB_SUCCESS != rval) return 1;
 
   // get the tag handle for the tags
   rval = mb->tag_get_handle(tag_geom, 1, MB_TYPE_INTEGER, gtag);
+  if (MB_SUCCESS != rval) return 1;
   rval = mb->tag_get_handle(tag_gid, 1, MB_TYPE_INTEGER, idtag);
+  if (MB_SUCCESS != rval) return 1;
 
   // get all the sets with GEOM_DIMESION tag
   rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, &gtag,
 					  NULL, 1, sets);
+  if (MB_SUCCESS != rval) return 1;
  
   // iterate over each set, getting entities
   Range::iterator set_it;
@@ -56,6 +60,7 @@ int main(int argc, char **argv) {
     // get the id for this set
     int set_id;
     rval = mb->tag_get_data(gtag, &this_set, 1, &set_id);
+    if (MB_SUCCESS != rval) return 1;
 
     // check if it is a surface entities (GEOM_DIMENSION 2) then compute area
     if (set_id ==2){
@@ -66,9 +71,11 @@ int main(int argc, char **argv) {
       //get the global id of this surface
       int gid = 0;
       rval = mb->tag_get_data(idtag, &this_set, 1, &gid);
+      if (MB_SUCCESS != rval) return 1;
 
       // get all entities with dimension 2 in ents
       rval = mb->get_entities_by_dimension(this_set, 2, ents);
+      if (MB_SUCCESS != rval) return 1;
  
       // compute the area
       total_area = compute_area(ents);
@@ -84,7 +91,7 @@ int main(int argc, char **argv) {
 // iterating over each element
 double compute_area(std::vector<EntityHandle> & entities){
  
-  int rval= 0;
+  ErrorCode rval= MB_SUCCESS;
   double area = 0.0;
  
   // loop thro' all the elements
@@ -94,6 +101,7 @@ double compute_area(std::vector<EntityHandle> & entities){
 
     // get the connectivity of this element
     rval = mb->get_connectivity(&handle, 1, conn);
+    if (MB_SUCCESS != rval) return -1.0;
 
     // break polygon into triangles and sum the area - Limitation: Convex polygon
     for (int j = 2; j<=int(conn.size()); ++j){
@@ -103,6 +111,7 @@ double compute_area(std::vector<EntityHandle> & entities){
       
       // get 3 coordinates forming the triangle
       rval = mb->get_coords(vertices, 3, coords[0].array());
+      if (MB_SUCCESS != rval) return -1.0;
       
       CartVect edge0 = coords[1] - coords [0];
       CartVect edge1 = coords [2] - coords[0];

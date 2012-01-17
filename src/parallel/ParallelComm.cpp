@@ -7833,7 +7833,6 @@ ErrorCode ParallelComm::clean_shared_tags(std::vector<Range*>& exchange_ents)
     Range* ents = exchange_ents[i];
     int num_ents = ents->size();
     Range::iterator it = ents->begin();
-    Range::iterator eit = ents->end();
 
     for ( int n = 0; n < num_ents; n++ ) {
       int sharing_proc;

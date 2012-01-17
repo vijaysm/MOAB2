@@ -25,15 +25,18 @@ int main(int argc, char **argv) {
     rval = mb->load_file(argv[argc-1], 0, par_opt);
   else
     rval = mb->load_file(argv[argc-1]);
+  if (moab::MB_SUCCESS != rval) return 1;
 
     // loop over set types
   for (int i = 0; i < 3; i++) {
     rval = mb->tag_get_handle(tag_nms[i], 1, moab::MB_TYPE_INTEGER, mtag);
+    if (moab::MB_SUCCESS != rval) return 1;
 
       // get all the sets of that type in the mesh
     sets.clear();
     rval = mb->get_entities_by_type_and_tag(0, moab::MBENTITYSET, &mtag,
                                             NULL, 1, sets);
+    if (moab::MB_SUCCESS != rval) return 1;
 
       // iterate over each set, getting entities
     moab::Range::iterator set_it;
@@ -43,9 +46,11 @@ int main(int argc, char **argv) {
         // get the id for this set
       int set_id;
       rval = mb->tag_get_data(mtag, &this_set, 1, &set_id);
+      if (moab::MB_SUCCESS != rval) return 1;
 
         // get the entities in the set, recursively
       rval = mb->get_entities_by_handle(this_set, set_ents, true);
+      if (moab::MB_SUCCESS != rval) return 1;
 
       std::cout << tag_nms[i] << " " << set_id << " has " 
                 << set_ents.size() << " entities:" << std::endl;
@@ -57,9 +62,11 @@ int main(int argc, char **argv) {
     // do the same for all sets
   sets.clear();
   rval = mb->get_entities_by_type(0, moab::MBENTITYSET, sets);
+  if (moab::MB_SUCCESS != rval) return 1;
 
     // print the sets
   rval = mb->list_entities(sets);
+  if (moab::MB_SUCCESS != rval) return 1;
 
   delete mb;
 }

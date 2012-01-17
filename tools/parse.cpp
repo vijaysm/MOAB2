@@ -318,31 +318,25 @@ int parse_tag_create( char* name, TagSpec& result, Interface* iface )
   *size_str = '\0';
   ++size_str;
   DataType type;
-  int tsize;
   if (!strcmp(type_str,"int"))
   {
     type = MB_TYPE_INTEGER;
-    tsize = sizeof(int);
   }
   else if (!strcmp(type_str,"double"))
   {
     type = MB_TYPE_DOUBLE;
-    tsize = sizeof(double);
   }
   else if (!strcmp(type_str,"bit"))
   {
     type = MB_TYPE_BIT;
-    tsize = sizeof(bittype);
   }
   else if (!strcmp(type_str,"handle"))
   {
     type = MB_TYPE_HANDLE;
-    tsize = sizeof(EntityHandle);
   }
   else if (!strcmp(type_str,"opaque"))
   {
     type = MB_TYPE_OPAQUE;
-    tsize = 1;
   }
   else
   {
