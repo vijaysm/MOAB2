@@ -1539,14 +1539,15 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_ids( const Range& owned,
                   (unsigned long)(2*n+1), (int)status.MPI_SOURCE );
     
     for (size_t i = 0; i < n; ++i) {
-      EntityHandle handle;
+      EntityHandle handle = 0;
       rval = myPcomm->get_entityset_local_handle( procs[idx], recv_buf[idx][2*i+1], handle );
       CHECK_MB(rval);
+      assert(handle);
       if (!idMap.insert( handle, recv_buf[idx][2*i+2], 1 ).second)
         error(MB_FAILURE); // conflicting IDs??????
     }
     
-    recv_req[idx] = MPI_REQUEST_NULL;
+      //recv_req[idx] = MPI_REQUEST_NULL;
   }
   assert( MPI_SUCCESS == MPI_Waitany( recv_req.size(), &recv_req[0], &idx, &status )
        && MPI_UNDEFINED == idx ); // check that we got them all

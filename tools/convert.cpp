@@ -68,6 +68,7 @@ static void print_usage( const char* name, std::ostream& stream )
 #ifdef USE_MPI
     << "\t-P             - Append processor ID to output file name" << std::endl
     << "\t-p             - Replace '%' with processor ID in input and output file name" << std::endl
+    << "\t-M[0|1|2]      - Read/write in parallel, optionally also doing resolve_shared_ents (1) and exchange_ghosts (2)" << std::endl
 #endif
     << "\t--             - treat all subsequent options as file names" << std::endl
     << "\t                 (allows file names beginning with '-')" << std::endl
@@ -170,6 +171,7 @@ int main(int argc, char* argv[])
   bool print_times = false;
   bool generate[] = { false, false, false };
   bool pval;
+  bool parallel = false, resolve_shared = false, exchange_ghosts = false;
   for (i = 1; i < argc; i++)
   {
     if (!argv[i][0])
@@ -177,7 +179,7 @@ int main(int argc, char* argv[])
       
     if (do_flag && argv[i][0] == '-')
     {
-      if (!argv[i][1] || argv[i][2])
+      if (!argv[i][1] || (argv[i][1] != 'M' && argv[i][2]))
         usage_error(argv[0]);
       
       switch ( argv[i][1] )
@@ -193,6 +195,10 @@ int main(int argc, char* argv[])
 #ifdef USE_MPI
         case 'P': append_rank = true;    break;
         case 'p': percent_rank_subst = true; break;
+        case 'M':
+            parallel = true;
+            if (argv[i][2] == '1' || argv[i][2] == '2') resolve_shared = true;
+            if (argv[i][2] == '2') exchange_ghosts = true;
 #endif
         case '1': case '2': case '3':
           dims[argv[i][1] - '0'] = true; break;
@@ -265,6 +271,14 @@ int main(int argc, char* argv[])
  
     // construct options string from individual options
   std::string read_options, write_options;
+  if (parallel) {
+    read_opts.push_back("PARALLEL=READ_PART");
+    read_opts.push_back("PARTITION=PARALLEL_PARTITION");
+    write_opts.push_back("PARALLEL=WRITE_PART");
+  }
+  if (resolve_shared) read_opts.push_back("PARALLEL_RESOLVE_SHARED_ENTS");
+  if (exchange_ghosts) read_opts.push_back("PARALLEL_GHOSTS=3.0.1");
+  
   if (!make_opts_string(  read_opts,  read_options ) ||
       !make_opts_string( write_opts, write_options )) 
   {
