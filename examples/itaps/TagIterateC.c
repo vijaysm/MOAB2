@@ -6,6 +6,7 @@
 #include "iMesh.h"
 #include "iMesh_extensions.h"
 #include "stdio.h"
+#include "string.h"
 
 #define CHKERR(e, m) if (iBase_SUCCESS != e) {printf(m); return 1;}
     
