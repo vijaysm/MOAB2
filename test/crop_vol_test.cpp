@@ -30,7 +30,7 @@ std::string TestDir(".");
 std::string filename_top;
 std::string filename_bot;
 std::string polygon_file_name;
-
+double min_dot = 0.8;
 std::string vol_file;
 
 int number_tests_successful = 0;
@@ -75,14 +75,20 @@ int main(int argc, char *argv[])
 
   if (argc == 1) {
     std::cout << "Using default input files: " << filename_bot << " " << filename_top <<
-        " " << polygon_file_name << " " << vol_file << std::endl;
+        " " << polygon_file_name << " " << min_dot << " " << vol_file << std::endl;
     std::cout << "    default output file: " << vol_file << " will be deleted \n";
-  } else if (argc == 5) {
+  } else if (argc == 6) {
     remove_output = false;
     filename_bot = argv[1];
     filename_top = argv[2];
     polygon_file_name = argv[3];
-    vol_file = argv[4];
+    min_dot = atof(argv[4]);
+    vol_file = argv[5];
+  }
+  else
+  {
+    std::cout << " wrong number of arguments\n";
+    return 1; // fail
   }
   Core mbcore;
   Interface * mb = &mbcore;
@@ -169,13 +175,14 @@ ErrorCode volume_test (FBEngine * pFacet)
     return MB_FAILURE;
   }
   EntityHandle newFace1;// first test is with closed surface
-  rval = pFacet->split_surface_with_direction(faces[0], xyz, direction,  /*closed*/1, /*min_dot */0.8, newFace1);
+  rval = pFacet->split_surface_with_direction(faces[0], xyz, direction,  /*closed*/1, min_dot, newFace1);
   CHECK("Failed to crop first face.");
 
   EntityHandle newFace2;// first test is with closed surface
-  rval = pFacet->split_surface_with_direction(faces[1], xyz, direction, /*closed*/1, /*min_dot */0.8, newFace2);
+  rval = pFacet->split_surface_with_direction(faces[1], xyz, direction, /*closed*/1, min_dot, newFace2);
   CHECK("Failed to crop second face.");
 
+  // here we make the assumption that the edges, vertices are matching fine...
   EntityHandle volume;
   rval = pFacet->create_volume_with_direction(newFace1, newFace2, direction, volume);
   CHECK("Failed to create volume.");

@@ -37,6 +37,7 @@ std::string TestDir(".");
 std::string filename;
 std::string filename_out;
 std::string polyline_file_name;
+double min_dot = 0.8;
 bool keep_output;
 int number_tests_successful = 0;
 int number_tests_failed = 0;
@@ -74,20 +75,23 @@ int main(int argc, char *argv[])
   filename = TestDir + "/PB.h5m";
   polyline_file_name = TestDir + "/polyline.txt";
   filename_out = "PB_new.h5m";
+  min_dot = 0.8;
 
   keep_output = false;
 
   if (argc == 1) {
-    std::cout << "Using default input files: " << filename << " " << polyline_file_name     <<   " " << filename_out << std::endl;
+    std::cout << "Using default input " << filename << " " << polyline_file_name     <<
+        " " << min_dot<< " " << filename_out << std::endl;
     std::cout << "    default output file: " << filename_out << " will be deleted \n";
-  } else if (argc == 4) {
+  } else if (argc == 5) {
     filename = argv[1];
     polyline_file_name = argv[2];
-    filename_out = argv[3];
+    min_dot = atof(argv[3]);
+    filename_out = argv[4];
     keep_output = true;
   }
   else {
-    std::cerr << "Usage: " << argv[0] << " [geom_filename] [polygon_file] [output_file] [quads_file]" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " [geom_filename] [polygon_file] [min_dot] [output_file]" << std::endl;
     return 1;
   }
 
@@ -190,7 +194,7 @@ ErrorCode split_test_across()
     }
   }
   int sizePolygon = (int)xyz.size()/3;
-  if (sizePolygon < 3) {
+  if (sizePolygon < 2) {
     std::cerr << " Not enough points in the polygon" << std::endl;
     return MB_FAILURE;
   }

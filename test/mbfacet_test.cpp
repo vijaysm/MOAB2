@@ -40,6 +40,8 @@ std::string polygon_file_name;
 
 std::string quads_file;
 
+double min_dot = 0.8; // default
+
 bool keep_output;
 int number_tests_successful = 0;
 int number_tests_failed = 0;
@@ -86,29 +88,34 @@ int main(int argc, char *argv[])
   filename_out = "PB_new.h5m";
   quads_file = TestDir + "/quads.h5m";
 
+  min_dot = 0.8;
+
   keep_output = false;
   bool only_cropping = false;
   if (argc == 1) {
     std::cout << "Using default input files: " << filename << " " << polygon_file_name <<
-        " " << filename_out << " " << quads_file << std::endl;
+        " " << filename_out << " " << min_dot <<  " "<< quads_file << std::endl;
     std::cout << "    default output file: " << filename_out << " will be deleted \n";
-  } else if (argc == 4) {
+  } else if (argc == 5) {
     only_cropping = true;
     filename = argv[1];
     polygon_file_name = argv[2];
     filename_out = argv[3];
-  } else if (argc >=5) {
+    min_dot = atof(argv[4]);
+  } else if (argc >=6) {
     filename = argv[1];
     polygon_file_name = argv[2];
     filename_out = argv[3];
-    quads_file = argv[4];
+    min_dot = atof(argv[4]);
+    quads_file = argv[5];
     keep_output = true;
     std::cout << "Using input files: " << filename << " " << polygon_file_name <<
             " " << std::endl;
     std::cout << "    default output file: " << filename_out << " will be saved \n";
+    std::cout << " min_dot: " << min_dot << " quads file:" << quads_file << "\n";
 
   } else {
-    std::cerr << "Usage: " << argv[0] << " [geom_filename] [polygon_file] [output_file] [quads_file]" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " [geom_filename] [polygon_file] [output_file] [min_dot] [quads_file]" << std::endl;
     return 1;
   }
 
@@ -164,7 +171,7 @@ int main(int argc, char *argv[])
   std::cout << "\n";
 
   if (only_cropping)
-    return number_tests_failed;
+    return number_tests_failed;// we do not remove the output file, either
 
   std::cout << " split quads test: ";
   rval = split_quads_test();
@@ -525,7 +532,7 @@ ErrorCode split_test(Interface * mb, FBEngine * pFacet)
   }
 
   EntityHandle newFace;// first test is with closed surface
-  rval = pFacet->split_surface_with_direction(first_face, xyz, direction,   /*closed*/1, /*min_dot */0.8, newFace);
+  rval = pFacet->split_surface_with_direction(first_face, xyz, direction,   /*closed*/1, min_dot, newFace);
 
   if (rval!=MB_SUCCESS)
     return rval;

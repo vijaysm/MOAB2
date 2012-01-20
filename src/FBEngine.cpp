@@ -1216,6 +1216,13 @@ ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<
       CartVect perpDir = dirct*normPlane;
       Range::iterator ite=boundary_mesh_edges.begin();
       // do a linear search for the best intersection point position (on a boundary edge)
+      if (debug_splits)
+      {
+        std::cout << " p1:" << p1 <<"\n";
+        std::cout << " p2:" << p2 <<"\n";
+        std::cout << " perpDir:" << perpDir << "\n";
+        std::cout<<" boundary edges size:" << boundary_mesh_edges.size() << "\n";
+      }
       for ( ; ite!=boundary_mesh_edges.end(); ite++)
       {
         EntityHandle candidateEdge = *ite;
@@ -1230,12 +1237,18 @@ ErrorCode FBEngine::split_surface_with_direction(EntityHandle face, std::vector<
         double parPos;
         bool intersect = intersect_segment_and_plane_slice(pts[0], pts[1],
             p1, p2, dirct, normPlane, intx_point,  parPos);
+        if (debug_splits)
+        {
+          std::cout << "   Edge:" << _mbImpl->id_from_handle(candidateEdge)<<"\n";
+          std::cout << "   Node 1:" << _mbImpl->id_from_handle(conn2[0]) << pts[0] <<"\n";
+          std::cout << "   Node 2:" << _mbImpl->id_from_handle(conn2[1]) << pts[1] <<"\n";
+          std::cout << "    Intersect bool:" << intersect << "\n";
+        }
         if (intersect)
         {
           double proj1 = (intx_point-p1)%perpDir;
           double proj2 = (intx_point-p2)%perpDir;
-          if ( (proj1*proj2>0) // this means outside of the imaginary p1 - p2 segment in xy plane
-                 &&
+          if (
                 ( fabs(proj1) > fabs(proj2) ) // this means it is closer to p2 than p1
               )
             continue; // basically, this means the intersection point is with a
