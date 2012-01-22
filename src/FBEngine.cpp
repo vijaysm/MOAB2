@@ -3265,49 +3265,100 @@ ErrorCode  FBEngine::weave_lateral_face_from_edges(EntityHandle bEdge, EntityHan
   MBERRORR(rval, "can't create new lateral face");
 
   EntityHandle v[4]; // vertex sets
-  EntityHandle nd[4]; // actual nodes
   // bot edge will be v1->v2
   // top edge will be v3->v4
-  // wee need to create edges from v1 to v3 and from v2 to v4
+  // we need to create edges from v1 to v3 and from v2 to v4
   std::vector<EntityHandle> adj;
   rval = _mbImpl->get_child_meshsets(bEdge, adj);
   MBERRORR(rval, "can't get children nodes");
-  if (adj.size()!=2)
-    MBERRORR(MB_FAILURE, " edge does not have 2 vertices ");
-  int sense;
-  v[0]=adj[0];
-  v[1]=adj[1];
-  rval = getEgVtxSense( bEdge, v[0], v[1],  sense );
-  MBERRORR(rval, "can't get edge sense");
-  if (-1==sense)
+  bool periodic = false;
+  if (adj.size()==1)
   {
-    v[1]=adj[0];
+    v[0] = v[1] = adj[0];
+    periodic = true;
+  }
+  else
+  {
+    v[0]=adj[0];
+    v[1]=adj[1];
+  }
+  int senseB;
+  rval = getEgVtxSense( bEdge, v[0], v[1],  senseB );
+  MBERRORR(rval, "can't get bottom edge sense");
+  if (-1==senseB)
+  {
+    v[1]=adj[0];// so , bEdge will be oriented from v[0] to v[1], and will start at nodes1, coords1..
     v[0]=adj[1];
   }
   adj.clear();
   rval = _mbImpl->get_child_meshsets(tEdge, adj);
   MBERRORR(rval, "can't get children nodes");
-  if (adj.size()!=2)
-    MBERRORR(MB_FAILURE, " top edge does not have 2 vertices ");
-  v[2]=adj[0];
-  v[3]=adj[1];
-  rval = getEgVtxSense( tEdge, v[2], v[3],  sense );
-  MBERRORR(rval, "can't get edge sense");
-  if (-1==sense)
+  if (adj.size()==1)
   {
-    v[3]=adj[0];
-    v[2]=adj[1];
+    v[2]=v[3]=adj[0];
+    if (!periodic)
+      MBERRORR(MB_FAILURE, "top edge is periodic, but bottom edge is not");
   }
-  // get the actual nodes
-  for (int k=0; k<4; k++)
+  else
   {
-    Range nr; // node range
-    rval = _mbImpl->get_entities_by_handle(v[k], nr);
-    MBERRORR(rval, "can't get nodes in vertex set");
-    if (nr.size()!=1)
-      MBERRORR(MB_FAILURE, "wrong vertex set");
-    nd[k]=nr[0];// first and only node in set
+    v[2]=adj[0];
+    v[3]=adj[1];
+    if (periodic)
+      MBERRORR(MB_FAILURE, "top edge is not periodic, but bottom edge is");
   }
+
+  // now, using nodes on bottom edge and top edge, create triangles, oriented outwards the
+  //  volume (sense positive on bottom edge)
+  std::vector<EntityHandle> nodes1;
+  rval = get_nodes_from_edge(bEdge, nodes1);
+  MBERRORR(rval, "can't get nodes from bott edge");
+
+  std::vector<EntityHandle> nodes2;
+  rval = get_nodes_from_edge(tEdge, nodes2);
+  MBERRORR(rval, "can't get nodes from top edge");
+
+  std::vector<CartVect> coords1, coords2;
+  coords1.resize(nodes1.size());
+  coords2.resize(nodes2.size());
+
+  int N1 = (int)nodes1.size();
+  int N2 = (int)nodes2.size();
+
+  rval = _mbImpl->get_coords(&(nodes1[0]), nodes1.size(), (double*) &(coords1[0]));
+  MBERRORR(rval, "can't get coords of nodes from bott edge");
+
+  rval = _mbImpl->get_coords(&(nodes2[0]), nodes2.size(), (double*) &(coords2[0]));
+  MBERRORR(rval, "can't get coords of nodes from top edge");
+  CartVect up(direction);
+
+  // see if the start and end coordinates are matching, if not, reverse edge 2 nodes and coordinates
+  CartVect v1 = (coords1[0]-coords2[0])*up;
+  CartVect v2 = (coords1[0]-coords2[N2-1])*up;
+  if (v1.length_squared()>v2.length_squared())
+  {
+    // we need to reverse coords2 and node2, as nodes are not above each other
+    // the edges need to be found between v0 and v3, v1 and v2!
+    for (unsigned int k=0 ; k<nodes2.size()/2; k++)
+    {
+      EntityHandle tmp=nodes2[k];
+      nodes2[k] = nodes2[N2-1-k];
+      nodes2[N2-1-k] = tmp;
+      CartVect tv = coords2[k];
+      coords2[k] = coords2[N2-1-k];
+      coords2[N2-1-k]= tv;
+    }
+  }
+  // make sure v[2] has nodes2[0], if not, reverse v[2] and v[3]
+  if (!_mbImpl->contains_entities(v[2], &(nodes2[0]), 1))
+  {
+    //reverse v[2] and v[3], so v[2] will be above v[0]
+    EntityHandle tmp = v[2];
+    v[2] = v[3];
+    v[3]= tmp;
+  }
+  // now we know that v[0]--v[3] will be vertex sets in the order we want
+  EntityHandle nd[4]={nodes1[0], nodes1[N1-1], nodes2[0], nodes2[N2-1]};
+
   adj.clear();
   EntityHandle e1, e2;
   // find edge 1 between v[0] and v[2], and e2 between v[1] and v[3]
@@ -3328,7 +3379,7 @@ ErrorCode  FBEngine::weave_lateral_face_from_edges(EntityHandle bEdge, EntityHan
   }
   if (!found)
   {
-    // create an edge from v1 to v3
+    // create an edge from v[0] to v[2]
     rval = _mbImpl->create_meshset(MESHSET_SET, e1);
     MBERRORR(rval, "can't create edge 1");
 
@@ -3412,7 +3463,11 @@ ErrorCode  FBEngine::weave_lateral_face_from_edges(EntityHandle bEdge, EntityHan
   rval = _my_geomTopoTool->set_sense(bEdge, newLatFace, 1);
   MBERRORR(rval, "can't set bottom edge sense to the lateral face");
 
-  rval = _my_geomTopoTool->set_sense(tEdge, newLatFace, -1);
+  int Tsense;
+  rval = getEgVtxSense( tEdge, v[3], v[2],  Tsense );
+  MBERRORR(rval, "can't get top edge sense");
+  // we need to see what sense has topEdge in face
+  rval = _my_geomTopoTool->set_sense(tEdge, newLatFace, Tsense);
   MBERRORR(rval, "can't set top edge sense to the lateral face");
 
   rval = _my_geomTopoTool->set_sense(e1, newLatFace, -1);
@@ -3421,30 +3476,8 @@ ErrorCode  FBEngine::weave_lateral_face_from_edges(EntityHandle bEdge, EntityHan
   rval = _my_geomTopoTool->set_sense(e2, newLatFace, 1);
   MBERRORR(rval, "can't set second edge sense to the lateral face");
   // first, create edges along direction, for the
-  // now, using nodes on bottom edge and top edge, create triangles, oriented outwards the
-  //  volume (sense positive on bottom edge)
-  std::vector<EntityHandle> nodes1;
-  rval = get_nodes_from_edge(bEdge, nodes1);
-  MBERRORR(rval, "can't get nodes from bott edge");
-
-  std::vector<EntityHandle> nodes2;
-  rval = get_nodes_from_edge(tEdge, nodes2);
-  MBERRORR(rval, "can't get nodes from top edge");
 
   int indexB=0, indexT=0;// indices of the current nodes in the weaving process
-  std::vector<CartVect> coords1, coords2;
-  coords1.resize(nodes1.size());
-  coords2.resize(nodes2.size());
-
-  int N1 = (int)nodes1.size();
-  int N2 = (int)nodes2.size();
-
-  rval = _mbImpl->get_coords(&(nodes1[0]), nodes1.size(), (double*) &(coords1[0]));
-  MBERRORR(rval, "can't get coords of nodes from bott edge");
-
-  rval = _mbImpl->get_coords(&(nodes2[0]), nodes2.size(), (double*) &(coords2[0]));
-  MBERRORR(rval, "can't get coords of nodes from top edge");
-
   // weaving is either up or down; the triangles are oriented positively either way
   // up is nodes1[indexB], nodes2[indexT+1], nodes2[indexT]
   // down is nodes1[indexB], nodes1[indexB+1], nodes2[indexT]
@@ -3457,12 +3490,18 @@ ErrorCode  FBEngine::weave_lateral_face_from_edges(EntityHandle bEdge, EntityHan
    *     -----*------------*----*
    *
    */
-  // this will
-  CartVect dir1= coords1[N1-1] - coords1[0];
-  CartVect up(direction);
+  // we have to change the logic to account for cases when the curve in xy plane is not straight
+  // (for example, when merging curves with a min_dot < -0.5, which means that the edges
+  // could be even closed (periodic), with one vertex
+  // the top and bottom curves should follow the same path in the "xy" plane (better to say
+  // the plane perpendicular to the direction of weaving)
+  // in this logic, the vector dir1 varies along the curve !!!
+  CartVect dir1= coords1[1] - coords1[0];// we should have at least 2 nodes, N1>=2!!
+
   CartVect planeNormal = dir1*up;
   dir1 = up * planeNormal;
   dir1.normalize();
+  // this direction will be updated constantly with the direction of last edge added
   bool weaveDown = true;
 
   CartVect startP = coords1[0]; // used for origin of comparisons
@@ -3503,6 +3542,18 @@ ErrorCode  FBEngine::weave_lateral_face_from_edges(EntityHandle bEdge, EntityHan
 
     rval = _mbImpl->add_entities(newLatFace, &triangle, 1);
     MBERRORR(rval, "can't add triangle to face set");
+    if (weaveDown)
+    {
+      // increase was from nodes1[indexB-1] to nodes1[indexb]
+      dir1= coords1[indexB] - coords1[indexB-1];// we should have at least 2 nodes, N1>=2!!
+    }
+    else
+    {
+      dir1= coords2[indexT] - coords2[indexT-1];
+    }
+    CartVect planeNormal = dir1*up;
+    dir1 = up * planeNormal;
+    dir1.normalize();
 
   }
   // we do not check yet if the triangles are inverted
