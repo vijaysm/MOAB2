@@ -1138,7 +1138,6 @@ ErrorCode ParallelComm::pack_entities(Range &entities,
     RRA("Failed to get sharedp_tag.");
   
     unsigned int i;
-    std::vector<std::set<unsigned int> >::iterator vit;
     int tmp_procs[MAX_SHARING_PROCS];
     EntityHandle tmp_handles[MAX_SHARING_PROCS];
     std::set<unsigned int> dumprocs;

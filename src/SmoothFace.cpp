@@ -1116,8 +1116,6 @@ ErrorCode SmoothFace::project_to_facets(std::vector<EntityHandle> & facet_list,
 
   double big_dist = compareTol * 1.0e3;
 
-  bool done = false; // maybe not use this
-
   // from the list of close facets, determine the closest point
   for (size_t i = 0; i < facet_list.size(); i++)
   {
@@ -1159,7 +1157,6 @@ ErrorCode SmoothFace::project_to_facets(std::vector<EntityHandle> & facet_list,
 
       if (dist < compareTol)
       {
-        done = true;
         break;
       }
       big_dist = 10.0 * mindist;

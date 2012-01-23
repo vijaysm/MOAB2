@@ -123,10 +123,8 @@ DualTool::DualTool(Interface *impl)
                                    MB_TAG_SPARSE|MB_TAG_CREAT, 
                                    &dum_int);
   assert(MB_SUCCESS == result);
-
-    // empty statement to avoid warning
-  (void)(result);
-
+  if (MB_SUCCESS == result); // empty statement to get rid of warning.
+  
   maxHexId = -1;
 }
 

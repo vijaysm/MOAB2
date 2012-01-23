@@ -1219,7 +1219,6 @@ ErrorCode Skinner::find_skin_vertices_1D( Tag tag,
   // intersection with the input range and the edges adjacent to a vertex.
 
   ErrorCode rval;
-  std::vector<EntityHandle>::iterator i;
   Range::iterator hint = skin_verts.begin();
   
   // All input entities must be edges.

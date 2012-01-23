@@ -1547,7 +1547,7 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_ids( const Range& owned,
         error(MB_FAILURE); // conflicting IDs??????
     }
     
-      //recv_req[idx] = MPI_REQUEST_NULL;
+    recv_req[idx] = MPI_REQUEST_NULL;
   }
   assert( MPI_SUCCESS == MPI_Waitany( recv_req.size(), &recv_req[0], &idx, &status )
        && MPI_UNDEFINED == idx ); // check that we got them all
@@ -1998,7 +1998,7 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_data( const Range& owned,
     rval = myPcomm->get_entityset_owner( *i, owner, &remote_handle ); CHECK_MB(rval);
     
     int tag = ID_FROM_HANDLE(remote_handle);
-    assert(*i == CREATE_HANDLE(MBENTITYSET,tag));
+    assert(remote_handle == CREATE_HANDLE(MBENTITYSET,tag));
     dbgOut.printf(5,"Sending %lu values for set %d to proc %u\n",
                     (unsigned long)size, tag, owner );
     mperr = MPI_Isend( &buff[0], size, MPI_UNSIGNED_LONG, 
