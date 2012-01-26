@@ -9,7 +9,7 @@ typedef uint Index;
 #define Value uint
 #define Data sort_data
 typedef struct { Value v; Index i; } Data;
-#include "sort_imp.c"
+#include "sort_imp.h"
 
 #undef Value
 #undef Data
@@ -33,6 +33,6 @@ typedef struct { Value v; Index i; } Data;
 #  define merge_index_sort    merge_index_sort_long
 #  define sort                sort_long
 #  define index_sort          index_sort_long
-#  include "sort_imp.c"
+#  include "sort_imp.h"
 #endif
 

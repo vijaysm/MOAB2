@@ -37,7 +37,7 @@ if PARALLEL
      crystal.h \
      crystal.c errmem.c \
      transfer.c gs.c gs.h tuple_list.c \
-     sort.c transfer.h sort_imp.c
+     sort.c transfer.h sort_imp.h
 
 # The list of header files which are to be installed
   MOAB_PARALLEL_HDRS += \
