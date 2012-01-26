@@ -41,7 +41,7 @@ static void help( const char* argv0 ) {
             << "          (default = \"" << PARTTAG << "\")" << std::endl
             << "  -D  : read mode as \"" << READ_DEL_OPT << "\"" << defstr(READ_DEL_OPT) << std::endl
             << "  -B  : read mode as \"" << BCAST_DEL_OPT << "\"" << defstr(READ_DEL_OPT) << std::endl
-            << "  -P  : read mode as \"" << READ_PART_OPT << "\"" << defstr(READ_DEL_OPT) << std::endl
+            << "  -P  : read mode as \"" << READ_PART_OPT << "\"" << defstr(READ_PART_OPT) << std::endl
             ;
   exit(0);
 }
