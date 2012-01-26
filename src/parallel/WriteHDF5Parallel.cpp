@@ -42,7 +42,23 @@
 #include "IODebugTrack.hpp"
 #include "FileOptions.hpp"
 
+namespace {
+  template<bool Condition> struct STATIC_ASSERTION;
+  template<> struct STATIC_ASSERTION<true> {};
+}
+
+#define PP_CAT_(a,b) a ## b
+#define PP_CAT(a,b) PP_CAT_(a,b)
+#define STATIC_ASSERT(Condition) \
+  enum { PP_CAT(dummy, __LINE__) = sizeof(::STATIC_ASSERTION<(bool)(Condition)>) }
+
 namespace moab {
+
+// Need an MPI type that we can put handles in
+STATIC_ASSERT(sizeof(unsigned long) >= sizeof(EntityHandle));
+
+// Need an MPI type that we can put file IDs in
+STATIC_ASSERT(sizeof(unsigned long) >= sizeof(id_t));
 
 // This function doesn't do anything useful.  It's just a nice
 // place to set a break point to determine why the reader fails.
@@ -93,10 +109,10 @@ const char* mpi_err_str( int errorcode ) {
 #    define VALGRIND_CHECK_MEM_IS_DEFINED(a,b)
 #  endif
 #  ifndef VALGRIND_CHECK_MEM_IS_ADDRESSABLE
-#    define VALGRIND_CHECK_MEM_IS_ADDRESSABLE
+#    define VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a, b)
 #  endif
 #  ifndef VALGRIND_MAKE_MEM_UNDEFINED
-#    define VALGRIND_MAKE_MEM_UNDEFINED
+#    define VALGRIND_MAKE_MEM_UNDEFINED(a, b)
 #  endif
 #endif
 
@@ -989,6 +1005,7 @@ struct DatasetVals {
   long max_count;
   long total;  
 };
+STATIC_ASSERT(sizeof(DatasetVals) == 3*sizeof(long));
 
 ErrorCode WriteHDF5Parallel::create_dataset( int num_datasets,
                                              const long* num_owned,
@@ -1012,7 +1029,6 @@ ErrorCode WriteHDF5Parallel::create_dataset( int num_datasets,
   CHECK_MPI(result);
   
     // create node data in file
-  assert(sizeof(DatasetVals) == 3*sizeof(long));
   DatasetVals zero_val = { 0, 0 ,0 };
   std::vector<DatasetVals> cumulative(num_datasets,zero_val);
   if (rank == 0)
@@ -1438,9 +1454,6 @@ void WriteHDF5Parallel::print_shared_sets()
 ErrorCode WriteHDF5Parallel::communicate_shared_set_ids( const Range& owned,
                                                          const Range& remote )
 {
-    // Need an MPI type that we can put handles in
-  assert(sizeof(unsigned long) >= sizeof(EntityHandle));
-
   ErrorCode rval;
   int mperr;
   const int TAG = 0xDEADF00;
@@ -1512,7 +1525,6 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_ids( const Range& owned,
     dbgOut.printf(6,"Sending data for shared sets to proc %u: ",si->first);
     dbgOut.print(6,si->second);
   
-    assert(sizeof(unsigned long) >= sizeof(EntityHandle));
     send_buf[i].reserve( 2*si->second.size()+1 );
     send_buf[i].push_back( si->second.size() );
     for (Range::iterator j = si->second.begin(); j != si->second.end(); ++j) {
@@ -1542,7 +1554,7 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_ids( const Range& owned,
       EntityHandle handle = 0;
       rval = myPcomm->get_entityset_local_handle( procs[idx], recv_buf[idx][2*i+1], handle );
       CHECK_MB(rval);
-      assert(handle);
+      assert(handle != 0);
       if (!idMap.insert( handle, recv_buf[idx][2*i+2], 1 ).second)
         error(MB_FAILURE); // conflicting IDs??????
     }
@@ -1697,7 +1709,7 @@ static void merge_ranged_ids( const unsigned long* range_list,
   typedef WriteHDF5::id_t id_t;
   assert(0 == len%2);
   assert(0 == result.size()%2);
-  assert(sizeof(std::pair<id_t,id_t>) == 2*sizeof(id_t));
+  STATIC_ASSERT(sizeof(std::pair<id_t,id_t>) == 2*sizeof(id_t));
   
   result.insert( result.end(), range_list, range_list+len );
   size_t plen = result.size()/2;
@@ -1793,9 +1805,6 @@ ErrorCode WriteHDF5Parallel::unpack_set( EntityHandle set,
 ErrorCode WriteHDF5Parallel::communicate_shared_set_data( const Range& owned,
                                                           const Range& remote )
 {
-    // Need an MPI type that we can put file IDs in
-  assert(sizeof(unsigned long) >= sizeof(id_t));
-
   ErrorCode rval;
   int mperr;
   const unsigned rank = myPcomm->proc_config().proc_rank();
@@ -1859,7 +1868,9 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_data( const Range& owned,
         continue;
       int tag = ID_FROM_HANDLE(*i);
       if (*i != CREATE_HANDLE(MBENTITYSET,tag)) {
-        assert(false);
+	#ifndef NDEBUG
+	abort();
+	#endif
         CHECK_MB(MB_FAILURE);
       }
       dbgOut.printf(5,"Posting buffer to receive set %d from proc %u\n", tag, procs[j] );
