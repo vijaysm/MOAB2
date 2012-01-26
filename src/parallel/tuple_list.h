@@ -32,6 +32,9 @@ typedef struct tuple_list {
 
 static void tuple_list_init_max(tuple_list *tl,
                                 unsigned mi, unsigned ml, unsigned mul, 
+                                unsigned mr, uint max) MAYBE_UNUSED;
+static void tuple_list_init_max(tuple_list *tl,
+                                unsigned mi, unsigned ml, unsigned mul, 
                                 unsigned mr, uint max)
 {
   tl->n=0; tl->max=max;
@@ -42,10 +45,13 @@ static void tuple_list_init_max(tuple_list *tl,
   tl->vr=(max*mr ? tmalloc(real, max*mr) : 0);
 }
 
-static void tuple_list_free(tuple_list *tl) {
+static void tuple_list_free(tuple_list *tl) MAYBE_UNUSED;
+static void tuple_list_free(tuple_list *tl)
+{
   free(tl->vi), free(tl->vl), free(tl->vul), free(tl->vr);
 }
 
+static void tuple_list_resize(tuple_list *tl, uint max) MAYBE_UNUSED;
 static void tuple_list_resize(tuple_list *tl, uint max)
 {
   tl->max = max;
@@ -59,6 +65,7 @@ static void tuple_list_resize(tuple_list *tl, uint max)
     tl->vr=trealloc(real, tl->vr,tl->max*tl->mr);
 }
 
+static void tuple_list_grow(tuple_list *tl) MAYBE_UNUSED;
 static void tuple_list_grow(tuple_list *tl)
 {
   tuple_list_resize(tl,(tl->max ? tl->max+tl->max/2+1 : 2));
