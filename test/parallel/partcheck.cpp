@@ -29,7 +29,7 @@ static void usage( const char* argv0 ) {
 static const char* defstr( const char* mode )
 {
   static const char s[] = " (default)";
-  int len = (mode == DEFAULT_MODE) ? 0 : sizeof(s);
+  int len = (mode == DEFAULT_MODE) ? 0 : sizeof(s)-1;
   return s + len;
 }    
 

@@ -69,7 +69,7 @@ int main(int argc, char **argv)
   err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // start time
-  double stime, rtime, dtime, ltime;
+  double stime = 0, rtime = 0, dtime = 0, ltime = 0;
   if (0 == rank) stime = MPI_Wtime();
 
     // create MOAB instance based on that
@@ -455,13 +455,13 @@ ErrorCode report_iface_ents(Interface *mbImpl,
 
     // get non-owned vertices
   result = pcs[0]->get_pstatus_entities(0, PSTATUS_NOT_OWNED, part_verts);
-  if (MB_SUCCESS != tmp_result) {
+  if (MB_SUCCESS != result) {
     std::cerr << "Couldn't get non-owned entities." << std::endl;
     return result;
   }
   int tot_verts;
   result = mbImpl->get_number_entities_by_dimension(0, 0, tot_verts);
-  if (MB_SUCCESS != tmp_result) {
+  if (MB_SUCCESS != result) {
     std::cerr << "Couldn't get number of vertices." << std::endl;
     return result;
   }
