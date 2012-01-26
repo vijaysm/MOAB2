@@ -1258,8 +1258,7 @@ static int interface_verts( iMesh_Instance imesh,
                             iMeshP_PartHandle local_part,
                             iMeshP_Part other_part,
                             const PartMap& map,
-                            iBase_EntityHandle vtx_handles[3],
-                            int& num_vtx_handles )
+			    std::vector<iBase_EntityHandle> &vtx_handles )
 {
   int ierr, rank;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
@@ -1332,29 +1331,29 @@ static int interface_verts( iMesh_Instance imesh,
       case 0:
         return iBase_FAILURE;
       case 1: // upper right
+        vtx_handles.resize(1);
         vtx_handles[0] = verts[2][0];
-        num_vtx_handles = 1;
         break;
       case 2: // right
-        std::copy( verts[2], verts[2]+3, vtx_handles );
-        num_vtx_handles = 3;
+        vtx_handles.resize(3);
+        std::copy( verts[2], verts[2]+3, vtx_handles.begin() );
         break;
       case -1: // above
+        vtx_handles.resize(3);
         vtx_handles[0] = verts[0][0];
         vtx_handles[1] = verts[1][0];
         vtx_handles[2] = verts[2][0];
-        num_vtx_handles = 3;
         break;
       case -2: // left
-        std::copy( verts[0], verts[0]+3, vtx_handles );
-        num_vtx_handles = 3;
+        vtx_handles.resize(3);
+        std::copy( verts[0], verts[0]+3, vtx_handles.begin() );
         break;
       case -3: // upper left
+        vtx_handles.resize(1);
         vtx_handles[0] = verts[0][0];
-        num_vtx_handles = 1;
         break;
       default:
-        num_vtx_handles = 0;
+        vtx_handles.clear();
         break;
     }
   }
@@ -1363,29 +1362,29 @@ static int interface_verts( iMesh_Instance imesh,
       case 0:
         return iBase_FAILURE;
       case 1: // below
+        vtx_handles.resize(3);
         vtx_handles[0] = verts[0][2];
         vtx_handles[1] = verts[1][2];
         vtx_handles[2] = verts[2][2];
-        num_vtx_handles = 3;
         break;
       case 2: // right
-        std::copy( verts[2], verts[2]+3, vtx_handles );
-        num_vtx_handles = 3;
+        vtx_handles.resize(3);
+        std::copy( verts[2], verts[2]+3, vtx_handles.begin() );
         break;
       case 3: // lower right
+        vtx_handles.resize(1);
         vtx_handles[0] = verts[2][2];
-        num_vtx_handles = 1;
         break;
       case -1: // lower left
+        vtx_handles.resize(1);
         vtx_handles[0] = verts[0][2];
-        num_vtx_handles = 1;
         break;
       case -2: // left
-        std::copy( verts[0], verts[0]+3, vtx_handles );
-        num_vtx_handles = 3;
+        vtx_handles.resize(3);
+        std::copy( verts[0], verts[0]+3, vtx_handles.begin() );
         break;
       default:
-        num_vtx_handles = 0;
+        vtx_handles.clear();
         break;
     }
   }
@@ -1423,7 +1422,7 @@ int test_get_part_boundary( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, c
     iMeshP_PartHandle local_handle = local_handles[i];
     iMeshP_Part local_id = local_ids[i];
     for (std::vector<iMeshP_Part>::iterator j = all_parts.begin(); j != all_parts.end(); ++j) {
-      iMeshP_Part other_id = *j;
+            iMeshP_Part other_id = *j;
       if (other_id == local_id)
         continue;
       
@@ -1432,14 +1431,13 @@ int test_get_part_boundary( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, c
       part_pair.second = other_id; 
       
         // get expected values
-      iBase_EntityHandle shared_verts[5];
-      int num_shared_verts;
-      ierr = interface_verts( imesh, prtn, local_handle, other_id, map, shared_verts, num_shared_verts );
+      std::vector<iBase_EntityHandle> shared_verts;
+      ierr = interface_verts( imesh, prtn, local_handle, other_id, map, shared_verts );
       if (ierr != iBase_SUCCESS) {
         error.push_back( part_pair );
         continue;
       }
-      std::sort( shared_verts, shared_verts + num_shared_verts );
+      std::sort( shared_verts.begin(), shared_verts.end() );
       
         // test iMeshP_getNumPartBdryEnts
       int count;
@@ -1447,7 +1445,7 @@ int test_get_part_boundary( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, c
                                  other_id, &count, &ierr );
       if (iBase_SUCCESS != ierr)
         num_error.push_back( part_pair );
-      else if (count != num_shared_verts)
+      else if (count != (int)shared_verts.size())
         num_failed.push_back( part_pair );
       
         // test iMeshP_getPartBdryEnts
@@ -1460,8 +1458,8 @@ int test_get_part_boundary( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, c
       else {
         std::copy( ptr, ptr + count, std::back_inserter( part_bdry[local_handles[i]] ) );
         std::sort( ptr, ptr + count );
-        if (num_shared_verts != count ||
-            !std::equal( shared_verts, shared_verts + num_shared_verts, ptr ))
+        if ((int)shared_verts.size() != count ||
+            !std::equal( shared_verts.begin(), shared_verts.end(), ptr ))
           list_failed.push_back( part_pair );
         free(ptr);
       }
@@ -1586,12 +1584,11 @@ int test_part_boundary_iter( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, 
       part_pair.second = other_id; 
       
         // get expected values
-      iBase_EntityHandle shared_verts[5];
-      int num_shared_verts;
-      ierr = interface_verts( imesh, prtn, local_handle, other_id, map, shared_verts, num_shared_verts );
-      if (ierr != iBase_SUCCESS || 0 == num_shared_verts)
+      std::vector<iBase_EntityHandle> shared_verts;
+      ierr = interface_verts( imesh, prtn, local_handle, other_id, map, shared_verts );
+      if (ierr != iBase_SUCCESS || 0 == shared_verts.size())
         continue;
-      std::sort( shared_verts, shared_verts + num_shared_verts );
+      std::sort( shared_verts.begin(), shared_verts.end() );
   
         // test single entity iterator
       iBase_EntityIterator siter;
@@ -1615,8 +1612,8 @@ int test_part_boundary_iter( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, 
         }
       
         std::sort( results.begin(), results.end() );
-        if ((int)results.size() != num_shared_verts ||
-            !std::equal( results.begin(), results.end(), shared_verts))
+        if (results.size() != shared_verts.size() ||
+            !std::equal( results.begin(), results.end(), shared_verts.begin()))
           single_failed.push_back( part_pair );
       }
       iMesh_endEntIter( imesh, siter, &ierr );
@@ -1624,7 +1621,7 @@ int test_part_boundary_iter( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, 
         // test array iterator
       iBase_EntityArrIterator aiter;
       iMeshP_initPartBdryEntArrIter( imesh, prtn, local_handle, iBase_VERTEX, iMesh_POINT,
-                                     num_shared_verts, other_id, &aiter, &ierr );
+                                     shared_verts.size(), other_id, &aiter, &ierr );
       if (ierr != iBase_SUCCESS) {
         array_error.push_back( part_pair );
         continue;
@@ -1638,9 +1635,9 @@ int test_part_boundary_iter( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, 
       }
       assert(count <= 5);
       assert(ptr == results);
-      std::sort(results, results + count);
-      if (count != num_shared_verts ||
-          !std::equal( shared_verts, shared_verts + num_shared_verts, results ))
+      std::sort(ptr, ptr + count);
+      if (count != (int)shared_verts.size() ||
+          !std::equal( shared_verts.begin(), shared_verts.end(), results ))
         array_failed.push_back( part_pair );
     }
   }
@@ -1937,11 +1934,10 @@ static int get_part_boundary_verts( iMesh_Instance imesh,
   get_part_neighbors( logical_id, map.get_parts().size(), neighbors, num_neighbors );
 
   for (int j = 0; j < num_neighbors; ++j) {
-    iBase_EntityHandle iface[3];
-    int num_iface;
-    ierr = interface_verts( imesh, prtn, part, neighbors[j], map, iface, num_iface );
+    std::vector<iBase_EntityHandle> iface;
+    ierr = interface_verts( imesh, prtn, part, neighbors[j], map, iface );
     CHKERR;
-    std::copy( iface, iface+num_iface, std::back_inserter(boundary) );
+    std::copy( iface.begin(), iface.end(), std::back_inserter(boundary) );
   }
 
   std::sort( boundary.begin(), boundary.end() );
@@ -2104,11 +2100,10 @@ int test_entity_copy_parts( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, c
     // build map of sharing data for each vertex
   std::map< iBase_EntityHandle, std::vector<iMeshP_Part> > vert_sharing;
   for (int j = 0; j < num_neighbors; ++j) {
-    iBase_EntityHandle iface[3];
-    int num_iface;
-    ierr = interface_verts( imesh, prtn, part, neighbors[j], map, iface, num_iface );
+    std::vector<iBase_EntityHandle> iface;
+    ierr = interface_verts( imesh, prtn, part, neighbors[j], map, iface );
     CHKERR;
-    for (int k = 0; k < num_iface; ++k)
+    for (size_t k = 0; k < iface.size(); ++k)
       vert_sharing[iface[k]].push_back( map.part_id_from_local_id( neighbors[j] ) );
   }
   
