@@ -29,16 +29,13 @@
 #include "moab/Interface.hpp"
 #include "moab/CartVect.hpp"
 
-extern "C" 
-{
-  struct tuple_list;
-}
-
 namespace moab {
 
 class ParallelComm;
 
 class AdaptiveKDTree;
+  
+class TupleList;
 
 class Coupler
 {
@@ -75,7 +72,7 @@ public:
      *
      */
   ErrorCode locate_points(double *xyz, int num_points,
-                            tuple_list *tl = NULL,
+                            TupleList *tl = NULL,
                             bool store_local = true);
   
     /* \brief Locate entities on the source mesh
@@ -88,7 +85,7 @@ public:
      *
      */
   ErrorCode locate_points(Range &ents,
-                            tuple_list *tl = NULL,
+                            TupleList *tl = NULL,
                             bool store_local = true);
   
     /* \brief Interpolate data from the source mesh onto points
@@ -109,7 +106,7 @@ public:
   ErrorCode interpolate(Coupler::Method method,
                           Tag tag,
                           double *interp_vals,
-                          tuple_list *tl = NULL,
+                          TupleList *tl = NULL,
                           bool normalize = true);
 
     /* \brief Interpolate data from the source mesh onto points
@@ -130,7 +127,7 @@ public:
   ErrorCode interpolate(Coupler::Method method,
                           std::string &tag_name,
                           double *interp_vals,
-                          tuple_list *tl = NULL,
+                          TupleList *tl = NULL,
                           bool normalize = true);
 
     /* \brief Normalize a field over an entire mesh
@@ -264,7 +261,7 @@ public:
                     int                   num_sets, 
                     const char            **tag_names, 
                     int                   num_tags,
-                    tuple_list            **tuples);
+                    TupleList            **tuples);
 
     /* \brief Return an array of tuples of tag values for each Entity Set
      * A list of n-tuples will be constructed with 1 n-tuple for each Entity Set.
@@ -281,7 +278,7 @@ public:
                     int                   num_sets, 
                     iBase_TagHandle       *tag_handles,
                     int                   num_tags,
-                    tuple_list            **tuples);
+                    TupleList            **tuples);
 
     /* \brief Consolidate an array of n-tuples lists into one n-tuple list with no duplicates
      * An array of list of n-tuples are consolidated into a single list of n-tuples
@@ -292,9 +289,9 @@ public:
      * \param num_tuples Number of tuple_lists
      * \param unique_tuples The consolidated tuple_list with no duplicates
      */
-  int consolidate_tuples(tuple_list **all_tuples, 
+  int consolidate_tuples(TupleList **all_tuples, 
                          int        num_tuples,
-                         tuple_list **unique_tuples);
+                         TupleList **unique_tuples);
 
     /* \brief Calculate integrated field values for groups of entities
      * An integrated field value, as defined by the field function, 
@@ -346,7 +343,7 @@ private:
   ErrorCode test_local_box(double *xyz, 
                              int from_proc, int remote_index, int index, 
                              bool &point_located,
-                             tuple_list *tl = NULL);
+                             TupleList *tl = NULL);
   
     /* \brief MOAB instance
      */
@@ -386,7 +383,7 @@ private:
      * vul[i] = local handle of mapped entity
      * vr[3*i..3*i+2] = natural coordinates in mapped entity
      */
-  tuple_list *mappedPts;
+  TupleList *mappedPts;
   
     /* \brief Tuple list of target points and interpolated data
      * Tuples contain the following:
@@ -396,7 +393,7 @@ private:
      * vi[3*i+2] = remote index of target point
      * vr[i] = interpolated data (used by interpolate function)
      */
-  tuple_list *targetPts;
+  TupleList *targetPts;
 
     /* \brief Locally mapped points
      * Points whose source and target are both local; these

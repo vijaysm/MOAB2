@@ -18,10 +18,10 @@
 
 #include "moab/Types.hpp"
 #include "moab/Range.hpp"
+#include "moab/gs.hpp"
 
 #include "moab_mpi.h"
 
-struct crystal_data;
 
 namespace moab {
 
@@ -44,7 +44,7 @@ public:
     { return procSize; }
       
     //! get a crystal router for this parallel job
-  crystal_data *crystal_router(bool construct_if_missing = true);
+  gs_data::crystal_data *crystal_router(bool construct_if_missing = true);
 
     //! get/set the communicator for this proc config
   MPI_Comm proc_comm() const {return procComm;}
@@ -66,7 +66,7 @@ private:
   unsigned procSize;
   
     //! crystal router for this parallel job
-  crystal_data* crystalData;
+  gs_data::crystal_data* crystalData;
   
 };
 

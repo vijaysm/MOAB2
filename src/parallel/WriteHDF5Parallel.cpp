@@ -342,7 +342,6 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   
   dbgOut.set_rank( myPcomm->proc_config().proc_rank() );
   dbgOut.limit_output_to_first_N_procs( 32 );
-  
   Range nonlocal;
   debug_barrier();
   dbgOut.tprint(1,"Gathering interface meshes\n");
@@ -461,7 +460,6 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   }
   
   MPI_Barrier( myPcomm->proc_config().proc_comm() );
-  
   dbgOut.tprint(1,"(re)opening file in parallel mode\n");
   unsigned long junk;
   hid_t hdf_opt = H5Pcreate( H5P_FILE_ACCESS );

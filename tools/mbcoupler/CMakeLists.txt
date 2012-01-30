@@ -5,7 +5,7 @@ include_directories(
 set( MBCOUPLER_SRCS
   Coupler.cpp
   ElemUtil.cpp
-  errmem.c
+  errmem.cpp
   findpt.c
   poly.c
   tensor.c

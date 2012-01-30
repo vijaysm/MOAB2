@@ -9,7 +9,7 @@
 #include <algorithm>
 
 #ifdef USE_MPI
-  #include "moab_mpi.h"
+#include "moab_mpi.h"
 #endif
 
 namespace moab{
@@ -22,7 +22,6 @@ namespace moab{
   {
     myMB = pc->get_moab();
     mySkinEnts.resize(4);
-    cdAllocated = false;
   }
 
   
@@ -47,7 +46,8 @@ namespace moab{
     
     //Get the local skin elements
     rval = PopulateMySkinEnts(dim);
-    if(rval != MB_SUCCESS){
+    //If there is only 1 proc, we can return now
+    if(rval != MB_SUCCESS || myPcomm->size() == 1){
       return rval;
     }
 
@@ -60,26 +60,25 @@ namespace moab{
 
     /* Assemble The Destination Tuples */
     //Get a list of tuples which contain (toProc, handle, x,y,z)
-    tuple_list_init_max(&myTup,1,0,1,3,mySkinEnts[0].size());
+    myTup.initialize(1,0,1,3,mySkinEnts[0].size());
     rval = PopulateMyTup(gbox);
     if(rval != MB_SUCCESS){
       return rval;
-    }
+    }    
 
     /* Gather-Scatter Tuple
        -tup comes out as (remoteProc,handle,x,y,z) */
-    moab_crystal_init(&myCD, myPcomm->comm());
-    cdAllocated = true;
+    myCD.initialize(myPcomm->comm());
 
     //1 represents dynamic tuple, 0 represents index of the processor to send to
-    moab_gs_transfer(1, &myTup, 0, &myCD);
+    myCD.gs_transfer(1, myTup, 0);
 
     /* Sort By X,Y,Z
        -Utilizes a custom quick sort incoroporating eplison*/
-    SortTuplesByReal(&myTup,myEps);
+    SortTuplesByReal(myTup,myEps);
 
     //Initilize another tuple list for matches
-    tuple_list_init_max(&myMatches,2,0,2,0,mySkinEnts[0].size());
+    myMatches.initialize(2,0,2,0,mySkinEnts[0].size());
 
     //ID the matching tuples
     rval = PopulateMyMatches();
@@ -88,15 +87,13 @@ namespace moab{
     }
 
     //We can free up the tuple myTup now
-    tuple_list_free(&myTup);
-    myTup.max = 0;
+    myTup.reset();
 
     /*Gather-Scatter Again*/
     //1 represents dynamic list, 0 represents proc index to send tuple to
-    moab_gs_transfer(1,&myMatches,0,&myCD);
+    myCD.gs_transfer(1,myMatches,0);
     //We can free up the crystal router now
-    moab_crystal_free(&myCD);
-    cdAllocated = false;
+    myCD.reset();
 
     //Sort the matches tuple list
     SortMyMatches();
@@ -105,9 +102,7 @@ namespace moab{
     rval = TagSharedElements(dim);
 
     //Free up the matches tuples
-    tuple_list_free(&myMatches);
-    myMatches.max = 0;
-
+    myMatches.reset();
     return rval;
   }
 
@@ -150,7 +145,7 @@ namespace moab{
     return MB_SUCCESS;
   }
 
- //Determine the global assembly box
+  //Determine the global assembly box
   ErrorCode ParallelMergeMesh::GetGlobalBox(double *gbox)
   {
     ErrorCode rval;
@@ -220,6 +215,8 @@ namespace moab{
     unsigned long long tup_i=0, tup_ul=0, tup_r=0, count=0;
     //These are boolean to determine if the vertice is on close enought to a given border
     bool xDup, yDup, zDup;
+    bool canWrite = myTup.get_writeEnabled();
+    if(!canWrite) myTup.enableWriteAccess();
     //Go through each vertice
     for(Range::iterator it = mySkinEnts[0].begin(); it != mySkinEnts[0].end(); it++){
       xDup = false; yDup = false; zDup = false;
@@ -250,42 +247,51 @@ namespace moab{
 	toProcs.push_back(baseProc + 1);//Get partition to the right
       }
       if(yDup){
-	toProcs.push_back(baseProc + parts[0]);//Partition up 1
+	//Partition up 1
+	toProcs.push_back(baseProc + parts[0]);
       }
       if(zDup){
-	toProcs.push_back(baseProc + parts[0] * parts[1]);//Partition above 1
+	//Partition above 1
+	toProcs.push_back(baseProc + parts[0] * parts[1]);
       }
       if(xDup && yDup){
-	toProcs.push_back(baseProc + parts[0] + 1);//Partition up 1 and right 1
+	//Partition up 1 and right 1
+	toProcs.push_back(baseProc + parts[0] + 1);
       }
       if(xDup && zDup){
-	toProcs.push_back(baseProc + parts[0] * parts[1] + 1);//Partition right 1 and above 1
+	//Partition right 1 and above 1
+	toProcs.push_back(baseProc + parts[0] * parts[1] + 1);
       }
       if(yDup && zDup){
-	toProcs.push_back(baseProc + parts[0] * parts[1] + parts[0]);//Partition up 1 and above 1
+	//Partition up 1 and above 1
+	toProcs.push_back(baseProc + parts[0] * parts[1] + parts[0]);
       }
       if(xDup && yDup && zDup){
-	toProcs.push_back(baseProc + parts[0] * parts[1] + parts[0] + 1);//Partition right 1, up 1, and above 1
+	//Partition right 1, up 1, and above 1
+	toProcs.push_back(baseProc + parts[0] * parts[1] + parts[0] + 1);
       }
       //Grow the tuple list if necessary
-      while(myTup.n + toProcs.size() >= myTup.max){
-	tuple_list_grow(&myTup);
+      while(myTup.get_n() + toProcs.size() >= myTup.get_max()){
+	myTup.resize(myTup.get_max() ? 
+		     myTup.get_max() + myTup.get_max()/2 + 1 
+		     : 2);
       }
+
       //Add each proc as a tuple
       for(std::vector<int>::iterator proc = toProcs.begin();
 	  proc != toProcs.end();
 	  proc++){
-	myTup.vi[tup_i++] = *proc;
-	myTup.vul[tup_ul++] = *it;
-	myTup.vr[tup_r++] = x[count];
-	myTup.vr[tup_r++] = y[count];
-	myTup.vr[tup_r++] = z[count];
-	myTup.n++;
+	myTup.vi_wr[tup_i++] = *proc;
+	myTup.vul_wr[tup_ul++] = *it;
+	myTup.vr_wr[tup_r++] = x[count];
+	myTup.vr_wr[tup_r++] = y[count];
+	myTup.vr_wr[tup_r++] = z[count];
+	myTup.inc_n();
       }
-
       count++;
       toProcs.clear();
     }
+    if(!canWrite) myTup.disableWriteAccess();
     return MB_SUCCESS;
   }
 
@@ -351,6 +357,7 @@ namespace moab{
     lengths[2] = zLen/(double)parts[2];
     return MB_SUCCESS;
   }
+  
   //Partition a side based on the length ratios
   int ParallelMergeMesh::PartitionSide(double sideLen, double restLen, unsigned numProcs, bool altRatio)
   {
@@ -424,77 +431,86 @@ namespace moab{
     //Counters for accessing tuples more efficiently
     unsigned long i = 0, mat_i=0, mat_ul=0, j=0, tup_r=0;
     double eps2 = myEps*myEps;
-    while((i+1)<myTup.n){
+
+    uint tup_mi, tup_ml, tup_mul, tup_mr;
+    myTup.getTupleSize(tup_mi, tup_ml, tup_mul, tup_mr);
+
+    bool canWrite = myMatches.get_writeEnabled();
+    if(!canWrite) myMatches.enableWriteAccess();
+
+    while((i+1)<myTup.get_n()){
       //Proximity Comparison
-      double xi = myTup.vr[tup_r], 
-	yi = myTup.vr[tup_r+1],
-	zi = myTup.vr[tup_r+2];
+      double xi = myTup.vr_rd[tup_r], 
+	yi = myTup.vr_rd[tup_r+1],
+	zi = myTup.vr_rd[tup_r+2];
 
       bool done = false;
       while(!done){
-	j++; tup_r += myTup.mr;
-	if(j >= myTup.n){
+	j++; tup_r += tup_mr;
+	if(j >= myTup.get_n()){
 	  break;
 	}
-	CartVect cv(myTup.vr[tup_r]-xi,
-		    myTup.vr[tup_r+1]-yi,
-		    myTup.vr[tup_r+2]-zi);
+	CartVect cv(myTup.vr_rd[tup_r]-xi,
+		    myTup.vr_rd[tup_r+1]-yi,
+		    myTup.vr_rd[tup_r+2]-zi);
 	if(cv.length_squared() > eps2){
 	  done = true;
 	}
       }
       //Allocate the tuple list before adding matches
-      while(myMatches.n+(j-i)*(j-i-1) >= myMatches.max){
-	tuple_list_grow(&myMatches);
+      while(myMatches.get_n()+(j-i)*(j-i-1) >= myMatches.get_max()){
+	myMatches.resize(myMatches.get_max() ? 
+			 myMatches.get_max() + myMatches.get_max()/2 + 1 : 
+			 2);
       }
  
       //We now know that tuples [i to j) exclusive match.  
       //If n tuples match, n*(n-1) match tuples will be made
       //tuples are of the form (proc1,proc2,handle1,handle2)
       if(i+1 < j){
-	int kproc = i*myTup.mi;
-	unsigned long khand = i*myTup.mul;
+	int kproc = i*tup_mi;
+	unsigned long khand = i*tup_mul;
 	for(unsigned long k = i; k<j; k++){
-	  int lproc = kproc+myTup.mi;
-	  unsigned long lhand = khand+myTup.mul;
+	  int lproc = kproc+tup_mi;
+	  unsigned long lhand = khand+tup_mul;
 	  for(unsigned long l=k+1; l<j; l++){
-	    myMatches.vi[mat_i++]=myTup.vi[kproc];//proc1
-	    myMatches.vi[mat_i++]=myTup.vi[lproc];//proc2
-	    myMatches.vul[mat_ul++]=myTup.vul[khand];//handle1
-	    myMatches.vul[mat_ul++]=myTup.vul[lhand];//handle2
-	    myMatches.n++;
+	    myMatches.vi_wr[mat_i++]=myTup.vi_rd[kproc];//proc1
+	    myMatches.vi_wr[mat_i++]=myTup.vi_rd[lproc];//proc2
+	    myMatches.vul_wr[mat_ul++]=myTup.vul_rd[khand];//handle1
+	    myMatches.vul_wr[mat_ul++]=myTup.vul_rd[lhand];//handle2
+	    myMatches.inc_n();
 	    
-	    myMatches.vi[mat_i++]=myTup.vi[lproc];//proc1
-	    myMatches.vi[mat_i++]=myTup.vi[kproc];//proc2
-	    myMatches.vul[mat_ul++]=myTup.vul[lhand];//handle1
-	    myMatches.vul[mat_ul++]=myTup.vul[khand];//handle2
-	    myMatches.n++;
-	    lproc += myTup.mi;
-	    lhand += myTup.mul;
+	    myMatches.vi_wr[mat_i++]=myTup.vi_rd[lproc];//proc1
+	    myMatches.vi_wr[mat_i++]=myTup.vi_rd[kproc];//proc2
+	    myMatches.vul_wr[mat_ul++]=myTup.vul_rd[lhand];//handle1
+	    myMatches.vul_wr[mat_ul++]=myTup.vul_rd[khand];//handle2
+	    myMatches.inc_n();
+	    lproc += tup_mi;
+	    lhand += tup_mul;
 	  }
-	  kproc += myTup.mi;
-	  khand += myTup.mul;
+	  kproc += tup_mi;
+	  khand += tup_mul;
 	}//End for(int k...
       }
       i = j;
     }//End while(i+1<tup.n)
+
+    if(!canWrite) myMatches.disableWriteAccess();
     return MB_SUCCESS;
   }
 
   //Sort the matching tuples so that vertices can be tagged accurately
   ErrorCode ParallelMergeMesh::SortMyMatches()
   {
-    buffer buf;
-    unsigned long long max_size = mySkinEnts[0].size()*(MAX_SHARING_PROCS+1)*sizeof(double);
-    buffer_init(&buf, max_size);
+    TupleList::buffer buf(mySkinEnts[0].size());
     //Sorts are necessary to check for doubles
     //Sort by remote handle
-    moab_tuple_list_sort(&myMatches,3,&buf);
+    myMatches.sort(3,&buf);
     //Sort by matching proc
-    moab_tuple_list_sort(&myMatches,1,&buf);
+    myMatches.sort(1,&buf);
     //Sort by local handle
-    moab_tuple_list_sort(&myMatches,2,&buf);
-    buffer_free(&buf);
+    myMatches.sort(2,&buf);
+    buf.reset();
     return MB_SUCCESS;
   }
 
@@ -532,7 +548,7 @@ namespace moab{
     std::map<std::vector<int>, std::vector<EntityHandle> > proc_nranges;
     Range proc_verts;
     rval = myMB->get_adjacencies(proc_ents, 0, false, proc_verts,
-				   Interface::UNION);
+				 Interface::UNION);
     if(rval != MB_SUCCESS){
       return rval;
     }
@@ -577,122 +593,127 @@ namespace moab{
   //Need to avoid a double free
   void ParallelMergeMesh::CleanUp()
   {
-    //Delete the matches tuple if necessary
-    if(myMatches.max > 0){
-      tuple_list_free(&myMatches);
-    }
-    //Delete the myTup if necessary
-    if(myTup.max > 0){
-      tuple_list_free(&myTup);
-    }
-    //Free up the crystal router
-    if(cdAllocated){
-      moab_crystal_free(&myCD);
-    }
+    //The reset operation is now safe and avoids a double free()
+    myMatches.reset();
+    myTup.reset();
+    myCD.reset();
+  }
+
+  //Simple quick  sort to real
+  void ParallelMergeMesh::SortTuplesByReal(TupleList &tup,
+					   double eps)
+  {
+    bool canWrite = tup.get_writeEnabled();
+    if(!canWrite) tup.enableWriteAccess();
+
+    uint mi, ml, mul, mr;
+    tup.getTupleSize(mi,ml,mul,mr);
+    PerformRealSort(tup, 0, tup.get_n(), eps, mr);
+
+    if(!canWrite) tup.disableWriteAccess();
   }
 
   //Swap around tuples
-  void ParallelMergeMesh::SwapTuples(tuple_list *tup, 
+  void ParallelMergeMesh::SwapTuples(TupleList &tup,
 				     unsigned long a, unsigned long b)
   {
     if(a==b) return;
+
+    uint mi, ml, mul, mr;
+    tup.getTupleSize(mi, ml, mul, mr);
+
     //Swap mi
-    unsigned long a_val = a*tup->mi, b_val=b*tup->mi;
-    for(unsigned long i=0; i< tup->mi;i++){
-      sint t =tup->vi[a_val];
-      tup->vi[a_val] = tup->vi[b_val];
-      tup->vi[b_val] = t; 
+    unsigned long a_val = a*mi, b_val=b*mi;
+    for(unsigned long i=0; i< mi;i++){
+      sint t =tup.vi_rd[a_val];
+      tup.vi_wr[a_val] = tup.vi_rd[b_val];
+      tup.vi_wr[b_val] = t; 
       a_val++;
       b_val++;
     }
     //Swap ml
-    a_val = a*tup->ml;
-    b_val = b*tup->ml;
-    for(unsigned long i=0; i< tup->ml;i++){
-      slong t =tup->vl[a_val];
-      tup->vl[a_val] = tup->vl[b_val];
-      tup->vl[b_val] = t;
+    a_val = a*ml;
+    b_val = b*ml;
+    for(unsigned long i=0; i< ml;i++){
+      slong t =tup.vl_rd[a_val];
+      tup.vl_wr[a_val] = tup.vl_rd[b_val];
+      tup.vl_wr[b_val] = t;
       a_val++;
       b_val++;
     }
     //Swap mul
-    a_val = a*tup->mul;
-    b_val = b*tup->mul;
-    for(unsigned long i=0; i< tup->mul;i++){
-      ulong t =tup->vul[a_val];
-      tup->vul[a_val] = tup->vul[b_val];
-      tup->vul[b_val] = t; 
+    a_val = a*mul;
+    b_val = b*mul;
+    for(unsigned long i=0; i< mul;i++){
+      ulong t =tup.vul_rd[a_val];
+      tup.vul_wr[a_val] = tup.vul_rd[b_val];
+      tup.vul_wr[b_val] = t; 
       a_val++;
       b_val++;
     }
     //Swap mr
-    a_val = a*tup->mr;
-    b_val = b*tup->mr;
-    for(unsigned long i=0; i< tup->mr;i++){
-      real t =tup->vr[a_val];
-      tup->vr[a_val] = tup->vr[b_val];
-      tup->vr[b_val] = t; 
+    a_val = a*mr;
+    b_val = b*mr;
+    for(unsigned long i=0; i< mr;i++){
+      real t =tup.vr_rd[a_val];
+      tup.vr_wr[a_val] = tup.vr_rd[b_val];
+      tup.vr_wr[b_val] = t; 
       a_val++;
       b_val++;
     }
   }
 
-  //Simple quick  sort to test real
-  void ParallelMergeMesh::SortTuplesByReal(tuple_list *tup,
-					  double eps)
-  {
-    //Call the recursive function
-    PerformRealSort(tup, 0, tup->n,eps);
-  }
-
   //Perform the sorting of a tuple by real
-  //To sort an entire tuple_list, call (tup,0,tup.n.epsilon) 
-  void ParallelMergeMesh::PerformRealSort(tuple_list *tup, 
-					  unsigned long left, 
-					  unsigned long right,
-					  double eps)
+  //To sort an entire tuple_list, call (tup,0,tup.n,epsilon) 
+  void ParallelMergeMesh::PerformRealSort(TupleList &tup,
+					  unsigned long left,
+					  unsigned long right, 
+					  double eps,
+					  uint tup_mr)
   {  
     //If list size is only 1 or 0 return
     if(left+1 >= right){
       return;
     }
-    unsigned long swap = left, tup_l = left*tup->mr, tup_t = tup_l + tup->mr;
+    unsigned long swap = left, tup_l = left*tup_mr, 
+      tup_t = tup_l + tup_mr;
 
     //Swap the median with the left position for a (hopefully) better split
-    SwapTuples(tup,left,(left+right)/2);
+    SwapTuples(tup, left, (left+right)/2);
 
     //Partition the data
     for(unsigned long t=left+1;t<right;t++){
       //If the left value(pivot) is greater than t_val, swap it into swap
-      if(TupleGreaterThan(tup,tup_l,tup_t,eps)){
+      if(TupleGreaterThan(tup,tup_l,tup_t,eps, tup_mr)){
 	swap++;
-	SwapTuples(tup,swap,t);
+	SwapTuples(tup, swap,t);
       }
-      tup_t+=tup->mr;
+      tup_t+=tup_mr;
     }
 
     //Swap so that position swap is in the correct position
     SwapTuples(tup,left,swap);
 
     //Sort left and right of swap
-    PerformRealSort(tup,left,swap,eps);
-    PerformRealSort(tup,swap+1,right,eps);
+    PerformRealSort(tup, left  ,swap, eps, tup_mr);
+    PerformRealSort(tup, swap+1,right,eps, tup_mr);
   }
 
-  //Note, this takes the actual tup->vr[] index (aka i*tup->mr)
-  bool ParallelMergeMesh::TupleGreaterThan(tuple_list *tup, 
+  //Note, this takes the actual tup.vr[] index (aka i*tup.mr)
+  bool ParallelMergeMesh::TupleGreaterThan(TupleList &tup,
 					   unsigned long vrI, 
 					   unsigned long vrJ, 
-					   double eps){
+					   double eps,
+					   uint tup_mr){
     unsigned check=0;
-    while(check < tup->mr){
+    while(check < tup_mr){
       //If the values are the same
-      if(fabs(tup->vr[vrI+check]-tup->vr[vrJ+check]) <= eps){
+      if(fabs(tup.vr_rd[vrI+check]-tup.vr_rd[vrJ+check]) <= eps){
 	check++;
 	continue;
       }
-      //If the I greater than J 
-      else if(tup->vr[vrI+check] > tup->vr[vrJ+check]){
+      //If I greater than J 
+      else if(tup.vr_rd[vrI+check] > tup.vr_rd[vrJ+check]){
 	return true;
       }
       //If J greater than I
@@ -700,7 +721,7 @@ namespace moab{
 	return false;
       }
     }
-    //Values are the same
+    //All Values are the same
     return false;
   }
 

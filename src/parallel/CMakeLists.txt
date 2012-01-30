@@ -3,12 +3,8 @@ set( moab_PARALLEL_SRCS
   ProcConfig.cpp
   ParallelData.cpp
   ReadParallel.cpp
-  crystal.c
-  errmem.c
-  transfer.c
-  gs.c
-  tuple_list.c
-  sort.c
+  gs.cpp
+  TupleList.cpp
 )
 
 if ( MOAB_USE_HDF AND MOAB_HDF_HAVE_PARALLEL )

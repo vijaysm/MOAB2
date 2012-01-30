@@ -7,18 +7,12 @@
 #include "ScdVertexData.hpp"
 #ifdef USE_MPI
 #  include "moab/ParallelComm.hpp"
-extern "C" 
-{
-#  include "types.h"
-#  include "gs.h"
-#  include "errmem.h"
-#  include "sort.h"
-#  include "tuple_list.h"
-}
 #endif
 #include "assert.h"
 #include <iostream>
 #include <functional>
+#include "moab/TupleList.hpp"
+#include "moab/gs.hpp"
 
 #define ERRORR(rval, str) {if (MB_SUCCESS != rval)          \
       {std::cerr << str; return rval; }}
@@ -620,9 +614,11 @@ ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, EntityHandle se
   int incoming = procs.size();
   int p, j, k;
   MPI_Status status;
-  tuple_list shared_data;
-  tuple_list_init_max(&shared_data, 1, 0, 2, 0, 
-                      shared_indices.size()/2);
+  TupleList shared_data;
+  shared_data.initialize(1, 0, 2, 0, 
+                         shared_indices.size()/2);
+  shared_data.enableWriteAccess();
+
   j = 0; k = 0;
   while (incoming) {
     int success = MPI_Waitany(procs.size(), &recv_reqs[0], &p, &status);
@@ -630,19 +626,19 @@ ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, EntityHandle se
     unsigned int num_indices = (offsets[p+1]-offsets[p])/2;
     int *lh = &shared_indices[offsets[p]], *rh = lh + num_indices;
     for (unsigned int i = 0; i < num_indices; i++) {
-      shared_data.vi[j++] = procs[p];
-      shared_data.vul[k++] = shandles[0] + lh[i];
-      shared_data.vul[k++] = rhandles[4*p] + rh[i];
-      shared_data.n++;
+      shared_data.vi_wr[j++] = procs[p];
+      shared_data.vul_wr[k++] = shandles[0] + lh[i];
+      shared_data.vul_wr[k++] = rhandles[4*p] + rh[i];
+      shared_data.inc_n();
     }
     incoming--;
   }
 
     // sort by local handle
-  buffer sort_buffer;
-  buffer_init(&sort_buffer, shared_indices.size()/2);
-  moab_tuple_list_sort(&shared_data, 1, &sort_buffer);
-  buffer_free(&sort_buffer);
+  TupleList::buffer sort_buffer;
+  sort_buffer.buffer_init(shared_indices.size()/2);
+  shared_data.sort(1, &sort_buffer);
+  sort_buffer.reset();
   
     // process into sharing data
   std::map<std::vector<int>, std::vector<EntityHandle> > proc_nvecs;
@@ -658,6 +654,8 @@ ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, EntityHandle se
   for (std::vector<int>::iterator pit = procs.begin(); pit != procs.end(); pit++)
     pcomm->get_buffers(*pit);
 
+
+  shared_data.reset();  
 #ifndef NDEBUG
   rval = pcomm->check_all_shared_handles();
   if (MB_SUCCESS != rval) return rval;

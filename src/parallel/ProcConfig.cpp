@@ -14,15 +14,7 @@
  */
 
 #include "moab/ProcConfig.hpp"
-extern "C" {
-#ifdef USE_MPI
-#  include "types.h"
-#  include "errmem.h"
-#  include "crystal.h"
-#else
-   struct crystal_data {};
-#endif
-} // extern "C"
+#include "moab/gs.hpp"
 
 namespace moab {
 
@@ -44,12 +36,11 @@ ProcConfig::ProcConfig(MPI_Comm proc_comm)
 #endif
 }
 
-crystal_data *ProcConfig::crystal_router(bool construct_if_missing)
+gs_data::crystal_data *ProcConfig::crystal_router(bool construct_if_missing)
 {
 #ifdef USE_MPI
   if (!crystalData && construct_if_missing) {
-    crystalData = new crystal_data;
-    moab_crystal_init(crystalData, procComm);
+    crystalData = new gs_data::crystal_data(procComm);
   }
 #endif
 
@@ -60,7 +51,7 @@ ProcConfig::~ProcConfig()
 {
   if (crystalData) {
 #ifdef USE_MPI
-    moab_crystal_free(crystalData);
+    crystalData->reset();
 #endif
     delete crystalData;
     crystalData = 0;

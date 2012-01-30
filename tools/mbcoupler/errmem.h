@@ -56,7 +56,7 @@ static void *srealloc(void *ptr, size_t size, const char *file)
   ((type*) scalloc((count),sizeof(type),__FILE__) )
 #define trealloc(type, ptr, count) \
   ((type*) srealloc((ptr),(count)*sizeof(type),__FILE__) )
-
+/*
 typedef struct { size_t size; void *ptr; } buffer;
 
 static void buffer_init_(buffer *b, size_t size, const char *file) MAYBE_UNUSED;
@@ -80,6 +80,6 @@ static void buffer_free(buffer *b) { free(b->ptr); }
 
 #define buffer_init(b,size) buffer_init_(b,size,__FILE__)
 #define buffer_reserve(b,min) buffer_reserve_(b,min,__FILE__)
-
+*/
 #endif
 

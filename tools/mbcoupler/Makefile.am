@@ -18,7 +18,7 @@ libmbcoupler_la_SOURCES = \
    poly.h   \
    tensor.c \
    tensor.h \
-   errmem.c \
+   errmem.cpp \
    errmem.h \
    extrafindpt.h \
    findpt.c \

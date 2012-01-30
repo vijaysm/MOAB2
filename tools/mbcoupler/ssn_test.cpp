@@ -18,12 +18,11 @@ extern "C"
 {
 #include "types.h"
 #include "minmax.h"
-#include "gs.h"
 #include "errmem.h"
-#include "sort.h"
-#include "tuple_list.h"
 }
 
+#include "moab/TupleList.hpp"
+#include "moab/gs.hpp"
 #include "moab/Types.hpp"
 #ifndef IS_BUILDING_MB
 #  define IS_BUILDING_MB
@@ -59,7 +58,7 @@ void get_file_options(int argc, char **argv,
                       std::string &file_opts,
                       int *err);
 
-void print_tuples(tuple_list *tlp);
+void print_tuples(TupleList *tlp);
 
 int print_vertex_fields(Interface* mbi,
                         iMesh_Instance iMeshInst,
@@ -73,8 +72,8 @@ double field_2(double x, double y, double z);
 double field_3(double x, double y, double z);
 double physField(double x, double y, double z);
 
-int pack_tuples(tuple_list *tl, void **ptr);
-void unpack_tuples(void *ptr, tuple_list** tlp);
+int pack_tuples(TupleList *tl, void **ptr);
+void unpack_tuples(void *ptr, TupleList** tlp);
 
 //
 // Start of main test program
@@ -244,7 +243,7 @@ int main(int argc, char **argv) {
 
   // Create tuple_list for each mesh's
   std::cout << "Creating tuples for mesh 1..." << std::endl;
-  tuple_list *m1TagTuples = NULL;
+  TupleList *m1TagTuples = NULL;
   err = mbc.create_tuples(m1EntSets, m1EntSetsSize, 
                           &tagHandles[0], tagHandles.size(), &m1TagTuples);
   CHKERR(err, "create_tuples failed");
@@ -253,7 +252,7 @@ int main(int argc, char **argv) {
   print_tuples(m1TagTuples);
 
   std::cout << "Creating tuples for mesh 2..." << std::endl;
-  tuple_list *m2TagTuples = NULL;
+  TupleList *m2TagTuples = NULL;
   err = mbc.create_tuples(m2EntSets, m2EntSetsSize, 
                           &tagHandles[0], tagHandles.size(), &m2TagTuples);
   CHKERR(err, "create_tuples failed");
@@ -266,8 +265,8 @@ int main(int argc, char **argv) {
   // In this serial version we only have the tuples from Mesh 1 and Mesh 2.
   // Just consolidate those for the test.
   std::cout << "Consolidating tuple_lists for Mesh 1 and Mesh 2..." << std::endl;
-  tuple_list **tplp_arr = (tuple_list**) malloc(2*sizeof(tuple_list*));
-  tuple_list *unique_tpl = NULL;
+  TupleList **tplp_arr = (TupleList**) malloc(2*sizeof(TupleList*));
+  TupleList *unique_tpl = NULL;
   tplp_arr[0] = m1TagTuples;
   tplp_arr[1] = m2TagTuples;
 
@@ -351,38 +350,42 @@ int main(int argc, char **argv) {
     // temporary test funtion
     std::cout << "Testing print_tuples..." << std::endl;
 
-    tuple_list test_tuple;
+    TupleList test_tuple;
     int num_ints=3, num_longs=2, num_ulongs=4, num_reals=6, num_rows=10;
 
     std::cout << "    print of test_tuples zero init..." << std::endl;
-    tuple_list_init_max(&test_tuple, 0, 0, 0, 0, 0);
+    test_tuple.initialize(0, 0, 0, 0, 0);
+
+    test_tuple.enableWriteAccess();
+
     print_tuples(&test_tuple);
 
     std::cout << "    print of test_tuples after setting n to 10..." << std::endl;
-    test_tuple.n = 10;
+    test_tuple.set_n( 10 );
     print_tuples(&test_tuple);
 
-    tuple_list_init_max(&test_tuple, num_ints, num_longs, num_ulongs, num_reals, num_rows);
+    test_tuple.initialize(num_ints, num_longs, num_ulongs, num_reals, num_rows);
     std::cout << "    print of test_tuples after init..." << std::endl;
     print_tuples(&test_tuple);
 
     std::cout << "    print of test_tuples after setting n to 10..." << std::endl;
-    test_tuple.n = 10;
+    test_tuple.set_n( 10 );
     print_tuples(&test_tuple);
 
+    
     for (int i = 0; i < num_rows; i++) {
       int j;
       for (j = 0; j < num_ints; j++)
-        test_tuple.vi[i*num_ints + j] = (int) ((j+1)*(i+1));
+        test_tuple.vi_wr[i*num_ints + j] = (int) ((j+1)*(i+1));
 
       for (j = 0; j < num_longs; j++)
-        test_tuple.vl[i*num_longs + j] = (int) ((j+1)*(i+1));
+        test_tuple.vl_wr[i*num_longs + j] = (int) ((j+1)*(i+1));
 
       for (j = 0; j < num_ulongs; j++)
-        test_tuple.vul[i*num_ulongs + j] = (int) ((j+1)*(i+1));
+        test_tuple.vul_wr[i*num_ulongs + j] = (int) ((j+1)*(i+1));
 
       for (j = 0; j < num_reals; j++)
-        test_tuple.vr[i*num_reals + j] = (int) ((j+1)*(i+1)+(j*0.01));
+        test_tuple.vr_wr[i*num_reals + j] = (int) ((j+1)*(i+1)+(j*0.01));
     }
     std::cout << "    print of test_tuples after filling with data..." << std::endl;
     print_tuples(&test_tuple);
@@ -414,7 +417,7 @@ int main(int argc, char **argv) {
       return -1;
     }
 
-    tuple_list *rcv_tuples;
+    TupleList *rcv_tuples;
     unpack_tuples(mp_buf, &rcv_tuples);
 
     std::cout << "    print of rcv_tuples after unpacking from MPI_Bcast..." << std::endl;
@@ -752,23 +755,25 @@ void get_file_options(int argc, char **argv,
 }
 
 // Function to print out a tuple_list.
-void print_tuples(tuple_list *tlp)
+void print_tuples(TupleList *tlp)
 {
-  std::cout << "    tuple data:  (n=" << tlp->n << ")" << std::endl;
-  std::cout << "      mi:" << tlp->mi
-            << " ml:" << tlp->ml
-            << " mul:" << tlp->mul
-            << " mr:" << tlp->mr << std::endl;
+  uint mi, ml, mul, mr;
+  tlp->getTupleSize(mi, ml, mul, mr);
+  std::cout << "    tuple data:  (n=" << tlp->get_n() << ")" << std::endl;
+  std::cout << "      mi:" << mi
+            << " ml:" << ml
+            << " mul:" << mul
+            << " mr:" << mr << std::endl;
   std::cout << "      ["
-            << std::setw(11*tlp->mi)  << " int data"   << " |"
-            << std::setw(11*tlp->ml)  << " long data"  << " |"
-            << std::setw(11*tlp->mul) << " ulong data" << " |"
-            << std::setw(11*tlp->mr)  << " real data"  << " "
+            << std::setw(11*mi)  << " int data"   << " |"
+            << std::setw(11*ml)  << " long data"  << " |"
+            << std::setw(11*mul) << " ulong data" << " |"
+            << std::setw(11*mr)  << " real data"  << " "
             << std::endl << "        ";
-  for (unsigned int i = 0; i < tlp->n; i++) {
-    if (tlp->mi >0) {
-      for (unsigned int j = 0; j < tlp->mi; j++) {
-        std::cout << std::setw(10) << tlp->vi[i*tlp->mi + j] << " ";
+  for (unsigned int i = 0; i < tlp->get_n(); i++) {
+    if (mi >0) {
+      for (unsigned int j = 0; j < mi; j++) {
+        std::cout << std::setw(10) << tlp->vi_rd[i*mi + j] << " ";
       }
     }
     else {
@@ -776,9 +781,9 @@ void print_tuples(tuple_list *tlp)
     }
     std::cout << "| ";
 
-    if (tlp->ml >0) {
-      for (unsigned int j = 0; j < tlp->ml; j++) {
-        std::cout << std::setw(10) << tlp->vl[i*tlp->ml + j] << " ";
+    if (ml >0) {
+      for (unsigned int j = 0; j < ml; j++) {
+        std::cout << std::setw(10) << tlp->vl_rd[i*ml + j] << " ";
       }
     }
     else {
@@ -786,9 +791,9 @@ void print_tuples(tuple_list *tlp)
     }
     std::cout << "| ";
 
-    if (tlp->mul >0) {
-      for (unsigned int j = 0; j < tlp->mul; j++) {
-        std::cout << std::setw(10) << tlp->vul[i*tlp->mul + j] << " ";
+    if (mul >0) {
+      for (unsigned int j = 0; j < mul; j++) {
+        std::cout << std::setw(10) << tlp->vul_rd[i*mul + j] << " ";
       }
     }
     else {
@@ -796,16 +801,16 @@ void print_tuples(tuple_list *tlp)
     }
     std::cout << "| ";
 
-    if (tlp->mr >0) {
-      for (unsigned int j = 0; j < tlp->mr; j++) {
-        std::cout << std::setw(10) << tlp->vr[i*tlp->mr + j] << " ";
+    if (mr >0) {
+      for (unsigned int j = 0; j < mr; j++) {
+        std::cout << std::setw(10) << tlp->vr_rd[i*mr + j] << " ";
       }
     }
     else {
       std::cout << "          ";
     }
 
-    if (i+1 < tlp->n)
+    if (i+1 < tlp->get_n())
       std::cout << std::endl << "        ";
   }
   std::cout << "]" << std::endl;
@@ -904,43 +909,48 @@ double physField(double x, double y, double z)
 #define UINT_PER_UNSIGNED UINT_PER_X(unsigned)
 
 // Function for packing tuple_list
-int pack_tuples(tuple_list* tl, void **ptr)
+int pack_tuples(TupleList* tl, void **ptr)
 {
+  uint mi, ml, mul, mr;
+  tl->getTupleSize(mi, ml, mul, mr);
+
+  uint n = tl->get_n();
+
   int sz_buf = 1 + 4*UINT_PER_UNSIGNED +
-               tl->n * (tl->mi + 
-                        tl->ml*UINT_PER_LONG + 
-                        tl->mul*UINT_PER_LONG + 
-                        tl->mr*UINT_PER_REAL);
+    tl->get_n() * (mi + 
+		   ml*UINT_PER_LONG + 
+		   mul*UINT_PER_LONG + 
+		   mr*UINT_PER_REAL);
   
   uint *buf = (uint*) malloc(sz_buf*sizeof(uint));
   *ptr = (void*) buf;
 
   // copy n
-  memcpy(buf, &(tl->n),   sizeof(uint)),                buf+=1;
+  memcpy(buf, &n,   sizeof(uint)),                buf+=1;
   // copy mi
-  memcpy(buf, &(tl->mi),  sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
+  memcpy(buf, &mi,  sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
   // copy ml
-  memcpy(buf, &(tl->ml),  sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
+  memcpy(buf, &ml,  sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
   // copy mul
-  memcpy(buf, &(tl->mul), sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
+  memcpy(buf, &mul, sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
   // copy mr
-  memcpy(buf, &(tl->mr),  sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
-  // copy vi
-  memcpy(buf, tl->vi,     tl->n*tl->mi*sizeof(sint)),   buf+=tl->n*tl->mi;
-  // copy vl
-  memcpy(buf, tl->vl,     tl->n*tl->ml*sizeof(slong)),  buf+=tl->n*tl->ml*UINT_PER_LONG;
-  // copy vul
-  memcpy(buf, tl->vul,    tl->n*tl->mul*sizeof(ulong)), buf+=tl->n*tl->mul*UINT_PER_LONG;
-  // copy vr
-  memcpy(buf, tl->vr,     tl->n*tl->mr*sizeof(real)),   buf+=tl->n*tl->mr*UINT_PER_REAL;
+  memcpy(buf, &mr,  sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
+  // copy vi_rd
+  memcpy(buf, tl->vi_rd,     tl->get_n()*mi*sizeof(sint)),   buf+=tl->get_n()*mi;
+  // copy vl_rd
+  memcpy(buf, tl->vl_rd,     tl->get_n()*ml*sizeof(slong)),  buf+=tl->get_n()*ml*UINT_PER_LONG;
+  // copy vul_rd
+  memcpy(buf, tl->vul_rd,    tl->get_n()*mul*sizeof(ulong)), buf+=tl->get_n()*mul*UINT_PER_LONG;
+  // copy vr_rd
+  memcpy(buf, tl->vr_rd,     tl->get_n()*mr*sizeof(real)),   buf+=tl->get_n()*mr*UINT_PER_REAL;
 
   return sz_buf;
 }
 
 // Function for packing tuple_list
-void unpack_tuples(void *ptr, tuple_list** tlp)
+void unpack_tuples(void *ptr, TupleList** tlp)
 {
-  tuple_list *tl = (tuple_list*) malloc(sizeof(tuple_list));
+  TupleList *tl = new TupleList();
   *tlp = tl;
 
   uint nt;
@@ -959,17 +969,23 @@ void unpack_tuples(void *ptr, tuple_list** tlp)
   memcpy(&mrt,  buf, sizeof(unsigned)),      buf+=UINT_PER_UNSIGNED;
 
   // initalize tl
-  tuple_list_init_max(tl, mit, mlt, mult, mrt, nt);
-  tl->n = nt;
+  tl->initialize(mit, mlt, mult, mrt, nt);
+  tl->enableWriteAccess();
+  tl->set_n( nt );
 
-  // get vi
-  memcpy(tl->vi,     buf, tl->n*tl->mi*sizeof(sint)),   buf+=tl->n*tl->mi;
-  // get vl
-  memcpy(tl->vl,     buf, tl->n*tl->ml*sizeof(slong)),  buf+=tl->n*tl->ml*UINT_PER_LONG;
-  // get vul
-  memcpy(tl->vul,    buf, tl->n*tl->mul*sizeof(ulong)), buf+=tl->n*tl->mul*UINT_PER_LONG;
-  // get vr
-  memcpy(tl->vr,     buf, tl->n*tl->mr*sizeof(real)),   buf+=tl->n*tl->mr*UINT_PER_REAL;
+  uint mi, ml, mul, mr;
+  tl->getTupleSize(mi, ml, mul, mr);
+
+  // get vi_wr
+  memcpy(tl->vi_wr,     buf, tl->get_n()*mi*sizeof(sint)),   buf+=tl->get_n()*mi;
+  // get vl_wr
+  memcpy(tl->vl_wr,     buf, tl->get_n()*ml*sizeof(slong)),  buf+=tl->get_n()*ml*UINT_PER_LONG;
+  // get vul_wr
+  memcpy(tl->vul_wr,    buf, tl->get_n()*mul*sizeof(ulong)), buf+=tl->get_n()*mul*UINT_PER_LONG;
+  // get vr_wr
+  memcpy(tl->vr_wr,     buf, tl->get_n()*mr*sizeof(real)),   buf+=tl->get_n()*mr*UINT_PER_REAL;
+
+  tl->disableWriteAccess();
 
   return;
 }

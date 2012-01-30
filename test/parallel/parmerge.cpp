@@ -15,6 +15,7 @@
 #include "MBParallelConventions.h"
 #include <fstream>
 #include <sstream>
+#include "moab/Skinner.hpp"
 
 /*  
     Parmerge
@@ -36,9 +37,13 @@
     <tolerance> is the merging tolerance
     
     Typical usage of:
-    mpd &
-    mpirun -n <#procs> parmerge <inputfile> <outputfile> <tolerance>
+    mpirun -n <#procs> parmerge <inputfile> <outputfile> <tolerance> 
 */
+
+//Function to print out info for testing purposes
+void print_output(moab::ParallelComm *pc, moab::Core *mb, 
+                  int numprocs, int myID, bool perform);
+
 int main(int argc, char * argv[])
 {
   //Check argument count
@@ -109,6 +114,8 @@ int main(int argc, char * argv[])
     return 1;
   }
 
+  print_output(pc, mb, myID, numprocs, false);
+
   //Write out the file
   rval = mb->write_file(outfile.c_str() , 0,"PARALLEL=WRITE_PART");
   if(rval != moab::MB_SUCCESS){
@@ -129,4 +136,54 @@ int main(int argc, char * argv[])
   MPI_Finalize();
 
   return 0;
+}
+
+
+//This function doesn't normally get called, but is here for debugging
+//and verifying that merge is working.  
+void print_output(moab::ParallelComm *pc, moab::Core *mb,
+                  int myID, int numprocs, bool perform){
+  moab::Range ents, skin;
+  int o_ct=0, no_ct=0, tmp=0, o_tot=0, no_tot=0;
+  if(perform){
+    //Check the count of vertices
+    mb->get_entities_by_dimension(0,3,ents);
+    for(moab::Range::iterator rit = ents.begin(); rit != ents.end(); rit++){
+      pc->get_owner(*rit, tmp);
+      if(tmp==myID){
+	o_ct++;
+      }
+    }
+    MPI_Reduce(&o_ct, &o_tot, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    if(myID==0){
+      std::cout<<"There are " << o_tot << " vertices."<<std::endl;
+      std::cout<<"------------------------------------------"<<std::endl;
+    }
+    //Check the count of ownded and not owned skin faces.
+    //owned-not owned == total skin faces
+    moab::Skinner skinner(mb);
+    o_ct=0; no_ct=0; o_tot=0; no_tot=0;
+    skin.clear();
+    ents.clear();
+    mb->get_entities_by_dimension(0,3,ents);
+    skinner.find_skin(ents, 2, skin);
+    for(moab::Range::iterator s_rit = skin.begin(); 
+        s_rit != skin.end(); s_rit++){
+      pc->get_owner(*s_rit, tmp);
+      if(tmp==myID){
+	o_ct++;
+      }
+      else{
+	no_ct++;
+      }
+    }
+    MPI_Reduce(&o_ct, &o_tot, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&no_ct, &no_tot, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    if(myID == 0){
+      std::cout<<"There are " << o_tot << " owned skin faces."<<std::endl;
+      std::cout<<"There are " << no_tot << " not owned skin faces."<<std::endl;
+      std::cout<<"The difference (Global Skin Faces) is " << (o_tot-no_tot) << "." << std::endl;
+      std::cout<<"------------------------------------------"<<std::endl;
+    }
+  }
 }

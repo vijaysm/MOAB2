@@ -6,19 +6,14 @@
 #include "moab/CN.hpp"
 #include "iMesh_extensions.h"
 #include "iostream"
+#include "moab/gs.hpp"
 #include <stdio.h>
+#include "moab/TupleList.hpp"
 
-
-extern "C" 
-{
-#include "types.h"
-#include "errmem.h"
-#include "minmax.h"
-#include "sort.h"
-#include "tuple_list.h"
-#include "crystal.h"
-#include "transfer.h"
-}
+//extern "C" 
+//{
+  //#include "minmax.h"
+  //}
 
 #include "assert.h"
 
@@ -31,8 +26,8 @@ extern "C"
 namespace moab {
 
 bool debug = false;
-int pack_tuples(tuple_list* tl, void **ptr);
-void unpack_tuples(void *ptr, tuple_list** tlp);
+int pack_tuples(TupleList* tl, void **ptr);
+void unpack_tuples(void *ptr, TupleList** tlp);
 
 Coupler::Coupler(Interface *impl,
                      ParallelComm *pc,
@@ -132,23 +127,26 @@ ErrorCode Coupler::initialize_tree()
 }
 
 ErrorCode Coupler::locate_points(double *xyz, int num_points,
-                                     tuple_list *tl,
+                                     TupleList *tl,
                                      bool store_local)
 {
   assert(tl || store_local);
 
     // allocate tuple_list to hold point data: (p, i, , xyz), i = point index
-  tuple_list target_pts;
-  tuple_list_init_max(&target_pts, 2, 0, 0, 3, num_points);
+  TupleList target_pts;
+  target_pts.initialize(2, 0, 0, 3, num_points);
+  target_pts.enableWriteAccess();
 
     // initialize source_pts and local_pts
-  tuple_list source_pts;
-  mappedPts = new tuple_list;
-  tuple_list_init_max(&source_pts, 3, 0, 0, 0, target_pts.max); 
-  tuple_list_init_max(mappedPts, 0, 0, 1, 3, target_pts.max); 
+  TupleList source_pts;
+  mappedPts = new TupleList(0, 0, 1, 3, target_pts.get_max());
+  mappedPts->enableWriteAccess();
 
-  mappedPts->n = 0;
-  source_pts.n = 0;
+  source_pts.initialize(3, 0, 0, 0, target_pts.get_max()); 
+  source_pts.enableWriteAccess();
+
+  mappedPts->set_n(0);
+  source_pts.set_n(0);
   ErrorCode result;
 
     // keep track of which points have been located
@@ -174,6 +172,7 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
       continue;
     }
 
+    
       // if not located locally, test other procs' boxes
     for (unsigned int j = 0; j < myPc->proc_config().proc_size(); j++)
     {
@@ -186,81 +185,83 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
       {
           // if in this proc's box, will send to proc to test further
           // check size, grow if we're at max
-        if (target_pts.n == target_pts.max) 
-          tuple_list_grow(&target_pts);
+        if (target_pts.get_n() == target_pts.get_max()) 
+          target_pts.resize(target_pts.get_max() + (1+target_pts.get_max())/2);
   
-        target_pts.vi[2*target_pts.n] = j;
-        target_pts.vi[2*target_pts.n+1] = i/3;
+        target_pts.vi_wr[2*target_pts.get_n()] = j;
+        target_pts.vi_wr[2*target_pts.get_n()+1] = i/3;
 
-        target_pts.vr[3*target_pts.n] = xyz[i];
-        target_pts.vr[3*target_pts.n+1] = xyz[i+1];
-        target_pts.vr[3*target_pts.n+2] = xyz[i+2];
-        target_pts.n++;
+        target_pts.vr_wr[3*target_pts.get_n()] = xyz[i];
+        target_pts.vr_wr[3*target_pts.get_n()+1] = xyz[i+1];
+        target_pts.vr_wr[3*target_pts.get_n()+2] = xyz[i+2];
+        target_pts.inc_n();
       }
     }
   }
 
     // perform scatter/gather, to gather points to source mesh procs
-  moab_gs_transfer(1, &target_pts, 0, myPc->proc_config().crystal_router());
+  (myPc->proc_config().crystal_router())->gs_transfer(1, target_pts, 0);
 
     // after scatter/gather:
-    // target_pts.n = # points local proc has to map
-    // target_pts.vi[2*i] = proc sending point i
-    // target_pts.vi[2*i+1] = index of point i on sending proc
-    // target_pts.vr[3*i..3*i+2] = xyz of point i
+    // target_pts.set_n( # points local proc has to map );
+    // target_pts.vi_wr[2*i] = proc sending point i
+    // target_pts.vi_wr[2*i+1] = index of point i on sending proc
+    // target_pts.vr_wr[3*i..3*i+2] = xyz of point i
     //
     // Mapping builds the tuple list:
-    // source_pts.n = target_pts.n
-    // source_pts.vi[3*i] = target_pts.vi[2*i] = sending proc
-    // source_pts.vi[3*i+1] = index of point i on sending proc
-    // source_pts.vi[3*i+2] = index of mapped point (-1 if not mapped)
+    // source_pts.set_n (target_pts.get_n() )
+    // source_pts.vi_wr[3*i] = target_pts.vi_wr[2*i] = sending proc
+    // source_pts.vi_wr[3*i+1] = index of point i on sending proc
+    // source_pts.vi_wr[3*i+2] = index of mapped point (-1 if not mapped)
     //
     // Also, mapping builds local tuple_list mappedPts:
-    // mappedPts->n = # mapped points
-    // mappedPts->vul[i] = local handle of mapped entity
-    // mappedPts->vr[3*i..3*i+2] = natural coordinates in mapped entity
+    // mappedPts->set_n( # mapped points );
+    // mappedPts->vul_wr[i] = local handle of mapped entity
+    // mappedPts->vr_wr[3*i..3*i+2] = natural coordinates in mapped entity
 
     // test target points against my elements
-  for (unsigned i = 0; i < target_pts.n; i++) 
+  for (unsigned i = 0; i < target_pts.get_n(); i++) 
   {
-    result = test_local_box(target_pts.vr+3*i, 
-                            target_pts.vi[2*i], target_pts.vi[2*i+1], i, 
+    result = test_local_box(target_pts.vr_wr+3*i, 
+                            target_pts.vi_rd[2*i], target_pts.vi_rd[2*i+1], i, 
                             point_located, &source_pts);
     if (MB_SUCCESS != result) return result;
   }
 
   // no longer need target_pts
-  tuple_list_free(&target_pts);
+  target_pts.reset();
 
     // send target points back to target procs
-  moab_gs_transfer(1, &source_pts, 0, myPc->proc_config().crystal_router());
+  (myPc->proc_config().crystal_router())->gs_transfer(1, source_pts, 0);
 
   // store proc/index tuples in targetPts, and/or pass back to application;
   // the tuple this gets stored to looks like:
-  // tl.n = # mapped points
-  // tl.vi[3*i] = remote proc mapping point
-  // tl.vi[3*i+1] = local index of mapped point
-  // tl.vi[3*i+2] = remote index of mapped point
+  // tl.set_n( # mapped points );
+  // tl.vi_wr[3*i] = remote proc mapping point
+  // tl.vi_wr[3*i+1] = local index of mapped point
+  // tl.vi_wr[3*i+2] = remote index of mapped point
   //
   // Local index is mapped into either myRange, holding the handles of
   // local mapped entities, or myXyz, holding locations of mapped pts
 
   // count non-negatives
   int num_pts = 0;
-  for (unsigned int i = 0; i < source_pts.n; i++)
-    if (-1 != source_pts.vi[3*i+2]) num_pts++;  
+  for (unsigned int i = 0; i < source_pts.get_n(); i++)
+    if (-1 != source_pts.vi_rd[3*i+2]) num_pts++;  
 
     // store information about located points
-  targetPts = new tuple_list;
-  tuple_list *tl_tmp = targetPts;
+  targetPts = new TupleList();
+  TupleList *tl_tmp = targetPts;
   if (!store_local) 
     tl_tmp = tl;
 
-  tuple_list_init_max(tl_tmp, 3, 0, 0, 1, num_pts);
-  for (unsigned int i = 0; i < source_pts.n; i++) {
-    if (-1 != source_pts.vi[3*i+2]) { //why bother sending message saying "i don't have the point" if it gets discarded?
+  tl_tmp->initialize(3, 0, 0, 1, num_pts);
+  tl_tmp->enableWriteAccess();
 
-      int locIndex = source_pts.vi[3*i+1];
+  for (unsigned int i = 0; i < source_pts.get_n(); i++) {
+    if (-1 != source_pts.vi_rd[3*i+2]) { //why bother sending message saying "i don't have the point" if it gets discarded?
+
+      int locIndex = source_pts.vi_rd[3*i+1];
       if(located_pts[locIndex]){  
 	//asked 2+ procs if they have point p, they both said yes, we'll keep the one with lowest rank
 	//todo: check that the cases where both say yes are justified (seemed to happen too often in tests)
@@ -269,28 +270,32 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
 
       located_pts[locIndex] = 1;
 
-      tl_tmp->vi[3*tl_tmp->n]     = source_pts.vi[3*i];
-      tl_tmp->vi[3*tl_tmp->n + 1] = source_pts.vi[3*i+1];
-      tl_tmp->vi[3*tl_tmp->n + 2] = source_pts.vi[3*i+2];
-      tl_tmp->n++;
+      tl_tmp->vi_wr[3*tl_tmp->get_n()]     = source_pts.vi_rd[3*i];
+      tl_tmp->vi_wr[3*tl_tmp->get_n() + 1] = source_pts.vi_rd[3*i+1];
+      tl_tmp->vi_wr[3*tl_tmp->get_n() + 2] = source_pts.vi_rd[3*i+2];
+      tl_tmp->inc_n();
     }
   }
 
-  int mappedPoints  = tl_tmp->n + localMappedPts.size()/2;
+  int mappedPoints  = tl_tmp->get_n() + localMappedPts.size()/2;
   int missingPoints = num_points-mappedPoints;
   printf("point location: wanted %d got %u locally, %d remote, missing %d\n", 
-         num_points, localMappedPts.size()/2,  tl_tmp->n, missingPoints);
+         num_points, (uint)localMappedPts.size()/2,  tl_tmp->get_n(), missingPoints);
   assert(0==missingPoints); //will litely break on curved geometries
   
     // no longer need source_pts
-  tuple_list_free(&source_pts);
+  source_pts.reset();
 
     // copy into tl if passed in and storing locally
   if (tl && store_local) {
-    tuple_list_init_max(tl, 3, 0, 0, 1, num_pts);
-    memcpy(tl->vi, tl_tmp->vi, 3*tl_tmp->n*sizeof(int));
-    tl->n = tl_tmp->n;
+    tl = new TupleList(3, 0, 0, 1, num_pts);
+    tl->enableWriteAccess();
+    memcpy(tl->vi_wr, tl_tmp->vi_rd, 3*tl_tmp->get_n()*sizeof(int));
+    tl->set_n( tl_tmp->get_n() );
+    tl->disableWriteAccess();
   }
+
+  tl_tmp->disableWriteAccess();
 
     // done
   return MB_SUCCESS;
@@ -299,11 +304,14 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
 ErrorCode Coupler::test_local_box(double *xyz, 
                                       int from_proc, int remote_index, int index, 
                                       bool &point_located,
-                                      tuple_list *tl)
+                                      TupleList *tl)
 {
   
   std::vector<EntityHandle> entities;
   std::vector<CartVect> nat_coords;
+  bool canWrite = tl->get_writeEnabled();
+  if(!canWrite) tl->enableWriteAccess();
+
           
   ErrorCode result = nat_param(xyz, entities, nat_coords);
   if (MB_SUCCESS != result) return result;
@@ -312,13 +320,13 @@ ErrorCode Coupler::test_local_box(double *xyz,
   if (entities.empty()){
     if(tl){
 
-      if (tl->n == tl->max)
-	tuple_list_grow(tl);
+      if (tl->get_n() == tl->get_max())
+	tl->resize(tl->get_max() + (1+tl->get_max())/2);
 
-      tl->vi[3*tl->n] = from_proc;
-      tl->vi[3*tl->n+1] = remote_index;
-      tl->vi[3*tl->n+2] = -1;
-      tl->n++;
+      tl->vi_wr[3*tl->get_n()] = from_proc;
+      tl->vi_wr[3*tl->get_n()+1] = remote_index;
+      tl->vi_wr[3*tl->get_n()+2] = -1;
+      tl->inc_n();
 
     }
     point_located = false;
@@ -326,47 +334,51 @@ ErrorCode Coupler::test_local_box(double *xyz,
   }
 
     // grow if we know we'll exceed size
-  if (mappedPts->n+entities.size() >= mappedPts->max)
-    tuple_list_grow(mappedPts);
+  if (mappedPts->get_n()+entities.size() >= mappedPts->get_max())
+    mappedPts->resize(mappedPts->get_max() + (1+mappedPts->get_max())/2);;
 
 
   std::vector<EntityHandle>::iterator eit = entities.begin();
   std::vector<CartVect>::iterator ncit = nat_coords.begin();
+
+  mappedPts->enableWriteAccess();
   for (; eit != entities.end(); eit++, ncit++) {
       // store in tuple mappedPts
-    mappedPts->vr[3*mappedPts->n] = (*ncit)[0];
-    mappedPts->vr[3*mappedPts->n+1] = (*ncit)[1];
-    mappedPts->vr[3*mappedPts->n+2] = (*ncit)[2];
-    mappedPts->vul[mappedPts->n] = *eit;
-    mappedPts->n++;
+    mappedPts->vr_wr[3*mappedPts->get_n()] = (*ncit)[0];
+    mappedPts->vr_wr[3*mappedPts->get_n()+1] = (*ncit)[1];
+    mappedPts->vr_wr[3*mappedPts->get_n()+2] = (*ncit)[2];
+    mappedPts->vul_wr[mappedPts->get_n()] = *eit;
+    mappedPts->inc_n();
 
       // also store local point, mapped point indices
     if (tl) 
     {
-      if (tl->n == tl->max) 
-	tuple_list_grow(tl);
+      if (tl->get_n() == tl->get_max()) 
+	tl->resize(tl->get_max() + (1+tl->get_max())/2);
 
         // store in tuple source_pts
-      tl->vi[3*tl->n] = from_proc;
-      tl->vi[3*tl->n+1] = remote_index;
-      tl->vi[3*tl->n+2] = mappedPts->n-1;
-      tl->n++;
+      tl->vi_wr[3*tl->get_n()] = from_proc;
+      tl->vi_wr[3*tl->get_n()+1] = remote_index;
+      tl->vi_wr[3*tl->get_n()+2] = mappedPts->get_n()-1;
+      tl->inc_n();
     }
     else {
       localMappedPts.push_back(index);
-      localMappedPts.push_back(mappedPts->n-1);
+      localMappedPts.push_back(mappedPts->get_n()-1);
     }
   }
 
   point_located = true;
   
+  if(!canWrite) tl->disableWriteAccess();
+
   return MB_SUCCESS;
 }
 
 ErrorCode Coupler::interpolate(Coupler::Method method,
                                    std::string &interp_tag,
                                    double *interp_vals,
-                                   tuple_list *tl,
+                                   TupleList *tl,
                                    bool normalize)
 {
   Tag tag;
@@ -378,46 +390,46 @@ ErrorCode Coupler::interpolate(Coupler::Method method,
 ErrorCode Coupler::interpolate(Coupler::Method method,
                                    Tag tag,
                                    double *interp_vals,
-                                   tuple_list *tl,
+                                   TupleList *tl,
                                    bool normalize)
 {
   if (!((LINEAR_FE == method) || (PLAIN_FE == method)))
     return MB_FAILURE;
 
-  tuple_list *tl_tmp = (tl ? tl : targetPts);
-
+  TupleList *tl_tmp = (tl ? tl : targetPts);
     // remote pts first
   
     // scatter/gather interpolation points
-  moab_gs_transfer(1, tl_tmp, 0, myPc->proc_config().crystal_router());
+  (myPc->proc_config().crystal_router())->gs_transfer(1, *tl_tmp, 0);
 
     // perform interpolation on local source mesh; put results into
-    // tl_tmp->vr[i]
+    // tl_tmp->vr_wr[i]
   ErrorCode result;
 
-  for (unsigned int i = 0; i < tl_tmp->n; i++) {
-    int mindex = tl_tmp->vi[3*i+2];
+  mappedPts->enableWriteAccess();
+  for (unsigned int i = 0; i < tl_tmp->get_n(); i++) {
+    int mindex = tl_tmp->vi_rd[3*i+2];
 
     result = MB_FAILURE;
     if(LINEAR_FE == method){
-      result = interp_field(mappedPts->vul[mindex],
-				    CartVect(mappedPts->vr+3*mindex), 
-				    tag, tl_tmp->vr[i]);
+      result = interp_field(mappedPts->vul_rd[mindex],
+				    CartVect(mappedPts->vr_wr+3*mindex), 
+				    tag, tl_tmp->vr_rd[i]);
     }else if (PLAIN_FE == method){
-      result = plain_field_map(mappedPts->vul[mindex],
-			       tag, tl_tmp->vr[i]);
+      result = plain_field_map(mappedPts->vul_rd[mindex],
+			       tag, tl_tmp->vr_rd[i]);
     }
 
     if (MB_SUCCESS != result) return result;
   }
   
     // scatter/gather interpolation data
-  moab_gs_transfer(1, tl_tmp, 0, myPc->proc_config().crystal_router());
+  (myPc->proc_config().crystal_router())->gs_transfer(1, *tl_tmp, 0);
 
   if (!tl) {
       // mapped whole targetPts tuple; put into proper place in interp_vals
-    for (unsigned int i = 0; i < tl_tmp->n; i++)
-      interp_vals[tl_tmp->vi[3*i+1]] = tl_tmp->vr[i];
+    for (unsigned int i = 0; i < tl_tmp->get_n(); i++)
+      interp_vals[tl_tmp->vi_rd[3*i+1]] = tl_tmp->vr_rd[i];
 
       // now do locally-contained pts, since we're mapping everything
     for (std::vector<unsigned int>::iterator vit = localMappedPts.begin();
@@ -426,11 +438,11 @@ ErrorCode Coupler::interpolate(Coupler::Method method,
 
       result = MB_FAILURE;
       if(LINEAR_FE == method){
-	result = interp_field(mappedPts->vul[mindex],
-			      CartVect(mappedPts->vr+3*mindex), 
+	result = interp_field(mappedPts->vul_rd[mindex],
+			      CartVect(mappedPts->vr_wr+3*mindex), 
 			      tag, interp_vals[*vit]);
       }else if (PLAIN_FE == method){
-	result = plain_field_map(mappedPts->vul[mindex],
+	result = plain_field_map(mappedPts->vul_rd[mindex],
 				 tag, interp_vals[*vit]);
       }
 
@@ -841,7 +853,7 @@ int Coupler::get_matching_entities(iBase_EntitySetHandle                        
                             &ent_sets, &ent_sets_alloc, &ent_sets_size, &err);
   ERRORR("iMesh_getEntSetsByTagsRec failed.", err);
 
-  tuple_list *tag_list = NULL;
+  TupleList *tag_list = NULL;
   err = create_tuples(ent_sets, ent_sets_size, tag_handles, num_tags, &tag_list);
   ERRORR("Failed to create tuples from entity sets.", err);
 
@@ -854,7 +866,7 @@ int Coupler::get_matching_entities(iBase_EntitySetHandle                        
 
   // If we are running in a mult-proc session then send tuple list back to master 
   // proc for consolidation.  Otherwise just copy the pointer to the tuple_list.
-  tuple_list *cons_tuples;
+  TupleList *cons_tuples;
   if (nprocs > 1) {
     // SLAVE/MASTER START #########################################################
 
@@ -864,7 +876,7 @@ int Coupler::get_matching_entities(iBase_EntitySetHandle                        
     tuple_buf_len = pack_tuples(tag_list, (void**)&tuple_buf);
 
     // Free tag_list here as its not used again if nprocs > 1
-    tuple_list_free(tag_list);
+    tag_list->reset();
 
     // Send back the buffer sizes to the master proc
     int *recv_cnts = (int*) malloc(nprocs * sizeof(int));
@@ -896,7 +908,7 @@ int Coupler::get_matching_entities(iBase_EntitySetHandle                        
 
     if (rank == MASTER_PROC) {
       // unpack the tuple_list from the buffer.
-      tuple_list **tl_array = (tuple_list **) malloc(nprocs * sizeof(tuple_list*));
+      TupleList **tl_array = (TupleList **) malloc(nprocs * sizeof(TupleList*));
       for (int i = 0; i < nprocs; i++)
         unpack_tuples((void*) &all_tuples_buf[offsets[i]], &tl_array[i]);
 
@@ -910,7 +922,7 @@ int Coupler::get_matching_entities(iBase_EntitySetHandle                        
       ERRORR("Failed to consolidate tuples.", err);
 
       for (int i = 0; i < nprocs; i++)
-        tuple_list_free(tl_array[i]);
+        tl_array[i]->reset();
       free(tl_array);
       // MASTER END   ***************************************************************
     }
@@ -951,19 +963,23 @@ int Coupler::get_matching_entities(iBase_EntitySetHandle                        
 
   // SLAVE START ****************************************************************
   // Loop over the tuple list getting the entities with the tags in the tuple_list entry
-  for (unsigned int i = 0; i < cons_tuples->n; i++) {
+  uint mi, ml, mul, mr;
+  cons_tuples->getTupleSize(mi, ml, mul, mr);
+
+  for (unsigned int i = 0; i < cons_tuples->get_n(); i++) {
     // Get Entity Sets that match the tags and values.
 
     // Convert the data in the tuple_list to an array of pointers to the data
     // in the tuple_list as that is what the iMesh API call is expecting.
-    int **vals = (int**) malloc(cons_tuples->mi * sizeof(int*));
-    for (unsigned int j = 0; j < cons_tuples->mi; j++)
-      vals[j] = &(cons_tuples->vi[(i*cons_tuples->mi) + j]);
+    int **vals = (int**) malloc(mi * sizeof(int*));
+    for (unsigned int j = 0; j < mi; j++)
+      vals[j] = (int *)&(cons_tuples->vi_rd[(i*mi) + j]);
 
     iMesh_getEntSetsByTagsRec(iMeshInst, root_set, tag_handles, 
                               (const char * const *) vals,
-                              cons_tuples->mi, 0,
+                              mi, 0,
                               &ent_sets, &ent_sets_alloc, &ent_sets_size, &err);
+
     ERRORR("iMesh_getEntSetsByTagsRec failed.", err);
     if (debug) std::cout << "ent_sets_size=" << ent_sets_size << std::endl;
 
@@ -1011,7 +1027,7 @@ int Coupler::get_matching_entities(iBase_EntitySetHandle                        
                          << ", entity_groups->size=" << entity_groups->size() << std::endl;
   }
 
-  tuple_list_free(cons_tuples);
+  cons_tuples->reset();
   // SLAVE END   ****************************************************************
 
   return err;
@@ -1025,7 +1041,7 @@ int Coupler::create_tuples(iBase_EntitySetHandle *ent_sets,
                            int                   num_sets, 
                            const char            **tag_names,
                            int                   num_tags,
-                           tuple_list            **tuple_list)
+                           TupleList            **tuple_list)
 {
   iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
   int err;
@@ -1049,7 +1065,7 @@ int Coupler::create_tuples(iBase_EntitySetHandle *ent_sets,
                            int                   num_sets, 
                            iBase_TagHandle       *tag_handles,
                            int                   num_tags,
-                           tuple_list            **tuples)
+                           TupleList            **tuples)
 {
   // Get an iMesh_Instance from MBCoupler::mbImpl.
   iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
@@ -1059,9 +1075,13 @@ int Coupler::create_tuples(iBase_EntitySetHandle *ent_sets,
   // ASSUMPTION: All tags are of type integer.  This may need to be expanded in future.
 
   // Allocate a tuple_list for the number of entity sets passed in
-  tuple_list *tag_tuples = (tuple_list*) malloc(sizeof(tuple_list));
-  tuple_list_init_max(tag_tuples, num_tags, 0, 0, 0, num_sets);
-  if (tag_tuples->mi == 0)
+  TupleList *tag_tuples = new TupleList(num_tags, 0, 0, 0, num_sets);
+  //tag_tuples->initialize(num_tags, 0, 0, 0, num_sets);
+  uint mi, ml, mul, mr;
+  tag_tuples->getTupleSize(mi, ml, mul, mr);
+  tag_tuples->enableWriteAccess();
+
+  if (mi == 0)
     ERRORR("Failed to initialize tuple_list.", iBase_FAILURE);
 
   // Loop over the filtered entity sets retrieving each matching tag value one by one.
@@ -1070,32 +1090,40 @@ int Coupler::create_tuples(iBase_EntitySetHandle *ent_sets,
     for (int j = 0; j < num_tags; j++) {
       iMesh_getEntSetIntData(iMeshInst, ent_sets[i], tag_handles[j], &val, &err);
       ERRORR("Failed to get integer tag data.", err);
-      tag_tuples->vi[i*tag_tuples->mi + j] = val;
+      tag_tuples->vi_wr[i*mi + j] = val;
     }
 
     // If we get here there was no error so increment n in the tuple_list
-    tag_tuples->n++;
+    tag_tuples->inc_n();
   }
-
+  tag_tuples->disableWriteAccess();
   *tuples = tag_tuples;
 
   return err;
 }
 
 // Consolidate tuple_lists into one list with no duplicates
-int Coupler::consolidate_tuples(tuple_list **all_tuples, 
+int Coupler::consolidate_tuples(TupleList **all_tuples, 
                                 int        num_tuples,
-                                tuple_list **unique_tuples)
+                                TupleList **unique_tuples)
 {
   int err = iBase_SUCCESS;
 
   int total_rcv_tuples = 0;
   int offset = 0, copysz = 0;
   unsigned num_tags = 0;
+
+  uint ml, mul, mr;
+  uint *mi = (uint *)malloc(sizeof(uint) * num_tuples);
+
+  for(int i=0; i<num_tuples; i++){
+    all_tuples[i]->getTupleSize(mi[i], ml, mul, mr);
+  }
+
   for (int i = 0; i < num_tuples; i++) {
     if (all_tuples[i] != NULL) {
-      total_rcv_tuples += all_tuples[i]->n;
-      num_tags = all_tuples[i]->mi;
+      total_rcv_tuples += all_tuples[i]->get_n();
+      num_tags = mi[i];
     }
   }
   const unsigned int_size = sizeof(sint);
@@ -1104,34 +1132,35 @@ int Coupler::consolidate_tuples(tuple_list **all_tuples,
   // Get the total size of all of the tuple_lists in all_tuples.
   for (int i = 0; i < num_tuples; i++) {
     if (all_tuples[i] != NULL)
-      total_rcv_tuples += all_tuples[i]->n;
+      total_rcv_tuples += all_tuples[i]->get_n();
   }
 
   // Copy the tuple_lists into a single tuple_list.
-  tuple_list *all_tuples_list = (tuple_list*) malloc(sizeof(tuple_list));
-  tuple_list_init_max(all_tuples_list, num_tags, 0, 0, 0, total_rcv_tuples);
+  TupleList *all_tuples_list = new TupleList(num_tags, 0, 0, 0, total_rcv_tuples);
+  all_tuples_list->enableWriteAccess();
+  //all_tuples_list->initialize(num_tags, 0, 0, 0, total_rcv_tuples);
   for (int i = 0; i < num_tuples; i++) {
     if (all_tuples[i] != NULL) {
-      copysz = all_tuples[i]->n * int_width;
-      memcpy(all_tuples_list->vi+offset, all_tuples[i]->vi, copysz);
-      offset = offset + (all_tuples[i]->n * all_tuples[i]->mi);
-      all_tuples_list->n = all_tuples_list->n + all_tuples[i]->n;
+      copysz = all_tuples[i]->get_n() * int_width;
+      memcpy(all_tuples_list->vi_wr+offset, all_tuples[i]->vi_rd, copysz);
+      offset = offset + (all_tuples[i]->get_n() * mi[i]);
+      all_tuples_list->set_n( all_tuples_list->get_n() + all_tuples[i]->get_n() );
     }
   }
 
   // Sort the new tuple_list.  Use a radix type sort, starting with the last (or least significant)
   // tag column in the vi array and working towards the first (or most significant) tag column.
-  buffer sort_buffer;
-  buffer_init(&sort_buffer, 2 * total_rcv_tuples * int_width);
+  TupleList::buffer sort_buffer;
+  sort_buffer.buffer_init(2 * total_rcv_tuples * int_width);
   for (int i = num_tags - 1; i >= 0; i--) {
-    moab_tuple_list_sort(all_tuples_list, i, &sort_buffer);
+    all_tuples_list->sort(i, &sort_buffer);
   }
 
   // Cycle through the sorted list eliminating duplicates.
   // Keep counters to the current end of the tuple_list (w/out dups) and the last tuple examined.
   unsigned int end_idx = 0, last_idx = 1;
-  while (last_idx < all_tuples_list->n) {
-    if (memcmp(all_tuples_list->vi+(end_idx*num_tags), all_tuples_list->vi+(last_idx*num_tags), int_width) == 0) {
+  while (last_idx < all_tuples_list->get_n()) {
+    if (memcmp(all_tuples_list->vi_rd+(end_idx*num_tags), all_tuples_list->vi_rd+(last_idx*num_tags), int_width) == 0) {
       // Values equal - skip
       last_idx += 1;
     }
@@ -1139,15 +1168,15 @@ int Coupler::consolidate_tuples(tuple_list **all_tuples,
       // Values different - copy
       // Move up the end index
       end_idx += 1;
-      memcpy(all_tuples_list->vi+(end_idx*num_tags), all_tuples_list->vi+(last_idx*num_tags), int_width);
+      memcpy(all_tuples_list->vi_wr+(end_idx*num_tags), all_tuples_list->vi_rd+(last_idx*num_tags), int_width);
       last_idx += 1;
     }
   }
   // Update the count in all_tuples_list
-  all_tuples_list->n = end_idx + 1;
+  all_tuples_list->set_n( end_idx + 1 );
 
   // Resize the tuple_list
-  tuple_list_resize(all_tuples_list, all_tuples_list->n);
+  all_tuples_list->resize(all_tuples_list->get_n());
 
   // Set the output parameter
   *unique_tuples = all_tuples_list;
@@ -1367,43 +1396,48 @@ int Coupler::apply_group_norm_factor(std::vector< std::vector<iBase_EntitySetHan
 #define UINT_PER_UNSIGNED UINT_PER_X(unsigned)
 
 // Function for packing tuple_list.  Returns number of uints copied into buffer.
-int pack_tuples(tuple_list* tl, void **ptr)
+int pack_tuples(TupleList* tl, void **ptr)
 {
+  uint mi, ml, mul, mr;
+  tl->getTupleSize(mi, ml, mul, mr);
+
+  uint n = tl->get_n();
+
   int sz_buf = 1 + 4*UINT_PER_UNSIGNED +
-               tl->n * (tl->mi + 
-                        tl->ml*UINT_PER_LONG + 
-                        tl->mul*UINT_PER_LONG + 
-                        tl->mr*UINT_PER_REAL);
+               tl->get_n() * (mi + 
+			      ml*UINT_PER_LONG + 
+			      mul*UINT_PER_LONG + 
+			      mr*UINT_PER_REAL);
   
   uint *buf = (uint*) malloc(sz_buf*sizeof(uint));
   *ptr = (void*) buf;
 
   // copy n
-  memcpy(buf, &(tl->n),   sizeof(uint)),                buf+=1;
+  memcpy(buf, &n,   sizeof(uint)),                buf+=1;
   // copy mi
-  memcpy(buf, &(tl->mi),  sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
+  memcpy(buf, &mi,  sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
   // copy ml
-  memcpy(buf, &(tl->ml),  sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
+  memcpy(buf, &ml,  sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
   // copy mul
-  memcpy(buf, &(tl->mul), sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
+  memcpy(buf, &mul, sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
   // copy mr
-  memcpy(buf, &(tl->mr),  sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
-  // copy vi
-  memcpy(buf, tl->vi,     tl->n*tl->mi*sizeof(sint)),   buf+=tl->n*tl->mi;
-  // copy vl
-  memcpy(buf, tl->vl,     tl->n*tl->ml*sizeof(slong)),  buf+=tl->n*tl->ml*UINT_PER_LONG;
-  // copy vul
-  memcpy(buf, tl->vul,    tl->n*tl->mul*sizeof(ulong)), buf+=tl->n*tl->mul*UINT_PER_LONG;
-  // copy vr
-  memcpy(buf, tl->vr,     tl->n*tl->mr*sizeof(real)),   buf+=tl->n*tl->mr*UINT_PER_REAL;
+  memcpy(buf, &mr,  sizeof(unsigned)),            buf+=UINT_PER_UNSIGNED;
+  // copy vi_wr
+  memcpy(buf, tl->vi_rd,     tl->get_n()*mi*sizeof(sint)),   buf+=tl->get_n()*mi;
+  // copy vl_wr
+  memcpy(buf, tl->vl_rd,     tl->get_n()*ml*sizeof(slong)),  buf+=tl->get_n()*ml*UINT_PER_LONG;
+  // copy vul_wr
+  memcpy(buf, tl->vul_rd,    tl->get_n()*mul*sizeof(ulong)), buf+=tl->get_n()*mul*UINT_PER_LONG;
+  // copy vr_wr
+  memcpy(buf, tl->vr_rd,     tl->get_n()*mr*sizeof(real)),   buf+=tl->get_n()*mr*UINT_PER_REAL;
 
   return sz_buf;
 }
 
 // Function for packing tuple_list
-void unpack_tuples(void *ptr, tuple_list** tlp)
+void unpack_tuples(void *ptr, TupleList** tlp)
 {
-  tuple_list *tl = (tuple_list*) malloc(sizeof(tuple_list));
+  TupleList *tl = new TupleList();
   *tlp = tl;
 
   uint nt;
@@ -1422,18 +1456,23 @@ void unpack_tuples(void *ptr, tuple_list** tlp)
   memcpy(&mrt,  buf, sizeof(unsigned)),      buf+=UINT_PER_UNSIGNED;
 
   // initalize tl
-  tuple_list_init_max(tl, mit, mlt, mult, mrt, nt);
-  tl->n = nt;
+  tl->initialize(mit, mlt, mult, mrt, nt);
+  tl->enableWriteAccess();
+  tl->set_n( nt );
 
-  // get vi
-  memcpy(tl->vi,     buf, tl->n*tl->mi*sizeof(sint)),   buf+=tl->n*tl->mi;
-  // get vl
-  memcpy(tl->vl,     buf, tl->n*tl->ml*sizeof(slong)),  buf+=tl->n*tl->ml*UINT_PER_LONG;
-  // get vul
-  memcpy(tl->vul,    buf, tl->n*tl->mul*sizeof(ulong)), buf+=tl->n*tl->mul*UINT_PER_LONG;
-  // get vr
-  memcpy(tl->vr,     buf, tl->n*tl->mr*sizeof(real)),   buf+=tl->n*tl->mr*UINT_PER_REAL;
+  uint mi, ml, mul, mr;
+  tl->getTupleSize(mi, ml, mul, mr);
 
+  // get vi_rd
+  memcpy(tl->vi_wr,     buf, tl->get_n()*mi*sizeof(sint)),   buf+=tl->get_n()*mi;
+  // get vl_rd
+  memcpy(tl->vl_wr,     buf, tl->get_n()*ml*sizeof(slong)),  buf+=tl->get_n()*ml*UINT_PER_LONG;
+  // get vul_rd
+  memcpy(tl->vul_wr,    buf, tl->get_n()*mul*sizeof(ulong)), buf+=tl->get_n()*mul*UINT_PER_LONG;
+  // get vr_rd
+  memcpy(tl->vr_wr,     buf, tl->get_n()*mr*sizeof(real)),   buf+=tl->get_n()*mr*UINT_PER_REAL;
+
+  tl->disableWriteAccess();
   return;
 }
 
