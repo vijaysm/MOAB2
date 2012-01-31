@@ -7,9 +7,6 @@
 
 #include "moab/TupleList.hpp"
 
-typedef struct {uint v; uint i;} sort_data;
-typedef struct { ulong v; uint i;} sort_data_long;
-
 namespace moab {
 
   extern void fail(const char *fmt, ...);
@@ -414,6 +411,29 @@ namespace moab {
     n = n_in;
   }
 
+  void TupleList::print(std::string name) const
+  {
+    std::cout<<"Printing Tuple " << name << "==================="<<std::endl;
+    unsigned long i=0,l=0,ul=0,r=0;
+    for(uint k=0; k<n; k++){
+      for(uint j=0; j<mi; j++){
+	std::cout<<vi[i++]<<" | ";
+      }
+      for(uint j=0; j<ml; j++){
+	std::cout<<vl[l++]<<" | ";
+      }
+      for(uint j=0; j<mul; j++){
+	std::cout<<vul[ul++]<<" | ";
+      }
+      for(uint j=0; j<mr; j++){
+	std::cout<<vr[r++]<<" | ";
+      }
+      std::cout<<std::endl;
+    }
+    std::cout<<"======================================="<<std::endl<<std::endl;
+  }
+
+
   void TupleList::permute(uint *perm, void *work)
   {
     const unsigned int_size  = mi*sizeof(sint),
@@ -452,18 +472,20 @@ namespace moab {
     const unsigned real_size = mr*sizeof(real);
     const unsigned width = umax_2(umax_2(int_size,long_size),
 				  umax_2(ulong_size,real_size));
-    //const unsigned data_size = key>=mi ? sizeof(sort_data_long):sizeof(sort_data);
-    const unsigned data_size = sizeof(sort_data_long);
+    const unsigned data_size = key>=mi? 
+                               sizeof(SortData<long>):
+                               sizeof(SortData<uint>);
+
     uint work_min= n * umax_2(2*data_size,sizeof(sint)+width);
     uint *work;
     buf->buffer_reserve(work_min);
     work = (uint *)buf->ptr;
     if(key<mi)
-      index_sort ((uint *)&vi[key],            n, mi,  work,          (sort_data*)work);
+      index_sort((uint *)&vi[key],        n, mi,  work,  (SortData<uint>*)work);
     else if (key < mi+ml)
-      index_sort_long((ulong*)&vl[key-mi],     n, ml,  work,          (sort_data_long*)work);
+      index_sort((long*)&vl[key-mi],      n, ml,  work, (SortData<long>*)work);
     else if (key < mi + ml + mul)
-      index_sort_long((ulong*)&vul[key-mi-ml], n, mul, work,          (sort_data_long*)work);
+      index_sort((ulong*)&vul[key-mi-ml], n, mul, work, (SortData<ulong>*)work);
     else
       return MB_NOT_IMPLEMENTED;
 
@@ -475,18 +497,18 @@ namespace moab {
 
 #undef umax_2
 
-  //Define variables based on ulong sorting
+
 #define DIGIT_BITS   8
 #define DIGIT_VALUES (1<<DIGIT_BITS)
-#define DIGIT_MASK   ((ulong)(DIGIT_VALUES-1))
+#define DIGIT_MASK   ((Value)(DIGIT_VALUES-1))
 #define CEILDIV(a,b) (((a)+(b)-1)/(b))
-#define DIGITS       CEILDIV(CHAR_BIT*sizeof(ulong),DIGIT_BITS)
+#define DIGITS       CEILDIV(CHAR_BIT*sizeof(Value),DIGIT_BITS)
 #define VALUE_BITS   (DIGIT_BITS*DIGITS)
 #define COUNT_SIZE   (DIGITS*DIGIT_VALUES)
 
-  /* used to unroll a tiny loop: */
-#define COUNT_DIGIT_01(n,i)				\
-  if(n>i) count[i][val&DIGIT_MASK]++, val>>=DIGIT_BITS
+/* used to unroll a tiny loop: */
+#define COUNT_DIGIT_01(n,i) \
+    if(n>i) count[i][val&DIGIT_MASK]++, val>>=DIGIT_BITS
 #define COUNT_DIGIT_02(n,i) COUNT_DIGIT_01(n,i); COUNT_DIGIT_01(n,i+ 1)
 #define COUNT_DIGIT_04(n,i) COUNT_DIGIT_02(n,i); COUNT_DIGIT_02(n,i+ 2)
 #define COUNT_DIGIT_08(n,i) COUNT_DIGIT_04(n,i); COUNT_DIGIT_04(n,i+ 4)
@@ -494,25 +516,26 @@ namespace moab {
 #define COUNT_DIGIT_32(n,i) COUNT_DIGIT_16(n,i); COUNT_DIGIT_16(n,i+16)
 #define COUNT_DIGIT_64(n,i) COUNT_DIGIT_32(n,i); COUNT_DIGIT_32(n,i+32)
 
-  //Radix sort on a long/ulong key
-  ulong TupleList::radix_count_long(const ulong *A, const ulong *end, uint stride,
-				    uint count[DIGITS][DIGIT_VALUES])
-  {
-    ulong bitorkey = 0;
-    memset(count,0,COUNT_SIZE*sizeof(uint));
-    do {
-      ulong val=*A;
-      bitorkey|=val;
-      COUNT_DIGIT_64(DIGITS,0);
-      /* above macro expands to:
-	 if(DIGITS> 0) count[ 0][val&DIGIT_MASK]++, val>>=DIGIT_BITS;
-	 if(DIGITS> 1) count[ 1][val&DIGIT_MASK]++, val>>=DIGIT_BITS;
-	 ...
-	 if(DIGITS>63) count[63][val&DIGIT_MASK]++, val>>=DIGIT_BITS;
-      */
-    } while(A+=stride,A!=end);
-    return bitorkey;
-  }
+
+template<class Value>
+Value TupleList::radix_count(const Value *A, const Value *end, Index stride,
+			     Index count[DIGITS][DIGIT_VALUES])
+{
+  Value bitorkey = 0;
+  memset(count,0,COUNT_SIZE*sizeof(Index));
+  do {
+    Value val=*A;
+    bitorkey|=val;
+    COUNT_DIGIT_64(DIGITS,0);
+    // above macro expands to:
+    //if(DIGITS> 0) count[ 0][val&DIGIT_MASK]++, val>>=DIGIT_BITS;
+    //if(DIGITS> 1) count[ 1][val&DIGIT_MASK]++, val>>=DIGIT_BITS;
+    //  ...
+    //if(DIGITS>63) count[63][val&DIGIT_MASK]++, val>>=DIGIT_BITS;
+
+  } while(A+=stride,A!=end);
+  return bitorkey;
+}
 
 #undef COUNT_DIGIT_01
 #undef COUNT_DIGIT_02
@@ -522,151 +545,160 @@ namespace moab {
 #undef COUNT_DIGIT_32
 #undef COUNT_DIGIT_64
 
-  void TupleList::radix_offsets_long(uint *c)
-  {
-    uint sum=0, t, *ce=c+DIGIT_VALUES;
-    do t=*c, *c++ = sum, sum+=t; while(c!=ce);
-  }
+void TupleList::radix_offsets(Index *c)
+{
+  Index sum=0, t, *ce=c+DIGIT_VALUES;
+  do t=*c, *c++ = sum, sum+=t; while(c!=ce);
+}
 
-  unsigned TupleList::radix_zeros_long(ulong bitorkey, uint count[DIGITS][DIGIT_VALUES],
-				       unsigned *shift, uint **offsets)
-  {
-    unsigned digits=0, sh=0; uint *c = &count[0][0];
-    do {
-      if(bitorkey&DIGIT_MASK) *shift++ = sh, *offsets++ = c, ++digits,
-				radix_offsets_long(c);
-    } while(bitorkey>>=DIGIT_BITS,sh+=DIGIT_BITS,c+=DIGIT_VALUES,sh!=VALUE_BITS);
-    return digits;
-  }
+template<class Value>
+unsigned TupleList::radix_zeros(Value bitorkey, Index count[DIGITS][DIGIT_VALUES],
+                            unsigned *shift, Index **offsets)
+{
+  unsigned digits=0, sh=0; Index *c = &count[0][0];
+  do {
+    if(bitorkey&DIGIT_MASK) *shift++ = sh, *offsets++ = c, ++digits,
+                            radix_offsets(c);
+  } while(bitorkey>>=DIGIT_BITS,sh+=DIGIT_BITS,c+=DIGIT_VALUES,sh!=VALUE_BITS);
+  return digits;
+}
 
-  void TupleList::radix_index_pass_b_long(const ulong *A, uint n, uint stride,
-					  unsigned sh, uint *off, sort_data_long *out)
-  {
-    uint i=0;
-    do {
-      ulong v = *A;
-      sort_data_long *d = &out[off[(v>>sh)&DIGIT_MASK]++];
-      d->v=v, d->i=i++;
-    } while(A+=stride,i!=n);
-  }
+template<class Value>
+void TupleList::radix_index_pass_b(const Value *A, Index n, Index stride,
+                               unsigned sh, Index *off, SortData<Value> *out)
+{
+  Index i=0;
+  do {
+    Value v = *A;
+    SortData<Value> *d = &out[off[(v>>sh)&DIGIT_MASK]++];
+    d->v=v, d->i=i++;
+  } while(A+=stride,i!=n);
+}
 
-  void TupleList::radix_index_pass_m_long(const sort_data_long *src, const sort_data_long *end,
-					  unsigned sh, uint *off, sort_data_long *out)
-  {
-    do {
-      sort_data_long *d = &out[off[(src->v>>sh)&DIGIT_MASK]++];
-      d->v=src->v,d->i=src->i;
-    } while(++src!=end);
-  }
+template<class Value>
+void TupleList::radix_index_pass_m(const SortData<Value> *src, const SortData<Value> *end,
+                               unsigned sh, Index *off, SortData<Value> *out)
+{
+  do {
+    SortData<Value> *d = &out[off[(src->v>>sh)&DIGIT_MASK]++];
+    d->v=src->v,d->i=src->i;
+  } while(++src!=end);
+}
 
-  void TupleList::radix_index_pass_e_long(const sort_data_long *src, const sort_data_long *end,
-					  unsigned sh, uint *off,
-					  uint *out)
-  {
-    do out[off[(src->v>>sh)&DIGIT_MASK]++]=src->i; while(++src!=end);
-  }
+template<class Value>
+void TupleList::radix_index_pass_e(const SortData<Value> *src, const SortData<Value> *end,
+                               unsigned sh, Index *off,
+                               Index *out)
+{
+  do out[off[(src->v>>sh)&DIGIT_MASK]++]=src->i; while(++src!=end);
+}
 
-  void TupleList::radix_index_pass_be_long(const ulong *A, uint n, uint stride,
-					   unsigned sh, uint *off, uint *out)
-  {
-    uint i=0;
-    do out[off[(*A>>sh)&DIGIT_MASK]++]=i++; while(A+=stride,i!=n);
-  }
+template<class Value>
+void TupleList::radix_index_pass_be(const Value *A, Index n, Index stride,
+				    unsigned sh, Index *off, Index *out)
+{
+  Index i=0;
+  do out[off[(*A>>sh)&DIGIT_MASK]++]=i++; while(A+=stride,i!=n);
+}
 
-  void TupleList::radix_index_sort_long(const ulong *A, uint n, uint stride,
-					uint *idx, sort_data_long *work)
-  {
-    uint count[DIGITS][DIGIT_VALUES];
-    ulong bitorkey = radix_count_long(A, A+n*stride, stride, count);
-    unsigned shift[DIGITS]; uint *offsets[DIGITS];
-    unsigned digits = radix_zeros_long(bitorkey,count,shift,offsets);
-    if(digits==0) {
-      uint i=0; do *idx++=i++; while(i!=n);
-    } else if(digits==1) {
-      radix_index_pass_be_long(A,n,stride,shift[0],offsets[0],idx);
-    } else {
-      sort_data_long *src, *dst; unsigned d;
-      if((digits&1)==0) dst=work,src=dst+n;
-      else src=work,dst=src+n;
-      radix_index_pass_b_long(A,n,stride,shift[0],offsets[0],src);
-      for(d=1;d!=digits-1;++d) {
-	sort_data_long *t;
-	radix_index_pass_m_long(src,src+n,shift[d],offsets[d],dst);
-	t=src,src=dst,dst=t;
-      }
-      radix_index_pass_e_long(src,src+n,shift[d],offsets[d],idx);
+template<class Value>
+void TupleList::radix_index_sort(const Value *A, Index n, Index stride,
+				 Index *idx, SortData<Value> *work)
+{
+  Index count[DIGITS][DIGIT_VALUES];
+  Value bitorkey = radix_count(A, A+n*stride, stride, count);
+  unsigned shift[DIGITS]; Index *offsets[DIGITS];
+  unsigned digits = radix_zeros(bitorkey,count,shift,offsets);
+  if(digits==0) {
+    Index i=0; do *idx++=i++; while(i!=n);
+  } else if(digits==1) {
+    radix_index_pass_be(A,n,stride,shift[0],offsets[0],idx);
+  } else {
+    SortData<Value> *src, *dst; unsigned d;
+    if((digits&1)==0) dst=work,src=dst+n;
+                 else src=work,dst=src+n;
+    radix_index_pass_b(A,n,stride,shift[0],offsets[0],src);
+    for(d=1;d!=digits-1;++d) {
+      SortData<Value> *t;
+      radix_index_pass_m(src,src+n,shift[d],offsets[d],dst);
+      t=src,src=dst,dst=t;
     }
+    radix_index_pass_e(src,src+n,shift[d],offsets[d],idx);
   }
+}
 
-  void TupleList::merge_index_sort_long(const ulong *A, const uint An, uint stride,
-					uint *idx, sort_data_long *work)
-  {
-    sort_data_long *const buf[2]={work+An,work};
-    uint n=An, base=-n, odd=0, c=0, b=1;
-    uint i=0;
-    for(;;) {
-      sort_data_long *p;
-      if((c&1)==0) {
-	base+=n, n+=(odd&1), c|=1, b^=1;
-	while(n>3) odd<<=1,odd|=(n&1),n>>=1,c<<=1,b^=1;
-      } else
-	base-=n-(odd&1),n<<=1,n-=(odd&1),odd>>=1,c>>=1;
-      if(c==0) break;
-      p = buf[b]+base;
-      if(n==2) {
-	ulong v[2]; v[0]=*A,A+=stride,v[1]=*A,A+=stride;
-	if(v[1]<v[0]) p[0].v=v[1],p[0].i=i+1, p[1].v=v[0],p[1].i=i  ;
-	else p[0].v=v[0],p[0].i=i  , p[1].v=v[1],p[1].i=i+1;
-	i+=2;
-      } else if(n==3) {
-	ulong v[3]; v[0]=*A,A+=stride,v[1]=*A,A+=stride,v[2]=*A,A+=stride;
-	if(v[1]<v[0]) {
-	  if(v[2]<v[1])        p[0].v=v[2],p[1].v=v[1],p[2].v=v[0],
-				 p[0].i=i+2 ,p[1].i=i+1 ,p[2].i=i   ;
-	  else { if(v[2]<v[0]) p[0].v=v[1],p[1].v=v[2],p[2].v=v[0],
-				 p[0].i=i+1 ,p[1].i=i+2 ,p[2].i=i   ;
-	    else p[0].v=v[1],p[1].v=v[0],p[2].v=v[2],
-		   p[0].i=i+1 ,p[1].i=i   ,p[2].i=i+2 ; }
-	} else {
-	  if(v[2]<v[0])        p[0].v=v[2],p[1].v=v[0],p[2].v=v[1],
-				 p[0].i=i+2 ,p[1].i=i   ,p[2].i=i+1 ;
-	  else { if(v[2]<v[1]) p[0].v=v[0],p[1].v=v[2],p[2].v=v[1],
-				 p[0].i=i   ,p[1].i=i+2 ,p[2].i=i+1 ;
-	    else p[0].v=v[0],p[1].v=v[1],p[2].v=v[2],
-		   p[0].i=i   ,p[1].i=i+1 ,p[2].i=i+2 ; }
-	}
-	i+=3;
+template<class Value>
+void TupleList::merge_index_sort(const Value *A, const Index An, Index stride,
+				 Index *idx, SortData<Value> *work)
+{
+  SortData<Value> *const buf[2]={work+An,work};
+  Index n=An, base=-n, odd=0, c=0, b=1;
+  Index i=0;
+  for(;;) {
+    SortData<Value> *p;
+    if((c&1)==0) {
+      base+=n, n+=(odd&1), c|=1, b^=1;
+      while(n>3) odd<<=1,odd|=(n&1),n>>=1,c<<=1,b^=1;
+    } else
+      base-=n-(odd&1),n<<=1,n-=(odd&1),odd>>=1,c>>=1;
+    if(c==0) break;
+    p = buf[b]+base;
+    if(n==2) {
+      Value v[2]; v[0]=*A,A+=stride,v[1]=*A,A+=stride;
+      if(v[1]<v[0]) p[0].v=v[1],p[0].i=i+1, p[1].v=v[0],p[1].i=i  ;
+               else p[0].v=v[0],p[0].i=i  , p[1].v=v[1],p[1].i=i+1;
+      i+=2;
+    } else if(n==3) {
+      Value v[3]; v[0]=*A,A+=stride,v[1]=*A,A+=stride,v[2]=*A,A+=stride;
+      if(v[1]<v[0]) {
+        if(v[2]<v[1])        p[0].v=v[2],p[1].v=v[1],p[2].v=v[0],
+                             p[0].i=i+2 ,p[1].i=i+1 ,p[2].i=i   ;
+        else { if(v[2]<v[0]) p[0].v=v[1],p[1].v=v[2],p[2].v=v[0],
+                             p[0].i=i+1 ,p[1].i=i+2 ,p[2].i=i   ;
+                        else p[0].v=v[1],p[1].v=v[0],p[2].v=v[2],
+                             p[0].i=i+1 ,p[1].i=i   ,p[2].i=i+2 ; }
       } else {
-	const uint na = n>>1, nb = (n+1)>>1;
-	const sort_data_long *ap = buf[b^1]+base, *ae = ap+na;
-	sort_data_long *bp = p+na, *be = bp+nb;
-	for(;;) {
-	  if(bp->v<ap->v) {
-	    *p++=*bp++;
-	    if(bp!=be) continue;
-	    do *p++=*ap++; while(ap!=ae);
-	    break;
-	  } else {
-	    *p++=*ap++;
-	    if(ap==ae) break;
-	  }
-	}
+        if(v[2]<v[0])        p[0].v=v[2],p[1].v=v[0],p[2].v=v[1],
+                             p[0].i=i+2 ,p[1].i=i   ,p[2].i=i+1 ;
+        else { if(v[2]<v[1]) p[0].v=v[0],p[1].v=v[2],p[2].v=v[1],
+                             p[0].i=i   ,p[1].i=i+2 ,p[2].i=i+1 ;
+                        else p[0].v=v[0],p[1].v=v[1],p[2].v=v[2],
+                             p[0].i=i   ,p[1].i=i+1 ,p[2].i=i+2 ; }
+      }
+      i+=3;
+    } else {
+      const Index na = n>>1, nb = (n+1)>>1;
+      const SortData<Value> *ap = buf[b^1]+base, *ae = ap+na;
+      SortData<Value> *bp = p+na, *be = bp+nb;
+      for(;;) {
+        if(bp->v<ap->v) {
+          *p++=*bp++;
+          if(bp!=be) continue;
+          do *p++=*ap++; while(ap!=ae);
+          break;
+        } else {
+          *p++=*ap++;
+          if(ap==ae) break;
+        }
       }
     }
-    {
-      const sort_data_long *p = buf[0], *pe = p+An;
-      do *idx++ = (p++)->i; while(p!=pe);
-    }
   }
-  void TupleList::index_sort_long(const ulong *A, uint n, uint stride,
-				  uint *idx, sort_data_long *work)
   {
-    if(n<DIGIT_VALUES) {
-      if(n==0) return;
-      if(n==1) *idx=0;
-      else     merge_index_sort_long(A,n,stride,idx,work);
-    } else     radix_index_sort_long(A,n,stride,idx,work);
+    const SortData<Value> *p = buf[0], *pe = p+An;
+    do *idx++ = (p++)->i; while(p!=pe);
   }
+}
+
+template<class Value>
+void TupleList::index_sort(const Value *A, Index n, Index stride,
+			   Index *idx, SortData<Value> *work)
+{
+  if(n<DIGIT_VALUES) {
+    if(n==0) return;
+    if(n==1) *idx=0;
+    else     merge_index_sort(A,n,stride,idx,work);
+  } else     radix_index_sort(A,n,stride,idx,work);
+}
 
 #undef DIGIT_BITS
 #undef DIGIT_VALUES
@@ -675,231 +707,8 @@ namespace moab {
 #undef DIGITS
 #undef VALUE_BITS
 #undef COUNT_SIZE
+#undef sort_data_long
 
-  //Redefine for uint sorting
-#define DIGIT_BITS   8
-#define DIGIT_VALUES (1<<DIGIT_BITS)
-#define DIGIT_MASK   ((uint)(DIGIT_VALUES-1))
-#define CEILDIV(a,b) (((a)+(b)-1)/(b))
-#define DIGITS       CEILDIV(CHAR_BIT*sizeof(uint),DIGIT_BITS)
-#define VALUE_BITS   (DIGIT_BITS*DIGITS)
-#define COUNT_SIZE   (DIGITS*DIGIT_VALUES)
-
-  /* used to unroll a tiny loop: */
-#define COUNT_DIGIT_01(n,i)				\
-  if(n>i) count[i][val&DIGIT_MASK]++, val>>=DIGIT_BITS
-#define COUNT_DIGIT_02(n,i) COUNT_DIGIT_01(n,i); COUNT_DIGIT_01(n,i+ 1)
-#define COUNT_DIGIT_04(n,i) COUNT_DIGIT_02(n,i); COUNT_DIGIT_02(n,i+ 2)
-#define COUNT_DIGIT_08(n,i) COUNT_DIGIT_04(n,i); COUNT_DIGIT_04(n,i+ 4)
-#define COUNT_DIGIT_16(n,i) COUNT_DIGIT_08(n,i); COUNT_DIGIT_08(n,i+ 8)
-#define COUNT_DIGIT_32(n,i) COUNT_DIGIT_16(n,i); COUNT_DIGIT_16(n,i+16)
-#define COUNT_DIGIT_64(n,i) COUNT_DIGIT_32(n,i); COUNT_DIGIT_32(n,i+32)
-
-  //Radix Sort on uint key
-  uint TupleList::radix_count(const uint *A, const uint *end, uint stride,
-			      uint count[DIGITS][DIGIT_VALUES])
-  {
-    uint bitorkey = 0;
-    memset(count,0,COUNT_SIZE*sizeof(uint));
-    do {
-      uint val=*A;
-      bitorkey|=val;
-      COUNT_DIGIT_64(DIGITS,0);
-      /* above macro expands to:
-	 if(DIGITS> 0) count[ 0][val&DIGIT_MASK]++, val>>=DIGIT_BITS;
-	 if(DIGITS> 1) count[ 1][val&DIGIT_MASK]++, val>>=DIGIT_BITS;
-	 ...
-	 if(DIGITS>63) count[63][val&DIGIT_MASK]++, val>>=DIGIT_BITS;
-      */
-    } while(A+=stride,A!=end);
-    return bitorkey;
-  }
-
-#undef COUNT_DIGIT_01
-#undef COUNT_DIGIT_02
-#undef COUNT_DIGIT_04
-#undef COUNT_DIGIT_08
-#undef COUNT_DIGIT_16
-#undef COUNT_DIGIT_32
-#undef COUNT_DIGIT_64
-
-  void TupleList::radix_offsets(uint *c)
-  {
-    uint sum=0, t, *ce=c+DIGIT_VALUES;
-    do t=*c, *c++ = sum, sum+=t; while(c!=ce);
-  }
-
-  unsigned TupleList::radix_zeros(uint bitorkey, uint count[DIGITS][DIGIT_VALUES],
-				  unsigned *shift, uint **offsets)
-  {
-    unsigned digits=0, sh=0; uint *c = &count[0][0];
-    do {
-      if(bitorkey&DIGIT_MASK) *shift++ = sh, *offsets++ = c, ++digits,
-				radix_offsets(c);
-    } while(bitorkey>>=DIGIT_BITS,sh+=DIGIT_BITS,c+=DIGIT_VALUES,sh!=VALUE_BITS);
-    return digits;
-  }
-
-  void TupleList::radix_index_pass_b(const uint *A, uint n, uint stride,
-				     unsigned sh, uint *off, sort_data *out)
-  {
-    uint i=0;
-    do {
-      uint v = *A;
-      sort_data *d = &out[off[(v>>sh)&DIGIT_MASK]++];
-      d->v=v, d->i=i++;
-    } while(A+=stride,i!=n);
-  }
-
-  void TupleList::radix_index_pass_m(const sort_data *src, const sort_data *end,
-				     unsigned sh, uint *off, sort_data *out)
-  {
-    do {
-      sort_data *d = &out[off[(src->v>>sh)&DIGIT_MASK]++];
-      d->v=src->v,d->i=src->i;
-    } while(++src!=end);
-  }
-
-  void TupleList::radix_index_pass_e(const sort_data *src, const sort_data *end,
-				     unsigned sh, uint *off,
-				     uint *out)
-  {
-    do out[off[(src->v>>sh)&DIGIT_MASK]++]=src->i; while(++src!=end);
-  }
-
-  void TupleList::radix_index_pass_be(const uint *A, uint n, uint stride,
-				      unsigned sh, uint *off, uint *out)
-  {
-    uint i=0;
-    do out[off[(*A>>sh)&DIGIT_MASK]++]=i++; while(A+=stride,i!=n);
-  }
-
-  void TupleList::radix_index_sort(const uint *A, uint n, uint stride,
-				   uint *idx, sort_data *work)
-  {
-    uint count[DIGITS][DIGIT_VALUES];
-    uint bitorkey = radix_count(A, A+n*stride, stride, count);
-    unsigned shift[DIGITS]; uint *offsets[DIGITS];
-    unsigned digits = radix_zeros(bitorkey,count,shift,offsets);
-    if(digits==0) {
-      uint i=0; do *idx++=i++; while(i!=n);
-    } else if(digits==1) {
-      radix_index_pass_be(A,n,stride,shift[0],offsets[0],idx);
-    } else {
-      sort_data *src, *dst; unsigned d;
-      if((digits&1)==0) dst=work,src=dst+n;
-      else src=work,dst=src+n;
-      radix_index_pass_b(A,n,stride,shift[0],offsets[0],src);
-      for(d=1;d!=digits-1;++d) {
-	sort_data *t;
-	radix_index_pass_m(src,src+n,shift[d],offsets[d],dst);
-	t=src,src=dst,dst=t;
-      }
-      radix_index_pass_e(src,src+n,shift[d],offsets[d],idx);
-    }
-  }
-
-  void TupleList::merge_index_sort(const uint *A, const uint An, uint stride,
-				   uint *idx, sort_data *work)
-  {
-    sort_data *const buf[2]={work+An,work};
-    uint n=An, base=-n, odd=0, c=0, b=1;
-    uint i=0;
-    for(;;) {
-      sort_data *p;
-      if((c&1)==0) {
-	base+=n, n+=(odd&1), c|=1, b^=1;
-	while(n>3) odd<<=1,odd|=(n&1),n>>=1,c<<=1,b^=1;
-      } else
-	base-=n-(odd&1),n<<=1,n-=(odd&1),odd>>=1,c>>=1;
-      if(c==0) break;
-      p = buf[b]+base;
-      if(n==2) {
-	uint v[2]; v[0]=*A,A+=stride,v[1]=*A,A+=stride;
-	if(v[1]<v[0]) p[0].v=v[1],p[0].i=i+1, p[1].v=v[0],p[1].i=i  ;
-	else p[0].v=v[0],p[0].i=i  , p[1].v=v[1],p[1].i=i+1;
-	i+=2;
-      } else if(n==3) {
-	uint v[3]; v[0]=*A,A+=stride,v[1]=*A,A+=stride,v[2]=*A,A+=stride;
-	if(v[1]<v[0]) {
-	  if(v[2]<v[1])        p[0].v=v[2],p[1].v=v[1],p[2].v=v[0],
-				 p[0].i=i+2 ,p[1].i=i+1 ,p[2].i=i   ;
-	  else { if(v[2]<v[0]) p[0].v=v[1],p[1].v=v[2],p[2].v=v[0],
-				 p[0].i=i+1 ,p[1].i=i+2 ,p[2].i=i   ;
-	    else p[0].v=v[1],p[1].v=v[0],p[2].v=v[2],
-		   p[0].i=i+1 ,p[1].i=i   ,p[2].i=i+2 ; }
-	} else {
-	  if(v[2]<v[0])        p[0].v=v[2],p[1].v=v[0],p[2].v=v[1],
-				 p[0].i=i+2 ,p[1].i=i   ,p[2].i=i+1 ;
-	  else { if(v[2]<v[1]) p[0].v=v[0],p[1].v=v[2],p[2].v=v[1],
-				 p[0].i=i   ,p[1].i=i+2 ,p[2].i=i+1 ;
-	    else p[0].v=v[0],p[1].v=v[1],p[2].v=v[2],
-		   p[0].i=i   ,p[1].i=i+1 ,p[2].i=i+2 ; }
-	}
-	i+=3;
-      } else {
-	const uint na = n>>1, nb = (n+1)>>1;
-	const sort_data *ap = buf[b^1]+base, *ae = ap+na;
-	sort_data *bp = p+na, *be = bp+nb;
-	for(;;) {
-	  if(bp->v<ap->v) {
-	    *p++=*bp++;
-	    if(bp!=be) continue;
-	    do *p++=*ap++; while(ap!=ae);
-	    break;
-	  } else {
-	    *p++=*ap++;
-	    if(ap==ae) break;
-	  }
-	}
-      }
-    }
-    {
-      const sort_data *p = buf[0], *pe = p+An;
-      do *idx++ = (p++)->i; while(p!=pe);
-    }
-  }
-
-  void TupleList::index_sort(const uint *A, uint n, uint stride,
-			     uint *idx, sort_data *work)
-  {
-    if(n<DIGIT_VALUES) {
-      if(n==0) return;
-      if(n==1) *idx=0;
-      else     merge_index_sort(A,n,stride,idx,work);
-    } else     radix_index_sort(A,n,stride,idx,work);
-  }
-
-  void TupleList::print(std::string name) const
-  {
-    std::cout<<"Printing Tuple " << name << "==================="<<std::endl;
-    unsigned long i=0,l=0,ul=0,r=0;
-    for(uint k=0; k<n; k++){
-      for(uint j=0; j<mi; j++){
-	std::cout<<vi[i++]<<" | ";
-      }
-      for(uint j=0; j<ml; j++){
-	std::cout<<vl[l++]<<" | ";
-      }
-      for(uint j=0; j<mul; j++){
-	std::cout<<vul[ul++]<<" | ";
-      }
-      for(uint j=0; j<mr; j++){
-	std::cout<<vr[r++]<<" | ";
-      }
-      std::cout<<std::endl;
-    }
-    std::cout<<"======================================="<<std::endl<<std::endl;
-  }
-
-
-#undef DIGIT_BITS
-#undef DIGIT_VALUES
-#undef DIGIT_MASK
-#undef CEILDIV
-#undef DIGITS
-#undef VALUE_BITS
-#undef COUNT_SIZE
 
 } //namespace
 

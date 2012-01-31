@@ -17,6 +17,8 @@
 #include <sstream>
 #include "moab/Skinner.hpp"
 
+//Should we print out info on the merged mesh?
+#define PrintInfo false
 /*  
     Parmerge
     Takes multiple mesh files and merges them into a single output file.
@@ -114,7 +116,7 @@ int main(int argc, char * argv[])
     return 1;
   }
 
-  print_output(pc, mb, myID, numprocs, false);
+  print_output(pc, mb, myID, numprocs, PrintInfo);
 
   //Write out the file
   rval = mb->write_file(outfile.c_str() , 0,"PARALLEL=WRITE_PART");
@@ -146,8 +148,9 @@ void print_output(moab::ParallelComm *pc, moab::Core *mb,
   moab::Range ents, skin;
   int o_ct=0, no_ct=0, tmp=0, o_tot=0, no_tot=0;
   if(perform){
-    //Check the count of vertices
-    mb->get_entities_by_dimension(0,3,ents);
+    if(myID==0)std::cout<<"------------------------------------------"<<std::endl;
+    //Check the count of total vertices
+    mb->get_entities_by_dimension(0,0,ents);
     for(moab::Range::iterator rit = ents.begin(); rit != ents.end(); rit++){
       pc->get_owner(*rit, tmp);
       if(tmp==myID){
@@ -159,7 +162,7 @@ void print_output(moab::ParallelComm *pc, moab::Core *mb,
       std::cout<<"There are " << o_tot << " vertices."<<std::endl;
       std::cout<<"------------------------------------------"<<std::endl;
     }
-    //Check the count of ownded and not owned skin faces.
+    //Check the count of owned and not owned skin faces.
     //owned-not owned == total skin faces
     moab::Skinner skinner(mb);
     o_ct=0; no_ct=0; o_tot=0; no_tot=0;

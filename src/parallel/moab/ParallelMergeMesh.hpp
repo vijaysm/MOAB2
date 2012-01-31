@@ -25,7 +25,7 @@ namespace moab {
     ParallelMergeMesh(ParallelComm *pc, 
 		      const double epsilon);
     
-    //Public Function to identified shared elements
+    //Public Function to identify shared elements
     ErrorCode merge();
     
   private:
