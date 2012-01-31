@@ -19,6 +19,7 @@
 #include <stdlib.h>
 
 #include "moab/Types.hpp"
+#include <string>
 
 /* Integral types defined here to ensure variable type sizes are consistent */
 /* integer type to use for everything */
