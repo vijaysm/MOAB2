@@ -34,8 +34,8 @@ if PARALLEL
      ReadParallel.hpp \
      SharedSetData.cpp \
      SharedSetData.hpp \
-     gs.cpp gs.hpp TupleList.cpp \
-     TupleList.hpp 
+     gs.cpp \
+     TupleList.cpp
      
 
 # The list of header files which are to be installed
@@ -46,7 +46,9 @@ if PARALLEL
      moab/ParallelMergeMesh.hpp \
      moab/ProcConfig.hpp \
      moab/ParallelData.hpp \
-     MBParallelConventions.h
+     MBParallelConventions.h \
+     moab/gs.hpp \
+     moab/TupleList.hpp
 
 if PARALLEL_HDF5
 #  libMOABpar_la_LIBADD = $(top_builddir)/mhdf/libmhdf.la
