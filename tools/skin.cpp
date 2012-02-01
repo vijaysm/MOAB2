@@ -366,12 +366,6 @@ int main( int argc, char* argv[] )
     result = iface->add_entities(skin_set, reverse_lower);
     if (MB_SUCCESS != result) return 1;
 
-    Range this_range, ent_range;
-    result = iface->get_entities_by_type_and_tag(0, MBENTITYSET, &matset_tag,
-                                                  NULL, 0, this_range);
-    if (MB_SUCCESS != result) return 1;
-    if (!this_range.empty()) iface->delete_entities(this_range);
-
     int dum = 10000;
     result = iface->tag_set_data(matset_tag, &skin_set, 1, &dum);
     if (MB_SUCCESS != result) return 1;
