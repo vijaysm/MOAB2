@@ -270,9 +270,11 @@ void iMesh_createStructuredMesh(
         iMesh_Instance instance,
           /**< [in] iMesh instance handle */
         int *local_dims,
-          /**< [in] Min/max corners of local ijk parameters, -1 for unused dimensions */
+          /**< [in] Min/max corners of local ijk parameters, -1 for unused dimensions; specified as
+                    ilo, jlo, klo, ihi, jhi, khi. */
         int *global_dims,
-          /**< [in] Min/max corners of global ijk parameters, -1 for unused dimensions; NULL if running in serial. */
+          /**< [in] Min/max corners of global ijk parameters, -1 for unused dimensions; NULL if running in serial. 
+                    Order similar to local_dims. */
         double *i_vals,
           /**< [in] Physical positions of i values, NULL if not placed in physical space. */
         double *j_vals,
