@@ -411,7 +411,7 @@ namespace moab {
     n = n_in;
   }
 
-  void TupleList::print(std::string name) const
+  void TupleList::print(const char *name) const
   {
     std::cout<<"Printing Tuple " << name << "==================="<<std::endl;
     unsigned long i=0,l=0,ul=0,r=0;

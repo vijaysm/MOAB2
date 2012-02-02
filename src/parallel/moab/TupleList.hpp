@@ -297,7 +297,7 @@ namespace moab
      * returns current TupleList.n after the increment */
     uint inc_n();
     
-    void print(std::string = "") const;
+    void print(const char *) const;
 
     //Variables to allow for direct write access
     sint *vi_wr; slong *vl_wr; ulong *vul_wr; real *vr_wr;

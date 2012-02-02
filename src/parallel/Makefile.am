@@ -40,6 +40,7 @@ if PARALLEL
 
 # The list of header files which are to be installed
   MOAB_PARALLEL_HDRS += \
+     moab/gs.hpp \
      moab_mpi.h \
      moab_mpi_config.h \
      moab/ParallelComm.hpp \

@@ -1,6 +1,11 @@
 #include "moab/Core.hpp"
 #include "moab/Interface.hpp"
 #include "moab/Range.hpp"
+
+#ifdef USE_MPI
+#include "moab_mpi.h"
+#endif
+
 #include <iostream>
 
 int main(int argc, char **argv) {
@@ -20,7 +25,7 @@ int main(int argc, char **argv) {
     std::cout << "Usage: " << argv[0] << "[-p] <filename>" << std::endl;
     return 0;
   }
-  
+
   if (parallel) 
     rval = mb->load_file(argv[argc-1], 0, par_opt);
   else
@@ -67,6 +72,16 @@ int main(int argc, char **argv) {
     // print the sets
   rval = mb->list_entities(sets);
   if (moab::MB_SUCCESS != rval) return 1;
+
+  rval = mb->list_entities(NULL, 1);
+  
+#ifdef USE_MPI
+  if (parallel) {
+    MPI_Barrier(MPI_COMM_WORLD);
+    std::cout << std::flush;
+    std::cerr << std::flush;
+  }
+#endif
 
   delete mb;
 }

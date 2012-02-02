@@ -16,6 +16,7 @@ check_PROGRAMS = FileRead \
 LDADD = ../src/libMOAB.la
 AM_CPPFLAGS += -I../src \
                -I$(srcdir)/../src \
+               -I$(srcdir)/../src/parallel \
                -I$(srcdir)/../src/oldinc
 
 FileRead_SOURCES = FileRead.cpp
