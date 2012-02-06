@@ -48,7 +48,6 @@ if PARALLEL
      moab/ProcConfig.hpp \
      moab/ParallelData.hpp \
      MBParallelConventions.h \
-     moab/gs.hpp \
      moab/TupleList.hpp
 
 if PARALLEL_HDF5
