@@ -701,6 +701,125 @@ namespace moab {
 #endif
   }
 
+ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
+                                      std::vector<Range*>& send_ents,
+                                      int& incoming1, int& incoming2,
+                                      const bool store_remote_handles)
+{
+#ifdef USE_MPE
+  if (myDebug->get_verbosity() == 2) {
+    MPE_Log_event(OWNED_START, procConfig.proc_rank(), "Starting send entities.");
+  }
+#endif
+  myDebug->tprintf(1, "Entering send_entities\n");
+  if (myDebug->get_verbosity() == 4) {
+    msgs.clear();
+    msgs.reserve(MAX_SHARING_PROCS);
+  }
+
+  unsigned int i;
+  int ind, success;
+  ErrorCode result = MB_SUCCESS;
+
+  // set buffProcs with communicating procs
+  unsigned int n_proc = send_procs.size();
+  for (i = 0; i < n_proc; i++) {
+    ind = get_buffers(send_procs[i]);
+    result = add_verts(*send_ents[i]);
+    RRA("Couldn't add verts.");
+
+    // filter out entities already shared with destination
+    Range tmp_range;
+    result = filter_pstatus(*send_ents[i], PSTATUS_SHARED, PSTATUS_AND,
+                            buffProcs[ind], &tmp_range);
+    RRA("Couldn't filter on owner.");
+    if (!tmp_range.empty()) {
+      *send_ents[i] = subtract(*send_ents[i], tmp_range);
+    }
+  }
+ 
+  //===========================================
+  // get entities to be sent to neighbors
+  // need to get procs each entity is sent to
+  //===========================================  
+  Range allsent, tmp_range;
+  int dum_ack_buff;
+  int npairs = 0;
+  TupleList entprocs;
+  for (i = 0; i < n_proc; i++) {
+    int n_ents = send_ents[i]->size();
+    if (n_ents > 0) {
+      npairs += n_ents; // get the total # of proc/handle pairs
+      allsent.merge(*send_ents[i]);
+    }
+  }
+
+  // allocate a TupleList of that size
+  entprocs.initialize(1, 0, 1, 0, npairs); 
+  entprocs.enableWriteAccess();
+
+  // put the proc/handle pairs in the list
+  for (i = 0; i < n_proc; i++) {
+    for (Range::iterator rit = send_ents[i]->begin(); rit != send_ents[i]->end(); rit++) { 
+      entprocs.vi_wr[entprocs.get_n()] = send_procs[i];
+      entprocs.vul_wr[entprocs.get_n()] = *rit; 
+      entprocs.inc_n(); 
+    } 
+  }
+  
+  // sort by handle
+  moab::TupleList::buffer sort_buffer; 
+  sort_buffer.buffer_init(npairs); 
+  entprocs.sort(1, &sort_buffer);
+  entprocs.disableWriteAccess();
+  sort_buffer.reset(); 
+
+  myDebug->tprintf(1, "allsent ents compactness (size) = %f (%lu)\n", allsent.compactness(),
+                  (unsigned long)allsent.size());
+
+  //===========================================
+  // pack and send ents from this proc to others
+  //===========================================
+  for (i = 0; i < n_proc; i++) {
+    if (send_ents[i]->size() > 0) {
+      ind = get_buffers(send_procs[i]);
+      myDebug->tprintf(1, "Sent ents compactness (size) = %f (%lu)\n", send_ents[i]->compactness(),
+                       (unsigned long)send_ents[i]->size());
+      // reserve space on front for size and for initial buff size
+      localOwnedBuffs[ind]->reset_buffer(sizeof(int));
+      result = pack_buffer(*send_ents[i], false, true,
+                           store_remote_handles, buffProcs[ind],
+                           localOwnedBuffs[ind], &entprocs, &allsent);
+      
+      if (myDebug->get_verbosity() == 4) {
+        msgs.resize(msgs.size()+1);
+        msgs.back() = new Buffer(*localOwnedBuffs[ind]);
+      }
+      
+      // send the buffer (size stored in front in send_buffer)
+      result = send_buffer(send_procs[i], localOwnedBuffs[ind], 
+                           MB_MESG_ENTS_SIZE, sendReqs[2*ind], 
+                           recvReqs[2*ind+1],
+                           &ackbuff,
+                           incoming1,
+                           MB_MESG_REMOTEH_SIZE, 
+                           (store_remote_handles ? 
+                            localOwnedBuffs[ind] : NULL),
+                           &recvRemotehReqs[2*ind], &incoming2);
+      RRA("Failed to Isend in ghost send.");
+    }
+  }
+  entprocs.reset();
+
+#ifdef USE_MPE
+  if (myDebug->get_verbosity() == 2) {
+    MPE_Log_event(ENTITIES_END, procConfig.proc_rank(), "Ending send_entities.");
+  }
+#endif
+
+  return MB_SUCCESS;
+}
+
   ErrorCode ParallelComm::recv_entities(const int from_proc,
 					const bool store_remote_handles,
 					const bool is_iface,
@@ -742,6 +861,200 @@ namespace moab {
   
 #endif
   }
+
+ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
+                                      int incoming1, int incoming2,
+                                      const bool store_remote_handles,
+                                      const bool migrate)
+{
+  //===========================================
+  // receive/unpack new entities
+  //===========================================
+  // number of incoming messages is the number of procs we communicate with
+  int success, ind, i;
+  ErrorCode result;
+  MPI_Status status;
+  std::vector<std::vector<EntityHandle> > recd_ents(buffProcs.size());
+  std::vector<std::vector<EntityHandle> > L1hloc(buffProcs.size()), L1hrem(buffProcs.size());
+  std::vector<std::vector<int> > L1p(buffProcs.size());
+  std::vector<EntityHandle> L2hloc, L2hrem;
+  std::vector<unsigned int> L2p;
+  std::vector<EntityHandle> new_ents;
+
+  while (incoming1) {
+    // wait for all recvs of ents before proceeding to sending remote handles,
+    // b/c some procs may have sent to a 3rd proc ents owned by me;
+    PRINT_DEBUG_WAITANY(recvReqs, MB_MESG_ENTS_SIZE, procConfig.proc_rank());
+    
+    success = MPI_Waitany(2*buffProcs.size(), &recvReqs[0], &ind, &status);
+    if (MPI_SUCCESS != success) {
+      result = MB_FAILURE;
+      RRA("Failed in waitany in owned entity exchange.");
+    }
+    
+    PRINT_DEBUG_RECD(status);
+    
+    // ok, received something; decrement incoming counter
+    incoming1--;
+    bool done = false;
+
+    // In case ind is for ack, we need index of one before it
+    unsigned int base_ind = 2*(ind/2);
+    result = recv_buffer(MB_MESG_ENTS_SIZE,
+                         status,
+                         remoteOwnedBuffs[ind/2],
+                         recvReqs[ind], recvReqs[ind+1],
+                         incoming1,
+                         localOwnedBuffs[ind/2], sendReqs[base_ind], sendReqs[base_ind+1],
+                         done,
+                         (store_remote_handles ? 
+                          localOwnedBuffs[ind/2] : NULL),
+                         MB_MESG_REMOTEH_SIZE,
+                         &recvRemotehReqs[base_ind], &incoming2);
+    RRA("Failed to receive buffer.");
+
+    if (done) {
+      if (myDebug->get_verbosity() == 4) {
+        msgs.resize(msgs.size()+1);
+        msgs.back() = new Buffer(*remoteOwnedBuffs[ind/2]);
+      }
+      
+      // message completely received - process buffer that was sent
+      remoteOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
+      result = unpack_buffer(remoteOwnedBuffs[ind/2]->buff_ptr,
+                             store_remote_handles, buffProcs[ind/2], ind/2,
+                             L1hloc, L1hrem, L1p, L2hloc, L2hrem, L2p,
+                             new_ents, true);
+      if (MB_SUCCESS != result) {
+        std::cout << "Failed to unpack entities.  Buffer contents:" << std::endl;
+        print_buffer(remoteOwnedBuffs[ind/2]->mem_ptr, MB_MESG_ENTS_SIZE, buffProcs[ind/2], false);
+        return result;
+      }
+
+      if (recvReqs.size() != 2*buffProcs.size()) {
+        // post irecv's for remote handles from new proc
+        recvRemotehReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
+        for (i = recvReqs.size(); i < 2*buffProcs.size(); i+=2) {
+          localOwnedBuffs[i/2]->reset_buffer();
+          incoming2++;
+          PRINT_DEBUG_IRECV(procConfig.proc_rank(), buffProcs[i/2], 
+                            localOwnedBuffs[i/2]->mem_ptr, INITIAL_BUFF_SIZE,
+                            MB_MESG_REMOTEH_SIZE, incoming2);
+          success = MPI_Irecv(localOwnedBuffs[i/2]->mem_ptr, INITIAL_BUFF_SIZE, 
+                              MPI_UNSIGNED_CHAR, buffProcs[i/2],
+                              MB_MESG_REMOTEH_SIZE, procConfig.proc_comm(), 
+                              &recvRemotehReqs[i]);
+          if (success != MPI_SUCCESS) {
+            result = MB_FAILURE;
+            RRA("Failed to post irecv for remote handles in ghost exchange.");
+          }
+        }
+        recvReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
+        sendReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
+      }
+    }
+  }
+
+  // assign and remove newly created elements from/to receive processor
+  result = assign_entities_part(new_ents, procConfig.proc_rank());
+  RRA("Failed to assign entities to part.");
+  if (migrate) {
+    //result = remove_entities_part(allsent, procConfig.proc_rank());
+    RRA("Failed to remove entities to part.");
+  }
+
+  // add requests for any new addl procs
+  if (recvReqs.size() != 2*buffProcs.size()) {
+    // shouldn't get here...
+    result = MB_FAILURE;
+    RRA("Requests length doesn't match proc count in entity exchange.");
+  }
+
+#ifdef USE_MPE
+  if (myDebug->get_verbosity() == 2) {
+    MPE_Log_event(ENTITIES_END, procConfig.proc_rank(), "Ending recv entities.");
+  }
+#endif
+
+  //===========================================
+  // send local handles for new entity to owner
+  //===========================================
+  int dum_ack_buff;
+  std::set<unsigned int>::iterator it = recv_procs.begin();
+  std::set<unsigned int>::iterator eit = recv_procs.end();
+  for (; it != eit; it++) {
+    ind = get_buffers(*it);
+    // reserve space on front for size and for initial buff size
+    remoteOwnedBuffs[ind]->reset_buffer(sizeof(int));
+    
+    result = pack_remote_handles(L1hloc[ind], L1hrem[ind], L1p[ind],
+                                 buffProcs[ind], remoteOwnedBuffs[ind]);
+    RRA("Failed to pack remote handles.");
+    remoteOwnedBuffs[ind]->set_stored_size();
+
+    if (myDebug->get_verbosity() == 4) {
+      msgs.resize(msgs.size()+1);
+      msgs.back() = new Buffer(*remoteOwnedBuffs[ind]);
+    }
+    result = send_buffer(buffProcs[ind], remoteOwnedBuffs[ind], 
+                         MB_MESG_REMOTEH_SIZE, 
+                         sendReqs[2*ind], recvRemotehReqs[2*ind+1],
+                         &ackbuff,
+                         incoming2);
+    RRA("Failed to send remote handles.");
+  }
+
+  //===========================================
+  // process remote handles of my ghosteds
+  //===========================================
+  while (incoming2) {
+    PRINT_DEBUG_WAITANY(recvRemotehReqs, MB_MESG_REMOTEH_SIZE, procConfig.proc_rank());
+    success = MPI_Waitany(2*buffProcs.size(), &recvRemotehReqs[0], &ind, &status);
+    if (MPI_SUCCESS != success) {
+      result = MB_FAILURE;
+      RRA("Failed in waitany in owned entity exchange.");
+    }
+
+    // ok, received something; decrement incoming counter
+    incoming2--;
+    
+    PRINT_DEBUG_RECD(status);
+    bool done = false;
+    unsigned int base_ind = 2*(ind/2);
+    result = recv_buffer(MB_MESG_REMOTEH_SIZE, status, 
+                         localOwnedBuffs[ind/2], 
+                         recvRemotehReqs[ind], recvRemotehReqs[ind+1], incoming2,
+                         remoteOwnedBuffs[ind/2], 
+                         sendReqs[base_ind], sendReqs[base_ind+1],
+                         done);
+    RRA("Failed to receive remote handles.");
+
+    if (done) {
+      // incoming remote handles
+      if (myDebug->get_verbosity() == 4) {
+        msgs.resize(msgs.size()+1);
+        msgs.back() = new Buffer(*localOwnedBuffs[ind]);
+      }
+    
+      localOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
+      result = unpack_remote_handles(buffProcs[ind/2], 
+                                     localOwnedBuffs[ind/2]->buff_ptr,
+                                     L2hloc, L2hrem, L2p);
+      RRA("Failed to unpack remote handles.");
+    }
+  }
+
+#ifdef USE_MPE
+  if (myDebug->get_verbosity() == 2) {
+    MPE_Log_event(RHANDLES_END, procConfig.proc_rank(), "Ending remote handles.");
+    MPE_Log_event(OWNED_END, procConfig.proc_rank(), 
+                  "Ending recv entities (still doing checks).");
+  }
+#endif
+  myDebug->tprintf(1, "Exiting recv_entities.\n");
+
+  return MB_SUCCESS;
+}
 
   ErrorCode ParallelComm::recv_messages(const int from_proc,
 					const bool store_remote_handles,
@@ -5727,8 +6040,50 @@ namespace moab {
       }
     }
 
-    return MB_SUCCESS;
+  return MB_SUCCESS;
+}
+
+ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
+                                   std::set<unsigned int>& recv_procs)
+{
+  // set buffers
+  int num = shared_procs.size();
+  for (int i = 0; i < num; i++) get_buffers(shared_procs[i]);
+  reset_all_buffers();
+  num = remoteOwnedBuffs.size();
+  for (int i = 0; i < num; i++) remoteOwnedBuffs[i]->set_stored_size();
+  num = localOwnedBuffs.size();
+  for (int i = 0; i < num; i++) localOwnedBuffs[i]->set_stored_size();
+
+  // post ghost irecv's for entities from all communicating procs
+  // index reqs the same as buffer/sharing procs indices
+  int success;
+  ErrorCode result;
+  recvReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
+  recvRemotehReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
+  sendReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
+
+  int incoming = 0;
+  std::set<unsigned int>::iterator it = recv_procs.begin();
+  std::set<unsigned int>::iterator eit = recv_procs.end();
+  for (; it != eit; it++) {
+    int ind = get_buffers(*it);
+    incoming++;
+    PRINT_DEBUG_IRECV(procConfig.proc_rank(), buffProcs[ind], 
+                      remoteOwnedBuffs[ind]->mem_ptr, INITIAL_BUFF_SIZE, 
+                      MB_MESG_ENTS_SIZE, incoming);
+    success = MPI_Irecv(remoteOwnedBuffs[ind]->mem_ptr, INITIAL_BUFF_SIZE, 
+                        MPI_UNSIGNED_CHAR, buffProcs[ind],
+                        MB_MESG_ENTS_SIZE, procConfig.proc_comm(), 
+                        &recvReqs[2*ind]);
+    if (success != MPI_SUCCESS) {
+      result = MB_FAILURE;
+      RRA("Failed to post irecv in owned entity exchange.");
+    }
   }
+
+  return MB_SUCCESS;
+}
 
   ErrorCode ParallelComm::exchange_owned_meshs(std::vector<unsigned int>& exchange_procs,
 					       std::vector<Range*>& exchange_ents,

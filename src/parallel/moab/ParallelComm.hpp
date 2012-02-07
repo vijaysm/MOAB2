@@ -150,6 +150,11 @@ namespace moab {
 			    TupleList& entprocs, // newly added
 			    std::vector<MPI_Request> &recv_remoteh_reqs, // newly added
 			    bool wait_all = true);
+
+  ErrorCode send_entities(std::vector<unsigned int>& send_procs,
+                          std::vector<Range*>& send_ents,
+                          int& incoming1, int& incoming2,
+                          const bool store_remote_handles);
   
     /** \brief Receive entities from another processor, optionally waiting until it's done
      *
@@ -177,6 +182,11 @@ namespace moab {
 			    std::vector<MPI_Request> &recv_remoteh_reqs,
 			    bool wait_all = true);
 
+  ErrorCode recv_entities(std::set<unsigned int>& recv_procs,
+                          int incoming1, int incoming2,
+                          const bool store_remote_handles,
+                          const bool migrate = false);
+  
     /** \brief Receive messages from another processor in while loop
      *
      * Receive messages from another processor.  
@@ -243,6 +253,9 @@ namespace moab {
      * \param exchange_procs processor vector exchanged
      */
     ErrorCode post_irecv(std::vector<unsigned int>& exchange_procs);
+
+  ErrorCode post_irecv(std::vector<unsigned int>& shared_procs,
+                       std::set<unsigned int>& recv_procs);
   
     /** \brief Exchange owned mesh for input mesh entities and sets
      * This function should be called collectively over the communicator for this ParallelComm.
