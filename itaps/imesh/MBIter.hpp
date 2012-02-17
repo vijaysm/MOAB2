@@ -54,13 +54,60 @@ struct iBase_EntityArrIterator_Private
     }
 };
 
+// step_iterator will safely step forward N steps in a iterator. We specialize
+// for random-access iterators (vectors and Ranges) so that they perform better.
+
+template <typename T>
+ErrorCode step_iterator(T &curr, const T &end, int num_steps, bool &at_end) 
+{
+  if (0 > num_steps) return MB_FAILURE;
+
+  while (num_steps && curr != end) {
+    num_steps--;
+    curr++;
+  }
+  at_end = (curr == end);
+  return MB_SUCCESS;
+}
+
+template <typename T>
+ErrorCode step_iterator(typename std::vector<T>::const_iterator &curr,
+                        const typename std::vector<T>::const_iterator &end,
+                        int num_steps, bool &at_end) 
+{
+  if (0 > num_steps) return MB_FAILURE;
+
+  assert(curr <= end); // Sanity check
+  at_end = (end - curr <= num_steps);
+
+  if (at_end)
+    curr = end;
+  else
+    curr += num_steps;
+  return MB_SUCCESS;
+}
+
+ErrorCode step_iterator(Range::const_iterator &curr, 
+                        const Range::const_iterator &end, int num_steps,
+                        bool &at_end) 
+{
+  if (0 > num_steps) return MB_FAILURE;
+
+  at_end = (end - curr <= num_steps);
+
+  if (at_end)
+    curr = end;
+  else
+    curr += num_steps;
+  return MB_SUCCESS;
+}
 
 template <class Container> class MBIter : public iBase_EntityArrIterator_Private 
 {
   protected:
     Container iterData;
     typename Container::const_iterator iterPos;
-    
+      
   public:
     MBIter( iBase_EntityType type,
             iMesh_EntityTopology topology,
@@ -68,34 +115,25 @@ template <class Container> class MBIter : public iBase_EntityArrIterator_Private
             int array_size )
       : iBase_EntityArrIterator_Private( type, topology, set, array_size ),
         iterPos(iterData.end()) {}
-    
+      
     ~MBIter() {}
 
-  typename Container::const_iterator position() const {return iterPos;};
+    typename Container::const_iterator position() const {return iterPos;};
 
-  typename Container::const_iterator end() const {return iterData.end();};
+    typename Container::const_iterator end() const {return iterData.end();};
 
-  ErrorCode step(int num_steps, bool &at_end) 
-      {
-        if (0 > num_steps) return MB_FAILURE;
-        
-        while (num_steps && iterPos != iterData.end()) {
-          num_steps--;
-          iterPos++;
-        }
-        if (iterData.end() == iterPos) at_end = true;
-        else at_end = false;
-
-        return MB_SUCCESS;
-      }
-  
+    ErrorCode step(int num_steps, bool &at_end)
+    {
+      return step_iterator(iterPos, end(), num_steps, at_end);
+    }
+    
     void get_entities( Core* mb, EntityHandle* array, int& count )
     {
       for (count = 0; count < arrSize && iterPos != iterData.end(); ++iterPos)
         if (mb->is_valid(*iterPos))
           array[count++] = *iterPos;
     }
-    
+      
     virtual ErrorCode reset( Interface* mb ) {
       ErrorCode result;
       iterData.clear();
@@ -117,8 +155,7 @@ template <class Container> class MBIter : public iBase_EntityArrIterator_Private
       }
       iterPos = iterData.begin();
       return result;
-    }
-    
+    }  
 };
 
 typedef MBIter< std::vector<EntityHandle> > MBListIter;
