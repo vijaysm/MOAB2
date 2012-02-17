@@ -3225,16 +3225,15 @@ void iMesh_createStructuredMesh(iMesh_Instance instance,
 
   if (set_handle) {
     if (!(*set_handle)) {
-        // make a new set
-      EntityHandle tmp_set;
-      rval = MOABI->create_meshset(MESHSET_SET, tmp_set);
-      CHKERR(rval, "Couldn't create entity set.");
-      *set_handle = (iBase_EntitySetHandle)tmp_set;
+        // return the new ScdBox's set
+      *set_handle = reinterpret_cast<iBase_EntitySetHandle>(scd_box->box_set());
     }
-
-      // add box set and new vertices, elements to the file set
-    rval = MOABI->add_entities(ENTITY_HANDLE(*set_handle), tmp_range);
-    CHKERR(rval, "Couldn't add new vertices to file set.");
+    else{
+      // add the new ScdBox's set to the given file set
+      EntityHandle s = scd_box->box_set();
+      rval = MOABI->add_entities(ENTITY_HANDLE(*set_handle), &s, 1 );
+      CHKERR(rval, "Couldn't add box set to file set.");
+    }
   }
   
     // get a ptr to global id memory

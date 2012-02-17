@@ -296,7 +296,8 @@ void iMesh_createStructuredMesh(
         int elem_gids,
           /**< [in] If non-zero, assigns global ids to elements, according to global parameterization. */
         iBase_EntitySetHandle* set_handle, 
-          /**< [inout] Entity set handle in which to put box and vertices/elements, NULL if not desired, *NULL if function should create one. */
+          /**< [inout] A set to which the underlying ScdBox set will be added.  NULL if not desired. 
+           *           If *NULL, will be set directly to the underlying ScdBox's set. */
         int *err
           /**< [out] Error flag. */
 );
