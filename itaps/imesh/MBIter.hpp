@@ -58,6 +58,7 @@ struct iBase_EntityArrIterator_Private
 // for random-access iterators (vectors and Ranges) so that they perform better.
 
 template <typename T>
+inline
 ErrorCode step_iterator(T &curr, const T &end, int num_steps, bool &at_end) 
 {
   if (0 > num_steps) return MB_FAILURE;
@@ -71,6 +72,7 @@ ErrorCode step_iterator(T &curr, const T &end, int num_steps, bool &at_end)
 }
 
 template <typename T>
+inline
 ErrorCode step_iterator(typename std::vector<T>::const_iterator &curr,
                         const typename std::vector<T>::const_iterator &end,
                         int num_steps, bool &at_end) 
@@ -87,6 +89,7 @@ ErrorCode step_iterator(typename std::vector<T>::const_iterator &curr,
   return MB_SUCCESS;
 }
 
+inline
 ErrorCode step_iterator(Range::const_iterator &curr, 
                         const Range::const_iterator &end, int num_steps,
                         bool &at_end) 
