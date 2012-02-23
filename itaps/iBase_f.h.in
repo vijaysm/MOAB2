@@ -33,6 +33,8 @@
 #define iBase_EntityHandle IBASE_HANDLE_T
 #define iBase_EntitySetHandle IBASE_HANDLE_T
 #define iBase_TagHandle IBASE_HANDLE_T
+#define iBase_EntityIterator IBASE_HANDLE_T
+#define iBase_EntityArrIterator IBASE_HANDLE_T
 
 #endif
 

@@ -888,10 +888,10 @@ ErrorCode Core::get_vertex_coordinates(std::vector<double> &coords) const
 
 ErrorCode Core::coords_iterate(Range::const_iterator iter,
                                Range::const_iterator end,
-                               int& count,
                                double*& xcoords_ptr,
                                double*& ycoords_ptr,
-                               double*& zcoords_ptr)
+                               double*& zcoords_ptr,
+                               int& count)
 {
   EntitySequence *seq;
   ErrorCode rval = sequence_manager()->find(*iter, seq);
@@ -1553,8 +1553,9 @@ ErrorCode Core::get_connectivity( const Range& from_entities,
 
 ErrorCode Core::connect_iterate(Range::const_iterator iter,
                                 Range::const_iterator end,
-                                int& count,
-                                EntityHandle *&connect)
+                                EntityHandle *&connect,
+                                int &verts_per_entity,
+                                int& count)
 {
     // Make sure the entity should have a connectivity.
   EntityType type = TYPE_FROM_HANDLE(*iter);
@@ -1584,6 +1585,8 @@ ErrorCode Core::connect_iterate(Range::const_iterator iter,
   EntityHandle real_end = *(iter.end_of_block());
   if (*end) real_end = std::min(real_end, *end);
   count = real_end - *iter + 1;
+
+  verts_per_entity = eseq->nodes_per_element();
   
   return MB_SUCCESS;
 }

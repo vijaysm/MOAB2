@@ -537,47 +537,9 @@ extern "C" {
                              /*out*/ iBase_EntityArrIterator* entArr_iterator,
                              int *err)
   {
-    CHKENUM(requested_entity_type, iBase_EntityType, iBase_INVALID_ENTITY_TYPE);
-    CHKENUM(requested_entity_topology, iMesh_EntityTopology,
-            iBase_INVALID_ENTITY_TOPOLOGY);
-    if (resilient)
-        ERROR(iBase_NOT_SUPPORTED, "reslient iterators not supported");
-
-    EntityType req_type = mb_topology_table[requested_entity_topology];
-
-    if (requested_entity_topology != iMesh_ALL_TOPOLOGIES) {
-      if (requested_entity_type != iBase_ALL_TYPES) {
-        if (requested_entity_topology != iMesh_SEPTAHEDRON &&
-            requested_entity_type != CN::Dimension(req_type))
-          ERROR(iBase_BAD_TYPE_AND_TOPO, "type and topology are inconsistant");
-
-          // Special-case handling for septahedra since we don't support them
-        else if (requested_entity_topology == iMesh_SEPTAHEDRON &&
-                 requested_entity_type != iBase_REGION)
-          ERROR(iBase_BAD_TYPE_AND_TOPO, "type and topology are inconsistant");
-      }
-    }
-
-    ErrorCode result;
-    unsigned flags;
-    result = MOABI->get_meshset_options( ENTITY_HANDLE(entity_set_handle), flags );
-    CHKERR(result,"Invalid entity set handle");
-    
-    if (flags & MESHSET_ORDERED) 
-      *entArr_iterator = new MBListIter( (iBase_EntityType)requested_entity_type, 
-                                         (iMesh_EntityTopology)requested_entity_topology, 
-                                         ENTITY_HANDLE(entity_set_handle), 
-                                         requested_array_size );
-    else
-      *entArr_iterator = new MBRangeIter( (iBase_EntityType)requested_entity_type, 
-                                          (iMesh_EntityTopology)requested_entity_topology, 
-                                          ENTITY_HANDLE(entity_set_handle), 
-                                          requested_array_size );
-    result = (*entArr_iterator)->reset( MOABI );
-    if (MB_SUCCESS != result)
-      delete *entArr_iterator;
-    CHKERR(result, "iMesh_initEntArrIter: ERROR getting entities of proper type or topology." );
-    RETURN(iBase_SUCCESS);
+    iMesh_initEntArrIterRec(instance, entity_set_handle, requested_entity_type, 
+                            requested_entity_topology, requested_array_size, resilient, false,
+                            entArr_iterator, err);
   }
 
 /**
@@ -2318,10 +2280,10 @@ extern "C" {
                           /*out*/ iBase_EntityIterator* entity_iterator,
                           int *err)
   {
-    iMesh_initEntArrIter(instance, entity_set_handle, requested_entity_type,
-                         requested_entity_topology, 1, resilient,
-                         reinterpret_cast<iBase_EntityArrIterator*>(entity_iterator),
-                         err);
+    iMesh_initEntArrIterRec(instance, entity_set_handle, requested_entity_type,
+                            requested_entity_topology, 1, resilient, false,
+                            reinterpret_cast<iBase_EntityArrIterator*>(entity_iterator),
+                            err);
   }
 
   void iMesh_getNextEntIter (iMesh_Instance instance,
@@ -2986,6 +2948,54 @@ extern "C" {
     RETURN(iBase_SUCCESS);
   }
 
+  void iMesh_connectIterate(iMesh_Instance instance,
+                            iBase_EntityArrIterator entArr_iterator, 
+                              /**< [in] Iterator being queried */
+                            iBase_EntityHandle **connect,
+                              /**< [out] Pointer to pointer that will be set to connectivity data memory */
+                            int *verts_per_entity,
+                              /**< [out] Pointer to integer set to number of vertices per entity */
+                            int* count,
+                              /**< [out] Number of contiguous entities in this subrange */
+                            int* err  
+                              /**< [out] Returned Error status (see iBase_ErrorType) */
+                            ) 
+  {
+    MBRangeIter *ri = dynamic_cast<MBRangeIter*>(entArr_iterator);
+    if (!ri) CHKERR(MB_FAILURE,"Wrong type of iterator, need a range-based iterator for iMesh_connectIterate.");
+  
+    ErrorCode result = MOABI->connect_iterate(ri->position(), ri->end(), 
+                                              reinterpret_cast<EntityHandle*&>(*connect), *verts_per_entity, *count);
+    CHKERR(result, "Problem getting connect iterator.");
+
+    RETURN(iBase_SUCCESS);
+  }
+
+  void iMesh_coordsIterate(iMesh_Instance instance,
+                           iBase_EntityArrIterator entArr_iterator, 
+                              /**< [in] Iterator being queried */
+                           double **xcoords_ptr,
+                              /**< [out] Pointer to pointer that will be set to x coordinate data memory */
+                           double **ycoords_ptr,
+                              /**< [out] Pointer to pointer that will be set to y coordinate data memory */
+                           double **zcoords_ptr,
+                              /**< [out] Pointer to pointer that will be set to z coordinate data memory */
+                            int* count,
+                              /**< [out] Number of contiguous entities in this subrange */
+                            int* err  
+                              /**< [out] Returned Error status (see iBase_ErrorType) */
+                            ) 
+  {
+    MBRangeIter *ri = dynamic_cast<MBRangeIter*>(entArr_iterator);
+    if (!ri) CHKERR(MB_FAILURE,"Wrong type of iterator, need a range-based iterator for iMesh_coordsIterate.");
+  
+    ErrorCode result = MOABI->coords_iterate(ri->position(), ri->end(), 
+                                             *xcoords_ptr, *ycoords_ptr, *zcoords_ptr, *count);
+    CHKERR(result, "Problem getting coords iterator.");
+
+    RETURN(iBase_SUCCESS);
+  }
+
   void iMesh_stepIter(
       iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -3003,6 +3013,62 @@ extern "C" {
     ErrorCode result = entArr_iterator->step(step_length, tmp);
     CHKERR(result, "Problem stepping iterator.");
     *at_end = tmp;
+    RETURN(iBase_SUCCESS);
+  }
+
+/**
+ * Method:  initEntArrIter[]
+ */
+  void iMesh_initEntArrIterRec (iMesh_Instance instance,
+                             /*in*/ const iBase_EntitySetHandle entity_set_handle,
+                             /*in*/ const int requested_entity_type,
+                             /*in*/ const int requested_entity_topology,
+                             /*in*/ const int requested_array_size,
+                             /*in*/ const int resilient,
+                             /*in*/ const int recursive,
+                             /*out*/ iBase_EntityArrIterator* entArr_iterator,
+                             int *err)
+  {
+    CHKENUM(requested_entity_type, iBase_EntityType, iBase_INVALID_ENTITY_TYPE);
+    CHKENUM(requested_entity_topology, iMesh_EntityTopology,
+            iBase_INVALID_ENTITY_TOPOLOGY);
+    if (resilient)
+        ERROR(iBase_NOT_SUPPORTED, "reslient iterators not supported");
+
+    EntityType req_type = mb_topology_table[requested_entity_topology];
+
+    if (requested_entity_topology != iMesh_ALL_TOPOLOGIES) {
+      if (requested_entity_type != iBase_ALL_TYPES) {
+        if (requested_entity_topology != iMesh_SEPTAHEDRON &&
+            requested_entity_type != CN::Dimension(req_type))
+          ERROR(iBase_BAD_TYPE_AND_TOPO, "type and topology are inconsistant");
+
+          // Special-case handling for septahedra since we don't support them
+        else if (requested_entity_topology == iMesh_SEPTAHEDRON &&
+                 requested_entity_type != iBase_REGION)
+          ERROR(iBase_BAD_TYPE_AND_TOPO, "type and topology are inconsistant");
+      }
+    }
+
+    ErrorCode result;
+    unsigned flags;
+    result = MOABI->get_meshset_options( ENTITY_HANDLE(entity_set_handle), flags );
+    CHKERR(result,"Invalid entity set handle");
+    
+    if (flags & MESHSET_ORDERED) 
+      *entArr_iterator = new MBListIter( (iBase_EntityType)requested_entity_type, 
+                                         (iMesh_EntityTopology)requested_entity_topology, 
+                                         ENTITY_HANDLE(entity_set_handle), 
+                                         requested_array_size, recursive );
+    else
+      *entArr_iterator = new MBRangeIter( (iBase_EntityType)requested_entity_type, 
+                                          (iMesh_EntityTopology)requested_entity_topology, 
+                                          ENTITY_HANDLE(entity_set_handle), 
+                                          requested_array_size, recursive );
+    result = (*entArr_iterator)->reset( MOABI );
+    if (MB_SUCCESS != result)
+      delete *entArr_iterator;
+    CHKERR(result, "iMesh_initEntArrIter: ERROR getting entities of proper type or topology." );
     RETURN(iBase_SUCCESS);
   }
 

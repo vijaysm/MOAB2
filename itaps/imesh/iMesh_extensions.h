@@ -179,17 +179,60 @@ extern "C" {
    *\endcode
    */
   void iMesh_tagIterate(iMesh_Instance instance,
-                        /*in*/ const iBase_TagHandle tag_handle,
+                          /**< [in] iMesh instance */
+                        const iBase_TagHandle tag_handle,
+                          /**< [in] Tag being queried */
                         iBase_EntityArrIterator entArr_iterator, 
                           /**< [in] Iterator being queried */
                         void* tag_value, 
-                          /**< [out] Pointer to pointer that will be set to tag data memory
-                             \ref trio) */
+                          /**< [out] Pointer to pointer that will be set to tag data memory */
                         int* count,
                           /**< [out] Number of contiguous entities in this subrange */
                         int* err  
                           /**< [out] Returned Error status (see iBase_ErrorType) */
                         );
+
+  /**\brief Access connectivity data via direct pointer into contiguous blocks
+   *
+   * Iteratively obtain direct access to contiguous blocks of connectivity
+   * storage.
+   *
+   */
+  void iMesh_connectIterate(iMesh_Instance instance,
+                              /**< [in] iMesh instance */
+                            iBase_EntityArrIterator entArr_iterator, 
+                              /**< [in] Iterator being queried */
+                            iBase_EntityHandle **connect,
+                              /**< [out] Pointer to pointer that will be set to connectivity data memory */
+                            int* verts_per_entity,
+                              /**< [out] Number of vertices per entity in this subrange */
+                            int* count,
+                              /**< [out] Number of contiguous entities in this subrange */
+                            int* err  
+                              /**< [out] Returned Error status (see iBase_ErrorType) */
+                            );
+
+  /**\brief Access coordinates data via direct pointer into contiguous blocks
+   *
+   * Iteratively obtain direct access to contiguous blocks of coordinate
+   * storage.
+   *
+   */
+  void iMesh_coordsIterate(iMesh_Instance instance,
+                             /**< [in] iMesh instance */
+                           iBase_EntityArrIterator entArr_iterator, 
+                             /**< [in] Iterator being queried */
+                           double **coordsx,
+                             /**< [out] Pointer to pointer x coordinates */
+                           double **coordsy,
+                             /**< [out] Pointer to pointer y coordinates */
+                           double **coordsz,
+                             /**< [out] Pointer to pointer z coordinates */
+                           int* count,
+                             /**< [out] Number of contiguous entities in this subrange */
+                           int* err  
+                             /**< [out] Returned Error status (see iBase_ErrorType) */
+                           );
 
 /***************************************************************************//**
  * \ingroup  EntityIterators
@@ -209,6 +252,44 @@ void iMesh_stepIter(
         /**< [in] Number of entities to step the iterator */
     int* at_end, 
         /**< [out] Non-zero if iterator is at the end of the iteration */
+    int* err  
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+);
+
+/***************************************************************************//**
+ * \ingroup  EntityIterators
+ * \brief  Initialize an array iterator over specified entity type, topology,
+ *  and size, with an optional recursive flag.
+ *
+ * Initialize an array iterator over specified entity type, topology, and 
+ * size, for a specified set or instance.  Iterator returned can be used 
+ * as input to functions returning entities for the iterator.  If all 
+ * entities of a specified type and/or topology are to be iterated, 
+ * specify iBase_ALL_TYPES or iMesh_ALL_TOPOLOGIES, respectively.  
+ * Specified type or topology must be a value in the iBase_EntityType or 
+ * iMesh_EntityTopology enumerations, respectively.  If recursive is true,
+ * entities are retrieved recursively through contained (but not child) sets.
+ ******************************************************************************/
+
+void iMesh_initEntArrIterRec(
+    iMesh_Instance instance, 
+        /**< [in] iMesh instance handle */
+    const iBase_EntitySetHandle entity_set_handle, 
+        /**< [in] Entity set being iterated */
+    const int requested_entity_type, 
+        /**< [in] Type of entity to iterate */
+    const int requested_entity_topology, 
+        /**< [in] Topology of entity to iterate */
+    const int requested_array_size, 
+        /**< [in] Size of chunks of handles returned for each value of the
+             iterator */
+    const int resilient,
+        /**< [in] If zero, return a non-resilient iterator.
+                  Otherwise, a resilient iterator (\ref resilient) */
+    const int recursive,
+      /**< [in] If non-zero, entities retrieved recursively */
+    iBase_EntityArrIterator* entArr_iterator, 
+        /**< [out] Pointer to iterator returned from function */
     int* err  
         /**< [out] Returned Error status (see iBase_ErrorType) */
 );

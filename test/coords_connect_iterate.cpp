@@ -76,7 +76,7 @@ void test_coords_connect_iterate()
   vit = verts.begin();
   int count, total = 0;
   while (vit != verts.end()) {
-    rval = mb.coords_iterate(vit, verts.end(), count, xcoord, ycoord, zcoord);
+    rval = mb.coords_iterate(vit, verts.end(), xcoord, ycoord, zcoord, count);
     if (MB_SUCCESS && (!xcoord || !ycoord || !zcoord)) rval = MB_FAILURE;
     CHECK_ERR(rval);
     
@@ -116,10 +116,12 @@ void test_coords_connect_iterate()
   Range::iterator hit = hexes.begin();
   EntityHandle *connect = NULL;
   EntityHandle dum_connect[8];
+  int num_connect;
   while (hit != hexes.end()) {
-    rval = mb.connect_iterate(hit, hexes.end(), count, connect);
+    rval = mb.connect_iterate(hit, hexes.end(), connect, num_connect, count);
     if (MB_SUCCESS && !connect) rval = MB_FAILURE;
     CHECK_ERR(rval);
+    CHECK_EQUAL(num_connect, 8);
     
       // should be equal to initial connectivity
     for (int i = 0; i < count; i++) {
@@ -165,7 +167,7 @@ void test_scd_invalid()
   
     // should NOT be able to get connect iterator
   EntityHandle *connect;
-  int count;
-  rval = mb.connect_iterate(hexes.begin(), hexes.end(), count, connect);
+  int count, num_connect;
+  rval = mb.connect_iterate(hexes.begin(), hexes.end(), connect, num_connect, count);
   CHECK_EQUAL(rval, MB_FAILURE);
 }

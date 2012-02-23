@@ -2,8 +2,6 @@
 #define IMESH_F_H
 
 #define iMesh_Instance IBASE_HANDLE_T
-#define iBase_EntityIterator IBASE_HANDLE_T
-#define iBase_EntityArrIterator IBASE_HANDLE_T
 
 #endif
 

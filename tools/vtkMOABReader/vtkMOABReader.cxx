@@ -36,6 +36,7 @@
 #include "vtkPointData.h"
 #include "vtkAlgorithmOutput.h"
 #include "vtkTimerLog.h"
+#include "vtkCellType.h"
 
 #include "moab/Core.hpp"
 #include "moab/WriteUtilIface.hpp"
@@ -128,6 +129,8 @@ private:
   ErrorCode tag_data_ptr_dbl(const char *tag_name, int tag_size,
                              Range &elems, double *&tag_val);
 
+  int get_vtk_cell_type(moab::EntityType t, int &num_connect);
+  
   vtkUnstructuredGrid *myUG;
 
   Interface *mbImpl;
@@ -136,8 +139,6 @@ private:
 
   Range fileSets;
                                
-  static const int vtk_cell_types[];
-
   int numPointIds;
   int numCellIds;
 
@@ -188,9 +189,6 @@ inline bool vtkMOABReaderPrivate::file_loaded(const char *filename)
 #define RC(e, s) if (MB_SUCCESS != e) MOABMeshErrorMacro(s)
 
 using namespace moab;
-
-const int vtkMOABReaderPrivate::vtk_cell_types[] = {
-  1, 3, 5, 9, 7, 10, 14, 13, 0, 12, 0, 0, 0};
 
 const bool new_outputs = false;
 const bool use_filters = true;
@@ -1081,9 +1079,6 @@ ErrorCode vtkMOABReaderPrivate::create_elements(EntityHandle file_set)
 
   for (EntityType this_type = MBEDGE; this_type != MBENTITYSET; this_type++) {
 
-      // don't try to represent elements vtk doesn't understand
-    if (vtk_cell_types[this_type] == 0) continue;
-    
     Range elems;
     result = mbImpl->get_entities_by_type(file_set, this_type, elems);
     if (MB_SUCCESS != result)
@@ -1124,9 +1119,43 @@ ErrorCode vtkMOABReaderPrivate::create_elements(EntityHandle file_set)
       }
 
         // ok, now insert this cell
-      eids[e] = myUG->InsertNextCell(vtk_cell_types[this_type], num_connect, ids);
-      assert(eids[e] == numCellIds);
-      numCellIds++;
+      int cell_type = get_vtk_cell_type(this_type, num_connect);
+      if (-1 != cell_type 
+//          && VTK_POLYHEDRON != cell_type
+          ) {
+        eids[e] = myUG->InsertNextCell(cell_type, num_connect, ids);
+        assert(eids[e] == numCellIds);
+        numCellIds++;
+      }
+/* 
+ * polyhedra weren't supported until later in vtk
+      else if (VTK_POLYHEDRON != cell_type) {
+          // need to get face ids through vtkCellTag
+        assert(CN::MAX_NODES_PER_ELEMENT >= num_connect);
+        result = mbImpl->tag_get_data(vtkCellTag, connect, num_connect, ids);
+        if (MB_SUCCESS != result)
+        {
+          MOABMeshErrorMacro( << "Couldn't get vertex ids for element. " );
+          return result;
+        }
+        Range vert_handles;
+        result = mbImpl->get_adjacencies(&(*rit), 1, 0, false, vert_handles);
+        if (MB_SUCCESS != result)
+        {
+          MOABMeshErrorMacro( << "Couldn't save element ids. " );
+          return result;
+        }
+        std::vector<vtkIdType> verts(vert_handles.size());
+        result = mbImpl->tag_get_data(vtkPointTag, vert_handles, &verts[0]);
+        if (MB_SUCCESS != result)
+        {
+          MOABMeshErrorMacro( << "Couldn't get vertex ids for polyhedron. " );
+          return result;
+        }
+        eids[e] = myUG->InsertNextCell(cell_type, verts.size(), &verts[0], num_connect, ids);
+      }
+*/
+      else eids[e] = -1;
     }
 
     if (changed) {
@@ -1143,6 +1172,56 @@ ErrorCode vtkMOABReaderPrivate::create_elements(EntityHandle file_set)
                      << " points, " << myUG->GetNumberOfCells() << " cells.");
   
   return MB_SUCCESS;
+}
+
+int vtkMOABReaderPrivate::get_vtk_cell_type(moab::EntityType t, int &num_connect) 
+{
+  int ctype = -1;
+  switch (t) {
+    case MBEDGE:
+        if (num_connect == 2) ctype = VTK_LINE;
+        else if (num_connect == 3) ctype = VTK_QUADRATIC_EDGE;
+        break;
+    case MBTRI:
+        if (num_connect == 3) ctype = VTK_TRIANGLE;
+        else if (num_connect == 6) ctype = VTK_QUADRATIC_TRIANGLE;
+        else if (num_connect == 7) ctype = VTK_BIQUADRATIC_TRIANGLE;
+        break;
+    case MBQUAD:
+        if (num_connect == 4) ctype = VTK_QUAD;
+        else if (num_connect == 8) ctype = VTK_QUADRATIC_QUAD;
+        else if (num_connect == 9) ctype = VTK_BIQUADRATIC_QUAD;
+        break;
+    case MBPOLYGON:
+        if (num_connect == 4) ctype = VTK_POLYGON;
+        break;
+    case MBTET:
+        if (num_connect == 4) ctype = VTK_TETRA;
+        else if (num_connect == 10) ctype = VTK_QUADRATIC_TETRA;
+        break;
+    case MBPYRAMID:
+        if (num_connect == 5) ctype = VTK_PYRAMID;
+        else if (num_connect == 13) ctype = VTK_QUADRATIC_PYRAMID;
+        break;
+    case MBPRISM:
+        if (num_connect == 6) ctype = VTK_WEDGE;
+        else if (num_connect == 15) ctype = VTK_QUADRATIC_WEDGE;
+        break;
+    case MBHEX:
+        if (num_connect == 8) ctype = VTK_HEXAHEDRON;
+        else if (num_connect == 20) ctype = VTK_QUADRATIC_HEXAHEDRON;
+        else if (num_connect == 21) ctype = VTK_QUADRATIC_HEXAHEDRON, num_connect = 20;
+        else if (num_connect == 27) ctype = VTK_TRIQUADRATIC_HEXAHEDRON;
+        break;
+/* 
+ * polyhedra weren't supported until later in vtk
+    case MBPOLYHEDRON:
+        ctype = VTK_POLYHEDRON;
+        break;
+*/
+  }
+  
+  return ctype;
 }
 
 moab::ErrorCode vtkMOABReaderPrivate::construct_filters() 

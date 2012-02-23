@@ -174,10 +174,10 @@ public:
     //! get pointers to coordinate data
   virtual ErrorCode coords_iterate(Range::const_iterator iter,
                                    Range::const_iterator end,
-                                   int& count,
                                    double*& xcoords_ptr,
                                    double*& ycoords_ptr,
-                                   double*& zcoords_ptr);
+                                   double*& zcoords_ptr,
+                                   int& count);
   
   //! get the coordinate information for this handle if it is of type Vertex
   //! otherwise, return an error
@@ -216,8 +216,9 @@ public:
     //! get pointer to connectivity data
   virtual ErrorCode connect_iterate(Range::const_iterator iter,
                                     Range::const_iterator end,
-                                    int& count,
-                                    EntityHandle *&connect);
+                                    EntityHandle *&connect,
+                                    int &verts_per_entity,
+                                    int& count);
   
       //! Gets the connectivity for an element EntityHandle. 
       /** For non-element handles (ie, MeshSets), 

@@ -15,13 +15,15 @@ struct iBase_EntityArrIterator_Private
     iMesh_EntityTopology entTopo;
     EntityHandle entSet;
     int arrSize;
+    bool isRecursive;
     
   public:
     iBase_EntityArrIterator_Private( iBase_EntityType type,
                                      iMesh_EntityTopology topology,
                                      EntityHandle set,
-                                     int array_size )
-      : entType(type), entTopo(topology), entSet(set), arrSize(array_size)
+                                     int array_size,
+                                     bool recursive = false)
+            : entType(type), entTopo(topology), entSet(set), arrSize(array_size), isRecursive(recursive)
       {}
 
     virtual ~iBase_EntityArrIterator_Private() {}
@@ -115,8 +117,9 @@ template <class Container> class MBIter : public iBase_EntityArrIterator_Private
     MBIter( iBase_EntityType type,
             iMesh_EntityTopology topology,
             EntityHandle set,
-            int array_size )
-      : iBase_EntityArrIterator_Private( type, topology, set, array_size ),
+            int array_size,
+            bool recursive = false)
+            : iBase_EntityArrIterator_Private( type, topology, set, array_size, recursive ),
         iterPos(iterData.end()) {}
       
     ~MBIter() {}
@@ -144,15 +147,15 @@ template <class Container> class MBIter : public iBase_EntityArrIterator_Private
         if (entTopo == iMesh_SEPTAHEDRON)
           result = MB_SUCCESS;
         else
-          result = mb->get_entities_by_type( entSet, mb_topology_table[entTopo], iterData );
+          result = mb->get_entities_by_type( entSet, mb_topology_table[entTopo], iterData, isRecursive );
       }
       else if (entType != iBase_ALL_TYPES) {
-        result = mb->get_entities_by_dimension( entSet, entType, iterData );
+        result = mb->get_entities_by_dimension( entSet, entType, iterData, isRecursive );
         if (entType == iBase_REGION)
           remove_type( iterData, MBKNIFE );
       }
       else {
-        result = mb->get_entities_by_handle( entSet, iterData );
+        result = mb->get_entities_by_handle( entSet, iterData, isRecursive );
         remove_type( iterData, MBENTITYSET );
         remove_type( iterData, MBKNIFE );
       }

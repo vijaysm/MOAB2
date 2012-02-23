@@ -379,14 +379,14 @@ public:
                                      /**< Iterator to first entity you want coordinates for */
                                    Range::const_iterator end,
                                      /**< Iterator to last entity you want coordinates for */
-                                   int& count,
-                                     /**< Number of entities for which returned pointers are valid/contiguous */
                                    double*& xcoords_ptr,
                                      /**< Pointer to x coordinate storage for these entities */
                                    double*& ycoords_ptr,
                                      /**< Pointer to y coordinate storage for these entities */
-                                   double*& zcoords_ptr
+                                   double*& zcoords_ptr,
                                      /**< Pointer to z coordinate storage for these entities */
+                                   int& count
+                                     /**< Number of entities for which returned pointers are valid/contiguous */
                                    ) = 0;
 
     //! Gets xyz coordinate information for range of vertices
@@ -486,10 +486,12 @@ public:
                                       /**< Iterator to first entity you want coordinates for */
                                     Range::const_iterator end,
                                       /**< Iterator to last entity you want coordinates for */
-                                    int& count,
-                                      /**< Number of entities for which returned pointers are valid/contiguous */
-                                    EntityHandle *&connect
+                                    EntityHandle *&connect,
                                       /**< Pointer to connectivity storage for these entities */
+                                    int &verts_per_entity,
+                                      /**< Number of vertices per entity in this block of entities */
+                                    int& count
+                                      /**< Number of entities for which returned pointers are valid/contiguous */
                                     ) = 0;
   
     //! Get the connectivity array for all entities of the specified entity type
