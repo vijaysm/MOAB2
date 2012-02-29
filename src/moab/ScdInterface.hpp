@@ -771,40 +771,51 @@ inline ErrorCode ScdInterface::compute_partition_sqij(int np, int nr, const int 
 {
     // square IxJ partition
 
-  std::vector<double> pfactors, ppfactors;
-  for (int i = 2; i <= np; i++) 
-    if (!(np%i)) {
-      pfactors.push_back(i);
-      ppfactors.push_back(((double)(i*i))/np);
+  if (np == 1) {
+      if (lijk) {
+	lijk[0] = gijk[0];
+	lijk[3] = gijk[3];
+	lijk[1] = gijk[1];
+	lijk[4] = gijk[4];
+	lijk[2] = gijk[2];
+	lijk[5] = gijk[5];
+      }
     }
-  
+  else {
+    std::vector<double> pfactors, ppfactors;
+    for (int i = 2; i <= np; i++) 
+      if (!(np%i)) {
+	pfactors.push_back(i);
+	ppfactors.push_back(((double)(i*i))/np);
+      }
+    
     // ideally, Px/Py = I/J
-  double ijratio = ((double)(gijk[3]-gijk[0]))/((double)(gijk[4]-gijk[1]));
-
-  unsigned int ind = std::lower_bound(ppfactors.begin(), ppfactors.end(), ijratio) - ppfactors.begin();
-  if (ind && fabs(ppfactors[ind-1]-ijratio) < fabs(ppfactors[ind]-ijratio)) ind--;
-  
-  int pi = pfactors[ind];
-  int pj = np / pi;
-
-  int I = (gijk[3] - gijk[0]), J = (gijk[4] - gijk[1]);
-  int iextra = I%pi, jextra = J%pj, i = I/pi, j = J/pj;
-  int nri = nr % pi, nrj = nr / pi;
-//
-// pi, pj = # blocks in i, j directions
-// nri, nrj = column, row of this processor's block
-  if (lijk) {
-    lijk[0] = i*nri + std::min(iextra, nri);
-    lijk[3] = lijk[0] + i + (nri < iextra ? 1 : 0);
-    lijk[1] = j*nrj + std::min(jextra, nrj);
-    lijk[4] = lijk[1] + j + (nrj < jextra ? 1 : 0);
-
-    lijk[2] = gijk[2];
-    lijk[5] = gijk[5];
-  }
-  
-  if (pip) *pip = pi;
-  
+    double ijratio = ((double)(gijk[3]-gijk[0]))/((double)(gijk[4]-gijk[1]));
+    
+    unsigned int ind = std::lower_bound(ppfactors.begin(), ppfactors.end(), ijratio) - ppfactors.begin();
+    if (ind && fabs(ppfactors[ind-1]-ijratio) < fabs(ppfactors[ind]-ijratio)) ind--;
+    
+    int pi = pfactors[ind];
+    int pj = np / pi;
+    
+    int I = (gijk[3] - gijk[0]), J = (gijk[4] - gijk[1]);
+    int iextra = I%pi, jextra = J%pj, i = I/pi, j = J/pj;
+    int nri = nr % pi, nrj = nr / pi;
+    //
+    // pi, pj = # blocks in i, j directions
+    // nri, nrj = column, row of this processor's block
+    if (lijk) {
+      lijk[0] = i*nri + std::min(iextra, nri);
+      lijk[3] = lijk[0] + i + (nri < iextra ? 1 : 0);
+      lijk[1] = j*nrj + std::min(jextra, nrj);
+      lijk[4] = lijk[1] + j + (nrj < jextra ? 1 : 0);
+      
+      lijk[2] = gijk[2];
+      lijk[5] = gijk[5];
+    }
+	
+    if (pip) *pip = pi;
+  }  
   return MB_SUCCESS;
 }
 
