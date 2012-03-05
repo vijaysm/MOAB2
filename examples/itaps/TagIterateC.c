@@ -59,7 +59,7 @@ int main( int argc, char *argv[] )
     CHKERR(err, "Failed to create a tag.\n");
     
       /* step the iterator over count entities */
-    iMesh_stepIter(mesh, iter, count, &atend, &err);
+    iMesh_stepEntArrIter(mesh, iter, count, &atend, &err);
     CHKERR(err, "Failed to step iterator.\n");
 
       /* operate on tag data, or store it for later */

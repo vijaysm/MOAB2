@@ -2996,7 +2996,24 @@ extern "C" {
     RETURN(iBase_SUCCESS);
   }
 
-  void iMesh_stepIter(
+  void iMesh_stepEntIter(
+      iMesh_Instance instance, 
+        /**< [in] iMesh instance handle */
+      iBase_EntityIterator ent_iterator, 
+        /**< [in] Iterator being queried */
+      int step_length, 
+        /**< [in] Number of entities to step the iterator */
+      int* at_end, 
+        /**< [out] Non-zero if iterator is at the end of the iteration */
+      int* err  
+        /**< [out] Returned Error status (see iBase_ErrorType) */
+                      ) 
+  {
+    iMesh_stepEntArrIter(instance, reinterpret_cast<iBase_EntityArrIterator>(ent_iterator),
+                         step_length, at_end, err);
+  }
+
+  void iMesh_stepEntArrIter(
       iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
       iBase_EntityArrIterator entArr_iterator, 

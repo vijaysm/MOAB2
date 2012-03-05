@@ -49,7 +49,7 @@ c iterate over tag memory
      1     rpdata, count, ierr)
     
 c step the iterator over count entities
-      call iMesh_stepIter(%VAL(mesh), %VAL(iter), %VAL(count), atend, 
+      call iMesh_stepEntArrIter(%VAL(mesh), %VAL(iter), %VAL(count), atend, 
      1     ierr)
 
       if (atend .eq. 0) go to 10
