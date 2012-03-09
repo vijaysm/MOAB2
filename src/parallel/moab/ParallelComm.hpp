@@ -311,6 +311,22 @@ namespace moab {
     ErrorCode exchange_tags( Tag tagh,
 			     const Range &entities);
   
+    /** \brief Perform data reduction operation for all shared and ghosted entities
+     * This function should be called collectively over the communicator for this ParallelComm.
+     * If this version is called, all ghosted/shared entities should have a value for this
+     * tag (or the tag should have a default value).  Operation is any MPI_Op, with result stored
+     * in destination tag.
+     * \param src_tags Vector of tag handles to be reduced
+     * \param dst_tags Vector of tag handles in which the answer will be stored
+     * \param mpi_op Operation type
+     * \param entities Entities on which reduction will be made; if empty, operates on all shared
+     *                 entities
+     */
+    ErrorCode reduce_tags( const std::vector<Tag> &src_tags,
+                           const  std::vector<Tag> &dst_tags,
+                           const MPI_Op mpi_op,
+                           const Range &entities);
+  
     /** \brief Broadcast all entities resident on from_proc to other processors
      * This function assumes remote handles are *not* being stored, since (usually)
      * every processor will know about the whole mesh.
@@ -838,6 +854,9 @@ namespace moab {
   
   private:
 
+    ErrorCode reduce_void(int tag_data_type, const MPI_Op mpi_op, int num_ents, void *old_vals, void *new_vals);
+    
+    template <class T> ErrorCode reduce(const MPI_Op mpi_op, int num_ents, void *old_vals, void *new_vals);
 
     void print_debug_isend(int from, int to, unsigned char *buff,
 			   int tag, int size);
@@ -1126,10 +1145,10 @@ namespace moab {
                         const int to_proc );
 
     ErrorCode unpack_tags(unsigned char *&buff_ptr,
-			  std::vector<EntityHandle> &entities,
+                          std::vector<EntityHandle> &entities,
                           const bool store_handles,
-                          const int to_proc);
-  
+                          const int to_proc,
+                          const MPI_Op * const mpi_op = NULL);
 
     ErrorCode tag_shared_verts(TupleList &shared_verts,
                                Range *skin_ents,

@@ -51,22 +51,22 @@ if test "x" != "x$DAMSEL_ARG" && test "xno" != "x$DAMSEL_ARG"; then
   LDFLAGS="$DAMSEL_LDFLAGS $LDFLAGS"
   
    # Check for C library
-#  AC_CHECK_HEADERS( [damsel.h], [], [HAVE_DAMSEL=no] )
-#  CPPFLAGS="$old_CPPFLAGS"
-#  LDFLAGS="$old_LDFLAGS"
+  AC_CHECK_HEADERS( [damsel.h], [], [HAVE_DAMSEL=no] )
+  CPPFLAGS="$old_CPPFLAGS"
+  LDFLAGS="$old_LDFLAGS"
 
-#  if test "x$HAVE_DAMSEL" = "xno"; then
-#    if test "x$DAMSEL_ARG" != "x"; then 
-#      AC_MSG_ERROR("Damsel not found or not working")
-#    else
-#      AC_MSG_CHECKING([unsuccessful, Damsel support disabled])
-#      AC_MSG_RESULT([])
-#    fi
-#    DAMSEL_CPPFLAGS=
-#    DAMSEL_LDFLAGS=
-#  else
-#    DAMSEL_LIBS="-ldamsel"
-#  fi
+  if test "x$HAVE_DAMSEL" = "xno"; then
+    if test "x$DAMSEL_ARG" != "x"; then 
+      AC_MSG_ERROR("Damsel not found or not working")
+    else
+      AC_MSG_CHECKING([unsuccessful, Damsel support disabled])
+      AC_MSG_RESULT([])
+    fi
+    DAMSEL_CPPFLAGS=
+    DAMSEL_LDFLAGS=
+  else
+    DAMSEL_LIBS="-ldamsel"
+  fi
 
 fi
 

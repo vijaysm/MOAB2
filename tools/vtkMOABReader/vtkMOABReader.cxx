@@ -1100,8 +1100,6 @@ ErrorCode vtkMOABReaderPrivate::create_elements(EntityHandle file_set)
     for (Range::iterator rit = elems.begin(); rit != elems.end(); rit++, e++) {
       if (-1 != eids[e]) continue;
       
-      changed = true;
-      
         // get the connectivity of these elements
       result = mbImpl->get_connectivity(*rit, connect, num_connect, true);
       if (MB_SUCCESS != result)
@@ -1126,6 +1124,7 @@ ErrorCode vtkMOABReaderPrivate::create_elements(EntityHandle file_set)
         eids[e] = myUG->InsertNextCell(cell_type, num_connect, ids);
         assert(eids[e] == numCellIds);
         numCellIds++;
+        changed = true;
       }
 /* 
  * polyhedra weren't supported until later in vtk
@@ -1416,17 +1415,18 @@ ErrorCode vtkMOABReaderPrivate::process_tagged_sets(vtkMultiBlockDataSet *output
       if (!mb) mb = get_mbdataset(tmb, *rit);
 
         // get the UG from the multiblock
-      assert(mb->GetNumberOfBlocks() > 0);
-      vtkUnstructuredGrid *ug = vtkUnstructuredGrid::SafeDownCast(mb->GetBlock(0));
-      assert(ug);
+      if (mb && mb->GetNumberOfBlocks() > 0) {
+        vtkUnstructuredGrid *ug = vtkUnstructuredGrid::SafeDownCast(mb->GetBlock(0));
+        assert(ug);
 
-        // make this dataset a child of the one passed in
-      const int blockI = tmb->GetNumberOfBlocks();
-      tmb->SetBlock(blockI, ug);
-      std::string set_name;
-      rval = get_category_name(*rit, set_name);
-      if (MB_SUCCESS == rval)
-        tmb->GetMetaData(blockI)->Set(vtkCompositeDataSet::NAME(), set_name.c_str());
+          // make this dataset a child of the one passed in
+        const int blockI = tmb->GetNumberOfBlocks();
+        tmb->SetBlock(blockI, ug);
+        std::string set_name;
+        rval = get_category_name(*rit, set_name);
+        if (MB_SUCCESS == rval)
+          tmb->GetMetaData(blockI)->Set(vtkCompositeDataSet::NAME(), set_name.c_str());
+      }
     }
 
     tmb->Delete();
@@ -1461,15 +1461,14 @@ ErrorCode vtkMOABReaderPrivate::recursive_process_set(vtkMultiBlockDataSet *outp
       // no children - put UG into output block
     assert(blockI > 0);
     vtkUnstructuredGrid *ug = vtkUnstructuredGrid::SafeDownCast(mb->GetBlock(0));
-    assert(ug);
-    output->SetBlock(blockI, ug);
+    if (ug) output->SetBlock(blockI, ug);
   }
   else 
     output->SetBlock(blockI, mb);
   
   std::string set_name;
   rval = get_category_name(eset, set_name);
-  if (MB_SUCCESS == rval)
+  if (MB_SUCCESS == rval && output->GetMetaData(blockI))
     output->GetMetaData(blockI)->Set(vtkCompositeDataSet::NAME(), set_name.c_str());
 
   if (created) {
@@ -1492,6 +1491,18 @@ vtkMultiBlockDataSet *vtkMOABReaderPrivate::get_mbdataset(vtkMultiBlockDataSet *
   ErrorCode rval = mbImpl->tag_set_data(vtkDSTag, &eset, 1, &ds_val);
   assert(MB_SUCCESS == rval);
 
+  Range ents, verts;
+  rval = mbImpl->get_entities_by_handle(eset, ents, true);
+  if (MB_SUCCESS != rval) return NULL;
+
+    // filter out vertices
+  verts = ents.subset_by_type(MBVERTEX);
+  ents -= verts;
+
+  if (ents.empty()) return ds_val;
+  
+  int sem_cells = (semDims[0] - 1) * (semDims[1] - 1) * (semDims[2] ? (semDims[2] - 1) : 1);
+
     // automatically make an EC and a UG
   vtkExtractCells *ec_val = vtkExtractCells::New();
   ec_val->SetInput(myUG);
@@ -1504,14 +1515,6 @@ vtkMultiBlockDataSet *vtkMOABReaderPrivate::get_mbdataset(vtkMultiBlockDataSet *
   ds_val->GetMetaData((unsigned int)0)->Set(vtkCompositeDataSet::NAME(), set_name.c_str());
 
     // fill the EC from the set contents
-  Range ents, verts;
-  rval = mbImpl->get_entities_by_handle(eset, ents, true);
-  if (MB_SUCCESS != rval) return NULL;
-
-    // filter out vertices
-  verts = ents.subset_by_type(MBVERTEX);
-  ents -= verts;
-  int sem_cells = (semDims[0] - 1) * (semDims[1] - 1) * (semDims[2] ? (semDims[2] - 1) : 1);
 //  if (false) {    
   if (!ents.empty() &&
       (!sem_cells || mbImpl->type_from_handle(*ents.begin()) == MBHEX)) {
@@ -1536,10 +1539,16 @@ vtkMultiBlockDataSet *vtkMOABReaderPrivate::get_mbdataset(vtkMultiBlockDataSet *
 #ifndef NDEBUG
     int_ptr = ids->GetPointer(0);
     for (int i = ids->GetNumberOfIds()-1; i >= 0; i--) 
-      assert(int_ptr[i] <= numCellIds);
+      assert(int_ptr[i] <= numCellIds && int_ptr[i] != -1);
 #endif    
     ec_val->SetCellList(ids);
     ec_val->Update();
+
+    if (ug_val->GetNumberOfCells() == 1 && ug_val->GetNumberOfPoints() == 0) {
+      std::cout << "Found a bad ug." << std::endl;
+      assert(false);
+    }
+    
     ec_val->Delete();
     ids->Delete();
   }

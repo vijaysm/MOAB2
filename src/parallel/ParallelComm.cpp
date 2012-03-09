@@ -718,7 +718,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
   }
 
   unsigned int i;
-  int ind, success;
+  int ind;
   ErrorCode result = MB_SUCCESS;
 
   // set buffProcs with communicating procs
@@ -743,7 +743,6 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
   // need to get procs each entity is sent to
   //===========================================  
   Range allsent, tmp_range;
-  int dum_ack_buff;
   int npairs = 0;
   TupleList entprocs;
   for (i = 0; i < n_proc; i++) {
@@ -934,7 +933,7 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
       if (recvReqs.size() != 2*buffProcs.size()) {
         // post irecv's for remote handles from new proc
         recvRemotehReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
-        for (i = recvReqs.size(); i < 2*buffProcs.size(); i+=2) {
+        for (i = recvReqs.size(); i < (int)(2*buffProcs.size()); i+=2) {
           localOwnedBuffs[i/2]->reset_buffer();
           incoming2++;
           PRINT_DEBUG_IRECV(procConfig.proc_rank(), buffProcs[i/2], 
@@ -979,7 +978,6 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
   //===========================================
   // send local handles for new entity to owner
   //===========================================
-  int dum_ack_buff;
   std::set<unsigned int>::iterator it = recv_procs.begin();
   std::set<unsigned int>::iterator eit = recv_procs.end();
   for (; it != eit; it++) {
@@ -3335,9 +3333,10 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
 
 
   ErrorCode ParallelComm::unpack_tags(unsigned char *&buff_ptr,
-				      std::vector<EntityHandle> &entities,
-				      const bool /*store_remote_handles*/,
-				      const int /*from_proc*/)
+                                      std::vector<EntityHandle> &entities,
+                                      const bool /*store_remote_handles*/,
+                                      const int /*from_proc*/,
+                                      const MPI_Op * const mpi_op)
   {
     // tags
     // get all the tags
@@ -3350,6 +3349,7 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
     UNPACK_INT(buff_ptr, num_tags);
     std::vector<EntityHandle> tag_ents;
     std::vector<const void*> var_len_vals;
+    std::vector<unsigned char*> dum_vals;
 
     for (int i = 0; i < num_tags; i++) {
     
@@ -3437,6 +3437,14 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
 	  RRA("Trouble setting tag data when unpacking variable-length tag.");
 	}
 	else {
+              // get existing values of dst tag
+            dum_vals.resize(tag_size*num_ents);
+            if (mpi_op) {
+              result = mbImpl->tag_get_data(tag_handle, &dum_ents[0], num_ents, &dum_vals[0]);
+              RRA("Couldn't get existing value of dst tag on entities.");
+              result = reduce_void(tag_data_type, *mpi_op, num_ents, &dum_vals[0], buff_ptr);
+              RRA("Failed to perform mpi op on dst tags.");
+            }
 	  result = mbImpl->tag_set_data(tag_handle, &dum_ents[0],
 					num_ents, buff_ptr);
 	  RRA("Trouble setting range-based tag data when unpacking tag.");
@@ -3451,7 +3459,61 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
     return MB_SUCCESS;
   }
 
-  ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
+template<class T> T LAND(const T &arg1, const T &arg2) {return arg1&&arg2;}
+template<class T> T LOR(const T& arg1, const T& arg2) {return arg1||arg2;}
+template<class T> T LXOR(const T& arg1, const T& arg2) {return ((arg1&&!arg2)||(!arg1&&arg2));}
+template<class T> T MAX(const T& arg1, const T& arg2) {return (arg1 > arg2 ? arg1 : arg2);}
+template<class T> T MIN(const T& arg1, const T& arg2) {return (arg1 < arg2 ? arg1 : arg2);}
+template<class T> T ADD(const T &arg1, const T &arg2) {return arg1 + arg2;}
+template<class T> T MULT(const T &arg1, const T &arg2) {return arg1 * arg2;}
+
+template <class T>
+ErrorCode ParallelComm::reduce(const MPI_Op mpi_op, int num_ents, void *old_vals, void *new_vals) 
+{
+  T *old_tmp = reinterpret_cast<T*>(old_vals);
+  T *new_tmp = reinterpret_cast<T*>(new_vals);
+  
+  if (mpi_op == MPI_SUM) 
+    std::transform(old_tmp, old_tmp + num_ents, new_tmp, new_tmp, ADD<T>);
+  else if (mpi_op == MPI_PROD) 
+    std::transform(old_tmp, old_tmp + num_ents, new_tmp, new_tmp, MULT<T>);
+  else if (mpi_op == MPI_MAX) 
+    std::transform(old_tmp, old_tmp + num_ents, new_tmp, new_tmp, MAX<T>);
+  else if (mpi_op == MPI_MIN) 
+    std::transform(old_tmp, old_tmp + num_ents, new_tmp, new_tmp, MIN<T>);
+  else if (mpi_op == MPI_LAND) 
+    std::transform(old_tmp, old_tmp + num_ents, new_tmp, new_tmp, LAND<T>);
+  else if (mpi_op == MPI_LOR) 
+    std::transform(old_tmp, old_tmp + num_ents, new_tmp, new_tmp, LOR<T>);
+  else if (mpi_op == MPI_LXOR) 
+    std::transform(old_tmp, old_tmp + num_ents, new_tmp, new_tmp, LXOR<T>);
+  else if (mpi_op == MPI_BAND || mpi_op == MPI_BOR || mpi_op == MPI_BXOR) {
+    std::cerr << "Bitwise operations not allowed in tag reductions." << std::endl;
+    return MB_FAILURE;
+  }
+
+  return MB_SUCCESS;
+}
+
+ErrorCode ParallelComm::reduce_void(int tag_data_type, const MPI_Op mpi_op, int num_ents, void *old_vals, void *new_vals) 
+{
+  ErrorCode result;
+  switch (tag_data_type) {
+    case MB_TYPE_INTEGER:
+        result = reduce<int>(mpi_op, num_ents, old_vals, new_vals);
+        break;
+    case MB_TYPE_DOUBLE:
+        result = reduce<double>(mpi_op, num_ents, old_vals, new_vals);
+        break;
+    case MB_TYPE_BIT:
+        result = reduce<unsigned char>(mpi_op, num_ents, old_vals, new_vals);
+        break;
+  }
+  
+  return MB_SUCCESS;
+}
+
+ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
 					      int resolve_dim,
 					      int shared_dim,
 					      const Tag* id_tag) 
@@ -6886,6 +6948,241 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
 	remoteOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
 	result = unpack_tags(remoteOwnedBuffs[ind/2]->buff_ptr,
 			     dum_vec, true, buffProcs[ind/2]);
+	RRA("Failed to recv-unpack-tag message.");
+      }
+    }
+  
+    // ok, now wait
+    if (myDebug->get_verbosity() == 5) {
+      success = MPI_Barrier(procConfig.proc_comm());
+    }
+    else {
+      MPI_Status status[2*MAX_SHARING_PROCS];
+      success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], status);
+    }
+    if (MPI_SUCCESS != success) {
+      result = MB_FAILURE;
+      RRA("Failure in waitall in tag exchange.");
+    }
+  
+    // If source tag is not equal to destination tag, then
+    // do local copy for owned entities (communicate w/ self)
+    assert(src_tags.size() == dst_tags.size());
+    if (src_tags != dst_tags) {
+      std::vector<unsigned char> data;
+      Range owned_ents(entities_in);
+      result = filter_pstatus(owned_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);
+      RRA("Failure to get subset of owned entities");
+  
+      if (!owned_ents.empty()) { // check this here, otherwise we get 
+	// unexpected results from get_entities_by_type_and_tag w/ Interface::INTERSECT
+  
+	for (size_t i = 0; i < src_tags.size(); ++i) {
+	  if (src_tags[i] == dst_tags[i])
+	    continue;
+
+	  Range tagged_ents(owned_ents);
+	  result = mbImpl->get_entities_by_type_and_tag( 0, MBMAXTYPE,
+							 &src_tags[0], 0, 1, tagged_ents, Interface::INTERSECT );
+	  RRA("get_entities_by_type_and_tag(type == MBMAXTYPE) failed.");
+
+	  int size, size2;
+	  result = mbImpl->tag_get_bytes( src_tags[i], size );
+	  RRA("tag_get_size failed.");
+	  result = mbImpl->tag_get_bytes( dst_tags[i], size2 );
+	  RRA("tag_get_size failed.");
+	  if (size != size2) {
+	    result = MB_FAILURE;
+	    RRA("tag sizes don't match")
+	      }
+
+	  data.resize( size * tagged_ents.size() );
+	  result = mbImpl->tag_get_data( src_tags[i], tagged_ents, &data[0] );
+	  RRA("tag_get_data failed.");
+	  result = mbImpl->tag_set_data( dst_tags[i], tagged_ents, &data[0] );
+	  RRA("tag_set_data failed.");
+	}
+      }
+    }
+
+    myDebug->tprintf(1, "Exiting exchange_tags");
+
+    return MB_SUCCESS;
+  }
+
+  ErrorCode ParallelComm::reduce_tags( const std::vector<Tag> &src_tags,
+                                       const std::vector<Tag> &dst_tags,
+                                       const MPI_Op mpi_op,
+                                       const Range &entities_in)
+  {
+    ErrorCode result;
+    int success;
+
+    myDebug->tprintf(1, "Entering reduce_tags\n");
+
+      // check that restrictions are met: number of source/dst tags...
+    if (src_tags.size() != dst_tags.size()) {
+      result = MB_FAILURE;
+      RRA("Source and destination tag handles must be specified for reduce_tags.");
+    }
+
+      // ... tag data types
+    std::vector<Tag>::const_iterator vits, vitd;
+    int tags_size, tagd_size;
+    DataType tags_type, tagd_type;
+    std::vector<unsigned char> vals;
+    for (vits = src_tags.begin(), vitd = dst_tags.begin(); vits != src_tags.end(); vits++, vitd++) {
+      result = mbImpl->tag_get_bytes(*vits, tags_size);
+      RRA("Coudln't get src tag bytes.");
+      result = mbImpl->tag_get_bytes(*vitd, tagd_size);
+      RRA("Coudln't get dst tag bytes.");
+      if (tags_size != tagd_size) {
+        result = MB_FAILURE;
+        RRA("Sizes between src and dst tags don't match.");
+      }
+      result = mbImpl->tag_get_data_type(*vits, tags_type);
+      RRA("Coudln't get src tag data type.");
+      result = mbImpl->tag_get_data_type(*vitd, tagd_type);
+      RRA("Coudln't get dst tag data type.");
+      if (tags_type != tagd_type) {
+        result = MB_FAILURE;
+        RRA("Src and dst tags must be of same data type.");
+      }
+      else if (tags_type != MB_TYPE_INTEGER && tags_type != MB_TYPE_DOUBLE &&
+               tags_type != MB_TYPE_BIT) {
+        result = MB_FAILURE;
+        RRA("Src and dst tags must have integer, double, or bit data type.");
+      }
+
+      vals.resize(tags_size);
+      result = mbImpl->tag_get_default_value(*vits, &vals[0]);
+      RRA("Src tag must have default value.");
+    }
+
+    // get all procs interfacing to this proc
+    std::set<unsigned int> exch_procs;
+    result = get_comm_procs(exch_procs);  
+
+    // post ghost irecv's for all interface procs
+    // index greqs the same as buffer/sharing procs indices
+    std::vector<MPI_Request> recv_tag_reqs(2*buffProcs.size(), MPI_REQUEST_NULL),
+      sent_ack_reqs(buffProcs.size(), MPI_REQUEST_NULL);
+    std::vector<unsigned int>::iterator sit;
+    int ind;
+
+    reset_all_buffers();
+    int incoming = 0;
+
+    for (ind = 0, sit = buffProcs.begin(); sit != buffProcs.end(); sit++, ind++) {
+      incoming++;
+      PRINT_DEBUG_IRECV(*sit, procConfig.proc_rank(), remoteOwnedBuffs[ind]->mem_ptr,
+			INITIAL_BUFF_SIZE, MB_MESG_TAGS_SIZE, incoming);
+
+      success = MPI_Irecv(remoteOwnedBuffs[ind]->mem_ptr, INITIAL_BUFF_SIZE,
+			  MPI_UNSIGNED_CHAR, *sit,
+			  MB_MESG_TAGS_SIZE, procConfig.proc_comm(), 
+			  &recv_tag_reqs[2*ind]);
+      if (success != MPI_SUCCESS) {
+	result = MB_FAILURE;
+	RRA("Failed to post irecv in ghost exchange.");
+      }
+
+    }
+  
+    // pack and send tags from this proc to others
+    // make sendReqs vector to simplify initialization
+    sendReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
+  
+    // take all shared entities if incoming list is empty
+    Range entities;
+    if (entities_in.empty()) {
+      std::copy(sharedEnts.begin(), sharedEnts.end(), range_inserter(entities));
+    }
+    else 
+      entities = entities_in;
+  
+    int dum_ack_buff;
+
+    for (ind = 0, sit = buffProcs.begin(); sit != buffProcs.end(); sit++, ind++) {
+    
+      Range tag_ents = entities;
+    
+      // get ents shared by proc *sit
+      result = filter_pstatus(tag_ents, PSTATUS_SHARED, PSTATUS_AND, *sit);
+      RRA("Failed pstatus AND check.");
+    
+      // pack-send
+      std::vector<Range> tag_ranges;
+      for (std::vector<Tag>::const_iterator vit = src_tags.begin(); vit != src_tags.end(); vit++) {
+	const void* ptr;
+	int size;
+	if (mbImpl->tag_get_default_value( *vit, ptr, size ) != MB_SUCCESS) {
+	  Range tagged_ents;
+	  mbImpl->get_entities_by_type_and_tag( 0, MBMAXTYPE, &*vit, 0, 1, tagged_ents );
+	  tag_ranges.push_back( intersect( tag_ents, tagged_ents ) );
+	} 
+	else {
+	  tag_ranges.push_back(tag_ents);
+	}
+      }
+    
+      // pack the data
+      // reserve space on front for size and for initial buff size
+      localOwnedBuffs[ind]->reset_ptr(sizeof(int));
+    
+      result = pack_tags(tag_ents,
+			 src_tags, dst_tags, tag_ranges, 
+			 localOwnedBuffs[ind], true, *sit);
+      RRA("Failed to count buffer in pack_send_tag.");
+
+      // now send it
+      result = send_buffer(*sit, localOwnedBuffs[ind], MB_MESG_TAGS_SIZE, sendReqs[2*ind],
+			   recv_tag_reqs[2*ind+1], &dum_ack_buff, incoming);
+      RRA("Failed to send buffer.");
+                         
+    }
+
+      // set default values for dst_tags on entities
+    int tag_size;
+    for (vits = src_tags.begin(), vitd = dst_tags.begin(); vits != src_tags.end(); vits++, vitd++) {
+      result = mbImpl->tag_get_bytes(*vits, tag_size);
+      RRA("Couldn't get tag bytes.");
+      vals.resize(tag_size);
+      result = mbImpl->tag_get_default_value(*vits, &vals[0]);
+      RRA("Couldn't get default value.");
+      result = mbImpl->tag_clear_data(*vitd, entities, &vals[0]);
+      RRA("Couldn't reset tag data.");
+    }
+  
+    // receive/unpack tags
+    while (incoming) {
+      MPI_Status status;
+      PRINT_DEBUG_WAITANY(recv_tag_reqs, MB_MESG_TAGS_SIZE, procConfig.proc_rank());
+      success = MPI_Waitany(2*buffProcs.size(), &recv_tag_reqs[0], &ind, &status);
+      if (MPI_SUCCESS != success) {
+	result = MB_FAILURE;
+	RRA("Failed in waitany in ghost exchange.");
+      }
+    
+      PRINT_DEBUG_RECD(status);
+
+      // ok, received something; decrement incoming counter
+      incoming--;
+    
+      bool done = false;
+      std::vector<EntityHandle> dum_vec;
+      result = recv_buffer(MB_MESG_TAGS_SIZE,
+			   status,
+			   remoteOwnedBuffs[ind/2],
+			   recv_tag_reqs[ind/2 * 2], recv_tag_reqs[ind/2 * 2 + 1],
+			   incoming,
+			   localOwnedBuffs[ind/2], sendReqs[ind/2*2], sendReqs[ind/2*2+1],
+			   done);
+      RRA("Failed to resize recv buffer.");
+      if (done) {
+	remoteOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
+	result = unpack_tags(remoteOwnedBuffs[ind/2]->buff_ptr,
+                               dum_vec, true, buffProcs[ind/2], &mpi_op);
 	RRA("Failed to recv-unpack-tag message.");
       }
     }

@@ -59,6 +59,11 @@
 #  include "WriteCCMIO.hpp"
 #endif
 
+#ifdef DAMSEL_FILE
+#  include "WriteDamsel.hpp"
+//#  include "ReadDamsel.hpp"
+#endif
+
 #ifdef HDF5_FILE
 #  include "ReadHDF5.hpp"
 #  ifdef HDF5_PARALLEL
@@ -127,6 +132,11 @@ ReaderWriterSet::ReaderWriterSet( Core* mdb, Error* handler )
 #ifdef CCMIO_FILE  
   const char* ccmio_sufxs[] = { "ccm", "ccmg", NULL };
   register_factory( ReadCCMIO::factory, WriteCCMIO::factory, "CCMIO files", ccmio_sufxs, "CCMIO");
+#endif
+
+#ifdef DAMSEL_FILE  
+  const char* damsel_sufxs[] = { "h5", NULL };
+  register_factory( NULL, WriteDamsel::factory, "Damsel files", damsel_sufxs, "DAMSEL");
 #endif
 
   register_factory( NULL, WriteGMV::factory, "GMV", "gmv", "GMV" );

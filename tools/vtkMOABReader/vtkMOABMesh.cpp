@@ -376,7 +376,7 @@ ErrorCode vtkMOABMesh::read_sparse_tags(EntityHandle file_set)
     static int lvals[] = {0, 1, 2, 3};
     static const char *lnames[] = {"GeomVertex", "GeomCurve", "GeomSurface", "GeomVolume"};
     
-    for (int l = 0; l <= lmax; l++) {
+    for (int l = 1; l <= lmax; l++) {
       sets.clear();
       int *lval = lvals+l;
       rval = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET, &(*vit), 
