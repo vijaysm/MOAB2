@@ -70,12 +70,10 @@ cfg_DATA = FBiGeom-Defs.inc
 # 'make prefix=/foo install', we don't know the correct install
 # directory until we're doing the install.
 install-data-hook:
-	$(AM_V_at)echo "IGEOM_DIR=${cfgdir}/.." >> $(DESTDIR)$(cfgdir)/FBiGeom-SIDL-Defs.inc
-	$(AM_V_at)echo "IGEOM_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/FBiGeom-Defs.inc
-	$(AM_V_at)echo "IGEOM_INCLUDEDIR2=" >> $(DESTDIR)$(cfgdir)/FBiGeom-Defs.inc
-	$(AM_V_at)echo "IGEOM_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/FBiGeom-Defs.inc
+	$(AM_V_at)echo "FBIGEOM_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/FBiGeom-Defs.inc
+	$(AM_V_at)echo "FBIGEOM_INCLUDEDIR2=" >> $(DESTDIR)$(cfgdir)/FBiGeom-Defs.inc
+	$(AM_V_at)echo "FBIGEOM_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/FBiGeom-Defs.inc
 	$(AM_V_at)echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/FBiGeom-Defs.inc
-	$(AM_V_at)echo "IGEOM_LIBS=-L${libdir} -liGeomMOAB" >> $(DESTDIR)$(cfgdir)/FBiGeom-Defs.inc
 
 FBiGeom_protos.h: FBiGeom.h $(top_srcdir)/itaps/mkprotos.sh Makefile.am
 	$(AM_V_GEN)$(top_srcdir)/itaps/mkprotos.sh FBiGeom MOAB $< $@ MOAB_FCDefs.h
