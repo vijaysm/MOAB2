@@ -1,4 +1,4 @@
-Version 4.5: (in progress)
+Version 4.5:
 * ITAPS: added iMesh_stepEntIter, iMesh_stepEntArrIter, iMesh_tagIterate, iMesh_createTagWithOptions (see iMesh_extensions.h)
 * More partitioning options for structured mesh (see ScdInterface::compute_partition functions, and doc/metadata_info.doc)
 * Error class exposed in API, and query_interface now supports getting access to the moab::Core member of that class.
