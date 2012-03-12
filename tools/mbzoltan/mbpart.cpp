@@ -21,7 +21,7 @@ const char ZOLTAN_PARMETIS_METHOD[] = "PARMETIS";
 const char ZOLTAN_OCTPART_METHOD[] = "OCTPART";
 
 const char BRIEF_DESC[] = 
- "Use Zoltan to partition MOAB meshes for use on parallel computers";
+  "Use Zoltan to partition MOAB meshes for use on parallel computers";
 std::ostringstream LONG_DESC;
 
 int main( int argc, char* argv[] )
@@ -36,18 +36,18 @@ int main( int argc, char* argv[] )
   Interface& mb = moab;
   
   LONG_DESC << "This utility invokes the MBZoltan componemnt of MOAB/CGM"
-               "to partition a mesh/geometry." << std::endl
+    "to partition a mesh/geometry." << std::endl
             << "If no partitioning method is specified, the default is "
-               "the Zoltan \"" << DEFAULT_ZOLTAN_METHOD << "\" method" << std::endl;
+    "the Zoltan \"" << DEFAULT_ZOLTAN_METHOD << "\" method" << std::endl;
   
   ProgOptions opts(LONG_DESC.str(), BRIEF_DESC);
   opts.addOpt<int>( "dimension", "Specify dimension of entities to partition."
-                                 "  Default is  largest in file.", 
-                                 0, ProgOptions::int_flag );
+		    "  Default is  largest in file.", 
+		    0, ProgOptions::int_flag );
   opts.addOpt<std::string>( "zoltan,z", "Specify Zoltan partition method.  "
-                                         "One of RR, RCB, RIB, HFSC, PHG, " 
-                                         " or Hypergraph (PHG and Hypergraph "
-                                         "are synonymous)." );
+			    "One of RR, RCB, RIB, HFSC, PHG, " 
+			    " or Hypergraph (PHG and Hypergraph "
+			    "are synonymous)." );
   opts.addOpt<std::string>( "parmetis,p", "Specify Parmetis partition method.");
   opts.addOpt<std::string>( "octpart,o", "Specify OctPart partition method.");
   opts.addOpt<void>( "sets,s", "Write partition as tagged sets (Default)" );
@@ -60,6 +60,7 @@ int main( int argc, char* argv[] )
   opts.addOpt<void>( "ghost,h", "Specify if partition ghost geometry body.");
   opts.addOpt<int>( "vertex_w,v", "Number of weights associated with a graph vertex.");
   opts.addOpt<int>( "edge_w,e", "Number of weights associated with an edge.");
+  opts.addOpt<int>( "set_l,l", "Load material set with id.");
   opts.addRequiredArg<int>( "#parts", "Number of parts in partition" );
   opts.addRequiredArg<std::string>( "input_file", "Mesh/geometry to partition" );
   opts.addRequiredArg<std::string>( "output_file", "File to which to write partitioned mesh/geometry" );
@@ -77,7 +78,7 @@ int main( int argc, char* argv[] )
   int power = -1;
   int obj_weight = -1;
   int edge_weight = -1;
-  
+  int set_l = -1;
   bool print_time = opts.getOpt<void>(",T",0);
   
   // check if partition geometry, if it is, should get mesh size for the geometry
@@ -143,22 +144,45 @@ int main( int argc, char* argv[] )
       return 1;
     }
   }
+
+  if (opts.getOpt( "set_l", &set_l )) {
+    if (set_l < 0.0) {
+      std::cerr << set_l << ": invalid setid/setid not found" << std::endl;
+      return 1;
+    }
+  }
   
   std::string input_file = opts.getReqArg<std::string>("input_file");
   std::string output_file = opts.getReqArg<std::string>("output_file");
   clock_t t = clock();
 
   const char* options = NULL;
+  ErrorCode rval;
   if (part_geom_mesh_size > 0.) options = "FACET_DISTANCE_TOLERANCE=0.1";
-  ErrorCode rval = mb.load_file( input_file.c_str(), 0, options );
-  if (MB_SUCCESS != rval) {
-    std::cerr << input_file << " : failed to read file." << std::endl;
-    std::cerr << "  Error code: " << mb.get_error_string(rval) << " (" << rval << ")" << std::endl;
-    std::string errstr;
-    mb.get_last_error(errstr);
-    if (!errstr.empty())
-      std::cerr << "  Error message: " << errstr << std::endl;
-    return 2;
+  if(set_l == -1){	  
+    rval = mb.load_file( input_file.c_str(), 0, options );
+    if (MB_SUCCESS != rval) {
+      std::cerr << input_file << " : failed to read file." << std::endl;
+      std::cerr << "  Error code: " << mb.get_error_string(rval) << " (" << rval << ")" << std::endl;
+      std::string errstr;
+      mb.get_last_error(errstr);
+      if (!errstr.empty())
+	std::cerr << "  Error message: " << errstr << std::endl;
+      return 2;
+    }
+  }
+  // load the material set
+  else{ 
+    rval = mb.load_mesh(input_file.c_str(), &set_l, 1);
+    if (MB_SUCCESS != rval) {
+      std::cerr << input_file << " : failed to read file." << std::endl;
+      std::cerr << "  Error code: " << mb.get_error_string(rval) << " (" << rval << ")" << std::endl;
+      std::string errstr;
+      mb.get_last_error(errstr);
+      if (!errstr.empty())
+	std::cerr << "  Error message: " << errstr << std::endl;
+      return 2;
+    }
   }
   if (print_time)
     std::cout << "Read input file in " << (clock() - t)/(double)CLOCKS_PER_SEC << " seconds" << std::endl;
@@ -201,8 +225,8 @@ int main( int argc, char* argv[] )
     }
     if (print_time) 
       std::cout << "Generated " << num_parts << " part partitioning in "
-                  << (clock() - t)/(double)CLOCKS_PER_SEC << " seconds" 
-                  << std::endl;
+		<< (clock() - t)/(double)CLOCKS_PER_SEC << " seconds" 
+		<< std::endl;
     
     if (opts.getOpt<void>("reorder",0) && part_geom_mesh_size < 0.) {
       Tag tag, order;
@@ -242,7 +266,7 @@ int main( int argc, char* argv[] )
     std::ostringstream tmp_output_file;
     
     if (power > 1) {
-        // append num_parts to output filename
+      // append num_parts to output filename
       std::string::size_type idx = output_file.find_last_of( "." );
       if (idx == std::string::npos) {
         tmp_output_file << output_file << "_" << num_parts;
@@ -290,9 +314,9 @@ int main( int argc, char* argv[] )
       int junk;
       DLIList<RefEntity*> ref_entity_list;
       CubitStatus status = CubitCompat_export_solid_model(ref_entity_list,
-                           tmp_output_file.str().c_str(),
-                           file_type, junk,
-                           CubitString(__FILE__));
+							  tmp_output_file.str().c_str(),
+							  file_type, junk,
+							  CubitString(__FILE__));
       if (CUBIT_SUCCESS != status) {
         std::cerr << "CGM couldn't export models." << std::endl;
         return 1;
