@@ -327,6 +327,28 @@ namespace moab {
                            const MPI_Op mpi_op,
                            const Range &entities);
   
+    /** \brief Perform data reduction operation for all shared and ghosted entities
+     * Same as std::vector variant except for one tag specified by name
+     * \param tag_name Name of tag to be reduced
+     * \param mpi_op Operation type
+     * \param entities Entities on which reduction will be made; if empty, operates on all shared
+     *                 entities
+     */
+    ErrorCode reduce_tags( const char *tag_name,
+                           const MPI_Op mpi_op,
+                           const Range &entities);
+  
+    /** \brief Perform data reduction operation for all shared and ghosted entities
+     * Same as std::vector variant except for one tag specified by handle
+     * \param tag_name Name of tag to be reduced
+     * \param mpi_op Operation type
+     * \param entities Entities on which reduction will be made; if empty, operates on all shared
+     *                 entities
+     */
+    ErrorCode reduce_tags( Tag tag_handle,
+                           const MPI_Op mpi_op,
+                           const Range &entities);
+  
     /** \brief Broadcast all entities resident on from_proc to other processors
      * This function assumes remote handles are *not* being stored, since (usually)
      * every processor will know about the whole mesh.
@@ -1451,6 +1473,30 @@ namespace moab {
     tags.push_back(tagh);
   
     return exchange_tags(tags, tags, entities);
+  }
+  
+  inline ErrorCode ParallelComm::reduce_tags( const char *tag_name,
+                                              const MPI_Op mpi_op,
+                                              const Range &entities)
+  {
+    // get the tag handle
+    std::vector<Tag> tags(1);
+    ErrorCode result = mbImpl->tag_get_handle(tag_name, 0, MB_TYPE_OPAQUE, tags[0], MB_TAG_ANY);
+    if (MB_SUCCESS != result) return result;
+    else if (!tags[0]) return MB_TAG_NOT_FOUND;
+  
+    return reduce_tags(tags, tags, mpi_op, entities);
+  }
+  
+  inline ErrorCode ParallelComm::reduce_tags( Tag tagh,
+                                              const MPI_Op mpi_op,
+                                              const Range &entities)
+  {
+    // get the tag handle
+    std::vector<Tag> tags;
+    tags.push_back(tagh);
+  
+    return reduce_tags(tags, tags, mpi_op, entities);
   }
   
   inline ErrorCode ParallelComm::get_comm_procs(std::set<unsigned int> &procs) 

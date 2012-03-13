@@ -7032,6 +7032,8 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     DataType tags_type, tagd_type;
     std::vector<unsigned char> vals;
     for (vits = src_tags.begin(), vitd = dst_tags.begin(); vits != src_tags.end(); vits++, vitd++) {
+      if (*vits == *vitd) continue;
+      
       result = mbImpl->tag_get_bytes(*vits, tags_size);
       RRA("Coudln't get src tag bytes.");
       result = mbImpl->tag_get_bytes(*vitd, tagd_size);
@@ -7142,18 +7144,6 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
                          
     }
 
-      // set default values for dst_tags on entities
-    int tag_size;
-    for (vits = src_tags.begin(), vitd = dst_tags.begin(); vits != src_tags.end(); vits++, vitd++) {
-      result = mbImpl->tag_get_bytes(*vits, tag_size);
-      RRA("Couldn't get tag bytes.");
-      vals.resize(tag_size);
-      result = mbImpl->tag_get_default_value(*vits, &vals[0]);
-      RRA("Couldn't get default value.");
-      result = mbImpl->tag_clear_data(*vitd, entities, &vals[0]);
-      RRA("Couldn't reset tag data.");
-    }
-  
     // receive/unpack tags
     while (incoming) {
       MPI_Status status;
@@ -7171,13 +7161,10 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     
       bool done = false;
       std::vector<EntityHandle> dum_vec;
-      result = recv_buffer(MB_MESG_TAGS_SIZE,
-			   status,
-			   remoteOwnedBuffs[ind/2],
-			   recv_tag_reqs[ind/2 * 2], recv_tag_reqs[ind/2 * 2 + 1],
-			   incoming,
-			   localOwnedBuffs[ind/2], sendReqs[ind/2*2], sendReqs[ind/2*2+1],
-			   done);
+      result = recv_buffer(MB_MESG_TAGS_SIZE, status, remoteOwnedBuffs[ind/2],
+                           recv_tag_reqs[ind/2 * 2], recv_tag_reqs[ind/2 * 2 + 1],
+                           incoming, localOwnedBuffs[ind/2], sendReqs[ind/2*2], sendReqs[ind/2*2+1], 
+                           done);
       RRA("Failed to resize recv buffer.");
       if (done) {
 	remoteOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
