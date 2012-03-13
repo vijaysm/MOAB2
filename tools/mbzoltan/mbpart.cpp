@@ -34,6 +34,7 @@ int main( int argc, char* argv[] )
 
   Core moab;
   Interface& mb = moab;
+  std::vector<int> set_l;
   
   LONG_DESC << "This utility invokes the MBZoltan componemnt of MOAB/CGM"
     "to partition a mesh/geometry." << std::endl
@@ -60,7 +61,7 @@ int main( int argc, char* argv[] )
   opts.addOpt<void>( "ghost,h", "Specify if partition ghost geometry body.");
   opts.addOpt<int>( "vertex_w,v", "Number of weights associated with a graph vertex.");
   opts.addOpt<int>( "edge_w,e", "Number of weights associated with an edge.");
-  opts.addOpt<int>( "set_l,l", "Load material set with id.");
+  opts.addOpt("set_l,l", "Load material set(s) with specified ids (comma seperated) for partition", &set_l);
   opts.addRequiredArg<int>( "#parts", "Number of parts in partition" );
   opts.addRequiredArg<std::string>( "input_file", "Mesh/geometry to partition" );
   opts.addRequiredArg<std::string>( "output_file", "File to which to write partitioned mesh/geometry" );
@@ -78,7 +79,7 @@ int main( int argc, char* argv[] )
   int power = -1;
   int obj_weight = -1;
   int edge_weight = -1;
-  int set_l = -1;
+  bool load_msets = false;
   bool print_time = opts.getOpt<void>(",T",0);
   
   // check if partition geometry, if it is, should get mesh size for the geometry
@@ -145,9 +146,10 @@ int main( int argc, char* argv[] )
     }
   }
 
-  if (opts.getOpt( "set_l", &set_l )) {
-    if (set_l < 0.0) {
-      std::cerr << set_l << ": invalid setid/setid not found" << std::endl;
+  if (opts.getOpt( "set_l,l", &set_l )) {
+    load_msets = true;
+    if (set_l.size() <= 0) {
+      std::cerr << " No material set id's to load" << std::endl;
       return 1;
     }
   }
@@ -159,7 +161,7 @@ int main( int argc, char* argv[] )
   const char* options = NULL;
   ErrorCode rval;
   if (part_geom_mesh_size > 0.) options = "FACET_DISTANCE_TOLERANCE=0.1";
-  if(set_l == -1){	  
+  if(load_msets == false){	  
     rval = mb.load_file( input_file.c_str(), 0, options );
     if (MB_SUCCESS != rval) {
       std::cerr << input_file << " : failed to read file." << std::endl;
@@ -171,9 +173,9 @@ int main( int argc, char* argv[] )
       return 2;
     }
   }
-  // load the material set
+  // load the material set(s)
   else{ 
-    rval = mb.load_mesh(input_file.c_str(), &set_l, 1);
+    rval = mb.load_mesh(input_file.c_str(), &set_l[0], (int)set_l.size());
     if (MB_SUCCESS != rval) {
       std::cerr << input_file << " : failed to read file." << std::endl;
       std::cerr << "  Error code: " << mb.get_error_string(rval) << " (" << rval << ")" << std::endl;
