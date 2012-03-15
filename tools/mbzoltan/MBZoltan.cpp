@@ -96,9 +96,9 @@ MBZoltan::~MBZoltan()
 }
 
 ErrorCode MBZoltan::balance_mesh(const char *zmethod,
-                                   const char *other_method,
-                                   const bool write_as_sets,
-                                   const bool write_as_tags) 
+                                 const char *other_method,
+                                 const bool write_as_sets,
+                                 const bool write_as_tags) 
 {
   if (!strcmp(zmethod, "RR") && !strcmp(zmethod, "RCB") && !strcmp(zmethod, "RIB") &&
       !strcmp(zmethod, "HSFC") && !strcmp(zmethod, "Hypergraph") &&
@@ -209,10 +209,10 @@ ErrorCode MBZoltan::balance_mesh(const char *zmethod,
 
   mbFinalizePoints((int)ids.size(), numExport, exportLocalIds,
                    exportProcs, &assignment);
-  
+
   if (mbpc->proc_config().proc_rank() == 0) {
     ErrorCode result = write_partition(mbpc->proc_config().proc_size(), elems, assignment,
-                                         write_as_sets, write_as_tags);
+                                       write_as_sets, write_as_tags);
 
     if (MB_SUCCESS != result) return result;
 
@@ -299,18 +299,20 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
         std::fill(&assign_vec[nstart], &assign_vec[nstart+num_per], i);
         nstart += num_per;
       }
-      
+
       result = write_partition(nparts, elems, &assign_vec[0],
-                               write_as_sets, write_as_tags);
+                               write_as_sets, write_as_tags); RR;
     }
     else {
 #ifdef CGM
       result = partition_round_robin(nparts); RR;
 #endif
     }
-  
+
     return result;
   }
+
+  std::cout << "Assembling graph..." << std::endl;
   
   if (part_geom_mesh_size < 0.) {
     //if (!part_geom) {
@@ -355,6 +357,8 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
   // Zoltan_Initialize has been called.
 
   float version;
+
+  std::cout << "Initializing zoltan..." << std::endl;
 
   Zoltan_Initialize(argcArg, argvArg, &version); 
 
@@ -440,6 +444,9 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
   ZOLTAN_ID_PTR assign_gid, assign_lid;
   int *assign_procs, *assign_parts;
 
+  std::cout << "Computing partition using " << (zmethod ? zmethod : "RCB") <<
+      " method for " << nparts << " processors..." << std::endl;
+  
   retval = myZZ->LB_Partition(changes, numGidEntries, numLidEntries, 
                               dumnum1, dum_global, dum_local, dum1, dum2,
                               num_assign, assign_gid, assign_lid,
@@ -447,6 +454,8 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
   if (ZOLTAN_OK != retval) return MB_FAILURE;
   
   // take results & write onto MOAB partition sets
+  std::cout << "Saving partition information to MOAB..." << std::endl;
+  
   if (part_geom_mesh_size < 0.) {
     //if (!part_geom) {
     result = write_partition(nparts, elems, assign_parts,
@@ -465,6 +474,69 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
   // Free the memory allocated for lists returned by LB_Parition()
   myZZ->LB_Free_Part(&assign_gid, &assign_lid, &assign_procs, &assign_parts);
 
+  return MB_SUCCESS;
+}
+
+ErrorCode MBZoltan::include_closure() 
+{
+  ErrorCode result;
+  Range ents;
+  Range adjs;
+  std::cout << "Adding closure..." << std::endl;
+  
+  for (Range::iterator rit = partSets.begin(); rit != partSets.end(); rit++) {
+    
+      // get the top-dimensional entities in the part
+    result = mbImpl->get_entities_by_handle(*rit, ents, true); RR;
+
+    if (ents.empty()) continue;
+    
+      // get intermediate-dimensional adjs and add to set
+    for (int d = mbImpl->dimension_from_handle(*ents.begin())-1; d >= 1; d--) {
+      adjs.clear();
+      result = mbImpl->get_adjacencies(ents, d, false, adjs, Interface::UNION); RR;
+      result = mbImpl->add_entities(*rit, adjs); RR;
+    }
+    
+      // now get vertices and add to set; only need to do for ents, not for adjs
+    adjs.clear();
+    result = mbImpl->get_adjacencies(ents, 0, false, adjs, Interface::UNION); RR;
+    result = mbImpl->add_entities(*rit, adjs); RR;
+
+    ents.clear();
+  }
+  
+    // now go over non-part entity sets, looking for contained entities
+  Range sets, part_ents;
+  result = mbImpl->get_entities_by_type(0, MBENTITYSET, sets); RR;
+  for (Range::iterator rit = sets.begin(); rit != sets.end(); rit++) {
+      // skip parts
+    if (partSets.find(*rit) != partSets.end()) continue;
+
+      // get entities in this set, recursively
+    ents.clear();
+    result = mbImpl->get_entities_by_handle(*rit, ents, true); RR;
+    
+      // now check over all parts
+    for (Range::iterator rit2 = partSets.begin(); rit2 != partSets.end(); rit2++) {
+      part_ents.clear();
+      result = mbImpl->get_entities_by_handle(*rit2, part_ents, false); RR;
+      Range int_range = intersect(ents, part_ents);
+      if (!int_range.empty()) {
+          // non-empty intersection, add to part set
+        result = mbImpl->add_entities(*rit2, &(*rit), 1); RR;
+      }
+    }
+  }
+  
+    // finally, mark all the part sets as having the closure
+  Tag closure_tag;
+  result = mbImpl->tag_get_handle("INCLUDES_CLOSURE", 1, MB_TYPE_INTEGER,
+                                  closure_tag, MB_TAG_SPARSE|MB_TAG_CREAT); RR;
+  
+  std::vector<int> closure_vals(partSets.size(), 1);
+  result = mbImpl->tag_set_data(closure_tag, partSets, &closure_vals[0]); RR;
+  
   return MB_SUCCESS;
 }
 
@@ -1219,16 +1291,16 @@ ErrorCode MBZoltan::partition_child_entities(const int dim,
 #endif
 
 ErrorCode MBZoltan::write_partition(const int nparts,
-                                      Range &elems, 
-                                      const int *assignment,
-                                      const bool write_as_sets,
-                                      const bool write_as_tags) 
+                                    Range &elems, 
+                                    const int *assignment,
+                                    const bool write_as_sets,
+                                    const bool write_as_tags) 
 {
   ErrorCode result;
 
     // get the partition set tag
   Tag part_set_tag;
-  int dum_id = -1;
+  int dum_id = -1, i;
   result = mbImpl->tag_get_handle("PARALLEL_PARTITION", 1, MB_TYPE_INTEGER,
                                   part_set_tag, MB_TAG_SPARSE|MB_TAG_CREAT, &dum_id); RR;
   
@@ -1245,13 +1317,12 @@ ErrorCode MBZoltan::write_partition(const int nparts,
 
   if (write_as_sets) {
       // first, create partition sets and store in vector
-    EntityHandle *part_sets = new EntityHandle[nparts];
-    if (NULL == part_sets) return MB_FAILURE;
+    partSets.clear();
   
     if (nparts > (int) tagged_sets.size()) {
         // too few partition sets - create missing ones
       int num_new = nparts - tagged_sets.size();
-      for (int i = 0; i < num_new; i++) {
+      for (i = 0; i < num_new; i++) {
         EntityHandle new_set;
         result = mbImpl->create_meshset(MESHSET_SET, new_set); RR;
         tagged_sets.insert(new_set);
@@ -1260,40 +1331,41 @@ ErrorCode MBZoltan::write_partition(const int nparts,
     else if (nparts < (int) tagged_sets.size()) {
         // too many partition sets - delete extras
       int num_del = tagged_sets.size() - nparts;
-      for (int i = 0; i < num_del; i++) {
+      for (i = 0; i < num_del; i++) {
         EntityHandle old_set = tagged_sets.pop_back();
         result = mbImpl->delete_entities(&old_set, 1); RR;
       }
     }
   
       // assign partition sets to vector
-    Range::iterator rit = tagged_sets.begin();
-    int i = 0;
-    for (; i < nparts; rit++, i++) part_sets[i] = *rit;
+    partSets.swap(tagged_sets);
   
       // write a tag to those sets denoting they're partition sets, with a value of the
       // proc number
     int *dum_ids = new int[nparts];
-    for (int i = 0; i < nparts; i++) dum_ids[i] = i;
+    for (i = 0; i < nparts; i++) dum_ids[i] = i;
   
-    result = mbImpl->tag_set_data(part_set_tag, part_sets, nparts, dum_ids); RR;
+    result = mbImpl->tag_set_data(part_set_tag, partSets, dum_ids); RR;
 
       // assign entities to the relevant sets
-    for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
-      result = mbImpl->add_entities(part_sets[assignment[i]], &(*rit), 1); RR;
+    std::vector<EntityHandle> tmp_part_sets;
+    std::copy(partSets.begin(), partSets.end(), std::back_inserter(tmp_part_sets));
+    Range::iterator rit;
+    for (i = 0, rit = elems.begin(); rit != elems.end(); rit++, i++) {
+      result = mbImpl->add_entities(tmp_part_sets[assignment[i]], &(*rit), 1); RR;
     }
 
       // check for empty sets, warn if there are any
-    std::vector<unsigned int> empty_sets;
-    for (i = 0; i < nparts; i++) {
+    Range empty_sets;
+    for (Range::iterator rit = partSets.begin(); rit != partSets.end(); rit++) {
       int num_ents = 0;
-      result = mbImpl->get_number_entities_by_handle(part_sets[i], num_ents);
-      if (MB_SUCCESS != result || !num_ents) empty_sets.push_back(i);
+      result = mbImpl->get_number_entities_by_handle(*rit, num_ents);
+      if (MB_SUCCESS != result || !num_ents) empty_sets.insert(*rit);
     }
     if (!empty_sets.empty()) {
       std::cout << "WARNING: " << empty_sets.size() << " empty sets in partition: ";
-      for (std::vector<unsigned int>::iterator vit = empty_sets.begin(); vit != empty_sets.end(); vit++)
-        std::cout << *vit << " ";
+      for (Range::iterator rit = empty_sets.begin(); rit != empty_sets.end(); rit++)
+        std::cout << *rit << " ";
       std::cout << std::endl;
     }
   }

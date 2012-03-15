@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include "moab_mpi.h"
 #include "zoltan_cpp.h"
+#include "moab/Range.hpp"
 
 #ifdef CGM
 #include <map>
@@ -96,9 +97,9 @@ using namespace moab;
     ~MBZoltan();
 
     ErrorCode balance_mesh(const char *zmethod,
-                             const char *other_method,
-                             const bool write_as_sets = true,
-                             const bool write_as_tags = false);
+                           const char *other_method,
+                           const bool write_as_sets = true,
+                           const bool write_as_tags = false);
 
     ErrorCode partition_mesh_geom(const double part_geom_mesh_size,
                                   const int nparts,
@@ -120,9 +121,9 @@ using namespace moab;
       // given a processor assignment returned from Zoltan, write that as a
       // processor assignment to MOAB
     ErrorCode write_partition(const int nparts, Range &elems, 
-                                const int *assignment,
-                                const bool write_as_sets,
-                                const bool write_as_tags);
+                              const int *assignment,
+                              const bool write_as_sets,
+                              const bool write_as_tags);
 
 #ifdef CGM
     ErrorCode write_partition(const int nparts,
@@ -138,6 +139,9 @@ using namespace moab;
                                 std::vector<double> &obj_weights);
 #endif
     
+      // put closure of entities in the part sets too
+    ErrorCode include_closure();
+    
     ErrorCode write_file(const char *filename, const char *out_file);
   
     void SetOCTPART_Parameters(const char *oct_method);
@@ -151,6 +155,10 @@ using namespace moab;
     void SetRIB_Parameters();
   
     void SetRCB_Parameters();
+
+    Range &part_sets() {return partSets;};
+    
+    const Range &part_sets() const {return partSets;};
   
   private:
 
@@ -159,6 +167,8 @@ using namespace moab;
     ParallelComm *mbpc;
 
     Zoltan *myZZ;
+
+    Range partSets;
   
     bool newMoab;
   

@@ -20,7 +20,6 @@
 
 using namespace moab;
 
-
 #define CHKERR(a) do { \
   ErrorCode val = (a); \
   if (MB_SUCCESS != val) { \
@@ -126,15 +125,18 @@ ErrorCode test_ghosted_entity_shared_data( const char* );
 ErrorCode test_assign_global_ids( const char* );
 // Test shared sets
 ErrorCode test_shared_sets( const char* );
+// Test reduce_tags
+ErrorCode test_reduce_tags( const char* );
+
 /**************************************************************************
                               Main Method
  **************************************************************************/
 
-#define RUN_TEST(A, B) run_test( &A, #A, B )
+#define RUN_TEST(A, B) run_test( &A, #A, B)
 
 int run_test( ErrorCode (*func)(const char*), 
               const char* func_name,
-              const char* file_name )
+              const char* file_name)
 {
   ErrorCode result = (*func)(file_name);
   int is_err = is_any_proc_error( (MB_SUCCESS != result) );
@@ -215,6 +217,7 @@ int main( int argc, char* argv[] )
   num_errors += RUN_TEST( test_ghosted_entity_shared_data, filename );
   num_errors += RUN_TEST( test_assign_global_ids, filename );
   num_errors += RUN_TEST( test_shared_sets, 0 );
+  num_errors += RUN_TEST( test_reduce_tags, 0);
   
   if (rank == 0) {
     if (!num_errors) 
@@ -1414,4 +1417,109 @@ ErrorCode test_shared_sets( const char* )
 
   return MB_SUCCESS;
 }
+
+template <typename T> ErrorCode check_shared_ents(ParallelComm &pcomm, Tag tagh, T fact, MPI_Op mpi_op) 
+{
+    // get the shared entities
+  Range shared_ents;
+  ErrorCode rval = pcomm.get_shared_entities(-1, shared_ents); CHKERR(rval);
   
+  std::vector<int> shprocs(MAX_SHARING_PROCS);
+  std::vector<EntityHandle> shhandles(MAX_SHARING_PROCS);
+  std::vector<T> dum_vals(shared_ents.size());
+  int np;
+  unsigned char pstatus;
+
+  rval = pcomm.get_moab()->tag_get_data(tagh, shared_ents, &dum_vals[0]); CHKERR(rval);
+  
+    // for each, compare number of sharing procs against tag value, should be 1/fact the tag value
+  Range::iterator rit;
+  int i = 0;
+  for (rit = shared_ents.begin(); rit != shared_ents.end(); rit++, i++) {
+    rval = pcomm.get_sharing_data(*rit, &shprocs[0], &shhandles[0], pstatus, np); CHKERR(rval);
+    if (1 == np && shprocs[0] != (int) pcomm.proc_config().proc_rank()) np++;
+    if      (mpi_op == MPI_SUM) {if (dum_vals[i] != fact*np) return MB_FAILURE;}
+    else if (mpi_op == MPI_PROD) {if (dum_vals[i] != pow(fact, np)) return MB_FAILURE;}
+    else if (mpi_op == MPI_MAX) {if (dum_vals[i] != fact) return MB_FAILURE;}
+    else if (mpi_op == MPI_MIN) {if (dum_vals[i] != fact) return MB_FAILURE;}
+    else return MB_FAILURE;
+  }
+  
+  return MB_SUCCESS;
+}
+  
+template<typename T> ErrorCode test_reduce_tags( const char*, DataType tp )
+{
+  ErrorCode rval;  
+  Core moab_instance;
+  Interface& mb = moab_instance;
+  ParallelComm pcomm( &mb );
+
+  int rank, size;
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  MPI_Comm_size( MPI_COMM_WORLD, &size );
+  
+    // build distributed quad mesh
+  Range quad_range;
+  EntityHandle verts[9];
+  int vert_ids[9];
+  rval = parallel_create_mesh( mb, vert_ids, verts, quad_range );  PCHECK(MB_SUCCESS == rval);
+  rval = pcomm.resolve_shared_ents( 0, quad_range, 2, 1 ); PCHECK(MB_SUCCESS == rval);
+  
+  Tag test_tag;
+  T def_val = 2;
+  Range dum_range;
+  
+    // T, MPI_SUM
+  rval = mb.tag_get_handle( "test_tag", 1, tp, test_tag, MB_TAG_DENSE|MB_TAG_CREAT, &def_val ); CHKERR(rval);
+  rval = pcomm.reduce_tags(test_tag, MPI_SUM, dum_range); CHKERR(rval);
+  rval = check_shared_ents(pcomm, test_tag, (T)2, MPI_SUM); CHKERR(rval);
+  rval = mb.tag_delete(test_tag);
+  
+    // T, MPI_PROD
+  rval = mb.tag_get_handle( "test_tag", 1, tp, test_tag, MB_TAG_DENSE|MB_TAG_CREAT, &def_val ); CHKERR(rval);
+  rval = pcomm.reduce_tags(test_tag, MPI_PROD, dum_range); CHKERR(rval);
+  rval = check_shared_ents(pcomm, test_tag, (T)2, MPI_PROD); CHKERR(rval);
+  rval = mb.tag_delete(test_tag);
+  
+    // T, MPI_MAX
+  rval = mb.tag_get_handle( "test_tag", 1, tp, test_tag, MB_TAG_DENSE|MB_TAG_CREAT, &def_val ); CHKERR(rval);
+    // get owned entities and set a different value on them
+  rval = pcomm.get_shared_entities(-1, dum_range, -1, false, false); CHKERR(rval);
+  std::vector<T> dum_vals(dum_range.size(), (T)3);
+  rval = mb.tag_set_data(test_tag, dum_range, &dum_vals[0]); CHKERR(rval);
+  rval = pcomm.reduce_tags(test_tag, MPI_MAX, dum_range); CHKERR(rval);
+  rval = check_shared_ents(pcomm, test_tag, (T)3, MPI_MAX); CHKERR(rval);
+  rval = mb.tag_delete(test_tag);
+  
+    // T, MPI_MIN
+  rval = mb.tag_get_handle( "test_tag", 1, tp, test_tag, MB_TAG_DENSE|MB_TAG_CREAT, &def_val ); CHKERR(rval);
+    // get owned entities and set a different value on them
+  std::fill(dum_vals.begin(), dum_vals.end(), (T)-1);
+  rval = mb.tag_set_data(test_tag, dum_range, &dum_vals[0]); CHKERR(rval);
+  rval = pcomm.reduce_tags(test_tag, MPI_MIN, dum_range); CHKERR(rval);
+  rval = check_shared_ents(pcomm, test_tag, (T)-1, MPI_MIN); CHKERR(rval);
+  rval = mb.tag_delete(test_tag);
+  
+  return MB_SUCCESS;
+}
+
+ErrorCode test_reduce_tags( const char*)
+{
+  ErrorCode rval = MB_SUCCESS, tmp_rval;
+  
+  tmp_rval = test_reduce_tags<int>("test_reduce_tags", MB_TYPE_INTEGER);
+  if (MB_SUCCESS != tmp_rval) {
+    std::cout << "test_reduce_tags failed for int data type." << std::endl;
+    rval = tmp_rval;
+  }
+  
+  tmp_rval = test_reduce_tags<double>("test_reduce_tags", MB_TYPE_DOUBLE);
+  if (MB_SUCCESS != tmp_rval) {
+    std::cout << "test_reduce_tags failed for double data type." << std::endl;
+    rval = tmp_rval;
+  }
+  
+  return rval;
+}
+
