@@ -1957,7 +1957,7 @@ extern "C" {
                      tag_values_allocated,
                      tag_values_size, err);
     *tag_values_allocated /= sizeof(int);
-    *tag_values_size /= sizeof(int);
+    if (tag_values_size != tag_values_allocated) *tag_values_size /= sizeof(int);
   }
 
   void iMesh_getDblArrData (iMesh_Instance instance,
@@ -1976,7 +1976,7 @@ extern "C" {
                      tag_values,
                      tag_values_allocated, tag_values_size, err);
     *tag_values_allocated /= sizeof(double);
-    *tag_values_size /= sizeof(double);
+    if (tag_values_size != tag_values_allocated) *tag_values_size /= sizeof(double);
   }
 
   void iMesh_getEHArrData (iMesh_Instance instance,
@@ -1996,7 +1996,7 @@ extern "C" {
                      tag_value_allocated,
                      tag_value_size, err);
     *tag_value_allocated /= sizeof(iBase_EntityHandle);
-    *tag_value_size /= sizeof(iBase_EntityHandle);
+    if (tag_value_size != tag_value_allocated) *tag_value_size /= sizeof(iBase_EntityHandle);
   }
 
   void iMesh_getESHArrData (iMesh_Instance instance,
@@ -2016,7 +2016,7 @@ extern "C" {
                      tag_value_allocated,
                      tag_value_size, err);
     *tag_value_allocated /= sizeof(iBase_EntityHandle);
-    *tag_value_size /= sizeof(iBase_EntityHandle);
+    if (tag_value_size != tag_value_allocated) *tag_value_size /= sizeof(iBase_EntityHandle);
   }
 
   void iMesh_setArrData (iMesh_Instance instance,
