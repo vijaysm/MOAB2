@@ -1950,7 +1950,7 @@ extern "C" {
   {
     CHKTAGTYPE(tag_handle, iBase_INTEGER);
     *tag_values_allocated *= sizeof(int);
-    *tag_values_size *= sizeof(int);
+    if (tag_values_size != tag_values_allocated) *tag_values_size *= sizeof(int);
     iMesh_getArrData(instance, entity_handles,
                      entity_handles_size, tag_handle,
                      tag_values,
@@ -1970,7 +1970,7 @@ extern "C" {
   {
     CHKTAGTYPE(tag_handle, iBase_DOUBLE);
     *tag_values_allocated *= sizeof(double);
-    *tag_values_size *= sizeof(double);
+    if (tag_values_size != tag_values_allocated) *tag_values_size *= sizeof(double);
     iMesh_getArrData(instance, entity_handles,
                      entity_handles_size, tag_handle,
                      tag_values,
@@ -1989,7 +1989,7 @@ extern "C" {
   {
     CHKTAGTYPE(tag_handle, iBase_ENTITY_HANDLE);
     *tag_value_allocated *= sizeof(iBase_EntityHandle);
-    *tag_value_size *= sizeof(iBase_EntityHandle);
+    if (tag_value_size != tag_value_allocated) *tag_value_size *= sizeof(iBase_EntityHandle);
     iMesh_getArrData(instance, entity_handles,
                      entity_handles_size, tag_handle,
                      reinterpret_cast<void**>(tag_value),
@@ -2009,7 +2009,7 @@ extern "C" {
   {
     CHKTAGTYPE(tag_handle, iBase_ENTITY_SET_HANDLE);
     *tag_value_allocated *= sizeof(iBase_EntityHandle);
-    *tag_value_size *= sizeof(iBase_EntityHandle);
+    if (tag_value_size != tag_value_allocated) *tag_value_size *= sizeof(iBase_EntityHandle);
     iMesh_getArrData(instance, entity_handles,
                      entity_handles_size, tag_handle,
                      reinterpret_cast<void**>(tag_value),
