@@ -61,6 +61,7 @@
 #include "iMesh.h"
 #include "iMesh_extensions.h"
 #include "moab/Types.hpp"
+using namespace moab;
 extern enum iBase_ErrorType iBase_ERROR_MAP[MB_FAILURE+1];
 
 

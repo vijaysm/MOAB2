@@ -15,7 +15,7 @@ TESTDEPS = $(top_builddir)/itaps/imesh/libiMesh.la $(top_builddir)/src/libMOAB.l
 FindConnectF_SOURCES = FindConnectF.F
 FindConnectF_DEPENDENCIES = $(TESTDEPS)
 
-TagIterateC_SOURCES = TagIterateC.c
+TagIterateC_SOURCES = TagIterateC.cpp
 TagIterateC_DEPENDENCIES = $(TESTDEPS)
 
 TagIterateF_SOURCES = TagIterateF.F

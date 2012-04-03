@@ -49,7 +49,7 @@ TESTS = $(check_PROGRAMS)
 LDADD = libiMesh.la $(top_builddir)/src/libMOAB.la ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
 TESTDEPS = libiMesh.la $(top_builddir)/src/libMOAB.la
 
-testc_cbind_SOURCES = testc_cbind.c
+testc_cbind_SOURCES = testc_cbind.cpp
 testc_cbind_DEPENDENCIES = $(TESTDEPS)
 partest_SOURCES = partest.cpp
 partest_DEPENDENCIES = $(TESTDEPS)
