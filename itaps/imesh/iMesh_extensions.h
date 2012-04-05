@@ -3,6 +3,9 @@
 
 #include "iMesh.h"
 #include "iMesh_extensions_protos.h"
+#ifdef USE_MPI
+#include "moab_mpi.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -395,6 +398,24 @@ void iMesh_createStructuredMesh(
         int *err
           /**< [out] Error flag. */
 );
+
+#ifdef USE_MPI
+/** \brief Convert a fortran to C communicator
+ * Given a Fortran communicator, convert to a C communicator that can be passed back to iMeshP.
+ *
+ *  COMMUNICATION:  None.
+ * 
+ *  \param  instance         (In)  Mesh instance to contain the partition.
+ *  \param  fcomm            (In)  Pointer to fortran communicator
+ *  \param  ccomm            (Out) Pointer to the C communicator
+ *  \param  err              (Out) Error code.
+ */
+    void iMesh_getCommunicator(
+        iMesh_Instance instance,
+        int *fcomm,
+        MPI_Comm *ccomm,
+        int *err);
+#endif
 
 /***************************************************************************//**
  * \defgroup ScdMesh Structured Mesh
