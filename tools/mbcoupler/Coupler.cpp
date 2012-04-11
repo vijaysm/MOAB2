@@ -250,10 +250,13 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
     if (-1 != source_pts.vi_rd[3*i+2]) num_pts++;  
 
     // store information about located points
-  targetPts = new TupleList();
-  TupleList *tl_tmp = targetPts;
+  TupleList *tl_tmp;
   if (!store_local) 
     tl_tmp = tl;
+  else {
+    targetPts = new TupleList();
+    tl_tmp = targetPts;
+  }
 
   tl_tmp->initialize(3, 0, 0, 1, num_pts);
   tl_tmp->enableWriteAccess();
@@ -309,9 +312,11 @@ ErrorCode Coupler::test_local_box(double *xyz,
   
   std::vector<EntityHandle> entities;
   std::vector<CartVect> nat_coords;
-  bool canWrite = tl->get_writeEnabled();
-  if(!canWrite) tl->enableWriteAccess();
-
+  bool canWrite;
+  if (tl) {
+    canWrite = tl->get_writeEnabled();
+    if(!canWrite) tl->enableWriteAccess();
+  }
           
   ErrorCode result = nat_param(xyz, entities, nat_coords);
   if (MB_SUCCESS != result) return result;
@@ -370,7 +375,7 @@ ErrorCode Coupler::test_local_box(double *xyz,
 
   point_located = true;
   
-  if(!canWrite) tl->disableWriteAccess();
+  if(tl && !canWrite) tl->disableWriteAccess();
 
   return MB_SUCCESS;
 }

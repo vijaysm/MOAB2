@@ -1,4 +1,12 @@
-AM_CPPFLAGS += -I$(top_srcdir)/src \
+MESHDIR = $(top_srcdir)/MeshFiles/unittest
+
+AM_CPPFLAGS += -DIS_BUILDING_MB \
+               -I$(top_builddir)/src \
+               -I$(top_srcdir)/src 
+
+AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
+               -DMESHDIR=$(MESHDIR) \
+               -I$(top_srcdir)/src \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src/parallel \
                -I$(top_srcdir)/test \
@@ -40,18 +48,20 @@ libmbcoupler_la_includedir = $(includedir)
 cfgdir = $(libdir)
 
 TESTS = findpt_test elem_util_test element_test
-check_PROGRAMS = $(TESTS)
+check_PROGRAMS = $(TESTS) 
 findpt_test_SOURCES = findpt_test.cpp
 elem_util_test_SOURCES = ElemUtilTest.cpp
 element_test_SOURCES = ElementTest.cpp
+addfield_SOURCES = addfield.cpp
 
-noinst_PROGRAMS = 
+noinst_PROGRAMS = addfield
 if PARALLEL
-#  TESTS += mbcoupler_test
-#  check_PROGRAMS += mbcoupler_test
-  noinst_PROGRAMS += mbcoupler_test ssn_test
+  TESTS += mbcoupler_test
+  check_PROGRAMS += mbcoupler_test
+  noinst_PROGRAMS += ssn_test
   mbcoupler_test_SOURCES = mbcoupler_test.cpp
   ssn_test_SOURCES = ssn_test.cpp
   AM_CPPFLAGS += -I$(srcdir)/parallel
 endif
 
+MOSTLYCLEANFILES = dum.h5m

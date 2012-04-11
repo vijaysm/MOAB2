@@ -3,6 +3,8 @@
 #include <math.h>
 #include <cstdlib>
 
+using namespace std;
+
 namespace moab {
 
 //make a nice picture. tweak here
@@ -22,10 +24,10 @@ double physField(double x, double y, double z, double factor){
 
 
 //get some sort of element center
-void getHexPos(Interface *mbi, EntityHandle *hex, double &x, double &y, double &z){
+void getElemPos(Interface *mbi, EntityHandle *elem, double &x, double &y, double &z){
   std::vector<EntityHandle> connect;
  
-  mbi->get_connectivity(hex, 1, connect);
+  mbi->get_connectivity(elem, 1, connect);
   double pos[3]={0,0,0};
 
   int numVerts = connect.size();
@@ -46,33 +48,33 @@ void getHexPos(Interface *mbi, EntityHandle *hex, double &x, double &y, double &
 }
 
 
-void putElementField(Interface *mbi, char *tagname, double factor){
-  Range hexes;
+void putElementField(Interface *mbi, const char *tagname, double factor){
+  Range elems;
 
-  mbi->get_entities_by_type(0, MBHEX, hexes);
+  mbi->get_entities_by_dimension(0, 3, elems);
 
   const double defVal = 0.;
   Tag fieldTag;
   mbi->tag_get_handle(tagname, 1, MB_TYPE_DOUBLE, fieldTag, MB_TAG_DENSE|MB_TAG_CREAT, &defVal);
  
-  int numHexes = hexes.size();
+  int numElems = elems.size();
 
-  for(int i=0; i<numHexes; i++){
-      //cout << hexes[i] << endl;
-    EntityHandle hex = hexes[i];
+  for(int i=0; i<numElems; i++){
+      //cout << elems[i] << endl;
+    EntityHandle elem = elems[i];
 
     double x,y,z;
-    getHexPos(mbi, &hex, x,y,z);
+    getElemPos(mbi, &elem, x,y,z);
 
     double fieldValue =  physField(x,y,z, factor);
 
-    mbi->tag_set_data(fieldTag, &hex, 1, &fieldValue);
+    mbi->tag_set_data(fieldTag, &elem, 1, &fieldValue);
   }
 
 }
 
 
-void putVertexField(Interface *mbi, char *tagname, double factor){
+void putVertexField(Interface *mbi, const char *tagname, double factor){
   Range verts;
 
   mbi->get_entities_by_type(0, MBVERTEX, verts);
@@ -98,8 +100,13 @@ void putVertexField(Interface *mbi, char *tagname, double factor){
 }
 
 
+} // namespace moab
+
 //Using moab instead of imesh for dev speed
 int main(int argc, char **argv){
+
+  using namespace moab;
+  
   Interface *mbi = new Core();
 
   if (argc < 3){
@@ -128,6 +135,4 @@ int main(int argc, char **argv){
 
   return 1;
 }
-
-} // namespace moab
 

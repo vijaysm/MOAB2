@@ -17,6 +17,14 @@ using namespace moab;
 
 bool debug = false;
 
+#define STRINGIFY_(A) #A
+#define STRINGIFY(A) STRINGIFY_(A)
+#ifdef MESHDIR
+std::string TestDir( STRINGIFY(MESHDIR) );
+#else
+std::string TestDir(".");
+#endif
+
 #define RRA(a) if (MB_SUCCESS != result) {\
       std::string tmp_str; mbImpl->get_last_error(tmp_str);\
       tmp_str.append("\n"); tmp_str.append(a);\
@@ -46,7 +54,7 @@ bool debug = false;
 void print_usage();
 
 ErrorCode get_file_options(int argc, char **argv, 
-                           std::vector<const char *> &meshFiles,
+                           std::vector<std::string> &meshFiles,
                            std::string &interpTag,
                            std::string &gNormTag,
                            std::string &ssNormTag,
@@ -97,7 +105,8 @@ int main(int argc, char **argv)
     // need to init MPI first, to tell how many procs and rank
   int err = MPI_Init(&argc, &argv);
 
-  std::vector<const char *> meshFiles, ssTagNames, ssTagValues;
+  std::vector<const char *> ssTagNames, ssTagValues;
+  std::vector<std::string> meshFiles;
   std::string interpTag, gNormTag, ssNormTag, readOpts, outFile, writeOpts, dbgFile;
 
   ErrorCode result = MB_SUCCESS;
@@ -146,7 +155,7 @@ int main(int argc, char **argv)
     rps[i] = new ReadParallel(mbImpl, pcs[i]);
     
     iMesh_createEntSet(iMeshInst, 0, &(roots[i]), &err);
-    result = rps[i]->load_file(meshFiles[i], (EntityHandle *)&roots[i], FileOptions(readOpts.c_str()));
+    result = rps[i]->load_file(meshFiles[i].c_str(), (EntityHandle *)&roots[i], FileOptions(readOpts.c_str()));
     PRINT_LAST_ERROR;
   }
 
@@ -173,36 +182,14 @@ int main(int argc, char **argv)
 
     // output mesh
   if (!outFile.empty()) {
-    // get the rank and append to the out_fname.
-    std::stringstream sofname;
-    sofname << outFile << "S" << "R" << rank << ".h5m";
-
-    Range partSets = pcs[0]->partition_sets();
-    // If this is the master proc then put the root entity set in the data to be
-    // written to the file
-    if (rank == 0)
-      partSets.insert((EntityHandle) roots[0]);
-    result = mbImpl->write_file(sofname.str().c_str(), NULL, writeOpts.c_str(), partSets);
+    Range partSets;
+      // only save the target mesh
+    partSets.insert((EntityHandle)roots[1]);
+    result = mbImpl->write_file(outFile.c_str(), NULL, writeOpts.c_str(), partSets);
     PRINT_LAST_ERROR;
-    std::cout << "Wrote " << sofname.str() << std::endl;
-
-    for (unsigned int i = 1; i < pcs.size(); i++) {
-      std::stringstream tofname;
-      tofname << outFile << "T" << i << "R" << rank << ".h5m";
-
-      partSets.clear();
-      partSets = pcs[i]->partition_sets();
-      // If this is the master proc then put the root entity set in the data to be
-      // written to the file
-      if (rank == 0)
-        partSets.insert((EntityHandle) roots[i]);
-      result = mbImpl->write_file(tofname.str().c_str(), NULL, writeOpts.c_str(), partSets);
-      PRINT_LAST_ERROR;
-      std::cout << "Wrote " << tofname.str() << std::endl;
-    }
+    std::cout << "Wrote " << outFile << std::endl;
+    std::cout << "mbcoupler_test complete." << std::endl;
   }
-
-  std::cout << "mbcoupler_test complete." << std::endl;
 
   for (unsigned int i = 0; i < meshFiles.size(); i++) {
     delete rps[i];
@@ -264,11 +251,11 @@ ErrorCode report_iface_ents(Interface *mbImpl,
 // Print usage
 void print_usage() {
   std::cerr << "Usage: ";
-  std::cerr << "mbcoupler_test -meshes <nfiles> <fname1> ... <fnamen> -itag <interp_tag> [-gnorm <gnorm_tag>] [-ssnorm <ssnorm_tag> <ssnorm_selection>] [-ropts <roptions>] [-outfile <out_file> [-wopts <woptions>]] [-dbgout [<dbg_file>]]" << std::endl;
+  std::cerr << "mbcoupler_test -meshes <source_mesh> <target_mesh> -itag <interp_tag> [-gnorm <gnorm_tag>] [-ssnorm <ssnorm_tag> <ssnorm_selection>] [-ropts <roptions>] [-outfile <out_file> [-wopts <woptions>]] [-dbgout [<dbg_file>]]" << std::endl;
   std::cerr << "    -meshes" << std::endl;
-  std::cerr << "        Read in <nfiles> mesh files with names <fname1> to <fnamen>." << std::endl;
+  std::cerr << "        Read in mesh files <source_mesh> and <target_mesh>." << std::endl;
   std::cerr << "    -itag" << std::endl;
-  std::cerr << "        Interpolate tag <interp_tag> from source(first) mesh to target(remaining) meshes." << std::endl;
+  std::cerr << "        Interpolate tag <interp_tag> from source mesh to target mesh." << std::endl;
   std::cerr << "    -gnorm" << std::endl;
   std::cerr << "        Normalize the value of tag <gnorm_tag> over then entire mesh and save to" << std::endl;
   std::cerr << "        tag \"<gnorm_tag>_normf\" on the mesh set.  Do this for all meshes." << std::endl;
@@ -279,9 +266,7 @@ void print_usage() {
   std::cerr << "    -ropts" << std::endl;
   std::cerr << "        Read in the mesh files using options in <roptions>." << std::endl;
   std::cerr << "    -outfile" << std::endl;
-  std::cerr << "        Write out all meshes, post processing, to files starting with <out_file>." << std::endl;
-  std::cerr << "        An indication of source(S) or target(T#) is appended to the name along with" << std::endl;
-  std::cerr << "        the rank of the process (R#) and the file extension \'.h5m\'." << std::endl;
+  std::cerr << "        Write out target mesh to <out_file>." << std::endl;
   std::cerr << "    -wopts" << std::endl;
   std::cerr << "        Write out mesh files using options in <woptions>." << std::endl;
   std::cerr << "    -dbgout" << std::endl;
@@ -299,7 +284,7 @@ bool check_for_flag(const char *str) {
 
 // New get_file_options() function with added possibilities for mbcoupler_test.
 ErrorCode get_file_options(int argc, char **argv, 
-                           std::vector<const char *> &meshFiles,
+                           std::vector<std::string> &meshFiles,
                            std::string &interpTag,
                            std::string &gNormTag,
                            std::string &ssNormTag,
@@ -314,9 +299,9 @@ ErrorCode get_file_options(int argc, char **argv,
   // in the argument list.
   gNormTag = "";
   ssNormTag = "";
-  readOpts = "PARALLEL=READ_DELETE;PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;CPUTIME";
+  readOpts = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1;CPUTIME";
   outFile = "";
-  writeOpts = "";
+  writeOpts = "PARALLEL=WRITE_PART;CPUTIME";
   dbgFile = "";
   std::string defaultDbgFile = argv[0];  // The executable name will be the default debug output file.
 
@@ -330,19 +315,7 @@ ErrorCode get_file_options(int argc, char **argv,
     if (argv[npos] == std::string("-meshes")) {
       // Parse out the mesh filenames
       npos++;
-      int numFiles = 0;
-      if ((npos < argc) && (!check_for_flag(argv[npos])))
-        numFiles = atoi(argv[npos++]);
-      else {
-        std::cerr << "    ERROR - missing <nfiles>" << std::endl;
-        return MB_FAILURE;
-      }
-
-      if (numFiles < 2) {
-        std::cerr << "    ERROR - <nfiles> must be 2 or greater" << std::endl;
-        return MB_FAILURE;
-      }
-
+      int numFiles = 2;
       meshFiles.resize(numFiles);
       for (int i = 0; i < numFiles; i++) {
         if ((npos < argc) && (!check_for_flag(argv[npos])))
@@ -475,11 +448,26 @@ ErrorCode get_file_options(int argc, char **argv,
     }
   }
 
-  if (!(haveMeshes && haveInterpTag)) {
-    std::cerr << "    ERROR - missing required options -meshes and -itag" << std::endl;
-    return MB_FAILURE;
+  if (!haveMeshes) {
+    meshFiles.resize(2);
+    meshFiles[0] = std::string(TestDir + "/64bricks_1khex.h5m");
+    meshFiles[1] = std::string(TestDir + "/64bricks_12ktet.h5m");
+    std::cout << "Mesh files not entered; using default files " 
+              << meshFiles[0] << " and " << meshFiles[1] << std::endl;
+  }
+  
+  if (!haveInterpTag) {
+    interpTag = "vertex_field";
+    std::cout << "Interpolation field name not given, using default of " << interpTag << std::endl;
   }
 
+#ifdef HDF5_FILE
+  if (1 == argc) {
+    std::cout << "No arguments given; using output file dum.h5m." << std::endl;
+    outFile = "dum.h5m";
+  }
+#endif
+    
   return MB_SUCCESS;
 }
 

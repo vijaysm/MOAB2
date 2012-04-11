@@ -797,7 +797,7 @@ void check_ho_elements( Interface& moab,
 {
   ErrorCode rval;
   Range elems;
-  rval = moab.get_entities_by_handle( block, elems );
+  rval = moab.get_entities_by_handle( block, elems, (type != MBENTITYSET ? true : false));
   CHECK_ERR(rval);
   CHECK(!elems.empty());
   CHECK(elems.all_of_type(type));
