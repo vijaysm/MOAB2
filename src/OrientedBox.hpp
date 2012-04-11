@@ -23,7 +23,7 @@
 
 #include "moab/Forward.hpp"
 #include "moab/CartVect.hpp"
-#include "Matrix3.hpp"
+#include "moab/Matrix3.hpp"
 
 #include <iosfwd>
 

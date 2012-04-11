@@ -3,7 +3,6 @@
 #include <assert.h>
 
 #include "ElemUtil.hpp"
-#include "Matrix3.hpp"
 #include "types.h"
 
 namespace moab { 

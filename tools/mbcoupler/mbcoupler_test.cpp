@@ -1,8 +1,6 @@
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
 #include "moab/Core.hpp"
-#include "FileOptions.hpp"
-#include "ReadParallel.hpp"
 #include "Coupler.hpp"
 #include "iMesh_extensions.h"
 #include "moab_mpi.h"
@@ -83,7 +81,6 @@ ErrorCode test_interpolation(Interface *mbImpl,
                              std::vector<const char *> &ssTagValues,
                              iBase_EntitySetHandle *roots,
                              std::vector<ParallelComm *> &pcs,
-                             std::vector<ReadParallel *> &rps,
                              double &instant_time,
                              double &pointloc_time,
                              double &interp_time,
@@ -144,7 +141,6 @@ int main(int argc, char **argv)
   
     // read in mesh(es)
   std::vector<ParallelComm *> pcs(meshFiles.size()); 
-  std::vector<ReadParallel *> rps(meshFiles.size()); 
 
     // Create root sets for each mesh using the iMesh API.  Then pass these
     // to the load_file functions to be populated.
@@ -152,10 +148,9 @@ int main(int argc, char **argv)
 
   for (unsigned int i = 0; i < meshFiles.size(); i++) {
     pcs[i] = new ParallelComm(mbImpl);
-    rps[i] = new ReadParallel(mbImpl, pcs[i]);
     
     iMesh_createEntSet(iMeshInst, 0, &(roots[i]), &err);
-    result = rps[i]->load_file(meshFiles[i].c_str(), (EntityHandle *)&roots[i], FileOptions(readOpts.c_str()));
+    result = mbImpl->load_file(meshFiles[i].c_str(), (EntityHandle *)&roots[i], readOpts.c_str());
     PRINT_LAST_ERROR;
   }
 
@@ -166,7 +161,7 @@ int main(int argc, char **argv)
     // test interpolation and global normalization and subset normalization
 
   result = test_interpolation(mbImpl, interpTag, gNormTag, ssNormTag, 
-                              ssTagNames, ssTagValues, roots, pcs, rps,
+                              ssTagNames, ssTagValues, roots, pcs, 
                               instant_time, pointloc_time, interp_time, 
                               gnorm_time, ssnorm_time);
   PRINT_LAST_ERROR;
@@ -191,10 +186,8 @@ int main(int argc, char **argv)
     std::cout << "mbcoupler_test complete." << std::endl;
   }
 
-  for (unsigned int i = 0; i < meshFiles.size(); i++) {
-    delete rps[i];
+  for (unsigned int i = 0; i < meshFiles.size(); i++)
     delete pcs[i];
-  }
 
   delete mbImpl;
   //may be leaking iMeshInst, don't care since it's end of program. Remove above deletes?
@@ -533,7 +526,6 @@ ErrorCode test_interpolation(Interface *mbImpl,
                              std::vector<const char *> &ssTagValues,
                              iBase_EntitySetHandle *roots,
                              std::vector<ParallelComm *> &pcs,
-                             std::vector<ReadParallel *> &rps,
                              double &instant_time,
                              double &pointloc_time,
                              double &interp_time,

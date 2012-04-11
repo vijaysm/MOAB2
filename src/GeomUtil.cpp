@@ -21,7 +21,7 @@
 #include "moab/CartVect.hpp"
 #include "moab/CN.hpp"
 #include "moab/GeomUtil.hpp"
-#include "Matrix3.hpp"
+#include "moab/Matrix3.hpp"
 #include <cmath>
 #include <algorithm>
 #include <assert.h>

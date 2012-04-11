@@ -5,6 +5,7 @@ endif
 
 AM_CPPFLAGS += -I$(top_srcdir)/itaps/imesh \
 	-I$(top_srcdir)/itaps/ \
+	-I$(top_srcdir)/src/parallel/ \
 	-I$(top_builddir)/itaps \
 	-I$(top_builddir)/itaps/imesh
 

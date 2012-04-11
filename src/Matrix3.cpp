@@ -18,7 +18,7 @@
  *\date 2006-07-18
  */
 
-#include "Matrix3.hpp"
+#include "moab/Matrix3.hpp"
 #include <math.h>
 #include <iostream>
 

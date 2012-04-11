@@ -3,7 +3,7 @@
 
 #include "moab/Core.hpp"
 #include "moab/CartVect.hpp"
-#include "Matrix3.hpp"
+#include "moab/Matrix3.hpp"
 
 namespace moab {
 namespace ElemUtil {
