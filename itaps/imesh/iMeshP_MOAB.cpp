@@ -1708,6 +1708,7 @@ void iMeshP_createGhostEntsAll( iMesh_Instance instance,
   
   ParallelComm* pcomm = PCOMM;
   ErrorCode rval;
+  if (iBase_ALL_TYPES == ghost_dim) ghost_dim = -1;
   rval = pcomm->exchange_ghost_cells( ghost_dim, bridge_dim, num_layers, 0, true );
   CHKERR(rval,"ghost exchange failed");
   RETURN(iBase_SUCCESS);
