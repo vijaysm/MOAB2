@@ -238,7 +238,8 @@ namespace moab {
     ErrorCode exchange_ghost_cells(int ghost_dim, int bridge_dim, 
 				   int num_layers, int addl_ents,
                                    bool store_remote_handles,
-                                   bool wait_all = true);
+                                   bool wait_all = true,
+                                   EntityHandle *file_set = NULL);
 
     /** \brief Static version of exchange_ghost_cells, exchanging info through
      * buffers rather than messages
@@ -247,7 +248,8 @@ namespace moab {
                                           unsigned int num_procs,
                                           int ghost_dim, int bridge_dim,
 					  int num_layers, int addl_ents,
-                                          bool store_remote_handles);
+                                          bool store_remote_handles,
+                                          EntityHandle *file_sets = NULL);
 
     /** \brief Post "MPI_Irecv" before meshing
      * \param exchange_procs processor vector exchanged

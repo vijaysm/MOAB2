@@ -56,7 +56,7 @@ addfield_SOURCES = addfield.cpp
 
 noinst_PROGRAMS = addfield
 if PARALLEL
-  TESTS += mbcoupler_test
+  TESTS += mbcoupler_test 
   check_PROGRAMS += mbcoupler_test
   noinst_PROGRAMS += ssn_test
   mbcoupler_test_SOURCES = mbcoupler_test.cpp

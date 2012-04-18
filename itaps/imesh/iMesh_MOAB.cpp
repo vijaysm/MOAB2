@@ -3411,16 +3411,3 @@ void iMesh_createStructuredMesh(iMesh_Instance instance,
   RETURN(iBase_SUCCESS);
 }
 
-#ifdef USE_MPI
-void iMesh_getCommunicator(
-    iMesh_Instance instance,
-    int *fcomm,
-    MPI_Comm *ccomm,
-    int *err) 
-{
-  *ccomm = MPI_Comm_f2c(*fcomm);
-  RETURN(iBase_SUCCESS);
-}
-#endif
-
-

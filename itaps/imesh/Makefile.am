@@ -1,4 +1,4 @@
-BUILT_SOURCES = iMesh_protos.h iMeshP_protos.h iMesh_extensions_protos.h
+BUILT_SOURCES = iMesh_protos.h iMeshP_protos.h iMesh_extensions_protos.h iMeshP_extensions_protos.h
 
 MESHDIR = $(top_srcdir)/MeshFiles/unittest
 
@@ -33,7 +33,7 @@ libiMesh_la_include_HEADERS = iMesh.h \
 
 if PARALLEL
   libiMesh_la_SOURCES += iMeshP_MOAB.cpp
-  libiMesh_la_include_HEADERS += iMeshP.h iMeshP_f.h iMeshP_protos.h
+  libiMesh_la_include_HEADERS += iMeshP.h iMeshP_extensions.h iMeshP_extensions_protos.h iMeshP_f.h iMeshP_protos.h
   AM_CPPFLAGS += -I$(top_srcdir)/src/parallel -I$(top_srcdir)/src/parallel/moab
 
 #  check_PROGRAMS += partest iMeshP_unit_tests moabtest
@@ -101,3 +101,7 @@ iMesh_extensions_protos.h: iMesh_extensions.h ../mkprotos.sh
 
 iMeshP_protos.h: iMeshP.h ../mkprotos.sh
 	$(AM_V_GEN)$(srcdir)/../mkprotos.sh iMeshP MOAB $< $@ MOAB_FCDefs.h
+
+iMeshP_extensions_protos.h: iMeshP_extensions.h ../mkprotos.sh
+	$(AM_V_GEN)$(srcdir)/../mkprotos.sh iMeshP MOAB $< $@ MOAB_FCDefs.h
+

@@ -5042,9 +5042,10 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   }
 
   ErrorCode ParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
-					       int num_layers, int addl_ents,
-					       bool store_remote_handles,
-					       bool wait_all)
+                                               int num_layers, int addl_ents,
+                                               bool store_remote_handles,
+                                               bool wait_all,
+                                               EntityHandle *file_set)
   {
 #ifdef USE_MPE
     if (myDebug->get_verbosity() == 2) {
@@ -5406,6 +5407,11 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     result = check_all_shared_handles(true);
     RRA("Failed check on all shared handles.");
 #endif
+
+    if (file_set && !new_ents.empty()) {
+      result = mbImpl->add_entities(*file_set, &new_ents[0], new_ents.size());
+      RRA("Failed to add new entities to set.");
+    }
 
     myDebug->tprintf(1, "Total number of shared entities = %lu.\n", (unsigned long)sharedEnts.size());
     myDebug->tprintf(1, "Exiting exchange_ghost_cells\n");
@@ -5898,10 +5904,12 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   }
 
   ErrorCode ParallelComm::exchange_ghost_cells(ParallelComm **pcs,
-					       unsigned int num_procs,
-					       int ghost_dim, int bridge_dim,
-					       int num_layers, int addl_ents,
-					       bool store_remote_handles)
+                                               unsigned int num_procs,
+                                               int ghost_dim, int bridge_dim,
+                                               int num_layers, int addl_ents,
+                                               bool store_remote_handles,
+                                               EntityHandle *file_sets
+                                               )
   {
     // static version of function, exchanging info through buffers rather 
     // than through messages
@@ -6067,6 +6075,13 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     RRAI(pcs[0]->get_moab(), ehs[0], "Failed check on all shared handles.");
 #endif
 
+    if (file_sets) {
+      for (unsigned int p = 0; p < num_procs; p++) {
+        if (new_ents[p].empty()) continue;
+        result = pcs[p]->get_moab()->add_entities(file_sets[p], &new_ents[p][0], new_ents[p].size());
+        RRAI(pcs[p]->get_moab(), ehs[p], "Failed to add new entities to set.");
+      }
+    }
     return MB_SUCCESS;
   }
 

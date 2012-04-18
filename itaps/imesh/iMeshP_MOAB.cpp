@@ -1,4 +1,4 @@
-#include "iMeshP.h"
+#include "iMeshP_extensions.h"
 #include "iMesh_MOAB.hpp"
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
@@ -1886,6 +1886,55 @@ void iMeshP_saveAll( iMesh_Instance instance,
                           part_handles, part_handles_allocated, part_handles_size,
                           err);
   }
+
+/** \brief Assign a global id space to entities
+ * Assign a global id space to entities and vertices, and optionally intermediate-dimension entities
+ *
+ *  COMMUNICATION:  Collective.
+ */
+void iMeshP_assignGlobalIds(
+    iMesh_Instance instance,
+    const iMeshP_PartitionHandle partition,
+    const iBase_EntitySetHandle this_set,
+    const int dimension,
+    const int start_id,
+    const int largest_dim_only,
+    const int parallel,
+    const int owned_only,
+    int *err) 
+{
+  ErrorCode rval;
+
+    // get partition set
+  EntityHandle partitionset = itaps_cast<EntityHandle>(partition);
+  if (!partitionset) {
+    rval = MB_FAILURE;
+    CHKERR(rval,"failed to get partition set");
+  }
+  
+  EntityHandle this_mb_set = itaps_cast<EntityHandle>(this_set);
+
+    // get ParallelComm for partition
+  MPI_Comm default_comm;
+  ParallelComm* pcomm = ParallelComm::get_pcomm( MOABI, partitionset, &default_comm );
+  if (!pcomm) {
+    RETURN (iBase_FAILURE);
+  }
+
+  rval = pcomm->assign_global_ids(this_mb_set, dimension, start_id, largest_dim_only, parallel, owned_only);
+  
+  RETURN(rval);
+}
+  
+void iMeshP_getCommunicator(
+    iMesh_Instance instance,
+    int *fcomm,
+    MPI_Comm *ccomm,
+    int *err) 
+{
+  *ccomm = MPI_Comm_f2c(*fcomm);
+  RETURN(iBase_SUCCESS);
+}
 
 #ifdef __cplusplus
 } // extern "C"

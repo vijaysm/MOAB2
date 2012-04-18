@@ -491,7 +491,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
           myDebug.tprint(1,"Exchanging ghost entities.\n");
 
           tmp_result = myPcomm->exchange_ghost_cells(ghost_dim, bridge_dim, 
-                                                     num_layers, addl_ents, true);
+                                                     num_layers, addl_ents, true, true, &file_set);
           break;
         
 //==================

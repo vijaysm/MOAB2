@@ -575,7 +575,7 @@ ErrorCode Coupler::interp_field(EntityHandle elem,
     free(elemMap);
     return result;
   }
-  result = mbImpl->tag_get_data(tag, connect, num_connect, vfields);
+  result = mbImpl->tag_get_data(tag, connect, std::min(num_verts, num_connect), vfields);
   if (MB_SUCCESS != result) {
     free(elemMap);
     return result;
@@ -585,7 +585,7 @@ ErrorCode Coupler::interp_field(EntityHandle elem,
   field = 0;
 
     // check the number of vertices
-  assert(num_connect == num_verts);
+  assert(num_connect >= num_verts);
   
     //calculate the field
   try {
