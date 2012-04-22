@@ -68,7 +68,9 @@ void test_hex_nat_coords()
 {
   CartVect xi, result_xi;
   bool valid;
-  const double EPS = 1e-6;
+  // rename EPS to EPS1 because of conflict with definition of EPS in types.h
+  // types.h is now included in the header.
+  const double EPS1 = 1e-6;
   
     // first test with cube because it's easier to debug failures
   for (xi[0] = -1; xi[0] <= 1; xi[0] += 0.2) {
@@ -77,9 +79,9 @@ void test_hex_nat_coords()
         const CartVect pt = hex_map(xi, cube_corners);
         valid = ElemUtil::nat_coords_trilinear_hex( cube_corners, pt, result_xi, EPS/10 );
         CHECK(valid);
-        CHECK_REAL_EQUAL( xi[0], result_xi[0], EPS );
-        CHECK_REAL_EQUAL( xi[1], result_xi[1], EPS );
-        CHECK_REAL_EQUAL( xi[2], result_xi[2], EPS );
+        CHECK_REAL_EQUAL( xi[0], result_xi[0], EPS1 );
+        CHECK_REAL_EQUAL( xi[1], result_xi[1], EPS1 );
+        CHECK_REAL_EQUAL( xi[2], result_xi[2], EPS1 );
       }
     }
   }
@@ -91,9 +93,9 @@ void test_hex_nat_coords()
         const CartVect pt = hex_map(xi, hex_corners);
         valid = ElemUtil::nat_coords_trilinear_hex( hex_corners, pt, result_xi, EPS/10 );
         CHECK(valid);
-        CHECK_REAL_EQUAL( xi[0], result_xi[0], EPS );
-        CHECK_REAL_EQUAL( xi[1], result_xi[1], EPS );
-        CHECK_REAL_EQUAL( xi[2], result_xi[2], EPS );
+        CHECK_REAL_EQUAL( xi[0], result_xi[0], EPS1 );
+        CHECK_REAL_EQUAL( xi[1], result_xi[1], EPS1 );
+        CHECK_REAL_EQUAL( xi[2], result_xi[2], EPS1 );
       }
     }
   }
@@ -126,7 +128,7 @@ void test_hex_nat_coords()
                    && x[2] >= min[2] && x[2] <= max[2];
         if (in_box)
           continue;
-        valid = ElemUtil::nat_coords_trilinear_hex( hex_corners, x, result_xi, EPS/10 );
+        valid = ElemUtil::nat_coords_trilinear_hex( hex_corners, x, result_xi, EPS1/10 );
 //std::cout << (valid ? 'y' : 'n');
         CHECK(!valid || !in_range(result_xi));
       }

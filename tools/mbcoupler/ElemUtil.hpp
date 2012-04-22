@@ -1,9 +1,19 @@
 #ifndef MOAB_ELEM_UTIL_HPP
 #define MOAB_ELEM_UTIL_HPP
 
-#include "moab/Core.hpp"
 #include "moab/CartVect.hpp"
+#include <vector>
 #include "moab/Matrix3.hpp"
+
+// to access data structures for spectral elements
+extern "C"{
+#include "types.h"
+#include "poly.h"
+#include "tensor.h"
+#include "findpt.h"
+#include "extrafindpt.h"
+#include "errmem.h"
+}
 
 namespace moab {
 namespace ElemUtil {
@@ -150,6 +160,40 @@ namespace ElemUtil {
       double  det_T, det_T_inverse;
     };// class LinearTet
     
+    class SpectralHex : public Map {
+    public:
+      SpectralHex(const std::vector<CartVect>& vertices) : Map(vertices){};
+      SpectralHex(int order, double * x, double * y, double *z) ;
+
+      SpectralHex();
+      ~SpectralHex();
+      virtual CartVect evaluate( const CartVect& xi ) const;
+      virtual CartVect ievaluate(const CartVect& x) const;
+      virtual Matrix3  jacobian(const CartVect& xi) const;
+      double   evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const;
+      double   integrate_scalar_field(const double *field_vertex_values) const;
+
+      // to compute the values that need to be cached for each element of order n
+      void Init(int order);
+      void freedata();
+    protected:
+      /* values that depend only on the order of the element , cached */
+      /*  the order in 3 directions */
+      static int _n;
+      static real *_z[3];
+      static lagrange_data _ld[3];
+      static opt_data_3 _data;
+      static real * _odwork;// work area
+
+      // flag for initialization of data
+      static bool _init;
+
+      real * _xyz[3];
+
+
+    };// class SpectralHex
+
+
   }// namespace Element
  
 } // namespace moab

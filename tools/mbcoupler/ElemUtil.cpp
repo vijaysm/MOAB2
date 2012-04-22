@@ -207,14 +207,14 @@ bool point_in_trilinear_hex(const CartVect *hex,
 // xyz: input, point to find
 // rst: output: parametric coords of xyz inside the element. If xyz is outside the element, rst will be the coords of the closest point
 // dist: output: distance between xyz and the point with parametric coords rst
-extern "C"{
+/*extern "C"{
 #include "types.h"
 #include "poly.h"
 #include "tensor.h"
 #include "findpt.h"
 #include "extrafindpt.h"
 #include "errmem.h"
-}
+}*/
 
 void hex_findpt(real *xm[3],
                 int n,
@@ -590,6 +590,115 @@ namespace Element {
     I *= this->det_T/24.0;
     return I;
   }// LinearTet::integrate_scalar_field()
+
+  // SpectralHex
+
+  // filescope for static member data that is cached
+  int SpectralHex::_n;
+  real *SpectralHex::_z[3];
+  lagrange_data SpectralHex::_ld[3];
+  opt_data_3 SpectralHex::_data;
+  real * SpectralHex::_odwork;
+
+  bool SpectralHex::_init = false;
+
+  SpectralHex::SpectralHex() : Map(0)
+  {
+  }
+  // the preferred constructor takes pointers to GL blocked positions
+  SpectralHex::SpectralHex(int order, double * x, double *y, double *z) : Map(0)
+  {
+    Init(order);
+    _xyz[0]=x; _xyz[1]=y; _xyz[2]=z;
+  }
+  SpectralHex::~SpectralHex()
+  {
+    if (_init)
+      freedata();
+    _init=false;
+  }
+  void SpectralHex::Init(int order)
+  {
+    if (_init && _n==order)
+      return;
+    if (_init && _n!=order)
+    {
+      // TODO: free data cached
+      freedata();
+    }
+    // compute stuff that depends only on order
+    _init = true;
+    _n = order;
+    //triplicates! n is the same in all directions !!!
+    for(int d=0; d<3; d++){
+      _z[d] = tmalloc(real, _n);
+      lobatto_nodes(_z[d], _n);
+      lagrange_setup(&_ld[d], _z[d], _n);
+    }
+    opt_alloc_3(&_data, _ld);
+
+    unsigned int nf = _n*_n, ne = _n, nw = 2*_n*_n + 3*_n;
+    _odwork = tmalloc(real, 6*nf + 9*ne + nw);
+  }
+  void SpectralHex::freedata()
+  {
+    for(int d=0; d<3; d++){
+      free(_z[d]);
+      lagrange_free(&_ld[d]);
+    }
+    opt_free_3(&_data);
+    free(_odwork);
+  }
+
+  CartVect SpectralHex::evaluate( const CartVect& xi ) const
+  {
+    //piece that we shouldn't want to cache
+    int d=0;
+    for(d=0; d<3; d++){
+      lagrange_0(&_ld[d], xi[d]);
+    }
+    CartVect result;
+    for (d=0; d<3; d++)
+    {
+      result[d] = tensor_i3(_ld[0].J,_ld[0].n,
+            _ld[1].J,_ld[1].n,
+            _ld[2].J,_ld[2].n,
+            _xyz[d],   // this is the "field"
+            _odwork);
+    }
+    return result;
+  }
+  // replicate the functionality of hex_findpt
+  CartVect SpectralHex::ievaluate(CartVect const & xyz) const
+  {
+    CartVect result(0.);
+
+    //find nearest point
+    real x_star[3];
+    xyz.get(x_star);
+
+    real r[3] = {0, 0, 0 }; // initial guess for parametric coords
+    unsigned c = opt_no_constraints_3;
+    real dist = opt_findpt_3(&_data, (const real **)_xyz, x_star, r, &c);
+    //c tells us if we landed inside the element or exactly on a face, edge, or node
+    // also, dist shows the distance to the computed point.
+    //copy parametric coords back
+    result = r;
+
+    return  result;
+  }
+  Matrix3  SpectralHex::jacobian(const CartVect& xi) const
+  {
+    return Matrix3(0.);
+  }
+  double   SpectralHex::evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const
+  {
+    return 0.;
+  }
+  double   SpectralHex::integrate_scalar_field(const double *field_vertex_values) const
+  {
+    return 0;
+  }
 
 
 }// namespace Element
