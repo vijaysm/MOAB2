@@ -8,7 +8,6 @@
 
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
-#include "ReadParallel.hpp"
 #include "FileOptions.hpp"
 #include "MBTagConventions.hpp"
 #include "moab/Core.hpp"
@@ -339,16 +338,17 @@ ErrorCode read_file(Interface *mbImpl,
     options << ";PRINT_PARALLEL";
 
   std::vector<ParallelComm*> pcs(filenames.size());
-  std::vector<ReadParallel*> rps(filenames.size());
   ErrorCode result;
 
   if (1 < filenames.size()) {
     for (unsigned int i = 0; i < filenames.size(); i++) {
       pcs[i] = new ParallelComm(mbImpl);
-      rps[i] = new ReadParallel(mbImpl, pcs[i]);
-    
-      result = rps[i]->load_file(filenames[i].c_str(), 0, 
-                                 FileOptions(options.str().c_str()), 0, 0);
+      int index = pcs[i]->get_id();
+      std::ostringstream newopts;
+      newopts  << options;
+      newopts << ";PARALLEL_COMM="<<index;
+      result = mbImpl->load_file( filenames[i].c_str(), 0, newopts.str().c_str());
+
       if (MB_SUCCESS != result) 
         PRINT_LAST_ERROR;
 
