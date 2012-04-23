@@ -8,7 +8,6 @@
 
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
-#include "FileOptions.hpp"
 #include "MBTagConventions.hpp"
 #include "moab/Core.hpp"
 #include "ScdVertexData.hpp"

@@ -1,8 +1,6 @@
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
 #include "moab/Core.hpp"
-#include "FileOptions.hpp"
-#include "ReadParallel.hpp"
 #include "Coupler.hpp"
 #include "iMesh_extensions.h"
 #include "moab_mpi.h"
@@ -72,7 +70,6 @@ ErrorCode get_file_options(int argc, char **argv,
 
 ErrorCode report_iface_ents(Interface *mbImpl,
                               std::vector<ParallelComm *> &pcs,
-                              std::vector<ReadParallel *> &rps,
                               bool print_results);
 
 ErrorCode test_interpolation(Interface *mbImpl, 
@@ -144,7 +141,6 @@ int main(int argc, char **argv)
   
     // read in mesh(es)
   std::vector<ParallelComm *> pcs(meshFiles.size()); 
-  std::vector<ReadParallel *> rps(meshFiles.size());
 
     // Create root sets for each mesh using the iMesh API.  Then pass these
     // to the load_file functions to be populated.
@@ -152,14 +148,19 @@ int main(int argc, char **argv)
 
   for (unsigned int i = 0; i < meshFiles.size(); i++) {
     pcs[i] = new ParallelComm(mbImpl);
-    rps[i] = new ReadParallel(mbImpl, pcs[i]);
+    int index = pcs[i]->get_id();
+    std::string newReadopts;
+    std::ostringstream extraOpt;
+    extraOpt  << ";PARALLEL_COMM=" << index;
+    newReadopts = readOpts+extraOpt.str();
     
     iMesh_createEntSet(iMeshInst, 0, &(roots[i]), &err);
-    result = rps[i]->load_file(meshFiles[i].c_str(), (EntityHandle *)&roots[i], FileOptions(readOpts.c_str()));
+    result = mbImpl->load_file( meshFiles[i].c_str(), (EntityHandle *)&roots[i], newReadopts.c_str() );
+    //result = rps[i]->load_file(meshFiles[i].c_str(), (EntityHandle *)&roots[i], FileOptions(readOpts.c_str()));
     PRINT_LAST_ERROR;
   }
 
-  result = report_iface_ents(mbImpl, pcs, rps, true);
+  result = report_iface_ents(mbImpl, pcs, true);
   PRINT_LAST_ERROR;
 
   double instant_time=0.0, pointloc_time=0.0, interp_time=0.0, gnorm_time=0.0, ssnorm_time=0.0;
@@ -193,7 +194,6 @@ int main(int argc, char **argv)
 
   for (unsigned int i = 0; i < meshFiles.size(); i++) {
     delete pcs[i];
-    delete rps[i];
   }
 
   delete mbImpl;
@@ -206,7 +206,6 @@ int main(int argc, char **argv)
 
 ErrorCode report_iface_ents(Interface *mbImpl,
                               std::vector<ParallelComm *> &pcs,
-                              std::vector<ReadParallel *> &rps,
                               const bool print_results) 
 {
   Range iface_ents[6];
