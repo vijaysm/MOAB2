@@ -1,8 +1,8 @@
 #ifndef IMESHP_F_H
 #define IMESHP_F_H
 
-#define iMeshP_PartitionHandle integer
-#define iMeshP_PartHandle integer
+#define iMeshP_PartitionHandle IBASE_HANDLE_T
+#define iMeshP_PartHandle IBASE_HANDLE_T
 
 #endif 
 
