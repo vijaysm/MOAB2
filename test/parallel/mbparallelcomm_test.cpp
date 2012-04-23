@@ -345,7 +345,7 @@ ErrorCode read_file(Interface *mbImpl,
       pcs[i] = new ParallelComm(mbImpl);
       int index = pcs[i]->get_id();
       std::ostringstream newopts;
-      newopts  << options;
+      newopts  << options.str();
       newopts << ";PARALLEL_COMM="<<index;
       result = mbImpl->load_file( filenames[i].c_str(), 0, newopts.str().c_str());
 
