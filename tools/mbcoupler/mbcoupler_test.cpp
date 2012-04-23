@@ -1,6 +1,8 @@
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
 #include "moab/Core.hpp"
+#include "FileOptions.hpp"
+#include "ReadParallel.hpp"
 #include "Coupler.hpp"
 #include "iMesh_extensions.h"
 #include "moab_mpi.h"
@@ -12,8 +14,6 @@
 #include "MBiMesh.hpp"
 
 using namespace moab;
-
-bool debug = false;
 
 #define STRINGIFY_(A) #A
 #define STRINGIFY(A) STRINGIFY_(A)
@@ -61,7 +61,8 @@ ErrorCode get_file_options(int argc, char **argv,
                            std::string &readOpts,
                            std::string &outFile,
                            std::string &writeOpts,
-                           std::string &dbgFile);
+                           std::string &dbgFile,
+                           bool &help);
 
 // ErrorCode get_file_options(int argc, char **argv, 
 //                              std::vector<const char *> &filenames,
@@ -71,6 +72,7 @@ ErrorCode get_file_options(int argc, char **argv,
 
 ErrorCode report_iface_ents(Interface *mbImpl,
                               std::vector<ParallelComm *> &pcs,
+                              std::vector<ReadParallel *> &rps,
                               bool print_results);
 
 ErrorCode test_interpolation(Interface *mbImpl, 
@@ -107,11 +109,12 @@ int main(int argc, char **argv)
   std::string interpTag, gNormTag, ssNormTag, readOpts, outFile, writeOpts, dbgFile;
 
   ErrorCode result = MB_SUCCESS;
+  bool help = false;
   result = get_file_options(argc, argv, meshFiles, interpTag,
                             gNormTag, ssNormTag, ssTagNames, ssTagValues,
-                            readOpts, outFile, writeOpts, dbgFile);
+                            readOpts, outFile, writeOpts, dbgFile, help);
 
-  if (result != MB_SUCCESS) {
+  if (result != MB_SUCCESS || help) {
     print_usage();
     err = MPI_Finalize();
     return 1;
@@ -141,6 +144,7 @@ int main(int argc, char **argv)
   
     // read in mesh(es)
   std::vector<ParallelComm *> pcs(meshFiles.size()); 
+  std::vector<ReadParallel *> rps(meshFiles.size());
 
     // Create root sets for each mesh using the iMesh API.  Then pass these
     // to the load_file functions to be populated.
@@ -148,13 +152,14 @@ int main(int argc, char **argv)
 
   for (unsigned int i = 0; i < meshFiles.size(); i++) {
     pcs[i] = new ParallelComm(mbImpl);
+    rps[i] = new ReadParallel(mbImpl, pcs[i]);
     
     iMesh_createEntSet(iMeshInst, 0, &(roots[i]), &err);
-    result = mbImpl->load_file(meshFiles[i].c_str(), (EntityHandle *)&roots[i], readOpts.c_str());
+    result = rps[i]->load_file(meshFiles[i].c_str(), (EntityHandle *)&roots[i], FileOptions(readOpts.c_str()));
     PRINT_LAST_ERROR;
   }
 
-  result = report_iface_ents(mbImpl, pcs, debug);
+  result = report_iface_ents(mbImpl, pcs, rps, true);
   PRINT_LAST_ERROR;
 
   double instant_time=0.0, pointloc_time=0.0, interp_time=0.0, gnorm_time=0.0, ssnorm_time=0.0;
@@ -186,8 +191,10 @@ int main(int argc, char **argv)
     std::cout << "mbcoupler_test complete." << std::endl;
   }
 
-  for (unsigned int i = 0; i < meshFiles.size(); i++)
+  for (unsigned int i = 0; i < meshFiles.size(); i++) {
     delete pcs[i];
+    delete rps[i];
+  }
 
   delete mbImpl;
   //may be leaking iMeshInst, don't care since it's end of program. Remove above deletes?
@@ -199,6 +206,7 @@ int main(int argc, char **argv)
 
 ErrorCode report_iface_ents(Interface *mbImpl,
                               std::vector<ParallelComm *> &pcs,
+                              std::vector<ReadParallel *> &rps,
                               const bool print_results) 
 {
   Range iface_ents[6];
@@ -286,7 +294,8 @@ ErrorCode get_file_options(int argc, char **argv,
                            std::string &readOpts,
                            std::string &outFile,
                            std::string &writeOpts,
-                           std::string &dbgFile)
+                           std::string &dbgFile,
+                           bool &help)
 {
   // Initialize some of the outputs to null values indicating not present
   // in the argument list.
@@ -304,6 +313,12 @@ ErrorCode get_file_options(int argc, char **argv,
 
   // Loop over the values in argv pulling out an parsing each one
   int npos = 1;
+
+  if (argc > 1 && argv[1] == std::string("-h")) {
+    help = true;
+    return MB_SUCCESS;
+  }
+
   while (npos < argc) {
     if (argv[npos] == std::string("-meshes")) {
       // Parse out the mesh filenames
