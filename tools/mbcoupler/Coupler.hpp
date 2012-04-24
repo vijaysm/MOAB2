@@ -125,7 +125,7 @@ public:
      * \param normalize If true, normalization is done according to method
      */
   ErrorCode interpolate(Coupler::Method method,
-                          std::string &tag_name,
+                        const std::string &tag_name,
                           double *interp_vals,
                           TupleList *tl = NULL,
                           bool normalize = true);

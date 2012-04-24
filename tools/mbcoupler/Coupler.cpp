@@ -381,7 +381,7 @@ ErrorCode Coupler::test_local_box(double *xyz,
 }
 
 ErrorCode Coupler::interpolate(Coupler::Method method,
-                                   std::string &interp_tag,
+                               const std::string &interp_tag,
                                    double *interp_vals,
                                    TupleList *tl,
                                    bool normalize)
