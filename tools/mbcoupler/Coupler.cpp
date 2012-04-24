@@ -89,6 +89,8 @@ ErrorCode Coupler::initialize_tree()
         return result;
       }
     }
+    else
+      break; // get out of tree building
   }
 
     // get the bounding box for local tree
@@ -475,7 +477,7 @@ ErrorCode Coupler::nat_param(double xyz[3],
   if(MB_ENTITY_NOT_FOUND==result) //point is outside of myTree's bounding box
     return MB_SUCCESS; 
   if (MB_SUCCESS != result) {
-    std::cout << "Problems getting leaf " << std::endl;
+    std::cout << "Problems getting leaf \n";
     return result;
   }
 
@@ -496,16 +498,11 @@ ErrorCode Coupler::nat_param(double xyz[3],
 
       //get coordinates of the vertices
     std::vector<CartVect> coords_vert(num_connect);
-    std::vector<double> coords(3*num_connect);
-    result = mbImpl->get_coords(connect, num_connect, &coords[0]);
-	
-    for(int j = 0; j < num_connect; j++)
-    {
-      coords_vert[j][0] = coords[3*j];
-      coords_vert[j][1] = coords[3*j+1];
-      coords_vert[j][2] = coords[3*j+2];
+    result = mbImpl->get_coords(connect, num_connect, &(coords_vert[0][0]));
+    if (MB_SUCCESS != result) {
+      std::cout << "Problems getting coordinates of vertices\n";
+      return result;
     }
-
       //test to find out in which entity the point is
       //get the EntityType and create the appropriate Element::Map subtype
     EntityType etype = mbImpl->type_from_handle(*iter);
@@ -572,12 +569,12 @@ ErrorCode Coupler::interp_field(EntityHandle elem,
   int num_connect;
   ErrorCode result = mbImpl->get_connectivity(elem, connect, num_connect);
   if (MB_SUCCESS != result) {
-    free(elemMap);
+    delete elemMap;
     return result;
   }
   result = mbImpl->tag_get_data(tag, connect, std::min(num_verts, num_connect), vfields);
   if (MB_SUCCESS != result) {
-    free(elemMap);
+    delete elemMap;
     return result;
   }
   
@@ -592,11 +589,11 @@ ErrorCode Coupler::interp_field(EntityHandle elem,
     field = elemMap->evaluate_scalar_field(nat_coord, vfields);
   }
   catch (moab::Element::Map::EvaluationError) {
-    free(elemMap);
+    delete elemMap;
     return MB_FAILURE;
   }
 
-  free(elemMap);
+  delete elemMap;
   return MB_SUCCESS;
 }
 

@@ -471,10 +471,8 @@ namespace Element {
                                            {  1,  1,  1 },
                                            { -1,  1,  1 } };
 
-  LinearHex::LinearHex() : Map(8) {
-    for(unsigned int i = 0; i < 8; ++i) {
-      this->vertex[i] = CartVect(this->corner[i][0],this->corner[i][1], this->corner[i][2]);
-    }
+  LinearHex::LinearHex() : Map(0) {
+
   }// LinearHex::LinearHex()
 
   /* For each point, its weight and location are stored as an array.
@@ -555,10 +553,8 @@ namespace Element {
                                            {0,1,0},
                                            {0,0,1}};
 
-  LinearTet::LinearTet() : Map(4) {
-    for(unsigned int i = 0; i < 4; ++i) {
-      this->vertex[i] = CartVect(this->corner[i][0],this->corner[i][1], this->corner[i][2]);
-    }
+  LinearTet::LinearTet() : Map(0) {
+
   }// LinearTet::LinearTet()
 
 
@@ -691,9 +687,20 @@ namespace Element {
   {
     return Matrix3(0.);
   }
-  double   SpectralHex::evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const
+  double   SpectralHex::evaluate_scalar_field(const CartVect& xi, const double *field) const
   {
-    return 0.;
+    //piece that we shouldn't want to cache
+    int d;
+    for(d=0; d<3; d++){
+      lagrange_0(&_ld[d], xi[d]);
+    }
+
+    double value = tensor_i3(_ld[0].J,_ld[0].n,
+          _ld[1].J,_ld[1].n,
+          _ld[2].J,_ld[2].n,
+          field,
+          _odwork);
+    return value;
   }
   double   SpectralHex::integrate_scalar_field(const double *field_vertex_values) const
   {
