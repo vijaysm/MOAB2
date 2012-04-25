@@ -607,6 +607,11 @@ namespace Element {
     Init(order);
     _xyz[0]=x; _xyz[1]=y; _xyz[2]=z;
   }
+  SpectralHex::SpectralHex(int order) : Map(0)
+  {
+    Init(order);
+    _xyz[0]=_xyz[1]=_xyz[2]=NULL;
+  }
   SpectralHex::~SpectralHex()
   {
     if (_init)
@@ -646,6 +651,12 @@ namespace Element {
     free(_odwork);
   }
 
+  void SpectralHex::set_gl_points( double * x, double * y, double *z)
+  {
+    _xyz[0] = x;
+    _xyz[1] = y;
+    _xyz[2] = z;
+  }
   CartVect SpectralHex::evaluate( const CartVect& xi ) const
   {
     //piece that we shouldn't want to cache

@@ -164,9 +164,10 @@ namespace ElemUtil {
     public:
       SpectralHex(const std::vector<CartVect>& vertices) : Map(vertices){};
       SpectralHex(int order, double * x, double * y, double *z) ;
-
+      SpectralHex(int order);
       SpectralHex();
       ~SpectralHex();
+      void set_gl_points( double * x, double * y, double *z) ;
       virtual CartVect evaluate( const CartVect& xi ) const;
       virtual CartVect ievaluate(const CartVect& x) const;
       virtual Matrix3  jacobian(const CartVect& xi) const;

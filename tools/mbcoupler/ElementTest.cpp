@@ -96,7 +96,8 @@ void test_spectral_hex()
      std::cout << "can't get veltag \n";
      return;
   }
-  
+  moab::Element::SpectralHex specHex(sem_dims[0] );
+
  // compute the data for some elements 
   for (moab::Range::iterator rit=ents.begin(); rit!=ents.end(); rit++)
   { 
@@ -130,8 +131,7 @@ void test_spectral_hex()
           std::cout << " " << xval[i] ; 
         std::cout << "\n";
      }
-     moab::Element::SpectralHex specHex(sem_dims[0], (double*)xval, (double*)yval, (double*)zval);
-     
+     specHex.set_gl_points((double*)xval, (double*)yval, (double*)zval);
      // first evaluate a point, then inverse it to see if we get the same thing
      moab::CartVect rst(0.1, -0.1, 0.5);
      moab::CartVect pos = specHex.evaluate(rst);
