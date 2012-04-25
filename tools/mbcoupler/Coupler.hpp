@@ -323,6 +323,13 @@ public:
                               const char *norm_tag,
                               Coupler::IntegType integ_type);
 
+  /*
+   * this method will look at source (and target sets?) sets, and look for the SEM_DIMS tag
+   * if it exists, it will trigger a spectral element caching, with the order specified
+   */
+  ErrorCode initialize_spectral_elements(EntityHandle rootSource, EntityHandle rootTarget,
+      bool & specSou, bool & specTar);
+
 private:
 
     // given a coordinate position, find all entities containing
@@ -407,6 +414,14 @@ private:
      *
      */
   int numIts;
+
+  // a cached spectral element for source and target , separate
+  // assume that their numberof GL points (order+1) does not change
+  // if it does change, we need to reinitialize it
+  void * _spectralSource;
+  void * _spectralTarget;
+  moab::Tag _xm1Tag, _ym1Tag, _zm1Tag;
+  int _ntot;
 };
 
 } // namespace moab

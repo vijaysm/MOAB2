@@ -556,6 +556,11 @@ ErrorCode test_interpolation(Interface *mbImpl,
     // instantiate a coupler, which also initializes the tree
   Coupler mbc(mbImpl, pcs[0], src_elems, 0);
 
+  // initialize spectral elements, if they exist
+  bool specSou=false, specTar = false;
+  result =  mbc.initialize_spectral_elements((EntityHandle)roots[0], (EntityHandle)roots[1], specSou, specTar);
+
+
   instant_time = MPI_Wtime();
 
     // get points from the target mesh to interpolate
@@ -586,7 +591,7 @@ ErrorCode test_interpolation(Interface *mbImpl,
     // now interpolate tag onto target points
   std::vector<double> field(targ_verts.size());
 
-  if(interpTag == "vertex_field"){
+  if(interpTag == "vertex_field" ||specSou ){
     result = mbc.interpolate(Coupler::LINEAR_FE, interpTag, &field[0]);
   }else if(interpTag == "element_field"){
     result = mbc.interpolate(Coupler::PLAIN_FE, interpTag, &field[0]);
@@ -646,10 +651,21 @@ ErrorCode test_interpolation(Interface *mbImpl,
   instant_time -= start_time;
 
     // set field values as tag on target vertices
-  Tag tag;
-  result = mbImpl->tag_get_handle(interpTag.c_str(), 1, MB_TYPE_DOUBLE, tag); PRINT_LAST_ERROR;
-  result = mbImpl->tag_set_data(tag, targ_verts, &field[0]); PRINT_LAST_ERROR;
-
+  if (specSou)
+  {
+    // create a new tag for the values on the target
+    Tag tag;
+    std::string newtag = interpTag +"_TAR";
+    result = mbImpl->tag_get_handle(newtag.c_str(), 1, MB_TYPE_DOUBLE, tag, MB_TAG_CREAT|MB_TAG_DENSE);
+    result = mbImpl->tag_set_data(tag, targ_verts, &field[0]); PRINT_LAST_ERROR;
+  }
+  else
+  {
+    // use original tag
+    Tag tag;
+    result = mbImpl->tag_get_handle(interpTag.c_str(), 1, MB_TYPE_DOUBLE, tag); PRINT_LAST_ERROR;
+    result = mbImpl->tag_set_data(tag, targ_verts, &field[0]); PRINT_LAST_ERROR;
+  }
     // done
   return MB_SUCCESS;
 }

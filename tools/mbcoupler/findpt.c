@@ -1477,7 +1477,9 @@ double opt_findpt_3(opt_data_3 *p, const real *const elx[3],
   
   do {
     ++step;
-    if(step==50) fail("%s: opt_findpt_3 did not converge\n",__FILE__);
+    if(step==50)
+      /*fail("%s: opt_findpt_3 did not converge\n",__FILE__);*/
+      return 1.e+30;
 #   if DIAGNOSTICS
     printf("  iteration %u\n", step);
     printf("    %d constraint(s) active\n", (int)opt_constr_num_3[c]);
@@ -1775,7 +1777,9 @@ static double opt_findpt_2(opt_data_2 *p, const real *const elx[2],
   
   do {
     ++step;
-    if(step==50) fail("%s: opt_findpt_2 did not converge\n",__FILE__);
+    if(step==50)
+      /*fail("%s: opt_findpt_2 did not converge\n",__FILE__);*/
+      return 1.e+30;
 #   if DIAGNOSTICS
     printf("  iteration %u\n", step);
     printf("    %d constraint(s) active\n", (int)opt_constr_num_2[c]);

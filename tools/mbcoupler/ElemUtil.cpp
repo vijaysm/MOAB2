@@ -687,6 +687,9 @@ namespace Element {
     real r[3] = {0, 0, 0 }; // initial guess for parametric coords
     unsigned c = opt_no_constraints_3;
     real dist = opt_findpt_3(&_data, (const real **)_xyz, x_star, r, &c);
+    // if it did not converge, get out with throw...
+    if (dist > 0.9e+30)
+      throw Map::EvaluationError();
     //c tells us if we landed inside the element or exactly on a face, edge, or node
     // also, dist shows the distance to the computed point.
     //copy parametric coords back
