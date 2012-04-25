@@ -3112,9 +3112,11 @@ extern "C" {
       // declared here 'cuz might have to hold destination of a default value ptr
     std::string storage_type;
     const void *def_val = NULL;
-    int def_int;
-    double def_dbl;
-    moab::EntityHandle def_handle;
+    std::vector<int> def_int;
+    std::vector<double> def_dbl;
+    std::vector<moab::EntityHandle> def_handles;
+    int dum_int;
+    double dum_dbl;
   
     if (0 != tag_options_len) {
       std::string tag_options = filter_options(tmp_tag_options, tmp_tag_options+tag_options_len);
@@ -3138,20 +3140,25 @@ extern "C" {
           // ok, need to parse the string into a proper default value
         switch (tag_type) {
           case iBase_INTEGER:
-              result = opts.get_int_option("TAG_DEFAULT_VALUE", def_int);
-              def_val = &def_int;
+              result = opts.get_int_option("TAG_DEFAULT_VALUE", dum_int);
+              def_int.resize(tag_size);
+              std::fill(def_int.begin(), def_int.end(), dum_int);
+              def_val = &def_int[0];
               break;
           case iBase_DOUBLE:
-              result = opts.get_real_option("TAG_DEFAULT_VALUE", def_dbl);
-              def_val = &def_dbl;
+              result = opts.get_real_option("TAG_DEFAULT_VALUE", dum_dbl);
+              def_int.resize(tag_size);
+              std::fill(def_dbl.begin(), def_dbl.end(), dum_dbl);
+              def_val = &def_dbl[0];
               break;
           case iBase_ENTITY_HANDLE:
                 // for default handle, will have to use int
-              result = opts.get_int_option("TAG_DEFAULT_VALUE", def_int);
-              if (0 > def_int)
+              result = opts.get_int_option("TAG_DEFAULT_VALUE", dum_int);
+              if (0 > dum_int)
                 ERROR(result, "iMesh_createTagWithOptions: for default handle-type tag, must use non-negative int on input.");
-              def_handle = (moab::EntityHandle)def_int;
-              def_val = &def_handle;
+              def_handles.resize(tag_size);
+              std::fill(def_handles.begin(), def_handles.end(), (moab::EntityHandle)dum_int);
+              def_val = &def_handles[0];
               break;
           case iBase_BYTES:
               if ((int)storage_type.length() < tag_size) 
