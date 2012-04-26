@@ -330,6 +330,12 @@ public:
   ErrorCode initialize_spectral_elements(EntityHandle rootSource, EntityHandle rootTarget,
       bool & specSou, bool & specTar);
 
+  /*
+   * this method will put in an array, interleaved, the points of interest for coupling
+   * with a target mesh (so where do we need to compute the field of interest)
+   */
+  ErrorCode get_gl_points_on_elements(Range & targ_elems, std::vector<double> & vpos, int & numPointsOfInterest);
+
 private:
 
     // given a coordinate position, find all entities containing

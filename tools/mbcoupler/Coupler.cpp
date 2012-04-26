@@ -44,9 +44,6 @@ Coupler::Coupler(Interface *impl,
     // now initialize the tree
   if (init_tree) initialize_tree();
 
-
-
-
     // initialize tuple lists to indicate not initialized
   mappedPts = NULL;
   targetPts = NULL;
@@ -57,6 +54,7 @@ Coupler::Coupler(Interface *impl,
    */
 Coupler::~Coupler()
 {
+  // this will clear the cache
   delete (moab::Element::SpectralHex*)_spectralSource;
   delete (moab::Element::SpectralHex*)_spectralTarget;
 }
@@ -1633,4 +1631,43 @@ void unpack_tuples(void *ptr, TupleList** tlp)
   return;
 }
 
+ErrorCode Coupler::get_gl_points_on_elements(Range & targ_elems, std::vector<double> & vpos, int & numPointsOfInterest)
+{
+  numPointsOfInterest = targ_elems.size() * _ntot;//
+  vpos.resize(3*numPointsOfInterest);
+  int ielem=0;
+  for (Range::iterator eit = targ_elems.begin(); eit!=targ_elems.end(); eit++, ielem +=_ntot*3)
+  {
+    EntityHandle eh = *eit;
+    const double * xval;
+    const double * yval;
+    const double * zval;
+    ErrorCode rval = mbImpl-> tag_get_by_ptr(_xm1Tag, &eh, 1,(const void **) &xval );
+    if (moab::MB_SUCCESS != rval)
+    {
+      std::cout << "can't get xm1 values \n";
+      return MB_FAILURE;
+    }
+    rval = mbImpl-> tag_get_by_ptr(_ym1Tag, &eh, 1, (const void **)&yval );
+    if (moab::MB_SUCCESS != rval)
+    {
+      std::cout << "can't get ym1 values \n";
+      return MB_FAILURE;
+    }
+    rval = mbImpl-> tag_get_by_ptr(_zm1Tag, &eh, 1, (const void **)&zval );
+    if (moab::MB_SUCCESS != rval)
+    {
+      std::cout << "can't get zm1 values \n";
+      return MB_FAILURE;
+    }
+    // now, in a stride, populate vpos
+    for (int i=0; i<_ntot; i++)
+    {
+      vpos[ielem + 3*i    ] = xval[i];
+      vpos[ielem + 3*i + 1] = yval[i];
+      vpos[ielem + 3*i + 2] = zval[i];
+    }
+  }
+  return MB_SUCCESS;
+}
 } // namespace_moab

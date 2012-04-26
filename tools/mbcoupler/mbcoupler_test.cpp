@@ -547,7 +547,7 @@ ErrorCode test_interpolation(Interface *mbImpl,
                              double &ssnorm_time)
 {
     // source is 1st mesh, target is 2nd
-  Range src_elems, targ_elems;
+  Range src_elems, targ_elems, targ_verts;
   ErrorCode result = pcs[0]->get_part_entities(src_elems, 3);
   PRINT_LAST_ERROR;
 
@@ -564,39 +564,59 @@ ErrorCode test_interpolation(Interface *mbImpl,
   instant_time = MPI_Wtime();
 
     // get points from the target mesh to interpolate
-  Range targ_verts, tmp_verts;
+  // we have to treat differently the case when the target is a spectral mesh
+  // in that case, the points of interest are the GL points, not the vertex nodes
+  std::vector<double> vpos; // this will have the positions we are interested in
+  int numPointsOfInterest = 0;
+  if (!specTar)
+  {// usual case
+    Range tmp_verts;
 
-    // first get all vertices adj to partition entities in target mesh
-  result = pcs[1]->get_part_entities(targ_elems, 3);
-  result = mbImpl->get_adjacencies(targ_elems, 0, false, targ_verts, 
-                                   Interface::UNION);
-  PRINT_LAST_ERROR;
-
-    // then get non-owned verts and subtract 
-  result = pcs[1]->get_pstatus_entities(0, PSTATUS_NOT_OWNED, tmp_verts);
-  PRINT_LAST_ERROR;
-  targ_verts = subtract( targ_verts, tmp_verts);
+      // first get all vertices adj to partition entities in target mesh
+    result = pcs[1]->get_part_entities(targ_elems, 3);
+    PRINT_LAST_ERROR
+    result = mbImpl->get_adjacencies(targ_elems, 0, false, targ_verts,
+                                     Interface::UNION);
+    PRINT_LAST_ERROR;
   
+      // then get non-owned verts and subtract
+    result = pcs[1]->get_pstatus_entities(0, PSTATUS_NOT_OWNED, tmp_verts);
+    PRINT_LAST_ERROR;
+    targ_verts = subtract( targ_verts, tmp_verts);
     // get position of these entities; these are the target points
-  std::vector<double> vpos(3*targ_verts.size());
-  result = mbImpl->get_coords(targ_verts, &vpos[0]);
-  PRINT_LAST_ERROR;
+    numPointsOfInterest = (int)targ_verts.size();
+    vpos.resize(3*targ_verts.size());
+    result = mbImpl->get_coords(targ_verts, &vpos[0]);
+    PRINT_LAST_ERROR;
+  }
+  else
+  {
+    // in this case, the target mesh is spectral, we want values
+    // interpolated on the GL positions; for each element, get the GL points, and construct CartVect!!!
+    result = pcs[1]->get_part_entities(targ_elems, 3);
+    PRINT_LAST_ERROR;
+    result = mbc.get_gl_points_on_elements(targ_elems, vpos, numPointsOfInterest);
+    PRINT_LAST_ERROR;
+  }
+
+
+
 
     // locate those points in the source mesh
-  result = mbc.locate_points(&vpos[0], targ_verts.size());
+  result = mbc.locate_points(&vpos[0], numPointsOfInterest);
   PRINT_LAST_ERROR;
 
   pointloc_time = MPI_Wtime();
 
     // now interpolate tag onto target points
-  std::vector<double> field(targ_verts.size());
+  std::vector<double> field(numPointsOfInterest);
 
   if(interpTag == "vertex_field" ||specSou ){
     result = mbc.interpolate(Coupler::LINEAR_FE, interpTag, &field[0]);
   }else if(interpTag == "element_field"){
     result = mbc.interpolate(Coupler::PLAIN_FE, interpTag, &field[0]);
   }else{
-    std::cout << "Using tag name to determine type of sourge field at the moment... Use either vertex_field or element_field\n";
+    std::cout << "Using tag name to determine type of source field at the moment... Use either vertex_field or element_field\n";
     result = MB_FAILURE;
   }
   PRINT_LAST_ERROR;
@@ -657,14 +677,35 @@ ErrorCode test_interpolation(Interface *mbImpl,
     Tag tag;
     std::string newtag = interpTag +"_TAR";
     result = mbImpl->tag_get_handle(newtag.c_str(), 1, MB_TYPE_DOUBLE, tag, MB_TAG_CREAT|MB_TAG_DENSE);
-    result = mbImpl->tag_set_data(tag, targ_verts, &field[0]); PRINT_LAST_ERROR;
+    result = mbImpl->tag_set_data(tag, targ_verts, &field[0]);
+    PRINT_LAST_ERROR;
   }
   else
   {
-    // use original tag
-    Tag tag;
-    result = mbImpl->tag_get_handle(interpTag.c_str(), 1, MB_TYPE_DOUBLE, tag); PRINT_LAST_ERROR;
-    result = mbImpl->tag_set_data(tag, targ_verts, &field[0]); PRINT_LAST_ERROR;
+    if (!specTar)
+    {
+      // use original tag
+      Tag tag;
+      result = mbImpl->tag_get_handle(interpTag.c_str(), 1, MB_TYPE_DOUBLE, tag); PRINT_LAST_ERROR;
+      result = mbImpl->tag_set_data(tag, targ_verts, &field[0]);
+      PRINT_LAST_ERROR;
+    }
+    else
+    {
+      // we have the field values computed at each GL points, on each element
+      // in the target mesh
+      // we need to create a new tag, on elements, of size _ntot, to hold
+      // all those values.
+      // so it turns out we need ntot. maybe we can compute it from the
+      // number of values computed, divided by number of elements
+      int ntot = numPointsOfInterest/targ_elems.size();
+      Tag tag;
+      std::string newtag = interpTag +"_TAR";
+      result = mbImpl->tag_get_handle(newtag.c_str(), ntot, MB_TYPE_DOUBLE, tag, MB_TAG_CREAT|MB_TAG_DENSE);
+      result = mbImpl->tag_set_data(tag, targ_elems, &field[0]);
+      PRINT_LAST_ERROR;
+
+    }
   }
     // done
   return MB_SUCCESS;
