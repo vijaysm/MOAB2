@@ -191,9 +191,9 @@ ErrorCode Coupler::initialize_spectral_elements(EntityHandle rootSource, EntityH
     }
     // repeat for target sets
     spectral_sets.empty();
-    // now initialize a source spectral element !
+    // now initialize a target spectral element !
     _spectralTarget = new moab::Element::SpectralHex(sem_dims[0]);
-    specSou = true;
+    specTar = true;
   }
 
   _ntot = sem_dims[0]*sem_dims[1]*sem_dims[2];
@@ -585,7 +585,7 @@ ErrorCode Coupler::nat_param(double xyz[3],
   result = mbImpl->get_entities_by_dimension(treeiter.handle(), 3, range_leaf, false);
   if(result != MB_SUCCESS) std::cout << "Problem getting leaf in a range" << std::endl;
 
-    // loop over the range_leaf 
+  // loop over the range_leaf
   for(Range::iterator iter = range_leaf.begin(); iter != range_leaf.end(); iter++)
   {
     //test to find out in which entity the point is
@@ -620,7 +620,6 @@ ErrorCode Coupler::nat_param(double xyz[3],
 
       spcHex->set_gl_points((double*)xval, (double*)yval, (double*)zval);
       try{
-
         tmp_nat_coords =spcHex->ievaluate(CartVect(xyz));
       }
       catch (Element::Map::EvaluationError) {
@@ -628,8 +627,6 @@ ErrorCode Coupler::nat_param(double xyz[3],
             " is not converging inside hex " << mbImpl->id_from_handle(eh) << "\n";
         continue; // it is possible that the point is outside, so it will not converge
       }
-
-      
 
     }
     else
@@ -647,7 +644,6 @@ ErrorCode Coupler::nat_param(double xyz[3],
         std::cout << "Problems getting coordinates of vertices\n";
         return result;
       }
-
 
       if (etype == MBHEX) {
         Element::LinearHex hexmap(coords_vert);
@@ -689,69 +685,70 @@ ErrorCode Coupler::interp_field(EntityHandle elem,
 				double &field)
 {
   if (_spectralSource)
-{
-  // get tag values at the GL points for some field (Tag)
+  {
+    // get tag values at the GL points for some field (Tag)
     const double * vx;
-    ErrorCode rval = mbImpl-> tag_get_by_ptr(tag, &elem, 1, (const void **)&vx );
-     if (moab::MB_SUCCESS != rval)
-     {
-       std::cout << "can't get vel values \n";
-       return MB_FAILURE;
-     }
-     Element::SpectralHex * spcHex = ( Element::SpectralHex * ) _spectralSource;
-     field  = spcHex->evaluate_scalar_field(nat_coord, vx);
-}
+    ErrorCode rval = mbImpl-> tag_get_by_ptr(tag, &elem, 1, (const void **) &vx);
+    if (moab::MB_SUCCESS != rval)
+    {
+      std::cout << "can't get field values for the tag \n";
+      return MB_FAILURE;
+    }
+    Element::SpectralHex * spcHex = (Element::SpectralHex *) _spectralSource;
+    field = spcHex->evaluate_scalar_field(nat_coord, vx);
+  }
   else
-{
-  double vfields[8];  // will work for Hexes or Tets
-  moab::Element::Map *elemMap;
-  int num_verts = 0;
+  {
+    double vfields[8]; // will work for Hexes or Tets
+    moab::Element::Map *elemMap;
+    int num_verts = 0;
     // get the EntityType
-  EntityType etype = mbImpl->type_from_handle(elem);
-  if (etype == MBHEX) {
-    elemMap = new moab::Element::LinearHex();
-    num_verts = 8;
-  }
-  else if (etype == MBTET){
-    elemMap = new moab::Element::LinearTet();
-    num_verts = 4;
-  }
-  else {
-    return MB_FAILURE;
-  }
-  
+    EntityType etype = mbImpl->type_from_handle(elem);
+    if (etype == MBHEX){
+      elemMap = new moab::Element::LinearHex();
+      num_verts = 8;
+    }
+    else if (etype == MBTET) {
+      elemMap = new moab::Element::LinearTet();
+      num_verts = 4;
+    }
+    else {
+      return MB_FAILURE;
+    }
 
     // get the tag values at the vertices
-  const EntityHandle *connect;
-  int num_connect;
-  ErrorCode result = mbImpl->get_connectivity(elem, connect, num_connect);
-  if (MB_SUCCESS != result) {
-    delete elemMap;
-    return result;
-  }
-  result = mbImpl->tag_get_data(tag, connect, std::min(num_verts, num_connect), vfields);
-  if (MB_SUCCESS != result) {
-    delete elemMap;
-    return result;
-  }
-  
+    const EntityHandle *connect;
+    int num_connect;
+    ErrorCode result = mbImpl->get_connectivity(elem, connect, num_connect);
+    if (MB_SUCCESS != result)
+    {
+      delete elemMap;
+      return result;
+    }
+    result = mbImpl->tag_get_data(tag, connect, std::min(num_verts, num_connect), vfields);
+    if (MB_SUCCESS != result) {
+      delete elemMap;
+      return result;
+    }
+
     //function for the interpolation
-  field = 0;
+    field = 0;
 
     // check the number of vertices
-  assert(num_connect >= num_verts);
-  
-    //calculate the field
-  try {
-    field = elemMap->evaluate_scalar_field(nat_coord, vfields);
-  }
-  catch (moab::Element::Map::EvaluationError) {
-    delete elemMap;
-    return MB_FAILURE;
-  }
+    assert(num_connect >= num_verts);
 
-  delete elemMap;
-}
+    //calculate the field
+    try {
+      field = elemMap->evaluate_scalar_field(nat_coord, vfields);
+    }
+    catch (moab::Element::Map::EvaluationError)
+    {
+      delete elemMap;
+      return MB_FAILURE;
+    }
+
+    delete elemMap;
+  }
   return MB_SUCCESS;
 }
 
