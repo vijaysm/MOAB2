@@ -218,6 +218,21 @@ ErrorCode Coupler::initialize_spectral_elements(EntityHandle rootSource, EntityH
   }
   return MB_SUCCESS;
 }
+
+ErrorCode Coupler::locate_points(Range &targ_verts,
+                                 TupleList *tl,
+                                 bool store_local)
+{
+    // get locations
+  std::vector<double> locs(3*targ_verts.size());
+  ErrorCode rval = mbImpl->get_coords(targ_verts, &locs[0]);
+  if (MB_SUCCESS != rval) return rval;
+
+  if (store_local) targetVerts = targ_verts;
+  
+  return locate_points(&locs[0], targ_verts.size(), tl, store_local);
+}
+
 ErrorCode Coupler::locate_points(double *xyz, int num_points,
                                      TupleList *tl,
                                      bool store_local)

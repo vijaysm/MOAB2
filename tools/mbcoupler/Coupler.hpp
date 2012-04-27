@@ -336,6 +336,20 @@ public:
    */
   ErrorCode get_gl_points_on_elements(Range & targ_elems, std::vector<double> & vpos, int & numPointsOfInterest);
 
+    /* Get functions */
+
+  inline Interface *mb_impl() const {return mbImpl;}
+  inline AdaptiveKDTree *my_tree() const {return myTree;};
+  inline EntityHandle local_root() const {return localRoot;}
+  inline const std::vector<double> &all_boxes() const {return allBoxes;}
+  inline ParallelComm *my_pc() const {return myPc;}
+  inline const Range &target_verts() const {return targetVerts;}
+  inline int my_id() const {return myId;}
+  inline const Range &my_range() const {return myRange;}
+  inline TupleList *mapped_pts() const {return mappedPts;}
+  inline const std::vector<unsigned int> &local_mapped_pts() const {return localMappedPts;}
+  inline int num_its() const {return numIts;}
+        
 private:
 
     // given a coordinate position, find all entities containing
@@ -386,9 +400,13 @@ private:
      */
   int myId;
   
-    /* \brief Range of locations interpolated onto
+    /* \brief Range of source elements 
      */
   Range myRange;
+
+    /* \brief Range of target vertices
+     */
+  Range targetVerts;
 
     /* \brief List of locally mapped tuples
      * Tuples contain the following:
