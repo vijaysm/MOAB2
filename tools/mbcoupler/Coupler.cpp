@@ -36,7 +36,7 @@ Coupler::Coupler(Interface *impl,
                      bool init_tree)
     : mbImpl(impl), myPc(pc), myId(coupler_id), numIts(3)
 {
-  assert(NULL != impl && NULL != myPc);
+  assert(NULL != impl && (pc || !local_elems.empty()));
 
     // keep track of the local points, at least for now
   myRange = local_elems;
@@ -68,9 +68,11 @@ ErrorCode Coupler::initialize_tree()
   settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION;
 
     //get entities on the local part
-  ErrorCode result = myPc->get_part_entities(local_ents, 3);
-  if (MB_SUCCESS != result) {
-    std::cout << "Problems getting entities by dimension" << std::endl;
+  ErrorCode result = MB_SUCCESS;
+  if (myPc) result = myPc->get_part_entities(local_ents, 3);
+  else local_ents = myRange;
+  if (MB_SUCCESS != result || local_ents.empty()) {
+    std::cout << "Problems getting source entities" << std::endl;
     return result;
   }
 
@@ -96,19 +98,21 @@ ErrorCode Coupler::initialize_tree()
   }
 
     // get the bounding box for local tree
-  allBoxes.resize(6*myPc->proc_config().proc_size());
-  unsigned int my_rank = myPc->proc_config().proc_rank();
+  if (myPc)
+    allBoxes.resize(6*myPc->proc_config().proc_size());
+  else allBoxes.resize(6);
+  unsigned int my_rank = (myPc ? myPc->proc_config().proc_rank() : 0);
   result = myTree->get_tree_box(localRoot, &allBoxes[6*my_rank], &allBoxes[6*my_rank+3]);
-
+  if (MB_SUCCESS != result) return result;
+  
     // now communicate to get all boxes
-//   int mpi_err = MPI_Allgather(&allBoxes[6*my_rank], 6, MPI_DOUBLE,
-//                               &allBoxes[0], 6, MPI_DOUBLE, 
-//                               myPc->proc_config().proc_comm());
-    // Change to use "in place" option
-  int mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-                              &allBoxes[0], 6, MPI_DOUBLE, 
-                              myPc->proc_config().proc_comm());
-
+    // use "in place" option
+  if (myPc) {
+    int mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
+                                &allBoxes[0], 6, MPI_DOUBLE, 
+                                myPc->proc_config().proc_comm());
+    if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
+  }
 
   /*  std::ostringstream blah;
   for(int i=0; i<allBoxes.size(); i++)
@@ -126,8 +130,7 @@ ErrorCode Coupler::initialize_tree()
             << dep << std::endl;
 #endif  
 
-  if (MPI_SUCCESS == mpi_err) return MB_SUCCESS;
-  else return MB_FAILURE;
+  return result;
 }
 
 ErrorCode Coupler::initialize_spectral_elements(EntityHandle rootSource, EntityHandle rootTarget,
@@ -248,7 +251,7 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
     // of <local_index, mapped_index>, where mapped_index is the index
     // into the mappedPts tuple list
 
-  unsigned int my_rank = myPc->proc_config().proc_rank();
+  unsigned int my_rank = (myPc ? myPc->proc_config().proc_rank() : 0);
   bool point_located;
   
   for (int i = 0; i < 3*num_points; i+=3) 
@@ -263,7 +266,7 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
 
     
       // if not located locally, test other procs' boxes
-    for (unsigned int j = 0; j < myPc->proc_config().proc_size(); j++)
+    for (unsigned int j = 0; j < (myPc ? myPc->proc_config().proc_size() : 0); j++)
     {
       if (j == my_rank) continue;
       
@@ -289,40 +292,42 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
   }
 
     // perform scatter/gather, to gather points to source mesh procs
-  (myPc->proc_config().crystal_router())->gs_transfer(1, target_pts, 0);
+  if (myPc) {
+    (myPc->proc_config().crystal_router())->gs_transfer(1, target_pts, 0);
 
-    // after scatter/gather:
-    // target_pts.set_n( # points local proc has to map );
-    // target_pts.vi_wr[2*i] = proc sending point i
-    // target_pts.vi_wr[2*i+1] = index of point i on sending proc
-    // target_pts.vr_wr[3*i..3*i+2] = xyz of point i
-    //
-    // Mapping builds the tuple list:
-    // source_pts.set_n (target_pts.get_n() )
-    // source_pts.vi_wr[3*i] = target_pts.vi_wr[2*i] = sending proc
-    // source_pts.vi_wr[3*i+1] = index of point i on sending proc
-    // source_pts.vi_wr[3*i+2] = index of mapped point (-1 if not mapped)
-    //
-    // Also, mapping builds local tuple_list mappedPts:
-    // mappedPts->set_n( # mapped points );
-    // mappedPts->vul_wr[i] = local handle of mapped entity
-    // mappedPts->vr_wr[3*i..3*i+2] = natural coordinates in mapped entity
+      // after scatter/gather:
+      // target_pts.set_n( # points local proc has to map );
+      // target_pts.vi_wr[2*i] = proc sending point i
+      // target_pts.vi_wr[2*i+1] = index of point i on sending proc
+      // target_pts.vr_wr[3*i..3*i+2] = xyz of point i
+      //
+      // Mapping builds the tuple list:
+      // source_pts.set_n (target_pts.get_n() )
+      // source_pts.vi_wr[3*i] = target_pts.vi_wr[2*i] = sending proc
+      // source_pts.vi_wr[3*i+1] = index of point i on sending proc
+      // source_pts.vi_wr[3*i+2] = index of mapped point (-1 if not mapped)
+      //
+      // Also, mapping builds local tuple_list mappedPts:
+      // mappedPts->set_n( # mapped points );
+      // mappedPts->vul_wr[i] = local handle of mapped entity
+      // mappedPts->vr_wr[3*i..3*i+2] = natural coordinates in mapped entity
 
-    // test target points against my elements
-  for (unsigned i = 0; i < target_pts.get_n(); i++) 
-  {
-    result = test_local_box(target_pts.vr_wr+3*i, 
-                            target_pts.vi_rd[2*i], target_pts.vi_rd[2*i+1], i, 
-                            point_located, &source_pts);
-    if (MB_SUCCESS != result) return result;
+      // test target points against my elements
+    for (unsigned i = 0; i < target_pts.get_n(); i++) 
+    {
+      result = test_local_box(target_pts.vr_wr+3*i, 
+                              target_pts.vi_rd[2*i], target_pts.vi_rd[2*i+1], i, 
+                              point_located, &source_pts);
+      if (MB_SUCCESS != result) return result;
+    }
+
+      // no longer need target_pts
+    target_pts.reset();
+
+      // send target points back to target procs
+    (myPc->proc_config().crystal_router())->gs_transfer(1, source_pts, 0);
   }
-
-  // no longer need target_pts
-  target_pts.reset();
-
-    // send target points back to target procs
-  (myPc->proc_config().crystal_router())->gs_transfer(1, source_pts, 0);
-
+  
   // store proc/index tuples in targetPts, and/or pass back to application;
   // the tuple this gets stored to looks like:
   // tl.set_n( # mapped points );
@@ -502,33 +507,36 @@ ErrorCode Coupler::interpolate(Coupler::Method method,
   TupleList *tl_tmp = (tl ? tl : targetPts);
     // remote pts first
   
+  ErrorCode result = MB_SUCCESS;
+
     // scatter/gather interpolation points
-  (myPc->proc_config().crystal_router())->gs_transfer(1, *tl_tmp, 0);
+  if (myPc) {
+    (myPc->proc_config().crystal_router())->gs_transfer(1, *tl_tmp, 0);
 
-    // perform interpolation on local source mesh; put results into
-    // tl_tmp->vr_wr[i]
-  ErrorCode result;
+      // perform interpolation on local source mesh; put results into
+      // tl_tmp->vr_wr[i]
 
-  mappedPts->enableWriteAccess();
-  for (unsigned int i = 0; i < tl_tmp->get_n(); i++) {
-    int mindex = tl_tmp->vi_rd[3*i+2];
+    mappedPts->enableWriteAccess();
+    for (unsigned int i = 0; i < tl_tmp->get_n(); i++) {
+      int mindex = tl_tmp->vi_rd[3*i+2];
 
-    result = MB_FAILURE;
-    if(LINEAR_FE == method){
-      result = interp_field(mappedPts->vul_rd[mindex],
-				    CartVect(mappedPts->vr_wr+3*mindex), 
-				    tag, tl_tmp->vr_rd[i]);
-    }else if (PLAIN_FE == method){
-      result = plain_field_map(mappedPts->vul_rd[mindex],
-			       tag, tl_tmp->vr_rd[i]);
+      result = MB_FAILURE;
+      if(LINEAR_FE == method){
+        result = interp_field(mappedPts->vul_rd[mindex],
+                              CartVect(mappedPts->vr_wr+3*mindex), 
+                              tag, tl_tmp->vr_rd[i]);
+      }else if (PLAIN_FE == method){
+        result = plain_field_map(mappedPts->vul_rd[mindex],
+                                 tag, tl_tmp->vr_rd[i]);
+      }
+
+      if (MB_SUCCESS != result) return result;
     }
-
-    if (MB_SUCCESS != result) return result;
+  
+      // scatter/gather interpolation data
+    (myPc->proc_config().crystal_router())->gs_transfer(1, *tl_tmp, 0);
   }
   
-    // scatter/gather interpolation data
-  (myPc->proc_config().crystal_router())->gs_transfer(1, *tl_tmp, 0);
-
   if (!tl) {
       // mapped whole targetPts tuple; put into proper place in interp_vals
     for (unsigned int i = 0; i < tl_tmp->get_n(); i++)
