@@ -1253,7 +1253,7 @@ static void opt_vol_intp_3(opt_data_3 *p)
                          p->elx[d], &p->jac[d*3], p->work);
 }
 
-static void opt_vol_set_intp_3(opt_data_3 *p, const real r[3])
+void opt_vol_set_intp_3(opt_data_3 *p, const real r[3])
 {
   opt_vol_set_3(p,r);
   opt_vol_intp_3(p);

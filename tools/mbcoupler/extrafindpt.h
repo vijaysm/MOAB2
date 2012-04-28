@@ -34,7 +34,7 @@ void opt_alloc_3(opt_data_3 *p, lagrange_data *ld);
 void opt_free_3(opt_data_3 *p);
 double opt_findpt_3(opt_data_3 *p, const real *const elx[3],
                            const real xstar[3], real r[3], unsigned *constr);
-
+void opt_vol_set_intp_3(opt_data_3 *p, const real r[3]);
 
 const unsigned opt_no_constraints_2 = 3+1;
 const unsigned opt_no_constraints_3 = 9+3+1;

@@ -699,7 +699,25 @@ namespace Element {
   }
   Matrix3  SpectralHex::jacobian(const CartVect& xi) const
   {
-    return Matrix3(0.);
+    real x_i[3];
+    xi.get(x_i);
+    // set the positions of GL nodes, before evaluations
+    _data.elx[0]=_xyz[0];
+    _data.elx[1]=_xyz[1];
+    _data.elx[2]=_xyz[2];
+    opt_vol_set_intp_3(&_data,x_i);
+    Matrix3 J(0.);
+    // it is organized differently
+    J(0,0) = _data.jac[0]; // dx/dr
+    J(0,1) = _data.jac[1]; // dx/ds
+    J(0,2) = _data.jac[2]; // dx/dt
+    J(1,0) = _data.jac[3]; // dy/dr
+    J(1,1) = _data.jac[4]; // dy/ds
+    J(1,2) = _data.jac[5]; // dy/dt
+    J(2,0) = _data.jac[6]; // dz/dr
+    J(2,1) = _data.jac[7]; // dz/ds
+    J(2,2) = _data.jac[8]; // dz/dt
+    return J;
   }
   double   SpectralHex::evaluate_scalar_field(const CartVect& xi, const double *field) const
   {
@@ -718,7 +736,45 @@ namespace Element {
   }
   double   SpectralHex::integrate_scalar_field(const double *field_vertex_values) const
   {
-    return 0;
+    // set the position of GL points
+    // set the positions of GL nodes, before evaluations
+    _data.elx[0]=_xyz[0];
+    _data.elx[1]=_xyz[1];
+    _data.elx[2]=_xyz[2];
+    double xi[3];
+    //triple loop; the most inner loop is in r direction, then s, then t
+    double integral = 0.;
+    int index=0; // used fr the inner loop
+    for (int k=0; k<_n; k++ )
+    {
+      xi[2]=_ld[2].z[k];
+      double wk= _ld[2].w[k];
+      for (int j=0; j<_n; j++)
+      {
+        xi[1]=_ld[1].z[j];
+        double wj= _ld[1].w[j];
+        for (int i=0; i<_n; i++)
+        {
+          xi[0]=_ld[0].z[i];
+          double wi= _ld[0].w[i];
+          opt_vol_set_intp_3(&_data,xi);
+          Matrix3 J(0.);
+          // it is organized differently
+          J(0,0) = _data.jac[0]; // dx/dr
+          J(0,1) = _data.jac[1]; // dx/ds
+          J(0,2) = _data.jac[2]; // dx/dt
+          J(1,0) = _data.jac[3]; // dy/dr
+          J(1,1) = _data.jac[4]; // dy/ds
+          J(1,2) = _data.jac[5]; // dy/dt
+          J(2,0) = _data.jac[6]; // dz/dr
+          J(2,1) = _data.jac[7]; // dz/ds
+          J(2,2) = _data.jac[8]; // dz/dt
+          double bm = wk*wj*wi*J.determinant();
+          integral+= bm*field_vertex_values[index++];
+        }
+      }
+    }
+    return integral;
   }
 
 

@@ -137,6 +137,8 @@ void test_spectral_hex()
      moab::CartVect pos = specHex.evaluate(rst);
      moab::CartVect inverse = specHex.ievaluate(pos);
      std::cout << "difference" << rst-inverse << "\n";
+     Matrix3 jac=specHex.jacobian(rst);
+     std::cout<< "jacobian: \n" << jac << " \n determinant: " << jac.determinant() << "\n";
      // evaluate vx at some point
      const double * vx;
      rval = mb-> tag_get_by_ptr(velTag, &eh, 1, (const void **)&vx );
@@ -147,6 +149,9 @@ void test_spectral_hex()
      }
      double vel1 = specHex.evaluate_scalar_field(rst, vx);
      std::cout << "velocity: " << vel1 << "\n";
+     // compute integral over vx:
+     double integral = specHex.integrate_scalar_field(vx);
+     std::cout << "integral over vx: " << integral << "\n";
 
   }
   std::cout << "success...\n";
