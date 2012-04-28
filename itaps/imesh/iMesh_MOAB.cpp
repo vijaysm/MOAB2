@@ -3147,7 +3147,7 @@ extern "C" {
               break;
           case iBase_DOUBLE:
               result = opts.get_real_option("TAG_DEFAULT_VALUE", dum_dbl);
-              def_int.resize(tag_size);
+              def_dbl.resize(tag_size);
               std::fill(def_dbl.begin(), def_dbl.end(), dum_dbl);
               def_val = &def_dbl[0];
               break;
