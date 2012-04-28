@@ -72,6 +72,8 @@ public:
      *
      */
   ErrorCode locate_points(double *xyz, int num_points,
+                          double rel_eps = 0.0, 
+                          double abs_eps = 0.0,
                             TupleList *tl = NULL,
                             bool store_local = true);
   
@@ -85,6 +87,8 @@ public:
      *
      */
   ErrorCode locate_points(Range &ents,
+                          double rel_eps = 0.0, 
+                          double abs_eps = 0.0,
                             TupleList *tl = NULL,
                             bool store_local = true);
   
@@ -356,7 +360,8 @@ private:
     // the point and the natural coords in those ents
   ErrorCode nat_param(double xyz[3], 
                         std::vector<EntityHandle> &entities, 
-                        std::vector<CartVect> &nat_coords);
+                      std::vector<CartVect> &nat_coords,
+                      double epsilon = 0.0);
   
   ErrorCode interp_field(EntityHandle elem,
                          CartVect nat_coord, 
@@ -370,6 +375,8 @@ private:
   ErrorCode test_local_box(double *xyz, 
                              int from_proc, int remote_index, int index, 
                              bool &point_located,
+                           double rel_eps = 0.0,
+                           double abs_eps = 0.0,
                              TupleList *tl = NULL);
   
     /* \brief MOAB instance

@@ -220,6 +220,8 @@ ErrorCode Coupler::initialize_spectral_elements(EntityHandle rootSource, EntityH
 }
 
 ErrorCode Coupler::locate_points(Range &targ_verts,
+                                 double rel_eps, 
+                                 double abs_eps,
                                  TupleList *tl,
                                  bool store_local)
 {
@@ -230,12 +232,14 @@ ErrorCode Coupler::locate_points(Range &targ_verts,
 
   if (store_local) targetVerts = targ_verts;
   
-  return locate_points(&locs[0], targ_verts.size(), tl, store_local);
+  return locate_points(&locs[0], targ_verts.size(), rel_eps, abs_eps, tl, store_local);
 }
 
 ErrorCode Coupler::locate_points(double *xyz, int num_points,
-                                     TupleList *tl,
-                                     bool store_local)
+                                 double rel_eps, 
+                                 double abs_eps,
+                                 TupleList *tl,
+                                 bool store_local)
 {
   assert(tl || store_local);
 
@@ -272,7 +276,7 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
   for (int i = 0; i < 3*num_points; i+=3) 
   {
       // test point locally first
-    result = test_local_box(xyz+i, my_rank, i/3, i/3, point_located);
+    result = test_local_box(xyz+i, my_rank, i/3, i/3, point_located, rel_eps, abs_eps);
     if (MB_SUCCESS != result) return result;
     if (point_located) {
       located_pts[i/3] = 0x1;
@@ -332,7 +336,7 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
     {
       result = test_local_box(target_pts.vr_wr+3*i, 
                               target_pts.vi_rd[2*i], target_pts.vi_rd[2*i+1], i, 
-                              point_located, &source_pts);
+                              point_located, rel_eps, abs_eps, &source_pts);
       if (MB_SUCCESS != result) return result;
     }
 
@@ -416,7 +420,8 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
 ErrorCode Coupler::test_local_box(double *xyz, 
                                       int from_proc, int remote_index, int index, 
                                       bool &point_located,
-                                      TupleList *tl)
+                                  double rel_eps, double abs_eps,
+                                  TupleList *tl)
 {
   
   std::vector<EntityHandle> entities;
@@ -426,8 +431,15 @@ ErrorCode Coupler::test_local_box(double *xyz,
     canWrite = tl->get_writeEnabled();
     if(!canWrite) tl->enableWriteAccess();
   }
-          
-  ErrorCode result = nat_param(xyz, entities, nat_coords);
+
+  if (rel_eps && !abs_eps) {
+      // relative epsilon given, translate to absolute epsilon using box dimensions
+    CartVect minmax[2];
+    myTree->get_tree_box(localRoot, minmax[0].array(), minmax[1].array());
+    abs_eps = rel_eps * (minmax[1] - minmax[0]).length();
+  }
+  
+  ErrorCode result = nat_param(xyz, entities, nat_coords, abs_eps);
   if (MB_SUCCESS != result) return result;
 
     // if we didn't find any ents and we're looking locally, nothing more to do
@@ -583,7 +595,8 @@ ErrorCode Coupler::interpolate(Coupler::Method method,
 
 ErrorCode Coupler::nat_param(double xyz[3], 
                                  std::vector<EntityHandle> &entities, 
-                                 std::vector<CartVect> &nat_coords) 
+                             std::vector<CartVect> &nat_coords,
+                             double epsilon) 
 {
   AdaptiveKDTreeIter treeiter;
   ErrorCode result = myTree->get_tree_iterator(localRoot, treeiter); 
@@ -592,18 +605,39 @@ ErrorCode Coupler::nat_param(double xyz[3],
     return result;
   }
 
-  result = myTree->leaf_containing_point(localRoot, xyz, treeiter);
-  if(MB_ENTITY_NOT_FOUND==result) //point is outside of myTree's bounding box
-    return MB_SUCCESS; 
-  if (MB_SUCCESS != result) {
-    std::cout << "Problems getting leaf \n";
-    return result;
+  EntityHandle closest_leaf;
+  if (epsilon) {
+    std::vector<double> dists;
+    std::vector<EntityHandle> leaves;
+    result = myTree->leaves_within_distance(localRoot, xyz, epsilon, leaves, &dists);
+    if (leaves.empty()) return MB_ENTITY_NOT_FOUND;
+      // get closest leaf
+    double min_dist = *dists.begin();
+    closest_leaf = *leaves.begin();
+    std::vector<EntityHandle>::iterator vit = leaves.begin()+1;
+    std::vector<double>::iterator dit = dists.begin()+1;
+    for (; vit != leaves.end() && min_dist; vit++, dit++) {
+      if (*dit < min_dist) {
+        min_dist = *dit;
+        closest_leaf = *vit;
+      }
+    }
+  }
+  else {
+    result = myTree->leaf_containing_point(localRoot, xyz, treeiter);
+    if(MB_ENTITY_NOT_FOUND==result) //point is outside of myTree's bounding box
+      return MB_SUCCESS; 
+    else if (MB_SUCCESS != result) {
+      std::cout << "Problems getting leaf \n";
+      return result;
+    }
+    closest_leaf = treeiter.handle();
   }
 
     // find natural coordinates of point in element(s) in that leaf
   CartVect tmp_nat_coords; 
   Range range_leaf;
-  result = mbImpl->get_entities_by_dimension(treeiter.handle(), 3, range_leaf, false);
+  result = mbImpl->get_entities_by_dimension(closest_leaf, 3, range_leaf, false);
   if(result != MB_SUCCESS) std::cout << "Problem getting leaf in a range" << std::endl;
 
   // loop over the range_leaf
@@ -669,7 +703,7 @@ ErrorCode Coupler::nat_param(double xyz[3],
       if (etype == MBHEX) {
         Element::LinearHex hexmap(coords_vert);
         try {
-          tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), 1e-10);
+          tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
         }
         catch (Element::Map::EvaluationError) {
           continue;

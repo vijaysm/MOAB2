@@ -1445,7 +1445,7 @@ ErrorCode AdaptiveKDTree::build_tree( const Range& elems,
 
 ErrorCode AdaptiveKDTree::leaf_containing_point( EntityHandle tree_root,
                                                      const double point[3],
-                                                     EntityHandle& leaf_out )
+                                                 EntityHandle& leaf_out)
 {
   std::vector<EntityHandle> children;
   Plane plane;
@@ -1527,11 +1527,12 @@ struct NodeDistance {
 ErrorCode AdaptiveKDTree::leaves_within_distance( EntityHandle tree_root,
                                                       const double from_point[3],
                                                       const double distance,
-                                                      std::vector<EntityHandle>& result_list )
+                                                  std::vector<EntityHandle>& result_list,
+                                                  std::vector<double> *result_dists)
 {
   const double dist_sqr = distance * distance;
   const CartVect from(from_point);
-  std::vector<NodeDistance> list;     // list of subtrees to traverse
+  std::vector<NodeDistance> list, result_list_nodes;     // list of subtrees to traverse, and results 
     // pre-allocate space for default max tree depth
   Settings tmp_settings;
   list.reserve( tmp_settings.maxTreeDepth );
@@ -1573,7 +1574,7 @@ ErrorCode AdaptiveKDTree::leaves_within_distance( EntityHandle tree_root,
     children.clear();
     rval = moab()->get_child_meshsets( node.handle, children );
     if (children.empty()) {
-      result_list.push_back( node.handle );
+      result_list_nodes.push_back( node);
       continue;
     }
       
@@ -1616,6 +1617,19 @@ ErrorCode AdaptiveKDTree::leaves_within_distance( EntityHandle tree_root,
     }
   }
 
+    // separate loops to avoid if test inside loop
+  result_list.reserve(result_list_nodes.size());
+  for (std::vector<NodeDistance>::iterator vit = result_list_nodes.begin(); 
+       vit != result_list_nodes.end(); vit++)
+    result_list.push_back((*vit).handle);
+  
+  if (result_dists && distance > 0.0) {
+    result_dists->reserve(result_list_nodes.size());
+    for (std::vector<NodeDistance>::iterator vit = result_list_nodes.begin(); 
+         vit != result_list_nodes.end(); vit++)
+      result_dists->push_back((*vit).dist.length());
+  }
+  
   return MB_SUCCESS;
 }
 

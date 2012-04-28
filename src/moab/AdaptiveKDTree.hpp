@@ -220,8 +220,8 @@ public:
   //!   at all if the point is outside the box, as there is no leaf
   //!   containing the point in that case.
   ErrorCode leaf_containing_point( EntityHandle tree_root,
-                                     const double point[3],
-                                     EntityHandle& leaf_out );
+                                   const double point[3],
+                                   EntityHandle& leaf_out);
 
   //! Get iterator at leaf containing input position.
   //! 
@@ -229,13 +229,16 @@ public:
   //! bounding box of tree.
   ErrorCode leaf_containing_point( EntityHandle tree_root,
                                      const double xyz[3],
-                                     AdaptiveKDTreeIter& result );
+                                   AdaptiveKDTreeIter& result);
 
   //! Find all leaves within a given distance from point in space.
+  //! If dists_out input non-NULL, also returns distances from each leaf; if
+  //! point i is inside leaf, 0 is given as dists_out[i]
   ErrorCode leaves_within_distance( EntityHandle tree_root,
                                       const double from_point[3],
                                       const double distance,
-                                      std::vector<EntityHandle>& leaves_out );
+                                    std::vector<EntityHandle>& leaves_out,
+                                    std::vector<double> *dists_out = NULL);
 
   //! Calculate bounding box for entities.
   ErrorCode bounding_box( const Range& entities,
