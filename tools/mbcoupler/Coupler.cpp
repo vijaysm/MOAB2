@@ -277,7 +277,9 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
   {
       // test point locally first
     result = test_local_box(xyz+i, my_rank, i/3, i/3, point_located, rel_eps, abs_eps);
-    if (MB_SUCCESS != result) return result;
+    if (MB_SUCCESS != result) {
+      return result;
+    }
     if (point_located) {
       located_pts[i/3] = 0x1;
       continue;
@@ -610,7 +612,9 @@ ErrorCode Coupler::nat_param(double xyz[3],
     std::vector<double> dists;
     std::vector<EntityHandle> leaves;
     result = myTree->leaves_within_distance(localRoot, xyz, epsilon, leaves, &dists);
-    if (leaves.empty()) return MB_ENTITY_NOT_FOUND;
+    if (leaves.empty()) 
+      // not found returns success here, with empty list, just like case with no epsilon
+      return MB_SUCCESS;
       // get closest leaf
     double min_dist = *dists.begin();
     closest_leaf = *leaves.begin();

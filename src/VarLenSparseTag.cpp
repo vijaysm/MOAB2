@@ -25,22 +25,23 @@
 
 namespace moab {
 
-static ErrorCode not_found( Error* error, EntityHandle h )
+static ErrorCode not_found( Error* error, std::string name, EntityHandle h )
 {
   if (error) {
     if (h)
-      error->set_last_error( "No tag value for %s %lu", 
-               CN::EntityTypeName(TYPE_FROM_HANDLE(h)), 
-               (unsigned long)ID_FROM_HANDLE(h));
+      error->set_last_error( "No tag %s value for %s %lu", 
+                             name.c_str(),
+                             CN::EntityTypeName(TYPE_FROM_HANDLE(h)), 
+                             (unsigned long)ID_FROM_HANDLE(h));
     else
-      error->set_last_error( "No tag value for root set" );
+      error->set_last_error( "No tag %s value for root set", name.c_str());
   }
   return MB_TAG_NOT_FOUND;
 }
 
-static ErrorCode not_var_len( Error* error )
+static ErrorCode not_var_len( Error* error, std::string name )
 {
-  error->set_last_error( "No size specified for variable-length tag data" );
+  error->set_last_error( "No size specified for variable-length tag %s data", name.c_str());
   return MB_VARIABLE_DATA_LENGTH;
 }
 
@@ -79,7 +80,7 @@ ErrorCode VarLenSparseTag::get_data_ptr( Error* error,
     length = get_default_value_size();
   }
   else 
-    return not_found(error, entity_handle);
+    return not_found(error, get_name(), entity_handle);
   
   return MB_SUCCESS;
 }
@@ -90,7 +91,7 @@ ErrorCode VarLenSparseTag::get_data( const SequenceManager*,
                                      size_t ,
                                      void*  ) const
 {
-  return not_var_len(error);
+  return not_var_len(error, get_name());
 }
 
 ErrorCode VarLenSparseTag::get_data( const SequenceManager*,
@@ -98,7 +99,7 @@ ErrorCode VarLenSparseTag::get_data( const SequenceManager*,
                                      const Range& /*entities*/,
                                      void* /*data */) const
 {
-  return not_var_len(error);
+  return not_var_len(error, get_name());
 }
 
 ErrorCode VarLenSparseTag::get_data( const SequenceManager* ,
@@ -109,7 +110,7 @@ ErrorCode VarLenSparseTag::get_data( const SequenceManager* ,
                                      int* lengths ) const
 {
   if (!lengths)
-    return not_var_len(error);
+    return not_var_len(error, get_name());
 
   ErrorCode rval;
   for (size_t i = 0; i < num_entities; ++i)
@@ -125,7 +126,7 @@ ErrorCode VarLenSparseTag::get_data( const SequenceManager*,
                                      int* lengths ) const
 {
   if (!lengths)
-    return not_var_len(error);
+    return not_var_len(error, get_name());
 
   ErrorCode rval;
   Range::const_iterator i;
@@ -141,7 +142,7 @@ ErrorCode VarLenSparseTag::set_data( SequenceManager* /*seqman*/,
                                      size_t /*num_entities*/,
                                      const void* /*data*/ )
 {
-  return not_var_len(error);
+  return not_var_len(error, get_name());
 }
 
 ErrorCode VarLenSparseTag::set_data( SequenceManager* /*seqman*/,
@@ -149,7 +150,7 @@ ErrorCode VarLenSparseTag::set_data( SequenceManager* /*seqman*/,
                                      const Range& /*entities*/,
                                      const void* /*data */)
 {
-  return not_var_len(error);
+  return not_var_len(error, get_name());
 }
 
 ErrorCode VarLenSparseTag::set_data( SequenceManager* seqman,
@@ -270,7 +271,7 @@ ErrorCode VarLenSparseTag::remove_data( SequenceManager*,
   for (size_t i = 0; i < num_entities; ++i) {
     MapType::iterator p = mData.find(entities[i]);
     if (p == mData.end())
-      result = not_found(error,entities[i]);
+      result = not_found(error, get_name(), entities[i]);
     else {
       p->second.clear();
       mData.erase(p);
@@ -287,7 +288,7 @@ ErrorCode VarLenSparseTag::remove_data( SequenceManager*,
   for (Range::iterator i = entities.begin(); i != entities.end(); ++i) {
     MapType::iterator p = mData.find(*i);
     if (p == mData.end())
-      result = not_found(error,*i);
+      result = not_found(error, get_name(), *i);
     else {
       p->second.clear();
       mData.erase(p);

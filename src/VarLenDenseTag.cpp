@@ -16,23 +16,24 @@
 
 namespace moab {
 
-static ErrorCode not_found( Error* error, EntityHandle h )
+static ErrorCode not_found( Error* error, std::string name, EntityHandle h )
 {
   if (error) {
     if (h)
-      error->set_last_error( "No tag value for %s %lu", 
-               CN::EntityTypeName(TYPE_FROM_HANDLE(h)), 
-               (unsigned long)ID_FROM_HANDLE(h));
+      error->set_last_error( "No var length dense tag %s value for %s %lu", 
+                             name.c_str(),
+                             CN::EntityTypeName(TYPE_FROM_HANDLE(h)), 
+                             (unsigned long)ID_FROM_HANDLE(h));
     else
-      error->set_last_error( "No tag value for root set" );
+      error->set_last_error( "No var length dense tag %s value for root set", name.c_str() );
   }
   
   return MB_TAG_NOT_FOUND;
 }
 
-static ErrorCode not_var_len( Error* error )
+static ErrorCode not_var_len( Error* error, std::string name )
 {
-  error->set_last_error( "No size specified for variable-length tag data" );
+  error->set_last_error( "No size specified for variable-length tag %s data", name.c_str());
   return MB_VARIABLE_DATA_LENGTH;
 }
 
@@ -100,7 +101,7 @@ ErrorCode VarLenDenseTag::get_array( const SequenceManager* seqman,
     else {
       ptr = 0;
       count = 0;
-      return not_found( error, h );
+      return not_found( error, get_name(), h );
     }
   }
   
@@ -131,7 +132,7 @@ ErrorCode VarLenDenseTag::get_array( SequenceManager* seqman,
     else {
       ptr = 0;
       count = 0;
-      return not_found( error, h );
+      return not_found( error, get_name(), h );
     }
   }
   
@@ -160,7 +161,7 @@ ErrorCode VarLenDenseTag::get_data( const SequenceManager*,
                                     size_t,
                                     void* ) const
 {
-  return not_var_len(error);
+  return not_var_len(error, get_name());
 }
 
 
@@ -169,7 +170,7 @@ ErrorCode VarLenDenseTag::get_data( const SequenceManager*,
                                     const Range&,
                                     void* ) const
 {
-  return not_var_len(error);
+  return not_var_len(error, get_name());
 }
                      
 ErrorCode VarLenDenseTag::get_data( const SequenceManager* seqman,
@@ -180,7 +181,7 @@ ErrorCode VarLenDenseTag::get_data( const SequenceManager* seqman,
                                     int* lengths ) const
 {
   if (!lengths)
-    return not_var_len(error);
+    return not_var_len(error, get_name());
 
   ErrorCode result = MB_SUCCESS, rval;
   const EntityHandle *const end = entities + num_entities;
@@ -203,7 +204,7 @@ ErrorCode VarLenDenseTag::get_data( const SequenceManager* seqman,
     else {
       *pointers = 0;
       *lengths = 0;
-      result = not_found( error, *i );;
+      result = not_found( error, get_name(), *i );;
     }
   }
   
@@ -218,7 +219,7 @@ ErrorCode VarLenDenseTag::get_data( const SequenceManager* seqman,
                                     int* lengths ) const
 {
   if (!lengths)
-    return not_var_len(error);
+    return not_var_len(error, get_name());
 
   ErrorCode rval;
   size_t avail;
@@ -243,7 +244,7 @@ ErrorCode VarLenDenseTag::get_data( const SequenceManager* seqman,
         pointers += count;
         lengths += count;
         if (!defval)
-          return not_found( error, start );
+          return not_found( error, get_name(), start );
       }
       
       const VarLenTag* end_data = array + count;
@@ -259,7 +260,7 @@ ErrorCode VarLenDenseTag::get_data( const SequenceManager* seqman,
         else {
           *pointers = 0;
           *lengths = 0;
-          return not_found( error, start );
+          return not_found( error, get_name(), start );
         }
         ++pointers;
         ++lengths;
@@ -278,7 +279,7 @@ ErrorCode VarLenDenseTag::set_data( SequenceManager*,
                                     size_t,
                                     const void* )
 {
-  return not_var_len(error);
+  return not_var_len(error, get_name());
 }
 
 ErrorCode VarLenDenseTag::set_data( SequenceManager*,
@@ -286,7 +287,7 @@ ErrorCode VarLenDenseTag::set_data( SequenceManager*,
                                     const Range&,
                                     const void* )
 {
-  return not_var_len(error);
+  return not_var_len(error, get_name());
 }
 
 ErrorCode VarLenDenseTag::set_data( SequenceManager* seqman,

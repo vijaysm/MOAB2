@@ -15,23 +15,25 @@
 
 namespace moab {
 
-static ErrorCode not_found( Error* error, EntityHandle h )
+    static ErrorCode not_found( Error* error, std::string name, EntityHandle h )
 {
   if (h)
-    error->set_last_error( "No tag value for %s %ld", 
-             CN::EntityTypeName(TYPE_FROM_HANDLE(h)), 
-             (unsigned long)ID_FROM_HANDLE(h));
+    error->set_last_error( "No dense tag %s value for %s %ld", 
+                           name.c_str(),
+                           CN::EntityTypeName(TYPE_FROM_HANDLE(h)), 
+                           (unsigned long)ID_FROM_HANDLE(h));
   else
     error->set_last_error( "No tag value for root set" );
     
   return MB_TAG_NOT_FOUND;
 }
 
-static ErrorCode ent_not_found( Error* error, EntityHandle h )
+    static ErrorCode ent_not_found( Error* error, std::string name, EntityHandle h )
 {
-  error->set_last_error( "Invalid entity handle: %s %ld", 
-           CN::EntityTypeName(TYPE_FROM_HANDLE(h)), 
-           (unsigned long)ID_FROM_HANDLE(h));
+  error->set_last_error( "Invalid entity handle setting tag %s: %s %ld", 
+                         name.c_str(),
+                         CN::EntityTypeName(TYPE_FROM_HANDLE(h)), 
+                         (unsigned long)ID_FROM_HANDLE(h));
     
   return MB_ENTITY_NOT_FOUND;
 }
@@ -109,7 +111,7 @@ ErrorCode DenseTag::get_array( const SequenceManager* seqman,
     else { // not root set
       ptr = 0;
       count = 0;
-      return ent_not_found( error, h );
+      return ent_not_found( error, get_name(), h );
     }
   }
   
@@ -158,7 +160,7 @@ ErrorCode DenseTag::get_array( SequenceManager* seqman,
     else { // not root set
       ptr = 0;
       count = 0;
-      return ent_not_found( error, h );
+      return ent_not_found( error, get_name(), h );
     }
   }
   
@@ -202,7 +204,7 @@ ErrorCode DenseTag::get_data( const SequenceManager* seqman,
     else if (get_default_value())
       memcpy( ptr, get_default_value(), get_size() );
     else
-     return not_found( error, *i );
+     return not_found( error, get_name(), *i );
   }
 
   return MB_SUCCESS;
@@ -234,7 +236,7 @@ ErrorCode DenseTag::get_data( const SequenceManager* seqman,
       else if (get_default_value())
         SysUtil::setmem( data, get_default_value(), get_size(), count );
       else
-        return not_found( error, start );
+        return not_found( error, get_name(), start );
       
       data += get_size() * count;
       start += count;
@@ -271,7 +273,7 @@ ErrorCode DenseTag::get_data( const SequenceManager* seqman,
     else if (get_default_value())
       *pointers = get_default_value();
     else
-      return not_found( error, *i );
+      return not_found( error, get_name(), *i );
   }
   
   return MB_SUCCESS;
@@ -316,7 +318,7 @@ ErrorCode DenseTag::get_data( const SequenceManager* seqman,
         start += count;
       }
       else {
-        return not_found( error, start );;
+        return not_found( error, get_name(), start );;
       }
     }
   }

@@ -26,13 +26,14 @@
 
 namespace moab {
 
-static ErrorCode not_found( Error* error, EntityHandle h )
+    static ErrorCode not_found( Error* error, std::string name, EntityHandle h )
 {
   if (error) {
     if (h)
-      error->set_last_error( "No tag value for %s %lu", 
-               CN::EntityTypeName(TYPE_FROM_HANDLE(h)), 
-               (unsigned long)ID_FROM_HANDLE(h));
+      error->set_last_error( "No sparse tag %s value for %s %lu", 
+                             name.c_str(),
+                             CN::EntityTypeName(TYPE_FROM_HANDLE(h)), 
+                             (unsigned long)ID_FROM_HANDLE(h));
     else
       error->set_last_error( "No tag value for root set" );
   }
@@ -40,9 +41,9 @@ static ErrorCode not_found( Error* error, EntityHandle h )
   return MB_TAG_NOT_FOUND;
 }
 
-static ErrorCode invalid_size( Error* error, int expected, int actual )
+    static ErrorCode invalid_size( Error* error, std::string name, int expected, int actual )
 {
-  error->set_last_error( "Invalid data size %d specified for tag of size %d", actual, expected );
+  error->set_last_error( "Invalid data size %d specified for tag %s of size %d", actual, name.c_str(), expected );
   return MB_INVALID_SIZE;
 }
 
@@ -100,7 +101,7 @@ ErrorCode SparseTag::get_data_ptr(Error* error, EntityHandle entity_handle, cons
   else if (get_default_value())
     ptr = get_default_value();
   else 
-    return not_found(error, entity_handle);;
+    return not_found(error, get_name(), entity_handle);;
   
   return MB_SUCCESS;
 }
@@ -118,7 +119,7 @@ ErrorCode SparseTag::remove_data( Error* error, EntityHandle entity_handle )
 {
   MapType::iterator i = mData.find(entity_handle);
   if (i == mData.end()) 
-    return not_found(error, entity_handle);
+    return not_found(error, get_name(), entity_handle);
   
   mAllocator.destroy(i->second);
   mData.erase(i);
@@ -275,7 +276,7 @@ ErrorCode SparseTag::clear_data( SequenceManager* seqman,
                                  int value_len )
 {
   if (value_len && value_len != get_size())
-    return invalid_size( error, get_size(), value_len );
+    return invalid_size( error, get_name(), get_size(), value_len );
     
   ErrorCode rval = seqman->check_valid_entities( error, entities, num_entities, true );
   if (MB_SUCCESS != rval)
@@ -294,7 +295,7 @@ ErrorCode SparseTag::clear_data( SequenceManager* seqman,
                                  int value_len )
 {
   if (value_len && value_len != get_size())
-    return invalid_size( error, get_size(), value_len );
+    return invalid_size( error, get_name(), get_size(), value_len );
     
   ErrorCode rval = seqman->check_valid_entities( error, entities );
   if (MB_SUCCESS != rval)
@@ -362,7 +363,7 @@ ErrorCode SparseTag::tag_iterate( SequenceManager* seqman,
   else if (get_default_value())
     ptr = get_default_value();
   else
-    return not_found( error, *iter );;
+    return not_found( error, get_name(), *iter );;
 
     // increment iterator and return
   ++iter;
@@ -456,7 +457,7 @@ ErrorCode SparseTag::find_entities_with_value(
                               const Range* intersect_entities ) const
 {
   if (value_bytes && value_bytes != get_size())
-    return invalid_size( error, get_size(), value_bytes );
+    return invalid_size( error, get_name(), get_size(), value_bytes );
   
   MapType::const_iterator iter, end;
 #ifdef HAVE_UNORDERED_MAP
