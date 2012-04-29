@@ -603,7 +603,7 @@ ErrorCode test_interpolation(Interface *mbImpl,
 
 
     // locate those points in the source mesh
-  result = mbc.locate_points(&vpos[0], numPointsOfInterest);
+  result = mbc.locate_points(&vpos[0], numPointsOfInterest, 0, 1.e-10);
   PRINT_LAST_ERROR;
 
   pointloc_time = MPI_Wtime();
