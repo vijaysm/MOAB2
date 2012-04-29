@@ -744,20 +744,24 @@ namespace Element {
     double xi[3];
     //triple loop; the most inner loop is in r direction, then s, then t
     double integral = 0.;
+    //double volume = 0;
     int index=0; // used fr the inner loop
     for (int k=0; k<_n; k++ )
     {
       xi[2]=_ld[2].z[k];
-      double wk= _ld[2].w[k];
+      //double wk= _ld[2].w[k];
       for (int j=0; j<_n; j++)
       {
         xi[1]=_ld[1].z[j];
-        double wj= _ld[1].w[j];
+        //double wj= _ld[1].w[j];
         for (int i=0; i<_n; i++)
         {
           xi[0]=_ld[0].z[i];
-          double wi= _ld[0].w[i];
+          //double wi= _ld[0].w[i];
           opt_vol_set_intp_3(&_data,xi);
+          double wk= _ld[2].J[k];
+          double wj= _ld[1].J[j];
+          double wi= _ld[0].J[i];
           Matrix3 J(0.);
           // it is organized differently
           J(0,0) = _data.jac[0]; // dx/dr
@@ -769,11 +773,13 @@ namespace Element {
           J(2,0) = _data.jac[6]; // dz/dr
           J(2,1) = _data.jac[7]; // dz/ds
           J(2,2) = _data.jac[8]; // dz/dt
-          double bm = wk*wj*wi*J.determinant();
+          double bm = wk*wj*wi* J.determinant();
           integral+= bm*field_vertex_values[index++];
+          //volume +=bm;
         }
       }
     }
+    //std::cout << "volume: " << volume << "\n";
     return integral;
   }
 
