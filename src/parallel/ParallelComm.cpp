@@ -7047,33 +7047,37 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     DataType tags_type, tagd_type;
     std::vector<unsigned char> vals;
     for (vits = src_tags.begin(), vitd = dst_tags.begin(); vits != src_tags.end(); vits++, vitd++) {
-      if (*vits == *vitd) continue;
-      
+        // checks on tag characteristics
+      result = mbImpl->tag_get_data_type(*vits, tags_type);
+      RRA("Coudln't get src tag data type.");
+      if (tags_type != MB_TYPE_INTEGER && tags_type != MB_TYPE_DOUBLE &&
+          tags_type != MB_TYPE_BIT) {
+        result = MB_FAILURE;
+        RRA("Src/dst tags must have integer, double, or bit data type.");
+      }
+
       result = mbImpl->tag_get_bytes(*vits, tags_size);
       RRA("Coudln't get src tag bytes.");
+      vals.resize(tags_size);
+      result = mbImpl->tag_get_default_value(*vits, &vals[0]);
+      RRA("Src tag must have default value.");
+
+        // ok, those passed; now check whether dest tags, if specified, agree with src tags
+      if (*vits == *vitd) continue;
+      
       result = mbImpl->tag_get_bytes(*vitd, tagd_size);
       RRA("Coudln't get dst tag bytes.");
       if (tags_size != tagd_size) {
         result = MB_FAILURE;
         RRA("Sizes between src and dst tags don't match.");
       }
-      result = mbImpl->tag_get_data_type(*vits, tags_type);
-      RRA("Coudln't get src tag data type.");
       result = mbImpl->tag_get_data_type(*vitd, tagd_type);
       RRA("Coudln't get dst tag data type.");
       if (tags_type != tagd_type) {
         result = MB_FAILURE;
         RRA("Src and dst tags must be of same data type.");
       }
-      else if (tags_type != MB_TYPE_INTEGER && tags_type != MB_TYPE_DOUBLE &&
-               tags_type != MB_TYPE_BIT) {
-        result = MB_FAILURE;
-        RRA("Src and dst tags must have integer, double, or bit data type.");
-      }
 
-      vals.resize(tags_size);
-      result = mbImpl->tag_get_default_value(*vits, &vals[0]);
-      RRA("Src tag must have default value.");
     }
 
     // get all procs interfacing to this proc
