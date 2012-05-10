@@ -3491,6 +3491,10 @@ ErrorCode ParallelComm::reduce(const MPI_Op mpi_op, int num_ents, void *old_vals
     std::cerr << "Bitwise operations not allowed in tag reductions." << std::endl;
     return MB_FAILURE;
   }
+  else if (mpi_op != MPI_OP_NULL) {
+    std::cerr << "Unknown MPI operation type." << std::endl;
+    return MB_TYPE_OUT_OF_RANGE;
+  }
 
   return MB_SUCCESS;
 }
@@ -7046,6 +7050,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     int tags_size, tagd_size;
     DataType tags_type, tagd_type;
     std::vector<unsigned char> vals;
+    std::vector<int> tags_sizes;
     for (vits = src_tags.begin(), vitd = dst_tags.begin(); vits != src_tags.end(); vits++, vitd++) {
         // checks on tag characteristics
       result = mbImpl->tag_get_data_type(*vits, tags_type);
@@ -7061,6 +7066,8 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       vals.resize(tags_size);
       result = mbImpl->tag_get_default_value(*vits, &vals[0]);
       RRA("Src tag must have default value.");
+
+      tags_sizes.push_back(tags_size);
 
         // ok, those passed; now check whether dest tags, if specified, agree with src tags
       if (*vits == *vitd) continue;
@@ -7121,7 +7128,19 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     }
     else 
       entities = entities_in;
-  
+
+      // if the tags are different, copy the source to the dest tag locally
+    std::vector<Tag>::const_iterator vit = src_tags.begin(), vit2 = dst_tags.begin();
+    std::vector<int>::const_iterator vsizes = tags_sizes.begin();
+    for (; vit != src_tags.end(); vit++, vit2++, vsizes++) {
+      if (*vit == *vit2) continue;
+      vals.resize(entities.size()*(*vsizes));
+      result = mbImpl->tag_get_data(*vit, entities, &vals[0]); 
+      RRA("Didn't get data properly.");
+      result = mbImpl->tag_set_data(*vit2, entities, &vals[0]); 
+      RRA("Didn't set data properly.");
+    }
+      
     int dum_ack_buff;
 
     for (ind = 0, sit = buffProcs.begin(); sit != buffProcs.end(); sit++, ind++) {
@@ -7134,7 +7153,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     
       // pack-send
       std::vector<Range> tag_ranges;
-      for (std::vector<Tag>::const_iterator vit = src_tags.begin(); vit != src_tags.end(); vit++) {
+      for (vit = src_tags.begin(); vit != src_tags.end(); vit++) {
 	const void* ptr;
 	int size;
 	if (mbImpl->tag_get_default_value( *vit, ptr, size ) != MB_SUCCESS) {
@@ -7206,46 +7225,6 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       RRA("Failure in waitall in tag exchange.");
     }
   
-    // If source tag is not equal to destination tag, then
-    // do local copy for owned entities (communicate w/ self)
-    assert(src_tags.size() == dst_tags.size());
-    if (src_tags != dst_tags) {
-      std::vector<unsigned char> data;
-      Range owned_ents(entities_in);
-      result = filter_pstatus(owned_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);
-      RRA("Failure to get subset of owned entities");
-  
-      if (!owned_ents.empty()) { // check this here, otherwise we get 
-	// unexpected results from get_entities_by_type_and_tag w/ Interface::INTERSECT
-  
-	for (size_t i = 0; i < src_tags.size(); ++i) {
-	  if (src_tags[i] == dst_tags[i])
-	    continue;
-
-	  Range tagged_ents(owned_ents);
-	  result = mbImpl->get_entities_by_type_and_tag( 0, MBMAXTYPE,
-							 &src_tags[0], 0, 1, tagged_ents, Interface::INTERSECT );
-	  RRA("get_entities_by_type_and_tag(type == MBMAXTYPE) failed.");
-
-	  int size, size2;
-	  result = mbImpl->tag_get_bytes( src_tags[i], size );
-	  RRA("tag_get_size failed.");
-	  result = mbImpl->tag_get_bytes( dst_tags[i], size2 );
-	  RRA("tag_get_size failed.");
-	  if (size != size2) {
-	    result = MB_FAILURE;
-	    RRA("tag sizes don't match")
-	      }
-
-	  data.resize( size * tagged_ents.size() );
-	  result = mbImpl->tag_get_data( src_tags[i], tagged_ents, &data[0] );
-	  RRA("tag_get_data failed.");
-	  result = mbImpl->tag_set_data( dst_tags[i], tagged_ents, &data[0] );
-	  RRA("tag_set_data failed.");
-	}
-      }
-    }
-
     myDebug->tprintf(1, "Exiting exchange_tags");
 
     return MB_SUCCESS;

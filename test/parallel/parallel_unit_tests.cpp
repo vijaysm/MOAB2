@@ -127,6 +127,11 @@ ErrorCode test_assign_global_ids( const char* );
 ErrorCode test_shared_sets( const char* );
 // Test reduce_tags
 ErrorCode test_reduce_tags( const char* );
+// Test reduce_tags failures
+ErrorCode test_reduce_tag_failures( const char* );
+// Test reduce_tags with explicit destination tag
+ErrorCode test_reduce_tag_explicit_dest(const char *);
+
 
 /**************************************************************************
                               Main Method
@@ -218,6 +223,8 @@ int main( int argc, char* argv[] )
   num_errors += RUN_TEST( test_assign_global_ids, filename );
   num_errors += RUN_TEST( test_shared_sets, 0 );
   num_errors += RUN_TEST( test_reduce_tags, 0);
+  num_errors += RUN_TEST( test_reduce_tag_failures, 0);
+  num_errors += RUN_TEST( test_reduce_tag_explicit_dest, 0);
   
   if (rank == 0) {
     if (!num_errors) 
@@ -1469,6 +1476,7 @@ template<typename T> ErrorCode test_reduce_tags( const char*, DataType tp )
   Tag test_tag;
   T def_val = 2;
   Range dum_range;
+  std::vector<T> dum_vals;
   
     // T, MPI_SUM
   rval = mb.tag_get_handle( "test_tag", 1, tp, test_tag, MB_TAG_DENSE|MB_TAG_CREAT, &def_val ); CHKERR(rval);
@@ -1486,8 +1494,10 @@ template<typename T> ErrorCode test_reduce_tags( const char*, DataType tp )
   rval = mb.tag_get_handle( "test_tag", 1, tp, test_tag, MB_TAG_DENSE|MB_TAG_CREAT, &def_val ); CHKERR(rval);
     // get owned entities and set a different value on them
   rval = pcomm.get_shared_entities(-1, dum_range, -1, false, false); CHKERR(rval);
-  std::vector<T> dum_vals(dum_range.size(), (T)3);
-  rval = mb.tag_set_data(test_tag, dum_range, &dum_vals[0]); CHKERR(rval);
+  if (pcomm.rank() == 0) {
+    dum_vals.resize(dum_range.size(), (T)3);
+    rval = mb.tag_set_data(test_tag, dum_range, &dum_vals[0]); CHKERR(rval);
+  }
   rval = pcomm.reduce_tags(test_tag, MPI_MAX, dum_range); CHKERR(rval);
   rval = check_shared_ents(pcomm, test_tag, (T)3, MPI_MAX); CHKERR(rval);
   rval = mb.tag_delete(test_tag);
@@ -1495,12 +1505,59 @@ template<typename T> ErrorCode test_reduce_tags( const char*, DataType tp )
     // T, MPI_MIN
   rval = mb.tag_get_handle( "test_tag", 1, tp, test_tag, MB_TAG_DENSE|MB_TAG_CREAT, &def_val ); CHKERR(rval);
     // get owned entities and set a different value on them
-  std::fill(dum_vals.begin(), dum_vals.end(), (T)-1);
-  rval = mb.tag_set_data(test_tag, dum_range, &dum_vals[0]); CHKERR(rval);
+  if (pcomm.rank() == 0) {
+    std::fill(dum_vals.begin(), dum_vals.end(), (T)-1);
+    rval = mb.tag_set_data(test_tag, dum_range, &dum_vals[0]); CHKERR(rval);
+  }
   rval = pcomm.reduce_tags(test_tag, MPI_MIN, dum_range); CHKERR(rval);
   rval = check_shared_ents(pcomm, test_tag, (T)-1, MPI_MIN); CHKERR(rval);
   rval = mb.tag_delete(test_tag);
+
+  return MB_SUCCESS;
+}
+
+ErrorCode test_reduce_tag_failures(const char *) 
+{
+    // test things that should fail
+  ErrorCode rval;  
+  Core moab_instance;
+  Interface& mb = moab_instance;
+  ParallelComm pcomm( &mb );
+
+  int rank, size;
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  MPI_Comm_size( MPI_COMM_WORLD, &size );
   
+    // build distributed quad mesh
+  Range quad_range;
+  EntityHandle verts[9];
+  int vert_ids[9];
+  rval = parallel_create_mesh( mb, vert_ids, verts, quad_range );  PCHECK(MB_SUCCESS == rval);
+  rval = pcomm.resolve_shared_ents( 0, quad_range, 2, 1 ); PCHECK(MB_SUCCESS == rval);
+  
+  Tag test_tag;
+  Range dum_range;
+  int def_int;
+  double def_dbl;
+  
+    // explicit destination tag of different type
+  Tag test_dest;
+  std::vector<Tag> src_tags, dest_tags;
+  rval = mb.tag_get_handle( "test_tag", 1, MB_TYPE_INTEGER, test_tag, MB_TAG_DENSE|MB_TAG_CREAT, &def_int ); CHKERR(rval);
+  src_tags.push_back(test_tag);
+  rval = mb.tag_get_handle( "dtest_tag", 1, MB_TYPE_DOUBLE, test_dest, MB_TAG_DENSE|MB_TAG_CREAT, &def_dbl ); CHKERR(rval);
+  dest_tags.push_back(test_dest);
+  rval = pcomm.reduce_tags(src_tags, dest_tags, MPI_MIN, dum_range);
+  PCHECK(rval == MB_FAILURE);
+  rval = mb.tag_delete(test_dest); CHKERR(rval);
+  rval = mb.tag_delete(test_tag); CHKERR(rval);
+  
+    // tag w/ no default value
+  rval = mb.tag_get_handle( "test_tag", 1, MB_TYPE_INTEGER, test_tag, MB_TAG_DENSE|MB_TAG_CREAT); CHKERR(rval);
+  rval = pcomm.reduce_tags(test_tag, MPI_MIN, dum_range);
+  PCHECK(rval == MB_ENTITY_NOT_FOUND);
+  rval = mb.tag_delete(test_tag);
+
   return MB_SUCCESS;
 }
 
@@ -1508,18 +1565,65 @@ ErrorCode test_reduce_tags( const char*)
 {
   ErrorCode rval = MB_SUCCESS, tmp_rval;
   
-  tmp_rval = test_reduce_tags<int>("test_reduce_tags", MB_TYPE_INTEGER);
+  tmp_rval = test_reduce_tags<int>("test_reduce_tags (int)", MB_TYPE_INTEGER);
   if (MB_SUCCESS != tmp_rval) {
     std::cout << "test_reduce_tags failed for int data type." << std::endl;
     rval = tmp_rval;
   }
   
-  tmp_rval = test_reduce_tags<double>("test_reduce_tags", MB_TYPE_DOUBLE);
+  tmp_rval = test_reduce_tags<double>("test_reduce_tags (dbl)", MB_TYPE_DOUBLE);
   if (MB_SUCCESS != tmp_rval) {
     std::cout << "test_reduce_tags failed for double data type." << std::endl;
     rval = tmp_rval;
   }
   
   return rval;
+}
+
+ErrorCode test_reduce_tag_explicit_dest(const char *) 
+{
+    // test tag_reduce stuff with explicit destination tag
+  ErrorCode rval;  
+  Core moab_instance;
+  Interface& mb = moab_instance;
+  ParallelComm pcomm( &mb );
+
+  int rank, size;
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  MPI_Comm_size( MPI_COMM_WORLD, &size );
+  
+    // build distributed quad mesh
+  Range quad_range;
+  EntityHandle verts[9];
+  int vert_ids[9];
+  rval = parallel_create_mesh( mb, vert_ids, verts, quad_range );  PCHECK(MB_SUCCESS == rval);
+  rval = pcomm.resolve_shared_ents( 0, quad_range, 2, 1 ); PCHECK(MB_SUCCESS == rval);
+  
+  Tag src_tag, dest_tag;
+  Range dum_range;
+  double def_dbl = 5.0;
+  
+    // src tag has one value, pre-existing dest tag has another; should get MPI_Op of src values
+  std::vector<Tag> src_tags, dest_tags;
+    // create the tags
+  rval = mb.tag_get_handle( "src_tag", 1, MB_TYPE_DOUBLE, src_tag, MB_TAG_DENSE|MB_TAG_CREAT, &def_dbl ); CHKERR(rval);
+  src_tags.push_back(src_tag);
+  rval = mb.tag_get_handle( "dest_tag", 1, MB_TYPE_DOUBLE, dest_tag, MB_TAG_DENSE|MB_TAG_CREAT, &def_dbl ); CHKERR(rval);
+  dest_tags.push_back(dest_tag);
+    // set values for src tag to one value, dest tag to another
+  rval = pcomm.get_shared_entities(-1, dum_range, -1, false, false); CHKERR(rval);
+  std::vector<double> tag_vals(dum_range.size(), 1.0);
+  rval = mb.tag_set_data(src_tag, dum_range, &tag_vals[0]); CHKERR(rval);
+  std::fill(tag_vals.begin(), tag_vals.end(), 2.0);
+  rval = mb.tag_set_data(dest_tag, dum_range, &tag_vals[0]); CHKERR(rval);
+    // do the reduce
+  rval = pcomm.reduce_tags(src_tags, dest_tags, MPI_SUM, dum_range); CHKERR(rval);
+    // check the reduced value
+  rval = check_shared_ents<double>(pcomm, dest_tag, (double)1.0, MPI_SUM); CHKERR(rval);
+
+  rval = mb.tag_delete(src_tag); CHKERR(rval);
+  rval = mb.tag_delete(dest_tag); CHKERR(rval);
+  
+  return MB_SUCCESS;
 }
 
