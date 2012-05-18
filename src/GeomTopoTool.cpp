@@ -1309,7 +1309,7 @@ ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate, std::vector<E
   return MB_SUCCESS;
 }
 
-#define  RETFALSE(a) { std::cout<<a<<"\n"; return false; }
+#define  RETFALSE(a, b) { std::cout<<a<<"\n"; mdbImpl->list_entity(b); return false; }
 bool GeomTopoTool::check_model()
 {
   // vertex sets should have one node
@@ -1321,20 +1321,20 @@ bool GeomTopoTool::check_model()
     Range nodes;
     rval = mdbImpl->get_entities_by_handle(vSet, nodes);
     if (MB_SUCCESS!=rval)
-      RETFALSE(" failed to get nodes from vertex set ")
+      RETFALSE(" failed to get nodes from vertex set ", vSet);
     if (nodes.size()!=1)
-      RETFALSE(" number of nodes is different from 1 ")
+      RETFALSE(" number of nodes is different from 1 ", vSet)
     EntityType type = mdbImpl->type_from_handle(nodes[0]);
     if (type != MBVERTEX)
-      RETFALSE(" entity in vertex set is not a node ")
+      RETFALSE(" entity in vertex set is not a node ", nodes[0])
     // get all parents, and see if they belong to geomRanges[1]
     Range edges;
     rval = mdbImpl->get_parent_meshsets(vSet, edges);
     if (MB_SUCCESS!=rval)
-      RETFALSE(" can't get parent edges for a node set ")
+      RETFALSE(" can't get parent edges for a node set ", vSet)
     Range notEdges = subtract(edges, geomRanges[1] );
     if (!notEdges.empty())
-      RETFALSE(" some parents of a node set are not geo edges ")
+      RETFALSE(" some parents of a node set are not geo edges ", notEdges[0])
   }
 
   // edges to be formed by continuous chain of mesh edges, oriented correctly
@@ -1344,10 +1344,10 @@ bool GeomTopoTool::check_model()
     std::vector<EntityHandle> mesh_edges;
     rval = mdbImpl->get_entities_by_type(edge, MBEDGE, mesh_edges);
     if (MB_SUCCESS!=rval)
-      RETFALSE(" can't get mesh edges from edge set")
+      RETFALSE(" can't get mesh edges from edge set", edge)
     int num_edges = (int)mesh_edges.size();
     if (num_edges==0)
-      RETFALSE(" no mesh edges in edge set ")
+      RETFALSE(" no mesh edges in edge set ", edge)
     EntityHandle firstNode;
     EntityHandle currentNode; // will also hold the last node in chain of edges
     const EntityHandle * conn2;
@@ -1357,7 +1357,7 @@ bool GeomTopoTool::check_model()
     {
       rval = mdbImpl->get_connectivity(mesh_edges[i], conn2, nnodes2);
       if (MB_SUCCESS!=rval || nnodes2!=2)
-        RETFALSE(" mesh edge connectivity is wrong ")
+        RETFALSE(" mesh edge connectivity is wrong ", mesh_edges[i])
       if (i==0)
       {
         firstNode = conn2[0];
@@ -1368,7 +1368,11 @@ bool GeomTopoTool::check_model()
       {
         // check the current node is conn[0]
         if (conn2[0]!=currentNode)
-          RETFALSE(" edges are not contiguous in edge set ")
+        {
+          std::cout<<"i="<<i  << " conn2:" << conn2[0] << " " << conn2[1] << " currentNode:" << currentNode << "\n";
+          mdbImpl->list_entity(mesh_edges[i]);
+          RETFALSE(" edges are not contiguous in edge set ", edge)
+        }
         currentNode = conn2[1];
       }
     }
@@ -1376,24 +1380,24 @@ bool GeomTopoTool::check_model()
     Range vertSets;
     rval = mdbImpl->get_child_meshsets(edge, vertSets);
     if (MB_SUCCESS!=rval)
-      RETFALSE(" can't get vertex children ")
+      RETFALSE(" can't get vertex children ", edge)
     Range notVertices = subtract(vertSets, geomRanges[0] );
     if (!notVertices.empty())
-      RETFALSE(" children sets that are not vertices ")
+      RETFALSE(" children sets that are not vertices ", notVertices[0])
     for (Range::iterator it=vertSets.begin(); it!=vertSets.end(); it++)
     {
       if ( !mdbImpl->contains_entities(*it,  &firstNode,  1)&&
           !mdbImpl->contains_entities(*it,  &currentNode,  1) )
-        RETFALSE(" a vertex set is not containing the first and last nodes ")
+        RETFALSE(" a vertex set is not containing the first and last nodes ", *it)
     }
     // check now the faces / parents
     Range faceSets;
     rval = mdbImpl->get_parent_meshsets(edge, faceSets);
     if (MB_SUCCESS!=rval)
-      RETFALSE(" can't get edge parents ")
+      RETFALSE(" can't get edge parents ", edge)
     Range notFaces = subtract(faceSets, geomRanges[2] );
     if (!notFaces.empty())
-      RETFALSE(" parent sets that are not faces ")
+      RETFALSE(" parent sets that are not faces ", notFaces[0])
 
     // for a geo edge, check the sense tags with respect to the adjacent faces
     // in general, it is sufficient to check one mesh edge (the first one)
@@ -1403,7 +1407,7 @@ bool GeomTopoTool::check_model()
     Range adjElem;
     rval = mdbImpl->get_adjacencies(&firstMeshEdge, 1, 2, false, adjElem);
     if (MB_SUCCESS!=rval)
-      RETFALSE(" can't get adjacent elements to the edge ")
+      RETFALSE(" can't get adjacent elements to the edge ", firstMeshEdge)
     for (Range::iterator it2=adjElem.begin(); it2!=adjElem.end(); ++it2)
     {
       EntityHandle elem=*it2;
@@ -1419,19 +1423,19 @@ bool GeomTopoTool::check_model()
         }
       }
       if (0==gFace)
-        RETFALSE(" can't find adjacent surface that contains the adjacent element to the edge ")
+        RETFALSE(" can't find adjacent surface that contains the adjacent element to the edge ", firstMeshEdge)
 
       // now, check the sense of mesh_edge in element, and the sense of gedge in gface
       // side_number
       int side_n, sense, offset;
       rval = mdbImpl->side_number(elem, firstMeshEdge, side_n, sense, offset);
       if (MB_SUCCESS != rval)
-        RETFALSE(" can't get sense and side number of an element ")
+        RETFALSE(" can't get sense and side number of an element ", elem)
       // now get the sense
       int topoSense;
       rval = this->get_sense(edge, gFace, topoSense);
       if (topoSense!=sense)
-        RETFALSE(" geometric topo sense and element sense do not agree ")
+        RETFALSE(" geometric topo sense and element sense do not agree ", edge)
     }
 
   }
@@ -1449,32 +1453,32 @@ bool GeomTopoTool::check_model()
     Range edges;
     rval = mdbImpl->get_child_meshsets(faceSet, edges);
     if (MB_SUCCESS!=rval)
-      RETFALSE(" can't get children edges for a face set ")
+      RETFALSE(" can't get children edges for a face set ", faceSet)
     Range notEdges = subtract(edges, geomRanges[1] );
     if (!notEdges.empty())
-      RETFALSE(" some children of a face set are not geo edges ")
+      RETFALSE(" some children of a face set are not geo edges ", notEdges[0])
 
     Range boundary_mesh_edges;
     for (Range::iterator it = edges.begin(); it!=edges.end(); ++it)
     {
       rval = mdbImpl->get_entities_by_type(*it, MBEDGE, boundary_mesh_edges);
       if (MB_SUCCESS!=rval)
-        RETFALSE(" can't get edge elements from the edge set ")
+        RETFALSE(" can't get edge elements from the edge set ", *it)
     }
     // skin the elements of the surface
       // most of these should be triangles and quads
     Range surface_ents, edge_ents;
     rval = mdbImpl->get_entities_by_dimension(faceSet, 2, surface_ents);
     if (MB_SUCCESS!=rval)
-      RETFALSE(" can't get surface elements from the face set ")
+      RETFALSE(" can't get surface elements from the face set ", faceSet)
 
     rval = tool.find_skin(surface_ents, 1, edge_ents);
     if (MB_SUCCESS != rval)
-      RETFALSE("can't skin a surface ")
+      RETFALSE("can't skin a surface ", surface_ents[0])
 
     // those 2 ranges for boundary edges now must be equal
     if (boundary_mesh_edges!=edge_ents)
-      RETFALSE("boundary ranges are different")
+      RETFALSE("boundary ranges are different", boundary_mesh_edges[0])
 
   }
 
