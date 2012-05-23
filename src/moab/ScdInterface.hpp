@@ -783,11 +783,13 @@ inline ErrorCode ScdInterface::compute_partition_sqij(int np, int nr, const int 
     }
   else {
     std::vector<double> pfactors, ppfactors;
-    for (int i = 2; i <= np; i++) 
+    for (int i = 2; i <= np/2; i++) 
       if (!(np%i)) {
 	pfactors.push_back(i);
 	ppfactors.push_back(((double)(i*i))/np);
       }
+    pfactors.push_back(np);
+    ppfactors.push_back( (double)np);
     
     // ideally, Px/Py = I/J
     double ijratio = ((double)(gijk[3]-gijk[0]))/((double)(gijk[4]-gijk[1]));
