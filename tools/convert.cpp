@@ -274,7 +274,8 @@ int main(int argc, char* argv[])
   if (parallel) {
     read_opts.push_back("PARALLEL=READ_PART");
     read_opts.push_back("PARTITION=PARALLEL_PARTITION");
-    write_opts.push_back("PARALLEL=WRITE_PART");
+    if (!append_rank && !percent_rank_subst)
+      write_opts.push_back("PARALLEL=WRITE_PART");
   }
   if (resolve_shared) read_opts.push_back("PARALLEL_RESOLVE_SHARED_ENTS");
   if (exchange_ghosts) read_opts.push_back("PARALLEL_GHOSTS=3.0.1");

@@ -66,8 +66,13 @@
 #endif
 
 #ifdef HDF5_FILE
-#  include "WriteHDF5.hpp"
-   typedef moab::WriteHDF5 DefaultWriter;
+#  ifdef HDF5_PARALLEL
+#    include "WriteHDF5Parallel.hpp"
+     typedef moab::WriteHDF5Parallel DefaultWriter;
+#  else
+#    include "WriteHDF5.hpp"
+     typedef moab::WriteHDF5 DefaultWriter;
+#  endif
 #elif defined(NETCDF_FILE)
 #  include "WriteNCDF.hpp"
    typedef moab::WriteNCDF DefaultWriter;
