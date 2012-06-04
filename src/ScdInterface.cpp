@@ -765,7 +765,7 @@ ErrorCode ScdInterface::get_neighbor_sqij(int nr, int np,
   
   pto = -1;
   bdy_ind[0] = bdy_ind[1] = -1;
-  int pi, pj; // pi, pj: # procs in i, j directions
+  int pi(0), pj; // pi, pj: # procs in i, j directions
               // guess pi
   ErrorCode rval = compute_partition_sqij(np, nr, gdims, rdims, &pi);
   if (MB_SUCCESS != rval) return rval;
