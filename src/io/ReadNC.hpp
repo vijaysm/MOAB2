@@ -134,16 +134,20 @@ private:
   ErrorCode get_variables();
   
     //! parse min/max i/j/k in options, if any
-  ErrorCode init_ijkt_vals(const FileOptions &opts, ScdInterface *scdi);
+  ErrorCode init_EulSpcscd_vals(const FileOptions &opts, ScdInterface *scdi, EntityHandle file_set);
+  ErrorCode init_FVCDscd_vals(const FileOptions &opts, ScdInterface *scdi, EntityHandle file_set);
 
   ErrorCode read_coordinate(const char *var_name, int lmin, int lmax,
                             std::vector<double> &cvals);
+  
+  ErrorCode read_coordinate_nc(const char *var_name, int lmin, int lmax,
+			       std::vector<double> &cvals);
   
     //! number of dimensions in this nc file
   unsigned int number_dimensions();
 
     //! create vertices for the file
-  ErrorCode create_verts_hexes(ScdInterface *scdi, EntityHandle file_set, Range &hexes);
+  ErrorCode create_verts_quads(ScdInterface *scdi, EntityHandle file_set, Range &quads);
 
     //! check number of vertices and elements against what's already in file_set
   ErrorCode check_verts_hexes(EntityHandle file_set);
@@ -184,7 +188,7 @@ private:
 				 std::string& attString,
 				 std::vector<int>& attLen);
 
-  ErrorCode init_ucd_mesh(const FileOptions &opts);
+  ErrorCode init_HOMMEucd_vals(const FileOptions &opts);
 
   ErrorCode create_ucd_verts_hexes(const FileOptions &opts, EntityHandle tmp_set, Range &hexes);
   
@@ -206,6 +210,7 @@ private:
   std::vector<std::string> dimNames;
   std::vector<int> dimVals;
   std::string iName, jName, kName, tName;
+  std::string iCName, jCName, kCName;
 
     //! global attribs
   std::map<std::string,AttData> globalAtts;
@@ -219,11 +224,20 @@ private:
     //! dimensions of my part of grid
   int lDims[6];
 
+  //! center dimensions of grid in file
+  int gCDims[6];
+
+    //! center dimensions of my part of grid
+  int lCDims[6];
+
     //! values for i/j/k
   std::vector<double> ilVals, jlVals, klVals, tVals;
 
     //! dimension numbers for i, j, k, t
   int iDim, jDim, kDim, tDim;
+
+    //! center dimension numbers for i, j, k
+  int iCDim, jCDim, kCDim;
   
     //! number of the dimension of unlimited dimension, if any
   int numUnLim;
@@ -256,6 +270,8 @@ private:
   int partMethod;
 
   bool ucdMesh;
+
+  bool iPeriodic;
 
 #ifdef USE_MPI
   ParallelComm *myPcomm;
