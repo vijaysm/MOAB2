@@ -64,7 +64,9 @@ case "x$IGEOM_DIR" in
     IGEOM_MISSING=no
     AC_CHECK_FILE([${IGEOM_DIR}/lib/iGeom-Defs.inc],
                   [IGEOM_CONFIG_OPTIONS="include ${IGEOM_DIR}/lib/iGeom-Defs.inc";
-                   DEFINES="$DEFINES -DIGEOM"],
+                   FATHOM_MAKE_INC_VAR([${IGEOM_DIR}/lib/iGeom-Defs.inc],[IGEOM_DEFINES], [IGEOM_DEFINES="$make_val"],
+                      [IGEOM_DEFINES=])
+                   DEFINES="$DEFINES -DIGEOM $IGEOM_DEFINES"],
                   [AC_CHECK_FILE([${IGEOM_DIR}/iGeom-Defs.inc],
                                  [IGEOM_CONFIG_OPTIONS="include ${IGEOM_DIR}/iGeom-Defs.inc";
                    DEFINES="$DEFINES -DIGEOM"],

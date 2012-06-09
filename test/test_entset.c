@@ -8,6 +8,7 @@
 
 #define DEFAULT_TEST_FILE brick.cub
 
+
 #define STRINGIFY_(X) #X
 #define STRINGIFY(X) STRINGIFY_(X)
 #ifdef SRCDIR
@@ -529,8 +530,13 @@ int query_relations_test(iRel_Instance assoc,
 int main( int argc, char *argv[] )
 {
     /* Check command line arg */
+#ifdef HAVE_OCC
+  char *geom_filename = "brick.stp";
+  char *mesh_filename = "brick.h5m";
+#else
   char *geom_filename = DEFAULT_INPUT_FILE;
   char *mesh_filename = DEFAULT_INPUT_FILE;
+#endif
 
   int result;
   int number_tests = 0;

@@ -1,6 +1,6 @@
 LDADD = $(top_builddir)/libiRel.la
 
-AM_CPPFLAGS = -DSRCDIR=$(srcdir)
+AM_CPPFLAGS = -DSRCDIR=$(srcdir) $(DEFINES)
 
 INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I. -I${IGEOM_DIR}/include -I${IMESH_DIR}/include
 
