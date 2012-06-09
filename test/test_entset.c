@@ -6,15 +6,22 @@
 #include "stdlib.h"
 #include "string.h"
 
-#define DEFAULT_TEST_FILE brick.cub
-
+#ifdef HAVE_OCC
+#define DEFAULT_GEOM_FILE brick.stp
+#define DEFAULT_MESH_FILE brick.h5m
+#else
+#define DEFAULT_GEOM_FILE brick.cub
+#define DEFAULT_MESH_FILE brick.cub
+#endif
 
 #define STRINGIFY_(X) #X
 #define STRINGIFY(X) STRINGIFY_(X)
 #ifdef SRCDIR
-#  define DEFAULT_INPUT_FILE STRINGIFY(SRCDIR/DEFAULT_TEST_FILE)
+#  define DEFAULT_GEOM STRINGIFY(SRCDIR/DEFAULT_GEOM_FILE)
+#  define DEFAULT_MESH STRINGIFY(SRCDIR/DEFAULT_MESH_FILE)
 #else
-#  define DEFAULT_INPUT_FILE STRINGIFY(DEFAULT_TEST_FILE)
+#  define DEFAULT_GEOM STRINGIFY(DEFAULT_GEOM_FILE)
+#  define DEFAULT_MESH STRINGIFY(DEFAULT_MESH_FILE)
 #endif
 
 #define CHECK_SIZE_C(type, array, allocated_size, size)  \
@@ -530,13 +537,8 @@ int query_relations_test(iRel_Instance assoc,
 int main( int argc, char *argv[] )
 {
     /* Check command line arg */
-#ifdef HAVE_OCC
-  char *geom_filename = "brick.stp";
-  char *mesh_filename = "brick.h5m";
-#else
-  char *geom_filename = DEFAULT_INPUT_FILE;
-  char *mesh_filename = DEFAULT_INPUT_FILE;
-#endif
+  char *geom_filename = DEFAULT_GEOM;
+  char *mesh_filename = DEFAULT_MESH;
 
   int result;
   int number_tests = 0;
