@@ -33,7 +33,8 @@ else
 endif
 
 if PNETCDF_FILE
-  PNETCDF_TESTS = scdpart
+#  PNETCDF_TESTS = scdpart
+  PNETCDF_TESTS =
 else
   PNETCDF_TESTS = 
 endif
