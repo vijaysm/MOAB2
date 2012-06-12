@@ -60,11 +60,11 @@ void print_usage(const char *);
 int main(int argc, char **argv) 
 {
     // need to init MPI first, to tell how many procs and rank
-  int err = MPI_Init(&argc, &argv);
+  MPI_Init(&argc, &argv);
 
   int nprocs, rank;
-  err = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-  err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // start time
   double stime = 0, rtime = 0, dtime = 0, ltime = 0;
@@ -83,7 +83,7 @@ int main(int argc, char **argv)
     // get N, M from command line
   if (argc < 3) {
     if (0 == rank) print_usage(argv[0]);
-    err = MPI_Finalize();
+    MPI_Finalize();
     return 1;
   }
 
@@ -99,7 +99,6 @@ int main(int argc, char **argv)
 
   while (npos != argc) {    
     ErrorCode tmp_result;
-    int nshared = -1;
     int this_opt = strtol(argv[npos++], NULL, 0);
     switch (this_opt) {
       case 0:
@@ -116,7 +115,7 @@ int main(int argc, char **argv)
           num_files = strtol(argv[npos++], NULL, 0);
           if (0 == num_files) {
             if (0 == rank) print_usage(argv[0]);
-            err = MPI_Finalize();
+            MPI_Finalize();
             return 1;
           }
           while (num_files-- && npos < argc)
@@ -139,7 +138,6 @@ int main(int argc, char **argv)
             PRINT_LAST_ERROR;
             MPI_Abort(MPI_COMM_WORLD, result);
           }
-          nshared = -1;
           break;
 
       case 4:
@@ -170,7 +168,6 @@ int main(int argc, char **argv)
             PRINT_LAST_ERROR;
             MPI_Abort(MPI_COMM_WORLD, result);
           }
-          nshared = -1;
           break;
 
       default:
@@ -203,7 +200,7 @@ int main(int argc, char **argv)
                            << " (total/read/delete)"
                            << std::endl;
 
-  err = MPI_Finalize();
+  MPI_Finalize();
 
   delete mbImpl;
   
@@ -341,7 +338,7 @@ ErrorCode read_file(Interface *mbImpl,
 
   if (1 < filenames.size()) {
     for (unsigned int i = 0; i < filenames.size(); i++) {
-      pcs[i] = new ParallelComm(mbImpl);
+      pcs[i] = new ParallelComm(mbImpl, MPI_COMM_WORLD);
       int index = pcs[i]->get_id();
       std::ostringstream newopts;
       newopts  << options.str();
@@ -401,7 +398,7 @@ ErrorCode test_packing(Interface *mbImpl, const char *filename)
   
   ents.insert(file_set);
   
-  ParallelComm *pcomm = new ParallelComm(mbImpl);
+  ParallelComm *pcomm = new ParallelComm(mbImpl, MPI_COMM_WORLD);
 
   ParallelComm::Buffer buff;
   result = pcomm->pack_buffer(ents, false, true, false, -1, &buff);

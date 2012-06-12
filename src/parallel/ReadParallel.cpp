@@ -50,7 +50,7 @@ ReadParallel::ReadParallel(Interface* impl,
 {
   if (!myPcomm) {
     myPcomm = ParallelComm::get_pcomm(mbImpl, 0);
-    if (NULL == myPcomm) myPcomm = new ParallelComm(mbImpl);
+    if (NULL == myPcomm) myPcomm = new ParallelComm(mbImpl, MPI_COMM_WORLD);
   }
   myDebug.set_rank( myPcomm->proc_config().proc_rank() );
   if (debug) // for backwards compatability, enable all debug output if constant is true
@@ -264,7 +264,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
 {
   ErrorCode result = MB_SUCCESS;
   if (myPcomm == NULL)
-    myPcomm = new ParallelComm(mbImpl);
+    myPcomm = new ParallelComm(mbImpl, MPI_COMM_WORLD);
 
   Range entities; 
   Tag file_set_tag = 0;

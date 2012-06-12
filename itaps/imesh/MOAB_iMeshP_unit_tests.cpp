@@ -2217,8 +2217,10 @@ int test_entity_copies( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const
       ierr = vertex_tag( imesh, verts[j], tag );
       if (ierr)
         break;
-      local_data.push_back( (iBase_EntityHandle)tag );
-      local_data.push_back( (iBase_EntityHandle)part_ids[i] );
+      long tmp_h = tag;
+      local_data.push_back((iBase_EntityHandle)tmp_h);
+      tmp_h = part_ids[i];
+      local_data.push_back((iBase_EntityHandle)tmp_h);
       local_data.push_back( verts[j] );
     }
     if (ierr)

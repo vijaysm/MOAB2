@@ -29,7 +29,6 @@
 #include <assert.h>
 #include <stdlib.h>
 #include "math.h"
-#include "moab_mpi.h"
 #include "moab/TupleList.hpp"
 
 namespace moab {
@@ -63,13 +62,13 @@ namespace moab {
 
     //! constructor
     ParallelComm(Interface *impl,
-                 MPI_Comm comm = MPI_COMM_WORLD,
+                 MPI_Comm comm,
                  int* pcomm_id_out = 0);
 
     //! constructor taking packed buffer, for testing
     ParallelComm(Interface *impl,
                  std::vector<unsigned char> &tmp_buff,
-                 MPI_Comm comm = MPI_COMM_WORLD,
+                 MPI_Comm comm,
                  int* pcomm_id_out = 0);
 
     //! Get ID used to reference this PCOMM instance

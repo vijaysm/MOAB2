@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
   }
 
   mbint = new Core();
-  mbpc  = new ParallelComm(mbint);
+  mbpc  = new ParallelComm(mbint, MPI_COMM_WORLD);
 
   set_local_domain_bounds();
   create_hexes_and_verts();

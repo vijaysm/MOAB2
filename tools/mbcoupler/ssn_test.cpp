@@ -164,7 +164,7 @@ int main(int argc, char **argv) {
 
   ErrorCode result;
   for (unsigned int i = 0; i < filenames.size(); i++) {
-    pcs[i] = new ParallelComm(mbi);
+    pcs[i] = new ParallelComm(mbi, MPI_COMM_WORLD);
     rps[i] = new ReadParallel(mbi, pcs[i]);
     
     iMesh_createEntSet(iMeshInst, 0, &(roots[i]), &err);

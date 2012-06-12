@@ -147,7 +147,7 @@ int main(int argc, char **argv)
   iBase_EntitySetHandle *roots = (iBase_EntitySetHandle *) malloc(sizeof(iBase_EntitySetHandle) * meshFiles.size());
 
   for (unsigned int i = 0; i < meshFiles.size(); i++) {
-    pcs[i] = new ParallelComm(mbImpl);
+    pcs[i] = new ParallelComm(mbImpl, MPI_COMM_WORLD);
     int index = pcs[i]->get_id();
     std::string newReadopts;
     std::ostringstream extraOpt;

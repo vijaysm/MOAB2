@@ -16,11 +16,14 @@
 #ifndef MOAB_PROC_CONFIG_HPP
 #define MOAB_PROC_CONFIG_HPP
 
+#ifdef USE_MPI
+#include "moab_mpi.h"
+#endif
+
 #include "moab/Types.hpp"
 #include "moab/Range.hpp"
 #include "moab/gs.hpp"
 
-#include "moab_mpi.h"
 
 
 namespace moab {
@@ -31,7 +34,7 @@ class Interface;
 class ProcConfig {
 public:
 
-  ProcConfig(MPI_Comm proc_comm = MPI_COMM_WORLD);
+  ProcConfig(MPI_Comm proc_comm);
   
   ~ProcConfig();
   

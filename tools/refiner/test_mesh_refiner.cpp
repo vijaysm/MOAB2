@@ -56,7 +56,7 @@ int TestMeshRefiner( int argc, char* argv[] )
 
 #ifdef USE_MPI
   // Use an ParallelComm object to help set up the input mesh
-  ParallelComm* ipcomm = new ParallelComm( imesh );
+  ParallelComm* ipcomm = new ParallelComm( imesh, MPI_COMM_WORLD );
   //ReadParallel* readpar = new ReadParallel( imesh, ipcomm );
 #endif // USE_MPI
 

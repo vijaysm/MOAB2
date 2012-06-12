@@ -328,7 +328,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
 
   myPcomm = ParallelComm::get_pcomm(iFace, pcomm_no);
   if (0 == myPcomm) {
-    myPcomm = new ParallelComm(iFace);
+    myPcomm = new ParallelComm(iFace, MPI_COMM_WORLD);
     pcommAllocated = true;
   }
   

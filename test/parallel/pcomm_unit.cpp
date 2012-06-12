@@ -15,6 +15,8 @@ using namespace moab;
 
 #ifdef USE_MPI
 #  include "moab_mpi.h"
+#else
+#  define MPI_COMM_WORLD 0
 #endif
 
 #define STRINGIFY_(X) #X
@@ -93,7 +95,7 @@ void pack_unpack_noremoteh( Core& moab, Range& entities )
     CHECK_ERR(rval);
   }
   
-  ParallelComm *pcomm = new ParallelComm( &moab );
+  ParallelComm *pcomm = new ParallelComm( &moab, MPI_COMM_WORLD );
   std::vector<int> addl_procs;
 
     // get the necessary vertices too
@@ -114,7 +116,7 @@ void pack_unpack_noremoteh( Core& moab, Range& entities )
   moab.~Core();
 
   new (&moab) Core();
-  pcomm = new ParallelComm( &moab);
+  pcomm = new ParallelComm( &moab, MPI_COMM_WORLD);
   
   entities.clear();
   std::vector<std::vector<EntityHandle> > L1hloc, L1hrem;
@@ -1816,7 +1818,7 @@ void test_pack_shared_entities_2d()
   Core moab[4];
   ParallelComm *pc[4];
   for (unsigned int i = 0; i < 4; i++) {
-    pc[i] = new ParallelComm(&moab[i]);
+    pc[i] = new ParallelComm(&moab[i], MPI_COMM_WORLD);
     pc[i]->set_rank(i);
   }
 
@@ -1846,7 +1848,7 @@ void test_pack_shared_entities_3d()
   Core moab[4];
   ParallelComm *pc[4];
   for (unsigned int i = 0; i < 4; i++) {
-    pc[i] = new ParallelComm(&moab[i]);
+    pc[i] = new ParallelComm(&moab[i], MPI_COMM_WORLD);
     pc[i]->set_rank(i);
     for (unsigned int j = 0; j < 4; j++) {
       if (j == i) continue;
@@ -1891,7 +1893,7 @@ void test_filter_pstatus()
 
   CHECK( !verts.empty() );
  
-  ParallelComm *pcomm = new ParallelComm( &moab );
+  ParallelComm *pcomm = new ParallelComm( &moab, MPI_COMM_WORLD );
 
   std::vector<int> procs(70, -1);
   for (unsigned int i = 0; i < 6; i++) procs[i] = i;

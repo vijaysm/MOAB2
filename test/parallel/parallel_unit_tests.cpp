@@ -1051,7 +1051,7 @@ ErrorCode test_interface_owners_common( int num_ghost_layers )
   ErrorCode rval;  
   Core moab_instance;
   Interface& mb = moab_instance;
-  ParallelComm pcomm( &mb );
+  ParallelComm pcomm( &mb, MPI_COMM_WORLD );
   
     // build distributed quad mesh
   Range quads;
@@ -1115,7 +1115,7 @@ ErrorCode test_ghosted_entity_shared_data( const char* )
   ErrorCode rval;  
   Core moab_instance;
   Interface& mb = moab_instance;
-  ParallelComm pcomm( &mb );
+  ParallelComm pcomm( &mb, MPI_COMM_WORLD );
 
   int rank, size;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
@@ -1223,7 +1223,7 @@ ErrorCode test_assign_global_ids( const char* )
   ErrorCode rval;  
   Core moab_instance;
   Interface& mb = moab_instance;
-  ParallelComm pcomm( &mb );
+  ParallelComm pcomm( &mb, MPI_COMM_WORLD );
 
   int rank, size;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
@@ -1265,7 +1265,7 @@ ErrorCode test_shared_sets( const char* )
   ErrorCode rval;  
   Core moab_instance;
   Interface& mb = moab_instance;
-  ParallelComm pcomm( &mb );
+  ParallelComm pcomm( &mb, MPI_COMM_WORLD );
 
   int rank_i, size_i;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank_i );
@@ -1460,7 +1460,7 @@ template<typename T> ErrorCode test_reduce_tags( const char*, DataType tp )
   ErrorCode rval;  
   Core moab_instance;
   Interface& mb = moab_instance;
-  ParallelComm pcomm( &mb );
+  ParallelComm pcomm( &mb, MPI_COMM_WORLD );
 
   int rank, size;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
@@ -1522,7 +1522,7 @@ ErrorCode test_reduce_tag_failures(const char *)
   ErrorCode rval;  
   Core moab_instance;
   Interface& mb = moab_instance;
-  ParallelComm pcomm( &mb );
+  ParallelComm pcomm( &mb, MPI_COMM_WORLD );
 
   int rank, size;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
@@ -1586,7 +1586,7 @@ ErrorCode test_reduce_tag_explicit_dest(const char *)
   ErrorCode rval;  
   Core moab_instance;
   Interface& mb = moab_instance;
-  ParallelComm pcomm( &mb );
+  ParallelComm pcomm( &mb, MPI_COMM_WORLD );
 
   int rank, size;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );

@@ -105,7 +105,7 @@ int main(int argc, char * argv[])
   }
 
   //Get a pcomm object
-  moab::ParallelComm *pc = new moab::ParallelComm(mb); 
+  moab::ParallelComm *pc = new moab::ParallelComm(mb, MPI_COMM_WORLD); 
 
   //Call the resolve parallel function
   moab::ParallelMergeMesh pm(pc,epsilon);

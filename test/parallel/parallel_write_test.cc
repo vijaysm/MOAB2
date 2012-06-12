@@ -200,7 +200,7 @@ TPRINT("Writing individual file");
   if (!skip_resolve_shared) {
 TPRINT("Resolving shared entities");
       // Negotiate shared entities using vertex global IDs
-    ParallelComm* pcomm = new ParallelComm( &moab );
+    ParallelComm* pcomm = new ParallelComm( &moab, MPI_COMM_WORLD );
     rval = pcomm->resolve_shared_ents( 0, hexes, 3, 0 );
     if (MB_SUCCESS != rval) {
       std::cerr << "ParallelComm::resolve_shared_ents failed" << std::endl;

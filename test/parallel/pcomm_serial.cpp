@@ -18,6 +18,8 @@ int main( int argc, char* argv[] )
 {
 #ifdef USE_MPI
   MPI_Init( &argc, &argv );
+#else
+# define MPI_COMM_WORLD 0
 #endif
 
   if (1 < argc && !strcmp(argv[1], "-h")) {
@@ -52,7 +54,7 @@ int main( int argc, char* argv[] )
   Core *moab = new Core[nprocs]();
   std::vector<ParallelComm *> pc(nprocs);
   for (int i = 0; i < nprocs; i++) {
-    pc[i] = new ParallelComm(&moab[i]);
+    pc[i] = new ParallelComm(&moab[i], MPI_COMM_WORLD);
     pc[i]->set_rank(i);
     pc[i]->set_size(nprocs);
   }
