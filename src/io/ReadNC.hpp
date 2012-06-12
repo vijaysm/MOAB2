@@ -85,6 +85,11 @@ public:
                                      const FileOptions& opts,
                                      std::vector<int>& tag_values_out,
                                      const SubsetList* subset_list = 0 );
+  
+  // ENTLOCNSEDGE for north/south edge
+  // ENTLOCWEEDGE for west/east edge
+  enum EntityLocation {ENTLOCNODE=0, ENTLOCNSEDGE, ENTLOCEWEDGE, ENTLOCQUAD, ENTLOCSET};
+
 private:
 
   class AttData 
@@ -101,7 +106,7 @@ private:
   class VarData 
   {
     public:
-    VarData() : varId(-1), numAtts(-1), read(false) {}
+    VarData() : varId(-1), numAtts(-1), read(false), entLoc(ENTLOCSET), numLev(1), sz(0), has_t(false) {}
     int varId;
     int numAtts;
     nc_type varDataType;
@@ -112,6 +117,10 @@ private:
     std::vector<Tag> varTags;
     std::vector<void*> varDatas;
     std::vector<std::vector<NCDF_SIZE> > readDims, readCounts;
+    int entLoc;
+    int numLev;
+    int sz;
+    bool has_t;
   };
 
   ReadUtilIface* readMeshIface;
@@ -159,21 +168,32 @@ private:
                           bool &nomesh,
                           bool &novars,
                           std::string &partition_tag_name);
+
+  ErrorCode read_variable_to_set_allocate(EntityHandle file_set, std::vector<VarData> &vdatas,
+					  std::vector<int> &tstep_nums);
+  
+  ErrorCode read_variable_to_set(EntityHandle file_set, std::vector<VarData> &vdatas,
+				 std::vector<int> &tstep_nums); 
+  
+  ErrorCode read_variable_to_nonset(EntityHandle file_set, std::vector<VarData> &vdatas,
+				    std::vector<int> &tstep_nums);
   
   ErrorCode read_variables(EntityHandle file_set, std::vector<std::string> &var_names,
                            std::vector<int> &tstep_nums);
   
-  ErrorCode read_variable_allocate(std::vector<VarData> &vdatas,
-                                   std::vector<int> &tstep_nums, 
-                                   Range &verts);
+  ErrorCode read_variable_allocate(EntityHandle file_set, std::vector<VarData> &vdatas,
+                                   std::vector<int> &tstep_nums);
   
   ErrorCode read_variable_setup(std::vector<std::string> &var_names,
                                 std::vector<int> &tstep_nums, 
-                                std::vector<VarData> &vdatas);
+                                std::vector<VarData> &vdatas,
+                                std::vector<VarData> &vsetdatas);
   
   ErrorCode convert_variable(EntityHandle file_set, VarData &var_data, int tstep_num);
     
-  ErrorCode get_tag(VarData &var_data, int tstep_num, Tag &tagh);
+  ErrorCode get_tag_to_set(VarData &var_data, int tstep_num, Tag &tagh);
+ 
+  ErrorCode get_tag(VarData &var_data, int tstep_num, Tag &tagh, int num_lev);
   
     //! create nc conventional tags
   ErrorCode create_tags(ScdInterface *scdi, EntityHandle file_set, 
@@ -209,8 +229,8 @@ private:
     //! dimensions
   std::vector<std::string> dimNames;
   std::vector<int> dimVals;
-  std::string iName, jName, kName, tName;
-  std::string iCName, jCName, kCName;
+  std::string iName, jName, kName,tName;
+  std::string iCName, jCName;
 
     //! global attribs
   std::map<std::string,AttData> globalAtts;
@@ -233,11 +253,14 @@ private:
     //! values for i/j/k
   std::vector<double> ilVals, jlVals, klVals, tVals;
 
-    //! dimension numbers for i, j, k, t
-  int iDim, jDim, kDim, tDim;
+  //! center values for i/j
+  std::vector<double> ilCVals, jlCVals;
 
-    //! center dimension numbers for i, j, k
-  int iCDim, jCDim, kCDim;
+    //! dimension numbers for i, j, t
+  int iDim, jDim, tDim;
+
+    //! center dimension numbers for i, j
+  int iCDim, jCDim;
   
     //! number of the dimension of unlimited dimension, if any
   int numUnLim;

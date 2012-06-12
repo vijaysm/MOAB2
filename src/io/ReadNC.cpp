@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <cmath>
+#include <cstdlib>
 #include <iostream>
 #include <sstream>
 #include <map>
@@ -30,7 +31,7 @@ ReaderIface* ReadNC::factory( Interface* iface )
 ReadNC::ReadNC(Interface* impl)
         : mbImpl(impl), CPU_WORD_SIZE(-1), IO_WORD_SIZE(-1), fileId(-1), 
           tMin(-1), tMax(-1),
-          iDim(-1), jDim(-1), kDim(-1), tDim(-1), iCDim(-1), jCDim(-1), kCDim(-1), 
+	  iDim(-1), jDim(-1), tDim(-1), iCDim(-1), jCDim(-1),
 	  numUnLim(-1), mCurrentMeshHandle(0),
           startVertex(0), startElem(0), mGlobalIdTag(0), 
           max_line_length(-1), max_str_length(-1), vertexOffset(0), dbgOut(stderr),
@@ -64,8 +65,8 @@ void ReadNC::reset()
     lCDims[i] = -1;
   }
   
-  iDim = jDim = kDim = tDim = -1;
-  iCDim = jCDim = kCDim = -1;
+  iDim = jDim = tDim = -1;
+  iCDim = jCDim = -1;
   numUnLim = -1;
   mCurrentMeshHandle = 0;
   startVertex = startElem = 0;
@@ -216,10 +217,9 @@ ErrorCode ReadNC::load_file(const char *file_name,
   }
   ERRORR(rval, "Trouble initializing mesh values.");
 
-  int tlDims2 = lDims[2];
-  int tlDims5 = lDims[5];
-  lDims[2] = lDims[5] = -1;
-  
+  // FIXME: should remove when gDims[2] and gDims[5] is unset at line 1112/1441
+  lDims[2]=lDims[5]=-1;
+
     // Create mesh vertex/quads sequences
   Range quads;
   if (nomesh && !novars) {
@@ -233,9 +233,6 @@ ErrorCode ReadNC::load_file(const char *file_name,
       rval = create_verts_quads(scdi, tmp_set, quads);
     ERRORR(rval, "Trouble creating vertices.");
   }
-
-  lDims[2] = tlDims2;
-  lDims[5] = tlDims5;
 
     // Read variables onto grid
   if (!novars) {
@@ -643,34 +640,44 @@ ErrorCode ReadNC::create_ucd_verts_hexes(const FileOptions &opts,
 
 ErrorCode ReadNC::read_variable_setup(std::vector<std::string> &var_names,
                                       std::vector<int> &tstep_nums, 
-                                      std::vector<VarData> &vdatas) 
+                                      std::vector<VarData> &vdatas,
+				      std::vector<VarData> &vsetdatas) 
 {      
   std::map<std::string,VarData>::iterator mit;
+  // if empty read them all
   if (var_names.empty()) {
     for (mit = varInfo.begin(); mit != varInfo.end(); mit++) {
       VarData vd = (*mit).second;
-      std::vector<int> tmp_v;
-      if (-1 != tMin && 
-          std::find(vd.varDims.begin(), vd.varDims.end(), tDim) != vd.varDims.end()) 
-        tmp_v.push_back(tDim);
-      //if (-1 != lDims[2] && 
-      //std::find(vd.varDims.begin(), vd.varDims.end(), kDim) != vd.varDims.end()) 
-      //tmp_v.push_back(kDim);
-      bool has_k = false;
-      if (-1 != lCDims[2] && 
-	  std::find(vd.varDims.begin(), vd.varDims.end(), kCDim) != vd.varDims.end()) { 
-	tmp_v.push_back(kCDim); has_k = true; }     
-      tmp_v.push_back(jCDim);
-      tmp_v.push_back(iCDim);
-      // only variables have all lev lat lon are read for now
-      if ((tmp_v == vd.varDims) && has_k)
-        vdatas.push_back(vd);
+      if ((std::find(vd.varDims.begin(), vd.varDims.end(), iCDim) != vd.varDims.end()) &&
+	  (std::find(vd.varDims.begin(), vd.varDims.end(), jCDim) != vd.varDims.end())) 
+	vdatas.push_back(vd);
+      else if ((std::find(vd.varDims.begin(), vd.varDims.end(), jDim) != vd.varDims.end()) &&
+	       (std::find(vd.varDims.begin(), vd.varDims.end(), iCDim) != vd.varDims.end())) 
+	vdatas.push_back(vd);
+      else if ((std::find(vd.varDims.begin(), vd.varDims.end(), jCDim) != vd.varDims.end()) &&
+	       (std::find(vd.varDims.begin(), vd.varDims.end(), iDim) != vd.varDims.end())) 
+	vdatas.push_back(vd);
+      else
+	vsetdatas.push_back(vd);
     }
   }
   else {
     for (unsigned int i = 0; i < var_names.size(); i++) {
       mit = varInfo.find(var_names[i]);
-      if (mit != varInfo.end()) vdatas.push_back((*mit).second);
+      if (mit != varInfo.end()) {
+	VarData vd = (*mit).second;
+	if ((std::find(vd.varDims.begin(), vd.varDims.end(), iCDim) != vd.varDims.end()) &&
+	    (std::find(vd.varDims.begin(), vd.varDims.end(), jCDim) != vd.varDims.end())) 
+	  vdatas.push_back(vd);
+	else if ((std::find(vd.varDims.begin(), vd.varDims.end(), jDim) != vd.varDims.end()) &&
+		 (std::find(vd.varDims.begin(), vd.varDims.end(), iCDim) != vd.varDims.end())) 
+	  vdatas.push_back(vd);
+	else if ((std::find(vd.varDims.begin(), vd.varDims.end(), jCDim) != vd.varDims.end()) &&
+		 (std::find(vd.varDims.begin(), vd.varDims.end(), iDim) != vd.varDims.end())) 
+	  vdatas.push_back(vd);
+	else
+	  vsetdatas.push_back(vd);
+      }
       else ERRORR(MB_FAILURE, "Couldn't find variable.");
     }
   }
@@ -686,75 +693,188 @@ ErrorCode ReadNC::read_variable_setup(std::vector<std::string> &var_names,
       vdatas[i].readDims.resize(tstep_nums.size());
       vdatas[i].readCounts.resize(tstep_nums.size());
     }
+    for (unsigned int i = 0; i < vsetdatas.size(); i++) {
+      if ((std::find(vsetdatas[i].varDims.begin(), vsetdatas[i].varDims.end(), tDim) != vsetdatas[i].varDims.end()) &&
+	  (vsetdatas[i].varDims.size() != 1)) {
+	vsetdatas[i].varTags.resize(tstep_nums.size(), 0);      
+	vsetdatas[i].varDatas.resize(tstep_nums.size());
+	vsetdatas[i].readDims.resize(tstep_nums.size());
+	vsetdatas[i].readCounts.resize(tstep_nums.size());
+      }
+      else {
+	vsetdatas[i].varTags.resize(1, 0);      
+	vsetdatas[i].varDatas.resize(1);
+	vsetdatas[i].readDims.resize(1);
+	vsetdatas[i].readCounts.resize(1);
+      }
+    }
   }
-
+  
   return MB_SUCCESS;
 }
 
-ErrorCode ReadNC::read_variable_allocate(std::vector<VarData> &vdatas,
-                                         std::vector<int> &tstep_nums, 
-                                         Range &quads) 
+ErrorCode ReadNC::read_variable_allocate(EntityHandle file_set, 
+					 std::vector<VarData> &vdatas,
+                                         std::vector<int> &tstep_nums)
 {
   ErrorCode rval = MB_SUCCESS;
+  
+  std::vector<EntityHandle>* ehandles = NULL;  
+  Range* range = NULL;  
+  //std::vector<EntityHandle> verts_handles;
+  std::vector<EntityHandle> ns_edges_handles;
+  std::vector<EntityHandle> ew_edges_handles;
+  //std::vector<EntityHandle> quads_handles;
+
+  // get vertices in set
+  Range verts;
+  rval = mbImpl->get_entities_by_dimension(file_set, 0, verts);
+  ERRORR(rval, "Trouble getting vertices in set.");
+  assert("Should only have a single vertex subrange, since they were read in one shot" &&
+	 verts.psize() == 1);
+  //verts_handles.resize(verts.size());
+  //std::copy(verts.begin(), verts.end(), verts_handles.begin());
+
+  Range edges;
+  rval = mbImpl->get_entities_by_dimension(file_set, 1, edges);
+  ERRORR(rval, "Trouble getting edges in set.");
+  ns_edges_handles.resize(edges.size()/2);
+  ew_edges_handles.resize(edges.size()/2);
+
+  // get north/south edges
+  // FIXME: initialize ns_edges_handles to get the right order
+  //std::copy(edges.begin(), edges.end(), ns_edges_handles.begin());
+  
+  // get east/west edges in set
+  // FIXME: initialize ew_edges_handles to get the right order
+  //std::copy(edges.begin(), edges.end(), ew_edges_handles.begin());
+
+  // get quads in set
+  Range quads;
+  rval = mbImpl->get_entities_by_dimension(file_set, 2, quads);
+  ERRORR(rval, "Trouble getting vertices in set.");
+  assert("Should only have a single vertex subrange, since they were read in one shot" &&
+	 quads.psize() == 1);
+  //quads_handles.resize(quads.size());
+  //std::copy(quads.begin(), quads.end(), quads_handles.begin());
   
   for (unsigned int i = 0; i < vdatas.size(); i++) {
     for (unsigned int t = 0; t < tstep_nums.size(); t++) {
       dbgOut.tprintf(2, "Reading variable %s, time step %d\n", vdatas[i].varName.c_str(), tstep_nums[t]);
-
-        // get the tag to read into
+      
+      std::vector<std::string>::iterator vit;
+      int idx_lev = 0;
+      int idx_ilev = 0;
+      if ((vit = std::find(dimNames.begin(), dimNames.end(), "lev")) != dimNames.end())
+	idx_lev = vit-dimNames.begin();
+      if ((vit = std::find(dimNames.begin(), dimNames.end(), "ilev")) != dimNames.end())
+	idx_ilev = vit-dimNames.begin();
+      if (std::find(vdatas[i].varDims.begin(), vdatas[i].varDims.end(), idx_lev) != vdatas[i].varDims.end())
+	vdatas[i].numLev=dimVals[idx_lev];
+      else if (std::find(vdatas[i].varDims.begin(), vdatas[i].varDims.end(), idx_ilev) != vdatas[i].varDims.end())
+	vdatas[i].numLev=dimVals[idx_ilev];
+      
+      // get the tag to read into
       if (!vdatas[i].varTags[t]) {
-        rval = get_tag(vdatas[i], tstep_nums[t], vdatas[i].varTags[t]);
+        rval = get_tag(vdatas[i], tstep_nums[t], vdatas[i].varTags[t], vdatas[i].numLev);
         ERRORR(rval, "Trouble getting tag.");
       }
-  
-        // assume point-based values for now?
+      
+      // assume point-based values for now?
       if (-1 == tDim || dimVals[tDim] <= (int)t) {
         ERRORR(MB_INDEX_OUT_OF_RANGE, "Wrong value for timestep number.");
       }
       else if (vdatas[i].varDims[0] != tDim) {
         ERRORR(MB_INDEX_OUT_OF_RANGE, "Non-default timestep number given for time-independent variable.");
       }
-  
-        // set up the dimensions and counts
-        // first time
+      
+      // set up the dimensions and counts
+      // first time
       vdatas[i].readDims[t].push_back(tstep_nums[t]);
       vdatas[i].readCounts[t].push_back(1);
-
-        // then z/y/x
-      // assume the kDim and kCDim is the same for now
-      bool have_k = false;
-      if (std::find(vdatas[i].varDims.begin(), vdatas[i].varDims.end(), kCDim) != vdatas[i].varDims.end()) {
-	vdatas[i].readDims[t].push_back(lCDims[2]); 
-	vdatas[i].readCounts[t].push_back(lCDims[5] - lCDims[2] + 1);
-	have_k = true;
+      
+      // then z/y/x
+      if (vdatas[i].numLev != 1) {
+	vdatas[i].readDims[t].push_back(0); 
+	vdatas[i].readCounts[t].push_back(vdatas[i].numLev);
       }
-     
-      bool have_ij = true;
-#ifdef PNETCDF_FILE
-        // whether we actually read anything depends on parallel and whether there's a k
-      if (!have_k && -1 != kCDim && 0 != myPcomm->proc_config().proc_rank())
-        have_ij = false;
-#else
-      if (have_k); // to get rid of compiler warning
-#endif    
 
-      vdatas[i].readDims[t].push_back(lCDims[1]);
-      vdatas[i].readDims[t].push_back(lCDims[0]);
-      vdatas[i].readCounts[t].push_back(have_ij ? lCDims[4]-lCDims[1]+1 : 0);
-      vdatas[i].readCounts[t].push_back(have_ij ? lCDims[3]-lCDims[0]+1 : 0);
-
-      assert(vdatas[i].readDims[t].size() == vdatas[i].varDims.size());
-  
-        // get ptr to tag space
-      void *data;
-      int count;
-      rval = mbImpl->tag_iterate(vdatas[i].varTags[t], quads.begin(), quads.end(), count, data);
-      ERRORR(rval, "Failed to get tag iterator.");
-      assert((unsigned)count == quads.size());
-      vdatas[i].varDatas[t] = data;
+      switch (vdatas[i].entLoc)
+	{
+	case 0:
+	  // vertices
+	  vdatas[i].readDims[t].push_back(lDims[1]);
+	  vdatas[i].readDims[t].push_back(lDims[0]);
+	  vdatas[i].readCounts[t].push_back(lDims[4]-lDims[1]+1);
+	  vdatas[i].readCounts[t].push_back(lDims[3]-lDims[0]+1);
+	  assert(vdatas[i].readDims[t].size() == vdatas[i].varDims.size());
+	  range = &verts;
+	  break;
+	case 1:
+	  // north/south edges
+	  vdatas[i].readDims[t].push_back(lDims[1]);
+	  vdatas[i].readDims[t].push_back(lCDims[0]);
+	  // FIXME: need to figure out what to do with extra 2 pole points
+	  //vdatas[i].readCounts[t].push_back(lDims[4]-lDims[1]+1);
+	  vdatas[i].readCounts[t].push_back(lDims[4]-lDims[1]+1-2);	  
+	  vdatas[i].readCounts[t].push_back(lCDims[3]-lCDims[0]+1);
+	  assert(vdatas[i].readDims[t].size() == vdatas[i].varDims.size());
+	  ehandles = &ns_edges_handles;
+	  range = &verts; // FIXME: should remove when edge handles are used
+	  break;
+	case 2:
+	  // east/west edges
+	  vdatas[i].readDims[t].push_back(lCDims[1]);
+	  vdatas[i].readDims[t].push_back(lDims[0]);
+	  if ((isParallel) && 
+	      (myPcomm->proc_config().proc_size() != 1) &&
+	      ((gDims[3]-gDims[0]) == (lDims[3]-lDims[0])))
+	    vdatas[i].readCounts[t].push_back(lDims[3]-lDims[0]);
+	  else
+	    vdatas[i].readCounts[t].push_back(lCDims[4]-lCDims[1]+1);	  
+	  vdatas[i].readCounts[t].push_back(lDims[3]-lDims[0]);
+	  assert(vdatas[i].readDims[t].size() == vdatas[i].varDims.size());
+	  ehandles = &ew_edges_handles;
+	  range = &verts; // FIXME: should remove when edge handles are used
+	  break;
+	case 3:
+	  // quads
+	  vdatas[i].readDims[t].push_back(lCDims[1]);
+	  vdatas[i].readDims[t].push_back(lCDims[0]);
+	  vdatas[i].readCounts[t].push_back(lCDims[4]-lCDims[1]+1);
+	  vdatas[i].readCounts[t].push_back(lCDims[3]-lCDims[0]+1);
+	  assert(vdatas[i].readDims[t].size() == vdatas[i].varDims.size());
+	  range = &quads;
+	  break;
+	case 4:
+	  // set 
+	  break;
+	default:
+	  ERRORR(MB_FAILURE, "Unrecoganized entity location type.");
+	  break;
+	}
+      
+      if (!ehandles) {
+	// get ptr to tag space
+	void *data;
+	int count;
+	rval = mbImpl->tag_iterate(vdatas[i].varTags[t], range->begin(), range->end(), count, data);
+	ERRORR(rval, "Failed to get tag iterator.");
+	assert((unsigned)count == range->size());
+	vdatas[i].varDatas[t] = data;
+      }
+      else {
+	//FIXME should use the correct vector of edge handles
+	void *data;
+	int count;
+	rval = mbImpl->tag_iterate(vdatas[i].varTags[t], range->begin(), range->end(), count, data);
+	ERRORR(rval, "Failed to get tag iterator.");
+	assert((unsigned)count == range->size());
+	vdatas[i].varDatas[t] = data;
+      }
     }
   }
-
+  
   return rval;
 }
 
@@ -762,20 +882,100 @@ ErrorCode ReadNC::read_variables(EntityHandle file_set, std::vector<std::string>
                                  std::vector<int> &tstep_nums) 
 {
   std::vector<VarData> vdatas;
-  ErrorCode rval = read_variable_setup(var_names, tstep_nums, vdatas);
+  std::vector<VarData> vsetdatas;
+  ErrorCode rval = read_variable_setup(var_names, tstep_nums, vdatas, vsetdatas);
   ERRORR(rval, "Trouble setting up read variable.");
   
-  // get quads in set
-  Range quads;
-  rval = mbImpl->get_entities_by_dimension(file_set, 2, quads);
-  ERRORR(rval, "Trouble getting quads in set.");
-  assert("Should only have a single quad subrange, since they were read in one shot" &&
-         quads.psize() == 1);
+  if (!vsetdatas.empty()) {
+    rval = read_variable_to_set(file_set, vsetdatas, tstep_nums);
+    ERRORR(rval, "Trouble read variables to set.");
+  }
 
-  rval = read_variable_allocate(vdatas, tstep_nums, quads);
-  ERRORR(rval, "Trouble allocating read variables.");
+  if (!vdatas.empty()) {
+    rval = read_variable_to_nonset(file_set, vdatas, tstep_nums);
+    ERRORR(rval, "Trouble read variables to entities verts/edges/quads.");
+  }
+
+  return MB_SUCCESS;
+}
+
+ErrorCode ReadNC::read_variable_to_set_allocate(EntityHandle file_set, 
+						std::vector<VarData> &vdatas,
+						std::vector<int> &tstep_nums)
+{
+  ErrorCode rval = MB_SUCCESS;
+  
+  for (unsigned int i = 0; i < vdatas.size(); ++i) {
+    if ((std::find(vdatas[i].varDims.begin(), vdatas[i].varDims.end(), tDim) != vdatas[i].varDims.end()) &&
+	(vdatas[i].varDims.size() != 1))
+      vdatas[i].has_t = true;
     
-    // finally, read into that space
+    for (unsigned int t = 0; t < tstep_nums.size(); ++t) {
+	dbgOut.tprintf(2, "Reading variable %s, time step %d\n", vdatas[i].varName.c_str(), tstep_nums[t]);
+
+	// get the tag to read into
+	if (!vdatas[i].varTags[t]) {
+	  rval = get_tag_to_set(vdatas[i], tstep_nums[t], vdatas[i].varTags[t]);
+	  ERRORR(rval, "Trouble getting tag.");
+	}
+	
+	// assume point-based values for now?
+	if (-1 == tDim || dimVals[tDim] <= (int)t)
+	  ERRORR(MB_INDEX_OUT_OF_RANGE, "Wrong value for timestep number.");
+	
+	// set up the dimensions and counts
+	// first time
+	vdatas[i].readDims[t].push_back(tstep_nums[t]);
+	vdatas[i].readCounts[t].push_back(1);
+	
+	// set up other dimensions and counts
+	if (vdatas[i].varDims.empty()) {
+	  // scalar variable
+	  vdatas[i].readDims[t].push_back(0); 
+	  vdatas[i].readCounts[t].push_back(1);
+	}
+	else {
+	  for (unsigned int idx=0; idx != vdatas[i].varDims.size(); ++idx) {
+	    vdatas[i].readDims[t].push_back(0); 
+	    vdatas[i].readCounts[t].push_back(dimVals[vdatas[i].varDims[idx]]);
+	  }
+	}
+	std::size_t sz = 1;
+	for (std::size_t idx = 0; idx != vdatas[i].readCounts[t].size(); ++idx)
+	  sz *= vdatas[i].readCounts[t][idx];
+	vdatas[i].sz = sz;
+	switch (vdatas[i].varDataType) {
+	case NC_BYTE:
+	case NC_CHAR:
+	  vdatas[i].varDatas[t] = new char(sz);
+	  break;
+	case NC_DOUBLE:
+	case NC_FLOAT:
+	  vdatas[i].varDatas[t] = new double(sz);
+	  break;
+	case NC_INT:
+	case NC_SHORT:
+	  vdatas[i].varDatas[t] = new int(sz);
+	  break;
+	default:
+	  std::cerr << "Unrecognized data type for tag " << std::endl;
+	  rval = MB_FAILURE;
+	}
+	if (!vdatas[i].has_t) break;
+    }
+  }
+  
+  return rval; 
+}
+
+ErrorCode ReadNC::read_variable_to_set(EntityHandle file_set, 
+				       std::vector<VarData> &vdatas,
+				       std::vector<int> &tstep_nums) 
+{  
+  ErrorCode rval = read_variable_to_set_allocate(file_set, vdatas, tstep_nums);
+  ERRORR(rval, "Trouble allocating read variables to set.");
+  
+  // finally, read into that space
   int success;
   std::vector<int> requests(vdatas.size()*tstep_nums.size()), statuss(vdatas.size()*tstep_nums.size());
   for (unsigned int i = 0; i < vdatas.size(); i++) {
@@ -783,58 +983,44 @@ ErrorCode ReadNC::read_variables(EntityHandle file_set, std::vector<std::string>
       void *data = vdatas[i].varDatas[t];
       
       switch (vdatas[i].varDataType) {
-        case NC_BYTE:
-        case NC_CHAR:
-            success = NCFUNCAG(_vara_text)(fileId, vdatas[i].varId, 
-                                           &vdatas[i].readDims[t][0], &vdatas[i].readCounts[t][0], 
-                                           (char*)data NCREQ);
-            ERRORS(success, "Failed to read char data.");
-            break;
-        case NC_DOUBLE:
-            success = NCFUNCAG(_vara_double)(fileId, vdatas[i].varId, 
-                                             &vdatas[i].readDims[t][0], &vdatas[i].readCounts[t][0], 
-                                             (double*)data NCREQ);
-            ERRORS(success, "Failed to read double data.");
-            break;
+      case NC_BYTE:
+      case NC_CHAR:
+	success = NCFUNCAG(_vara_text)(fileId, vdatas[i].varId, 
+				       &vdatas[i].readDims[t][0], &vdatas[i].readCounts[t][0], 
+				       (char*)data NCREQ);
+	ERRORS(success, "Failed to read char data.");
+	break;
+      case NC_DOUBLE:
+	success = NCFUNCAG(_vara_double)(fileId, vdatas[i].varId, 
+					 &vdatas[i].readDims[t][0], &vdatas[i].readCounts[t][0], 
+					 (double*)data NCREQ);
+	ERRORS(success, "Failed to read double data.");
+	break;
       case NC_FLOAT: {
-	std::size_t sz = 1;
-	for (std::size_t idx = 0; idx != vdatas[i].readCounts[t].size(); ++idx)
-	  sz *= vdatas[i].readCounts[t][idx];
-	std::vector<float> tmpdata(sz);
 	success = NCFUNCAG(_vara_float)(fileId, vdatas[i].varId, 
 					&vdatas[i].readDims[t][0], &vdatas[i].readCounts[t][0], 
-					&tmpdata[0] NCREQ); //(float*)data NCREQ);
-	std::size_t num_k = vdatas[i].readCounts[t][1];
-	std::size_t num_j = vdatas[i].readCounts[t][2];
-	std::size_t num_i = vdatas[i].readCounts[t][3];
-	std::size_t num_ij = num_i * num_j;
-	// loop k first
-	for (std::size_t tj = 0; tj != num_j; ++tj)
-	  for (std::size_t ti = 0; ti != num_i; ++ti) {
-	    std::size_t pos = (tj * num_i + ti) *num_k;
-	    for (std::size_t l = 0; l != num_k; ++l) 
-	      ((float*)data)[pos+l] = tmpdata[l*num_ij+tj*num_i+ti];	      
-	  }
+					(float*)data NCREQ);
 	ERRORS(success, "Failed to read float data.");
 	break;
       }
-        case NC_INT:
-            success = NCFUNCAG(_vara_int)(fileId, vdatas[i].varId, 
-                                          &vdatas[i].readDims[t][0], &vdatas[i].readCounts[t][0], 
-                                          (int*)data NCREQ);
-            ERRORS(success, "Failed to read int data.");
-            break;
-        case NC_SHORT:
-            success = NCFUNCAG(_vara_short)(fileId, vdatas[i].varId, 
-                                            &vdatas[i].readDims[t][0], &vdatas[i].readCounts[t][0], 
-                                            (short*)data NCREQ);
-            ERRORS(success, "Failed to read short data.");
-            break;
-        default:
-            success = 1;
+      case NC_INT:
+	success = NCFUNCAG(_vara_int)(fileId, vdatas[i].varId, 
+				      &vdatas[i].readDims[t][0], &vdatas[i].readCounts[t][0], 
+				      (int*)data NCREQ);
+	ERRORS(success, "Failed to read int data.");
+	break;
+      case NC_SHORT:
+	success = NCFUNCAG(_vara_short)(fileId, vdatas[i].varId, 
+					&vdatas[i].readDims[t][0], &vdatas[i].readCounts[t][0], 
+					(short*)data NCREQ);
+	ERRORS(success, "Failed to read short data.");
+	break;
+      default:
+	success = 1;
       }
-
+      
       if (success) ERRORR(MB_FAILURE, "Trouble reading variable.");
+      if (!vdatas[i].has_t) break;
     }
   }
 
@@ -848,9 +1034,184 @@ ErrorCode ReadNC::read_variables(EntityHandle file_set, std::vector<std::string>
       dbgOut.tprintf(2, "Converting variable %s, time step %d\n", vdatas[i].varName.c_str(), tstep_nums[t]);
       ErrorCode tmp_rval = convert_variable(file_set, vdatas[i], t);
       if (MB_SUCCESS != tmp_rval) rval = tmp_rval;
+      if (!vdatas[i].has_t) break;
     }
   }
-    // debug output, if requested
+  // debug output, if requested
+  if (1 == dbgOut.get_verbosity()) {
+    dbgOut.printf(1, "Read variables: %s", vdatas.begin()->varName.c_str());
+    for (unsigned int i = 1; i < vdatas.size(); i++)
+      dbgOut.printf(1, ", %s ", vdatas[i].varName.c_str());
+    dbgOut.tprintf(1, "\n");
+  }
+
+  for (unsigned int i = 0; i < vdatas.size(); i++) {
+    for (unsigned int t = 0; t < tstep_nums.size(); t++) {
+      dbgOut.tprintf(2, "Seting data for variable %s, time step %d\n", vdatas[i].varName.c_str(), tstep_nums[t]);
+      ErrorCode tmp_rval = mbImpl->tag_set_by_ptr(vdatas[i].varTags[t], &file_set, 1, &(vdatas[i].varDatas[t]), &vdatas[i].sz);
+      if (MB_SUCCESS != tmp_rval) rval = tmp_rval;
+      if (!vdatas[i].has_t) break;
+    }
+  }
+  
+  return rval;
+}
+
+ErrorCode ReadNC::read_variable_to_nonset(EntityHandle file_set, 
+					  std::vector<VarData> &vdatas,
+					  std::vector<int> &tstep_nums) 
+{  
+  ErrorCode rval = read_variable_allocate(file_set, vdatas, tstep_nums);
+  ERRORR(rval, "Trouble allocating read variables.");
+  
+  // finally, read into that space
+  int success;
+  std::vector<int> requests(vdatas.size()*tstep_nums.size()), statuss(vdatas.size()*tstep_nums.size());
+  for (unsigned int i = 0; i < vdatas.size(); i++) {
+    for (unsigned int t = 0; t < tstep_nums.size(); t++) {
+      void *data = vdatas[i].varDatas[t];
+      std::size_t sz = 1;
+      for (std::size_t idx = 0; idx != vdatas[i].readCounts[t].size(); ++idx)
+	sz *= vdatas[i].readCounts[t][idx];
+      
+      switch (vdatas[i].varDataType) {
+      case NC_BYTE:
+      case NC_CHAR: {
+	std::vector<char> tmpchardata(sz);
+	success = NCFUNCAG(_vara_text)(fileId, vdatas[i].varId, 
+				       &vdatas[i].readDims[t][0], &vdatas[i].readCounts[t][0], 
+				       &tmpchardata[0] NCREQ); //(char*)data NCREQ);
+	if (vdatas[i].numLev != 1) {
+	  std::size_t num_k = vdatas[i].numLev;
+	  std::size_t num_j = vdatas[i].readCounts[t][2];
+	  std::size_t num_i = vdatas[i].readCounts[t][3];
+	  std::size_t num_ij = num_i * num_j;
+	  for (std::size_t tj = 0; tj != num_j; ++tj)
+	    for (std::size_t ti = 0; ti != num_i; ++ti) {
+	      std::size_t pos = (tj * num_i + ti) *num_k;
+	      for (std::size_t l = 0; l != num_k; ++l) 
+		((char*)data)[pos+l] = tmpchardata[l*num_ij+tj*num_i+ti];         
+	    }
+	}
+	else {
+	  for (std::size_t idx = 0; idx != tmpchardata.size(); ++idx) 
+	    ((char*)data)[idx] = tmpchardata[idx];         
+	}
+	ERRORS(success, "Failed to read char data.");
+	break; }
+      case NC_DOUBLE: {
+	std::vector<double> tmpdoubledata(sz);
+	success = NCFUNCAG(_vara_double)(fileId, vdatas[i].varId, 
+					&vdatas[i].readDims[t][0], &vdatas[i].readCounts[t][0], 
+					&tmpdoubledata[0] NCREQ); //(double*)data NCREQ);
+	if (vdatas[i].numLev != 1 ) {
+	  std::size_t num_k = vdatas[i].numLev;
+	  std::size_t num_j = vdatas[i].readCounts[t][2];
+	  std::size_t num_i = vdatas[i].readCounts[t][3];
+	  std::size_t num_ij = num_i * num_j;
+	  for (std::size_t tj = 0; tj != num_j; ++tj)
+	    for (std::size_t ti = 0; ti != num_i; ++ti) {
+	      std::size_t pos = (tj * num_i + ti) *num_k;
+	      for (std::size_t l = 0; l != num_k; ++l) 
+		((double*)data)[pos+l] = tmpdoubledata[l*num_ij+tj*num_i+ti];         
+	    }
+	}
+	else {
+	  for (std::size_t idx = 0; idx != tmpdoubledata.size(); ++idx) 
+	    ((double*)data)[idx] = tmpdoubledata[idx];         
+	}
+	ERRORS(success, "Failed to read double data.");
+	break; }
+      case NC_FLOAT: {
+	std::vector<float> tmpfloatdata(sz);
+	success = NCFUNCAG(_vara_float)(fileId, vdatas[i].varId, 
+					&vdatas[i].readDims[t][0], &vdatas[i].readCounts[t][0], 
+					&tmpfloatdata[0] NCREQ); //(float*)data NCREQ);
+	if (vdatas[i].numLev != 1 ) {
+	  std::size_t num_k = vdatas[i].numLev;
+	  std::size_t num_j = vdatas[i].readCounts[t][2];
+	  std::size_t num_i = vdatas[i].readCounts[t][3];
+	  std::size_t num_ij = num_i * num_j;
+	  for (std::size_t tj = 0; tj != num_j; ++tj)
+	    for (std::size_t ti = 0; ti != num_i; ++ti) {
+	      std::size_t pos = (tj * num_i + ti) *num_k;
+	      for (std::size_t l = 0; l != num_k; ++l) 
+		((float*)data)[pos+l] = tmpfloatdata[l*num_ij+tj*num_i+ti];         
+	    }
+	}
+	else {
+	  for (std::size_t idx = 0; idx != tmpfloatdata.size(); ++idx) 
+	    ((float*)data)[idx] = tmpfloatdata[idx];         
+	}
+	ERRORS(success, "Failed to read float data.");
+	break; }
+      case NC_INT: {
+	std::vector<int> tmpintdata(sz);
+	success = NCFUNCAG(_vara_int)(fileId, vdatas[i].varId, 
+					&vdatas[i].readDims[t][0], &vdatas[i].readCounts[t][0], 
+					&tmpintdata[0] NCREQ); //(int*)data NCREQ);
+	if (vdatas[i].numLev != 1 ) {
+	  std::size_t num_k = vdatas[i].numLev;
+	  std::size_t num_j = vdatas[i].readCounts[t][2];
+	  std::size_t num_i = vdatas[i].readCounts[t][3];
+	  std::size_t num_ij = num_i * num_j;
+	  for (std::size_t tj = 0; tj != num_j; ++tj)
+	    for (std::size_t ti = 0; ti != num_i; ++ti) {
+	      std::size_t pos = (tj * num_i + ti) *num_k;
+	      for (std::size_t l = 0; l != num_k; ++l) 
+		((int*)data)[pos+l] = tmpintdata[l*num_ij+tj*num_i+ti];         
+	    }
+	}
+	else {
+	  for (std::size_t idx = 0; idx != tmpintdata.size(); ++idx) 
+	    ((int*)data)[idx] = tmpintdata[idx];         
+	}
+	ERRORS(success, "Failed to read int data.");
+	break; }
+      case NC_SHORT: {
+	std::vector<short> tmpshortdata(sz);
+	success = NCFUNCAG(_vara_short)(fileId, vdatas[i].varId, 
+					&vdatas[i].readDims[t][0], &vdatas[i].readCounts[t][0], 
+					&tmpshortdata[0] NCREQ); //(short*)data NCREQ);
+	if (vdatas[i].numLev != 1 ) {
+	  std::size_t num_k = vdatas[i].numLev;
+	  std::size_t num_j = vdatas[i].readCounts[t][2];
+	  std::size_t num_i = vdatas[i].readCounts[t][3];
+	  std::size_t num_ij = num_i * num_j;
+	  for (std::size_t tj = 0; tj != num_j; ++tj)
+	    for (std::size_t ti = 0; ti != num_i; ++ti) {
+	      std::size_t pos = (tj * num_i + ti) *num_k;
+	      for (std::size_t l = 0; l != num_k; ++l) 
+		((short*)data)[pos+l] = tmpshortdata[l*num_ij+tj*num_i+ti];         
+	    }
+	}
+	else {
+	  for (std::size_t idx = 0; idx != tmpshortdata.size(); ++idx) 
+	    ((short*)data)[idx] = tmpshortdata[idx];         
+	}
+	ERRORS(success, "Failed to read short data.");
+	break; }
+      default:
+	success = 1;
+      }
+      
+      if (success) ERRORR(MB_FAILURE, "Trouble reading variable.");
+    }
+  }
+  
+#ifdef NCWAIT
+  int success = ncmpi_wait_all(fileId, requests.size(), &requests[0], &statuss[0]);
+  ERRORS(success, "Failed on wait_all.");
+#endif
+  
+  for (unsigned int i = 0; i < vdatas.size(); i++) {
+    for (unsigned int t = 0; t < tstep_nums.size(); t++) {
+      dbgOut.tprintf(2, "Converting variable %s, time step %d\n", vdatas[i].varName.c_str(), tstep_nums[t]);
+      ErrorCode tmp_rval = convert_variable(file_set, vdatas[i], t);
+      if (MB_SUCCESS != tmp_rval) rval = tmp_rval;
+    }
+  }
+  // debug output, if requested
   if (1 == dbgOut.get_verbosity()) {
     dbgOut.printf(1, "Read variables: %s", vdatas.begin()->varName.c_str());
     for (unsigned int i = 1; i < vdatas.size(); i++)
@@ -875,6 +1236,10 @@ ErrorCode ReadNC::convert_variable(EntityHandle file_set, VarData &var_data, int
     // get ptr to tag space
   void *data = var_data.varDatas[tstep_num];
   
+  std::size_t sz = 1;
+  for (std::size_t idx = 0; idx != var_data.readCounts[tstep_num].size(); ++idx)
+    sz *= var_data.readCounts[tstep_num][idx];
+  
     // finally, read into that space
   int success = 0, *idata;
   double *ddata;
@@ -886,14 +1251,14 @@ ErrorCode ReadNC::convert_variable(EntityHandle file_set, VarData &var_data, int
         ddata = (double*)var_data.varDatas[tstep_num];
         fdata = (float*)var_data.varDatas[tstep_num];
           // convert in-place
-        for (int i = quads.size()*(gCDims[5]-gCDims[2]+1)-1; i >= 0; i--) 
+        for (int i = sz-1; i >= 0; i--) 
           ddata[i] = fdata[i];
         break;
     case NC_SHORT:
         idata = (int*)var_data.varDatas[tstep_num];
         sdata = (short*)var_data.varDatas[tstep_num];
           // convert in-place
-        for (int i = quads.size()*(gCDims[5]-gCDims[2]+1)-1; i >= 0; i--) 
+        for (int i = sz-1; i >= 0; i--) 
           idata[i] = sdata[i];
         break;
     default:
@@ -910,7 +1275,7 @@ ErrorCode ReadNC::convert_variable(EntityHandle file_set, VarData &var_data, int
           if (quads.empty()) break;
 
           dmin = dmax = ddata[0];
-          for (unsigned int i = 1; i < quads.size()*(gCDims[5]-gCDims[2]+1); i++) {
+          for (unsigned int i = 1; i < sz; i++) {
             if (ddata[i] < dmin) dmin = ddata[i];
             if (ddata[i] > dmax) dmax = ddata[i];
           }
@@ -922,7 +1287,7 @@ ErrorCode ReadNC::convert_variable(EntityHandle file_set, VarData &var_data, int
           if (quads.empty()) break;
 
           imin = imax = idata[0];
-          for (unsigned int i = 1; i < quads.size()*(gCDims[5]-gCDims[2]+1); i++) {
+          for (unsigned int i = 1; i < sz; i++) {
             if (idata[i] < imin) imin = idata[i];
             if (idata[i] > imax) imax = idata[i];
           }
@@ -937,8 +1302,44 @@ ErrorCode ReadNC::convert_variable(EntityHandle file_set, VarData &var_data, int
 
   return rval;
 }
+
+ErrorCode ReadNC::get_tag_to_set(VarData &var_data, int tstep_num, Tag &tagh) 
+{
+  std::ostringstream tag_name;
+  if (!var_data.has_t) 
+    tag_name << var_data.varName;
+  else if (!tstep_num) {
+    std::string tmp_name = var_data.varName + "0";
+    tag_name << tmp_name.c_str();
+  }
+  else
+    tag_name << var_data.varName << tstep_num;
+  ErrorCode rval = MB_SUCCESS;
+  tagh = 0;
+  switch (var_data.varDataType) {
+  case NC_BYTE:
+  case NC_CHAR:
+      rval = mbImpl->tag_get_handle(tag_name.str().c_str(), 0, MB_TYPE_OPAQUE, tagh, MB_TAG_CREAT|MB_TAG_SPARSE|MB_TAG_VARLEN);
+      break;
+  case NC_DOUBLE:
+  case NC_FLOAT:
+    rval = mbImpl->tag_get_handle(tag_name.str().c_str(), 0, MB_TYPE_DOUBLE, tagh, MB_TAG_CREAT|MB_TAG_SPARSE|MB_TAG_VARLEN);
+    break;
+  case NC_INT:
+  case NC_SHORT:
+    rval = mbImpl->tag_get_handle(tag_name.str().c_str(), 0, MB_TYPE_INTEGER, tagh, MB_TAG_CREAT|MB_TAG_SPARSE|MB_TAG_VARLEN);
+    break;
+  default:
+    std::cerr << "Unrecognized data type for tag " << tag_name << std::endl;
+    rval = MB_FAILURE;
+  }
+  
+  if (MB_SUCCESS == rval) dbgOut.tprintf(2, "Tag created for variable %s\n", tag_name.str().c_str());
+  
+  return rval;
+}
     
-ErrorCode ReadNC::get_tag(VarData &var_data, int tstep_num, Tag &tagh) 
+ErrorCode ReadNC::get_tag(VarData &var_data, int tstep_num, Tag &tagh, int num_lev) 
 {
   std::ostringstream tag_name;
   if (!tstep_num) {
@@ -952,18 +1353,18 @@ ErrorCode ReadNC::get_tag(VarData &var_data, int tstep_num, Tag &tagh)
   switch (var_data.varDataType) {
     case NC_BYTE:
     case NC_CHAR:
-      rval = mbImpl->tag_get_handle(tag_name.str().c_str(), gCDims[5]-gCDims[2]+1, MB_TYPE_OPAQUE, tagh, MB_TAG_DENSE|MB_TAG_CREAT);
+      rval = mbImpl->tag_get_handle(tag_name.str().c_str(), num_lev, MB_TYPE_OPAQUE, tagh, MB_TAG_DENSE|MB_TAG_CREAT);
       break;
     case NC_DOUBLE:
     case NC_FLOAT:
-      rval = mbImpl->tag_get_handle(tag_name.str().c_str(), gCDims[5]-gCDims[2]+1, MB_TYPE_DOUBLE, tagh, MB_TAG_DENSE|MB_TAG_CREAT);
+      rval = mbImpl->tag_get_handle(tag_name.str().c_str(), num_lev, MB_TYPE_DOUBLE, tagh, MB_TAG_DENSE|MB_TAG_CREAT);
       break;
     case NC_INT:
     case NC_SHORT:
-      rval = mbImpl->tag_get_handle(tag_name.str().c_str(), gCDims[5]-gCDims[2]+1, MB_TYPE_INTEGER, tagh, MB_TAG_DENSE|MB_TAG_CREAT);
+      rval = mbImpl->tag_get_handle(tag_name.str().c_str(), num_lev, MB_TYPE_INTEGER, tagh, MB_TAG_DENSE|MB_TAG_CREAT);
       break;
     default:
-      std::cerr << "Unrecognized data type for tag " << tag_name << std::endl;
+      std::cerr << "Unrecognized data type for tag " << tag_name.str() << std::endl;
       rval = MB_FAILURE;
   }
   
@@ -974,8 +1375,6 @@ ErrorCode ReadNC::get_tag(VarData &var_data, int tstep_num, Tag &tagh)
 
 ErrorCode ReadNC::init_FVCDscd_vals(const FileOptions &opts, ScdInterface *scdi, EntityHandle file_set) 
 {
-  // look for names of i/j/k dimensions
-  gDims[0] = gDims[3] = -1;
   std::vector<std::string>::iterator vit;
   unsigned int idx;
   if ((vit = std::find(dimNames.begin(), dimNames.end(), "slon")) != dimNames.end()) 
@@ -985,14 +1384,7 @@ ErrorCode ReadNC::init_FVCDscd_vals(const FileOptions &opts, ScdInterface *scdi,
   gDims[3] = dimVals[idx]-1+1;
   gDims[0] = 0;
   iName = dimNames[idx];
-
-  // check and set iPeriodic
-  std::vector<double> tilVals(2);
-  ErrorCode rval = read_coordinate(iName.c_str(), dimVals[idx]-2, dimVals[idx]-1, tilVals);
-  ERRORR(rval, "Trouble reading slon variable.");    
-  if ((2*tilVals[1] - tilVals[0]) == 360)
-    iPeriodic = true;
-
+    
   if ((vit = std::find(dimNames.begin(), dimNames.end(), "slat")) != dimNames.end()) 
     idx = vit-dimNames.begin();
   else ERRORR(MB_FAILURE, "Couldn't find slat variable.");
@@ -1000,16 +1392,12 @@ ErrorCode ReadNC::init_FVCDscd_vals(const FileOptions &opts, ScdInterface *scdi,
   gDims[4] = dimVals[idx]-1+2; // add 2 for the pole points
   gDims[1] = 0;
   jName = dimNames[idx];
-
-  // ilev actually has the number of interfaces which is what we want.  
-  gDims[2] = gDims[5] = -1;
-  if ((vit = std::find(dimNames.begin(), dimNames.end(), "lev")) != dimNames.end()) {
-    idx = vit-dimNames.begin();
-    gDims[5] = dimVals[idx]-1, gDims[2] = 0, kName = std::string("lev");
-    kDim = idx;
-  }
   
-  // look for names of center i/j/k dimensions
+  // get_neighbor_sqij has errors when setting both equals -1;
+  // should remove when that is fixed
+  gDims[2] = 0; gDims[5] = 20;
+  
+  // look for names of center i/j dimensions
   if ((vit = std::find(dimNames.begin(), dimNames.end(), "lon")) != dimNames.end()) 
     idx = vit-dimNames.begin();
   else ERRORR(MB_FAILURE, "Couldn't find lon variable.");
@@ -1017,6 +1405,13 @@ ErrorCode ReadNC::init_FVCDscd_vals(const FileOptions &opts, ScdInterface *scdi,
   gCDims[3] = dimVals[idx]-1;
   gCDims[0] = 0;
   iCName = dimNames[idx];
+  
+  // check and set iPeriodic
+  std::vector<double> tilVals(2);
+  ErrorCode rval = read_coordinate(iCName.c_str(), dimVals[idx]-2, dimVals[idx]-1, tilVals);
+  ERRORR(rval, "Trouble reading slon variable.");    
+  if (std::fabs(2*tilVals[1] - tilVals[0]- 360) < 0.001)
+    iPeriodic = true;
 
   if ((vit = std::find(dimNames.begin(), dimNames.end(), "lat")) != dimNames.end()) 
     idx = vit-dimNames.begin();
@@ -1026,15 +1421,6 @@ ErrorCode ReadNC::init_FVCDscd_vals(const FileOptions &opts, ScdInterface *scdi,
   gCDims[1] = 0;
   jCName = dimNames[idx];
 
-  // assume the center k dimension is the same as k dimension
-  if ((vit = std::find(dimNames.begin(), dimNames.end(), "lev")) != dimNames.end())
-    idx = vit-dimNames.begin();
-  else ERRORR(MB_FAILURE, "Couldn't find lev variable.");
-  gCDims[5] = dimVals[idx]-1;
-  gCDims[2] = 0;
-  kCName = dimNames[idx];
-  kCDim = idx;
-  
   if ((vit = std::find(dimNames.begin(), dimNames.end(), "time")) != dimNames.end()) 
     idx = vit-dimNames.begin();
   else ERRORR(MB_FAILURE, "Couldn't find time variable.");
@@ -1054,9 +1440,9 @@ ErrorCode ReadNC::init_FVCDscd_vals(const FileOptions &opts, ScdInterface *scdi,
                                            gDims, lDims);
     if (MB_SUCCESS != rval) return rval;
 
-    dbgOut.tprintf(1, "Partition: %dx%dx%d (out of %dx%dx%d)\n", 
-                   lDims[3]-lDims[0]+1, lDims[4]-lDims[1]+1, lDims[5]-lDims[2]+1,
-                   gDims[3]-gDims[0]+1, gDims[4]-gDims[1]+1, gDims[5]-gDims[2]+1);
+    dbgOut.tprintf(1, "Partition: %dx%d (out of %dx%d)\n", 
+                   lDims[3]-lDims[0]+1, lDims[4]-lDims[1]+1,
+                   gDims[3]-gDims[0]+1, gDims[4]-gDims[1]+1);
     if (myPcomm->proc_config().proc_rank() == 0) 
       dbgOut.tprintf(1, "Contiguous chunks of size %d bytes.\n", 8*(lDims[3]-lDims[0]+1)*(lDims[4]-lDims[1]+1));
   }
@@ -1067,13 +1453,8 @@ ErrorCode ReadNC::init_FVCDscd_vals(const FileOptions &opts, ScdInterface *scdi,
   opts.get_int_option("JMIN", lDims[1]);
   opts.get_int_option("JMAX", lDims[4]);
 
-  if (-1 != gDims[2]) {
-    opts.get_int_option("KMIN", lDims[2]);
-    opts.get_int_option("KMAX", lDims[5]);
-  }
-  
-    // now get actual coordinate values for these dimensions
-    // first allocate space...
+  // now get actual coordinate values for these dimensions
+  // first allocate space...
   if (-1 != lDims[0]) {
     if ((iPeriodic) && ((gDims[3]-gDims[0]) == (lDims[3]-lDims[0]))) {
       gDims[3] -= 1;
@@ -1081,11 +1462,9 @@ ErrorCode ReadNC::init_FVCDscd_vals(const FileOptions &opts, ScdInterface *scdi,
     }
     ilVals.resize(lDims[3] - lDims[0] + 1);
   }  
-  if (-1 != lDims[0]) ilVals.resize(lDims[3] - lDims[0] + 1);
   if (-1 != lDims[1]) jlVals.resize(lDims[4] - lDims[1] + 1);
-  if (-1 != lDims[2]) klVals.resize(lDims[5] - lDims[2] + 1);
   if (-1 != tMin) tVals.resize(tMax - tMin + 1);
-
+  
   // initialize center dimension parameter bounds  
   if ((iPeriodic) && ((gDims[3]-gDims[0]) == (lDims[3]-lDims[0])))
     lCDims[3] = lDims[3];
@@ -1094,11 +1473,31 @@ ErrorCode ReadNC::init_FVCDscd_vals(const FileOptions &opts, ScdInterface *scdi,
   lCDims[0] = lDims[0];
   lCDims[4] = lDims[4]-1;
   lCDims[1] = lDims[1];
-  lCDims[5] = gCDims[5];
-  lCDims[2] = gCDims[2];
+  if (-1 != lCDims[0]) ilCVals.resize(lCDims[3] - lCDims[0] + 1);
+  if (-1 != lCDims[1]) jlCVals.resize(lCDims[4] - lCDims[1] + 1);
 
-    // ... then read actual values
+  // ... then read actual values
   std::map<std::string,VarData>::iterator vmit;
+  if (lCDims[0] != -1) {
+    if ((vmit = varInfo.find(iCName)) != varInfo.end() && (*vmit).second.varDims.size() == 1) {
+      rval = read_coordinate(iCName.c_str(), lCDims[0], lCDims[3], ilCVals);
+      ERRORR(rval, "Trouble reading lon variable.");
+    }
+    else {
+      ERRORR(MB_FAILURE, "Couldn't find lon coordinate.");
+    }
+  }
+  
+  if (lCDims[1] != -1) {
+    if ((vmit = varInfo.find(jCName)) != varInfo.end() && (*vmit).second.varDims.size() == 1) {
+      rval = read_coordinate(jCName.c_str(), lCDims[1], lCDims[4], jlCVals);
+      ERRORR(rval, "Trouble reading lat variable.");
+    }
+    else {
+      ERRORR(MB_FAILURE, "Couldn't find lat coordinate.");
+    }
+  }
+  
   if (lDims[0] != -1) {
     if ((vmit = varInfo.find(iName)) != varInfo.end() && (*vmit).second.varDims.size() == 1) {
       // last column
@@ -1120,10 +1519,9 @@ ErrorCode ReadNC::init_FVCDscd_vals(const FileOptions &opts, ScdInterface *scdi,
       ERRORR(MB_FAILURE, "Couldn't find x coordinate.");
     }
   }
-
+  
   if (lDims[1] != -1) {
     if ((vmit = varInfo.find(jName)) != varInfo.end() && (*vmit).second.varDims.size() == 1) {
-      //if ((myPcomm->proc_config().proc_size() == 1) ||
       if (!isParallel ||
 	  ((gDims[4]-gDims[1]) == (lDims[4]-lDims[1])))	{
 	std::vector<double> dummyVar(lDims[4]-lDims[1]-1);
@@ -1160,7 +1558,7 @@ ErrorCode ReadNC::init_FVCDscd_vals(const FileOptions &opts, ScdInterface *scdi,
 	    jlVals[i]=dummyVar[i];
 	  jlVals[i] = 90.0;   // using value of i after loop exits.
 	}
-      
+	
 	// its in the middle
 	else  {
 	  rval = read_coordinate(jCName.c_str(), lDims[1]-1, lDims[4]-1, jlVals);
@@ -1170,16 +1568,6 @@ ErrorCode ReadNC::init_FVCDscd_vals(const FileOptions &opts, ScdInterface *scdi,
     }
     else {
       ERRORR(MB_FAILURE, "Couldn't find y coordinate.");
-    }
-  }
-
-  if (lDims[2] != -1) {
-    if ((vmit = varInfo.find(kName)) != varInfo.end() && (*vmit).second.varDims.size() == 1) {
-      rval = read_coordinate(kName.c_str(), lDims[2], lDims[5], klVals);
-      ERRORR(rval, "Trouble reading z variable.");
-    }
-    else {
-      ERRORR(MB_FAILURE, "Couldn't find z coordinate.");
     }
   }
   
@@ -1192,30 +1580,59 @@ ErrorCode ReadNC::init_FVCDscd_vals(const FileOptions &opts, ScdInterface *scdi,
       ERRORR(MB_FAILURE, "Couldn't find time coordinate.");
     }
   }
-
-  dbgOut.tprintf(1, "I=%d-%d, J=%d-%d, K=%d-%d\n", lDims[0], lDims[3], lDims[1], lDims[4], lDims[2], lDims[5]);
-  dbgOut.tprintf(1, "%d elements, %d vertices\n", (lDims[3]-lDims[0])*(lDims[4]-lDims[1])*(lDims[5]-lDims[2]),
-                 (lDims[3]-lDims[0]+1)*(lDims[4]-lDims[1]+1)*(lDims[5]-lDims[2]+1));
   
-  // create grid specific coordinate dimension tags
-  // <dim_name>
+  dbgOut.tprintf(1, "I=%d-%d, J=%d-%d\n", lDims[0], lDims[3], lDims[1], lDims[4]);
+  dbgOut.tprintf(1, "%d elements, %d vertices\n", (lDims[3]-lDims[0])*(lDims[4]-lDims[1]),
+                 (lDims[3]-lDims[0]+1)*(lDims[4]-lDims[1]+1));
+  
+  // determine the entity location type of a variable
+  std::map<std::string,VarData>::iterator mit;
+  for (mit = varInfo.begin(); mit != varInfo.end(); ++mit) {
+    VarData& vd = (*mit).second;
+    if ((std::find(vd.varDims.begin(), vd.varDims.end(), iCDim) != vd.varDims.end()) &&
+	(std::find(vd.varDims.begin(), vd.varDims.end(), jCDim) != vd.varDims.end())) 
+      vd.entLoc = ENTLOCQUAD;
+    else if ((std::find(vd.varDims.begin(), vd.varDims.end(), jDim) != vd.varDims.end()) &&
+	     (std::find(vd.varDims.begin(), vd.varDims.end(), iCDim) != vd.varDims.end())) 
+      vd.entLoc = ENTLOCNSEDGE;
+    else if ((std::find(vd.varDims.begin(), vd.varDims.end(), jCDim) != vd.varDims.end()) &&
+	     (std::find(vd.varDims.begin(), vd.varDims.end(), iDim) != vd.varDims.end())) 
+      vd.entLoc = ENTLOCEWEDGE;
+  }
+  
+  // <coordinate_dim_name>
+  std::vector<std::string> ijdimNames(4);
+  ijdimNames[0] = "__slon";
+  ijdimNames[1] = "__slat";
+  ijdimNames[2] = "__lon";
+  ijdimNames[3] = "__lat";
+  
   std::string tag_name;
-  for (unsigned int i = 0; i != dimNames.size(); ++i) {
-    tag_name = dimNames[i];
+  int val_len = 0;
+  for (unsigned int i = 0; i != ijdimNames.size(); ++i) {
+    tag_name = ijdimNames[i];
     void * val = NULL;
-    if (tag_name == "__slon") 
+    if (tag_name == "__slon") {
       val = &ilVals[0];
-    else if (tag_name == "slat")
+      val_len = ilVals.size();
+    }
+    else if (tag_name == "__slat") {
       val = &jlVals[0];
-    else if (tag_name == "ilev")
-      val = &klVals[0];
-    else
-      continue;
-
+      val_len = jlVals.size();
+    }
+    else if (tag_name == "__lon") {
+      val = &ilCVals[0];
+      val_len = ilCVals.size();
+    }
+    else if (tag_name == "__lat") {
+      val = &jlCVals[0];
+      val_len = jlCVals.size();
+    }
     Tag tagh = 0; 
     DataType data_type;
-    int val_len = dimVals[i];
-    switch (varInfo[tag_name].varDataType) {
+    
+    // assume all has same data type as lon
+    switch (varInfo["lon"].varDataType) {
     case NC_BYTE:
     case NC_CHAR:
     case NC_DOUBLE:
@@ -1231,38 +1648,40 @@ ErrorCode ReadNC::init_FVCDscd_vals(const FileOptions &opts, ScdInterface *scdi,
       ERRORR(MB_FAILURE, "Unrecognized data type");
     }
     rval = mbImpl->tag_get_handle(tag_name.c_str(), 0, data_type, tagh, MB_TAG_CREAT|MB_TAG_SPARSE|MB_TAG_VARLEN);
-    ERRORR(rval, "Trouble creating <dim_name> tag.");
+    ERRORR(rval, "Trouble creating <coordinate_dim_name> tag.");
     rval = mbImpl->tag_set_by_ptr(tagh, &file_set, 1, &val, &val_len);
-    ERRORR(rval, "Trouble setting data for <dim_name> tag.");
+    ERRORR(rval, "Trouble setting data for <coordinate_dim_name> tag.");
     if (MB_SUCCESS == rval) dbgOut.tprintf(2, "Tag created for variable %s\n", tag_name.c_str());    
   }
-
-  // __<dim_name>_LOC_MINMAX
-  for (unsigned int i = 0; i != dimNames.size(); ++i) {
-    if (dimNames[i] == "slon" || dimNames[i] == "slat" || dimNames[i] == "ilev") {
-      std::stringstream ss_tag_name;
-      ss_tag_name << "__" << dimNames[i] << "_LOC_MINMAX";
-      tag_name = ss_tag_name.str();
-      Tag tagh = 0; 
-      std::vector<int> val(2, 0);
-      if (dimNames[i] == "slon") {
-	val[0] = lDims[0]; 
-	val[1] = lDims[3]; 
-      }
-      else if (dimNames[i] == "slat") {
-	val[0] = lDims[1]; 
-	val[1] = lDims[4];
-      }
-      else if (dimNames[i] == "ilev") {
-	val[0] = lDims[2]; 
-	val[1] = lDims[5];
-      }
-      rval = mbImpl->tag_get_handle(tag_name.c_str(), 2, MB_TYPE_INTEGER, tagh, MB_TAG_SPARSE|MB_TAG_CREAT);
-      ERRORR(rval, "Trouble creating __<dim_name>_LOC_MINMAX tag.");
-      rval = mbImpl->tag_set_data(tagh, &file_set, 1, &val[0]);
-      ERRORR(rval, "Trouble setting data for __<dim_name>_LOC_MINMAX tag.");
-      if (MB_SUCCESS == rval) dbgOut.tprintf(2, "Tag created for variable %s\n", tag_name.c_str());    
+  
+  // __<coordinate_dim_name>_LOC_MINMAX
+  for (unsigned int i = 0; i != ijdimNames.size(); ++i) {
+    std::stringstream ss_tag_name;
+    ss_tag_name << ijdimNames[i] << "_LOC_MINMAX";
+    tag_name = ss_tag_name.str();
+    Tag tagh = 0; 
+    std::vector<int> val(2, 0);
+    if (ijdimNames[i] == "__slon") {
+      val[0] = lDims[0]; 
+      val[1] = lDims[3]; 
     }
+    else if (ijdimNames[i] == "__slat") {
+      val[0] = lDims[1]; 
+      val[1] = lDims[4];
+    }
+    else if (ijdimNames[i] == "__lon") {
+      val[0] = lCDims[0]; 
+      val[1] = lCDims[3]; 
+    }
+    else if (ijdimNames[i] == "__lat") {
+      val[0] = lCDims[1]; 
+      val[1] = lCDims[4];
+    }
+    rval = mbImpl->tag_get_handle(tag_name.c_str(), 2, MB_TYPE_INTEGER, tagh, MB_TAG_SPARSE|MB_TAG_CREAT);
+    ERRORR(rval, "Trouble creating __<coordinate_dim_name>_LOC_MINMAX tag.");
+    rval = mbImpl->tag_set_data(tagh, &file_set, 1, &val[0]);
+    ERRORR(rval, "Trouble setting data for __<coordinate_dim_name>_LOC_MINMAX tag.");
+    if (MB_SUCCESS == rval) dbgOut.tprintf(2, "Tag created for variable %s\n", tag_name.c_str());    
   }
   
   return MB_SUCCESS;
@@ -1270,57 +1689,45 @@ ErrorCode ReadNC::init_FVCDscd_vals(const FileOptions &opts, ScdInterface *scdi,
 
 ErrorCode ReadNC::init_EulSpcscd_vals(const FileOptions &opts, ScdInterface *scdi, EntityHandle file_set) 
 {  
-  // look for names of center i/j/k dimensions
+  // look for names of center i/j dimensions
   std::vector<std::string>::iterator vit;
   unsigned int idx;
   if ((vit = std::find(dimNames.begin(), dimNames.end(), "lon")) != dimNames.end()) 
     idx = vit-dimNames.begin();
-  else 
-    ERRORR(MB_FAILURE, "Couldn't find center i variable.");
+  else ERRORR(MB_FAILURE, "Couldn't find center i variable.");
   gCDims[3] = dimVals[idx]-1;
   gCDims[0] = 0;
   iCDim = idx;
   iCName = std::string("lon");
-
+  
   // check and set iPeriodic
   std::vector<double> tilVals(2);
   ErrorCode rval = read_coordinate(iCName.c_str(), dimVals[idx]-2, dimVals[idx]-1, tilVals);
   ERRORR(rval, "Trouble reading lon variable.");    
-  // less than some epsilon
-  if ((2*tilVals[1] - tilVals[0]) == 360)
+  if (std::fabs(2*tilVals[1] - tilVals[0]- 360) < 0.001)
     iPeriodic = true;
   
   if ((vit = std::find(dimNames.begin(), dimNames.end(), "lat")) != dimNames.end()) 
     idx = vit-dimNames.begin();
-  else 
-    ERRORR(MB_FAILURE, "Couldn't find center j variable.");
+  else ERRORR(MB_FAILURE, "Couldn't find center j variable.");
   gCDims[4] = dimVals[idx]-1;
   gCDims[1] = 0;
   jCDim = idx;
   jCName = std::string("lat");
-  
-  if ((vit = std::find(dimNames.begin(), dimNames.end(), "lev")) != dimNames.end())
-    idx = vit-dimNames.begin();
-  else 
-    ERRORR(MB_FAILURE, "Couldn't find center k variable.");
-  gCDims[5] = dimVals[idx]-1;
-  gCDims[2] = 0;
-  kCDim = idx;
-  kCName = std::string("lev");
-  
-  // set paraemters of i/j/k dimensions
+ 
+  // set paraemters of i/j dimensions
   gDims[3] = gCDims[3]+1; 
   gDims[0] = 0;
-  iName = std::string("");
+  iName = std::string("slon");
   
   gDims[4] = gCDims[4]+1;
   gDims[1] = 0;
-  jName = std::string("");
-  
-  gDims[5] = gCDims[5];
-  gDims[2] = gCDims[2];
-  kName = std::string("");
-  
+  jName = std::string("slat");
+
+  // FIXME: get_neighbor_sqij crashed when setting both equals -1;
+  // should remove when that is fixed
+  gDims[2] = 0; gDims[5] = 20;
+
   // look for time dimensions 
   if ((vit = std::find(dimNames.begin(), dimNames.end(), "time")) != dimNames.end()) 
     idx = vit-dimNames.begin();
@@ -1344,9 +1751,9 @@ ErrorCode ReadNC::init_EulSpcscd_vals(const FileOptions &opts, ScdInterface *scd
                                            gDims, lDims);
     if (MB_SUCCESS != rval) return rval;
 
-    dbgOut.tprintf(1, "Partition: %dx%dx%d (out of %dx%dx%d)\n", 
-                   lDims[3]-lDims[0]+1, lDims[4]-lDims[1]+1, lDims[5]-lDims[2]+1,
-                   gDims[3]-gDims[0]+1, gDims[4]-gDims[1]+1, gDims[5]-gDims[2]+1);
+    dbgOut.tprintf(1, "Partition: %dx%d (out of %dx%d)\n", 
+                   lDims[3]-lDims[0]+1, lDims[4]-lDims[1]+1,
+                   gDims[3]-gDims[0]+1, gDims[4]-gDims[1]+1);
     if (myPcomm->proc_config().proc_rank() == 0) 
       dbgOut.tprintf(1, "Contiguous chunks of size %d bytes.\n", 8*(lDims[3]-lDims[0]+1)*(lDims[4]-lDims[1]+1));
   }
@@ -1356,12 +1763,7 @@ ErrorCode ReadNC::init_EulSpcscd_vals(const FileOptions &opts, ScdInterface *scd
   opts.get_int_option("IMAX", lDims[3]);
   opts.get_int_option("JMIN", lDims[1]);
   opts.get_int_option("JMAX", lDims[4]);
-  
-  if (-1 != gDims[2]) {
-    opts.get_int_option("KMIN", lDims[2]);
-    opts.get_int_option("KMAX", lDims[5]);
-  }
-  
+    
     // now get actual coordinate values for these dimensions
     // first allocate space...
   if (-1 != lDims[0]) {
@@ -1372,9 +1774,8 @@ ErrorCode ReadNC::init_EulSpcscd_vals(const FileOptions &opts, ScdInterface *scd
     ilVals.resize(lDims[3] - lDims[0] + 1);
   }  
   if (-1 != lDims[1]) jlVals.resize(lDims[4] - lDims[1] + 1);
-  if (-1 != lDims[2]) klVals.resize(lDims[5] - lDims[2] + 1);
   if (-1 != tMin) tVals.resize(tMax - tMin + 1);
-
+  
   // initialize center dimension parameter bounds  
   if ((iPeriodic) && ((gDims[3]-gDims[0]) == (lDims[3]-lDims[0])))
     lCDims[3] = lDims[3];
@@ -1383,11 +1784,31 @@ ErrorCode ReadNC::init_EulSpcscd_vals(const FileOptions &opts, ScdInterface *scd
   lCDims[0] = lDims[0];
   lCDims[4] = lDims[4]-1;
   lCDims[1] = lDims[1];
-  lCDims[5] = gCDims[5];
-  lCDims[2] = gCDims[2];
+  if (-1 != lCDims[0]) ilCVals.resize(lCDims[3] - lCDims[0] + 1);
+  if (-1 != lCDims[1]) jlCVals.resize(lCDims[4] - lCDims[1] + 1);
   
-    // ... then read actual values
+  // ... then read actual values
   std::map<std::string,VarData>::iterator vmit;
+  if (lCDims[0] != -1) {
+    if ((vmit = varInfo.find(iCName)) != varInfo.end() && (*vmit).second.varDims.size() == 1) {
+      rval = read_coordinate(iCName.c_str(), lCDims[0], lCDims[3], ilCVals);
+      ERRORR(rval, "Trouble reading lon variable.");
+    }
+    else {
+      ERRORR(MB_FAILURE, "Couldn't find lon coordinate.");
+    }
+  }
+  
+  if (lCDims[1] != -1) {
+    if ((vmit = varInfo.find(jCName)) != varInfo.end() && (*vmit).second.varDims.size() == 1) {
+      rval = read_coordinate(jCName.c_str(), lCDims[1], lCDims[4], jlCVals);
+      ERRORR(rval, "Trouble reading lat variable.");
+    }
+    else {
+      ERRORR(MB_FAILURE, "Couldn't find lat coordinate.");
+    }
+  }
+  
   if (lDims[0] != -1) {
     if ((vmit = varInfo.find(iCName)) != varInfo.end() && (*vmit).second.varDims.size() == 1) {
       // last column
@@ -1399,7 +1820,7 @@ ErrorCode ReadNC::init_EulSpcscd_vals(const FileOptions &opts, ScdInterface *scd
 	  for (i = 0; i != tilVals.size(); ++i)
 	    ilVals[i] = tilVals[i] - dif;	  
 	  ilVals[i] = tilVals[i-1] + dif;
-	}
+      }
       else {
 	std::vector<double> tilVals(ilVals.size(), 0.0);
 	rval = read_coordinate(iCName.c_str(), lDims[0], lDims[3], tilVals);
@@ -1416,7 +1837,6 @@ ErrorCode ReadNC::init_EulSpcscd_vals(const FileOptions &opts, ScdInterface *scd
   
   if (lDims[1] != -1) {
     if ((vmit = varInfo.find(jCName)) != varInfo.end() && (*vmit).second.varDims.size() == 1) {
-      //if ((myPcomm->proc_config().proc_size() == 1) ||
       if (!isParallel ||
 	  ((gDims[4]-gDims[1]) == (lDims[4]-lDims[1])))	{
 	std::string gwName("gw");
@@ -1470,7 +1890,7 @@ ErrorCode ReadNC::init_EulSpcscd_vals(const FileOptions &opts, ScdInterface *scd
 	}
       
 	// its in the middle
-	else  {
+	else {
 	  int start = lDims[1]-1;
 	  int end = lDims[4]-1;
 	  std::vector<double> gwVals(end);
@@ -1492,17 +1912,7 @@ ErrorCode ReadNC::init_EulSpcscd_vals(const FileOptions &opts, ScdInterface *scd
       ERRORR(MB_FAILURE, "Couldn't find y coordinate.");
     }
   }
-  
-  if (lDims[2] != -1) {
-    if ((vmit = varInfo.find(kCName)) != varInfo.end() && (*vmit).second.varDims.size() == 1) {
-      rval = read_coordinate(kCName.c_str(), lDims[2], lDims[5], klVals);
-      ERRORR(rval, "Trouble reading z variable.");
-    }
-    else {
-      ERRORR(MB_FAILURE, "Couldn't find z coordinate.");
-    }
-  }
-  
+
   if (tMin != -1) {
     if ((vmit = varInfo.find(tName)) != varInfo.end() && (*vmit).second.varDims.size() == 1) {
       rval = read_coordinate(tName.c_str(), tMin, tMax, tVals);
@@ -1513,31 +1923,52 @@ ErrorCode ReadNC::init_EulSpcscd_vals(const FileOptions &opts, ScdInterface *scd
     }
   }
   
-  dbgOut.tprintf(1, "I=%d-%d, J=%d-%d, K=%d-%d\n", lDims[0], lDims[3], lDims[1], lDims[4], lDims[2], lDims[5]);
-  dbgOut.tprintf(1, "%d elements, %d vertices\n", (lCDims[3]-lCDims[0]+1)*(lCDims[4]-lCDims[1]+1),
-                 (lDims[3]-lDims[0]+1)*(lDims[4]-lDims[1]+1)*(lDims[5]-lDims[2]+1));
+  dbgOut.tprintf(1, "I=%d-%d, J=%d-%d\n", lDims[0], lDims[3], lDims[1], lDims[4]);
+  dbgOut.tprintf(1, "%d elements, %d vertices\n", (lDims[3]-lDims[0])*(lDims[4]-lDims[1]),
+                 (lDims[3]-lDims[0]+1)*(lDims[4]-lDims[1]+1));
+  
+  // determine the entity location type of a variable
+  std::map<std::string,VarData>::iterator mit;
+  for (mit = varInfo.begin(); mit != varInfo.end(); ++mit) {
+    VarData& vd = (*mit).second;
+    if ((std::find(vd.varDims.begin(), vd.varDims.end(), iCDim) != vd.varDims.end()) &&
+	(std::find(vd.varDims.begin(), vd.varDims.end(), jCDim) != vd.varDims.end())) 
+      vd.entLoc = ENTLOCQUAD;
+  }
 
-  // FIXME: ilVals right now stores coordinates for nodes, not cell centers
-  // create grid specific coordinate dimension tags
-  // <dim_name>
-  // use slat slon 
+  // <coordinate_dim_name>
+  std::vector<std::string> ijdimNames(4);
+  ijdimNames[0] = "__slon";
+  ijdimNames[1] = "__slat";
+  ijdimNames[2] = "__lon";
+  ijdimNames[3] = "__lat";
+  
   std::string tag_name;
-  for (unsigned int i = 0; i != dimNames.size(); ++i) {
-    tag_name = dimNames[i];
+  int val_len = 0;
+  for (unsigned int i = 0; i != ijdimNames.size(); ++i) {
+    tag_name = ijdimNames[i];
     void * val = NULL;
-    if (tag_name == "lon") 
+    if (tag_name == "__slon") {
       val = &ilVals[0];
-    else if (tag_name == "lat")
+      val_len = ilVals.size();
+    }
+    else if (tag_name == "__slat") {
       val = &jlVals[0];
-    else if (tag_name == "lev")
-      val = &klVals[0];
-    else
-      continue;
-
+      val_len = jlVals.size();
+    }
+    else if (tag_name == "__lon") {
+      val = &ilCVals[0];
+      val_len = ilCVals.size();
+    }
+    else if (tag_name == "__lat") {
+      val = &jlCVals[0];
+      val_len = jlCVals.size();
+    }
     Tag tagh = 0; 
     DataType data_type;
-    int val_len = dimVals[i];
-    switch (varInfo[tag_name].varDataType) {
+    
+    // assume all has same data type as lon
+    switch (varInfo["lon"].varDataType) {
     case NC_BYTE:
     case NC_CHAR:
     case NC_DOUBLE:
@@ -1553,40 +1984,42 @@ ErrorCode ReadNC::init_EulSpcscd_vals(const FileOptions &opts, ScdInterface *scd
       ERRORR(MB_FAILURE, "Unrecognized data type");
     }
     rval = mbImpl->tag_get_handle(tag_name.c_str(), 0, data_type, tagh, MB_TAG_CREAT|MB_TAG_SPARSE|MB_TAG_VARLEN);
-    ERRORR(rval, "Trouble creating <dim_name> tag.");
+    ERRORR(rval, "Trouble creating <coordinate_dim_name> tag.");
     rval = mbImpl->tag_set_by_ptr(tagh, &file_set, 1, &val, &val_len);
-    ERRORR(rval, "Trouble setting data for <dim_name> tag.");
+    ERRORR(rval, "Trouble setting data for <coordinate_dim_name> tag.");
     if (MB_SUCCESS == rval) dbgOut.tprintf(2, "Tag created for variable %s\n", tag_name.c_str());    
   }
-
-  // __<dim_name>_LOC_MINMAX
-  for (unsigned int i = 0; i != dimNames.size(); ++i) {
-    if (dimNames[i] == "lon" || dimNames[i] == "lat" || dimNames[i] == "lev") {
-      std::stringstream ss_tag_name;
-      ss_tag_name << "__" << dimNames[i] << "_LOC_MINMAX";
-      tag_name = ss_tag_name.str();
-      Tag tagh = 0; 
-      std::vector<int> val(2, 0);
-      if (dimNames[i] == "lon") {
-	val[0] = lDims[0]; 
-	val[1] = lDims[3]; 
-      }
-      else if (dimNames[i] == "lat") {
-	val[0] = lDims[1]; 
-	val[1] = lDims[4];
-      }
-      else if (dimNames[i] == "lev") {
-	val[0] = lDims[2]; 
-	val[1] = lDims[5];
-      }
-      rval = mbImpl->tag_get_handle(tag_name.c_str(), 2, MB_TYPE_INTEGER, tagh, MB_TAG_SPARSE|MB_TAG_CREAT);
-      ERRORR(rval, "Trouble creating __<dim_name>_LOC_MINMAX tag.");
-      rval = mbImpl->tag_set_data(tagh, &file_set, 1, &val[0]);
-      ERRORR(rval, "Trouble setting data for __<dim_name>_LOC_MINMAX tag.");
-      if (MB_SUCCESS == rval) dbgOut.tprintf(2, "Tag created for variable %s\n", tag_name.c_str());    
+  
+  // __<coordinate_dim_name>_LOC_MINMAX
+  for (unsigned int i = 0; i != ijdimNames.size(); ++i) {
+    std::stringstream ss_tag_name;
+    ss_tag_name << ijdimNames[i] << "_LOC_MINMAX";
+    tag_name = ss_tag_name.str();
+    Tag tagh = 0; 
+    std::vector<int> val(2, 0);
+    if (ijdimNames[i] == "__slon") {
+      val[0] = lDims[0]; 
+      val[1] = lDims[3]; 
     }
+    else if (ijdimNames[i] == "__slat") {
+      val[0] = lDims[1]; 
+      val[1] = lDims[4];
+    }
+    else if (ijdimNames[i] == "__lon") {
+      val[0] = lCDims[0]; 
+      val[1] = lCDims[3]; 
+    }
+    else if (ijdimNames[i] == "__lat") {
+      val[0] = lCDims[1]; 
+      val[1] = lCDims[4];
+    }
+    rval = mbImpl->tag_get_handle(tag_name.c_str(), 2, MB_TYPE_INTEGER, tagh, MB_TAG_SPARSE|MB_TAG_CREAT);
+    ERRORR(rval, "Trouble creating __<coordinate_dim_name>_LOC_MINMAX tag.");
+    rval = mbImpl->tag_set_data(tagh, &file_set, 1, &val[0]);
+    ERRORR(rval, "Trouble setting data for __<coordinate_dim_name>_LOC_MINMAX tag.");
+    if (MB_SUCCESS == rval) dbgOut.tprintf(2, "Tag created for variable %s\n", tag_name.c_str());    
   }
-
+  
   return MB_SUCCESS;
 }
 
@@ -1618,7 +2051,7 @@ ErrorCode ReadNC::init_HOMMEucd_vals(const FileOptions &opts)
     // set j coordinate to the number of quads
   gDims[1] = gDims[0];
   gDims[4] = gDims[3] - 2;
-  
+  /*
   gDims[2] = gDims[5] = -1;
   if ((vit = std::find(dimNames.begin(), dimNames.end(), "ilev")) != dimNames.end()) {
     idx = vit-dimNames.begin();
@@ -1626,7 +2059,7 @@ ErrorCode ReadNC::init_HOMMEucd_vals(const FileOptions &opts)
     kDim = idx;
   }
   if (-1 == gDims[2]) return MB_FAILURE;
-
+  */
     // read coordinate data
   std::map<std::string,VarData>::iterator vmit;
   if (gDims[0] != -1) {
@@ -2123,6 +2556,20 @@ ErrorCode ReadNC::create_tags(ScdInterface *scdi, EntityHandle file_set,
     if (MB_SUCCESS == rval) dbgOut.tprintf(2, "Tag created for variable %s\n", tag_name.c_str());    
   } 
   
+  // <__VAR_NAMES_LOCATIONS>
+  tag_name = "__VAR_NAMES_LOCATIONS";
+  Tag varNamesLocsTag = 0;
+  std::vector<int> varNamesLocs(varInfo.size());
+  rval = mbImpl->tag_get_handle(tag_name.c_str(), varNamesLocs.size(), MB_TYPE_INTEGER, 
+				varNamesLocsTag, MB_TAG_CREAT|MB_TAG_SPARSE);
+  ERRORR(rval, "Trouble creating __VAR_NAMES_LOCATIONS tag.");
+  for (mapIter = varInfo.begin(); mapIter != varInfo.end(); ++mapIter) {
+    varNamesLocs[std::distance(varInfo.begin(), mapIter)] = mapIter->second.entLoc;
+  }
+  rval = mbImpl->tag_set_data(varNamesLocsTag, &file_set, 1, &varNamesLocs[0]);
+  ERRORR(rval, "Trouble setting data for __VAR_NAMES_LOCATIONS tag.");
+  if (MB_SUCCESS == rval) dbgOut.tprintf(2, "Tag created for variable %s\n", tag_name.c_str());    
+  
   return MB_SUCCESS;
 }
 
@@ -2194,6 +2641,5 @@ ErrorCode ReadNC::create_attrib_string(const std::map<std::string, AttData>& att
   
   return MB_SUCCESS;
 }
-
 
 } // namespace moab
