@@ -3512,9 +3512,12 @@ ErrorCode ParallelComm::reduce_void(int tag_data_type, const MPI_Op mpi_op, int 
     case MB_TYPE_BIT:
         result = reduce<unsigned char>(mpi_op, num_ents, old_vals, new_vals);
         break;
+    default:
+        result = MB_SUCCESS;
+        break;
   }
   
-  return MB_SUCCESS;
+  return result;
 }
 
 ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
