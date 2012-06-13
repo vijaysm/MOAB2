@@ -159,7 +159,7 @@ private:
   ErrorCode create_verts_quads(ScdInterface *scdi, EntityHandle file_set, Range &quads);
 
     //! check number of vertices and elements against what's already in file_set
-  ErrorCode check_verts_hexes(EntityHandle file_set);
+  ErrorCode check_verts_quads(EntityHandle file_set);
   
   ErrorCode parse_options(const FileOptions &opts,
                           std::vector<std::string> &var_names, 

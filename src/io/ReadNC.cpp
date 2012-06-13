@@ -223,7 +223,7 @@ ErrorCode ReadNC::load_file(const char *file_name,
     // Create mesh vertex/quads sequences
   Range quads;
   if (nomesh && !novars) {
-    rval = check_verts_hexes(tmp_set);
+    rval = check_verts_quads(tmp_set);
     ERRORR(rval, "Mesh characteristics didn't match from last read.\n");
   }
   else if (!nomesh) {
@@ -359,7 +359,7 @@ ErrorCode ReadNC::parse_options(const FileOptions &opts,
   return MB_SUCCESS;
 }
     
-ErrorCode ReadNC::check_verts_hexes(EntityHandle file_set) 
+ErrorCode ReadNC::check_verts_quads(EntityHandle file_set) 
 {
     // check parameters on this read against what was on the mesh from last read
     // get the number of vertices 
@@ -752,8 +752,8 @@ ErrorCode ReadNC::read_variable_allocate(EntityHandle file_set,
   // get quads in set
   Range quads;
   rval = mbImpl->get_entities_by_dimension(file_set, 2, quads);
-  ERRORR(rval, "Trouble getting vertices in set.");
-  assert("Should only have a single vertex subrange, since they were read in one shot" &&
+  ERRORR(rval, "Trouble getting quads in set.");
+  assert("Should only have a single quad subrange, since they were read in one shot" &&
 	 quads.psize() == 1);
   //quads_handles.resize(quads.size());
   //std::copy(quads.begin(), quads.end(), quads_handles.begin());
@@ -1636,6 +1636,8 @@ ErrorCode ReadNC::init_FVCDscd_vals(const FileOptions &opts, ScdInterface *scdi,
     case NC_BYTE:
     case NC_CHAR:
     case NC_DOUBLE:
+      data_type = MB_TYPE_DOUBLE;
+      break;
     case NC_FLOAT:
       data_type = MB_TYPE_DOUBLE;
       break;
@@ -1972,6 +1974,8 @@ ErrorCode ReadNC::init_EulSpcscd_vals(const FileOptions &opts, ScdInterface *scd
     case NC_BYTE:
     case NC_CHAR:
     case NC_DOUBLE:
+      data_type = MB_TYPE_DOUBLE;
+      break;
     case NC_FLOAT:
       data_type = MB_TYPE_DOUBLE;
       break;
@@ -2409,6 +2413,8 @@ ErrorCode ReadNC::create_tags(ScdInterface *scdi, EntityHandle file_set,
     case NC_BYTE:
     case NC_CHAR:
     case NC_DOUBLE:
+      data_type = MB_TYPE_DOUBLE;
+      break;
     case NC_FLOAT:
       data_type = MB_TYPE_DOUBLE;
       break;
