@@ -19,6 +19,7 @@ void test_read_onevar();
 void test_read_onetimestep();
 void test_read_nomesh();
 void test_read_novars();
+ErrorCode get_options(std::string &opts);
 
 int main(int argc, char *argv[])
 {
@@ -49,7 +50,11 @@ void test_read_all()
   Core moab;
   Interface& mb = moab;
 
-  ErrorCode rval = mb.load_file( example );
+  std::string opts;
+  ErrorCode rval = get_options(opts);
+  CHECK_ERR(rval);
+  
+  rval = mb.load_file( example, NULL, opts.c_str());
   CHECK_ERR(rval);
   
     // check for proper tags
@@ -65,7 +70,12 @@ void test_read_onevar()
 {
   Core moab;
   Interface& mb = moab;
-  ErrorCode rval = mb.load_file( example, NULL, "VARIABLE=T" );
+  std::string opts;
+  ErrorCode rval = get_options(opts);
+  CHECK_ERR(rval);
+
+  opts += std::string(";VARIABLE=T");
+  rval = mb.load_file( example, NULL, opts.c_str());
   CHECK_ERR(rval);
   
     // check for proper tags
@@ -81,7 +91,12 @@ void test_read_onetimestep()
 {
   Core moab;
   Interface& mb = moab;
-  ErrorCode rval = mb.load_file( example, NULL, "TIMESTEP=1" );
+  std::string opts;
+  ErrorCode rval = get_options(opts);
+  CHECK_ERR(rval);
+
+  opts += std::string(";TIMESTEP=1");
+  rval = mb.load_file( example, NULL, opts.c_str() );
   CHECK_ERR(rval);
   
     // check for proper tags
@@ -103,7 +118,12 @@ void test_read_nomesh()
   ErrorCode rval = mb.create_meshset(MESHSET_SET, set);
   CHECK_ERR(rval);
   
-  rval = mb.load_file( example, &set, "TIMESTEP=0" );
+  std::string orig, opts;
+  rval = get_options(orig);
+  CHECK_ERR(rval);
+
+  opts = orig + std::string(";TIMESTEP=0");
+  rval = mb.load_file( example, &set, opts.c_str() );
   CHECK_ERR(rval);
   
     // check for proper tag
@@ -115,7 +135,8 @@ void test_read_nomesh()
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
     // now read 2nd timestep with nomesh option
-  rval = mb.load_file( example, &set, "TIMESTEP=1;NOMESH" );
+  opts = orig + std::string(";TIMESTEP=1;NOMESH");
+  rval = mb.load_file( example, &set, opts.c_str() );
   CHECK_ERR(rval);
   
     // check for proper tag
@@ -133,10 +154,16 @@ void test_read_novars()
   ErrorCode rval = mb.create_meshset(MESHSET_SET, set);
   CHECK_ERR(rval);
   
-  rval = mb.load_file( example, &set, "NOMESH;VARIABLE=" );
+  std::string orig, opts;
+  rval = get_options(orig);
+  CHECK_ERR(rval);
+
+  opts = orig + std::string(";NOMESH;VARIABLE=");
+  rval = mb.load_file( example, &set, opts.c_str() );
   CHECK_ERR(rval);
   
-  rval = mb.load_file( example, &set, "VARIABLE=;TIMESTEP=0" );
+  opts = orig + std::string(";VARIABLE=;TIMESTEP=0");
+  rval = mb.load_file( example, &set, opts.c_str() );
   CHECK_ERR(rval);
   
     // check for proper tag
@@ -144,7 +171,8 @@ void test_read_novars()
   rval = mb.tag_get_handle("T0", 1, MB_TYPE_DOUBLE, Ttag0);
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
   
-  rval = mb.load_file( example, &set, "VARIABLE=T;TIMESTEP=0;NOMESH" );
+  opts = orig + std::string(";VARIABLE=T;TIMESTEP=0;NOMESH");
+  rval = mb.load_file( example, &set, opts.c_str() );
   CHECK_ERR(rval);
   
   rval = mb.tag_get_handle("T0", 1, MB_TYPE_DOUBLE, Ttag0);
@@ -154,7 +182,8 @@ void test_read_novars()
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
     // now read 2nd timestep with nomesh option
-  rval = mb.load_file( example, &set, "TIMESTEP=1;NOMESH" );
+  opts = orig + std::string(";TIMESTEP=1;NOMESH");
+  rval = mb.load_file( example, &set, opts.c_str() );
   CHECK_ERR(rval);
   
     // check for proper tag
@@ -162,4 +191,14 @@ void test_read_novars()
   CHECK_ERR(rval);
 }
 
-
+ErrorCode get_options(std::string &opts) 
+{
+#ifdef USE_MPI
+    // use parallel options
+  opts = std::string(";;PARALLEL=READ_PART;PARTITION=");
+  return MB_SUCCESS;
+#else
+  opts = std::string(";;");
+  return MB_SUCCESS;
+#endif
+}
