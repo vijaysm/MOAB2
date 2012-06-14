@@ -234,9 +234,14 @@ ErrorCode ReadNC::load_file(const char *file_name,
     ERRORR(rval, "Trouble creating vertices.");
   }
 
-    // Read variables onto grid
+  // Read variables onto grid
   if (!novars) {
     rval = read_variables(tmp_set, var_names, tstep_nums);
+    if (MB_FAILURE == rval) return rval;
+  }
+  else {
+    // read dimension variable by default
+    rval = read_variables(tmp_set, dimNames, tstep_nums);
     if (MB_FAILURE == rval) return rval;
   }
   
@@ -1224,15 +1229,6 @@ ErrorCode ReadNC::read_variable_to_nonset(EntityHandle file_set,
 
 ErrorCode ReadNC::convert_variable(EntityHandle file_set, VarData &var_data, int tstep_num) 
 {
-  ErrorCode rval;
-
-    // get vertices in set
-  Range quads;
-  rval = mbImpl->get_entities_by_dimension(file_set, 2, quads);
-  ERRORR(rval, "Trouble getting vertices in set.");
-  assert("Should only have a single vertex subrange, since they were read in one shot" &&
-         quads.psize() == 1);
-  
     // get ptr to tag space
   void *data = var_data.varDatas[tstep_num];
   
@@ -1272,7 +1268,7 @@ ErrorCode ReadNC::convert_variable(EntityHandle file_set, VarData &var_data, int
       case NC_DOUBLE:
       case NC_FLOAT:
           ddata = (double*)data;
-          if (quads.empty()) break;
+          if (sz == 0) break;
 
           dmin = dmax = ddata[0];
           for (unsigned int i = 1; i < sz; i++) {
@@ -1284,7 +1280,7 @@ ErrorCode ReadNC::convert_variable(EntityHandle file_set, VarData &var_data, int
       case NC_INT:
       case NC_SHORT:
           idata = (int*)data;
-          if (quads.empty()) break;
+          if (sz == 0) break;
 
           imin = imax = idata[0];
           for (unsigned int i = 1; i < sz; i++) {
@@ -1300,7 +1296,7 @@ ErrorCode ReadNC::convert_variable(EntityHandle file_set, VarData &var_data, int
     }
   }
 
-  return rval;
+  return MB_SUCCESS;
 }
 
 ErrorCode ReadNC::get_tag_to_set(VarData &var_data, int tstep_num, Tag &tagh) 
@@ -2395,43 +2391,6 @@ ErrorCode ReadNC::create_tags(ScdInterface *scdi, EntityHandle file_set,
   rval = mbImpl->tag_set_by_ptr(varNamesTag, &file_set, 1, &ptr, &varnamesSz);
   ERRORR(rval, "Trouble setting data for __VAR_NAMES tag.");
   if (MB_SUCCESS == rval) dbgOut.tprintf(2, "Tag created for variable %s\n", tag_name.c_str());    
-  
-  // <dim_name>
-  dimNamesSz = dimNames.size();
-  for (unsigned int i = 0; i != dimNamesSz; ++i) {
-    tag_name = dimNames[i];
-    void * val = NULL;
-    if (tag_name == "time")
-      val = &tVals[0];
-    else
-      continue;
-    
-    Tag tagh = 0; 
-    DataType data_type;
-    int val_len = dimVals[i];
-    switch (varInfo[tag_name].varDataType) {
-    case NC_BYTE:
-    case NC_CHAR:
-    case NC_DOUBLE:
-      data_type = MB_TYPE_DOUBLE;
-      break;
-    case NC_FLOAT:
-      data_type = MB_TYPE_DOUBLE;
-      break;
-    case NC_INT:
-      data_type = MB_TYPE_INTEGER;
-      break;
-    case NC_SHORT:
-    default:
-      std::cerr << "Unrecognized data type for tag " << tag_name << std::endl;
-      ERRORR(MB_FAILURE, "Unrecognized data type");
-    }
-    rval = mbImpl->tag_get_handle(tag_name.c_str(), 0, data_type, tagh, MB_TAG_CREAT|MB_TAG_SPARSE|MB_TAG_VARLEN);
-    ERRORR(rval, "Trouble creating <dim_name> tag.");
-    rval = mbImpl->tag_set_by_ptr(tagh, &file_set, 1, &val, &val_len);
-    ERRORR(rval, "Trouble setting data for <dim_name> tag.");
-    if (MB_SUCCESS == rval) dbgOut.tprintf(2, "Tag created for variable %s\n", tag_name.c_str());    
-  }
 
   // __<dim_name>_LOC_MINMAX
   for (unsigned int i = 0; i != dimNamesSz; ++i) {
