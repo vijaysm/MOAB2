@@ -259,8 +259,8 @@ private:
     /** Partitions the structured parametric space by seeking square ij partitions
      * For description of arguments, see ScdInterface::compute_partition.
      */
-  inline static ErrorCode compute_partition_sqij(int np, int nr, const int *gijk, int *lijk,
-                                                 int *pip = NULL);
+  inline static ErrorCode compute_partition_sqij(int np, int nr, const int *gijk, 
+                                                 int *lijk, int *pip = NULL);
   
     //! Compute a partition of structured parameter space
     /** Partitions the structured parametric space by seeking square jk partitions
@@ -766,8 +766,8 @@ inline ErrorCode ScdInterface::compute_partition_alljkbal(int np, int nr, const 
   return MB_SUCCESS;
 }
 
-inline ErrorCode ScdInterface::compute_partition_sqij(int np, int nr, const int *gijk, int *lijk,
-                                                      int *pip) 
+inline ErrorCode ScdInterface::compute_partition_sqij(int np, int nr, const int *gijk, 
+                                                      int *lijk, int *pip) 
 {
     // square IxJ partition
 

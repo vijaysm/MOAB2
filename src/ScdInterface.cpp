@@ -699,19 +699,20 @@ ErrorCode ScdInterface::get_neighbor_alljkbal(int nr, int np,
   std::copy(ldims, ldims+6, facedims);
   
   if (0 != dijk[1]) {
-    pto = (pto + dijk[1]*pk) % np;
+    pto = (pto + dijk[1]*pk + np) % np;
     assert (pto >= 0 && pto < np);
     int dj = (gdims[4] - gdims[1]) / pj, extra = (gdims[4] - gdims[1]) % pj;
     if (-1 == dijk[1]) {
       facedims[4] = facedims[1];
-      rdims[4] = rdims[1];
-      rdims[1] -= dj;
+      rdims[4] = (nr < pk ? gdims[4] : rdims[0]);
+      rdims[1] = rdims[4] - dj;
       if (pto < extra) rdims[1]--;
     }
     else {
+      if (nr > np-nk) facedims[4] = gdims[1];
       facedims[1] = facedims[4];
-      rdims[1] = rdims[4];
-      rdims[4] += dj;
+      rdims[1] = (nr > np-nk ? gdims[1] : rdims[4]);
+      rdims[4] = rdims[1] + dj;
       if (pto < extra) rdims[4]++;
     }
   }
@@ -738,12 +739,18 @@ ErrorCode ScdInterface::get_neighbor_alljkbal(int nr, int np,
          (rdims[0] >= gdims[0] && rdims[3] <= gdims[3] && 
           rdims[1] >= gdims[1] && rdims[4] <= gdims[4] && 
           rdims[2] >= gdims[2] && rdims[5] <= gdims[5] &&
-          facedims[0] >= rdims[0] && facedims[3] <= rdims[3] &&
-          facedims[1] >= rdims[1] && facedims[4] <= rdims[4] &&
-          facedims[2] >= rdims[2] && facedims[5] <= rdims[5] &&
-          facedims[0] >= ldims[0] && facedims[3] <= ldims[3] &&
-          facedims[1] >= ldims[1] && facedims[4] <= ldims[4] &&
-          facedims[2] >= ldims[2] && facedims[5] <= ldims[5]));
+          (facedims[0] >= rdims[0] || (periodic_i && rdims[3] == gdims[3] && facedims[0] == gdims[0])) && 
+          facedims[3] <= rdims[3] &&
+          (facedims[1] >= rdims[1]  || (periodic_j && rdims[4] == gdims[4] && facedims[1] == gdims[1])) && 
+          facedims[4] <= rdims[4] &&
+          facedims[2] >= rdims[2] && 
+          facedims[5] <= rdims[5] &&
+          facedims[0] >= ldims[0] && 
+          facedims[3] <= ldims[3] &&
+          facedims[1] >= ldims[1] && 
+          facedims[4] <= ldims[4] &&
+          facedims[2] >= ldims[2] && 
+          facedims[5] <= ldims[5]));
   
   return MB_SUCCESS;
 #else
@@ -759,6 +766,7 @@ ErrorCode ScdInterface::get_neighbor_sqij(int nr, int np,
 {
 #ifdef USE_MPI
   if (dijk[2] != 0) {
+      // for sqij, there is no k neighbor, ever
     pto = -1;
     return MB_SUCCESS;
   }
@@ -766,69 +774,82 @@ ErrorCode ScdInterface::get_neighbor_sqij(int nr, int np,
   pto = -1;
   bdy_ind[0] = bdy_ind[1] = -1;
   int pi(0), pj; // pi, pj: # procs in i, j directions
-              // guess pi
+              // get pi
   ErrorCode rval = compute_partition_sqij(np, nr, gdims, rdims, &pi);
   if (MB_SUCCESS != rval) return rval;
   pj = np / pi;
   assert(pi * pj == np);
   pto = -1;
-  if ((!(nr%pi) && -1 == dijk[0] && !periodic_i) ||  // left and not periodic
-      ((nr%pi) == pi-1 && 1 == dijk[0] && !periodic_i) ||  // right and not periodic
-      (!(nr/pi) && -1 == dijk[1] && !periodic_j) || // bottom and not periodic
-      (nr/pi == pj-1 && 1 == dijk[1] && !periodic_j))  // top and not periodic
+  bool top_i = 0, top_j = 0, bot_i = 0, bot_j = 0;
+  if (nr%pi == pi-1) top_i = 1;
+  if (nr/pi == pj-1) top_j = 1;
+  if (!(nr%pi)) bot_i = 1;
+  if (!(nr/pi)) bot_j = 1;
+  if ((!periodic_i && bot_i && -1 == dijk[0]) ||  // left and not periodic
+      (!periodic_i && top_i && 1 == dijk[0]) ||  // right and not periodic
+      (!periodic_j && bot_j && -1 == dijk[1]) || // bottom and not periodic
+      (!periodic_j && top_j && 1 == dijk[1]))  // top and not periodic
     return MB_SUCCESS;
   
   std::copy(ldims, ldims+6, facedims);
   pto = nr;
-  int dj = (gdims[4] - gdims[1]) / pj, jextra = (gdims[4] - gdims[1]) % dj,
-      di = (gdims[3] - gdims[0]) / pi, iextra = (gdims[3] - gdims[0]) % di;
+  int j = gdims[4] - gdims[1], dj = j / pj, jextra = (gdims[4] - gdims[1]) % dj,
+      i = gdims[3] - gdims[0], di = i / pi, iextra = (gdims[3] - gdims[0]) % di;
   
   if (0 != dijk[0]) {
-    pto = (pto + dijk[0]) % np;
+    pto = (pto + dijk[0] + np) % np;
     assert (pto >= 0 && pto < np);
     if (-1 == dijk[0]) {
       facedims[3] = facedims[0];
-      rdims[3] = rdims[0];
-      rdims[0] -= di;
+      rdims[3] = (bot_i ? gdims[3] : rdims[0]);
+      rdims[0] = rdims[3] - di;
       if (pto%pi < iextra) rdims[0]--;
     }
     else {
+      if (top_i) facedims[3] = gdims[0];
       facedims[0] = facedims[3];
-      rdims[0] = rdims[3];
-      rdims[3] += di;
+      rdims[0] = (top_i ? gdims[0] : rdims[3]);
+      rdims[3] = rdims[0] + di;
       if (pto%pi < iextra) rdims[3]++;
     }
   }
   if (0 != dijk[1]) {
-    pto = (pto + dijk[1]*pi) % np;
+    pto = (pto + dijk[1]*pi + np) % np;
     assert (pto >= 0 && pto < np);
     if (-1 == dijk[1]) {
       facedims[4] = facedims[1];
-      rdims[4] = rdims[1];
-      rdims[1] -= dj;
+      rdims[4] = (bot_j ? gdims[4] : rdims[1]);
+      rdims[1] = rdims[4] - dj;
       if (pto/pi < jextra) rdims[1]--;
     }
     else {
+      if (top_j) facedims[4] = gdims[1];
       facedims[1] = facedims[4];
-      rdims[1] = rdims[4];
-      rdims[4] += dj;
+      rdims[1] = (top_j ? gdims[1] : rdims[4]);
+      rdims[4] = rdims[1] + dj;
       if (pto/pi < jextra) rdims[4]++;
     }
   }
 
-  if (dijk[0] == -1 && periodic_i && ldims[0] == gdims[0]) bdy_ind[0] = 1;
-  if (dijk[1] == -1 && periodic_j && ldims[1] == gdims[1]) bdy_ind[1] = 1;
+  if (dijk[0] == -1 && periodic_i && bot_i) bdy_ind[0] = 1;
+  if (dijk[1] == -1 && periodic_j && bot_j) bdy_ind[1] = 1;
 
   assert(-1 == pto ||
          (rdims[0] >= gdims[0] && rdims[3] <= gdims[3] && 
           rdims[1] >= gdims[1] && rdims[4] <= gdims[4] && 
           rdims[2] >= gdims[2] && rdims[5] <= gdims[5] &&
-          facedims[0] >= rdims[0] && facedims[3] <= rdims[3] &&
-          facedims[1] >= rdims[1] && facedims[4] <= rdims[4] &&
-          facedims[2] >= rdims[2] && facedims[5] <= rdims[5] &&
-          facedims[0] >= ldims[0] && facedims[3] <= ldims[3] &&
-          facedims[1] >= ldims[1] && facedims[4] <= ldims[4] &&
-          facedims[2] >= ldims[2] && facedims[5] <= ldims[5]));
+          (facedims[0] >= rdims[0] || (periodic_i && rdims[3] == gdims[3] && facedims[0] == gdims[0])) && 
+          facedims[3] <= rdims[3] &&
+          (facedims[1] >= rdims[1]  || (periodic_j && rdims[4] == gdims[4] && facedims[1] == gdims[1])) && 
+          facedims[4] <= rdims[4] &&
+          facedims[2] >= rdims[2] && 
+          facedims[5] <= rdims[5] &&
+          facedims[0] >= ldims[0] && 
+          facedims[3] <= ldims[3] &&
+          facedims[1] >= ldims[1] && 
+          facedims[4] <= ldims[4] &&
+          facedims[2] >= ldims[2] && 
+          facedims[5] <= ldims[5]));
 
   return MB_SUCCESS;
 #else
@@ -856,10 +877,15 @@ ErrorCode ScdInterface::get_neighbor_sqjk(int nr, int np,
   pk = np / pj;
   assert(pj * pk == np);
   pto = -1;
-  if ((!(nr%pj) && -1 == dijk[1] && !periodic_j) ||  // down and not periodic
-      ((nr%pj) ==  pj-1 && 1 == dijk[1] && !periodic_j) ||  // up and not periodic
-      (!(nr/pj) && -1 == dijk[2]) || // k- bdy 
-      ((nr/pj) == pk-1 && 1 == dijk[2])) // k+ bdy
+  bool top_j = 0, top_k = 0, bot_j = 0, bot_k = 0;
+  if (nr%pj == pj-1) top_j = 1;
+  if (nr/pj == pk-1) top_k = 1;
+  if (!(nr%pj)) bot_j = 1;
+  if (!(nr/pj)) bot_k = 1;
+  if ((!periodic_j && bot_j && -1 == dijk[1]) ||  // down and not periodic
+      (!periodic_j && top_j && 1 == dijk[1]) ||  // up and not periodic
+      (bot_k && -1 == dijk[2]) || // k- bdy 
+      (top_k && 1 == dijk[2])) // k+ bdy
     return MB_SUCCESS;
     
   std::copy(ldims, ldims+6, facedims);
@@ -868,23 +894,24 @@ ErrorCode ScdInterface::get_neighbor_sqjk(int nr, int np,
       dk = (gdims[5] - gdims[2]) / pk, kextra = (gdims[5] - gdims[2]) % dk;
   
   if (0 != dijk[1]) {
-    pto = (pto + dijk[1]) % np;
+    pto = (pto + dijk[1] + np) % np;
     assert (pto >= 0 && pto < np);
     if (-1 == dijk[1]) {
       facedims[4] = facedims[1];
-      rdims[4] = rdims[1];
-      rdims[1] -= dj;
+      rdims[4] = (bod_j ? gdims[4] : rdims[1]);
+      rdims[1] = rdims[4] - dj;
       if (pto%pj < jextra) rdims[1]--;
     }
     else {
+      if (top_j) facedims[4] = gdims[1];
       facedims[1] = facedims[4];
-      rdims[1] = rdims[4];
-      rdims[4] += dj;
+      rdims[1] = (top_j ? gdims[1] : rdims[4]);
+      rdims[4] = rdims[1] + dj;
       if (pto%pj < jextra) rdims[4]++;
     }
   }
   if (0 != dijk[2]) {
-    pto = (pto + dijk[2]*pj) % np;
+    pto = (pto + dijk[2]*pj + np) % np;
     assert (pto >= 0 && pto < np);
     if (-1 == dijk[2]) {
       facedims[5] = facedims[2];
@@ -907,7 +934,8 @@ ErrorCode ScdInterface::get_neighbor_sqjk(int nr, int np,
           rdims[1] >= gdims[1] && rdims[4] <= gdims[4] && 
           rdims[2] >= gdims[2] && rdims[5] <= gdims[5] &&
           facedims[0] >= rdims[0] && facedims[3] <= rdims[3] &&
-          facedims[1] >= rdims[1] && facedims[4] <= rdims[4] &&
+          (facedims[1] >= rdims[1]  || (periodic_j && rdims[4] == gdims[4] && facedims[1] == gdims[1])) && 
+          facedims[4] <= rdims[4] &&
           facedims[2] >= rdims[2] && facedims[5] <= rdims[5] &&
           facedims[0] >= ldims[0] && facedims[3] <= ldims[3] &&
           facedims[1] >= ldims[1] && facedims[4] <= ldims[4] &&
@@ -936,20 +964,20 @@ ErrorCode ScdInterface::get_neighbor_alljorkori(int nr, int np,
 
   pto = -1;
   bdy_ind[0] = bdy_ind[1] = -1;
+  bool is_periodic = ((periodic_i && ind == 0) ||
+                      (periodic_j && ind == 1));
   if ((dijk[0] && dijk[1] && dijk[2]) ||
-      (fabs(dijk[0]) + fabs(dijk[1]) + fabs(dijk[2]) != 1)) return MB_SUCCESS;
-  
+      (fabs(dijk[0]) + fabs(dijk[1]) + fabs(dijk[2]) != 1) ||
+      (!is_periodic && ldims[ind] == gdims[ind] && ind < 2 && dijk[ind] == -1) ||
+      (!is_periodic && ldims[3+ind] == gdims[3+ind] && ind < 2 && dijk[ind] == 1))
+    return MB_SUCCESS;
+
   ErrorCode rval = MB_SUCCESS;
   std::copy(ldims, ldims+6, facedims);
   
-  if (ldims[ind] == gdims[ind] &&
-      ind < 2 && dijk[ind] == -1 && 
-      ((periodic_i && 0 == ind) || (periodic_j && 1 == ind))) 
-    bdy_ind[ind] = 1;
-
   if (-1 == dijk[ind] && nr) {
       // actual left neighbor
-    pto = nr-1;
+    pto = (np + nr-1) % np;
     facedims[ind+3] = facedims[ind];
     rval = compute_partition(ALLJORKORI, np, pto, gdims, rdims);
   }
@@ -1016,9 +1044,10 @@ ErrorCode ScdInterface::get_shared_vertices(ParallelComm *pcomm, ScdBox *box,
                             i, j, k, pto, bdy_ind, ijkrem, ijkface);
         if (MB_SUCCESS != rval) return rval;
         if (-1 != pto) {
-          assert(std::find(procs.begin(), procs.end(), pto) == procs.end());
-          procs.push_back(pto);
-          offsets.push_back(shared_indices.size());
+          if (procs.empty() || pto != *procs.rbegin()) {
+            procs.push_back(pto);
+            offsets.push_back(shared_indices.size());
+          }
           rval = get_indices(bdy_ind, ldims, ijkrem, ijkface, shared_indices);
           if (MB_SUCCESS != rval) return rval;
         }
