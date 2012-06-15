@@ -291,7 +291,33 @@ public:
 
 };
 
-ErrorCode obbstat_write( DagMC& dag, std::vector<int> &volumes, std::ostream& out ){
+static std::string make_property_string( DagMC& dag, EntityHandle eh, std::vector<std::string> &properties )
+{
+  ErrorCode ret;
+  std::string propstring;
+  for( std::vector<std::string>::iterator p = properties.begin();
+    p != properties.end(); ++p )
+  {
+    if( dag.has_prop( eh, *p ) ){
+      std::string val;
+      ret = dag.prop_value( eh, *p, val );
+      CHECKERR(dag,ret);
+      propstring += *p;
+      if( val.length() ){
+        propstring += "=";
+        propstring += val;
+      }
+      propstring += ", ";
+    }
+  }
+  if( propstring.length() ){
+    propstring.resize( propstring.length() - 2 ); // drop trailing comma
+  }
+  return propstring;
+}
+
+ErrorCode obbstat_write( DagMC& dag, std::vector<int> &volumes, 
+                         std::vector<std::string> &properties, std::ostream& out ){
 
   ErrorCode ret = MB_SUCCESS;
   OrientedBoxTreeTool& obbtool = *dag.obb_tree();
@@ -312,9 +338,11 @@ ErrorCode obbstat_write( DagMC& dag, std::vector<int> &volumes, std::ostream& ou
 
     out << "\nVolume " << *i << " " << std::flush;
 
-    if( dag.is_graveyard(vol) ) out << "(graveyard) ";
     if( dag.is_implicit_complement(vol) ) out << "(implicit complement) ";
     out << std::endl;
+
+    std::string propstring = make_property_string( dag, vol, properties );
+    if( propstring.length() ) out << "Properties: " << propstring << std::endl;
 
     // get all surfaces in volume
     Range surfs;
@@ -331,10 +359,10 @@ ErrorCode obbstat_write( DagMC& dag, std::vector<int> &volumes, std::ostream& ou
     if( verbose ){
       out << "Surface list: " << std::flush;
       for( Range::iterator j = surfs.begin(); j!=surfs.end(); ++j){
-	out << dag.get_entity_id(*j);
-	if( dag.is_spec_reflect(*j) ) out << " (reflecting boundary) ";
-	if( dag.is_white_reflect(*j) ) out << " (white boundary) ";
-	if( j+1 != surfs.end() ) out << ",";
+        out << dag.get_entity_id(*j);
+        std::string props = make_property_string( dag, *j, properties );
+        if( props.length() ) out << "(" << props << ")";
+        if( j+1 != surfs.end() ) out << ",";
       }
       out << std::endl;
       ret = obbtool.stats( vol_root, out ); 

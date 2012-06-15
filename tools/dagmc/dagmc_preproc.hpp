@@ -23,7 +23,8 @@ void chkerr( DagMC& dag, ErrorCode code, int line, const char* file );
 
 // features provided by obb_analysis.cpp
 ErrorCode obbvis_create( DagMC& dag, std::vector<int> &volumes, int grid, std::string& filename );
-ErrorCode obbstat_write( DagMC& dag, std::vector<int> &volumes, std::ostream& out );
+ErrorCode obbstat_write( DagMC& dag, std::vector<int> &volumes, 
+                         std::vector<std::string> &properties, std::ostream& out );
 
 
 #endif /* DAGMC_PREPROC_H */

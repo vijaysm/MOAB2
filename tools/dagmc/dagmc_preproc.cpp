@@ -390,6 +390,21 @@ int main( int argc, char* argv[] ){
    ret = dag->parse_metadata();
    CHECKERR( *dag, ret );
 
+   std::vector< std::string > keywords;
+   ret = dag->detect_available_props( keywords );
+   CHECKERR( *dag, ret );
+   ret = dag->parse_properties( keywords );
+   CHECKERR( *dag, ret );
+
+   if( verbose ){
+     std::cout << keywords.size() << " metadata properties detected:" << std::endl;
+     for( std::vector<std::string>::iterator i = keywords.begin();
+          i != keywords.end(); ++i )
+     {
+       std::cout << "    " << (*i) << std::endl;
+     }
+   }
+
    std::vector<int> vols;
    po.getOpt( "vols", &vols );
 
@@ -404,8 +419,8 @@ int main( int argc, char* argv[] ){
      // verify existence of each user-supplied volume
      for( std::vector<int>::iterator i = vols.begin(); i!=vols.end(); ++i ){
        if( dag->entity_by_id( 3, *i ) == 0 ){
-	 std::cerr << "Unknown volume ID: " << *i << std::endl;
-	 vols.erase(i--);
+         std::cerr << "Unknown volume ID: " << *i << std::endl;
+         vols.erase(i--);
        }
      }
    }
@@ -421,7 +436,7 @@ int main( int argc, char* argv[] ){
    if( po.numOptSet( "obb-stats" ) ){
      if( verbose ){ std::cout << "Printing OBB stats" << std::endl; }
 
-     ret = obbstat_write( *dag, vols, std::cout );
+     ret = obbstat_write( *dag, vols, keywords, std::cout );
      CHECKERR(mbi, ret);
    }
 
