@@ -11,13 +11,16 @@ check_PROGRAMS = FileRead \
 		 ObbTree \
                  SetsNTags \
                  SkinMesh \
-                 SurfArea
+                 SurfArea IntxMeshes
+
+SRCDIR = $(top_srcdir)/examples
 
 LDADD = ../src/libMOAB.la
 AM_CPPFLAGS += -I../src \
                -I$(srcdir)/../src \
                -I$(srcdir)/../src/parallel \
-               -I$(srcdir)/../src/oldinc
+               -I$(srcdir)/../src/oldinc \
+               -DSRCDIR=$(SRCDIR) 
 
 FileRead_SOURCES = FileRead.cpp
 GeomSetHierarchy_SOURCES = GeomSetHierarchy.cpp
@@ -27,6 +30,7 @@ SkinMesh_SOURCES = SkinMesh.cpp
 SurfArea_SOURCES = SurfArea.cpp
 KDTree_SOURCES = KDTree.cpp
 ObbTree_SOURCES = ObbTree.cpp
+IntxMeshes_SOURCES = IntxMeshes.cpp
 
 exampledir = ${docdir}/examples
 nobase_example_DATA = \
