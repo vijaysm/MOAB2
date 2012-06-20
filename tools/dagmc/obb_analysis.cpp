@@ -299,13 +299,25 @@ static std::string make_property_string( DagMC& dag, EntityHandle eh, std::vecto
     p != properties.end(); ++p )
   {
     if( dag.has_prop( eh, *p ) ){
-      std::string val;
-      ret = dag.prop_value( eh, *p, val );
+      std::vector< std::string> vals;
+      ret = dag.prop_values( eh, *p, vals );
       CHECKERR(dag,ret);
       propstring += *p;
-      if( val.length() ){
+      if( vals.size() == 1 ){
         propstring += "=";
-        propstring += val;
+        propstring += vals[0];
+      }
+      else if( vals.size() > 1 ){
+        // this property has multiple values, list within brackets
+        propstring += "=[";
+        for( std::vector<std::string>::iterator i = vals.begin();
+             i != vals.end(); ++i )
+        {
+            propstring += *i;
+            propstring += ",";
+        }
+        // replace the last trailing comma with a close braket
+        propstring[ propstring.length()-1 ] = ']';
       }
       propstring += ", ";
     }
