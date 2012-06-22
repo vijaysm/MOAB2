@@ -4,9 +4,9 @@
 using namespace moab;
 
 #ifdef MESHDIR
-static const char example[] = STRINGIFY(MESHDIR) "/io/cam18x40x48.t2.nc";
+static const char example[] = STRINGIFY(MESHDIR) "/io/camEul26x48x96.t3.nc";
 #else
-static const char example[] = "/io/cam18x40x48.nc";
+static const char example[] = "/io/camEul26x48x96.t3.nc";
 #endif
 
 #ifdef USE_MPI
@@ -59,10 +59,10 @@ void test_read_all()
   
     // check for proper tags
   Tag Ttag0, Ttag1;
-  rval = mb.tag_get_handle("T0", 1, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
   CHECK_ERR(rval);
   
-  rval = mb.tag_get_handle("T1", 1, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 }
 
@@ -80,10 +80,10 @@ void test_read_onevar()
   
     // check for proper tags
   Tag Ttag0, Ttag1;
-  rval = mb.tag_get_handle("T0", 1, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
   CHECK_ERR(rval);
   
-  rval = mb.tag_get_handle("T1", 1, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 }
 
@@ -101,10 +101,10 @@ void test_read_onetimestep()
   
     // check for proper tags
   Tag Ttag0, Ttag1;
-  rval = mb.tag_get_handle("T0", 1, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
   
-  rval = mb.tag_get_handle("T1", 1, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 }
 
@@ -128,10 +128,10 @@ void test_read_nomesh()
   
     // check for proper tag
   Tag Ttag0, Ttag1;
-  rval = mb.tag_get_handle("T0", 1, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
   CHECK_ERR(rval);
   
-  rval = mb.tag_get_handle("T1", 1, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
     // now read 2nd timestep with nomesh option
@@ -140,7 +140,7 @@ void test_read_nomesh()
   CHECK_ERR(rval);
   
     // check for proper tag
-  rval = mb.tag_get_handle("T1", 1, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 }
 
@@ -168,17 +168,17 @@ void test_read_novars()
   
     // check for proper tag
   Tag Ttag0, Ttag1;
-  rval = mb.tag_get_handle("T0", 1, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
   
   opts = orig + std::string(";VARIABLE=T;TIMESTEP=0;NOMESH");
   rval = mb.load_file( example, &set, opts.c_str() );
   CHECK_ERR(rval);
   
-  rval = mb.tag_get_handle("T0", 1, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
   CHECK_ERR(rval);
 
-  rval = mb.tag_get_handle("T1", 1, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
     // now read 2nd timestep with nomesh option
@@ -187,7 +187,7 @@ void test_read_novars()
   CHECK_ERR(rval);
   
     // check for proper tag
-  rval = mb.tag_get_handle("T1", 1, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 }
 
@@ -195,7 +195,7 @@ ErrorCode get_options(std::string &opts)
 {
 #ifdef USE_MPI
     // use parallel options
-  opts = std::string(";;PARALLEL=READ_PART;PARTITION=");
+  opts = std::string(";;PARALLEL=READ_PART;PARTITION_METHOD=SQIJ");
   return MB_SUCCESS;
 #else
   opts = std::string(";;");

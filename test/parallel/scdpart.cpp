@@ -8,9 +8,9 @@
 using namespace moab;
 
 #ifdef MESHDIR
-static const char example[] = STRINGIFY(MESHDIR) "/io/cam18x40x48.t2.nc";
+static const char example[] = STRINGIFY(MESHDIR) "/io/camEul26x48x96.t3.nc";
 #else
-static const char example[] = "/io/cam18x40x48.nc";
+static const char example[] = "/io/camEul26x48x96.t3.nc";
 #endif
 
 void test_read_parallel(int nverts);
@@ -38,25 +38,25 @@ int main(int argc, char **argv)
 void test_read_parallel_alljorkori() 
 {
   partition_method = std::string(";PARTITION_METHOD=alljorkori");
-  test_read_parallel(34560);
+  test_read_parallel(4704);
 }
   
 void test_read_parallel_alljkbal() 
 {
   partition_method = std::string(";PARTITION_METHOD=alljkbal");
-  test_read_parallel(34560);
+  test_read_parallel(4704);
 }
   
 void test_read_parallel_sqij() 
 {
   partition_method = std::string(";PARTITION_METHOD=sqij");
-  test_read_parallel(34560);
+  test_read_parallel(4704);
 }
   
 void test_read_parallel_sqjk() 
 {
   partition_method = std::string(";PARTITION_METHOD=sqjk");
-  test_read_parallel(34560);
+  test_read_parallel(4704);
 }
   
 void test_read_parallel(int num_verts)
