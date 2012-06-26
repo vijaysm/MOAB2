@@ -83,7 +83,7 @@ ErrorCode update_mcnp5_property_names( Interface* MBI )
         modname = modname.substr(0,6) + arg;
     }
     else if( (idx = modname.find("imp_")) != modname.npos ){
-        modname[idx+3] = ':';
+        modname[idx+3] = '.';
     }
 
     if( modname != grpname ){
