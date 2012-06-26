@@ -42,12 +42,16 @@ TESTS = range_test \
         mbcn_test \
         bsp_tree_poly_test \
         mbfacet_test \
-        mbground_test \
         gttool_test \
         cropvol_test \
 	reorder_test \
 	test_prog_opt \
 	coords_connect_iterate
+
+if HDF5_FILE
+  TESTS += mbground_test
+endif
+
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 
