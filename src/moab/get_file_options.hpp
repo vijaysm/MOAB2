@@ -5,6 +5,15 @@
 
 namespace moab {
 
+// Check first character for a '-'.
+// Return true if one is found.  False otherwise.
+bool check_for_flag(const char *str) {
+  if (str[0] == '-')
+    return true;
+  else
+    return false;
+}
+
 // New get_file_options() function with added possibilities for mbcoupler_test.
 ErrorCode get_file_options(int argc, char **argv, 
                            std::vector<std::string> &meshFiles,
@@ -19,6 +28,12 @@ ErrorCode get_file_options(int argc, char **argv,
                            std::string &dbgFile,
                            bool &help)
 {
+  #ifdef MESHDIR
+  std::string TestDir( STRINGIFY(MESHDIR) );
+  #else
+  std::string TestDir(".");
+  #endif
+
   // Initialize some of the outputs to null values indicating not present
   // in the argument list.
   gNormTag = "";
