@@ -176,7 +176,7 @@ nobase_libMOAB_la_include_HEADERS = \
   MOAB_FCDefs.h \
   MBCN_protos.h \
   MBTagConventions.hpp
-
+  
 MBCN_protos.h: MBCN.h $(top_srcdir)/itaps/mkprotos.sh
 	$(AM_V_GEN)$(top_srcdir)/itaps/mkprotos.sh MBCN MOAB $< $@ MOAB_FCDefs.h
 

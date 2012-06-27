@@ -2,7 +2,8 @@ AUTOMAKE_OPTIONS = foreign
 AM_CPPFLAGS += -I$(top_srcdir)/src \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src/parallel \
-               -I$(top_builddir)/src/parallel
+	       -I$(top_srcdir)/itaps \
+               -I$(top_builddir)/src/parallel 
 
 LDADD = $(top_builddir)/src/libMOAB.la
 
@@ -21,6 +22,10 @@ EXTRA_DIST = README.hexmodops \
              README.mbtagprop \
              README.spheredecomp \
              mbzoltan/README
+
+if ENABLE_pointsearch
+  bin_PROGRAMS += pointsearch
+endif
 
 
 if ENABLE_mbconvert
@@ -131,6 +136,7 @@ SUBDIRS = . \
           $(dagmc_DIR) 
 
 mbconvert_SOURCES = convert.cpp
+pointsearch_SOURCES = point_search.cpp
 mbgsets_SOURCES = gsets.cc
 hexmodops_SOURCES = makeops.cpp
 mbsize_SOURCES = measure.cpp measure.hpp size.cpp
