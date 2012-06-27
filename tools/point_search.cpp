@@ -76,11 +76,11 @@ int main(int argc, char* argv[]){
  int err = MPI_Init(&argc, &argv);
 
 
- moab::point_locator::io::File_options Options;
+ io::File_options<> options;
                                                                                 
  moab::ErrorCode result = moab::MB_SUCCESS;
  bool help = false;
- result = moab::get_file_options(argc, argv, options);
+ result = io::get_file_options(argc, argv, options);
                                                                                 
  if (result != moab::MB_SUCCESS || help) {
    print_usage();
@@ -105,25 +105,26 @@ int main(int argc, char* argv[]){
  if (0 == rank) stime = MPI_Wtime();
                                                                                 
  // create MOAB instance based on that
- moab::Interface mbImpl = new moab::Core();
+ moab::Interface * mbImpl = new moab::Core();
  if (NULL == mbImpl) return 1;
                                                                                 
  // read in mesh(es)
- std::vector<moab::ParallelComm> pcs( meshFiles.size());
+ 
+ std::vector<moab::ParallelComm*> pcs( options.meshFiles.size());
 
- iBase_EntitySetHandle *roots = (iBase_EntitySetHandle *) malloc(sizeof(iBase_EntitySetHandle) * meshFiles.size());
+ iBase_EntitySetHandle *roots = (iBase_EntitySetHandle *) malloc(sizeof(iBase_EntitySetHandle) * options.meshFiles.size());
  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>( new MBiMesh(mbImpl) );
 
 
- for (unsigned int i = 0; i < meshFiles.size(); i++) {
-   pcs[i] = new moab::ParallelComm(mbImpl); 
+ for (unsigned int i = 0; i < options.meshFiles.size(); i++) {
+   pcs[i] = new moab::ParallelComm( mbImpl, MPI_COMM_WORLD); 
    int index = pcs[i]->get_id();
    std::string newReadopts;
    std::ostringstream extraOpt;
    extraOpt  << ";PARALLEL_COMM=" << index;
-   newReadopts = readOpts+extraOpt.str();
+   newReadopts = options.readOpts+extraOpt.str();
    iMesh_createEntSet(iMeshInst, 0, &(roots[i]), &err);
-   result = mbImpl->load_file( meshFiles[i].c_str(), 
+   result = mbImpl->load_file( options.meshFiles[i].c_str(), 
 			       (moab::EntityHandle *)&roots[i], 
 			       newReadopts.c_str() );
    PRINT_LAST_ERROR;
