@@ -602,7 +602,7 @@ AC_HELP_STRING([--disable-tools],[Disable all tools by default])],
                          [ENABLE_TOOLS=$enableval],[ENABLE_TOOLS=] )
   # Individual tools
 MB_OPTIONAL_TOOL([mbconvert],    [yes])
-MB_OPTIONAL_TOOL([pointsearch],  [yes])
+MB_OPTIONAL_TOOL([pointsearch],  [no])
 MB_OPTIONAL_TOOL([hexmodops],    [yes])
 MB_OPTIONAL_TOOL([qvdual],       [no] )
 MB_OPTIONAL_TOOL([vtkMOABReader],[${VTKMOAB_DEFAULT}] )
