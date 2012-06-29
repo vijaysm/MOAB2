@@ -67,7 +67,7 @@ ErrorCode access_adjacencies(ScdBox *box);
 
 void test_partition_methods();
 
-void test_partition_method(ScdInterface::PartitionMethod pm);
+void test_partition_method(ScdParData::PartitionMethod pm);
 
 
 // first comes general-capability code used by various tests; main and test functions
@@ -210,8 +210,8 @@ ErrorCode evaluate_element_sequence(ScdBox *this_box)
 
     // now evaluate all the vertices and elements in forward and reverse
   EntityHandle tmp_handle, tmp_handle2;
-  int is_periodic_i = (this_box->is_periodic_i() ? 1 : 0),
-      is_periodic_j = (this_box->is_periodic_j() ? 1 : 0);
+  int is_periodic_i = (this_box->locally_periodic_i() ? 1 : 0),
+      is_periodic_j = (this_box->locally_periodic_j() ? 1 : 0);
   for (int i = ijk1[0]; i < ijk2[0]+is_periodic_i; i++) {
     for (int j = ijk1[1]; j < ijk2[1]+is_periodic_j; j++) {
       for (int k = ijk1[2]; k < ijk2[2]; k++) {
@@ -619,38 +619,44 @@ void test_periodic_seq()
 
     // periodic in i
   ScdBox *new_box;
-  rval = scdi->construct_box(TEST_MIN_PARAMS, TEST_BOX_MAX, NULL, 0, new_box, true, false);
+  int lperiodic[2] = {1, 0};
+  rval = scdi->construct_box(TEST_MIN_PARAMS, TEST_BOX_MAX, NULL, 0, new_box, lperiodic);
   CHECK_ERR(rval);
   rval = evaluate_element_sequence(new_box);
   CHECK_ERR(rval);
   
     // periodic in j
-  rval = scdi->construct_box(TEST_MIN_PARAMS, TEST_BOX_MAX, NULL, 0, new_box, false, true);
+  lperiodic[0] = 0; lperiodic[1] = 1;
+  rval = scdi->construct_box(TEST_MIN_PARAMS, TEST_BOX_MAX, NULL, 0, new_box, lperiodic);
   CHECK_ERR(rval);
   rval = evaluate_element_sequence(new_box);
   CHECK_ERR(rval);
   
     // periodic in i and j
-  rval = scdi->construct_box(TEST_MIN_PARAMS, TEST_BOX_MAX, NULL, 0, new_box, true, true);
+  lperiodic[0] = 1; lperiodic[1] = 1;
+  rval = scdi->construct_box(TEST_MIN_PARAMS, TEST_BOX_MAX, NULL, 0, new_box, lperiodic);
   CHECK_ERR(rval);
   rval = evaluate_element_sequence(new_box);
   CHECK_ERR(rval);
-
+  
     // 2d, periodic in i
   TEST_BOX_MAX[2] = 0;
-  rval = scdi->construct_box(TEST_MIN_PARAMS, TEST_BOX_MAX, NULL, 0, new_box, true, false);
+  lperiodic[0] = 1; lperiodic[1] = 0;
+  rval = scdi->construct_box(TEST_MIN_PARAMS, TEST_BOX_MAX, NULL, 0, new_box, lperiodic);
   CHECK_ERR(rval);
   rval = evaluate_element_sequence(new_box);
   CHECK_ERR(rval);
   
     // 2d, periodic in j
-  rval = scdi->construct_box(TEST_MIN_PARAMS, TEST_BOX_MAX, NULL, 0, new_box, false, true);
+  lperiodic[0] = 0; lperiodic[1] = 1;
+  rval = scdi->construct_box(TEST_MIN_PARAMS, TEST_BOX_MAX, NULL, 0, new_box, lperiodic);
   CHECK_ERR(rval);
   rval = evaluate_element_sequence(new_box);
   CHECK_ERR(rval);
   
     // 2d, periodic in i and j
-  rval = scdi->construct_box(TEST_MIN_PARAMS, TEST_BOX_MAX, NULL, 0, new_box, true, true);
+  lperiodic[0] = 1; lperiodic[1] = 1;
+  rval = scdi->construct_box(TEST_MIN_PARAMS, TEST_BOX_MAX, NULL, 0, new_box, lperiodic);
   CHECK_ERR(rval);
   rval = evaluate_element_sequence(new_box);
   CHECK_ERR(rval);
@@ -1322,19 +1328,19 @@ void test_parallel_partitions()
     int nprocs = 0.1 + pow(2.0, (double)exp);
   
     // alljorkori
-    ErrorCode rval = test_parallel_partition(gdims, nprocs, ScdInterface::ALLJORKORI);
+    ErrorCode rval = test_parallel_partition(gdims, nprocs, ScdParData::ALLJORKORI);
     CHECK_ERR(rval);
     
     // alljkbal
-    rval = test_parallel_partition(gdims, nprocs, ScdInterface::ALLJKBAL);
+    rval = test_parallel_partition(gdims, nprocs, ScdParData::ALLJKBAL);
     CHECK_ERR(rval);
     
     // sqij
-    rval = test_parallel_partition(gdims, nprocs, ScdInterface::SQIJ);
+    rval = test_parallel_partition(gdims, nprocs, ScdParData::SQIJ);
     CHECK_ERR(rval);
     
     // sqjk
-    rval = test_parallel_partition(gdims, nprocs, ScdInterface::SQJK);
+    rval = test_parallel_partition(gdims, nprocs, ScdParData::SQJK);
     CHECK_ERR(rval);
   }
 }
@@ -1342,20 +1348,22 @@ void test_parallel_partitions()
 ErrorCode test_parallel_partition(int *gdims, int nprocs, int part_method) 
 {
   ErrorCode rval;
-  int pto, bdy_ind_a[2], bdy_ind_b[2], rdims_a[6], rdims_b[6], facedims_a[6], facedims_b[6], ldims[6],
-      pfrom;
+  int pto, pfrom, across_bdy_a[2], across_bdy_b[2], rdims_a[6], rdims_b[6], facedims_a[6], facedims_b[6], ldims[6];
+  ScdParData spd;
+  for (int i = 0; i < 6; i++) spd.gDims[i] = gdims[i];
+  for (int i = 0; i < 2; i++) spd.gPeriodic[i] = 0;
+  spd.partMethod = part_method;
+  
   for (int p = 0; p < nprocs/2; p++) {
-    rval = ScdInterface::compute_partition(part_method, nprocs, p,
-                                           gdims, ldims);
+    rval = ScdInterface::compute_partition(nprocs, p, spd, ldims);
     if (MB_SUCCESS != rval) continue;
     
     for (int k = -1; k <= 1; k++) {
       for (int j = -1; j <= 1; j++) {
         for (int i = -1; i <= 1; i++) {
-          rval = ScdInterface::get_neighbor(p, nprocs, part_method,
-                                            gdims, ldims,
-                                            false, false,
-                                            i, j, k, pto, bdy_ind_a, rdims_a, facedims_a);
+          int dijka[] = {i, j, k}, dijkb[] = {-i, -j, -k};
+          rval = ScdInterface::get_neighbor(nprocs, p, spd, dijka,
+                                            pto, rdims_a, facedims_a, across_bdy_a);
           if (MB_SUCCESS != rval) return rval;
           if (-1 == pto) continue;
 
@@ -1365,9 +1373,9 @@ ErrorCode test_parallel_partition(int *gdims, int nprocs, int part_method)
           
           
             // non-negative value of pto; check corresponding input from that proc to this
-          rval = ScdInterface::get_neighbor(pto, nprocs, part_method,
-                                            gdims, rdims_a, false, false, 
-                                            -1*i, -1*j, -1*k, pfrom, bdy_ind_b, rdims_b, facedims_b);
+          
+          rval = ScdInterface::get_neighbor(nprocs, pto, spd, dijkb, 
+                                            pfrom, rdims_b, facedims_b, across_bdy_b);
           if (MB_SUCCESS != rval) return rval;
           for (int ind = 0; ind < 3; ind++)
             if (facedims_a[ind] < rdims_b[ind] || facedims_b[ind] > rdims_b[ind+3]) CHECK_ERR(MB_FAILURE);
@@ -1376,7 +1384,7 @@ ErrorCode test_parallel_partition(int *gdims, int nprocs, int part_method)
             if (rdims_b[ind] != ldims[ind]) CHECK_ERR(MB_FAILURE);
           }
           
-          if (bdy_ind_a[0] != bdy_ind_b[0] || bdy_ind_a[1] != bdy_ind_b[1]) CHECK_ERR(MB_FAILURE);
+          if (across_bdy_a[0] != across_bdy_b[0] || across_bdy_a[1] != across_bdy_b[1]) CHECK_ERR(MB_FAILURE);
         } // i
       } // j
     } // k

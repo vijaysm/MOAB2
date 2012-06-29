@@ -186,8 +186,7 @@ class SequenceManager
                                      EntityID start_id_hint,
                                      EntityHandle& first_handle_out,
                                    EntitySequence*& sequence_out,
-                                   bool is_periodic_i = false,
-                                   bool is_periodic_j = false);
+                                   int *is_periodic = NULL);
     
       /** Create structured mesh */
     ErrorCode create_scd_sequence( const HomCoord& coord_min,
@@ -196,8 +195,7 @@ class SequenceManager
                                      EntityID start_id_hint,
                                      EntityHandle& first_handle_out,
                                      EntitySequence*& sequence_out,
-                                   bool is_periodic_i = false,
-                                   bool is_periodic_j = false );
+                                   int *is_periodic = NULL);
 
       /** Create swept mesh */
     ErrorCode create_sweep_sequence( int imin, int jmin, int kmin,
