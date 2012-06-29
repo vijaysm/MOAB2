@@ -41,6 +41,7 @@
 #include "WriteSTL.hpp"
 #include "WriteGmsh.hpp"
 #include "WriteSmf.hpp"
+#include "ReadTxt.hpp"
 
 #ifdef NETCDF_FILE
 #  include "ReadNCDF.hpp"
@@ -150,6 +151,9 @@ ReaderWriterSet::ReaderWriterSet( Core* mdb, Error* handler )
 
   const char* tetgen_sufxs[] = { "node", "ele", "face", "edge", NULL };
   register_factory( ReadTetGen::factory, 0, "TetGen output files", tetgen_sufxs, "TETGEN" );
+
+  const char* txt_sufxs[] = { "txt", NULL };
+  register_factory( ReadTxt::factory, 0, "Txt input files", txt_sufxs, "TXT" );
 }
 
 
