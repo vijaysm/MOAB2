@@ -585,8 +585,7 @@ SequenceManager::create_scd_sequence( int imin, int jmin, int kmin,
                                       EntityID start_id_hint,
                                       EntityHandle& handle,
                                       EntitySequence*& sequence,
-                                      bool is_periodic_i,
-                                      bool is_periodic_j )
+                                      int *is_periodic)
 {
   int this_dim = CN::Dimension(type);
 
@@ -600,12 +599,12 @@ SequenceManager::create_scd_sequence( int imin, int jmin, int kmin,
   if (MBVERTEX == type)
     num_ent = (EntityID)(imax-imin+1)*(EntityID)(jmax-jmin+1)*(EntityID)(kmax-kmin+1);
   else {
-    num_ent = (imax-imin + (is_periodic_i ? 1 : 0)) *
-      (this_dim >= 2 ? (jmax-jmin + (is_periodic_j ? 1 : 0)) : 1) *
+    num_ent = (imax-imin + (is_periodic && is_periodic[0] ? 1 : 0)) *
+      (this_dim >= 2 ? (jmax-jmin + (is_periodic && is_periodic[1] ? 1 : 0)) : 1) *
       (this_dim >= 3 ? (kmax-kmin) : 1);
   }
 
-  if (MBVERTEX == type && (is_periodic_i || is_periodic_j))
+  if (MBVERTEX == type && (is_periodic && (is_periodic[0] || is_periodic[1])))
     return MB_FAILURE;
     
     // get a start handle
@@ -626,7 +625,7 @@ SequenceManager::create_scd_sequence( int imin, int jmin, int kmin,
   case MBQUAD:
   case MBHEX:
       sequence = new StructuredElementSeq( handle, imin, jmin, kmin, imax, jmax, kmax, 
-                                           is_periodic_i, is_periodic_j );
+                                           is_periodic);
     break;
   default:
     return MB_TYPE_OUT_OF_RANGE;
@@ -650,13 +649,12 @@ SequenceManager::create_scd_sequence( const HomCoord& coord_min,
                                       EntityID start_id_hint,
                                       EntityHandle& first_handle_out,
                                       EntitySequence*& sequence_out,
-                                      bool is_periodic_i,
-                                      bool is_periodic_j )
+                                      int *is_periodic)
 {
   return create_scd_sequence( coord_min.i(), coord_min.j(), coord_min.k(),
                               coord_max.i(), coord_max.j(), coord_max.k(),
                               type, start_id_hint,
-                              first_handle_out, sequence_out, is_periodic_i, is_periodic_j );
+                              first_handle_out, sequence_out, is_periodic);
 }
 
 ErrorCode

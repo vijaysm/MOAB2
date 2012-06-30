@@ -25,14 +25,14 @@ namespace moab {
 
 EntityID ScdElementData::calc_num_entities(EntityHandle start_handle,
                                            int irange, int jrange, int krange, 
-                                           bool is_periodic_i, bool is_periodic_j)
+                                           int *is_periodic)
 {
   size_t result = 1;
   switch (CN::Dimension(TYPE_FROM_HANDLE(start_handle))) {
     default: result = 0; assert( false ); 
     case 3: result *= krange;
-    case 2: result *= (is_periodic_j ? (jrange+1) : jrange);
-    case 1: result *= (is_periodic_i ? (irange+1) : irange);
+    case 2: result *= (is_periodic && is_periodic[1] ? (jrange+1) : jrange);
+    case 1: result *= (is_periodic && is_periodic[0] ? (irange+1) : irange);
   }
   return result;
 }
@@ -41,17 +41,17 @@ ScdElementData::ScdElementData(
                              EntityHandle start_handle,
                              const int imin, const int jmin, const int kmin,
                              const int imax, const int jmax, const int kmax,
-                             bool is_periodic_i, bool is_periodic_j) 
+                             int *is_periodic)
     : SequenceData(0, start_handle,
                    start_handle + 
-                   calc_num_entities( start_handle, imax-imin, jmax-jmin, kmax-kmin, is_periodic_i, is_periodic_j)
+                   calc_num_entities( start_handle, imax-imin, jmax-jmin, kmax-kmin, is_periodic)
                    - 1)
 {
     // need to have meaningful parameters
   assert(imax >= imin && jmax >= jmin && kmax >= kmin);
 
-  isPeriodic[0] = is_periodic_i;
-  isPeriodic[1] = is_periodic_j;
+  isPeriodic[0] = (is_periodic ? is_periodic[0] : 0);
+  isPeriodic[1] = (is_periodic ? is_periodic[1] : 0);
   
   boxParams[0] = HomCoord(imin, jmin, kmin);
   boxParams[1] = HomCoord(imax, jmax, kmax);

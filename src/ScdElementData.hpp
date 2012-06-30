@@ -73,7 +73,7 @@ private:
   int dIJKm1[3];
 
     //! whether scd element rectangle is periodic in i and possibly j
-  bool isPeriodic[2];
+  int isPeriodic[2];
   
     //! bare constructor, so compiler doesn't create one for me
   ScdElementData();
@@ -87,7 +87,7 @@ public:
   ScdElementData( EntityHandle start_handle,
                   const int imin, const int jmin, const int kmin,
                   const int imax, const int jmax, const int kmax,
-                  bool is_periodic_i = false, bool is_periodic_j = false);
+                  int *is_periodic);
   
   virtual ~ScdElementData();
   
@@ -113,12 +113,12 @@ public:
                           int &i, int &j, int &k) const;
 
     //! return whether rectangle is periodic in i
-  inline bool is_periodic_i() const {return isPeriodic[0];};
+  inline int is_periodic_i() const {return isPeriodic[0];};
   
     //! return whether rectangle is periodic in j
-  inline bool is_periodic_j() const {return isPeriodic[1];};
+  inline int is_periodic_j() const {return isPeriodic[1];};
 
-  inline void is_periodic(bool is_periodic[2]) const 
+  inline void is_periodic(int is_periodic[2]) const 
       {is_periodic[0] = isPeriodic[0]; is_periodic[1] = isPeriodic[1];}
   
     //! convenience functions for parameter extents
@@ -166,7 +166,7 @@ public:
                                        int irange,
                                        int jrange,
                                      int krange,
-                                     bool is_periodic_i = false, bool is_periodic_j = false);
+                                     int *is_periodic = NULL);
 
   unsigned long get_memory_use() const;
 };

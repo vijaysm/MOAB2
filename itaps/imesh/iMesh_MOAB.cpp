@@ -3307,7 +3307,9 @@ void iMesh_createStructuredMesh(iMesh_Instance instance,
   CHKERR(rval, "Trouble creating scd vertex sequence.");
 
     // set the global box parameters
-  if (global_dims) scd_box->set_global_box_dims(global_dims);
+  if (global_dims) {
+    for (int i = 0; i < 6; i++) scd_box->par_data().gDims[i] = global_dims[i];
+  }
 
   tmp_range.insert(scd_box->start_vertex(), scd_box->start_vertex()+scd_box->num_vertices()-1);
   tmp_range.insert(scd_box->start_element(), scd_box->start_element()+scd_box->num_elements()-1);
