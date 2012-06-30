@@ -676,12 +676,14 @@ ErrorCode ScdInterface::get_neighbor_alljkbal(int np, int pfrom,
   pto = -1;
   across_bdy[0] = across_bdy[1] = 0;
   
-  int ldims[6], pijk[3], lperiodic[3];
+  int ldims[6], pijk[3], lperiodic[2];
   ErrorCode rval = compute_partition_alljkbal(np, pfrom, gdims, gperiodic, 
                                               ldims, lperiodic, pijk);
   if (MB_SUCCESS != rval) return rval;
   assert(pijk[1] * pijk[2] == np);
   pto = -1;
+  bool bot_j = pfrom < pijk[2],
+      top_j = pfrom > np - pijk[2];
   if ((1 == pijk[2] && dijk[2]) ||  // 1d in j means no neighbors with dk != 0
       (!(pfrom%pijk[2]) && -1 == dijk[2]) || // at -k bdy
       (pfrom%pijk[2] == pijk[2]-1 && 1 == dijk[2]) || // at +k bdy
@@ -699,7 +701,7 @@ ErrorCode ScdInterface::get_neighbor_alljkbal(int np, int pfrom,
     int dj = (gdims[4] - gdims[1]) / pijk[1], extra = (gdims[4] - gdims[1]) % pijk[1];
     if (-1 == dijk[1]) {
       facedims[4] = facedims[1];
-      if (pfrom < pijk[2]) {
+      if (bot_j) {
           // going across periodic lower bdy in j
         rdims[4] = gdims[4];
         across_bdy[1] = -1;
@@ -713,7 +715,7 @@ ErrorCode ScdInterface::get_neighbor_alljkbal(int np, int pfrom,
     else {
       if (pfrom > np-pijk[2]) facedims[4] = gdims[1];
       facedims[1] = facedims[4];
-      if (pfrom > np - pijk[2]) {
+      if (top_j) {
           // going across periodic upper bdy in j
         rdims[1] = gdims[1];
         across_bdy[1] = 1;
@@ -742,22 +744,21 @@ ErrorCode ScdInterface::get_neighbor_alljkbal(int np, int pfrom,
     }
   }
 
-  assert(-1 == pto ||
-         (rdims[0] >= gdims[0] && rdims[3] <= gdims[3] && 
-          rdims[1] >= gdims[1] && rdims[4] <= gdims[4] && 
-          rdims[2] >= gdims[2] && rdims[5] <= gdims[5] &&
-          (facedims[0] >= rdims[0] || (gperiodic[0] && rdims[3] == gdims[3] && facedims[0] == gdims[0])) && 
-          facedims[3] <= rdims[3] &&
-          (facedims[1] >= rdims[1]  || (gperiodic[1] && rdims[4] == gdims[4] && facedims[1] == gdims[1])) && 
-          facedims[4] <= rdims[4] &&
-          facedims[2] >= rdims[2] && 
-          facedims[5] <= rdims[5] &&
-          facedims[0] >= ldims[0] && 
-          facedims[3] <= ldims[3] &&
-          facedims[1] >= ldims[1] && 
-          facedims[4] <= ldims[4] &&
-          facedims[2] >= ldims[2] && 
-          facedims[5] <= ldims[5]));
+  assert(-1 == pto || (rdims[0] >= gdims[0] && rdims[3] <= gdims[3]));
+  assert(-1 == pto || (rdims[1] >= gdims[1] && (rdims[4] <= gdims[4] || (across_bdy[1] && bot_j))));
+  assert(-1 == pto || (rdims[2] >= gdims[2] && rdims[5] <= gdims[5]));
+  assert(-1 == pto || ((facedims[0] >= rdims[0] || (gperiodic[0] && rdims[3] == gdims[3]+1 && facedims[0] == gdims[0]))));
+  assert(-1 == pto || (facedims[3] <= rdims[3]));
+  assert(-1 == pto || ((facedims[1] >= rdims[1]  || (gperiodic[1] && rdims[4] == gdims[4]+1 && facedims[1] == gdims[1]))));
+  assert(-1 == pto || (facedims[4] <= rdims[4]));
+  assert(-1 == pto || (facedims[2] >= rdims[2]));
+  assert(-1 == pto || (facedims[5] <= rdims[5]));
+  assert(-1 == pto || (facedims[0] >= ldims[0]));
+  assert(-1 == pto || (facedims[3] <= ldims[3]));
+  assert(-1 == pto || (facedims[1] >= ldims[1]));
+  assert(-1 == pto || (facedims[4] <= ldims[4]));
+  assert(-1 == pto || (facedims[2] >= ldims[2]));
+  assert(-1 == pto || (facedims[5] <= ldims[5]));
   
   return MB_SUCCESS;
 #else
@@ -784,10 +785,11 @@ ErrorCode ScdInterface::get_neighbor_sqij(int np, int pfrom,
   assert(pijk[0] * pijk[1] == np);
   pto = -1;
   bool top_i = 0, top_j = 0, bot_i = 0, bot_j = 0;
-  if (pfrom%pijk[0] == pijk[0]-1) top_i = 1;
-  if (pfrom/pijk[0] == pijk[1]-1) top_j = 1;
-  if (!(pfrom%pijk[0])) bot_i = 1;
-  if (!(pfrom/pijk[0])) bot_j = 1;
+  int ni = pfrom%pijk[0], nj = pfrom/pijk[0]; // row / column number of me
+  if (ni == pijk[0]-1) top_i = 1;
+  if (nj == pijk[1]-1) top_j = 1;
+  if (!ni) bot_i = 1;
+  if (!nj) bot_j = 1;
   if ((!gperiodic[0] && bot_i && -1 == dijk[0]) ||  // left and not periodic
       (!gperiodic[0] && top_i && 1 == dijk[0]) ||  // right and not periodic
       (!gperiodic[1] && bot_j && -1 == dijk[1]) || // bottom and not periodic
@@ -808,13 +810,14 @@ ErrorCode ScdInterface::get_neighbor_sqij(int np, int pfrom,
       if (bot_i) {
           // going across lower periodic bdy in i
         across_bdy[0] = -1;
-        rdims[3] = gdims[3];
+        rdims[3] = gdims[3]+1; // +1 because ldims[3] on remote proc is gdims[3]+1
+        rdims[0] = rdims[3] - di - 1; // -1 to account for rdims[3] being one larger
       }
       else {
         rdims[3] = ldims[0];
+        rdims[0] = rdims[3] - di;
       }
       
-      rdims[0] = rdims[3] - di;
       if (pto%pijk[0] < iextra) rdims[0]--;
     }
     else {
@@ -827,6 +830,7 @@ ErrorCode ScdInterface::get_neighbor_sqij(int np, int pfrom,
       rdims[0] = (top_i ? gdims[0] : ldims[3]);
       rdims[3] = rdims[0] + di;
       if (pto%pijk[0] < iextra) rdims[3]++;
+      if (gperiodic[0] && ni == np-2) rdims[3]++; // remote proc is top_i and periodic
     }
   }
   if (0 != dijk[1]) {
@@ -836,13 +840,14 @@ ErrorCode ScdInterface::get_neighbor_sqij(int np, int pfrom,
       facedims[4] = facedims[1];
       if (bot_j) {
           // going across lower periodic bdy in j
-        rdims[4] = gdims[4];
+        rdims[4] = gdims[4]+1; // +1 because ldims[4] on remote proc is gdims[4]+1
+        rdims[1] = rdims[4] - dj - 1; // -1 to account for gdims[4] being one larger
         across_bdy[1] = -1;
       }
       else {
         rdims[4] = ldims[1];
+        rdims[1] = rdims[4] - dj;
       }
-      rdims[1] = rdims[4] - dj;
       if (pto/pijk[0] < jextra) rdims[1]--;
     }
     else {
@@ -857,26 +862,26 @@ ErrorCode ScdInterface::get_neighbor_sqij(int np, int pfrom,
       }
       facedims[1] = facedims[4];
       rdims[4] = rdims[1] + dj;
-      if (pto/pijk[0] < jextra) rdims[4]++;
+      if (nj < jextra) rdims[4]++;
     }
   }
 
-  assert(-1 == pto ||
-         (rdims[0] >= gdims[0] && rdims[3] <= gdims[3] && 
-          rdims[1] >= gdims[1] && rdims[4] <= gdims[4] && 
-          rdims[2] >= gdims[2] && rdims[5] <= gdims[5] &&
-          (facedims[0] >= rdims[0] || (gperiodic[0] && rdims[3] == gdims[3] && facedims[0] == gdims[0])) && 
-          facedims[3] <= rdims[3] &&
-          (facedims[1] >= rdims[1]  || (gperiodic[1] && rdims[4] == gdims[4] && facedims[1] == gdims[1])) && 
-          facedims[4] <= rdims[4] &&
-          facedims[2] >= rdims[2] && 
-          facedims[5] <= rdims[5] &&
-          facedims[0] >= ldims[0] && 
-          facedims[3] <= ldims[3] &&
-          facedims[1] >= ldims[1] && 
-          facedims[4] <= ldims[4] &&
-          facedims[2] >= ldims[2] && 
-          facedims[5] <= ldims[5]));
+    // rdims within gdims
+  assert (-1 == pto || (rdims[0] >= gdims[0] && (rdims[3] <= gdims[3] + (gperiodic[0] && pto%pijk[0] == pijk[0]-1 ? 1 : 0))));
+  assert (-1 == pto || (rdims[1] >= gdims[1] && (rdims[4] <= gdims[4] + (gperiodic[1] && pto/pijk[0] == pijk[1]-1 ? 1 : 0))));
+  assert (-1 == pto || (rdims[2] >= gdims[2] && rdims[5] <= gdims[5]));
+    // facedims within rdims
+  assert (-1 == pto || ((facedims[0] >= rdims[0] || (gperiodic[0] && pto%pijk[0] == pijk[0]-1 && facedims[0] == gdims[0]))));
+  assert (-1 == pto || (facedims[3] <= rdims[3]));
+  assert (-1 == pto || ((facedims[1] >= rdims[1]  || (gperiodic[1] && pto/pijk[0] == pijk[1]-1 && facedims[1] == gdims[1]))));
+  assert (-1 == pto || (facedims[4] <= rdims[4]));
+  assert (-1 == pto || (facedims[2] >= rdims[2] && facedims[5] <= rdims[5]));
+    // facedims within ldims
+  assert (-1 == pto || ((facedims[0] >= ldims[0] || (top_i && facedims[0] == gdims[0]))));
+  assert (-1 == pto || (facedims[3] <= ldims[3]));
+  assert (-1 == pto || ((facedims[1] >= ldims[1] || (gperiodic[1] && top_j && facedims[1] == gdims[1]))));
+  assert (-1 == pto || (facedims[4] <= ldims[4]));
+  assert (-1 == pto || (facedims[2] >= ldims[2] && facedims[5] <= ldims[5]));
 
   return MB_SUCCESS;
 #else
@@ -902,10 +907,11 @@ ErrorCode ScdInterface::get_neighbor_sqjk(int np, int pfrom,
   assert(pijk[1] * pijk[2] == np);
   pto = -1;
   bool top_j = 0, top_k = 0, bot_j = 0, bot_k = 0;
-  if (pfrom%pijk[1] == pijk[1]-1) top_j = 1;
-  if (pfrom/pijk[1] == pijk[2]-1) top_k = 1;
-  if (!(pfrom%pijk[1])) bot_j = 1;
-  if (!(pfrom/pijk[1])) bot_k = 1;
+  int nj = pfrom%pijk[1], nk = pfrom/pijk[1];
+  if (nj == pijk[1]-1) top_j = 1;
+  if (nk == pijk[2]-1) top_k = 1;
+  if (!nj) bot_j = 1;
+  if (!nk) bot_k = 1;
   if ((!gperiodic[1] && bot_j && -1 == dijk[1]) ||  // down and not periodic
       (!gperiodic[1] && top_j && 1 == dijk[1]) ||  // up and not periodic
       (bot_k && -1 == dijk[2]) || // k- bdy 
@@ -916,7 +922,7 @@ ErrorCode ScdInterface::get_neighbor_sqjk(int np, int pfrom,
   std::copy(ldims, ldims+6, rdims);
   pto = pfrom;
   int dj = (gdims[4] - gdims[1]) / pijk[1], jextra = (gdims[4] - gdims[1]) % dj,
-      dk = (gdims[5] - gdims[2]) / pijk[2], kextra = (gdims[5] - gdims[2]) % dk;
+      dk = (gdims[5] == gdims[2] ? 0 : (gdims[5] - gdims[2]) / pijk[2]), kextra = (gdims[5] - gdims[2]) - dk*pijk[2];
   
   if (0 != dijk[1]) {
     pto = (pto + dijk[1] + np) % np;
@@ -925,14 +931,14 @@ ErrorCode ScdInterface::get_neighbor_sqjk(int np, int pfrom,
       facedims[4] = facedims[1];
       if (bot_j) {
           // going across lower periodic bdy in j
-        rdims[4] = gdims[4];
+        rdims[4] = gdims[4]+1; // +1 because ldims[4] on remote proc is gdims[4]+1
         across_bdy[1] = -1;
       }
       else {
         rdims[4] = ldims[1];
       }
       rdims[1] = rdims[4] - dj;
-      if (pto%pijk[1] < jextra) rdims[1]--;
+      if (nj < jextra) rdims[1]--;
     }
     else {
       if (top_j) {
@@ -946,7 +952,8 @@ ErrorCode ScdInterface::get_neighbor_sqjk(int np, int pfrom,
       }
       facedims[1] = facedims[4];
       rdims[4] = rdims[1] + dj;
-      if (pto%pijk[1] < jextra) rdims[4]++;
+      if (nj < jextra) rdims[4]++;
+      if (gperiodic[1] && nj == dijk[1]-2) rdims[4]++; // +1 because next proc is on periodic bdy
     }
   }
   if (0 != dijk[2]) {
@@ -956,7 +963,7 @@ ErrorCode ScdInterface::get_neighbor_sqjk(int np, int pfrom,
       facedims[5] = facedims[2];
       rdims[5] = ldims[2];
       rdims[2] -= dk;
-      if (pto/pijk[1] < kextra) rdims[2]--;
+      if (nk < kextra) rdims[2]--;
     }
     else {
       facedims[2] = facedims[5];
@@ -966,17 +973,16 @@ ErrorCode ScdInterface::get_neighbor_sqjk(int np, int pfrom,
     }
   }
 
-  assert(-1 == pto ||
-         (rdims[0] >= gdims[0] && rdims[3] <= gdims[3] && 
-          rdims[1] >= gdims[1] && rdims[4] <= gdims[4] && 
-          rdims[2] >= gdims[2] && rdims[5] <= gdims[5] &&
-          facedims[0] >= rdims[0] && facedims[3] <= rdims[3] &&
-          (facedims[1] >= rdims[1]  || (gperiodic[1] && rdims[4] == gdims[4] && facedims[1] == gdims[1])) && 
-          facedims[4] <= rdims[4] &&
-          facedims[2] >= rdims[2] && facedims[5] <= rdims[5] &&
-          facedims[0] >= ldims[0] && facedims[3] <= ldims[3] &&
-          facedims[1] >= ldims[1] && facedims[4] <= ldims[4] &&
-          facedims[2] >= ldims[2] && facedims[5] <= ldims[5]));
+  assert(-1 == pto || (rdims[0] >= gdims[0] && rdims[3] <= gdims[3]));
+  assert(-1 == pto || (rdims[1] >= gdims[1] && (rdims[4] <= gdims[4] || (across_bdy[1] && bot_j))));
+  assert(-1 == pto || (rdims[2] >= gdims[2] && rdims[5] <= gdims[5]));
+  assert(-1 == pto || (facedims[0] >= rdims[0] && facedims[3] <= rdims[3]));
+  assert(-1 == pto || ((facedims[1] >= rdims[1]  || (gperiodic[1] && rdims[4] == gdims[4] && facedims[1] == gdims[1]))));
+  assert(-1 == pto || (facedims[4] <= rdims[4]));
+  assert(-1 == pto || (facedims[2] >= rdims[2] && facedims[5] <= rdims[5]));
+  assert(-1 == pto || (facedims[0] >= ldims[0] && facedims[3] <= ldims[3]));
+  assert(-1 == pto || (facedims[1] >= ldims[1] && facedims[4] <= ldims[4]));
+  assert(-1 == pto || (facedims[2] >= ldims[2] && facedims[5] <= ldims[5]));
 
   return MB_SUCCESS;
 #else
@@ -1038,6 +1044,7 @@ ErrorCode ScdInterface::get_neighbor_alljorkori(int np, int pfrom,
     facedims[ind] = facedims[ind+3];
     rdims[ind] = ldims[ind+3];
     rdims[ind+3] = rdims[ind] + dind + (pto < extra ? 1 : 0);
+    if (is_periodic && pfrom == np-2) rdims[ind+3]++; // neighbor is on periodic bdy
   }
   else if (-1 == dijk[ind] && !pfrom && gperiodic[ind]) {
       // downward across periodic bdy
@@ -1056,17 +1063,15 @@ ErrorCode ScdInterface::get_neighbor_alljorkori(int np, int pfrom,
     across_bdy[ind] = 1;
   }
 
-  assert(-1 == pto ||
-         (rdims[0] >= gdims[0] && rdims[3] <= gdims[3] && 
-          rdims[1] >= gdims[1] && rdims[4] <= gdims[4] && 
-          rdims[2] >= gdims[2] && rdims[5] <= gdims[5] &&
-          facedims[0] >= rdims[0] && facedims[3] <= rdims[3] &&
-          facedims[1] >= rdims[1] && facedims[4] <= rdims[4] &&
-          facedims[2] >= rdims[2] && facedims[5] <= rdims[5] &&
-          facedims[0] >= ldims[0] && facedims[3] <= ldims[3] &&
-          facedims[1] >= ldims[1] && facedims[4] <= ldims[4] &&
-          facedims[2] >= ldims[2] && facedims[5] <= ldims[5]));
-
+  assert(-1 == pto || (rdims[0] >= gdims[0] && (rdims[3] <= gdims[3] || (across_bdy[0] && !pfrom))));
+  assert(-1 == pto || (rdims[1] >= gdims[1] && (rdims[4] <= gdims[4] || (across_bdy[1] && !pfrom))));
+  assert(-1 == pto || (rdims[2] >= gdims[2] && rdims[5] <= gdims[5]));
+  assert(-1 == pto || (facedims[0] >= rdims[0] && facedims[3] <= rdims[3]));
+  assert(-1 == pto || (facedims[1] >= rdims[1] && facedims[4] <= rdims[4]));
+  assert(-1 == pto || (facedims[2] >= rdims[2] && facedims[5] <= rdims[5]));
+  assert(-1 == pto || (facedims[0] >= ldims[0] && facedims[3] <= ldims[3]));
+  assert(-1 == pto || (facedims[1] >= ldims[1] && facedims[4] <= ldims[4]));
+  assert(-1 == pto || (facedims[2] >= ldims[2] && facedims[5] <= ldims[5]));
 
   return rval;
 #else
@@ -1102,6 +1107,23 @@ ErrorCode ScdInterface::get_shared_vertices(ParallelComm *pcomm, ScdBox *box,
           }
           rval = get_indices(ldims, ijkrem, across_bdy, ijkface, shared_indices);
           if (MB_SUCCESS != rval) return rval;
+
+            // check indices against known #verts on local and remote 
+            // begin of this block is shared_indices[*offsets.rbegin()], end is shared_indices.end(), halfway
+            // is (shared_indices.size()-*offsets.rbegin())/2
+#ifndef NDEBUG
+          int start_idx = *offsets.rbegin(), end_idx = shared_indices.size(), mid_idx = (start_idx+end_idx)/2;
+          
+          int num_local_verts = (ldims[3]-ldims[0]+1)*(ldims[4]-ldims[1]+1)*
+              (-1 == ldims[2] && -1 == ldims[5] ? 1 : (ldims[5]-ldims[2]+1)),
+              num_remote_verts = (ijkrem[3]-ijkrem[0]+1)*(ijkrem[4]-ijkrem[1]+1)*
+              (-1 == ijkrem[2] && -1 == ijkrem[5] ? 1 : (ijkrem[5]-ijkrem[2]+1));
+          
+          assert(*std::min_element(&shared_indices[start_idx], &shared_indices[mid_idx]) >= 0 &&
+                 *std::max_element(&shared_indices[start_idx], &shared_indices[mid_idx]) < num_local_verts &&
+                 *std::min_element(&shared_indices[mid_idx], &shared_indices[end_idx]) >= 0 &&
+                 *std::max_element(&shared_indices[mid_idx], &shared_indices[end_idx]) < num_remote_verts);
+#endif          
         }
       }
     }

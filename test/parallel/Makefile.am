@@ -23,7 +23,7 @@ TESTS = pcomm_unit \
         uber_parallel_test \
         scdtest \
         pcomm_serial \
-	$(PNETCDF_TESTS) \
+	$(NETCDF_TESTS) \
         $(HDF5_TESTS)
 
 if PARALLEL_HDF5
@@ -32,11 +32,10 @@ else
   HDF5_TESTS = 
 endif
 
-if PNETCDF_FILE
-#  PNETCDF_TESTS = scdpart
-  PNETCDF_TESTS = 
+if NETCDF_FILE
+  NETCDF_TESTS = scdpart
 else
-  PNETCDF_TESTS = 
+  NETCDF_TESTS = 
 endif
 
 check_PROGRAMS = $(TESTS) mbparallelcomm_test partcheck structured3 parmerge
