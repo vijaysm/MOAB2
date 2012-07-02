@@ -16,9 +16,7 @@
 #ifndef MOAB_PROC_CONFIG_HPP
 #define MOAB_PROC_CONFIG_HPP
 
-#ifdef USE_MPI
 #include "moab_mpi.h"
-#endif
 
 #include "moab/Types.hpp"
 #include "moab/Range.hpp"
