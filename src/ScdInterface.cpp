@@ -803,7 +803,8 @@ ErrorCode ScdInterface::get_neighbor_sqij(int np, int pfrom,
       i = gdims[3] - gdims[0], di = i / pijk[0], iextra = (gdims[3] - gdims[0]) % di;
   
   if (0 != dijk[0]) {
-    pto = (pto + dijk[0] + np) % np;
+    pto = (ni + dijk[0] + pijk[0]) % pijk[0]; // get pto's ni value
+    pto = nj*pijk[0] + pto;  // then convert to pto
     assert (pto >= 0 && pto < np);
     if (-1 == dijk[0]) {
       facedims[3] = facedims[0];
@@ -830,7 +831,7 @@ ErrorCode ScdInterface::get_neighbor_sqij(int np, int pfrom,
       rdims[0] = (top_i ? gdims[0] : ldims[3]);
       rdims[3] = rdims[0] + di;
       if (pto%pijk[0] < iextra) rdims[3]++;
-      if (gperiodic[0] && ni == np-2) rdims[3]++; // remote proc is top_i and periodic
+      if (gperiodic[0] && ni == pijk[0]-2) rdims[3]++; // remote proc is top_i and periodic
     }
   }
   if (0 != dijk[1]) {
@@ -862,7 +863,8 @@ ErrorCode ScdInterface::get_neighbor_sqij(int np, int pfrom,
       }
       facedims[1] = facedims[4];
       rdims[4] = rdims[1] + dj;
-      if (nj < jextra) rdims[4]++;
+      if (nj+1 < jextra) rdims[4]++;
+      if (gperiodic[1] && nj == pijk[1]-2) rdims[4]++; // remote proc is top_j and periodic
     }
   }
 
@@ -925,7 +927,8 @@ ErrorCode ScdInterface::get_neighbor_sqjk(int np, int pfrom,
       dk = (gdims[5] == gdims[2] ? 0 : (gdims[5] - gdims[2]) / pijk[2]), kextra = (gdims[5] - gdims[2]) - dk*pijk[2];
   
   if (0 != dijk[1]) {
-    pto = (pto + dijk[1] + np) % np;
+    pto = (nj + dijk[1] + pijk[1]) % pijk[1]; // get pto's ni value
+    pto = nk*pijk[1] + pto;  // then convert to pto
     assert (pto >= 0 && pto < np);
     if (-1 == dijk[1]) {
       facedims[4] = facedims[1];
