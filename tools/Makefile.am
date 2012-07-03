@@ -5,7 +5,10 @@ AM_CPPFLAGS += -I$(top_srcdir)/src \
 	       -I$(top_srcdir)/itaps \
                -I$(top_builddir)/src/parallel 
 
-LDADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la
+LDADD = $(top_builddir)/src/libMOAB.la
+if ENABLE_imesh
+ LDADD+= $(top_builddir)/itaps/imesh/libiMesh.la
+endif
 
 # For old (pre 1.10.x) versions of Automake
 docdir = @docdir@
