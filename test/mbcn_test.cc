@@ -620,7 +620,7 @@ void test_side_number_hex()
 {
   for (int edge = 0; edge < 12; ++edge)
     do_test_side_number_1d( MBHEX, edge );
-  for (int face = 0; face < 8; ++face)
+  for (int face = 0; face < 6; ++face)
     do_test_side_number_2d( MBHEX, face );
 }
 
