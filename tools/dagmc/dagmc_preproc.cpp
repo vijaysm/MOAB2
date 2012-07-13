@@ -452,8 +452,6 @@ int main( int argc, char* argv[] ){
    CHECKERR( *dag, ret );
    ret = dag->init_OBBTree();
    CHECKERR( *dag, ret );
-   ret = dag->parse_metadata();
-   CHECKERR( *dag, ret );
 
    std::vector< std::string > keywords;
    ret = dag->detect_available_props( keywords );
