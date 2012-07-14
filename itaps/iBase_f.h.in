@@ -16,7 +16,7 @@
 #    define IBASE_HANDLE_T integer
 #  endif
 #elif defined(__INTEL_COMPILER)
-#  ifdef __X86_64
+#  ifdef __x86_64
 #    define IBASE_HANDLE_T integer*8
 #  else
 #    define IBASE_HANDLE_T integer*4
