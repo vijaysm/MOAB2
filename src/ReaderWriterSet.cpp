@@ -62,7 +62,7 @@
 
 #ifdef DAMSEL_FILE
 #  include "WriteDamsel.hpp"
-//#  include "ReadDamsel.hpp"
+#  include "ReadDamsel.hpp"
 #endif
 
 #ifdef HDF5_FILE
@@ -137,7 +137,7 @@ ReaderWriterSet::ReaderWriterSet( Core* mdb, Error* handler )
 
 #ifdef DAMSEL_FILE  
   const char* damsel_sufxs[] = { "h5", NULL };
-  register_factory( NULL, WriteDamsel::factory, "Damsel files", damsel_sufxs, "DAMSEL");
+  register_factory( ReadDamsel::factory, WriteDamsel::factory, "Damsel files", damsel_sufxs, "DAMSEL");
 #endif
 
   register_factory( NULL, WriteGMV::factory, "GMV", "gmv", "GMV" );

@@ -66,7 +66,7 @@ public:
   
   inline DataType get_data_type() const     { return dataType; }
 
-  //! get the size of the data
+  //! get the size of the data in bytes
   int get_size() const { return mDataSize; }
   
   //! Check if variable-length tag
