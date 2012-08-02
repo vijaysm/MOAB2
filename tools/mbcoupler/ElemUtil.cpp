@@ -123,8 +123,6 @@ bool nat_coords_trilinear_hex( const CartVect* corner_coords,
 {
   return LinearHexMap( corner_coords ).solve_inverse( x, xi, tol );
 }
-
-
 //
 // nat_coords_trilinear_hex2
 //  Duplicate functionality of nat_coords_trilinear_hex using hex_findpt
@@ -167,7 +165,6 @@ void nat_coords_trilinear_hex2(const CartVect hex[8],
   }
   
 }
-
 bool point_in_trilinear_hex(const CartVect *hex, 
                             const CartVect& xyz,
                             double etol) 
@@ -195,7 +192,6 @@ bool point_in_trilinear_hex(const CartVect *hex,
          fabs(pt[2]) - dim[2] < etol &&
          point_in_trilinear_hex( hex, xyz, etol );
 }
-
 
 
 // Wrapper to James Lottes' findpt routines
@@ -547,6 +543,13 @@ namespace Element {
     return I;
   }// LinearHex::integrate_scalar_field()
 
+  bool LinearHex::inside_nat_space(const CartVect & xi, double & tol) const
+  {
+    // just look at the box+tol here
+    return ( xi[0]>=-1.-tol) && (xi[0]<=1.+tol) &&
+           ( xi[1]>=-1.-tol) && (xi[1]<=1.+tol) &&
+           ( xi[2]>=-1.-tol) && (xi[2]<=1.+tol);
+  }
 
   const double LinearTet::corner[4][3] = { {0,0,0},
                                            {1,0,0},
@@ -586,7 +589,15 @@ namespace Element {
     I *= this->det_T/24.0;
     return I;
   }// LinearTet::integrate_scalar_field()
-
+  bool LinearTet::inside_nat_space(const CartVect & xi, double & tol) const
+  {
+    // linear tet space is a tetra with vertices (0,0,0), (1,0,0), (0,1,0), (0, 0, 1)
+    // first check if outside bigger box, then below the plane x+y+z=1
+    return ( xi[0]>=-tol) && (xi[0]<=1.+tol) &&
+        ( xi[1]>=-tol) && (xi[1]<=1.+tol) &&
+        ( xi[2]>-tol) && (xi[2]<=1.+tol) &&
+        ( xi[0]+xi[1]+xi[2] < 1.0+tol);
+  }
   // SpectralHex
 
   // filescope for static member data that is cached
@@ -781,6 +792,14 @@ namespace Element {
     }
     //std::cout << "volume: " << volume << "\n";
     return integral;
+  }
+  // this is the same as a linear hex, although we should not need it
+  bool SpectralHex::inside_nat_space(const CartVect & xi, double & tol) const
+  {
+    // just look at the box+tol here
+    return ( xi[0]>=-1.-tol) && (xi[0]<=1.+tol) &&
+           ( xi[1]>=-1.-tol) && (xi[1]<=1.+tol) &&
+           ( xi[2]>=-1.-tol) && (xi[2]<=1.+tol);
   }
 
 

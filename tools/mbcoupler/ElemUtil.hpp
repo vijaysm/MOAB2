@@ -78,6 +78,8 @@ namespace ElemUtil {
       virtual CartVect evaluate( const CartVect& xi ) const = 0;
       /**\brief Evaluate the inverse map (calculate $\vec \xi = F^-1($\vec x)$ to given tolerance)*/
       CartVect ievaluate( const CartVect& x, double tol, const CartVect& x0 = CartVect(0.0)) const ;
+      /**\brief decide if within the natural param space, with a tolerance*/
+      virtual bool inside_nat_space(const CartVect & xi, double & tol) const = 0;
       /* FIX: should evaluate and ievaluate return both the value and the Jacobian (first jet)? */
       /**\brief Evaluate the map's Jacobi matrix. */
       virtual Matrix3 jacobian( const CartVect& xi ) const = 0;
@@ -124,9 +126,13 @@ namespace ElemUtil {
       LinearHex(const std::vector<CartVect>& vertices) : Map(vertices){};
       LinearHex();
       virtual CartVect evaluate( const CartVect& xi ) const;
+      //virtual CartVect ievaluate(const CartVect& x, double tol) const ;
+      virtual bool inside_nat_space(const CartVect & xi, double & tol) const;
+
       virtual Matrix3  jacobian(const CartVect& xi) const;
       double   evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const;
       double   integrate_scalar_field(const double *field_vertex_values) const;
+
     protected:
       /* Preimages of the vertices -- "canonical vertices" -- are known as "corners". */
       static const double corner[8][3];
@@ -154,6 +160,7 @@ namespace ElemUtil {
       //
       /* Override set_vertices so we can precompute the matrices effecting the mapping to and from the canonical simplex. */
       void     set_vertices(const std::vector<CartVect>& v);
+      bool inside_nat_space(const CartVect & xi, double & tol) const;
     protected:
       static const double corner[4][3];
       Matrix3 T, T_inverse;
@@ -173,6 +180,7 @@ namespace ElemUtil {
       virtual Matrix3  jacobian(const CartVect& xi) const;
       double   evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const;
       double   integrate_scalar_field(const double *field_vertex_values) const;
+      bool inside_nat_space(const CartVect & xi, double & tol) const;
 
       // to compute the values that need to be cached for each element of order n
       void Init(int order);

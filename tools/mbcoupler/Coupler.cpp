@@ -1,7 +1,6 @@
 #include "Coupler.hpp"
 #include "moab/ParallelComm.hpp"
 #include "moab/AdaptiveKDTree.hpp"
-#include "moab/GeomUtil.hpp"
 #include "ElemUtil.hpp"
 #include "moab/CN.hpp"
 #include "iMesh_extensions.h"
@@ -686,6 +685,9 @@ ErrorCode Coupler::nat_param(double xyz[3],
             " is not converging inside hex " << mbImpl->id_from_handle(eh) << "\n";
         continue; // it is possible that the point is outside, so it will not converge
       }
+      // I am not sure this check is necessary, but still do it
+      if (!spcHex->inside_nat_space(tmp_nat_coords, epsilon))
+        continue;
 
     }
     else
@@ -712,6 +714,8 @@ ErrorCode Coupler::nat_param(double xyz[3],
         catch (Element::Map::EvaluationError) {
           continue;
         }
+        if (!hexmap.inside_nat_space(tmp_nat_coords, epsilon))
+          continue;
       }
       else if (etype == MBTET){
         Element::LinearTet tetmap(coords_vert);
@@ -721,6 +725,8 @@ ErrorCode Coupler::nat_param(double xyz[3],
         catch (Element::Map::EvaluationError) {
           continue;
         }
+        if (!tetmap.inside_nat_space(tmp_nat_coords, epsilon))
+          continue;
       }
       else {
         std::cout << "Entity not Hex or Tet" << std::endl;
