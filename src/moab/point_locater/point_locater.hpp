@@ -53,13 +53,119 @@
 
 namespace moab {
 
-class Point_search
-{
+namespace _point_search {
+template< typename Tuple_list, Vector> 
+void write_data( Tuple_list & tl, 
+		 const Tuple_list & source_pts, 
+		 Vector & located_pts){
+	tl.initialize(3, 0, 0, 1, num_pts);
+	tl.enableWriteAccess();
+	for (unsigned int i = 0; i < source_pts.get_n(); i++) {
+	  //Don't send message for discarded points
+	  if (source_pts.vi_rd[3*i+2] != -1) { 
+	    const int locIndex = source_pts.vi_rd[3*i+1];
+	    //asked 2+ procs if they have point p, they both said 
+	    //yes, we'll keep the one with lowest rank
+	    if(located_pts[locIndex]){  
+	      //TODO: check that the cases where both processors 
+	      //say yes is justified 
+	      continue;
+	    }
+	    located_pts[locIndex] = 1;
+	    tl.vi_wr[3*tl.get_n()]     = source_pts.vi_rd[3*i];
+	    tl.vi_wr[3*tl.get_n() + 1] = source_pts.vi_rd[3*i+1];
+	    tl.vi_wr[3*tl.get_n() + 2] = source_pts.vi_rd[3*i+2];
+	    tl.inc_n();
+	  }
+	}
+	tl.disableWriteAccess();
+}
+
+
+//hide the ugliness
+//TODO: change xyz to query_points
+template< typename Boxes, typename Points>
+bool in_box( const Boxes & box, const Points & xyz, 
+	     const std::size_t i, const std::size_t j ){
+	return   boxes[6*j] <= xyz[i] 	  && xyz[i] <=   boxes[6*j+3] && 
+		 boxes[6*j+1] <= xyz[i+1] && xyz[i+1] <= boxes[6*j+4] && 
+		 boxes[6*j+2] <= xyz[i+2] && xyz[i+2] <= boxes[6*j+5];
+}
+
+
+template< typename Tuple_list, typename Points>
+void set_target_point( Tuple_list & target_points, 
+		       const Points & xyz, 
+		       const std::size_t i, const std::size_t j){
+	  // if in this proc's box, will send to proc to test further
+	  // check size, grow if we're at max
+	  if (target_pts.get_n() == target_pts.get_max()){ 
+	    target_pts.resize( (3*target_pts.get_max() + 1)/2);
+	  }
+	  const std::size_t size = target_pts.get_n(); 
+	  target_pts.vi_wr[2*size] = j;
+	  target_pts.vi_wr[2*size+1] = i/3;
+	                     size                            
+	  target_pts.vr_wr[3*size] = xyz[i];
+	  target_pts.vr_wr[3*size+1] = xyz[i+1];
+	  target_pts.vr_wr[3*size+2] = xyz[i+2];
+	  target_pts.inc_n();
+} 
+
+template< typename Points, 
+	  typename Boxes, 
+	  typename Tuple_list>
+ErrorCode distribute_data( Points & query_points,
+			   Tuple_list & target_pts,
+			   Boxes & boxes,
+			   std::size_t num_points,
+			   double rel_eps, 
+			   double abs_eps){ 
+  	bool point_located;
+	for (std::size_t i = 0; i < 3*num_points; i+=3) {
+	    // test point locally first
+	  result = test_local_box( xyz+i, rank, i/3, i/3, 
+				   point_located, rel_eps, abs_eps);
+	  //TODO: remove this branch to remove un-necessary slowness!
+	  if (MB_SUCCESS != result) { return result; }
+
+	  if (point_located) { 
+		located_pts[i/3] = 0x1; 
+		continue; 
+	  }
+	                                                                       
+	  // if not located locally, test other procs' boxes
+	  for (std::size_t j = 0; j < rank; j++) {
+	      // test if point is in proc's box
+	    if( in_box( box, query_points, i,j) ) {
+	        set_target_points( target_pts, xyz, i, j);
+	    }
+	  }
+
+	  for (std::size_t j = rank+1; j < size; j++) {
+	      // test if point is in proc's box
+	    if( in_box( box, query_points, i,j) ) {
+	        set_target_points( target_pts, xyz, i, j);
+	    }
+	  }
+}
+
+} //private functionality
+
+
+class Point_search {
+
+//public types
 public:
+	typedef typename std::vector< unsigned int> Vector;
+	//all ugly and probably not necessary
+	typedef typename std::vector< unsigned char> Char_vector;
+	typedef typename std::vector< double> Vector_double;
 
-  enum Method {LINEAR_FE, PLAIN_FE};
-
-  enum IntegType {VOLUME};
+public:
+  	//Are these necessary?
+  	enum Method {LINEAR_FE, PLAIN_FE};
+  	enum IntegType {VOLUME};
 
     /* constructor
      * Constructor, which also optionally initializes the coupler
@@ -68,28 +174,27 @@ public:
      * \param coupler_id Id of this coupler, should be the same over all procs
      * \param init_tree If true, initializes kdtree inside the constructor
      */
-  Point_search( Interface *impl,
-            	ParallelComm *pc,
-            	Range &local_elems,
-            	int coupler_id,
-            	bool init_tree = true): 
-		mbImpl(impl), myPc(pc), 
-		myId(coupler_id), numIts(3) {
-	  		assert(NULL != impl && (pc || !local_elems.empty()));
-	    		// keep track of the local points, at least for now
-	  		myRange = local_elems;
-	    		// now initialize the tree
-	  		if (init_tree) initialize_tree();
+  
+  Point_search( Interface & _impl,
+            	ParallelComm & _pc,
+            	Range & local_elems,
+            	int _id,
+            	bool _initialize_tree = true,
+		std::size_t _num_iterations=3): 
+		impl( _impl), pc( _pc), 
+		id( _id), range( local_elems),
+		num_iterations( _num_iterations){
+	  		if (_initialize_tree) { 
+				initialize_tree();
+			}
 		}
+
+  
   ErrorCode locate_points( double * xyz, 
 		  	   int num_points,
-                           double rel_eps = 0.0, 
-                           double abs_eps = 0.0,
-                           TupleList * tl = NULL,
-                           bool store_local = true){
-  	assert(tl || store_local);
-
-  	// allocate tuple_list to hold point data: (p, i, , xyz), i = point index
+                           double rel_eps, 
+                           double abs_eps,
+                           TupleList & tl){
   	TupleList target_pts;
   	target_pts.initialize(2, 0, 0, 3, num_points);
   	target_pts.enableWriteAccess();
@@ -107,7 +212,7 @@ public:
   	ErrorCode result;
 
   	  // keep track of which points have been located
-  	std::vector<unsigned char> located_pts(num_points, 0);
+  	Char_vector located_pts(num_points, 0);
 
   	  // for each point, find box(es) containing the point,
   	  // appending results to tuple_list;
@@ -116,155 +221,86 @@ public:
   	  // of <local_index, mapped_index>, where mapped_index is the index
   	  // into the mappedPts tuple list
 
-  	unsigned int my_rank = (myPc ? myPc->proc_config().proc_rank() : 0);
-  	bool point_located;
+  	std::size_t rank = pc.proc_config().proc_rank();
+	std::size_t size = pc.proc_config().proc_size();
   	
-  	for (int i = 0; i < 3*num_points; i+=3) 
-  	{
-  	    // test point locally first
-  	  result = test_local_box(xyz+i, my_rank, i/3, i/3, point_located, rel_eps, abs_eps);
-  	  if (MB_SUCCESS != result) {
-  	    return result;
-  	  }
-  	  if (point_located) {
-  	    located_pts[i/3] = 0x1;
-  	    continue;
-  	  }
-
-  	  
-  	    // if not located locally, test other procs' boxes
-  	  for (unsigned int j = 0; j < (myPc ? myPc->proc_config().proc_size() : 0); j++)
-  	  {
-  	    if (j == my_rank) continue;
-  	    
-  	      // test if point is in proc's box
-  	    if (allBoxes[6*j] <= xyz[i] && xyz[i] <= allBoxes[6*j+3] && 
-  	        allBoxes[6*j+1] <= xyz[i+1] && xyz[i+1] <= allBoxes[6*j+4] && 
-  	        allBoxes[6*j+2] <= xyz[i+2] && xyz[i+2] <= allBoxes[6*j+5])
-  	    {
-  	        // if in this proc's box, will send to proc to test further
-  	        // check size, grow if we're at max
-  	      if (target_pts.get_n() == target_pts.get_max()) 
-  	        target_pts.resize(target_pts.get_max() + (1+target_pts.get_max())/2);
+	moab::_point_search::distribute_data( xyz, target_points, boxes, 
+					      num_points, rel_eps, abs_eps);
   	
-  	      target_pts.vi_wr[2*target_pts.get_n()] = j;
-  	      target_pts.vi_wr[2*target_pts.get_n()+1] = i/3;
+	// perform scatter/gather, to gather points to source mesh procs
+  	(pc.proc_config().crystal_router())->gs_transfer(1, target_pts, 0);
 
-  	      target_pts.vr_wr[3*target_pts.get_n()] = xyz[i];
-  	      target_pts.vr_wr[3*target_pts.get_n()+1] = xyz[i+1];
-  	      target_pts.vr_wr[3*target_pts.get_n()+2] = xyz[i+2];
-  	      target_pts.inc_n();
-  	    }
-  	  }
+  	  // after scatter/gather:
+  	  // target_pts.set_n( # points local proc has to map );
+  	  // target_pts.vi_wr[2*i] = proc sending point i
+  	  // target_pts.vi_wr[2*i+1] = index of point i on sending proc
+  	  // target_pts.vr_wr[3*i..3*i+2] = xyz of point i
+  	  //
+  	  // Mapping builds the tuple list:
+  	  // source_pts.set_n (target_pts.get_n() )
+  	  // source_pts.vi_wr[3*i] = target_pts.vi_wr[2*i] = sending proc
+  	  // source_pts.vi_wr[3*i+1] = index of point i on sending proc
+  	  // source_pts.vi_wr[3*i+2] = index of mapped point (-1 if not mapped)
+  	  //
+  	  // Also, mapping builds local tuple_list mappedPts:
+  	  // mappedPts->set_n( # mapped points );
+  	  // mappedPts->vul_wr[i] = local handle of mapped entity
+  	  // mappedPts->vr_wr[3*i..3*i+2] = natural coordinates in mapped entity
+
+  	// test target points against my elements
+  	for (unsigned i = 0; i < target_pts.get_n(); i++){
+  	  result = test_local_box( target_pts.vr_wr+3*i, 
+  	                           target_pts.vi_rd[2*i], 
+				   target_pts.vi_rd[2*i+1], i, 
+  	                           point_located, rel_eps, abs_eps, 
+				   &source_pts);
+  	  if (MB_SUCCESS != result) return result;
   	}
+  	// no longer need target_pts
+	//TODO: determine if this is really necessary.
+  	target_pts.reset();
 
-  	  // perform scatter/gather, to gather points to source mesh procs
-  	if (myPc) {
-  	  (myPc->proc_config().crystal_router())->gs_transfer(1, target_pts, 0);
-
-  	    // after scatter/gather:
-  	    // target_pts.set_n( # points local proc has to map );
-  	    // target_pts.vi_wr[2*i] = proc sending point i
-  	    // target_pts.vi_wr[2*i+1] = index of point i on sending proc
-  	    // target_pts.vr_wr[3*i..3*i+2] = xyz of point i
-  	    //
-  	    // Mapping builds the tuple list:
-  	    // source_pts.set_n (target_pts.get_n() )
-  	    // source_pts.vi_wr[3*i] = target_pts.vi_wr[2*i] = sending proc
-  	    // source_pts.vi_wr[3*i+1] = index of point i on sending proc
-  	    // source_pts.vi_wr[3*i+2] = index of mapped point (-1 if not mapped)
-  	    //
-  	    // Also, mapping builds local tuple_list mappedPts:
-  	    // mappedPts->set_n( # mapped points );
-  	    // mappedPts->vul_wr[i] = local handle of mapped entity
-  	    // mappedPts->vr_wr[3*i..3*i+2] = natural coordinates in mapped entity
-
-  	    // test target points against my elements
-  	  for (unsigned i = 0; i < target_pts.get_n(); i++) 
-  	  {
-  	    result = test_local_box(target_pts.vr_wr+3*i, 
-  	                            target_pts.vi_rd[2*i], target_pts.vi_rd[2*i+1], i, 
-  	                            point_located, rel_eps, abs_eps, &source_pts);
-  	    if (MB_SUCCESS != result) return result;
-  	  }
-
-  	    // no longer need target_pts
-  	  target_pts.reset();
-
-  	    // send target points back to target procs
-  	  (myPc->proc_config().crystal_router())->gs_transfer(1, source_pts, 0);
-  	}
+  	  // send target points back to target procs
+  	(pc.proc_config().crystal_router())->gs_transfer(1, source_pts, 0);
   	
-  	// store proc/index tuples in targetPts, and/or pass back to application;
+  	// store proc/index tuples in targetPts, and/or pass back to 
+  	// application;
   	// the tuple this gets stored to looks like:
   	// tl.set_n( # mapped points );
   	// tl.vi_wr[3*i] = remote proc mapping point
   	// tl.vi_wr[3*i+1] = local index of mapped point
   	// tl.vi_wr[3*i+2] = remote index of mapped point
   	//
-  	// Local index is mapped into either myRange, holding the handles of
+  	// Local index is mapped into either range, holding the handles of
   	// local mapped entities, or myXyz, holding locations of mapped pts
 
   	// count non-negatives
+  	// TODO: replace with int num_pts = std::count_if()
   	int num_pts = 0;
-  	for (unsigned int i = 0; i < source_pts.get_n(); i++)
+  	for (unsigned int i = 0; i < source_pts.get_n(); i++){
   	  if (-1 != source_pts.vi_rd[3*i+2]) num_pts++;  
+	}
 
-  	  // store information about located points
-  	TupleList *tl_tmp;
-  	if (!store_local) 
-  	  tl_tmp = tl;
-  	else {
-  	  targetPts = new TupleList();
-  	  tl_tmp = targetPts;
-  	}
-
-  	tl_tmp->initialize(3, 0, 0, 1, num_pts);
-  	tl_tmp->enableWriteAccess();
-
-  	for (unsigned int i = 0; i < source_pts.get_n(); i++) {
-  	  if (-1 != source_pts.vi_rd[3*i+2]) { //why bother sending message saying "i don't have the point" if it gets discarded?
-
-  	    int locIndex = source_pts.vi_rd[3*i+1];
-  	    if(located_pts[locIndex]){  
-  	      //asked 2+ procs if they have point p, they both said yes, we'll keep the one with lowest rank
-  	      //todo: check that the cases where both say yes are justified (seemed to happen too often in tests)
-  	      continue;
-  	    }
-
-  	    located_pts[locIndex] = 1;
-
-  	    tl_tmp->vi_wr[3*tl_tmp->get_n()]     = source_pts.vi_rd[3*i];
-  	    tl_tmp->vi_wr[3*tl_tmp->get_n() + 1] = source_pts.vi_rd[3*i+1];
-  	    tl_tmp->vi_wr[3*tl_tmp->get_n() + 2] = source_pts.vi_rd[3*i+2];
-  	    tl_tmp->inc_n();
-  	  }
-  	}
-
-  	int mappedPoints  = tl_tmp->get_n() + localMappedPts.size()/2;
-  	int missingPoints = num_points-mappedPoints;
-  	printf("point location: wanted %d got %u locally, %d remote, missing %d\n", 
-  	       num_points, (uint)localMappedPts.size()/2,  tl_tmp->get_n(), missingPoints);
-  	assert(0==missingPoints); //will litely break on curved geometries
-  	
-  	  // no longer need source_pts
-  	source_pts.reset();
-
-  	  // copy into tl if passed in and storing locally
-  	if (tl && store_local) {
-  	  tl = new TupleList(3, 0, 0, 1, num_pts);
-  	  tl->enableWriteAccess();
-  	  memcpy(tl->vi_wr, tl_tmp->vi_rd, 3*tl_tmp->get_n()*sizeof(int));
-  	  tl->set_n( tl_tmp->get_n() );
-  	  tl->disableWriteAccess();
-  	}
-
-  	tl_tmp->disableWriteAccess();
-
-  	  // done
+	moab::_point_search::write_data( tl, source_pts, located_pts);
+  	int mapped_points  = tl->get_n() + localMappedPts.size()/2;
+  	int missing_points = num_points-mapped_points;
+  	std::cerr << "point location: wanted " << num_points << " points" 
+		  << "got " << localMappedPts.size()/2 << "locally " 
+		  << tl.get_n() "remote, "
+		  << "missing  " << missing_points << std::endl;
+  	assert(0==missing_points); //will litely break on curved geometries
   	return MB_SUCCESS;
   }
-  
+
+  ErrorCode locate_points( double * xyz, 
+		  	   int num_points,
+                           double rel_eps = 0.0, 
+                           double abs_eps = 0.0){
+	TupleList tl;
+	return locate_points( xyz, num_points, rel_eps, abs_eps, tl);
+  }
+
+ 
   ErrorCode locate_points( Range &targ_verts,
                            double rel_eps = 0.0, 
                            double abs_eps = 0.0,
@@ -272,14 +308,10 @@ public:
                            bool store_local = true){
   	// get locations
   	std::vector<double> locs( 3*targ_verts.size());
-  	ErrorCode rval = mbImpl->get_coords( targ_verts, &locs[0]);
-  	if (MB_SUCCESS != rval) {
-  	        return rval;
-  	}
+  	ErrorCode rval = impl.get_coords( targ_verts, &locs[0]);
+  	if (MB_SUCCESS != rval) { return rval; }
 
-  	if (store_local) {
-  	        targetVerts = targ_verts;
-  	}
+  	if (store_local) { targetVerts = targ_verts; }
   	
   	return locate_points( &locs[0], 
   	      	  	      targ_verts.size(), 
@@ -289,24 +321,18 @@ public:
   	      		      store_local);
   }
 
-  
-    /* Get functions */
-  // Any good compiler should be inlining all of this for you.
-  // If not, you should file a bug against the compiler
-  // these are const methods, and they are small. 
-  inline Interface *mb_impl() const {return mbImpl;}
-  inline AdaptiveKDTree *my_tree() const {return myTree;};
-  inline EntityHandle local_root() const {return localRoot;}
-  inline const std::vector<double> &all_boxes() const {return allBoxes;}
-  inline ParallelComm *my_pc() const {return myPc;}
-  inline const Range &target_verts() const {return targetVerts;}
-  inline int my_id() const {return myId;}
-  inline const Range &my_range() const {return myRange;}
-  inline TupleList *mapped_pts() const {return mappedPts;}
-  inline const std::vector<unsigned int> &local_mapped_pts() const { 
-	  return localMappedPts;
-  }
-  inline int num_its() const {return numIts;}
+
+  Interface* 		mb_impl() 	const 	 { return &impl;	  }
+  AdaptiveKDTree*	my_tree() 	const 	 { return myTree;	  }
+  EntityHandle 		local_root() 	const 	 { return localRoot;	  }
+  const Vector_double &	all_boxes() 	const  	 { return allBoxes;	  }
+  ParallelComm*		my_pc() 	const 	 { return &pc;		  }
+  const Range&		target_verts() 	const 	 { return targetVerts;	  }
+  int 			my_id() 	const 	 { return id;		  }
+  const Range&		my_range() 	const 	 { return range;	  }
+  TupleList*		mapped_pts() 	const 	 { return mappedPts;	  }
+  const Vector& 	local_mapped_pts() const { return localMappedPts; }
+  std::size_t 		num_its() 	const 	 { return num_iterations; }
         
 private:
 ErrorCode nat_param( double xyz[3], 
@@ -354,7 +380,7 @@ ErrorCode nat_param( double xyz[3],
     // find natural coordinates of point in element(s) in that leaf
   CartVect tmp_nat_coords; 
   Range range_leaf;
-  result = mbImpl->get_entities_by_dimension(closest_leaf, 3, range_leaf, false);
+  result = impl.get_entities_by_dimension(closest_leaf, 3, range_leaf, false);
   if(result != MB_SUCCESS) std::cout << "Problem getting leaf in a range" << std::endl;
 
   // loop over the range_leaf
@@ -363,26 +389,26 @@ ErrorCode nat_param( double xyz[3],
     //test to find out in which entity the point is
     //get the EntityType and create the appropriate Element::Map subtype
     // if spectral, do not need coordinates, just the GL points
-    EntityType etype = mbImpl->type_from_handle(*iter);
+    EntityType etype = impl.type_from_handle(*iter);
     if (NULL!= this->_spectralSource && etype==MBHEX)
     {
       EntityHandle eh = *iter;
       const double * xval;
       const double * yval;
       const double * zval;
-      ErrorCode rval = mbImpl-> tag_get_by_ptr(_xm1Tag, &eh, 1,(const void **) &xval );
+      ErrorCode rval = impl.tag_get_by_ptr(_xm1Tag, &eh, 1,(const void **) &xval );
       if (moab::MB_SUCCESS != rval)
       {
         std::cout << "can't get xm1 values \n";
         return MB_FAILURE;
       }
-      rval = mbImpl-> tag_get_by_ptr(_ym1Tag, &eh, 1, (const void **)&yval );
+      rval = impl.tag_get_by_ptr(_ym1Tag, &eh, 1, (const void **)&yval );
       if (moab::MB_SUCCESS != rval)
       {
         std::cout << "can't get ym1 values \n";
         return MB_FAILURE;
       }
-      rval = mbImpl-> tag_get_by_ptr(_zm1Tag, &eh, 1, (const void **)&zval );
+      rval = impl.tag_get_by_ptr(_zm1Tag, &eh, 1, (const void **)&zval );
       if (moab::MB_SUCCESS != rval)
       {
         std::cout << "can't get zm1 values \n";
@@ -396,7 +422,7 @@ ErrorCode nat_param( double xyz[3],
       }
       catch (Element::Map::EvaluationError) {
         std::cout << "point "<< xyz[0] << " " << xyz[1] << " " << xyz[2] <<
-            " is not converging inside hex " << mbImpl->id_from_handle(eh) << "\n";
+            " is not converging inside hex " << impl.id_from_handle(eh) << "\n";
         continue; // it is possible that the point is outside, so it will not converge
       }
 
@@ -407,11 +433,11 @@ ErrorCode nat_param( double xyz[3],
       int num_connect;
 
         //get connectivity
-      result = mbImpl->get_connectivity(*iter, connect, num_connect, true);
+      result = impl.get_connectivity(*iter, connect, num_connect, true);
 
         //get coordinates of the vertices
-      std::vector<CartVect> coords_vert(num_connect);
-      result = mbImpl->get_coords(connect, num_connect, &(coords_vert[0][0]));
+      std::vector<CartVect> coords_vert( num_connect);
+      result = impl.get_coords( connect, num_connect, &(coords_vert[0][0]));
       if (MB_SUCCESS != result) {
         std::cout << "Problems getting coordinates of vertices\n";
         return result;
@@ -466,7 +492,7 @@ ErrorCode test_local_box( double *xyz,
   }
 
   if (rel_eps && !abs_eps) {
-      // relative epsilon given, translate to absolute epsilon using box dimensions
+   // relative epsilon given, translate to absolute epsilon using box dimensions
     CartVect minmax[2];
     myTree->get_tree_box(localRoot, minmax[0].array(), minmax[1].array());
     abs_eps = rel_eps * (minmax[1] - minmax[0]).length();
@@ -534,98 +560,87 @@ ErrorCode test_local_box( double *xyz,
   return MB_SUCCESS;
 }
 
-  ErrorCode initialize_tree(){
-	  Range local_ents;
-	  AdaptiveKDTree::Settings settings;
-	  settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION;
-	
-	    //get entities on the local part
-	  ErrorCode result = MB_SUCCESS;
-	  if (myPc) result = myPc->get_part_entities( local_ents, 
-			  				3);
-	  else local_ents = myRange;
+ErrorCode initialize_tree(){
+  Range local_ents;
+  AdaptiveKDTree::Settings settings;
+  settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION;
 
-	  if (MB_SUCCESS != result || local_ents.empty()) {
-	    std::cout << "Problems getting source entities" 
-		      << std::endl;
-	    return result;
-	  }
-	
-	    // build the tree for local processor
-	  for (int i = 0; i < numIts; i++) {
-	    myTree = new AdaptiveKDTree( mbImpl);
-	    result = myTree->build_tree( local_ents, 
-			    		 localRoot, 
-					 &settings);
-	    if (MB_SUCCESS != result) {
-	      std::cout << "Problems building tree";
-	      if (numIts != i) {
-	        delete myTree;
-	        settings.maxEntPerLeaf *= 2;
-	        std::cout << "; increasing elements/leaf to " 
-	                  << settings.maxEntPerLeaf << std::endl;;
-	      }
-	      else {
-	        std::cout << "; exiting" << std::endl;
-	        return result;
-	      }
-	    }
-	    else
-	      break; // get out of tree building
-	  }
-	
-	    // get the bounding box for local tree
-	  if (myPc){
-	    allBoxes.resize(6*myPc->proc_config().proc_size());
-	  }
-	  else{
-		 allBoxes.resize(6);
-	  }
-	  unsigned int my_rank = (myPc ? myPc->proc_config().proc_rank() : 0);
-	  result = myTree->get_tree_box( localRoot, 
-			  		 &allBoxes[6*my_rank], 
-					 &allBoxes[6*my_rank+3]);
-	  if (MB_SUCCESS != result) return result;
-	  
-	    // now communicate to get all boxes
-	    // use "in place" option
-	  if (myPc) {
-	    int mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-	                                &allBoxes[0], 6, MPI_DOUBLE, 
-	                                myPc->proc_config().proc_comm());
-	    if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
-	  }
-	
-	  /*  std::ostringstream blah;
-	  for(int i=0; i<allBoxes.size(); i++)
-	  blah << allBoxes[i] << " ";
-	  std::cout<<blah.str()<<"\n";*/
-	
-	
-	#ifndef NDEBUG
-	  double min[3] = {0,0,0}, max[3] = {0,0,0};
-	  unsigned int dep;
-	  myTree->get_info(localRoot, min, max, dep);
-	  std::cout << "Proc " << my_rank << ": box min/max, tree depth = ("
-	            << min[0] << "," << min[1] << "," << min[2] << "), ("
-	            << max[0] << "," << max[1] << "," << max[2] << "), "
-	            << dep << std::endl;
-	#endif  
-	
-	  return result;
+    //get entities on the local part
+  ErrorCode result = MB_SUCCESS;
+  result = pc.get_part_entities( local_ents, 3);
+  else local_ents = range;
+
+  if (MB_SUCCESS != result || local_ents.empty()) {
+    std::cout << "Problems getting source entities" 
+	      << std::endl;
+    return result;
   }
-  Interface *mbImpl;
+
+    // build the tree for local processor
+  for (int i = 0; i < num_iterations; i++) {
+    myTree = new AdaptiveKDTree( &impl);
+    result = myTree->build_tree( local_ents, 
+		    		 localRoot, 
+				 &settings);
+    if (MB_SUCCESS != result) {
+      std::cout << "Problems building tree";
+      if (num_iterations != i) {
+        delete myTree;
+     	settings.maxEntPerLeaf *= 2;
+        std::cout << "; increasing elements/leaf to " 
+                  << settings.maxEntPerLeaf << std::endl;;
+      }
+      else {
+        std::cout << "; exiting" << std::endl;
+        return result;
+      }
+    }
+    else
+      break; // get out of tree building
+  }
+  
+  allBoxes.resize(6*pc.proc_config().proc_size());
+
+  unsigned int rank = (pc ? pc.proc_config().proc_rank() : 0);
+  result = myTree->get_tree_box( localRoot, 
+		  		 &allBoxes[6*rank], 
+				 &allBoxes[6*rank+3]);
+  if (MB_SUCCESS != result) return result;
+  
+    // now communicate to get all boxes
+    // use "in place" option
+  if (pc) {
+    int mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
+                                &allBoxes[0], 6, MPI_DOUBLE, 
+                                pc.proc_config().proc_comm());
+    if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
+  }
+
+
+#ifndef NDEBUG
+  double min[3] = {0,0,0}, max[3] = {0,0,0};
+  unsigned int dep;
+  myTree->get_info(localRoot, min, max, dep);
+  std::cerr << "Proc " << rank << ": box min/max, tree depth = ("
+            << min[0] << "," << min[1] << "," << min[2] << "), ("
+            << max[0] << "," << max[1] << "," << max[2] << "), "
+            << dep << std::endl;
+#endif  
+
+  return result;
+}
+  Interface & impl;
   AdaptiveKDTree * myTree;
   EntityHandle localRoot;
   std::vector<double> allBoxes;
-  ParallelComm *myPc;
-  int myId;
-  Range myRange;
+  ParallelComm & pc;
+  int id;
+  Range range;
   Range targetVerts;
   TupleList *mappedPts;
   TupleList *targetPts;
   std::vector<unsigned int> localMappedPts;
-  int numIts;
+  std::size_t num_iterations;
 
  // a cached spectral element for source and target , separate
  // assume that their numberof GL points (order+1) does not change

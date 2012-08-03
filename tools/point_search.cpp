@@ -130,5 +130,5 @@ int main(int argc, char* argv[]){
    PRINT_LAST_ERROR;
  }
  moab::Range src_elems;
- moab::Point_search locator(mbImpl, pcs[0], src_elems, 0);
+ moab::Point_search locator(*mbImpl, pcs[0], src_elems, 0);
 }
