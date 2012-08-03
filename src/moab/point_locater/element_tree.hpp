@@ -19,6 +19,20 @@
 namespace moab {
 //forward declarations
 
+
+struct Box{
+	typedef typename std::vector< double> Vector;
+	Box(): max(3,0.0), min(3,0.0){}
+	Box( const Vector & max_, const Vector & min_): max(max_), min(min_){}
+	Box( const Box & from): max( from.max), min( from.min){}
+	Vector max;
+	Vector min;
+}; //Box
+
+
+
+
+
 template< typename _Entity_handles, 
 	  typename _Boxes, 
 	  typename _Moab> class Element_tree;
@@ -88,7 +102,7 @@ struct Element_compare: public std::binary_function< Iterator, Iterator, bool>{
 	bool operator()( const Iterator a, const Iterator b){
 		return (*a).first < (*b).first;
 	}
-}; // Element_compae
+}; // Element_compare
 
 
 
@@ -113,8 +127,8 @@ private:
 			      _Boxes, 
 			      _Moab> Self; 
 	typedef typename _element_tree::Node< Entity_handles> Node;
-	typedef typename Boxes::value_type Box;
-	typedef typename std::pair< Box, std::size_t> Data;
+	typedef typename std::pair< typename Boxes::value_type, 
+				    std::size_t> Data;
 	typedef typename Entity_handles::value_type Entity_handle;
 	//TODO: we really want an unordered map here..
 	typedef typename std::map< Entity_handle, Data> Entity_map;
@@ -135,7 +149,7 @@ Element_tree( Entity_handles & _entities, Moab & _moab):
 		elements[ ++index] = i;
 	}
 	//We only build nonempty trees
-	if( entity_handles_.size()){ 
+	if( elements.size()){ 
 		build_tree( elements.begin(), elements.end(), 0); 
 	}
 }
@@ -147,21 +161,55 @@ Element_tree( Self & s): entity_handles_( s.entity_handles_),
 //private functionality
 private:
 
-template< typename Entity_handles, typename Entity_map>
-void construct_element_map( const Entity_handles & elements, Entity_map & map){
-	typedef typename Entity_handles::const_iterator Entity_handles_iterator;
-	for( Entity_handles_iterator i = elements.begin(); 
-				     i != elements.end(); ++i){
-		//Box box;
-		//compute_bounding_box( i, box);
-		//Data data( box, 0);
-		//map.insert( *i, data);
-	}	
+template<typename Coordinate>
+void update_bounding_max( Coordinate & max, const Coordinate & coordinate){
+	typedef typename Coordinate::iterator Iterator;
+	typedef typename Coordinate::const_iterator Const_iterator;
+	Const_iterator j = coordinate.begin();
+	for( Iterator i = max.begin(); i != max.end(); ++i, ++j){
+		*i = std::max( *i, *j);
+	}
 }
 
-template< typename Iterator, typename Node_index, typename Data>
+template<typename Coordinate>
+void update_bounding_min( Coordinate & min, const Coordinate & coordinate){
+	typedef typename Coordinate::iterator Iterator;
+	typedef typename Coordinate::const_iterator Const_iterator;
+	Const_iterator j = coordinate.begin();
+	for( Iterator i = min.begin(); i != min.end(); ++i, ++j){
+		*i = std::min( *i, *j);
+	}
+}
+
+template< typename Entity_handles, typename Entity_map>
+void construct_element_map( const Entity_handles & elements, Entity_map & map){
+	typedef typename Entity_map::mapped_type Box_data;
+	typedef typename Entity_handles::value_type Entity_handle;
+	typedef typename Box_data::first_type Box;
+	typedef typename Entity_handles::const_iterator Entity_handles_iterator;
+	typedef typename std::vector< double> Coordinate;
+	Coordinate coordinate(3, 0.0);
+	Box bounding_box;
+	Entity_handle vertex_handle;
+	std::size_t num_vertices=0;
+	for( Entity_handles_iterator i = elements.begin(); 
+				     i != elements.end(); ++i){	
+		//moab.get_connectivity( &*i, vertex_handle, num_vertices, true);
+		Box box;
+		for( std::size_t j = 0; j < num_vertices; ++j){
+			//moab.get_coords( vertex_handle+j, 1, &coordinate[ 0]);
+			update_bounding_max( box.max, coordinate);
+			update_bounding_min( box.min, coordinate);
+		}
+		update_bounding_max( bounding_box.max, box.max);
+		update_bounding_min( bounding_box.min, box.min);
+		map.insert( make_pair( *i, Box_data( box, 0)));
+	}
+}
+
+template< typename Iterator, typename Node_index, typename Partition_data>
 bool decide_split( Iterator & begin, Iterator & end, 
-		   Node_index & node, Data & data){ 
+		   Node_index & node, Partition_data & data){ 
 	return true;
 }
 

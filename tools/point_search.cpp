@@ -65,11 +65,11 @@ void print_usage() {
 }
 
 // default types.. whatevs.
-typedef typename std::vector< double> Box;
+typedef typename moab::Box Box;
 typedef std::vector< Box> Boxes;
-typedef std::vector< int> Element;
-typedef std::vector< Element> Elements;
-typedef moab::Element_tree< Elements, Box, moab::Core> Tree;
+typedef moab::EntityHandle Element;
+typedef Range Elements;
+typedef moab::Element_tree< Elements, Boxes, moab::Core> Tree;
 typedef moab::ParallelComm Communicator; 
 typedef moab::Point_search< Tree, Boxes> Point_locater;
 
@@ -125,21 +125,16 @@ int main(int argc, char* argv[]){
 	read_mesh( target_comm, moab, &roots[ 1], 
 		   options.meshFiles[ 1].c_str(), options.readOpts);
 	
-	Elements elements;
-	Range source_element_range, target_element_range, 
-	      target_vertices, non_owned_vertices;
+	Range source_element_range, target_element_range; 
+	Range target_vertices, non_owned_vertices;
 	source_comm.get_part_entities( source_element_range, 3);
 	target_comm.get_part_entities( target_element_range, 3);
 	moab.get_adjacencies( target_element_range, 0, false, target_vertices, 
 			      moab::Interface::UNION);
-	std::cout << "Target element range: " << target_element_range.size() << std::endl;
 	target_comm.get_pstatus_entities( 0, PSTATUS_NOT_OWNED, 
 					  non_owned_vertices);
-	std::cout << "non owned verts " << non_owned_vertices.size() << std::endl;
-	std::cout << "target verts: " << target_vertices.size() << std::endl;
 	moab::subtract( target_vertices, non_owned_vertices);
-	std::cout << "target verts: " << target_vertices.size() << std::endl;
-	Tree tree(elements, moab);
+	Tree tree(source_element_range, moab);
 	Boxes boxes;
 	Point_locater locator( tree, boxes);
 	Communicator comm( &moab, MPI_COMM_WORLD);
