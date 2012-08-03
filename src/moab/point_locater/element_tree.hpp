@@ -14,6 +14,8 @@
 #include <algorithm>
 #include <deque>
 #include <bitset>
+#include <numeric>
+#include <cmath>
 
 #ifndef ELEMENT_TREE_HPP
 #define ELEMENT_TREE_HPP
@@ -37,6 +39,8 @@ struct Box{
 	typedef typename std::vector< double> Vector;
 	Box(): max(3,0.0), min(3,0.0){}
 	Box( const Box & from): max( from.max), min( from.min){}
+	template< typename Iterator>
+	Box( Iterator begin, Iterator end):max( begin,end), min(begin,end){}
 	Box& operator=( const Box & from){
 		max = from.max;
 		min = from.min;
@@ -55,27 +59,27 @@ namespace _element_tree {
 
 template< typename Data>
 struct Split_comparator {
-  //max - min for correctness. it *might* be slightly slower
-  //but that is unlikely. compiler should optimize this.
+  //we minimizes ||left| - |right|| + |middle|^2 
   const std::size_t split_objective( const Data & a) const {
-	const int max = 2*(a.sizes[ 2]>a.sizes[ 0]);
-	return (a.sizes[ max] -a.sizes[ 2*(1-(max==2))]) + 
-					a.sizes[ 1]*a.sizes[ 1];
+	const int max = 2*(a.second.sizes[ 2]>a.second.sizes[ 0]);
+	return (a.second.sizes[ max] -a.second.sizes[ 2*(1-(max==2))]) + 
+					a.second.sizes[ 1]*a.second.sizes[ 1];
   }
   bool operator()( const Data & a, const Data & b) const {
   	return split_objective( a) < split_objective( b);
   }
 };
 
-template< typename _Entity_handles>
+template< typename _Entity_handles, typename _Entities>
 class Node{
 	//public types:
 	public:
 	typedef _Entity_handles Entity_handles;
+	typedef _Entities Entities;
 
 	//private types:
 	private:
-	typedef Node< _Entity_handles> Self;
+	typedef Node< _Entity_handles, _Entities> Self;
 
 	//Constructors
 	public:
@@ -83,24 +87,33 @@ class Node{
 	Node(): left_( -1), middle_( -1), right_( -1),
 	        dim( -1), split( 0),
 		 left_line( 0), right_line( 0),
-		entity_handles_( NULL) {}
+		entities( NULL) {}
 
 	//Destructor
-	~Node(){ delete entity_handles_; }
-
-	//Constructor (leaf)
-	Node( Entity_handles & _entities, Box & box): 
-		left_( -1), middle_( -1), right_( -1),
-	        dim( -1), split( 0), 
-		left_line( 0), right_line( 0), 
-		entity_handles_( &_entities) {}
+	~Node(){ delete entities; }
 
 	//Copy constructor
 	Node( const Self & from): 
 	left_( from.left_), middle_( from.middle_), right_( from.right_),
 	dim( from.dim), split( from.split),
 	left_line( from.left_line), right_line( from.right_line), 
-	entity_handles_( from.entity_handles_) {}
+	entities( from.entities) {}
+
+	public:
+	template< typename Iterator>
+	void assign_entities(const Iterator & begin, const Iterator & end){
+		std::cout << "b4 segfault ? " << std::endl;
+		entities = new Entities();
+		std::cout << "segfault ? " << std::endl;
+		Entities & _entities = *entities;
+		_entities.reserve( std::distance( begin, end)); 
+		std::cout << "segfault ? " << std::endl;
+		for( Iterator i = begin; i != end; ++i){
+			_entities.push_back( std::make_pair((*i)->second.first, 
+							    (*i)->first));
+		}
+		std::cout << "segfault ? " << std::endl;
+	}
 
 	// Functionality
 	public: 
@@ -115,7 +128,7 @@ class Node{
 		split=from.split;
 		left_line=from.left_line;
 		right_line=from.right_line;
-		entity_handles_=from.entity_handles_;
+		entities=from.entities;
 		return *this;
 	}	
 	//private data members:
@@ -128,7 +141,7 @@ class Node{
 	double split; //split position
 	double left_line;
 	double right_line;
-	Entity_handles * entity_handles_;
+	Entities * entities;
 
 	//Element_tree can touch my privates.
 	template< Entity_handles, typename B> friend class moab::Element_tree;
@@ -136,23 +149,27 @@ class Node{
 
 struct Partition_data{
 	//default constructor
-	Partition_data(){}
+	Partition_data():sizes(3,0){}
 	Partition_data( const Partition_data & f){
 		*this=f;
 	}
+	Partition_data( const Box & _box, int _dim): sizes(3,0),
+	bounding_box( _box), split((_box.max[ _dim] + _box.min[ _dim])/2.0), 
+	left_line( split), right_line( split), dim( _dim){}
 	Partition_data& operator=( const Partition_data & f){
-		for (int i = 0; i < 3; ++i){sizes[ i] = f.sizes[ i];}
+		sizes = f.sizes;
 		bounding_box = f.bounding_box;
 		split = f.split;
 		left_line = f.left_line;
 		right_line = f.right_line;
 		return *this;
 	}
-	std::size_t sizes[ 3];
+	std::vector< std::size_t> sizes;
 	Box bounding_box;
 	double split;
 	double left_line;
 	double right_line;
+	int dim;
 	std::size_t& left()   { return sizes[ 0]; }
 	std::size_t& middle() { return sizes[ 1]; }
 	std::size_t& right()  { return sizes[ 2]; }
@@ -160,16 +177,15 @@ struct Partition_data{
 
 template< typename Iterator>
 struct Element_compare: public std::binary_function< Iterator, Iterator, bool>{
-	Element_compare( const int best_split) loc( best_split){}
-	//TODO: finish off the mask
+	typedef typename Iterator::value_type Pair;
+	typedef typename Pair::second_type::second_type Bitset;
+	Element_compare( const Bitset & _mask): mask( _mask){}
 	bool operator()( const Iterator a, const Iterator b) const{
-		return a->second.second.to_ulong() < 
-			b->second.second.to_ulong();
+		return ((a->second.second)&mask).to_ulong() < 
+			((b->second.second)&mask).to_ulong();
 	}
-	const int loc;
+	const Bitset mask;
 }; // Element_compare
-
-
 
 } //namespace _element_tree
 
@@ -191,7 +207,10 @@ private:
 	typedef Element_tree< _Entity_handles, 
 			      _Boxes, 
 			      _Moab> Self; 
-	typedef typename _element_tree::Node< Entity_handles> Node;
+	typedef typename std::pair< Box, typename Entity_handles::value_type> 
+							Leaf_element;
+	typedef typename _element_tree::Node< Entity_handles,
+					      std::vector< Leaf_element> > Node;
 	//int is because we only need to store 	
 	#define MAX_ITERATIONS 2
 	typedef typename std::pair< Box, std::bitset<3*2*MAX_ITERATIONS> > 
@@ -223,10 +242,20 @@ Element_tree( Entity_handles & _entities, Moab & _moab):
 		//initially all bits are set
 		std::bitset< 3> directions( 7);
 		tree_.push_back( Node());
-		build_tree( element_ordering.begin(), element_ordering.end(), 0,
-			    directions, _data); 
+		int depth = 0;
+		build_tree( element_ordering.begin(), 
+			    element_ordering.end(),
+			    0, directions, _data, depth); 
 	}
 }
+/*
+439 void build_tree( Iterator begin, Iterator end,
+440                  const Node_index node,
+441                  const Directions & directions,
+442                  Partition_data & _data,
+443                  int & depth,
+444                  const bool is_middle = false){
+*/
 
 //Copy constructor
 Element_tree( Self & s): entity_handles_( s.entity_handles_), 
@@ -235,21 +264,17 @@ Element_tree( Self & s): entity_handles_( s.entity_handles_),
 //private functionality
 private:
 
-template<typename Coordinate>
-void update_bounding_max( Coordinate & max, const Coordinate & coordinate){
+template<typename Coordinate, typename Coordinate_iterator>
+void update_bounding_max( Coordinate & max, Coordinate_iterator j){
 	typedef typename Coordinate::iterator Iterator;
-	typedef typename Coordinate::const_iterator Const_iterator;
-	Const_iterator j = coordinate.begin();
 	for( Iterator i = max.begin(); i != max.end(); ++i, ++j){
 		*i = std::max( *i, *j);
 	}
 }
 
-template<typename Coordinate>
-void update_bounding_min( Coordinate & min, const Coordinate & coordinate){
+template<typename Coordinate, typename Coordinate_iterator>
+void update_bounding_min( Coordinate & min, Coordinate_iterator j){
 	typedef typename Coordinate::iterator Iterator;
-	typedef typename Coordinate::const_iterator Const_iterator;
-	Const_iterator j = coordinate.begin();
 	for( Iterator i = min.begin(); i != min.end(); ++i, ++j){
 		*i = std::min( *i, *j);
 	}
@@ -265,96 +290,139 @@ void construct_element_map( const Entity_handles & elements,
 	typedef typename Box_data::second_type Bitset;
 	typedef typename Entity_handles::iterator Entity_handles_iterator;
 	typedef typename std::vector< double> Coordinate;
+	typedef typename Coordinate::iterator Coordinate_iterator;
 	for( Entity_handles_iterator i = elements.begin(); 
 				     i != elements.end(); ++i){	
-		Coordinate coordinate(3, 0.0);
 		const Entity_handle* vertex_handle;
 		int num_vertices=0;
-		moab.get_connectivity( *i, vertex_handle, num_vertices, true);
-		Box box;
-		for( int j = 0; j < num_vertices; ++j){
-			moab.get_coords( vertex_handle+j, 1, &coordinate[ 0]);
-			update_bounding_max( box.max, coordinate);
-			update_bounding_min( box.min, coordinate);
+		moab.get_connectivity( *i, vertex_handle, num_vertices);
+		Coordinate coordinate(3*num_vertices, 0.0);
+		moab.get_coords( vertex_handle, num_vertices, &coordinate[ 0]);
+		Box box( coordinate.begin(), coordinate.begin()+3);
+		bounding_box = box;
+		for( Coordinate_iterator j = coordinate.begin()+3; 
+				         j != coordinate.end(); j+=3){
+			update_bounding_max( box.max, j);
+			update_bounding_min( box.min, j);
 		}
-		update_bounding_max( bounding_box.max, box.max);
-		update_bounding_min( bounding_box.min, box.min);
+		update_bounding_max( bounding_box.max, box.max.begin());
+		update_bounding_min( bounding_box.min, box.min.begin());
 		map.insert( make_pair( *i, Box_data( box, Bitset( 0))));
 	}
 }
 
-template< typename Iterator, typename Partition_data_iterator>
-void find_optimal_split( Iterator & begin, Iterator & end, 
-			 Partition_data_iterator & data_iterator, 
-			 const std::size_t dim){
-	typedef typename Partition_data_iterator::value_type Partition_data;
+template< typename Iterator, typename Split_data>
+void compute_split( Iterator & begin, Iterator & end, 
+			 Split_data & split_data, bool iteration=false){
 	typedef typename Iterator::value_type::value_type Map_value_type;
 	typedef typename Map_value_type::second_type::second_type Bitset;
-	//get middle line in bounding box of this dimension
-	const Box & box( data_iterator->bounding_box);
-	int iteration = 0;
-	do{
-	Partition_data & data = *data_iterator;
-	double & split = data.split =  (box.max[ dim] - box.min[ dim])/2.0;
-	double & left_line = data.left_line = split;
-	double & right_line = data.right_line = split;
+	//we will update the left/right line
+	double & left_line = split_data.left_line;
+	double & right_line = split_data.right_line;
+	double & split = split_data.split;
+	const int & dim = split_data.dim;
+	#ifdef ELEMENT_TREE_DEBUG
+ 	std::cout << std::endl; 
+	std::cout << "-------------------" << std::endl; 
+	std::cout << "dim: " << dim << " split: " << split << std::endl;
+	std::cout << "bounding_box min: "; 
+	print_vector( split_data.bounding_box.min); 
+	std::cout << "bounding_box max: "; 
+	print_vector( split_data.bounding_box.max);
+	#endif
 	//for each elt determine if left/middle/right
 	for(Iterator i = begin; i != end; ++i){
-		const Box & _box =  (*i)->second.first;
+		const Box & box =  (*i)->second.first;
 		Bitset & bits =  (*i)->second.second;
 		//will be 0 if on left, will be 1 if in the middle
 		//and 2 if on the right;
-		const int side = !(split < _box.min[ dim]) + 
-					(split > _box.max[ dim]);
+		const bool on_left = (box.max[ dim] < split);
+		const bool on_right = (box.min[ dim] > split);
+		const bool in_middle = !on_left && !on_right;
+		//TODO: remove branch
+		int side;
+		if(in_middle){
+			side=1;
+			left_line  = std::min( left_line,  box.min[ dim]);
+			right_line = std::max( right_line, box.max[ dim]);
+		}else if( on_left){
+			side=0;
+		}else if( on_right){
+			side=2;
+		}
 		//keep track of partition data,
-		data.sizes[ side]++;
-		//if we are in the middle update the middle bounding lines
-		left_line = (side==1)*std::min(left_line,_box.min[ dim]);
-		right_line = (side==1)*std::max(right_line,_box.max[ dim]);
+		split_data.sizes[ side]++;
 		//set the corresponding bits in the bit vector
 		// looks like: [x_1 = 00 | x_2 = 00 | .. | z_1 = 00 | z_2 = 00]
 		// two bits, but we encode 2 as 11 _not_ 10
 		const int index = 4*dim + 2*iteration;
 		bits.set( index, side>0);
 		bits.set( index+1, side==2);
-	}
-	//if balanced exit.
+	}	
+	#ifdef ELEMENT_TREE_DEBUG
+	std::cout <<  " left_line: " << left_line;
+	std::cout <<  " right_line: " << right_line << std::endl;
+	std::cout << "computed partition size: ";
+	print_vector( split_data.sizes);
+	std::cout << "-------------------" << std::endl; 
+	#endif
+}
+
+template< typename Split_data>
+bool update_split_line( Split_data & data) const{
+	std::size_t total = std::accumulate( data.sizes.begin(), 
+					     data.sizes.end(), 0);
 	const int max = 2*(data.sizes[ 2]>data.sizes[ 0]);
 	const int min = 2*(1-(max==2));
-	const std::size_t total = std::distance(begin,end);
-	if (data.sizes [ max] - data.sizes[ min] < .05*total){
-		return;	
+	bool all_in_middle = data.sizes[ max]==0 && data.sizes[ min]==0;
+	double balance_ratio = data.sizes[ max] - data.sizes[ min];
+	if ( !all_in_middle && balance_ratio < .05*total){ return false; }
+	if( !all_in_middle){
+		//if we have some imbalance on left/right 
+		//try to fix the situation 
+		balance_ratio /= data.sizes[ max];
+		data.split += (max-1)*balance_ratio*(data.split/2.0);
+	}else{
+		//if everything is in the middle, wiggle a bit in
+		//the larger direction
+		double left_distance = std::abs(data.left_line-data.split);
+		double right_distance = std::abs(data.right_line-data.split);
+		data.split += (left_distance>right_distance)?
+				(-left_distance/2.0):(right_distance/2.0);
 	}
-	const int sign = max-1;
-	split += sign*((data.sizes[ max] - data.sizes[ min])/
-					data.sizes[ max])*(split/2.0);
-	} while( ++iteration < MAX_ITERATIONS);
+	data.left_line = data.right_line = data.split;
+	data.sizes.assign( data.sizes.size(), 0);
+	return true;
 }
 
 template< typename Iterator, 
-	  typename Partition_data, 
+	  typename Split_data, 
 	  typename Directions>
-int determine_split( Iterator & begin, 
+std::size_t determine_split( Iterator & begin, 
 		      Iterator & end, 
-		      Partition_data & data, 
+		      Split_data & data, 
 		      const Directions & directions){ 
 	typedef typename Iterator::value_type Pair;
-	typedef typename std::vector< Partition_data> Vector;
-	typedef typename _element_tree::Split_comparator< Partition_data> 
-								Comparator;
-	typedef typename Vector::iterator Split;
-	Vector splits( 2*directions.count(), data);
-	Split s( splits.begin());
+	typedef typename std::map< std::size_t, Split_data> Splits;
+	typedef typename Splits::value_type Split;	
+	typedef typename _element_tree::Split_comparator< Split> Comparator;
+	Splits splits;
 	for (std::size_t dir = 0; dir < directions.size(); ++dir){
 		if( directions.test( dir)){
-			find_optimal_split( begin, end, s, dir);
-			s+=2;
+			Split_data split_data( data.bounding_box, dir);
+			compute_split( begin, end, split_data);
+			splits.insert( std::make_pair(2*dir, split_data));
+			if( update_split_line( split_data)){
+				compute_split( begin, end, split_data, true);
+				splits.insert( std::make_pair( 2*dir+1,
+							       split_data) );
+			}
 		}
 	}
-	Split best = std::min_element( splits.begin(), 
-				       splits.end(), Comparator());
-	data = *best;
-	return std::distance( splits.begin(), best);
+	Split best = *std::min_element( splits.begin(), splits.end(), 
+					Comparator());
+	data = best.second;
+	return best.first;
 }
 
 template< typename Node_index, typename Partition_data>
@@ -363,6 +431,7 @@ void assign_data_to_node( const Node_index & node, const Partition_data & data){
 	tree_[ node].left_line = data.left_line;  
 	tree_[ node].right_line = data.right_line;
 }
+
 template< typename Node_index>
 void extend_tree( const Node_index node){
 	Nodes children( 3);
@@ -374,50 +443,54 @@ void extend_tree( const Node_index node){
 }
 
 //define here for now.
-#define ELEMENTS_PER_LEAF 1000
+#define ELEMENTS_PER_LEAF 10
 template< typename Iterator, typename Node_index, 
 	  typename Directions, typename Partition_data>
 void build_tree( Iterator begin, Iterator end, 
 		 const Node_index node, 
 		 const Directions & directions, 
 		 Partition_data & _data,
-		 const int depth = 0, 
+		 int & depth, 
 		 const bool is_middle = false){
-	typedef typename Iterator::value_type Pair;
+	typedef typename Iterator::value_type Map_iterator;
+	typedef typename Map_iterator::value_type::second_type Element_data;
+	typedef typename Element_data::second_type Bitset;
 	std::size_t number_elements = std::distance(begin, end);
 	if ( number_elements > ELEMENTS_PER_LEAF && 
 		(!is_middle || directions.any())){
-		int best_split = determine_split( begin, end, 
+		std::size_t best_split = determine_split( begin, end, 
 						 _data, directions); 
-		assign_data_to_node( node, _data);
-		_element_tree::Element_compare< Pair> less( best_split);
+		Bitset mask( 0);
+		mask.flip( best_split).flip(best_split+1);
+		_element_tree::Element_compare< Map_iterator> less( mask);
 		std::sort( begin, end, less);
+		//update the tree
+		assign_data_to_node( node, _data);
+		extend_tree( node);
 		Iterator middle_begin( begin+_data.left());
 		Iterator middle_end( middle_begin+_data.middle());
-
-		//append elements after current node
-		std::cout << tree_.size() << std::endl;
-		extend_tree( node);
-		std::cout << "tree extended" << std::endl;
-		std::cout << tree_.size() << std::endl;
-		
 		_element_tree::Partition_data data( _data);
+		if( is_middle){
+			std::cout << "middle depth: " << depth << std::endl;
+		}	
 		//left subtree
+		std::vector< int> depths(3, depth+1);
 		build_tree( begin, middle_begin, tree_[ node].left_, 
-			    directions, data, depth+1,  is_middle);
+			    directions, data, depths[ 0],  is_middle);
 		//right subtree
 		build_tree( middle_end, end, tree_[ node].right_,
-			    directions, data, depth+1, is_middle);
-
+			    directions, data, depths[ 1], is_middle);
 		//force the middle subtree to split
 		//in a different direction from this one
 		//middle subtree
 		Directions new_direction( directions);
 		new_direction.flip( tree_[node].dim);
 		build_tree( middle_begin, middle_end, tree_[ node].middle_,
-			    new_direction, data, depth+1, true);
+			    new_direction, data, depths[ 2], true);
+		depth = *std::max_element(depths.begin(), depths.end());
 	}else{
-		//we are a leaf node
+		std::cout << "here?" << std::endl;
+		tree_[ node].assign_entities( begin, end);
 	}
 }
 
