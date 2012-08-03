@@ -9,10 +9,10 @@
  * the diving line. We build a tree on the mesh with this property.
  */
 #include <vector>
+#include <set>
 #include <iostream>
 #include <map>
 #include <algorithm>
-#include <deque>
 #include <bitset>
 #include <numeric>
 #include <cmath>
@@ -329,26 +329,21 @@ void compute_split( Iterator & begin, Iterator & end,
 		const bool on_left = (box.max[ dim] < split);
 		const bool on_right = (box.min[ dim] > split);
 		const bool in_middle = !on_left && !on_right;
-		//TODO: remove branch
-		int side;
-		if(in_middle){
-			side=1;
-			left_line  = std::min( left_line,  box.min[ dim]);
-			right_line = std::max( right_line, box.max[ dim]);
-		}else if( on_left){
-			side=0;
-		}else if( on_right){
-			side=2;
-		}
-		//keep track of partition data,
-		split_data.sizes[ side]++;
 		//set the corresponding bits in the bit vector
 		// looks like: [x_1 = 00 | x_2 = 00 | .. | z_1 = 00 | z_2 = 00]
-		// two bits, but we encode 2 as 11 _not_ 10
+		// two bits, left = 00, middle = 01, right = 10
 		const int index = 4*dim + 2*iteration;
-		bits.set( index, side>0);
-		bits.set( index+1, side==2);
-	}	
+		if( on_left){ split_data.sizes[ 0]++; }
+		else if(in_middle){
+			split_data.sizes[ 1]++;
+			bits.set( index, 1);
+			left_line  = std::min( left_line,  box.min[ dim]);
+			right_line = std::max( right_line, box.max[ dim]);
+		}else if( on_right){
+			bits.set( index+1, 1);
+			split_data.sizes[ 2]++;
+		}
+	}
 	#ifdef ELEMENT_TREE_DEBUG
 	std::cout <<  " left_line: " << left_line;
 	std::cout <<  " right_line: " << right_line << std::endl;
@@ -388,11 +383,14 @@ bool update_split_line( Split_data & data) const{
 template< typename Iterator, 
 	  typename Split_data, 
 	  typename Directions>
-std::size_t determine_split( Iterator & begin, 
+void determine_split( Iterator & begin, 
 		      Iterator & end, 
 		      Split_data & data, 
 		      const Directions & directions){ 
 	typedef typename Iterator::value_type Pair;
+	typedef typename Pair::value_type Map_value_type;
+	typedef typename Map_value_type::second_type::second_type Bitset;
+	typedef typename Map_value_type::second_type::first_type Box;
 	typedef typename std::map< std::size_t, Split_data> Splits;
 	typedef typename Splits::value_type Split;	
 	typedef typename _element_tree::Split_comparator< Split> Comparator;
@@ -411,10 +409,37 @@ std::size_t determine_split( Iterator & begin,
 	}
 	Split best = *std::min_element( splits.begin(), splits.end(), 
 					Comparator());
-	data = best.second;
-	return best.first;
+	const int dir = best.first/2;
+	const int iter = best.first%2;
+	Bitset mask( 0);
+	mask.flip( 4*dir+2*iter).flip( 4*dir+2*iter+1);
+	for(Iterator i = begin; i != end; ++i){
+		Bitset & bits = (*i)->second.second;
+		//replace 12 bits with just two.
+		bits &= mask;
+		bits >>= 4*dir+2*iter;
+		const double & left_line = best.second.left_line;
+		const double & right_line = best.second.right_line;
+		const Box & box =  (*i)->second.first;
+		//if box is labeled left/right but properly contained 
+		//in the middle, move the element into the middle. 
+		switch( bits.to_ulong()){
+			case 0:
+				if ( box.min[ dir] > left_line){ 
+					bits.flip( 1); 
+				}
+				break;
+			case 2:
+				if ( box.max[ dir] < right_line){ 
+					bits >>= 1;
+				}
+				break;
+		}
+	
+	}
 }
 
+//should be moved to an equality operator on Node class 
 template< typename Node_index, typename Partition_data>
 void assign_data_to_node( const Node_index & node, const Partition_data & data){
 	tree_[ node].split = data.split;
@@ -433,70 +458,23 @@ void extend_tree( const Node_index node){
 	tree_[ node].right_ = _index;
 }
 
-
-template< typename Iterator, typename Mask>
-void _advance_pointer( Iterator & begin,
-		       const Iterator & end, 
-		       const Mask & value, 
-		       const Mask & mask) const{
-	while ( begin != end && (((*begin)->second.second)&mask) == value ){ 
-		++begin;
-	}
+template< typename Iterator, typename Iterators, typename Indices>
+void advance_block( Iterator & block, const Iterators & end, 
+		    const std::size_t index, Indices & unsorted){
+	do{ 
+	      if( block == end[ index]){ 
+	      	unsorted.erase( index); 
+	      	break; 
+	      }else{
+	      	block++;
+	      }
+	} while((*block)->second.second.to_ulong() == index);
 }
-
-template< typename Iterators, typename Bitsets>
-void begin_pointers( std::size_t & min_unsorted, 
-		     Iterators & block_begin, 
-		     const Iterators & block_end,
-		     const Bitsets & data_values,
-		     const typename Bitsets::value_type & mask ){
-	for ( std::size_t range=min_unsorted; range < 3; ++range){
-		_advance_pointer( block_begin[ range],
-				  block_end[ range], 
-				  data_values[ range], mask);
-	}
-	update_min_unsorted( min_unsorted, block_begin, block_end, data_values);
-}
-
-template< typename Iterators, typename Bitsets>
-void update_min_unsorted( std::size_t & min_unsorted, 
-		     const Iterators & block_begin, 
-		     const Iterators & block_end,
-		     const Bitsets & data_values){
-	for ( std::size_t range=min_unsorted; range < 3; ++range){
-		if ( block_begin[ range] != block_end[ range]){
-			min_unsorted=range;
-			break;
-		}
-	}
-}
-
-
-template< typename Iterator>
-void print_order( const Iterator & begin, const Iterator & end, 
-		  const std::size_t best_split){
-	typedef typename Iterator::value_type Map_iterator;
-	typedef typename Map_iterator::value_type::second_type Element_data;
-	typedef typename Element_data::second_type Bitset;
-	Bitset mask( 0);
-	mask.flip( best_split).flip( best_split+1);
-	for(Iterator i = begin; i != end; ++i){
-		std::cout << 
-		((((*i)->second.second)&mask).to_ulong() >> best_split)
-		<< ", ";
-	}
-	std::cout << std::endl;
-}
-
-
-
-
 
 template< typename Iterator, typename Data>
 void count_sort( Iterator & begin, 
 		 Iterator & end, 
-		 const Data & data,
-		 const std::size_t best_split ){
+		 const Data & data){
 	typedef typename Iterator::value_type Map_iterator;
 	typedef typename Map_iterator::value_type::second_type Element_data;
 	typedef typename Element_data::second_type Bitset;
@@ -504,48 +482,39 @@ void count_sort( Iterator & begin,
 	typedef typename Iterators::iterator Block_iterator;
 	typedef typename std::vector< Bitset> Bitsets;
 	typedef typename Bitsets::const_iterator Bitset_iterator;
+	typedef typename std::set< size_t> Indices;
+	typedef typename Indices::iterator Index;
 	Iterators block_begin( 3, begin);
 	Iterators block_end( 3, end);
-	Bitsets data_values( 3, 0);
 	block_end[ 0] = block_begin[ 1] = begin+data.left();
 	block_end[ 1] = block_begin[ 2] = begin+data.left()+data.middle();
-	data_values[ 1].flip( best_split); 
-	data_values[ 2].flip( best_split).flip( best_split-1);
-	for (int i = 0; i < 3; ++i){
-		std::cout << "block_len: " << 
-			std::distance( block_begin[ i], block_end[ i])
-		<< std::endl;
-		std::cout << data_values[ i] << std::endl; 
+        //one liner in C++ 11
+	const std::size_t unsorted_ints[3] = { 0, 1, 2};
+	Indices unsorted(unsorted_ints, unsorted_ints+3);
+	for( std::size_t i = 0; i < 3; ++i){
+		while( ((*block_begin[ i])->second.second.to_ulong() == i)){ 
+			block_begin[ i]++;
+			if (block_begin[ i] == block_end[ i]){
+				unsorted.erase( i);
+				break;
+			}
+		}
 	}
-	std::size_t min_unsorted=0;
-	begin_pointers( min_unsorted, block_begin, block_end, data_values, 
-			data_values[ 2]);
-	do
-	{
-	  std::cout << "min_unsorted: " << min_unsorted << std::endl;
-	  Iterator & a = block_begin[ min_unsorted];
-	  std::size_t index = (((*a)->second.second)&data_values[ 2])
-						.to_ulong() >> best_split;
-	  if (index == 3){ index = 2;}
+	do {
+	  const std::size_t block_index = *(unsorted.begin());
+	  Iterator & a = block_begin[ block_index];
+	  const std::size_t first_index = (*a)->second.second.to_ulong();
 	  //swap advance beginning of block
-	  Iterator & block = block_begin[ index];
-	  std::iter_swap( a, block);
-	  //check if we can go further
-	  if (block_begin[ index] != block_end[ index]){
-	  	  block++;
-		  _advance_pointer( block, block_end[ index], 
-				    data_values[ index], 
-				    data_values[ 2]); 
-	  }
-	  //if we swapped in a value for our own
-	  //block we advance our pointer as far as possible 
-	  _advance_pointer( a, block_end[ min_unsorted], 
-			     data_values[ min_unsorted], 
-			     data_values[ 2]);
-	  min_unsorted += (a == block_end[ min_unsorted]);
-	  update_min_unsorted( min_unsorted, block_begin, 
-				 block_end, data_values);
-	} while( block_begin[ min_unsorted] != block_end[ min_unsorted]); 
+	  Iterator & block = block_begin[ first_index];
+	  const std::size_t second_index = (*block)->second.second.to_ulong();
+	  std::swap( a, block);
+	  //advance the block with given first_index as far as possible.
+	  advance_block( block, block_end, first_index, unsorted);
+	  if( second_index == block_index){
+	  	advance_block( a, block_end, block_index, unsorted);
+	  } 
+	} while( block_begin[ *(unsorted.begin())] !=
+				 block_end[ *(unsorted.begin())]); 
 }
 
 //define here for now.
@@ -563,9 +532,8 @@ void build_tree( Iterator begin, Iterator end,
 	if ( depth < MAX_DEPTH && 
 		number_elements > ELEMENTS_PER_LEAF && 
 		(!is_middle || directions.any())){
-		std::size_t best_split = determine_split( begin, end, 
-						 _data, directions);
-		count_sort( begin, end, _data, best_split);
+		determine_split( begin, end,  _data, directions);
+		count_sort( begin, end, _data);
 		
 		//update the tree
 		assign_data_to_node( node, _data);
