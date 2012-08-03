@@ -32,6 +32,7 @@
 #include <vector>
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 
 namespace io = moab::point_locator::io;
 
@@ -64,12 +65,24 @@ void print_usage() {
   std::cerr << "        Write stdout and stderr streams to the file \'<dbg_file>.txt\'." << std::endl;
 }
 
+template< typename Entity_handle, typename Point>
+struct _Parametrizer : public std::binary_function< Entity_handle, Point, bool> {
+	bool operator()( const Entity_handle & e, const Point & p){
+		return true;
+	}
+}; // Parametrizer
+
+
+
+
+
+
 // default types.. whatevs.
-typedef typename moab::Box Box;
-typedef std::vector< Box> Boxes;
+typedef std::vector< moab::common_tree::Box> Boxes;
 typedef moab::EntityHandle Element;
+typedef _Parametrizer< Element, std::vector< double> > Parametrizer;
 typedef Range Elements;
-typedef moab::Element_tree< Elements, Boxes, moab::Core> Tree;
+typedef moab::Element_tree< Elements, Boxes::value_type, moab::Core, Parametrizer> Tree;
 typedef moab::ParallelComm Communicator; 
 typedef moab::Point_search< Tree, Boxes> Point_locater;
 
@@ -134,9 +147,10 @@ int main(int argc, char* argv[]){
 	target_comm.get_pstatus_entities( 0, PSTATUS_NOT_OWNED, 
 					  non_owned_vertices);
 	moab::subtract( target_vertex_handles, non_owned_vertices);
-	Box bounding_box;	
+	moab::common_tree::Box bounding_box;	
+	Parametrizer p;
 	double construction_start = MPI_Wtime();
-	Tree tree(source_element_range, moab, bounding_box);
+	Tree tree(source_element_range, moab, bounding_box, p);
 	double construction = MPI_Wtime() - construction_start;
 	std::cout << "construction time: " << construction << std::endl;
 	Boxes boxes;
@@ -145,8 +159,8 @@ int main(int argc, char* argv[]){
 	std::vector< std::vector< double> > target_vertices;
 	target_vertices.reserve( target_vertex_handles.size());
 	std::size_t index = 0;
-	for( typename Range::iterator i = target_vertex_handles.begin();
-				      i != target_vertex_handles.end();
+	for( Range::iterator i = target_vertex_handles.begin();
+			     i != target_vertex_handles.end();
 					++i, ++index){
 		std::vector< double> coordinate( 3, 0);
 		moab.get_coords( &*i, 3, &coordinate[ 0]);
@@ -157,5 +171,9 @@ int main(int argc, char* argv[]){
 	locator.locate_points( target_vertices, located_elements); 
 	double locate_points = MPI_Wtime() - locate_start;
 	std::cout << "point_location: " << locate_points << std::endl;
+	std::cout << "unlocated points: " << 
+		std::count( located_elements.begin(), 
+				located_elements.end(), 0)
+	<< std::endl;
 	Communicator comm( &moab, MPI_COMM_WORLD);
 }

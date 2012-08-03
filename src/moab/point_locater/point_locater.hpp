@@ -4,6 +4,9 @@
  * Copyright 2012
  */
 #include <vector>
+#include <iostream>
+#include <time.h>
+
 #ifndef POINT_LOCATER_HPP
 #define POINT_LOCATER_HPP
 
@@ -100,6 +103,7 @@ Error locate_points( Points & query_points, Entities & entities) const{
 			   i != query_points.end(); ++i){
 			result.push_back( tree_.find( *i));
 	}
+	entities = result;
 	return 0;
 } 
 
