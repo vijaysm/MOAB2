@@ -17,23 +17,25 @@
 
 #ifndef COMMON_TREE_HPP
 #define COMMON_TREE_HPP
-
+#define NUM_DIM 3
+#define TREE_DEBUG
 namespace moab {
-namespace common_tree { 
-#ifdef TREE_DEBUG
-template< typename T>
-void print_vector( const T & v){
+namespace common_tree {
+ 
+template< typename T, typename Stream>
+void print_vector( const T & v, Stream & out){
 	typedef typename T::const_iterator Iterator;
-	std::cout << "[ ";
+	out << "[ ";
 	for(Iterator i = v.begin(); i != v.end(); ++i){
-		std::cout << *i;
+		out << *i;
 		if( i+1 != v.end()){
-			std::cout << ", ";
+			out << ", ";
 		}
 	}
-	std::cout << " ]" << std::endl;
+	out << " ]" << std::endl;
 }
 
+#ifdef TREE_DEBUG
 template< typename T>
 void print_vector( const T & begin, const T & end){
 	std::cout << "[ ";
@@ -61,53 +63,71 @@ bool box_contains_point(  const _Box & box, const _Point & p){
 namespace {
 	template< typename T> 
 	struct Compute_center: public std::binary_function< T, T, T> {
-		inline T operator()( const T a, const T b) const{
+		T operator()( const T a, const T b) const{
 			return (a+b)/2.0;
 		}
 	}; //Compute_center
 } //non-exported center computation.
 
+template< typename Vector>
+inline void compute_box_center(Vector & max, Vector & min, Vector & center){
+	center = min;
+	std::transform( max.begin(), max.end(), center.begin(),
+			center.begin(), Compute_center< double>() );
+}
+
 class Box{
 	public:
 	typedef std::vector< double> Vector;
-	typedef std::pair< Vector::const_iterator,
-			   Vector::const_iterator> Pair;
-	Box(): max(3,0.0), min(3,0.0) {}
-	Box( const Box & from): max( from.max), min( from.min){}
+	Box(): max(3,0.0), min(3,0.0), center(3,0.0) {}
+	Box( const Box & from): max( from.max), 
+				min( from.min),
+				center( from.center){}
 	template< typename Iterator>
-	Box( const Iterator begin):max( begin,begin+3), min(begin,begin+3){}
+	Box( const Iterator begin, const Iterator end):
+	max( begin, end), min(begin, end), center( begin, end){}
 	Box& operator=( const Box & from){
 		max = from.max;
 		min = from.min;
-		return *this;
-	}
-	Vector max;
-	Vector min;
-}; //Box
-
-class Box_with_center{
-	public:
-	typedef std::vector< double> Vector;
-	typedef std::pair< Vector::const_iterator,
-			   Vector::const_iterator> Pair;
-	Box_with_center(): max(3,0.0), min(3,0.0), center(3,0.0){}
-	Box_with_center( const Box_with_center & from): max( from.max), min( from.min), 
-	center( from.min){
-		std::transform( max.begin(), max.end(), center.begin(),
-				center.end(), Compute_center< double>());
-	}
-	template< typename Iterator>
-	Box_with_center( const Iterator begin):max( begin,begin+3), min(begin,begin+3){}
-	Box_with_center& operator=( const Box_with_center & from){
-		max = from.max;
-		min = from.min;
-		center = from.center;
+		center= from.center;
 		return *this;
 	}
 	Vector max;
 	Vector min;
 	Vector center;
 }; //Box
+
+std::ostream& operator<<( std::ostream& out, Box & box){
+	out << "Max: ";
+	print_vector( box.max, out);
+	out << std::endl << "Min: ";
+	print_vector( box.min, out);	
+	return out;
+}
+
+//essentially a pair, but with an added constructor.
+template< typename T1, typename T2>
+struct _Element_data  {
+	typedef T1 first_type;
+	typedef T2 second_type;
+	T1 first;
+	T2 second;
+	_Element_data(): first(T1()), second(T2()){}
+	_Element_data( const T1 & x): first(x), second(T2()) {}
+	_Element_data( const T1 & x, T2 & y): first( x), second( y) {}
+	template< typename U, typename V>
+	_Element_data( const _Element_data<U,V> &p ): first(p.first),
+						      second( p.second) {}
+}; //Element_data
+
+template< typename Entities, typename Iterator>
+void assign_entities(Entities & entities, const Iterator & begin, const Iterator & end){
+	entities.reserve( std::distance( begin, end)); 
+	for( Iterator i = begin; i != end; ++i){
+		entities.push_back( std::make_pair((*i)->second.first, 
+						    (*i)->first));
+	}
+}
 
 template<typename Coordinate, typename Coordinate_iterator>
 void update_bounding_max( Coordinate & max, Coordinate_iterator j){
@@ -144,6 +164,7 @@ template< typename Entity_handles,
 	  typename Element_map, 
 	  typename Bounding_box,
 	  typename Moab>
+
 void construct_element_map( const Entity_handles & elements, 
 			    Element_map & map, 
 			    Bounding_box & bounding_box,
@@ -163,13 +184,14 @@ void construct_element_map( const Entity_handles & elements,
 		moab.get_connectivity( *i, vertex_handle, num_vertices);
 		Coordinates coordinate(DIM*num_vertices, 0.0);
 		moab.get_coords( vertex_handle, num_vertices, &coordinate[ 0]);
-		Box box( coordinate.begin());
+		Bounding_box box( coordinate.begin(), coordinate.begin()+3);
 		bounding_box = box;
 		for( Coordinate_iterator j = coordinate.begin()+DIM; 
 				         j != coordinate.end(); j+=DIM){
 			update_bounding_max( box.max, j);
 			update_bounding_min( box.min, j);
 		}
+		compute_box_center( box.max, box.min, box.center);
 		update_bounding_max( bounding_box.max, box.max.begin());
 		update_bounding_min( bounding_box.min, box.min.begin());
 		map.insert( std::make_pair( *i, Box_data( box)));

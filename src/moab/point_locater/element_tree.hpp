@@ -196,20 +196,6 @@ class _Node{
 	template< Entity_handles, typename B> friend class moab::Element_tree;
 }; //class Node
 
-//essentially a pair, but with an added constructor.
-template< typename T1, typename T2>
-struct _Element_data  {
-	typedef T1 first_type;
-	typedef T2 second_type;
-	T1 first;
-	T2 second;
-	_Element_data(): first(), second(){}
-	_Element_data( const T1 & x): first(x), second() {}
-	_Element_data( const T1 & x, T2 & y): first( x), second( y) {}
-	template< typename U, typename V>
-	_Element_data( const _Element_data<U,V> &p ): first(p.first),
-						      second( p.second) {}
-};
 } //namespace _element_tree
 } // anon namespace 
 
@@ -237,7 +223,7 @@ private:
 	typedef _element_tree::_Node< Entity_handles, std::vector< Leaf_element> > Node;
 	//int is because we only need to store 	
 	#define MAX_ITERATIONS 2
-	typedef  _element_tree::_Element_data< Box, std::bitset<3*2*MAX_ITERATIONS> > 
+	typedef  common_tree::_Element_data< Box, std::bitset<NUM_DIM*MAX_ITERATIONS*2> > 
 								Element_data;
 	typedef std::vector< Node> Nodes;
 	//TODO: we really want an unordered map here, make sure this is kosher..
@@ -525,8 +511,7 @@ void build_tree( Iterator begin, Iterator end,
 		depth = *std::max_element(depths.begin(), depths.end());
 	}
 	if( tree_[ node].leaf()){
-		tree_[ node].assign_entities( begin, end);
-
+		common_tree::assign_entities(tree_[ node].entities, begin, end);
 	}
 }
 
@@ -580,7 +565,7 @@ private:
 	Nodes tree_;
 	Moab & moab;
 	Box bounding_box;
-	Parametrizer & entity_contains;
+	Parametrizer entity_contains;
 
 }; //class Element_tree
 

@@ -74,17 +74,19 @@ struct _Parametrizer : public std::binary_function< Entity_handle, Point, bool> 
 }; // Parametrizer
 
 // default types.. whatevs.
-typedef std::vector< moab::common_tree::Box> Boxes;
+typedef typename moab::common_tree::Box Bounding_box;
 typedef moab::EntityHandle Element;
 typedef _Parametrizer< Element, std::vector< double> > Parametrizer;
 typedef Range Elements;
-typedef moab::Element_tree< Elements, Boxes::value_type, 
-			    moab::Core, Parametrizer> Element_tree_;
-typedef moab::Bvh_tree< Elements, Boxes::value_type, 
-			    moab::Core, Parametrizer> Bvh_tree_;
+typedef moab::Element_tree< Elements, Bounding_box, moab::Core, Parametrizer> 
+							Element_tree_;
+typedef moab::Bvh_tree< Elements, Bounding_box, moab::Core, Parametrizer> 
+							Bvh_tree_;
 typedef moab::ParallelComm Communicator; 
-typedef moab::Point_search< Element_tree_, Boxes> Element_locater;
-typedef moab::Point_search< Bvh_tree_, Boxes> Bvh_locater;
+typedef moab::Point_search< Element_tree_, std::vector< Bounding_box> > 
+								Element_locater;
+typedef moab::Point_search< Bvh_tree_, std::vector< Bounding_box> > 
+								Bvh_locater;
 
 template< typename Communicator, typename Moab, 
 	  typename Root, typename String, typename String_>

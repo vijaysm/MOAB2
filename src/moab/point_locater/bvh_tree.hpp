@@ -42,7 +42,10 @@ namespace {
 	}; // _Node
 
 	struct _Split_data {
-	
+		unsigned int dim;
+		unsigned int child;
+		float Lmax, Rmin;
+		unsigned int nl;
 	}; //_Split_data
 
 
@@ -82,31 +85,38 @@ Bvh_tree( Entity_handles & _entities,
 				bounding_box( _bounding_box),
 				entity_contains( entity_contains){
 	typedef typename Entity_handles::iterator Entity_handle_iterator;
-	typedef typename std::map< Entity_handle, Box> Entity_map;
+	typedef  common_tree::_Element_data< _Box, int > Element_data;
+	typedef typename std::tr1::unordered_map< Entity_handle, 
+						  Element_data> Entity_map;
 	typedef typename Entity_map::iterator Entity_map_iterator;
 	typedef std::vector< Entity_map_iterator> Vector;
 	//a fully balanced tree will have 2*_entities.size()
 	//which is one doubling away..
 	tree_.reserve( entity_handles_.size());
-	Entity_map entity_map;
+	Entity_map entity_map( entity_handles_.size());
 	common_tree::construct_element_map( entity_handles_, 
 					    entity_map, 
 					    bounding_box, 
 					    moab);
- 	_bounding_box = bounding_box;
-	
+	std::cout << "construct map ? " << std::endl;
+ 	//_bounding_box = bounding_box;
 	Vector entity_ordering;
 	construct_ordering( entity_map, entity_ordering); 
 	//We only build nonempty trees
+	std::cout << "ordering" << std::endl;
 	if( entity_ordering.size()){ 
 	 //initially all bits are set
 	 tree_.push_back( Node());
-	 _bvh::_Split_data data;
 	 const int depth = build_tree( entity_ordering.begin(), 
-				       entity_ordering.end(), 0, data);
+				       entity_ordering.end(), 0);
 	 std::cout << "max tree depth: " << depth << std::endl; 
 	}
 }
+
+//see FastMemoryEfficientCellLocationinUnstructuredGridsForVisualization.pdf 
+//around page 9
+#define NUM_SPLITS 4
+#define SMAX 8
 
 //Copy constructor
 Bvh_tree( Self & s): entity_handles_( s.entity_handles_), 
@@ -114,14 +124,38 @@ Bvh_tree( Self & s): entity_handles_( s.entity_handles_),
 			 bounding_box( s.bounding_box),
 			 entity_contains( s.entity_contains){}
 
+template< typename Iterator, typename Split_data>
+void find_split(Iterator & begin, Iterator & end, Split_data & data){
+	std::vector< Split_data> possible_splits( NUM_SPLITS, data);
+	
+	//sort using one or the other comparator..
+}
+
 //private functionality
 private:
-template< typename Iterator, typename Split_data>
+template< typename Iterator>
 int build_tree( Iterator begin, Iterator end, 
-		const int index, Split_data & data){
-	//find_best_split( begin, end, data);
-	//std::sort( begin, end, Comparator());
-	return 0;	
+		const int index, const int depth=0){
+	const std::size_t total_num_elements = std::distance( begin, end);
+	Node & node = tree_[ index];
+	//logic for splitting conditions
+	if( total_num_elements > SMAX){
+		_bvh::_Split_data data;
+		find_split( begin, end, data);
+		//assign data to node
+		node.Lmax = data.Lmax; node.Rmin = data.Rmin;
+		node.dim = data.dim; node.child = tree_.size();
+		//insert left, right children;
+		tree_.push_back( Node()); tree_.push_back( Node());
+		return std::max( 
+		build_tree( begin, begin+data.nl, node.child, depth+1),
+		build_tree( begin+data.nl, end, node.child+1, depth+1)
+		);
+		
+	}
+	node.dim = 3;
+	common_tree::assign_entities( node.entities, begin, end);
+	return depth;
 }
 
 template< typename Vector, typename Node_index>
@@ -129,7 +163,7 @@ Entity_handle _find_point( const Vector & point,
 			   const Node_index & index) const{
 	typedef typename Node::Entities::const_iterator Entity_iterator;
 	const Node & node = tree_[ index];
-	if( node.is_leaf()){
+	if( node.dim == 3){
 		//check each node
 		for( Entity_iterator i = node.entities.begin(); 
 				     i != node.entities.end(); ++i){
@@ -141,13 +175,19 @@ Entity_handle _find_point( const Vector & point,
 		return 0;
 	}
 	if( point[ node.dim] < node.left_line){
-		return _find_point( point, node.left);
-	}else if( point[ node.dim] > node.right_line){
-		return _find_point( point, node.left+1);
+		return _find_point( point, node.child);
+	}else if( point[ node.dim] > node.Lmax){
+		return _find_point( point, node.child+1);
 	} else {
-		const Entity_handle result =  _find_point( point, node.left);
+	/* TODO:
+	 * However, instead of always traversing either subtree
+	 * first (e.g. left always before right), we first traverse the subtree whose
+	 * bounding plane has the larger distance to the sought point. This results
+	 * in less overall traversal, and the correct cell is identified more quickly.
+	 */
+		const Entity_handle result =  _find_point( point, node.child);
 		if( result != 0){ return result; }
-		return _find_point( point, node.right+1);
+		return _find_point( point, node.child+1);
 	}
 }
 
