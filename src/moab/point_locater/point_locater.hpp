@@ -9,74 +9,94 @@
 
 namespace moab {
 
-template< typename Elements, 
-	  typename _Tree, 
-	  typename Communicator>
+template< typename _Tree,
+	  typename _Boxes>
 class Point_search {
 
 //public types
 public:
 	typedef  _Tree Tree;
-	typedef typename Elements::value_type Element;
-	//arbitrary type for now.. A box should be a small struct, boxes a
-	//Vector of them, or a set?
-	typedef	std::vector< std::vector< std::size_t> > Boxes;
-	//temporary error code
-	typedef typename std::size_t Error;
+	typedef  _Boxes Boxes;
+//	typedef typename Tree::Elements::value_type Element;
+	typedef int Error;
+	
 //private types
 private: 
-	typedef Point_search< Elements, 
-			      Tree, 
-			      Communicator> Self; 
+	typedef Point_search< _Tree, 
+			      _Boxes> Self; 
 //public methods
 public:
 
 //Constructor
-Point_search( Elements & _source_elements,
-	      Communicator & _comm,
-	      const std::size_t _iterations=3): 
-	      tree( _source_elements),
-	      source_elements( _source_elements),
-	      comm( _comm), boxes(), 
-	      iterations( _iterations){}
+Point_search( Tree & _tree,
+	      Boxes & _boxes): 
+	      tree_( _tree),
+	      boxes( _boxes){}
+
+//Copy constructor
+Point_search( Self & s): tree_( s.tree_), 
+			 boxes( s.boxes){}
+
 //private functionality
 private:
-template< typename Points, typename Bitmask>
-void local_point_search( const Points & query_points, Bitmask & located_points, 
-			 Elements & result,
-			 const double rel_eps, const double abs_eps){}	
+
+template< typename Point_map, typename List>
+void resolve_boxes( const Point_map & query_points,  List & list){
+       /*
+	typedef typename std::vector< bool> Bitmask;
+	typedef typename Points::const_iterator Point;
+	typedef typename Tree::const_element_iterator Element;
+	typedef typename std::vector< std::size_t> Processor_list;
+	typedef typename List::value_type Tuple;
+	const Element & end = tree_.element_end();
+	Bitmask located_points( query_points.size(), 0);
+	std::size_t index=0;
+	for( Point i = query_points.begin(); i != query_points.end(); ++i,++index){
+		const Element  & element = tree_.find( *i);
+		if(element != end){
+			located_points[ index] = 1;
+		}
+	}
+	for(int i = 0; i < located_points.size(); ++i){
+		if(!located_points[ i]){
+			Processor_list processors;
+			const Point & point = query_point.begin()+i;
+			resolve_box_for_point( point, processors);
+			for( std::size_t p = processors.begin(); 
+					 p != processors.end(); ++p){
+				list.push_back( Tuple( *point, *p) );
+			}
+		}
+	}
+	*/
+}
+
 
 //public functionality
 public:
-template< typename Points> 
-Error locate_points( Points & query_points, Elements & result,
-                     const double rel_eps, const double abs_eps){
-	//bitmask for located points
-	std::vector< bool> located_points( query_points.size(), 0);
-	local_point_search( query_points, located_points, 
-			    result, rel_eps, abs_eps);
-	resolve_boxes( query_points, located_points, rel_eps, abs_eps);
+template< typename Point_map, typename Communicator> 
+Error locate_points( Point_map & query_points, Communicator & comm){
+	//temporary types
+	typedef typename Point_map::key_type Tuple;
+	typedef typename std::vector< Tuple> List;
+	List & scatter_points; 
+	resolve_boxes( query_points, scatter_points);
+	 //Commented out for now
 	//scatter-gather
-	//TODO: probably too good to be true..
-	local_point_search( query_points, located_points, 
-			    result, rel_eps, abs_eps);
+	//transfer( scatter_points);
+	//find_local_points( scatter_points);
 	//send back to target
 	return 0;
 } 
 
 //public accessor methods
 public:
-Tree &		kdtree() 	const { return tree;	    	}
-Communicator &	communicator() 	const { return comm;	    	}
-Elements &	elements() 	const { return source_elements; }
+Tree &		tree() 		const { return tree_; }
 
 //private data members  
 private:
-Tree & tree;
-Communicator & comm;
-Elements & source_elements;
+Tree tree_;
 Boxes boxes;
-const std::size_t iterations;
 }; //class Point_search
 
 } // namespace moab

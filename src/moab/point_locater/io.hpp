@@ -3,6 +3,8 @@
 
 #include "moab/Core.hpp"
 
+#include <iostream>
+
 namespace moab {
 namespace point_locator{
 namespace io{
