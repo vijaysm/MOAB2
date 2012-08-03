@@ -151,6 +151,16 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/Forward.hpp \
   moab/GeomUtil.hpp \
   moab/Interface.hpp \
+  moab/EigenDecomp.hpp \
+  moab/point_locater/common_tree.hpp \
+  moab/point_locater/initialize_tree.hpp  \
+  moab/point_locater/element_utility.hpp \
+  moab/point_locater/element_tree.hpp \
+  moab/point_locater/bvh_tree.hpp \
+  moab/point_locater/io.hpp  \
+  moab/point_locater/linear_hex_map.hpp  \
+  moab/point_locater/linear_tet_map.hpp  \
+  moab/point_locater/point_locater.hpp \
   moab/Matrix3.hpp \
   moab/MergeMesh.hpp \
   moab/MeshTopoUtil.hpp \
