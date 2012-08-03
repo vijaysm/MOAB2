@@ -29,16 +29,23 @@ struct Box{
 	Vector min;
 }; //Box
 
-
-
-
-
 template< typename _Entity_handles, 
 	  typename _Boxes, 
 	  typename _Moab> class Element_tree;
 
 //non-exported functionality
 namespace _element_tree {
+
+template< typename Data>
+struct Split_comparator {
+  const std::size_t split_objective( const Data & a) const {
+  	return std::abs( a.left - a.right) + a.middle*a.middle;
+  }
+  
+  bool operator()( const Data & a, const Data & b) const {
+  	return split_objective( a) < split_objective( b);
+  }
+};
 
 template< typename _Entity_handles>
 class Node{
@@ -54,35 +61,41 @@ class Node{
 	public:
 	//Default constructor
 	Node(): left_( -1), middle_( -1), right_( -1),
-	        dim( -1), split( 0), left_line( 0), right_line( 0), 
+	        dim( -1), split( 0),
+		 left_line( 0), right_line( 0),
 		entity_handles_( NULL) {}
 
 	//Destructor
 	~Node(){ delete entity_handles_; }
 
 	//Constructor (leaf)
-	Node( Entity_handles & _entities): 
+	Node( Entity_handles & _entities, Box & box): 
 		left_( -1), middle_( -1), right_( -1),
-	        dim( -1), split( 0), left_line( 0), right_line( 0), 
+	        dim( -1), split( 0), 
+		left_line( 0), right_line( 0), 
 		entity_handles_( &_entities) {}
 
 	//Copy constructor
 	Node( const Self & from): 
 	left_( from.left_), middle_( from.middle_), right_( from.right_),
-	dim( from.dim), split( from.split), left_line( from.left_line), 
-	right_line( from.right_line), entity_handles_( from.entity_handles_) {}
+	dim( from.dim), split( from.split),
+	left_line( from.left_line), right_line( from.right_line), 
+	entity_handles_( from.entity_handles_) {}
 
 	// Functionality
 	public: 
-	bool leaf() const { return left_ == 0 && middle_ == 0 && right_ == 0; }
+	bool leaf() const { return left_ == -1 && 
+			    middle_ == -1 && 
+			    right_ == -1; }
 	
 	//private data members:
 	private:
+	//indices of children
 	int  left_;
 	int  middle_;
 	int  right_;
-	int dim;
-	double split;
+	int dim; //split dimension
+	double split; //split position
 	double left_line;
 	double right_line;
 	Entity_handles * entity_handles_;
@@ -95,6 +108,7 @@ struct Partition_data{
 	std::size_t left;
 	std::size_t middle;
 	std::size_t right;
+	Box bounding_box;
 }; // Partition_data
 
 template< typename Iterator>
@@ -128,10 +142,11 @@ private:
 			      _Moab> Self; 
 	typedef typename _element_tree::Node< Entity_handles> Node;
 	typedef typename std::pair< typename Boxes::value_type, 
-				    std::size_t> Data;
+				    std::size_t> Element_data;
+	typedef typename std::deque< Node> Nodes;
 	typedef typename Entity_handles::value_type Entity_handle;
 	//TODO: we really want an unordered map here..
-	typedef typename std::map< Entity_handle, Data> Entity_map;
+	typedef typename std::map< Entity_handle, Element_data> Entity_map;
 	typedef typename Entity_map::const_iterator Entity_map_iterator;
 	typedef typename std::vector< Entity_map_iterator> Element_list;
 //public methods
@@ -141,7 +156,8 @@ Element_tree( Entity_handles & _entities, Moab & _moab):
 	entity_handles_( _entities), tree_(), moab( _moab) {
 	tree_.reserve( _entities.size());
 	Entity_map map;
-	construct_element_map( entity_handles_, map);
+	Box bounding_box;
+	construct_element_map( entity_handles_, map, box);
 	Element_list elements( map.size());
 	std::size_t index = 0;
 	for(typename Entity_map::const_iterator i = map.begin(); 
@@ -150,7 +166,9 @@ Element_tree( Entity_handles & _entities, Moab & _moab):
 	}
 	//We only build nonempty trees
 	if( elements.size()){ 
-		build_tree( elements.begin(), elements.end(), 0); 
+		//initially all bits are set
+		std::bitset< 3> directions( 7);
+		build_tree( elements.begin(), elements.end(), 0, directions); 
 	}
 }
 
@@ -181,15 +199,15 @@ void update_bounding_min( Coordinate & min, const Coordinate & coordinate){
 	}
 }
 
-template< typename Entity_handles, typename Entity_map>
-void construct_element_map( const Entity_handles & elements, Entity_map & map){
+template< typename Entity_handles, typename Entity_map, typename Bounding_box>
+void construct_element_map( const Entity_handles & elements, 
+			    Entity_map & map, Bounding_box & box){
 	typedef typename Entity_map::mapped_type Box_data;
 	typedef typename Entity_handles::value_type Entity_handle;
 	typedef typename Box_data::first_type Box;
 	typedef typename Entity_handles::const_iterator Entity_handles_iterator;
 	typedef typename std::vector< double> Coordinate;
 	Coordinate coordinate(3, 0.0);
-	Box bounding_box;
 	Entity_handle vertex_handle;
 	std::size_t num_vertices=0;
 	for( Entity_handles_iterator i = elements.begin(); 
@@ -207,26 +225,84 @@ void construct_element_map( const Entity_handles & elements, Entity_map & map){
 	}
 }
 
-template< typename Iterator, typename Node_index, typename Partition_data>
-bool decide_split( Iterator & begin, Iterator & end, 
-		   Node_index & node, Partition_data & data){ 
-	return true;
+template< typename Iterator, typename Partition_data>
+void find_optimal_split( Iterator & begin, Iterator & end, 
+			 Partition_data & data, const std::size_t dim){
+	//get middle line in bounding box of this dimension
+	//for each elt determine if left/middle/right
+	//store in element split data
+	//keep track of partition data,
+	//if balanced exit.
+	//else move in exactly one direction.
 }
 
-template< typename Iterator, typename Node_index>
-void build_tree(Iterator begin, Iterator end, Node_index node){
-	_element_tree::Partition_data data;
-	if ( decide_split(begin, end, node, data)){
+template< typename Iterator, 
+	  typename Node_index, 
+	  typename Partition_data, 
+	  typename Directions>
+void determine_split( Iterator & begin, 
+		      Iterator & end, 
+		      const Node_index node, 
+		      Partition_data & data, 
+		      const Directions & directions){ 
+	typedef typename Iterator::value_type Pair;
+	typedef typename std::vector< Partition_data> Vector;
+	typedef typename _element_tree::Split_comparator< Partition_data> 
+								Comparator;
+	typedef typename Vector::iterator Split;
+	Vector splits( directions.count());
+	Split s( splits.begin());
+	for (std::size_t dir = 0; dir < directions.size(); ++dir){
+		if( directions.test( dir)){
+			find_optimal_split( begin, end, *s, dir);
+			++s;
+		}
+	}
+	data = *std::min_element( splits.begin(), splits.end(), Comparator());
+}
+
+//define here for now.
+#define ELEMENTS_PER_LEAF 1000
+template< typename Iterator, typename Node_index, 
+	  typename Directions, typename Partition_data>
+void build_tree( Iterator begin, Iterator end, 
+		 const Node_index node, 
+		 const Directions & directions, 
+		 const Partition_data & _data,
+		 const int depth = 0, 
+		 const bool is_middle = false){
+	std::size_t number_elements = std::distance(begin, end);
+	if ( number_elements > ELEMENTS_PER_LEAF && 
+		(!is_middle || directions.any())){
+		_element_tree::Partition_data data( _data);
+		determine_split( begin, end, node, data, directions); 
 		typedef typename Iterator::value_type Pair;
 		_element_tree::Element_compare< Pair> less;
+
 		std::sort(begin, end, less);
 		
 		Iterator middle_begin( begin+data.left);
 		Iterator middle_end( middle_begin+data.middle);
 
-		build_tree(begin, middle_begin, tree_[ node].left_);
-		build_tree(middle_begin, middle_end, tree_[ node].middle_);
-		build_tree(middle_end, end, tree_[ node].right_);
+		//append after the current node these elements	
+		tree_.insert( tree_.begin()+node+1, 3, tree_[ node]);
+
+		//left subtree
+		build_tree( begin, middle_begin, tree_[ node].left_, 
+			    directions, data, depth+1,  is_middle);
+		//right subtree
+		build_tree( middle_end, end, tree_[ node].right_,
+			    directions, data, depth+1, is_middle);
+
+		//force the middle subtree to split
+		//in a different direction from this one
+		//middle subtree
+		Directions new_direction( direction);
+		new_direction.flip( tree_[node].dim);
+		build_tree( middle_begin, middle_end, tree_[ node].middle_,
+			    new_direction, data, depth+1, true);
+	}else{
+		//we are a leaf node
 	}
 }
 
@@ -240,7 +316,7 @@ public:
 //private data members  
 private:
 	const Entity_handles & entity_handles_;
-	std::vector< Node > tree_;
+	Nodes tree_;
 	Moab & moab;
 
 }; //class Element_tree
