@@ -33,7 +33,7 @@ template< typename _Entity_handles,
 
 //non-exported functionality
 namespace  {
-
+namespace _element_tree { 
 template< typename Iterator>
 struct Iterator_comparator{
 typedef typename Iterator::value_type Value;
@@ -57,7 +57,8 @@ struct Split_comparator {
   bool operator()( const Data & a, const Data & b) const {
   	return split_objective( a) < split_objective( b);
   }
-};
+}; //Split_comparator
+
 template< typename Partition_data, typename Box>
 void correct_bounding_box( const Partition_data & data, Box & box, 
 			   const int child){
@@ -209,8 +210,8 @@ struct _Element_data  {
 	_Element_data( const _Element_data<U,V> &p ): first(p.first),
 						      second( p.second) {}
 };
-
-} //namespace _element_tree (purposefully not named as such)
+} //namespace _element_tree
+} // anon namespace 
 
 template< typename _Entity_handles,
 	  typename _Box,
@@ -233,10 +234,10 @@ private:
 			      _Moab, 
 			      _Parametrizer> Self; 
 	typedef std::pair< Box, Entity_handle>  Leaf_element;
-	typedef _Node< Entity_handles, std::vector< Leaf_element> > Node;
+	typedef _element_tree::_Node< Entity_handles, std::vector< Leaf_element> > Node;
 	//int is because we only need to store 	
 	#define MAX_ITERATIONS 2
-	typedef  _Element_data< Box, std::bitset<3*2*MAX_ITERATIONS> > 
+	typedef  _element_tree::_Element_data< Box, std::bitset<3*2*MAX_ITERATIONS> > 
 								Element_data;
 	typedef std::vector< Node> Nodes;
 	//TODO: we really want an unordered map here, make sure this is kosher..
@@ -244,7 +245,7 @@ private:
 								Element_map;
 	typedef typename std::vector< typename Element_map::iterator> 
 								Element_list;
-	typedef _Partition_data< Box> Partition_data;
+	typedef _element_tree::_Partition_data< Box> Partition_data;
 //public methods
 public:
 //Constructor
@@ -392,7 +393,7 @@ void determine_split( Iterator & begin,
 	typedef typename Map_value_type::second_type::first_type Box;
 	typedef typename std::map< std::size_t, Split_data> Splits;
 	typedef typename Splits::value_type Split;	
-	typedef Split_comparator< Split> Comparator;
+	typedef _element_tree::Split_comparator< Split> Comparator;
 	Splits splits;
 	for (std::size_t dir = 0; dir < directions.size(); ++dir){
 		if( directions.test( dir)){
@@ -466,7 +467,7 @@ void build_tree( Iterator begin, Iterator end,
 		determine_split( begin, end,  _data, directions);
 		//count_sort( begin, end, _data);
 		std::sort( begin, end,
-			 Iterator_comparator< Iterator>());
+			 _element_tree::Iterator_comparator< Iterator>());
 		//update the tree
 		tree_[ node] = _data;
 		Iterator middle_begin( begin+_data.left());

@@ -17,6 +17,7 @@
 #include "moab/point_locater/point_locater.hpp"
 #include "moab/point_locater/io.hpp"
 #include "moab/point_locater/element_tree.hpp"
+#include "moab/point_locater/bvh_tree.hpp"
 
 //iMesh
 #include "imesh/iMesh_extensions.h"
@@ -72,19 +73,18 @@ struct _Parametrizer : public std::binary_function< Entity_handle, Point, bool> 
 	}
 }; // Parametrizer
 
-
-
-
-
-
 // default types.. whatevs.
 typedef std::vector< moab::common_tree::Box> Boxes;
 typedef moab::EntityHandle Element;
 typedef _Parametrizer< Element, std::vector< double> > Parametrizer;
 typedef Range Elements;
-typedef moab::Element_tree< Elements, Boxes::value_type, moab::Core, Parametrizer> Tree;
+typedef moab::Element_tree< Elements, Boxes::value_type, 
+			    moab::Core, Parametrizer> Element_tree_;
+typedef moab::Bvh_tree< Elements, Boxes::value_type, 
+			    moab::Core, Parametrizer> Bvh_tree_;
 typedef moab::ParallelComm Communicator; 
-typedef moab::Point_search< Tree, Boxes> Point_locater;
+typedef moab::Point_search< Element_tree_, Boxes> Element_locater;
+typedef moab::Point_search< Bvh_tree_, Boxes> Bvh_locater;
 
 template< typename Communicator, typename Moab, 
 	  typename Root, typename String, typename String_>
@@ -150,9 +150,14 @@ int main(int argc, char* argv[]){
 	moab::common_tree::Box bounding_box;	
 	Parametrizer p;
 	double construction_start = MPI_Wtime();
-	Tree tree(source_element_range, moab, bounding_box, p);
+	Element_tree_ tree_1(source_element_range, moab, bounding_box, p);
 	double construction = MPI_Wtime() - construction_start;
-	std::cout << "construction time: " << construction << std::endl;
+	std::cout << "element construction time: " << construction << std::endl;
+	construction_start = MPI_Wtime();
+	Bvh_tree_ tree_2(source_element_range, moab, bounding_box, p);
+	construction = MPI_Wtime() - construction_start;
+	std::cout << "bvh construction time: " << construction << std::endl;
+	/*
 	Boxes boxes;
 	Point_locater locator( tree, boxes);
 	std::vector< moab::EntityHandle> located_elements;
@@ -175,5 +180,5 @@ int main(int argc, char* argv[]){
 		std::count( located_elements.begin(), 
 				located_elements.end(), 0)
 	<< std::endl;
-	Communicator comm( &moab, MPI_COMM_WORLD);
+	*/
 }

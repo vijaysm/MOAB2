@@ -149,7 +149,6 @@ void construct_element_map( const Entity_handles & elements,
 			    Bounding_box & bounding_box,
 			    Moab & moab){
 	typedef typename Element_map::mapped_type Box_data;
-	typedef typename Box_data::first_type Box;
 	typedef typename Entity_handles::value_type Entity_handle;
 	typedef typename Entity_handles::iterator Entity_handles_iterator;
 	typedef typename std::vector< double> Coordinates;
@@ -173,7 +172,7 @@ void construct_element_map( const Entity_handles & elements,
 		}
 		update_bounding_max( bounding_box.max, box.max.begin());
 		update_bounding_min( bounding_box.min, box.min.begin());
-		map.insert( make_pair( *i, Box_data( box)));
+		map.insert( std::make_pair( *i, Box_data( box)));
 	}
 }
 

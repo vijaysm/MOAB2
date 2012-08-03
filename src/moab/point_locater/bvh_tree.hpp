@@ -27,13 +27,27 @@ namespace moab {
 //forward declarations
 template< typename _Entity_handles, 
 	  typename _Box, 
-	  typename _Moab> class Bvh_tree;
+	  typename _Moab,
+	  typename _Parametrizer> class Bvh_tree;
 
 //non-exported functionality
 namespace {
+	namespace _bvh {
+	template< typename Box, typename Entity_handle>
+	struct _Node{
+		unsigned int dim;
+		unsigned int child;
+		float Lmax, Rmin;
+		std::vector< std::pair< Box, Entity_handle> > entities;
+	}; // _Node
 
+	struct _Split_data {
+	
+	}; //_Split_data
+
+
+	} // namespace _bvh
 } //private namespace
-
 
 template< typename _Entity_handles,
 	  typename _Box,
@@ -55,6 +69,8 @@ private:
 			      _Moab,
 			      _Parametrizer> Self;
 	typedef typename std::pair< Box, Entity_handle> Leaf_element;
+	typedef _bvh::_Node< Box, Entity_handle> Node;
+	typedef typename std::vector< Node> Nodes;
 //public methods
 public:
 //Constructor
@@ -67,23 +83,28 @@ Bvh_tree( Entity_handles & _entities,
 				entity_contains( entity_contains){
 	typedef typename Entity_handles::iterator Entity_handle_iterator;
 	typedef typename std::map< Entity_handle, Box> Entity_map;
+	typedef typename Entity_map::iterator Entity_map_iterator;
+	typedef std::vector< Entity_map_iterator> Vector;
 	//a fully balanced tree will have 2*_entities.size()
 	//which is one doubling away..
-	tree_.reserve( _entities.size());
-	Entity_map element_map( _entities.size());
-	Partition_data data;
+	tree_.reserve( entity_handles_.size());
+	Entity_map entity_map;
 	common_tree::construct_element_map( entity_handles_, 
 					    entity_map, 
-					    data.bounding_box);
-	bounding_box = _bounding_box = data.bounding_box;
-	Entity_handle_iterator_list entity_ordering;
-	construct_ordering( entity_map, entity_ordering) 
+					    bounding_box, 
+					    moab);
+ 	_bounding_box = bounding_box;
+	
+	Vector entity_ordering;
+	construct_ordering( entity_map, entity_ordering); 
 	//We only build nonempty trees
 	if( entity_ordering.size()){ 
 	 //initially all bits are set
 	 tree_.push_back( Node());
-	 build_tree( entity_ordering.begin(), entity_ordering.end(), 0, data);
-	 std::cout << "depth: " << data.depth << std::endl; 
+	 _bvh::_Split_data data;
+	 const int depth = build_tree( entity_ordering.begin(), 
+				       entity_ordering.end(), 0, data);
+	 std::cout << "max tree depth: " << depth << std::endl; 
 	}
 }
 
@@ -95,6 +116,13 @@ Bvh_tree( Self & s): entity_handles_( s.entity_handles_),
 
 //private functionality
 private:
+template< typename Iterator, typename Split_data>
+int build_tree( Iterator begin, Iterator end, 
+		const int index, Split_data & data){
+	//find_best_split( begin, end, data);
+	//std::sort( begin, end, Comparator());
+	return 0;	
+}
 
 template< typename Vector, typename Node_index>
 Entity_handle _find_point( const Vector & point, 
@@ -142,7 +170,7 @@ private:
 	Nodes tree_;
 	Moab & moab;
 	Box bounding_box;
-	const Parameterizer & entity_contains;
+	const Parametrizer & entity_contains;
 
 }; //class Bvh_tree
 
