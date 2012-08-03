@@ -1,41 +1,31 @@
 /** 
- * \class moab::point_locater
- * \author Tim Tautges
- *
- * \brief This class couples data between meshes.
- *
- * The coupler interpolates solution data at a set of points.  Data
- * being interpolated resides on a source mesh, in a tag.
- * Applications calling this coupler send in entities, usually points
- * or vertices, and receive back the tag value interpolated at those
- * points.  Entities in the source mesh containing those points 
- * do not have to reside on the same processor.
- *
- * To use, an application should:
- * - instantiate this coupler by calling the constructor collectively
- *   on all processors in the communicator
- * - call locate_points, which locates the points to be interpolated and
- *   (optionally) caches the results in this object
- * - call interpolate, which does the interpolation
- *
- * Multiple interpolations can be done after locating the points.
- *
+ * point_locater.hpp
+ * Ryan H. Lewis 
+ * Copyright 2012
  */
+#include <vector>
 #ifndef POINT_LOCATER_HPP
 #define POINT_LOCATER_HPP
 
 namespace moab {
 
-template< typename Elements, typename Tree>
+template< typename Elements, 
+	  typename _Tree, 
+	  typename Communicator>
 class Point_search {
 
 //public types
 public:
-	typedef typename Tree tree;
+	typedef  _Tree Tree;
 	typedef typename Elements::value_type Element;
+	typedef	std::vector< std::vector< std::size_t> > Boxes;
+	//temporary error code
+	typedef typename std::size_t Error;
 //private types
 private: 
-	typedef typename Point_search< Elements, Tree>; 
+	typedef Point_search< Elements, 
+			      Tree, 
+			      Communicator> Self; 
 //public methods
 public:
 
@@ -64,19 +54,18 @@ Error locate_points( Points & query_points,
 
 //public accessor methods
 public:
-	Tree &		tree() 		  const   { return tree;	    }
-	Boxes &		boxes() 	  const   { return boxes;	    }
-	Communicator &	communicator() 	  const   { return comm;	    }
-	Elements &	source_elements() const   { return source_elements; }
+Tree &		kdtree() 	const { return tree;	    	}
+Communicator &	communicator() 	const { return comm;	    	}
+Elements &	elements() 	const { return source_elements; }
 
 //private data members  
 private:
-	Tree & tree;
-	Communicator & comm;
-	Elements & source_elements;
-	Boxes boxes;
-	const std::size_t iterations;
-};
+Tree & tree;
+Communicator & comm;
+Elements & source_elements;
+Boxes boxes;
+const std::size_t iterations;
+}; //class Point_search
 
 } // namespace moab
 
