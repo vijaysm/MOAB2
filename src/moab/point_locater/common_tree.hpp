@@ -60,6 +60,20 @@ bool box_contains_point(  const _Box & box, const _Point & p){
 	return true;
 }
 
+template< typename _Box>
+bool box_contains_box(  const _Box & a, const _Box & b){
+	for( std::size_t i = 0; i < a.min.size(); ++i){
+	     if( b.min[ i] < a.min[ i]){
+		return false;
+	      }  
+	      if( b.max[ i] > a.max[ i]){
+	     	return false;
+	     }
+	 }
+	return true;
+}
+
+
 namespace {
 	template< typename T> 
 	struct Compute_center: public std::binary_function< T, T, T> {
@@ -71,36 +85,44 @@ namespace {
 
 template< typename Vector>
 inline void compute_box_center(Vector & max, Vector & min, Vector & center){
+	typedef typename Vector::value_type Unit;
 	center = min;
 	std::transform( max.begin(), max.end(), center.begin(),
-			center.begin(), Compute_center< double>() );
+			center.begin(), Compute_center< Unit>() );
 }
 
+
+template< typename Box>
+inline typename Box::value_type compute_box_center(const Box & box, const int dim){
+	return (box.max[ dim] + box.min[ dim])/2.0;
+}
+
+
+template< typename T = float>
 class Box{
 	public:
-	typedef std::vector< double> Vector;
-	Box(): max(3,0.0), min(3,0.0), center(3,0.0) {}
+	typedef T value_type;
+	typedef std::vector< T> Vector;
+	Box(): max(3,0.0), min(3,0.0) {}
 	Box( const Box & from): max( from.max), 
-				min( from.min),
-				center( from.center){}
+				min( from.min){}
 	template< typename Iterator>
 	Box( const Iterator begin, const Iterator end):
-	max( begin, end), min(begin, end), center( begin, end){}
+	max( begin, end), min(begin, end){}
 	Box& operator=( const Box & from){
 		max = from.max;
 		min = from.min;
-		center= from.center;
 		return *this;
 	}
 	Vector max;
 	Vector min;
-	Vector center;
 }; //Box
 
-std::ostream& operator<<( std::ostream& out, Box & box){
+template< typename T>
+std::ostream& operator<<( std::ostream& out, const Box<T> & box){
 	out << "Max: ";
 	print_vector( box.max, out);
-	out << std::endl << "Min: ";
+	out << "Min: ";
 	print_vector( box.min, out);	
 	return out;
 }
@@ -145,6 +167,16 @@ void update_bounding_min( Coordinate & min, Coordinate_iterator j){
 	}
 }
 
+template< typename Box>
+void update_bounding_box( Box & a, const Box & b){
+	update_bounding_max( a.max, b.max.begin());
+	update_bounding_min( a.min, b.min.begin());
+	if( !box_contains_box( a, b)){
+		std::cout << a << b << std::endl;	
+	}
+}
+
+
 template< typename Entity_map, typename Ordering>
 void construct_ordering( Entity_map & entity_map, Ordering & entity_ordering){
 	entity_ordering.reserve( entity_map.size());
@@ -172,8 +204,10 @@ void construct_element_map( const Entity_handles & elements,
 	typedef typename Element_map::mapped_type Box_data;
 	typedef typename Entity_handles::value_type Entity_handle;
 	typedef typename Entity_handles::iterator Entity_handles_iterator;
-	typedef typename std::vector< double> Coordinates;
+	typedef typename Box_data::first_type::value_type Unit;
+	typedef typename std::vector< Unit> Coordinates;
 	typedef typename Coordinates::iterator Coordinate_iterator;
+		
 	for( Entity_handles_iterator i = elements.begin(); 
 				     i != elements.end(); ++i){
 		//TODO: not generic enough. Why dim != 3
@@ -185,15 +219,13 @@ void construct_element_map( const Entity_handles & elements,
 		Coordinates coordinate(DIM*num_vertices, 0.0);
 		moab.get_coords( vertex_handle, num_vertices, &coordinate[ 0]);
 		Bounding_box box( coordinate.begin(), coordinate.begin()+3);
-		bounding_box = box;
+		if( i == elements.begin() ){ bounding_box = box;}
 		for( Coordinate_iterator j = coordinate.begin()+DIM; 
 				         j != coordinate.end(); j+=DIM){
 			update_bounding_max( box.max, j);
 			update_bounding_min( box.min, j);
 		}
-		compute_box_center( box.max, box.min, box.center);
-		update_bounding_max( bounding_box.max, box.max.begin());
-		update_bounding_min( bounding_box.min, box.min.begin());
+		update_bounding_box( bounding_box, box);
 		map.insert( std::make_pair( *i, Box_data( box)));
 	}
 }

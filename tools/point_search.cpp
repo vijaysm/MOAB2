@@ -66,15 +66,16 @@ void print_usage() {
   std::cerr << "        Write stdout and stderr streams to the file \'<dbg_file>.txt\'." << std::endl;
 }
 
-template< typename Entity_handle, typename Point>
-struct _Parametrizer : public std::binary_function< Entity_handle, Point, bool> {
-	bool operator()( const Entity_handle & e, const Point & p){
+template< typename EH, typename Point>
+struct _Parametrizer : public std::binary_function< EH, Point, bool> {
+	bool operator()( const EH & e, const Point & p){
 		return true;
 	}
 }; // Parametrizer
 
 // default types.. whatevs.
-typedef typename moab::common_tree::Box Bounding_box;
+typedef typename moab::common_tree::Box< double> Bounding_box;
+typedef std::vector< Bounding_box> Boxes;
 typedef moab::EntityHandle Element;
 typedef _Parametrizer< Element, std::vector< double> > Parametrizer;
 typedef Range Elements;
@@ -149,19 +150,18 @@ int main(int argc, char* argv[]){
 	target_comm.get_pstatus_entities( 0, PSTATUS_NOT_OWNED, 
 					  non_owned_vertices);
 	moab::subtract( target_vertex_handles, non_owned_vertices);
-	moab::common_tree::Box bounding_box;	
+	moab::common_tree::Box< double> bounding_box;	
 	Parametrizer p;
+	//double construction_start = MPI_Wtime();
+	//Element_tree_ tree_1(source_element_range, moab, bounding_box, p);
+	//double construction = MPI_Wtime() - construction_start;
+	//std::cout << "element construction time: " << construction << std::endl;
 	double construction_start = MPI_Wtime();
-	Element_tree_ tree_1(source_element_range, moab, bounding_box, p);
-	double construction = MPI_Wtime() - construction_start;
-	std::cout << "element construction time: " << construction << std::endl;
-	construction_start = MPI_Wtime();
 	Bvh_tree_ tree_2(source_element_range, moab, bounding_box, p);
-	construction = MPI_Wtime() - construction_start;
+	double construction = MPI_Wtime() - construction_start;
 	std::cout << "bvh construction time: " << construction << std::endl;
-	/*
 	Boxes boxes;
-	Point_locater locator( tree, boxes);
+	Bvh_locater locator( tree_2, boxes);
 	std::vector< moab::EntityHandle> located_elements;
 	std::vector< std::vector< double> > target_vertices;
 	target_vertices.reserve( target_vertex_handles.size());
@@ -181,6 +181,7 @@ int main(int argc, char* argv[]){
 	std::cout << "unlocated points: " << 
 		std::count( located_elements.begin(), 
 				located_elements.end(), 0)
+	<< "/" << std::distance(located_elements.begin(), 
+				 located_elements.end())
 	<< std::endl;
-	*/
 }
