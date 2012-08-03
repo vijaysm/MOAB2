@@ -2136,9 +2136,9 @@ ErrorCode AdaptiveKDTree::depth( EntityHandle root,
     ++k;
   }
   std::cout << std::endl << "# of leafs: " << k+1 << std::endl;
-  std::cout << std::endl << "max #: " << max << std::endl;
-  std::cout << std::endl << "min #: " << min << std::endl;
-  std::cout << std::endl << "# of elements " << k+1 << std::endl;
+  std::cout << std::endl << "max depth: " << max << std::endl;
+  std::cout << std::endl << "min depth: " << min << std::endl;
+  std::cout << std::endl << "# of elements " << num_of_elements << std::endl;
   return MB_SUCCESS;
 }
           
