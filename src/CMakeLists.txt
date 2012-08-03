@@ -22,7 +22,6 @@
     GeomTopoTool.cpp
     HigherOrderFactory.cpp
     HomXform.cpp
-    Matrix3.cpp
     MeshSet.cpp
     MeshSetSequence.cpp
     MeshTag.cpp

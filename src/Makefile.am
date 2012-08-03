@@ -62,7 +62,6 @@ libMOAB_la_SOURCES = \
   HigherOrderFactory.cpp \
   HomXform.cpp \
   Internals.hpp \
-  Matrix3.cpp \
   MBCNArrays.hpp \
   MergeMesh.cpp \
   MeshSet.cpp \
