@@ -28,6 +28,7 @@
 #include <assert.h>
 #include <algorithm>
 #include <limits>
+#include <iostream>
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #  include <float.h>
@@ -2117,13 +2118,27 @@ ErrorCode AdaptiveKDTree::depth( EntityHandle root,
   get_tree_iterator( root, iter );
   iter.step_to_first_leaf(AdaptiveKDTreeIter::LEFT);
   min_depth = max_depth = iter.depth();
+  
+  int num_of_elements = 0, max, min;
+  moab()->get_number_entities_by_handle( iter.handle(), num_of_elements);
+  max = min= num_of_elements;
+  int k = 0;
   while (MB_SUCCESS == iter.step()) {
+    int temp = 0;
+    moab()->get_number_entities_by_handle( iter.handle(), temp);
+    num_of_elements += temp;
+    max = std::max( max, temp);
+    min = std::min( min, temp);
     if (iter.depth() > max_depth)
       max_depth = iter.depth();
     else if (iter.depth() < min_depth)
       min_depth = iter.depth();
+    ++k;
   }
-  
+  std::cout << std::endl << "# of leafs: " << k+1 << std::endl;
+  std::cout << std::endl << "max #: " << max << std::endl;
+  std::cout << std::endl << "min #: " << min << std::endl;
+  std::cout << std::endl << "# of elements " << k+1 << std::endl;
   return MB_SUCCESS;
 }
           

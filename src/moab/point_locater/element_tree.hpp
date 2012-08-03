@@ -16,6 +16,7 @@
 #include <bitset>
 #include <numeric>
 #include <cmath>
+#include <tr1/unordered_map>
 
 #ifndef ELEMENT_TREE_HPP
 #define ELEMENT_TREE_HPP
@@ -37,6 +38,8 @@ void print_vector( const T & v){
 
 struct Box{
 	typedef typename std::vector< double> Vector;
+	typedef typename std::pair< typename Vector::const_iterator,
+				    typename Vector::const_iterator> Pair;
 	Box(): max(3,0.0), min(3,0.0){}
 	Box( const Box & from): max( from.max), min( from.min){}
 	template< typename Iterator>
@@ -45,6 +48,16 @@ struct Box{
 		max = from.max;
 		min = from.min;
 		return *this;
+	}
+	template< typename Vector>
+	bool contains( const Vector & v) const{
+	   for( std::size_t i = 0; i < min.size(); ++i){
+		if( v[ i] < min[ i] || 
+		    v[ i] > max[ i]){
+			return false;
+		}
+	    }
+	   return true;
 	}
 	Vector max;
 	Vector min;
@@ -87,10 +100,7 @@ class Node{
 	Node(): left_( -1), middle_( -1), right_( -1),
 	        dim( -1), split( 0),
 		 left_line( 0), right_line( 0),
-		entities( NULL) {}
-
-	//Destructor
-	~Node(){ delete entities; }
+		entities( 0) {}
 
 	//Copy constructor
 	Node( const Self & from): 
@@ -102,17 +112,11 @@ class Node{
 	public:
 	template< typename Iterator>
 	void assign_entities(const Iterator & begin, const Iterator & end){
-		std::cout << "b4 segfault ? " << std::endl;
-		entities = new Entities();
-		std::cout << "segfault ? " << std::endl;
-		Entities & _entities = *entities;
-		_entities.reserve( std::distance( begin, end)); 
-		std::cout << "segfault ? " << std::endl;
+		entities.reserve( std::distance( begin, end)); 
 		for( Iterator i = begin; i != end; ++i){
-			_entities.push_back( std::make_pair((*i)->second.first, 
+			entities.push_back( std::make_pair((*i)->second.first, 
 							    (*i)->first));
 		}
-		std::cout << "segfault ? " << std::endl;
 	}
 
 	// Functionality
@@ -141,7 +145,7 @@ class Node{
 	double split; //split position
 	double left_line;
 	double right_line;
-	Entities * entities;
+	Entities entities;
 
 	//Element_tree can touch my privates.
 	template< Entity_handles, typename B> friend class moab::Element_tree;
@@ -149,7 +153,7 @@ class Node{
 
 struct Partition_data{
 	//default constructor
-	Partition_data():sizes(3,0){}
+	Partition_data():sizes(3,0),dim(0){}
 	Partition_data( const Partition_data & f){
 		*this=f;
 	}
@@ -162,6 +166,7 @@ struct Partition_data{
 		split = f.split;
 		left_line = f.left_line;
 		right_line = f.right_line;
+		dim = f.dim;
 		return *this;
 	}
 	std::vector< std::size_t> sizes;
@@ -170,22 +175,10 @@ struct Partition_data{
 	double left_line;
 	double right_line;
 	int dim;
-	std::size_t& left()   { return sizes[ 0]; }
-	std::size_t& middle() { return sizes[ 1]; }
-	std::size_t& right()  { return sizes[ 2]; }
+	std::size_t left()  const { return sizes[ 0]; }
+	std::size_t middle()const { return sizes[ 1]; }
+	std::size_t right() const { return sizes[ 2]; }
 }; // Partition_data
-
-template< typename Iterator>
-struct Element_compare: public std::binary_function< Iterator, Iterator, bool>{
-	typedef typename Iterator::value_type Pair;
-	typedef typename Pair::second_type::second_type Bitset;
-	Element_compare( const Bitset & _mask): mask( _mask){}
-	bool operator()( const Iterator a, const Iterator b) const{
-		return ((a->second.second)&mask).to_ulong() < 
-			((b->second.second)&mask).to_ulong();
-	}
-	const Bitset mask;
-}; // Element_compare
 
 } //namespace _element_tree
 
@@ -218,19 +211,23 @@ private:
 	typedef typename std::vector< Node> Nodes;
 	typedef typename Entity_handles::value_type Entity_handle;
 	//TODO: we really want an unordered map here..
-	typedef typename std::map< Entity_handle, Element_data> Element_map;
+	typedef typename std::tr1::unordered_map< Entity_handle, Element_data> 
+								Element_map;
 	typedef typename std::vector< typename Element_map::iterator> 
 								Element_list;
 //public methods
 public:
 //Constructor
-Element_tree( Entity_handles & _entities, Moab & _moab): 
-	entity_handles_( _entities), tree_(), moab( _moab) {
+Element_tree( Entity_handles & _entities, Moab & _moab, Box & _bounding_box): 
+	entity_handles_( _entities), tree_(), moab( _moab), 
+	bounding_box( _bounding_box){
 	tree_.reserve( _entities.size());
-	Element_map element_map;
+	Element_map element_map( _entities.size());
 	_element_tree::Partition_data _data;
 	construct_element_map( entity_handles_, element_map, 
 					_data.bounding_box);
+	bounding_box = _data.bounding_box;
+	_bounding_box = bounding_box;
 	Element_list element_ordering( element_map.size());
 	std::size_t index = 0;
 	for(typename Element_map::iterator i = element_map.begin(); 
@@ -248,18 +245,11 @@ Element_tree( Entity_handles & _entities, Moab & _moab):
 			    0, directions, _data, depth); 
 	}
 }
-/*
-439 void build_tree( Iterator begin, Iterator end,
-440                  const Node_index node,
-441                  const Directions & directions,
-442                  Partition_data & _data,
-443                  int & depth,
-444                  const bool is_middle = false){
-*/
 
 //Copy constructor
 Element_tree( Self & s): entity_handles_( s.entity_handles_), 
-			 tree_( s.tree_), moab( s.moab){}
+			 tree_( s.tree_), moab( s.moab), 
+			 bounding_box( s.bounding_box){}
 
 //private functionality
 private:
@@ -430,6 +420,7 @@ void assign_data_to_node( const Node_index & node, const Partition_data & data){
 	tree_[ node].split = data.split;
 	tree_[ node].left_line = data.left_line;  
 	tree_[ node].right_line = data.right_line;
+	tree_[ node].dim = data.dim;
 }
 
 template< typename Node_index>
@@ -442,8 +433,124 @@ void extend_tree( const Node_index node){
 	tree_[ node].right_ = _index;
 }
 
+
+template< typename Iterator, typename Mask>
+void _advance_pointer( Iterator & begin,
+		       const Iterator & end, 
+		       const Mask & value, 
+		       const Mask & mask) const{
+	while ( begin != end && (((*begin)->second.second)&mask) == value ){ 
+		++begin;
+	}
+}
+
+template< typename Iterators, typename Bitsets>
+void begin_pointers( std::size_t & min_unsorted, 
+		     Iterators & block_begin, 
+		     const Iterators & block_end,
+		     const Bitsets & data_values,
+		     const typename Bitsets::value_type & mask ){
+	for ( std::size_t range=min_unsorted; range < 3; ++range){
+		_advance_pointer( block_begin[ range],
+				  block_end[ range], 
+				  data_values[ range], mask);
+	}
+	update_min_unsorted( min_unsorted, block_begin, block_end, data_values);
+}
+
+template< typename Iterators, typename Bitsets>
+void update_min_unsorted( std::size_t & min_unsorted, 
+		     const Iterators & block_begin, 
+		     const Iterators & block_end,
+		     const Bitsets & data_values){
+	for ( std::size_t range=min_unsorted; range < 3; ++range){
+		if ( block_begin[ range] != block_end[ range]){
+			min_unsorted=range;
+			break;
+		}
+	}
+}
+
+
+template< typename Iterator>
+void print_order( const Iterator & begin, const Iterator & end, 
+		  const std::size_t best_split){
+	typedef typename Iterator::value_type Map_iterator;
+	typedef typename Map_iterator::value_type::second_type Element_data;
+	typedef typename Element_data::second_type Bitset;
+	Bitset mask( 0);
+	mask.flip( best_split).flip( best_split+1);
+	for(Iterator i = begin; i != end; ++i){
+		std::cout << 
+		((((*i)->second.second)&mask).to_ulong() >> best_split)
+		<< ", ";
+	}
+	std::cout << std::endl;
+}
+
+
+
+
+
+template< typename Iterator, typename Data>
+void count_sort( Iterator & begin, 
+		 Iterator & end, 
+		 const Data & data,
+		 const std::size_t best_split ){
+	typedef typename Iterator::value_type Map_iterator;
+	typedef typename Map_iterator::value_type::second_type Element_data;
+	typedef typename Element_data::second_type Bitset;
+	typedef typename std::vector< Iterator> Iterators;
+	typedef typename Iterators::iterator Block_iterator;
+	typedef typename std::vector< Bitset> Bitsets;
+	typedef typename Bitsets::const_iterator Bitset_iterator;
+	Iterators block_begin( 3, begin);
+	Iterators block_end( 3, end);
+	Bitsets data_values( 3, 0);
+	block_end[ 0] = block_begin[ 1] = begin+data.left();
+	block_end[ 1] = block_begin[ 2] = begin+data.left()+data.middle();
+	data_values[ 1].flip( best_split); 
+	data_values[ 2].flip( best_split).flip( best_split-1);
+	for (int i = 0; i < 3; ++i){
+		std::cout << "block_len: " << 
+			std::distance( block_begin[ i], block_end[ i])
+		<< std::endl;
+		std::cout << data_values[ i] << std::endl; 
+	}
+	std::size_t min_unsorted=0;
+	begin_pointers( min_unsorted, block_begin, block_end, data_values, 
+			data_values[ 2]);
+	do
+	{
+	  std::cout << "min_unsorted: " << min_unsorted << std::endl;
+	  Iterator & a = block_begin[ min_unsorted];
+	  std::size_t index = (((*a)->second.second)&data_values[ 2])
+						.to_ulong() >> best_split;
+	  if (index == 3){ index = 2;}
+	  //swap advance beginning of block
+	  Iterator & block = block_begin[ index];
+	  std::iter_swap( a, block);
+	  //check if we can go further
+	  if (block_begin[ index] != block_end[ index]){
+	  	  block++;
+		  _advance_pointer( block, block_end[ index], 
+				    data_values[ index], 
+				    data_values[ 2]); 
+	  }
+	  //if we swapped in a value for our own
+	  //block we advance our pointer as far as possible 
+	  _advance_pointer( a, block_end[ min_unsorted], 
+			     data_values[ min_unsorted], 
+			     data_values[ 2]);
+	  min_unsorted += (a == block_end[ min_unsorted]);
+	  update_min_unsorted( min_unsorted, block_begin, 
+				 block_end, data_values);
+	} while( block_begin[ min_unsorted] != block_end[ min_unsorted]); 
+}
+
 //define here for now.
 #define ELEMENTS_PER_LEAF 10
+#define MAX_DEPTH 30
 template< typename Iterator, typename Node_index, 
 	  typename Directions, typename Partition_data>
 void build_tree( Iterator begin, Iterator end, 
@@ -452,27 +559,21 @@ void build_tree( Iterator begin, Iterator end,
 		 Partition_data & _data,
 		 int & depth, 
 		 const bool is_middle = false){
-	typedef typename Iterator::value_type Map_iterator;
-	typedef typename Map_iterator::value_type::second_type Element_data;
-	typedef typename Element_data::second_type Bitset;
 	std::size_t number_elements = std::distance(begin, end);
-	if ( number_elements > ELEMENTS_PER_LEAF && 
+	if ( depth < MAX_DEPTH && 
+		number_elements > ELEMENTS_PER_LEAF && 
 		(!is_middle || directions.any())){
 		std::size_t best_split = determine_split( begin, end, 
-						 _data, directions); 
-		Bitset mask( 0);
-		mask.flip( best_split).flip(best_split+1);
-		_element_tree::Element_compare< Map_iterator> less( mask);
-		std::sort( begin, end, less);
+						 _data, directions);
+		count_sort( begin, end, _data, best_split);
+		
 		//update the tree
 		assign_data_to_node( node, _data);
 		extend_tree( node);
 		Iterator middle_begin( begin+_data.left());
 		Iterator middle_end( middle_begin+_data.middle());
 		_element_tree::Partition_data data( _data);
-		if( is_middle){
-			std::cout << "middle depth: " << depth << std::endl;
-		}	
+		
 		//left subtree
 		std::vector< int> depths(3, depth+1);
 		build_tree( begin, middle_begin, tree_[ node].left_, 
@@ -489,13 +590,60 @@ void build_tree( Iterator begin, Iterator end,
 			    new_direction, data, depths[ 2], true);
 		depth = *std::max_element(depths.begin(), depths.end());
 	}else{
-		std::cout << "here?" << std::endl;
 		tree_[ node].assign_entities( begin, end);
+	}
+}
+
+template< typename Entity_handle, typename Vector>
+bool entity_contains( const Entity_handle & handle, 
+		      const Vector & vector) const{
+	//TODO: write simple test.
+	return true;
+} 
+
+
+template< typename Vector, typename Node_index>
+Entity_handle _find_point( const Vector & point, 
+			   const Node_index & index) const{
+	typedef typename Node::Entities::const_iterator Entity_iterator;
+	const Node & node = tree_[ index];
+	if( node.leaf()){
+		//check each node
+		for( Entity_iterator i = node.entities.begin(); 
+				     i != node.entities.end(); ++i){
+			if( i->first.contains( point) && 
+				entity_contains( i->second, point)){
+				return i->second;
+			}
+		}
+		return 0;
+	}
+	if( point[ node.dim] < node.left_line){
+		return _find_point( point, node.left_);
+	}else if( point[ node.dim] > node.right_line){
+		return _find_point( point, node.right_);
+	} else {
+		Entity_handle middle =  _find_point( point, node.middle_);
+		if( middle != 0){ return middle; }
+		if( point[ node.dim] < node.split){ 
+			return _find_point( point, node.left_); 
+		}
+		return	_find_point( point, node.right_);
 	}
 }
 
 //public functionality
 public:
+template< typename Vector>
+Entity_handle find( const Vector & point) const{
+	typedef typename Vector::const_iterator Point_iterator;
+	typedef typename Box::Pair Pair; 
+	typedef typename Pair::first_type Box_iterator;
+	if ( bounding_box.contains( point)){
+		return _find_point( point, 0);
+	}
+	return 0;
+}
 	
 
 //public accessor methods
@@ -506,6 +654,7 @@ private:
 	const Entity_handles & entity_handles_;
 	Nodes tree_;
 	Moab & moab;
+	Box bounding_box;
 
 }; //class Element_tree
 

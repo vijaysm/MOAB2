@@ -74,8 +74,9 @@ void resolve_boxes( const Point_map & query_points,  List & list){
 
 //public functionality
 public:
-template< typename Point_map, typename Communicator> 
-Error locate_points( Point_map & query_points, Communicator & comm){
+template< typename Point_map, typename Entities, typename Communicator> 
+Error locate_points( Point_map & query_points, Entities & entities, Communicator & comm){
+	/*
 	//temporary types
 	typedef typename Point_map::key_type Tuple;
 	typedef typename std::vector< Tuple> List;
@@ -86,6 +87,19 @@ Error locate_points( Point_map & query_points, Communicator & comm){
 	//transfer( scatter_points);
 	//find_local_points( scatter_points);
 	//send back to target
+	*/
+	return 0;
+} 
+
+template< typename Points, typename Entities> 
+Error locate_points( Points & query_points, Entities & entities) const{
+	Entities result;
+	result.reserve( query_points.size());	
+	typedef typename Points::const_iterator Point_iterator;
+	for(Point_iterator i = query_points.begin(); 
+			   i != query_points.end(); ++i){
+			result.push_back( tree_.find( *i));
+	}
 	return 0;
 } 
 
@@ -95,8 +109,8 @@ Tree &		tree() 		const { return tree_; }
 
 //private data members  
 private:
-Tree tree_;
-Boxes boxes;
+const Tree & tree_;
+const Boxes & boxes;
 }; //class Point_search
 
 } // namespace moab

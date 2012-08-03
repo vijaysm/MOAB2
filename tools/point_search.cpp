@@ -109,7 +109,6 @@ int main(int argc, char* argv[]){
  	  return 1;
  	}
 
-
 	int nprocs, rank;
 	MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -126,16 +125,37 @@ int main(int argc, char* argv[]){
 		   options.meshFiles[ 1].c_str(), options.readOpts);
 	
 	Range source_element_range, target_element_range; 
-	Range target_vertices, non_owned_vertices;
+	Range target_vertex_handles, non_owned_vertices;
 	source_comm.get_part_entities( source_element_range, 3);
 	target_comm.get_part_entities( target_element_range, 3);
-	moab.get_adjacencies( target_element_range, 0, false, target_vertices, 
+	moab.get_adjacencies( target_element_range, 0, false, 
+			      target_vertex_handles, 
 			      moab::Interface::UNION);
 	target_comm.get_pstatus_entities( 0, PSTATUS_NOT_OWNED, 
 					  non_owned_vertices);
-	moab::subtract( target_vertices, non_owned_vertices);
-	Tree tree(source_element_range, moab);
+	moab::subtract( target_vertex_handles, non_owned_vertices);
+	Box bounding_box;	
+	double construction_start = MPI_Wtime();
+	Tree tree(source_element_range, moab, bounding_box);
+	double construction = MPI_Wtime() - construction_start;
+	std::cout << "construction time: " << construction << std::endl;
 	Boxes boxes;
 	Point_locater locator( tree, boxes);
+	std::vector< moab::EntityHandle> located_elements;
+	std::vector< std::vector< double> > target_vertices;
+	target_vertices.reserve( target_vertex_handles.size());
+	std::size_t index = 0;
+	for( typename Range::iterator i = target_vertex_handles.begin();
+				      i != target_vertex_handles.end();
+					++i, ++index){
+		std::vector< double> coordinate( 3, 0);
+		moab.get_coords( &*i, 3, &coordinate[ 0]);
+		target_vertices.push_back( coordinate);
+	}
+	std::cout << "point location beginning" << std::endl;
+	double locate_start = MPI_Wtime();
+	locator.locate_points( target_vertices, located_elements); 
+	double locate_points = MPI_Wtime() - locate_start;
+	std::cout << "point_location: " << locate_points << std::endl;
 	Communicator comm( &moab, MPI_COMM_WORLD);
 }
