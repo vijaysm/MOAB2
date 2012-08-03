@@ -196,7 +196,6 @@ template< typename Entity_handles,
 	  typename Element_map, 
 	  typename Bounding_box,
 	  typename Moab>
-
 void construct_element_map( const Entity_handles & elements, 
 			    Element_map & map, 
 			    Bounding_box & bounding_box,

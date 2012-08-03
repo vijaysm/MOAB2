@@ -48,12 +48,16 @@ void print_usage() {
   std::cerr << "        Read in mesh files <source_mesh> and <target_mesh>." 
 	    << std::endl;
   std::cerr << "    -itag" << std::endl;
-  std::cerr << "        Interpolate tag <interp_tag> from source mesh to target mesh." << std::endl;
+  std::cerr << "        Interpolate tag <interp_tag> from source mesh to target"
+	    << " mesh." << std::endl;
   std::cerr << "    -gnorm" << std::endl;
-  std::cerr << "        Normalize the value of tag <gnorm_tag> over then entire mesh and save to" << std::endl;
-  std::cerr << "        tag \"<gnorm_tag>_normf\" on the mesh set.  Do this for all meshes." << std::endl;
+  std::cerr << "        Normalize the value of tag <gnorm_tag> over then entire"
+	    << "mesh and save to" << std::endl;
+  std::cerr << "        tag \"<gnorm_tag>_normf\" on the mesh set.  Do this for"
+	    << " all meshes." << std::endl;
   std::cerr << "    -ssnorm" << std::endl;
-  std::cerr << "        Normalize the value of tag <ssnorm_tag> over subsets of a mesh and save to" << std::endl;
+  std::cerr << "        Normalize the value of tag <ssnorm_tag> over "
+	    << "subsets of a mesh and save to" << std::endl;
   std::cerr << "        tag \"<ssnorm_tag>_normf\" on the Entity Set for each subset.  Subsets are selected" << std::endl;
   std::cerr << "        using criteria in <ssnorm_selection>.  Do this for all meshes." << std::endl;
   std::cerr << "    -ropts" << std::endl;
@@ -155,7 +159,8 @@ int main(int argc, char* argv[]){
 	//double construction_start = MPI_Wtime();
 	//Element_tree_ tree_1(source_element_range, moab, bounding_box, p);
 	//double construction = MPI_Wtime() - construction_start;
-	//std::cout << "element construction time: " << construction << std::endl;
+	//std::cout << "element construction time: " 
+	//<< construction << std::endl;
 	double construction_start = MPI_Wtime();
 	Bvh_tree_ tree_2(source_element_range, moab, bounding_box, p);
 	double construction = MPI_Wtime() - construction_start;
@@ -178,10 +183,18 @@ int main(int argc, char* argv[]){
 	locator.locate_points( target_vertices, located_elements); 
 	double locate_points = MPI_Wtime() - locate_start;
 	std::cout << "point_location: " << locate_points << std::endl;
-	std::cout << "unlocated points: " << 
-		std::count( located_elements.begin(), 
-				located_elements.end(), 0)
-	<< "/" << std::distance(located_elements.begin(), 
-				 located_elements.end())
-	<< std::endl;
+	std::size_t unfound_points = std::count( located_elements.begin(),
+						 located_elements.end(), 0);
+	typedef  ct::_Element_data< const Bounding_box, double > Element_data;
+	typedef typename std::tr1::unordered_map< Element, 
+					  	  Element_data> Entity_map;
+	if( unfound_points > 0){
+		std::cout << "unlocated points: " <<  unfound_points
+		<< "/" << located_elements.size() << std::endl;
+		const std::size_t brute_search = 
+		locator.bruteforce_locate_points( target_vertices, 
+						  located_elements);
+	}else{
+		std::cout << "all points located!" << std::endl;
+	}
 }

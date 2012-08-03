@@ -22,6 +22,9 @@
 #define BVH_TREE_DEBUG
 #ifndef BVH_TREE_HPP
 #define BVH_TREE_HPP
+
+namespace ct = moab::common_tree;
+
 namespace moab {
 
 //forward declarations
@@ -56,7 +59,7 @@ namespace {
 	class Split_comparator : 
 			public std::binary_function< Split, Split, bool> {
 		inline double objective( const Split & a) const{
-			return a.Lmax*a.nl + a.Rmin*a.nr;
+			return a.Lmax*a.nl - a.Rmin*a.nr;
 		}
 		public:
 		bool operator()( const Split & a, const Split & b) const{
@@ -78,6 +81,7 @@ namespace {
 
 	class _Split_data {
 		public:
+		typedef typename ct::Box< double> Box;
 		_Split_data(): dim( 0), nl( 0), nr( 0), split( 0.0), 
 				Lmax( 0.0), Rmin( 0.0),bounding_box(), 
 				left_box(), right_box(){}
@@ -91,9 +95,9 @@ namespace {
 		std::size_t nr;
 		double split;
 		double Lmax, Rmin;
-		common_tree::Box< double> bounding_box;
-		common_tree::Box< double> left_box;
-		common_tree::Box< double> right_box;
+		Box bounding_box;
+		Box left_box;
+		Box right_box;
 		_Split_data& operator=( const _Split_data & f){
 			dim  	     = f.dim;
 			nl   	     = f.nl; 
@@ -116,7 +120,7 @@ namespace {
 		_Bucket( const std::size_t size_): 
 		size( size_), bounding_box(){}
 		std::size_t size;
-		common_tree::Box< double> bounding_box;
+		ct::Box< double> bounding_box;
 		_Bucket& operator=( const _Bucket & f){
 			bounding_box = f.bounding_box;
 			size = f.size;
@@ -159,7 +163,7 @@ Bvh_tree( Entity_handles & _entities,
 				bounding_box( _bounding_box),
 				entity_contains( entity_contains){
 	typedef typename Entity_handles::iterator Entity_handle_iterator;
-	typedef  common_tree::_Element_data< const _Box, double > Element_data;
+	typedef  ct::_Element_data< const _Box, double > Element_data;
 	typedef typename std::tr1::unordered_map< Entity_handle, 
 						  Element_data> Entity_map;
 	typedef typename Entity_map::iterator Entity_map_iterator;
@@ -168,7 +172,7 @@ Bvh_tree( Entity_handles & _entities,
 	//which is one doubling away..
 	tree_.reserve( entity_handles_.size());
 	Entity_map entity_map( entity_handles_.size());
-	common_tree::construct_element_map( entity_handles_, 
+	ct::construct_element_map( entity_handles_, 
 					    entity_map, 
 					    bounding_box, 
 					    moab);
@@ -193,23 +197,24 @@ Bvh_tree( Entity_handles & _entities,
 	 #ifdef BVH_TREE_DEBUG
 		 typedef typename Nodes::iterator Node_iterator;
 		 typedef typename Node::Entities::iterator Entity_iterator;
-		 std::size_t num_entities=0;
 		 std::set< Entity_handle> entity_handles;
 		 for(Node_iterator i = tree_.begin(); i != tree_.end(); ++i){
-				num_entities += i->entities.size();
 			for(Entity_iterator j = i->entities.begin(); 
 					    j != i->entities.end(); ++j){
 				entity_handles.insert( j->second);
 			}
 				
 		 }
-		if( num_entities != entity_handles_.size()){
-			std::cout << "Entity Handle Size Mismatch!" << std::endl;
+		if( entity_handles.size() != entity_handles_.size()){
+			std::cout << "Entity Handle Size Mismatch!" 
+				  << std::endl;
 		}
-		for( typename Entity_handles::iterator 
-		i = entity_handles_.begin(); i != entity_handles_.end(); ++i){
+		typedef typename Entity_handles::iterator Entity_iterator_;
+		for( Entity_iterator_ i  = entity_handles_.begin(); 
+				     i != entity_handles_.end(); ++i){
 			if ( entity_handles.find( *i) == entity_handles.end()){
-				std::cout << "Tree is missing an entity! " << std::endl;
+				std::cout << "Tree is missing an entity! " 
+					  << std::endl;
 			}
 		} 
 					       
@@ -227,8 +232,8 @@ Bvh_tree( Self & s): entity_handles_( s.entity_handles_),
 //see FastMemoryEfficientCellLocationinUnstructuredGridsForVisualization.pdf 
 //around page 9
 #define NUM_SPLITS 4
-#define NUM_BUCKETS 5 //NUM_SPLITS+1
-#define SMAX 4
+#define NUM_BUCKETS (NUM_SPLITS + 1) //NUM_SPLITS+1
+#define SMAX 5
 //Paper arithmetic is over-optimized.. this is safer.
 template < typename Box>
 std::size_t bucket_index( const Box & box, const Box & interval, 
@@ -261,42 +266,26 @@ void establish_buckets( const Iterator begin, const Iterator end,
 	for(Iterator i = begin; i != end; ++i){
 		const Bounding_box & box = (*i)->second.first;
 		for (std::size_t dim = 0; dim < NUM_DIM; ++dim){
-			const std::size_t index = (dim*NUM_BUCKETS) + 
-				bucket_index( box, interval, dim);
-			_bvh::_Bucket & bucket = buckets[ index];
+			const std::size_t index = bucket_index( box, 
+								interval, dim);
+			_bvh::_Bucket & bucket = buckets[ dim][ index];
 			if(bucket.size > 0){
-			common_tree::update_bounding_box( bucket.bounding_box,
-							  box);
-			}else{ bucket.bounding_box = box; }
+			     ct::update_bounding_box( bucket.bounding_box, box);
+			}else{ 
+				bucket.bounding_box = box; 
+			}
 			bucket.size++;
-		}
-	}
-	for( int i = 0; i < NUM_DIM*NUM_BUCKETS; ++i){
-		const int N = NUM_BUCKETS;
-		if( buckets[ i].size == 0){
-			buckets[ i].bounding_box = interval;
-			const int d = i/N;
-			const int j = i%N;
-			const double min = interval.min[ d];
-			const double max = interval.max[ d]; 
-			double left = min + (j/N)*(max-min);
-			double right = min + ((j+1)/N)*(max-min);
-			if ( (j+1) == NUM_BUCKETS){ right = interval.max[ d]; }
-			else if ( j == 0){ left = interval.min[ d]; }
-
-			buckets[ i].bounding_box.min[ d] = left;	
-			buckets[ i].bounding_box.max[ d] = right;	
 		}
 	}
 	#ifdef BVH_TREE_DEBUG
 	Bounding_box elt_union = (*begin)->second.first;
 	for(Iterator i = begin; i != end; ++i){
 		const Bounding_box & box = (*i)->second.first;
-		common_tree::update_bounding_box( elt_union, box);
+		ct::update_bounding_box( elt_union, box);
 		for (std::size_t dim = 0; dim < NUM_DIM; ++dim){
-			const std::size_t index = (dim*NUM_BUCKETS) + 
-				bucket_index( box, interval, dim);
-			_bvh::_Bucket & bucket = buckets[ index];
+			const std::size_t index = bucket_index( box, 
+								interval, dim);
+			_bvh::_Bucket & bucket = buckets[ dim][ index];
 			if(!box_contains_box( bucket.bounding_box, box)){
 				std::cerr << "Buckets not covering elements!"
 					  << std::endl;
@@ -315,66 +304,120 @@ void establish_buckets( const Iterator begin, const Iterator end,
 		std::cout << interval << std::endl;
 		std::cout << elt_union << std::endl;
 	}
-	Bounding_box test_box = buckets[ 0].bounding_box;
-	for(int d = 0; d < NUM_DIM; ++d){
-		for( int i = d*NUM_BUCKETS; i < (d+1)*NUM_BUCKETS; ++i){
-			common_tree::update_bounding_box( test_box, 
-					buckets[ i].bounding_box);
+	typedef typename Buckets::value_type Bucket_list;
+	typedef typename Bucket_list::const_iterator Bucket_iterator;
+	for(std::size_t d = 0; d < NUM_DIM; ++d){
+		std::vector< std::size_t> nonempty;
+		const Bucket_list & buckets_ = buckets[ d];
+		std::size_t j = 0;
+		for(  Bucket_iterator i = buckets_.begin(); 
+				      i != buckets_.end(); ++i, ++j){
+		  if( i->size > 0){ nonempty.push_back( j); }
+		}
+		Bounding_box test_box = buckets_[ nonempty.front()].
+							   bounding_box;
+		for( std::size_t i = 0; i < nonempty.size(); ++i){
+			ct::update_bounding_box( test_box, 
+						 buckets_[ nonempty[ i]].
+								bounding_box);
+		}
+		if( !box_contains_box( test_box, interval) ){
+			std::cout << "union of buckets in dimension: " << d 
+				  << "does not contain original box!" 
+				  << std::endl;
+		}
+		if ( !box_contains_box( interval, test_box) ){
+			std::cout << "original box does "
+				  << "not contain union of buckets" 
+				  << "in dimension: " << d 
+				  << std::endl;
+			std::cout << interval << std::endl;
+			std::cout << test_box << std::endl;
 		}
 	}
-	if( !box_contains_box( test_box, interval) ){
-		std::cout << "union of buckets does"
-			  << " not contain original box!" 
-			  << std::endl;
-	}
-	if ( !box_contains_box( interval, test_box) ){
-		std::cout << "original box does "
-			  << "not contain union of buckets" 
-			  << std::endl;
-		std::cout << interval << std::endl;
-		std::cout << test_box << std::endl;
-	}
 	#endif
+}
+
+template< typename Box, typename Iterator>
+std::size_t set_interval( Box & interval, const Iterator begin, 
+			 	   const Iterator end) const{
+	bool first=true;
+	std::size_t count = 0;
+	for( Iterator b = begin; b != end; ++b){
+		const Box & box = b->bounding_box;
+		count += b->size;
+		if( b->size != 0){
+			if( first){
+			   interval = box;
+			   first=false;
+			}else{
+			   ct::update_bounding_box( interval, box);
+			}
+		}
+	}
+	return count;
 }
 
 template< typename Splits, typename Buckets, typename Split_data>
 void initialize_splits( Splits & splits, 
 			const Buckets & buckets, 
-			const Split_data & data, 
-			const std::size_t total) const{
-	typedef typename Buckets::value_type Bucket;
-	typedef typename Buckets::const_iterator Bucket_iterator;
-	typedef typename Splits::iterator Split_iterator;
-	std::vector< double> length( data.bounding_box.min);
-	std::transform( data.bounding_box.max.begin(),
-			data.bounding_box.max.end(), 
-			length.begin(), length.begin(), 
-			std::minus< double>());
+			const Split_data & data) const{
+	typedef typename Buckets::value_type Bucket_list;
+	typedef typename Bucket_list::value_type Bucket;
+	typedef typename Bucket_list::const_iterator Bucket_iterator;
+	typedef typename Splits::value_type Split_list; 
+	typedef typename Split_list::value_type Split; 
+	typedef typename Split_list::iterator Split_iterator;
 	for(std::size_t d = 0; d < NUM_DIM; ++d){
-		Split_iterator s_begin = splits.begin()+d*NUM_SPLITS;
-		Bucket_iterator b = buckets.begin()+d*NUM_BUCKETS;
-		Bucket_iterator b_end = buckets.begin()+(d+1)*NUM_BUCKETS;
-		for(Split_iterator s = s_begin ; s != s_begin+NUM_SPLITS; ++s,
-									  ++b){
-			s->left_box = b->bounding_box;
-			s->right_box = (b+1)->bounding_box;
-			s->nl = b->size;
-			if( s != s_begin) {
-				Split_iterator last = s-1; 
-				s->nl += last->nl;
-				common_tree::update_bounding_box( s->left_box, 
-								last->left_box);
+		const Split_iterator splits_begin = splits[ d].begin();
+		const Split_iterator splits_end = splits[ d].end();
+		const Bucket_iterator left_begin = buckets[ d].begin();
+		const Bucket_iterator _end = buckets[ d].end();
+		Bucket_iterator left_end = buckets[ d].begin()+1;
+		for( Split_iterator s = splits_begin; 
+				    s != splits_end; ++s, ++left_end){
+			s->nl = set_interval( s->left_box, 
+					      left_begin, left_end);
+			if( s->nl == 0){ 
+				s->left_box = data.bounding_box;
+				s->left_box.max[ d] = s->left_box.min[ d];
 			}
-			s->Lmax = s->left_box.max[ data.dim];
-			s->nr = total - s->nl;
-			s->split = std::distance(s_begin, s);
+			s->nr = set_interval( s->right_box,
+					      left_end,  _end);
+			if( s->nr == 0){ 
+				s->right_box = data.bounding_box;
+				s->right_box.min[ d] = s->right_box.max[ d];
+			}
+			s->Lmax = s->left_box.max[ d];
+			s->Rmin = s->right_box.min[ d];
+			s->split = std::distance( splits_begin, s);
 			s->dim = d;
 		}
-		for(Split_iterator s = s_begin+NUM_SPLITS-2; s >= s_begin; --s){
-			common_tree::update_bounding_box( s->right_box, 
-							  (s+1)->right_box);
-			s->Rmin = s->right_box.min[ data.dim];
-		}
+		#ifdef BVH_TREE_DEBUG
+		for( Split_iterator s = splits_begin; 
+				    s != splits_end; ++s, ++left_end){
+			typename Split::Box test_box = s->left_box;
+			ct::update_bounding_box( test_box, s->right_box);
+			if( !box_contains_box( data.bounding_box, test_box)){
+				std::cout << "nr: " << s->nr << std::endl;
+				std::cout << "Test box: " << std::endl << 
+					  test_box;
+				std::cout << "Left box: " << std::endl << 
+		  			  s->left_box;
+				std::cout << "Right box: " << std::endl << 
+	  				  s->right_box;
+				std::cout << "Interval: " << std::endl << 
+	  				  data.bounding_box;
+				std::cout << "Split boxes larger than bb" 
+					  << std::endl;
+			}
+			if( !box_contains_box( test_box, data.bounding_box)){
+				std::cout << "bb larger than union "
+					  << "of split boxes" 
+					  << std::endl;
+			}         	
+			}
+		#endif 
 	}
 }
 
@@ -422,7 +465,36 @@ void median_order( const Iterator & begin, const Iterator & end,
 	}
 	data.Rmin = data.right_box.min[ data.dim];
 	data.Lmax = data.left_box.max[ data.dim];
+	#ifdef BVH_TREE_DEBUG
+	typename Split_data::Box test_box = data.left_box;
+	ct::update_bounding_box( test_box, data.right_box);
+	if( !box_contains_box( data.bounding_box, test_box) ){
+		std::cerr << "MEDIAN: BB Does not contain splits" << std::endl;
+	}
+	if( !box_contains_box( test_box, data.bounding_box) ){
+		std::cerr << "MEDIAN: splits do not contain BB" << std::endl;
+	}
+	#endif
 }
+
+template< typename Splits, typename Split_data>
+void choose_best_split( const Splits & splits, Split_data & data) const{
+	typedef typename Splits::const_iterator List_iterator;
+	typedef typename List_iterator::value_type::const_iterator 
+							Split_iterator;
+	typedef typename Split_iterator::value_type Split;
+	std::vector< Split> best_splits;
+	typedef typename _bvh::Split_comparator< Split> Comparator;
+	Comparator compare;
+	for( List_iterator i = splits.begin(); i != splits.end(); ++i){
+		Split_iterator j = std::min_element( i->begin(), i->end(), 
+								  compare);
+		best_splits.push_back( *j);
+	}
+	data = *std::min_element( best_splits.begin(), 
+				  best_splits.end(), compare);
+}
+
 
 template< typename Iterator, typename Split_data>
 void find_split(const Iterator & begin, 
@@ -430,25 +502,26 @@ void find_split(const Iterator & begin,
 	typedef typename Iterator::value_type Map_iterator;
 	typedef typename Map_iterator::value_type::second_type Box_data;
 	typedef typename Box_data::first_type Bounding_box;
-	typedef typename std::vector< Split_data> Splits;
+	typedef typename std::vector< Split_data> Split_list;
+	typedef typename std::vector< Split_list> Splits;
 	typedef typename Splits::iterator Split_iterator;
-	typedef typename std::vector< _bvh::_Bucket> Buckets;
-	Buckets buckets( NUM_BUCKETS*NUM_DIM);
-	Splits splits( NUM_SPLITS*NUM_DIM, data);
+	typedef typename std::vector< _bvh::_Bucket> Bucket_list;
+	typedef typename std::vector< Bucket_list > Buckets;
+	Buckets buckets( NUM_DIM, Bucket_list( NUM_BUCKETS) );
+	Splits splits( NUM_DIM, Split_list( NUM_SPLITS, data));
 	
 	const Bounding_box interval = data.bounding_box;
 	establish_buckets( begin, end, interval, buckets);
-	const std::size_t total = std::distance( begin, end);
-	initialize_splits( splits, buckets, data, total);
-	Split_iterator best = std::min_element( splits.begin(), splits.end(),
-			   _bvh::Split_comparator< Split_data>());
-	data = *best;
+	initialize_splits( splits, buckets, data);
+	choose_best_split( splits, data);
 	const bool use_median = (0 == data.nl) || (data.nr == 0);
 	if (!use_median){ order_elements( begin, end, data); } 
 	else{ median_order( begin, end, data); }
 	#ifdef BVH_TREE_DEBUG
 	bool seen_one=false,issue=false;
+	bool first_left=true,first_right=true;
 	std::size_t count_left=0, count_right=0;
+	typename Split_data::Box left_box, right_box;
 	for( Iterator i = begin; i != end; ++i){
 		double order = (*i)->second.second;
 		if( order != 0 && order != 1){
@@ -459,6 +532,13 @@ void find_split(const Iterator & begin,
 		if(order == 1){
 			seen_one=1;
 			count_right++;
+			if( first_right){
+				right_box = (*i)->second.first;
+				first_right=false;
+			}else{
+				ct::update_bounding_box( right_box, 
+							 (*i)->second.first);
+			}
 			if(!box_contains_box( data.right_box, 
 					     (*i)->second.first)){
 				if(!issue){
@@ -470,6 +550,13 @@ void find_split(const Iterator & begin,
 		}
 		if(order==0){
 			count_left++;
+			if( first_left){
+				left_box = (*i)->second.first;
+				first_left=false;
+			}else{
+				ct::update_bounding_box( left_box, 
+							 (*i)->second.first);
+			}
 			if(!box_contains_box( data.left_box, 
 					     (*i)->second.first)){
 				if(!issue){
@@ -485,6 +572,18 @@ void find_split(const Iterator & begin,
 				exit( -1);
 			}
 		}
+	}
+	if( !box_contains_box( left_box, data.left_box)){
+		std::cout << "left elts do not contain left box" << std::endl;
+	}
+	if( !box_contains_box( data.left_box, left_box)){
+		std::cout << "left box does not contain left elts" << std::endl;
+	}
+	if( !box_contains_box( right_box, data.right_box)){
+		std::cout << "right elts do not contain right box" << std::endl;
+	}
+	if( !box_contains_box( data.right_box, right_box)){
+		std::cout << "right box do not contain right elts" << std::endl;
 	}
 	if( count_left != data.nl || count_right != data.nr) {
 		std::cerr << "counts are off!" << std::endl;
@@ -542,7 +641,7 @@ int build_tree( const Iterator begin, const Iterator end,
 		return std::max( left_depth, right_depth);
 	}
 	node.dim = 3;
-	common_tree::assign_entities( node.entities, begin, end);
+	ct::assign_entities( node.entities, begin, end);
 	return depth;
 }
 
@@ -552,33 +651,45 @@ Entity_handle _find_point( const Vector & point,
 	typedef typename Node::Entities::const_iterator Entity_iterator;
 	const Node & node = tree_[ index];
 	if( node.dim == 3){
-		//check each node
-		if( node.entities.size() == 0){
-			std::cout << "Node with no entities?" << std::endl;
-		}
 		for( Entity_iterator i = node.entities.begin(); 
 				     i != node.entities.end(); ++i){
-			if( common_tree::box_contains_point( i->first, point) &&
+			if( ct::box_contains_point( i->first, point) &&
 				entity_contains( i->second, point)){
 				return i->second;
 			}
 		}
 		return 0;
 	}
-	if( point[ node.dim] <= node.Lmax){
+	if( node.Lmax < node.Rmin){
+		if( point[ node.dim] <= node.Lmax){            	
+        		return _find_point( point, node.child);
+        	}else if( point[ node.dim] >= node.Rmin){            	
+			return _find_point( point, node.child+1);
+		}
+		return 0; //point lies in empty space.
+	}
+	//Boxes overlap
+	//left of Rmin, you must be on the left
+	//we can't be sure about the boundaries since the boxes overlap
+	//this was a typo in the paper which caused pain.
+	if( point[ node.dim] < node.Rmin){
 		return _find_point( point, node.child);
-	}else if( point[ node.dim] >= node.Rmin){
+	//if you are on the right Lmax, you must be on the right
+	}else if( point[ node.dim] > node.Lmax){
 		return _find_point( point, node.child+1);
 	}
-	/* TODO:
+	/* pg5 of paper
 	 * However, instead of always traversing either subtree
-	 * first (e.g. left always before right), we first traverse the subtree whose
-	 * bounding plane has the larger distance to the sought point. This results
-	 * in less overall traversal, and the correct cell is identified more quickly.
+	 * first (e.g. left always before right), we first traverse 
+	 * the subtree whose bounding plane has the larger distance to the 
+	 * sought point. This results in less overall traversal, and the correct
+	 * cell is identified more quickly.
 	 */
 	const Entity_handle result =  _find_point( point, node.child);
-	if( result != 0){ return result; }
-	return _find_point( point, node.child+1);
+	if( result == 0 ){ 
+		return _find_point( point, node.child+1);
+	}
+	return result;
 }
 
 //public functionality
@@ -588,6 +699,29 @@ Entity_handle find( const Vector & point) const{
 	typedef typename Vector::const_iterator Point_iterator;
 	return  _find_point( point, 0);
 }
+
+//public functionality
+public:
+template< typename Vector>
+Entity_handle bruteforce_find( const Vector & point) const{
+	typedef typename Vector::const_iterator Point_iterator;
+	typedef typename Nodes::value_type Node;
+	typedef typename Nodes::const_iterator Node_iterator;
+	typedef typename Node::Entities::const_iterator Entity_iterator;
+	for( Node_iterator i = tree_.begin(); i != tree_.end(); ++i){
+		if( i->dim == 3){
+			for( Entity_iterator j = i->entities.begin();
+					     j != i->entities.end();
+						++j){
+				if( ct::box_contains_point( j->first, point)){
+					return j->second;
+				}
+			}
+		}
+	}
+	return 0;
+}
+
 
 //public accessor methods
 public:

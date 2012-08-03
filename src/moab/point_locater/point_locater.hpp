@@ -95,15 +95,49 @@ Error locate_points( Point_map & query_points, Entities & entities, Communicator
 } 
 
 template< typename Points, typename Entities> 
-Error locate_points( Points & query_points, Entities & entities) const{
+Error locate_points( const Points & query_points, Entities & entities) const{
+	typedef typename Points::const_iterator Point_iterator;
+	typedef typename Entities::value_type Entity_handle;
 	Entities result;
 	result.reserve( query_points.size());	
-	typedef typename Points::const_iterator Point_iterator;
 	for(Point_iterator i = query_points.begin(); 
 			   i != query_points.end(); ++i){
-			result.push_back( tree_.find( *i));
+			const Entity_handle h = tree_.find( *i);		
+			result.push_back( h);
 	}
 	entities = result;
+	return 0;
+} 
+
+template< typename Points, typename Entities> 
+Error bruteforce_locate_points( const Points & query_points, 
+				Entities & entities) const{
+	typedef typename Points::const_iterator Point_iterator;
+	typedef typename Entities::value_type Entity_handle;
+	Entities result;
+	result.reserve( query_points.size());	
+	std::size_t count = 0;
+	typename Entities::iterator j = entities.begin();
+	for( Point_iterator i = query_points.begin(); 
+			    i != query_points.end(); ++i, ++j){
+		if( *j == 0){
+			const Entity_handle h = tree_.bruteforce_find( *i);
+			if( h == 0){
+				++count;
+				for(int k = 0; k < 3; ++k){
+					std::cout << (*i)[ k];
+					if ( k < 2){
+						std::cout << ", ";
+					}else{
+						std::cout << std::endl;
+					}
+				}
+					  
+			}
+		}
+	}
+	std::cout << count << " vertices are not contained in _any_ elements!" 
+			<< std::endl;
 	return 0;
 } 
 
