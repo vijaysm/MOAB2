@@ -78,7 +78,7 @@ struct _Parametrizer : public std::binary_function< EH, Point, bool> {
 }; // Parametrizer
 
 // default types.. whatevs.
-typedef typename moab::common_tree::Box< double> Bounding_box;
+typedef moab::common_tree::Box< double> Bounding_box;
 typedef std::vector< Bounding_box> Boxes;
 typedef moab::EntityHandle Element;
 typedef _Parametrizer< Element, std::vector< double> > Parametrizer;
@@ -186,12 +186,11 @@ int main(int argc, char* argv[]){
 	std::size_t unfound_points = std::count( located_elements.begin(),
 						 located_elements.end(), 0);
 	typedef  ct::_Element_data< const Bounding_box, double > Element_data;
-	typedef typename std::tr1::unordered_map< Element, 
-					  	  Element_data> Entity_map;
+	typedef std::tr1::unordered_map< Element, 
+					 Element_data> Entity_map;
 	if( unfound_points > 0){
 		std::cout << "unlocated points: " <<  unfound_points
 		<< "/" << located_elements.size() << std::endl;
-		const std::size_t brute_search = 
 		locator.bruteforce_locate_points( target_vertices, 
 						  located_elements);
 	}else{

@@ -81,7 +81,7 @@ namespace {
 
 	class _Split_data {
 		public:
-		typedef typename ct::Box< double> Box;
+		typedef ct::Box< double> Box;
 		_Split_data(): dim( 0), nl( 0), nr( 0), split( 0.0), 
 				Lmax( 0.0), Rmin( 0.0),bounding_box(), 
 				left_box(), right_box(){}
