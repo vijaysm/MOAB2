@@ -302,11 +302,11 @@ inline std::vector< T> operator*( const std::vector< T>& v, const Matrix3&m){
 }
 
 inline CartVect operator*( const Matrix3&m,  const CartVect& v){
-		return moab::Matrix::vector_matrix( v, m);
+		return moab::Matrix::matrix_vector( m, v);
 }
 
 inline CartVect operator*( const CartVect& v, const Matrix3& m){
-		return moab::Matrix::matrix_vector( m, v);
+		return moab::Matrix::vector_matrix( v, m);
 }
 
 } // namespace moab
