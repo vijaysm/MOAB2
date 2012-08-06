@@ -38,6 +38,7 @@ TESTS = readutil_test \
         gmsh_test \
 	nastran_test \
 	$(NC_TEST) \
+        read_ucd_nc \
         ideas_test \
         stl_test \
         smf_test \
@@ -57,6 +58,7 @@ exodus_test_SOURCES = $(srcdir)/../TestUtil.hpp exodus_test.cc
 gmsh_test_SOURCES = $(srcdir)/../TestUtil.hpp gmsh_test.cc
 nastran_test_SOURCES = $(srcdir)/../TestUtil.hpp nastran_test.cc
 read_nc_SOURCES = $(srcdir)/../TestUtil.hpp read_nc.cpp
+read_ucd_nc_SOURCES = $(srcdir)/../TestUtil.hpp read_ucd_nc.cpp
 ideas_test_SOURCES = $(srcdir)/../TestUtil.hpp ideas_test.cc
 stl_test_SOURCES = $(srcdir)/../TestUtil.hpp stl_test.cc
 smf_test_SOURCES = $(srcdir)/../TestUtil.hpp smf_test.cc
