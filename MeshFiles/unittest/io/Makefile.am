@@ -1,4 +1,5 @@
-EXTRA_DIST = brick_cubit10.1.cub \
+EXTRA_DIST = HommeMapping.nc \
+             brick_cubit10.1.cub \
              brick_cubit10.2.cub \
              brick_cubit10.cub \
              camEul26x48x96.t3.nc \
