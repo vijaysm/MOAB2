@@ -10,6 +10,7 @@ EXTRA_DIST = HommeMapping.nc \
 	     hex_2x2x2_ss.exo \
              ho_test.g \
              ho_test.cub \
+             homme26x3458.t.3.nc \
 	     singlecyl.cub \
 	     singlecyl.ccmg \
              test.cub \
