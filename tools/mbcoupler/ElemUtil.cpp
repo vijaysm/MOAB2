@@ -434,6 +434,10 @@ namespace Element {
   }// Map::set_vertices()
   //
   CartVect Map::ievaluate(const CartVect& x, double tol, const CartVect& x0) const {
+    // TODO: should differentiate between epsilons used for
+    // Newton Raphson iteration, and epsilons used for curved boundary geometry errors
+    // right now, fix the tolerance used for NR
+    tol = 1.0e-6;
     const double error_tol_sqr = tol*tol;
     double det;
     CartVect xi = x0;
@@ -442,7 +446,7 @@ namespace Element {
 
     int iters=0;
     while (delta % delta > error_tol_sqr) {
-      if(++iters>50)
+      if(++iters>10)
         throw Map::EvaluationError();
 
       J = jacobian(xi);
@@ -593,9 +597,9 @@ namespace Element {
   {
     // linear tet space is a tetra with vertices (0,0,0), (1,0,0), (0,1,0), (0, 0, 1)
     // first check if outside bigger box, then below the plane x+y+z=1
-    return ( xi[0]>=-tol) && (xi[0]<=1.+tol) &&
-        ( xi[1]>=-tol) && (xi[1]<=1.+tol) &&
-        ( xi[2]>-tol) && (xi[2]<=1.+tol) &&
+    return ( xi[0]>=-tol)  &&
+        ( xi[1]>=-tol)  &&
+        ( xi[2]>=-tol)  &&
         ( xi[0]+xi[1]+xi[2] < 1.0+tol);
   }
   // SpectralHex
