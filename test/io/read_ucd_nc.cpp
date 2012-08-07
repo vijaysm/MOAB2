@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
   result += RUN_TEST(test_read_onevar);
   result += RUN_TEST(test_read_onetimestep);
   result += RUN_TEST(test_read_nomesh);
-//  result += RUN_TEST(test_read_novars);
+  result += RUN_TEST(test_read_novars);
   
 #ifdef USE_MPI
   fail = MPI_Finalize();
