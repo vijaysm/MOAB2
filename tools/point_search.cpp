@@ -18,6 +18,7 @@
 #include "moab/point_locater/io.hpp"
 #include "moab/point_locater/element_tree.hpp"
 #include "moab/point_locater/bvh_tree.hpp"
+#include "moab/point_locater/parametrizer.hpp"
 
 //iMesh
 #include "imesh/iMesh_extensions.h"
@@ -70,18 +71,11 @@ void print_usage() {
   std::cerr << "        Write stdout and stderr streams to the file \'<dbg_file>.txt\'." << std::endl;
 }
 
-template< typename EH, typename Point>
-struct _Parametrizer : public std::binary_function< EH, Point, bool> {
-	bool operator()( const EH & e, const Point & p){
-		return true;
-	}
-}; // Parametrizer
-
 // default types.. whatevs.
 typedef moab::common_tree::Box< double> Bounding_box;
 typedef std::vector< Bounding_box> Boxes;
 typedef moab::EntityHandle Element;
-typedef _Parametrizer< Element, std::vector< double> > Parametrizer;
+typedef moab::element_utility::Parametrizer Parametrizer;
 typedef Range Elements;
 typedef moab::Element_tree< Elements, Bounding_box, moab::Core, Parametrizer> 
 							Element_tree_;

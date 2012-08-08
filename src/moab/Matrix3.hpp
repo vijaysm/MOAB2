@@ -52,6 +52,7 @@ namespace Matrix{
 	         m( 8) = i * (d(0) * d(4) - d(3) * d(1));
 		return m;
 	}
+
 	template< typename Matrix>
 	inline bool positive_definite( const Matrix & d, 
 				       double& det ){
@@ -89,6 +90,21 @@ namespace Matrix{
 	                    u[2] * v[0], u[2] * v[1], u[2] * v[2] );
 		return m;
 	}
+	template< typename Matrix>
+	inline double determinant3( const Matrix & d){
+		return d(0) * d(4) * d(8) 
+		     + d(1) * d(5) * d(6)
+		     + d(2) * d(3) * d(7)
+		     - d(0) * d(5) * d(8)
+		     - d(1) * d(3) * d(8)
+		     - d(2) * d(4) * d(6); 
+	}
+	
+	template< typename Matrix>
+	inline const Matrix inverse( const Matrix & d){
+		const double det = 1.0/determinant3( d);
+		return inverse( d, det);
+	}
 	
 	template< typename Vector, typename Matrix>
 	inline Vector vector_matrix( const Vector& v, const Matrix& m ) {
@@ -99,9 +115,11 @@ namespace Matrix{
 	
 	template< typename Vector, typename Matrix>
 	inline Vector matrix_vector( const Matrix& m, const Vector& v ){
-	  return Vector( v[0] * m(0,0) + v[1] * m(0,1) + v[2] * m(0,2),
-	                 v[0] * m(1,0) + v[1] * m(1,1) + v[2] * m(1,2),
-	                 v[0] * m(2,0) + v[1] * m(2,1) + v[2] * m(2,2) );
+	   Vector res = v;
+	   res[ 0] = v[0] * m(0,0) + v[1] * m(0,1) + v[2] * m(0,2);
+	   res[ 1] = v[0] * m(1,0) + v[1] * m(1,1) + v[2] * m(1,2);
+	   res[ 2] = v[0] * m(2,0) + v[1] * m(2,1) + v[2] * m(2,2);
+	   return res;
 	} 
 } //namespace Matrix
 
@@ -227,12 +245,7 @@ inline Matrix3( double v00, double v01, double v02,
   }
   
   inline double determinant() const{
-	  return d[0] * d[4] * d[8] 
-	       + d[1] * d[5] * d[6]
-	       + d[2] * d[3] * d[7]
-	       - d[0] * d[5] * d[7]
-	       - d[1] * d[3] * d[8]
-	       - d[2] * d[4] * d[6];
+  	return moab::Matrix::determinant3( *this);
   }
  
   inline Matrix3 inverse() const { 

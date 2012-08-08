@@ -50,10 +50,11 @@ void print_vector( const T & begin, const T & end){
 #endif
 
 template< typename _Box, typename _Point>
-bool box_contains_point(  const _Box & box, const _Point & p){
+bool box_contains_point(  const _Box & box, const _Point & p, 
+			  const double tol){
 	for( std::size_t i = 0; i < box.min.size(); ++i){
-	     if( p[ i] < box.min[ i] || 
-	         p[ i] > box.max[ i]){
+	     if( p[ i] < (box.min[ i]-tol) || 
+	         p[ i] > (box.max[ i])+tol){
 	     	return false;
 	     }
 	 }
@@ -61,18 +62,17 @@ bool box_contains_point(  const _Box & box, const _Point & p){
 }
 
 template< typename _Box>
-bool box_contains_box(  const _Box & a, const _Box & b){
+bool box_contains_box(  const _Box & a, const _Box & b, const double tol){
 	for( std::size_t i = 0; i < a.min.size(); ++i){
-	     if( b.min[ i] < a.min[ i]){
+	     if( b.min[ i] < (a.min[ i]-tol)){
 		return false;
 	      }  
-	      if( b.max[ i] > a.max[ i]){
+	      if( b.max[ i] > (a.max[ i]+tol)){
 	     	return false;
 	     }
 	 }
 	return true;
 }
-
 
 namespace {
 	template< typename T> 
@@ -93,7 +93,8 @@ inline void compute_box_center(Vector & max, Vector & min, Vector & center){
 
 
 template< typename Box>
-inline typename Box::value_type compute_box_center(const Box & box, const int dim){
+inline typename Box::value_type compute_box_center( const Box & box, 
+						    const int dim){
 	return (box.max[ dim] + box.min[ dim])/2.0;
 }
 
@@ -143,7 +144,8 @@ struct _Element_data  {
 }; //Element_data
 
 template< typename Entities, typename Iterator>
-void assign_entities(Entities & entities, const Iterator & begin, const Iterator & end){
+void assign_entities( Entities & entities, 
+		      const Iterator & begin, const Iterator & end){
 	entities.reserve( std::distance( begin, end)); 
 	for( Iterator i = begin; i != end; ++i){
 		entities.push_back( std::make_pair((*i)->second.first, 
@@ -171,9 +173,11 @@ template< typename Box>
 void update_bounding_box( Box & a, const Box & b){
 	update_bounding_max( a.max, b.max.begin());
 	update_bounding_min( a.min, b.min.begin());
+	#ifdef COMMON_TREE_DEBUG
 	if( !box_contains_box( a, b)){
 		std::cout << a << b << std::endl;	
 	}
+	#endif
 }
 
 

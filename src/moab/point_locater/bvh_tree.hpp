@@ -19,7 +19,7 @@
 #include <tr1/unordered_map>
 #include <limits>
 #include "common_tree.hpp"
-#define BVH_TREE_DEBUG
+//#define BVH_TREE_DEBUG
 #ifndef BVH_TREE_HPP
 #define BVH_TREE_HPP
 
@@ -176,15 +176,16 @@ Bvh_tree( Entity_handles & _entities,
 					    entity_map, 
 					    bounding_box, 
 					    moab);
-
+	#ifdef BVH_TREE_DEBUG
 	for(Entity_map_iterator i = entity_map.begin(); 
 				i != entity_map.end(); ++i){
-		if( !box_contains_box( bounding_box, i->second.first)){
+		if( !box_contains_box( bounding_box, i->second.first, 0)){
 			std::cerr << "BB:" << bounding_box << "EB:" <<
 			i->second.first << std::endl;
 			std::exit( -1);
 		}
 	}
+	#endif
  	//_bounding_box = bounding_box;
 	Vector entity_ordering;
 	construct_ordering( entity_map, entity_ordering); 
@@ -611,7 +612,7 @@ int build_tree( const Iterator begin, const Iterator end,
 	#ifdef BVH_TREE_DEBUG
 	for(Iterator i = begin; 
 		     i != end; ++i){
-		if( !box_contains_box( box, (*i)->second.first)){
+		if( !box_contains_box( box, (*i)->second.first, 0)){
 			std::cerr << "depth: " << depth << std::endl;
 			std::cerr << "BB:" << box << "EB:" <<
 			(*i)->second.first << std::endl;
@@ -647,24 +648,29 @@ int build_tree( const Iterator begin, const Iterator end,
 
 template< typename Vector, typename Node_index>
 Entity_handle _find_point( const Vector & point, 
-			   const Node_index & index) const{
+			   const Node_index & index, 
+			   const double tol) const{
 	typedef typename Node::Entities::const_iterator Entity_iterator;
 	const Node & node = tree_[ index];
 	if( node.dim == 3){
 		for( Entity_iterator i = node.entities.begin(); 
 				     i != node.entities.end(); ++i){
-			if( ct::box_contains_point( i->first, point) &&
-				entity_contains( i->second, point)){
-				return i->second;
+			if( ct::box_contains_point( i->first, point, tol)){
+				const std::pair< bool, Vector> result = 
+				entity_contains( moab, i->second, point, tol);
+				if (result.first){
+						//TODO: return Point as well..
+						return i->second;
+				}
 			}
 		}
 		return 0;
 	}
 	if( node.Lmax < node.Rmin){
 		if( point[ node.dim] <= node.Lmax){            	
-        		return _find_point( point, node.child);
+        		return _find_point( point, node.child, tol);
         	}else if( point[ node.dim] >= node.Rmin){            	
-			return _find_point( point, node.child+1);
+			return _find_point( point, node.child+1, tol);
 		}
 		return 0; //point lies in empty space.
 	}
@@ -673,10 +679,10 @@ Entity_handle _find_point( const Vector & point,
 	//we can't be sure about the boundaries since the boxes overlap
 	//this was a typo in the paper which caused pain.
 	if( point[ node.dim] < node.Rmin){
-		return _find_point( point, node.child);
+		return _find_point( point, node.child, tol);
 	//if you are on the right Lmax, you must be on the right
 	}else if( point[ node.dim] > node.Lmax){
-		return _find_point( point, node.child+1);
+		return _find_point( point, node.child+1, tol);
 	}
 	/* pg5 of paper
 	 * However, instead of always traversing either subtree
@@ -685,9 +691,9 @@ Entity_handle _find_point( const Vector & point,
 	 * sought point. This results in less overall traversal, and the correct
 	 * cell is identified more quickly.
 	 */
-	const Entity_handle result =  _find_point( point, node.child);
+	const Entity_handle result =  _find_point( point, node.child, tol);
 	if( result == 0 ){ 
-		return _find_point( point, node.child+1);
+		return _find_point( point, node.child+1, tol);
 	}
 	return result;
 }
@@ -695,15 +701,15 @@ Entity_handle _find_point( const Vector & point,
 //public functionality
 public:
 template< typename Vector>
-Entity_handle find( const Vector & point) const{
+Entity_handle find( const Vector & point, double tol=1.0e-6) const{
 	typedef typename Vector::const_iterator Point_iterator;
-	return  _find_point( point, 0);
+	return  _find_point( point, 0, tol);
 }
 
 //public functionality
 public:
 template< typename Vector>
-Entity_handle bruteforce_find( const Vector & point) const{
+Entity_handle bruteforce_find( const Vector & point, double tol=1.0e-6) const{
 	typedef typename Vector::const_iterator Point_iterator;
 	typedef typename Nodes::value_type Node;
 	typedef typename Nodes::const_iterator Node_iterator;
@@ -713,7 +719,8 @@ Entity_handle bruteforce_find( const Vector & point) const{
 			for( Entity_iterator j = i->entities.begin();
 					     j != i->entities.end();
 						++j){
-				if( ct::box_contains_point( j->first, point)){
+				if( ct::box_contains_point( j->first, 
+								point, tol)){
 					return j->second;
 				}
 			}

@@ -1,55 +1,63 @@
 #ifndef MOAB_LINEAR_TET_HPP
 #define MOAB_LINEAR_TET_HPP
 
+#include "moab/Matrix3.hpp"
+
 namespace moab { 
 namespace element_utility {
 
-template< typename Points, typename Entity_handle, typename Matrix>
+template<  typename Entity_handle, typename Matrix>
 class Linear_tet_map {
   private:
-	typedef Linear_tet_map< Points, 
-				Entity_handle, 
-				Matrix> Self;
+	typedef Linear_tet_map< Entity_handle, Matrix> Self;
   public: 
- 	typedef typename Points::value_type Point;
     //Constructor
-    Linear_tet_map( const Entity_handle  _eh, 
-		    const Points & corners_) : 
-		    corners( corners_), eh( _eh){}
+    Linear_tet_map() : Tinv(), eh() {}
     //Copy constructor
-    Linear_tet_map( const Self & f ) : T( f.T), Tinv( f.Tinv),
-				      det_T( f.det_T), det_Tinv( f.Tinv) {}
-    //Initial Condition
-    Point& operator()( const Point & p) const{ 
-	return Tinv*(p-vertex[ 0]);
+    Linear_tet_map( const Self & f ) : Tinv( f.Tinv), eh( f.eh){}
+    //Natural coordinates
+    template< typename Points, typename Point>
+    std::pair< bool, Point> operator()( const Entity_handle eh, 
+				        const Points & v, 
+					const Point & p, 
+					const double tol=1e-10) {
+	set_tet( eh, v); 
+	//TODO: Make sure this is correct
+	Point result = Tinv*p;
+	return std::make_pair( is_contained( result, tol), result);
     }
+  
+    private:
+    template< typename Point>
+    bool is_contained( const Point & result, const double tol=1e-10){
+	double sum=0.0;
+	for( std::size_t i = 0; i < 3; ++i){ 
+		sum += result[ i]; 
+		if( result[ i] < -tol){ return false; } 
+	}
+	return sum < 1.0+tol;
+    } 
     template< typename Points>
     void set_tet( const Entity_handle _eh, const Points & v){
 		if (eh != _eh){
 		   eh = _eh;
-		   corners = v;
-		   T = Matrix( v[1][0]-v[0][0], v[2][0]-v[0][0], 
+		   Tinv = moab::Matrix::inverse( 
+		       Matrix( v[1][0]-v[0][0], v[2][0]-v[0][0], 
 			       v[3][0]-v[0][0],
                     	       v[1][1]-v[0][1], v[2][1]-v[0][1], 
 			       v[3][1]-v[0][1],
                     	       v[1][2]-v[0][2], v[2][2]-v[0][2], 
-			       v[3][2]-v[0][2]);
-		   T_inverse = T.inverse();
-		   det_T = T.determinant();
-		   det_T_inverse = (det_T == 0: 
-					std::numeric_limits< double>.max() : 
-					1.0/det_T);
+			       v[3][2]-v[0][2]) );
 		}
     }
   private:
-	const Points & corners;
-	const Entity_handle eh;
-	const double corner[ 4][ 3] = { {0,0,0},
-				        {1,0,0},
-				        {0,1,0},
-				        {0,0,1} };
-	Matrix T, Tinv;
-	double det_T, det_Tinv;
+	Matrix Tinv;
+	Entity_handle eh;
+	/* We don't need this!
+	static const double reference_points[ 4][ 3] = { {0,0,0},
+				        	  	 {1,0,0},
+				        	  	 {0,1,0},
+				        	  	 {0,0,1} };*/
 	
 }; //Class Linear_tet_map
 
