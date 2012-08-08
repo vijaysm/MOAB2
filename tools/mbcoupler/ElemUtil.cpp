@@ -451,10 +451,8 @@ namespace Element {
 
       J = jacobian(xi);
       det = J.determinant();
-      if (det < 1e-10){
-        std::cout << det << std::endl;
+      if (det < std::numeric_limits<double>::epsilon())
         throw Map::EvaluationError();
-      }
       xi -= J.inverse(1.0/det) * delta;
       delta = evaluate( xi ) - x;
     }
