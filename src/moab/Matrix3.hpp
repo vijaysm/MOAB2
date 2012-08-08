@@ -92,12 +92,12 @@ namespace Matrix{
 	}
 	template< typename Matrix>
 	inline double determinant3( const Matrix & d){
-		return d(0) * d(4) * d(8) 
+		return (d(0) * d(4) * d(8) 
 		     + d(1) * d(5) * d(6)
 		     + d(2) * d(3) * d(7)
-		     - d(0) * d(5) * d(8)
+		     - d(0) * d(5) * d(7)
 		     - d(1) * d(3) * d(8)
-		     - d(2) * d(4) * d(6); 
+		     - d(2) * d(4) * d(6)); 
 	}
 	
 	template< typename Matrix>
@@ -136,15 +136,15 @@ public:
   //Then we can go from three Constructors to one. 
   inline Matrix3( double diagonal ){ 
       d[0] = d[4] = d[8] = diagonal;
-      d[1] = d[2] = d[3] = 0;
-      d[5] = d[6] = d[7] = 0;
+      d[1] = d[2] = d[3] = 0.0;
+      d[5] = d[6] = d[7] = 0.0;
   }
   inline Matrix3( const CartVect & diagonal ){ 
       d[0] = diagonal[0];
       d[4] = diagonal[1],
       d[8] = diagonal[2];
-      d[1] = d[2] = d[3] = 0;
-      d[5] = d[6] = d[7] = 0;
+      d[1] = d[2] = d[3] = 0.0;
+      d[5] = d[6] = d[7] = 0.0;
   }
   //TODO: not strictly correct as the Matrix3 object
   //is a double d[ 9] so the only valid model of T is
@@ -156,8 +156,8 @@ public:
       d[0] = diagonal[0];
       d[4] = diagonal[1],
       d[8] = diagonal[2];
-      d[1] = d[2] = d[3] = 0;
-      d[5] = d[6] = d[7] = 0;
+      d[1] = d[2] = d[3] = 0.0;
+      d[5] = d[6] = d[7] = 0.0;
   }
 
 inline Matrix3( double v00, double v01, double v02,
