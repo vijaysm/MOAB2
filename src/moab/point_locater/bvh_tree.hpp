@@ -667,9 +667,9 @@ Entity_handle _find_point( const Vector & point,
 		return 0;
 	}
 	if( node.Lmax < node.Rmin){
-		if( point[ node.dim] <= node.Lmax){            	
+		if( point[ node.dim] <= (node.Lmax + tol)){            	
         		return _find_point( point, node.child, tol);
-        	}else if( point[ node.dim] >= node.Rmin){            	
+        	}else if( point[ node.dim] >= (node.Rmin - tol)){            	
 			return _find_point( point, node.child+1, tol);
 		}
 		return 0; //point lies in empty space.
@@ -678,10 +678,10 @@ Entity_handle _find_point( const Vector & point,
 	//left of Rmin, you must be on the left
 	//we can't be sure about the boundaries since the boxes overlap
 	//this was a typo in the paper which caused pain.
-	if( point[ node.dim] < node.Rmin){
+	if( point[ node.dim] < (node.Rmin - tol)){
 		return _find_point( point, node.child, tol);
 	//if you are on the right Lmax, you must be on the right
-	}else if( point[ node.dim] > node.Lmax){
+	}else if( point[ node.dim] > (node.Lmax+tol)){
 		return _find_point( point, node.child+1, tol);
 	}
 	/* pg5 of paper
@@ -701,7 +701,7 @@ Entity_handle _find_point( const Vector & point,
 //public functionality
 public:
 template< typename Vector>
-Entity_handle find( const Vector & point, double tol=1.0e-6) const{
+Entity_handle find( const Vector & point, const double tol) const{
 	typedef typename Vector::const_iterator Point_iterator;
 	return  _find_point( point, 0, tol);
 }
@@ -709,7 +709,7 @@ Entity_handle find( const Vector & point, double tol=1.0e-6) const{
 //public functionality
 public:
 template< typename Vector>
-Entity_handle bruteforce_find( const Vector & point, double tol=1.0e-6) const{
+Entity_handle bruteforce_find( const Vector & point, const double tol) const{
 	typedef typename Vector::const_iterator Point_iterator;
 	typedef typename Nodes::value_type Node;
 	typedef typename Nodes::const_iterator Node_iterator;

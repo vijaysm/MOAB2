@@ -78,7 +78,7 @@ void resolve_boxes( const Point_map & query_points,  List & list){
 //public functionality
 public:
 template< typename Point_map, typename Entities, typename Communicator> 
-Error locate_points( Point_map & query_points, Entities & entities, Communicator & comm){
+Error locate_points( Point_map & query_points, Entities & entities, Communicator & comm, double tol){
 	/*
 	//temporary types
 	typedef typename Point_map::key_type Tuple;
@@ -95,14 +95,14 @@ Error locate_points( Point_map & query_points, Entities & entities, Communicator
 } 
 
 template< typename Points, typename Entities> 
-Error locate_points( const Points & query_points, Entities & entities) const{
+Error locate_points( const Points & query_points, Entities & entities, double tol) const{
 	typedef typename Points::const_iterator Point_iterator;
 	typedef typename Entities::value_type Entity_handle;
 	Entities result;
 	result.reserve( query_points.size());	
 	for(Point_iterator i = query_points.begin(); 
 			   i != query_points.end(); ++i){
-			const Entity_handle h = tree_.find( *i);		
+			const Entity_handle h = tree_.find( *i, tol);		
 			result.push_back( h);
 	}
 	entities = result;
@@ -111,7 +111,7 @@ Error locate_points( const Points & query_points, Entities & entities) const{
 
 template< typename Points, typename Entities> 
 Error bruteforce_locate_points( const Points & query_points, 
-				Entities & entities) const{
+				Entities & entities, double tol) const{
 	typedef typename Points::const_iterator Point_iterator;
 	typedef typename Entities::value_type Entity_handle;
 	Entities result;
@@ -121,7 +121,7 @@ Error bruteforce_locate_points( const Points & query_points,
 	for( Point_iterator i = query_points.begin(); 
 			    i != query_points.end(); ++i, ++j){
 		if( *j == 0){
-			const Entity_handle h = tree_.bruteforce_find( *i);
+			const Entity_handle h = tree_.bruteforce_find( *i, tol);
 			if( h == 0){
 				++count;
 				for(int k = 0; k < 3; ++k){

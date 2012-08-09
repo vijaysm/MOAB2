@@ -3,6 +3,9 @@
 
 #include "moab/Matrix3.hpp"
 #include "moab/CartVect.hpp"
+#include <sstream>
+#include <iomanip>
+#include <iostream>
 
 namespace moab { 
 
@@ -13,7 +16,6 @@ namespace {
 template< typename Vector>
 double normsq( const Vector & v) { 
 	const double n= (v[0] * v[0]) + (v[1] * v[1]) + (v[2] * v[2]); 
-	std::cout << n << std::endl;
 	return n;
 }
 
@@ -45,21 +47,10 @@ class Linear_hex_map {
 					const double tol) const{
 	Point result(3, 0.0);
 	solve_inverse( p, result, v);
-	return std::make_pair( is_contained( result, tol), result);	
+	return std::make_pair( is_contained( result), result);
     }
 
   private:
-
-/*    const double reference_points[8][3] = { { -1, -1, -1 },
-                                      	    {  1, -1, -1 },
-                                      	    {  1,  1, -1 },
-                                      	    { -1,  1, -1 },
-                                      	    { -1, -1,  1 },
-                                      	    {  1, -1,  1 },
-                                      	    {  1,  1,  1 },
-                                      	    { -1,  1,  1 } }; */
-
-
     //This is a hack to avoid a .cpp file and C++11
     //reference_points(i,j) will be a 1 or -1;
     //This should unroll..
@@ -77,7 +68,7 @@ class Linear_hex_map {
     }
 
     template< typename Point>
-    bool is_contained( const Point & p, const double tol) const{
+    bool is_contained( const Point & p, const double tol=1e-8) const{
      //just look at the box+tol here
      return ( p[0]>=-1.-tol) && (p[0]<=1.+tol) &&
             ( p[1]>=-1.-tol) && (p[1]<=1.+tol) &&
@@ -90,57 +81,24 @@ class Linear_hex_map {
 			const Points & points, 
 			const double tol=1.e-6) const {
       const double error_tol_sqr = tol*tol;
-      //const double eps = std::numeric_limits<double>::epsilon();
       Point delta(3,0.0);
       xi = delta;
       evaluate( xi, points, delta);
       vec_subtract( delta, x);
       std::size_t num_iterations=0;
       while ( normsq( delta) > error_tol_sqr) {
-	std::cout << "Xi: " << std::endl;
-	std::cout << xi[ 0] << " " << xi[ 1] << " " << xi[ 2] << std::endl;
 	if( ++num_iterations >= 10){ return false; }
         Matrix J;
 	jacobian( xi, points, J);
         double det = moab::Matrix::determinant3( J);
-        if (det < 1e-10){ 
-		std::cout <<"Pt:" << std::endl;
-	std::cout << x[ 0] << " " 
-		  << x[ 1] << " "
-		  << x[ 2] << " " << std::endl;
-		std::cout <<"Hex:" << std::endl;
-		for(int i = 0; i < 8; ++i){
-			std::cout << points[ i][ 0] << " " 
-				  << points[ i][ 1] << " "
-				  << points[ i][ 2] << " " << std::endl;
-		}
-	}
-		std::cout << "A= [";
-		for (int i = 0; i < 3; ++i){
-			std::cout << "[";
-			for( int j = 0; j < 3; ++j){
-				std::cout << J( i, j);
-				if (j != 2){ std::cout << ", ";}
-			}
-			std::cout << "]";
-			if( i != 2){
-				std::cout << ",";
-				std::cout << std::endl;
-			}
-		}
-		std::cout << "]" << std::endl;
-	if( det< 1e-10){
-		std::cout << "inverse solve failure: det: " << det << std::endl
-			  << "number of iterations: " << num_iterations 
-			  << std::endl << "error sq: " 
-			  << normsq( delta) << std::endl;
+        if (fabs(det) < 1.e-10){
+		std::cerr << "inverse solve failure: det: " << det << std::endl;
 		exit( -1);
 	}
         vec_subtract( xi, moab::Matrix::inverse(J, 1.0/det) * delta);
         evaluate( xi, points, delta);
 	vec_subtract( delta, x);
       }
-      std::cout << "---" << std::endl;
        return true;
     }
 
@@ -183,15 +141,6 @@ class Linear_hex_map {
 	  return J *= 0.125;
    }
   private:
-    /*
-    const double reference_points[8][3] = { { -1, -1, -1 },
-                                      	    {  1, -1, -1 },
-                                      	    {  1,  1, -1 },
-                                      	    { -1,  1, -1 },
-                                      	    { -1, -1,  1 },
-                                      	    {  1, -1,  1 },
-                                      	    {  1,  1,  1 },
-                                      	    { -1,  1,  1 } }; */
 }; //Class Linear_hex_map
 
 }// namespace element_utility

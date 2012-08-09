@@ -172,9 +172,10 @@ int main(int argc, char* argv[]){
 		moab.get_coords( &*i, 3, &coordinate[ 0]);
 		target_vertices.push_back( coordinate);
 	}
+	const double tol=1e-6;
 	std::cout << "point location beginning" << std::endl;
 	double locate_start = MPI_Wtime();
-	locator.locate_points( target_vertices, located_elements); 
+	locator.locate_points( target_vertices, located_elements, tol); 
 	double locate_points = MPI_Wtime() - locate_start;
 	std::cout << "point_location: " << locate_points << std::endl;
 	std::size_t unfound_points = std::count( located_elements.begin(),
@@ -186,7 +187,7 @@ int main(int argc, char* argv[]){
 		std::cout << "unlocated points: " <<  unfound_points
 		<< "/" << located_elements.size() << std::endl;
 		locator.bruteforce_locate_points( target_vertices, 
-						  located_elements);
+						  located_elements, tol);
 	}else{
 		std::cout << "all points located!" << std::endl;
 	}

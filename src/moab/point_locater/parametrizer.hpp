@@ -43,7 +43,7 @@ class Element_parametrizer{
 		std::pair< bool, Point> operator()( Moab & moab,
 						    const Entity_handle & eh, 
 						    const Point & point, 
-						    const double tol=1e-10){
+						    const double tol){
 			typedef std::vector< moab::CartVect> Points;
 			Points points;
 			get_moab_points( moab, eh, points);
@@ -65,7 +65,7 @@ class Parametrizer{
 		std::pair< bool, Point> operator()( Moab & moab,
 						    const Entity_handle & eh, 
 						    const Point & point, 
-						    const double tol=1e-10){
+						    const double tol){
 			//get entity
 			typedef std::vector< moab::CartVect> Points;
 		        Points points;
