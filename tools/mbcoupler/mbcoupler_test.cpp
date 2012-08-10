@@ -60,7 +60,8 @@ ErrorCode get_file_options(int argc, char **argv,
                            std::string &outFile,
                            std::string &writeOpts,
                            std::string &dbgFile,
-                           bool &help);
+                           bool &help,
+                           double & epsilon);
 
 // ErrorCode get_file_options(int argc, char **argv, 
 //                              std::vector<const char *> &filenames,
@@ -84,7 +85,8 @@ ErrorCode test_interpolation(Interface *mbImpl,
                              double &pointloc_time,
                              double &interp_time,
                              double &gnorm_time,
-                             double &ssnorm_time);
+                             double &ssnorm_time,
+                             double & toler);
 
 void reduceMax(double &v){
   double buf;
@@ -107,9 +109,10 @@ int main(int argc, char **argv)
 
   ErrorCode result = MB_SUCCESS;
   bool help = false;
+  double toler = 5.e-10;
   result = get_file_options(argc, argv, meshFiles, interpTag,
                             gNormTag, ssNormTag, ssTagNames, ssTagValues,
-                            readOpts, outFile, writeOpts, dbgFile, help);
+                            readOpts, outFile, writeOpts, dbgFile, help, toler);
 
   if (result != MB_SUCCESS || help) {
     print_usage();
@@ -169,7 +172,7 @@ int main(int argc, char **argv)
   result = test_interpolation(mbImpl, interpTag, gNormTag, ssNormTag, 
                               ssTagNames, ssTagValues, roots, pcs, 
                               instant_time, pointloc_time, interp_time, 
-                              gnorm_time, ssnorm_time);
+                              gnorm_time, ssnorm_time, toler);
   PRINT_LAST_ERROR;
 
   
@@ -271,6 +274,8 @@ void print_usage() {
   std::cerr << "        Write out mesh files using options in <woptions>." << std::endl;
   std::cerr << "    -dbgout" << std::endl;
   std::cerr << "        Write stdout and stderr streams to the file \'<dbg_file>.txt\'." << std::endl;
+  std::cerr << "    -eps" << std::endl;
+  std::cerr << "        epsilon" << std::endl;
 }
 
 // Check first character for a '-'.
@@ -294,7 +299,8 @@ ErrorCode get_file_options(int argc, char **argv,
                            std::string &outFile,
                            std::string &writeOpts,
                            std::string &dbgFile,
-                           bool &help)
+                           bool &help,
+                           double & epsilon)
 {
   // Initialize some of the outputs to null values indicating not present
   // in the argument list.
@@ -346,6 +352,16 @@ ErrorCode get_file_options(int argc, char **argv,
       }
 
       haveInterpTag = true;
+    }
+    else if (argv[npos] == std::string("-eps")) {
+      // Parse out the tolerance
+      npos++;
+      if ((npos < argc) && (!check_for_flag(argv[npos])))
+        epsilon = atof(argv[npos++]);
+      else {
+        std::cerr << "    ERROR - missing <epsilon>" << std::endl;
+        return MB_FAILURE;
+      }
     }
     else if (argv[npos] == std::string("-gnorm")) {
       // Parse out the global normalization tag
@@ -544,7 +560,8 @@ ErrorCode test_interpolation(Interface *mbImpl,
                              double &pointloc_time,
                              double &interp_time,
                              double &gnorm_time,
-                             double &ssnorm_time)
+                             double &ssnorm_time,
+                             double & toler)
 {
     // source is 1st mesh, target is 2nd
   Range src_elems, targ_elems, targ_verts;
@@ -603,7 +620,7 @@ ErrorCode test_interpolation(Interface *mbImpl,
 
 
     // locate those points in the source mesh
-  result = mbc.locate_points(&vpos[0], numPointsOfInterest, 0, 5.e-10);
+  result = mbc.locate_points(&vpos[0], numPointsOfInterest, 0, toler);
   PRINT_LAST_ERROR;
 
   pointloc_time = MPI_Wtime();
