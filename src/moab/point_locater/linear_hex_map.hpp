@@ -88,14 +88,37 @@ class Linear_hex_map {
       evaluate( xi, points, delta);
       vec_subtract( delta, x);
       std::size_t num_iterations=0;
+      #ifdef LINEAR_HEX_DEBUG
+ 	std::stringstream ss;
+	ss << "Point: "; 
+       ss << x[ 0 ] << ", " << x[ 1] 
+          << ", " << x [ 2] << std::endl;
+	ss << "Hex: ";
+	for(int i = 0; i < 8; ++i){
+ 	      	ss << points[ i][ 0] << ", " << points[ i][ 1] << ", "
+		   << points[ i][ 2] << std::endl;
+	}
+	ss << std::endl;
+      #endif
       while ( normsq( delta) > error_tol_sqr) {
-	if( ++num_iterations >= 50){ return false; }
+	#ifdef LINEAR_HEX_DEBUG
+	ss << "Iter #: "  << num_iterations 
+	   << " Err: " << sqrt( normsq( delta)) << " Iterate: ";
+	ss << xi[ 0 ] << ", " << xi[ 1] 
+		<< ", " << xi[ 2] << std::endl;
+	#endif
+	if( ++num_iterations >= 5){ return false; }
         Matrix J;
 	jacobian( xi, points, J);
         double det = moab::Matrix::determinant3( J);
         if (fabs(det) < 1.e-10){
+		#ifdef LINEAR_HEX_DEBUG
+			std::cerr << ss.str();
+		#endif
+		#ifndef LINEAR_HEX_DEBUG
 		std::cerr << x[ 0 ] << ", " << x[ 1] 
 			  << ", " << x [ 2] << std::endl;
+		#endif
 		std::cerr << "inverse solve failure: det: " << det << std::endl;
 		exit( -1);
 	}

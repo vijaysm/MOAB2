@@ -693,11 +693,16 @@ Entity_handle _find_point( const Vector & point,
 	 * sought point. This results in less overall traversal, and the correct
 	 * cell is identified more quickly.
 	 */
-	bool dir = (point[ node.dim] - node.Rmin) <= 
-					(node.Lmax - point[ node.dim]);
+	//Sofar all testing confirms that this 'heuristic' is 
+	//significantly slower.
+	//I conjecture this is because it gets improperly
+	//branch predicted..
+	//bool dir = (point[ node.dim] - node.Rmin) <= 
+	//				(node.Lmax - point[ node.dim]);
+	bool dir=0;
 	const Entity_handle result =  _find_point( point, node.child+dir, tol);
 	if( result == 0 ){ 
-		return _find_point( point, node.child+(1-dir), tol);
+		return _find_point( point, node.child+(!dir), tol);
 	}
 	return result;
 }
@@ -724,7 +729,7 @@ Entity_handle bruteforce_find( const Vector & point, const double tol) const{
 					     j != i->entities.end();
 						++j){
 				if( ct::box_contains_point( j->first, 
-								point, tol)){
+							    point, tol)){
 				      const std::pair< bool, Vector> result = 
 				      entity_contains( moab, j->second, point);
 				      if (result.first){
