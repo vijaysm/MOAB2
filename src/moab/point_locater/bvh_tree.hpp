@@ -666,7 +666,9 @@ Entity_handle _find_point( const Vector & point,
 		}
 		return 0;
 	}
-	if( node.Lmax < node.Rmin){
+        //the extra tol here considers the case where
+        //0 < Rmin - Lmax < 2tol
+	if( (node.Lmax+tol) < (node.Rmin-tol)){
 		if( point[ node.dim] <= (node.Lmax + tol)){            	
         		return _find_point( point, node.child, tol);
         	}else if( point[ node.dim] >= (node.Rmin - tol)){            	
@@ -691,9 +693,11 @@ Entity_handle _find_point( const Vector & point,
 	 * sought point. This results in less overall traversal, and the correct
 	 * cell is identified more quickly.
 	 */
-	const Entity_handle result =  _find_point( point, node.child, tol);
+	bool dir = (point[ node.dim] - node.Rmin) <= 
+					(node.Lmax - point[ node.dim]);
+	const Entity_handle result =  _find_point( point, node.child+dir, tol);
 	if( result == 0 ){ 
-		return _find_point( point, node.child+1, tol);
+		return _find_point( point, node.child+(1-dir), tol);
 	}
 	return result;
 }
