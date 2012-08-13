@@ -7,6 +7,9 @@
 #include <iostream>
 #include <time.h>
 
+#include <sstream>
+#include <fstream>
+
 #ifndef POINT_LOCATER_HPP
 #define POINT_LOCATER_HPP
 
@@ -117,6 +120,7 @@ Error bruteforce_locate_points( const Points & query_points,
 	Entities result;
 	result.reserve( query_points.size());	
 	std::size_t count = 0;
+	std::stringstream ss;
 	typename Entities::iterator j = entities.begin();
 	for( Point_iterator i = query_points.begin(); 
 			    i != query_points.end(); ++i, ++j){
@@ -125,17 +129,20 @@ Error bruteforce_locate_points( const Points & query_points,
 			if( h == 0){
 				++count;
 				for(int k = 0; k < 3; ++k){
-					std::cout << (*i)[ k];
+					ss << (*i)[ k];
 					if ( k < 2){
-						std::cout << ", ";
+						ss << ", ";
 					}else{
-						std::cout << std::endl;
+						ss << std::endl;
 					}
 				}
 					  
 			}
 		}
 	}
+	std::ofstream out("unlocated_pts");
+	out << ss.str();
+	out.close();
 	std::cout << count << " vertices are not contained in _any_ elements!" 
 			<< std::endl;
 	return 0;

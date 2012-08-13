@@ -20,7 +20,7 @@ class Linear_tet_map {
     std::pair< bool, Point> operator()( const Entity_handle eh, 
 				        const Points & v, 
 					const Point & p, 
-					const double tol=1e-10) {
+					const double tol=1e-6) {
 	set_tet( eh, v); 
 	//TODO: Make sure this is correct
 	Point result = Tinv*p;
@@ -29,7 +29,7 @@ class Linear_tet_map {
   
     private:
     template< typename Point>
-    bool is_contained( const Point & result, const double tol=1e-10){
+    bool is_contained( const Point & result, const double tol=1e-6){
 	double sum=0.0;
 	for( std::size_t i = 0; i < 3; ++i){ 
 		sum += result[ i]; 

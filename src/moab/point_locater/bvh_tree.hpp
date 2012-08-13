@@ -657,7 +657,7 @@ Entity_handle _find_point( const Vector & point,
 				     i != node.entities.end(); ++i){
 			if( ct::box_contains_point( i->first, point, tol)){
 				const std::pair< bool, Vector> result = 
-				entity_contains( moab, i->second, point, tol);
+				entity_contains( moab, i->second, point);
 				if (result.first){
 						//TODO: return Point as well..
 						return i->second;
@@ -725,7 +725,11 @@ Entity_handle bruteforce_find( const Vector & point, const double tol) const{
 						++j){
 				if( ct::box_contains_point( j->first, 
 								point, tol)){
-					return j->second;
+				      const std::pair< bool, Vector> result = 
+				      entity_contains( moab, j->second, point);
+				      if (result.first){
+				      	return j->second;
+				      }
 				}
 			}
 		}

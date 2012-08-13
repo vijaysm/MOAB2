@@ -44,10 +44,12 @@ class Linear_hex_map {
     std::pair< bool, Point> operator()( const Entity_handle & h, 
 					const Points & v, 
 					const Point & p, 
-					const double tol) const{
+					const double tol=1.e-6) const{
 	Point result(3, 0.0);
 	solve_inverse( p, result, v);
-	return std::make_pair( is_contained( result), result);
+	bool point_found = solve_inverse( p, result, v, tol) && 
+						is_contained( result, tol);
+	return std::make_pair( point_found, result);
     }
 
   private:
@@ -68,7 +70,7 @@ class Linear_hex_map {
     }
 
     template< typename Point>
-    bool is_contained( const Point & p, const double tol=1e-8) const{
+    bool is_contained( const Point & p, const double tol) const{
      //just look at the box+tol here
      return ( p[0]>=-1.-tol) && (p[0]<=1.+tol) &&
             ( p[1]>=-1.-tol) && (p[1]<=1.+tol) &&
@@ -87,11 +89,13 @@ class Linear_hex_map {
       vec_subtract( delta, x);
       std::size_t num_iterations=0;
       while ( normsq( delta) > error_tol_sqr) {
-	if( ++num_iterations >= 10){ return false; }
+	if( ++num_iterations >= 50){ return false; }
         Matrix J;
 	jacobian( xi, points, J);
         double det = moab::Matrix::determinant3( J);
         if (fabs(det) < 1.e-10){
+		std::cerr << x[ 0 ] << ", " << x[ 1] 
+			  << ", " << x [ 2] << std::endl;
 		std::cerr << "inverse solve failure: det: " << det << std::endl;
 		exit( -1);
 	}
