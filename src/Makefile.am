@@ -154,7 +154,6 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/EigenDecomp.hpp \
   moab/point_locater/common_tree.hpp \
   moab/point_locater/initialize_tree.hpp  \
-  moab/point_locater/element_utility.hpp \
   moab/point_locater/element_tree.hpp \
   moab/point_locater/bvh_tree.hpp \
   moab/point_locater/io.hpp  \
