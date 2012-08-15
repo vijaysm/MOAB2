@@ -295,6 +295,7 @@ ErrorCode ReadSmf::parse_line(char *line)
     //
     // First, split the line into tokens
     cmd = strtok(line, " \t\n");
+    if (!cmd) return MB_SUCCESS;
 
     while( (s=strtok(NULL, " \t\n")) )
     {

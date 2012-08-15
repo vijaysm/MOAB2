@@ -1044,8 +1044,8 @@ class RayIntersectSets : public OrientedBoxTreeTool::Op
         tol(tolerance), minTolInt(min_tol_intersections),
         intersections(intersections), sets(surfaces), facets(facets), 
         rootSet(root_set), geomVol(geom_volume), senseTag(sense_tag),
-        desiredOrient(desired_orient), prevFacets(prev_facets),
-        raytri_test_count(raytri_test_count), lastSet(0)
+        desiredOrient(desired_orient), surfTriOrient_val(1),
+        prevFacets(prev_facets), raytri_test_count(raytri_test_count), lastSet(0)
       {
 	// specified orientation should be 1 or -1, indicating ray and surface
         // normal in the same or opposite directions, respectively.

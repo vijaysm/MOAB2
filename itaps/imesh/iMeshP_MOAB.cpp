@@ -416,6 +416,8 @@ void iMeshP_getPartIdsFromPartHandlesArr(
 {
   ErrorCode rval;
   ParallelComm* pcomm = PCOMM;
+  if (!pcomm)
+    ERROR (iBase_FAILURE,"No PComm");
   ALLOC_CHECK_ARRAY( part_ids, part_handles_size );
   for (int i = 0; i < part_handles_size; ++i) {
     int id;
@@ -439,6 +441,8 @@ void iMeshP_getPartHandlesFromPartsIdsArr(
 {
   ErrorCode rval;
   ParallelComm* pcomm = PCOMM;
+  if (!pcomm)
+    ERROR (iBase_FAILURE,"No PComm");
   ALLOC_CHECK_ARRAY( part_handles, part_ids_size );
   for (int i = 0; i < part_ids_size; ++i) {
     EntityHandle handle;
@@ -1528,6 +1532,8 @@ void iMeshP_exchEntArrToPartsAll( iMesh_Instance instance,
   // make exchange entity and processor list
   ErrorCode rval;
   ParallelComm* pcomm = PCOMM;
+  if (!pcomm)
+    ERROR (iBase_FAILURE,"No PComm");
   std::vector<unsigned int> exchange_procs;
   std::vector< Range* > exchange_ents;
 
@@ -1612,6 +1618,8 @@ void iMeshP_syncMeshAll( iMesh_Instance instance,
          // need to update ParallelComm::update_shared_mesh to fix this
   
   ParallelComm* pcomm = PCOMM;
+  if (!pcomm)
+    ERROR (iBase_FAILURE,"No PComm");
   ErrorCode rval = pcomm->update_shared_mesh();
   CHKERR(rval,"update failed");
   RETURN (iBase_SUCCESS);
@@ -1626,6 +1634,8 @@ void iMeshP_pushTags( iMesh_Instance instance,
                       int *err )
 {
   ParallelComm* pcomm = PCOMM;
+  if (!pcomm)
+    ERROR (iBase_FAILURE,"No PComm");
   DimensionPair types;
   if (entity_topo != iMesh_ALL_TOPOLOGIES)
     types.first = types.second = mb_topology_table[entity_topo];
@@ -1669,6 +1679,8 @@ void iMeshP_pushTagsEnt( iMesh_Instance instance,
   std::vector<Tag> src_tags(1, itaps_cast<Tag>(source_tag));
   std::vector<Tag> dst_tags(1, itaps_cast<Tag>(dest_tag));
   ParallelComm* pcomm = PCOMM;
+  if (!pcomm)
+    ERROR (iBase_FAILURE,"No PComm");
   ErrorCode rval = pcomm->exchange_tags( src_tags, dst_tags, range );
   CHKERR(rval,"tag data communication failed");
   RETURN (iBase_SUCCESS);
@@ -1707,6 +1719,8 @@ void iMeshP_createGhostEntsAll( iMesh_Instance instance,
   }
   
   ParallelComm* pcomm = PCOMM;
+  if (!pcomm)
+    ERROR (iBase_FAILURE,"No PComm");
   ErrorCode rval;
   if (iBase_ALL_TYPES == ghost_dim) ghost_dim = -1;
   rval = pcomm->exchange_ghost_cells( ghost_dim, bridge_dim, num_layers, 0, true );

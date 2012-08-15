@@ -83,14 +83,16 @@ struct BSPTreePoly::Edge {
     { return reversePtr ? reversePtr->facePtr : 0; }
   
   BSPTreePoly::VertexUse* use( BSPTreePoly::Vertex* vtx ) const
-    { return (vtx == startPtr->vtxPtr) ? startPtr : (vtx == endPtr->vtxPtr) ? endPtr : 0; }
+    { return (vtx == startPtr->vtxPtr) ? startPtr :
+        (vtx == endPtr->vtxPtr) ? endPtr : (VertexUse*)(assert(0),0); }
   BSPTreePoly::Edge* next( BSPTreePoly::Vertex* about ) const
     { return use(about)->nextPtr->edgePtr; }
   BSPTreePoly::Edge* prev( BSPTreePoly::Vertex* about ) const
     { return use(about)->prevPtr->edgePtr; }
   
   BSPTreePoly::EdgeUse* use( BSPTreePoly::Face* face ) const
-    { return (face == forwardPtr->facePtr) ? forwardPtr : (face == reversePtr->facePtr) ? reversePtr : 0; }
+    { return (face == forwardPtr->facePtr) ? forwardPtr :
+        (face == reversePtr->facePtr) ? reversePtr : (EdgeUse*)(assert(0),0); }
   BSPTreePoly::Edge* next( BSPTreePoly::Face* about ) const
     { return use(about)->nextPtr->edgePtr; }
   BSPTreePoly::Edge* prev( BSPTreePoly::Face* about ) const
@@ -217,6 +219,7 @@ BSPTreePoly::EdgeUse::EdgeUse( BSPTreePoly::Edge* edge,
                                 BSPTreePoly::Face* face )
   : edgePtr(edge), facePtr(face)
 {
+  assert(face);
   assert(!face->usePtr);
   face->usePtr = prevPtr = nextPtr = this;
   
@@ -295,8 +298,7 @@ BSPTreePoly::Vertex* BSPTreePoly::EdgeUse::start() const
     return edgePtr->start();
   else if (edgePtr->reversePtr == this)
     return edgePtr->end();
-  else
-    return 0;
+  assert(0);
 }
 
 BSPTreePoly::Vertex* BSPTreePoly::EdgeUse::end() const
@@ -305,8 +307,7 @@ BSPTreePoly::Vertex* BSPTreePoly::EdgeUse::end() const
     return edgePtr->end();
   else if (edgePtr->reversePtr == this)
     return edgePtr->start();
-  else
-    return 0;
+  assert(0);
 }
 
 BSPTreePoly::Edge::~Edge()

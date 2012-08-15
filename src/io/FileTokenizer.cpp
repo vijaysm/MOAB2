@@ -20,6 +20,8 @@
 #include <string>
 #include <cstdlib>
 
+#include <string.h>
+
 namespace moab {
 
 using namespace std;
@@ -53,6 +55,7 @@ const char* FileTokenizer::get_string( )
       // If the buffer is empty, read more.
     if (nextToken == bufferEnd)
     {
+      memset(buffer, 0, sizeof(buffer));
       size_t count = fread( buffer, 1, sizeof(buffer) - 1, filePtr );
       if (!count)
       {

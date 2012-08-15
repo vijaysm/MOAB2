@@ -244,7 +244,7 @@ ErrorCode ReadTetGen::read_line( std::istream& file,
   }
   
     // check that we're at the end of the line
-  int junk;
+  int junk = 0;
   if ((str >> junk) || !str.eof()) {
     readTool->report_error( "Unexpected trailing data for line %d of node data", lineno );
     return MB_FAILURE;

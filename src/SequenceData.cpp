@@ -83,8 +83,8 @@ SequenceData::SequenceData( const SequenceData* from,
                             EntityHandle start, 
                             EntityHandle end,
                             const int* sequence_data_sizes )
-  : numSequenceData( from->numSequenceData ),
-    numTagData( from->numTagData ),
+  : numSequenceData( from?from->numSequenceData:0 ),
+    numTagData( from?from->numTagData:0 ),
     startHandle( start ),
     endHandle( end )
 {

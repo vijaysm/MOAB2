@@ -587,8 +587,10 @@ ErrorCode WriteHDF5Parallel::append_serial_tag_data(
   Range range;
   memset( ptr->name, 0, ptr->name_len );
   memcpy( ptr->name, name.data(), name.size() );
-  ptr->def_val_len = def_val_len;
-  ptr->set_default_value( def_val );
+  if (def_val_len) {
+    ptr->def_val_len = def_val_len;
+    ptr->set_default_value( def_val );
+  }
   
   return MB_SUCCESS;
 }

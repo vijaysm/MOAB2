@@ -3994,12 +3994,14 @@ void Core::estimated_memory_use_internal( const Range* ents,
   
     // calculate totals
   if (total_storage)
-    *total_storage = *entity_storage + *adjacency_storage + *total_tag_storage;
+    *total_storage = entity_storage?*entity_storage:0 +
+                     adjacency_storage?*adjacency_storage:0 +
+                     total_tag_storage?*total_tag_storage:0;
   
   if (total_amortized_storage)
-    *total_amortized_storage = *amortized_entity_storage 
-                             + *amortized_adjacency_storage
-                             + *amortized_total_tag_storage;
+    *total_amortized_storage = amortized_entity_storage?*amortized_entity_storage:0
+                             + amortized_adjacency_storage?*amortized_adjacency_storage:0
+                             + amortized_total_tag_storage?*amortized_total_tag_storage:0;
 }
 
 

@@ -297,12 +297,13 @@ ErrorCode HigherOrderFactory::add_mid_volume_nodes(ElementSequence* seq)
     for(int i=0; i<num_corner_nodes; i++)
     {
       seq_manager->find(element[i], eseq);
-      static_cast<VertexSequence*>(eseq)->get_coordinates(
-          element[i], tmp_coords[0], tmp_coords[1], tmp_coords[2]
-          );
-      sum_coords[0] += tmp_coords[0];
-      sum_coords[1] += tmp_coords[1];
-      sum_coords[2] += tmp_coords[2];
+      if (eseq) {
+        static_cast<VertexSequence*>(eseq)->get_coordinates(
+            element[i], tmp_coords[0], tmp_coords[1], tmp_coords[2]);
+        sum_coords[0] += tmp_coords[0];
+        sum_coords[1] += tmp_coords[1];
+        sum_coords[2] += tmp_coords[2];
+      }
     }
     sum_coords[0] /= num_corner_nodes;
     sum_coords[1] /= num_corner_nodes;
@@ -375,11 +376,13 @@ ErrorCode HigherOrderFactory::add_mid_face_nodes(ElementSequence* seq)
         for(int k=0; k<max_nodes; k++)
         {
           seq_manager->find(tmp_face_conn[k], tmp_sequence);
-          static_cast<VertexSequence*>(tmp_sequence)->get_coordinates( 
+          if (tmp_sequence) {
+            static_cast<VertexSequence*>(tmp_sequence)->get_coordinates( 
               tmp_face_conn[k], tmp_coords[0], tmp_coords[1], tmp_coords[2]);
-          sum_coords[0] += tmp_coords[0];
-          sum_coords[1] += tmp_coords[1];
-          sum_coords[2] += tmp_coords[2];
+            sum_coords[0] += tmp_coords[0];
+            sum_coords[1] += tmp_coords[1];
+            sum_coords[2] += tmp_coords[2];
+          }
         }
 
         sum_coords[0] /= max_nodes;
@@ -450,17 +453,21 @@ ErrorCode HigherOrderFactory::add_mid_edge_nodes(ElementSequence* seq)
         EntitySequence* tmp_sequence = NULL;
         double sum_coords[3] = {0,0,0};
         seq_manager->find(tmp_edge_conn[0], tmp_sequence);
-        static_cast<VertexSequence*>(tmp_sequence)->get_coordinates( 
+        if (tmp_sequence) {
+          static_cast<VertexSequence*>(tmp_sequence)->get_coordinates( 
             tmp_edge_conn[0], tmp_coords[0], tmp_coords[1], tmp_coords[2]);
-        sum_coords[0] += tmp_coords[0];
-        sum_coords[1] += tmp_coords[1];
-        sum_coords[2] += tmp_coords[2];
+          sum_coords[0] += tmp_coords[0];
+          sum_coords[1] += tmp_coords[1];
+          sum_coords[2] += tmp_coords[2];
+        }
         seq_manager->find(tmp_edge_conn[1], tmp_sequence);
-        static_cast<VertexSequence*>(tmp_sequence)->get_coordinates( 
+        if (tmp_sequence) {
+          static_cast<VertexSequence*>(tmp_sequence)->get_coordinates( 
             tmp_edge_conn[1], tmp_coords[0], tmp_coords[1], tmp_coords[2]);
-        sum_coords[0] = (sum_coords[0] + tmp_coords[0]) /2;
-        sum_coords[1] = (sum_coords[1] + tmp_coords[1]) /2;
-        sum_coords[2] = (sum_coords[2] + tmp_coords[2]) /2;
+          sum_coords[0] = (sum_coords[0] + tmp_coords[0]) /2;
+          sum_coords[1] = (sum_coords[1] + tmp_coords[1]) /2;
+          sum_coords[2] = (sum_coords[2] + tmp_coords[2]) /2;
+        }
 
         mMB->create_vertex(sum_coords, element[i+num_vertices]);
       }

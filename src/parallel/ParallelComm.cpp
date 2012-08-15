@@ -6679,7 +6679,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
         // find first non-set proc
         int *ns_proc = std::find(dum_ps, dum_ps+MAX_SHARING_PROCS, -1);
         int num_procs = ns_proc-dum_ps;
-        assert(num_procs <= MAX_SHARING_PROCS);
+        assert(num_procs < MAX_SHARING_PROCS);
         // now look for zero handles in active part of dum_hs
         EntityHandle *ns_handle = std::find(dum_hs, dum_hs+num_procs, 0);
         int num_handles = ns_handle-dum_hs;

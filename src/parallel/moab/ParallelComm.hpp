@@ -1384,6 +1384,7 @@ namespace moab {
       tmp_pos = buff_ptr - mem_ptr;
     }
     buff_ptr = (unsigned char *)malloc(new_size);
+    assert(buff_ptr);
     assert(0 <= tmp_pos && tmp_pos <= (int)alloc_size);  
     if (tmp_pos) memcpy(buff_ptr, mem_ptr, tmp_pos);
     if (mem_ptr) free(mem_ptr);

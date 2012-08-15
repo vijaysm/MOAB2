@@ -936,7 +936,7 @@ inline ErrorCode ScdInterface::compute_partition_sqij(int np, int nr,
       // iextra, jextra = # procs having extra edge in i/j direction
       // top_i, top_j = if true, I'm the last proc in the i/j direction
       // i, j = # edges locally in i/j direction, *not* including one for iextra/jextra
-    int pi = pfactors[ind];
+    int pi = (int) pfactors[ind];
     int pj = np / pi;
     
     int I = (gijk[3] - gijk[0]), J = (gijk[4] - gijk[1]);

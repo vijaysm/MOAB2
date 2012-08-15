@@ -264,7 +264,7 @@ ErrorCode WriteSTL::ascii_write_triangles( FILE* file,
   
   char myheader[81] = "solid ";
   strcat( myheader, solid_name );
-  strncat( myheader, header, 80 );
+  strncat( myheader, header, 80 - strlen(myheader));
   
   if (EOF == fputs( myheader, file ) || EOF == fputs( "\n", file ))
     return MB_FILE_WRITE_ERROR;

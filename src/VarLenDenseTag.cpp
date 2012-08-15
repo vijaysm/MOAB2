@@ -248,7 +248,7 @@ ErrorCode VarLenDenseTag::get_data( const SequenceManager* seqman,
       }
       
       const VarLenTag* end_data = array + count;
-      while (array != end_data) {
+      while (array && array != end_data) {
         if (array->size()) {
           *pointers = array->data();
           *lengths = array->size();

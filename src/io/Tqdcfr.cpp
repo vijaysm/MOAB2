@@ -1122,14 +1122,15 @@ ErrorCode Tqdcfr::get_mesh_entities(const unsigned int this_type,
   ErrorCode result = MB_SUCCESS;
   std::vector<EntityHandle> *ent_list = NULL;
   EntityType this_ent_type;
-  if (this_type > 1000) {
+  if (1000 < this_type && this_type < 1000 + MBMAXTYPE) {
     this_ent_type = group_type_to_mb_type[this_type-1000];
     ent_list = &excl_entities;
   }
-  else {
+  else if (this_type < MBMAXTYPE) {
     this_ent_type = group_type_to_mb_type[this_type];
     ent_list = &entities;
   }
+  else return MB_FAILURE;
   
     // get entities with this type, and get their cub id tags
   if (MBVERTEX == this_ent_type) {
