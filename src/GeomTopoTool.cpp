@@ -1251,11 +1251,15 @@ ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate, std::vector<E
   // set senses by peeking at the old model
   // make sure we have the sense tags defined
   rval = check_face_sense_tag(true);
-  if (rval!=MB_SUCCESS)
+  if (rval!=MB_SUCCESS) {
+    delete duplicate;
     return rval;
+  }
   rval = check_edge_sense_tags(true);
-  if (rval!=MB_SUCCESS)
+  if (rval!=MB_SUCCESS) {
+    delete duplicate;
     return rval;
+  }
 
   for (int dd=1; dd<=2; dd++) // do it for surfaces and edges
   {
@@ -1284,8 +1288,10 @@ ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate, std::vector<E
         newSenses.push_back(senses[i]);
       }
       rval = duplicate->set_senses(newSurf, newSolids, newSenses);
-      if (MB_SUCCESS!=rval)
+      if (MB_SUCCESS!=rval) {
+        delete duplicate;
         return rval;
+      }
     }
   }
   // if the original root model set for this model is 0 (root set), then create
@@ -1295,14 +1301,18 @@ ErrorCode GeomTopoTool::duplicate_model(GeomTopoTool *& duplicate, std::vector<E
   if (modelSet==0)
   {
     rval = mdbImpl->create_meshset(MESHSET_SET, modelSet);
-    if (MB_SUCCESS != rval)
+    if (MB_SUCCESS != rval) {
+      delete duplicate;
       return rval;
+    }
     // add to this new set all previous sets (which are still in ranges)
     for (int dim=0; dim<5; dim++)
     {
       rval = mdbImpl->add_entities(modelSet, geomRanges[dim]);
-      if (MB_SUCCESS != rval)
+      if (MB_SUCCESS != rval) {
+        delete duplicate;
         return rval;
+      }
     }
 
   }

@@ -2961,6 +2961,7 @@ ErrorCode FBEngine::split_quads()
 
   GeomTopoTool * new_gtt = NULL;
   ErrorCode rval = _my_geomTopoTool->duplicate_model(new_gtt);
+  if (rval != MB_SUCCESS && new_gtt) delete new_gtt;
   MBERRORR(rval, "can't duplicate model");
   if (this->_t_created)
     delete _my_geomTopoTool;

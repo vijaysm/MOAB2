@@ -247,12 +247,14 @@ int topology_adjacency_test(iMesh_Instance mesh)
                           &topologies, &topologies_alloc, &topologies_size, &result);
       if (iBase_SUCCESS != result) {
         printf("Failed to get topologies in adjacencies_test.\n");
+        if (entities) free(entities);
         return FALSE;
       }  
 
       if (topologies_size != entities_size) {
         printf("Didn't get the right number of topologies "
                "in topology_adjacency_test.\n");
+        if (entities) free(entities);
         return FALSE;
       }
     
@@ -319,6 +321,8 @@ int topology_adjacency_test(iMesh_Instance mesh)
       if (num_region+1 != face_offsets_size) {
         printf("Number of offsets didn't agree with number of "
                "regions in topology_adjacency_test.\n");
+        if (adj_faces) free(adj_faces);
+        if (face_offsets) free(face_offsets);
         return FALSE;
       }
 
@@ -360,11 +364,17 @@ int topology_adjacency_test(iMesh_Instance mesh)
                          &region_offsets_size, &result);
       if (iBase_SUCCESS != result) {
         printf("Failed to get regions from faces in adjacencies_test.\n");
+        if (adj_faces) free(adj_faces);
+        if (face_offsets) free(face_offsets);
         return FALSE;
       }
 
       if (adj_faces_size+1 != region_offsets_size) {
         printf("Number of offsets didn't agree with number of faces in topology_adjacency_test.\n");
+        if (adj_faces) free(adj_faces);
+        if (face_offsets) free(face_offsets);
+        if (adj_regions) free(adj_regions);
+        if (region_offsets) free(region_offsets);
         return FALSE;
       }
 
@@ -413,6 +423,12 @@ int topology_adjacency_test(iMesh_Instance mesh)
             num_faces_per_region*num_region) {
           printf("exterior/interior failure: %d ext, %d int, %d regions, %d faces per\n",
                  num_ext, num_int, num_region, num_faces_per_region);
+          if (face_offsets) free(face_offsets);
+          if (region_offsets) free(region_offsets);
+          if (adj_faces) free(adj_faces);
+          if (adj_regions) free(adj_regions);
+          if (interior) free(interior);
+          if (exterior) free(exterior);
           return FALSE;
     }
 
@@ -467,31 +483,55 @@ int entity_connectivity_test(iMesh_Instance mesh)
                             &result );
     if (iBase_SUCCESS != result) {
       printf("Failed to get indices of vertices in connectivity_test, type=%d.\n", type);
+      if (entities) free(entities);
+      if (adj_ents) free(adj_ents);
+      if (offsets) free(offsets);
+      if (indices) free(indices);
       return FALSE;
     }
 
     if (entities_alloc != entities_size) {
       printf("Number of entities didn't agree with array size in connectivity_test.\n");
+      if (entities) free(entities);
+      if (adj_ents) free(adj_ents);
+      if (offsets) free(offsets);
+      if (indices) free(indices);
       return FALSE;
     }
 
     if (offsets_alloc != offsets_size) {
       printf("Number of offsets didn't agree with array size in connectivity_test.\n");
+      if (entities) free(entities);
+      if (adj_ents) free(adj_ents);
+      if (offsets) free(offsets);
+      if (indices) free(indices);
       return FALSE;
     }
 
     if (indices_alloc != indices_size) {
       printf("Number of indices didn't agree with array size in connectivity_test.\n");
+      if (entities) free(entities);
+      if (adj_ents) free(adj_ents);
+      if (offsets) free(offsets);
+      if (indices) free(indices);
       return FALSE;
     }
 
     if (adj_ents_alloc != adj_ents_size) {
       printf("Number of adjacent entities didn't agree with array size in connectivity_test.\n");
+      if (entities) free(entities);
+      if (adj_ents) free(adj_ents);
+      if (offsets) free(offsets);
+      if (indices) free(indices);
       return FALSE;
     }
     
     if (offsets_size != entities_size+1) {
       printf("Invalid/inconsistent offset size from iMesh_getAdjEntIndices.\n");
+      if (entities) free(entities);
+      if (adj_ents) free(adj_ents);
+      if (offsets) free(offsets);
+      if (indices) free(indices);
       return FALSE;
     }
     

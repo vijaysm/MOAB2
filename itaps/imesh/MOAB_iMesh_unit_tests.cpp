@@ -383,6 +383,7 @@ void test_getEntArrAdj_none()
   CHECK_EQUAL( 0, adj_size );
   CHECK_EQUAL( 1, off_size );
   CHECK( off_alloc >= 1 );
+  CHECK( 0 != off );
   CHECK_EQUAL( 0, off[0] );  
   
   free(off);
