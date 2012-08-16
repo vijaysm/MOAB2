@@ -253,18 +253,21 @@ int main( int argc, char* argv[] )
   rval = dagmc.load_file( filename, facet_tol );
   if(MB_SUCCESS != rval) {
     std::cerr << "Failed to load file '" << filename << "'" << std::endl;
+    if (trv_stats) delete trv_stats;
     return 2;
   }
   
   rval = dagmc.init_OBBTree( );
   if(MB_SUCCESS != rval) {
     std::cerr << "Failed to initialize DagMC." << std::endl;
+    if (trv_stats) delete trv_stats;
     return 2;
   }
   
   vol = dagmc.entity_by_id(3, vol_index);
   if(0 == vol) {
     std::cerr << "Problem getting volume " << vol_index << std::endl;
+    if (trv_stats) delete trv_stats;
     return 2;
   }
 
@@ -281,6 +284,7 @@ int main( int argc, char* argv[] )
 
       if(MB_SUCCESS != rval) {
         std::cerr << "ERROR: ray_fire() failed!" << std::endl;
+        if (trv_stats) delete trv_stats;
         return 2;
       }      
       if(0 == surf) {
@@ -370,6 +374,7 @@ int main( int argc, char* argv[] )
   ErrorCode result = dagmc.get_root(vol, root);
   if (MB_SUCCESS != result) {
     std::cerr << "Trouble getting tree stats." << std::endl;
+    if (trv_stats) delete trv_stats;
     return 2;
   }
 
@@ -397,6 +402,7 @@ int main( int argc, char* argv[] )
     dump_pyfile( filename, timewith, timewithout, tmem2, dagmc, trv_stats, root );
   }
 
+  if (trv_stats) delete trv_stats;
 #ifdef DEBUG
   std::cout << "uavg, vavg, wavg = " << uavg << " " << vavg << " " << wavg << std::endl;
 #endif
@@ -422,7 +428,10 @@ void get_time_mem(double &tot_time, double &user_time,
     int file_ptr = -1, file_len;
     file_ptr = open("/proc/self/stat", O_RDONLY);
     file_len = read(file_ptr, file_str, sizeof(file_str)-1);
-    if (file_len == 0) return;
+    if (file_len == 0) {
+      if (file_ptr != -1) close(file_ptr);
+      return;
+    }
     
     close(file_ptr);
     file_str[file_len] = '\0';

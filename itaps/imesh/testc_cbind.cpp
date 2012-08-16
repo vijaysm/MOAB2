@@ -423,12 +423,12 @@ int topology_adjacency_test(iMesh_Instance mesh)
             num_faces_per_region*num_region) {
           printf("exterior/interior failure: %d ext, %d int, %d regions, %d faces per\n",
                  num_ext, num_int, num_region, num_faces_per_region);
-          if (face_offsets) free(face_offsets);
-          if (region_offsets) free(region_offsets);
-          if (adj_faces) free(adj_faces);
-          if (adj_regions) free(adj_regions);
-          if (interior) free(interior);
-          if (exterior) free(exterior);
+          free(face_offsets);
+          free(region_offsets);
+          free(adj_faces);
+          free(adj_regions);
+          free(interior);
+          free(exterior);
           return FALSE;
     }
 

@@ -1517,6 +1517,7 @@ ErrorCode WriteNCDF::initialize_exodus_file(ExodusMeshInfo &mesh_info,
     // get a working copy of the title_string;
 
   char working_title[80];
+  memset(working_title, 0, sizeof(working_title)*sizeof(working_title[0]));
   strncpy(working_title,title_string, 79);
 
   int length = strlen(working_title);

@@ -1049,6 +1049,7 @@ ErrorCode ReadNC::read_variable_allocate(EntityHandle file_set,
 	  break;
 	}
       
+      assert(range);
       if (!ehandles) {
 	// get ptr to tag space
 	void *data;
@@ -3026,12 +3027,14 @@ ErrorCode ReadNC::create_attrib_string(const std::map<std::string, AttData>& att
     default:
       success = 1;
     }    
-    char* tmpc = (char *) attData;
-    for (unsigned int counter = 0; counter != sz; ++counter)
-      ssAtt << tmpc[counter];
-    free(attData);
-    ssAtt << ';';
-    attLen.push_back(ssAtt.str().size()-1);
+    if (attData) {
+      char* tmpc = (char *) attData;
+      for (unsigned int counter = 0; counter != sz; ++counter)
+        ssAtt << tmpc[counter];
+      free(attData);
+      ssAtt << ';';
+      attLen.push_back(ssAtt.str().size()-1);
+    }
   }
   attVal = ssAtt.str();
   

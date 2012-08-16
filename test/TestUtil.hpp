@@ -405,11 +405,13 @@ const char* mb_error_str( moab::ErrorCode err )
 
 // Special case for MBErrorCode, use mb_error_str() to print the 
 // string name of the error code.
+#include <signal.h>
 void check_equal( moab::ErrorCode A, moab::ErrorCode B, const char* sA, const char* sB, int line, const char* file )
 {
   if (A == B)
     return;
   
+  raise(SIGSTOP);
   printf( "ErrorCode Test Failed: %s == %s\n", sA, sB ); 
   printf( "  at line %d of '%s'\n", line, file ); 
   printf( "  Expected value: %s (%d)\n", mb_error_str(A), (int)A ); 

@@ -2908,7 +2908,7 @@ ErrorCode mb_mesh_set_set_add_remove_test()
   size_t len2 = sizeof(list2)/sizeof(list2[0]);
   rval = mb.add_entities( set, list1, len1 );
   CHKERR(rval);
-  rval = check_meshset_internal( mb, set, list1, len2 );
+  rval = check_meshset_internal( mb, set, list1, len1 );
   CHKERR(rval);
   rval = mb.add_entities( set, list2, len2 );
   CHKERR(rval);
@@ -4829,7 +4829,7 @@ ErrorCode mb_canon_number_test()
   
   EntityHandle this_entity;
   
-  for (this_type = MBEDGE; this_type != MBKNIFE; this_type++) {
+  for (this_type = MBEDGE; this_type <= MBKNIFE; this_type++) {
     
       // skip remainder of the loop for MBPOLYGONS and POLYHEDRA, which don't follow
       // the standard canonical ordering 

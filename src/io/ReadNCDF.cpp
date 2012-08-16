@@ -1125,7 +1125,7 @@ ErrorCode ReadNCDF::create_ss_elements( int *element_ids,
   int side_node_idx[32];
 
   int df_index = 0;
-  int sense;
+  int sense = 0; // initialze to other than +1/-1
   for(i=0; i < num_sides; i++)
   {
     ExoIIElementType exoii_type;

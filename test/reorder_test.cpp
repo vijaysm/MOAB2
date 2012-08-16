@@ -448,7 +448,7 @@ void check_meshset_common( bool ordered )
   CHECK(!sets.empty());
   
   EntityHandle set = 0;
-  unsigned flags;
+  unsigned flags = 0;
   for (Range::iterator it = sets.begin(); it != sets.end(); ++it) {
     rval = mb->get_meshset_options( *it, flags );
     CHECK_ERR(rval);

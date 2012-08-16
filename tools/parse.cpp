@@ -121,7 +121,7 @@ int hexdigit( char c )
 unsigned char* parse_opaque_value( const char* vals, int size )
 {
   unsigned char* data = (unsigned char*)malloc( size );
-  if (vals[0] && vals[0] == '0' && vals[1] && toupper(vals[1]) == 'X')
+  if (data && vals[0] && vals[0] == '0' && vals[1] && toupper(vals[1]) == 'X')
   {
     unsigned char *iter, *end;
     int step;
@@ -164,10 +164,14 @@ unsigned char* parse_opaque_value( const char* vals, int size )
       *iter = 16 * most + less;
     }
   }
-  else
+  else if (data)
   {
     memset( data, 0, size );
     strcpy( (char*)data, vals + 2 );
+  }
+  else
+  {
+    std::cerr << "Error allocating buffer for parse_opaque_value." << std::endl;
   }
   
   return data;
