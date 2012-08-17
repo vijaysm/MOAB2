@@ -707,14 +707,31 @@ ErrorCode Coupler::nat_param(double xyz[3],
       }
 
       if (etype == MBHEX) {
-        Element::LinearHex hexmap(coords_vert);
-        try {
-          tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
+        if (8==num_connect)
+        {
+          Element::LinearHex hexmap(coords_vert);
+          try {
+            tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
+          }
+          catch (Element::Map::EvaluationError) {
+            continue;
+          }
+          if (!hexmap.inside_nat_space(tmp_nat_coords, epsilon))
+            continue;
         }
-        catch (Element::Map::EvaluationError) {
-          continue;
+        else if (27==num_connect)
+        {
+          Element::QuadraticHex hexmap(coords_vert);
+          try {
+            tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
+          }
+          catch (Element::Map::EvaluationError) {
+            continue;
+          }
+          if (!hexmap.inside_nat_space(tmp_nat_coords, epsilon))
+            continue;
         }
-        if (!hexmap.inside_nat_space(tmp_nat_coords, epsilon))
+        else // TODO this case not treated yet, no interpolation
           continue;
       }
       else if (etype == MBTET){
@@ -764,14 +781,26 @@ ErrorCode Coupler::interp_field(EntityHandle elem,
   }
   else
   {
-    double vfields[8]; // will work for Hexes or Tets
+    double vfields[27]; // will work for linear hex, quadratic hex or Tets
     moab::Element::Map *elemMap;
     int num_verts = 0;
     // get the EntityType
+    // get the tag values at the vertices
+    const EntityHandle *connect;
+    int num_connect;
+    ErrorCode result = mbImpl->get_connectivity(elem, connect, num_connect);
+    if (MB_SUCCESS != result)
+    {
+      return result;
+    }
     EntityType etype = mbImpl->type_from_handle(elem);
-    if (etype == MBHEX){
+    if (etype == MBHEX && num_connect==8){
       elemMap = new moab::Element::LinearHex();
       num_verts = 8;
+    }
+    else if (etype == MBHEX && num_connect==27){
+      elemMap = new moab::Element::QuadraticHex();
+      num_verts = 27;
     }
     else if (etype == MBTET) {
       elemMap = new moab::Element::LinearTet();
@@ -781,15 +810,7 @@ ErrorCode Coupler::interp_field(EntityHandle elem,
       return MB_FAILURE;
     }
 
-    // get the tag values at the vertices
-    const EntityHandle *connect;
-    int num_connect;
-    ErrorCode result = mbImpl->get_connectivity(elem, connect, num_connect);
-    if (MB_SUCCESS != result)
-    {
-      delete elemMap;
-      return result;
-    }
+
     result = mbImpl->tag_get_data(tag, connect, std::min(num_verts, num_connect), vfields);
     if (MB_SUCCESS != result) {
       delete elemMap;

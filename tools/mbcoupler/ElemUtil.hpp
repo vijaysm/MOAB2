@@ -142,6 +142,28 @@ namespace ElemUtil {
       
     };// class LinearHex
 
+    /**\brief Shape function space for trilinear hexahedron, obtained by a pushforward of the canonical linear (affine) functions. */
+    class QuadraticHex : public Map {
+    public:
+      QuadraticHex(const std::vector<CartVect>& vertices) : Map(vertices){};
+      QuadraticHex();
+      virtual CartVect evaluate( const CartVect& xi ) const;
+      //virtual CartVect ievaluate(const CartVect& x, double tol) const ;
+      virtual bool inside_nat_space(const CartVect & xi, double & tol) const;
+
+      virtual Matrix3  jacobian(const CartVect& xi) const;
+      double   evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const;
+      double   integrate_scalar_field(const double *field_vertex_values) const;
+
+    protected:
+      /* Preimages of the vertices -- "canonical vertices" -- are known as "corners".
+       * there are 27 vertices for a tri-quadratic xes*/
+      static const double corner[27][3];
+      static const double gauss[8][2];// TODO fix me
+      static const unsigned int corner_count = 27;
+      static const unsigned int gauss_count  = 8; // TODO fix me
+
+    };// class LinearHex
     /**\brief Shape function space for a linear tetrahedron, obtained by a pushforward of the canonical affine shape functions. */
     class LinearTet : public Map {
     public:
