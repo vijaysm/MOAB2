@@ -41,7 +41,7 @@ class Coupler
 {
 public:
 
-  enum Method {LINEAR_FE, PLAIN_FE};
+  enum Method {LINEAR_FE, PLAIN_FE, QUADRATIC_FE} ;
 
   enum IntegType {VOLUME};
 

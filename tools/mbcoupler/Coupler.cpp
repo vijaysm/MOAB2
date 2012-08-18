@@ -529,8 +529,8 @@ ErrorCode Coupler::interpolate(Coupler::Method method,
                                    TupleList *tl,
                                    bool normalize)
 {
-  if (!((LINEAR_FE == method) || (PLAIN_FE == method)))
-    return MB_FAILURE;
+  //if (!((LINEAR_FE == method) || (PLAIN_FE == method)))
+   // return MB_FAILURE;
 
   TupleList *tl_tmp = (tl ? tl : targetPts);
     // remote pts first
@@ -549,7 +549,7 @@ ErrorCode Coupler::interpolate(Coupler::Method method,
       int mindex = tl_tmp->vi_rd[3*i+2];
 
       result = MB_FAILURE;
-      if(LINEAR_FE == method){
+      if(LINEAR_FE == method || QUADRATIC_FE == method){
         result = interp_field(mappedPts->vul_rd[mindex],
                               CartVect(mappedPts->vr_wr+3*mindex), 
                               tag, tl_tmp->vr_rd[i]);
@@ -565,27 +565,29 @@ ErrorCode Coupler::interpolate(Coupler::Method method,
     (myPc->proc_config().crystal_router())->gs_transfer(1, *tl_tmp, 0);
   }
   
-  if (!tl) {
-      // mapped whole targetPts tuple; put into proper place in interp_vals
+  if (!tl)
+  {
+    // mapped whole targetPts tuple; put into proper place in interp_vals
     for (unsigned int i = 0; i < tl_tmp->get_n(); i++)
-      interp_vals[tl_tmp->vi_rd[3*i+1]] = tl_tmp->vr_rd[i];
+      interp_vals[tl_tmp->vi_rd[3 * i + 1]] = tl_tmp->vr_rd[i];
 
-      // now do locally-contained pts, since we're mapping everything
+    // now do locally-contained pts, since we're mapping everything
     for (std::vector<unsigned int>::iterator vit = localMappedPts.begin();
-         vit != localMappedPts.end(); vit += 2) {
-      int mindex = *(vit+1);
+        vit != localMappedPts.end(); vit += 2) {
+      int mindex = *(vit + 1);
 
       result = MB_FAILURE;
-      if(LINEAR_FE == method){
-	result = interp_field(mappedPts->vul_rd[mindex],
-			      CartVect(mappedPts->vr_wr+3*mindex), 
-			      tag, interp_vals[*vit]);
-      }else if (PLAIN_FE == method){
-	result = plain_field_map(mappedPts->vul_rd[mindex],
-				 tag, interp_vals[*vit]);
+      if (LINEAR_FE == method || QUADRATIC_FE == method){
+        result = interp_field(mappedPts->vul_rd[mindex],
+            CartVect(mappedPts->vr_wr + 3 * mindex), tag, interp_vals[*vit]);
+      }
+      else if (PLAIN_FE == method){
+        result = plain_field_map(mappedPts->vul_rd[mindex], tag,
+            interp_vals[*vit]);
       }
 
-      if (MB_SUCCESS != result) return result;
+      if (MB_SUCCESS != result)
+        return result;
 
     }
   }
