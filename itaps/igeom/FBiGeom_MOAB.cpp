@@ -1089,6 +1089,9 @@ void FBiGeom_getFcArrCvtrUV(FBiGeom_Instance,
 }
 void FBiGeom_isEntPeriodic(FBiGeom_Instance, iBase_EntityHandle entity_handle,
       int* in_u, int* in_v, int* err) {
+      *in_u = 0;
+      *in_v = 0;
+      *err = 0;
 }
 void FBiGeom_isArrPeriodic(FBiGeom_Instance,
       iBase_EntityHandle const* entity_handles, int entity_handles_size,
