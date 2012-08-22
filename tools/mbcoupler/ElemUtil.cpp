@@ -557,89 +557,69 @@ namespace Element {
 
   // those are not just the corners, but for simplicity, keep this name
   // we do not really need them now, maybe we should
-  const double QuadraticHex::corner[27][3] = {  { -1, -1, -1 },
-                                                {  1, -1, -1 },
-                                                {  1,  1, -1 },
-                                                { -1,  1, -1 },
-                                                { -1, -1,  1 },
-                                                {  1, -1,  1 },
-                                                {  1,  1,  1 },
-                                                { -1,  1,  1 },
-                                                {  0, -1, -1 },
-                                                {  1,  0, -1 },
-                                                {  0,  1, -1 },
-                                                { -1,  0, -1 },
-                                                { -1, -1,  0 },
-                                                {  1, -1,  0 },
-                                                {  1,  1,  0 },
-                                                { -1,  1,  0 },
-                                                {  0, -1,  1 },
-                                                {  1,  0,  1 },
-                                                {  0,  1,  1 },
-                                                { -1,  0,  1 },
-                                                {  0, -1,  0 },
-                                                {  1,  0,  0 },
-                                                {  0,  1,  0 },
-                                                { -1,  0,  0 },
-                                                {  0,  0, -1 },
-                                                {  0,  0,  1 },
-                                                {  0,  0,  0 }
+  const int QuadraticHex::corner[27][3] = { { -1, -1, -1 },
+                                            {  1, -1, -1 },
+                                            {  1,  1, -1 },
+                                            { -1,  1, -1 },
+                                            { -1, -1,  1 },
+                                            {  1, -1,  1 },
+                                            {  1,  1,  1 },
+                                            { -1,  1,  1 },
+                                            {  0, -1, -1 },
+                                            {  1,  0, -1 },
+                                            {  0,  1, -1 },
+                                            { -1,  0, -1 },
+                                            { -1, -1,  0 },
+                                            {  1, -1,  0 },
+                                            {  1,  1,  0 },
+                                            { -1,  1,  0 },
+                                            {  0, -1,  1 },
+                                            {  1,  0,  1 },
+                                            {  0,  1,  1 },
+                                            { -1,  0,  1 },
+                                            {  0, -1,  0 },
+                                            {  1,  0,  0 },
+                                            {  0,  1,  0 },
+                                            { -1,  0,  0 },
+                                            {  0,  0, -1 },
+                                            {  0,  0,  1 },
+                                            {  0,  0,  0 }
   };
   //QuadraticHex::QuadraticHex(const std::vector<CartVect>& vertices) : Map(vertices){};
   QuadraticHex::QuadraticHex():Map(0) {
   }
-#define SH1(xi)  ((xi)-1)*(xi)/2
-#define SH2(xi)  1-(xi)*(xi)
-#define SH3(xi)  (xi)*((xi)+1)/2
+
+  double SH(const int i, const double xi)
+  {
+    switch (i)
+    {
+    case -1: return (xi*xi-xi)/2;
+    case 0: return 1-xi*xi;
+    case 1: return (xi*xi+xi)/2;
+    default: return 0.;
+    }
+  }
+  double DSH(const int i, const double xi)
+  {
+    switch (i)
+    {
+    case -1: return xi-0.5;
+    case 0: return -2*xi;
+    case 1: return xi+0.5;
+    default: return 0.;
+    }
+  }
+
   CartVect QuadraticHex::evaluate( const CartVect& xi ) const
   {
+
     CartVect x(0.0);
-    double N_i[27];
-    double sh10 = SH1(xi[0]);
-    double sh20 = SH2(xi[0]);
-    double sh30 = SH3(xi[0]);
-    double sh11 = SH1(xi[1]);
-    double sh21 = SH2(xi[1]);
-    double sh31 = SH3(xi[1]);
-    double sh12 = SH1(xi[2]);
-    double sh22 = SH2(xi[2]);
-    double sh32 = SH3(xi[2]);
-
-
-    N_i[0]=sh10 * sh11 * sh12;
-    N_i[1]=sh30 * sh11 * sh12;
-    N_i[2]=sh30 * sh31 * sh12;
-    N_i[3]=sh10 * sh31 * sh12;
-    N_i[4]=sh10 * sh11 * sh32;
-    N_i[5]=sh30 * sh11 * sh32;
-    N_i[6]=sh30 * sh31 * sh32;
-    N_i[7]=sh10 * sh31 * sh32;
-    // mid edge; sh2 for a midnode
-    N_i[8]=sh20 * sh11 * sh12;
-    N_i[9]=sh30 * sh21 * sh12;
-    N_i[10]=sh20 * sh31 * sh12;
-    N_i[11]=sh10 * sh21 * sh12;
-    N_i[12]=sh10 * sh11 * sh22;
-    N_i[13]=sh30 * sh11 * sh22;
-    N_i[14]=sh30 * sh31 * sh22;
-    N_i[15]=sh10 * sh31 * sh22;
-    N_i[16]=sh20 * sh11 * sh32;
-    N_i[17]=sh30 * sh21 * sh32;
-    N_i[18]=sh20 * sh31 * sh32;
-    N_i[19]=sh10 * sh21 * sh32;
-    // mid face
-    N_i[20]=sh20 * sh11 * sh22;
-    N_i[21]=sh30 * sh21 * sh22;
-    N_i[22]=sh20 * sh31 * sh22;
-    N_i[23]=sh10 * sh21 * sh22;
-    N_i[24]=sh20 * sh21 * sh12;
-    N_i[25]=sh20 * sh21 * sh32;
-    // center node
-    N_i[26]=sh20 * sh21 * sh22;
-
-    for (unsigned i = 0; i < 27; ++i) {
-
-      x += N_i[i] * this->vertex[i];
+    for (int i=0; i<27; i++)
+    {
+      const double sh= SH(corner[i][0], xi[0])
+                      *SH(corner[i][1], xi[1])
+                      *SH(corner[i][2], xi[2]);
+      x+=sh* vertex[i];
     }
 
     return x;
@@ -651,182 +631,40 @@ namespace Element {
            ( xi[1]>=-1.-tol) && (xi[1]<=1.+tol) &&
            ( xi[2]>=-1.-tol) && (xi[2]<=1.+tol);
   }
-#define DSH1(xi)  ((xi)-0.5)
-#define DSH2(xi)  (-2*(xi))
-#define DSH3(xi)  ((xi)+0.5)
+
   Matrix3  QuadraticHex::jacobian(const CartVect& xi) const
   {
-    double N_i[27][3];
-    double sh10 = SH1(xi[0]);
-    double sh20 = SH2(xi[0]);
-    double sh30 = SH3(xi[0]);
-    double sh11 = SH1(xi[1]);
-    double sh21 = SH2(xi[1]);
-    double sh31 = SH3(xi[1]);
-    double sh12 = SH1(xi[2]);
-    double sh22 = SH2(xi[2]);
-    double sh32 = SH3(xi[2]);
-
-    // derivatives with respect to xi0:
-    N_i[0][0]=DSH1(xi[0]) * sh11 * sh12;
-    N_i[1][0]=DSH3(xi[0]) * sh11 * sh12;
-    N_i[2][0]=DSH3(xi[0]) * sh31 * sh12;
-    N_i[3][0]=DSH1(xi[0]) * sh31 * sh12;
-    N_i[4][0]=DSH1(xi[0]) * sh11 * sh32;
-    N_i[5][0]=DSH3(xi[0]) * sh11 * sh32;
-    N_i[6][0]=DSH3(xi[0]) * sh31 * sh32;
-    N_i[7][0]=DSH1(xi[0]) * sh31 * sh32;
-    // mid edge; sh2 for a midnode
-    N_i[8][0]=DSH2(xi[0]) * sh11 * sh12;
-    N_i[9][0]=DSH3(xi[0]) * sh21 * sh12;
-    N_i[10][0]=DSH2(xi[0]) * sh31 * sh12;
-    N_i[11][0]=DSH1(xi[0]) * sh21 * sh12;
-    N_i[12][0]=DSH1(xi[0]) * sh11 * sh22;
-    N_i[13][0]=DSH3(xi[0]) * sh11 * sh22;
-    N_i[14][0]=DSH3(xi[0]) * sh31 * sh22;
-    N_i[15][0]=DSH1(xi[0]) * sh31 * sh22;
-    N_i[16][0]=DSH2(xi[0]) * sh11 * sh32;
-    N_i[17][0]=DSH3(xi[0]) * sh21 * sh32;
-    N_i[18][0]=DSH2(xi[0]) * sh31 * sh32;
-    N_i[19][0]=DSH1(xi[0]) * sh21 * sh32;
-    // mid face
-    N_i[20][0]=DSH2(xi[0]) * sh11 * sh22;
-    N_i[21][0]=DSH3(xi[0]) * sh21 * sh22;
-    N_i[22][0]=DSH2(xi[0]) * sh31 * sh22;
-    N_i[23][0]=DSH1(xi[0]) * sh21 * sh22;
-    N_i[24][0]=DSH2(xi[0]) * sh21 * sh12;
-    N_i[25][0]=DSH2(xi[0]) * sh21 * sh32;
-    // center node
-    N_i[26][0]=DSH2(xi[0]) * sh21 * sh22;
-
-    // derivatives with respect to xi1:
-    N_i[0][1]=sh10 * DSH1(xi[1]) * sh12;
-    N_i[1][1]=sh30 * DSH1(xi[1]) * sh12;
-    N_i[2][1]=sh30 * DSH3(xi[1]) * sh12;
-    N_i[3][1]=sh10 * DSH3(xi[1]) * sh12;
-    N_i[4][1]=sh10 * DSH1(xi[1]) * sh32;
-    N_i[5][1]=sh30 * DSH1(xi[1]) * sh32;
-    N_i[6][1]=sh30 * DSH3(xi[1]) * sh32;
-    N_i[7][1]=sh10 * DSH3(xi[1]) * sh32;
-    // mid edge; sh2 for a midnode
-    N_i[8][1]=sh20 * DSH1(xi[1]) * sh12;
-    N_i[9][1]=sh30 * DSH2(xi[1]) * sh12;
-    N_i[10][1]=sh20 * DSH3(xi[1]) * sh12;
-    N_i[11][1]=sh10 * DSH2(xi[1]) * sh12;
-    N_i[12][1]=sh10 * DSH1(xi[1]) * sh22;
-    N_i[13][1]=sh30 * DSH1(xi[1]) * sh22;
-    N_i[14][1]=sh30 * DSH3(xi[1]) * sh22;
-    N_i[15][1]=sh10 * DSH3(xi[1]) * sh22;
-    N_i[16][1]=sh20 * DSH1(xi[1]) * sh32;
-    N_i[17][1]=sh30 * DSH2(xi[1]) * sh32;
-    N_i[18][1]=sh20 * DSH3(xi[1]) * sh32;
-    N_i[19][1]=sh10 * DSH2(xi[1]) * sh32;
-    // mid face
-    N_i[20][1]=sh20 * DSH1(xi[1]) * sh22;
-    N_i[21][1]=sh30 * DSH2(xi[1]) * sh22;
-    N_i[22][1]=sh20 * DSH3(xi[1]) * sh22;
-    N_i[23][1]=sh10 * DSH2(xi[1]) * sh22;
-    N_i[24][1]=sh20 * DSH2(xi[1]) * sh12;
-    N_i[25][1]=sh20 * DSH2(xi[1]) * sh32;
-    // center node
-    N_i[26][1]=sh20 * DSH2(xi[1]) * sh22;
-
-    // derivatives with respect to xi2:
-    N_i[0][2]=sh10 * sh11 * DSH1(xi[2]);
-    N_i[1][2]=sh30 * sh11 * DSH1(xi[2]);
-    N_i[2][2]=sh30 * sh31 * DSH1(xi[2]);
-    N_i[3][2]=sh10 * sh31 * DSH1(xi[2]);
-    N_i[4][2]=sh10 * sh11 * DSH3(xi[2]);
-    N_i[5][2]=sh30 * sh11 * DSH3(xi[2]);
-    N_i[6][2]=sh30 * sh31 * DSH3(xi[2]);
-    N_i[7][2]=sh10 * sh31 * DSH3(xi[2]);
-    // mid edge; sh2 for a midnode
-    N_i[8][2]=sh20 * sh11 * DSH1(xi[2]);
-    N_i[9][2]=sh30 * sh21 * DSH1(xi[2]);
-    N_i[10][2]=sh20 * sh31 * DSH1(xi[2]);
-    N_i[11][2]=sh10 * sh21 * DSH1(xi[2]);
-    N_i[12][2]=sh10 * sh11 * DSH2(xi[2]);
-    N_i[13][2]=sh30 * sh11 * DSH2(xi[2]);
-    N_i[14][2]=sh30 * sh31 * DSH2(xi[2]);
-    N_i[15][2]=sh10 * sh31 * DSH2(xi[2]);
-    N_i[16][2]=sh20 * sh11 * DSH3(xi[2]);
-    N_i[17][2]=sh30 * sh21 * DSH3(xi[2]);
-    N_i[18][2]=sh20 * sh31 * DSH3(xi[2]);
-    N_i[19][2]=sh10 * sh21 * DSH3(xi[2]);
-    // mid face
-    N_i[20][2]=sh20 * sh11 * DSH2(xi[2]);
-    N_i[21][2]=sh30 * sh21 * DSH2(xi[2]);
-    N_i[22][2]=sh20 * sh31 * DSH2(xi[2]);
-    N_i[23][2]=sh10 * sh21 * DSH2(xi[2]);
-    N_i[24][2]=sh20 * sh21 * DSH1(xi[2]);
-    N_i[25][2]=sh20 * sh21 * DSH3(xi[2]);
-    // center node
-    N_i[26][2]=sh20 * sh21 * DSH2(xi[2]);
-
     Matrix3 J(0.0);
-    for (unsigned i = 0; i < 27; ++i) {
+    for (int i=0; i<27; i++)
+    {
+      const double sh[3]={ SH(corner[i][0], xi[0]),
+                           SH(corner[i][1], xi[1]),
+                           SH(corner[i][2], xi[2]) };
+      const double dsh[3]={ DSH(corner[i][0], xi[0]),
+                            DSH(corner[i][1], xi[1]),
+                            DSH(corner[i][2], xi[2]) };
 
-      J(0,0) += N_i[i][0]   * vertex[i][0];
-      J(1,0) += N_i[i][0]   * vertex[i][1];
-      J(2,0) += N_i[i][0]   * vertex[i][2];
-      J(0,1) += N_i[i][1]   * vertex[i][0];
-      J(1,1) += N_i[i][1]   * vertex[i][1];
-      J(2,1) += N_i[i][1]   * vertex[i][2];
-      J(0,2) += N_i[i][2]   * vertex[i][0];
-      J(1,2) += N_i[i][2]   * vertex[i][1];
-      J(2,2) += N_i[i][2]   * vertex[i][2];
+
+      for (int j=0; j<3; j++)
+      {
+        J(j,0)+=dsh[0]*sh[1]*sh[2]*vertex[i][j]; // dxj/dr first column
+        J(j,1)+=sh[0]*dsh[1]*sh[2]*vertex[i][j]; // dxj/ds
+        J(j,2)+=sh[0]*sh[1]*dsh[2]*vertex[i][j]; // dxj/dt
+      }
     }
+
+
     return J;
   }
   double   QuadraticHex::evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const
   {
-    double N_i[27];
-    double sh10 = SH1(xi[0]);
-    double sh20 = SH2(xi[0]);
-    double sh30 = SH3(xi[0]);
-    double sh11 = SH1(xi[1]);
-    double sh21 = SH2(xi[1]);
-    double sh31 = SH3(xi[1]);
-    double sh12 = SH1(xi[2]);
-    double sh22 = SH2(xi[2]);
-    double sh32 = SH3(xi[2]);
-
-
-    N_i[0]=sh10 * sh11 * sh12;
-    N_i[1]=sh30 * sh11 * sh12;
-    N_i[2]=sh30 * sh31 * sh12;
-    N_i[3]=sh10 * sh31 * sh12;
-    N_i[4]=sh10 * sh11 * sh32;
-    N_i[5]=sh30 * sh11 * sh32;
-    N_i[6]=sh30 * sh31 * sh32;
-    N_i[7]=sh10 * sh31 * sh32;
-    // mid edge; sh2 for a midnode
-    N_i[8]=sh20 * sh11 * sh12;
-    N_i[9]=sh30 * sh21 * sh12;
-    N_i[10]=sh20 * sh31 * sh12;
-    N_i[11]=sh10 * sh21 * sh12;
-    N_i[12]=sh10 * sh11 * sh22;
-    N_i[13]=sh30 * sh11 * sh22;
-    N_i[14]=sh30 * sh31 * sh22;
-    N_i[15]=sh10 * sh31 * sh22;
-    N_i[16]=sh20 * sh11 * sh32;
-    N_i[17]=sh30 * sh21 * sh32;
-    N_i[18]=sh20 * sh31 * sh32;
-    N_i[19]=sh10 * sh21 * sh32;
-    // mid face
-    N_i[20]=sh20 * sh11 * sh22;
-    N_i[21]=sh30 * sh21 * sh22;
-    N_i[22]=sh20 * sh31 * sh22;
-    N_i[23]=sh10 * sh21 * sh22;
-    N_i[24]=sh20 * sh21 * sh12;
-    N_i[25]=sh20 * sh21 * sh32;
-    // center node
-    N_i[26]=sh20 * sh21 * sh22;
-
-    double x=0.;
-    for (unsigned i = 0; i < 27; ++i) {
-
-      x += N_i[i] * field_vertex_values[i];
+    double x=0.0;
+    for (int i=0; i<27; i++)
+    {
+      const double sh= SH(corner[i][0], xi[0])
+                *SH(corner[i][1], xi[1])
+                *SH(corner[i][2], xi[2]);
+      x+=sh* field_vertex_values[i];
     }
 
     return x;
