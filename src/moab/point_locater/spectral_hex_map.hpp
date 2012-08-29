@@ -1,5 +1,5 @@
-#ifndef MOAB_LINEAR_HEX_HPP
-#define MOAB_LINEAR_HEX_HPP
+#ifndef MOAB_SPECTRAL_HEX_HPP
+#define MOAB_SPECTRAL_HEX_HPP
 
 #include "moab/Matrix3.hpp"
 #include "moab/CartVect.hpp"
@@ -27,17 +27,34 @@ void vec_subtract( Vector & v, const Vector & u){
 } //non-exported functionality
 
 template< typename _Matrix>
-class Linear_hex_map {
+class Spectral_hex_map {
   public:
 	typedef _Matrix Matrix;
   private:
-	typedef Linear_hex_map< Matrix> Self;
+	typedef Spectral_hex_map< Matrix> Self;
   public: 
     //Constructor
-    Linear_hex_map() {}
+    Spectral_hex_map() {}
+    Spectral_hex_map( const int order,const double x, 
+		      const double y, const double z){
+	    initialize_spectral_hex(order);
+	    _xyz[ 0] = x; _xyz[ 1] = y; _xyz[ 2] = z;
+    }
     //Copy constructor
-    Linear_hex_map( const Self & f ) {}
-
+    Spectral_hex_map( const Self & f ) {}
+  private:
+    void initialize_spectral_hex( int order){
+	if (_init && _n==order){ return; }
+	_init = true;
+	_n = order;
+	for( int d = 0; d < 3; d++){
+		lobatto_nodes(&_d[ d], _n);
+		lagrange_setup(&_ld[ d], _z[ d], _n);
+	}
+	opt_alloc_3(&_data, _ld);
+	std::size_t nf = _n*n, ne = _n, nw = 2*_n*_n + 3*_n;
+	_odwork.resize( 6*nf + 9*ne + nw);
+    }
  public:
     //Natural coordinates
     template< typename Entity_handle, typename Points, typename Point>
@@ -53,22 +70,9 @@ class Linear_hex_map {
     }
 
   private:
-    //This is a hack to avoid a .cpp file and C++11
-    //reference_points(i,j) will be a 1 or -1;
-    //This should unroll..
-    inline const double reference_points( const std::size_t& i, 
-          				  const std::size_t& j) const{
-    const double rpts[8][3] = { { -1, -1, -1 },
-                                {  1, -1, -1 },
-                                {  1,  1, -1 },
-                                { -1,  1, -1 },
-                                { -1, -1,  1 },
-                                {  1, -1,  1 },
-                                {  1,  1,  1 },
-                                { -1,  1,  1 } };
-	  return rpts[ i][ j];
+    void set_gl_points( double x, double y, double z){
+	    _xyz[ 0] = x; _xyz[ 1] = y; _xyz[ 2] = z;
     }
-
     template< typename Point>
     bool is_contained( const Point & p, const double tol) const{
      //just look at the box+tol here
@@ -88,7 +92,7 @@ class Linear_hex_map {
       evaluate( xi, points, delta);
       vec_subtract( delta, x);
       std::size_t num_iterations=0;
-      #ifdef LINEAR_HEX_DEBUG
+      #ifdef SPECTRAL_HEX_DEBUG
  	std::stringstream ss;
 	ss << "Point: "; 
        ss << x[ 0 ] << ", " << x[ 1] 
@@ -101,7 +105,7 @@ class Linear_hex_map {
 	ss << std::endl;
       #endif
       while ( normsq( delta) > error_tol_sqr) {
-	#ifdef LINEAR_HEX_DEBUG
+	#ifdef SPECTRAL_HEX_DEBUG
 	ss << "Iter #: "  << num_iterations 
 	   << " Err: " << sqrt( normsq( delta)) << " Iterate: ";
 	ss << xi[ 0 ] << ", " << xi[ 1] 
@@ -112,10 +116,10 @@ class Linear_hex_map {
 	jacobian( xi, points, J);
         double det = moab::Matrix::determinant3( J);
         if (fabs(det) < 1.e-10){
-		#ifdef LINEAR_HEX_DEBUG
+		#ifdef SPECTRAL_HEX_DEBUG
 			std::cerr << ss.str();
 		#endif
-		#ifndef LINEAR_HEX_DEBUG
+		#ifndef SPECTRAL_HEX_DEBUG
 		std::cerr << x[ 0 ] << ", " << x[ 1] 
 			  << ", " << x [ 2] << std::endl;
 		#endif
@@ -130,47 +134,38 @@ class Linear_hex_map {
     }
 
     template< typename Point, typename Points>
-    Point& evaluate( const Point & p, const Points & points, Point & f) const{ 
-	typedef typename Points::value_type Vector;
-	Vector result;
-	for(int i = 0; i < 3; ++i){ result[ i] = 0; }
-	for (unsigned i = 0; i < 8; ++i) {
-	  const double N_i = (1 + p[0]*reference_points(i,0))
-	                   * (1 + p[1]*reference_points(i,1))
-	                   * (1 + p[2]*reference_points(i,2));
-	    result += N_i * points[ i];
+    Point& evaluate( const Point & p, const Points & points, Point & f) const{
+    	for(int d = 0; d < 3; ++d){ lagrange_0(&_ld[ d], p[ 0]); }
+	for( int d = 0; d < 3; ++d){
+		f[ d] = tensor_i3( _ld[ 0].J, _ld[ 0].n,
+			_ld[1].J, _ld[1].n,
+			_ld[2].J, _ld[2].n,
+			_xyz[ d],
+			&_odwork[ 0]);
 	}
-	result *= 0.125;
-	for (int i = 0; i < 3; ++i){ f[ i] = result[ i]; }
-	return f;
-    }
+    	return f;
+}
 
     template< typename Point, typename Points>
     Matrix& jacobian( const Point & p, const Points & points, Matrix & J) const{
-	  J = Matrix(0.0);
-	  for (std::size_t i = 0; i < 8; ++i) {
-	    const double   xi_p = 1 + p[0]*reference_points(i,0);
-	    const double  eta_p = 1 + p[1]*reference_points(i,1);
-	    const double zeta_p = 1 + p[2]*reference_points(i,2);
-	    const double dNi_dxi   = reference_points(i, 0) * eta_p * zeta_p;
-	    const double dNi_deta  = reference_points(i, 1) *  xi_p * zeta_p;
-	    const double dNi_dzeta = reference_points(i, 2) *  xi_p *  eta_p;
-	    J(0,0) += dNi_dxi   * points[i][0];
-	    J(1,0) += dNi_dxi   * points[i][1];
-	    J(2,0) += dNi_dxi   * points[i][2];
-	    J(0,1) += dNi_deta  * points[i][0];
-	    J(1,1) += dNi_deta  * points[i][1];
-	    J(2,1) += dNi_deta  * points[i][2];
-	    J(0,2) += dNi_dzeta * points[i][0];
-	    J(1,2) += dNi_dzeta * points[i][1];
-	    J(2,2) += dNi_dzeta * points[i][2];
-	  }
-	  return J *= 0.125;
-   }
+    	double x[ 3];
+	for(int i = 0; i < 3; ++i){ _data.elx[ i] = _xyz[ i]; }
+	opt_vol_set_intp_3(&_data,x);
+	Matrix J;
+	for(int i = 0; i < 9; ++i){ J(i%3, i/3) = data.jac[ i]; }
+	return J;
+    }
+    
   private:
-}; //Class Linear_hex_map
+	int _n;
+	double _z[ 3];
+	Lagrange_data _ld[ 3];
+	Opt_data_3 _data;
+	std::vector< double> _odwork;
+	double _xyz[ 3];
+}; //Class Spectral_hex_map
 
 }// namespace element_utility
 
 }// namespace moab
-#endif //MOAB_LINEAR_HEX_nPP
+#endif //MOAB_SPECTRAL_HEX_nPP
