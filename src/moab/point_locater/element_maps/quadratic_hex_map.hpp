@@ -176,6 +176,23 @@ class Quadratic_hex_map {
 	for (int i = 0; i < 3; ++i){ f[ i] = result[ i]; }
 	return f;
     }
+    template< typename Point, typename Points>
+    double   evaluate_scalar_field( const Point & p, 
+				    const Points & field) const {
+      double x=0.0;
+      for (int i=0; i<27; i++){
+        const double sh= SH(reference_points(i,0), p[0])*
+                  	 SH(reference_points(i,1), p[1])*
+                  	 SH(reference_points(i,2), p[2]);
+        x+=sh* field[i];
+      }
+      return x;
+    }
+    template< typename Points>
+    double   integrate_scalar_field(const Points & field_vertex_values) const { 
+        // TODO: gaussian integration , probably 2x2x2
+	return 0.; 
+    }
 
     template< typename Point, typename Points>
     Matrix& jacobian( const Point & p, const Points & points, Matrix & J) const{

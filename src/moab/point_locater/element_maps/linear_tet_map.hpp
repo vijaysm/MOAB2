@@ -37,7 +37,29 @@ class Linear_tet_map {
 		if( result[ i] < -tol){ return false; } 
 	}
 	return sum < 1.0+tol;
-    } 
+    }
+    template< typename Point, typename Points>
+    double evaluate_scalar_field( const Point & p , 
+				  const Points & field_values) const{
+	double f0 = field_values[ 0];
+	double f = f0;
+	for(std::size_t i = 1; i < 5; ++i){f+=(field_values[ i] - f0)*p[ i -1];}
+	return f;
+    }
+    template< typename Points>
+    double integrate_scalar_field(const Points & v) const {
+      double I(0.0);
+      for(unsigned int i = 0; i < 4; ++i) { I += v[i]; }
+      double det = Matrix( v[1][0]-v[0][0], v[2][0]-v[0][0], 
+        		   v[3][0]-v[0][0],
+        		   v[1][1]-v[0][1], v[2][1]-v[0][1], 
+        		   v[3][1]-v[0][1],
+        		   v[1][2]-v[0][2], v[2][2]-v[0][2], 
+        		   v[3][2]-v[0][2]).determinant();
+      I *= det/24.0; 
+      return I;
+    }
+    
     template< typename Points>
     void set_tet( const Entity_handle _eh, const Points & v){
 		if (eh != _eh){

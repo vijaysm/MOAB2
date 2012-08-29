@@ -148,6 +148,46 @@ class Linear_hex_map {
     }
 
     template< typename Point, typename Points>
+    double evaluate_scalar_field( const Point & p, 
+				  const Points & field_values) const{
+	double f = 0.0; 
+        for(int i = 0; i < 3; ++i){ result[ i] = 0; }
+        for (unsigned i = 0; i < 8; ++i) {
+          const double N_i = (1 + p[0]*reference_points(i,0))
+                           * (1 + p[1]*reference_points(i,1))
+                           * (1 + p[2]*reference_points(i,2));
+            f += N_i * field_values[ i];
+        }
+        f *= 0.125;
+        return f;
+    }
+
+    template< typename Points> 
+    double integrate_scalar_field(Points & field_values) const {
+      typename typename Points::value_type Point;
+      const double gauss[1][2] = { {  2.0,           0.0          } };
+      const std::size_t gauss_count = 1;
+      double I(0.0);
+      for(std::size_t j1 = 0; j1 < gauss_count; ++j1) {
+        double x1 = gauss[j1][1];
+        double w1 = gauss[j1][0];
+        for(std::size_t j2 = 0; j2 < gauss_count; ++j2) {
+          double x2 = gauss[j2][1];
+          double w2 = gauss[j2][0];
+          for(std::size_t j3 = 0; j3 < gauss_count; ++j3) {
+            double x3 = gauss[j3][1];
+            double w3 = gauss[j3][0];
+            Point x(x1,x2,x3);
+	    Matrix J;
+	    jacobian( x, field_values, J); 
+            I += evaluate_scalar_field(x,field_values)*w1*w2*w3*J.determinant();
+          }
+        }
+      }
+      return I;
+    }
+
+    template< typename Point, typename Points>
     Matrix& jacobian( const Point & p, const Points & points, Matrix & J) const{
 	  J = Matrix(0.0);
 	  for (std::size_t i = 0; i < 8; ++i) {

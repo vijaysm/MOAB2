@@ -153,14 +153,60 @@ class Spectral_hex_map {
     	return f;
    }
 
-    template< typename Point, typename Points>
-    Matrix& jacobian( const Point & p, const Points & points, Matrix & J) {
-    	real x[ 3];
-	for(int i = 0; i < 3; ++i){ _data.elx[ i] = _xyz[ i]; }
-	opt_vol_set_intp_3(& _data,x);
-	for(int i = 0; i < 9; ++i){ J(i%3, i/3) = _data.jac[ i]; }
-	return J;
-    }
+   template< typename Point, typename Points>
+   double   evaluate_scalar_field(const Point & p, const Points & field) const {
+     int d;
+     for(d=0; d<3; d++){ lagrange_0(&_ld[d], p[d]); }
+     return tensor_i3( _ld[0].J,_ld[0].n,
+           	       _ld[1].J,_ld[1].n,
+                       _ld[2].J,_ld[2].n,
+           	       field, _odwork);
+   }
+   template< typename Points>
+   double   integrate_scalar_field(const Points & field_vertex_values) const {  
+   // set the position of GL points
+   // set the positions of GL nodes, before evaluations
+   _data.elx[0]=_xyz[0];
+   _data.elx[1]=_xyz[1];
+   _data.elx[2]=_xyz[2];
+   double xi[3];
+   //triple loop; the most inner loop is in r direction, then s, then t
+   double integral = 0.;
+   //double volume = 0;
+   int index=0; // used fr the inner loop
+   for (int k=0; k<_n; k++ ) {
+     xi[2]=_ld[2].z[k];
+     //double wk= _ld[2].w[k];
+     for (int j=0; j<_n; j++) {
+       xi[1]=_ld[1].z[j];
+       //double wj= _ld[1].w[j];
+       for (int i=0; i<_n; i++) {
+         xi[0]=_ld[0].z[i];
+         //double wi= _ld[0].w[i];
+         opt_vol_set_intp_3(&_data,xi);
+         double wk= _ld[2].J[k];
+         double wj= _ld[1].J[j];
+         double wi= _ld[0].J[i];
+         Matrix3 J(0.);
+	 for(int i = 0; i < 8; ++i){ J(i/3, i%3) = _data.jac[ i];}
+         double bm = wk*wj*wi* J.determinant();
+         integral+= bm*field_vertex_values[index++];
+         //volume +=bm;
+       }
+     }
+   }
+   //std::cout << "volume: " << volume << "\n";
+   return integral;
+ }
+
+   template< typename Point, typename Points>
+   Matrix& jacobian( const Point & p, const Points & points, Matrix & J) {
+   	real x[ 3];
+       for(int i = 0; i < 3; ++i){ _data.elx[ i] = _xyz[ i]; }
+       opt_vol_set_intp_3(& _data,x);
+       for(int i = 0; i < 9; ++i){ J(i%3, i/3) = _data.jac[ i]; }
+       return J;
+   }
     
   private:
 	bool _init;
