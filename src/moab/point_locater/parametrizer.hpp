@@ -49,7 +49,7 @@ class Element_parametrizer{
 			typedef std::vector< moab::CartVect> Points;
 			Points points;
 			get_moab_points( moab, eh, points);
-			return map( eh, points, point, tol);			
+			return map( moab, eh, points, point, tol);
 		}
 	private: 
 	Element_map map;
@@ -75,12 +75,13 @@ class Parametrizer{
 			//get type
 			switch( moab.type_from_handle( eh)){
  				case moab::MBHEX:
-					return hex_map( eh, points, point);
+					return hex_map( moab, eh, points, point);
 				case moab::MBTET:
-					return tet_map( eh, points, point);
+					return tet_map( moab, eh, points, point);
+				//TODO: not correct..
+				//TODO: add quadratic hex, and a proper case for spectral hex
 				default:
-					//TODO: not correct..
-					return spectral_hex_map( eh, points, point);
+					return spectral_hex_map( moab, eh, points, point);
 				   std::cerr << "Element type not supported" 
 					     << std::endl;
 				  return make_pair( false, Point(3, 0.0));

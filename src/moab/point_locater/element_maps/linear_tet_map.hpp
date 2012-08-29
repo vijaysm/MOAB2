@@ -16,8 +16,9 @@ class Linear_tet_map {
     //Copy constructor
     Linear_tet_map( const Self & f ) : Tinv( f.Tinv), eh( f.eh){}
     //Natural coordinates
-    template< typename Points, typename Point>
-    std::pair< bool, Point> operator()( const Entity_handle eh, 
+    template< typename Moab, typename Points, typename Point>
+    std::pair< bool, Point> operator()( const Moab & moab,
+					const Entity_handle eh, 
 				        const Points & v, 
 					const Point & p, 
 					const double tol=1e-6) {

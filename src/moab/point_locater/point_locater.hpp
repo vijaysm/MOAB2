@@ -118,6 +118,8 @@ Error locate_points( const Points & query_points,
 template< typename Points, typename Entities> 
 Error bruteforce_locate_points( const Points & query_points, 
 				Entities & entities, double tol) const{
+	//TODO: this could be faster with caching, but of course this is 
+	//really just for testing
 	typedef typename Points::const_iterator Point_iterator;
 	typedef typename Entities::value_type Entity_handle;
 	Entities result;

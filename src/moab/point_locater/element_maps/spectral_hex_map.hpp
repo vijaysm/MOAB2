@@ -60,14 +60,13 @@ class Spectral_hex_map {
        opt_free_3(&_data);
        free(_odwork);
      }
-     void set_get_points( double * x, double * y, double * z){
-	_xyz[ 0] = x; _xyz[ 1] = y; _xyz[ 2] = z;
-     }
 
  public:
     //Natural coordinates
-    template< typename Entity_handle, typename Points, typename Point>
-    std::pair< bool, Point> operator()( const Entity_handle & h, 
+    template< typename Moab, typename Entity_handle, 
+	      typename Points, typename Point>
+    std::pair< bool, Point> operator()( const Moab & moab,
+					const Entity_handle & h, 
 					const Points & v, 
 					const Point & p, 
 					const double tol=1.e-6) {
@@ -79,7 +78,7 @@ class Spectral_hex_map {
     }
 
   private:
-    void set_gl_points( double x, double y, double z){
+    void set_gl_points( double * x, double * y, double * z){
 	    _xyz[ 0] = x; _xyz[ 1] = y; _xyz[ 2] = z;
     }
     template< typename Point>

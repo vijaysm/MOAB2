@@ -51,8 +51,10 @@ class Quadratic_hex_map {
 
  public:
     //Natural coordinates
-    template< typename Entity_handle, typename Points, typename Point>
-    std::pair< bool, Point> operator()( const Entity_handle & h, 
+    template< typename Moab, typename Entity_handle, 
+	      typename Points, typename Point>
+    std::pair< bool, Point> operator()( const Moab & moab,
+					const Entity_handle & h, 
 					const Points & v, 
 					const Point & p, 
 					const double tol=1.e-6) const{
