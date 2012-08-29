@@ -29,7 +29,8 @@ class Spectral_hex_map {
 	typedef Spectral_hex_map< Matrix> Self;
   public: 
     //Constructor
-    Spectral_hex_map() { initialize_spectral_hex(order); }
+    Spectral_hex_map() {};
+    Spectral_hex_map( int order){ initialize_spectral_hex( order); }
     //Copy constructor
     Spectral_hex_map( const Self & f ) {}
   private:

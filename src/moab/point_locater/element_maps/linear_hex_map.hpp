@@ -151,7 +151,6 @@ class Linear_hex_map {
     double evaluate_scalar_field( const Point & p, 
 				  const Field & field_values) const{
 	double f = 0.0; 
-        for(int i = 0; i < 3; ++i){ result[ i] = 0; }
         for (unsigned i = 0; i < 8; ++i) {
           const double N_i = (1 + p[0]*reference_points(i,0))
                            * (1 + p[1]*reference_points(i,1))
@@ -165,7 +164,7 @@ class Linear_hex_map {
     template< typename Points, typename Field> 
     double integrate_scalar_field( const Points & points, 
 				   const Field & field_values) const {
-      typename typename Points::value_type Point;
+      typedef typename Points::value_type Point;
       const double gauss[1][2] = { {  2.0,           0.0          } };
       const std::size_t gauss_count = 1;
       double I(0.0);
