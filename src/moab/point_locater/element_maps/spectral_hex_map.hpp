@@ -3,6 +3,14 @@
 
 #include "moab/Matrix3.hpp"
 #include "moab/CartVect.hpp"
+extern "C"{
+   #include "moab/point_locater/lotte/types.h"
+   #include "moab/point_locater/lotte/poly.h"
+   #include "moab/point_locater/lotte/tensor.h"
+   #include "moab/point_locater/lotte/findpt.h"
+   #include "moab/point_locater/lotte/extrafindpt.h"
+   #include "moab/point_locater/lotte/errmem.h"
+}
 #include <sstream>
 #include <iomanip>
 #include <iostream>
@@ -11,20 +19,7 @@ namespace moab {
 
 namespace element_utility {
 
-namespace {
-
-template< typename Vector>
-double normsq( const Vector & v) { 
-	const double n= (v[0] * v[0]) + (v[1] * v[1]) + (v[2] * v[2]); 
-	return n;
-}
-
-template< typename Vector>
-void vec_subtract( Vector & v, const Vector & u){ 
-	for(int i = 0; i < 3; ++i){ v[ i] -= u[ i]; }
-}
-
-} //non-exported functionality
+namespace {} //non-exported functionality
 
 template< typename _Matrix>
 class Spectral_hex_map {
@@ -35,8 +30,8 @@ class Spectral_hex_map {
   public: 
     //Constructor
     Spectral_hex_map() {}
-    Spectral_hex_map( const int order,const double x, 
-		      const double y, const double z){
+    Spectral_hex_map( const int order,const double * x, 
+		      const double * y, const double * z){
 	    initialize_spectral_hex(order);
 	    _xyz[ 0] = x; _xyz[ 1] = y; _xyz[ 2] = z;
     }
@@ -45,23 +40,37 @@ class Spectral_hex_map {
   private:
     void initialize_spectral_hex( int order){
 	if (_init && _n==order){ return; }
+	if( _init && _n != order){ free_data();}
 	_init = true;
 	_n = order;
 	for( int d = 0; d < 3; d++){
-		lobatto_nodes(&_d[ d], _n);
+		lobatto_nodes(_z[ d], _n);
 		lagrange_setup(&_ld[ d], _z[ d], _n);
 	}
 	opt_alloc_3(&_data, _ld);
-	std::size_t nf = _n*n, ne = _n, nw = 2*_n*_n + 3*_n;
-	_odwork.resize( 6*nf + 9*ne + nw);
+	std::size_t nf = _n*_n, ne = _n, nw = 2*_n*_n + 3*_n;
+	_odwork = tmalloc(real, 6*nf + 9*ne + nw);
     }
+
+    void free_data(){
+       for(int d=0; d<3; d++){
+         free(_z[d]);
+         lagrange_free(&_ld[d]);
+       }
+       opt_free_3(&_data);
+       free(_odwork);
+     }
+     void set_get_points( double * x, double * y, double * z){
+	_xyz[ 0] = x; _xyz[ 1] = y; _xyz[ 2] = z;
+     }
+
  public:
     //Natural coordinates
     template< typename Entity_handle, typename Points, typename Point>
     std::pair< bool, Point> operator()( const Entity_handle & h, 
 					const Points & v, 
 					const Point & p, 
-					const double tol=1.e-6) const{
+					const double tol=1.e-6) {
 	Point result(3, 0.0);
 	solve_inverse( p, result, v);
 	bool point_found = solve_inverse( p, result, v, tol) && 
@@ -85,7 +94,7 @@ class Spectral_hex_map {
     bool solve_inverse( const Point & x, 
 			Point & xi,
 			const Points & points, 
-			const double tol=1.e-6) const {
+			const double tol=1.e-6) {
       const double error_tol_sqr = tol*tol;
       Point delta(3,0.0);
       xi = delta;
@@ -134,35 +143,35 @@ class Spectral_hex_map {
     }
 
     template< typename Point, typename Points>
-    Point& evaluate( const Point & p, const Points & points, Point & f) const{
+    Point& evaluate( const Point & p, const Points & points, Point & f) {
     	for(int d = 0; d < 3; ++d){ lagrange_0(&_ld[ d], p[ 0]); }
 	for( int d = 0; d < 3; ++d){
 		f[ d] = tensor_i3( _ld[ 0].J, _ld[ 0].n,
 			_ld[1].J, _ld[1].n,
 			_ld[2].J, _ld[2].n,
 			_xyz[ d],
-			&_odwork[ 0]);
+			_odwork);
 	}
     	return f;
 }
 
     template< typename Point, typename Points>
-    Matrix& jacobian( const Point & p, const Points & points, Matrix & J) const{
-    	double x[ 3];
+    Matrix& jacobian( const Point & p, const Points & points, Matrix & J) {
+    	real x[ 3];
 	for(int i = 0; i < 3; ++i){ _data.elx[ i] = _xyz[ i]; }
-	opt_vol_set_intp_3(&_data,x);
-	Matrix J;
-	for(int i = 0; i < 9; ++i){ J(i%3, i/3) = data.jac[ i]; }
+	opt_vol_set_intp_3(& _data,x);
+	for(int i = 0; i < 9; ++i){ J(i%3, i/3) = _data.jac[ i]; }
 	return J;
     }
     
   private:
+	bool _init;
 	int _n;
-	double _z[ 3];
-	Lagrange_data _ld[ 3];
-	Opt_data_3 _data;
-	std::vector< double> _odwork;
-	double _xyz[ 3];
+	real * _z[ 3];
+	lagrange_data _ld[ 3];
+	opt_data_3 _data;
+	real * _odwork;
+	real * _xyz[ 3];
 }; //Class Spectral_hex_map
 
 }// namespace element_utility

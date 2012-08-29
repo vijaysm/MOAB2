@@ -57,7 +57,8 @@ void resolve_boxes( const Point_map & query_points,  List & list){
 	const Element & end = tree_.element_end();
 	Bitmask located_points( query_points.size(), 0);
 	std::size_t index=0;
-	for( Point i = query_points.begin(); i != query_points.end(); ++i,++index){
+	for( Point i = query_points.begin(); 
+		   i != query_points.end(); ++i,++index){
 		const Element  & element = tree_.find( *i);
 		if(element != end){
 			located_points[ index] = 1;
@@ -81,8 +82,9 @@ void resolve_boxes( const Point_map & query_points,  List & list){
 //public functionality
 public:
 template< typename Point_map, typename Entities, typename Communicator> 
-Error locate_points( Point_map & query_points, Entities & entities, Communicator & comm, double tol){
-	/*
+Error locate_points( Point_map & query_points, Entities & entities, 
+		     Communicator & comm, double tol){
+	/*TODO: implement a parallel location algorithm here
 	//temporary types
 	typedef typename Point_map::key_type Tuple;
 	typedef typename std::vector< Tuple> List;
@@ -98,7 +100,8 @@ Error locate_points( Point_map & query_points, Entities & entities, Communicator
 } 
 
 template< typename Points, typename Entities> 
-Error locate_points( const Points & query_points, Entities & entities, double tol) const{
+Error locate_points( const Points & query_points, 
+		     Entities & entities, double tol) const{
 	typedef typename Points::const_iterator Point_iterator;
 	typedef typename Entities::value_type Entity_handle;
 	Entities result;

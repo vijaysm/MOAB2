@@ -21,7 +21,8 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I. \
                -I$(srcdir)/io \
                -I$(srcdir)/io/mhdf/include \
-               -I$(srcdir)/parallel
+               -I$(srcdir)/parallel \
+	       -I$(srcdir)/moab/point_locator/lotte
 
 # The directory in which to install headers
 libMOAB_la_includedir = $(includedir)
@@ -74,6 +75,10 @@ libMOAB_la_SOURCES = \
   OrientedBox.cpp \
   OrientedBox.hpp \
   OrientedBoxTreeTool.cpp \
+  lotte/poly.c \
+  lotte/findpt.c \
+  lotte/errmem.c \
+  lotte/tensor.c \
   PolyElementSeq.cpp \
   PolyElementSeq.hpp \
   ProgOptions.cpp \
@@ -152,13 +157,18 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/GeomUtil.hpp \
   moab/Interface.hpp \
   moab/EigenDecomp.hpp \
-  moab/point_locater/common_tree.hpp \
-  moab/point_locater/initialize_tree.hpp  \
-  moab/point_locater/element_tree.hpp \
-  moab/point_locater/bvh_tree.hpp \
+  moab/point_locater/tree/common_tree.hpp \
+  moab/point_locater/tree/element_tree.hpp \
+  moab/point_locater/tree/bvh_tree.hpp \
   moab/point_locater/io.hpp  \
-  moab/point_locater/linear_hex_map.hpp  \
-  moab/point_locater/linear_tet_map.hpp  \
+  moab/point_locater/element_maps/linear_hex_map.hpp  \
+  moab/point_locater/element_maps/linear_tet_map.hpp  \
+  moab/point_locater/element_maps/spectral_hex_map.hpp  \
+  moab/point_locater/element_maps/quadratic_hex_map.hpp  \
+  moab/point_locater/lotte/types.h  \
+  moab/point_locater/lotte/errmem.h  \
+  moab/point_locater/lotte/findpt.h  \
+  moab/point_locater/lotte/poly.h  \
   moab/point_locater/point_locater.hpp \
   moab/Matrix3.hpp \
   moab/MergeMesh.hpp \

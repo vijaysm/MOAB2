@@ -16,8 +16,8 @@
 //Point Locater
 #include "moab/point_locater/point_locater.hpp"
 #include "moab/point_locater/io.hpp"
-#include "moab/point_locater/element_tree.hpp"
-#include "moab/point_locater/bvh_tree.hpp"
+#include "moab/point_locater/tree/element_tree.hpp"
+#include "moab/point_locater/tree/bvh_tree.hpp"
 #include "moab/point_locater/parametrizer.hpp"
 
 //iMesh

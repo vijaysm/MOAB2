@@ -57,7 +57,6 @@ class Quadratic_hex_map {
 					const Point & p, 
 					const double tol=1.e-6) const{
 	Point result(3, 0.0);
-	solve_inverse( p, result, v);
 	bool point_found = solve_inverse( p, result, v, tol) && 
 						is_contained( result, tol);
 	return std::make_pair( point_found, result);
@@ -167,9 +166,9 @@ class Quadratic_hex_map {
 	Vector result;
 	for(int i = 0; i < 3; ++i){ result[ i] = 0; }
 	for (unsigned i = 0; i < 27; ++i) {
-	    const double sh= SH(reference_points(i,0), xi[0])*
-       		             SH(reference_points(i,1), xi[1])*
-                	     SH(reference_points(i,2), xi[2]);
+	    const double sh= SH(reference_points(i,0), p[0])*
+       		             SH(reference_points(i,1), p[1])*
+                	     SH(reference_points(i,2), p[2]);
 	    result += sh * points[ i];
 	}
 	for (int i = 0; i < 3; ++i){ f[ i] = result[ i]; }
@@ -180,16 +179,16 @@ class Quadratic_hex_map {
     Matrix& jacobian( const Point & p, const Points & points, Matrix & J) const{
 	J = Matrix(0.0);
 	for (int i=0; i<27; i++){
- 		 const double sh[3]={ SH(reference_points(i,0), xi[0]),
-                       		      SH(reference_points(i,1), xi[1]),
-                       		      SH(reference_points(i,2), xi[2]) };
-  		  const double dsh[3]={ DSH(reference_points(i,0), xi[0]),
-                        		DSH(reference_points(i,1), xi[1]),
-                        		DSH(reference_points(i,2), xi[2]) };
+ 		 const double sh[3]={ SH(reference_points(i,0), p[0]),
+                       		      SH(reference_points(i,1), p[1]),
+                       		      SH(reference_points(i,2), p[2]) };
+  		  const double dsh[3]={ DSH(reference_points(i,0), p[0]),
+                        		DSH(reference_points(i,1), p[1]),
+                        		DSH(reference_points(i,2), p[2]) };
   	    for (int j=0; j<3; j++) {
-    		J(j,0)+=dsh[0]*sh[1]*sh[2]*vertex[i][j]; // dxj/dr first column
-    		J(j,1)+=sh[0]*dsh[1]*sh[2]*vertex[i][j]; // dxj/ds
-    		J(j,2)+=sh[0]*sh[1]*dsh[2]*vertex[i][j]; // dxj/dt
+    		J(j,0)+=dsh[0]*sh[1]*sh[2]*reference_points(i,j); // dxj/dr first column
+    		J(j,1)+=sh[0]*dsh[1]*sh[2]*reference_points(i,j); // dxj/ds
+    		J(j,2)+=sh[0]*sh[1]*dsh[2]*reference_points(i,j); // dxj/dt
   	    }
 	}
 	return J;

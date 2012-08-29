@@ -19,6 +19,7 @@
 #include <tr1/unordered_map>
 #include <limits>
 #include "common_tree.hpp"
+
 //#define BVH_TREE_DEBUG
 #ifndef BVH_TREE_HPP
 #define BVH_TREE_HPP
