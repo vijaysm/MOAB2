@@ -71,6 +71,11 @@ void print_usage() {
   std::cerr << "        Write stdout and stderr streams to the file \'<dbg_file>.txt\'." << std::endl;
 }
 
+template< typename Pair>
+struct Count_predicate: std::unary_function< Pair, bool>{
+	bool operator()(const Pair & pair){ return pair.first != 0; }
+};
+
 // default types.. whatevs.
 typedef moab::common_tree::Box< double> Bounding_box;
 typedef std::vector< Bounding_box> Boxes;
@@ -161,8 +166,11 @@ int main(int argc, char* argv[]){
 	std::cout << "bvh construction time: " << construction << std::endl;
 	Boxes boxes;
 	Bvh_locater locator( tree_2, boxes);
-	std::vector< moab::EntityHandle> located_elements;
-	std::vector< std::vector< double> > target_vertices;
+	typedef std::vector< double> Point;
+	typedef std::pair< moab::EntityHandle, Point > Result;
+	typedef Count_predicate< Result> Predicate;
+	std::vector< Result > located_elements;
+	std::vector< Point > target_vertices;
 	target_vertices.reserve( target_vertex_handles.size());
 	std::size_t index = 0;
 	for( Range::iterator i = target_vertex_handles.begin();
@@ -178,8 +186,9 @@ int main(int argc, char* argv[]){
 	locator.locate_points( target_vertices, located_elements, tol); 
 	double locate_points = MPI_Wtime() - locate_start;
 	std::cout << "point_location: " << locate_points << std::endl;
-	std::size_t unfound_points = std::count( located_elements.begin(),
-						 located_elements.end(), 0);
+	std::size_t unfound_points = std::count_if( located_elements.begin(),
+						    located_elements.end(), 
+						     Predicate());
 	typedef  ct::_Element_data< const Bounding_box, double > Element_data;
 	typedef std::tr1::unordered_map< Element, 
 					 Element_data> Entity_map;

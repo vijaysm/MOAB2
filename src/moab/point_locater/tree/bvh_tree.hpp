@@ -647,45 +647,48 @@ int build_tree( const Iterator begin, const Iterator end,
 	return depth;
 }
 
-template< typename Vector, typename Node_index>
-Entity_handle _find_point( const Vector & point, 
-			   const Node_index & index, 
-			   const double tol) const{
+template< typename Vector, typename Node_index, typename Result>
+Result& _find_point( const Vector & point, 
+			   const Node_index & index,
+			   const double tol,
+			   Result& result) const{
 	typedef typename Node::Entities::const_iterator Entity_iterator;
 	const Node & node = tree_[ index];
 	if( node.dim == 3){
 		for( Entity_iterator i = node.entities.begin(); 
 				     i != node.entities.end(); ++i){
 			if( ct::box_contains_point( i->first, point, tol)){
-				const std::pair< bool, Vector> result = 
+				const std::pair< bool, Vector> r = 
 				entity_contains( moab, i->second, point);
-				if (result.first){
-						//TODO: return Point as well..
-						return i->second;
+				if (r.first){
+				    return result = std::make_pair( i->second, 
+								    r.second);
 				}
 			}
 		}
-		return 0;
+		result = Result(0, point);
+		return result;
 	}
         //the extra tol here considers the case where
         //0 < Rmin - Lmax < 2tol
 	if( (node.Lmax+tol) < (node.Rmin-tol)){
 		if( point[ node.dim] <= (node.Lmax + tol)){            	
-        		return _find_point( point, node.child, tol);
+        		return _find_point( point, node.child, tol, result);
         	}else if( point[ node.dim] >= (node.Rmin - tol)){            	
-			return _find_point( point, node.child+1, tol);
+			return _find_point( point, node.child+1, tol, result);
 		}
-		return 0; //point lies in empty space.
+		result = Result(0, point);
+		return result; //point lies in empty space.
 	}
 	//Boxes overlap
 	//left of Rmin, you must be on the left
 	//we can't be sure about the boundaries since the boxes overlap
 	//this was a typo in the paper which caused pain.
 	if( point[ node.dim] < (node.Rmin - tol)){
-		return _find_point( point, node.child, tol);
+		return _find_point( point, node.child, tol, result);
 	//if you are on the right Lmax, you must be on the right
 	}else if( point[ node.dim] > (node.Lmax+tol)){
-		return _find_point( point, node.child+1, tol);
+		return _find_point( point, node.child+1, tol, result);
 	}
 	/* pg5 of paper
 	 * However, instead of always traversing either subtree
@@ -701,19 +704,20 @@ Entity_handle _find_point( const Vector & point,
 	//bool dir = (point[ node.dim] - node.Rmin) <= 
 	//				(node.Lmax - point[ node.dim]);
 	bool dir=0;
-	const Entity_handle result =  _find_point( point, node.child+dir, tol);
-	if( result == 0 ){ 
-		return _find_point( point, node.child+(!dir), tol);
+	_find_point( point, node.child+dir, tol, result);
+	if( result.first == 0 ){ 
+		return _find_point( point, node.child+(!dir), tol, result);
 	}
 	return result;
 }
 
 //public functionality
 public:
-template< typename Vector>
-Entity_handle find( const Vector & point, const double tol) const{
+template< typename Vector, typename Result>
+Result& find( const Vector & point, 
+		    const double tol, Result & result) const{
 	typedef typename Vector::const_iterator Point_iterator;
-	return  _find_point( point, 0, tol);
+	return  _find_point( point, 0, tol, result);
 }
 
 //public functionality

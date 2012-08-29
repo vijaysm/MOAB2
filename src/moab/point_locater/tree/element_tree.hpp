@@ -472,7 +472,8 @@ void build_tree( Iterator begin, Iterator end,
 			new_directions.set( _data.dim, axis_is_very_small); 
 			build_tree( begin, middle_begin, 
 				    tree_[ node].children[ 0], 
-				    new_directions, data, ++depths[ 0],  is_middle);
+				    new_directions, data, ++depths[ 0],
+				    is_middle);
 		}
 		//middle subtree
 		if( _data.middle()>0){
@@ -515,44 +516,52 @@ void build_tree( Iterator begin, Iterator end,
 	}
 }
 
-template< typename Vector, typename Node_index>
-Entity_handle _find_point( const Vector & point, 
-			   const Node_index & index) const{
+template< typename Vector, typename Node_index, typename Result>
+Result& _find_point( const Vector & point, 
+	             const Node_index & index,
+		     Result & result) const{
 	typedef typename Node::Entities::const_iterator Entity_iterator;
+	typedef typename std::pair< bool, Vector> Return_type;
 	const Node & node = tree_[ index];
 	if( node.leaf()){
 		//check each node
 		for( Entity_iterator i = node.entities.begin(); 
 				     i != node.entities.end(); ++i){
-			if( common_tree::box_contains_point( i->first, point) &&
-				entity_contains( i->second, point)){
-				return i->second;
+			if( common_tree::box_contains_point( i->first, point)){
+				Return_type r = entity_contains( moab, 
+							         i->second, 
+								 point);
+				if( r.first){ result = 
+					std::make_pair( i->second, r.second);
+				}
+				return result;
 			}
 		}
-		return 0;
+		return Result(0, point);
 	}
 	if( point[ node.dim] < node.left_line){
-		return _find_point( point, node.left_);
+		return _find_point( point, node.left_, result);
 	}else if( point[ node.dim] > node.right_line){
-		return _find_point( point, node.right_);
+		return _find_point( point, node.right_, result);
 	} else {
-		Entity_handle middle =  _find_point( point, node.middle_);
-		if( middle != 0){ return middle; }
+		Entity_handle middle =  _find_point( point, 
+							node.middle_, result);
+		if( middle != 0){ return result; }
 		if( point[ node.dim] < node.split){ 
-			return _find_point( point, node.left_); 
+			return _find_point( point, node.left_, result); 
 		}
-		return	_find_point( point, node.right_);
+		return	_find_point( point, node.right_, result);
 	}
 }
 
 //public functionality
 public:
-template< typename Vector>
-Entity_handle find( const Vector & point) const{
+template< typename Vector, typename Result>
+Result& find( const Vector & point, Result & result) const{
 	typedef typename Vector::const_iterator Point_iterator;
 	typedef typename Box::Pair Pair; 
 	typedef typename Pair::first_type Box_iterator;
-	return  _find_point( point, 0);
+	return  _find_point( point, 0, result);
 }
 	
 

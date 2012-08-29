@@ -46,6 +46,7 @@ Point_search( Self & s): tree_( s.tree_),
 //private functionality
 private:
 
+//TODO: deprecate this
 template< typename Point_map, typename List>
 void resolve_boxes( const Point_map & query_points,  List & list){
        /*
@@ -103,12 +104,13 @@ template< typename Points, typename Entities>
 Error locate_points( const Points & query_points, 
 		     Entities & entities, double tol) const{
 	typedef typename Points::const_iterator Point_iterator;
-	typedef typename Entities::value_type Entity_handle;
+	typedef typename Entities::value_type  Result;
 	Entities result;
 	result.reserve( query_points.size());	
 	for(Point_iterator i = query_points.begin(); 
 			   i != query_points.end(); ++i){
-			const Entity_handle h = tree_.find( *i, tol);		
+			Result h;	
+			tree_.find( *i, tol, h);
 			result.push_back( h);
 	}
 	entities = result;
@@ -121,7 +123,7 @@ Error bruteforce_locate_points( const Points & query_points,
 	//TODO: this could be faster with caching, but of course this is 
 	//really just for testing
 	typedef typename Points::const_iterator Point_iterator;
-	typedef typename Entities::value_type Entity_handle;
+	typedef typename Entities::value_type::first_type Entity_handle;
 	Entities result;
 	result.reserve( query_points.size());	
 	std::size_t count = 0;
@@ -129,7 +131,7 @@ Error bruteforce_locate_points( const Points & query_points,
 	typename Entities::iterator j = entities.begin();
 	for( Point_iterator i = query_points.begin(); 
 			    i != query_points.end(); ++i, ++j){
-		if( *j == 0){
+		if( j->first == 0){
 			const Entity_handle h = tree_.bruteforce_find( *i, tol);
 			if( h == 0){
 				++count;
