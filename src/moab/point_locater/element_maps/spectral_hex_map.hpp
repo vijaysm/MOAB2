@@ -29,12 +29,7 @@ class Spectral_hex_map {
 	typedef Spectral_hex_map< Matrix> Self;
   public: 
     //Constructor
-    Spectral_hex_map() {}
-    Spectral_hex_map( const int order,const double * x, 
-		      const double * y, const double * z){
-	    initialize_spectral_hex(order);
-	    _xyz[ 0] = x; _xyz[ 1] = y; _xyz[ 2] = z;
-    }
+    Spectral_hex_map() { initialize_spectral_hex(order); }
     //Copy constructor
     Spectral_hex_map( const Self & f ) {}
   private:
@@ -71,7 +66,11 @@ class Spectral_hex_map {
 					const Point & p, 
 					const double tol=1.e-6) {
 	Point result(3, 0.0);
-	solve_inverse( p, result, v);
+	/*
+      	moab.tag_get_by_ptr(_xm1Tag, &eh, 1,(const void **) &_xyz[ 0] );
+      	moab.tag_get_by_ptr(_ym1Tag, &eh, 1,(const void **) &_xyz[ 1] );
+      	moab.tag_get_by_ptr(_zm1Tag, &eh, 1,(const void **) &_xyz[ 2] );
+	*/
 	bool point_found = solve_inverse( p, result, v, tol) && 
 						is_contained( result, tol);
 	return std::make_pair( point_found, result);
@@ -152,7 +151,7 @@ class Spectral_hex_map {
 			_odwork);
 	}
     	return f;
-}
+   }
 
     template< typename Point, typename Points>
     Matrix& jacobian( const Point & p, const Points & points, Matrix & J) {

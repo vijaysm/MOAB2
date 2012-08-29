@@ -87,6 +87,13 @@ class Parametrizer{
 				  return make_pair( false, Point(3, 0.0));
 			}
 		}
+		template< typename Moab, typename Entity_handle, typename Point>
+		void interpolate( Moab & moab, const Entity_handle & eh, 
+				  const Point & natural_coords){
+			//get field values from moab tag, 
+			//then 
+			//evaluate_scalar_field(); 
+		}
 	private: 
 	Linear_hex_map< moab::Matrix3> hex_map;
 	Linear_tet_map< Entity_handle, moab::Matrix3> tet_map;
