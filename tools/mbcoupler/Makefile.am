@@ -9,6 +9,7 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_srcdir)/src \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src/parallel \
+               -I$(top_srcdir)/src/moab/point_locater/lotte \
                -I$(top_srcdir)/test \
                -I$(top_srcdir)/itaps \
                -I$(top_srcdir)/itaps/imesh \
@@ -22,17 +23,6 @@ LDADD = libmbcoupler.la
 
 libmbcoupler_la_SOURCES = \
    ElemUtil.cpp \
-   poly.c   \
-   poly.h   \
-   tensor.c \
-   tensor.h \
-   errmem.c \
-   errmem.h \
-   extrafindpt.h \
-   findpt.c \
-   findpt.h \
-   minmax.h \
-   types.h \
    Coupler.cpp
 
 libmbcoupler_la_include_HEADERS = \
