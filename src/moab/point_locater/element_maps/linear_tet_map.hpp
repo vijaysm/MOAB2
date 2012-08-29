@@ -38,18 +38,18 @@ class Linear_tet_map {
 	}
 	return sum < 1.0+tol;
     }
-    template< typename Point, typename Points>
+    template< typename Point, typename Field>
     double evaluate_scalar_field( const Point & p , 
-				  const Points & field_values) const{
+				  const Field & field_values) const{
 	double f0 = field_values[ 0];
 	double f = f0;
 	for(std::size_t i = 1; i < 5; ++i){f+=(field_values[ i] - f0)*p[ i -1];}
 	return f;
     }
-    template< typename Points>
-    double integrate_scalar_field(const Points & v) const {
+    template< typename Points, typename Field>
+    double integrate_scalar_field(const Points & v, const Field & field_values) const {
       double I(0.0);
-      for(unsigned int i = 0; i < 4; ++i) { I += v[i]; }
+      for(unsigned int i = 0; i < 4; ++i) { I += field_values[i]; }
       double det = Matrix( v[1][0]-v[0][0], v[2][0]-v[0][0], 
         		   v[3][0]-v[0][0],
         		   v[1][1]-v[0][1], v[2][1]-v[0][1], 

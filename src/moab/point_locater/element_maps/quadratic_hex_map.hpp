@@ -176,9 +176,9 @@ class Quadratic_hex_map {
 	for (int i = 0; i < 3; ++i){ f[ i] = result[ i]; }
 	return f;
     }
-    template< typename Point, typename Points>
+    template< typename Point, typename Field>
     double   evaluate_scalar_field( const Point & p, 
-				    const Points & field) const {
+				    const Field & field) const {
       double x=0.0;
       for (int i=0; i<27; i++){
         const double sh= SH(reference_points(i,0), p[0])*
@@ -188,8 +188,9 @@ class Quadratic_hex_map {
       }
       return x;
     }
-    template< typename Points>
-    double   integrate_scalar_field(const Points & field_vertex_values) const { 
+    template< typename Field, typename Points>
+    double   integrate_scalar_field( const Points & p, 
+				     const Field & field_values) const { 
         // TODO: gaussian integration , probably 2x2x2
 	return 0.; 
     }
@@ -198,16 +199,17 @@ class Quadratic_hex_map {
     Matrix& jacobian( const Point & p, const Points & points, Matrix & J) const{
 	J = Matrix(0.0);
 	for (int i=0; i<27; i++){
- 		 const double sh[3]={ SH(reference_points(i,0), p[0]),
-                       		      SH(reference_points(i,1), p[1]),
-                       		      SH(reference_points(i,2), p[2]) };
-  		  const double dsh[3]={ DSH(reference_points(i,0), p[0]),
-                        		DSH(reference_points(i,1), p[1]),
-                        		DSH(reference_points(i,2), p[2]) };
+ 		  const double  sh[3] = {  SH(reference_points(i,0), p[0]),
+                       		           SH(reference_points(i,1), p[1]),
+                       		           SH(reference_points(i,2), p[2]) };
+  		  const double dsh[3] = { DSH(reference_points(i,0), p[0]),
+                        		  DSH(reference_points(i,1), p[1]),
+                        	   	  DSH(reference_points(i,2), p[2]) };
   	    for (int j=0; j<3; j++) {
-    		J(j,0)+=dsh[0]*sh[1]*sh[2]*reference_points(i,j); // dxj/dr first column
-    		J(j,1)+=sh[0]*dsh[1]*sh[2]*reference_points(i,j); // dxj/ds
-    		J(j,2)+=sh[0]*sh[1]*dsh[2]*reference_points(i,j); // dxj/dt
+		// dxj/dr first column
+    		J(j,0)+=dsh[0]*sh[1]*sh[2]*reference_points(i,j); 
+    		J(j,1)+= sh[0]*dsh[1]*sh[2]*reference_points(i,j); // dxj/ds
+    		J(j,2)+= sh[0]*sh[1]*dsh[2]*reference_points(i,j); // dxj/dt
   	    }
 	}
 	return J;

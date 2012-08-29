@@ -153,8 +153,8 @@ class Spectral_hex_map {
     	return f;
    }
 
-   template< typename Point, typename Points>
-   double   evaluate_scalar_field(const Point & p, const Points & field) const {
+   template< typename Point, typename Field>
+   double   evaluate_scalar_field(const Point & p, const Field & field) const {
      int d;
      for(d=0; d<3; d++){ lagrange_0(&_ld[d], p[d]); }
      return tensor_i3( _ld[0].J,_ld[0].n,
@@ -162,8 +162,9 @@ class Spectral_hex_map {
                        _ld[2].J,_ld[2].n,
            	       field, _odwork);
    }
-   template< typename Points>
-   double   integrate_scalar_field(const Points & field_vertex_values) const {  
+   template< typename Points, typename Field>
+   double   integrate_scalar_field(const Points & p, 
+				   const Field & field) const {  
    // set the position of GL points
    // set the positions of GL nodes, before evaluations
    _data.elx[0]=_xyz[0];
@@ -190,7 +191,7 @@ class Spectral_hex_map {
          Matrix3 J(0.);
 	 for(int i = 0; i < 8; ++i){ J(i/3, i%3) = _data.jac[ i];}
          double bm = wk*wj*wi* J.determinant();
-         integral+= bm*field_vertex_values[index++];
+         integral+= bm*field[index++];
          //volume +=bm;
        }
      }

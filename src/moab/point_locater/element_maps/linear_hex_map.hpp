@@ -147,9 +147,9 @@ class Linear_hex_map {
 	return f;
     }
 
-    template< typename Point, typename Points>
+    template< typename Point, typename Field>
     double evaluate_scalar_field( const Point & p, 
-				  const Points & field_values) const{
+				  const Field & field_values) const{
 	double f = 0.0; 
         for(int i = 0; i < 3; ++i){ result[ i] = 0; }
         for (unsigned i = 0; i < 8; ++i) {
@@ -162,8 +162,9 @@ class Linear_hex_map {
         return f;
     }
 
-    template< typename Points> 
-    double integrate_scalar_field(Points & field_values) const {
+    template< typename Points, typename Field> 
+    double integrate_scalar_field( const Points & points, 
+				   const Field & field_values) const {
       typename typename Points::value_type Point;
       const double gauss[1][2] = { {  2.0,           0.0          } };
       const std::size_t gauss_count = 1;
@@ -179,7 +180,7 @@ class Linear_hex_map {
             double w3 = gauss[j3][0];
             Point x(x1,x2,x3);
 	    Matrix J;
-	    jacobian( x, field_values, J); 
+	    jacobian( x, points, J); 
             I += evaluate_scalar_field(x,field_values)*w1*w2*w3*J.determinant();
           }
         }
