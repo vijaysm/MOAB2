@@ -75,13 +75,19 @@ class Parametrizer{
 			//get type
 			switch( moab.type_from_handle( eh)){
  				case moab::MBHEX:
-					return hex_map( moab, eh, points, point);
+					return hex_map( moab, eh, 
+							points, point);
 				case moab::MBTET:
-					return tet_map( moab, eh, points, point);
+					return tet_map( moab, eh, 
+							points, point);
 				//TODO: not correct..
-				//TODO: add quadratic hex, and a proper case for spectral hex
+				//TODO: add quadratic hex, and a proper case for
+				// spectral hex
 				default:
-					return spectral_hex_map( moab, eh, points, point);
+					quadratic_hex_map( moab, eh, 
+							   points, point);
+					return spectral_hex_map( moab, eh, 
+								 points, point);
 				   std::cerr << "Element type not supported" 
 					     << std::endl;
 				  return make_pair( false, Point(3, 0.0));
@@ -98,6 +104,7 @@ class Parametrizer{
 	Linear_hex_map< moab::Matrix3> hex_map;
 	Linear_tet_map< Entity_handle, moab::Matrix3> tet_map;
 	Spectral_hex_map< moab::Matrix3> spectral_hex_map;
+	Quadratic_hex_map< moab::Matrix3> quadratic_hex_map;
 }; //class Parametrizer
 
 }// namespace element_utility

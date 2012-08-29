@@ -86,16 +86,20 @@ template< typename Point_map, typename Entities, typename Communicator>
 Error locate_points( Point_map & query_points, Entities & entities, 
 		     Communicator & comm, double tol){
 	/*TODO: implement a parallel location algorithm here
-	//temporary types
-	typedef typename Point_map::key_type Tuple;
-	typedef typename std::vector< Tuple> List;
-	List & scatter_points; 
-	resolve_boxes( query_points, scatter_points);
-	 //Commented out for now
-	//scatter-gather
-	//transfer( scatter_points);
-	//find_local_points( scatter_points);
-	//send back to target
+	original algorithm:
+	all-scatter/gather bounding boxes
+	for each point perform box checks
+	scatter/gather points
+	perform location and solution interpolation
+	//send results back
+	------------
+	new algorithm
+	Assume power num_proc = n^2;
+	all-reduce bounding boxes
+	divide box up into n x n grid
+	each source processor can communicate its elements to grid proc
+	each target processor then communicates its points to grid proc
+	grid proc sends points to correct source proc.
 	*/
 	return 0;
 } 
