@@ -1,4 +1,5 @@
-
+#ifndef EXTRA_FINDPT_H
+#define EXTRA_FINDPT_H
 /* extra stuff that james didn't expose */
 
 typedef struct {
@@ -38,3 +39,4 @@ void opt_vol_set_intp_3(opt_data_3 *p, const real r[3]);
 
 const unsigned opt_no_constraints_2 = 3+1;
 const unsigned opt_no_constraints_3 = 9+3+1;
+#endif //EXTRA_FINDPT_H

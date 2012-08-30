@@ -5,12 +5,12 @@
 #include <float.h>
 #include <string.h>  /* for memcpy */
 
-#include "moab/point_locater/lotte/errmem.h"
-#include "moab/point_locater/lotte/types.h"
-#include "moab/point_locater/lotte/minmax.h"
-#include "moab/point_locater/lotte/poly.h"
-#include "moab/point_locater/lotte/tensor.h"
-#include "moab/point_locater/lotte/extrafindpt.h"
+#include "errmem.h"
+#include "types.h"
+#include "minmax.h"
+#include "poly.h"
+#include "tensor.h"
+#include "extrafindpt.h"
 
 /*--------------------------------------------------------------------------
    Lobatto Polynomial Bounds

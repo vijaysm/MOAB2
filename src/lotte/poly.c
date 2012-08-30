@@ -5,8 +5,8 @@
 #include <string.h>  /* for memcpy */
 #include <float.h>
 
-#include "moab/point_locater/lotte/errmem.h"
-#include "moab/point_locater/lotte/types.h"
+#include "errmem.h"
+#include "types.h"
 
 /* 
   For brevity's sake, some names have been shortened

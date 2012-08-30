@@ -1,4 +1,4 @@
-#include "moab/point_locater/lotte/types.h"
+#include "types.h"
 
 /*--------------------------------------------------------------------------
    Matrix-Matrix Multiplication

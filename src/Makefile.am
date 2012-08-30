@@ -22,7 +22,7 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I$(srcdir)/io \
                -I$(srcdir)/io/mhdf/include \
                -I$(srcdir)/parallel \
-	       -I$(srcdir)/moab/point_locator/lotte
+	       -I$(srcdir)/moab/point_locater/lotte
 
 # The directory in which to install headers
 libMOAB_la_includedir = $(includedir)
@@ -75,10 +75,16 @@ libMOAB_la_SOURCES = \
   OrientedBox.cpp \
   OrientedBox.hpp \
   OrientedBoxTreeTool.cpp \
+  moab/point_locater/lotte/minmax.h \ 
+  moab/point_locater/lotte/extrafindpt.h \ 
   lotte/poly.c \
+  moab/point_locater/lotte/poly.h \
   lotte/findpt.c \
+  moab/point_locater/lotte/findpt.h \
   lotte/errmem.c \
+  moab/point_locater/lotte/errmem.h \
   lotte/tensor.c \
+  moab/point_locater/lotte/tensor.h \
   PolyElementSeq.cpp \
   PolyElementSeq.hpp \
   ProgOptions.cpp \
