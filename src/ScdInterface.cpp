@@ -511,11 +511,11 @@ ErrorCode ScdBox::get_adj_edge_or_face(int dim, int i, int j, int k, int dir, En
   if (dim < 1 || dim > 2 || i < boxDims[0] || j < boxDims[1] || k < boxDims[2]) 
     return MB_FAILURE;
 
-    // now check upper bound; parameters must be < upper corner, since edges/faces
+    // now check upper bound; parameters must be <= upper corner, since edges/faces
     // follow element parameterization, not vertex parameterization
-  else if ((boxDims[3] != boxDims[0] && i > (locallyPeriodic[0] ? boxDims[3] : boxDims[3]-1)) ||
-           (boxDims[4] != boxDims[1] && j > (locallyPeriodic[1] ? boxDims[4] : boxDims[4]-1)) ||
-           (boxDims[5] != boxDims[2] && k >= boxDims[5])) return MB_FAILURE;
+  else if ((boxDims[3] != boxDims[0] && i > (locallyPeriodic[0] ? boxDims[3]+1 : boxDims[3])) ||
+           (boxDims[4] != boxDims[1] && j > (locallyPeriodic[1] ? boxDims[4]+1 : boxDims[4])) ||
+           (boxDims[5] != boxDims[2] && k > boxDims[5])) return MB_FAILURE;
 
         // get the vertices making up this entity
   EntityHandle verts[4];
