@@ -520,8 +520,14 @@ ErrorCode ScdBox::get_adj_edge_or_face(int dim, int i, int j, int k, int dir, En
         // get the vertices making up this entity
   EntityHandle verts[4];
   for (int ind = 0; ind < 2*dim; ind++) {
-    verts[ind] = get_vertex(i+subconnect[dim-1][dir][ind][0],
-                            j+subconnect[dim-1][dir][ind][1],
+    int i1=i+subconnect[dim-1][dir][ind][0];
+    int j1=j+subconnect[dim-1][dir][ind][1];
+    // if periodic in i and i1 is boxDims[3]+1, wrap around
+    if (locallyPeriodic[0] && i1==boxDims[3]+1) i1=boxDims[0];
+    // if periodic in j and j1 is boxDims[4]+1, wrap around
+    if (locallyPeriodic[1] && j1==boxDims[4]+1) j1=boxDims[1];
+    verts[ind] = get_vertex(i1,
+                            j1,
                             k+subconnect[dim-1][dir][ind][2]);
     if (!verts[ind]) return MB_FAILURE;
   }
