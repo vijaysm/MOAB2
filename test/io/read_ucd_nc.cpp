@@ -58,7 +58,7 @@ void test_read_all()
   CHECK_ERR(rval);
   
     // check for proper tags
-  Tag Ttag0, Ttag1, coordTag;
+  Tag Ttag0, Ttag1;
   rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
   CHECK_ERR(rval);
   
