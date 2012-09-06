@@ -164,7 +164,7 @@ public:
      * \param par_data If non-NULL, this will get stored on the ScdBox once created, contains info
      *                 about global parallel nature of ScdBox across procs
      */
-  ErrorCode construct_box(HomCoord low, HomCoord high, double *coords, unsigned int num_coords,
+  ErrorCode construct_box(HomCoord low, HomCoord high, const double * const coords, unsigned int num_coords,
                           ScdBox *& new_box, int * const lperiodic = NULL, 
                           ScdParData * const par_data = NULL);
 
@@ -1190,7 +1190,7 @@ inline EntityHandle ScdBox::get_element(HomCoord ijk) const
 inline EntityHandle ScdBox::get_vertex(int i, int j, int k) const 
 {
   return (vertDat ? startVertex + (boxDims[2] == -1 && boxDims[5] == -1 ? 0 : (k-boxDims[2]))*boxSizeIJ +
-	  (j-boxDims[1])*boxSize[0] + i-boxDims[0] : get_vertex_from_seq(i, j, k));
+	  (boxDims[1] == -1 && boxDims[4] == -1 ? 0 : (j-boxDims[1]))*boxSize[0] + i-boxDims[0] : get_vertex_from_seq(i, j, k));
 }
 
 inline EntityHandle ScdBox::get_vertex(HomCoord ijk) const 

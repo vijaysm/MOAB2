@@ -55,7 +55,7 @@ vtkStandardNewMacro(vtkMOABReader)
 
 class vtkIntArray;
 
-class VTK_IO_EXPORT vtkMOABReaderPrivate : public vtkObject
+class VTKIOGEOMETRY_EXPORT vtkMOABReaderPrivate : public vtkObject
 {
 public:
   static vtkMOABReaderPrivate *New();
@@ -67,11 +67,11 @@ public:
   void SetOutput(vtkUnstructuredGrid *ug);
 
   void file_sets(Range &files);
-  
+
   void file_names(std::vector<std::string> &fnames);
 
   bool file_loaded(const char *filename);
-  
+
   friend class vtkMOABReader;
 
 protected:
@@ -83,34 +83,34 @@ private:
   vtkMOABReaderPrivate(const vtkMOABReaderPrivate&);  // Not implemented.
   void operator=(const vtkMOABReaderPrivate&);  // Not implemented.
 
-  int RequestData(vtkInformation *vtkNotUsed(request), 
-                  vtkInformationVector **vtkNotUsed(inputVector), 
+  int RequestData(vtkInformation *vtkNotUsed(request),
+                  vtkInformationVector **vtkNotUsed(inputVector),
                   vtkInformationVector *outputVector);
-  
+
   ErrorCode construct_mesh(EntityHandle file_set);
 
   ErrorCode construct_spectral_mesh(EntityHandle file_set);
 
   ErrorCode create_points_vertices(EntityHandle file_set, Range &verts);
-  
+
   ErrorCode create_elements(EntityHandle file_set);
-  
+
   ErrorCode construct_filters();
 
   ErrorCode read_tags(EntityHandle file_set);
-  
+
   ErrorCode read_sparse_tags(EntityHandle file_set);
 
   ErrorCode read_dense_tags(EntityHandle file_set);
 
   void add_name(vtkUnstructuredGrid *output, const char *prefix,
                 const int id);
-  
+
   ErrorCode get_top_parent_sets(Range &top_sets);
-  
+
   vtkMultiBlockDataSet *get_mbdataset(vtkMultiBlockDataSet *output,
                                       EntityHandle eset);
-  
+
   ErrorCode get_category_name(EntityHandle eset, std::string &cat_name);
 
   ErrorCode recursive_process_set(vtkMultiBlockDataSet *output, EntityHandle eset);
@@ -118,69 +118,73 @@ private:
   ErrorCode process_parent_sets(vtkMultiBlockDataSet *output);
 
   ErrorCode process_tagged_sets(vtkMultiBlockDataSet *output);
-  
+
   ErrorCode read_spectral_tags(EntityHandle file_set);
-  
+
   ErrorCode read_vector_variable(const char *tag1, const char *tag2, const char *tag3,
                                  const char *tag_name, Range &elems);
-  
+
   ErrorCode read_scalar_variable(const char *tag_name, Range &elems);
-  
+
   ErrorCode tag_data_ptr_dbl(const char *tag_name, int tag_size,
                              Range &elems, double *&tag_val);
 
   int get_vtk_cell_type(moab::EntityType t, int &num_connect);
-  
+
+  void set_dimensions_to_load(bool edges, bool faces, bool regions);
+
   vtkUnstructuredGrid *myUG;
 
   Interface *mbImpl;
-  
+
   WriteUtilIface *iFace;
 
   Range fileSets;
-                               
+
   int numPointIds;
   int numCellIds;
 
   Tag vtkPointTag, vtkCellTag;
 
   Tag vtkDSTag;
-  
+
   std::vector<std::string> fileNames;
 
   bool outOfDate;
-  
+
   bool iConstructedMOAB;
 
   Tag gidTag, gdimTag, partTag, catTag;
 
   int semDims[3];
   int numSemDims;
+
+  bool Edges, Faces, Regions;
 };
 
 vtkStandardNewMacro(vtkMOABReaderPrivate)
 
-inline vtkUnstructuredGrid *vtkMOABReaderPrivate::GetOutput() 
+inline vtkUnstructuredGrid *vtkMOABReaderPrivate::GetOutput()
 {
   return myUG;
 }
 
-inline void vtkMOABReaderPrivate::SetOutput(vtkUnstructuredGrid *ug) 
+inline void vtkMOABReaderPrivate::SetOutput(vtkUnstructuredGrid *ug)
 {
   myUG = ug;
 }
 
-inline void vtkMOABReaderPrivate::file_sets(Range &fsets) 
+inline void vtkMOABReaderPrivate::file_sets(Range &fsets)
 {
   fsets.merge(fileSets);
 }
 
-inline void vtkMOABReaderPrivate::file_names(std::vector<std::string> &fnames) 
+inline void vtkMOABReaderPrivate::file_names(std::vector<std::string> &fnames)
 {
   std::copy(fileNames.begin(), fileNames.end(), std::back_inserter(fnames));
 }
 
-inline bool vtkMOABReaderPrivate::file_loaded(const char *filename) 
+inline bool vtkMOABReaderPrivate::file_loaded(const char *filename)
 {
   return (std::find(fileNames.begin(), fileNames.end(), std::string(filename)) != fileNames.end());
 }
@@ -198,6 +202,9 @@ vtkMOABReader::vtkMOABReader()
   this->SetNumberOfInputPorts(0);
   this->FileName = NULL;
   masterReader = NULL;
+  this->Edges = true;
+  this->Faces = true;
+  this->Regions = true;
 }
 
 vtkMOABReader::~vtkMOABReader()
@@ -212,8 +219,8 @@ void vtkMOABReader::PrintSelf(ostream& os, vtkIndent indent)
 
 //-----------------------------------------------------------------------------
 // RequestInformation
-int vtkMOABReader::RequestInformation(vtkInformation *vtkNotUsed(request), 
-                                      vtkInformationVector **vtkNotUsed(inputVector), 
+int vtkMOABReader::RequestInformation(vtkInformation *vtkNotUsed(request),
+                                      vtkInformationVector **vtkNotUsed(inputVector),
                                       vtkInformationVector *outputVector)
 {
   if (!this->FileName || strlen(this->FileName) == 0)
@@ -226,18 +233,55 @@ int vtkMOABReader::RequestInformation(vtkInformation *vtkNotUsed(request),
   if (!masterReader) masterReader = vtkMOABReaderPrivate::New();
   EntityHandle file_set = 0;
   moab::ErrorCode rval = masterReader->load_file(FileName, NULL, file_set);
+
+//  vtkInformation *outInfo = outputVector->GetInformationObject(0);
+
+//  int piece, numPieces, ghostLevel;
+
+//  piece = outInfo->Get(vtkCompositeDataPipeline::UPDATE_PIECE_NUMBER());
+//  numPieces = outInfo->Get(vtkCompositeDataPipeline::UPDATE_NUMBER_OF_PIECES());
+//  ghostLevel = outInfo->Get(vtkCompositeDataPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS());
+
+//  // make sure piece is valid
+//  if (piece < 0 || piece >= numPieces)
+//    {
+//    return 1;
+//    }
+
+//  if (ghostLevel < 0)
+//    {
+//    return 1;
+//    }
+
+//  return 1;
+
   return (MB_SUCCESS == rval ? 1 : 0);
 
 }
 
 //-----------------------------------------------------------------------------
+// FillOutputPortInformation
+int vtkMOABReader::FillOutputPortInformation(int port, vtkInformation *info)
+{
+  if(port == 0)
+    {
+    info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkMultiBlockDataSet");
+    return 1;
+    }
+  return 0;
+}
+
+//-----------------------------------------------------------------------------
 // RequestData
-int vtkMOABReader::RequestData(vtkInformation *request, 
-                               vtkInformationVector **inputVector, 
+int vtkMOABReader::RequestData(vtkInformation *request,
+                               vtkInformationVector **inputVector,
                                vtkInformationVector *outputVector)
 {
+  masterReader->set_dimensions_to_load(this->Edges,
+                                       this->Faces,
+                                       this->Regions);
   return masterReader->RequestData(request, inputVector, outputVector);
-  
+
 /*
   int nSteps = 0;
   double *requestedTimeValues = NULL;
@@ -341,14 +385,14 @@ void vtkMOABReader::UpdateProgress(double amount)
   this->vtkAlgorithm::UpdateProgress(1.0);
 }
 
-vtkMOABReaderPrivate::vtkMOABReaderPrivate() 
-        : mbImpl(NULL), myUG(NULL), iFace(NULL), numPointIds(0), numCellIds(0), 
-          vtkPointTag(0), vtkCellTag(0), outOfDate(true), iConstructedMOAB(false), gidTag(0), 
-          gdimTag(0), partTag(0), catTag(0)
+vtkMOABReaderPrivate::vtkMOABReaderPrivate()
+        : mbImpl(NULL), myUG(NULL), iFace(NULL), numPointIds(0), numCellIds(0),
+          vtkPointTag(0), vtkCellTag(0), outOfDate(true), iConstructedMOAB(false), gidTag(0),
+          gdimTag(0), partTag(0), catTag(0), Edges(true), Faces(true), Regions(true)
 {
   semDims[0] = semDims[1] = semDims[2] = 0;
   numSemDims = 0;
-  
+
   if (!mbImpl) {
     mbImpl = new Core();
     iConstructedMOAB = true;
@@ -358,22 +402,22 @@ vtkMOABReaderPrivate::vtkMOABReaderPrivate()
   assert(MB_SUCCESS == rval);
 
   vtkIdType def_val = -1;
-  //rval = mbImpl->tag_create("__vtkCellTag", sizeof(vtkIdType), MB_TAG_DENSE, MB_TYPE_INTEGER, 
+  //rval = mbImpl->tag_create("__vtkCellTag", sizeof(vtkIdType), MB_TAG_DENSE, MB_TYPE_INTEGER,
   //                                    vtkCellTag, &def_val, true);
-  rval = mbImpl->tag_get_handle("__vtkCellTag", 
-                                sizeof(vtkIdType), 
-                                MB_TYPE_OPAQUE, 
-                                vtkCellTag, 
+  rval = mbImpl->tag_get_handle("__vtkCellTag",
+                                sizeof(vtkIdType),
+                                MB_TYPE_OPAQUE,
+                                vtkCellTag,
                                 MB_TAG_DENSE|MB_TAG_CREAT,
                                 &def_val);
   assert(MB_SUCCESS == rval);
 
-  //rval = mbImpl->tag_create("__vtkPointTag", sizeof(vtkIdType), MB_TAG_DENSE, MB_TYPE_INTEGER, 
+  //rval = mbImpl->tag_create("__vtkPointTag", sizeof(vtkIdType), MB_TAG_DENSE, MB_TYPE_INTEGER,
   //                          vtkPointTag, &def_val, true);
-  rval = mbImpl->tag_get_handle("__vtkPointTag", 
-                                sizeof(vtkIdType), 
-                                MB_TYPE_OPAQUE, 
-                                vtkPointTag, 
+  rval = mbImpl->tag_get_handle("__vtkPointTag",
+                                sizeof(vtkIdType),
+                                MB_TYPE_OPAQUE,
+                                vtkPointTag,
                                 MB_TAG_DENSE|MB_TAG_CREAT,
                                 &def_val);
   assert(MB_SUCCESS == rval);
@@ -381,40 +425,40 @@ vtkMOABReaderPrivate::vtkMOABReaderPrivate()
   vtkDataSet *ds = NULL;
   //rval = mbImpl->tag_create("__vtkDataSet", sizeof(vtkDataSet*), MB_TAG_SPARSE, MB_TYPE_OPAQUE,
   //                          vtkDSTag, &ds, true);
-  rval = mbImpl->tag_get_handle("__vtkDataSet", 
-                                sizeof(vtkDataSet*), 
+  rval = mbImpl->tag_get_handle("__vtkDataSet",
+                                sizeof(vtkDataSet*),
                                 MB_TYPE_OPAQUE,
-                                vtkDSTag, 
+                                vtkDSTag,
                                 MB_TAG_SPARSE|MB_TAG_CREAT,
                                 &ds);
   assert(MB_SUCCESS == rval);
-  
+
   rval = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gidTag);
   assert(MB_SUCCESS == rval);
-      
+
   rval = mbImpl->tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, gdimTag);
-      
+
   rval = mbImpl->tag_get_handle(PARALLEL_PARTITION_TAG_NAME, 1, MB_TYPE_INTEGER, partTag);
-      
+
   rval = mbImpl->tag_get_handle(CATEGORY_TAG_NAME, NAME_TAG_SIZE, MB_TYPE_OPAQUE, catTag);
-      
+
 }
 
-ErrorCode vtkMOABReaderPrivate::load_file(const char *file_name, const char *options, 
-                                          EntityHandle &file_set) 
+ErrorCode vtkMOABReaderPrivate::load_file(const char *file_name, const char *options,
+                                          EntityHandle &file_set)
 {
   ErrorCode rval;
-  
+
   rval = mbImpl->create_meshset(MESHSET_SET, file_set);
   if (MB_SUCCESS != rval) return rval;
 
   fileSets.insert(file_set);
-    
+
   rval = mbImpl->load_file(file_name, &file_set, options);
   if (MB_SUCCESS != rval) return rval;
 
   outOfDate = true;
-  
+
   fileNames.push_back(std::string(file_name));
 
     // check for spectral element tags, since that controls how mesh is created
@@ -427,7 +471,7 @@ ErrorCode vtkMOABReaderPrivate::load_file(const char *file_name, const char *opt
     numSemDims = semDims[0]*semDims[1];
     if (0 != semDims[2]) numSemDims *= semDims[2];
   }
-  
+
   return rval;
 }
 
@@ -441,7 +485,16 @@ vtkMOABReaderPrivate::~vtkMOABReaderPrivate()
   }
 }
 
-ErrorCode vtkMOABReaderPrivate::read_tags(EntityHandle file_set) 
+void vtkMOABReaderPrivate::set_dimensions_to_load(bool edges,
+                                                  bool faces,
+                                                  bool regions)
+{
+  this->Edges = edges;
+  this->Faces = faces;
+  this->Regions = regions;
+}
+
+ErrorCode vtkMOABReaderPrivate::read_tags(EntityHandle file_set)
 {
   ErrorCode rval;
 
@@ -453,10 +506,10 @@ ErrorCode vtkMOABReaderPrivate::read_tags(EntityHandle file_set)
   return rval;
 }
 
-ErrorCode vtkMOABReaderPrivate::read_spectral_tags(EntityHandle file_set) 
-{  
+ErrorCode vtkMOABReaderPrivate::read_spectral_tags(EntityHandle file_set)
+{
   ErrorCode rval;
-  
+
   Range elems;
   if (semDims[2])
     rval = mbImpl->get_entities_by_dimension(file_set, 3, elems);
@@ -465,7 +518,7 @@ ErrorCode vtkMOABReaderPrivate::read_spectral_tags(EntityHandle file_set)
   if (MB_SUCCESS != rval) return rval;
 
     // read velocities
-  rval = read_vector_variable("VEL_X", "VEL_Y", 
+  rval = read_vector_variable("VEL_X", "VEL_Y",
                               (semDims[2] ? "VEL_Z" : NULL), "VEL", elems);
   if (MB_SUCCESS != rval) return rval;
 
@@ -481,7 +534,7 @@ ErrorCode vtkMOABReaderPrivate::read_spectral_tags(EntityHandle file_set)
 }
 
 ErrorCode vtkMOABReaderPrivate::read_vector_variable(const char *tag1, const char *tag2, const char *tag3,
-                                                     const char *tag_name, Range &elems) 
+                                                     const char *tag_name, Range &elems)
 {
   Tag tagh1, tagh2, tagh3;
   ErrorCode rval;
@@ -516,14 +569,14 @@ ErrorCode vtkMOABReaderPrivate::read_vector_variable(const char *tag1, const cha
       if (semDims[2]) *var_ptr++ = *tagv3++;
     }
   }
-  
+
   myUG->GetPointData()->AddArray(rv);
   rv->Delete();
-    
+
   return MB_SUCCESS;
 }
 
-ErrorCode vtkMOABReaderPrivate::read_scalar_variable(const char *tag_name, Range &elems) 
+ErrorCode vtkMOABReaderPrivate::read_scalar_variable(const char *tag_name, Range &elems)
 {
   Tag tagh1;
   ErrorCode rval;
@@ -545,20 +598,20 @@ ErrorCode vtkMOABReaderPrivate::read_scalar_variable(const char *tag_name, Range
       *var_ptr++ = *tagv1++;
     }
   }
-  
+
   myUG->GetPointData()->AddArray(rv);
   rv->Delete();
-    
+
   return MB_SUCCESS;
 }
 
-ErrorCode vtkMOABReaderPrivate::read_dense_tags(EntityHandle file_set) 
-{  
+ErrorCode vtkMOABReaderPrivate::read_dense_tags(EntityHandle file_set)
+{
     // get all the tags
   std::vector<Tag> tmptags, all_tags;
   ErrorCode rval = mbImpl->tag_get_tags(tmptags);
   if (MB_SUCCESS != rval) return rval;
-  
+
   for (std::vector<Tag>::iterator vit = tmptags.begin(); vit != tmptags.end(); vit++) {
       // skip sparse tags
     TagType ttype;
@@ -580,17 +633,17 @@ ErrorCode vtkMOABReaderPrivate::read_dense_tags(EntityHandle file_set)
   vtkIdType *vids;
   void *data;
   if (MB_SUCCESS != rval) return rval;
-  std::vector<double> tag_dvals;
-  std::vector<int> tag_ivals;
+//  std::vector<double> tag_dvals;
+//  std::vector<int> tag_ivals;
   vtkIntArray *int_array;
   vtkDoubleArray *dbl_array;
   int idef, *idata;
   double ddef, *ddata;
   int min, max;
-      
+
   for (std::vector<Tag>::iterator vit = all_tags.begin(); vit != all_tags.end(); vit++) {
     if (*vit == vtkCellTag) continue;
-    
+
       // create a data array
     DataType dtype;
     rval = mbImpl->tag_get_data_type(*vit, dtype);
@@ -598,7 +651,7 @@ ErrorCode vtkMOABReaderPrivate::read_dense_tags(EntityHandle file_set)
     std::string tag_name;
     bool has_default = false;
     rval = mbImpl->tag_get_name(*vit, tag_name);
-    if (MB_SUCCESS != rval || 
+    if (MB_SUCCESS != rval ||
         (tag_name.c_str()[0] == '_' && tag_name.c_str()[1] == '_')) continue;
     if (MB_TYPE_DOUBLE == dtype) {
       dbl_array = vtkDoubleArray::New();
@@ -616,71 +669,78 @@ ErrorCode vtkMOABReaderPrivate::read_dense_tags(EntityHandle file_set)
     if (MB_SUCCESS != rval) continue;
 
     Range::iterator rit;
-    rit = ents2d.begin();
-    while (rit != ents2d.end()) {
-        // get tag iterator for gids
-      int count;
-      rval = mbImpl->tag_iterate(vtkCellTag, rit, ents2d.end(), count, (void*&)vids);
-      if (MB_SUCCESS != rval) continue;
-      
-      rval = mbImpl->tag_iterate(*vit, rit, ents2d.end(), count, data);
-      if (MB_SUCCESS != rval) continue;
-      rit += count;
-      
-      if (MB_TYPE_DOUBLE == dtype) {
-        ddata = (double*)data;
-        for (int i = 0; i < count; i++) {
-          assert(-1 < vids[i] && vids[i] < numCellIds);
-          if (!has_default || ddata[i] != ddef)
-            dbl_array->InsertValue(vids[i], ddata[i]);
+
+    if(this->Faces)
+      {
+      rit = ents2d.begin();
+      while (rit != ents2d.end()) {
+          // get tag iterator for gids
+        int count;
+        rval = mbImpl->tag_iterate(vtkCellTag, rit, ents2d.end(), count, (void*&)vids);
+        if (MB_SUCCESS != rval) continue;
+
+        rval = mbImpl->tag_iterate(*vit, rit, ents2d.end(), count, data);
+        if (MB_SUCCESS != rval) continue;
+        rit += count;
+
+        if (MB_TYPE_DOUBLE == dtype) {
+          ddata = (double*)data;
+          for (int i = 0; i < count; i++) {
+            assert(-1 < vids[i] && vids[i] < numCellIds);
+            if (!has_default || ddata[i] != ddef)
+              dbl_array->InsertValue(vids[i], ddata[i]);
+          }
         }
-      }
-      else if (MB_TYPE_INTEGER == dtype) {
-        idata = (int*)data;
-        for (int i = 0; i < count; i++) {
-          assert(-1 < vids[i] && vids[i] < numCellIds);
-          if (!has_default || idata[i] != idef)
-            int_array->InsertValue(vids[i], idata[i]);
+        else if (MB_TYPE_INTEGER == dtype) {
+          idata = (int*)data;
+          for (int i = 0; i < count; i++) {
+            assert(-1 < vids[i] && vids[i] < numCellIds);
+            if (!has_default || idata[i] != idef)
+              int_array->InsertValue(vids[i], idata[i]);
+          }
         }
+
+        min = *std::min_element(vids, vids+count);
+        max = *std::max_element(vids, vids+count);
+        MOABMeshErrorMacro(<< "2d: min = " << min << ", max =  " << max);
       }
-      
-      min = *std::min_element(vids, vids+count);
-      max = *std::max_element(vids, vids+count);
-      MOABMeshErrorMacro(<< "2d: min = " << min << ", max =  " << max);
-    }
-    
-    rit = ents3d.begin();
-    while (rit != ents3d.end()) {
-        // get tag iterator for vids
-      int count;
-      rval = mbImpl->tag_iterate(vtkCellTag, rit, ents3d.end(), count, (void*&)vids);
-      if (MB_SUCCESS != rval) continue;
-      
-      rval = mbImpl->tag_iterate(*vit, rit, ents3d.end(), count, data);
-      if (MB_SUCCESS != rval) continue;
-      rit += count;
-      
-      if (MB_TYPE_DOUBLE == dtype) {
-        ddata = (double*)data;
-        for (int i = 0; i < count; i++) {
-          assert(-1 < vids[i] && vids[i] < numCellIds);
-          if (!has_default || ddata[i] != ddef)
-            dbl_array->InsertValue(vids[i], ddata[i]);
+      }
+
+    if(this->Regions)
+      {
+      rit = ents3d.begin();
+      while (rit != ents3d.end()) {
+          // get tag iterator for vids
+        int count;
+        rval = mbImpl->tag_iterate(vtkCellTag, rit, ents3d.end(), count, (void*&)vids);
+        if (MB_SUCCESS != rval) continue;
+
+        rval = mbImpl->tag_iterate(*vit, rit, ents3d.end(), count, data);
+        if (MB_SUCCESS != rval) continue;
+        rit += count;
+
+        if (MB_TYPE_DOUBLE == dtype) {
+          ddata = (double*)data;
+          for (int i = 0; i < count; i++) {
+            assert(-1 < vids[i] && vids[i] < numCellIds);
+            if (!has_default || ddata[i] != ddef)
+              dbl_array->InsertValue(vids[i], ddata[i]);
+          }
         }
-      }
-      else if (MB_TYPE_INTEGER == dtype) {
-        idata = (int*)data;
-        for (int i = 0; i < count; i++) {
-          assert(-1 < vids[i] && vids[i] < numCellIds);
-          if (!has_default || idata[i] != idef)
-            int_array->InsertValue(vids[i], idata[i]);
+        else if (MB_TYPE_INTEGER == dtype) {
+          idata = (int*)data;
+          for (int i = 0; i < count; i++) {
+            assert(-1 < vids[i] && vids[i] < numCellIds);
+            if (!has_default || idata[i] != idef)
+              int_array->InsertValue(vids[i], idata[i]);
+          }
         }
+        min = *std::min_element(vids, vids+count);
+        max = *std::max_element(vids, vids+count);
+        MOABMeshErrorMacro(<< "3d: min = " << min << ", max =  " << max);
       }
-      min = *std::min_element(vids, vids+count);
-      max = *std::max_element(vids, vids+count);
-      MOABMeshErrorMacro(<< "3d: min = " << min << ", max =  " << max);
-    }
-    
+      }
+
     if (MB_TYPE_DOUBLE == dtype) {
       this->GetOutput()->GetCellData()->AddArray(dbl_array);
       dbl_array->Delete();
@@ -712,11 +772,11 @@ ErrorCode vtkMOABReaderPrivate::read_dense_tags(EntityHandle file_set)
       int count;
       rval = mbImpl->tag_iterate(vtkPointTag, rit, verts.end(), count, (void*&)vids);
       if (MB_SUCCESS != rval) continue;
-      
+
       rval = mbImpl->tag_iterate(*vit, rit, verts.end(), count, data);
       if (MB_SUCCESS != rval) continue;
       rit += count;
-      
+
       if (MB_TYPE_DOUBLE == dtype) {
         ddata = (double*)data;
         for (int i = 0; i < count; i++) {
@@ -733,12 +793,12 @@ ErrorCode vtkMOABReaderPrivate::read_dense_tags(EntityHandle file_set)
             int_array->InsertValue(vids[i], idata[i]);
         }
       }
-      
+
       min = *std::min_element(vids, vids+count);
       max = *std::max_element(vids, vids+count);
       MOABMeshErrorMacro(<< "verts: min = " << min << ", max =  " << max);
     }
-    
+
     if (MB_TYPE_DOUBLE == dtype) {
       this->GetOutput()->GetPointData()->AddArray(dbl_array);
       dbl_array->Delete();
@@ -755,20 +815,20 @@ ErrorCode vtkMOABReaderPrivate::read_dense_tags(EntityHandle file_set)
   return MB_SUCCESS;
 }
 
-ErrorCode vtkMOABReaderPrivate::read_sparse_tags(EntityHandle file_set) 
-{  
+ErrorCode vtkMOABReaderPrivate::read_sparse_tags(EntityHandle file_set)
+{
     // get all the tags
   std::vector<Tag> tmptags, all_tags;
   ErrorCode rval = mbImpl->tag_get_tags(tmptags);
   if (MB_SUCCESS != rval) return rval;
-  
+
   for (std::vector<Tag>::iterator vit = tmptags.begin(); vit != tmptags.end(); vit++) {
       // skip dense tags
     TagType ttype;
     DataType dtype;
     rval = mbImpl->tag_get_type(*vit, ttype);
     rval = mbImpl->tag_get_data_type(*vit, dtype);
-    if (MB_SUCCESS == rval && MB_TAG_SPARSE == ttype && MB_TYPE_INTEGER == dtype) 
+    if (MB_SUCCESS == rval && MB_TAG_SPARSE == ttype && MB_TYPE_INTEGER == dtype)
       all_tags.push_back(*vit);
   }
 
@@ -785,14 +845,14 @@ ErrorCode vtkMOABReaderPrivate::read_sparse_tags(EntityHandle file_set)
     int lmax = (*vit == gdim_tag ? 3 : 0);
     static int lvals[] = {0, 1, 2, 3};
     static const char *lnames[] = {"GeomVertex", "GeomCurve", "GeomSurface", "GeomVolume"};
-    
+
     for (int l = 0; l <= lmax; l++) {
       sets.clear();
       int *lval = lvals+l;
-      rval = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET, &(*vit), 
+      rval = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET, &(*vit),
                                                   (const void* const*)(lmax ? &lval : NULL), 1, sets);
       if (MB_SUCCESS != rval || sets.empty()) continue;
-      
+
         // create a data array
       std::string tag_name;
       //bool has_default = false;
@@ -805,7 +865,7 @@ ErrorCode vtkMOABReaderPrivate::read_sparse_tags(EntityHandle file_set)
       int_array = vtkIntArray::New();
       int_array->SetName(tag_name.c_str());
       bool had_ents = false;
-      
+
         // loop over sets then entities
       for (Range::iterator rit = sets.begin(); rit != sets.end(); rit++) {
           // get the tag value
@@ -827,7 +887,7 @@ ErrorCode vtkMOABReaderPrivate::read_sparse_tags(EntityHandle file_set)
         if (numSemDims) {
           for (unsigned int e = 0; e < vids.size(); e++) {
             for (int i = 1; i < numSemDims; i++) int_array->InsertValue(vids[e] + i, this_val);
-            
+
           }
         }
         else {
@@ -849,10 +909,10 @@ ErrorCode vtkMOABReaderPrivate::read_sparse_tags(EntityHandle file_set)
   return MB_SUCCESS;
 }
 
-ErrorCode vtkMOABReaderPrivate::construct_spectral_mesh(EntityHandle file_set) 
+ErrorCode vtkMOABReaderPrivate::construct_spectral_mesh(EntityHandle file_set)
 {
     // construct the vtk representation of the spectral mesh
-  
+
     // get all the hexes and quads
   Range all_elems;
   ErrorCode rval;
@@ -879,7 +939,7 @@ ErrorCode vtkMOABReaderPrivate::construct_spectral_mesh(EntityHandle file_set)
   RC(rval, << "Trouble getting SEM Y positions.");
   rval = tag_data_ptr_dbl("SEM_Z", numSemDims, all_elems, semz);
   RC(rval, << "Trouble getting SEM Z positions.");
-  
+
   int num_elems = all_elems.size();
   for (int coarse = 0 ; coarse < num_elems ; coarse++) {
     for (int n = 0; n < numSemDims; n++) {
@@ -891,8 +951,8 @@ ErrorCode vtkMOABReaderPrivate::construct_spectral_mesh(EntityHandle file_set)
     semy += numSemDims;
     if (semDims[2]) semz += numSemDims;
   }
-  
-  
+
+
     // set the points on the ug
   myUG->SetPoints(pts);
   pts->Delete();
@@ -938,28 +998,28 @@ ErrorCode vtkMOABReaderPrivate::construct_spectral_mesh(EntityHandle file_set)
 }
 
 ErrorCode vtkMOABReaderPrivate::tag_data_ptr_dbl(const char *tag_name, int tag_size,
-                                                 Range &elems, double *&tag_val) 
+                                                 Range &elems, double *&tag_val)
 {
   Tag tagh;
   ErrorCode rval = mbImpl->tag_get_handle(tag_name, tag_size, MB_TYPE_DOUBLE, tagh);
   if (MB_SUCCESS != rval) return rval;
-  
+
   int count;
   rval = mbImpl->tag_iterate(tagh, elems.begin(), elems.end(), count, (void*&)tag_val);
   if (MB_SUCCESS != rval) return rval;
   else if (count != (int)elems.size()) return MB_FAILURE;
-  
+
   return MB_SUCCESS;
 }
 
-ErrorCode vtkMOABReaderPrivate::construct_mesh(EntityHandle file_set) 
+ErrorCode vtkMOABReaderPrivate::construct_mesh(EntityHandle file_set)
 {
     // construct the vtk representation of the mesh
-  
+
     // get all the hexes and quads
   Range all_elems;
   ErrorCode result = MB_SUCCESS, tmp_result;
-  for (int dim = 0; dim <= 3; dim++) 
+  for (int dim = 0; dim <= 3; dim++)
   {
     tmp_result = mbImpl->get_entities_by_dimension(file_set, dim, all_elems);
     if (tmp_result != MB_SUCCESS) result = tmp_result;
@@ -981,13 +1041,14 @@ ErrorCode vtkMOABReaderPrivate::construct_mesh(EntityHandle file_set)
     }
 
   return MB_SUCCESS;
-  
+
 }
 
-ErrorCode vtkMOABReaderPrivate::create_points_vertices(EntityHandle file_set, Range &verts) 
+ErrorCode vtkMOABReaderPrivate::create_points_vertices(EntityHandle file_set, Range &verts)
 {
     // get the global id tag
   ErrorCode result;
+  numPointIds = 0;
 
   result = mbImpl->get_entities_by_type(file_set, MBVERTEX, verts);
   if (MB_SUCCESS != result)
@@ -997,7 +1058,7 @@ ErrorCode vtkMOABReaderPrivate::create_points_vertices(EntityHandle file_set, Ra
   }
 
   MOABMeshErrorMacro(<< "Gathered " << verts.size() << " vertices from MOAB.");
-  
+
     // assign ids to the vertices
   std::vector<vtkIdType> vids(verts.size());
   for (unsigned int i = 0; i < verts.size(); i++)
@@ -1009,7 +1070,7 @@ ErrorCode vtkMOABReaderPrivate::create_points_vertices(EntityHandle file_set, Ra
     MOABMeshErrorMacro( << "Couldn't set ids on vertices. " );
     return result;
   }
-  
+
     // allocate and fill in coordinate arrays
   std::vector<double*> coords(3);
   coords[0] = new double[verts.size()];
@@ -1059,6 +1120,7 @@ ErrorCode vtkMOABReaderPrivate::create_elements(EntityHandle file_set)
     // get the vertices
   Range verts;
   ErrorCode result;
+  this->numCellIds = 0;
 
     // create points/vertices in vtk database
   result = create_points_vertices(file_set, verts);
@@ -1070,7 +1132,7 @@ ErrorCode vtkMOABReaderPrivate::create_elements(EntityHandle file_set)
 
   MOABMeshErrorMacro(<< "After create_points_vertices: ug has " << myUG->GetNumberOfPoints()
                      << " points, " << myUG->GetNumberOfCells() << " cells.");
-  
+
     // for the remaining elements, add them individually
   vtkIdType ids[CN::MAX_NODES_PER_ELEMENT];
   const EntityHandle *connect;
@@ -1094,12 +1156,12 @@ ErrorCode vtkMOABReaderPrivate::create_elements(EntityHandle file_set)
       MOABMeshErrorMacro( << "Couldn't get elements vtkCellTag. " );
       return result;
     }
-    
+
     int e = 0;
     bool changed = false;
     for (Range::iterator rit = elems.begin(); rit != elems.end(); rit++, e++) {
-      if (-1 != eids[e]) continue;
-      
+//      if (-1 != eids[e]) continue;
+
         // get the connectivity of these elements
       result = mbImpl->get_connectivity(*rit, connect, num_connect, true);
       if (MB_SUCCESS != result)
@@ -1118,15 +1180,62 @@ ErrorCode vtkMOABReaderPrivate::create_elements(EntityHandle file_set)
 
         // ok, now insert this cell
       int cell_type = get_vtk_cell_type(this_type, num_connect);
-      if (-1 != cell_type 
+//      if(e == 0)
+//        {
+//        std::cout << "Element Type: " << this_type << "\t Cell Type: "  <<
+//                  cell_type << "\t" << elems.size() << " cells" << std::endl;
+//        }
+      if (-1 != cell_type
 //          && VTK_POLYHEDRON != cell_type
-          ) {
-        eids[e] = myUG->InsertNextCell(cell_type, num_connect, ids);
-        assert(eids[e] == numCellIds);
-        numCellIds++;
-        changed = true;
-      }
-/* 
+          )
+        {
+        bool insert_cell = true;
+        if(!(this->Edges))
+          {
+          if((cell_type == VTK_LINE) || (cell_type == VTK_QUADRATIC_EDGE))
+            {
+            insert_cell = false;
+            }
+          }
+        if (!(this->Faces))
+          {
+          if((cell_type == VTK_TRIANGLE) || (cell_type == VTK_QUADRATIC_TRIANGLE) ||
+             (cell_type == VTK_BIQUADRATIC_TRIANGLE) || (cell_type == VTK_QUAD) ||
+             (cell_type == VTK_QUADRATIC_QUAD) || (cell_type == VTK_BIQUADRATIC_QUAD))
+            {
+            insert_cell = false;
+            }
+          }
+        if (!(this->Regions))
+          {
+//          if((cell_type == VTK_POLYGON) || (cell_type == VTK_TETRA) ||
+//             (cell_type == VTK_QUADRATIC_TETRA) || (cell_type == VTK_PYRAMID) ||
+//             (cell_type == VTK_QUADRATIC_PYRAMID) || (cell_type == VTK_WEDGE) ||
+//             (cell_type == VTK_QUADRATIC_WEDGE) || (cell_type == VTK_HEXAHEDRON) ||
+//             (cell_type == VTK_QUADRATIC_HEXAHEDRON) || (cell_type == VTK_TRIQUADRATIC_HEXAHEDRON))
+          if((cell_type == VTK_QUADRATIC_WEDGE) || (cell_type == VTK_HEXAHEDRON) ||
+             (cell_type == VTK_WEDGE) || (cell_type == VTK_QUADRATIC_PYRAMID) ||
+             (cell_type == VTK_POLYGON) || (cell_type == VTK_TETRA) ||
+             (cell_type == VTK_PYRAMID) || (cell_type == VTK_QUADRATIC_TETRA) ||
+             (cell_type == VTK_QUADRATIC_HEXAHEDRON) || (cell_type == VTK_TRIQUADRATIC_HEXAHEDRON))
+            {
+            insert_cell = false;
+            }
+          }
+
+        if(insert_cell)
+          {
+          eids[e] = myUG->InsertNextCell(cell_type, num_connect, ids);
+          assert(eids[e] == numCellIds);
+          numCellIds++;
+          changed = true;
+          }
+        else
+          {
+          eids[e] = -1;
+          }
+        }
+/*
  * polyhedra weren't supported until later in vtk
       else if (VTK_POLYHEDRON != cell_type) {
           // need to get face ids through vtkCellTag
@@ -1164,16 +1273,17 @@ ErrorCode vtkMOABReaderPrivate::create_elements(EntityHandle file_set)
         MOABMeshErrorMacro( << "Couldn't save element ids. " );
         return result;
       }
+//      std::cout << "Number of cells in UG =\t" << myUG->GetNumberOfCells() << std::endl;
     }
   }
-  
+
   MOABMeshErrorMacro(<< "After creating cells: ug has " << myUG->GetNumberOfPoints()
                      << " points, " << myUG->GetNumberOfCells() << " cells.");
-  
+
   return MB_SUCCESS;
 }
 
-int vtkMOABReaderPrivate::get_vtk_cell_type(moab::EntityType t, int &num_connect) 
+int vtkMOABReaderPrivate::get_vtk_cell_type(moab::EntityType t, int &num_connect)
 {
   int ctype = -1;
   switch (t) {
@@ -1212,18 +1322,18 @@ int vtkMOABReaderPrivate::get_vtk_cell_type(moab::EntityType t, int &num_connect
         else if (num_connect == 21) ctype = VTK_QUADRATIC_HEXAHEDRON, num_connect = 20;
         else if (num_connect == 27) ctype = VTK_TRIQUADRATIC_HEXAHEDRON;
         break;
-/* 
+/*
  * polyhedra weren't supported until later in vtk
     case MBPOLYHEDRON:
         ctype = VTK_POLYHEDRON;
         break;
 */
   }
-  
+
   return ctype;
 }
 
-moab::ErrorCode vtkMOABReaderPrivate::construct_filters() 
+moab::ErrorCode vtkMOABReaderPrivate::construct_filters()
 {
     // apply threshold and type filters to the output to get multiple actors
     // corresponding to dual surfaces and curves, then group the dual actors
@@ -1243,7 +1353,7 @@ moab::ErrorCode vtkMOABReaderPrivate::construct_filters()
   MBTag vtkCellTag;
   MBErrorCode result = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, vtkCellTag);
   assert(MB_SUCCESS == result && 0 != vtkCellTag);
-  
+
   int ds_id;
   for (ds_id = 0; ds_id < this->NumberOfDualSurfaces; ds_id++) {
     vtkThreshold *ds_filter = vtkThreshold::New();
@@ -1253,7 +1363,7 @@ moab::ErrorCode vtkMOABReaderPrivate::construct_filters()
     ds_filter->SetInput(ug);
     this->add_name(ds_filter->GetOutput(), "dual_surf_", ds_id);
   }
-  
+
     // same for dual curves
   int dc_id;
   for (dc_id = 0; dc_id < this->NumberOfDualCurves; dc_id++) {
@@ -1276,11 +1386,11 @@ moab::ErrorCode vtkMOABReaderPrivate::construct_filters()
 }
 
 void vtkMOABReaderPrivate::add_name(vtkUnstructuredGrid *output, const char *prefix,
-                           const int id) 
+                           const int id)
 {
   vtkCharArray* nmArray =  vtkCharArray::New();
   nmArray->SetName("Name");
-  vtkstd::ostringstream name;
+  std::ostringstream name;
   name << prefix << id << "\0";
   nmArray->SetNumberOfTuples(static_cast<vtkIdType>(name.str().length()));
   char* copy = nmArray->GetPointer(0);
@@ -1289,25 +1399,24 @@ void vtkMOABReaderPrivate::add_name(vtkUnstructuredGrid *output, const char *pre
   nmArray->Delete();
 }
 
-int vtkMOABReaderPrivate::RequestData(vtkInformation *vtkNotUsed(request), 
-                                      vtkInformationVector **vtkNotUsed(inputVector), 
-                                      vtkInformationVector *outputVector) 
+int vtkMOABReaderPrivate::RequestData(vtkInformation *vtkNotUsed(request),
+                                      vtkInformationVector **vtkNotUsed(inputVector),
+                                      vtkInformationVector *outputVector)
 {
   vtkInformation* outInfo = outputVector->GetInformationObject(0);
-  vtkMultiBlockDataSet
-      *output =
-          vtkMultiBlockDataSet::SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
+  vtkMultiBlockDataSet *output =
+    vtkMultiBlockDataSet::SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
 
   const int blockI = output->GetNumberOfBlocks();
   myUG = vtkUnstructuredGrid::New();
   output->SetBlock(blockI, myUG);
   output->GetMetaData(blockI)->Set(vtkCompositeDataSet::NAME(), "Mesh");
-  
-    // get the data set & allocate an initial chunk of data
+
+  // get the data set & allocate an initial chunk of data
   myUG->Allocate();
 
   moab::ErrorCode rval;
-  if (numSemDims) 
+  if (numSemDims)
     rval = construct_spectral_mesh(*fileSets.begin());
   else
     rval = construct_mesh(*fileSets.begin());
@@ -1326,7 +1435,7 @@ int vtkMOABReaderPrivate::RequestData(vtkInformation *vtkNotUsed(request),
     return MB_FAILURE;
   }
   MOABMeshErrorMacro(<<"Filters constructed...");
-  
+
     // get all dense tags
   rval = read_tags(*fileSets.begin());
   MOABMeshErrorMacro(<<"Tags read...");
@@ -1339,22 +1448,24 @@ int vtkMOABReaderPrivate::RequestData(vtkInformation *vtkNotUsed(request),
   MOABMeshErrorMacro(<< "Numbers of cells are " << num_cells << " and " << num_cells2);
 
 
-    // process parent, tagged sets
-  rval = process_parent_sets(output);
-  if (MB_SUCCESS != rval) return 0;
-  
-  rval = process_tagged_sets(output);
-  if (MB_SUCCESS != rval) return 0;
-  
+//    // process parent, tagged sets
+//  rval = process_parent_sets(output);
+//  if (MB_SUCCESS != rval) return 0;
+
+//  rval = process_tagged_sets(output);
+//  if (MB_SUCCESS != rval) return 0;
+
+  myUG->Delete();
+
   return (rval == MB_SUCCESS);
 }
 
-ErrorCode vtkMOABReaderPrivate::process_parent_sets(vtkMultiBlockDataSet *output) 
+ErrorCode vtkMOABReaderPrivate::process_parent_sets(vtkMultiBlockDataSet *output)
 {
   Range par_sets;
   ErrorCode rval = get_top_parent_sets(par_sets);
   if (MB_SUCCESS != rval || par_sets.empty()) return rval;
-  
+
     // ok, we have parent/child hierarchy; make the top-level item, then descend recursively
   vtkMultiBlockDataSet *ds = vtkMultiBlockDataSet::New();
   const int blockI = output->GetNumberOfBlocks();
@@ -1367,13 +1478,13 @@ ErrorCode vtkMOABReaderPrivate::process_parent_sets(vtkMultiBlockDataSet *output
   }
 
   ds->Delete();
-  
+
   return MB_SUCCESS;
 }
 
-ErrorCode vtkMOABReaderPrivate::process_tagged_sets(vtkMultiBlockDataSet *output) 
+ErrorCode vtkMOABReaderPrivate::process_tagged_sets(vtkMultiBlockDataSet *output)
 {
-  
+
     // ok, we have parent/child hierarchy; make the top-level item, then descend recursively
   vtkMultiBlockDataSet *ds = vtkMultiBlockDataSet::New();
   int blockI = output->GetNumberOfBlocks();
@@ -1387,7 +1498,7 @@ ErrorCode vtkMOABReaderPrivate::process_tagged_sets(vtkMultiBlockDataSet *output
 
   for (std::vector<Tag>::iterator tag_it = tag_handles.begin(); tag_it != tag_handles.end();
        tag_it++) {
-    
+
     std::string tag_name;
     rval = mbImpl->tag_get_name(*tag_it, tag_name);
     if (MB_SUCCESS != rval) continue;
@@ -1395,7 +1506,7 @@ ErrorCode vtkMOABReaderPrivate::process_tagged_sets(vtkMultiBlockDataSet *output
     // don't display tags with "__" prefix
     if (0 == strncmp(tag_name.c_str(), "__", 2))
       continue;
-    
+
     // get all the sets which contain this tag
     Range tag_sets;
     rval = mbImpl->get_entities_by_type_and_tag(
@@ -1410,10 +1521,14 @@ ErrorCode vtkMOABReaderPrivate::process_tagged_sets(vtkMultiBlockDataSet *output
 
     for (Range::iterator rit = tag_sets.begin(); rit != tag_sets.end(); rit++) {
       vtkMultiBlockDataSet *mb = NULL;
+      bool needToDelete = false;
       ErrorCode rval = mbImpl->tag_get_data(vtkDSTag, &(*rit), 1, &mb);
       if (MB_SUCCESS != rval) return rval;
-      if (!mb) mb = get_mbdataset(tmb, *rit);
-
+      if (!mb)
+        {
+        mb = get_mbdataset(tmb, *rit);
+        needToDelete = true;
+        }
         // get the UG from the multiblock
       if (mb && mb->GetNumberOfBlocks() > 0) {
         vtkUnstructuredGrid *ug = vtkUnstructuredGrid::SafeDownCast(mb->GetBlock(0));
@@ -1427,13 +1542,19 @@ ErrorCode vtkMOABReaderPrivate::process_tagged_sets(vtkMultiBlockDataSet *output
         if (MB_SUCCESS == rval)
           tmb->GetMetaData(blockI)->Set(vtkCompositeDataSet::NAME(), set_name.c_str());
       }
+      if (mb && needToDelete)
+        {
+//        this->mbImpl->tag_delete_data(vtkDSTag, &(*rit), 1);
+//        tag_clear_data(vtkDSTag, &(*rit), 1, &mb);
+//            tag_delete_data(vtkDSTag, &(*rit), 1);
+//        mb->Delete();
+        }
     }
-
     tmb->Delete();
   }
 
   ds->Delete();
-  
+
   return MB_SUCCESS;
 }
 
@@ -1444,12 +1565,12 @@ ErrorCode vtkMOABReaderPrivate::recursive_process_set(vtkMultiBlockDataSet *outp
   bool created = false;
   ErrorCode rval = mbImpl->tag_get_data(vtkDSTag, &eset, 1, &mb);
   if (MB_SUCCESS != rval) return rval;
-  
+
   if (!mb) {
     mb = get_mbdataset(output, eset);
     created = true;
   }
-  
+
     // get children here, so we know whether to put multiblock dataset or UG into output
   Range children;
   rval = mbImpl->get_child_meshsets(eset, children);
@@ -1459,13 +1580,19 @@ ErrorCode vtkMOABReaderPrivate::recursive_process_set(vtkMultiBlockDataSet *outp
   const int blockI = output->GetNumberOfBlocks();
   if (children.empty()) {
       // no children - put UG into output block
+//    if(blockI == 0)
+//      {
+//      return MB_SUCCESS;
+//      }
     assert(blockI > 0);
     vtkUnstructuredGrid *ug = vtkUnstructuredGrid::SafeDownCast(mb->GetBlock(0));
     if (ug) output->SetBlock(blockI, ug);
   }
-  else 
+  else
+    {
     output->SetBlock(blockI, mb);
-  
+    }
+
   std::string set_name;
   rval = get_category_name(eset, set_name);
   if (MB_SUCCESS == rval && output->GetMetaData(blockI))
@@ -1477,13 +1604,16 @@ ErrorCode vtkMOABReaderPrivate::recursive_process_set(vtkMultiBlockDataSet *outp
       rval = recursive_process_set(mb, *rit);
       if (MB_SUCCESS != rval) return rval;
     }
+//    this->mbImpl->tag_delete_data(vtkDSTag, &eset, 1);
+//    tag_clear_data(vtkDSTag, &eset, 1, &mb);
+//        tag_delete_data(vtkDSTag, &eset, 1);
+//    mb->Delete();
   }
-  
   return rval;
 }
 
 vtkMultiBlockDataSet *vtkMOABReaderPrivate::get_mbdataset(vtkMultiBlockDataSet *output,
-                                                          EntityHandle eset) 
+                                                          EntityHandle eset)
 {
     // ok, NULL dataset, and we should create it
   vtkMultiBlockDataSet *ds_val;
@@ -1499,15 +1629,31 @@ vtkMultiBlockDataSet *vtkMOABReaderPrivate::get_mbdataset(vtkMultiBlockDataSet *
   verts = ents.subset_by_type(MBVERTEX);
   ents -= verts;
 
+//  if(!(this->Edges))
+//    {
+//    Range edges = ents.subset_by_dimension(1);
+//    ents -= edges;
+//    }
+//  if(!(this->Faces))
+//    {
+//    Range faces = ents.subset_by_dimension(2);
+//    ents -= faces;
+//    }
+//  if(!(this->Regions))
+//    {
+//    Range regions = ents.subset_by_dimension(3);
+//    ents -= regions;
+//    }
+
   if (ents.empty()) return ds_val;
-  
+
   int sem_cells = (semDims[0] - 1) * (semDims[1] - 1) * (semDims[2] ? (semDims[2] - 1) : 1);
 
     // automatically make an EC and a UG
   vtkExtractCells *ec_val = vtkExtractCells::New();
-  ec_val->SetInput(myUG);
+  ec_val->SetInputData(myUG);
   vtkUnstructuredGrid *ug_val = ec_val->GetOutput();
-  
+
     // add the EC's output to the multiblock dataset created above
   ds_val->SetBlock(0, ug_val);
   std::string set_name;
@@ -1515,7 +1661,7 @@ vtkMultiBlockDataSet *vtkMOABReaderPrivate::get_mbdataset(vtkMultiBlockDataSet *
   ds_val->GetMetaData((unsigned int)0)->Set(vtkCompositeDataSet::NAME(), set_name.c_str());
 
     // fill the EC from the set contents
-//  if (false) {    
+//  if (false) {
   if (!ents.empty() &&
       (!sem_cells || mbImpl->type_from_handle(*ents.begin()) == MBHEX)) {
       // fill it with the entities
@@ -1538,9 +1684,9 @@ vtkMultiBlockDataSet *vtkMOABReaderPrivate::get_mbdataset(vtkMultiBlockDataSet *
 
 #ifndef NDEBUG
     int_ptr = ids->GetPointer(0);
-    for (int i = ids->GetNumberOfIds()-1; i >= 0; i--) 
-      assert(int_ptr[i] <= numCellIds && int_ptr[i] != -1);
-#endif    
+//    for (int i = ids->GetNumberOfIds()-1; i >= 0; i--)
+//      assert(int_ptr[i] <= numCellIds && int_ptr[i] != -1);
+#endif
     ec_val->SetCellList(ids);
     ec_val->Update();
 
@@ -1548,26 +1694,27 @@ vtkMultiBlockDataSet *vtkMOABReaderPrivate::get_mbdataset(vtkMultiBlockDataSet *
       std::cout << "Found a bad ug." << std::endl;
       assert(false);
     }
-    
+
     ec_val->Delete();
     ids->Delete();
   }
-
+//  mbImpl->tag_delete_data(vtkDSTag, &eset, 1);
+//  mbImpl->tag_clear_data(vtkDSTag, &eset, 1, &ds_val);
   return ds_val;
 }
 
-ErrorCode vtkMOABReaderPrivate::get_category_name(EntityHandle eset, std::string &cat_name) 
+ErrorCode vtkMOABReaderPrivate::get_category_name(EntityHandle eset, std::string &cat_name)
 {
     // look for a category name
   char tmp_name[CATEGORY_TAG_SIZE];
   ErrorCode rval;
   int id = -1;
-  ostrstream os;
+  std::ostringstream os;
 
     // first get the gid, if any
   rval = mbImpl->tag_get_data(gidTag, &eset, 1, &id);
   if (MB_SUCCESS != rval) id = 0;
-  
+
   if (catTag) {
     rval = mbImpl->tag_get_data(catTag, &eset, 1, tmp_name);
     if (MB_SUCCESS == rval) {
@@ -1576,7 +1723,7 @@ ErrorCode vtkMOABReaderPrivate::get_category_name(EntityHandle eset, std::string
       return MB_SUCCESS;
     }
   }
-  
+
     // geom id
   static const char *lnames[] = {"Vertex", "Curve", "Surface", "Volume"};
   if (gdimTag) {
@@ -1589,7 +1736,7 @@ ErrorCode vtkMOABReaderPrivate::get_category_name(EntityHandle eset, std::string
       return MB_SUCCESS;
     }
   }
-  
+
     // partition
   if (partTag) {
     int part;
@@ -1600,14 +1747,14 @@ ErrorCode vtkMOABReaderPrivate::get_category_name(EntityHandle eset, std::string
       return MB_SUCCESS;
     }
   }
-  
+
     // nothing
   os << "Set" << id << '\0';
   cat_name = os.str();
   return MB_SUCCESS;
 }
-    
-ErrorCode vtkMOABReaderPrivate::get_top_parent_sets(Range &top_sets) 
+
+ErrorCode vtkMOABReaderPrivate::get_top_parent_sets(Range &top_sets)
 {
     // get top parent sets, which are those who aren't children of others but have
     // some children
@@ -1625,7 +1772,7 @@ ErrorCode vtkMOABReaderPrivate::get_top_parent_sets(Range &top_sets)
     if (MB_SUCCESS != tmp_rval) rval = tmp_rval;
     if (num_parents == 0 && num_children > 0) top_sets.insert(*rit);
   }
-  
+
   return rval;
 }
 

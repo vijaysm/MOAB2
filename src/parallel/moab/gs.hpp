@@ -174,7 +174,7 @@ namespace moab {
      * moab_gs_data.  If needs_reset is false after calling constructor, 
      * initialization has failed.
      *
-     * param n         number of messages to be sent
+     * param n         number of tuples in tuple list
      * param label     pointer to signed labels
      * param ulabel    pointer to unsigned labels
      * param maxv      max vector size

@@ -16,7 +16,40 @@
           This property specifies the file name for the MOAB reader.
         </Documentation>
       </StringVectorProperty>
- 
+      <IntVectorProperty
+             name="Edges"
+             animateable="0"
+             command="SetEdges"
+             number_of_elements="1"
+             default_values="0">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          This property specifies whether to load edges.
+        </Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty
+             name="Faces"
+             animateable="0"
+             command="SetFaces"
+             number_of_elements="1"
+             default_values="1">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          This property specifies whether to load faces.
+        </Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty
+             name="Regions"
+             animateable="0"
+             command="SetRegions"
+             number_of_elements="1"
+             default_values="1">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          This property specifies whether to load regions.
+        </Documentation>
+      </IntVectorProperty>
+
       <Hints>
         <ReaderFactory extensions="h5m sat brep stp cub"
                        file_description="MOAB File Formats" />
@@ -49,7 +82,7 @@
         clean_command="RemoveAllFileNames"
         command="AddFileName"
         animateable="0"
-        number_of_elements="0" 
+        number_of_elements="0"
         repeat_command="1"
         information_property="FileNameInfo" >
         <FileListDomain name="files"/>
@@ -58,7 +91,7 @@
        </Documentation>
      </StringVectorProperty>
 
-     <DoubleVectorProperty 
+     <DoubleVectorProperty
         name="TimestepValues"
         repeatable="1"
         information_only="1">

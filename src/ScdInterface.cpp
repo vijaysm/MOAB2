@@ -99,15 +99,15 @@ ScdBox *ScdInterface::get_scd_box(EntityHandle eh)
   return scd_box;
 }
 
-ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, double *coords, unsigned int num_coords,
+ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, const double * const coords, unsigned int num_coords,
                                       ScdBox *& new_box, int * const lperiodic, ScdParData *par_data)
 {
     // create a rectangular structured mesh block
   ErrorCode rval;
 
   HomCoord tmp_size = high - low + HomCoord(1, 1, 1, 0);
-  if ((tmp_size[1] && num_coords && (int)num_coords <= tmp_size[0]) ||
-      (tmp_size[2] && num_coords && (int)num_coords <= tmp_size[0]*tmp_size[1]))
+  if ((tmp_size[1] && num_coords && (int)num_coords < tmp_size[0]) ||
+      (tmp_size[2] && num_coords && (int)num_coords < tmp_size[0]*tmp_size[1]))
     return MB_FAILURE;
 
   rval = create_scd_sequence(low, high, MBVERTEX, 0, new_box);
@@ -179,8 +179,9 @@ ErrorCode ScdInterface::create_scd_sequence(HomCoord low, HomCoord high, EntityT
                                             int *is_periodic)
 {
   HomCoord tmp_size = high - low + HomCoord(1, 1, 1, 0);
-  if ((tp == MBHEX && 1 >= tmp_size[2]) ||
-      (tp == MBQUAD && 1 >= tmp_size[1]))
+  if ((tp == MBHEX && 1 >= tmp_size[2])  ||
+      (tp == MBQUAD && 1 >= tmp_size[1]) || 
+      (tp == MBEDGE && 1 >= tmp_size[0]))
     return MB_TYPE_OUT_OF_RANGE;
 
   SequenceManager *seq_mgr = mbImpl->sequence_manager();
@@ -366,7 +367,7 @@ ScdBox::ScdBox(ScdInterface *sc_impl, EntityHandle box_set,
   }
   else {
     Range elems;
-    sc_impl->mbImpl->get_entities_by_dimension(box_set, (boxDims[2] == boxDims[5] ? 2 : 3), elems);
+    sc_impl->mbImpl->get_entities_by_dimension(box_set, (boxDims[2] == boxDims[5] ? (boxDims[1] == boxDims[4] ? 1 : 2) : 3), elems);
     if (!elems.empty()) startElem = *elems.begin();
       // call the following w/o looking at return value, since it doesn't really need to be there
     if (sc_impl->boxPeriodicTag) 
@@ -597,7 +598,11 @@ ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, EntityHandle se
     // send our own start handles
   shandles[0] = box->start_vertex();
   shandles[1] = 0;
-  if (box->box_dimension() == 2) {
+  if (box->box_dimension() == 1) {
+    shandles[1] = box->start_element();
+    shandles[2] = 0;
+    shandles[3] = 0;
+  } else if (box->box_dimension() == 2) {
     shandles[2] = box->start_element();
     shandles[3] = 0;
   }
