@@ -62,7 +62,7 @@ std::vector< std::vector<EntityHandle> *> extraNodesVec;
 Tag redParentTag;
 Tag blueParentTag;
 
-int dbg_1 = 0;
+int dbg_1 = 1;
 ofstream mout_1;// some debug file
 double epsilon_1 = 1.e-5; // cm, for coincident points in P, the intersection area
 
@@ -788,6 +788,13 @@ ErrorCode intersect_meshes(EntityHandle sf1, EntityHandle sf2, EntityHandle & ou
             }
             if (nP > 1) // this will also construct triangles in the new mesh, if needed
                findNodes(redT, currentBlue, P, nP);
+         }
+         else
+         {
+           if (dbg_1)
+             std::cout << " redT and currentBlue do not intersect " << mb->id_from_handle(redT)
+                 <<" "<< mb->id_from_handle(currentBlue) << "\n";
+
          }
 
       }

@@ -56,6 +56,7 @@ std::vector<std::vector<EntityHandle> *> extraNodesVec;
 // these will be on the out mesh
 Tag redParentTag;
 Tag blueParentTag;
+Tag countTag;
 
 // some vars for current process
 // after intersection, these var are still needed by findNodes, to establish the
@@ -117,6 +118,9 @@ void createTags()
       MB_TAG_SPARSE | MB_TAG_CREAT, &defaultInt);
   rval = mb->tag_get_handle("Negative", 1, MB_TYPE_INTEGER, blueParentTag,
       MB_TAG_SPARSE | MB_TAG_CREAT, &defaultInt);
+
+  rval = mb->tag_get_handle("Counting", 1, MB_TYPE_INTEGER, countTag,
+        MB_TAG_SPARSE | MB_TAG_CREAT, &defaultInt);
 
   return;
 }
@@ -845,9 +849,13 @@ int findNodes(EntityHandle red, EntityHandle blue, double * iP, int nP)
     id = mb->id_from_handle(red);
     mb->tag_set_data(redParentTag, &polyNew, 1, &id);
 
+    static int count=0;
+    count++;
+    mb->tag_set_data(countTag, &polyNew, 1, &count);
+
     if (dbg_1)
     {
-      static int count=0;
+
       std::cout << "Count: " << count+1 << "\n";
       std::cout << " polygon " << mb->id_from_handle(polyNew) << "  nodes: " << nP << " :";
       for (int i = 0; i < nP; i++)
@@ -859,7 +867,7 @@ int findNodes(EntityHandle red, EntityHandle blue, double * iP, int nP)
         cout << iP[2 * i] << " " << iP[2 * i + 1] << " " << posi[i] << "\n";
 
       std::stringstream fff;
-      fff << "file0" <<  ++count<< ".vtk";
+      fff << "file0" <<  count<< ".vtk";
           mb->write_mesh(fff.str().c_str(), &outSet, 1);
     }
 
