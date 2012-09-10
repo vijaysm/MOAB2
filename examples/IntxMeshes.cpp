@@ -62,7 +62,7 @@ std::vector< std::vector<EntityHandle> *> extraNodesVec;
 Tag redParentTag;
 Tag blueParentTag;
 
-int dbg_1 = 1;
+int dbg_1 = 0;
 ofstream mout_1;// some debug file
 double epsilon_1 = 1.e-5; // cm, for coincident points in P, the intersection area
 
