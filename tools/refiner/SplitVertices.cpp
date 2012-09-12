@@ -47,13 +47,12 @@ void EntitySource::assign_global_ids( std::map<ProcessSet,int>& gids )
   std::vector<EntityHandle> adjacencies;
   adjacencies.resize( this->num_corners );
   std::vector<EntitySourceRecord>::iterator it;
-  int stat;
   for ( it = this->begin(); it != this->end(); ++ it )
     {
     int num_nodes;
     const EntityHandle* conn;
     this->mesh_out->get_connectivity( it->handle, conn, num_nodes );
-    stat = this->tag_manager->get_output_gids( this->num_corners, conn, it->ids );
+    this->tag_manager->get_output_gids( this->num_corners, conn, it->ids );
     std::sort( it->ids.begin(), it->ids.end() );
     }
   std::sort( this->begin(), this->end() );

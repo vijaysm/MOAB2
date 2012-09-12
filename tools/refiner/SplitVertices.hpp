@@ -210,14 +210,13 @@ bool SplitVertices<_n>::find_or_create(
   std::map<ProcessSet,int>& proc_partition_counts, bool handles_on_output_mesh )
 {
   // Get the global IDs of the input vertices
-  int stat;
   if ( handles_on_output_mesh )
     {
-    stat = this->tag_manager->get_output_gids( _n, split_src, this->split_gids );
+    this->tag_manager->get_output_gids( _n, split_src, this->split_gids );
     }
   else
     {
-    stat = this->tag_manager->get_input_gids( _n, split_src, this->split_gids );
+    this->tag_manager->get_input_gids( _n, split_src, this->split_gids );
     }
   SplitVertexIndex<_n> key( &this->split_gids[0] );
   MapIteratorType it = this->find( key );

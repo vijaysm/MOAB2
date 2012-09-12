@@ -132,10 +132,6 @@ int main(int argc, char **argv)
     std::freopen(dfname.str().c_str(), "a", stderr);
   }
 
-    // start time
-  double stime; //, rtime, setime, dtime, ltime;
-  if (0 == rank) stime = MPI_Wtime();
-
   // create MOAB instance based on that
   Interface *mbImpl = new Core();
   if (NULL == mbImpl) return 1;

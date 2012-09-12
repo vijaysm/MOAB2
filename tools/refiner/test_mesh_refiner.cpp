@@ -30,9 +30,9 @@ int TestMeshRefiner( int argc, char* argv[] )
 {
   int nprocs, rank;
 #ifdef USE_MPI
-  int err = MPI_Init( &argc, &argv );
-  err = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-  err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Init( &argc, &argv );
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #else // USE_MPI
   nprocs = 1;
   rank = 0;
@@ -150,8 +150,8 @@ int TestMeshRefiner( int argc, char* argv[] )
   delete mref; // mref will delete eref
 
 #ifdef USE_MPI
-  err = MPI_Barrier( MPI_COMM_WORLD );
-  err = MPI_Finalize();
+  MPI_Barrier( MPI_COMM_WORLD );
+  MPI_Finalize();
 #endif // USE_MPI
 
   return 0;
