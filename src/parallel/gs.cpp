@@ -111,7 +111,7 @@ namespace moab {
 	op(u[i],u[j]);				\
   } while(0)
 
-  static void local_condense(real *u, int op, const sint *cm)
+  static void local_condense(realType *u, int op, const sint *cm)
   {
     switch(op) {
     case GS_OP_ADD: LOOP(DO_ADD); break;
@@ -122,7 +122,7 @@ namespace moab {
     }
   }
 
-  static void local_uncondense(real *u, const sint *cm)
+  static void local_uncondense(realType *u, const sint *cm)
   {
     LOOP(DO_SET);
   }
@@ -132,15 +132,15 @@ namespace moab {
 #define LOOP(op) do {					\
     sint i,j,k;						\
     while((i=*cm++) != -1) {				\
-      real *pi=u+n*i;					\
+      realType *pi=u+n*i;					\
       while((j=*cm++) != -1) {				\
-	real *pj=u+n*j;					\
+	realType *pj=u+n*j;					\
 	for(k=n;k;--k) { op(*pi,*pj); ++pi, ++pj; }	\
       }							\
     }							\
   } while(0)
 
-  static void local_condense_vec(real *u, uint n, int op, const sint *cm)
+  static void local_condense_vec(realType *u, uint n, int op, const sint *cm)
   {
     switch(op) {
     case GS_OP_ADD: LOOP(DO_ADD); break;
@@ -151,7 +151,7 @@ namespace moab {
     }
   }
 
-  static void local_uncondense_vec(real *u, uint n, const sint *cm)
+  static void local_uncondense_vec(realType *u, uint n, const sint *cm)
   {
     LOOP(DO_SET);
   }
@@ -185,7 +185,7 @@ namespace moab {
     else slabels = NULL;
     ulabels = (ulong*) malloc((nulabels*count)*sizeof(ulong));
     reqs = (MPI_Request*) malloc(2*np*sizeof(MPI_Request));
-    buf = (real*) malloc((2*count*maxv)*sizeof(real));
+    buf = (realType*) malloc((2*count*maxv)*sizeof(realType));
     this->maxv = maxv;
   }
 
@@ -207,7 +207,7 @@ namespace moab {
     sh_ind = NULL;
   }
 
-  void gs_data::nonlocal_info::nonlocal(real *u, int op, MPI_Comm comm)
+  void gs_data::nonlocal_info::nonlocal(realType *u, int op, MPI_Comm comm)
   {
     MPI_Status status;
     uint np = this->np;
@@ -216,19 +216,19 @@ namespace moab {
     uint *nshared = this->nshared;
     uint *sh_ind = this->sh_ind;
     uint id;
-    real *buf = this->buf, *start;
+    realType *buf = this->buf, *start;
     unsigned int i;
     { MPI_Comm_rank(comm,(int *)&i); id=i; }
     for (i=0; i<np; ++i) {
       uint c = nshared[i];
       start = buf;
       for (;c;--c) *buf++ = u[*sh_ind++];
-      MPI_Isend(start,nshared[i]*sizeof(real),MPI_UNSIGNED_CHAR,
+      MPI_Isend(start,nshared[i]*sizeof(realType),MPI_UNSIGNED_CHAR,
 		targ[i],id,comm,reqs++);
     }
     start = buf;
     for(i=0; i<np; ++i) {
-      MPI_Irecv(start,nshared[i]*sizeof(real),MPI_UNSIGNED_CHAR,
+      MPI_Irecv(start,nshared[i]*sizeof(realType),MPI_UNSIGNED_CHAR,
 		targ[i],targ[i],comm,reqs++);
       start+=nshared[i];
     }
@@ -250,7 +250,7 @@ namespace moab {
 # undef LOOP
   }
 
-  void gs_data::nonlocal_info::nonlocal_vec(real *u, uint n,
+  void gs_data::nonlocal_info::nonlocal_vec(realType *u, uint n,
 					    int op, MPI_Comm comm)
   {
     MPI_Status status;
@@ -260,8 +260,8 @@ namespace moab {
     uint *nshared = this->nshared;
     uint *sh_ind = this->sh_ind;
     uint id;
-    real *buf = this->buf, *start;
-    uint size = n*sizeof(real);
+    realType *buf = this->buf, *start;
+    uint size = n*sizeof(realType);
     unsigned int i;
     { MPI_Comm_rank(comm,(int *)&i); id=i; }
     for (i=0; i<np; ++i) {
@@ -282,7 +282,7 @@ namespace moab {
       for(i=0;i<np;++i) {				\
 	uint c,j;					\
 	for(c=nshared[i];c;--c) {			\
-	  real *uu=u+n*(*sh_ind++);			\
+	  realType *uu=u+n*(*sh_ind++);			\
 	  for(j=n;j;--j) { OP(*uu,*buf); ++uu, ++buf; } \
 	}						\
       }							\
@@ -297,7 +297,7 @@ namespace moab {
 # undef LOOP
   }
 
-  void gs_data::nonlocal_info::nonlocal_many(real **u, uint n, int op, 
+  void gs_data::nonlocal_info::nonlocal_many(realType **u, uint n, int op, 
 					     MPI_Comm comm)
   {
     MPI_Status status;
@@ -307,20 +307,20 @@ namespace moab {
     uint *nshared = this->nshared;
     uint *sh_ind = this->sh_ind;
     uint id;
-    real *buf = this->buf, *start;
+    realType *buf = this->buf, *start;
     unsigned int i;
     { MPI_Comm_rank(comm,(int *)&i); id=i; }
     for (i=0; i<np; ++i) {
       uint c, j, ns = nshared[i];
       start = buf;
-      for (j=0; j<n; ++j) {real*uu=u[j]; for(c=0;c<ns;++c) *buf++=uu[sh_ind[c]];}
+      for (j=0; j<n; ++j) {realType*uu=u[j]; for(c=0;c<ns;++c) *buf++=uu[sh_ind[c]];}
       sh_ind+=ns;
-      MPI_Isend(start,n*ns*sizeof(real),MPI_UNSIGNED_CHAR,targ[i],id,comm,reqs++);
+      MPI_Isend(start,n*ns*sizeof(realType),MPI_UNSIGNED_CHAR,targ[i],id,comm,reqs++);
     }
     start = buf;
     for (i=0; i<np; ++i) {
       int nsn = n*nshared[i];
-      MPI_Irecv(start,nsn*sizeof(real),MPI_UNSIGNED_CHAR,
+      MPI_Irecv(start,nsn*sizeof(realType),MPI_UNSIGNED_CHAR,
 		targ[i],targ[i],comm,reqs++);
       start+=nsn;
     }
@@ -330,7 +330,7 @@ namespace moab {
       for(i=0;i<np;++i) {					\
 	uint c,j,ns=nshared[i];					\
 	for(j=0;j<n;++j) {					\
-	  real *uu=u[j];					\
+	  realType *uu=u[j];					\
 	  for(c=0;c<ns;++c) { OP(uu[sh_ind[c]],*buf); ++buf; }	\
 	}							\
 	sh_ind+=ns;						\
@@ -454,7 +454,7 @@ namespace moab {
   }
 
 #define UINT_PER_X(X) ((sizeof(X)+sizeof(uint)-1)/sizeof(uint))
-#define UINT_PER_REAL UINT_PER_X(real)
+#define UINT_PER_REAL UINT_PER_X(realType)
 #define UINT_PER_LONG UINT_PER_X(slong)
 
   /*-------------------------------------------------------------------------
@@ -470,7 +470,7 @@ namespace moab {
     const unsigned tsize = (mi-1) + ml*UINT_PER_LONG + mul*UINT_PER_LONG + 
       mr*UINT_PER_REAL;
     sint p, lp = -1;
-    sint *ri; slong *rl; ulong *rul; real *rr;
+    sint *ri; slong *rl; ulong *rul; realType *rr;
     uint i, j, *buf, *len=0, *buf_end;
 
     /* sort to group by target proc */
@@ -503,7 +503,7 @@ namespace moab {
       for (j=mul;j;--j,++rul)
 	memcpy(buf,rul,sizeof(ulong)), buf+=UINT_PER_LONG;
       for (j=mr;j;--j,++rr)
-	memcpy(buf,rr,sizeof(real )), buf+=UINT_PER_REAL;
+	memcpy(buf,rr,sizeof(realType )), buf+=UINT_PER_REAL;
       *len += tsize, all->n += tsize;
     }
 
@@ -538,7 +538,7 @@ namespace moab {
 	for (j=0;j<mi;++j) if(j!=pf) *ri++ = *buf++; else *ri++ = p;
 	for (j=ml;j;--j) memcpy(rl++,buf,sizeof(slong)), buf+=UINT_PER_LONG;
 	for (j=mul;j;--j) memcpy(rul++,buf,sizeof(ulong)), buf+=UINT_PER_LONG;
-	for (j=mr;j;--j) memcpy(rr++,buf,sizeof(real )), buf+=UINT_PER_REAL;
+	for (j=mr;j;--j) memcpy(rr++,buf,sizeof(realType )), buf+=UINT_PER_REAL;
 	llen-=tsize;
       }
     }
@@ -552,7 +552,7 @@ namespace moab {
     Combined Execution
     --------------------------------------------------------------------------*/
 
-  void gs_data::gs_data_op(real *u, int op)
+  void gs_data::gs_data_op(realType *u, int op)
   {
     local_condense(u,op,this->local_cm);
 #ifdef USE_MPI
@@ -561,7 +561,7 @@ namespace moab {
     local_uncondense(u,local_cm);
   }
 
-  void gs_data::gs_data_op_vec(real *u, uint n, int op)
+  void gs_data::gs_data_op_vec(realType *u, uint n, int op)
   {
 #ifdef USE_MPI
     if (n>nlinfo->maxv)
@@ -575,7 +575,7 @@ namespace moab {
     local_uncondense_vec(u,n,local_cm);
   }
 
-  void gs_data::gs_data_op_many(real **u, uint n, int op)
+  void gs_data::gs_data_op_many(realType **u, uint n, int op)
   {
     uint i;
 #ifdef USE_MPI

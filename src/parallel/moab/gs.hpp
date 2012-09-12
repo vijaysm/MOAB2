@@ -25,7 +25,7 @@ namespace moab {
       slong *slabels;    /* list of signed long labels (not including gid)    */
       ulong *ulabels;    /* list of unsigned long labels                      */
       MPI_Request *reqs; /* pre-allocated for MPI calls                       */
-      real *buf;         /* pre-allocated buffer to receive data              */
+      realType *buf;         /* pre-allocated buffer to receive data              */
       uint maxv;         /* maximum vector size                               */
     
       /**Constructor for nonlocal_info; takes all arguments and initializes 
@@ -49,9 +49,9 @@ namespace moab {
 
       ~nonlocal_info () { nlinfo_free(); };
 
-      void nonlocal(real *u, int op, MPI_Comm comm);
-      void nonlocal_vec(real *u, uint n, int op, MPI_Comm comm);
-      void nonlocal_many(real **u, uint n, int op, MPI_Comm comm);
+      void nonlocal(realType *u, int op, MPI_Comm comm);
+      void nonlocal_vec(realType *u, uint n, int op, MPI_Comm comm);
+      void nonlocal_many(realType **u, uint n, int op, MPI_Comm comm);
       void nlinfo_free();
     } ;
   public:
@@ -209,9 +209,9 @@ namespace moab {
 
     void reset();
 
-    void gs_data_op(real *u, int op);
-    void gs_data_op_vec(real *u, uint n, int op);
-    void gs_data_op_many(real **u, uint n, int op);
+    void gs_data_op(realType *u, int op);
+    void gs_data_op_vec(realType *u, uint n, int op);
+    void gs_data_op_many(realType **u, uint n, int op);
 
 #define GS_OP_ADD 1
 #define GS_OP_MUL 2

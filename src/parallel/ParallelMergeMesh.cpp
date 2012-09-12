@@ -655,7 +655,7 @@ namespace moab{
     a_val = a*mr;
     b_val = b*mr;
     for(unsigned long i=0; i< mr;i++){
-      real t =tup.vr_rd[a_val];
+      realType t =tup.vr_rd[a_val];
       tup.vr_wr[a_val] = tup.vr_rd[b_val];
       tup.vr_wr[b_val] = t; 
       a_val++;

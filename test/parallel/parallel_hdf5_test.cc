@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <float.h>
 #include <stdio.h>
+#include <ctime>
 
 #define STRINGIFY_(X) #X
 #define STRINGIFY(X) STRINGIFY_(X)

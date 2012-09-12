@@ -116,11 +116,11 @@ namespace moab {
     } else
       vul = NULL;
     if (max*mr > 0) {
-      size = max*mr*sizeof(real);
+      size = max*mr*sizeof(realType);
       void *resr = malloc(size);
       if(!resr && max*ml > 0) 
 	fail("%s: allocation of %d bytes failed\n",__FILE__,(int)size);
-      vr=(real*) resr;
+      vr=(realType*) resr;
     } else
       vr = NULL;
 
@@ -165,13 +165,13 @@ namespace moab {
       vul = (ulong*) resu;
     }
     if (vr || (max*mr > 0)){
-      size = max*mr*sizeof(real);
+      size = max*mr*sizeof(realType);
       void *resr = realloc(vr, size);
       if(!resr && max*mr > 0){
 	fail("%s: allocation of %d bytes failed\n",__FILE__,(int)size);
 	return moab::MB_MEMORY_ALLOCATION_FAILED;
       }
-      vr = (real*) resr;
+      vr = (realType*) resr;
     }
 
     //Set read variables
@@ -295,7 +295,7 @@ namespace moab {
     return -1;	// If the value wasn't present or an invalid key was given
   }
 
-  int TupleList::find(unsigned int key_num, real value)
+  int TupleList::find(unsigned int key_num, realType value)
   {
     if (!key_num>mr) {
       // Sequential search: TupleList cannot be sorted by reals
@@ -328,7 +328,7 @@ namespace moab {
     return 0;
   }
 
-  real TupleList::get_double(unsigned int index, unsigned int m)
+  realType TupleList::get_double(unsigned int index, unsigned int m)
   {
     if (mr>m && n>index)
       return vr[index*mr+m];
@@ -337,7 +337,7 @@ namespace moab {
 
   ErrorCode TupleList::get(unsigned int index, const sint *&sp, 
 			   const slong *&ip, const ulong *&lp,
-			   const real *&dp)
+			   const realType *&dp)
   {
     if (index <= n && index >=0){
       if (mi) *&sp = &vi[index*mi];
@@ -355,7 +355,7 @@ namespace moab {
   }
 
   unsigned int TupleList::push_back(sint *sp, slong *ip,
-				    ulong *lp, real *dp)
+				    ulong *lp, realType *dp)
   {
     reserve();
     if (mi)
@@ -365,7 +365,7 @@ namespace moab {
     if (mul)
       memcpy(&vul[mul*(n-1)], lp, mul*sizeof(ulong));
     if (mr)
-      memcpy(&vr[mr*(n-1)], dp, mr*sizeof(real));
+      memcpy(&vr[mr*(n-1)], dp, mr*sizeof(realType));
 
     last_sorted = -1;
     return n-1;
@@ -439,7 +439,7 @@ namespace moab {
     const unsigned int_size  = mi*sizeof(sint),
       long_size = ml*sizeof(slong),
       ulong_size = mul*sizeof(ulong),
-      real_size = mr*sizeof(real);
+      real_size = mr*sizeof(realType);
     if(mi) {
       uint *p=perm, *pe=p+n; char *sorted=(char *)work;
       while(p!=pe) memcpy((void *)sorted,&vi[mi*(*p++)],int_size),sorted+=int_size;
@@ -469,7 +469,7 @@ namespace moab {
     const unsigned int_size =  mi*sizeof(sint);
     const unsigned long_size = ml*sizeof(slong);
     const unsigned ulong_size = mul*sizeof(ulong);
-    const unsigned real_size = mr*sizeof(real);
+    const unsigned real_size = mr*sizeof(realType);
     const unsigned width = umax_2(umax_2(int_size,long_size),
 				  umax_2(ulong_size,real_size));
     const unsigned data_size = key>=mi? 
