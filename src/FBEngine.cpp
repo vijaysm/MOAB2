@@ -822,32 +822,36 @@ ErrorCode FBEngine::getAdjacentEntities(const EntityHandle from,
     return MB_FAILURE;
   }
 
-  ErrorCode rval;
+  ErrorCode rval = MB_SUCCESS;
   adjs.clear();
   if (to_dim > this_dim) {
     int diffDim = to_dim-this_dim;
     rval = MBI->get_parent_meshsets(from, adjs, diffDim);
+    if (MB_SUCCESS != rval) return rval;
     if (diffDim>1)
     {
       // subtract the parents that come with diffDim-1 hops
       Range extra;
       rval = MBI->get_parent_meshsets(from, extra, diffDim-1);
+      if (MB_SUCCESS != rval) return rval;
       adjs = subtract(adjs, extra);
     }
 
   } else {
     int diffDim = this_dim - to_dim;
     rval = MBI->get_child_meshsets(from, adjs, diffDim);
+    if (MB_SUCCESS != rval) return rval;
     if (diffDim > 1)
     {
       // subtract the children that come with diffDim-1 hops
       Range extra;
       rval = MBI->get_child_meshsets(from, extra, diffDim-1);
+      if (MB_SUCCESS != rval) return rval;
       adjs = subtract(adjs, extra);
     }
   }
 
-  return MB_SUCCESS;
+  return rval;
 }
 
 // so far, this one is
@@ -2216,6 +2220,7 @@ ErrorCode FBEngine::compute_intersection_points(EntityHandle & face,
           MBERRORR(MB_FAILURE, " can't get third node");
         CartVect Pt[3];
         rval = _mbImpl->get_coords(conn3, 3, (double*) &Pt[0]);
+        MBERRORR(rval, "Failed to get coords");
         int indexFirst = (thirdIndex + 1) % 3;
         int indexSecond = (thirdIndex + 2) % 3;
         int index[2] = { indexFirst, indexSecond };
