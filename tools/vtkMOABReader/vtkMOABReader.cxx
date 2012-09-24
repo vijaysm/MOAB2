@@ -1273,7 +1273,7 @@ ErrorCode vtkMOABReaderPrivate::create_elements(EntityHandle file_set)
         MOABMeshErrorMacro( << "Couldn't save element ids. " );
         return result;
       }
-//      std::cout << "Number of cells in UG =\t" << myUG->GetNumberOfCells() << std::endl;
+      std::cout << "Number of cells in UG =\t" << myUG->GetNumberOfCells() << std::endl;
     }
   }
 
@@ -1449,11 +1449,11 @@ int vtkMOABReaderPrivate::RequestData(vtkInformation *vtkNotUsed(request),
 
 
 //    // process parent, tagged sets
-//  rval = process_parent_sets(output);
-//  if (MB_SUCCESS != rval) return 0;
+  rval = process_parent_sets(output);
+  if (MB_SUCCESS != rval) return 0;
 
-//  rval = process_tagged_sets(output);
-//  if (MB_SUCCESS != rval) return 0;
+  rval = process_tagged_sets(output);
+  if (MB_SUCCESS != rval) return 0;
 
   myUG->Delete();
 
@@ -1527,7 +1527,7 @@ ErrorCode vtkMOABReaderPrivate::process_tagged_sets(vtkMultiBlockDataSet *output
       if (!mb)
         {
         mb = get_mbdataset(tmb, *rit);
-        needToDelete = true;
+        needToDelete = false;
         }
         // get the UG from the multiblock
       if (mb && mb->GetNumberOfBlocks() > 0) {
@@ -1580,10 +1580,10 @@ ErrorCode vtkMOABReaderPrivate::recursive_process_set(vtkMultiBlockDataSet *outp
   const int blockI = output->GetNumberOfBlocks();
   if (children.empty()) {
       // no children - put UG into output block
-//    if(blockI == 0)
-//      {
-//      return MB_SUCCESS;
-//      }
+    if(blockI == 0)
+      {
+      return MB_SUCCESS;
+      }
     assert(blockI > 0);
     vtkUnstructuredGrid *ug = vtkUnstructuredGrid::SafeDownCast(mb->GetBlock(0));
     if (ug) output->SetBlock(blockI, ug);
@@ -1629,21 +1629,21 @@ vtkMultiBlockDataSet *vtkMOABReaderPrivate::get_mbdataset(vtkMultiBlockDataSet *
   verts = ents.subset_by_type(MBVERTEX);
   ents -= verts;
 
-//  if(!(this->Edges))
-//    {
-//    Range edges = ents.subset_by_dimension(1);
-//    ents -= edges;
-//    }
-//  if(!(this->Faces))
-//    {
-//    Range faces = ents.subset_by_dimension(2);
-//    ents -= faces;
-//    }
-//  if(!(this->Regions))
-//    {
-//    Range regions = ents.subset_by_dimension(3);
-//    ents -= regions;
-//    }
+  if(!(this->Edges))
+    {
+    Range edges = ents.subset_by_dimension(1);
+    ents -= edges;
+    }
+  if(!(this->Faces))
+    {
+    Range faces = ents.subset_by_dimension(2);
+    ents -= faces;
+    }
+  if(!(this->Regions))
+    {
+    Range regions = ents.subset_by_dimension(3);
+    ents -= regions;
+    }
 
   if (ents.empty()) return ds_val;
 
@@ -1660,8 +1660,8 @@ vtkMultiBlockDataSet *vtkMOABReaderPrivate::get_mbdataset(vtkMultiBlockDataSet *
   rval = get_category_name(eset, set_name);
   ds_val->GetMetaData((unsigned int)0)->Set(vtkCompositeDataSet::NAME(), set_name.c_str());
 
-    // fill the EC from the set contents
-//  if (false) {
+//     fill the EC from the set contents
+ //   if (false) {
   if (!ents.empty() &&
       (!sem_cells || mbImpl->type_from_handle(*ents.begin()) == MBHEX)) {
       // fill it with the entities

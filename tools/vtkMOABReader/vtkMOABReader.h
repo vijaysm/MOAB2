@@ -14,7 +14,7 @@
 =========================================================================*/
 // .NAME vtkMOABReader - read vtk unstructured grid data file
 // .SECTION Description
-// vtkMOABReader is a source object that reads ASCII or binary 
+// vtkMOABReader is a source object that reads ASCII or binary
 // unstructured grid data files in vtk format. (see text for format details).
 // The output of this reader is a single vtkUnstructuredGrid data object.
 // The superclass of this class, vtkDataReader, provides many methods for
@@ -28,6 +28,7 @@
 #ifndef __vtkMOABReader_h
 #define __vtkMOABReader_h
 
+#include "vtkIOGeometryModule.h" // For export macro
 #include "vtkMultiBlockDataSetAlgorithm.h"
 
 class vtkInformation;
@@ -36,7 +37,7 @@ class vtkMOABReaderPrivate;
 
 #include <map>
 
-class VTK_IO_EXPORT vtkMOABReader : public vtkMultiBlockDataSetAlgorithm
+class VTKIOGEOMETRY_EXPORT vtkMOABReader : public vtkMultiBlockDataSetAlgorithm
 {
 public:
   static vtkMOABReader *New();
@@ -44,29 +45,50 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:
-  // Specify file name of the Exodus file.
+  // Specify file name of the MOAB mesh file.
   vtkSetStringMacro(FileName);
   vtkGetStringMacro(FileName);
 
+  // Description:
+  // Specify whether to include edges(1D elements)
+  vtkSetMacro(Edges, bool);
+  vtkGetMacro(Edges, bool);
+  vtkBooleanMacro(Edges, bool);
+
+  // Description:
+  // Specify whether to include faces(2D elements)
+  vtkSetMacro(Faces, bool);
+  vtkGetMacro(Faces, bool);
+  vtkBooleanMacro(Faces, bool);
+
+  // Description:
+  // Specify whether to include regions(3D elements)
+  vtkSetMacro(Regions, bool);
+  vtkGetMacro(Regions, bool);
+  vtkBooleanMacro(Regions, bool);
+
   void UpdateProgress(double amount);
-  
+
 protected:
   vtkMOABReader();
   ~vtkMOABReader();
 
-  int RequestInformation(vtkInformation *vtkNotUsed(request), 
-                         vtkInformationVector **vtkNotUsed(inputVector), 
+  int RequestInformation(vtkInformation *vtkNotUsed(request),
+                         vtkInformationVector **vtkNotUsed(inputVector),
                          vtkInformationVector *outputVector);
 
-  int RequestData(vtkInformation *vtkNotUsed(request), 
-                  vtkInformationVector **vtkNotUsed(inputVector), 
+  int RequestData(vtkInformation *vtkNotUsed(request),
+                  vtkInformationVector **vtkNotUsed(inputVector),
                   vtkInformationVector *outputVector);
-  
+
+  int FillOutputPortInformation(int port, vtkInformation *info);
+
 private:
   vtkMOABReader(const vtkMOABReader&);  // Not implemented.
   void operator=(const vtkMOABReader&);  // Not implemented.
 
   char *FileName;
+  bool Edges, Faces, Regions;
 
   vtkMOABReaderPrivate *masterReader;
 };
