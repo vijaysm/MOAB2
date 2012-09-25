@@ -616,6 +616,7 @@ ErrorCode test_interpolation(Interface *mbImpl,
 
 
     // locate those points in the source mesh
+  std::cout<<"rank "<< pcs[0]->proc_config().proc_rank() << " points of interest: " << numPointsOfInterest << "\n";
   result = mbc.locate_points(&vpos[0], numPointsOfInterest, 0, toler);
   PRINT_LAST_ERROR;
 

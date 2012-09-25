@@ -291,9 +291,9 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
       if (j == my_rank) continue;
       
         // test if point is in proc's box
-      if (allBoxes[6*j] <= xyz[i] && xyz[i] <= allBoxes[6*j+3] && 
-          allBoxes[6*j+1] <= xyz[i+1] && xyz[i+1] <= allBoxes[6*j+4] && 
-          allBoxes[6*j+2] <= xyz[i+2] && xyz[i+2] <= allBoxes[6*j+5])
+      if ( (allBoxes[6*j] <= xyz[i]+abs_eps) && ( xyz[i] <= allBoxes[6*j+3]+abs_eps) &&
+          (allBoxes[6*j+1] <= xyz[i+1]+abs_eps) && (xyz[i+1] <= allBoxes[6*j+4]+abs_eps) &&
+          (allBoxes[6*j+2] <= xyz[i+2]+abs_eps) && (xyz[i+2] <= allBoxes[6*j+5]+abs_eps))
       {
           // if in this proc's box, will send to proc to test further
           // check size, grow if we're at max
@@ -311,10 +311,14 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
     }
   }
 
+  printf("rank: %d local points: %d, nb sent target pts: %d mappedPts: %d \n",
+           my_rank, num_points, target_pts.get_n(), mappedPts->get_n());
     // perform scatter/gather, to gather points to source mesh procs
   if (myPc) {
     (myPc->proc_config().crystal_router())->gs_transfer(1, target_pts, 0);
 
+    printf("rank: %d after first gs nb received_pts: %d\n",
+               my_rank, target_pts.get_n());
       // after scatter/gather:
       // target_pts.set_n( # points local proc has to map );
       // target_pts.vi_wr[2*i] = proc sending point i
@@ -344,8 +348,13 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
       // no longer need target_pts
     target_pts.reset();
 
+    printf("rank: %d nb sent source pts: %d, mappedPts now: %d\n",
+                   my_rank, source_pts.get_n(),  mappedPts->get_n());
       // send target points back to target procs
     (myPc->proc_config().crystal_router())->gs_transfer(1, source_pts, 0);
+
+    printf("rank: %d nb received source pts: %d\n",
+                       my_rank, source_pts.get_n());
   }
   
   // store proc/index tuples in targetPts, and/or pass back to application;
@@ -380,9 +389,9 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
 
       int locIndex = source_pts.vi_rd[3*i+1];
       if(located_pts[locIndex]){  
-	//asked 2+ procs if they have point p, they both said yes, we'll keep the one with lowest rank
-	//todo: check that the cases where both say yes are justified (seemed to happen too often in tests)
-	continue;
+        //asked 2+ procs if they have point p, they both said yes, we'll keep the one with lowest rank
+        //todo: check that the cases where both say yes are justified (seemed to happen too often in tests)
+        continue;
       }
 
       located_pts[locIndex] = 1;
@@ -396,8 +405,8 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
 
   int mappedPoints  = tl_tmp->get_n() + localMappedPts.size()/2;
   int missingPoints = num_points-mappedPoints;
-  printf("point location: wanted %d got %u locally, %d remote, missing %d\n", 
-         num_points, (uint)localMappedPts.size()/2,  tl_tmp->get_n(), missingPoints);
+  printf("rank: %d point location: wanted %d got %u locally, %d remote, missing %d\n",
+         my_rank, num_points, (uint)localMappedPts.size()/2,  tl_tmp->get_n(), missingPoints);
   assert(0==missingPoints); //will litely break on curved geometries
   
     // no longer need source_pts
@@ -444,17 +453,16 @@ ErrorCode Coupler::test_local_box(double *xyz,
   if (MB_SUCCESS != result) return result;
 
     // if we didn't find any ents and we're looking locally, nothing more to do
-  if (entities.empty()){
-    if(tl){
-
+  if (entities.empty())
+  {
+    if (tl){
       if (tl->get_n() == tl->get_max())
-	tl->resize(tl->get_max() + (1+tl->get_max())/2);
+        tl->resize(tl->get_max() + (1 + tl->get_max()) / 2);
 
-      tl->vi_wr[3*tl->get_n()] = from_proc;
-      tl->vi_wr[3*tl->get_n()+1] = remote_index;
-      tl->vi_wr[3*tl->get_n()+2] = -1;
+      tl->vi_wr[3 * tl->get_n()] = from_proc;
+      tl->vi_wr[3 * tl->get_n() + 1] = remote_index;
+      tl->vi_wr[3 * tl->get_n() + 2] = -1;
       tl->inc_n();
-
     }
     point_located = false;
     return MB_SUCCESS;
@@ -477,11 +485,11 @@ ErrorCode Coupler::test_local_box(double *xyz,
     mappedPts->vul_wr[mappedPts->get_n()] = *eit;
     mappedPts->inc_n();
 
-      // also store local point, mapped point indices
+    // also store local point, mapped point indices
     if (tl) 
     {
       if (tl->get_n() == tl->get_max()) 
-	tl->resize(tl->get_max() + (1+tl->get_max())/2);
+	      tl->resize(tl->get_max() + (1+tl->get_max())/2);
 
         // store in tuple source_pts
       tl->vi_wr[3*tl->get_n()] = from_proc;
