@@ -185,7 +185,11 @@ int main(int argc, char **argv)
     Range partSets;
       // only save the target mesh
     partSets.insert((EntityHandle)roots[1]);
-    result = mbImpl->write_file(outFile.c_str(), NULL, writeOpts.c_str(), partSets);
+    std::string newwriteOpts;
+    std::ostringstream extraOpt;
+    extraOpt  << ";PARALLEL_COMM=" << 1;
+    newwriteOpts = writeOpts+extraOpt.str();
+    result = mbImpl->write_file(outFile.c_str(), NULL, newwriteOpts.c_str(), partSets);
     PRINT_LAST_ERROR;
     std::cout << "Wrote " << outFile << std::endl;
     std::cout << "mbcoupler_test complete." << std::endl;
