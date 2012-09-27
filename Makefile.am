@@ -46,6 +46,7 @@ if ENABLE_IGEOM
         GeomAssocPairSide.hpp
     libiRel_la_LIBADD += \
         ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${IGEOM_DIR}/lib/libiGeom.la
+    LIBS += ${IGEOM_LIBS}
 endif
 
 if ENABLE_FBIGEOM
@@ -56,6 +57,7 @@ if ENABLE_FBIGEOM
         FBGeomAssocPairSide.hpp
     libiRel_la_LIBADD += \
         ${FBIGEOM_LTFLAGS} ${FBIGEOM_LDFLAGS} ${FBIGEOM_DIR}/lib/libFBiGeomMOAB.la
+    LIBS += ${FBIGEOM_LIBS}
 endif
 
 if ENABLE_IMESH
@@ -66,6 +68,7 @@ if ENABLE_IMESH
         MeshAssocPairSide.hpp
     libiRel_la_LIBADD += \
         ${IMESH_LTFLAGS} ${IMESH_LDFLAGS} ${IMESH_DIR}/lib/libiMesh.la
+    LIBS += ${IMESH_LIBS}
 endif
 
 # Automake doesn't seem to have a directory defined for
