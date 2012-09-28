@@ -15,7 +15,7 @@ lib_LTLIBRARIES = libFBiGeomMOAB.la
 
 libFBiGeomMOAB_la_includedir = $(includedir)
 
-#libFBiGeomMOAB_la_LIBADD = $(top_builddir)/libMOAB.la
+libFBiGeomMOAB_la_LIBADD = $(top_builddir)/src/libMOAB.la
 
 libFBiGeomMOAB_la_SOURCES = \
 	FBiGeom_MOAB.hpp \
