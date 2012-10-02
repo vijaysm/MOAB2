@@ -437,7 +437,7 @@ namespace Element {
     // TODO: should differentiate between epsilons used for
     // Newton Raphson iteration, and epsilons used for curved boundary geometry errors
     // right now, fix the tolerance used for NR
-    tol = 1.0e-6;
+    tol = 1.0e-10;
     const double error_tol_sqr = tol*tol;
     double det;
     CartVect xi = x0;
