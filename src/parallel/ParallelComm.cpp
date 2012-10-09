@@ -3841,6 +3841,101 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     return result;
   }
 
+/**
+ *  \brief  Establish sharing info when we know the owners, and remote handles on owners
+ *  This is used in unstructured homme reading, for nodal partition method
+ *  In this case, the node partition decides what nodes are on each proc, but
+ *  some extra nodes can appear because of other elements defined on the processor
+ *  these extra nodes will need to be communicated to the owning procs, so that they know that
+ *  they have to modify their parallel sharing/multisharing flags
+ *
+ *  In our scenario, the nodes can be shared at most between 4 processors
+ */
+ErrorCode ParallelComm::establish_shared_ents(Range & owned_verts, Range & not_owned_verts,
+        std::vector<int> & processors, std::vector<EntityHandle> &remote_handles,
+        std::vector<int> & not_owned_gids)
+{
+  //
+  /* so, we will do a crystal routing scheme
+   * tuple list will have:
+   * (current proc, send_to_proc, current handle, remote handle)
+   * (we happen to know the remote handle in our very specific problem)
+   *
+   * After crystal routing, the tuple will have
+   *  (sending proc, handle on the sending proc, handle on the current proc)
+   *
+   *  so basically, each proc will receive the remote handles on the other processors.
+   *  After ordering them, by the now local handle, we can decide if a handle is shared, multishared, or simply
+   *  owned. And we can then set all 5 flags. We do not even need to touch the global id, maybe just for
+   *  debug purposes.
+   */
+  bool localdebug = true;
+  TupleList remoting_entities;
+  uint nents = not_owned_verts.size();
+  assert(not_owned_verts.size() == processors.size());
+  assert(processors.size()==remote_handles.size());
+  // initialize(uint mi, uint ml, uint mul, uint mr, uint max);
+  // we will have owning_proc | local_handle_not_owned | remote_handle_on_owning_proc
+  // upon receiving, it will be
+  remoting_entities.initialize(2, 0, 2, 0, nents);
+  remoting_entities.enableWriteAccess();
+  for (unsigned int i=0; i<nents; i++)
+  {
+    remoting_entities.vi_wr[2*i] = processors[i]; // send to processor
+    remoting_entities.vi_wr[2*i+1] = not_owned_gids[i]; // mostly for debug purposes
+    remoting_entities.vul_wr[2*i] = not_owned_verts[i];// local handle on the current proc
+    remoting_entities.vul_wr[2*i+1] = remote_handles[i]; // this is the remote handle on receiving proc
+                                                             // (can be deduced from global id)
+    remoting_entities.inc_n();
+  }
+
+  if (localdebug)
+  {
+    std::cout<< "proc rank:" << this->rank() << " sending out:" << remoting_entities.get_n() << std::endl;
+    //remoting_entities.print("remote entities");
+  }
+  // perform scatter/gather, to gather handles on local proc
+  this->proc_config().crystal_router()->gs_transfer(1, remoting_entities, 0);
+
+  if (localdebug)
+    std::cout<< "proc rank:" << this->rank() << " receive:" << remoting_entities.get_n() << std::endl;
+  // after this, what do we have on receive? remote proc, remote handle, and local handle
+  // we can now sort according to local handle, and based on how many , we can set
+  // sharedp or multishared
+  // I don't think we need to allocate that much, maybe twice the size
+  int max_size = remoting_entities.get_n() *(2*sizeof(int) + 2*sizeof(long int));
+  moab::TupleList::buffer sort_buffer;
+  sort_buffer.buffer_init(max_size);
+  // now, the key 2 is the one for what is now local handle
+  remoting_entities.sort(3, &sort_buffer);
+  sort_buffer.reset();
+  // now, loop through what is now local handle on this proc, and count repeats
+  int nrh = remoting_entities.get_n();
+  remoting_entities.enableWriteAccess();
+  // see if we have a node that is repeated once or twice?
+  if (localdebug)
+  {
+    for (int i=0; i< nrh-1; i++)
+    {
+      if (remoting_entities.vul_wr[2*i+1]==remoting_entities.vul_wr[2*i+3])
+      {
+        std::cout<< "proc rank:" << this->rank() << " i:"<< i << " handle:" << remoting_entities.vul_wr[2*i+1] << std::endl;
+        std::cout<< "proc rank:" << this->rank() << " i:"<< i << " gids:" << remoting_entities.vi_wr[2*i+1] <<
+            " " << remoting_entities.vi_wr[2*i+1] << std::endl;
+        std::cout.flush();
+      }
+    }
+   // remoting_entities.print("remote entities after");
+  }
+
+  // do we need to set the handles that are not owned? maybe
+  // keep that in mind.
+  // we could use some methods that sets shared tags after routing; do we need to communicate back?
+  //  (to the proc that do not own them?)
+
+  return MB_SUCCESS;
+}
+
   void ParallelComm::define_mpe() 
   {
 #ifdef USE_MPE

@@ -24,6 +24,7 @@ TESTS = pcomm_unit \
         scdtest \
         pcomm_serial \
 	$(NETCDF_TESTS) \
+	$(PNETCDF_TESTS) \
         $(HDF5_TESTS)
 
 if PARALLEL_HDF5
@@ -36,6 +37,13 @@ if NETCDF_FILE
   NETCDF_TESTS = scdpart
 else
   NETCDF_TESTS = 
+endif
+
+if PNETCDF_FILE
+  PNETCDF_TESTS = ucdtrvpart 
+#    ucdnodpart
+else
+  PNETCDF_TESTS = 
 endif
 
 check_PROGRAMS = $(TESTS) mbparallelcomm_test partcheck structured3 parmerge
@@ -53,6 +61,8 @@ partcheck_SOURCES = partcheck.cpp
 structured3_SOURCES = structured3.cpp
 parmerge_SOURCES = parmerge.cpp
 scdpart_SOURCES = scdpart.cpp
+ucdtrvpart_SOURCES = ucdtrvpart.cpp
+# ucdnodpart_SOURCES = ucdnodpart.cpp
 
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = mhdf_ll.h5m tmp0.h5m tmp1.h5m tmp2.h5m tmp3.h5m

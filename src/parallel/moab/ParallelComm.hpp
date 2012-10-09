@@ -434,6 +434,15 @@ namespace moab {
     static ErrorCode resolve_shared_ents(ParallelComm **pc, 
                                          const unsigned int np, 
                                          const int to_dim);
+
+    /**
+     *  \brief  Establish sharing info when we know the owners, and remote handles on owners
+     *  This is used in unstructured homme reading, for nodal partition method
+     */
+    ErrorCode establish_shared_ents(Range & owned_verts, Range & not_owned_verts,
+            std::vector<int> & processors, std::vector<EntityHandle> &remote_handles,
+            std::vector<int> & not_owned_gids);
+
     /** Remove shared sets.
      *
      * Generates list of candidate sets using from those (directly)
@@ -442,6 +451,7 @@ namespace moab {
      *\param this_set  Set directly containing candidate sets (e.g. file set)
      *\param id_tag    Tag containing global IDs for entity sets.
      */
+
     ErrorCode resolve_shared_sets( EntityHandle this_set, const Tag* id_tag = 0 );
   
     /** Remove shared sets.

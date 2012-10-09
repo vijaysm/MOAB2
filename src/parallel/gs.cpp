@@ -628,7 +628,7 @@ namespace moab {
       uint i; sint *nzi; long *nzl; unsigned long *nzul;
       nzi=nonzero.vi_wr; nzl=nonzero.vl_wr; nzul=nonzero.vul_wr;
       for (i=0; i<n; ++i)
-	if (label[i]!=0) {
+	if (label[nlabels*i]!=0) {
 	  nzi[0]=i;
 	  for (j = 0; j < nlabels; j++)
 	    nzl[j]=label[nlabels*i+j];
@@ -655,7 +655,7 @@ namespace moab {
       sint  *nzi=nonzero.vi_wr, *pi=primary.vi_wr;
       slong *nzl=nonzero.vl_wr, *pl=primary.vl_wr;
       ulong *nzul=nonzero.vul_wr, *pul=primary.vul_wr;
-      sint last=-1;
+      slong last=-1;
       for (i=0; i<nonzero.get_n(); ++i,nzi+=1,nzl+=nlabels,nzul+=nulabels) {
 	if (nzl[0]==last) {
 	  ++pi[-1];
@@ -695,7 +695,8 @@ namespace moab {
     {
       uint i, ln; sint *pi=primary.vi_wr;
       sint *cm = this->local_cm;
-      for (i=primary.get_n(); i>0; --i,pi+=3) if((ln=pi[2])>1) {
+      for (i=primary.get_n(); i>0; --i,pi+=3) 
+        if((ln=pi[2])>1) {
 	  sint *nzi=nonzero.vi_wr+1*pi[0];
 	  for (j=ln; j>0; --j,nzi+=1) *cm++ = nzi[0];
 	  *cm++ = -1;
@@ -721,7 +722,7 @@ namespace moab {
     /* add sentinel to primary list */
     if (primary.get_n()==primary.get_max()) primary.resize((primary.get_max() ?
 						primary.get_max()+(primary.get_max()+1)/2+1 : 2));
-    primary.vl_wr[primary.get_n()] = -1;
+    primary.vl_wr[nlabels*primary.get_n()] = -1;
     /* construct shared list: (proc1, proc2, index1, label) */
 #ifdef USE_MPI
     shared.initialize(3,nlabels,nulabels,0,primary.get_n());
