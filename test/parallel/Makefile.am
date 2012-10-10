@@ -40,7 +40,8 @@ else
 endif
 
 if PNETCDF_FILE
-  PNETCDF_TESTS = ucdtrvpart 
+  PNETCDF_TESTS = 
+#    ucdtrvpart 
 #    ucdnodpart
 else
   PNETCDF_TESTS = 
@@ -61,7 +62,7 @@ partcheck_SOURCES = partcheck.cpp
 structured3_SOURCES = structured3.cpp
 parmerge_SOURCES = parmerge.cpp
 scdpart_SOURCES = scdpart.cpp
-ucdtrvpart_SOURCES = ucdtrvpart.cpp
+# ucdtrvpart_SOURCES = ucdtrvpart.cpp
 # ucdnodpart_SOURCES = ucdnodpart.cpp
 
 # Other files to clean up (e.g. output from tests)
