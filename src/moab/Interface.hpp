@@ -671,6 +671,23 @@ public:
                                          const EntityHandle *to_handles,
                                          const int num_handles) = 0;
 
+    /**\brief Get a ptr to adjacency lists
+     * Get a pointer to adjacency lists.  These lists are std::vector<EntityHandle>, which are pointed
+     * to by adjs[i].  Adjacencies are not guaranteed to be in order of increasing dimension.  Only a 
+     * const version of this function is given, because adjacency data is managed more carefully in MOAB
+     * and should be treated as read-only by applications.  If adjacencies have not yet been initialized,
+     * adjs_ptr will be NULL (i.e. adjs_ptr == NULL).  There may also be NULL entries for individual entities,
+     * i.e. adjs_ptr[i] == NULL.
+     * \param iter Iterator to beginning of entity range desired
+     * \param end End iterator for which adjacencies are requested
+     * \param adjs_ptr Pointer to pointer to const std::vector<EntityHandle>; each member of that array is 
+     *                 the vector of adjacencies for this entity
+     * \param count Number of entities in the contiguous chunk starting from *iter
+     */
+  virtual ErrorCode adjacencies_iterate(Range::const_iterator iter,
+                                        Range::const_iterator end,
+                                        const std::vector<EntityHandle> **& adjs_ptr,
+                                        int& count) = 0;
     /**@}*/
 
     //! Enumerated type used in get_adjacencies() and other functions

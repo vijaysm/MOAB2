@@ -4486,7 +4486,7 @@ ErrorCode mb_merge_test()
        0 != num_ents) ||
       (MB_SUCCESS == MB->get_number_entities_by_dimension(0, 2, num_ents) &&
        0 != num_ents))
-    result = MB->write_mesh("merge_test.ncdf");
+    result = MB->write_mesh("merge_test.g");
   ;
   
 

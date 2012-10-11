@@ -645,27 +645,38 @@ ErrorCode Core::serial_load_file( const char* file_name,
     return rval;
 
     // otherwise try using the file extension to select a reader
-  ReaderIface* reader = set->get_file_extension_reader( file_name );
-  if (reader)
+  std::string ext = set->extension_from_filename( file_name );
+
+    // Try all the readers
+  ReaderWriterSet::iterator iter;
+  rval = MB_FAILURE;
+  bool tried_one = false;
+  for (iter = set->begin(); iter != set->end(); ++iter)
   {
-    rval = reader->load_file( file_name, file_set, opts, subsets, id_tag );
-    delete reader;
+    if (!iter->reads_extension(ext.c_str())) continue;
+    
+    ReaderIface *reader = iter->make_reader( this );
+    if (NULL != reader)
+    {
+      tried_one = true;
+      rval = reader->load_file( file_name, file_set, opts, subsets, id_tag );
+      delete reader;
+      if (MB_SUCCESS == rval)
+        break;
+      clean_up_failed_read( initial_ents, initial_tags );
+    }
   }
-  else
-  {  
-      // Try all the readers
-    ReaderWriterSet::iterator iter;
+
+  if (MB_SUCCESS != rval && !tried_one) {
+      // didn't recognize the extension; try all of them now
     for (iter = set->begin(); iter != set->end(); ++iter)
     {
-      reader = iter->make_reader( this );
-      if (NULL != reader)
-      {
-        rval = reader->load_file( file_name, file_set, opts, subsets, id_tag );
-        delete reader;
-        if (MB_SUCCESS == rval)
-          break;
-        clean_up_failed_read( initial_ents, initial_tags );
-      }
+      ReaderIface *reader = iter->make_reader( this );
+      if (!reader) continue;
+      rval = reader->load_file( file_name, file_set, opts, subsets, id_tag );
+      delete reader;
+      if (MB_SUCCESS == rval) break;
+      else clean_up_failed_read(initial_ents, initial_tags);
     }
   }
   
@@ -761,36 +772,35 @@ ErrorCode Core::write_file( const char* file_name,
   bool overwrite = (rval == MB_ENTITY_NOT_FOUND);
 
     // Get the file writer
-  ReaderWriterSet::iterator i;
-  if (file_type) {
-    i = reader_writer_set()->handler_by_name( file_type );
-    if (i == reader_writer_set()->end()) {
-      mError->set_last_error( "Unknown file type: %s\n", file_type );
-      return MB_NOT_IMPLEMENTED;
-    }
-  }
-  else {
-    std::string ext = ReaderWriterSet::extension_from_filename( file_name );
-    i = reader_writer_set()->handler_from_extension( ext );
-  }
-  
-  WriterIface* writer;
-  if (i == reader_writer_set()->end())
-    writer = new DefaultWriter(this);
-  else
-    writer = i->make_writer( this );
-  
-  if (!writer) {
-    mError->set_last_error( "File format supported for reading only.\n" );
-    return MB_NOT_IMPLEMENTED;
-  }
-  
-    // write the file
+  std::string ext = ReaderWriterSet::extension_from_filename( file_name );
   std::vector<std::string> qa_records;
   const EntityHandle* list_ptr = list.empty() ? (EntityHandle*)0 : &list[0];
-  rval = writer->write_file(file_name, overwrite, opts, list_ptr, list.size(), qa_records,
-                            tag_list, num_tags );
-  delete writer;
+
+  rval = MB_TYPE_OUT_OF_RANGE;
+  
+  for (ReaderWriterSet::iterator i = reader_writer_set()->begin(); 
+       i != reader_writer_set()->end(); i++) {
+    
+    if ((file_type && !i->name().compare(file_type)) ||
+        i->writes_extension(ext.c_str())) {
+
+      WriterIface *writer = i->make_writer(this);
+      
+    // write the file
+      rval = writer->write_file(file_name, overwrite, opts, list_ptr, list.size(), qa_records,
+                                tag_list, num_tags );
+      delete writer;
+    }
+  }
+
+  if (file_type && rval == MB_TYPE_OUT_OF_RANGE)
+    mError->set_last_error( "Unrecognized file type \"%s\"", file_type);
+
+  else if (MB_SUCCESS != rval) {
+    DefaultWriter writer(this);
+    rval = writer.write_file(file_name, overwrite, opts, list_ptr, list.size(), qa_records,
+                             tag_list, num_tags );
+  }
   
   if (MB_SUCCESS == rval && !opts.all_seen()) {
     std::string bad_opt;
@@ -1686,6 +1696,42 @@ ErrorCode Core::remove_adjacencies(const EntityHandle entity_handle,
   }
 
   return result;
+}
+
+ErrorCode Core::adjacencies_iterate(Range::const_iterator iter,
+                                    Range::const_iterator end,
+                                    const std::vector<EntityHandle> **& adjs_ptr,
+                                    int& count)
+{
+    // Make sure the entity should have a connectivity.
+  EntityType type = TYPE_FROM_HANDLE(*iter);
+  
+    // WARNING: This is very dependent on the ordering of the EntityType enum
+  if(type < MBVERTEX || type > MBENTITYSET)
+    return MB_TYPE_OUT_OF_RANGE;
+
+  EntitySequence* seq = NULL;
+
+    // We know that connectivity is stored in an EntitySequence so jump straight
+    // to the entity sequence
+  ErrorCode rval = sequence_manager()->find(*iter, seq);
+  if (!seq || rval != MB_SUCCESS) 
+    return MB_ENTITY_NOT_FOUND;
+
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  adjs_ptr = const_cast<const std::vector<EntityHandle>**>(seq->data()->get_adjacency_data());
+  if (!adjs_ptr) 
+    return rval;
+  
+  adjs_ptr += *iter - seq->data()->start_handle();
+
+  EntityHandle real_end = *(iter.end_of_block());
+  if (*end) real_end = std::min(real_end, *end);
+  count = real_end - *iter + 1;
+
+  return MB_SUCCESS;
 }
 
 ErrorCode Core::get_entities_by_dimension(const EntityHandle meshset,

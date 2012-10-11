@@ -69,7 +69,7 @@ MOSTLYCLEANFILES = mb_write.g \
                    tet_mid_edge_face_nodes.g \
                    tri_mid_edge_face_nodes.g \
                    mb_stress_out.g \
-                   merge_test.ncdf \
+                   merge_test.g \
                    tree.h5m 
 
 # Tests and such

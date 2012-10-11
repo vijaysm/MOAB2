@@ -128,6 +128,9 @@ class ReaderWriterSet
       
       inline WriterIface* make_writer( Interface* iface ) const
         { return have_writer() ? mWriter(iface) : NULL; }
+
+      bool reads_extension(const char *ext) const;
+      bool writes_extension(const char *ext) const;
       
       bool operator==( const char* name ) const;
       

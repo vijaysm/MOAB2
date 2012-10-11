@@ -31,6 +31,8 @@
 #include "Tqdcfr.hpp"
 #include "ReadTetGen.hpp"
 #include "ReadSmf.hpp"
+#include "ReadTemplate.hpp"
+#include "ReadTxt.hpp"
 #ifdef CGM
 #  include "ReadCGM.hpp"
 #endif
@@ -41,7 +43,7 @@
 #include "WriteSTL.hpp"
 #include "WriteGmsh.hpp"
 #include "WriteSmf.hpp"
-#include "ReadTxt.hpp"
+#include "WriteTemplate.hpp"
 
 #ifdef NETCDF_FILE
 #  include "ReadNCDF.hpp"
@@ -154,6 +156,10 @@ ReaderWriterSet::ReaderWriterSet( Core* mdb, Error* handler )
 
   const char* txt_sufxs[] = { "txt", NULL };
   register_factory( ReadTxt::factory, 0, "Txt input files", txt_sufxs, "TXT" );
+
+  const char* template_sufxs[] = { NULL };
+  register_factory( ReadTemplate::factory, WriteTemplate::factory, "Template input files", template_sufxs, "TEMPLATE" );
+
 }
 
 
@@ -285,6 +291,30 @@ ReaderWriterSet::handler_from_extension( const std::string& ext,
   }
   
   return end();
+}
+
+bool ReaderWriterSet::Handler::reads_extension(const char *ext) const 
+{
+  if (!have_reader()) return false;
+  
+  std::vector<std::string>::const_iterator siter;
+  for (siter = mExtensions.begin(); siter != mExtensions.end(); ++siter)
+    if (!(*siter).compare(ext)) return true;
+    else if (0 == strcasecmp( siter->c_str(), ext)) return true;
+
+  return false;
+}
+
+bool ReaderWriterSet::Handler::writes_extension(const char *ext) const 
+{
+  if (!have_writer()) return false;
+  
+  std::vector<std::string>::const_iterator siter;
+  for (siter = mExtensions.begin(); siter != mExtensions.end(); ++siter)
+    if (!(*siter).compare(ext)) return true;
+    else if (0 == strcasecmp( siter->c_str(), ext)) return true;
+
+  return false;
 }
 
 ReaderWriterSet::iterator

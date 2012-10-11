@@ -19,6 +19,8 @@
 
 #include "moab/Types.hpp"
 
+#include <vector>
+
 namespace moab {
 
 class FileOptions;
