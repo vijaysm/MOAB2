@@ -40,8 +40,7 @@ else
 endif
 
 if PNETCDF_FILE
-  PNETCDF_TESTS = 
-#    ucdtrvpart 
+  PNETCDF_TESTS =  ucdtrvpart read_nc_par
 #    ucdnodpart
 else
   PNETCDF_TESTS = 
@@ -62,8 +61,10 @@ partcheck_SOURCES = partcheck.cpp
 structured3_SOURCES = structured3.cpp
 parmerge_SOURCES = parmerge.cpp
 scdpart_SOURCES = scdpart.cpp
-# ucdtrvpart_SOURCES = ucdtrvpart.cpp
-# ucdnodpart_SOURCES = ucdnodpart.cpp
-
+if PNETCDF_FILE
+  ucdtrvpart_SOURCES = ucdtrvpart.cpp
+  read_nc_par_SOURCES=../io/read_nc.cpp
+  # ucdnodpart_SOURCES = ucdnodpart.cpp
+endif
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = mhdf_ll.h5m tmp0.h5m tmp1.h5m tmp2.h5m tmp3.h5m

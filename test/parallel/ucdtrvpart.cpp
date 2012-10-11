@@ -31,7 +31,7 @@ int main(int argc, char **argv)
 
 void test_read_parallel_ucd_trivial()
 {
-  partition_method = std::string(";PARTITION_METHOD=TRIVIAL_PARTITION");
+  partition_method = std::string(";PARTITION_METHOD=TRIVIAL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS");
   test_read_parallel(3458);
 }
   
