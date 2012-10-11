@@ -14,6 +14,9 @@ MOAB_LDFLAGS = @EXPORT_LDFLAGS@
 
 MOAB_LIBS_LINK = ${MOAB_LDFLAGS} -L${MOAB_LIBDIR} -lMOAB @LIBS@ @PNETCDF_LIBS@ @NETCDF_LIBS@ @HDF5_LIBS@ @CCMIO_LIBS@ @CGM_LIBS@
 
+MOAB_CXX = @CXX@
+MOAB_CC  = @CC@
+
 # Override MOAB_LIBDIR and MOAB_INCLUDES from above with the correct
 # values for the installed MOAB.
 

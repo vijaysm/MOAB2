@@ -1,0 +1,19 @@
+====================
+The moabuse tutorial
+====================
+
+The source files in this directory define a set of examples that
+constitute the moabuse tutorial. This tutorial is meant to demonstrate
+the functionality of the MOAB library beginning with very simple
+examples. If you are new to MOAB, start with the first one
+(moabuse1.cpp) then work your way through. READ THE COMMENTS. Later
+examples assume you have looked at previous ones.
+
+Each source file in the tutorial should be compiled as a separate
+program and linked to MOAB. Each example includes the "mberr.hpp"
+header file as well.
+
+There should be a Makefile in the examples/moabuse directory. Just
+type "make" to build all of the examples or "make moabuseN" to build
+example N.
+
