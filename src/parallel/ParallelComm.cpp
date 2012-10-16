@@ -3849,9 +3849,10 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
  *  these extra nodes will need to be communicated to the owning procs, so that they know that
  *  they have to modify their parallel sharing/multisharing flags
  *
- *  In our scenario, the nodes can be shared at most between 4 processors
+ *  In our scenario, the nodes can be shared between 4 processors, at most, but we will not assume that
+ *  Also, we do not really need to send the non_owned_gids, they can be inferred from not_owned_verts
  */
-ErrorCode ParallelComm::establish_shared_ents(Range & owned_verts, Range & not_owned_verts,
+ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_owned_verts,
         std::vector<int> & processors, std::vector<EntityHandle> &remote_handles,
         std::vector<int> & not_owned_gids)
 {
@@ -3875,15 +3876,26 @@ ErrorCode ParallelComm::establish_shared_ents(Range & owned_verts, Range & not_o
   assert(not_owned_verts.size() == processors.size());
   assert(processors.size()==remote_handles.size());
   // initialize(uint mi, uint ml, uint mul, uint mr, uint max);
-  // we will have owning_proc | local_handle_not_owned | remote_handle_on_owning_proc
-  // upon receiving, it will be
-  remoting_entities.initialize(2, 0, 2, 0, nents);
+  // we will have owning_proc | gid | local_handle_not_owned | remote_handle_on_owning_proc
+  // upon receiving, it will be from_proc | gid | remote handle on the sending proc | local_handle_on_receiving_proc
+  remoting_entities.initialize(1, 1, 2, 0, nents);
   remoting_entities.enableWriteAccess();
+  Tag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
+  ErrorCode result = get_shared_proc_tags(sharedp_tag, sharedps_tag,
+                                          sharedh_tag, sharedhs_tag,
+                                          pstatus_tag);
+  RRA("Failed getting shared tags");
+
+  std::vector<unsigned char> pvals(not_owned_verts.size(), PSTATUS_NOT_OWNED);
+  result = mbImpl->tag_set_data(pstatus_tag, not_owned_verts, &pvals[0]);
+  RRA(" can't set parallel status tag on not owned entities");
+
   for (unsigned int i=0; i<nents; i++)
   {
-    remoting_entities.vi_wr[2*i] = processors[i]; // send to processor
-    remoting_entities.vi_wr[2*i+1] = not_owned_gids[i]; // mostly for debug purposes
+    remoting_entities.vi_wr[i] = processors[i]; // send to processor
+    remoting_entities.vl_wr[i] = not_owned_gids[i]; // mostly for debug purposes
     remoting_entities.vul_wr[2*i] = not_owned_verts[i];// local handle on the current proc
+    // for this one, we know the
     remoting_entities.vul_wr[2*i+1] = remote_handles[i]; // this is the remote handle on receiving proc
                                                              // (can be deduced from global id)
     remoting_entities.inc_n();
@@ -3906,7 +3918,7 @@ ErrorCode ParallelComm::establish_shared_ents(Range & owned_verts, Range & not_o
   int max_size = remoting_entities.get_n() *(2*sizeof(int) + 2*sizeof(long int));
   moab::TupleList::buffer sort_buffer;
   sort_buffer.buffer_init(max_size);
-  // now, the key 2 is the one for what is now local handle
+  // now, the key 3 is the one for what is now local handle
   remoting_entities.sort(3, &sort_buffer);
   sort_buffer.reset();
   // now, loop through what is now local handle on this proc, and count repeats
@@ -3917,11 +3929,15 @@ ErrorCode ParallelComm::establish_shared_ents(Range & owned_verts, Range & not_o
   {
     for (int i=0; i< nrh-1; i++)
     {
+      // look at the local handle now (vul[1])
       if (remoting_entities.vul_wr[2*i+1]==remoting_entities.vul_wr[2*i+3])
       {
         std::cout<< "proc rank:" << this->rank() << " i:"<< i << " handle:" << remoting_entities.vul_wr[2*i+1] << std::endl;
-        std::cout<< "proc rank:" << this->rank() << " i:"<< i << " gids:" << remoting_entities.vi_wr[2*i+1] <<
-            " " << remoting_entities.vi_wr[2*i+1] << std::endl;
+        std::cout<< "proc rank:" << this->rank() << " i:"<< i << " gids:" << remoting_entities.vl_wr[i] << " "
+            << remoting_entities.vl_wr[i+1] <<
+            " from procs:" << remoting_entities.vi_wr[i] << " "
+            << remoting_entities.vi_wr[i+1]<< " now remote handles:"
+            << remoting_entities.vul_wr[2*i] << " " <<remoting_entities.vul_wr[2*i+2] << std::endl;
         std::cout.flush();
       }
     }
@@ -3932,6 +3948,214 @@ ErrorCode ParallelComm::establish_shared_ents(Range & owned_verts, Range & not_o
   // keep that in mind.
   // we could use some methods that sets shared tags after routing; do we need to communicate back?
   //  (to the proc that do not own them?)
+
+  // first, look at the now local handle, and see how many times it is shared with other
+  // processors.
+
+  int countShared=0;
+  int countMultiSharedList = 0;
+  int i=0;
+  std::vector<int> multiSharedStartEnd;
+  for (i=0; i< nrh; i++)
+  {
+    EntityHandle local_handle=remoting_entities.vul_wr[2*i+1]; // it was remote before
+    int remote_proc = remoting_entities.vi_rd[i];
+    EntityHandle remote_handle = remoting_entities.vul_wr[2*i]; // it was local before
+    //long gid=remoting_entities.vl_rd[i];// for debug , mostly
+    if (i+1<nrh && remoting_entities.vul_wr[2*i+3]==local_handle)
+    {
+      // this is multishared; grab all those!
+      int j = i+2;// find all shared with this one!
+      std::vector<int> proc_ids(MAX_SHARING_PROCS, -1);
+      std::vector<EntityHandle> proc_handles(MAX_SHARING_PROCS, 0);
+      // at least 3 are sharing it, current, i, and i+1; j will be the last in list
+      proc_ids[0]=this->rank(); // this one will own it
+      proc_ids[1] = remoting_entities.vi_wr[i]; // i
+      proc_ids[2] = remoting_entities.vi_wr[i+1]; // i+1
+      proc_handles[0] = local_handle ; // this one
+      proc_handles[1] = remote_handle; // i
+      proc_handles[2] = remoting_entities.vul_wr[2*i+2];// the remote on i+1
+      int currentIndex = 3;// is it shared even more?
+      while(j < nrh && local_handle == remoting_entities.vul_wr[2*j+1])
+      {
+        proc_ids[currentIndex]=remoting_entities.vi_wr[j];
+        proc_handles[currentIndex]=remoting_entities.vul_wr[2*j];
+        currentIndex++;
+        j++;
+      }
+      multiSharedStartEnd.push_back(i);
+      i = j-1;// back up one
+      multiSharedStartEnd.push_back(i); // so for remoting_entities from index i to j-1,
+      // the ents are multishared
+      result = mbImpl->tag_set_data(sharedps_tag, &local_handle, 1, &proc_ids[0] );
+      RRA(" can't set sharedps tag");
+      result = mbImpl->tag_set_data(sharedhs_tag, &local_handle, 1, &proc_handles[0] );
+      RRA(" can't set sharedhs tag");
+      unsigned char pval = PSTATUS_MULTISHARED;
+      result = mbImpl->tag_set_data(pstatus_tag, &local_handle, 1, &pval);
+      RRA(" can't set parallel status tag");
+      // those that are multishared, so the info needs to be sent to
+      // all remote procs need info about all other, and about owning proc
+      // we will send though currentIndex*(currentIndex-1) (proc, local_handle, remote_handle) pairs
+      countMultiSharedList += currentIndex*(currentIndex-1) ;
+
+    }
+    else
+    {
+      // this is for sure just shared with one and only
+      result = mbImpl->tag_set_data(sharedh_tag, &local_handle, 1,
+                                            &remote_handle);
+      RRA(" can't set sharedh tag");
+      result = mbImpl->tag_set_data(sharedp_tag, &local_handle, 1,
+                                                  &remote_proc);
+      RRA(" can't set sharedh tag");
+
+      unsigned char pval = PSTATUS_SHARED;
+      result = mbImpl->tag_set_data(pstatus_tag, &local_handle, 1, &pval);
+      RRA(" can't set parallel status tag");
+      countShared++;
+    }
+  }
+  // we resolved the tags for owned verts
+  // we need to solve the problem of verts that are not owned; first mark
+  // vertices that are multishared
+  TupleList multishared_verts;
+
+  // initialize(uint mi, uint ml, uint mul, uint mr, uint max);// gid for debug purposes
+  // we will have (to_proc | multi_proc | gid | local_handle_owned | remote_handle_on_multi_proc )
+  // upon receiving, it will be (from_proc | multi_proc | gid | remote handle on the owning proc | remote_handle_on_multi_proc )
+  multishared_verts.initialize(2, 1, 2, 0, countMultiSharedList); // n=0 for this
+  multishared_verts.enableWriteAccess();
+  // for example, proc rank:2 i:96 handle:735
+  // node on proc 2 i:96 gids:2465 2465 from procs:0 1 now remote handles:940 937
+  // will have to be set on proc 0 and 1, as multishared
+  // on proc 0:, entity 940 will have multi tags as:
+  //           procs: (2 (owner), 0, 1
+  //           handles: (735 (owner), 940, 937
+  // on proc 1:  entity 937 will have multi tags:
+  //             procs (2 (owner), 0, 1)
+  //           handles:  (  735(owner), 940, 937
+
+  int nbPairsMultiShared=(int)multiSharedStartEnd.size()/2;
+  int indexInTuple = 0;
+  for (int k=0; k<nbPairsMultiShared; k++)
+  {
+    int startMulti=multiSharedStartEnd[2*k];
+    int endMulti  =multiSharedStartEnd[2*k+1];
+    // so tuples indices start, end, will be remote sent for multi sharing
+    // first tuple sent will be with the owner infos, the other
+    for (int j=startMulti; j<=endMulti; j++)
+    {
+      // first send to processor
+      int proc_to_send_to = remoting_entities.vi_wr[j];
+      EntityHandle handle_on_owning_proc = remoting_entities.vul_wr[2*j+1]; // it was remote before
+      EntityHandle handle_with_multi = remoting_entities.vul_wr[2*j]; // this handle will get multi tag
+      // send (1+, start, end) tuples to proc
+
+      multishared_verts.vi_wr[2*indexInTuple] = proc_to_send_to; // send to
+      // own handle, and own proc
+      multishared_verts.vi_wr[2*indexInTuple+1] = this->rank(); // this will correspond to owning proc
+      multishared_verts.vl_wr[indexInTuple] = remoting_entities.vl_wr[j]; // gid, for debugging
+      multishared_verts.vul_wr[2*indexInTuple] = handle_with_multi; // remote handle on proc_to_send_to
+      multishared_verts.vul_wr[2*indexInTuple+1] = handle_on_owning_proc; // owner (on current local proc)
+      indexInTuple++;
+      // create more tuples, for each instance
+      for (int k=startMulti; k<=endMulti; k++)
+      {
+        multishared_verts.vi_wr[2*indexInTuple] = proc_to_send_to; // send to
+        multishared_verts.vi_wr[2*indexInTuple+1] =  remoting_entities.vi_wr[k]; // send to
+        multishared_verts.vl_wr[indexInTuple] =  remoting_entities.vl_wr[k]; // gid, for debug
+        multishared_verts.vul_wr[2*indexInTuple] = handle_with_multi; // remote handle on proc_to_send_to
+        multishared_verts.vul_wr[2*indexInTuple+1] = remoting_entities.vl_wr[2*k]; // will not be used?
+        indexInTuple++;
+      }
+    }
+  }
+  // perform scatter/gather, to send multi shared handles to local proc, to set
+  // p flags on non_owned entities, too
+  this->proc_config().crystal_router()->gs_transfer(1, multishared_verts, 0);
+  //
+  // on receiving, the tuple will have:
+  /*
+   *  from_proc, multi_proc, gid, local_handle, remote_handle_on_multi; so order by local handle
+   */
+  // sort by the local_handle (index 2)
+  multishared_verts.sort(2, &sort_buffer);
+  // we should gather all local handle , and set accordingly the multi tags
+  // each local handle should appear at least 3 times in tuple list!
+  int sizeList = multishared_verts.get_n();
+
+  // start copy
+  for (i=0; i< sizeList; i++)
+  {
+    EntityHandle local_handle=multishared_verts.vul_wr[2*i]; // this will get multi tags
+    // find j?
+    int j=i+1; // next tuple with the same local handle
+    while( ( j < sizeList)   && (local_handle==multishared_verts.vul_wr[2*j] ) )
+      j++;
+
+    j = i-1;
+    assert (j-i>=2);
+    std::vector<int> proc_ids(MAX_SHARING_PROCS, -1);
+    std::vector<EntityHandle> proc_handles(MAX_SHARING_PROCS, 0);
+    // the first one has to be the owner proc and handle
+    // look at the multi proc, it has to be equal to the sending proc
+    int indexForNotOwned = 1;
+    for (int k=i; k<=j; k++)
+    {
+      // if sending proc is multi proc, we have the owner, if not, increment index that starts at 1
+      if (multishared_verts.vi_rd[2*k]==multishared_verts.vi_rd[2*k+1])
+      {
+        proc_ids[0]     = multishared_verts.vi_rd[2*k];
+        proc_handles[0] = multishared_verts.vul_wr[2*k+1];
+      }
+      else // a multi proc that is not owner
+      {
+        proc_ids[indexForNotOwned]     = multishared_verts.vi_rd[2*k+1];
+        proc_handles[indexForNotOwned] = multishared_verts.vul_wr[2*k+1];
+        indexForNotOwned++;
+      }
+    }
+
+    // the ents are multishared
+    result = mbImpl->tag_set_data(sharedps_tag, &local_handle, 1, &proc_ids[0] );
+    RRA(" can't set sharedps tag");
+    result = mbImpl->tag_set_data(sharedhs_tag, &local_handle, 1, &proc_handles[0] );
+    RRA(" can't set sharedhs tag");
+    unsigned char pval = PSTATUS_MULTISHARED | PSTATUS_NOT_OWNED;
+    result = mbImpl->tag_set_data(pstatus_tag, &local_handle, 1, &pval);
+    RRA(" can't set parallel status tag");
+  }
+  // now, the rest of the not owned entities, will gest just a regular tag
+
+  // Range & not_owned_verts,
+ //  std::vector<int> & processors, std::vector<EntityHandle> &remote_handles
+  int idx=0;
+  for (Range::iterator itv=not_owned_verts.begin(); itv!=not_owned_verts.end(); itv++, idx++)
+  {
+    // look at PSTATUS flag
+    EntityHandle local_handle=*itv;
+    unsigned char pval;
+    result = mbImpl->tag_get_data(pstatus_tag, &local_handle, 1, &pval);
+    RRA(" can't get parallel status tag");
+    if (pval & PSTATUS_MULTISHARED)
+      continue; // processed above already
+    // this is for sure just shared with one and only
+    result = mbImpl->tag_set_data(sharedh_tag, &local_handle, 1,
+                                          &(remote_handles[idx]));
+    RRA(" can't set sharedh tag");
+    result = mbImpl->tag_set_data(sharedp_tag, &local_handle, 1,
+                                                &(processors[idx]));
+    RRA(" can't set sharedh tag");
+
+    pval = PSTATUS_SHARED | PSTATUS_NOT_OWNED;
+    result = mbImpl->tag_set_data(pstatus_tag, &local_handle, 1, &pval);
+    RRA(" can't set parallel status tag");
+
+  }
+
+  // look at al not_owned_verts
+
 
   return MB_SUCCESS;
 }
