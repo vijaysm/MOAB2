@@ -3870,7 +3870,7 @@ ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_ow
    *  owned. And we can then set all 5 flags. We do not even need to touch the global id, maybe just for
    *  debug purposes.
    */
-  bool localdebug = true;
+  bool localdebug = false;
   TupleList remoting_entities;
   uint nents = not_owned_verts.size();
   assert(not_owned_verts.size() == processors.size());
