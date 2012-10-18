@@ -1,30 +1,34 @@
 #!/bin/sh
 #
-#rm -rf moab_perf.out
-#for size in 10 20 30 40 50 75 100 150 200
-#do
-#  ./perf $size A >> moab_perf.out
-#  ./perf $size B >> moab_perf.out
-#  ./perf $size C >> moab_perf.out
-#done
-
-#rm -rf cubit_perf.out
-#for size in 10 20 30 40 50 75 100 150 200
-#do
-#  ./cubit_perf $size >> cubit_perf.out
-#done
-
-#rm -rf tstt_perf.out
-#for size in 10 20 30 40 50 75 100 150 200
-#do
-#  ./tstt_perf $size B >> tstt_perf.out
-#  ./tstt_perf $size C >> tstt_perf.out
-#done
-
-rm -rf tstt_perf_binding.out
-for size in 10 20 30 40 50 75 100 150 200
+rm -rf moab_perf.txt
+for size in 10 20 30 40 50 75 100 150 200 300 
+#for size in 10 
 do
-  ./tstt_perf_binding $size B >> tstt_perf_binding.out
-  ./tstt_perf_binding $size C >> tstt_perf_binding.out
+  ./perf $size A >> moab_perf.txt
+  ./perf $size B >> moab_perf.txt
+  ./perf $size C >> moab_perf.txt
+  ./perf $size D >> moab_perf.txt
+  ./perf $size E >> moab_perf.txt
 done
+
+#rm -rf cubit_perf.txt
+#for size in 10 20 30 40 50 75 100 150 200
+#do
+#  ./cubit_perf $size >> cubit_perf.txt
+#done
+
+#rm -rf tstt_perf.txt
+#for size in 10 20 30 40 50 75 100 150 200
+#do
+#  ./tstt_perf $size B >> tstt_perf.txt
+#  ./tstt_perf $size C >> tstt_perf.txt
+#done
+
+rm -rf tstt_perf_binding.txt
+#for size in 10 20 30 40 50 75 100 150 200 300 
+#for size in 10 
+#do
+#  ./tstt_perf_binding $size B >> tstt_perf_binding.txt
+#  ./tstt_perf_binding $size C >> tstt_perf_binding.txt
+#done
 

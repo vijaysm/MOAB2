@@ -189,14 +189,14 @@ void testB(iMesh_Instance mesh,
 
   print_time(false, ttime4, utime, stime, imem4, rmem4);
 
-  std::cout << "TSTTb/MOAB ucd blocked: nelem, construct, e_to_v query, v_to_e query, after dtor = " 
+  std::cout << "TSTTb/MOAB_ucd_blocked: nelem, construct, e_to_v, v_to_e, after_dtor = " 
             << nelem << ", "
             << ttime1-ttime0 << ", " 
             << ttime2-ttime1 << ", " 
             << ttime3-ttime2 << ", " 
             << ttime4-ttime3 << " seconds" 
             << std::endl;
-  std::cout << "TSTTb/MOAB ucd blocked memory (rss): initial, after v/e construction, e-v query, v-e query, after dtor:" 
+  std::cout << "TSTTb/MOAB_ucd_blocked_memory_(rss): initial, after_construction, e-v, v-e, after_dtor:" 
             << rmem0 << ", " << rmem1 << ", " << rmem2 << ", " << rmem3 <<  ", " << rmem4 << " kb" << std::endl;
 
 }
@@ -273,14 +273,14 @@ void testC(iMesh_Instance mesh, const int nelem, const double *coords)
 
   print_time(false, ttime4, utime, stime, imem4, rmem4);
 
-  std::cout << "TSTTb/MOAB ucd indiv: nelem, construct, e_to_v query, v_to_e query, after dtor = " 
+  std::cout << "TSTTb/MOAB_ucd_indiv: nelem, construct, e_to_v, v_to_e, after_dtor = " 
             << nelem << ", "
             << ttime1-ttime0 << ", " 
             << ttime2-ttime1 << ", " 
             << ttime3-ttime2 << ", " 
             << ttime4-ttime3 << " seconds" 
             << std::endl;
-  std::cout << "TSTTb/MOAB ucd indiv memory (rss): initial, after v/e construction, e-v query, v-e query, after dtor:" 
+  std::cout << "TSTTb/MOAB_ucd_indiv_memory_(rss): initial, after_construction, e-v, v-e, after_dtor:" 
             << rmem0 << ", " << rmem1 << ", " << rmem2 << ", " << rmem3 <<  ", " << rmem4 << " kb" << std::endl;
 
 }
