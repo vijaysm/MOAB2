@@ -4742,7 +4742,7 @@ ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_ow
         unsigned int ind = std::find(proc_ids, proc_ids+vit->first.size(), procConfig.proc_rank())
           - proc_ids;
         assert(ind < vit->first.size());
-        std::fill( proc_handles + vit->first.size(), proc_handles + MAX_SHARING_PROCS, 0);
+        std::fill( proc_handles, proc_handles + MAX_SHARING_PROCS, 0);
         proc_handles[ind] = new_set;
         result = mbImpl->tag_set_data(sharedhs_tag, &new_set, 1, proc_handles); 
       }
