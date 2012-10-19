@@ -75,8 +75,8 @@ libMOAB_la_SOURCES = \
   OrientedBox.cpp \
   OrientedBox.hpp \
   OrientedBoxTreeTool.cpp \
-  moab/point_locater/lotte/minmax.h \ 
-  moab/point_locater/lotte/extrafindpt.h \ 
+  moab/point_locater/lotte/minmax.h \
+  moab/point_locater/lotte/extrafindpt.h \
   lotte/poly.c \
   moab/point_locater/lotte/poly.h \
   lotte/findpt.c \
