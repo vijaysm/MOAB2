@@ -33,7 +33,10 @@ CGM_LIBS = @CGM_LIBS@
 
 LDADD = libdagmc.la $(top_builddir)/src/libMOAB.la  $(CGM_LDFLAGS) $(CGM_LIBS)
 
-TESTS = test_geom 
+TESTS = 
+if HDF5_FILE
+   TESTS+=test_geom 
+endif
 check_PROGRAMS = $(TESTS) pt_vol_test ray_fire_test
 
 quads_to_tris_SOURCES = quads_to_tris_driver.cpp quads_to_tris.cpp

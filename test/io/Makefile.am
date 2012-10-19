@@ -12,7 +12,7 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
 
 if NETCDF_FILE
   EXODUS_TEST = exodus_test
-  NC_TEST = read_nc
+  NC_TEST = read_nc read_ucd_nc
 else
   EXODUS_TEST = 
   NC_TEST = 
@@ -38,7 +38,6 @@ TESTS = readutil_test \
         gmsh_test \
 	nastran_test \
 	$(NC_TEST) \
-        read_ucd_nc \
         ideas_test \
         stl_test \
         smf_test \

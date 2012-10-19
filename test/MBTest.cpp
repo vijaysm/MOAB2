@@ -86,7 +86,7 @@ string TestDir( "." );
             std::cerr << "Test failed at " __FILE__ ":" << __LINE__ << std::endl; \
             return MB_FAILURE; } } while(false)
 
-
+#if NETCDF_FILE
 ErrorCode load_file_one( Interface* iface )
 {
   std::string file_name = TestDir + "/mbtest1.g";
@@ -99,6 +99,7 @@ ErrorCode load_file_one( Interface* iface )
   }
   return error;
 }
+#endif
 
 /* Create a regular 2x2x2 hex mesh */
 ErrorCode create_some_mesh( Interface* iface );
@@ -514,7 +515,7 @@ ErrorCode mb_adjacent_vertex_test()
   
   return MB_SUCCESS;
 }
-  
+#if NETCDF_FILE
 ErrorCode mb_adjacencies_test() 
 {
   Core moab;
@@ -663,6 +664,8 @@ ErrorCode mb_adjacencies_test()
   return result;
 
 }
+
+#endif
   
 ErrorCode mb_adjacencies_create_delete_test() 
 {
@@ -2457,6 +2460,7 @@ static const EntityType types[] = { MBVERTEX, MBEDGE, MBTRI, MBQUAD, MBTET, MBHE
 const int num_types = sizeof(types)/sizeof(types[0]);
 static const unsigned int num_entities[num_types+1] = {47,12,18,8,22,8,0};
 
+#if NETCDF_FILE
 ErrorCode mb_delete_mesh_test()
 {
   Core moab;
@@ -2492,7 +2496,6 @@ ErrorCode mb_delete_mesh_test()
 
   return MB_SUCCESS;
 }
-
 
 ErrorCode mb_mesh_set_tracking_test()
 {
@@ -2704,7 +2707,7 @@ ErrorCode mb_mesh_set_tracking_test()
   return MB_SUCCESS;
 
 }
-
+#endif
 
 // Compare internal representation of contents for a list (MESHSET_ORDERED)
 // set to expected contents.  Assumes expected contents are correctly
@@ -3232,6 +3235,7 @@ ErrorCode mb_bit_tags_test()
   return MB_SUCCESS;
 }
 
+#if NETCDF_FILE
 ErrorCode mb_tags_test()
 {
   Core moab;
@@ -3457,7 +3461,7 @@ ErrorCode mb_tags_test()
 
   return MB_SUCCESS;
 }
-
+#endif
 ErrorCode mb_common_tag_test( TagType storage )
 {
   Core moab;
@@ -3589,7 +3593,7 @@ private:
   double mCoords[3];
   double mOffset[3];
 };
-
+#if NETCDF_FILE
 ErrorCode mb_entity_conversion_test()
 {
   ErrorCode error;
@@ -3929,7 +3933,7 @@ ErrorCode mb_entity_conversion_test()
 
   return MB_SUCCESS;
 }
-
+#endif
 //! Build two Quads with two edges shared between them.  The
 //! edges share the same nodes.  We should be able to get
 //! adjacencies on the edges and get one (correct) quad.  We
@@ -4618,7 +4622,7 @@ ErrorCode mb_merge_update_test()
 
   return MB_SUCCESS;
 }
-
+#if NETCDF_FILE
 ErrorCode mb_stress_test()
 {
   ErrorCode error;
@@ -4760,6 +4764,7 @@ ErrorCode mb_stress_test()
   
   return MB_SUCCESS;
 }
+#endif
 
 ErrorCode mb_canon_number_test() 
 {
@@ -8111,7 +8116,6 @@ int main(int argc, char* argv[])
   cout << "\n\nMB TEST PROGRAM:\n\n";
 
   RUN_TEST( mb_adjacent_vertex_test );
-  RUN_TEST( mb_adjacencies_test );
   RUN_TEST( mb_adjacencies_create_delete_test );
   RUN_TEST( mb_upward_adjacencies_test );
   RUN_TEST( mb_adjacent_create_test );
@@ -8127,15 +8131,18 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_mesh_set_set_replace_test );
   RUN_TEST( mb_mesh_set_list_replace_test );
   RUN_TEST( mb_mesh_set_flag_test );
-  RUN_TEST( mb_mesh_set_tracking_test );
   RUN_TEST( mb_mesh_set_set_add_remove_test );
-  RUN_TEST( mb_tags_test );
   RUN_TEST( mb_dense_tag_test );
   RUN_TEST( mb_sparse_tag_test );
-  RUN_TEST( mb_delete_mesh_test );
   RUN_TEST( mb_higher_order_test );
   RUN_TEST( mb_bit_tags_test );
+#if NETCDF_FILE
+  RUN_TEST( mb_adjacencies_test );
+  RUN_TEST( mb_tags_test );
+  RUN_TEST( mb_delete_mesh_test );
   RUN_TEST( mb_entity_conversion_test );
+  RUN_TEST( mb_mesh_set_tracking_test );
+#endif
   RUN_TEST( mb_forced_adjacencies_test );
   RUN_TEST( mb_canon_number_test );
   RUN_TEST( mb_poly_test );
@@ -8179,7 +8186,9 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_type_is_maxtype_test );
   RUN_TEST( mb_root_set_test );
   RUN_TEST( mb_merge_test );
+#if NETCDF_FILE
   if (stress_test) RUN_TEST( mb_stress_test );
+#endif
 
     // summary
 

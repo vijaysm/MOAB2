@@ -41,15 +41,15 @@ TESTS = range_test \
 	mesh_set_test \
         mbcn_test \
         bsp_tree_poly_test \
-        mbfacet_test \
-        gttool_test \
-        cropvol_test \
 	reorder_test \
 	test_prog_opt \
 	coords_connect_iterate
 
 if HDF5_FILE
-  TESTS += mbground_test
+  TESTS += mbfacet_test \
+        gttool_test \
+        cropvol_test \
+        mbground_test
 endif
 
 #                 merge_test \         # input files no longer exist?
