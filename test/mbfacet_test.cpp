@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 {
   filename = TestDir + "/PB.h5m";
   polygon_file_name = TestDir + "/polyPB.txt";
-  filename_out = "PB_new.h5m";
+  filename_out = "PB_facet.h5m";
   quads_file = TestDir + "/quads.h5m";
 
   min_dot = 0.8;

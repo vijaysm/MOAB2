@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
 {
   filename = TestDir + "/PB.h5m";
   polyline_file_name = TestDir + "/polyline.txt";
-  filename_out = "PB_new.h5m";
+  filename_out = "PB_ground.h5m";
   min_dot = 0.8;
 
   keep_output = false;
