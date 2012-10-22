@@ -44,7 +44,7 @@ void test_read_parallel(int num_verts)
   rval = mb.create_meshset(MESHSET_SET, file_set);
   CHECK_ERR(rval);
 
-  std::string opt = std::string("PARALLEL=READ_PART") +
+  std::string opt = std::string("PARALLEL=READ_PART;") +
       partition_method;
   rval = mb.load_file(example, &file_set, opt.c_str());
   CHECK_ERR(rval);
@@ -69,7 +69,8 @@ void test_read_parallel(int num_verts)
     std::cout<<"total vertices: " << total_verts << "\n";
     CHECK_EQUAL(total_verts, num_verts);
   }
- /* std::string write_options("PARALLEL=WRITE_PART;DEBUG_IO=2;");
+  /*std::string write_options("PARALLEL=WRITE_PART;");
   mb.write_file( "test.h5m", NULL, write_options.c_str() );*/
+
 }
 

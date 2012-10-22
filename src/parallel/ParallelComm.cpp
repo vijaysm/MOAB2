@@ -3817,7 +3817,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
 
     // resolve shared entity remote handles; implemented in ghost cell exchange
     // code because it's so similar
-    result = exchange_ghost_cells(-1, -1, 0, true, true);
+    result = exchange_ghost_cells(-1, -1, 0, 0, true, true);
     RRA("Trouble resolving shared entity remote handles.");
 
     // now build parent/child links for interface sets
@@ -3871,6 +3871,13 @@ ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_ow
    *  debug purposes.
    */
   bool localdebug = false;
+  if (localdebug)
+  {
+    std::cout << "rank:" << this->rank() << "  owned:" << owned_verts[0] << " - "
+         << owned_verts[owned_verts.size()-1] << "\n";
+    std::cout<<"not owned:" << not_owned_verts[0] << "  "
+      <<not_owned_verts[not_owned_verts.size()-1] << "\n";
+  }
   TupleList remoting_entities;
   uint nents = not_owned_verts.size();
   assert(not_owned_verts.size() == processors.size());
@@ -3899,8 +3906,11 @@ ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_ow
     remoting_entities.vul_wr[2*i+1] = remote_handles[i]; // this is the remote handle on receiving proc
                                                              // (can be deduced from global id)
     remoting_entities.inc_n();
+    // we know for sure that the not owned are shared
+    //sharedEnts.push_back( not_owned_gids[i]);
   }
-
+  // we know for sure that the not owned are shared
+  Range sharedEntsRange(not_owned_verts);    //sharedEnts.push_back( not_owned_gids[i]);
   if (localdebug)
   {
     std::cout<< "proc rank:" << this->rank() << " sending out:" << remoting_entities.get_n() << std::endl;
@@ -3911,6 +3921,7 @@ ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_ow
 
   if (localdebug)
     std::cout<< "proc rank:" << this->rank() << " receive:" << remoting_entities.get_n() << std::endl;
+  myDebug->printf(3, ", rank:%d,  receive:=%d\n", this->rank(), remoting_entities.get_n());
   // after this, what do we have on receive? remote proc, remote handle, and local handle
   // we can now sort according to local handle, and based on how many , we can set
   // sharedp or multishared
@@ -3921,6 +3932,17 @@ ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_ow
   // now, the key 3 is the one for what is now local handle
   remoting_entities.sort(3, &sort_buffer);
   sort_buffer.reset();
+
+  // this will be used to create the interfaceSets . for the time being, the interface sets are
+  //  containing just vertices, edges are not represented yet
+  // it is a map from list of procs to list of entities.
+  // the "list of procs" has length 1, most of the time, for shared vertices
+  // if list has length > 1, it has to be greater than 2 (at least 3)
+  // also, in our nodal partition, the first proc is the owner, but it is not necessarily
+  //  the smallest rank; the other procs have to be ordered, in that list, for a sort of uniqueness
+  // in the set, we do not want too many
+  // will see how to use sharedSetData later?
+  //std::map<std::vector<int>, std::vector<EntityHandle> > proc_nvecs;
   // now, loop through what is now local handle on this proc, and count repeats
   int nrh = remoting_entities.get_n();
   remoting_entities.enableWriteAccess();
@@ -3956,9 +3978,13 @@ ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_ow
   int countMultiSharedList = 0;
   int i=0;
   std::vector<int> multiSharedStartEnd;
+  if (localdebug)
+    remoting_entities.print("remoting_after_sorting");
   for (i=0; i< nrh; i++)
   {
     EntityHandle local_handle=remoting_entities.vul_wr[2*i+1]; // it was remote before
+    // it is for sure a shared entity, so put it in this range too, that we will take care of later
+    sharedEntsRange.insert(local_handle);
     int remote_proc = remoting_entities.vi_rd[i];
     EntityHandle remote_handle = remoting_entities.vul_wr[2*i]; // it was local before
     //long gid=remoting_entities.vl_rd[i];// for debug , mostly
@@ -3975,7 +4001,7 @@ ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_ow
       proc_handles[0] = local_handle ; // this one
       proc_handles[1] = remote_handle; // i
       proc_handles[2] = remoting_entities.vul_wr[2*i+2];// the remote on i+1
-      int currentIndex = 3;// is it shared even more?
+      int currentIndex = 2;// is it shared even more?
       while(j < nrh && local_handle == remoting_entities.vul_wr[2*j+1])
       {
         proc_ids[currentIndex]=remoting_entities.vi_wr[j];
@@ -3991,13 +4017,20 @@ ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_ow
       RRA(" can't set sharedps tag");
       result = mbImpl->tag_set_data(sharedhs_tag, &local_handle, 1, &proc_handles[0] );
       RRA(" can't set sharedhs tag");
-      unsigned char pval = PSTATUS_MULTISHARED;
+      unsigned char pval = PSTATUS_SHARED | PSTATUS_MULTISHARED;
       result = mbImpl->tag_set_data(pstatus_tag, &local_handle, 1, &pval);
       RRA(" can't set parallel status tag");
       // those that are multishared, so the info needs to be sent to
       // all remote procs need info about all other, and about owning proc
       // we will send though currentIndex*(currentIndex-1) (proc, local_handle, remote_handle) pairs
-      countMultiSharedList += currentIndex*(currentIndex-1) ;
+      countMultiSharedList += currentIndex*(currentIndex+1) ;
+      if (localdebug)
+      {
+        unsigned int sizepairs=multiSharedStartEnd.size();
+        int starti= multiSharedStartEnd[sizepairs-2];
+        std::cout << "start: " << starti << " end:" << multiSharedStartEnd[sizepairs-1] << "\n";
+        std::cout << "localhandle:" << local_handle << "\n";
+      }
 
     }
     else
@@ -4008,7 +4041,7 @@ ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_ow
       RRA(" can't set sharedh tag");
       result = mbImpl->tag_set_data(sharedp_tag, &local_handle, 1,
                                                   &remote_proc);
-      RRA(" can't set sharedh tag");
+      RRA(" can't set sharedp tag");
 
       unsigned char pval = PSTATUS_SHARED;
       result = mbImpl->tag_set_data(pstatus_tag, &local_handle, 1, &pval);
@@ -4016,6 +4049,9 @@ ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_ow
       countShared++;
     }
   }
+  // add to the sharedEnts the verts in the sharedEntsRange
+  sharedEnts.resize(sharedEntsRange.size() );
+  std::copy(sharedEntsRange.begin(), sharedEntsRange.end(), sharedEnts.begin());
   // we resolved the tags for owned verts
   // we need to solve the problem of verts that are not owned; first mark
   // vertices that are multishared
@@ -4026,15 +4062,6 @@ ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_ow
   // upon receiving, it will be (from_proc | multi_proc | gid | remote handle on the owning proc | remote_handle_on_multi_proc )
   multishared_verts.initialize(2, 1, 2, 0, countMultiSharedList); // n=0 for this
   multishared_verts.enableWriteAccess();
-  // for example, proc rank:2 i:96 handle:735
-  // node on proc 2 i:96 gids:2465 2465 from procs:0 1 now remote handles:940 937
-  // will have to be set on proc 0 and 1, as multishared
-  // on proc 0:, entity 940 will have multi tags as:
-  //           procs: (2 (owner), 0, 1
-  //           handles: (735 (owner), 940, 937
-  // on proc 1:  entity 937 will have multi tags:
-  //             procs (2 (owner), 0, 1)
-  //           handles:  (  735(owner), 940, 937
 
   int nbPairsMultiShared=(int)multiSharedStartEnd.size()/2;
   int indexInTuple = 0;
@@ -4046,7 +4073,7 @@ ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_ow
     // first tuple sent will be with the owner infos, the other
     for (int j=startMulti; j<=endMulti; j++)
     {
-      // first send to processor
+      // first send to processor the info about the local handle (which will be the owner)
       int proc_to_send_to = remoting_entities.vi_wr[j];
       EntityHandle handle_on_owning_proc = remoting_entities.vul_wr[2*j+1]; // it was remote before
       EntityHandle handle_with_multi = remoting_entities.vul_wr[2*j]; // this handle will get multi tag
@@ -4059,17 +4086,24 @@ ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_ow
       multishared_verts.vul_wr[2*indexInTuple] = handle_with_multi; // remote handle on proc_to_send_to
       multishared_verts.vul_wr[2*indexInTuple+1] = handle_on_owning_proc; // owner (on current local proc)
       indexInTuple++;
+      multishared_verts.inc_n();
       // create more tuples, for each instance
       for (int k=startMulti; k<=endMulti; k++)
       {
         multishared_verts.vi_wr[2*indexInTuple] = proc_to_send_to; // send to
-        multishared_verts.vi_wr[2*indexInTuple+1] =  remoting_entities.vi_wr[k]; // send to
+        multishared_verts.vi_wr[2*indexInTuple+1] =  remoting_entities.vi_wr[k]; // multi proc
         multishared_verts.vl_wr[indexInTuple] =  remoting_entities.vl_wr[k]; // gid, for debug
         multishared_verts.vul_wr[2*indexInTuple] = handle_with_multi; // remote handle on proc_to_send_to
-        multishared_verts.vul_wr[2*indexInTuple+1] = remoting_entities.vl_wr[2*k]; // will not be used?
+        multishared_verts.vul_wr[2*indexInTuple+1] = remoting_entities.vul_wr[2*k]; // handle on multi proc
         indexInTuple++;
+        multishared_verts.inc_n();
       }
     }
+  }
+  if (localdebug)
+  {
+    std::cout<<"proc:"<< this->rank() << "\n";
+    multishared_verts.print("multishared");
   }
   // perform scatter/gather, to send multi shared handles to local proc, to set
   // p flags on non_owned entities, too
@@ -4079,8 +4113,13 @@ ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_ow
   /*
    *  from_proc, multi_proc, gid, local_handle, remote_handle_on_multi; so order by local handle
    */
-  // sort by the local_handle (index 2)
-  multishared_verts.sort(2, &sort_buffer);
+  if (localdebug)
+  {
+    std::cout<<"proc:"<< this->rank() << "\n";
+    multishared_verts.print("received_multishared");
+  }
+  // sort by the local_handle (index 3)
+  multishared_verts.sort(3, &sort_buffer);
   // we should gather all local handle , and set accordingly the multi tags
   // each local handle should appear at least 3 times in tuple list!
   int sizeList = multishared_verts.get_n();
@@ -4094,7 +4133,7 @@ ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_ow
     while( ( j < sizeList)   && (local_handle==multishared_verts.vul_wr[2*j] ) )
       j++;
 
-    j = i-1;
+    j--;// back up one, we are over, maybe?
     assert (j-i>=2);
     std::vector<int> proc_ids(MAX_SHARING_PROCS, -1);
     std::vector<EntityHandle> proc_handles(MAX_SHARING_PROCS, 0);
@@ -4122,9 +4161,10 @@ ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_ow
     RRA(" can't set sharedps tag");
     result = mbImpl->tag_set_data(sharedhs_tag, &local_handle, 1, &proc_handles[0] );
     RRA(" can't set sharedhs tag");
-    unsigned char pval = PSTATUS_MULTISHARED | PSTATUS_NOT_OWNED;
+    unsigned char pval = PSTATUS_MULTISHARED | PSTATUS_SHARED | PSTATUS_NOT_OWNED;
     result = mbImpl->tag_set_data(pstatus_tag, &local_handle, 1, &pval);
     RRA(" can't set parallel status tag");
+    i=j; // we are done with this pack, continue on
   }
   // now, the rest of the not owned entities, will gest just a regular tag
 
@@ -4148,13 +4188,20 @@ ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_ow
                                                 &(processors[idx]));
     RRA(" can't set sharedh tag");
 
+    assert(this->rank()!=(unsigned int)processors[idx]);
     pval = PSTATUS_SHARED | PSTATUS_NOT_OWNED;
     result = mbImpl->tag_set_data(pstatus_tag, &local_handle, 1, &pval);
     RRA(" can't set parallel status tag");
 
+    myDebug->printf(1, " rank: %d, local_handle: %ld, remote handle: %ld, status:%d\n",
+                        this->rank(), local_handle, remote_handles[idx], pval);
+
   }
 
-  // look at al not_owned_verts
+#ifndef NDEBUG
+    result = check_all_shared_handles(true);
+    RRA("Shared handle check failed after resolve shared verts.");
+#endif
 
 
   return MB_SUCCESS;
