@@ -1188,12 +1188,12 @@ AC_CONFIG_FILES([Makefile
                  examples/simple/makefile
                  examples/itaps/Makefile
                  examples/moabuse/Makefile
-                 examples/moabuse/README.moabuse:examples/moabuse/README.moabuse
-                 examples/moabuse/mberr.hpp:examples/moabuse/mberr.hpp
-                 examples/moabuse/moabuse1.cpp:examples/moabuse/moabuse1.cpp
-                 examples/moabuse/moabuse2.cpp:examples/moabuse/moabuse2.cpp
-                 examples/moabuse/moabuse3.cpp:examples/moabuse/moabuse3.cpp
-                 examples/moabuse/moabuse4.cpp:examples/moabuse/moabuse4.cpp
+                 examples/moabuse/README.moabuse
+                 examples/moabuse/mberr.hpp
+                 examples/moabuse/moabuse1.cpp
+                 examples/moabuse/moabuse2.cpp
+                 examples/moabuse/moabuse3.cpp
+                 examples/moabuse/moabuse4.cpp
                  MeshFiles/Makefile
                  MeshFiles/unittest/Makefile
                  MeshFiles/unittest/io/Makefile
