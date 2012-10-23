@@ -632,7 +632,7 @@ ErrorCode test_interpolation(Interface *mbImpl,
   if(interpTag == "vertex_field" ||specSou ){
     result = mbc.interpolate(Coupler::LINEAR_FE, interpTag, &field[0]);
   }else if(interpTag == "element_field"){
-    result = mbc.interpolate(Coupler::PLAIN_FE, interpTag, &field[0]);
+    result = mbc.interpolate(Coupler::CONSTANT, interpTag, &field[0]);
   }else{
     std::cout << "Using tag name to determine type of source field at the moment... Use either vertex_field or element_field\n";
     result = MB_FAILURE;

@@ -28,6 +28,7 @@
 #include "moab/Range.hpp"
 #include "moab/Interface.hpp"
 #include "moab/CartVect.hpp"
+#include "moab/TupleList.hpp"
 
 namespace moab {
 
@@ -41,13 +42,14 @@ class Coupler
 {
 public:
 
-  enum Method {LINEAR_FE, PLAIN_FE, QUADRATIC_FE} ;
+  enum Method {CONSTANT, LINEAR_FE, QUADRATIC_FE, SPECTRAL} ;
 
   enum IntegType {VOLUME};
 
     /* constructor
      * Constructor, which also optionally initializes the coupler
-     * \param pc ParallelComm object to be used with this coupler
+     * \param pc ParallelComm object to be used with this coupler, representing the union
+     *    of processors containing source and target meshes
      * \param local_elems Local elements in the source mesh
      * \param coupler_id Id of this coupler, should be the same over all procs
      * \param init_tree If true, initializes kdtree inside the constructor
@@ -63,34 +65,45 @@ public:
   virtual ~Coupler();
   
     /* \brief Locate points on the source mesh
-     * This function finds the element/processor/natural coordinates 
-     * containing each point, optionally storing the results locally.
+     * This function finds the element/processor/natural coordinates for the
+     * source mesh element containing each point, optionally storing the results 
+     * on the target mesh processor.  Relative tolerance is compared to bounding 
+     * box diagonal length.  Tolerance is compared to [-1,1] parametric extent
+     * in the reference element.
      * \param xyz Point locations (interleaved) being located
+     * \param num_points Number of points in xyz
+     * \param rel_eps Relative tolerance for the non-linear iteration inside a given element
+     * \param abs_eps Absolute tolerance for the non-linear iteration inside a given element
      * \param tl Tuple list containing the results, with each tuple
      *           consisting of (p, i), p = proc, i = index on that proc
-     * \param store_local If true, stores the tuple list on the Coupler instance
-     *
+     * \param store_local If true, stores the tuple list in targetPts
      */
   ErrorCode locate_points(double *xyz, int num_points,
                           double rel_eps = 0.0, 
                           double abs_eps = 0.0,
-                            TupleList *tl = NULL,
-                            bool store_local = true);
+                          TupleList *tl = NULL,
+                          bool store_local = true);
   
     /* \brief Locate entities on the source mesh
-     * This function finds the element/processor/natural coordinates 
-     * containing each entity, optionally storing the results locally.
+     * This function finds the element/processor/natural coordinates for the
+     * source mesh element containing each entity, optionally storing the results 
+     * on the target mesh processor.  Location of each target mesh entity passed in
+     * is its centroid.  Relative tolerance is compared to bounding 
+     * box diagonal length.  Tolerance is compared to [-1,1] parametric extent
+     * in the reference element.
      * \param ents Entities being located
+     * \param rel_eps Relative tolerance for the non-linear iteration inside a given element
+     * \param abs_eps Absolute tolerance for the non-linear iteration inside a given element
      * \param tl Tuple list containing the results, with each tuple
      *           consisting of (p, i), p = proc, i = index on that proc
-     * \param store_local If true, stores the tuple list on the Coupler instance
+     * \param store_local If true, stores the tuple list in targetPts
      *
      */
   ErrorCode locate_points(Range &ents,
                           double rel_eps = 0.0, 
                           double abs_eps = 0.0,
-                            TupleList *tl = NULL,
-                            bool store_local = true);
+                          TupleList *tl = NULL,
+                          bool store_local = true);
   
     /* \brief Interpolate data from the source mesh onto points
      * All entities/points or, if tuple_list is input, only those points
@@ -103,15 +116,16 @@ public:
      * \param method Interpolation/normalization method
      * \param tag Tag on source mesh holding data to be interpolated
      * \param interp_vals Memory holding interpolated data
-     * \param tl Tuple list of points to be interpolated; if NULL, all locations
-     *       stored in this object are interpolated
+     * \param tl Tuple list of points to be interpolated, in format used by targetPts
+     *    (see documentation for targetPts below); if NULL, all locations
+     *    in targetPts are interpolated
      * \param normalize If true, normalization is done according to method
      */
   ErrorCode interpolate(Coupler::Method method,
-                          Tag tag,
-                          double *interp_vals,
-                          TupleList *tl = NULL,
-                          bool normalize = true);
+                        Tag tag,
+                        double *interp_vals,
+                        TupleList *tl = NULL,
+                        bool normalize = true);
 
     /* \brief Interpolate data from the source mesh onto points
      * All entities/points or, if tuple_list is input, only those points
@@ -121,18 +135,79 @@ public:
      * If normalization is requested, technique used depends on the coupling
      * method.
      *
-     * \param method Interpolation/normalization method
+     * \param methods Interpolation/normalization method
      * \param tag_name Name of tag on source mesh holding data to be interpolated
+     * \param interp_vals Memory holding interpolated data
+     * \param tl Tuple list of points to be interpolated, in format used by targetPts
+     *    (see documentation for targetPts below); if NULL, all locations
+     *    in targetPts are interpolated
+     * \param normalize If true, normalization is done according to method
+     */
+  ErrorCode interpolate(Coupler::Method method,
+                        const std::string &tag_name,
+                        double *interp_vals,
+                        TupleList *tl = NULL,
+                        bool normalize = true);
+
+    /* \brief Interpolate data from multiple tags
+     * All entities/points or, if tuple_list is input, only those points
+     * are interpolated from the source mesh.  Application should
+     * allocate enough memory in interp_vals to hold interpolation results.
+     * 
+     * In this variant, multiple tags, possibly with multiple interpolation
+     * methods, are specified.  Sum of values in points_per_method should be
+     * the number of points in tl or, if NULL, targetPts.
+     *
+     * If normalization is requested, technique used depends on the coupling
+     * method.
+     *
+     * \param methods Vector of Interpolation/normalization methods
+     * \param tag_names Names of tag being interpolated for each method
+     * \param points_per_method Number of points for each method
+     * \param num_methods Length of vectors in previous 3 arguments
      * \param interp_vals Memory holding interpolated data
      * \param tl Tuple list of points to be interpolated; if NULL, all locations
      *       stored in this object are interpolated
      * \param normalize If true, normalization is done according to method
      */
-  ErrorCode interpolate(Coupler::Method method,
-                        const std::string &tag_name,
-                          double *interp_vals,
-                          TupleList *tl = NULL,
-                          bool normalize = true);
+  ErrorCode interpolate(Coupler::Method *methods,
+                        const std::string *tag_names,
+                        int *points_per_method,
+                        int num_methods,
+                        double *interp_vals,
+                        TupleList *tl = NULL,
+                        bool normalize = true);
+
+
+    /* \brief Interpolate data from multiple tags
+     * All entities/points or, if tuple_list is input, only those points
+     * are interpolated from the source mesh.  Application should
+     * allocate enough memory in interp_vals to hold interpolation results.
+     * 
+     * In this variant, multiple tags, possibly with multiple interpolation
+     * methods, are specified.  Sum of values in points_per_method should be
+     * the number of points in tl or, if NULL, targetPts.
+     *
+     * If normalization is requested, technique used depends on the coupling
+     * method.
+     *
+     * \param methods Vector of Interpolation/normalization methods
+     * \param tag_names Names of tag being interpolated for each method
+     * \param points_per_method Number of points for each method
+     * \param num_methods Length of vectors in previous 3 arguments
+     * \param interp_vals Memory holding interpolated data
+     * \param tl Tuple list of points to be interpolated; if NULL, all locations
+     *       stored in this object are interpolated
+     * \param normalize If true, normalization is done according to method
+     */
+  ErrorCode interpolate(Coupler::Method *methods,
+                        Tag *tag_names,
+                        int *points_per_method,
+                        int num_methods,
+                        double *interp_vals,
+                        TupleList *tl = NULL,
+                        bool normalize = true);
+
 
     /* \brief Normalize a field over an entire mesh
      * A field existing on the vertices of elements of a mesh is integrated
@@ -351,7 +426,6 @@ public:
   inline int my_id() const {return myId;}
   inline const Range &my_range() const {return myRange;}
   inline TupleList *mapped_pts() const {return mappedPts;}
-  inline const std::vector<unsigned int> &local_mapped_pts() const {return localMappedPts;}
   inline int num_its() const {return numIts;}
         
 private:
@@ -368,16 +442,16 @@ private:
                          Tag tag,
                          double &field);
 
-  ErrorCode plain_field_map(EntityHandle elem,
-			      Tag tag,
-			      double &field);
+  ErrorCode constant_interp(EntityHandle elem,
+                            Tag tag,
+                            double &field);
   
   ErrorCode test_local_box(double *xyz, 
-                             int from_proc, int remote_index, int index, 
-                             bool &point_located,
+                           int from_proc, int remote_index, int index, 
+                           bool &point_located,
                            double rel_eps = 0.0,
                            double abs_eps = 0.0,
-                             TupleList *tl = NULL);
+                           TupleList *tl = NULL);
   
     /* \brief MOAB instance
      */
@@ -426,20 +500,11 @@ private:
     /* \brief Tuple list of target points and interpolated data
      * Tuples contain the following:
      * n = # target points
-     * vi[3*i] = remote proc mapping target point
+     * vi[3*i]   = remote proc mapping target point
      * vi[3*i+1] = local index of target point
      * vi[3*i+2] = remote index of target point
-     * vr[i] = interpolated data (used by interpolate function)
      */
   TupleList *targetPts;
-
-    /* \brief Locally mapped points
-     * Points whose source and target are both local; these
-     * points consist of two indices, <target_index, mapped_index>,
-     * where target_index is the index in the target points array
-     * and mapped_index is the corresponding index into mappedPts
-     */
-  std::vector<unsigned int> localMappedPts;
 
     /* \brief Number of iterations of tree building before failing
      *
@@ -454,6 +519,38 @@ private:
   moab::Tag _xm1Tag, _ym1Tag, _zm1Tag;
   int _ntot;
 };
+
+inline ErrorCode Coupler::interpolate(Coupler::Method method,
+                                      const std::string &interp_tag,
+                                      double *interp_vals,
+                                      TupleList *tl,
+                                      bool normalize)
+{
+  Tag tag;
+  ErrorCode result ;
+  if (_spectralSource)
+  {
+    result = mbImpl->tag_get_handle(interp_tag.c_str(), _ntot, MB_TYPE_DOUBLE, tag);
+    if (MB_SUCCESS != result) return result;
+  }
+  else
+  {
+    result = mbImpl->tag_get_handle(interp_tag.c_str(), 1, MB_TYPE_DOUBLE, tag);
+    if (MB_SUCCESS != result) return result;
+  }
+  return interpolate(method, tag, interp_vals, tl, normalize);
+}
+  
+inline ErrorCode Coupler::interpolate(Coupler::Method method,
+                                      Tag tag,
+                                      double *interp_vals,
+                                      TupleList *tl,
+                                      bool normalize)
+{
+  int num_pts = (tl ? tl->get_n() : targetPts->get_n());
+  return interpolate(&method, &tag, &num_pts, 1,
+                     interp_vals, tl, normalize);
+}
 
 } // namespace moab
 

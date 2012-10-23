@@ -4,10 +4,11 @@
 #include "ElemUtil.hpp"
 #include "moab/CN.hpp"
 #include "iMesh_extensions.h"
-#include "iostream"
 #include "moab/gs.hpp"
-#include <stdio.h>
 #include "moab/TupleList.hpp"
+#include "iostream"
+#include <stdio.h>
+#include <algorithm>
 
 //extern "C" 
 //{
@@ -242,12 +243,13 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
 {
   assert(tl || store_local);
 
-    // allocate tuple_list to hold point data: (p, i, , xyz), i = point index
+    // target_pts: TL(to_proc, tgt_index, x, y, z): tuples sent to source mesh procs representing pts to be located
+    // source_pts: TL(from_proc, tgt_index, src_index): results of source mesh proc point location, ready to send
+    //             back to tgt procs; src_index of -1 indicates point not located (arguably not useful...)
   TupleList target_pts;
   target_pts.initialize(2, 0, 0, 3, num_points);
   target_pts.enableWriteAccess();
 
-    // initialize source_pts and local_pts
   TupleList source_pts;
   mappedPts = new TupleList(0, 0, 1, 3, target_pts.get_max());
   mappedPts->enableWriteAccess();
@@ -258,9 +260,6 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
   mappedPts->set_n(0);
   source_pts.set_n(0);
   ErrorCode result;
-
-    // keep track of which points have been located
-  std::vector<unsigned char> located_pts(num_points, 0);
 
     // for each point, find box(es) containing the point,
     // appending results to tuple_list;
@@ -274,31 +273,17 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
   
   for (int i = 0; i < 3*num_points; i+=3) 
   {
-      // test point locally first
-    result = test_local_box(xyz+i, my_rank, i/3, i/3, point_located, rel_eps, abs_eps);
-    if (MB_SUCCESS != result) {
-      return result;
-    }
-    if (point_located) {
-      located_pts[i/3] = 0x1;
-      continue;
-    }
-
-    
-      // if not located locally, test other procs' boxes
     for (unsigned int j = 0; j < (myPc ? myPc->proc_config().proc_size() : 0); j++)
     {
-      if (j == my_rank) continue;
-      
         // test if point is in proc's box
       if ( (allBoxes[6*j] <= xyz[i]+abs_eps) && ( xyz[i] <= allBoxes[6*j+3]+abs_eps) &&
-          (allBoxes[6*j+1] <= xyz[i+1]+abs_eps) && (xyz[i+1] <= allBoxes[6*j+4]+abs_eps) &&
-          (allBoxes[6*j+2] <= xyz[i+2]+abs_eps) && (xyz[i+2] <= allBoxes[6*j+5]+abs_eps))
+           (allBoxes[6*j+1] <= xyz[i+1]+abs_eps) && (xyz[i+1] <= allBoxes[6*j+4]+abs_eps) &&
+           (allBoxes[6*j+2] <= xyz[i+2]+abs_eps) && (xyz[i+2] <= allBoxes[6*j+5]+abs_eps))
       {
           // if in this proc's box, will send to proc to test further
           // check size, grow if we're at max
         if (target_pts.get_n() == target_pts.get_max()) 
-          target_pts.resize(target_pts.get_max() + (1+target_pts.get_max())/2);
+          target_pts.resize(std::max(10.0, 1.5*target_pts.get_max()));
   
         target_pts.vi_wr[2*target_pts.get_n()] = j;
         target_pts.vi_wr[2*target_pts.get_n()+1] = i/3;
@@ -311,14 +296,22 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
     }
   }
 
-  printf("rank: %d local points: %d, nb sent target pts: %d mappedPts: %d \n",
-           my_rank, num_points, target_pts.get_n(), mappedPts->get_n());
+  int num_to_me = 0;
+  for (unsigned int i = 0; i < target_pts.get_n(); i++)
+    if (target_pts.vi_rd[2*i] == (int)my_rank) num_to_me++;
+
+  printf("rank: %d local points: %d, nb sent target pts: %d mappedPts: %d num to me: %d \n",
+         my_rank, num_points, target_pts.get_n(), mappedPts->get_n(), num_to_me);
     // perform scatter/gather, to gather points to source mesh procs
   if (myPc) {
     (myPc->proc_config().crystal_router())->gs_transfer(1, target_pts, 0);
 
-    printf("rank: %d after first gs nb received_pts: %d\n",
-               my_rank, target_pts.get_n());
+    num_to_me = 0;
+    for (unsigned int i = 0; i < target_pts.get_n(); i++)
+      if (target_pts.vi_rd[2*i] == (int)my_rank) num_to_me++;
+
+    printf("rank: %d after first gs nb received_pts: %d; num_from_me = %d\n",
+           my_rank, target_pts.get_n(), num_to_me);
       // after scatter/gather:
       // target_pts.set_n( # points local proc has to map );
       // target_pts.vi_wr[2*i] = proc sending point i
@@ -349,28 +342,23 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
     target_pts.reset();
 
     printf("rank: %d nb sent source pts: %d, mappedPts now: %d\n",
-                   my_rank, source_pts.get_n(),  mappedPts->get_n());
+           my_rank, source_pts.get_n(),  mappedPts->get_n());
       // send target points back to target procs
     (myPc->proc_config().crystal_router())->gs_transfer(1, source_pts, 0);
 
     printf("rank: %d nb received source pts: %d\n",
-                       my_rank, source_pts.get_n());
+           my_rank, source_pts.get_n());
   }
   
-  // store proc/index tuples in targetPts, and/or pass back to application;
-  // the tuple this gets stored to looks like:
-  // tl.set_n( # mapped points );
-  // tl.vi_wr[3*i] = remote proc mapping point
-  // tl.vi_wr[3*i+1] = local index of mapped point
-  // tl.vi_wr[3*i+2] = remote index of mapped point
-  //
-  // Local index is mapped into either myRange, holding the handles of
-  // local mapped entities, or myXyz, holding locations of mapped pts
-
-  // count non-negatives
-  int num_pts = 0;
-  for (unsigned int i = 0; i < source_pts.get_n(); i++)
-    if (-1 != source_pts.vi_rd[3*i+2]) num_pts++;  
+    // store proc/index tuples in targetPts, and/or pass back to application;
+    // the tuple this gets stored to looks like:
+    // tl.set_n( # mapped points );
+    // tl.vi_wr[3*i] = remote proc mapping point
+    // tl.vi_wr[3*i+1] = local index of mapped point
+    // tl.vi_wr[3*i+2] = remote index of mapped point
+    //
+    // Local index is mapped into either myRange, holding the handles of
+    // local mapped entities, or myXyz, holding locations of mapped pts
 
     // store information about located points
   TupleList *tl_tmp;
@@ -381,40 +369,37 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
     tl_tmp = targetPts;
   }
 
-  tl_tmp->initialize(3, 0, 0, 1, num_pts);
-  tl_tmp->enableWriteAccess();
+  tl_tmp->initialize(3, 0, 0, 0, num_points);
+  tl_tmp->set_n(num_points); // automatically sets tl to write_enabled
+    // initialize so we know afterwards how many pts weren't located
+  std::fill(tl_tmp->vi_wr, tl_tmp->vi_wr+3*num_points, -1);
 
+  unsigned int local_pts = 0;
   for (unsigned int i = 0; i < source_pts.get_n(); i++) {
     if (-1 != source_pts.vi_rd[3*i+2]) { //why bother sending message saying "i don't have the point" if it gets discarded?
-
-      int locIndex = source_pts.vi_rd[3*i+1];
-      if(located_pts[locIndex]){  
-        //asked 2+ procs if they have point p, they both said yes, we'll keep the one with lowest rank
-        //todo: check that the cases where both say yes are justified (seemed to happen too often in tests)
-        continue;
-      }
-
-      located_pts[locIndex] = 1;
-
-      tl_tmp->vi_wr[3*tl_tmp->get_n()]     = source_pts.vi_rd[3*i];
-      tl_tmp->vi_wr[3*tl_tmp->get_n() + 1] = source_pts.vi_rd[3*i+1];
-      tl_tmp->vi_wr[3*tl_tmp->get_n() + 2] = source_pts.vi_rd[3*i+2];
-      tl_tmp->inc_n();
+      if (source_pts.vi_rd[3*i] == (int)my_rank) local_pts++;
+      int tgt_index = 3*source_pts.vi_rd[3*i+1];
+      tl_tmp->vi_wr[tgt_index]   = source_pts.vi_rd[3*i];
+      tl_tmp->vi_wr[tgt_index+1] = source_pts.vi_rd[3*i+1];
+      tl_tmp->vi_wr[tgt_index+2] = source_pts.vi_rd[3*i+2];
     }
   }
 
-  int mappedPoints  = tl_tmp->get_n() + localMappedPts.size()/2;
-  int missingPoints = num_points-mappedPoints;
+    // count missing points
+  unsigned int missing_pts = 0;
+  for (int i = 0; i < num_points; i++) 
+    if (tl_tmp->vi_rd[3*i+1] == -1) missing_pts++;
+  
   printf("rank: %d point location: wanted %d got %u locally, %d remote, missing %d\n",
-         my_rank, num_points, (uint)localMappedPts.size()/2,  tl_tmp->get_n(), missingPoints);
-  assert(0==missingPoints); //will litely break on curved geometries
+         my_rank, num_points, local_pts,  num_points-missing_pts-local_pts, missing_pts);
+  assert(0==missing_pts); //will litely break on curved geometries
   
     // no longer need source_pts
   source_pts.reset();
 
     // copy into tl if passed in and storing locally
   if (tl && store_local) {
-    tl = new TupleList(3, 0, 0, 1, num_pts);
+    tl = new TupleList(3, 0, 0, 0, num_points);
     tl->enableWriteAccess();
     memcpy(tl->vi_wr, tl_tmp->vi_rd, 3*tl_tmp->get_n()*sizeof(int));
     tl->set_n( tl_tmp->get_n() );
@@ -433,7 +418,6 @@ ErrorCode Coupler::test_local_box(double *xyz,
                                   double rel_eps, double abs_eps,
                                   TupleList *tl)
 {
-  
   std::vector<EntityHandle> entities;
   std::vector<CartVect> nat_coords;
   bool canWrite;
@@ -455,23 +439,21 @@ ErrorCode Coupler::test_local_box(double *xyz,
     // if we didn't find any ents and we're looking locally, nothing more to do
   if (entities.empty())
   {
-    if (tl){
-      if (tl->get_n() == tl->get_max())
-        tl->resize(tl->get_max() + (1 + tl->get_max()) / 2);
+    if (tl->get_n() == tl->get_max())
+      tl->resize(std::max(10.0, 1.5*tl->get_max()));
 
-      tl->vi_wr[3 * tl->get_n()] = from_proc;
-      tl->vi_wr[3 * tl->get_n() + 1] = remote_index;
-      tl->vi_wr[3 * tl->get_n() + 2] = -1;
-      tl->inc_n();
-    }
+    tl->vi_wr[3 * tl->get_n()] = from_proc;
+    tl->vi_wr[3 * tl->get_n() + 1] = remote_index;
+    tl->vi_wr[3 * tl->get_n() + 2] = -1;
+    tl->inc_n();
+
     point_located = false;
     return MB_SUCCESS;
   }
 
     // grow if we know we'll exceed size
   if (mappedPts->get_n()+entities.size() >= mappedPts->get_max())
-    mappedPts->resize(mappedPts->get_max() + (1+mappedPts->get_max())/2);;
-
+    mappedPts->resize(std::max(10.0, 1.5*mappedPts->get_max()));
 
   std::vector<EntityHandle>::iterator eit = entities.begin();
   std::vector<CartVect>::iterator ncit = nat_coords.begin();
@@ -485,22 +467,15 @@ ErrorCode Coupler::test_local_box(double *xyz,
     mappedPts->vul_wr[mappedPts->get_n()] = *eit;
     mappedPts->inc_n();
 
-    // also store local point, mapped point indices
-    if (tl) 
-    {
-      if (tl->get_n() == tl->get_max()) 
-	      tl->resize(tl->get_max() + (1+tl->get_max())/2);
+      // also store local point, mapped point indices
+    if (tl->get_n() == tl->get_max()) 
+      tl->resize(std::max(10.0, 1.5*tl->get_max()));
 
-        // store in tuple source_pts
-      tl->vi_wr[3*tl->get_n()] = from_proc;
-      tl->vi_wr[3*tl->get_n()+1] = remote_index;
-      tl->vi_wr[3*tl->get_n()+2] = mappedPts->get_n()-1;
-      tl->inc_n();
-    }
-    else {
-      localMappedPts.push_back(index);
-      localMappedPts.push_back(mappedPts->get_n()-1);
-    }
+      // store in tuple source_pts
+    tl->vi_wr[3*tl->get_n()] = from_proc;
+    tl->vi_wr[3*tl->get_n()+1] = remote_index;
+    tl->vi_wr[3*tl->get_n()+2] = mappedPts->get_n()-1;
+    tl->inc_n();
   }
 
   point_located = true;
@@ -510,95 +485,79 @@ ErrorCode Coupler::test_local_box(double *xyz,
   return MB_SUCCESS;
 }
 
-ErrorCode Coupler::interpolate(Coupler::Method method,
-                               const std::string &interp_tag,
-                                   double *interp_vals,
-                                   TupleList *tl,
-                                   bool normalize)
+ErrorCode Coupler::interpolate(Coupler::Method *methods,
+                               Tag *tags,
+                               int *points_per_method,
+                               int num_methods,
+                               double *interp_vals,
+                               TupleList *tl,
+                               bool normalize)
 {
-  Tag tag;
-  ErrorCode result ;
-  if (_spectralSource)
-  {
-    result = mbImpl->tag_get_handle(interp_tag.c_str(), _ntot, MB_TYPE_DOUBLE, tag);
-    if (MB_SUCCESS != result) return result;
-  }
-  else
-  {
-    result = mbImpl->tag_get_handle(interp_tag.c_str(), 1, MB_TYPE_DOUBLE, tag);
-    if (MB_SUCCESS != result) return result;
-  }
-  return interpolate(method, tag, interp_vals, tl, normalize);
-}
   
-ErrorCode Coupler::interpolate(Coupler::Method method,
-                                   Tag tag,
-                                   double *interp_vals,
-                                   TupleList *tl,
-                                   bool normalize)
-{
-  //if (!((LINEAR_FE == method) || (PLAIN_FE == method)))
-   // return MB_FAILURE;
+    //if (!((LINEAR_FE == method) || (CONSTANT == method)))
+    // return MB_FAILURE;
 
   TupleList *tl_tmp = (tl ? tl : targetPts);
     // remote pts first
   
   ErrorCode result = MB_SUCCESS;
 
+  unsigned int pts_total = 0;
+  for (int i = 0; i < num_methods; i++) pts_total += points_per_method[i];
+
+    // if tl was passed in non-NULL, just have those points, otherwise have targetPts plus
+    // locally mapped pts
+  if (pts_total != tl_tmp->get_n())
+    return MB_FAILURE;
+
+  TupleList tinterp;
+  tinterp.initialize(5, 0, 0, 1, tl_tmp->get_n());
+  int t = 0;
+  tinterp.enableWriteAccess();
+  for (int i = 0; i < num_methods; i++) {
+    for (int j = 0; j < points_per_method[i]; j++) {
+      tinterp.vi_wr[5*t] = tl_tmp->vi_rd[3*t];
+      tinterp.vi_wr[5*t+1] = tl_tmp->vi_rd[3*t+1];
+      tinterp.vi_wr[5*t+2] = tl_tmp->vi_rd[3*t+2];
+      tinterp.vi_wr[5*t+3] = methods[i];
+      tinterp.vi_wr[5*t+4] = i;
+      tinterp.inc_n();
+      t++;
+    }
+  }
+
     // scatter/gather interpolation points
   if (myPc) {
-    (myPc->proc_config().crystal_router())->gs_transfer(1, *tl_tmp, 0);
+    (myPc->proc_config().crystal_router())->gs_transfer(1, tinterp, 0);
 
       // perform interpolation on local source mesh; put results into
-      // tl_tmp->vr_wr[i]
+      // tinterp.vr_wr[i]
 
     mappedPts->enableWriteAccess();
-    for (unsigned int i = 0; i < tl_tmp->get_n(); i++) {
-      int mindex = tl_tmp->vi_rd[3*i+2];
+    for (unsigned int i = 0; i < tinterp.get_n(); i++) {
+      int mindex = tinterp.vi_rd[5*i+2];
+      Method method = (Method)tinterp.vi_rd[5*i+3];
+      Tag tag = tags[tinterp.vi_rd[5*i+4]];
 
       result = MB_FAILURE;
       if(LINEAR_FE == method || QUADRATIC_FE == method){
         result = interp_field(mappedPts->vul_rd[mindex],
                               CartVect(mappedPts->vr_wr+3*mindex), 
-                              tag, tl_tmp->vr_rd[i]);
-      }else if (PLAIN_FE == method){
-        result = plain_field_map(mappedPts->vul_rd[mindex],
-                                 tag, tl_tmp->vr_rd[i]);
+                              tag, tinterp.vr_rd[i]);
+      }else if (CONSTANT == method){
+        result = constant_interp(mappedPts->vul_rd[mindex],
+                                 tag, tinterp.vr_rd[i]);
       }
 
       if (MB_SUCCESS != result) return result;
     }
   
       // scatter/gather interpolation data
-    (myPc->proc_config().crystal_router())->gs_transfer(1, *tl_tmp, 0);
+    myPc->proc_config().crystal_router()->gs_transfer(1, tinterp, 0);
   }
-  
-  if (!tl)
-  {
-    // mapped whole targetPts tuple; put into proper place in interp_vals
-    for (unsigned int i = 0; i < tl_tmp->get_n(); i++)
-      interp_vals[tl_tmp->vi_rd[3 * i + 1]] = tl_tmp->vr_rd[i];
 
-    // now do locally-contained pts, since we're mapping everything
-    for (std::vector<unsigned int>::iterator vit = localMappedPts.begin();
-        vit != localMappedPts.end(); vit += 2) {
-      int mindex = *(vit + 1);
-
-      result = MB_FAILURE;
-      if (LINEAR_FE == method || QUADRATIC_FE == method){
-        result = interp_field(mappedPts->vul_rd[mindex],
-            CartVect(mappedPts->vr_wr + 3 * mindex), tag, interp_vals[*vit]);
-      }
-      else if (PLAIN_FE == method){
-        result = plain_field_map(mappedPts->vul_rd[mindex], tag,
-            interp_vals[*vit]);
-      }
-
-      if (MB_SUCCESS != result)
-        return result;
-
-    }
-  }
+    // copy the interpolated field as a unit
+  memcpy(interp_vals, tinterp.vr_rd, tinterp.get_n());
   
     // done
   return MB_SUCCESS;
@@ -851,9 +810,9 @@ ErrorCode Coupler::interp_field(EntityHandle elem,
 
 //Simplest "interpolation" for element-based source fields. Set the value of the field
 //at the target point to that of the field in the source element it lies in.
-ErrorCode Coupler::plain_field_map(EntityHandle elem,
-				       Tag tag,
-				       double &field)
+ErrorCode Coupler::constant_interp(EntityHandle elem,
+                                   Tag tag,
+                                   double &field)
 {
   double tempField;
 
