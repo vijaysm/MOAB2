@@ -620,6 +620,7 @@ MB_OPTIONAL_TOOL([gsets],        [yes])
 MB_OPTIONAL_TOOL([mbdepth],      [yes])
 MB_OPTIONAL_TOOL([refiner],      [no])
 MB_OPTIONAL_TOOL([h5mtools],     [yes])
+MB_OPTIONAL_TOOL([mbcslam],      [no])
 
 if test "xyes" = "x$ENABLE_refiner"; then
   if test "xyes" != "x$WITH_MPI"; then
@@ -1172,6 +1173,7 @@ AC_CONFIG_FILES([Makefile
                  tools/Makefile
                  tools/refiner/Makefile
                  tools/mbcoupler/Makefile
+                 tools/mbcslam/Makefile
                  tools/mbzoltan/Config.moab
                  tools/mbzoltan/Makefile
                  tools/mcnpmit/Makefile

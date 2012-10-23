@@ -127,11 +127,18 @@ else
   parread =
 endif
 
+if ENABLE_mbcslam
+  mbcslam_DIR = mbcslam
+else
+  mbcslam_DIR = 
+endif
+
 noinst_PROGRAMS = $(parread)
 
 SUBDIRS = . \
           $(refiner_DIR) \
           $(mbcoupler_DIR) \
+          $(mbcslam_DIR) \
           $(mbzoltan_DIR) \
 	  $(mcnpmit_DIR) \
           $(qvdual_DIR) \
