@@ -32,17 +32,31 @@ public:
   Intx2Mesh(Interface * mbimpl);
   virtual ~Intx2Mesh();
 
-  virtual ErrorCode intersect_meshes(EntityHandle mbs1, EntityHandle mbs2,
-        EntityHandle & outputSet)=0; // pure abstract method, needs to be implemented in
-  // the derived classes
+  ErrorCode intersect_meshes(EntityHandle mbs1, EntityHandle mbs2,
+       EntityHandle & outputSet);
+
+  // mark could be 3 or 4, depending on type
+  // this is pure abstract, this need s to be implemented by
+  // all derivations
+  virtual int computeIntersectionBetweenRedAndBlue(EntityHandle red,
+      EntityHandle blue, double * P, int & nP, double & area,
+      int markb[4], int markr[4])=0;
+
+  // this is also abstract
+  virtual int findNodes(EntityHandle red, EntityHandle blue,
+      double * iP, int nP)=0;
 
   virtual void createTags();
   ErrorCode GetOrderedNeighbors(EntityHandle set, EntityHandle quad,
       EntityHandle neighbors[4]);
 
   void SetErrorTolerance(double eps) { epsilon_1=eps;}
+
+  void SetEntityType (EntityType tp) { type=tp;}
+
   // clean some memory allocated
   void clean();
+
 // private: everything public?
   Interface * mb;
 
@@ -63,6 +77,8 @@ public:
   Tag redParentTag;
   Tag blueParentTag;
   Tag countTag;
+
+  EntityType type;
 
   const EntityHandle * redConn;
   const EntityHandle * blueConn;

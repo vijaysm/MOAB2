@@ -12,11 +12,11 @@ namespace moab
 {
 double dist2(double * a, double * b);
 double area2D(double *a, double *b, double *c);
-int borderPointsOfXinY2(double * X, double * Y, double * P, int side[4]);
+int borderPointsOfXinY2(double * X, double * Y, int nsides, double * P, int side[4]);
 int SortAndRemoveDoubles2(double * P, int & nP, double epsilon);
 // the marks will show what edges of blue intersect the red
 
-int EdgeIntersections2(double * blue, double * red, int markb[4], int markr[4],
+int EdgeIntersections2(double * blue, double * red, int nsides, int markb[4], int markr[4],
     double * points, int & nPoints);
 
 // vec utils related to gnomonic projection on a sphere

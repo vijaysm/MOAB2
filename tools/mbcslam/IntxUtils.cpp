@@ -20,24 +20,24 @@ double area2D(double *a, double *b, double *c)
   // (b-a)x(c-a) / 2
   return ((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2;
 }
-int borderPointsOfXinY2(double * X, double * Y, double * P, int side[4])
+int borderPointsOfXinY2(double * X, double * Y, int nsides, double * P, int side[4])
 {
   // 2 triangles, 3 corners, is the corner of X in Y?
   // Y must have a positive area
   /*
    */
   int extraPoint = 0;
-  for (int i = 0; i < 4; i++)
+  for (int i = 0; i < nsides; i++)
   {
     // compute twice the area of all 4 triangles formed by a side of Y and a corner of X; if one is negative, stop
     double * A = X + 2 * i;
 
     int inside = 1;
-    for (int j = 0; j < 4; j++)
+    for (int j = 0; j < nsides; j++)
     {
       double * B = Y + 2 * j;
 
-      int j1 = (j + 1) % 4;
+      int j1 = (j + 1) % nsides;
       double * C = Y + 2 * j1; // no copy of data
 
       double area2 = (B[0] - A[0]) * (C[1] - A[1])
@@ -142,11 +142,11 @@ int SortAndRemoveDoubles2(double * P, int & nP, double epsilon_1)
 
 // the marks will show what edges of blue intersect the red
 
-int EdgeIntersections2(double * blue, double * red, int markb[4], int markr[4],
+int EdgeIntersections2(double * blue, double * red, int nsides, int markb[4], int markr[4],
     double * points, int & nPoints)
 {
-  /* EDGEINTERSECTIONS computes edge intersections of two triangles
-   [P,n]=EdgeIntersections(X,Y) computes for the two given triangles  * red
+  /* EDGEINTERSECTIONS computes edge intersections of two elements
+   [P,n]=EdgeIntersections(X,Y) computes for the two given elements  * red
    and blue ( stored column wise )
    (point coordinates are stored column-wise, in counter clock
    order) the points P where their edges intersect. In addition,
@@ -170,14 +170,14 @@ int EdgeIntersections2(double * blue, double * red, int markb[4], int markr[4],
    end;
    end;
    end;*/
-  for (int i = 0; i < 4; i++)
+  for (int i = 0; i < nsides; i++)
   {
-    for (int j = 0; j < 4; j++)
+    for (int j = 0; j < nsides; j++)
     {
       double b[2];
       double a[2][2]; // 2*2
-      int iPlus1 = (i + 1) % 4;
-      int jPlus1 = (j + 1) % 4;
+      int iPlus1 = (i + 1) % nsides;
+      int jPlus1 = (j + 1) % nsides;
       for (int k = 0; k < 2; k++)
       {
         b[k] = red[2 * j + k] - blue[2 * i + k];

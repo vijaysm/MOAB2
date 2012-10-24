@@ -18,7 +18,7 @@ LDADD = libmbcslam.la
 
 libmbcslam_la_SOURCES = \
    Intx2Mesh.cpp Intx2Mesh.hpp Intx2MeshOnSphere.cpp Intx2MeshOnSphere.hpp \
-     IntxUtils.cpp IntxUtils.hpp
+     IntxUtils.cpp IntxUtils.hpp Intx2MeshInPlane.cpp Intx2MeshInPlane.hpp 
 
 # these will be installed
 libmbcslam_la_include_HEADERS = 
@@ -31,7 +31,9 @@ libmbcslam_la_includedir = $(includedir)
 # check that only libraries are going in $(libdir)
 cfgdir = $(libdir)
 
-TESTS = intx_on_sphere_test
+TESTS = intx_on_sphere_test  
+#intx_in_plane_test
 check_PROGRAMS = $(TESTS) 
 intx_on_sphere_test_SOURCES = intx_on_sphere_test.cpp
+#intx_in_plane_test_SOURCES = intx_in_plane_test.cpp
 
