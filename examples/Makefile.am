@@ -11,7 +11,7 @@ check_PROGRAMS = FileRead \
 		 ObbTree \
                  SetsNTags \
                  SkinMesh \
-                 SurfArea IntxMeshes
+                 SurfArea 
 
 SRCDIR = $(top_srcdir)/examples
 
@@ -30,7 +30,6 @@ SkinMesh_SOURCES = SkinMesh.cpp
 SurfArea_SOURCES = SurfArea.cpp
 KDTree_SOURCES = KDTree.cpp
 ObbTree_SOURCES = ObbTree.cpp
-IntxMeshes_SOURCES = IntxMeshes.cpp
 
 exampledir = ${docdir}/examples
 nobase_example_DATA = \
