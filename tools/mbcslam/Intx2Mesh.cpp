@@ -38,7 +38,7 @@ void Intx2Mesh::createTags()
   // assume that the edges are on the red triangles
   Range redQuads;
   //Range redEdges;
-  rval = mb->get_entities_by_type(mbs2, MBQUAD, redQuads, false);
+  rval = mb->get_entities_by_type(mbs2, type, redQuads, false);
   if (MB_SUCCESS != rval)
     return;
   // create red edges if they do not exist yet; so when they are looked upon, they are found
