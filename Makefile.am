@@ -53,9 +53,11 @@ install-data-hook:
 # First line: get unformatted data from config.status
 # Second line: extract just the list of options
 # Third line: put individual options on separate lines
+# Fourth line: remove any empty lines and trim spaces and then write to config file.
 moab.config: config.status Makefile.am
 	$(AM_V_GEN)./config.status --version | \
 	  sed -e 's/.*options "\(.*\)"/\1/p' -e 'd' | \
-	  sed -e "s/'[[:space:]]'/'\n'/g" >$@
+	  tr "'" "\n" | \
+	  sed -e '/^ *$$/d' > $@
 
 CLEANFILES = moab.config
