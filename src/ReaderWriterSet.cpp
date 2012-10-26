@@ -50,11 +50,13 @@
 #  include "WriteNCDF.hpp"
 #  include "WriteSLAC.hpp"
 #  include "ReadNC.hpp"
+#  include "ReadGCRM.hpp"
 #endif
 
 // 2nd include of ReadNC in case we have pnetcdf and not netcdf
 #ifdef PNETCDF_FILE 
 #  include "ReadNC.hpp"
+#  include "ReadGCRM.hpp"
 #endif
 
 #ifdef CCMIO_FILE
@@ -97,6 +99,7 @@ ReaderWriterSet::ReaderWriterSet( Core* mdb, Error* handler )
 #ifdef NETCDF_FILE
   const char* exo_sufxs[] = { "exo", "exoII", "exo2", "g", "gen", NULL };
   register_factory( ReadNCDF::factory, WriteNCDF::factory, "Exodus II", exo_sufxs, "EXODUS" );
+  register_factory( ReadGCRM::factory, NULL, "GCRM NC", "nc", "GCRM" );
   register_factory( ReadNC::factory, NULL, "Climate NC", "nc", "NC" );
 #endif
 
