@@ -219,20 +219,47 @@ ErrorCode Coupler::initialize_spectral_elements(EntityHandle rootSource, EntityH
   return MB_SUCCESS;
 }
 
-ErrorCode Coupler::locate_points(Range &targ_verts,
+ErrorCode Coupler::locate_points(Range &targ_ents,
                                  double rel_eps, 
                                  double abs_eps,
                                  TupleList *tl,
                                  bool store_local)
 {
     // get locations
-  std::vector<double> locs(3*targ_verts.size());
-  ErrorCode rval = mbImpl->get_coords(targ_verts, &locs[0]);
+  std::vector<double> locs(3*targ_ents.size());
+  Range verts = targ_ents.subset_by_type(MBVERTEX);
+  ErrorCode rval = mbImpl->get_coords(verts, &locs[0]);
   if (MB_SUCCESS != rval) return rval;
+    // now get other ents; reuse verts
+  unsigned int num_verts = verts.size();
+  verts = subtract(targ_ents, verts);
+    // compute centroids
+  std::vector<EntityHandle> dum_conn(CN::MAX_NODES_PER_ELEMENT);
+  std::vector<double> dum_pos(CN::MAX_NODES_PER_ELEMENT);
+  const EntityHandle *conn;
+  int num_conn;
+  double *coords = &locs[num_verts];
+    // do this here instead of a function to allow reuse of dum_pos and dum_conn
+  for (Range::const_iterator rit = verts.begin(); rit != verts.end(); rit++) {
+    rval = mbImpl->get_connectivity(*rit, conn, num_conn, false, &dum_conn);
+    if (MB_SUCCESS != rval) return rval;
+    rval = mbImpl->get_coords(conn, num_conn, &dum_pos[0]);
+    if (MB_SUCCESS != rval) return rval;
+    coords[0] = coords[1] = coords[2] = 0.0;
+    for (int i = 0; i < num_conn; i++) {
+      coords[0] += dum_pos[3*i];
+      coords[1] += dum_pos[3*i+1];
+      coords[2] += dum_pos[3*i+2];
+    }
+    coords[0] /= num_conn;
+    coords[1] /= num_conn;
+    coords[2] /= num_conn;
+    coords += 3;
+  }
 
-  if (store_local) targetVerts = targ_verts;
+  if (store_local) targetEnts = targ_ents;
   
-  return locate_points(&locs[0], targ_verts.size(), rel_eps, abs_eps, tl, store_local);
+  return locate_points(&locs[0], targ_ents.size(), rel_eps, abs_eps, tl, store_local);
 }
 
 ErrorCode Coupler::locate_points(double *xyz, int num_points,

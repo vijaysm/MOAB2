@@ -88,7 +88,8 @@ public:
      * This function finds the element/processor/natural coordinates for the
      * source mesh element containing each entity, optionally storing the results 
      * on the target mesh processor.  Location of each target mesh entity passed in
-     * is its centroid.  Relative tolerance is compared to bounding 
+     * is its centroid (for non-vertices, the avg of its vertex positions).  
+     * Relative tolerance is compared to bounding 
      * box diagonal length.  Tolerance is compared to [-1,1] parametric extent
      * in the reference element.
      * \param ents Entities being located
@@ -422,7 +423,7 @@ public:
   inline EntityHandle local_root() const {return localRoot;}
   inline const std::vector<double> &all_boxes() const {return allBoxes;}
   inline ParallelComm *my_pc() const {return myPc;}
-  inline const Range &target_verts() const {return targetVerts;}
+  inline const Range &target_ents() const {return targetEnts;}
   inline int my_id() const {return myId;}
   inline const Range &my_range() const {return myRange;}
   inline TupleList *mapped_pts() const {return mappedPts;}
@@ -485,9 +486,9 @@ private:
      */
   Range myRange;
 
-    /* \brief Range of target vertices
+    /* \brief Range of target entities
      */
-  Range targetVerts;
+  Range targetEnts;
 
     /* \brief List of locally mapped tuples
      * Tuples contain the following:
