@@ -570,10 +570,10 @@ ErrorCode Coupler::interpolate(Coupler::Method *methods,
       if(LINEAR_FE == method || QUADRATIC_FE == method){
         result = interp_field(mappedPts->vul_rd[mindex],
                               CartVect(mappedPts->vr_wr+3*mindex), 
-                              tag, tinterp.vr_rd[i]);
+                              tag, tinterp.vr_wr[i]);
       }else if (CONSTANT == method){
         result = constant_interp(mappedPts->vul_rd[mindex],
-                                 tag, tinterp.vr_rd[i]);
+                                 tag, tinterp.vr_wr[i]);
       }
 
       if (MB_SUCCESS != result) return result;
@@ -584,7 +584,7 @@ ErrorCode Coupler::interpolate(Coupler::Method *methods,
   }
 
     // copy the interpolated field as a unit
-  memcpy(interp_vals, tinterp.vr_rd, tinterp.get_n());
+  memcpy(interp_vals, tinterp.vr_rd, tinterp.get_n()*sizeof(double));
   
     // done
   return MB_SUCCESS;
