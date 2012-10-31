@@ -162,7 +162,9 @@ ErrorCode mb_vertex_coordinate_test()
   error = MB->get_entities_by_type( 0, MBHEX, hexes );
   EntityHandle handle = hexes.front();
   error = MB->get_coords(&handle, 1, &x[0]);
-  CHECK_EQUAL( MB_TYPE_OUT_OF_RANGE, error );
+  CHECK_EQUAL(0.5, x[0]);
+  CHECK_EQUAL(0.5, x[1]);
+  CHECK_EQUAL(0.5, x[2]);
   
   return MB_SUCCESS;
 }

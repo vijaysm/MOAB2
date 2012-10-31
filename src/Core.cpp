@@ -940,7 +940,7 @@ ErrorCode  Core::get_coords(const Range& entities, double *coords) const
   
   Range::const_pair_iterator i = entities.const_pair_begin();
   EntityHandle first = i->first;
-  while (i != entities.const_pair_end()) {
+  while (i != entities.const_pair_end() && TYPE_FROM_HANDLE(i->first) == MBVERTEX) {
     
     seq_iter = vert_data.lower_bound( first );
     if (seq_iter == vert_data.end() || first < (*seq_iter)->start_handle())
@@ -974,8 +974,16 @@ ErrorCode  Core::get_coords(const Range& entities, double *coords) const
     }
     coords=&coords[ 3*count ];
   }
-  
-  return MB_SUCCESS;
+ 
+    // for non-vertices...
+  ErrorCode rval = MB_SUCCESS;
+  for (Range::const_iterator rit(&(*i), i->first); rit != entities.end(); rit++) {
+    rval = get_coords(&(*rit), 1, coords);
+    if (MB_SUCCESS != rval) return rval;
+    coords += 3;
+  }
+
+  return rval;
 }
 
 /**\author Jason Kraftcheck <kraftche@cae.wisc.edu> - 2007-5-15 */
@@ -989,7 +997,7 @@ ErrorCode Core::get_coords( const Range& entities,
   
   Range::const_pair_iterator i = entities.const_pair_begin();
   EntityHandle first = i->first;
-  while (i != entities.const_pair_end()) {
+  while (i != entities.const_pair_end() && TYPE_FROM_HANDLE(i->first) == MBVERTEX) {
     
     seq_iter = vert_data.lower_bound( first );
     if (seq_iter == vert_data.end() || first < (*seq_iter)->start_handle())
@@ -1027,46 +1035,74 @@ ErrorCode Core::get_coords( const Range& entities,
     }
   }
   
-  return MB_SUCCESS;
+    // for non-vertices...
+  ErrorCode rval = MB_SUCCESS;
+  double xyz[3];
+  for (Range::const_iterator rit(&(*i), i->first); rit != entities.end(); rit++) {
+    rval = get_coords(&(*rit), 1, xyz);
+    if (MB_SUCCESS != rval) return rval;
+    *x_coords++ = xyz[0];
+    *y_coords++ = xyz[1];
+    *z_coords++ = xyz[2];
+  }
+
+  return rval;
 }
 
 ErrorCode  Core::get_coords(const EntityHandle* entities, 
                                   const int num_entities, 
                                   double *coords) const
 {
-  const EntitySequence* seq;
+  const EntitySequence* seq = NULL;
   const VertexSequence* vseq;
   const EntityHandle* const end = entities + num_entities;
   const EntityHandle* iter = entities;
-  
-  seq = sequence_manager()->get_last_accessed_sequence( MBVERTEX );
-  if (!seq) // no vertices
-    return num_entities ? MB_ENTITY_NOT_FOUND : MB_SUCCESS;
-  vseq = static_cast<const VertexSequence*>(seq);
+  ErrorCode status = MB_SUCCESS;
   
   while (iter != end) {
-    if (vseq->start_handle() > *iter || vseq->end_handle() < *iter) {
-      if (TYPE_FROM_HANDLE(*iter) != MBVERTEX)
-        return MB_TYPE_OUT_OF_RANGE;
-        
-      if (MB_SUCCESS != sequence_manager()->find(*iter, seq))
-        return MB_ENTITY_NOT_FOUND;
-      vseq = static_cast<const VertexSequence*>(seq);
+    if (TYPE_FROM_HANDLE(*iter) == MBVERTEX) {
+      if (!seq) {
+        seq = sequence_manager()->get_last_accessed_sequence( MBVERTEX );
+        vseq = static_cast<const VertexSequence*>(seq);
+      }
+      if (!vseq) return MB_ENTITY_NOT_FOUND;
+      else if (vseq->start_handle() > *iter || vseq->end_handle() < *iter) {
+        if (MB_SUCCESS != sequence_manager()->find(*iter, seq))
+          return MB_ENTITY_NOT_FOUND;
+        vseq = static_cast<const VertexSequence*>(seq);
+      }
+      vseq->get_coordinates( *iter, coords );
     }
-    
-    vseq->get_coordinates( *iter, coords );
+    else {
+      static std::vector<EntityHandle> dum_conn(CN::MAX_NODES_PER_ELEMENT);
+      static std::vector<double> dum_pos(CN::MAX_NODES_PER_ELEMENT);
+      static const EntityHandle *conn;
+      static int num_conn;
+      status = get_connectivity(*iter, conn, num_conn, false, &dum_conn);
+      if (MB_SUCCESS != status) return status;
+      status = get_coords(conn, num_conn, &dum_pos[0]);
+      if (MB_SUCCESS != status) return status;
+      coords[0] = coords[1] = coords[2] = 0.0;
+      for (int i = 0; i < num_conn; i++) {
+        coords[0] += dum_pos[3*i];
+        coords[1] += dum_pos[3*i+1];
+        coords[2] += dum_pos[3*i+2];
+      }
+      coords[0] /= num_conn;
+      coords[1] /= num_conn;
+      coords[2] /= num_conn;
+    }
     coords += 3;
     ++iter;
-  } 
-
-  return MB_SUCCESS; 
+  }
+  
+  return status; 
 }
 
 
 ErrorCode  Core::get_coords(const EntityHandle entity_handle, 
                                   const double *& x, const double *& y, const double *& z) const
 {
-
   ErrorCode status = MB_TYPE_OUT_OF_RANGE;
 
   if ( TYPE_FROM_HANDLE(entity_handle) == MBVERTEX )
@@ -1083,7 +1119,6 @@ ErrorCode  Core::get_coords(const EntityHandle entity_handle,
   }
 
   return status; 
-
 }
 
 //! set the coordinate information for this handle if it is of type Vertex

@@ -661,10 +661,10 @@ public:
       const_pair_iterator( const PairNode* node ) : myNode(node) {}
       const_pair_iterator( const const_iterator& i ) : myNode(i.mNode) {}
       
-      const std::pair<EntityHandle, EntityHandle>& operator*() const
+      const PairNode& operator*() const
         { return *myNode; }
       
-      const std::pair<EntityHandle, EntityHandle>* operator->() const
+      const PairNode* operator->() const
         { return myNode; }
       
       const_pair_iterator& operator--()
@@ -684,7 +684,7 @@ public:
     
       bool operator!=( const const_pair_iterator& other ) const
         { return other.myNode != myNode; }
-        
+
     private:
       const PairNode* myNode;
   };
