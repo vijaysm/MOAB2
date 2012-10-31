@@ -68,6 +68,16 @@ if test "x" != "x$DAMSEL_ARG" && test "xno" != "x$DAMSEL_ARG"; then
     DAMSEL_LIBS="-ldamsel"
   fi
 
+    # DAMSEL requires HDF5 too
+  if test "xno" == "x$HAVE_HDF5"; then
+    if test "x" == "x$DAMSEL_ARG"; then
+      DAMSEL_ARG=no
+    elif test "xno" != "xDAMSEL_ARG"; then
+      AC_MSG_ERROR([Damsel requires --with-hdf5])
+    fi
+    HAVE_DAMSEL=no
+  fi
+
 fi
 
 ]) # FATHOM_HAVE_DAMSEL
