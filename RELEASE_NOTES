@@ -1,3 +1,7 @@
+Version 4.6pre:
+* Added Interface::adjacencies_iterate, whose behavior is much like tag_iterate.
+* Extended Interface::get_coords, to return entity centroids (avg vertex position) for non-vertex entities instead of failing
+
 Version 4.5:
 * ITAPS: added iMesh_stepEntIter, iMesh_stepEntArrIter, iMesh_tagIterate, iMesh_createTagWithOptions (see iMesh_extensions.h)
 * More partitioning options for structured mesh (see ScdInterface::compute_partition functions, and doc/metadata_info.doc)
