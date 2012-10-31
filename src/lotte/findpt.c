@@ -1580,34 +1580,8 @@ double opt_findpt_3(opt_data_3 *p, const real *const elx[3],
 
 #undef DIAGNOSTICS
 
-/*--------------------------------------------------------------------------
-   
-   2 - D
-     
-  --------------------------------------------------------------------------*/
 
-typedef struct {
-  unsigned constraints;
-  unsigned de, d1;
-  real *x[2], *fd1[2];
-} opt_edge_data_2;
-
-typedef struct {
-  unsigned constraints;
-  real x[2], jac[4];
-} opt_point_data_2;
-
-typedef struct {
-  lagrange_data *ld;
-  unsigned size[3];
-  const real *elx[2];
-  opt_edge_data_2 ed;
-  opt_point_data_2 pd;
-  real *work;
-  real x[2], jac[4];
-} opt_data_2;
-
-static void opt_alloc_2(opt_data_2 *p, lagrange_data *ld)
+void opt_alloc_2(opt_data_2 *p, lagrange_data *ld)
 {
   const unsigned nr = ld[0].n, ns = ld[1].n,
                  ne = umax_2(nr,ns),
@@ -1623,7 +1597,7 @@ static void opt_alloc_2(opt_data_2 *p, lagrange_data *ld)
   p->ed.fd1[1] = p->ed.fd1[0] + ne; 
 }
 
-static void opt_free_2(opt_data_2 *p)
+void opt_free_2(opt_data_2 *p)
 {
   free(p->work);
 }
@@ -1758,7 +1732,7 @@ static void opt_point_set_intp_2(opt_data_2 *p, unsigned constr)
 
 #define DIAGNOSTICS 0
 
-static double opt_findpt_2(opt_data_2 *p, const real *const elx[2],
+double opt_findpt_2(opt_data_2 *p, const real *const elx[2],
                            const real xstar[2], real r[2], unsigned *constr)
 {
   real dr[2], resid[2], steep[2];

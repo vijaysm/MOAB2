@@ -31,7 +31,9 @@ int main(int argc, char **argv)
 
 void test_read_parallel_ucd_trivial()
 {
+  // disable spectral mesh for the time being, it is not ready yet
   partition_method = std::string(";PARTITION_METHOD=TRIVIAL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS");
+  //partition_method = std::string(";PARTITION_METHOD=TRIVIAL_PARTITION;SPECTRAL_MESH;PARALLEL_RESOLVE_SHARED_ENTS");
   test_read_parallel(3458);
 }
   
@@ -69,5 +71,7 @@ void test_read_parallel(int num_verts)
     std::cout<<"total vertices: " << total_verts << "\n";
     CHECK_EQUAL(total_verts, num_verts);
   }
+  std::string write_options("PARALLEL=WRITE_PART;");
+  mb.write_file( "test.h5m", NULL, write_options.c_str() );
 }
 

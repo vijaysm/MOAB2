@@ -31,6 +31,8 @@ int EdgeIntersections2(double * blue, double * red, int nsides, int markb[4], in
  *
  * projection on the plane will preserve the orientation, such that a triangle, quad pointing
  * outside the sphere will have a positive orientation in the projection plane
+ * this is similar logic to /cesm1_0_4/models/atm/cam/src/dynamics/homme/share/coordinate_systems_mod.F90
+ *    method: function cart2face(cart3D) result(face_no)
  */
 void decide_gnomonic_plane(const CartVect & pos, int & oPlane);
 // point on a sphere is projected on one of six planes, decided earlier
@@ -38,5 +40,34 @@ int gnomonic_projection(const CartVect & pos, double R, int plane, double & c1, 
 // given the position on plane (one out of 6), find out the position on sphere
 int reverse_gnomonic_projection(const double & c1, const double & c2, double R, int plane,
     CartVect & pos);
+
+/*
+ *   other methods to convert from spherical coord to cartesian, and back
+ *   A spherical coordinate triple is (R, lon, lat)
+ *   should we store it as a CartVect? probably not ...
+ *   /cesm1_0_4/models/atm/cam/src/dynamics/homme/share/coordinate_systems_mod.F90
+ *
+     enforce three facts:
+    ! ==========================================================
+    ! enforce three facts:
+    !
+    ! 1) lon at poles is defined to be zero
+    !
+    ! 2) Grid points must be separated by about .01 Meter (on earth)
+    !    from pole to be considered "not the pole".
+    !
+    ! 3) range of lon is { 0<= lon < 2*pi }
+    !
+    ! ==========================================================
+ */
+
+struct SphereCoords{
+  double R, lon, lat;
+};
+
+SphereCoords cart_to_spherical(CartVect &) ;
+
+CartVect spherical_to_cart (SphereCoords &) ;
+
 }
 #endif /* INTXUTILS_HPP_ */

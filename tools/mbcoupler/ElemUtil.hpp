@@ -195,7 +195,7 @@ namespace ElemUtil {
       SpectralHex(int order, double * x, double * y, double *z) ;
       SpectralHex(int order);
       SpectralHex();
-      ~SpectralHex();
+      virtual ~SpectralHex();
       void set_gl_points( double * x, double * y, double *z) ;
       virtual CartVect evaluate( const CartVect& xi ) const;
       virtual CartVect ievaluate(const CartVect& x) const;
@@ -223,6 +223,48 @@ namespace ElemUtil {
 
 
     };// class SpectralHex
+
+    class SpectralQuad : public Map {
+      public:
+        SpectralQuad(const std::vector<CartVect>& vertices) : Map(vertices){};
+        SpectralQuad(int order, double * x, double * y, double *z) ;
+        SpectralQuad(int order);
+        SpectralQuad();
+        virtual ~SpectralQuad();
+        void set_gl_points( double * x, double * y, double *z) ;
+        virtual CartVect evaluate( const CartVect& xi ) const;// a 2d, so 3rd component is 0, always
+        virtual CartVect ievaluate(const CartVect& x) const; //a 2d, so 3rd component is 0, always
+        virtual Matrix3  jacobian(const CartVect& xi) const;
+        double   evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const;
+        double   integrate_scalar_field(const double *field_vertex_values) const;
+        bool inside_nat_space(const CartVect & xi, double & tol) const;
+
+        // to compute the values that need to be cached for each element of order n
+        void Init(int order);
+        void freedata();
+        // this will take node, vertex positions and compute the gl points
+        void compute_gl_positions();
+        void get_gl_points(  double *& x, double *& y, double *& z, int & size) ;
+      protected:
+        /* values that depend only on the order of the element , cached */
+        /*  the order in all 3 directions ; it is also np in HOMME lingo*/
+        static int _n;
+        static real *_z[2];
+        static lagrange_data _ld[2];
+        static opt_data_2 _data; // we should use only 2nd component
+        static real * _odwork;// work area
+
+        // flag for initialization of data
+        static bool _init;
+        static real * _glpoints; // it is a space we can use to store gl positions for elements
+        // on the fly; we do not have a tag yet for them, as in Nek5000 application
+        // also, these positions might need to be moved on the sphere, for HOMME grids
+        // do we project them or how do we move them on the sphere?
+
+        real * _xyz[3]; // these are gl points; position?
+
+
+      };// class SpectralQuad
 
 
   }// namespace Element

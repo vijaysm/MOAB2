@@ -397,4 +397,80 @@ int reverse_gnomonic_projection(const double & c1, const double & c2, double R, 
   return 0; // no error
 }
 
+/*
+ *
+    use physical_constants, only : dd_pi
+    type(cartesian3D_t), intent(in) :: cart
+    type(spherical_polar_t)         :: sphere
+
+    sphere%r=distance(cart)
+    sphere%lat=ASIN(cart%z/sphere%r)
+    sphere%lon=0
+
+    ! ==========================================================
+    ! enforce three facts:
+    !
+    ! 1) lon at poles is defined to be zero
+    !
+    ! 2) Grid points must be separated by about .01 Meter (on earth)
+    !    from pole to be considered "not the pole".
+    !
+    ! 3) range of lon is { 0<= lon < 2*pi }
+    !
+    ! ==========================================================
+
+    if (distance(cart) >= DIST_THRESHOLD) then
+       sphere%lon=ATAN2(cart%y,cart%x)
+       if (sphere%lon<0) then
+          sphere%lon=sphere%lon+2*DD_PI
+       end if
+    end if
+
+  end function cart_to_spherical
+ */
+SphereCoords cart_to_spherical(CartVect & cart3d)
+{
+  SphereCoords res;
+  res.R = cart3d.length();
+  if (res.R < 0)
+  {
+    res.lon=res.lat = 0.;
+    return res;
+  }
+  res.lat = asin(cart3d[2]/res.R);
+  res.lon=atan2(cart3d[1], cart3d[0]);
+  if (res.lon<0)
+    res.lon+=2*M_PI;// M_PI is defined in math.h? it seems to be true, although
+  // there are some defines it depends on :(
+  // #if defined __USE_BSD || defined __USE_XOPEN ???
+
+  return res;
+}
+/*
+ * ! ===================================================================
+  ! spherical_to_cart:
+  ! converts spherical polar {lon,lat}  to 3D cartesian {x,y,z}
+  ! on unit sphere
+  ! ===================================================================
+
+  function spherical_to_cart(sphere) result (cart)
+
+    type(spherical_polar_t), intent(in) :: sphere
+    type(cartesian3D_t)                 :: cart
+
+    cart%x=sphere%r*COS(sphere%lat)*COS(sphere%lon)
+    cart%y=sphere%r*COS(sphere%lat)*SIN(sphere%lon)
+    cart%z=sphere%r*SIN(sphere%lat)
+
+  end function spherical_to_cart
+ */
+CartVect spherical_to_cart (SphereCoords & sc)
+{
+  CartVect res;
+  res[0] = sc.R * cos(sc.lat)*cos(sc.lon) ; // x coordinate
+  res[1] = sc.R * cos(sc.lat)*sin(sc.lon); // y
+  res[2] = sc.R * sin(sc.lat);             // z
+  return res;
+}
+
 } //namespace moab

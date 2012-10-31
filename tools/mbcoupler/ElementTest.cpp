@@ -7,6 +7,7 @@ using namespace moab;
 void test_tet();
 void test_hex();
 void test_spectral_hex();
+void test_spectral_quad();
 
 int main()
 {
@@ -14,6 +15,7 @@ int main()
   rval += RUN_TEST(test_tet);
   rval += RUN_TEST(test_hex);
   rval += RUN_TEST(test_spectral_hex);
+  rval += RUN_TEST(test_spectral_quad);
   return rval;
 }
 
@@ -31,7 +33,8 @@ void test_spectral_hex()
 {
   // first load a model that has spectral elements
   moab::Core *mb = new moab::Core();
-  moab::ErrorCode rval = mb->load_mesh("spectral.h5m");
+  std::string meshFile = STRINGIFY(SRCDIR) "/spectral.h5m";
+  moab::ErrorCode rval = mb->load_mesh(meshFile.c_str());
   if (moab::MB_SUCCESS != rval) return ;
 
   // get the ent set with SEM_DIMS tag
@@ -158,4 +161,71 @@ void test_spectral_hex()
   
   return;
 }
+void test_spectral_quad()
+{
+  // first load a model that has spectral elements
+  moab::Core *mb = new moab::Core();
+  // use the grid on Sphere from mbcslam folder
+  std::string meshFile = STRINGIFY(SRCDIR) "/../mbcslam/eulerHomme.vtk";
+  moab::ErrorCode rval = mb->load_mesh(meshFile.c_str());
+  if (moab::MB_SUCCESS != rval) return ;
 
+  // for each element, compute the gl points and project them on sphere
+  // the radius is the same as the one from intersection test on sphere
+  //double R = 6. * sqrt(3.) / 2; // input
+
+
+
+  moab::Range ents;
+
+
+  rval = mb->get_entities_by_type(0, moab::MBQUAD, ents);// get all quads
+  if (moab::MB_SUCCESS != rval) return ;
+  std::cout << "Found " << ents.size() << " " << 2 << "-dimensional entities:" << std::endl;
+
+//
+  int NP =4; // test this....
+  moab::Element::SpectralQuad specQuad(NP);
+
+ // compute the gl points for some elements
+  for (moab::Range::iterator rit = ents.begin(); rit != ents.end(); rit++)
+  {
+
+    const moab::EntityHandle * conn4 = NULL;
+    int num_nodes = 0;
+    rval = mb->get_connectivity(*rit, conn4, num_nodes);
+    if (moab::MB_SUCCESS != rval)
+    {
+      std::cout << "can't get conectivity for quad \n";
+      return;
+    }
+    assert(num_nodes==4);
+
+    std::vector<CartVect> verts(4);
+    rval = mb->get_coords(conn4, num_nodes, &(verts[0][0]));
+    if (moab::MB_SUCCESS != rval)
+    {
+      std::cout << "can't get coords for quad \n";
+      return;
+    }
+
+
+     specQuad.set_vertices(verts);
+     specQuad.compute_gl_positions();
+     // do something with the gl positions, project them on a sphere, and create another mesh?
+     if (rit==ents.begin())
+      {
+         std::cout << " gl points for first element: \n";
+         int size;
+         double * xyz[3];
+         specQuad.get_gl_points(xyz[0], xyz[1], xyz[2], size);
+         for (int i=0; i<size; i++)
+           std::cout << xyz[0][i] << " " <<  xyz[1][i] << " " <<  xyz[2][i] << "\n";
+      }
+
+     // project them on a sphere, and create another mesh with it?
+  }
+  std::cout << "success...\n";
+
+  return;
+}
