@@ -19,7 +19,7 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
 lib_LTLIBRARIES = libmbcoupler.la
 libmbcoupler_la_LIBADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la
 
-LDADD = libmbcoupler.la 
+LDADD = libmbcoupler.la $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la
 
 libmbcoupler_la_SOURCES = \
    ElemUtil.cpp \
