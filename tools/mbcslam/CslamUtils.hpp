@@ -1,13 +1,16 @@
 /*
- * IntxUtils.hpp
+ * CslamUtils.hpp
  *
  *  Created on: Oct 3, 2012
  */
 
-#ifndef INTXUTILS_HPP_
-#define INTXUTILS_HPP_
+#ifndef CSLAMUTILS_HPP_
+#define CSLAMUTILS_HPP_
 
 #include "moab/CartVect.hpp"
+#include "moab/Core.hpp"
+#include "moab/Interface.hpp"
+
 namespace moab
 {
 double dist2(double * a, double * b);
@@ -69,5 +72,21 @@ SphereCoords cart_to_spherical(CartVect &) ;
 
 CartVect spherical_to_cart (SphereCoords &) ;
 
+/*
+ *  create a mesh used mainly for visualization for now, with nodes corresponding to
+ *   GL points, a so-called refined mesh, with NP nodes in each direction.
+ *   input: a range of quads (coarse), and  a desired order (NP is the number of points), so it
+ *   is order + 1
+ *
+ *   output: a set with refined elements; with proper input, it should be pretty
+ *   similar to a Homme mesh read with ReadNC
+ */
+ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle & outputSet);
+
+/*
+ * given an entity set, get all nodes and project them on a sphere with given radius
+ */
+ErrorCode ProjectOnSphere(Interface * mb, EntityHandle set, double R);
+
 }
-#endif /* INTXUTILS_HPP_ */
+#endif /* CSLAMUTILS_HPP_ */

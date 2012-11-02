@@ -9,16 +9,18 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_srcdir)/src \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src/parallel \
-               -I$(top_srcdir)/src/moab/point_locater/lotte 
+               -I$(top_srcdir)/src/moab/point_locater/lotte \
+               -I$(top_srcdir)/tools/mbcoupler
 
 lib_LTLIBRARIES = libmbcslam.la
-libmbcslam_la_LIBADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la
-
-LDADD = libmbcslam.la 
+libmbcslam_la_LIBADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la \
+         $(top_builddir)/tools/mbcoupler/libmbcoupler.la
+         
+LDADD = libmbcslam.la $(top_builddir)/tools/mbcoupler/libmbcoupler.la
 
 libmbcslam_la_SOURCES = \
    Intx2Mesh.cpp Intx2Mesh.hpp Intx2MeshOnSphere.cpp Intx2MeshOnSphere.hpp \
-     IntxUtils.cpp IntxUtils.hpp Intx2MeshInPlane.cpp Intx2MeshInPlane.hpp 
+     CslamUtils.cpp CslamUtils.hpp Intx2MeshInPlane.cpp Intx2MeshInPlane.hpp 
 
 # these will be installed
 libmbcslam_la_include_HEADERS = 
@@ -31,8 +33,9 @@ libmbcslam_la_includedir = $(includedir)
 # check that only libraries are going in $(libdir)
 cfgdir = $(libdir)
 
-TESTS = intx_on_sphere_test  intx_in_plane_test
+TESTS = intx_on_sphere_test  intx_in_plane_test  spec_visu_test
 check_PROGRAMS = $(TESTS) 
 intx_on_sphere_test_SOURCES = intx_on_sphere_test.cpp
 intx_in_plane_test_SOURCES = intx_in_plane_test.cpp
+spec_visu_test_SOURCES = spec_visu_test.cpp
 

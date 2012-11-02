@@ -5,7 +5,6 @@
  */
 
 #include "Intx2MeshOnSphere.hpp"
-#include "IntxUtils.hpp"
 
 #include <queue>
 

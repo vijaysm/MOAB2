@@ -21,7 +21,7 @@
 #include "moab/CartVect.hpp"
 
 // these are intersection utils
-#include "IntxUtils.hpp"
+#include "CslamUtils.hpp"
 
 namespace moab {
 

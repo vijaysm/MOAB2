@@ -1,12 +1,16 @@
 /*
- * IntxUtils.cpp
+ * CslamUtils.cpp
  *
  *  Created on: Oct 3, 2012
  *      Author: iulian
  */
 
-#include "IntxUtils.hpp"
+#include "CslamUtils.hpp"
 #include <math.h>
+// this is from mbcoupler; maybe it should be moved somewhere in moab src
+// right now, add a dependency to mbcoupler
+#include "ElemUtil.hpp"
+#include "moab/MergeMesh.hpp"
 
 namespace moab {
 // vec utilities that could be common between quads on a plane or sphere
@@ -473,4 +477,104 @@ CartVect spherical_to_cart (SphereCoords & sc)
   return res;
 }
 
+ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle & outputSet)
+{
+  ErrorCode rval = MB_SUCCESS;
+
+  // this will compute the gl points on parametric element
+  moab::Element::SpectralQuad specQuad(NP);
+  Range fineElem;
+
+  // get all edges? or not? Form all gl points + quads, then merge, then output
+  for (Range::iterator it=input.begin(); it!=input.end(); it++)
+  {
+    const moab::EntityHandle * conn4 = NULL;
+    int num_nodes = 0;
+    rval = mb->get_connectivity(*it, conn4, num_nodes);
+    if (moab::MB_SUCCESS != rval)
+    {
+      std::cout << "can't get conectivity for quad \n";
+      return rval;
+    }
+    assert(num_nodes==4);
+
+    std::vector<CartVect> verts(4);
+    rval = mb->get_coords(conn4, num_nodes, &(verts[0][0]));
+    if (moab::MB_SUCCESS != rval)
+    {
+      std::cout << "can't get coords for quad \n";
+      return rval;
+    }
+
+    specQuad.set_vertices(verts);
+    specQuad.compute_gl_positions();
+    double * xyz[3];
+    int size;
+    specQuad.get_gl_points(xyz[0], xyz[1], xyz[2], size);
+    assert(NP*NP==size);
+    // these points are in lexicographic order;
+    std::vector<EntityHandle> nodes(size);
+    for (int i=0; i<size; i++)
+    {
+      double coords[3]={ xyz[0][i], xyz[1][i], xyz[2][i] };
+      rval = mb->create_vertex(coords, nodes[i] );
+      if (rval!=moab::MB_SUCCESS)
+        return rval;
+    }
+    // create (NP-1)^2 quads, one by one (sic)
+    for (int i=0; i<NP-1; i++)
+    {
+      for (int j=0; j<NP-1; j++)
+      {
+        EntityHandle connec[4]={ nodes[ i*NP+j],      nodes[i*NP+j+1],
+                                  nodes[(i+1)*NP+j+1], nodes[(i+1)*NP+j] };
+        EntityHandle element_handle;
+        rval = mb->create_element(MBQUAD, connec, 4, element_handle);
+        if (rval!=moab::MB_SUCCESS)
+          return rval;
+        fineElem.insert(element_handle);
+      }
+    }
+
+  }
+
+  mb->add_entities(outputSet, fineElem);
+  // merge all nodes
+  MergeMesh mgtool(mb);
+  rval = mgtool.merge_entities(fineElem, 0.0001);
+
+  return rval;
+}
+
+ErrorCode ProjectOnSphere(Interface * mb, EntityHandle set, double R)
+{
+  Range ents;
+  ErrorCode rval = mb->get_entities_by_handle(set, ents);
+  if (rval!=moab::MB_SUCCESS)
+    return rval;
+
+  Range nodes;
+  rval = mb->get_connectivity( ents, nodes);
+  if (rval!=moab::MB_SUCCESS)
+    return rval;
+
+  // one by one, get the node and project it on the sphere, with a radius given
+  // the center of the sphere is at 0,0,0
+  for (Range::iterator nit=nodes.begin(); nit!=nodes.end(); nit++)
+  {
+    EntityHandle nd=*nit;
+    CartVect pos;
+    rval = mb->get_coords(&nd, 1, (double*)&(pos[0]));
+    if (rval!=moab::MB_SUCCESS)
+      return rval;
+    double len=pos.length();
+    if (len==0.)
+      return MB_FAILURE;
+    pos = R/len*pos;
+    rval = mb->set_coords(&nd, 1, (double*)&(pos[0]));
+    if (rval!=moab::MB_SUCCESS)
+       return rval;
+  }
+  return MB_SUCCESS;
+}
 } //namespace moab
