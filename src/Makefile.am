@@ -112,6 +112,7 @@ libMOAB_la_SOURCES = \
   SmoothFace.hpp \
   SparseTag.cpp \
   SparseTag.hpp \
+  SpectralMeshTool.cpp \
   StructuredElementSeq.cpp \
   StructuredElementSeq.hpp \
   SweptElementData.cpp \
@@ -190,6 +191,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/ScdInterface.hpp \
   moab/SetIterator.hpp \
   moab/Skinner.hpp \
+  moab/SpectralMeshTool.hpp \
   moab/Types.hpp \
   moab/UnknownInterface.hpp \
   moab/Util.hpp \

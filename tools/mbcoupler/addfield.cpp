@@ -2,6 +2,7 @@
 #include "moab/Core.hpp"
 #include <math.h>
 #include <cstdlib>
+#include <assert.h>
 
 using namespace std;
 
@@ -10,41 +11,18 @@ namespace moab {
 //make a nice picture. tweak here
 //217: x,y -> [-8, 8] /// z -> [-65, 65]
 double physField(double x, double y, double z, double factor){
-  double out;
 
     // 1/r^2 decay from {0,0,0}
     // tjt - changing to 1/r
+    /*
   double scale = 1.0/factor;
   out = fabs(x*scale) + fabs(y*scale) + fabs(z*scale);
   out += 1e-1; // clamp
   out = 1/out;
+    */
+  double out = factor * sqrt(x*x + y*y + z*z);
 
   return out;
-}
-
-
-//get some sort of element center
-void getElemPos(Interface *mbi, EntityHandle *elem, double &x, double &y, double &z){
-  std::vector<EntityHandle> connect;
- 
-  mbi->get_connectivity(elem, 1, connect);
-  double pos[3]={0,0,0};
-
-  int numVerts = connect.size();
-  for(int i=0; i<numVerts; i++){
-    double tempPos[3];
-    EntityHandle vert(connect[i]);
-
-    mbi->get_coords(&vert, 1, tempPos);
-
-    for(int j=0; j<3; j++){
-      pos[j] += tempPos[j]/numVerts;
-    }
-  }
- 
-  x = pos[0];
-  y = pos[1];
-  z = pos[2];
 }
 
 
@@ -55,7 +33,8 @@ void putElementField(Interface *mbi, const char *tagname, double factor){
 
   const double defVal = 0.;
   Tag fieldTag;
-  mbi->tag_get_handle(tagname, 1, MB_TYPE_DOUBLE, fieldTag, MB_TAG_DENSE|MB_TAG_CREAT, &defVal);
+  ErrorCode rval = mbi->tag_get_handle(tagname, 1, MB_TYPE_DOUBLE, fieldTag, MB_TAG_DENSE|MB_TAG_CREAT, &defVal);
+  assert(MB_SUCCESS == rval);
  
   int numElems = elems.size();
 
@@ -63,10 +42,10 @@ void putElementField(Interface *mbi, const char *tagname, double factor){
       //cout << elems[i] << endl;
     EntityHandle elem = elems[i];
 
-    double x,y,z;
-    getElemPos(mbi, &elem, x,y,z);
+    double xyz[3];
+    mbi->get_coords(&elem, 1, xyz);
 
-    double fieldValue =  physField(x,y,z, factor);
+    double fieldValue =  physField(xyz[0], xyz[1], xyz[2], factor);
 
     mbi->tag_set_data(fieldTag, &elem, 1, &fieldValue);
   }

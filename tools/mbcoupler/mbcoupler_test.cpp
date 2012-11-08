@@ -51,6 +51,7 @@ void print_usage();
 
 ErrorCode get_file_options(int argc, char **argv, 
                            std::vector<std::string> &meshFiles,
+                           Coupler::Method &method,
                            std::string &interpTag,
                            std::string &gNormTag,
                            std::string &ssNormTag,
@@ -74,6 +75,7 @@ ErrorCode report_iface_ents(Interface *mbImpl,
                               bool print_results);
 
 ErrorCode test_interpolation(Interface *mbImpl, 
+                             Coupler::Method method,
                              std::string &interpTag,
                              std::string &gNormTag,
                              std::string &ssNormTag,
@@ -106,11 +108,12 @@ int main(int argc, char **argv)
   std::vector<const char *> ssTagNames, ssTagValues;
   std::vector<std::string> meshFiles;
   std::string interpTag, gNormTag, ssNormTag, readOpts, outFile, writeOpts, dbgFile;
+  Coupler::Method method = Coupler::CONSTANT;
 
   ErrorCode result = MB_SUCCESS;
   bool help = false;
   double toler = 5.e-10;
-  result = get_file_options(argc, argv, meshFiles, interpTag,
+  result = get_file_options(argc, argv, meshFiles, method, interpTag,
                             gNormTag, ssNormTag, ssTagNames, ssTagValues,
                             readOpts, outFile, writeOpts, dbgFile, help, toler);
 
@@ -165,7 +168,7 @@ int main(int argc, char **argv)
   double instant_time=0.0, pointloc_time=0.0, interp_time=0.0, gnorm_time=0.0, ssnorm_time=0.0;
     // test interpolation and global normalization and subset normalization
 
-  result = test_interpolation(mbImpl, interpTag, gNormTag, ssNormTag, 
+  result = test_interpolation(mbImpl, method, interpTag, gNormTag, ssNormTag, 
                               ssTagNames, ssTagValues, roots, pcs, 
                               instant_time, pointloc_time, interp_time, 
                               gnorm_time, ssnorm_time, toler);
@@ -276,6 +279,7 @@ void print_usage() {
   std::cerr << "        Write stdout and stderr streams to the file \'<dbg_file>.txt\'." << std::endl;
   std::cerr << "    -eps" << std::endl;
   std::cerr << "        epsilon" << std::endl;
+  std::cerr << "    -meth <method> (0=CONSTANT, 1=LINEAR_FE, 2=QUADRATIC_FE, 3=SPECTRAL)" << std::endl;
 }
 
 // Check first character for a '-'.
@@ -290,6 +294,7 @@ bool check_for_flag(const char *str) {
 // New get_file_options() function with added possibilities for mbcoupler_test.
 ErrorCode get_file_options(int argc, char **argv, 
                            std::vector<std::string> &meshFiles,
+                           Coupler::Method &method,
                            std::string &interpTag,
                            std::string &gNormTag,
                            std::string &ssNormTag,
@@ -352,6 +357,19 @@ ErrorCode get_file_options(int argc, char **argv,
       }
 
       haveInterpTag = true;
+    }
+    else if (argv[npos] == std::string("-meth")) {
+      // Parse out the interpolation tag
+      npos++;
+      if (argv[npos][0] == '0') method = Coupler::CONSTANT;
+      else if (argv[npos][0] == '1') method = Coupler::LINEAR_FE;
+      else if (argv[npos][0] == '2') method = Coupler::QUADRATIC_FE;
+      else if (argv[npos][0] == '3') method = Coupler::SPECTRAL;
+      else {
+        std::cerr << "    ERROR - unrecognized method number " << method << std::endl;
+        return MB_FAILURE;
+      }
+      npos++;
     }
     else if (argv[npos] == std::string("-eps")) {
       // Parse out the tolerance
@@ -549,6 +567,7 @@ ErrorCode get_file_options(int argc, char **argv,
 // }
 
 ErrorCode test_interpolation(Interface *mbImpl, 
+                             Coupler::Method method,
                              std::string &interpTag,
                              std::string &gNormTag,
                              std::string &ssNormTag,
@@ -563,6 +582,8 @@ ErrorCode test_interpolation(Interface *mbImpl,
                              double &ssnorm_time,
                              double & toler)
 {
+  assert(method >= Coupler::CONSTANT && method <= Coupler::SPECTRAL);
+
     // source is 1st mesh, target is 2nd
   Range src_elems, targ_elems, targ_verts;
   ErrorCode result = pcs[0]->get_part_entities(src_elems, 3);
@@ -575,7 +596,7 @@ ErrorCode test_interpolation(Interface *mbImpl,
 
   // initialize spectral elements, if they exist
   bool specSou=false, specTar = false;
-  result =  mbc.initialize_spectral_elements((EntityHandle)roots[0], (EntityHandle)roots[1], specSou, specTar);
+//  result =  mbc.initialize_spectral_elements((EntityHandle)roots[0], (EntityHandle)roots[1], specSou, specTar);
 
 
   instant_time = MPI_Wtime();
@@ -591,9 +612,12 @@ ErrorCode test_interpolation(Interface *mbImpl,
 
       // first get all vertices adj to partition entities in target mesh
     result = pcs[1]->get_part_entities(targ_elems, 3);
-    PRINT_LAST_ERROR
-    result = mbImpl->get_adjacencies(targ_elems, 0, false, targ_verts,
-                                     Interface::UNION);
+    PRINT_LAST_ERROR;
+    if (Coupler::CONSTANT == method) 
+      targ_verts = targ_elems;
+    else
+      result = mbImpl->get_adjacencies(targ_elems, 0, false, targ_verts,
+                                       Interface::UNION);
     PRINT_LAST_ERROR;
   
       // then get non-owned verts and subtract
@@ -629,14 +653,7 @@ ErrorCode test_interpolation(Interface *mbImpl,
     // now interpolate tag onto target points
   std::vector<double> field(numPointsOfInterest);
 
-  if(interpTag == "vertex_field" ||specSou ){
-    result = mbc.interpolate(Coupler::LINEAR_FE, interpTag, &field[0]);
-  }else if(interpTag == "element_field"){
-    result = mbc.interpolate(Coupler::CONSTANT, interpTag, &field[0]);
-  }else{
-    std::cout << "Using tag name to determine type of source field at the moment... Use either vertex_field or element_field\n";
-    result = MB_FAILURE;
-  }
+  result = mbc.interpolate(method, interpTag, &field[0]);
   PRINT_LAST_ERROR;
   
   interp_time = MPI_Wtime();

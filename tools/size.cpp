@@ -1,35 +1,20 @@
-/*
- * Copyright (c) 2005 Lawrence Livermore National Laboratory under
- * contract number B545069 with the University of Wisconsin - Madison.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
 #include <iostream>
 #include <stdlib.h>
 #include <vector>
+#include <set>
 #include <string>
 #include <stdio.h>
-#if !defined(_MSC_VER) && !defined(__MINGW32__)
+#include <iomanip>
+#ifndef WIN32
+#  include <sys/times.h>
+#  include <limits.h>
 #  include <unistd.h>
+#endif
+#include <time.h>
+#ifdef USE_MPI
+#  include "moab_mpi.h"
+#endif
+#if !defined(_MSC_VER) && !defined(__MINGW32__)
 #  include <termios.h>
 #  include <sys/ioctl.h>
 #endif
@@ -41,23 +26,40 @@
 #include "moab/Range.hpp"
 #include "MBTagConventions.hpp"
 #include "moab/Interface.hpp"
+#include "moab/ReaderWriterSet.hpp"
+
+/* Exit values */
+#define USAGE_ERROR 1
+#define READ_ERROR 2
+#define WRITE_ERROR 3
+#define OTHER_ERROR 4
+#define ENT_NOT_FOUND 5
 
 using namespace moab;
 
 #include "measure.hpp"
 
-static void usage( const char* exe )
+static void print_usage( const char* name, std::ostream& stream )
 {
-  std::cerr << "Usage: " << exe << " [-g] [-m] [-t|-l|-ll] <mesh file list>" << std::endl
-            << "-g  : print counts by geometric owner" << std::endl
-            << "-m  : print counts per block/boundary" << std::endl
-            << "-t  : print counts by tag" << std::endl
-            << "-l  : print counts of mesh" << std::endl
-            << "-ll : verbose listing of every entity" << std::endl
-            ;
-  exit(1);
+  stream << "Usage: " << name 
+         << " <options> <input_file> [<input_file2> ...]" << std::endl
+         << "Options: " << std::endl
+         << "\t-f             - List available file formats and exit." << std::endl
+         << "\t-g             - print counts by geometric owner" << std::endl
+         << "\t-h             - Print this help text and exit." << std::endl
+         << "\t-l             - Print counts of mesh" << std::endl
+         << "\t-ll            - Verbose listing of every entity" << std::endl
+         << "\t-m             - Print counts per block/boundary" << std::endl
+         << "\t-O option      - Specify read option." << std::endl
+#ifdef USE_MPI
+         << "\t-p[0|1|2]      - Read in parallel[0], optionally also doing resolve_shared_ents (1) and exchange_ghosts (2)" << std::endl
+#endif
+         << "\t-t             - Print counts by tag" << std::endl
+         << "\t-T             - Time read of files." << std::endl
+         << "\t--             - treat all subsequent options as file names" << std::endl
+         << "\t                 (allows file names beginning with '-')" << std::endl
+    ;
 }
-
 
 Core mb;
 
@@ -415,6 +417,220 @@ static void print_stats( set_stats& stats )
   puts("");
 }
 
+bool parse_id_list( const char* string, std::set<int>& results )
+{
+  bool okay = true;
+  char* mystr = strdup( string );
+  for (const char* ptr = strtok(mystr, ","); ptr; ptr = strtok(0,","))
+  {
+    char* endptr;
+    long val = strtol( ptr, &endptr, 0 );
+    if (endptr == ptr || val <= 0) {
+      std::cerr << "Not a valid id: " << ptr << std::endl;
+      okay = false;
+      break;
+    }
+    
+    long val2 = val;
+    if (*endptr == '-') {
+      const char* sptr = endptr+1;
+      val2 = strtol( sptr, &endptr, 0 );
+      if (endptr == sptr || val2 <= 0) {
+        std::cerr << "Not a valid id: " << sptr << std::endl;
+        okay = false;
+        break;
+      }
+      if (val2 < val) {
+        std::cerr << "Invalid id range: " << ptr << std::endl;
+        okay = false;
+        break;
+      }
+    }
+    
+    if (*endptr) {
+      std::cerr << "Unexpected character: " << *endptr << std::endl;
+      okay = false;
+      break;
+    }
+    
+    for (; val <= val2; ++val)
+      if (!results.insert( (int)val ).second) 
+        std::cerr << "Warning: duplicate Id: " << val << std::endl;
+
+  }
+  
+  free( mystr );
+  return okay;    
+}
+
+bool make_opts_string( std::vector<std::string> options, std::string& opts )
+{
+  opts.clear();
+  if (options.empty())
+    return true;
+
+    // choose a separator character
+  std::vector<std::string>::const_iterator i;
+  char separator = '\0';
+  const char* alt_separators = ";+,:\t\n";
+  for (const char* sep_ptr = alt_separators; *sep_ptr; ++sep_ptr) {
+    bool seen = false;
+    for (i = options.begin(); i != options.end(); ++i)
+      if (i->find( *sep_ptr, 0 ) != std::string::npos) {
+        seen = true;
+        break;
+      }
+    if (!seen) {
+      separator = *sep_ptr;
+      break;
+    }
+  }
+  if (!separator) {
+    std::cerr << "Error: cannot find separator character for options string" << std::endl;
+    return false;
+  }
+  if (separator != ';') {
+    opts = ";";
+    opts += separator;
+  }
+  
+    // concatenate options
+  i = options.begin();
+  opts += *i;
+  for (++i; i != options.end(); ++i) {
+    opts += separator;
+    opts += *i;
+  }
+
+  return true;
+}
+
+
+void list_formats( Interface* gMB )
+{
+  const char iface_name[] = "ReaderWriterSet";
+  ErrorCode err;
+  ReaderWriterSet* set = 0;
+  ReaderWriterSet::iterator i;
+  std::ostream& str = std::cout;
+    
+    // get ReaderWriterSet
+  err = gMB->query_interface( set );
+  if (err != MB_SUCCESS || !set) {
+    std::cerr << "Internal error:  Interface \"" << iface_name 
+              << "\" not available.\n";
+    exit(OTHER_ERROR);
+  }
+  
+    // get field width for format description
+  size_t w = 0;
+  for (i = set->begin(); i != set->end(); ++i)
+    if (i->description().length() > w)
+      w = i->description().length();
+  
+    // write table header
+  str << "Format  " << std::setw(w) << std::left << "Description"
+      << "  Read  Write  File Name Suffixes\n"
+      << "------  " << std::setw(w) << std::setfill('-') << "" << std::setfill(' ')
+      << "  ----  -----  ------------------\n";
+      
+    // write table data
+  for (i = set->begin(); i != set->end(); ++i)
+  {
+    std::vector<std::string> ext;
+    i->get_extensions( ext );
+    str << std::setw(6) << i->name() << "  " 
+        << std::setw(w) << std::left << i->description() << "  "
+        << (i->have_reader() ?  " yes" :  "  no") << "  "
+        << (i->have_writer() ? "  yes" : "   no") << " ";
+    for (std::vector<std::string>::iterator j = ext.begin(); j != ext.end(); ++j)
+      str << " " << *j;
+    str << std::endl;
+  }
+  str << std::endl;
+  
+  gMB->release_interface( set );
+  exit(0);
+}
+
+static void usage_error( const char* name )
+{
+  print_usage( name, std::cerr );
+#ifdef USE_MPI
+  MPI_Finalize();
+#endif
+  exit(USAGE_ERROR);
+} 
+
+static void print_time( int clk_per_sec, const char* prefix, clock_t ticks, std::ostream& stream )
+{
+  ticks *= clk_per_sec/100;
+  clock_t centi = ticks % 100;
+  clock_t seconds = ticks / 100;
+  stream << prefix;
+  if (seconds < 120)
+  {
+    stream << (ticks / 100) << "." << centi << "s" << std::endl;
+  }
+  else
+  {
+    clock_t minutes = (seconds / 60) % 60;
+    clock_t hours = (seconds / 3600);
+    seconds %= 60;
+    if (hours)
+      stream << hours << "h";
+    if (minutes)
+      stream << minutes << "m";
+    if (seconds || centi)
+      stream << seconds << "." << centi << "s";
+    stream << " (" << (ticks/100) << "." << centi << "s)" << std::endl;
+  }
+}
+
+clock_t usr_time, sys_time, abs_time;
+
+#ifdef WIN32
+
+void reset_times() 
+{
+  abs_time = clock();
+}
+
+
+void write_times( std::ostream& stream ) 
+{
+  clock_t abs_tm = clock();
+  print_time( CLOCKS_PER_SEC, "  ", abs_tm - abs_time, stream );
+  abs_time = abs_tm;
+}
+
+#else
+
+void reset_times()
+{
+  tms timebuf;
+  abs_time = times( &timebuf );
+  usr_time = timebuf.tms_utime;
+  sys_time = timebuf.tms_stime;
+}
+
+void write_times( std::ostream& stream )
+{
+  clock_t usr_tm, sys_tm, abs_tm;
+  tms timebuf;
+  abs_tm = times( &timebuf );
+  usr_tm = timebuf.tms_utime;
+  sys_tm = timebuf.tms_stime;
+  print_time( sysconf(_SC_CLK_TCK), "  real:   ", abs_tm - abs_time, stream );
+  print_time( sysconf(_SC_CLK_TCK), "  user:   ", usr_tm - usr_time, stream );
+  print_time( sysconf(_SC_CLK_TCK), "  system: ", sys_tm - sys_time, stream );
+  abs_time = abs_tm;
+  usr_time = usr_tm;
+  sys_time = sys_tm;
+}
+
+#endif
+
 const char* geom_type_names[] = { "Vertex", "Curve", "Surface", "Volume" } ;
 const char* mesh_type_names[] = { "Dirichlet Set", "Neumann Set", "Material Set" };
 const char* mesh_type_tags[] = { DIRICHLET_SET_TAG_NAME, NEUMANN_SET_TAG_NAME, MATERIAL_SET_TAG_NAME };
@@ -431,35 +647,96 @@ int main( int argc, char* argv[] )
   std::vector<TagCounts> total_counts, file_counts;
   ErrorCode rval;
   
-  for (int i = 1; i < argc; ++i)
+  Range range;
+
+  int i;
+  std::vector<std::string> read_opts;
+  
+  int proc_id = 0;
+#ifdef USE_MPI
+  int initd = 0;
+  MPI_Initialized(&initd);
+  if (!initd) MPI_Init(&argc,&argv);
+  MPI_Comm_rank( MPI_COMM_WORLD, &proc_id );
+#endif
+
+    // scan arguments
+  bool do_flag = true;
+  bool print_times = false;
+  bool parallel = false, resolve_shared = false, exchange_ghosts = false;
+  bool printed_usage = false;
+  for (i = 1; i < argc; i++)
   {
-    if (!strcmp(argv[i],"-g"))
-      geom_owners = true;
-    else if (!strcmp(argv[i],"-ll"))
-      just_list = true;
-    else if (!strcmp(argv[i],"-l"))
-      just_list_basic = true;
-    else if (!strcmp(argv[i],"-m"))
-      mesh_owners = true;
-    else if (!strcmp(argv[i],"-t"))
-      tag_count = true;
-    else if (*argv[i] && *argv[i] != '-')
-      file_list.push_back( argv[i] );
-    else
+    if (!argv[i][0])
+      usage_error(argv[0]);
+      
+    if (do_flag && argv[i][0] == '-')
     {
-      std::cerr << "Invalid option: \"" << argv[i] << '"' << std::endl;
-      usage(argv[0]);
+      switch ( argv[i][1] )
+      {
+          // do flag arguments:
+        case '-': do_flag = false;       break;
+        case 'T': print_times = true;    break;
+        case 'h': 
+        case 'H': print_usage( argv[0], std::cerr ); printed_usage = true; break;
+        case 'f': list_formats( &mb );   break;
+        case 'l': 
+            if (strlen(argv[i]) == 2)
+              just_list_basic = true;
+            else if (strlen(argv[i]) == 3 && argv[i][2] == 'l')
+              just_list = true;
+            break;
+#ifdef USE_MPI
+        case 'p':
+            parallel = true;
+            if (argv[i][2] == '1' || argv[i][2] == '2') resolve_shared = true;
+            if (argv[i][2] == '2') exchange_ghosts = true;
+            break;
+#endif
+        case 'g': geom_owners = true; break;
+        case 'm': mesh_owners = true; break;
+        case 't': tag_count = true; break;
+        default: 
+            ++i;
+            switch ( argv[i-1][1] )
+            {
+              case 'O':  read_opts.push_back(argv[i]); break;
+              default: std::cerr << "Invalid option: " << argv[i] << std::endl;
+            }
+          
+      }
+    }
+      // do file names
+    else {
+      file_list.push_back( argv[i] );
     }
   }
+    
+    // construct options string from individual options
+  std::string read_options;
+  if (parallel) {
+    read_opts.push_back("PARALLEL=READ_PART");
+    read_opts.push_back("PARTITION=PARALLEL_PARTITION");
+  }
+  if (resolve_shared) read_opts.push_back("PARALLEL_RESOLVE_SHARED_ENTS");
+  if (exchange_ghosts) read_opts.push_back("PARALLEL_GHOSTS=3.0.1");
   
-  if (file_list.empty())
-    usage(argv[0]);
-  
-  for (std::vector<std::string>::iterator f = file_list.begin(); 
-       f != file_list.end(); ++f)
+  if (!make_opts_string(  read_opts,  read_options )) 
   {
+#ifdef USE_MPI
+    MPI_Finalize();
+#endif
+    return USAGE_ERROR;
+  }
+  
+  if (file_list.empty() && !printed_usage)
+    print_usage(argv[0], std::cerr);
+  
+  for (std::vector<std::string>::iterator f = file_list.begin(); f != file_list.end(); ++f)
+  {
+    reset_times();
     printf("File %s:\n", f->c_str() );
-    if (MB_SUCCESS != mb.load_mesh( f->c_str(), 0, 0 ))
+    if (MB_SUCCESS != mb.load_file( f->c_str(), NULL, read_options.c_str() ))
     {
       fprintf(stderr, "Error reading file: %s\n", f->c_str() );
       return 1;
@@ -467,7 +744,7 @@ int main( int argc, char* argv[] )
     
     if (tag_count)
       rval = gather_tag_counts( 0, file_counts );
-    else if (!just_list && !just_list_basic)
+    else if (!just_list)
       rval = gather_set_stats( 0, file_stats );
     else
       rval = MB_SUCCESS;
@@ -485,9 +762,6 @@ int main( int argc, char* argv[] )
     }
     else if (just_list) {
       mb.list_entities( 0, 1 );
-    }
-    else if (just_list_basic) {
-      mb.list_entities( 0, 0 );
     }
     else {
       total_stats.add( file_stats );
@@ -635,6 +909,7 @@ int main( int argc, char* argv[] )
       }
     }
     
+    if (print_times && !proc_id) write_times( std::cout );
     mb.delete_mesh();
   }
   

@@ -1075,7 +1075,7 @@ ErrorCode  Core::get_coords(const EntityHandle* entities,
     }
     else {
       static std::vector<EntityHandle> dum_conn(CN::MAX_NODES_PER_ELEMENT);
-      static std::vector<double> dum_pos(CN::MAX_NODES_PER_ELEMENT);
+      static std::vector<double> dum_pos(3*CN::MAX_NODES_PER_ELEMENT);
       static const EntityHandle *conn;
       static int num_conn;
       status = get_connectivity(*iter, conn, num_conn, false, &dum_conn);
