@@ -13,7 +13,8 @@ static const char example[] = "/io/camEul26x48x96.t3.nc";
 #endif
 
 void test_read_parallel_ucd_trivial();
-void test_read_parallel(int num_verts);
+void test_read_parallel_ucd_trivial_spectral();
+void test_read_parallel(int num_verts, bool test_nb_nodes);
 
 std::string partition_method;
 
@@ -34,10 +35,16 @@ void test_read_parallel_ucd_trivial()
   // disable spectral mesh for the time being, it is not ready yet
   partition_method = std::string(";PARTITION_METHOD=TRIVIAL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS");
   //partition_method = std::string(";PARTITION_METHOD=TRIVIAL_PARTITION;SPECTRAL_MESH;PARALLEL_RESOLVE_SHARED_ENTS");
-  test_read_parallel(3458);
+  test_read_parallel(3458, true);
 }
   
-void test_read_parallel(int num_verts)
+void test_read_parallel_ucd_trivial_spectral()
+{
+  partition_method = std::string(";PARTITION_METHOD=TRIVIAL_PARTITION;SPECTRAL_MESH;PARALLEL_RESOLVE_SHARED_ENTS");
+  test_read_parallel(3458, false);
+}
+
+void test_read_parallel(int num_verts, bool test_nb_nodes)
 {
   Core moab;
   Interface& mb = moab;
@@ -69,7 +76,8 @@ void test_read_parallel(int num_verts)
   if (0 == pcomm->proc_config().proc_rank())
   {
     std::cout<<"total vertices: " << total_verts << "\n";
-    CHECK_EQUAL(total_verts, num_verts);
+    if (test_nb_nodes)
+      CHECK_EQUAL(total_verts, num_verts);
   }
   std::string write_options("PARALLEL=WRITE_PART;");
   mb.write_file( "test.h5m", NULL, write_options.c_str() );
