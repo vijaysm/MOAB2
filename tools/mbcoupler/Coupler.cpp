@@ -584,7 +584,8 @@ ErrorCode Coupler::interpolate(Coupler::Method *methods,
   }
 
     // copy the interpolated field as a unit
-  memcpy(interp_vals, tinterp.vr_rd, tinterp.get_n()*sizeof(double));
+  for (int i = 0; i < tinterp.get_n(); i++)
+    interp_vals[tinterp.vi_rd[5*i+1]] = tinterp.vr_rd[i];
   
     // done
   return MB_SUCCESS;
