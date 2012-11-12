@@ -120,6 +120,6 @@
     call iMesh_dtor(%VAL(mesh), err)
     ERRORR("Failed to destruct interface.")
 
-    return
+!    return
   end program ListSetsNTags
 
