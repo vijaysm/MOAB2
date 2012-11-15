@@ -16,6 +16,7 @@ if ENABLE_mbcoupler
   AM_CPPFLAGS += -I$(top_srcdir)/tools/mbcoupler \
                  -I$(top_srcdir)/itaps \
                  -I$(top_srcdir)/itaps/imesh \
+                 -I$(top_builddir)/itaps/imesh \
                  -I$(top_srcdir)/src/moab/point_locater/lotte 
   
 endif
