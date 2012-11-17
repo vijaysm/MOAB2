@@ -100,8 +100,9 @@ ErrorCode  manufacture_lagrange_mesh_on_sphere(Interface * mb, EntityHandle eule
   // get the coordinates of the old mesh, and move it around the sphere in the same way as in the
   // python script
 
-  // fill the conn arr with the old one, then modify it to kep the new vertices
+  // fill the conn arr with the old one, then modify it to point to the new vertices
   unsigned int shift = start_vertex-connecVerts[0];
+  EntityHandle * ptr_conn=conn_arr;
   for (Range::iterator qit=quads.begin(); qit!=quads.end(); qit++)
   {
     EntityHandle eh=*qit;
@@ -110,10 +111,14 @@ ErrorCode  manufacture_lagrange_mesh_on_sphere(Interface * mb, EntityHandle eule
     rval = mb->get_connectivity(eh, conn4, num_nodes);
     CHECK_ERR(rval);
     for (int i=0; i<4; i++)
-      conn_arr[i]=conn4[i]+shift;
-    conn_arr+=4; // advance pointer in array
+      ptr_conn[i]=conn4[i]+shift;
+    ptr_conn+=4; // advance pointer in array
   }
 
+  // notify to update the adjacencies; they will be used to resolve shared nodes on the new mesh
+  rval = readMeshIface->update_adjacencies(start_quad, quads.size(),
+      4, conn_arr);
+  CHECK_ERR(rval);
   // now put the vertices in the right place....
   int vix=0; // vertex index in new array
   double t=0.1, T=5;// check the script
@@ -198,6 +203,7 @@ rA = math.pi/(4*meshcount)*9.
      ((int*)data2)[i]= ((int*)data)[i];
   
   ParallelComm* pcomm = ParallelComm::get_pcomm(mb, 0);
+  pcomm->set_debug_verbosity(2);
   rval = pcomm->resolve_shared_ents(0, new_meshRange, 2, 0);
   CHECK_ERR(rval);
 
@@ -232,5 +238,10 @@ void test_intx_in_parallel()
   std::string opts_write("PARALLEL=WRITE_PART");
   rval = mb.write_file("manuf.h5m", 0, opts_write.c_str(), &lagrange_set, 1);
   CHECK_ERR(rval);
+
+  // now, we know that each processor has an euler set and a lagrange set
+  // compute the intersection in a third set
+
+
 
 }

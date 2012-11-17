@@ -57,7 +57,7 @@ public:
   // clean some memory allocated
   void clean();
 
-// private: everything public?
+protected: // so it can be accessed in derived classes, InPlane and OnSphere
   Interface * mb;
 
   EntityHandle mbs1;
