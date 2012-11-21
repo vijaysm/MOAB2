@@ -24,6 +24,7 @@ int main(int argc, char **argv)
   int result = 0;
   
   result += RUN_TEST(test_read_parallel_ucd_trivial);
+  result += RUN_TEST(test_read_parallel_ucd_trivial_spectral);
   
   MPI_Finalize();
   return result;
