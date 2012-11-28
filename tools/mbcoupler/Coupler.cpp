@@ -33,8 +33,9 @@ Coupler::Coupler(Interface *impl,
                      ParallelComm *pc,
                      Range &local_elems,
                      int coupler_id,
-                     bool init_tree)
-    : mbImpl(impl), myPc(pc), myId(coupler_id), numIts(3)
+                     bool init_tree,
+                     int max_ent_dim)
+    : mbImpl(impl), myPc(pc), myId(coupler_id), numIts(3), max_dim(max_ent_dim)
 {
   assert(NULL != impl && (pc || !local_elems.empty()));
 
@@ -69,7 +70,7 @@ ErrorCode Coupler::initialize_tree()
 
     //get entities on the local part
   ErrorCode result = MB_SUCCESS;
-  if (myPc) result = myPc->get_part_entities(local_ents, 3);
+  if (myPc) result = myPc->get_part_entities(local_ents, max_dim);
   else local_ents = myRange;
   if (MB_SUCCESS != result || local_ents.empty()) {
     std::cout << "Problems getting source entities" << std::endl;
@@ -584,7 +585,7 @@ ErrorCode Coupler::interpolate(Coupler::Method *methods,
   }
 
     // copy the interpolated field as a unit
-  for (int i = 0; i < tinterp.get_n(); i++)
+  for (unsigned int i = 0; i < tinterp.get_n(); i++)
     interp_vals[tinterp.vi_rd[5*i+1]] = tinterp.vr_rd[i];
   
     // done

@@ -19,6 +19,7 @@
 #include "moab/Interface.hpp"
 #include "moab/Range.hpp"
 #include "moab/CartVect.hpp"
+#include "moab/ParallelComm.hpp"
 
 // these are intersection utils
 #include "CslamUtils.hpp"
@@ -56,6 +57,9 @@ public:
 
   // clean some memory allocated
   void clean();
+
+  // this will work in parallel
+  ErrorCode locate_departure_points(EntityHandle euler_set);
 
 protected: // so it can be accessed in derived classes, InPlane and OnSphere
   Interface * mb;
@@ -95,6 +99,8 @@ protected: // so it can be accessed in derived classes, InPlane and OnSphere
   std::vector<std::vector<EntityHandle> *> extraNodesVec;
 
   double epsilon_1;
+
+  ParallelComm * parcomm;
 
 };
 

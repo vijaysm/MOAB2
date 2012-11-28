@@ -10,7 +10,11 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src/parallel \
                -I$(top_srcdir)/src/moab/point_locater/lotte \
-               -I$(top_srcdir)/tools/mbcoupler
+               -I$(top_srcdir)/tools/mbcoupler \
+               -I$(top_srcdir)/itaps \
+               -I$(top_srcdir)/itaps/imesh \
+               -I$(top_builddir)/itaps \
+               -I$(top_builddir)/itaps/imesh
 
 lib_LTLIBRARIES = libmbcslam.la
 libmbcslam_la_LIBADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la \

@@ -5,14 +5,19 @@
  */
 
 #include "Intx2Mesh.hpp"
-
+#include "Coupler.hpp"
+#include "MBParallelConventions.h"
 #include <queue>
 
 namespace moab {
 
+#define ERRORR(rval, str) \
+    if (MB_SUCCESS != rval) {std::cout << str << "\n"; return rval;}
 
+#define ERRORV(rval, str) \
+    if (MB_SUCCESS != rval) {std::cout << str << "\n"; return ;}
 
-Intx2Mesh::Intx2Mesh(Interface * mbimpl):mb(mbimpl)
+Intx2Mesh::Intx2Mesh(Interface * mbimpl):mb(mbimpl), parcomm(NULL)
 {
   dbg_1=0;
 }
@@ -32,18 +37,18 @@ void Intx2Mesh::createTags()
   // or is it easy to set all values to something again? like 0?
   rval = mb->tag_get_handle("redFlag", 1, MB_TYPE_BIT, RedFlagTag, MB_TAG_CREAT,
       &def_data_bit);
-  if (MB_SUCCESS != rval)
-    return;
+  ERRORV(rval, "can't get red flag tag");
 
   // assume that the edges are on the red triangles
   Range redQuads;
   //Range redEdges;
   rval = mb->get_entities_by_type(mbs2, type, redQuads, false);
-  if (MB_SUCCESS != rval)
-    return;
+  ERRORV(rval, "can't get ents by type");
+
   // create red edges if they do not exist yet; so when they are looked upon, they are found
   // this is the only call that is potentially NlogN, in the whole method
   rval = mb->get_adjacencies(redQuads, 1, true, RedEdges, Interface::UNION);
+  ERRORV(rval, "can't get adjacent red edges");
 
   // now, create a map from each edge to a list of potential new nodes on a red edge
   // this memory has to be cleaned up
@@ -63,11 +68,15 @@ void Intx2Mesh::createTags()
 
   rval = mb->tag_get_handle("Positive", 1, MB_TYPE_INTEGER, redParentTag,
       MB_TAG_SPARSE | MB_TAG_CREAT, &defaultInt);
+  ERRORV(rval, "can't create positive tag");
+
   rval = mb->tag_get_handle("Negative", 1, MB_TYPE_INTEGER, blueParentTag,
       MB_TAG_SPARSE | MB_TAG_CREAT, &defaultInt);
+  ERRORV(rval, "can't create negative tag");
 
   rval = mb->tag_get_handle("Counting", 1, MB_TYPE_INTEGER, countTag,
         MB_TAG_SPARSE | MB_TAG_CREAT, &defaultInt);
+  ERRORV(rval, "can't create Counting tag");
 
   return;
 }
@@ -86,8 +95,7 @@ ErrorCode Intx2Mesh::GetOrderedNeighbors(EntityHandle set, EntityHandle quad,
   int nnodes;
   const EntityHandle * conn4;
   ErrorCode rval = mb->get_connectivity(quad, conn4, nnodes);
-  if (MB_SUCCESS != rval || nnodes != nsides)
-    return MB_FAILURE;
+  ERRORR(rval, "can't get connectivity on an element");
   for (int i = 0; i < nsides; i++)
   {
     EntityHandle v[2];
@@ -97,8 +105,7 @@ ErrorCode Intx2Mesh::GetOrderedNeighbors(EntityHandle set, EntityHandle quad,
     std::vector<EntityHandle> quads;
     std::vector<EntityHandle> quadsInSet;
     rval = mb->get_adjacencies(v, 2, 2, false, quads, Interface::INTERSECT);
-    if (MB_SUCCESS != rval)
-      return rval;
+    ERRORR(rval, "can't get adjacencies on 2 nodes");
     size_t siz = quads.size();
     for (size_t j = 0; j < siz; j++)
       if (mb->contains_entities(set, &(quads[j]), 1))
@@ -200,6 +207,7 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
     {
       EntityHandle ttt = *itr;
       rval = mb->tag_set_data(RedFlagTag, &ttt, 1, &unused);
+      ERRORR(rval, "can't set red tag");
     }
     //rval = mb2->tag_set_data(RedFlagTag, toResetReds, &unused);
     if (dbg_1)
@@ -218,6 +226,7 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
     // at the end of blue triangle processing
     toResetReds.insert(currentRed);
     rval = mb->tag_set_data(RedFlagTag, &currentRed, 1, &used);
+    ERRORR(rval, "can't set red tag");
     //mb2->set_tag_data
     std::queue<EntityHandle> localRed;
     localRed.push(currentRed);
@@ -289,6 +298,7 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
 
     EntityHandle blueNeighbors[4];
     rval = GetOrderedNeighbors(mbs1, currentBlue, blueNeighbors);
+    ERRORR(rval, "can't get neighbors");
     if (dbg_1)
     {
       std::cout << "Next: neighbors for blue T ";
@@ -347,5 +357,48 @@ void Intx2Mesh::clean()
   }
   //extraNodesMap.clear();
   extraNodesVec.clear();
+}
+
+// this will work in parallel only
+ErrorCode Intx2Mesh::locate_departure_points(EntityHandle euler_set)
+{
+  // get the par comm ...
+  parcomm = ParallelComm::get_pcomm(mb, 0);
+  if (NULL==parcomm)
+    return MB_FAILURE;
+  // get the DP tag, and values for each node in the euler set
+  // get forst all entities in the set
+  Range local_ents;
+  ErrorCode rval = mb->get_entities_by_dimension(euler_set, 2, local_ents);
+  ERRORR(rval, "can't get ents by dimension");
+
+  // instantiate a coupler, which also initializes the tree
+  Coupler mbc(mb, parcomm, local_ents, 0, true, 2);// init tree = true, and max_dim is 2
+
+  // get all the owned nodes on this euler set
+  Range local_verts;
+  rval = mb->get_connectivity(local_ents, local_verts);
+  if (parcomm)
+  {
+    // get only those that are owned by this proc
+    rval = parcomm->filter_pstatus(local_verts, PSTATUS_NOT_OWNED, PSTATUS_NOT);
+    ERRORR(rval, "can't filter verts");
+  }
+
+  // get the DP tag , and get the departure points
+  Tag tagh = 0;
+  std::string tag_name("DP");
+  rval = mb->tag_get_handle(tag_name.c_str(), 3, MB_TYPE_DOUBLE, tagh, MB_TAG_DENSE);
+  ERRORR(rval, "can't get DP tag");
+  int num_owned_verts = (int)local_verts.size();
+
+  std::vector<double> dep_points(3*num_owned_verts);
+  rval = mb->tag_get_data(tagh, local_verts, (void*)&dep_points[0]);
+  ERRORR(rval, "can't get DP tag values");
+
+  mbc.locate_points(&dep_points[0], num_owned_verts, 0, 0.2);
+
+
+  return MB_SUCCESS;
 }
 } /* namespace moab */

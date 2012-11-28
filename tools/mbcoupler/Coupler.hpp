@@ -58,7 +58,8 @@ public:
             ParallelComm *pc,
             Range &local_elems,
             int coupler_id,
-            bool init_tree = true);
+            bool init_tree = true,
+            int max_ent_dim=3);
 
     /* destructor
      */
@@ -511,6 +512,9 @@ private:
      *
      */
   int numIts;
+
+  // entity dimension
+  int max_dim;
 
   // a cached spectral element for source and target , separate
   // assume that their numberof GL points (order+1) does not change
