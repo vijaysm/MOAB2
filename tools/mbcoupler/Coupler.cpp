@@ -638,7 +638,7 @@ ErrorCode Coupler::nat_param(double xyz[3],
     // find natural coordinates of point in element(s) in that leaf
   CartVect tmp_nat_coords; 
   Range range_leaf;
-  result = mbImpl->get_entities_by_dimension(closest_leaf, 3, range_leaf, false);
+  result = mbImpl->get_entities_by_dimension(closest_leaf, max_dim, range_leaf, false);
   if(result != MB_SUCCESS) std::cout << "Problem getting leaf in a range" << std::endl;
 
   // loop over the range_leaf
