@@ -8,13 +8,13 @@ using namespace moab;
 
 #ifdef MESHDIR
 static const char example[] = STRINGIFY(MESHDIR) "/io/homme26x3458.t.3.nc";
-#else
-static const char example[] = "/io/camEul26x48x96.t3.nc";
 #endif
 
 void test_read_parallel_ucd_trivial();
 void test_read_parallel_ucd_trivial_spectral();
 void test_read_parallel(int num_verts, bool test_nb_nodes);
+
+void test_multiple_loads_of_same_file();
 
 std::string partition_method;
 
@@ -25,6 +25,7 @@ int main(int argc, char **argv)
   
   result += RUN_TEST(test_read_parallel_ucd_trivial);
   result += RUN_TEST(test_read_parallel_ucd_trivial_spectral);
+  //result += RUN_TEST(test_multiple_loads_of_same_file);
   
   MPI_Finalize();
   return result;
@@ -84,3 +85,26 @@ void test_read_parallel(int num_verts, bool test_nb_nodes)
   mb.write_file( "test.h5m", NULL, write_options.c_str() );
 }
 
+void test_multiple_loads_of_same_file()
+{
+  Core moab;
+  Interface& mb = moab;
+  EntityHandle file_set;
+  ErrorCode rval;
+  rval = mb.create_meshset(MESHSET_SET, file_set);
+  CHECK_ERR(rval);
+
+  // read first only header information, no mesh, no variable
+  std::string opts("PARALLEL=READ_PART;PARTITION;PARALLEL_GHOSTS=2.0.1;NOMESH;VARIABLE=;PARTITION_METHOD=TRIVIAL_PARTITION");
+  rval = mb.load_file(example, &file_set, opts.c_str());
+  CHECK_ERR(rval);
+
+  opts="PARALLEL=READ_PART;PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=2.0.1;PARTITION_METHOD=TRIVIAL_PARTITION;VARIABLE=";
+  rval = mb.load_file(example, &file_set, opts.c_str());
+  CHECK_ERR(rval);
+
+
+  opts = "PARALLEL=READ_PART;PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=2.0.1;PARTITION_METHOD=TRIVIAL_PARTITION;NOMESH;VARIABLE=T;TIMESTEP=0";
+  rval = mb.load_file(example, &file_set, opts.c_str());
+  CHECK_ERR(rval);
+}
