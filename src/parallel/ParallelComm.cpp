@@ -8899,4 +8899,52 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     return sharedSetData->get_shared_sets( owning_rank, sets_out );
   }
 
+  ErrorCode ParallelComm::gather_data(Range &gather_ents, Tag &tag_handle, 
+				      Tag id_tag, EntityHandle gather_set) 
+  {
+    int dim = mbImpl->dimension_from_handle(*gather_ents.begin());
+    int bytes_per_tag = 0;
+    ErrorCode rval = mbImpl->tag_get_bytes(tag_handle, bytes_per_tag);
+    if (rval != MB_SUCCESS) return rval;
+
+    int sz_buffer = sizeof(int)+gather_ents.size()*(sizeof(int)+bytes_per_tag);
+    void* senddata = malloc(sz_buffer);
+    ((int*)senddata)[0] = (int) gather_ents.size();    
+    int * ptr_int = (int*)senddata+1;
+    rval = mbImpl->tag_get_data(id_tag, gather_ents, (void*)ptr_int);
+    ptr_int = (int*)(senddata)+1+gather_ents.size();
+    rval = mbImpl->tag_get_data(tag_handle, gather_ents,(void*)ptr_int);
+    std::vector<int> displs(proc_config().proc_size(), 0);
+    MPI_Gather(&sz_buffer, 1, MPI_INT, &displs[0], 1, MPI_INT, 0, comm());
+    std::vector<int> recvcnts(proc_config().proc_size(), 0);
+    std::copy(displs.begin(), displs.end(), recvcnts.begin());
+    std::partial_sum(displs.begin(), displs.end(), displs.begin());
+    std::copy_backward(displs.begin(), --displs.end(), displs.end());
+    displs[0] = 0;
+
+    if (rank()!=0)
+      MPI_Gatherv(senddata, sz_buffer, MPI_BYTE, NULL, NULL, NULL, MPI_BYTE, 0, comm());
+    else {
+      Range gents;
+      mbImpl->get_entities_by_dimension(gather_set, dim, gents);
+      int recvbuffsz = gents.size() * (bytes_per_tag + sizeof(int)) + proc_config().proc_size() * sizeof(int);
+      void* recvbuf = malloc(recvbuffsz);
+      MPI_Gatherv(senddata, sz_buffer, MPI_BYTE, recvbuf, &recvcnts[0], &displs[0], MPI_BYTE, 0, comm());
+
+      void *gvals;
+      int count;
+      rval = mbImpl->tag_iterate(tag_handle, gents.begin(), gents.end(), count, gvals);
+      for (int i = 0; i != (int)size(); ++i) {
+	int numents = *(int*)(((char*)recvbuf)+displs[i]);
+	int* id_ptr = (int*)(((char*)recvbuf)+displs[i]+sizeof(int));
+	char* val_ptr = (char*)(id_ptr+numents);
+	for (int j=0; j != numents; ++j) {
+	  int idx = id_ptr[j];
+	  memcpy((char*)gvals+(idx-1)*bytes_per_tag, val_ptr+j*bytes_per_tag, bytes_per_tag);
+	}
+      }
+    }
+    return MB_SUCCESS;
+  }
+
 } // namespace moab

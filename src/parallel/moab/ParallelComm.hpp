@@ -884,7 +884,22 @@ namespace moab {
 
     //! set the verbosity level of output from this pcomm
     void set_debug_verbosity(int verb);
-  
+
+    /* \brief Gather tag value from entities down to root proc
+     * This function gathers data from a domain-decomposed mesh onto a global mesh
+     * represented on the root processor.  On the root, this gather mesh is distinct from
+     * the root's domain-decomposed subdomain.  Entities are matched by global id, or by
+     * another tag if its handle is input.  The dimension of all entities in gather_ents should
+     * be the same, since this is the dimension of entities in gather_set that are queried for
+     * matching global id tags.
+     * \param gather_ents (Local) entities from which to gather data
+     * \param tag_handle Tag whose values are being gathered
+     * \param id_tag Tag to use for matching entities (global id used by default)
+     * \param gather_set On root, set containing global mesh onto which to put data
+     */
+    ErrorCode gather_data(Range &gather_ents, Tag &tag_handle, 
+			  Tag id_tag = 0, EntityHandle gather_set = 0);
+        
   private:
 
     ErrorCode reduce_void(int tag_data_type, const MPI_Op mpi_op, int num_ents, void *old_vals, void *new_vals);
