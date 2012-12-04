@@ -177,5 +177,33 @@ void Util::face_centers(Interface *MB, EntityHandle handle, std::vector<Coord> &
 
 }
 */
+ErrorCode Util::gather_set(Interface * MB, EntityHandle & gather_set){
+  Tag gathersettag;
+  ErrorCode rval = MB->tag_get_handle("GATHER_SET", 1, MB_TYPE_INTEGER, gathersettag,
+       MB_TAG_SPARSE);
+  if (rval!=MB_SUCCESS)
+    return rval;
 
+  int gatherval = 1;
+  void *vals[] = {&gatherval};
+  Range gathersets;
+  rval = MB->get_entities_by_type_and_tag( 0, MBENTITYSET, &gathersettag,
+                                             vals, 1, gathersets );
+  if (rval!=MB_SUCCESS)
+    return rval;
+  if (gathersets.empty())
+    return MB_ENTITY_NOT_FOUND;
+  gather_set = gathersets[0];
+
+  return MB_SUCCESS;
+}
+
+ErrorCode Util::gather_set_entities(Interface * MB, EntityHandle & gather_set, Range & ents)
+{
+  ErrorCode rval = Util::gather_set(MB, gather_set);
+  if (rval!=MB_SUCCESS)
+    return rval;
+  rval = MB->get_entities_by_handle(gather_set, ents);
+  return rval;
+}
 } // namespace moab

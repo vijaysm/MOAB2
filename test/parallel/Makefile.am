@@ -55,8 +55,7 @@ else
 endif
 
 if PNETCDF_FILE
-#  PNETCDF_TESTS =  ucdtrvpart read_nc_par  ucdnodpart
-  PNETCDF_TESTS =  read_nc_par  ucdnodpart
+  PNETCDF_TESTS =  ucdtrvpart read_nc_par  ucdnodpart
 else
   PNETCDF_TESTS = 
 endif

@@ -3,6 +3,7 @@
 #include "moab/ParallelComm.hpp"
 #include "moab/ProgOptions.hpp"
 #include "MBParallelConventions.h"
+#include "moab/Util.hpp"
 
 using namespace moab;
 
@@ -71,6 +72,16 @@ void test_read_parallel(int num_verts, bool test_nb_nodes)
   CHECK_ERR(rval);
   rval = pcomm->filter_pstatus(verts, PSTATUS_NOT_OWNED, PSTATUS_NOT);
   CHECK_ERR(rval);
+  int proc=pcomm->proc_config().proc_rank();
+  if (0==proc)
+  {
+    // remove from verts the gather set ents
+    EntityHandle gather_set;
+    Range gth_ents;
+    rval = Util::gather_set_entities(&mb, gather_set, gth_ents);
+    CHECK_ERR(rval);
+    verts = subtract(verts, gth_ents);
+  }
   int my_num = verts.size(), total_verts;
   std::cout<<"proc: " << pcomm->proc_config().proc_rank() << " verts:" << my_num << "\n";
   MPI_Reduce(&my_num, &total_verts, 1, MPI_INTEGER, MPI_SUM, 0, pcomm->proc_config().proc_comm());
