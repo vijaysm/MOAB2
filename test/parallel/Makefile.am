@@ -55,7 +55,7 @@ else
 endif
 
 if PNETCDF_FILE
-  PNETCDF_TESTS =  ucdtrvpart read_nc_par  ucdnodpart
+  PNETCDF_TESTS =  ucdtrvpart read_nc_par 
 else
   PNETCDF_TESTS = 
 endif
@@ -90,7 +90,6 @@ scdpart_SOURCES = scdpart.cpp
 if PNETCDF_FILE
   ucdtrvpart_SOURCES = ucdtrvpart.cpp
   read_nc_par_SOURCES=../io/read_nc.cpp
-  ucdnodpart_SOURCES = ucdnodpart.cpp
 endif
 
 if ENABLE_mbcoupler

@@ -435,14 +435,6 @@ namespace moab {
                                          const unsigned int np, 
                                          const int to_dim);
 
-    /**
-     *  \brief  Establish sharing info when we know the owners, and remote handles on owners
-     *  This is used in unstructured homme reading, for nodal partition method
-     */
-    ErrorCode resolve_shared_verts(Range & owned_verts, Range & not_owned_verts,
-            std::vector<int> & processors, std::vector<EntityHandle> &remote_handles,
-            std::vector<int> & not_owned_gids);
-
     /** Remove shared sets.
      *
      * Generates list of candidate sets using from those (directly)
