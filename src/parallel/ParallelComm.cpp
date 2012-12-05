@@ -4088,13 +4088,13 @@ ErrorCode ParallelComm::resolve_shared_verts(Range & owned_verts, Range & not_ow
       indexInTuple++;
       multishared_verts.inc_n();
       // create more tuples, for each instance
-      for (int k=startMulti; k<=endMulti; k++)
+      for (int k2=startMulti; k2<=endMulti; k2++)
       {
         multishared_verts.vi_wr[2*indexInTuple] = proc_to_send_to; // send to
-        multishared_verts.vi_wr[2*indexInTuple+1] =  remoting_entities.vi_wr[k]; // multi proc
-        multishared_verts.vl_wr[indexInTuple] =  remoting_entities.vl_wr[k]; // gid, for debug
+        multishared_verts.vi_wr[2*indexInTuple+1] =  remoting_entities.vi_wr[k2]; // multi proc
+        multishared_verts.vl_wr[indexInTuple] =  remoting_entities.vl_wr[k2]; // gid, for debug
         multishared_verts.vul_wr[2*indexInTuple] = handle_with_multi; // remote handle on proc_to_send_to
-        multishared_verts.vul_wr[2*indexInTuple+1] = remoting_entities.vul_wr[2*k]; // handle on multi proc
+        multishared_verts.vul_wr[2*indexInTuple+1] = remoting_entities.vul_wr[2*k2]; // handle on multi proc
         indexInTuple++;
         multishared_verts.inc_n();
       }

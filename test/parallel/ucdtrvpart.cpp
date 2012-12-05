@@ -26,7 +26,7 @@ int main(int argc, char **argv)
   
   result += RUN_TEST(test_read_parallel_ucd_trivial);
   result += RUN_TEST(test_read_parallel_ucd_trivial_spectral);
-  //result += RUN_TEST(test_multiple_loads_of_same_file);
+  result += RUN_TEST(test_multiple_loads_of_same_file);
   
   MPI_Finalize();
   return result;
@@ -106,16 +106,16 @@ void test_multiple_loads_of_same_file()
   CHECK_ERR(rval);
 
   // read first only header information, no mesh, no variable
-  std::string opts("PARALLEL=READ_PART;PARTITION;PARALLEL_GHOSTS=2.0.1;NOMESH;VARIABLE=;PARTITION_METHOD=TRIVIAL_PARTITION");
+  std::string opts("PARALLEL=READ_PART;PARTITION;NOMESH;VARIABLE=;PARTITION_METHOD=TRIVIAL_PARTITION");
   rval = mb.load_file(example, &file_set, opts.c_str());
   CHECK_ERR(rval);
 
-  opts="PARALLEL=READ_PART;PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=2.0.1;PARTITION_METHOD=TRIVIAL_PARTITION;VARIABLE=";
+  opts="PARALLEL=READ_PART;PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARTITION_METHOD=TRIVIAL_PARTITION;VARIABLE=";
   rval = mb.load_file(example, &file_set, opts.c_str());
   CHECK_ERR(rval);
 
 
-  opts = "PARALLEL=READ_PART;PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=2.0.1;PARTITION_METHOD=TRIVIAL_PARTITION;NOMESH;VARIABLE=T;TIMESTEP=0";
+  opts = "PARALLEL=READ_PART;PARTITION;PARTITION_METHOD=TRIVIAL_PARTITION;NOMESH;VARIABLE=T;TIMESTEP=0";
   rval = mb.load_file(example, &file_set, opts.c_str());
   CHECK_ERR(rval);
 }
