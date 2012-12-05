@@ -1,8 +1,8 @@
 #!/bin/sh
 #
 rm -rf moab_perf.txt
-for size in 10 20 30 40 50 75 100 150 200 300 
-#for size in 10 
+#for size in 10 20 30 40 50 75 100 150 200 300 
+for size in 300 
 do
   ./perf $size A >> moab_perf.txt
   ./perf $size B >> moab_perf.txt

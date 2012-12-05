@@ -138,13 +138,15 @@ class SequenceManager
        *\param sequence_out The sequence in which the entities were allocated.
        *                    NOTE: first_handle_out may not be first handle in
        *                    sequence.
+       *\param sequence_size If specified, allocate this sequence size instead of DEFAULT_***_SEQUENCE_SIZE
        */
     ErrorCode create_entity_sequence( EntityType type,
-                                        EntityID num_entities,
-                                        int nodes_per_entity,
-                                        EntityID start_id_hint,
-                                        EntityHandle& first_handle_out,
-                                        EntitySequence*& sequence_out );
+                                      EntityID num_entities,
+                                      int nodes_per_entity,
+                                      EntityID start_id_hint,
+                                      EntityHandle& first_handle_out,
+                                      EntitySequence*& sequence_out,
+                                      int sequence_size);
     
        /**\brief Allocate a block of consecutive mesh sets
        *
@@ -261,11 +263,28 @@ class SequenceManager
       /**\brief Get default size of POLYGON and POLYHEDRON SequenceData */
     static EntityID default_poly_sequence_size( int entity_connectivity_length );
     
-      /**\brief Size to allocate for new SquenceData */
+      /**\brief Size to allocate for new SquenceData 
+       * THIS FUNCTION SHOULD ONLY BE CALLED WHEN ALLOCATING FROM ReadUtil IN BULK
+       * (since it will allocate lesser of requested_size and default_size)
+       * If sequence_size != -1, will try to allocate that, unless there isn't available
+       * space
+       */
     EntityID new_sequence_size( EntityHandle start_handle, 
-                                  EntityID reqested_size,
-                                  EntityID default_size ) const;
-    
+                                EntityID requested_size,
+                                int sequence_size) const;
+  
+    /**\brief Default allocation size for vertices */
+  static const EntityID DEFAULT_VERTEX_SEQUENCE_SIZE;
+  
+    /**\brief Default allocation size for elements */
+  static const EntityID DEFAULT_ELEMENT_SEQUENCE_SIZE;
+
+    /**\brief Default allocation size for poly's */
+  static const EntityID DEFAULT_POLY_SEQUENCE_SIZE;
+
+    /**\brief Default allocation size for meshsets */
+  static const EntityID DEFAULT_MESHSET_SEQUENCE_SIZE;
+
   private:
    
     /**\brief Utility function for allocate_mesh_set (and similar)
@@ -301,6 +320,7 @@ class SequenceManager
     TypeSequenceManager typeData[MBMAXTYPE];
     
     std::vector<int> tagSizes;
+
 };
 
 } // namespace moab

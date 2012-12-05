@@ -43,7 +43,8 @@ ErrorCode ReadUtil::get_node_coords(
     const int num_nodes, 
     const int preferred_start_id,
     EntityHandle& actual_start_handle, 
-    std::vector<double*>& arrays)
+    std::vector<double*>& arrays,
+    int sequence_size)
 {
 
   ErrorCode error;
@@ -59,7 +60,7 @@ ErrorCode ReadUtil::get_node_coords(
   error = mMB->sequence_manager()->create_entity_sequence(
     MBVERTEX, num_nodes, 0, preferred_start_id, 
     actual_start_handle,
-    seq);
+    seq, sequence_size);
 
   if(error != MB_SUCCESS)
     return error;
@@ -85,7 +86,8 @@ ErrorCode ReadUtil::get_element_connect(
     const EntityType mdb_type,
     const int preferred_start_id, 
     EntityHandle& actual_start_handle, 
-    EntityHandle*& array)
+    EntityHandle*& array,
+    int sequence_size)
 {
 
   ErrorCode error;
@@ -103,7 +105,7 @@ ErrorCode ReadUtil::get_element_connect(
   // make an entity sequence to hold these elements
   error = mMB->sequence_manager()->create_entity_sequence(
       mdb_type, num_elements, verts_per_element, preferred_start_id, 
-      actual_start_handle, seq);
+      actual_start_handle, seq, sequence_size);
   if (MB_SUCCESS != error)
     return error;
 

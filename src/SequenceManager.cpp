@@ -20,10 +20,10 @@
 
 namespace moab {
 
-const EntityID DEFAULT_VERTEX_SEQUENCE_SIZE = 512*1024;
-const EntityID DEFAULT_ELEMENT_SEQUENCE_SIZE = DEFAULT_VERTEX_SEQUENCE_SIZE;
-const EntityID DEFAULT_POLY_SEQUENCE_SIZE = 16*1024;
-const EntityID DEFAULT_MESHSET_SEQUENCE_SIZE = DEFAULT_VERTEX_SEQUENCE_SIZE;
+const EntityID SequenceManager::DEFAULT_VERTEX_SEQUENCE_SIZE = 512*1024;
+const EntityID SequenceManager::DEFAULT_ELEMENT_SEQUENCE_SIZE = DEFAULT_VERTEX_SEQUENCE_SIZE;
+const EntityID SequenceManager::DEFAULT_POLY_SEQUENCE_SIZE = 16*1024;
+const EntityID SequenceManager::DEFAULT_MESHSET_SEQUENCE_SIZE = DEFAULT_VERTEX_SEQUENCE_SIZE;
 
 const int UNUSED_SIZE = 0;
 
@@ -409,23 +409,27 @@ SequenceManager::sequence_start_handle( EntityType type,
 
 
 EntityID SequenceManager::new_sequence_size( EntityHandle start,
-                                               EntityID requested_size,
-                                               EntityID default_size ) const
+                                             EntityID requested_size,
+                                             int sequence_size) const
 {
-  if (requested_size >= default_size)
+#ifdef USE_MPI
+    // if we're compiled parallel, increase requested size by a factor of 1.5, to allow
+    // for ghosts; if non-default value used for sequence_size that'll take precedent anyway
+  requested_size *= 1.5;
+#endif
+  
+  if (sequence_size < (int)requested_size)
     return requested_size;
   
   EntityHandle last = typeData[TYPE_FROM_HANDLE(start)].last_free_handle( start );
-// tjt - when start is 41427, last comes back 41685, when there's really an entity
-    // at 41673, and 41467+246-1=41672
   if (!last) {
     assert( false );
     return 0;
   }
   
   EntityID available_size = last - start + 1;
-  if (default_size < available_size)
-    return default_size;
+  if (sequence_size < available_size)
+    return sequence_size;
   else
     return available_size;
 }
@@ -436,7 +440,8 @@ SequenceManager::create_entity_sequence( EntityType type,
                                          int size,
                                          EntityID start,
                                          EntityHandle& handle,
-                                         EntitySequence*& sequence )
+                                         EntitySequence*& sequence,
+                                         int sequence_size)
 {
   SequenceData* data = 0;
   EntityID data_size = 0;
@@ -458,8 +463,7 @@ SequenceManager::create_entity_sequence( EntityType type,
       sequence = new VertexSequence( handle, count, data );
     else {
       if (!data_size)
-        data_size = new_sequence_size(handle, count, 
-                                      DEFAULT_VERTEX_SEQUENCE_SIZE);
+        data_size = new_sequence_size(handle, count, sequence_size);
       sequence = new VertexSequence( handle, count, data_size );
     }
     break;
@@ -474,7 +478,8 @@ SequenceManager::create_entity_sequence( EntityType type,
     else {
       if (!data_size)
         data_size = new_sequence_size(handle, count, 
-                                      default_poly_sequence_size(size));
+                                      (-1 == sequence_size ? default_poly_sequence_size(size) :
+                                       sequence_size));
       sequence = new PolyElementSeq( handle, count, size, data_size );
     }
     break;
@@ -487,8 +492,7 @@ SequenceManager::create_entity_sequence( EntityType type,
       sequence = new UnstructuredElemSeq( handle, count, size, data );
     else {
       if (!data_size)
-        data_size = new_sequence_size(handle, count, 
-                                      DEFAULT_ELEMENT_SEQUENCE_SIZE);
+        data_size = new_sequence_size(handle, count, sequence_size);
       sequence = new UnstructuredElemSeq( handle, count, size, data_size );
     }
       // tjt calling new_sequence_size 'cuz don't have a sequence data;

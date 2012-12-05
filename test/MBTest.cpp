@@ -5303,13 +5303,13 @@ ErrorCode mb_range_seq_intersect_test()
   EntitySequence *ts1, *ts2, *ts3, *qs1;
   EntityHandle th1, th2, th3, qh1;
   const int nt1 = 100, nt2 = 10, nt3 = 1, nq1 = 20;
-  rval = sequences.create_entity_sequence( MBTRI, nt1, 3, 5, th1, ts1 );
+  rval = sequences.create_entity_sequence( MBTRI, nt1, 3, 5, th1, ts1, -1 );
   if (MB_SUCCESS != rval) return rval;
-  rval = sequences.create_entity_sequence( MBTRI, nt2, 6, 0, th2, ts2 );
+  rval = sequences.create_entity_sequence( MBTRI, nt2, 6, 0, th2, ts2, -1 );
   if (MB_SUCCESS != rval) return rval;
-  rval = sequences.create_entity_sequence( MBTRI, nt3, 3, MB_END_ID, th3, ts3 );
+  rval = sequences.create_entity_sequence( MBTRI, nt3, 3, MB_END_ID, th3, ts3, -1 );
   if (MB_SUCCESS != rval) return rval;
-  rval = sequences.create_entity_sequence( MBQUAD, nq1, 4, 0, qh1, qs1 );
+  rval = sequences.create_entity_sequence( MBQUAD, nq1, 4, 0, qh1, qs1, -1 );
   if (MB_SUCCESS != rval) return rval;
   
     // we're going to assume this below, so verify it now

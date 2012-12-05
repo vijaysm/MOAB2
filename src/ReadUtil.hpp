@@ -48,8 +48,8 @@ public:
       const int num_nodes, 
       const int preferred_start_id,
       EntityHandle& actual_start_handle, 
-      std::vector<double*>& arrays
-      );
+      std::vector<double*>& arrays,
+      int sequence_size = -1);
 
   //! get array for connectivity data from the MB
   ErrorCode get_element_connect(
@@ -58,7 +58,8 @@ public:
       const EntityType mdb_type,
       const int preferred_start_id, 
       EntityHandle& actual_start_handle, 
-      EntityHandle*& array
+      EntityHandle*& array,
+      int sequence_size = -1
       );
 
     /**

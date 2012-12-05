@@ -48,13 +48,16 @@ public:
     //! \param actual_start_handle Actual starting id value
     //! \param arrays STL vector of double*'s, point to memory storage to be used for 
     //!     these vertices
+    //! \param sequence_size If specified, allocate this sequence size instead of 
+    //!      SequenceManager::DEFAULT_VERTEX_SEQUENCE_SIZE
     //! \return status Success/failure of this call
   virtual ErrorCode get_node_coords(
     const int num_arrays,
     const int num_nodes, 
     const int preferred_start_id,
     EntityHandle& actual_start_handle, 
-    std::vector<double*>& arrays
+    std::vector<double*>& arrays,
+    const int sequence_size = -1
     ) = 0;
 
     //! Given requested number of elements, element type, and number of
@@ -66,6 +69,8 @@ public:
     //! \param preferred_start_id Preferred integer id for first element
     //! \param actual_start_handle Actual integer id for first element (returned)
     //! \param array Pointer to memory allocated for storing connectivity for these elements
+    //! \param sequence_size If specified, allocate this sequence size instead of 
+    //!      SequenceManager::DEFAULT_VERTEX_SEQUENCE_SIZE
     //! \return status Success/failure of this call
   virtual ErrorCode get_element_connect(
     const int num_elements, 
@@ -73,7 +78,8 @@ public:
     const EntityType mdb_type,
     const int preferred_start_id, 
     EntityHandle& actual_start_handle, 
-    EntityHandle*& array
+    EntityHandle*& array,
+    int sequence_size = -1
     ) = 0;
 
     /**

@@ -2207,11 +2207,9 @@ ErrorCode FBEngine::compute_intersection_points(EntityHandle & face,
         const EntityHandle * conn2;
         rval = _mbImpl->get_connectivity(currentBoundary, conn2, nnodes2);
         MBERRORR(rval, "Failed to get connectivity");
-        EntityHandle thirdNode = conn3[0];
         int thirdIndex = -1;
         for (int j = 0; j < 3; j++) {
           if ((conn3[j] != conn2[0]) && (conn3[j] != conn2[1])) {
-            thirdNode = conn3[j];
             thirdIndex = j;
             break;
           }
@@ -2448,12 +2446,12 @@ ErrorCode FBEngine::split_edge_at_mesh_node(EntityHandle edge, EntityHandle node
   Range vertexRange;
   rval = getAdjacentEntities(edge, 0, vertexRange);
 
-  EntityHandle firstSet, secondSet;
+  EntityHandle secondSet;
   if (vertexRange.size() == 1)
   {
     // initially a periodic edge, OK to add the new set to both edges, and the
     // second set
-    firstSet = secondSet = vertexRange[0];
+    secondSet = vertexRange[0];
   }
   else
   {
@@ -2471,7 +2469,6 @@ ErrorCode FBEngine::split_edge_at_mesh_node(EntityHandle edge, EntityHandle node
          MBERRORR(MB_FAILURE, " node set not defined well");
       if (firstNode == verts[0])
       {
-        firstSet = vertexRange[k];
         secondSet = vertexRange[1-k]; // the other set; it is 1 or 0
         break;
       }
@@ -2679,11 +2676,11 @@ ErrorCode FBEngine::split_bedge_at_new_mesh_node(EntityHandle edge, EntityHandle
   Range vertexRange;
   rval = getAdjacentEntities(edge, 0, vertexRange);
 
-  EntityHandle firstSet, secondSet;
+  EntityHandle secondSet;
   if (vertexRange.size() == 1) {
     // initially a periodic edge, OK to add the new set to both edges, and the
     // second set
-    firstSet = secondSet = vertexRange[0];
+    secondSet = vertexRange[0];
   } else {
     if (vertexRange.size() > 2)
       return MB_FAILURE; // something must be wrong with too many vertices
@@ -2704,7 +2701,6 @@ ErrorCode FBEngine::split_bedge_at_new_mesh_node(EntityHandle edge, EntityHandle
       if (verts.size() != 1)
         MBERRORR(MB_FAILURE, " node set not defined well");
       if (firstNode == verts[0]) {
-        firstSet = vertexRange[k];
         secondSet = vertexRange[1 - k]; // the other set; it is 1 or 0
         break;
       }

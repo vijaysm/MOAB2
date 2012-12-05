@@ -1054,7 +1054,7 @@ ErrorCode  Core::get_coords(const EntityHandle* entities,
                                   double *coords) const
 {
   const EntitySequence* seq = NULL;
-  const VertexSequence* vseq;
+  const VertexSequence* vseq = NULL;
   const EntityHandle* const end = entities + num_entities;
   const EntityHandle* iter = entities;
   ErrorCode status = MB_SUCCESS;

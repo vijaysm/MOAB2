@@ -51,7 +51,7 @@ double LENGTH = 1.0;
 void testA(const int nelem, const double *coords);
 void testB(const int nelem, const double *coords, int *connect);
 void testC(const int nelem, const double *coords);
-void testD(const int nelem, const double *coords);
+void testD(const int nelem, const double *coords, int ver);
 void testE(const int nelem, const double *coords, int *connect);
 void print_time(const bool print_em, double &tot_time, double &utime, double &stime, long &imem, long &rmem);
 void query_vert_to_elem();
@@ -301,17 +301,24 @@ int main(int argc, char* argv[])
 {
   int nelem = 20;
   if (argc < 3) {
-    std::cout << "Usage: " << argv[0] << " <ints_per_side> [A|B|C|D|E]" << std::endl;
+    std::cout << "Usage: " << argv[0] << " <ints_per_side> [A|B|C|D [1|2|3|4]|E]" << std::endl;
     return 1;
   }
   
   char which_test = '\0';
+  int ver = 0;
   
   sscanf(argv[1], "%d", &nelem);
-  if (argc == 3) sscanf(argv[2], "%c", &which_test);
+  if (argc >= 3) sscanf(argv[2], "%c", &which_test);
+  if (argc >= 4) sscanf(argv[3], "%d", &ver);
 
-  if (3 == argc && which_test != 'A' && which_test != 'B' && which_test != 'C' && which_test != 'D'&& which_test != 'E') {
+  if (3 <= argc && which_test != 'A' && which_test != 'B' && which_test != 'C' && which_test != 'D'&& which_test != 'E') {
       std::cout << "Must indicate A or B, C, D or E for test." << std::endl;
+      return 1;
+  }
+
+  if (4 <= argc && which_test == 'D' && (ver < 1 || ver > 4)) {
+      std::cout << "Must indicate version 1, 2, 3, or 4 for test D." << std::endl;
       return 1;
   }
   
@@ -337,7 +344,7 @@ int main(int argc, char* argv[])
   if ('\0' == which_test || 'C' == which_test) testC(nelem, coords);
   
     // test D: query mesh using iterators
-  if ('\0' == which_test || 'D' == which_test) testD(nelem, coords);
+  if ('\0' == which_test || 'D' == which_test) testD(nelem, coords, ver);
   
     // test E: query mesh using direct access
   if ('\0' == which_test || 'E' == which_test) testE(nelem, coords, connect);
@@ -753,7 +760,7 @@ void testC(const int nelem, const double *coords)
             << rmem0 << " " << rmem1 << " " << rmem2 << " " << rmem3 << " " << rmem4 <<  " kb" << std::endl;
 }
 
-void testD(const int nelem, const double *coords) 
+void testD(const int nelem, const double *coords, int ver) 
 {
   double ttime0, ttime1, ttime2, ttime3, ttime4, ttime5, ttime6, ttime7, ttime8, ttime9, ttime10, 
       utime, stime;
@@ -808,106 +815,137 @@ void testD(const int nelem, const double *coords)
 
     // query the mesh 2 ways with !check_valid
   std::vector<EntityHandle> connect(8);
-  query_elem_to_vert_iters(1, false, connect, &dum_coords[0], &dum_pos[0]);
-  print_time(false, ttime2, utime, stime, imem2, rmem2);
-  query_vert_to_elem_iters(1, false, connect, &dum_coords[0], &dum_pos[0]);
-  print_time(false, ttime3, utime, stime, imem3, rmem3);
-#ifndef NDEBUG
   double def_val[3] = {0.0, 0.0, 0.0};
-  check_answers("D");
-  result = gMB->tag_delete(pos_tag);
-  result = gMB->tag_get_handle("position_tag", 3, MB_TYPE_DOUBLE, pos_tag,
-                               MB_TAG_DENSE | MB_TAG_CREAT, def_val);
-  assert(MB_SUCCESS == result);
-  result = gMB->tag_delete(pos2_tag);
-  result = gMB->tag_get_handle("position2_tag", 3, MB_TYPE_DOUBLE, pos2_tag,
-                               MB_TAG_DENSE | MB_TAG_CREAT, def_val);
-  assert(MB_SUCCESS == result);
-#endif
-
-  query_elem_to_vert_iters(1, true, connect, &dum_coords[0], &dum_pos[0]);
-  print_time(false, ttime4, utime, stime, imem4, rmem4);
-  query_vert_to_elem_iters(1, true, connect, &dum_coords[0], &dum_pos[0]);
-  print_time(false, ttime5, utime, stime, imem5, rmem5);
+  if (ver==0 || ver==1)
+  {
+    query_elem_to_vert_iters(1, false, connect, &dum_coords[0], &dum_pos[0]);
+    print_time(false, ttime2, utime, stime, imem2, rmem2);
+    query_vert_to_elem_iters(1, false, connect, &dum_coords[0], &dum_pos[0]);
+    print_time(false, ttime3, utime, stime, imem3, rmem3);
 #ifndef NDEBUG
-  check_answers("D");
-  result = gMB->tag_delete(pos_tag);
-  result = gMB->tag_get_handle("position_tag", 3, MB_TYPE_DOUBLE, pos_tag,
-                               MB_TAG_DENSE | MB_TAG_CREAT, def_val);
-  assert(MB_SUCCESS == result);
-  result = gMB->tag_delete(pos2_tag);
-  result = gMB->tag_get_handle("position2_tag", 3, MB_TYPE_DOUBLE, pos2_tag,
-                               MB_TAG_DENSE | MB_TAG_CREAT, def_val);
-  assert(MB_SUCCESS == result);
+    check_answers("D");
+    result = gMB->tag_delete(pos_tag);
+    result = gMB->tag_get_handle("position_tag", 3, MB_TYPE_DOUBLE, pos_tag,
+                                 MB_TAG_DENSE | MB_TAG_CREAT, def_val);
+    assert(MB_SUCCESS == result);
+    result = gMB->tag_delete(pos2_tag);
+    result = gMB->tag_get_handle("position2_tag", 3, MB_TYPE_DOUBLE, pos2_tag,
+                                 MB_TAG_DENSE | MB_TAG_CREAT, def_val);
+    assert(MB_SUCCESS == result);
 #endif
+  }
 
-  dum_coords.resize(2400); dum_pos.resize(300);
-  query_elem_to_vert_iters(100, false, connect, &dum_coords[0], &dum_pos[0]);
-  print_time(false, ttime6, utime, stime, imem6, rmem6);
-  query_vert_to_elem_iters(100, false, connect, &dum_coords[0], &dum_pos[0]);
-  print_time(false, ttime7, utime, stime, imem7, rmem7);
+  if (ver==0 || ver==2)
+  {
+    if (ver!=0)
+       print_time(false, ttime3, utime, stime, imem3, rmem3);
+    query_elem_to_vert_iters(1, true, connect, &dum_coords[0], &dum_pos[0]);
+    print_time(false, ttime4, utime, stime, imem4, rmem4);
+    query_vert_to_elem_iters(1, true, connect, &dum_coords[0], &dum_pos[0]);
+    print_time(false, ttime5, utime, stime, imem5, rmem5);
 #ifndef NDEBUG
-  check_answers("D");
-  result = gMB->tag_delete(pos_tag);
-  result = gMB->tag_get_handle("position_tag", 3, MB_TYPE_DOUBLE, pos_tag,
-                               MB_TAG_DENSE | MB_TAG_CREAT, def_val);
-  assert(MB_SUCCESS == result);
-  result = gMB->tag_delete(pos2_tag);
-  result = gMB->tag_get_handle("position2_tag", 3, MB_TYPE_DOUBLE, pos2_tag,
-                               MB_TAG_DENSE | MB_TAG_CREAT, def_val);
-  assert(MB_SUCCESS == result);
+    check_answers("D");
+    result = gMB->tag_delete(pos_tag);
+    result = gMB->tag_get_handle("position_tag", 3, MB_TYPE_DOUBLE, pos_tag,
+                                 MB_TAG_DENSE | MB_TAG_CREAT, def_val);
+    assert(MB_SUCCESS == result);
+    result = gMB->tag_delete(pos2_tag);
+    result = gMB->tag_get_handle("position2_tag", 3, MB_TYPE_DOUBLE, pos2_tag,
+                                 MB_TAG_DENSE | MB_TAG_CREAT, def_val);
+    assert(MB_SUCCESS == result);
 #endif
+  }
 
-  query_elem_to_vert_iters(100, true, connect, &dum_coords[0], &dum_pos[0]);
-  print_time(false, ttime8, utime, stime, imem8, rmem8);
-  query_vert_to_elem_iters(100, true, connect, &dum_coords[0], &dum_pos[0]);
-  print_time(false, ttime9, utime, stime, imem9, rmem9);
+  if (ver==0 || ver>=3)
+  {
+    dum_coords.resize(2400); dum_pos.resize(300);
+  }
+  if (ver==0 || ver==3)
+  {
+    if (ver!=0)
+       print_time(false, ttime5, utime, stime, imem3, rmem3);
+    query_elem_to_vert_iters(100, false, connect, &dum_coords[0], &dum_pos[0]);
+    print_time(false, ttime6, utime, stime, imem6, rmem6);
+    query_vert_to_elem_iters(100, false, connect, &dum_coords[0], &dum_pos[0]);
+    print_time(false, ttime7, utime, stime, imem7, rmem7);
 #ifndef NDEBUG
-  check_answers("D");
-  result = gMB->tag_delete(pos_tag);
-  result = gMB->tag_get_handle("position_tag", 3, MB_TYPE_DOUBLE, pos_tag,
-                               MB_TAG_DENSE | MB_TAG_CREAT, def_val);
-  assert(MB_SUCCESS == result);
-  result = gMB->tag_delete(pos2_tag);
-  result = gMB->tag_get_handle("position2_tag", 3, MB_TYPE_DOUBLE, pos2_tag,
-                               MB_TAG_DENSE | MB_TAG_CREAT, def_val);
-  assert(MB_SUCCESS == result);
+    check_answers("D");
+    result = gMB->tag_delete(pos_tag);
+    result = gMB->tag_get_handle("position_tag", 3, MB_TYPE_DOUBLE, pos_tag,
+                                 MB_TAG_DENSE | MB_TAG_CREAT, def_val);
+    assert(MB_SUCCESS == result);
+    result = gMB->tag_delete(pos2_tag);
+    result = gMB->tag_get_handle("position2_tag", 3, MB_TYPE_DOUBLE, pos2_tag,
+                                 MB_TAG_DENSE | MB_TAG_CREAT, def_val);
+    assert(MB_SUCCESS == result);
 #endif
+  }
+  
+  if (ver==0 || ver==4)
+  {
+    if (ver!=0)
+       print_time(false, ttime7, utime, stime, imem3, rmem3);
+    query_elem_to_vert_iters(100, true, connect, &dum_coords[0], &dum_pos[0]);
+    print_time(false, ttime8, utime, stime, imem8, rmem8);
+    query_vert_to_elem_iters(100, true, connect, &dum_coords[0], &dum_pos[0]);
+    print_time(false, ttime9, utime, stime, imem9, rmem9);
+#ifndef NDEBUG
+    check_answers("D");
+    result = gMB->tag_delete(pos_tag);
+    result = gMB->tag_get_handle("position_tag", 3, MB_TYPE_DOUBLE, pos_tag,
+                                 MB_TAG_DENSE | MB_TAG_CREAT, def_val);
+    assert(MB_SUCCESS == result);
+    result = gMB->tag_delete(pos2_tag);
+    result = gMB->tag_get_handle("position2_tag", 3, MB_TYPE_DOUBLE, pos2_tag,
+                                 MB_TAG_DENSE | MB_TAG_CREAT, def_val);
+    assert(MB_SUCCESS == result);
+#endif
+  }
 
+  if (ver>0 && ver<4)
+    print_time(false, ttime9, utime, stime, imem9, rmem9);
   delete gMB;
 
   print_time(false, ttime10, utime, stime, imem10, rmem10);
 
-  std::cout << "MOAB_ucd_iters_!check_valid_1:nelem,construct,e-v,v-e,after_dtor,total= "
-            << nelem << " " << ttime1-ttime0 << " " << ttime2-ttime1 << " " << ttime3-ttime2 << " " << ttime10-ttime9 
-            << ttime3-ttime0 + ttime10-ttime9 << std::endl;
-  std::cout << "MOAB_ucd_iters_memory_(rss)_!check_valid_1:initial,after_construction,e-v,v-e,after_dtor= " 
-            << rmem0 << " " << rmem1 << " " << rmem2 << " " << rmem3 << " " << rmem10 << " kb" << std::endl;
-
-  std::cout << "MOAB_ucd_iters_check_valid_1:nelem,construct,e-v,v-e,after_dtor,total= "
-            << nelem << " " << ttime1-ttime0 << " " << ttime2-ttime1 << " " << ttime3-ttime2 << " " << ttime10-ttime9 
-            << ttime1-ttime0 + ttime3-ttime1 + ttime10-ttime9 << std::endl;
-  std::cout << "MOAB_ucd_iters_memory_(rss)_check_valid_1:initial,after_construction,e-v,v-e,after_dtor= " 
-            << rmem0 << " " << rmem1 << " " << rmem2 << " " << rmem3 << " " << rmem10 << " kb" << std::endl;
-
-  std::cout << "MOAB_ucd_iters_!check_valid_100:nelem,construct,e-v,v-e,after_dtor,total= "
-            << nelem << " " << ttime1-ttime0 << " " << ttime6-ttime5 << " " << ttime7-ttime6 << " " << ttime10-ttime9 
-            << ttime1-ttime0 + ttime7-ttime5 + ttime10-ttime9 << std::endl;
-  std::cout << "MOAB_ucd_iters_memory_(rss)_!check_valid_100:initial,after_construction,e-v,v-e,after_dtor= " 
-            << rmem0 << " " << rmem1 << " " << rmem6 << " " << rmem7 << " " << rmem10 << " kb" << std::endl;
-
-  std::cout << "MOAB_ucd_iters_check_valid_100:nelem,construct,e-v,v-e,after_dtor,total= "
-            << nelem << " " << ttime1-ttime0 << " " << ttime8-ttime7 << " " << ttime9-ttime8 << " " << ttime10-ttime9 
-            << ttime1-ttime0 + ttime10-ttime7 << std::endl;
-  std::cout << "MOAB_ucd_iters_memory_(rss)_check_valid_100:initial,after_construction,e-v,v-e,after_dtor= " 
-            << rmem0 << " " << rmem1 << " " << rmem8 << " " << rmem9 << " " << rmem10 << " kb" << std::endl;
-
+  if (ver==0 || ver==1)
+  {
+    std::cout << "MOAB_ucd_iters_!check_valid_1:nelem,construct,e-v,v-e,after_dtor,total= "
+              << nelem << " " << ttime1-ttime0 << " " << ttime2-ttime1 << " " << ttime3-ttime2 << " " << ttime10-ttime9 
+              << " " << ttime3-ttime0 + ttime10-ttime9 << std::endl;
+    std::cout << "MOAB_ucd_iters_memory_(rss)_!check_valid_1:initial,after_construction,e-v,v-e,after_dtor= " 
+              << rmem0 << " " << rmem1 << " " << rmem2 << " " << rmem3 << " " << rmem10 << " kb" << std::endl;
+  }
+  if (ver==0 || ver==2)
+  {
+    std::cout << "MOAB_ucd_iters_check_valid_1:nelem,construct,e-v,v-e,after_dtor,total= "
+              << nelem << " " << ttime1-ttime0 << " " << ttime4-ttime3 << " " << ttime5-ttime4 << " " << ttime10-ttime9 
+              << " " << ttime1-ttime0 + ttime5-ttime3 + ttime10-ttime9 << std::endl;
+    std::cout << "MOAB_ucd_iters_memory_(rss)_check_valid_1:initial,after_construction,e-v,v-e,after_dtor= " 
+              << rmem0 << " " << rmem1 << " " << rmem2 << " " << rmem3 << " " << rmem10 << " kb" << std::endl;
+  }
+  if (ver==0 || ver==3)
+  {
+    std::cout << "MOAB_ucd_iters_!check_valid_100:nelem,construct,e-v,v-e,after_dtor,total= "
+              << nelem << " " << ttime1-ttime0 << " " << ttime6-ttime5 << " " << ttime7-ttime6 << " " << ttime10-ttime9 
+              << " " << ttime1-ttime0 + ttime7-ttime5 + ttime10-ttime9 << std::endl;
+    std::cout << "MOAB_ucd_iters_memory_(rss)_!check_valid_100:initial,after_construction,e-v,v-e,after_dtor= " 
+              << rmem0 << " " << rmem1 << " " << rmem6 << " " << rmem7 << " " << rmem10 << " kb" << std::endl;
+  }
+  if (ver==0 || ver==4)
+  {
+    std::cout << "MOAB_ucd_iters_check_valid_100:nelem,construct,e-v,v-e,after_dtor,total= "
+              << nelem << " " << ttime1-ttime0 << " " << ttime8-ttime7 << " " << ttime9-ttime8 << " " << ttime10-ttime9 
+              << " " << ttime1-ttime0 + ttime10-ttime7 << std::endl;
+    std::cout << "MOAB_ucd_iters_memory_(rss)_check_valid_100:initial,after_construction,e-v,v-e,after_dtor= " 
+              << rmem0 << " " << rmem1 << " " << rmem8 << " " << rmem9 << " " << rmem10 << " kb" << std::endl;
+  }
 }
 
 void testE(const int nelem, const double *coords, int *connect) 
 {
-  double ttime0, ttime1, ttime2, ttime3, ttime4, utime, stime;
-  long imem0, rmem0, imem1, rmem1, imem2, rmem2, imem3, rmem3, imem4, rmem4;
+  double ttime0, ttime1, ttime2, ttime3, ttime4, ttime5, ttime6, utime, stime;
+  long imem0, rmem0, imem1, rmem1, imem2, rmem2, imem3, rmem3, imem4, rmem4, imem5, rmem5, imem6, rmem6;
   
   print_time(false, ttime0, utime, stime, imem0, rmem0);
 
@@ -959,20 +997,43 @@ void testE(const int nelem, const double *coords, int *connect)
   check_answers("E");
 #endif  
 
-  delete gMB;
+  query_elem_to_vert_direct();
 
   print_time(false, ttime4, utime, stime, imem4, rmem4);
+
+  query_vert_to_elem_direct();
+  
+  print_time(false, ttime5, utime, stime, imem5, rmem5);
+
+#ifndef NDEBUG
+  check_answers("E");
+#endif  
+
+  delete gMB;
+
+  print_time(false, ttime6, utime, stime, imem6, rmem6);
 
   std::cout << "MOAB_ucd_direct:nelem,construct,e_to_v,v_to_e,after_dtor,total= " 
             << nelem << " "
             << ttime1-ttime0 << " " 
             << ttime2-ttime1 << " " 
             << ttime3-ttime2 << " " 
-            << ttime4-ttime3 << " " 
-            << ttime4-ttime0 << " seconds" 
+            << ttime6-ttime5 << " " 
+            << ttime3-ttime0 + ttime6-ttime5 << " seconds" 
             << std::endl;
   std::cout << "MOAB_ucd_direct_memory_(rss):initial,after_construction,e-v,v-e,after_dtor= " 
-            << rmem0 << " " << rmem1 << " " << rmem2 << " " << rmem3 << " " << rmem4 <<  " kb" << std::endl;
+            << rmem0 << " " << rmem1 << " " << rmem2 << " " << rmem3 << " " << rmem6 <<  " kb" << std::endl;
+
+  std::cout << "MOAB_ucd_direct2:nelem,construct,e_to_v,v_to_e,after_dtor,total= " 
+            << nelem << " "
+            << ttime1-ttime0 << " " 
+            << ttime4-ttime3 << " " 
+            << ttime5-ttime4 << " " 
+            << ttime6-ttime5 << " " 
+            << ttime1-ttime0 + ttime6-ttime3 << " seconds" 
+            << std::endl;
+  std::cout << "MOAB_ucd_direct2_memory_(rss):initial,after_construction,e-v,v-e,after_dtor= " 
+            << rmem0 << " " << rmem1 << " " << rmem4 << " " << rmem5 << " " << rmem6 <<  " kb" << std::endl;
 }
 
 void query_elem_to_vert_direct()

@@ -125,7 +125,7 @@ ErrorCode SpectralMeshTool::create_spectral_elems(const T *conn, int num_fine_el
   if (MB_SUCCESS != rval) return rval;
   
   int verts_per_felem = spectralOrderp1*spectralOrderp1,
-      verts_per_celem = std::pow(2, dim);
+      verts_per_celem = std::pow((double)2.0, dim);
 
   rval = rmi->get_element_connect(num_coarse_elems, verts_per_celem,
                                   (2 == dim ? MBQUAD : MBHEX), 0, start_elem, new_conn);
