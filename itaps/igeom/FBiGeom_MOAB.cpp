@@ -1295,7 +1295,7 @@ void FBiGeom_destroyEntSet(FBiGeom_Instance instance,
 }
 
 void FBiGeom_isList(FBiGeom_Instance instance, iBase_EntitySetHandle ,
-                    int , int *err) {
+                    int* , int *err) {
   RETURN(iBase_NOT_SUPPORTED);
 }
 
