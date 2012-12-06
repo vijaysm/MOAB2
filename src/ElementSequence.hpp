@@ -13,10 +13,10 @@ public:
   
   ElementSequence( EntityHandle start,
                    EntityID count,
-                   unsigned int nodes_per_element,
-                   SequenceData* data )
-    : EntitySequence( start, count, data ), 
-      nodesPerElement(nodes_per_element)
+                   unsigned int nodes_per_elem,
+                   SequenceData* dat )
+    : EntitySequence( start, count, dat ), 
+      nodesPerElement(nodes_per_elem)
     {}
                    
   virtual ~ElementSequence() {}

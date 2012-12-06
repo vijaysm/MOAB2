@@ -813,11 +813,11 @@ int main( int argc, char* argv[] )
         fprintf( stderr, "No geometry entities defined in file.\n" );
       }
       
-      for (Range::iterator i = entities.begin(); i != entities.end(); ++i)
+      for (Range::iterator rit = entities.begin(); rit != entities.end(); ++rit)
       {
         int id = 0, dim = 0;
-        if (MB_SUCCESS != mb.tag_get_data( dim_tag, &*i, 1, &dim ) ||
-            MB_SUCCESS != mb.tag_get_data(  id_tag, &*i, 1,  &id ))
+        if (MB_SUCCESS != mb.tag_get_data( dim_tag, &*rit, 1, &dim ) ||
+            MB_SUCCESS != mb.tag_get_data(  id_tag, &*rit, 1,  &id ))
         {
           fprintf( stderr, "Error retreiving tag data for geometry entity.\n");
           continue;
@@ -825,9 +825,9 @@ int main( int argc, char* argv[] )
         
         printf( "%s %d:\n", geom_type_names[dim], id );
         if (tag_count)
-          rval = gather_tag_counts( *i, file_counts );
+          rval = gather_tag_counts( *rit, file_counts );
         else if (!just_list && !just_list_basic)
-          rval = gather_set_stats( *i, file_stats );
+          rval = gather_set_stats( *rit, file_stats );
         
         if (MB_SUCCESS != rval)
           fprintf(stderr, "Error processing mesh from file: %s\n", f->c_str());
@@ -874,10 +874,10 @@ int main( int argc, char* argv[] )
           continue;
         }
       
-        for (Range::iterator i = entities.begin(); i != entities.end(); ++i)
+        for (Range::iterator rit = entities.begin(); rit != entities.end(); ++rit)
         {
           int id = 0;
-          if (MB_SUCCESS != mb.tag_get_data( tag, &*i, 1, &id ))
+          if (MB_SUCCESS != mb.tag_get_data( tag, &*rit, 1, &id ))
           {
             fprintf( stderr, "Error retreiving tag data for %s entity.\n", mesh_type_names[t]);
             continue;
@@ -885,7 +885,7 @@ int main( int argc, char* argv[] )
 
           printf( "%s %d:\n", mesh_type_names[t], id );
           if (tag_count) {
-            rval = gather_tag_counts( *i, file_counts );
+            rval = gather_tag_counts( *rit, file_counts );
             if (MB_SUCCESS != rval) 
               fprintf(stderr, "Error processing tags from file: %s\n", f->c_str());
             else
@@ -896,7 +896,7 @@ int main( int argc, char* argv[] )
           else if (just_list_basic)
             mb.list_entities( 0, 0 );
           else if (!just_list && !just_list_basic) {
-            rval = gather_set_stats( *i, file_stats );
+            rval = gather_set_stats( *rit, file_stats );
 
             if (rval != MB_SUCCESS)
               fprintf(stderr, "Error processing mesh from file: %s\n", f->c_str());

@@ -316,7 +316,7 @@ int SmoothFace::init_gradient()
 //Member Type:  PRIVATE
 //Description:  compute the control points for an edge
 //===========================================================================
-ErrorCode SmoothFace::init_bezier_edge(EntityHandle edge, double min_dot)
+ErrorCode SmoothFace::init_bezier_edge(EntityHandle edge, double )
 {
   // min dot was used for angle here
   //int stat = 0; // CUBIT_SUCCESS;
@@ -387,7 +387,7 @@ ErrorCode SmoothFace::compute_tangents_for_each_edge()
     _mb->get_connectivity(edg, conn2, nnodes);
     assert(nnodes == 2);
     CartVect P[2]; // store the coordinates for the nodes
-    ErrorCode rval = _mb->get_coords(conn2, 2, (double *) &P[0]);
+    rval = _mb->get_coords(conn2, 2, (double *) &P[0]);
     if (MB_SUCCESS != rval) return rval;
     assert(rval==MB_SUCCESS);
     CartVect T[2];
@@ -471,7 +471,7 @@ ErrorCode SmoothFace::find_edges_orientations(EntityHandle edges[3],
   }
   return MB_SUCCESS;
 }
-ErrorCode SmoothFace::compute_internal_control_points_on_facets(double min_dot,
+ErrorCode SmoothFace::compute_internal_control_points_on_facets(double ,
     Tag facetCtrlTag, Tag facetEdgeCtrlTag)
 {
   // collect from each triangle the control points in order
@@ -1103,7 +1103,7 @@ ErrorCode SmoothFace::project_to_facets_main(CartVect &this_point, bool trim,
 }
 ErrorCode SmoothFace::project_to_facets(std::vector<EntityHandle> & facet_list,
     EntityHandle & lastFacet, int interpOrder, double compareTol,
-    CartVect &this_point, bool trim, bool & outside,
+    CartVect &this_point, bool , bool & outside,
     CartVect *closest_point_ptr, CartVect * normal_ptr)
 {
 
@@ -1910,7 +1910,7 @@ ErrorCode SmoothFace::get_normals_for_vertices(const EntityHandle * conn2,
   return rval;
 }
 
-ErrorCode SmoothFace::ray_intersection_correct(EntityHandle facet, // (IN) the facet where the patch is defined
+ErrorCode SmoothFace::ray_intersection_correct(EntityHandle , // (IN) the facet where the patch is defined
     CartVect &pt, // (IN) shoot from
     CartVect &ray, // (IN) ray direction
     CartVect &eval_pt, // (INOUT) The intersection point
@@ -1927,7 +1927,7 @@ ErrorCode SmoothFace::ray_intersection_correct(EntityHandle facet, // (IN) the f
     CartVect newPos;
 
     bool trim = false;// is it needed?
-    bool outside = true;
+    outside = true;
     CartVect closestPoint;
     CartVect normal;
 

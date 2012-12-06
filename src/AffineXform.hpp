@@ -129,8 +129,8 @@ inline AffineXform::AffineXform()
   {}
 
 inline AffineXform::AffineXform( const double* three_by_three, 
-                                     const double* translation )
- : mMatrix(three_by_three), mOffset(translation)
+                                     const double* trans )
+ : mMatrix(three_by_three), mOffset(trans)
  {}
 
 inline AffineXform::AffineXform( const Matrix3& mat, const CartVect& off )

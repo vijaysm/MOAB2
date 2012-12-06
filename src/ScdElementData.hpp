@@ -118,8 +118,8 @@ public:
     //! return whether rectangle is periodic in j
   inline int is_periodic_j() const {return isPeriodic[1];};
 
-  inline void is_periodic(int is_periodic[2]) const 
-      {is_periodic[0] = isPeriodic[0]; is_periodic[1] = isPeriodic[1];}
+  inline void is_periodic(int is_p[2]) const 
+      {is_p[0] = isPeriodic[0]; is_p[1] = isPeriodic[1];}
   
     //! convenience functions for parameter extents
   int i_min() const {return (boxParams[0].hom_coord())[0];}

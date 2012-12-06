@@ -455,20 +455,20 @@ ErrorCode AdaptiveKDTree::merge_leaf( AdaptiveKDTreeIter& iter )
 
   
 
-ErrorCode AdaptiveKDTreeIter::initialize( AdaptiveKDTree* tool,
+ErrorCode AdaptiveKDTreeIter::initialize( AdaptiveKDTree* ttool,
                                               EntityHandle root,
-                                              const double box_min[3],
-                                              const double box_max[3],
+                                              const double bmin[3],
+                                              const double bmax[3],
                                               Direction direction )
 {
   mStack.clear();
-  treeTool = tool;
-  mBox[BMIN][0] = box_min[0];
-  mBox[BMIN][1] = box_min[1];
-  mBox[BMIN][2] = box_min[2];
-  mBox[BMAX][0] = box_max[0];
-  mBox[BMAX][1] = box_max[1];
-  mBox[BMAX][2] = box_max[2];
+  treeTool = ttool;
+  mBox[BMIN][0] = bmin[0];
+  mBox[BMIN][1] = bmin[1];
+  mBox[BMIN][2] = bmin[2];
+  mBox[BMAX][0] = bmax[0];
+  mBox[BMAX][1] = bmax[1];
+  mBox[BMAX][2] = bmax[2];
   mStack.push_back( StackObj(root,0) );
   return step_to_first_leaf( direction );
 }

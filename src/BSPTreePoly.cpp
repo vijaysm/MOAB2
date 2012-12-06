@@ -60,14 +60,14 @@ struct BSPTreePoly::Edge {
   static int nextID;
 #endif
   
-  Edge( Vertex* start, Vertex* end )
+  Edge( Vertex* vstart, Vertex* vend )
     : forwardPtr(0), reversePtr(0)
 #ifdef DEBUG_IDS
   , id(nextID++)
 #endif  
   {
-    startPtr = new VertexUse( this, start );
-    endPtr = new VertexUse( this, end );
+    startPtr = new VertexUse( this, vstart );
+    endPtr = new VertexUse( this, vend );
   }
   
   ~Edge();
@@ -96,16 +96,16 @@ struct BSPTreePoly::Edge {
   BSPTreePoly::Edge* prev( BSPTreePoly::Face* about ) const
     { return use(about)->prevPtr->edgePtr; }
   
-  BSPTreePoly::VertexUse* other( BSPTreePoly::VertexUse* use ) const
-    { return use == startPtr ? endPtr : use == endPtr ? startPtr : 0; }
-  BSPTreePoly::EdgeUse* other( BSPTreePoly::EdgeUse* use ) const
-    { return use == forwardPtr ? reversePtr : use == reversePtr ? forwardPtr : 0; }
+  BSPTreePoly::VertexUse* other( BSPTreePoly::VertexUse* vuse ) const
+    { return vuse == startPtr ? endPtr : vuse == endPtr ? startPtr : 0; }
+  BSPTreePoly::EdgeUse* other( BSPTreePoly::EdgeUse* vuse ) const
+    { return vuse == forwardPtr ? reversePtr : vuse == reversePtr ? forwardPtr : 0; }
   BSPTreePoly::Vertex* other( BSPTreePoly::Vertex* vtx ) const
     { return vtx == startPtr->vtxPtr ?   endPtr->vtxPtr :
              vtx ==   endPtr->vtxPtr ? startPtr->vtxPtr : 0; }
-  BSPTreePoly::Vertex* common( BSPTreePoly::Edge* other ) const
-    { return start() == other->start() || start() == other->end() ? start() :
-               end() == other->start() ||   end() == other->end() ?   end() : 0; }
+  BSPTreePoly::Vertex* common( BSPTreePoly::Edge* eother ) const
+    { return start() == eother->start() || start() == eother->end() ? start() :
+               end() == eother->start() ||   end() == eother->end() ?   end() : 0; }
   
   int sense( BSPTreePoly::Face* face ) const;
              

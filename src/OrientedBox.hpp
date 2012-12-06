@@ -80,8 +80,7 @@ public:
    */
   static ErrorCode tag_handle( Tag& handle_out,
                                  Interface* instance, 
-                                 const char* name,
-                                 bool create = true );
+                                 const char* name);
 
   /**\brief Calculate an oriented box from a set of vertices */
   static ErrorCode compute_from_vertices( OrientedBox& result,

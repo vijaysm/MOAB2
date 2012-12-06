@@ -161,8 +161,8 @@ public:
   
   inline void clear();
   
-  inline void set( const void* data, unsigned size )
-    { memcpy( resize(size), data, size ); }
+  inline void set( const void* dat, unsigned sz )
+    { memcpy( resize(sz), dat, sz ); }
     
   inline VarLenTag& operator=( const VarLenTag& other )
     { set( other.data(), other.size() ); return *this; }
@@ -196,13 +196,13 @@ inline unsigned char* VarLenTag::resize( unsigned s )
   return mData.mData.mPointer.array;
 }
 
-inline VarLenTag::VarLenTag( unsigned size )
+inline VarLenTag::VarLenTag( unsigned sz )
 {
 #ifdef VAR_LEN_TAG_ELIDE_DATA
-  if (size > VarLenTagData::INLINE_COUNT) 
+  if (sz > VarLenTagData::INLINE_COUNT) 
 #endif
-    mData.mData.mPointer.array = reinterpret_cast<unsigned char*>(malloc(size));
-  mData.mData.mPointer.size = size;
+    mData.mData.mPointer.array = reinterpret_cast<unsigned char*>(malloc(sz));
+  mData.mData.mPointer.size = sz;
 }
 
 inline void VarLenTag::clear()
@@ -228,11 +228,11 @@ inline VarLenTag::VarLenTag( const VarLenTag& copy )
   }
 }
 
-inline VarLenTag::VarLenTag( unsigned size, const void* data )
+inline VarLenTag::VarLenTag( unsigned sz, const void* dat )
 {
   mData.mData.mPointer.size = 0;
-  if (size) 
-    memcpy( resize(size), data, size );
+  if (sz) 
+    memcpy( resize(sz), dat, sz );
 }
 
 } // namespace moab

@@ -35,12 +35,12 @@ class CartVect {
   
     inline CartVect() {}
     
-    inline CartVect( double x, double y, double z ) { set(x,y,z); }
+    inline CartVect( double tx, double ty, double tz ) { set(tx,ty,tz); }
     
     inline CartVect( const CartVect& other ) { set( other.coords); }
     
-    inline void set( double x, double y, double z )
-      { coords[0] = x; coords[1] = y; coords[2] = z; }
+    inline void set( double tx, double ty, double tz )
+      { coords[0] = tx; coords[1] = ty; coords[2] = tz; }
     
     inline void set( const double* c )
       { coords[0] = c[0]; coords[1] = c[1]; coords[2] = c[2]; }

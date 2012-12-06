@@ -133,8 +133,7 @@ OrientedBox::OrientedBox( const CartVect axes[3], const CartVect& mid )
 
 ErrorCode OrientedBox::tag_handle( Tag& handle_out,
                                        Interface* instance,
-                                       const char* name,
-                                       bool create )
+                                       const char* name)
 {
     // We're going to assume this when mapping the OrientedBox
     // to tag data, so assert it.  

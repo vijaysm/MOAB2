@@ -18,12 +18,12 @@ SetIterator::~SetIterator()
   myCore->remove_set_iterator(this);
 }
 
-RangeSetIterator::RangeSetIterator(Core *core, EntityHandle ent_set, int chunk_size, 
-                          EntityType ent_type, int ent_dimension, bool check_valid) 
-        : SetIterator(core, ent_set, chunk_size, ent_type, ent_dimension, check_valid),
+RangeSetIterator::RangeSetIterator(Core *core, EntityHandle eset, int chunk_sz, 
+                          EntityType ent_tp, int ent_dim, bool check_valid) 
+        : SetIterator(core, eset, chunk_sz, ent_tp, ent_dim, check_valid),
           iterPos(0), pairPtr(NULL), numPairs(0)
 {
-  if (!ent_set) {
+  if (!eset) {
       // special case for the root set, have to keep a local array
     ErrorCode rval = build_pair_vec();
     assert(MB_SUCCESS == rval);

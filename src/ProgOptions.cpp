@@ -364,8 +364,8 @@ ProgOpt* ProgOptions::lookup_option( const std::string& namestring ){
   return opt;
 }
 
-void ProgOptions::error( const std::string& error ){
-  std::cerr << "Error: " << error << "\n"<< std::endl;;
+void ProgOptions::error( const std::string& err ){
+  std::cerr << "Error: " << err << "\n"<< std::endl;;
   printUsage( std::cerr );
   std::cerr << std::endl;
   if (getenv("MOAB_PROG_OPT_ABORT"))

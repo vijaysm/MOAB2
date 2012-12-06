@@ -21,7 +21,7 @@ AC_ARG_ENABLE([fortran],[AC_HELP_STRING([--disable-fortran],
   [No Fortran name mangling in ITAPS/MBCN C headers])],
   [ENABLE_FORTRAN=$enableval],[ENABLE_FORTRAN=yes])
 
-EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long'
+EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long -Wextra -Wcast-align  -Wpointer-arith -Wformat -Wformat-security -Wshadow -Wunused-parameter'
 EXTRA_INTEL_FLAGS='-Wall'
 FATHOM_CHECK_COMPILERS([yes],[yes],[$ENABLE_FORTRAN])
 AM_CONDITIONAL(PARALLEL,[test "x$WITH_MPI" != "xno"])

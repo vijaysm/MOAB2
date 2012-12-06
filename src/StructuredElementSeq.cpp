@@ -23,20 +23,20 @@
 
 namespace moab {
 
-StructuredElementSeq::StructuredElementSeq(EntityHandle start_handle,
+StructuredElementSeq::StructuredElementSeq(EntityHandle shandle,
                              const int imin, const int jmin, const int kmin,
                                            const int imax, const int jmax, const int kmax,
-                                           int *is_periodic) 
-  : ElementSequence( start_handle, 
-                     ScdElementData::calc_num_entities( start_handle,
+                                           int *is_per) 
+  : ElementSequence( shandle, 
+                     ScdElementData::calc_num_entities( shandle,
                                                         imax-imin,
                                                         jmax-jmin,
                                                         kmax-kmin,
-                                                        is_periodic),
-                     CN::VerticesPerEntity(TYPE_FROM_HANDLE(start_handle)),
-                     new ScdElementData( start_handle, 
+                                                        is_per),
+                     CN::VerticesPerEntity(TYPE_FROM_HANDLE(shandle)),
+                     new ScdElementData( shandle, 
                                         imin, jmin, kmin,
-                                         imax, jmax, kmax, is_periodic) )
+                                         imax, jmax, kmax, is_per) )
 {
 }
 

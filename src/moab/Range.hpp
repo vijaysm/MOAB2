@@ -335,9 +335,9 @@ public:
     { insert( range.begin(), range.end() ); }
   
   //! merge a subset of some other range
-  void merge( Range::const_iterator begin,
-              Range::const_iterator end )
-    { insert( begin, end ); }
+  void merge( Range::const_iterator beginr,
+              Range::const_iterator endr )
+    { insert( beginr, endr ); }
 
   //! swap the contents of this range with another one
   void swap( Range &range );
@@ -388,7 +388,7 @@ public:
     friend class Range;
   public:
     pair_iterator() : mNode(NULL) {}
-    pair_iterator(PairNode *node) : mNode(node) {}
+    pair_iterator(PairNode *nodep) : mNode(nodep) {}
     pair_iterator(const pair_iterator& copy)
       : mNode(copy.mNode) {}
     pair_iterator(const const_iterator& copy)
@@ -833,10 +833,10 @@ bool operator==( const Range& r1, const Range& r2 );
 inline bool operator!=( const Range& r1, const Range& r2 )
   { return !(r1 == r2); }
 
-inline EntityHandle Range::operator[](EntityID index) const
+inline EntityHandle Range::operator[](EntityID indexp) const
 {
   Range::const_iterator i = begin();
-  i += index;
+  i += indexp;
   return *i;
 }
 

@@ -549,9 +549,16 @@ ErrorCode ReadParallel::load_file(const char **file_names,
                   0, myPcomm->proc_config().proc_comm());
     }
     else {
+#if (MPI_VERSION >= 2)
       MPI_Reduce( MPI_IN_PLACE, &act_times[0], pa_vec.size()+1, MPI_DOUBLE, 
                   MPI_MAX, 0, myPcomm->proc_config().proc_comm());
-
+#else
+      // Note, extra comm-size allocation is required
+      std::vector<double> act_times_tmp(pa_vec.size()+1);
+      MPI_Reduce( &act_times[0], &act_times_tmp[0], pa_vec.size()+1, MPI_DOUBLE, 
+                  MPI_MAX, 0, myPcomm->proc_config().proc_comm());
+      act_times = act_times_tmp; // extra copy here too
+#endif
       std::cout << "Parallel Read times: " << std::endl;
       for (i = 1, vit = pa_vec.begin(); vit != pa_vec.end(); vit++, i++) 
           std::cout << "  " << act_times[i] << " "

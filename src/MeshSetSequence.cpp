@@ -26,8 +26,8 @@ namespace moab {
 MeshSetSequence::MeshSetSequence( EntityHandle start,
                                   EntityID count,
                                   const unsigned* flags,
-                                  SequenceData* data )
-  : EntitySequence( start, count, data )
+                                  SequenceData* dat )
+  : EntitySequence( start, count, dat )
 {
   initialize( flags );
 }
@@ -35,8 +35,8 @@ MeshSetSequence::MeshSetSequence( EntityHandle start,
 MeshSetSequence::MeshSetSequence( EntityHandle start,
                                   EntityID count,
                                   unsigned flags,
-                                  SequenceData* data )
-  : EntitySequence( start, count, data )
+                                  SequenceData* dat )
+  : EntitySequence( start, count, dat )
 {
   std::vector<unsigned> vect( count, flags );
   initialize( &vect[0] );
@@ -211,18 +211,18 @@ ErrorCode MeshSetSequence::get_dimension( const SequenceManager* seqman,
 
 ErrorCode MeshSetSequence::get_type( const SequenceManager* seqman,
                                        EntityHandle handle,
-                                       EntityType type,
+                                       EntityType tp,
                                        std::vector<EntityHandle>& entities,
                                        bool recursive ) const
 {
   if (!recursive) {
-    get_set(handle)->get_entities_by_type( type, entities );
+    get_set(handle)->get_entities_by_type( tp, entities );
     return MB_SUCCESS;
   }
-  else if (type == MBENTITYSET) {
+  else if (tp == MBENTITYSET) {
     return recursive_get_sets( handle, seqman, 0, 0, &entities );
   }
-  else if (type == MBMAXTYPE) {
+  else if (tp == MBMAXTYPE) {
     Range tmp;
     ErrorCode rval = get_entities( seqman, handle, tmp, recursive );
     if (MB_SUCCESS == rval) {
@@ -238,25 +238,25 @@ ErrorCode MeshSetSequence::get_type( const SequenceManager* seqman,
     std::vector<const MeshSet*> list;
     ErrorCode rval = recursive_get_sets( handle, seqman, &list );
     for (std::vector<const MeshSet*>::iterator i = list.begin(); i != list.end(); ++i)
-      (*i)->get_entities_by_type( type, entities );
+      (*i)->get_entities_by_type( tp, entities );
     return rval;
   }
 }
 
 ErrorCode MeshSetSequence::get_type( const SequenceManager* seqman,
                                        EntityHandle handle,
-                                       EntityType type,
+                                       EntityType tp,
                                        Range& entities,
                                        bool recursive ) const
 {
   if (!recursive) {
-    get_set(handle)->get_entities_by_type( type, entities );
+    get_set(handle)->get_entities_by_type( tp, entities );
     return MB_SUCCESS;
   }
-  else if (type == MBENTITYSET) {
+  else if (tp == MBENTITYSET) {
     return recursive_get_sets( handle, seqman, 0, &entities );
   }
-  else if (type == MBMAXTYPE) {
+  else if (tp == MBMAXTYPE) {
     std::vector<const MeshSet*> list;
     ErrorCode rval = recursive_get_sets( handle, seqman, &list );
     for (std::vector<const MeshSet*>::iterator i = list.begin(); i != list.end(); ++i)
@@ -267,7 +267,7 @@ ErrorCode MeshSetSequence::get_type( const SequenceManager* seqman,
     std::vector<const MeshSet*> list;
     ErrorCode rval = recursive_get_sets( handle, seqman, &list );
     for (std::vector<const MeshSet*>::iterator i = list.begin(); i != list.end(); ++i)
-      (*i)->get_entities_by_type( type, entities );
+      (*i)->get_entities_by_type( tp, entities );
     return rval;
   }
 }
@@ -309,17 +309,17 @@ ErrorCode MeshSetSequence::num_dimension( const SequenceManager* seqman,
  
 ErrorCode MeshSetSequence::num_type( const SequenceManager* seqman,
                                        EntityHandle handle,
-                                       EntityType type,
+                                       EntityType tp,
                                        int& number,
                                        bool recursive ) const
 {
   if (!recursive) {
-    number = get_set(handle)->num_entities_by_type(type);
+    number = get_set(handle)->num_entities_by_type(tp);
     return MB_SUCCESS;
   }
   else {
     Range range;
-    ErrorCode result = get_type( seqman, handle, type, range, true );
+    ErrorCode result = get_type( seqman, handle, tp, range, true );
     number = range.size();
     return result;
   }
@@ -416,7 +416,7 @@ ErrorCode MeshSetSequence::get_parent_child_meshsets( EntityHandle meshset,
 {
   ErrorCode result = MB_SUCCESS;
   std::vector<EntityHandle>::iterator i;
-  const EntityHandle *array = 0, *end;
+  const EntityHandle *tmp_array = 0, *end;
   EntityHandle s, e;
   int count = 0;
   size_t n;
@@ -448,29 +448,29 @@ ErrorCode MeshSetSequence::get_parent_child_meshsets( EntityHandle meshset,
       
       switch (link_type) {
       case CONTAINED:
-        array = ms_ptr->get_contents(n);
-        end = array + n;
+        tmp_array = ms_ptr->get_contents(n);
+        end = tmp_array + n;
         if (ms_ptr->vector_based()) {
-          for (; array != end; ++array) 
-            if (MBENTITYSET == TYPE_FROM_HANDLE(*array) &&
-                visited.insert(*array).second) 
-              lists[1-index].push_back(*array);
+          for (; tmp_array != end; ++tmp_array) 
+            if (MBENTITYSET == TYPE_FROM_HANDLE(*tmp_array) &&
+                visited.insert(*tmp_array).second) 
+              lists[1-index].push_back(*tmp_array);
         }
         else {
           assert(n%2 == 0);
-          array = std::lower_bound( array, array+n, FIRST_HANDLE(MBENTITYSET) );
+          tmp_array = std::lower_bound( tmp_array, tmp_array+n, FIRST_HANDLE(MBENTITYSET) );
             // only part of first block is of type
-          if ((end - array)%2) {
-            ++array;
+          if ((end - tmp_array)%2) {
+            ++tmp_array;
             s = FIRST_HANDLE(MBENTITYSET);
-            e = *array;
+            e = *tmp_array;
             for (; s <= e; ++s) 
               if (visited.insert(s).second)
                 lists[1-index].push_back(s);
           }
-          while (array < end) {
-            s = *array++;
-            e = *array++;
+          while (tmp_array < end) {
+            s = *tmp_array++;
+            e = *tmp_array++;
             for (; s <= e; ++s) 
               if (visited.insert(s).second)
                 lists[1-index].push_back(s);
@@ -478,17 +478,17 @@ ErrorCode MeshSetSequence::get_parent_child_meshsets( EntityHandle meshset,
         }
         continue;
       case PARENTS:
-        array = ms_ptr->get_parents(count);
+        tmp_array = ms_ptr->get_parents(count);
         break;
       case CHILDREN:
-        array = ms_ptr->get_children(count);
+        tmp_array = ms_ptr->get_children(count);
         break;
       }
       
         // copy any parents/children we haven't visited yet into list
-      for (end = array+count; array != end; ++array) 
-        if (visited.insert(*array).second) 
-          lists[1-index].push_back(*array);
+      for (end = tmp_array+count; tmp_array != end; ++tmp_array) 
+        if (visited.insert(*tmp_array).second) 
+          lists[1-index].push_back(*tmp_array);
     }
     
       // iterate
@@ -512,10 +512,10 @@ ErrorCode MeshSetSequence::get_parents( const SequenceManager* seqman,
 {
   if (num_hops == 1) {
     int count;
-    const EntityHandle* array = get_set( handle )->get_parents(count);  
+    const EntityHandle* tmp_array = get_set( handle )->get_parents(count);  
     if (parents.empty()) {
       parents.resize(count);
-      std::copy( array, array + count, parents.begin() );
+      std::copy( tmp_array, tmp_array + count, parents.begin() );
       return MB_SUCCESS;
     }
     else if (!count) {
@@ -536,10 +536,10 @@ ErrorCode MeshSetSequence::get_children( const SequenceManager* seqman,
 {
   if (num_hops == 1) {
     int count;
-    const EntityHandle* array = get_set( handle )->get_children(count);  
+    const EntityHandle* tmp_array = get_set( handle )->get_children(count);  
     if (children.empty()) {
       children.resize(count);
-      std::copy( array, array + count, children.begin() );
+      std::copy( tmp_array, tmp_array + count, children.begin() );
       return MB_SUCCESS;
     }
     else if (!count) {

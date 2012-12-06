@@ -26,7 +26,7 @@ public:
     OrientedBoxTreeTool::Op(), count(0), mbi(mbi_p), tool(tool_p), pt(p)
   {}
 
-  virtual ErrorCode visit( EntityHandle node,int depth, bool& descend ){
+  virtual ErrorCode visit( EntityHandle node,int , bool& descend ){
     OrientedBox box;
     ErrorCode rval = tool->box( node, box );
     
@@ -220,7 +220,7 @@ public:
 
   }
 
-  virtual ErrorCode visit( EntityHandle node,int depth, bool& descend ){
+  virtual ErrorCode visit( EntityHandle ,int , bool& descend ){
     
     descend = true;
     return MB_SUCCESS;

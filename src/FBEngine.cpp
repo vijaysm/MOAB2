@@ -41,7 +41,7 @@ bool debug_splits = false;
 // will compute intersection between a segment and slice of a plane
 // output is the intersection point
 bool intersect_segment_and_plane_slice(CartVect & from, CartVect & to,
-    CartVect & p1, CartVect & p2, CartVect & Dir, CartVect & normPlane,
+    CartVect & p1, CartVect & p2, CartVect & , CartVect & normPlane,
     CartVect & intx_point, double & parPos)
 {
   //
@@ -1932,8 +1932,8 @@ void FBEngine::print_debug_triangle(EntityHandle t)
 }
 // actual breaking of triangles
 // case 1: n2 interior to triangle
-ErrorCode FBEngine::BreakTriangle(EntityHandle tri, EntityHandle e1, EntityHandle e3,
-    EntityHandle n1, EntityHandle n2, EntityHandle n3)
+ErrorCode FBEngine::BreakTriangle(EntityHandle , EntityHandle , EntityHandle ,
+    EntityHandle , EntityHandle , EntityHandle )
 {
   std::cout<< "FBEngine::BreakTriangle not implemented yet\n";
   return MB_FAILURE;
@@ -2079,7 +2079,7 @@ ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHand
 // vertices, edges, triangles
 //it could be just a list of vertices (easiest case to handle after)
 
-ErrorCode FBEngine::compute_intersection_points(EntityHandle & face,
+ErrorCode FBEngine::compute_intersection_points(EntityHandle & ,
     EntityHandle from, EntityHandle to,
     CartVect & Dir, std::vector<CartVect> & points,
     std::vector<EntityHandle> & entities, std::vector<EntityHandle> & triangles)
@@ -2208,9 +2208,9 @@ ErrorCode FBEngine::compute_intersection_points(EntityHandle & face,
         rval = _mbImpl->get_connectivity(currentBoundary, conn2, nnodes2);
         MBERRORR(rval, "Failed to get connectivity");
         int thirdIndex = -1;
-        for (int j = 0; j < 3; j++) {
-          if ((conn3[j] != conn2[0]) && (conn3[j] != conn2[1])) {
-            thirdIndex = j;
+        for (int tj = 0; tj < 3; tj++) {
+          if ((conn3[tj] != conn2[0]) && (conn3[tj] != conn2[1])) {
+            thirdIndex = tj;
             break;
           }
         }
@@ -2223,7 +2223,7 @@ ErrorCode FBEngine::compute_intersection_points(EntityHandle & face,
         int indexSecond = (thirdIndex + 2) % 3;
         int index[2] = { indexFirst, indexSecond };
         for (int k = 0; k < 2; k++) {
-          EntityHandle nn2[2] = { conn3[index[k]], conn3[thirdIndex] };
+          nn2[0] = conn3[index[k]], nn2[1] = conn3[thirdIndex];
           if (intersect_segment_and_plane_slice(Pt[index[k]], Pt[thirdIndex],
               currentPoint, p2, Dir, normPlane, intx, param)) {
             // we should stop for loop, and decide if it is edge or vertex
@@ -3552,8 +3552,7 @@ ErrorCode  FBEngine::weave_lateral_face_from_edges(EntityHandle bEdge, EntityHan
     {
       dir1= coords2[indexT] - coords2[indexT-1];
     }
-    CartVect planeNormal = dir1*up;
-    dir1 = up * planeNormal;
+    dir1 = up * (dir1*up);
     dir1.normalize();
 
   }

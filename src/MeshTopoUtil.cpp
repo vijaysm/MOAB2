@@ -103,7 +103,7 @@ ErrorCode MeshTopoUtil::get_average_position(const EntityHandle entity,
   // if any of the star entities is in only one entity of next higher dimension, 
   // on_boundary is returned true
 ErrorCode MeshTopoUtil::star_entities(const EntityHandle star_center,
-                                        std::vector<EntityHandle> &star_entities,
+                                        std::vector<EntityHandle> &star_ents,
                                         bool &bdy_entity,
                                         const EntityHandle starting_star_entity,
                                         std::vector<EntityHandle> *star_entities_dp2,
@@ -134,8 +134,8 @@ ErrorCode MeshTopoUtil::star_entities(const EntityHandle star_center,
 
       // special case: if starting_star_entity isn't connected to any entities of next
       // higher dimension, it's the only entity in the star; put it on the list and return
-    if (star_entities.empty() && next_entity == 0 && next_dp2 == 0) {
-      star_entities.push_back(last_entity);
+    if (star_ents.empty() && next_entity == 0 && next_dp2 == 0) {
+      star_ents.push_back(last_entity);
       bdy_entity = true;
       return MB_SUCCESS;
     }
@@ -145,11 +145,11 @@ ErrorCode MeshTopoUtil::star_entities(const EntityHandle star_center,
       // pop the last star entity off the list and find it again, so that we properly
       // check for next_dp2
     if (0 == next_dp2 && !bdy_entity) {
-      star_entities.push_back(next_entity);
+      star_ents.push_back(next_entity);
       bdy_entity = true;
-      std::reverse(star_entities.begin(), star_entities.end());
-      star_entities.pop_back();
-      last_entity = star_entities.back();
+      std::reverse(star_ents.begin(), star_ents.end());
+      star_ents.pop_back();
+      last_entity = star_ents.back();
       if (!star_dp2.empty()) {
         std::reverse(star_dp2.begin(), star_dp2.end());
         last_dp2 = star_dp2.back();
@@ -159,8 +159,8 @@ ErrorCode MeshTopoUtil::star_entities(const EntityHandle star_center,
       // we've come all the way around; don't put next_entity on list again, and
       // zero out last_dp2 to terminate while loop
     else if (!bdy_entity && 
-             std::find(star_entities.begin(), star_entities.end(), next_entity) != 
-             star_entities.end() &&
+             std::find(star_ents.begin(), star_ents.end(), next_entity) != 
+             star_ents.end() &&
              (std::find(star_dp2.begin(), star_dp2.end(), next_dp2) != 
              star_dp2.end() || !next_dp2))
     {
@@ -169,9 +169,9 @@ ErrorCode MeshTopoUtil::star_entities(const EntityHandle star_center,
 
       // else, just assign last entities seen and go on to next iteration
     else {
-      if (std::find(star_entities.begin(), star_entities.end(), next_entity) == 
-          star_entities.end())
-        star_entities.push_back(next_entity);
+      if (std::find(star_ents.begin(), star_ents.end(), next_entity) == 
+          star_ents.end())
+        star_ents.push_back(next_entity);
       if (0 != next_dp2) {
         star_dp2.push_back(next_dp2);
         tmp_candidates_dp2.erase(next_dp2);

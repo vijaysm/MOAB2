@@ -3031,7 +3031,7 @@ ErrorCode Core::convert_entities( const EntityHandle meshset,
   //! between parent and child
 ErrorCode Core::side_number(const EntityHandle parent,
                                   const EntityHandle child,
-                                  int &side_number,
+                                  int &sd_number,
                                   int &sense,
                                   int &offset) const
 {
@@ -3049,12 +3049,12 @@ ErrorCode Core::side_number(const EntityHandle parent,
     int child_index = std::find(parent_conn, parent_conn+num_parent_vertices,
                                 child) - parent_conn;
     if (child_index == num_parent_vertices) {
-      side_number = -1;
+      sd_number = -1;
       sense = 0;
       return MB_SUCCESS;
     }
     else {
-      side_number = child_index;
+      sd_number = child_index;
       sense = 1; 
       return MB_SUCCESS;
     }
@@ -3074,7 +3074,7 @@ ErrorCode Core::side_number(const EntityHandle parent,
       child_conn_indices[i] = std::find( parent_conn,
         parent_conn + num_parent_vertices, child_conn[i] ) - parent_conn;
       if (child_conn_indices[i] >= num_parent_vertices) {
-        side_number = -1;
+        sd_number = -1;
         return MB_SUCCESS;
       }
     }
@@ -3082,7 +3082,7 @@ ErrorCode Core::side_number(const EntityHandle parent,
     int temp_result = CN::SideNumber(TYPE_FROM_HANDLE(parent),
                                        child_conn_indices, num_child_vertices, 
                                        CN::Dimension(TYPE_FROM_HANDLE(child)), 
-                                       side_number, sense, offset);
+                                       sd_number, sense, offset);
     return (0 == temp_result ? MB_SUCCESS : MB_FAILURE);
   }
   else if (TYPE_FROM_HANDLE(parent) == MBPOLYGON) {
@@ -3090,8 +3090,8 @@ ErrorCode Core::side_number(const EntityHandle parent,
     const EntityHandle *first_v = std::find(parent_conn, parent_conn+num_parent_vertices,
                                               child_conn[0]);
     if (first_v == parent_conn+num_parent_vertices) return MB_ENTITY_NOT_FOUND;
-    side_number = first_v - parent_conn;
-    offset = side_number;
+    sd_number = first_v - parent_conn;
+    offset = sd_number;
     if (TYPE_FROM_HANDLE(child) == MBVERTEX) {
       sense = 0;
       return MB_SUCCESS;
@@ -3100,14 +3100,14 @@ ErrorCode Core::side_number(const EntityHandle parent,
       bool match = CN::ConnectivityMatch(parent_conn, child_conn,
                                            num_parent_vertices,
                                            sense, offset);
-      side_number = 0;
+      sd_number = 0;
       if (match) return MB_SUCCESS;
       else return MB_ENTITY_NOT_FOUND;
     }
     else if (TYPE_FROM_HANDLE(child) == MBEDGE) {
-      if (parent_conn[(side_number+1)%num_parent_vertices] == child_conn[1])
+      if (parent_conn[(sd_number+1)%num_parent_vertices] == child_conn[1])
         sense = 1;
-      else if (parent_conn[(side_number+num_parent_vertices-1)%num_parent_vertices] ==
+      else if (parent_conn[(sd_number+num_parent_vertices-1)%num_parent_vertices] ==
                child_conn[1])
         sense = -1;
       return MB_SUCCESS;
@@ -3122,9 +3122,9 @@ ErrorCode Core::side_number(const EntityHandle parent,
 ErrorCode Core::high_order_node(const EntityHandle parent_handle,
                                       const EntityHandle *subfacet_conn,
                                       const EntityType subfacet_type,
-                                      EntityHandle &high_order_node) const
+                                      EntityHandle &hon) const
 {
-  high_order_node = 0;
+  hon = 0;
 
   EntityType parent_type = TYPE_FROM_HANDLE(parent_handle);
 
@@ -3185,7 +3185,7 @@ ErrorCode Core::high_order_node(const EntityHandle parent_handle,
     // offset shouldn't be off the end of the connectivity vector
   if (offset >= num_parent_vertices) return MB_INDEX_OUT_OF_RANGE;
 
-  high_order_node = parent_conn[offset];
+  hon = parent_conn[offset];
 
   return MB_SUCCESS;
 }
@@ -3193,7 +3193,7 @@ ErrorCode Core::high_order_node(const EntityHandle parent_handle,
   //! given an entity and a target dimension & side number, get that entity
 ErrorCode Core::side_element(const EntityHandle source_entity,
                                    const int dim, 
-                                   const int side_number,
+                                   const int sd_number,
                                    EntityHandle &target_entity) const
 {
     // get a handle on the connectivity
@@ -3204,8 +3204,8 @@ ErrorCode Core::side_element(const EntityHandle source_entity,
 
     // special case for vertices
   if (dim == 0) {
-    if (side_number < num_verts) {
-      target_entity = verts[side_number];
+    if (sd_number < num_verts) {
+      target_entity = verts[sd_number];
       return MB_SUCCESS;
     }
     
@@ -3219,7 +3219,7 @@ ErrorCode Core::side_element(const EntityHandle source_entity,
   std::vector<int> vertex_indices;
 
   int temp_result = 
-    CN::AdjacentSubEntities(source_type, &side_number, 1, dim, 0, vertex_indices);
+    CN::AdjacentSubEntities(source_type, &sd_number, 1, dim, 0, vertex_indices);
   if (0 != temp_result) return MB_FAILURE;
     // now get the actual vertices
   for (unsigned int i = 0; i < vertex_indices.size(); i++)
@@ -3234,7 +3234,7 @@ ErrorCode Core::side_element(const EntityHandle source_entity,
   if (!target_ents.empty() &&
       TYPE_FROM_HANDLE(*(target_ents.begin())) != MBVERTEX &&
       TYPE_FROM_HANDLE(*(target_ents.begin())) != 
-      CN::mConnectivityMap[source_type][dim-1].target_type[side_number])
+      CN::mConnectivityMap[source_type][dim-1].target_type[sd_number])
     return MB_ENTITY_NOT_FOUND;
 
   if (!target_ents.empty()) target_entity = *(target_ents.begin());

@@ -21,9 +21,9 @@ struct iBase_EntityArrIterator_Private
     iBase_EntityArrIterator_Private( iBase_EntityType type,
                                      iMesh_EntityTopology topology,
                                      EntityHandle set,
-                                     int array_size,
+                                     int array_sz,
                                      bool recursive = false)
-            : entType(type), entTopo(topology), entSet(set), arrSize(array_size), isRecursive(recursive)
+            : entType(type), entTopo(topology), entSet(set), arrSize(array_sz), isRecursive(recursive)
       {}
 
     virtual ~iBase_EntityArrIterator_Private() {}
@@ -117,9 +117,9 @@ template <class Container> class MBIter : public iBase_EntityArrIterator_Private
     MBIter( iBase_EntityType type,
             iMesh_EntityTopology topology,
             EntityHandle set,
-            int array_size,
+            int arr_size,
             bool recursive = false)
-            : iBase_EntityArrIterator_Private( type, topology, set, array_size, recursive ),
+            : iBase_EntityArrIterator_Private( type, topology, set, arr_size, recursive ),
         iterPos(iterData.end()) {}
       
     ~MBIter() {}

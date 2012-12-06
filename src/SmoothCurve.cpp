@@ -435,7 +435,7 @@ void SmoothCurve::compute_tangents_for_each_edge()
   return;
 }
 
-void SmoothCurve::compute_control_points_on_boundary_edges(double min_dot,
+void SmoothCurve::compute_control_points_on_boundary_edges(double ,
     std::map<EntityHandle, SmoothFace*> & mapSurfaces, Tag controlPointsTag,
     Tag markTag)
 {
@@ -482,7 +482,7 @@ void SmoothCurve::compute_control_points_on_boundary_edges(double min_dot,
 
     int nnodes;
     const EntityHandle * conn2;
-    ErrorCode rval = _mb->get_connectivity(edge, conn2, nnodes);
+    rval = _mb->get_connectivity(edge, conn2, nnodes);
     if (rval != MB_SUCCESS || 2 != nnodes)
       return;// or continue or return error
 

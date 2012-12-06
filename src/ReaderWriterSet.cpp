@@ -247,11 +247,11 @@ std::string ReaderWriterSet::extension_from_filename(
 
 ReaderWriterSet::Handler::Handler( reader_factory_t read_f, 
                                      writer_factory_t write_f,
-                                     const char* name,
+                                     const char* nm,
                                      const char* desc, 
                                      const char* const* ext, 
                                      int num_ext )
- : mReader(read_f), mWriter(write_f), mName(name), mDescription(desc), mExtensions(num_ext)
+ : mReader(read_f), mWriter(write_f), mName(nm), mDescription(desc), mExtensions(num_ext)
 {
   for (int i = 0; i < num_ext; ++i)
     mExtensions[i] = ext[i];
@@ -321,19 +321,19 @@ bool ReaderWriterSet::Handler::writes_extension(const char *ext) const
 }
 
 ReaderWriterSet::iterator
-ReaderWriterSet::handler_by_name( const char* name ) const
+ReaderWriterSet::handler_by_name( const char* nm ) const
 {
-  return std::find( begin(), end(), name );
+  return std::find( begin(), end(), nm );
 }
 
-bool ReaderWriterSet::Handler::operator==( const char* name ) const
+bool ReaderWriterSet::Handler::operator==( const char* nm ) const
 {
     // do case-insensitive comparison
   std::string::const_iterator siter = mName.begin();
-  for (; *name; ++name, ++siter)
-    if (siter == mName.end() || tolower(*name) != tolower(*siter))
+  for (; *nm; ++nm, ++siter)
+    if (siter == mName.end() || tolower(*nm) != tolower(*siter))
       return false;
-  return *name == '\0';
+  return *nm == '\0';
 }
   
 } // namespace moab

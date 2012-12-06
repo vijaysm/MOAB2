@@ -32,9 +32,9 @@ public:
     _fbe = new FBEngine(mbi);
     _mbimeshCreated = _fbeCreated = true;
   }
-  MBiGeom (MBiMesh * mbimesh, moab::FBEngine * fbe)
+  MBiGeom (MBiMesh * mbi, moab::FBEngine * fbe)
   {
-    _mbimesh = mbimesh;
+    _mbimesh = mbi;
     _fbe = fbe;
     _mbimeshCreated = _fbeCreated = false;
   }

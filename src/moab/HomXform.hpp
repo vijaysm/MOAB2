@@ -179,7 +179,7 @@ inline HomCoord::HomCoord()
   
 inline HomCoord::HomCoord(const int coords[], const int num_coords) 
 {
-  for (int i = 0; i < num_coords; i++) homCoord[i] = coords[i];
+  for (int tmpj = 0; tmpj < num_coords; tmpj++) homCoord[tmpj] = coords[tmpj];
   if (num_coords != 4) homCoord[3] = 1;
 }
 
@@ -217,13 +217,13 @@ inline void HomCoord::set(const int coords[])
     homCoord[3] = coords[3];
 }
   
-inline void HomCoord::set(const int i, const int j, const int k,
-                          const int h)
+inline void HomCoord::set(const int ip, const int jp, const int kp,
+                          const int hp)
 {
-    homCoord[0] = i;
-    homCoord[1] = j;
-    homCoord[2] = k;
-    homCoord[3] = h;
+    homCoord[0] = ip;
+    homCoord[1] = jp;
+    homCoord[2] = kp;
+    homCoord[3] = hp;
 }
   
 inline HomCoord &HomCoord::operator=(const HomCoord &rhs1)

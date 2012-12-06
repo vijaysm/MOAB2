@@ -157,9 +157,9 @@ inline SequenceData::SequenceData( int num_sequence_arrays,
     startHandle(start),
     endHandle(end)
 {
-  const size_t size = sizeof(void*) * (num_sequence_arrays + 1);
-  void** data = (void**)malloc( size );
-  memset( data, 0, size );
+  const size_t sz = sizeof(void*) * (num_sequence_arrays + 1);
+  void** data = (void**)malloc( sz );
+  memset( data, 0, sz );
   arraySet = data + num_sequence_arrays;
 }
 

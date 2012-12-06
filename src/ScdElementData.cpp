@@ -38,20 +38,20 @@ EntityID ScdElementData::calc_num_entities(EntityHandle start_handle,
 }
 
 ScdElementData::ScdElementData(
-                             EntityHandle start_handle,
+                             EntityHandle shandle,
                              const int imin, const int jmin, const int kmin,
                              const int imax, const int jmax, const int kmax,
-                             int *is_periodic)
-    : SequenceData(0, start_handle,
-                   start_handle + 
-                   calc_num_entities( start_handle, imax-imin, jmax-jmin, kmax-kmin, is_periodic)
+                             int *is_p)
+    : SequenceData(0, shandle,
+                   shandle + 
+                   calc_num_entities( shandle, imax-imin, jmax-jmin, kmax-kmin, is_p)
                    - 1)
 {
     // need to have meaningful parameters
   assert(imax >= imin && jmax >= jmin && kmax >= kmin);
 
-  isPeriodic[0] = (is_periodic ? is_periodic[0] : 0);
-  isPeriodic[1] = (is_periodic ? is_periodic[1] : 0);
+  isPeriodic[0] = (is_p ? is_p[0] : 0);
+  isPeriodic[1] = (is_p ? is_p[1] : 0);
   
   boxParams[0] = HomCoord(imin, jmin, kmin);
   boxParams[1] = HomCoord(imax, jmax, kmax);

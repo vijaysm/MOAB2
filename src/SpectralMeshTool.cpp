@@ -57,7 +57,7 @@ Tag SpectralMeshTool::spectral_order_tag(const bool create_if_missing)
      * vertices in SPECTRAL_VERTICES tagged array
      * \param spectral_set Set containing spectral elements
      */
-ErrorCode SpectralMeshTool::convert_to_fine(EntityHandle spectral_set) 
+ErrorCode SpectralMeshTool::convert_to_fine(EntityHandle /* spectral_set */) 
 {
   return MB_NOT_IMPLEMENTED;
 }

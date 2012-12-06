@@ -258,17 +258,17 @@ int MeshSet::remove_child( EntityHandle child )
  *                          Flag Conversion Operations                                   *
  *****************************************************************************************/
 
-ErrorCode MeshSet::convert( unsigned flags, EntityHandle my_handle, AEntityFactory* adj )
+ErrorCode MeshSet::convert( unsigned flg, EntityHandle my_handle, AEntityFactory* adj )
 {
   ErrorCode rval = MB_SUCCESS;
-  if ((mFlags & MESHSET_TRACK_OWNER) && !(flags & MESHSET_TRACK_OWNER))
+  if ((mFlags & MESHSET_TRACK_OWNER) && !(flg & MESHSET_TRACK_OWNER))
     rval = remove_adjacencies( my_handle, adj );
-  else if (!(mFlags & MESHSET_TRACK_OWNER) && (flags & MESHSET_TRACK_OWNER))
+  else if (!(mFlags & MESHSET_TRACK_OWNER) && (flg & MESHSET_TRACK_OWNER))
     rval = create_adjacencies( my_handle, adj );
   if (MB_SUCCESS != rval)
     return rval;
 
-  if (!(mFlags & MESHSET_ORDERED) && (flags & MESHSET_ORDERED)) {
+  if (!(mFlags & MESHSET_ORDERED) && (flg & MESHSET_ORDERED)) {
     size_t datalen;
     EntityHandle* data = get_contents(datalen);
     if (datalen) {
@@ -290,7 +290,7 @@ ErrorCode MeshSet::convert( unsigned flags, EntityHandle my_handle, AEntityFacto
       }
     }
   }
-  else if ((mFlags & MESHSET_ORDERED) && !(flags & MESHSET_ORDERED)) {
+  else if ((mFlags & MESHSET_ORDERED) && !(flg & MESHSET_ORDERED)) {
     size_t datalen;
     EntityHandle* data = get_contents(datalen);
     if (datalen) {
@@ -813,7 +813,7 @@ range_tool<pair_iter_t>::vector_insert_entities( MeshSet::Count& count,
                                                  EntityHandle my_handle, 
                                                  AEntityFactory* adj )
 {
-  const size_t init_size = count < MeshSet::MANY ? count : clist.ptr[1] - clist.ptr[0];
+  const size_t init_size = count < MeshSet::MANY ? (int)count : clist.ptr[1] - clist.ptr[0];
   size_t add_size = 0;
   for (pair_iter_t i = begin; i != end; ++i)
     add_size += i->second - i->first + 1;
@@ -949,7 +949,7 @@ static ErrorCode vector_insert_vector( MeshSet::Count& count,
                                          EntityHandle my_handle, 
                                          AEntityFactory* adj )
 {
-  const size_t orig_size = count < MeshSet::MANY ? count : clist.ptr[1] - clist.ptr[0];
+  const size_t orig_size = count < MeshSet::MANY ? (int)count : clist.ptr[1] - clist.ptr[0];
   EntityHandle* list = resize_compact_list( count, clist, orig_size + vect_size );
   if (adj) 
     for (size_t i = 0; i < vect_size; ++i)
@@ -1137,7 +1137,7 @@ ErrorCode MeshSet::remove_entity_vector( const EntityHandle* vect, size_t len, E
 ErrorCode MeshSet::replace_entities( EntityHandle my_handle,
                                          const EntityHandle* old_entities,
                                          const EntityHandle* new_entities,
-                                         size_t num_entities,
+                                         size_t num_ents,
                                          AEntityFactory* adjfact )
 {
   if (vector_based()) {
@@ -1145,7 +1145,7 @@ ErrorCode MeshSet::replace_entities( EntityHandle my_handle,
     size_t count;
     EntityHandle* vect = get_contents( count );
     EntityHandle* const vect_end = vect+count;
-    for (size_t i = 0; i < num_entities; ++i) {
+    for (size_t i = 0; i < num_ents; ++i) {
       EntityHandle* p = std::find( vect, vect_end, old_entities[i] );
       if (p == vect_end) {
         result = MB_ENTITY_NOT_FOUND;
@@ -1162,8 +1162,8 @@ ErrorCode MeshSet::replace_entities( EntityHandle my_handle,
     return result;
   }
   else {
-    ErrorCode r1 = remove_entities( old_entities, num_entities, my_handle, adjfact );
-    ErrorCode r2 = add_entities( new_entities, num_entities, my_handle, adjfact );
+    ErrorCode r1 = remove_entities( old_entities, num_ents, my_handle, adjfact );
+    ErrorCode r2 = add_entities( new_entities, num_ents, my_handle, adjfact );
     return (MB_SUCCESS == r2) ? r1 : r2;
   }
 }

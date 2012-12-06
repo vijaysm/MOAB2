@@ -257,8 +257,8 @@ inline Matrix3( double v00, double v01, double v02,
   }
   
   inline bool positive_definite() const{
-  	double d;
-  	return positive_definite( d);
+  	double tmp;
+  	return positive_definite( tmp);
   }
   
   inline bool positive_definite( double& det ) const{

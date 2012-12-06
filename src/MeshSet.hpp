@@ -313,8 +313,8 @@ MeshSet::MeshSet()
 { }
 
   //! create an empty meshset
-MeshSet::MeshSet(unsigned flags)
-        : mFlags((unsigned char)flags), mParentCount(ZERO), mChildCount(ZERO), mContentCount(ZERO)
+MeshSet::MeshSet(unsigned flg)
+        : mFlags((unsigned char)flg), mParentCount(ZERO), mChildCount(ZERO), mContentCount(ZERO)
 { }
 
   //! destructor
@@ -329,13 +329,13 @@ MeshSet::~MeshSet()
   mChildCount = mParentCount = mContentCount = ZERO;
 }
   
-ErrorCode MeshSet::set_flags( unsigned flags, EntityHandle my_handle, AEntityFactory* adjacencies ) 
+ErrorCode MeshSet::set_flags( unsigned flg, EntityHandle my_handle, AEntityFactory* adjacencies ) 
 {
   if(ZERO != mContentCount) {
-    ErrorCode result = convert(flags, my_handle, adjacencies);
+    ErrorCode result = convert(flg, my_handle, adjacencies);
     if(MB_SUCCESS != result) return result;
   }
-  mFlags = (unsigned char)flags;
+  mFlags = (unsigned char)flg;
   return MB_SUCCESS;
 }
     
@@ -702,7 +702,7 @@ inline ErrorCode MeshSet::get_non_set_entities( Range& range ) const
 }
 
 inline bool MeshSet::contains_entities(const EntityHandle *entities, 
-                                         int num_entities,
+                                         int num_ents,
                                          const int op) const
 {
   size_t count;
@@ -710,20 +710,20 @@ inline bool MeshSet::contains_entities(const EntityHandle *entities,
   const EntityHandle* const end = ptr + count;
   size_t found_count = 0;
   if (vector_based()) {
-    for (int i = 0; i < num_entities; ++i)
+    for (int i = 0; i < num_ents; ++i)
       if (std::find( ptr, end, entities[i] ) < end)
         ++found_count; 
   }
   else {
     assert(0 == count % 2);
-    for (int i = 0; i < num_entities; ++i) {
+    for (int i = 0; i < num_ents; ++i) {
       const unsigned long idx = std::lower_bound( ptr, end, entities[i] ) - ptr;
       if (idx < count && (idx%2 != 0 || ptr[idx] == entities[i]))
         ++found_count;
     }
   }
 
-  return found_count >= ((Interface::INTERSECT == op) ? (unsigned)num_entities : 1u);
+  return found_count >= ((Interface::INTERSECT == op) ? (unsigned)num_ents : 1u);
 }
 
 
@@ -755,11 +755,11 @@ inline ErrorCode MeshSet::unite(const MeshSet *meshset_2,
 
 //! add these entities to this meshset
 inline ErrorCode MeshSet::add_entities(const EntityHandle *entity_handles,
-                                           const int num_entities,
+                                           const int num_ents,
                                            EntityHandle my_handle,
                                            AEntityFactory* adjacencies)
 {
-  return insert_entity_vector( entity_handles, num_entities, my_handle, adjacencies );
+  return insert_entity_vector( entity_handles, num_ents, my_handle, adjacencies );
 }
 
   //! add these entities to this meshset
@@ -781,11 +781,11 @@ inline ErrorCode MeshSet::remove_entities(const Range& entities,
 
   //! remove these entities from this meshset
 inline ErrorCode MeshSet::remove_entities(const EntityHandle *entities,
-                                              const int num_entities,
+                                              const int num_ents,
                                               EntityHandle my_handle,
                                               AEntityFactory* adjacencies)
 {
-  return remove_entity_vector( entities, num_entities, my_handle, adjacencies );
+  return remove_entity_vector( entities, num_ents, my_handle, adjacencies );
 }
 
   //! return the number of entities contained in this meshset

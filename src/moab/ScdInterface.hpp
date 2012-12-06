@@ -618,7 +618,7 @@ public:
     /** Set parallel data for this box
      * \param par_data Parallel data to be set on this box 
      */
-  void par_data(const ScdParData &par_data) {parData = par_data;}
+  void par_data(const ScdParData &par_datap) {parData = par_datap;}
   
 private:
     //! Constructor
@@ -1178,7 +1178,7 @@ inline void ScdBox::box_size(int &i, int &j, int &k) const
   
 inline EntityHandle ScdBox::get_element(int i, int j, int k) const 
 {
-  return (!startElem ? MB_ENTITY_NOT_FOUND : 
+  return (!startElem ? 0 : 
           startElem + (k-boxDims[2])*boxSizeIJM1 + (j-boxDims[1])*boxSizeIM1 + i-boxDims[0]);
 }
 

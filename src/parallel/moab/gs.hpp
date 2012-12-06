@@ -37,9 +37,9 @@ namespace moab {
        * param nulabels  number of unsigned long labels
        * param maxv      maximum vector size  
        */
-      nonlocal_info (uint np, uint count, uint nlabels, 
-		     uint nulabels, uint maxv) {
-	this->initialize(np, count, nlabels, nulabels, maxv);
+      nonlocal_info (uint tmp_np, uint count, uint nlabels, 
+		     uint nulabels, uint tmp_maxv) {
+	this->initialize(tmp_np, count, nlabels, nulabels, tmp_maxv);
       }
 
       /**Initializes nonlocal_info; see constructor for parameter documentation
@@ -120,7 +120,7 @@ namespace moab {
 
       /**Constructor takes an MPI_Comm and initializes the moab_data_crystal
        */
-      crystal_data(MPI_Comm comm) { initialize(comm); };
+      crystal_data(MPI_Comm cm) { initialize(cm); };
 
       ~crystal_data(){ reset(); };
 

@@ -36,8 +36,8 @@ protected:
 
 public:
 
-  EntitySequence( EntityHandle start, EntityID count, SequenceData* data )
-    : startHandle(start), endHandle( start + count - 1 ), sequenceData( data )
+  EntitySequence( EntityHandle start, EntityID count, SequenceData* dat )
+    : startHandle(start), endHandle( start + count - 1 ), sequenceData( dat )
     {}
 
   virtual ~EntitySequence() {}

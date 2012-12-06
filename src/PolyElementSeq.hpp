@@ -9,18 +9,18 @@ namespace moab {
 class PolyElementSeq : public UnstructuredElemSeq
 {
 public:
-  PolyElementSeq( EntityHandle start_handle, 
+  PolyElementSeq( EntityHandle shandle, 
                   EntityID entity_count, 
                   unsigned nodes_per_entity,
-                  SequenceData* data )
-    : UnstructuredElemSeq( start_handle, entity_count, nodes_per_entity, data )
+                  SequenceData* dat )
+    : UnstructuredElemSeq( shandle, entity_count, nodes_per_entity, dat )
     {}
 
-  PolyElementSeq( EntityHandle start_handle, 
+  PolyElementSeq( EntityHandle shandle, 
                   EntityID entity_count, 
                   unsigned nodes_per_entity,
                   EntityID sequence_data_size)
-    : UnstructuredElemSeq( start_handle, entity_count, nodes_per_entity, sequence_data_size )
+    : UnstructuredElemSeq( shandle, entity_count, nodes_per_entity, sequence_data_size )
     {}
 
   virtual ~PolyElementSeq();

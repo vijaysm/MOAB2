@@ -21,8 +21,8 @@
 namespace moab 
 {
     
-ScdInterface::ScdInterface(Core *impl, bool boxes) 
-        : mbImpl(impl), 
+ScdInterface::ScdInterface(Core *imp, bool boxes) 
+        : mbImpl(imp), 
           searchedBoxes(false),
           boxPeriodicTag(0),
           boxDimsTag(0),
@@ -318,9 +318,9 @@ ErrorCode ScdInterface::get_boxes(std::vector<ScdBox*> &boxes)
   return MB_SUCCESS;
 }
 
-ScdBox::ScdBox(ScdInterface *sc_impl, EntityHandle box_set,
+ScdBox::ScdBox(ScdInterface *impl, EntityHandle bset,
                EntitySequence *seq1, EntitySequence *seq2) 
-        : scImpl(sc_impl), boxSet(box_set), vertDat(NULL), elemSeq(NULL), startVertex(0), startElem(0)
+        : scImpl(impl), boxSet(bset), vertDat(NULL), elemSeq(NULL), startVertex(0), startElem(0)
 {
   for (int i = 0; i < 6; i++) boxDims[i] = 0;
   for (int i = 0; i < 2; i++) locallyPeriodic[i] = false;
@@ -334,12 +334,12 @@ ScdBox::ScdBox(ScdInterface *sc_impl, EntityHandle box_set,
     }
     startVertex = vertDat->start_handle();
   }
-  else if (sc_impl->boxDimsTag) {
+  else if (impl->boxDimsTag) {
       // look for parametric space info on set
-    ErrorCode rval = sc_impl->mbImpl->tag_get_data(sc_impl->boxDimsTag, &box_set, 1, boxDims);
+    ErrorCode rval = impl->mbImpl->tag_get_data(impl->boxDimsTag, &bset, 1, boxDims);
     if (MB_SUCCESS == rval) {
       Range verts;
-      sc_impl->mbImpl->get_entities_by_dimension(box_set, 0, verts);
+      impl->mbImpl->get_entities_by_dimension(bset, 0, verts);
       if (!verts.empty()) startVertex = *verts.begin();
     }
   }
@@ -367,11 +367,11 @@ ScdBox::ScdBox(ScdInterface *sc_impl, EntityHandle box_set,
   }
   else {
     Range elems;
-    sc_impl->mbImpl->get_entities_by_dimension(box_set, (boxDims[2] == boxDims[5] ? (boxDims[1] == boxDims[4] ? 1 : 2) : 3), elems);
+    impl->mbImpl->get_entities_by_dimension(bset, (boxDims[2] == boxDims[5] ? (boxDims[1] == boxDims[4] ? 1 : 2) : 3), elems);
     if (!elems.empty()) startElem = *elems.begin();
       // call the following w/o looking at return value, since it doesn't really need to be there
-    if (sc_impl->boxPeriodicTag) 
-      sc_impl->mbImpl->tag_get_data(sc_impl->boxPeriodicTag, &box_set, 1, locallyPeriodic);
+    if (impl->boxPeriodicTag) 
+      impl->mbImpl->tag_get_data(impl->boxPeriodicTag, &bset, 1, locallyPeriodic);
   }
 
   assert(vertDat || elemSeq || 
@@ -443,15 +443,15 @@ ErrorCode ScdBox::get_coordinate_arrays(const double *&xc, const double *&yc, co
   return MB_SUCCESS;
 }
 
-ErrorCode ScdBox::vert_dat(ScdVertexData *vert_dat)
+ErrorCode ScdBox::vert_dat(ScdVertexData *vert_dt)
 {
-  vertDat = vert_dat;
+  vertDat = vert_dt;
   return MB_SUCCESS;
 }
 
-ErrorCode ScdBox::elem_seq(EntitySequence *elem_seq)
+ErrorCode ScdBox::elem_seq(EntitySequence *elem_sq)
 {
-  elemSeq = dynamic_cast<StructuredElementSeq*>(elem_seq);
+  elemSeq = dynamic_cast<StructuredElementSeq*>(elem_sq);
   if (elemSeq) elemSeq->is_periodic(locallyPeriodic);
 
   if (locallyPeriodic[0])
@@ -548,9 +548,13 @@ ErrorCode ScdBox::get_adj_edge_or_face(int dim, int i, int j, int k, int dir, En
   return rval;
 }
     
+#ifndef USE_MPI
+ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *, EntityHandle ) 
+{
+  return MB_FAILURE;
+#else
 ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, EntityHandle seth) 
 {
-#ifdef USE_MPI
     // first, look for box data on the set
   ScdBox *box = get_scd_box(seth);
   Range tmp_range;
@@ -669,16 +673,20 @@ ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, EntityHandle se
   
   return MB_SUCCESS;
   
-#else
-  return MB_FAILURE;
 #endif
 }
 
+#ifndef USE_MPI
+ErrorCode ScdInterface::get_neighbor_alljkbal(int , int ,
+                                              const int * const , const int * const , const int * const , 
+                                              int &, int *, int *, int *) 
+{
+  return MB_FAILURE;
+#else
 ErrorCode ScdInterface::get_neighbor_alljkbal(int np, int pfrom,
                                               const int * const gdims, const int * const gperiodic, const int * const dijk, 
                                               int &pto, int *rdims, int *facedims, int *across_bdy)
 {
-#ifdef USE_MPI
   if (dijk[0] != 0) {
     pto = -1;
     return MB_SUCCESS;
@@ -772,16 +780,20 @@ ErrorCode ScdInterface::get_neighbor_alljkbal(int np, int pfrom,
   assert(-1 == pto || (facedims[5] <= ldims[5]));
   
   return MB_SUCCESS;
-#else
-  return MB_FAILURE;
 #endif  
 }
 
+#ifndef USE_MPI
+ErrorCode ScdInterface::get_neighbor_sqij(int , int ,
+                                          const int * const , const int * const , const int * const , 
+                                          int &, int *, int *, int *) 
+{
+  return MB_FAILURE;
+#else
 ErrorCode ScdInterface::get_neighbor_sqij(int np, int pfrom,
                                           const int * const gdims, const int * const gperiodic, const int * const dijk, 
                                           int &pto, int *rdims, int *facedims, int *across_bdy)
 {
-#ifdef USE_MPI
   if (dijk[2] != 0) {
       // for sqij, there is no k neighbor, ever
     pto = -1;
@@ -897,16 +909,20 @@ ErrorCode ScdInterface::get_neighbor_sqij(int np, int pfrom,
   assert (-1 == pto || (facedims[2] >= ldims[2] && facedims[5] <= ldims[5]));
 
   return MB_SUCCESS;
-#else
-  return MB_FAILURE;
 #endif  
 }
 
+#ifndef USE_MPI
+ErrorCode ScdInterface::get_neighbor_sqjk(int , int ,
+                                          const int * const , const int * const , const int * const , 
+                                          int &, int *, int *, int *)
+{
+  return MB_FAILURE;
+#else
 ErrorCode ScdInterface::get_neighbor_sqjk(int np, int pfrom,
                                           const int * const gdims, const int * const gperiodic, const int * const dijk, 
                                           int &pto, int *rdims, int *facedims, int *across_bdy)
 {
-#ifdef USE_MPI
   if (dijk[0] != 0) {
     pto = -1;
     return MB_SUCCESS;
@@ -999,16 +1015,20 @@ ErrorCode ScdInterface::get_neighbor_sqjk(int np, int pfrom,
   assert(-1 == pto || (facedims[2] >= ldims[2] && facedims[5] <= ldims[5]));
 
   return MB_SUCCESS;
-#else
-  return MB_FAILURE;
 #endif  
 }
 
+#ifndef USE_MPI
+ErrorCode ScdInterface::get_neighbor_alljorkori(int , int ,
+                                                const int * const , const int * const , const int * const , 
+                                                int &, int *, int *, int *) 
+{
+  return MB_FAILURE;
+#else
 ErrorCode ScdInterface::get_neighbor_alljorkori(int np, int pfrom,
                                                 const int * const gdims, const int * const gperiodic, const int * const dijk, 
                                                 int &pto, int *rdims, int *facedims, int *across_bdy)
 {
-#ifdef USE_MPI
   ErrorCode rval = MB_SUCCESS;
   pto = -1;
   if (np == 1) return MB_SUCCESS;
@@ -1088,17 +1108,21 @@ ErrorCode ScdInterface::get_neighbor_alljorkori(int np, int pfrom,
   assert(-1 == pto || (facedims[2] >= ldims[2] && facedims[5] <= ldims[5]));
 
   return rval;
-#else
-  return MB_FAILURE;
 #endif  
 }
   
   //! get shared vertices for alljorkori partition scheme
+#ifndef USE_MPI
+ErrorCode ScdInterface::get_shared_vertices(ParallelComm *, ScdBox *, 
+                                            std::vector<int> &,
+                                            std::vector<int> &, std::vector<int> &)  
+{
+  return MB_FAILURE;
+#else
 ErrorCode ScdInterface::get_shared_vertices(ParallelComm *pcomm, ScdBox *box, 
                                             std::vector<int> &procs,
                                             std::vector<int> &offsets, std::vector<int> &shared_indices) 
 {
-#ifdef USE_MPI
     // get index of partitioned dimension
   const int *ldims = box->box_dims();
   ErrorCode rval;
@@ -1146,8 +1170,6 @@ ErrorCode ScdInterface::get_shared_vertices(ParallelComm *pcomm, ScdBox *box,
   offsets.push_back(shared_indices.size());
 
   return MB_SUCCESS;
-#else
-  return MB_FAILURE;
 #endif
 }
 

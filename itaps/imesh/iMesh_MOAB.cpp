@@ -3415,6 +3415,9 @@ void iMesh_createStructuredMesh(iMesh_Instance instance,
       }
     }    
   }
+#else
+    // empty statement to remove compiler warning
+  if (resolve_shared || ghost_dim || bridge_dim || num_layers || addl_ents) {}
 #endif
   
   RETURN(iBase_SUCCESS);

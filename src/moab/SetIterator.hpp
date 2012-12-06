@@ -51,10 +51,10 @@ protected:
      * \param ent_type Entity type for this iterator
      * \param ent_dim Entity dimension for this iterator
      */
-  inline SetIterator(Core *core, EntityHandle ent_set, unsigned int chunk_size, 
-                     EntityType ent_type, int ent_dimension, bool check_valid = false) 
-          : myCore(core), entSet(ent_set), chunkSize(chunk_size), 
-            entType(ent_type), entDimension(ent_dimension), checkValid(check_valid) {};
+  inline SetIterator(Core *core, EntityHandle eset, unsigned int chunk_sz, 
+                     EntityType ent_tp, int ent_dim, bool check_valid = false) 
+          : myCore(core), entSet(eset), chunkSize(chunk_sz), 
+            entType(ent_tp), entDimension(ent_dim), checkValid(check_valid) {};
   
     //! Core instance 
   Core *myCore;
@@ -160,9 +160,9 @@ protected:
      * \param ent_type Entity type for this iterator
      * \param ent_dim Entity dimension for this iterator
      */
-  inline VectorSetIterator(Core *core, EntityHandle ent_set, int chunk_size, 
-                           EntityType ent_type, int ent_dimension, bool check_valid = false)
-          : SetIterator(core, ent_set, chunk_size, ent_type, ent_dimension, check_valid),
+  inline VectorSetIterator(Core *core, EntityHandle eset, int chunk_sz, 
+                           EntityType ent_tp, int ent_dim, bool check_valid = false)
+          : SetIterator(core, eset, chunk_sz, ent_tp, ent_dim, check_valid),
             iterPos(0)
       {}
   

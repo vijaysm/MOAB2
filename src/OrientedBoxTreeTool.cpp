@@ -191,7 +191,7 @@ OrientedBoxTreeTool::OrientedBoxTreeTool( Interface* i,
 {
   if (!tag_name)
     tag_name = DEFAULT_TAG_NAME;
-  ErrorCode rval = OrientedBox::tag_handle( tagHandle, instance, tag_name, true );
+  ErrorCode rval = OrientedBox::tag_handle( tagHandle, instance, tag_name);
   if (MB_SUCCESS != rval)
     tagHandle = 0;
 }
@@ -377,15 +377,15 @@ ErrorCode OrientedBoxTreeTool::build_tree( const Range& entities,
                                                int depth,
                                                const Settings& settings )
 {
-  OrientedBox box;
+  OrientedBox tmp_box;
   ErrorCode rval;
   
   if (entities.empty()) {
     CartVect axis[3] = { CartVect(0.), CartVect(0.), CartVect(0.) };
-    box = OrientedBox( axis, CartVect(0.) );
+    tmp_box = OrientedBox( axis, CartVect(0.) );
   }
   else {
-    rval = OrientedBox::compute_from_2d_cells( box, instance, entities );
+    rval = OrientedBox::compute_from_2d_cells( tmp_box, instance, entities );
     if (MB_SUCCESS != rval)
       return rval;
   }
@@ -395,7 +395,7 @@ ErrorCode OrientedBoxTreeTool::build_tree( const Range& entities,
   if (MB_SUCCESS != rval)
     return rval;
   
-  rval = instance->tag_set_data( tagHandle, &set, 1, &box );
+  rval = instance->tag_set_data( tagHandle, &set, 1, &tmp_box );
   if (MB_SUCCESS != rval) 
     { delete_tree( set ); return rval; }
   
@@ -412,7 +412,7 @@ ErrorCode OrientedBoxTreeTool::build_tree( const Range& entities,
     for (int axis = 2; best_ratio > settings.best_split_ratio && axis >= 0; --axis) {
       Range left_list, right_list;
 
-      rval = split_box( instance, box, axis, entities, left_list, right_list );
+      rval = split_box( instance, tmp_box, axis, entities, left_list, right_list );
       if (MB_SUCCESS != rval) 
         { delete_tree( set ); return rval; }
         
@@ -494,7 +494,7 @@ ErrorCode OrientedBoxTreeTool::build_sets( std::list<SetData>& sets,
     return MB_FAILURE;
   
     // calculate box
-  OrientedBox box;
+  OrientedBox obox;
 
   // make vector go out of scope when done, so memory is released
   { 
@@ -513,7 +513,7 @@ ErrorCode OrientedBoxTreeTool::build_sets( std::list<SetData>& sets,
     if (MB_SUCCESS != rval)
       return rval;
     
-    rval = OrientedBox::compute_from_covariance_data( box, instance, &data[0], data.size(), points );
+    rval = OrientedBox::compute_from_covariance_data( obox, instance, &data[0], data.size(), points );
     if (MB_SUCCESS != rval)
       return rval;
   }
@@ -521,7 +521,7 @@ ErrorCode OrientedBoxTreeTool::build_sets( std::list<SetData>& sets,
     // If only one set in list...
   if (count == 1) {
     node_set = sets.front().handle;
-    return instance->tag_set_data( tagHandle, &node_set, 1, &box );
+    return instance->tag_set_data( tagHandle, &node_set, 1, &obox );
   }
   
     // create an entity set for the tree node
@@ -529,7 +529,7 @@ ErrorCode OrientedBoxTreeTool::build_sets( std::list<SetData>& sets,
   if (MB_SUCCESS != rval)
     return rval;
   
-  rval = instance->tag_set_data( tagHandle, &node_set, 1, &box );
+  rval = instance->tag_set_data( tagHandle, &node_set, 1, &obox );
   if (MB_SUCCESS != rval) 
     { delete_tree( node_set ); return rval; }
   
@@ -537,7 +537,7 @@ ErrorCode OrientedBoxTreeTool::build_sets( std::list<SetData>& sets,
   std::list<SetData> best_left_list, best_right_list;
   for (int axis = 0; axis < 2; ++axis) {
     std::list<SetData> left_list, right_list;
-    rval = split_sets( instance, box, axis, sets, left_list, right_list );
+    rval = split_sets( instance, obox, axis, sets, left_list, right_list );
     if (MB_SUCCESS != rval) 
       { delete_tree( node_set ); return rval; }
 
@@ -1029,23 +1029,23 @@ class RayIntersectSets : public OrientedBoxTreeTool::Op
 		      const double*              neg_ray_length,
                       double                     tolerance,
                       int                        min_tol_intersections,
-                      std::vector<double>&       intersections,
+                      std::vector<double>&       inters,
                       std::vector<EntityHandle>& surfaces,
-                      std::vector<EntityHandle>& facets,
+                      std::vector<EntityHandle>& facts,
 	              EntityHandle*              root_set,
 		      const EntityHandle*        geom_volume,
 		      const Tag*                 sense_tag,
 		      const int*                 desired_orient,
 	              const std::vector<EntityHandle>* prev_facets,
-                      unsigned int*              raytri_test_count   )
+                      unsigned int*              tmp_count   )
       : tool(tool_ptr),
         ray_origin(ray_point), ray_direction(unit_ray_dir),
         nonneg_ray_len(nonneg_ray_length), neg_ray_len(neg_ray_length), 
         tol(tolerance), minTolInt(min_tol_intersections),
-        intersections(intersections), sets(surfaces), facets(facets), 
+        intersections(inters), sets(surfaces), facets(facts), 
         rootSet(root_set), geomVol(geom_volume), senseTag(sense_tag),
         desiredOrient(desired_orient), prevFacets(prev_facets),
-        raytri_test_count(raytri_test_count), lastSet(0)
+        raytri_test_count(tmp_count), lastSet(0)
       {
 	// specified orientation should be 1 or -1, indicating ray and surface
         // normal in the same or opposite directions, respectively.
@@ -1090,16 +1090,16 @@ ErrorCode RayIntersectSets::visit( EntityHandle node,
     lastSet = 0;
 
   if (descend && !lastSet) {
-    Range sets;
-    rval = tool->get_moab_instance()->get_entities_by_type( node, MBENTITYSET, sets );
+    Range tmp_sets;
+    rval = tool->get_moab_instance()->get_entities_by_type( node, MBENTITYSET, tmp_sets );
     assert(MB_SUCCESS == rval);
     if (MB_SUCCESS != rval)
       return rval;
  
-    if (!sets.empty()) {
-      if (sets.size() > 1)
+    if (!tmp_sets.empty()) {
+      if (tmp_sets.size() > 1)
         return MB_FAILURE;
-      lastSet = *sets.begin();
+      lastSet = *tmp_sets.begin();
       lastSetDepth = depth;
       // Get desired orientation of surface wrt volume. Use this to return only 
       // exit or entrance intersections.
@@ -2103,7 +2103,7 @@ static int measure( const CartVect& v, double& result )
   
 
 ErrorCode OrientedBoxTreeTool::recursive_stats( OrientedBoxTreeTool* tool,
-                                    Interface* instance,
+                                    Interface* inst,
                                     EntityHandle set,
                                     int depth,
                                     StatData& data,
@@ -2111,26 +2111,26 @@ ErrorCode OrientedBoxTreeTool::recursive_stats( OrientedBoxTreeTool* tool,
                                     CartVect& dimensions_out )
 {
   ErrorCode rval;
-  OrientedBox box;
+  OrientedBox tmp_box;
   std::vector<EntityHandle> children(2);
   unsigned counts[2];
   bool isleaf;
   
   ++data.count;
   
-  rval = tool->box( set, box );
+  rval = tool->box( set, tmp_box );
   if (MB_SUCCESS != rval) return rval;
   children.clear();
-  rval = instance->get_child_meshsets( set, children );
+  rval = inst->get_child_meshsets( set, children );
   if (MB_SUCCESS != rval) return rval;
   isleaf = children.empty();
   if (!isleaf && children.size() != 2)
     return MB_MULTIPLE_ENTITIES_FOUND;
   
-  dimensions_out = box.dimensions();
-  data.radius.accum( box.inner_radius() / box.outer_radius());
-  data.vol.accum( box.volume() );
-  data.area.accum( box.area() );
+  dimensions_out = tmp_box.dimensions();
+  data.radius.accum( tmp_box.inner_radius() / tmp_box.outer_radius());
+  data.vol.accum( tmp_box.volume() );
+  data.area.accum( tmp_box.area() );
   
   if (isleaf) {
     if (data.leaf_depth.size() <= (unsigned)depth)
@@ -2138,7 +2138,7 @@ ErrorCode OrientedBoxTreeTool::recursive_stats( OrientedBoxTreeTool* tool,
     ++data.leaf_depth[depth];
     
     int count;
-    rval = instance->get_number_entities_by_handle( set, count );
+    rval = inst->get_number_entities_by_handle( set, count );
     if (MB_SUCCESS != rval) return rval;
     count_out = count;
     data.leaf_ent.accum( count_out );
@@ -2146,7 +2146,7 @@ ErrorCode OrientedBoxTreeTool::recursive_stats( OrientedBoxTreeTool* tool,
   else {
     for (int i = 0; i < 2; ++i) {
       CartVect dims;
-      rval = recursive_stats( tool, instance, children[i], depth+1, data, counts[i], dims );
+      rval = recursive_stats( tool, inst, children[i], depth+1, data, counts[i], dims );
       if (MB_SUCCESS != rval) return rval;
       double this_measure, chld_measure;
       int this_dim = measure( dimensions_out, this_measure );

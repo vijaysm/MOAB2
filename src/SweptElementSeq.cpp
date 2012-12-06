@@ -23,17 +23,17 @@
 
 namespace moab {
 
-SweptElementSeq::SweptElementSeq(EntityHandle start_handle,
+SweptElementSeq::SweptElementSeq(EntityHandle shandle,
                                  const int imin, const int jmin, const int kmin,
 				 const int imax, const int jmax, const int kmax,
                                  const int* Cq ) 
-  : ElementSequence( start_handle, 
-                     ScdElementData::calc_num_entities( start_handle,
+  : ElementSequence( shandle, 
+                     ScdElementData::calc_num_entities( shandle,
                                                         imax-imin,
                                                         jmax-jmin,
                                                         kmax-kmin ),
-                     CN::VerticesPerEntity(TYPE_FROM_HANDLE(start_handle)),
-                     new SweptElementData( start_handle, 
+                     CN::VerticesPerEntity(TYPE_FROM_HANDLE(shandle)),
+                     new SweptElementData( shandle, 
 					   imin, jmin, kmin,
 					   imax, jmax, kmax,
 					   Cq ) )

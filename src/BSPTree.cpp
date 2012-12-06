@@ -93,10 +93,10 @@ void BSPTree::Plane::set( const double pt1[3], const double pt2[3], const double
 {
   const double v1[] = { pt2[0] - pt1[0], pt2[1] - pt1[1], pt2[2] - pt1[2] };
   const double v2[] = { pt3[0] - pt1[0], pt3[1] - pt1[1], pt3[2] - pt1[2] };
-  const double norm[] = { v1[1]*v2[2] - v1[2]*v2[1],
+  const double nrm[] = { v1[1]*v2[2] - v1[2]*v2[1],
                           v1[2]*v2[0] - v1[0]*v2[2],
                           v1[0]*v2[1] - v1[1]*v2[0] };
-  set( norm, pt1 );
+  set( nrm, pt1 );
 }
 
 ErrorCode BSPTree::init_tags( const char* tagname )
@@ -416,11 +416,11 @@ ErrorCode BSPTree::merge_leaf( BSPTreeIter& iter )
 
   
 
-ErrorCode BSPTreeIter::initialize( BSPTree* tool,
+ErrorCode BSPTreeIter::initialize( BSPTree* btool,
                                        EntityHandle root,
                                        const double* /*point*/ )
 {
-  treeTool = tool;
+  treeTool = btool;
   mStack.clear();
   mStack.push_back( root );
   return MB_SUCCESS;
@@ -1109,7 +1109,7 @@ ErrorCode BSPTreeBoxIter::get_neighbors(
                       std::vector<BSPTreeBoxIter>& results,
                       double epsilon ) const
 {
-  EntityHandle handle;
+  EntityHandle tmp_handle;
   BSPTree::Plane plane;
   ErrorCode rval;
   int n;
@@ -1124,7 +1124,7 @@ ErrorCode BSPTreeBoxIter::get_neighbors(
     // all neighbors will be rooted at that node.
   BSPTreeBoxIter iter( *this ); // temporary iterator (don't modifiy *this)
   for (;;) {
-    handle = iter.handle();
+    tmp_handle = iter.handle();
   
     rval = iter.up();
     if (MB_SUCCESS != rval) // reached root - no neighbors on that side
@@ -1140,13 +1140,13 @@ ErrorCode BSPTreeBoxIter::get_neighbors(
       return rval;
     SideBits s = side_above_plane( iter.leafCoords, plane );
 
-    if (handle == iter.childVect[0] && s == side) {
+    if (tmp_handle == iter.childVect[0] && s == side) {
       rval = iter.down( plane, RIGHT );
       if (MB_SUCCESS != rval)
         return rval;
       break;
     }
-    else if (handle == iter.childVect[1] && opposite_face(s) == side) {
+    else if (tmp_handle == iter.childVect[1] && opposite_face(s) == side) {
       rval = iter.down( plane, LEFT );
       if (MB_SUCCESS != rval)
         return rval;

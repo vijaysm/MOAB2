@@ -460,8 +460,8 @@ ErrorCode ReorderTool::reorder_entities( Tag new_handles )
         old_handles = conn;
         rval = get_reordered_handles( new_handles, old_handles, conn );
         UNRECOVERABLE(rval);
-        for (size_t i = 0; i < handles.size(); ++i) {
-          rval = mMB->set_connectivity( handles[i], &conn[i * *j], *j );
+        for (unsigned int h = 0; h < handles.size(); ++h) {
+          rval = mMB->set_connectivity( handles[h], &conn[h * *j], *j );
           UNRECOVERABLE(rval);
         }
       }
@@ -488,7 +488,7 @@ ErrorCode ReorderTool::reorder_entities( Tag new_handles )
   return MB_SUCCESS;
 }
 
-ErrorCode ReorderTool::reorder_tag_data( EntityType type, Tag new_handles, Tag tag )
+ErrorCode ReorderTool::reorder_tag_data( EntityType etype, Tag new_handles, Tag tag )
 {
   ErrorCode rval;
   
@@ -509,12 +509,12 @@ ErrorCode ReorderTool::reorder_tag_data( EntityType type, Tag new_handles, Tag t
 
     // we don't re-order set handles, so we don't care about sets
     // unless the tag contains handles that need to be updated
-  if (MBENTITYSET == type && MB_TYPE_HANDLE != tagtype)
+  if (MBENTITYSET == etype && MB_TYPE_HANDLE != tagtype)
     return MB_SUCCESS;
 
     // get tagged entities
   Range old_tagged;
-  rval = mMB->get_entities_by_type_and_tag( 0, type, &tag, 0, 1, old_tagged );
+  rval = mMB->get_entities_by_type_and_tag( 0, etype, &tag, 0, 1, old_tagged );
   if (MB_SUCCESS != rval && old_tagged.empty()) 
     return error(rval);
   
@@ -542,10 +542,10 @@ ErrorCode ReorderTool::reorder_tag_data( EntityType type, Tag new_handles, Tag t
     rval = mMB->tag_get_by_ptr( tag, old_tagged, &pointers[0], &sizes[0] );
     CHKERR;
     int total = std::accumulate( sizes.begin(), sizes.end(), 0 );
-    DataType type;
-    mMB->tag_get_data_type( tag, type );
+    DataType dtype;
+    mMB->tag_get_data_type( tag, dtype );
     int type_size;
-    switch (type) {
+    switch (dtype) {
       case MB_TYPE_INTEGER: type_size = sizeof(int);  break;
       case MB_TYPE_DOUBLE:  type_size = sizeof(double); break;
       case MB_TYPE_HANDLE:  type_size = sizeof(EntityHandle); break;

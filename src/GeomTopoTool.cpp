@@ -454,13 +454,13 @@ ErrorCode GeomTopoTool::separate_by_dimension(const Range &geom_sets)
     for (Range::iterator it =geomRanges[i].begin(); it!=geomRanges[i].end(); it++ )
     {
       EntityHandle set = *it;
-      int global_id;
+      int gid;
 
-      result = mdbImpl->tag_get_data(gidTag, &set, 1, &global_id);
+      result = mdbImpl->tag_get_data(gidTag, &set, 1, &gid);
       if (MB_SUCCESS == result)
       {
-        if (global_id>maxGlobalId[i])
-          maxGlobalId[i] = global_id;
+        if (gid>maxGlobalId[i])
+          maxGlobalId[i] = gid;
       }
     }
 
@@ -798,12 +798,12 @@ ErrorCode GeomTopoTool::check_edge_sense_tags(bool create)
   return MB_SUCCESS;
 }
 
-ErrorCode  GeomTopoTool::add_geo_set(EntityHandle set, int dimension, int global_id)
+ErrorCode  GeomTopoTool::add_geo_set(EntityHandle set, int dim, int gid)
 {
-  if (dimension <0 || dimension > 4)
+  if (dim <0 || dim > 4)
     return MB_FAILURE;
   // see if it is not already set
-  if (geomRanges[dimension].find(set) != geomRanges[dimension].end())
+  if (geomRanges[dim].find(set) != geomRanges[dim].end())
   {
     return MB_SUCCESS; // nothing to do, we already have it as a geo set of proper dimension
   }
@@ -823,10 +823,10 @@ ErrorCode  GeomTopoTool::add_geo_set(EntityHandle set, int dimension, int global
   }
 
   // make sure the added set has the geom tag properly set
-  result = mdbImpl->tag_set_data(geomTag, &set, 1, &dimension);
+  result = mdbImpl->tag_set_data(geomTag, &set, 1, &dim);
   if (MB_SUCCESS != result)
       return result;
-  geomRanges[dimension].insert(set);
+  geomRanges[dim].insert(set);
   // not only that, but also add it to the root model set
   if (modelSet)
   {
@@ -837,11 +837,11 @@ ErrorCode  GeomTopoTool::add_geo_set(EntityHandle set, int dimension, int global
 
   // set the global ID value
   // if passed 0, just increase the max id for the dimension
-  if (0 == global_id)
+  if (0 == gid)
   {
-    global_id = ++maxGlobalId[dimension];
+    gid = ++maxGlobalId[dim];
   }
-  result = mdbImpl->tag_set_data(gidTag, &set, 1, &global_id);
+  result = mdbImpl->tag_set_data(gidTag, &set, 1, &gid);
   if (MB_SUCCESS != result)
       return result;
   return MB_SUCCESS;

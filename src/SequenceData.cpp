@@ -56,8 +56,8 @@ SequenceData::AdjacencyDataType* SequenceData::allocate_adjacency_data()
 void SequenceData::increase_tag_count( unsigned amount )
 {
   void** list = arraySet - numSequenceData;
-  const size_t size = sizeof(void*) * (numSequenceData + numTagData + amount + 1);
-  list = (void**)realloc( list, size );
+  const size_t sz = sizeof(void*) * (numSequenceData + numTagData + amount + 1);
+  list = (void**)realloc( list, sz );
   arraySet = list + numSequenceData;
   memset( arraySet + numTagData + 1, 0, sizeof(void*) * amount );
   numTagData += amount;

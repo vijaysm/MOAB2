@@ -63,12 +63,12 @@ size_t Range::size() const
 {
   // go through each pair and add up the number of values
   // we have.
-  size_t size=0;
+  size_t sz=0;
   for(PairNode* iter = mHead.mNext; iter != &mHead; iter = iter->mNext)
   {
-    size += ((iter->second - iter->first) + 1);
+    sz += ((iter->second - iter->first) + 1);
   }
-  return size;
+  return sz;
 }
 
 /*!
@@ -521,31 +521,31 @@ Range::const_iterator Range::find(EntityHandle val) const
   merges another Range with this one
 */
 
-void Range::insert( Range::const_iterator begin,
-                     Range::const_iterator end )
+void Range::insert( Range::const_iterator begini,
+                     Range::const_iterator endi )
 {
-  if (begin == end)
+  if (begini == endi)
     return;
   
-  PairNode* node = begin.mNode;
-  if (end.mNode == node)
+  PairNode* node = begini.mNode;
+  if (endi.mNode == node)
   {
-    insert( *begin, (*end)-1 );
+    insert( *begini, (*endi)-1 );
     return;
   }
   
-  Range::iterator hint = insert( *begin, node->second );
+  Range::iterator hint = insert( *begini, node->second );
   node = node->mNext;
-  while (node != end.mNode)
+  while (node != endi.mNode)
   {
     hint = insert( hint, node->first, node->second );
     node = node->mNext;
   }
   
-  if (*end > node->first)
+  if (*endi > node->first)
   {
-    if (*end <= node->second)
-      insert( hint, node->first, *(end) - 1 );
+    if (*endi <= node->second)
+      insert( hint, node->first, *(endi) - 1 );
     else
       insert( hint, node->first, node->second );
   }

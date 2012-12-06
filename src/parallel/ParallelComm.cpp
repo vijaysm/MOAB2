@@ -215,17 +215,17 @@ namespace moab {
 #define PRINT_DEBUG_WAITANY(A,B,C)     print_debug_waitany((A),(B),(C))
 
   void ParallelComm::print_debug_isend(int from, int to, unsigned char *buff,
-                                       int tag, int size) 
+                                       int tag, int sz) 
   {
     myDebug->tprintf(3, "Isend, %d->%d, buffer ptr = %p, tag=%d, size=%d\n",
-                     from, to, (void*)buff, tag, size);
+                     from, to, (void*)buff, tag, sz);
   }
 
-  void ParallelComm::print_debug_irecv(int to, int from, unsigned char *buff, int size,
+  void ParallelComm::print_debug_irecv(int to, int from, unsigned char *buff, int sz,
                                        int tag, int incoming) 
   {
     myDebug->tprintf(3, "Irecv, %d<-%d, buffer ptr = %p, tag=%d, size=%d",
-                     to, from, (void*)buff, tag, size);
+                     to, from, (void*)buff, tag, sz);
     if (tag < MB_MESG_REMOTEH_ACK) myDebug->printf(3, ", incoming1=%d\n", incoming);
     else if (tag < MB_MESG_TAGS_ACK) myDebug->printf(3, ", incoming2=%d\n", incoming);
     else myDebug->printf(3, ", incoming=%d\n", incoming);
@@ -288,8 +288,8 @@ namespace moab {
    */
 #define PARALLEL_COMM_TAG_NAME "__PARALLEL_COMM"
 
-  ParallelComm::ParallelComm(Interface *impl, MPI_Comm comm, int* id ) 
-    : mbImpl(impl), procConfig(comm),
+  ParallelComm::ParallelComm(Interface *impl, MPI_Comm cm, int* id ) 
+    : mbImpl(impl), procConfig(cm),
       sharedpTag(0), sharedpsTag(0), 
       sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0),
       partitionTag(0), globalPartCount(-1), partitioningSet(0), 
@@ -304,9 +304,9 @@ namespace moab {
 
   ParallelComm::ParallelComm(Interface *impl,
                              std::vector<unsigned char> &/*tmp_buff*/, 
-                             MPI_Comm comm,
+                             MPI_Comm cm,
                              int* id) 
-    : mbImpl(impl), procConfig(comm),
+    : mbImpl(impl), procConfig(cm),
       sharedpTag(0), sharedpsTag(0), 
       sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0),
       partitionTag(0), globalPartCount(-1), partitioningSet(0),
@@ -392,7 +392,8 @@ namespace moab {
     assert(MB_SUCCESS == result && 
            pc_it != pc_array.end());
     // empty if test to get around compiler warning about unused var
-    if (MB_SUCCESS == result);
+    if (MB_SUCCESS == result) {}
+    
     *pc_it = NULL;
     mbImpl->tag_set_data(pc_tag, &root, 1, (void*)&pc_array[0]);
   }
@@ -541,15 +542,15 @@ namespace moab {
 
     size_t offset = 0;
     while (buff_size) {
-      int size = std::min( buff_size, MAX_BCAST_SIZE );
-      success = MPI_Bcast(buff.mem_ptr+offset, size, MPI_UNSIGNED_CHAR, from_proc, procConfig.proc_comm() );
+      int sz = std::min( buff_size, MAX_BCAST_SIZE );
+      success = MPI_Bcast(buff.mem_ptr+offset, sz, MPI_UNSIGNED_CHAR, from_proc, procConfig.proc_comm() );
       if (MPI_SUCCESS != success) {
         result = MB_FAILURE;
         RRA("MPI_Bcast of buffer failed.");
       }
     
-      offset += size;
-      buff_size -= size;
+      offset += sz;
+      buff_size -= sz;
     }
 
     if ((int)procConfig.proc_rank() != from_proc) {
@@ -1719,16 +1720,16 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
       }
     }
     else {
-      Tag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
-      ErrorCode result = get_shared_proc_tags(sharedp_tag, sharedps_tag, 
-                                              sharedh_tag, sharedhs_tag, pstatus_tag);
+      Tag shp_tag, shps_tag, shh_tag, shhs_tag, pstat_tag;
+      ErrorCode result = get_shared_proc_tags(shp_tag, shps_tag, 
+                                              shh_tag, shhs_tag, pstat_tag);
   
       // get single-proc destination handles and shared procs
       std::vector<int> sharing_procs(num_ents);
-      result = mbImpl->tag_get_data(sharedh_tag, from_vec, num_ents,
+      result = mbImpl->tag_get_data(shh_tag, from_vec, num_ents,
                                     to_vec);
       RRA("Failed to get shared handle tag for remote_handles.");
-      result = mbImpl->tag_get_data(sharedp_tag, from_vec, num_ents, &sharing_procs[0]);
+      result = mbImpl->tag_get_data(shp_tag, from_vec, num_ents, &sharing_procs[0]);
       RRA("Failed to get sharing proc tag in remote_handles.");
       for (int j = 0; j < num_ents; j++) {
         if (to_vec[j] && sharing_procs[j] != to_proc)
@@ -1741,12 +1742,12 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
       // go through results, and for 0-valued ones, look for multiple shared proc
       for (i = 0; i < num_ents; i++) {
         if (!to_vec[i]) {
-          result = mbImpl->tag_get_data(sharedps_tag, from_vec+i, 1, tmp_procs);
+          result = mbImpl->tag_get_data(shps_tag, from_vec+i, 1, tmp_procs);
           if (MB_SUCCESS == result) {
             for (int j = 0; j < MAX_SHARING_PROCS; j++) {
               if (-1 == tmp_procs[j]) break;
               else if (tmp_procs[j] == to_proc) {
-                result = mbImpl->tag_get_data(sharedhs_tag, from_vec+i, 1, tmp_handles);
+                result = mbImpl->tag_get_data(shhs_tag, from_vec+i, 1, tmp_handles);
                 RRA("Trouble getting sharedhs tag.");
                 to_vec[i] = tmp_handles[j];
                 assert(to_vec[i]);
@@ -1807,15 +1808,15 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
       }
     }
     else {
-      Tag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
-      ErrorCode result = get_shared_proc_tags(sharedp_tag, sharedps_tag, 
-                                              sharedh_tag, sharedhs_tag, pstatus_tag);
+      Tag shp_tag, shps_tag, shh_tag, shhs_tag, pstat_tag;
+      ErrorCode result = get_shared_proc_tags(shp_tag, shps_tag, 
+                                              shh_tag, shhs_tag, pstat_tag);
   
       // get single-proc destination handles and shared procs
       std::vector<int> sharing_procs(from_range.size());
-      result = mbImpl->tag_get_data(sharedh_tag, from_range, to_vec);
+      result = mbImpl->tag_get_data(shh_tag, from_range, to_vec);
       RRA("Failed to get shared handle tag for remote_handles.");
-      result = mbImpl->tag_get_data(sharedp_tag, from_range, &sharing_procs[0]);
+      result = mbImpl->tag_get_data(shp_tag, from_range, &sharing_procs[0]);
       RRA("Failed to get sharing proc tag in remote_handles.");
       for (unsigned int j = 0; j < from_range.size(); j++) {
         if (to_vec[j] && sharing_procs[j] != to_proc)
@@ -1829,9 +1830,9 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
       unsigned int i;
       for (rit = from_range.begin(), i = 0; rit != from_range.end(); rit++, i++) {
         if (!to_vec[i]) {
-          result = mbImpl->tag_get_data(sharedhs_tag, &(*rit), 1, tmp_handles);
+          result = mbImpl->tag_get_data(shhs_tag, &(*rit), 1, tmp_handles);
           if (MB_SUCCESS == result) {
-            result = mbImpl->tag_get_data(sharedps_tag, &(*rit), 1, tmp_procs);
+            result = mbImpl->tag_get_data(shps_tag, &(*rit), 1, tmp_procs);
             RRA("Trouble getting sharedps tag.");
             for (int j = 0; j < MAX_SHARING_PROCS; j++)
               if (tmp_procs[j] == to_proc) {
@@ -3350,6 +3351,7 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
     std::vector<EntityHandle> tag_ents;
     std::vector<const void*> var_len_vals;
     std::vector<unsigned char*> dum_vals;
+    std::vector<EntityHandle> dum_ehvals;
 
     for (int i = 0; i < num_tags; i++) {
     
@@ -3395,7 +3397,7 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
       // get handles and convert to local handles
       int num_ents;
       UNPACK_INT(buff_ptr, num_ents);
-      std::vector<EntityHandle> dum_ents(num_ents), dum_vals;
+      std::vector<EntityHandle> dum_ents(num_ents);
       UNPACK_EH(buff_ptr, &dum_ents[0], num_ents);
 
       // in this case handles are indices into new entity range; need to convert
@@ -3405,9 +3407,9 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
 
       // if it's a handle type, also convert tag vals in-place in buffer
       if (MB_TYPE_HANDLE == tag_type) {
-        dum_vals.resize(num_ents);
-        UNPACK_EH(buff_ptr, &dum_vals[0], num_ents);
-        result = get_local_handles(&dum_vals[0], num_ents, entities);
+        dum_ehvals.resize(num_ents);
+        UNPACK_EH(buff_ptr, &dum_ehvals[0], num_ents);
+        result = get_local_handles(&dum_ehvals[0], num_ents, entities);
         RRA("Failed to get local handles for tag vals.");
       }
 
@@ -3732,9 +3734,9 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     RRA("Couldn't create gs data.");
 
     // get shared proc tags
-    Tag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
-    result = get_shared_proc_tags(sharedp_tag, sharedps_tag, 
-                                  sharedh_tag, sharedhs_tag, pstatus_tag);
+    Tag shp_tag, shps_tag, shh_tag, shhs_tag, pstat_tag;
+    result = get_shared_proc_tags(shp_tag, shps_tag, 
+                                  shh_tag, shhs_tag, pstat_tag);
     RRA("Couldn't get shared proc tags.");
   
     // load shared verts into a tuple, then sort by index
@@ -4215,8 +4217,8 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   ErrorCode ParallelComm::resolve_shared_sets(Range& sets, Tag idtag)
   {
     ErrorCode result;
-    const unsigned rank = proc_config().proc_rank();
-    MPI_Comm comm = proc_config().proc_comm();
+    const unsigned rk = proc_config().proc_rank();
+    MPI_Comm cm = proc_config().proc_comm();
 
     // build sharing list for all sets
   
@@ -4294,19 +4296,19 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
       if (MB_SUCCESS != result) {
         std::cerr << "Failure at " __FILE__ ":" << __LINE__ << std::endl;
         std::cerr.flush();
-        MPI_Abort( comm, 1 );
+        MPI_Abort( cm, 1 );
       }
     
       // add this proc to list of sharing procs in correct position
       // so that all procs select owner based on same list
-      std::vector<unsigned>::iterator it = std::lower_bound( procs.begin(), procs.end(), rank );
-      assert(it == procs.end() || *it > rank);
-      procs.insert( it, rank );
+      std::vector<unsigned>::iterator it = std::lower_bound( procs.begin(), procs.end(), rk );
+      assert(it == procs.end() || *it > rk);
+      procs.insert( it, rk );
       size_t owner_idx = choose_owner_idx(procs);
       EntityHandle owner_handle;
-      if (procs[owner_idx] == rank)
+      if (procs[owner_idx] == rk)
         owner_handle = *si;
-      else if (procs[owner_idx] > rank)
+      else if (procs[owner_idx] > rk)
         owner_handle = tuples[ti_init+owner_idx-1].handle;
       else
         owner_handle = tuples[ti_init+owner_idx].handle;
@@ -4314,7 +4316,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
       if (MB_SUCCESS != result) {
         std::cerr << "Failure at " __FILE__ ":" << __LINE__ << std::endl;
         std::cerr.flush();
-        MPI_Abort( comm, 1 );
+        MPI_Abort( cm, 1 );
       }
 
       ++si;
@@ -4374,10 +4376,10 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   
     int proc_ids[MAX_SHARING_PROCS];
     EntityHandle proc_handles[MAX_SHARING_PROCS];
-    Tag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
-    ErrorCode result = get_shared_proc_tags(sharedp_tag, sharedps_tag, 
-                                            sharedh_tag, sharedhs_tag,
-                                            pstatus_tag);
+    Tag shp_tag, shps_tag, shh_tag, shhs_tag, pstat_tag;
+    ErrorCode result = get_shared_proc_tags(shp_tag, shps_tag, 
+                                            shh_tag, shhs_tag,
+                                            pstat_tag);
     RRA("Trouble getting shared proc tags in create_interface_sets.");
     Range::iterator rit;
 
@@ -4399,10 +4401,10 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
       // tag set with the proc rank(s)
       if (vit->first.size() == 1) {
         assert((vit->first)[0] != (int)procConfig.proc_rank());
-        result = mbImpl->tag_set_data(sharedp_tag, &new_set, 1, 
+        result = mbImpl->tag_set_data(shp_tag, &new_set, 1, 
                                       &(vit->first)[0]); 
         proc_handles[0] = 0;
-        result = mbImpl->tag_set_data(sharedh_tag, &new_set, 1, 
+        result = mbImpl->tag_set_data(shh_tag, &new_set, 1, 
                                       proc_handles); 
       }
       else {
@@ -4419,13 +4421,13 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
         //assert( vit->first.size() <= MAX_SHARING_PROCS );
         std::copy( vit->first.begin(), vit->first.end(), proc_ids );
         std::fill( proc_ids + vit->first.size(), proc_ids + MAX_SHARING_PROCS, -1 );
-        result = mbImpl->tag_set_data(sharedps_tag, &new_set, 1, proc_ids );
+        result = mbImpl->tag_set_data(shps_tag, &new_set, 1, proc_ids );
         unsigned int ind = std::find(proc_ids, proc_ids+vit->first.size(), procConfig.proc_rank())
           - proc_ids;
         assert(ind < vit->first.size());
         std::fill( proc_handles, proc_handles + MAX_SHARING_PROCS, 0);
         proc_handles[ind] = new_set;
-        result = mbImpl->tag_set_data(sharedhs_tag, &new_set, 1, proc_handles); 
+        result = mbImpl->tag_set_data(shhs_tag, &new_set, 1, proc_handles); 
       }
       RRA("Failed to tag interface set with procs.");
     
@@ -4434,7 +4436,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
       unsigned char pval = (PSTATUS_SHARED | PSTATUS_INTERFACE);
       if (min_proc < (int) procConfig.proc_rank()) pval |= PSTATUS_NOT_OWNED;
       if (vit->first.size() > 1) pval |= PSTATUS_MULTISHARED;
-      result = mbImpl->tag_set_data(pstatus_tag, &new_set, 1, &pval); 
+      result = mbImpl->tag_set_data(pstat_tag, &new_set, 1, &pval); 
       RRA("Failed to tag interface set with pstatus.");
 
       // tag the vertices with the same thing
@@ -4444,7 +4446,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
         if (mbImpl->type_from_handle(*v2it) == MBVERTEX) verts.push_back(*v2it);
       pstatus.resize(verts.size(), pval);
       if (!verts.empty()) {
-        result = mbImpl->tag_set_data(pstatus_tag, &verts[0], verts.size(), &pstatus[0]); 
+        result = mbImpl->tag_set_data(pstat_tag, &verts[0], verts.size(), &pstatus[0]); 
         RRA("Failed to tag interface set vertices with pstatus.");
       }
     }
@@ -4588,9 +4590,9 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
                                            Range& /*proc_verts*/,
                                            unsigned int i_extra) 
   {
-    Tag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
-    ErrorCode result = get_shared_proc_tags(sharedp_tag, sharedps_tag, 
-                                            sharedh_tag, sharedhs_tag, pstatus_tag);
+    Tag shp_tag, shps_tag, shh_tag, shhs_tag, pstat_tag;
+    ErrorCode result = get_shared_proc_tags(shp_tag, shps_tag, 
+                                            shh_tag, shhs_tag, pstat_tag);
     RRA("Trouble getting shared proc tags in tag_shared_verts.");
   
     unsigned int j = 0, i = 0;
@@ -4662,11 +4664,11 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
         }
         sharing_procs.resize( MAX_SHARING_PROCS, -1 );
         sharing_handles.resize( MAX_SHARING_PROCS, 0 );
-        result = mbImpl->tag_set_data(sharedps_tag, &this_ent, 1,
+        result = mbImpl->tag_set_data(shps_tag, &this_ent, 1,
                                       &sharing_procs[0]);
-        result = mbImpl->tag_set_data(sharedhs_tag, &this_ent, 1,
+        result = mbImpl->tag_set_data(shhs_tag, &this_ent, 1,
                                       &sharing_handles[0]);
-        result = mbImpl->tag_set_data(pstatus_tag, &this_ent, 1, &ms_flag);
+        result = mbImpl->tag_set_data(pstat_tag, &this_ent, 1, &ms_flag);
         RRA("Couldn't set multi-shared tag on shared vertex.");
         sharedEnts.push_back(this_ent);
       }
@@ -4678,11 +4680,11 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     }
 
     if (!tag_procs.empty()) {
-      result = mbImpl->tag_set_data(sharedp_tag, &tag_lhandles[0], tag_procs.size(),
+      result = mbImpl->tag_set_data(shp_tag, &tag_lhandles[0], tag_procs.size(),
                                     &tag_procs[0]);
-      result = mbImpl->tag_set_data(sharedh_tag, &tag_lhandles[0], tag_procs.size(),
+      result = mbImpl->tag_set_data(shh_tag, &tag_lhandles[0], tag_procs.size(),
                                     &tag_rhandles[0]);
-      result = mbImpl->tag_set_data(pstatus_tag, &tag_lhandles[0], tag_procs.size(), &pstatus[0]);
+      result = mbImpl->tag_set_data(pstat_tag, &tag_lhandles[0], tag_procs.size(), &pstatus[0]);
       RRA("Couldn't set shared tag on shared vertex.");
       std::copy(tag_lhandles.begin(), tag_lhandles.end(), std::back_inserter(sharedEnts));
     }
@@ -4706,9 +4708,9 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
                                            std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
                                            Range& /*proc_verts*/) 
   {
-    Tag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
-    ErrorCode result = get_shared_proc_tags(sharedp_tag, sharedps_tag, 
-                                            sharedh_tag, sharedhs_tag, pstatus_tag);
+    Tag shp_tag, shps_tag, shh_tag, shhs_tag, pstat_tag;
+    ErrorCode result = get_shared_proc_tags(shp_tag, shps_tag, 
+                                            shh_tag, shhs_tag, pstat_tag);
     RRA("Trouble getting shared proc tags in tag_shared_verts.");
   
     unsigned int j = 0, i = 0;
@@ -4757,11 +4759,11 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
       unsigned char share_flag = PSTATUS_SHARED, 
         ms_flag = (PSTATUS_SHARED | PSTATUS_MULTISHARED);
       if (sharing_procs.size() == 1) {
-        result = mbImpl->tag_set_data(sharedp_tag, &this_ent, 1,
+        result = mbImpl->tag_set_data(shp_tag, &this_ent, 1,
                                       &sharing_procs[0]);
-        result = mbImpl->tag_set_data(sharedh_tag, &this_ent, 1,
+        result = mbImpl->tag_set_data(shh_tag, &this_ent, 1,
                                       &sharing_handles[0]);
-        result = mbImpl->tag_set_data(pstatus_tag, &this_ent, 1, &share_flag);
+        result = mbImpl->tag_set_data(pstat_tag, &this_ent, 1, &share_flag);
         RRA("Couldn't set shared tag on shared vertex.");
         sharedEnts.push_back(this_ent);
       }
@@ -4776,11 +4778,11 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
         }
         sharing_procs.resize( MAX_SHARING_PROCS, -1 );
         sharing_handles.resize( MAX_SHARING_PROCS, 0 );
-        result = mbImpl->tag_set_data(sharedps_tag, &this_ent, 1,
+        result = mbImpl->tag_set_data(shps_tag, &this_ent, 1,
                                       &sharing_procs[0]);
-        result = mbImpl->tag_set_data(sharedhs_tag, &this_ent, 1,
+        result = mbImpl->tag_set_data(shhs_tag, &this_ent, 1,
                                       &sharing_handles[0]);
-        result = mbImpl->tag_set_data(pstatus_tag, &this_ent, 1, &ms_flag);
+        result = mbImpl->tag_set_data(pstat_tag, &this_ent, 1, &ms_flag);
         RRA("Couldn't set multi-shared tag on shared vertex.");
         sharedEnts.push_back(this_ent);
       }
@@ -6914,8 +6916,8 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       std::vector<Range> tag_ranges;
       for (std::vector<Tag>::const_iterator vit = src_tags.begin(); vit != src_tags.end(); vit++) {
         const void* ptr;
-        int size;
-        if (mbImpl->tag_get_default_value( *vit, ptr, size ) != MB_SUCCESS) {
+        int sz;
+        if (mbImpl->tag_get_default_value( *vit, ptr, sz ) != MB_SUCCESS) {
           Range tagged_ents;
           mbImpl->get_entities_by_type_and_tag( 0, MBMAXTYPE, &*vit, 0, 1, tagged_ents );
           tag_ranges.push_back( intersect( tag_ents, tagged_ents ) );
@@ -7008,17 +7010,17 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
                                                          &src_tags[0], 0, 1, tagged_ents, Interface::INTERSECT );
           RRA("get_entities_by_type_and_tag(type == MBMAXTYPE) failed.");
 
-          int size, size2;
-          result = mbImpl->tag_get_bytes( src_tags[i], size );
+          int sz, size2;
+          result = mbImpl->tag_get_bytes( src_tags[i], sz );
           RRA("tag_get_size failed.");
           result = mbImpl->tag_get_bytes( dst_tags[i], size2 );
           RRA("tag_get_size failed.");
-          if (size != size2) {
+          if (sz != size2) {
             result = MB_FAILURE;
             RRA("tag sizes don't match")
               }
 
-          data.resize( size * tagged_ents.size() );
+          data.resize( sz * tagged_ents.size() );
           result = mbImpl->tag_get_data( src_tags[i], tagged_ents, &data[0] );
           RRA("tag_get_data failed.");
           result = mbImpl->tag_set_data( dst_tags[i], tagged_ents, &data[0] );
@@ -7158,8 +7160,8 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       std::vector<Range> tag_ranges;
       for (vit = src_tags.begin(); vit != src_tags.end(); vit++) {
         const void* ptr;
-        int size;
-        if (mbImpl->tag_get_default_value( *vit, ptr, size ) != MB_SUCCESS) {
+        int sz;
+        if (mbImpl->tag_get_default_value( *vit, ptr, sz ) != MB_SUCCESS) {
           Range tagged_ents;
           mbImpl->get_entities_by_type_and_tag( 0, MBMAXTYPE, &*vit, 0, 1, tagged_ents );
           tag_ranges.push_back( intersect( tag_ents, tagged_ents ) );
@@ -7620,9 +7622,17 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
   {
     Tag this_tag = 0;
     ErrorCode result;
-    result = impl->tag_get_handle(PARALLEL_COMM_TAG_NAME, 
-                                  MAX_SHARING_PROCS*sizeof(ParallelComm*),
-                                  MB_TYPE_OPAQUE, this_tag, MB_TAG_SPARSE|MB_TAG_CREAT);
+    if (create_if_missing) {
+      result = impl->tag_get_handle(PARALLEL_COMM_TAG_NAME, 
+                                    MAX_SHARING_PROCS*sizeof(ParallelComm*),
+                                    MB_TYPE_OPAQUE, this_tag, MB_TAG_SPARSE|MB_TAG_CREAT);
+    }
+    else {
+      result = impl->tag_get_handle(PARALLEL_COMM_TAG_NAME, 
+                                    MAX_SHARING_PROCS*sizeof(ParallelComm*),
+                                    MB_TYPE_OPAQUE, this_tag, MB_TAG_SPARSE);
+    }
+    
     if (MB_SUCCESS != result)
       return 0;
   
@@ -8127,7 +8137,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
   {
     int ierr;
     const int tag = 0;
-    const MPI_Comm comm = procConfig.proc_comm();
+    const MPI_Comm cm = procConfig.proc_comm();
     const int num_proc = buffProcs.size();
     const std::vector<int> procs( buffProcs.begin(), buffProcs.end() );
     std::vector<MPI_Request> recv_req(buffProcs.size(), MPI_REQUEST_NULL);
@@ -8135,7 +8145,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     // set up to receive sizes
     std::vector<int> sizes_send(num_proc), sizes_recv(num_proc);
     for (int i = 0; i < num_proc; ++i) {
-      ierr = MPI_Irecv( &sizes_recv[i], 1, MPI_INT, procs[i], tag, comm, &recv_req[i] );
+      ierr = MPI_Irecv( &sizes_recv[i], 1, MPI_INT, procs[i], tag, cm, &recv_req[i] );
       if (ierr) 
         return MB_FILE_WRITE_ERROR;
     }
@@ -8147,7 +8157,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     result.resize(num_proc);
     for (int i = 0; i < num_proc; ++i) {
       sizes_send[i] = send_data[i].size();
-      ierr = MPI_Isend( &sizes_send[i], 1, MPI_INT, buffProcs[i], tag, comm, &sendReqs[i] );
+      ierr = MPI_Isend( &sizes_send[i], 1, MPI_INT, buffProcs[i], tag, cm, &sendReqs[i] );
       if (ierr) 
         return MB_FILE_WRITE_ERROR;
     }
@@ -8169,7 +8179,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       ierr = MPI_Irecv( &result[i][0], 
                         sizeof(SharedEntityData)*sizes_recv[i], 
                         MPI_UNSIGNED_CHAR, 
-                        buffProcs[i], tag, comm, &recv_req[i] );
+                        buffProcs[i], tag, cm, &recv_req[i] );
       if (ierr) 
         return MB_FILE_WRITE_ERROR;
     }
@@ -8179,7 +8189,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       ierr = MPI_Isend( &send_data[i][0], 
                         sizeof(SharedEntityData)*sizes_send[i], 
                         MPI_UNSIGNED_CHAR, 
-                        buffProcs[i], tag, comm, &sendReqs[i] );
+                        buffProcs[i], tag, cm, &sendReqs[i] );
       if (ierr) 
         return MB_FILE_WRITE_ERROR;
     }

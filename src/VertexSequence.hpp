@@ -12,8 +12,8 @@ public:
 
   VertexSequence( EntityHandle start,
                   EntityID count,
-                  SequenceData* data )
-    : EntitySequence( start, count, data )
+                  SequenceData* dat )
+    : EntitySequence( start, count, dat )
     {}
   
   VertexSequence( EntityHandle start,

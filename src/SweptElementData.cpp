@@ -37,13 +37,13 @@ EntityID SweptElementData::calc_num_entities(EntityHandle start_handle,
 }
 
 SweptElementData::SweptElementData(
-                             EntityHandle start_handle,
+                             EntityHandle shandle,
                              const int imin, const int jmin, const int kmin,
                              const int imax, const int jmax, const int kmax,
 			     const int* /*Cq*/ ) 
-    : SequenceData(0, start_handle,
-                   start_handle + 
-                   calc_num_entities( start_handle, imax-imin, jmax-jmin, kmax-kmin )
+    : SequenceData(0, shandle,
+                   shandle + 
+                   calc_num_entities( shandle, imax-imin, jmax-jmin, kmax-kmin )
                    - 1)
 {
     // need to have meaningful parameters

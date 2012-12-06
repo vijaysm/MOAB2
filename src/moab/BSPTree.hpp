@@ -117,8 +117,8 @@ public:
       
     void set( const double pt1[3], const double pt2[3], const double pt3[3] );
     
-    void set( double i, double j, double k, double coeff )
-      { *this = Plane( i, j, k, coeff ); }
+    void set( double i, double j, double k, double cff )
+      { *this = Plane( i, j, k, cff ); }
     
       /** Create Y = 1 plane by doing set( Y, 1.0 ); */
     void set( Axis normal, double point_on_axis )
