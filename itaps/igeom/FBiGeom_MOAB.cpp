@@ -1117,9 +1117,12 @@ void FBiGeom_getFcArrCvtrUV(FBiGeom_Instance instance,
                             int* , int* , int* err) {
   RETURN(iBase_NOT_SUPPORTED);
 }
-void FBiGeom_isEntPeriodic(FBiGeom_Instance instance, iBase_EntityHandle ,
-                           int* , int* , int* err) {
-  RETURN(iBase_NOT_SUPPORTED);
+void FBiGeom_isEntPeriodic(FBiGeom_Instance /*instance*/, iBase_EntityHandle /*entity_handle*/,
+                           int* in_u, int* in_v , int* err) {
+  *in_u = 0;
+  *in_v = 0;
+  *err = 0;
+  return;
 }
 void FBiGeom_isArrPeriodic(FBiGeom_Instance instance,
                            iBase_EntityHandle const* , int ,
