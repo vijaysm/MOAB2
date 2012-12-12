@@ -2127,7 +2127,7 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
       }
     
     
-      myDebug->tprintf(4, "Unpacked %d ents of type %s", num_ents,
+      myDebug->tprintf(4, "Unpacked %d ents of type %s", num_ents2,
                        CN::EntityTypeName(TYPE_FROM_HANDLE(this_type)));
     }
 
