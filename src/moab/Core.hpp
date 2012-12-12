@@ -684,14 +684,12 @@ public:
 
    /**\brief Gets the tag handle corresponding to a name
     *
-    *\deprecated Use tag_get_handle instead
-    *
     * If a tag of that name does not exist, returns MB_TAG_NOT_FOUND
     *   \param tag_name Name of the desired tag. 
     *   \param tag_handle Tag handle corresponding to <em>tag_name</em>
     */ 
   virtual ErrorCode tag_get_handle( const char *tag_name, 
-                                    Tag &tag_handle ) const MB_DEPRECATED;
+                                    Tag &tag_handle ) const;
 
   //! Get handles for all tags defined on this entity
   virtual ErrorCode tag_get_tags_on_entity(const EntityHandle entity,

@@ -1376,14 +1376,12 @@ public:
 
     /**\brief Gets the tag handle corresponding to a name
        
-       \deprecated Use \b tag_get_handle(const char*,int,MB_DATA_TYPE,Tag&,...) instead
-    
         If a tag of that name does not exist, returns MB_TAG_NOT_FOUND
         \param tag_name Name of the desired tag. 
         \param tag_handle Tag handle corresponding to <em>tag_name</em>
     */ 
   virtual ErrorCode tag_get_handle( const char *tag_name, 
-                                    Tag &tag_handle ) const MB_DEPRECATED = 0;
+                                    Tag &tag_handle ) const = 0;
 
     /**\brief Get the size of the specified tag
        
