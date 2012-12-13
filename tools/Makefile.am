@@ -103,12 +103,6 @@ else
   qvdual_DIR=
 endif
 
-if ENABLE_vtkMOABReader
-  vtkMOABReader_DIR = vtkMOABReader
-else
-  vtkMOABReader_DIR = 
-endif
-
 if ENABLE_mcnpmit
   mcnpmit_DIR = mcnpmit
 else

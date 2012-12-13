@@ -1,6 +1,24 @@
 Version 4.6pre:
 * Added Interface::adjacencies_iterate, whose behavior is much like tag_iterate.
 * Extended Interface::get_coords, to return entity centroids (avg vertex position) for non-vertex entities instead of failing
+* Added new iMeshP extension function iMeshP_getCommunicator, converting fortran integer to MPI C communicator
+* Various bug fixes and improvements of mbcoupler (parallel mesh to mesh transfer): handling of spectral elements, works in
+  serial now, better tolerancing for point searches
+* New conventions for handling spectral element types; see doc/metadata_info.doc for details
+* New options for mbsize, similar to those for mbconvert (allows user to specify parallel reading options, so mbsize can be
+  run as a parallel reading test)
+* Initial implementation of Damsel reader/writer
+* Major enhancements, efficiency improvements for NC data reader, including going mostly to a 2.5D representation, addition
+  of a HOMME data reader, bug fixes in representing periodic meshes in parallel
+* Initial implementation of a GCRM data reader, and a better ReadTemplate class (skeleton for writing new readers)
+* Add new metadata and properties handling to DAGMC
+* More extensive warning reporting when using GCC compilers, and many warning eliminations
+* Support for 1D in structured mesh interface
+* Improved doxygen developer documentation
+* Improved vtkMOABReader & paraview plugin
+* Additions/improvements to examples
+* New performance tests that include direct tag access tests
+* Undeprecated one of the "tag_get_handle" functions for returning tag handle given tag name
 
 Version 4.5:
 * ITAPS: added iMesh_stepEntIter, iMesh_stepEntArrIter, iMesh_tagIterate, iMesh_createTagWithOptions (see iMesh_extensions.h)
@@ -8,6 +26,7 @@ Version 4.5:
 * Error class exposed in API, and query_interface now supports getting access to the moab::Core member of that class.
 * Added Interface::coords_iterate and Interface::connect_iterate, analogous to tag_iterate (allows direct access to
   coordinate and connectivity memory for blocks of entity handles)
+* Added new iMeshP extension tag_reduce
 
 Version 4.1:
 * Structured mesh API (see src/moab/ScdInterface.hpp)
