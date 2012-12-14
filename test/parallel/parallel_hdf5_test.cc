@@ -3,6 +3,7 @@
 
 #include "moab/Core.hpp"
 #include "moab/ParallelComm.hpp"
+#include "moab/Skinner.hpp"
 #include "MBTagConventions.hpp"
 #include "moab/CN.hpp"
 #include "MBParallelConventions.h"
@@ -53,6 +54,7 @@ void test_read_sets_common( const char* extra_opts = 0 );
 void test_read_sets()             { test_read_sets_common(); }
 void test_read_sets_bcast_dups()  { test_read_sets_common( "BCAST_DUPLICATE_READS=yes" ); }
 void test_read_sets_read_dups()   { test_read_sets_common( "BCAST_DUPLICATE_READS=no"  ); }
+void test_read_bc_sets();
 
 void test_write_different_element_types();
 void test_write_different_tags();
@@ -188,6 +190,8 @@ int main( int argc, char* argv[] )
     result += RUN_TEST( test_read_sets_bcast_dups );
     MPI_Barrier(MPI_COMM_WORLD);
     result += RUN_TEST( test_read_sets_read_dups );
+    MPI_Barrier(MPI_COMM_WORLD);
+    result += RUN_TEST( test_read_bc_sets );
     MPI_Barrier(MPI_COMM_WORLD);
     result += RUN_TEST( test_write_different_element_types );
     MPI_Barrier(MPI_COMM_WORLD);
@@ -749,7 +753,8 @@ void create_input_file( const char* file_name,
                         const char* ij_set_tag_name = 0,
                         const char* global_tag_name = 0,
                         const int* global_mesh_value = 0, 
-                        const int* global_default_value = 0 )
+                        const int* global_default_value = 0,
+                        bool create_bcsets = false)
 {
   Core moab;
   Interface& mb = moab;
@@ -845,6 +850,49 @@ void create_input_file( const char* file_name,
       CHECK_ERR(rval);
     }
     rval = mb.tag_set_data( part_tag, &parts[i], 1, &i );
+    CHECK_ERR(rval);
+  }
+
+  if (create_bcsets) {
+      // neumann set
+    Range skin_ents;
+    rval = Skinner(&mb).find_skin(&elems[0], elems.size(), false, skin_ents);
+    CHECK_ERR(rval);
+    EntityHandle bcset;
+    rval = mb.create_meshset( MESHSET_SET, bcset);
+    CHECK_ERR(rval);
+    Tag bcset_tag;
+    rval = mb.tag_get_handle(NEUMANN_SET_TAG_NAME, 1, MB_TYPE_INTEGER, bcset_tag, MB_TAG_SPARSE|MB_TAG_CREAT);
+    CHECK_ERR(rval);
+    int dum = 100;
+    rval = mb.tag_set_data(bcset_tag, &bcset, 1, &dum);
+    CHECK_ERR(rval);
+    rval = mb.add_entities(bcset, skin_ents);
+    CHECK_ERR(rval);
+
+      // dirichlet set
+    rval = mb.create_meshset( MESHSET_SET, bcset);
+    CHECK_ERR(rval);
+    rval = mb.tag_get_handle(DIRICHLET_SET_TAG_NAME, 1, MB_TYPE_INTEGER, bcset_tag, MB_TAG_SPARSE|MB_TAG_CREAT);
+    CHECK_ERR(rval);
+    dum = 200;
+    rval = mb.tag_set_data(bcset_tag, &bcset, 1, &dum);
+    CHECK_ERR(rval);
+    Range nodes;
+    rval = mb.get_adjacencies(skin_ents, 0, false, nodes, Interface::UNION);
+    CHECK_ERR(rval);
+    rval = mb.add_entities(bcset, nodes);
+    CHECK_ERR(rval);
+
+      // material set
+    rval = mb.create_meshset( MESHSET_SET, bcset);
+    CHECK_ERR(rval);
+    rval = mb.tag_get_handle(MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, bcset_tag, MB_TAG_SPARSE|MB_TAG_CREAT);
+    CHECK_ERR(rval);
+    dum = 300;
+    rval = mb.tag_set_data(bcset_tag, &bcset, 1, &dum);
+    CHECK_ERR(rval);
+    rval = mb.add_entities(bcset, &elems[0], elems.size());
     CHECK_ERR(rval);
   }
   
@@ -1150,6 +1198,62 @@ void test_read_sets_common( const char* extra_opts )
       CHECK_ERR(rval);
       CHECK_REAL_EQUAL( coords[0], (double)ij[0], 1e-100 );
       CHECK_REAL_EQUAL( coords[1], (double)ij[1], 1e-100 );
+    }
+  }
+}
+
+void test_read_bc_sets()
+{
+  const char tag_name[] = "test_tag_s";
+  const char file_name[] = "test_read_sets.h5m";
+  int numproc, rank;
+  MPI_Comm_size( MPI_COMM_WORLD, &numproc );
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank    );
+  Core moab;
+  Interface &mb = moab;
+  ErrorCode rval;
+
+    // if root processor, create hdf5 file for use in testing
+  if (0 == rank) 
+    create_input_file( file_name, DefaultReadIntervals, numproc, 1, NULL, NULL, NULL, NULL, NULL, true );
+  MPI_Barrier(MPI_COMM_WORLD); // make sure root has completed writing the file
+  
+    // do parallel read unless only one processor
+  std::string opt = get_read_options();
+  rval = mb.load_file( file_name, 0, opt.c_str() );
+  MPI_Barrier(MPI_COMM_WORLD); // make sure all procs complete before removing file
+  if (0 == rank && !KeepTmpFiles) remove( file_name );
+  CHECK_ERR(rval);
+      
+  Tag tag;
+  int num_ents[3], global_num_ents[3] = {0, 0, 0};
+  Range sets, contents;
+  const char *names[] = {NEUMANN_SET_TAG_NAME, DIRICHLET_SET_TAG_NAME, MATERIAL_SET_TAG_NAME};
+  int vints = DefaultReadIntervals+1;
+  int expected_num_ents[] = {(numproc*4+2)*DefaultReadIntervals*DefaultReadIntervals, 
+                             ((numproc*4+2)*(vints-2)*(vints-2) + 12*numproc*(vints-2) + 8*numproc),
+                             numproc*DefaultReadIntervals*DefaultReadIntervals*DefaultReadIntervals};
+
+  for (int i = 0; i < 3; i++) {
+    rval = mb.tag_get_handle(names[i], 1, MB_TYPE_INTEGER, tag );
+    CHECK_ERR(rval);
+    rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &tag, 0, 1, sets );
+    CHECK_ERR(rval);
+    CHECK_EQUAL((EntityHandle)1, sets.size());
+    rval = mb.get_entities_by_handle(*sets.begin(), contents, true);
+    CHECK_ERR(rval);
+    num_ents[i] = contents.size();
+    sets.clear();
+    contents.clear();
+  }
+
+  MPI_Reduce(num_ents, global_num_ents, 3, MPI_INTEGER, MPI_SUM, 0, MPI_COMM_WORLD );
+  if (0 == rank) {
+//    std::cout << "Global:" << global_num_ents[0] << " " << global_num_ents[1] << " " << global_num_ents[2] << " " << std::endl;
+//    std::cout << "Expected:" << expected_num_ents[0] << " " << expected_num_ents[1] << " " << expected_num_ents[2] << " " << std::endl;
+    
+    for (int i = 0; i < 3; i++) {
+      CHECK_EQUAL(global_num_ents[i], expected_num_ents[i]);
     }
   }
 }

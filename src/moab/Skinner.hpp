@@ -19,6 +19,7 @@
 #define MOAB_SKINNER_HPP
 
 #include "moab/Forward.hpp"
+#include "moab/Range.hpp"
 #include <vector>
 
 namespace moab {
@@ -72,6 +73,32 @@ public:
      *        will be returned
      */
   ErrorCode find_skin( const Range &entities,
+                       bool get_vertices,
+                       Range &output_handles,
+                       Range *output_reverse_handles = 0,
+                       bool create_vert_elem_adjs = false,
+                       bool create_skin_elements = true,
+                       bool look_for_scd = false);
+
+    /**\brief will accept entities all of one dimension and 
+     *        return entities of n-1 dimension; NOTE: get_vertices argument controls whether
+     * vertices or entities of n-1 dimension are returned, and only one of these is allowed
+     * (i.e. this function returns only vertices or (n-1)-dimensional entities, but not both)
+     * \param entities Pointer to elements for which to find the skin
+     * \param num_entities Number of entities in vector
+     * \param get_vertices If true, vertices on the skin are returned 
+     *        in the range, otherwise elements are returned
+     * \param output_handles Range holding skin entities returned
+     * \param output_reverse_handles Range holding entities on skin which 
+     *        are reversed wrt entities
+     * \param create_vert_elem_adjs If true, this function will cause 
+     *        vertex-element adjacencies to be generated
+     * \param create_skin_elements If true, this function will cause creation 
+     *        of skin entities, otherwise only skin entities already extant 
+     *        will be returned
+     */
+  ErrorCode find_skin( const EntityHandle *entities,
+                       int num_entities,
                        bool get_vertices,
                        Range &output_handles,
                        Range *output_reverse_handles = 0,
@@ -254,6 +281,21 @@ protected:
                      bool create_skin_elements);
 };
 
+inline ErrorCode Skinner::find_skin( const EntityHandle *entities,
+                                     int num_entities,
+                                     bool get_vertices,
+                                     Range &output_handles,
+                                     Range *output_reverse_handles,
+                                     bool create_vert_elem_adjs,
+                                     bool create_skin_elements,
+                                     bool look_for_scd) 
+{
+  Range ents;
+  std::copy(entities, entities+num_entities, range_inserter(ents));
+  return find_skin(ents, get_vertices, output_handles, output_reverse_handles, 
+                   create_vert_elem_adjs, create_skin_elements, look_for_scd);
+}
+      
 } // namespace moab 
 
 #endif
