@@ -527,11 +527,14 @@ public:
         \param num_handles Number of entity handles in <em>entity_handles</em>
         \param connectivity Vector in which connectivity of <em>entity_handles</em> is returned.  
         \param topological_connectivity If true, higher order nodes are ignored. 
+        \param offsets If non-NULL, offsets->[i] stores the index of the start of entity i's connectivity,
+                with the last value in offsets one beyond the last entry
     */
   virtual ErrorCode  get_connectivity(const EntityHandle *entity_handles, 
-                                        const int num_handles,
-                                        std::vector<EntityHandle> &connectivity, 
-                                        bool topological_connectivity = false) const =0;
+                                      const int num_handles,
+                                      std::vector<EntityHandle> &connectivity, 
+                                      bool topological_connectivity = false,
+                                      std::vector<int> *offsets = NULL) const =0;
  
     //! Gets a pointer to constant connectivity data of <em>entity_handle</em> 
     /** Sets <em>number_nodes</em> equal to the number of nodes of the <em> 

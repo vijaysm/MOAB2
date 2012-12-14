@@ -1228,9 +1228,10 @@ ErrorCode  Core::get_connectivity(const EntityHandle *entity_handles,
 
 //! get the connectivity for element /handles.  For non-element handles, return an error
 ErrorCode  Core::get_connectivity(const EntityHandle *entity_handles, 
-                                      const int num_handles,
-                                      std::vector<EntityHandle> &connectivity,
-                                      bool topological_connectivity) const
+                                  const int num_handles,
+                                  std::vector<EntityHandle> &connectivity,
+                                  bool topological_connectivity,
+                                  std::vector<int> *offsets) const
 {
   connectivity.clear(); // this seems wrong as compared to other API functions,
                         // but changing it breaks lost of code, so I'm leaving
@@ -1240,11 +1241,13 @@ ErrorCode  Core::get_connectivity(const EntityHandle *entity_handles,
   std::vector<EntityHandle> tmp_storage; // used only for structured mesh
   const EntityHandle* conn;
   int len;
+  if (offsets) offsets->push_back(0);
   for (int i = 0; i < num_handles; ++i) {
     rval = get_connectivity( entity_handles[i], conn, len, topological_connectivity, &tmp_storage );
     if (MB_SUCCESS != rval)
       return rval;
     connectivity.insert( connectivity.end(), conn, conn + len );
+    if (offsets) offsets->push_back(connectivity.size());
   }
   return MB_SUCCESS;
 }

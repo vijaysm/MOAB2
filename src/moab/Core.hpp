@@ -233,9 +233,10 @@ public:
           std::vector<EntityHandle> conn;
           get_connectivity( entity_handle, conn ); \endcode */
     virtual ErrorCode  get_connectivity(const EntityHandle *entity_handles, 
-                                           const int num_handles,
-                                           std::vector<EntityHandle> &connectivity, 
-                                           bool topological_connectivity = false) const;
+                                        const int num_handles,
+                                        std::vector<EntityHandle> &connectivity, 
+                                        bool topological_connectivity = false,
+                                        std::vector<int> *offsets = NULL) const;
  
     //! Gets the connectivity for a vector of elements
     /** Same as vector-based version except range is returned (unordered!)
