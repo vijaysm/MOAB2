@@ -232,11 +232,11 @@ void create_regular_mesh( Interface* gMB, int interval, int dim )
                              
     // Populate element list
   EntityHandle* iter = conn;
-  for (long z = 0; z < intervals[2]; ++z)
-    for (long y = 0; y < intervals[1]; ++y)
-      for (long x = 0; x < intervals[0]; ++x)
+  for (long z1 = 0; z1 < intervals[2]; ++z1)
+    for (long y1 = 0; y1 < intervals[1]; ++y1)
+      for (long x1 = 0; x1 < intervals[0]; ++x1)
       {
-        const long index = x + y*dims[0] + z*(dims[0]*dims[1]);
+        const long index = x1 + y1*dims[0] + z1*(dims[0]*dims[1]);
         for (long j = 0; j < vert_per_elem; ++j, ++iter)
           *iter = index + corners[j] + vstart;
       }

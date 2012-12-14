@@ -254,7 +254,7 @@ void build_coords(const int nelem, double *&coords)
 //            << std::endl;
 }
 
-void build_connect(const int nelem, const EntityHandle vstart, int *&connect) 
+void build_connect(const int nelem, const EntityHandle /*vstart*/, int *&connect)
 {
     // allocate the memory
   int nume_tot = nelem*nelem*nelem;
@@ -431,7 +431,7 @@ void query_elem_to_vert_iters(int chunk_size, bool check_valid,
   delete iter;
 }
 
-void query_vert_to_elem_iters(int chunk_size, bool check_valid, std::vector<EntityHandle> &connect, 
+void query_vert_to_elem_iters(int chunk_size, bool check_valid, std::vector<EntityHandle> &/*connect*/,
                               double *dum_coords, double *dum_pos)
 {
   std::vector<EntityHandle> verts, neighbor_hexes;
@@ -815,7 +815,10 @@ void testD(const int nelem, const double *coords, int ver)
 
     // query the mesh 2 ways with !check_valid
   std::vector<EntityHandle> connect(8);
+#ifndef NDEBUG
+  // used only in debug mode
   double def_val[3] = {0.0, 0.0, 0.0};
+#endif
   if (ver==0 || ver==1)
   {
     query_elem_to_vert_iters(1, false, connect, &dum_coords[0], &dum_pos[0]);
@@ -1118,9 +1121,9 @@ void query_vert_to_elem_direct()
   EntityHandle estart = *tmp_ents.begin();
   for (vit = all_verts.begin(), i = 0; vit != all_verts.end(); vit++, i++) {
     assert(adjs[i]);
-    for (std::vector<EntityHandle>::const_iterator vit = adjs[i]->begin(); vit != adjs[i]->end(); vit++)
+    for (std::vector<EntityHandle>::const_iterator vit2 = adjs[i]->begin(); vit2 != adjs[i]->end(); vit2++)
       if (*vit >= estart) {
-        int eind = *vit - estart;
+        int eind = *vit2 - estart;
         centroid[3*eind+0] += coords[0][i];
         centroid[3*eind+1] += coords[1][i];
         centroid[3*eind+2] += coords[2][i];
@@ -1133,7 +1136,7 @@ void query_vert_to_elem_direct()
   }
 }
 
-void check_answers(const char *test_name) 
+void check_answers(const char */*test_name*/)
 {
   Range elems;
   ErrorCode result = gMB->get_entities_by_type(0, MBHEX, elems); RC("check_answers");

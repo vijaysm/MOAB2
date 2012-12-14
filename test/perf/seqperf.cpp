@@ -366,9 +366,9 @@ int main( int argc, char* argv[] )
   
   std::vector<int>::const_iterator i,j,k;
   clock_t t = clock();
-  for (std::vector<int>::iterator i = createList.begin(); i != createList.end(); ++i) {
-    for (std::vector<int>::iterator j = deleteList.begin(); j != deleteList.end(); ++j) {
-      for (std::vector<int>::iterator k = orderList.begin(); k != orderList.end(); ++k) {
+  for ( i = createList.begin(); i != createList.end(); ++i) {
+    for (j = deleteList.begin(); j != deleteList.end(); ++j) {
+      for ( k = orderList.begin(); k != orderList.end(); ++k) {
         do_test( *i, *k, *j );
       }
     }

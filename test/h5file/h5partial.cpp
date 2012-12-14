@@ -360,15 +360,15 @@ void test_read_nodes_common( int num_read_sets, bool blocked )
     CHECK( id > 0 );
     CHECK( (unsigned)id <= set_verts.size() );
     
-    std::vector<EntityHandle> verts;
-    rval = mb.get_entities_by_handle( set, verts );
+    std::vector<EntityHandle> verts2;
+    rval = mb.get_entities_by_handle( set, verts2 );
     CHECK_ERR(rval);
-    CHECK_EQUAL( set_verts[id-1].size(), verts.size() );
+    CHECK_EQUAL( set_verts[id-1].size(), verts2.size() );
     
-    for (size_t i = 0; i < verts.size(); ++i) {
+    for (size_t i = 0; i < verts2.size(); ++i) {
       double exp_coords[3], coords[3];
       vtx_coords( id, i, num_sets, exp_coords );
-      rval = mb.get_coords( &verts[i], 1, coords );
+      rval = mb.get_coords( &verts2[i], 1, coords );
       CHECK_ERR(rval);
       CHECK_REAL_EQUAL( exp_coords[0], coords[0], 1e-12 );
       CHECK_REAL_EQUAL( exp_coords[1], coords[1], 1e-12 );

@@ -77,7 +77,7 @@ int main()
   MBReadUtilIface* read_util = NULL;
   MBWriteUtilIface* write_util = NULL;
   MBReaderWriterSet* io_set_ptr = NULL;
-  if (read_ptr || write_ptr || read_util || write_util || io_set_ptr) ;
+  if (read_ptr || write_ptr || read_util || write_util || io_set_ptr) {};
   
   MBAdaptiveKDTree kdtree_tool(&mb);
   MBBSPTree bsptree_tool(&mb);

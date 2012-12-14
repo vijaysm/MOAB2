@@ -200,8 +200,8 @@ void test_read_vertices( const char* filename )
     size_t y = (size_t)coords[1];
     CHECK_REAL_EQUAL( (double)x, coords[0], EPS );
     CHECK_REAL_EQUAL( (double)y, coords[1], EPS );
-    CHECK( x >= 0 && x <= INTERVALS );
-    CHECK( y >= 0 && y <= INTERVALS );
+    CHECK( x <= INTERVALS );
+    CHECK( y <= INTERVALS );
     CHECK( !seen[x][y] );
     seen[x][y] = true;
   }
@@ -233,8 +233,8 @@ void test_elements( Interface& mb, bool odd_only )
     size_t y = (size_t)coords[1];
     CHECK_REAL_EQUAL( (double)x, coords[0], EPS );
     CHECK_REAL_EQUAL( (double)y, coords[1], EPS );
-    CHECK( x >= 0 && x < INTERVALS );
-    CHECK( y >= 0 && y < INTERVALS );
+    CHECK( x < INTERVALS );
+    CHECK( y < INTERVALS );
     
     CHECK_REAL_EQUAL( Z,     coords[2], EPS );
     CHECK_REAL_EQUAL( 1.0+x, coords[3], EPS );
@@ -290,7 +290,7 @@ void read_sets( Interface& mb, EntityHandle rows[INTERVALS] )
     CHECK_ERR(rval);
     
     size_t y = (size_t)coords[1];
-    CHECK( y >= 0 && y < INTERVALS );
+    CHECK( y < INTERVALS );
     rows[y] = *i;
   }
 }

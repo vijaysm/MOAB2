@@ -27,6 +27,8 @@ int main(int argc, char* argv[])
 #ifdef USE_MPI
   int fail = MPI_Init(&argc, &argv);
   if (fail) return fail;
+#else
+  argv[0]=argv[argc-argc];// warning in serial
 #endif
 
   int exitval = 0;

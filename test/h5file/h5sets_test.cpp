@@ -646,7 +646,7 @@ void regression_mmiller_8_2010()
 // meshset creation flags.  Bug was fixed in SVN revision 4548.
 void test_set_flags()
 {
-  const char filename[] = "test_set_flags.h5m";
+  const char filename2[] = "test_set_flags.h5m";
   ErrorCode rval;
   Core core;
   Interface& mb = core;
@@ -701,11 +701,11 @@ void test_set_flags()
   rval = mb.add_entities( sets[5], set_handles2, num_verts2 ); CHECK_ERR(rval);
   
   // now write the file and read it back in
-  rval = mb.write_file( filename, 0, "BUFFER_SIZE=1024;DEBUG_BINIO" ); CHECK_ERR(rval);
+  rval = mb.write_file( filename2, 0, "BUFFER_SIZE=1024;DEBUG_BINIO" ); CHECK_ERR(rval);
   mb.delete_mesh();
-  rval = mb.load_file( filename );
+  rval = mb.load_file( filename2 );
   if (!keep_file)
-    remove( filename );
+    remove( filename2 );
   CHECK_ERR(rval);
   rval = mb.tag_get_handle( "GLOBAL_ID", 1, MB_TYPE_INTEGER, tag ); CHECK_ERR(rval);
   
