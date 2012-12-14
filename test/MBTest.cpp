@@ -310,13 +310,13 @@ ErrorCode mb_vertex_tag_test()
   for (i=0; i<10; i++)
   {
       // use invalid handles for odd values
-    EntityHandle handle;
+
     if (i % 2) 
       handle = verts[i] + *std::max_element( verts.begin(), verts.end() );
     else 
       handle = verts[i];
       
-    int input_value = 11;
+    input_value = 11;
     error = MB->tag_set_data(tag_id, &handle, 1, &input_value);
 
       // should fail on odd values of i
@@ -331,7 +331,7 @@ ErrorCode mb_vertex_tag_test()
         return MB_FAILURE;
     }
 
-    int output_value;
+
     error = MB->tag_get_data(tag_id, &handle, 1, &output_value);
     if ( (i % 2) && error != MB_FAILURE && error != MB_TAG_NOT_FOUND)
       return error;
@@ -2714,7 +2714,7 @@ ErrorCode mb_mesh_set_tracking_test()
 // Compare internal representation of contents for a list (MESHSET_ORDERED)
 // set to expected contents.  Assumes expected contents are correctly
 // ordered.
-static ErrorCode check_list_meshset_internal( Interface& mb,
+static ErrorCode check_list_meshset_internal(
                                               const EntityHandle* expected,
                                               int num_expected,
                                               const EntityHandle* contents,
@@ -2768,7 +2768,7 @@ static ErrorCode check_list_meshset_internal( Interface& mb,
 // Compare internal representation of contents for a ranged (MESHSET_SET)
 // set to expected contents.  Assumes expected contents are correctly
 // ordered.
-static ErrorCode check_ranged_meshset_internal( Interface& mb,
+static ErrorCode check_ranged_meshset_internal(
                                                 const EntityHandle* expected,
                                                 int num_expected,
                                                 const EntityHandle* contents,
@@ -2892,9 +2892,9 @@ static ErrorCode check_meshset_internal( Interface& mb,
   CHKERR(rval1);
   
   if (flags & MESHSET_ORDERED)
-    rval = check_list_meshset_internal( mb, expected, num_expected, contents, length );
+    rval = check_list_meshset_internal( expected, num_expected, contents, length );
   else
-    rval = check_ranged_meshset_internal( mb, expected, num_expected, contents, length );
+    rval = check_ranged_meshset_internal( expected, num_expected, contents, length );
   CHKERR(rval);
   return MB_SUCCESS;
 }
@@ -3542,13 +3542,13 @@ ErrorCode mb_common_tag_test( TagType storage )
     const EntityHandle h = *i;
     const EntityType type = mb->type_from_handle( h );
     const void* const tag_vals[] = { &h };
-    Range result;
-    rval = mb->get_entities_by_type_and_tag( 0, type, &tag, tag_vals, 1, result );
+    Range range;
+    rval = mb->get_entities_by_type_and_tag( 0, type, &tag, tag_vals, 1, range );
     if (MB_SUCCESS != rval)
       return rval;
-    if (result.size() != 1)
+    if (range.size() != 1)
       return MB_FAILURE;
-    if (result.front() != h)
+    if (range.front() != h)
       return MB_FAILURE;
   }
   
@@ -4644,17 +4644,17 @@ ErrorCode mb_stress_test()
 
   clock_t stop = clock();
 
-  int num_entities;
-  error = MB->get_number_entities_by_type(0, MBHEX, num_entities);
+  int num_entities_local;
+  error = MB->get_number_entities_by_type(0, MBHEX, num_entities_local);
   if (error != MB_SUCCESS)
     return error;
 
-  if (num_entities != 256000)
+  if (num_entities_local != 256000)
     return error;
 
   float time = static_cast<float>(stop - start)/CLOCKS_PER_SEC;
-  float speed = num_entities/time;
-  cout << "        Read " << num_entities << " entities"                
+  float speed = num_entities_local/time;
+  cout << "        Read " << num_entities_local << " entities"
        << " in "   << time << " seconds" << endl; 
   cout << "        at " << speed << " elements per second." << endl;
 
@@ -4701,7 +4701,7 @@ ErrorCode mb_stress_test()
   stop = clock();
   time = static_cast<float>(stop - start)/CLOCKS_PER_SEC;
 
-  cout << "        Transformed and created " << num_entities << " entities" 
+  cout << "        Transformed and created " << num_entities_local << " entities"
        << " in "   << time << " seconds" << endl; 
 
     // Create mesh set
@@ -6503,12 +6503,12 @@ ErrorCode mb_skin_verts_common( unsigned dim, bool skin_elems )
     // check that all returned elements are actually on the skin
   extra.clear();
   for (Range::iterator i = actual.begin(); i != actual.end(); ++i) {
-    Range verts;
-    rval = mb.get_adjacencies( &*i, 1, 0, false, verts );
+    Range verts2;
+    rval = mb.get_adjacencies( &*i, 1, 0, false, verts2 );
     if (MB_SUCCESS != rval)
       return rval;
-    verts = subtract( verts, expected );
-    if (!verts.empty())
+    verts2 = subtract( verts2, expected );
+    if (!verts2.empty())
       extra.insert( *i );
   }
   if (!extra.empty()) {

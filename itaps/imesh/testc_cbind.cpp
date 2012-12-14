@@ -97,7 +97,7 @@ static iBase_EntitySetHandle root_set;
 */
 void handle_error_code(const int result,
                        int *number_failed,
-                       int *number_not_implemented,
+                       int * /*number_not_implemented*/,
                        int *number_successful)
 {
   if (result) {
@@ -135,7 +135,7 @@ int load_mesh_test(const char *filename, iMesh_Instance mesh)
     return FALSE; \
   }
 
-int error_code_test(iMesh_Instance mesh) {
+int error_code_test(iMesh_Instance /*mesh*/) {
   TEST_ERROR_CODE( MB_SUCCESS,                  iBase_SUCCESS )
   TEST_ERROR_CODE( MB_TYPE_OUT_OF_RANGE,        iBase_INVALID_ENTITY_TYPE )
   TEST_ERROR_CODE( MB_MEMORY_ALLOCATION_FAILED, iBase_MEMORY_ALLOCATION_FAILED )
@@ -577,7 +577,7 @@ int entity_connectivity_test(iMesh_Instance mesh)
 int check_esets(iMesh_Instance mesh, const int num_sets);
 
 int entity_sets_subtest(iMesh_Instance mesh, int is_list,
-                         int num_iter)
+                         int /*num_iter*/)
 {
   int i, num_type = iBase_ALL_TYPES - iBase_VERTEX;
   int num_all_entities_super = 0;
@@ -1302,7 +1302,7 @@ int tag_info_test(iMesh_Instance mesh)
 }
 
 int vertex_int_tag_test(iMesh_Instance mesh, 
-                         iBase_EntityHandle *verts, int verts_size,
+                         iBase_EntityHandle *verts, int /*verts_size*/,
                          iBase_TagHandle *int_tag) 
 {
   int result;
@@ -1371,7 +1371,7 @@ int vertex_int_tag_test(iMesh_Instance mesh,
 }
 
 int vertex_double_tag_test(iMesh_Instance mesh, 
-                            iBase_EntityHandle *verts, int verts_size,
+                            iBase_EntityHandle *verts, int  /*verts_size*/,
                             iBase_TagHandle *double_tag) 
 {
   int result;
@@ -1445,7 +1445,7 @@ struct TagStruct {
 };
 
 int vertex_struct_tag_test(iMesh_Instance mesh, 
-                            iBase_EntityHandle *verts, int verts_size,
+                            iBase_EntityHandle *verts, int /*verts_size*/,
                             iBase_TagHandle *struct_tag) 
 {
   int result;
@@ -1497,7 +1497,7 @@ int vertex_struct_tag_test(iMesh_Instance mesh,
 }
 
 int vertex_tag_delete_test(iMesh_Instance mesh, 
-                            iBase_EntityHandle *verts, int verts_size) 
+                            iBase_EntityHandle *verts, int /*verts_size*/)
 {
   int result;
   int delete_err = FALSE;
@@ -1711,7 +1711,7 @@ int entityset_double_tag_test(iMesh_Instance mesh,
 }
 
 int entityset_struct_tag_test(iMesh_Instance mesh, 
-                               iBase_EntitySetHandle *sets, int sets_size,
+                               iBase_EntitySetHandle * /*sets*/, int /*sets_size*/,
                                iBase_TagHandle *struct_tag) 
 {
   int result;
@@ -1770,6 +1770,11 @@ int entityset_tag_delete_test(iMesh_Instance mesh,
 
     /* test getAlliBase_TagHandles for first entity */
   iBase_TagHandle *all_tags = NULL;
+  if (sets_size<1)
+  {
+    printf("no sets.\n");
+    return FALSE;
+  }
   iBase_EntitySetHandle dum_entity = sets[0];
   int all_tags_alloc = 0, all_tags_size;
   iMesh_getAllEntSetTags(mesh, sets[0], &all_tags, &all_tags_alloc,

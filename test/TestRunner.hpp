@@ -139,7 +139,7 @@ void runner_register_test( const char* filename,
   }
 }
 
-void runner_usage( FILE* str, int argc, char* argv[] ) 
+void runner_usage( FILE* str, int /*argc*/, char* argv[] )
 {
   fprintf( str, "%s [-l|-L] [-h] [-r] [<test_name> [<test_name> ...]]\n", argv[0] );
 }
