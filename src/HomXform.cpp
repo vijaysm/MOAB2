@@ -151,7 +151,7 @@ int test_xform_functions();
 
 int test_coord_xform_operators();
 
-int main(int argc, char* argv[]) 
+int main(int /*argc*/, char**/* argv[]*/)
 {
     // first test HomCoord
 

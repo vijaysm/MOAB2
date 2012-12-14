@@ -35,6 +35,9 @@ int main(int argc, char **argv)
 #ifdef USE_MPI
   int fail = MPI_Init(&argc, &argv);
   if (fail) return fail;
+#else
+  // silence the warning of parameters not used, in serial; there should be a smarter way :(
+  argv[0]=argv[argc-argc];
 #endif
 
   int err = RUN_TEST(test_tree_create);

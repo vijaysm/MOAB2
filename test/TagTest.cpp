@@ -390,9 +390,9 @@ void test_get_set( const char* name,
     // c) some handles in an Range
     // d) remaining handles (remaining in 'entities');
   EntityHandle one_handle;
-  Range::iterator i = entities.begin() += entities.size()/2;
-  one_handle = *i;
-  entities.erase( i );
+  Range::iterator it = entities.begin() += entities.size()/2;
+  one_handle = *it;
+  entities.erase( it );
   
   Range handle_range;
   std::vector<EntityHandle> handle_list;
@@ -1517,9 +1517,9 @@ void test_get_set_variable_length( const char* name,
     // c) some handles in an Range
     // d) remaining handles (remaining in 'entities');
   EntityHandle one_handle;
-  Range::iterator i = entities.begin() += entities.size()/2;
-  one_handle = *i;
-  entities.erase( i );
+  Range::iterator it = entities.begin() += entities.size()/2;
+  one_handle = *it;
+  entities.erase( it );
   
   Range handle_range;
   std::vector<EntityHandle> handle_list;
@@ -1926,16 +1926,16 @@ void test_bit_tag_big()
     // retrieve values individually
   for (Range::iterator j = verts.begin(); j != verts.end(); ++j)
   {
-    char value;
-    rval = mb.tag_get_data( tag1, &*j, 1, &value );
+    char cvalue;
+    rval = mb.tag_get_data( tag1, &*j, 1, &cvalue );
     CHECK_ERR( rval );
-    CHECK_EQUAL( 1, (int)value );
+    CHECK_EQUAL( 1, (int)cvalue );
   }
     // clear values individually
   for (Range::iterator j = verts.begin(); j != verts.end(); ++j)
   {
-    char value = '\0';
-    rval = mb.tag_set_data( tag1, &*j, 1, &value );
+    char cvalue = '\0';
+    rval = mb.tag_set_data( tag1, &*j, 1, &cvalue );
     CHECK_ERR( rval );
   }
     // retrieve values using range

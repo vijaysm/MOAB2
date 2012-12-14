@@ -491,14 +491,14 @@ void mb_write_mesh_test()
   result = MB->get_entities_by_type(0,  MBQUAD, temp_range ) ;
   CHECK_ERR(result);
 
-  std::vector<EntityHandle> nodes, entity_vec;
+  std::vector<EntityHandle> nodes1, entity_vec;
   std::copy(temp_range.begin(), temp_range.end(), std::back_inserter(entity_vec));
-  result = MB->get_connectivity(&entity_vec[0], entity_vec.size(), nodes);
+  result = MB->get_connectivity(&entity_vec[0], entity_vec.size(), nodes1);
   CHECK_ERR(result);
-  assert( nodes.size() == 4 * temp_range.size() );
+  assert( nodes1.size() == 4 * temp_range.size() );
   temp_vec.clear(); 
-  std::vector<double> coords(3*nodes.size());
-  result = MB->get_coords(&nodes[0], nodes.size(), &coords[0]);
+  std::vector<double> coords(3*nodes1.size());
+  result = MB->get_coords(&nodes1[0], nodes1.size(), &coords[0]);
   CHECK_ERR(result);
   
   unsigned int k = 0;
@@ -544,14 +544,14 @@ void mb_write_mesh_test()
     CHECK_ERR(result);
 
     bool not_equal_2_5 = true; 
-    for(unsigned int k=0; k<nodes.size(); k++ )
+    for(unsigned int ku=0; ku<nodes.size(); ku++ )
     {
-      double coords[3] = {0};
+      double coords2[3] = {0};
 
-      result = MB->get_coords( &(nodes[k]), 1, coords );
+      result = MB->get_coords( &(nodes[ku]), 1, coords2 );
       CHECK_ERR(result);
 
-      if( coords[0] == 2.5 )
+      if( coords2[0] == 2.5 )
       {
         not_equal_2_5 = false;
         break;
@@ -635,8 +635,8 @@ void mb_write_mesh_test()
     result = MB->get_connectivity( &(*iter), 1, nodes);
     CHECK_ERR(result);
 
-    for(unsigned int k=0; k<nodes.size(); k++ )
-      nodes_of_quads.insert( nodes[k] ); 
+    for(unsigned int ku=0; ku<nodes.size(); ku++ )
+      nodes_of_quads.insert( nodes[ku] );
 
   }
 
@@ -897,7 +897,7 @@ EntityHandle find_block( Interface& mb, EntityType type, const int has_mid_nodes
 
 EntityHandle find_sideset( Interface& mb, 
                              int sideset_id,
-                             EntityType side_type )
+                             EntityType /*side_type*/ )
 {
   ErrorCode rval;
   Tag ss_tag;

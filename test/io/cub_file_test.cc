@@ -679,8 +679,8 @@ void test_geometric_sets()
     // are adjacent to some entity in one of its parents.
   Range parents, geom, nodes, tmp;
   for (int d = 0; d < 3; ++d) {
-    const void* vals[] = {&d};
-    rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &dim_tag, vals, 1, geom );
+    const void* vals1[] = {&d};
+    rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &dim_tag, vals1, 1, geom );
     CHECK_ERR(rval);
     
     for (i = geom.begin(); i != geom.end(); ++i) {

@@ -81,7 +81,7 @@ static void _run_test( TestFunc func, const char* func_str )
   }
 }
 
-int main(int argc, char* argv[])
+int main(int /*argc*/, char** /*argv[]*/)
 {
   RUN_TEST( gather_related_test );
 

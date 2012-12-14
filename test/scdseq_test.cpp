@@ -1328,7 +1328,7 @@ void test_parallel_partitions()
     int nprocs = 0.1 + pow(2.0, (double)exp);
   
     // alljorkori
-    ErrorCode rval = test_parallel_partition(gdims, nprocs, ScdParData::ALLJORKORI);
+    rval = test_parallel_partition(gdims, nprocs, ScdParData::ALLJORKORI);
     CHECK_ERR(rval);
     
     // alljkbal

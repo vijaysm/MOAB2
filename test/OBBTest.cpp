@@ -1266,9 +1266,9 @@ void test_build_from_tri()
   min[2] = max[2] = box.scaled_axis(2) % v;
   for (i = 1; i < 21; ++i) {
     CartVect vi( coords + 3*i );
-    CartVect v = vi - box.center;
+    CartVect vLocal = vi - box.center;
     for (int j = 0; j < 3; ++j) {
-      double d = (axis[j] % v) / (axis[j] % axis[j]);
+      double d = (axis[j] % vLocal) / (axis[j] % axis[j]);
       if (d < min[j])
         min[j] = d;
       if (d > max[j])

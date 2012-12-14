@@ -28,6 +28,8 @@ int main(int argc, char *argv[])
 #ifdef USE_MPI
   int fail = MPI_Init(&argc, &argv);
   if (fail) return 1;
+#else
+  argv[0]=argv[argc-argc];// to remove the warnings in serial mode about unused variables
 #endif
   
   result += RUN_TEST(test_read_all);

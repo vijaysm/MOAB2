@@ -89,10 +89,10 @@ class DumSeq : public EntitySequence {
   private:
     int valsPerEnt;
   public: 
-    DumSeq( EntityHandle start, EntityID count, SequenceData* data, int vals_per_ent = 0 )
-      : EntitySequence( start, count, data), valsPerEnt(vals_per_ent) {}
-    DumSeq( SequenceData* data, int vals_per_ent = 0 )
-      : EntitySequence( data->start_handle(), data->size(), data), valsPerEnt(vals_per_ent) {}
+    DumSeq( EntityHandle start, EntityID count, SequenceData* data2, int vals_per_ent = 0 )
+      : EntitySequence( start, count, data2), valsPerEnt(vals_per_ent) {}
+    DumSeq( SequenceData* data2, int vals_per_ent = 0 )
+      : EntitySequence( data2->start_handle(), data2->size(), data2), valsPerEnt(vals_per_ent) {}
     
     DumSeq( DumSeq& split_from, EntityHandle here )
       : EntitySequence( split_from, here ), valsPerEnt(split_from.valsPerEnt) {}

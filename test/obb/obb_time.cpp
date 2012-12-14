@@ -100,9 +100,9 @@ int main( int argc, char* argv[] )
         usage();
       }
       char* end;
-      long t = strtol( argv[i], &end, 0 );
-      num_rays = (int)t;
-      if (*end || t < 0 || num_rays != t) {
+      long t1 = strtol( argv[i], &end, 0 );
+      num_rays = (int)t1;
+      if (*end || t1 < 0 || num_rays != t1) {
         std::cerr << "Expected positive integer following '-r'" << std::endl;
         usage();
       }
@@ -114,9 +114,9 @@ int main( int argc, char* argv[] )
         usage();
       }
       char* end;
-      long t = strtol( argv[i], &end, 0 );
-      num_xsct = (int)t;
-      if (*end || t < 0 || num_xsct != t) {
+      long t1 = strtol( argv[i], &end, 0 );
+      num_xsct = (int)t1;
+      if (*end || t1 < 0 || num_xsct != t1) {
         std::cerr << "Expected positive integer following '-i'" << std::endl;
         usage();
       }
@@ -184,7 +184,6 @@ int main( int argc, char* argv[] )
       break;
     
     ++rays;
-    CartVect point, dir;
     if (randrays.size() < cached) {
       generate_ray( box.center, box.outer_radius(), point, dir );
       ++gen;

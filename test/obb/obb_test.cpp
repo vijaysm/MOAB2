@@ -625,7 +625,7 @@ class VtkWriter : public OrientedBoxTreeTool::Op
                         int depth,
                         bool& descend );
                         
-    ErrorCode leaf( EntityHandle node ) { return MB_SUCCESS; }
+    ErrorCode leaf( EntityHandle /*node*/ ) { return MB_SUCCESS; }
     
   private:
     std::string baseName;
@@ -991,11 +991,11 @@ static bool do_ray_fire_test( OrientedBoxTreeTool& tool,
 
     double non_tol_dist2 = std::numeric_limits<double>::max();
     int non_tol_count2 = 0;
-    for (size_t i = 0; i < intersections2.size(); ++i) {
-      if (intersections2[i] > tolerance) {
+    for (size_t i2 = 0; i2 < intersections2.size(); ++i2) {
+      if (intersections2[i2] > tolerance) {
         ++non_tol_count2;
-        if (intersections2[i] < non_tol_dist2)
-          non_tol_dist2 = intersections2[i];
+        if (intersections2[i2] < non_tol_dist2)
+          non_tol_dist2 = intersections2[i2];
       }
     }
 
@@ -1008,11 +1008,11 @@ static bool do_ray_fire_test( OrientedBoxTreeTool& tool,
 
     double non_tol_dist = std::numeric_limits<double>::max();
     int non_tol_count = 0;
-    for (size_t i = 0; i < intersections.size(); ++i) {
-      if (intersections[i] > tolerance) {
+    for (size_t i3 = 0; i3 < intersections.size(); ++i3) {
+      if (intersections[i3] > tolerance) {
         ++non_tol_count;
-        if (intersections[i] < non_tol_dist)
-          non_tol_dist = intersections[i];
+        if (intersections[i3] < non_tol_dist)
+          non_tol_dist = intersections[i3];
       }
     }
 
@@ -1090,8 +1090,8 @@ static bool do_ray_fire_test( OrientedBoxTreeTool& tool,
 
       if (!leaves.empty() && write_cubit && verbosity > 2) {
         std::cout << "  intersected boxes:";
-        for (Range::iterator i= leaves.begin(); i!= leaves.end(); ++i)
-          std::cout << " " << tool.get_moab_instance()->id_from_handle(*i);
+        for (Range::iterator i2= leaves.begin(); i2!= leaves.end(); ++i2)
+          std::cout << " " << tool.get_moab_instance()->id_from_handle(*i2);
         std::cout << std::endl;
       }
     }
@@ -1337,13 +1337,13 @@ static bool do_closest_point_test( OrientedBoxTreeTool& tool,
         // as the expected value.  We just have a case where
         // the point was on an edge or vertex.
       CartVect coords[3];
-      CartVect diff(1,1,1);
+      CartVect diff1(1,1,1);
       rval = tri_coords( moab, t_tri, coords );
       if (MB_SUCCESS == rval) {
         GeomUtil::closest_location_on_tri( points[i], coords, n_result );
-        diff = n_result - t_result;
+        diff1 = n_result - t_result;
       }
-      if ((diff % diff) > tolerance) {
+      if ((diff1 % diff1) > tolerance) {
         if (verbosity)
           std::cout << "Triangle closest to " << points[i] << " INCORRECT! (" 
             << t_tri << " != " << n_tri << ")" << std::endl;
