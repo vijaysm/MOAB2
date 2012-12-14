@@ -185,7 +185,7 @@ class Spectral_hex_map {
        for (int i=0; i<_n; i++) {
          xi[0]=_ld[0].z[i];
          //double wi= _ld[0].w[i];
-         opt_vol_set_intp_3(&_data,xi);
+         opt_vol_set_intp_3((opt_data_3 *)&_data,xi); // cast away const-ness
          double wk= _ld[2].J[k];
          double wj= _ld[1].J[j];
          double wi= _ld[0].J[i];
