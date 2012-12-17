@@ -24,6 +24,7 @@
  * size = sizeof(int)
  * type = int
  * value = integer id for this set (block id from ExodusII)
+ * default value = -1
  */
 #define MATERIAL_SET_TAG_NAME  "MATERIAL_SET"
 
@@ -33,6 +34,7 @@
  * size = sizeof(int)
  * type = int
  * value = integer id for this set (nodeset id from ExodusII)
+ * default value = -1
  */
 #define DIRICHLET_SET_TAG_NAME "DIRICHLET_SET"
 
@@ -43,6 +45,7 @@
  * size = sizeof(int)
  * type = int
  * value = integer id for this set (sideset id from ExodusII)
+ * default value = -1
  */
 #define NEUMANN_SET_TAG_NAME   "NEUMANN_SET"
 
@@ -53,6 +56,7 @@
  * size = 4*sizeof(int)
  * type = int[4]
  * value = 1 (has mid nodes), 0 (does not have mid nodes)
+ * default value = [-1, -1, -1, -1]
  */
 #define HAS_MID_NODES_TAG_NAME "HAS_MID_NODES"
 
@@ -61,6 +65,7 @@
  * size = sizeof(int)
  * type = int
  * value = dimension of geom entity 
+ * default value = -1
  */
 #define GEOM_DIMENSION_TAG_NAME "GEOM_DIMENSION"
 
@@ -79,6 +84,7 @@
  * size = sizeof(int)
  * type = int
  * value = global id
+ * default value = 0 // not -1 to allow gids stored in unsigned data types
  */
 #define GLOBAL_ID_TAG_NAME "GLOBAL_ID"
 
@@ -180,6 +186,7 @@
  * bit 2: multishared (shared by > 2 procs; 0=not shared, 1=shared)
  * bit 3: interface (0=not interface, 1=interface)
  * bit 4: ghost (0=not ghost, 1=ghost)
+ * default value = 0
  */
 #define PARALLEL_STATUS_TAG_NAME "__PARALLEL_STATUS"
 

@@ -2626,41 +2626,46 @@ ErrorCode Core::tag_get_tags_on_entity(const EntityHandle entity,
 
 Tag Core::material_tag()
 {
+  const int negone = -1;
   if (0 == materialTag)
     tag_get_handle(MATERIAL_SET_TAG_NAME, 1, 
-                   MB_TYPE_INTEGER, materialTag,MB_TAG_CREAT|MB_TAG_SPARSE);
+                   MB_TYPE_INTEGER, materialTag,MB_TAG_CREAT|MB_TAG_SPARSE, &negone);
   return materialTag;
 }
 
 Tag Core::neumannBC_tag()
 {
+  const int negone = -1;
   if (0 == neumannBCTag)
     tag_get_handle(NEUMANN_SET_TAG_NAME, 1, 
-                   MB_TYPE_INTEGER, neumannBCTag,MB_TAG_CREAT|MB_TAG_SPARSE);
+                   MB_TYPE_INTEGER, neumannBCTag,MB_TAG_CREAT|MB_TAG_SPARSE, &negone);
   return neumannBCTag;
 }
 
 Tag Core::dirichletBC_tag()
 {
+  const int negone = -1;
   if (0 == dirichletBCTag)
     tag_get_handle(DIRICHLET_SET_TAG_NAME, 1, 
-                   MB_TYPE_INTEGER, dirichletBCTag,MB_TAG_CREAT|MB_TAG_SPARSE);
+                   MB_TYPE_INTEGER, dirichletBCTag,MB_TAG_CREAT|MB_TAG_SPARSE, &negone);
   return dirichletBCTag;
 }
 
 Tag Core::globalId_tag()
 {
+  const int zero = 0;
   if (0 == globalIdTag)
     tag_get_handle(GLOBAL_ID_TAG_NAME, 1, 
-                   MB_TYPE_INTEGER, globalIdTag,MB_TAG_CREAT|MB_TAG_DENSE);
+                   MB_TYPE_INTEGER, globalIdTag,MB_TAG_CREAT|MB_TAG_DENSE, &zero);
   return globalIdTag;
 }
 
 Tag Core::geom_dimension_tag()
 {
+  const int negone = -1;
   if (0 == geomDimensionTag)
     tag_get_handle(GEOM_DIMENSION_TAG_NAME, 1, 
-                   MB_TYPE_INTEGER, geomDimensionTag,MB_TAG_CREAT|MB_TAG_SPARSE);
+                   MB_TYPE_INTEGER, geomDimensionTag,MB_TAG_CREAT|MB_TAG_SPARSE, &negone);
   return geomDimensionTag;
 }
 

@@ -19,6 +19,9 @@ Version 4.6pre:
 * Additions/improvements to examples
 * New performance tests that include direct tag access tests
 * Undeprecated one of the "tag_get_handle" functions for returning tag handle given tag name
+* Several conventional tags (GLOBAL_ID, MATERIAL_SET, others) now have conventional default 
+  values; see src/MBTagConventions.hpp for a list of default values and other conventional tag
+  characteristics.
 
 Version 4.5:
 * ITAPS: added iMesh_stepEntIter, iMesh_stepEntArrIter, iMesh_tagIterate, iMesh_createTagWithOptions (see iMesh_extensions.h)

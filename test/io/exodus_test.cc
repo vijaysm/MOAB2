@@ -371,7 +371,8 @@ void mb_write_mesh_test()
     //tag the meshset so it's a block, with id 100
   int id = 100;
   Tag tag_handle;
-  result = MB->tag_get_handle( MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, tag_handle ) ;
+  const int negone = -1;
+  result = MB->tag_get_handle( MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, tag_handle, 0, &negone) ;
   CHECK_ERR(result);
   result = MB->tag_set_data( tag_handle, &block_ms, 1, &id ) ;
   CHECK_ERR(result);
@@ -380,7 +381,7 @@ void mb_write_mesh_test()
   CHECK_ERR(result);
 
     // set dimension tag on this to ensure shells get output; reuse id variable
-  result = MB->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, tag_handle) ;
+  result = MB->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, tag_handle, 0, &negone) ;
   CHECK_ERR(result);
   id = 3;
   result = MB->tag_set_data( tag_handle, &block_of_shells, 1, &id ) ;
@@ -436,7 +437,7 @@ void mb_write_mesh_test()
 
     //tag the meshset so it's a sideset, with id 104
   id = 104;
-  result = MB->tag_get_handle( NEUMANN_SET_TAG_NAME, 1, MB_TYPE_INTEGER, tag_handle ) ;
+  result = MB->tag_get_handle( NEUMANN_SET_TAG_NAME, 1, MB_TYPE_INTEGER, tag_handle, 0, &negone) ;
   CHECK_ERR(result);
 
   result = MB->tag_set_data( tag_handle, &sideset_ms, 1, &id ) ;
@@ -594,7 +595,7 @@ void mb_write_mesh_test()
 
     //tag it so it's a sideset
   id = 444;
-  result = MB->tag_get_handle( "NEUMANN_SET", 1, MB_TYPE_INTEGER, tag_handle ) ;
+  result = MB->tag_get_handle( "NEUMANN_SET", 1, MB_TYPE_INTEGER, tag_handle, 0, &negone) ;
   CHECK_ERR(result);
 
   result = MB->tag_set_data( tag_handle, &meshset_abc, 1, &id ) ;
@@ -611,7 +612,7 @@ void mb_write_mesh_test()
 
     //tag the meshset so it's a nodeset, with id 119
   id = 119;
-  result = MB->tag_get_handle( DIRICHLET_SET_TAG_NAME, 1, MB_TYPE_INTEGER, tag_handle ) ;
+  result = MB->tag_get_handle( DIRICHLET_SET_TAG_NAME, 1, MB_TYPE_INTEGER, tag_handle, 0, &negone) ;
   CHECK_ERR(result);
 
   result = MB->tag_set_data( tag_handle, &nodeset_ms, 1, &id ) ;
@@ -871,9 +872,11 @@ EntityHandle find_block( Interface& mb, EntityType type, const int has_mid_nodes
 
   ErrorCode rval;
   Tag ho_tag, block_tag;
-  rval = mb.tag_get_handle( MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, block_tag );
+  const int negone = -1;
+  rval = mb.tag_get_handle( MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, block_tag, 0, &negone);
   CHECK_ERR(rval);
-  rval = mb.tag_get_handle( HAS_MID_NODES_TAG_NAME, 4, MB_TYPE_INTEGER, ho_tag );
+  const int mids[] = {-1, -1, -1, -1};
+  rval = mb.tag_get_handle( HAS_MID_NODES_TAG_NAME, 4, MB_TYPE_INTEGER, ho_tag, 0, mids);
   CHECK_ERR(rval);
   
   // get material sets with expected higher-order nodes
@@ -901,7 +904,8 @@ EntityHandle find_sideset( Interface& mb,
 {
   ErrorCode rval;
   Tag ss_tag;
-  rval = mb.tag_get_handle( NEUMANN_SET_TAG_NAME, 1, MB_TYPE_INTEGER, ss_tag );
+  const int negone = -1;
+  rval = mb.tag_get_handle( NEUMANN_SET_TAG_NAME, 1, MB_TYPE_INTEGER, ss_tag, 0, &negone);
   CHECK_ERR(rval);
   
   const void* tag_vals[] = { &sideset_id };
