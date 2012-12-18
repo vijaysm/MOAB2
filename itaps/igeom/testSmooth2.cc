@@ -167,7 +167,9 @@ int main(int argc, char *argv[]) {
    iMesh_Instance mesh = NULL;
    FBiGeom_Instance geom;
    iMesh_newMesh(NULL, &mesh, &err, 0);
-   CHECK( "Failed to create a mesh instance.\n");
+   if (err != iBase_SUCCESS)
+     std::cerr << " Error code: " << err
+              << "  At        : " << __FILE__ << ':' << __LINE__ << std::endl;
 
    iBase_EntitySetHandle root_set;
    iMesh_createEntSet(mesh, 0, &root_set, &err);

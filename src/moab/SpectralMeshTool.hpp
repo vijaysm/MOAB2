@@ -87,12 +87,12 @@ public:
      * \return order Order set on this instance
      */
   int spectral_order() {return spectralOrder;}
-
+/*
   struct ConnMap 
   {
     const short a[16];
   };
-      
+  */
   static const short int permute_array[];
   
   static const short int lin_permute_array[];

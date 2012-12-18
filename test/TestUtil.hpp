@@ -375,7 +375,7 @@ void check_equal( const std::string& A, const std::string& B, const char* sA, co
 void check_equal( float A, float B, float eps, const char* sA, const char* sB, int line, const char* file )
   {  EQUAL_TEST_IMPL( fabsf(A - B) <= eps, f ) }
 
-void check_equal( double A, double B, float eps, const char* sA, const char* sB, int line, const char* file )
+void check_equal( double A, double B, double eps, const char* sA, const char* sB, int line, const char* file )
   {  EQUAL_TEST_IMPL( fabs(A - B) <= eps, f ) }
 
 const char* mb_error_str( moab::ErrorCode err )
