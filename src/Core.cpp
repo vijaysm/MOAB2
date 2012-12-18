@@ -2900,21 +2900,8 @@ ErrorCode Core::list_entities(const EntityHandle *entities,
     }
     std::cout << std::endl;
 
-      // if negative num_entities, list the set hierarchy too
-    if (0 > num_entities) {
-      Range sets;
-      result = this->get_entities_by_type(0, MBENTITYSET, sets);
-      if (MB_SUCCESS != result) return result;
-      for (Range::iterator rit = sets.begin(); rit != sets.end(); rit++) {
-        this->print(*rit, "", true);
-        result = this->get_number_entities_by_handle(*rit, num_ents);
-        std::cout << "(" << num_ents << " total entities)" << std::endl;
-      }
-    }
-    
     return MB_SUCCESS;
   }
-      
   else if (NULL == entities && num_entities < 0) {
 
       // list all entities of all types
@@ -2925,7 +2912,6 @@ ErrorCode Core::list_entities(const EntityHandle *entities,
 
     return list_entities(temp_range);
   }
-
   else if (NULL == entities && num_entities > 0) {
 
       // list all entities of type == num_entities
@@ -2934,7 +2920,6 @@ ErrorCode Core::list_entities(const EntityHandle *entities,
 
     return list_entities(temp_range);
   }
-
   else {
     ErrorCode tmp_result;
     for (int i = 0; i < num_entities; i++) {
