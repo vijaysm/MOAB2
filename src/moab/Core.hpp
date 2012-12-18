@@ -944,6 +944,7 @@ public:
    *\param end         One past the last entity for which data is desired.
    *\param count       The number of entities for which data was returned
    *\param data_ptr    Output: pointer to tag storage.
+   *\param allocate    If true, space for this tag will be allocated, if not it wont
    *  
    *\Note If this function is called for entities for which no tag value
    *      has been set, but for which a default value exists, it will 
@@ -978,7 +979,8 @@ public:
                                  Range::const_iterator begin,
                                  Range::const_iterator end,
                                  int& count,
-                                 void*& data_ptr );
+                                 void*& data_ptr,
+                                 bool allocate = true);
 
   //! creates a mesh set
   virtual ErrorCode create_meshset(const unsigned int options, 

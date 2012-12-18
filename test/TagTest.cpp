@@ -2144,11 +2144,12 @@ void test_tag_iterate_common( TagType storage, bool with_default )
   
   // Set tag values
   std::vector<int> values( verts.size(), defval );
-  if (!with_default) 
+  if (!with_default) {
     for (size_t j = 0; j < values.size(); ++j)
       values[j] = j;
-  rval = mb.tag_set_data( tag, verts, &values[0] );
-  CHECK_ERR(rval);
+    rval = mb.tag_set_data( tag, verts, &values[0] );
+    CHECK_ERR(rval);
+  }
   
   // Check that we get back expected values
   i = verts.begin();
@@ -2158,11 +2159,16 @@ void test_tag_iterate_common( TagType storage, bool with_default )
     ptr = 0;
     rval = mb.tag_iterate( tag, i, verts.end(), count, ptr );
     CHECK_ERR(rval);
+
     
     assert(total + count <= (int)verts.size());
     CHECK_ARRAYS_EQUAL( &values[total], count, reinterpret_cast<int*>(ptr), count );
+
+    if (i == verts.begin() && with_default && storage == MB_TAG_SPARSE) ((int*)ptr)[0] = 1.0;
+
     i += count;
     total += count;
+
   }
   
   // Check that we can set values

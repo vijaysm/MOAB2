@@ -314,7 +314,8 @@ public:
                          Error* error_handler, 
                          Range::iterator& iter,
                          const Range::iterator& end,
-                         void*& data_ptr );
+                         void*& data_ptr,
+                         bool allocate = true);
 
   /**\brief Get all tagged entities
    *

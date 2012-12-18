@@ -464,7 +464,8 @@ ErrorCode VarLenDenseTag::tag_iterate( SequenceManager*,
                                        Error* error, 
                                        Range::iterator&,
                                        const Range::iterator&,
-                                       void*& )
+                                       void*&,
+                                       bool)
 {
   error->set_last_error( "Cannot iterate over variable-length tag data" );
   return MB_VARIABLE_DATA_LENGTH;

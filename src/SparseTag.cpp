@@ -71,37 +71,36 @@ ErrorCode SparseTag::release_all_data( SequenceManager*, Error*, bool )
 ErrorCode SparseTag::set_data(Error*, EntityHandle entity_handle, const void* data)
 {
 #ifdef HAVE_UNORDERED_MAP
-  MapType::iterator iterator = mData.find(entity_handle);
+  MapType::iterator iter = mData.find(entity_handle);
 #else
-  MapType::iterator iterator = mData.lower_bound(entity_handle);
+  MapType::iterator iter = mData.lower_bound(entity_handle);
 #endif
   
   // data space already exists
-  if (iterator!= mData.end() && iterator->first == entity_handle)
+  if (iter!= mData.end() && iter->first == entity_handle)
   {
-    memcpy( iterator->second, data, get_size());
+    memcpy( iter->second, data, get_size());
   }
   // we need to make some data space
   else 
   {
-    void* new_data = mAllocator.allocate(get_size());
+    void *new_data = allocate_data(entity_handle, iter, false);
     memcpy(new_data, data, get_size());
-    mData.insert(iterator, std::pair<const EntityHandle,void*>(entity_handle, new_data));
   }
 
   return MB_SUCCESS;
 }
 
-ErrorCode SparseTag::get_data_ptr(Error* error, EntityHandle entity_handle, const void*& ptr) const
+ErrorCode SparseTag::get_data_ptr(EntityHandle entity_handle, const void*& ptr, bool allocate) const
 {
   MapType::const_iterator iter = mData.find(entity_handle);
 
   if (iter != mData.end())
     ptr = iter->second;
-  else if (get_default_value())
-    ptr = get_default_value();
+  else if (get_default_value() && allocate)
+    ptr = const_cast<SparseTag*>(this)->allocate_data(entity_handle, iter, allocate);
   else 
-    return not_found(error, get_name(), entity_handle);;
+    return MB_FAILURE;
   
   return MB_SUCCESS;
 }
@@ -109,10 +108,17 @@ ErrorCode SparseTag::get_data_ptr(Error* error, EntityHandle entity_handle, cons
 ErrorCode SparseTag::get_data(Error* error, EntityHandle entity_handle, void* data) const
 {
   const void* ptr = 0;
-  ErrorCode rval = get_data_ptr( error, entity_handle, ptr );
-  if (MB_SUCCESS == rval) 
+  ErrorCode rval = get_data_ptr(entity_handle, ptr, false);
+  if (MB_SUCCESS == rval) {
     memcpy( data, ptr, get_size() );
-  return rval;
+    return rval;
+  }
+  else if (get_default_value()) {
+    memcpy( data, get_default_value(), get_size() );
+    return MB_SUCCESS;
+  }
+  else 
+    return not_found(error, get_name(), entity_handle);;    
 }
 
 ErrorCode SparseTag::remove_data( Error* error, EntityHandle entity_handle )
@@ -166,11 +172,18 @@ ErrorCode SparseTag::get_data( const SequenceManager*,
     SysUtil::setmem( data_lengths, &len, sizeof(int), num_entities );
   }
 
-  ErrorCode rval;
-  for (size_t i = 0; i < num_entities; ++i, ++pointers)
-    if (MB_SUCCESS != (rval = get_data_ptr(error, entities[i], *pointers)))
-      return rval;
-  return MB_SUCCESS;
+  ErrorCode rval = MB_SUCCESS, rval_tmp;
+  for (size_t i = 0; i < num_entities; ++i, ++pointers) {
+    rval_tmp = get_data_ptr(entities[i], *pointers);
+    if (MB_SUCCESS != rval_tmp && get_default_value()) {
+      *pointers = get_default_value();
+    }
+    else if (MB_SUCCESS != rval_tmp) {
+      rval = not_found(error, get_name(), entities[i]);
+    }
+  }
+  
+  return rval;
 }
  
 ErrorCode SparseTag::get_data( const SequenceManager*,
@@ -184,12 +197,19 @@ ErrorCode SparseTag::get_data( const SequenceManager*,
     SysUtil::setmem( data_lengths, &len, sizeof(int), entities.size() );
   }
 
-  ErrorCode rval;
+  ErrorCode rval = MB_SUCCESS, rval_tmp;
   Range::const_iterator i;
-  for (i = entities.begin(); i != entities.end(); ++i, ++pointers)
-    if (MB_SUCCESS != (rval = get_data_ptr(error, *i, *pointers)))
-      return rval;
-  return MB_SUCCESS;
+  for (i = entities.begin(); i != entities.end(); ++i, ++pointers) {
+    rval_tmp = get_data_ptr(*i, *pointers);
+    if (MB_SUCCESS != rval_tmp && get_default_value()) {
+      *pointers = get_default_value();
+    }
+    else if (MB_SUCCESS != rval_tmp) {
+      rval = not_found(error, get_name(), *i);
+    }
+  }
+  
+  return rval;
 }
 
 ErrorCode SparseTag::set_data( SequenceManager* seqman,
@@ -334,7 +354,8 @@ ErrorCode SparseTag::tag_iterate( SequenceManager* seqman,
                                   Error* error,
                                   Range::iterator& iter,
                                   const Range::iterator& end,
-                                  void*& data_ptr )
+                                  void*& data_ptr,
+                                  bool allocate)
 {
     // Note: We are asked to returning a block of contiguous storage
     //       for some block of contiguous handles for which the tag 
@@ -355,16 +376,18 @@ ErrorCode SparseTag::tag_iterate( SequenceManager* seqman,
 
     // get pointer to tag storage for entity pointed to by iter
   const void* ptr = NULL;
-  rval = get_data_ptr( 0, *iter, ptr );
+  rval = get_data_ptr(*iter, ptr );
   if (MB_SUCCESS == rval) 
     data_ptr = const_cast<void*>(ptr);
-  else if (MB_TAG_NOT_FOUND != rval)
-    return rval;
-  else if (get_default_value())
-    ptr = get_default_value();
-  else
+  else if (get_default_value() && allocate)
+    ptr = allocate_data(*iter, mData.end());
+  else {
+      // if allocation was not requested, need to increment the iterator so that
+      // the count can be computed properly
+    if (get_default_value() && !allocate) iter++;
     return not_found( error, get_name(), *iter );;
-
+  }
+  
     // increment iterator and return
   ++iter;
   return MB_SUCCESS;

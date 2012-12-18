@@ -290,6 +290,7 @@ public:
    *                   which data was returned.
    *\param end         One past the last entity for which data is desired
    *\param data_ptr    Output: pointer to tag storage.
+   *\param allocate    If true, space for this tag will be allocated, if not it wont
    *  
    *\Note If this function is called for entities for which no tag value
    *      has been set, but for which a default value exists, it will 
@@ -302,7 +303,8 @@ public:
                          Error* error_handler, 
                          Range::iterator& iter,
                          const Range::iterator& end,
-                         void*& data_ptr );
+                         void*& data_ptr,
+                         bool allocate);
 
   /**\brief Get all tagged entities
    *

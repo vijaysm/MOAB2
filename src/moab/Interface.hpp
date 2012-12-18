@@ -1749,6 +1749,7 @@ public:
    *\param end         One past the last entity for which data is desired.
    *\param count       The number of entities for which data was returned
    *\param data_ptr    Output: pointer to tag storage.
+   *\param allocate    If true, space for this tag will be allocated, if not it wont
    *  
    *\Note If this function is called for entities for which no tag value
    *      has been set, but for which a default value exists, it will 
@@ -1783,7 +1784,8 @@ public:
                                  Range::const_iterator begin,
                                  Range::const_iterator end,
                                  int& count,
-                                 void*& data_ptr ) = 0;
+                                 void*& data_ptr,
+                                 bool allocate = true) = 0;
 
     //! Remove a tag from the database and delete all of its associated data
     /** Deletes a tag and all associated data.

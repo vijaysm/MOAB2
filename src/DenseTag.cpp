@@ -548,7 +548,8 @@ ErrorCode DenseTag::tag_iterate( SequenceManager* seqman,
                                  Error* error,
                                  Range::iterator& iter,
                                  const Range::iterator& end,
-                                 void*& data_ptr )
+                                 void*& data_ptr,
+                                 bool allocate)
 {
     // If asked for nothing, successfully return nothing.
   if (iter == end)
@@ -556,7 +557,7 @@ ErrorCode DenseTag::tag_iterate( SequenceManager* seqman,
   
   unsigned char* array;
   size_t avail;
-  ErrorCode rval = get_array( seqman, error, *iter, array, avail, true );
+  ErrorCode rval = get_array( seqman, error, *iter, array, avail, allocate);
   if (MB_SUCCESS != rval)
     return rval;
   data_ptr = array;

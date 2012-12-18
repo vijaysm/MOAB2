@@ -316,6 +316,7 @@ public:
    *                   which data was returned.
    *\param end         One past the last entity for which data is desired
    *\param data_ptr    Output: pointer to tag storage.
+   *\param allocate    If true, space for this tag will be allocated, if not it wont
    *  
    *\Note If this function is called for entities for which no tag value
    *      has been set, but for which a default value exists, it will 
@@ -328,7 +329,8 @@ public:
                          Error* error_handler, 
                          Range::iterator& iter,
                          const Range::iterator& end,
-                         void*& data_ptr );
+                         void*& data_ptr,
+                         bool allocate = true);
 
   /**\brief Get all tagged entities
    *
@@ -417,6 +419,9 @@ private:
   
   SparseTag( const SparseTag& );
   SparseTag& operator=( const SparseTag& );
+
+    //! allocate an entry for this sparse tag w/o setting its value (yet)
+  inline void *allocate_data(EntityHandle h, MapType::const_iterator iter, bool copy_default = true);
   
   //! set the tag data for an entity id
   //!\NOTE Will fail with MB_VARIABLE_DATA_LENGTH if called for 
@@ -432,7 +437,7 @@ private:
 
   //! get the variable-length data for an entity id
   inline
-  ErrorCode get_data_ptr(Error*, EntityHandle entity_handle, const void*& data) const;
+  ErrorCode get_data_ptr(EntityHandle entity_handle, const void*& data, bool allocate = true) const;
 
   //! removes the data
   inline
@@ -443,6 +448,15 @@ private:
 
   MapType mData;
 };
+
+inline void *SparseTag::allocate_data(EntityHandle h, MapType::const_iterator iter, bool copy_default) 
+{
+  void* new_data = mAllocator.allocate(get_size());
+  mData.insert(iter, std::pair<const EntityHandle,void*>(h, new_data));
+  if (copy_default)
+    memcpy(new_data, get_default_value(), get_size());
+  return new_data;
+}
 
 } // namespace moab
 

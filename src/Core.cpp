@@ -2483,11 +2483,13 @@ ErrorCode Core::tag_iterate( Tag tag_handle,
                              Range::const_iterator iter,
                              Range::const_iterator end,
                              int& count,
-                             void*& data_ptr )
+                             void*& data_ptr,
+                             bool allocate)
 {
   Range::const_iterator init = iter;
   assert(valid_tag_handle( tag_handle ));
-  ErrorCode result = tag_handle->tag_iterate( sequenceManager, mError, iter, end, data_ptr );
+  ErrorCode result = tag_handle->tag_iterate( sequenceManager, mError, iter, end, data_ptr, 
+                                              allocate);
   if (MB_SUCCESS == result)
     count = iter - init;
   return result;
@@ -2887,7 +2889,7 @@ ErrorCode Core::list_entities(const EntityHandle *entities,
 {
   Range temp_range;
   ErrorCode result = MB_SUCCESS;
-  if (NULL == entities && num_entities <= 0) {
+  if (NULL == entities && num_entities == 0) {
       // just list the numbers of each entity type
     int num_ents;
     std::cout << std::endl;
@@ -2913,13 +2915,22 @@ ErrorCode Core::list_entities(const EntityHandle *entities,
     return MB_SUCCESS;
   }
       
-  else if (NULL == entities) {
+  else if (NULL == entities && num_entities < 0) {
 
       // list all entities of all types
     std::cout << std::endl;
     for (EntityType this_type = MBVERTEX; this_type < MBMAXTYPE; this_type++) {
       result = get_entities_by_type(0, this_type, temp_range);
     }
+
+    return list_entities(temp_range);
+  }
+
+  else if (NULL == entities && num_entities > 0) {
+
+      // list all entities of type == num_entities
+    std::cout << std::endl;
+    result = get_entities_by_type(0, (EntityType)num_entities, temp_range);
 
     return list_entities(temp_range);
   }

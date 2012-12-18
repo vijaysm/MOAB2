@@ -275,7 +275,8 @@ ErrorCode MeshTag::tag_iterate( SequenceManager*,
                                 Error* error,
                                 Range::iterator& beg,
                                 const Range::iterator& end,
-                                void*& )
+                                void*&,
+                                bool)
 {
   if (beg == end)
     return MB_SUCCESS;

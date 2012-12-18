@@ -332,7 +332,8 @@ ErrorCode BitTag::tag_iterate( SequenceManager*,
                                Error* error,
                                Range::iterator&,
                                const Range::iterator&,
-                               void*& )
+                               void*&,
+                               bool )
   { return report_unsupported(error); }
 
 template <class Container> inline 
