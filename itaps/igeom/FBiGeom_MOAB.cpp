@@ -387,6 +387,8 @@ void FBiGeom_isArrAdj(FBiGeom_Instance instance,
     index1 += index1_step;
     index2 += index2_step;
   }
+  // it is now safe to set the size
+  *is_adjacent_info_size = count;
 
   RETURN(iBase_SUCCESS);
 }
@@ -410,21 +412,22 @@ void FBiGeom_getArrClosestPt(FBiGeom_Instance instance,
                              int* on_coordinates_allocated, int* on_coordinates_size, int* err) {
   CHECK_SIZE(*on_coordinates, *on_coordinates_allocated,
              near_coordinates_size, double, NULL);
+
   for (int i = 0; i < entity_handles_size; i++) {
     if (storage_order == iBase_INTERLEAVED) {
-      FBiGeom_getEntClosestPt(instance, entity_handles[i], near_coordinates[3
-                                                                            * i], near_coordinates[3 * i + 1], near_coordinates[3 * i + 2],
-                              on_coordinates[3 * i], on_coordinates[3 * i + 1],
-                              on_coordinates[3 * i + 2], err);
+      FBiGeom_getEntClosestPt(instance, entity_handles[i],
+          near_coordinates[3*i], near_coordinates[3*i+1], near_coordinates[3*i+2],
+          on_coordinates[3*i], on_coordinates[3*i+1], on_coordinates[3*i+2],
+          err);
     } else if (storage_order == iBase_BLOCKED) {
       FBiGeom_getEntClosestPt(instance, entity_handles[i],
-                              near_coordinates[i], near_coordinates[i + entity_handles_size],
-                              near_coordinates[i + 2 * entity_handles_size],
-                              on_coordinates[i], on_coordinates[i + entity_handles_size],
-                              on_coordinates[i + 2 * entity_handles_size], err);
+          near_coordinates[i], near_coordinates[i+entity_handles_size], near_coordinates[i+2*entity_handles_size],
+          on_coordinates[i], on_coordinates[i+entity_handles_size], on_coordinates[i+2*entity_handles_size],
+          err);
     }
     FWDERR();
   }
+  *on_coordinates_size = near_coordinates_size;
 
   RETURN(iBase_SUCCESS);
 }
@@ -503,7 +506,7 @@ void FBiGeom_getArrNrmlXYZ(FBiGeom_Instance instance,
     norm_y += norm_step;
     norm_z += norm_step;
   }
-
+  *normals_size = count;
   RETURN(iBase_SUCCESS);
 }
 
@@ -612,7 +615,8 @@ void FBiGeom_getArrNrmlPlXYZ(FBiGeom_Instance instance,
     norm_y += on_step;
     norm_z += on_step;
   }
-
+  *on_coordinates_size=count*3;
+  *normals_size = count;
   RETURN(iBase_SUCCESS);
 }
 
@@ -722,7 +726,8 @@ void FBiGeom_getArrBoundBox(FBiGeom_Instance instance,
     min_z += step;
     max_z += step;
   }
-
+  *min_corner_size = 3*entity_handles_size;
+  *max_corner_size = 3*entity_handles_size;
   RETURN(iBase_SUCCESS);
 }
 
@@ -761,7 +766,7 @@ void FBiGeom_getVtxArrCoords(FBiGeom_Instance instance,
     y += step;
     z += step;
   }
-
+  *coordinates_size= 3*entity_handles_size;
   RETURN(iBase_SUCCESS);
 }
 
@@ -894,6 +899,7 @@ void FBiGeom_measure(FBiGeom_Instance instance,
   ErrorCode rval = FBE_cast(instance)->measure((EntityHandle *) (entity_handles) ,
                                                entity_handles_size,  *measures);
   CHKERR(rval, "Failed to get measures");
+  *measures_size=entity_handles_size;
   RETURN(iBase_SUCCESS);
 }
 
@@ -1195,7 +1201,7 @@ void FBiGeom_deleteAll(FBiGeom_Instance instance, int* err) {
   RETURN(iBase_NOT_SUPPORTED);
 }
 
-void FBiGeom_deleteEnt(FBiGeom_Instance instance, iBase_EntityHandle entity_handle,
+void FBiGeom_deleteEnt(FBiGeom_Instance instance, iBase_EntityHandle /*entity_handle*/,
                        int* err) {
   RETURN(iBase_NOT_SUPPORTED);
 }
