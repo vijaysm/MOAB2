@@ -20,8 +20,8 @@ namespace moab {
 
 
 //! Constructor
-ProcConfig::ProcConfig(MPI_Comm proc_comm) 
-    : procComm(proc_comm),
+ProcConfig::ProcConfig(MPI_Comm proc_comm1)
+    : procComm(proc_comm1),
       crystalData(0)
 {
 #ifdef USE_MPI
