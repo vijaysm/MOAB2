@@ -57,6 +57,7 @@ int main(int argc, char **argv)
       {
         EPS1=atof(argv[++index]);
       }
+      index++;
     }
   }
   result += RUN_TEST(test_intx_in_parallel);
