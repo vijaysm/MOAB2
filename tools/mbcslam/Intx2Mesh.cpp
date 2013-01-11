@@ -445,29 +445,29 @@ ErrorCode Intx2Mesh::locate_departure_points(EntityHandle euler_set)
     return rval;
   // get the DP tag, and values for each node in the euler set
   // get first all entities in the set
-  Range local_ents;
-  rval = mb->get_entities_by_dimension(euler_set, 2, local_ents);
+  localEnts.clear(); // just to make sure :)
+  rval = mb->get_entities_by_dimension(euler_set, 2, localEnts);
   ERRORR(rval, "can't get ents by dimension");
 
   // get all the owned nodes on this euler set
   Range local_verts;
-  rval = mb->get_connectivity(local_ents, local_verts);
+  rval = mb->get_connectivity(localEnts, local_verts);
   if (parcomm)
   {
     // get only those that are owned by this proc
     rval = parcomm->filter_pstatus(local_verts, PSTATUS_NOT_OWNED, PSTATUS_NOT);
     ERRORR(rval, "can't filter verts");
-    rval = parcomm->filter_pstatus(local_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);
+    rval = parcomm->filter_pstatus(localEnts, PSTATUS_NOT_OWNED, PSTATUS_NOT);
     ERRORR(rval, "can't filter elements");
   }
 
-  rval = locate_departure_points(local_ents, local_verts);
+  rval = locate_departure_points(local_verts);
   ERRORR(rval, "can't locate departure points");
 
   return MB_SUCCESS;
 }
 // store
-ErrorCode Intx2Mesh::locate_departure_points(Range & local_elements, Range & local_verts)
+ErrorCode Intx2Mesh::locate_departure_points(Range & local_verts)
 {
   // get the DP tag , and get the departure points
   Tag tagh = 0;
@@ -500,7 +500,7 @@ ErrorCode Intx2Mesh::locate_departure_points(Range & local_elements, Range & loc
 
   // store the remote handle (element) where the point is located in
   // we do not need another array like mappedPts or locs
-  source_pts.initialize(2, 0, 1, 0, target_pts.get_max());
+  source_pts.initialize(3, 0, 0, 0, target_pts.get_max());
   source_pts.enableWriteAccess();
 
   source_pts.set_n(0);
@@ -562,15 +562,15 @@ ErrorCode Intx2Mesh::locate_departure_points(Range & local_elements, Range & loc
            my_rank, target_pts.get_n(), num_from_me);
       // after scatter/gather:
       // target_pts.set_n( # points local proc has to map );
-      // target_pts.vi_wr[2*i] = proc sending point i
-      // target_pts.vi_wr[2*i+1] = index of point i on sending proc
+      // target_pts.vi_wr[3*i] = proc sending point i
+      // target_pts.vi_wr[3*i+1] = index of point i on sending proc
       // target_pts.vr_wr[3*i..3*i+2] = xyz of point i
       //
       // Mapping builds the tuple list:
       // source_pts.set_n (target_pts.get_n() )
       // source_pts.vi_wr[3*i] = target_pts.vi_wr[2*i] = sending proc
       // source_pts.vi_wr[3*i+1] = index of point i on sending proc
-      // source_pts.vi_wr[3*i+2] = index of mapped point (-1 if not mapped)
+      // source_pts.vi_wr[3*i+2] = index of element in localEnts (-1 if not found)
       //
 
       // test target points against my elements
@@ -616,86 +616,17 @@ ErrorCode Intx2Mesh::locate_departure_points(Range & local_elements, Range & loc
   for (int i=0; i<N; i++)
   {
     // we will look at the first point
-    EntityHandle local_element=source_pts.vul_rd[i];
-    if (0==local_element)
+    int index_in_el_range=source_pts.vi_rd[3*i+2];
+    if (-1==index_in_el_range)
       continue;
-    Range::iterator it = local_elements.find(local_element);
-    if (it==local_elements.end())
-    {
-      //big problem
-      ERRORR(MB_FAILURE, "element is not locally owned, not found in the local range");
-    }
-    int index_in_el_range = (int)(it-local_elements.begin());
 
-
-    int location[2]={source_pts.vi_rd[2*i], index_in_el_range};// processor, index in local range
-    EntityHandle local_vert=local_verts[source_pts.vi_rd[2*i+1]];
+    int location[2]={source_pts.vi_rd[3*i], index_in_el_range};// processor, index in local range
+    EntityHandle local_vert=local_verts[source_pts.vi_rd[3*i+1]];
     rval = mb->tag_set_data(tag_loc, &local_vert, 1, (void*)location);
     ERRORR(rval, "can't set the location tag");
     found_points.insert(local_vert);
   }
   printf("found points on this proc: %d\n", (int)found_points.size());
-  return MB_SUCCESS;
-      // tl.vi_wr[2*i] = remote proc mapping point
-      // tl.vi_wr[2*i+1] = local index of mapped point
-      // tl.vul_wr[i] = element handle in local ents; find the index
-#if 0
-    // source_pts.set_n( # mapped points );
-    // tl.vi_wr[2*i] = remote proc mapping point
-    // tl.vi_wr[2*i+1] = local index of mapped point
-    // tl.vul_wr[i] = element handle in local ents; find the index
-    //
-    // Local index is mapped into either myRange, holding the handles of
-    // local mapped entities, or myXyz, holding locations of mapped pts
-
-    // store information about located points
-  TupleList *tl_tmp;
-  if (!store_local)
-    tl_tmp = tl;
-  else {
-    targetPts = new TupleList();
-    tl_tmp = targetPts;
-  }
-
-  tl_tmp->initialize(3, 0, 0, 0, num_points);
-  tl_tmp->set_n(num_points); // automatically sets tl to write_enabled
-    // initialize so we know afterwards how many pts weren't located
-  std::fill(tl_tmp->vi_wr, tl_tmp->vi_wr+3*num_points, -1);
-
-  unsigned int local_pts = 0;
-  for (unsigned int i = 0; i < source_pts.get_n(); i++) {
-    if (-1 != source_pts.vi_rd[3*i+2]) { //why bother sending message saying "i don't have the point" if it gets discarded?
-      if (source_pts.vi_rd[3*i] == (int)my_rank) local_pts++;
-      int tgt_index = 3*source_pts.vi_rd[3*i+1];
-      tl_tmp->vi_wr[tgt_index]   = source_pts.vi_rd[3*i];
-      tl_tmp->vi_wr[tgt_index+1] = source_pts.vi_rd[3*i+1];
-      tl_tmp->vi_wr[tgt_index+2] = source_pts.vi_rd[3*i+2];
-    }
-  }
-
-    // count missing points
-  unsigned int missing_pts = 0;
-  for (int i = 0; i < num_points; i++)
-    if (tl_tmp->vi_rd[3*i+1] == -1) missing_pts++;
-
-  printf("rank: %d point location: wanted %d got %u locally, %d remote, missing %d\n",
-         my_rank, num_points, local_pts,  num_points-missing_pts-local_pts, missing_pts);
-  assert(0==missing_pts); //will litely break on curved geometries
-
-    // no longer need source_pts
-  source_pts.reset();
-
-    // copy into tl if passed in and storing locally
-  if (tl && store_local) {
-    tl = new TupleList(3, 0, 0, 0, num_points);
-    tl->enableWriteAccess();
-    memcpy(tl->vi_wr, tl_tmp->vi_rd, 3*tl_tmp->get_n()*sizeof(int));
-    tl->set_n( tl_tmp->get_n() );
-    tl->disableWriteAccess();
-  }
-
-  tl_tmp->disableWriteAccess();
-#endif
     // done
   return MB_SUCCESS;
 }
@@ -715,9 +646,9 @@ ErrorCode Intx2Mesh::test_local_box(double *xyz,
     if (tl->get_n() == tl->get_max())
       tl->resize(std::max(10.0, 1.5*tl->get_max()));
 
-    tl->vi_wr[2 * tl->get_n()] = from_proc;
-    tl->vi_wr[2 * tl->get_n() + 1] = remote_index;
-    tl->vul_wr[ tl->get_n() ] = 0 ;
+    tl->vi_wr[3 * tl->get_n()] = from_proc;
+    tl->vi_wr[3 * tl->get_n() + 1] = remote_index;
+    tl->vi_wr[3 * tl->get_n() + 2] = -1 ;
     tl->inc_n();
 
     return MB_SUCCESS;
@@ -733,9 +664,15 @@ ErrorCode Intx2Mesh::test_local_box(double *xyz,
       // store in tuple source_pts ; send back to source processor:
     //  remote_index, which is the index of the original point in the local list
     // and the index in the locs vector, which is actually locations (elements)
-    tl->vi_wr[2*tl->get_n()] = from_proc;// send it back to the processor that send this point
-    tl->vi_wr[2*tl->get_n()+1] = remote_index;
-    tl->vul_wr[tl->get_n()] = *eit;// so this will be the element in that has the point
+    tl->vi_wr[3*tl->get_n()] = from_proc;// send it back to the processor that send this point
+    tl->vi_wr[3*tl->get_n()+1] = remote_index;
+    EntityHandle eh=*eit;
+    Range::iterator it = localEnts.find(eh);
+    if (it == localEnts.end())
+    {
+      ERRORR(MB_FAILURE, "can't find the element in local entities");
+    }
+    tl->vi_wr[3* tl->get_n() + 2] = (int) (it-localEnts.begin());// so this will be the element in that has the point
     tl->inc_n();
   }
 

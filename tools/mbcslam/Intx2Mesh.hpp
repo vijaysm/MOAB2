@@ -65,7 +65,7 @@ public:
 
   // this will work in parallel
   ErrorCode locate_departure_points(EntityHandle euler_set); // get the points and elements from the local set
-  ErrorCode locate_departure_points(Range & local_elements, Range & local_verts);
+  ErrorCode locate_departure_points(Range & local_verts);
   ErrorCode test_local_box(double *xyz, int from_proc, int remote_index, TupleList *tl);
   ErrorCode inside_entities(double xyz[3], std::vector<EntityHandle> &entities);
 
@@ -120,6 +120,7 @@ protected: // so it can be accessed in derived classes, InPlane and OnSphere
   double box_error;
   /* \brief Local root of the kdtree */
   EntityHandle localRoot;
+  Range localEnts;// this range is for local elements of interest
 
 };
 

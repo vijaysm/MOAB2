@@ -20,6 +20,8 @@ public:
           double * P, int & nP, double & area, int markb[4], int markr[4]);
 
   int findNodes(EntityHandle red, EntityHandle blue, double * iP, int nP);
+
+  bool is_inside_element(double xyz[3], EntityHandle eh);
 };
 } // end namespace moab
 #endif /* INTX2MESHINPLANE_HPP_ */
