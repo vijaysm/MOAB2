@@ -294,9 +294,9 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, EntityHandle blue, double * i
     if (!found)
     {
       std::cout << " red quad: ";
-      for (int j = 0; j < 4; j++)
+      for (int j1 = 0; j1 < 4; j1++)
       {
-        std::cout << redQuad[2 * j] << " " << redQuad[2 * j + 1] << "\n";
+        std::cout << redQuad[2 * j1] << " " << redQuad[2 * j1 + 1] << "\n";
       }
       std::cout << " a point pp is not on a red quad " << *pp << " " << pp[1]
           << " red quad " << mb->id_from_handle(red) << " \n";
@@ -327,13 +327,13 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, EntityHandle blue, double * i
 
       std::cout << "Count: " << count+1 << "\n";
       std::cout << " polygon " << mb->id_from_handle(polyNew) << "  nodes: " << nP << " :";
-      for (int i = 0; i < nP; i++)
-        std::cout << " " << mb->id_from_handle(foundIds[i]);
+      for (int i1 = 0; i1 < nP; i1++)
+        std::cout << " " << mb->id_from_handle(foundIds[i1]);
       std::cout << " plane: " << plane << "\n";
       std::vector<CartVect> posi(nP);
       mb->get_coords(foundIds, nP, &(posi[0][0]));
-      for (int i = 0; i < nP; i++)
-        std::cout << iP[2 * i] << " " << iP[2 * i + 1] << " " << posi[i] << "\n";
+      for (int i1 = 0; i1 < nP; i1++)
+        std::cout << iP[2 * i1] << " " << iP[2 * i1 + 1] << " " << posi[i1] << "\n";
 
       std::stringstream fff;
       fff << "file0" <<  count<< ".vtk";
@@ -348,5 +348,43 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, EntityHandle blue, double * i
   foundIds = NULL;
   return 0;
 }
+bool Intx2MeshOnSphere::is_inside_element(double xyz[3], EntityHandle eh)
+{
+  int num_nodes;
+  ErrorCode rval = mb->get_connectivity(eh, redConn, num_nodes);
 
+  if (MB_SUCCESS != rval || num_nodes != 4)
+    return false;
+  int nsides = num_nodes;
+
+  //CartVect coords[4];
+  rval = mb->get_coords(redConn, num_nodes, &(redCoords[0][0]));
+  if (MB_SUCCESS != rval)
+    return 1;
+  CartVect center(0.,0.,0.);
+  for (int k=0; k<num_nodes; k++)
+      center += redCoords[k];
+  center = 1./num_nodes*center;
+  decide_gnomonic_plane(center, plane);// output the plane
+  for (int j = 0; j < nsides; j++)
+  {
+    // populate coords in the plane for decision making
+    // they should be oriented correctly, positively
+    int rc = gnomonic_projection(redCoords[j],  R, plane, redQuad[2 * j],
+        redQuad[2 * j + 1]);
+    if (rc != 0)
+      return false;
+  }
+  double pt[2];
+  CartVect pos(xyz);
+  int rc=gnomonic_projection(pos, R, plane, pt[0], pt[1]);
+  if (rc != 0)
+    return false;
+
+  // now, is the projected point inside the red quad?
+  // cslam utils
+  if (point_in_interior_of_convex_polygon (redQuad, 4, pt))
+    return true;
+  return false;
+}
 } /* namespace moab */

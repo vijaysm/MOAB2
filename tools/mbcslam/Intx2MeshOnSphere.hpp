@@ -27,6 +27,8 @@ public:
 
   int findNodes(EntityHandle red, EntityHandle blue, double * iP, int nP);
 
+  bool is_inside_element(double xyz[3], EntityHandle eh);
+
 private:
   int plane; // current gnomonic plane
   double R; // radius of the sphere

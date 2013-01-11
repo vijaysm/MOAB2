@@ -88,5 +88,6 @@ ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle &
  */
 ErrorCode ProjectOnSphere(Interface * mb, EntityHandle set, double R);
 
+bool point_in_interior_of_convex_polygon (double * points, int np, double pt[2]);
 }
 #endif /* CSLAMUTILS_HPP_ */

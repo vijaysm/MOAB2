@@ -39,14 +39,26 @@ std::string TestDir(".");
 #endif
 
 using namespace moab;
-
+double EPS1=0.2;
 void test_intx_in_parallel();
 
 int main(int argc, char **argv)
 {
   MPI_Init(&argc, &argv);
+  EPS1 = 0.2;
   int result = 0;
 
+  if (argc>1)
+  {
+    int index=1;
+    while (index<argc)
+    {
+      if (!strcmp( argv[index], "-eps"))
+      {
+        EPS1=atof(argv[++index]);
+      }
+    }
+  }
   result += RUN_TEST(test_intx_in_parallel);
 
   MPI_Finalize();
@@ -151,7 +163,9 @@ void test_intx_in_parallel()
  
   Intx2MeshOnSphere worker(&mb);
 
-  //worker.locate_departure_points(euler_set);
+  worker.SetRadius(3*sqrt(3.));
+  worker.set_box_error(EPS1);//
+  worker.locate_departure_points(euler_set);
 
   std::string opts_write("PARALLEL=WRITE_PART");
   rval = mb.write_file("manuf.h5m", 0, opts_write.c_str(), &euler_set, 1);

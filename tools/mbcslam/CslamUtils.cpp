@@ -577,4 +577,27 @@ ErrorCode ProjectOnSphere(Interface * mb, EntityHandle set, double R)
   }
   return MB_SUCCESS;
 }
+//
+bool point_in_interior_of_convex_polygon (double * points, int np, double pt[2])
+{
+  bool inside = true;
+  // assume points are counterclockwise
+  for (int i = 0; i < np; i++)
+  {
+    // compute the area of triangles formed by a side of polygon and the pt; if one is negative, stop
+    double * A = points + 2 * i;
+
+    int i1=(i+1)%np;
+    double * B = points + 2 * i1; // no copy of data
+
+    double area2 = (B[0] - A[0]) * (pt[1] - A[1])
+        - (pt[0] - A[0]) * (B[1] - A[1]);
+    if (area2 < 0.)
+    {
+      inside = false;
+      break;
+    }
+  }
+  return inside;
+}
 } //namespace moab
