@@ -74,6 +74,8 @@ public:
   void set_box_error(double berror)
    {box_error = berror;}
 
+  ErrorCode create_departure_mesh(EntityHandle & covering_lagr_set);
+
 protected: // so it can be accessed in derived classes, InPlane and OnSphere
   Interface * mb;
 

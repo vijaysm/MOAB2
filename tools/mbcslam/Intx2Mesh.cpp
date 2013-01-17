@@ -9,6 +9,7 @@
 #include "moab/ParallelComm.hpp"
 #include "moab/AdaptiveKDTree.hpp"
 #include "MBParallelConventions.h"
+#include "MBTagConventions.hpp"
 #include <queue>
 
 namespace moab {
@@ -452,6 +453,7 @@ ErrorCode Intx2Mesh::locate_departure_points(EntityHandle euler_set)
   // get all the owned nodes on this euler set
   Range local_verts;
   rval = mb->get_connectivity(localEnts, local_verts);
+  Range all_local_verts=local_verts;
   if (parcomm)
   {
     // get only those that are owned by this proc
@@ -459,11 +461,36 @@ ErrorCode Intx2Mesh::locate_departure_points(EntityHandle euler_set)
     ERRORR(rval, "can't filter verts");
     rval = parcomm->filter_pstatus(localEnts, PSTATUS_NOT_OWNED, PSTATUS_NOT);
     ERRORR(rval, "can't filter elements");
+    // just in case we do not have global ids for vertices and elements :)
+    rval = parcomm->check_global_ids(euler_set, 2);
+    ERRORR(rval, "can't get global ids for elements and vertices");
   }
 
   rval = locate_departure_points(local_verts);
   ERRORR(rval, "can't locate departure points");
+  // experience the exchange tags;
+  // the LOC tag should be set on the owned nodes only, but try to
+  if(parcomm)
+  {
+    Tag loctag;
+    rval = mb->tag_get_handle("LOC", 2, MB_TYPE_INTEGER, loctag, MB_TAG_DENSE);
+    ERRORR(rval, "can't get LOC tag");
+    std::vector<Tag> tags;
+    tags.push_back(loctag);
 
+    rval = parcomm->exchange_tags(tags, tags, all_local_verts);
+    ERRORR(rval, "can't exchange tags");
+    /*for (Range::iterator it=all_local_verts.begin(); it!=all_local_verts.end(); it++)
+    {
+      int loc[2];
+      EntityHandle vert=*it;
+      rval = mb->tag_get_data(loctag, &vert, 1, loc);
+      if (rval==MB_SUCCESS)
+      {
+        std::cout<< " after: vertex: "<< vert << " loc: "<< loc[0] << " " << loc[1]<< " \n";
+      }
+    }*/
+  }
   return MB_SUCCESS;
 }
 // store
@@ -483,7 +510,8 @@ ErrorCode Intx2Mesh::locate_departure_points(Range & local_verts)
   // create LOC tag
   std::string loc_tag("LOC");
   Tag tag_loc = 0;
-  rval = mb->tag_get_handle(loc_tag.c_str(), 2, MB_TYPE_INTEGER, tag_loc, MB_TAG_DENSE|MB_TAG_CREAT);
+  int def_val[2]={-1,-1};
+  rval = mb->tag_get_handle(loc_tag.c_str(), 2, MB_TYPE_INTEGER, tag_loc, MB_TAG_DENSE|MB_TAG_CREAT, (void*)def_val);
   ERRORR(rval, "can't create LOC tag");
 
   // replicate some of coupler algorithm locate_points
@@ -739,5 +767,242 @@ ErrorCode Intx2Mesh::inside_entities(double xyz[3],
   //didn't find any elements containing the point
   return MB_SUCCESS;
 }
+ErrorCode Intx2Mesh::create_departure_mesh(EntityHandle & covering_lagr_set)
+{
+  // the elements are already in localEnts; get all vertices, and DP and LOC tag
+  // get the DP tag , and get the departure points
+  std::map<int, EntityHandle> globalID_to_handle;
+  std::map<int, EntityHandle> globalID_to_eh;
+  std::map<int, Range> rs;
+  std::set<int> ps; // processors working with my_rank
+  Tag dpTag = 0;
+  std::string tag_name("DP");
+  ErrorCode rval = mb->tag_get_handle(tag_name.c_str(), 3, MB_TYPE_DOUBLE, dpTag, MB_TAG_DENSE);
+  ERRORR(rval, "can't get DP tag");
+  // get all local verts
+  Range local_verts;
+  rval = mb->get_connectivity(localEnts, local_verts);
+  int num_local_verts = (int) local_verts.size();
+  ERRORR(rval, "can't get local vertices");
+  int num_owned_verts = (int)local_verts.size();
+  std::vector<double> dep_points(3*num_owned_verts);
+  rval = mb->tag_get_data(dpTag, local_verts, (void*)&dep_points[0]);
+  ERRORR(rval, "can't get DP tag values");
 
+  // get LOC tag, that was created before
+  std::string loc_tag("LOC");
+  Tag locTag = 0;
+  rval = mb->tag_get_handle(loc_tag.c_str(), 2, MB_TYPE_INTEGER, locTag, MB_TAG_DENSE);
+  ERRORR(rval, "can't get LOC tag");
+
+  Tag gid;
+  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid, MB_TAG_DENSE);
+  ERRORR(rval,"can't get global ID tag" );
+  // create vertices for DP points in this rank
+  // count how many to send; if LOC(0) != rank, we have to send to other LOC(0)
+  unsigned int v_to_send =0, q_to_send =0;
+  int my_rank = 0;
+  std::vector<int> locs(num_local_verts*2);// fill it with loc info for vertex
+  if (this->parcomm)
+  {
+    my_rank = parcomm->proc_config().proc_rank();
+    rval = mb->tag_get_data(locTag, local_verts, &locs[0]);
+    ERRORR(rval, "can't get value for LOC tag");
+
+    // look at every owned quad
+    for (Range::iterator itq=localEnts.begin(); itq!=localEnts.end(); itq++ )
+    {
+      const EntityHandle * conn4;
+      EntityHandle q=*itq;
+      int num_nodes;
+      std::set<int> ptmp;
+      rval = mb->get_connectivity(q, conn4, num_nodes);
+      ERRORR(rval, "can't get connectivity for quad");
+      for (int i=0; i<num_nodes; i++)
+      {
+        int v=conn4[i];
+        int index = (int)(local_verts.find(v)-local_verts.begin());
+        int proc = locs[2*index]; // where it was located
+        ptmp.insert(proc);
+      }
+      for (std::set<int>::iterator sit=ptmp.begin(); sit!=ptmp.end(); sit++)
+      {
+        int proc = *sit;
+        rs[proc].insert(q);
+        std::copy(conn4, conn4+num_nodes, range_inserter(rs[proc]) );
+
+      }
+      ps.insert(ptmp.begin(), ptmp.end());
+    }
+  }
+  std::vector<int> gids(num_local_verts);
+  rval = mb->tag_get_data(gid, local_verts, &gids[0]);
+  ERRORR(rval, "can't get gid tag");
+  // count now how many vertices and quads are to be sent to other processors
+  for (std::set<int>::iterator st=ps.begin(); st!=ps.end(); st++)
+  {
+    int to_proc=*st;
+    if (my_rank==to_proc)
+      continue;
+    Range & procRange = rs[to_proc];
+    v_to_send += procRange.num_of_type( MBVERTEX);
+    q_to_send += procRange.num_of_type(MBQUAD);
+  }
+  TupleList TLv;
+  TupleList TLq;
+  TLv.initialize(2, 0, 0, 3, v_to_send); // to proc, GLOBAL ID, DP points
+  TLv.enableWriteAccess();
+
+  TLq.initialize(6, 0, 0, 0, q_to_send); // to proc, elem GLOBAL ID, connectivity[4] (global ID v)
+  TLq.enableWriteAccess();
+  // is the global ID of the element needed? maybe not...
+  // at least one of the nodes is in the interior of the proc area, so the whole element needs
+  // to be copied on that processor ...
+  if (parcomm)
+  {
+    Range local=rs[my_rank];
+    Range local_dp_verts = local.subset_by_type(MBVERTEX);
+    for (Range::iterator it=local_dp_verts.begin(); it!=local_dp_verts.end(); it++)
+    {
+      int lv = *it;
+      unsigned int i = local_verts.find(lv)-local_verts.begin();
+      double posDP[3]={dep_points[3*i], dep_points[3*i+1], dep_points[3*i+2] };
+
+      // create a vertex at DP point
+      EntityHandle new_vert;
+      rval = mb->create_vertex(posDP, new_vert);
+      ERRORR(rval, "can't create new vertex");
+      globalID_to_handle[gids[i]]=new_vert;
+
+    }
+  }
+  else
+  {
+    // need to send everything to local proc; why worry about nothing?
+  }
+  if (parcomm)
+  {
+    for (std::set<int>::iterator st=ps.begin(); st!=ps.end(); st++)
+    {
+      int to_proc=*st;
+      if (to_proc==my_rank)
+        continue;
+      Range & procRange = rs[to_proc];
+      Range V = procRange.subset_by_type(MBVERTEX);
+
+      for (Range::iterator it=V.begin(); it!=V.end(); it++)
+      {
+        EntityHandle v=*it;
+        unsigned int index = local_verts.find(v)-local_verts.begin();
+        int n=TLv.get_n();
+        TLv.vi_wr[2*n] = to_proc; // send to processor
+        TLv.vi_wr[2*n+1] = gids[index]; // global id needs index in the local_verts range
+        TLv.vr_wr[3*n] = dep_points[3*index];  // departure position, of the node local_verts[i]
+        TLv.vr_wr[3*n+1] = dep_points[3*index+1];
+        TLv.vr_wr[3*n+2] = dep_points[3*index+2];
+        TLv.inc_n();
+      }
+      // also, prep the quad for sending ...
+      Range Q = procRange.subset_by_type(MBQUAD);
+      for (Range::iterator it=Q.begin(); it!=Q.end(); it++)
+      {
+        EntityHandle q=*it;
+        int global_id;
+        rval = mb->tag_get_data(gid, &q, 1, &global_id);
+        ERRORR(rval, "can't get gid for quad");
+        int n=TLq.get_n();
+        TLv.vi_wr[6*n] = to_proc; //
+        TLv.vi_wr[6*n+1] = global_id; // global id of element, used to identify it ...
+        const EntityHandle * conn4;
+        int num_nodes;
+        rval = mb->get_connectivity(q, conn4, num_nodes);
+        ERRORR(rval, "can't get connectivity for quad");
+        for (int i=0; i<num_nodes; i++)
+        {
+          EntityHandle v = conn4[i];
+          unsigned int index = local_verts.find(v)-local_verts.begin();
+          TLv.vi_wr[6*n+2+i] = gids[index];
+        }
+
+      }
+
+    }
+    // now we are done populating the tuples; route them to the appropriate processors
+    (parcomm->proc_config().crystal_router())->gs_transfer(1, TLv, 0);
+    (parcomm->proc_config().crystal_router())->gs_transfer(1, TLq, 0);
+    // now, look at every TLv, and see if we have to create a vertex there or not
+    int n=TLv.get_n();// the size of the points received
+    for (int i=0; i<n; i++)
+    {
+      int globalId = TLv.vi_rd[2*i+1];
+      if (globalID_to_handle.find(globalId)==globalID_to_handle.end())
+      {
+        EntityHandle new_vert;
+        double coords[3]= {TLv.vi_wr[3*i], TLv.vi_wr[3*i+1],  TLv.vi_wr[3*i+2]};
+        rval = mb->create_vertex(coords, new_vert);
+        ERRORR(rval, "can't create new vertex ");
+        globalID_to_handle[globalId]= new_vert;
+      }
+    }
+    // now, all dep points should be at their place (procs)
+    // look in the local list of q for this proc, and create all those quads
+    Range local=rs[my_rank];
+    Range local_q = local.subset_by_type(MBQUAD);
+    // the local should have all the vertices by now
+    for (Range::iterator it=local_q.begin(); it!=local_q.end(); it++)
+    {
+      EntityHandle q=*it;
+      int nnodes;
+      const EntityHandle * conn4;
+      rval = mb->get_connectivity(q, conn4, nnodes);
+      ERRORR(rval, "can't get connectivity of local q ");
+      EntityHandle new_conn[4];
+      for (int i=0; i<nnodes; i++)
+      {
+        EntityHandle v1=conn4[i];
+        unsigned int index = local_verts.find(v1)-local_verts.begin();
+        assert(globalID_to_handle.find(gids[index])!=globalID_to_handle.end());
+        new_conn[i] = globalID_to_handle[gids[index]];
+      }
+      EntityHandle new_quad;
+      rval = mb->create_element(MBQUAD, new_conn, 4, new_quad);
+      ERRORR(rval, "can't create new quad ");
+      rval = mb->add_entities(covering_lagr_set, &new_quad, 1);
+      ERRORR(rval, "can't add new quad to dep set");
+      int gid_el;
+      // get the global ID of the initial quad
+      rval=mb->tag_get_data(gid, &q, 1, &gid_el);
+      ERRORR(rval, "can't get element global ID ");
+      globalID_to_eh[gid_el]=new_quad;
+    }
+    // now look at all quads received through; we do not want to duplicate them
+    n=TLq.get_n();// number of quads received by this processor
+    for (int i=0; i<n; i++)
+    {
+      int globalIdEl = TLq.vi_rd[6*i+1];
+      // do we already have a quad with this global ID, represented?
+      if (globalID_to_eh.find(globalIdEl)==globalID_to_eh.end())
+      {
+        // construct the conn quad
+        EntityHandle new_conn[4];
+        for (int j=0; j<4; j++)
+        {
+          int vgid = TLq.vi_rd[6*i+2+j];// vertex global ID
+          assert(globalID_to_handle.find(vgid)!=globalID_to_handle.end());
+          new_conn[j]=globalID_to_handle[vgid];
+        }
+        EntityHandle new_quad;
+        rval = mb->create_element(MBQUAD, new_conn, 4, new_quad);
+        ERRORR(rval, "can't create new quad ");
+        globalID_to_eh[globalIdEl]=new_quad;
+        rval = mb->add_entities(covering_lagr_set, &new_quad, 1);
+        ERRORR(rval, "can't add new quad to dep set");
+      }
+    }
+  }
+  // send global ID of the euler vertex and DP position
+
+
+  return MB_SUCCESS;
+}
 } /* namespace moab */

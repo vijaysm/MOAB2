@@ -164,12 +164,37 @@ void test_intx_in_parallel()
  
   Intx2MeshOnSphere worker(&mb);
 
-  worker.SetRadius(3*sqrt(3.));
+  double radius= 3. * sqrt(3.) ; // input
+  worker.SetRadius(radius);
   worker.set_box_error(EPS1);//
+  worker.SetEntityType(MBQUAD);
+
+  worker.SetErrorTolerance(radius*1.e-8);
   worker.locate_departure_points(euler_set);
 
-  std::string opts_write("PARALLEL=WRITE_PART");
-  rval = mb.write_file("manuf.h5m", 0, opts_write.c_str(), &euler_set, 1);
+  // we need to make sure the covering set is bigger than the euler mesh
+  EntityHandle covering_lagr_set;
+  rval = mb.create_meshset(MESHSET_SET, covering_lagr_set);
+  CHECK_ERR(rval);
+
+  rval = worker.create_departure_mesh(covering_lagr_set);
+  CHECK_ERR(rval);
+  int rank = pcomm->proc_config().proc_rank();
+  std::stringstream ss;
+  ss<<"partial" << rank<<".vtk";
+  mb.write_file(ss.str().c_str(), 0, 0, &covering_lagr_set, 1);
+  EntityHandle outputSet;
+  rval = mb.create_meshset(MESHSET_SET, outputSet);
+  CHECK_ERR(rval);
+  rval = worker.intersect_meshes(covering_lagr_set, euler_set, outputSet);
+  CHECK_ERR(rval);
+
+  //std::string opts_write("PARALLEL=WRITE_PART");
+  //rval = mb.write_file("manuf.h5m", 0, opts_write.c_str(), &outputSet, 1);
+  std::string opts_write("");
+  std::stringstream outf;
+  outf<<"intersect" << rank<<".h5m";
+  rval = mb.write_file(outf.str().c_str(), 0, 0, &outputSet, 1);
   CHECK_ERR(rval);
 
 
