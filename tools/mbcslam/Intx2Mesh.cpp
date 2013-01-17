@@ -911,8 +911,8 @@ ErrorCode Intx2Mesh::create_departure_mesh(EntityHandle & covering_lagr_set)
         rval = mb->tag_get_data(gid, &q, 1, &global_id);
         ERRORR(rval, "can't get gid for quad");
         int n=TLq.get_n();
-        TLv.vi_wr[6*n] = to_proc; //
-        TLv.vi_wr[6*n+1] = global_id; // global id of element, used to identify it ...
+        TLq.vi_wr[6*n] = to_proc; //
+        TLq.vi_wr[6*n+1] = global_id; // global id of element, used to identify it ...
         const EntityHandle * conn4;
         int num_nodes;
         rval = mb->get_connectivity(q, conn4, num_nodes);
@@ -921,8 +921,9 @@ ErrorCode Intx2Mesh::create_departure_mesh(EntityHandle & covering_lagr_set)
         {
           EntityHandle v = conn4[i];
           unsigned int index = local_verts.find(v)-local_verts.begin();
-          TLv.vi_wr[6*n+2+i] = gids[index];
+          TLq.vi_wr[6*n+2+i] = gids[index];
         }
+        TLq.inc_n();
 
       }
 
@@ -938,7 +939,7 @@ ErrorCode Intx2Mesh::create_departure_mesh(EntityHandle & covering_lagr_set)
       if (globalID_to_handle.find(globalId)==globalID_to_handle.end())
       {
         EntityHandle new_vert;
-        double coords[3]= {TLv.vi_wr[3*i], TLv.vi_wr[3*i+1],  TLv.vi_wr[3*i+2]};
+        double coords[3]= {TLv.vr_wr[3*i], TLv.vr_wr[3*i+1],  TLv.vr_wr[3*i+2]};
         rval = mb->create_vertex(coords, new_vert);
         ERRORR(rval, "can't create new vertex ");
         globalID_to_handle[globalId]= new_vert;
