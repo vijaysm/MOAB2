@@ -3,6 +3,7 @@
 ################################################################################
 AC_INIT(MOAB, 4.6.0pre)
 AC_CONFIG_SRCDIR([moab.make.in])
+AC_CONFIG_SRCDIR([MOABConfig.cmake.in])
 AC_CONFIG_MACRO_DIR([config])
 AC_CONFIG_AUX_DIR([config])
 AC_CANONICAL_SYSTEM
@@ -1172,6 +1173,7 @@ AC_CONFIG_HEADERS([src/moab/Version.h
                    src/FCDefs.h])
 AC_CONFIG_FILES([Makefile 
                  moab.make                  
+		 MOABConfig.cmake
                  src/Makefile
                  src/io/Makefile
                  src/io/mhdf/Makefile

@@ -34,7 +34,7 @@ EXTRA_DIST = $(doc_DATA)
 # in $(libdir).  Define a $(cfgdir) to get around automake's
 # check that only libraries are going in $(libdir)
 cfgdir = $(libdir)
-cfg_DATA = moab.make moab.config
+cfg_DATA = moab.make moab.config MOABConfig.cmake
 
 # By default, moab.make will define these to $(srcdir).  We
 # want to override that during the INSTALL of the file so
@@ -44,7 +44,12 @@ cfg_DATA = moab.make moab.config
 install-data-hook:
 	$(AM_V_at)echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/moab.make
 	$(AM_V_at)echo "MOAB_INCLUDES=-I${includedir}" >> $(DESTDIR)$(cfgdir)/moab.make
-
+	$(AM_V_at)echo "SET(MOAB_INCLUDE_DIRS \"${includedir}\")" >> $(DESTDIR)$(cfgdir)/MOABConfig.cmake
+	echo -n "SET(MOAB_LIBRARIES \"" >> $(DESTDIR)$(cfgdir)/MOABConfig.cmake
+# next line: get the post-substitution set of link commands, then filter out leading
+# and trailing spaces, then terminate with close-quote and close-paren
+	echo -n "@EXPORT_LDFLAGS@ -L$(MOAB_LIBDIR) -lMOAB @LIBS@ @PNETCDF_LIBS@ @NETCDF_LIBS@ @HDF5_LIBS@ @CCMIO_LIBS@ @CGM_LIBS@" | \
+	   sed -e 's/^ *//;s/ *$$/\")\n/' >> $(DESTDIR)$(cfgdir)/MOABConfig.cmake
 
 # Generate a file to be installed in $libdir containing the configuration
 # options used for this MOAB build.

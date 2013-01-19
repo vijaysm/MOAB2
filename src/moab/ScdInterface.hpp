@@ -111,7 +111,8 @@ public:
     pDims[0] = pDims[1] = pDims[2] = -1;
   }
 
-    //! Partition method enumeration
+    //! Partition method enumeration; these strategies are described in comments for
+    //! compute_partition_alljorkori, compute_partition_alljkbal, compute_partition_sqij, and compute_partition_sqjk
   enum PartitionMethod {NOPART=-1, ALLJORKORI=0, ALLJKBAL, SQIJ, SQJK};
 
     //! partition method used to partition global parametric space
