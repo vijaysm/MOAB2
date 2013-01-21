@@ -441,7 +441,7 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
 }
 
 ErrorCode Coupler::test_local_box(double *xyz, 
-                                      int from_proc, int remote_index, int index, 
+                                      int from_proc, int remote_index, int /*index*/,
                                       bool &point_located,
                                   double rel_eps, double abs_eps,
                                   TupleList *tl)
@@ -519,7 +519,7 @@ ErrorCode Coupler::interpolate(Coupler::Method *methods,
                                int num_methods,
                                double *interp_vals,
                                TupleList *tl,
-                               bool normalize)
+                               bool /*normalize*/)
 {
   
     //if (!((LINEAR_FE == method) || (CONSTANT == method)))
@@ -1445,7 +1445,7 @@ int Coupler::consolidate_tuples(TupleList **all_tuples,
 int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> > &groups,
                                   std::vector<double> &integ_vals,
                                   const char *norm_tag,
-                                  int num_integ_vals,
+                                  int /*num_integ_vals*/,
                                   Coupler::IntegType integ_type)
 {
   // Get an iMesh_Instance from MBCoupler::mbImpl.
@@ -1553,8 +1553,8 @@ int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> >
 
       // Put the vertices into a CartVect vector
       double *x = coords;
-      for (int i = 0; i < verts_size; i++, x+=3) {
-        vertices[i] = CartVect(x);
+      for (int ix = 0; ix < verts_size; ++ix, x+=3) {
+        vertices[ix] = CartVect(x);
       }
       free(verts);
       free(coords);
@@ -1593,7 +1593,7 @@ int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> >
 int Coupler::apply_group_norm_factor(std::vector< std::vector<iBase_EntitySetHandle> > &entity_sets,
                                      std::vector<double> &norm_factors, 
                                      const char *norm_tag,
-                                     Coupler::IntegType integ_type)
+                                     Coupler::IntegType /*integ_type*/)
 {
   // Get an iMesh_Instance from MBCoupler::mbImpl.
   iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);

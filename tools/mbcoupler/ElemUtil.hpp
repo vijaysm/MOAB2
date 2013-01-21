@@ -6,11 +6,12 @@
 #include "moab/Matrix3.hpp"
 
 // to access data structures for spectral elements
+
 extern "C"{
 #include "types.h"
 #include "poly.h"
 #include "tensor.h"
-#include "findpt.h"
+//#include "findpt.h"
 #include "extrafindpt.h"
 #include "errmem.h"
 }
@@ -172,10 +173,10 @@ namespace ElemUtil {
       /* Override the evaluation routines to take advantage of the properties of P1. */
       virtual CartVect evaluate(const CartVect& xi) const {return this->vertex[0] + this->T*xi;};
       virtual CartVect ievaluate(const CartVect& x) const {return this->T_inverse*(x-this->vertex[0]);};
-      virtual Matrix3  jacobian(const CartVect& xi)  const {return this->T;};
-      virtual Matrix3  ijacobian(const CartVect& xi) const {return this->T_inverse;};
-      virtual double   det_jacobian(const CartVect& xi)  const {return this->det_T;};
-      virtual double   det_ijacobian(const CartVect& xi) const {return this->det_T_inverse;};
+      virtual Matrix3  jacobian(const CartVect& )  const {return this->T;};
+      virtual Matrix3  ijacobian(const CartVect& ) const {return this->T_inverse;};
+      virtual double   det_jacobian(const CartVect& )  const {return this->det_T;};
+      virtual double   det_ijacobian(const CartVect& ) const {return this->det_T_inverse;};
       //
       double   evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const;
       double   integrate_scalar_field(const double *field_vertex_values) const;
@@ -244,6 +245,28 @@ namespace ElemUtil {
       static const unsigned int gauss_count  = 1;
 
     };// class LinearQuad
+
+    /**\brief Shape function space for bilinear quadrilateral, obtained from the canonical linear (affine) functions. */
+    class HOEdge : public Map {
+    public:
+      HOEdge(const std::vector<CartVect>& vertices) : Map(vertices){};
+      HOEdge();
+      virtual CartVect evaluate( const CartVect& xi ) const;
+      //virtual CartVect ievaluate(const CartVect& x, double tol) const ;
+      virtual bool inside_nat_space(const CartVect & xi, double & tol) const;
+
+      virtual Matrix3  jacobian(const CartVect& xi) const;
+      double   evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const;
+      double   integrate_scalar_field(const double *field_vertex_values) const;
+
+    protected:
+      /* Preimages of the vertices -- "canonical vertices" -- are known as "corners". */
+      static const double corner[4][3];
+      static const double gauss[1][2];
+      static const unsigned int corner_count = 4;
+      static const unsigned int gauss_count  = 1;
+
+    };// class HOEdge
 
     class SpectralQuad : public Map {
       public:

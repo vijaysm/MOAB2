@@ -44,29 +44,23 @@ void legendre_matrix(const real *x, int m, real *P, int n)
 /* precondition: n >= 1, n even */
 static void legendre_row_even(real x, real *P, int n)
 {
-  real p[2] = {1, x};
   int i;
   P[0] = 1, P[1] = x;
   for(i=1; i<=n-2; i+=2) {
-    p[0] = ((2*i+1)*x*p[1]- i   *p[0])/(i+1);
-    p[1] = ((2*i+3)*x*p[0]-(i+1)*p[1])/(i+2);
-    P[i+1] = p[0];
-    P[i+2] = p[1];
+    P[i+1] = ((2*i+1)*x*P[i]- i   *P[i-1])/(i+1);
+    P[i+2] = ((2*i+3)*x*P[i-1]-(i+1)*P[i])/(i+2);
   }
-  P[n] = ((2*n-1)*x*p[1]-(n-1)*p[0])/n;
+  P[n] = ((2*n-1)*x*P[n-1]-(n-1)*P[n-2])/n;
 }
 
 /* precondition: n >= 1, n odd */
 static void legendre_row_odd(real x, real *P, int n)
 {
-  real p[2] = {1, x};
   int i;
   P[0] = 1, P[1] = x;
   for(i=1; i<=n-2; i+=2) {
-    p[0] = ((2*i+1)*x*p[1]- i   *p[0])/(i+1);
-    p[1] = ((2*i+3)*x*p[0]-(i+1)*p[1])/(i+2);
-    P[i+1] = p[0];
-    P[i+2] = p[1];
+    P[i+1] = ((2*i+1)*x*P[i]- i   *P[i-1])/(i+1);
+    P[i+2] = ((2*i+3)*x*P[i-1]-(i+1)*P[i])/(i+2);
   }
 }
 
@@ -97,8 +91,9 @@ void legendre_matrix_t(const real *x, int m, real *P, int n)
 /* precondition: n >= 0 */
 static real legendre(int n, real x)
 {
-  real p[2] = {1, x};
+  real p[2];
   int i;
+  p[0] = 1; p[1] = x;
   for(i=1; i<n; i+=2) {
     p[0] = ((2*i+1)*x*p[1]- i   *p[0])/(i+1);
     p[1] = ((2*i+3)*x*p[0]-(i+1)*p[1])/(i+2);
@@ -109,8 +104,9 @@ static real legendre(int n, real x)
 /* precondition: n > 0 */
 static real legendre_d1(int n, real x)
 {
-  real p[2] = {3*x, 1};
+  real p[2];
   int i;
+  p[0] = 3*x; p[1] = 1;
   for(i=2; i<n; i+=2) {
     p[1] = ((2*i+1)*x*p[0]-(i+1)*p[1])/i;
     p[0] = ((2*i+3)*x*p[1]-(i+2)*p[0])/(i+1);
@@ -121,8 +117,9 @@ static real legendre_d1(int n, real x)
 /* precondition: n > 1 */
 static real legendre_d2(int n, real x)
 {
-  real p[2] = {3, 15*x};
+  real p[2];
   int i;
+  p[0] = 3; p[1] = 15*x;
   for(i=3; i<n; i+=2) {
     p[0] = ((2*i+1)*x*p[1]-(i+2)*p[0])/(i-1);
     p[1] = ((2*i+3)*x*p[0]-(i+3)*p[1])/i;
@@ -366,7 +363,7 @@ typedef struct {
   real *w, *d, *u0, *v0, *u1, *v1, *u2, *v2; /* work data            */
 } lagrange_data;
 
-static void lagrange_0(lagrange_data *p, real x)
+void lagrange_0(lagrange_data *p, real x)
 {
   unsigned i, n=p->n;
   for(i=0  ; i<n  ; ++i) p->d[i] = x-p->z[i];
@@ -375,7 +372,7 @@ static void lagrange_0(lagrange_data *p, real x)
   for(i=0  ; i<n  ; ++i) p->J[i] = p->w[i]*p->u0[i]*p->v0[i];
 }
 
-static void lagrange_1(lagrange_data *p, real x)
+void lagrange_1(lagrange_data *p, real x)
 {
   unsigned i, n=p->n;
   for(i=0  ; i<n  ; ++i) p->d[i] = x-p->z[i];
@@ -390,7 +387,7 @@ static void lagrange_1(lagrange_data *p, real x)
     p->D[i] = p->w[i]*(p->u1[i]*p->v0[i]+p->u0[i]*p->v1[i]);
 }
 
-static void lagrange_2(lagrange_data *p, real x)
+void lagrange_2(lagrange_data *p, real x)
 {
   unsigned i,n=p->n;
   for(i=0  ; i<n  ; ++i) p->d[i] = x-p->z[i];

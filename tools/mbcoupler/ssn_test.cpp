@@ -213,12 +213,12 @@ int main(int argc, char **argv) {
   int numTagNames = tagNames.size();
   err = iBase_SUCCESS;
   std::vector<iBase_TagHandle> tagHandles(numTagNames);
-  int i = 0;
-  while (i < numTagNames) {
-    std::cout << "Getting handle for " << tagNames[i] << std::endl;
-    iMesh_getTagHandle(iMeshInst, tagNames[i], &tagHandles[i], &err, strlen(tagNames[i]));
+  int iTags = 0;
+  while (iTags < numTagNames) {
+    std::cout << "Getting handle for " << tagNames[iTags] << std::endl;
+    iMesh_getTagHandle(iMeshInst, tagNames[iTags], &tagHandles[iTags], &err, strlen(tagNames[iTags]));
     CHKERR(err, "Retrieving tag handles failed");
-    i++;
+    iTags++;
   }
 
   // ******************************
@@ -817,7 +817,7 @@ void print_tuples(TupleList *tlp)
 }
 
 // Function to print vertex field values
-int print_vertex_fields(Interface* mbi,
+int print_vertex_fields(Interface* /*mbi*/,
                         iMesh_Instance iMeshInst,
                         std::vector< std::vector<iBase_EntityHandle> > &groups,
                         iBase_TagHandle                                &norm_hdl,
@@ -845,9 +845,9 @@ int print_vertex_fields(Interface* mbi,
       iMesh_getEntAdj(iMeshInst, (*iter_j), iBase_VERTEX, &verts, &vertsAlloc, &vertsSize, &err);
       CHKERR(err, "Failed to get vertices from entity.");
       std::cout << std::fixed;
-      for (int i = 0; i < vertsSize; i++) {
+      for (int iv = 0; iv < vertsSize; iv++) {
         double data = 0;
-        iMesh_getDblData(iMeshInst, verts[i], norm_hdl, &data, &err);
+        iMesh_getDblData(iMeshInst, verts[iv], norm_hdl, &data, &err);
         CHKERR(err, "Failed to get tag data.");
         std::cout << std::setprecision(8) << data << ", ";
       }
@@ -861,7 +861,7 @@ int print_vertex_fields(Interface* mbi,
 }
 
 // Function for a constant field value
-double const_field(double x, double y, double z)
+double const_field(double /*x*/, double /*y*/, double /*z*/)
 {
   //  return 5.0/40.0;
   return 5.0;

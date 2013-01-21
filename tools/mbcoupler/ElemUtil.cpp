@@ -171,9 +171,9 @@ bool point_in_trilinear_hex(const CartVect *hex,
 {
   CartVect xi;
   return nat_coords_trilinear_hex( hex, xyz, xi, etol )
-      && fabs(xi[0])-1 < etol 
-      && fabs(xi[1])-1 < etol 
-      && fabs(xi[2])-1 < etol;
+      && (fabs(xi[0]-1.0) < etol)
+      && (fabs(xi[1]-1.0) < etol)
+      && (fabs(xi[2]-1.0) < etol) ;
 }
 
 
@@ -187,9 +187,9 @@ bool point_in_trilinear_hex(const CartVect *hex,
   const CartVect mid = box_max + box_min;
   const CartVect dim = box_max - box_min;
   const CartVect pt = 2*xyz - mid;
-  return fabs(pt[0]) - dim[0] < etol &&
-         fabs(pt[1]) - dim[1] < etol &&
-         fabs(pt[2]) - dim[2] < etol &&
+  return (fabs(pt[0] - dim[0]) < etol) &&
+         (fabs(pt[1] - dim[1]) < etol) &&
+         (fabs(pt[2] - dim[2]) < etol) &&
          point_in_trilinear_hex( hex, xyz, etol );
 }
 
@@ -670,7 +670,7 @@ namespace Element {
 
     return x;
   }
-  double   QuadraticHex::integrate_scalar_field(const double *field_vertex_values) const
+  double   QuadraticHex::integrate_scalar_field(const double* /*field_vertex_values*/) const
   {
     return 0.;// TODO: gaussian integration , probably 2x2x2
   }
@@ -1192,12 +1192,12 @@ namespace Element {
     _xyz[1] =  &(_glpoints[n2]);
     _xyz[2] =  &(_glpoints[2*n2]);
   }
-  void SpectralQuad::get_gl_points( double *& x, double *& y, double *& z, int & size)
+  void SpectralQuad::get_gl_points( double *& x, double *& y, double *& z, int & psize)
   {
     x=  (double *)_xyz[0] ;
     y = (double *)_xyz[1] ;
     z = (double *)_xyz[2] ;
-    size = _n*_n;
+    psize = _n*_n;
   }
 }// namespace Element
 

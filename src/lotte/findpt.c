@@ -492,31 +492,36 @@ typedef struct {
   real x[3], A[9], axis_bnd[6];
 } obbox_3;
 
-static int obbox_axis_test_2(const obbox_2 *p, const real x[2])
+int obbox_axis_test_2(const obbox_2 *p, const real x[2])
 {
   return (x[0]<p->axis_bnd[0] || x[0]>p->axis_bnd[1] ||
           x[1]<p->axis_bnd[2] || x[1]>p->axis_bnd[3]);
 }
 
-static int obbox_axis_test_3(const obbox_3 *p, const real x[3])
+int obbox_axis_test_3(const obbox_3 *p, const real x[3])
 {
   return (x[0]<p->axis_bnd[0] || x[0]>p->axis_bnd[1] ||
           x[1]<p->axis_bnd[2] || x[1]>p->axis_bnd[3] ||
           x[2]<p->axis_bnd[4] || x[2]>p->axis_bnd[5]);
 }
 
-static int obbox_test_2(const obbox_2 *p, const real x[2], real r[2])
+int obbox_test_2(const obbox_2 *p, const real x[2], real r[2])
 {
-  const real xt[2] = {x[0]-p->x[0],x[1]-p->x[1]};
+  real xt[2] ;
+  xt[0] = x[0]-p->x[0];
+  xt[1] = x[1]-p->x[1];
   r[0] = p->A[0]*xt[0] + p->A[1]*xt[1];
   if(fabsr(r[0])>1) return 1;
   r[1] = p->A[2]*xt[0] + p->A[3]*xt[1];
   return fabsr(r[1])>1;
 }
 
-static int obbox_test_3(const obbox_3 *p, const real x[3], real r[3])
+int obbox_test_3(const obbox_3 *p, const real x[3], real r[3])
 {
-  const real xt[3] = {x[0]-p->x[0],x[1]-p->x[1],x[2]-p->x[2]};
+  real xt[3] ;
+  xt[0] = x[0]-p->x[0];
+  xt[1] = x[1]-p->x[1];
+  xt[2] = x[2]-p->x[2];
   r[0] = p->A[0]*xt[0] + p->A[1]*xt[1] + p->A[2]*xt[2];
   if(fabsr(r[0])>1) return 1;
   r[1] = p->A[3]*xt[0] + p->A[4]*xt[1] + p->A[5]*xt[2];
@@ -525,7 +530,7 @@ static int obbox_test_3(const obbox_3 *p, const real x[3], real r[3])
   return fabsr(r[2])>1;
 }
 
-static void obbox_calc_tfm_2(const real *x, const real *y,
+void obbox_calc_tfm_2(const real *x, const real *y,
                              unsigned n, unsigned s,
                              const real c0[2], const real A[4], real *u)
 {
@@ -538,7 +543,7 @@ static void obbox_calc_tfm_2(const real *x, const real *y,
   }
 }
 
-static void obbox_calc_tfm_3(const real *x, const real *y, const real *z,
+void obbox_calc_tfm_3(const real *x, const real *y, const real *z,
                              unsigned nr, unsigned sr, unsigned ns, unsigned ss,
                              const real c0[3], const real A[9], real *u)
 {
@@ -554,7 +559,7 @@ static void obbox_calc_tfm_3(const real *x, const real *y, const real *z,
   }
 }
 
-static void obbox_merge_2(real *b, const real *ob)
+void obbox_merge_2(real *b, const real *ob)
 {
   if(ob[0]<b[0]) b[0]=ob[0];
   if(ob[1]>b[1]) b[1]=ob[1];
@@ -562,7 +567,7 @@ static void obbox_merge_2(real *b, const real *ob)
   if(ob[3]>b[3]) b[3]=ob[3];
 }
 
-static void obbox_merge_3(real *b, const real *ob)
+void obbox_merge_3(real *b, const real *ob)
 {
   if(ob[0]<b[0]) b[0]=ob[0];
   if(ob[1]>b[1]) b[1]=ob[1];
@@ -573,7 +578,7 @@ static void obbox_merge_3(real *b, const real *ob)
 }
 
 /* work holds 2*n + 2*m reals */
-static void obbox_side_2(const real *x, const real *y,
+void obbox_side_2(const real *x, const real *y,
                          unsigned n, unsigned s,
                          const real c0[2], const real A[4], real *work,
                          const lob_bnd_base *lbd, real bnd[4])
@@ -584,7 +589,7 @@ static void obbox_side_2(const real *x, const real *y,
 }
 
 /* work holds 3*nr*ns + 2*mr + 2*mr*ns + 2*mr*ms reals */
-static void obbox_side_3(const real *x, const real *y, const real *z,
+void obbox_side_3(const real *x, const real *y, const real *z,
                          unsigned nr, unsigned sr, unsigned ns, unsigned ss,
                          const real c0[3], const real A[9], real *work,
                          const lob_bnd_base *dr, const lob_bnd_ext *ds,
@@ -599,7 +604,7 @@ static void obbox_side_3(const real *x, const real *y, const real *z,
 /* return bounds on u = A (x - c0)
    bnd[0] <= u_0 <= bnd[1]
    bnd[2] <= u_1 <= bnd[3] */
-static void obbox_bnd_2(const obbox_data_2 *p,
+void obbox_bnd_2(const obbox_data_2 *p,
                         const real *x, const real *y,
                         const real c0[2], const real A[4],
                         real bnd[4])
@@ -623,7 +628,7 @@ static void obbox_bnd_2(const obbox_data_2 *p,
    bnd[0] <= u_0 <= bnd[1]
    bnd[2] <= u_1 <= bnd[3]
    bnd[4] <= u_2 <= bnd[5] */
-static void obbox_bnd_3(const obbox_data_3 *p,
+void obbox_bnd_3(const obbox_data_3 *p,
                         const real *x, const real *y, const real *z,
                         const real c0[3], const real A[9],
                         real bnd[6])
@@ -649,7 +654,7 @@ static void obbox_bnd_3(const obbox_data_3 *p,
   obbox_merge_3(bnd,obnd);
 }
 
-static void obbox_calc_2(const obbox_data_2 *p, real tol,
+void obbox_calc_2(const obbox_data_2 *p, real tol,
                          const real *x, const real *y, obbox_2 *b)
 {
   const real zero[2] = {0,0}, id[4] = {1,0,0,1};
@@ -681,7 +686,7 @@ static void obbox_calc_2(const obbox_data_2 *p, real tol,
   b->A[2] = d[1]*inv[2], b->A[3] = d[1]*inv[3];
 }
 
-static void obbox_calc_3(const obbox_data_3 *p, real tol,
+void obbox_calc_3(const obbox_data_3 *p, real tol,
                          const real *x, const real *y, const real *z,
                          obbox_3 *b)
 {
@@ -926,11 +931,17 @@ static void hash_getbb_2(hash_data_2 *p, const real *const elx[2],
                          const unsigned n[2], uint nel, real tol)
 {
   obbox_data_2 *data;
-  const real *x[2]={elx[0],elx[1]};
   real *z[2], *w[2];
   uint i; unsigned d;
-  const unsigned nn = n[0]*n[1], m[2] = {2*n[0],2*n[1]};
+  const unsigned nn = n[0]*n[1];
+  unsigned int m[2] ;
+  const real *x[2];
   
+  for (i=0; i < 2; ++i) {
+    x[i] = elx[i];
+    m[i] = 2*n[i];
+  }
+
   z[0] = tmalloc(real,2*(n[0]+n[1]));
   w[0] = z[0] + n[0];
   z[1] = w[0] + n[0], w[1] = z[1] + n[1];
@@ -951,11 +962,17 @@ static void hash_getbb_3(hash_data_3 *p, const real *const elx[3],
                          const unsigned n[3], uint nel, real tol)
 {
   obbox_data_3 *data;
-  const real *x[3]={elx[0],elx[1],elx[2]};
+  const real *x[3];
   real *z[3], *w[3];
   uint i; unsigned d;
-  const unsigned nn = n[0]*n[1]*n[2], m[3] = {2*n[0],2*n[1],2*n[2]};
+  const unsigned nn = n[0]*n[1]*n[2];
+  unsigned int m[3] ;
   
+  for (i=0; i < 3; ++i) {
+    x[i] = elx[i];
+    m[i] = 2*n[i];
+  }
+
   z[0] = tmalloc(real,2*(n[0]+n[1]+n[2]));
   w[0] = z[0] + n[0];
   for(d=1;d<3;++d) z[d]=w[d-1]+n[d-1], w[d]=z[d]+n[d];
@@ -976,7 +993,8 @@ static void hash_build_2(hash_data_2 *p, const real *const x[2],
                          const unsigned n[2], uint nel,
                          uint max_hash_size, real tol)
 {
-  uint i,el,size,hn2,sum; unsigned hn;
+  uint i,el,size,hn2,sum;
+  unsigned hn;
   unsigned *count;
   p->obb = tmalloc(obbox_2,nel);
   hash_getbb_2(p,x,n,nel,tol);
@@ -986,10 +1004,11 @@ static void hash_build_2(hash_data_2 *p, const real *const x[2],
   hn2 = (uint)hn*hn;
   count = tcalloc(unsigned,hn2);
   for(el=0;el<nel;++el) {
-    unsigned i,ia,ib, j,ja,jb;
+    unsigned ia,ib, j,ja,jb;
     hash_range_2(p,el,0,&ia,&ib);
     hash_range_2(p,el,1,&ja,&jb);
-    for(j=ja;j<jb;++j) for(i=ia;i<ib;++i)
+    for(j=ja;j<jb;++j)
+      for(i=ia;i<ib;++i)
       ++count[(uint)j*hn+i];
   }
   sum=hn2+1, p->max=count[0];
@@ -1000,13 +1019,14 @@ static void hash_build_2(hash_data_2 *p, const real *const x[2],
     p->offset[i+1]=sum;
   }
   for(el=0;el<nel;++el) {
-    unsigned i,ia,ib, j,ja,jb;
+    unsigned ia,ib, j,ja,jb;
     hash_range_2(p,el,0,&ia,&ib);
     hash_range_2(p,el,1,&ja,&jb);
-    for(j=ja;j<jb;++j) for(i=ia;i<ib;++i) {
-      uint index = (uint)j*hn+i;
-      p->offset[p->offset[index+1] - count[index]] = el;
-      --count[index];
+    for(j=ja;j<jb;++j)
+      for(i=ia;i<ib;++i) {
+        uint arrindex = (uint)j*hn+i;
+        p->offset[p->offset[arrindex+1] - count[arrindex]] = el;
+        --count[arrindex];
     }
   }
   free(count);
@@ -1026,7 +1046,7 @@ static void hash_build_3(hash_data_3 *p, const real *const x[3],
   hn3 = (uint)hn*hn*hn;
   count = tcalloc(unsigned,hn3);
   for(el=0;el<nel;++el) {
-    unsigned i,ia,ib, j,ja,jb, k,ka,kb;
+    unsigned ia,ib, j,ja,jb, k,ka,kb;
     hash_range_3(p,el,0,&ia,&ib);
     hash_range_3(p,el,1,&ja,&jb);
     hash_range_3(p,el,2,&ka,&kb);
@@ -1041,14 +1061,15 @@ static void hash_build_3(hash_data_3 *p, const real *const x[3],
     p->offset[i+1]=sum;
   }
   for(el=0;el<nel;++el) {
-    unsigned i,ia,ib, j,ja,jb, k,ka,kb;
+    unsigned ia,ib, j,ja,jb, k,ka,kb;
     hash_range_3(p,el,0,&ia,&ib);
     hash_range_3(p,el,1,&ja,&jb);
     hash_range_3(p,el,2,&ka,&kb);
-    for(k=ka;k<kb;++k) for(j=ja;j<jb;++j) for(i=ia;i<ib;++i) {
-      uint index = ((uint)k*hn+j)*hn+i;
-      p->offset[p->offset[index+1] - count[index]] = el;
-      --count[index];
+    for(k=ka;k<kb;++k) for(j=ja;j<jb;++j)
+      for(i=ia;i<ib;++i) {
+        uint arrindex = ((uint)k*hn+j)*hn+i;
+        p->offset[p->offset[arrindex+1] - count[arrindex]] = el;
+        --count[arrindex];
     }
   }
   free(count);
@@ -1270,13 +1291,13 @@ static void opt_face_proj_3(opt_data_3 *p)
     off = p->size[dn+1]-p->size[dn],
     D   = p->ld[dn].D_zn;
   for(d=0;d<3;++d) {
-    unsigned i,j,k,index=0;
+    unsigned i,j,k,arrindex=0;
     const real *in = p->elx[d]+off;
     for(j=n2;j;--j,in+=so)
-      for(i=n1;i;--i,++index,in+=s1) {
+      for(i=n1;i;--i,++arrindex,in+=s1) {
         const real *ind = in-off;
-        real *fdn = &p->fd.fdn[d][index];
-        p->fd.x[d][index] = *in;
+        real *fdn = &p->fd.fdn[d][arrindex];
+        p->fd.x[d][arrindex] = *in;
         *fdn = 0;
         for(k=0;k<nn;++k,ind+=sn)
           *fdn += *ind * D[k];
@@ -2069,11 +2090,12 @@ static void findpt_hash_3(findpt_data_3 *p, const real x[3])
 static int findpt_guess_2(findpt_data_2 *p, const real x[2],
                           uint el, real r[2], real *dist)
 {
-  const uint index = p->nptel*el;
-  const real *elx[2] = {p->xw[0]+index,p->xw[1]+index};
+  const uint arrindex = p->nptel*el;
+  const real *elx[2];
   real g[2];
   unsigned c = opt_no_constraints_2;
   const obbox_2 *obb = &p->hash->obb[el];
+  elx[0] = p->xw[0]+arrindex; elx[1] = p->xw[1]+arrindex;
   if(obbox_axis_test_2(obb,x) || obbox_test_2(obb,x,g)) return 0;
   *dist = opt_findpt_2(p->od,elx,x,r,&c);
   return c==opt_no_constraints_2;
@@ -2082,11 +2104,12 @@ static int findpt_guess_2(findpt_data_2 *p, const real x[2],
 static int findpt_guess_3(findpt_data_3 *p, const real x[3],
                           uint el, real r[3], real *dist)
 {
-  const uint index = p->nptel*el;
-  const real *elx[3] = {p->xw[0]+index,p->xw[1]+index,p->xw[2]+index};
+  const uint arrindex = p->nptel*el;
+  const real *elx[3] ;
   real g[3];
   unsigned c = opt_no_constraints_3;
   const obbox_3 *obb = &p->hash->obb[el];
+  elx[0] = p->xw[0]+arrindex; elx[1] = p->xw[1]+arrindex; elx[2] = p->xw[2]+arrindex;
   if(obbox_axis_test_3(obb,x) || obbox_test_3(obb,x,g)) return 0;
   *dist = opt_findpt_3(p->od,elx,x,r,&c);
   return c==opt_no_constraints_3;
@@ -2099,12 +2122,14 @@ static int findpt_pass_2(findpt_data_2 *p, const real x[2],
 {
   findpt_listel **qq = p->sorted;
   const real *bnd;
+  real dist;
   do {
     findpt_listel *q = *qq;
-    const uint index = p->nptel*q->el;
-    const real *elx[2] = {p->xw[0]+index,p->xw[1]+index};
+    const uint arrindex = p->nptel*q->el;
+    const real *elx[2] ;
     unsigned c = opt_no_constraints_2;
-    const real dist = opt_findpt_2(p->od,elx,x,q->r,&c);
+    elx[0] = p->xw[0]+arrindex; elx[1] = p->xw[1]+arrindex;
+    dist = opt_findpt_2(p->od,elx,x,q->r,&c);
     if(qq==p->sorted || dist<*dist_min || c==opt_no_constraints_2) {
       *dist_min = dist;
       *el = q->el;
@@ -2121,12 +2146,14 @@ static int findpt_pass_3(findpt_data_3 *p, const real x[3],
 {
   findpt_listel **qq = p->sorted;
   const real *bnd;
+  real dist;
   do {
     findpt_listel *q = *qq;
-    const uint index = p->nptel*q->el;
-    const real *elx[3] = {p->xw[0]+index,p->xw[1]+index,p->xw[2]+index};
+    const uint arrindex = p->nptel*q->el;
+    const real *elx[3] ;
     unsigned c = opt_no_constraints_3;
-    const real dist = opt_findpt_3(p->od,elx,x,q->r,&c);
+    elx[0] = p->xw[0]+arrindex; elx[1] = p->xw[1]+arrindex; elx[2] = p->xw[2]+arrindex;
+    dist = opt_findpt_3(p->od,elx,x,q->r,&c);
     if(qq==p->sorted || dist<*dist_min || c==opt_no_constraints_3) {
       *dist_min = dist;
       *el = q->el;
@@ -2164,27 +2191,27 @@ int findpt_3(findpt_data_3 *p, const real x[3], int guess,
   return findpt_pass_3(p,x,el,r,dist);
 }
 
-static void findpt_weights_2(findpt_data_2 *p, const real r[2])
+void findpt_weights_2(findpt_data_2 *p, const real r[2])
 {
   lagrange_0(&p->ld[0],r[0]);
   lagrange_0(&p->ld[1],r[1]);
 }
 
-static void findpt_weights_3(findpt_data_3 *p, const real r[3])
+void findpt_weights_3(findpt_data_3 *p, const real r[3])
 {
   lagrange_0(&p->ld[0],r[0]);
   lagrange_0(&p->ld[1],r[1]);
   lagrange_0(&p->ld[2],r[2]);
 }
 
-static double findpt_eval_2(findpt_data_2 *p, const real *u)
+double findpt_eval_2(findpt_data_2 *p, const real *u)
 {
   return tensor_i2(p->ld[0].J,p->ld[0].n,
                    p->ld[1].J,p->ld[1].n,
                    u, p->od_work);
 }
 
-static double findpt_eval_3(findpt_data_3 *p, const real *u)
+double findpt_eval_3(findpt_data_3 *p, const real *u)
 {
   return tensor_i3(p->ld[0].J,p->ld[0].n,
                    p->ld[1].J,p->ld[1].n,

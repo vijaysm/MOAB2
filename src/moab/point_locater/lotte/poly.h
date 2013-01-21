@@ -146,58 +146,10 @@ typedef struct {
 void lagrange_setup(lagrange_data *p, const real *z, unsigned n);
 void lagrange_free(lagrange_data *p);
 
-static void lagrange_0(lagrange_data *p, real x)
-{
-  unsigned i, n=p->n;
-  for(i=0  ; i<n  ; ++i) p->d[i] = x-p->z[i];
-  for(i=0  ; i<n-1; ++i) p->u0[i+1] = p->d[i]*p->u0[i];
-  for(i=n-1; i    ; --i) p->v0[i-1] = p->d[i]*p->v0[i];
-  for(i=0  ; i<n  ; ++i) p->J[i] = p->w[i]*p->u0[i]*p->v0[i];
-}
-
-static void lagrange_1(lagrange_data *p, real x)
-{
-  unsigned i, n=p->n;
-  for(i=0  ; i<n  ; ++i) p->d[i] = x-p->z[i];
-  for(i=0  ; i<n-1; ++i)
-    p->u0[i+1] = p->d[i]*p->u0[i],
-    p->u1[i+1] = p->d[i]*p->u1[i] + p->u0[i];
-  for(i=n-1; i    ; --i)
-    p->v0[i-1] = p->d[i]*p->v0[i],
-    p->v1[i-1] = p->d[i]*p->v1[i] + p->v0[i];
-  for(i=0  ; i<n  ; ++i)
-    p->J[i] = p->w[i]*p->u0[i]*p->v0[i],
-    p->D[i] = p->w[i]*(p->u1[i]*p->v0[i]+p->u0[i]*p->v1[i]);
-}
-
-static void lagrange_2(lagrange_data *p, real x)
-{
-  unsigned i,n=p->n;
-  for(i=0  ; i<n  ; ++i) p->d[i] = x-p->z[i];
-  for(i=0  ; i<n-1; ++i)
-    p->u0[i+1]=p->d[i]*p->u0[i],
-    p->u1[i+1]=p->d[i]*p->u1[i]+p->u0[i],
-    p->u2[i+1]=p->d[i]*p->u2[i]+2*p->u1[i];
-  for(i=n-1; i    ; --i)
-    p->v0[i-1]=p->d[i]*p->v0[i],
-    p->v1[i-1]=p->d[i]*p->v1[i]+p->v0[i],
-    p->v2[i-1]=p->d[i]*p->v2[i]+2*p->v1[i];
-  for(i=0  ; i<n  ; ++i)
-    p->J [i]=p->w[i]*p->u0[i]*p->v0[i],
-    p->D [i]=p->w[i]*(p->u1[i]*p->v0[i]+p->u0[i]*p->v1[i]),
-    p->D2[i]=p->w[i]*(p->u2[i]*p->v0[i]+2*p->u1[i]*p->v1[i]+p->u0[i]*p->v2[i]);
-}
-
-static void lagrange_2u(lagrange_data *p)
-{
-  unsigned i,n=p->n;
-  for(i=0  ; i<n-1; ++i)
-    p->u2[i+1]=p->d[i]*p->u2[i]+2*p->u1[i];
-  for(i=n-1; i    ; --i)
-    p->v2[i-1]=p->d[i]*p->v2[i]+2*p->v1[i];
-  for(i=0  ; i<n  ; ++i)
-    p->D2[i]=p->w[i]*(p->u2[i]*p->v0[i]+2*p->u1[i]*p->v1[i]+p->u0[i]*p->v2[i]);
-}
+void lagrange_0(lagrange_data *p, real x) ;
+void lagrange_1(lagrange_data *p, real x) ;
+void lagrange_2(lagrange_data *p, real x) ;
+void lagrange_2u(lagrange_data *p) ;
 
 #endif
 

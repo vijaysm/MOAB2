@@ -74,4 +74,4 @@ double opt_findpt_2(opt_data_2 *p, const real *const elx[2],
 
 
 
-#endif //EXTRA_FINDPT_H
+#endif /*EXTRA_FINDPT_H */
