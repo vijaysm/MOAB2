@@ -650,7 +650,7 @@ public:
      *\return - \c MB_TAG_ALREADY_ALLOCATED if tag exists and \c MB_TAG_EXCL is specified
      *        - \c MB_TAG_NOT_FOUND         if tag does not exist and \c MB_TAG_CREAT is not specified
      *        - \c MB_INVALID_SIZE          if tag value size is not a multiple of 
-     *                                      the size of the data type (and \c mb_TAG_COUNT not specified).
+     *                                      the size of the data type (and \c MB_TAG_ANY not specified).
      *        - \c MB_TYPE_OUT_OF_RANGE     invalid or inconsistent parameter
      *        - \c MB_VARIABLE_DATA_LENGTH  if \c MB_TAG_VARLEN and \c default_value is non-null and
      *                                      \c default_value_size is not specified.
