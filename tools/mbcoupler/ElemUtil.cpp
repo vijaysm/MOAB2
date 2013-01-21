@@ -930,6 +930,85 @@ namespace Element {
   // SpectralHex
 
   // filescope for static member data that is cached
+  const double LinearQuad::corner[4][3] = {  { -1, -1, 0 },
+                                             {  1, -1, 0 },
+                                             {  1,  1, 0 },
+                                             { -1,  1, 0 } };
+
+  LinearQuad::LinearQuad() : Map(0) {
+
+  }// LinearQuad::LinearQuad()
+
+  /* For each point, its weight and location are stored as an array.
+     Hence, the inner dimension is 2, the outer dimension is gauss_count.
+     We use a one-point Gaussian quadrature, since it integrates linear functions exactly.
+  */
+  const double LinearQuad::gauss[1][2] = { {  2.0,           0.0          } };
+
+  CartVect LinearQuad::evaluate( const CartVect& xi ) const {
+    CartVect x(0.0);
+    for (unsigned i = 0; i < LinearQuad::corner_count; ++i) {
+      const double N_i =
+        (1 + xi[0]*corner[i][0])
+      * (1 + xi[1]*corner[i][1]);
+      x += N_i * this->vertex[i];
+    }
+    x /= LinearQuad::corner_count;
+    return x;
+  }// LinearQuad::evaluate
+
+  Matrix3 LinearQuad::jacobian( const CartVect& xi ) const {
+    Matrix3 J(0.0);
+    for (unsigned i = 0; i < LinearQuad::corner_count; ++i) {
+      const double   xi_p = 1 + xi[0]*corner[i][0];
+      const double  eta_p = 1 + xi[1]*corner[i][1];
+      const double dNi_dxi   = corner[i][0] * eta_p ;
+      const double dNi_deta  = corner[i][1] *  xi_p ;
+      J(0,0) += dNi_dxi   * vertex[i][0];
+      J(1,0) += dNi_dxi   * vertex[i][1];
+      J(0,1) += dNi_deta  * vertex[i][0];
+      J(1,1) += dNi_deta  * vertex[i][1];
+    }
+    J(2,2) = 1.0; /* to make sure the Jacobian determinant is non-zero */
+    J /= LinearQuad::corner_count;
+    return J;
+  }// LinearQuad::jacobian()
+
+  double LinearQuad::evaluate_scalar_field(const CartVect& xi, const double *field_vertex_value) const {
+    double f(0.0);
+    for (unsigned i = 0; i < LinearQuad::corner_count; ++i) {
+      const double N_i = (1 + xi[0]*corner[i][0])
+        * (1 + xi[1]*corner[i][1]);
+      f += N_i * field_vertex_value[i];
+    }
+    f /= LinearQuad::corner_count;
+    return f;
+  }// LinearQuad::evaluate_scalar_field()
+
+  double LinearQuad::integrate_scalar_field(const double *field_vertex_values) const {
+    double I(0.0);
+    for(unsigned int j1 = 0; j1 < this->gauss_count; ++j1) {
+      double x1 = this->gauss[j1][1];
+      double w1 = this->gauss[j1][0];
+      for(unsigned int j2 = 0; j2 < this->gauss_count; ++j2) {
+        double x2 = this->gauss[j2][1];
+        double w2 = this->gauss[j2][0];
+        CartVect x(x1,x2,0.0);
+        I += this->evaluate_scalar_field(x,field_vertex_values)*w1*w2*this->det_jacobian(x);
+      }
+    }
+    return I;
+  }// LinearQuad::integrate_scalar_field()
+
+  bool LinearQuad::inside_nat_space(const CartVect & xi, double & tol) const
+  {
+    // just look at the box+tol here
+    return ( xi[0]>=-1.-tol) && (xi[0]<=1.+tol) &&
+           ( xi[1]>=-1.-tol) && (xi[1]<=1.+tol) ;
+  }
+
+
+  // filescope for static member data that is cached
   int SpectralQuad::_n;
   real *SpectralQuad::_z[2];
   lagrange_data SpectralQuad::_ld[2];

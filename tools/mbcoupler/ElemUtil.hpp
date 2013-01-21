@@ -163,7 +163,7 @@ namespace ElemUtil {
       static const unsigned int corner_count = 27;
       static const unsigned int gauss_count  = 8; // TODO fix me
 
-    };// class LinearHex
+    };// class QuadraticHex
     /**\brief Shape function space for a linear tetrahedron, obtained by a pushforward of the canonical affine shape functions. */
     class LinearTet : public Map {
     public:
@@ -221,8 +221,29 @@ namespace ElemUtil {
 
       real * _xyz[3];
 
-
     };// class SpectralHex
+
+    /**\brief Shape function space for bilinear quadrilateral, obtained from the canonical linear (affine) functions. */
+    class LinearQuad : public Map {
+    public:
+      LinearQuad(const std::vector<CartVect>& vertices) : Map(vertices){};
+      LinearQuad();
+      virtual CartVect evaluate( const CartVect& xi ) const;
+      //virtual CartVect ievaluate(const CartVect& x, double tol) const ;
+      virtual bool inside_nat_space(const CartVect & xi, double & tol) const;
+
+      virtual Matrix3  jacobian(const CartVect& xi) const;
+      double   evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const;
+      double   integrate_scalar_field(const double *field_vertex_values) const;
+
+    protected:
+      /* Preimages of the vertices -- "canonical vertices" -- are known as "corners". */
+      static const double corner[4][3];
+      static const double gauss[1][2];
+      static const unsigned int corner_count = 4;
+      static const unsigned int gauss_count  = 1;
+
+    };// class LinearQuad
 
     class SpectralQuad : public Map {
       public:

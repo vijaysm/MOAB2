@@ -743,8 +743,19 @@ ErrorCode Coupler::nat_param(double xyz[3],
         if (!tetmap.inside_nat_space(tmp_nat_coords, epsilon))
           continue;
       }
+      else if (etype == MBQUAD){
+        Element::LinearQuad quadmap(coords_vert);
+        try {
+          tmp_nat_coords = quadmap.ievaluate(CartVect(xyz), epsilon);
+        }
+        catch (Element::Map::EvaluationError) {
+          continue;
+        }
+        if (!quadmap.inside_nat_space(tmp_nat_coords, epsilon))
+          continue;
+      }
       else {
-        std::cout << "Entity not Hex or Tet" << std::endl;
+        std::cout << "Entity not Hex or Tet or Quad" << std::endl;
         continue;
       }
     }
@@ -792,22 +803,27 @@ ErrorCode Coupler::interp_field(EntityHandle elem,
       return result;
     }
     EntityType etype = mbImpl->type_from_handle(elem);
-    if (etype == MBHEX && num_connect==8){
+    if (etype == MBHEX) {
+      if (num_connect==8) {
       elemMap = new moab::Element::LinearHex();
       num_verts = 8;
     }
-    else if (etype == MBHEX && num_connect==27){
+      else { /* (etype == MBHEX && num_connect==27) */
       elemMap = new moab::Element::QuadraticHex();
       num_verts = 27;
+    }
     }
     else if (etype == MBTET) {
       elemMap = new moab::Element::LinearTet();
       num_verts = 4;
     }
+    else if (etype == MBQUAD) {
+      elemMap = new moab::Element::LinearQuad();
+      num_verts = 4;
+    }
     else {
       return MB_FAILURE;
     }
-
 
     result = mbImpl->tag_get_data(tag, connect, std::min(num_verts, num_connect), vfields);
     if (MB_SUCCESS != result) {
