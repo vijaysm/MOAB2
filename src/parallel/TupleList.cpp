@@ -339,7 +339,7 @@ namespace moab {
 			   const slong *&ip, const ulong *&lp,
 			   const realType *&dp)
   {
-    if (index <= n && index >=0){
+    if (index <= n){
       if (mi) *&sp = &vi[index*mi];
       else *&sp = NULL;
       if (ml) *&ip = &vl[index*ml];

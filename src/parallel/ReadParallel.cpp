@@ -481,7 +481,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
             if (MB_SUCCESS == tmp_result) 
               tmp_result = myPcomm->filter_pstatus(ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);
             if (MB_SUCCESS == tmp_result) 
-              myDebug.tprintf(1, "Proc %d reports %lu owned vertices.\n", myPcomm->proc_config().proc_rank(),
+              myDebug.tprintf(1, "Proc %u reports %lu owned vertices.\n", myPcomm->proc_config().proc_rank(),
                               ents.size());
 #endif
           break;

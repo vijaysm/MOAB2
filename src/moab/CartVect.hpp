@@ -46,7 +46,10 @@ class CartVect
       { d[0] = a[0]; d[1] = a[1]; d[2] = a[2]; }
     inline CartVect& operator=( const double v[3] )
       { d[0]= v[0]; d[1] = v[1]; d[2] = v[2]; return *this; }
-    
+
+    virtual ~CartVect()
+      { }
+
     inline double& operator[]( unsigned i )
       { return d[i]; }
     inline double operator[]( unsigned i ) const

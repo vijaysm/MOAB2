@@ -958,16 +958,16 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
 
     // Create tag tables on root process
   if (0 == myPcomm->proc_config().proc_rank()) {
-    size_t idx = 0;
-    for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter, ++idx) {
-      assert(idx < totals.size());
-      unsigned long num_ents = totals[idx];
+    size_t iidx = 0;
+    for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter, ++iidx) {
+      assert(iidx < totals.size());
+      unsigned long num_ents = totals[iidx];
       unsigned long num_val = 0;
       int s;
       if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_length( tag_iter->tag_id, s )) {
-        ++idx;
-        assert(idx < totals.size());
-        num_val = totals[idx];
+        ++iidx;
+        assert(iidx < totals.size());
+        num_val = totals[iidx];
       }
       dbgOut.printf( 2, "Writing tag description for tag 0x%lx with %lu values\n", 
                      (unsigned long)tag_iter->tag_id, num_val ? num_val : num_ents );
@@ -1355,7 +1355,6 @@ ErrorCode WriteHDF5Parallel::create_adjacency_tables()
 #ifdef WRITE_NODE_ADJACENCIES  
   groups.push_back( &nodeSet );
 #endif
-  std::list<ExportSet>::iterator ex_iter;
   for (std::list<ExportSet>::iterator ex_iter = exportList.begin(); 
        ex_iter != exportList.end(); ++ex_iter)
     groups.push_back( &*ex_iter );
@@ -2144,11 +2143,12 @@ void WriteHDF5Parallel::remove_remote_entities( EntityHandle relative,
   range.swap(result);
 }
 
-void WriteHDF5Parallel::remove_remote_sets( EntityHandle relative, 
+void WriteHDF5Parallel::remove_remote_sets( EntityHandle /* relative */, 
                                             Range& range )
 {
   Range result( intersect( range,  setSet.range ) );
-  Range remaining( subtract( range, result ) );
+  // Store the non-intersecting entities separately if needed
+  // Range remaining( subtract( range, result ) );
   range.swap( result );
 }
   
