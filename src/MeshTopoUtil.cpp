@@ -206,7 +206,7 @@ ErrorCode MeshTopoUtil::star_next_entity(const EntityHandle star_center,
     
   int dim = mbImpl->dimension_from_handle(star_center);
   
-  ErrorCode result = mbImpl->get_adjacencies(from_ents, dim+1, false, to_ents);
+  ErrorCode result = mbImpl->get_adjacencies(from_ents, dim+1, true, to_ents);
   if (MB_SUCCESS != result) return result;
   
     // remove last_entity from result, and should only have 1 left, if any
@@ -224,9 +224,9 @@ ErrorCode MeshTopoUtil::star_next_entity(const EntityHandle star_center,
 
   if (0 == last_dp1 && to_ents.size() > 1 && NULL != star_candidates_dp1 && 
       !star_candidates_dp1->empty()) {
-      // if we have a choice of to_ents and no previous dp1 and dp1 candidates, 
+      // if we have a choice of to_ents and no previous dp1 and there are dp1 candidates, 
       // the one we choose needs to be adjacent to one of the candidates
-    result = mbImpl->get_adjacencies(*star_candidates_dp1, dim+1, false,
+    result = mbImpl->get_adjacencies(*star_candidates_dp1, dim+1, true,
                                      from_ents, Interface::UNION);
     if (MB_SUCCESS != result) return result;
     to_ents = intersect( to_ents, from_ents);
@@ -243,7 +243,7 @@ ErrorCode MeshTopoUtil::star_next_entity(const EntityHandle star_center,
   if (0 != star_candidates_dp1) to_ents = *star_candidates_dp1;
   else to_ents.clear();
   
-  result = mbImpl->get_adjacencies(&next_entity, 1, dim+2, false, to_ents);
+  result = mbImpl->get_adjacencies(&next_entity, 1, dim+2, true, to_ents);
   if (MB_SUCCESS != result) return result;
 
     // can't be last one
