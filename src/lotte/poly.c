@@ -405,7 +405,7 @@ void lagrange_2(lagrange_data *p, real x)
     p->D2[i]=p->w[i]*(p->u2[i]*p->v0[i]+2*p->u1[i]*p->v1[i]+p->u0[i]*p->v2[i]);
 }
 
-static void lagrange_2u(lagrange_data *p)
+void lagrange_2u(lagrange_data *p)
 {
   unsigned i,n=p->n;
   for(i=0  ; i<n-1; ++i)
