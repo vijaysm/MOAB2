@@ -10,7 +10,10 @@
 #include "moab/AdaptiveKDTree.hpp"
 #include "MBParallelConventions.h"
 #include "MBTagConventions.hpp"
+// this is for DBL_MAX
+#include <float.h>
 #include <queue>
+#include "moab/GeomUtil.hpp"
 
 namespace moab {
 
@@ -170,8 +173,8 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
       double P[48]; // max 8 intx points + 8 more in the polygon
       // the red quad is convex, always, while the blue can be concave
       int nP = 0;
-      int nb[4], nr[4]; // sides 3 or 4?
-      computeIntersectionBetweenRedAndBlue(startRed, startBlue, P, nP, area, nb, nr);
+      int nb[4], nr[4]; // sides 3 or 4? also, check boxes first
+      computeIntersectionBetweenRedAndBlue(startRed, startBlue, P, nP, area, nb, nr, true);
       if (area > 0)
       {
         found = 1;
@@ -1004,6 +1007,282 @@ ErrorCode Intx2Mesh::create_departure_mesh(EntityHandle & covering_lagr_set)
   // send global ID of the euler vertex and DP position
 
 
+  return MB_SUCCESS;
+}
+
+ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, EntityHandle & covering_lagr_set)
+{
+  // compute the bounding box on each proc
+  parcomm = ParallelComm::get_pcomm(mb, 0);
+  if (NULL==parcomm)
+    return MB_FAILURE;
+
+  localEnts.clear();
+  ErrorCode rval = mb->get_entities_by_dimension(euler_set, 2, localEnts);
+  ERRORR(rval, "can't get ents by dimension");
+
+  Tag dpTag = 0;
+  std::string tag_name("DP");
+  rval = mb->tag_get_handle(tag_name.c_str(), 3, MB_TYPE_DOUBLE, dpTag, MB_TAG_DENSE);
+  ERRORR(rval, "can't get DP tag");
+  // get all local verts
+  Range local_verts;
+  rval = mb->get_connectivity(localEnts, local_verts);
+  int num_local_verts = (int) local_verts.size();
+  ERRORR(rval, "can't get local vertices");
+
+  Tag gid;
+  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid, MB_TAG_DENSE);
+  ERRORR(rval,"can't get global ID tag" );
+  std::vector<int> gids(num_local_verts);
+  rval = mb->tag_get_data(gid, local_verts, &gids[0]);
+  ERRORR(rval, "can't get local vertices gids");
+
+  // get the position of local vertices, and decide local boxes (allBoxes...)
+  double bmin[3]={DBL_MAX, DBL_MAX, DBL_MAX};
+  double bmax[3] ={-DBL_MAX, -DBL_MAX, -DBL_MAX};
+
+  std::vector<double> coords(3*num_local_verts);
+  rval = mb->get_coords(local_verts, &coords[0]);
+
+  for (int i=0; i< num_local_verts; i++)
+  {
+    for (int k=0; k<3; k++)
+    {
+      double val=coords[3*i+k];
+      if (val < bmin[k])
+        bmin[k]=val;
+      if (val > bmax[k])
+        bmax[k] = val;
+    }
+  }
+  int numprocs=parcomm->proc_config().proc_size();
+  allBoxes.resize(6*numprocs);
+
+  int my_rank = parcomm->proc_config().proc_rank() ;
+  for (int k=0; k<3; k++)
+  {
+    allBoxes[6*my_rank+k]=bmin[k];
+    allBoxes[6*my_rank+3+k] = bmax[k];
+  }
+
+   // now communicate to get all boxes
+   // use "in place" option
+  int mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
+                               &allBoxes[0], 6, MPI_DOUBLE,
+                               parcomm->proc_config().proc_comm());
+  if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
+
+  if (my_rank==0)
+  {
+    for (int i=0; i<numprocs; i++)
+    {
+      std::cout<<"proc: " << i << " box min: " << allBoxes[6*i  ] << " " <<allBoxes[6*i+1] << " " << allBoxes[6*i+2]  << " \n";
+      std::cout<<          "        box max: " << allBoxes[6*i+3] << " " <<allBoxes[6*i+4] << " " << allBoxes[6*i+5]  << " \n";
+    }
+  }
+
+
+  // now see the departure points; to what boxes should we send them?
+  std::vector<double> dep_points(3*num_local_verts);
+  rval = mb->tag_get_data(dpTag, local_verts, (void*)&dep_points[0]);
+  ERRORR(rval, "can't get DP tag values");
+  // ranges to send to each processor; will hold vertices and elements (quads?)
+  // will look if the box of the dep quad covers box of of euler mesh on proc (with tolerances)
+  std::map<int, Range> Rto;
+
+  for (Range::iterator eit = localEnts.begin(); eit!=localEnts.end(); eit++)
+  {
+    EntityHandle q=*eit;
+    const EntityHandle * conn4;
+    int num_nodes;
+    rval= mb->get_connectivity(q, conn4, num_nodes);
+    ERRORR(rval, "can't get DP tag values");
+    CartVect qbmin(DBL_MAX);
+    CartVect qbmax(-DBL_MAX);
+    for (int i=0; i<num_nodes; i++)
+    {
+      EntityHandle v=conn4[i];
+      size_t index=local_verts.find(v)-local_verts.begin();
+      CartVect dp( &dep_points[3*index] ); // will use constructor
+      for (int j=0; j<3; j++)
+      {
+        if (qbmin[j]>dp[j])
+          qbmin[j]=dp[j];
+        if (qbmax[j]<dp[j])
+          qbmax[j]=dp[j];
+      }
+    }
+    for (int p=0; p<numprocs; p++)
+    {
+      CartVect bbmin(&allBoxes[6*p]);
+      CartVect bbmax(&allBoxes[6*p+3]);
+      if ( GeomUtil::boxes_overlap( bbmin, bbmax, qbmin, qbmax, box_error) )
+      {
+        Rto[p].insert(q);
+      }
+    }
+  }
+
+  // now, build TLv and TLq, for each p
+  size_t numq=0;
+  size_t numv=0;
+  for (int p=0; p<numprocs; p++)
+  {
+    if (p==my_rank)
+      continue; // do not "send" it, because it is already here
+    Range & range_to_P = Rto[p];
+    // add the vertices to it
+    if (range_to_P.empty())
+      continue;// nothing to send to proc p
+    Range vertsToP;
+    rval = mb->get_connectivity(range_to_P, vertsToP);
+    ERRORR(rval, "can't get connectivity");
+    numq=numq+range_to_P.size();
+    numv=numv+vertsToP.size();
+    range_to_P.merge(vertsToP);
+  }
+  TupleList TLv;
+  TupleList TLq;
+  TLv.initialize(2, 0, 0, 3, numv); // to proc, GLOBAL ID, DP points
+  TLv.enableWriteAccess();
+
+  TLq.initialize(6, 0, 0, 0, numq); // to proc, elem GLOBAL ID, connectivity[4] (global ID v)
+  TLq.enableWriteAccess();
+  std::cout << "from proc " << my_rank << " send " << numv << " vertices and " << numq << " quads\n";
+
+  for (int to_proc=0; to_proc<numprocs; to_proc++)
+  {
+    if (to_proc==my_rank)
+      continue;
+    Range & range_to_P = Rto[to_proc];
+    Range V = range_to_P.subset_by_type(MBVERTEX);
+
+    for (Range::iterator it=V.begin(); it!=V.end(); it++)
+    {
+      EntityHandle v=*it;
+      unsigned int index = local_verts.find(v)-local_verts.begin();
+      int n=TLv.get_n();
+      TLv.vi_wr[2*n] = to_proc; // send to processor
+      TLv.vi_wr[2*n+1] = gids[index]; // global id needs index in the local_verts range
+      TLv.vr_wr[3*n] = dep_points[3*index];  // departure position, of the node local_verts[i]
+      TLv.vr_wr[3*n+1] = dep_points[3*index+1];
+      TLv.vr_wr[3*n+2] = dep_points[3*index+2];
+      TLv.inc_n();
+    }
+    // also, prep the quad for sending ...
+    Range Q = range_to_P.subset_by_type(MBQUAD);
+    for (Range::iterator it=Q.begin(); it!=Q.end(); it++)
+    {
+      EntityHandle q=*it;
+      int global_id;
+      rval = mb->tag_get_data(gid, &q, 1, &global_id);
+      ERRORR(rval, "can't get gid for quad");
+      int n=TLq.get_n();
+      TLq.vi_wr[6*n] = to_proc; //
+      TLq.vi_wr[6*n+1] = global_id; // global id of element, used to identify it ...
+      const EntityHandle * conn4;
+      int num_nodes;
+      rval = mb->get_connectivity(q, conn4, num_nodes);
+      ERRORR(rval, "can't get connectivity for quad");
+      for (int i=0; i<num_nodes; i++)
+      {
+        EntityHandle v = conn4[i];
+        unsigned int index = local_verts.find(v)-local_verts.begin();
+        TLq.vi_wr[6*n+2+i] = gids[index];
+      }
+      TLq.inc_n();
+
+    }
+
+  }
+  // now we can route them to each processor
+  // now we are done populating the tuples; route them to the appropriate processors
+  (parcomm->proc_config().crystal_router())->gs_transfer(1, TLv, 0);
+  (parcomm->proc_config().crystal_router())->gs_transfer(1, TLq, 0);
+  // the elements are already in localEnts;
+
+  // maps from global ids to new vertex and quad handles, that are added
+  std::map<int, EntityHandle> globalID_to_handle;
+  std::map<int, EntityHandle> globalID_to_eh;
+  // now, look at every TLv, and see if we have to create a vertex there or not
+  int n=TLv.get_n();// the size of the points received
+  for (int i=0; i<n; i++)
+  {
+    int globalId = TLv.vi_rd[2*i+1];
+    if (globalID_to_handle.find(globalId)==globalID_to_handle.end())
+    {
+      EntityHandle new_vert;
+      double dp_pos[3]= {TLv.vr_wr[3*i], TLv.vr_wr[3*i+1],  TLv.vr_wr[3*i+2]};
+      rval = mb->create_vertex(dp_pos, new_vert);
+      ERRORR(rval, "can't create new vertex ");
+      globalID_to_handle[globalId]= new_vert;
+    }
+  }
+      // now, all dep points should be at their place
+      // look in the local list of q for this proc, and create all those quads and vertices if needed
+  Range & local=Rto[my_rank];
+  Range local_q = local.subset_by_type(MBQUAD);
+  // the local should have all the vertices in local_verts
+  for (Range::iterator it=local_q.begin(); it!=local_q.end(); it++)
+  {
+    EntityHandle q=*it;
+    int nnodes;
+    const EntityHandle * conn4;
+    rval = mb->get_connectivity(q, conn4, nnodes);
+    ERRORR(rval, "can't get connectivity of local q ");
+    EntityHandle new_conn[4];
+    for (int i=0; i<nnodes; i++)
+    {
+      EntityHandle v1=conn4[i];
+      unsigned int index = local_verts.find(v1)-local_verts.begin();
+      int globalId=gids[index];
+      if(globalID_to_handle.find(globalId)==globalID_to_handle.end())
+      {
+        // we need to create that vertex, at this position dep_points
+        double dp_pos[3]={dep_points[3*index], dep_points[3*index+1], dep_points[3*index+2]};
+        EntityHandle new_vert;
+        rval = mb->create_vertex(dp_pos, new_vert);
+        ERRORR(rval, "can't create new vertex ");
+        globalID_to_handle[globalId]= new_vert;
+      }
+      new_conn[i] = globalID_to_handle[gids[index]];
+    }
+    EntityHandle new_quad;
+    rval = mb->create_element(MBQUAD, new_conn, 4, new_quad);
+    ERRORR(rval, "can't create new quad ");
+    rval = mb->add_entities(covering_lagr_set, &new_quad, 1);
+    ERRORR(rval, "can't add new quad to dep set");
+    int gid_el;
+    // get the global ID of the initial quad
+    rval=mb->tag_get_data(gid, &q, 1, &gid_el);
+    ERRORR(rval, "can't get element global ID ");
+    globalID_to_eh[gid_el]=new_quad;
+  }
+  // now look at all quads received through; we do not want to duplicate them
+  n=TLq.get_n();// number of quads received by this processor
+  for (int i=0; i<n; i++)
+  {
+    int globalIdEl = TLq.vi_rd[6*i+1];
+    // do we already have a quad with this global ID, represented?
+    if (globalID_to_eh.find(globalIdEl)==globalID_to_eh.end())
+    {
+      // construct the conn quad
+      EntityHandle new_conn[4];
+      for (int j=0; j<4; j++)
+      {
+        int vgid = TLq.vi_rd[6*i+2+j];// vertex global ID
+        assert(globalID_to_handle.find(vgid)!=globalID_to_handle.end());
+        new_conn[j]=globalID_to_handle[vgid];
+      }
+      EntityHandle new_quad;
+      rval = mb->create_element(MBQUAD, new_conn, 4, new_quad);
+      ERRORR(rval, "can't create new quad ");
+      globalID_to_eh[globalIdEl]=new_quad;
+      rval = mb->add_entities(covering_lagr_set, &new_quad, 1);
+      ERRORR(rval, "can't add new quad to dep set");
+    }
+  }
   return MB_SUCCESS;
 }
 } /* namespace moab */

@@ -5,7 +5,7 @@
  */
 
 #include "Intx2MeshOnSphere.hpp"
-
+#include "moab/GeomUtil.hpp"
 #include <queue>
 
 namespace moab {
@@ -29,7 +29,7 @@ Intx2MeshOnSphere::~Intx2MeshOnSphere()
  *  For the time being, blue is convex too, but later on, we should separate the case of concave blue
  */
 int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, EntityHandle blue,
-    double * P, int & nP, double & area, int markb[4], int markr[4])
+    double * P, int & nP, double & area, int markb[4], int markr[4], bool check_boxes_first)
 {
   // the points will be at most 16; they will describe a convex patch, after the points will be ordered and
   // collapsed (eliminate doubles)
@@ -78,6 +78,14 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
     mb->list_entities(&blue, 1);
     std::cout << "middle " << middle << "  plane:" << plane << "\n";
   }
+  area = 0.;
+  nP = 0; // number of intersection points we are marking the boundary of blue!
+  if (check_boxes_first)
+  {
+    // look at the boxes formed with vertices; if they are far away, return false early
+    if (!GeomUtil::bounding_boxes_overlap(redCoords, num_nodes, blueCoords, num_nodes, box_error))
+      return 0; // no error, but no intersection, decide early to get out
+  }
   for (int j = 0; j < nsides; j++)
   {
     // populate coords in the plane for intersection
@@ -101,7 +109,7 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
           << blueQuad[2 * j] << " " << blueQuad[2 * j + 1] << "\n";
     }
   }
-  nP = 0; // number of intersection points we are marking the boundary of blue!
+
   int ret = EdgeIntersections2(blueQuad, redQuad, nsides, markb, markr, P, nP);
   if (ret != 0)
     return 1; // some unforeseen error
@@ -145,7 +153,7 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
   // this works if the polygons are convex
   SortAndRemoveDoubles2(P, nP, epsilon_1); // nP should be at most 8 in the end ?
   // if there are more than 3 points, some area will be positive
-  area = 0.;
+
   if (nP >= 3)
   {
     for (int k = 1; k < nP - 1; k++)

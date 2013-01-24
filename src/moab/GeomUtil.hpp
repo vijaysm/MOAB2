@@ -316,6 +316,17 @@ bool box_tet_overlap( const CartVect tet_corners[4],
                       const CartVect& box_center,
                       const CartVect& box_dims);
 
+// tests if 2 boxes overlap within a tolerance
+// assume that data is valid, box_min1 << box_max1, and box_min2<< box_max2
+// they are overlapping if they are overlapping in all directions
+// for example in x direction:
+//   box_max2[0] + tolerance < box_min1[0] -- false
+bool boxes_overlap( const CartVect & box_min1, const CartVect & box_max1,
+    const CartVect & box_min2, const CartVect & box_max2, double tolerance);
+
+// see if boxes formed by 2 lists of "CartVect"s overlap
+bool bounding_boxes_overlap (const CartVect * list1, int num1, const CartVect * list2, int num2,
+      double tolerance);
 //
 // point_in_trilinear_hex
 // Tests if a point in xyz space is within a hex element defined with

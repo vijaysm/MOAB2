@@ -23,7 +23,7 @@ public:
 
 
   int computeIntersectionBetweenRedAndBlue(EntityHandle red, EntityHandle blue,
-          double * P, int & nP, double & area, int markb[4], int markr[4]);
+          double * P, int & nP, double & area, int markb[4], int markr[4], bool check_boxes_first=false);
 
   int findNodes(EntityHandle red, EntityHandle blue, double * iP, int nP);
 

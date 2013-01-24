@@ -6,6 +6,7 @@
  */
 
 #include "Intx2MeshInPlane.hpp"
+#include "moab/GeomUtil.hpp"
 namespace moab {
 Intx2MeshInPlane::Intx2MeshInPlane(Interface * mbimpl):Intx2Mesh(mbimpl){
 
@@ -16,7 +17,7 @@ Intx2MeshInPlane::~Intx2MeshInPlane() {
 }
 
 int Intx2MeshInPlane::computeIntersectionBetweenRedAndBlue(EntityHandle red, EntityHandle blue,
-    double * P, int & nP, double & area, int markb[4], int markr[4])
+    double * P, int & nP, double & area, int markb[4], int markr[4], bool check_boxes_first)
 {
 
    // the points will be at most 9; they will describe a convex patch, after the points will be ordered and
@@ -58,6 +59,14 @@ int Intx2MeshInPlane::computeIntersectionBetweenRedAndBlue(EntityHandle red, Ent
      }
      mb->list_entities(&red, 1);
      mb->list_entities(&blue, 1);
+   }
+   area = 0.;
+   nP = 0; // number of intersection points we are marking the boundary of blue!
+   if (check_boxes_first)
+   {
+     // look at the boxes formed with vertices; if they are far away, return false early
+     if (!GeomUtil::bounding_boxes_overlap(redCoords, num_nodes, blueCoords, num_nodes, box_error))
+       return 0; // no error, but no intersection, decide early to get out
    }
    for (int j = 0; j < nsides; j++)
    {

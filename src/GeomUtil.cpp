@@ -1379,7 +1379,54 @@ bool box_point_overlap( const CartVect& box_min_corner,
   return closest % closest < tolerance * tolerance;
 }
 
+bool boxes_overlap( const CartVect & box_min1, const CartVect & box_max1,
+    const CartVect & box_min2, const CartVect & box_max2, double tolerance)
+{
 
+  for (int k=0; k<3; k++)
+  {
+    double b1min=box_min1[k], b1max=box_max1[k];
+    double b2min=box_min2[k], b2max=box_max2[k];
+    if ( b1min - tolerance > b2max)
+      return false;
+    if (b2min - tolerance > b1max )
+      return false;
+  }
+  return true;
+}
+
+// see if boxes formed by 2 lists of "CartVect"s overlap
+bool bounding_boxes_overlap (const CartVect * list1, int num1, const CartVect * list2, int num2,
+      double tolerance)
+{
+  assert(num1>=1 && num2>=1);
+  CartVect box_min1=list1[0], box_max1=list1[0];
+  CartVect box_min2=list2[0], box_max2=list2[0];
+  for (int i=1; i<num1; i++)
+  {
+    for (int k=0; k<3; k++)
+    {
+      double val=list1[i][k];
+      if (box_min1[k] > val)
+        box_min1[k] = val;
+      if (box_max1[k] < val)
+        box_max1[k]=val;
+    }
+  }
+  for (int i=1; i<num2; i++)
+  {
+    for (int k=0; k<3; k++)
+    {
+      double val=list2[i][k];
+      if (box_min2[k] > val)
+        box_min2[k] = val;
+      if (box_max2[k] < val)
+        box_max2[k]=val;
+    }
+  }
+
+  return boxes_overlap(box_min1, box_max1, box_min2, box_max2, tolerance);
+}
 /**\brief Class representing a 3-D mapping function (e.g. shape function for volume element) */
 class VolMap {
   public:
