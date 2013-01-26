@@ -27,6 +27,7 @@ Intx2Mesh::Intx2Mesh(Interface * mbimpl):mb(mbimpl), parcomm(NULL), myTree(NULL)
 {
   dbg_1=0;
   box_error=0;
+  my_rank=0;
 }
 
 Intx2Mesh::~Intx2Mesh()
@@ -149,7 +150,7 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
   if (type == MBQUAD)
     nsides=4;
   ErrorCode rval;
-  mbs1 = mbset1; // is this the arrival or departure? I don't know yet
+  mbs1 = mbset1; // set 1 is departure, and it is completely covering the euler set on proc
   mbs2 = mbset2;
   outSet = outputSet;
 
@@ -190,129 +191,131 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
   std::queue<EntityHandle> redQueue;
   redQueue.push(startRed);
 
-  Range toResetReds; // will be used to reset red flags for every blue quad
+  Range toResetBlues; // will be used to reset blue flags for every red quad
   // processed
 
+  /*if (my_rank==0)
+    dbg_1 = 1;*/
   unsigned char used = 1;
   unsigned char unused = 0; // for red flags
   // mark the start blue quad as used, so it will not come back again
-  mb->tag_set_data(BlueFlagTag, &startBlue, 1, &used);
-  while (!blueQueue.empty())
+  mb->tag_set_data(RedFlagTag, &startRed, 1, &used);
+  while (!redQueue.empty())
   {
-    // flags for the side : 0 means a red quad not found on side
-    // a paired red not found yet for the neighbors of blue
+    // flags for the side : 0 means a blue quad not found on side
+    // a paired blue not found yet for the neighbors of red
     EntityHandle n[4] = { EntityHandle(0) };
 
-    EntityHandle currentBlue = blueQueue.front();
-    blueQueue.pop();
+    EntityHandle currentRed = redQueue.front();
+    redQueue.pop();
     //        for (k=0; k<m_numPos; k++)
     //          redFlag[k] = 0;
     //        redFlag[m_numPos] = 1; // to guard for the boundary
     // all reds that were tagged, are now cleared
-    for (Range::iterator itr = toResetReds.begin(); itr != toResetReds.end();
+    for (Range::iterator itr = toResetBlues.begin(); itr != toResetBlues.end();
         itr++)
     {
       EntityHandle ttt = *itr;
-      rval = mb->tag_set_data(RedFlagTag, &ttt, 1, &unused);
-      ERRORR(rval, "can't set red tag");
+      rval = mb->tag_set_data(BlueFlagTag, &ttt, 1, &unused);
+      ERRORR(rval, "can't set blue unused tag");
     }
     //rval = mb2->tag_set_data(RedFlagTag, toResetReds, &unused);
     if (dbg_1)
     {
-      std::cout << "reset reds: ";
-      for (Range::iterator itr = toResetReds.begin(); itr != toResetReds.end();
+      std::cout << "reset blues: ";
+      for (Range::iterator itr = toResetBlues.begin(); itr != toResetBlues.end();
           itr++)
         std::cout << mb->id_from_handle(*itr) << " ";
       std::cout << std::endl;
     }
-    EntityHandle currentRed = redQueue.front(); // where do we check for redQueue????
+    EntityHandle currentBlue = blueQueue.front(); // where do we check for redQueue????
     // red and blue queues are parallel
-    redQueue.pop(); // mark the current red
+    blueQueue.pop(); // mark the current red
     //redFlag[currentRed] = 1; //
-    toResetReds.clear(); // empty the range of used reds, will have to be set unused again,
-    // at the end of blue triangle processing
-    toResetReds.insert(currentRed);
-    rval = mb->tag_set_data(RedFlagTag, &currentRed, 1, &used);
-    ERRORR(rval, "can't set red tag");
+    toResetBlues.clear(); // empty the range of used blues, will have to be set unused again,
+    // at the end of red element processing
+    toResetBlues.insert(currentBlue);
+    rval = mb->tag_set_data(BlueFlagTag, &currentBlue, 1, &used);
+    ERRORR(rval, "can't set blue tag");
     //mb2->set_tag_data
-    std::queue<EntityHandle> localRed;
-    localRed.push(currentRed);
-    while (!localRed.empty())
+    std::queue<EntityHandle> localBlue;
+    localBlue.push(currentBlue);
+    while (!localBlue.empty())
     {
       //
-      EntityHandle redT = localRed.front();
-      localRed.pop();
+      EntityHandle blueT = localBlue.front();
+      localBlue.pop();
       double P[48], area; // area is in 2d, points are in 3d (on a sphere), back-projected
       int nP = 0; // intersection points (could include the vertices of initial quads)
       int nb[4] = { 0, 0, 0, 0 }; // means no intersection on the side (markers)
       int nr[4] = { 0, 0, 0, 0 }; // means no intersection on the side (markers)
       // nc [j] = 1 means that the side j (from j to j+1) of blue quad intersects the
       // red quad.  A potential next quad is the red quad that is adjacent to this side
-      computeIntersectionBetweenRedAndBlue(/* red */redT, currentBlue, P, nP,
+      computeIntersectionBetweenRedAndBlue(/* red */currentRed, blueT, P, nP,
           area, nb, nr);
       if (nP > 0)
       {
         // intersection found: output P and original triangles if nP > 2
 
         EntityHandle neighbors[4];
-        rval = GetOrderedNeighbors(mbs2, redT, neighbors);
+        rval = GetOrderedNeighbors(mbs1, blueT, neighbors);
         if (rval != MB_SUCCESS)
         {
-          std::cout << " can't get the neighbors for red element "
-              << mb->id_from_handle(redT);
+          std::cout << " can't get the neighbors for blue element "
+              << mb->id_from_handle(blueT);
           return MB_FAILURE;
         }
 
-        // add neighbors to the localRed queue, if they are not marked
+        // add neighbors to the localBlue queue, if they are not marked
         for (int nn = 0; nn < nsides; nn++)
         {
           EntityHandle neighbor = neighbors[nn];
-          if (neighbor > 0 && nr[nn]>0) // advance across red boundary n
+          if (neighbor > 0 && nb[nn]>0) // advance across blue boundary n
           {
             //n[nn] = redT; // start from 0!!
             unsigned char status = 0;
-            mb->tag_get_data(RedFlagTag, &neighbor, 1, &status);
+            mb->tag_get_data(BlueFlagTag, &neighbor, 1, &status);
             if (status == 0)
             {
-              localRed.push(neighbor);
+              localBlue.push(neighbor);
               if (dbg_1)
               {
-                std::cout << " local red elem " << mb->id_from_handle(neighbor)
-                    << " for blue:" << mb->id_from_handle(currentBlue) << "\n"
+                std::cout << " local blue elem " << mb->id_from_handle(neighbor)
+                    << " for red:" << mb->id_from_handle(currentRed) << "\n"
                     << mb->list_entities(&neighbor, 1) << "\n";
               }
-              rval = mb->tag_set_data(RedFlagTag, &neighbor, 1, &used);
+              rval = mb->tag_set_data(BlueFlagTag, &neighbor, 1, &used);
               //redFlag[neighbor] = 1; // flag it to not be added anymore
-              toResetReds.insert(neighbor); // this is used to reset the red flag
+              toResetBlues.insert(neighbor); // this is used to reset the red flag
             }
           }
           // n(find(nc>0))=ac;        % ac is starting candidate for neighbor
-          if (nb[nn] > 0)
-            n[nn] = redT;
+          if (nr[nn] > 0)
+            n[nn] = blueT;
 
         }
         if (nP > 1) // this will also construct triangles/polygons in the new mesh, if needed
-          findNodes(redT, currentBlue, P, nP);
+          findNodes(currentRed, blueT, P, nP);
       }
       else if (dbg_1)
       {
         std::cout << " red, blue, do not intersect: "
-            << mb->id_from_handle(redT) << " "
-            << mb->id_from_handle(currentBlue) << "\n";
+            << mb->id_from_handle(currentRed) << " "
+            << mb->id_from_handle(blueT) << "\n";
       }
 
     }
 
-    EntityHandle blueNeighbors[4];
-    rval = GetOrderedNeighbors(mbs1, currentBlue, blueNeighbors);
+    EntityHandle redNeighbors[4];
+    rval = GetOrderedNeighbors(mbs2, currentRed, redNeighbors);
     ERRORR(rval, "can't get neighbors");
     if (dbg_1)
     {
-      std::cout << "Next: neighbors for blue T ";
+      std::cout << "Next: neighbors for current red ";
       for (int kk = 0; kk < nsides; kk++)
       {
-        if (blueNeighbors[kk] > 0)
-          std::cout << mb->id_from_handle(blueNeighbors[kk]) << " ";
+        if (redNeighbors[kk] > 0)
+          std::cout << mb->id_from_handle(redNeighbors[kk]) << " ";
         else
           std::cout << 0 << " ";
       }
@@ -320,21 +323,21 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
     }
     for (int j = 0; j < nsides; j++)
     {
-      EntityHandle blueNeigh = blueNeighbors[j];
+      EntityHandle redNeigh = redNeighbors[j];
       unsigned char status = 1;
-      if (blueNeigh == 0)
+      if (redNeigh == 0)
         continue;
-      mb->tag_get_data(BlueFlagTag, &blueNeigh, 1, &status); // status 0 is unused
+      mb->tag_get_data(RedFlagTag, &redNeigh, 1, &status); // status 0 is unused
       if (status == 0 && n[j] > 0) // not treated yet and marked as a neighbor
       {
         // we identified red quad n[j] as intersecting with neighbor j of the blue quad
-        blueQueue.push(blueNeigh);
-        redQueue.push(n[j]);
+        redQueue.push(redNeigh);
+        blueQueue.push(n[j]);
         if (dbg_1)
           std::cout << "new quads pushed: blue, red:"
-              << mb->id_from_handle(blueNeigh) << " "
+              << mb->id_from_handle(redNeigh) << " "
               << mb->id_from_handle(n[j]) << std::endl;
-        mb->tag_set_data(BlueFlagTag, &blueNeigh, 1, &used);
+        mb->tag_set_data(RedFlagTag, &redNeigh, 1, &used);
       }
     }
 
@@ -412,7 +415,7 @@ ErrorCode Intx2Mesh::initialize_local_kdtree(EntityHandle euler_set)
   if (parcomm)
     allBoxes.resize(6*parcomm->proc_config().proc_size());
   else allBoxes.resize(6);
-  unsigned int my_rank = (parcomm ? parcomm->proc_config().proc_rank() : 0);
+  my_rank = (parcomm ? parcomm->proc_config().proc_rank() : 0);
   result = myTree->get_tree_box(localRoot, &allBoxes[6*my_rank], &allBoxes[6*my_rank+3]);
   if (MB_SUCCESS != result) return result;
 
@@ -544,7 +547,7 @@ ErrorCode Intx2Mesh::locate_departure_points(Range & local_verts)
     // of <local_index, mapped_index>, where mapped_index is the index
     // into the locs list of elements where the points were located
 
-  unsigned int my_rank = (parcomm ? parcomm->proc_config().proc_rank() : 0);
+  //my_rank = (parcomm ? parcomm->proc_config().proc_rank() : 0);
 
 
   for (int i = 0; i < 3*num_owned_verts; i+=3)
@@ -804,11 +807,11 @@ ErrorCode Intx2Mesh::create_departure_mesh(EntityHandle & covering_lagr_set)
   // create vertices for DP points in this rank
   // count how many to send; if LOC(0) != rank, we have to send to other LOC(0)
   unsigned int v_to_send =0, q_to_send =0;
-  int my_rank = 0;
+  my_rank = 0;
   std::vector<int> locs(num_local_verts*2);// fill it with loc info for vertex
   if (this->parcomm)
   {
-    my_rank = parcomm->proc_config().proc_rank();
+    //my_rank = parcomm->proc_config().proc_rank();
     rval = mb->tag_get_data(locTag, local_verts, &locs[0]);
     ERRORR(rval, "can't get value for LOC tag");
 
@@ -845,7 +848,7 @@ ErrorCode Intx2Mesh::create_departure_mesh(EntityHandle & covering_lagr_set)
   for (std::set<int>::iterator st=ps.begin(); st!=ps.end(); st++)
   {
     int to_proc=*st;
-    if (my_rank==to_proc)
+    if ((int)my_rank==to_proc)
       continue;
     Range & procRange = rs[to_proc];
     v_to_send += procRange.num_of_type( MBVERTEX);
@@ -888,7 +891,7 @@ ErrorCode Intx2Mesh::create_departure_mesh(EntityHandle & covering_lagr_set)
     for (std::set<int>::iterator st=ps.begin(); st!=ps.end(); st++)
     {
       int to_proc=*st;
-      if (to_proc==my_rank)
+      if (to_proc==(int)my_rank)
         continue;
       Range & procRange = rs[to_proc];
       Range V = procRange.subset_by_type(MBVERTEX);
@@ -1059,7 +1062,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
   int numprocs=parcomm->proc_config().proc_size();
   allBoxes.resize(6*numprocs);
 
-  int my_rank = parcomm->proc_config().proc_rank() ;
+  my_rank = parcomm->proc_config().proc_rank() ;
   for (int k=0; k<3; k++)
   {
     allBoxes[6*my_rank+k]=bmin[k];
@@ -1129,7 +1132,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
   size_t numv=0;
   for (int p=0; p<numprocs; p++)
   {
-    if (p==my_rank)
+    if (p==(int)my_rank)
       continue; // do not "send" it, because it is already here
     Range & range_to_P = Rto[p];
     // add the vertices to it
@@ -1153,7 +1156,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
 
   for (int to_proc=0; to_proc<numprocs; to_proc++)
   {
-    if (to_proc==my_rank)
+    if (to_proc==(int)my_rank)
       continue;
     Range & range_to_P = Rto[to_proc];
     Range V = range_to_P.subset_by_type(MBVERTEX);

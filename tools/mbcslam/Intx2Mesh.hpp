@@ -125,6 +125,8 @@ protected: // so it can be accessed in derived classes, InPlane and OnSphere
   EntityHandle localRoot;
   Range localEnts;// this range is for local elements of interest
 
+  unsigned int my_rank;
+
 };
 
 } /* namespace moab */
