@@ -101,9 +101,6 @@ public:
     //! return the entity set representing the whole mesh
   virtual EntityHandle get_root_set()=0;
   
-    //! query an MB internal interface
-  virtual ErrorCode query_interface(const std::string& iface_name, void** iface) MB_DEPRECATED =0;
- 
     //! Get a pointer to an internal MOAB interface
     //!\return NULL if not found, iterface pointer otherwise
   virtual ErrorCode query_interface_type( const std::type_info& iface_type, void*& iface ) = 0;
@@ -117,9 +114,6 @@ public:
       ptr = reinterpret_cast<IFace*>(tmp_ptr);
       return result;
     }
- 
-    //! release an MB internal interface 
-  virtual ErrorCode release_interface(const std::string& iface_name, void* iface) MB_DEPRECATED =0;
  
     //! Release reference to MB interface
   virtual ErrorCode release_interface_type( const std::type_info& iface_type, void* iface ) = 0;
@@ -1285,91 +1279,6 @@ public:
                                     unsigned flags = 0,
                                     const void* default_value = 0 ) const = 0;
 
-    /**\brief Create a tag with the specified name, type and length
-       
-       \deprecated Use \b tag_get_handle instead
-       
-        Create a "tag", used to store application-defined data on MB entities.  If MB_ALREADY_ALLOCATED
-        is returned, a tag with this name has already been created.  Tags created with this function
-        are assigned to entities using the tag_set_data function described below.
-        \param tag_name Name of this tag
-        \param tag_size Size of data to store on tag, in bytes (MB_TAG_DENSE, MB_TAG_SPARSE) or
-        bits (MB_TAG_BITS).
-        \param type Type of tag to create (MB_TAG_BIT, MB_TAG_SPARSE, MB_TAG_DENSE, MB_TAG_MESH)
-        \param tag_handle Tag handle created
-        \param default_value Default value tag data is set to when initially created
-
-        Example: \code
-        Tag tag_handle;
-        double value = 100.0;
-          // create a dense tag with default value of 100
-          tag_create( "my_tag", sizeof(double), MB_TAG_DENSE, tag_handle, &value );
-          \endcode
-    */
-  ErrorCode tag_create( const char *tag_name,
-                        const int tag_size, 
-                        const TagType type,
-                        Tag &tag_handle, 
-                        const void *default_value) MB_DEPRECATED
-    { return tag_get_handle( tag_name, tag_size, MB_TYPE_OPAQUE, tag_handle,
-                             type|MB_TAG_CREAT|MB_TAG_EXCL|MB_TAG_BYTES, default_value ); }
-
-    /** \brief Define a new tag.
-     * 
-     * \deprecated Use \b tag_get_handle instead
-     *
-     * Define a new tag for storing application-defined data on MB entities.  
-     *
-     * \param name    The name of the tag.
-     * \param size    The size of the tag data in bytes.
-     * \param storage The tag storage type.
-     * \param data    The tag data type.
-     * \param handle  The tag handle (output)
-     * \param def_val Optional default value for tag.
-     * \param use_existing  If true, and a tag with the same name and
-     *                same description exists, successfully return the
-     *                handle of the tag.
-     * \return - MB_ALREADY_ALLOCATED if a tag with name already exists.
-     *         - MB_FAILURE if inconsistant arguments
-     *         - MB_SUCCESS otherwise.
-     */
-  ErrorCode tag_create( const    char* name,
-                        const      int size,
-                        const  TagType storage,
-                        const DataType data,
-                                  Tag& handle,
-                        const    void* def_val,
-                                  bool use_existing = false ) MB_DEPRECATED
-    { return tag_get_handle( name, size, data, handle, 
-                (use_existing?0:MB_TAG_EXCL)|MB_TAG_CREAT|MB_TAG_BYTES|storage, def_val ); }
-
-    /**\brief Define a new tag that can store variable-length data.
-     * 
-     * \deprecated Use \b tag_get_handle instead
-     *
-     * Define a new tag for storing application-defined data on MB entities.  
-     *
-     * \param name          The name of the tag.
-     * \param storage       The tag storage type (MB_TAG_BIT not supported).
-     * \param data_type     The tag data type.
-     * \param handle_out    The tag handle (output)
-     * \param default_value Optional default value for tag.
-     * \param default_val_len Length of default value.  Required if
-     *                      default value is specified.
-     * \return - MB_ALREADY_ALLOCATED if a tag with name already exists.
-     *         - MB_FAILURE if inconsistant arguments
-     *         - MB_SUCCESS otherwise.
-     */
-  ErrorCode tag_create_variable_length( const char* name,
-                                        TagType   storage,
-                                        DataType  data_type,
-                                        Tag&      handle_out,
-                                        const void* default_value = 0,
-                                        int         default_val_len = 0 ) MB_DEPRECATED
-    { return tag_get_handle( name, default_val_len, data_type, handle_out, 
-                              storage|MB_TAG_VARLEN|MB_TAG_CREAT|MB_TAG_EXCL|MB_TAG_BYTES,
-                              default_value ); }
-
     //! Get the name of a tag corresponding to a handle
     /** \param tag_handle Tag you want the name of.  
         \param tag_name Name string for <em>tag_handle</em>. 
@@ -1385,20 +1294,6 @@ public:
     */ 
   virtual ErrorCode tag_get_handle( const char *tag_name, 
                                     Tag &tag_handle ) const = 0;
-
-    /**\brief Get the size of the specified tag
-       
-       \deprecated Use \b tag_get_bytes or \b tag_get_length instead
-    
-        Get the size of the specified tag, in bytes (MB_TAG_SPARSE, MB_TAG_DENSE, MB_TAG_MESH) or
-        bits (MB_TAG_BIT).
-        \param tag Handle of the desired tag. 
-        \param tag_size Size of the specified tag
-        \return - MB_TAG_NOT_FOUND for invalid tag handles
-                - MB_VARIABLE_DATA_LENGTH for variable-length tags
-                - MB_SUCCESS otherwise
-    */ 
-  virtual ErrorCode tag_get_size(const Tag tag, int &tag_size) const MB_DEPRECATED = 0;
 
     //! Get the size of the specified tag in bytes
     /** Get the size of the specified tag, in bytes (MB_TAG_SPARSE, MB_TAG_DENSE, MB_TAG_MESH)
@@ -1521,89 +1416,6 @@ public:
   virtual ErrorCode  tag_set_data( Tag tag_handle, 
                                     const Range& entity_handles,
                                     const void *tag_data ) = 0;
-
-
-    /**\brief Get pointers to tag data
-     *
-     *\deprecated Use tag_get_by_ptr instead.
-     *
-     * For a tag, get the values for a list of passed entity handles.
-     *\note  This function may not be used for bit tags.
-     *\param tag_handle     The tag
-     *\param entity_handles An array of entity handles for which to retreive tag values.
-     *\param num_entities   The length of the 'entity_handles' array.
-     *\param tag_data       An array of 'const void*'.  Array must be at least
-     *                      'num_entitities' long.  Array is populated (output)
-     *                      with pointers to the internal storage for the
-     *                      tag value corresponding to each entity handle.
-     *\param tag_sizes      The size of each tag value in bytes.  Optional for 
-     *                      fixed-length tags.  Required for variable-length tags.
-     */
-  virtual ErrorCode  tag_get_data(const Tag tag_handle, 
-                                  const EntityHandle* entity_handles, 
-                                  int num_entities, 
-                                  const void** tag_data,
-                                  int* tag_sizes = 0 ) const MB_DEPRECATED = 0;
-
-    /**\brief Get pointers to tag data
-     *
-     *\deprecated Use tag_get_by_ptr instead.
-     *
-     * For a tag, get the values for a list of passed entity handles.
-     *\note  This function may not be used for bit tags.
-     *\param tag_handle     The tag
-     *\param entity_handles The entity handles for which to retreive tag values.
-     *\param tag_data       An array of 'const void*'.  Array is populated (output)
-     *                      with pointers to the internal storage for the
-     *                      tag value corresponding to each entity handle.
-     *\param tag_sizes      The size of each tag value in bytes.  Optional for 
-     *                      fixed-length tags.  Required for variable-length tags.
-     */
-  virtual ErrorCode  tag_get_data(const Tag tag_handle, 
-                                    const Range& entity_handles, 
-                                    const void** tag_data,
-                                    int* tag_sizes = 0 ) const MB_DEPRECATED = 0;
-
-    /**\brief Set tag data given an array of pointers to tag values.
-     *
-     *\deprecated Use tag_set_by_ptr instead.
-     *
-     * For a tag, set the values for a list of passed entity handles.
-     *\note  This function may not be used for bit tags.
-     *\param tag_handle     The tag
-     *\param entity_handles An array of entity handles for which to set tag values.
-     *\param num_entities   The length of the 'entity_handles' array.
-     *\param tag_data       An array of 'const void*'.  Array must be at least
-     *                      'num_entitities' long.  Array is expected to
-     *                      contain pointers to tag values for the corresponding
-     *                      EntityHandle in 'entity_handles'.
-     *\param tag_sizes      The size of each tag value in bytes.  Optional for 
-     *                      fixed-length tags.  Required for variable-length tags.
-     */
-  virtual ErrorCode  tag_set_data( Tag tag_handle, 
-                                   const EntityHandle* entity_handles, 
-                                   int num_entities,
-                                   void const* const* tag_data,
-                                   const int* tag_sizes = 0 ) MB_DEPRECATED = 0;
-  
-    /**\brief Set tag data given an array of pointers to tag values.
-     *
-     *\deprecated Use tag_set_by_ptr instead.
-     *
-     * For a tag, set the values for a list of passed entity handles.
-     *\note  This function may not be used for bit tags.
-     *\param tag_handle     The tag
-     *\param entity_handles The entity handles for which to set tag values.
-     *\param tag_data       An array of 'const void*'.  Array is expected to
-     *                      contain pointers to tag values for the corresponding
-     *                      EntityHandle in 'entity_handles'.
-     *\param tag_sizes      The size of each tag value in bytes.  Optional for 
-     *                      fixed-length tags.  Required for variable-length tags.
-     */
-  virtual ErrorCode  tag_set_data( Tag tag_handle, 
-                                    const Range& entity_handles,
-                                    void const* const* tag_data,
-                                    const int* tag_sizes = 0 ) MB_DEPRECATED = 0;
 
     /**\brief Get pointers to tag data
      *

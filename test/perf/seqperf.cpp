@@ -429,6 +429,7 @@ void create_vertices_single( )
   vertex_coords( 0, coords[0], coords[1], coords[2] );
   ErrorCode rval = mb.create_vertex( coords, vertStart );
   assert(!rval);
+  if (rval){} // empty line to remove compiler warning  
   
   EntityHandle h;
   for (long i = 1; i < numVert; ++i) {
@@ -523,6 +524,7 @@ void reverse_order_query_vertices(int percent)
       for (x = deleted_x-1; x >= 0; --x, --h) {
         r = mb.get_coords( &h, 1, coords );
         assert(MB_SUCCESS == r);
+        if (r){} // empty line to remove compiler warning  
       }
     }
   }
@@ -538,6 +540,7 @@ void random_order_query_vertices(int percent)
       h = vertStart + queryVertPermutation[i];
       r = mb.get_coords( &h, 1, coords );
       assert(MB_SUCCESS == r);
+      if (r){} // empty line to remove compiler warning  
     }
   }
 }
@@ -556,6 +559,7 @@ void forward_order_query_elements(int percent)
       for (x = 0; x < deleted_x; ++x, ++h) {
         r = mb.get_connectivity( h, conn, len );
         assert(MB_SUCCESS == r);
+        if (r){} // empty line to remove compiler warning  
         assert(conn && 8 == len);
       }
       h += (elem_per_edge - deleted_x);
@@ -578,6 +582,7 @@ void reverse_order_query_elements(int percent)
       for (x = deleted_x-1; x >= 0; --x, --h) {
         r = mb.get_connectivity( h, conn, len );
         assert(MB_SUCCESS == r);
+        if (r){} // empty line to remove compiler warning  
         assert(conn && 8 == len);
       }
     }
@@ -593,6 +598,7 @@ void  random_order_query_elements(int percent)
     if (!deleted_elem( queryElemPermutation[i], percent )) {
       r = mb.get_connectivity( elemStart + queryElemPermutation[i], conn, len );
       assert(MB_SUCCESS == r);
+      if (r){} // empty line to remove compiler warning  
       assert(conn && 8 == len);
     }
   }
@@ -622,6 +628,7 @@ static double hex_centroid( double coords[24], double cent[3] )
 void forward_order_query_element_verts(int percent)
 {
   ErrorCode r;
+  if (r){} // empty line to remove compiler warning  
   const EntityHandle* conn;
   int len;
   long x, y, z;
@@ -646,6 +653,8 @@ void forward_order_query_element_verts(int percent)
 void reverse_order_query_element_verts(int percent)
 {
   ErrorCode r;
+  if (r) {} // empty statement to remove compiler warning
+  
   const EntityHandle* conn;
   int len;
   long x, y, z;
@@ -670,6 +679,7 @@ void reverse_order_query_element_verts(int percent)
 void  random_order_query_element_verts(int percent)
 {
   ErrorCode r;
+  if (r){} // empty line to remove compiler warning  
   const EntityHandle* conn;
   int len;
   double coords[24];
@@ -725,6 +735,7 @@ void create_missing_vertices( int percent )
 {
   EntityHandle h;
   ErrorCode rval;
+  if (rval){} // empty line to remove compiler warning  
   double coords[3];
   for (long i = 0; i < numVert; ++i)
     if (deleted_vert( i, percent )) {

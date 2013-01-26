@@ -70,12 +70,12 @@ ErrorCode make_tris_from_quad( Interface *MBI,
 ErrorCode make_tris_from_quads( Interface *MBI,
                                   const Range quads,
                                   Range &tris ) {
-  ErrorCode result = MB_SUCCESS; // initialized to remove warning
   tris.clear();
   for(Range::const_iterator i=quads.begin(); i!=quads.end(); ++i) {
     EntityHandle tri0, tri1;
-    result = make_tris_from_quad( MBI, *i, tri0, tri1 );
+    ErrorCode result = make_tris_from_quad( MBI, *i, tri0, tri1 );
     assert(MB_SUCCESS == result);
+    if (MB_SUCCESS != result) return result;
     tris.insert( tri0 );
     tris.insert( tri1 );
   }

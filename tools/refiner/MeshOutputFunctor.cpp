@@ -52,7 +52,7 @@ MeshOutputFunctor::~MeshOutputFunctor()
 }
 
 void MeshOutputFunctor::print_vert_crud(
-  EntityHandle vout, int nvhash, EntityHandle* vhash, const double* vcoords, const void* vtags )
+    EntityHandle vout, int nvhash, EntityHandle* vhash, const double* vcoords, const void* /*vtags*/ )
 {
   std::cout << "+ {";
   for ( int i = 0; i < nvhash; ++ i )
@@ -141,21 +141,22 @@ void MeshOutputFunctor::assign_global_ids( ParallelComm* comm )
   // can deterministically assign the same GID to the same entity even
   // when shared across processors because we have an ordering that is
   // identical on all processes -- the vertex splits.
-  for ( int i = 0; i < dparts[psize]; ++ i )
+  for ( int j = 0; j < dparts[psize]; ++ j )
     {
-    ProcessSet pset( &part_defns[ProcessSet::SHARED_PROC_BYTES * i] );
-    std::map<ProcessSet,int>::iterator it = this->proc_partition_counts.find( pset );
-    if ( it != this->proc_partition_counts.end() )
+    ProcessSet pset( &part_defns[ProcessSet::SHARED_PROC_BYTES * j] );
+    std::map<ProcessSet,int>::iterator mit = this->proc_partition_counts.find( pset );
+    if ( mit != this->proc_partition_counts.end() )
       {
 #ifdef MB_DEBUG
-      std::cout << "Partition " << pset << ( it->second == part_sizes[i] ? " matches" : " broken" ) << ".\n";
+      std::cout << "Partition " << pset << ( mit->second == part_sizes[j] ? " matches" : " broken" ) << ".\n";
 #endif // MB_DEBUG
       }
     else
       {
-      this->proc_partition_counts[pset] = part_sizes[i];
+      this->proc_partition_counts[pset] = part_sizes[j];
       }
     }
+  
   std::map<ProcessSet,int> gids;
   std::map<ProcessSet,int>::iterator pcit;
   EntityHandle start_gid = 100; // FIXME: Get actual maximum GID across all processes and add 1
@@ -183,7 +184,7 @@ void MeshOutputFunctor::assign_global_ids( ParallelComm* comm )
     }
 }
 
-void MeshOutputFunctor::exchange_handles( ParallelComm* comm )
+void MeshOutputFunctor::exchange_handles( ParallelComm*  )
 {
 }
 

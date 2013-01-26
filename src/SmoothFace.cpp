@@ -328,12 +328,15 @@ ErrorCode SmoothFace::init_bezier_edge(EntityHandle edge, double )
   const EntityHandle * conn2;
   ErrorCode rval = _mb->get_connectivity(edge, conn2, nnodes);
   assert(rval == MB_SUCCESS);
+  if (MB_SUCCESS != rval) return rval;
+  
   assert(2 == nnodes);
   //double coords[6]; // store the coordinates for the nodes
   CartVect P[2];
   //ErrorCode rval = _mb->get_coords(conn2, 2, coords);
   rval = _mb->get_coords(conn2, 2, (double*) &P[0]);
   assert(rval == MB_SUCCESS);
+  if (MB_SUCCESS != rval) return rval;
 
   //CartVect P0(&coords[0]);
   //CartVect P3(&coords[3]);
@@ -343,17 +346,21 @@ ErrorCode SmoothFace::init_bezier_edge(EntityHandle edge, double )
   //_mb->tag_get_data(_gradientTag, conn2, 2, normalVec);
   rval = _mb->tag_get_data(_gradientTag, conn2, 2, (double*) &N[0]);
   assert(rval == MB_SUCCESS);
+  if (MB_SUCCESS != rval) return rval;
 
   CartVect T[2]; // T0, T3
 
   rval = _mb->tag_get_data(_tangentsTag, &edge, 1, &T[0]);
   assert(rval == MB_SUCCESS);
+  if (MB_SUCCESS != rval) return rval;
 
   rval = init_edge_control_points(P[0], P[1], N[0], N[1], T[0], T[1], ctrl_pts);
   assert(rval == MB_SUCCESS);
+  if (MB_SUCCESS != rval) return rval;
 
   rval = _mb->tag_set_data(_edgeCtrlTag, &edge, 1, &ctrl_pts[0]);
   assert(rval == MB_SUCCESS);
+  if (MB_SUCCESS != rval) return rval;
 
   if (debug_surf_eval1)
   {
@@ -452,7 +459,9 @@ ErrorCode SmoothFace::find_edges_orientations(EntityHandle edges[3],
     std::vector<EntityHandle> adjacencies;
     // generate all edges for these two hexes
     ErrorCode rval = _mb->get_adjacencies(v, 2, 1, false, adjacencies,
-        Interface::INTERSECT);
+                                          Interface::INTERSECT);
+    if (MB_SUCCESS != rval) return rval;
+
     // find the edge connected to both vertices, and then see its orientation
     assert(adjacencies.size() == 1);
     const EntityHandle * conn2;
@@ -489,22 +498,26 @@ ErrorCode SmoothFace::compute_internal_control_points_on_facets(double ,
     int nnodes;
     ErrorCode rval = _mb->get_connectivity(tri, conn3, nnodes);
     assert(MB_SUCCESS == rval);
+    if (MB_SUCCESS != rval) return rval;
     assert(3 == nnodes);
 
     // would it be easier to do
     CartVect vNode[3];// position at nodes
     rval = _mb->get_coords(conn3, 3, (double*) &vNode[0]);
     assert(MB_SUCCESS == rval);
+    if (MB_SUCCESS != rval) return rval;
 
     // get gradients (normal) at each node of triangle
     CartVect NN[3];
     rval = _mb->tag_get_data(_gradientTag, conn3, 3, &NN[0]);
     assert(MB_SUCCESS == rval);
+    if (MB_SUCCESS != rval) return rval;
 
     EntityHandle edges[3];
     int orient[3]; // + 1 or -1, if the edge is positive or negative within the face
     rval = find_edges_orientations(edges, conn3, orient);// maybe we will set it?
     assert(MB_SUCCESS == rval);
+    if (MB_SUCCESS != rval) return rval;
     // maybe we will store some tags with edges and their orientation with respect to
     // a triangle;
     CartVect P[3][5];
@@ -542,10 +555,12 @@ ErrorCode SmoothFace::compute_internal_control_points_on_facets(double ,
     // what do we need to store in the tag control points?
     rval = _mb->tag_set_data(_facetCtrlTag, &tri, 1, &G[0]);
     assert(MB_SUCCESS == rval);
+    if (MB_SUCCESS != rval) return rval;
 
     // store here again the 9 control points on the edges
     rval = _mb->tag_set_data(_facetEdgeCtrlTag, &tri, 1, &CP[0]);
     assert(MB_SUCCESS == rval);
+    if (MB_SUCCESS != rval) return rval;
     // look at what we retrieve later
 
     // adjust the bounding box
@@ -730,12 +745,15 @@ ErrorCode SmoothFace::evaluate_smooth_edge(EntityHandle eh, double &tt,
   const EntityHandle * conn2;
   ErrorCode rval = _mb->get_connectivity(eh, conn2, nnodes);
   assert(rval == MB_SUCCESS);
+  if (MB_SUCCESS != rval) return rval;
 
   rval = _mb->get_coords(conn2, 2, (double*) &P[0]);
   assert(rval == MB_SUCCESS);
+  if (MB_SUCCESS != rval) return rval;
 
   rval = _mb->tag_get_data(_edgeCtrlTag, &eh, 1, (double*) &controlPoints[0]);
   assert(rval == MB_SUCCESS);
+  if (MB_SUCCESS != rval) return rval;
 
   t2 = tt * tt;
   t3 = t2 * tt;
@@ -764,6 +782,7 @@ ErrorCode SmoothFace::eval_bezier_patch(EntityHandle tri, CartVect &areacoord,
   // what do we need to store in the tag control points?
   ErrorCode rval = _mb->tag_get_data(_facetCtrlTag, &tri, 1, &gctrl_pts[0]);// get all 6 control points
   assert(MB_SUCCESS == rval);
+  if (MB_SUCCESS != rval) return rval;
   const EntityHandle * conn3;
   int nnodes;
   rval = _mb->get_connectivity(tri, conn3, nnodes);
@@ -940,15 +959,19 @@ void SmoothFace::facet_area_coordinate(EntityHandle facet,
   int nnodes;
   ErrorCode rval = _mb->get_connectivity(facet, conn3, nnodes);
   assert(MB_SUCCESS == rval);
+  if (rval) {} // empty statement to prevent compiler warning
+
   //double coords[9]; // store the coordinates for the nodes
   //_mb->get_coords(conn3, 3, coords);
   CartVect p[3];
   rval = _mb->get_coords(conn3, 3, (double*) &p[0]);
   assert(MB_SUCCESS == rval);
+  if (rval) {} // empty statement to prevent compiler warning
   double plane[4];
 
   rval = _mb->tag_get_data(_planeTag, &facet, 1, plane);
   assert(rval == MB_SUCCESS);
+  if (rval) {} // empty statement to prevent compiler warning
   CartVect normal(&plane[0]);// just first 3 components are used
 
   double area2;
@@ -1721,16 +1744,18 @@ ErrorCode SmoothFace::eval_bezier_patch_normal(EntityHandle facet,
   //facet->get_control_points( gctrl_pts );
   ErrorCode rval = _mb->tag_get_data(_facetCtrlTag, &facet, 1, &gctrl_pts[0]);
   assert(rval == MB_SUCCESS);
+  if (MB_SUCCESS != rval) return rval;
   // _gradientTag
   // get normals at points
   const EntityHandle * conn3;
   int nnodes;
   rval = _mb->get_connectivity(facet, conn3, nnodes);
+  if (MB_SUCCESS != rval) return rval;
 
   CartVect NN[3];
   rval = _mb->tag_get_data(_gradientTag, conn3, 3, &NN[0]);
-
   assert(rval == MB_SUCCESS);
+  if (MB_SUCCESS != rval) return rval;
 
   if (fabs(areacoord[1] + areacoord[2]) < 1.0e-6)
   {
@@ -1791,6 +1816,7 @@ ErrorCode SmoothFace::eval_bezier_patch_normal(EntityHandle facet,
   // store here again the 9 control points on the edges
   CartVect CP[9]; // 9 control points on the edges,
   rval = _mb->tag_get_data(_facetEdgeCtrlTag, &facet, 1, &CP[0]);
+  if (MB_SUCCESS != rval) return rval;
   // there are 3 CP for each edge, 0, 1, 2; first edge is 1-2
   //CubitFacetEdge *edge;
   //edge = facet->edge( 2 );

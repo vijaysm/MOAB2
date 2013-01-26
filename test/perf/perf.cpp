@@ -292,6 +292,7 @@ void init()
   ErrorCode rval = gMB->tag_get_handle("position_tag", 3, MB_TYPE_DOUBLE, pos_tag,
                                        MB_TAG_DENSE | MB_TAG_CREAT, def_val);
   assert(MB_SUCCESS == rval);
+  if (rval){} // empty line to remove compiler warning  
   rval = gMB->tag_get_handle("position2_tag", 3, MB_TYPE_DOUBLE, pos2_tag,
                              MB_TAG_DENSE | MB_TAG_CREAT, def_val);
   assert(MB_SUCCESS == rval);

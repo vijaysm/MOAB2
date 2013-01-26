@@ -1,4 +1,6 @@
 Version 4.6pre:
+* Removed deprecated functions from the Interface: (some overloaded variants of) query_interface, release_interface, 
+  tag_get_data, tag_set_data, tag_get_size.
 * Added Interface::adjacencies_iterate, whose behavior is much like tag_iterate.
 * Extended Interface::get_coords, to return entity centroids (avg vertex position) for non-vertex entities instead of failing
 * Added new iMeshP extension function iMeshP_getCommunicator, converting fortran integer to MPI C communicator
@@ -15,9 +17,9 @@ Version 4.6pre:
 * More extensive warning reporting when using GCC compilers, and many warning eliminations
 * Support for 1D in structured mesh interface
 * Improved doxygen developer documentation
-* Improved vtkMOABReader & paraview plugin
+* Alternative vtkMOABReaderNew & paraview plugin (in tools directory)
 * Additions/improvements to examples
-* New performance tests that include direct tag access tests
+* New performance tests that include direct tag access tests (in test/perf/perf.cpp)
 * Undeprecated one of the "tag_get_handle" functions for returning tag handle given tag name
 * Several conventional tags (GLOBAL_ID, MATERIAL_SET, others) now have conventional default 
   values; see src/MBTagConventions.hpp for a list of default values and other conventional tag

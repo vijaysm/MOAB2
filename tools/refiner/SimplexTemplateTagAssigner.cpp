@@ -76,8 +76,8 @@ void SimplexTemplateTagAssigner::operator () (
         double* t0i = (double*) ( (char*)t0 + tag_offset );
         double* tmi = (double*) ( (char*)tm + tag_offset );
         double* t1i = (double*) ( (char*)t1 + tag_offset );
-        for ( int i = 0; i < num_components; ++ i )
-          tmi[i] = one_minus_lambda * t0i[i] + lambda * t1i[i];
+        for ( int j = 0; j < num_components; ++ j )
+          tmi[j] = one_minus_lambda * t0i[j] + lambda * t1i[j];
         }
         break;
       default:

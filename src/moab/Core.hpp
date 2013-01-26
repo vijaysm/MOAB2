@@ -67,15 +67,9 @@ public:
   //!destructor
   MB_DLL_EXPORT ~Core();
   
-  //! query an MB internal interface
-  virtual ErrorCode query_interface(const std::string& iface_name, void** iface) MB_DEPRECATED;
- 
     //! Get a pointer to an internal MOAB interface
     //!\return NULL if not found, iterface pointer otherwise
   virtual ErrorCode query_interface_type( const std::type_info& iface_type, void*& iface );
- 
-  //! release an MB internal interface 
-  virtual ErrorCode release_interface(const std::string& iface_name, void* iface) MB_DEPRECATED;
  
     //! Release reference to MB interface
   virtual ErrorCode release_interface_type( const std::type_info& iface_type, void* iface );
@@ -696,12 +690,6 @@ public:
   virtual ErrorCode tag_get_tags_on_entity(const EntityHandle entity,
                                              std::vector<Tag> &tag_handles) const;
 
-  /**\brief get size of tag in bytes
-   *
-   *\deprecated Use tag_get_bytes or tag_get_length instead
-   */
-  virtual ErrorCode tag_get_size(const Tag tag, int &tag_size) const MB_DEPRECATED;
-
     //! Get the size of the specified tag in bytes
   virtual ErrorCode tag_get_bytes(const Tag tag, int& bytes_per_tag) const;
 
@@ -757,45 +745,6 @@ public:
   virtual ErrorCode  tag_set_data( Tag tag_handle, 
                                      const Range& entity_handles,
                                      const void *tag_data );
-
-
-    /**\brief Get pointers to tag data
-     *
-     *\deprecated Use tag_get_by_ptr instead.
-     */
-  virtual ErrorCode  tag_get_data(const Tag tag_handle, 
-                                  const EntityHandle* entity_handles, 
-                                  int num_entities, 
-                                  const void** tag_data,
-                                  int* tag_sizes = 0 ) const MB_DEPRECATED;
-
-    /**\brief Get pointers to tag data
-     *
-     *\deprecated Use tag_get_by_ptr instead.
-     */
-  virtual ErrorCode  tag_get_data(const Tag tag_handle, 
-                                    const Range& entity_handles, 
-                                    const void** tag_data,
-                                    int* tag_sizes = 0 ) const MB_DEPRECATED;
-
-    /**\brief Set tag data given an array of pointers to tag values.
-     *
-     *\deprecated Use tag_st_by_ptr instead.
-     */
-  virtual ErrorCode  tag_set_data( Tag tag_handle, 
-                                   const EntityHandle* entity_handles, 
-                                   int num_entities,
-                                   void const* const* tag_data ,
-                                   const int* tag_sizes = 0 ) MB_DEPRECATED;
-  
-    /**\brief Set tag data given an array of pointers to tag values.
-     *
-     *\deprecated Use tag_st_by_ptr instead.
-     */
-  virtual ErrorCode  tag_set_data( Tag tag_handle, 
-                                   const Range& entity_handles,
-                                   void const* const* tag_data,
-                                   const int* tag_sizes = 0 ) MB_DEPRECATED;
 
     /**\brief Get pointers to tag data
      *

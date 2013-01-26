@@ -232,6 +232,8 @@ ErrorCode FBEngine::Init()
 
     ErrorCode rval = _my_geomTopoTool->find_geomsets(_my_gsets);
     assert(rval == MB_SUCCESS);
+    if (MB_SUCCESS != rval){return rval;}
+    
 
     rval = split_quads();
     assert (rval == MB_SUCCESS);

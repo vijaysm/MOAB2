@@ -43,7 +43,7 @@ TESTS = range_test \
         bsp_tree_poly_test \
 	reorder_test \
 	test_prog_opt \
-	coords_connect_iterate
+	coords_connect_iterate 
 
 if HDF5_FILE
   TESTS += mbfacet_test \

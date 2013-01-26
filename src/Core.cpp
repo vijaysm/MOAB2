@@ -320,49 +320,6 @@ void Core::deinitialize()
 #endif
 }
 
-ErrorCode Core::query_interface(const std::string& iface_name, void** iface)
-{
-  if(iface_name == "ReadUtilIface" || iface_name == "MBReadUtilIface")
-  {
-    if(mMBReadUtil)
-      *iface = (ReadUtilIface*)mMBReadUtil;
-    else
-      *iface = (ReadUtilIface*)(mMBReadUtil = new ReadUtil(this, mError));
-    return MB_SUCCESS;
-  }
-  else if(iface_name == "WriteUtilIface" || iface_name == "MBWriteUtilIface")
-  {
-    if(mMBWriteUtil)
-      *iface = (WriteUtilIface*)mMBWriteUtil;
-    else
-      *iface = (WriteUtilIface*)(mMBWriteUtil = new WriteUtil(this, mError));
-    return MB_SUCCESS;
-  }
-  else if(iface_name == "ReaderWriterSet" || iface_name == "MBReaderWriterSet")
-  {
-    *iface = reader_writer_set();
-    return MB_SUCCESS;
-  }
-  else if(iface_name == "Error")
-  {
-    *iface = mError;
-    return MB_SUCCESS;
-  }
-  else if(iface_name == "ExoIIInterface")
-  {
-    *iface = (void*)(ExoIIInterface*) new ExoIIUtil(this);
-    return MB_SUCCESS;
-  }
-  else if(iface_name == "ScdInterface")
-  {
-    if (!scdInterface) 
-      *iface = (void*)(ScdInterface*) new ScdInterface(this);
-    *iface = scdInterface;
-    return MB_SUCCESS;
-  }
-  return MB_FAILURE;
-}
-
 ErrorCode Core::query_interface_type( const std::type_info& type, void*& ptr )
 {
   if (type == typeid(ReadUtilIface)) {
@@ -396,41 +353,6 @@ ErrorCode Core::query_interface_type( const std::type_info& type, void*& ptr )
   return MB_SUCCESS;
 }
   
-
-ErrorCode Core::release_interface(const std::string& iface_name, void* iface)
-{
-  if(iface == NULL)
-    return MB_FAILURE;
-
-  if(iface_name == "ReadUtilIface" || iface_name == "MBReadUtilIface")
-  {
-      // Is it possible to crash here?  We should fail gracefully instead.
-    return MB_SUCCESS;
-  }
-  else if(iface_name == "WriteUtilIface" || iface_name == "MBWriteUtilIface")
-  {
-    return MB_SUCCESS;
-  }
-  else if(iface_name == "ReaderWriterSet" || iface_name == "MBReaderWriterSet")
-  {
-    return MB_SUCCESS;
-  }
-  else if(iface_name == "Error")
-  {
-    return MB_SUCCESS;
-  }
-  else if(iface_name == "ExoIIInterface")
-  {
-    delete (ExoIIInterface*)iface;
-    return MB_SUCCESS;
-  }
-  else if(iface_name == "ScdInterface")
-  {
-    return MB_SUCCESS;
-  }
-  
-  return MB_FAILURE;
-}
 
 ErrorCode Core::release_interface_type(const std::type_info& type, void* iface)
 {
@@ -1903,8 +1825,8 @@ ErrorCode Core::get_entities_by_type_and_tag(const EntityHandle meshset,
       // that are tagged as requested for this tag.
     Range tmp_range;
 
-      // get the sets with this tag/value combo 
-    if (NULL == values || NULL == values[it]) 
+      // get the entities with this tag/value combo 
+    if (NULL == values || NULL == values[it])
       result = tags[it]->get_tagged_entities( sequenceManager, tmp_range, type, &range );
     else {
       result = tags[it]->find_entities_with_value( sequenceManager, mError, tmp_range, values[it], 0, type, &range );
@@ -2120,50 +2042,6 @@ ErrorCode  Core::tag_set_data( Tag tag_handle,
   return tag_handle->set_data( sequenceManager, mError, entity_handles, tag_data );
 }
 
-
-//! return the tag data for a given EntityHandle and Tag
-ErrorCode  Core::tag_get_data( const Tag tag_handle, 
-                               const EntityHandle* entity_handles, 
-                               int num_entities,
-                               const void** tag_data,
-                               int* tag_sizes ) const
-{
-  assert(valid_tag_handle( tag_handle ));
-  CHECK_MESH_NULL
-  return tag_handle->get_data( sequenceManager, mError, entity_handles, num_entities, tag_data, tag_sizes );
-}
-
-//! return the tag data for a given EntityHandle and Tag
-ErrorCode  Core::tag_get_data( const Tag tag_handle, 
-                               const Range& entity_handles,
-                               const void** tag_data,
-                               int* tag_sizes ) const
-{
-  assert(valid_tag_handle( tag_handle ));
-  return tag_handle->get_data( sequenceManager, mError, entity_handles, tag_data, tag_sizes );
-}
-
-//! set the data  for given EntityHandles and Tag
-ErrorCode  Core::tag_set_data( Tag tag_handle, 
-                               const EntityHandle* entity_handles, 
-                               int num_entities,
-                               void const* const* tag_data,
-                               const int* tag_sizes )
-{
-  assert(valid_tag_handle( tag_handle ));
-  CHECK_MESH_NULL
-  return tag_handle->set_data( sequenceManager, mError, entity_handles, num_entities, tag_data, tag_sizes );
-}
-
-//! set the data  for given EntityHandles and Tag
-ErrorCode  Core::tag_set_data( Tag tag_handle, 
-                               const Range& entity_handles, 
-                               void const* const* tag_data,
-                               const int* tag_sizes )
-{
-  assert(valid_tag_handle( tag_handle ));
-  return tag_handle->set_data(sequenceManager, mError, entity_handles, tag_data, tag_sizes);
-}
 
 //! return the tag data for a given EntityHandle and Tag
 ErrorCode  Core::tag_get_by_ptr( const Tag tag_handle, 
@@ -2511,21 +2389,6 @@ ErrorCode Core::tag_get_handle( const char *tag_name, Tag &tag_handle ) const
 { return tag_get_handle( tag_name, 0, MB_TYPE_OPAQUE, tag_handle, MB_TAG_ANY ); }
                                     
   //! get size of tag in bytes
-ErrorCode Core::tag_get_size(const Tag tag_handle, int &tag_size) const
-{
-  if (!valid_tag_handle( tag_handle ))
-    return MB_TAG_NOT_FOUND;
-  
-  if (tag_handle->variable_length()) {
-    tag_size = MB_VARIABLE_LENGTH;
-    return MB_VARIABLE_DATA_LENGTH;
-  }
-  else {
-    tag_size = tag_handle->get_size();
-    return MB_SUCCESS;
-  }
-}
-                                    
   //! get size of tag in bytes
 ErrorCode Core::tag_get_bytes(const Tag tag_handle, int &tag_size) const
 {
