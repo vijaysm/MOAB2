@@ -3442,9 +3442,12 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
               // get existing values of dst tag
             dum_vals.resize(tag_size*num_ents);
             if (mpi_op) {
+              int tag_length;
+              result = mbImpl->tag_get_length(tag_handle, tag_length);
+              RRA("Couldn't get tag length");	      
               result = mbImpl->tag_get_data(tag_handle, &dum_ents[0], num_ents, &dum_vals[0]);
               RRA("Couldn't get existing value of dst tag on entities.");
-              result = reduce_void(tag_data_type, *mpi_op, num_ents, &dum_vals[0], buff_ptr);
+              result = reduce_void(tag_data_type, *mpi_op, tag_length*num_ents, &dum_vals[0], buff_ptr);
               RRA("Failed to perform mpi op on dst tags.");
             }
           result = mbImpl->tag_set_data(tag_handle, &dum_ents[0],
