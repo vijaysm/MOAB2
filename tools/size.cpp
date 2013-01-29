@@ -761,7 +761,7 @@ int main( int argc, char* argv[] )
       file_counts.clear();
     }
     else if (just_list) {
-      mb.list_entities( 0, 1 );
+      mb.list_entities( 0, -1 );
     }
     else {
       total_stats.add( file_stats );
