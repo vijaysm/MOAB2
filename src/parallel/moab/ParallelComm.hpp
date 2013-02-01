@@ -891,7 +891,28 @@ namespace moab {
      */
     ErrorCode gather_data(Range &gather_ents, Tag &tag_handle, 
 			  Tag id_tag = 0, EntityHandle gather_set = 0);
-        
+
+    /* \brief communicate extra points positions on boundary
+     * This function is called after intersection of 2 meshes, to settle the
+     * position of the intersection points on the boundary (interface)
+     * The initial mesh distributed on each processor is decomposed after
+     * intersection with another mesh, such as that new points are created on the
+     * boundary. these points should better match at the interface !
+     * we perform an extra caution step, to ensure the robustness of the
+     * intersection algorithm;  only shared edges extra nodes
+     *  will be actually needed to be communicated, but we just pass by reference
+     *  the whole extraNodesVec structure, we do
+     *  not need to construct another data structure
+     *  The node positions on edges that are owned will be communicated to other
+     *  processors
+     *
+     * \param edges total range of entities
+     * \param shared_edges_owned edges for which to communicate data
+     * \param extraNodesVec handles of intersection vertices on all edges;
+     */
+    ErrorCode settle_intersection_points(Range & edges, Range & shared_edges_owned,
+        std::vector<std::vector<EntityHandle> *> & extraNodesVec, double tolerance);
+
   private:
 
     ErrorCode reduce_void(int tag_data_type, const MPI_Op mpi_op, int num_ents, void *old_vals, void *new_vals);

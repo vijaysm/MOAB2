@@ -600,4 +600,69 @@ bool point_in_interior_of_convex_polygon (double * points, int np, double pt[2])
   }
   return inside;
 }
+// assume they are one the same sphere
+double spherical_angle(double * A, double * B, double * C, double Radius)
+{
+  // the angle by definition is between the planes OAB and OBC
+  CartVect a(A);
+  CartVect b(B);
+  CartVect c(C);
+  double err1=a.length_squared()-Radius*Radius;
+  if (fabs(err1)>0.0001)
+  {
+    std::cout << " error in input " << a << " radius: " << Radius << " error:" << err1<< "\n";
+  }
+  CartVect normalOAB = a * b;
+  CartVect normalOCB = c * b;
+  return angle(normalOAB, normalOCB);
+}
+// could be bigger than M_PI;
+// angle at B could be bigger than M_PI, if the orientation is such that ABC points toward the interior
+double oriented_spherical_angle(double * A, double * B, double * C)
+{
+  // assume the same radius, sphere at origin
+  CartVect a(A), b(B), c(C);
+  CartVect normalOAB = a * b;
+  CartVect normalOCB = c * b;
+  CartVect orient = (b-a)*(c-a);
+  double ang = angle(normalOAB, normalOCB); // this is between 0 and M_PI
+  if (orient%a < 0)
+    return (2*M_PI-ang);// the other angle
+
+  return ang;
+
+}
+double area_spherical_triangle(double *A, double *B, double *C, double Radius)
+{
+  double correction = spherical_angle(A, B, C, Radius)+spherical_angle(B, C, A, Radius)+
+      spherical_angle(C, A, B, Radius)-M_PI;
+  double area = Radius*Radius*correction;
+  // now, is it negative or positive? is it pointing toward the center or outward?
+  CartVect a(A), b(B), c(C);
+  CartVect abc = (b-a)*(c-a);
+  if (abc%a > 0) // dot product positive, means ABC points out
+    return area;
+  else
+    return -area;
+
+}
+
+double area_spherical_polygon (double * A, int N, double Radius)
+{
+  // this should work for non-convex polygons too
+  // assume that the A, A+3, ..., A+3*(N-1) are the coordinates
+  //
+  if (N<=2)
+    return 0.;
+  double sum_angles = 0.;
+  for (int i=0; i<N; i++)
+  {
+    int i1 = (i+1)%N;
+    int i2 = (i+2)%N;
+    sum_angles += oriented_spherical_angle( A+3*i, A+3*i1, A+3*i2);
+  }
+  double correction = sum_angles-(N-2)*M_PI;
+  return Radius*Radius *correction;
+
+}
 } //namespace moab

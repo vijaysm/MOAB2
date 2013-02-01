@@ -348,7 +348,10 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
     for (int k = 0; k < 6; k++)
       mout_1[k].close();
   }
-  //
+  // before cleaning up , we need to settle the position of the intersection points
+  // on the boundary edges
+  rval = correct_intersection_points_positions();
+  ERRORR(rval, "can't correct position");
   clean();
   return MB_SUCCESS;
 }
@@ -1285,6 +1288,24 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
       rval = mb->add_entities(covering_lagr_set, &new_quad, 1);
       ERRORR(rval, "can't add new quad to dep set");
     }
+  }
+  return MB_SUCCESS;
+}
+ErrorCode Intx2Mesh::correct_intersection_points_positions()
+{
+  if (parcomm)
+  {
+    // first, find out the edges that are shared between processors, and owned by the current processor
+    Range shared_edges_owned;
+    ErrorCode rval = parcomm->get_shared_entities(-1, // all other proc
+        shared_edges_owned,
+        1,
+        true, // only on the interface
+        true); // only the edges owned by the current processor
+    ERRORR(rval, "can't get shared edges owned");
+
+    rval = parcomm->settle_intersection_points(RedEdges, shared_edges_owned, extraNodesVec, epsilon_1);
+    ERRORR(rval, "can't settle intx points");
   }
   return MB_SUCCESS;
 }

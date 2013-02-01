@@ -204,7 +204,8 @@ namespace moab {
                      MB_MESG_REMOTEH_LARGE,
                      MB_MESG_TAGS_ACK,
                      MB_MESG_TAGS_SIZE,
-                     MB_MESG_TAGS_LARGE};
+                     MB_MESG_TAGS_LARGE
+  };
 
   static inline size_t RANGE_SIZE(const Range& rng)
   { return 2*sizeof(EntityHandle)*rng.psize()+sizeof(int); }
@@ -8593,5 +8594,239 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     }
     return MB_SUCCESS;
   }
+
+  /*
+   * this call is collective, so we will use the message ids for tag communications;
+   * they are similar, but simpler
+   * pack the number of edges, the remote edge handles, then for each edge, the number
+   *    of intersection points, and then 3 doubles for each intersection point
+   * on average, there is one intx point per edge, in some cases 2, in some cases 0
+   *   so on average, the message size is num_edges *( sizeof(eh) + sizeof(int) + 1*3*sizeof(double) )
+   *          = num_edges * (8+4+24)
+   */
+ErrorCode ParallelComm::settle_intersection_points(Range & edges, Range & shared_edges_owned,
+          std::vector<std::vector<EntityHandle> *> & extraNodesVec, double tolerance)
+{
+  // the index of an edge in the edges Range will give the index for extraNodesVec
+  // the strategy of this follows exchange tags strategy:
+  ErrorCode result;
+  int success;
+
+  myDebug->tprintf(1, "Entering settle_intersection_points\n");
+
+  // get all procs interfacing to this proc
+  std::set<unsigned int> exch_procs;
+  result = get_comm_procs(exch_procs);
+
+  // post ghost irecv's for all interface procs
+  // index requests the same as buffer/sharing procs indices
+  std::vector<MPI_Request>  recv_intx_reqs(2 * buffProcs.size(), MPI_REQUEST_NULL),
+      sent_ack_reqs(buffProcs.size(), MPI_REQUEST_NULL);
+  std::vector<unsigned int>::iterator sit;
+  int ind;
+
+  reset_all_buffers();
+  int incoming = 0;
+
+  for (ind = 0, sit = buffProcs.begin(); sit != buffProcs.end(); sit++, ind++) {
+    incoming++;
+    PRINT_DEBUG_IRECV(*sit, procConfig.proc_rank(), remoteOwnedBuffs[ind]->mem_ptr,
+        INITIAL_BUFF_SIZE, MB_MESG_TAGS_SIZE, incoming);
+
+    success = MPI_Irecv(remoteOwnedBuffs[ind]->mem_ptr, INITIAL_BUFF_SIZE,
+        MPI_UNSIGNED_CHAR, *sit, MB_MESG_TAGS_SIZE, procConfig.proc_comm(),
+        &recv_intx_reqs[2 * ind]);
+    if (success != MPI_SUCCESS) {
+      result = MB_FAILURE;
+      RRA("Failed to post irecv in settle intersection point.");
+    }
+
+  }
+
+  // pack and send intersection points from this proc to others
+  // make sendReqs vector to simplify initialization
+  sendReqs.resize(2 * buffProcs.size(), MPI_REQUEST_NULL);
+
+  // take all shared entities if incoming list is empty
+  Range & entities = shared_edges_owned;
+
+  int dum_ack_buff;
+
+  for (ind = 0, sit = buffProcs.begin(); sit != buffProcs.end(); sit++, ind++) {
+
+    Range edges_to_send = entities;
+
+    // get ents shared by proc *sit
+    result = filter_pstatus(edges_to_send, PSTATUS_SHARED, PSTATUS_AND, *sit);
+    RRA("Failed pstatus AND check.");
+
+    // remote nonowned entities; not needed, edges are already owned by this proc
+
+    // pack the data
+    // reserve space on front for size and for initial buff size
+    Buffer * buff=localOwnedBuffs[ind];
+    buff->reset_ptr(sizeof(int));
+
+    /*result = pack_intx_points(edges_to_send, edges, extraNodesVec,
+        localOwnedBuffs[ind], *sit);*/
+
+    // count first data, and see if it is enough room?
+    // send the remote handles
+    std::vector<EntityHandle> dum_remote_edges(edges_to_send.size());
+    /*
+     *  get_remote_handles(const bool store_remote_handles,
+                               EntityHandle *from_vec,
+                               EntityHandle *to_vec_tmp,
+                               int num_ents, int to_proc,
+                               const std::vector<EntityHandle> &new_ents);
+     */
+    // we are sending count, num edges, remote edges handles, and then, for each edge:
+    //          -- nb intx points, 3*nbintPointsforEdge "doubles"
+    std::vector<EntityHandle> dum_vec;
+    result = get_remote_handles(true,
+        edges_to_send, &dum_remote_edges[0], *sit,
+                                    dum_vec);
+    RRA("Failed remote handles");
+    int count = 4; // size of data
+    count += sizeof(int)*(int)edges_to_send.size();
+    count += sizeof(EntityHandle)*(int)edges_to_send.size(); // we will send the remote handles
+    for (Range::iterator eit=edges_to_send.begin(); eit!=edges_to_send.end(); eit++)
+    {
+      EntityHandle edge = *eit;
+      unsigned int indx = edges.find(edge)-edges.begin();
+      std::vector<EntityHandle> & intx_nodes = *(extraNodesVec[indx]);
+      count += (int)intx_nodes.size() * 3 * sizeof(double); // 3 integer for each entity handle
+    }
+    //
+    buff->check_space(count);
+    PACK_INT(buff->buff_ptr, edges_to_send.size());
+    PACK_EH(buff->buff_ptr, &dum_remote_edges[0], dum_remote_edges.size());
+    for (Range::iterator eit=edges_to_send.begin(); eit!=edges_to_send.end(); eit++)
+    {
+      EntityHandle edge = *eit;
+      // pack the remote edge
+
+      unsigned int indx = edges.find(edge)-edges.begin();
+      std::vector<EntityHandle> & intx_nodes = *(extraNodesVec[indx]);
+      PACK_INT(buff->buff_ptr, intx_nodes.size());
+
+      result = mbImpl->get_coords(&intx_nodes[0], intx_nodes.size(), (double*)buff->buff_ptr);
+      buff->buff_ptr += 3*sizeof(double) * intx_nodes.size();
+      //count += (intintx_nodes.size() * 3 * sizeof(double); // 3 integer for each entity handle
+    }
+
+    // done packing the intx points and remote edges
+    RRA("Failed to count buffer in pack_intx_points.");
+    buff->set_stored_size();
+
+    // now send it
+    result = send_buffer(*sit, localOwnedBuffs[ind], MB_MESG_TAGS_SIZE,
+        sendReqs[2 * ind], recv_intx_reqs[2 * ind + 1], &dum_ack_buff, incoming);
+    RRA("Failed to send buffer.");
+
+  }
+
+  // receive/unpack intx points
+  while (incoming) {
+    MPI_Status status;
+    PRINT_DEBUG_WAITANY(recv_intx_reqs, MB_MESG_TAGS_SIZE, procConfig.proc_rank());
+    success = MPI_Waitany(2 * buffProcs.size(), &recv_intx_reqs[0], &ind,
+        &status);
+    if (MPI_SUCCESS != success) {
+      result = MB_FAILURE;
+      RRA("Failed in waitany in ghost exchange.");
+    }
+
+    PRINT_DEBUG_RECD(status);
+
+    // ok, received something; decrement incoming counter
+    incoming--;
+
+    bool done = false;
+    std::vector<EntityHandle> dum_vec;
+    result = recv_buffer(MB_MESG_TAGS_SIZE, status, remoteOwnedBuffs[ind / 2],
+        recv_intx_reqs[ind / 2 * 2], recv_intx_reqs[ind / 2 * 2 + 1], incoming,
+        localOwnedBuffs[ind / 2], sendReqs[ind / 2 * 2],
+        sendReqs[ind / 2 * 2 + 1], done);
+    RRA("Failed to resize recv buffer.");
+    if (done) {
+      Buffer * buff = remoteOwnedBuffs[ind / 2];
+      buff->reset_ptr(sizeof(int));
+      /*result = unpack_tags(remoteOwnedBuffs[ind / 2]->buff_ptr, dum_vec, true,
+          buffProcs[ind / 2]);*/
+      // unpack now the edges and vertex info; compare with the existing vertex positions
+
+      int num_edges;
+
+      UNPACK_INT(buff->buff_ptr, num_edges);
+      std::vector<EntityHandle> rec_edges;
+      rec_edges.resize(num_edges);
+      UNPACK_EH(buff->buff_ptr, &rec_edges[0], num_edges );
+      for (int i=0; i<num_edges; i++)
+      {
+        EntityHandle edge=rec_edges[i];
+        unsigned int indx = edges.find(edge)-edges.begin();
+        std::vector<EntityHandle> & intx_nodes = *(extraNodesVec[indx]);
+        // now get the number of nodes on this (now local) edge
+        int nverts;
+        UNPACK_INT(buff->buff_ptr, nverts);
+        assert(nverts==(int)intx_nodes.size());
+        // get the positions communicated
+        std::vector<double> pos_from_owner;
+        pos_from_owner.resize(3*nverts);
+        UNPACK_DBLS(buff->buff_ptr, &pos_from_owner[0], 3*nverts);
+        std::vector<double> current_positions(3*nverts);
+        result = mbImpl->get_coords(&intx_nodes[0], nverts, &current_positions[0]  );
+        RRA("Failed to get current positions");
+        // now, look at what we have in current pos, compare to pos from owner, and reset
+        for (int k=0; k<nverts; k++)
+        {
+          double * pk = &current_positions[3*k];
+          // take the current pos k, and settle among the ones from owner:
+          bool found=false;
+          for (int j=0; j<nverts&&!found; j++)
+          {
+            double * pj = &pos_from_owner[3*j];
+            double dist2 = (pk[0]-pj[0])*(pk[0]-pj[0])+(pk[1]-pj[1])*(pk[1]-pj[1]) + (pk[2]-pj[2])*(pk[2]-pj[2]);
+            if (dist2<tolerance*tolerance)
+            {
+              pk[0]=pj[0]; pk[1]=pj[1]; pk[2]= pj[2];// correct it!
+              found =true;
+              break;
+            }
+            if (!found)
+            {
+              // warning ?
+              result = MB_FAILURE;
+            }
+          }
+        }
+        // after we are done resetting, we can set the new positions of nodes:
+        result = mbImpl->set_coords(&intx_nodes[0], nverts, &current_positions[0]  );
+        RRA("Failed to set new current positions");
+
+      }
+      //RRA("Failed to recv-unpack-tag message.");
+    }
+  }
+
+  // ok, now wait
+  if (myDebug->get_verbosity() == 5) {
+    success = MPI_Barrier(procConfig.proc_comm());
+  } else {
+    MPI_Status status[2 * MAX_SHARING_PROCS];
+    success = MPI_Waitall(2 * buffProcs.size(), &sendReqs[0], status);
+  }
+  if (MPI_SUCCESS != success) {
+    result = MB_FAILURE;
+    RRA("Failure in waitall in tag exchange.");
+  }
+
+  myDebug->tprintf(1, "Exiting settle_intersection_points");
+
+  return MB_SUCCESS;
+  // end copy
+  }
+
 
 } // namespace moab

@@ -77,6 +77,8 @@ public:
   ErrorCode create_departure_mesh(EntityHandle & covering_lagr_set);
 
   ErrorCode create_departure_mesh_2nd_alg(EntityHandle & euler_set, EntityHandle & covering_lagr_set);
+
+  ErrorCode correct_intersection_points_positions();
 protected: // so it can be accessed in derived classes, InPlane and OnSphere
   Interface * mb;
 

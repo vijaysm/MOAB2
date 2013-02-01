@@ -40,7 +40,7 @@ std::string TestDir(".");
 
 using namespace moab;
 double EPS1=0.2;
-//void test_intx_in_parallel();
+void test_intx_in_parallel();
 void test_intx_in_parallel_elem_based();
 
 int main(int argc, char **argv)
@@ -140,7 +140,7 @@ ErrorCode  manufacture_lagrange_mesh_on_sphere(Interface * mb, EntityHandle eule
 
   return rval;
 }
-/*void test_intx_in_parallel()
+void test_intx_in_parallel()
 {
   std::string opts = std::string("PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION")+
       std::string(";PARALLEL_RESOLVE_SHARED_ENTS");
@@ -200,7 +200,7 @@ ErrorCode  manufacture_lagrange_mesh_on_sphere(Interface * mb, EntityHandle eule
   CHECK_ERR(rval);
 
 
-}*/
+}
 void test_intx_in_parallel_elem_based()
 {
   std::string opts = std::string("PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION")+

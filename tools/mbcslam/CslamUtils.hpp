@@ -89,5 +89,16 @@ ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle &
 ErrorCode ProjectOnSphere(Interface * mb, EntityHandle set, double R);
 
 bool point_in_interior_of_convex_polygon (double * points, int np, double pt[2]);
+
+/*
+ * utilities to compute area of a polygon on which all edges are arcs of great circles on a sphere
+ */
+/*
+ * this will compute the spherical angle ABC, when A, B, C are on a sphere of radius R
+ *  the radius will not be needed, usually, just for verification the points are indeed on that sphere
+ *  the center of the sphere is at origin (0,0,0)
+ *  this angle can be used in Girard's theorem to compute the area of a spherical polygon
+ */
+double spherical_angle(double * A, double * B, double * C, double Radius);
 }
 #endif /* CSLAMUTILS_HPP_ */
