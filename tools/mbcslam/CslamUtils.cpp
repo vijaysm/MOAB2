@@ -665,4 +665,34 @@ double area_spherical_polygon (double * A, int N, double Radius)
   return Radius*Radius *correction;
 
 }
+
+double area_on_sphere(Interface * mb, EntityHandle set, double R)
+{
+  // get all entities of dimension 2
+  // then get the connectivity, etc
+  Range inputRange;
+  ErrorCode rval = mb->get_entities_by_dimension(set, 2, inputRange);
+  if (MB_SUCCESS != rval)
+    return -1;
+
+  // compare total area with 4*M_PI * R^2
+  double total_area = 0.;
+  for (Range::iterator eit=inputRange.begin(); eit!= inputRange.end(); eit++ )
+  {
+    EntityHandle eh=*eit;
+    // get the nodes, then the coordinates
+    const EntityHandle * verts;
+    int num_nodes;
+    rval = mb->get_connectivity(eh, verts, num_nodes);
+    if (MB_SUCCESS != rval)
+      return -1;
+    std::vector<double> coords(3*num_nodes);
+    // get coordinates
+    rval = mb->get_coords(verts, num_nodes, &coords[0]);
+    if (MB_SUCCESS != rval)
+      return -1;
+    total_area+=area_spherical_polygon (&coords[0], num_nodes, R);
+  }
+  return total_area;
+}
 } //namespace moab

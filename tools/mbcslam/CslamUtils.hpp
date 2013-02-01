@@ -100,5 +100,14 @@ bool point_in_interior_of_convex_polygon (double * points, int np, double pt[2])
  *  this angle can be used in Girard's theorem to compute the area of a spherical polygon
  */
 double spherical_angle(double * A, double * B, double * C, double Radius);
+
+// this could be larger than PI, because of orientation; useful for non-convex polygons
+double oriented_spherical_angle(double * A, double * B, double * C);
+
+double area_spherical_triangle(double *A, double *B, double *C, double Radius);
+
+double area_spherical_polygon (double * A, int N, double Radius);
+
+double area_on_sphere(Interface * mb, EntityHandle set, double R);
 }
 #endif /* CSLAMUTILS_HPP_ */

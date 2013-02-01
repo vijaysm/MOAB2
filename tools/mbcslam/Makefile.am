@@ -37,9 +37,10 @@ libmbcslam_la_includedir = $(includedir)
 # check that only libraries are going in $(libdir)
 cfgdir = $(libdir)
 
-TESTS = intx_on_sphere_test  intx_in_plane_test  spec_visu_test
+TESTS = intx_on_sphere_test  intx_in_plane_test  spec_visu_test spherical_area_test
 check_PROGRAMS = $(TESTS) 
 intx_on_sphere_test_SOURCES = intx_on_sphere_test.cpp
 intx_in_plane_test_SOURCES = intx_in_plane_test.cpp
 spec_visu_test_SOURCES = spec_visu_test.cpp
+spherical_area_test_SOURCES = spherical_area_test.cpp
 
