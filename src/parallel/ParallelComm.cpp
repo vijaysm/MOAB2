@@ -250,7 +250,7 @@ namespace moab {
       if (tag < MB_MESG_REMOTEH_ACK) myDebug->print(3, ", recv_ent_reqs=");
       else if (tag < MB_MESG_TAGS_ACK) myDebug->print(3, ", recv_remoteh_reqs=");
       else myDebug->print(3, ", recv_tag_reqs=");
-      for (unsigned int i = 0; i < reqs.size(); i++) myDebug->printf(3, " %p", (void*)reqs[i]);
+      for (unsigned int i = 0; i < reqs.size(); i++) myDebug->printf(3, " %x", reqs[i]);
       myDebug->print(3, "\n");
     }
   }
@@ -8794,12 +8794,14 @@ ErrorCode ParallelComm::settle_intersection_points(Range & edges, Range & shared
               found =true;
               break;
             }
-            if (!found)
-            {
-              // warning ?
-              result = MB_FAILURE;
-            }
           }
+          if (!found)
+          {
+            //
+            std::cout<<" pk:" << pk[0] << " " << pk[1] << " " << pk[2] << " not found \n";
+            result = MB_FAILURE;
+          }
+
         }
         // after we are done resetting, we can set the new positions of nodes:
         result = mbImpl->set_coords(&intx_nodes[0], nverts, &current_positions[0]  );
