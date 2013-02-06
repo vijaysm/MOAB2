@@ -452,7 +452,11 @@ private:
 inline void *SparseTag::allocate_data(EntityHandle h, MapType::const_iterator iter, bool copy_default) 
 {
   void* new_data = mAllocator.allocate(get_size());
+#ifdef HAVE_UNORDERED_MAP
   mData.insert(iter, std::pair<const EntityHandle,void*>(h, new_data));
+#else
+  mData[h] = new_data;
+#endif;
   if (copy_default)
     memcpy(new_data, get_default_value(), get_size());
   return new_data;

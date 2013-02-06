@@ -8567,7 +8567,9 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     std::vector<int> recvcnts(proc_config().proc_size(), 0);
     std::copy(displs.begin(), displs.end(), recvcnts.begin());
     std::partial_sum(displs.begin(), displs.end(), displs.begin());
-    std::copy_backward(displs.begin(), --displs.end(), displs.end());
+    std::vector<int>::iterator lastM1 = displs.end()-1;
+    std::copy_backward(displs.begin(), lastM1, displs.end());
+    //std::copy_backward(displs.begin(), --displs.end(), displs.end());
     displs[0] = 0;
 
     if (rank()!=0)
