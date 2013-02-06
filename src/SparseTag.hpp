@@ -456,7 +456,7 @@ inline void *SparseTag::allocate_data(EntityHandle h, MapType::const_iterator it
   mData.insert(iter, std::pair<const EntityHandle,void*>(h, new_data));
 #else
   mData[h] = new_data;
-#endif;
+#endif
   if (copy_default)
     memcpy(new_data, get_default_value(), get_size());
   return new_data;
