@@ -43,7 +43,7 @@ private:
   Tag planeTag, axisTag, rootTag;
   unsigned meshSetFlags;
   bool cleanUpTrees;
-  std::vector<EntityHandle> createdTrees;
+  EntityHandle myRoot;
   
 public:
 

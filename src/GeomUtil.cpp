@@ -604,13 +604,14 @@ bool box_linear_elem_overlap( const CartVect *elem_corners,
     //    (crossproduct of each edge with each principal axis)
     // 3) The normals of the faces of the element
 
-  unsigned i, e, f;             // loop counters
+  unsigned e, f;             // loop counters
+  int i;
   double dot, cross[2], tmp;
   CartVect norm;
   int indices[4]; // element edge/face vertex indices
   
     // test box face normals (principal axes)
-  const unsigned num_corner = CN::VerticesPerEntity( type );
+  const int num_corner = CN::VerticesPerEntity( type );
   int not_less[3] = { num_corner, num_corner, num_corner }; 
   int not_greater[3] = { num_corner, num_corner, num_corner };
   int not_inside;
@@ -668,7 +669,7 @@ bool box_linear_elem_overlap( const CartVect *elem_corners,
     if ((cross[0]*cross[0] + cross[1]*cross[1]) >= std::numeric_limits<double>::epsilon()) {
       dot = fabs(cross[0] * dims[1]) + fabs(cross[1] * dims[2]);
       not_less[0] = not_greater[0] = num_corner - 1;
-      for (i = (unsigned)(indices[0]+1)%num_corner; i != (unsigned)indices[0]; i = (i+1)%num_corner) { // for each element corner
+      for (i = (indices[0]+1)%num_corner; i != indices[0]; i = (i+1)%num_corner) { // for each element corner
         tmp = cross[0] * elem_corners[i][1] + cross[1] * elem_corners[i][2];
         not_less[0] -= (tmp < -dot);
         not_greater[0] -= (tmp > dot);
@@ -688,7 +689,7 @@ bool box_linear_elem_overlap( const CartVect *elem_corners,
     if ((cross[0]*cross[0] + cross[1]*cross[1]) >= std::numeric_limits<double>::epsilon()) {
       dot = fabs(cross[0] * dims[2]) + fabs(cross[1] * dims[0]);
       not_less[0] = not_greater[0] = num_corner - 1;
-      for (i = (unsigned)(indices[0]+1)%num_corner; i != (unsigned)indices[0]; i = (i+1)%num_corner) { // for each element corner
+      for (i = (indices[0]+1)%num_corner; i != indices[0]; i = (i+1)%num_corner) { // for each element corner
         tmp = cross[0] * elem_corners[i][2] + cross[1] * elem_corners[i][0];
         not_less[0] -= (tmp < -dot);
         not_greater[0] -= (tmp > dot);
@@ -708,7 +709,7 @@ bool box_linear_elem_overlap( const CartVect *elem_corners,
     if ((cross[0]*cross[0] + cross[1]*cross[1]) >= std::numeric_limits<double>::epsilon()) {
       dot = fabs(cross[0] * dims[0]) + fabs(cross[1] * dims[1]);
       not_less[0] = not_greater[0] = num_corner - 1;
-      for (i = (unsigned)(indices[0]+1)%num_corner; i != (unsigned)indices[0]; i = (i+1)%num_corner) { // for each element corner
+      for (i = (indices[0]+1)%num_corner; i != indices[0]; i = (i+1)%num_corner) { // for each element corner
         tmp = cross[0] * elem_corners[i][0] + cross[1] * elem_corners[i][1];
         not_less[0] -= (tmp < -dot);
         not_greater[0] -= (tmp > dot);

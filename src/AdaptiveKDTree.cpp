@@ -153,6 +153,8 @@ void AdaptiveKDTree::init( const char* tagname_in )
   std::string root_name(tagname);
   root_name += "_box";
   MAKE_TAG( root_name, MB_TAG_SPARSE, MB_TYPE_DOUBLE, 6, rootTag, 0 )
+
+  myRoot = 0;
 }
 
 ErrorCode AdaptiveKDTree::get_split_plane( EntityHandle entity,
@@ -178,16 +180,10 @@ AdaptiveKDTree::~AdaptiveKDTree()
 {
   if (!cleanUpTrees)
     return;
-    
-  while (!createdTrees.empty()) {
-    EntityHandle tree = createdTrees.back();
-      // make sure this is a tree (rather than some other, stale handle)
-    const void* data_ptr = 0;
-    ErrorCode rval = moab()->tag_get_by_ptr( rootTag, &tree, 1, &data_ptr );
-    if (MB_SUCCESS == rval)
-      rval = delete_tree( tree );
-    if (MB_SUCCESS != rval)
-      createdTrees.pop_back();
+  
+  if (myRoot) {
+    delete_tree( myRoot );
+    myRoot = 0;
   }
 }
 
@@ -200,7 +196,7 @@ ErrorCode AdaptiveKDTree::set_split_plane( EntityHandle entity,
   r2 = moab()->tag_set_data( axisTag , &entity, 1, &plane.norm  );
   return MB_SUCCESS == r1 ? r2 : r1;
 #elif defined(MB_AD_KD_TREE_USE_TWO_DOUBLE_TAG)
-  double values[2] = { plane.coord, plane.norm };
+  double values[2] = { plane.coord, static_cast<double>(plane.norm) };
   return moab()->tag_set_data( planeTag, &entity, 1, values );
 #else
   return moab()->tag_set_data( planeTag, &entity, 1, &plane );
@@ -233,6 +229,8 @@ ErrorCode AdaptiveKDTree::create_tree( const double box_min[3],
                                            const double box_max[3],
                                            EntityHandle& root_handle )
 {
+  if (myRoot) return MB_FAILURE;
+  
   ErrorCode rval = moab()->create_meshset( meshSetFlags, root_handle );
   if (MB_SUCCESS != rval)
     return rval;
@@ -244,7 +242,8 @@ ErrorCode AdaptiveKDTree::create_tree( const double box_min[3],
     return rval;
   }
   
-  createdTrees.push_back( root_handle );
+  myRoot = root_handle;
+  
   return MB_SUCCESS;
 }
 
@@ -253,9 +252,7 @@ ErrorCode AdaptiveKDTree::delete_tree( EntityHandle root_handle )
   ErrorCode rval;
   
   std::vector<EntityHandle> children, dead_sets, current_sets;
-  createdTrees.erase( 
-        std::remove( createdTrees.begin(), createdTrees.end(), root_handle ),
-        createdTrees.end() );
+  assert(root_handle == myRoot);
   
   current_sets.push_back( root_handle );
   while (!current_sets.empty()) {
@@ -272,8 +269,14 @@ ErrorCode AdaptiveKDTree::delete_tree( EntityHandle root_handle )
   rval = moab()->tag_delete_data( rootTag, &root_handle, 1 );
   if (MB_SUCCESS != rval)
     return rval;
+
+  rval = moab()->delete_entities( &dead_sets[0], dead_sets.size() );
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  myRoot = 0;
   
-  return moab()->delete_entities( &dead_sets[0], dead_sets.size() );
+  return MB_SUCCESS;
 }
 
 ErrorCode AdaptiveKDTree::find_all_trees( Range& results )

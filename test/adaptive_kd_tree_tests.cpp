@@ -741,24 +741,28 @@ void test_build_tree_bisect_triangles( )
   rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
   test_valid_tree( &tool, root, settings, box_tris );
+  tool.delete_tree(root);
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_octahedron( &moab, box_tris );
   rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
   test_valid_tree( &tool, root, settings, box_tris );
+  tool.delete_tree(root);
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_large( &moab, box_tris );
   rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
   test_valid_tree( &tool, root, settings, box_tris );
+  tool.delete_tree(root);
   
   settings.maxTreeDepth = 2;
   build_triangle_box_large( &moab, box_tris );
   rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
   test_valid_tree( &tool, root, settings, box_tris );
+  tool.delete_tree(root);
 }
   
 void test_closest_triangle()
@@ -832,7 +836,9 @@ void test_closest_triangle()
   }
   
     // now do it all again with a lot more triangles
+  tool.delete_tree(root);
   moab.delete_mesh(); box_tris.clear();
+
   build_triangle_box_large( &moab, box_tris );
   rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
@@ -911,9 +917,9 @@ void test_sphere_intersect_triangles()
 
     // test closest to each corner of the box.
   for (unsigned i = 0; i < 8; ++i) {
-    int x = i & 1 ? 1 : -1;
-    int y = i & 2 ? 1 : -1;
-    int z = i & 4 ? 1 : -1;
+    double x = i & 1 ? 1 : -1;
+    double y = i & 2 ? 1 : -1;
+    double z = i & 4 ? 1 : -1;
     double center[] = { x, y, z };
     triangles.clear();
     rval = tool.sphere_intersect_triangles( root, center, 0.26, triangles );
@@ -927,8 +933,10 @@ void test_sphere_intersect_triangles()
   
     // now do it all again with a lot more triangles
 
+  tool.delete_tree(root);
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_large( &moab, box_tris );
+
   rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
   test_valid_tree( &tool, root, settings, box_tris );
