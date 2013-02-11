@@ -1,4 +1,4 @@
-Version 4.6pre:
+Version 4.6:
 * Removed deprecated functions from the Interface: (some overloaded variants of) query_interface, release_interface, 
   tag_get_data, tag_set_data, tag_get_size.
 * Added Interface::adjacencies_iterate, whose behavior is much like tag_iterate.
