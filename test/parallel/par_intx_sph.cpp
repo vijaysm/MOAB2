@@ -39,7 +39,10 @@ std::string TestDir(".");
 #endif
 
 using namespace moab;
-double EPS1=0.2;
+// some input data
+double EPS1=0.2; // this is for box error
+std::string input_mesh_file("Homme_2pt.h5m"); // input file, partitioned correctly
+double CubeSide = 6.; // the above file starts with cube side 6; radius depends on cube side
 void test_intx_in_parallel();
 void test_intx_in_parallel_elem_based();
 
@@ -54,9 +57,17 @@ int main(int argc, char **argv)
     int index=1;
     while (index<argc)
     {
-      if (!strcmp( argv[index], "-eps"))
+      if (!strcmp( argv[index], "-eps")) // this is for box error
       {
         EPS1=atof(argv[++index]);
+      }
+      if (!strcmp( argv[index], "-input"))
+      {
+        input_mesh_file=argv[++index];
+      }
+      if (!strcmp( argv[index], "-cube"))
+      {
+        CubeSide=atof(argv[++index]);
       }
       index++;
     }
@@ -81,7 +92,7 @@ ErrorCode  manufacture_lagrange_mesh_on_sphere(Interface * mb, EntityHandle eule
    *   circumscribed sphere radius
    *   radius = length * math.sqrt(3) /2
    */
-  double radius = 3*sqrt(3.);// our value ....
+  double radius = CubeSide/2*sqrt(3.);// our value depends on cube side
   Range quads;
   rval = mb->get_entities_by_type(euler_set, MBQUAD, quads);
   CHECK_ERR(rval);
@@ -150,7 +161,7 @@ void test_intx_in_parallel()
   ErrorCode rval;
   rval = mb.create_meshset(MESHSET_SET, euler_set);
   CHECK_ERR(rval);
-  std::string example(TestDir + "/Homme_2pt.h5m");
+  std::string example(TestDir + "/" +  input_mesh_file);
 
   rval = mb.load_file(example.c_str(), &euler_set, opts.c_str());
 
@@ -166,7 +177,7 @@ void test_intx_in_parallel()
  
   Intx2MeshOnSphere worker(&mb);
 
-  double radius= 3. * sqrt(3.) ; // input
+  double radius= CubeSide/2 * sqrt(3.) ; // input
   worker.SetRadius(radius);
   worker.set_box_error(EPS1);//
   worker.SetEntityType(MBQUAD);
@@ -211,7 +222,7 @@ void test_intx_in_parallel_elem_based()
   ErrorCode rval;
   rval = mb.create_meshset(MESHSET_SET, euler_set);
   CHECK_ERR(rval);
-  std::string example(TestDir + "/Homme_2pt.h5m");
+  std::string example(TestDir + "/" +  input_mesh_file);
 
   rval = mb.load_file(example.c_str(), &euler_set, opts.c_str());
 
@@ -233,12 +244,13 @@ void test_intx_in_parallel_elem_based()
 
   Intx2MeshOnSphere worker(&mb);
 
-  double radius= 3. * sqrt(3.) ; // input
+  double radius= CubeSide/2 * sqrt(3.) ; // input
   worker.SetRadius(radius);
   worker.set_box_error(EPS1);//
   worker.SetEntityType(MBQUAD);
 
   worker.SetErrorTolerance(radius*1.e-8);
+  std::cout << "error tolerance epsilon_1="<< radius*1.e-8 << "\n";
   //  worker.locate_departure_points(euler_set);
 
   // we need to make sure the covering set is bigger than the euler mesh

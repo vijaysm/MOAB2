@@ -78,6 +78,8 @@ public:
 
   ErrorCode create_departure_mesh_2nd_alg(EntityHandle & euler_set, EntityHandle & covering_lagr_set);
 
+  void correct_polygon(EntityHandle * foundIds, int & nP);
+
   ErrorCode correct_intersection_points_positions();
 protected: // so it can be accessed in derived classes, InPlane and OnSphere
   Interface * mb;

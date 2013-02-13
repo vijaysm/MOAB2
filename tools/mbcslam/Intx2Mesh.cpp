@@ -1291,6 +1291,35 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
   }
   return MB_SUCCESS;
 }
+// this method will reduce number of nodes, collapse edges that are of length 0
+  // so a polygon like 428 431 431 will become a line 428 431
+  // or something like 428 431 431 531 -> 428 431 531
+void Intx2Mesh::correct_polygon(EntityHandle * nodes, int & nP)
+{
+  int i = 0;
+  while(i<nP)
+  {
+    int nextIndex = (i+1)%nP;
+    if (nodes[i]==nodes[nextIndex])
+    {
+      // we need to reduce nP, and collapse nodes
+      std::cout<<" nodes duplicated in list: " ;
+      for (int j=0; j<nP; j++)
+        std::cout<<nodes[j] << " " ;
+      std::cout<<"\n";
+      std::cout<<" node " << nodes[i] << " at index " << i << " is duplicated" << "\n";
+      // this will work even if we start from 1 2 3 1; when i is 3, we find nextIndex is 0, then next thing does nothing
+      //  (nP-1 is 3, so k is already >= nP-1); it will result in nodes -> 1, 2, 3
+      for (int k=i; k<nP-1; k++)
+        nodes[k] = nodes[k+1];
+      nP--; // decrease the number of nodes; also, decrease i, just if we may need to check again
+      i--;
+    }
+    i++;
+  }
+  return;
+}
+
 ErrorCode Intx2Mesh::correct_intersection_points_positions()
 {
   if (parcomm)

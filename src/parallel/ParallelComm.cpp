@@ -8790,7 +8790,7 @@ ErrorCode ParallelComm::settle_intersection_points(Range & edges, Range & shared
           {
             double * pj = &pos_from_owner[3*j];
             double dist2 = (pk[0]-pj[0])*(pk[0]-pj[0])+(pk[1]-pj[1])*(pk[1]-pj[1]) + (pk[2]-pj[2])*(pk[2]-pj[2]);
-            if (dist2<tolerance*tolerance)
+            if (dist2<tolerance)
             {
               pk[0]=pj[0]; pk[1]=pj[1]; pk[2]= pj[2];// correct it!
               found =true;

@@ -626,6 +626,12 @@ double oriented_spherical_angle(double * A, double * B, double * C)
   CartVect normalOCB = c * b;
   CartVect orient = (b-a)*(c-a);
   double ang = angle(normalOAB, normalOCB); // this is between 0 and M_PI
+  if (ang!=ang)
+  {
+    // signal of a nan
+    std::cout << a << " " << b << " " << c <<"\n";
+    std::cout << ang << "\n";
+  }
   if (orient%a < 0)
     return (2*M_PI-ang);// the other angle
 

@@ -293,6 +293,8 @@ int Intx2MeshInPlane::findNodes(EntityHandle red, EntityHandle blue, double * iP
       return 1;
     }
   }
+  // nodes might still be duplicated
+  correct_polygon(foundIds, nP);
   // now we can build the triangles, from P array, with foundIds
   // we will put them in the out set
   if (nP >= 3)
