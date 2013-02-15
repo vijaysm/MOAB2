@@ -1,4 +1,6 @@
-# Config file for MOAB
+# Config file for MOAB; use the CMake find_package() function to pull this into
+# your own CMakeLists.txt file.
+#
 # This file defines the following variables:
 # MOAB_FOUND        - boolean indicating that MOAB is found
 # MOAB_INCLUDE_DIRS - include directories from which to pick up MOAB includes
