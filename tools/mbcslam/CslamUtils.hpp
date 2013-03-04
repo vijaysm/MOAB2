@@ -108,6 +108,12 @@ double area_spherical_triangle(double *A, double *B, double *C, double Radius);
 
 double area_spherical_polygon (double * A, int N, double Radius);
 
+double area_spherical_triangle_lHuiller(double * A, double * B, double * C, double Radius);
+
+double area_spherical_polygon_lHuiller (double * A, int N, double Radius);
+
 double area_on_sphere(Interface * mb, EntityHandle set, double R);
+
+double area_on_sphere_lHuiller(Interface * mb, EntityHandle set, double R);
 }
 #endif /* CSLAMUTILS_HPP_ */

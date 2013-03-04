@@ -671,6 +671,65 @@ double area_spherical_polygon (double * A, int N, double Radius)
   return Radius*Radius *correction;
 
 }
+/*
+ *  l'Huiller's formula for spherical triangle
+ *  http://williams.best.vwh.net/avform.htm
+ *  a, b, c are arc measures in radians, too
+ *  A, B, C are angles on the sphere, for which we already have formula
+ *               c
+ *         A -------B
+ *          \       |
+ *           \      |
+ *            \b    |a
+ *             \    |
+ *              \   |
+ *               \  |
+ *                \C|
+ *                 \|
+ *
+ *  (The angle at B is not necessarily a right angle)
+ *
+ *    sin(a)  sin(b)   sin(c)
+ *    ----- = ------ = ------
+ *    sin(A)  sin(B)   sin(C)
+ *
+ * In terms of the sides (this is excess, as before, but numerically stable)
+ *
+ *  E = 4*atan(sqrt(tan(s/2)*tan((s-a)/2)*tan((s-b)/2)*tan((s-c)/2)))
+ */
+double area_spherical_triangle_lHuiller(double * ptA, double * ptB, double * ptC, double Radius)
+{
+  // now, a is angle BOC, O is origin
+  CartVect vA(ptA), vB(ptB), vC(ptC);
+  double a = angle(vB, vC);
+  double b = angle(vC, vA);
+  double c = angle(vA, vB);
+  int sign =1;
+  if ((vA*vB)%vC < 0)
+    sign = -1;
+  double s = (a+b+c)/2;
+  double E = 4*atan(sqrt(tan(s/2)*tan((s-a)/2)*tan((s-b)/2)*tan((s-c)/2)));
+  return sign * E * Radius*Radius;
+}
+
+
+double area_spherical_polygon_lHuiller (double * A, int N, double Radius)
+{
+  // this should work for non-convex polygons too
+  // assume that the A, A+3, ..., A+3*(N-1) are the coordinates
+  //
+  // assume that the orientation is positive;
+  // if negative orientation, the area will be negative
+  if (N<=2)
+    return 0.;
+  double area = 0.;
+  for (int i=1; i<N-1; i++)
+  {
+    int i1 = i+1;
+    area += area_spherical_triangle_lHuiller( A, A+3*i, A+3*i1, Radius);
+  }
+  return area;
+}
 
 double area_on_sphere(Interface * mb, EntityHandle set, double R)
 {
@@ -698,6 +757,34 @@ double area_on_sphere(Interface * mb, EntityHandle set, double R)
     if (MB_SUCCESS != rval)
       return -1;
     total_area+=area_spherical_polygon (&coords[0], num_nodes, R);
+  }
+  return total_area;
+}
+double area_on_sphere_lHuiller(Interface * mb, EntityHandle set, double R)
+{
+  // get all entities of dimension 2
+  // then get the connectivity, etc
+  Range inputRange;
+  ErrorCode rval = mb->get_entities_by_dimension(set, 2, inputRange);
+  if (MB_SUCCESS != rval)
+    return -1;
+
+  double total_area = 0.;
+  for (Range::iterator eit = inputRange.begin(); eit != inputRange.end(); eit++)
+  {
+    EntityHandle eh = *eit;
+    // get the nodes, then the coordinates
+    const EntityHandle * verts;
+    int num_nodes;
+    rval = mb->get_connectivity(eh, verts, num_nodes);
+    if (MB_SUCCESS != rval)
+      return -1;
+    std::vector<double> coords(3 * num_nodes);
+    // get coordinates
+    rval = mb->get_coords(verts, num_nodes, &coords[0]);
+    if (MB_SUCCESS != rval)
+      return -1;
+    total_area += area_spherical_polygon_lHuiller(&coords[0], num_nodes, R);
   }
   return total_area;
 }
