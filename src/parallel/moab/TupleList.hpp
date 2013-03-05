@@ -119,7 +119,7 @@ namespace moab
   
       /**Constructor which sets an initial capacity of the buffer
        */
-      buffer(size_t size);
+      buffer(size_t p_size);
 
       /**Default constructor (Note:  buffer must be initialized before use!)
        */
@@ -129,7 +129,7 @@ namespace moab
   
       /**Initializes the buffer to have a capacity of size
        */
-      void buffer_init_(size_t size, const char *file);
+      void buffer_init_(size_t p_size, const char *file);
 
       /**Ensures that the buffer has at least a capacity of min
        */
