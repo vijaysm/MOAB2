@@ -708,7 +708,10 @@ double area_spherical_triangle_lHuiller(double * ptA, double * ptB, double * ptC
   if ((vA*vB)%vC < 0)
     sign = -1;
   double s = (a+b+c)/2;
-  double E = 4*atan(sqrt(tan(s/2)*tan((s-a)/2)*tan((s-b)/2)*tan((s-c)/2)));
+  double tmp = tan(s/2)*tan((s-a)/2)*tan((s-b)/2)*tan((s-c)/2);
+  if (tmp<0.)
+    tmp = 0.;
+  double E = 4*atan(sqrt(tmp));
   return sign * E * Radius*Radius;
 }
 
