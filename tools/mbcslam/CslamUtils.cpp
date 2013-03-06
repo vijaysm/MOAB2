@@ -788,4 +788,59 @@ double area_on_sphere_lHuiller(Interface * mb, EntityHandle set, double R)
   }
   return total_area;
 }
+/*
+ *
+ */
+double distance_on_great_circle(CartVect & p1, CartVect & p2)
+{
+  SphereCoords sph1 = cart_to_spherical(p1);
+  SphereCoords sph2 = cart_to_spherical(p2);
+  // radius should be the same
+  return sph1.R * acos(sin (sph1.lon)* sin(sph2.lon) + cos(sph1.lat)*cos(sph2.lat)*cos(sph2.lon-sph2.lon) );
+}
+/*
+ * based on paper A class of deformational flow test cases for linear transport problems on the sphere
+ *  longitude lambda [0.. 2*pi) and latitude theta (-pi/2, pi/2)
+ *  lambda: -> lon (0, 2*pi)
+ *  theta : -> lat (-pi/2, po/2)
+ *  Radius of the sphere is 1 (if not, everything gets multiplied by 1)
+ *
+ *  cosine bell: center lambda0, theta0:
+ */
+void departure_point_case1(CartVect & arrival_point, double t, double delta_t, CartVect & departure_point)
+{
+  // always assume radius is 1 here?
+  SphereCoords sph = cart_to_spherical(arrival_point);
+  double T=5; // duration of integration (5 units)
+  double k = 2.4; //flow parameter
+  /*     radius needs to be within some range   */
+  double  sl2 = sin(sph.lon/2);
+  double pit = M_PI * t / T;
+  double omega = M_PI/T;
+  double costetha = cos(sph.lat);
+  //double u = k * sl2*sl2 * sin(2*sph.lat) * cos(pit);
+  double v = k * sin(sph.lon) * costetha * cos(pit);
+  //double psi = k * sl2 * sl2 *costetha * costetha * cos(pit);
+  double u_tilda = 2*k*sl2*sl2*sin(sph.lat)*cos(pit);
+
+  // formula 35, page 8
+  // this will approximate dep point using a Taylor series with up to second derivative
+  // this will be O(delta_t^3) exact.
+  double lon_dep = sph.lon - delta_t * u_tilda -delta_t*delta_t * k * sl2 *
+      ( sl2 * sin (sph.lat) * sin(pit) * omega
+          - u_tilda * sin(sph.lat) * cos(pit) * cos (sph.lon/2)
+          - v * sl2 * costetha * cos(pit)   );
+  // formula 36, page 8 again
+  double lat_dep = sph.lat - delta_t*v - delta_t * delta_t/4* k *
+      ( sin(sph.lon)* cos(sph.lat) * sin(pit) * omega
+          - u_tilda * cos(sph.lon) * cos(sph.lat) * cos(pit)
+          + v * sin(sph.lon) * sin(sph.lat) * cos(pit)  );
+  SphereCoords sph_dep;
+  sph_dep.R = 1.; // radius
+  sph_dep.lat = lat_dep;
+  sph_dep.lon = lon_dep;
+
+  departure_point = spherical_to_cart(sph_dep);
+  return;
+}
 } //namespace moab
