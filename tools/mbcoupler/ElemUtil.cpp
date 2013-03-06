@@ -5,7 +5,7 @@
 #include "ElemUtil.hpp"
 #include "types.h"
 
-namespace moab { 
+namespace moab {
 namespace ElemUtil {
 
   bool debug = false;
@@ -126,11 +126,11 @@ bool nat_coords_trilinear_hex( const CartVect* corner_coords,
 //
 // nat_coords_trilinear_hex2
 //  Duplicate functionality of nat_coords_trilinear_hex using hex_findpt
-// 
-void nat_coords_trilinear_hex2(const CartVect hex[8], 
+//
+void nat_coords_trilinear_hex2(const CartVect hex[8],
                                const CartVect& xyz,
                                CartVect &ncoords,
-                               double etol)       
+                               double etol)
 
 {
   const int ndim = 3;
@@ -143,15 +143,15 @@ void nat_coords_trilinear_hex2(const CartVect hex[8],
   real *xm[ndim];
   for(int i=0; i<ndim; i++)
     xm[i] = coords + i*nverts;
-    
+
   //stuff hex into coords
   for(int i=0; i<nverts; i++){
     real vcoord[ndim];
     hex[i].get(vcoord);
-   
+
     for(int d=0; d<ndim; d++)
       coords[d*nverts + vertMap[i]] = vcoord[d];
-    
+
   }
 
   double dist = 0.0;
@@ -163,11 +163,11 @@ void nat_coords_trilinear_hex2(const CartVect hex[8],
         ncoords[j] *= 10;
     }
   }
-  
+
 }
-bool point_in_trilinear_hex(const CartVect *hex, 
+bool point_in_trilinear_hex(const CartVect *hex,
                             const CartVect& xyz,
-                            double etol) 
+                            double etol)
 {
   CartVect xi;
   return nat_coords_trilinear_hex( hex, xyz, xi, etol )
@@ -177,11 +177,11 @@ bool point_in_trilinear_hex(const CartVect *hex,
 }
 
 
-bool point_in_trilinear_hex(const CartVect *hex, 
-                            const CartVect& xyz, 
-                            const CartVect& box_min, 
+bool point_in_trilinear_hex(const CartVect *hex,
+                            const CartVect& xyz,
+                            const CartVect& box_min,
                             const CartVect& box_max,
-                            double etol) 
+                            double etol)
 {
     // all values scaled by 2 (eliminates 3 flops)
   const CartVect mid = box_max + box_min;
@@ -216,7 +216,7 @@ void hex_findpt(real *xm[3],
                 int n,
                 CartVect xyz,
                 CartVect &rst,
-                double &dist)       
+                double &dist)
 {
 
   //compute stuff that only depends on the order -- could be cached
@@ -227,7 +227,7 @@ void hex_findpt(real *xm[3],
   //triplicates
   for(int d=0; d<3; d++){
     z[d] = tmalloc(real, n);
-    lobatto_nodes(z[d], n); 
+    lobatto_nodes(z[d], n);
     lagrange_setup(&ld[d], z[d], n);
   }
 
@@ -246,10 +246,10 @@ void hex_findpt(real *xm[3],
   rst = r;
 
   //Clean-up (move to destructor if we decide to cache)
-  opt_free_3(&data);  
-  for(int d=0; d<3; ++d) 
+  opt_free_3(&data);
+  for(int d=0; d<3; ++d)
     lagrange_free(&ld[d]);
-  for(int d=0; d<3; ++d) 
+  for(int d=0; d<3; ++d)
     free(z[d]);
 }
 
@@ -266,23 +266,23 @@ void hex_findpt(real *xm[3],
 void hex_eval(real *field,
 	      int n,
 	      CartVect rstCartVec,
-	      double &value)       
+	      double &value)
 {
   int d;
   real rst[3];
   rstCartVec.get(rst);
 
   //can cache stuff below
-  lagrange_data ld[3]; 
+  lagrange_data ld[3];
   real *z[3];
   for(d=0;d<3;++d){
     z[d] = tmalloc(real, n);
     lobatto_nodes(z[d], n);
     lagrange_setup(&ld[d], z[d], n);
-  } 
+  }
 
   //cut and paste -- see findpt.c
-  const unsigned 
+  const unsigned
     nf = n*n,
     ne = n,
     nw = 2*n*n + 3*n;
@@ -292,7 +292,7 @@ void hex_eval(real *field,
   for(d=0; d<3; d++){
     lagrange_0(&ld[d], rst[d]);
   }
-  
+
   value = tensor_i3(ld[0].J,ld[0].n,
 		    ld[1].J,ld[1].n,
 		    ld[2].J,ld[2].n,
@@ -302,7 +302,7 @@ void hex_eval(real *field,
   //all this could be cached
   for(d=0; d<3; d++){
     free(z[d]);
-    lagrange_free(&ld[d]); 
+    lagrange_free(&ld[d]);
   }
   free(od_work);
 }
@@ -310,7 +310,7 @@ void hex_eval(real *field,
 
 // Gaussian quadrature points for a trilinear hex element.
 // Five 2d arrays are defined.
-// One for the single gaussian point solution, 2 point solution, 
+// One for the single gaussian point solution, 2 point solution,
 // 3 point solution, 4 point solution and 5 point solution.
 // There are 2 columns, one for Weights and the other for Locations
 //                                Weight         Location
@@ -349,7 +349,7 @@ bool integrate_trilinear_hex(const CartVect* hex_corners,
   // Use the correct table of points and locations based on the num_pts parameter
   const double (*g_pts)[2] = 0;
   switch (num_pts) {
-  case 1: 
+  case 1:
     g_pts = gauss_1;
     break;
 
@@ -421,7 +421,7 @@ bool integrate_trilinear_hex(const CartVect* hex_corners,
 namespace Element {
 
 
-  
+
   inline const std::vector<CartVect>& Map::get_vertices() {
     return this->vertex;
   }
@@ -460,6 +460,70 @@ namespace Element {
   }// Map::ievaluate()
 
 
+// filescope for static member data that is cached
+  const double LinearEdge::corner[2][3] = {  { -1, 0, 0 },
+                                         {  1, 0, 0 } };
+
+  LinearEdge::LinearEdge() : Map(0) {
+
+  }// LinearEdge::LinearEdge()
+
+  /* For each point, its weight and location are stored as an array.
+     Hence, the inner dimension is 2, the outer dimension is gauss_count.
+     We use a one-point Gaussian quadrature, since it integrates linear functions exactly.
+  */
+  const double LinearEdge::gauss[1][2] = { {  2.0,           0.0          } };
+
+  CartVect LinearEdge::evaluate( const CartVect& xi ) const {
+    CartVect x(0.0);
+    for (unsigned i = 0; i < LinearEdge::corner_count; ++i) {
+      const double N_i = (1.0 + xi[0]*corner[i][0]);
+      x += N_i * this->vertex[i];
+    }
+    x /= LinearEdge::corner_count;
+    return x;
+  }// LinearEdge::evaluate
+
+  Matrix3 LinearEdge::jacobian( const CartVect& xi ) const {
+    Matrix3 J(0.0);
+    for (unsigned i = 0; i < LinearEdge::corner_count; ++i) {
+      const double   xi_p = 1.0 + xi[0]*corner[i][0];
+      const double dNi_dxi   = corner[i][0] * xi_p ;
+      J(0,0) += dNi_dxi   * vertex[i][0];
+    }
+    J(1,1) = 1.0; /* to make sure the Jacobian determinant is non-zero */
+    J(2,2) = 1.0; /* to make sure the Jacobian determinant is non-zero */
+    J /= LinearEdge::corner_count;
+    return J;
+  }// LinearEdge::jacobian()
+
+  double LinearEdge::evaluate_scalar_field(const CartVect& xi, const double *field_vertex_value) const {
+    double f(0.0);
+    for (unsigned i = 0; i < LinearEdge::corner_count; ++i) {
+      const double N_i = (1 + xi[0]*corner[i][0])
+                          * (1.0 + xi[1]*corner[i][1]);
+      f += N_i * field_vertex_value[i];
+    }
+    f /= LinearEdge::corner_count;
+    return f;
+  }// LinearEdge::evaluate_scalar_field()
+
+  double LinearEdge::integrate_scalar_field(const double *field_vertex_values) const {
+    double I(0.0);
+    for(unsigned int j1 = 0; j1 < this->gauss_count; ++j1) {
+      double x1 = this->gauss[j1][1];
+      double w1 = this->gauss[j1][0];
+      CartVect x(x1,0.0,0.0);
+      I += this->evaluate_scalar_field(x,field_vertex_values)*w1*this->det_jacobian(x);
+    }
+    return I;
+  }// LinearEdge::integrate_scalar_field()
+
+  bool LinearEdge::inside_nat_space(const CartVect & xi, double & tol) const
+  {
+    // just look at the box+tol here
+    return ( xi[0]>=-1.-tol) && (xi[0]<=1.+tol) ;
+  }
 
 
   const double LinearHex::corner[8][3] = { { -1, -1, -1 },
@@ -484,7 +548,7 @@ namespace Element {
   CartVect LinearHex::evaluate( const CartVect& xi ) const {
     CartVect x(0.0);
     for (unsigned i = 0; i < 8; ++i) {
-      const double N_i = 
+      const double N_i =
         (1 + xi[0]*corner[i][0])
       * (1 + xi[1]*corner[i][1])
       * (1 + xi[2]*corner[i][2]);
