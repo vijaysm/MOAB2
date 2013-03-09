@@ -697,13 +697,23 @@ double area_spherical_polygon (double * A, int N, double Radius)
  *
  *  E = 4*atan(sqrt(tan(s/2)*tan((s-a)/2)*tan((s-b)/2)*tan((s-c)/2)))
  */
+
+//! Interior angle between two vectors
+inline double angleSafe( const CartVect& u, const CartVect& v )
+  {
+    double a = ( (u % v) / std::sqrt((u % u) * (v % v)) );
+    if (a> 1.) a= 1.;
+    if (a<-1.) a =-1.;
+    return std::acos(a);
+  }
+
 double area_spherical_triangle_lHuiller(double * ptA, double * ptB, double * ptC, double Radius)
 {
   // now, a is angle BOC, O is origin
   CartVect vA(ptA), vB(ptB), vC(ptC);
-  double a = angle(vB, vC);
-  double b = angle(vC, vA);
-  double c = angle(vA, vB);
+  double a = angleSafe(vB, vC);
+  double b = angleSafe(vC, vA);
+  double c = angleSafe(vA, vB);
   int sign =1;
   if ((vA*vB)%vC < 0)
     sign = -1;
@@ -712,6 +722,8 @@ double area_spherical_triangle_lHuiller(double * ptA, double * ptB, double * ptC
   if (tmp<0.)
     tmp = 0.;
   double E = 4*atan(sqrt(tmp));
+  if (E!=E)
+    std::cout << "bad nan here \n";
   return sign * E * Radius*Radius;
 }
 

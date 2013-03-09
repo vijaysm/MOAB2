@@ -118,6 +118,7 @@ int main(int argc, char **argv)
 {
 
 
+  const char *filename_mesh1 = STRINGIFY(SRCDIR) "/eulerHomme.vtk";
   if (argc > 1)
   {
     int index = 1;
@@ -135,12 +136,17 @@ int main(int argc, char **argv)
       {
         delta_t = atof(argv[++index]);
       }
+      if (!strcmp(argv[index], "-input"))
+      {
+        filename_mesh1 = argv[++index];
+      }
       index++;
     }
   }
-  std::cout << " case 1: use -gtol " << gtol << " -dt " << delta_t << "\n";
+  std::cout << " case 1: use -gtol " << gtol << " -dt " << delta_t <<  " -cube " << CubeSide <<
+      " -input " << filename_mesh1 << "\n";
 
-  const char *filename_mesh1 = STRINGIFY(SRCDIR) "/eulerHomme.vtk";
+
 
   Core moab;
   Interface & mb = moab;
@@ -160,6 +166,10 @@ int main(int argc, char **argv)
   rval = manufacture_lagrange_mesh_on_sphere(&mb, euler_set, lagrange_set);
   if (MB_SUCCESS != rval)
     return 1;
+
+  rval = mb.write_file("lagr.h5m", 0, 0, &lagrange_set, 1);
+  if (MB_SUCCESS != rval)
+    std::cout << "can't write lagr set\n";
 
   Intx2MeshOnSphere worker(&mb);
 
