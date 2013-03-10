@@ -1,4 +1,5 @@
 MOABConfig.cmake
+moab.config
 aclocal.m4
 autom4te.cache/
 config.h
@@ -53,3 +54,5 @@ Makefile
 */Makefile
 */**/Makefile.in
 */**/Makefile
+.libs
+
