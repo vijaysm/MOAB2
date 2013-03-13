@@ -200,7 +200,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/SpatialLocator.hpp \
   moab/SpectralMeshTool.hpp \
   moab/Tree.hpp \
-  moab/TreeTravStats.hpp \
+  moab/TreeStats.hpp \
   moab/Types.hpp \
   moab/UnknownInterface.hpp \
   moab/Util.hpp \

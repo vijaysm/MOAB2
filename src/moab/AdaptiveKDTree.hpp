@@ -236,6 +236,8 @@ namespace moab {
 
   private:
 
+      friend class AdaptiveKDTreeIter;
+
         /** \brief Parse options for tree creation
          * \param options Options passed in by application
          * \return Failure is returned if any options were passed in and not interpreted; could mean

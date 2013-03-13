@@ -9,6 +9,7 @@
 #include "moab/Interface.hpp"
 #include "moab/CartVect.hpp"
 #include "moab/FileOptions.hpp"
+#include "moab/TreeStats.hpp"
 
 #include <string>
 #include <vector>
@@ -187,8 +188,13 @@ namespace moab {
       
         /** \brief Get max entities per leaf set on tree */
       double get_max_per_leaf() {return maxPerLeaf;}
+
+        /** \brief Get tree traversal stats object */
+      TreeStats &tree_stats() {return treeStats;}
       
-            
+        /** \brief Get tree traversal stats object */
+      const TreeStats &tree_stats() const {return treeStats;}
+      
   protected:
 
         /** \brief Parse options common to all trees
@@ -236,6 +242,9 @@ namespace moab {
 
         // tag name used for boxTag
       std::string boxTagName;
+
+        // tree traversal stats
+      TreeStats treeStats;
       
   private:
 

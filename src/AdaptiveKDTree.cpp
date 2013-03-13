@@ -179,6 +179,9 @@ namespace moab {
       }
   
       delete_tree( *tree_root_set );
+
+      treeStats.reset();
+      
       return rval;
     }
 
@@ -568,11 +571,14 @@ namespace moab {
   
       for (;;) {
         childVect.clear();
+        treeTool->treeStats.nodes_visited()++; // not sure whether this is the visit or the push_back below
         rval = treeTool->moab()->get_child_meshsets( mStack.back().entity, childVect );
         if (MB_SUCCESS != rval)
           return rval;
-        if (childVect.empty()) // leaf
+        if (childVect.empty()) { // leaf
+          treeTool->treeStats.leaves_visited()++;
           break;
+        }
   
         rval = treeTool->get_split_plane( mStack.back().entity, plane );
         if (MB_SUCCESS != rval)
@@ -602,7 +608,9 @@ namespace moab {
         // If the stack is empty after this pop, then we've reached the end.
       node = mStack.back();
       mStack.pop_back();
-  
+      treeTool->treeStats.nodes_visited()++;
+      if (mStack.empty()) treeTool->treeStats.leaves_visited()++;
+
       while(!mStack.empty()) {
           // Get data for parent entity
         parent = mStack.back();
@@ -620,6 +628,7 @@ namespace moab {
           mBox[direction][plane.norm] = node.coord;
             // push right child on stack
           node.entity = childVect[direction];
+          treeTool->treeStats.nodes_visited()++; // changed node
           node.coord = mBox[opposite][plane.norm];
           mStack.push_back( node );
             // change from box of parent to box of right child
@@ -633,6 +642,7 @@ namespace moab {
         assert( childVect[direction] == node.entity );
         mBox[opposite][plane.norm] = node.coord;
         node = parent;
+        treeTool->treeStats.nodes_visited()++;
         mStack.pop_back();
       }
   
@@ -835,6 +845,7 @@ namespace moab {
                                             double& t_enter, 
                                             double& t_exit ) const
     {
+      treeTool->treeStats.leaf_object_tests()++;
       return GeomUtil::ray_box_intersect( CartVect(box_min()),
                                           CartVect(box_max()),
                                           CartVect(ray_point),
@@ -886,6 +897,7 @@ namespace moab {
   
         // vertices
       for (i = elems.begin(); i != elem_begin; ++i) {
+        tool->tree_stats().leaf_object_tests()++;
         rval = moab->get_coords( &*i, 1, coords[0].array() );
         if (MB_SUCCESS != rval)
           return rval;
@@ -906,6 +918,7 @@ namespace moab {
   
         // non-polyhedron elements
       for (i = elem_begin; i != poly_begin; ++i) {
+        tool->tree_stats().leaf_object_tests()++;
         rval = moab->get_connectivity( *i, conn, count, true );
         if (MB_SUCCESS != rval) 
           return rval;
@@ -945,6 +958,7 @@ namespace moab {
   
         // polyhedra
       for (i = poly_begin; i != set_begin; ++i) {
+        tool->tree_stats().leaf_object_tests()++;
         rval = moab->get_connectivity( *i, conn, count, true );
         if (MB_SUCCESS != rval) 
           return rval;
@@ -978,6 +992,7 @@ namespace moab {
         // sets
       CartVect tmin, tmax;
       for (i = set_begin; i != elems.end(); ++i) {
+        tool->tree_stats().leaf_object_tests()++;
         rval = tool->compute_bounding_box( *i, tmin, tmax);
         if (MB_SUCCESS != rval)
           return rval;
@@ -2030,10 +2045,6 @@ namespace moab {
           min_depth = iter.depth();
         ++k;
       }
-      std::cout << std::endl << "# of leafs: " << k+1 << std::endl;
-      std::cout << std::endl << "max depth: " << max << std::endl;
-      std::cout << std::endl << "min depth: " << min << std::endl;
-      std::cout << std::endl << "# of elements " << num_of_elements << std::endl;
       return MB_SUCCESS;
     }
           
@@ -2041,8 +2052,6 @@ namespace moab {
                                        double min[3], double max[3], 
                                        unsigned int &dep) 
     {
-      if (root != myRoot) return MB_FAILURE;
-      
       ErrorCode result = get_bounding_box(min, max, &root);
       if (MB_SUCCESS != result) return result;
   

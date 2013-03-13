@@ -83,15 +83,15 @@ namespace moab
 
           // loop over the range_leaf
         bool tmp_inside;
-        for(Range::iterator iter = range_leaf.begin(); iter != range_leaf.end(); iter++)
+        for(Range::iterator rit = range_leaf.begin(); rit != range_leaf.end(); rit++)
         {
           bool *is_ptr = (is_inside ? is_inside+i3 : &tmp_inside);      
-          rval = elemEval->set_ent_handle(*iter); 
+          rval = elemEval->set_ent_handle(*rit); 
           if (MB_SUCCESS != rval) return rval;
           rval = elemEval->reverse_eval(pos+i3, 0.0, params+i3, is_ptr);
           if (MB_SUCCESS != rval) return rval;
           if (*is_ptr) {
-            ents[i] = *iter;
+            ents[i] = *rit;
             break;
           }
         }

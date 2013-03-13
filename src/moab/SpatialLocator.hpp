@@ -26,7 +26,7 @@ namespace moab {
       SpatialLocator(Interface *impl, Range &elems, Tree *tree = NULL, ElemEvaluator *eval = NULL);
 
         /* destructor */
-      ~SpatialLocator() {}
+      virtual ~SpatialLocator() {}
 
         /* add elements to be searched */
       ErrorCode add_elems(Range &elems);
