@@ -76,8 +76,8 @@ moab::ErrorCode MergeMesh::merge_entities(moab::Range &elems,
   else mbMergeTag = merge_tag;
   
   // build a kd tree with the vertices
-  moab::AdaptiveKDTree kd(mbImpl, true);
-  result = kd.build_tree(skin_range, tree_root);
+  moab::AdaptiveKDTree kd(mbImpl);
+  result = kd.build_tree(skin_range, &tree_root);
   if (moab::MB_SUCCESS != result) return result;
 
   // find matching vertices, mark them
@@ -170,8 +170,8 @@ moab::ErrorCode MergeMesh::find_merged_to(moab::EntityHandle &tree_root,
 
       // check close-by leaves too
       leaves_out.clear();
-      result = tree.leaves_within_distance(tree_root, from.array(), mergeTol,
-                                           leaves_out);
+      result = tree.distance_search(from.array(), mergeTol,
+                                    leaves_out, NULL, &tree_root);
       leaf_range2.clear();
       for (std::vector<moab::EntityHandle>::iterator vit = leaves_out.begin();
            vit != leaves_out.end(); vit++) {

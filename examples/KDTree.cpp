@@ -76,7 +76,7 @@ int main( )
     // Build a kD-tree from hex elements
   moab::EntityHandle tree_root;
   moab::AdaptiveKDTree tool( &mb );
-  rval = tool.build_tree( elems, tree_root ); CHKERR(rval);
+  rval = tool.build_tree( elems, &tree_root ); CHKERR(rval);
   
     // Loop forever (or until EOF), asking user for a point
     // to query and printing the hex element containing that
@@ -88,7 +88,7 @@ int main( )
       break;
   
     moab::EntityHandle leaf;
-    rval = tool.leaf_containing_point( tree_root, point, leaf ); CHKERR(rval);
+    rval = tool.point_search(point, leaf, NULL,  &tree_root); CHKERR(rval);
     moab::EntityHandle hex = hex_containing_point( mb, leaf, point );
     if (0 == hex) 
       std::cout << "Point is not contained in any hexahedron." << std::endl;

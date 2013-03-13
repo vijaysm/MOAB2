@@ -511,7 +511,7 @@ ErrorCode merge_duplicate_vertices( Interface& moab, const double epsilon )
   
   AdaptiveKDTree tree( &moab );
   EntityHandle root;
-  rval = tree.build_tree( verts, root );
+  rval = tree.build_tree( verts, &root );
   if (MB_SUCCESS != rval) {
     fprintf(stderr,"Failed to build kD-tree.\n");
     return rval;
@@ -525,7 +525,7 @@ ErrorCode merge_duplicate_vertices( Interface& moab, const double epsilon )
     if (MB_SUCCESS != rval) return rval;
     
     leaves.clear();;
-    rval = tree.leaves_within_distance( root, coords, epsilon, leaves );
+    rval = tree.distance_search(coords, epsilon, leaves, NULL, &root);
     if (MB_SUCCESS != rval) return rval;
     
     Range near;

@@ -138,7 +138,8 @@ void test_spectral_hex()
      // first evaluate a point, then inverse it to see if we get the same thing
      moab::CartVect rst(0.1, -0.1, 0.5);
      moab::CartVect pos = specHex.evaluate(rst);
-     moab::CartVect inverse = specHex.ievaluate(pos);
+     moab::CartVect inverse;
+     specHex.evaluate_reverse(pos, inverse);
      std::cout << "difference" << rst-inverse << "\n";
      Matrix3 jac=specHex.jacobian(rst);
      std::cout<< "jacobian: \n" << jac << " \n determinant: " << jac.determinant() << "\n";
@@ -150,10 +151,10 @@ void test_spectral_hex()
        std::cout << "can't get vel values \n";
        return;
      }
-     double vel1 = specHex.evaluate_scalar_field(rst, vx);
+     double vel1 = specHex.evaluate_scalar(rst, vx);
      std::cout << "velocity: " << vel1 << "\n";
      // compute integral over vx:
-     double integral = specHex.integrate_scalar_field(vx);
+     double integral = specHex.integrate_scalar(vx);
      std::cout << "integral over vx: " << integral << "\n";
 
   }
@@ -210,7 +211,7 @@ void test_spectral_quad()
     }
 
 
-     specQuad.set_vertices(verts);
+    specQuad.set_vertices(&verts[0], verts.size());
      specQuad.compute_gl_positions();
      // do something with the gl positions, project them on a sphere, and create another mesh?
      if (rit==ents.begin())

@@ -64,10 +64,7 @@ EntityHandle create_tree( AdaptiveKDTree& tool, unsigned depth, int intervals, T
   // Create tree root
   ErrorCode err;
   EntityHandle root, leaf;
-  const double tree_box_min_corner[] = { 0, 0, 0 };  
-    // Make each leaf box be 1x1x1.
-  const double tree_box_max_corner[] = { intervals, intervals, intervals };
-  err = tool.create_tree( tree_box_min_corner, tree_box_max_corner, root );
+  err = tool.create_root( CartVect(0.0).array(), CartVect(intervals).array(), root );
   assert(!err);
   
   // Use iterator to create tree to fixed depth of DEPTH
@@ -352,9 +349,9 @@ void test_point_search()
   CartVect right( CartVect(INTERVALS) - left );
  
     // compare leaf search to iterator search
-  rval = tool.leaf_containing_point( root, left.array(), leaf );
+  rval = tool.point_search(left.array(), leaf);
   CHECK_ERR(rval);
-  rval = tool.leaf_containing_point( root, left.array(), iter );
+  rval = tool.point_search(left.array(), iter);
   CHECK_ERR(rval);
   CHECK_EQUAL( leaf, iter.handle() );
   
@@ -380,9 +377,9 @@ void test_point_search()
   }
   
     // compare leaf search to iterator search
-  rval = tool.leaf_containing_point( root, right.array(), leaf );
+  rval = tool.point_search(right.array(), leaf, NULL, const_cast<EntityHandle*>(&root));
   CHECK_ERR(rval);
-  rval = tool.leaf_containing_point( root, right.array(), iter );
+  rval = tool.point_search(right.array(), iter, NULL, const_cast<EntityHandle*>(&root));
   CHECK_ERR(rval);
   assert( iter.handle() == leaf );
   

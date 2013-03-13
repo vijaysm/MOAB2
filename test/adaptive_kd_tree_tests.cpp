@@ -9,6 +9,7 @@ using namespace moab;
 
 #include <iostream>
 #include <algorithm>
+#include <sstream>
 
 /* Utility method - compare two range boxes */
 bool box_equal( const AdaptiveKDTreeIter& iter, 
@@ -42,7 +43,7 @@ void build_triangles( Interface* moab, Range& tris,
 
 }  
 
-/* Utility method - build a 2x2x2 box composed of four triagles on a side */
+/* Utility method - build a 2x2x2 box composed of two triagles on a side */
 void build_triangle_box_small( Interface* moab, Range& tris )
 {
   const double coords[] = { -1, -1, -1,
@@ -280,7 +281,7 @@ void build_triangle_octahedron( Interface* moab, Range& tris )
 }
 
 void test_valid_tree( AdaptiveKDTree* tool, EntityHandle root, 
-                      AdaptiveKDTree::Settings& settings,
+                      FileOptions& options,
                       const Range& expected_tris )
 {
   Range all_tris;
@@ -288,7 +289,9 @@ void test_valid_tree( AdaptiveKDTree* tool, EntityHandle root,
   AdaptiveKDTreeIter iter;
   CHECK(MB_SUCCESS == tool->get_tree_iterator( root, iter ));
   do {
-    CHECK( !settings.maxTreeDepth || iter.depth() <= settings.maxTreeDepth );
+    double dep;
+    rval = options.get_real_option("MAX_DEPTH", dep);
+    CHECK(MB_ENTITY_NOT_FOUND || iter.depth() <= tool->get_max_depth());
     
     Range tris;
     CHECK( tool->moab()->get_entities_by_type( iter.handle(), MBTRI, tris ) == MB_SUCCESS );
@@ -405,7 +408,7 @@ void create_simple_2d_tree( AdaptiveKDTree& tool,
     // create a single-node tree
   double min[3] = { -5, -4, -1 };
   double max[3] = {  5,  4,  1 };
-  rval = tool.create_tree( min, max, root );
+  rval = tool.create_root( min, max, root );
   CHECK( MB_SUCCESS == rval );
 
     // get iterator for tree
@@ -531,7 +534,7 @@ void leaf_iterator_test()
   EntityHandle root;
   double min[3] = { -3, -2, -1 };
   double max[3] = {  1,  2,  3 };
-  rval = tool.create_tree( min, max, root );
+  rval = tool.create_root( min, max, root );
   CHECK( MB_SUCCESS == rval );
 
     // get iterator for tree
@@ -728,40 +731,40 @@ void test_build_tree_bisect_triangles( )
   Core moab;
   AdaptiveKDTree tool( &moab );
   Range box_tris;
-  
-  AdaptiveKDTree::Settings settings;
-  settings.maxEntPerLeaf = 1;
-  settings.candidateSplitsPerDir = 1;
-  settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION;
+
+  std::ostringstream options;
+  options << "MAX_PER_LEAF=1;SPLITS_PER_DIR=1;CANDIDATE_PLANE_SET=0;";
+  FileOptions opts(options.str().c_str());
   EntityHandle root;
   ErrorCode rval;
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_small( &moab, box_tris );
-  rval = tool.build_tree( box_tris, root, &settings );
+  rval = tool.build_tree( box_tris, &root, &opts);
   CHECK( MB_SUCCESS == rval );
-  test_valid_tree( &tool, root, settings, box_tris );
+  test_valid_tree( &tool, root, opts, box_tris );
   tool.delete_tree(root);
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_octahedron( &moab, box_tris );
-  rval = tool.build_tree( box_tris, root, &settings );
+  rval = tool.build_tree( box_tris, &root, &opts );
   CHECK( MB_SUCCESS == rval );
-  test_valid_tree( &tool, root, settings, box_tris );
+  test_valid_tree( &tool, root, opts, box_tris );
   tool.delete_tree(root);
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_large( &moab, box_tris );
-  rval = tool.build_tree( box_tris, root, &settings );
+  rval = tool.build_tree( box_tris, &root, &opts );
   CHECK( MB_SUCCESS == rval );
-  test_valid_tree( &tool, root, settings, box_tris );
+  test_valid_tree( &tool, root, opts, box_tris );
   tool.delete_tree(root);
   
-  settings.maxTreeDepth = 2;
+  options << "MAX_DEPTH=2;";
+  opts = FileOptions(options.str().c_str());
   build_triangle_box_large( &moab, box_tris );
-  rval = tool.build_tree( box_tris, root, &settings );
+  rval = tool.build_tree( box_tris, &root, &opts );
   CHECK( MB_SUCCESS == rval );
-  test_valid_tree( &tool, root, settings, box_tris );
+  test_valid_tree( &tool, root, opts, box_tris );
   tool.delete_tree(root);
 }
   
@@ -771,19 +774,18 @@ void test_closest_triangle()
   AdaptiveKDTree tool( &moab );
   Range box_tris;
   
-  AdaptiveKDTree::Settings settings;
-  settings.maxEntPerLeaf = 1;
-  settings.candidateSplitsPerDir = 1;
-  settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION;
+  std::ostringstream options;
+  options << "MAX_PER_LEAF=1;SPLITS_PER_DIR=1;CANDIDATE_PLANE_SET=0;";
+  FileOptions opts(options.str().c_str());
   EntityHandle root;
   ErrorCode rval;
   EntityHandle tri;
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_small( &moab, box_tris );
-  rval = tool.build_tree( box_tris, root, &settings );
+  rval = tool.build_tree( box_tris, &root, &opts );
   CHECK( MB_SUCCESS == rval );
-  test_valid_tree( &tool, root, settings, box_tris );
+  test_valid_tree( &tool, root, opts, box_tris );
 
     // test closest to each corner of the box.
   for (unsigned i = 0; i < 8; ++i) {
@@ -840,9 +842,9 @@ void test_closest_triangle()
   moab.delete_mesh(); box_tris.clear();
 
   build_triangle_box_large( &moab, box_tris );
-  rval = tool.build_tree( box_tris, root, &settings );
+  rval = tool.build_tree( box_tris, &root, &opts );
   CHECK( MB_SUCCESS == rval );
-  test_valid_tree( &tool, root, settings, box_tris );
+  test_valid_tree( &tool, root, opts, box_tris );
 
     // test closest to each corner of the box.
   for (unsigned i = 0; i < 8; ++i) {
@@ -901,19 +903,18 @@ void test_sphere_intersect_triangles()
   AdaptiveKDTree tool( &moab );
   Range box_tris;
   
-  AdaptiveKDTree::Settings settings;
-  settings.maxEntPerLeaf = 1;
-  settings.candidateSplitsPerDir = 1;
-  settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION;
+  std::ostringstream options;
+  options << "MAX_PER_LEAF=1;SPLITS_PER_DIR=1;CANDIDATE_PLANE_SET=0;";
+  FileOptions opts(options.str().c_str());
   EntityHandle root;
   ErrorCode rval;
   std::vector<EntityHandle> triangles;
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_small( &moab, box_tris );
-  rval = tool.build_tree( box_tris, root, &settings );
+  rval = tool.build_tree( box_tris, &root, &opts );
   CHECK( MB_SUCCESS == rval );
-  test_valid_tree( &tool, root, settings, box_tris );
+  test_valid_tree( &tool, root, opts, box_tris );
 
     // test closest to each corner of the box.
   for (unsigned i = 0; i < 8; ++i) {
@@ -937,9 +938,9 @@ void test_sphere_intersect_triangles()
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_large( &moab, box_tris );
 
-  rval = tool.build_tree( box_tris, root, &settings );
+  rval = tool.build_tree( box_tris, &root, &opts );
   CHECK( MB_SUCCESS == rval );
-  test_valid_tree( &tool, root, settings, box_tris );
+  test_valid_tree( &tool, root, opts, box_tris );
 
     // test closest to each corner of the box.
   for (unsigned i = 0; i < 8; ++i) {
@@ -964,10 +965,9 @@ void test_ray_intersect_triangles()
   AdaptiveKDTree tool( &moab );
   Range box_tris;
   
-  AdaptiveKDTree::Settings settings;
-  settings.maxEntPerLeaf = 1;
-  settings.candidateSplitsPerDir = 1;
-  settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION;
+  std::ostringstream options;
+  options << "MAX_PER_LEAF=1;SPLITS_PER_DIR=1;CANDIDATE_PLANE_SET=0;";
+  FileOptions opts(options.str().c_str());
   EntityHandle root;
   ErrorCode rval;
   std::vector<EntityHandle> tris;
@@ -975,9 +975,9 @@ void test_ray_intersect_triangles()
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_small( &moab, box_tris );
-  rval = tool.build_tree( box_tris, root, &settings );
+  rval = tool.build_tree( box_tris, &root, &opts );
   CHECK( MB_SUCCESS == rval );
-  test_valid_tree( &tool, root, settings, box_tris );
+  test_valid_tree( &tool, root, opts, box_tris );
   
     // test ray through box parallel to X axis
   CartVect dir( 1, 0, 0 );
@@ -1179,7 +1179,7 @@ void test_leaf_intersects_plane()
   EntityHandle root;
   const double min[3] = { -5, -4, -1 };
   const double max[3] = {  1,  2,  3 };
-  rval = tool.create_tree( min, max, root );
+  rval = tool.create_root( min, max, root );
   CHECK_ERR(rval);
   
   AdaptiveKDTreeIter iter;
@@ -1242,7 +1242,7 @@ void test_leaf_intersects_ray()
   EntityHandle root;
   const double min[3] = { -5, -4, -1 };
   const double max[3] = {  1,  2,  3 };
-  rval = tool.create_tree( min, max, root );
+  rval = tool.create_root( min, max, root );
   CHECK_ERR(rval);
   
   AdaptiveKDTreeIter iter;

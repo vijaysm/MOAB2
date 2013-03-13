@@ -20,39 +20,39 @@ namespace moab {
     exit(1);
   }
 
-  TupleList::buffer::buffer(size_t size)
+  TupleList::buffer::buffer(size_t sz)
   {
     ptr = NULL;
-    size=0;
-    this->buffer_init_(size, __FILE__);
+    buffSize=0;
+    this->buffer_init_(sz, __FILE__);
   }
 
   TupleList::buffer::buffer()
   {
-    size=0;
+    buffSize=0;
     ptr = NULL;
   }  
 
   void TupleList::buffer::buffer_init_(size_t sizeIn, const char *file)
   {
-    this->size = sizeIn;
-    void *res = malloc(this->size);
-    if (!res && size > 0) 
-      fail("%s: allocation of %d bytes failed\n",file,(int)size);
+    this->buffSize = sizeIn;
+    void *res = malloc(this->buffSize);
+    if (!res && buffSize > 0) 
+      fail("%s: allocation of %d bytes failed\n",file,(int)buffSize);
     ptr = (char*) res;
   }
 
   void TupleList::buffer::buffer_reserve_(size_t min, const char *file)
   {
-    if(this->size < min) {
-      size_t newSize = this->size;
+    if(this->buffSize < min) {
+      size_t newSize = this->buffSize;
       newSize += newSize/2 + 1;
       if (newSize < min) newSize = min;
       void *res = realloc (ptr, newSize);
       if (!res && newSize > 0) 
-	fail("%s: allocation of %d bytes failed\n",file,(int)this->size);
+	fail("%s: allocation of %d bytes failed\n",file,(int)this->buffSize);
       ptr = (char*) res;
-      this->size = newSize;
+      this->buffSize = newSize;
     }
   }
 
@@ -60,7 +60,7 @@ namespace moab {
   { 
     free(ptr);
     ptr = NULL; 
-    size = 0;
+    buffSize = 0;
   }
 
   TupleList::TupleList(uint mi, uint ml,
@@ -89,37 +89,37 @@ namespace moab {
     this->n = 0;
     this->max = max;
     this->mi = mi, this->ml = ml, this->mul = mul, this->mr = mr;
-    size_t size;
+    size_t sz;
 
     if (max*mi > 0) {
-      size = max*mi*sizeof(sint);
-      void *resi = malloc(size);
+      sz = max*mi*sizeof(sint);
+      void *resi = malloc(sz);
       if(!resi && max*mi > 0) 
-	fail("%s: allocation of %d bytes failed\n",__FILE__,(int)size);
+	fail("%s: allocation of %d bytes failed\n",__FILE__,(int)sz);
       vi = (sint*) resi;
     } else
       vi = NULL;
     if (max*ml > 0) {
-      size = max*ml*sizeof(slong);
-      void *resl = malloc(size);
+      sz = max*ml*sizeof(slong);
+      void *resl = malloc(sz);
       if(!resl && max*ml > 0) 
-	fail("%s: allocation of %d bytes failed\n",__FILE__,(int)size);
+	fail("%s: allocation of %d bytes failed\n",__FILE__,(int)sz);
       vl = (slong*) resl;
     } else
       vl = NULL;
     if (max*mul > 0) {
-      size = max*mul*sizeof(ulong);
-      void *resu = malloc(size);
+      sz = max*mul*sizeof(ulong);
+      void *resu = malloc(sz);
       if(!resu && max*mul > 0) 
-	fail("%s: allocation of %d bytes failed\n",__FILE__,(int)size);
+	fail("%s: allocation of %d bytes failed\n",__FILE__,(int)sz);
       vul = (ulong*) resu;
     } else
       vul = NULL;
     if (max*mr > 0) {
-      size = max*mr*sizeof(realType);
-      void *resr = malloc(size);
+      sz = max*mr*sizeof(realType);
+      void *resr = malloc(sz);
       if(!resr && max*ml > 0) 
-	fail("%s: allocation of %d bytes failed\n",__FILE__,(int)size);
+	fail("%s: allocation of %d bytes failed\n",__FILE__,(int)sz);
       vr=(realType*) resr;
     } else
       vr = NULL;
@@ -135,40 +135,40 @@ namespace moab {
   ErrorCode TupleList::resize(uint maxIn)
   {
     this->max = maxIn;
-    size_t size;
+    size_t sz;
 
     if (vi || (max*mi > 0)){
-      size = max*mi*sizeof(sint);
-      void *resi = realloc(vi, size);
+      sz = max*mi*sizeof(sint);
+      void *resi = realloc(vi, sz);
       if(!resi && max*mi > 0){ 
-	fail("%s: allocation of %d bytes failed\n",__FILE__,(int)size);
+	fail("%s: allocation of %d bytes failed\n",__FILE__,(int)sz);
 	return moab::MB_MEMORY_ALLOCATION_FAILED;
       }
       vi = (sint*) resi;
     }
     if (vl || (max*ml > 0)){
-      size = max*ml*sizeof(slong);
-      void *resl = realloc(vl, size);
+      sz = max*ml*sizeof(slong);
+      void *resl = realloc(vl, sz);
       if(!resl && max*ml > 0){ 
-	fail("%s: allocation of %d bytes failed\n",__FILE__,(int)size);
+	fail("%s: allocation of %d bytes failed\n",__FILE__,(int)sz);
 	return moab::MB_MEMORY_ALLOCATION_FAILED;
       }
       vl = (slong*) resl;
     }
     if (vul || (max*mul > 0)){
-      size = max*mul*sizeof(ulong);
-      void *resu = realloc(vul, size);
+      sz = max*mul*sizeof(ulong);
+      void *resu = realloc(vul, sz);
       if(!resu && max*mul > 0){
-	fail("%s: allocation of %d bytes failed\n",__FILE__,(int)size);
+	fail("%s: allocation of %d bytes failed\n",__FILE__,(int)sz);
 	return moab::MB_MEMORY_ALLOCATION_FAILED;
       }
       vul = (ulong*) resu;
     }
     if (vr || (max*mr > 0)){
-      size = max*mr*sizeof(realType);
-      void *resr = realloc(vr, size);
+      sz = max*mr*sizeof(realType);
+      void *resr = realloc(vr, sz);
       if(!resr && max*mr > 0){
-	fail("%s: allocation of %d bytes failed\n",__FILE__,(int)size);
+	fail("%s: allocation of %d bytes failed\n",__FILE__,(int)sz);
 	return moab::MB_MEMORY_ALLOCATION_FAILED;
       }
       vr = (realType*) resr;

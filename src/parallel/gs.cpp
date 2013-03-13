@@ -166,8 +166,8 @@ namespace moab {
 
 
 
-  void gs_data::nonlocal_info::initialize(uint np, uint count, 
-					  uint nlabels, uint nulabels, uint maxv)
+  void gs_data::nonlocal_info::initialize(uint nump, uint count, 
+                                          uint nlabels, uint nulabels, uint mxv)
   {
     target = NULL;
     nshared = NULL;
@@ -176,17 +176,17 @@ namespace moab {
     ulabels = NULL;
     reqs = NULL;
     buf = NULL;
-    this->np = np;
-    target = (uint*) malloc((2*np+count)*sizeof(uint));
-    nshared = target + np;
-    sh_ind = nshared + np;
+    this->np = nump;
+    target = (uint*) malloc((2*nump+count)*sizeof(uint));
+    nshared = target + nump;
+    sh_ind = nshared + nump;
     if (1 < nlabels)
       slabels = (slong*) malloc(((nlabels-1)*count)*sizeof(slong));
     else slabels = NULL;
     ulabels = (ulong*) malloc((nulabels*count)*sizeof(ulong));
-    reqs = (MPI_Request*) malloc(2*np*sizeof(MPI_Request));
-    buf = (realType*) malloc((2*count*maxv)*sizeof(realType));
-    this->maxv = maxv;
+    reqs = (MPI_Request*) malloc(2*nump*sizeof(MPI_Request));
+    buf = (realType*) malloc((2*count*mxv)*sizeof(realType));
+    this->maxv = mxv;
   }
 
   void gs_data::nonlocal_info::nlinfo_free()
@@ -210,34 +210,34 @@ namespace moab {
   void gs_data::nonlocal_info::nonlocal(realType *u, int op, MPI_Comm comm)
   {
     MPI_Status status;
-    uint np = this->np;
-    MPI_Request *reqs = this->reqs;
+    uint nump = this->np;
+    MPI_Request *rqs = this->reqs;
     uint *targ = this->target;
-    uint *nshared = this->nshared;
-    uint *sh_ind = this->sh_ind;
+    uint *nshrd = this->nshared;
+    uint *shind = this->sh_ind;
     uint id;
-    realType *buf = this->buf, *start;
+    realType *bf = this->buf, *start;
     unsigned int i;
     { MPI_Comm_rank(comm,(int *)&i); id=i; }
-    for (i=0; i<np; ++i) {
-      uint c = nshared[i];
-      start = buf;
-      for (;c;--c) *buf++ = u[*sh_ind++];
-      MPI_Isend(start,nshared[i]*sizeof(realType),MPI_UNSIGNED_CHAR,
-		targ[i],id,comm,reqs++);
+    for (i=0; i<nump; ++i) {
+      uint c = nshrd[i];
+      start = bf;
+      for (;c;--c) *bf++ = u[*shind++];
+      MPI_Isend(start,nshrd[i]*sizeof(realType),MPI_UNSIGNED_CHAR,
+		targ[i],id,comm,rqs++);
     }
-    start = buf;
-    for(i=0; i<np; ++i) {
-      MPI_Irecv(start,nshared[i]*sizeof(realType),MPI_UNSIGNED_CHAR,
-		targ[i],targ[i],comm,reqs++);
-      start+=nshared[i];
+    start = bf;
+    for(i=0; i<nump; ++i) {
+      MPI_Irecv(start,nshrd[i]*sizeof(realType),MPI_UNSIGNED_CHAR,
+		targ[i],targ[i],comm,rqs++);
+      start+=nshrd[i];
     }
-    for (reqs=this->reqs,i=np*2;i;--i) MPI_Wait(reqs++,&status);
-    sh_ind = this->sh_ind;
+    for (rqs=this->reqs,i=nump*2;i;--i) MPI_Wait(rqs++,&status);
+    shind = this->sh_ind;
 # define LOOP(OP) do {							\
-      for(i=0;i<np;++i) {						\
+      for(i=0;i<nump;++i) {						\
 	uint c;								\
-	for(c=nshared[i];c;--c) { OP(u[*sh_ind],*buf); ++sh_ind, ++buf; } \
+	for(c=nshrd[i];c;--c) { OP(u[*shind],*bf); ++shind, ++bf; } \
       }									\
     } while(0)
     switch(op) {
@@ -254,36 +254,36 @@ namespace moab {
 					    int op, MPI_Comm comm)
   {
     MPI_Status status;
-    uint np = this->np;
-    MPI_Request *reqs = this->reqs;
+    uint nump = this->np;
+    MPI_Request *rqs = this->reqs;
     uint *targ = this->target;
-    uint *nshared = this->nshared;
-    uint *sh_ind = this->sh_ind;
+    uint *nshrd = this->nshared;
+    uint *shind = this->sh_ind;
     uint id;
-    realType *buf = this->buf, *start;
+    realType *bf = this->buf, *start;
     uint size = n*sizeof(realType);
     unsigned int i;
     { MPI_Comm_rank(comm,(int *)&i); id=i; }
-    for (i=0; i<np; ++i) {
-      uint ns=nshared[i], c=ns;
-      start = buf;
-      for (;c;--c) memcpy(buf,u+n*(*sh_ind++),size), buf+=n;
-      MPI_Isend(start,ns*size,MPI_UNSIGNED_CHAR,targ[i],id,comm,reqs++);
+    for (i=0; i<nump; ++i) {
+      uint ns=nshrd[i], c=ns;
+      start = bf;
+      for (;c;--c) memcpy(bf,u+n*(*shind++),size), bf+=n;
+      MPI_Isend(start,ns*size,MPI_UNSIGNED_CHAR,targ[i],id,comm,rqs++);
     }
-    start = buf;
-    for (i=0; i<np; ++i) {
-      int nsn=n*nshared[i];
-      MPI_Irecv(start,nsn*size,MPI_UNSIGNED_CHAR,targ[i],targ[i],comm,reqs++);
+    start = bf;
+    for (i=0; i<nump; ++i) {
+      int nsn=n*nshrd[i];
+      MPI_Irecv(start,nsn*size,MPI_UNSIGNED_CHAR,targ[i],targ[i],comm,rqs++);
       start+=nsn;
     }
-    for (reqs=this->reqs,i=np*2;i;--i) MPI_Wait(reqs++,&status);
-    sh_ind = this->sh_ind;
+    for (rqs=this->reqs,i=nump*2;i;--i) MPI_Wait(rqs++,&status);
+    shind = this->sh_ind;
 # define LOOP(OP) do {					\
-      for(i=0;i<np;++i) {				\
+      for(i=0;i<nump;++i) {				\
 	uint c,j;					\
-	for(c=nshared[i];c;--c) {			\
-	  realType *uu=u+n*(*sh_ind++);			\
-	  for(j=n;j;--j) { OP(*uu,*buf); ++uu, ++buf; } \
+	for(c=nshrd[i];c;--c) {			\
+	  realType *uu=u+n*(*shind++);			\
+	  for(j=n;j;--j) { OP(*uu,*bf); ++uu, ++bf; } \
 	}						\
       }							\
     } while(0)
@@ -301,39 +301,39 @@ namespace moab {
 					     MPI_Comm comm)
   {
     MPI_Status status;
-    uint np = this->np;
-    MPI_Request *reqs = this->reqs;
+    uint nump = this->np;
+    MPI_Request *rqs = this->reqs;
     uint *targ = this->target;
-    uint *nshared = this->nshared;
-    uint *sh_ind = this->sh_ind;
+    uint *nshrd = this->nshared;
+    uint *shind = this->sh_ind;
     uint id;
-    realType *buf = this->buf, *start;
+    realType *bf = this->buf, *start;
     unsigned int i;
     { MPI_Comm_rank(comm,(int *)&i); id=i; }
-    for (i=0; i<np; ++i) {
-      uint c, j, ns = nshared[i];
-      start = buf;
-      for (j=0; j<n; ++j) {realType*uu=u[j]; for(c=0;c<ns;++c) *buf++=uu[sh_ind[c]];}
-      sh_ind+=ns;
-      MPI_Isend(start,n*ns*sizeof(realType),MPI_UNSIGNED_CHAR,targ[i],id,comm,reqs++);
+    for (i=0; i<nump; ++i) {
+      uint c, j, ns = nshrd[i];
+      start = bf;
+      for (j=0; j<n; ++j) {realType*uu=u[j]; for(c=0;c<ns;++c) *bf++=uu[shind[c]];}
+      shind+=ns;
+      MPI_Isend(start,n*ns*sizeof(realType),MPI_UNSIGNED_CHAR,targ[i],id,comm,rqs++);
     }
-    start = buf;
-    for (i=0; i<np; ++i) {
-      int nsn = n*nshared[i];
+    start = bf;
+    for (i=0; i<nump; ++i) {
+      int nsn = n*nshrd[i];
       MPI_Irecv(start,nsn*sizeof(realType),MPI_UNSIGNED_CHAR,
-		targ[i],targ[i],comm,reqs++);
+		targ[i],targ[i],comm,rqs++);
       start+=nsn;
     }
-    for (reqs=this->reqs,i=np*2;i;--i) MPI_Wait(reqs++,&status);
-    sh_ind = this->sh_ind;
+    for (rqs=this->reqs,i=nump*2;i;--i) MPI_Wait(rqs++,&status);
+    shind = this->sh_ind;
 # define LOOP(OP) do {						\
-      for(i=0;i<np;++i) {					\
-	uint c,j,ns=nshared[i];					\
+      for(i=0;i<nump;++i) {					\
+	uint c,j,ns=nshrd[i];					\
 	for(j=0;j<n;++j) {					\
 	  realType *uu=u[j];					\
-	  for(c=0;c<ns;++c) { OP(uu[sh_ind[c]],*buf); ++buf; }	\
+	  for(c=0;c<ns;++c) { OP(uu[shind[c]],*bf); ++bf; }	\
 	}							\
-	sh_ind+=ns;						\
+	shind+=ns;						\
       }								\
     } while(0)
     switch(op) {
@@ -353,18 +353,18 @@ namespace moab {
   {
   }
 
-  void gs_data::crystal_data::initialize(MPI_Comm comm)
+  void gs_data::crystal_data::initialize(MPI_Comm cmm)
   {
-    int num,id;
+    int nm,tmp_id;
     buffers[0].buf.buffer_init(1024);
     buffers[1].buf.buffer_init(1024);
     buffers[2].buf.buffer_init(1024);
     all=&buffers[0];
     keep=&buffers[1];
     send=&buffers[2];
-    memcpy(&(this->comm),&comm,sizeof(MPI_Comm));
-    MPI_Comm_rank(comm,&id ); this->id =id ;
-    MPI_Comm_size(comm,&num); this->num=num;
+    memcpy(&(this->comm),&cmm,sizeof(MPI_Comm));
+    MPI_Comm_rank(cmm,&tmp_id ); this->id =tmp_id ;
+    MPI_Comm_size(cmm,&nm); this->num=nm;
   }
 
   void gs_data::crystal_data::reset()
@@ -471,7 +471,7 @@ namespace moab {
       mr*UINT_PER_REAL;
     sint p, lp = -1;
     sint *ri; slong *rl; ulong *rul; realType *rr;
-    uint i, j, *buf, *len=0, *buf_end;
+    uint i, j, *bf, *len=0, *buf_end;
 
     /* sort to group by target proc */
     if (pf >= mi)
@@ -481,7 +481,7 @@ namespace moab {
 
     /* pack into buffer for crystal router */
     all->buf.buffer_reserve((tl.get_n()*(3+tsize))*sizeof(uint));
-    all->n=0, buf = (uint*) all->buf.ptr;
+    all->n=0, bf = (uint*) all->buf.ptr;
     
     bool canWrite = tl.get_writeEnabled();
     if(!canWrite) tl.enableWriteAccess();
@@ -492,18 +492,18 @@ namespace moab {
       p = ri[pf];
       if (p!=lp) {
 	lp = p;
-	*buf++ = p;           /* target */
-	*buf++ = id; /* source */
-	len = buf++; *len=0;  /* length */
+	*bf++ = p;           /* target */
+	*bf++ = id; /* source */
+	len = bf++; *len=0;  /* length */
 	all->n += 3;
       }
-      for (j=0;j<mi;++j,++ri) if(j!=pf) *buf++ = *ri;
+      for (j=0;j<mi;++j,++ri) if(j!=pf) *bf++ = *ri;
       for (j=ml;j;--j,++rl)
-	memcpy(buf,rl,sizeof(slong)), buf+=UINT_PER_LONG;
+	memcpy(bf,rl,sizeof(slong)), bf+=UINT_PER_LONG;
       for (j=mul;j;--j,++rul)
-	memcpy(buf,rul,sizeof(ulong)), buf+=UINT_PER_LONG;
+	memcpy(bf,rul,sizeof(ulong)), bf+=UINT_PER_LONG;
       for (j=mr;j;--j,++rr)
-	memcpy(buf,rr,sizeof(realType )), buf+=UINT_PER_REAL;
+	memcpy(bf,rr,sizeof(realType )), bf+=UINT_PER_REAL;
       *len += tsize, all->n += tsize;
     }
 
@@ -511,15 +511,15 @@ namespace moab {
 
 
     /* unpack */
-    buf = (uint*)all->buf.ptr, buf_end = buf + all->n;
+    bf = (uint*)all->buf.ptr, buf_end = bf + all->n;
     tl.set_n(0);
     ri=tl.vi_wr,rl=tl.vl_wr,rul=tl.vul_wr,rr=tl.vr_wr;
  
-    while (buf != buf_end) {
+    while (bf != buf_end) {
       sint llen;
-      buf++;        /* target ( == this proc ) */
-      p = *buf++;   /* source */
-      llen = *buf++; /* length */
+      bf++;        /* target ( == this proc ) */
+      p = *bf++;   /* source */
+      llen = *bf++; /* length */
       while (llen>0) {
 	if (tl.get_n()==tl.get_max()) {
 	  if (!dynamic) { tl.set_n(tl.get_max() + 1); 
@@ -535,10 +535,10 @@ namespace moab {
 	  rul = tl.vul_wr + mul*tl.get_n(), rr = tl.vr_wr + mr*tl.get_n();
 	}
 	tl.inc_n();
-	for (j=0;j<mi;++j) if(j!=pf) *ri++ = *buf++; else *ri++ = p;
-	for (j=ml;j;--j) memcpy(rl++,buf,sizeof(slong)), buf+=UINT_PER_LONG;
-	for (j=mul;j;--j) memcpy(rul++,buf,sizeof(ulong)), buf+=UINT_PER_LONG;
-	for (j=mr;j;--j) memcpy(rr++,buf,sizeof(realType )), buf+=UINT_PER_REAL;
+	for (j=0;j<mi;++j) if(j!=pf) *ri++ = *bf++; else *ri++ = p;
+	for (j=ml;j;--j) memcpy(rl++,bf,sizeof(slong)), bf+=UINT_PER_LONG;
+	for (j=mul;j;--j) memcpy(rul++,bf,sizeof(ulong)), bf+=UINT_PER_LONG;
+	for (j=mr;j;--j) memcpy(rr++,bf,sizeof(realType )), bf+=UINT_PER_REAL;
 	llen-=tsize;
       }
     }
@@ -611,14 +611,14 @@ namespace moab {
 #ifdef USE_MPI
     TupleList shared;
 #else
-    moab::TupleList::buffer buf;
+    moab::TupleList::buffer bf;
 #endif
     VALGRIND_CHECK_MEM_IS_DEFINED(  label, nlabels * sizeof( long) );
     VALGRIND_CHECK_MEM_IS_DEFINED( ulabel, nlabels * sizeof(ulong) );
 #ifdef USE_MPI
     MPI_Comm_dup(crystal->comm,&this->comm);
 #else
-    buf.buffer_init(1024);
+    bf.buffer_init(1024);
 #endif
 
     /* construct list of nonzeros: (index ^, label) */
@@ -640,7 +640,7 @@ namespace moab {
 
     /* sort nonzeros by label: (index ^2, label ^1) */
 #ifndef USE_MPI
-    nonzero.sort(1,&buf);
+    nonzero.sort(1,&bf);
 #else
     nonzero.sort(1,&crystal->all->buf);
 #endif
@@ -684,8 +684,8 @@ namespace moab {
     /* sort unique labels by primary index:
        (nonzero index ^2, primary index ^1, count, label ^2) */
 #ifndef USE_MPI
-    primary.sort(0,&buf);
-    buf.reset();  
+    primary.sort(0,&bf);
+    bf.reset();  
     //buffer_free(&buf);
 #else
     primary.sort(0,&crystal->all->buf);
@@ -784,15 +784,15 @@ namespace moab {
       slong *sl = shared.vl_wr;
       ulong *ul = shared.vul_wr;
       uint *target  = this->nlinfo->target;
-      uint *nshared = this->nlinfo->nshared;
-      uint *sh_ind  = this->nlinfo->sh_ind;
+      uint *nshrd = this->nlinfo->nshared;
+      uint *shind  = this->nlinfo->sh_ind;
       slong *slabels = this->nlinfo->slabels;
       ulong *ulabels = this->nlinfo->ulabels;
       for (i=shared.get_n(); i; --i,si+=3) {
 	if (si[1]!=proc){
 	  proc=si[1], *target++ = proc;
-	  *nshared++ = 0;}
-	++nshared[-1], *sh_ind++=si[2];
+	  *nshrd++ = 0;}
+	++nshrd[-1], *shind++=si[2];
         // don't store 1st slabel
 	sl++;
 	for (j = 0; j < nlabels-1; j++)

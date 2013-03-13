@@ -1,7 +1,7 @@
 #include "Coupler.hpp"
 #include "moab/ParallelComm.hpp"
 #include "moab/AdaptiveKDTree.hpp"
-#include "ElemUtil.hpp"
+#include "moab/ElemUtil.hpp"
 #include "moab/CN.hpp"
 #include "iMesh_extensions.h"
 #include "moab/gs.hpp"
@@ -675,18 +675,12 @@ ErrorCode Coupler::nat_param(double xyz[3],
       Element::SpectralHex * spcHex = ( Element::SpectralHex * ) _spectralSource;
 
       spcHex->set_gl_points((double*)xval, (double*)yval, (double*)zval);
-      try{
-        tmp_nat_coords =spcHex->ievaluate(CartVect(xyz));
-      }
-      catch (Element::Map::EvaluationError) {
+      bool inside = spcHex->evaluate_reverse(CartVect(xyz), tmp_nat_coords);
+      if (!inside) {
         std::cout << "point "<< xyz[0] << " " << xyz[1] << " " << xyz[2] <<
             " is not converging inside hex " << mbImpl->id_from_handle(eh) << "\n";
         continue; // it is possible that the point is outside, so it will not converge
       }
-      // I am not sure this check is necessary, but still do it
-      if (!spcHex->inside_nat_space(tmp_nat_coords, epsilon))
-        continue;
-
     }
     else
     {
@@ -707,40 +701,25 @@ ErrorCode Coupler::nat_param(double xyz[3],
       if (etype == MBHEX) {
         if (8==num_connect)
         {
-          Element::LinearHex hexmap(coords_vert);
-          try {
-            tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
-          }
-          catch (Element::Map::EvaluationError) {
-            continue;
-          }
-          if (!hexmap.inside_nat_space(tmp_nat_coords, epsilon))
+          Element::LinearHex hexmap(&coords_vert[0], coords_vert.size());
+          bool inside = hexmap.evaluate_reverse(CartVect(xyz), tmp_nat_coords, epsilon);
+          if (!inside)
             continue;
         }
         else if (27==num_connect)
         {
-          Element::QuadraticHex hexmap(coords_vert);
-          try {
-            tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
-          }
-          catch (Element::Map::EvaluationError) {
-            continue;
-          }
-          if (!hexmap.inside_nat_space(tmp_nat_coords, epsilon))
+          Element::QuadraticHex hexmap(&coords_vert[0], coords_vert.size());
+          bool inside = hexmap.evaluate_reverse(CartVect(xyz), tmp_nat_coords, epsilon);
+          if (!inside)
             continue;
         }
         else // TODO this case not treated yet, no interpolation
           continue;
       }
       else if (etype == MBTET){
-        Element::LinearTet tetmap(coords_vert);
-        try {
-          tmp_nat_coords = tetmap.ievaluate(CartVect(xyz));
-        }
-        catch (Element::Map::EvaluationError) {
-          continue;
-        }
-        if (!tetmap.inside_nat_space(tmp_nat_coords, epsilon))
+        Element::LinearTet tetmap(&coords_vert[0], coords_vert.size());
+        bool inside = tetmap.evaluate_reverse(CartVect(xyz), tmp_nat_coords);
+        if (!inside)
           continue;
       }
       else if (etype == MBQUAD){
@@ -786,7 +765,7 @@ ErrorCode Coupler::interp_field(EntityHandle elem,
       return MB_FAILURE;
     }
     Element::SpectralHex * spcHex = (Element::SpectralHex *) _spectralSource;
-    field = spcHex->evaluate_scalar_field(nat_coord, vx);
+    spcHex->evaluate_vector(nat_coord, vx, 1, &field);
   }
   else
   {
@@ -839,7 +818,7 @@ ErrorCode Coupler::interp_field(EntityHandle elem,
 
     //calculate the field
     try {
-      field = elemMap->evaluate_scalar_field(nat_coord, vfields);
+      elemMap->evaluate_vector(nat_coord, vfields, 1, &field);
     }
     catch (moab::Element::Map::EvaluationError)
     {
@@ -1553,16 +1532,16 @@ int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> >
 
       // Put the vertices into a CartVect vector
       double *x = coords;
-      for (int ix = 0; ix < verts_size; ++ix, x+=3) {
-        vertices[ix] = CartVect(x);
+      for (int j = 0; j < verts_size; j++, x+=3) {
+        vertices[i] = CartVect(x);
       }
       free(verts);
       free(coords);
 
       // Set the vertices in the Map and perform the integration
       try {
-        elemMap->set_vertices(vertices);
-        intgr_val = elemMap->integrate_scalar_field(vfield);
+        elemMap->set_vertices(&vertices[0], vertices.size());
+        elemMap->integrate_vector(vfield, 1, &intgr_val);
 
         // Combine the result with those of the group
         grp_intrgr_val += intgr_val;

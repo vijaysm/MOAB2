@@ -3,13 +3,14 @@ lib_LTLIBRARIES = libMOAB.la
 
 # Subdirectories to build
 SUBDIRS = 
-libMOAB_la_LIBADD = io/libmoabio.la
+libMOAB_la_LIBADD = 
 if PARALLEL
   SUBDIRS += parallel
   libMOAB_la_LIBADD += parallel/libMOABpar.la
   AM_CPPFLAGS += -I$(srcdir)/parallel
 endif
-SUBDIRS += io .
+SUBDIRS += io LocalDiscretization .
+libMOAB_la_LIBADD += io/libmoabio.la LocalDiscretization/libLocalDiscretization.la
 if OLD_HEADERS
   SUBDIRS += oldinc
 endif
@@ -22,7 +23,8 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I$(srcdir)/io \
                -I$(srcdir)/io/mhdf/include \
                -I$(srcdir)/parallel \
-	       -I$(srcdir)/moab/point_locater/lotte
+	       -I$(srcdir)/moab/point_locater/lotte \
+               -I$(srcdir)/LocalDiscretization
 
 # The directory in which to install headers
 libMOAB_la_includedir = $(includedir)
@@ -51,13 +53,13 @@ libMOAB_la_SOURCES = \
   DenseTag.hpp \
   DenseTag.cpp \
   DualTool.cpp \
+  ElemUtil.cpp \
   ElementSequence.hpp \
   EntitySequence.cpp \
   EntitySequence.hpp \
   Factory.cpp \
   FBEngine.cpp \
   FileOptions.cpp \
-  FileOptions.hpp \
   GeomUtil.cpp \
   GeomTopoTool.cpp \
   HigherOrderFactory.cpp \
@@ -112,6 +114,7 @@ libMOAB_la_SOURCES = \
   SmoothFace.hpp \
   SparseTag.cpp \
   SparseTag.hpp \
+  SpatialLocator.cpp \
   SpectralMeshTool.cpp \
   StructuredElementSeq.cpp \
   StructuredElementSeq.hpp \
@@ -126,6 +129,7 @@ libMOAB_la_SOURCES = \
   TagCompare.hpp \
   TagInfo.cpp \
   TagInfo.hpp \
+  Tree.cpp \
   Types.cpp \
   TypeSequenceManager.cpp \
   TypeSequenceManager.hpp \
@@ -157,13 +161,15 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/GeomTopoTool.hpp \
   moab/HigherOrderFactory.hpp \
   moab/HomXform.hpp \
+  moab/EigenDecomp.hpp \
+  moab/ElemUtil.hpp \
   moab/EntityType.hpp \
   moab/EntityHandle.hpp \
   moab/FBEngine.hpp \
+  moab/FileOptions.hpp \
   moab/Forward.hpp \
   moab/GeomUtil.hpp \
   moab/Interface.hpp \
-  moab/EigenDecomp.hpp \
   moab/point_locater/tree/common_tree.hpp \
   moab/point_locater/tree/element_tree.hpp \
   moab/point_locater/tree/bvh_tree.hpp \
@@ -191,7 +197,10 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/ScdInterface.hpp \
   moab/SetIterator.hpp \
   moab/Skinner.hpp \
+  moab/SpatialLocator.hpp \
   moab/SpectralMeshTool.hpp \
+  moab/Tree.hpp \
+  moab/TreeTravStats.hpp \
   moab/Types.hpp \
   moab/UnknownInterface.hpp \
   moab/Util.hpp \

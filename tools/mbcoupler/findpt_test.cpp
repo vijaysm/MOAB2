@@ -3,7 +3,7 @@
 
 using namespace std;
 using namespace moab;
-using namespace ElemUtil;
+using namespace Element;
 
 extern "C"{
 #include "errmem.h" //for tmalloc, convenient but not C++

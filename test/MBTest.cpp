@@ -6040,7 +6040,7 @@ ErrorCode mb_skin_curve_test_common( bool use_adj )
   
   std::vector<EntityHandle> verts;
   for (unsigned i = 0; i < 10; ++i) {
-    double coords[] = { i, 0, 0 };
+    double coords[] = { static_cast<double>(i), 0, 0 };
     EntityHandle h;
     mb->create_vertex( coords, h );
     verts.push_back(h);
@@ -6584,7 +6584,7 @@ ErrorCode mb_skin_poly_test()
   EntityHandle verts[3][16];
   for (int i = 0; i < 3; ++i) {
     for (int j = 0; j < 16; ++j) {
-      double coords[3] = { coords2D[j][0], coords2D[j][1], 2*i };
+      double coords[3] = { coords2D[j][0], coords2D[j][1], static_cast<double>(2*i) };
       rval = mb.create_vertex( coords, verts[i][j] );
       if (MB_SUCCESS != rval) return rval;
     }
@@ -6906,7 +6906,7 @@ ErrorCode mb_skin_higher_order_regions_common( bool use_adj )
   for (int i = 0; i < 5; ++i) 
     for (int j = 0; j < 3; ++j)
       for (int k = 0; k < 3; ++k) {
-        double coords[] = { i, j, k };
+        double coords[] = { static_cast<double>(i), static_cast<double>(j), static_cast<double>(k) };
         rval = mb.create_vertex( coords, verts[i][j][k] );
         if (MB_SUCCESS != rval) return rval;
       }
@@ -7170,7 +7170,7 @@ ErrorCode mb_skin_subset_common( int dimension, bool use_adj )
   EntityHandle verts[2][7] = { {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0} };
   for (int d = 1; d < dimension; ++d) {
     for (int i = 0; i < 7; ++i) {
-      double coords[3] = { coords2D[i][0], coords2D[i][1], d-1 };
+      double coords[3] = { coords2D[i][0], coords2D[i][1], static_cast<double>(d-1) };
       rval = mb.create_vertex( coords, verts[d-1][i] );
       if (MB_SUCCESS != rval) return rval;
       if (i != 4 && i != 5)
@@ -7284,7 +7284,7 @@ ErrorCode mb_skin_full_common( int dimension, bool use_adj )
   EntityHandle v[2][6] = { {0,0,0,0,0,0}, {0,0,0,0,0,0} };
   for (int d = 1; d < dimension; ++d) {
     for (int i = 0; i < 6; ++i) {
-      double coords[3] = { coords2D[i][0], coords2D[i][1], d-1 };
+      double coords[3] = { coords2D[i][0], coords2D[i][1], static_cast<double>(d-1) };
       rval = mb.create_vertex( coords, v[d-1][i] );
       if (MB_SUCCESS != rval) return rval;
     }
@@ -7385,7 +7385,7 @@ ErrorCode mb_skin_adjacent_surf_patches()
   EntityHandle vtx[num_vtx];
   for (int i = 0; i < 6; ++i) {
     for (int j = 0; j < 5; ++j) {
-      double coords[3] = {i, j, 0};
+      double coords[3] = {static_cast<double>(i), static_cast<double>(j), 0};
       rval = mb.create_vertex( coords, vtx[6*j+i] );
       if (MB_SUCCESS != rval) return rval;
     }

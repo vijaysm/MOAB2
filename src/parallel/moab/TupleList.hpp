@@ -114,12 +114,12 @@ namespace moab
     class buffer
     {
     public:
-      size_t size;
+      size_t buffSize;
       char *ptr;
   
       /**Constructor which sets an initial capacity of the buffer
        */
-      buffer(size_t size);
+      buffer(size_t sz);
 
       /**Default constructor (Note:  buffer must be initialized before use!)
        */
@@ -129,7 +129,7 @@ namespace moab
   
       /**Initializes the buffer to have a capacity of size
        */
-      void buffer_init_(size_t size, const char *file);
+      void buffer_init_(size_t sz, const char *file);
 
       /**Ensures that the buffer has at least a capacity of min
        */
@@ -140,7 +140,7 @@ namespace moab
       void reset ();
   
       //Aliases for using the buffer methods
-#define buffer_init(size) buffer_init_(size,__FILE__)
+#define buffer_init(sz) buffer_init_(sz,__FILE__)
 #define buffer_reserve(min) buffer_reserve_(min,__FILE__)
 
     };

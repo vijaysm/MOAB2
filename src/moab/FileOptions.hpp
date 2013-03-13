@@ -42,7 +42,7 @@ public:
    *          the beginning of the string (semicolon followed by
    *          destired separator character.)
    */
-  FileOptions( const char* option_string );
+  FileOptions( const char* option_string);
   
   FileOptions( const FileOptions& copy );
   FileOptions& operator=( const FileOptions& copy );

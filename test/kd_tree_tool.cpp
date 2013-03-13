@@ -4,10 +4,12 @@
 #include "moab/GeomUtil.hpp"
 #include "Internals.hpp"
 #include "moab/Range.hpp"
+#include "moab/FileOptions.hpp"
 #include <iostream>
 #include <iomanip>
 #include <cstdio>
 #include <limits>
+#include <sstream>
 #include <stdlib.h>
 #include <time.h>
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
@@ -24,27 +26,14 @@ const char* TAG_NAME = "TREE_CELL";
 std::string clock_to_string( clock_t t );
 std::string mem_to_string( unsigned long mem );
 
-void build_tree( Interface* interface, const Range& elems,
-                 AdaptiveKDTree::Settings settings, 
-                 unsigned meshset_flags );
-void build_grid( Interface* iface,
-                 AdaptiveKDTree::Settings settings,
-                 unsigned meshset_flags,
-                 const double dims[3] );
+void build_tree( Interface* interface, const Range& elems, FileOptions &opts);
+void build_grid( Interface* iface, const double dims[3] );
 void delete_existing_tree( Interface* interface );
 void print_stats( Interface* interface );
 void tag_elements( Interface* interface );
 void tag_vertices( Interface* interface );
 void write_tree_blocks( Interface* interface, const char* file );
 
-static const char* ds( AdaptiveKDTree::CandidatePlaneSet scheme )
-{
-  static const char def[] = " (default)";
-  const static char non[] = "";
-  AdaptiveKDTree::Settings st;
-  return scheme == st.candidatePlaneSet ? def : non;
-}
-  
 static void usage( bool err = true )
 {
   std::ostream& s = err ? std::cerr : std::cout;
@@ -52,17 +41,16 @@ static void usage( bool err = true )
     << "kd_tree_tool [-d <int>] -G <dims> [-s|-S] <output file>" << std::endl
     << "kd_tree_tool [-h]" << std::endl;
   if (!err) {
-    AdaptiveKDTree::Settings st;
     s << "Tool to build adaptive kd-Tree" << std::endl;
-    s << "  -d <int>  Specify maximum depth for tree. Default: " << st.maxTreeDepth << std::endl
-      << "  -n <int>  Specify maximum entities per leaf. Default: " << st.maxEntPerLeaf << std::endl
+    s << "  -d <int>  Specify maximum depth for tree. Default: 30"<< std::endl
+      << "  -n <int>  Specify maximum entities per leaf. Default: 6" << std::endl
       << "  -2        Build tree from surface elements. Default: yes" << std::endl
       << "  -3        Build tree from volume elements. Default: yes" << std::endl
-      << "  -u        Use 'SUBDIVISION' scheme for tree construction" << ds(AdaptiveKDTree::SUBDIVISION) << std::endl
-      << "  -p        Use 'SUBDIVISION_SNAP' tree construction algorithm." << ds(AdaptiveKDTree::SUBDIVISION_SNAP) << std::endl
-      << "  -m        Use 'VERTEX_MEDIAN' tree construction algorithm." << ds(AdaptiveKDTree::VERTEX_MEDIAN) << std::endl
-      << "  -v        Use 'VERTEX_SAMPLE' tree construction algorithm." << ds(AdaptiveKDTree::VERTEX_SAMPLE) << std::endl
-      << "  -N <int>  Specify candidate split planes per axis.  Default: " << st.candidateSplitsPerDir << std::endl
+      << "  -u        Use 'SUBDIVISION' scheme for tree construction" << std::endl
+      << "  -p        Use 'SUBDIVISION_SNAP' tree construction algorithm." << std::endl
+      << "  -m        Use 'VERTEX_MEDIAN' tree construction algorithm." << std::endl
+      << "  -v        Use 'VERTEX_SAMPLE' tree construction algorithm." << std::endl
+      << "  -N <int>  Specify candidate split planes per axis.  Default: 3" << std::endl
       << "  -t        Tag elements will tree cell number." << std::endl
       << "  -T        Write tree boxes to file." << std::endl
       << "  -G <dims> Generate grid - no input elements.  Dims must be " << std::endl
@@ -162,8 +150,7 @@ int main( int argc, char* argv[] )
   const char* input_file = 0;
   const char* output_file = 0;
   const char* tree_file = 0;
-  AdaptiveKDTree::Settings settings;
-  unsigned meshset_flags = MESHSET_SET;
+  std::ostringstream options;
   bool tag_elems = false;
   clock_t load_time, build_time, stat_time, tag_time, write_time, block_time;
   bool make_grid = false;
@@ -186,15 +173,15 @@ int main( int argc, char* argv[] )
     switch (argv[i][1]) {
       case '2': surf_elems = true;                                  break;
       case '3':  vol_elems = true;                                  break;
-      case 'S': meshset_flags = MESHSET_ORDERED;                    break;
-      case 's': meshset_flags = MESHSET_SET;                        break;
-      case 'd': settings.maxTreeDepth  = parseint( i, argc, argv ); break;
-      case 'n': settings.maxEntPerLeaf = parseint( i, argc, argv ); break;
-      case 'u': settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION;      break;
-      case 'p': settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION_SNAP; break;
-      case 'm': settings.candidatePlaneSet = AdaptiveKDTree::VERTEX_MEDIAN;    break;
-      case 'v': settings.candidatePlaneSet = AdaptiveKDTree::VERTEX_SAMPLE;    break;
-      case 'N': settings.candidateSplitsPerDir = parseint( i, argc, argv );      break;
+      case 'S': options << "MESHSET_FLAGS=" << MESHSET_ORDERED << ";"; break;
+      case 's': break;
+      case 'd': options << "MAX_DEPTH=" << parseint( i, argc, argv ) << ";"; break;
+      case 'n': options << "MAX_PER_LEAF=" << parseint( i, argc, argv ) << ";"; break;
+      case 'u': options << "CANDIDATE_PLANE_SET=" << AdaptiveKDTree::SUBDIVISION << ";";      break;
+      case 'p': options << "CANDIDATE_PLANE_SET=" << AdaptiveKDTree::SUBDIVISION_SNAP << ";"; break;
+      case 'm': options << "CANDIDATE_PLANE_SET=" << AdaptiveKDTree::VERTEX_MEDIAN << ";";    break;
+      case 'v': options << "CANDIDATE_PLANE_SET=" << AdaptiveKDTree::VERTEX_SAMPLE << ";";    break;
+      case 'N': options << "SPLITS_PER_DIR=" << parseint( i, argc, argv ) << ";"; break;
       case 't': tag_elems = true;                                   break;
       case 'T': tree_file = argv[++i];                              break;
       case 'G': make_grid = true; parsedims( i, argc, argv, dims ); break;
@@ -213,13 +200,14 @@ int main( int argc, char* argv[] )
   ErrorCode rval;
   Core moab_core;
   Interface* interface = &moab_core;
+  FileOptions opts(options.str().c_str());
   
   if (make_grid) {
     load_time = 0;
     output_file = input_file;
     input_file = 0;
     build_time = clock();
-    build_grid( interface, settings, meshset_flags, dims );
+    build_grid( interface, dims );
     build_time = clock() - build_time;
   }
   else {
@@ -249,7 +237,7 @@ int main( int argc, char* argv[] )
       }
     }
     
-    build_tree( interface, elems, settings, meshset_flags );
+    build_tree( interface, elems, opts);
     build_time = clock() - build_time;
   }
   
@@ -325,12 +313,8 @@ void delete_existing_tree( Interface* interface )
   }
 }
   
-void build_tree( Interface* interface,
-                 const Range& elems, 
-                 AdaptiveKDTree::Settings settings, 
-                 unsigned meshset_flags )
+void build_tree( Interface* interface, const Range& elems, FileOptions &opts)
 {
-  ErrorCode rval;
   EntityHandle root = 0;
   
   if (elems.empty()) {
@@ -338,28 +322,20 @@ void build_tree( Interface* interface,
     exit(4);
   }
   
-  AdaptiveKDTree tool(interface, 0, meshset_flags);
-  rval = tool.build_tree( elems, root, &settings );
-  if (MB_SUCCESS != rval || !root) {
-    std::cerr << "Tree construction failed." << std::endl;
-    exit(4);
-  }
+  AdaptiveKDTree tool(interface, elems, &root, &opts);
 }  
   
-void build_grid( Interface* interface, 
-                 AdaptiveKDTree::Settings settings, 
-                 unsigned meshset_flags,
-                 const double dims[3] )
+void build_grid( Interface* interface, const double dims[3] )
 {
   ErrorCode rval;
   EntityHandle root = 0;
-  AdaptiveKDTree tool(interface, 0, meshset_flags);
+  AdaptiveKDTree tool(interface);
   AdaptiveKDTreeIter iter;
   AdaptiveKDTree::Plane plane;
 
   double min[3] = { -0.5*dims[0], -0.5*dims[1], -0.5*dims[2] };
   double max[3] = {  0.5*dims[0],  0.5*dims[1],  0.5*dims[2] };
-  rval = tool.create_tree( min, max, root );
+  rval = tool.create_root( min, max, root );
   if (MB_SUCCESS != rval || !root) {
     std::cerr << "Failed to create tree root." << std::endl;
     exit(4);
@@ -371,7 +347,7 @@ void build_grid( Interface* interface,
   }
   
   do {
-    while (iter.depth() < settings.maxTreeDepth) {
+    while (iter.depth() < tool.get_max_depth()) {
       plane.norm = iter.depth() % 3;
       plane.coord = 0.5 * (iter.box_min()[plane.norm] + iter.box_max()[plane.norm]);
       rval = tool.split_leaf( iter, plane );
@@ -502,7 +478,7 @@ void print_stats( Interface* interface )
   interface->get_number_entities_by_dimension( 0, 3, num_3d );
   
   double min[3] = {0,0,0}, max[3] = {0,0,0};
-  tool.get_tree_box( root, min, max );
+  tool.get_bounding_box(min, max, &root );
   double diff[3] = { max[0]-min[0], max[1]-min[1], max[2] - min[2] };
   double tree_vol = diff[0]*diff[1]*diff[2];
   double tree_surf_area = 2*(diff[0]*diff[1] + diff[1]*diff[2] + diff[2]*diff[0]);
