@@ -64,6 +64,7 @@ static void do_linear_test( Interface& mesh, int tree_depth, int elem_per_leaf,
 
 int main( int argc, char* argv[] )
 {
+
   const char* input_file = 0;
   long tree_depth = -1;
   long elem_per_leaf = -1;
