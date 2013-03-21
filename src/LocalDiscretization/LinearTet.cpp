@@ -47,7 +47,7 @@ namespace moab
       return MB_SUCCESS;
     }
 
-    ErrorCode LinearTet::integrateFcn(const double *field, const double */*verts*/, const int nverts, const int num_tuples, const int /*ndim*/,
+    ErrorCode LinearTet::integrateFcn(const double *field, const double */*verts*/, const int nverts, const int /*ndim*/, const int num_tuples,
                                       double *work, double *result) 
     {
       assert(field && num_tuples > 0);

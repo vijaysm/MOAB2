@@ -2880,9 +2880,11 @@ ErrorCode Core::list_entity(const EntityHandle entity) const
   if (multiple != 0)
     std::cout << "   (MULTIPLE = " << multiple << ")" << std::endl;
 
+  result = print_entity_tags(std::string(), entity, MB_TAG_DENSE);
+  
   std::cout << std::endl;
 
-  return MB_SUCCESS;
+  return result;
 }
 
 ErrorCode Core::convert_entities( const EntityHandle meshset, 
@@ -3582,16 +3584,21 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
   }
 
     // print all sparse tags
+  print_entity_tags(indent_prefix, ms_handle, MB_TAG_SPARSE);
+}
+
+ErrorCode Core::print_entity_tags(std::string indent_prefix, const EntityHandle handle, TagType tp) const
+{
   std::vector<Tag> set_tags;
-  ErrorCode result = this->tag_get_tags_on_entity(ms_handle, set_tags);
-  std::cout << indent_prefix << "Sparse tags:" << std::endl;
+  ErrorCode result = this->tag_get_tags_on_entity(handle, set_tags);
+  std::cout << indent_prefix << (tp == MB_TAG_SPARSE ? "Sparse tags:" : "Dense tags:") << std::endl;
   indent_prefix += "  ";
   
   for (std::vector<Tag>::iterator vit = set_tags.begin(); 
        vit != set_tags.end(); vit++) {
     TagType this_type;
     result = this->tag_get_type(*vit, this_type);
-    if (MB_SUCCESS != result || MB_TAG_SPARSE != this_type) continue;
+    if (MB_SUCCESS != result || tp != this_type) continue;
     DataType this_data_type;
     result = this->tag_get_data_type(*vit, this_data_type);
     int this_size;
@@ -3606,7 +3613,7 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
     if (MB_SUCCESS != result) continue;
     switch (this_data_type) {
       case MB_TYPE_INTEGER:
-        result = this->tag_get_data(*vit, &ms_handle, 1, &int_vals[0]);
+        result = this->tag_get_data(*vit, &handle, 1, &int_vals[0]);
         if (MB_SUCCESS != result) continue;
         std::cout << indent_prefix << tag_name << " = ";
         if (this_size < 10) 
@@ -3615,7 +3622,7 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
         std::cout << std::endl;
         break;
       case MB_TYPE_DOUBLE:
-        result = this->tag_get_data(*vit, &ms_handle, 1, &dbl_vals[0]);
+        result = this->tag_get_data(*vit, &handle, 1, &dbl_vals[0]);
         if (MB_SUCCESS != result) continue;
         std::cout << indent_prefix << tag_name << " = ";
         if (this_size < 10) 
@@ -3624,7 +3631,7 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
         std::cout << std::endl;
         break;
       case MB_TYPE_HANDLE:
-        result = this->tag_get_data(*vit, &ms_handle, 1, &hdl_vals[0]);
+        result = this->tag_get_data(*vit, &handle, 1, &hdl_vals[0]);
         if (MB_SUCCESS != result) continue;
         std::cout << indent_prefix << tag_name << " = ";
         if (this_size < 10) 
@@ -3635,7 +3642,7 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
       case MB_TYPE_OPAQUE:
         if (NAME_TAG_SIZE == this_size) {
           char dum_tag[NAME_TAG_SIZE];
-          result = this->tag_get_data(*vit, &ms_handle, 1, &dum_tag);
+          result = this->tag_get_data(*vit, &handle, 1, &dum_tag);
           if (MB_SUCCESS != result) continue;
             // insert NULL just in case there isn't one
           dum_tag[NAME_TAG_SIZE-1] = '\0';
@@ -3646,6 +3653,8 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
         break;
     }
   }
+
+  return MB_SUCCESS;
 }
 
 ErrorCode Core::check_adjacencies() 

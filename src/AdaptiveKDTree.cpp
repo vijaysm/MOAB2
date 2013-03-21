@@ -83,7 +83,7 @@ namespace moab {
       
         // calculate bounding box of elements
       CartVect bmin, bmax;
-      rval = compute_bounding_box( entities, bmin, bmax);
+      rval = compute_bounding_box( *moab(), entities, bmin, bmax);
       if (MB_SUCCESS != rval)
         return rval;
   
@@ -993,7 +993,7 @@ namespace moab {
       CartVect tmin, tmax;
       for (i = set_begin; i != elems.end(); ++i) {
         tool->tree_stats().leaf_object_tests()++;
-        rval = tool->compute_bounding_box( *i, tmin, tmax);
+        rval = tool->compute_bounding_box( *tool->moab(), *i, tmin, tmax);
         if (MB_SUCCESS != rval)
           return rval;
     

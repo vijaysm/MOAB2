@@ -53,7 +53,6 @@ libMOAB_la_SOURCES = \
   DenseTag.hpp \
   DenseTag.cpp \
   DualTool.cpp \
-  ElemUtil.cpp \
   ElementSequence.hpp \
   EntitySequence.cpp \
   EntitySequence.hpp \
@@ -162,7 +161,6 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/HigherOrderFactory.hpp \
   moab/HomXform.hpp \
   moab/EigenDecomp.hpp \
-  moab/ElemUtil.hpp \
   moab/EntityType.hpp \
   moab/EntityHandle.hpp \
   moab/FBEngine.hpp \

@@ -99,7 +99,7 @@ namespace moab
       return MB_SUCCESS;
     }
 
-    ErrorCode QuadraticHex::integrateFcn(const double */*field*/, const double */*verts*/, const int /*nverts*/, const int /*num_tuples*/, const int /*ndim*/,
+    ErrorCode QuadraticHex::integrateFcn(const double */*field*/, const double */*verts*/, const int /*nverts*/, const int /*ndim*/, const int /*num_tuples*/,
                                          double */*work*/, double */*result*/)
     {
       return MB_NOT_IMPLEMENTED;

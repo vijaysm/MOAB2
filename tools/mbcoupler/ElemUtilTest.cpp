@@ -1,5 +1,5 @@
 #include "TestUtil.hpp"
-#include "moab/ElemUtil.hpp"
+#include "ElemUtil.hpp"
 #include <iostream>
 
 using namespace moab;
@@ -73,12 +73,16 @@ void test_hex_nat_coords()
   const double EPS1 = 1e-6;
   
     // first test with cube because it's easier to debug failures
-  Element::LinearHex hex(cube_corners, 8);
+  std::vector<CartVect> cube_corners2;
+  std::copy(cube_corners, cube_corners+8, std::back_inserter(cube_corners2));
+  Element::LinearHex hex(cube_corners2);
   for (xi[0] = -1; xi[0] <= 1; xi[0] += 0.2) {
     for (xi[1] = -1; xi[1] <= 1; xi[1] += 0.2) {
       for (xi[2] = -1; xi[2] <= 1; xi[2] += 0.2) {
         const CartVect pt = hex_map(xi, cube_corners);
-        valid = hex.evaluate_reverse(pt, result_xi, EPS1/10);
+        result_xi = hex.ievaluate(pt, EPS1/10);
+        double dum = EPS1/10;
+        valid = hex.inside_nat_space(result_xi, dum);
         CHECK(valid);
         CHECK_REAL_EQUAL( xi[0], result_xi[0], EPS1 );
         CHECK_REAL_EQUAL( xi[1], result_xi[1], EPS1 );
@@ -88,12 +92,16 @@ void test_hex_nat_coords()
   }
   
     // now test with distorted hex
-  Element::LinearHex hex2(hex_corners, 8);
+  std::vector<CartVect> hex_corners2;
+  std::copy(hex_corners, hex_corners+8, std::back_inserter(hex_corners2));
+  Element::LinearHex hex2(hex_corners2);
   for (xi[0] = -1; xi[0] <= 1; xi[0] += 0.2) {
     for (xi[1] = -1; xi[1] <= 1; xi[1] += 0.2) {
       for (xi[2] = -1; xi[2] <= 1; xi[2] += 0.2) {
         const CartVect pt = hex_map(xi, hex_corners);
-        valid = hex2.evaluate_reverse(pt, result_xi, EPS1/10);
+        result_xi = hex2.ievaluate(pt, EPS1/10);
+        double dum = EPS1/10;
+        valid = hex2.inside_nat_space(result_xi, dum);
         if (!valid) {
           double d1 = 0;
         }
@@ -116,7 +124,10 @@ void test_hex_nat_coords()
                    && x[2] >= min[2] && x[2] <= max[2];
         if (in_box)
           continue;
-        valid = hex.evaluate_reverse(x, result_xi, EPS1/10);
+        result_xi = hex.ievaluate(x, EPS1/10);
+        double dum = EPS1/10;
+        valid = hex.inside_nat_space(result_xi, dum);
+        
 //std::cout << (valid ? 'y' : 'n');
         CHECK(!valid || !in_range(result_xi));
       }
@@ -133,7 +144,12 @@ void test_hex_nat_coords()
                    && x[2] >= min[2] && x[2] <= max[2];
         if (in_box)
           continue;
-        valid = hex2.evaluate_reverse(x, result_xi, EPS1/10);
+        try {
+          result_xi = hex2.ievaluate(x, EPS1/10);
+        }
+        catch (Element::Map::EvaluationError err) {
+          valid = false;
+        }
 //std::cout << (valid ? 'y' : 'n');
         CHECK(!valid || !in_range(result_xi));
       }

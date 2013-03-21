@@ -23,7 +23,7 @@ public:
                                double *work, double *result);
         
     /** \brief Forward-evaluation of field at parametric coordinates */
-  static ErrorCode integrateFcn(const double *field, const double *verts, const int nverts, const int num_tuples, const int ndim, 
+  static ErrorCode integrateFcn(const double *field, const double *verts, const int nverts, const int ndim, const int num_tuples, 
                                 double *work, double *result);
 
   static EvalSet eval_set() 
@@ -31,6 +31,15 @@ public:
         return EvalSet(evalFcn, reverseEvalFcn, jacobianFcn, integrateFcn, (InitFcn)NULL);
       }
       
+  static bool compatible(EntityType tp, int numv, EvalSet &eset) 
+      {
+        if (tp == MBHEX && numv == 8) {
+          eset = eval_set();
+          return true;
+        }
+        else return false;
+      }
+  
 protected:
     /* Preimages of the vertices -- "canonical vertices" -- are known as "corners". */
   static const double corner[8][3];

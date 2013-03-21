@@ -8,12 +8,7 @@
 // to access data structures for spectral elements
 
 extern "C"{
-#include "types.h"
-#include "poly.h"
-#include "tensor.h"
-//#include "findpt.h"
-#include "extrafindpt.h"
-#include "errmem.h"
+#include "moab/FindPtFuncs.h"    
 }
 
 namespace moab {
@@ -75,6 +70,7 @@ namespace ElemUtil {
       Map(const std::vector<CartVect>& v) {this->vertex.resize(v.size()); this->set_vertices(v);};
       /**\brief Construct a Map defined by n vertices. */
       Map(const unsigned int n) {this->vertex = std::vector<CartVect>(n);};
+      virtual ~Map() {};
       /**\brief Evaluate the map on \xi (calculate $\vec x = F($\vec \xi)$ )*/
       virtual CartVect evaluate( const CartVect& xi ) const = 0;
       /**\brief Evaluate the inverse map (calculate $\vec \xi = F^-1($\vec x)$ to given tolerance)*/

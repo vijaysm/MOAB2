@@ -63,8 +63,8 @@ namespace moab
       return MB_SUCCESS;
     }
 
-    ErrorCode LinearHex::integrateFcn(const double *field, const double *verts, const int nverts, const int num_tuples, 
-                                      const int ndim, double *work, double *result) 
+    ErrorCode LinearHex::integrateFcn(const double *field, const double *verts, const int nverts, const int ndim, 
+                                      const int num_tuples, double *work, double *result) 
     {
       assert(field && verts && num_tuples != -1);
       double tmp_result[8];

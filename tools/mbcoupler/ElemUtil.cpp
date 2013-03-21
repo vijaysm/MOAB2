@@ -3,7 +3,7 @@
 #include <assert.h>
 
 #include "ElemUtil.hpp"
-#include "types.h"
+#include "moab/FindPtFuncs.h"
 
 namespace moab { 
 namespace ElemUtil {

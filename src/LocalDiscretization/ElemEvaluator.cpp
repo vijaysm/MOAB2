@@ -1,11 +1,19 @@
 #include <limits>
 
-#include "ElemEvaluator.hpp"
-#include "CartVect.hpp"
-#include "Matrix3.hpp"
+#include "moab/ElemEvaluator.hpp"
+#include "moab/CartVect.hpp"
+#include "moab/Matrix3.hpp"
+
+// need to include eval set types here to support get_eval_set; alternative would be to have some
+// type of registration, but we'd still need static registration for the built-in types
+#include "moab/LinearQuad.hpp"
+#include "moab/LinearTet.hpp"
+#include "moab/LinearHex.hpp"
+#include "moab/QuadraticHex.hpp"
+//#include "moab/SpectralQuad.hpp"
+//#include "moab/SpectralHex.hpp"
 
 namespace moab { 
-
     ErrorCode EvalSet::evaluate_reverse(EvalFcn eval, JacobianFcn jacob,
                                         const double *posn, const double *verts, const int nverts, 
                                         const int ndim, const double tol, double *work, 
@@ -56,4 +64,31 @@ namespace moab {
       return MB_SUCCESS;
     }// Map::evaluate_reverse()
 
+        /** \brief Given type & #vertices, get an appropriate eval set */
+    ErrorCode EvalSet::get_eval_set(EntityType tp, unsigned int num_vertices, EvalSet &eval_set) 
+    {
+      switch (tp) {
+        case MBEDGE:
+            break;
+        case MBTRI:
+            break;
+        case MBQUAD:
+            if (LinearQuad::compatible(tp, num_vertices, eval_set)) return MB_SUCCESS;
+//            if (SpectralQuad::compatible(tp, num_vertices, eval_set)) return MB_SUCCESS;
+            break;
+        case MBTET:
+            if (LinearTet::compatible(tp, num_vertices, eval_set)) return MB_SUCCESS;
+            break;
+        case MBHEX:
+            if (LinearHex::compatible(tp, num_vertices, eval_set)) return MB_SUCCESS;
+            if (QuadraticHex::compatible(tp, num_vertices, eval_set)) return MB_SUCCESS;
+//            if (SpectralHex::compatible(tp, num_vertices, eval_set)) return MB_SUCCESS;
+            break;
+        default:
+            break;
+      }
+
+      return MB_NOT_IMPLEMENTED;
+    }
+      
 } // namespace moab

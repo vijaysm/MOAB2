@@ -9,6 +9,7 @@
 #include "moab/CN.hpp"
 
 namespace moab {
+
     typedef ErrorCode (*EvalFcn)(const double *params, const double *field, const int ndim, const int num_tuples, 
                           double *work, double *result);
 
@@ -48,7 +49,13 @@ namespace moab {
       EvalSet(EvalFcn eval, ReverseEvalFcn rev, JacobianFcn jacob, IntegrateFcn integ, InitFcn initf)
               : evalFcn(eval), reverseEvalFcn(rev), jacobianFcn(jacob), integrateFcn(integ), initFcn(initf)
           {}
-        
+
+        /** \brief Given an entity handle, get an appropriate eval set, based on type & #vertices */
+      static ErrorCode get_eval_set(Interface *mb, EntityHandle eh, EvalSet &eval_set);
+      
+        /** \brief Given type & #vertices, get an appropriate eval set */
+      static ErrorCode get_eval_set(EntityType tp, unsigned int num_vertices, EvalSet &eval_set);
+      
         /** \brief Operator= */
       EvalSet &operator=(const EvalSet &eval) {
         evalFcn = eval.evalFcn;
@@ -66,6 +73,18 @@ namespace moab {
       
     };
 
+        /** \brief Given an entity handle, get an appropriate eval set, based on type & #vertices */
+    inline ErrorCode EvalSet::get_eval_set(Interface *mb, EntityHandle eh, EvalSet &eval_set) 
+    {
+      int nv;
+      EntityType tp = mb->type_from_handle(eh);
+      const EntityHandle *connect;
+      ErrorCode rval = mb->get_connectivity(eh, connect, nv);
+      if (MB_SUCCESS != rval) return rval;
+      
+      return get_eval_set(tp, nv, eval_set);
+    }
+      
 /**\brief Class facilitating local discretization-related functions
  * \class ElemEvaluator
  * This class implements discretization-related functionality operating
@@ -86,55 +105,103 @@ namespace moab {
 
     class ElemEvaluator {
   public:
-        /** \brief Constructor */
+        /** \brief Constructor 
+         * \param impl MOAB instance
+         * \param ent Entity handle to cache on the evaluator
+         * \param tag Tag to cache on the evaluator
+         * \param tag_dim Tag dimension to cache on the evaluator
+         */
       ElemEvaluator(Interface *impl, EntityHandle ent = 0, Tag tag = 0, int tag_dim = -1);
 
-        /** \brief Evaluate cached tag at a given parametric location within the cached entity */
+        /** \brief Evaluate cached tag at a given parametric location within the cached entity 
+         * If evaluating coordinates, call set_tag(0, 0), which indicates coords instead of a tag.
+         * \param params Parameters at which to evaluate field
+         * \param result Result of evaluation
+         * \param num_tuples Size of evaluated field, in number of values
+         */
       ErrorCode eval(const double *params, double *result, int num_tuples = -1) const;
         
-        /** \brief Evaluate cached tag at a given parametric location within the cached entity */
-      ErrorCode eval(const CartVect &params, double *result, int num_tuples = -1) const;
-        
-        /** \brief Reverse-evaluate the cached entity at a given physical position */
+        /** \brief Reverse-evaluate the cached entity at a given physical position
+         * \param posn Position at which to evaluate parameters
+         * \param tol Tolerance of reverse evaluation, usually 10^-6 or so
+         * \param params Result of evaluation
+         * \param is_inside If non-NULL, returns true of resulting parameters place the point inside the element
+         *                  (in most cases, within [-1]*(dim)
+         */
       ErrorCode reverse_eval(const double *posn, double tol, double *params, bool *is_inside = NULL) const;
         
-        /** \brief Reverse-evaluate the cached entity at a given physical position */
-      ErrorCode reverse_eval(const CartVect &posn, double tol, CartVect &params, bool *is_inside = NULL) const;
-        
-        /** \brief Evaluate the jacobian of the cached entity at a given parametric location */
+        /** \brief Evaluate the jacobian of the cached entity at a given parametric location
+         * \param params Parameters at which to evaluate jacobian
+         * \param result Result of evaluation, in the form of a 3x3 matrix, stored in column-major order
+         */
       ErrorCode jacobian(const double *params, double *result) const;
         
-        /** \brief Evaluate the jacobian of the cached entity at a given parametric location */
-      ErrorCode jacobian(const CartVect &params, Matrix3 &result) const;
-        
-        /** \brief Integrate the cached tag over the cached entity */
+        /** \brief Integrate the cached tag over the cached entity
+         * \param result Result of the integration
+         */
       ErrorCode integrate(double *result) const;
       
-        /** \brief Return whether a physical position is inside the cached entity to within a tolerance */
+        /** \brief Return whether a physical position is inside the cached entity to within a tolerance
+         * \param params Parameters at which to query the element
+         * \param tol Tolerance, usually 10^-6 or so
+         */
       bool is_inside(const double *params, double tol) const;
 
-        /** \brief Return whether a physical position is inside the cached entity to within a tolerance */
-      bool is_inside(const CartVect &params, double tol) const;
-
-        /** \brief Set the eval set for a given type entity */
-      void set_eval_set(EntityType tp, const EvalSet &eval_set);
+        /** \brief Set the eval set for a given type entity
+         * \param tp Entity type for which to set the eval set
+         * \param eval_set Eval set object to use
+         */
+      ErrorCode set_eval_set(EntityType tp, const EvalSet &eval_set);
+      
+        /** \brief Set the eval set using a given entity handle
+        * This function queries the entity type and number of vertices on the entity to decide which type
+        * of shape function to use.
+        * NOTE: this function should only be called after setting a valid MOAB instance on the evaluator
+        * \param eh Entity handle whose type and #vertices are queried
+        */
+      ErrorCode set_eval_set(EntityHandle eh);
       
         /** \brief Get the eval set for a given type entity */
       inline EvalSet get_eval_set(EntityType tp) {return evalSets[tp];}
-      
-      inline EntityHandle get_ent_handle() const {return entHandle;};
+
+        /** \brief Set entity handle & cache connectivty & vertex positions */
       inline ErrorCode set_ent_handle(EntityHandle ent);
 
+        /** \brief Get entity handle for this ElemEval */
+      inline EntityHandle get_ent_handle() const {return entHandle;};
+
+        /* \brief Get the vertex handles cached here */
       inline const EntityHandle *get_vert_handles() const {return vertHandles;}
+
+        /* \brief Get the number of vertices for the cached entity */
       inline int get_num_verts() const {return numVerts;}
-      
+
+        /* \brief Get the tag handle cached on this entity */
       inline Tag get_tag_handle() const {return tagHandle;};
+
+        /* \brief Set the tag handle to cache on this evaluator
+         * To designate that vertex coordinates are the desired tag, pass in a tag handle of 0
+         * and a tag dimension of 0.
+         * \param tag Tag handle to cache, or 0 to cache vertex positions
+         * \param tag_dim Dimension of entities tagged with this tag
+         */
       inline ErrorCode set_tag_handle(Tag tag, int tag_dim = -1);
-      inline ErrorCode set_tag(const char *tag_name, int tag_dim = -1);
+
+        /* \brief Set the name of the tag to cache on this evaluator
+         * To designate that vertex coordinates are the desired tag, pass in "COORDS" as the name
+         * and a tag dimension of 0.
+         * \param tag Tag handle to cache, or 0 to cache vertex positions
+         * \param tag_dim Dimension of entities tagged with this tag
+         */
+      inline ErrorCode set_tag(const char *tag_name, int ent_dim = -1);
       
+        /* \brief Get the dimension of the entities on which tag is set */
       inline int get_tag_dim() const {return tagDim;};
+
+        /* \brief Set the dimension of entities having the tag */
       inline ErrorCode set_tag_dim(int dim);
 
+        /* \brief MOAB interface cached on this evaluator */
       inline Interface *get_moab() {return mbImpl;}
       
   private:
@@ -237,7 +304,7 @@ namespace moab {
         tagCoords = false;
       }
 
-      tagDim = (-1 == tag_dim ? entDim : tag_dim);
+      tagDim = (-1 == tag_dim ? 0 : tag_dim);
       
       if (entHandle) {
         if (0 == tagDim) {
@@ -256,6 +323,7 @@ namespace moab {
     inline ErrorCode ElemEvaluator::set_tag(const char *tag_name, int tag_dim) 
     {
       ErrorCode rval = MB_SUCCESS;
+      if (!tag_name || strlen(tag_name) == 0) return MB_FAILURE;
       Tag tag;
       if (!strcmp(tag_name, "COORDS")) {
         tagCoords = true;
@@ -297,13 +365,14 @@ namespace moab {
       return rval;
     }
 
-    inline void ElemEvaluator::set_eval_set(EntityType tp, const EvalSet &eval_set) 
+    inline ErrorCode ElemEvaluator::set_eval_set(EntityType tp, const EvalSet &eval_set) 
     {
       evalSets[tp] = eval_set;
       if (entHandle && evalSets[entType].initFcn) {
         ErrorCode rval = (*evalSets[entType].initFcn)(vertPos[0].array(), numVerts, workSpace);
-        if (MB_SUCCESS != rval) throw rval;
+        if (MB_SUCCESS != rval) return rval;
       }
+      return MB_SUCCESS;
     }
     
     inline ErrorCode ElemEvaluator::eval(const double *params, double *result, int num_tuples) const 
@@ -345,33 +414,13 @@ namespace moab {
                                                workSpace, result);
     }
 
-        /** \brief Evaluate cached tag at a given parametric location within the cached entity */
-    inline ErrorCode ElemEvaluator::eval(const CartVect &params, double *result, int num_tuples) const 
+    inline ErrorCode ElemEvaluator::set_eval_set(EntityHandle eh) 
     {
-      return eval(params.array(), result, num_tuples);
-    }
-        
-        /** \brief Reverse-evaluate the cached entity at a given physical position */
-    inline ErrorCode ElemEvaluator::reverse_eval(const CartVect &posn, double tol, CartVect &params, bool *is_in) const
-    {
-      return reverse_eval(posn.array(), tol, params.array(), is_in);
-    }
-        
-        /** \brief Evaluate the jacobian of the cached entity at a given parametric location */
-    inline ErrorCode ElemEvaluator::jacobian(const CartVect &params, Matrix3 &result) const
-    {
-      return jacobian(params.array(), result.array());
-    }
-        
-        /** \brief Return whether a physical position is inside the cached entity to within a tolerance */
-    inline bool ElemEvaluator::is_inside(const CartVect &params, double tol) const
-    {
-      return (params[0]+tol >= -1.0 && params[0]-tol <= 1.0 &&
-              params[1]+tol >= -1.0 && params[1]-tol <= 1.0 &&
-              params[2]+tol >= -1.0 && params[2]-tol <= 1.0);
+      EvalSet eset;
+      ErrorCode rval = EvalSet::get_eval_set(mbImpl, eh, evalSets[mbImpl->type_from_handle(eh)]); 
+      return rval;
     }
 
-      
 } // namespace moab
 
 #endif /*MOAB_ELEM_EVALUATOR_HPP*/

@@ -220,13 +220,13 @@ namespace moab {
         //! methods for selecting candidate split planes
       enum CandidatePlaneSet {
             //! Candidiate planes at evenly spaced intervals 
-          SUBDIVISION,
+          SUBDIVISION=0,
             //! Like SUBDIVISION, except snap to closest vertex coordinate
-          SUBDIVISION_SNAP,
+          SUBDIVISION_SNAP, // = 1
             //! Median vertex coodinate values
-          VERTEX_MEDIAN,
+          VERTEX_MEDIAN, // = 2
             //! Random sampling of vertex coordinate values
-          VERTEX_SAMPLE
+          VERTEX_SAMPLE // = 3
       };
   
         //! Create tree root node

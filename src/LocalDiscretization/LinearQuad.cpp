@@ -49,8 +49,8 @@ namespace moab
       return MB_SUCCESS;
     }
 
-    ErrorCode LinearQuad::integrateFcn(const double *field, const double *verts, const int nverts, const int num_tuples, 
-                                       const int ndim, double *work, double *result) {
+    ErrorCode LinearQuad::integrateFcn(const double *field, const double *verts, const int nverts, const int ndim, 
+                                       const int num_tuples, double *work, double *result) {
       double tmp_result[4];
       ErrorCode rval = MB_SUCCESS;
       for (int i = 0; i < num_tuples; i++) result[i] = 0.0;

@@ -1,7 +1,7 @@
 #include "Coupler.hpp"
 #include "moab/ParallelComm.hpp"
 #include "moab/AdaptiveKDTree.hpp"
-#include "moab/ElemUtil.hpp"
+#include "ElemUtil.hpp"
 #include "moab/CN.hpp"
 #include "iMesh_extensions.h"
 #include "moab/gs.hpp"
@@ -9,6 +9,7 @@
 #include "iostream"
 #include <stdio.h>
 #include <algorithm>
+#include <sstream>
 
 //extern "C" 
 //{
@@ -49,6 +50,9 @@ Coupler::Coupler(Interface *impl,
   mappedPts = NULL;
   targetPts = NULL;
   _spectralSource = _spectralTarget = NULL;
+
+  ErrorCode rval = impl->query_interface(mError);
+  if (MB_SUCCESS != rval) throw(rval);
 }
 
   /* destructor
@@ -65,8 +69,6 @@ ErrorCode Coupler::initialize_tree()
 {
   
   Range local_ents;
-  AdaptiveKDTree::Settings settings;
-  settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION;
 
     //get entities on the local part
   ErrorCode result = MB_SUCCESS;
@@ -78,16 +80,21 @@ ErrorCode Coupler::initialize_tree()
   }
 
     // build the tree for local processor
+  int max_per_leaf = 6;
   for (int i = 0; i < numIts; i++) {
+    std::ostringstream str;
+    str << "CANDIDATE_PLANE_SET=0;"
+        << "MAX_PER_LEAF=" << max_per_leaf << ";";
+    FileOptions opts(str.str().c_str());
     myTree = new AdaptiveKDTree(mbImpl);
-    result = myTree->build_tree(local_ents, localRoot, &settings);
+    result = myTree->build_tree(local_ents, &localRoot, &opts);
     if (MB_SUCCESS != result) {
       std::cout << "Problems building tree";
       if (numIts != i) {
         delete myTree;
-        settings.maxEntPerLeaf *= 2;
+        max_per_leaf *= 2;
         std::cout << "; increasing elements/leaf to " 
-                  << settings.maxEntPerLeaf << std::endl;;
+                  << max_per_leaf << std::endl;;
       }
       else {
         std::cout << "; exiting" << std::endl;
@@ -103,7 +110,7 @@ ErrorCode Coupler::initialize_tree()
     allBoxes.resize(6*myPc->proc_config().proc_size());
   else allBoxes.resize(6);
   unsigned int my_rank = (myPc ? myPc->proc_config().proc_rank() : 0);
-  result = myTree->get_tree_box(localRoot, &allBoxes[6*my_rank], &allBoxes[6*my_rank+3]);
+  result = myTree->get_bounding_box(&allBoxes[6*my_rank], &allBoxes[6*my_rank+3], &localRoot);
   if (MB_SUCCESS != result) return result;
   
     // now communicate to get all boxes
@@ -457,7 +464,7 @@ ErrorCode Coupler::test_local_box(double *xyz,
   if (rel_eps && !abs_eps) {
       // relative epsilon given, translate to absolute epsilon using box dimensions
     CartVect minmax[2];
-    myTree->get_tree_box(localRoot, minmax[0].array(), minmax[1].array());
+    myTree->get_bounding_box(minmax[0].array(), minmax[1].array(), &localRoot);
     abs_eps = rel_eps * (minmax[1] - minmax[0]).length();
   }
   
@@ -608,7 +615,7 @@ ErrorCode Coupler::nat_param(double xyz[3],
   if (epsilon) {
     std::vector<double> dists;
     std::vector<EntityHandle> leaves;
-    result = myTree->leaves_within_distance(localRoot, xyz, epsilon, leaves, &dists);
+    result = myTree->distance_search(xyz, epsilon, leaves, &dists, &localRoot);
     if (leaves.empty()) 
       // not found returns success here, with empty list, just like case with no epsilon
       return MB_SUCCESS;
@@ -625,7 +632,7 @@ ErrorCode Coupler::nat_param(double xyz[3],
     }
   }
   else {
-    result = myTree->leaf_containing_point(localRoot, xyz, treeiter);
+    result = myTree->point_search(xyz, treeiter, NULL, &localRoot);
     if(MB_ENTITY_NOT_FOUND==result) //point is outside of myTree's bounding box
       return MB_SUCCESS; 
     else if (MB_SUCCESS != result) {
@@ -675,7 +682,8 @@ ErrorCode Coupler::nat_param(double xyz[3],
       Element::SpectralHex * spcHex = ( Element::SpectralHex * ) _spectralSource;
 
       spcHex->set_gl_points((double*)xval, (double*)yval, (double*)zval);
-      bool inside = spcHex->evaluate_reverse(CartVect(xyz), tmp_nat_coords);
+      tmp_nat_coords = spcHex->ievaluate(CartVect(xyz));
+      bool inside = spcHex->inside_nat_space(CartVect(xyz), epsilon);
       if (!inside) {
         std::cout << "point "<< xyz[0] << " " << xyz[1] << " " << xyz[2] <<
             " is not converging inside hex " << mbImpl->id_from_handle(eh) << "\n";
@@ -701,15 +709,17 @@ ErrorCode Coupler::nat_param(double xyz[3],
       if (etype == MBHEX) {
         if (8==num_connect)
         {
-          Element::LinearHex hexmap(&coords_vert[0], coords_vert.size());
-          bool inside = hexmap.evaluate_reverse(CartVect(xyz), tmp_nat_coords, epsilon);
+          Element::LinearHex hexmap(coords_vert);
+          tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
+          bool inside = hexmap.inside_nat_space(CartVect(xyz), epsilon);
           if (!inside)
             continue;
         }
         else if (27==num_connect)
         {
-          Element::QuadraticHex hexmap(&coords_vert[0], coords_vert.size());
-          bool inside = hexmap.evaluate_reverse(CartVect(xyz), tmp_nat_coords, epsilon);
+          Element::QuadraticHex hexmap(coords_vert);
+          tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
+          bool inside = hexmap.inside_nat_space(CartVect(xyz), epsilon);
           if (!inside)
             continue;
         }
@@ -717,8 +727,9 @@ ErrorCode Coupler::nat_param(double xyz[3],
           continue;
       }
       else if (etype == MBTET){
-        Element::LinearTet tetmap(&coords_vert[0], coords_vert.size());
-        bool inside = tetmap.evaluate_reverse(CartVect(xyz), tmp_nat_coords);
+        Element::LinearTet tetmap(coords_vert);
+        tmp_nat_coords = tetmap.ievaluate(CartVect(xyz));
+        bool inside = tetmap.inside_nat_space(CartVect(xyz), epsilon);
         if (!inside)
           continue;
       }
@@ -726,6 +737,8 @@ ErrorCode Coupler::nat_param(double xyz[3],
         Element::LinearQuad quadmap(coords_vert);
         try {
           tmp_nat_coords = quadmap.ievaluate(CartVect(xyz), epsilon);
+          bool inside = quadmap.inside_nat_space(CartVect(xyz), epsilon);
+          if (!inside) continue;
         }
         catch (Element::Map::EvaluationError) {
           continue;
@@ -765,7 +778,7 @@ ErrorCode Coupler::interp_field(EntityHandle elem,
       return MB_FAILURE;
     }
     Element::SpectralHex * spcHex = (Element::SpectralHex *) _spectralSource;
-    spcHex->evaluate_vector(nat_coord, vx, 1, &field);
+    field = spcHex->evaluate_scalar_field(nat_coord, vx);
   }
   else
   {
@@ -818,7 +831,7 @@ ErrorCode Coupler::interp_field(EntityHandle elem,
 
     //calculate the field
     try {
-      elemMap->evaluate_vector(nat_coord, vfields, 1, &field);
+      field = elemMap->evaluate_scalar_field(nat_coord, vfields);
     }
     catch (moab::Element::Map::EvaluationError)
     {
@@ -1540,8 +1553,8 @@ int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> >
 
       // Set the vertices in the Map and perform the integration
       try {
-        elemMap->set_vertices(&vertices[0], vertices.size());
-        elemMap->integrate_vector(vfield, 1, &intgr_val);
+        elemMap->set_vertices(vertices);
+        intgr_val = elemMap->integrate_scalar_field(vfield);
 
         // Combine the result with those of the group
         grp_intrgr_val += intgr_val;

@@ -8,14 +8,14 @@ namespace moab
 
   // filescope for static member data that is cached
 int SpectralHex::_n;
-double *SpectralHex::_z[3];
+real *SpectralHex::_z[3];
 lagrange_data SpectralHex::_ld[3];
 opt_data_3 SpectralHex::_data;
-double * SpectralHex::_odwork;
+real * SpectralHex::_odwork;
 
 bool SpectralHex::_init = false;
 
-void SpectralHex::Init(int order)
+    void SpectralHex::initFcn(const double *verts, const int nverts, double *&work)
 {
   if (_init && _n==order)
     return;

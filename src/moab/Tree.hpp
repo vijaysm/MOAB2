@@ -140,40 +140,44 @@ namespace moab {
                                         EntityHandle *start_node = NULL) = 0;
 
         /** \brief Compute bounding box of entities in elems
+         * \param iface MOAB interface handle
          * \param elems Entities for which bounding box is computed
          * \param box_min Minimum corner of box
          * \param box_max Maximum corner of box
          * \return This function returns error only under catastrophic; in the case of no entities, 
          *          it just returns a zero-extent box.
          */
-      ErrorCode compute_bounding_box(const Range& elems, CartVect &box_min, CartVect &box_max) const;
+      static ErrorCode compute_bounding_box(Interface &iface, const Range& elems, CartVect &box_min, CartVect &box_max);
       
         /** \brief Compute bounding box of entities in elems
+         * \param iface MOAB interface handle
          * \param elems Entities for which bounding box is computed
          * \param box_min Minimum corner of box
          * \param box_max Maximum corner of box
          * \return This function returns error only under catastrophic; in the case of no entities, 
          *          it just returns a zero-extent box.
          */
-      ErrorCode compute_bounding_box(const Range& elems, double box_min[3], double box_max[3]) const;
+      static ErrorCode compute_bounding_box(Interface &iface, const Range& elems, double box_min[3], double box_max[3]);
       
         /** \brief Compute bounding box of an entity
+         * \param iface MOAB interface handle
          * \param ent Entity for which bounding box is computed
          * \param box_min Minimum corner of box
          * \param box_max Maximum corner of box
          * \return This function returns error only under catastrophic; in the case of no entities, 
          *          it just returns a zero-extent box.
          */
-      ErrorCode compute_bounding_box(const EntityHandle ent, CartVect &box_min, CartVect &box_max) const;
+      static ErrorCode compute_bounding_box(Interface &iface, const EntityHandle ent, CartVect &box_min, CartVect &box_max);
       
         /** \brief Compute bounding box of an entity
+         * \param iface MOAB interface handle
          * \param ent Entity for which bounding box is computed
          * \param box_min Minimum corner of box
          * \param box_max Maximum corner of box
          * \return This function returns error only under catastrophic; in the case of no entities, 
          *          it just returns a zero-extent box.
          */
-      ErrorCode compute_bounding_box(const EntityHandle ent, double box_min[3], double box_max[3]) const;
+      static ErrorCode compute_bounding_box(Interface &iface, const EntityHandle ent, double box_min[3], double box_max[3]);
       
         /** \brief Return the MOAB interface associated with this tree
          */
@@ -275,21 +279,21 @@ namespace moab {
       return MB_SUCCESS;
     }
   
-    inline ErrorCode Tree::compute_bounding_box(const Range &elems, double box_min[3], double box_max[3]) const
+    inline ErrorCode Tree::compute_bounding_box(Interface &iface, const Range &elems, double box_min[3], double box_max[3]) 
     {
-      return compute_bounding_box(elems, *reinterpret_cast<CartVect*>(box_min), *reinterpret_cast<CartVect*>(box_max));
+      return compute_bounding_box(iface, elems, *reinterpret_cast<CartVect*>(box_min), *reinterpret_cast<CartVect*>(box_max));
     }
   
-    inline ErrorCode Tree::compute_bounding_box(const EntityHandle ent, double box_min[3], double box_max[3]) const
+    inline ErrorCode Tree::compute_bounding_box(Interface &iface, const EntityHandle ent, double box_min[3], double box_max[3]) 
     {
       Range tmp_range(ent, ent);
-      return compute_bounding_box(tmp_range, *reinterpret_cast<CartVect*>(box_min), *reinterpret_cast<CartVect*>(box_max));
+      return compute_bounding_box(iface, tmp_range, *reinterpret_cast<CartVect*>(box_min), *reinterpret_cast<CartVect*>(box_max));
     }
   
-    inline ErrorCode Tree::compute_bounding_box(const EntityHandle ent, CartVect &box_min, CartVect &box_max) const
+    inline ErrorCode Tree::compute_bounding_box(Interface &iface, const EntityHandle ent, CartVect &box_min, CartVect &box_max) 
     {
       Range tmp_range(ent, ent);
-      return compute_bounding_box(tmp_range, box_min, box_max);
+      return compute_bounding_box(iface, tmp_range, box_min, box_max);
     }
   
     inline ErrorCode Tree::get_info(EntityHandle /* root */,

@@ -154,7 +154,7 @@ namespace moab{
     double box[6];
     if(mySkinEnts[0].size() != 0){
       AdaptiveKDTree kd(myMB);
-      rval = kd.bounding_box(mySkinEnts[0],box, box+3);
+      rval = kd.compute_bounding_box(*myMB, mySkinEnts[0], box, box+3);
       if(rval != MB_SUCCESS){
 	return rval;
       }

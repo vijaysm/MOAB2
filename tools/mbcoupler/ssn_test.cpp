@@ -16,9 +16,7 @@
 
 extern "C" 
 {
-#include "types.h"
-#include "minmax.h"
-#include "errmem.h"
+#include "moab/FindPtFuncs.h"
 }
 
 #include "moab/TupleList.hpp"
@@ -373,7 +371,7 @@ int main(int argc, char **argv) {
     print_tuples(&test_tuple);
 
     
-    for (i = 0; i < num_rows; i++) {
+    for (int i = 0; i < num_rows; i++) {
       int j;
       for (j = 0; j < num_ints; j++)
         test_tuple.vi_wr[i*num_ints + j] = (int) ((j+1)*(i+1));
@@ -450,7 +448,7 @@ int main(int argc, char **argv) {
   double field_val = 0.0;
   // Calculate field values at the corners of both cubes
   double bcf[8], bf1[8], bf2[8], bf3[8], zcf[8], zf1[8], zf2[8], zf3[8];
-  for (i = 0; i < 8; i++) {
+  for (int i = 0; i < 8; i++) {
     bcf[i] = const_field(biunit_cube[i][0], biunit_cube[i][1], biunit_cube[i][2]);
     bf1[i] = field_1(biunit_cube[i][0], biunit_cube[i][1], biunit_cube[i][2]);
     bf2[i] = field_2(biunit_cube[i][0], biunit_cube[i][1], biunit_cube[i][2]);
@@ -466,39 +464,39 @@ int main(int argc, char **argv) {
 
   Element::LinearHex hexMap;
   try {
-    for (i = 1; i <=5; i++) {
-      hexMap.set_vertices(&biunit_cube[0], biunit_cube.size());
-      field_val = hexMap.integrate_scalar(bcf);
+    for (int i = 1; i <=5; i++) {
+      hexMap.set_vertices(biunit_cube);
+      field_val = hexMap.integrate_scalar_field(bcf);
       std::cout << "    binunit_cube, const_field(num_pts=" << i << "): field_val=" << field_val << std::endl;
       field_val = 0.0;
 
-      field_val = hexMap.integrate_scalar(bf1);
+      field_val = hexMap.integrate_scalar_field(bf1);
       std::cout << "    binunit_cube, field_1(num_pts=" << i << "): field_val=" << field_val << std::endl;
       field_val = 0.0;
 
-      field_val = hexMap.integrate_scalar(bf2);
+      field_val = hexMap.integrate_scalar_field(bf2);
       std::cout << "    binunit_cube, field_2(num_pts=" << i << "): field_val=" << field_val << std::endl;
       field_val = 0.0;
 
-      field_val = hexMap.integrate_scalar(bf3);
+      field_val = hexMap.integrate_scalar_field(bf3);
       std::cout << "    binunit_cube, field_3(num_pts=" << i << "): field_val=" << field_val << std::endl;
       field_val = 0.0;
 
 
-      hexMap.set_vertices(&zerobase_cube[0], zerobase_cube.size());
-      field_val = hexMap.integrate_scalar(zcf);
+      hexMap.set_vertices(zerobase_cube);
+      field_val = hexMap.integrate_scalar_field(zcf);
       std::cout << "    zerobase_cube, const_field(num_pts=" << i << "): field_val=" << field_val << std::endl;
       field_val = 0.0;
 
-      field_val = hexMap.integrate_scalar(zf1);
+      field_val = hexMap.integrate_scalar_field(zf1);
       std::cout << "    zerobase_cube, field_1(num_pts=" << i << "): field_val=" << field_val << std::endl;
       field_val = 0.0;
 
-      field_val = hexMap.integrate_scalar(zf2);
+      field_val = hexMap.integrate_scalar_field(zf2);
       std::cout << "    zerobase_cube, field_2(num_pts=" << i << "): field_val=" << field_val << std::endl;
       field_val = 0.0;
 
-      field_val = hexMap.integrate_scalar(zf3);
+      field_val = hexMap.integrate_scalar_field(zf3);
       std::cout << "    zerobase_cube, field_3(num_pts=" << i << "): field_val=" << field_val << std::endl;
       field_val = 0.0;
     }

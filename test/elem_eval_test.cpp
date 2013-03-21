@@ -53,12 +53,12 @@ void test_eval(ElemEvaluator &ee, bool test_integrate)
       for (params[2] = -1; params[2] <= 1; params[2] += 0.2) {
 
           // forward/reverse evaluation should get back to the same point, within tol
-        rval = ee.eval(params, posn.array()); CHECK_ERR(rval);
-        rval = ee.reverse_eval(posn, EPS1, params2, &is_inside); CHECK_ERR(rval);
+        rval = ee.eval(params.array(), posn.array()); CHECK_ERR(rval);
+        rval = ee.reverse_eval(posn.array(), EPS1, params2.array(), &is_inside); CHECK_ERR(rval);
         CHECK_REAL_EQUAL(0.0, (params - params2).length(), EPS1);
 
           // jacobian should be >= 0
-        rval = ee.jacobian(params, jacob); CHECK_ERR(rval);
+        rval = ee.jacobian(params.array(), jacob.array()); CHECK_ERR(rval);
         CHECK(jacob.determinant() >= 0.0);
         
       }

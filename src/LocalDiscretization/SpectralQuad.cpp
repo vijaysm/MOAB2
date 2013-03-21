@@ -6,11 +6,11 @@ namespace moab
     
   // filescope for static member data that is cached
 int SpectralQuad::_n;
-double *SpectralQuad::_z[2];
+real *SpectralQuad::_z[2];
 lagrange_data SpectralQuad::_ld[2];
 opt_data_2 SpectralQuad::_data;
-double * SpectralQuad::_odwork;
-double * SpectralQuad::_glpoints;
+real * SpectralQuad::_odwork;
+real * SpectralQuad::_glpoints;
 bool SpectralQuad::_init = false;
 
 SpectralQuad::SpectralQuad() : Map(0)
@@ -75,7 +75,8 @@ void SpectralQuad::set_gl_points( double * x, double * y, double *z)
   _xyz[1] = y;
   _xyz[2] = z;
 }
-CartVect SpectralQuad::evaluate( const CartVect& params ) const
+CartVect SpectralQuad::evalFcn(const double *params, const double *field, const int ndim, const int num_tuples, 
+                               double *work, double *result) 
 {
     //piece that we shouldn't want to cache
   int d=0;
@@ -93,7 +94,8 @@ CartVect SpectralQuad::evaluate( const CartVect& params ) const
   return result;
 }
   // replicate the functionality of hex_findpt
-bool SpectralQuad::evaluate_reverse(CartVect const & xyz, CartVect &params, double tol, const CartVect &init) const
+bool SpectralQuad::reverseEvalFcn(const double *posn, const double *verts, const int nverts, const int ndim,
+                                  const double tol, double *work, double *params, bool *is_inside)
 {
   params = init;
 
@@ -116,7 +118,8 @@ bool SpectralQuad::evaluate_reverse(CartVect const & xyz, CartVect &params, doub
 }
 
 
-Matrix3  SpectralQuad::jacobian(const CartVect& /*params*/) const
+Matrix3  SpectralQuad::jacobian(const double *params, const double *verts, const int nverts, const int ndim, 
+                                     double *work, double *result)
 {
     // not implemented
   Matrix3 J(0.);
@@ -137,7 +140,8 @@ void SpectralQuad::evaluate_vector(const CartVect& params, const double *field, 
                     field,
                     _odwork);
 }
-void SpectralQuad:: integrate_vector(const double */*field_values*/, int /*num_tuples*/, double */*integral*/) const
+void SpectralQuad:: integrate_vector(const double *field, const double *verts, const int nverts, const int ndim,
+                                      const int num_tuples, double *work, double *result)
 {
     // not implemented
 }

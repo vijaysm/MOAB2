@@ -54,7 +54,7 @@ namespace moab
       }
     }
 
-    ErrorCode Tree::compute_bounding_box(const Range& elems, CartVect &box_min, CartVect &box_max) const
+    ErrorCode Tree::compute_bounding_box(Interface &iface, const Range& elems, CartVect &box_min, CartVect &box_max)
     {
       ErrorCode rval;
       box_min = CartVect(HUGE_VAL);
@@ -68,7 +68,7 @@ namespace moab
         // vertices
       const Range::const_iterator elem_begin = elems.lower_bound( MBEDGE );
       for (i = elems.begin(); i != elem_begin; ++i) {
-        rval = moab()->get_coords( &*i, 1, coords.array() );
+        rval = iface.get_coords( &*i, 1, coords.array() );
         if (MB_SUCCESS != rval)
           return rval;
         box_accum( coords, box_min, box_max );
@@ -77,12 +77,12 @@ namespace moab
         // elements with vertex-handle connectivity list
       const Range::const_iterator poly_begin = elems.lower_bound( MBPOLYHEDRON, elem_begin );
       for (i = elem_begin; i != poly_begin; ++i) {
-        rval = moab()->get_connectivity( *i, conn, len, true );
+        rval = iface.get_connectivity( *i, conn, len, true );
         if (MB_SUCCESS != rval)
           return rval;
 
         for (int j = 0; j < len; ++j) {
-          rval = moab()->get_coords( conn+j, 1, coords.array() );
+          rval = iface.get_coords( conn+j, 1, coords.array() );
           if (MB_SUCCESS != rval)
             return rval;
           box_accum( coords, box_min, box_max );
@@ -92,14 +92,14 @@ namespace moab
         // polyhedra
       const Range::const_iterator set_begin  = elems.lower_bound( MBENTITYSET, poly_begin );
       for (i = poly_begin; i != set_begin; ++i) {
-        rval = moab()->get_connectivity( *i, conn, len, true );
+        rval = iface.get_connectivity( *i, conn, len, true );
         if (MB_SUCCESS != rval)
           return rval;
 
         for (int j = 0; j < len; ++j) {
-          rval = moab()->get_connectivity( conn[j], conn2, len2 );
+          rval = iface.get_connectivity( conn[j], conn2, len2 );
           for (int k = 0; k < len2; ++k) {
-            rval = moab()->get_coords( conn2+k, 1, coords.array() );
+            rval = iface.get_coords( conn2+k, 1, coords.array() );
             if (MB_SUCCESS != rval)
               return rval;
             box_accum( coords, box_min, box_max );
@@ -111,9 +111,9 @@ namespace moab
       CartVect tmin, tmax;
       for (i = set_begin; i != elems.end(); ++i) {
         Range tmp_elems;
-        rval = mbImpl->get_entities_by_handle(*i, tmp_elems);
+        rval = iface.get_entities_by_handle(*i, tmp_elems);
         if (MB_SUCCESS != rval) return rval;
-        rval = compute_bounding_box(tmp_elems, tmin, tmax);
+        rval = compute_bounding_box(iface, tmp_elems, tmin, tmax);
         if (MB_SUCCESS != rval) return rval;
       
         for (int j = 0; j < 3; ++j) {

@@ -22,10 +22,12 @@ libmbcoupler_la_LIBADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/im
 LDADD = libmbcoupler.la $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la
 
 libmbcoupler_la_SOURCES = \
-   Coupler.cpp
+   Coupler.cpp \
+   ElemUtil.cpp
 
 libmbcoupler_la_include_HEADERS = \
-   Coupler.hpp
+   Coupler.hpp \
+   ElemUtil.hpp
 
 libmbcoupler_la_includedir = $(includedir)
 

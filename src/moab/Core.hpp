@@ -1134,6 +1134,8 @@ public:
   void print(const EntityHandle handle, const char *prefix,
              bool first_call = true) const;
 
+  ErrorCode print_entity_tags(std::string indent_prefix, const EntityHandle handle, TagType tp) const;
+  
   virtual ErrorCode get_last_error(std::string& info) const;
 
   virtual std::string get_error_string(const ErrorCode code) const;

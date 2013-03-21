@@ -3,7 +3,8 @@
   /**\brief Shape function space for spectral hexahedron
    */
 
-#include "EvalSet.hpp"
+#include "ElemEvaluator.hpp"
+#include "SpectralFuncs.hpp"
 
 namespace moab 
 {
@@ -35,12 +36,22 @@ public:
         return EvalSet(evalFcn, reverseEvalFcn, jacobianFcn, integrateFcn, initFcn);
       }
       
+  static bool compatible(EntityType tp, int numv, EvalSet &eset) 
+      {
+        if (tp != MBHEX) return false;
+        int i;
+        for (i = 3; i*i*i == numv || i*i*i > numv; i++);
+        if (i*i*i != numv) return false;
+        eset = eval_set();
+        return true;
+      }
+  
 protected:
   static int _n;
-  static real *_z[3];
+  static double *_z[3];
   static lagrange_data _ld[3];
   static opt_data_3 _data;
-  static real * _odwork;// work area
+  static double * _odwork;// work area
   static bool init_;
 };// class SpectralHex
 
