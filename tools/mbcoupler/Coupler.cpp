@@ -711,7 +711,7 @@ ErrorCode Coupler::nat_param(double xyz[3],
         {
           Element::LinearHex hexmap(coords_vert);
           tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
-          bool inside = hexmap.inside_nat_space(CartVect(xyz), epsilon);
+          bool inside = hexmap.inside_nat_space(tmp_nat_coords, epsilon);
           if (!inside)
             continue;
         }
@@ -719,7 +719,7 @@ ErrorCode Coupler::nat_param(double xyz[3],
         {
           Element::QuadraticHex hexmap(coords_vert);
           tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
-          bool inside = hexmap.inside_nat_space(CartVect(xyz), epsilon);
+          bool inside = hexmap.inside_nat_space(tmp_nat_coords, epsilon);
           if (!inside)
             continue;
         }
@@ -729,7 +729,7 @@ ErrorCode Coupler::nat_param(double xyz[3],
       else if (etype == MBTET){
         Element::LinearTet tetmap(coords_vert);
         tmp_nat_coords = tetmap.ievaluate(CartVect(xyz));
-        bool inside = tetmap.inside_nat_space(CartVect(xyz), epsilon);
+        bool inside = tetmap.inside_nat_space(tmp_nat_coords, epsilon);
         if (!inside)
           continue;
       }
@@ -737,7 +737,7 @@ ErrorCode Coupler::nat_param(double xyz[3],
         Element::LinearQuad quadmap(coords_vert);
         try {
           tmp_nat_coords = quadmap.ievaluate(CartVect(xyz), epsilon);
-          bool inside = quadmap.inside_nat_space(CartVect(xyz), epsilon);
+          bool inside = quadmap.inside_nat_space(tmp_nat_coords, epsilon);
           if (!inside) continue;
         }
         catch (Element::Map::EvaluationError) {
