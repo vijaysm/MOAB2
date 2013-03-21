@@ -8,7 +8,7 @@ AM_CPPFLAGS += -I$(top_srcdir)/src \
                -I$(top_srcdir)/src/moab/point_locator/lotte \
                -DIS_BUILDING_MB
             
-LDADD = $(top_builddir)/src/libMOAB.la
+LDADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/tools/mbcoupler/libmbcoupler.la
 
 check_PROGRAMS = 
 noinst_PROGRAMS = point_location elem_eval_time

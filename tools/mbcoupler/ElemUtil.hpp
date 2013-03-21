@@ -70,11 +70,11 @@ namespace ElemUtil {
       Map(const std::vector<CartVect>& v) {this->vertex.resize(v.size()); this->set_vertices(v);};
       /**\brief Construct a Map defined by n vertices. */
       Map(const unsigned int n) {this->vertex = std::vector<CartVect>(n);};
-      virtual ~Map() {};
+      virtual ~Map();
       /**\brief Evaluate the map on \xi (calculate $\vec x = F($\vec \xi)$ )*/
       virtual CartVect evaluate( const CartVect& xi ) const = 0;
       /**\brief Evaluate the inverse map (calculate $\vec \xi = F^-1($\vec x)$ to given tolerance)*/
-      CartVect ievaluate( const CartVect& x, double tol, const CartVect& x0 = CartVect(0.0)) const ;
+      virtual CartVect ievaluate( const CartVect& x, double tol, const CartVect& x0 = CartVect(0.0)) const ;
       /**\brief decide if within the natural param space, with a tolerance*/
       virtual bool inside_nat_space(const CartVect & xi, double & tol) const = 0;
       /* FIX: should evaluate and ievaluate return both the value and the Jacobian (first jet)? */
@@ -98,7 +98,7 @@ namespace ElemUtil {
       /**\brief Size of the vertices vector. */
       unsigned int size() {return this->vertex.size();}
       /**\brief Retrieve vertices. */
-      inline const std::vector<CartVect>& get_vertices();
+      const std::vector<CartVect>& get_vertices();
       /**\brief Set vertices.      */
       virtual void set_vertices(const std::vector<CartVect>& v);
       
@@ -122,13 +122,15 @@ namespace ElemUtil {
     public:
       LinearHex(const std::vector<CartVect>& vertices) : Map(vertices){};
       LinearHex();
+      virtual ~LinearHex();
+      
       virtual CartVect evaluate( const CartVect& xi ) const;
       //virtual CartVect ievaluate(const CartVect& x, double tol) const ;
       virtual bool inside_nat_space(const CartVect & xi, double & tol) const;
 
       virtual Matrix3  jacobian(const CartVect& xi) const;
-      double   evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const;
-      double   integrate_scalar_field(const double *field_vertex_values) const;
+      virtual double   evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const;
+      virtual double   integrate_scalar_field(const double *field_vertex_values) const;
 
     protected:
       /* Preimages of the vertices -- "canonical vertices" -- are known as "corners". */
@@ -144,13 +146,14 @@ namespace ElemUtil {
     public:
       QuadraticHex(const std::vector<CartVect>& vertices) : Map(vertices){};
       QuadraticHex();
+      virtual ~QuadraticHex();
       virtual CartVect evaluate( const CartVect& xi ) const;
       //virtual CartVect ievaluate(const CartVect& x, double tol) const ;
       virtual bool inside_nat_space(const CartVect & xi, double & tol) const;
 
       virtual Matrix3  jacobian(const CartVect& xi) const;
-      double   evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const;
-      double   integrate_scalar_field(const double *field_vertex_values) const;
+      virtual double   evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const;
+      virtual double   integrate_scalar_field(const double *field_vertex_values) const;
 
     protected:
       /* Preimages of the vertices -- "canonical vertices" -- are known as "corners".
@@ -166,6 +169,7 @@ namespace ElemUtil {
     public:
       LinearTet(const std::vector<CartVect>& vertices) : Map(vertices){};
       LinearTet();
+      virtual ~LinearTet();
       /* Override the evaluation routines to take advantage of the properties of P1. */
       virtual CartVect evaluate(const CartVect& xi) const {return this->vertex[0] + this->T*xi;};
       virtual CartVect ievaluate(const CartVect& x) const {return this->T_inverse*(x-this->vertex[0]);};
@@ -174,12 +178,12 @@ namespace ElemUtil {
       virtual double   det_jacobian(const CartVect& )  const {return this->det_T;};
       virtual double   det_ijacobian(const CartVect& ) const {return this->det_T_inverse;};
       //
-      double   evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const;
-      double   integrate_scalar_field(const double *field_vertex_values) const;
+      virtual double   evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const;
+      virtual double   integrate_scalar_field(const double *field_vertex_values) const;
       //
       /* Override set_vertices so we can precompute the matrices effecting the mapping to and from the canonical simplex. */
-      void     set_vertices(const std::vector<CartVect>& v);
-      bool inside_nat_space(const CartVect & xi, double & tol) const;
+      virtual void     set_vertices(const std::vector<CartVect>& v);
+      virtual bool inside_nat_space(const CartVect & xi, double & tol) const;
     protected:
       static const double corner[4][3];
       Matrix3 T, T_inverse;
@@ -225,13 +229,14 @@ namespace ElemUtil {
     public:
       LinearQuad(const std::vector<CartVect>& vertices) : Map(vertices){};
       LinearQuad();
+      virtual ~LinearQuad();
       virtual CartVect evaluate( const CartVect& xi ) const;
       //virtual CartVect ievaluate(const CartVect& x, double tol) const ;
       virtual bool inside_nat_space(const CartVect & xi, double & tol) const;
 
       virtual Matrix3  jacobian(const CartVect& xi) const;
-      double   evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const;
-      double   integrate_scalar_field(const double *field_vertex_values) const;
+      virtual double   evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const;
+      virtual double   integrate_scalar_field(const double *field_vertex_values) const;
 
     protected:
       /* Preimages of the vertices -- "canonical vertices" -- are known as "corners". */
@@ -247,13 +252,14 @@ namespace ElemUtil {
     public:
       HOEdge(const std::vector<CartVect>& vertices) : Map(vertices){};
       HOEdge();
+      virtual ~HOEdge();
       virtual CartVect evaluate( const CartVect& xi ) const;
       //virtual CartVect ievaluate(const CartVect& x, double tol) const ;
       virtual bool inside_nat_space(const CartVect & xi, double & tol) const;
 
       virtual Matrix3  jacobian(const CartVect& xi) const;
-      double   evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const;
-      double   integrate_scalar_field(const double *field_vertex_values) const;
+      virtual double   evaluate_scalar_field(const CartVect& xi, const double *field_vertex_values) const;
+      virtual double   integrate_scalar_field(const double *field_vertex_values) const;
 
     protected:
       /* Preimages of the vertices -- "canonical vertices" -- are known as "corners". */

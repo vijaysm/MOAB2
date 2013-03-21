@@ -420,19 +420,20 @@ bool integrate_trilinear_hex(const CartVect* hex_corners,
 
 namespace Element {
 
+    Map::~Map() 
+    {}
+    
+      const std::vector<CartVect>& Map::get_vertices() {
+        return this->vertex;
+      }
+        //
+      void Map::set_vertices(const std::vector<CartVect>& v) {
+        if(v.size() != this->vertex.size()) {
+          throw ArgError();
+        }
+        this->vertex = v;
+      }
 
-  
-  inline const std::vector<CartVect>& Map::get_vertices() {
-    return this->vertex;
-  }
-  //
-  void Map::set_vertices(const std::vector<CartVect>& v) {
-    if(v.size() != this->vertex.size()) {
-      throw ArgError();
-    }
-    this->vertex = v;
-  }// Map::set_vertices()
-  //
   CartVect Map::ievaluate(const CartVect& x, double tol, const CartVect& x0) const {
     // TODO: should differentiate between epsilons used for
     // Newton Raphson iteration, and epsilons used for curved boundary geometry errors
@@ -475,6 +476,8 @@ namespace Element {
 
   }// LinearHex::LinearHex()
 
+    LinearHex::~LinearHex() 
+    {}
   /* For each point, its weight and location are stored as an array.
      Hence, the inner dimension is 2, the outer dimension is gauss_count.
      We use a one-point Gaussian quadrature, since it integrates linear functions exactly.
@@ -590,6 +593,8 @@ namespace Element {
   QuadraticHex::QuadraticHex():Map(0) {
   }
 
+    QuadraticHex::~QuadraticHex() 
+    {}
   double SH(const int i, const double xi)
   {
     switch (i)
@@ -685,6 +690,9 @@ namespace Element {
 
   }// LinearTet::LinearTet()
 
+
+    LinearTet::~LinearTet() 
+    {}
 
   void LinearTet::set_vertices(const std::vector<CartVect>& v) {
     this->Map::set_vertices(v);
@@ -939,6 +947,9 @@ namespace Element {
 
   }// LinearQuad::LinearQuad()
 
+    LinearQuad::~LinearQuad() 
+    {}
+    
   /* For each point, its weight and location are stored as an array.
      Hence, the inner dimension is 2, the outer dimension is gauss_count.
      We use a one-point Gaussian quadrature, since it integrates linear functions exactly.

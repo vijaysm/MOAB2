@@ -3,6 +3,7 @@
 #include "moab/ProgOptions.hpp"
 #include "moab/CartVect.hpp"
 #include "moab/ElemEvaluator.hpp"
+#include "moab/CN.hpp"
 #include "ElemUtil.hpp"
 #include <iostream>
 #include <time.h>
@@ -24,6 +25,8 @@ extern "C" int getrusage(int, struct rusage *);
 
 using namespace moab;
 #define CHK(r,s) do { if (MB_SUCCESS != (r)) {fail( (r), (s), __FILE__, __LINE__ ); return (r);}} while(false)
+
+const int ELEMEVAL = 0, ELEMUTIL = 1;
 
 static void fail( ErrorCode error_code, const char *str, const char* file_name, int line_number )
 {
@@ -67,7 +70,39 @@ void parse_options(ProgOptions &opts, int &dim, std::string &filename)
   opts.addOpt<std::string>(std::string("filename,f"), std::string("Filename containing mesh"), &filename);
 }
 
-ErrorCode time_forward_eval(Interface &mbi, int method, Range &elems, 
+ErrorCode get_elem_map(EntityType tp, std::vector<CartVect> &vcoords, int nconn, Element::Map *&elemmap) 
+{
+  switch (tp) {
+    case MBHEX:
+        if (nconn == 8) {
+          elemmap = new Element::LinearHex(vcoords);
+          break;
+        }
+        else if (nconn == 27) {
+          elemmap = new Element::QuadraticHex(vcoords);
+          break;
+        }
+        else return MB_FAILURE;
+    case MBTET:
+        if (nconn == 4) {
+          elemmap = new Element::LinearTet(vcoords);
+          break;
+        }
+        else return MB_FAILURE;
+    case MBQUAD:
+        if (nconn == 4) {
+          elemmap = new Element::LinearQuad(vcoords);
+          break;
+        }
+        else return MB_FAILURE;
+    default:
+        return MB_FAILURE;
+  }
+  
+  return MB_SUCCESS;
+}
+
+ErrorCode time_forward_eval(Interface *mbi, int method, Range &elems, 
                             std::vector<CartVect> &params, std::vector<CartVect> &coords, 
                             double &evtime) 
 {
@@ -78,7 +113,7 @@ ErrorCode time_forward_eval(Interface &mbi, int method, Range &elems,
   if (ELEMEVAL == method) {
       // construct ElemEvaluator
     EvalSet eset;
-    ElemEvaluator eeval(&mbi);
+    ElemEvaluator eeval(mbi);
     eeval.set_eval_set(*elems.begin());
     eeval.set_tag_handle(0, 0); // indicates coordinates as the field to evaluate
   
@@ -91,14 +126,14 @@ ErrorCode time_forward_eval(Interface &mbi, int method, Range &elems,
     }
   }
   else if (ELEMUTIL == method) {
-    std::vector<CartVect> vcoords(MAX_NODES_PER_ELEMENT);
+    std::vector<CartVect> vcoords(CN::MAX_NODES_PER_ELEMENT);
     const EntityHandle *connect;
     int nconn;
     Element::Map *elemmap = NULL;
     for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
-      rval = mbi.get_connectivity(*rit, connect, nconn); CHK(rval, "get_connectivity");
-      rval = mbi.get_coords(connect, nconn, vcoords[0].array()); CHK(rval, "get_coords");
-      rval = get_elem_map(mbi.type_from_handle(*rit), vcoords, nconn, elemmap); CHK(rval, "get_elem_map");
+      rval = mbi->get_connectivity(*rit, connect, nconn); CHK(rval, "get_connectivity");
+      rval = mbi->get_coords(connect, nconn, vcoords[0].array()); CHK(rval, "get_coords");
+      rval = get_elem_map(mbi->type_from_handle(*rit), vcoords, nconn, elemmap); CHK(rval, "get_elem_map");
       coords[i] = elemmap->evaluate(params[i]);
     }
   }
@@ -117,7 +152,7 @@ ErrorCode time_reverse_eval(Interface *mbi, int method, Range &elems,
   unsigned int i;
   if (ELEMEVAL == method) {
     EvalSet eset;
-    ElemEvaluator eeval(&mbi);
+    ElemEvaluator eeval(mbi);
     eeval.set_eval_set(*elems.begin());
     eeval.set_tag_handle(0, 0); // indicates coordinates as the field to evaluate    
     bool ins;
@@ -131,15 +166,15 @@ ErrorCode time_reverse_eval(Interface *mbi, int method, Range &elems,
     }
   }
   else if (ELEMUTIL == method) {
-    std::vector<CartVect> vcoords(MAX_NODES_PER_ELEMENT);
+    std::vector<CartVect> vcoords(CN::MAX_NODES_PER_ELEMENT);
     const EntityHandle *connect;
     int nconn;
     Element::Map *elemmap = NULL;
     for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
-      rval = mbi.get_connectivity(*rit, connect, nconn); CHK(rval, "get_connectivity");
-      rval = mbi.get_coords(connect, nconn, vcoords[0].array()); CHK(rval, "get_coords");
-      rval = get_elem_map(mbi.type_from_handle(*rit), vcoords, nconn, elemmap); CHK(rval, "get_elem_map");
-      coords[i] = elemmap->ievaluate(coords[i].array, 1.0e-6);
+      rval = mbi->get_connectivity(*rit, connect, nconn); CHK(rval, "get_connectivity");
+      rval = mbi->get_coords(connect, nconn, vcoords[0].array()); CHK(rval, "get_coords");
+      rval = get_elem_map(mbi->type_from_handle(*rit), vcoords, nconn, elemmap); CHK(rval, "get_elem_map");
+      coords[i] = elemmap->ievaluate(coords[i], 1.0e-6);
     }
   }
   retime = mytime() - retime;
@@ -156,7 +191,7 @@ ErrorCode time_jacobian(Interface *mbi, int method, Range &elems, std::vector<Ca
   Matrix3 jac;
   if (ELEMEVAL == method) {
     EvalSet eset;
-    ElemEvaluator eeval(&mbi);
+    ElemEvaluator eeval(mbi);
     eeval.set_eval_set(*elems.begin());
     eeval.set_tag_handle(0, 0); // indicates coordinates as the field to evaluate    
     for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
@@ -168,15 +203,15 @@ ErrorCode time_jacobian(Interface *mbi, int method, Range &elems, std::vector<Ca
     }
   }
   else if (ELEMUTIL == method) {
-    std::vector<CartVect> vcoords(MAX_NODES_PER_ELEMENT);
+    std::vector<CartVect> vcoords(CN::MAX_NODES_PER_ELEMENT);
     const EntityHandle *connect;
     int nconn;
     Element::Map *elemmap = NULL;
     for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
-      rval = mbi.get_connectivity(*rit, connect, nconn); CHK(rval, "get_connectivity");
-      rval = mbi.get_coords(connect, nconn, vcoords[0].array()); CHK(rval, "get_coords");
-      rval = get_elem_map(mbi.type_from_handle(*rit), vcoords, nconn, elemmap); CHK(rval, "get_elem_map");
-      jac = elemmap->jacobian(params[i].array());
+      rval = mbi->get_connectivity(*rit, connect, nconn); CHK(rval, "get_connectivity");
+      rval = mbi->get_coords(connect, nconn, vcoords[0].array()); CHK(rval, "get_coords");
+      rval = get_elem_map(mbi->type_from_handle(*rit), vcoords, nconn, elemmap); CHK(rval, "get_elem_map");
+      jac = elemmap->jacobian(params[i]);
     }
   }
   jactime = mytime() - jactime;
@@ -190,7 +225,7 @@ ErrorCode time_integrate(Interface *mbi, int method, Tag tag, Range &elems, doub
   double integral;
   if (ELEMEVAL == method) {
     EvalSet eset;
-    ElemEvaluator eeval(&mbi);
+    ElemEvaluator eeval(mbi);
     eeval.set_eval_set(*elems.begin());
     eeval.set_tag_handle(0, 0); // indicates coordinates as the field to evaluate    
     rval = eeval.set_tag_handle(tag, 0); CHK(rval, "set_tag_handle");
@@ -203,16 +238,18 @@ ErrorCode time_integrate(Interface *mbi, int method, Tag tag, Range &elems, doub
     }
   }
   else if (ELEMUTIL == method) {
-    std::vector<CartVect> vcoords(MAX_NODES_PER_ELEMENT);
-    std::vector<double> tagval(MAX_NODES_PER_ELEMENT);
+    std::vector<CartVect> vcoords(CN::MAX_NODES_PER_ELEMENT);
+    std::vector<double> tagval(CN::MAX_NODES_PER_ELEMENT);
     const EntityHandle *connect;
     int nconn;
     Element::Map *elemmap = NULL;
+    Range::iterator rit;
+    unsigned int i;
     for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
-      rval = mbi.get_connectivity(*rit, connect, nconn); CHK(rval, "get_connectivity");
-      rval = mbi.get_coords(connect, nconn, vcoords[0].array()); CHK(rval, "get_coords");
-      rval = get_elem_map(mbi.type_from_handle(*rit), vcoords, nconn, elemmap); CHK(rval, "get_elem_map");
-      rval = mbi.tag_get_data(tag, connect, nconn, tagval.data()); CHK(rval, "tag_get_data");
+      rval = mbi->get_connectivity(*rit, connect, nconn); CHK(rval, "get_connectivity");
+      rval = mbi->get_coords(connect, nconn, vcoords[0].array()); CHK(rval, "get_coords");
+      rval = get_elem_map(mbi->type_from_handle(*rit), vcoords, nconn, elemmap); CHK(rval, "get_elem_map");
+      rval = mbi->tag_get_data(tag, connect, nconn, tagval.data()); CHK(rval, "tag_get_data");
       integral = elemmap->integrate_scalar_field(tagval.data());
     }
   }
@@ -232,42 +269,23 @@ ErrorCode put_random_field(Interface &mbi, Tag &tag, Range &elems)
   return rval;
 }
 
-ErrorCode new_elem_evals(Interface &mbi, Range &elems, std::vector<CartVect> &params,
-                         double &evtime, double &retime, double &jactime, double &inttime) 
+ErrorCode elem_evals(Interface *mbi, int method, Range &elems, Tag tag,
+                     std::vector<CartVect> &params, std::vector<CartVect> &coords, 
+                     double &evtime, double &retime, double &jactime, double &inttime) 
 {
   evtime = 0, retime = 0, jactime = 0, inttime = 0; // initializations to avoid compiler warning
   
     // time/test forward evaluation, putting results into vector
-  rval = time_forward_eval(eeval, elems, params, coords, evtime); CHK(rval, "time_forward_eval");
+  ErrorCode rval = time_forward_eval(mbi, method, elems, params, coords, evtime); CHK(rval, "time_forward_eval");
 
     // time/test reverse evaluation, putting results into vector
-  rval = time_reverse_eval(eeval, elems, coords, params, retime); CHK(rval, "time_reverse_eval");
+  rval = time_reverse_eval(mbi, method, elems, coords, params, retime); CHK(rval, "time_reverse_eval");
 
     // time/test Jacobian evaluation
-  rval = time_jacobian(eeval, elems, params, jactime); CHK(rval, "time_jacobian");
+  rval = time_jacobian(mbi, method, elems, params, jactime); CHK(rval, "time_jacobian");
 
     // time/test integration
-  rval = time_integrate(eeval, tag, elems, inttime); CHK(rval, "time_integrate");
-
-  return rval;
-}
-
-ErrorCode old_elem_evals(Interface &mbi, Range &elems, std::vector<CartVect> &params,
-                         double &evtime, double &retime, double &jactime, double &inttime) 
-{
-  evtime = 0, retime = 0, jactime = 0, inttime = 0; // initializations to avoid compiler warning
-  
-    // time/test forward evaluation, putting results into vector
-  rval = time_forward_eval(eeval, elems, params, coords, evtime); CHK(rval, "time_forward_eval");
-
-    // time/test reverse evaluation, putting results into vector
-  rval = time_reverse_eval(eeval, elems, coords, params, retime); CHK(rval, "time_reverse_eval");
-
-    // time/test Jacobian evaluation
-  rval = time_jacobian(eeval, elems, params, jactime); CHK(rval, "time_jacobian");
-
-    // time/test integration
-  rval = time_integrate(eeval, tag, elems, inttime); CHK(rval, "time_integrate");
+  rval = time_integrate(mbi, method, tag, elems, inttime); CHK(rval, "time_integrate");
 
   return rval;
 }
@@ -305,19 +323,33 @@ int main( int argc, char* argv[] )
   Tag tag;
   rval = put_random_field(mbi, tag, elems);
   CHK(rval, "put_random_field");
+  double evtime[2], retime[2], jactime[2], inttime[2]; // initializations to avoid compiler warning
 
-  rval = new_elem_evals(mbi, elems, params,
-                        evtime, retime, jactime, inttime);
-  CHK(rval, "new_elem_evals");
+  rval = elem_evals(&mbi, ELEMEVAL, elems, tag, params, coords,
+                    evtime[0], retime[0], jactime[0], inttime[0]);
+  CHK(rval, "new elem_evals");
+  
+  rval = elem_evals(&mbi, ELEMUTIL, elems, tag, params, coords, 
+                    evtime[1], retime[1], jactime[1], inttime[1]);
+  CHK(rval, "old elem_evals");
   
   std::cout << filename << ": " << elems.size() << " " << CN::EntityTypeName(tp)
             << " elements, " << nv << " vertices per element." << std::endl << std::endl;
-  std::cout << "New element evaluation code:" << std::endl;
+  std::cout << "New, old element evaluation code:" << std::endl;
   std::cout << "Evaluation type, time, time per element:" << std::endl;
-  std::cout << "Forward evaluation " << evtime << ", " << evtime / elems.size() << std::endl;
-  std::cout << "Reverse evaluation " << retime << ", " << retime / elems.size() << std::endl;
-  std::cout << "Jacobian           " << jactime << ", " << jactime / elems.size() << std::endl;
-  std::cout << "Integration        " << inttime << ", " << inttime / elems.size() << std::endl;
+  std::cout << "                New                   Old            (New-Old)/Old" << std::endl;
+  std::cout << "Forward evaluation " << evtime[0] << ", " << evtime[0] / elems.size()
+            << "    " << evtime[1] << ", " << evtime[1] / elems.size() 
+            << ", " << (evtime[0]-evtime[1])/(evtime[0]?evtime[0]:1) << std::endl;
+  std::cout << "Reverse evaluation " << retime[0] << ", " << retime[0] / elems.size()
+            << "    " << retime[1] << ", " << retime[1] / elems.size() 
+            << ", " << (retime[0]-retime[1])/(retime[0]?retime[0]:1) << std::endl;
+  std::cout << "Jacobian           " << jactime[0] << ", " << jactime[0] / elems.size()
+            << "    " << jactime[1] << ", " << jactime[1] / elems.size() 
+            << ", " << (jactime[0]-jactime[1])/(jactime[0]?jactime[0]:1) << std::endl;
+  std::cout << "Integration        " << inttime[0] << ", " << inttime[0] / elems.size()
+            << "    " << inttime[1] << ", " << inttime[1] / elems.size() 
+            << ", " << (inttime[0]-inttime[1])/(inttime[0]?inttime[0]:1) << std::endl;
   
 }
 
