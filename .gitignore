@@ -48,7 +48,6 @@ tools/mbzoltan/Config.moab
 tools/vtkMOABReader/CMakeLists.txt
 tools/vtkMOABReaderNew/CMakeLists.txt
 .deps
-makefile
 Makefile.in
 Makefile
 */Makefile.in
@@ -62,4 +61,8 @@ Makefile
 *.la
 *.a
 *.so
-
+include/*
+lib/*
+share/*
+bin/*
+*~
