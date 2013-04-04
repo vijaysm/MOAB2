@@ -48,6 +48,7 @@ tools/mbzoltan/Config.moab
 tools/vtkMOABReader/CMakeLists.txt
 tools/vtkMOABReaderNew/CMakeLists.txt
 .deps
+makefile
 Makefile.in
 Makefile
 */Makefile.in
@@ -55,4 +56,10 @@ Makefile
 */**/Makefile.in
 */**/Makefile
 .libs
+*.o
+*.log
+*.lo
+*.la
+*.a
+*.so
 
