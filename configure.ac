@@ -1208,10 +1208,6 @@ AC_CONFIG_FILES([Makefile
                  doc/user.dox
                  doc/dev.dox
                  doc/config.tex
-                 examples/Makefile
-                 examples/examples.make
-                 examples/simple/makefile
-                 examples/itaps/Makefile
                  MeshFiles/Makefile
                  MeshFiles/unittest/Makefile
                  MeshFiles/unittest/io/Makefile

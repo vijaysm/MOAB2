@@ -55,4 +55,14 @@ Makefile
 */**/Makefile.in
 */**/Makefile
 .libs
-
+*.o
+*.log
+*.lo
+*.la
+*.a
+*.so
+include/*
+lib/*
+share/*
+bin/*
+*~
