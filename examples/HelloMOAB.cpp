@@ -15,7 +15,7 @@
 using namespace moab;
 using namespace std;
 
-string test_file_name = string(MESHDIR) + string("/3k-tri-sphere.vtk");
+string test_file_name = string(MESH_DIR) + string("/3k-tri-sphere.vtk");
 
 int main( int argc, char** argv[] )
 {
