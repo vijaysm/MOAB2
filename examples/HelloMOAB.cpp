@@ -3,7 +3,7 @@
  * Prerequisite examples: none
  * better Doxygen-ized, standardized comment section
  *
- * general description: This is a simple file is used to read meshes from VTK file and test how many entities there are.
+ * general description: This is a simple file which is used to read meshes from VTK file and test how many entities there are.
  *
  * To run: ./HelloMOAB <mesh file>
  * (default values can run if users don't specify a mesh file)
@@ -34,13 +34,32 @@ int main( int argc, char** argv[] )
   Range verts;
   rval = iface->get_entities_by_type(0, MBVERTEX, verts);
   assert( rval == MB_SUCCESS);
+    //get edge entities
+  Range edges;
+  rval = iface->get_entities_by_type(0, MBEDGE, edges);
+  assert(rval == MB_SUCCESS);
 
     //get triangular entities
-  Range faces;
-  rval = iface->get_entities_by_type(0, MBTRI, faces);
+  Range tri;
+  rval = iface->get_entities_by_type(0, MBTRI, tri);
   assert( rval == MB_SUCCESS);
 
-  cout << "Number of vertices is " << verts.size() << " and faces is " << faces.size() << endl;
+    //get quad entities
+  Range quads;
+  rval = iface->get_entities_by_type(0, MBQUAD, quads);
+  assert(rval == MB_SUCCESS);
+
+    //get hex entities
+  Range hex;
+  rval = iface->get_entities_by_type(0, MBHEX, hex);
+  assert(rval == MB_SUCCESS);
+
+
+  cout << "Number of vertices is " << verts.size() <<  endl;
+  cout << "Number of edges is " << edges.size() <<  endl;
+  cout << "Number of triangular faces is " << tri.size() <<  endl;
+  cout << "Number of quad faces is " << quads.size() <<  endl;
+  cout << "Number of hex is " << hex.size() <<  endl;
   
   return 0;
 }
