@@ -60,8 +60,7 @@ class ParallelComm;
  * boxes are locally non-periodic by default, but global ids are assigned such that the last set of vertices
  * in a periodic direction match those of the first set of vertices in that direction.
  *
- * Entity handles are allocated in column-major order, that is, with the i parameter 
- * varying fastest, then j, then k.
+ * Entity handles are allocated with the i parameter varying fastest, then j, then k.
  *
  * \section Per Periodic Meshes
  * Boxes can be periodic in i, or j, or both i and j.  If only i or j is periodic, the corresponding mesh
@@ -158,7 +157,7 @@ public:
      * the mesh, call the destroy_mesh function on the ScdBox object first, before destroying it.
      * \param low Lower corner in parameter space
      * \param high Higher corner in parameter space
-     * \param coords Coordinates of vertices, in column-major order; if NULL, no coords are set
+     * \param coords Coordinates of vertices, interleaved (xyzxyz...); if NULL, no coords are set
      * \param num_coords Number of coordinate values; if zero, no coords are set
      * \param new_box Reference to box of structured mesh
      * \param lperiodic[2] If lperiodic[s] != 0, direction s is locally periodic
@@ -242,12 +241,13 @@ public:
   ScdBox *get_scd_box(EntityHandle eh);
 
     //! Compute a partition of structured parameter space
-    /** Compute a partition of structured parameter space
-     * \param part_method Partition method; should be from PartitionMethod enum, or -1
-     * \param np #procs
-     * \param nr Rank of this proc
-     * \param gdims Global parameters for grid, in terms of # edges on a side
-     * \param gperiodic Whether or not a given dimension is globally periodic
+    /** Compute a partition of structured parameter space, based on data in the ScdParData
+     * passed in.  Results are passed back in arguments, which application can set back into
+     * par_data argument if they so desire.
+     * \param np Number of processors
+     * \param nr Rank of this processor
+     * \param par_data ScdParData object that contains input global parameter space, desired
+     *           partitioning method, and information about global periodicity.
      * \param ldims Local parameters for grid
      * \param lperiodic Whether or not a given dimension is locally periodic
      * \param pdims Number of procs in i, j, k directions
