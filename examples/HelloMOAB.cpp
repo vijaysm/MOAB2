@@ -1,4 +1,4 @@
-/* \example HelloMOAB HelloMOAB.cpp
+/* @example HelloMOAB.cpp HelloMOAB
  * \Description: read a mesh, get the entities.
  * Prerequisite examples: none
  * better Doxygen-ized, standardized comment section
