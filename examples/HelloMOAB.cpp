@@ -1,9 +1,14 @@
-///Description: read a mesh, get the entities.
-///Prerequisite examples: none
-// better Doxygen-ized, standardized comment section
+/* \example HelloMOAB HelloMOAB.cpp
+ * \Description: read a mesh, get the entities.
+ * Prerequisite examples: none
+ * better Doxygen-ized, standardized comment section
+ *
+ * general description: This is a simple file is used to read meshes from VTK file and test how many entities there are.
+ *
+ * To run: ./HelloMOAB <mesh file>
+ * (default values can run if users don't specify a mesh file)
+ */
 
-//general description: This is a simple file is used to read meshes from VTK file and test how many entities there are.
-// Code
 
 #include "moab/Core.hpp"
 
