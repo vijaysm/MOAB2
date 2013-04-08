@@ -21,4 +21,3 @@ HelloMoabPar: HelloMoabPar.o
 .cpp.o :
 	${MOAB_CXX} ${MOAB_CXXFLAGS} ${MOAB_INCLUDES} -DMESH_DIR=\"${MESH_DIR}\" -c $<
 
-
