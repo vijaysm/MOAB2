@@ -7234,7 +7234,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       RRA("Failure in waitall in tag exchange.");
     }
   
-    myDebug->tprintf(1, "Exiting exchange_tags");
+    myDebug->tprintf(1, "Exiting reduce_tags");
 
     return MB_SUCCESS;
   }
