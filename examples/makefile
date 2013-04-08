@@ -7,5 +7,8 @@ MESH_DIR=../MeshFiles/unittest
 structuredmesh : structuredmesh.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
 
+HelloMoabPar: HelloMoabPar.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
+
 .cpp.o:
 	${MOAB_CXX} -c ${MOAB_CXXFLAGS} ${MOAB_INCLUDES} $<
