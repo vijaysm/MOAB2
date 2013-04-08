@@ -1,14 +1,24 @@
+# MOAB_DIR points to top-level install dir, below which MOAB's lib/ and include/ are located
 include ${MOAB_DIR}/lib/moab.make
 
-# MESH_DIR used to locate mesh files that come with MOAB source, 
-# i.e. ${MOAB_DIR}/MeshFiles/unittest for in-source builds
-MESH_DIR=../MeshFiles/unittest
+.SUFFIXES: .o .cpp
 
-structuredmesh : structuredmesh.o
+# MESH_DIR is the top-level MOAB source directory, used to locate mesh files that come with MOAB source
+MESH_DIR="../MeshFiles/unittest"
+
+StructuredMeshSimple : StructuredMeshSimple.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
+
+HelloMOAB : HelloMOAB.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+ReduceExchangeTags : ReduceExchangeTags.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 HelloMoabPar: HelloMoabPar.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
+	
+.cpp.o :
+	${MOAB_CXX} ${MOAB_CXXFLAGS} ${MOAB_INCLUDES} -DMESH_DIR=\"${MESH_DIR}\" -c $<
 
-.cpp.o:
-	${MOAB_CXX} -c ${MOAB_CXXFLAGS} ${MOAB_INCLUDES} $<
+
