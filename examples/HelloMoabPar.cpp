@@ -1,17 +1,19 @@
-/* \example HelloMoabPar HelloMoabPar.cpp
- * \brief Read mesh into MOAB in parallel
- * This example shows the simplest way of telling MOAB to read in parallel.
+/** @example HelloMoabPar.cpp \n
+ * \brief Read mesh into MOAB in parallel \n
+ * This example shows the simplest way of telling MOAB to read in parallel. \n
  *
- * This example:
- * 0. Initialize MPI and get the rank and number of processors
- * 1. Process arguments (file name and options for parallel read)
- * 2. Initialize MOAB
- * 3. Load a partitioned file in parallel;
- * 4. Report shared entities and their status
- * 5. Filter owned entities among shared ones on each processor
- * 6. Exchange ghost layers, and repeat the reports
+ * 0. Initialize MPI and get the rank and number of processors \n
+ * 1. Process arguments (file name and options for parallel read) \n
+ * 2. Initialize MOAB \n
+ * 3. Load a partitioned file in parallel; \n
+ * 4. retrieve shared entities on each processor \n
+ * 5. Filter owned entities among shared ones on each processor \n
+ * 6. Exchange ghost layers, and repeat the reports \n
  *
- * To run: mpiexec -np 4 HelloMoabPar
+ * To compile: \n
+ *    make HelloMoabPar MOAB_DIR=<installdir>  \n
+ * To run: mpiexec -np 4 HelloMoabPar \n
+ *  (depending on your configuration, LD_LIBRARY_PATH may need to contain <hdf5>/lib folder)
  *
  */
 
@@ -54,7 +56,7 @@ int main(int argc, char **argv)
   }
   if (rank == 0)
     std::cout << "reading file " << filename << "\n  with options:" << options <<
-      "\n   on " << nprocs << " processors\n";
+      "\n  on " << nprocs << " processors\n";
 
   // get MOAB instance and read the file with the specified options
   Interface *mbImpl = new Core;
@@ -107,8 +109,8 @@ int main(int argc, char **argv)
 
   /*
    * Now exchange 1 layer of ghost elements, using vertices as bridge
-   *  we could have done this as part of reading process, by passing an extra option
-   *    ";GHOSTS=2.0.1"
+   *   we could have done this as part of reading process, by passing an extra read option
+   *    ";PARALLEL_GHOSTS=2.0.1.0"
    */
   rval = pcomm->exchange_ghost_cells(2, // int ghost_dim,
                                      0, // int bridge_dim,
@@ -134,14 +136,11 @@ int main(int argc, char **argv)
   for (int i=0; i<3; i++)
     nums[i]=(int)owned_entities.num_of_dimension(i);
 
-  if (rank==0)
-    rbuf = (int *)malloc(nprocs*4*sizeof(int));
-
   // gather the statistics on processor 0
   MPI_Gather( nums, 4, MPI_INT, rbuf, 4, MPI_INT, 0, comm);
   if (rank == 0)
   {
-    std::cout << " \n\n After ghosting: \n";
+    std::cout << " \n\n After exchanging one ghost layer: \n";
     for (int i=0; i<nprocs; i++)
     {
       std::cout << " shared, owned entities on proc " << i << " :" << rbuf[4*i] << " verts, " <<
