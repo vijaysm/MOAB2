@@ -175,4 +175,6 @@ tools/mbcslam/spectral.vtk
 tools/mbcslam/spherical_area_test
 .project
 .cproject
+examples/*.h5m
+examples/ReduceExchangeTags
 
