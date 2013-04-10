@@ -1,4 +1,4 @@
-LDADD = $(top_builddir)/libiRel.la  ${LIBS}
+LDADD = $(top_builddir)/libiRel.la 
 
 if ENABLE_IGEOM
  LDADD +=${IGEOM_DIR}/lib/libiGeom.la 
