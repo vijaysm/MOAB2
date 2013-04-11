@@ -1,14 +1,38 @@
-// A test file for Subset Normalization
+/** @example ReduceExchangeTags.cpp
+ * \brief Example program that shows the use case for performing tag data exchange
+ * between parallel processors in order to sync data on shared entities. The reduction
+ * operation on tag data is also shown where the user can perform any of the actions supported
+ * by MPI_Op on data residing on shared entities. \n
+ *
+ * <b>This example </b>:
+ *    -# Initialize MPI and instantiate MOAB
+ *    -# Get user options: Input mesh file name, tag name (default: USERTAG), tag value (default: 1.0)
+ *    -# Create the root and partition sets
+ *    -# Instantiate ParallelComm and read the mesh file in parallel using appropriate options
+ *    -# Create two tags: USERTAG_EXC (exchange) and USERTAG_RED (reduction)
+ *    -# Set tag data and exchange shared entity information between processors
+ *      -# Get entities in all dimensions and set local (current rank, dimension) dependent data for
+ *     exchange tag (USERTAG_EXC)
+ *      -# Perform exchange of tag data so that data on shared entities are synced via ParallelCommunicator.
+ *    -#  Set tag data and reduce shared entity information between processors using MPI_SUM
+ *      -#  Get higher dimensional entities in the current partition and set local (current rank)
+ *     dependent data for reduce tag (USERTAG_EXC)
+ *      -#  Perform the reduction operation (MPI_SUM) on shared entities via ParallelCommunicator.
+ *    -#  Destroy the MOAB instance and finalize MPI
+ *
+ * <b>To run:</b> \n mpiexec -n 2 ./ReduceExchangeTags <mesh_file> <tag_name> <tag_value> \n
+ * <b>Example:</b> \n mpiexec -n 2 ./ReduceExchangeTags ../MeshFiles/unittest/64bricks_1khex.h5m USERTAG 100 \n
+ *
+ */
+
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
 #include "moab/Core.hpp"
 #include <iostream>
+#include <string>
 #include <sstream>
-#include <cstdlib>
 
 using namespace moab;
-
-bool debug = true;
 
 // Error routines for use with MOAB API
 #define CHKERR(CODE, MSG)                                 \
@@ -30,37 +54,36 @@ bool debug = true;
     }                                                     \
   } while(false)
 
-
-// Function to parse input parameters
-ErrorCode get_file_options(int argc, char **argv,
-                           const char** filename,
-                           const char** tagName,
-                           double &tagValues)
-{
-  int npos = 1;
-
-  assert(argc >= 2);
-
-  // get mesh filename
-  *filename = argv[npos++];
-
-  // get tag selection options
-  if (argc > 3) {
-    *tagName = argv[npos++];
-    tagValues = atof(argv[npos++]);
-  }
-  else {
-    *tagName = "USERTAG";
-    tagValues = 1.0;
-  }
-
-  return MB_SUCCESS;
-}
-
 #define dbgprint(MSG)                                \
   do {                                              \
       if (!rank) std::cerr << MSG << std::endl;     \
   } while(false)
+
+#define dbgprintall(MSG)                                      \
+  do {                                                        \
+      std::cerr << "[" << rank << "]: " << MSG << std::endl;  \
+  } while(false)
+
+
+// Function to parse input parameters
+ErrorCode get_file_options(int argc, char **argv,
+                           std::string& filename,
+                           std::string& tagName,
+                           double&      tagValues)
+{
+  // get mesh filename
+  if (argc > 1) filename = std::string(argv[1]);
+  else filename = std::string(MESH_DIR) + std::string("/64bricks_1khex.h5m");
+
+  // get tag selection options
+  if (argc > 2) tagName = std::string(argv[2]);
+  else tagName = "USERTAG";
+
+  if (argc > 3)  tagValues = atof(argv[3]);
+  else tagValues = 1.0;
+
+  return MB_SUCCESS;
+}
 
 //
 // Start of main test program
@@ -69,17 +92,22 @@ int main(int argc, char **argv)
 {
   ErrorCode err;
   int ierr, rank;
-  const char *filename, *tagName;
+  std::string filename, tagName;
   double tagValue;
   MPI_Comm comm = MPI_COMM_WORLD;
+  /// Parallel Read options:
+  ///   PARALLEL = type {READ_PART}
+  ///   PARTITION = PARALLEL_PARTITION : Partition as you read
+  ///   PARALLEL_RESOLVE_SHARED_ENTS : Communicate to all processors to get the shared adjacencies consistently in parallel
+  ///   PARALLEL_GHOSTS : a.b.c
+  ///                   : a = 3 - highest dimension of entities
+  ///                   : b = 0 -
+  ///                   : c = 1 - number of layers
+  ///   PARALLEL_COMM = index
   std::string read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARTITION_DISTRIBUTE;PARALLEL_GHOSTS=3.0.1;PARALLEL_COMM=0";
 
-  // Initialize MPI first
-  ierr = MPI_Init(&argc, &argv);
-  MPICHKERR(ierr, "MPI_Init failed");
-
   // Print usage if not enough arguments
-  if (argc < 2) {
+  if (argc < 1) {
     std::cerr << "Usage: ";
     std::cerr << argv[0] << " <file_name> <tag_name> <tag_value>" << std::endl;
     std::cerr << "file_name    : mesh file name" << std::endl;
@@ -92,22 +120,27 @@ int main(int argc, char **argv)
     return 1;
   }
 
+  // Initialize MPI first
+  ierr = MPI_Init(&argc, &argv);
+  MPICHKERR(ierr, "MPI_Init failed");
+
   ierr = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPICHKERR(ierr, "MPI_Comm_rank failed");
+
+  dbgprint( "********** reduce_exchange_tags **********\n" );
 
   // Create the moab instance
   Interface *mbi = new Core();
   CHKERR(NULL == mbi, "MOAB constructor failed");
 
   // Get the input options
-  dbgprint( "Getting options..." );
-  err = get_file_options(argc, argv, &filename, &tagName, tagValue);
+  err = get_file_options(argc, argv, filename, tagName, tagValue);
   CHKERR(err, "get_file_options failed");
 
   // Print out the input parameters
-  dbgprint( "    Input Parameters - " );
-  dbgprint( "      Filenames: " << filename );
-  dbgprint( "      Tag: Name=" << tagName << " Value=" << tagValue );
+  dbgprint( " Input Parameters - " );
+  dbgprint( "   Filenames: " << filename );
+  dbgprint( "   Tag: Name=" << tagName << " Value=" << tagValue << std::endl );
 
   // Create root sets for each mesh.  Then pass these
   // to the load_file functions to be populated.
@@ -121,66 +154,75 @@ int main(int argc, char **argv)
   ParallelComm *parallel_communicator = ParallelComm::get_pcomm( mbi, partnset, &comm );
 
   // Load the file from disk with given options
-  err = mbi->load_file( filename, &rootset, read_options.c_str() );
+  err = mbi->load_file( filename.c_str(), &rootset, read_options.c_str() );
   CHKERR(err, "MOAB::load_file failed");
 
-  // Get tag handles for passed in tags
-  dbgprint( "Getting tag handle " << tagName << "..." );
+  // Create two tag handles: Exchange and Reduction operations
+  dbgprint( "-Creating tag handle " << tagName << "..." );
   Tag tagReduce, tagExchange;
   {
     std::stringstream sstr;
-    sstr << tagName << "_RED";
-    err = mbi->tag_get_handle(sstr.str().c_str(), 1, MB_TYPE_DOUBLE, tagReduce, MB_TAG_CREAT|MB_TAG_DENSE, &tagValue);
-    CHKERR(err, "Retrieving tag handles failed");
-    sstr.str(""); sstr << tagName << "_EXC";
+    // Create the exchange tag: default name = USERTAG_EXC
+    sstr << tagName << "_EXC";
     err = mbi->tag_get_handle(sstr.str().c_str(), 1, MB_TYPE_INTEGER, tagExchange, MB_TAG_CREAT|MB_TAG_DENSE, &tagValue);
+    CHKERR(err, "Retrieving tag handles failed");
+
+    // Create the exchange tag: default name = USERTAG_RED
+    sstr.str(""); sstr << tagName << "_RED";
+    err = mbi->tag_get_handle(sstr.str().c_str(), 1, MB_TYPE_DOUBLE, tagReduce, MB_TAG_CREAT|MB_TAG_DENSE, &tagValue);
     CHKERR(err, "Retrieving tag handles failed");
   }
 
-  // Set local tag data for reduction
+  // Perform exchange tag data
+  dbgprint( "-Exchanging tags between processors " );
+  {
+    Range partEnts, dimEnts;
+    for (int dim = 0; dim <= 3; dim++) {
+      // Get all entities of dimension = dim
+      err = mbi->get_entities_by_dimension(rootset, dim, dimEnts, false);
+
+      std::vector<int> tagValues(dimEnts.size(), static_cast<int>(tagValue)*(rank+1)*(dim+1));
+      // Set local tag data for exchange
+      err = mbi->tag_set_data(tagExchange, dimEnts, &tagValues[0]);
+      CHKERR(err, "Setting local tag data failed during exchange phase");
+      // Merge entities into parent set
+      partEnts.merge(dimEnts);
+    }
+
+    // Exchange tags between processors
+    err = parallel_communicator->exchange_tags(tagExchange, partEnts);
+    CHKERR(err, "Exchanging tags between processors failed");
+  }
+
+  // Perform reduction of tag data
+  dbgprint( "-Reducing tags between processors " );
   {
     Range partEnts;
+    // Get all higher dimensional entities belonging to current partition
     err = parallel_communicator->get_part_entities(partEnts);
     CHKERR(err, "ParallelComm::get_part_entities failed");
+
     // Output what is in current partition sets
-    std::cout << "[" << rank << "]: Number of Partitioned entities: " <<  partEnts.size() << std::endl;
+    dbgprintall( "Number of Partitioned entities: " <<  partEnts.size() );
     MPI_Barrier(comm);
 
+    // Set local tag data for reduction
     std::vector<double> tagValues(partEnts.size(), tagValue*(rank+1));
     err = mbi->tag_set_data(tagReduce, partEnts, &tagValues[0]);
     CHKERR(err, "Setting local tag data failed during reduce phase");
 
     Range dummy;
-    dbgprint( "Reducing tags between processors " );
+    // Reduce tag data using MPI_SUM on the interface between partitions
     err = parallel_communicator->reduce_tags(tagReduce, MPI_SUM, dummy/*partEnts*/);
     CHKERR(err, "Reducing tags between processors failed");
-
-    partEnts.clear();
   }
-
-  // Set local tag data for exchange
-  {
-    Range partEnts, dimEnts;
-    for (int dim = 0; dim <= 2; dim++) {
-      err = mbi->get_entities_by_dimension(rootset, dim, dimEnts, false);
-      std::vector<int> tagValues(dimEnts.size(), static_cast<int>(tagValue)*(rank+1)*(dim+1));
-      err = mbi->tag_set_data(tagExchange, dimEnts, &tagValues[0]);
-      CHKERR(err, "Setting local tag data failed during exchange phase");
-      partEnts.merge(dimEnts);
-    }
-
-    dbgprint( "Exchanging tags between processors " );
-    err = parallel_communicator->exchange_tags(tagExchange, partEnts);
-    CHKERR(err, "Exchanging tags between processors failed");
-  }
-
   // Write out to output file to visualize reduction/exchange of tag data
   mbi->write_file("test.h5m", "H5M", "PARALLEL=WRITE_PART");
 
   // Done, cleanup
   delete mbi;
 
-  dbgprint( "********** reduce_exchange_tags DONE! **********" );
+  dbgprint( "\n********** reduce_exchange_tags DONE! **********" );
   MPI_Finalize();
   return 0;
 }

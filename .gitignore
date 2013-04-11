@@ -1,5 +1,11 @@
 MOABConfig.cmake
+moab.files
+config/test-driver
 moab.config
+moab.includes
+moab.creator*
+*.ccm
+*.cub
 aclocal.m4
 autom4te.cache/
 config.h
@@ -68,6 +74,7 @@ share/*
 bin/*
 *~
 examples/HelloMoabPar
+examples/TestExodusII
 itaps/igeom/FBiGeom_protos.h
 itaps/igeom/testSmooth2
 itaps/igeom/testSmoothGeom
@@ -175,4 +182,6 @@ tools/mbcslam/spectral.vtk
 tools/mbcslam/spherical_area_test
 .project
 .cproject
+examples/*.h5m
+examples/ReduceExchangeTags
 
