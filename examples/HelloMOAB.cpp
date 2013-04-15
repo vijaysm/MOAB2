@@ -1,11 +1,8 @@
-/* \example HelloMOAB HelloMOAB.cpp
- * \Description: read a mesh, get the entities.
- * Prerequisite examples: none
- * better Doxygen-ized, standardized comment section
+/** @example HelloMOAB.cpp
+ * Description: read a mesh, get the entities.\n
+ * HelloMOAB is a simple test file which is used to read meshes from VTK file and test how many entities there are.\n
  *
- * general description: This is a simple file which is used to read meshes from VTK file and test how many entities there are.
- *
- * To run: ./HelloMOAB <mesh file>
+ * To run: ./HelloMOAB <meshfile>\n
  * (default values can run if users don't specify a mesh file)
  */
 
@@ -54,7 +51,7 @@ int main( int argc, char** argv[] )
   rval = iface->get_entities_by_type(0, MBHEX, hex);
   assert(rval == MB_SUCCESS);
 
-
+   //output the number of entities
   cout << "Number of vertices is " << verts.size() <<  endl;
   cout << "Number of edges is " << edges.size() <<  endl;
   cout << "Number of triangular faces is " << tri.size() <<  endl;
