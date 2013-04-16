@@ -1,23 +1,23 @@
-/* \example StructuredMeshSimple StructuredMeshSimple.cpp
+/** @example StructuredMeshSimple.cpp
  * \brief Show creation and query of structured mesh, serial or parallel, through MOAB's structured mesh interface.
  * This is an example showing creation and query of a 3D structured mesh.  In serial, a single N*N*N block of elements
  * is created; in parallel, each proc gets an N*N*N block, with blocks arranged in a 1d column, sharing vertices
  * and faces at their interfaces (proc 0 has no left neighbor and proc P-1 no right neighbor).
  * Each square block of hex elements is then referenced by its ijk parameterization.
- * 1D and 2D examples could be made simply by changing the dimension parameter passed into the MOAB functions.
+ * 1D and 2D examples could be made simply by changing the dimension parameter passed into the MOAB functions. \n
  *
- * This example:
- * 0. Instantiate MOAB and get the structured mesh interface
- * 1. Decide what the local parameters of the mesh will be, based on parallel/serial and rank.
- * 2. Create a N^d structured mesh, which includes (N+1)^d vertices and N^d elements.
- * 3. Get the vertices and elements from moab and check their numbers against (N+1)^d and N^d, resp.
- * 4. Loop over elements in d nested loops over i, j, k; for each (i,j,k):
- * 4a. Get the element corresponding to (i,j,k)
- * 4b. Get the connectivity of the element
- * 4c. Get the coordinates of the vertices comprising that element
- * 5. Release the structured mesh interface and destroy the MOAB instance
+ * <b>This example </b>:
+ *    -# Instantiate MOAB and get the structured mesh interface
+ *    -# Decide what the local parameters of the mesh will be, based on parallel/serial and rank.
+ *    -# Create a N^d structured mesh, which includes (N+1)^d vertices and N^d elements.
+ *    -# Get the vertices and elements from moab and check their numbers against (N+1)^d and N^d, resp.
+ *    -# Loop over elements in d nested loops over i, j, k; for each (i,j,k):
+ *      -# Get the element corresponding to (i,j,k)
+ *      -# Get the connectivity of the element
+ *      -# Get the coordinates of the vertices comprising that element
+ *    -# Release the structured mesh interface and destroy the MOAB instance
  *
- * To run: ./structuredmesh [d [N] ]
+ * <b> To run: </b> ./structuredmesh [d [N] ] \n
  * (default values so can run w/ no user interaction)
  */
 
