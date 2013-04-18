@@ -795,7 +795,7 @@ ErrorCode AEntityFactory::get_down_adjacency_elements_poly(EntityHandle source_e
   EntityType source_type = TYPE_FROM_HANDLE(source_entity);
 
   if (!(source_type == MBPOLYHEDRON && target_dimension > 0 && target_dimension < 3) &&
-      (!source_type == MBPOLYGON && target_dimension == 1)) 
+      !(source_type == MBPOLYGON && target_dimension == 1))
     return MB_TYPE_OUT_OF_RANGE;
   
     // make this a fixed size to avoid cost of working with STL vectors
