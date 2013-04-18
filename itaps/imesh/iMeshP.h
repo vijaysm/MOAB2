@@ -33,7 +33,7 @@ enum iMeshP_EntStatus
 #define iMeshP_ALL_PARTS -1
 
 
-/** \mainpage
+/** \page imeshp  iMeshP: ITAPS Parallel Mesh Interface
 iMeshP.h -- ITAPS Parallel Mesh Interface
 
 Release 0.1; October 2008
@@ -45,7 +45,7 @@ Release 0.1; October 2008
    subsets; like a "mesh," it does not imply a serial or parallel 
    implementation.
 -  An application may use one or more meshes.  
--  Parititions can create subsets of entities from one or more meshes.
+-  Partitions can create subsets of entities from one or more meshes.
 -  Meshes can be subdivided by one or more partitions.
 -  Partitions contain parts.  Parts contain the subsets of entities in the
    partition.
