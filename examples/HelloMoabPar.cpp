@@ -1,18 +1,18 @@
 /** @example HelloMoabPar.cpp \n
  * \brief Read mesh into MOAB in parallel \n
- * This example shows the simplest way of telling MOAB to read in parallel. \n
+ * This example shows the simplest way of telling MOAB to read in parallel.
  *
- * 0. Initialize MPI and get the rank and number of processors \n
- * 1. Process arguments (file name and options for parallel read) \n
- * 2. Initialize MOAB \n
- * 3. Load a partitioned file in parallel; \n
- * 4. retrieve shared entities on each processor \n
- * 5. Filter owned entities among shared ones on each processor \n
- * 6. Exchange ghost layers, and repeat the reports \n
+ *    -#  Initialize MPI and get the rank and number of processors \n
+ *    -#  Process arguments (file name and options for parallel read) \n
+ *    -#  Initialize MOAB \n
+ *    -#  Load a partitioned file in parallel; \n
+ *    -#  retrieve shared entities on each processor \n
+ *    -#  Filter owned entities among shared ones on each processor \n
+ *    -#  Exchange ghost layers, and repeat the reports \n
  *
- * To compile: \n
+ * <b>To compile</b>: \n
  *    make HelloMoabPar MOAB_DIR=<installdir>  \n
- * To run: mpiexec -np 4 HelloMoabPar \n
+ * <b>To run</b>: mpiexec -np 4 HelloMoabPar \n
  *  (depending on your configuration, LD_LIBRARY_PATH may need to contain <hdf5>/lib folder)
  *
  */

@@ -1,27 +1,27 @@
-/** \example ReduceExchangeTags ReduceExchangeTags.cpp
+/** @example ReduceExchangeTags.cpp
  * \brief Example program that shows the use case for performing tag data exchange
  * between parallel processors in order to sync data on shared entities. The reduction
  * operation on tag data is also shown where the user can perform any of the actions supported
- * by MPI_Op on data residing on shared entities.
+ * by MPI_Op on data residing on shared entities. \n
  *
- * This example:
- * 0.  Initialize MPI and instantiate MOAB
- * 1.  Get user options: Input mesh file name, tag name (default: USERTAG), tag value (default: 1.0)
- * 2.  Create the root and partition sets
- * 3.  Instantiate ParallelComm and read the mesh file in parallel using appropriate options
- * 4.  Create two tags: USERTAG_EXC (exchange) and USERTAG_RED (reduction)
- * 5.  Set tag data and exchange shared entity information between processors
- * 5a. Get entities in all dimensions and set local (current rank, dimension) dependent data for
+ * <b>This example </b>:
+ *    -# Initialize MPI and instantiate MOAB
+ *    -# Get user options: Input mesh file name, tag name (default: USERTAG), tag value (default: 1.0)
+ *    -# Create the root and partition sets
+ *    -# Instantiate ParallelComm and read the mesh file in parallel using appropriate options
+ *    -# Create two tags: USERTAG_EXC (exchange) and USERTAG_RED (reduction)
+ *    -# Set tag data and exchange shared entity information between processors
+ *      -# Get entities in all dimensions and set local (current rank, dimension) dependent data for
  *     exchange tag (USERTAG_EXC)
- * 5b. Perform exchange of tag data so that data on shared entities are synced via ParallelCommunicator.
- * 6.  Set tag data and reduce shared entity information between processors using MPI_SUM
- * 6a. Get higher dimensional entities in the current partition and set local (current rank)
+ *      -# Perform exchange of tag data so that data on shared entities are synced via ParallelCommunicator.
+ *    -#  Set tag data and reduce shared entity information between processors using MPI_SUM
+ *      -#  Get higher dimensional entities in the current partition and set local (current rank)
  *     dependent data for reduce tag (USERTAG_EXC)
- * 6b. Perform the reduction operation (MPI_SUM) on shared entities via ParallelCommunicator.
- * 7. Destroy the MOAB instance and finalize MPI
+ *      -#  Perform the reduction operation (MPI_SUM) on shared entities via ParallelCommunicator.
+ *    -#  Destroy the MOAB instance and finalize MPI
  *
- * To run: mpiexec -n 2 ./ReduceExchangeTags <mesh_file> <tag_name> <tag_value>
- * Example: mpiexec -n 2 ./ReduceExchangeTags ../MeshFiles/unittest/64bricks_1khex.h5m USERTAG 100
+ * <b>To run:</b> \n mpiexec -n 2 ./ReduceExchangeTags <mesh_file> <tag_name> <tag_value> \n
+ * <b>Example:</b> \n mpiexec -n 2 ./ReduceExchangeTags ../MeshFiles/unittest/64bricks_1khex.h5m USERTAG 100 \n
  *
  */
 
