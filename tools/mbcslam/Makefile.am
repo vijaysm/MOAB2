@@ -39,10 +39,13 @@ cfgdir = $(libdir)
 
 TESTS = intx_on_sphere_test  intx_in_plane_test  spec_visu_test spherical_area_test \
          case1_test
+noinst_PROGRAMS = process_arm
+
 check_PROGRAMS = $(TESTS) 
 intx_on_sphere_test_SOURCES = intx_on_sphere_test.cpp
 intx_in_plane_test_SOURCES = intx_in_plane_test.cpp
 spec_visu_test_SOURCES = spec_visu_test.cpp
 spherical_area_test_SOURCES = spherical_area_test.cpp
 case1_test_SOURCES = case1_test.cpp
+process_arm_SOURCES = process_arm.cpp
 
