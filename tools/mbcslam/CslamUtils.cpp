@@ -477,7 +477,7 @@ CartVect spherical_to_cart (SphereCoords & sc)
   return res;
 }
 
-ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle & outputSet)
+ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle & outputSet, double tolerance)
 {
   ErrorCode rval = MB_SUCCESS;
 
@@ -485,7 +485,9 @@ ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle &
   moab::Element::SpectralQuad specQuad(NP);
   Range fineElem;
 
+  std::vector<int> gids(input.size()*(NP-1)*(NP-1));// total number of "linear" elements
   // get all edges? or not? Form all gl points + quads, then merge, then output
+  int startGid=0;
   for (Range::iterator it=input.begin(); it!=input.end(); it++)
   {
     const moab::EntityHandle * conn4 = NULL;
@@ -493,7 +495,7 @@ ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle &
     rval = mb->get_connectivity(*it, conn4, num_nodes);
     if (moab::MB_SUCCESS != rval)
     {
-      std::cout << "can't get conectivity for quad \n";
+      std::cout << "can't get connectivity for quad \n";
       return rval;
     }
     assert(num_nodes==4);
@@ -533,6 +535,8 @@ ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle &
         if (rval!=moab::MB_SUCCESS)
           return rval;
         fineElem.insert(element_handle);
+        gids[startGid]=startGid+1;
+        startGid++;
       }
     }
 
@@ -541,7 +545,15 @@ ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle &
   mb->add_entities(outputSet, fineElem);
   // merge all nodes
   MergeMesh mgtool(mb);
-  rval = mgtool.merge_entities(fineElem, 0.0001);
+  rval = mgtool.merge_entities(fineElem, tolerance);
+  if (MB_SUCCESS!=rval)
+    return rval;
+  Tag gidTag;
+  rval = mb->tag_get_handle("GLOBAL_ID", 1, MB_TYPE_INTEGER,
+      gidTag, MB_TAG_DENSE|MB_TAG_CREAT);
+  if (MB_SUCCESS!=rval)
+      return rval;
+  rval = mb->tag_set_data(gidTag, fineElem, &gids[0]);
 
   return rval;
 }

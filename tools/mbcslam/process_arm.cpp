@@ -88,6 +88,25 @@ using namespace moab;
       std::cout<<"ReadNCDF:: Problem getting variable "<< name<<"\n";\
       return 1;}}}
 
+/* get the variable along an index */
+#define GET_2D_FLT_VAR(name, id, index, vals) \
+    {std::vector<int> dum_dims;        \
+  GET_VAR(name, id, dum_dims);\
+  if (-1 != id) {\
+    size_t ntmp;\
+    int dvfail = nc_inq_dimlen(ncFile, dum_dims[1], &ntmp);\
+    vals.resize(ntmp);\
+    size_t ntmp1[2] = {index, 0}; \
+    if (index>=dum_dims[0]) { \
+      std::cout<<"ReadNCDF:: Problem getting variable "<< name<<"\n"; \
+      return 1; \
+    } \
+    size_t count[2] ={1, ntmp}; \
+    dvfail = nc_get_vara_float(ncFile, id, ntmp1, count, &vals[0]);\
+    if (NC_NOERR != dvfail) {\
+      std::cout<<"ReadNCDF:: Problem getting variable "<< name<<"\n";\
+      return 1;}}}
+
 int main(int argc, char ** argv)
 {
 
@@ -187,10 +206,48 @@ int main(int argc, char ** argv)
   if (MB_SUCCESS!= rval)
        return 1;
 
+  // read the U850 and V850 variables
+  std::vector<float> u850;
+  GET_2D_FLT_VAR("U850", temp_dim, 0, u850);
+  std::vector<float> v850;
+  GET_2D_FLT_VAR("V850", temp_dim, 0, v850);
+
+  std::cout << " U850:" << u850[0] << " " << u850[1] << " " << u850[5] << " "<< u850.size()<<"\n";
+  std::cout << " V850:" << v850[0] << " " << v850[1] << " " << v850[5] << " "<< u850.size()<<"\n";
+  // ok, use radius as 6371km; not needed
+  /*
+     *  CartVect res;
+    res[0] = sc.R * cos(sc.lat)*cos(sc.lon) ; // x coordinate
+    res[1] = sc.R * cos(sc.lat)*sin(sc.lon); // y
+    res[2] = sc.R * sin(sc.lat);             // z
+    return res;
+     */
+  std::vector<CartVect> velo850(ncol);
+  Tag velotag;
+  rval = mb.tag_get_handle("VELO", 3, MB_TYPE_DOUBLE,
+        velotag, MB_TAG_DENSE|MB_TAG_CREAT);
+  if (MB_SUCCESS!= rval)
+    return 1;
+  for (int k=0; k<ncol; k++)
+  {
+    double latRad=lat[k]*conversion_factor;
+    double lonRad=lon[k]*conversion_factor;
+    CartVect U(-sin(lonRad), cos(lonRad), 0.);
+    CartVect V(-sin(latRad)*cos(lonRad), -sin(latRad)*cos(lonRad), cos(latRad));
+    velo850[k]=U*u850[k] +V*v850[k];
+  }
+  rval = mb.tag_set_data(velotag, nodes, &(velo850[0][0]));
+  if (MB_SUCCESS!= rval)
+      return 1;
   EntityHandle newSet;
   rval = mb.create_meshset(MESHSET_SET, newSet);
   if (MB_SUCCESS != rval)
     return 1;
+
+  // so the nodes will be part
+  mb.add_entities(newSet, nodes);
+
+
 
   const char *conn_file = "ARM_30_x8-metadata.g";
 
@@ -263,6 +320,7 @@ int main(int argc, char ** argv)
   for (int k=0; k<num_el; k++)
     gidels[k]=k+1;
   mb.tag_set_data(gid2, erange, &gidels[0]);
+
   mb.write_file("tt2.h5m", 0, 0, &newSet, 1);
 
   return 0;
