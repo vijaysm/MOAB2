@@ -16,8 +16,8 @@
 
 #include "moab/Core.hpp"
 #include "moab/Interface.hpp"
-#include "ReadUtilIface.hpp"
-#include "AdaptiveKDTree.hpp"
+#include "moab/ReadUtilIface.hpp"
+#include "moab/AdaptiveKDTree.hpp"
 
 #include "CslamUtils.hpp"
 
