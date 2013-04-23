@@ -67,7 +67,8 @@ else
 endif
 
 if ENABLE_mbcslam
-  MBCSLAM_TESTS = par_intx_sph cslam_par_test
+  MBCSLAM_TESTS = par_intx_sph 
+  noinst_PROGRAMS = cslam_par_test
 else
   MBCSLAM_TESTS = 
 endif
