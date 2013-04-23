@@ -362,7 +362,7 @@ int main(int argc, char ** argv)
   if (MB_SUCCESS!= rval)
     return 1;
 
-  for (size_t tt=0; tt<(size_t)times; tt++)
+  for (size_t tt=0; tt<56 /*(size_t)times*/; tt++)
   {
     // now, read velocities from file:
     // read the U850 and V850 variables
@@ -378,7 +378,7 @@ int main(int argc, char ** argv)
     std::vector<CartVect> velo850(ncol);
 
     std::stringstream fileName;
-    fileName << "VELO0" <<  tt << ".vtk";
+    fileName << "VELO0" <<  tt << ".h5m";
     std::cout << " read velocities at 850 for time:" << tt << "\n";
 
 
