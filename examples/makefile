@@ -21,6 +21,12 @@ HelloMoabPar: HelloMoabPar.o
 TestExodusII: TestExodusII.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+DirectAccessWithHoles: DirectAccessWithHoles.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+DirectAccessNoHoles: DirectAccessNoHoles.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
 .cpp.o :
 	${MOAB_CXX} ${MOAB_CXXFLAGS} ${MOAB_INCLUDES} -DMESH_DIR=\"${MESH_DIR}\" -c $<
 
