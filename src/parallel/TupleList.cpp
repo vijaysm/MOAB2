@@ -9,8 +9,6 @@
 
 namespace moab {
 
-  extern void fail(const char *fmt, ...);
-
   void fail(const char *fmt, ...)
   {
     va_list ap;
@@ -63,14 +61,14 @@ namespace moab {
     buffSize = 0;
   }
 
-  TupleList::TupleList(uint mi, uint ml,
-		       uint mul, uint mr, uint max)
+  TupleList::TupleList(uint p_mi, uint p_ml,
+		       uint p_mul, uint p_mr, uint p_max)
   {
     vi = NULL;
     vl = NULL;
     vul = NULL;
     vr = NULL;
-    initialize (mi, ml, mul, mr, max);
+    initialize (p_mi, p_ml, p_mul, p_mr, p_max);
   }
 
   TupleList::TupleList()
@@ -83,12 +81,15 @@ namespace moab {
   }
 
   // Allocates space for the tuple list in memory according to parameters
-  void TupleList::initialize (uint mi, uint ml,
-                              uint mul, uint mr, uint max)
+  void TupleList::initialize (uint p_mi, uint p_ml,
+                              uint p_mul, uint p_mr, uint p_max)
   {
     this->n = 0;
-    this->max = max;
-    this->mi = mi, this->ml = ml, this->mul = mul, this->mr = mr;
+    this->max = p_max;
+    this->mi = p_mi;
+    this->ml = p_ml;
+    this->mul = p_mul;
+    this->mr = p_mr;
     size_t sz;
 
     if (max*mi > 0) {
