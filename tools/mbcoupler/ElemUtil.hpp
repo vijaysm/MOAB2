@@ -248,11 +248,10 @@ namespace ElemUtil {
     };// class LinearQuad
 
     /**\brief Shape function space for bilinear quadrilateral, obtained from the canonical linear (affine) functions. */
-    class HOEdge : public Map {
+    class LinearEdge : public Map {
     public:
-      HOEdge(const std::vector<CartVect>& vertices) : Map(vertices){};
-      HOEdge();
-      virtual ~HOEdge();
+      LinearEdge(const std::vector<CartVect>& vertices) : Map(vertices){};
+      LinearEdge();
       virtual CartVect evaluate( const CartVect& xi ) const;
       //virtual CartVect ievaluate(const CartVect& x, double tol) const ;
       virtual bool inside_nat_space(const CartVect & xi, double & tol) const;
@@ -263,12 +262,12 @@ namespace ElemUtil {
 
     protected:
       /* Preimages of the vertices -- "canonical vertices" -- are known as "corners". */
-      static const double corner[4][3];
+      static const double corner[2][3];
       static const double gauss[1][2];
-      static const unsigned int corner_count = 4;
+      static const unsigned int corner_count = 2;
       static const unsigned int gauss_count  = 1;
 
-    };// class HOEdge
+    };// class LinearEdge
 
     class SpectralQuad : public Map {
       public:
