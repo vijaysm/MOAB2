@@ -337,20 +337,19 @@ int main( int argc, char* argv[] )
             << " elements, " << nv << " vertices per element." << std::endl << std::endl;
   std::cout << "New, old element evaluation code:" << std::endl;
   std::cout << "Evaluation type, time, time per element:" << std::endl;
-  std::cout << "                New                   Old            (New-Old)/Old" << std::endl;
+  std::cout << "                             New                   Old            (New/Old)*100" << std::endl;
   std::cout << "Forward evaluation " << evtime[0] << ", " << evtime[0] / elems.size()
             << "    " << evtime[1] << ", " << evtime[1] / elems.size() 
-            << ", " << (evtime[0]-evtime[1])/(evtime[0]?evtime[0]:1) << std::endl;
+            << "    " << (evtime[0]/(evtime[1]?evtime[1]:1))*100.0 << std::endl;
   std::cout << "Reverse evaluation " << retime[0] << ", " << retime[0] / elems.size()
             << "    " << retime[1] << ", " << retime[1] / elems.size() 
-            << ", " << (retime[0]-retime[1])/(retime[0]?retime[0]:1) << std::endl;
+            << "    " << (retime[0]/(retime[1]?retime[1]:1))*100.0 << std::endl;
   std::cout << "Jacobian           " << jactime[0] << ", " << jactime[0] / elems.size()
             << "    " << jactime[1] << ", " << jactime[1] / elems.size() 
-            << ", " << (jactime[0]-jactime[1])/(jactime[0]?jactime[0]:1) << std::endl;
+            << "    " << (jactime[0]/(jactime[1]?jactime[1]:1))*100.0 << std::endl;
   std::cout << "Integration        " << inttime[0] << ", " << inttime[0] / elems.size()
             << "    " << inttime[1] << ", " << inttime[1] / elems.size() 
-            << ", " << (inttime[0]-inttime[1])/(inttime[0]?inttime[0]:1) << std::endl;
-  
+            << "    " << (inttime[0]/(inttime[1]?inttime[1]:1))*100.0 << std::endl;
 }
 
 #if defined(_MSC_VER) || defined(__MINGW32__)

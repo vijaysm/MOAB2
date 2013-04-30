@@ -5,6 +5,7 @@
  *
  */
 #include "moab/Core.hpp"
+#include "moab/ReadUtilIface.hpp"
 #include "moab/ElemEvaluator.hpp"
 #include "moab/LinearHex.hpp"
 #include "moab/LinearTet.hpp"
@@ -39,12 +40,13 @@ CartVect hex_verts[] = {
     CartVect( 0, 0, 0 )
 };
 
+const double EPS1 = 1e-6;
+
 void test_eval(ElemEvaluator &ee, bool test_integrate) 
 {
   
   CartVect params, posn, params2;
   bool is_inside;
-  const double EPS1 = 1e-6;
   Matrix3 jacob;
   ErrorCode rval;
   
@@ -78,6 +80,25 @@ void test_eval(ElemEvaluator &ee, bool test_integrate)
     CHECK_REAL_EQUAL(0.0, (avg - integral).length(), EPS1);
   }
   
+}
+
+void test_evals(ElemEvaluator &ee, bool test_integrate, EntityHandle *starth, int num_ents, double total_vol) 
+{
+  for (int i = 0; i < num_ents; i++)
+    test_eval(ee, false);
+    
+  if (!test_integrate) return;
+  if (!num_ents || !starth) CHECK_ERR(MB_FAILURE);
+
+  double tot_vol = 0.0;
+  EntityHandle eh = *starth;
+  for (int i = 0; i < num_ents; i++) {
+    double tmp_vol;
+    ee.set_ent_handle(eh++);
+    ErrorCode rval = ee.integrate(&tmp_vol); CHECK_ERR(rval);
+    tot_vol += tmp_vol;
+  }
+  CHECK_REAL_EQUAL(total_vol, tot_vol, EPS1);
 }
 
 int main()
@@ -128,16 +149,18 @@ void test_quadratic_hex()
 void test_linear_tet() 
 {
   Core mb;
-  Range verts;
-  ErrorCode rval = mb.create_vertices((double*)hex_verts[1].array(), 4, verts); CHECK_ERR(rval);
-  EntityHandle tet;
-  std::vector<EntityHandle> connect;
-  std::copy(verts.begin(), verts.end(), std::back_inserter(connect));
-  rval = mb.create_element(MBTET, connect.data(), 4, tet); CHECK_ERR(rval);
+  Range verts, tets;
+  ErrorCode rval = mb.create_vertices((double*)hex_verts[0].array(), 8, verts); CHECK_ERR(rval);
+  EntityHandle starth = 1, *conn;
+  int conn_inds[] = {1, 6, 4, 5,    1, 4, 6, 3,    0, 1, 3, 4,    1, 2, 3, 6,    3, 4, 6, 7};
+  ReadUtilIface *ru;
+  rval = mb.query_interface(ru); CHECK_ERR(rval);
+  rval = ru->get_element_connect(5, 4, MBTET, 1, starth, conn); CHECK_ERR(rval);
+  for (unsigned int i = 0; i < 20; i++) conn[i] = verts[conn_inds[i]];
   
-  ElemEvaluator ee(&mb, tet, 0);
+  ElemEvaluator ee(&mb, starth, 0);
   ee.set_tag_handle(0, 0);
   ee.set_eval_set(MBTET, LinearTet::eval_set());
 
-  test_eval(ee, false);
+  test_evals(ee, true, &starth, 5, 8.0);
 }
