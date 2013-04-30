@@ -65,9 +65,9 @@ class WriterIface
                                     const EntityHandle* meshset_list,
                                     const int num_sets,
                                     const std::vector<std::string>& qa_records,
-                                    const Tag* tag_list,
-                                    int num_tags,
-                                    int requested_output_dimension = 0 ) = 0;
+                                    const Tag* tag_list = NULL,
+                                    int num_tags = 0,
+                                    int requested_output_dimension = 3 ) = 0;
 };
 
 } // namespace moab 

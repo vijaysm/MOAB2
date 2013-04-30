@@ -14,23 +14,23 @@ extern "C"{
 namespace moab {
 namespace ElemUtil {
 
-  bool nat_coords_trilinear_hex(const CartVect* hex_corners, 
-                                const CartVect& x, 
+  bool nat_coords_trilinear_hex(const CartVect* hex_corners,
+                                const CartVect& x,
                                 CartVect& xi,
                                 double tol);
-  bool point_in_trilinear_hex(const CartVect *hex_corners, 
+  bool point_in_trilinear_hex(const CartVect *hex_corners,
                               const CartVect& xyz,
                               double etol);
-  
-  bool point_in_trilinear_hex(const CartVect *hex_corners, 
-                              const CartVect& xyz, 
-                              const CartVect& box_min, 
+
+  bool point_in_trilinear_hex(const CartVect *hex_corners,
+                              const CartVect& xyz,
+                              const CartVect& box_min,
                               const CartVect& box_max,
                               double etol);
 
     //wrapper to hex_findpt
-  void nat_coords_trilinear_hex2(const CartVect* hex_corners, 
-                                 const CartVect& x, 
+  void nat_coords_trilinear_hex2(const CartVect* hex_corners,
+                                 const CartVect& x,
                                  CartVect& xi,
                                  double til);
 
@@ -38,7 +38,7 @@ namespace ElemUtil {
 
   void hex_findpt(double *xm[3],
                   int n,
-                  CartVect xyz, 
+                  CartVect xyz,
                   CartVect& rst,
                   double& dist);
 
@@ -56,12 +56,12 @@ namespace ElemUtil {
 
   namespace Element {
     /**\brief Class representing a map (diffeomorphism) F parameterizing a 3D element by its canonical preimage.*/
-    /*   
-         Shape functions on the element can obtained by a pushforward (pullback by the inverse map) 
+    /*
+         Shape functions on the element can obtained by a pushforward (pullback by the inverse map)
          of the shape functions on the canonical element. This is done by extending this class.
-         
+
          We further assume that the parameterizing map is defined by the location of n vertices,
-         which can be set and retrived on a Map instance.  The number of vertices is fixed at 
+         which can be set and retrived on a Map instance.  The number of vertices is fixed at
          compile time.
     */
     class Map {
@@ -101,13 +101,13 @@ namespace ElemUtil {
       const std::vector<CartVect>& get_vertices();
       /**\brief Set vertices.      */
       virtual void set_vertices(const std::vector<CartVect>& v);
-      
+
       /* Exception thrown when an evaluation fails (e.g., ievaluate fails to converge). */
       class EvaluationError {
       public:
         EvaluationError(){};
       };// class EvaluationError
-      
+
       /* Exception thrown when a bad argument is encountered. */
       class ArgError {
       public:
@@ -138,7 +138,7 @@ namespace ElemUtil {
       static const double gauss[1][2];
       static const unsigned int corner_count = 8;
       static const unsigned int gauss_count  = 1;
-      
+
     };// class LinearHex
 
     /**\brief Shape function space for trilinear hexahedron, obtained by a pushforward of the canonical linear (affine) functions. */
@@ -189,7 +189,7 @@ namespace ElemUtil {
       Matrix3 T, T_inverse;
       double  det_T, det_T_inverse;
     };// class LinearTet
-    
+
     class SpectralHex : public Map {
     public:
       SpectralHex(const std::vector<CartVect>& vertices) : Map(vertices){};
@@ -313,7 +313,7 @@ namespace ElemUtil {
 
 
   }// namespace Element
- 
+
 } // namespace moab
 
 #endif /*MOAB_ELEM_UTIL_HPP*/

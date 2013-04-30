@@ -1980,7 +1980,7 @@ public:
 //! predicate for STL algorithms.  Returns true if the entity handle is
 //! of the specified type.  For example, to remove all the tris out of a list
 //! of 2D entities retrieved using get_adjacencies you could do
-//! \example std::remove_if(list.begin(), list.end(), type_equals(gMB, MeshTri));
+//! std::remove_if(list.begin(), list.end(), type_equals(gMB, MeshTri));
 class type_equals : public std::unary_function<EntityHandle, bool>
 {
 public:
@@ -2003,7 +2003,7 @@ public:
 //! predicate for STL algorithms.  Returns true if the entity handle is not
 //! of the specified type.  For example, to remove all but the tris out of a list
 //! of 2D entities retrieved using get_adjacencies you could do
-//! \example std::remove_if(list.begin(), list.end(), type_not_equals(gMB, MeshTri));
+//! std::remove_if(list.begin(), list.end(), type_not_equals(gMB, MeshTri));
 class type_not_equals : public std::unary_function<EntityHandle, bool>
 {
 public:

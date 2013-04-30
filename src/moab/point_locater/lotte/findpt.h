@@ -55,33 +55,13 @@ int findpt_2(findpt_data_2 *p, const real x[2], int guess,
 int findpt_3(findpt_data_3 *p, const real x[3], int guess,
              uint *el, real r[3], real *dist);
 
-static void findpt_weights_2(findpt_data_2 *p, const real r[2])
-{
-  lagrange_0(&p->ld[0],r[0]);
-  lagrange_0(&p->ld[1],r[1]);
-}
+void findpt_weights_2(findpt_data_2 *p, const real r[2]) ;
 
-static void findpt_weights_3(findpt_data_3 *p, const real r[3])
-{
-  lagrange_0(&p->ld[0],r[0]);
-  lagrange_0(&p->ld[1],r[1]);
-  lagrange_0(&p->ld[2],r[2]);
-}
+void findpt_weights_3(findpt_data_3 *p, const real r[3]);
 
-static double findpt_eval_2(findpt_data_2 *p, const real *u)
-{
-  return tensor_i2(p->ld[0].J,p->ld[0].n,
-                   p->ld[1].J,p->ld[1].n,
-                   u, p->od_work);
-}
+double findpt_eval_2(findpt_data_2 *p, const real *u);
 
-static double findpt_eval_3(findpt_data_3 *p, const real *u)
-{
-  return tensor_i3(p->ld[0].J,p->ld[0].n,
-                   p->ld[1].J,p->ld[1].n,
-                   p->ld[2].J,p->ld[2].n,
-                   u, p->od_work);
-}
+double findpt_eval_3(findpt_data_3 *p, const real *u);
 
 #endif
 

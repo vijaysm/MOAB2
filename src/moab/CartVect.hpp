@@ -109,7 +109,12 @@ inline void CartVect::flip()
 
 //! Interior angle between two vectors
 inline double angle( const CartVect& u, const CartVect& v )
-  { return std::acos( (u % v) / std::sqrt((u % u) * (v % v)) ); }
+  {
+    double tmp=(u % v) / std::sqrt((u % u) * (v % v));
+    if (tmp>1.) tmp=1.;
+    if (tmp<-1.) tmp = -1.;
+    return std::acos( tmp );
+  }
 
 inline CartVect operator-( const CartVect& v )
   { return CartVect( -v[0], -v[1], -v[2] ); }
