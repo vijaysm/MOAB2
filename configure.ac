@@ -67,6 +67,14 @@ if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FC"; then
   AC_FC_WRAPPERS
 fi
 
+if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FLIBS"; then
+   LIBS="$LIBS $FLIBS"
+fi
+
+if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FCLIBS"; then
+   LIBS="$LIBS $FCLIBS"
+fi
+
 ################################################################################
 #                           Check for need for extra flags to support cray pointers
 ################################################################################
@@ -1163,6 +1171,8 @@ AC_SUBST([EXPORT_LTFLAGS])
 AC_SUBST([EXPORT_LDFLAGS])
 AC_SUBST([AM_CXXFLAGS])
 AC_SUBST([AM_CFLAGS])
+  AC_SUBST([AM_FCFLAGS])
+  AC_SUBST([AM_FFLAGS])
 AC_SUBST([DISTCHECK_CONFIGURE_FLAGS])
 
 AC_ARG_VAR([FC], [FORTRAN compiler command])

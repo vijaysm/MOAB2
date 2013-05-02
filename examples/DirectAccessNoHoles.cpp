@@ -1,31 +1,30 @@
-/** @example DirectAccess.cpp \n
+/** @example DirectAccessNoHoles.cpp \n
  * \brief Use direct access to MOAB data to avoid calling through API \n
  *
- * This example creates a 1d row of quad elements, with a user-specified number of "holes" (missing quads) in the row:
+ * This example creates a 1d row of quad elements, such that all quad and vertex handles
+ * are contiguous in the handle space and in the database.  Then it shows how to get access
+ * to pointers to MOAB-native data for vertex coordinates, quad connectivity, tag storage,
+ * and vertex to quad adjacency lists.  This allows applications to access this data directly
+ * without going through MOAB's API.  In cases where the mesh is not changing (or only mesh
+ * vertices are moving), this can save significant execution time in applications.
  *
- *  ----------------------      ----------------------      --------
- *  |      |      |      |      |      |      |      |      |      |       
- *  |      |      |      |(hole)|      |      |      |(hole)|      | ...
- *  |      |      |      |      |      |      |      |      |      |
- *  ----------------------      ----------------------      --------
- *
- * This makes (nholes+1) contiguous runs of quad handles in the handle space
- * This example shows how to use the xxx_iterate functions in MOAB (xxx = coords, connect, tag, adjacencies) to get 
- * direct pointer access to MOAB internal storage, which can be used without calling through the MOAB API.
+ *  ----------------------
+ *  |      |      |      |       
+ *  |      |      |      | ...
+ *  |      |      |      |
+ *  ----------------------
  *
  *    -#  Initialize MOAB \n
- *    -#  Create a quad mesh with holes, as depicted above
+ *    -#  Create a quad mesh, as depicted above
  *    -#  Create 2 dense tags (tag1, tag2) for avg position to assign to quads, and # verts per quad (tag3)
  *    -#  Get connectivity, coordinate, tag1 iterators
  *    -#  Iterate through quads, computing midpoint based on vertex positions, set on quad-based tag1
- *    -#  Set up map from starting quad handle for a chunk to struct of (tag1_ptr, tag2_ptr, tag3_ptr), pointers to
- *        the dense tag storage for those tags for the chunk
  *    -#  Iterate through vertices, summing positions into tag2 on connected quads and incrementing vertex count
  *    -#  Iterate through quads, normalizing tag2 by vertex count and comparing values of tag1 and tag2
  *
  * <b>To compile</b>: \n
- *    make DirectAccessWithHoles MOAB_DIR=<installdir>  \n
- * <b>To run</b>: ./DirectAccess [-nquads <# quads>] [-holes <# holes>]\n
+ *    make DirectAccessNoHoles MOAB_DIR=<installdir>  \n
+ * <b>To run</b>: ./DirectAccessNoHoles [-nquads <# quads>]\n
  *
  */
 
@@ -131,12 +130,16 @@ int main(int argc, char **argv)
         
     // Normalize tag2 by vertex count (tag3); loop over elements using same approach as before
     // At the same time, compare values of tag1 and tag2
+  int n_dis = 0;
   for (Range::iterator q_it = quads.begin(); q_it != quads.end(); q_it++) {
     int i = *q_it - start_quad;
     for (int j = 0; j < 3; j++) tag2_ptr[3*i+j] /= (double)tag3_ptr[i];  // normalize by # verts
-    if (tag1_ptr[3*i] != tag2_ptr[3*i] || tag1_ptr[3*i+1] != tag2_ptr[3*i+1] || tag1_ptr[3*i+2] != tag2_ptr[3*i+2]) 
+    if (tag1_ptr[3*i] != tag2_ptr[3*i] || tag1_ptr[3*i+1] != tag2_ptr[3*i+1] || tag1_ptr[3*i+2] != tag2_ptr[3*i+2]) {
       std::cout << "Tag1, tag2 disagree for element " << *q_it + i << std::endl;
+      n_dis++;
+    }
   }
+  if (!n_dis) std::cout << "All tags agree, success!" << std::endl;
 
     // Ok, we're done, shut down MOAB
   delete mbImpl;
@@ -151,7 +154,7 @@ ErrorCode create_mesh_no_holes(Interface *mbImpl, int nquads)
   ErrorCode rval = mbImpl->query_interface(read_iface); CHKERR(rval, "query_interface");
   std::vector<double *> coords;
   EntityHandle start_vert, start_elem, *connect;
-    // create verts, num is 4(nquads+1) because they're in a 1d row; will initialize coords in loop over quads later
+    // create verts, num is 2(nquads+1) because they're in a 1d row; will initialize coords in loop over quads later
   rval = read_iface->get_node_coords (3, 2*(nquads+1), 0, start_vert, coords); CHKERR(rval, "get_node_arrays");
     // create quads
   rval = read_iface->get_element_connect(nquads, 4, MBQUAD, 0, start_elem, connect); CHKERR(rval, "get_element_connect");
@@ -160,8 +163,12 @@ ErrorCode create_mesh_no_holes(Interface *mbImpl, int nquads)
     coords[1][2*i] = 0.0; coords[1][2*i+1] = 1.0; // y coords
     coords[2][2*i] = coords[2][2*i+1] = (double) 0.0; // z values, all zero (2d mesh)
     EntityHandle quad_v = start_vert + 2*i;
-    for (int j = 0; j < 4; j++) connect[4*i+j] = quad_v+j; // connectivity of each quad is a sequence starting from quad_v
+    connect[4*i+0] = quad_v;
+    connect[4*i+1] = quad_v+2;
+    connect[4*i+2] = quad_v+3;
+    connect[4*i+3] = quad_v+1;
   }
+  
     // last two vertices
   coords[0][2*nquads] = coords[0][2*nquads+1] = (double) nquads;
   coords[1][2*nquads] = 0.0; coords[1][2*nquads+1] = 1.0; // y coords
