@@ -68,7 +68,6 @@ endif
 
 if ENABLE_mbcslam
   MBCSLAM_TESTS = par_intx_sph 
-  noinst_PROGRAMS = cslam_par_test
 else
   MBCSLAM_TESTS = 
 endif
@@ -100,10 +99,7 @@ endif
 
 if ENABLE_mbcslam
   par_intx_sph_SOURCES = par_intx_sph.cpp
-  par_intx_sph_LDADD = $(LDADD) ../../tools/mbcoupler/libmbcoupler.la ../../tools/mbcslam/libmbcslam.la
-  cslam_par_test_SOURCES = cslam_par_test.cpp
-  cslam_par_test_LDADD = $(LDADD) ../../tools/mbcoupler/libmbcoupler.la ../../tools/mbcslam/libmbcslam.la
-  
+  par_intx_sph_LDADD = $(LDADD) ../../tools/mbcoupler/libmbcoupler.la ../../tools/mbcslam/libmbcslam.la  
 endif
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = mhdf_ll.h5m tmp0.h5m tmp1.h5m tmp2.h5m tmp3.h5m
