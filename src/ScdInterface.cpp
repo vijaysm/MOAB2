@@ -113,12 +113,12 @@ ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, const double 
   rval = create_scd_sequence(low, high, MBVERTEX, 0, new_box);
   ERRORR(rval, "Trouble creating scd vertex sequence.");
 
-  if (num_coords && coords) {
-      // set the vertex coordinates
-    double *xc, *yc, *zc;
-    rval = new_box->get_coordinate_arrays(xc, yc, zc);
-    ERRORR(rval, "Couldn't get vertex coordinate arrays.");
+    // set the vertex coordinates
+  double *xc, *yc, *zc;
+  rval = new_box->get_coordinate_arrays(xc, yc, zc);
+  ERRORR(rval, "Couldn't get vertex coordinate arrays.");
 
+  if (coords && num_coords) {
     unsigned int i = 0;
     for (int kl = low[2]; kl <= high[2]; kl++) {
       for (int jl = low[1]; jl <= high[1]; jl++) {
@@ -128,6 +128,23 @@ ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, const double 
             yc[i] = coords[3*i+1];
           if (new_box->box_size()[2])
             zc[i] = coords[3*i+2];
+          i++;
+        }
+      }
+    }
+  }
+  else {
+    unsigned int i = 0;
+    for (int kl = low[2]; kl <= high[2]; kl++) {
+      for (int jl = low[1]; jl <= high[1]; jl++) {
+        for (int il = low[0]; il <= high[0]; il++) {
+          xc[i] = (double) il;
+          if (new_box->box_size()[1])
+            yc[i] = (double) jl;
+          else yc[i] = 0.0;
+          if (new_box->box_size()[2])
+            zc[i] = (double) kl;
+          else zc[i] = 0.0;
           i++;
         }
       }

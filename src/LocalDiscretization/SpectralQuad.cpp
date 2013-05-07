@@ -114,7 +114,7 @@ bool SpectralQuad::reverseEvalFcn(const double *posn, const double *verts, const
     //copy parametric coords back
   params = r;
 
-  return is_inside(params, tol);
+  return insideFcn(params, 2, tol);
 }
 
 
@@ -145,13 +145,12 @@ void SpectralQuad:: integrate_vector(const double *field, const double *verts, c
 {
     // not implemented
 }
-  // this is the same as a linear hex, although we should not need it
-bool SpectralQuad::is_inside(const CartVect & params, double tol) const
-{
-    // just look at the box+tol here
-  return ( params[0]>=-1.-tol) && (params[0]<=1.+tol) &&
-      ( params[1]>=-1.-tol) && (params[1]<=1.+tol) ;
-}
+
+    bool SpectralQuad::insideFcn(const double *params, const int ndim, const double tol) 
+    {
+      return EvalSet::inside(params, ndim, tol);
+    }
+
   // something we don't do for spectral hex; we do it here because
   //       we do not store the position of gl points in a tag yet
 void SpectralQuad::compute_gl_positions()

@@ -178,14 +178,11 @@ void SpectralHex::integrate_vector(const double *field_values, int num_tuples, d
   }
     //std::cout << "volume: " << volume << "\n";
 }
-  // this is the same as a linear hex, although we should not need it
-bool SpectralHex::is_inside(const CartVect & params, double tol) const
-{
-    // just look at the box+tol here
-  return ( params[0]>=-1.-tol) && (params[0]<=1.+tol) &&
-      ( params[1]>=-1.-tol) && (params[1]<=1.+tol) &&
-      ( params[2]>=-1.-tol) && (params[2]<=1.+tol);
-}
+
+    bool SpectralHex::insideFcn(const double *params, const int ndim, const double tol) 
+    {
+      return EvalSet::inside(params, ndim, tol);
+    }
 
   // SpectralHex
 

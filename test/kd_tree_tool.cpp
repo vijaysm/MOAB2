@@ -303,7 +303,7 @@ void delete_existing_tree( Interface* interface )
   if (!trees.empty())
     std::cout << "Destroying existing tree(s) contained in file" << std::endl;
   for (Range::iterator i = trees.begin(); i != trees.end(); ++i)
-    tool.delete_tree( *i );
+    tool.reset_tree( *i );
   
   trees.clear();
   tool.find_all_trees( trees );

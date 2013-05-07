@@ -549,7 +549,7 @@ void leaf_iterator_test()
   rval = iter.step();
   CHECK( MB_SUCCESS != rval );
 
-  rval = tool.delete_tree( root );
+  rval = tool.reset_tree( root );
   CHECK( MB_SUCCESS == rval );
   root = 0;
   
@@ -743,21 +743,21 @@ void test_build_tree_bisect_triangles( )
   rval = tool.build_tree( box_tris, &root, &opts);
   CHECK( MB_SUCCESS == rval );
   test_valid_tree( &tool, root, opts, box_tris );
-  tool.delete_tree(root);
+  tool.reset_tree(root);
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_octahedron( &moab, box_tris );
   rval = tool.build_tree( box_tris, &root, &opts );
   CHECK( MB_SUCCESS == rval );
   test_valid_tree( &tool, root, opts, box_tris );
-  tool.delete_tree(root);
+  tool.reset_tree(root);
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_large( &moab, box_tris );
   rval = tool.build_tree( box_tris, &root, &opts );
   CHECK( MB_SUCCESS == rval );
   test_valid_tree( &tool, root, opts, box_tris );
-  tool.delete_tree(root);
+  tool.reset_tree(root);
   
   options << "MAX_DEPTH=2;";
   opts = FileOptions(options.str().c_str());
@@ -765,7 +765,7 @@ void test_build_tree_bisect_triangles( )
   rval = tool.build_tree( box_tris, &root, &opts );
   CHECK( MB_SUCCESS == rval );
   test_valid_tree( &tool, root, opts, box_tris );
-  tool.delete_tree(root);
+  tool.reset_tree(root);
 }
   
 void test_closest_triangle()
@@ -838,7 +838,7 @@ void test_closest_triangle()
   }
   
     // now do it all again with a lot more triangles
-  tool.delete_tree(root);
+  tool.reset_tree(root);
   moab.delete_mesh(); box_tris.clear();
 
   build_triangle_box_large( &moab, box_tris );
@@ -934,7 +934,7 @@ void test_sphere_intersect_triangles()
   
     // now do it all again with a lot more triangles
 
-  tool.delete_tree(root);
+  tool.reset_tree(root);
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_large( &moab, box_tris );
 

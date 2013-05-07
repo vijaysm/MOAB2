@@ -1,21 +1,18 @@
 #ifndef ELEM_EVALUATOR_HPP
 #define ELEM_EVALUATOR_HPP
 
-#include <vector>
-
 #include "moab/Interface.hpp"
 #include "moab/CartVect.hpp"
 #include "moab/Matrix3.hpp"
 #include "moab/CN.hpp"
+
+#include <vector>
 
 namespace moab {
 
     typedef ErrorCode (*EvalFcn)(const double *params, const double *field, const int ndim, const int num_tuples, 
                           double *work, double *result);
 
-    typedef ErrorCode (*ReverseEvalFcn)(const double *posn, const double *verts, const int nverts, const int ndim,
-                                         const double tol, double *work, double *params, bool *is_inside);
-        
     typedef ErrorCode (*JacobianFcn)(const double *params, const double *verts, const int nverts, const int ndim, 
                                      double *work, double *result);
         
@@ -24,6 +21,12 @@ namespace moab {
 
     typedef ErrorCode (*InitFcn)(const double *verts, const int nverts, double *&work);
 
+    typedef bool (*InsideFcn)(const double *verts, const int ndims, const double tol);
+
+    typedef ErrorCode (*ReverseEvalFcn)(EvalFcn eval, JacobianFcn jacob, InsideFcn ins, 
+                                        const double *posn, const double *verts, const int nverts, const int ndim,
+                                        const double tol, double *work, double *params, bool *is_inside);
+        
     class EvalSet
     {
   public:
@@ -42,12 +45,15 @@ namespace moab {
         /** \brief Initialization function for an element */
       InitFcn initFcn;
 
+        /** \brief Function that returns whether or not the parameters are inside the natural space of the element */
+      InsideFcn insideFcn;
+
         /** \brief Bare constructor */
-      EvalSet() : evalFcn(NULL), reverseEvalFcn(NULL), jacobianFcn(NULL), integrateFcn(NULL), initFcn(NULL) {}
+      EvalSet() : evalFcn(NULL), reverseEvalFcn(NULL), jacobianFcn(NULL), integrateFcn(NULL), initFcn(NULL), insideFcn(NULL) {}
 
         /** \brief Constructor */
-      EvalSet(EvalFcn eval, ReverseEvalFcn rev, JacobianFcn jacob, IntegrateFcn integ, InitFcn initf)
-              : evalFcn(eval), reverseEvalFcn(rev), jacobianFcn(jacob), integrateFcn(integ), initFcn(initf)
+      EvalSet(EvalFcn eval, ReverseEvalFcn rev, JacobianFcn jacob, IntegrateFcn integ, InitFcn initf, InsideFcn insidef)
+              : evalFcn(eval), reverseEvalFcn(rev), jacobianFcn(jacob), integrateFcn(integ), initFcn(initf), insideFcn(insidef)
           {}
 
         /** \brief Given an entity handle, get an appropriate eval set, based on type & #vertices */
@@ -63,14 +69,17 @@ namespace moab {
         jacobianFcn = eval.jacobianFcn;
         integrateFcn = eval.integrateFcn;
         initFcn = eval.initFcn;
+        insideFcn = eval.insideFcn;
         return *this;
       }
 
-      static ErrorCode evaluate_reverse(EvalFcn eval, JacobianFcn jacob,
+        /** \brief Common function to do reverse evaluation based on evaluation and jacobian functions */
+      static ErrorCode evaluate_reverse(EvalFcn eval, JacobianFcn jacob, InsideFcn inside_f,
                                         const double *posn, const double *verts, const int nverts, 
                                         const int ndim, const double tol, double *work, double *params, 
                                         bool *inside);
-      
+        /** \brief Common function that returns true if params is in [-1,1]^ndims */
+      static bool inside_function(const double *params, const int ndims, const double tol);
     };
 
         /** \brief Given an entity handle, get an appropriate eval set, based on type & #vertices */
@@ -145,7 +154,7 @@ namespace moab {
          * \param params Parameters at which to query the element
          * \param tol Tolerance, usually 10^-6 or so
          */
-      bool is_inside(const double *params, double tol) const;
+      bool inside(const double *params, const double tol) const;
 
         /** \brief Set the eval set for a given type entity
          * \param tp Entity type for which to set the eval set
@@ -291,6 +300,7 @@ namespace moab {
         numTuples = 3;
         tagDim = 0;
         tagHandle = 0;
+        if (numVerts) tagSpace.resize(numVerts*sizeof(double));
         return rval;
       }
       else if (tagHandle != tag) {
@@ -387,9 +397,9 @@ namespace moab {
     inline ErrorCode ElemEvaluator::reverse_eval(const double *posn, const double tol, double *params, bool *ins) const
     {
       assert(entHandle && MBMAXTYPE != entType);
-      return EvalSet::evaluate_reverse(evalSets[entType].evalFcn, evalSets[entType].jacobianFcn, 
-                                       posn, vertPos[0].array(), numVerts, entDim, tol, workSpace, 
-                                       params, ins);
+      return (*evalSets[entType].reverseEvalFcn)(evalSets[entType].evalFcn, evalSets[entType].jacobianFcn, evalSets[entType].insideFcn,
+                                                 posn, vertPos[0].array(), numVerts, entDim, tol, workSpace, 
+                                                 params, ins);
     }
         
       /** \brief Evaluate the jacobian of the cached entity at a given parametric location */
@@ -412,6 +422,11 @@ namespace moab {
       return (*evalSets[entType].integrateFcn)((tagCoords ? vertPos[0].array() : (const double *)&tagSpace[0]), 
                                                vertPos[0].array(), numVerts, entDim, numTuples, 
                                                workSpace, result);
+    }
+
+    inline bool ElemEvaluator::inside(const double *params, const double tol) const 
+    {
+      return (*evalSets[entType].insideFcn)(params, entDim, tol);
     }
 
     inline ErrorCode ElemEvaluator::set_eval_set(EntityHandle eh) 

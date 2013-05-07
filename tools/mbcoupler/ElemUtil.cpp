@@ -434,17 +434,6 @@ namespace Element {
         this->vertex = v;
       }
 
-
-  inline const std::vector<CartVect>& Map::get_vertices() {
-    return this->vertex;
-  }
-  //
-  void Map::set_vertices(const std::vector<CartVect>& v) {
-    if(v.size() != this->vertex.size()) {
-      throw ArgError();
-    }
-    this->vertex = v;
-  }// Map::set_vertices()
   //
   CartVect Map::ievaluate(const CartVect& x, double tol, const CartVect& x0) const {
     // TODO: should differentiate between epsilons used for
@@ -471,30 +460,6 @@ namespace Element {
     }
     return xi;
   }// Map::ievaluate()
-
-// filescope for static member data that is cached
-  const double LinearEdge::corner[2][3] = {  { -1, 0, 0 },
-                                         {  1, 0, 0 } };
-
-  LinearEdge::LinearEdge() : Map(0) {
-
-  }// LinearEdge::LinearEdge()
-
-  /* For each point, its weight and location are stored as an array.
-     Hence, the inner dimension is 2, the outer dimension is gauss_count.
-     We use a one-point Gaussian quadrature, since it integrates linear functions exactly.
-  */
-  const double LinearEdge::gauss[1][2] = { {  2.0,           0.0          } };
-
-  CartVect LinearEdge::evaluate( const CartVect& xi ) const {
-    CartVect x(0.0);
-    for (unsigned i = 0; i < LinearEdge::corner_count; ++i) {
-      const double N_i = (1.0 + xi[0]*corner[i][0]);
-      x += N_i * this->vertex[i];
-    }
-    x /= LinearEdge::corner_count;
-    return x;
-  }// LinearEdge::evaluate
 
 // filescope for static member data that is cached
   const double LinearEdge::corner[2][3] = {  { -1, 0, 0 },

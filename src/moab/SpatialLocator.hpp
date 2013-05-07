@@ -26,7 +26,7 @@ namespace moab {
       SpatialLocator(Interface *impl, Range &elems, Tree *tree = NULL, ElemEvaluator *eval = NULL);
 
         /* destructor */
-      virtual ~SpatialLocator() {}
+      virtual ~SpatialLocator();
 
         /* add elements to be searched */
       ErrorCode add_elems(Range &elems);
@@ -41,17 +41,14 @@ namespace moab {
                               bool *is_inside = NULL);
       
         /* locate a point */
-      ErrorCode locate_point(const CartVect &pos, 
-                             EntityHandle &ent, CartVect &params, 
-                             double rel_tol = 0.0, double abs_tol = 0.0,
-                             bool *is_inside = NULL);
-
-        /* locate a point */
       ErrorCode locate_point(const double *pos, 
                              EntityHandle &ent, double *params, 
                              double rel_tol = 0.0, double abs_tol = 0.0,
                              bool *is_inside = NULL);
 
+        /* return the tree */
+      Tree *get_tree() {return myTree;}
+      
   private:
 
         /* MOAB instance */
@@ -68,21 +65,20 @@ namespace moab {
       
         /* element evaluator */
       ElemEvaluator *elemEval;
-      
+
+        /* whether I created the tree or not (determines whether to delete it or not on destruction) */
+      bool iCreatedTree;
     };
 
-    ErrorCode SpatialLocator::locate_point(const CartVect &pos, 
-                                           EntityHandle &ent, CartVect &params, 
-                                           double rel_tol, double abs_tol,
-                                           bool *is_inside) 
+    inline SpatialLocator::~SpatialLocator() 
     {
-      return locate_points((double*)(&pos), 1, &ent, (double*)(&params), rel_tol, abs_tol, is_inside);
+      if (iCreatedTree && myTree) delete myTree;
     }
-
-    ErrorCode SpatialLocator::locate_point(const double *pos, 
-                                           EntityHandle &ent, double *params, 
-                                           double rel_tol, double abs_tol,
-                                           bool *is_inside) 
+    
+    inline ErrorCode SpatialLocator::locate_point(const double *pos, 
+                                                  EntityHandle &ent, double *params, 
+                                                  double rel_tol, double abs_tol,
+                                                  bool *is_inside) 
     {
       return locate_points(pos, 1, &ent, params, rel_tol, abs_tol, is_inside);
     }

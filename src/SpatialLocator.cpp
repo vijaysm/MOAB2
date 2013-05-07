@@ -1,14 +1,23 @@
 #include "moab/SpatialLocator.hpp"
 #include "moab/Interface.hpp"
 #include "moab/ElemEvaluator.hpp"
+#include "moab/AdaptiveKDTree.hpp"
 
 namespace moab 
 {
 
     SpatialLocator::SpatialLocator(Interface *impl, Range &elems, Tree *tree, ElemEvaluator *eval) 
-            : mbImpl(impl), myElems(elems), myDim(-1), myTree(tree), elemEval(eval)
+            : mbImpl(impl), myElems(elems), myDim(-1), myTree(tree), elemEval(eval), iCreatedTree(false)
     {
-      if (!elems.empty()) myDim = mbImpl->dimension_from_handle(*elems.rbegin());
+      if (!myTree) {
+        myTree = new AdaptiveKDTree(impl);
+        iCreatedTree = true;
+      }
+      if (!elems.empty()) {
+        myDim = mbImpl->dimension_from_handle(*elems.rbegin());
+        ErrorCode rval = myTree->build_tree(myElems);
+        if (MB_SUCCESS != rval) throw rval;
+      }
     }
 
     ErrorCode SpatialLocator::add_elems(Range &elems) 
@@ -72,6 +81,7 @@ namespace moab
         if (!elemEval) {
           ents[i] = closest_leaf;
           params[i3] = params[i3+1] = params[i3+2] = -2;
+          if (is_inside && closest_leaf) is_inside[i] = true;
           continue;
         }
     
@@ -85,7 +95,7 @@ namespace moab
         bool tmp_inside;
         for(Range::iterator rit = range_leaf.begin(); rit != range_leaf.end(); rit++)
         {
-          bool *is_ptr = (is_inside ? is_inside+i3 : &tmp_inside);      
+          bool *is_ptr = (is_inside ? is_inside+i : &tmp_inside);      
           rval = elemEval->set_ent_handle(*rit); 
           if (MB_SUCCESS != rval) return rval;
           rval = elemEval->reverse_eval(pos+i3, 0.0, params+i3, is_ptr);

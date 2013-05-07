@@ -45,7 +45,8 @@ TESTS = range_test \
 	reorder_test \
 	test_prog_opt \
 	coords_connect_iterate \
-	elem_eval_test
+	elem_eval_test \
+	spatial_locator_test
 
 if HDF5_FILE
   TESTS += mbfacet_test \
@@ -118,6 +119,7 @@ var_len_test_no_template_SOURCES = $(var_len_test_SOURCES)
 var_len_test_no_template_CPPFLAGS = -UTEMPLATE_SPECIALIZATION $(AM_CPPFLAGS) $(CPPFLAGS)
 
 tag_test_SOURCES = TestUtil.hpp TagTest.cpp
+spatial_locator_test_SOURCES = TestUtil.hpp spatial_locator_test.cpp
 
 mbcn_test_SOURCES = $(top_srcdir)/src/moab/CN.hpp \
                     $(top_srcdir)/src/CN.cpp \

@@ -211,7 +211,7 @@ ErrorCode MBZoltan::balance_mesh(const char *zmethod,
                    exportProcs, &assignment);
 
   if (mbpc->proc_config().proc_rank() == 0) {
-    ErrorCode result = write_partition(mbpc->proc_config().proc_size(), elems, assignment,
+    result = write_partition(mbpc->proc_config().proc_size(), elems, assignment,
                                        write_as_sets, write_as_tags);
 
     if (MB_SUCCESS != result) return result;
@@ -1357,14 +1357,14 @@ ErrorCode MBZoltan::write_partition(const int nparts,
 
       // check for empty sets, warn if there are any
     Range empty_sets;
-    for (Range::iterator rit = partSets.begin(); rit != partSets.end(); rit++) {
+    for (rit = partSets.begin(); rit != partSets.end(); rit++) {
       int num_ents = 0;
       result = mbImpl->get_number_entities_by_handle(*rit, num_ents);
       if (MB_SUCCESS != result || !num_ents) empty_sets.insert(*rit);
     }
     if (!empty_sets.empty()) {
       std::cout << "WARNING: " << empty_sets.size() << " empty sets in partition: ";
-      for (Range::iterator rit = empty_sets.begin(); rit != empty_sets.end(); rit++)
+      for (rit = empty_sets.begin(); rit != empty_sets.end(); rit++)
         std::cout << *rit << " ";
       std::cout << std::endl;
     }

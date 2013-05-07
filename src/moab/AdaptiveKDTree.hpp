@@ -55,8 +55,8 @@ namespace moab {
                                    EntityHandle *tree_root_set = NULL,
                                    FileOptions *options = NULL);
 
-        //! Destroy the tree, optionally checking we have the right root
-      ErrorCode delete_tree(EntityHandle root_handle = 0);
+        //! Reset the tree, optionally checking we have the right root
+      virtual ErrorCode reset_tree(EntityHandle root_handle = 0);
 
         /** \brief Get leaf containing input position.
          *

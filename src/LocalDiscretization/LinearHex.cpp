@@ -94,11 +94,17 @@ namespace moab
       return MB_SUCCESS;
     }// LinearHex::integrate_vector()
 
-    ErrorCode LinearHex::reverseEvalFcn(const double *posn, const double *verts, const int nverts, const int ndim,
+    ErrorCode LinearHex::reverseEvalFcn(EvalFcn eval, JacobianFcn jacob, InsideFcn ins, 
+                                        const double *posn, const double *verts, const int nverts, const int ndim,
                                         const double tol, double *work, double *params, bool *is_inside) 
     {
       assert(posn && verts);
-      return EvalSet::evaluate_reverse(evalFcn, jacobianFcn, posn, verts, nverts, ndim, tol, work, params, is_inside);
+      return EvalSet::evaluate_reverse(eval, jacob, ins, posn, verts, nverts, ndim, tol, work, params, is_inside);
+    }
+
+    bool LinearHex::insideFcn(const double *params, const int ndim, const double tol) 
+    {
+      return EvalSet::inside_function(params, ndim, tol);
     }
     
 } // namespace moab

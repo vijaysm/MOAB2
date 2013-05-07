@@ -76,8 +76,9 @@ namespace moab
 
         // elements with vertex-handle connectivity list
       const Range::const_iterator poly_begin = elems.lower_bound( MBPOLYHEDRON, elem_begin );
+      std::vector<EntityHandle> dum_vector;
       for (i = elem_begin; i != poly_begin; ++i) {
-        rval = iface.get_connectivity( *i, conn, len, true );
+        rval = iface.get_connectivity( *i, conn, len, true, &dum_vector);
         if (MB_SUCCESS != rval)
           return rval;
 

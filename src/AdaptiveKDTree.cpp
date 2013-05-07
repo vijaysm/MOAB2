@@ -63,7 +63,7 @@ namespace moab {
         return;
 
       if (myRoot) {
-        delete_tree();
+        reset_tree();
         myRoot = 0;
       }
     }
@@ -178,7 +178,7 @@ namespace moab {
         }
       }
   
-      delete_tree( *tree_root_set );
+      reset_tree( *tree_root_set );
 
       treeStats.reset();
       
@@ -221,8 +221,10 @@ namespace moab {
                                               MB_TAG_CREAT|storage,
                                               default_val );
 
-      if (MB_SUCCESS == rval) 
-        created_tags.push_back( tag_handle );
+      if (MB_SUCCESS == rval) {
+        if (std::find(created_tags.begin(), created_tags.end(), tag_handle) == created_tags.end())
+          created_tags.push_back( tag_handle );
+      }
       else {
         while( !created_tags.empty() ) {
           iface->tag_delete( created_tags.back() );
@@ -342,7 +344,7 @@ namespace moab {
       return MB_SUCCESS;
     }
 
-    ErrorCode AdaptiveKDTree::delete_tree( EntityHandle root_handle )
+    ErrorCode AdaptiveKDTree::reset_tree( EntityHandle root_handle )
     {
       ErrorCode rval;
 
@@ -917,9 +919,10 @@ namespace moab {
       }
   
         // non-polyhedron elements
+      std::vector<EntityHandle> dum_vector;
       for (i = elem_begin; i != poly_begin; ++i) {
         tool->tree_stats().leaf_object_tests()++;
-        rval = moab->get_connectivity( *i, conn, count, true );
+        rval = moab->get_connectivity( *i, conn, count, true, &dum_vector);
         if (MB_SUCCESS != rval) 
           return rval;
         if (count > (int)(sizeof(coords)/sizeof(coords[0])))

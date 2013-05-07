@@ -40,7 +40,7 @@ CartVect hex_verts[] = {
     CartVect( 0, 0, 0 )
 };
 
-const double EPS1 = 1e-6;
+double EPS1;
 
 void test_eval(ElemEvaluator &ee, bool test_integrate) 
 {
@@ -55,9 +55,13 @@ void test_eval(ElemEvaluator &ee, bool test_integrate)
       for (params[2] = -1; params[2] <= 1; params[2] += 0.2) {
 
           // forward/reverse evaluation should get back to the same point, within tol
+        if (!ee.inside(params.array(), EPS1)) continue;
+        
         rval = ee.eval(params.array(), posn.array()); CHECK_ERR(rval);
         rval = ee.reverse_eval(posn.array(), EPS1, params2.array(), &is_inside); CHECK_ERR(rval);
-        CHECK_REAL_EQUAL(0.0, (params - params2).length(), EPS1);
+        if ((params - params2).length() > 3*EPS1) 
+          std::cerr << params << std::endl;
+        CHECK_REAL_EQUAL(0.0, (params - params2).length(), 3*EPS1);
 
           // jacobian should be >= 0
         rval = ee.jacobian(params.array(), jacob.array()); CHECK_ERR(rval);
@@ -67,35 +71,44 @@ void test_eval(ElemEvaluator &ee, bool test_integrate)
     }
   }
 
+  if (!test_integrate) return;
+  
     // tag equal to coordinates should integrate to avg position, since volume is 1
   Tag tag;
+    // make a temporary tag and set it on vertices to the vertex positions
   rval = ee.get_moab()->tag_get_handle(NULL, 3, MB_TYPE_DOUBLE, tag, MB_TAG_DENSE | MB_TAG_CREAT); CHECK_ERR(rval);
   rval = ee.get_moab()->tag_set_data(tag, ee.get_vert_handles(), ee.get_num_verts(), hex_verts[0].array()); CHECK_ERR(rval);
-  
+    // set that temporary tag on the evaluator so that's what gets integrated
   rval = ee.set_tag_handle(tag, 0); CHECK_ERR(rval);
 
-  if (test_integrate) {
-    CartVect integral, avg(0.0);
-    rval = ee.integrate(integral.array()); CHECK_ERR(rval);
-    CHECK_REAL_EQUAL(0.0, (avg - integral).length(), EPS1);
-  }
-  
+  CartVect integral, avg(0.0);
+  rval = ee.integrate(integral.array()); CHECK_ERR(rval);
+  CHECK_REAL_EQUAL(0.0, (avg - integral).length(), EPS1);
+
+    // delete the temporary tag
+  rval = ee.get_moab()->tag_delete(tag);
+  CHECK_ERR(rval);
+    // set the ee's tag back to coords
+  rval = ee.set_tag_handle(0, 0); CHECK_ERR(rval);
 }
 
-void test_evals(ElemEvaluator &ee, bool test_integrate, EntityHandle *starth, int num_ents, double total_vol) 
+void test_evals(ElemEvaluator &ee, bool test_integrate, EntityHandle *ents, int num_ents, Tag onetag, double total_vol) 
 {
-  for (int i = 0; i < num_ents; i++)
+  for (int i = 0; i < num_ents; i++) {
+    ee.set_ent_handle(ents[i]);
     test_eval(ee, false);
+  }
     
   if (!test_integrate) return;
-  if (!num_ents || !starth) CHECK_ERR(MB_FAILURE);
+  if (!num_ents || !ents) CHECK_ERR(MB_FAILURE);
 
+  ErrorCode rval = ee.set_tag_handle(onetag, 0); CHECK_ERR(rval);
+  
   double tot_vol = 0.0;
-  EntityHandle eh = *starth;
   for (int i = 0; i < num_ents; i++) {
     double tmp_vol;
-    ee.set_ent_handle(eh++);
-    ErrorCode rval = ee.integrate(&tmp_vol); CHECK_ERR(rval);
+    ee.set_ent_handle(ents[i]);
+    rval = ee.integrate(&tmp_vol); CHECK_ERR(rval);
     tot_vol += tmp_vol;
   }
   CHECK_REAL_EQUAL(total_vol, tot_vol, EPS1);
@@ -126,6 +139,7 @@ void test_linear_hex()
   ee.set_tag_handle(0, 0);
   ee.set_eval_set(MBHEX, LinearHex::eval_set());
 
+  EPS1 = 1e-6;
   test_eval(ee, true);
 }
 
@@ -143,13 +157,14 @@ void test_quadratic_hex()
   ee.set_tag_handle(0, 0);
   ee.set_eval_set(MBHEX, QuadraticHex::eval_set());
 
+  EPS1 = 1e-6;
   test_eval(ee, false);
 }
 
 void test_linear_tet() 
 {
   Core mb;
-  Range verts, tets;
+  Range verts;
   ErrorCode rval = mb.create_vertices((double*)hex_verts[0].array(), 8, verts); CHECK_ERR(rval);
   EntityHandle starth = 1, *conn;
   int conn_inds[] = {1, 6, 4, 5,    1, 4, 6, 3,    0, 1, 3, 4,    1, 2, 3, 6,    3, 4, 6, 7};
@@ -157,10 +172,18 @@ void test_linear_tet()
   rval = mb.query_interface(ru); CHECK_ERR(rval);
   rval = ru->get_element_connect(5, 4, MBTET, 1, starth, conn); CHECK_ERR(rval);
   for (unsigned int i = 0; i < 20; i++) conn[i] = verts[conn_inds[i]];
-  
-  ElemEvaluator ee(&mb, starth, 0);
+  EntityHandle tets[5];
+  for (unsigned int i = 0; i < 5; i++) tets[i] = starth + i;
+  ElemEvaluator ee(&mb, 0, 0);
   ee.set_tag_handle(0, 0);
   ee.set_eval_set(MBTET, LinearTet::eval_set());
 
-  test_evals(ee, true, &starth, 5, 8.0);
+    // make a tag whose value is one on all vertices
+  Tag tag;
+  rval = mb.tag_get_handle(NULL, 1, MB_TYPE_DOUBLE, tag, MB_TAG_DENSE | MB_TAG_CREAT); CHECK_ERR(rval);
+  std::vector<double> vals(verts.size(), 1.0);
+  rval = mb.tag_set_data(tag, verts, &vals[0]); CHECK_ERR(rval);
+
+  EPS1 = 1e-6;
+  test_evals(ee, true, tets, 5, tag, 8.0);
 }

@@ -44,6 +44,11 @@ namespace moab {
          */
       virtual ~Tree();
 
+        /** \brief Destroy the tree maintained by this object, optionally checking we have the right root.
+         * \param root If non-NULL, check that this is the root, return failure if not
+         */
+      virtual ErrorCode reset_tree(EntityHandle root = 0) = 0;
+
         /** Build the tree
          * Build a tree with the entities input.  If a non-NULL tree_root_set pointer is input, 
          * use the pointed-to set as the root of this tree (*tree_root_set!=0) otherwise construct 
@@ -64,11 +69,6 @@ namespace moab {
       virtual ErrorCode build_tree(const Range& entities,
                                    EntityHandle *tree_root_set = NULL,
                                    FileOptions *options = NULL) = 0;
-
-        /** \brief Destroy the tree maintained by this object, optionally checking we have the right root.
-         * \param root If non-NULL, check that this is the root, return failure if not
-         */
-      virtual ErrorCode delete_tree(EntityHandle root = 0) = 0;
 
         /** \brief Get bounding box for entire tree
          * If no tree has been built yet, returns 3*0 for all dimensions.
