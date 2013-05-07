@@ -1234,10 +1234,10 @@ namespace Element {
     int n2= _n*_n;
     for (int i=0; i<_n; i++)
     {
-      double csi=_z[0][i];
+      double eta=_z[0][i];
       for (int j=0; j<_n; j++)
       {
-        double eta = _z[1][j]; // we could really use the same _z[0] array of lobatto nodes
+        double csi = _z[1][j]; // we could really use the same _z[0] array of lobatto nodes
         CartVect pos(0.0);
         for (int k = 0; k < 4; k++) {
           const double N_k = (1 + csi*corner_xi[k][0])
