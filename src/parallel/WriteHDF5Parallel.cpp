@@ -1680,23 +1680,17 @@ static void convert_to_ranged_ids( const TYPE* buffer,
   }
 
   result.resize( len*2 );
-  std::copy( buffer, buffer+len, result.begin()+len );
-  std::sort( result.begin()+len, result.end() );
-  std::vector<WriteHDF5::id_t>::iterator w = result.begin();
-  std::vector<WriteHDF5::id_t>::const_iterator r = result.begin()+len;
-  *w = *r; ++w;
-  *w = *r; ++r;
-  for (; r != result.end(); ++r) {
-    if (*r == *w + 1) {
-      ++*w;
-    }
-    else {
-      ++w; *w = *r; 
-      ++w; *w = *r;
-    }
+  Range tmp;
+  for (size_t i=0; i<len; i++)
+    tmp.insert( (EntityHandle)buffer[i]);
+  result.resize(tmp.psize()*2);
+  int j=0;
+  for (Range::const_pair_iterator pit=tmp.const_pair_begin();
+      pit!=tmp.const_pair_end(); pit++, j++)
+  {
+    result[2*j]=pit->first;
+    result[2*j+1]=pit->second-pit->first+1;
   }
-  ++w;
-  result.erase( w, result.end() );
 }
 
 static void merge_ranged_ids( const unsigned long* range_list,
@@ -1710,22 +1704,21 @@ static void merge_ranged_ids( const unsigned long* range_list,
   
   result.insert( result.end(), range_list, range_list+len );
   size_t plen = result.size()/2;
-  if (plen > 1) {
-    std::pair<id_t,id_t> *plist = reinterpret_cast<std::pair<id_t,id_t>*>(&result[0]);
-    std::sort( plist, plist+plen );
-    std::pair<id_t,id_t> *wr = plist, *pend = plist+plen;
-    std::sort( plist, pend );
-    for (std::pair<id_t,id_t> *iter = plist+1; iter != pend; ++iter) {
-      if (wr->second+1 < iter->first) {
-        ++wr;
-        *wr = *iter;
-      }
-      else {
-        wr->second = std::max( wr->second, iter->second );
-      }
-    }
-    ++wr;
-    result.resize( 2*(wr - plist) ); 
+  Range tmp;
+  for (size_t i=0; i<plen; i++)
+  {
+    EntityHandle starth=(EntityHandle)result[2*i];
+    EntityHandle endh=(EntityHandle)result[2*i]+(id_t)result[2*i+1]-1; // id+count-1
+    tmp.insert( starth, endh);
+  }
+  // now convert back to std::vector<WriteHDF5::id_t>, compressed range format
+  result.resize(tmp.psize()*2);
+  int j=0;
+  for (Range::const_pair_iterator pit=tmp.const_pair_begin();
+      pit!=tmp.const_pair_end(); pit++, j++)
+  {
+    result[2*j]=pit->first;
+    result[2*j+1]=pit->second-pit->first+1;
   }
 }
 
@@ -1767,7 +1760,7 @@ ErrorCode WriteHDF5Parallel::unpack_set( EntityHandle set,
     if (flags & mhdf_SET_RANGE_BIT) {
       tmp = data->contentIds;
       convert_to_ranged_ids( &tmp[0], tmp.size(), data->contentIds );
-      data->setFlags &= mhdf_SET_RANGE_BIT;
+      data->setFlags |= mhdf_SET_RANGE_BIT;
     }
     else {
       tmp.clear();
