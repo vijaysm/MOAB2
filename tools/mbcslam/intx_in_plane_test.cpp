@@ -73,6 +73,19 @@ int main(int argc, char* argv[])
   rval = mb->write_mesh(newFile, &outputSet, 1);
   if (MB_SUCCESS != rval)
     return 1;
+
+  // retrieve polygons and get adjacent edges
+  Range polygons;
+  rval = mb->get_entities_by_type(outputSet, MBPOLYGON, polygons);
+  if (MB_SUCCESS != rval)
+    return 1;
+
+  Range edges;
+  rval = mb->get_adjacencies(polygons, 1, true, edges , Interface::UNION);
+  if (MB_SUCCESS != rval)
+     return 1;
+
+  std::cout << "number of edges:" << edges.size() << "\n";
   return 0;
 
 
