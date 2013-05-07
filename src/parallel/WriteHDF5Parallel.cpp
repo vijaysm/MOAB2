@@ -1755,6 +1755,7 @@ ErrorCode WriteHDF5Parallel::unpack_set( EntityHandle set,
   
     // If either the current data or the new data is in ranged format,
     // then change the other to ranged format if it isn't already
+  // in both cases when they differ, the data will end up "compressed range"
   std::vector<id_t> tmp;
   if ((flags & mhdf_SET_RANGE_BIT) != (data->setFlags & mhdf_SET_RANGE_BIT)) {
     if (flags & mhdf_SET_RANGE_BIT) {
@@ -1782,7 +1783,7 @@ ErrorCode WriteHDF5Parallel::unpack_set( EntityHandle set,
     }
   }
   
-  if (flags & mhdf_SET_RANGE_BIT)
+  if (data->setFlags & mhdf_SET_RANGE_BIT)
     merge_ranged_ids( contents, num_content, data->contentIds );
   else
     merge_vector_ids( contents, num_content, data->contentIds );
