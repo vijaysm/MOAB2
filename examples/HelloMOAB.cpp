@@ -8,13 +8,15 @@
 
 
 #include "moab/Core.hpp"
+#include <iostream>
+#include <assert.h>
 
 using namespace moab;
 using namespace std;
 
 string test_file_name = string(MESH_DIR) + string("/3k-tri-sphere.vtk");
 
-int main( int argc, char** argv[] )
+int main( int argc, char** argv )
 {
   Interface *iface = new Core;
 
@@ -24,7 +26,7 @@ int main( int argc, char** argv[] )
     test_file_name = argv[1];
   }  
     //load the mesh from vtk file
-  ErrorCode rval = iface->load_mesh( test_file_name );
+  ErrorCode rval = iface->load_mesh( test_file_name.c_str() );
   assert( rval == MB_SUCCESS);
 
     //get verts entities
