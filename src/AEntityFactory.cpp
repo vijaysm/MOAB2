@@ -788,7 +788,7 @@ ErrorCode AEntityFactory::get_down_adjacency_elements(EntityHandle source_entity
 ErrorCode AEntityFactory::get_down_adjacency_elements_poly(EntityHandle source_entity,
                                                              const unsigned int target_dimension,
                                                              std::vector<EntityHandle> &target_entities,
-                                                             const bool /*create_if_missing*/,
+                                                             const bool create_if_missing,
                                                              const int /*create_adjacency_option*/)
 {
 
@@ -843,6 +843,34 @@ ErrorCode AEntityFactory::get_down_adjacency_elements_poly(EntityHandle source_e
           target_entities.push_back(*adj_edges.begin());
         }
       }
+      else
+      {
+        // we have no adjacent edge yet; we need to create one and also add
+        // them to the adjacency of the vertices
+        if (create_if_missing)
+        {
+          EntityHandle newEdge;
+          EntityHandle v[2] = {vertex_array[i], vertex_array[i+1]};
+          result = thisMB->create_element(MBEDGE, v, 2,
+                                               newEdge);
+          if (MB_SUCCESS!=result)
+            return result;
+          // we also need to add explicit adjacency, so next time we do not
+          // create again (because we do not find the edge if it is not adjacent to the
+          // vertices
+         // if (create_adjacency_option >= 0)
+          //{
+          result = add_adjacency(v[0],newEdge);
+          if (MB_SUCCESS!=result)
+            return result;
+          result = add_adjacency(v[1],newEdge);
+          if (MB_SUCCESS!=result)
+            return result;
+          target_entities.push_back(newEdge);
+          //}
+
+        }
+      }
     }
     return result;
   }
@@ -855,7 +883,7 @@ ErrorCode AEntityFactory::get_down_adjacency_elements_poly(EntityHandle source_e
       std::vector<EntityHandle> dum_vec;
       result = thisMB->get_connectivity(&source_entity, 1, dum_vec);
       if (MB_SUCCESS != result) return result;
-      result = thisMB->get_adjacencies(&dum_vec[0], dum_vec.size(), 1, false,
+      result = thisMB->get_adjacencies(&dum_vec[0], dum_vec.size(), 1, create_if_missing,
                                        target_entities, Interface::UNION);
       return result;
     }

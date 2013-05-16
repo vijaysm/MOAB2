@@ -40,7 +40,10 @@ cfgdir = $(libdir)
 
 TESTS = intx_on_sphere_test  intx_in_plane_test  spec_visu_test spherical_area_test \
          case1_test
-noinst_PROGRAMS = process_arm cslam_par_test
+noinst_PROGRAMS =  cslam_par_test
+if NETCDF_FILE
+  noinst_PROGRAMS += process_arm
+endif
 
 check_PROGRAMS = $(TESTS) 
 intx_on_sphere_test_SOURCES = intx_on_sphere_test.cpp

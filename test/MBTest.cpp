@@ -5950,6 +5950,97 @@ ErrorCode mb_poly_adjacency_test()
   return moab.check_adjacencies();
 }
 
+ErrorCode mb_poly_adjacency_test2()
+{
+  ErrorCode rval;
+  Core moab;
+  Interface *mbImpl = &moab;
+
+    // make a polyhedra in shape of a cube with a corner cut
+
+  /*
+   *
+   *             7   -------------   8
+   *          .  |               .   |
+   *       .                  .      |  initial cube had 8 vertices; box [000 - 222]
+   *    5   -------------   6        |   cut a triangle 123 on lower corner
+   *    |        |          |        |
+   *    |                   |        |   faces of the polyhedra (pointing outward)
+   *    |        |          |        |   (123) (24653) (4 10 8 6)
+   *    3                   |        |   (9 10 4 2 1) (7 8 10 9)  (5687)
+   *     \       |          |        |   (1 3 5 7 9)
+   *             9   -  -  -|  -    10
+   *       \  .             |     .
+   *        1,              |  .
+   *  (000)      '2 ----    4
+   *
+   */
+  double coords[] = {0, 1, 0,   // vertex 1
+                     1, 0, 0,   // vertex 2
+                     0, 0 ,1,   // vertex 3
+                     2, 0, 0,
+                     0, 0, 2,
+                     2, 0, 2,   // vertex 6
+                     0, 2, 2,
+                     2, 2, 2,   // vertex 8
+                     0, 2, 0,   // vertex 9
+                     2, 2, 0    // vertex 9
+
+  };
+  EntityHandle verts[10], polygons[7], polyhedron;
+
+  for (int i = 0; i < 10; i++) {
+    rval = mbImpl->create_vertex(&coords[3*i], verts[i]);
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+
+  EntityHandle connect[]= {1, 2, 3,       // poly 1
+                           2, 4, 6, 5, 3,  // poly 2
+                           4, 10, 8, 6,    // polygon 3...
+                           9, 10, 4, 2, 1,
+                           7, 8, 10, 9,
+                           5, 6, 8, 7,
+                           1, 3, 5, 7, 9   // polygon 7
+                           }; // we know the handles directly
+
+  int num_verts[7]={3, 5, 4, 5, 4, 4, 5};
+  int start_indx[7];
+  start_indx[0]= 0;
+  for (int i=0; i<6; i++)
+    start_indx[i+1]=start_indx[i]+num_verts[i];
+  for (int j = 0; j < 7; j++) {
+    rval = mbImpl->create_element(MBPOLYGON, &connect[start_indx[j]],
+        num_verts[j], polygons[j]);
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  rval = mbImpl->create_element(MBPOLYHEDRON, polygons, 7, polyhedron);
+  if (MB_SUCCESS != rval)
+    return rval;
+
+    // create the aentities
+  Range dum_range;
+  for (int dim = 0; dim < 3; dim++) {
+    dum_range.clear();
+    rval = mbImpl->get_adjacencies(&polyhedron, 1, dim, true, dum_range, Interface::UNION);
+    if (MB_SUCCESS != rval)
+      return rval;
+    std::cout << "\n dimension:" << dim << " " << dum_range.size() << " entities";
+  }
+  std::cout << "\n";
+  /*rval=mbImpl->write_mesh("polyhedra.vtk");
+  if (MB_SUCCESS != rval)
+    return rval;*/
+    // delete the polyhedron
+  rval = mbImpl->delete_entities(&polyhedron, 1);
+  if (MB_SUCCESS != rval)
+    return rval;
+
+    // check adjacencies
+  return moab.check_adjacencies();
+}
+
 ErrorCode mb_memory_use_test() 
 {
   Core mb;
@@ -8152,6 +8243,7 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_split_test );
   RUN_TEST( mb_range_seq_intersect_test );
   RUN_TEST( mb_poly_adjacency_test );
+  RUN_TEST( mb_poly_adjacency_test2 );
   RUN_TEST( mb_memory_use_test );
   RUN_TEST( mb_skin_curve_test );
   RUN_TEST( mb_skin_curve_adj_test );
