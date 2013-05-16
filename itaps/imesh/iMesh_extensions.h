@@ -399,6 +399,15 @@ void iMesh_createStructuredMesh(
         int *err
           /**< [out] Error flag. */
 );
+/***************************************************************************//**
+ * \brief  Free memory allocated with malloc
+ *
+ ******************************************************************************/
+
+void iMesh_freeMemory(
+        iMesh_Instance instance,
+          /**< [in] iMesh instance handle */
+         void ** ptrToMem);
 
 /***************************************************************************//**
  * \defgroup ScdMesh Structured Mesh
