@@ -477,7 +477,7 @@ CartVect spherical_to_cart (SphereCoords & sc)
   return res;
 }
 
-ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle & outputSet)
+ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle & outputSet, double tolerance)
 {
   ErrorCode rval = MB_SUCCESS;
 
@@ -485,7 +485,9 @@ ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle &
   moab::Element::SpectralQuad specQuad(NP);
   Range fineElem;
 
+  std::vector<int> gids(input.size()*(NP-1)*(NP-1));// total number of "linear" elements
   // get all edges? or not? Form all gl points + quads, then merge, then output
+  int startGid=0;
   for (Range::iterator it=input.begin(); it!=input.end(); it++)
   {
     const moab::EntityHandle * conn4 = NULL;
@@ -493,7 +495,7 @@ ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle &
     rval = mb->get_connectivity(*it, conn4, num_nodes);
     if (moab::MB_SUCCESS != rval)
     {
-      std::cout << "can't get conectivity for quad \n";
+      std::cout << "can't get connectivity for quad \n";
       return rval;
     }
     assert(num_nodes==4);
@@ -533,6 +535,8 @@ ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle &
         if (rval!=moab::MB_SUCCESS)
           return rval;
         fineElem.insert(element_handle);
+        gids[startGid]=startGid+1;
+        startGid++;
       }
     }
 
@@ -541,7 +545,15 @@ ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle &
   mb->add_entities(outputSet, fineElem);
   // merge all nodes
   MergeMesh mgtool(mb);
-  rval = mgtool.merge_entities(fineElem, 0.0001);
+  rval = mgtool.merge_entities(fineElem, tolerance);
+  if (MB_SUCCESS!=rval)
+    return rval;
+  Tag gidTag;
+  rval = mb->tag_get_handle("GLOBAL_ID", 1, MB_TYPE_INTEGER,
+      gidTag, MB_TAG_DENSE|MB_TAG_CREAT);
+  if (MB_SUCCESS!=rval)
+      return rval;
+  rval = mb->tag_set_data(gidTag, fineElem, &gids[0]);
 
   return rval;
 }
@@ -626,6 +638,12 @@ double oriented_spherical_angle(double * A, double * B, double * C)
   CartVect normalOCB = c * b;
   CartVect orient = (b-a)*(c-a);
   double ang = angle(normalOAB, normalOCB); // this is between 0 and M_PI
+  if (ang!=ang)
+  {
+    // signal of a nan
+    std::cout << a << " " << b << " " << c <<"\n";
+    std::cout << ang << "\n";
+  }
   if (orient%a < 0)
     return (2*M_PI-ang);// the other angle
 
@@ -665,6 +683,71 @@ double area_spherical_polygon (double * A, int N, double Radius)
   return Radius*Radius *correction;
 
 }
+/*
+ *  l'Huiller's formula for spherical triangle
+ *  http://williams.best.vwh.net/avform.htm
+ *  a, b, c are arc measures in radians, too
+ *  A, B, C are angles on the sphere, for which we already have formula
+ *               c
+ *         A -------B
+ *          \       |
+ *           \      |
+ *            \b    |a
+ *             \    |
+ *              \   |
+ *               \  |
+ *                \C|
+ *                 \|
+ *
+ *  (The angle at B is not necessarily a right angle)
+ *
+ *    sin(a)  sin(b)   sin(c)
+ *    ----- = ------ = ------
+ *    sin(A)  sin(B)   sin(C)
+ *
+ * In terms of the sides (this is excess, as before, but numerically stable)
+ *
+ *  E = 4*atan(sqrt(tan(s/2)*tan((s-a)/2)*tan((s-b)/2)*tan((s-c)/2)))
+ */
+
+double area_spherical_triangle_lHuiller(double * ptA, double * ptB, double * ptC, double Radius)
+{
+  // now, a is angle BOC, O is origin
+  CartVect vA(ptA), vB(ptB), vC(ptC);
+  double a = angle(vB, vC);
+  double b = angle(vC, vA);
+  double c = angle(vA, vB);
+  int sign =1;
+  if ((vA*vB)%vC < 0)
+    sign = -1;
+  double s = (a+b+c)/2;
+  double tmp = tan(s/2)*tan((s-a)/2)*tan((s-b)/2)*tan((s-c)/2);
+  if (tmp<0.)
+    tmp = 0.;
+  double E = 4*atan(sqrt(tmp));
+  if (E!=E)
+    std::cout << " NaN at spherical triangle area \n";
+  return sign * E * Radius*Radius;
+}
+
+
+double area_spherical_polygon_lHuiller (double * A, int N, double Radius)
+{
+  // this should work for non-convex polygons too
+  // assume that the A, A+3, ..., A+3*(N-1) are the coordinates
+  //
+  // assume that the orientation is positive;
+  // if negative orientation, the area will be negative
+  if (N<=2)
+    return 0.;
+  double area = 0.;
+  for (int i=1; i<N-1; i++)
+  {
+    int i1 = i+1;
+    area += area_spherical_triangle_lHuiller( A, A+3*i, A+3*i1, Radius);
+  }
+  return area;
+}
 
 double area_on_sphere(Interface * mb, EntityHandle set, double R)
 {
@@ -694,5 +777,88 @@ double area_on_sphere(Interface * mb, EntityHandle set, double R)
     total_area+=area_spherical_polygon (&coords[0], num_nodes, R);
   }
   return total_area;
+}
+double area_on_sphere_lHuiller(Interface * mb, EntityHandle set, double R)
+{
+  // get all entities of dimension 2
+  // then get the connectivity, etc
+  Range inputRange;
+  ErrorCode rval = mb->get_entities_by_dimension(set, 2, inputRange);
+  if (MB_SUCCESS != rval)
+    return -1;
+
+  double total_area = 0.;
+  for (Range::iterator eit = inputRange.begin(); eit != inputRange.end(); eit++)
+  {
+    EntityHandle eh = *eit;
+    // get the nodes, then the coordinates
+    const EntityHandle * verts;
+    int num_nodes;
+    rval = mb->get_connectivity(eh, verts, num_nodes);
+    if (MB_SUCCESS != rval)
+      return -1;
+    std::vector<double> coords(3 * num_nodes);
+    // get coordinates
+    rval = mb->get_coords(verts, num_nodes, &coords[0]);
+    if (MB_SUCCESS != rval)
+      return -1;
+    total_area += area_spherical_polygon_lHuiller(&coords[0], num_nodes, R);
+  }
+  return total_area;
+}
+/*
+ *
+ */
+double distance_on_great_circle(CartVect & p1, CartVect & p2)
+{
+  SphereCoords sph1 = cart_to_spherical(p1);
+  SphereCoords sph2 = cart_to_spherical(p2);
+  // radius should be the same
+  return sph1.R * acos(sin (sph1.lon)* sin(sph2.lon) + cos(sph1.lat)*cos(sph2.lat)*cos(sph2.lon-sph2.lon) );
+}
+/*
+ * based on paper A class of deformational flow test cases for linear transport problems on the sphere
+ *  longitude lambda [0.. 2*pi) and latitude theta (-pi/2, pi/2)
+ *  lambda: -> lon (0, 2*pi)
+ *  theta : -> lat (-pi/2, po/2)
+ *  Radius of the sphere is 1 (if not, everything gets multiplied by 1)
+ *
+ *  cosine bell: center lambda0, theta0:
+ */
+void departure_point_case1(CartVect & arrival_point, double t, double delta_t, CartVect & departure_point)
+{
+  // always assume radius is 1 here?
+  SphereCoords sph = cart_to_spherical(arrival_point);
+  double T=5; // duration of integration (5 units)
+  double k = 2.4; //flow parameter
+  /*     radius needs to be within some range   */
+  double  sl2 = sin(sph.lon/2);
+  double pit = M_PI * t / T;
+  double omega = M_PI/T;
+  double costetha = cos(sph.lat);
+  //double u = k * sl2*sl2 * sin(2*sph.lat) * cos(pit);
+  double v = k * sin(sph.lon) * costetha * cos(pit);
+  //double psi = k * sl2 * sl2 *costetha * costetha * cos(pit);
+  double u_tilda = 2*k*sl2*sl2*sin(sph.lat)*cos(pit);
+
+  // formula 35, page 8
+  // this will approximate dep point using a Taylor series with up to second derivative
+  // this will be O(delta_t^3) exact.
+  double lon_dep = sph.lon - delta_t * u_tilda -delta_t*delta_t * k * sl2 *
+      ( sl2 * sin (sph.lat) * sin(pit) * omega
+          - u_tilda * sin(sph.lat) * cos(pit) * cos (sph.lon/2)
+          - v * sl2 * costetha * cos(pit)   );
+  // formula 36, page 8 again
+  double lat_dep = sph.lat - delta_t*v - delta_t * delta_t/4* k *
+      ( sin(sph.lon)* cos(sph.lat) * sin(pit) * omega
+          - u_tilda * cos(sph.lon) * cos(sph.lat) * cos(pit)
+          + v * sin(sph.lon) * sin(sph.lat) * cos(pit)  );
+  SphereCoords sph_dep;
+  sph_dep.R = 1.; // radius
+  sph_dep.lat = lat_dep;
+  sph_dep.lon = lon_dep;
+
+  departure_point = spherical_to_cart(sph_dep);
+  return;
 }
 } //namespace moab

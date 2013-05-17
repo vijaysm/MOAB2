@@ -45,6 +45,9 @@ if PARALLEL
 #  ftest_DEPENDENCIES = libiMesh.la $(top_builddir)/libMOAB.la 
 endif
 
+FCLINK = $(CXXLINK)
+F77LINK = $(CXXLINK)
+
 TESTS = $(check_PROGRAMS)
 LDADD = libiMesh.la $(top_builddir)/src/libMOAB.la ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
 TESTDEPS = libiMesh.la $(top_builddir)/src/libMOAB.la

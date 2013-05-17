@@ -74,11 +74,18 @@ int main(int argc, char* argv[])
   worker.SetEntityType(moab::MBQUAD);
   worker.SetRadius(radius);
   rval = worker.intersect_meshes(sf1, sf2, outputSet);
+  //compute total area with 2 methods
+
   if (MB_SUCCESS != rval)
     std::cout << " failed to intersect meshes\n";
   rval = mb->write_mesh(newFile, &outputSet, 1);
   if (MB_SUCCESS != rval)
     return 1;
+  double area_method1 = area_on_sphere_lHuiller(mb, outputSet, radius);
+  double area_method2 = area_on_sphere(mb, outputSet, radius);
+
+  std::cout<< " area with l'Huiller: " << area_method1 << " with Girard: " << area_method2<< "\n";
+  std::cout << " relative difference: " << fabs(area_method1-area_method2)/area_method1 << "\n";
   return 0;
 
 }

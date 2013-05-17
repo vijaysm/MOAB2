@@ -61,6 +61,8 @@ int reverse_gnomonic_projection(const double & c1, const double & c2, double R, 
     !
     ! 3) range of lon is { 0<= lon < 2*pi }
     !
+    ! 4) range of lat is from -pi/2 to pi/2; -pi/2 or pi/2 are the poles, so there the lon is 0
+    !
     ! ==========================================================
  */
 
@@ -81,7 +83,7 @@ CartVect spherical_to_cart (SphereCoords &) ;
  *   output: a set with refined elements; with proper input, it should be pretty
  *   similar to a Homme mesh read with ReadNC
  */
-ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle & outputSet);
+ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle & outputSet, double tolerance);
 
 /*
  * given an entity set, get all nodes and project them on a sphere with given radius
@@ -108,6 +110,17 @@ double area_spherical_triangle(double *A, double *B, double *C, double Radius);
 
 double area_spherical_polygon (double * A, int N, double Radius);
 
+double area_spherical_triangle_lHuiller(double * A, double * B, double * C, double Radius);
+
+double area_spherical_polygon_lHuiller (double * A, int N, double Radius);
+
 double area_on_sphere(Interface * mb, EntityHandle set, double R);
+
+double area_on_sphere_lHuiller(Interface * mb, EntityHandle set, double R);
+
+double distance_on_great_circle(CartVect & p1, CartVect & p2);
+
+void departure_point_case1(CartVect & arrival_point, double t, double delta_t, CartVect & departure_point);
+
 }
 #endif /* CSLAMUTILS_HPP_ */

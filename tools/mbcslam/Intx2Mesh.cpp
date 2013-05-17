@@ -162,187 +162,192 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
   Range rs2;
   mb->get_entities_by_type(mbs1, type, rs1);
   mb->get_entities_by_type(mbs2, type, rs2);
-  for (Range::iterator it = rs1.begin(); it != rs1.end(); it++)
+  while (!rs2.empty())
   {
-    startBlue = *it;
-    int found = 0;
-    for (Range::iterator it2 = rs2.begin(); it2 != rs2.end() && !found; it2++)
+    for (Range::iterator it = rs1.begin(); it != rs1.end(); it++)
     {
-      startRed = *it2;
-      double area = 0;
-      // if area is > 0 , we have intersections
-      double P[48]; // max 8 intx points + 8 more in the polygon
-      // the red quad is convex, always, while the blue can be concave
-      int nP = 0;
-      int nb[4], nr[4]; // sides 3 or 4? also, check boxes first
-      computeIntersectionBetweenRedAndBlue(startRed, startBlue, P, nP, area, nb, nr, true);
-      if (area > 0)
+      startBlue = *it;
+      int found = 0;
+      for (Range::iterator it2 = rs2.begin(); it2 != rs2.end() && !found; it2++)
       {
-        found = 1;
-        break; // found 2 elements that intersect; these will be the seeds
+        startRed = *it2;
+        double area = 0;
+        // if area is > 0 , we have intersections
+        double P[48]; // max 8 intx points + 8 more in the polygon
+        // the red quad is convex, always, while the blue can be concave
+        int nP = 0;
+        int nb[4], nr[4]; // sides 3 or 4? also, check boxes first
+        computeIntersectionBetweenRedAndBlue(startRed, startBlue, P, nP, area, nb, nr, true);
+        if (area > 0)
+        {
+          found = 1;
+          break; // found 2 elements that intersect; these will be the seeds
+        }
       }
+      if (found)
+        break;
     }
-    if (found)
-      break;
-  }
 
-  std::queue<EntityHandle> blueQueue; // these are corresponding to Ta,
-  blueQueue.push(startBlue);
-  std::queue<EntityHandle> redQueue;
-  redQueue.push(startRed);
+    std::queue<EntityHandle> blueQueue; // these are corresponding to Ta,
+    blueQueue.push(startBlue);
+    std::queue<EntityHandle> redQueue;
+    redQueue.push(startRed);
 
-  Range toResetBlues; // will be used to reset blue flags for every red quad
-  // processed
+    Range toResetBlues; // will be used to reset blue flags for every red quad
+    // processed
 
-  /*if (my_rank==0)
-    dbg_1 = 1;*/
-  unsigned char used = 1;
-  unsigned char unused = 0; // for red flags
-  // mark the start blue quad as used, so it will not come back again
-  mb->tag_set_data(RedFlagTag, &startRed, 1, &used);
-  while (!redQueue.empty())
-  {
-    // flags for the side : 0 means a blue quad not found on side
-    // a paired blue not found yet for the neighbors of red
-    EntityHandle n[4] = { EntityHandle(0) };
-
-    EntityHandle currentRed = redQueue.front();
-    redQueue.pop();
-    //        for (k=0; k<m_numPos; k++)
-    //          redFlag[k] = 0;
-    //        redFlag[m_numPos] = 1; // to guard for the boundary
-    // all reds that were tagged, are now cleared
-    for (Range::iterator itr = toResetBlues.begin(); itr != toResetBlues.end();
-        itr++)
+    /*if (my_rank==0)
+      dbg_1 = 1;*/
+    unsigned char used = 1;
+    unsigned char unused = 0; // for red flags
+    // mark the start blue quad as used, so it will not come back again
+    mb->tag_set_data(RedFlagTag, &startRed, 1, &used);
+    while (!redQueue.empty())
     {
-      EntityHandle ttt = *itr;
-      rval = mb->tag_set_data(BlueFlagTag, &ttt, 1, &unused);
-      ERRORR(rval, "can't set blue unused tag");
-    }
-    //rval = mb2->tag_set_data(RedFlagTag, toResetReds, &unused);
-    if (dbg_1)
-    {
-      std::cout << "reset blues: ";
+      // flags for the side : 0 means a blue quad not found on side
+      // a paired blue not found yet for the neighbors of red
+      EntityHandle n[4] = { EntityHandle(0) };
+
+      EntityHandle currentRed = redQueue.front();
+      redQueue.pop();
+      //        for (k=0; k<m_numPos; k++)
+      //          redFlag[k] = 0;
+      //        redFlag[m_numPos] = 1; // to guard for the boundary
+      // all reds that were tagged, are now cleared
       for (Range::iterator itr = toResetBlues.begin(); itr != toResetBlues.end();
           itr++)
-        std::cout << mb->id_from_handle(*itr) << " ";
-      std::cout << std::endl;
-    }
-    EntityHandle currentBlue = blueQueue.front(); // where do we check for redQueue????
-    // red and blue queues are parallel
-    blueQueue.pop(); // mark the current red
-    //redFlag[currentRed] = 1; //
-    toResetBlues.clear(); // empty the range of used blues, will have to be set unused again,
-    // at the end of red element processing
-    toResetBlues.insert(currentBlue);
-    rval = mb->tag_set_data(BlueFlagTag, &currentBlue, 1, &used);
-    ERRORR(rval, "can't set blue tag");
-    //mb2->set_tag_data
-    std::queue<EntityHandle> localBlue;
-    localBlue.push(currentBlue);
-    while (!localBlue.empty())
-    {
-      //
-      EntityHandle blueT = localBlue.front();
-      localBlue.pop();
-      double P[48], area; // area is in 2d, points are in 3d (on a sphere), back-projected
-      int nP = 0; // intersection points (could include the vertices of initial quads)
-      int nb[4] = { 0, 0, 0, 0 }; // means no intersection on the side (markers)
-      int nr[4] = { 0, 0, 0, 0 }; // means no intersection on the side (markers)
-      // nc [j] = 1 means that the side j (from j to j+1) of blue quad intersects the
-      // red quad.  A potential next quad is the red quad that is adjacent to this side
-      computeIntersectionBetweenRedAndBlue(/* red */currentRed, blueT, P, nP,
-          area, nb, nr);
-      if (nP > 0)
       {
-        // intersection found: output P and original triangles if nP > 2
-
-        EntityHandle neighbors[4];
-        rval = GetOrderedNeighbors(mbs1, blueT, neighbors);
-        if (rval != MB_SUCCESS)
+        EntityHandle ttt = *itr;
+        rval = mb->tag_set_data(BlueFlagTag, &ttt, 1, &unused);
+        ERRORR(rval, "can't set blue unused tag");
+      }
+      //rval = mb2->tag_set_data(RedFlagTag, toResetReds, &unused);
+      if (dbg_1)
+      {
+        std::cout << "reset blues: ";
+        for (Range::iterator itr = toResetBlues.begin(); itr != toResetBlues.end();
+            itr++)
+          std::cout << mb->id_from_handle(*itr) << " ";
+        std::cout << std::endl;
+      }
+      EntityHandle currentBlue = blueQueue.front(); // where do we check for redQueue????
+      // red and blue queues are parallel
+      blueQueue.pop(); // mark the current red
+      //redFlag[currentRed] = 1; //
+      toResetBlues.clear(); // empty the range of used blues, will have to be set unused again,
+      // at the end of red element processing
+      toResetBlues.insert(currentBlue);
+      rval = mb->tag_set_data(BlueFlagTag, &currentBlue, 1, &used);
+      ERRORR(rval, "can't set blue tag");
+      //mb2->set_tag_data
+      std::queue<EntityHandle> localBlue;
+      localBlue.push(currentBlue);
+      while (!localBlue.empty())
+      {
+        //
+        EntityHandle blueT = localBlue.front();
+        localBlue.pop();
+        double P[48], area; // area is in 2d, points are in 3d (on a sphere), back-projected
+        int nP = 0; // intersection points (could include the vertices of initial quads)
+        int nb[4] = { 0, 0, 0, 0 }; // means no intersection on the side (markers)
+        int nr[4] = { 0, 0, 0, 0 }; // means no intersection on the side (markers)
+        // nc [j] = 1 means that the side j (from j to j+1) of blue quad intersects the
+        // red quad.  A potential next quad is the red quad that is adjacent to this side
+        computeIntersectionBetweenRedAndBlue(/* red */currentRed, blueT, P, nP,
+            area, nb, nr);
+        if (nP > 0)
         {
-          std::cout << " can't get the neighbors for blue element "
-              << mb->id_from_handle(blueT);
-          return MB_FAILURE;
-        }
+          // intersection found: output P and original triangles if nP > 2
 
-        // add neighbors to the localBlue queue, if they are not marked
-        for (int nn = 0; nn < nsides; nn++)
-        {
-          EntityHandle neighbor = neighbors[nn];
-          if (neighbor > 0 && nb[nn]>0) // advance across blue boundary n
+          EntityHandle neighbors[4];
+          rval = GetOrderedNeighbors(mbs1, blueT, neighbors);
+          if (rval != MB_SUCCESS)
           {
-            //n[nn] = redT; // start from 0!!
-            unsigned char status = 0;
-            mb->tag_get_data(BlueFlagTag, &neighbor, 1, &status);
-            if (status == 0)
-            {
-              localBlue.push(neighbor);
-              if (dbg_1)
-              {
-                std::cout << " local blue elem " << mb->id_from_handle(neighbor)
-                    << " for red:" << mb->id_from_handle(currentRed) << "\n"
-                    << mb->list_entities(&neighbor, 1) << "\n";
-              }
-              rval = mb->tag_set_data(BlueFlagTag, &neighbor, 1, &used);
-              //redFlag[neighbor] = 1; // flag it to not be added anymore
-              toResetBlues.insert(neighbor); // this is used to reset the red flag
-            }
+            std::cout << " can't get the neighbors for blue element "
+                << mb->id_from_handle(blueT);
+            return MB_FAILURE;
           }
-          // n(find(nc>0))=ac;        % ac is starting candidate for neighbor
-          if (nr[nn] > 0)
-            n[nn] = blueT;
 
+          // add neighbors to the localBlue queue, if they are not marked
+          for (int nn = 0; nn < nsides; nn++)
+          {
+            EntityHandle neighbor = neighbors[nn];
+            if (neighbor > 0 && nb[nn]>0) // advance across blue boundary n
+            {
+              //n[nn] = redT; // start from 0!!
+              unsigned char status = 0;
+              mb->tag_get_data(BlueFlagTag, &neighbor, 1, &status);
+              if (status == 0)
+              {
+                localBlue.push(neighbor);
+                if (dbg_1)
+                {
+                  std::cout << " local blue elem " << mb->id_from_handle(neighbor)
+                      << " for red:" << mb->id_from_handle(currentRed) << "\n"
+                      << mb->list_entities(&neighbor, 1) << "\n";
+                }
+                rval = mb->tag_set_data(BlueFlagTag, &neighbor, 1, &used);
+                //redFlag[neighbor] = 1; // flag it to not be added anymore
+                toResetBlues.insert(neighbor); // this is used to reset the red flag
+              }
+            }
+            // n(find(nc>0))=ac;        % ac is starting candidate for neighbor
+            if (nr[nn] > 0)
+              n[nn] = blueT;
+
+          }
+          if (nP > 1) // this will also construct triangles/polygons in the new mesh, if needed
+            findNodes(currentRed, blueT, P, nP);
         }
-        if (nP > 1) // this will also construct triangles/polygons in the new mesh, if needed
-          findNodes(currentRed, blueT, P, nP);
-      }
-      else if (dbg_1)
+        else if (dbg_1)
+        {
+          std::cout << " red, blue, do not intersect: "
+              << mb->id_from_handle(currentRed) << " "
+              << mb->id_from_handle(blueT) << "\n";
+        }
+
+      } // end while (!localBlue.empty())
+      // here, we are finished with redCurrent, take it out of the rs2 range (red, arrival mesh)
+      rs2.erase(currentRed);
+      // also, look at its neighbors, and add to the seeds a next one
+
+      EntityHandle redNeighbors[4];
+      rval = GetOrderedNeighbors(mbs2, currentRed, redNeighbors);
+      ERRORR(rval, "can't get neighbors");
+      if (dbg_1)
       {
-        std::cout << " red, blue, do not intersect: "
-            << mb->id_from_handle(currentRed) << " "
-            << mb->id_from_handle(blueT) << "\n";
+        std::cout << "Next: neighbors for current red ";
+        for (int kk = 0; kk < nsides; kk++)
+        {
+          if (redNeighbors[kk] > 0)
+            std::cout << mb->id_from_handle(redNeighbors[kk]) << " ";
+          else
+            std::cout << 0 << " ";
+        }
+        std::cout << std::endl;
+      }
+      for (int j = 0; j < nsides; j++)
+      {
+        EntityHandle redNeigh = redNeighbors[j];
+        unsigned char status = 1;
+        if (redNeigh == 0)
+          continue;
+        mb->tag_get_data(RedFlagTag, &redNeigh, 1, &status); // status 0 is unused
+        if (status == 0 && n[j] > 0) // not treated yet and marked as a neighbor
+        {
+          // we identified red quad n[j] as intersecting with neighbor j of the blue quad
+          redQueue.push(redNeigh);
+          blueQueue.push(n[j]);
+          if (dbg_1)
+            std::cout << "new quads pushed: blue, red:"
+                << mb->id_from_handle(redNeigh) << " "
+                << mb->id_from_handle(n[j]) << std::endl;
+          mb->tag_set_data(RedFlagTag, &redNeigh, 1, &used);
+        }
       }
 
-    }
-
-    EntityHandle redNeighbors[4];
-    rval = GetOrderedNeighbors(mbs2, currentRed, redNeighbors);
-    ERRORR(rval, "can't get neighbors");
-    if (dbg_1)
-    {
-      std::cout << "Next: neighbors for current red ";
-      for (int kk = 0; kk < nsides; kk++)
-      {
-        if (redNeighbors[kk] > 0)
-          std::cout << mb->id_from_handle(redNeighbors[kk]) << " ";
-        else
-          std::cout << 0 << " ";
-      }
-      std::cout << std::endl;
-    }
-    for (int j = 0; j < nsides; j++)
-    {
-      EntityHandle redNeigh = redNeighbors[j];
-      unsigned char status = 1;
-      if (redNeigh == 0)
-        continue;
-      mb->tag_get_data(RedFlagTag, &redNeigh, 1, &status); // status 0 is unused
-      if (status == 0 && n[j] > 0) // not treated yet and marked as a neighbor
-      {
-        // we identified red quad n[j] as intersecting with neighbor j of the blue quad
-        redQueue.push(redNeigh);
-        blueQueue.push(n[j]);
-        if (dbg_1)
-          std::cout << "new quads pushed: blue, red:"
-              << mb->id_from_handle(redNeigh) << " "
-              << mb->id_from_handle(n[j]) << std::endl;
-        mb->tag_set_data(RedFlagTag, &redNeigh, 1, &used);
-      }
-    }
-
+    } // end while (!redQueue.empty())
   }
-
   if (dbg_1)
   {
     for (int k = 0; k < 6; k++)
@@ -1291,6 +1296,35 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
   }
   return MB_SUCCESS;
 }
+// this method will reduce number of nodes, collapse edges that are of length 0
+  // so a polygon like 428 431 431 will become a line 428 431
+  // or something like 428 431 431 531 -> 428 431 531
+void Intx2Mesh::correct_polygon(EntityHandle * nodes, int & nP)
+{
+  int i = 0;
+  while(i<nP)
+  {
+    int nextIndex = (i+1)%nP;
+    if (nodes[i]==nodes[nextIndex])
+    {
+      // we need to reduce nP, and collapse nodes
+      std::cout<<" nodes duplicated in list: " ;
+      for (int j=0; j<nP; j++)
+        std::cout<<nodes[j] << " " ;
+      std::cout<<"\n";
+      std::cout<<" node " << nodes[i] << " at index " << i << " is duplicated" << "\n";
+      // this will work even if we start from 1 2 3 1; when i is 3, we find nextIndex is 0, then next thing does nothing
+      //  (nP-1 is 3, so k is already >= nP-1); it will result in nodes -> 1, 2, 3
+      for (int k=i; k<nP-1; k++)
+        nodes[k] = nodes[k+1];
+      nP--; // decrease the number of nodes; also, decrease i, just if we may need to check again
+      i--;
+    }
+    i++;
+  }
+  return;
+}
+
 ErrorCode Intx2Mesh::correct_intersection_points_positions()
 {
   if (parcomm)

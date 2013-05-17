@@ -261,7 +261,7 @@ enum iBase_TagValueType {
  ******************************************************************************/
 
 /***************************************************************************//**
- * \mainpage The ITAPS Interfaces
+ * \page The ITAPS Interfaces
  *
  * \subpage ibase
  *
@@ -280,6 +280,8 @@ enum iBase_TagValueType {
  * \subpage options
  *
  * \subpage numhops
+ *
+ * \subpage resilient
  *
  * \page error Error Handling
  *

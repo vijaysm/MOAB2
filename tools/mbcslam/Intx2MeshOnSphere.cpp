@@ -173,6 +173,9 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, EntityHandle blue, double * i
 {
   // first of all, check against red and blue vertices
   //
+  int nsides = 4;
+  if (type == MBTRI)
+    nsides=3;
   if (dbg_1)
   {
     std::cout << "red, blue, nP, P " << mb->id_from_handle(red) << " "
@@ -184,11 +187,11 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, EntityHandle blue, double * i
 
   // get the edges for the red triangle; the extra points will be on those edges, saved as
   // lists (unordered)
-  EntityHandle redEdges[4];
+  EntityHandle redEdges[4];// at most 4
   int i = 0;
-  for (i = 0; i < 4; i++)
+  for (i = 0; i < nsides; i++)
   {
-    EntityHandle v[2] = { redConn[i], redConn[(i + 1) % 4] };
+    EntityHandle v[2] = { redConn[i], redConn[(i + 1) % nsides] };
     std::vector<EntityHandle> adj_entities;
     ErrorCode rval = mb->get_adjacencies(v, 2, 1, false, adj_entities,
         Interface::INTERSECT);
@@ -211,7 +214,7 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, EntityHandle blue, double * i
     // priority is the red mesh (mb2?)
     int j = 0;
     EntityHandle outNode = (EntityHandle) 0;
-    for (j = 0; j < 4 && !found; j++)
+    for (j = 0; j < nsides && !found; j++)
     {
       //int node = redTri.v[j];
       double d2 = dist2(pp, &redQuad[2 * j]);
@@ -227,7 +230,7 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, EntityHandle blue, double * i
       }
     }
 
-    for (j = 0; j < 4 && !found; j++)
+    for (j = 0; j < nsides && !found; j++)
     {
       //int node = blueTri.v[j];
       double d2 = dist2(pp, &blueQuad[2 * j]);
@@ -247,15 +250,15 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, EntityHandle blue, double * i
     {
       // find the edge it belongs, first, on the red quad
       //
-      for (j = 0; j < 4; j++)
+      for (j = 0; j < nsides; j++)
       {
-        int j1 = (j + 1) % 4;
+        int j1 = (j + 1) % nsides;
         double area = area2D(&redQuad[2 * j], &redQuad[2 * j1], pp);
         if (dbg_1)
           std::cout << "   edge " << j << ": "
               << mb->id_from_handle(redEdges[j]) << " " << redConn[j] << " "
               << redConn[j1] << "  area : " << area << "\n";
-        if (fabs(area) < epsilon_1)
+        if (fabs(area) < epsilon_1/2)
         {
           // found the edge; now find if there is a point in the list here
           //std::vector<EntityHandle> * expts = extraNodesMap[redEdges[j]];
@@ -302,7 +305,7 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, EntityHandle blue, double * i
     if (!found)
     {
       std::cout << " red quad: ";
-      for (int j1 = 0; j1 < 4; j1++)
+      for (int j1 = 0; j1 < nsides; j1++)
       {
         std::cout << redQuad[2 * j1] << " " << redQuad[2 * j1 + 1] << "\n";
       }
@@ -311,11 +314,21 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, EntityHandle blue, double * i
       return 1;
     }
   }
+  if (dbg_1)
+  {
+    std::cout << " candidate polygon: nP" << nP <<  " plane: " << plane << "\n";
+    for (int i1 = 0; i1 < nP; i1++)
+            std::cout << iP[2 * i1] << " " << iP[2 * i1 + 1] << " " << foundIds[i1] << "\n";
+  }
+  // first, find out if we have nodes collapsed; shrink them
+  // we may have to reduce nP
+  // it is possible that some nodes are collapsed after intersection only
+  // nodes will always be in order (convex intersection)
+  correct_polygon(foundIds, nP);
   // now we can build the triangles, from P array, with foundIds
   // we will put them in the out set
   if (nP >= 3)
   {
-
     EntityHandle polyNew;
     mb->create_element(MBPOLYGON, foundIds, nP, polyNew);
     mb->add_entities(outSet, &polyNew, 1);
@@ -333,7 +346,7 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, EntityHandle blue, double * i
     if (dbg_1)
     {
 
-      std::cout << "Count: " << count+1 << "\n";
+      std::cout << "Count: " << count << "\n";
       std::cout << " polygon " << mb->id_from_handle(polyNew) << "  nodes: " << nP << " :";
       for (int i1 = 0; i1 < nP; i1++)
         std::cout << " " << mb->id_from_handle(foundIds[i1]);
@@ -341,15 +354,12 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, EntityHandle blue, double * i
       std::vector<CartVect> posi(nP);
       mb->get_coords(foundIds, nP, &(posi[0][0]));
       for (int i1 = 0; i1 < nP; i1++)
-        std::cout << iP[2 * i1] << " " << iP[2 * i1 + 1] << " " << posi[i1] << "\n";
+        std::cout << foundIds[i1]<< " " << posi[i1] << "\n";
 
       std::stringstream fff;
       fff << "file0" <<  count<< ".vtk";
           mb->write_mesh(fff.str().c_str(), &outSet, 1);
     }
-
-
-
 
   }
   delete[] foundIds;

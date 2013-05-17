@@ -1,7 +1,7 @@
 ################################################################################
 #                           Standard Stuff
 ################################################################################
-AC_INIT(MOAB, 4.6.0)
+AC_INIT(MOAB, 4.7.0pre)
 AC_CONFIG_SRCDIR([moab.make.in])
 AC_CONFIG_SRCDIR([MOABConfig.cmake.in])
 AC_CONFIG_MACRO_DIR([config])
@@ -65,6 +65,14 @@ AM_CPPFLAGS="$AM_CPPFLAGS $TEMPLATE_SPECIALIZATION $TEMPLATE_FUNC_SPECIALIZATION
 FATHOM_CHECK_CXX_WORKS([], [AC_MSG_ERROR([Cannot build without C++ compiler])])
 if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FC"; then
   AC_FC_WRAPPERS
+fi
+
+if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FLIBS"; then
+   LIBS="$LIBS $FLIBS"
+fi
+
+if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FCLIBS"; then
+   LIBS="$LIBS $FCLIBS"
 fi
 
 ################################################################################
@@ -1163,6 +1171,8 @@ AC_SUBST([EXPORT_LTFLAGS])
 AC_SUBST([EXPORT_LDFLAGS])
 AC_SUBST([AM_CXXFLAGS])
 AC_SUBST([AM_CFLAGS])
+  AC_SUBST([AM_FCFLAGS])
+  AC_SUBST([AM_FFLAGS])
 AC_SUBST([DISTCHECK_CONFIGURE_FLAGS])
 
 AC_ARG_VAR([FC], [FORTRAN compiler command])
@@ -1208,10 +1218,6 @@ AC_CONFIG_FILES([Makefile
                  doc/user.dox
                  doc/dev.dox
                  doc/config.tex
-                 examples/Makefile
-                 examples/examples.make
-                 examples/simple/makefile
-                 examples/itaps/Makefile
                  MeshFiles/Makefile
                  MeshFiles/unittest/Makefile
                  MeshFiles/unittest/io/Makefile

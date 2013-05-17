@@ -22,21 +22,25 @@ int main(int argc, char* argv[])
   const char *filename_mesh = STRINGIFY(SRCDIR) "/eulerHomme.vtk";
   const char *newFile = "spectral.vtk";
   int NP = 4; // number of nodes in each direction
-  if (argc == 4)
+  double tolerance = 0.0001;
+  double R = 6.; // should be input
+  if (argc == 6)
   {
     filename_mesh = argv[1];
     NP = atoi(argv[2]);
     newFile = argv[3];
+    R = atof(argv[4]);
+    tolerance = atof(argv[5]);
   }
   else
   {
-    printf("Usage: %s <mesh_filename> <NP>  <newFile>\n", argv[0]);
+    printf("Usage: %s <mesh_filename> <NP>  <newFile> <tolerance>\n", argv[0]);
     if (argc != 1)
       return 1;
-    printf("No files specified.  Defaulting to: %s  %d  %s\n",
-        filename_mesh, NP, newFile);
   }
 
+  printf("run:  %s  %d  %s %f %f\n",
+          filename_mesh, NP, newFile, R, tolerance);
   // read input mesh in a set
   ErrorCode rval = MB_SUCCESS;
   Core moab;
@@ -61,11 +65,11 @@ int main(int argc, char* argv[])
   if (MB_SUCCESS != rval)
     return 1;
 
-  rval = SpectralVisuMesh( mb,  inputRange, NP, outputSet);
+  rval = SpectralVisuMesh( mb,  inputRange, NP, outputSet, tolerance);
 
   if (MB_SUCCESS != rval)
     return 1;
-  double R = 6.; // should be input
+
   rval = ProjectOnSphere(mb, outputSet, R);
   if (MB_SUCCESS != rval)
     return 1;

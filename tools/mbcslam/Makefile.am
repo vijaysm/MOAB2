@@ -14,7 +14,8 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_srcdir)/itaps \
                -I$(top_srcdir)/itaps/imesh \
                -I$(top_builddir)/itaps \
-               -I$(top_builddir)/itaps/imesh
+               -I$(top_builddir)/itaps/imesh \
+               -I$(top_srcdir)/test
 
 lib_LTLIBRARIES = libmbcslam.la
 libmbcslam_la_LIBADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la \
@@ -37,10 +38,21 @@ libmbcslam_la_includedir = $(includedir)
 # check that only libraries are going in $(libdir)
 cfgdir = $(libdir)
 
-TESTS = intx_on_sphere_test  intx_in_plane_test  spec_visu_test spherical_area_test
+TESTS = intx_on_sphere_test  intx_in_plane_test  spec_visu_test spherical_area_test \
+         case1_test
+noinst_PROGRAMS =  cslam_par_test
+if NETCDF_FILE
+  noinst_PROGRAMS += process_arm
+endif
+
 check_PROGRAMS = $(TESTS) 
 intx_on_sphere_test_SOURCES = intx_on_sphere_test.cpp
 intx_in_plane_test_SOURCES = intx_in_plane_test.cpp
 spec_visu_test_SOURCES = spec_visu_test.cpp
 spherical_area_test_SOURCES = spherical_area_test.cpp
+case1_test_SOURCES = case1_test.cpp
+process_arm_SOURCES = process_arm.cpp
+
+cslam_par_test_SOURCES = cslam_par_test.cpp
+cslam_par_test_LDADD = $(LDADD) $(top_builddir)/tools/mbcoupler/libmbcoupler.la 
 
