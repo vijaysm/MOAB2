@@ -69,7 +69,7 @@ program findadjacency
 
      vert_uses = vert_uses + iverts_size
 
-     if (iverts_size .ne. 0) call free(rpverts)
+     if (iverts_size .ne. 0) call iMesh_freeMemory(%VAL(mesh), rpverts)
   end do
 
   ! now get adjacencies in one big block
@@ -81,9 +81,9 @@ program findadjacency
        offsets_size, ierr)
   CHECK("Failure in getEntArrAdj")
 
-  if (allverts_size .ne. 0) call free(rpallverts);
-  if (offsets_size .ne. 0) call free(ipoffsets);
-  if (ents_size .ne. 0) call free(rpents);
+  if (allverts_size .ne. 0) call iMesh_freeMemory(%VAL(mesh), rpallverts);
+  if (offsets_size .ne. 0) call iMesh_freeMemory(%VAL(mesh), ipoffsets);
+  if (ents_size .ne. 0) call iMesh_freeMemory(%VAL(mesh), rpents);
 
   ! compare results of two calling methods
   if (allverts_size .ne. vert_uses) then
@@ -118,6 +118,9 @@ program findadjacency
     %VAL(iBase_INTERLEAVED), pcoord, ents_alloc , ents_size, ierr)
 !
   write(*, *) "num coords: ", ents_size, " few coords: ", (coords(i), i=0, ents_size/100)  
+
+  call iMesh_freeMemory(%VAL(mesh), verths);
+  call iMesh_freeMemory(%VAL(mesh), pcoord);
 
   call iMesh_dtor(%VAL(mesh), ierr)
   CHECK("Failed to destroy interface")
