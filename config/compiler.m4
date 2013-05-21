@@ -523,6 +523,12 @@ case "$cc_compiler:$host_cpu" in
     case "$target_vendor" in
       bgp)
         FATHOM_CC_32BIT=-q32
+	FATHOM_CC_64BIT=-q64
+	AR="ar"
+	NM="nm -B"
+        ;;
+      bgq)
+        FATHOM_CC_32BIT=-q32
         FATHOM_CC_64BIT=-q64
         AR="ar"
         NM="nm -B"
