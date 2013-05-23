@@ -7,6 +7,7 @@
 #define MOAB_TREE_HPP
 
 #include "moab/Interface.hpp"
+#include "moab/BoundBox.hpp"
 #include "moab/CartVect.hpp"
 #include "moab/FileOptions.hpp"
 #include "moab/TreeStats.hpp"
@@ -29,17 +30,6 @@ namespace moab {
          */
       Tree(Interface* iface);
 
-        /** \brief Constructor (build the tree on construction)
-         * Construct a tree object, and build the tree with entities input.  See comments
-         * for build_tree() for detailed description of arguments.
-         * \param iface MOAB instance 
-         * \param entities Entities to build tree around
-         * \param tree_root Root set for tree (see function description)
-         * \param opts Options for tree (see function description)
-         */
-      Tree(Interface* iface, const Range &entities, 
-           EntityHandle *tree_root_set = NULL, FileOptions *opts = NULL);
-
         /** \brief Destructor
          */
       virtual ~Tree();
@@ -47,8 +37,12 @@ namespace moab {
         /** \brief Destroy the tree maintained by this object, optionally checking we have the right root.
          * \param root If non-NULL, check that this is the root, return failure if not
          */
-      virtual ErrorCode reset_tree(EntityHandle root = 0) = 0;
+      virtual ErrorCode reset_tree() = 0;
 
+        /** \brief Delete the entity sets associated with the tree, starting with the root and traversing children
+         */
+      ErrorCode delete_tree_sets();
+      
         /** Build the tree
          * Build a tree with the entities input.  If a non-NULL tree_root_set pointer is input, 
          * use the pointed-to set as the root of this tree (*tree_root_set!=0) otherwise construct 
@@ -70,23 +64,15 @@ namespace moab {
                                    EntityHandle *tree_root_set = NULL,
                                    FileOptions *options = NULL) = 0;
 
-        /** \brief Get bounding box for entire tree
-         * If no tree has been built yet, returns 3*0 for all dimensions.
-         * \param box_min Minimum corner of box
-         * \param box_max Maximum corner of box
-         * \param tree_node If non-NULL, get bounding box for this node, otherwise for tree root
+        /** \brief Get bounding box for tree below tree_node, or entire tree
+         * If no tree has been built yet, returns +/- DBL_MAX for all dimensions.  Note for some tree types,
+         * boxes are not available for non-root nodes, and this function will return failure if non-root
+         * is passed in
+         * \param box The box for this tree
+         * \param tree_node If non-NULL, node for which box is requested, tree root if NULL
          * \return Only returns error on fatal condition
          */
-      virtual ErrorCode get_bounding_box(double box_min[3], double box_max[3], EntityHandle *tree_node = NULL) const;
-  
-        /** \brief Get bounding box for entire tree
-         * If no tree has been built yet, returns 3*0 for all dimensions.
-         * \param box_min Minimum corner of box
-         * \param box_max Maximum corner of box
-         * \param tree_node If non-NULL, get bounding box for this node, otherwise for tree root
-         * \return Only returns error on fatal condition
-         */
-      virtual ErrorCode get_bounding_box(CartVect &box_min, CartVect &box_max, EntityHandle *tree_node = NULL) const;
+      virtual ErrorCode get_bounding_box(BoundBox &box, EntityHandle *tree_node = NULL) const;
   
         /** \brief Return some basic information about the tree
          * Stats are returned for tree starting from input node or tree root (root = 0)
@@ -139,46 +125,6 @@ namespace moab {
                                         std::vector<double> *dists_out = NULL,
                                         EntityHandle *start_node = NULL) = 0;
 
-        /** \brief Compute bounding box of entities in elems
-         * \param iface MOAB interface handle
-         * \param elems Entities for which bounding box is computed
-         * \param box_min Minimum corner of box
-         * \param box_max Maximum corner of box
-         * \return This function returns error only under catastrophic; in the case of no entities, 
-         *          it just returns a zero-extent box.
-         */
-      static ErrorCode compute_bounding_box(Interface &iface, const Range& elems, CartVect &box_min, CartVect &box_max);
-      
-        /** \brief Compute bounding box of entities in elems
-         * \param iface MOAB interface handle
-         * \param elems Entities for which bounding box is computed
-         * \param box_min Minimum corner of box
-         * \param box_max Maximum corner of box
-         * \return This function returns error only under catastrophic; in the case of no entities, 
-         *          it just returns a zero-extent box.
-         */
-      static ErrorCode compute_bounding_box(Interface &iface, const Range& elems, double box_min[3], double box_max[3]);
-      
-        /** \brief Compute bounding box of an entity
-         * \param iface MOAB interface handle
-         * \param ent Entity for which bounding box is computed
-         * \param box_min Minimum corner of box
-         * \param box_max Maximum corner of box
-         * \return This function returns error only under catastrophic; in the case of no entities, 
-         *          it just returns a zero-extent box.
-         */
-      static ErrorCode compute_bounding_box(Interface &iface, const EntityHandle ent, CartVect &box_min, CartVect &box_max);
-      
-        /** \brief Compute bounding box of an entity
-         * \param iface MOAB interface handle
-         * \param ent Entity for which bounding box is computed
-         * \param box_min Minimum corner of box
-         * \param box_max Maximum corner of box
-         * \return This function returns error only under catastrophic; in the case of no entities, 
-         *          it just returns a zero-extent box.
-         */
-      static ErrorCode compute_bounding_box(Interface &iface, const EntityHandle ent, double box_min[3], double box_max[3]);
-      
         /** \brief Return the MOAB interface associated with this tree
          */
       Interface* moab() { return mbImpl; }
@@ -199,6 +145,11 @@ namespace moab {
         /** \brief Get tree traversal stats object */
       const TreeStats &tree_stats() const {return treeStats;}
       
+        /** \brief Create tree root and tag with bounding box
+         */
+      ErrorCode create_root( const double box_min[3], const double box_max[3],
+                             EntityHandle& root_handle);
+      
   protected:
 
         /** \brief Parse options common to all trees
@@ -217,9 +168,9 @@ namespace moab {
         // moab instance
       Interface *mbImpl;
 
-        // bounding box corners for entire tree
-      CartVect boxMin, boxMax;
-
+        // bounding box for entire tree
+      BoundBox boundBox;
+      
         // max entities per leaf
       int maxPerLeaf;
       
@@ -250,12 +201,10 @@ namespace moab {
         // tree traversal stats
       TreeStats treeStats;
       
-  private:
-
     };
 
     inline Tree::Tree(Interface* iface) 
-            : mbImpl(iface), maxPerLeaf(6), maxDepth(30), treeDepth(0), minWidth(1.0e-10),
+            : mbImpl(iface), maxPerLeaf(6), maxDepth(30), treeDepth(-1), minWidth(1.0e-10),
               meshsetFlags(0), cleanUp(true), myRoot(0), boxTag(0)
     {}
 
@@ -263,37 +212,13 @@ namespace moab {
     {
     }
     
-    inline ErrorCode Tree::get_bounding_box(double box_min[3], 
-                                            double box_max[3], EntityHandle *tree_node) const
+    inline ErrorCode Tree::get_bounding_box(BoundBox &box, EntityHandle *tree_node) const
     {
-      return get_bounding_box(*reinterpret_cast<CartVect*>(box_min), *reinterpret_cast<CartVect*>(box_max), tree_node);
-    }
-  
-    inline ErrorCode Tree::get_bounding_box(CartVect &box_min, CartVect &box_max, EntityHandle *tree_node) const
-    {
-      double tmp_tag[6];
-      ErrorCode rval = moab()->tag_get_data(const_cast<Tree*>(this)->get_box_tag(), (tree_node ? tree_node : &myRoot), 1, tmp_tag);
-      if (MB_SUCCESS != rval) return rval;
-      box_min = tmp_tag;
-      box_max = tmp_tag+3;
-      return MB_SUCCESS;
-    }
-  
-    inline ErrorCode Tree::compute_bounding_box(Interface &iface, const Range &elems, double box_min[3], double box_max[3]) 
-    {
-      return compute_bounding_box(iface, elems, *reinterpret_cast<CartVect*>(box_min), *reinterpret_cast<CartVect*>(box_max));
-    }
-  
-    inline ErrorCode Tree::compute_bounding_box(Interface &iface, const EntityHandle ent, double box_min[3], double box_max[3]) 
-    {
-      Range tmp_range(ent, ent);
-      return compute_bounding_box(iface, tmp_range, *reinterpret_cast<CartVect*>(box_min), *reinterpret_cast<CartVect*>(box_max));
-    }
-  
-    inline ErrorCode Tree::compute_bounding_box(Interface &iface, const EntityHandle ent, CartVect &box_min, CartVect &box_max) 
-    {
-      Range tmp_range(ent, ent);
-      return compute_bounding_box(iface, tmp_range, box_min, box_max);
+      if ((tree_node && *tree_node == myRoot) || !tree_node) {
+        box = boundBox;
+        return MB_SUCCESS;
+      }
+      else return MB_FAILURE;
     }
   
     inline ErrorCode Tree::get_info(EntityHandle /* root */,

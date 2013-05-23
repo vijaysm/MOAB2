@@ -257,7 +257,7 @@ void test_tree_delete()
   Tag data;
   const EntityHandle root = create_tree( tool, DEPTH, INTERVALS, &data );
   
-  err = tool.reset_tree( root );
+  err = tool.reset_tree();
   CHECK_ERR(err);
   
   Range ents;

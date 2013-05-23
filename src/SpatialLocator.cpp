@@ -39,9 +39,9 @@ namespace moab
 
       if (rel_eps && !abs_eps) {
           // relative epsilon given, translate to absolute epsilon using box dimensions
-        CartVect minmax[2];
-        myTree->get_bounding_box(minmax[0], minmax[1]);
-        abs_eps = rel_eps * (minmax[1] - minmax[0]).length();
+        BoundBox box;
+        myTree->get_bounding_box(box);
+        abs_eps = rel_eps * box.diagonal_length();
       }
   
       EntityHandle closest_leaf;

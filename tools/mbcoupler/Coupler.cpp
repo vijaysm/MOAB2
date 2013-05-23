@@ -83,7 +83,7 @@ ErrorCode Coupler::initialize_tree()
   int max_per_leaf = 6;
   for (int i = 0; i < numIts; i++) {
     std::ostringstream str;
-    str << "CANDIDATE_PLANE_SET=0;"
+    str << "PLANE_SET=0;"
         << "MAX_PER_LEAF=" << max_per_leaf << ";";
     FileOptions opts(str.str().c_str());
     myTree = new AdaptiveKDTree(mbImpl);
@@ -110,8 +110,11 @@ ErrorCode Coupler::initialize_tree()
     allBoxes.resize(6*myPc->proc_config().proc_size());
   else allBoxes.resize(6);
   unsigned int my_rank = (myPc ? myPc->proc_config().proc_rank() : 0);
-  result = myTree->get_bounding_box(&allBoxes[6*my_rank], &allBoxes[6*my_rank+3], &localRoot);
+  BoundBox box;
+  result = myTree->get_bounding_box(box, &localRoot);
   if (MB_SUCCESS != result) return result;
+  box.bMin.get(&allBoxes[6*my_rank]);
+  box.bMax.get(&allBoxes[6*my_rank+3]);
   
     // now communicate to get all boxes
     // use "in place" option
@@ -463,9 +466,9 @@ ErrorCode Coupler::test_local_box(double *xyz,
 
   if (rel_eps && !abs_eps) {
       // relative epsilon given, translate to absolute epsilon using box dimensions
-    CartVect minmax[2];
-    myTree->get_bounding_box(minmax[0].array(), minmax[1].array(), &localRoot);
-    abs_eps = rel_eps * (minmax[1] - minmax[0]).length();
+    BoundBox box;
+    myTree->get_bounding_box(box, &localRoot);
+    abs_eps = rel_eps * box.diagonal_length();
   }
   
   ErrorCode result = nat_param(xyz, entities, nat_coords, abs_eps);

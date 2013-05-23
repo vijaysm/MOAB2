@@ -303,7 +303,7 @@ void delete_existing_tree( Interface* interface )
   if (!trees.empty())
     std::cout << "Destroying existing tree(s) contained in file" << std::endl;
   for (Range::iterator i = trees.begin(); i != trees.end(); ++i)
-    tool.reset_tree( *i );
+    tool.reset_tree();
   
   trees.clear();
   tool.find_all_trees( trees );
@@ -477,9 +477,9 @@ void print_stats( Interface* interface )
   interface->get_number_entities_by_dimension( 0, 2, num_2d );
   interface->get_number_entities_by_dimension( 0, 3, num_3d );
   
-  double min[3] = {0,0,0}, max[3] = {0,0,0};
-  tool.get_bounding_box(min, max, &root );
-  double diff[3] = { max[0]-min[0], max[1]-min[1], max[2] - min[2] };
+  BoundBox box;
+  tool.get_bounding_box(box, &root );
+  double diff[3] = { box.bMax[0]-box.bMin[0], box.bMax[1]-box.bMin[1], box.bMax[2] - box.bMin[2] };
   double tree_vol = diff[0]*diff[1]*diff[2];
   double tree_surf_area = 2*(diff[0]*diff[1] + diff[1]*diff[2] + diff[2]*diff[0]);
   

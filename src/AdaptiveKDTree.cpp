@@ -29,7 +29,7 @@ namespace moab {
 #define MB_AD_KD_TREE_USE_TWO_DOUBLE_TAG
 
     AdaptiveKDTree::AdaptiveKDTree(Interface *iface) 
-    : Tree(iface), planeTag(0), axisTag(0), candidateSplitsPerDir(3), candidatePlaneSet(SUBDIVISION_SNAP)
+    : Tree(iface), planeTag(0), axisTag(0), splitsPerDir(3), planeSet(SUBDIVISION_SNAP)
     {
       boxTagName = treeName;
 
@@ -40,7 +40,7 @@ namespace moab {
 
     AdaptiveKDTree::AdaptiveKDTree(Interface* iface, const Range &entities, 
                                    EntityHandle *tree_root_set, FileOptions *opts) 
-            : Tree(iface), planeTag(0), axisTag(0), candidateSplitsPerDir(3), candidatePlaneSet(SUBDIVISION_SNAP)
+            : Tree(iface), planeTag(0), axisTag(0), splitsPerDir(3), planeSet(SUBDIVISION_SNAP)
     {
       boxTagName = treeName;
       
@@ -82,15 +82,15 @@ namespace moab {
       }
       
         // calculate bounding box of elements
-      CartVect bmin, bmax;
-      rval = compute_bounding_box( *moab(), entities, bmin, bmax);
+      BoundBox box;
+      rval = box.update(*moab(), entities);
       if (MB_SUCCESS != rval)
         return rval;
   
         // create tree root
       EntityHandle tmp_root;
       if (!tree_root_set) tree_root_set = &tmp_root;
-      rval = create_root( bmin.array(), bmax.array(), *tree_root_set);
+      rval = create_root( box.bMin.array(), box.bMax.array(), *tree_root_set);
       if (MB_SUCCESS != rval)
         return rval;
       rval = moab()->add_entities( *tree_root_set, entities );
@@ -98,7 +98,7 @@ namespace moab {
         return rval;
   
       AdaptiveKDTreeIter iter;
-      iter.initialize( this, *tree_root_set, bmin.array(), bmax.array(), AdaptiveKDTreeIter::LEFT );
+      iter.initialize( this, *tree_root_set, box.bMin.array(), box.bMax.array(), AdaptiveKDTreeIter::LEFT );
   
       std::vector<double> tmp_data;
       std::vector<EntityHandle> tmp_data2;
@@ -113,9 +113,9 @@ namespace moab {
         Range best_left, best_right, best_both;
         Plane best_plane = { HUGE_VAL, -1 };
         if ((int)p_count > maxPerLeaf && (int)iter.depth() < maxDepth) {
-          switch (candidatePlaneSet) {
+          switch (planeSet) {
             case AdaptiveKDTree::SUBDIVISION:
-                rval = best_subdivision_plane( candidateSplitsPerDir, 
+                rval = best_subdivision_plane( splitsPerDir, 
                                                iter, 
                                                best_left, 
                                                best_right, 
@@ -124,7 +124,7 @@ namespace moab {
                                                minWidth );
                 break;
             case AdaptiveKDTree::SUBDIVISION_SNAP:
-                rval = best_subdivision_snap_plane( candidateSplitsPerDir, 
+                rval = best_subdivision_snap_plane( splitsPerDir, 
                                                     iter, 
                                                     best_left, 
                                                     best_right, 
@@ -134,7 +134,7 @@ namespace moab {
                                                     minWidth );
                 break;
             case AdaptiveKDTree::VERTEX_MEDIAN:
-                rval = best_vertex_median_plane( candidateSplitsPerDir, 
+                rval = best_vertex_median_plane( splitsPerDir, 
                                                  iter, 
                                                  best_left, 
                                                  best_right, 
@@ -144,7 +144,7 @@ namespace moab {
                                                  minWidth );
                 break;
             case AdaptiveKDTree::VERTEX_SAMPLE:
-                rval = best_vertex_sample_plane( candidateSplitsPerDir, 
+                rval = best_vertex_sample_plane( splitsPerDir, 
                                                  iter, 
                                                  best_left, 
                                                  best_right, 
@@ -178,7 +178,7 @@ namespace moab {
         }
       }
   
-      reset_tree( *tree_root_set );
+      reset_tree();
 
       treeStats.reset();
       
@@ -193,13 +193,13 @@ namespace moab {
         //  SPLITS_PER_DIR: number of candidate splits considered per direction; default = 3
       int tmp_int;
       rval = opts.get_int_option("SPLITS_PER_DIR", tmp_int);
-      if (MB_SUCCESS == rval) candidateSplitsPerDir = tmp_int;
+      if (MB_SUCCESS == rval) splitsPerDir = tmp_int;
 
-        //  CANDIDATE_PLANE_SET: method used to decide split planes; see CandidatePlaneSet enum (below)
+        //  PLANE_SET: method used to decide split planes; see CandidatePlaneSet enum (below)
         //           for possible values; default = 1 (SUBDIVISION_SNAP)
-      rval = opts.get_int_option("CANDIDATE_PLANE_SET", tmp_int);
+      rval = opts.get_int_option("PLANE_SET", tmp_int);
       if (tmp_int < SUBDIVISION || tmp_int > VERTEX_SAMPLE) return MB_FAILURE;
-      else candidatePlaneSet = (CandidatePlaneSet)(tmp_int);
+      else planeSet = (CandidatePlaneSet)(tmp_int);
 
       return MB_SUCCESS;
     }
@@ -316,63 +316,6 @@ namespace moab {
 #else
       return moab()->tag_set_data( planeTag, &entity, 1, &plane );
 #endif
-    }
-
-
-    ErrorCode AdaptiveKDTree::create_root( const double box_min[3],
-                                           const double box_max[3],
-                                           EntityHandle& root_handle )
-    {
-      ErrorCode rval = moab()->create_meshset( meshsetFlags, root_handle );
-      if (MB_SUCCESS != rval)
-        return rval;
-
-      myRoot = root_handle;
-      
-      double box_tag[6];
-      for (int i = 0; i < 3; i++) {
-        box_tag[i] = box_min[i];
-        box_tag[3+i] = box_max[i];
-      }
-      rval = moab()->tag_set_data(get_box_tag(), &root_handle, 1, box_tag);
-      if (MB_SUCCESS != rval)
-        return rval;
-
-      boxMin = box_min;
-      boxMax = box_max;
-      
-      return MB_SUCCESS;
-    }
-
-    ErrorCode AdaptiveKDTree::reset_tree( EntityHandle root_handle )
-    {
-      ErrorCode rval;
-
-      if (root_handle && myRoot != root_handle) return MB_FAILURE;
-      else if (!root_handle && myRoot) root_handle = myRoot;
-      
-      std::vector<EntityHandle> children, dead_sets, current_sets;
-      current_sets.push_back( root_handle );
-      while (!current_sets.empty()) {
-        EntityHandle set = current_sets.back();
-        current_sets.pop_back();
-        dead_sets.push_back( set );
-        rval = moab()->get_child_meshsets( set, children );
-        if (MB_SUCCESS != rval)
-          return rval;
-        std::copy( children.begin(), children.end(), std::back_inserter(current_sets) );
-        children.clear();
-      }
-  
-      rval = moab()->tag_delete_data( boxTag, &root_handle, 1 );
-      if (MB_SUCCESS != rval)
-        return rval;
-  
-      rval = moab()->delete_entities( &dead_sets[0], dead_sets.size() );
-      if (MB_SUCCESS != rval) return rval;
-
-      myRoot = 0;
-      return MB_SUCCESS;
     }
 
     ErrorCode AdaptiveKDTree::get_tree_iterator( EntityHandle root,
@@ -993,17 +936,17 @@ namespace moab {
       }
   
         // sets
-      CartVect tmin, tmax;
+      BoundBox tbox;
       for (i = set_begin; i != elems.end(); ++i) {
         tool->tree_stats().leaf_object_tests()++;
-        rval = tool->compute_bounding_box( *tool->moab(), *i, tmin, tmax);
+        rval = tbox.update(*tool->moab(), *i);
         if (MB_SUCCESS != rval)
           return rval;
     
         bool lo = false, ro = false;
-        if (tmin[plane.norm] <= plane.coord)
+        if (tbox.bMin[plane.norm] <= plane.coord)
           lo = true;
-        if (tmax[plane.norm] >= plane.coord)
+        if (tbox.bMax[plane.norm] >= plane.coord)
           ro = true;
 
         if (lo && ro)
@@ -1392,13 +1335,13 @@ namespace moab {
         // kdtrees never have multiple leaves containing a pt
       if (multiple_leaves) *multiple_leaves = false;
 
-      leaf_it.mBox[0] = boxMin;
-      leaf_it.mBox[1] = boxMax;
+      leaf_it.mBox[0] = boundBox.bMin;
+      leaf_it.mBox[1] = boundBox.bMax;
       
         // test that point is inside tree
-      if (point[0] < boxMin[0] || point[0] > boxMax[0] ||
-          point[1] < boxMin[1] || point[1] > boxMax[1] ||
-          point[2] < boxMin[2] || point[2] > boxMax[2])
+      if (point[0] < boundBox.bMin[0] || point[0] > boundBox.bMax[0] ||
+          point[1] < boundBox.bMin[1] || point[1] > boundBox.bMax[1] ||
+          point[2] < boundBox.bMin[2] || point[2] > boundBox.bMax[2])
         return MB_ENTITY_NOT_FOUND;  
 
         // initialize iterator at tree root
@@ -1460,17 +1403,17 @@ namespace moab {
   
         // Get distance from input position to bounding box of tree
         // (zero if inside box)
-      double min[3], max[3];
-      rval = get_bounding_box(min, max, tree_root);
+      BoundBox box;
+      rval = get_bounding_box(box);
         // if bounding box is not available (e.g. not starting from true root)
         // just start with zero.  Less efficient, but will work.
       node.dist = CartVect(0.0);
       if (MB_SUCCESS == rval) {
         for (int i = 0; i < 3; ++i) {
-          if (from_point[i] < min[i])
-            node.dist[i] = min[i] - from_point[i];
-          else if (from_point[i] > max[i])
-            node.dist[i] = from_point[i] - max[i];
+          if (from_point[i] < box.bMin[i])
+            node.dist[i] = box.bMin[i] - from_point[i];
+          else if (from_point[i] > box.bMax[i])
+            node.dist[i] = from_point[i] - box.bMax[i];
         }
         if (node.dist % node.dist > dist_sqr)
           return MB_SUCCESS;
@@ -1873,11 +1816,12 @@ namespace moab {
         ray_end = HUGE_VAL;
   
         // if root has bounding box, trim ray to that box
-      CartVect bmin, bmax, tvec(tol);
+      CartVect tvec(tol);
+      BoundBox box;
       const CartVect ray_pt( ray_pt_in ), ray_dir( ray_dir_in );
-      rval = get_bounding_box(bmin, bmax, &root);
+      rval = get_bounding_box(box);
       if (MB_SUCCESS == rval) {
-        if (!GeomUtil::segment_box_intersect( bmin-tvec, bmax+tvec, ray_pt, ray_dir, ray_beg, ray_end ))
+        if (!GeomUtil::segment_box_intersect( box.bMin-tvec, box.bMax+tvec, ray_pt, ray_dir, ray_beg, ray_end ))
           return MB_SUCCESS; // ray misses entire tree.
       }
   
@@ -2052,11 +1996,14 @@ namespace moab {
     }
           
     ErrorCode AdaptiveKDTree::get_info(EntityHandle root,
-                                       double min[3], double max[3], 
+                                       double bmin[3], double bmax[3], 
                                        unsigned int &dep) 
     {
-      ErrorCode result = get_bounding_box(min, max, &root);
+      BoundBox box;
+      ErrorCode result = get_bounding_box(box, &root);
       if (MB_SUCCESS != result) return result;
+      box.bMin.get(bmin);
+      box.bMax.get(bmax);
   
       unsigned min_depth;
       return compute_depth( root, min_depth, dep );

@@ -32,7 +32,7 @@ namespace moab {
       ErrorCode add_elems(Range &elems);
       
         /* get bounding box of this locator */
-      ErrorCode get_bounding_box(CartVect &box_min, CartVect &box_max);
+      ErrorCode get_bounding_box(BoundBox &box);
       
         /* locate a set of points */
       ErrorCode locate_points(const double *pos, int num_points,
@@ -83,9 +83,9 @@ namespace moab {
       return locate_points(pos, 1, &ent, params, rel_tol, abs_tol, is_inside);
     }
 
-    inline ErrorCode SpatialLocator::get_bounding_box(CartVect &box_min, CartVect &box_max) 
+    inline ErrorCode SpatialLocator::get_bounding_box(BoundBox &box) 
     {
-      return myTree->get_bounding_box(box_min, box_max);
+      return myTree->get_bounding_box(box);
     }
 
 } // namespace moab 

@@ -43,8 +43,10 @@ libMOAB_la_SOURCES = \
   BitPage.hpp \
   BitTag.cpp \
   BitTag.hpp \
+  BoundBox.cpp \
   BSPTree.cpp \
   BSPTreePoly.cpp \
+  BVHTree.cpp \
   CN.cpp \
   CartVect.cpp \
   Core.cpp \
@@ -149,8 +151,10 @@ libMOAB_la_SOURCES = \
 # The list of header files which are to be installed
 nobase_libMOAB_la_include_HEADERS = \
   moab/AdaptiveKDTree.hpp \
+  moab/BoundBox.hpp \
   moab/BSPTree.hpp \
   moab/BSPTreePoly.hpp \
+  moab/BVHTree.hpp \
   moab/CN.hpp \
   moab/CartVect.hpp \
   moab/Compiler.hpp \

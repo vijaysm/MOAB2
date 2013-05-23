@@ -38,8 +38,7 @@ namespace moab
       std::vector<double> f0(num_tuples);
       std::copy(field, field+num_tuples, f0.begin());
       std::copy(field, field+num_tuples, result);
-      
-      
+
       for (unsigned i = 1; i < 4; ++i) {
         double p = 0.5*(params[i-1] + 1); // transform from -1 <= p <= 1 to 0 <= p <= 1
         for (int j = 0; j < num_tuples; j++)

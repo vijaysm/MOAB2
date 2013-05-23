@@ -300,7 +300,6 @@ namespace moab {
         numTuples = 3;
         tagDim = 0;
         tagHandle = 0;
-        if (numVerts) tagSpace.resize(numVerts*sizeof(double));
         return rval;
       }
       else if (tagHandle != tag) {

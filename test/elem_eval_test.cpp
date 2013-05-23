@@ -40,7 +40,7 @@ CartVect hex_verts[] = {
     CartVect( 0, 0, 0 )
 };
 
-double EPS1;
+const double EPS1 = 1.0e-6;
 
 void test_eval(ElemEvaluator &ee, bool test_integrate) 
 {
@@ -139,7 +139,6 @@ void test_linear_hex()
   ee.set_tag_handle(0, 0);
   ee.set_eval_set(MBHEX, LinearHex::eval_set());
 
-  EPS1 = 1e-6;
   test_eval(ee, true);
 }
 
@@ -157,7 +156,6 @@ void test_quadratic_hex()
   ee.set_tag_handle(0, 0);
   ee.set_eval_set(MBHEX, QuadraticHex::eval_set());
 
-  EPS1 = 1e-6;
   test_eval(ee, false);
 }
 
@@ -184,6 +182,5 @@ void test_linear_tet()
   std::vector<double> vals(verts.size(), 1.0);
   rval = mb.tag_set_data(tag, verts, &vals[0]); CHECK_ERR(rval);
 
-  EPS1 = 1e-6;
   test_evals(ee, true, tets, 5, tag, 8.0);
 }

@@ -549,7 +549,7 @@ void leaf_iterator_test()
   rval = iter.step();
   CHECK( MB_SUCCESS != rval );
 
-  rval = tool.reset_tree( root );
+  rval = tool.reset_tree();
   CHECK( MB_SUCCESS == rval );
   root = 0;
   
@@ -733,7 +733,7 @@ void test_build_tree_bisect_triangles( )
   Range box_tris;
 
   std::ostringstream options;
-  options << "MAX_PER_LEAF=1;SPLITS_PER_DIR=1;CANDIDATE_PLANE_SET=0;";
+  options << "MAX_PER_LEAF=1;SPLITS_PER_DIR=1;PLANE_SET=0;";
   FileOptions opts(options.str().c_str());
   EntityHandle root;
   ErrorCode rval;
@@ -743,21 +743,21 @@ void test_build_tree_bisect_triangles( )
   rval = tool.build_tree( box_tris, &root, &opts);
   CHECK( MB_SUCCESS == rval );
   test_valid_tree( &tool, root, opts, box_tris );
-  tool.reset_tree(root);
+  tool.reset_tree();
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_octahedron( &moab, box_tris );
   rval = tool.build_tree( box_tris, &root, &opts );
   CHECK( MB_SUCCESS == rval );
   test_valid_tree( &tool, root, opts, box_tris );
-  tool.reset_tree(root);
+  tool.reset_tree();
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_large( &moab, box_tris );
   rval = tool.build_tree( box_tris, &root, &opts );
   CHECK( MB_SUCCESS == rval );
   test_valid_tree( &tool, root, opts, box_tris );
-  tool.reset_tree(root);
+  tool.reset_tree();
   
   options << "MAX_DEPTH=2;";
   opts = FileOptions(options.str().c_str());
@@ -765,7 +765,7 @@ void test_build_tree_bisect_triangles( )
   rval = tool.build_tree( box_tris, &root, &opts );
   CHECK( MB_SUCCESS == rval );
   test_valid_tree( &tool, root, opts, box_tris );
-  tool.reset_tree(root);
+  tool.reset_tree();
 }
   
 void test_closest_triangle()
@@ -775,7 +775,7 @@ void test_closest_triangle()
   Range box_tris;
   
   std::ostringstream options;
-  options << "MAX_PER_LEAF=1;SPLITS_PER_DIR=1;CANDIDATE_PLANE_SET=0;";
+  options << "MAX_PER_LEAF=1;SPLITS_PER_DIR=1;PLANE_SET=0;";
   FileOptions opts(options.str().c_str());
   EntityHandle root;
   ErrorCode rval;
@@ -838,7 +838,7 @@ void test_closest_triangle()
   }
   
     // now do it all again with a lot more triangles
-  tool.reset_tree(root);
+  tool.reset_tree();
   moab.delete_mesh(); box_tris.clear();
 
   build_triangle_box_large( &moab, box_tris );
@@ -904,7 +904,7 @@ void test_sphere_intersect_triangles()
   Range box_tris;
   
   std::ostringstream options;
-  options << "MAX_PER_LEAF=1;SPLITS_PER_DIR=1;CANDIDATE_PLANE_SET=0;";
+  options << "MAX_PER_LEAF=1;SPLITS_PER_DIR=1;PLANE_SET=0;";
   FileOptions opts(options.str().c_str());
   EntityHandle root;
   ErrorCode rval;
@@ -934,7 +934,7 @@ void test_sphere_intersect_triangles()
   
     // now do it all again with a lot more triangles
 
-  tool.reset_tree(root);
+  tool.reset_tree();
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_large( &moab, box_tris );
 
@@ -966,7 +966,7 @@ void test_ray_intersect_triangles()
   Range box_tris;
   
   std::ostringstream options;
-  options << "MAX_PER_LEAF=1;SPLITS_PER_DIR=1;CANDIDATE_PLANE_SET=0;";
+  options << "MAX_PER_LEAF=1;SPLITS_PER_DIR=1;PLANE_SET=0;";
   FileOptions opts(options.str().c_str());
   EntityHandle root;
   ErrorCode rval;

@@ -158,34 +158,3 @@ void test_hex_nat_coords()
 //std::cout << std::endl;
 }
   
-void test_tet_nat_coords()
-{
-  CartVect xi, result_xi;
-  bool valid;
-  // rename EPS to EPS1 because of conflict with definition of EPS in types.h
-  // types.h is now included in the header.
-  const double EPS1 = 1e-6;
-  
-    // first test with cube because it's easier to debug failures
-  std::vector<CartVect> tet_corners;
-  tet_corners.push_back(hex_corners[1]);
-  tet_corners.push_back(hex_corners[6]);
-  tet_corners.push_back(hex_corners[4]);
-  tet_corners.push_back(hex_corners[5]);
-  
-  Element::LinearTet tet(tet_corners);
-  for (xi[0] = -1; xi[0] <= 1; xi[0] += 0.2) {
-    for (xi[1] = -1; xi[1] <= 1; xi[1] += 0.2) {
-      for (xi[2] = -1; xi[2] <= 1; xi[2] += 0.2) {
-        const CartVect pt = hex_map(xi, cube_corners);
-        result_xi = hex.ievaluate(pt, EPS1/10);
-        double dum = EPS1/10;
-        valid = hex.inside_nat_space(result_xi, dum);
-        CHECK(valid);
-        CHECK_REAL_EQUAL( xi[0], result_xi[0], EPS1 );
-        CHECK_REAL_EQUAL( xi[1], result_xi[1], EPS1 );
-        CHECK_REAL_EQUAL( xi[2], result_xi[2], EPS1 );
-      }
-    }
-  }
-}

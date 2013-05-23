@@ -42,95 +42,64 @@ namespace moab
       return MB_SUCCESS;
     }
 
-    static inline void box_accum( const CartVect& point,
-                                  CartVect& bmin,
-                                  CartVect& bmax )
-    {
-      for (unsigned j = 0; j < 3; ++j) {
-        if (point[j] < bmin[j])
-          bmin[j] = point[j];
-        if (point[j] > bmax[j])
-          bmax[j] = point[j];
-      }
-    }
-
-    ErrorCode Tree::compute_bounding_box(Interface &iface, const Range& elems, CartVect &box_min, CartVect &box_max)
-    {
-      ErrorCode rval;
-      box_min = CartVect(HUGE_VAL);
-      box_max = CartVect(-HUGE_VAL);
-      
-      CartVect coords;
-      EntityHandle const *conn, *conn2;
-      int len, len2;
-      Range::const_iterator i;
-  
-        // vertices
-      const Range::const_iterator elem_begin = elems.lower_bound( MBEDGE );
-      for (i = elems.begin(); i != elem_begin; ++i) {
-        rval = iface.get_coords( &*i, 1, coords.array() );
-        if (MB_SUCCESS != rval)
-          return rval;
-        box_accum( coords, box_min, box_max );
-      }
-
-        // elements with vertex-handle connectivity list
-      const Range::const_iterator poly_begin = elems.lower_bound( MBPOLYHEDRON, elem_begin );
-      std::vector<EntityHandle> dum_vector;
-      for (i = elem_begin; i != poly_begin; ++i) {
-        rval = iface.get_connectivity( *i, conn, len, true, &dum_vector);
-        if (MB_SUCCESS != rval)
-          return rval;
-
-        for (int j = 0; j < len; ++j) {
-          rval = iface.get_coords( conn+j, 1, coords.array() );
-          if (MB_SUCCESS != rval)
-            return rval;
-          box_accum( coords, box_min, box_max );
-        }
-      }
-  
-        // polyhedra
-      const Range::const_iterator set_begin  = elems.lower_bound( MBENTITYSET, poly_begin );
-      for (i = poly_begin; i != set_begin; ++i) {
-        rval = iface.get_connectivity( *i, conn, len, true );
-        if (MB_SUCCESS != rval)
-          return rval;
-
-        for (int j = 0; j < len; ++j) {
-          rval = iface.get_connectivity( conn[j], conn2, len2 );
-          for (int k = 0; k < len2; ++k) {
-            rval = iface.get_coords( conn2+k, 1, coords.array() );
-            if (MB_SUCCESS != rval)
-              return rval;
-            box_accum( coords, box_min, box_max );
-          }
-        }
-      }
-  
-        // sets
-      CartVect tmin, tmax;
-      for (i = set_begin; i != elems.end(); ++i) {
-        Range tmp_elems;
-        rval = iface.get_entities_by_handle(*i, tmp_elems);
-        if (MB_SUCCESS != rval) return rval;
-        rval = compute_bounding_box(iface, tmp_elems, tmin, tmax);
-        if (MB_SUCCESS != rval) return rval;
-      
-        for (int j = 0; j < 3; ++j) {
-          if (tmin[j] < box_min[j])
-            box_min[j] = tmin[j];
-          if (tmax[j] > box_max[j])
-            box_max[j] = tmax[j];
-        }
-      }
-  
-      return MB_SUCCESS;
-    }
-
     ErrorCode Tree::find_all_trees( Range& results )
     {
       return moab()->get_entities_by_type_and_tag( 0, MBENTITYSET, &boxTag, 0, 1, results );
     }
 
+    ErrorCode Tree::create_root( const double box_min[3],
+                                 const double box_max[3],
+                                 EntityHandle& root_handle )
+    {
+      ErrorCode rval = mbImpl->create_meshset( meshsetFlags, root_handle );
+      if (MB_SUCCESS != rval)
+        return rval;
+
+      myRoot = root_handle;
+      
+      double box_tag[6];
+      for (int i = 0; i < 3; i++) {
+        box_tag[i] = box_min[i];
+        box_tag[3+i] = box_max[i];
+      }
+      rval = mbImpl->tag_set_data(get_box_tag(), &root_handle, 1, box_tag);
+      if (MB_SUCCESS != rval)
+        return rval;
+
+      boundBox.bMin = box_min;
+      boundBox.bMax = box_max;
+      
+      return MB_SUCCESS;
+    }
+
+    ErrorCode Tree::delete_tree_sets() 
+    {
+      if (!myRoot) return MB_SUCCESS;
+      
+      ErrorCode rval;
+      std::vector<EntityHandle> children, dead_sets, current_sets;
+      current_sets.push_back(myRoot);
+      while (!current_sets.empty()) {
+        EntityHandle set = current_sets.back();
+        current_sets.pop_back();
+        dead_sets.push_back( set );
+        rval = mbImpl->get_child_meshsets( set, children );
+        if (MB_SUCCESS != rval)
+          return rval;
+        std::copy( children.begin(), children.end(), std::back_inserter(current_sets) );
+        children.clear();
+      }
+  
+      rval = mbImpl->tag_delete_data( boxTag, &myRoot, 1 );
+      if (MB_SUCCESS != rval)
+        return rval;
+  
+      rval = mbImpl->delete_entities( &dead_sets[0], dead_sets.size() );
+      if (MB_SUCCESS != rval) return rval;
+
+      myRoot = 0;
+
+      return MB_SUCCESS;
+    }
+    
 }

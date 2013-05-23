@@ -4,6 +4,7 @@
 #include "moab/HomXform.hpp"
 #include "moab/ScdInterface.hpp"
 #include "moab/CartVect.hpp"
+#include "moab/BVHTree.hpp"
 
 #ifdef USE_MPI
 #include "moab_mpi.h"
@@ -17,8 +18,10 @@ using namespace moab;
 
 const int npoints = 1000;
 
-void test_just_tree();
-ErrorCode create_hex_mesh(Interface &mb, Range &elems, int n = 10, int dim = 3);
+void test_kd_tree();
+void test_bvh_tree();
+
+ErrorCode create_hex_mesh(Interface &mb, Range &elems, int n = 4, int dim = 3);
 
 int main(int argc, char **argv)
 {
@@ -30,7 +33,8 @@ int main(int argc, char **argv)
   argv[0]=argv[argc-argc];
 #endif
 
-  RUN_TEST(test_just_tree);
+  RUN_TEST(test_kd_tree);
+  RUN_TEST(test_bvh_tree);
   
 #ifdef USE_MPI
   fail = MPI_Finalize();
@@ -40,7 +44,7 @@ int main(int argc, char **argv)
   return 0;
 }
 
-void test_just_tree() 
+void test_kd_tree() 
 {
   ErrorCode rval;
   Core mb;
@@ -51,9 +55,10 @@ void test_just_tree()
 
     // initialize spatial locator with the elements and the default tree type
   SpatialLocator *sl = new SpatialLocator(&mb, elems);
-  CartVect box_min, box_max, box_del, test_pt, test_res;
-  rval = sl->get_bounding_box(box_min, box_max); CHECK_ERR(rval);
-  box_del = box_max - box_min;
+  CartVect box_del, test_pt, test_res;
+  BoundBox box;
+  rval = sl->get_bounding_box(box); CHECK_ERR(rval);
+  box_del = box.bMax - box.bMin;
 
   double denom = 1.0 / (double)RAND_MAX;
   bool is_in;
@@ -61,7 +66,43 @@ void test_just_tree()
   for (int i = 0; i < npoints; i++) {    
       // generate a small number of random point to test
     double rx = (double)rand() * denom, ry = (double)rand() * denom, rz = (double)rand() * denom;
-    test_pt = box_min + CartVect(rx*box_del[0], ry*box_del[1], rz*box_del[2]);
+    test_pt = box.bMin + CartVect(rx*box_del[0], ry*box_del[1], rz*box_del[2]);
+
+    // call spatial locator to locate points
+    rval = sl->locate_points(test_pt.array(), 1, &ent, test_res.array(), 0.0, 0.0, &is_in); CHECK_ERR(rval);
+
+    // verify that the point was found
+    CHECK_EQUAL(is_in, true);
+  }
+
+    // destroy spatial locator, and tree along with it
+  delete sl;
+}
+
+void test_bvh_tree() 
+{
+  ErrorCode rval;
+  Core mb;
+  
+    // create a simple mesh to test
+  Range elems;
+  rval = create_hex_mesh(mb, elems); CHECK_ERR(rval);
+
+    // initialize spatial locator with the elements and a BVH tree
+  BVHTree bvh(&mb);
+  SpatialLocator *sl = new SpatialLocator(&mb, elems, &bvh);
+  CartVect box_del, test_pt, test_res;
+  BoundBox box;
+  rval = sl->get_bounding_box(box); CHECK_ERR(rval);
+  box_del = box.bMax - box.bMin;
+
+  double denom = 1.0 / (double)RAND_MAX;
+  bool is_in;
+  EntityHandle ent;
+  for (int i = 0; i < npoints; i++) {    
+      // generate a small number of random point to test
+    double rx = (double)rand() * denom, ry = (double)rand() * denom, rz = (double)rand() * denom;
+    test_pt = box.bMin + CartVect(rx*box_del[0], ry*box_del[1], rz*box_del[2]);
 
     // call spatial locator to locate points
     rval = sl->locate_points(test_pt.array(), 1, &ent, test_res.array(), 0.0, 0.0, &is_in); CHECK_ERR(rval);

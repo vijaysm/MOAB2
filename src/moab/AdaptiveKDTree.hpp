@@ -56,7 +56,7 @@ namespace moab {
                                    FileOptions *options = NULL);
 
         //! Reset the tree, optionally checking we have the right root
-      virtual ErrorCode reset_tree(EntityHandle root_handle = 0);
+      virtual ErrorCode reset_tree();
 
         /** \brief Get leaf containing input position.
          *
@@ -229,11 +229,6 @@ namespace moab {
           VERTEX_SAMPLE // = 3
       };
   
-        //! Create tree root node
-      ErrorCode create_root( const double box_min[3],
-                             const double box_max[3],
-                             EntityHandle& root_handle );
-
   private:
 
       friend class AdaptiveKDTreeIter;
@@ -297,9 +292,9 @@ namespace moab {
       
       Tag planeTag, axisTag;
 
-      unsigned candidateSplitsPerDir;
+      unsigned splitsPerDir;
   
-      CandidatePlaneSet candidatePlaneSet;
+      CandidatePlaneSet planeSet;
     };
                     
 
@@ -466,6 +461,11 @@ namespace moab {
                           const double ray_vect[3],
                           double& t_enter, double& t_exit ) const;
     };
+
+    inline ErrorCode AdaptiveKDTree::reset_tree()
+    {
+      return delete_tree_sets();
+    }
 
 } // namespace moab 
 

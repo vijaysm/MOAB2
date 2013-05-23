@@ -40,7 +40,7 @@ namespace moab {
       int iters=0;
         // while |res| larger than tol
       while (res % res > error_tol_sqr) {
-        if(++iters>25)
+        if(++iters>10)
           return MB_FAILURE;
 
           // get jacobian at current params
