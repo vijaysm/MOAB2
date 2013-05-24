@@ -126,8 +126,6 @@ fi
 if test "xno" != "x$CHECK_FC"; then
   AC_PROG_FC
   AC_PROG_F77
-  AC_F77_LIBRARY_LDFLAGS
-  AC_FC_LIBRARY_LDFLAGS
 fi
 
 ]) # FATHOM_CHECK_COMPILERS
@@ -522,6 +520,12 @@ case "$cc_compiler:$host_cpu" in
   VisualAge:*)
     case "$target_vendor" in
       bgp)
+        FATHOM_CC_32BIT=-q32
+	FATHOM_CC_64BIT=-q64
+	AR="ar"
+	NM="nm -B"
+        ;;
+      bgq)
         FATHOM_CC_32BIT=-q32
         FATHOM_CC_64BIT=-q64
         AR="ar"

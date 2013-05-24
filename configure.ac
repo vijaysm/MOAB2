@@ -67,14 +67,6 @@ if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FC"; then
   AC_FC_WRAPPERS
 fi
 
-if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FLIBS"; then
-   LIBS="$LIBS $FLIBS"
-fi
-
-if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FCLIBS"; then
-   LIBS="$LIBS $FCLIBS"
-fi
-
 ################################################################################
 #                           Check for need for extra flags to support cray pointers
 ################################################################################
@@ -1230,10 +1222,10 @@ AC_OUTPUT
 AC_MSG_RESULT([C:   $CC $CFLAGS $CPPFLAGS])
 AC_MSG_RESULT([C++: $CXX $CXXFLAGS $CPPFLAGS])
 if test "x" != "x$FC"; then
-  AC_MSG_RESULT([Fortran: $FC $FCFLAGS])
+  AC_MSG_RESULT([Fortran90: $FC $FCFLAGS])
 fi
 if test "x" != "x$F77"; then
-  AC_MSG_RESULT([Fortran: $F77 $FFLAGS])
+  AC_MSG_RESULT([Fortran77: $F77 $FFLAGS])
 fi
 
 if test "x$HAVE_HDF5" = "xno"; then
