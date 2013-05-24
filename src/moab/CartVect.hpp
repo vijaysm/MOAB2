@@ -50,6 +50,8 @@ class CartVect
       { d[0] *= s; d[1] *= s; d[2] *= s; return *this; }
     inline CartVect& operator/=( double s )
       { d[0] /= s; d[1] /= s; d[2] /= s; return *this; }
+  inline bool operator==(const CartVect& v ) const
+      { return d[0] == v[0] && d[1] == v[1] && d[2] == v[2]; }
 
     inline double length() const; //!< vector length
 

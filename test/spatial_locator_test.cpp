@@ -20,8 +20,9 @@ const int npoints = 1000;
 
 void test_kd_tree();
 void test_bvh_tree();
+void test_locator(SpatialLocator *sl);
 
-ErrorCode create_hex_mesh(Interface &mb, Range &elems, int n = 4, int dim = 3);
+ErrorCode create_hex_mesh(Interface &mb, Range &elems, int n = 10, int dim = 3);
 
 int main(int argc, char **argv)
 {
@@ -55,25 +56,8 @@ void test_kd_tree()
 
     // initialize spatial locator with the elements and the default tree type
   SpatialLocator *sl = new SpatialLocator(&mb, elems);
-  CartVect box_del, test_pt, test_res;
-  BoundBox box;
-  rval = sl->get_bounding_box(box); CHECK_ERR(rval);
-  box_del = box.bMax - box.bMin;
 
-  double denom = 1.0 / (double)RAND_MAX;
-  bool is_in;
-  EntityHandle ent;
-  for (int i = 0; i < npoints; i++) {    
-      // generate a small number of random point to test
-    double rx = (double)rand() * denom, ry = (double)rand() * denom, rz = (double)rand() * denom;
-    test_pt = box.bMin + CartVect(rx*box_del[0], ry*box_del[1], rz*box_del[2]);
-
-    // call spatial locator to locate points
-    rval = sl->locate_points(test_pt.array(), 1, &ent, test_res.array(), 0.0, 0.0, &is_in); CHECK_ERR(rval);
-
-    // verify that the point was found
-    CHECK_EQUAL(is_in, true);
-  }
+  test_locator(sl);
 
     // destroy spatial locator, and tree along with it
   delete sl;
@@ -91,9 +75,17 @@ void test_bvh_tree()
     // initialize spatial locator with the elements and a BVH tree
   BVHTree bvh(&mb);
   SpatialLocator *sl = new SpatialLocator(&mb, elems, &bvh);
+  test_locator(sl);
+  
+    // destroy spatial locator, and tree along with it
+  delete sl;
+}
+
+void test_locator(SpatialLocator *sl) 
+{
   CartVect box_del, test_pt, test_res;
   BoundBox box;
-  rval = sl->get_bounding_box(box); CHECK_ERR(rval);
+  ErrorCode rval = sl->get_bounding_box(box); CHECK_ERR(rval);
   box_del = box.bMax - box.bMin;
 
   double denom = 1.0 / (double)RAND_MAX;
@@ -111,8 +103,11 @@ void test_bvh_tree()
     CHECK_EQUAL(is_in, true);
   }
 
-    // destroy spatial locator, and tree along with it
-  delete sl;
+  std::cout << "Traversal stats:" << std::endl;
+  sl->get_tree()->tree_stats().print();
+
+  std::cout << "Tree information: " << std::endl;
+  rval = sl->get_tree()->print();
 }
 
 ErrorCode create_hex_mesh(Interface &mb, Range &elems, int n, int dim) 

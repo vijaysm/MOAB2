@@ -150,6 +150,9 @@ namespace moab {
       ErrorCode create_root( const double box_min[3], const double box_max[3],
                              EntityHandle& root_handle);
       
+        //! print various things about this tree
+      virtual ErrorCode print() = 0;
+      
   protected:
 
         /** \brief Parse options common to all trees

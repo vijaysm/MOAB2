@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <limits>
 #include <iostream>
+#include <cstdio>
 
 namespace moab {
 
@@ -171,8 +172,11 @@ namespace moab {
         }
         else {
           rval = iter.step();
-          if (MB_ENTITY_NOT_FOUND == rval) 
-            return MB_SUCCESS;  // at end
+          if (MB_ENTITY_NOT_FOUND == rval) {
+            treeStats.reset();
+            rval = treeStats.compute_stats(mbImpl, myRoot);
+            return rval;  // at end
+          }
           else if (MB_SUCCESS != rval)
             break;
         }
@@ -198,7 +202,8 @@ namespace moab {
         //  PLANE_SET: method used to decide split planes; see CandidatePlaneSet enum (below)
         //           for possible values; default = 1 (SUBDIVISION_SNAP)
       rval = opts.get_int_option("PLANE_SET", tmp_int);
-      if (tmp_int < SUBDIVISION || tmp_int > VERTEX_SAMPLE) return MB_FAILURE;
+      if (MB_SUCCESS == rval && (tmp_int < SUBDIVISION || tmp_int > VERTEX_SAMPLE)) return MB_FAILURE;
+      else if (MB_ENTITY_NOT_FOUND == rval) planeSet = SUBDIVISION;
       else planeSet = (CandidatePlaneSet)(tmp_int);
 
       return MB_SUCCESS;
@@ -516,12 +521,12 @@ namespace moab {
   
       for (;;) {
         childVect.clear();
-        treeTool->treeStats.nodes_visited()++; // not sure whether this is the visit or the push_back below
+        treeTool->treeStats.nodesVisited++; // not sure whether this is the visit or the push_back below
         rval = treeTool->moab()->get_child_meshsets( mStack.back().entity, childVect );
         if (MB_SUCCESS != rval)
           return rval;
         if (childVect.empty()) { // leaf
-          treeTool->treeStats.leaves_visited()++;
+          treeTool->treeStats.leavesVisited++;
           break;
         }
   
@@ -553,8 +558,8 @@ namespace moab {
         // If the stack is empty after this pop, then we've reached the end.
       node = mStack.back();
       mStack.pop_back();
-      treeTool->treeStats.nodes_visited()++;
-      if (mStack.empty()) treeTool->treeStats.leaves_visited()++;
+      treeTool->treeStats.nodesVisited++;
+      if (mStack.empty()) treeTool->treeStats.leavesVisited++;
 
       while(!mStack.empty()) {
           // Get data for parent entity
@@ -573,7 +578,7 @@ namespace moab {
           mBox[direction][plane.norm] = node.coord;
             // push right child on stack
           node.entity = childVect[direction];
-          treeTool->treeStats.nodes_visited()++; // changed node
+          treeTool->treeStats.nodesVisited++; // changed node
           node.coord = mBox[opposite][plane.norm];
           mStack.push_back( node );
             // change from box of parent to box of right child
@@ -587,7 +592,7 @@ namespace moab {
         assert( childVect[direction] == node.entity );
         mBox[opposite][plane.norm] = node.coord;
         node = parent;
-        treeTool->treeStats.nodes_visited()++;
+        treeTool->treeStats.nodesVisited++;
         mStack.pop_back();
       }
   
@@ -790,7 +795,7 @@ namespace moab {
                                             double& t_enter, 
                                             double& t_exit ) const
     {
-      treeTool->treeStats.leaf_object_tests()++;
+      treeTool->treeStats.leafObjectTests++;
       return GeomUtil::ray_box_intersect( CartVect(box_min()),
                                           CartVect(box_max()),
                                           CartVect(ray_point),
@@ -842,7 +847,7 @@ namespace moab {
   
         // vertices
       for (i = elems.begin(); i != elem_begin; ++i) {
-        tool->tree_stats().leaf_object_tests()++;
+        tool->tree_stats().leafObjectTests++;
         rval = moab->get_coords( &*i, 1, coords[0].array() );
         if (MB_SUCCESS != rval)
           return rval;
@@ -864,7 +869,7 @@ namespace moab {
         // non-polyhedron elements
       std::vector<EntityHandle> dum_vector;
       for (i = elem_begin; i != poly_begin; ++i) {
-        tool->tree_stats().leaf_object_tests()++;
+        tool->tree_stats().leafObjectTests++;
         rval = moab->get_connectivity( *i, conn, count, true, &dum_vector);
         if (MB_SUCCESS != rval) 
           return rval;
@@ -904,7 +909,7 @@ namespace moab {
   
         // polyhedra
       for (i = poly_begin; i != set_begin; ++i) {
-        tool->tree_stats().leaf_object_tests()++;
+        tool->tree_stats().leafObjectTests++;
         rval = moab->get_connectivity( *i, conn, count, true );
         if (MB_SUCCESS != rval) 
           return rval;
@@ -938,7 +943,7 @@ namespace moab {
         // sets
       BoundBox tbox;
       for (i = set_begin; i != elems.end(); ++i) {
-        tool->tree_stats().leaf_object_tests()++;
+        tool->tree_stats().leafObjectTests++;
         rval = tbox.update(*tool->moab(), *i);
         if (MB_SUCCESS != rval)
           return rval;
@@ -1300,6 +1305,8 @@ namespace moab {
       std::vector<EntityHandle> children;
       Plane plane;
 
+      treeStats.numTraversals++;
+      
         // kdtrees never have multiple leaves containing a pt
       if (multiple_leaves) *multiple_leaves = false;
       
@@ -1307,7 +1314,11 @@ namespace moab {
       ErrorCode rval = moab()->get_child_meshsets( node, children );
       if (MB_SUCCESS != rval)
         return rval;
+      treeStats.nodesVisited++;
+
       while (!children.empty()) {
+        treeStats.nodesVisited++;
+        
         rval = get_split_plane( node, plane );
         if (MB_SUCCESS != rval)
           return rval;
@@ -1320,6 +1331,7 @@ namespace moab {
         if (MB_SUCCESS != rval)
           return rval;
       }
+      treeStats.leavesVisited++;
       leaf_out = node;
 
       return MB_SUCCESS;
@@ -1331,18 +1343,21 @@ namespace moab {
                                            EntityHandle *start_node)
     {
       ErrorCode rval;
+      treeStats.numTraversals++;
     
         // kdtrees never have multiple leaves containing a pt
       if (multiple_leaves) *multiple_leaves = false;
 
       leaf_it.mBox[0] = boundBox.bMin;
       leaf_it.mBox[1] = boundBox.bMax;
-      
+
         // test that point is inside tree
       if (point[0] < boundBox.bMin[0] || point[0] > boundBox.bMax[0] ||
           point[1] < boundBox.bMin[1] || point[1] > boundBox.bMax[1] ||
-          point[2] < boundBox.bMin[2] || point[2] > boundBox.bMax[2])
-        return MB_ENTITY_NOT_FOUND;  
+          point[2] < boundBox.bMin[2] || point[2] > boundBox.bMax[2]) {
+        treeStats.nodesVisited++;
+        return MB_ENTITY_NOT_FOUND;
+      }
 
         // initialize iterator at tree root
       leaf_it.treeTool = this;
@@ -1352,6 +1367,8 @@ namespace moab {
         // loop until we reach a leaf
       AdaptiveKDTree::Plane plane;
       for(;;) {
+        treeStats.nodesVisited++;
+        
           // get children
         leaf_it.childVect.clear();
         rval = moab()->get_child_meshsets( leaf_it.handle(), leaf_it.childVect );
@@ -1359,8 +1376,10 @@ namespace moab {
           return rval;
       
           // if no children, then at leaf (done)
-        if (leaf_it.childVect.empty())
+        if (leaf_it.childVect.empty()) {
+          treeStats.leavesVisited++;
           break;
+        }
 
           // get split plane
         rval = get_split_plane( leaf_it.handle(), plane );
@@ -1389,6 +1408,7 @@ namespace moab {
                                               std::vector<double> *result_dists,
                                               EntityHandle *tree_root)
     {
+      treeStats.numTraversals++;
       const double dist_sqr = distance * distance;
       const CartVect from(from_point);
       std::vector<NodeDistance> list, result_list_nodes;     // list of subtrees to traverse, and results 
@@ -1415,8 +1435,10 @@ namespace moab {
           else if (from_point[i] > box.bMax[i])
             node.dist[i] = from_point[i] - box.bMax[i];
         }
-        if (node.dist % node.dist > dist_sqr)
+        if (node.dist % node.dist > dist_sqr) {
+          treeStats.nodesVisited++;
           return MB_SUCCESS;
+        }
       }
   
         // begin with root in list  
@@ -1427,12 +1449,14 @@ namespace moab {
 
         node = list.back();
         list.pop_back();
+        treeStats.nodesVisited++;
       
           // If leaf node, test contained triangles
         children.clear();
         rval = moab()->get_child_meshsets( node.handle, children );
         if (children.empty()) {
           result_list_nodes.push_back( node);
+          treeStats.leavesVisited++;
           continue;
         }
       
@@ -2008,5 +2032,137 @@ namespace moab {
       unsigned min_depth;
       return compute_depth( root, min_depth, dep );
     }
+
+    static std::string mem_to_string( unsigned long mem )
+    {
+      char unit[3] = "B";
+      if (mem > 9*1024) {
+        mem = (mem + 512) / 1024;
+        strcpy( unit, "kB" );
+      }
+      if (mem > 9*1024) {
+        mem = (mem + 512) / 1024;
+        strcpy( unit, "MB" );
+      }
+      if (mem > 9*1024) {
+        mem = (mem + 512) / 1024;
+        strcpy( unit, "GB" );
+      }
+      char buffer[256];
+      sprintf(buffer, "%lu %s", mem, unit );
+      return buffer;
+    }
+
+    template <typename T> 
+    struct SimpleStat 
+    {
+      T min, max, sum, sqr;
+      size_t count;
+      SimpleStat();
+      void add( T value );
+      double avg() const { return (double)sum / count; }
+      double rms() const { return sqrt( (double)sqr / count ); }
+      double dev() const { return (count > 1 ? sqrt( (count * (double)sqr - (double)sum * (double)sum) / ((double)count * (count - 1) ) ) : 0.0); }
+    };
+
+    template <typename T> SimpleStat<T>::SimpleStat()
+            : min(  std::numeric_limits<T>::max() ),
+              max(  std::numeric_limits<T>::min() ),
+              sum( 0 ), sqr( 0 ), count( 0 )
+    {}
+
+    template <typename T> void SimpleStat<T>::add( T value )
+    {
+      if (value < min)
+        min = value;
+      if (value > max)
+        max = value;
+      sum += value;
+      sqr += value*value;
+      ++count;
+    }
   
+    ErrorCode AdaptiveKDTree::print() 
+    {
+      Range range;
+
+      Range tree_sets, elem2d, elem3d, verts, all;
+      moab()->get_child_meshsets( myRoot, tree_sets, 0 );
+      for (Range::iterator rit = tree_sets.begin(); rit != tree_sets.end(); rit++) {
+        moab()->get_entities_by_dimension( *rit, 2, elem2d );
+        moab()->get_entities_by_dimension( *rit, 3, elem3d );
+        moab()->get_entities_by_type( *rit, MBVERTEX, verts );
+      }
+      all.merge( verts );
+      all.merge( elem2d );
+      all.merge( elem3d );
+      tree_sets.insert( myRoot );
+      unsigned long set_used, set_amortized, set_store_used, set_store_amortized,
+          set_tag_used, set_tag_amortized, elem_used, elem_amortized;
+      moab()->estimated_memory_use( tree_sets, 
+                                       &set_used, &set_amortized, 
+                                       &set_store_used, &set_store_amortized,
+                                       0, 0, 0, 0,
+                                       &set_tag_used, &set_tag_amortized );
+      moab()->estimated_memory_use( all,  &elem_used, &elem_amortized );
+  
+      int num_2d = 0, num_3d = 0;;
+      moab()->get_number_entities_by_dimension( 0, 2, num_2d );
+      moab()->get_number_entities_by_dimension( 0, 3, num_3d );
+  
+      BoundBox box;
+      ErrorCode rval = get_bounding_box(box, &myRoot );
+      if (MB_SUCCESS != rval || box == BoundBox()) throw rval;
+      double diff[3] = { box.bMax[0]-box.bMin[0], box.bMax[1]-box.bMin[1], box.bMax[2] - box.bMin[2] };
+      double tree_vol = diff[0]*diff[1]*diff[2];
+      double tree_surf_area = 2*(diff[0]*diff[1] + diff[1]*diff[2] + diff[2]*diff[0]);
+  
+      SimpleStat<unsigned> depth, size;
+      SimpleStat<double> vol, surf;
+  
+      AdaptiveKDTreeIter iter;
+      get_tree_iterator( myRoot, iter );
+      do {
+        depth.add( iter.depth() );
+    
+        int num_leaf_elem;
+        moab()->get_number_entities_by_handle( iter.handle(), num_leaf_elem );
+        size.add(num_leaf_elem);
+    
+        const double* n = iter.box_min();
+        const double* x = iter.box_max();
+        double dims[3] = {x[0]-n[0], x[1]-n[1], x[2]-n[2]};
+    
+        double leaf_vol = dims[0]*dims[1]*dims[2];
+        vol.add(leaf_vol);
+    
+        double area = 2.0*(dims[0]*dims[1] + dims[1]*dims[2] + dims[2]*dims[0]);
+        surf.add(area);
+    
+      } while (MB_SUCCESS == iter.step());
+  
+      printf("------------------------------------------------------------------\n");
+      printf("tree volume:      %f\n", tree_vol );
+      printf("total elements:   %d\n", num_2d + num_3d );
+      printf("number of leaves: %lu\n", (unsigned long)depth.count );
+      printf("number of nodes:  %lu\n", (unsigned long)tree_sets.size() );
+      printf("volume ratio:     %0.2f%%\n", 100*(vol.sum / tree_vol));
+      printf("surface ratio:    %0.2f%%\n", 100*(surf.sum / tree_surf_area));
+      printf("\nmemory:           used  amortized\n");
+      printf("            ---------- ----------\n");
+      printf("elements    %10s %10s\n",mem_to_string(elem_used).c_str(), mem_to_string(elem_amortized).c_str());
+      printf("sets (total)%10s %10s\n",mem_to_string(set_used).c_str(), mem_to_string(set_amortized).c_str());
+      printf("sets        %10s %10s\n",mem_to_string(set_store_used).c_str(), mem_to_string(set_store_amortized).c_str());
+      printf("set tags    %10s %10s\n",mem_to_string(set_tag_used).c_str(), mem_to_string(set_tag_amortized).c_str());
+      printf("\nleaf stats:        min        avg        rms        max    std.dev\n");
+      printf("            ---------- ---------- ---------- ---------- ----------\n");
+      printf("depth       %10u %10.1f %10.1f %10u %10.2f\n", depth.min, depth.avg(), depth.rms(), depth.max, depth.dev() );
+      printf("triangles   %10u %10.1f %10.1f %10u %10.2f\n", size.min, size.avg(), size.rms(), size.max, size.dev() );
+      printf("volume      %10.2g %10.2g %10.2g %10.2g %10.2g\n", vol.min, vol.avg(), vol.rms(), vol.max, vol.dev() );
+      printf("surf. area  %10.2g %10.2g %10.2g %10.2g %10.2g\n", surf.min, surf.avg(), surf.rms(), surf.max, surf.dev() );
+      printf("------------------------------------------------------------------\n");
+
+      return MB_SUCCESS;
+    }
+
 } // namespace moab

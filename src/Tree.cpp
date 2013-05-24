@@ -44,7 +44,18 @@ namespace moab
 
     ErrorCode Tree::find_all_trees( Range& results )
     {
-      return moab()->get_entities_by_type_and_tag( 0, MBENTITYSET, &boxTag, 0, 1, results );
+      Tag tag = get_box_tag();
+      ErrorCode rval = moab()->get_entities_by_type_and_tag( 0, MBENTITYSET, &tag, 0, 1, results );
+      if (MB_SUCCESS != rval || results.empty()) return rval;
+      std::vector<BoundBox> boxes(results.size());
+      rval = moab()->tag_get_data(tag, results, &boxes[0]);
+      if (MB_SUCCESS != rval) return rval;
+      for (std::vector<BoundBox>::iterator vit = boxes.begin(); vit != boxes.end(); vit++)
+        boundBox.update(*vit);
+
+      if (results.size() == 1) myRoot = *results.begin();
+      
+      return MB_SUCCESS;
     }
 
     ErrorCode Tree::create_root( const double box_min[3],

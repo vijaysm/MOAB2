@@ -15,6 +15,8 @@
 #ifndef TREESTATS_HPP
 #define TREESTATS_HPP
 
+#include "moab/Interface.hpp"
+
 #include <vector>
 #include <iostream>
 #include <string>
@@ -24,57 +26,78 @@ namespace moab
     class TreeStats{
   public:
         //! constructor
-      TreeStats() 
-              : leafObjectTests(0) 
-          {}      
+      TreeStats() {reset();}
+
+        /** \brief Given a root node, compute the stats for a tree 
+         * \param impl MOAB instance pointer
+         * \param root_node Root entity set for the tree
+         */
+      ErrorCode compute_stats(Interface *impl, EntityHandle root_node);
       
-        //! return counts of nodes visited, indexed by tree depth.  
-        //! the counts include both leaves and interior nodes
-      const unsigned int &nodes_visited() const
-          {return nodesVisited;}
-
-        //! return counts of tree leaves visited, indexed by tree depth
-      const unsigned int &leaves_visited() const
-          {return leavesVisited;}
-
-        //! return counts of traversals ended, indexed by tree depth
-      const unsigned int &num_traversals() const 
-          {return numTraversals;}
-
-        //! return counts of nodes visited, indexed by tree depth.  
-        //! the counts include both leaves and interior nodes
-      unsigned int &nodes_visited() 
-          {return nodesVisited;}
-
-        //! return counts of tree leaves visited, indexed by tree depth
-      unsigned int &leaves_visited()
-          {return leavesVisited;}
-
-        //! return counts of traversals ended, indexed by tree depth
-      unsigned int &num_traversals()
-          {return numTraversals;}
-
-        //! return total number of leaf-object tests (ray-triangle, point in elem, etc.) performed
-      const unsigned int &leaf_object_tests() const
-          {return leafObjectTests;}
-
-      unsigned int &leaf_object_tests()
-          {return leafObjectTests;}
-
-        //! reset all counters on this structure
+        //! reset traversal counters
+      void reset_trav_stats();
+              
+        //! reset all counters
       void reset();
               
         //! print the contents of this structure to given stream
       void print() const ;
 
-  private:
+        // tree stats that depend only on structure (not traversal)
+      unsigned int maxDepth;
+      unsigned int numNodes;
+      unsigned int numLeaves;
+
+        // traversal statistics
       unsigned int nodesVisited;
       unsigned int leavesVisited;
       unsigned int numTraversals;
       unsigned int leafObjectTests;
+
+  private:
+      ErrorCode traverse(Interface *impl, EntityHandle node, unsigned int &depth);
+      
     };
 
+    inline ErrorCode TreeStats::compute_stats(Interface *impl, EntityHandle root_node) 
+    {
+      maxDepth = 0;
+      return traverse(impl, root_node, maxDepth);
+    }
+      
+    inline ErrorCode TreeStats::traverse(Interface *impl, EntityHandle node, unsigned int &depth) 
+    {
+      depth++;
+      numNodes++;
+      std::vector<EntityHandle> children;
+      children.reserve(2);
+      ErrorCode rval = impl->get_child_meshsets(node, children);
+      if (MB_SUCCESS != rval) return rval;
+      if (children.empty()) {
+        numLeaves++;
+        return MB_SUCCESS;
+      }
+      else {
+        unsigned int right_depth = depth, left_depth = depth;
+        rval = traverse(impl, children[0], left_depth);
+        if (MB_SUCCESS != rval) return rval;
+        rval = traverse(impl, children[1], right_depth);
+        if (MB_SUCCESS != rval) return rval;
+        depth = std::max(left_depth, right_depth);
+        return MB_SUCCESS;
+      }
+    }
+
     inline void TreeStats::reset()
+    {
+      maxDepth = 0;
+      numNodes = 0;
+      numLeaves = 0;
+      
+      reset_trav_stats();
+    }
+    
+    inline void TreeStats::reset_trav_stats() 
     {
       nodesVisited = 0;
       leavesVisited = 0;

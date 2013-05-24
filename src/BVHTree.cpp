@@ -80,6 +80,9 @@ namespace moab
       rval = convert_tree(tree_nodes);
       if (MB_SUCCESS != rval) return rval;
 
+      treeStats.reset();
+      rval = treeStats.compute_stats(mbImpl, startSetHandle);
+      
       return rval;
     }
 
@@ -428,18 +431,22 @@ namespace moab
     ErrorCode BVHTree::find_point(const std::vector<double> &point, 
                                   const unsigned int &index,
                                   const double tol,
-                                  std::pair<EntityHandle, CartVect> &result) const 
+                                  std::pair<EntityHandle, CartVect> &result)
     {
+      if (index == 0) treeStats.numTraversals++;
       const TreeNode &node = myTree[index];
+      treeStats.nodesVisited++;
       CartVect params;
       bool is_inside;
       ErrorCode rval = MB_SUCCESS;
       if(node.dim == 3){
+        treeStats.leavesVisited++;
         Range entities;
         rval = mbImpl->get_entities_by_handle(startSetHandle+index, entities);
         if (MB_SUCCESS != rval) return rval;
         
         for(Range::iterator i = entities.begin(); i != entities.end(); i++) {
+          treeStats.leafObjectTests++;
           myEval->set_ent_handle(*i);
           myEval->reverse_eval(&point[0], tol, params.array(), &is_inside);
           if (is_inside) {
@@ -496,16 +503,19 @@ namespace moab
       return MB_SUCCESS;
     }
 
-    EntityHandle BVHTree::bruteforce_find(const double *point, const double tol) const {
+    EntityHandle BVHTree::bruteforce_find(const double *point, const double tol) {
+      treeStats.numTraversals++;
       CartVect params;
       bool is_inside;
       for(unsigned int i = 0; i < myTree.size(); i++) {
         if(myTree[i].dim != 3 || !myTree[i].box.contains_point(point, tol)) continue;
         if (myEval) {
+          treeStats.leavesVisited++;
           Range entities;
           ErrorCode rval = mbImpl->get_entities_by_handle(startSetHandle+i, entities);
           if (MB_SUCCESS != rval) return 0;
           for(Range::iterator j = entities.begin(); j != entities.end(); ++j) {
+            treeStats.leafObjectTests++;
             myEval->set_ent_handle(*j);
             myEval->reverse_eval(point, tol, params.array(), &is_inside);
             if (is_inside) return *j;
@@ -536,6 +546,8 @@ namespace moab
     {
       std::vector<EntityHandle> children;
 
+      treeStats.numTraversals++;
+
       EntityHandle this_set = (start_node ? *start_node : startSetHandle);
         // convoluted check because the root is different from startSetHandle
       if (this_set != myRoot &&
@@ -549,6 +561,8 @@ namespace moab
       BoundBox box;
       while( !candidates.empty() ) {
         EntityHandle ind = candidates.back();
+        treeStats.nodesVisited++;
+        if (myTree[ind].dim == 3) treeStats.leavesVisited++;
         this_set = startSetHandle + ind;
         candidates.pop_back();
 
@@ -587,6 +601,8 @@ namespace moab
         return MB_FAILURE;
       else if (this_set == myRoot) this_set = startSetHandle;
 
+      treeStats.numTraversals++;
+
       const double dist_sqr = distance * distance;
       const CartVect from(from_point);
       std::vector<EntityHandle> candidates, result_list_nodes;     // list of subtrees to traverse, and results 
@@ -605,6 +621,8 @@ namespace moab
         EntityHandle ind = candidates.back();
         this_set = startSetHandle + ind;
         candidates.pop_back();
+        treeStats.nodesVisited++;
+        if (myTree[ind].dim == 3) treeStats.leavesVisited++;
 
           // test box of this node
         rval = get_bounding_box(box, &this_set);
@@ -633,6 +651,17 @@ namespace moab
       int i;
       std::vector<Node>::iterator it;
       for (it = nodes.begin(), i = 0; it != nodes.end(); it++, i++) {
+        std::cout << "Node " << i << ": dim = " << it->dim << ", child = " << it->child << ", Lmax/Rmin = "
+                  << it->Lmax << "/" << it->Rmin << ", box = " << it->box << std::endl;
+      }
+      return MB_SUCCESS;
+    }
+      
+    ErrorCode BVHTree::print()
+    {
+      int i;
+      std::vector<TreeNode>::iterator it;
+      for (it = myTree.begin(), i = 0; it != myTree.end(); it++, i++) {
         std::cout << "Node " << i << ": dim = " << it->dim << ", child = " << it->child << ", Lmax/Rmin = "
                   << it->Lmax << "/" << it->Rmin << ", box = " << it->box << std::endl;
       }

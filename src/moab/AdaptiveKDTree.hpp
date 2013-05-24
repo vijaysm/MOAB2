@@ -229,6 +229,9 @@ namespace moab {
           VERTEX_SAMPLE // = 3
       };
   
+        //! print various things about this tree
+      virtual ErrorCode print();
+      
   private:
 
       friend class AdaptiveKDTreeIter;

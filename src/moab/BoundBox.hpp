@@ -51,6 +51,9 @@ namespace moab {
         bMax = from.bMax;
         return *this;
       }
+      inline bool operator==(const BoundBox &box) const {
+        return (bMin == box.bMin && bMax == box.bMax);
+      }
 
       CartVect bMin, bMax;
     };

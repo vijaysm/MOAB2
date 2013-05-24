@@ -62,6 +62,7 @@ static void usage( bool err = true )
   exit( err );
 }
 
+/*
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
 static void memory_use( unsigned long& vsize, unsigned long& rss )
 {
@@ -87,6 +88,7 @@ static void memory_use( unsigned long& vsize, unsigned long& rss )
 static void memory_use( unsigned long& vsize, unsigned long& rss )
   { vsize = rss = 0; }
 #endif
+*/
 
 static int parseint( int& i, int argc, char* argv[] )
 {
@@ -189,6 +191,9 @@ int main( int argc, char* argv[] )
       default: usage();
     }
   }
+
+    // this test relies on not cleaning up trees
+  options << "CLEAN_UP=false;";
   
   if (make_grid != !output_file)
     usage();
@@ -242,7 +247,18 @@ int main( int argc, char* argv[] )
   }
   
   std::cout << "Calculating stats..." << std::endl;
-  print_stats( interface );
+  AdaptiveKDTree tool(interface);
+  Range range;
+  tool.find_all_trees( range );
+  if (range.size() != 1) {
+    if (range.empty())
+      std::cerr << "Internal error: Failed to retreive tree." << std::endl;
+    else
+      std::cerr << "Internal error: Multiple tree roots." << std::endl;
+    exit(5);
+  }
+  tool.print();
+
   stat_time = clock() - build_time;
   
   if (tag_elems) {
@@ -384,155 +400,6 @@ std::string clock_to_string( clock_t t )
   sprintf(buffer,"%0.2f%s",dt,unit);
   return buffer;
 }
-
-std::string mem_to_string( unsigned long mem )
-{
-  char unit[3] = "B";
-  if (mem > 9*1024) {
-    mem = (mem + 512) / 1024;
-    strcpy( unit, "kB" );
-  }
-  if (mem > 9*1024) {
-    mem = (mem + 512) / 1024;
-    strcpy( unit, "MB" );
-  }
-  if (mem > 9*1024) {
-    mem = (mem + 512) / 1024;
-    strcpy( unit, "GB" );
-  }
-  char buffer[256];
-  sprintf(buffer, "%lu %s", mem, unit );
-  return buffer;
-}
-
-template <typename T> 
-struct SimpleStat 
-{
-  T min, max, sum, sqr;
-  size_t count;
-  SimpleStat();
-  void add( T value );
-  double avg() const { return (double)sum / count; }
-  double rms() const { return sqrt( (double)sqr / count ); }
-  double dev() const { return sqrt( (count * (double)sqr - (double)sum * (double)sum) / ((double)count * (count - 1) ) ); }
-};
-
-template <typename T> SimpleStat<T>::SimpleStat()
-  : min(  std::numeric_limits<T>::max() ),
-    max(  std::numeric_limits<T>::min() ),
-    sum( 0 ), sqr( 0 ), count( 0 )
-  {}
-
-template <typename T> void SimpleStat<T>::add( T value )
-{
-  if (value < min)
-    min = value;
-  if (value > max)
-    max = value;
-  sum += value;
-  sqr += value*value;
-  ++count;
-}
-  
-void print_stats( Interface* interface )
-{
-  EntityHandle root;
-  Range range;
-  AdaptiveKDTree tool(interface);
-  
-  tool.find_all_trees( range );
-  if (range.size() != 1) {
-    if (range.empty())
-      std::cerr << "Internal error: Failed to retreive tree." << std::endl;
-    else
-      std::cerr << "Internal error: Multiple tree roots." << std::endl;
-    exit(5);
-  }
-  
-  root = *range.begin();
-  range.clear();
-
-  Range tree_sets, elem2d, elem3d, verts, all;
-  //interface->get_child_meshsets( root, tree_sets, 0 );
-  interface->get_entities_by_type( 0, MBENTITYSET, tree_sets );
-  tree_sets.erase( tree_sets.begin(), Range::lower_bound( tree_sets.begin(), tree_sets.end(), root ) );
-  interface->get_entities_by_dimension( 0, 2, elem2d );
-  interface->get_entities_by_dimension( 0, 3, elem3d );
-  interface->get_entities_by_type( 0, MBVERTEX, verts );
-  all.clear();
-  all.merge( verts );
-  all.merge( elem2d );
-  all.merge( elem3d );
-  tree_sets.insert( root );
-  unsigned long set_used, set_amortized, set_store_used, set_store_amortized,
-                set_tag_used, set_tag_amortized, elem_used, elem_amortized;
-  interface->estimated_memory_use( tree_sets, 
-                                   &set_used, &set_amortized, 
-                                   &set_store_used, &set_store_amortized,
-                                   0, 0, 0, 0,
-                                   &set_tag_used, &set_tag_amortized );
-  interface->estimated_memory_use( all,  &elem_used, &elem_amortized );
-  
-  int num_2d = 0, num_3d = 0;;
-  interface->get_number_entities_by_dimension( 0, 2, num_2d );
-  interface->get_number_entities_by_dimension( 0, 3, num_3d );
-  
-  BoundBox box;
-  tool.get_bounding_box(box, &root );
-  double diff[3] = { box.bMax[0]-box.bMin[0], box.bMax[1]-box.bMin[1], box.bMax[2] - box.bMin[2] };
-  double tree_vol = diff[0]*diff[1]*diff[2];
-  double tree_surf_area = 2*(diff[0]*diff[1] + diff[1]*diff[2] + diff[2]*diff[0]);
-  
-  SimpleStat<unsigned> depth, size;
-  SimpleStat<double> vol, surf;
-  
-  AdaptiveKDTreeIter iter;
-  tool.get_tree_iterator( root, iter );
-  do {
-    depth.add( iter.depth() );
-    
-    int num_leaf_elem;
-    interface->get_number_entities_by_handle( iter.handle(), num_leaf_elem );
-    size.add(num_leaf_elem);
-    
-    const double* n = iter.box_min();
-    const double* x = iter.box_max();
-    double dims[3] = {x[0]-n[0], x[1]-n[1], x[2]-n[2]};
-    
-    double leaf_vol = dims[0]*dims[1]*dims[2];
-    vol.add(leaf_vol);
-    
-    double area = 2.0*(dims[0]*dims[1] + dims[1]*dims[2] + dims[2]*dims[0]);
-    surf.add(area);
-    
-  } while (MB_SUCCESS == iter.step());
-  
-  unsigned long real_rss, real_vsize;
-  memory_use( real_vsize, real_rss );
-  
-  printf("------------------------------------------------------------------\n");
-  printf("tree volume:      %f\n", tree_vol );
-  printf("total elements:   %d\n", num_2d + num_3d );
-  printf("number of leaves: %lu\n", (unsigned long)depth.count );
-  printf("number of nodes:  %lu\n", (unsigned long)tree_sets.size() );
-  printf("volume ratio:     %0.2f%%\n", 100*(vol.sum / tree_vol));
-  printf("surface ratio:    %0.2f%%\n", 100*(surf.sum / tree_surf_area));
-  printf("\nmemory:           used  amortized\n");
-  printf("            ---------- ----------\n");
-  printf("elements    %10s %10s\n",mem_to_string(elem_used).c_str(), mem_to_string(elem_amortized).c_str());
-  printf("sets (total)%10s %10s\n",mem_to_string(set_used).c_str(), mem_to_string(set_amortized).c_str());
-  printf("sets        %10s %10s\n",mem_to_string(set_store_used).c_str(), mem_to_string(set_store_amortized).c_str());
-  printf("set tags    %10s %10s\n",mem_to_string(set_tag_used).c_str(), mem_to_string(set_tag_amortized).c_str());
-  printf("total real  %10s %10s\n",mem_to_string(real_rss).c_str(), mem_to_string(real_vsize).c_str());
-  printf("\nleaf stats:        min        avg        rms        max    std.dev\n");
-  printf("            ---------- ---------- ---------- ---------- ----------\n");
-  printf("depth       %10u %10.1f %10.1f %10u %10.2f\n", depth.min, depth.avg(), depth.rms(), depth.max, depth.dev() );
-  printf("triangles   %10u %10.1f %10.1f %10u %10.2f\n", size.min, size.avg(), size.rms(), size.max, size.dev() );
-  printf("volume      %10.2g %10.2g %10.2g %10.2g %10.2g\n", vol.min, vol.avg(), vol.rms(), vol.max, vol.dev() );
-  printf("surf. area  %10.2g %10.2g %10.2g %10.2g %10.2g\n", surf.min, surf.avg(), surf.rms(), surf.max, surf.dev() );
-  printf("------------------------------------------------------------------\n");
-}
-
 
 static int hash_handle( EntityHandle handle )
 {

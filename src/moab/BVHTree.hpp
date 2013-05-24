@@ -99,6 +99,10 @@ namespace moab {
                                         std::vector<EntityHandle>& result_list,
                                         std::vector<double> *result_dists,
                                         EntityHandle *tree_root);
+
+        //! print various things about this tree
+      virtual ErrorCode print();
+      
   private:
         // don't allow copy constructor, too complicated
       BVHTree(const BVHTree &s);
@@ -228,9 +232,9 @@ namespace moab {
       ErrorCode find_point(const std::vector<double> &point, 
                            const unsigned int &index,
                            const double tol,
-                           std::pair<EntityHandle, CartVect> &result) const;
+                           std::pair<EntityHandle, CartVect> &result);
       
-      EntityHandle bruteforce_find(const double *point, const double tol) const;
+      EntityHandle bruteforce_find(const double *point, const double tol);
 
       int local_build_tree(std::vector<Node> &tree_nodes,
                            HandleDataVec::iterator begin, 
