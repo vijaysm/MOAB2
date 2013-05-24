@@ -110,11 +110,11 @@ namespace moab {
       class HandleData 
       {
     public:
-        HandleData(EntityHandle h, const BoundBox &bx, const int dp) : myHandle(h), myBox(bx), myDim(dp) {}
+        HandleData(EntityHandle h, const BoundBox &bx, const double dp) : myHandle(h), myBox(bx), myDim(dp) {}
         HandleData() : myHandle(0), myDim(-1) {}
         EntityHandle myHandle;
         BoundBox myBox;
-        int myDim;
+        double myDim;
       };
       typedef std::vector<HandleData> HandleDataVec;
     

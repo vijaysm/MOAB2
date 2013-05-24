@@ -284,15 +284,14 @@ namespace moab
       BoundBox test_box(data.rightBox);
       if(!data.boundingBox.contains_box(test_box)) {
         std::cerr << "MEDIAN: BB Does not contain splits" << std::endl;
-      }
-      if(!test_box.contains_box(data.boundingBox)) {
-        std::cerr << "MEDIAN: splits do not contain BB" << std::endl;
+        std::cerr << "test_box:         " << test_box << std::endl;
+        std::cerr << "data.boundingBox: " << data.boundingBox << std::endl;
       }
 #endif
     }
 
     void BVHTree::find_split(HandleDataVec::iterator &begin, 
-                             HandleDataVec::iterator &end, 
+                             HandleDataVec::iterator &end,
                              SplitData &data) const
     {
       std::vector<std::vector<Bucket> > buckets(3, std::vector<Bucket>(splitsPerDir+1) );
