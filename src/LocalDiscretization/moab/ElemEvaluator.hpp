@@ -156,6 +156,46 @@ namespace moab {
          */
       bool inside(const double *params, const double tol) const;
 
+        /** \brief Given a list of entities, return the entity the point is in, or none
+         * This function reverse-evaluates the entities, returning the first entity containing the point.
+         * If no entity contains the point, containing_ent is returned as 0 and params are unchanged.
+         * This function returns something other than MB_SUCCESS only when queries go wrong for some reason.
+         * num_evals, if non-NULL, is always incremented for each call to reverse_eval.
+         * This function calls set_ent_handle for each entity before calling reverse_eval, so the ElemEvaluator
+         * object is changed.
+         * \param entities Entities tested
+         * \param point Point tested, must have 3 dimensions, even for edge and face entities
+         * \param tol Tolerance for is_inside test
+         * \param containing_ent Entity containing the point, returned 0 if no entity
+         * \param params Parameters of point in containing entity, unchanged if no containing entity
+         * \param num_evals If non-NULL, incremented each time reverse_eval is called
+         * \return Returns non-success only if evaulation failed for some reason (point not in element is NOT a
+         * reason for failure)
+         */
+      ErrorCode find_containing_entity(Range &entities, const double *point, double tol, 
+                                       EntityHandle &containing_ent, double *params, 
+                                       unsigned int *num_evals = NULL);
+      
+        /** \brief Given an entity set, return the contained entity the point is in, or none
+         * This function reverse-evaluates the entities, returning the first entity containing the point.
+         * If no entity contains the point, containing_ent is returned as 0 and params are unchanged.
+         * This function returns something other than MB_SUCCESS only when queries go wrong for some reason.
+         * num_evals, if non-NULL, is always incremented for each call to reverse_eval.
+         * This function calls set_ent_handle for each entity before calling reverse_eval, so the ElemEvaluator
+         * object is changed.
+         * \param ent_set Entity set containing the entities to be tested
+         * \param point Point tested, must have 3 dimensions, even for edge and face entities
+         * \param tol Tolerance for is_inside test
+         * \param containing_ent Entity containing the point, returned 0 if no entity
+         * \param params Parameters of point in containing entity, unchanged if no containing entity
+         * \param num_evals If non-NULL, incremented each time reverse_eval is called
+         * \return Returns non-success only if evaulation failed for some reason (point not in element is NOT a
+         * reason for failure)
+         */
+      ErrorCode find_containing_entity(EntityHandle ent_set, const double *point, double tol, 
+                                       EntityHandle &containing_ent, double *params, 
+                                       unsigned int *num_evals = NULL);
+      
         /** \brief Set the eval set for a given type entity
          * \param tp Entity type for which to set the eval set
          * \param eval_set Eval set object to use
@@ -423,6 +463,17 @@ namespace moab {
                                                workSpace, result);
     }
 
+    inline ErrorCode ElemEvaluator::find_containing_entity(EntityHandle ent_set, const double *point, double tol, 
+                                                           EntityHandle &containing_ent, double *params, 
+                                                           unsigned int *num_evals) 
+    {
+      assert(mbImpl->type_from_handle(ent_set) == MBENTITYSET);
+      Range entities;
+      ErrorCode rval = mbImpl->get_entities_by_handle(ent_set, entities);
+      if (MB_SUCCESS != rval) return rval;
+      else return find_containing_entity(entities, point, tol, containing_ent, params, num_evals);
+    }
+        
     inline bool ElemEvaluator::inside(const double *params, const double tol) const 
     {
       return (*evalSets[entType].insideFcn)(params, entDim, tol);

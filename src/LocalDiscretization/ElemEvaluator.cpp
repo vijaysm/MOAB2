@@ -99,4 +99,23 @@ namespace moab {
       return MB_NOT_IMPLEMENTED;
     }
       
+    ErrorCode ElemEvaluator::find_containing_entity(Range &entities, const double *point, double tol, 
+                                                    EntityHandle &containing_ent, double *params, 
+                                                    unsigned int *num_evals) 
+    {
+      bool is_inside;
+      ErrorCode rval = MB_SUCCESS;
+      unsigned int nevals = 0;
+      Range::iterator i;
+      for(i = entities.begin(); i != entities.end(); i++) {
+        nevals++;
+        set_ent_handle(*i);
+        rval = reverse_eval(point, tol, params, &is_inside);
+        if (MB_SUCCESS != rval) return rval;
+        if (is_inside) break;
+      }
+      containing_ent = (i == entities.end() ? 0 : *i);
+      if (num_evals) *num_evals += nevals;
+      return MB_SUCCESS;
+    }
 } // namespace moab

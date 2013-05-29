@@ -505,21 +505,17 @@ namespace moab
     EntityHandle BVHTree::bruteforce_find(const double *point, const double tol) {
       treeStats.numTraversals++;
       CartVect params;
-      bool is_inside;
       for(unsigned int i = 0; i < myTree.size(); i++) {
         if(myTree[i].dim != 3 || !myTree[i].box.contains_point(point, tol)) continue;
         if (myEval) {
+          EntityHandle entity = 0;
           treeStats.leavesVisited++;
-          Range entities;
-          ErrorCode rval = mbImpl->get_entities_by_handle(startSetHandle+i, entities);
-          if (MB_SUCCESS != rval) return 0;
-          for(Range::iterator j = entities.begin(); j != entities.end(); ++j) {
-            treeStats.leafObjectTests++;
-            myEval->set_ent_handle(*j);
-            myEval->reverse_eval(point, tol, params.array(), &is_inside);
-            if (is_inside) return *j;
-          }
+          ErrorCode rval = myEval->find_containing_entity(startSetHandle+i, point, tol,
+                                                          entity, params.array(), &treeStats.leafObjectTests);
+          if (entity) return entity;
+          else if (MB_SUCCESS != rval) return 0;
         }
+        else return startSetHandle+i;
       }
       return 0;
     }
@@ -540,8 +536,10 @@ namespace moab
 
     ErrorCode BVHTree::point_search(const double *point,
                                     EntityHandle& leaf_out,
+                                    double tol,
                                     bool *multiple_leaves,
-                                    EntityHandle *start_node) 
+                                    EntityHandle *start_node,
+                                    CartVect *params) 
     {
       std::vector<EntityHandle> children;
 
@@ -568,7 +566,7 @@ namespace moab
           // test box of this node
         ErrorCode rval = get_bounding_box(box, &this_set);
         if (MB_SUCCESS != rval) return rval;
-        if (!box.contains_point(point)) continue;
+        if (!box.contains_point(point, tol)) continue;
 
           // else if not a leaf, test children & put on list
         else if (myTree[ind].dim != 3) {
@@ -576,9 +574,15 @@ namespace moab
           candidates.push_back(myTree[ind].child+1);
           continue;
         }
-      
-          // leaf node within distance; return in list
-        result_list.push_back(this_set);
+        else if (myTree[ind].dim == 3 && myEval && params) {
+          rval = myEval->find_containing_entity(startSetHandle+ind, point, tol,
+                                                leaf_out, params->array(), &treeStats.leafObjectTests);
+          if (leaf_out || MB_SUCCESS != rval) return rval;
+        }
+        else {
+            // leaf node within distance; return in list
+          result_list.push_back(this_set);
+        }
       }
 
       if (!result_list.empty()) leaf_out = result_list[0];
@@ -589,7 +593,9 @@ namespace moab
     ErrorCode BVHTree::distance_search(const double from_point[3],
                                        const double distance,
                                        std::vector<EntityHandle>& result_list,
+                                       double params_tol,
                                        std::vector<double> *result_dists,
+                                       std::vector<CartVect> *result_params,
                                        EntityHandle *tree_root)
     {
         // non-NULL root should be in tree
@@ -637,11 +643,26 @@ namespace moab
           candidates.push_back(myTree[ind].child+1);
           continue;
         }
-      
-          // leaf node within distance; return in list
-        result_list.push_back(this_set);
-        if (result_dists) result_dists->push_back(sqrt(d_sqr));
+
+        if (myEval && result_params) {
+          EntityHandle ent;
+          CartVect params;
+          rval = myEval->find_containing_entity(startSetHandle+ind, from_point, params_tol,
+                                                ent, params.array(), &treeStats.leafObjectTests);
+          if (MB_SUCCESS != rval) return rval;
+          else if (ent) {
+            result_list.push_back(ent);
+            result_params->push_back(params);
+            if (result_dists) result_dists->push_back(0.0);
+          }
+        }
+        else {
+            // leaf node within distance; return in list
+          result_list.push_back(this_set);
+          if (result_dists) result_dists->push_back(sqrt(d_sqr));
+        }
       }
+      
       return MB_SUCCESS;
     }
 

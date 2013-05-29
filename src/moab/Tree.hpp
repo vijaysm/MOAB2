@@ -21,6 +21,7 @@ namespace moab {
 
     class Interface;
     class Range;
+    class ElemEvaluator;
 
     class Tree
     {
@@ -99,6 +100,7 @@ namespace moab {
          * containing the point in that case.
          * \param point Point to be located in tree
          * \param leaf_out Leaf containing point
+         * \param tol Tolerance below which a point is "in"
          * \param multiple_leaves Some tree types can have multiple leaves containing a point;
          *          if non-NULL, this parameter is returned true if multiple leaves contain
          *          the input point
@@ -107,22 +109,31 @@ namespace moab {
          */
       virtual ErrorCode point_search(const double *point,
                                      EntityHandle& leaf_out,
+                                     double tol = 0.0,
                                      bool *multiple_leaves = NULL,
-                                     EntityHandle *start_node = NULL) = 0;
+                                     EntityHandle *start_node = NULL,
+                                     CartVect *params = NULL) = 0;
 
         /** \brief Find all leaves within a given distance from point
          * If dists_out input non-NULL, also returns distances from each leaf; if
-         * point i is inside leaf, 0 is given as dists_out[i]
+         * point i is inside leaf, 0 is given as dists_out[i].
+         * If params_out is non-NULL and myEval is non-NULL, will evaluate individual entities
+         * in tree nodes and return containing entities in leaves_out.  In those cases, if params_out
+         * is also non-NULL, will return parameters in those elements in that vector.
          * \param point Point to be located in tree
          * \param distance Distance within which to query
-         * \param leaves Leaves within distance or containing point
-         * \param dists If non-NULL, will contain distsances to leaves
+         * \param leaves_out Leaves within distance or containing point
+         * \param tol Tolerance below which a point is "in"
+         * \param dists_out If non-NULL, will contain distsances to leaves
+         * \param params_out If non-NULL, will contain parameters of the point in the ents in leaves_out
          * \param start_node Start from this tree node (non-NULL) instead of tree root (NULL)
          */
       virtual ErrorCode distance_search(const double *point,
                                         const double distance,
                                         std::vector<EntityHandle>& leaves_out,
+                                        double params_tol = 0.0,
                                         std::vector<double> *dists_out = NULL,
+                                        std::vector<CartVect> *params_out = NULL,
                                         EntityHandle *start_node = NULL) = 0;
 
         /** \brief Return the MOAB interface associated with this tree
@@ -153,6 +164,13 @@ namespace moab {
         //! print various things about this tree
       virtual ErrorCode print() = 0;
       
+        //! get/set the ElemEvaluator
+      inline ElemEvaluator *get_eval() {return myEval;}
+      
+        //! get/set the ElemEvaluator
+      inline void set_eval(ElemEvaluator *eval) {myEval = eval;}
+      
+            
   protected:
 
         /** \brief Parse options common to all trees
@@ -203,7 +221,9 @@ namespace moab {
 
         // tree traversal stats
       TreeStats treeStats;
-      
+
+        // element evaluator
+      ElemEvaluator *myEval;
     };
 
     inline Tree::Tree(Interface* iface) 

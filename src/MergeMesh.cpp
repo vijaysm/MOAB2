@@ -171,7 +171,7 @@ moab::ErrorCode MergeMesh::find_merged_to(moab::EntityHandle &tree_root,
       // check close-by leaves too
       leaves_out.clear();
       result = tree.distance_search(from.array(), mergeTol,
-                                    leaves_out, NULL, &tree_root);
+                                    leaves_out, 0.0, NULL, NULL, &tree_root);
       leaf_range2.clear();
       for (std::vector<moab::EntityHandle>::iterator vit = leaves_out.begin();
            vit != leaves_out.end(); vit++) {

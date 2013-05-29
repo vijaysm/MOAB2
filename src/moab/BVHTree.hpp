@@ -74,6 +74,7 @@ namespace moab {
          * containing the point in that case.
          * \param point Point to be located in tree
          * \param leaf_out Leaf containing point
+         * \param tol Tolerance below which a point is "in"
          * \param multiple_leaves Some tree types can have multiple leaves containing a point;
          *          if non-NULL, this parameter is returned true if multiple leaves contain
          *          the input point
@@ -82,26 +83,36 @@ namespace moab {
          */
       virtual ErrorCode point_search(const double *point,
                                      EntityHandle& leaf_out,
+                                     double tol = 0.0,
                                      bool *multiple_leaves = NULL,
-                                     EntityHandle *start_node = NULL);
+                                     EntityHandle *start_node = NULL,
+                                     CartVect *params = NULL);
 
         /** \brief Find all leaves within a given distance from point
          * If dists_out input non-NULL, also returns distances from each leaf; if
-         * point i is inside leaf, 0 is given as dists_out[i]
-         * \param from_point Point to be located in tree
+         * point i is inside leaf, 0 is given as dists_out[i].
+         * If params_out is non-NULL and myEval is non-NULL, will evaluate individual entities
+         * in tree nodes and return containing entities in leaves_out.  In those cases, if params_out
+         * is also non-NULL, will return parameters in those elements in that vector.
+         * \param point Point to be located in tree
          * \param distance Distance within which to query
-         * \param result_list Leaves within distance or containing point
-         * \param result_dists If non-NULL, will contain distsances to leaves
-         * \param tree_root Start from this tree node (non-NULL) instead of tree root (NULL)
+         * \param leaves_out Leaves within distance or containing point
+         * \param tol Tolerance below which a point is "in"
+         * \param dists_out If non-NULL, will contain distsances to leaves
+         * \param params_out If non-NULL, will contain parameters of the point in the ents in leaves_out
+         * \param start_node Start from this tree node (non-NULL) instead of tree root (NULL)
          */
       virtual ErrorCode distance_search(const double from_point[3],
                                         const double distance,
                                         std::vector<EntityHandle>& result_list,
-                                        std::vector<double> *result_dists,
-                                        EntityHandle *tree_root);
+                                        double tol = 0.0,
+                                        std::vector<double> *result_dists = NULL,
+                                        std::vector<CartVect> *result_params = NULL,
+                                        EntityHandle *tree_root = NULL);
 
         //! print various things about this tree
       virtual ErrorCode print();
+
       
   private:
         // don't allow copy constructor, too complicated
@@ -286,7 +297,8 @@ namespace moab {
       return std::ceil(center/length)-1;
     }
 
-    inline BVHTree::BVHTree(Interface *impl) : Tree(impl), splitsPerDir(3) {boxTagName = treeName;}
+    inline BVHTree::BVHTree(Interface *impl) : 
+            Tree(impl), myEval(NULL), splitsPerDir(3), startSetHandle(0) {boxTagName = treeName;}
 
     inline unsigned int BVHTree::set_interval(BoundBox &interval, 
                                               std::vector<Bucket>::const_iterator begin, 

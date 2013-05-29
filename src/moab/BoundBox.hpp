@@ -67,11 +67,11 @@ namespace moab {
     }
 
     inline bool BoundBox::contains_point(const double *point, const double tol) const {
-      if (point[0] > bMin[0]-tol && point[0] < bMax[0]+tol &&
-          point[1] > bMin[1]-tol && point[1] < bMax[1]+tol &&
-          point[2] > bMin[2]-tol && point[2] < bMax[2]+tol)
-        return true;
-      else return false;
+      if (point[0] < bMin[0]-tol || point[0] > bMax[0]+tol ||
+          point[1] < bMin[1]-tol || point[1] > bMax[1]+tol ||
+          point[2] < bMin[2]-tol || point[2] > bMax[2]+tol)
+        return false;
+      else return true;
     }
 
     inline bool BoundBox::contains_box(const BoundBox &b, const double tol) const {

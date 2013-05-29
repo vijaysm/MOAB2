@@ -5,6 +5,7 @@
 #include "moab/Interface.hpp"
 #include "moab/GeomUtil.hpp"
 #include "moab/Range.hpp"
+#include "moab/ElemEvaluator.hpp"
 #include "Internals.hpp"
 #include <math.h>
 
@@ -1299,22 +1300,30 @@ namespace moab {
 
     ErrorCode AdaptiveKDTree::point_search(const double *point,
                                            EntityHandle& leaf_out,
+                                           double tol,
                                            bool *multiple_leaves,
-                                           EntityHandle *start_node)
+                                           EntityHandle *start_node,
+                                           CartVect *params)
     {
       std::vector<EntityHandle> children;
       Plane plane;
 
       treeStats.numTraversals++;
-      
+      leaf_out = 0;
+      BoundBox box;
         // kdtrees never have multiple leaves containing a pt
       if (multiple_leaves) *multiple_leaves = false;
       
       EntityHandle node = (start_node ? *start_node : myRoot);
-      ErrorCode rval = moab()->get_child_meshsets( node, children );
+
+      treeStats.nodesVisited++;
+      ErrorCode rval = get_bounding_box(box, &node);
+      if (MB_SUCCESS != rval) return rval;
+      if (!box.contains_point(point, tol)) return MB_SUCCESS;
+      
+      rval = moab()->get_child_meshsets( node, children );
       if (MB_SUCCESS != rval)
         return rval;
-      treeStats.nodesVisited++;
 
       while (!children.empty()) {
         treeStats.nodesVisited++;
@@ -1331,14 +1340,22 @@ namespace moab {
         if (MB_SUCCESS != rval)
           return rval;
       }
+
       treeStats.leavesVisited++;
-      leaf_out = node;
+      if (myEval && params) {
+        rval = myEval->find_containing_entity(node, point, tol,
+                                              leaf_out, params->array(), &treeStats.leafObjectTests);
+        if (MB_SUCCESS != rval) return rval;
+      }
+      else 
+        leaf_out = node;
 
       return MB_SUCCESS;
     }
 
     ErrorCode AdaptiveKDTree::point_search(const double *point,
                                            AdaptiveKDTreeIter& leaf_it,
+                                           double tol,
                                            bool *multiple_leaves,
                                            EntityHandle *start_node)
     {
@@ -1352,9 +1369,7 @@ namespace moab {
       leaf_it.mBox[1] = boundBox.bMax;
 
         // test that point is inside tree
-      if (point[0] < boundBox.bMin[0] || point[0] > boundBox.bMax[0] ||
-          point[1] < boundBox.bMin[1] || point[1] > boundBox.bMax[1] ||
-          point[2] < boundBox.bMin[2] || point[2] > boundBox.bMax[2]) {
+      if (!boundBox.contains_point(point, tol)) {
         treeStats.nodesVisited++;
         return MB_ENTITY_NOT_FOUND;
       }
@@ -1405,7 +1420,9 @@ namespace moab {
     ErrorCode AdaptiveKDTree::distance_search(const double from_point[3],
                                               const double distance,
                                               std::vector<EntityHandle>& result_list,
+                                              double tol,
                                               std::vector<double> *result_dists,
+                                              std::vector<CartVect> *result_params,
                                               EntityHandle *tree_root)
     {
       treeStats.numTraversals++;
@@ -1425,6 +1442,11 @@ namespace moab {
         // (zero if inside box)
       BoundBox box;
       rval = get_bounding_box(box);
+      if (MB_SUCCESS == rval && !box.contains_point(from_point, tol)) {
+        treeStats.nodesVisited++;
+        return MB_SUCCESS;
+      }
+      
         // if bounding box is not available (e.g. not starting from true root)
         // just start with zero.  Less efficient, but will work.
       node.dist = CartVect(0.0);
@@ -1455,9 +1477,23 @@ namespace moab {
         children.clear();
         rval = moab()->get_child_meshsets( node.handle, children );
         if (children.empty()) {
-          result_list_nodes.push_back( node);
           treeStats.leavesVisited++;
-          continue;
+          if (myEval && result_params) {
+            EntityHandle ent;
+            CartVect params;
+            rval = myEval->find_containing_entity(node.handle, from_point, tol,
+                                                  ent, params.array(), &treeStats.leafObjectTests);
+            if (MB_SUCCESS != rval) return rval;
+            else if (ent) {
+              result_list.push_back(ent);
+              result_params->push_back(params);
+              if (result_dists) result_dists->push_back(0.0);
+            }
+          }
+          else {
+            result_list_nodes.push_back( node);
+            continue;
+          }
         }
       
           // If not leaf node, add children to working list
@@ -1499,7 +1535,10 @@ namespace moab {
         }
       }
 
+      if (myEval && result_params) return MB_SUCCESS;
+
         // separate loops to avoid if test inside loop
+      
       result_list.reserve(result_list_nodes.size());
       for (std::vector<NodeDistance>::iterator vit = result_list_nodes.begin(); 
            vit != result_list_nodes.end(); vit++)
@@ -1758,7 +1797,7 @@ namespace moab {
         // the same distance from the input point as the current closest
         // point is.
       CartVect diff = closest_pt - from;
-      rval = distance_search(from_coords, sqrt(diff%diff), leaves, NULL, &tree_root);
+      rval = distance_search(from_coords, sqrt(diff%diff), leaves, 0.0, NULL, NULL, &tree_root);
       if (MB_SUCCESS != rval) return rval;
 
         // Check any close leaves to see if they contain triangles that
@@ -1789,7 +1828,7 @@ namespace moab {
       int conn_len;
 
         // get leaves of tree that intersect sphere
-      rval = distance_search(center, radius, leaves, NULL, &tree_root);
+      rval = distance_search(center, radius, leaves, 0.0, NULL, NULL, &tree_root);
       if (MB_SUCCESS != rval) return rval;
   
         // search each leaf for triangles intersecting sphere

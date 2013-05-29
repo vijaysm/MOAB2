@@ -53,7 +53,7 @@ namespace moab
         int i3 = 3*i;
         ents[i] = 0;
         if (abs_eps) {
-          rval = myTree->distance_search(pos+i3, abs_eps, leaves, &dists);
+          rval = myTree->distance_search(pos+i3, abs_eps, leaves, abs_eps, &dists);
           if (MB_SUCCESS != rval) return rval;
           if (!leaves.empty()) {
               // get closest leaf
