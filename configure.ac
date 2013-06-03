@@ -1,7 +1,7 @@
 ################################################################################
 #                           Standard Stuff
 ################################################################################
-AC_INIT(MOAB, 4.7.0pre)
+AC_INIT(MOAB, 4.6.0)
 AC_CONFIG_SRCDIR([moab.make.in])
 AC_CONFIG_SRCDIR([MOABConfig.cmake.in])
 AC_CONFIG_MACRO_DIR([config])
@@ -24,9 +24,9 @@ AC_ARG_ENABLE([fortran],[AC_HELP_STRING([--disable-fortran],
 
 EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long -Wextra -Wcast-align  -Wpointer-arith -Wformat -Wformat-security -Wshadow -Wunused-parameter'
 EXTRA_INTEL_FLAGS='-Wall'
-FATHOM_CHECK_COMPILERS([yes],[yes],[$ENABLE_FORTRAN])
 AM_CONDITIONAL(PARALLEL,[test "x$WITH_MPI" != "xno"])
 AM_CONDITIONAL(ENABLE_FORTRAN,[test "x$ENABLE_FORTRAN" != "xno"])
+FATHOM_CHECK_COMPILERS([yes],[yes],[$ENABLE_FORTRAN])
 LIBS="$LIBS -lm"
 
 AC_PROG_LN_S
