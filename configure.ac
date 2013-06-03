@@ -41,6 +41,7 @@ else
   AM_SILENT_RULES(no)
 fi
 ])
+AC_C_BIGENDIAN
 
 # Check if platform is BlueGene
 AC_MSG_CHECKING([if platform is IBM BlueGene])
