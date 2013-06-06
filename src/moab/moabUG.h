@@ -1,4 +1,4 @@
-/*! \page the User's Guide (MOAB 4.6)
+/*! \page userguide User's Guide (MOAB 4.6)
  
   \subpage team 
  
@@ -8,7 +8,7 @@
  
   \subpage tables
  
-  \subpage musthave
+  \subpage differences
 
   \subpage building
 
@@ -1012,7 +1012,7 @@ Initial results have demonstrated that the data abstraction provided by MOAB is 
 
   \ref contents
 
-  \page musthave Differences Between iMesh and MOAB
+  \page differences Differences Between iMesh and MOAB
 
   The data models used in MOAB and iMesh are quite similar, but not identical.The most significant differences are the following:
 
