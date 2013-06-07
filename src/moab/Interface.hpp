@@ -23,7 +23,7 @@
  * groupings in a mesh.
  *
  * MOAB's API is documented in the moab::Interface class.  The User's Guide is located in
- * doc/MOABv4-UG.doc in MOAB's source tree.  Questions and comments should be sent to moab-dev 
+ * <a href="pages.html">related pages</a>.  Questions and comments should be sent to moab-dev 
  * _at_ mcs.anl.gov.
  */
 
