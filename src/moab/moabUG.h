@@ -116,9 +116,9 @@ The MOAB data model describes the basic types used in MOAB and the language used
  \ref contents
 
  \subsection twoone 2.1. MOAB Interface
-MOAB is written in C++.  The primary interface with applications is through member functions of the abstract base class Interface.  The MOAB library is created by instantiating Core, which implements the Interface API.  Multiple instances of MOAB can exist concurrently in the same application; mesh entities are not shared between these instancesi<sup>1</sup>.  MOAB is most easily viewed as a database of mesh objects accessed through the instance.  No other assumptions explicitly made about the nature of the mesh stored there; for example, there is no fundamental requirement that elements fill space or do not overlap each other geometrically.
+MOAB is written in C++.  The primary interface with applications is through member functions of the abstract base class Interface.  The MOAB library is created by instantiating Core, which implements the Interface API.  Multiple instances of MOAB can exist concurrently in the same application; mesh entities are not shared between these instancesi<sup>2</sup>.  MOAB is most easily viewed as a database of mesh objects accessed through the instance.  No other assumptions explicitly made about the nature of the mesh stored there; for example, there is no fundamental requirement that elements fill space or do not overlap each other geometrically.
  
-<sup>1</sup> One exception to this statement is when the parallel interface to MOAB is used; in this case, entity sharing between instances is handled explicitly using message passing.  This is described in more detail in Section 5 of this document.
+<sup>2</sup> One exception to this statement is when the parallel interface to MOAB is used; in this case, entity sharing between instances is handled explicitly using message passing.  This is described in more detail in Section 5 of this document.
 
  \ref contents
 
@@ -279,8 +279,8 @@ The MOAB API is designed to balance complexity and ease of use.  This balance is
 Since these objectives are at odds with each other, tradeoffs had to be made between them.  Some specific issues that came up are:
 
 - Using ranges: Where possible, entities can be referenced using either ranges (which allow efficient storage of long lists) or STL vectors (which allow list order to be preserved), in both input and output arguments.
-- Entities in sets: Accessing the entities in a set is done using the same functions which access entities in the entire mesh.  The whole mesh is referenced by specifying a set handle of zero<sup>1</sup>.
-- Entity vectors on input: Functions which could normally take a single entity as input are specified to take a vector of handles instead.  Single entities are specified by taking the address of that entity handle and specifying a list length of one.  This minimizes the number of functions, while preserving the ability to input single entities.<sup>2</sup>
+- Entities in sets: Accessing the entities in a set is done using the same functions which access entities in the entire mesh.  The whole mesh is referenced by specifying a set handle of zero<sup>3</sup>.
+- Entity vectors on input: Functions which could normally take a single entity as input are specified to take a vector of handles instead.  Single entities are specified by taking the address of that entity handle and specifying a list length of one.  This minimizes the number of functions, while preserving the ability to input single entities.<sup>4</sup>
 .
 
 Table 2 lists basic data types and enumerated variables defined and used by MOAB.  Values of the ErrorCode enumeration are returned from most MOAB functions, and can be compared to those listed in Appendix [ref-appendix].
@@ -398,9 +398,9 @@ Table 3 lists the various groups of functions that comprise the MOAB API.  This 
 </tr>
 </table>
 
-<sup>1</sup>In iMesh, the whole mesh is specified by a special entity set handle, referred to as the “root set”.
+<sup>3</sup>In iMesh, the whole mesh is specified by a special entity set handle, referred to as the “root set”.
 
-<sup>2</sup>Note that STL vectors of entity handles can be input in this manner by using &vector[0] and vector.size() for the 1d vector address and size, respectively.
+<sup>4</sup>Note that STL vectors of entity handles can be input in this manner by using &vector[0] and vector.size() for the 1d vector address and size, respectively.
 
  \ref contents
 
@@ -857,9 +857,9 @@ MOAB’s native interface is accessed through the Interface abstract C++ base cl
 
 <B>SPARSE tags used by default:</B> MOAB’s iMesh implementation creates SPARSE tags by default, because of semantic requirements of other tag-related functions in iMesh.  To create DENSE tags through iMesh, use the iMesh_createTagWithOptions extension function (see below).
 
-<B>Higher-order elements:</B> ITAPS currently handles higher-order elements (e.g. a 10-node tetrahedron) usi[21]<sup>1</sup>.  As described in [sec-entities], MOAB supports higher-order entities by allowing various numbers of vertices to define topological entities like quadrilateral or tetrahedron.  Applications can specify flags to the connectivity and adjacency functions specifying whether corner or all vertices are requested.
+<B>Higher-order elements:</B> ITAPS currently handles higher-order elements (e.g. a 10-node tetrahedron) usi[21]<sup>5</sup>.  As described in [sec-entities], MOAB supports higher-order entities by allowing various numbers of vertices to define topological entities like quadrilateral or tetrahedron.  Applications can specify flags to the connectivity and adjacency functions specifying whether corner or all vertices are requested.
 
-<B>Self-adjacencies:</B> In MOAB’s native interface, entities are always self-adjacent<sup>2</sup>; that is, adjacencies of equal dimension requested from an entity will always include that entity, while from iMesh will not include that entity.
+<B>Self-adjacencies:</B> In MOAB’s native interface, entities are always self-adjacent<sup>6</sup>; that is, adjacencies of equal dimension requested from an entity will always include that entity, while from iMesh will not include that entity.
 
 <B>Option strings:</B> The iMesh specification requires that options in the options string passed to various functions (e.g. iMesh_load) be prepended with the implementation name required to parse them, and delimited with spaces.  Thus, a MOAB-targeted option would appear as “moab:PARALLEL=READ_PART moab:PARTITION=MATERIAL_SET”.
 
@@ -882,19 +882,19 @@ As required by the iMesh specification, MOAB generates the “iMesh-Defs.inc” 
 
 Note that using the iMesh interface from Fortran-based applications requires a compiler that supports Cray pointers, along with the pass-by-value (%VAL) extension.  Almost all compilers support those extensions; however, if using the gcc series of compilers, you must use gfortran 4.3 or later.
 
-<sup>1</sup>There are currently no implementations of this interface.
+<sup>5</sup>There are currently no implementations of this interface.
 
-<sup>2</sup>iMesh and MOAB both define adjacencies using the topological concept of closure.  Since the closure of an entity includes the entity itself, the d-dimensional entities on the closure of a given entity should include the entity itself.
+<sup>6</sup>iMesh and MOAB both define adjacencies using the topological concept of closure.  Since the closure of an entity includes the entity itself, the d-dimensional entities on the closure of a given entity should include the entity itself.
 
  \ref contents
 
   \section representation 8. Structured Mesh Representation
 
-A structured mesh is defined as a D-dimensional mesh whose interior vertices have 2D connected edges.   Structured mesh can be stored without connectivity, if certain information is kept about the parametric space of each structured block of mesh.  MOAB can represent structured mesh with implicit connectivity, saving approximately 57% of the storage cost compared to an unstructured representation<sup>1</sup>.  Since connectivity must be computed on the fly, these queries execute a bit slower than those for unstructured mesh.  More information on the theory behind MOAB's structured mesh representation can be found in 
+A structured mesh is defined as a D-dimensional mesh whose interior vertices have 2D connected edges.   Structured mesh can be stored without connectivity, if certain information is kept about the parametric space of each structured block of mesh.  MOAB can represent structured mesh with implicit connectivity, saving approximately 57% of the storage cost compared to an unstructured representation<sup>7</sup>.  Since connectivity must be computed on the fly, these queries execute a bit slower than those for unstructured mesh.  More information on the theory behind MOAB's structured mesh representation can be found in 
 
 Currently, MOAB's structured mesh representation can only be used by creating structured mesh at runtime; that is, structured mesh is saved/restored in an unstructured format in MOAB's HDF5-based native save format.  For more details on how to use MOAB's structured mesh representation, see the scdseq_test.cpp source file in the test/ directory.
 
-<sup>1</sup> This assumes vertex coordinates are represented explicitly, and that there are approximately the same number of vertices and hexahedra in a structured hex mesh.
+<sup>7</sup> This assumes vertex coordinates are represented explicitly, and that there are approximately the same number of vertices and hexahedra in a structured hex mesh.
 
  \ref contents
 
