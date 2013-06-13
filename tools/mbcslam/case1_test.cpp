@@ -166,6 +166,13 @@ int main(int argc, char **argv)
   rval = manufacture_lagrange_mesh_on_sphere(&mb, euler_set, lagrange_set);
   if (MB_SUCCESS != rval)
     return 1;
+  rval = mb.write_file("lagrIni.h5m", 0, 0, &lagrange_set, 1);
+ if (MB_SUCCESS != rval)
+   std::cout << "can't write lagr set\n";
+
+  rval = enforce_convexity(&mb, lagrange_set);
+  if (MB_SUCCESS != rval)
+    return 1;
 
   rval = mb.write_file("lagr.h5m", 0, 0, &lagrange_set, 1);
   if (MB_SUCCESS != rval)
@@ -174,6 +181,7 @@ int main(int argc, char **argv)
   Intx2MeshOnSphere worker(&mb);
 
   double radius = CubeSide / 2 * sqrt(3.); // input
+
   worker.SetRadius(radius);
 
   worker.SetEntityType(MBQUAD);

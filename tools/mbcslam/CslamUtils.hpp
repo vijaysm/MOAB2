@@ -122,5 +122,9 @@ double distance_on_great_circle(CartVect & p1, CartVect & p2);
 
 void departure_point_case1(CartVect & arrival_point, double t, double delta_t, CartVect & departure_point);
 
+// break the nonconvex quads into triangles; remove the quad from the set? yes.
+// maybe radius is not needed;
+//
+ErrorCode enforce_convexity(Interface * mb, EntityHandle set);
 }
 #endif /* CSLAMUTILS_HPP_ */
