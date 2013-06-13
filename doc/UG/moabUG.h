@@ -183,6 +183,8 @@ using namespace moab;
 
 Here, the range is iterated similar to how std::vector is iterated.
 
+  \ref contents
+
  \subsection adjacencies 2.2.1. Adjacencies & AEntities 
 
 The term adjacencies is used to refer to those entities topologically connected to a given entity, e.g. the faces bounded by a given edge or the vertices bounding a given region.  The same term is used for both higher-dimensional (or bounded) and lower-dimensional (or bounding) adjacent entities.  MOAB provides functions for querying adjacent entities by target dimension, using the same functions for higher- and lower-dimension adjacencies.  By default, MOAB stores the minimum data necessary to recover adjacencies between entities.  When a mesh is initially loaded into MOAB, only entity-vertex (i.e. “downward”) adjacencies are stored, in the form of entity connectivity.  When “upward” adjacencies are requested for the first time, e.g. from vertices to regions, MOAB stores all vertex-entity adjacencies explicitly, for all entities in the mesh.  Non-vertex entity to entity adjacencies are never stored, unless explicitly requested by the application.
