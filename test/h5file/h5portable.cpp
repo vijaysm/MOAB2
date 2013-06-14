@@ -11,7 +11,7 @@
 #include "TestRunner.hpp"
 #include "ReadHDF5.hpp"
 #include "MBTagConventions.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 #include <vector>
 #include <stdlib.h>
 #include <iostream>

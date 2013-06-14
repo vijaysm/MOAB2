@@ -40,8 +40,14 @@ namespace moab
         //! reset all counters
       void reset();
               
-        //! print the contents of this structure to given stream
+        //! print the contents of this structure
       void print() const ;
+
+        //! output the contents of this structure on a single line
+      void output() const ;
+
+        // times
+      double initTime;
 
         // tree stats that depend only on structure (not traversal)
       unsigned int maxDepth;
@@ -90,6 +96,8 @@ namespace moab
 
     inline void TreeStats::reset()
     {
+      initTime = 0.0;
+      
       maxDepth = 0;
       numNodes = 0;
       numLeaves = 0;
@@ -106,10 +114,18 @@ namespace moab
     }
     
     inline void TreeStats::print() const {
+      std::cout << "Tree initialization time = " << initTime << " seconds" << std::endl;
+      
       std::cout << "NodesVisited      = " << nodesVisited << std::endl;
       std::cout << "LeavesVisited     = " << leavesVisited << std::endl;
       std::cout << "Num Traversals    = " << numTraversals << std::endl;
       std::cout << "Leaf Object Tests = " << leafObjectTests << std::endl;
+    }
+
+    inline void TreeStats::output() const 
+    {
+      std::cout << initTime << " " << nodesVisited << " " << leavesVisited << " " << numTraversals << " " << leafObjectTests
+                << " # initTime, nodesVisited, leavesVisited, numTraversals, leafObjectTests" << std::endl;
     }
 }
 

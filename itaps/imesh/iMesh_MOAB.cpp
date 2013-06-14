@@ -4,7 +4,7 @@
 #include "moab/CN.hpp"
 #include "moab/MeshTopoUtil.hpp"
 #include "moab/ScdInterface.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 #include "iMesh_MOAB.hpp"
 #include "MBIter.hpp"
 #include "MBTagConventions.hpp"

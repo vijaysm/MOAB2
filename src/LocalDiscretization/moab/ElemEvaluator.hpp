@@ -88,7 +88,8 @@ namespace moab {
       int nv;
       EntityType tp = mb->type_from_handle(eh);
       const EntityHandle *connect;
-      ErrorCode rval = mb->get_connectivity(eh, connect, nv);
+      std::vector<EntityHandle> dum_vec;
+      ErrorCode rval = mb->get_connectivity(eh, connect, nv, false, &dum_vec);
       if (MB_SUCCESS != rval) return rval;
       
       return get_eval_set(tp, nv, eval_set);
@@ -208,7 +209,7 @@ namespace moab {
         * NOTE: this function should only be called after setting a valid MOAB instance on the evaluator
         * \param eh Entity handle whose type and #vertices are queried
         */
-      ErrorCode set_eval_set(EntityHandle eh);
+      ErrorCode set_eval_set(const EntityHandle eh);
       
         /** \brief Get the eval set for a given type entity */
       inline EvalSet get_eval_set(EntityType tp) {return evalSets[tp];}
@@ -319,7 +320,8 @@ namespace moab {
       entType = mbImpl->type_from_handle(ent);
       entDim = mbImpl->dimension_from_handle(ent);
 
-      ErrorCode rval = mbImpl->get_connectivity(ent, vertHandles, numVerts);
+      std::vector<EntityHandle> dum_vec;
+      ErrorCode rval = mbImpl->get_connectivity(ent, vertHandles, numVerts, false, &dum_vec);
       if (MB_SUCCESS != rval) return rval;
       rval = mbImpl->get_coords(vertHandles, numVerts, vertPos[0].array());
       if (MB_SUCCESS != rval) return rval;
@@ -479,7 +481,7 @@ namespace moab {
       return (*evalSets[entType].insideFcn)(params, entDim, tol);
     }
 
-    inline ErrorCode ElemEvaluator::set_eval_set(EntityHandle eh) 
+    inline ErrorCode ElemEvaluator::set_eval_set(const EntityHandle eh) 
     {
       EvalSet eset;
       ErrorCode rval = EvalSet::get_eval_set(mbImpl, eh, evalSets[mbImpl->type_from_handle(eh)]); 

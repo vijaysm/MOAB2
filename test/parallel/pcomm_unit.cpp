@@ -4,7 +4,7 @@
 #include "moab/Core.hpp"
 #include "moab/MeshTopoUtil.hpp"
 #include "ReadParallel.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 #include "TestUtil.hpp"
 #include <algorithm>
 #include <vector>

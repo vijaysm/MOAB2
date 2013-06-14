@@ -5,6 +5,8 @@
 #include "moab/ScdInterface.hpp"
 #include "moab/CartVect.hpp"
 #include "moab/BVHTree.hpp"
+#include "moab/ProgOptions.hpp"
+#include "moab/CpuTimer.hpp"
 
 #ifdef USE_MPI
 #include "moab_mpi.h"
@@ -13,16 +15,21 @@
 #include "TestUtil.hpp"
 
 #include <cstdlib>
+#include <sstream>
 
 using namespace moab;
-
-const int npoints = 1000;
 
 void test_kd_tree();
 void test_bvh_tree();
 void test_locator(SpatialLocator *sl);
 
-ErrorCode create_hex_mesh(Interface &mb, Range &elems, int n = 10, int dim = 3);
+ErrorCode create_hex_mesh(Interface &mb, Range &elems, int n, int dim);
+
+int max_depth = 30;
+int npoints = 1000;
+int leaf = 6;
+bool print_tree = false;
+int ints = 10;
 
 int main(int argc, char **argv)
 {
@@ -33,6 +40,14 @@ int main(int argc, char **argv)
   // silence the warning of parameters not used, in serial; there should be a smarter way :(
   argv[0]=argv[argc-argc];
 #endif
+
+  ProgOptions po("spatial_locator_test options" );
+  po.addOpt<int>( "ints,i", "Number of intervals on each side of scd mesh", &ints);
+  po.addOpt<int>( "leaf,l", "Maximum number of elements per leaf", &leaf);
+  po.addOpt<int>( "max_depth,m", "Maximum depth of tree", &max_depth);
+  po.addOpt<int>( "npoints,n", "Number of query points", &npoints);
+  po.addOpt<void>( "print,p", "Print tree details", &print_tree);
+  po.parseCommandLine(argc, argv);
 
   RUN_TEST(test_kd_tree);
   RUN_TEST(test_bvh_tree);
@@ -52,7 +67,7 @@ void test_kd_tree()
   
     // create a simple mesh to test
   Range elems;
-  rval = create_hex_mesh(mb, elems); CHECK_ERR(rval);
+  rval = create_hex_mesh(mb, elems, ints, 3); CHECK_ERR(rval);
 
     // initialize spatial locator with the elements and the default tree type
   SpatialLocator *sl = new SpatialLocator(&mb, elems);
@@ -70,10 +85,14 @@ void test_bvh_tree()
   
     // create a simple mesh to test
   Range elems;
-  rval = create_hex_mesh(mb, elems); CHECK_ERR(rval);
+  rval = create_hex_mesh(mb, elems, ints, 3); CHECK_ERR(rval);
 
     // initialize spatial locator with the elements and a BVH tree
   BVHTree bvh(&mb);
+  std::ostringstream opts;
+  opts << "MAX_DEPTH=" << max_depth << ";MAX_PER_LEAF=" << leaf;
+  FileOptions fo(opts.str().c_str());
+  rval = bvh.parse_options(fo);
   SpatialLocator *sl = new SpatialLocator(&mb, elems, &bvh);
   test_locator(sl);
   
@@ -104,10 +123,13 @@ void test_locator(SpatialLocator *sl)
   }
 
   std::cout << "Traversal stats:" << std::endl;
-  sl->get_tree()->tree_stats().print();
+  sl->get_tree()->tree_stats().output();
 
-  std::cout << "Tree information: " << std::endl;
-  rval = sl->get_tree()->print();
+  if (print_tree) {
+    std::cout << "Tree information: " << std::endl;
+    rval = sl->get_tree()->print();
+    CHECK_ERR(rval);
+  }
 }
 
 ErrorCode create_hex_mesh(Interface &mb, Range &elems, int n, int dim) 

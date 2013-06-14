@@ -83,7 +83,7 @@
 #include "MBTagConventions.hpp"
 #include "ExoIIUtil.hpp"
 #include "EntitySequence.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 #ifdef LINUX
 # include <dlfcn.h>
 # include <dirent.h>

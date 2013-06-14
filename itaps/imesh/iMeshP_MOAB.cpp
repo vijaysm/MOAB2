@@ -4,7 +4,7 @@
 #include "moab/Range.hpp"
 #include "moab/CN.hpp"
 #include "moab/MeshTopoUtil.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
 #include "MBIter.hpp"

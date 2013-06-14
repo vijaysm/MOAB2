@@ -170,7 +170,11 @@ namespace moab {
         //! get/set the ElemEvaluator
       inline void set_eval(ElemEvaluator *eval) {myEval = eval;}
       
-            
+        /** \brief Parse options for this tree, including common options for all trees
+         * \param opts Options
+         */
+      virtual ErrorCode parse_options(FileOptions &opts) = 0;
+
   protected:
 
         /** \brief Parse options common to all trees

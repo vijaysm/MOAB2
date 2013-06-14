@@ -2,6 +2,7 @@
 #include "moab/Interface.hpp"
 #include "moab/ElemEvaluator.hpp"
 #include "moab/ReadUtilIface.hpp"
+#include "moab/CpuTimer.hpp"
 
 namespace moab 
 {
@@ -12,6 +13,7 @@ namespace moab
                                   FileOptions *options) 
     {
       ErrorCode rval;
+      CpuTimer cp;
 
       if (options) {
         rval = parse_options(*options);
@@ -82,6 +84,7 @@ namespace moab
 
       treeStats.reset();
       rval = treeStats.compute_stats(mbImpl, startSetHandle);
+      treeStats.initTime = cp.time_elapsed();
       
       return rval;
     }
@@ -92,12 +95,15 @@ namespace moab
       ReadUtilIface *read_util;
       ErrorCode rval = mbImpl->query_interface(read_util);
       if (MB_SUCCESS != rval) return rval;
-      
-      rval = read_util->create_entity_sets(tree_nodes.size(), &meshsetFlags, 0, startSetHandle);
-      if (MB_SUCCESS != rval) return rval;
-      rval = mbImpl->release_interface(read_util);
-      if (MB_SUCCESS != rval) return rval;
 
+      {// isolate potentially-large std::vector so it gets deleted earlier
+        std::vector<unsigned int> tmp_flags(tree_nodes.size(), meshsetFlags);
+        rval = read_util->create_entity_sets(tree_nodes.size(), &tmp_flags[0], 0, startSetHandle);
+        if (MB_SUCCESS != rval) return rval;
+        rval = mbImpl->release_interface(read_util);
+        if (MB_SUCCESS != rval) return rval;
+      }
+      
         // populate the sets and the TreeNode vector
       EntityHandle set_handle = startSetHandle;
       std::vector<Node>::iterator it;

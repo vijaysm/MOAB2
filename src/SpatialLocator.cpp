@@ -98,7 +98,7 @@ namespace moab
           bool *is_ptr = (is_inside ? is_inside+i : &tmp_inside);      
           rval = elemEval->set_ent_handle(*rit); 
           if (MB_SUCCESS != rval) return rval;
-          rval = elemEval->reverse_eval(pos+i3, 0.0, params+i3, is_ptr);
+          rval = elemEval->reverse_eval(pos+i3, abs_eps, params+i3, is_ptr);
           if (MB_SUCCESS != rval) return rval;
           if (*is_ptr) {
             ents[i] = *rit;

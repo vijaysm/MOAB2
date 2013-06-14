@@ -6,6 +6,7 @@
 #include "moab/GeomUtil.hpp"
 #include "moab/Range.hpp"
 #include "moab/ElemEvaluator.hpp"
+#include "moab/CpuTimer.hpp"
 #include "Internals.hpp"
 #include <math.h>
 
@@ -75,6 +76,7 @@ namespace moab {
                                          FileOptions *options) 
     {
       ErrorCode rval;
+      CpuTimer cp;
 
       if (options) {
         rval = parse_options(*options);
@@ -176,6 +178,7 @@ namespace moab {
           if (MB_ENTITY_NOT_FOUND == rval) {
             treeStats.reset();
             rval = treeStats.compute_stats(mbImpl, myRoot);
+            treeStats.initTime = cp.time_elapsed();
             return rval;  // at end
           }
           else if (MB_SUCCESS != rval)
@@ -1464,7 +1467,7 @@ namespace moab {
       }
   
         // begin with root in list  
-      node.handle = *tree_root;
+      node.handle = (tree_root ? *tree_root : myRoot);
       list.push_back( node );
   
       while( !list.empty() ) {
@@ -1618,6 +1621,7 @@ namespace moab {
       std::vector<EntityHandle> stack;
       std::vector<EntityHandle> children(2);
       stack.reserve(30);
+      assert(root);
       stack.push_back( root );
   
       while (!stack.empty()) {
@@ -1790,6 +1794,7 @@ namespace moab {
         // Find the leaf containing the input point
         // This search does not take into account any bounding box for the
         // tree, so it always returns one leaf.
+      assert(tree_root);
       rval = find_close_triangle( tree_root, from_coords, closest_pt.array(), triangle_out );
       if (MB_SUCCESS != rval) return rval;
   
@@ -1828,6 +1833,7 @@ namespace moab {
       int conn_len;
 
         // get leaves of tree that intersect sphere
+      assert(tree_root);
       rval = distance_search(center, radius, leaves, 0.0, NULL, NULL, &tree_root);
       if (MB_SUCCESS != rval) return rval;
   

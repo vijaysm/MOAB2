@@ -159,6 +159,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/CartVect.hpp \
   moab/Compiler.hpp \
   moab/Core.hpp \
+  moab/CpuTimer.hpp \
   moab/DualTool.hpp \
   moab/Error.hpp \
   moab/GeomTopoTool.hpp \

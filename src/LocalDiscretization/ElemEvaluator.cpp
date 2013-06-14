@@ -40,8 +40,14 @@ namespace moab {
       int iters=0;
         // while |res| larger than tol
       while (res % res > error_tol_sqr) {
-        if(++iters>10)
+        if(++iters>10) {
+          if (inside) {
+              // if we haven't converged but we're outside, that's defined as success
+            *inside = (*inside_f)(params, ndim, tol);
+            if (!(*inside)) return MB_SUCCESS;
+          }
           return MB_FAILURE;
+        }
 
           // get jacobian at current params
         rval = (*jacob)(cvparams->array(), verts, nverts, ndim, work, J[0]);
