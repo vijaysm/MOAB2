@@ -880,7 +880,7 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset)
   // we should create a queue with new polygons that need processing for reflex angles
   //  (obtuse)
   std::queue<EntityHandle> newPolys;
-  int brokenQuads=0;
+  int brokenPolys=0;
   for (Range::iterator eit = inputRange.begin(); eit != inputRange.end()
                                        || !newPolys.empty() ; eit++)
   {
@@ -974,7 +974,7 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset)
         if (MB_SUCCESS != rval)
           return rval;
         mb->remove_entities(lset, &eh, 1);
-        brokenQuads++;
+        brokenPolys++;
         /*std::cout<<"remove: " ;
         mb->list_entities(&eh, 1);
 
@@ -985,7 +985,7 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset)
       }
     }
   }
-  std::cout << brokenQuads << " quads were decomposed in triangles \n";
+  std::cout << brokenPolys << " concave polygons were decomposed in convex ones \n";
   return MB_SUCCESS;
 }
 
