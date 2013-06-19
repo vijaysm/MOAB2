@@ -29,24 +29,26 @@ double area2D(double *a, double *b, double *c)
   // (b-a)x(c-a) / 2
   return ((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2;
 }
-int borderPointsOfXinY2(double * X, double * Y, int nsides, double * P, int side[4])
+int borderPointsOfXinY2(double * X, int nX, double * Y, int nY, double * P, int side[MAXEDGES])
 {
   // 2 triangles, 3 corners, is the corner of X in Y?
   // Y must have a positive area
   /*
    */
   int extraPoint = 0;
-  for (int i = 0; i < nsides; i++)
+  for (int i = 0; i < nX; i++)
   {
-    // compute twice the area of all 4 triangles formed by a side of Y and a corner of X; if one is negative, stop
+    // compute twice the area of all nY triangles formed by a side of Y and a corner of X; if one is negative, stop
+    // (negative means it is outside; X and Y are all oriented such that they are positive oriented;
+    //  if one area is negative, it means it is outside the convex region, for sure)
     double * A = X + 2 * i;
 
     int inside = 1;
-    for (int j = 0; j < nsides; j++)
+    for (int j = 0; j < nY; j++)
     {
       double * B = Y + 2 * j;
 
-      int j1 = (j + 1) % nsides;
+      int j1 = (j + 1) % nY;
       double * C = Y + 2 * j1; // no copy of data
 
       double area2 = (B[0] - A[0]) * (C[1] - A[1])
@@ -59,7 +61,8 @@ int borderPointsOfXinY2(double * X, double * Y, int nsides, double * P, int side
     }
     if (inside)
     {
-      side[i] = 1;
+      side[i] = 1;// so vertex i of X is inside the convex region formed by Y
+      // so side has nX dimension (first array)
       P[extraPoint * 2] = A[0];
       P[extraPoint * 2 + 1] = A[1];
       extraPoint++;
@@ -89,7 +92,8 @@ int SortAndRemoveDoubles2(double * P, int & nP, double epsilon_1)
   }
   c[0] /= nP;
   c[1] /= nP;
-  double angle[24]; // could be at most 24 points; much less usually
+  // how many
+  std::vector<double> angle(nP); // could be at most nP points
   for (k = 0; k < nP; k++)
   {
     double x = P[2 * k] - c[0], y = P[2 * k + 1] - c[1];
@@ -113,7 +117,7 @@ int SortAndRemoveDoubles2(double * P, int & nP, double epsilon_1)
       if (angle[k] > angle[k + 1])
       {
         sorted = 0;
-        swap2(angle + k, angle + k + 1);
+        swap2(&angle[k], &angle[k+1]);
         swap2(P + (2 * k), P + (2 * k + 2));
         swap2(P + (2 * k + 1), P + (2 * k + 3));
       }
@@ -151,8 +155,8 @@ int SortAndRemoveDoubles2(double * P, int & nP, double epsilon_1)
 
 // the marks will show what edges of blue intersect the red
 
-int EdgeIntersections2(double * blue, double * red, int nsides, int markb[4], int markr[4],
-    double * points, int & nPoints)
+int EdgeIntersections2(double * blue, int nsBlue, double * red, int nsRed,
+    int markb[MAXEDGES], int markr[MAXEDGES], double * points, int & nPoints)
 {
   /* EDGEINTERSECTIONS computes edge intersections of two elements
    [P,n]=EdgeIntersections(X,Y) computes for the two given elements  * red
@@ -163,30 +167,20 @@ int EdgeIntersections2(double * blue, double * red, int nsides, int markb[4], in
    with blue are given.
    */
 
-  // points is an array with 48 slots   (24 * 2 doubles)
+  // points is an array with enough slots   (24 * 2 doubles)
   nPoints = 0;
-  markb[0] = markb[1] = markb[2] = markb[3] = 0; // no neighbors of red involved yet
-  markr[0] = markr[1] = markr[2] = markr[3] = 0;
-  /*for i=1:3                            % find all intersections of edges
-   for j=1:3
-   b=Y(:,j)-X(:,i);
-   A=[X(:,mod(i,3)+1)-X(:,i) -Y(:,mod(j,3)+1)+Y(:,j)];
-   if rank(A)==2                   % edges not parallel
-   r=A\b;
-   if r(1)>=0 & r(1)<=1 & r(2)>=0 & r(2)<=1,  % intersection found
-   k=k+1; P(:,k)=X(:,i)+r(1)*(X(:,mod(i,3)+1)-X(:,i)); n(i)=1;
-   end;
-   end;
-   end;
-   end;*/
-  for (int i = 0; i < nsides; i++)
+  for (int i=0; i<MAXEDGES; i++){
+    markb[i]=markr[i] = 0;
+  }
+
+  for (int i = 0; i < nsBlue; i++)
   {
-    for (int j = 0; j < nsides; j++)
+    for (int j = 0; j < nsRed; j++)
     {
       double b[2];
       double a[2][2]; // 2*2
-      int iPlus1 = (i + 1) % nsides;
-      int jPlus1 = (j + 1) % nsides;
+      int iPlus1 = (i + 1) % nsBlue;
+      int jPlus1 = (j + 1) % nsRed;
       for (int k = 0; k < 2; k++)
       {
         b[k] = red[2 * j + k] - blue[2 * i + k];

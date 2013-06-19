@@ -180,7 +180,7 @@ void test_intx_in_parallel()
   double radius= CubeSide/2 * sqrt(3.) ; // input
   worker.SetRadius(radius);
   worker.set_box_error(EPS1);//
-  worker.SetEntityType(MBQUAD);
+  //worker.SetEntityType(MBQUAD);
 
   worker.SetErrorTolerance(radius*1.e-8);
   worker.locate_departure_points(euler_set);
@@ -247,7 +247,7 @@ void test_intx_in_parallel_elem_based()
   double radius= CubeSide/2 * sqrt(3.) ; // input
   worker.SetRadius(radius);
   worker.set_box_error(EPS1);//
-  worker.SetEntityType(MBQUAD);
+  //worker.SetEntityType(MBQUAD);
 
   worker.SetErrorTolerance(radius*1.e-8);
   std::cout << "error tolerance epsilon_1="<< radius*1.e-8 << "\n";

@@ -22,16 +22,14 @@ Intx2MeshOnSphere::~Intx2MeshOnSphere()
   // TODO Auto-generated destructor stub
 }
 
-/* the red quad is convex for sure, intersect it with the blue quad
- * if the blue is convex, intersection is convex, it is pretty easy to order them and eliminate doubles
- *  first decide the projection plane, then do a gnomonic projection of both,
+/* the elements are convex for sure, then do a gnomonic projection of both,
  *  compute intersection in the plane, then go back to the sphere for the points
- *  For the time being, blue is convex too, but later on, we should separate the case of concave blue
- */
+ *  */
 int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, EntityHandle blue,
-    double * P, int & nP, double & area, int markb[4], int markr[4], bool check_boxes_first)
+    double * P, int & nP, double & area, int markb[MAXEDGES], int markr[MAXEDGES],
+    int & nsBlue, int & nsRed, bool check_boxes_first)
 {
-  // the points will be at most 16; they will describe a convex patch, after the points will be ordered and
+  // the points will be at most 40; they will describe a convex patch, after the points will be ordered and
   // collapsed (eliminate doubles)
   // the area is not really required, except to see if it is greater than 0
 
@@ -42,35 +40,38 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
   int num_nodes;
   ErrorCode rval = mb->get_connectivity(red, redConn, num_nodes);
 
-  if (MB_SUCCESS != rval || num_nodes != 4)
+  if (MB_SUCCESS != rval )
     return 1;
-  int nsides = num_nodes;
+  nsRed = num_nodes;
 
   //CartVect coords[4];
   rval = mb->get_coords(redConn, num_nodes, &(redCoords[0][0]));
   if (MB_SUCCESS != rval)
     return 1;
-  CartVect middle = 0.25
-      * (redCoords[0] + redCoords[1] + redCoords[2] + redCoords[3]);
+  CartVect middle = redCoords[0];
+  for (int i=1; i<nsRed; i++)
+    middle += redCoords[i];
+  middle = 1./nsRed * middle;
 
   decide_gnomonic_plane(middle, plane);// output the plane
   //CartVect bluecoords[4];
   rval = mb->get_connectivity(blue, blueConn, num_nodes);
-  if (MB_SUCCESS != rval || num_nodes != 4)
+  if (MB_SUCCESS != rval )
     return 1;
-  rval = mb->get_coords(blueConn, num_nodes, &(blueCoords[0][0]));
+  nsBlue = num_nodes;
+  rval = mb->get_coords(blueConn, nsBlue, &(blueCoords[0][0]));
   if (MB_SUCCESS != rval)
     return 1;
 
   if (dbg_1)
   {
     std::cout << "red " << mb->id_from_handle(red) << "\n";
-    for (int j = 0; j < num_nodes; j++)
+    for (int j = 0; j < nsRed; j++)
     {
       std::cout << redCoords[j] << "\n";
     }
     std::cout << "blue " << mb->id_from_handle(blue) << "\n";
-    for (int j = 0; j < num_nodes; j++)
+    for (int j = 0; j < nsBlue; j++)
     {
       std::cout << blueCoords[j] << "\n";
     }
@@ -83,19 +84,22 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
   if (check_boxes_first)
   {
     // look at the boxes formed with vertices; if they are far away, return false early
-    if (!GeomUtil::bounding_boxes_overlap(redCoords, num_nodes, blueCoords, num_nodes, box_error))
+    if (!GeomUtil::bounding_boxes_overlap(redCoords, nsRed, blueCoords, nsBlue, box_error))
       return 0; // no error, but no intersection, decide early to get out
   }
-  for (int j = 0; j < nsides; j++)
+  for (int j = 0; j < nsRed; j++)
   {
     // populate coords in the plane for intersection
     // they should be oriented correctly, positively
-    int rc = gnomonic_projection(redCoords[j],  R, plane, redQuad[2 * j],
-        redQuad[2 * j + 1]);
+    int rc = gnomonic_projection(redCoords[j],  R, plane, redCoords2D[2 * j],
+        redCoords2D[2 * j + 1]);
     if (rc != 0)
       return 1;
-    rc = gnomonic_projection(blueCoords[j], R, plane, blueQuad[2 * j],
-        blueQuad[2 * j + 1]);
+  }
+  for (int j=0; j<nsBlue; j++)
+  {
+    int rc = gnomonic_projection(blueCoords[j], R, plane, blueCoords2D[2 * j],
+        blueCoords2D[2 * j + 1]);
     if (rc != 0)
       return 1;
   }
@@ -103,27 +107,33 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
   {
     std::cout << "gnomonic plane: " << plane << "\n";
     std::cout << " red                                blue\n";
-    for (int j = 0; j < 4; j++)
+    for (int j = 0; j < nsRed; j++)
     {
-      std::cout << redQuad[2 * j] << " " << redQuad[2 * j + 1] << " "
-          << blueQuad[2 * j] << " " << blueQuad[2 * j + 1] << "\n";
+      std::cout << redCoords2D[2 * j] << " " << redCoords2D[2 * j + 1] << "\n";
+    }
+    for (int j = 0; j < nsBlue; j++)
+    {
+      std::cout << blueCoords2D[2 * j] << " " << blueCoords2D[2 * j + 1] << "\n";
     }
   }
 
-  int ret = EdgeIntersections2(blueQuad, redQuad, nsides, markb, markr, P, nP);
+  int ret = EdgeIntersections2(blueCoords2D, nsBlue, redCoords2D, nsRed, markb, markr, P, nP);
   if (ret != 0)
     return 1; // some unforeseen error
 
-  int side[4] = { 0 };
-  int extraPoints = borderPointsOfXinY2(blueQuad, redQuad, nsides, &(P[2 * nP]), side);
+  int side[MAXEDGES] = { 0 };// this refers to what side? blue or red?
+  int extraPoints = borderPointsOfXinY2(blueCoords2D, nsBlue, redCoords2D, nsRed, &(P[2 * nP]), side);
   if (extraPoints >= 1)
   {
-    for (int k = 0; k < nsides; k++)
+    for (int k = 0; k < nsBlue; k++)
     {
       if (side[k])
       {
+        // this means that vertex k of blue is inside convex red; mark edges k-1 and k in blue,
+        //   as being "intersected" by red; (even though they might not be intersected by other edges,
+        //   the fact that their apex is inside, is good enough)
         markb[k] = 1;
-        markb[(k + nsides-1) % nsides] = 1; // it is the previous edge, actually, but instead of doing -1, it is
+        markb[(k + nsBlue-1) % nsBlue] = 1; // it is the previous edge, actually, but instead of doing -1, it is
         // better to do modulo +3 (modulo 4)
         // null side b for next call
         side[k]=0;
@@ -132,15 +142,16 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
   }
   nP += extraPoints;
 
-  extraPoints = borderPointsOfXinY2(redQuad, blueQuad, nsides, &(P[2 * nP]), side);
+  extraPoints = borderPointsOfXinY2(redCoords2D, nsRed, blueCoords2D, nsBlue, &(P[2 * nP]), side);
   if (extraPoints >= 1)
   {
-    for (int k = 0; k < 4; k++)
+    for (int k = 0; k < nsRed; k++)
     {
       if (side[k])
       {
+        // this is to mark that red edges k-1 and k are intersecting blue
         markr[k] = 1;
-        markr[(k + nsides-1) % nsides] = 1; // it is the previous edge, actually, but instead of doing -1, it is
+        markr[(k + nsRed-1) % nsRed] = 1; // it is the previous edge, actually, but instead of doing -1, it is
         // better to do modulo +3 (modulo 4)
         // null side b for next call
       }
@@ -169,13 +180,11 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
 // also, we could just create new vertices every time, and merge only in the end;
 // could be too expensive, and the tolerance for merging could be an
 // interesting topic
-int Intx2MeshOnSphere::findNodes(EntityHandle red, EntityHandle blue, double * iP, int nP)
+int Intx2MeshOnSphere::findNodes(EntityHandle red, int nsRed, EntityHandle blue, int nsBlue,
+    double * iP, int nP)
 {
   // first of all, check against red and blue vertices
   //
-  int nsides = 4;
-  if (type == MBTRI)
-    nsides=3;
   if (dbg_1)
   {
     std::cout << "red, blue, nP, P " << mb->id_from_handle(red) << " "
@@ -187,11 +196,11 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, EntityHandle blue, double * i
 
   // get the edges for the red triangle; the extra points will be on those edges, saved as
   // lists (unordered)
-  EntityHandle redEdges[4];// at most 4
+  std::vector<EntityHandle> redEdges(nsRed);//
   int i = 0;
-  for (i = 0; i < nsides; i++)
+  for (i = 0; i < nsRed; i++)
   {
-    EntityHandle v[2] = { redConn[i], redConn[(i + 1) % nsides] };
+    EntityHandle v[2] = { redConn[i], redConn[(i + 1) % nsRed] };
     std::vector<EntityHandle> adj_entities;
     ErrorCode rval = mb->get_adjacencies(v, 2, 1, false, adj_entities,
         Interface::INTERSECT);
@@ -214,10 +223,10 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, EntityHandle blue, double * i
     // priority is the red mesh (mb2?)
     int j = 0;
     EntityHandle outNode = (EntityHandle) 0;
-    for (j = 0; j < nsides && !found; j++)
+    for (j = 0; j < nsRed && !found; j++)
     {
       //int node = redTri.v[j];
-      double d2 = dist2(pp, &redQuad[2 * j]);
+      double d2 = dist2(pp, &redCoords2D[2 * j]);
       if (d2 < epsilon_1)
       {
 
@@ -225,15 +234,15 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, EntityHandle blue, double * i
         found = 1;
         if (dbg_1)
           std::cout << "  red node j:" << j << " id:"
-              << mb->id_from_handle(redConn[j]) << " 2d coords:" << redCoords[2 * j] << "  "
-              << redCoords[2 * j + 1] << " d2: " << d2 << " \n";
+              << mb->id_from_handle(redConn[j]) << " 2d coords:" << redCoords2D[2 * j] << "  "
+              << redCoords2D[2 * j + 1] << " d2: " << d2 << " \n";
       }
     }
 
-    for (j = 0; j < nsides && !found; j++)
+    for (j = 0; j < nsBlue && !found; j++)
     {
       //int node = blueTri.v[j];
-      double d2 = dist2(pp, &blueQuad[2 * j]);
+      double d2 = dist2(pp, &blueCoords2D[2 * j]);
       if (d2 < epsilon_1)
       {
         // suspect is blueConn[j] corresponding in mbOut
@@ -248,12 +257,12 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, EntityHandle blue, double * i
     }
     if (!found)
     {
-      // find the edge it belongs, first, on the red quad
+      // find the edge it belongs, first, on the red element
       //
-      for (j = 0; j < nsides; j++)
+      for (j = 0; j < nsRed; j++)
       {
-        int j1 = (j + 1) % nsides;
-        double area = area2D(&redQuad[2 * j], &redQuad[2 * j1], pp);
+        int j1 = (j + 1) % nsRed;
+        double area = area2D(&redCoords2D[2 * j], &redCoords2D[2 * j1], pp);
         if (dbg_1)
           std::cout << "   edge " << j << ": "
               << mb->id_from_handle(redEdges[j]) << " " << redConn[j] << " "
@@ -305,9 +314,9 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, EntityHandle blue, double * i
     if (!found)
     {
       std::cout << " red quad: ";
-      for (int j1 = 0; j1 < nsides; j1++)
+      for (int j1 = 0; j1 < nsRed; j1++)
       {
-        std::cout << redQuad[2 * j1] << " " << redQuad[2 * j1 + 1] << "\n";
+        std::cout << redCoords2D[2 * j1] << " " << redCoords2D[2 * j1 + 1] << "\n";
       }
       std::cout << " a point pp is not on a red quad " << *pp << " " << pp[1]
           << " red quad " << mb->id_from_handle(red) << " \n";
@@ -371,9 +380,9 @@ bool Intx2MeshOnSphere::is_inside_element(double xyz[3], EntityHandle eh)
   int num_nodes;
   ErrorCode rval = mb->get_connectivity(eh, redConn, num_nodes);
 
-  if (MB_SUCCESS != rval || num_nodes != 4)
+  if (MB_SUCCESS != rval)
     return false;
-  int nsides = num_nodes;
+  int nsRed = num_nodes;
 
   //CartVect coords[4];
   rval = mb->get_coords(redConn, num_nodes, &(redCoords[0][0]));
@@ -384,12 +393,12 @@ bool Intx2MeshOnSphere::is_inside_element(double xyz[3], EntityHandle eh)
       center += redCoords[k];
   center = 1./num_nodes*center;
   decide_gnomonic_plane(center, plane);// output the plane
-  for (int j = 0; j < nsides; j++)
+  for (int j = 0; j < nsRed; j++)
   {
     // populate coords in the plane for decision making
     // they should be oriented correctly, positively
-    int rc = gnomonic_projection(redCoords[j],  R, plane, redQuad[2 * j],
-        redQuad[2 * j + 1]);
+    int rc = gnomonic_projection(redCoords[j],  R, plane, redCoords2D[2 * j],
+        redCoords2D[2 * j + 1]);
     if (rc != 0)
       return false;
   }
@@ -401,7 +410,7 @@ bool Intx2MeshOnSphere::is_inside_element(double xyz[3], EntityHandle eh)
 
   // now, is the projected point inside the red quad?
   // cslam utils
-  if (point_in_interior_of_convex_polygon (redQuad, 4, pt))
+  if (point_in_interior_of_convex_polygon (redCoords2D, nsRed, pt))
     return true;
   return false;
 }
