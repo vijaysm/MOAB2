@@ -74,11 +74,11 @@ void Intx2Mesh::createTags()
 
   int defaultInt = 0;
 
-  rval = mb->tag_get_handle("Positive", 1, MB_TYPE_INTEGER, redParentTag,
+  rval = mb->tag_get_handle("RedParent", 1, MB_TYPE_INTEGER, redParentTag,
       MB_TAG_SPARSE | MB_TAG_CREAT, &defaultInt);
   ERRORV(rval, "can't create positive tag");
 
-  rval = mb->tag_get_handle("Negative", 1, MB_TYPE_INTEGER, blueParentTag,
+  rval = mb->tag_get_handle("BlueParent", 1, MB_TYPE_INTEGER, blueParentTag,
       MB_TAG_SPARSE | MB_TAG_CREAT, &defaultInt);
   ERRORV(rval, "can't create negative tag");
 
@@ -156,17 +156,17 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
   createTags(); //
   EntityHandle startBlue, startRed;
 
-  Range rs1;
-  Range rs2;
   mb->get_entities_by_dimension(mbs1, 2, rs1);
   mb->get_entities_by_dimension(mbs2, 2, rs2);
-  while (!rs2.empty())
+  Range rs22=rs2; // a copy of the initial range; we will remove from it elements as we
+                 // advance ; rs2 is needed for marking the polygon to the red parent
+  while (!rs22.empty())
   {
     for (Range::iterator it = rs1.begin(); it != rs1.end(); it++)
     {
       startBlue = *it;
       int found = 0;
-      for (Range::iterator it2 = rs2.begin(); it2 != rs2.end() && !found; it2++)
+      for (Range::iterator it2 = rs22.begin(); it2 != rs22.end() && !found; it2++)
       {
         startRed = *it2;
         double area = 0;
@@ -260,12 +260,11 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
         int nb[MAXEDGES] = {0};
         int nr[MAXEDGES] = {0};
 
-        int nsidesBlue; // nsides red is the same, nsidesBlue changes for next element
-        // area is in 2d, points are in 3d (on a sphere), back-projected
-        // intersection points (could include the vertices of initial quads)
-        // means no intersection on the side (markers)
-        // means no intersection on the side (markers)
-        // nc [j] = 1 means that the side j (from j to j+1) of blue poly intersects the
+        int nsidesBlue; ///
+        // area is in 2d, points are in 3d (on a sphere), back-projected, or in a plane
+        // intersection points could include the vertices of initial elements
+        // nb [j] = 0 means no intersection on the side k for element blue (markers)
+        // nb [j] = 1 means that the side j (from j to j+1) of blue poly intersects the
         // red poly.  A potential next poly is the red poly that is adjacent to this side
         computeIntersectionBetweenRedAndBlue(/* red */currentRed, blueT, P, nP,
             area, nb, nr, nsidesBlue, nsidesRed);
@@ -339,8 +338,8 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
         }
 
       } // end while (!localBlue.empty())
-      // here, we are finished with redCurrent, take it out of the rs2 range (red, arrival mesh)
-      rs2.erase(currentRed);
+      // here, we are finished with redCurrent, take it out of the rs22 range (red, arrival mesh)
+      rs22.erase(currentRed);
       // also, look at its neighbors, and add to the seeds a next one
 
       EntityHandle redNeighbors[MAXEDGES];

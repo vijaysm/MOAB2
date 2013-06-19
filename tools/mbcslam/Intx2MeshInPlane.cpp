@@ -340,10 +340,10 @@ int Intx2MeshInPlane::findNodes(EntityHandle red, int nsRed, EntityHandle blue, 
     mb->create_element(MBPOLYGON, foundIds, nP, polyNew);
     mb->add_entities(outSet, &polyNew, 1);
 
-    // tag it with the ids from red and blue
-    int id = mb->id_from_handle(blue);
+    // tag it with the index ids from red and blue sets
+    int id = rs1.index(blue); // index starts from 0
     mb->tag_set_data(blueParentTag, &polyNew, 1, &id);
-    id = mb->id_from_handle(red);
+    id = rs2.index(red);
     mb->tag_set_data(redParentTag, &polyNew, 1, &id);
 
     static int count=0;

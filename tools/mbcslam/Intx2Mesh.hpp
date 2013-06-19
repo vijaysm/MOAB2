@@ -95,6 +95,8 @@ protected: // so it can be accessed in derived classes, InPlane and OnSphere
 
   EntityHandle mbs1;
   EntityHandle mbs2;
+  Range rs1;// range set 1 (departure set, lagrange set, blue set, manufactured set)
+  Range rs2;// range set 2 (arrival set, euler set, red set, initial set)
 
   EntityHandle outSet; // will contain intersection
 
