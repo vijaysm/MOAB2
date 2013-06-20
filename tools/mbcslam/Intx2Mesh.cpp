@@ -1189,7 +1189,8 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
   TLv.initialize(2, 0, 0, 3, numv); // to proc, GLOBAL ID, DP points
   TLv.enableWriteAccess();
 
-  TLq.initialize(6, 0, 0, 0, numq); // to proc, elem GLOBAL ID, connectivity[4] (global ID v)
+  int sizeTuple = 2+MAXEDGES; // max edges is now 10 :) for polygons
+  TLq.initialize(12, 0, 0, 0, numq); // to proc, elem GLOBAL ID, connectivity[10] (global ID v)
   TLq.enableWriteAccess();
   std::cout << "from proc " << my_rank << " send " << numv << " vertices and " << numq << " quads\n";
 
@@ -1213,25 +1214,31 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
       TLv.inc_n();
     }
     // also, prep the quad for sending ...
-    Range Q = range_to_P.subset_by_type(MBQUAD);
+    Range Q = range_to_P.subset_by_dimension(2);
     for (Range::iterator it=Q.begin(); it!=Q.end(); it++)
     {
       EntityHandle q=*it;
       int global_id;
       rval = mb->tag_get_data(gid, &q, 1, &global_id);
-      ERRORR(rval, "can't get gid for quad");
+      ERRORR(rval, "can't get gid for polygon");
       int n=TLq.get_n();
-      TLq.vi_wr[6*n] = to_proc; //
-      TLq.vi_wr[6*n+1] = global_id; // global id of element, used to identify it ...
+      TLq.vi_wr[sizeTuple*n] = to_proc; //
+      TLq.vi_wr[sizeTuple*n+1] = global_id; // global id of element, used to identify it ...
       const EntityHandle * conn4;
       int num_nodes;
-      rval = mb->get_connectivity(q, conn4, num_nodes);
+      rval = mb->get_connectivity(q, conn4, num_nodes);// could be up to 10;
       ERRORR(rval, "can't get connectivity for quad");
+      if (num_nodes > MAXEDGES)
+        ERRORR(MB_FAILURE, "too many nodes in a polygon");
       for (int i=0; i<num_nodes; i++)
       {
         EntityHandle v = conn4[i];
         unsigned int index = local_verts.find(v)-local_verts.begin();
-        TLq.vi_wr[6*n+2+i] = gids[index];
+        TLq.vi_wr[sizeTuple*n+2+i] = gids[index];
+      }
+      for (int k=num_nodes; k<MAXEDGES; k++)
+      {
+        TLq.vi_wr[sizeTuple*n+2+k] = 0; // fill the rest of node ids with 0; we know that the node ids start from 1!
       }
       TLq.inc_n();
 
@@ -1264,7 +1271,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
       // now, all dep points should be at their place
       // look in the local list of q for this proc, and create all those quads and vertices if needed
   Range & local=Rto[my_rank];
-  Range local_q = local.subset_by_type(MBQUAD);
+  Range local_q = local.subset_by_dimension(2);
   // the local should have all the vertices in local_verts
   for (Range::iterator it=local_q.begin(); it!=local_q.end(); it++)
   {
@@ -1273,7 +1280,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
     const EntityHandle * conn4;
     rval = mb->get_connectivity(q, conn4, nnodes);
     ERRORR(rval, "can't get connectivity of local q ");
-    EntityHandle new_conn[4];
+    EntityHandle new_conn[MAXEDGES];
     for (int i=0; i<nnodes; i++)
     {
       EntityHandle v1=conn4[i];
@@ -1290,39 +1297,59 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
       }
       new_conn[i] = globalID_to_handle[gids[index]];
     }
-    EntityHandle new_quad;
-    rval = mb->create_element(MBQUAD, new_conn, 4, new_quad);
+    EntityHandle new_element;
+    //
+    EntityType entType = MBQUAD;
+    if (nnodes >4)
+      entType = MBPOLYGON;
+    if (nnodes <4)
+      entType = MBTRI;
+
+    rval = mb->create_element(entType, new_conn, nnodes, new_element);
     ERRORR(rval, "can't create new quad ");
-    rval = mb->add_entities(covering_lagr_set, &new_quad, 1);
-    ERRORR(rval, "can't add new quad to dep set");
+    rval = mb->add_entities(covering_lagr_set, &new_element, 1);
+    ERRORR(rval, "can't add new element to dep set");
     int gid_el;
     // get the global ID of the initial quad
     rval=mb->tag_get_data(gid, &q, 1, &gid_el);
     ERRORR(rval, "can't get element global ID ");
-    globalID_to_eh[gid_el]=new_quad;
+    globalID_to_eh[gid_el]=new_element;
   }
-  // now look at all quads received through; we do not want to duplicate them
-  n=TLq.get_n();// number of quads received by this processor
+  // now look at all elements received through; we do not want to duplicate them
+  n=TLq.get_n();// number of elements received by this processor
   for (int i=0; i<n; i++)
   {
-    int globalIdEl = TLq.vi_rd[6*i+1];
+    int globalIdEl = TLq.vi_rd[sizeTuple*i+1];
     // do we already have a quad with this global ID, represented?
     if (globalID_to_eh.find(globalIdEl)==globalID_to_eh.end())
     {
       // construct the conn quad
-      EntityHandle new_conn[4];
-      for (int j=0; j<4; j++)
+      EntityHandle new_conn[MAXEDGES];
+      int nnodes;
+      for (int j=0; j<MAXEDGES; j++)
       {
-        int vgid = TLq.vi_rd[6*i+2+j];// vertex global ID
-        assert(globalID_to_handle.find(vgid)!=globalID_to_handle.end());
-        new_conn[j]=globalID_to_handle[vgid];
+        int vgid = TLq.vi_rd[sizeTuple*i+2+j];// vertex global ID
+        if (vgid==0)
+          new_conn[j] = 0;
+        else
+        {
+          assert(globalID_to_handle.find(vgid)!=globalID_to_handle.end());
+          new_conn[j]=globalID_to_handle[vgid];
+          nnodes = j+1;// nodes are at the beginning, and are variable number
+        }
       }
-      EntityHandle new_quad;
-      rval = mb->create_element(MBQUAD, new_conn, 4, new_quad);
-      ERRORR(rval, "can't create new quad ");
-      globalID_to_eh[globalIdEl]=new_quad;
-      rval = mb->add_entities(covering_lagr_set, &new_quad, 1);
-      ERRORR(rval, "can't add new quad to dep set");
+      EntityHandle new_element;
+      //
+      EntityType entType = MBQUAD;
+      if (nnodes >4)
+        entType = MBPOLYGON;
+      if (nnodes <4)
+        entType = MBTRI;
+      rval = mb->create_element(entType, new_conn, nnodes, new_element);
+      ERRORR(rval, "can't create new element ");
+      globalID_to_eh[globalIdEl]=new_element;
+      rval = mb->add_entities(covering_lagr_set, &new_element, 1);
+      ERRORR(rval, "can't add new element to dep set");
     }
   }
   return MB_SUCCESS;
