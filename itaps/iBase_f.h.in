@@ -50,7 +50,27 @@
       parameter (iBase_REGION = 3)
       parameter (iBase_ALL_TYPES = 4)
 
+      integer iBase_AdjacencyCost_MIN
+      integer iBase_UNAVAILABLE
+      integer iBase_ALL_ORDER_1
+      integer iBase_ALL_ORDER_LOGN
+      integer iBase_ALL_ORDER_N
+      integer iBase_SOME_ORDER_1
+      integer iBase_SOME_ORDER_LOGN
+      integer iBase_SOME_ORDER_N
+      integer iBase_AVAILABLE
+      integer iBase_AdjacencyCost_MAX
 
+      parameter (iBase_AdjacencyCost_MIN = 0)
+      parameter (iBase_UNAVAILABLE = 0)
+      parameter (iBase_ALL_ORDER_1 = 1)
+      parameter (iBase_ALL_ORDER_LOGN = 2)
+      parameter (iBase_ALL_ORDER_N = 3)
+      parameter (iBase_SOME_ORDER_1 = 4)
+      parameter (iBase_SOME_ORDER_LOGN = 5)
+      parameter (iBase_SOME_ORDER_N = 6)
+      parameter (iBase_AVAILABLE = 7)
+      parameter (iBase_AdjacencyCost_MAX = 7)
 
       integer iBase_NEW
       integer iBase_ALREADY_EXISTED

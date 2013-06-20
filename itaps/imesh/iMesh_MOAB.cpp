@@ -3423,3 +3423,13 @@ void iMesh_createStructuredMesh(iMesh_Instance instance,
   RETURN(iBase_SUCCESS);
 }
 
+void iMesh_freeMemory(
+        iMesh_Instance instance,
+          /**< [in] iMesh instance handle */
+         void ** ptrToMem)
+{
+  free(*ptrToMem);
+  *ptrToMem=0;
+  return;
+}
+

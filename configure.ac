@@ -41,6 +41,7 @@ else
   AM_SILENT_RULES(no)
 fi
 ])
+AC_C_BIGENDIAN
 
 # Check if platform is BlueGene
 AC_MSG_CHECKING([if platform is IBM BlueGene])
@@ -1163,6 +1164,8 @@ AC_SUBST([EXPORT_LTFLAGS])
 AC_SUBST([EXPORT_LDFLAGS])
 AC_SUBST([AM_CXXFLAGS])
 AC_SUBST([AM_CFLAGS])
+  AC_SUBST([AM_FCFLAGS])
+  AC_SUBST([AM_FFLAGS])
 AC_SUBST([DISTCHECK_CONFIGURE_FLAGS])
 
 AC_ARG_VAR([FC], [FORTRAN compiler command])
@@ -1220,10 +1223,10 @@ AC_OUTPUT
 AC_MSG_RESULT([C:   $CC $CFLAGS $CPPFLAGS])
 AC_MSG_RESULT([C++: $CXX $CXXFLAGS $CPPFLAGS])
 if test "x" != "x$FC"; then
-  AC_MSG_RESULT([Fortran: $FC $FCFLAGS])
+  AC_MSG_RESULT([Fortran90: $FC $FCFLAGS])
 fi
 if test "x" != "x$F77"; then
-  AC_MSG_RESULT([Fortran: $F77 $FFLAGS])
+  AC_MSG_RESULT([Fortran77: $F77 $FFLAGS])
 fi
 
 if test "x$HAVE_HDF5" = "xno"; then

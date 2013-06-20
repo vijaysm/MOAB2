@@ -11,16 +11,20 @@
 #include "moab/Core.hpp"
 #include "moab/Interface.hpp"
 
+// maximum number of edges on each convex polygon of interest
+#define MAXEDGES 10
+#define MAXEDGES2 20 // used for coordinates in plane
+
 namespace moab
 {
 double dist2(double * a, double * b);
 double area2D(double *a, double *b, double *c);
-int borderPointsOfXinY2(double * X, double * Y, int nsides, double * P, int side[4]);
+int borderPointsOfXinY2(double * X, int nX, double * Y, int nY, double * P, int side[MAXEDGES]);
 int SortAndRemoveDoubles2(double * P, int & nP, double epsilon);
 // the marks will show what edges of blue intersect the red
 
-int EdgeIntersections2(double * blue, double * red, int nsides, int markb[4], int markr[4],
-    double * points, int & nPoints);
+int EdgeIntersections2(double * blue, int nsBlue, double * red, int nsRed,
+    int markb[MAXEDGES], int markr[MAXEDGES], double * points, int & nPoints);
 
 // vec utils related to gnomonic projection on a sphere
 
@@ -83,7 +87,7 @@ CartVect spherical_to_cart (SphereCoords &) ;
  *   output: a set with refined elements; with proper input, it should be pretty
  *   similar to a Homme mesh read with ReadNC
  */
-ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle & outputSet);
+ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle & outputSet, double tolerance);
 
 /*
  * given an entity set, get all nodes and project them on a sphere with given radius
@@ -122,5 +126,9 @@ double distance_on_great_circle(CartVect & p1, CartVect & p2);
 
 void departure_point_case1(CartVect & arrival_point, double t, double delta_t, CartVect & departure_point);
 
+// break the nonconvex quads into triangles; remove the quad from the set? yes.
+// maybe radius is not needed;
+//
+ErrorCode enforce_convexity(Interface * mb, EntityHandle set);
 }
 #endif /* CSLAMUTILS_HPP_ */

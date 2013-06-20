@@ -12,6 +12,11 @@
 #include "ElemUtil.hpp"
 #include "moab/MergeMesh.hpp"
 
+// this is for sstream
+#include <sstream>
+
+#include <queue>
+
 namespace moab {
 // vec utilities that could be common between quads on a plane or sphere
 double dist2(double * a, double * b)
@@ -24,24 +29,26 @@ double area2D(double *a, double *b, double *c)
   // (b-a)x(c-a) / 2
   return ((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2;
 }
-int borderPointsOfXinY2(double * X, double * Y, int nsides, double * P, int side[4])
+int borderPointsOfXinY2(double * X, int nX, double * Y, int nY, double * P, int side[MAXEDGES])
 {
   // 2 triangles, 3 corners, is the corner of X in Y?
   // Y must have a positive area
   /*
    */
   int extraPoint = 0;
-  for (int i = 0; i < nsides; i++)
+  for (int i = 0; i < nX; i++)
   {
-    // compute twice the area of all 4 triangles formed by a side of Y and a corner of X; if one is negative, stop
+    // compute twice the area of all nY triangles formed by a side of Y and a corner of X; if one is negative, stop
+    // (negative means it is outside; X and Y are all oriented such that they are positive oriented;
+    //  if one area is negative, it means it is outside the convex region, for sure)
     double * A = X + 2 * i;
 
     int inside = 1;
-    for (int j = 0; j < nsides; j++)
+    for (int j = 0; j < nY; j++)
     {
       double * B = Y + 2 * j;
 
-      int j1 = (j + 1) % nsides;
+      int j1 = (j + 1) % nY;
       double * C = Y + 2 * j1; // no copy of data
 
       double area2 = (B[0] - A[0]) * (C[1] - A[1])
@@ -54,7 +61,8 @@ int borderPointsOfXinY2(double * X, double * Y, int nsides, double * P, int side
     }
     if (inside)
     {
-      side[i] = 1;
+      side[i] = 1;// so vertex i of X is inside the convex region formed by Y
+      // so side has nX dimension (first array)
       P[extraPoint * 2] = A[0];
       P[extraPoint * 2 + 1] = A[1];
       extraPoint++;
@@ -84,7 +92,8 @@ int SortAndRemoveDoubles2(double * P, int & nP, double epsilon_1)
   }
   c[0] /= nP;
   c[1] /= nP;
-  double angle[24]; // could be at most 24 points; much less usually
+  // how many
+  std::vector<double> angle(nP); // could be at most nP points
   for (k = 0; k < nP; k++)
   {
     double x = P[2 * k] - c[0], y = P[2 * k + 1] - c[1];
@@ -108,7 +117,7 @@ int SortAndRemoveDoubles2(double * P, int & nP, double epsilon_1)
       if (angle[k] > angle[k + 1])
       {
         sorted = 0;
-        swap2(angle + k, angle + k + 1);
+        swap2(&angle[k], &angle[k+1]);
         swap2(P + (2 * k), P + (2 * k + 2));
         swap2(P + (2 * k + 1), P + (2 * k + 3));
       }
@@ -146,8 +155,8 @@ int SortAndRemoveDoubles2(double * P, int & nP, double epsilon_1)
 
 // the marks will show what edges of blue intersect the red
 
-int EdgeIntersections2(double * blue, double * red, int nsides, int markb[4], int markr[4],
-    double * points, int & nPoints)
+int EdgeIntersections2(double * blue, int nsBlue, double * red, int nsRed,
+    int markb[MAXEDGES], int markr[MAXEDGES], double * points, int & nPoints)
 {
   /* EDGEINTERSECTIONS computes edge intersections of two elements
    [P,n]=EdgeIntersections(X,Y) computes for the two given elements  * red
@@ -158,30 +167,20 @@ int EdgeIntersections2(double * blue, double * red, int nsides, int markb[4], in
    with blue are given.
    */
 
-  // points is an array with 48 slots   (24 * 2 doubles)
+  // points is an array with enough slots   (24 * 2 doubles)
   nPoints = 0;
-  markb[0] = markb[1] = markb[2] = markb[3] = 0; // no neighbors of red involved yet
-  markr[0] = markr[1] = markr[2] = markr[3] = 0;
-  /*for i=1:3                            % find all intersections of edges
-   for j=1:3
-   b=Y(:,j)-X(:,i);
-   A=[X(:,mod(i,3)+1)-X(:,i) -Y(:,mod(j,3)+1)+Y(:,j)];
-   if rank(A)==2                   % edges not parallel
-   r=A\b;
-   if r(1)>=0 & r(1)<=1 & r(2)>=0 & r(2)<=1,  % intersection found
-   k=k+1; P(:,k)=X(:,i)+r(1)*(X(:,mod(i,3)+1)-X(:,i)); n(i)=1;
-   end;
-   end;
-   end;
-   end;*/
-  for (int i = 0; i < nsides; i++)
+  for (int i=0; i<MAXEDGES; i++){
+    markb[i]=markr[i] = 0;
+  }
+
+  for (int i = 0; i < nsBlue; i++)
   {
-    for (int j = 0; j < nsides; j++)
+    for (int j = 0; j < nsRed; j++)
     {
       double b[2];
       double a[2][2]; // 2*2
-      int iPlus1 = (i + 1) % nsides;
-      int jPlus1 = (j + 1) % nsides;
+      int iPlus1 = (i + 1) % nsBlue;
+      int jPlus1 = (j + 1) % nsRed;
       for (int k = 0; k < 2; k++)
       {
         b[k] = red[2 * j + k] - blue[2 * i + k];
@@ -477,7 +476,7 @@ CartVect spherical_to_cart (SphereCoords & sc)
   return res;
 }
 
-ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle & outputSet)
+ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle & outputSet, double tolerance)
 {
   ErrorCode rval = MB_SUCCESS;
 
@@ -485,7 +484,9 @@ ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle &
   moab::Element::SpectralQuad specQuad(NP);
   Range fineElem;
 
+  std::vector<int> gids(input.size()*(NP-1)*(NP-1));// total number of "linear" elements
   // get all edges? or not? Form all gl points + quads, then merge, then output
+  int startGid=0;
   for (Range::iterator it=input.begin(); it!=input.end(); it++)
   {
     const moab::EntityHandle * conn4 = NULL;
@@ -493,7 +494,7 @@ ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle &
     rval = mb->get_connectivity(*it, conn4, num_nodes);
     if (moab::MB_SUCCESS != rval)
     {
-      std::cout << "can't get conectivity for quad \n";
+      std::cout << "can't get connectivity for quad \n";
       return rval;
     }
     assert(num_nodes==4);
@@ -533,6 +534,8 @@ ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle &
         if (rval!=moab::MB_SUCCESS)
           return rval;
         fineElem.insert(element_handle);
+        gids[startGid]=startGid+1;
+        startGid++;
       }
     }
 
@@ -541,7 +544,15 @@ ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle &
   mb->add_entities(outputSet, fineElem);
   // merge all nodes
   MergeMesh mgtool(mb);
-  rval = mgtool.merge_entities(fineElem, 0.0001);
+  rval = mgtool.merge_entities(fineElem, tolerance);
+  if (MB_SUCCESS!=rval)
+    return rval;
+  Tag gidTag;
+  rval = mb->tag_get_handle("GLOBAL_ID", 1, MB_TYPE_INTEGER,
+      gidTag, MB_TAG_DENSE|MB_TAG_CREAT);
+  if (MB_SUCCESS!=rval)
+      return rval;
+  rval = mb->tag_set_data(gidTag, fineElem, &gids[0]);
 
   return rval;
 }
@@ -624,7 +635,7 @@ double oriented_spherical_angle(double * A, double * B, double * C)
   CartVect a(A), b(B), c(C);
   CartVect normalOAB = a * b;
   CartVect normalOCB = c * b;
-  CartVect orient = (b-a)*(c-a);
+  CartVect orient = (c-b)*(a-b);
   double ang = angle(normalOAB, normalOCB); // this is between 0 and M_PI
   if (ang!=ang)
   {
@@ -632,8 +643,8 @@ double oriented_spherical_angle(double * A, double * B, double * C)
     std::cout << a << " " << b << " " << c <<"\n";
     std::cout << ang << "\n";
   }
-  if (orient%a < 0)
-    return (2*M_PI-ang);// the other angle
+  if (orient%b < 0)
+    return (2*M_PI-ang);// the other angle, supplement
 
   return ang;
 
@@ -849,4 +860,133 @@ void departure_point_case1(CartVect & arrival_point, double t, double delta_t, C
   departure_point = spherical_to_cart(sph_dep);
   return;
 }
+// break the nonconvex quads into triangles; remove the quad from the set? yes.
+// maybe radius is not needed;
+//
+ErrorCode enforce_convexity(Interface * mb, EntityHandle lset)
+{
+  // look at each quad; compute all 4 angles; if one is reflex, break along that diagonal
+  // replace it with 2 triangles, and remove from set;
+  // it should work for all polygons / tested first for case 1, with dt 0.5 (too much deformation)
+  // get all entities of dimension 2
+  // then get the connectivity, etc
+  Range inputRange;
+  ErrorCode rval = mb->get_entities_by_dimension(lset, 2, inputRange);
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  std::vector<double> coords;
+  coords.resize(3*10); // at most 10 vertices per polygon
+  // we should create a queue with new polygons that need processing for reflex angles
+  //  (obtuse)
+  std::queue<EntityHandle> newPolys;
+  int brokenPolys=0;
+  for (Range::iterator eit = inputRange.begin(); eit != inputRange.end()
+                                       || !newPolys.empty() ; eit++)
+  {
+    EntityHandle eh;
+    if (eit != inputRange.end())
+      eh = *eit;
+    else
+    {
+      eh = newPolys.front();
+      newPolys.pop();
+    }
+    // get the nodes, then the coordinates
+    const EntityHandle * verts;
+    int num_nodes;
+    rval = mb->get_connectivity(eh, verts, num_nodes);
+    if (MB_SUCCESS != rval)
+      return rval;
+    coords.resize(3 * num_nodes);
+    if (num_nodes < 4)
+      continue; // if already triangles, don't bother
+       // get coordinates
+    rval = mb->get_coords(verts, num_nodes, &coords[0]);
+    if (MB_SUCCESS != rval)
+     return rval;
+    // compute each angle
+    bool alreadyBroken = false;
+
+    for (int i=0; i<num_nodes; i++)
+    {
+      double * A = &coords[3*i];
+      double * B = &coords[3*((i+1)%num_nodes)];
+      double * C = &coords[3*((i+2)%num_nodes)];
+      double angle = oriented_spherical_angle(A, B, C);
+      if (angle-M_PI > 0.) // even almost reflex is bad; break it!
+      {
+        if (alreadyBroken)
+        {
+          mb->list_entities(&eh, 1);
+          mb->list_entities(verts, num_nodes);
+          double * D = &coords[3*((i+3)%num_nodes)];
+          std::cout<< "ABC: " << angle << " \n";
+          std::cout<< "BCD: " << oriented_spherical_angle( B, C, D) << " \n";
+          std::cout<< "CDA: " << oriented_spherical_angle( C, D, A) << " \n";
+          std::cout<< "DAB: " << oriented_spherical_angle( D, A, B)<< " \n";
+          std::cout << " this quad has at least 2 angles > 180, it has serious issues\n";
+
+          return MB_FAILURE;
+        }
+        // the bad angle is at i+1;
+        // create 1 triangle and one polygon; add the polygon to the input range, so
+        // it will be processed too
+        // also, add both to the set :) and remove the original polygon from the set
+        // break the next triangle, even though not optimal
+        // so create the triangle i+1, i+2, i+3; remove i+2 from original list
+        // even though not optimal in general, it is good enough.
+        EntityHandle conn3[3]={ verts[ (i+1)%num_nodes],
+            verts[ (i+2)%num_nodes],
+            verts[ (i+3)%num_nodes] };
+        // create a polygon with num_nodes-1 vertices, and connectivity
+        // verts[i+1], verts[i+3], (all except i+2)
+        std::vector<EntityHandle> conn(num_nodes-1);
+        for (int j=1; j<num_nodes; j++)
+        {
+          conn[j-1]=verts[(i+j+2)%num_nodes];
+        }
+        EntityHandle newElement;
+        rval = mb->create_element(MBTRI, conn3, 3, newElement);
+        if (MB_SUCCESS != rval)
+          return rval;
+
+        rval = mb->add_entities(lset, &newElement, 1);
+        if (MB_SUCCESS != rval)
+          return rval;
+        if (num_nodes == 4)
+        {
+          // create another triangle
+          rval = mb->create_element(MBTRI, &conn[0], 3, newElement);
+          if (MB_SUCCESS != rval)
+            return rval;
+        }
+        else
+        {
+          // create another polygon, and add it to the inputRange
+          rval = mb->create_element(MBPOLYGON, &conn[0], num_nodes-1, newElement);
+          if (MB_SUCCESS != rval)
+            return rval;
+          newPolys.push(newElement); // because it has less number of edges, the
+          // reverse should work to find it.
+        }
+        rval = mb->add_entities(lset, &newElement, 1);
+        if (MB_SUCCESS != rval)
+          return rval;
+        mb->remove_entities(lset, &eh, 1);
+        brokenPolys++;
+        /*std::cout<<"remove: " ;
+        mb->list_entities(&eh, 1);
+
+        std::stringstream fff;
+        fff << "file0" <<  brokenQuads<< ".vtk";
+        mb->write_file(fff.str().c_str(), 0, 0, &lset, 1);*/
+        alreadyBroken=true; // get out of the loop, element is broken
+      }
+    }
+  }
+  std::cout << brokenPolys << " concave polygons were decomposed in convex ones \n";
+  return MB_SUCCESS;
+}
+
 } //namespace moab

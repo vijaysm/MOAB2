@@ -7,12 +7,12 @@
 #include "ScdVertexData.hpp"
 #ifdef USE_MPI
 #  include "moab/ParallelComm.hpp"
+#  include "moab/TupleList.hpp"
+#  include "moab/gs.hpp"
 #endif
 #include "assert.h"
 #include <iostream>
 #include <functional>
-#include "moab/TupleList.hpp"
-#include "moab/gs.hpp"
 
 #define ERRORR(rval, str) {if (MB_SUCCESS != rval)          \
       {std::cerr << str; return rval; }}

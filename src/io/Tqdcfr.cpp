@@ -18,6 +18,8 @@
 #include "moab/Range.hpp"
 #include "FileOptions.hpp"
 #include <iostream>
+#include <string>
+
 
 #ifdef USE_MPI
 #include "moab_mpi.h"
@@ -37,6 +39,9 @@
 #include <sstream>
 #include <assert.h>
 #include <string.h>
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 namespace moab {
 
@@ -143,14 +148,54 @@ void Tqdcfr::FREADC( unsigned num_ents ) {
   FREADCA( num_ents, &char_buf[0] );
 }
 
+// used for swapping
+static void swap8_voff(long *data)
+{
+  unsigned char tmp, *cdat = (unsigned char *) data;
+  tmp = cdat[0]; cdat[0] = cdat[7], cdat[7] = tmp;
+  tmp = cdat[1]; cdat[1] = cdat[6], cdat[6] = tmp;
+  tmp = cdat[2]; cdat[2] = cdat[5], cdat[5] = tmp;
+  tmp = cdat[3]; cdat[3] = cdat[4], cdat[4] = tmp;
+}
+static void swap4_uint(unsigned int *data)
+{
+  unsigned char tmp, *cdat = (unsigned char *) data;
+  tmp = cdat[0]; cdat[0] = cdat[3], cdat[3] = tmp;
+  tmp = cdat[1]; cdat[1] = cdat[2], cdat[2] = tmp;
+}
+/*static void swap2_ushort(unsigned short *data)
+{
+  unsigned char tmp, *cdat = (unsigned char *) data;
+  tmp = cdat[0]; cdat[0] = cdat[1], cdat[1] = tmp;
+}*/
+
 void Tqdcfr::FREADIA( unsigned num_ents, unsigned int* array ) {
   unsigned rval = fread( array, sizeof(unsigned int), num_ents, cubFile );
   IO_ASSERT( rval == num_ents );
+  if (swapForEndianness)
+  {
+    unsigned int  * pt=array;
+    for (unsigned int i=0; i<num_ents; i++ )
+    {
+      swap4_uint((unsigned int *)pt);
+      pt++;
+    }
+  }
+
 }
 
 void Tqdcfr::FREADDA( unsigned num_ents, double* array ) {
   unsigned rval = fread( array, sizeof(double), num_ents, cubFile );
   IO_ASSERT( rval == num_ents );
+  if (swapForEndianness)
+  {
+    double  * pt=array;
+    for (unsigned int i=0; i<num_ents; i++ )
+    {
+      swap8_voff((long *)pt);
+      pt++;
+    }
+  }
 }
 
 void Tqdcfr::FREADCA( unsigned num_ents, char* array ) {
@@ -170,7 +215,7 @@ ReaderIface* Tqdcfr::factory( Interface* iface )
 Tqdcfr::Tqdcfr(Interface *impl) 
     : cubFile(NULL), globalIdTag(0), geomTag(0), uniqueIdTag(0), 
       blockTag(0), nsTag(0), ssTag(0), attribVectorTag(0), entityNameTag(0),
-      categoryTag(0), hasMidNodesTag(0), printedSeqWarning(false), printedElemWarning(false)
+      categoryTag(0), hasMidNodesTag(0), swapForEndianness(false), printedSeqWarning(false), printedElemWarning(false)
 {
   assert(NULL != impl);
   mdbImpl = impl;
@@ -542,32 +587,57 @@ ErrorCode Tqdcfr::read_nodeset(const unsigned int nsindex,
                                       ns_entities, excl_entities);
     if (MB_SUCCESS != result) return result;
   }
-
     // check for more data
+    // <- likask 
   if (num_read < nodeseth->nsLength) {
     FREADC(2); num_read += 2;
     if (char_buf[0] == 'i' && char_buf[1] == 'd') {
       FREADI(1); num_read += sizeof(int);
       //uid = int_buf[0];
-    }
-    
-    if (num_read < nodeseth->nsLength) {
-        // check for bc_data
-      FREADC(2); num_read += 2;
+    } else {
       if (char_buf[0] == 'b' && char_buf[1] == 'c') {
-        FREADI(1); num_read += sizeof(int);
-        int num_bcs = int_buf[0];
+        FREADI(1); num_read += sizeof(int); 
+        int num_bcs = uint_buf[0]; 
         bc_data.resize(num_bcs);
         FREADCA(num_bcs, &bc_data[0]); num_read += num_bcs;
       }
     }
   }
 
+  if(debug) { // <-likask
+    nodeseth->print(); 
+    if(!bc_data.empty()) {
+      std::cout << "bc_data = ";
+      std::vector<char>::iterator vit = bc_data.begin();
+      for(;vit!=bc_data.end();vit++) {
+	std::cout << std::hex << (int)((unsigned char)*vit) << " ";
+      }
+      std::cout << ": ";
+      vit = bc_data.begin();
+      for(;vit!=bc_data.end();vit++) {
+	std::cout << *vit;
+      }
+      std::cout << std::endl;
+    }
+  } // <-likask
+
     // and put entities into this nodeset's set
   ErrorCode result = put_into_set(nodeseth->setHandle, ns_entities, excl_entities);
   if (MB_SUCCESS != result) return result;
 
   result = get_names(model->nodesetMD, nsindex, nodeseth->setHandle);
+  if (MB_SUCCESS != result) return result;
+
+  // <-likask
+  const int def_bc_data_len = 0;
+  std::string tag_name = std::string(DIRICHLET_SET_TAG_NAME)+"__BC_DATA";
+  Tag nbc_data;
+  result = mdbImpl->tag_get_handle(tag_name.c_str(),def_bc_data_len,MB_TYPE_OPAQUE,
+    nbc_data,MB_TAG_CREAT|MB_TAG_SPARSE|MB_TAG_BYTES|MB_TAG_VARLEN,NULL); 
+  if (MB_SUCCESS != result) return result;
+  void const* tag_data[] = { &(bc_data[0]) };
+  int tag_size = bc_data.size();
+  result = mdbImpl->tag_set_by_ptr(nbc_data,&nodeseth->setHandle,1,tag_data,&tag_size);
   if (MB_SUCCESS != result) return result;
   
   return result;
@@ -676,22 +746,49 @@ ErrorCode Tqdcfr::read_sideset(const unsigned int ssindex,
     if (char_buf[0] == 'i' && char_buf[1] == 'd') {
       FREADI(1); num_read += sizeof(int);
       //uid = int_buf[0];
-    }
-    
-    if (num_read < sideseth->ssLength) {
+    } else {
         // check for bc_data
-      FREADC(2); num_read += 2;
       if (char_buf[0] == 'b' && char_buf[1] == 'c') {
         FREADI(1); num_read += sizeof(int);
-        int num_bcs = int_buf[0];
+        int num_bcs = uint_buf[0];
         bc_data.resize(num_bcs);
         FREADCA(num_bcs, &bc_data[0]); num_read += num_bcs;
       }
     }
   }
 
+  if(debug) { // <-likask
+    sideseth->print(); 
+    if(!bc_data.empty()) {
+      std::cout << "bc_data = ";
+      std::vector<char>::iterator vit = bc_data.begin();
+      for(;vit!=bc_data.end();vit++) {
+	std::cout << std::hex << (int)((unsigned char)*vit) << " ";
+      }
+      std::cout << ": ";
+      vit = bc_data.begin();
+      for(;vit!=bc_data.end();vit++) {
+	std::cout << *vit;
+      }
+      std::cout << std::endl;
+    }
+  } // <-likask
+
   result = get_names(model->sidesetMD, ssindex, sideseth->setHandle);
   if (MB_SUCCESS != result) return result;
+
+  // <-likask
+  const int def_bc_data_len = 0;
+  std::string tag_name = std::string(NEUMANN_SET_TAG_NAME)+"__BC_DATA";
+  Tag nbc_data;
+  result = mdbImpl->tag_get_handle(tag_name.c_str(),def_bc_data_len,MB_TYPE_OPAQUE,
+    nbc_data,MB_TAG_CREAT|MB_TAG_SPARSE|MB_TAG_BYTES|MB_TAG_VARLEN,NULL); 
+  if (MB_SUCCESS != result) return result;
+  void const* tag_data[] = { &(bc_data[0]) };
+  int tag_size = bc_data.size();
+  result = mdbImpl->tag_set_by_ptr(nbc_data,&sideseth->setHandle,1,tag_data,&tag_size);
+  if (MB_SUCCESS != result) return result;
+
   
   return MB_SUCCESS;
 }
@@ -875,17 +972,6 @@ ErrorCode Tqdcfr::read_block(const unsigned int blindex,
     if (char_buf[0] == 'i' && char_buf[1] == 'd') {
       FREADI(1); num_read += sizeof(int);
       //uid = int_buf[0];
-    }
-    
-    if (num_read < blockh->blockLength) {
-        // check for bc_data
-      FREADC(2); num_read += 2;
-      if (char_buf[0] == 'b' && char_buf[1] == 'c') {
-        FREADI(1); num_read += sizeof(int);
-        int num_bcs = int_buf[0];
-        bc_data.resize(num_bcs);
-        FREADCA(num_bcs, &bc_data[0]); num_read += num_bcs;
-      }
     }
   }
   
@@ -1533,13 +1619,26 @@ ErrorCode Tqdcfr::read_file_header()
 {
     // read file header
   FSEEK(4);
-  FREADI(6);
-  fileTOC.fileEndian = uint_buf[0];
-  fileTOC.fileSchema = uint_buf[1];
-  fileTOC.numModels = uint_buf[2];
-  fileTOC.modelTableOffset = uint_buf[3];
-  fileTOC.modelMetaDataOffset = uint_buf[4];
-  fileTOC.activeFEModel = uint_buf[5];
+  // read tthe first int from the file
+  // if it is 0, it is littleEndian
+  unsigned rval = fread( &fileTOC.fileEndian, sizeof(unsigned int), 1, cubFile );
+  IO_ASSERT( rval == 1 );
+#ifdef WORDS_BIGENDIAN
+  if (fileTOC.fileEndian==0)
+    swapForEndianness=true;
+#else
+  if (fileTOC.fileEndian!=0)
+    swapForEndianness=true;
+#endif
+  if (debug)
+    std::cout << " swapping ? " << swapForEndianness << "\n";
+  FREADI(5);
+  //fileTOC.fileEndian = uint_buf[0];
+  fileTOC.fileSchema = uint_buf[0];
+  fileTOC.numModels = uint_buf[1];
+  fileTOC.modelTableOffset = uint_buf[2];
+  fileTOC.modelMetaDataOffset = uint_buf[3];
+  fileTOC.activeFEModel = uint_buf[4];
   if (debug) fileTOC.print();
 
   return MB_SUCCESS;
@@ -1928,6 +2027,7 @@ ErrorCode Tqdcfr::NodesetHeader::read_info_header(const unsigned int model_offse
                                              &(nodeset_headers[i].setHandle), 1, 
                                              dirichlet_category);
     if (MB_SUCCESS != result) return result;
+
         
   }
 
@@ -2674,7 +2774,7 @@ void Tqdcfr::BlockHeader::print()
   std::cout << "blockDim = " << blockDim << std::endl;
   std::cout << "setHandle = " << setHandle << std::endl;
   std::cout << "blockEntityType = " << blockEntityType << std::endl;
-    }
+}
 
 Tqdcfr::NodesetHeader::NodesetHeader()
     : nsID(0), memCt(0), memOffset(0), memTypeCt(0), pointSym(0), nsCol(0), nsLength(0),
@@ -2691,7 +2791,7 @@ void Tqdcfr::NodesetHeader::print()
   std::cout << "nsCol = " << nsCol << std::endl;
   std::cout << "nsLength = " << nsLength << std::endl;
   std::cout << "setHandle = " << setHandle << std::endl;
-    }
+}
 
 Tqdcfr::SidesetHeader::SidesetHeader()
     : ssID(0), memCt(0), memOffset(0), memTypeCt(0), numDF(0), ssCol(0), useShell(0), ssLength(0),
@@ -2797,7 +2897,7 @@ using namespace moab;
 int main(int argc, char* argv[])
 {
 #ifdef USE_MPI
-  int err = MPI_Init(&argc, &argv);
+  MPI_Init(&argc, &argv);
 #endif
     // Check command line arg
   const char* file = STRINGIFY(SRCDIR) "/brick_cubit10.2.cub";
@@ -2819,9 +2919,9 @@ int main(int argc, char* argv[])
     std::cout << "Success." << std::endl;
   else {
     std::cout << "load_file returned error:" << std::endl;
-    std::string err;
-    result = my_impl->get_last_error(err);
-    if (MB_SUCCESS == result) std::cout << err << std::endl;
+    std::string errs;
+    result = my_impl->get_last_error(errs);
+    if (MB_SUCCESS == result) std::cout << errs << std::endl;
     else std::cout << "(no message)" << std::endl;
   }
 

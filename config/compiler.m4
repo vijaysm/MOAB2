@@ -102,15 +102,27 @@ if test "xno" != "x$WITH_MPI"; then
   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-mpi=\"${withval}\""
   
   if test "xyes" == "x$WITH_MPI"; then
+    if test "xno" != "x$CHECK_CC"; then  
     FATHOM_SET_MPI_COMPILER([CC],  [$CC_LIST])
+    fi
+    if test "xno" != "x$CHECK_CXX"; then  
     FATHOM_SET_MPI_COMPILER([CXX],[$CXX_LIST])
-    FATHOM_SET_MPI_COMPILER([FC],  [$FC_LIST])
-    FATHOM_SET_MPI_COMPILER([F77],[$F77_LIST])
+    fi
+    if test "xno" != "x$CHECK_FC"; then  
+      FATHOM_SET_MPI_COMPILER([FC],  [$FC_LIST])
+      FATHOM_SET_MPI_COMPILER([F77],[$F77_LIST])
+    fi
   else
+    if test "xno" != "x$CHECK_CC"; then  
     FATHOM_SET_MPI_COMPILER([CC],  [$CC_LIST],[${WITH_MPI}/bin])
+    fi
+    if test "xno" != "x$CHECK_CXX"; then  
     FATHOM_SET_MPI_COMPILER([CXX],[$CXX_LIST],[${WITH_MPI}/bin])
-    FATHOM_SET_MPI_COMPILER([FC],  [$FC_LIST],[${WITH_MPI}/bin])
-    FATHOM_SET_MPI_COMPILER([F77],[$F77_LIST],[${WITH_MPI}/bin])
+    fi
+    if test "xno" != "x$CHECK_FC"; then
+      FATHOM_SET_MPI_COMPILER([FC],  [$FC_LIST],[${WITH_MPI}/bin])
+      FATHOM_SET_MPI_COMPILER([F77],[$F77_LIST],[${WITH_MPI}/bin])
+    fi
     WITH_MPI=yes
   fi
 fi
@@ -520,6 +532,12 @@ case "$cc_compiler:$host_cpu" in
   VisualAge:*)
     case "$target_vendor" in
       bgp)
+        FATHOM_CC_32BIT=-q32
+	FATHOM_CC_64BIT=-q64
+	AR="ar"
+	NM="nm -B"
+        ;;
+      bgq)
         FATHOM_CC_32BIT=-q32
         FATHOM_CC_64BIT=-q64
         AR="ar"
