@@ -79,7 +79,7 @@ int main(int argc, char **argv)
   radius = CubeSide/2*sqrt(3.);
   result += RUN_TEST(test_intx_in_parallel_elem_based);
   radius =1.;
-  //result += RUN_TEST(test_intx_mpas);
+  result += RUN_TEST(test_intx_mpas);
 
   MPI_Finalize();
   return result;

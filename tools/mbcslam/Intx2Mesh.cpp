@@ -1192,7 +1192,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
   int sizeTuple = 2+MAXEDGES; // max edges is now 10 :) for polygons
   TLq.initialize(12, 0, 0, 0, numq); // to proc, elem GLOBAL ID, connectivity[10] (global ID v)
   TLq.enableWriteAccess();
-  std::cout << "from proc " << my_rank << " send " << numv << " vertices and " << numq << " quads\n";
+  std::cout << "from proc " << my_rank << " send " << numv << " vertices and " << numq << " elements\n";
 
   for (int to_proc=0; to_proc<numprocs; to_proc++)
   {

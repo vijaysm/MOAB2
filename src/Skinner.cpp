@@ -1510,6 +1510,34 @@ ErrorCode Skinner::create_side( EntityHandle elem,
   rval = thisMB->get_connectivity( elem, conn, len, false, &storage );
   if (MB_SUCCESS != rval) return rval;
  
+  // treat separately MBPOLYGON; we want to create the edge in the
+  // forward sense always ; so figure out the sense first, then get out
+  if (MBPOLYGON==type && 1==d && MBEDGE==side_type)
+  {
+    // first find the first vertex in the conn list
+    int i=0;
+    for (i=0; i<len; i++)
+    {
+      if (conn[i]==side_conn[0])
+        break;
+    }
+    if (len == i)
+      return MB_FAILURE; // not found, big error
+    int prevIndex = (i+len-1)%len;
+    int nextIndex = (i+1)%len;
+    EntityHandle conn2[2] = {side_conn[0], side_conn[1]};
+    if (conn[prevIndex]==side_conn[1])
+    {
+      // reverse, so the edge will be forward
+      conn2[0]=side_conn[1];
+      conn2[1]=side_conn[0];
+    }
+    else if  ( conn[nextIndex]!=side_conn[1])
+      return MB_FAILURE; // it is not adjacent to the polygon
+
+    return thisMB->create_element( MBEDGE, conn2, 2, side_elem );
+
+  }
   // Find which side we are creating and get indices of all nodes
   // (including higher-order, if any.)
   CN::SideNumber( type, conn, side_conn, ncorner, d, side, sense, offset );
