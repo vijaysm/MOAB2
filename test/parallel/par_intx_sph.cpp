@@ -341,6 +341,11 @@ void test_intx_mpas()
   std::stringstream ss;
   ss<<"partial" << rank<<".vtk";
   mb.write_file(ss.str().c_str(), 0, 0, &covering_lagr_set, 1);
+  rval = enforce_convexity(&mb, covering_lagr_set);
+  CHECK_ERR(rval);
+  std::stringstream ss2;
+  ss2<<"partialConvex" << rank<<".vtk";
+  mb.write_file(ss2.str().c_str(), 0, 0, &covering_lagr_set, 1);
   EntityHandle outputSet;
   rval = mb.create_meshset(MESHSET_SET, outputSet);
   CHECK_ERR(rval);

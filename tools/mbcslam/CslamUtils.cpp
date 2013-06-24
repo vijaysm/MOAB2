@@ -876,17 +876,20 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset)
     return rval;
 
   std::vector<double> coords;
-  coords.resize(3*10); // at most 10 vertices per polygon
+  coords.resize(3*MAXEDGES); // at most 10 vertices per polygon
   // we should create a queue with new polygons that need processing for reflex angles
   //  (obtuse)
   std::queue<EntityHandle> newPolys;
   int brokenPolys=0;
-  for (Range::iterator eit = inputRange.begin(); eit != inputRange.end()
-                                       || !newPolys.empty() ; eit++)
+  Range::iterator eit = inputRange.begin();
+  while (eit != inputRange.end() || !newPolys.empty())
   {
     EntityHandle eh;
     if (eit != inputRange.end())
+    {
       eh = *eit;
+      eit++;
+    }
     else
     {
       eh = newPolys.front();
