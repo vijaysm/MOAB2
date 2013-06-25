@@ -17,9 +17,10 @@ public:
   virtual ~Intx2MeshInPlane();
 
   int computeIntersectionBetweenRedAndBlue(EntityHandle red, EntityHandle blue,
-          double * P, int & nP, double & area, int markb[4], int markr[4], bool check_boxes_first=false );
+      double * P, int & nP, double & area, int markb[MAXEDGES], int markr[MAXEDGES],
+      int & nsBlue, int & nsRed, bool check_boxes_first=false);
 
-  int findNodes(EntityHandle red, EntityHandle blue, double * iP, int nP);
+  int findNodes(EntityHandle red, int nsRed, EntityHandle blue, int nsBlue, double * iP, int nP);
 
   bool is_inside_element(double xyz[3], EntityHandle eh);
 };

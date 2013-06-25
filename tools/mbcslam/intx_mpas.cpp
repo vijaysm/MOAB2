@@ -1,11 +1,11 @@
 /*
- * case1_test.cpp
+ * mpas file test
  *
  *  Created on: Feb 12, 2013
  */
 
-// copy from par_sph_intx
-// will save the LOC tag on the euler nodes? maybe
+// copy from case1 test
+
 #include <iostream>
 #include <sstream>
 #include <time.h>
@@ -29,10 +29,11 @@
 
 using namespace moab;
 // some input data
-double gtol = 0.0001; // this is for geometry tolerance
-std::string input_mesh_file("eulerHomme.vtk"); // input file, plain vtk, sphere-cube mesh
-double CubeSide = 6.; // the above file starts with cube side 6; radius depends on cube side
-double t = 0.1, delta_t = 0.43; // check the script
+double gtol = 1.e-9; // this is for geometry tolerance
+std::string input_mesh_file("mpas.vtk"); // input file, plain vtk, mpas on sphere
+// radius is always 1?
+//double CubeSide = 6.; // the above file starts with cube side 6; radius depends on cube side
+double t = 0.1, delta_t = 0.1; // check the script
 
 ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
     EntityHandle euler_set, EntityHandle & lagr_set)
@@ -40,22 +41,18 @@ ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
   ErrorCode rval = MB_SUCCESS;
 
   /*
-   * get all quads first, then vertices, then move them on the surface of the sphere
-   *  radius is in, it comes from MeshKit/python/examples/manufHomme.py :
-   *  length = 6.
-   *  each edge of the cube will be divided using this meshcount
-   *  meshcount = 11
-   *   circumscribed sphere radius
-   *   radius = length * math.sqrt(3) /2
+   * get all plys first, then vertices, then move them on the surface of the sphere
+   *  radius is 1., always
+   *
    */
-  double radius = CubeSide / 2 * sqrt(3.); // our value depends on cube side
-  Range quads;
-  rval = mb->get_entities_by_type(euler_set, MBQUAD, quads);
+  double radius = 1.;
+  Range polygons;
+  rval = mb->get_entities_by_dimension(euler_set, 2, polygons);
   if (MB_SUCCESS != rval)
     return rval;
 
   Range connecVerts;
-  rval = mb->get_connectivity(quads, connecVerts);
+  rval = mb->get_connectivity(polygons, connecVerts);
   if (MB_SUCCESS != rval)
     return rval;
 
@@ -89,7 +86,8 @@ ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
       return rval;
     newNodes[oldV] = new_vert;
   }
-  for (Range::iterator it = quads.begin(); it != quads.end(); it++)
+  EntityHandle new_conn[MAXEDGES]; // up to 10, for the time being
+  for (Range::iterator it = polygons.begin(); it != polygons.end(); it++)
   {
     EntityHandle q = *it;
     int nnodes;
@@ -97,17 +95,17 @@ ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
     rval = mb->get_connectivity(q, conn4, nnodes);
     if (MB_SUCCESS != rval)
       return rval;
-    EntityHandle new_conn[4];
+
     for (int i = 0; i < nnodes; i++)
     {
       EntityHandle v1 = conn4[i];
       new_conn[i] = newNodes[v1];
     }
-    EntityHandle new_quad;
-    rval = mb->create_element(MBQUAD, new_conn, 4, new_quad);
+    EntityHandle new_poly;
+    rval = mb->create_element(MBQUAD, new_conn, nnodes, new_poly);
     if (MB_SUCCESS != rval)
       return rval;
-    rval = mb->add_entities(lagr_set, &new_quad, 1);
+    rval = mb->add_entities(lagr_set, &new_poly, 1);
     if (MB_SUCCESS != rval)
       return rval;
   }
@@ -118,7 +116,7 @@ int main(int argc, char **argv)
 {
 
 
-  const char *filename_mesh1 = STRINGIFY(SRCDIR) "/eulerHomme.vtk";
+  const char *filename_mesh1 = STRINGIFY(SRCDIR) "/mpas.vtk";
   if (argc > 1)
   {
     int index = 1;
@@ -127,10 +125,6 @@ int main(int argc, char **argv)
       if (!strcmp(argv[index], "-gtol")) // this is for geometry tolerance
       {
         gtol = atof(argv[++index]);
-      }
-      if (!strcmp(argv[index], "-cube"))
-      {
-        CubeSide = atof(argv[++index]);
       }
       if (!strcmp(argv[index], "-dt"))
       {
@@ -143,7 +137,7 @@ int main(int argc, char **argv)
       index++;
     }
   }
-  std::cout << " case 1: use -gtol " << gtol << " -dt " << delta_t <<  " -cube " << CubeSide <<
+  std::cout << " case 1: use -gtol " << gtol << " -dt " << delta_t <<
       " -input " << filename_mesh1 << "\n";
 
 
@@ -180,7 +174,7 @@ int main(int argc, char **argv)
 
   Intx2MeshOnSphere worker(&mb);
 
-  double radius = CubeSide / 2 * sqrt(3.); // input
+  double radius = 1.; // input
 
   worker.SetRadius(radius);
 

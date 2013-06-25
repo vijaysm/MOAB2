@@ -38,6 +38,7 @@
     ScdVertexData.cpp
     SequenceData.cpp
     SequenceManager.cpp
+    SetIterator.cpp
     Skinner.cpp
     SparseTag.cpp
     StructuredElementSeq.cpp
@@ -46,6 +47,7 @@
     SweptVertexData.cpp
     SysUtil.cpp
     TagInfo.cpp
+    Types.cpp
     TypeSequenceManager.cpp
     UnstructuredElemSeq.cpp
     Util.cpp
@@ -53,7 +55,6 @@
     VarLenSparseTag.cpp
     VertexSequence.cpp
     WriteUtil.cpp
-    moab_mpe.c
   )
   include_directories(
     ${MOAB_SOURCE_DIR}/src

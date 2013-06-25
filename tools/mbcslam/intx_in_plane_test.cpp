@@ -67,7 +67,7 @@ int main(int argc, char* argv[])
   Intx2MeshInPlane worker(mb);
 
   worker.SetErrorTolerance( 1.e-5);
-  worker.SetEntityType(MBTRI);
+  //worker.enable_debug();
   rval = worker.intersect_meshes(sf1, sf2, outputSet);
   if (MB_SUCCESS != rval)
     return 1;
