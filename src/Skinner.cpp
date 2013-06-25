@@ -453,16 +453,6 @@ ErrorCode Skinner::find_skin_noadj(const Range &source_entities,
   if(mTargetDim < 0 || source_dim > 3)
     return MB_FAILURE;
 
-  //Core *this_core = dynamic_cast<Core*>(thisMB);
-  //bool use_adjs = false;
-  //if (!this_core->a_entity_factory()->vert_elem_adjacencies() &&
-  //  create_vert_elem_adjs)
-  //  this_core->a_entity_factory()->create_vert_elem_adjacencies();
-  //
-  //if (this_core->a_entity_factory()->vert_elem_adjacencies())
-  //  use_adjs = true;
-  //
-  //else 
   initialize();
 
   Range::const_iterator iter, end_iter;
@@ -477,7 +467,8 @@ ErrorCode Skinner::find_skin_noadj(const Range &source_entities,
   EntityHandle sub_conn[32];
   std::vector<EntityHandle> tmp_conn_vec;
   int num_nodes, num_sub_nodes, num_sides;
-  int sub_indices[32];
+  int sub_indices[32];// Also, assume that no polygon has more than 32 nodes
+  // we could increase that, but we will not display it right in visit moab h5m , anyway
   EntityType sub_type;
 
   // for each source entity
@@ -490,130 +481,95 @@ ErrorCode Skinner::find_skin_noadj(const Range &source_entities,
     
     type = thisMB->type_from_handle(*iter);
     Range::iterator seek_iter;
-    Range dum_elems, dum_sub_elems;
     
-    // get connectivity of each n-1 dimension entity
-    num_sides = CN::NumSubEntities( type, mTargetDim );
+    // treat separately polygons (also, polyhedra will need special handling)
+    if (MBPOLYGON == type)
+    {
+      num_sides = num_nodes;
+      sub_type = MBEDGE;
+      num_sub_nodes = 2;
+    }
+    else// get connectivity of each n-1 dimension entity
+      num_sides = CN::NumSubEntities( type, mTargetDim );
     for(int i=0; i<num_sides; i++)
     {
-      CN::SubEntityNodeIndices( type, num_nodes, mTargetDim, i, sub_type, num_sub_nodes, sub_indices );
-      assert((size_t)num_sub_nodes <= sizeof(sub_indices)/sizeof(sub_indices[0]));
-      for(int j=0; j<num_sub_nodes; j++)
-        sub_conn[j] = conn[sub_indices[j]];
-      
-//      if (use_adjs) {
-//        dum_elems.clear();
-//        result = thisMB->get_adjacencies(sub_conn, num_sub_nodes, source_dim, false,
-//                                         dum_elems);
-//        if (MB_SUCCESS != result) return result;
-//        dum_elems = intersect( dum_elems, source_entities );
-//        if (dum_elems.empty()) {
-//          assert(false);  // should never happen
-//          return MB_FAILURE;
-//        }
-//        // if (dum_elems.size() > 2) { 
-//          // source entities do not form a valid source-dim patch (t-junction).
-//          // do we care?
-//        // }
-//        
-//        if (1 == dum_elems.size()) {
-//            // this sub_element is on the skin
-//
-//            // check for existing entity
-//          dum_sub_elems.clear();
-//          result = thisMB->get_adjacencies(sub_conn, num_sub_nodes, mTargetDim, false,
-//                                           dum_sub_elems);
-//          if (MB_SUCCESS != result) return result;
-//          if (dum_sub_elems.empty()) {
-//              // need to create one
-//            EntityHandle tmphndl=0;
-//            int indices[MAX_SUB_ENTITY_VERTICES];
-//            EntityType new_type;
-//            int num_new_nodes;
-//            CN::SubEntityNodeIndices( type, num_nodes, mTargetDim, i, new_type, num_new_nodes, indices );
-//            for(int j=0; j<num_new_nodes; j++)
-//              sub_conn[j] = conn[indices[j]];
-//        
-//            result = thisMB->create_element(new_type, sub_conn,  
-//                                            num_new_nodes, tmphndl);
-//            forward_target_entities.insert(tmphndl);
-//          }
-//          else {
-//              // else find the relative sense of this entity to the source_entity in this set
-//            int side_no, sense = 0, offset;
-//            if (source_entities.find(*dum_elems.begin()) == source_entities.end()) {
-//              result = thisMB->side_number(*dum_elems.rbegin(), *dum_sub_elems.begin(),
-//                                           side_no, sense, offset);
-//            }
-//            else {
-//              result = thisMB->side_number(*dum_elems.begin(), *dum_sub_elems.begin(),
-//                                           side_no, sense, offset);
-//            }
-//            if (-1 == sense) reverse_target_entities.insert(*dum_sub_elems.begin());
-//            else if (1 == sense) forward_target_entities.insert(*dum_sub_elems.begin());
-//            else return MB_FAILURE;
-//          }
-//        }
-//      }
-//      else {
+      if(MBPOLYGON==type)
+      {
+        sub_conn[0] = conn[i];
+        sub_conn[1] = conn[(i+1)%num_sides];
+      }
+      else
+      {
+        CN::SubEntityNodeIndices( type, num_nodes, mTargetDim, i, sub_type, num_sub_nodes, sub_indices );
+        assert((size_t)num_sub_nodes <= sizeof(sub_indices)/sizeof(sub_indices[0]));
+        for(int j=0; j<num_sub_nodes; j++)
+          sub_conn[j] = conn[sub_indices[j]];
+      }
         
-          // see if we can match this connectivity with
-          // an existing entity
-        find_match( sub_type, sub_conn, num_sub_nodes, match, direct );
-        
-          // if there is no match, create a new entity
-        if(match == 0)
+        // see if we can match this connectivity with
+        // an existing entity
+      find_match( sub_type, sub_conn, num_sub_nodes, match, direct );
+
+        // if there is no match, create a new entity
+      if(match == 0)
+      {
+        EntityHandle tmphndl=0;
+        int indices[MAX_SUB_ENTITY_VERTICES];
+        EntityType new_type;
+        int num_new_nodes;
+        if(MBPOLYGON==type)
         {
-          EntityHandle tmphndl=0;
-          int indices[MAX_SUB_ENTITY_VERTICES];
-          EntityType new_type;
-          int num_new_nodes;
+          new_type = MBEDGE;
+          num_new_nodes = 2;
+        }
+        else
+        {
           CN::SubEntityNodeIndices( type, num_nodes, mTargetDim, i, new_type, num_new_nodes, indices );
           for(int j=0; j<num_new_nodes; j++)
             sub_conn[j] = conn[indices[j]];
-          result = thisMB->create_element(new_type, sub_conn, num_new_nodes,
-                                          tmphndl);
-          assert(MB_SUCCESS == result);
-          add_adjacency(tmphndl, sub_conn, CN::VerticesPerEntity(new_type));
-          forward_target_entities.insert(tmphndl);
         }
-          // if there is a match, delete the matching entity
-          // if we can. 
+        result = thisMB->create_element(new_type, sub_conn, num_new_nodes,
+                                        tmphndl);
+        assert(MB_SUCCESS == result);
+        add_adjacency(tmphndl, sub_conn, CN::VerticesPerEntity(new_type));
+        forward_target_entities.insert(tmphndl);
+      }
+        // if there is a match, delete the matching entity
+        // if we can.
+      else
+      {
+        if ( (seek_iter = forward_target_entities.find(match)) != forward_target_entities.end())
+        {
+          forward_target_entities.erase(seek_iter);
+          remove_adjacency(match);
+          if(/*!use_adjs &&*/ entity_deletable(match))
+          {
+            result = thisMB->delete_entities(&match, 1);
+            assert(MB_SUCCESS == result);
+          }
+        }
+        else if ( (seek_iter = reverse_target_entities.find(match)) != reverse_target_entities.end())
+        {
+          reverse_target_entities.erase(seek_iter);
+          remove_adjacency(match);
+          if(/*!use_adjs &&*/ entity_deletable(match))
+          {
+            result = thisMB->delete_entities(&match, 1);
+            assert(MB_SUCCESS == result);
+          }
+        }
         else
         {
-          if ( (seek_iter = forward_target_entities.find(match)) != forward_target_entities.end())
+          if(direct == FORWARD)
           {
-            forward_target_entities.erase(seek_iter);
-            remove_adjacency(match);
-            if(/*!use_adjs &&*/ entity_deletable(match))
-            {
-              result = thisMB->delete_entities(&match, 1);
-              assert(MB_SUCCESS == result);
-            }
-          }
-          else if ( (seek_iter = reverse_target_entities.find(match)) != reverse_target_entities.end())
-          {
-            reverse_target_entities.erase(seek_iter);
-            remove_adjacency(match);
-            if(/*!use_adjs &&*/ entity_deletable(match))
-            {
-              result = thisMB->delete_entities(&match, 1);
-              assert(MB_SUCCESS == result);
-            }
+            forward_target_entities.insert(match);
           }
           else
           {
-            if(direct == FORWARD)
-            {
-              forward_target_entities.insert(match);
-            }
-            else
-            {
-              reverse_target_entities.insert(match);
-            }
+            reverse_target_entities.insert(match);
           }
         }
-      //}
+      }
     }
   }
 
