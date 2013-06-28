@@ -21,6 +21,12 @@
 
 #include "CslamUtils.hpp"
 
+#ifdef MESHDIR
+std::string TestDir( STRINGIFY(MESHDIR) );
+#else
+std::string TestDir(".");
+#endif
+
 // for M_PI
 #include <math.h>
 
@@ -30,7 +36,7 @@
 using namespace moab;
 // some input data
 double gtol = 1.e-9; // this is for geometry tolerance
-std::string input_mesh_file("mpas.vtk"); // input file, plain vtk, mpas on sphere
+
 // radius is always 1?
 //double CubeSide = 6.; // the above file starts with cube side 6; radius depends on cube side
 double t = 0.1, delta_t = 0.1; // check the script
@@ -115,8 +121,10 @@ ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
 int main(int argc, char **argv)
 {
 
+  MPI_Init(&argc, &argv);
 
-  const char *filename_mesh1 = STRINGIFY(SRCDIR) "/mpas.vtk";
+  std::string fileN= TestDir + "/mpas_p8.h5m";
+  const char *filename_mesh1 = fileN.c_str();
   if (argc > 1)
   {
     int index = 1;
@@ -137,23 +145,30 @@ int main(int argc, char **argv)
       index++;
     }
   }
-  std::cout << " case 1: use -gtol " << gtol << " -dt " << delta_t <<
-      " -input " << filename_mesh1 << "\n";
-
-
-
+  // start copy
+  std::string opts = std::string("PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION")+
+            std::string(";PARALLEL_RESOLVE_SHARED_ENTS");
   Core moab;
   Interface & mb = moab;
   EntityHandle euler_set;
   ErrorCode rval;
   rval = mb.create_meshset(MESHSET_SET, euler_set);
-  if (MB_SUCCESS != rval)
-    return 1;
+  CHECK_ERR(rval);
 
-  rval = mb.load_file(filename_mesh1, &euler_set);
 
-  if (MB_SUCCESS != rval)
-    return 1;
+  rval = mb.load_file(filename_mesh1, &euler_set, opts.c_str());
+
+  ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
+  CHECK_ERR(rval);
+
+  rval = pcomm->check_all_shared_handles();
+  CHECK_ERR(rval);
+  // end copy
+  int rank = pcomm->proc_config().proc_rank();
+
+  if (0==rank)
+    std::cout << " case 1: use -gtol " << gtol << " -dt " << delta_t <<
+        " -input " << filename_mesh1 << "\n";
 
   // everybody will get a DP tag, including the non owned entities; so exchange tags is not required for LOC (here)
   EntityHandle lagrange_set;
@@ -168,7 +183,10 @@ int main(int argc, char **argv)
   if (MB_SUCCESS != rval)
     return 1;
 
-  rval = mb.write_file("lagr.h5m", 0, 0, &lagrange_set, 1);
+  std::stringstream ste;
+  ste<<"lagr0" << rank<<".h5m";
+  rval = mb.write_file(ste.str().c_str(), 0, 0, &euler_set, 1);
+
   if (MB_SUCCESS != rval)
     std::cout << "can't write lagr set\n";
 
@@ -178,10 +196,7 @@ int main(int argc, char **argv)
 
   worker.SetRadius(radius);
 
-  //worker.SetEntityType(MBQUAD);
-
   worker.SetErrorTolerance(gtol);
-  std::cout << "error tolerance epsilon_1=" << gtol << "\n";
 
   EntityHandle outputSet;
   rval = mb.create_meshset(MESHSET_SET, outputSet);
@@ -202,6 +217,8 @@ int main(int argc, char **argv)
   std::cout << " Arrival area: " << arrival_area
       << "  intersection area:" << intx_area << " rel error: "
       << fabs((intx_area - arrival_area) / arrival_area) << "\n";
+
+  MPI_Finalize();
   if (MB_SUCCESS != rval)
     return 1;
 

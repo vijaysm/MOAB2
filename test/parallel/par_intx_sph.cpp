@@ -5,8 +5,7 @@
  *  the mesh is read in parallel; lagrangian mesh is manufactured on the fly (part of the test), in
  *    a different set.
  *
- *  lagrangian mesh will be located on the euler mesh; intersections will be performed on the
- *  euler mesh
+ *  intersections will be performed on the euler mesh
  *  Created on: Nov 14, 2012
  */
 
@@ -45,7 +44,6 @@ std::string input_mesh_file("Homme_2pt.h5m"); // input file, partitioned correct
 std::string mpas_file("mpas_p8.h5m");
 double CubeSide = 6.; // the above file starts with cube side 6; radius depends on cube side
 double radius;
-void test_intx_in_parallel();
 void test_intx_in_parallel_elem_based();
 void test_intx_mpas();
 
@@ -75,7 +73,7 @@ int main(int argc, char **argv)
       index++;
     }
   }
-  //result += RUN_TEST(test_intx_in_parallel);
+
   radius = CubeSide/2*sqrt(3.);
   result += RUN_TEST(test_intx_in_parallel_elem_based);
   radius =1.;
@@ -157,67 +155,7 @@ ErrorCode  manufacture_lagrange_mesh_on_sphere(Interface * mb, EntityHandle eule
 
   return rval;
 }
-void test_intx_in_parallel()
-{
-  std::string opts = std::string("PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION")+
-      std::string(";PARALLEL_RESOLVE_SHARED_ENTS");
-  Core moab;
-  Interface & mb = moab;
-  EntityHandle euler_set;
-  ErrorCode rval;
-  rval = mb.create_meshset(MESHSET_SET, euler_set);
-  CHECK_ERR(rval);
-  std::string example(TestDir + "/" +  input_mesh_file);
 
-  rval = mb.load_file(example.c_str(), &euler_set, opts.c_str());
-
-  ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
-  CHECK_ERR(rval);
-
-  rval = pcomm->check_all_shared_handles();
-  CHECK_ERR(rval);
-
-  // everybody will get a LOC tag, including the non owned entities; so exchange tags is not required for LOC (here)
-  rval = manufacture_lagrange_mesh_on_sphere(&mb, euler_set);
-  CHECK_ERR(rval);
- 
-  Intx2MeshOnSphere worker(&mb);
-
-  //double radius= CubeSide/2 * sqrt(3.) ; // input
-  worker.SetRadius(radius);
-  worker.set_box_error(EPS1);//
-  //worker.SetEntityType(MBQUAD);
-
-  worker.SetErrorTolerance(radius*1.e-8);
-  worker.locate_departure_points(euler_set);
-
-  // we need to make sure the covering set is bigger than the euler mesh
-  EntityHandle covering_lagr_set;
-  rval = mb.create_meshset(MESHSET_SET, covering_lagr_set);
-  CHECK_ERR(rval);
-
-  rval = worker.create_departure_mesh(covering_lagr_set);
-  CHECK_ERR(rval);
-  int rank = pcomm->proc_config().proc_rank();
-  std::stringstream ss;
-  ss<<"partial" << rank<<".vtk";
-  mb.write_file(ss.str().c_str(), 0, 0, &covering_lagr_set, 1);
-  EntityHandle outputSet;
-  rval = mb.create_meshset(MESHSET_SET, outputSet);
-  CHECK_ERR(rval);
-  rval = worker.intersect_meshes(covering_lagr_set, euler_set, outputSet);
-  CHECK_ERR(rval);
-
-  //std::string opts_write("PARALLEL=WRITE_PART");
-  //rval = mb.write_file("manuf.h5m", 0, opts_write.c_str(), &outputSet, 1);
-  std::string opts_write("");
-  std::stringstream outf;
-  outf<<"intersect" << rank<<".h5m";
-  rval = mb.write_file(outf.str().c_str(), 0, 0, &outputSet, 1);
-  CHECK_ERR(rval);
-
-
-}
 void test_intx_in_parallel_elem_based()
 {
   std::string opts = std::string("PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION")+
