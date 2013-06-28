@@ -108,7 +108,7 @@ ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
       new_conn[i] = newNodes[v1];
     }
     EntityHandle new_poly;
-    rval = mb->create_element(MBQUAD, new_conn, nnodes, new_poly);
+    rval = mb->create_element(MBPOLYGON, new_conn, nnodes, new_poly);
     if (MB_SUCCESS != rval)
       return rval;
     rval = mb->add_entities(lagr_set, &new_poly, 1);
