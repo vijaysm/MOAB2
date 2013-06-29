@@ -31,8 +31,8 @@
     PolyElementSeq.cpp
     Range.cpp
     RangeSeqIntersectIter.cpp
-    ReadUtil.cpp
     ReaderWriterSet.cpp
+    ReadUtil.cpp
     ScdElementData.cpp
     ScdInterface.cpp
     ScdVertexData.cpp
@@ -56,11 +56,40 @@
     VertexSequence.cpp
     WriteUtil.cpp
   )
+
+  add_subdirectory( io )
+  set ( MOABIO_LIB_SRCS
+    io/IODebugTrack.cpp
+    io/ExoIIUtil.cpp
+    io/FileTokenizer.cpp
+    io/GmshUtil.cpp
+    io/ReadABAQUS.cpp
+    io/ReadGmsh.cpp
+    io/ReadIDEAS.cpp
+    io/ReadMCNP5.cpp
+    io/ReadNASTRAN.cpp
+    io/ReadSmf.cpp
+    io/ReadSms.cpp
+    io/ReadSTL.cpp
+    io/ReadTemplate.cpp
+    io/ReadTetGen.cpp
+    io/ReadTxt.cpp
+    io/ReadVtk.cpp
+    io/SMF_State.cpp
+    io/Tqdcfr.cpp
+    io/VtkUtil.cpp
+    io/WriteAns.cpp
+    io/WriteGMV.cpp
+    io/WriteGmsh.cpp
+    io/WriteSTL.cpp
+    io/WriteSmf.cpp
+    io/WriteTemplate.cpp
+    io/WriteVtk.cpp
+  )
   include_directories(
     ${MOAB_SOURCE_DIR}/src
-    ${MOAB_BINARY_DIR}/src
     ${MOAB_SOURCE_DIR}/src/io
-    ${MOAB_BINARY_DIR}/src/io
+    ${MOAB_SOURCE_DIR}/src/parallel
   )
 
   if ( MOAB_USE_MPI )
@@ -82,12 +111,73 @@
   set_source_files_properties( ${MOAB_LIB_SRCS}
     COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}"
   )
+
+#  target_link_libraries( MOAB moabio )
+  if ( MOAB_USE_NETCDF )
+    find_package( NetCDF )
+    if ( NetCDF_FOUND )
+      set ( MOAB_DEFINES "${MOAB_DEFINES} -DNETCDF_FILE" )
+      set ( MOABIO_LIB_SRCS
+        ${MOABIO_LIB_SRCS}
+        io/ReadNCDF.cpp
+        io/WriteNCDF.cpp
+        io/WriteSLAC.cpp
+      )
+      include_directories(
+        ${NetCDF_INCLUDE_DIRECTORIES}
+      )
+    endif ( NetCDF_FOUND )
+  endif ( MOAB_USE_NETCDF )
+
+  if ( MOAB_USE_HDF )
+    # HDF5
+    find_package( HDF5 )
+    if ( HDF5_FOUND )
+      set ( MOAB_DEFINES "${MOAB_DEFINES} -DHDF5_FILE" )
+      check_function_exists( H5Pset_fapl_mpio MOAB_HDF_HAVE_PARALLEL )
+      set ( MOABIO_LIB_SRCS
+        ${MOABIO_LIB_SRCS}
+        io/HDF5Common.cpp
+        io/ReadHDF5.cpp
+        io/ReadHDF5Dataset.cpp
+        io/ReadHDF5VarLen.cpp
+        io/WriteHDF5.cpp
+      )
+
+#      if ( MOAB_USE_MPI AND MPI_FOUND )
+#        set ( MOABIO_LIB_SRCS
+#          ${MOABIO_LIB_SRCS}
+#          src/parallel/WriteHDF5Parallel.cpp
+#        )
+#      endif (MOAB_USE_MPI AND MPI_FOUND)
+
+      include_directories(
+        ${HDF5_INCLUDE_DIRECTORIES}
+        io/mhdf/include
+      )
+      add_subdirectory( io/mhdf )
+    endif ( HDF5_FOUND )
+  endif ( MOAB_USE_HDF )
+
+  set_source_files_properties( ${MOABIO_LIB_SRCS}
+    COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}"
+  )
+
   add_library( MOAB
     ${MOAB_LIB_SRCS}
+    ${MOABIO_LIB_SRCS}
   )
-  
-  add_subdirectory( io )
-  target_link_libraries( MOAB moabio )
+
+  if ( MOAB_USE_NETCDF AND NetCDF_FOUND )
+    MESSAGE( "Adding NetCDF dependency libraries: ${NetCDF_LIBRARIES}" )
+    target_link_libraries( MOAB ${NetCDF_LIBRARIES} )
+  endif ( MOAB_USE_NETCDF AND NetCDF_FOUND )
+
+  if ( MOAB_USE_HDF AND HDF5_FOUND )
+    MESSAGE( "Adding NetCDF dependency libraries: ${HDF5_LIBRARIES}" )
+#    add_dependencies( MOAB mhdf  )
+    target_link_libraries( MOAB mhdf ${HDF5_LIBRARIES} )
+  endif ( MOAB_USE_HDF AND HDF5_FOUND )
 
   if ( MOAB_USE_MPI AND MPI_FOUND )
     add_subdirectory( parallel )
