@@ -343,7 +343,7 @@ ErrorCode NCHelperEuler::init_mesh_vals(const FileOptions& opts, EntityHandle fi
     ReadNC::VarData& vd = (*mit).second;
     if ((std::find(vd.varDims.begin(), vd.varDims.end(), iCDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(),
         vd.varDims.end(), jCDim) != vd.varDims.end()))
-      vd.entLoc = ReadNC::ENTLOCQUAD;
+      vd.entLoc = ReadNC::ENTLOCFACE;
   }
 
   // <coordinate_dim_name>
@@ -471,11 +471,6 @@ ErrorCode NCHelperEuler::init_mesh_vals(const FileOptions& opts, EntityHandle fi
   _readNC->init_dims_with_no_cvars_info();
 
   return MB_SUCCESS;
-}
-
-ErrorCode NCHelperEuler::create_verts_quads(ScdInterface* scdi, const FileOptions& opts, EntityHandle file_set, Range& quads)
-{
-  return _readNC->create_scd_verts_quads(scdi, file_set, quads);
 }
 
 } // namespace moab
