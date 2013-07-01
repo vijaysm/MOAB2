@@ -33,10 +33,10 @@ int main(int argc, char* argv[])
   argv[0] = argv[argc-argc]; // To remove the warnings in serial mode about unused variables
 #endif
 
-  //result += RUN_TEST(test_read_all);
-  //result += RUN_TEST(test_read_onevar);
-  //result += RUN_TEST(test_read_onetimestep);
-  //result += RUN_TEST(test_read_nomesh);
+  result += RUN_TEST(test_read_all);
+  result += RUN_TEST(test_read_onevar);
+  result += RUN_TEST(test_read_onetimestep);
+  result += RUN_TEST(test_read_nomesh);
   result += RUN_TEST(test_read_novars);
 
 #ifdef USE_MPI
