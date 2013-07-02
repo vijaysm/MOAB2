@@ -120,7 +120,14 @@ void test_read_all()
   rval = mb.get_entities_by_type(0, MBPOLYGON, cells);
   assert(rval == MB_SUCCESS);
   CHECK_EQUAL((size_t)642, cells.size());
+#ifdef USE_MPI
+  // If MOAB is compiled parallel, sequence size requested are increased
+  // by a factor of 1.5, to allow for ghosts. This will introduce a gap
+  // between the two face sequences.
   CHECK_EQUAL((size_t)2, cells.psize());
+#else
+  CHECK_EQUAL((size_t)1, cells.psize());
+#endif
 
   // Check ke tag values on first pentagon and first hexagon
   EntityHandle cell_ents[] = {cells[0], cells[12]};
@@ -161,7 +168,7 @@ void test_read_onetimestep()
   CHECK_ERR(rval);
 
   opts += std::string(";TIMESTEP=1");
-  rval = mb.load_file( example, NULL, opts.c_str());
+  rval = mb.load_file(example, NULL, opts.c_str());
   CHECK_ERR(rval);
 
   // Check for proper tags
