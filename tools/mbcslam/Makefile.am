@@ -56,4 +56,7 @@ process_arm_SOURCES = process_arm.cpp
 
 cslam_par_test_SOURCES = cslam_par_test.cpp
 cslam_par_test_LDADD = $(LDADD) $(top_builddir)/tools/mbcoupler/libmbcoupler.la 
-
+EXTRA_DIST  = lagrangeHomme.vtk  \
+              eulerHomme.vtk \
+              m1.vtk \
+              m2.vtk 
