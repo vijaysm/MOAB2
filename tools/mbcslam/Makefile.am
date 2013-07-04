@@ -60,3 +60,15 @@ EXTRA_DIST  = lagrangeHomme.vtk  \
               eulerHomme.vtk \
               m1.vtk \
               m2.vtk 
+
+# Other files to clean up (e.g. output from tests)
+MOSTLYCLEANFILES = intersect1.h5m \
+                   lagr.h5m \
+                   polyWithEdges.vtk \
+                   lagr00.h5m \
+                   intersect00.h5m \
+                   lagrIni.h5m \
+                   intx.vtk \
+                   spectral.vtk \
+                   intx1.vtk
+            

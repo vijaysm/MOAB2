@@ -169,9 +169,10 @@ void test_intx_in_parallel_elem_based()
   std::string example(TestDir + "/" +  input_mesh_file);
 
   rval = mb.load_file(example.c_str(), &euler_set, opts.c_str());
+  CHECK_ERR(rval);
 
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
-  CHECK_ERR(rval);
+  CHECK( NULL!=pcomm );
 
   rval = pcomm->check_all_shared_handles();
   CHECK_ERR(rval);
