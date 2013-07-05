@@ -57,7 +57,6 @@
     WriteUtil.cpp
   )
 
-  add_subdirectory( io )
   set ( MOABIO_LIB_SRCS
     io/IODebugTrack.cpp
     io/ExoIIUtil.cpp
@@ -169,13 +168,10 @@
   )
 
   if ( MOAB_USE_NETCDF AND NetCDF_FOUND )
-    MESSAGE( "Adding NetCDF dependency libraries: ${NetCDF_LIBRARIES}" )
     target_link_libraries( MOAB ${NetCDF_LIBRARIES} )
   endif ( MOAB_USE_NETCDF AND NetCDF_FOUND )
 
   if ( MOAB_USE_HDF AND HDF5_FOUND )
-    MESSAGE( "Adding NetCDF dependency libraries: ${HDF5_LIBRARIES}" )
-#    add_dependencies( MOAB mhdf  )
     target_link_libraries( MOAB mhdf ${HDF5_LIBRARIES} )
   endif ( MOAB_USE_HDF AND HDF5_FOUND )
 
