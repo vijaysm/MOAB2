@@ -112,9 +112,9 @@ ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
     ptr_DP[2]=newPos[2];
     ptr_DP+=3; // increment to the next node
   }
-
   return rval;
 }
+
 int main(int argc, char **argv)
 {
 
@@ -168,6 +168,11 @@ int main(int argc, char **argv)
         " -input " << filename_mesh1 << "\n";
 
   rval = manufacture_lagrange_mesh_on_sphere(&mb, euler_set);
+  if (MB_SUCCESS != rval)
+    return 1;
+  // create a set with quads corresponding to each initial edge spanned with the displacement field
+
+  rval = create_span_quads(&mb, euler_set, rank);
   if (MB_SUCCESS != rval)
     return 1;
 

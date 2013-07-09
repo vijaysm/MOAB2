@@ -130,5 +130,9 @@ void departure_point_case1(CartVect & arrival_point, double t, double delta_t, C
 // maybe radius is not needed;
 //
 ErrorCode enforce_convexity(Interface * mb, EntityHandle set);
+
+// looking at DP tag, create the spanning quads, write a file (with rank) and
+// then delete the new entities (vertices) and the set of quads
+ErrorCode create_span_quads(Interface * mb, EntityHandle euler_set, int rank);
 }
 #endif /* CSLAMUTILS_HPP_ */

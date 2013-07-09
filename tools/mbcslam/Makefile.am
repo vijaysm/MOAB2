@@ -70,5 +70,7 @@ MOSTLYCLEANFILES = intersect1.h5m \
                    lagrIni.h5m \
                    intx.vtk \
                    spectral.vtk \
-                   intx1.vtk
+                   intx1.vtk \
+                   SpanEdges0.h5m \
+                   SpanQuads0.h5m 
             

@@ -11,6 +11,7 @@
 // right now, add a dependency to mbcoupler
 #include "ElemUtil.hpp"
 #include "moab/MergeMesh.hpp"
+#include "moab/ReadUtilIface.hpp"
 
 // this is for sstream
 #include <sstream>
@@ -991,5 +992,145 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset)
   std::cout << brokenPolys << " concave polygons were decomposed in convex ones \n";
   return MB_SUCCESS;
 }
+ErrorCode create_span_quads(Interface * mb, EntityHandle euler_set, int rank)
+{
+  // first get all edges adjacent to polygons
+  Tag dpTag = 0;
+  std::string tag_name("DP");
+  ErrorCode rval = mb->tag_get_handle(tag_name.c_str(), 3, MB_TYPE_DOUBLE, dpTag, MB_TAG_DENSE);
+  // if the tag does not exist, get out early
+  if (rval!=MB_SUCCESS)
+    return rval;
+  Range polygons;
+  rval = mb->get_entities_by_dimension(euler_set, 2, polygons);
+  if (MB_SUCCESS != rval)
+    return rval;
+  Range iniEdges;
+  rval = mb->get_adjacencies(polygons,
+      1,
+      false,
+      iniEdges,
+      Interface::UNION);
+  if (MB_SUCCESS != rval)
+      return rval;
+  // now create some if missing
+  Range allEdges;
+  rval = mb->get_adjacencies(polygons,
+        1,
+        true,
+        allEdges,
+        Interface::UNION);
+  // create the vertices at the DP points, and the quads after that
+  Range verts;
+  rval = mb->get_connectivity(polygons, verts);
+  if (MB_SUCCESS != rval)
+    return rval;
+  int num_verts = (int) verts.size();
+  // now see the departure points; to what boxes should we send them?
+  std::vector<double> dep_points(3*num_verts);
+  rval = mb->tag_get_data(dpTag, verts, (void*)&dep_points[0]);
+  if (MB_SUCCESS != rval)
+    return rval;
 
+  // create vertices corresponding to dp locations
+  ReadUtilIface *read_iface;
+  rval = mb->query_interface(read_iface);
+  if (MB_SUCCESS != rval)
+    return rval;
+  std::vector<double *> coords;
+  EntityHandle start_vert, start_elem, *connect;
+    // create verts, num is 2(nquads+1) because they're in a 1d row; will initialize coords in loop over quads later
+  rval = read_iface->get_node_coords (3, num_verts, 0, start_vert, coords);
+  if (MB_SUCCESS != rval)
+    return rval;
+  // fill it up
+  for (int i=0; i<num_verts; i++)
+  {
+    // block from interleaved
+    coords[0][i]=dep_points[3*i];
+    coords[1][i]=dep_points[3*i+1];
+    coords[2][i]=dep_points[3*i+2];
+  }
+  // create quads; one quad for each edge
+  rval = read_iface->get_element_connect(allEdges.size(), 4, MBQUAD, 0, start_elem, connect);
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  const EntityHandle * edge_conn = NULL;
+  int quad_index=0;
+  EntityHandle firstVertHandle = verts[0];// assume vertices are contiguous...
+  for (Range::iterator eit=allEdges.begin(); eit!=allEdges.end(); eit++, quad_index++)
+  {
+    EntityHandle edge=*eit;
+    int num_nodes;
+    rval = mb->get_connectivity(edge, edge_conn, num_nodes);
+    if (MB_SUCCESS != rval)
+        return rval;
+    connect[quad_index*4] = edge_conn[0];
+    connect[quad_index*4+1] = edge_conn[1];
+
+    // maybe some indexing in range?
+    connect[quad_index*4+2] = start_vert + edge_conn[1]- firstVertHandle;
+    connect[quad_index*4+3] = start_vert + edge_conn[0]- firstVertHandle;
+  }
+
+
+  Range quads(start_elem, start_elem+allEdges.size()-1);
+  EntityHandle outSet;
+  rval = mb->create_meshset(MESHSET_SET, outSet);
+  if (MB_SUCCESS != rval)
+    return rval;
+  mb->add_entities(outSet, quads);
+
+  Tag colTag;
+  rval = mb->tag_get_handle("COLOR_ID", 1, MB_TYPE_INTEGER,
+      colTag, MB_TAG_DENSE|MB_TAG_CREAT);
+  if (MB_SUCCESS != rval)
+      return rval;
+  int j=1;
+  for (Range::iterator itq=quads.begin(); itq!=quads.end(); itq++, j++)
+  {
+    EntityHandle q=*itq;
+    rval = mb->tag_set_data(colTag, &q, 1, &j);
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  std::stringstream outf;
+  outf << "SpanQuads" << rank << ".h5m";
+  rval = mb->write_file(outf.str().c_str(), 0, 0, &outSet, 1);
+  if (MB_SUCCESS != rval)
+    return rval;
+  EntityHandle outSet2;
+  rval = mb->create_meshset(MESHSET_SET, outSet2);
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  Range quadEdges;
+  rval = mb->get_adjacencies(quads,
+          1,
+          true,
+          quadEdges,
+          Interface::UNION);
+  mb->add_entities(outSet2, quadEdges);
+
+  std::stringstream outf2;
+  outf2 << "SpanEdges" << rank << ".h5m";
+  rval = mb->write_file(outf2.str().c_str(), 0, 0, &outSet2, 1);
+  if (MB_SUCCESS != rval)
+    return rval;
+
+// maybe some clean up
+  mb->delete_entities(&outSet, 1);
+  mb->delete_entities(&outSet2, 1);
+  mb->delete_entities(quads);
+  Range new_edges=subtract(allEdges, iniEdges);
+  mb->delete_entities(new_edges);
+  new_edges=subtract(quadEdges, iniEdges);
+  mb->delete_entities(new_edges);
+  Range new_verts(start_vert, start_vert+num_verts);
+  mb->delete_entities(new_verts);
+
+  return MB_SUCCESS;
+
+}
 } //namespace moab
