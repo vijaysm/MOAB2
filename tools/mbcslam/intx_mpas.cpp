@@ -39,9 +39,9 @@ using namespace moab;
 // some input data
 double gtol = 1.e-9; // this is for geometry tolerance
 
-// radius is always 1?
-//double CubeSide = 6.; // the above file starts with cube side 6; radius depends on cube side
-double t = 0.1, delta_t = 0.1; // check the script
+double radius = 1.;// in m:  6371220.
+
+double t = 0.1, delta_t = 0.05; // check the script
 
 ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
     EntityHandle euler_set)
@@ -50,10 +50,9 @@ ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
 
   /*
    * get all plys first, then vertices, then move them on the surface of the sphere
-   *  radius is 1., always
+   *  radius is 1., most of the time
    *
    */
-  double radius = 1.;
   Range polygons;
   rval = mb->get_entities_by_dimension(euler_set, 2, polygons);
   if (MB_SUCCESS != rval)
@@ -82,8 +81,8 @@ ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
 
   // now put the vertices in the right place....
   //int vix=0; // vertex index in new array
-  double t=0.1, T=5;// check the script
-  double time =0.05;
+  double T=5;// check the script
+
   double rot= M_PI/10;
   for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
   {
@@ -95,12 +94,12 @@ ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
     SphereCoords sphCoord = cart_to_spherical(posi);
     double lat1 = sphCoord.lat-2*M_PI*t/T; // 0.1/5
     double uu = 3*radius/ T * pow(sin(lat1), 2)*sin(2*sphCoord.lon)*cos(M_PI*t/T);
-    uu+=2*M_PI*cos(sphCoord.lon)/T;
+    uu+=2*radius*M_PI*cos(sphCoord.lon)/T;
     double vv = 3*radius/T*(sin(2*lat1))*cos(sphCoord.lon)*cos(M_PI*t/T);
     double vx = -uu*sin(sphCoord.lon)-vv*sin(sphCoord.lat)*cos(sphCoord.lon);
     double vy = -uu*cos(sphCoord.lon)-vv*sin(sphCoord.lat)*sin(sphCoord.lon);
     double vz = vv*cos(sphCoord.lat);
-    posi = posi + time * CartVect(vx, vy, vz);
+    posi = posi + delta_t * CartVect(vx, vy, vz);
     double x2= posi[0]*cos(rot)-posi[1]*sin(rot);
     double y2= posi[0]*sin(rot) + posi[1]*cos(rot);
     CartVect newPos(x2, y2, posi[2]);
@@ -120,6 +119,7 @@ int main(int argc, char **argv)
 
   MPI_Init(&argc, &argv);
 
+  std::string extra_read_opts;
   std::string fileN= TestDir + "/mpas_p8.h5m";
   const char *filename_mesh1 = fileN.c_str();
   if (argc > 1)
@@ -139,12 +139,21 @@ int main(int argc, char **argv)
       {
         filename_mesh1 = argv[++index];
       }
+      if (!strcmp(argv[index], "-R"))
+      {
+        radius = atof(argv[++index]);
+      }
+      if (!strcmp(argv[index], "-O"))
+      {
+        extra_read_opts = std::string(argv[++index]);
+      }
+
       index++;
     }
   }
   // start copy
   std::string opts = std::string("PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION")+
-            std::string(";PARALLEL_RESOLVE_SHARED_ENTS");
+            std::string(";PARALLEL_RESOLVE_SHARED_ENTS")+extra_read_opts;
   Core moab;
   Interface & mb = moab;
   EntityHandle euler_set;
@@ -165,7 +174,7 @@ int main(int argc, char **argv)
 
   if (0==rank)
     std::cout << " case 1: use -gtol " << gtol << " -dt " << delta_t <<
-        " -input " << filename_mesh1 << "\n";
+        " -R " << radius << " -input " << filename_mesh1 << "\n";
 
   rval = manufacture_lagrange_mesh_on_sphere(&mb, euler_set);
   if (MB_SUCCESS != rval)
@@ -181,13 +190,17 @@ int main(int argc, char **argv)
   CHECK_ERR(rval);
   Intx2MeshOnSphere worker(&mb);
 
-  double radius = 1.; // input
+  //double radius = 1.; // input
 
   worker.SetRadius(radius);
 
   worker.SetErrorTolerance(gtol);
   rval = worker.create_departure_mesh_2nd_alg(euler_set, covering_lagr_set);
   CHECK_ERR(rval);
+
+  std::stringstream lagrIni;
+  lagrIni<<"def0" << rank<<".h5m";
+  rval = mb.write_file(lagrIni.str().c_str(), 0, 0, &covering_lagr_set, 1);
 
   rval = enforce_convexity(&mb, covering_lagr_set);
   if (MB_SUCCESS != rval)
