@@ -1,6 +1,6 @@
 
   # MOAB Library
-  set ( MOAB_LIB_SRCS
+  set ( MOABCORE_LIB_SRCS
     AdaptiveKDTree.cpp
     AEntityFactory.cpp
     AffineXform.cpp
@@ -31,7 +31,6 @@
     PolyElementSeq.cpp
     Range.cpp
     RangeSeqIntersectIter.cpp
-    ReaderWriterSet.cpp
     ReadUtil.cpp
     ScdElementData.cpp
     ScdInterface.cpp
@@ -57,6 +56,13 @@
     WriteUtil.cpp
   )
 
+  set ( MOABPTLOC_LIB_SRCS
+    lotte/findpt.c
+    lotte/errmem.c
+    lotte/poly.c
+    lotte/tensor.c
+  )
+
   set ( MOABIO_LIB_SRCS
     io/IODebugTrack.cpp
     io/ExoIIUtil.cpp
@@ -64,6 +70,7 @@
     io/GmshUtil.cpp
     io/ReadABAQUS.cpp
     io/ReadGmsh.cpp
+    io/ReadGCRM.cpp
     io/ReadIDEAS.cpp
     io/ReadMCNP5.cpp
     io/ReadNASTRAN.cpp
@@ -84,87 +91,61 @@
     io/WriteSmf.cpp
     io/WriteTemplate.cpp
     io/WriteVtk.cpp
+    ReaderWriterSet.cpp
   )
   include_directories(
     ${MOAB_SOURCE_DIR}/src
     ${MOAB_SOURCE_DIR}/src/io
     ${MOAB_SOURCE_DIR}/src/parallel
+    ${MOAB_SOURCE_DIR}/src/moab/point_locater/lotte
   )
 
-  if ( MOAB_USE_MPI )
-    find_package( MPI )
-    # CMake FindMPI script is sorely lacking:
-    if ( MPI_LIBRARY AND MPI_INCLUDE_PATH )
-      set( MPI_FOUND 1 )
-    endif ( MPI_LIBRARY AND MPI_INCLUDE_PATH )
+  if ( NetCDF_FOUND )
+    set ( MOAB_DEFINES "${MOAB_DEFINES} -DNETCDF_FILE" )
+    set ( MOABIO_LIB_SRCS
+      ${MOABIO_LIB_SRCS}
+      io/ReadNC.cpp
+      io/ReadNCDF.cpp
+      io/WriteNCDF.cpp
+      io/WriteSLAC.cpp
+      io/NCHelper.cpp
+      io/NCHelperEuler.cpp
+      io/NCHelperFV.cpp
+      io/NCHelperHOMME.cpp
+      SpectralMeshTool.cpp
+    )
+    include_directories(
+      ${NetCDF_INCLUDE_DIRECTORIES}
+    )
+  endif ( NetCDF_FOUND )
 
-    if ( MPI_FOUND )
-      set ( MOAB_DEFINES "${MOAB_DEFINES} -DUSE_MPI" )
-      include_directories(
-        ${MPI_INCLUDE_PATH}
-        ${MOAB_SOURCE_DIR}/parallel
-      )
-    endif ( MPI_FOUND )
-  endif ( MOAB_USE_MPI )
+  if ( HDF5_FOUND )
+    set ( MOAB_DEFINES "${MOAB_DEFINES} -DHDF5_FILE" )
+    check_function_exists( H5Pset_fapl_mpio MOAB_HDF_HAVE_PARALLEL )
+    set ( MOABIO_LIB_SRCS
+      ${MOABIO_LIB_SRCS}
+      io/HDF5Common.cpp
+      io/ReadHDF5.cpp
+      io/ReadHDF5Dataset.cpp
+      io/ReadHDF5VarLen.cpp
+      io/WriteHDF5.cpp
+    )
+
+    include_directories(
+      ${HDF5_INCLUDE_DIRECTORIES}
+      io/mhdf/include
+    )
+    add_subdirectory( io/mhdf )
+  endif ( HDF5_FOUND )
+
+
+  SET(MOAB_LIB_SRCS ${MOABCORE_LIB_SRCS} ${MOABPTLOC_LIB_SRCS} ${MOABIO_LIB_SRCS})
 
   set_source_files_properties( ${MOAB_LIB_SRCS}
     COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}"
   )
-
-#  target_link_libraries( MOAB moabio )
-  if ( MOAB_USE_NETCDF )
-    find_package( NetCDF )
-    if ( NetCDF_FOUND )
-      set ( MOAB_DEFINES "${MOAB_DEFINES} -DNETCDF_FILE" )
-      set ( MOABIO_LIB_SRCS
-        ${MOABIO_LIB_SRCS}
-        io/ReadNCDF.cpp
-        io/WriteNCDF.cpp
-        io/WriteSLAC.cpp
-      )
-      include_directories(
-        ${NetCDF_INCLUDE_DIRECTORIES}
-      )
-    endif ( NetCDF_FOUND )
-  endif ( MOAB_USE_NETCDF )
-
-  if ( MOAB_USE_HDF )
-    # HDF5
-    find_package( HDF5 )
-    if ( HDF5_FOUND )
-      set ( MOAB_DEFINES "${MOAB_DEFINES} -DHDF5_FILE" )
-      check_function_exists( H5Pset_fapl_mpio MOAB_HDF_HAVE_PARALLEL )
-      set ( MOABIO_LIB_SRCS
-        ${MOABIO_LIB_SRCS}
-        io/HDF5Common.cpp
-        io/ReadHDF5.cpp
-        io/ReadHDF5Dataset.cpp
-        io/ReadHDF5VarLen.cpp
-        io/WriteHDF5.cpp
-      )
-
-#      if ( MOAB_USE_MPI AND MPI_FOUND )
-#        set ( MOABIO_LIB_SRCS
-#          ${MOABIO_LIB_SRCS}
-#          src/parallel/WriteHDF5Parallel.cpp
-#        )
-#      endif (MOAB_USE_MPI AND MPI_FOUND)
-
-      include_directories(
-        ${HDF5_INCLUDE_DIRECTORIES}
-        io/mhdf/include
-      )
-      add_subdirectory( io/mhdf )
-    endif ( HDF5_FOUND )
-  endif ( MOAB_USE_HDF )
-
-  set_source_files_properties( ${MOABIO_LIB_SRCS}
-    COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}"
-  )
-
   add_library( MOAB
     ${MOAB_LIB_SRCS}
-    ${MOABIO_LIB_SRCS}
   )
 
   if ( MOAB_USE_NETCDF AND NetCDF_FOUND )

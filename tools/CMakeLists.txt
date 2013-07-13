@@ -1,4 +1,4 @@
-  
+
   # Documentation
   # Optional tools
   option ( MOAB_BUILD_MBCONVERT    "Build the MOAB mesh converter tool?"  ON )
@@ -17,8 +17,8 @@
 
   if ( MOAB_USE_MPI AND MPI_FOUND )
     add_subdirectory( refiner )
-    include_directories( ${MOAB_SOURCE_DIR}/refiner )
-    target_link_libraries( MOAB MOABrefiner )
+#    include_directories( ${MOAB_SOURCE_DIR}/refiner )
+#    target_link_libraries( MOAB MOABrefiner )
   endif ( MOAB_USE_MPI AND MPI_FOUND )
 
 
@@ -37,5 +37,6 @@
 
   # MBCoupler
   if ( MOAB_USE_MPI AND MPI_FOUND AND MOAB_BUILD_MBCOUPLER )
+#  if ( MOAB_BUILD_MBCOUPLER )
     add_subdirectory( mbcoupler )
   endif ( MOAB_USE_MPI AND MPI_FOUND AND MOAB_BUILD_MBCOUPLER )

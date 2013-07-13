@@ -43,9 +43,9 @@
 
 if ( MOAB_USE_MPI AND MPI_FOUND )
 
-  add_executable ( mbparallelcomm_test mbparallelcomm_test.cpp )
+  add_executable ( mbparallelcomm_test parallel/mbparallelcomm_test.cpp )
   target_link_libraries( mbparallelcomm_test MOAB )
-  set_source_files_properties( mbparallelcomm_test.cpp
+  set_source_files_properties( parallel/mbparallelcomm_test.cpp
     COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}" )
   add_test( TestParallelComm-BcastDelete
     ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
@@ -61,19 +61,22 @@ if ( MOAB_USE_MPI AND MPI_FOUND )
     ${EXECUTABLE_OUTPUT_PATH}/mbparallelcomm_test ${MPIEXEC_POSTFLAGS} -3 ${MOAB_SOURCE_DIR}/parallel/ptest.cub )
 
   if ( MOAB_USE_HDF )
-    add_executable( mhdf_parallel mhdf_parallel.c )
+    add_executable( mhdf_parallel parallel/mhdf_parallel.c )
+    include_directories(
+      ${MOAB_SOURCE_DIR}/src/io/mhdf/include
+    )
     target_link_libraries( mhdf_parallel MOAB MOABpar mhdf )
     add_test( TestMHDFParallel ${EXECUTABLE_OUTPUT_PATH}/mhdf_parallel )
-    set_source_files_properties( mhdf_parallel.c
+    set_source_files_properties( parallel/mhdf_parallel.c
       COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}" )
   endif ( MOAB_USE_HDF )
 
-  add_executable ( parallel_unit_tests parallel_unit_tests.cpp )
+  add_executable ( parallel_unit_tests parallel/parallel_unit_tests.cpp )
   target_link_libraries( parallel_unit_tests MOAB )
   add_test( TestParallel
     ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
     ${EXECUTABLE_OUTPUT_PATH}/parallel_unit_tests ${MPIEXEC_POSTFLAGS} ${MOAB_SOURCE_DIR}/parallel/ptest.cub )
-  set_source_files_properties( parallel_unit_tests.cpp
+  set_source_files_properties( parallel/parallel_unit_tests.cpp
     COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}" )
 
 endif ( MOAB_USE_MPI AND MPI_FOUND )
