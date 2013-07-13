@@ -1,10 +1,10 @@
 include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}
     ${MOAB_SOURCE_DIR}/src
     ${MOAB_SOURCE_DIR}/src/parallel
     ${MOAB_SOURCE_DIR}/src/moab/point_locater/lotte
     ${MOAB_SOURCE_DIR}/itaps
     ${MOAB_SOURCE_DIR}/itaps/imesh
-    ${MOAB_SOURCE_DIR}/tools/mbcoupler
 )
 
 set( MBCOUPLER_SRCS
