@@ -21,6 +21,8 @@ EXTRA_DIST  = 125hex.g \
               testtet.g \
 	      ptest.cub \
               64bricks_512hex.h5m \
+              64bricks_1khex.h5m\
+              64bricks_12ktet.h5m\
               partBed.smf \
               PB.h5m  \
               polyPB.txt \
@@ -28,5 +30,7 @@ EXTRA_DIST  = 125hex.g \
               quads.h5m \
               SECrop2.h5m \
               poly14.txt \
-              BedCrop2.h5m
+              BedCrop2.h5m \
+              mpas_p8.h5m \
+              Homme_2pt.h5m
 

@@ -56,4 +56,21 @@ process_arm_SOURCES = process_arm.cpp
 
 cslam_par_test_SOURCES = cslam_par_test.cpp
 cslam_par_test_LDADD = $(LDADD) $(top_builddir)/tools/mbcoupler/libmbcoupler.la 
+EXTRA_DIST  = lagrangeHomme.vtk  \
+              eulerHomme.vtk \
+              m1.vtk \
+              m2.vtk 
 
+# Other files to clean up (e.g. output from tests)
+MOSTLYCLEANFILES = intersect1.h5m \
+                   lagr.h5m \
+                   polyWithEdges.vtk \
+                   lagr00.h5m \
+                   intersect00.h5m \
+                   lagrIni.h5m \
+                   intx.vtk \
+                   spectral.vtk \
+                   intx1.vtk \
+                   SpanEdges0.h5m \
+                   SpanQuads0.h5m 
+            

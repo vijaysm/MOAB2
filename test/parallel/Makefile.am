@@ -103,4 +103,16 @@ if ENABLE_mbcslam
   par_intx_sph_LDADD = $(LDADD) ../../tools/mbcoupler/libmbcoupler.la ../../tools/mbcslam/libmbcslam.la  
 endif
 # Other files to clean up (e.g. output from tests)
-MOSTLYCLEANFILES = mhdf_ll.h5m tmp0.h5m tmp1.h5m tmp2.h5m tmp3.h5m
+MOSTLYCLEANFILES = mhdf_ll.h5m tmp0.h5m tmp1.h5m tmp2.h5m tmp3.h5m \
+                   partial0.vtk \
+                   partial1.vtk  \
+                   partialConvex1.vtk \
+                   partialConvex0.vtk \
+                   initial0.vtk \
+                   intersect1.h5m \
+                   intersect0.h5m \
+                   test.h5m \
+                   initial1.vtk \
+                   test_mpas.h5m \
+                   dum.h5m
+                   
