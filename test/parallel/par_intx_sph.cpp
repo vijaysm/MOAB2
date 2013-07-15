@@ -5,8 +5,7 @@
  *  the mesh is read in parallel; lagrangian mesh is manufactured on the fly (part of the test), in
  *    a different set.
  *
- *  lagrangian mesh will be located on the euler mesh; intersections will be performed on the
- *  euler mesh
+ *  intersections will be performed on the euler mesh
  *  Created on: Nov 14, 2012
  */
 
@@ -42,9 +41,11 @@ using namespace moab;
 // some input data
 double EPS1=0.2; // this is for box error
 std::string input_mesh_file("Homme_2pt.h5m"); // input file, partitioned correctly
+std::string mpas_file("mpas_p8.h5m");
 double CubeSide = 6.; // the above file starts with cube side 6; radius depends on cube side
-void test_intx_in_parallel();
+double radius;
 void test_intx_in_parallel_elem_based();
+void test_intx_mpas();
 
 int main(int argc, char **argv)
 {
@@ -72,8 +73,11 @@ int main(int argc, char **argv)
       index++;
     }
   }
-  //result += RUN_TEST(test_intx_in_parallel);
+
+  radius = CubeSide/2*sqrt(3.);
   result += RUN_TEST(test_intx_in_parallel_elem_based);
+  radius =1.;
+  result += RUN_TEST(test_intx_mpas);
 
   MPI_Finalize();
   return result;
@@ -92,9 +96,9 @@ ErrorCode  manufacture_lagrange_mesh_on_sphere(Interface * mb, EntityHandle eule
    *   circumscribed sphere radius
    *   radius = length * math.sqrt(3) /2
    */
-  double radius = CubeSide/2*sqrt(3.);// our value depends on cube side
+  //radius = CubeSide/2*sqrt(3.);// our value depends on cube side
   Range quads;
-  rval = mb->get_entities_by_type(euler_set, MBQUAD, quads);
+  rval = mb->get_entities_by_dimension(euler_set, 2, quads);
   CHECK_ERR(rval);
 
   Range connecVerts;
@@ -151,10 +155,11 @@ ErrorCode  manufacture_lagrange_mesh_on_sphere(Interface * mb, EntityHandle eule
 
   return rval;
 }
-void test_intx_in_parallel()
+
+void test_intx_in_parallel_elem_based()
 {
   std::string opts = std::string("PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION")+
-      std::string(";PARALLEL_RESOLVE_SHARED_ENTS");
+        std::string(";PARALLEL_RESOLVE_SHARED_ENTS");
   Core moab;
   Interface & mb = moab;
   EntityHandle euler_set;
@@ -164,35 +169,43 @@ void test_intx_in_parallel()
   std::string example(TestDir + "/" +  input_mesh_file);
 
   rval = mb.load_file(example.c_str(), &euler_set, opts.c_str());
+  CHECK_ERR(rval);
 
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
-  CHECK_ERR(rval);
+  CHECK( NULL!=pcomm );
 
   rval = pcomm->check_all_shared_handles();
   CHECK_ERR(rval);
 
-  // everybody will get a LOC tag, including the non owned entities; so exchange tags is not required for LOC (here)
+  // everybody will get a DP tag, including the non owned entities; so exchange tags is not required for LOC (here)
   rval = manufacture_lagrange_mesh_on_sphere(&mb, euler_set);
   CHECK_ERR(rval);
- 
+
+  int rank = pcomm->proc_config().proc_rank();
+
+  std::stringstream ste;
+  ste<<"initial" << rank<<".vtk";
+  mb.write_file(ste.str().c_str(), 0, 0, &euler_set, 1);
+
   Intx2MeshOnSphere worker(&mb);
 
-  double radius= CubeSide/2 * sqrt(3.) ; // input
+  //double radius= CubeSide/2 * sqrt(3.) ; // input
   worker.SetRadius(radius);
   worker.set_box_error(EPS1);//
-  worker.SetEntityType(MBQUAD);
+  //worker.SetEntityType(MBQUAD);
 
   worker.SetErrorTolerance(radius*1.e-8);
-  worker.locate_departure_points(euler_set);
+  std::cout << "error tolerance epsilon_1="<< radius*1.e-8 << "\n";
+  //  worker.locate_departure_points(euler_set);
 
   // we need to make sure the covering set is bigger than the euler mesh
   EntityHandle covering_lagr_set;
   rval = mb.create_meshset(MESHSET_SET, covering_lagr_set);
   CHECK_ERR(rval);
 
-  rval = worker.create_departure_mesh(covering_lagr_set);
+  rval = worker.create_departure_mesh_2nd_alg(euler_set, covering_lagr_set);
   CHECK_ERR(rval);
-  int rank = pcomm->proc_config().proc_rank();
+
   std::stringstream ss;
   ss<<"partial" << rank<<".vtk";
   mb.write_file(ss.str().c_str(), 0, 0, &covering_lagr_set, 1);
@@ -208,21 +221,24 @@ void test_intx_in_parallel()
   std::stringstream outf;
   outf<<"intersect" << rank<<".h5m";
   rval = mb.write_file(outf.str().c_str(), 0, 0, &outputSet, 1);
+  double intx_area = area_on_sphere(&mb, outputSet, radius);
+  double arrival_area = area_on_sphere(&mb, euler_set, radius) ;
+  std::cout<< "On rank : " << rank << " arrival area: " << arrival_area<<
+      "  intersection area:" << intx_area << " rel error: " << fabs((intx_area-arrival_area)/arrival_area) << "\n";
   CHECK_ERR(rval);
-
-
 }
-void test_intx_in_parallel_elem_based()
+
+void test_intx_mpas()
 {
   std::string opts = std::string("PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION")+
-        std::string(";PARALLEL_RESOLVE_SHARED_ENTS");
+          std::string(";PARALLEL_RESOLVE_SHARED_ENTS");
   Core moab;
   Interface & mb = moab;
   EntityHandle euler_set;
   ErrorCode rval;
   rval = mb.create_meshset(MESHSET_SET, euler_set);
   CHECK_ERR(rval);
-  std::string example(TestDir + "/" +  input_mesh_file);
+  std::string example(TestDir + "/" +  mpas_file);
 
   rval = mb.load_file(example.c_str(), &euler_set, opts.c_str());
 
@@ -244,10 +260,10 @@ void test_intx_in_parallel_elem_based()
 
   Intx2MeshOnSphere worker(&mb);
 
-  double radius= CubeSide/2 * sqrt(3.) ; // input
+  //double radius= CubeSide/2 * sqrt(3.) ; // input
   worker.SetRadius(radius);
   worker.set_box_error(EPS1);//
-  worker.SetEntityType(MBQUAD);
+  //worker.SetEntityType(MBQUAD);
 
   worker.SetErrorTolerance(radius*1.e-8);
   std::cout << "error tolerance epsilon_1="<< radius*1.e-8 << "\n";
@@ -264,6 +280,11 @@ void test_intx_in_parallel_elem_based()
   std::stringstream ss;
   ss<<"partial" << rank<<".vtk";
   mb.write_file(ss.str().c_str(), 0, 0, &covering_lagr_set, 1);
+  rval = enforce_convexity(&mb, covering_lagr_set);
+  CHECK_ERR(rval);
+  std::stringstream ss2;
+  ss2<<"partialConvex" << rank<<".vtk";
+  mb.write_file(ss2.str().c_str(), 0, 0, &covering_lagr_set, 1);
   EntityHandle outputSet;
   rval = mb.create_meshset(MESHSET_SET, outputSet);
   CHECK_ERR(rval);

@@ -71,7 +71,7 @@ int main(int argc, char* argv[])
   Intx2MeshOnSphere  worker(mb);
   double radius= 6. * sqrt(3.) / 2; // input
   worker.SetErrorTolerance(radius*1.e-8);
-  worker.SetEntityType(moab::MBQUAD);
+  //worker.SetEntityType(moab::MBQUAD);
   worker.SetRadius(radius);
   rval = worker.intersect_meshes(sf1, sf2, outputSet);
   //compute total area with 2 methods

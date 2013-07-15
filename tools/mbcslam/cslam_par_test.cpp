@@ -2,7 +2,7 @@
  * cslam_par_test.cpp
  *  test to trigger intersection on a sphere in parallel
  *  it will start from an eulerian mesh (mesh + velocity from Mark Taylor)
- *   file: VELO00.h5m; mesh + velo at 850 milibar, in an unstrucured mesh refined from
+ *   file: VELO00.h5m; mesh + velo at 850 milibar, in an unstructured mesh refined from
  *   a cube sphere grid
  *  the mesh is read in parallel (euler mesh);
  *
@@ -190,7 +190,7 @@ void test_intx_in_parallel_elem_based()
 
   worker.SetRadius(Radius);
   worker.set_box_error(EPS1);//
-  worker.SetEntityType(MBQUAD);
+  //worker.SetEntityType(MBQUAD);
 
   worker.SetErrorTolerance(Radius*1.e-8);
   std::cout << "error tolerance epsilon_1="<< Radius*1.e-8 << "\n";
