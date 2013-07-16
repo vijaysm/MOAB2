@@ -21,20 +21,17 @@
 
   if ( MOAB_USE_MPI AND MPI_FOUND )
     add_subdirectory( refiner )
-#    include_directories( ${MOAB_SOURCE_DIR}/refiner )
-#    target_link_libraries( MOAB MOABrefiner )
   endif ( MOAB_USE_MPI AND MPI_FOUND )
 
   include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${MOAB_BINARY_DIR}
+    ${MOAB_BINARY_DIR}/src
+    ${MOAB_BINARY_DIR}/src/parallel
     ${MOAB_SOURCE_DIR}/src
     ${MOAB_SOURCE_DIR}/src/parallel
+    ${CMAKE_CURRENT_SOURCE_DIR}
   )
 
-#    target_link_libraries( mbcoupler MOAB iMesh )
-#    if ( MOAB_USE_MPI )
-#      target_link_libraries( mbcoupler MOABpar )
-#    endif ( MOAB_USE_MPI )
   # MBSIZE
   if ( MOAB_BUILD_MBSIZE )
     add_executable( mbsize size.cpp measure.cpp)

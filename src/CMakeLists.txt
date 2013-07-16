@@ -94,9 +94,12 @@
     ReaderWriterSet.cpp
   )
   include_directories(
+    ${MOAB_BINARY_DIR}
     ${MOAB_SOURCE_DIR}/src
+    ${MOAB_BINARY_DIR}/src
     ${MOAB_SOURCE_DIR}/src/io
     ${MOAB_SOURCE_DIR}/src/parallel
+    ${MOAB_BINARY_DIR}/src/parallel
     ${MOAB_SOURCE_DIR}/src/moab/point_locater/lotte
   )
 
@@ -112,6 +115,7 @@
       io/NCHelperEuler.cpp
       io/NCHelperFV.cpp
       io/NCHelperHOMME.cpp
+      io/NCHelperMPAS.cpp
       SpectralMeshTool.cpp
     )
     include_directories(
@@ -119,6 +123,7 @@
     )
   endif ( NetCDF_FOUND )
 
+  MESSAGE("Adding HDF5 includes: ${HDF5_FOUND}")
   if ( HDF5_FOUND )
     set ( MOAB_DEFINES "${MOAB_DEFINES} -DHDF5_FILE" )
     check_function_exists( H5Pset_fapl_mpio MOAB_HDF_HAVE_PARALLEL )
@@ -131,6 +136,7 @@
       io/WriteHDF5.cpp
     )
 
+    MESSAGE("Adding HDF5 includes: ${HDF5_INCLUDE_DIRECTORIES}")
     include_directories(
       ${HDF5_INCLUDE_DIRECTORIES}
       io/mhdf/include
@@ -173,4 +179,6 @@
 
   autoconf_header( ${MOAB_SOURCE_DIR}/src/moab/Version.h.in ${MOAB_BINARY_DIR}/src/moab/Version.h )
   autoconf_header( ${MOAB_SOURCE_DIR}/src/moab/EntityHandle.hpp.in ${MOAB_BINARY_DIR}/src/moab/EntityHandle.hpp )
+  autoconf_header( ${MOAB_SOURCE_DIR}/src/parallel/moab_mpi_config.h.in ${MOAB_BINARY_DIR}/src/parallel/moab_mpi_config.h )
+  autoconf_header( ${MOAB_SOURCE_DIR}/src/FCDefs.h.in ${MOAB_BINARY_DIR}/MOAB_FCDefs.h )
   file( WRITE ${MOAB_BINARY_DIR}/src/MBCN_protos.h "" )

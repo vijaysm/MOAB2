@@ -1,3 +1,9 @@
+# check if we are using MPI - reset compilers accordingly
+if ( MOAB_USE_MPI )
+  SET(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
+  SET(CMAKE_C_COMPILER ${MPI_C_COMPILER})
+endif ( MOAB_USE_MPI )
+
 project( MOAB )
 
   cmake_minimum_required( VERSION 2.4 )

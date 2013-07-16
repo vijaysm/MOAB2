@@ -1,8 +1,11 @@
   add_subdirectory(io)
 
   include_directories(
+    ${MOAB_BINARY_DIR}
+    ${MOAB_BINARY_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${MOAB_SOURCE_DIR}/src
+    ${MOAB_BINARY_DIR}/src/parallel
     ${MOAB_SOURCE_DIR}/src/parallel
   )
 
@@ -73,14 +76,15 @@ if ( MOAB_USE_MPI AND MPI_FOUND )
     ${EXECUTABLE_OUTPUT_PATH}/mbparallelcomm_test ${MPIEXEC_POSTFLAGS} -3 ${MOAB_SOURCE_DIR}/parallel/ptest.cub )
 
   if ( MOAB_USE_HDF )
-    add_executable( mhdf_parallel parallel/mhdf_parallel.c )
     include_directories(
+      ${HDF5_INCLUDE_DIR}
       ${MOAB_SOURCE_DIR}/src/io/mhdf/include
     )
+    add_executable( mhdf_parallel parallel/mhdf_parallel.c )
     target_link_libraries( mhdf_parallel MOAB MOABpar mhdf )
     add_test( TestMHDFParallel ${EXECUTABLE_OUTPUT_PATH}/mhdf_parallel )
     set_source_files_properties( parallel/mhdf_parallel.c
-      COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}" )
+      COMPILE_FLAGS "-DTEST ${MOAB_DEFINES}" )
   endif ( MOAB_USE_HDF )
 
   add_executable ( parallel_unit_tests parallel/parallel_unit_tests.cpp )
