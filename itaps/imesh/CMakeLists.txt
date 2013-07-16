@@ -35,10 +35,20 @@ set ( MOAB_IMESH_SRCS
       ${CMAKE_CURRENT_BINARY_DIR}/iMeshP_protos.h )
 
 include_directories(
+    ${MOAB_BINARY_DIR}
+    ${MOAB_BINARY_DIR}/src
+    ${MOAB_BINARY_DIR}/src/parallel
     ${MOAB_SOURCE_DIR}/src
     ${MOAB_SOURCE_DIR}/itaps
     ${MOAB_SOURCE_DIR}/itaps/imesh
   )
+
+if ( MOAB_USE_HDF5 AND HDF5_FOUND )
+  include_directories(
+    ${HDF5_INCLUDE_DIRECTORIES}
+    ${MOAB_SOURCE_DIR}/src/io/mhdf/include
+  )
+endif ( MOAB_USE_HDF5 AND HDF5_FOUND )
 
 if ( MOAB_USE_MPI AND MPI_FOUND )
   LIST ( APPEND MOAB_IMESH_SRCS

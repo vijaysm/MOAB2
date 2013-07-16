@@ -5,6 +5,9 @@ include_directories(
     ${MOAB_SOURCE_DIR}/src/moab/point_locater/lotte
     ${MOAB_SOURCE_DIR}/itaps
     ${MOAB_SOURCE_DIR}/itaps/imesh
+    ${MOAB_BINARY_DIR}
+    ${MOAB_BINARY_DIR}/src
+    ${MOAB_BINARY_DIR}/src/parallel
 )
 
 set( MBCOUPLER_SRCS
