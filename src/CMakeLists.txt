@@ -123,7 +123,6 @@
     )
   endif ( NetCDF_FOUND )
 
-  MESSAGE("Adding HDF5 includes: ${HDF5_FOUND}")
   if ( HDF5_FOUND )
     set ( MOAB_DEFINES "${MOAB_DEFINES} -DHDF5_FILE" )
     check_function_exists( H5Pset_fapl_mpio MOAB_HDF_HAVE_PARALLEL )
@@ -136,9 +135,8 @@
       io/WriteHDF5.cpp
     )
 
-    MESSAGE("Adding HDF5 includes: ${HDF5_INCLUDE_DIRECTORIES}")
     include_directories(
-      ${HDF5_INCLUDE_DIRECTORIES}
+      ${HDF5_INCLUDE_DIR}
       io/mhdf/include
     )
     add_subdirectory( io/mhdf )
