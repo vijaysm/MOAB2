@@ -44,7 +44,7 @@ The MOAB data model consists of the following basic types:
 
 The following section describes each meta-data tag convention in detail; these conventions are also summarized in Table 1.
 
-\ref meta-data-info "Top"
+\ref md-contents "Top"
 
   \section meta-conventions  Meta-Data Conventions
 
@@ -100,7 +100,7 @@ In the geometric model, each FACE is bounded by zero or more EDGEs; other topolo
 
 Geometric entities are sometimes assigned to application-specific groups.  These groups are represented using entity sets, tagged with a “GROUP” tag whose value equals the group id.  Group sets are “set”-type, and are not tracking sets.  These sets contain the sets corresponding to geometric entities contained in the groups in the geometric model, as well as any mesh entities assigned to the group.
 
-<H3> >ense </H3>
+<H3> Sense </H3>
 
 A geometric face has a natural orientation, indicated by the direction of the normal to the face; similarly, edges have a natural orientation determined by the direction of the tangent.  When faces bound regions, or edges bound faces, they do so with a sense; if a region includes a face with forward sense, that means the face's natural normal direction points out of the volume.  If a face includes an edge with forward sense, that means that if one moves along the edge in the direction of its tangent, the material of the face is on the left hand side.  The sense of a face (edge) with respect to a region (face) it bounds is stored using tags on the face (edge).
 
@@ -180,7 +180,7 @@ The Spectral Element Method (SEM) is a high-order method, using a polynomial Leg
 
 .
 
-\ref meta-data-info "Top"
+\ref md-contents "Top"
 
   \section meta-options Reader/Writer Options
 
@@ -198,7 +198,7 @@ Indicates that no mesh should be read from the file.  This option is used in con
 
 Read the time step number whose time value is equal to or greater than the specified time value, for the specified variable(s).  Tag names for the variable(s) will be formed by appending the time step number to the variable name.  Multiple time step values can be specified, separated from each other by commas.
 
-\ref meta-data-info "Top"
+\ref md-contents "Top"
 
   \section meta-references References
 
@@ -206,7 +206,7 @@ Read the time step number whose time value is equal to or greater than the speci
 
 [2]     L. Diachin, A. Bauer, B. Fix, J. Kraftcheck, K. Jansen, X. Luo, M. Miller, C. Ollivier-Gooch, M.S. Shephard, T. Tautges, and H. Trease, “Interoperable mesh and geometry tools for advanced petascale simulations,” Journal of Physics: Conference Series,  vol. 78, 2007, p. 012015.
 
-\ref meta-data-info "Top"
+\ref md-contents "Top"
 
   \section appendixA Appendix A: Summary
 
@@ -395,7 +395,7 @@ GEOM_SENSE_N_SENSES/I*N</td>
 </tr>
 </table>
 
-\ref meta-data-info "Top"
+\ref md-contents "Top"
 
   \section appendixB Appendix B: CCMIO (Star-CD, Star-CCM+) Reader/Writer Conventions
 
@@ -494,7 +494,7 @@ GEOM_SENSE_N_SENSES/I*N</td>
 Notes:
 1. If no name is present, labels the material group with “MaterialX”, where X is the index of that group.
 
-\ref meta-data-info "Top"
+\ref md-contents "Top"
 
   \section appendixC Appendix C: ExodusII Reader/Writer Conventions 
 
@@ -560,7 +560,7 @@ whether the right-hand normal points into or out of the element. Forward-sense f
 to the Neumann set. Reverse-sense faces are put into a separate set; that set is tagged with the SENSE tag, with value = -1; and that reverse set is added to the Neummann set.
 .
 
-  \ref meta-data-info "Top"
+  \ref md-contents "Top"
 
   \section appendixD Appendix D: NC (Climate Data) Reader/Writer Conventions
 
@@ -722,7 +722,7 @@ __<var_name>_ATTRIBS tags
 </tr>
 </table>
 
-  \ref meta-data-info "Top"
+  \ref md-contents "Top"
 
   \section appendixE Appendix E: Nek5000 Reader/Writer Conventions
 
@@ -815,7 +815,7 @@ nx*ny*nz values)
 </td>
 </tr>
 </table>
-  \ref meta-data-info "Top"
+  \ref md-contents "Top"
         */
 
 /*!  \page md-tables List of Tables
