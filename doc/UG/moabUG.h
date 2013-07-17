@@ -34,13 +34,13 @@
 
   \ref interface     
 
-     \ref twoone    
+	\ref twoone    
 
-     \ref twotwo     
+	\ref twotwo     
 
-     \ref twothree       
+	\ref twothree       
 
-     \ref twofour   
+	\ref twofour   
 
   \ref api     
 
@@ -88,7 +88,7 @@
 
   \ref references 
 
-  \section introduction 1. Introduction
+  \section introduction 1.Introduction
 
 In scientific computing, systems of partial differential equations (PDEs) are solved on computers.  One of the most widely used methods to solve PDEs numerically is to solve over discrete neighborhoods or “elements” of the domain.  Popular discretization methods include Finite Difference (FD), Finite Element (FE), and Finite Volume (FV).  These methods require the decomposition of the domain into a discretized representation, which is referred to as a “mesh”.  The mesh is one of the fundamental types of data linking the various tools in the analysis process (mesh generation, analysis, visualization, etc.).  Thus, the representation of mesh data and operations on those data play a very important role in PDE-based simulations.
  
@@ -110,12 +110,14 @@ Several other sources of information about MOAB may also be of interest to reade
 
  \ref contents
 
- \section interface 2. MOAB Data Model
+ \section interface 2.MOAB Data Model
 The MOAB data model describes the basic types used in MOAB and the language used to communicate that data to applications.  This chapter describes that data model, along with some of the reasons for some of the design choices in MOAB.
 
  \ref contents
 
- \subsection twoone 2.1. MOAB Interface
+<tab>
+ \subsection twoone 2.1. MOAB Interface 
+</tab>
 MOAB is written in C++.  The primary interface with applications is through member functions of the abstract base class Interface.  The MOAB library is created by instantiating Core, which implements the Interface API.  Multiple instances of MOAB can exist concurrently in the same application; mesh entities are not shared between these instancesi<sup>2</sup>.  MOAB is most easily viewed as a database of mesh objects accessed through the instance.  No other assumptions explicitly made about the nature of the mesh stored there; for example, there is no fundamental requirement that elements fill space or do not overlap each other geometrically.
  
 <sup>2</sup> One exception to this statement is when the parallel interface to MOAB is used; in this case, entity sharing between instances is handled explicitly using message passing.  This is described in more detail in Section 5 of this document.
@@ -261,7 +263,7 @@ The semantic meaning of a tag is determined by applications using it.  However, 
 
   \ref contents
 
-  \section api 3. MOAB API Design Philosophy and Summary
+  \section api 3.MOAB API Design Philosophy and Summary
 
 This section describes the design philosophy behind MOAB, and summarizes the functions, data types and enumerated variables in the MOAB API.  A complete description of the MOAB API is available in online documentation in the MOAB distribution [8].
 
@@ -406,7 +408,7 @@ Table 3 lists the various groups of functions that comprise the MOAB API.  This 
 
  \ref contents
 
- \section services 4. Related Mesh Services
+ \section services 4.Related Mesh Services
 
 A number of mesh-based services are often used in conjunction with a mesh library.  For example, parallel applications often need to visualize the mesh and associated data.  Other services, like spatial interpolation or finding the faces on the “skin” of a 3D mesh, can be implemented more efficiently using knowledge of specific data structures in MOAB.  Several of these services provided with MOAB are described in this chapter.
 
@@ -600,7 +602,7 @@ The Common Geometry Module (CGM) [17] is a library for representing solid model 
 
  \ref contents
 
-  \section parallel 5. Parallel Mesh Representation and Query
+  \section parallel 5.Parallel Mesh Representation and Query
 
 A parallel mesh representation must strike a careful balance between providing an interface to mesh similar to that of a serial mesh, while also allowing the discovery of parallel aspects of the mesh and performance of parallel mesh-based operations efficiently.  MOAB supports a spatial domain-decomposed view of a parallel mesh, where each subdomain is assigned to a processor, lower-dimensional entities on interfaces between subdomains are shared between processors, and ghost entities can be exchanged with neighboring processors.  Locally, each subdomain, along with any locally-represented ghost entities, are accessed through a local MOAB instance.  Parallel aspects of the mesh, e.g. whether entities are shared, on an interface, or ghost entities, are embedded in the same data model (entities, sets, tags, interface) used in the rest of MOAB.  MOAB provides a suite of parallel functions for initializing and communicating with a parallel mesh, along with functions to query the parallel aspects of the mesh.
 
@@ -821,7 +823,7 @@ Once a parallel mesh has been initialized, applications can call the ParallelCom
 
   \ref contents
 
-  \section applications 6. Building MOAB-Based Applications
+  \section applications 6.Building MOAB-Based Applications
 
 There are two primary mechanisms supported by MOAB for building applications, one based on MOAB-defined make variables, and the other based on the use of libtool and autoconf.  Both assume the use of a “make”-based build system.  
 
@@ -851,7 +853,7 @@ The second method for incorporating MOAB into an application’s build system is
 
   \ref contents
 
-  \section implementation  7. iMesh (ITAPS Mesh Interface) Implementation in MOAB
+  \section implementation  7.iMesh (ITAPS Mesh Interface) Implementation in MOAB
 
 iMesh is a common API to mesh data developed as part of the Interoperable Tools for Advanced Petascale Simulations (ITAPS) project [18].  Applications using the iMesh interface can operate on any implementation of that interface, including MOAB.  MOAB-based applications can take advantage of other services implemented on top of iMesh, including the MESQUITE mesh improvement toolkit [19] and the GRUMMP mesh improvement library [20].
 
@@ -890,7 +892,7 @@ Note that using the iMesh interface from Fortran-based applications requires a c
 
  \ref contents
 
-  \section representation 8. Structured Mesh Representation
+  \section representation 8.Structured Mesh Representation
 
 A structured mesh is defined as a D-dimensional mesh whose interior vertices have 2D connected edges.   Structured mesh can be stored without connectivity, if certain information is kept about the parametric space of each structured block of mesh.  MOAB can represent structured mesh with implicit connectivity, saving approximately 57% of the storage cost compared to an unstructured representation<sup>7</sup>.  Since connectivity must be computed on the fly, these queries execute a bit slower than those for unstructured mesh.  More information on the theory behind MOAB's structured mesh representation can be found in 
 
@@ -900,7 +902,7 @@ Currently, MOAB's structured mesh representation can only be used by creating st
 
  \ref contents
 
-  \section element 9. Spectral Element Meshes
+  \section element 9.Spectral Element Meshes
 
 The Spectral Element Method (SEM) is a high-order method, using a polynomial Legendre interpolation basis with Gauss-Lobatto quadrature points, in contrast to the Lagrange basis used in (linear) finite elements [20].  SEM obtains exponential convergence with decreasing mesh characteristic sizes, and codes implementing this method typically have high floating-point intensity, making the method highly efficient on modern CPUs.  Most Nth-order SEM codes require tensor product cuboid (quad/hex) meshes, with each d-dimensional element containing (N+1)d degrees of freedom (DOFs).  There are various methods for representing SEM meshes and solution fields on them; this document discusses these methods and the tradeoffs between them.  The mesh parts of this discussion are given in terms of the iMesh mesh interface and its implementation by the MOAB mesh library [21].
 
@@ -942,7 +944,7 @@ In brief, we propose to represent elements using the linear, FE-ordered connecti
 
   \ref contents
 
-  \section performance 10. Performance and Using MOAB Efficiently from Applications
+  \section performance 10.Performance and Using MOAB Efficiently from Applications
 
 MOAB is designed to operate efficiently on groups of entities and for large meshes.  Applications will be most efficient when they operate on entities in groups, especially groups which are close in their order of creation.  The MOAB API is structured to encourage operations on groups of entities.  Conversely, MOAB will not perform as well as other libraries if there are frequent deletion and creation of entities.  For those types of applications, a mesh library using a C++ object-based representation is more appropriate.  In this section, performance of MOAB when executing a variety of tasks is described, and compared to that of other representations.  Of course, these metrics are based on the particular models and environments where they are run, and may or may not be representative of other application types.
 
@@ -957,7 +959,7 @@ This test can be run on your system to determine the runtime and memory performa
 
   \ref contents
 
-  \section conclusions 11. Conclusions and Future Plans
+  \section conclusions 11.Conclusions and Future Plans
 
 MOAB, a Mesh-Oriented datABase, provides a simple but powerful data abstraction to structured and unstructured mesh, and makes that abstraction available through a function API.  MOAB provides the mesh representation for the VERDE mesh verification tool, which demonstrates some of the powerful mesh metadata representation capabilities in MOAB.  MOAB includes modules that import mesh in the ExodusII, CUBIT .cub and Vtk file formats, as well as the capability to write mesh to ExodusII, all without licensing restrictions normally found in ExodusII-based applications.  MOAB also has the capability to represent and query structured mesh in a way that optimizes storage space using the parametric space of a structured mesh; see Ref. [17] for details.
 
@@ -965,7 +967,7 @@ Initial results have demonstrated that the data abstraction provided by MOAB is 
 
   \ref contents
 
-  \section references 12. References
+  \section references 12.References
 
 [1]	M. Fatenejad and G.A. Moses, “Cooper radiation hydrodynamics code..”
 
@@ -1061,4 +1063,3 @@ Initial results have demonstrated that the data abstraction provided by MOAB is 
 These steps are sufficient for building MOAB against HDF5 and netCDF.  By default, a small number of standard MOAB-based applications are also built, including mbconvert (a utility for reading and writing files), mbsize (for querying basic information about a mesh), and the iMesh interface (see Section 7).  Other utilities can be enabled using various other options to the configure script; for a complete list of build options, execute “./configure –help”.
  
  */
-
