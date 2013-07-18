@@ -1,3 +1,9 @@
+# check if we are using MPI - reset compilers accordingly
+if ( MOAB_USE_MPI )
+  SET(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
+  SET(CMAKE_C_COMPILER ${MPI_C_COMPILER})
+endif ( MOAB_USE_MPI )
+
 project( MOAB )
 
   cmake_minimum_required( VERSION 2.4 )
@@ -100,7 +106,30 @@ project( MOAB )
   # iMesh
   option ( MOAB_BUILD_IMESH        "Build the iMesh interface?"           ON )
 
+  # check for MPI package
+  if ( MOAB_USE_MPI )
+    find_package( MPI )
+    # CMake FindMPI script is sorely lacking:
+    if ( MPI_LIBRARY AND MPI_INCLUDE_PATH )
+      set( MPI_FOUND 1 )
+    endif ( MPI_LIBRARY AND MPI_INCLUDE_PATH )
+
+    if ( MPI_FOUND )
+      set ( MOAB_DEFINES "${MOAB_DEFINES} -DUSE_MPI" )
+    endif ( MPI_FOUND )
+  endif ( MOAB_USE_MPI )
+
+  if ( MOAB_USE_NETCDF )
+    find_package( NetCDF )
+  endif ( MOAB_USE_NETCDF )
+
+  if ( MOAB_USE_HDF )
+    # HDF5
+    find_package( HDF5 )
+  endif ( MOAB_USE_HDF )
+
   add_subdirectory( src )
+  add_subdirectory( itaps/imesh )
   add_subdirectory( tools )
   add_subdirectory( test )
-  
+

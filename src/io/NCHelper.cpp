@@ -238,9 +238,9 @@ ErrorCode NCHelper::convert_variable(ReadNC::VarData& var_data, int tstep_num)
   // Get ptr to tag space
   void* data = var_data.varDatas[tstep_num];
 
-  std::size_t sz = 1;
-  for (std::size_t idx = 0; idx != var_data.readCounts[tstep_num].size(); idx++)
-    sz *= var_data.readCounts[tstep_num][idx];
+  // Get variable size
+  std::size_t sz = var_data.sz;
+  assert(sz > 0);
 
   // Finally, read into that space
   int success = 0;
@@ -323,7 +323,9 @@ ErrorCode ScdNCHelper::check_existing_mesh(EntityHandle file_set) {
   ErrorCode rval = mbImpl->get_number_entities_by_dimension(file_set, 0, num_verts);
   ERRORR(rval, "Trouble getting number of vertices.");
 
+  /*
   // Check against parameters
+  // When ghosting is used, this check might fail (to be updated later)
   if (num_verts > 0)
   {
     int expected_verts = (lDims[3] - lDims[0] + 1) * (lDims[4] - lDims[1] + 1) * (-1 == lDims[2] ? 1 : lDims[5] - lDims[2] + 1);
@@ -331,6 +333,7 @@ ErrorCode ScdNCHelper::check_existing_mesh(EntityHandle file_set) {
       ERRORR(MB_FAILURE, "Number of vertices doesn't match.");
     }
   }
+  */
 
   // Check the number of elements too
   int num_elems;
@@ -339,6 +342,7 @@ ErrorCode ScdNCHelper::check_existing_mesh(EntityHandle file_set) {
 
   /*
   // Check against parameters
+  // The expected number of elements calculated below is incorrect (to be updated later)
   if (num_elems > 0)
   {
     int expected_elems = (lDims[3] - lDims[0]) * (lDims[4] - lDims[1]) * (-1 == lDims[2] ? 1 : lDims[5] - lDims[2]);
@@ -698,6 +702,12 @@ ErrorCode ScdNCHelper::read_scd_variable_to_nonset_allocate(EntityHandle file_se
       assert((unsigned)count == range->size());
       vdatas[i].varDatas[t] = data;
     }
+
+    // Calculate variable size
+    std::size_t sz = 1;
+    for (std::size_t idx = 0; idx != vdatas[i].readCounts[0].size(); idx++)
+      sz *= vdatas[i].readCounts[0][idx];
+    vdatas[i].sz = sz;
   }
 
   return rval;
