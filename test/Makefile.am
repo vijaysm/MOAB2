@@ -1,7 +1,7 @@
 LDADD = $(top_builddir)/libiRel.la 
 
 if ENABLE_IGEOM
- LDADD +=${IGEOM_DIR}/lib/libiGeom.la 
+ LDADD +=${IGEOM_DIR}/lib/libiGeom.la ${IGEOM_DIR}/lib/libcgm.la
 endif
 
 if ENABLE_IMESH
