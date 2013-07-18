@@ -450,22 +450,20 @@ AC_SUBST(PNETCDF_LIBS)
 #################################################################################
 #                             Documentation
 #################################################################################
-AC_ARG_ENABLE([doxygen],
-[AC_HELP_STRING([[--enable-doxygen@<:@=DIR@:>@]],[Specify directory where Doxygen program is installed])
-AC_HELP_STRING([--disable-doxygen],[Do not generate API documentation (default)])],
-                        [ENABLE_DOXYGEN="$enableval"],[ENABLE_DOXYGEN=no] )
-if test "x$ENABLE_DOXYGEN" = "xyes"; then
+AC_ARG_ENABLE([docs],
+[AC_HELP_STRING([--enable-docs],[Specify directory where Doxygen program is installed])
+AC_HELP_STRING([--disable-docs],[Do not generate API documentation (default)])],
+                        [ENABLE_DOCS="$enableval"],[ENABLE_DOCS=no] )
+if test "x$ENABLE_DOCS" != "xno"; then
   AC_PATH_PROG( [DOXYGEN], [doxygen], [no] )
-elif test "x$ENABLE_DOXYGEN" != "xno"; then
-  AC_PATH_PROG( [DOXYGEN], [doxygen], [no], [$ENABLE_DOXYGEN] )
 fi
-if test "x$ENABLE_DOXYGEN" != "xno"; then
+if test "x$ENABLE_DOCS" != "xno"; then
   if test "x$DOXYGEN" = "xno"; then
     AC_MSG_ERROR("Doxygen executable not found.")
   fi
 fi
 AC_SUBST([DOXYGEN])
-AM_CONDITIONAL([ENABLE_DOXYGEN],[test "x$ENABLE_DOXYGEN" != "xno"])
+AM_CONDITIONAL([ENABLE_DOCS],[test "x$ENABLE_DOCS" != "xno"])
 
 
 ################################################################################

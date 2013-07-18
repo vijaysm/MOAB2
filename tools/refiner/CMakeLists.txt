@@ -12,8 +12,12 @@ set ( MOAB_REFINER_SRCS
   )
 
 include_directories(
+    ${MOAB_BINARY_DIR}
+    ${MOAB_BINARY_DIR}/src
+    ${MOAB_BINARY_DIR}/src/parallel
     ${MOAB_SOURCE_DIR}/src
     ${MOAB_SOURCE_DIR}/src/parallel
+    ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 set_source_files_properties(

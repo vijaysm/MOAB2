@@ -1,7 +1,11 @@
   add_subdirectory(io)
 
   include_directories(
+    ${MOAB_BINARY_DIR}
+    ${MOAB_BINARY_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
     ${MOAB_SOURCE_DIR}/src
+    ${MOAB_BINARY_DIR}/src/parallel
     ${MOAB_SOURCE_DIR}/src/parallel
   )
 
@@ -40,6 +44,17 @@
   target_link_libraries( bsp_tree_test MOAB )
   add_test( TestBSPTree ${EXECUTABLE_OUTPUT_PATH}/bsp_tree_test )
 
+  add_executable( geomutiltests GeomUtilTests.cpp )
+  set_source_files_properties( GeomUtilTests.cpp
+    COMPILE_FLAGS "-DTEST ${MOAB_DEFINES}" )
+  target_link_libraries( geomutiltests MOAB )
+  add_test( TestGeomUtil ${EXECUTABLE_OUTPUT_PATH}/geomutiltests )
+
+  add_executable( range_test range_test.cpp )
+  set_source_files_properties( range_test.cpp
+    COMPILE_FLAGS "-DTEST ${MOAB_DEFINES}" )
+  target_link_libraries( range_test MOAB )
+  add_test( TestRange ${EXECUTABLE_OUTPUT_PATH}/range_test )
 
 if ( MOAB_USE_MPI AND MPI_FOUND )
 
@@ -61,14 +76,15 @@ if ( MOAB_USE_MPI AND MPI_FOUND )
     ${EXECUTABLE_OUTPUT_PATH}/mbparallelcomm_test ${MPIEXEC_POSTFLAGS} -3 ${MOAB_SOURCE_DIR}/parallel/ptest.cub )
 
   if ( MOAB_USE_HDF )
-    add_executable( mhdf_parallel parallel/mhdf_parallel.c )
     include_directories(
+      ${HDF5_INCLUDE_DIR}
       ${MOAB_SOURCE_DIR}/src/io/mhdf/include
     )
+    add_executable( mhdf_parallel parallel/mhdf_parallel.c )
     target_link_libraries( mhdf_parallel MOAB MOABpar mhdf )
     add_test( TestMHDFParallel ${EXECUTABLE_OUTPUT_PATH}/mhdf_parallel )
     set_source_files_properties( parallel/mhdf_parallel.c
-      COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}" )
+      COMPILE_FLAGS "-DTEST ${MOAB_DEFINES}" )
   endif ( MOAB_USE_HDF )
 
   add_executable ( parallel_unit_tests parallel/parallel_unit_tests.cpp )
@@ -77,6 +93,14 @@ if ( MOAB_USE_MPI AND MPI_FOUND )
     ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
     ${EXECUTABLE_OUTPUT_PATH}/parallel_unit_tests ${MPIEXEC_POSTFLAGS} ${MOAB_SOURCE_DIR}/parallel/ptest.cub )
   set_source_files_properties( parallel/parallel_unit_tests.cpp
-    COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}" )
+    COMPILE_FLAGS "-DTEST ${MOAB_DEFINES}" )
+
+  add_executable ( pcomm_serial parallel/pcomm_serial.cpp )
+  target_link_libraries( pcomm_serial MOAB )
+  add_test( TestPCommSerial
+    ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 1 ${MPIEXEC_PREFLAGS}
+    ${EXECUTABLE_OUTPUT_PATH}/pcomm_serial ${MPIEXEC_POSTFLAGS} ${MOAB_SOURCE_DIR}/parallel/ptest.cub )
+  set_source_files_properties( parallel/pcomm_serial.cpp
+    COMPILE_FLAGS "-DTEST ${MOAB_DEFINES}" )
 
 endif ( MOAB_USE_MPI AND MPI_FOUND )

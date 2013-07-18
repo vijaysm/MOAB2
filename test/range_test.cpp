@@ -1,5 +1,4 @@
 #include "moab/Range.hpp"
-#include "Internals.hpp"
 #include "TestUtil.hpp"
 
 using namespace moab;
