@@ -29,6 +29,10 @@
   \section sequence  EntitySequence & SequenceData 
 
   \subsection figure1 Figure 1: EntitySequences For One SequenceData
+   <img src="../../DG/figure1.jpg">
+
+  \ref dg-figures "List of Figures"
+
 The <I>SequenceData</I> class manages as set of arrays of per-entity values. Each
 <I>SequenceData</I> has a start and end handle denoting the block of entities for which
 the arrays contain data. The arrays managed by a <I>SequenceData</I> instance are
@@ -104,6 +108,9 @@ enforces the following four rules on its contained data:
 .
 
   \subsection figure2 Figure 2: SequenceManager and Related Classes
+   <img src="../../DG/figure2.jpg">
+
+  \ref dg-figures "List of Figures"
 
 The first three rules are required for the validity of the data model. The
 fourth rule avoids unnecessary inefficiency. It is implemented by merging such
@@ -180,6 +187,9 @@ than is required at a given time for contained objects.
 - MeshSet
 
   \subsection figure3 Figure 3: SequenceManager and Related Classes
+    <img src="../../DG/figure3.jpg">
+
+  \ref dg-figures "List of Figures"
 
 The <I>MeshSet</I> class is used to represent a single entity set instance in MOAB.
 The class is optimized to minimize storage (further possible improvements in
