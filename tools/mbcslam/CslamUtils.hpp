@@ -129,7 +129,7 @@ void departure_point_case1(CartVect & arrival_point, double t, double delta_t, C
 // break the nonconvex quads into triangles; remove the quad from the set? yes.
 // maybe radius is not needed;
 //
-ErrorCode enforce_convexity(Interface * mb, EntityHandle set);
+ErrorCode enforce_convexity(Interface * mb, EntityHandle set, int rank = 0);
 
 // looking at DP tag, create the spanning quads, write a file (with rank) and
 // then delete the new entities (vertices) and the set of quads

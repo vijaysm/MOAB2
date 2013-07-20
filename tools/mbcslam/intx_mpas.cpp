@@ -202,7 +202,7 @@ int main(int argc, char **argv)
   lagrIni<<"def0" << rank<<".h5m";
   rval = mb.write_file(lagrIni.str().c_str(), 0, 0, &covering_lagr_set, 1);
 
-  rval = enforce_convexity(&mb, covering_lagr_set);
+  rval = enforce_convexity(&mb, covering_lagr_set, rank);
   if (MB_SUCCESS != rval)
     return 1;
 

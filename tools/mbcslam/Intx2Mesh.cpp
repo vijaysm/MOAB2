@@ -1268,8 +1268,10 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
       globalID_to_handle[globalId]= new_vert;
     }
   }
-      // now, all dep points should be at their place
-      // look in the local list of q for this proc, and create all those quads and vertices if needed
+
+  // now, all dep points should be at their place
+  // look in the local list of q for this proc, and create all those quads and vertices if needed
+  // it may be an overkill, but because it does not involve communication, we do it anyway
   Range & local=Rto[my_rank];
   Range local_q = local.subset_by_dimension(2);
   // the local should have all the vertices in local_verts
