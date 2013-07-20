@@ -1207,7 +1207,6 @@ AC_CONFIG_FILES([Makefile
 		 tools/vtkMOABReaderNew/CMakeLists.txt
                  doc/Makefile
                  doc/user.dox
-                 doc/dev.dox
                  doc/config.tex
                  MeshFiles/Makefile
                  MeshFiles/unittest/Makefile
