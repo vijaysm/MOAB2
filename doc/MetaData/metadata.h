@@ -9,23 +9,23 @@
 
 /*!  \page md-contents Table of Contents
 
-	\ref meta-introduction
+  \ref meta-introduction
 
-	\ref meta-conventions
+  \ref meta-conventions
 
-	\ref meta-options
+  \ref meta-options
 
-	\ref meta-references
+  \ref meta-references
 
-	\ref appendixA
+  \ref appendixA
 
-	\ref appendixB
+  \ref appendixB
 
-	\ref appendixC
+  \ref appendixC
 
-	\ref appendixD
+  \ref appendixD
 
-	\ref appendixE
+  \ref appendixE
 
   \section meta-introduction  Introduction
 
