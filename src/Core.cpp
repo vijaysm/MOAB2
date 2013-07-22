@@ -44,6 +44,7 @@
 #include "moab/WriterIface.hpp"
 #include "moab/ScdInterface.hpp"
 #include "moab/SetIterator.hpp"
+#include "moab/Util.hpp"
 
 #include "BitTag.hpp"
 #include "DenseTag.hpp"
@@ -609,6 +610,14 @@ ErrorCode Core::serial_load_file( const char* file_name,
     Range new_ents;
     get_entities_by_handle( 0, new_ents );
     new_ents = subtract( new_ents, initial_ents );
+
+    // The gather set entities should be excluded from the file set
+    EntityHandle gather_set;
+    Range gather_ents;
+    rval = Util::gather_set_entities( this, gather_set, gather_ents );
+    if (MB_SUCCESS == rval)
+      new_ents = subtract( new_ents, gather_ents );
+
     rval = add_entities( *file_set, new_ents );
   }
 
