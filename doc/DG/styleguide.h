@@ -61,7 +61,7 @@ subdirectories in the %MOAB source code, except when implementing a new algorith
      class using it. 
    - Any names introduced into the top-level MOAB namespace should be
      sufficiently unique to avoid conflicts with other code.  If you must 
-     introduce a class to the top-level Meshkit namespace, don't choose
+     introduce a class to the top-level MOAB namespace, don't choose
      an overly genereric name like \c Point3D .
  - Constants and Macros
    - Don't use a pre-processor macro where a const variable or an inline or
@@ -69,7 +69,7 @@ subdirectories in the %MOAB source code, except when implementing a new algorith
      There is absolutely benefit to the former over the later with modern 
      compilers.  Further, using  macros bypasses typechecking that the compiler
      would otherwise do for you and if used in headers, introduce names into
-     the global rather than Meshkit namespace.
+     the global rather than MOAB namespace.
    - Don't define constants that are already provided by standard libraries.
      For example, use \c M_PI as defined in \c math.h rather than defining
      your own constant.
@@ -80,8 +80,8 @@ top-level directory.  If you commit code that violates this principal, it should
 code to a compilable state, and your second priority to make sure "make check" runs without errors.
 
 Commits to the repository should also come with a non-trivial, useful, non-verbose log message.  Oftentimes the best way to generate
-this message is to run 'svn diff > diffs', and edit the diffs file to remove specific line changes but include a comment on 
-each file that changed.  Many times it is helpful to state that 'make check runs successfully' at the end of the log message.
+this message is to run 'commit -a', and include a comment on 
+each file that changed, then Ctrl+O to write out, followed by 'Enter' and Ctrl+X.  Many times it is helpful to state that 'make check runs successfully' at the end of the log message.
 Although it would be possible and many software projects do it, we prefer not to force successful execution of the test suite 
 before every commit.  Developers should make every effort to avoid having to impose this constraint, by running a make check
 before every commit.
