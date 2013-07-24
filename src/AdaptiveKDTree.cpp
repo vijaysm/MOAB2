@@ -2033,7 +2033,7 @@ ErrorCode AdaptiveKDTree::ray_intersect_triangles( EntityHandle root,
               }
               tris_out[w] = *iter;
               dists_out[w] = tri_t;
-              ray_end = dists_out.back();
+              //ray_end = dists_out.back();
             }
           }
         }
