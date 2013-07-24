@@ -1,6 +1,6 @@
 #include "TestUtil.hpp"
 #include "moab/Core.hpp"
-#include "moab/Util.hpp"
+#include "moab/ReadUtilIface.hpp"
 
 using namespace moab;
 
@@ -80,6 +80,8 @@ void test_read_onevar()
   CHECK_ERR(rval);
 
   opts += std::string(";VARIABLE=T");
+  // Create gather set
+  opts += std::string(";GATHER_SET=");
   rval = mb.load_file(example, NULL, opts.c_str());
   CHECK_ERR(rval);
 
@@ -91,7 +93,7 @@ void test_read_onevar()
   rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 
-  // Check values of tag T0 (first level) at some strategically chosen places below
+  // Check values of tag T0 at some strategically chosen places below
   int procs = 1;
 #ifdef USE_MPI
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
@@ -100,25 +102,36 @@ void test_read_onevar()
 
   // Make check runs this test in one processor
   if (1 == procs) {
+    // Get vertices
     Range verts;
     rval = mb.get_entities_by_type(0, MBVERTEX, verts);
     CHECK_ERR(rval);
-    CHECK_EQUAL((size_t)6916, verts.size());
+    CHECK_EQUAL((size_t)6916, verts.size()); // Gather set vertices included
 
-    // Remove from vertices the gather set entities
+    // Get gather set
     EntityHandle gather_set;
-    Range gather_ents;
-    rval = Util::gather_set_entities(&mb, gather_set, gather_ents);
+    ReadUtilIface* readUtilIface;
+    mb.query_interface(readUtilIface);
+    rval = readUtilIface->get_gather_set(gather_set);
     CHECK_ERR(rval);
-    verts = subtract(verts, gather_ents);
-    CHECK_EQUAL((size_t)3458, verts.size());
 
+    // Get gather set entities
+    Range gather_ents;
+    rval = mb.get_entities_by_handle(gather_set, gather_ents);
+    CHECK_ERR(rval);
+
+    // Remove gather set vertices
+    verts = subtract(verts, gather_ents);
+    CHECK_EQUAL((size_t)3458, verts.size()); // Gather set vertices excluded
+
+    // Get all values of tag T0
     int count;
     void* Tbuf;
     rval = mb.tag_iterate(Ttag0, verts.begin(), verts.end(), count, Tbuf);
     CHECK_ERR(rval);
     CHECK_EQUAL((size_t)count, verts.size());
 
+    // Check first level values at some vertices
     const double eps = 0.0001;
     double* data = (double*) Tbuf;
     CHECK_REAL_EQUAL(233.1136, data[0 * 26], eps); // First vert
