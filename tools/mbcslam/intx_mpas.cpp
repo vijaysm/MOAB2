@@ -122,6 +122,7 @@ int main(int argc, char **argv)
   std::string extra_read_opts;
   std::string fileN= TestDir + "/mpas_p8.h5m";
   const char *filename_mesh1 = fileN.c_str();
+  bool flux_form = false;
   if (argc > 1)
   {
     int index = 1;
@@ -146,6 +147,11 @@ int main(int argc, char **argv)
       if (!strcmp(argv[index], "-O"))
       {
         extra_read_opts = std::string(argv[++index]);
+      }
+      if (!strcmp(argv[index], "-FF"))
+      {
+        flux_form= true;
+        index++;
       }
 
       index++;
@@ -181,9 +187,12 @@ int main(int argc, char **argv)
     return 1;
   // create a set with quads corresponding to each initial edge spanned with the displacement field
 
-  rval = create_span_quads(&mb, euler_set, rank);
-  if (MB_SUCCESS != rval)
-    return 1;
+  if (flux_form)
+  {
+    rval = create_span_quads(&mb, euler_set, rank);
+    if (MB_SUCCESS != rval)
+      return 1;
+  }
 
   EntityHandle covering_lagr_set;
   rval = mb.create_meshset(MESHSET_SET, covering_lagr_set);
