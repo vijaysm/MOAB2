@@ -2,7 +2,7 @@
  * Description: read a mesh, get the entities.\n
  * HelloMOAB is a simple test file which is used to read meshes from VTK file and test how many entities there are.\n
  *
- * To run: ./HelloMOAB <meshfile>\n
+ * To run: ./HelloMOAB [meshfile]\n
  * (default values can run if users don't specify a mesh file)
  */
 
