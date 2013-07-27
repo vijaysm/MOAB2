@@ -7,6 +7,12 @@ include ${MOAB_DIR}/lib/iMesh-Defs.inc
 # MESH_DIR is the top-level MOAB source directory, used to locate mesh files that come with MOAB source
 MESH_DIR="../MeshFiles/unittest"
 
+EXAMPLES = StructuredMeshSimple HelloMOAB DirectAccessWithHoles DirectAccessNoHoles
+PAREXAMPLES = HelloParMOAB ReduceExchangeTags
+EXOIIEXAMPLES = TestExodusII
+
+default: ${EXAMPLES}
+
 StructuredMeshSimple : StructuredMeshSimple.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
 
@@ -30,6 +36,9 @@ DirectAccessNoHoles: DirectAccessNoHoles.o
 
 DirectAccessNoHolesF90: DirectAccessNoHolesF90.o
 	${MOAB_CXX} -o $@ $< ${IMESH_LIBS}
+
+clean:
+	rm -rf *.o ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES}
 
 .cpp.o :
 	${MOAB_CXX} ${MOAB_CXXFLAGS} ${MOAB_INCLUDES} -DMESH_DIR=\"${MESH_DIR}\" -c $<
