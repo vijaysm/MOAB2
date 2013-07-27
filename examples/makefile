@@ -7,17 +7,33 @@ include ${MOAB_DIR}/lib/iMesh-Defs.inc
 # MESH_DIR is the top-level MOAB source directory, used to locate mesh files that come with MOAB source
 MESH_DIR="../MeshFiles/unittest"
 
-EXAMPLES = StructuredMeshSimple HelloMOAB DirectAccessWithHoles DirectAccessNoHoles GetEntities
+EXAMPLES = HelloMOAB GetEntities SetsNTags StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles 
 PAREXAMPLES = HelloParMOAB ReduceExchangeTags
+F90EXAMPLES = DirectAccessNoHolesF90
 EXOIIEXAMPLES = TestExodusII
 
 default: ${EXAMPLES}
 
+HelloMOAB : HelloMOAB.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+GetEntities: GetEntities.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+SetsNTags: SetsNTags.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
 StructuredMeshSimple : StructuredMeshSimple.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
 
-HelloMOAB : HelloMOAB.o
+DirectAccessWithHoles: DirectAccessWithHoles.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+DirectAccessNoHoles: DirectAccessNoHoles.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+DirectAccessNoHolesF90: DirectAccessNoHolesF90.o
+	${MOAB_CXX} -o $@ $< ${IMESH_LIBS}
 
 ReduceExchangeTags : ReduceExchangeTags.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
@@ -27,18 +43,6 @@ HelloMoabPar: HelloMoabPar.o
 
 TestExodusII: TestExodusII.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
-
-DirectAccessWithHoles: DirectAccessWithHoles.o
-	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
-
-DirectAccessNoHoles: DirectAccessNoHoles.o
-	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
-
-GetEntities: GetEntities.o
-	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
-
-DirectAccessNoHolesF90: DirectAccessNoHolesF90.o
-	${MOAB_CXX} -o $@ $< ${IMESH_LIBS}
 
 clean:
 	rm -rf *.o ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES}
