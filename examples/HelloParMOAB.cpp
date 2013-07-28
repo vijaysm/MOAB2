@@ -37,7 +37,7 @@ int main(int argc, char **argv)
   MPI_Comm comm = pcomm->proc_config().proc_comm();
 
   if (rank == 0)
-    cout << "reading file " << test_file_name << "\n  with options:" << options << endl
+    cout << "Reading file " << test_file_name << "\n  with options: " << options << endl
          << " on " << nprocs << " processors\n";
 
   ErrorCode rval = mb->load_file(test_file_name.c_str(), 0, options.c_str());
@@ -55,12 +55,12 @@ int main(int argc, char **argv)
 
   unsigned int nums[4]={0}; // to store the owned entities per dimension
   for (int i=0; i<4; i++) nums[i]=(int)owned_entities.num_of_dimension(i);
-  std::vector<int> rbuf(nprocs*4, 0);
+  vector<int> rbuf(nprocs*4, 0);
   MPI_Gather( nums, 4, MPI_INT, &rbuf[0], 4, MPI_INT, 0, MPI_COMM_WORLD);
   // print the stats gathered:
   if (rank == 0) {
     for (int i=0; i<nprocs; i++)
-      cout << " Shared, owned entities on proc " << i << " :" << rbuf[4*i] << " verts, " <<
+      cout << " Shared, owned entities on proc " << i << ": " << rbuf[4*i] << " verts, " <<
           rbuf[4*i+1] << " edges, " << rbuf[4*i+2] << " faces, " << rbuf[4*i+3] << " elements" << endl;
   }
 
@@ -92,7 +92,7 @@ int main(int argc, char **argv)
     cout << " \n\n After exchanging one ghost layer: \n";
     for (int i=0; i<nprocs; i++)
     {
-      cout << " Shared, owned entities on proc " << i << " :" << rbuf[4*i] << " verts, " <<
+      cout << " Shared, owned entities on proc " << i << ": " << rbuf[4*i] << " verts, " <<
           rbuf[4*i+1] << " edges, " << rbuf[4*i+2] << " faces, " << rbuf[4*i+3] << " elements" << endl;
     }
   }
