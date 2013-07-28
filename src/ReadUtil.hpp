@@ -13,7 +13,6 @@
  * 
  */
 
-
 #ifndef MB_READ_UTIL_HPP
 #define MB_READ_UTIL_HPP
 
@@ -106,8 +105,15 @@ public:
 
 
   ErrorCode assign_ids( Tag id_tag, const Range& ents, int start = 0 );
+
   ErrorCode assign_ids( Tag id_tag, const EntityHandle* ents, 
                           size_t num_ents, int start = 0 );
+
+  //! Create a new gather set with tag GATHER_SET
+  ErrorCode create_gather_set(EntityHandle& gather_set);
+
+  //! Get entity handle of an existing gather set
+  ErrorCode get_gather_set(EntityHandle& gather_set);
 };
   
 } // namespace moab

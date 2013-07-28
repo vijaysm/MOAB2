@@ -9,23 +9,23 @@
 
 /*!  \page md-contents Table of Contents
 
-	\ref meta-introduction
+  \ref meta-introduction
 
-	\ref meta-conventions
+  \ref meta-conventions
 
-	\ref meta-options
+  \ref meta-options
 
-	\ref meta-references
+  \ref meta-references
 
-	\ref appendixA
+  \ref appendixA
 
-	\ref appendixB
+  \ref appendixB
 
-	\ref appendixC
+  \ref appendixC
 
-	\ref appendixD
+  \ref appendixD
 
-	\ref appendixE
+  \ref appendixE
 
   \section meta-introduction  Introduction
 
@@ -37,7 +37,7 @@ Several specific tools are often used in concert with MOAB and bear special ment
 
 The MOAB data model consists of the following basic types:
 - <B>Entity</B>: The basic elements of topology, e.g. vertex, edge, triangle, tetrahedron, etc.  MOAB represents all types in the finite element zoo, plus polygons and polyhedra.
-- <B>Entity Set</B>: An arbitrary collection of entities and other sets.  Sets can have parent/child relations with other sets, and these relations are distinct from “contains” relations.
+- <B>Entity %Set</B>: An arbitrary collection of entities and other sets.  Sets can have parent/child relations with other sets, and these relations are distinct from “contains” relations.
 - <B>Interface</B>: The interface object through which other entities are accessed, in the sense of object-oriented-programming.  iMesh refers to the interface as the “root” set.
 - <B>Tag</B>: A piece of data that can be assigned a distinct value to each entity and entity set, and to the interface itself.  Tags have a prescribed name, size in bytes, and data type; allowed data types are integer, double, entity handle, and byte or opaque.
 .
@@ -100,7 +100,7 @@ In the geometric model, each FACE is bounded by zero or more EDGEs; other topolo
 
 Geometric entities are sometimes assigned to application-specific groups.  These groups are represented using entity sets, tagged with a “GROUP” tag whose value equals the group id.  Group sets are “set”-type, and are not tracking sets.  These sets contain the sets corresponding to geometric entities contained in the groups in the geometric model, as well as any mesh entities assigned to the group.
 
-<H3> Sense </H3>
+- <B> Sense </B>
 
 A geometric face has a natural orientation, indicated by the direction of the normal to the face; similarly, edges have a natural orientation determined by the direction of the tangent.  When faces bound regions, or edges bound faces, they do so with a sense; if a region includes a face with forward sense, that means the face's natural normal direction points out of the volume.  If a face includes an edge with forward sense, that means that if one moves along the edge in the direction of its tangent, the material of the face is on the left hand side.  The sense of a face (edge) with respect to a region (face) it bounds is stored using tags on the face (edge).
 
@@ -194,9 +194,15 @@ By default, all field data stored with the mesh is read with the mesh, and store
 
 Indicates that no mesh should be read from the file.  This option is used in conjunction with the “variable=” option, to read variables and assign them as tags to a previously-read mesh.  If this option is used, applications should pass an entity set to the read function, which should contain the mesh previously read from the file.
 
-<H3>timestep=<step_number>[, ...] </H3>
+<H3>timestep=\<step_number\>[, ...] </H3>
 
 Read the time step number whose time value is equal to or greater than the specified time value, for the specified variable(s).  Tag names for the variable(s) will be formed by appending the time step number to the variable name.  Multiple time step values can be specified, separated from each other by commas.
+
+<H3>timeval=\<time_value\>[, ...]</H3>
+
+Read the time step number whose time value is equal to or greater than the specified time value, for the
+specified variable(s). Tag names for the variable(s) will be formed by appending the time step number
+to the variable name. Multiple time step values can be specified, separated from each other by commas.
 
 \ref md-contents "Top"
 
@@ -246,19 +252,19 @@ CATEGORY/C*32.
 GEOM_SENSE_2/EH[2],
 GEOM_SENSE_N_ENTS/EH*N,
 GEOM_SENSE_N_SENSES/I*N</td>
-<td>Sets contain mesh owned by that entity; parent/child links to bounded/bounding entities in geometric model</td>
+<td>%Sets contain mesh owned by that entity; parent/child links to bounded/bounding entities in geometric model</td>
 </tr>
 <tr>
 <td>Material type</td>
 <td>S</td>
 <td>MATERIAL_SET/I</td>
-<td>Set contains entities or sets assigned a common material type</td>
+<td>%Set contains entities or sets assigned a common material type</td>
 </tr>
 <tr>
 <td>Boundary condition</td>
 <td>S</td>
 <td>DIRICHLET_SET/I, NEUMANN_SET/I</td>
-<td>Set contains entities or sets assigned a particular boundary condition; neumann sets usually contain edges (2D) or faces (3D)</td>
+<td>%Set contains entities or sets assigned a particular boundary condition; neumann sets usually contain edges (2D) or faces (3D)</td>
 </tr>
 <tr>
 <td>Parallel mesh constructs</td>
@@ -393,6 +399,36 @@ GEOM_SENSE_N_SENSES/I*N</td>
 <td>E,S</td>
 <td>Rank of other processor sharing this entity/set </td>
 </tr>
+<tr>
+<td>__PARALLEL_SHARED_HANDLES</td>
+<td>H*NP</td>
+<td>E,S</td>
+<td>Handles of this entity/set on sharing processors </td>
+</tr>
+<tr>
+<td>__PARALLEL_SHARED_PROCS</td>
+<td>I*NP</td>
+<td>E,S</td>
+<td>Ranks of other processors sharing this entity/set </td>
+</tr>
+<tr>
+<td>__PARALLEL_STATUS</td>
+<td>C*1</td>
+<td>E,S</td>
+<td>Bit-field indicating various parallel information </td>
+</tr>
+<tr>
+<td>SPECTRAL_ORDER</td>
+<td>I</td>
+<td>S</td>
+<td> Order of a spectral mesh </td>
+</tr>
+<tr>
+<td>SPECTRAL_VERTICES</td>
+<td>H*(O+1)^d</td>
+<td>E</td>
+<td> Vertices comprising a spectral element, ordered lexicographically; here, O=value of SPECTRAL_ORDER tag. </td>
+</tr>
 </table>
 
 \ref md-contents "Top"
@@ -402,7 +438,7 @@ GEOM_SENSE_N_SENSES/I*N</td>
   \subsection table3 Table 3: Translation between CCMIO options and MOAB tags.
 <Table border="1">
 <tr>
-<th> Set Type</th>
+<th> %Set Type</th>
 <th>CCMIO Construct</th>
 <th>MOAB Tag Name, Type</th>
 </tr>
@@ -575,6 +611,11 @@ size (for details on the partitioning method used, see the src/io/ReadNC.cpp sou
 
 Mesh is put into the entity set provided to the load_file function. This entity set is also annotated with
 various tags representing information read from the file. These tags are described in Table 5.
+
+Reading unstructured NC files in the HOMME format is also supported. Currently a trivial
+element-based partition is the only option for parallel reading. As the data is unstructured, it is necessary to have a connectivity file to define the vertex adjacencies. The default convention is to have a file called HommeMapping.nc in the same directory as the the variable data file. If this convention is not followed, the connectivity file can be specified with the option -O CONN=”/path/to/connectivity.nc”. An example of mbconvert using the parallel read capability is shown below:
+
+<B>  mpiexec -np 2 tools/mbconvert -O TRIVIAL_PARTITION -O DEBUG_IO=1 -o DEBUG_IO=9 -o PARALLEL=WRITE_PART /nfs2/hayes6/meshlab/homme_data/camrun.cam2.h0.0000-01-01-16200.nc output.h5m </B>
 
 Several other things to note about reading climate data files into MOAB:
 - Time-dependent variables: MOAB currently has no mechanism for time-dependent tags. Therefore, time-dependent variables are represented using one tag per timestep, with the tag name set as the variable name plus the timestep index. Thus, the first few timesteps for the variable TEMPERATURE would be represented in tags named TEMPERATURE0, TEMPERATURE1, etc.

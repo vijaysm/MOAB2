@@ -2033,7 +2033,10 @@ ErrorCode AdaptiveKDTree::ray_intersect_triangles( EntityHandle root,
               }
               tris_out[w] = *iter;
               dists_out[w] = tri_t;
-              ray_end = dists_out.back();
+              if (tris_out.size() >= (unsigned)max_ints)
+                // when we have already reached the max intx points, we cans safely reset
+                // ray_end, because we will accept new points only "closer" than the last one
+                ray_end = dists_out.back();
             }
           }
         }

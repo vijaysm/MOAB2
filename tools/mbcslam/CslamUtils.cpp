@@ -864,7 +864,7 @@ void departure_point_case1(CartVect & arrival_point, double t, double delta_t, C
 // break the nonconvex quads into triangles; remove the quad from the set? yes.
 // maybe radius is not needed;
 //
-ErrorCode enforce_convexity(Interface * mb, EntityHandle lset)
+ErrorCode enforce_convexity(Interface * mb, EntityHandle lset, int my_rank)
 {
   // look at each quad; compute all 4 angles; if one is reflex, break along that diagonal
   // replace it with 2 triangles, and remove from set;
@@ -989,7 +989,7 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset)
       }
     }
   }
-  std::cout << brokenPolys << " concave polygons were decomposed in convex ones \n";
+  std::cout << "on rank " << my_rank << " " <<  brokenPolys << " concave polygons were decomposed in convex ones \n";
   return MB_SUCCESS;
 }
 ErrorCode create_span_quads(Interface * mb, EntityHandle euler_set, int rank)
