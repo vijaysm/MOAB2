@@ -38,7 +38,7 @@ DirectAccessNoHolesF90: DirectAccessNoHolesF90.o
 ReduceExchangeTags : ReduceExchangeTags.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-HelloMoabPar: HelloMoabPar.o
+HelloParMOAB: HelloParMOAB.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
 
 TestExodusII: TestExodusII.o
