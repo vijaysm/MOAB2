@@ -26,15 +26,17 @@
 using namespace moab;
 using namespace std;
 
-string test_file_name = string(MESH_DIR) + string("/surfrandomtris.g");
+string test_file_name = string(MESH_DIR) + string("/surfrandomtris-4part.h5m");
 
 #define RC if (MB_SUCCESS != rval) return rval
 
-ErrorCode perform_lloyd_relaxation(ParallelComm *pc, Range &verts, Range &cells, Tag fixed, int num_its);
+ErrorCode perform_lloyd_relaxation(ParallelComm *pc, Range &verts, Range &cells, Tag fixed, 
+                                   int num_its, int report_its);
 
 int main(int argc, char **argv)
 {
   int num_its = 10;
+  int report_its = 1;
 
   MPI_Init(&argc, &argv);
 
@@ -80,7 +82,7 @@ int main(int argc, char **argv)
   rval = mb->tag_set_data(fixed, skin_verts, &fix_tag[0]); RC;
 
     // now perform the Lloyd relaxation
-  rval = perform_lloyd_relaxation(pcomm, verts, faces, fixed, num_its); RC;
+  rval = perform_lloyd_relaxation(pcomm, verts, faces, fixed, num_its, report_its); RC;
 
     // delete fixed tag, since we created it here
   rval = mb->tag_delete(fixed); RC;
@@ -96,7 +98,8 @@ int main(int argc, char **argv)
   return 0;
 }
 
-ErrorCode perform_lloyd_relaxation(ParallelComm *pcomm, Range &verts, Range &faces, Tag fixed, int num_its) 
+ErrorCode perform_lloyd_relaxation(ParallelComm *pcomm, Range &verts, Range &faces, Tag fixed, 
+                                   int num_its, int report_its) 
 {
   ErrorCode rval;
   Interface *mb = pcomm->get_moab();
@@ -185,14 +188,25 @@ ErrorCode perform_lloyd_relaxation(ParallelComm *pcomm, Range &verts, Range &fac
       mxdelta = std::max(delta, mxdelta);
       for (f = 0; f < 3; f++) vcentroids[3*v+f] = vnew[f];
     }
+
+      // set the centroid tag; having them only in vcentroids array isn't enough, as vertex centroids are
+      // accessed randomly in loop over faces
     rval = mb->tag_set_data(centroid, owned_verts, &vcentroids[0]); RC;
-    cout << "Max delta = " << mxdelta << endl;
-    
+
     // 2c. exchange tags on owned verts
     if (nprocs > 1) {
       rval = pcomm->exchange_tags(centroid, shared_owned_verts); RC;
     }
-    
+
+
+    if (!(nit%report_its)) {
+        // global reduce for maximum delta, then report it
+      double global_max = mxdelta;
+      if (nprocs > 1)
+        MPI_Reduce(&mxdelta, &global_max, 1, MPI_DOUBLE, MPI_MAX, 0, pcomm->comm());
+      if (1 == nprocs || !pcomm->rank()) 
+        cout << "Max delta = " << global_max << endl;
+    }
   }
   
     // write the tag back onto vertex coordinates
