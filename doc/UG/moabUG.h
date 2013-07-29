@@ -500,8 +500,8 @@ Applications calling the reader interface functions directly can specify the all
 
 The reader interface consists of the following functions:
 
-- get_node_arrays: Given the number of vertices requested, the number of geometric dimensions, and a requested start id, allocates a block of vertex handles and returns pointers to coordinate arrays in memory, along with the actual start handle for that block of vertices.
-- get_element_array: Given the number of elements requested, the number of vertices per element, the element type and the requested start id, allocates the block of elements, and returns a pointer to the connectivity array for those elements and the actual start handle for that block.  The number of vertices per element is necessary because those elements may include higher-order nodes, and MOAB stores these as part of the normal connectivity array.
+- get_node_coords: Given the number of vertices requested, the number of geometric dimensions, and a requested start id, allocates a block of vertex handles and returns pointers to coordinate arrays in memory, along with the actual start handle for that block of vertices.
+- get_element_connect: Given the number of elements requested, the number of vertices per element, the element type and the requested start id, allocates the block of elements, and returns a pointer to the connectivity array for those elements and the actual start handle for that block.  The number of vertices per element is necessary because those elements may include higher-order nodes, and MOAB stores these as part of the normal connectivity array.
 - update_adjacencies: This function takes the start handle for a block of elements and the connectivity of those elements, and updates adjacencies for those elements.  Which adjacencies are updated depends on the options set in AEntityFactory.
 .
 
@@ -515,12 +515,12 @@ ErrorCode rval = moab->get_interface("ReadUtilIface", &iface);
 // allocate a block of vertex handles and read xyz’s into them
 std::vector<double*> arrays;
 EntityHandle startv, *starth;
-rval = iface->get_node_arrays(3, num_nodes, 0, startv, arrays);
+rval = iface->get_node_coords(3, num_nodes, 0, startv, arrays);
 for (int i = 0; i < num_nodes; i++)
   infile >> arrays[0][i] >> arrays[1][i] >> arrays[2][i];
 
 // allocate block of hex handles and read connectivity into them
-rval = iface->get_element_array(num_hexes, 8, MBHEX, 0, starth);
+rval = iface->get_element_connect(num_hexes, 8, MBHEX, 0, starth);
 for (int i = 0; i < 8*num_hexes; i++)
   infile >> starth[i];
 
@@ -531,8 +531,8 @@ for (int i = 0; i < 8*num_hexes; i++)
 
 The writer interface, declared in WriteUtilIface, provides functions that support writing vertex coordinates and element connectivity to storage locations input by the application.  Assembling these data is a common task for writing mesh, and can be non-trivial when exporting only subsets of a mesh.  The writer interface declares the following functions:
 
-- get_node_arrays: Given already-allocated memory and the number of vertices and dimensions, and a range of vertices, this function writes vertex coordinates to that memory.  If a tag is input, that tag is also written with integer vertex ids, starting with 1, corresponding to the order the vertices appear in that sequence (these ids are used to write the connectivity array in the form of vertex indices).
-- get_element_array: Given a range of elements and the tag holding vertex ids, and a pointer to memory, the connectivity of the specified elements are written to that memory, in terms of the indices referenced by the specified tag.  Again, the number of vertices per element is input, to allow the direct output of higher-order vertices.
+- get_node_coords: Given already-allocated memory and the number of vertices and dimensions, and a range of vertices, this function writes vertex coordinates to that memory.  If a tag is input, that tag is also written with integer vertex ids, starting with 1, corresponding to the order the vertices appear in that sequence (these ids are used to write the connectivity array in the form of vertex indices).
+- get_element_connect: Given a range of elements and the tag holding vertex ids, and a pointer to memory, the connectivity of the specified elements are written to that memory, in terms of the indices referenced by the specified tag.  Again, the number of vertices per element is input, to allow the direct output of higher-order vertices.
 - gather_nodes_from_elements: Given a range of elements, this function returns the range of vertices used by those elements.  If a bit-type tag is input, vertices returned are also marked with 0x1 using that tag.  If no tag is input, the implementation of this function uses its own bit tag for marking, to avoid using an n2 algorithm for gathering vertices.
 - reorder: Given a permutation vector, this function reorders the connectivity for entities with specified type and number of vertices per entity to match that permutation.  This function is needed for writing connectivity into numbering systems other than that used internally in MOAB.
 .
@@ -557,11 +557,11 @@ iface->assign_ids(verts, 0, 1);
 // allocate space for coordinates & write them
 std::vector<double*> arrays(3);
 for (int i = 0; i < 3; i++) arrays[i] = new double[verts.size()];
-iface->get_node_arrays(3, verts.size(), verts, 0, 1, arrays);
+iface->get_node_coords(3, verts.size(), verts, 0, 1, arrays);
 
 // put connect’y in array, in the form of indices into vertex array
 std::vector<int> conn(8*hexes.size());
-iface->get_element_array(hexes.size(), 8, 0, hexes, 0, 1, &conn[0]);
+iface->get_element_connect(hexes.size(), 8, 0, hexes, 0, 1, &conn[0]);
 \endcode
 
  \ref contents
