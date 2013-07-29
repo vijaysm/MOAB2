@@ -8,7 +8,7 @@ include ${MOAB_DIR}/lib/iMesh-Defs.inc
 MESH_DIR="../MeshFiles/unittest"
 
 EXAMPLES = HelloMOAB GetEntities SetsNTags StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles 
-PAREXAMPLES = HelloParMOAB ReduceExchangeTags
+PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation
 F90EXAMPLES = DirectAccessNoHolesF90
 EXOIIEXAMPLES = TestExodusII
 
@@ -21,6 +21,9 @@ GetEntities: GetEntities.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 SetsNTags: SetsNTags.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+LloydRelaxation: LloydRelaxation.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 StructuredMeshSimple : StructuredMeshSimple.o
