@@ -204,6 +204,10 @@ Read the time step number whose time value is equal to or greater than the speci
 specified variable(s). Tag names for the variable(s) will be formed by appending the time step number
 to the variable name. Multiple time step values can be specified, separated from each other by commas.
 
+<H3>gather_set[=\<rank\>] </H3>
+
+Create a gather set (associated with tag GATHER_SET) on one processor with the specified rank, to duplicate entities on other processors. If the rank is not specified, it will be rank 0 by default. If an invalid rank is passed, no gather set will be created. Gather set is specially used by HOMME, MPAS, and any other unstructured grid.
+
 \ref md-contents "Top"
 
   \section meta-references References
