@@ -29,7 +29,7 @@
   \section sequence  EntitySequence & SequenceData 
 
   \subsection figure1 Figure 1: EntitySequences For One SequenceData
-   <img src="../../DG/figure1.jpg">
+   <img src="../DG/figure1.jpg">
 
   \ref dg-figures "List of Figures"
 
@@ -108,7 +108,7 @@ enforces the following four rules on its contained data:
 .
 
   \subsection figure2 Figure 2: SequenceManager and Related Classes
-   <img src="../../DG/figure2.jpg">
+   <img src="../DG/figure2.jpg">
 
   \ref dg-figures "List of Figures"
 
@@ -187,7 +187,7 @@ than is required at a given time for contained objects.
 - MeshSet
 
   \subsection figure3 Figure 3: SequenceManager and Related Classes
-    <img src="../../DG/figure3.jpg">
+    <img src="../DG/figure3.jpg">
 
   \ref dg-figures "List of Figures"
 
