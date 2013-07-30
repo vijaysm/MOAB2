@@ -6894,12 +6894,10 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
   
     // take all shared entities if incoming list is empty
     Range entities;
-    if (entities_in.empty()) {
+    if (entities_in.empty()) 
       std::copy(sharedEnts.begin(), sharedEnts.end(), range_inserter(entities));
-    }
-    else 
-      entities = entities_in;
-  
+    else entities = entities_in;
+
     int dum_ack_buff;
 
     for (ind = 0, sit = buffProcs.begin(); sit != buffProcs.end(); sit++, ind++) {
@@ -6910,7 +6908,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       result = filter_pstatus(tag_ents, PSTATUS_SHARED, PSTATUS_AND, *sit);
       RRA("Failed pstatus AND check.");
     
-      // remote nonowned entities
+      // remove nonowned entities
       if (!tag_ents.empty()) {
         result = filter_pstatus(tag_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);
         RRA("Failed pstatus NOT check.");
@@ -6998,7 +6996,10 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     assert(src_tags.size() == dst_tags.size());
     if (src_tags != dst_tags) {
       std::vector<unsigned char> data;
-      Range owned_ents(entities_in);
+      Range owned_ents;
+      if (entities_in.empty()) 
+        std::copy(sharedEnts.begin(), sharedEnts.end(), range_inserter(entities));
+      else owned_ents = entities_in;
       result = filter_pstatus(owned_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);
       RRA("Failure to get subset of owned entities");
   
