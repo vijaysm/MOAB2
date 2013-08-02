@@ -31,7 +31,10 @@ CGM_LDFLAGS = @CGM_LDFLAGS@
 CGM_LTFLAGS = @CGM_LTFLAGS@
 CGM_LIBS = @CGM_LIBS@
 
-LDADD = libdagmc.la $(top_builddir)/src/libMOAB.la  $(CGM_LDFLAGS) $(CGM_LIBS)
+LDADD = libdagmc.la $(top_builddir)/src/libMOAB.la   
+if HAVE_CGM
+ LDADD += $(CGM_DIR)/lib/libcgm.la 
+endif
 
 TESTS = 
 if HDF5_FILE
