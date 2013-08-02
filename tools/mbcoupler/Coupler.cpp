@@ -549,6 +549,7 @@ ErrorCode Coupler::interpolate(Coupler::Method *methods,
       tinterp.vi_wr[5*t+2] = tl_tmp->vi_rd[3*t+2];
       tinterp.vi_wr[5*t+3] = methods[i];
       tinterp.vi_wr[5*t+4] = i;
+      tinterp.vr_wr[t] = 0.0;
       tinterp.inc_n();
       t++;
     }

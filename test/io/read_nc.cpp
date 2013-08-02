@@ -120,7 +120,7 @@ void test_read_eul_onevar()
 #endif
 
   const double eps = 0.0001;
-  double val[4 * 26];
+  double val[8 * 26];
 
   if (1 == procs) {
     Range global_quads;
@@ -128,13 +128,18 @@ void test_read_eul_onevar()
     CHECK_ERR(rval);
     CHECK_EQUAL((size_t)4608, global_quads.size());
 
-    EntityHandle gloabl_quad_ents[] = {global_quads[0], global_quads[4559], global_quads[48], global_quads[4607]};
-    rval = mb.tag_get_data(Ttag0, &gloabl_quad_ents[0], 4, val);
+    EntityHandle gloabl_quad_ents[] = {global_quads[0], global_quads[2255], global_quads[2304], global_quads[4559],
+                                       global_quads[48], global_quads[2303], global_quads[2352], global_quads[4607]};
+    rval = mb.tag_get_data(Ttag0, &gloabl_quad_ents[0], 8, val);
 
-    CHECK_REAL_EQUAL(252.8529, val[0], eps); // First global quad
-    CHECK_REAL_EQUAL(205.3905, val[26], eps); // 4660th global quad
-    CHECK_REAL_EQUAL(252.7116, val[52], eps); // 49th global quad
-    CHECK_REAL_EQUAL(200.6828, val[78], eps); // Last global quad
+    CHECK_REAL_EQUAL(252.8529, val[0 * 26], eps); // First global quad
+    CHECK_REAL_EQUAL(234.8390, val[1 * 26], eps); // 2256th global quad
+    CHECK_REAL_EQUAL(232.6458, val[2 * 26], eps); // 2305th global quad
+    CHECK_REAL_EQUAL(205.3905, val[3 * 26], eps); // 4560th global quad
+    CHECK_REAL_EQUAL(252.7116, val[4 * 26], eps); // 49th global quad
+    CHECK_REAL_EQUAL(232.6670, val[5 * 26], eps); // 2304th global quad
+    CHECK_REAL_EQUAL(234.6922, val[6 * 26], eps); // 2353th global quad
+    CHECK_REAL_EQUAL(200.6828, val[7 * 26], eps); // Last global quad
   }
   else if (2 == procs) {
     Range local_quads;
@@ -142,16 +147,20 @@ void test_read_eul_onevar()
     CHECK_ERR(rval);
     CHECK_EQUAL((size_t)2304, local_quads.size());
 
-    EntityHandle local_quad_ents[] = {local_quads[0], local_quads[2303]};
-    rval = mb.tag_get_data(Ttag0, &local_quad_ents[0], 2, val);
+    EntityHandle local_quad_ents[] = {local_quads[0], local_quads[1151], local_quads[1152], local_quads[2303]};
+    rval = mb.tag_get_data(Ttag0, &local_quad_ents[0], 4, val);
 
     if (0 == rank) {
-      CHECK_REAL_EQUAL(252.8529, val[0], eps); // First local quad, first global quad
-      CHECK_REAL_EQUAL(205.3905, val[26], eps); // Last local quad, 4660th global quad
+      CHECK_REAL_EQUAL(252.8529, val[0 * 26], eps); // First local quad, first global quad
+      CHECK_REAL_EQUAL(234.8390, val[1 * 26], eps); // Median local quad, 2256th global quad
+      CHECK_REAL_EQUAL(232.6458, val[2 * 26], eps); // Median local quad, 2305th global quad
+      CHECK_REAL_EQUAL(205.3905, val[3 * 26], eps); // Last local quad, 4560th global quad
     }
     else if (1 == rank) {
-      CHECK_REAL_EQUAL(252.7116, val[0], eps); // First local quad, 49th global quad
-      CHECK_REAL_EQUAL(200.6828, val[26], eps); // Last local quad, last global quad
+      CHECK_REAL_EQUAL(252.7116, val[0 * 26], eps); // First local quad, 49th global quad
+      CHECK_REAL_EQUAL(232.6670, val[1 * 26], eps); // Median local quad, 2304th global quad
+      CHECK_REAL_EQUAL(234.6922, val[2 * 26], eps); // Median local quad, 2353th global quad
+      CHECK_REAL_EQUAL(200.6828, val[3 * 26], eps); // Last local quad, last global quad
     }
   }
 }
@@ -303,6 +312,60 @@ void test_read_fv_onevar()
 
   rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
+
+  // Check values of tag T0 (first level) at some strategically chosen places below
+  int rank = 0;
+  int procs = 1;
+#ifdef USE_MPI
+  ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
+  rank = pcomm->proc_config().proc_rank();
+  procs = pcomm->proc_config().proc_size();
+#endif
+
+  const double eps = 0.0001;
+  double val[8 * 26];
+
+  if (1 == procs) {
+    Range global_quads;
+    rval = mb.get_entities_by_type(0, MBQUAD, global_quads);
+    CHECK_ERR(rval);
+    CHECK_EQUAL((size_t)3312, global_quads.size());
+
+    EntityHandle gloabl_quad_ents[] = {global_quads[0], global_quads[1619], global_quads[1656], global_quads[3275],
+                                       global_quads[36], global_quads[1655], global_quads[1692], global_quads[3311]};
+    rval = mb.tag_get_data(Ttag0, &gloabl_quad_ents[0], 8, val);
+
+    CHECK_REAL_EQUAL(253.6048, val[0 * 26], eps); // First global quad
+    CHECK_REAL_EQUAL(232.2170, val[1 * 26], eps); // 1620th global quad
+    CHECK_REAL_EQUAL(232.7454, val[2 * 26], eps); // 1657th global quad
+    CHECK_REAL_EQUAL(210.2581, val[3 * 26], eps); // 3276th global quad
+    CHECK_REAL_EQUAL(253.6048, val[4 * 26], eps); // 37th global quad
+    CHECK_REAL_EQUAL(232.9553, val[5 * 26], eps); // 1656th global quad
+    CHECK_REAL_EQUAL(232.1704, val[6 * 26], eps); // 1693th global quad
+    CHECK_REAL_EQUAL(210.2581, val[7 * 26], eps); // Last global quad
+  }
+  else if (2 == procs) {
+    Range local_quads;
+    rval = mb.get_entities_by_type(0, MBQUAD, local_quads);
+    CHECK_ERR(rval);
+    CHECK_EQUAL((size_t)1656, local_quads.size());
+
+    EntityHandle local_quad_ents[] = {local_quads[0], local_quads[827], local_quads[828], local_quads[1655]};
+    rval = mb.tag_get_data(Ttag0, &local_quad_ents[0], 4, val);
+
+    if (0 == rank) {
+      CHECK_REAL_EQUAL(253.6048, val[0 * 26], eps); // First local quad, first global quad
+      CHECK_REAL_EQUAL(232.2170, val[1 * 26], eps); // Median local quad, 1620th global quad
+      CHECK_REAL_EQUAL(232.7454, val[2 * 26], eps); // Median local quad, 1657th global quad
+      CHECK_REAL_EQUAL(210.2581, val[3 * 26], eps); // Last local quad, 3276th global quad
+    }
+    else if (1 == rank) {
+      CHECK_REAL_EQUAL(253.6048, val[0 * 26], eps); // First local quad, 37th global quad
+      CHECK_REAL_EQUAL(232.9553, val[1 * 26], eps); // Median local quad, 1656th global quad
+      CHECK_REAL_EQUAL(232.1704, val[2 * 26], eps); // Median local quad, 1693th global quad
+      CHECK_REAL_EQUAL(210.2581, val[3 * 26], eps); // Last local quad, last global quad
+    }
+  }
 }
 
 void test_read_fv_onetimestep()

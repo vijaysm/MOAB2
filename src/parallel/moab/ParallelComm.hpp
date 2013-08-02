@@ -291,26 +291,38 @@ namespace moab {
     /** \brief Exchange tags for all shared and ghosted entities
      * This function should be called collectively over the communicator for this ParallelComm.
      * If this version is called, all ghosted/shared entities should have a value for this
-     * tag (or the tag should have a default value).
-     * \param tags Vector of tag handles to be exchanged
+     * tag (or the tag should have a default value).  If the entities vector is empty, all shared entities
+     * participate in the exchange.  If a proc has no owned entities this function must still be called
+     * since it is collective.
+     * \param src_tags Vector of tag handles to be exchanged
+     * \param dst_tags Tag handles to store the tags on the non-owning procs
+     * \param entities Entities for which tags are exchanged
      */
     ErrorCode exchange_tags( const std::vector<Tag> &src_tags,
-			     const  std::vector<Tag> &dst_tags,
-			     const Range &entities);
+                             const  std::vector<Tag> &dst_tags,
+                             const Range &entities);
   
     /** \brief Exchange tags for all shared and ghosted entities
-     * This function should be called collectively over the communicator for this ParallelComm
+     * This function should be called collectively over the communicator for this ParallelComm.
+     * If the entities vector is empty, all shared entities
+     * participate in the exchange.  If a proc has no owned entities this function must still be called
+     * since it is collective.
      * \param tag_name Name of tag to be exchanged
+     * \param entities Entities for which tags are exchanged
      */
     ErrorCode exchange_tags( const char *tag_name,
-			     const Range &entities);
+                             const Range &entities);
   
     /** \brief Exchange tags for all shared and ghosted entities
-     * This function should be called collectively over the communicator for this ParallelComm
+     * This function should be called collectively over the communicator for this ParallelComm.  
+     * If the entities vector is empty, all shared entities
+     * participate in the exchange.  If a proc has no owned entities this function must still be called
+     * since it is collective.
      * \param tagh Handle of tag to be exchanged
+     * \param entities Entities for which tags are exchanged
      */
     ErrorCode exchange_tags( Tag tagh,
-			     const Range &entities);
+                             const Range &entities);
   
     /** \brief Perform data reduction operation for all shared and ghosted entities
      * This function should be called collectively over the communicator for this ParallelComm.

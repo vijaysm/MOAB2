@@ -451,13 +451,18 @@ AC_SUBST(PNETCDF_LIBS)
 #                             Documentation
 #################################################################################
 AC_ARG_ENABLE([docs],
-[AC_HELP_STRING([--enable-docs],[Specify directory where Doxygen program is installed])
-AC_HELP_STRING([--disable-docs],[Do not generate API documentation (default)])],
-                        [ENABLE_DOCS="$enableval"],[ENABLE_DOCS=no] )
-if test "x$ENABLE_DOCS" != "xno"; then
-  AC_PATH_PROG( [DOXYGEN], [doxygen], [no] )
+[AC_HELP_STRING([--enable-docs],[indicate to check for doxygen installation])],
+                        [ENABLE_DOCS=yes],[ENABLE_DOCS=no] )
+AC_ARG_WITH([doxygen],
+[AC_HELP_STRING([--with-doxygen=DIR], [Specify directory where Doxygen program is installed. By default, it is /usr/bin])],
+[WITH_DOXYGEN="$withval"], [WITH_DOXYGEN=no])
+
+if test "x$WITH_DOXYGEN" != "xno"; then
+  AC_PATH_PROGS( [DOXYGEN], [doxygen], [no],[$WITH_DOXYGEN] )
+else
+  AC_PATH_PROGS( [DOXYGEN], [doxygen], [no],[$PATH])
 fi
-if test "x$ENABLE_DOCS" != "xno"; then
+if test "x$ENABLE_DOCS" = "xyes"; then
   if test "x$DOXYGEN" = "xno"; then
     AC_MSG_ERROR("Doxygen executable not found.")
   fi
@@ -1141,6 +1146,7 @@ AC_SUBST(CGM_CPPFLAGS)
 AC_SUBST(CGM_LDFLAGS)
 AC_SUBST(CGM_LTFLAGS)
 AC_SUBST(CGM_LIBS)
+AC_SUBST(CGM_DIR)
 
 AM_CONDITIONAL( HAVE_CGM, [test "x$CGM_MISSING" = "xno"] )
 
