@@ -25,17 +25,13 @@
  * MOAB's API is documented in the moab::Interface class.  Questions and comments should be sent to moab-dev
  * _at_ mcs.anl.gov.
  *
- * \ref h5mmain "H5M File Format API"
- *
  * \ref userguide "User's Guide (MOAB 4.6)"
  *
  * \ref developerguide "Developer's Guide (MOAB 4.6)"
  *
- * \ref styleguide "Coding Style Guide"
- *
  * \ref metadata "I/O and Meta-Data Storage Conventions in MOAB"
  *
- * \ref The "ITAPS Interfaces"
+ * <a href="pages.html">Full List of Documents</a>
  */
 
 #ifndef MOAB_INTERFACE_HPP
