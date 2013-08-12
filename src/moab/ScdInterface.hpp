@@ -112,7 +112,10 @@ public:
 
     //! Partition method enumeration; these strategies are described in comments for
     //! compute_partition_alljorkori, compute_partition_alljkbal, compute_partition_sqij, and compute_partition_sqjk
-  enum PartitionMethod {NOPART=0, ALLJORKORI, ALLJKBAL, SQIJ, SQJK, SQIJK};
+  enum PartitionMethod {ALLJORKORI=0, ALLJKBAL, SQIJ, SQJK, SQIJK, TRIVIAL, NOPART};
+
+    //! Partition method names
+  static const char *PartitionMethodNames[NOPART];
 
     //! partition method used to partition global parametric space
   int partMethod;

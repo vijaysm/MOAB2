@@ -1332,23 +1332,28 @@ void test_parallel_partitions()
   
     // alljorkori
     rval = test_parallel_partition(gdims, nprocs, ScdParData::ALLJORKORI);
-    if (MB_SUCCESS != rval) fails++;
+    if (MB_SUCCESS != rval) 
+      fails++;
     
     // alljkbal
     rval = test_parallel_partition(gdims, nprocs, ScdParData::ALLJKBAL);
-    if (MB_SUCCESS != rval) fails++;
+    if (MB_SUCCESS != rval) 
+      fails++;
     
     // sqij
     rval = test_parallel_partition(gdims, nprocs, ScdParData::SQIJ);
-    if (MB_SUCCESS != rval) fails++;
+    if (MB_SUCCESS != rval) 
+      fails++;
     
     // sqjk
     rval = test_parallel_partition(gdims, nprocs, ScdParData::SQJK);
-    if (MB_SUCCESS != rval) fails++;
+    if (MB_SUCCESS != rval) 
+      fails++;
 
       // sqijk
     rval = test_parallel_partition(gdims, nprocs, ScdParData::SQIJK);
-    if (MB_SUCCESS != rval) fails++;
+    if (MB_SUCCESS != rval) 
+      fails++;
   }
 
   if (fails) CHECK_ERR(MB_FAILURE);

@@ -20,7 +20,9 @@
         
 namespace moab 
 {
-    
+
+const char *ScdParData::PartitionMethodNames[] = {"alljorkori", "alljkbal", "sqij", "sqjk", "trivial", "nopart"};
+
 ScdInterface::ScdInterface(Core *imp, bool boxes) 
         : mbImpl(imp), 
           searchedBoxes(false),
@@ -323,7 +325,7 @@ ScdBox::ScdBox(ScdInterface *impl, EntityHandle bset,
         : scImpl(impl), boxSet(bset), vertDat(NULL), elemSeq(NULL), startVertex(0), startElem(0)
 {
   for (int i = 0; i < 6; i++) boxDims[i] = 0;
-  for (int i = 0; i < 2; i++) locallyPeriodic[i] = false;
+  for (int i = 0; i < 3; i++) locallyPeriodic[i] = false;
   VertexSequence *vseq = dynamic_cast<VertexSequence *>(seq1);
   if (vseq) vertDat = dynamic_cast<ScdVertexData*>(vseq->data());
   if (vertDat) {
@@ -676,13 +678,6 @@ ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, EntityHandle se
 #endif
 }
 
-#ifndef USE_MPI
-ErrorCode ScdInterface::get_neighbor_alljkbal(int , int ,
-                                              const int * const , const int * const , const int * const , 
-                                              int &, int *, int *, int *) 
-{
-  return MB_FAILURE;
-#else
 ErrorCode ScdInterface::get_neighbor_alljkbal(int np, int pfrom,
                                               const int * const gdims, const int * const gperiodic, const int * const dijk, 
                                               int &pto, int *rdims, int *facedims, int *across_bdy)
@@ -780,16 +775,8 @@ ErrorCode ScdInterface::get_neighbor_alljkbal(int np, int pfrom,
   assert(-1 == pto || (facedims[5] <= ldims[5]));
   
   return MB_SUCCESS;
-#endif  
 }
 
-#ifndef USE_MPI
-ErrorCode ScdInterface::get_neighbor_sqij(int , int ,
-                                          const int * const , const int * const , const int * const , 
-                                          int &, int *, int *, int *) 
-{
-  return MB_FAILURE;
-#else
 ErrorCode ScdInterface::get_neighbor_sqij(int np, int pfrom,
                                           const int * const gdims, const int * const gperiodic, const int * const dijk, 
                                           int &pto, int *rdims, int *facedims, int *across_bdy)
@@ -909,16 +896,8 @@ ErrorCode ScdInterface::get_neighbor_sqij(int np, int pfrom,
   assert (-1 == pto || (facedims[2] >= ldims[2] && facedims[5] <= ldims[5]));
 
   return MB_SUCCESS;
-#endif  
 }
 
-#ifndef USE_MPI
-ErrorCode ScdInterface::get_neighbor_sqjk(int , int ,
-                                          const int * const , const int * const , const int * const , 
-                                          int &, int *, int *, int *)
-{
-  return MB_FAILURE;
-#else
 ErrorCode ScdInterface::get_neighbor_sqjk(int np, int pfrom,
                                           const int * const gdims, const int * const gperiodic, const int * const dijk, 
                                           int &pto, int *rdims, int *facedims, int *across_bdy)
@@ -1015,16 +994,8 @@ ErrorCode ScdInterface::get_neighbor_sqjk(int np, int pfrom,
   assert(-1 == pto || (facedims[2] >= ldims[2] && facedims[5] <= ldims[5]));
 
   return MB_SUCCESS;
-#endif  
 }
 
-#ifndef USE_MPI
-ErrorCode ScdInterface::get_neighbor_sqijk(int , int ,
-                                          const int * const , const int * const , const int * const , 
-                                          int &, int *, int *, int *)
-{
-  return MB_FAILURE;
-#else
 ErrorCode ScdInterface::get_neighbor_sqijk(int np, int pfrom,
                                            const int * const gdims, const int * const gperiodic, const int * const dijk, 
                                            int &pto, int *rdims, int *facedims, int *across_bdy)
@@ -1106,16 +1077,8 @@ ErrorCode ScdInterface::get_neighbor_sqijk(int np, int pfrom,
 #endif  
 
   return MB_SUCCESS;
-#endif  
 }
 
-#ifndef USE_MPI
-ErrorCode ScdInterface::get_neighbor_alljorkori(int , int ,
-                                                const int * const , const int * const , const int * const , 
-                                                int &, int *, int *, int *) 
-{
-  return MB_FAILURE;
-#else
 ErrorCode ScdInterface::get_neighbor_alljorkori(int np, int pfrom,
                                                 const int * const gdims, const int * const gperiodic, const int * const dijk, 
                                                 int &pto, int *rdims, int *facedims, int *across_bdy)
@@ -1199,7 +1162,6 @@ ErrorCode ScdInterface::get_neighbor_alljorkori(int np, int pfrom,
   assert(-1 == pto || (facedims[2] >= ldims[2] && facedims[5] <= ldims[5]));
 
   return rval;
-#endif  
 }
   
   //! get shared vertices for alljorkori partition scheme

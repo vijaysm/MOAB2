@@ -42,10 +42,12 @@ int main(int argc, char**argv)
 {
   if (argc < 2) {
     std::cout << "Usage: " << argv[0] << " <#proc> [<imax> [<jmax> <kmax>]]" << std::endl;
-    exit(1);
+    std::cout << "Using default parameters for autotest purposes." << std::endl;
+    np = 4;
+    gdims[0] = gdims[1] = gdims[2] = 0;
+    gdims[3] = gdims[4] = gdims[5] = 100;
   }
-  
-  if (argc < 3) {
+  else if (argc < 3) {
     np = atoi(argv[1]);
     gdims[0] = gdims[1] = gdims[2] = 0;
     gdims[3] = gdims[4] = gdims[5] = 100;
