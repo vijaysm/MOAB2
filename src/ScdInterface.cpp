@@ -248,7 +248,7 @@ Tag ScdInterface::box_periodic_tag(bool create_if_missing)
 {
   if (boxPeriodicTag || !create_if_missing) return boxPeriodicTag;
 
-  ErrorCode rval = mbImpl->tag_get_handle("BOX_PERIODIC", 2, MB_TYPE_INTEGER, 
+  ErrorCode rval = mbImpl->tag_get_handle("BOX_PERIODIC", 3, MB_TYPE_INTEGER, 
                                           boxPeriodicTag, MB_TAG_SPARSE|MB_TAG_CREAT);
   if (MB_SUCCESS != rval) return 0;
   return boxPeriodicTag;
@@ -693,7 +693,7 @@ ErrorCode ScdInterface::get_neighbor_alljkbal(int np, int pfrom,
   }
   
   pto = -1;
-  across_bdy[0] = across_bdy[1] = 0;
+  across_bdy[0] = across_bdy[1] = across_bdy[2] = 0;
   
   int ldims[6], pijk[3], lperiodic[2];
   ErrorCode rval = compute_partition_alljkbal(np, pfrom, gdims, gperiodic, 
@@ -801,7 +801,7 @@ ErrorCode ScdInterface::get_neighbor_sqij(int np, int pfrom,
   }
   
   pto = -1;
-  across_bdy[0] = across_bdy[1] = 0;
+  across_bdy[0] = across_bdy[1] = across_bdy[2] = 0;
   int lperiodic[3], pijk[3], ldims[6];
   ErrorCode rval = compute_partition_sqij(np, pfrom, gdims, gperiodic, ldims, lperiodic, pijk);
   if (MB_SUCCESS != rval) return rval;
@@ -929,7 +929,7 @@ ErrorCode ScdInterface::get_neighbor_sqjk(int np, int pfrom,
   }
   
   pto = -1;
-  across_bdy[0] = across_bdy[1] = 0;
+  across_bdy[0] = across_bdy[1] = across_bdy[2] = 0;
   int pijk[3], lperiodic[3], ldims[6];
   ErrorCode rval = compute_partition_sqjk(np, pfrom, gdims, gperiodic, ldims, lperiodic, pijk);
   if (MB_SUCCESS != rval) return rval;
@@ -952,7 +952,7 @@ ErrorCode ScdInterface::get_neighbor_sqjk(int np, int pfrom,
   pto = pfrom;
   int dj = (gdims[4] - gdims[1]) / pijk[1], jextra = (gdims[4] - gdims[1]) % dj,
       dk = (gdims[5] == gdims[2] ? 0 : (gdims[5] - gdims[2]) / pijk[2]), kextra = (gdims[5] - gdims[2]) - dk*pijk[2];
-  
+  assert((dj*pijk[1] + jextra == (gdims[4]-gdims[1])) && (dk*pijk[2] + kextra == (gdims[5]-gdims[2])));
   if (0 != dijk[1]) {
     pto = (nj + dijk[1] + pijk[1]) % pijk[1]; // get pto's ni value
     pto = nk*pijk[1] + pto;  // then convert to pto
@@ -993,7 +993,7 @@ ErrorCode ScdInterface::get_neighbor_sqjk(int np, int pfrom,
       facedims[5] = facedims[2];
       rdims[5] = ldims[2];
       rdims[2] -= dk;
-      if (nk < kextra) rdims[2]--;
+      if (pto/pijk[1] < kextra) rdims[2]--;
     }
     else {
       facedims[2] = facedims[5];
@@ -1019,6 +1019,97 @@ ErrorCode ScdInterface::get_neighbor_sqjk(int np, int pfrom,
 }
 
 #ifndef USE_MPI
+ErrorCode ScdInterface::get_neighbor_sqijk(int , int ,
+                                          const int * const , const int * const , const int * const , 
+                                          int &, int *, int *, int *)
+{
+  return MB_FAILURE;
+#else
+ErrorCode ScdInterface::get_neighbor_sqijk(int np, int pfrom,
+                                           const int * const gdims, const int * const gperiodic, const int * const dijk, 
+                                           int &pto, int *rdims, int *facedims, int *across_bdy)
+{
+  if (gperiodic[0] || gperiodic[1] || gperiodic[2]) return MB_FAILURE;
+  
+  pto = -1;
+  across_bdy[0] = across_bdy[1] = across_bdy[2] = 0;
+  int pijk[3], lperiodic[3], ldims[6];
+  ErrorCode rval = compute_partition_sqijk(np, pfrom, gdims, gperiodic, ldims, lperiodic, pijk);
+  if (MB_SUCCESS != rval) return rval;
+  assert(pijk[0] * pijk[1] * pijk[2] == np);
+  pto = -1;
+  bool top[3] = {false, false, false}, bot[3] = {false, false, false};
+    // nijk: rank in i/j/k direction
+  int nijk[3] = {pfrom%pijk[0], (pfrom%(pijk[0]*pijk[1]))/pijk[0], pfrom/(pijk[0]*pijk[1])};
+  
+  for (int i = 0; i < 3; i++) {
+    if (nijk[i] == pijk[i]-1) top[i] = true;
+    if (!nijk[i]) bot[i] = true;
+    if ((!gperiodic[i] && bot[i] && -1 == dijk[i]) || // downward && not periodic
+        (!gperiodic[i] && top[i] && 1 == dijk[i])) // upward && not periodic
+      return MB_SUCCESS;
+  }
+
+  std::copy(ldims, ldims+6, facedims);
+  std::copy(ldims, ldims+6, rdims);
+  pto = pfrom;
+  int delijk[3], extra[3];
+    // nijk_to: rank of pto in i/j/k direction
+  int nijk_to[3];
+  for (int i = 0; i < 3; i++) {
+    delijk[i] = (gdims[i+3] == gdims[i] ? 0 : (gdims[i+3] - gdims[i])/pijk[i]);
+    extra[i] = (gdims[i+3]-gdims[i]) % delijk[i];
+    nijk_to[i] = (nijk[i]+dijk[i]+pijk[i]) % pijk[i];
+  }
+  pto = nijk_to[2]*pijk[0]*pijk[1] + nijk_to[1]*pijk[0] + nijk_to[0];
+  assert (pto >= 0 && pto < np);
+  for (int i = 0; i < 3; i++) {
+    if (0 != dijk[i]) {
+      if (-1 == dijk[i]) {
+        facedims[i+3] = facedims[i];
+        if (bot[i]) {
+            // going across lower periodic bdy in i
+          rdims[i+3] = gdims[i+3]+1; // +1 because ldims[4] on remote proc is gdims[4]+1
+          across_bdy[i] = -1;
+        }
+        else {
+          rdims[i+3] = ldims[i];
+        }
+        rdims[i] = rdims[i+3] - delijk[i];
+        if (nijk[i] < extra[i]) rdims[i]--;
+      }
+      else {
+        if (top[i]) {
+          // going across upper periodic bdy in i
+          rdims[i] = gdims[i];
+          facedims[i+3] = gdims[i];
+          across_bdy[i] = 1;
+        }
+        else {
+          rdims[i] = ldims[i+3];
+        }
+        facedims[i] = facedims[i+3];
+        rdims[i+3] = rdims[i] + delijk[i];
+        if (nijk[i] < extra[i]) rdims[i+3]++;
+        if (gperiodic[i] && nijk[i] == dijk[i]-2) rdims[i+3]++; // +1 because next proc is on periodic bdy
+      }
+    }
+  }
+
+  assert(-1 != pto);
+#ifndef NDEBUG
+  for (int i = 0; i < 3; i++) {
+    assert((rdims[i] >= gdims[i] && (rdims[i+3] <= gdims[i+3] || (across_bdy[i] && bot[i]))));
+    assert(((facedims[i] >= rdims[i]  || (gperiodic[i] && rdims[i+3] == gdims[i+3] && facedims[i] == gdims[i]))));
+    assert((facedims[i] >= ldims[i] && facedims[i+3] <= ldims[i+3]));
+  }
+#endif  
+
+  return MB_SUCCESS;
+#endif  
+}
+
+#ifndef USE_MPI
 ErrorCode ScdInterface::get_neighbor_alljorkori(int , int ,
                                                 const int * const , const int * const , const int * const , 
                                                 int &, int *, int *, int *) 
@@ -1038,7 +1129,7 @@ ErrorCode ScdInterface::get_neighbor_alljorkori(int np, int pfrom,
   if (MB_SUCCESS != rval) return rval;
 
   int ind = -1;
-  across_bdy[0] = across_bdy[1] = 0;
+  across_bdy[0] = across_bdy[1] = across_bdy[2] = 0;
 
   for (int i = 0; i < 3; i++) {
     if (pijk[i] > 1) {
@@ -1126,7 +1217,7 @@ ErrorCode ScdInterface::get_shared_vertices(ParallelComm *pcomm, ScdBox *box,
     // get index of partitioned dimension
   const int *ldims = box->box_dims();
   ErrorCode rval;
-  int ijkrem[6], ijkface[6], across_bdy[2];
+  int ijkrem[6], ijkface[6], across_bdy[3];
 
   for (int k = -1; k <= 1; k ++) {
     for (int j = -1; j <= 1; j ++) {
