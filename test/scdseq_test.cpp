@@ -1321,10 +1321,7 @@ void test_parallel_partitions()
   int gdims[] = {0, 0, 0, 48, 40, 18};
 
     // test for various numbers of procs, powers of two
-  int maxpow = 10;
-#ifndef NDEBUG
-  maxpow = 4;
-#endif  
+  int maxpow = 4;
 
   int fails = 0;
   for (int exp = 2; exp <= maxpow; exp += 2) {
