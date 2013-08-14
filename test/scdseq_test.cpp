@@ -1359,8 +1359,8 @@ void test_parallel_partitions()
 ErrorCode test_parallel_partition(int *gdims, int nprocs, int part_method) 
 {
   ErrorCode rval;
-  int pto, pfrom, across_bdy_a[2], across_bdy_b[2], rdims_a[6], rdims_b[6], facedims_a[6], facedims_b[6], ldims[6], 
-      lper[2], pijk[3];
+  int pto, pfrom, across_bdy_a[3], across_bdy_b[3], rdims_a[6], rdims_b[6], facedims_a[6], facedims_b[6], ldims[6],
+      lper[3], pijk[3];
   ScdParData spd;
   for (int i = 0; i < 6; i++) spd.gDims[i] = gdims[i];
   for (int i = 0; i < 3; i++) spd.gPeriodic[i] = 0;
