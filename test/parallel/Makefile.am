@@ -36,8 +36,7 @@ TESTS = pcomm_unit \
         uber_parallel_test \
         scdtest \
         pcomm_serial \
-	$(NETCDF_TESTS) \
-	$(PNETCDF_TESTS) \
+        $(NETCDF_TESTS) \
         $(HDF5_TESTS) \
         $(COUPLER_TESTS) \
         $(MBCSLAM_TESTS)
@@ -49,15 +48,15 @@ else
 endif
 
 if NETCDF_FILE
-  NETCDF_TESTS = scdpart
+  NETCDF_TESTS = scdpart read_nc_par ucdtrvpart mpastrvpart
 else
   NETCDF_TESTS = 
 endif
 
 if PNETCDF_FILE
-  PNETCDF_TESTS =  ucdtrvpart read_nc_par mpastrvpart
-else
-  PNETCDF_TESTS = 
+if !NETCDF_FILE
+  NETCDF_TESTS += scdpart read_nc_par ucdtrvpart mpastrvpart
+endif
 endif
 
 if ENABLE_mbcoupler
@@ -87,15 +86,13 @@ partcheck_SOURCES = partcheck.cpp
 structured3_SOURCES = structured3.cpp
 parmerge_SOURCES = parmerge.cpp
 scdpart_SOURCES = scdpart.cpp
-if PNETCDF_FILE
-  ucdtrvpart_SOURCES = ucdtrvpart.cpp
-  read_nc_par_SOURCES=../io/read_nc.cpp
-  mpastrvpart_SOURCES = mpastrvpart.cpp
-endif
+read_nc_par_SOURCES = ../io/read_nc.cpp
+ucdtrvpart_SOURCES = ucdtrvpart.cpp
+mpastrvpart_SOURCES = mpastrvpart.cpp
 
 if ENABLE_mbcoupler
-  par_coupler_test_SOURCES=par_coupler_test.cpp
-  par_coupler_test_LDADD=$(LDADD) ../../tools/mbcoupler/libmbcoupler.la
+  par_coupler_test_SOURCES = par_coupler_test.cpp
+  par_coupler_test_LDADD = $(LDADD) ../../tools/mbcoupler/libmbcoupler.la
 endif
 
 if ENABLE_mbcslam

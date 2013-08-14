@@ -264,17 +264,18 @@ ErrorCode evaluate_element_sequence(ScdBox *this_box)
 int main(int, char**) 
 {
     // test partition methods
-  RUN_TEST(test_parallel_partitions);
+  int err = RUN_TEST(test_parallel_partitions);
     
     // test creating and evaluating vertex sequences
-  RUN_TEST(test_vertex_seq);
+  err += RUN_TEST(test_vertex_seq);
 
     // test creating and evaluating element sequences
-  RUN_TEST(test_element_seq);
+  err += RUN_TEST(test_element_seq);
 
     // test periodic sequences
-  RUN_TEST(test_periodic_seq);
+  err += RUN_TEST(test_periodic_seq);
 
+  return err;
 }
 
 void test_vertex_seq() 
@@ -1320,42 +1321,54 @@ void test_parallel_partitions()
   int gdims[] = {0, 0, 0, 48, 40, 18};
 
     // test for various numbers of procs, powers of two
-  int maxpow = 10;
-#ifndef NDEBUG
-  maxpow = 4;
-#endif  
+  int maxpow = 4;
+
+  int fails = 0;
   for (int exp = 2; exp <= maxpow; exp += 2) {
     int nprocs = 0.1 + pow(2.0, (double)exp);
   
     // alljorkori
     rval = test_parallel_partition(gdims, nprocs, ScdParData::ALLJORKORI);
-    CHECK_ERR(rval);
+    if (MB_SUCCESS != rval) 
+      fails++;
     
     // alljkbal
     rval = test_parallel_partition(gdims, nprocs, ScdParData::ALLJKBAL);
-    CHECK_ERR(rval);
+    if (MB_SUCCESS != rval) 
+      fails++;
     
     // sqij
     rval = test_parallel_partition(gdims, nprocs, ScdParData::SQIJ);
-    CHECK_ERR(rval);
+    if (MB_SUCCESS != rval) 
+      fails++;
     
     // sqjk
     rval = test_parallel_partition(gdims, nprocs, ScdParData::SQJK);
-    CHECK_ERR(rval);
+    if (MB_SUCCESS != rval) 
+      fails++;
+
+      // sqijk
+    rval = test_parallel_partition(gdims, nprocs, ScdParData::SQIJK);
+    if (MB_SUCCESS != rval) 
+      fails++;
   }
+
+  if (fails) CHECK_ERR(MB_FAILURE);
 }
 
 ErrorCode test_parallel_partition(int *gdims, int nprocs, int part_method) 
 {
   ErrorCode rval;
-  int pto, pfrom, across_bdy_a[2], across_bdy_b[2], rdims_a[6], rdims_b[6], facedims_a[6], facedims_b[6], ldims[6];
+  int pto, pfrom, across_bdy_a[2], across_bdy_b[2], rdims_a[6], rdims_b[6], facedims_a[6], facedims_b[6], ldims[6], 
+      lper[2], pijk[3];
   ScdParData spd;
   for (int i = 0; i < 6; i++) spd.gDims[i] = gdims[i];
-  for (int i = 0; i < 2; i++) spd.gPeriodic[i] = 0;
+  for (int i = 0; i < 3; i++) spd.gPeriodic[i] = 0;
   spd.partMethod = part_method;
+  int fails = 0;
   
   for (int p = 0; p < nprocs/2; p++) {
-    rval = ScdInterface::compute_partition(nprocs, p, spd, ldims);
+    rval = ScdInterface::compute_partition(nprocs, p, spd, ldims, lper, pijk);
     if (MB_SUCCESS != rval) continue;
     
     for (int k = -1; k <= 1; k++) {
@@ -1367,9 +1380,10 @@ ErrorCode test_parallel_partition(int *gdims, int nprocs, int part_method)
           if (MB_SUCCESS != rval) return rval;
           if (-1 == pto) continue;
 
+          bool fail = false;
           if (facedims_a[0] < rdims_a[0] || facedims_a[0] > rdims_a[3] ||
               facedims_a[1] < rdims_a[1] || facedims_a[1] > rdims_a[4] ||
-              facedims_a[2] < rdims_a[2] || facedims_a[2] > rdims_a[5]) CHECK_ERR(MB_FAILURE);
+              facedims_a[2] < rdims_a[2] || facedims_a[2] > rdims_a[5]) fail = true;
           
           
             // non-negative value of pto; check corresponding input from that proc to this
@@ -1378,18 +1392,29 @@ ErrorCode test_parallel_partition(int *gdims, int nprocs, int part_method)
                                             pfrom, rdims_b, facedims_b, across_bdy_b);
           if (MB_SUCCESS != rval) return rval;
           for (int ind = 0; ind < 3; ind++)
-            if (facedims_a[ind] < rdims_b[ind] || facedims_b[ind] > rdims_b[ind+3]) CHECK_ERR(MB_FAILURE);
+            if (facedims_a[ind] < rdims_b[ind] || facedims_b[ind] > rdims_b[ind+3]) fail = true;
           for (int ind = 0; ind < 6; ind++) {
-            if (facedims_a[ind] != facedims_b[ind]) CHECK_ERR(MB_FAILURE);
-            if (rdims_b[ind] != ldims[ind]) CHECK_ERR(MB_FAILURE);
+            if (facedims_a[ind] != facedims_b[ind] || rdims_b[ind] != ldims[ind]) fail = true;
           }
-          
-          if (across_bdy_a[0] != across_bdy_b[0] || across_bdy_a[1] != across_bdy_b[1]) CHECK_ERR(MB_FAILURE);
+          if (across_bdy_a[0] != across_bdy_b[0] || across_bdy_a[1] != across_bdy_b[1]) fail = true;
+#define PARRAY(a) "(" << a[0] << "," << a[1] << "," << a[2] << ")"
+#define PARRAY3(a,b,c) "(" << a << "," << b << "," << c << ")"
+#define PARRAY6(a) PARRAY(a) << "-" << PARRAY((a+3))
+          if (fail) {
+            fails++;
+            for (int l = 0; l < 3; l++) spd.pDims[l] = pijk[l];
+            std::cerr << "partMeth = " << part_method << ", p/np = " << p << "/" << nprocs
+                      << ", (i,j,k) = " << PARRAY3(i,j,k) << ", ldims = " << PARRAY6(ldims) << std::endl
+                      << "facedims_a = " << PARRAY6(facedims_a) 
+                      << ", facedims_b = " << PARRAY6(facedims_b) << std::endl
+                      << "rdims_a = " << PARRAY6(rdims_a) << ", rdims_b = " << PARRAY6(rdims_b) << std::endl;
+            std::cerr << "ScdParData: " << spd << std::endl;
+          }
         } // i
       } // j
     } // k
   } // p
 
-  return MB_SUCCESS;
+  return (fails ? MB_FAILURE : MB_SUCCESS);
 }
 

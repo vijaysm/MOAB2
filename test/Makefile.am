@@ -27,6 +27,7 @@ TESTS = range_test \
         moab_test \
         homxform_test \
         scdseq_test \
+        scd_test_partn \
         test_adj \
         seq_man_test \
         geom_util_test \
@@ -87,6 +88,7 @@ homxform_test_SOURCES = $(top_srcdir)/src/HomXform.cpp
 homxform_test_CPPFLAGS = -DTEST $(AM_CPPFLAGS) $(CPPFLAGS)
 
 scdseq_test_SOURCES = scdseq_test.cpp
+scd_test_partn_SOURCES = scd_test_partn.cpp
 #scdseq_timing_SOURCES = scdseq_timing.cpp
 #merge_test_SOURCES = merge_test.cpp
 #test_exo_SOURCES = test_exo.cpp

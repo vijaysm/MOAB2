@@ -16,8 +16,8 @@ namespace moab {
 
 const int MAX_EDGES_PER_CELL = 10;
 
-NCHelperMPAS::NCHelperMPAS(ReadNC* readNC, int fileId, const FileOptions& opts)
-: UcdNCHelper(readNC, fileId)
+NCHelperMPAS::NCHelperMPAS(ReadNC* readNC, int fileId, const FileOptions& opts, EntityHandle fileSet)
+: UcdNCHelper(readNC, fileId, opts, fileSet)
 , maxCellEdges(MAX_EDGES_PER_CELL)
 , numCellGroups(0)
 {
@@ -25,7 +25,7 @@ NCHelperMPAS::NCHelperMPAS(ReadNC* readNC, int fileId, const FileOptions& opts)
     readNC->partMethod = -1;
 }
 
-bool NCHelperMPAS::can_read_file(ReadNC* readNC, int fileId)
+bool NCHelperMPAS::can_read_file(ReadNC* readNC)
 {
   std::vector<std::string>& dimNames = readNC->dimNames;
 
@@ -36,16 +36,11 @@ bool NCHelperMPAS::can_read_file(ReadNC* readNC, int fileId)
   return false;
 }
 
-ErrorCode NCHelperMPAS::init_mesh_vals(const FileOptions& opts, EntityHandle file_set)
+ErrorCode NCHelperMPAS::init_mesh_vals()
 {
   std::vector<std::string>& dimNames = _readNC->dimNames;
   std::vector<int>& dimVals = _readNC->dimVals;
-  std::string& tName = _readNC->tName;
   std::map<std::string, ReadNC::VarData>& varInfo = _readNC->varInfo;
-  int& tMin = _readNC->tMin;
-  int& tMax = _readNC->tMax;
-  int& tDim = _readNC->tDim;
-  std::vector<double>& tVals = _readNC->tVals;
 
   ErrorCode rval;
   unsigned int idx;
@@ -63,90 +58,88 @@ ErrorCode NCHelperMPAS::init_mesh_vals(const FileOptions& opts, EntityHandle fil
   // Look for time dimension
   if ((vit = std::find(dimNames.begin(), dimNames.end(), "Time")) != dimNames.end())
     idx = vit - dimNames.begin();
+  else if ((vit = std::find(dimNames.begin(), dimNames.end(), "time")) != dimNames.end())
+    idx = vit - dimNames.begin();
   else {
-    ERRORR(MB_FAILURE, "Couldn't find time dimension.");
+    ERRORR(MB_FAILURE, "Couldn't find 'Time' or 'time' dimension.");
   }
   tDim = idx;
-  tMax = dimVals[idx] - 1;
-  tMin = 0;
-  tName = "xtime";
+  nTimeSteps = dimVals[idx];
 
   // Get number of cells
-  cDim = -1;
-  if ((vit = std::find(dimNames.begin(), dimNames.end(), "nCells")) != dimNames.end()) {
+  if ((vit = std::find(dimNames.begin(), dimNames.end(), "nCells")) != dimNames.end())
     idx = vit - dimNames.begin();
-    nCells = dimVals[idx];
-    cDim = idx;
+  else {
+    ERRORR(MB_FAILURE, "Couldn't find 'nCells' dimension.");
   }
-  if (-1 == cDim)
-    return MB_FAILURE;
+  cDim = idx;
+  nCells = dimVals[idx];
 
   // Get number of edges
-  eDim = -1;
-  if ((vit = std::find(dimNames.begin(), dimNames.end(), "nEdges")) != dimNames.end()) {
+  if ((vit = std::find(dimNames.begin(), dimNames.end(), "nEdges")) != dimNames.end())
     idx = vit - dimNames.begin();
-    nEdges = dimVals[idx];
-    eDim = idx;
+  else {
+    ERRORR(MB_FAILURE, "Couldn't find 'nEdges' dimension.");
   }
-  if (-1 == eDim)
-    return MB_FAILURE;
+  eDim = idx;
+  nEdges = dimVals[idx];
 
   // Get number of vertices
   vDim = -1;
-  if ((vit = std::find(dimNames.begin(), dimNames.end(), "nVertices")) != dimNames.end()) {
+  if ((vit = std::find(dimNames.begin(), dimNames.end(), "nVertices")) != dimNames.end())
     idx = vit - dimNames.begin();
-    nVertices = dimVals[idx];
-    vDim = idx;
+  else {
+    ERRORR(MB_FAILURE, "Couldn't find 'nVertices' dimension.");
   }
-  if (-1 == vDim)
-    return MB_FAILURE;
+  vDim = idx;
+  nVertices = dimVals[idx];
 
   // Get number of levels
-  levDim = -1;
-  if ((vit = std::find(dimNames.begin(), dimNames.end(), "nVertLevels")) != dimNames.end()) {
+  if ((vit = std::find(dimNames.begin(), dimNames.end(), "nVertLevels")) != dimNames.end())
     idx = vit - dimNames.begin();
-    levDim = idx;
+  else {
+    ERRORR(MB_FAILURE, "Couldn't find 'nVertLevels' dimension.");
   }
-  if (-1 == vDim)
-    return MB_FAILURE;
+  levDim = idx;
+  nLevels = dimVals[idx];
 
   // Store xVertex values in xVertVals
   std::map<std::string, ReadNC::VarData>::iterator vmit;
   if ((vmit = varInfo.find("xVertex")) != varInfo.end() && (*vmit).second.varDims.size() == 1) {
-    rval = _readNC->read_coordinate("xVertex", 0, nVertices - 1, xVertVals);
-    ERRORR(rval, "Trouble reading x variable.");
+    rval = read_coordinate("xVertex", 0, nVertices - 1, xVertVals);
+    ERRORR(rval, "Trouble reading 'xVertex' variable.");
   }
   else {
-    ERRORR(MB_FAILURE, "Couldn't find x coordinate.");
+    ERRORR(MB_FAILURE, "Couldn't find 'xVertex' variable.");
   }
 
   // Store yVertex values in yVertVals
   if ((vmit = varInfo.find("yVertex")) != varInfo.end() && (*vmit).second.varDims.size() == 1) {
-    rval = _readNC->read_coordinate("yVertex", 0, nVertices - 1, yVertVals);
-    ERRORR(rval, "Trouble reading y variable.");
+    rval = read_coordinate("yVertex", 0, nVertices - 1, yVertVals);
+    ERRORR(rval, "Trouble reading 'yVertex' variable.");
   }
   else {
-    ERRORR(MB_FAILURE, "Couldn't find y coordinate.");
+    ERRORR(MB_FAILURE, "Couldn't find 'yVertex' variable.");
   }
 
   // Store zVertex values in zVertVals
   if ((vmit = varInfo.find("zVertex")) != varInfo.end() && (*vmit).second.varDims.size() == 1) {
-    rval = _readNC->read_coordinate("zVertex", 0, nVertices - 1, zVertVals);
-    ERRORR(rval, "Trouble reading z variable.");
+    rval = read_coordinate("zVertex", 0, nVertices - 1, zVertVals);
+    ERRORR(rval, "Trouble reading 'zVertex' variable.");
   }
   else {
-    ERRORR(MB_FAILURE, "Couldn't find z coordinate.");
+    ERRORR(MB_FAILURE, "Couldn't find 'zVertex' variable.");
   }
 
   // Store time coordinate values in tVals
-  if (tMin != -1) {
-    if ((vmit = varInfo.find(tName)) != varInfo.end() && (*vmit).second.varDims.size() == 1) {
-      rval = _readNC->read_coordinate(tName.c_str(), tMin, tMax, tVals);
-      ERRORR(rval, "Trouble reading time variable.");
+  if (nTimeSteps > 0) {
+    if ((vmit = varInfo.find("xtime")) != varInfo.end() && (*vmit).second.varDims.size() == 1) {
+      rval = read_coordinate("xtime", 0, nTimeSteps - 1, tVals);
+      ERRORR(rval, "Trouble reading 'xtime' variable.");
     }
     else {
       // If expected time variable is not available, set dummy time coordinate values to tVals
-      for (int t = tMin; t <= tMax; t++)
+      for (int t = 0; t < nTimeSteps; t++)
         tVals.push_back((double)t);
     }
   }
@@ -182,7 +175,7 @@ ErrorCode NCHelperMPAS::init_mesh_vals(const FileOptions& opts, EntityHandle fil
 // of scope (and deleted). The old instance initialized some variables properly when the mesh was
 // created, but they are now lost. The new instance (will not create the mesh with noMesh option)
 // has to restore them based on the existing mesh from last read
-ErrorCode NCHelperMPAS::check_existing_mesh(EntityHandle tmp_set)
+ErrorCode NCHelperMPAS::check_existing_mesh()
 {
   Interface*& mbImpl = _readNC->mbImpl;
   Tag& mGlobalIdTag = _readNC->mGlobalIdTag;
@@ -194,7 +187,7 @@ ErrorCode NCHelperMPAS::check_existing_mesh(EntityHandle tmp_set)
     if (localGidVerts.empty()) {
       // Get all vertices from tmp_set (it is the input set in no_mesh scenario)
       Range local_verts;
-      rval = mbImpl->get_entities_by_dimension(tmp_set, 0, local_verts);
+      rval = mbImpl->get_entities_by_dimension(_fileSet, 0, local_verts);
       if (MB_FAILURE == rval)
         return rval;
 
@@ -213,9 +206,9 @@ ErrorCode NCHelperMPAS::check_existing_mesh(EntityHandle tmp_set)
     }
 
     if (localGidEdges.empty()) {
-      // Get all edges from tmp_set (it is the input set in no_mesh scenario)
+      // Get all edges from _fileSet (it is the input set in no_mesh scenario)
       Range local_edges;
-      rval = mbImpl->get_entities_by_dimension(tmp_set, 1, local_edges);
+      rval = mbImpl->get_entities_by_dimension(_fileSet, 1, local_edges);
       if (MB_FAILURE == rval)
         return rval;
 
@@ -236,7 +229,7 @@ ErrorCode NCHelperMPAS::check_existing_mesh(EntityHandle tmp_set)
     if (localGidCells.empty()) {
       // Get all cells from tmp_set (it is the input set in no_mesh scenario)
       Range local_cells;
-      rval = mbImpl->get_entities_by_dimension(tmp_set, 2, local_cells);
+      rval = mbImpl->get_entities_by_dimension(_fileSet, 2, local_cells);
       if (MB_FAILURE == rval)
         return rval;
 
@@ -264,36 +257,27 @@ ErrorCode NCHelperMPAS::check_existing_mesh(EntityHandle tmp_set)
     if (0 == numCellGroups) {
       Tag numCellGroupsTag;
       rval = mbImpl->tag_get_handle("__NUM_CELL_GROUPS", 1, MB_TYPE_INTEGER, numCellGroupsTag);
-      rval = mbImpl->tag_get_data(numCellGroupsTag, &tmp_set, 1, &numCellGroups);
+      rval = mbImpl->tag_get_data(numCellGroupsTag, &_fileSet, 1, &numCellGroups);
     }
   }
 
   return MB_SUCCESS;
 }
 
-ErrorCode NCHelperMPAS::create_mesh(ScdInterface* scdi, const FileOptions& opts, EntityHandle file_set, Range& faces)
+ErrorCode NCHelperMPAS::create_mesh(Range& faces)
 {
   Interface*& mbImpl = _readNC->mbImpl;
   Tag& mGlobalIdTag = _readNC->mGlobalIdTag;
   const Tag*& mpFileIdTag = _readNC->mpFileIdTag;
-  bool& isParallel = _readNC->isParallel;
-#ifdef USE_MPI
-  ParallelComm*& myPcomm = _readNC->myPcomm;
-#endif
 
-  int rank, procs;
-#ifdef PNETCDF_FILE
+  int rank = 0, procs = 1;
+#ifdef USE_MPI
+  bool& isParallel = _readNC->isParallel;
   if (isParallel) {
+    ParallelComm*& myPcomm = _readNC->myPcomm;
     rank = myPcomm->proc_config().proc_rank();
     procs = myPcomm->proc_config().proc_size();
   }
-  else {
-    rank = 0;
-    procs = 1;
-  }
-#else
-  rank = 0;
-  procs = 1;
 #endif
 
   ErrorCode rval;
@@ -393,7 +377,7 @@ ErrorCode NCHelperMPAS::create_mesh(ScdInterface* scdi, const FileOptions& opts,
   Tag numCellGroupsTag = 0;
   rval = mbImpl->tag_get_handle("__NUM_CELL_GROUPS", 1, MB_TYPE_INTEGER, numCellGroupsTag, MB_TAG_SPARSE | MB_TAG_CREAT);
   ERRORR(rval, "Trouble creating __NUM_CELL_GROUPS tag.");
-  rval = mbImpl->tag_set_data(numCellGroupsTag, &file_set, 1, &numCellGroups);
+  rval = mbImpl->tag_set_data(numCellGroupsTag, &_fileSet, 1, &numCellGroups);
   ERRORR(rval, "Trouble setting data for __NUM_CELL_GROUPS tag.");
 
   // Collect localGid for vertices
@@ -483,7 +467,7 @@ ErrorCode NCHelperMPAS::create_mesh(ScdInterface* scdi, const FileOptions& opts,
   std::copy(localGidEdges.begin(), localGidEdges.end(), gid_data);
 
   // Add new vertices, elements and edges to the file set
-  rval = _readNC->mbImpl->add_entities(file_set, tmp_range);
+  rval = _readNC->mbImpl->add_entities(_fileSet, tmp_range);
   ERRORR(rval, "Couldn't add new vertices/faces/edges to file set.");
 
   return MB_SUCCESS;
@@ -493,10 +477,6 @@ ErrorCode NCHelperMPAS::read_ucd_variable_setup(std::vector<std::string>& var_na
                                                  std::vector<ReadNC::VarData>& vdatas, std::vector<ReadNC::VarData>& vsetdatas)
 {
   std::map<std::string, ReadNC::VarData>& varInfo = _readNC->varInfo;
-  int& tMin = _readNC->tMin;
-  int& tMax = _readNC->tMax;
-  int& tDim = _readNC->tDim;
-
   std::map<std::string, ReadNC::VarData>::iterator mit;
 
   // If empty read them all
@@ -508,15 +488,15 @@ ErrorCode NCHelperMPAS::read_ucd_variable_setup(std::vector<std::string>& var_na
         if ((std::find(vd.varDims.begin(), vd.varDims.end(), tDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(),
             vd.varDims.end(), cDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(), vd.varDims.end(), levDim)
             != vd.varDims.end()))
-          vdatas.push_back(vd); // 3d data (Time, nCells, nVertLevels) read here
+          vdatas.push_back(vd); // 3D data (Time, nCells, nVertLevels) read here
         else if ((std::find(vd.varDims.begin(), vd.varDims.end(), tDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(),
             vd.varDims.end(), eDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(), vd.varDims.end(), levDim)
             != vd.varDims.end()))
-          vdatas.push_back(vd); // 3d data (Time, nEdges, nVertLevels) read here
+          vdatas.push_back(vd); // 3D data (Time, nEdges, nVertLevels) read here
         else if ((std::find(vd.varDims.begin(), vd.varDims.end(), tDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(),
             vd.varDims.end(), vDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(), vd.varDims.end(), levDim)
             != vd.varDims.end()))
-          vdatas.push_back(vd); // 3d data (Time, nVertices, nVertLevels) read here
+          vdatas.push_back(vd); // 3D data (Time, nVertices, nVertLevels) read here
       }
       else if (1 == vd.varDims.size())
         vsetdatas.push_back(vd);
@@ -531,15 +511,15 @@ ErrorCode NCHelperMPAS::read_ucd_variable_setup(std::vector<std::string>& var_na
           if ((std::find(vd.varDims.begin(), vd.varDims.end(), tDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(),
               vd.varDims.end(), cDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(), vd.varDims.end(), levDim)
               != vd.varDims.end()))
-            vdatas.push_back(vd); // 3d data (Time, nCells, nVertLevels) read here
+            vdatas.push_back(vd); // 3D data (Time, nCells, nVertLevels) read here
           else if ((std::find(vd.varDims.begin(), vd.varDims.end(), tDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(),
               vd.varDims.end(), eDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(), vd.varDims.end(), levDim)
               != vd.varDims.end()))
-            vdatas.push_back(vd); // 3d data (Time, nEdges, nVertLevels) read here
+            vdatas.push_back(vd); // 3D data (Time, nEdges, nVertLevels) read here
           else if ((std::find(vd.varDims.begin(), vd.varDims.end(), tDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(),
               vd.varDims.end(), vDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(), vd.varDims.end(), levDim)
               != vd.varDims.end()))
-            vdatas.push_back(vd); // 3d data (Time, nVertices, nVertLevels) read here
+            vdatas.push_back(vd); // 3D data (Time, nVertices, nVertLevels) read here
         }
         else if (1 == vd.varDims.size())
           vsetdatas.push_back(vd);
@@ -550,9 +530,9 @@ ErrorCode NCHelperMPAS::read_ucd_variable_setup(std::vector<std::string>& var_na
     }
   }
 
-  if (tstep_nums.empty() && -1 != tMin) {
-    // no timesteps input, get them all
-    for (int i = tMin; i <= tMax; i++)
+  if (tstep_nums.empty() && nTimeSteps > 0) {
+    // No timesteps input, get them all
+    for (int i = 0; i < nTimeSteps; i++)
       tstep_nums.push_back(i);
   }
   if (!tstep_nums.empty()) {
@@ -582,17 +562,11 @@ ErrorCode NCHelperMPAS::read_ucd_variable_setup(std::vector<std::string>& var_na
   return MB_SUCCESS;
 }
 
-ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_allocate(EntityHandle file_set, std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums)
+ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_allocate(std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums)
 {
   Interface*& mbImpl = _readNC->mbImpl;
-  std::vector<std::string>& dimNames = _readNC->dimNames;
   std::vector<int>& dimVals = _readNC->dimVals;
-  int& tDim = _readNC->tDim;
   DebugOutput& dbgOut = _readNC->dbgOut;
-  bool& isParallel = _readNC->isParallel;
- #ifdef USE_MPI
-  ParallelComm*& myPcomm = _readNC->myPcomm;
-#endif
 
   ErrorCode rval = MB_SUCCESS;
 
@@ -600,25 +574,26 @@ ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_allocate(EntityHandle file_s
 
   // Get vertices in set
   Range verts;
-  rval = mbImpl->get_entities_by_dimension(file_set, 0, verts);
+  rval = mbImpl->get_entities_by_dimension(_fileSet, 0, verts);
   ERRORR(rval, "Trouble getting vertices in set.");
   assert("Should only have a single vertex subrange, since they were read in one shot" &&
       verts.psize() == 1);
 
   // Get edges in set
   Range edges;
-  rval = mbImpl->get_entities_by_dimension(file_set, 1, edges);
+  rval = mbImpl->get_entities_by_dimension(_fileSet, 1, edges);
   ERRORR(rval, "Trouble getting edges in set.");
 
   // Get faces in set
   Range faces;
-  rval = mbImpl->get_entities_by_dimension(file_set, 2, faces);
+  rval = mbImpl->get_entities_by_dimension(_fileSet, 2, faces);
   ERRORR(rval, "Trouble getting faces in set.");
   // Note, for MPAS faces.psize() can be more than 1
 
 #ifdef USE_MPI
-  if (isParallel)
-  {
+  bool& isParallel = _readNC->isParallel;
+  if (isParallel) {
+    ParallelComm*& myPcomm = _readNC->myPcomm;
     rval = myPcomm->filter_pstatus(faces, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &facesOwned);
     ERRORR(rval, "Trouble getting owned faces in set.");
   }
@@ -629,19 +604,13 @@ ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_allocate(EntityHandle file_s
 #endif
 
   for (unsigned int i = 0; i < vdatas.size(); i++) {
+    vdatas[i].numLev = nLevels;
+
     for (unsigned int t = 0; t < tstep_nums.size(); t++) {
       dbgOut.tprintf(2, "Reading variable %s, time step %d\n", vdatas[i].varName.c_str(), tstep_nums[t]);
-
-      std::vector<std::string>::iterator vit;
-      int idx_lev = 0;
-      if ((vit = std::find(dimNames.begin(), dimNames.end(), "nVertLevels")) != dimNames.end())
-        idx_lev = vit - dimNames.begin();
-      if (std::find(vdatas[i].varDims.begin(), vdatas[i].varDims.end(), idx_lev) != vdatas[i].varDims.end())
-        vdatas[i].numLev = dimVals[idx_lev];
-
       // Get the tag to read into
       if (!vdatas[i].varTags[t]) {
-        rval = _readNC->get_tag_to_nonset(vdatas[i], tstep_nums[t], vdatas[i].varTags[t], vdatas[i].numLev);
+        rval = get_tag_to_nonset(vdatas[i], tstep_nums[t], vdatas[i].varTags[t], vdatas[i].numLev);
         ERRORR(rval, "Trouble getting tag.");
       }
 
@@ -661,19 +630,19 @@ ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_allocate(EntityHandle file_s
       // Next: nCells or nEdges or nVertices
       switch (vdatas[i].entLoc) {
         case ReadNC::ENTLOCVERT:
-          // vertices
+          // Vertices
           vdatas[i].readStarts[t].push_back(localGidVerts[0] - 1);
           vdatas[i].readCounts[t].push_back(nLocalVertices);
           range = &verts;
           break;
         case ReadNC::ENTLOCFACE:
-          // faces
+          // Faces
           vdatas[i].readStarts[t].push_back(localGidCells[0] - 1);
           vdatas[i].readCounts[t].push_back(nLocalCells);
           range = &facesOwned;
           break;
         case ReadNC::ENTLOCEDGE:
-          // edges
+          // Edges
           vdatas[i].readStarts[t].push_back(localGidEdges[0] - 1);
           vdatas[i].readCounts[t].push_back(nLocalEdges);
           range = &edges;
@@ -713,18 +682,18 @@ ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_allocate(EntityHandle file_s
 }
 
 #ifdef PNETCDF_FILE
-ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_async(EntityHandle file_set, std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums)
+ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_async(std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums)
 {
   Interface*& mbImpl = _readNC->mbImpl;
   DebugOutput& dbgOut = _readNC->dbgOut;
 
-  ErrorCode rval = read_ucd_variable_to_nonset_allocate(file_set, vdatas, tstep_nums);
+  ErrorCode rval = read_ucd_variable_to_nonset_allocate(vdatas, tstep_nums);
   ERRORR(rval, "Trouble allocating read variables.");
 
   // Finally, read into that space
   int success;
   Range* pLocalGid = NULL;
-  // MPI_offset or size_t?
+
   for (unsigned int i = 0; i < vdatas.size(); i++) {
     switch (vdatas[i].entLoc) {
       case ReadNC::ENTLOCVERT:
@@ -741,12 +710,10 @@ ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_async(EntityHandle file_set,
         break;
     }
 
-    for (unsigned int t = 0; t < tstep_nums.size(); t++) {
-      std::size_t sz = 1;
-      for (std::size_t idx = 0; idx != vdatas[i].readCounts[t].size(); ++idx)
-        sz *= vdatas[i].readCounts[t][idx];
+    std::size_t sz = vdatas[i].sz;
 
-      // we will synchronize all these reads with the other processors,
+    for (unsigned int t = 0; t < tstep_nums.size(); t++) {
+      // We will synchronize all these reads with the other processors,
       // so the wait will be inside this double loop; is it too much?
       size_t nb_reads = pLocalGid->psize();
       std::vector<int> requests(nb_reads), statuss(nb_reads);
@@ -761,7 +728,7 @@ ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_async(EntityHandle file_set,
         case NC_DOUBLE: {
           std::vector<double> tmpdoubledata(sz);
 
-          // in the case of ucd mesh, and on multiple proc,
+          // In the case of ucd mesh, and on multiple proc,
           // we need to read as many times as subranges we have in the
           // localGid range;
           // basically, we have to give a different point
@@ -779,13 +746,13 @@ ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_async(EntityHandle file_set,
             vdatas[i].readStarts[t][nbDims - 2] = (NCDF_SIZE) (starth - 1);
             vdatas[i].readCounts[t][nbDims - 2] = (NCDF_SIZE) (endh - starth + 1);
 
-            // do a partial read, in each subrange
+            // Do a partial read, in each subrange
             // wait outside this loop
             success = NCFUNCAG2(_vara_double)(_fileId, vdatas[i].varId,
                 &(vdatas[i].readStarts[t][0]), &(vdatas[i].readCounts[t][0]),
                             &(tmpdoubledata[indexInDoubleArray]) NCREQ2);
             ERRORS(success, "Failed to read double data in loop");
-            // we need to increment the index in double array for the
+            // We need to increment the index in double array for the
             // next subrange
             indexInDoubleArray += (endh - starth + 1) * 1 * vdatas[i].numLev;
           }
@@ -851,7 +818,7 @@ ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_async(EntityHandle file_set,
         rval = tmp_rval;
     }
   }
-  // debug output, if requested
+  // Debug output, if requested
   if (1 == dbgOut.get_verbosity()) {
     dbgOut.printf(1, "Read variables: %s", vdatas.begin()->varName.c_str());
     for (unsigned int i = 1; i < vdatas.size(); i++)
@@ -862,18 +829,18 @@ ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_async(EntityHandle file_set,
   return rval;
 }
 #else
-ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset(EntityHandle file_set, std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums)
+ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset(std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums)
 {
   Interface*& mbImpl = _readNC->mbImpl;
   DebugOutput& dbgOut = _readNC->dbgOut;
 
-  ErrorCode rval = read_ucd_variable_to_nonset_allocate(file_set, vdatas, tstep_nums);
+  ErrorCode rval = read_ucd_variable_to_nonset_allocate(vdatas, tstep_nums);
   ERRORR(rval, "Trouble allocating read variables.");
 
   // Finally, read into that space
   int success;
   Range* pLocalGid = NULL;
-  // MPI_offset or size_t?
+
   std::vector<int> requests(vdatas.size() * tstep_nums.size()), statuss(vdatas.size() * tstep_nums.size());
   for (unsigned int i = 0; i < vdatas.size(); i++) {
     switch (vdatas[i].entLoc) {
@@ -891,9 +858,9 @@ ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset(EntityHandle file_set, std::
         break;
     }
 
-    for (unsigned int t = 0; t < tstep_nums.size(); t++) {
-      std::size_t sz = vdatas[i].numLev * vdatas[i].readCounts[t][1];
+    std::size_t sz = vdatas[i].sz;
 
+    for (unsigned int t = 0; t < tstep_nums.size(); t++) {
       switch (vdatas[i].varDataType) {
         case NC_BYTE:
         case NC_CHAR: {
@@ -904,7 +871,7 @@ ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset(EntityHandle file_set, std::
           // Copy from float case
           std::vector<double> tmpdoubledata(sz);
 
-          // in the case of ucd mesh, and on multiple proc,
+          // In the case of ucd mesh, and on multiple proc,
           // we need to read as many times as subranges we have in the
           // localGid range;
           // basically, we have to give a different point
@@ -995,7 +962,7 @@ ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset(EntityHandle file_set, std::
     }
   }
 
-  // debug output, if requested
+  // Debug output, if requested
   if (1 == dbgOut.get_verbosity()) {
     dbgOut.printf(1, "Read variables: %s", vdatas.begin()->varName.c_str());
     for (unsigned int i = 1; i < vdatas.size(); i++)

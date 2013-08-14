@@ -18,7 +18,7 @@
  - Timothy J. Tautges (Argonne National Lab, Univ Wisconsin-Madison) 
  - Iulian Grindeanu (Argonne National Lab) 
  - Rajeev Jain (Argonne National Lab)
- - Xiabing Xu (Argonne National Lab)
+ - Danqing Wu  (Argonne National Lab)
 
 
  <h2>Emeritus members:</h2>
@@ -27,6 +27,7 @@
  - Brandon M. Smith
  - Hong-Jun Kim
  - Jim Porter
+ - Xiabing Xu
  
   \page contents Table of Contents
  
