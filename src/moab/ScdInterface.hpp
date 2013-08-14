@@ -116,7 +116,7 @@ public:
   enum PartitionMethod {ALLJORKORI = 0, ALLJKBAL, SQIJ, SQJK, SQIJK, TRIVIAL, NOPART};
 
     //! Partition method names
-  static const char *PartitionMethodNames[NOPART];
+  static const char *PartitionMethodNames[NOPART + 1];
 
     //! partition method used to partition global parametric space
   int partMethod;
