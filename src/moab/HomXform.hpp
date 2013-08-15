@@ -44,7 +44,12 @@ class HomCoord
 private:
 
     //! coordinate data
+#if defined(__INTEL_COMPILER) && (__INTEL_COMPILER < 1310)
+  // Hack Intel compiler 12 issues with -O2 optimization
+  int homCoord[5];
+#else
   int homCoord[4];
+#endif
 
 public:
   friend class HomXform;
@@ -203,10 +208,22 @@ inline HomCoord::HomCoord(const int coord0, const int coord1,
 
 inline HomCoord::HomCoord(const HomCoord &coords) 
 {
+#if defined(__INTEL_COMPILER) && (__INTEL_COMPILER < 1310)
+  // Hack Intel compiler 12 issues with -O2 optimization
+  int coord0 = coords[0];
+  int coord1 = coords[1];
+  int coord2 = coords[2];
+  int coord3 = coords[3];
+  homCoord[0] = coord0;
+  homCoord[1] = coord1;
+  homCoord[2] = coord2;
+  homCoord[3] = coord3;
+#else
   homCoord[0] = coords[0];
   homCoord[1] = coords[1];
   homCoord[2] = coords[2];
   homCoord[3] = coords[3];
+#endif
 }
   
 inline void HomCoord::set(const int coords[]) 
