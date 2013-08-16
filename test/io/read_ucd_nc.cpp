@@ -249,7 +249,7 @@ ErrorCode get_options(std::string& opts)
 {
 #ifdef USE_MPI
   // Use parallel options
-  opts = std::string(";;PARALLEL=READ_PART;PARTITION_METHOD=TRIVIAL_PARTITION");
+  opts = std::string(";;PARALLEL=READ_PART;PARTITION_METHOD=TRIVIAL");
   return MB_SUCCESS;
 #else
   opts = std::string(";;");

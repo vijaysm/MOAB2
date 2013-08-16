@@ -34,13 +34,13 @@ int main(int argc, char* argv[])
 
 void test_read_parallel_ucd_trivial()
 {
-  partition_method = std::string(";PARTITION_METHOD=TRIVIAL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS");
+  partition_method = std::string(";PARTITION_METHOD=TRIVIAL;PARALLEL_RESOLVE_SHARED_ENTS");
   test_read_parallel(3458, true);
 }
   
 void test_read_parallel_ucd_trivial_spectral()
 {
-  partition_method = std::string(";PARTITION_METHOD=TRIVIAL_PARTITION;SPECTRAL_MESH;PARALLEL_RESOLVE_SHARED_ENTS");
+  partition_method = std::string(";PARTITION_METHOD=TRIVIAL;SPECTRAL_MESH;PARALLEL_RESOLVE_SHARED_ENTS");
   test_read_parallel(3458, false);
 }
 
@@ -141,17 +141,17 @@ void test_multiple_loads_of_same_file()
   CHECK_ERR(rval);
 
   // Read first only header information, no mesh, no variable
-  std::string opts("PARALLEL=READ_PART;PARTITION;NOMESH;VARIABLE=;PARTITION_METHOD=TRIVIAL_PARTITION");
+  std::string opts("PARALLEL=READ_PART;PARTITION;NOMESH;VARIABLE=;PARTITION_METHOD=TRIVIAL");
   rval = mb.load_file(example, &file_set, opts.c_str());
   CHECK_ERR(rval);
 
-  opts = "PARALLEL=READ_PART;PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARTITION_METHOD=TRIVIAL_PARTITION;VARIABLE=";
+  opts = "PARALLEL=READ_PART;PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARTITION_METHOD=TRIVIAL;VARIABLE=";
   // Create gather set in processor 1
   opts += std::string(";GATHER_SET=1");
   rval = mb.load_file(example, &file_set, opts.c_str());
   CHECK_ERR(rval);
 
-  opts = "PARALLEL=READ_PART;PARTITION;PARTITION_METHOD=TRIVIAL_PARTITION;NOMESH;VARIABLE=T;TIMESTEP=0";
+  opts = "PARALLEL=READ_PART;PARTITION;PARTITION_METHOD=TRIVIAL;NOMESH;VARIABLE=T;TIMESTEP=0";
   rval = mb.load_file(example, &file_set, opts.c_str());
   CHECK_ERR(rval);
 

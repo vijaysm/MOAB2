@@ -32,7 +32,7 @@ int main(int argc, char* argv[])
 
 void test_read_parallel_mpas_trivial()
 {
-  partition_method = std::string(";PARTITION_METHOD=TRIVIAL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS");
+  partition_method = std::string(";PARTITION_METHOD=TRIVIAL;PARALLEL_RESOLVE_SHARED_ENTS");
 
   test_read_parallel(1280, true, 1920, true);
 }
@@ -106,17 +106,17 @@ void test_multiple_loads_of_same_file()
   CHECK_ERR(rval);
 
   // Read first only header information, no mesh, no variable
-  std::string opts("PARALLEL=READ_PART;PARTITION;NOMESH;VARIABLE=;PARTITION_METHOD=TRIVIAL_PARTITION");
+  std::string opts("PARALLEL=READ_PART;PARTITION;NOMESH;VARIABLE=;PARTITION_METHOD=TRIVIAL");
   rval = mb.load_file(example, &file_set, opts.c_str());
   CHECK_ERR(rval);
 
   // Create mesh, no variable
-  opts="PARALLEL=READ_PART;PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARTITION_METHOD=TRIVIAL_PARTITION;VARIABLE=";
+  opts="PARALLEL=READ_PART;PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARTITION_METHOD=TRIVIAL;VARIABLE=";
   rval = mb.load_file(example, &file_set, opts.c_str());
   CHECK_ERR(rval);
 
   // Read variable ke at timestep 0, no mesh
-  opts = "PARALLEL=READ_PART;PARTITION;PARTITION_METHOD=TRIVIAL_PARTITION;NOMESH;VARIABLE=ke;TIMESTEP=0";
+  opts = "PARALLEL=READ_PART;PARTITION;PARTITION_METHOD=TRIVIAL;NOMESH;VARIABLE=ke;TIMESTEP=0";
   rval = mb.load_file(example, &file_set, opts.c_str());
   CHECK_ERR(rval);
 }
