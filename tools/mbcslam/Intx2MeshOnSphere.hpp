@@ -31,6 +31,8 @@ public:
 
   bool is_inside_element(double xyz[3], EntityHandle eh);
 
+  ErrorCode update_tracer_data(EntityHandle out_set, Tag & tagElem);
+
 private:
   int plane; // current gnomonic plane
   double R; // radius of the sphere

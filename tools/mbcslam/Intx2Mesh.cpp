@@ -17,12 +17,6 @@
 
 namespace moab {
 
-#define ERRORR(rval, str) \
-    if (MB_SUCCESS != rval) {std::cout << str << "\n"; return rval;}
-
-#define ERRORV(rval, str) \
-    if (MB_SUCCESS != rval) {std::cout << str << "\n"; return ;}
-
 Intx2Mesh::Intx2Mesh(Interface * mbimpl):mb(mbimpl), parcomm(NULL), myTree(NULL)
 {
   dbg_1=0;
@@ -406,6 +400,10 @@ void Intx2Mesh::clean()
   }
   //extraNodesMap.clear();
   extraNodesVec.clear();
+  // also, delete some bit tags, used to mark processed reds and blues
+  mb->tag_delete(RedFlagTag);// to mark blue quads already considered
+  mb->tag_delete(BlueFlagTag);
+
 }
 ErrorCode Intx2Mesh::initialize_local_kdtree(EntityHandle euler_set)
 {
