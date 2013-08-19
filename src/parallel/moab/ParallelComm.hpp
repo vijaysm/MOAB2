@@ -437,7 +437,8 @@ namespace moab {
 
      * \param skin_ents[] entity skin array by user
      */
-    ErrorCode resolve_shared_ents(Range &proc_ents,
+    ErrorCode resolve_shared_ents(EntityHandle this_set,
+                                  Range &proc_ents,
 				  Range skin_ents[],
 				  int resolve_dim = 3,
 				  int shared_dim = -1,
@@ -445,6 +446,7 @@ namespace moab {
     
     static ErrorCode resolve_shared_ents(ParallelComm **pc, 
                                          const unsigned int np, 
+                                         EntityHandle this_set,
                                          const int to_dim);
 
     /** Remove shared sets.
@@ -865,7 +867,7 @@ namespace moab {
                                     int resolve_dim, int shared_dim);
 
     // do the same but working straight from sharedEnts
-    ErrorCode create_interface_sets(int resolve_dim, int shared_dim);
+    ErrorCode create_interface_sets(EntityHandle this_set, int resolve_dim, int shared_dim);
 
     ErrorCode tag_shared_verts(TupleList &shared_ents,
 			       std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,

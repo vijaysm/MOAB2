@@ -335,9 +335,9 @@ void print_partitioned_entities( Interface& moab, bool list_non_shared = false )
           else {
             buffer << rank << ":\t" << topo_names_s[t] << " " << id << ":\t"
                    << "processors ";
-            for (int j = 0; j < MAX_SHARING_PROCS; ++j)
-              if (ent_procs[j] != -1)
-                buffer << ent_procs[j] << ", ";
+            for (int k = 0; k < MAX_SHARING_PROCS; ++k)
+              if (ent_procs[k] != -1)
+                buffer << ent_procs[k] << ", ";
             if (num_owned)
               buffer << " (owned by this processor)";
             buffer << std::endl;
@@ -856,7 +856,7 @@ void create_input_file( const char* file_name,
   if (create_bcsets) {
       // neumann set
     Range skin_ents;
-    rval = Skinner(&mb).find_skin(&elems[0], elems.size(), false, skin_ents);
+    rval = Skinner(&mb).find_skin(0, &elems[0], elems.size(), false, skin_ents);
     CHECK_ERR(rval);
     EntityHandle bcset;
     rval = mb.create_meshset( MESHSET_SET, bcset);
