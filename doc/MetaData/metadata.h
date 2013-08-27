@@ -619,7 +619,7 @@ various tags representing information read from the file. These tags are describ
 Reading unstructured NC files in the HOMME format is also supported. Currently a trivial
 element-based partition is the only option for parallel reading. As the data is unstructured, it is necessary to have a connectivity file to define the vertex adjacencies. The default convention is to have a file called HommeMapping.nc in the same directory as the the variable data file. If this convention is not followed, the connectivity file can be specified with the option -O CONN=”/path/to/connectivity.nc”. An example of mbconvert using the parallel read capability is shown below:
 
-<B>  mpiexec -np 2 tools/mbconvert -O TRIVIAL_PARTITION -O DEBUG_IO=1 -o DEBUG_IO=9 -o PARALLEL=WRITE_PART /nfs2/hayes6/meshlab/homme_data/camrun.cam2.h0.0000-01-01-16200.nc output.h5m </B>
+<B>  mpiexec -np 2 tools/mbconvert -O TRIVIAL -O DEBUG_IO=1 -o DEBUG_IO=9 -o PARALLEL=WRITE_PART /nfs2/hayes6/meshlab/homme_data/camrun.cam2.h0.0000-01-01-16200.nc output.h5m </B>
 
 Several other things to note about reading climate data files into MOAB:
 - Time-dependent variables: MOAB currently has no mechanism for time-dependent tags. Therefore, time-dependent variables are represented using one tag per timestep, with the tag name set as the variable name plus the timestep index. Thus, the first few timesteps for the variable TEMPERATURE would be represented in tags named TEMPERATURE0, TEMPERATURE1, etc.
@@ -699,7 +699,7 @@ dimension.
 <tr>
 <td>__<var_name>_DIMS 
 </td>
-<td>C*n 
+<td>H*n 
 </td>
 <td>S</td>
 <td>For each variable, the tag handles for the
