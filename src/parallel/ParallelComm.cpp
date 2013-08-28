@@ -3575,7 +3575,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     return resolve_shared_ents(this_set, proc_ents, resolve_dim, shared_dim, id_tag);
   }
   
-  ErrorCode ParallelComm::resolve_shared_ents(EntityHandle /*this_set*/,
+  ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
                                               Range &proc_ents,
                                               int resolve_dim,
                                               int shared_dim,
@@ -3630,7 +3630,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
 
     // find the skin
     Skinner skinner(mbImpl);
-    result = skinner.find_skin(skin_ents[skin_dim+1], false, skin_ents[skin_dim],
+    result = skinner.find_skin(this_set, skin_ents[skin_dim+1], false, skin_ents[skin_dim],
                                NULL, true, true, true);
     RRA("Failed to find skin.");
     myDebug->tprintf(1, "Found skin, now resolving.\n");
@@ -3643,11 +3643,12 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
       RRA("Failed getting skin adjacencies.");
     }
 
-    return resolve_shared_ents(proc_ents, skin_ents,
+    return resolve_shared_ents(this_set, proc_ents, skin_ents,
                                resolve_dim, shared_dim, id_tag);
   }
 
-  ErrorCode ParallelComm::resolve_shared_ents(Range &proc_ents,
+  ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
+                                              Range &proc_ents,
                                               Range skin_ents[],
                                               int resolve_dim,
                                               int shared_dim,
@@ -3671,7 +3672,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
 
       else if (tag_created) {
         // just created it, so we need global ids
-        result = assign_global_ids(0, skin_dim+1,true,true,true);
+        result = assign_global_ids(this_set, skin_dim+1,true,true,true);
         RRA("Failed assigning global ids.");
       }
     }
@@ -3711,7 +3712,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     // get total number of entities; will overshoot highest global id, but
     // that's ok
     int num_total[2] = {0, 0}, num_local[2] = {0, 0};
-    result = mbImpl->get_number_entities_by_dimension(0, 0, num_local);
+    result = mbImpl->get_number_entities_by_dimension(this_set, 0, num_local);
     if (MB_SUCCESS != result) return result;
     int failure = MPI_Allreduce(num_local, num_total, 1,
     MPI_INTEGER, MPI_SUM, procConfig.proc_comm());
@@ -3873,6 +3874,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
 
   ErrorCode ParallelComm::resolve_shared_ents(ParallelComm **pc, 
                                               const unsigned int np, 
+                                              EntityHandle this_set,
                                               const int part_dim) 
   {
     std::vector<Range> verts(np);
@@ -3882,9 +3884,9 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     for (p = 0; p < np; p++) {
       Skinner skinner(pc[p]->get_moab());
       Range part_ents, skin_ents;
-      rval = pc[p]->get_moab()->get_entities_by_dimension(0, part_dim, part_ents);
+      rval = pc[p]->get_moab()->get_entities_by_dimension(this_set, part_dim, part_ents);
       if (MB_SUCCESS != rval) return rval;
-      rval = skinner.find_skin(part_ents, false, skin_ents, 0, true, true, true);
+      rval = skinner.find_skin(this_set, part_ents, false, skin_ents, 0, true, true, true);
       if (MB_SUCCESS != rval) return rval;
       rval = pc[p]->get_moab()->get_adjacencies(skin_ents, 0, true, verts[p],
                                                 Interface::UNION);
@@ -3951,7 +3953,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
 
     std::set<unsigned int> psets;
     for (p = 0; p < np; p++) {
-      rval = pc[p]->create_interface_sets(part_dim, part_dim-1);
+      rval = pc[p]->create_interface_sets(this_set, part_dim, part_dim-1);
       if (MB_SUCCESS != rval) return rval;
       // establish comm procs and buffers for them
       psets.clear();
@@ -4332,7 +4334,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
 
 
 
-  ErrorCode ParallelComm::create_interface_sets(int resolve_dim, int shared_dim) 
+  ErrorCode ParallelComm::create_interface_sets(EntityHandle this_set, int resolve_dim, int shared_dim)
   {
     std::map<std::vector<int>, std::vector<EntityHandle> > proc_nvecs;
   
@@ -4355,9 +4357,9 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
                                                   
     Skinner skinner(mbImpl);
     Range skin_ents[4];
-    result = mbImpl->get_entities_by_dimension(0, resolve_dim, skin_ents[resolve_dim]);
+    result = mbImpl->get_entities_by_dimension(this_set, resolve_dim, skin_ents[resolve_dim]);
     RRA("");
-    result = skinner.find_skin(skin_ents[resolve_dim], false, 
+    result = skinner.find_skin(this_set, skin_ents[resolve_dim], false,
                                skin_ents[resolve_dim-1], 0, true, true, true);
     RRA("Failed to find skin.");
     if (shared_dim > 1) {
@@ -6896,7 +6898,8 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     Range entities;
     if (entities_in.empty()) 
       std::copy(sharedEnts.begin(), sharedEnts.end(), range_inserter(entities));
-    else entities = entities_in;
+    else
+      entities = entities_in;
 
     int dum_ack_buff;
 
@@ -6908,7 +6911,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       result = filter_pstatus(tag_ents, PSTATUS_SHARED, PSTATUS_AND, *sit);
       RRA("Failed pstatus AND check.");
     
-      // remove nonowned entities
+      // remote nonowned entities
       if (!tag_ents.empty()) {
         result = filter_pstatus(tag_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);
         RRA("Failed pstatus NOT check.");
@@ -6999,7 +7002,8 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       Range owned_ents;
       if (entities_in.empty()) 
         std::copy(sharedEnts.begin(), sharedEnts.end(), range_inserter(entities));
-      else owned_ents = entities_in;
+      else
+        owned_ents = entities_in;
       result = filter_pstatus(owned_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);
       RRA("Failure to get subset of owned entities");
   

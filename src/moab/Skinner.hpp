@@ -54,7 +54,7 @@ public:
   //! destructor
   ~Skinner();
 
-  ErrorCode find_geometric_skin(Range &forward_target_entities);
+  ErrorCode find_geometric_skin(const EntityHandle meshset, Range &forward_target_entities);
   
     /**\brief will accept entities all of one dimension and 
      *        return entities of n-1 dimension; NOTE: get_vertices argument controls whether
@@ -72,7 +72,8 @@ public:
      *        of skin entities, otherwise only skin entities already extant 
      *        will be returned
      */
-  ErrorCode find_skin( const Range &entities,
+  ErrorCode find_skin( const EntityHandle meshset,
+                       const Range &entities,
                        bool get_vertices,
                        Range &output_handles,
                        Range *output_reverse_handles = 0,
@@ -97,7 +98,8 @@ public:
      *        of skin entities, otherwise only skin entities already extant 
      *        will be returned
      */
-  ErrorCode find_skin( const EntityHandle *entities,
+  ErrorCode find_skin( const EntityHandle this_set,
+                       const EntityHandle *entities,
                        int num_entities,
                        bool get_vertices,
                        Range &output_handles,
@@ -113,7 +115,8 @@ public:
      * \param create_vert_elem_adjs If true, this function will cause 
      *        vertex-element adjacencies to be generated
      */
-  ErrorCode find_skin(const Range &entities,
+  ErrorCode find_skin(const EntityHandle this_set,
+                      const Range &entities,
                       int dim,
                       Range &skin_entities,
                       bool create_vert_elem_adjs = false);
@@ -189,7 +192,8 @@ protected:
      *                    will contain only those skin elements that already
      *                    exist.
      */
-  ErrorCode find_skin_vertices( const Range& entities,
+  ErrorCode find_skin_vertices( const EntityHandle this_set,
+                                const Range& entities,
                                   Range* skin_verts = 0,
                                   Range* skin_elems = 0,
                                   Range* rev_elems = 0,
@@ -281,7 +285,8 @@ protected:
                      bool create_skin_elements);
 };
 
-inline ErrorCode Skinner::find_skin( const EntityHandle *entities,
+inline ErrorCode Skinner::find_skin( const EntityHandle this_set,
+                                     const EntityHandle *entities,
                                      int num_entities,
                                      bool get_vertices,
                                      Range &output_handles,
@@ -292,7 +297,7 @@ inline ErrorCode Skinner::find_skin( const EntityHandle *entities,
 {
   Range ents;
   std::copy(entities, entities+num_entities, range_inserter(ents));
-  return find_skin(ents, get_vertices, output_handles, output_reverse_handles, 
+  return find_skin(this_set, ents, get_vertices, output_handles, output_reverse_handles,
                    create_vert_elem_adjs, create_skin_elements, look_for_scd);
 }
       
