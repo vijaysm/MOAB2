@@ -677,13 +677,19 @@ netcdf file. The length of this tag is the number of
 values stored for the dimension in the netcdf file.</td>
 </tr>
 <tr>
-<td>__<dim_name>_LOC_MIN MAX</td> 
+<td>__<dim_name>_LOC_MIN_MAX</td>
 <td>2*(I or D)</td>
 <td>S</td>
 <td>The indices (0-based) of the local min and max
 values of dimension stored locally. For spatial
 dimensions like lon or lat, this will store the
-minimum and maximum indices in the loca</td>
+minimum and maximum indices in the local partition
+of the grid. For dimensions like time, where each
+processor represents the entire dimension, this will
+likely store 0 and the number of values for that
+dimension. Only one of __<dim_name>_LOC_VALS and
+__<dim_name>_LOC_MIN_MAX can be used for a given
+dimension.</td>
 </tr>
 <tr>
 <td >__<dim_name>_LOC_VAL </td> 
@@ -693,8 +699,8 @@ minimum and maximum indices in the loca</td>
 locally. This tag only makes sense for dimensions
 that can be read in multiple pieces, such as time.
 Only one of __<dim_name>_LOC_VALS and
-_LOC_MIN_MAX can be used for a given
-dimension.
+__<dim_name>_LOC_MIN_MAX can be used for a given
+dimension.</td>
 </tr>
 <tr>
 <td>__<var_name>_DIMS 
