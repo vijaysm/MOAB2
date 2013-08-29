@@ -106,13 +106,17 @@ class ScdParData {
 public:
   ScdParData() : partMethod(NOPART) {
     gDims[0] = gDims[1] = gDims[2] = gDims[3] = gDims[4] = gDims[5] = -1;
-    gPeriodic[0] = gPeriodic[1] = -1;
+    gPeriodic[0] = gPeriodic[1] = gPeriodic[2] = -1;
     pDims[0] = pDims[1] = pDims[2] = -1;
   }
 
     //! Partition method enumeration; these strategies are described in comments for
-    //! compute_partition_alljorkori, compute_partition_alljkbal, compute_partition_sqij, and compute_partition_sqjk
-  enum PartitionMethod {NOPART=-1, ALLJORKORI=0, ALLJKBAL, SQIJ, SQJK};
+    //! compute_partition_alljorkori, compute_partition_alljkbal, compute_partition_sqij,
+    //! compute_partition_sqjk, and compute_partition_sqijk
+  enum PartitionMethod {ALLJORKORI = 0, ALLJKBAL, SQIJ, SQJK, SQIJK, TRIVIAL, NOPART};
+
+    //! Partition method names
+  static const char *PartitionMethodNames[NOPART + 1];
 
     //! partition method used to partition global parametric space
   int partMethod;
@@ -121,10 +125,11 @@ public:
   int gDims[6];
 
     //! is globally periodic in i or j
-  int gPeriodic[2];
+  int gPeriodic[3];
 
     //! number of procs in each direction
   int pDims[3];
+
 };
   
 class ScdInterface 
@@ -325,6 +330,13 @@ private:
   inline static ErrorCode compute_partition_sqjk(int np, int nr, const int * const gijk, const int * const gperiodic, 
                                                  int *lijk, int *lperiodic, int *pijk);
 
+    //! Compute a partition of structured parameter space
+    /** Partitions the structured parametric space by seeking square ijk partitions
+     * For description of arguments, see ScdInterface::compute_partition.
+     */
+  inline static ErrorCode compute_partition_sqijk(int np, int nr, const int * const gijk, const int * const gperiodic, 
+                                                  int *lijk, int *lperiodic, int *pijk);
+
     //! Get vertices shared with other processors
     /** Shared vertices returned as indices into each proc's handle space
      * \param box Box used to get parametric space info
@@ -353,6 +365,10 @@ private:
   static ErrorCode get_neighbor_sqjk(int np, int pfrom,
                                      const int * const gdims, const int * const gperiodic, const int * const dijk, 
                                      int &pto, int *rdims, int *facedims, int *across_bdy);
+  
+  static ErrorCode get_neighbor_sqijk(int np, int pfrom,
+                                      const int * const gdims, const int * const gperiodic, const int * const dijk, 
+                                      int &pto, int *rdims, int *facedims, int *across_bdy);
   
   static int gtol(const int *gijk, int i, int j, int k);
 
@@ -597,11 +613,17 @@ public:
      */
   bool locally_periodic_j() const;
   
+    //! Return whether box is locally periodic in k
+    /** Return whether box is locally periodic in k
+     * \return True if box is locally periodic in k direction
+     */
+  bool locally_periodic_k() const;
+  
     //! Return whether box is locally periodic in i and j
     /** Return whether box is locally periodic in i and j
      * \param lperiodic Non-zero if locally periodic in i [0] or j [1]
      */
-  void locally_periodic(bool lperiodic[2]) const;
+  void locally_periodic(bool lperiodic[3]) const;
 
     //! Return parallel data 
     /** Return parallel data, if there is any
@@ -685,7 +707,7 @@ private:
   int boxDims[6];
 
     //! is locally periodic in i or j
-  int locallyPeriodic[2];
+  int locallyPeriodic[3];
 
     //! parallel data associated with this box, if any
   ScdParData parData;
@@ -722,6 +744,10 @@ inline ErrorCode ScdInterface::compute_partition(int np, int nr, const ScdParDat
         rval = compute_partition_sqjk(np, nr, par_data.gDims, par_data.gPeriodic, 
                                       ldims, lperiodic, pdims);
         break;
+    case ScdParData::SQIJK:
+        rval = compute_partition_sqijk(np, nr, par_data.gDims, par_data.gPeriodic, 
+                                      ldims, lperiodic, pdims);
+        break;
     default:
         rval = MB_FAILURE;
         break;
@@ -740,8 +766,7 @@ inline ErrorCode ScdInterface::compute_partition_alljorkori(int np, int nr,
   if (!lperiodic) lperiodic = tmp_lp;
   if (!pijk) pijk = tmp_pijk;
   
-  lperiodic[0] = gperiodic[0];
-  lperiodic[1] = gperiodic[1];
+  for (int i = 0; i < 3; i++) lperiodic[i] = gperiodic[i];
   
   if (np == 1) {
     if (ldims) {
@@ -822,8 +847,7 @@ inline ErrorCode ScdInterface::compute_partition_alljkbal(int np, int nr,
   if (!lperiodic) lperiodic = tmp_lp;
   if (!pijk) pijk = tmp_pijk;
 
-  lperiodic[0] = gperiodic[0];
-  lperiodic[1] = gperiodic[1];
+  for (int i = 0; i < 3; i++) lperiodic[i] = gperiodic[i];
 
   if (np == 1) {
     if (ldims) {
@@ -899,8 +923,7 @@ inline ErrorCode ScdInterface::compute_partition_sqij(int np, int nr,
 
     // square IxJ partition
 
-  lperiodic[0] = gperiodic[0];
-  lperiodic[1] = gperiodic[1];
+  for (int i = 0; i < 3; i++) lperiodic[i] = gperiodic[i];
   
   if (np == 1) {
     if (ldims) {
@@ -979,8 +1002,7 @@ inline ErrorCode ScdInterface::compute_partition_sqjk(int np, int nr,
   if (!pijk) pijk = tmp_pijk;
 
     // square JxK partition
-  lperiodic[0] = gperiodic[0];
-  lperiodic[1] = gperiodic[1];
+  for (int i = 0; i < 3; i++) lperiodic[i] = gperiodic[i];
 
   if (np == 1) {
     if (ldims) {
@@ -1042,6 +1064,91 @@ inline ErrorCode ScdInterface::compute_partition_sqjk(int np, int nr,
   return MB_SUCCESS;
 }
 
+inline ErrorCode ScdInterface::compute_partition_sqijk(int np, int nr,
+                                                       const int * const gijk, const int * const gperiodic, 
+                                                       int *ldims, int *lperiodic, int *pijk)
+{
+  if (gperiodic[0] || gperiodic[1] || gperiodic[2]) return MB_FAILURE;
+  
+  int tmp_lp[3], tmp_pijk[3];
+  if (!lperiodic) lperiodic = tmp_lp;
+  if (!pijk) pijk = tmp_pijk;
+
+    // square IxJxK partition
+
+  for (int i = 0; i < 3; i++) lperiodic[i] = gperiodic[i];
+  
+  if (np == 1) {
+    if (ldims) 
+      for (int i = 0; i < 6; i++) ldims[i] = gijk[i];
+    pijk[0] = pijk[1] = pijk[2] = 1;
+    return MB_SUCCESS;
+  }
+
+  std::vector<int> pfactors;
+  pfactors.push_back(1);
+  for (int i = 2; i <= np/2; i++) 
+    if (!(np%i)) pfactors.push_back(i);
+  pfactors.push_back(np);
+
+    // test for IJ, JK, IK
+  int IJK[3], dIJK[3];
+  for (int i = 0; i < 3; i++)
+    IJK[i] = std::max(gijk[3+i] - gijk[i], 1);
+    // order IJK from lo to hi
+  int lo = 0, hi = 0;
+  for (int i = 1; i < 3; i++) {
+    if (IJK[i] < IJK[lo]) lo = i;
+    if (IJK[i] > IJK[hi]) hi = i;
+  }
+  if (lo == hi) hi = (lo+1)%3;
+  int mid = 3 - lo - hi;
+    // search for perfect subdivision of np that balances #cells
+  int perfa_best = -1, perfb_best = -1;
+  double ratio = 0.0;
+  for (int po = 0; po < (int)pfactors.size(); po++) {
+    for (int pi = po; pi < (int)pfactors.size() && np/(pfactors[po]*pfactors[pi]) >= pfactors[pi]; pi++) {
+      int p3 = std::find(pfactors.begin(), pfactors.end(), np/(pfactors[po]*pfactors[pi])) - pfactors.begin();
+      if (p3 == (int)pfactors.size() || pfactors[po]*pfactors[pi]*pfactors[p3] != np) continue; // po*pi should exactly factor np
+      assert(po <= pi && pi <= p3);
+        // by definition, po <= pi <= p3
+      double minl = std::min(std::min(IJK[lo]/pfactors[po], IJK[mid]/pfactors[pi]), IJK[hi]/pfactors[p3]),
+          maxl = std::max(std::max(IJK[lo]/pfactors[po], IJK[mid]/pfactors[pi]), IJK[hi]/pfactors[p3]);
+      if (minl/maxl > ratio) {
+        ratio = minl/maxl;
+        perfa_best = po; perfb_best = pi;
+      }
+    }
+  }
+  if (perfa_best == -1 || perfb_best == -1) return MB_FAILURE;
+
+    // VARIABLES DESCRIBING THE MESH:
+    // pijk[i] = # procs in direction i
+    // numr[i] = my proc's position in direction i
+    // dIJK[i] = # edges/elements in direction i
+    // extra[i]= # procs having extra edge in direction i
+    // top[i] = if true, I'm the last proc in direction i
+    
+  pijk[lo] = pfactors[perfa_best]; pijk[mid] = pfactors[perfb_best]; 
+  pijk[hi] = (np/(pfactors[perfa_best]*pfactors[perfb_best]));
+  int extra[3] = {0, 0, 0}, numr[3];
+  for (int i = 0; i < 3; i++) {
+    dIJK[i] = IJK[i] / pijk[i];
+    extra[i] = IJK[i]%pijk[i];
+  }
+  numr[2] = nr / (pijk[0]*pijk[1]);
+  int rem = nr % (pijk[0] * pijk[1]);
+  numr[1] = rem / pijk[0];
+  numr[0] = rem % pijk[0];
+  for (int i = 0; i < 3; i++) {
+    extra[i] = IJK[i] % dIJK[i];
+    ldims[i] = gijk[i] + numr[i]*dIJK[i] + std::min(extra[i], numr[i]);
+    ldims[3+i] = ldims[i] + dIJK[i] + (numr[i] < extra[i] ? 1 : 0);
+  }
+
+  return MB_SUCCESS;
+}
+
 inline int ScdInterface::gtol(const int *gijk, int i, int j, int k) 
 {
   return ((k-gijk[2])*(gijk[3]-gijk[0]+1)*(gijk[4]-gijk[1]+1) + (j-gijk[1])*(gijk[3]-gijk[0]+1) + i-gijk[0]);
@@ -1097,6 +1204,9 @@ inline ErrorCode ScdInterface::get_neighbor(int np, int pfrom, const ScdParData 
     case ScdParData::SQJK:
         return get_neighbor_sqjk(np, pfrom, spd.gDims, spd.gPeriodic, dijk,
                                  pto, rdims, facedims, across_bdy);
+    case ScdParData::SQIJK:
+        return get_neighbor_sqijk(np, pfrom, spd.gDims, spd.gPeriodic, dijk,
+                                  pto, rdims, facedims, across_bdy);
     default:
         break;
   }
@@ -1134,7 +1244,7 @@ inline int ScdBox::num_elements() const
   return (!startElem ? 0 : 
           (boxSize[0]- (locallyPeriodic[0] ? 0 : 1)) * 
           (-1 == boxSize[1] ? 1 : (boxSize[1]-(locallyPeriodic[1] ? 0 : 1))) * 
-          (boxSize[2] == -1 || boxSize[2] == 1 ? 1 : (boxSize[2]-1)));
+          (boxSize[2] == -1 || boxSize[2] == 1 ? 1 : (boxSize[2]-(locallyPeriodic[2] ? 0 : 1))));
 }
     
 inline int ScdBox::num_vertices() const
@@ -1267,10 +1377,26 @@ inline bool ScdBox::locally_periodic_j() const
   return locallyPeriodic[1];
 }
 
-inline void ScdBox::locally_periodic(bool lperiodic[2]) const 
+inline bool ScdBox::locally_periodic_k() const 
 {
-  for (int i = 0; i < 2; i++) 
+  return locallyPeriodic[2];
+}
+
+inline void ScdBox::locally_periodic(bool lperiodic[3]) const 
+{
+  for (int i = 0; i < 3; i++) 
     lperiodic[i] = locallyPeriodic[i];
+}
+
+inline std::ostream &operator<<(std::ostream &str, const ScdParData &pd) 
+{
+  static const char *PartitionMethodNames[] = {"NOPART", "ALLJORKORI", "ALLJKBAL", "SQIJ", "SQJK", "SQIJK"};
+  str << "Partition method = " << PartitionMethodNames[pd.partMethod] << ", gDims = (" 
+      << pd.gDims[0] << "," << pd.gDims[1] << "," << pd.gDims[2] << ")-(" 
+      << pd.gDims[3] << "," << pd.gDims[4] << "," << pd.gDims[5] << "), gPeriodic = (" 
+      << pd.gPeriodic[0] << ", " << pd.gPeriodic[1] << "," << pd.gPeriodic[2] << "), pDims = ("
+      << pd.pDims[0] << "," << pd.pDims[1] << "," << pd.pDims[2] << ")" << std::endl;
+  return str;
 }
 
 } // namespace moab

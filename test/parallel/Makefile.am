@@ -54,9 +54,9 @@ else
 endif
 
 if PNETCDF_FILE
-  if !NETCDF_FILE
-    NETCDF_TESTS = scdpart read_nc_par ucdtrvpart mpastrvpart
-  endif
+if !NETCDF_FILE
+  NETCDF_TESTS += scdpart read_nc_par ucdtrvpart mpastrvpart
+endif
 endif
 
 if ENABLE_mbcoupler

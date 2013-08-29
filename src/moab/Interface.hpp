@@ -22,9 +22,16 @@
  * together to describe geometric topology, boundary condition, and inter-processor interface 
  * groupings in a mesh.
  *
- * MOAB's API is documented in the moab::Interface class.  The User's Guide and Developer's Guide are located in
- * <a href="pages.html">related pages</a>.  Questions and comments should be sent to moab-dev 
+ * MOAB's API is documented in the moab::Interface class.  Questions and comments should be sent to moab-dev
  * _at_ mcs.anl.gov.
+ *
+ * \ref userguide "User's Guide (MOAB 4.6)"
+ *
+ * \ref developerguide "Developer's Guide (MOAB 4.6)"
+ *
+ * \ref metadata "I/O and Meta-Data Storage Conventions in MOAB"
+ *
+ * <a href="pages.html">Full List of Documents</a>
  */
 
 #ifndef MOAB_INTERFACE_HPP

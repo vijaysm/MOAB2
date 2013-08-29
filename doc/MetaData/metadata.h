@@ -129,13 +129,13 @@ Data: Entity sets; Tag(s): DIRICHLET_SET/I, NEUMANN_SET/I)
 Boundary conditions are often specified in terms of geometric model entities, similar to material types.  MOAB uses entity sets to store this information as well.  The DIRICHLET_SET and NEUMANN_SET tags are used to represent Dirichlet- and Neumann-type boundary condition sets, resp.  By convention, Neumann sets usually contain (indirectly) intermediate-dimension entities like edges in a 2D mesh or faces in a 3D mesh, while Dirichlet sets usually contain vertices.  In addition, Neumann sets are represented as sets of faces, rather than as sides of elements.  Faces can be ordered “forward” or “reverse” with respect to one of the bounding elements, depending on whether the right-hand normal points into or out of the element.  Forward-sense faces are added to the Neumann set.  Reverse-sense faces are put into a separate set; that set is tagged with the NEUSET_SENSE tag, with value = -1; and that reverse set is added to the Neummann set.
 
 <H3> Parallel Mesh Constructs </H3>
-(Data: Entity sets, entities; Tag(s): PARALLEL_PART/I, PARALLEL_PARTITION/I, PSTATUS/C*1, PARALLEL_SHARED_PROC/I, PARALLEL/SHARED_HANDLE/H, PARALLEL_SHARED_PROCS/I*NP, PARALLEL_SHARED_HANDLES/H*NP)
+(Data: Entity sets, entities; Tag(s): PARALLEL_PARTITION/I, PSTATUS/C*1, PARALLEL_SHARED_PROC/I, PARALLEL/SHARED_HANDLE/H, PARALLEL_SHARED_PROCS/I*NP, PARALLEL_SHARED_HANDLES/H*NP)
 
 On a parallel computer, MOAB can represent the mesh on each processor as well as information about entities shared with neighboring processors.  Some of this information is also relevant even when the mesh is represented on a serial machine.  MOAB uses several tag and set conventions to describe the parallel nature of a mesh.  This information is summarized here; for a more complete description of MOAB’s parallel mesh representation and functionality, see [ref-moabpar].
 
 - <B> Parallel partition, parts </B>
 
-Most parallel mesh applications use a domain decomposition approach, where each processor solves for a subset of the domain.  The set of entities solved by a given processor is referred to as a part, and the collection of parts together is called the partition.  MOAB stores each part in an entity set, marked with the PARALLEL_PART tag, whose value is the rank of the processor assigned that part; an entity set which contains all part sets is given the PARALLEL_PARTITION tag, whose value is currently meaningless.  The MBZoltan tool included as a tool in MOAB can partition a mesh for parallel solution, and writes the partition to the mesh in the form of parts and partitions.  Both these types of sets can be accessed in a serial mesh, e.g. for visualization.
+Most parallel mesh applications use a domain decomposition approach, where each processor solves for a subset of the domain.  The set of entities solved by a given processor is referred to as a part, and the collection of parts together is called the partition.  MOAB stores each part in an entity set, marked with the PARALLEL_PARTITION tag, whose value is the rank of the processor assigned that part; an entity set which contains all part sets is given the PARALLEL_PARTITIONING_TAG_NAME tag, whose value is currently meaningless.  The MBZoltan tool included as a tool in MOAB can partition a mesh for parallel solution, and writes the partition to the mesh in the form of parts and partitions.  Both these types of sets can be accessed in a serial mesh, e.g. for visualization.
 
 - <B> Part interfaces </B>
 
@@ -273,7 +273,7 @@ GEOM_SENSE_N_SENSES/I*N</td>
 <tr>
 <td>Parallel mesh constructs</td>
 <td>E, S</td>
-<td>PARALLEL_PART/I, PARALLEL_PARTITION/I, PSTATUS/C*1, PARALLEL_SHARED_PROC/I, PARALLEL/SHARED_HANDLE/H, PARALLEL_SHARED_PROCS/I*NP, PARALLEL_SHARED_HANDLES/H*NP</td>
+<td>PARALLEL_MESH_PARTITIONING/I, PARALLEL_PARTITION/I, PSTATUS/C*1, PARALLEL_SHARED_PROC/I, PARALLEL/SHARED_HANDLE/H, PARALLEL_SHARED_PROCS/I*NP, PARALLEL_SHARED_HANDLES/H*NP</td>
 <td> Data which describes parallel mesh</td>
 </tr>
 <tr>
@@ -380,19 +380,19 @@ GEOM_SENSE_N_SENSES/I*N</td>
 <td>Entities or sets with common boundary condition </td>
 </tr>
 <tr>
-<td>PARALLEL_PART </td>
+<td>PARALLEL_PARTITION </td>
 <td>I</td>
 <td>S</td>
 <td>Represent a part in a partition</td>
 </tr>
 <tr>
-<td>PARALLEL_PARTITION</td>
+<td>PARALLEL_MESH_PARTITIONING</td>
 <td>I</td>
 <td>S</td>
 <td>Represents a partition of the mesh for parallel solution, which is a collection of parts</td>
 </tr>
 <tr>
-<td>__PARALLEL_SHARED_HANDLEd</td>
+<td>__PARALLEL_SHARED_HANDLE</td>
 <td>H</td>
 <td>E, S</td>
 <td> Handle of this entity/set on sharing processor</td>
@@ -619,7 +619,7 @@ various tags representing information read from the file. These tags are describ
 Reading unstructured NC files in the HOMME format is also supported. Currently a trivial
 element-based partition is the only option for parallel reading. As the data is unstructured, it is necessary to have a connectivity file to define the vertex adjacencies. The default convention is to have a file called HommeMapping.nc in the same directory as the the variable data file. If this convention is not followed, the connectivity file can be specified with the option -O CONN=”/path/to/connectivity.nc”. An example of mbconvert using the parallel read capability is shown below:
 
-<B>  mpiexec -np 2 tools/mbconvert -O TRIVIAL_PARTITION -O DEBUG_IO=1 -o DEBUG_IO=9 -o PARALLEL=WRITE_PART /nfs2/hayes6/meshlab/homme_data/camrun.cam2.h0.0000-01-01-16200.nc output.h5m </B>
+<B>  mpiexec -np 2 tools/mbconvert -O TRIVIAL -O DEBUG_IO=1 -o DEBUG_IO=9 -o PARALLEL=WRITE_PART /nfs2/hayes6/meshlab/homme_data/camrun.cam2.h0.0000-01-01-16200.nc output.h5m </B>
 
 Several other things to note about reading climate data files into MOAB:
 - Time-dependent variables: MOAB currently has no mechanism for time-dependent tags. Therefore, time-dependent variables are represented using one tag per timestep, with the tag name set as the variable name plus the timestep index. Thus, the first few timesteps for the variable TEMPERATURE would be represented in tags named TEMPERATURE0, TEMPERATURE1, etc.
@@ -699,7 +699,7 @@ dimension.
 <tr>
 <td>__<var_name>_DIMS 
 </td>
-<td>C*n 
+<td>H*n 
 </td>
 <td>S</td>
 <td>For each variable, the tag handles for the
