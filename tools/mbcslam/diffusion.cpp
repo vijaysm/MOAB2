@@ -49,6 +49,9 @@ double radius = 1.;// in m:  6371220.
 int numSteps = 50; // number of times with velocity displayed at points
 double T = 5;
 
+int case_number = 1; // 1, 2 (non-divergent) 3 divergent
+
+int field_type = 1 ; // 1 quasi smooth, 2 - smooth, 3 non-smooth,
 #ifdef MESHDIR
 std::string TestDir( STRINGIFY(MESHDIR) );
 #else
@@ -96,19 +99,66 @@ ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag 
   // nondivergent flow, page 5, case 1, (la1, te1) = (M_PI, M_PI/3)
   //                                    (la2, te2) = (M_PI, -M_PI/3)
   //                 la1,    te1    la2    te2     b     c  hmax  r
-  double params[] = { M_PI, M_PI/3, M_PI, -M_PI/3, 0.1, 0.9, 1., 0.5};
-  for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
+  if (field_type==1) // quasi smooth
   {
-    EntityHandle oldV=*vit;
-    CartVect posi;
-    rval = mb->get_coords(&oldV, 1, &(posi[0]) );
-    CHECK_ERR(rval);
+    double params[] = { M_PI, M_PI/3, M_PI, -M_PI/3, 0.1, 0.9, 1., 0.5};
+    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
+    {
+      EntityHandle oldV=*vit;
+      CartVect posi;
+      rval = mb->get_coords(&oldV, 1, &(posi[0]) );
+      CHECK_ERR(rval);
 
-    SphereCoords sphCoord = cart_to_spherical(posi);
+      SphereCoords sphCoord = cart_to_spherical(posi);
 
-    ptr_DP[0]=quasi_smooth_field(sphCoord.lon, sphCoord.lat, params);;
+      ptr_DP[0]=quasi_smooth_field(sphCoord.lon, sphCoord.lat, params);;
 
-    ptr_DP++; // increment to the next node
+      ptr_DP++; // increment to the next node
+    }
+  }
+  else if (2 == field_type) // smooth
+  {
+    CartVect p1, p2;
+    SphereCoords spr;
+    spr.R = 1;
+    spr.lat = M_PI/3;
+    spr.lon= M_PI;
+    p1 = spherical_to_cart(spr);
+    spr.lat = -M_PI/3;
+    p2 = spherical_to_cart(spr);
+    //                  x1,    y1,     z1,    x2,   y2,    z2,   h_max, b0
+    double params[] = { p1[0], p1[1], p1[2], p2[0], p2[1], p2[2], 1,    5.};
+    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
+    {
+      EntityHandle oldV=*vit;
+      CartVect posi;
+      rval = mb->get_coords(&oldV, 1, &(posi[0]) );
+      CHECK_ERR(rval);
+
+      SphereCoords sphCoord = cart_to_spherical(posi);
+
+      ptr_DP[0]=smooth_field(sphCoord.lon, sphCoord.lat, params);;
+
+      ptr_DP++; // increment to the next node
+    }
+  }
+  else if (3 == field_type) // slotted
+  {
+    //                   la1, te1,   la2, te2,       b,   c,   r
+    double params[] = { M_PI, M_PI/3, M_PI, -M_PI/3, 0.1, 0.9, 0.5};// no h_max
+    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
+    {
+      EntityHandle oldV=*vit;
+      CartVect posi;
+      rval = mb->get_coords(&oldV, 1, &(posi[0]) );
+      CHECK_ERR(rval);
+
+      SphereCoords sphCoord = cart_to_spherical(posi);
+
+      ptr_DP[0]=slotted_cylinder_field(sphCoord.lon, sphCoord.lat, params);;
+
+      ptr_DP++; // increment to the next node
+    }
   }
 
   // add average value for quad/polygon (average corners)
@@ -142,7 +192,7 @@ ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag 
   }
 
   std::stringstream iniPos;
-  iniPos<<"def" << rank<<".vtk";
+  iniPos<< "Tracer" << rank<<"_"<<0<<  ".vtk";// first time step
   rval = mb->write_file(iniPos.str().c_str(), 0, 0, &euler_set, 1);
   CHECK_ERR(rval);
 
@@ -192,7 +242,7 @@ ErrorCode compute_velocity_case1(Interface * mb, EntityHandle euler_set, Tag & t
     ptr_velo+=3;// to next velocity
   }
   std::stringstream velos;
-  velos<<"velo0" << rank<<"_"<<tStep<<  ".vtk";
+  velos<<"Tracer" << rank<<"_"<<tStep<<  ".vtk";
   rval = mb->write_file(velos.str().c_str(), 0, 0, &euler_set, 1);
   CHECK_ERR(rval);
 
@@ -331,6 +381,16 @@ int main(int argc, char **argv)
         extra_read_opts = std::string(argv[++index]);
       }
 
+      if (!strcmp(argv[index], "-f"))
+      {
+        field_type = atoi(argv[++index]);
+      }
+
+      if (!strcmp(argv[index], "-h"))
+      {
+        std::cout << "usage: -gtol <tol> -input <file> -O <extra_read_opts> -f <field_type> -h (this help)\n";
+        return 0;
+      }
       index++;
     }
   }

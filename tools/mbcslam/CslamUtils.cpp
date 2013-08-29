@@ -1204,14 +1204,50 @@ double quasi_smooth_field(double lam, double tet, double * params)
   return value;
 }
 // page 4
+// params are now x1, y1, ..., y2, z2 (6 params)
+// plus h max and b0 (total of 8 params); radius is 1
 double smooth_field(double lam, double tet, double * params)
 {
-  return 0.;
+  SphereCoords sc;
+  sc.R = 1.;
+  sc.lat= tet;
+  sc.lon = lam;
+  double hmax = params[6];
+  double b0 = params[7];
+  CartVect xyz = spherical_to_cart(sc);
+  CartVect c1(params);
+  CartVect c2(params+3);
+  double expo1 = -b0 * (xyz-c1).length_squared();
+  double expo2 = -b0 * (xyz-c2).length_squared();
+  return hmax*( exp(expo1) + exp(expo2));
 }
 // page 5
 double slotted_cylinder_field(double lam, double tet, double * params)
 {
-  return 0.;
+  double la1 = params[0];
+  double te1 = params[1];
+  double la2 = params[2];
+  double te2 = params[3];
+  double b = params[4];
+  double c = params[5];
+  //double hmax = params[6]; // 1;
+  double r = params[6] ; // 0.5;
+  double r1 = distance_on_sphere(lam, tet, la1, te1);
+  double r2 = distance_on_sphere(lam, tet, la2, te2);
+  double value = b;
+  double d1=fabs(lam-la1);
+  double d2 = fabs(lam-la2);
+  double rp6 = r/6;
+  double rt5p12 = r*5/12;
+
+  if (r1<=r && r2<=r && d1>=rp6 && d2>=rp6)
+    value =c;
+  else if (r1<=r && d1<rp6 && tet-te1<-rt5p12)
+    value = c;
+  else if (r2<r && d2 < rp6 && tet-te2 > rt5p12)
+    value =c;
+
+  return value;
 }
 
 } //namespace moab
