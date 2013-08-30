@@ -388,7 +388,9 @@ int main(int argc, char **argv)
 
       if (!strcmp(argv[index], "-h"))
       {
-        std::cout << "usage: -gtol <tol> -input <file> -O <extra_read_opts> -f <field_type> -h (this help)\n";
+        std::cout << "usage: -gtol <tol> -input <file> -O <extra_read_opts> \n   "
+        <<    "-f <field_type> -h (this help)\n";
+        std::cout << " filed type: 1: quasi-smooth; 2: smooth; 3: slotted cylinders (non-smooth)\n";
         return 0;
       }
       index++;
@@ -416,7 +418,7 @@ int main(int argc, char **argv)
 
   if (0==rank)
     std::cout << " case 1: use -gtol " << gtol <<
-        " -R " << radius << " -input " << filename_mesh1 << "\n";
+        " -R " << radius << " -input " << filename_mesh1 <<  " -f " << field_type << "\n";
 
   Tag tagTracer = 0;
   std::string tag_name("Tracer");

@@ -1240,11 +1240,13 @@ double slotted_cylinder_field(double lam, double tet, double * params)
   double rp6 = r/6;
   double rt5p12 = r*5/12;
 
-  if (r1<=r && r2<=r && d1>=rp6 && d2>=rp6)
-    value =c;
-  else if (r1<=r && d1<rp6 && tet-te1<-rt5p12)
+  if (r1<=r &&  d1>=rp6)
+      value=c;
+  if (r2<=r &&  d2>=rp6)
+      value =c;
+  if (r1<=r && d1<rp6 && tet-te1<-rt5p12)
     value = c;
-  else if (r2<r && d2 < rp6 && tet-te2 > rt5p12)
+  if (r2<=r && d2<rp6 && tet-te2 > rt5p12)
     value =c;
 
   return value;
