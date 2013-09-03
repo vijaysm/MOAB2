@@ -96,17 +96,47 @@ namespace moab {
     // \section GLOBAL IDS
     // ==================================
 
-    //! assign a global id space, for largest-dimension or all entities (and
-    //! in either case for vertices too)
-    //!\param owned_only If true, do not get global IDs for non-owned entities
-    //!                  from remote processors.
+    /* \brief Assign a global id space for entities
+     *
+     * Spaces are separate (and overlapping) for each dimension (i.e. global id space
+     * is not unique over all dimension entities)
+     *
+     * \param this_set Assign ids for entities in this set
+     * \param max_dim Assign for entities up to max_dim
+     * \param start_id Starting id for entities, defaults to 1
+     * \param largest_dim_only Assign only for max_dim and vertices, otherwise for edges/faces too
+     * \param parallel If true, use MPI_Scan-like function to properly assign over all processors, 
+     *        otherwise gids are assigned locally only
+     * \param owned_only If false, exchanged gids with sharing processors so gids are valid for 
+     *        non-owned entities too
+     */
     ErrorCode assign_global_ids(EntityHandle this_set,
-                                const int dimension,
+                                const int max_dim,
                                 const int start_id = 1,
                                 const bool largest_dim_only = true,
                                 const bool parallel = true,
                                 const bool owned_only = false);
 
+    /* \brief Assign a global id space for entities
+     *
+     * Same as set-based variant of this function, except entity Range vectors are input directly
+     * (by dimension, so entities[0] contains vertices, etc.)
+     *
+     * \param entities Assign ids for entities in the vector by dimension
+     * \param max_dim Assign for entities up to max_dim
+     * \param start_id Starting id for entities, defaults to 1
+     * \param largest_dim_only Assign only for max_dim and vertices, otherwise for edges/faces too
+     * \param parallel If true, use MPI_Scan-like function to properly assign over all processors, 
+     *        otherwise gids are assigned locally only
+     * \param owned_only If false, exchanged gids with sharing processors so gids are valid for 
+     *        non-owned entities too
+     */
+  ErrorCode assign_global_ids( Range entities[],
+                               const int dimension, 
+                               const int start_id,
+                               const bool parallel = true,
+                               const bool owned_only = true);
+    
     //! check for global ids; based only on tag handle being there or not;
     //! if it's not there, create them for the specified dimensions
     //!\param owned_only If true, do not get global IDs for non-owned entities
@@ -396,34 +426,15 @@ namespace moab {
      *
      * Resolve shared entities between processors for entities in proc_ents,
      * by comparing global id tag values on vertices on skin of elements in
-     * proc_ents.  Shared entities are assigned a tag that's either
-     * PARALLEL_SHARED_PROC_TAG_NAME, which is 1 integer in length, or 
-     * PARALLEL_SHARED_PROCS_TAG_NAME, whose length depends on the maximum
-     * number of sharing processors.  Values in these tags denote the ranks
-     * of sharing processors, and the list ends with the value -1.
+     * proc_ents.
      *
-     * If shared_dim is input as -1 or not input, a value one less than the
-     * maximum dimension of entities in proc_ents is used.
-     *
+     * \param this_set Set from which entities for proc_ents are taken
      * \param proc_ents Entities for which to resolve shared entities
-     * \param shared_dim Maximum dimension of shared entities to look for
-     */
-    ErrorCode resolve_shared_ents(EntityHandle this_set,
-                                  Range &proc_ents, 
-                                  int resolve_dim = -1,
-                                  int shared_dim = -1,
-                                  const Tag* id_tag = 0);
-  
-    /** \brief Resolve shared entities between processors
-     *
-     * Same as resolve_shared_ents(Range&), except works for
-     * all entities in instance of dimension dim.  
-     *
-     * If shared_dim is input as -1 or not input, a value one less than the
-     * maximum dimension of entities is used.
-
-     * \param dim Dimension of entities in the partition
-     * \param shared_dim Maximum dimension of shared entities to look for
+     * \param resolve_dim Dimension of entities in part/partition
+     * \param shared_dim Maximum dimension of shared entities to look for; if -1, 
+     *        resolve_dim-1 is used
+     * \param id_tag If non-NULL, use this tag to get global id on which vertex resolution
+     *        is based
      */
     ErrorCode resolve_shared_ents(EntityHandle this_set,
                                   int resolve_dim = 3, 
@@ -432,18 +443,34 @@ namespace moab {
 
     /** \brief Resolve shared entities between processors
      *
-     * Entity skin array is offered by user not by skinner
-     * It is used by other resolve_shared_ents functions above 
-
-     * \param skin_ents[] entity skin array by user
+     * Same as resolve_shared_ents with entity set as first argument, except instead
+     * a range is input containing entities in the part/partition.
+     *
+     * \param this_set In this function variant, set is used to speed up skinning
+     * \param proc_ents Entities for which to resolve shared entities
+     * \param resolve_dim Dimension of entities in part/partition
+     * \param shared_dim Maximum dimension of shared entities to look for; if -1, 
+     *        resolve_dim-1 is used
+     * \param id_tag If non-NULL, use this tag to get global id on which vertex resolution
+     *        is based
      */
     ErrorCode resolve_shared_ents(EntityHandle this_set,
-                                  Range &proc_ents,
-				  Range skin_ents[],
-				  int resolve_dim = 3,
-				  int shared_dim = -1,
-				  const Tag* id_tag = 0);
-    
+                                  Range &proc_ents, 
+                                  int resolve_dim = -1,
+                                  int shared_dim = -1,
+                                  Range *skin_ents = NULL,
+                                  const Tag* id_tag = 0);
+  
+    /** \brief Resolve shared entities between processors
+     *
+     * This version can be used statically, with messages exchanged via direct calls to buffer
+     * pack/unpack functions instead of MPI
+     *
+     * \param pc Array of ParallelComm instances
+     * \param np Number of ParallelComm objects in previous argument
+     * \param this_set Set of entities in parts/partition
+     * \param to_dim Maximum dimension of shared entities to look for
+     */
     static ErrorCode resolve_shared_ents(ParallelComm **pc, 
                                          const unsigned int np, 
                                          EntityHandle this_set,
@@ -863,8 +890,7 @@ namespace moab {
     // and tags the set with the procs sharing it; interface sets are optionally
     // returned; NOTE: a subsequent step is used to verify entities on the interface
     // and remove them if they're not shared
-    ErrorCode create_interface_sets(std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
-                                    int resolve_dim, int shared_dim);
+    ErrorCode create_interface_sets(std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs);
 
     // do the same but working straight from sharedEnts
     ErrorCode create_interface_sets(EntityHandle this_set, int resolve_dim, int shared_dim);
@@ -1230,10 +1256,10 @@ namespace moab {
                                std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
                                Range &proc_verts);
   
-    ErrorCode tag_shared_ents(int resolve_dim,
-                              int shared_dim,
-                              Range *skin_ents,
-                              std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs);
+    ErrorCode get_proc_nvecs(int resolve_dim,
+                             int shared_dim,
+                             Range *skin_ents,
+                             std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs);
 
     // after verifying shared entities, now parent/child links between sets can be established
     ErrorCode create_iface_pc_links();
