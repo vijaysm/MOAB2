@@ -3542,9 +3542,9 @@ ErrorCode ParallelComm::reduce_void(int tag_data_type, const MPI_Op mpi_op, int 
 }
 
 ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
-                                              int resolve_dim,
-                                              int shared_dim,
-                                              const Tag* id_tag) 
+                                            int resolve_dim,
+                                            int shared_dim,
+                                            const Tag* id_tag) 
   {
     ErrorCode result;
     Range proc_ents;
@@ -3556,7 +3556,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
       result = scdi->tag_shared_vertices(this, this_set);
       if (MB_SUCCESS == result) {
         myDebug->tprintf(1, "Total number of shared entities = %lu.\n", (unsigned long)sharedEnts.size());
-        return result;
+        if (shared_dim == 0) return result;
       }
     }
   
@@ -3626,7 +3626,6 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   
     // get the skin entities by dimension
     Range tmp_skin_ents[4];
-    std::vector<int> gid_data;
     std::vector<EntityHandle> handle_vec;
     int skin_dim;
 
@@ -3640,7 +3639,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
 
         // find the skin
       Skinner skinner(mbImpl);
-      result = skinner.find_skin(this_set, skin_ents[skin_dim+1], false, skin_ents[skin_dim],
+      result = skinner.find_skin(this_set, skin_ents[resolve_dim], false, skin_ents[skin_dim],
                                  NULL, true, true, true);
       RRA("Failed to find skin.");
       myDebug->tprintf(1, "Found skin, now resolving.\n");
@@ -3677,6 +3676,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     }
   
     // get gids for skin ents in a vector, to pass to gs
+    std::vector<int> gid_data(skin_ents[0].size());
     result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &gid_data[0]);
     RRA("Couldn't get gid tag for skin vertices.");
 
@@ -3764,8 +3764,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
                                      Interface::UNION);
     RRA("Couldn't get proc_verts.");
   
-    result = tag_shared_verts(shared_verts, skin_ents,
-                              proc_nvecs, proc_verts);
+    result = tag_shared_verts(shared_verts, skin_ents, proc_nvecs, proc_verts);
     RRA("Trouble tagging shared verts.");
 
 #ifdef USE_MPE
@@ -3806,7 +3805,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     RRA("Shared handle check failed after iface vertex exchange.");
 #endif  
 
-    // resolve shared entity remote handles; implemented in ghost cell exchange
+    // resolve shared non-vertex remote handles; implemented in ghost cell exchange
     // code because it's so similar
     result = exchange_ghost_cells(-1, -1, 0, 0, true, true);
     RRA("Trouble resolving shared entity remote handles.");
