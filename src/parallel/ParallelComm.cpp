@@ -3676,19 +3676,6 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
       }
     }
   
-    // store index in temp tag; reuse gid_data 
-    gid_data.resize(2*skin_ents[0].size());
-    int idx = 0;
-    for (Range::iterator rit = skin_ents[0].begin(); 
-         rit != skin_ents[0].end(); rit++) 
-      gid_data[idx] = idx, idx++;
-    Tag idx_tag;
-    result = mbImpl->tag_get_handle("__idx_tag", 1, MB_TYPE_INTEGER,
-                                    idx_tag, MB_TAG_DENSE|MB_TAG_CREAT, &def_val ); 
-    if (MB_SUCCESS != result) return result;
-    result = mbImpl->tag_set_data(idx_tag, skin_ents[0], &gid_data[0]);
-    RRA("Couldn't assign index tag.");
-
     // get gids for skin ents in a vector, to pass to gs
     result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &gid_data[0]);
     RRA("Couldn't get gid tag for skin vertices.");
