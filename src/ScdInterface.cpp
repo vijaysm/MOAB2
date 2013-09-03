@@ -659,8 +659,11 @@ ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, EntityHandle se
   if (MB_SUCCESS != rval) return rval;
   
     // create interface sets
-  rval = pcomm->create_interface_sets(proc_nvecs, -1, -1);
+  rval = pcomm->create_interface_sets(proc_nvecs);
   if (MB_SUCCESS != rval) return rval;
+
+    // add the box to the PComm's partitionSets
+  pcomm->partition_sets().insert(box->box_set());
 
     // make sure buffers are allocated for communicating procs
   for (std::vector<int>::iterator pit = procs.begin(); pit != procs.end(); pit++)
