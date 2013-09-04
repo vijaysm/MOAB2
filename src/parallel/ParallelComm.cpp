@@ -250,7 +250,7 @@ namespace moab {
       if (tag < MB_MESG_REMOTEH_ACK) myDebug->print(3, ", recv_ent_reqs=");
       else if (tag < MB_MESG_TAGS_ACK) myDebug->print(3, ", recv_remoteh_reqs=");
       else myDebug->print(3, ", recv_tag_reqs=");
-      for (unsigned int i = 0; i < reqs.size(); i++) myDebug->printf(3, " %x", reqs[i]);
+      for (unsigned int i = 0; i < reqs.size(); i++) myDebug->printf(3, " %p", (void*)reqs[i]);
       myDebug->print(3, "\n");
     }
   }
