@@ -250,7 +250,7 @@ namespace moab {
       if (tag < MB_MESG_REMOTEH_ACK) myDebug->print(3, ", recv_ent_reqs=");
       else if (tag < MB_MESG_TAGS_ACK) myDebug->print(3, ", recv_remoteh_reqs=");
       else myDebug->print(3, ", recv_tag_reqs=");
-      for (unsigned int i = 0; i < reqs.size(); i++) myDebug->printf(3, " %p", (void*)reqs[i]);
+      for (unsigned int i = 0; i < reqs.size(); i++) myDebug->printf(3, " %p", (void*)(intptr_t)reqs[i]);
       myDebug->print(3, "\n");
     }
   }
@@ -3730,11 +3730,11 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     shared_verts.enableWriteAccess();
 
     unsigned int i = 0, j = 0;
-    for (unsigned int p = 0; p < gsd->nlinfo->np; p++) 
-      for (unsigned int np = 0; np < gsd->nlinfo->nshared[p]; np++) {
-        shared_verts.vi_wr[i++] = gsd->nlinfo->sh_ind[j];
-        shared_verts.vi_wr[i++] = gsd->nlinfo->target[p];
-        shared_verts.vul_wr[j] = gsd->nlinfo->ulabels[j];
+    for (unsigned int p = 0; p < gsd->nlinfo->_np; p++)
+      for (unsigned int np = 0; np < gsd->nlinfo->_nshared[p]; np++) {
+        shared_verts.vi_wr[i++] = gsd->nlinfo->_sh_ind[j];
+        shared_verts.vi_wr[i++] = gsd->nlinfo->_target[p];
+        shared_verts.vul_wr[j] = gsd->nlinfo->_ulabels[j];
         j++;
         shared_verts.inc_n();
       }
@@ -4236,17 +4236,17 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     // by idx and secondarily by rank (we want lists of procs for each
     // idx, not lists if indices for each proc).
     size_t ntuple = 0;
-    for (unsigned p = 0; p < gsd->nlinfo->np; p++) 
-      ntuple += gsd->nlinfo->nshared[p];
+    for (unsigned p = 0; p < gsd->nlinfo->_np; p++)
+      ntuple += gsd->nlinfo->_nshared[p];
     std::vector< set_tuple > tuples;
     tuples.reserve( ntuple );
     size_t j = 0;
-    for (unsigned p = 0; p < gsd->nlinfo->np; p++) {
-      for (unsigned np = 0; np < gsd->nlinfo->nshared[p]; np++) {
+    for (unsigned p = 0; p < gsd->nlinfo->_np; p++) {
+      for (unsigned np = 0; np < gsd->nlinfo->_nshared[p]; np++) {
         set_tuple t;
-        t.idx = gsd->nlinfo->sh_ind[j];
-        t.proc = gsd->nlinfo->target[p];
-        t.handle = gsd->nlinfo->ulabels[j];
+        t.idx = gsd->nlinfo->_sh_ind[j];
+        t.proc = gsd->nlinfo->_target[p];
+        t.handle = gsd->nlinfo->_ulabels[j];
         tuples.push_back( t );
         ++j;
       }
