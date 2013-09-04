@@ -3649,26 +3649,6 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     }
     else if (skin_ents[resolve_dim].empty()) skin_ents[resolve_dim] = proc_ents;
     
-    return resolve_shared_ents(this_set, proc_ents, skin_ents,
-                               resolve_dim, shared_dim, id_tag);
-  }
-
-  ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
-                                              Range &proc_ents,
-                                              Range skin_ents[],
-                                              int resolve_dim,
-                                              int shared_dim,
-                                              const Tag* id_tag)
-  { // resolve shared vertices first
-    ErrorCode result;
-    std::vector<EntityHandle> handle_vec;
-    int skin_dim = resolve_dim-1;
-    assert(resolve_dim >= shared_dim);
-    if (resolve_dim < shared_dim) {
-      result = MB_FAILURE;
-      RRA("Resolve dim must be >= shared_dim.");
-    }
-
     // global id tag
     Tag gid_tag; 
     if (id_tag)
@@ -3694,6 +3674,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     RRA("Couldn't get gid tag for skin vertices.");
 
     // put handles in vector for passing to gs setup
+    std::vector<EntityHandle> handle_vec;
     std::copy(skin_ents[0].begin(), skin_ents[0].end(), 
               std::back_inserter(handle_vec));
 
@@ -3705,7 +3686,6 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   
     // get a crystal router
     gs_data::crystal_data *cd = procConfig.crystal_router();
-
 
     /*  
     // get total number of entities; will overshoot highest global id, but

@@ -439,20 +439,6 @@ namespace moab {
                                   int shared_dim = -1,
                                   const Tag* id_tag = 0);
 
-    /** \brief Resolve shared entities between processors
-     *
-     * Entity skin array is offered by user not by skinner
-     * It is used by other resolve_shared_ents functions above 
-
-     * \param skin_ents[] entity skin array by user
-     */
-    ErrorCode resolve_shared_ents(EntityHandle this_set,
-                                  Range &proc_ents,
-				  Range skin_ents[],
-				  int resolve_dim = 3,
-				  int shared_dim = -1,
-				  const Tag* id_tag = 0);
-    
     static ErrorCode resolve_shared_ents(ParallelComm **pc, 
                                          const unsigned int np, 
                                          EntityHandle this_set,
