@@ -430,7 +430,7 @@ namespace moab {
           dum_range.insert(*rit);
       entities[dim] = subtract( entities[dim], dum_range);
     }
-
+    
     return assign_global_ids(entities, dimension, start_id, parallel, owned_only);
   }
     
@@ -3542,9 +3542,9 @@ ErrorCode ParallelComm::reduce_void(int tag_data_type, const MPI_Op mpi_op, int 
 }
 
 ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
-                                            int resolve_dim,
-                                            int shared_dim,
-                                            const Tag* id_tag) 
+                                              int resolve_dim,
+                                              int shared_dim,
+                                              const Tag* id_tag) 
   {
     ErrorCode result;
     Range proc_ents;
@@ -3556,7 +3556,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
       result = scdi->tag_shared_vertices(this, this_set);
       if (MB_SUCCESS == result) {
         myDebug->tprintf(1, "Total number of shared entities = %lu.\n", (unsigned long)sharedEnts.size());
-        if (shared_dim == 0) return result;
+        return result;
       }
     }
   
@@ -3617,29 +3617,24 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
         shared_dim = mbImpl->dimension_from_handle(*proc_ents.begin())-1;
       else if (resolve_dim == 3)
         shared_dim = 2;
-      else {
-        assert(false && "Unable to guess shared_dim.");
-        return MB_FAILURE;
-      }
     }
-    assert(shared_dim >= 0 && resolve_dim >= shared_dim);
+    
+    if (shared_dim < 0 || resolve_dim < 0) {
+      result = MB_FAILURE;
+      RRA("Unable to guess shared_dim or resolve_dim.");
+    }
   
     // get the skin entities by dimension
     Range tmp_skin_ents[4];
-    std::vector<EntityHandle> handle_vec;
-    int skin_dim;
 
+    // get the entities to be skinned
+    // find the skin
+    int skin_dim = resolve_dim-1;
     if (!skin_ents) {
-        // need to compute the skin here
       skin_ents = tmp_skin_ents;
-      
-        // get the entities to be skinned
       skin_ents[resolve_dim] = proc_ents;
-      skin_dim = resolve_dim-1;
-
-        // find the skin
       Skinner skinner(mbImpl);
-      result = skinner.find_skin(this_set, skin_ents[resolve_dim], false, skin_ents[skin_dim],
+      result = skinner.find_skin(this_set, skin_ents[skin_dim+1], false, skin_ents[skin_dim],
                                  NULL, true, true, true);
       RRA("Failed to find skin.");
       myDebug->tprintf(1, "Found skin, now resolving.\n");
@@ -3652,13 +3647,15 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
         RRA("Failed getting skin adjacencies.");
       }
     }
+    else if (skin_ents[resolve_dim].empty()) skin_ents[resolve_dim] = proc_ents;
     
     // global id tag
-    Tag gid_tag; int def_val = -1;
+    Tag gid_tag; 
     if (id_tag)
       gid_tag = *id_tag;
     else {
       bool tag_created = false;
+      int def_val = -1;
       result = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER,
                                       gid_tag, MB_TAG_DENSE|MB_TAG_CREAT, 
                                       &def_val, &tag_created );
@@ -3666,11 +3663,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
 
       else if (tag_created) {
         // just created it, so we need global ids
-        Range tmp_ents[4];
-        tmp_ents[resolve_dim] = proc_ents.subset_by_dimension(resolve_dim);
-        result = mbImpl->get_adjacencies(tmp_ents[resolve_dim], 0, false, tmp_ents[0]);
-        RRA("Failed to get adjacent vertices.");
-        result = assign_global_ids(tmp_ents, resolve_dim, 1, true, true);
+        result = assign_global_ids(this_set, skin_dim+1,true,true,true);
         RRA("Failed assigning global ids.");
       }
     }
@@ -3681,6 +3674,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     RRA("Couldn't get gid tag for skin vertices.");
 
     // put handles in vector for passing to gs setup
+    std::vector<EntityHandle> handle_vec;
     std::copy(skin_ents[0].begin(), skin_ents[0].end(), 
               std::back_inserter(handle_vec));
 
@@ -3764,7 +3758,8 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
                                      Interface::UNION);
     RRA("Couldn't get proc_verts.");
   
-    result = tag_shared_verts(shared_verts, skin_ents, proc_nvecs, proc_verts);
+    result = tag_shared_verts(shared_verts, skin_ents,
+                              proc_nvecs, proc_verts);
     RRA("Trouble tagging shared verts.");
 
 #ifdef USE_MPE
@@ -3805,7 +3800,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     RRA("Shared handle check failed after iface vertex exchange.");
 #endif  
 
-    // resolve shared non-vertex remote handles; implemented in ghost cell exchange
+    // resolve shared entity remote handles; implemented in ghost cell exchange
     // code because it's so similar
     result = exchange_ghost_cells(-1, -1, 0, 0, true, true);
     RRA("Trouble resolving shared entity remote handles.");
@@ -4534,7 +4529,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
  
         int op = (resolve_dim < shared_dim ? Interface::UNION : Interface::INTERSECT);      
         result = get_sharing_data(connect, num_connect, sharing_procs, op);
-        RRA("Failed to get sharing data in tag_shared_ents");
+        RRA("Failed to get sharing data in get_proc_nvecs");
         if (sharing_procs.empty() ||
             (sharing_procs.size() == 1 && *sharing_procs.begin() == (int)procConfig.proc_rank())) continue;
 

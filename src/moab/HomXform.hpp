@@ -31,6 +31,7 @@
 #define XFORM_INDEX(a,b) 4*a+b
 
 #include <math.h>
+#include <ostream>
 
 namespace moab {
 
@@ -471,6 +472,12 @@ inline int HomCoord::operator[](const int &param) const
 inline int &HomCoord::operator[](const int &param)
 {
   return homCoord[param];
+}
+
+inline std::ostream &operator<<(std::ostream &str, const HomCoord &hc)
+{
+  str << "(" << hc.i() << "," << hc.j() << "," << hc.k() << ")";
+  return str;
 }
 
 inline HomXform::HomXform(const int matrix[16]) 
