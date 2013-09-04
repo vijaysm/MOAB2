@@ -559,7 +559,7 @@ namespace moab{
     }
     
     // get entities shared by 1 or n procs
-    rval = myPcomm->tag_shared_ents(dim,dim-1, &mySkinEnts[0],proc_nranges);
+    rval = myPcomm->get_proc_nvecs(dim,dim-1, &mySkinEnts[0],proc_nranges);
     if(rval != MB_SUCCESS){
       return rval;
     }

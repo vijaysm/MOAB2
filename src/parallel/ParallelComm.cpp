@@ -3791,8 +3791,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
 #endif
 
     // get entities shared by 1 or n procs
-    result = tag_shared_ents(resolve_dim, shared_dim, skin_ents,
-                             proc_nvecs);
+    result = get_proc_nvecs(resolve_dim, shared_dim, skin_ents, proc_nvecs);
     RRA("Trouble tagging shared entities.");
 
     shared_verts.reset();
@@ -4369,8 +4368,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
       RRA("");
     }
 
-    result = tag_shared_ents(resolve_dim, shared_dim, skin_ents,
-                             proc_nvecs);
+    result = get_proc_nvecs(resolve_dim, shared_dim, skin_ents, proc_nvecs);
     
     return create_interface_sets(proc_nvecs);
   }
@@ -4529,10 +4527,10 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     return MB_SUCCESS;
   }
 
-  ErrorCode ParallelComm::tag_shared_ents(int resolve_dim,
-                                          int shared_dim,
-                                          Range *skin_ents,
-                                          std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs) 
+  ErrorCode ParallelComm::get_proc_nvecs(int resolve_dim,
+                                         int shared_dim,
+                                         Range *skin_ents,
+                                         std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs) 
   {
     // set sharing procs tags on other skin ents
     ErrorCode result;
@@ -4553,7 +4551,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
  
         int op = (resolve_dim < shared_dim ? Interface::UNION : Interface::INTERSECT);      
         result = get_sharing_data(connect, num_connect, sharing_procs, op);
-        RRA("Failed to get sharing data in tag_shared_ents");
+        RRA("Failed to get sharing data in get_proc_nvecs");
         if (sharing_procs.empty() ||
             (sharing_procs.size() == 1 && *sharing_procs.begin() == (int)procConfig.proc_rank())) continue;
 

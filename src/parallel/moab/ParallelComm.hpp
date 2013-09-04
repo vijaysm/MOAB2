@@ -1229,10 +1229,10 @@ namespace moab {
                                std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
                                Range &proc_verts);
   
-    ErrorCode tag_shared_ents(int resolve_dim,
-                              int shared_dim,
-                              Range *skin_ents,
-                              std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs);
+    ErrorCode get_proc_nvecs(int resolve_dim,
+                             int shared_dim,
+                             Range *skin_ents,
+                             std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs);
 
     // after verifying shared entities, now parent/child links between sets can be established
     ErrorCode create_iface_pc_links();
