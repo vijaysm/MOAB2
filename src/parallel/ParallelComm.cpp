@@ -3591,12 +3591,13 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     ErrorCode result;
     myDebug->tprintf(1, "Resolving shared entities.\n");
 
+    if (resolve_dim < shared_dim) {
+      result = MB_FAILURE;
+      RRA("MOAB does not support vertex-based partitions, only element-based ones.");
+    }
+    
     if (-1 == shared_dim) {
-      if (0 == resolve_dim) {
-        result = mbImpl->get_dimension(shared_dim); 
-        RRA("Couldn't get dimension.");
-      }
-      else if (!proc_ents.empty())
+      if (!proc_ents.empty())
         shared_dim = mbImpl->dimension_from_handle(*proc_ents.begin())-1;
       else if (resolve_dim == 3)
         shared_dim = 2;
