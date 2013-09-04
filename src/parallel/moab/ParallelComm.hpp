@@ -107,6 +107,14 @@ namespace moab {
                                 const bool parallel = true,
                                 const bool owned_only = false);
 
+  //! assign a global id space, for largest-dimension or all entities (and
+  //! in either case for vertices too)
+  ErrorCode assign_global_ids( Range entities[],
+                               const int dimension, 
+                               const int start_id,
+                               const bool parallel,
+                               const bool owned_only);
+    
     //! check for global ids; based only on tag handle being there or not;
     //! if it's not there, create them for the specified dimensions
     //!\param owned_only If true, do not get global IDs for non-owned entities

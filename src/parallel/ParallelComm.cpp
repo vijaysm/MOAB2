@@ -409,7 +409,6 @@ namespace moab {
                                              const bool owned_only) 
   {
     Range entities[4];
-    int local_num_elements[4];
     ErrorCode result;
     std::vector<unsigned char> pstatus;
     for (int dim = 0; dim <= dimension; dim++) {
@@ -430,7 +429,23 @@ namespace moab {
         if (pstatus[i] & PSTATUS_NOT_OWNED)
           dum_range.insert(*rit);
       entities[dim] = subtract( entities[dim], dum_range);
+    }
     
+    return assign_global_ids(entities, dimension, start_id, parallel, owned_only);
+  }
+    
+  //! assign a global id space, for largest-dimension or all entities (and
+  //! in either case for vertices too)
+  ErrorCode ParallelComm::assign_global_ids( Range entities[],
+                                             const int dimension, 
+                                             const int start_id,
+                                             const bool parallel,
+                                             const bool owned_only) 
+  {
+    int local_num_elements[4];
+    ErrorCode result;
+    std::vector<unsigned char> pstatus;
+    for (int dim = 0; dim <= dimension; dim++) {
       local_num_elements[dim] = entities[dim].size();
     }
   
