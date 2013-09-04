@@ -1491,7 +1491,7 @@ void test_write_unbalanced()
   ParallelComm* pcomm = ParallelComm::get_pcomm( &mb, 0 );
   if (0 == pcomm)
     pcomm = new ParallelComm( &mb, MPI_COMM_WORLD );
-  rval = pcomm->resolve_shared_ents( 0, entities, 2, 0, NULL, &idtag );
+  rval = pcomm->resolve_shared_ents( 0, entities, 2, 0, &idtag );
   CHECK_ERR(rval);
   rval = pcomm->resolve_shared_sets( sets, idtag );
   CHECK_ERR(rval);
