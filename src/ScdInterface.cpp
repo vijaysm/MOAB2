@@ -659,7 +659,7 @@ ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, EntityHandle se
   if (MB_SUCCESS != rval) return rval;
   
     // create interface sets
-  rval = pcomm->create_interface_sets(proc_nvecs, 3, 2);
+  rval = pcomm->create_interface_sets(proc_nvecs);
   if (MB_SUCCESS != rval) return rval;
 
     // add the box to the PComm's partitionSets

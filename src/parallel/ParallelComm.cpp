@@ -3809,7 +3809,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     // create the sets for each interface; store them as tags on
     // the interface instance
     Range iface_sets;
-    result = create_interface_sets(proc_nvecs, resolve_dim, shared_dim);
+    result = create_interface_sets(proc_nvecs);
     RRA("Trouble creating iface sets.");
 
     // establish comm procs and buffers for them
@@ -4371,12 +4371,10 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     result = tag_shared_ents(resolve_dim, shared_dim, skin_ents,
                              proc_nvecs);
     
-    return create_interface_sets(proc_nvecs, resolve_dim, shared_dim);
+    return create_interface_sets(proc_nvecs);
   }
   
-  ErrorCode ParallelComm::create_interface_sets(std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
-                                                int /*resolve_dim*/, 
-                                                int /*shared_dim*/) 
+  ErrorCode ParallelComm::create_interface_sets(std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs) 
   {
     if (proc_nvecs.empty()) return MB_SUCCESS;
   
@@ -6247,7 +6245,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     }
 
     // create interface sets from shared entities
-    result = create_interface_sets(proc_nvecs, 3, 2);
+    result = create_interface_sets(proc_nvecs);
     RRA("Trouble creating iface sets.");
 
     return MB_SUCCESS;

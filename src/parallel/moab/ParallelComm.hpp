@@ -863,8 +863,7 @@ namespace moab {
     // and tags the set with the procs sharing it; interface sets are optionally
     // returned; NOTE: a subsequent step is used to verify entities on the interface
     // and remove them if they're not shared
-    ErrorCode create_interface_sets(std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
-                                    int resolve_dim, int shared_dim);
+    ErrorCode create_interface_sets(std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs);
 
     // do the same but working straight from sharedEnts
     ErrorCode create_interface_sets(EntityHandle this_set, int resolve_dim, int shared_dim);

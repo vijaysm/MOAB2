@@ -567,7 +567,7 @@ namespace moab{
     // create the sets for each interface; store them as tags on
     // the interface instance
     Range iface_sets;
-    rval = myPcomm->create_interface_sets(proc_nranges, dim, dim-1);
+    rval = myPcomm->create_interface_sets(proc_nranges);
     if(rval != MB_SUCCESS){
       return rval;
     }
