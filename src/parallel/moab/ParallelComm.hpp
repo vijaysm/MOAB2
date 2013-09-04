@@ -420,6 +420,7 @@ namespace moab {
                                   Range &proc_ents, 
                                   int resolve_dim = -1,
                                   int shared_dim = -1,
+                                  Range *skin_ents = NULL,
                                   const Tag* id_tag = 0);
   
     /** \brief Resolve shared entities between processors

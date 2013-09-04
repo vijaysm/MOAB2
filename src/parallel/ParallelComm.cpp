@@ -3587,13 +3587,14 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   
     // must call even if we don't have any entities, to make sure
     // collective comm'n works
-    return resolve_shared_ents(this_set, proc_ents, resolve_dim, shared_dim, id_tag);
+    return resolve_shared_ents(this_set, proc_ents, resolve_dim, shared_dim, NULL, id_tag);
   }
   
   ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
                                               Range &proc_ents,
                                               int resolve_dim,
                                               int shared_dim,
+                                              Range *skin_ents,
                                               const Tag* id_tag) 
   {
 #ifdef USE_MPE
@@ -3616,49 +3617,38 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
         shared_dim = mbImpl->dimension_from_handle(*proc_ents.begin())-1;
       else if (resolve_dim == 3)
         shared_dim = 2;
-      else {
-        assert(false && "Unable to guess shared_dim.");
-        return MB_FAILURE;
-      }
     }
-    assert(shared_dim >= 0 && resolve_dim >= 0);
+    
+    if (shared_dim < 0 || resolve_dim < 0) {
+      result = MB_FAILURE;
+      RRA("Unable to guess shared_dim or resolve_dim.");
+    }
   
     // get the skin entities by dimension
-    Range skin_ents[4];
-    std::vector<int> gid_data;
-    std::vector<EntityHandle> handle_vec;
-    int skin_dim;
+    Range tmp_skin_ents[4];
 
     // get the entities to be skinned
-    if (resolve_dim < shared_dim) {
-      // for vertex-based partition, it's the elements adj to the vertices
-      result = mbImpl->get_adjacencies(proc_ents, shared_dim,
-                                       false, skin_ents[resolve_dim],
-                                       Interface::UNION);
-      RRA("Failed getting skinned entities.");
-      skin_dim = shared_dim-1;
-    }
-    else {
-      // for element-based partition, it's just the elements
-      skin_ents[resolve_dim] = proc_ents;
-      skin_dim = resolve_dim-1;
-    }
-
     // find the skin
-    Skinner skinner(mbImpl);
-    result = skinner.find_skin(this_set, skin_ents[skin_dim+1], false, skin_ents[skin_dim],
-                               NULL, true, true, true);
-    RRA("Failed to find skin.");
-    myDebug->tprintf(1, "Found skin, now resolving.\n");
+    int skin_dim = resolve_dim-1;
+    if (!skin_ents) {
+      skin_ents = tmp_skin_ents;
+      skin_ents[resolve_dim] = proc_ents;
+      Skinner skinner(mbImpl);
+      result = skinner.find_skin(this_set, skin_ents[skin_dim+1], false, skin_ents[skin_dim],
+                                 NULL, true, true, true);
+      RRA("Failed to find skin.");
+      myDebug->tprintf(1, "Found skin, now resolving.\n");
 
-    // get entities adjacent to skin ents from shared_dim down to zero
-    for (int this_dim = skin_dim-1; this_dim >= 0; this_dim--) {
-      result = mbImpl->get_adjacencies(skin_ents[skin_dim], this_dim,
-                                       true, skin_ents[this_dim],
-                                       Interface::UNION);
-      RRA("Failed getting skin adjacencies.");
+        // get entities adjacent to skin ents from shared_dim down to zero
+      for (int this_dim = skin_dim-1; this_dim >= 0; this_dim--) {
+        result = mbImpl->get_adjacencies(skin_ents[skin_dim], this_dim,
+                                         true, skin_ents[this_dim],
+                                         Interface::UNION);
+        RRA("Failed getting skin adjacencies.");
+      }
     }
-
+    else if (skin_ents[resolve_dim].empty()) skin_ents[resolve_dim] = proc_ents;
+    
     return resolve_shared_ents(this_set, proc_ents, skin_ents,
                                resolve_dim, shared_dim, id_tag);
   }
@@ -3673,6 +3663,11 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     ErrorCode result;
     std::vector<EntityHandle> handle_vec;
     int skin_dim = resolve_dim-1;
+    assert(resolve_dim >= shared_dim);
+    if (resolve_dim < shared_dim) {
+      result = MB_FAILURE;
+      RRA("Resolve dim must be >= shared_dim.");
+    }
 
     // global id tag
     Tag gid_tag; 
