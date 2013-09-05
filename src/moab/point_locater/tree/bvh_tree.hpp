@@ -162,7 +162,7 @@ Bvh_tree( Entity_handles & _entities,
 	  Parametrizer & _entity_contains): entity_handles_( _entities), 
 				tree_(), moab( _moab), 
 				bounding_box( _bounding_box),
-				entity_contains( entity_contains){
+				entity_contains( _entity_contains){
 	typedef typename Entity_handles::iterator Entity_handle_iterator;
 	typedef  ct::_Element_data< const _Box, double > Element_data;
 	typedef typename std::tr1::unordered_map< Entity_handle, 
