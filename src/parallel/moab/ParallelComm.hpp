@@ -500,7 +500,8 @@ namespace moab {
 
     /** \brief Get the shared processors/handles for an entity
      * Get the shared processors/handles for an entity.  Arrays must
-     * be large enough to receive data for all sharing procs.
+     * be large enough to receive data for all sharing procs.  Does *not* include
+     * this proc if only shared with one other proc.
      * \param entity Entity being queried
      * \param ps Pointer to sharing proc data
      * \param hs Pointer to shared proc handle data

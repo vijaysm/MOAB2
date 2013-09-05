@@ -729,6 +729,7 @@ ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, ScdBox *box)
   for (std::vector<int>::iterator pit = procs.begin(); pit != procs.end(); pit++)
     pcomm->get_buffers(*pit);
 
+  if (pcomm->get_debug_verbosity() > 1) pcomm->list_entities(NULL, 1);
 
 #ifndef NDEBUG
   rval = pcomm->check_all_shared_handles();

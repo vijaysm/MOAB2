@@ -6838,6 +6838,8 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
                                               unsigned int /*to_proc*/,
                                               Buffer *buff) 
   {
+    assert(std::find(L1hloc.begin(), L1hloc.end(), (EntityHandle)0) == L1hloc.end());
+    
     // 2 vectors of handles plus ints
     buff->check_space(((L1p.size()+1)*sizeof(int) + 
                        (L1hloc.size()+1)*sizeof(EntityHandle) + 
@@ -6846,6 +6848,8 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     // should be in pairs of handles
     PACK_INT(buff->buff_ptr, L1hloc.size());
     PACK_INTS(buff->buff_ptr, &L1p[0], L1p.size());
+      // pack handles in reverse order, (remote, local), so on destination they
+      // are ordered (local, remote)
     PACK_EH(buff->buff_ptr, &L1hrem[0], L1hrem.size());
     PACK_EH(buff->buff_ptr, &L1hloc[0], L1hloc.size());
   
@@ -6868,19 +6872,22 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     buff_ptr += num_eh * sizeof(int);
     unsigned char *buff_rem = buff_ptr + num_eh * sizeof(EntityHandle);
     ErrorCode result;
-    EntityHandle hpair[2], dum_h;
+    EntityHandle hpair[2], new_h;
     int proc;
     for (int i = 0; i < num_eh; i++) {
       UNPACK_INT(buff_proc, proc);
+        // handles packed (local, remote), though here local is either on this
+        // proc or owner proc, depending on value of proc (-1 = here, otherwise owner);
+        // this is decoded in find_existing_entity
       UNPACK_EH(buff_ptr, hpair, 1);
       UNPACK_EH(buff_rem, hpair+1, 1);
 
       if (-1 != proc) {
         result = find_existing_entity(false, proc, hpair[0], 3, NULL, 0,
                                       mbImpl->type_from_handle(hpair[1]),
-                                      L2hloc, L2hrem, L2p, dum_h);
+                                      L2hloc, L2hrem, L2p, new_h);
         RRA("Didn't get existing entity.");
-        if (dum_h) hpair[0] = dum_h;
+        if (new_h) hpair[0] = new_h;
         else hpair[0] = 0;
       }
       if (!(hpair[0] && hpair[1])) return MB_FAILURE;
