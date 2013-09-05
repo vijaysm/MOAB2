@@ -2060,13 +2060,6 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
           // should have a new handle now
           assert(new_h);
         
-          // if a new multi-shared entity, save owner for subsequent lookup in L2 lists
-          if (store_remote_handles && !is_iface && num_ps > 2) {
-            L2hrem.push_back(hs[0]);
-            L2hloc.push_back(new_h);
-            L2p.push_back(ps[0]);
-          }
-
           created_here = true;
         }
 
@@ -2084,14 +2077,24 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
         if (created_here) new_ents.push_back(new_h);
 
         if (new_h && store_remote_handles) {
+          unsigned char new_pstat = 0x0;
+          if (is_iface) new_pstat = PSTATUS_INTERFACE;
+          else if (created_here) {
+            if (created_iface) new_pstat = PSTATUS_NOT_OWNED;
+            else new_pstat = PSTATUS_GHOST | PSTATUS_NOT_OWNED;
+          }
         
           // update sharing data and pstatus, adjusting order if iface
-          result = update_remote_data(new_h, &ps[0], &hs[0], num_ps, 
-                                      (is_iface ? PSTATUS_INTERFACE :
-                                       (created_here ? (created_iface ? PSTATUS_NOT_OWNED:
-                                                        PSTATUS_GHOST | PSTATUS_NOT_OWNED) : 0)));
-          RRA("");
+          result = update_remote_data(new_h, &ps[0], &hs[0], num_ps, new_pstat);
+          RRA("unpack_entities");
         
+          // if a new multi-shared entity, save owner for subsequent lookup in L2 lists
+          if (store_remote_handles && !is_iface && num_ps > 2) {
+            L2hrem.push_back(hs[0]);
+            L2hloc.push_back(new_h);
+            L2p.push_back(ps[0]);
+          }
+
           // need to send this new handle to all sharing procs
           if (!is_iface) {
             for (j = 0; j < num_ps; j++) {
@@ -8642,6 +8645,11 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
   void ParallelComm::set_debug_verbosity(int verb) 
   {
     myDebug->set_verbosity(verb);
+  }
+
+  int ParallelComm::get_debug_verbosity() 
+  {
+    return myDebug->get_verbosity();
   }
 
   ErrorCode ParallelComm::get_entityset_procs( EntityHandle set,

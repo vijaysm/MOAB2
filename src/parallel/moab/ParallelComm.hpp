@@ -892,6 +892,9 @@ namespace moab {
     //! set the verbosity level of output from this pcomm
     void set_debug_verbosity(int verb);
 
+    //! get the verbosity level of output from this pcomm
+    int get_debug_verbosity();
+
     /* \brief Gather tag value from entities down to root proc
      * This function gathers data from a domain-decomposed mesh onto a global mesh
      * represented on the root processor.  On the root, this gather mesh is distinct from

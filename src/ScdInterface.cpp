@@ -104,11 +104,39 @@ ScdBox *ScdInterface::get_scd_box(EntityHandle eh)
 
 ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, const double * const coords, unsigned int num_coords,
                                       ScdBox *& new_box, int * const lperiodic, ScdParData *par_data,
-                                      bool assign_gids)
+                                      bool assign_gids, int tag_shared_ents)
 {
     // create a rectangular structured mesh block
   ErrorCode rval;
 
+  int tmp_lper[3] = {0, 0, 0};
+  if (lperiodic) std::copy(lperiodic, lperiodic+3, tmp_lper);
+  
+#ifndef USE_MPI
+  if (-1 == tag_shared_ents) ERRORR(MB_FAILURE, "Parallel capability requested but MOAB not compiled parallel.");
+  if (-1 == tag_shared_verts && !assign_gids) assign_gids = true; // need to assign gids in order to tag shared verts
+#else
+  if (par_data && low == high && ScdParData::NOPART != par_data->partMethod) {
+      // requesting creation of parallel mesh, so need to compute partition
+    if (!par_data->pComm) {
+        // this is a really boneheaded way to have to create a PC
+      par_data->pComm = ParallelComm::get_pcomm(mbImpl, 0);
+      if (NULL == par_data->pComm) par_data->pComm = new ParallelComm(mbImpl, MPI_COMM_WORLD);
+    }
+    int ldims[6];
+    rval = compute_partition(par_data->pComm->size(), par_data->pComm->rank(), *par_data, 
+                             ldims, tmp_lper, par_data->pDims);
+    ERRORR(rval, "Error returned from compute_partition.");
+    low.set(ldims);
+    high.set(ldims+3);
+    if (par_data->pComm->get_debug_verbosity() > 0) {
+      std::cout << "Proc " << par_data->pComm->rank() << ": " << *par_data;
+      std::cout << "Proc " << par_data->pComm->rank() << " local dims: " 
+                << low << "-" << high << std::endl;
+    }
+  }
+#endif
+  
   HomCoord tmp_size = high - low + HomCoord(1, 1, 1, 0);
   if ((tmp_size[1] && num_coords && (int)num_coords < tmp_size[0]) ||
       (tmp_size[2] && num_coords && (int)num_coords < tmp_size[0]*tmp_size[1]))
@@ -150,7 +178,7 @@ ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, const double 
   if (1 >= tmp_size[2]) this_tp = MBQUAD;
   if (1 >= tmp_size[2] && 1 >= tmp_size[1]) this_tp = MBEDGE;
   rval = seq_mgr->create_scd_sequence(low, high, this_tp, 0, start_ent, tmp_seq, 
-                                      lperiodic);
+                                      tmp_lper);
   ERRORR(rval, "Trouble creating scd element sequence.");
 
   new_box->elem_seq(tmp_seq);
@@ -181,6 +209,12 @@ ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, const double 
     ERRORR(rval, "Trouble assigning global ids");
   }
 
+#ifdef USE_MPI
+  if (par_data && -1 != tag_shared_ents) {
+    rval = tag_shared_vertices(par_data->pComm, new_box);
+  }
+#endif
+  
   return MB_SUCCESS;
 }
 
