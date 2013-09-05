@@ -2429,10 +2429,155 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
   }
   
   ErrorCode ParallelComm::update_remote_data(const EntityHandle new_h,
-                                             const int *ps,
-                                             const EntityHandle *hs,
-                                             const int num_ps,
-                                             const unsigned char add_pstat) 
+                                                 const int *ps,
+                                                 const EntityHandle *hs,
+                                                 const int num_ps,
+                                                 const unsigned char add_pstat
+// the following lines left in for future debugging, at least until I trust this function; tjt, 10/4/2013
+//                                             ,int *new_ps,
+//                                             EntityHandle *new_hs,
+//                                             int &new_numps,
+//                                             unsigned char &new_pstat
+                                             ) 
+  {
+      // get initial sharing data; tag_ps and tag_hs get terminated with -1 and 0
+      // in this function, so no need to initialize; sharing data does not include
+      // this proc if shared with only one other
+
+      // following variables declared here to avoid compiler errors
+    int new_numps;
+    unsigned char new_pstat;
+    std::vector<int> new_ps(MAX_SHARING_PROCS, -1);
+    std::vector<EntityHandle> new_hs(MAX_SHARING_PROCS, 0);
+    
+    new_numps = 0;
+    ErrorCode result = get_sharing_data(new_h, &new_ps[0], &new_hs[0], new_pstat, new_numps);
+    RRA("update_remote_data");
+    int num_exist = new_numps;
+
+      // add new pstat info to the flag
+    new_pstat |= add_pstat;
+    
+/*
+#define plist(str, lst, siz)                                          \
+    std::cout << str << "(";                                          \
+    for (int i = 0; i < (int)siz; i++) std::cout << lst[i] << " ";    \
+    std::cout << ") ";                                                \
+    
+    std::cout << "update_remote_data: rank = " << rank() << ", new_h = " << new_h << std::endl;
+    std::string ostr;
+    plist("ps", ps, num_ps);
+    plist("hs", hs, num_ps);
+    print_pstatus(add_pstat, ostr);
+    std::cout << ", add_pstat = " << ostr.c_str() << std::endl;
+    plist("tag_ps", new_ps, new_numps);
+    plist("tag_hs", new_hs, new_numps);
+    assert(new_numps <= size());
+    print_pstatus(new_pstat, ostr);
+    std::cout << ", tag_pstat=" << ostr.c_str() << std::endl;
+*/
+
+#ifndef NDEBUG
+    {
+        // check for duplicates in proc list
+      std::set<unsigned int> dumprocs;
+      unsigned int dp = 0;
+      for (; (int) dp < num_ps && -1 != ps[dp]; dp++)
+        dumprocs.insert(ps[dp]);
+      assert(dp == dumprocs.size());
+    }
+#endif      
+
+      // if only one sharer and I'm the owner, insert myself in the list;
+      // otherwise, my data is checked at the end
+    if (1 == new_numps && !(new_pstat & PSTATUS_NOT_OWNED)) {
+      new_hs[1] = new_hs[0];
+      new_ps[1] = new_ps[0];
+      new_hs[0] = new_h;
+      new_ps[0] = rank();
+      new_numps = 2;
+    }
+    
+      // now put passed-in data onto lists
+    int idx;
+    for (int i = 0; i < num_ps; i++) {
+      idx = std::find(&new_ps[0], &new_ps[0] + new_numps, ps[i]) - &new_ps[0];
+      if (idx < new_numps) {
+        if (!new_hs[idx] && hs[i])
+            // h on list is 0 and passed-in h is non-zero, replace it
+          new_hs[idx] = hs[i];
+        else
+          assert(!hs[i] || new_hs[idx] == hs[i]);
+      }
+      else {
+        if (new_numps+1 == MAX_SHARING_PROCS) {
+          result = MB_FAILURE;
+          std::ostringstream str;
+          str << "Exceeded MAX_SHARING_PROCS for " << CN::EntityTypeName( TYPE_FROM_HANDLE(new_h) )
+              << ' ' << ID_FROM_HANDLE(new_h) << " in process " << rank() << std::endl;
+          RRA(str.str().c_str());
+        }
+        new_ps[new_numps] = ps[i];
+        new_hs[new_numps] = hs[i];
+        new_numps++;
+      }
+    }
+
+      // add myself, if it isn't there already
+    if (new_ps[0] != (int)rank()) {
+      idx = std::find(&new_ps[0], &new_ps[0] + new_numps, rank()) - &new_ps[0];
+      if (idx == new_numps) {
+        new_ps[new_numps] = rank();
+        new_hs[new_numps] = new_h;
+        new_numps++;
+      }
+      else if (!new_hs[idx] && new_numps > 2)
+        new_hs[idx] = new_h;
+
+      assert(new_hs[idx] == new_h || new_numps <= 2);
+    }
+    
+      // adjust for interface layer if necessary
+    if (add_pstat & PSTATUS_INTERFACE) {
+      idx = std::min_element(&new_ps[0], &new_ps[0]+new_numps) - &new_ps[0];
+      if (idx) {
+        int tag_proc = new_ps[idx];
+        new_ps[idx] = new_ps[0];
+        new_ps[0] = tag_proc;
+        EntityHandle tag_h = new_hs[idx];
+        new_hs[idx] = new_hs[0];
+        new_hs[0] = tag_h;
+        if (new_ps[0] != (int)rank()) new_pstat |= PSTATUS_NOT_OWNED;
+      }
+    }
+
+      // update for shared, multishared
+    if (new_numps > 1) {
+      if (new_numps > 2) new_pstat |= PSTATUS_MULTISHARED;
+      new_pstat |= PSTATUS_SHARED;
+    }
+    
+/*    
+    plist("new_ps", new_ps, new_numps);
+    plist("new_hs", new_hs, new_numps);
+    print_pstatus(new_pstat, ostr);
+    std::cout << ", new_pstat=" << ostr.c_str() << std::endl;
+    std::cout << std::endl;
+*/
+  
+    result = set_sharing_data(new_h, new_pstat, num_exist, new_numps, &new_ps[0], &new_hs[0]);
+    RRA("update_remote_data: setting sharing data");
+
+    if (new_pstat & PSTATUS_SHARED) sharedEnts.push_back(new_h);
+
+    return MB_SUCCESS;
+  }
+
+ErrorCode ParallelComm::update_remote_data_old(const EntityHandle new_h,
+                                               const int *ps,
+                                               const EntityHandle *hs,
+                                               const int num_ps,
+                                               const unsigned char add_pstat) 
   {
     EntityHandle tag_hs[MAX_SHARING_PROCS];
     int tag_ps[MAX_SHARING_PROCS];
@@ -2547,6 +2692,17 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
     int tag_p;
     EntityHandle tag_h;
 
+    // update pstat
+    pstat |= add_pstat;
+
+    if (num_exist > 2) 
+      pstat |= (PSTATUS_MULTISHARED | PSTATUS_SHARED);
+    else if (num_exist > 0)
+      pstat |= PSTATUS_SHARED;
+
+//    compare_remote_data(new_h, num_ps, hs, ps, add_pstat,
+//                        num_exist, tag_hs, tag_ps, pstat);
+    
     // reset single shared proc/handle if was shared and moving to multi-shared
     if (num_exist > 2 && !(pstat & PSTATUS_MULTISHARED) &&
         (pstat & PSTATUS_SHARED)) {
@@ -2559,9 +2715,6 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
       RRA("Couldn't set sharedh tag.");
     }
 
-    // update pstat
-    pstat |= add_pstat;
-  
     // set sharing tags
     if (num_exist > 2) {
       std::fill(tag_ps+num_exist, tag_ps+MAX_SHARING_PROCS, -1);
@@ -2570,7 +2723,6 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
       RRA("Couldn't set sharedps tag.");
       result = mbImpl->tag_set_data(sharedhs_tag(), &new_h, 1, tag_hs);
       RRA("Couldn't set sharedhs tag.");
-      pstat |= (PSTATUS_MULTISHARED | PSTATUS_SHARED);
 
 #ifndef NDEBUG
       {
@@ -2594,7 +2746,6 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
       RRA("Couldn't set sharedp tag.");
       result = mbImpl->tag_set_data(sharedh_tag(), &new_h, 1, tag_hs);
       RRA("Couldn't set sharedh tag.");
-      pstat |= PSTATUS_SHARED;
     }
 
     // now set new pstatus
@@ -2689,8 +2840,6 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
       num_ps = 0;
     }
 
-    // num_ps is unsigned, so comparison with zero is pointless
-    //assert(0 <= num_ps && MAX_SHARING_PROCS >= num_ps);
     assert(MAX_SHARING_PROCS >= num_ps);
   
     return MB_SUCCESS;
@@ -5765,9 +5914,6 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
                                            int old_nump, int new_nump,
                                            int *ps, EntityHandle *hs) 
   {
-    assert("Should call this function only when reducing sharing procs." &&
-           new_nump < old_nump);
-
     // set sharing data to what's passed in; may have to clean up existing sharing tags
     // if things changed too much
   
@@ -5804,7 +5950,16 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
           dumprocs.insert(ps[dp]);
         assert(dp == (int)dumprocs.size());
       }
-#endif      
+#endif
+      if (old_nump < 3) {
+          // reset sharedp and sharedh tags
+        int tmp_p = -1;
+        EntityHandle tmp_h = 0;
+        result = mbImpl->tag_set_data(sharedp_tag(), &ent, 1, &tmp_p);
+        RRA("");
+        result = mbImpl->tag_set_data(sharedh_tag(), &ent, 1, &tmp_h);
+        RRA("");
+      }
     }
     else {
       unsigned int j = (ps[0] == (int)procConfig.proc_rank() ? 1 : 0);
@@ -8586,8 +8741,9 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
    *   so on average, the message size is num_edges *( sizeof(eh) + sizeof(int) + 1*3*sizeof(double) )
    *          = num_edges * (8+4+24)
    */
+
 ErrorCode ParallelComm::settle_intersection_points(Range & edges, Range & shared_edges_owned,
-          std::vector<std::vector<EntityHandle> *> & extraNodesVec, double tolerance)
+                                                   std::vector<std::vector<EntityHandle> *> & extraNodesVec, double tolerance)
 {
   // the index of an edge in the edges Range will give the index for extraNodesVec
   // the strategy of this follows exchange tags strategy:
@@ -8812,5 +8968,19 @@ ErrorCode ParallelComm::settle_intersection_points(Range & edges, Range & shared
   // end copy
   }
 
+void ParallelComm::print_pstatus(unsigned char pstat, std::string &ostr) 
+{
+  std::ostringstream str;
+  int num = 0;
+#define ppstat(a, b) {if (pstat & a) {if (num) str << ", "; str << b; num++;};}
+    
+  ppstat(PSTATUS_NOT_OWNED, "NOT_OWNED");
+  ppstat(PSTATUS_SHARED, "SHARED");
+  ppstat(PSTATUS_MULTISHARED, "MULTISHARED");
+  ppstat(PSTATUS_INTERFACE, "INTERFACE");
+  ppstat(PSTATUS_GHOST, "GHOST");
+
+  ostr = str.str();
+}
 
 } // namespace moab
