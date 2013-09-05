@@ -503,7 +503,7 @@ void find_split(const Iterator & begin,
 		const Iterator & end, Split_data & data) const{
 	typedef typename Iterator::value_type Map_iterator;
 	typedef typename Map_iterator::value_type::second_type Box_data;
-	typedef typename Box_data::first_type Bounding_box;
+	typedef typename Box_data::first_type _Bounding_box; // Note, not global typedef moab::common_tree::Box< double> Bounding_box;
 	typedef typename std::vector< Split_data> Split_list;
 	typedef typename std::vector< Split_list> Splits;
 	typedef typename Splits::iterator Split_iterator;
@@ -512,7 +512,7 @@ void find_split(const Iterator & begin,
 	Buckets buckets( NUM_DIM, Bucket_list( NUM_BUCKETS) );
 	Splits splits( NUM_DIM, Split_list( NUM_SPLITS, data));
 	
-	const Bounding_box interval = data.bounding_box;
+	const _Bounding_box interval = data.bounding_box;
 	establish_buckets( begin, end, interval, buckets);
 	initialize_splits( splits, buckets, data);
 	choose_best_split( splits, data);
