@@ -657,6 +657,13 @@ namespace moab {
     Tag part_tag() { return partition_tag(); }
 
     // ==================================
+    // \section DEBUGGING AIDS
+    // ==================================
+
+    //! print contents of pstatus value in human-readable form
+    void print_pstatus(unsigned char pstat, std::string &ostr);
+
+    // ==================================
     // \section IMESHP-RELATED FUNCTIONS
     // ==================================
 
@@ -1320,6 +1327,12 @@ namespace moab {
                                  const int num_ps,
                                  const unsigned char add_pstat);
   
+    ErrorCode update_remote_data_old(const EntityHandle new_h,
+                                     const int *ps,
+                                     const EntityHandle *hs,
+                                     const int num_ps,
+                                     const unsigned char add_pstat);
+    
     /** \brief Set pstatus tag interface bit on entities in sets passed in
      */
     ErrorCode tag_iface_entities();

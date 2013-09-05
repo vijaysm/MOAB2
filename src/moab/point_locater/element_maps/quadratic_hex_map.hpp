@@ -57,18 +57,22 @@ class Quadratic_hex_map {
 					const Entity_handle & h, 
 					const Points & v, 
 					const Point & p, 
-					const double tol=1.e-6) const{
-	Point result(3, 0.0);
-	bool point_found = solve_inverse( p, result, v, tol) && 
-						is_contained( result, tol);
-	return std::make_pair( point_found, result);
+					const double tol = 1.e-6) const {
+      // Remove the warnings about unused parameters
+      if (NULL != &moab) {}
+      if (NULL != &h) {}
+
+      Point result(3, 0.0);
+      bool point_found = solve_inverse( p, result, v, tol) &&
+                is_contained( result, tol);
+      return std::make_pair( point_found, result);
     }
 
   private:
     //This is a hack to avoid a .cpp file and C++11
     //reference_points(i,j) will be a 1 or -1;
     //This should unroll..
-    inline const double reference_points( const std::size_t& i, 
+    inline double reference_points( const std::size_t& i,
           				  const std::size_t& j) const{
     const double rpts[27][3] = {
     	{ -1, -1, -1 },
@@ -196,24 +200,27 @@ class Quadratic_hex_map {
     }
 
     template< typename Point, typename Points>
-    Matrix& jacobian( const Point & p, const Points & points, Matrix & J) const{
-	J = Matrix(0.0);
-	for (int i=0; i<27; i++){
- 		  const double  sh[3] = {  SH(reference_points(i,0), p[0]),
+    Matrix& jacobian( const Point & p, const Points & points, Matrix & J) const {
+    // Remove the warning about unused parameter
+    if (NULL != &points) {}
+
+    J = Matrix(0.0);
+    for (int i = 0; i < 27; i++) {
+      const double sh[3] = { SH(reference_points(i,0), p[0]),
                        		           SH(reference_points(i,1), p[1]),
                        		           SH(reference_points(i,2), p[2]) };
-  		  const double dsh[3] = { DSH(reference_points(i,0), p[0]),
+ 	    const double dsh[3] = { DSH(reference_points(i,0), p[0]),
                         		  DSH(reference_points(i,1), p[1]),
                         	   	  DSH(reference_points(i,2), p[2]) };
-  	    for (int j=0; j<3; j++) {
-		// dxj/dr first column
-    		J(j,0)+=dsh[0]*sh[1]*sh[2]*reference_points(i,j); 
-    		J(j,1)+= sh[0]*dsh[1]*sh[2]*reference_points(i,j); // dxj/ds
-    		J(j,2)+= sh[0]*sh[1]*dsh[2]*reference_points(i,j); // dxj/dt
-  	    }
-	}
-	return J;
-   }
+      for (int j = 0; j < 3; j++) {
+        // dxj/dr first column
+        J(j, 0) += dsh[0]*sh[1]*sh[2]*reference_points(i, j);
+        J(j, 1) += sh[0]*dsh[1]*sh[2]*reference_points(i, j); // dxj/ds
+        J(j, 2) += sh[0]*sh[1]*dsh[2]*reference_points(i, j); // dxj/dt
+      }
+    }
+    return J;
+  }
   private:
 }; //Class Quadratic_hex_map
 
