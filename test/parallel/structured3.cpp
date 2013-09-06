@@ -2,6 +2,8 @@
 #include "moab/ParallelComm.hpp"
 #include "moab/ScdInterface.hpp"
 #include "moab/HomXform.hpp"
+#include "moab/ProgOptions.hpp"
+#include "MBTagConventions.hpp"
 #include "TestUtil.hpp"
 #include <string>
 #include <iomanip>
@@ -11,7 +13,7 @@
 using namespace moab;
  
   // Number of cells in each direction:
-int NC = 4;
+int NC;
 const int ITERS = 50;
  
 void create_parallel_mesh();
@@ -20,7 +22,10 @@ int main(int argc, char *argv[])
 {
   MPI_Init(&argc, &argv);
 
-  if (argc > 1) NC = atoi(argv[1]);
+  ProgOptions po;
+  po.addOpt<int>( "int,i", "Number of intervals on a side" );
+  po.parseCommandLine( argc, argv );
+  if(!po.getOpt( "int", &NC )) NC = 4;
   
   int err = RUN_TEST(create_parallel_mesh);
  
@@ -49,13 +54,28 @@ void create_parallel_mesh()
   }
     
   par_data.partMethod = ScdParData::SQIJK;
+
+    // timing data
+  double times[5]; // tstart, tvert, tnonvert, tghost, titer;
+  times[0] = MPI_Wtime();
   rval = scdi->construct_box(HomCoord(), HomCoord(), NULL, 0, // no vertex positions
                              new_box, NULL, // not locally periodic
-                             &par_data, true, true); // assign global ids & resolve shared verts
+                             &par_data, true, false); // assign global ids & resolve shared verts
   CHECK_ERR(rval);
 
+    // get global id tag
+  Tag tag;
+  rval = mbint.tag_get_handle(GLOBAL_ID_TAG_NAME, tag);
+  CHECK_ERR(rval);
+  
+    // resolve shared verts
+  rval = pc.resolve_shared_ents(new_box->box_set(), -1, 0, &tag);
+  CHECK_ERR(rval);
+  times[1] = MPI_Wtime();
+  
   rval = pc.exchange_ghost_cells(-1, -1, 0, 0, true, true);
   CHECK_ERR(rval);
+  times[2] = MPI_Wtime();
 
 //  pc.list_entities(0,-1);
   
@@ -66,11 +86,11 @@ void create_parallel_mesh()
     std::cerr << "Error: proc " << pc.rank() << ": " << err << std::endl;
   }
   CHECK_ERR(rval);
+  times[3] = MPI_Wtime();
 
 //  pc.list_entities(0,-1);
   
     // Create a tag, used in exchange_tags
-  Tag tag;
   int def_val = 1.0;
   rval = mbint.tag_get_handle("test_tag", 1, MB_TYPE_DOUBLE, tag, MB_TAG_DENSE|MB_TAG_EXCL, &def_val);
   CHECK_ERR(rval);
@@ -83,4 +103,17 @@ void create_parallel_mesh()
     CHECK_ERR(rval);
   }
   if (!pc.rank()) std::cout << std::endl;
+  times[4] = MPI_Wtime();
+
+  for (int i = 4; i >= 1; i--) times[i] -= times[i-1];
+
+  double tottimes[5];
+  MPI_Reduce(times+1, tottimes+1, 4, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+  
+  if (!pc.rank()) 
+    std::cout << "Times:             " << std::endl
+              << "Create:            " << times[1] << std::endl
+              << "Resolve verts:     " << times[2] << std::endl
+              << "Resolve non-verts: " << times[3] << std::endl
+              << "Exchange ghosts:   " << times[4] << std::endl;
 }
