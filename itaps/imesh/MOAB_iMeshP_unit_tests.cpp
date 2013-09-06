@@ -32,11 +32,12 @@ const char* const FILENAME = "iMeshP_test_file";
 
 #define PCHECK do { ierr = is_any_proc_error(ierr); CHKERR; } while(false)
 
+// Use my_rank instead of rank to avoid shadowed declaration
 #define ASSERT(A) do { \
   if (is_any_proc_error(!(A))) { \
-    int rank = 0; \
-    MPI_Comm_rank( MPI_COMM_WORLD, &rank ); \
-    if (!rank) std::cerr << "Failed assertion: " #A << std::endl \
+    int my_rank = 0; \
+    MPI_Comm_rank( MPI_COMM_WORLD, &my_rank ); \
+    if (0 == my_rank) std::cerr << "Failed assertion: " #A << std::endl \
                          << "  at " __FILE__ ":" << __LINE__ << std::endl; \
     return 1; \
   } } while (false)
@@ -1684,7 +1685,7 @@ int test_part_boundary_iter( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, 
  * Test:
  * - iMeshP_getAdjEntities
  */
-int test_get_adjacencies( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const PartMap& )
+int test_get_adjacencies( iMesh_Instance /* imesh */, iMeshP_PartitionHandle /* prtn */, const PartMap& )
 {
   return iBase_SUCCESS;
 }
@@ -1695,7 +1696,7 @@ int test_get_adjacencies( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, con
  * - iMeshP_initEntIter
  * - iMeshP_initEntArrIter
  */
-int test_entity_iterator( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const PartMap& )
+int test_entity_iterator( iMesh_Instance /*imesh */, iMeshP_PartitionHandle /*prtn*/, const PartMap& )
 {
   return iBase_SUCCESS;
 }
@@ -1708,7 +1709,7 @@ int test_entity_iterator( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, con
  * - iMeshP_isEntOwner
  * - iMeshP_isEntOwnerArr
  */
-int test_entity_owner( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const PartMap& map )
+int test_entity_owner( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const PartMap& /* map */ )
 {
   int ierr, rank, size;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
@@ -1840,8 +1841,8 @@ int test_entity_owner( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const 
     assert( junk1 == (int)is_owner_list.size() );
     assert( junk3 == (int)all_entities.size() );
     invalid_count = 0;
-    for (size_t i = 0; i < all_entities.size(); ++i) {
-      if (!(is_owner_list[i]) == (local_ids[0] == all_owners[i]))
+    for (size_t j = 0; j < all_entities.size(); ++j) {
+      if (!(is_owner_list[j]) == (local_ids[0] == all_owners[j]))
         ++invalid_count;
     }
   }
@@ -2166,7 +2167,7 @@ struct VtxCopyData {
  * - iMeshP_getCopyOnPart
  * - iMeshP_getOwnerCopy
  */
-int test_entity_copies( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const PartMap& map )
+int test_entity_copies( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const PartMap& /* map */ )
 {
   int ierr, rank, size;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
@@ -2269,11 +2270,12 @@ int test_entity_copies( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const
   int num_error = 0, num_incorrect = 0, junk4;
   for (size_t i = 0; i < local_vertices.size(); ++i) {
     int num_copies = -1;
-    iMeshP_Part* part_ids = 0;
+    //iMeshP_Part* part_ids = 0;
+    iMeshP_Part* ptr_part_ids = 0; // Use ptr_part_ids to avoid shadowing std::vector<iMeshP_Part> part_ids
     iBase_EntityHandle* copies = 0;
     junk2 = junk3 = junk4 = 0;
     iMeshP_getCopies( imesh, prtn, local_vertices[i],
-                      &part_ids, &junk2, &num_copies, 
+                      &ptr_part_ids, &junk2, &num_copies,
                       &copies, &junk3, &junk4, &ierr );
     if (iBase_SUCCESS != ierr) {
       ++num_error;
@@ -2285,13 +2287,13 @@ int test_entity_copies( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const
     if (num_copies != (int)expected.parts.size())
       ++num_incorrect;
     else for (size_t j = 0; j < expected.parts.size(); ++j) {
-      int idx = std::find( part_ids, part_ids+num_copies, expected.parts[j] ) - part_ids;
+      int idx = std::find( ptr_part_ids, ptr_part_ids + num_copies, expected.parts[j] ) - ptr_part_ids;
       if (idx == num_copies || copies[idx] != expected.handles[j]) {
         ++num_incorrect;
         break;
       }
     }
-    free(part_ids);
+    free(ptr_part_ids);
     free(copies);
   }
   ASSERT( 0 == num_error );
@@ -2461,7 +2463,7 @@ int get_num_adj_all( iMesh_Instance imesh,
  * Test:
  * - iMeshP_createGhostEntsAll
  */
-int test_create_ghost_ents( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const PartMap& map )
+int test_create_ghost_ents( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const PartMap& /* map */)
 {
   int ierr;
   
