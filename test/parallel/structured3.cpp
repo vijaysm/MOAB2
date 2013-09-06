@@ -32,7 +32,7 @@ void create_parallel_mesh()
   ScdInterface *scdi;
   ErrorCode rval = mbint.query_interface(scdi);
   CHECK_ERR(rval);
-  pc.set_debug_verbosity(2);
+    //pc.set_debug_verbosity(2);
   
     // create a structured mesh in parallel
   ScdBox *new_box;
@@ -50,7 +50,7 @@ void create_parallel_mesh()
   rval = pc.exchange_ghost_cells(-1, -1, 0, 0, true, true);
   CHECK_ERR(rval);
 
-  pc.list_entities(0,-1);
+//  pc.list_entities(0,-1);
   
   rval = pc.exchange_ghost_cells(-1, 0, 1, 0, true);
   if (MB_SUCCESS != rval) {
@@ -60,10 +60,8 @@ void create_parallel_mesh()
   }
   CHECK_ERR(rval);
 
-  pc.list_entities(0,-1);
+//  pc.list_entities(0,-1);
   
-  return;
-
     // Create a tag, used in exchange_tags
   Tag tag;
   int def_val = 1.0;
@@ -71,8 +69,11 @@ void create_parallel_mesh()
   CHECK_ERR(rval);
 
   Range empty_range;
+  std::cout << "Exchanging tags: ";
   for(int i = 0; i < ITERS; i++) {
+    std::cout << i << ";";
     pc.exchange_tags(tag, empty_range);
     CHECK_ERR(rval);
   }
+  std::cout << std::endl;
 }
