@@ -664,6 +664,9 @@ namespace moab {
     //! print contents of pstatus value in human-readable form
     void print_pstatus(unsigned char pstat, std::string &ostr);
 
+    //! print contents of pstatus value in human-readable form to std::cut
+    void print_pstatus(unsigned char pstat);
+    
     // ==================================
     // \section IMESHP-RELATED FUNCTIONS
     // ==================================
