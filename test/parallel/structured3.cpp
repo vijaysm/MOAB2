@@ -11,7 +11,7 @@
 using namespace moab;
  
   // Number of cells in each direction:
-const int NC = 2;
+int NC = 4;
 const int ITERS = 50;
  
 void create_parallel_mesh();
@@ -19,6 +19,9 @@ void create_parallel_mesh();
 int main(int argc, char *argv[]) 
 {
   MPI_Init(&argc, &argv);
+
+  if (argc > 1) NC = atoi(argv[1]);
+  
   int err = RUN_TEST(create_parallel_mesh);
  
   MPI_Finalize();
@@ -40,7 +43,11 @@ void create_parallel_mesh()
   par_data.pComm = &pc;
   par_data.gDims[0] = par_data.gDims[1] = par_data.gDims[2] = 0;
   par_data.gDims[3] = par_data.gDims[4] = par_data.gDims[5] = NC;
-  par_data.gDims[5] = 1;
+  if ((par_data.gDims[3]-par_data.gDims[0])*(par_data.gDims[3]-par_data.gDims[0])*(par_data.gDims[3]-par_data.gDims[0]) < (int)pc.size()) {
+    std::cerr << "Too few processors for this number of elements." << std::endl;
+    CHECK_ERR(MB_FAILURE);
+  }
+    
   par_data.partMethod = ScdParData::SQIJK;
   rval = scdi->construct_box(HomCoord(), HomCoord(), NULL, 0, // no vertex positions
                              new_box, NULL, // not locally periodic
@@ -69,11 +76,11 @@ void create_parallel_mesh()
   CHECK_ERR(rval);
 
   Range empty_range;
-  std::cout << "Exchanging tags: ";
+  if (!pc.rank()) std::cout << "Exchanging tags: ";
   for(int i = 0; i < ITERS; i++) {
-    std::cout << i << ";";
+    if (!pc.rank()) std::cout << i << ";";
     pc.exchange_tags(tag, empty_range);
     CHECK_ERR(rval);
   }
-  std::cout << std::endl;
+  if (!pc.rank()) std::cout << std::endl;
 }

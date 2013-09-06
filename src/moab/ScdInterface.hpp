@@ -1138,7 +1138,8 @@ inline ErrorCode ScdInterface::compute_partition_sqijk(int np, int nr,
       }
     }
   }
-  if (perfa_best == -1 || perfb_best == -1) return MB_FAILURE;
+  if (perfa_best == -1 || perfb_best == -1) 
+    return MB_FAILURE;
 
     // VARIABLES DESCRIBING THE MESH:
     // pijk[i] = # procs in direction i
