@@ -500,7 +500,8 @@ namespace moab {
 
     /** \brief Get the shared processors/handles for an entity
      * Get the shared processors/handles for an entity.  Arrays must
-     * be large enough to receive data for all sharing procs.
+     * be large enough to receive data for all sharing procs.  Does *not* include
+     * this proc if only shared with one other proc.
      * \param entity Entity being queried
      * \param ps Pointer to sharing proc data
      * \param hs Pointer to shared proc handle data
@@ -663,6 +664,9 @@ namespace moab {
     //! print contents of pstatus value in human-readable form
     void print_pstatus(unsigned char pstat, std::string &ostr);
 
+    //! print contents of pstatus value in human-readable form to std::cut
+    void print_pstatus(unsigned char pstat);
+    
     // ==================================
     // \section IMESHP-RELATED FUNCTIONS
     // ==================================
@@ -891,6 +895,9 @@ namespace moab {
 
     //! set the verbosity level of output from this pcomm
     void set_debug_verbosity(int verb);
+
+    //! get the verbosity level of output from this pcomm
+    int get_debug_verbosity();
 
     /* \brief Gather tag value from entities down to root proc
      * This function gathers data from a domain-decomposed mesh onto a global mesh

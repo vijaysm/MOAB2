@@ -2060,13 +2060,6 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
           // should have a new handle now
           assert(new_h);
         
-          // if a new multi-shared entity, save owner for subsequent lookup in L2 lists
-          if (store_remote_handles && !is_iface && num_ps > 2) {
-            L2hrem.push_back(hs[0]);
-            L2hloc.push_back(new_h);
-            L2p.push_back(ps[0]);
-          }
-
           created_here = true;
         }
 
@@ -2084,14 +2077,24 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
         if (created_here) new_ents.push_back(new_h);
 
         if (new_h && store_remote_handles) {
+          unsigned char new_pstat = 0x0;
+          if (is_iface) new_pstat = PSTATUS_INTERFACE;
+          else if (created_here) {
+            if (created_iface) new_pstat = PSTATUS_NOT_OWNED;
+            else new_pstat = PSTATUS_GHOST | PSTATUS_NOT_OWNED;
+          }
         
           // update sharing data and pstatus, adjusting order if iface
-          result = update_remote_data(new_h, &ps[0], &hs[0], num_ps, 
-                                      (is_iface ? PSTATUS_INTERFACE :
-                                       (created_here ? (created_iface ? PSTATUS_NOT_OWNED:
-                                                        PSTATUS_GHOST | PSTATUS_NOT_OWNED) : 0)));
-          RRA("");
+          result = update_remote_data(new_h, &ps[0], &hs[0], num_ps, new_pstat);
+          RRA("unpack_entities");
         
+          // if a new multi-shared entity, save owner for subsequent lookup in L2 lists
+          if (store_remote_handles && !is_iface && num_ps > 2) {
+            L2hrem.push_back(hs[0]);
+            L2hloc.push_back(new_h);
+            L2p.push_back(ps[0]);
+          }
+
           // need to send this new handle to all sharing procs
           if (!is_iface) {
             for (j = 0; j < num_ps; j++) {
@@ -2524,6 +2527,7 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
     }
 
       // add myself, if it isn't there already
+    idx = 0;
     if (new_ps[0] != (int)rank()) {
       idx = std::find(&new_ps[0], &new_ps[0] + new_numps, rank()) - &new_ps[0];
       if (idx == new_numps) {
@@ -2533,30 +2537,23 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
       }
       else if (!new_hs[idx] && new_numps > 2)
         new_hs[idx] = new_h;
-
-      assert(new_hs[idx] == new_h || new_numps <= 2);
-    }
-    
-      // adjust for interface layer if necessary
-    if (add_pstat & PSTATUS_INTERFACE) {
-      idx = std::min_element(&new_ps[0], &new_ps[0]+new_numps) - &new_ps[0];
-      if (idx) {
-        int tag_proc = new_ps[idx];
-        new_ps[idx] = new_ps[0];
-        new_ps[0] = tag_proc;
-        EntityHandle tag_h = new_hs[idx];
-        new_hs[idx] = new_hs[0];
-        new_hs[0] = tag_h;
-        if (new_ps[0] != (int)rank()) new_pstat |= PSTATUS_NOT_OWNED;
-      }
     }
 
-      // update for shared, multishared
+      // proc list is complete; update for shared, multishared
     if (new_numps > 1) {
       if (new_numps > 2) new_pstat |= PSTATUS_MULTISHARED;
       new_pstat |= PSTATUS_SHARED;
     }
-    
+
+      // if multishared, not ghost or interface, and not not_owned, I'm owned, and should be the first proc
+    assert(new_ps[idx] == (int)rank());
+    if ((new_numps > 2 && !(new_pstat&(PSTATUS_INTERFACE|PSTATUS_GHOST|PSTATUS_NOT_OWNED))) ||
+        (new_pstat&PSTATUS_INTERFACE && !(new_pstat&PSTATUS_NOT_OWNED))
+        ) {
+      std::swap(new_ps[0], new_ps[idx]);
+      std::swap(new_hs[0], new_hs[idx]);
+    }
+      
 /*    
     plist("new_ps", new_ps, new_numps);
     plist("new_hs", new_hs, new_numps);
@@ -2564,7 +2561,7 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
     std::cout << ", new_pstat=" << ostr.c_str() << std::endl;
     std::cout << std::endl;
 */
-  
+
     result = set_sharing_data(new_h, new_pstat, num_exist, new_numps, &new_ps[0], &new_hs[0]);
     RRA("update_remote_data: setting sharing data");
 
@@ -4073,7 +4070,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
       for (v = 0; v < procs.size(); v++) {
         rval = pc[procs[v]]->update_remote_data(handles[v], 
                                                 &procs[0], &handles[0], procs.size(),
-                                                PSTATUS_INTERFACE);
+                                                (procs[0] == (int)pc[procs[v]]->rank() ? PSTATUS_INTERFACE : (PSTATUS_NOT_OWNED|PSTATUS_INTERFACE)));
         if (MB_SUCCESS != rval) return rval;
       }
     }
@@ -5916,31 +5913,16 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
   {
     // set sharing data to what's passed in; may have to clean up existing sharing tags
     // if things changed too much
-  
-    ErrorCode result;
-    if (pstatus & PSTATUS_MULTISHARED && new_nump < 3) {
-      // need to remove multishared tags
-      result = mbImpl->tag_delete_data(sharedps_tag(), &ent, 1);
-      RRA("");
-      result = mbImpl->tag_delete_data(sharedhs_tag(), &ent, 1);
-      RRA("");
-      pstatus ^= PSTATUS_MULTISHARED;
-      if (new_nump < 2) 
-        pstatus = 0x0;
-      else if (ps[0] != (int)proc_config().proc_rank())
-        pstatus |= PSTATUS_NOT_OWNED;
-    }
-    else if (pstatus & PSTATUS_SHARED && new_nump < 2) {
-      hs[0] = 0;
-      ps[0] = -1;
-      pstatus = 0x0;
-    }
-
-    if (new_nump > 2) {
-      result = mbImpl->tag_set_data(sharedps_tag(), &ent, 1, ps);
-      RRA("");
-      result = mbImpl->tag_set_data(sharedhs_tag(), &ent, 1, hs);
-      RRA("");
+    
+    // check for consistency in input data
+    assert(new_nump > 1 &&
+           ((new_nump == 2 && pstatus&PSTATUS_SHARED && !(pstatus&PSTATUS_MULTISHARED)) || // if <= 2 must not be multishared
+            (new_nump > 2 && pstatus&PSTATUS_SHARED && pstatus&PSTATUS_MULTISHARED)) && // if > 2 procs, must be multishared
+           (!(pstatus&PSTATUS_GHOST) || pstatus&PSTATUS_SHARED) && // if ghost, it must also be shared
+           (new_nump < 3 || (pstatus&PSTATUS_NOT_OWNED && ps[0] != (int)rank()) || // I'm not owner and first proc not me
+            (!(pstatus&PSTATUS_NOT_OWNED) && ps[0] == (int)rank())) // I'm owner and first proc is me
+           );
+    
 #ifndef NDEBUG
       {
         // check for duplicates in proc list
@@ -5951,27 +5933,56 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
         assert(dp == (int)dumprocs.size());
       }
 #endif
-      if (old_nump < 3) {
-          // reset sharedp and sharedh tags
-        int tmp_p = -1;
-        EntityHandle tmp_h = 0;
-        result = mbImpl->tag_set_data(sharedp_tag(), &ent, 1, &tmp_p);
-        RRA("");
-        result = mbImpl->tag_set_data(sharedh_tag(), &ent, 1, &tmp_h);
-        RRA("");
-      }
+
+    ErrorCode result;
+      // reset any old data that needs to be
+    if (old_nump > 2 && new_nump < 3) {
+      // need to remove multishared tags
+      result = mbImpl->tag_delete_data(sharedps_tag(), &ent, 1);
+      RRA("set_sharing_data:1");
+      result = mbImpl->tag_delete_data(sharedhs_tag(), &ent, 1);
+      RRA("set_sharing_data:2");
+//      if (new_nump < 2) 
+//        pstatus = 0x0;
+//      else if (ps[0] != (int)proc_config().proc_rank())
+//        pstatus |= PSTATUS_NOT_OWNED;
+    }
+    else if ((old_nump < 3 && new_nump > 2) || (old_nump > 1 && new_nump == 1)) {
+        // reset sharedp and sharedh tags
+      int tmp_p = -1;
+      EntityHandle tmp_h = 0;
+      result = mbImpl->tag_set_data(sharedp_tag(), &ent, 1, &tmp_p);
+      RRA("set_sharing_data:3");
+      result = mbImpl->tag_set_data(sharedh_tag(), &ent, 1, &tmp_h);
+      RRA("set_sharing_data:4");
+    }
+
+    assert("check for multishared/owner I'm first proc" &&
+           (!(pstatus & PSTATUS_MULTISHARED) || (pstatus & (PSTATUS_NOT_OWNED|PSTATUS_GHOST)) || (ps[0] == (int)rank())) &&
+           "interface entities should have > 1 proc" &&
+           (!(pstatus & PSTATUS_INTERFACE) || new_nump > 1) &&
+           "ghost entities should have > 1 proc" &&
+           (!(pstatus & PSTATUS_GHOST) || new_nump > 1)
+           );
+
+      // now set new data
+    if (new_nump > 2) {
+      result = mbImpl->tag_set_data(sharedps_tag(), &ent, 1, ps);
+      RRA("set_sharing_data:5");
+      result = mbImpl->tag_set_data(sharedhs_tag(), &ent, 1, hs);
+      RRA("set_sharing_data:6");
     }
     else {
       unsigned int j = (ps[0] == (int)procConfig.proc_rank() ? 1 : 0);
       assert(-1 != ps[j]);
       result = mbImpl->tag_set_data(sharedp_tag(), &ent, 1, ps+j);
-      RRA("");
+      RRA("set_sharing_data:7");
       result = mbImpl->tag_set_data(sharedh_tag(), &ent, 1, hs+j);
-      RRA("");
+      RRA("set_sharing_data:8");
     }
   
     result = mbImpl->tag_set_data(pstatus_tag(), &ent, 1, &pstatus);
-    RRA("");
+    RRA("set_sharing_data:9");
 
     if (old_nump > 1 && new_nump < 2) 
       sharedEnts.erase(std::find(sharedEnts.begin(), sharedEnts.end(), ent));
@@ -6835,6 +6846,8 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
                                               unsigned int /*to_proc*/,
                                               Buffer *buff) 
   {
+    assert(std::find(L1hloc.begin(), L1hloc.end(), (EntityHandle)0) == L1hloc.end());
+    
     // 2 vectors of handles plus ints
     buff->check_space(((L1p.size()+1)*sizeof(int) + 
                        (L1hloc.size()+1)*sizeof(EntityHandle) + 
@@ -6843,6 +6856,8 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     // should be in pairs of handles
     PACK_INT(buff->buff_ptr, L1hloc.size());
     PACK_INTS(buff->buff_ptr, &L1p[0], L1p.size());
+      // pack handles in reverse order, (remote, local), so on destination they
+      // are ordered (local, remote)
     PACK_EH(buff->buff_ptr, &L1hrem[0], L1hrem.size());
     PACK_EH(buff->buff_ptr, &L1hloc[0], L1hloc.size());
   
@@ -6865,19 +6880,22 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     buff_ptr += num_eh * sizeof(int);
     unsigned char *buff_rem = buff_ptr + num_eh * sizeof(EntityHandle);
     ErrorCode result;
-    EntityHandle hpair[2], dum_h;
+    EntityHandle hpair[2], new_h;
     int proc;
     for (int i = 0; i < num_eh; i++) {
       UNPACK_INT(buff_proc, proc);
+        // handles packed (local, remote), though here local is either on this
+        // proc or owner proc, depending on value of proc (-1 = here, otherwise owner);
+        // this is decoded in find_existing_entity
       UNPACK_EH(buff_ptr, hpair, 1);
       UNPACK_EH(buff_rem, hpair+1, 1);
 
       if (-1 != proc) {
         result = find_existing_entity(false, proc, hpair[0], 3, NULL, 0,
                                       mbImpl->type_from_handle(hpair[1]),
-                                      L2hloc, L2hrem, L2p, dum_h);
+                                      L2hloc, L2hrem, L2p, new_h);
         RRA("Didn't get existing entity.");
-        if (dum_h) hpair[0] = dum_h;
+        if (new_h) hpair[0] = new_h;
         else hpair[0] = 0;
       }
       if (!(hpair[0] && hpair[1])) return MB_FAILURE;
@@ -8644,6 +8662,11 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     myDebug->set_verbosity(verb);
   }
 
+  int ParallelComm::get_debug_verbosity() 
+  {
+    return myDebug->get_verbosity();
+  }
+
   ErrorCode ParallelComm::get_entityset_procs( EntityHandle set,
                                                std::vector<unsigned>& ranks ) const
   {
@@ -8981,6 +9004,13 @@ void ParallelComm::print_pstatus(unsigned char pstat, std::string &ostr)
   ppstat(PSTATUS_GHOST, "GHOST");
 
   ostr = str.str();
+}
+
+void ParallelComm::print_pstatus(unsigned char pstat) 
+{
+  std::string str;
+  print_pstatus(pstat, str);
+  std::cout << str.c_str() << std::endl;
 }
 
 } // namespace moab
