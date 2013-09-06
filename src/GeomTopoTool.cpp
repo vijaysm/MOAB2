@@ -901,7 +901,7 @@ ErrorCode GeomTopoTool::geometrize_surface_set(EntityHandle surface, EntityHandl
 
 
   Skinner tool(mdbImpl);
-  rval = tool.find_skin(surface_ents, 1, edge_ents);
+  rval = tool.find_skin(0, surface_ents, 1, edge_ents);
   if (MB_SUCCESS != rval)
     return rval;
   if (debugFlag)
@@ -1472,7 +1472,7 @@ bool GeomTopoTool::check_model()
     if (MB_SUCCESS!=rval)
       RETFALSE(" can't get surface elements from the face set ", faceSet)
 
-    rval = tool.find_skin(surface_ents, 1, edge_ents);
+    rval = tool.find_skin(0, surface_ents, 1, edge_ents);
     if (MB_SUCCESS != rval)
       RETFALSE("can't skin a surface ", surface_ents[0])
 

@@ -201,8 +201,6 @@ using namespace moab;
 #ifdef CGM
     std::map<int, int> body_vertex_map, surf_vertex_map;
 
-    std::vector<double> obj_weights;
-
     ErrorCode assemble_graph(const int dimension, 
                              std::vector<double> &coords,
                              std::vector<int> &moab_ids,

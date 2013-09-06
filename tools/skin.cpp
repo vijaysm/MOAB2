@@ -264,9 +264,9 @@ int main( int argc, char* argv[] )
   Range forward_lower, reverse_lower;
   Skinner tool( iface );
   if (use_scd) 
-    result = tool.find_skin( skin_ents, false, forward_lower, NULL, false, true, true);
+    result = tool.find_skin( 0, skin_ents, false, forward_lower, NULL, false, true, true);
   else
-    result = tool.find_skin( skin_ents, false, forward_lower, &reverse_lower );
+    result = tool.find_skin( 0, skin_ents, false, forward_lower, &reverse_lower );
   Range boundary;
   boundary.merge( forward_lower );
   boundary.merge( reverse_lower );

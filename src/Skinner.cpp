@@ -185,7 +185,7 @@ void Skinner::add_adjacency(EntityHandle entity,
   }
 }
 
-ErrorCode Skinner::find_geometric_skin(Range &forward_target_entities) 
+ErrorCode Skinner::find_geometric_skin(const EntityHandle meshset, Range &forward_target_entities)
 {
     // attempts to find whole model skin, using geom topo sets first then
     // normal find_skin function
@@ -203,7 +203,7 @@ ErrorCode Skinner::find_geometric_skin(Range &forward_target_entities)
   Range face_sets;
   int two = 2;
   const void *two_ptr = &two;
-  result = thisMB->get_entities_by_type_and_tag(0, MBENTITYSET, &geom_tag, &two_ptr, 1,
+  result = thisMB->get_entities_by_type_and_tag(meshset, MBENTITYSET, &geom_tag, &two_ptr, 1,
                                                  face_sets);
 
   Range::iterator it;
@@ -240,7 +240,8 @@ ErrorCode Skinner::find_geometric_skin(Range &forward_target_entities)
   return result;
 }
 
-ErrorCode Skinner::find_skin( const Range& source_entities,
+ErrorCode Skinner::find_skin( const EntityHandle meshset,
+                              const Range& source_entities,
                               bool get_vertices,
                               Range& output_handles,
                               Range* output_reverse_handles,
@@ -263,65 +264,13 @@ ErrorCode Skinner::find_skin( const Range& source_entities,
       !this_core->a_entity_factory()->vert_elem_adjacencies())
     this_core->a_entity_factory()->create_vert_elem_adjacencies();
     
-  if (this_core && this_core->a_entity_factory()->vert_elem_adjacencies())
-    return find_skin_vertices( source_entities, 
-                               get_vertices ? &output_handles : 0,
-                               get_vertices ? 0 : &output_handles,
-                               output_reverse_handles,
-                               create_skin_elements );
+  return find_skin_vertices( meshset,
+                             source_entities,
+                             get_vertices ? &output_handles : 0,
+                             get_vertices ? 0 : &output_handles,
+                             output_reverse_handles,
+                             create_skin_elements );
   
-  Range forward, reverse;
-  Range prev;
-  const int d = CN::Dimension(TYPE_FROM_HANDLE(source_entities.front()));
-  if (!source_entities.all_of_dimension(d))
-    return MB_TYPE_OUT_OF_RANGE;
-  
-  rval = thisMB->get_entities_by_dimension( 0, d-1, prev );
-  if (MB_SUCCESS != rval)
-    return rval;
-  
-  rval = find_skin_noadj( source_entities, forward, reverse );
-  if (MB_SUCCESS != rval)
-    return rval;
-  
-  if (get_vertices && !output_reverse_handles) {
-    forward.merge( reverse );
-    reverse.clear();
-  }
-  
-  if (get_vertices) {
-    rval = thisMB->get_connectivity( forward, output_handles );
-    if (MB_SUCCESS != rval)
-      return rval;
-  }
-  
-  if (!create_skin_elements) {
-    Range new_skin;
-    rval = thisMB->get_entities_by_dimension( 0, d-1, new_skin);
-    if (MB_SUCCESS != rval)
-      return rval;
-    new_skin = subtract( new_skin, prev );
-    forward = subtract( forward, new_skin );
-    reverse = subtract( reverse, new_skin );
-    rval = thisMB->delete_entities( new_skin );
-    if (MB_SUCCESS != rval)
-      return rval;
-  }
-  
-  if (!get_vertices) {
-    if (output_handles.empty())
-      output_handles.swap( forward );
-    else
-      output_handles.merge( forward );
-    if (!output_reverse_handles)
-      output_handles.merge( reverse );
-    else if (output_reverse_handles->empty())
-      output_reverse_handles->swap( reverse );
-    else
-      output_reverse_handles->merge( reverse );
-  }
-  
-  return MB_SUCCESS;  
 }
 
 ErrorCode Skinner::find_skin_scd(const Range& source_entities,
@@ -1062,13 +1011,14 @@ bool Skinner::has_larger_angle(EntityHandle &entity1,
 }
 
   // get skin entities of prescribed dimension
-ErrorCode Skinner::find_skin(const Range &entities,
+ErrorCode Skinner::find_skin(const EntityHandle this_set,
+                             const Range &entities,
                                  int dim,
                                  Range &skin_entities,
                                  bool create_vert_elem_adjs) 
 {
   Range tmp_skin;
-  ErrorCode result = find_skin(entities, (dim==0), tmp_skin, 0, 
+  ErrorCode result = find_skin(this_set, entities, (dim==0), tmp_skin, 0,
                                  create_vert_elem_adjs, true);
   if (MB_SUCCESS != result || tmp_skin.empty()) return result;
   
@@ -1086,7 +1036,8 @@ ErrorCode Skinner::find_skin(const Range &entities,
   return result;
 }
 
-ErrorCode Skinner::find_skin_vertices( const Range& entities,
+ErrorCode Skinner::find_skin_vertices( const EntityHandle this_set,
+                                       const Range& entities,
                                            Range* skin_verts,
                                            Range* skin_elems,
                                            Range* skin_rev_elems,
@@ -1104,7 +1055,7 @@ ErrorCode Skinner::find_skin_vertices( const Range& entities,
     // are we skinning all entities
   size_t count = entities.size();
   int num_total;
-  rval = thisMB->get_number_entities_by_dimension( 0, dim, num_total );
+  rval = thisMB->get_number_entities_by_dimension( this_set, dim, num_total );
   if (MB_SUCCESS != rval)
     return rval;
   bool all = (count == (size_t)num_total);

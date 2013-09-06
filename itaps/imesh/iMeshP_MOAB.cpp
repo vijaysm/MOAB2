@@ -350,7 +350,7 @@ void iMeshP_createPartitionAll( iMesh_Instance instance,
   *partition_handle = 0;
 
   Tag prtn_tag;
-  ErrorCode rval = MOABI->tag_get_handle( PARALLEL_PARITIONING_TAG_NAME,
+  ErrorCode rval = MOABI->tag_get_handle( PARALLEL_PARTITIONING_TAG_NAME,
                                           1, MB_TYPE_INTEGER,
                                           prtn_tag,
                                           MB_TAG_SPARSE|MB_TAG_CREAT );

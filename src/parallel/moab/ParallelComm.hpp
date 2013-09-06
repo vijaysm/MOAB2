@@ -107,6 +107,14 @@ namespace moab {
                                 const bool parallel = true,
                                 const bool owned_only = false);
 
+  //! assign a global id space, for largest-dimension or all entities (and
+  //! in either case for vertices too)
+  ErrorCode assign_global_ids( Range entities[],
+                               const int dimension, 
+                               const int start_id,
+                               const bool parallel,
+                               const bool owned_only);
+    
     //! check for global ids; based only on tag handle being there or not;
     //! if it's not there, create them for the specified dimensions
     //!\param owned_only If true, do not get global IDs for non-owned entities
@@ -412,6 +420,7 @@ namespace moab {
                                   Range &proc_ents, 
                                   int resolve_dim = -1,
                                   int shared_dim = -1,
+                                  Range *skin_ents = NULL,
                                   const Tag* id_tag = 0);
   
     /** \brief Resolve shared entities between processors
@@ -430,21 +439,9 @@ namespace moab {
                                   int shared_dim = -1,
                                   const Tag* id_tag = 0);
 
-    /** \brief Resolve shared entities between processors
-     *
-     * Entity skin array is offered by user not by skinner
-     * It is used by other resolve_shared_ents functions above 
-
-     * \param skin_ents[] entity skin array by user
-     */
-    ErrorCode resolve_shared_ents(Range &proc_ents,
-				  Range skin_ents[],
-				  int resolve_dim = 3,
-				  int shared_dim = -1,
-				  const Tag* id_tag = 0);
-    
     static ErrorCode resolve_shared_ents(ParallelComm **pc, 
                                          const unsigned int np, 
+                                         EntityHandle this_set,
                                          const int to_dim);
 
     /** Remove shared sets.
@@ -503,7 +500,8 @@ namespace moab {
 
     /** \brief Get the shared processors/handles for an entity
      * Get the shared processors/handles for an entity.  Arrays must
-     * be large enough to receive data for all sharing procs.
+     * be large enough to receive data for all sharing procs.  Does *not* include
+     * this proc if only shared with one other proc.
      * \param entity Entity being queried
      * \param ps Pointer to sharing proc data
      * \param hs Pointer to shared proc handle data
@@ -659,6 +657,16 @@ namespace moab {
     Tag partition_tag();
     Tag part_tag() { return partition_tag(); }
 
+    // ==================================
+    // \section DEBUGGING AIDS
+    // ==================================
+
+    //! print contents of pstatus value in human-readable form
+    void print_pstatus(unsigned char pstat, std::string &ostr);
+
+    //! print contents of pstatus value in human-readable form to std::cut
+    void print_pstatus(unsigned char pstat);
+    
     // ==================================
     // \section IMESHP-RELATED FUNCTIONS
     // ==================================
@@ -861,11 +869,10 @@ namespace moab {
     // and tags the set with the procs sharing it; interface sets are optionally
     // returned; NOTE: a subsequent step is used to verify entities on the interface
     // and remove them if they're not shared
-    ErrorCode create_interface_sets(std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
-                                    int resolve_dim, int shared_dim);
+    ErrorCode create_interface_sets(std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs);
 
     // do the same but working straight from sharedEnts
-    ErrorCode create_interface_sets(int resolve_dim, int shared_dim);
+    ErrorCode create_interface_sets(EntityHandle this_set, int resolve_dim, int shared_dim);
 
     ErrorCode tag_shared_verts(TupleList &shared_ents,
 			       std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
@@ -888,6 +895,9 @@ namespace moab {
 
     //! set the verbosity level of output from this pcomm
     void set_debug_verbosity(int verb);
+
+    //! get the verbosity level of output from this pcomm
+    int get_debug_verbosity();
 
     /* \brief Gather tag value from entities down to root proc
      * This function gathers data from a domain-decomposed mesh onto a global mesh
@@ -1228,10 +1238,10 @@ namespace moab {
                                std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
                                Range &proc_verts);
   
-    ErrorCode tag_shared_ents(int resolve_dim,
-                              int shared_dim,
-                              Range *skin_ents,
-                              std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs);
+    ErrorCode get_proc_nvecs(int resolve_dim,
+                             int shared_dim,
+                             Range *skin_ents,
+                             std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs);
 
     // after verifying shared entities, now parent/child links between sets can be established
     ErrorCode create_iface_pc_links();
@@ -1324,6 +1334,12 @@ namespace moab {
                                  const int num_ps,
                                  const unsigned char add_pstat);
   
+    ErrorCode update_remote_data_old(const EntityHandle new_h,
+                                     const int *ps,
+                                     const EntityHandle *hs,
+                                     const int num_ps,
+                                     const unsigned char add_pstat);
+    
     /** \brief Set pstatus tag interface bit on entities in sets passed in
      */
     ErrorCode tag_iface_entities();

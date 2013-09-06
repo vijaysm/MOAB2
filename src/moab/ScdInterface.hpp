@@ -17,7 +17,6 @@ class EntitySequence;
 class ScdVertexData;
 class EntitySequence;
 class ScdBox;
-class Core;
 class ParallelComm;
 
 /** \class ScdInterface ScdInterface.hpp "moab/ScdInterface.hpp"
@@ -104,18 +103,19 @@ class ParallelComm;
       //! struct for keeping parallel data in one place
 class ScdParData {
 public:
-  ScdParData() : partMethod(NOPART) {
-    gDims[0] = gDims[1] = gDims[2] = gDims[3] = gDims[4] = gDims[5] = -1;
-    gPeriodic[0] = gPeriodic[1] = gPeriodic[2] = -1;
-    pDims[0] = pDims[1] = pDims[2] = -1;
+  ScdParData() : partMethod(NOPART), pComm(NULL) {
+    gDims[0] = gDims[1] = gDims[2] = gDims[3] = gDims[4] = gDims[5] = 0;
+    gPeriodic[0] = gPeriodic[1] = gPeriodic[2] = 0;
+    pDims[0] = pDims[1] = pDims[2] = 0;
   }
 
     //! Partition method enumeration; these strategies are described in comments for
-    //! compute_partition_alljorkori, compute_partition_alljkbal, compute_partition_sqij, and compute_partition_sqjk
-  enum PartitionMethod {ALLJORKORI=0, ALLJKBAL, SQIJ, SQJK, SQIJK, TRIVIAL, NOPART};
+    //! compute_partition_alljorkori, compute_partition_alljkbal, compute_partition_sqij,
+    //! compute_partition_sqjk, and compute_partition_sqijk
+  enum PartitionMethod {ALLJORKORI = 0, ALLJKBAL, SQIJ, SQJK, SQIJK, TRIVIAL, NOPART};
 
     //! Partition method names
-  static const char *PartitionMethodNames[NOPART];
+  static const char *PartitionMethodNames[NOPART + 1];
 
     //! partition method used to partition global parametric space
   int partMethod;
@@ -129,6 +129,8 @@ public:
     //! number of procs in each direction
   int pDims[3];
 
+    //! parallel communicator object for this par scd mesh
+  ParallelComm *pComm;
 };
   
 class ScdInterface 
@@ -144,7 +146,7 @@ public:
      * \param impl MOAB instance
      * \param find_boxes If true, search all the entity sets, caching the structured mesh blocks
      */
-  ScdInterface(Core *impl, bool find_boxes = false);
+  ScdInterface(Interface *impl, bool find_boxes = false);
   
     // Destructor
   ~ScdInterface();
@@ -167,10 +169,13 @@ public:
      * \param lperiodic[2] If lperiodic[s] != 0, direction s is locally periodic
      * \param par_data If non-NULL, this will get stored on the ScdBox once created, contains info
      *                 about global parallel nature of ScdBox across procs
+     * \param assign_global_ids If true, assigns 1-based global ids to vertices using GLOBAL_ID_TAG_NAME
+     * \param resolve_shared_ents If != -1, resolves shared entities up to and including dimension equal to value
      */
   ErrorCode construct_box(HomCoord low, HomCoord high, const double * const coords, unsigned int num_coords,
                           ScdBox *& new_box, int * const lperiodic = NULL, 
-                          ScdParData * const par_data = NULL);
+                          ScdParData * const par_data = NULL,
+                          bool assign_global_ids = false, int resolve_shared_ents = -1);
 
     //! Create a structured sequence of vertices, quads, or hexes
     /** Starting handle for the sequence is available from the returned ScdBox.  
@@ -280,6 +285,11 @@ public:
      */
   ErrorCode tag_shared_vertices(ParallelComm *pcomm, EntityHandle seth);
   
+    //! Tag vertices with sharing data for parallel representations
+    /** Given the ParallelComm object to use, tag the vertices shared with other processors
+     */
+  ErrorCode tag_shared_vertices(ParallelComm *pcomm, ScdBox *box);
+  
 protected:
     //! Remove the box from the list on ScdInterface
   ErrorCode remove_box(ScdBox *box);
@@ -371,8 +381,11 @@ private:
   
   static int gtol(const int *gijk, int i, int j, int k);
 
+    //! assign global ids to vertices in this box
+  ErrorCode assign_global_ids(ScdBox *box);
+  
   //! interface instance
-  Core *mbImpl;
+  Interface *mbImpl;
 
     //! whether we've searched the database for boxes yet
   bool searchedBoxes;
@@ -618,12 +631,18 @@ public:
      */
   bool locally_periodic_k() const;
   
-    //! Return whether box is locally periodic in i and j
-    /** Return whether box is locally periodic in i and j
-     * \param lperiodic Non-zero if locally periodic in i [0] or j [1]
-     */
-  void locally_periodic(bool lperiodic[3]) const;
+    //! Set local periodicity
+    /** 
+     * \param lperiodic Vector of ijk periodicities to set this box to
+      */
+  void locally_periodic(bool lperiodic[3]);
 
+    //! Get local periodicity
+    /** 
+     * \return Vector of ijk periodicities for this box
+     */
+  const int *locally_periodic() const;
+ 
     //! Return parallel data 
     /** Return parallel data, if there is any
      * \return par_data Parallel data set on this box 
@@ -1119,7 +1138,8 @@ inline ErrorCode ScdInterface::compute_partition_sqijk(int np, int nr,
       }
     }
   }
-  if (perfa_best == -1 || perfb_best == -1) return MB_FAILURE;
+  if (perfa_best == -1 || perfb_best == -1) 
+    return MB_FAILURE;
 
     // VARIABLES DESCRIBING THE MESH:
     // pijk[i] = # procs in direction i
@@ -1211,6 +1231,25 @@ inline ErrorCode ScdInterface::get_neighbor(int np, int pfrom, const ScdParData 
   }
 
   return MB_FAILURE;
+}
+
+inline ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, EntityHandle seth) 
+{
+  ScdBox *box = get_scd_box(seth);
+  if (!box) {
+      // look for contained boxes
+    Range tmp_range;
+    ErrorCode rval = mbImpl->get_entities_by_type(seth, MBENTITYSET, tmp_range);
+    if (MB_SUCCESS != rval) return rval;
+    for (Range::iterator rit = tmp_range.begin(); rit != tmp_range.end(); rit++) {
+      box = get_scd_box(*rit);
+      if (box) break;
+    }
+  }
+  
+  if (!box) return MB_FAILURE;
+
+  return tag_shared_vertices(pcomm, box);
 }
 
 inline ScdInterface *ScdBox::sc_impl() const 
@@ -1381,19 +1420,23 @@ inline bool ScdBox::locally_periodic_k() const
   return locallyPeriodic[2];
 }
 
-inline void ScdBox::locally_periodic(bool lperiodic[3]) const 
+inline void ScdBox::locally_periodic(bool lperiodic[3])
 {
-  for (int i = 0; i < 3; i++) 
-    lperiodic[i] = locallyPeriodic[i];
+   for (int i = 0; i < 3; i++) 
+    locallyPeriodic[i] = lperiodic[i];
 }
 
+inline const int *ScdBox::locally_periodic() const
+{
+  return locallyPeriodic;
+}
+ 
 inline std::ostream &operator<<(std::ostream &str, const ScdParData &pd) 
 {
-  static const char *PartitionMethodNames[] = {"NOPART", "ALLJORKORI", "ALLJKBAL", "SQIJ", "SQJK", "SQIJK"};
-  str << "Partition method = " << PartitionMethodNames[pd.partMethod] << ", gDims = (" 
+  str << "Partition method = " << ScdParData::PartitionMethodNames[pd.partMethod] << ", gDims = (" 
       << pd.gDims[0] << "," << pd.gDims[1] << "," << pd.gDims[2] << ")-(" 
       << pd.gDims[3] << "," << pd.gDims[4] << "," << pd.gDims[5] << "), gPeriodic = (" 
-      << pd.gPeriodic[0] << ", " << pd.gPeriodic[1] << "," << pd.gPeriodic[2] << "), pDims = ("
+      << pd.gPeriodic[0] << "," << pd.gPeriodic[1] << "," << pd.gPeriodic[2] << "), pDims = ("
       << pd.pDims[0] << "," << pd.pDims[1] << "," << pd.pDims[2] << ")" << std::endl;
   return str;
 }

@@ -57,7 +57,6 @@ ErrorCode ReadNC::load_file(const char* file_name, const EntityHandle* file_set,
   // is set too, with the same data, duplicated
   mpFileIdTag = file_id_tag;
 
-  std::string partition_tag_name;
   rval = parse_options(opts, var_names, tstep_nums, tstep_vals);
   ERRORR(rval, "Trouble parsing option string.");
 
@@ -167,13 +166,7 @@ ErrorCode ReadNC::load_file(const char* file_name, const EntityHandle* file_set,
     myPcomm->partition_sets().insert(partn_set);
 
     // Write partition tag name on partition set
-    Tag part_tag;
-    rval = mbImpl->tag_get_handle(partitionTagName.c_str(), 1, MB_TYPE_INTEGER, part_tag);
-    if (MB_SUCCESS != rval) {
-      // Fall back to the partition tag
-      part_tag = myPcomm->partition_tag();
-    }
-
+    Tag part_tag = myPcomm->partition_tag();
     int dum_rank = myPcomm->proc_config().proc_rank();
     rval = mbImpl->tag_set_data(part_tag, &partn_set, 1, &dum_rank);
     if (MB_SUCCESS != rval)
@@ -301,9 +294,9 @@ ErrorCode ReadNC::read_header()
   dbgOut.tprintf(1, "Read %u attributes\n", (unsigned int) globalAtts.size());
 
   // Read in dimensions into dimVals
-  result = get_dimensions(fileId, dimNames, dimVals);
+  result = get_dimensions(fileId, dimNames, dimLens);
   ERRORR(result, "Getting dimensions.");
-  dbgOut.tprintf(1, "Read %u dimensions\n", (unsigned int) dimVals.size());
+  dbgOut.tprintf(1, "Read %u dimensions\n", (unsigned int) dimNames.size());
 
   // Read in variables into varInfo
   result = get_variables();
@@ -335,7 +328,7 @@ ErrorCode ReadNC::get_attributes(int var_id, int num_atts, std::map<std::string,
   return MB_SUCCESS;
 }
 
-ErrorCode ReadNC::get_dimensions(int file_id, std::vector<std::string>& dim_names, std::vector<int>& dim_vals)
+ErrorCode ReadNC::get_dimensions(int file_id, std::vector<std::string>& dim_names, std::vector<int>& dim_lens)
 {
   // Get the number of dimensions
   int num_dims;
@@ -348,18 +341,18 @@ ErrorCode ReadNC::get_dimensions(int file_id, std::vector<std::string>& dim_name
   }
 
   char dim_name[NC_MAX_NAME + 1];
-  NCDF_SIZE dum_len;
+  NCDF_SIZE dim_len;
   dim_names.resize(num_dims);
-  dim_vals.resize(num_dims);
+  dim_lens.resize(num_dims);
 
   for (int i = 0; i < num_dims; i++) {
-    success = NCFUNC(inq_dim)(file_id, i, dim_name, &dum_len);
+    success = NCFUNC(inq_dim)(file_id, i, dim_name, &dim_len);
     ERRORS(success, "Trouble getting dimension info.");
 
-    dim_vals[i] = dum_len;
     dim_names[i] = std::string(dim_name);
+    dim_lens[i] = dim_len;
 
-    dbgOut.tprintf(2, "Dimension %s, length=%u\n", dim_name, (unsigned int) dum_len);
+    dbgOut.tprintf(2, "Dimension %s, length=%u\n", dim_name, (unsigned int) dim_len);
   }
 
   return MB_SUCCESS;
@@ -374,7 +367,7 @@ ErrorCode ReadNC::get_variables()
 
   int ntimes = 0;
   if (vit != dimNames.end())
-    ntimes = dimVals[vit - dimNames.begin()];
+    ntimes = dimLens[vit - dimNames.begin()];
   if (!ntimes)
     ntimes = 1;
 

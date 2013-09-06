@@ -45,7 +45,7 @@ namespace moab{
     }
     
     //Get the local skin elements
-    rval = PopulateMySkinEnts(dim);
+    rval = PopulateMySkinEnts(0,dim);
     //If there is only 1 proc, we can return now
     if(rval != MB_SUCCESS || myPcomm->size() == 1){
       return rval;
@@ -107,12 +107,12 @@ namespace moab{
   }
 
   //Sets mySkinEnts with all of the skin entities on the processor
-  ErrorCode ParallelMergeMesh::PopulateMySkinEnts(int dim)
+  ErrorCode ParallelMergeMesh::PopulateMySkinEnts(const EntityHandle meshset,int dim)
   {
     /*Merge Mesh Locally*/
     //Get all dim dimensional entities
     Range ents;
-    ErrorCode rval = myMB->get_entities_by_dimension(0,dim,ents);
+    ErrorCode rval = myMB->get_entities_by_dimension(meshset,dim,ents);
     if(rval != MB_SUCCESS){
       return rval;
     }
@@ -137,7 +137,7 @@ namespace moab{
       -skinEnts[i] is the skin entities of dimension i*/  
     Skinner skinner(myMB);
     for(int skin_dim = dim; skin_dim >= 0; skin_dim--){
-      rval = skinner.find_skin(ents,skin_dim,mySkinEnts[skin_dim]);
+      rval = skinner.find_skin(meshset,ents,skin_dim,mySkinEnts[skin_dim]);
       if(rval != MB_SUCCESS){
 	return rval;
       }
@@ -559,7 +559,7 @@ namespace moab{
     }
     
     // get entities shared by 1 or n procs
-    rval = myPcomm->tag_shared_ents(dim,dim-1, &mySkinEnts[0],proc_nranges);
+    rval = myPcomm->get_proc_nvecs(dim,dim-1, &mySkinEnts[0],proc_nranges);
     if(rval != MB_SUCCESS){
       return rval;
     }
@@ -567,7 +567,7 @@ namespace moab{
     // create the sets for each interface; store them as tags on
     // the interface instance
     Range iface_sets;
-    rval = myPcomm->create_interface_sets(proc_nranges, dim, dim-1);
+    rval = myPcomm->create_interface_sets(proc_nranges);
     if(rval != MB_SUCCESS){
       return rval;
     }
