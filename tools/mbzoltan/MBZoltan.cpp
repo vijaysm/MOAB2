@@ -621,8 +621,8 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
 }
 
 #ifdef CGM
-ErrorCode MBZoltan::assemble_graph(const int dimension,
-                                   std::vector<double> &coords,
+ErrorCode MBZoltan::assemble_graph(const int /* dimension */,
+                                   std::vector<double> & /* coords */,
                                    std::vector<int> &moab_ids,
                                    std::vector<int> &adjacencies, 
                                    std::vector<int> &length,
@@ -633,10 +633,6 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
                                    const double part_geom_mesh_size,
                                    const int n_part) 
 {
-  // To remove the warnings about unused variables
-  if (dimension > 0) {}
-  if (coords.size() > 0) {}
-
   // get body vertex weights
   DLIList<RefEntity*> body_list;
   gti->ref_entity_list("body", body_list, CUBIT_FALSE);
@@ -1696,26 +1692,16 @@ void MBZoltan::mbShowError(int val, const char *s)
 ** call backs
 **********************/
 
-int mbGetNumberOfAssignedObjects(void *userDefinedData, int *err)
+int mbGetNumberOfAssignedObjects(void * /* userDefinedData */, int *err)
 {
-  // To remove the warnings about unused variables
-  if (userDefinedData) {}
-
   *err = 0;
   return NumPoints;
 }
 
-void mbGetObjectList(void *userDefinedData, int numGlobalIds, int numLids,
+void mbGetObjectList(void * /* userDefinedData */, int /* numGlobalIds */, int /* numLids */,
   ZOLTAN_ID_PTR gids, ZOLTAN_ID_PTR lids, int wgt_dim, float *obj_wgts,
   int *err)
 {
-  // To remove the warnings about unused variables
-  if (userDefinedData) {}
-  if (numGlobalIds > 0){}
-  if (numLids > 0) {}
-  if (gids) {}
-  if (lids) {}
-
   for (int i = 0; i < NumPoints; i++) {
     gids[i] = GlobalIds[i];
     lids[i] = i;
@@ -1726,25 +1712,15 @@ void mbGetObjectList(void *userDefinedData, int numGlobalIds, int numLids,
   *err = 0;
 }
 
-int mbGetObjectSize(void *userDefinedData, int *err)
+int mbGetObjectSize(void * /* userDefinedData */, int *err)
 {
-  // To remove the warnings about unused variables
-  if (userDefinedData) {}
-
   *err = 0; 
   return 3;
 }
 
-void mbGetObject(void *userDefinedData, int numGlobalIds, int numLids, int numObjs,
-  ZOLTAN_ID_PTR gids, ZOLTAN_ID_PTR lids, int numDim, double *pts, int *err)
+void mbGetObject(void * /* userDefinedData */, int /* numGlobalIds */, int /* numLids */, int numObjs,
+  ZOLTAN_ID_PTR /* gids */, ZOLTAN_ID_PTR lids, int numDim, double *pts, int *err)
 { 
-  // To remove the warnings about unused variables
-  if (userDefinedData) {}
-  if (numGlobalIds > 0) {}
-  if (numLids > 0) {}
-  if (gids) {}
-  if (lids) {}
-
   int i, id, id3;
   int next = 0;
 
@@ -1769,18 +1745,11 @@ void mbGetObject(void *userDefinedData, int numGlobalIds, int numLids, int numOb
   }
 } 
 
-void mbGetNumberOfEdges(void *userDefinedData, int numGlobalIds, int numLids,
+void mbGetNumberOfEdges(void * /* userDefinedData */, int /* numGlobalIds */, int /* numLids */,
 			int numObjs, 
-			ZOLTAN_ID_PTR gids, ZOLTAN_ID_PTR lids,	int *numEdges,
+			ZOLTAN_ID_PTR /* gids */, ZOLTAN_ID_PTR lids,	int *numEdges,
 			int *err)
 {
-  // To remove the warnings about unused variables
-  if (userDefinedData) {}
-  if (numGlobalIds > 0) {}
-  if (numLids > 0) {}
-  if (gids) {}
-  if (lids) {}
-
   int i, id;
   int next = 0;
 
@@ -1796,20 +1765,12 @@ void mbGetNumberOfEdges(void *userDefinedData, int numGlobalIds, int numLids,
   }
 }
 
-void mbGetEdgeList(void *userDefinedData, int numGlobalIds, int numLids,
+void mbGetEdgeList(void * /* userDefinedData */, int /* numGlobalIds */, int /* numLids */,
 		   int numObjs,
-		   ZOLTAN_ID_PTR gids, ZOLTAN_ID_PTR lids, int *numEdges,
+		   ZOLTAN_ID_PTR /* gids */, ZOLTAN_ID_PTR lids, int * /* numEdges */,
 		   ZOLTAN_ID_PTR nborGlobalIds, int *nborProcs, int wgt_dim,
 		   float *edge_wgts, int *err)
 {
-  // To remove the warnings about unused variables
-  if (userDefinedData) {}
-  if (numGlobalIds > 0) {}
-  if (numLids > 0) {}
-  if (gids) {}
-  if (lids) {}
-  if (numEdges) {}
-
   int i, id, idSum, j;
   int next = 0;
 
@@ -1836,17 +1797,10 @@ void mbGetEdgeList(void *userDefinedData, int numGlobalIds, int numLids,
   }
 }
 
-void mbGetPart(void *userDefinedData, int numGlobalIds, int numLids,
-               int numObjs, ZOLTAN_ID_PTR gids, ZOLTAN_ID_PTR lids,
+void mbGetPart(void * /* userDefinedData */, int /* numGlobalIds */, int /* numLids */,
+               int numObjs, ZOLTAN_ID_PTR /* gids */, ZOLTAN_ID_PTR lids,
                int *part, int *err)
 {
-  // To remove the warnings about unused variables
-  if (userDefinedData) {}
-  if (numGlobalIds > 0) {}
-  if (numLids > 0) {}
-  if (gids) {}
-  if (lids) {}
-
   int i, id;
   int next = 0;
 

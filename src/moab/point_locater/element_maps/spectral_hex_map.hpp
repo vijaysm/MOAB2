@@ -61,15 +61,11 @@ class Spectral_hex_map {
     //Natural coordinates
     template< typename Moab, typename Entity_handle, 
 	      typename Points, typename Point>
-    std::pair< bool, Point> operator()( const Moab & moab,
-					const Entity_handle & h, 
+    std::pair< bool, Point> operator()( const Moab & /* moab */,
+					const Entity_handle & /* h */,
 					const Points & v, 
 					const Point & p, 
-					const double tol=1.e-6) {
-        // Remove the warnings about unused parameters
-        if (NULL != &moab) {}
-        if (NULL != &h) {}
-
+					const double tol = 1.e-6) {
         Point result(3, 0.0);
         /*
         moab.tag_get_by_ptr(_xm1Tag, &eh, 1,(const void **) &_xyz[ 0] );
@@ -146,10 +142,7 @@ class Spectral_hex_map {
     }
 
     template< typename Point, typename Points>
-    Point& evaluate( const Point & p, const Points & points, Point & f) {
-      // Remove the warning about unused parameter
-      if (NULL != &points) {}
-
+    Point& evaluate( const Point & p, const Points & /* points */, Point & f) {
       for (int d = 0; d < 3; ++d) { lagrange_0(&_ld[ d], p[ 0]); }
       for (int d = 0; d < 3; ++d) {
         f[ d] = tensor_i3( _ld[ 0].J, _ld[ 0].n,
@@ -210,11 +203,7 @@ class Spectral_hex_map {
  }
 
   template< typename Point, typename Points>
-  Matrix& jacobian( const Point & p, const Points & points, Matrix & J) {
-    // Remove the warnings about unused parameters
-    if (NULL != &p) {}
-    if (NULL != &points) {}
-
+  Matrix& jacobian( const Point & /* p */, const Points & /* points */, Matrix & J) {
    	real x[ 3];
     for (int i = 0; i < 3; ++i) { _data.elx[ i] = _xyz[ i]; }
     opt_vol_set_intp_3(& _data, x);
