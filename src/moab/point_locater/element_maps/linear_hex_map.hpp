@@ -36,24 +36,17 @@ class Linear_hex_map {
     //Constructor
     Linear_hex_map() {}
     //Copy constructor
-    Linear_hex_map( const Self & f ) {
-      // Remove the warning about unused parameter
-      if (NULL != &f) {}
-    }
+    Linear_hex_map( const Self & /* f */ ) {}
 
  public:
     //Natural coordinates
     template< typename Moab, typename Entity_handle, 
 	      typename Points, typename Point>
-    std::pair< bool, Point> operator()( const Moab & moab,
-					const Entity_handle & h, 
+    std::pair< bool, Point> operator()( const Moab & /* moab */,
+					const Entity_handle & /* h */,
 					const Points & v, 
 					const Point & p, 
 					const double tol = 1.e-6) const {
-      // Remove the warnings about unused parameters
-      if (NULL != &moab) {}
-      if (NULL != &h) {}
-
       Point result(3, 0.0);
       solve_inverse( p, result, v);
       bool point_found = solve_inverse( p, result, v, tol) &&

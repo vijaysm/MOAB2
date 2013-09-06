@@ -53,15 +53,11 @@ class Quadratic_hex_map {
     //Natural coordinates
     template< typename Moab, typename Entity_handle, 
 	      typename Points, typename Point>
-    std::pair< bool, Point> operator()( const Moab & moab,
-					const Entity_handle & h, 
+    std::pair< bool, Point> operator()( const Moab & /* moab */,
+					const Entity_handle & /* h */,
 					const Points & v, 
 					const Point & p, 
 					const double tol = 1.e-6) const {
-      // Remove the warnings about unused parameters
-      if (NULL != &moab) {}
-      if (NULL != &h) {}
-
       Point result(3, 0.0);
       bool point_found = solve_inverse( p, result, v, tol) &&
                 is_contained( result, tol);
@@ -200,10 +196,7 @@ class Quadratic_hex_map {
     }
 
     template< typename Point, typename Points>
-    Matrix& jacobian( const Point & p, const Points & points, Matrix & J) const {
-    // Remove the warning about unused parameter
-    if (NULL != &points) {}
-
+    Matrix& jacobian( const Point & p, const Points & /* points */, Matrix & J) const {
     J = Matrix(0.0);
     for (int i = 0; i < 27; i++) {
       const double sh[3] = { SH(reference_points(i,0), p[0]),
