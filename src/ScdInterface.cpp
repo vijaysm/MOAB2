@@ -113,8 +113,8 @@ ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, const double 
   if (lperiodic) std::copy(lperiodic, lperiodic+3, tmp_lper);
   
 #ifndef USE_MPI
-  if (-1 == tag_shared_ents) ERRORR(MB_FAILURE, "Parallel capability requested but MOAB not compiled parallel.");
-  if (-1 == tag_shared_verts && !assign_gids) assign_gids = true; // need to assign gids in order to tag shared verts
+  if (-1 != tag_shared_ents) ERRORR(MB_FAILURE, "Parallel capability requested but MOAB not compiled parallel.");
+  if (-1 == tag_shared_ents && !assign_gids) assign_gids = true; // need to assign gids in order to tag shared verts
 #else
   if (par_data && low == high && ScdParData::NOPART != par_data->partMethod) {
       // requesting creation of parallel mesh, so need to compute partition
