@@ -76,6 +76,7 @@ check_PROGRAMS = $(TESTS) mbparallelcomm_test partcheck structured3 parmerge
 pcomm_unit_SOURCES = pcomm_unit.cpp
 parallel_hdf5_test_SOURCES = parallel_hdf5_test.cc
 mhdf_parallel_SOURCES = mhdf_parallel.c
+mhdf_parallel_LDADD = $(LDADD) $(HDF5_LIBS)
 parallel_unit_tests_SOURCES = parallel_unit_tests.cpp
 parallel_write_test_SOURCES = parallel_write_test.cc
 uber_parallel_test_SOURCES = uber_parallel_test.cpp
@@ -92,7 +93,8 @@ mpastrvpart_SOURCES = mpastrvpart.cpp
 
 if ENABLE_mbcoupler
   par_coupler_test_SOURCES = par_coupler_test.cpp
-  par_coupler_test_LDADD = $(LDADD) ../../tools/mbcoupler/libmbcoupler.la
+  par_coupler_test_LDADD = $(LDADD) $(top_builddir)/tools/mbcoupler/libmbcoupler.la \
+          $(top_builddir)/itaps/imesh/libiMesh.la
 endif
 
 if ENABLE_mbcslam
