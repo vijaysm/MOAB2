@@ -753,7 +753,7 @@ ErrorCode ScdInterface::get_neighbor_alljkbal(int np, int pfrom,
   pto = -1;
   across_bdy[0] = across_bdy[1] = across_bdy[2] = 0;
   
-  int ldims[6], pijk[3], lperiodic[2];
+  int ldims[6], pijk[3], lperiodic[3];
   ErrorCode rval = compute_partition_alljkbal(np, pfrom, gdims, gperiodic, 
                                               ldims, lperiodic, pijk);
   if (MB_SUCCESS != rval) return rval;
@@ -1150,7 +1150,7 @@ ErrorCode ScdInterface::get_neighbor_alljorkori(int np, int pfrom,
   pto = -1;
   if (np == 1) return MB_SUCCESS;
   
-  int pijk[3], lperiodic[2], ldims[6];
+  int pijk[3], lperiodic[3], ldims[6];
   rval = compute_partition_alljorkori(np, pfrom, gdims, gperiodic, ldims, lperiodic, pijk);
   if (MB_SUCCESS != rval) return rval;
 

@@ -166,7 +166,7 @@ public:
      * \param coords Coordinates of vertices, interleaved (xyzxyz...); if NULL, no coords are set
      * \param num_coords Number of coordinate values; if zero, no coords are set
      * \param new_box Reference to box of structured mesh
-     * \param lperiodic[2] If lperiodic[s] != 0, direction s is locally periodic
+     * \param lperiodic[3] If lperiodic[s] != 0, direction s is locally periodic
      * \param par_data If non-NULL, this will get stored on the ScdBox once created, contains info
      *                 about global parallel nature of ScdBox across procs
      * \param assign_global_ids If true, assigns 1-based global ids to vertices using GLOBAL_ID_TAG_NAME
@@ -186,7 +186,7 @@ public:
      * \param type EntityType, one of MBVERTEX, MBEDGE, MBQUAD, MBHEX
      * \param starting_id Requested start id of entities
      * \param new_box Reference to the newly created box of entities
-     * \param is_periodic[2] If is_periodic[s] is non-zero, mesh should be periodic in direction s (s=[0,1])
+     * \param is_periodic[3] If is_periodic[s] is non-zero, mesh should be periodic in direction s (s=[0,1,2])
      */
   ErrorCode create_scd_sequence(HomCoord low, HomCoord high, EntityType type,
                                 int starting_id, ScdBox *&new_box, 
@@ -302,7 +302,7 @@ private:
     /** \param low Lower corner parameters for this box
      * \param high Upper corner parameters for this box
      * \param scd_set Entity set created
-     * \param is_periodic[2] If is_periodic[s] is non-zero, mesh should be periodic in direction s (s=[0,1])
+     * \param is_periodic[3] If is_periodic[s] is non-zero, mesh should be periodic in direction s (s=[0,1,2])
      */
   ErrorCode create_box_set(const HomCoord low, const HomCoord high,
                            EntityHandle &scd_set,
