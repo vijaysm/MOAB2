@@ -144,7 +144,7 @@ int main(int argc, char * argv[])
 //This function doesn't normally get called, but is here for debugging
 //and verifying that merge is working.  
 void print_output(moab::ParallelComm *pc, moab::Core *mb,
-                  int myID, int numprocs, bool perform){
+                  int myID, int /* numprocs */, bool perform){
   moab::Range ents, skin;
   int o_ct=0, no_ct=0, tmp=0, o_tot=0, no_tot=0;
   if(perform){

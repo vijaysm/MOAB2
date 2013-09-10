@@ -264,66 +264,13 @@ ErrorCode Skinner::find_skin( const EntityHandle meshset,
       !this_core->a_entity_factory()->vert_elem_adjacencies())
     this_core->a_entity_factory()->create_vert_elem_adjacencies();
     
-  if (this_core && this_core->a_entity_factory()->vert_elem_adjacencies())
-    return find_skin_vertices( meshset,
-                               source_entities,
-                               get_vertices ? &output_handles : 0,
-                               get_vertices ? 0 : &output_handles,
-                               output_reverse_handles,
-                               create_skin_elements );
+  return find_skin_vertices( meshset,
+                             source_entities,
+                             get_vertices ? &output_handles : 0,
+                             get_vertices ? 0 : &output_handles,
+                             output_reverse_handles,
+                             create_skin_elements );
   
-  Range forward, reverse;
-  Range prev;
-  const int d = CN::Dimension(TYPE_FROM_HANDLE(source_entities.front()));
-  if (!source_entities.all_of_dimension(d))
-    return MB_TYPE_OUT_OF_RANGE;
-  
-  rval = thisMB->get_entities_by_dimension( meshset, d-1, prev );
-  if (MB_SUCCESS != rval)
-    return rval;
-  
-  rval = find_skin_noadj( source_entities, forward, reverse );
-  if (MB_SUCCESS != rval)
-    return rval;
-  
-  if (get_vertices && !output_reverse_handles) {
-    forward.merge( reverse );
-    reverse.clear();
-  }
-  
-  if (get_vertices) {
-    rval = thisMB->get_connectivity( forward, output_handles );
-    if (MB_SUCCESS != rval)
-      return rval;
-  }
-  
-  if (!create_skin_elements) {
-    Range new_skin;
-    rval = thisMB->get_entities_by_dimension( meshset, d-1, new_skin);
-    if (MB_SUCCESS != rval)
-      return rval;
-    new_skin = subtract( new_skin, prev );
-    forward = subtract( forward, new_skin );
-    reverse = subtract( reverse, new_skin );
-    rval = thisMB->delete_entities( new_skin );
-    if (MB_SUCCESS != rval)
-      return rval;
-  }
-  
-  if (!get_vertices) {
-    if (output_handles.empty())
-      output_handles.swap( forward );
-    else
-      output_handles.merge( forward );
-    if (!output_reverse_handles)
-      output_handles.merge( reverse );
-    else if (output_reverse_handles->empty())
-      output_reverse_handles->swap( reverse );
-    else
-      output_reverse_handles->merge( reverse );
-  }
-  
-  return MB_SUCCESS;  
 }
 
 ErrorCode Skinner::find_skin_scd(const Range& source_entities,

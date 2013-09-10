@@ -649,27 +649,33 @@ centered variables correctly.
 </tr>
 <tr>
 <td>__DIM_NAMES </td>
-<td>C*var </td>
-<td>S </td>
+<td>C*var</td>
+<td>S</td>
 <td>The dimension names, concatenated into a
 character string, with '\0' terminating each name.
- </td>
+</td>
 </tr>
 <tr>
-<td>__DIM_NAMES 
+<td>__DIM_LENS </td>
+<td>I*var</td>
+<td>S</td>
+<td>A vector of integers, storing the length of
+each dimension.
+</td>
+</tr>
+<tr>
+<td>__VAR_NAMES
 </td>
 <td>C*var</td>
 <td>S</td>
-<td>The variable names, concatenated into a character
-string, with '\0' terminating each name.
+<td>The variable names, concatenated into a
+character string, with '\0' terminating each name.
 </td>
 </tr>
 <tr>
 <td><dim_name> 
 </td>
-<td>(I or 
-D)*va 
-</td>
+<td>(I or D)*var</td>
 <td>S</td>
 <td>For each dimension, the values for the dimension.
 The data type for this tag corresponds to that in the
@@ -677,24 +683,37 @@ netcdf file. The length of this tag is the number of
 values stored for the dimension in the netcdf file.</td>
 </tr>
 <tr>
-<td>__<dim_name>_LOC_MIN MAX</td> 
-<td>2*(I or D)</td>
+<td>__<dim_name>_LOC_MIN_MAX</td>
+<td>(I or D)*2</td>
 <td>S</td>
 <td>The indices (0-based) of the local min and max
 values of dimension stored locally. For spatial
 dimensions like lon or lat, this will store the
-minimum and maximum indices in the loca</td>
+minimum and maximum indices in the local partition
+of the grid. For dimensions like time, where each
+processor represents the entire dimension, this will
+likely store 0 and the number of values for that
+dimension. Only one of __<dim_name>_LOC_VALS and
+__<dim_name>_LOC_MIN_MAX can be used for a given
+dimension.</td>
 </tr>
 <tr>
-<td >__<dim_name>_LOC_VAL </td> 
-<td>(I or D)*var </td>
+<td>__<dim_name>_LOC_VAL </td>
+<td>(I or D)*var</td>
 <td>S</td>
 <td>The indices (0-based) of the dimension stored
 locally. This tag only makes sense for dimensions
 that can be read in multiple pieces, such as time.
 Only one of __<dim_name>_LOC_VALS and
-_LOC_MIN_MAX can be used for a given
-dimension.
+__<dim_name>_LOC_MIN_MAX can be used for a given
+dimension.</td>
+</tr>
+<tr>
+<td>__<dim_name>_GLOBAL_MIN_MAX</td>
+<td>(I or D)*2</td>
+<td>S</td>
+<td>The indices (0-based) of the global min and max
+values of dimension.</td>
 </tr>
 <tr>
 <td>__<var_name>_DIMS 
@@ -702,11 +721,10 @@ dimension.
 <td>H*n 
 </td>
 <td>S</td>
-<td>For each variable, the tag handles for the
-dimensions defining this variable, in netcdf
-ordering (last dimension varying fastest). The
-length of this tag, n, is # dimensions for the
-variable * sizeof(TagHandle).
+<td>For each variable, this tag stores the tag
+handles for the n dimensions defining this variable,
+in netcdf ordering (last dimension varying fastest).
+The size of this tag is n * sizeof(TagHandle).
 </td>
 </tr>
 <tr>
@@ -723,7 +741,7 @@ Timestep index is 0-based.
 <tr>
 <td>__GLOBAL_ATTRIBS 
 </td>
-<td>C*Var 
+<td>C*var
 </td>
 <td>S</td>
 <td>The global attributes, concatenated into a character
@@ -735,7 +753,7 @@ string, with ‘\0’ terminating each attribute name, ‘;’
 <tr>
 <td>__GLOBAL_ATTRIBS_LEN 
 </td>
-<td>I*Var 
+<td>I*var
 </td>
 <td>S</td>
 <td>A vector of integers, marking the end position of
@@ -745,7 +763,7 @@ each attribute (name/data type/value) in __GLOBAL_ATTRIBS tag.
 <tr>
 <td>__<var_name>_ATTRIBS 
 </td>
-<td>C*Var
+<td>C*var
 </td>
 <td>S</td>
 <td>The variable attributes, concatenated into a
@@ -757,7 +775,7 @@ character string, with ‘\0’ terminating each attribute
 <tr>
 <td>__<var_name>_ATTRIBS_LEN 
 </td>
-<td>I*Var
+<td>I*var
 </td>
 <td>S</td>
 <td>A vector of integers, marking the end position of

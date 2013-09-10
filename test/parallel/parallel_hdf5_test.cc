@@ -724,21 +724,21 @@ void test_var_length_parallel()
     const void* ptrarr[1] = { 0 };
     rval = mb.tag_get_by_ptr( vartag, &h, 1, ptrarr, &size );
     CHECK_ERR( rval );
-    const int* data = reinterpret_cast<const int*>(ptrarr[0]);
+    const int* tag_data = reinterpret_cast<const int*>(ptrarr[0]);
     CHECK( size >= 2 );
-    CHECK( NULL != data );
-    CHECK_EQUAL( size-1, data[0] );
-    CHECK( data[1] >= 0 && data[1] < numproc );
-    ++vtx_counts[data[1]];
-    for (int j = 1; j < size-1; ++j)
-      CHECK_EQUAL( data[1]+j, data[1+j] );
+    CHECK( NULL != tag_data );
+    CHECK_EQUAL( size - 1, tag_data[0] );
+    CHECK( tag_data[1] >= 0 && tag_data[1] < numproc );
+    ++vtx_counts[tag_data[1]];
+    for (int j = 1; j < size - 1; ++j)
+      CHECK_EQUAL( tag_data[1] + j, tag_data[1 + j] );
   }
   
   // Check number of vertices for each rank
   for (int j = 0; j < numproc; ++j) {
     // Only root should have data for other processors.
     if (rank == 0 || rank == j) 
-      CHECK_EQUAL( j+1, vtx_counts[j] );
+      CHECK_EQUAL( j + 1, vtx_counts[j] );
     else 
       CHECK_EQUAL( 0, vtx_counts[j] );
   }
@@ -900,7 +900,7 @@ void create_input_file( const char* file_name,
   CHECK_ERR(rval);
 }
 
-void test_read_elements_common( bool by_rank, int intervals, bool print_time,
+void test_read_elements_common( bool by_rank, int intervals, bool /* print_time */,
                                 const char* extra_opts )
 {
   const char *file_name = by_rank ? "test_read_rank.h5m" : "test_read.h5m";
@@ -1204,7 +1204,7 @@ void test_read_sets_common( const char* extra_opts )
 
 void test_read_bc_sets()
 {
-  const char tag_name[] = "test_tag_s";
+  //const char tag_name[] = "test_tag_s";
   const char file_name[] = "test_read_sets.h5m";
   int numproc, rank;
   MPI_Comm_size( MPI_COMM_WORLD, &numproc );
@@ -1417,23 +1417,23 @@ void test_write_polygons()
   std::vector<EntityHandle> poly( numproc, 0 );
   CHECK_EQUAL( numproc, (int)range.size() );
   for (Range::iterator it = range.begin(); it != range.end(); ++it) {
-    const EntityHandle* conn;
+    const EntityHandle* conn_arr;
     int len;
-    rval = mb.get_connectivity( *it, conn, len );
+    rval = mb.get_connectivity( *it, conn_arr, len );
     CHECK_ERR(rval);
     double coords[3];
-    rval = mb.get_coords( conn, 1, coords );
+    rval = mb.get_coords( conn_arr, 1, coords );
     CHECK_ERR(rval);
-    int r = (int)(coords[2]);
-    CHECK_EQUAL( (EntityHandle)0, poly[r] );
-    poly[r] = *it;
+    int proc = (int)(coords[2]);
+    CHECK_EQUAL( (EntityHandle)0, poly[proc] );
+    poly[proc] = *it;
   }
   
     // check that each poly has the expected number of vertices
   for (int i = 0; i < numproc; ++i) {
-    const EntityHandle* conn;
+    const EntityHandle* conn_arr;
     int len;
-    rval = mb.get_connectivity( poly[i], conn, len );
+    rval = mb.get_connectivity( poly[i], conn_arr, len );
     CHECK_ERR(rval);
     CHECK_EQUAL( i % 4 + 5, len );
   }
@@ -1491,7 +1491,7 @@ void test_write_unbalanced()
   ParallelComm* pcomm = ParallelComm::get_pcomm( &mb, 0 );
   if (0 == pcomm)
     pcomm = new ParallelComm( &mb, MPI_COMM_WORLD );
-  rval = pcomm->resolve_shared_ents( 0, entities, 2, 0, &idtag );
+  rval = pcomm->resolve_shared_ents( 0, entities, 2, 0, NULL, &idtag );
   CHECK_ERR(rval);
   rval = pcomm->resolve_shared_sets( sets, idtag );
   CHECK_ERR(rval);

@@ -21,7 +21,7 @@ lib_LTLIBRARIES = libmbcslam.la
 libmbcslam_la_LIBADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la \
          $(top_builddir)/tools/mbcoupler/libmbcoupler.la
          
-LDADD = libmbcslam.la $(top_builddir)/tools/mbcoupler/libmbcoupler.la
+LDADD = $(top_builddir)/src/libMOAB.la libmbcslam.la $(top_builddir)/tools/mbcoupler/libmbcoupler.la
 
 libmbcslam_la_SOURCES = \
    Intx2Mesh.cpp Intx2Mesh.hpp Intx2MeshOnSphere.cpp Intx2MeshOnSphere.hpp \
@@ -43,6 +43,7 @@ TESTS = intx_on_sphere_test  intx_in_plane_test  spec_visu_test spherical_area_t
 noinst_PROGRAMS =  cslam_par_test
 if NETCDF_FILE
   noinst_PROGRAMS += process_arm
+  process_arm_LDADD = $(LDADD) $(NETCDF_LIBS)
 endif
 
 check_PROGRAMS = $(TESTS) 
@@ -55,7 +56,7 @@ intx_mpas_SOURCES = intx_mpas.cpp
 process_arm_SOURCES = process_arm.cpp
 
 cslam_par_test_SOURCES = cslam_par_test.cpp
-cslam_par_test_LDADD = $(LDADD) $(top_builddir)/tools/mbcoupler/libmbcoupler.la 
+
 EXTRA_DIST  = lagrangeHomme.vtk  \
               eulerHomme.vtk \
               m1.vtk \

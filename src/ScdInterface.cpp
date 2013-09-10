@@ -5,6 +5,7 @@
 #include "StructuredElementSeq.hpp"
 #include "VertexSequence.hpp"
 #include "ScdVertexData.hpp"
+#include "MBTagConventions.hpp"
 #ifdef USE_MPI
 #  include "moab/ParallelComm.hpp"
 #  include "moab/TupleList.hpp"
@@ -23,7 +24,7 @@ namespace moab
 
 const char *ScdParData::PartitionMethodNames[] = {"alljorkori", "alljkbal", "sqij", "sqjk", "sqijk", "trivial", "nopart"};
 
-ScdInterface::ScdInterface(Core *imp, bool boxes) 
+ScdInterface::ScdInterface(Interface *imp, bool boxes) 
         : mbImpl(imp), 
           searchedBoxes(false),
           boxPeriodicTag(0),
@@ -102,11 +103,40 @@ ScdBox *ScdInterface::get_scd_box(EntityHandle eh)
 }
 
 ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, const double * const coords, unsigned int num_coords,
-                                      ScdBox *& new_box, int * const lperiodic, ScdParData *par_data)
+                                      ScdBox *& new_box, int * const lperiodic, ScdParData *par_data,
+                                      bool assign_gids, int tag_shared_ents)
 {
     // create a rectangular structured mesh block
   ErrorCode rval;
 
+  int tmp_lper[3] = {0, 0, 0};
+  if (lperiodic) std::copy(lperiodic, lperiodic+3, tmp_lper);
+  
+#ifndef USE_MPI
+  if (-1 != tag_shared_ents) ERRORR(MB_FAILURE, "Parallel capability requested but MOAB not compiled parallel.");
+  if (-1 == tag_shared_ents && !assign_gids) assign_gids = true; // need to assign gids in order to tag shared verts
+#else
+  if (par_data && low == high && ScdParData::NOPART != par_data->partMethod) {
+      // requesting creation of parallel mesh, so need to compute partition
+    if (!par_data->pComm) {
+        // this is a really boneheaded way to have to create a PC
+      par_data->pComm = ParallelComm::get_pcomm(mbImpl, 0);
+      if (NULL == par_data->pComm) par_data->pComm = new ParallelComm(mbImpl, MPI_COMM_WORLD);
+    }
+    int ldims[6];
+    rval = compute_partition(par_data->pComm->size(), par_data->pComm->rank(), *par_data, 
+                             ldims, tmp_lper, par_data->pDims);
+    ERRORR(rval, "Error returned from compute_partition.");
+    low.set(ldims);
+    high.set(ldims+3);
+    if (par_data->pComm->get_debug_verbosity() > 0) {
+      std::cout << "Proc " << par_data->pComm->rank() << ": " << *par_data;
+      std::cout << "Proc " << par_data->pComm->rank() << " local dims: " 
+                << low << "-" << high << std::endl;
+    }
+  }
+#endif
+  
   HomCoord tmp_size = high - low + HomCoord(1, 1, 1, 0);
   if ((tmp_size[1] && num_coords && (int)num_coords < tmp_size[0]) ||
       (tmp_size[2] && num_coords && (int)num_coords < tmp_size[0]*tmp_size[1]))
@@ -137,7 +167,8 @@ ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, const double 
   }
 
     // create element sequence
-  SequenceManager *seq_mgr = mbImpl->sequence_manager();
+  Core *mbcore = dynamic_cast<Core*>(mbImpl);
+  SequenceManager *seq_mgr = mbcore->sequence_manager();
 
   EntitySequence *tmp_seq;
   EntityHandle start_ent;
@@ -147,7 +178,7 @@ ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, const double 
   if (1 >= tmp_size[2]) this_tp = MBQUAD;
   if (1 >= tmp_size[2] && 1 >= tmp_size[1]) this_tp = MBEDGE;
   rval = seq_mgr->create_scd_sequence(low, high, this_tp, 0, start_ent, tmp_seq, 
-                                      lperiodic);
+                                      tmp_lper);
   ERRORR(rval, "Trouble creating scd element sequence.");
 
   new_box->elem_seq(tmp_seq);
@@ -172,9 +203,51 @@ ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, const double 
 
   if (par_data) new_box->par_data(*par_data);
   
+
+  if (assign_gids) {
+    rval = assign_global_ids(new_box);
+    ERRORR(rval, "Trouble assigning global ids");
+  }
+
+#ifdef USE_MPI
+  if (par_data && -1 != tag_shared_ents) {
+    rval = tag_shared_vertices(par_data->pComm, new_box);
+  }
+#endif
+  
   return MB_SUCCESS;
 }
 
+ErrorCode ScdInterface::assign_global_ids(ScdBox *box)
+{
+  // Get a ptr to global id memory
+  void* data;
+  int count = 0;
+  Tag gid_tag;
+  ErrorCode rval = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid_tag, 
+                                          MB_TAG_CREAT & MB_TAG_DENSE, &count);
+  ERRORR(rval, "Trouble getting global id tag handle.");
+  Range tmp_range(box->start_vertex(), box->start_vertex() + box->num_vertices());
+  rval = mbImpl->tag_iterate(gid_tag, tmp_range.begin(), tmp_range.end(), count, data);
+  ERRORR(rval, "Failed to get tag iterator.");
+  assert(count == box->num_vertices());
+  int* gid_data = (int*) data;
+  int di = box->par_data().gDims[3] - box->par_data().gDims[0] + 1;
+  int dj = box->par_data().gDims[4] - box->par_data().gDims[1] + 1;
+
+  for (int kl = box->box_dims()[2]; kl <= box->box_dims()[5]; kl++) {
+    for (int jl = box->box_dims()[1]; jl <= box->box_dims()[4]; jl++) {
+      for (int il = box->box_dims()[0]; il <= box->box_dims()[3]; il++) {
+        int itmp = (!box->locally_periodic()[0] && box->par_data().gPeriodic[0] && il == box->par_data().gDims[3] ? 
+                    box->par_data().gDims[0] : il);
+        *gid_data = (-1 != kl ? kl * di * dj : 0) + jl * di + itmp + 1;
+        gid_data++;
+      }
+    }
+  }
+
+  return MB_SUCCESS;
+}
 
 ErrorCode ScdInterface::create_scd_sequence(HomCoord low, HomCoord high, EntityType tp,
                                             int starting_id, ScdBox *&new_box,
@@ -186,7 +259,8 @@ ErrorCode ScdInterface::create_scd_sequence(HomCoord low, HomCoord high, EntityT
       (tp == MBEDGE && 1 >= tmp_size[0]))
     return MB_TYPE_OUT_OF_RANGE;
 
-  SequenceManager *seq_mgr = mbImpl->sequence_manager();
+  Core *mbcore = dynamic_cast<Core*>(mbImpl);
+  SequenceManager *seq_mgr = mbcore->sequence_manager();
 
   EntitySequence *tmp_seq;
   EntityHandle start_ent, scd_set;
@@ -551,32 +625,18 @@ ErrorCode ScdBox::get_adj_edge_or_face(int dim, int i, int j, int k, int dir, En
 }
     
 #ifndef USE_MPI
-ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *, EntityHandle ) 
+ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *, ScdBox *) 
 {
   return MB_FAILURE;
 #else
-ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, EntityHandle seth) 
+ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, ScdBox *box) 
 {
-    // first, look for box data on the set
-  ScdBox *box = get_scd_box(seth);
-  Range tmp_range;
-  ErrorCode rval;
-  if (!box) {
-      // look for contained boxes
-    rval = mbImpl->get_entities_by_type(seth, MBENTITYSET, tmp_range);
-    if (MB_SUCCESS != rval) return rval;
-    for (Range::iterator rit = tmp_range.begin(); rit != tmp_range.end(); rit++) {
-      box = get_scd_box(*rit);
-      if (box) break;
-    }
-  }
-  
-  if (!box) return MB_FAILURE;
+  EntityHandle seth = box->box_set();
 
     // check the # ents in the box against the num in the set, to make sure it's only 1 box;
     // reuse tmp_range
-  tmp_range.clear();
-  rval = mbImpl->get_entities_by_dimension(seth, box->box_dimension(), tmp_range);
+  Range tmp_range;
+  ErrorCode rval = mbImpl->get_entities_by_dimension(seth, box->box_dimension(), tmp_range);
   if (MB_SUCCESS != rval) return rval;
   if (box->num_elements() != (int)tmp_range.size()) return MB_FAILURE;
     
@@ -659,15 +719,18 @@ ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, EntityHandle se
   if (MB_SUCCESS != rval) return rval;
   
     // create interface sets
-  rval = pcomm->create_interface_sets(proc_nvecs, -1, -1);
+  rval = pcomm->create_interface_sets(proc_nvecs);
   if (MB_SUCCESS != rval) return rval;
+
+    // add the box to the PComm's partitionSets
+  pcomm->partition_sets().insert(box->box_set());
 
     // make sure buffers are allocated for communicating procs
   for (std::vector<int>::iterator pit = procs.begin(); pit != procs.end(); pit++)
     pcomm->get_buffers(*pit);
 
+  if (pcomm->get_debug_verbosity() > 1) pcomm->list_entities(NULL, 1);
 
-  shared_data.reset();  
 #ifndef NDEBUG
   rval = pcomm->check_all_shared_handles();
   if (MB_SUCCESS != rval) return rval;
@@ -690,7 +753,7 @@ ErrorCode ScdInterface::get_neighbor_alljkbal(int np, int pfrom,
   pto = -1;
   across_bdy[0] = across_bdy[1] = across_bdy[2] = 0;
   
-  int ldims[6], pijk[3], lperiodic[2];
+  int ldims[6], pijk[3], lperiodic[3];
   ErrorCode rval = compute_partition_alljkbal(np, pfrom, gdims, gperiodic, 
                                               ldims, lperiodic, pijk);
   if (MB_SUCCESS != rval) return rval;
@@ -1087,7 +1150,7 @@ ErrorCode ScdInterface::get_neighbor_alljorkori(int np, int pfrom,
   pto = -1;
   if (np == 1) return MB_SUCCESS;
   
-  int pijk[3], lperiodic[2], ldims[6];
+  int pijk[3], lperiodic[3], ldims[6];
   rval = compute_partition_alljorkori(np, pfrom, gdims, gperiodic, ldims, lperiodic, pijk);
   if (MB_SUCCESS != rval) return rval;
 

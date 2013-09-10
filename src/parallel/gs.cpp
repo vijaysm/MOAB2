@@ -169,54 +169,55 @@ namespace moab {
   void gs_data::nonlocal_info::initialize(uint np, uint count, 
 					  uint nlabels, uint nulabels, uint maxv)
   {
-    target = NULL;
-    nshared = NULL;
-    sh_ind = NULL;
-    slabels = NULL;
-    ulabels = NULL;
-    reqs = NULL;
-    buf = NULL;
-    this->np = np;
-    target = (uint*) malloc((2*np+count)*sizeof(uint));
-    nshared = target + np;
-    sh_ind = nshared + np;
+    _target = NULL;
+    _nshared = NULL;
+    _sh_ind = NULL;
+    _slabels = NULL;
+    _ulabels = NULL;
+    _reqs = NULL;
+    _buf = NULL;
+    _np = np;
+    _target = (uint*) malloc((2*np+count)*sizeof(uint));
+    _nshared = _target + np;
+    _sh_ind = _nshared + np;
     if (1 < nlabels)
-      slabels = (slong*) malloc(((nlabels-1)*count)*sizeof(slong));
-    else slabels = NULL;
-    ulabels = (ulong*) malloc((nulabels*count)*sizeof(ulong));
-    reqs = (MPI_Request*) malloc(2*np*sizeof(MPI_Request));
-    buf = (realType*) malloc((2*count*maxv)*sizeof(realType));
-    this->maxv = maxv;
+      _slabels = (slong*) malloc(((nlabels-1)*count)*sizeof(slong));
+    else
+      _slabels = NULL;
+    _ulabels = (ulong*) malloc((nulabels*count)*sizeof(ulong));
+    _reqs = (MPI_Request*) malloc(2*np*sizeof(MPI_Request));
+    _buf = (realType*) malloc((2*count*maxv)*sizeof(realType));
+    _maxv = maxv;
   }
 
   void gs_data::nonlocal_info::nlinfo_free()
   {
     //Free the ptrs
-    free(buf);
-    free(reqs);
-    free(target);
-    free(slabels);
-    free(ulabels);
+    free(_buf);
+    free(_reqs);
+    free(_target);
+    free(_slabels);
+    free(_ulabels);
     //Set to null
-    ulabels=NULL;
-    buf=NULL;
-    reqs=NULL;
-    target=NULL;
-    slabels=NULL;
-    nshared = NULL;
-    sh_ind = NULL;
+    _ulabels=NULL;
+    _buf=NULL;
+    _reqs=NULL;
+    _target=NULL;
+    _slabels=NULL;
+    _nshared = NULL;
+    _sh_ind = NULL;
   }
 
   void gs_data::nonlocal_info::nonlocal(realType *u, int op, MPI_Comm comm)
   {
     MPI_Status status;
-    uint np = this->np;
-    MPI_Request *reqs = this->reqs;
-    uint *targ = this->target;
-    uint *nshared = this->nshared;
-    uint *sh_ind = this->sh_ind;
+    uint np = this->_np;
+    MPI_Request *reqs = this->_reqs;
+    uint *targ = this->_target;
+    uint *nshared = this->_nshared;
+    uint *sh_ind = this->_sh_ind;
     uint id;
-    realType *buf = this->buf, *start;
+    realType *buf = this->_buf, *start;
     unsigned int i;
     { MPI_Comm_rank(comm,(int *)&i); id=i; }
     for (i=0; i<np; ++i) {
@@ -232,8 +233,8 @@ namespace moab {
 		targ[i],targ[i],comm,reqs++);
       start+=nshared[i];
     }
-    for (reqs=this->reqs,i=np*2;i;--i) MPI_Wait(reqs++,&status);
-    sh_ind = this->sh_ind;
+    for (reqs=this->_reqs,i=np*2;i;--i) MPI_Wait(reqs++,&status);
+    sh_ind = this->_sh_ind;
 # define LOOP(OP) do {							\
       for(i=0;i<np;++i) {						\
 	uint c;								\
@@ -254,13 +255,13 @@ namespace moab {
 					    int op, MPI_Comm comm)
   {
     MPI_Status status;
-    uint np = this->np;
-    MPI_Request *reqs = this->reqs;
-    uint *targ = this->target;
-    uint *nshared = this->nshared;
-    uint *sh_ind = this->sh_ind;
+    uint np = this->_np;
+    MPI_Request *reqs = this->_reqs;
+    uint *targ = this->_target;
+    uint *nshared = this->_nshared;
+    uint *sh_ind = this->_sh_ind;
     uint id;
-    realType *buf = this->buf, *start;
+    realType *buf = this->_buf, *start;
     uint size = n*sizeof(realType);
     unsigned int i;
     { MPI_Comm_rank(comm,(int *)&i); id=i; }
@@ -276,8 +277,8 @@ namespace moab {
       MPI_Irecv(start,nsn*size,MPI_UNSIGNED_CHAR,targ[i],targ[i],comm,reqs++);
       start+=nsn;
     }
-    for (reqs=this->reqs,i=np*2;i;--i) MPI_Wait(reqs++,&status);
-    sh_ind = this->sh_ind;
+    for (reqs=this->_reqs,i=np*2;i;--i) MPI_Wait(reqs++,&status);
+    sh_ind = this->_sh_ind;
 # define LOOP(OP) do {					\
       for(i=0;i<np;++i) {				\
 	uint c,j;					\
@@ -301,13 +302,13 @@ namespace moab {
 					     MPI_Comm comm)
   {
     MPI_Status status;
-    uint np = this->np;
-    MPI_Request *reqs = this->reqs;
-    uint *targ = this->target;
-    uint *nshared = this->nshared;
-    uint *sh_ind = this->sh_ind;
+    uint np = this->_np;
+    MPI_Request *reqs = this->_reqs;
+    uint *targ = this->_target;
+    uint *nshared = this->_nshared;
+    uint *sh_ind = this->_sh_ind;
     uint id;
-    realType *buf = this->buf, *start;
+    realType *buf = this->_buf, *start;
     unsigned int i;
     { MPI_Comm_rank(comm,(int *)&i); id=i; }
     for (i=0; i<np; ++i) {
@@ -324,8 +325,8 @@ namespace moab {
 		targ[i],targ[i],comm,reqs++);
       start+=nsn;
     }
-    for (reqs=this->reqs,i=np*2;i;--i) MPI_Wait(reqs++,&status);
-    sh_ind = this->sh_ind;
+    for (reqs=this->_reqs,i=np*2;i;--i) MPI_Wait(reqs++,&status);
+    sh_ind = this->_sh_ind;
 # define LOOP(OP) do {						\
       for(i=0;i<np;++i) {					\
 	uint c,j,ns=nshared[i];					\
@@ -362,9 +363,9 @@ namespace moab {
     all=&buffers[0];
     keep=&buffers[1];
     send=&buffers[2];
-    memcpy(&(this->comm),&comm,sizeof(MPI_Comm));
-    MPI_Comm_rank(comm,&id ); this->id =id ;
-    MPI_Comm_size(comm,&num); this->num=num;
+    memcpy(&(this->_comm),&comm,sizeof(MPI_Comm));
+    MPI_Comm_rank(comm,&id ); this->_id =id ;
+    MPI_Comm_size(comm,&num); this->_num=num;
   }
 
   void gs_data::crystal_data::reset()
@@ -408,10 +409,10 @@ namespace moab {
 
     VALGRIND_CHECK_MEM_IS_DEFINED( &send->n, sizeof(uint) );
     MPI_Isend(&send->n,sizeof(uint),MPI_UNSIGNED_CHAR,
-	      target  ,id   ,comm,&req[  0]);
+	      target  ,_id   ,_comm,&req[  0]);
     for (i=0; i<recvn; ++i)
       MPI_Irecv(&count[i]  ,sizeof(uint),MPI_UNSIGNED_CHAR,
-		target+i,target+i,comm,&req[i+1]);
+		target+i,target+i,_comm,&req[i+1]);
     MPI_Waitall(recvn+1,req,status);
     sum = keep->n;
     for (i=0; i<recvn; ++i) sum+=count[i];
@@ -423,13 +424,13 @@ namespace moab {
 
     VALGRIND_CHECK_MEM_IS_DEFINED( send->buf.ptr,send->n*sizeof(uint) );
     MPI_Isend(send->buf.ptr,send->n*sizeof(uint),
-	      MPI_UNSIGNED_CHAR,target,id,comm,&req[0]);
+	      MPI_UNSIGNED_CHAR,target,_id,_comm,&req[0]);
     if (recvn) {
       MPI_Irecv(recv[0],count[0]*sizeof(uint),MPI_UNSIGNED_CHAR,
-		target,target,comm,&req[1]);
+		target,target,_comm,&req[1]);
       if (recvn==2)
 	MPI_Irecv(recv[1],count[1]*sizeof(uint),MPI_UNSIGNED_CHAR,
-		  target+1,target+1,comm,&req[2]);
+		  target+1,target+1,_comm,&req[2]);
     }
     MPI_Waitall(recvn+1,req,status);
 
@@ -438,18 +439,18 @@ namespace moab {
 
   void gs_data::crystal_data::crystal_router()
   {
-    uint bl=0, bh, n=num, nl, target;
+    uint bl=0, bh, n=_num, nl, target;
     int recvn;
     crystal_buf *lo, *hi;
     while (n>1) {
       nl = n/2, bh = bl+nl;
-      if (id < bh)
-	target=id+nl,recvn=(n&1 && id==bh-1)?2:1   ,lo=keep,hi=send;
+      if (_id < bh)
+	target=_id+nl,recvn=(n&1 && _id==bh-1)?2:1   ,lo=keep,hi=send;
       else
-	target=id-nl,recvn=(target==bh)?(--target,0):1,hi=keep,lo=send;
+	target=_id-nl,recvn=(target==bh)?(--target,0):1,hi=keep,lo=send;
       partition(bh,lo,hi);
       send_(target,recvn);
-      if(id<bh) n=nl; else n-=nl,bl=bh;
+      if(_id<bh) n=nl; else n-=nl,bl=bh;
     }
   }
 
@@ -493,7 +494,7 @@ namespace moab {
       if (p!=lp) {
 	lp = p;
 	*buf++ = p;           /* target */
-	*buf++ = id; /* source */
+	*buf++ = _id; /* source */
 	len = buf++; *len=0;  /* length */
 	all->n += 3;
       }
@@ -556,7 +557,7 @@ namespace moab {
   {
     local_condense(u,op,this->local_cm);
 #ifdef USE_MPI
-    this->nlinfo->nonlocal(u,op,comm);
+    this->nlinfo->nonlocal(u,op,_comm);
 #endif
     local_uncondense(u,local_cm);
   }
@@ -564,13 +565,13 @@ namespace moab {
   void gs_data::gs_data_op_vec(realType *u, uint n, int op)
   {
 #ifdef USE_MPI
-    if (n>nlinfo->maxv)
+    if (n>nlinfo->_maxv)
       moab::fail("%s: initialized with max vec size = %d,"
-		 " but called with vec size = %d\n",__FILE__,nlinfo->maxv,n);
+		 " but called with vec size = %d\n",__FILE__,nlinfo->_maxv,n);
 #endif
     local_condense_vec(u,n,op,local_cm);
 #ifdef USE_MPI
-    this->nlinfo->nonlocal_vec(u,n,op,comm);
+    this->nlinfo->nonlocal_vec(u,n,op,_comm);
 #endif
     local_uncondense_vec(u,n,local_cm);
   }
@@ -579,9 +580,9 @@ namespace moab {
   {
     uint i;
 #ifdef USE_MPI
-    if (n>nlinfo->maxv)
+    if (n>nlinfo->_maxv)
       moab::fail("%s: initialized with max vec size = %d,"
-		 " but called with vec size = %d\n",__FILE__,nlinfo->maxv,n);
+		 " but called with vec size = %d\n",__FILE__,nlinfo->_maxv,n);
 #endif
     for (i=0; i<n; ++i) local_condense(u[i],op,local_cm);
 
@@ -590,7 +591,7 @@ namespace moab {
 	       " but called with vec size = %d\n",__FILE__,6,n);
 
 #ifdef USE_MPI
-    this->nlinfo->nonlocal_many(u,n,op,comm);
+    this->nlinfo->nonlocal_many(u,n,op,_comm);
 #endif
     for (i=0; i<n; ++i) local_uncondense(u[i],local_cm);
   }
@@ -616,7 +617,7 @@ namespace moab {
     VALGRIND_CHECK_MEM_IS_DEFINED(  label, nlabels * sizeof( long) );
     VALGRIND_CHECK_MEM_IS_DEFINED( ulabel, nlabels * sizeof(ulong) );
 #ifdef USE_MPI
-    MPI_Comm_dup(crystal->comm,&this->comm);
+    MPI_Comm_dup(crystal->_comm,&this->_comm);
 #else
     buf.buffer_init(1024);
 #endif
@@ -711,7 +712,7 @@ namespace moab {
     {
       uint i; sint *pi=primary.vi_wr; slong *pl=primary.vl_wr;
       for (i=primary.get_n(); i; --i,pi+=3,pl+=nlabels)
-	pi[0]=pl[0]%crystal->num;
+	pi[0]=pl[0]%crystal->_num;
     }
     rval = crystal->gs_transfer(1,primary,0); /* transfer to work procs */
     if (rval != MB_SUCCESS)
@@ -783,11 +784,11 @@ namespace moab {
       uint i; sint proc=-1,*si=shared.vi_wr;
       slong *sl = shared.vl_wr;
       ulong *ul = shared.vul_wr;
-      uint *target  = this->nlinfo->target;
-      uint *nshared = this->nlinfo->nshared;
-      uint *sh_ind  = this->nlinfo->sh_ind;
-      slong *slabels = this->nlinfo->slabels;
-      ulong *ulabels = this->nlinfo->ulabels;
+      uint *target  = this->nlinfo->_target;
+      uint *nshared = this->nlinfo->_nshared;
+      uint *sh_ind  = this->nlinfo->_sh_ind;
+      slong *slabels = this->nlinfo->_slabels;
+      ulong *ulabels = this->nlinfo->_ulabels;
       for (i=shared.get_n(); i; --i,si+=3) {
 	if (si[1]!=proc){
 	  proc=si[1], *target++ = proc;
@@ -815,7 +816,7 @@ namespace moab {
     if(nlinfo != NULL){
       nlinfo->nlinfo_free();
       delete this->nlinfo;
-      MPI_Comm_free(&comm);
+      MPI_Comm_free(&_comm);
       nlinfo = NULL;
     }
 #endif
