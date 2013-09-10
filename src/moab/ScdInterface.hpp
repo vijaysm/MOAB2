@@ -123,7 +123,7 @@ public:
     //! lower and upper corners of global box
   int gDims[6];
 
-    //! is globally periodic in i or j
+    //! is globally periodic in i or j or k
   int gPeriodic[3];
 
     //! number of procs in each direction
@@ -274,7 +274,7 @@ public:
      * \param rdims(6) (out) Parametric min/max of destination part
      * \param facedims(6) (out) Parametric min/max of interface between pfrom and pto; if at the max in a periodic
      *                          direction, set to global min of that direction
-     * \param across_bdy(2) (out) If across_bdy[i] is -1(1), interface with pto is across periodic lower(upper) bdy 
+     * \param across_bdy(3) (out) If across_bdy[i] is -1(1), interface with pto is across periodic lower(upper) bdy
      *                            in parameter i, 0 otherwise
      */
   static ErrorCode get_neighbor(int np, int nr, const ScdParData &spd, const int * const dijk,
@@ -724,7 +724,7 @@ private:
     //! lower and upper corners
   int boxDims[6];
 
-    //! is locally periodic in i or j
+    //! is locally periodic in i or j or k
   int locallyPeriodic[3];
 
     //! parallel data associated with this box, if any
