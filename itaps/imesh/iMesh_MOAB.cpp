@@ -3424,7 +3424,7 @@ void iMesh_createStructuredMesh(iMesh_Instance instance,
 }
 
 void iMesh_freeMemory(
-        iMesh_Instance instance,
+    iMesh_Instance /*instance*/,
           /**< [in] iMesh instance handle */
          void ** ptrToMem)
 {

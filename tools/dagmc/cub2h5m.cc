@@ -1012,7 +1012,7 @@ ErrorCode add_dead_elems_to_impl_compl(Interface *MBI,
     // skin the volumes
     Skinner tool(MBI);
     Range skin_faces;
-    result = tool.find_skin(elems, 2, skin_faces, true);
+    result = tool.find_skin(0, elems, 2, skin_faces, true);
     assert(MB_SUCCESS == result);
     if (MB_SUCCESS != result)
       return result;

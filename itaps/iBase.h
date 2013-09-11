@@ -269,8 +269,6 @@ enum iBase_TagValueType {
  *
  * \subpage imeshp
  * 
- * \subpage igeom
- *
  * \subpage error
  *
  * \subpage trio

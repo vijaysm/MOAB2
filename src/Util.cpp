@@ -44,7 +44,6 @@ namespace moab {
 
 void Util::normal(Interface* MB, EntityHandle handle, double& x, double& y, double& z)
 {
-
    // get connectivity
    const EntityHandle *connectivity;
    int number_nodes = 0;
@@ -77,6 +76,7 @@ void Util::normal(Interface* MB, EntityHandle handle, double& x, double& y, doub
      z /= mag;
    }
 }
+
 void Util::centroid(Interface *MB, EntityHandle handle, Coord &coord)
 {
    const EntityHandle *connectivity;
@@ -112,7 +112,6 @@ void Util::edge_centers(Interface *MB, EntityHandle handle, std::vector<Coord> &
   double coords[2][3];
   const EntityHandle *connectivity;
 
-
   MB->get_connectivity(handle, connectivity, number_nodes,true);
   
   MB->type_from_handle(handle,type);
@@ -130,11 +129,7 @@ void Util::edge_centers(Interface *MB, EntityHandle handle, std::vector<Coord> &
     coords_list[i].x = (coords[0][0] + coords[1][0])/2.0;
     coords_list[i].y = (coords[0][1] + coords[1][1])/2.0;
     coords_list[i].z = (coords[0][2] + coords[1][2])/2.0;
-
   }
-
-
-
 }
 */  
 
@@ -147,7 +142,6 @@ void Util::face_centers(Interface *MB, EntityHandle handle, std::vector<Coord> &
   int number_nodes = 0;
   double node_coords[3];
   const EntityHandle *connectivity;
-
 
   MB->get_connectivity(handle, connectivity, number_nodes,true);
   
@@ -174,36 +168,6 @@ void Util::face_centers(Interface *MB, EntityHandle handle, std::vector<Coord> &
     coords_list[i].y/=(double)number_nodes_per_element;
     coords_list[i].z/=(double)number_nodes_per_element;
   }
-
 }
 */
-ErrorCode Util::gather_set(Interface * MB, EntityHandle & gather_set){
-  Tag gathersettag;
-  ErrorCode rval = MB->tag_get_handle("GATHER_SET", 1, MB_TYPE_INTEGER, gathersettag,
-       MB_TAG_SPARSE);
-  if (rval!=MB_SUCCESS)
-    return rval;
-
-  int gatherval = 1;
-  void *vals[] = {&gatherval};
-  Range gathersets;
-  rval = MB->get_entities_by_type_and_tag( 0, MBENTITYSET, &gathersettag,
-                                             vals, 1, gathersets );
-  if (rval!=MB_SUCCESS)
-    return rval;
-  if (gathersets.empty())
-    return MB_ENTITY_NOT_FOUND;
-  gather_set = gathersets[0];
-
-  return MB_SUCCESS;
-}
-
-ErrorCode Util::gather_set_entities(Interface * MB, EntityHandle & gather_set, Range & ents)
-{
-  ErrorCode rval = Util::gather_set(MB, gather_set);
-  if (rval!=MB_SUCCESS)
-    return rval;
-  rval = MB->get_entities_by_handle(gather_set, ents);
-  return rval;
-}
 } // namespace moab

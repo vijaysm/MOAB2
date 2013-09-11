@@ -450,22 +450,25 @@ AC_SUBST(PNETCDF_LIBS)
 #################################################################################
 #                             Documentation
 #################################################################################
-AC_ARG_ENABLE([doxygen],
-[AC_HELP_STRING([[--enable-doxygen@<:@=DIR@:>@]],[Specify directory where Doxygen program is installed])
-AC_HELP_STRING([--disable-doxygen],[Do not generate API documentation (default)])],
-                        [ENABLE_DOXYGEN="$enableval"],[ENABLE_DOXYGEN=no] )
-if test "x$ENABLE_DOXYGEN" = "xyes"; then
-  AC_PATH_PROG( [DOXYGEN], [doxygen], [no] )
-elif test "x$ENABLE_DOXYGEN" != "xno"; then
-  AC_PATH_PROG( [DOXYGEN], [doxygen], [no], [$ENABLE_DOXYGEN] )
+AC_ARG_ENABLE([docs],
+[AC_HELP_STRING([--enable-docs],[indicate to check for doxygen installation])],
+                        [ENABLE_DOCS=yes],[ENABLE_DOCS=no] )
+AC_ARG_WITH([doxygen],
+[AC_HELP_STRING([--with-doxygen=DIR], [Specify directory where Doxygen program is installed. By default, it is /usr/bin])],
+[WITH_DOXYGEN="$withval"], [WITH_DOXYGEN=no])
+
+if test "x$WITH_DOXYGEN" != "xno"; then
+  AC_PATH_PROGS( [DOXYGEN], [doxygen], [no],[$WITH_DOXYGEN] )
+else
+  AC_PATH_PROGS( [DOXYGEN], [doxygen], [no],[$PATH])
 fi
-if test "x$ENABLE_DOXYGEN" != "xno"; then
+if test "x$ENABLE_DOCS" = "xyes"; then
   if test "x$DOXYGEN" = "xno"; then
     AC_MSG_ERROR("Doxygen executable not found.")
   fi
 fi
 AC_SUBST([DOXYGEN])
-AM_CONDITIONAL([ENABLE_DOXYGEN],[test "x$ENABLE_DOXYGEN" != "xno"])
+AM_CONDITIONAL([ENABLE_DOCS],[test "x$ENABLE_DOCS" != "xno"])
 
 
 ################################################################################
@@ -1143,6 +1146,7 @@ AC_SUBST(CGM_CPPFLAGS)
 AC_SUBST(CGM_LDFLAGS)
 AC_SUBST(CGM_LTFLAGS)
 AC_SUBST(CGM_LIBS)
+AC_SUBST(CGM_DIR)
 
 AM_CONDITIONAL( HAVE_CGM, [test "x$CGM_MISSING" = "xno"] )
 
@@ -1211,7 +1215,6 @@ AC_CONFIG_FILES([Makefile
 		 tools/vtkMOABReaderNew/CMakeLists.txt
                  doc/Makefile
                  doc/user.dox
-                 doc/dev.dox
                  doc/config.tex
                  MeshFiles/Makefile
                  MeshFiles/unittest/Makefile

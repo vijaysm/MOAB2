@@ -165,9 +165,13 @@ test/obb/obb_time
 test/obb/obb_tree_tool
 test/obb_test
 test/oldinc/test_oldinc
+test/read_mpas_nc
 test/parallel/*.h5m
 test/parallel/mbparallelcomm_test
 test/parallel/mhdf_parallel
+test/parallel/mpastrvpart
+test/parallel/par_coupler_test
+test/parallel/par_intx_sph
 test/parallel/parallel_hdf5_test
 test/parallel/parallel_unit_tests
 test/parallel/parallel_write_test
@@ -196,6 +200,7 @@ test/perf/point_location/point_location
 test/range_test
 test/reorder_test
 test/scdseq_test
+test/scd_test_partn
 test/seq_man_test
 test/spatial_locator_test
 test/test_boundbox

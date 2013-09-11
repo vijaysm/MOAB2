@@ -1407,15 +1407,15 @@ ErrorCode test_shared_sets( const char* )
       continue;
     }
     
-    Range expected;
+    Range expected_range;
     for (size_t j = 0; j < 3; ++j)
       if (set_owners[j] == i)
-        expected.insert( set_arr[j] );
+        expected_range.insert( set_arr[j] );
     
-    if (expected != sets) {
+    if (expected_range != sets) {
       std::cerr << __FILE__ << ":" << __LINE__ << " rank " << rank 
                 << " has incorrect shared set list for sets owned by rank " 
-                << set_owners[i] << std::endl << "Expected: " << expected << std::endl
+                << set_owners[i] << std::endl << "Expected: " << expected_range << std::endl
                 << "Actual: " << sets << std::endl;
       ok = MB_FAILURE;
     }

@@ -11,6 +11,10 @@ if ENABLE_imesh
  LDADD+= $(top_builddir)/itaps/imesh/libiMesh.la
 endif
 
+if HAVE_CGM
+ LDADD+=  ${CGM_DIR}/lib/libcgm.la
+endif 
+
 # For old (pre 1.10.x) versions of Automake
 docdir = @docdir@
 

@@ -354,8 +354,10 @@ int main(int argc, char ** argv)
     gidels[k]=k+1;
   mb.tag_set_data(gid2, erange, &gidels[0]);
 
-  int times;
-  GET_DIM(temp_dim, "time", times);
+  // For now, comment out times to remove compile warning (variable ‘times’ set but not used)
+  //int times;
+  //GET_DIM(temp_dim, "time", times);
+
   Tag velotag;
   rval = mb.tag_get_handle("VELO", 3, MB_TYPE_DOUBLE,
             velotag, MB_TAG_DENSE|MB_TAG_CREAT);

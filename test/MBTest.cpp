@@ -4442,7 +4442,7 @@ ErrorCode mb_merge_test()
       //get Hexes from model
   }
   result = MB->get_entities_by_type(0, MBHEX, entities);
-  Skinner_Obj.find_skin(entities,false,forward_lower,&reverse_lower);
+  Skinner_Obj.find_skin(0,entities,false,forward_lower,&reverse_lower);
   cout <<"num hexes = "<<entities.size()<<"\n";
   cout <<"fl = "<<forward_lower.size()<<" rl = "<<reverse_lower.size()<<"\n";
   
@@ -6146,7 +6146,7 @@ ErrorCode mb_skin_curve_test_common( bool use_adj )
   
   Range skin;
   Skinner tool(mb);
-  rval = tool.find_skin( edges, 0, skin, use_adj );
+  rval = tool.find_skin( 0, edges, 0, skin, use_adj );
   if (MB_SUCCESS != rval) {
     std::cerr << "Skinner failure at " __FILE__ ":" << __LINE__ << std::endl;
     return MB_FAILURE;
@@ -6169,7 +6169,7 @@ ErrorCode mb_skin_curve_test_common( bool use_adj )
   EntityHandle edge = edges.front();
   Range range(edge,edge);
   skin.clear();
-  rval = tool.find_skin( range, 0, skin, use_adj );
+  rval = tool.find_skin( 0, range, 0, skin, use_adj );
   if (MB_SUCCESS != rval) {
     std::cerr << "Skinner failure at " __FILE__ ":" << __LINE__ << std::endl;
     return MB_FAILURE;
@@ -6238,7 +6238,7 @@ ErrorCode mb_skin_surface_test_common( bool use_adj )
   
   Range skin;
   Skinner tool(mb);
-  rval = tool.find_skin( source, 1, skin, use_adj );
+  rval = tool.find_skin( 0, source, 1, skin, use_adj );
   if (MB_SUCCESS != rval) {
     std::cerr << "Skinner failure at " __FILE__ ":" << __LINE__ << std::endl;
     return MB_FAILURE;
@@ -6331,7 +6331,7 @@ ErrorCode mb_skin_volume_test_common( bool use_adj )
   
   Range skin;
   Skinner tool(mb);
-  rval = tool.find_skin( source, 2, skin, use_adj );
+  rval = tool.find_skin( 0, source, 2, skin, use_adj );
   if (MB_SUCCESS != rval) {
     std::cerr << "Skinner failure at " __FILE__ ":" << __LINE__ << std::endl;
     return MB_FAILURE;
@@ -6361,10 +6361,10 @@ ErrorCode mb_skin_scd_test()
   Skinner tool(mb);
   Range ents(this_box->start_element(), this_box->start_element()+this_box->num_elements()-1),
       scd_skin_ents, skin_ents;
-  rval = tool.find_skin(ents, false, scd_skin_ents, NULL, true, true, true);
+  rval = tool.find_skin(0, ents, false, scd_skin_ents, NULL, true, true, true);
   if (MB_SUCCESS != rval) return rval;
 
-  rval = tool.find_skin(ents, false, skin_ents, NULL, true, true, false);
+  rval = tool.find_skin(0, ents, false, skin_ents, NULL, true, true, false);
   if (MB_SUCCESS != rval) return rval;
 
     // should be same number of entities
@@ -6374,10 +6374,10 @@ ErrorCode mb_skin_scd_test()
   scd_skin_ents.clear();
   
     // now test getting faces and vertices, also with existing faces now
-  rval = tool.find_skin(ents, true, scd_skin_ents, NULL, true, true, true);
+  rval = tool.find_skin(0, ents, true, scd_skin_ents, NULL, true, true, true);
   if (MB_SUCCESS != rval) return rval;
 
-  rval = tool.find_skin(ents, true, skin_ents, NULL, true, true, false);
+  rval = tool.find_skin(0, ents, true, skin_ents, NULL, true, true, false);
   if (MB_SUCCESS != rval) return rval;
 
     // again, should have same numbers
@@ -6532,7 +6532,7 @@ ErrorCode mb_skin_verts_common( unsigned dim, bool skin_elems )
   
     // Get skin vertices using skinner
   Range actual;
-  rval = tool.find_skin( ents, !skin_elems, actual );
+  rval = tool.find_skin( 0, ents, !skin_elems, actual );
   if (MB_SUCCESS != rval)
     return rval;
  
@@ -6761,7 +6761,7 @@ ErrorCode mb_skin_poly_test()
   
   Skinner tool(&mb);
   Range skin;
-  rval = tool.find_skin( regions, true, skin, 0, true, false );
+  rval = tool.find_skin( 0, regions, true, skin, 0, true, false );
   if (MB_SUCCESS != rval) {
     std::cout << "Vertex skinning failed with: " << mb.get_error_string(rval) << std::endl;
     return rval;
@@ -6784,7 +6784,7 @@ ErrorCode mb_skin_poly_test()
   }
   
   skin.clear();
-  rval = tool.find_skin( regions, false, skin, 0, true, false );
+  rval = tool.find_skin( 0, regions, false, skin, 0, true, false );
   if (MB_SUCCESS != rval) {
     std::cout << "Non-create face skinning failed with: " << mb.get_error_string(rval) << std::endl;
     return rval;
@@ -6800,7 +6800,7 @@ ErrorCode mb_skin_poly_test()
   }
   
   skin.clear();
-  rval = tool.find_skin( regions, false, skin, 0, true, true );
+  rval = tool.find_skin( 0, regions, false, skin, 0, true, true );
   if (MB_SUCCESS != rval) {
     std::cout << "Create face skinning failed with: " << mb.get_error_string(rval) << std::endl;
     return rval;
@@ -6906,7 +6906,7 @@ ErrorCode mb_skin_higher_order_faces_common( bool use_adj )
   Skinner tool(&mb);
   Range skin;
   
-  rval = tool.find_skin( faces, true, skin, 0, use_adj, false );
+  rval = tool.find_skin( 0, faces, true, skin, 0, use_adj, false );
   if (MB_SUCCESS != rval) {
     std::cout << "Vertex skinning failed with: " << mb.get_error_string(rval) << std::endl;
     return rval;
@@ -6919,7 +6919,7 @@ ErrorCode mb_skin_higher_order_faces_common( bool use_adj )
   const int skin_edges[5][3] = {
     {0,1,2}, {2,3,4}, {4,9,12}, {12,11,10}, {10,5,0} };
   skin.clear();
-  rval = tool.find_skin( faces, false, skin, 0, use_adj, true );
+  rval = tool.find_skin( 0, faces, false, skin, 0, use_adj, true );
   if (MB_SUCCESS != rval) {
     std::cout << "Edge skinning failed with: " << mb.get_error_string(rval) << std::endl;
     return rval;
@@ -7034,7 +7034,7 @@ ErrorCode mb_skin_higher_order_regions_common( bool use_adj )
   Skinner tool(&mb);
   Range skin;
 
-  rval = tool.find_skin( hexes, true, skin, 0, use_adj, false );
+  rval = tool.find_skin( 0, hexes, true, skin, 0, use_adj, false );
   if (MB_SUCCESS != rval) {
     std::cout << "Vertex skinning failed with: " << mb.get_error_string(rval) 
               << std::endl;
@@ -7057,7 +7057,7 @@ ErrorCode mb_skin_higher_order_regions_common( bool use_adj )
   }
   
   skin.clear();
-  rval = tool.find_skin( hexes, false, skin, 0, use_adj, true );
+  rval = tool.find_skin( 0, hexes, false, skin, 0, use_adj, true );
   if (MB_SUCCESS != rval) {
     std::cout << "Element skinning failed with: " << mb.get_error_string(rval) << std::endl;
     return rval;
@@ -7202,7 +7202,7 @@ ErrorCode mb_skin_reversed_common( int dim, bool use_adj )
   
   Range forward, reverse;
   Skinner tool(&mb);
-  rval = tool.find_skin( elems, false, forward, &reverse, use_adj, true );
+  rval = tool.find_skin( 0, elems, false, forward, &reverse, use_adj, true );
   if (MB_SUCCESS != rval) {
     std::cout << "Skinner failed." << std::endl;
     return rval;
@@ -7284,7 +7284,7 @@ ErrorCode mb_skin_subset_common( int dimension, bool use_adj )
   
   Range skin;
   Skinner tool(&mb);
-  rval = tool.find_skin( input, true, skin, 0, use_adj, false );
+  rval = tool.find_skin( 0, input, true, skin, 0, use_adj, false );
   if (MB_SUCCESS != rval) {
     std::cout << "Skinner failed to find skin vertices" << std::endl;
     return MB_FAILURE;
@@ -7303,7 +7303,7 @@ ErrorCode mb_skin_subset_common( int dimension, bool use_adj )
   std::vector<EntityHandle> sv( skin.begin(), skin.end() );
   std::vector<int> counts( sv.size(), 0 );
   skin.clear();
-  rval = tool.find_skin( input, false, skin, 0, use_adj, true );
+  rval = tool.find_skin( 0, input, false, skin, 0, use_adj, true );
   if (MB_SUCCESS != rval) {
     std::cout << "Skinner failed to find skin elements" << std::endl;
     return MB_FAILURE;
@@ -7418,7 +7418,7 @@ ErrorCode mb_skin_full_common( int dimension, bool use_adj )
   
   Range skin;
   Skinner tool(&mb);
-  rval = tool.find_skin( input, false, skin, 0, use_adj, true );
+  rval = tool.find_skin( 0, input, false, skin, 0, use_adj, true );
   if (MB_SUCCESS != rval) {
     std::cout << "Skinner failed to find skin elements" << std::endl;
     return MB_FAILURE;
@@ -7552,7 +7552,7 @@ ErrorCode mb_skin_adjacent_surf_patches()
     Range edges[4];
     for (int grp = 0; grp < 4; ++grp) {
         // get the skin edges
-      rval = tool.find_skin( ranges[grp], 1, edges[grp], use_adj );
+      rval = tool.find_skin( 0, ranges[grp], 1, edges[grp], use_adj );
       if (MB_SUCCESS != rval) {
         std::cout << "Skinner failed for run " << run << " group " << grp << std::endl;
         return rval;

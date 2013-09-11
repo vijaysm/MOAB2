@@ -1959,6 +1959,17 @@ namespace moab {
                   ray_end = dists_out.back();
                 }
               }
+              int w = tris_out.size() - 1;
+              for (; w > 0 && tri_t < dists_out[w-1]; --w) {
+                tris_out[w] = tris_out[w-1];
+                dists_out[w] = dists_out[w-1];
+              }
+              tris_out[w] = *iter;
+              dists_out[w] = tri_t;
+              if (tris_out.size() >= (unsigned)max_ints)
+                // when we have already reached the max intx points, we cans safely reset
+                // ray_end, because we will accept new points only "closer" than the last one
+                ray_end = dists_out.back();
             }
           }
 

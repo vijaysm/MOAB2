@@ -30,7 +30,6 @@ struct  Coord
   double z;
 };
 
-
 /** \class Util
  *
  * \brief Utility functions for normal and centroid for entities
@@ -38,17 +37,14 @@ struct  Coord
 class Util
 {
 public:
-
    
   static void normal(Interface* MB, EntityHandle handle, double& x, double& y, double& z);
 
   static void centroid(Interface *MB, EntityHandle handle,Coord &coord);
- // static void edge_centers(Interface *MB, EntityHandle handle, std::vector<Coord> &coords_list);
+
+  //static void edge_centers(Interface *MB, EntityHandle handle, std::vector<Coord> &coords_list);
 
   //static void face_centers(Interface *MB, EntityHandle handle, std::vector<Coord> &coords_list);
-  static ErrorCode gather_set(Interface * MB, EntityHandle & gather_set);
-
-  static ErrorCode gather_set_entities(Interface * MB, EntityHandle & gather_set, Range & ents);
 
 private:
 

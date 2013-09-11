@@ -61,7 +61,7 @@ moab::ErrorCode MergeMesh::merge_entities(moab::Range &elems,
   // get the skin of the entities
   moab::Skinner skinner(mbImpl);
   moab::Range skin_range;
-  moab::ErrorCode result = skinner.find_skin(elems, 0, skin_range);
+  moab::ErrorCode result = skinner.find_skin(0, elems, 0, skin_range);
   if (moab::MB_SUCCESS != result) return result;
 
   // create a tag to mark merged-to entity; reuse tree_root
@@ -232,7 +232,7 @@ moab::ErrorCode MergeMesh::merge_higher_dimensions(moab::Range &elems)
   for(int dim = 1; dim <3; dim++){
     skinEnts.clear();
     moreDeadEnts.clear();
-    result = skinner.find_skin(elems, dim, skinEnts);
+    result = skinner.find_skin(0, elems, dim, skinEnts);
     //Go through each skin entity and see if it shares adjacancies with another entity
     for(moab::Range::iterator skinIt = skinEnts.begin(); skinIt != skinEnts.end(); skinIt++){
       adj.clear();
