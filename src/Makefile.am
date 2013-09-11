@@ -57,7 +57,6 @@ libMOAB_la_SOURCES = \
   Factory.cpp \
   FBEngine.cpp \
   FileOptions.cpp \
-  FileOptions.hpp \
   GeomUtil.cpp \
   GeomTopoTool.cpp \
   HigherOrderFactory.cpp \
@@ -152,6 +151,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/CartVect.hpp \
   moab/Compiler.hpp \
   moab/Core.hpp \
+  moab/CpuTimer.hpp \
   moab/DualTool.hpp \
   moab/Error.hpp \
   moab/GeomTopoTool.hpp \
@@ -160,6 +160,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/EntityType.hpp \
   moab/EntityHandle.hpp \
   moab/FBEngine.hpp \
+  moab/FileOptions.hpp \
   moab/Forward.hpp \
   moab/GeomUtil.hpp \
   moab/Interface.hpp \
