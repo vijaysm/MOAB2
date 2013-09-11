@@ -8,12 +8,12 @@
 // to access data structures for spectral elements
 
 extern "C"{
-#include "types.h"
-#include "poly.h"
-#include "tensor.h"
+#include "moab/point_locater/lotte/types.h"
+#include "moab/point_locater/lotte/poly.h"
+#include "moab/point_locater/lotte/tensor.h"
 //#include "findpt.h"
-#include "extrafindpt.h"
-#include "errmem.h"
+#include "moab/point_locater/lotte/extrafindpt.h"
+#include "moab/point_locater/lotte/errmem.h"
 }
 
 namespace moab {

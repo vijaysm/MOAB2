@@ -3,7 +3,7 @@
 #include "TestRunner.hpp"
 #include "ReadHDF5.hpp"
 #include "MBTagConventions.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 
 #ifdef USE_MPI
 #include "moab_mpi.h"

@@ -2,7 +2,7 @@
 #include "MBParallelConventions.h"
 #include "MBTagConventions.hpp"
 #include "moab/Core.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 #include "ReadParallel.hpp"
 #include "TestUtil.hpp"
 #include <vector>
