@@ -1138,11 +1138,11 @@ ErrorCode Core::get_connectivity_by_type(const EntityType type,
 ErrorCode  Core::get_connectivity(const EntityHandle *entity_handles,
                                       const int num_handles,
                                       Range &connectivity,
-                                      bool topological_connectivity) const
+                                      bool corners_only) const
 {
   std::vector<EntityHandle> tmp_connect;
   ErrorCode result = get_connectivity(entity_handles, num_handles, tmp_connect,
-                                        topological_connectivity);
+                                        corners_only);
   if (MB_SUCCESS != result) return result;
 
   std::sort( tmp_connect.begin(), tmp_connect.end() );
@@ -1154,7 +1154,7 @@ ErrorCode  Core::get_connectivity(const EntityHandle *entity_handles,
 ErrorCode  Core::get_connectivity(const EntityHandle *entity_handles,
                                   const int num_handles,
                                   std::vector<EntityHandle> &connectivity,
-                                  bool topological_connectivity,
+                                  bool corners_only,
                                   std::vector<int> *offsets) const
 {
   connectivity.clear(); // this seems wrong as compared to other API functions,
@@ -1167,7 +1167,7 @@ ErrorCode  Core::get_connectivity(const EntityHandle *entity_handles,
   int len;
   if (offsets) offsets->push_back(0);
   for (int i = 0; i < num_handles; ++i) {
-    rval = get_connectivity( entity_handles[i], conn, len, topological_connectivity, &tmp_storage );
+    rval = get_connectivity( entity_handles[i], conn, len, corners_only, &tmp_storage );
     if (MB_SUCCESS != rval)
       return rval;
     connectivity.insert( connectivity.end(), conn, conn + len );
@@ -1180,7 +1180,7 @@ ErrorCode  Core::get_connectivity(const EntityHandle *entity_handles,
 ErrorCode Core::get_connectivity(const EntityHandle entity_handle,
                                      const EntityHandle*& connectivity,
                                      int& number_nodes,
-                                     bool topological_connectivity,
+                                     bool corners_only,
                                      std::vector<EntityHandle>* storage) const
 {
   ErrorCode status;
@@ -1207,7 +1207,7 @@ ErrorCode Core::get_connectivity(const EntityHandle entity_handle,
   return static_cast<const ElementSequence*>(seq)->get_connectivity(entity_handle,
                                                               connectivity,
                                                               number_nodes,
-                                                              topological_connectivity,
+                                                              corners_only,
                                                               storage);
 }
 
