@@ -12,7 +12,7 @@
 #include "MBTagConventions.hpp"
 #include "moab/AdaptiveKDTree.hpp"
 #include "moab/GeomUtil.hpp"
-#include "tools/mbcoupler/ElemUtil.hpp"
+#include "../tools/mbcoupler/ElemUtil.hpp"
 
 #define MBI mb_instance()
 

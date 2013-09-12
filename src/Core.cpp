@@ -2897,7 +2897,7 @@ ErrorCode Core::list_entity(const EntityHandle entity) const
     std::cout << "   (MULTIPLE = " << multiple << ")" << std::endl;
 
   result = print_entity_tags(std::string(), entity, MB_TAG_DENSE);
-  
+
   std::cout << std::endl;
 
   return result;

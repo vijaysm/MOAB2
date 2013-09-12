@@ -3303,7 +3303,7 @@ void iMesh_createStructuredMesh(iMesh_Instance instance,
   ScdBox *scd_box;
   rval = scdi->construct_box(HomCoord(local_dims[0], local_dims[1], (-1 != local_dims[2] ? local_dims[2] : 0), 1),
                              HomCoord(local_dims[3], local_dims[4], (-1 != local_dims[5] ? local_dims[5] : 0), 1),
-                             NULL, 0, scd_box);
+                             NULL, 0, scd_box, NULL, NULL, (vert_gids ? true : false));
   CHKERR(rval, "Trouble creating scd vertex sequence.");
 
     // set the global box parameters
