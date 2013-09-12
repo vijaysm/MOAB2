@@ -1,5 +1,6 @@
 #include "moab/Core.hpp"
 #include "moab/LloydSmoother.hpp"
+#include "moab/CartVect.hpp"
 #include "TestUtil.hpp"
 
 #ifdef MESHDIR
