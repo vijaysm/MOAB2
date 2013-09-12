@@ -41,6 +41,7 @@ libMOAB_la_SOURCES = \
   BitPage.hpp \
   BitTag.cpp \
   BitTag.hpp \
+  BoundBox.cpp \
   BSPTree.cpp \
   BSPTreePoly.cpp \
   CN.cpp \
@@ -57,7 +58,6 @@ libMOAB_la_SOURCES = \
   Factory.cpp \
   FBEngine.cpp \
   FileOptions.cpp \
-  FileOptions.hpp \
   GeomUtil.cpp \
   GeomTopoTool.cpp \
   HigherOrderFactory.cpp \
@@ -75,16 +75,10 @@ libMOAB_la_SOURCES = \
   OrientedBox.cpp \
   OrientedBox.hpp \
   OrientedBoxTreeTool.cpp \
-  moab/point_locater/lotte/minmax.h \
-  moab/point_locater/lotte/extrafindpt.h \
   lotte/poly.c \
-  moab/point_locater/lotte/poly.h \
   lotte/findpt.c \
-  moab/point_locater/lotte/findpt.h \
   lotte/errmem.c \
-  moab/point_locater/lotte/errmem.h \
   lotte/tensor.c \
-  moab/point_locater/lotte/tensor.h \
   PolyElementSeq.cpp \
   PolyElementSeq.hpp \
   ProgOptions.cpp \
@@ -146,12 +140,14 @@ libMOAB_la_SOURCES = \
 # The list of header files which are to be installed
 nobase_libMOAB_la_include_HEADERS = \
   moab/AdaptiveKDTree.hpp \
+  moab/BoundBox.hpp \
   moab/BSPTree.hpp \
   moab/BSPTreePoly.hpp \
   moab/CN.hpp \
   moab/CartVect.hpp \
   moab/Compiler.hpp \
   moab/Core.hpp \
+  moab/CpuTimer.hpp \
   moab/DualTool.hpp \
   moab/Error.hpp \
   moab/GeomTopoTool.hpp \
@@ -160,6 +156,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/EntityType.hpp \
   moab/EntityHandle.hpp \
   moab/FBEngine.hpp \
+  moab/FileOptions.hpp \
   moab/Forward.hpp \
   moab/GeomUtil.hpp \
   moab/Interface.hpp \
@@ -172,10 +169,6 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/point_locater/element_maps/linear_tet_map.hpp  \
   moab/point_locater/element_maps/spectral_hex_map.hpp  \
   moab/point_locater/element_maps/quadratic_hex_map.hpp  \
-  moab/point_locater/lotte/types.h  \
-  moab/point_locater/lotte/errmem.h  \
-  moab/point_locater/lotte/findpt.h  \
-  moab/point_locater/lotte/poly.h  \
   moab/point_locater/point_locater.hpp \
   moab/point_locater/parametrizer.hpp \
   moab/Matrix3.hpp \

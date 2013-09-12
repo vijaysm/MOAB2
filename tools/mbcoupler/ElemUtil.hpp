@@ -7,13 +7,9 @@
 
 // to access data structures for spectral elements
 
-extern "C"{
-#include "types.h"
-#include "poly.h"
-#include "tensor.h"
-//#include "findpt.h"
-#include "extrafindpt.h"
-#include "errmem.h"
+extern "C" 
+{
+#include "moab/FindPtFuncs.h"
 }
 
 namespace moab {

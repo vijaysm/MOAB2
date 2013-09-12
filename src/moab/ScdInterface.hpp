@@ -163,8 +163,8 @@ public:
      * the mesh, call the destroy_mesh function on the ScdBox object first, before destroying it.
      * \param low Lower corner in parameter space
      * \param high Higher corner in parameter space
-     * \param coords Coordinates of vertices, interleaved (xyzxyz...); if NULL, no coords are set
-     * \param num_coords Number of coordinate values; if zero, no coords are set
+     * \param coords Coordinates of vertices, interleaved (xyzxyz...); if NULL, coords are set to parametric values
+     * \param num_coords Number of coordinate values
      * \param new_box Reference to box of structured mesh
      * \param lperiodic[3] If lperiodic[s] != 0, direction s is locally periodic
      * \param par_data If non-NULL, this will get stored on the ScdBox once created, contains info

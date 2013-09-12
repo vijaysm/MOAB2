@@ -4,7 +4,7 @@
 #include "moab/CN.hpp"
 #include "moab/Range.hpp"
 #include "ReadNCDF.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 #define IS_BUILDING_MB
 #include "ExoIIUtil.hpp"
 #include <math.h>

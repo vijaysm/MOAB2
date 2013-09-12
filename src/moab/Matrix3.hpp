@@ -211,6 +211,12 @@ inline Matrix3( double v00, double v01, double v02,
   inline double& operator()(unsigned i) { return d[i]; }
   inline double operator()(unsigned i) const { return d[i]; }
   
+    // get pointer to array of nine doubles
+  inline double* array()
+      { return d; }
+  inline const double* array() const
+      { return d; }
+
   inline Matrix3& operator+=( const Matrix3& m ){
       d[0] += m.d[0]; d[1] += m.d[1]; d[2] += m.d[2];
       d[3] += m.d[3]; d[4] += m.d[4]; d[5] += m.d[5];

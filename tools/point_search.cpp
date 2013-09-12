@@ -14,6 +14,11 @@
  */
 
 //Point Locater
+extern "C" 
+{
+#include "moab/FindPtFuncs.h"
+}
+
 #include "moab/point_locater/point_locater.hpp"
 #include "moab/point_locater/io.hpp"
 #include "moab/point_locater/tree/element_tree.hpp"
