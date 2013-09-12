@@ -1,6 +1,5 @@
 #include "moab/Core.hpp"
 #include "moab/LloydSmoother.hpp"
-#include "moab/CartVect.hpp"
 #include "TestUtil.hpp"
 
 #ifdef MESHDIR
@@ -32,21 +31,7 @@ int main(int argc, char**argv)
     CHECK_ERR(MB_FAILURE);
   }
 
-    // get the vertex positions and set on an intermediate tag, to test smoothing for
-    // a tag instead of for coords
-  Tag ctag;
-  rval = mb.tag_get_handle("vcentroid", 3, MB_TYPE_DOUBLE, ctag, MB_TAG_CREAT|MB_TAG_DENSE);
-  CHECK_ERR(rval);
-  Range verts;
-  rval = mb.get_entities_by_dimension(0, 0, verts);
-  CHECK_ERR(rval);
-  std::vector<double> coords(3*verts.size());
-  rval = mb.get_coords(verts, &coords[0]);
-  CHECK_ERR(rval);
-  rval = mb.tag_set_data(ctag, verts, &coords[0]);
-  CHECK_ERR(rval);
-
-  LloydSmoother ll(&mb, NULL, elems, ctag);
+  LloydSmoother ll(&mb, NULL, elems);
   ll.report_its(10);
   rval = ll.perform_smooth();
   CHECK_ERR(rval);

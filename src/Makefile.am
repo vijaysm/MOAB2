@@ -154,6 +154,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/Core.hpp \
   moab/CpuTimer.hpp \
   moab/DualTool.hpp \
+  moab/EigenDecomp.hpp \
   moab/Error.hpp \
   moab/GeomTopoTool.hpp \
   moab/HigherOrderFactory.hpp \
