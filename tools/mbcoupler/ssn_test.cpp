@@ -13,14 +13,10 @@
 #include <sstream>
 #include <cstring>
 #include <cstdlib>
-
 extern "C" 
 {
-#include "types.h"
-#include "minmax.h"
-#include "errmem.h"
+#include "moab/FindPtFuncs.h"
 }
-
 #include "moab/TupleList.hpp"
 #include "moab/gs.hpp"
 #include "moab/Types.hpp"

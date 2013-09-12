@@ -74,16 +74,10 @@ libMOAB_la_SOURCES = \
   OrientedBox.cpp \
   OrientedBox.hpp \
   OrientedBoxTreeTool.cpp \
-  moab/point_locater/lotte/minmax.h \
-  moab/point_locater/lotte/extrafindpt.h \
   lotte/poly.c \
-  moab/point_locater/lotte/poly.h \
   lotte/findpt.c \
-  moab/point_locater/lotte/findpt.h \
   lotte/errmem.c \
-  moab/point_locater/lotte/errmem.h \
   lotte/tensor.c \
-  moab/point_locater/lotte/tensor.h \
   PolyElementSeq.cpp \
   PolyElementSeq.hpp \
   ProgOptions.cpp \
@@ -173,10 +167,6 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/point_locater/element_maps/linear_tet_map.hpp  \
   moab/point_locater/element_maps/spectral_hex_map.hpp  \
   moab/point_locater/element_maps/quadratic_hex_map.hpp  \
-  moab/point_locater/lotte/types.h  \
-  moab/point_locater/lotte/errmem.h  \
-  moab/point_locater/lotte/findpt.h  \
-  moab/point_locater/lotte/poly.h  \
   moab/point_locater/point_locater.hpp \
   moab/point_locater/parametrizer.hpp \
   moab/Matrix3.hpp \
