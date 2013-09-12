@@ -17,9 +17,9 @@
 
 namespace moab {
   
-LloydSmoother::LloydSmoother(Interface *impl, ParallelComm *pc, Range &elms, Tag ftag,
-                             double at, double rt) 
-        : mbImpl(impl), myPcomm(pc), myElems(elms), fixedTag(ftag), absTol(at), relTol(rt),
+LloydSmoother::LloydSmoother(Interface *impl, ParallelComm *pc, Range &elms, Tag ctag,
+                             Tag ftag, double at, double rt) 
+        : mbImpl(impl), myPcomm(pc), myElems(elms), coordsTag(ctag), fixedTag(ftag), absTol(at), relTol(rt),
           reportIts(0), numIts(0), iCreatedTag(false)
 {
   ErrorCode rval = mbImpl->query_interface(errorHandler);
@@ -62,7 +62,12 @@ ErrorCode LloydSmoother::perform_smooth()
     // get all verts coords into tag; don't need to worry about filtering out fixed verts, 
     // we'll just be setting to their fixed coords
   std::vector<double> vcentroids(3*verts.size());
-  rval = mbImpl->get_coords(verts, &vcentroids[0]); RR("Failed to get vert coords.");
+  if (!coordsTag) {
+    rval = mbImpl->get_coords(verts, &vcentroids[0]); RR("Failed to get vert coords.");
+  }
+  else {
+    rval = mbImpl->tag_get_data(coordsTag, verts, &vcentroids[0]); RR("Failed to get vert coords tag values.");
+  }
 
   Tag centroid;
   rval = mbImpl->tag_get_handle("", 3, MB_TYPE_DOUBLE, centroid, MB_TAG_CREAT | MB_TAG_DENSE); 
@@ -174,7 +179,13 @@ ErrorCode LloydSmoother::perform_smooth()
   } // end while
   
     // write the tag back onto vertex coordinates
-  rval = mbImpl->set_coords(owned_verts, &vcentroids[0]); RR("Failed to set vertex coords.");
+  if (!coordsTag) {
+    rval = mbImpl->set_coords(owned_verts, &vcentroids[0]); RR("Failed to set vertex coords.");
+  }
+  else {
+    rval = mbImpl->tag_set_data(coordsTag, owned_verts, &vcentroids[0]); 
+    RR("Failed to set vert coords tag values.");
+  }
 
   return MB_SUCCESS;
 }
