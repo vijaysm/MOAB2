@@ -13,12 +13,10 @@
 #include <sstream>
 #include <cstring>
 #include <cstdlib>
-
 extern "C" 
 {
 #include "moab/FindPtFuncs.h"
 }
-
 #include "moab/TupleList.hpp"
 #include "moab/gs.hpp"
 #include "moab/Types.hpp"

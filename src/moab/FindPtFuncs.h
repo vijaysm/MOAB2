@@ -2,10 +2,12 @@
 #define FINDPTFUNCS_H
 
 #include "float.h"
+#include "math.h"
 
-//======================================================
-// from types.h
-//======================================================
+/*======================================================
+/ from types.h
+/======================================================
+*/
 
 /* integer type to use for everything */
 #if   defined(USE_LONG)
@@ -78,9 +80,10 @@ typedef unsigned INTEGER uint;
   typedef uint ulong;
 #endif
 
-//======================================================
-// from poly.h
-//======================================================
+/*======================================================
+/ from poly.h
+/======================================================
+*/
 
 /* 
   For brevity's sake, some names have been shortened
@@ -227,9 +230,10 @@ void lagrange_1(lagrange_data *p, real x) ;
 void lagrange_2(lagrange_data *p, real x) ;
 void lagrange_2u(lagrange_data *p) ;
 
-//======================================================
-// from tensor.h
-//======================================================
+/*======================================================
+/ from tensor.h
+/======================================================
+*/
 
 /*--------------------------------------------------------------------------
    1-,2-,3-d Tensor Application
@@ -322,90 +326,88 @@ real tensor_ig3(const real *Jr, const real *Dr, unsigned nr,
                 const real *Jt, const real *Dt, unsigned nt,
                 const real *u, real *g, real *work);
 
-//======================================================
-// from findpt.h
-//======================================================
+/*======================================================
+/ from findpt.h
+/======================================================
+*/
+
+typedef struct {
+  real x[2], A[4], axis_bnd[4];
+} obbox_2;
+
+typedef struct {
+  real x[3], A[9], axis_bnd[6];
+} obbox_3;
+
+typedef struct {
+  unsigned hash_n;
+  real bnd[4]; /* bounds for all elements */
+  real fac[2]; /* fac[i] = hash_n / (bnd[2*i+1]-bnd[2*i]) */
+  obbox_2 *obb; /* obb[nel] -- bounding box info for each element */
+  uint *offset; /* hash table -- for cell i,j:
+                         uint index = j*hash_n+i,
+                                  b = offset[index  ],
+                                  e = offset[index+1];
+                         elements in cell are
+                           offset[b], offset[b+1], ..., offset[e-1] */
+  unsigned max; /* maximum # of elements in any cell */
+} hash_data_2;
+
+typedef struct {
+  unsigned hash_n;
+  real bnd[6]; /* bounds for all elements */
+  real fac[3]; /* fac[i] = hash_n / (bnd[2*i+1]-bnd[2*i]) */
+  obbox_3 *obb; /* obb[nel] -- bounding box info for each element */
+  uint *offset; /* hash table -- for cell i,j,k:
+                         uint index = (k*hash_n+j)*hash_n+i,
+                                  b = offset[index  ],
+                                  e = offset[index+1];
+                         elements in cell are
+                           offset[b], offset[b+1], ..., offset[e-1] */
+  unsigned max; /* maximum # of elements in any cell */
+} hash_data_3;
+
+typedef struct {
+  uint el;
+  real r[3];
+  real dist;
+} findpt_listel;
+
+typedef struct {
+  unsigned constraints;
+  unsigned de, d1;
+  real *x[2], *fd1[2];
+} opt_edge_data_2;
+
+typedef struct {
+  unsigned constraints;
+  real x[2], jac[4];
+} opt_point_data_2;
+
+typedef struct {
+  lagrange_data *ld;
+  unsigned size[3];
+  const real *elx[2];
+  opt_edge_data_2 ed;
+  opt_point_data_2 pd;
+  real *work;
+  real x[2], jac[4];
+} opt_data_2;
 
 typedef struct {
   const real *xw[2];   /* geometry data */
   real *z[2];          /* lobatto nodes */
   lagrange_data ld[2]; /* interpolation, derivative weights & data */
   unsigned nptel;      /* nodes per element */
-  struct findpt_hash_data_2 *hash;   /* geometric hashing data */
-  struct findpt_listel *list, **sorted, **end;
+  hash_data_2 *hash;   /* geometric hashing data */
+  findpt_listel *list, **sorted, **end;
                                         /* pre-allocated list of elements to
                                            check (found by hashing), and
                                            pre-allocated list of pointers into
                                            the first list for sorting */
-  struct findpt_opt_data_2 *od; /* data for the optimization algorithm */
+  opt_data_2 *od; /* data for the optimization algorithm */
   real *od_work;
 } findpt_data_2;
-
-typedef struct {
-  const real *xw[3];   /* geometry data */
-  real *z[3];          /* lobatto nodes */
-  lagrange_data ld[3]; /* interpolation, derivative weights & data */
-  unsigned nptel;      /* nodes per element */
-  struct findpt_hash_data_3 *hash;   /* geometric hashing data */
-  struct findpt_listel *list, **sorted, **end;
-                                        /* pre-allocated list of elements to
-                                           check (found by hashing), and
-                                           pre-allocated list of pointers into
-                                           the first list for sorting */
-  struct findpt_opt_data_3 *od; /* data for the optimization algorithm */
-  real *od_work;
-} findpt_data_3;
-
-findpt_data_2 *findpt_setup_2(
-          const real *const xw[2], const unsigned n[2], uint nel,
-          uint max_hash_size, real bbox_tol);
-findpt_data_3 *findpt_setup_3(
-          const real *const xw[3], const unsigned n[3], uint nel,
-          uint max_hash_size, real bbox_tol);
-
-void findpt_free_2(findpt_data_2 *p);
-void findpt_free_3(findpt_data_3 *p);
-
-const real *findpt_allbnd_2(const findpt_data_2 *p);
-const real *findpt_allbnd_3(const findpt_data_3 *p);
-
-typedef int (*findpt_func)(void *, const real *, int, uint *, real *, real *);
-int findpt_2(findpt_data_2 *p, const real x[2], int guess,
-             uint *el, real r[2], real *dist);
-int findpt_3(findpt_data_3 *p, const real x[3], int guess,
-             uint *el, real r[3], real *dist);
-
-inline void findpt_weights_2(findpt_data_2 *p, const real r[2])
-{
-  lagrange_0(&p->ld[0],r[0]);
-  lagrange_0(&p->ld[1],r[1]);
-}
-
-inline void findpt_weights_3(findpt_data_3 *p, const real r[3])
-{
-  lagrange_0(&p->ld[0],r[0]);
-  lagrange_0(&p->ld[1],r[1]);
-  lagrange_0(&p->ld[2],r[2]);
-}
-
-inline double findpt_eval_2(findpt_data_2 *p, const real *u)
-{
-  return tensor_i2(p->ld[0].J,p->ld[0].n,
-                   p->ld[1].J,p->ld[1].n,
-                   u, p->od_work);
-}
-
-inline double findpt_eval_3(findpt_data_3 *p, const real *u)
-{
-  return tensor_i3(p->ld[0].J,p->ld[0].n,
-                   p->ld[1].J,p->ld[1].n,
-                   p->ld[2].J,p->ld[2].n,
-                   u, p->od_work);
-}
-
-//======================================================
-// from extrafindpt.h
-//======================================================
 
 typedef struct {
   unsigned constraints;
@@ -435,15 +437,58 @@ typedef struct {
   real x[3], jac[9];
 } opt_data_3;
 
+typedef struct {
+  const real *xw[3];   /* geometry data */
+  real *z[3];          /* lobatto nodes */
+  lagrange_data ld[3]; /* interpolation, derivative weights & data */
+  unsigned nptel;      /* nodes per element */
+  hash_data_3 *hash;   /* geometric hashing data */
+  findpt_listel *list, **sorted, **end;
+                                        /* pre-allocated list of elements to
+                                           check (found by hashing), and
+                                           pre-allocated list of pointers into
+                                           the first list for sorting */
+  opt_data_3 *od; /* data for the optimization algorithm */
+  real *od_work;
+} findpt_data_3;
+
+findpt_data_2 *findpt_setup_2(
+          const real *const xw[2], const unsigned n[2], uint nel,
+          uint max_hash_size, real bbox_tol);
+findpt_data_3 *findpt_setup_3(
+          const real *const xw[3], const unsigned n[3], uint nel,
+          uint max_hash_size, real bbox_tol);
+
+void findpt_free_2(findpt_data_2 *p);
+void findpt_free_3(findpt_data_3 *p);
+
+const real *findpt_allbnd_2(const findpt_data_2 *p);
+const real *findpt_allbnd_3(const findpt_data_3 *p);
+
+typedef int (*findpt_func)(void *, const real *, int, uint *, real *, real *);
+int findpt_2(findpt_data_2 *p, const real x[2], int guess,
+             uint *el, real r[2], real *dist);
+int findpt_3(findpt_data_3 *p, const real x[3], int guess,
+             uint *el, real r[3], real *dist);
+
+void findpt_weights_2(findpt_data_2 *p, const real r[2]);
+
+void findpt_weights_3(findpt_data_3 *p, const real r[3]);
+
+double findpt_eval_2(findpt_data_2 *p, const real *u);
+
+double findpt_eval_3(findpt_data_3 *p, const real *u);
+
+/*======================================================
+/ from extrafindpt.h
+/======================================================
+*/
 
 void opt_alloc_3(opt_data_3 *p, lagrange_data *ld);
 void opt_free_3(opt_data_3 *p);
 double opt_findpt_3(opt_data_3 *p, const real *const elx[3],
                            const real xstar[3], real r[3], unsigned *constr);
 void opt_vol_set_intp_3(opt_data_3 *p, const real r[3]);
-
-const unsigned opt_no_constraints_2 = 3+1;
-const unsigned opt_no_constraints_3 = 9+3+1;
 
 /* for 2d spectralQuad */
 /*--------------------------------------------------------------------------
@@ -452,34 +497,18 @@ const unsigned opt_no_constraints_3 = 9+3+1;
 
   --------------------------------------------------------------------------*/
 
-typedef struct {
-  unsigned constraints;
-  unsigned de, d1;
-  real *x[2], *fd1[2];
-} opt_edge_data_2;
-
-typedef struct {
-  unsigned constraints;
-  real x[2], jac[4];
-} opt_point_data_2;
-
-typedef struct {
-  lagrange_data *ld;
-  unsigned size[3];
-  const real *elx[2];
-  opt_edge_data_2 ed;
-  opt_point_data_2 pd;
-  real *work;
-  real x[2], jac[4];
-} opt_data_2;
 void opt_alloc_2(opt_data_2 *p, lagrange_data *ld);
 void opt_free_2(opt_data_2 *p);
 double opt_findpt_2(opt_data_2 *p, const real *const elx[2],
                            const real xstar[2], real r[2], unsigned *constr);
 
-//======================================================
-// from errmem.h
-//======================================================
+extern const unsigned opt_no_constraints_2;
+extern const unsigned opt_no_constraints_3;
+
+/*======================================================
+/ from errmem.h
+/======================================================
+*/
 
 /* requires:
      <stdlib.h> for malloc, calloc, realloc, free
@@ -561,6 +590,84 @@ static void buffer_free(buffer *b) { free(b->ptr); }
 #define buffer_init(b,size) buffer_init_(b,size,__FILE__)
 #define buffer_reserve(b,min) buffer_reserve_(b,min,__FILE__)
 */
+
+
+/*======================================================
+/ from minmax.h
+/======================================================
+*/
+
+/*--------------------------------------------------------------------------
+   Min, Max, Norm
+  --------------------------------------------------------------------------*/
+
+#ifdef __GNUC__
+#define MAYBE_UNUSED __attribute__ ((unused))
+#else
+#define MAYBE_UNUSED
+#endif
+
+#define DECLMINMAX(type, prefix) \
+  static type prefix##min_2(type a, type b) MAYBE_UNUSED;               \
+  static type prefix##min_2(type a, type b) {                           \
+    return b<a?b:a;                                                     \
+  }                                                                     \
+  static type prefix##max_2(type a, type b) MAYBE_UNUSED;               \
+  static type prefix##max_2(type a, type b) {                           \
+    return a>b?a:b;                                                     \
+  }                                                                     \
+  static void prefix##minmax_2(type *min, type *max, type a,            \
+                               type b) MAYBE_UNUSED;                    \
+  static void prefix##minmax_2(type *min, type *max, type a, type b) {  \
+    if(b<a) *min=b, *max=a;                                             \
+    else *min=a, *max=b;                                                \
+  }                                                                     \
+  static type prefix##min_3(type a, type b, type c) MAYBE_UNUSED;       \
+  static type prefix##min_3(type a, type b, type c) {                   \
+    return b<a?(c<b?c:b):(c<a?c:a);                                     \
+  }                                                                     \
+  static type prefix##max_3(type a, type b, type c) MAYBE_UNUSED;       \
+  static type prefix##max_3(type a, type b, type c) {                   \
+    return a>b?(a>c?a:c):(b>c?b:c);                                     \
+  }                                                                     \
+  static void prefix##minmax_3(type *min, type *max, type a, type b,    \
+                               type c) MAYBE_UNUSED;                    \
+  static void prefix##minmax_3(type *min, type *max, type a, type b,    \
+                               type c) {                                \
+    if(b<a) *min=prefix##min_2(b,c), *max=prefix##max_2(a,c);           \
+    else    *min=prefix##min_2(a,c), *max=prefix##max_2(b,c);           \
+  }
+
+DECLMINMAX(int, i)
+DECLMINMAX(unsigned, u)
+DECLMINMAX(real, r)
+#undef DECLMINMAX
+
+static real r1norm_1(real a) MAYBE_UNUSED;
+static real r1norm_1(real a) {
+  return fabsr(a);
+}
+static real r1norm_2(real a, real b) MAYBE_UNUSED;
+static real r1norm_2(real a, real b) {
+  return fabsr(a)+fabsr(b);
+}
+static real r1norm_3(real a, real b, real c) MAYBE_UNUSED;
+static real r1norm_3(real a, real b, real c) {
+  return fabsr(a)+fabsr(b)+fabsr(c);
+}
+static real r2norm_1(real a) MAYBE_UNUSED;
+static real r2norm_1(real a) {
+  return sqrtr(a*a);
+}
+static real r2norm_2(real a, real b) MAYBE_UNUSED;
+static real r2norm_2(real a, real b) {
+  return sqrtr(a*a+b*b);
+}
+static real r2norm_3(real a, real b, real c) MAYBE_UNUSED;
+static real r2norm_3(real a, real b, real c) {
+  return sqrtr(a*a+b*b+c*c);
+}
+
 #endif
 
 
