@@ -35,13 +35,15 @@ public:
     /* \brief Constructor
      * Convenience constructor, data input directly
      * \param impl The MOAB instance for this smoother
-     * \param pcomm The ParallelComm instance by which this mesh is parallel
+     * \param pc The ParallelComm instance by which this mesh is parallel
      * \param elems The mesh to be smoothed
+     * \param cds_tag If specified, this tag is used to get/set coordinates, rather than 
+     *     true vertex coordinates
      * \param fixed_tag The tag marking which vertices are fixed
      * \param abs_tol Absolute tolerance measuring convergence
      * \param rel_tol Relative tolerance measuring convergence
      */
-  LloydSmoother(Interface *impl, ParallelComm *pc, Range &elems, Tag fixed_tag = 0,
+  LloydSmoother(Interface *impl, ParallelComm *pc, Range &elems, Tag cds_tag = 0, Tag fixed_tag = 0,
                 double abs_tol = -1.0, double rel_tol = 1.0e-6);
 
     /* \brief Destructor
@@ -79,6 +81,14 @@ public:
     /* \brief get/set fixed tag
      */
   void fixed_tag(Tag fixed) {fixedTag = fixed;}
+
+    /* \brief get/set coords tag
+     */
+  Tag coords_tag() {return coordsTag;}
+
+    /* \brief get/set coords tag
+     */
+  void coords_tag(Tag coords) {coordsTag = coords;}
 
     /* \brief get/set tolerance
      */
@@ -120,6 +130,9 @@ private:
   
     //- elements to smooth
   Range myElems;
+  
+    //- tag for coordinates; if zero, true vertex coords are used
+  Tag coordsTag;
   
     //- tag marking which vertices are fixed, 0 = not fixed, otherwise fixed
   Tag fixedTag;
