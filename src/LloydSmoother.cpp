@@ -172,7 +172,7 @@ ErrorCode LloydSmoother::perform_smooth()
         // global reduce for maximum delta, then report it
       if (myPcomm->size() > 1)
         MPI_Reduce(&resid, &global_max, 1, MPI_DOUBLE, MPI_MAX, 0, myPcomm->comm());
-      if (!myPcomm->rank()) 
+      if (!myPcomm || !myPcomm->rank()) 
 #endif
         std::cout << "Max residual = " << global_max << std::endl;
     }

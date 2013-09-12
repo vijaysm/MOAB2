@@ -1,6 +1,5 @@
 #include "moab/Core.hpp"
 #include "moab/LloydSmoother.hpp"
-#include "moab/CartVect.hpp"
 #include "TestUtil.hpp"
 
 #ifdef MESHDIR
@@ -72,7 +71,5 @@ int main(int argc, char**argv)
   rval = ll2.perform_smooth();
   CHECK_ERR(rval);
   std::cout << "Mesh smoothed in " << ll2.num_its() << " iterations." << std::endl;
-  
-  
 }
 
