@@ -527,7 +527,7 @@ public:
         \param entity_handles Vector of element handles to get connectivity of.
         \param num_handles Number of entity handles in <em>entity_handles</em>
         \param connectivity Vector in which connectivity of <em>entity_handles</em> is returned.  
-        \param corners_only If true, higher order nodes are ignored. 
+        \param corners_only If true, returns only corner vertices, otherwise returns all of them (including any higher-order vertices)
         \param offsets If non-NULL, offsets->[i] stores the index of the start of entity i's connectivity,
                 with the last value in offsets one beyond the last entry
     */
@@ -561,8 +561,7 @@ public:
         \param entity_handle EntityHandle to get connectivity of.
         \param connectivity Array in which connectivity of <em>entity_handle</em> is returned.
         \param num_nodes Number of MeshVertices in array <em>connectivity</em>. 
-        \param corners_only If true, num_nodes will be set to number of corner vertices
-        for that element type.
+        \param corners_only If true, returns only corner vertices, otherwise returns all of them (including any higher-order vertices)
         \param storage Some elements (e.g. structured mesh) may not have an
                        explicit connectivity list.  This function will normally
                        return MB_NOT_IMPLEMENTED for such elements.  However,
