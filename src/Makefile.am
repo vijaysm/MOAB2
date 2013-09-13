@@ -23,7 +23,6 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I$(srcdir)/io \
                -I$(srcdir)/io/mhdf/include \
                -I$(srcdir)/parallel \
-	       -I$(srcdir)/moab/point_locater/lotte \
                -I$(srcdir)/LocalDiscretization
 
 # The directory in which to install headers

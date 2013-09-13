@@ -94,13 +94,13 @@ namespace moab {
          * If params_out is non-NULL and myEval is non-NULL, will evaluate individual entities
          * in tree nodes and return containing entities in leaves_out.  In those cases, if params_out
          * is also non-NULL, will return parameters in those elements in that vector.
-         * \param point Point to be located in tree
+         * \param from_point Point to be located in tree
          * \param distance Distance within which to query
-         * \param leaves_out Leaves within distance or containing point
+         * \param result_list Leaves within distance or containing point
          * \param tol Tolerance below which a point is "in"
-         * \param dists_out If non-NULL, will contain distsances to leaves
-         * \param params_out If non-NULL, will contain parameters of the point in the ents in leaves_out
-         * \param start_node Start from this tree node (non-NULL) instead of tree root (NULL)
+         * \param result_dists If non-NULL, will contain distsances to leaves
+         * \param result_params If non-NULL, will contain parameters of the point in the ents in leaves_out
+         * \param tree_root Start from this tree node (non-NULL) instead of tree root (NULL)
          */
       virtual ErrorCode distance_search(const double from_point[3],
                                         const double distance,
