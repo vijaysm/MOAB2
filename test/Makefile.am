@@ -144,6 +144,8 @@ kd_tree_test_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS)
 coords_connect_iterate_SOURCES = coords_connect_iterate.cpp
 coords_connect_iterate_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS)
 
+test_boundbox_SOURCES = test_boundbox.cpp
+
 if PARALLEL
 moab_test_CPPFLAGS += -I$(top_srcdir)/src/parallel
 kd_tree_test_CPPFLAGS += -I$(top_srcdir)/src/parallel

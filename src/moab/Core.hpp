@@ -216,16 +216,17 @@ public:
   
       //! Gets the connectivity for an element EntityHandle. 
       /** For non-element handles (ie, MeshSets), 
-          returns an error. Connectivity data is copied from the database into the vector 
-          <em>connectivity</em>. The nodes in <em>connectivity</em> are properly ordered.
-          \param entity_handle EntityHandle to get connectivity of.
-          \param connectivity Vector in which connectivity of <em>entity_handle</em> is returned.  
-          Should contain MeshVertices.
-          \param corners_only If true, returns only corner vertices, otherwise returns all of them (including any higher-order vertices)
-
-          Example: \code 
-          std::vector<EntityHandle> conn;
-          get_connectivity( entity_handle, conn ); \endcode */
+       * returns an error. Connectivity data is copied from the database into the vector 
+       *   <em>connectivity</em>. The nodes in <em>connectivity</em> are properly ordered.
+       *  \param entity_handle EntityHandle to get connectivity of.
+       *  \param connectivity Vector in which connectivity of <em>entity_handle</em> is returned.  
+       *   Should contain MeshVertices.
+       *  \param corners_only If true, returns only corner vertices, otherwise returns all of them (including any higher-order vertices)
+       *
+       *   Example: \code 
+       *   std::vector<EntityHandle> conn;
+       *   get_connectivity( entity_handle, conn ); \endcode 
+       */
     virtual ErrorCode  get_connectivity(const EntityHandle *entity_handles, 
                                         const int num_handles,
                                         std::vector<EntityHandle> &connectivity, 

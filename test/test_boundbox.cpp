@@ -90,7 +90,7 @@ void test_bound_box()
   double diagsq = box.diagonal_squared();
   CHECK_REAL_EQUAL(diagsq, 192.0, tol);
   double diag = box.diagonal_length();
-  CHECK_REAL_EQUAL(diag, sqrt(3)*8.0, tol);
+  CHECK_REAL_EQUAL(diag, sqrt(3.0)*8.0, tol);
   
     // check distance function
 

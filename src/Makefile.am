@@ -163,6 +163,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/EntityHandle.hpp \
   moab/FBEngine.hpp \
   moab/FileOptions.hpp \
+  moab/FindPtFuncs.h \
   moab/Forward.hpp \
   moab/GeomUtil.hpp \
   moab/Interface.hpp \
