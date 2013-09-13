@@ -10,11 +10,6 @@
 #include <stdio.h>
 #include <algorithm>
 
-//extern "C" 
-//{
-  //#include "minmax.h"
-  //}
-
 #include "assert.h"
 
 #define ERROR(a) {if (iBase_SUCCESS != err) std::cerr << a << std::endl;}

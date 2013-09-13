@@ -6,8 +6,7 @@ using namespace moab;
 using namespace ElemUtil;
 
 extern "C"{
-#include "errmem.h" //for tmalloc, convenient but not C++
-#include "types.h"
+#include "moab/FindPtFuncs.h"
 }
 
 

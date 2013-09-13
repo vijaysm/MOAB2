@@ -3,7 +3,6 @@
 #include <assert.h>
 
 #include "ElemUtil.hpp"
-#include "types.h"
 
 namespace moab {
 namespace ElemUtil {

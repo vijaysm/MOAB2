@@ -123,7 +123,7 @@ public:
     //! lower and upper corners of global box
   int gDims[6];
 
-    //! is globally periodic in i or j
+    //! is globally periodic in i or j or k
   int gPeriodic[3];
 
     //! number of procs in each direction
@@ -163,10 +163,10 @@ public:
      * the mesh, call the destroy_mesh function on the ScdBox object first, before destroying it.
      * \param low Lower corner in parameter space
      * \param high Higher corner in parameter space
-     * \param coords Coordinates of vertices, interleaved (xyzxyz...); if NULL, no coords are set
-     * \param num_coords Number of coordinate values; if zero, no coords are set
+     * \param coords Coordinates of vertices, interleaved (xyzxyz...); if NULL, coords are set to parametric values
+     * \param num_coords Number of coordinate values
      * \param new_box Reference to box of structured mesh
-     * \param lperiodic[2] If lperiodic[s] != 0, direction s is locally periodic
+     * \param lperiodic[3] If lperiodic[s] != 0, direction s is locally periodic
      * \param par_data If non-NULL, this will get stored on the ScdBox once created, contains info
      *                 about global parallel nature of ScdBox across procs
      * \param assign_global_ids If true, assigns 1-based global ids to vertices using GLOBAL_ID_TAG_NAME
@@ -186,7 +186,7 @@ public:
      * \param type EntityType, one of MBVERTEX, MBEDGE, MBQUAD, MBHEX
      * \param starting_id Requested start id of entities
      * \param new_box Reference to the newly created box of entities
-     * \param is_periodic[2] If is_periodic[s] is non-zero, mesh should be periodic in direction s (s=[0,1])
+     * \param is_periodic[3] If is_periodic[s] is non-zero, mesh should be periodic in direction s (s=[0,1,2])
      */
   ErrorCode create_scd_sequence(HomCoord low, HomCoord high, EntityType type,
                                 int starting_id, ScdBox *&new_box, 
@@ -274,7 +274,7 @@ public:
      * \param rdims(6) (out) Parametric min/max of destination part
      * \param facedims(6) (out) Parametric min/max of interface between pfrom and pto; if at the max in a periodic
      *                          direction, set to global min of that direction
-     * \param across_bdy(2) (out) If across_bdy[i] is -1(1), interface with pto is across periodic lower(upper) bdy 
+     * \param across_bdy(3) (out) If across_bdy[i] is -1(1), interface with pto is across periodic lower(upper) bdy
      *                            in parameter i, 0 otherwise
      */
   static ErrorCode get_neighbor(int np, int nr, const ScdParData &spd, const int * const dijk,
@@ -302,7 +302,7 @@ private:
     /** \param low Lower corner parameters for this box
      * \param high Upper corner parameters for this box
      * \param scd_set Entity set created
-     * \param is_periodic[2] If is_periodic[s] is non-zero, mesh should be periodic in direction s (s=[0,1])
+     * \param is_periodic[3] If is_periodic[s] is non-zero, mesh should be periodic in direction s (s=[0,1,2])
      */
   ErrorCode create_box_set(const HomCoord low, const HomCoord high,
                            EntityHandle &scd_set,
@@ -724,7 +724,7 @@ private:
     //! lower and upper corners
   int boxDims[6];
 
-    //! is locally periodic in i or j
+    //! is locally periodic in i or j or k
   int locallyPeriodic[3];
 
     //! parallel data associated with this box, if any

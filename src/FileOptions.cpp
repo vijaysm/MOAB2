@@ -18,7 +18,7 @@
  *\date 2007-08-21
  */
 
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 
 #include <ctype.h>
 #include <stdlib.h>
