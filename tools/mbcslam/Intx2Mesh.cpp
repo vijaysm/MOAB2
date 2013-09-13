@@ -13,6 +13,7 @@
 // this is for DBL_MAX
 #include <float.h>
 #include <queue>
+#include <sstream>
 #include "moab/GeomUtil.hpp"
 
 namespace moab {
@@ -421,25 +422,25 @@ ErrorCode Intx2Mesh::initialize_local_kdtree(EntityHandle euler_set)
   ErrorCode rval = mb->get_entities_by_dimension(euler_set, 2, local_ents);
   ERRORR(rval, "can't get ents by dimension");
 
-  AdaptiveKDTree::Settings settings;
-  settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION;
-
     //get entities on the local part
   ErrorCode result = MB_SUCCESS;
 
-
       // build the tree for local processor
   int numIts = 3;
+  int max_per_leaf = 6;
   for (int i = 0; i < numIts; i++) {
+    std::ostringstream ostr;
+    ostr << "CANDIDATE_PLANE_SET=SUBDIVISION;MAX_PER_LEAF=" << max_per_leaf;
+    FileOptions opts(ostr.str().c_str());
     myTree = new AdaptiveKDTree(mb);
-    result = myTree->build_tree(local_ents, localRoot, &settings);
+    result = myTree->build_tree(local_ents, &localRoot, &opts);
     if (MB_SUCCESS != result) {
       std::cout << "Problems building tree";
       if (numIts != i) {
         delete myTree;
-        settings.maxEntPerLeaf *= 2;
+        max_per_leaf *= 2;
         std::cout << "; increasing elements/leaf to "
-                  << settings.maxEntPerLeaf << std::endl;;
+                  << max_per_leaf << std::endl;;
       }
       else {
         std::cout << "; exiting" << std::endl;
@@ -455,8 +456,11 @@ ErrorCode Intx2Mesh::initialize_local_kdtree(EntityHandle euler_set)
     allBoxes.resize(6*parcomm->proc_config().proc_size());
   else allBoxes.resize(6);
   my_rank = (parcomm ? parcomm->proc_config().proc_rank() : 0);
-  result = myTree->get_tree_box(localRoot, &allBoxes[6*my_rank], &allBoxes[6*my_rank+3]);
+  BoundBox box;
+  result = myTree->get_bounding_box(box);
   if (MB_SUCCESS != result) return result;
+  box.bMin.get(&allBoxes[6*my_rank]);
+  box.bMax.get(&allBoxes[6*my_rank+3]);
 
     // now communicate to get all boxes
     // use "in place" option
@@ -757,34 +761,29 @@ ErrorCode Intx2Mesh::test_local_box(double *xyz,
 ErrorCode Intx2Mesh::inside_entities(double xyz[3],
                                  std::vector<EntityHandle> &entities)
 {
-  AdaptiveKDTreeIter treeiter;
-  ErrorCode result = myTree->get_tree_iterator(localRoot, treeiter);
-  if (MB_SUCCESS != result) {
-    std::cout << "Problems getting iterator" << std::endl;
-    return result;
-  }
-
   double epsilon = this->box_error;//1.e-10; try to get some close boxes, because of the
   // the curvature that can appear on a sphere
   std::vector<EntityHandle> leaves;
+  ErrorCode result;
   if (epsilon) {
     std::vector<double> dists;
 
-    result = myTree->leaves_within_distance(localRoot, xyz, epsilon, leaves, &dists);
+    result = myTree->distance_search(xyz, epsilon, leaves, 0.0, &dists);
     if (leaves.empty())
       // not found returns success here, with empty list, just like case with no epsilon
       return MB_SUCCESS;
 
   }
   else {
-    result = myTree->leaf_containing_point(localRoot, xyz, treeiter);
+    EntityHandle leaf;
+    result = myTree->point_search(xyz, leaf);
     if(MB_ENTITY_NOT_FOUND==result) //point is outside of myTree's bounding box
       return MB_SUCCESS;
     else if (MB_SUCCESS != result) {
       std::cout << "Problems getting leaf \n";
       return result;
     }
-    leaves.push_back(treeiter.handle());
+    leaves.push_back(leaf);
   }
 
   Range range_leaf;

@@ -223,14 +223,14 @@ int main(int argc, char ** argv)
   mb.add_entities(newSet, nodes);
 
   // build a kd tree with the vertices
-  EntityHandle tree_root;
-  AdaptiveKDTree kd(&mb, true);
-  rval = kd.build_tree(nodes, tree_root);
+  EntityHandle tree_root = 0;
+  AdaptiveKDTree kd(&mb);
+  rval = kd.build_tree(nodes, &tree_root);
   if (MB_SUCCESS != rval)
     return 1;
 
   unsigned int  min_depth, max_depth;
-  rval = kd.depth(tree_root, min_depth, max_depth);
+  rval = kd.compute_depth(tree_root, min_depth, max_depth);
   if (MB_SUCCESS != rval)
      return 1;
   std::cout << "min_depth, max_depth " << min_depth << " " << max_depth << "\n";
@@ -270,10 +270,9 @@ int main(int argc, char ** argv)
   {
     CartVect pos(ptr); // take 3 coordinates
     std::vector<EntityHandle> leaves;
-    rval = kd.leaves_within_distance( tree_root,
-                                          ptr,
-                                          0.001,
-                                        leaves);
+    rval = kd.distance_search( ptr,
+                               0.001,
+                               leaves);
     if (MB_SUCCESS != rval)
       return 1;
     Range closeVerts;
