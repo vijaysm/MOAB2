@@ -53,8 +53,13 @@ point_in_elem_search: point_in_elem_search.o ${MOAB_LIBDIR}/libMOAB.la
 PushParMeshIntoMoabF90: PushParMeshIntoMoabF90.o
 	${MOAB_CXX} -o $@ $< ${IMESH_LIBS} -lgfortran -L/usr/lib/openmpi/lib -lmpi_f90 -lmpi_f77 -lmpi -lopen-rte -lopen-pal -ldl 
 
+<<<<<<< HEAD
 DeformMeshRemap: DeformMeshRemap.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} -lmbcoupler ${MOAB_LIBS_LINK} 
+=======
+DeformMeshRemap: DeformMeshRemap.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+>>>>>>> Adding deformed mesh example.
 
 clean:
 	rm -rf *.o ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES}
