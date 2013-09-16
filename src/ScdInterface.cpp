@@ -147,12 +147,10 @@ ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, const double 
 
     // set the vertex coordinates
   double *xc, *yc, *zc;
-
   rval = new_box->get_coordinate_arrays(xc, yc, zc);
   ERRORR(rval, "Couldn't get vertex coordinate arrays.");
 
   if (coords && num_coords) {
-
     unsigned int i = 0;
     for (int kl = low[2]; kl <= high[2]; kl++) {
       for (int jl = low[1]; jl <= high[1]; jl++) {
