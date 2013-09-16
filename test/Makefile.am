@@ -17,7 +17,8 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -DSRCDIR=$(srcdir) \
 		-DMESHDIR=$(MESHDIR) \
                -I$(top_builddir)/src \
-               -I$(top_srcdir)/src 
+               -I$(top_srcdir)/src  \
+               -I$(top_srcdir)/src/LocalDiscretization
 
 if PARALLEL
   AM_CPPFLAGS += -I$(top_srcdir)/src/parallel
@@ -45,7 +46,9 @@ TESTS = range_test \
 	reorder_test \
 	test_prog_opt \
 	coords_connect_iterate \
-        test_boundbox
+	elem_eval_test \
+	spatial_locator_test \
+	test_boundbox
 
 if HDF5_FILE
   TESTS += mbfacet_test \
@@ -108,6 +111,7 @@ kd_tree_time_SOURCES = kd_tree_time.cpp
 kd_tree_test_SOURCES = kd_tree_test.cpp
 bsp_tree_test_SOURCES = bsp_tree_test.cpp
 reorder_test_SOURCES = reorder_test.cpp
+elem_eval_test_SOURCES = elem_eval_test.cpp
 
 file_options_test_SOURCES = TestUtil.hpp $(top_srcdir)/src/FileOptions.cpp 
 file_options_test_CPPFLAGS = -DTEST $(AM_CPPFLAGS) $(CPPFLAGS)
@@ -118,6 +122,8 @@ var_len_test_no_template_SOURCES = $(var_len_test_SOURCES)
 var_len_test_no_template_CPPFLAGS = -UTEMPLATE_SPECIALIZATION $(AM_CPPFLAGS) $(CPPFLAGS)
 
 tag_test_SOURCES = TestUtil.hpp TagTest.cpp
+spatial_locator_test_SOURCES = TestUtil.hpp spatial_locator_test.cpp
+test_boundbox_SOURCES = TestUtil.hpp test_boundbox.cpp
 
 mbcn_test_SOURCES = $(top_srcdir)/src/moab/CN.hpp \
                     $(top_srcdir)/src/CN.cpp \

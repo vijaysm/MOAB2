@@ -7,6 +7,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <sstream>
 
 #define CHK(ErrorCode) do { if (MB_SUCCESS != (ErrorCode)) fail( (ErrorCode), __FILE__, __LINE__ ); } while(false)
 
@@ -63,6 +64,7 @@ static void do_linear_test( Interface& mesh, int tree_depth, int elem_per_leaf,
 
 int main( int argc, char* argv[] )
 {
+
   const char* input_file = 0;
   long tree_depth = -1;
   long elem_per_leaf = -1;
@@ -268,15 +270,14 @@ void do_kdtree_test( Interface& mb, int tree_depth, int elem_per_leaf,
   clock_t init = clock();
   AdaptiveKDTree tool( &mb );
   EntityHandle root;
-  AdaptiveKDTree::Settings settings;
-  if (tree_depth > 0)
-    settings.maxTreeDepth = tree_depth;
-  if (elem_per_leaf > 0)
-    settings.maxEntPerLeaf = elem_per_leaf;
+  std::ostringstream options;
+  if (tree_depth > 0) options << "MAX_DEPTH=" << tree_depth << ";";
+  if (elem_per_leaf > 0) options << "MAX_PER_LEAF=" << elem_per_leaf << ";";
   Range all_hexes;
   rval = mb.get_entities_by_type( 0, MBHEX, all_hexes );
   CHK(rval);
-  rval = tool.build_tree( all_hexes, root, &settings );
+  FileOptions opt(options.str().c_str());
+  rval = tool.build_tree( all_hexes, &root, &opt);
   CHK(rval);
   all_hexes.clear();
   build_time = clock() - init;
@@ -289,7 +290,7 @@ void do_kdtree_test( Interface& mb, int tree_depth, int elem_per_leaf,
   int len;
   for (long i = 0; i < num_test; ++i) {
     const size_t idx = (size_t)i % points.size();
-    rval = tool.leaf_containing_point( root, points[idx].array(), leaf ); CHK(rval);
+    rval = tool.point_search( points[idx].array(), leaf, 0.0, NULL, &root ); CHK(rval);
     hexes.clear();
     rval = mb.get_entities_by_handle( leaf, hexes ); CHK(rval);
     for (j = hexes.begin(); j != hexes.end(); ++j) {
@@ -305,8 +306,9 @@ void do_kdtree_test( Interface& mb, int tree_depth, int elem_per_leaf,
   }
   
   test_time = clock() - build_time;
-  unsigned min_d, max_d;
-  tool.depth( root, min_d, max_d );
+  double tmp_box[3];
+  unsigned max_d;
+  tool.get_info(root, tmp_box, tmp_box, max_d);
   depth = max_d;
 }
 

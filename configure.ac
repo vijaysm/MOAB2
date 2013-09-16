@@ -1184,6 +1184,7 @@ AC_CONFIG_FILES([Makefile
                  src/Makefile
                  src/io/Makefile
                  src/io/mhdf/Makefile
+		 src/LocalDiscretization/Makefile
                  src/parallel/Makefile
                  src/oldinc/Makefile
                  test/Makefile
@@ -1191,6 +1192,7 @@ AC_CONFIG_FILES([Makefile
                  test/dual/Makefile
                  test/obb/Makefile
                  test/perf/Makefile
+                 test/perf/point_location/Makefile
                  test/io/Makefile
                  test/parallel/Makefile
                  test/oldinc/Makefile

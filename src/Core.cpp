@@ -2896,7 +2896,7 @@ ErrorCode Core::list_entity(const EntityHandle entity) const
   if (multiple != 0)
     std::cout << "   (MULTIPLE = " << multiple << ")" << std::endl;
 
-  result = print_entity_tags(std::string(), entity, MB_TAG_DENSE);  
+  result = print_entity_tags(std::string(), entity, MB_TAG_DENSE);
 
   std::cout << std::endl;
 
@@ -3603,7 +3603,7 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
   print_entity_tags(indent_prefix, ms_handle, MB_TAG_SPARSE);
 }
 
-ErrorCode Core::print_entity_tags(std::string indent_prefix, const EntityHandle handle, TagType tp) const 
+ErrorCode Core::print_entity_tags(std::string indent_prefix, const EntityHandle handle, TagType tp) const
 {
   std::vector<Tag> set_tags;
   ErrorCode result = this->tag_get_tags_on_entity(handle, set_tags);
