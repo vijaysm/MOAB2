@@ -4,7 +4,7 @@ include ${MOAB_DIR}/lib/iMesh-Defs.inc
 
 .SUFFIXES: .o .cpp .F90
 
-# MESH_DIR is the top-level MOAB source directory, used to locate mesh files that come with MOAB source
+# MESH_DIR is the directory containing mesh files that come with MOAB source
 MESH_DIR="../MeshFiles/unittest"
 
 EXAMPLES = HelloMOAB GetEntities SetsNTags StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles 
@@ -45,6 +45,9 @@ HelloParMOAB: HelloParMOAB.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
 
 TestExodusII: TestExodusII.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+DeformMeshRemap: DeformMeshRemap.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 clean:
