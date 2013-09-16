@@ -81,7 +81,7 @@ moab::ErrorCode MergeMesh::merge_entities(moab::Range &elems,
   if (moab::MB_SUCCESS != result) return result;
 
   // find matching vertices, mark them
-  result = find_merged_to(tree_root, mbMergeTag);
+  result = find_merged_to(tree_root, kd, mbMergeTag);
   if (moab::MB_SUCCESS != result) return result;
 
   // merge them if requested
@@ -125,10 +125,10 @@ moab::ErrorCode MergeMesh::perform_merge(moab::Tag merge_tag)
 }
 
 moab::ErrorCode MergeMesh::find_merged_to(moab::EntityHandle &tree_root, 
+                                          moab::AdaptiveKDTree &tree,
 					  moab::Tag merge_tag) 
 {
   moab::AdaptiveKDTreeIter iter;
-  moab::AdaptiveKDTree tree(mbImpl);
   
   // evaluate vertices in this leaf
   moab::Range leaf_range, leaf_range2;

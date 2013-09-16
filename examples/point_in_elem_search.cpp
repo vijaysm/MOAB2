@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
   std::cout << "Bounding box min-max = (" << box.bMin[0] << "," << box.bMin[1] << "," << box.bMin[2] << ")-("
             << box.bMax[0] << "," << box.bMax[1] << "," << box.bMax[2] << ")" << std::endl;
   std::cout << "Queries inside box = " << num_inside << "/" << num_queries << " = " 
-            << ((double)num_inside)/num_queries << "%" << std::endl;
+            << 100.0*((double)num_inside)/num_queries << "%" << std::endl;
 }
 
     

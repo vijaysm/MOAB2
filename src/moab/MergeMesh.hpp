@@ -6,6 +6,8 @@
 
 namespace moab {
 
+class AdaptiveKDTree;
+    
 class MergeMesh 
 {
 public:
@@ -49,6 +51,7 @@ private:
     //- given a kdtree, set tag on vertices in leaf nodes with vertices
     //- to which they should be merged
   moab::ErrorCode find_merged_to(moab::EntityHandle &tree_root,
+                                 moab::AdaptiveKDTree &tree,
 				 moab::Tag merged_to);
   
   moab::Interface *mbImpl;

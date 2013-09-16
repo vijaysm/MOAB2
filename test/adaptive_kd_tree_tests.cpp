@@ -11,6 +11,10 @@ using namespace moab;
 #include <algorithm>
 #include <sstream>
 
+#ifdef USE_MPI
+#include "moab_mpi.h"
+#endif
+
 /* Utility method - compare two range boxes */
 bool box_equal( const AdaptiveKDTreeIter& iter, 
                 double x_min, double y_min, double z_min,
@@ -1299,6 +1303,11 @@ void test_leaf_intersects_ray()
 
 int main()
 {
+#ifdef USE_MPI
+  int fail = MPI_Init(0, 0);
+  if (fail) return fail;
+#endif
+
   int error_count = 0;
   
   error_count += RUN_TEST(leaf_iterator_test);
@@ -1311,5 +1320,11 @@ int main()
   error_count += RUN_TEST(test_leaf_sibling);
   error_count += RUN_TEST(test_leaf_intersects_plane);
   error_count += RUN_TEST(test_leaf_intersects_ray);
+
+#ifdef USE_MPI
+  fail = MPI_Finalize();
+  if (fail) return fail;
+#endif
+
   return error_count;
 }
