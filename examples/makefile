@@ -4,7 +4,7 @@ include ${MOAB_DIR}/lib/iMesh-Defs.inc
 
 .SUFFIXES: .o .cpp .F90
 
-# MESH_DIR is the top-level MOAB source directory, used to locate mesh files that come with MOAB source
+# MESH_DIR is the directory containing mesh files that come with MOAB source
 MESH_DIR="../MeshFiles/unittest"
 
 EXAMPLES = HelloMOAB GetEntities SetsNTags StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles 
@@ -52,6 +52,9 @@ point_in_elem_search: point_in_elem_search.o
 
 PushParMeshIntoMoabF90: PushParMeshIntoMoabF90.o
 	${MOAB_CXX} -o $@ $< ${IMESH_LIBS} -lgfortran -L/usr/lib/openmpi/lib -lmpi_f90 -lmpi_f77 -lmpi -lopen-rte -lopen-pal -ldl 
+
+DeformMeshRemap: DeformMeshRemap.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 clean:
 	rm -rf *.o ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES}
