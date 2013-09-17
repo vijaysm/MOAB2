@@ -150,7 +150,7 @@ void test_quadratic_hex()
   EntityHandle hex;
   std::vector<EntityHandle> connect;
   std::copy(verts.begin(), verts.end(), std::back_inserter(connect));
-  rval = mb.create_element(MBHEX, connect.data(), 27, hex); CHECK_ERR(rval);
+  rval = mb.create_element(MBHEX, &connect[0], 27, hex); CHECK_ERR(rval);
   
   ElemEvaluator ee(&mb, hex, 0);
   ee.set_tag_handle(0, 0);
