@@ -13,6 +13,7 @@
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
 #include "moab/LloydSmoother.hpp"
+#include "moab/ProgOptions.hpp"
 #include "MBTagConventions.hpp"
 
 #include <iostream>
@@ -32,39 +33,48 @@ ErrorCode deform_master(Range &fluid_elems, Range &solid_elems, Tag &xnew);
 ErrorCode smooth_master(int dim, Tag xnew, EntityHandle &master, Range &fluids);
 ErrorCode write_to_coords(Range &elems, Tag tagh);
 
-string trimeshf = string(MESH_DIR) + string("/rodtri.g");
-string quadmeshf = string(MESH_DIR) + string("/rodquad.g");
 const int SOLID_SETNO = 100, FLUID_SETNO = 200;
 
 Interface *mb;
 #define RR(a) if (MB_SUCCESS != rval) {cout << a << endl; return MB_FAILURE;}
     
 
-int main(int /*argc*/, char **/*argv*/) {
+int main(int argc, char **argv) {
 
   EntityHandle master, slave;
   ErrorCode rval;
+
+  ProgOptions po("Deformed mesh options");
+  po.addOpt<std::string> ("master,m", "Specify the master meshfile name" );
+  po.addOpt<std::string> ("slave,s", "Specify the slave meshfile name" );
+  po.parseCommandLine(argc, argv);
+  std::string foo;
+  string masterf, slavef;
+  if(!po.getOpt("master", &masterf))
+    masterf = string(MESH_DIR) + string("/rodquad.g");
+  if(!po.getOpt("slave", &slavef))
+    slavef = string(MESH_DIR) + string("/rodtri.g");
 
   mb = new Core();
   
     // read master/slave files and get fluid/solid material sets
   Range fluids[2], solids[2], solid_elems[2], fluid_elems[2];
-  rval = read_file(quadmeshf, master, solids[0], solid_elems[0], fluids[0], fluid_elems[0]); RR("");
-  rval = read_file(trimeshf, slave, solids[1], solid_elems[1], fluids[1], fluid_elems[1]); RR("");
+  rval = read_file(masterf, master, solids[0], solid_elems[0], fluids[0], fluid_elems[0]); RR("");
+  rval = read_file(slavef, slave, solids[1], solid_elems[1], fluids[1], fluid_elems[1]); RR("");
 
     // deform the master's solid mesh, put results in a new tag
   Tag xnew;
   rval = deform_master(fluid_elems[0], solid_elems[0], xnew); RR("");
-  rval = write_to_coords(solid_elems[0], xnew); RR("");
-  rval = mb->write_file("deformed.vtk", NULL, NULL, &master, 1); RR("");
+  if (debug) write_and_save(solid_elems[0], master, xnew, "deformed.vtk");
   
     // smooth the master mesh
   LloydSmoother *ll = new LloydSmoother(mb, NULL, fluid_elems[0], xnew);
   rval = ll->perform_smooth();
   RR("Failed in lloyd smoothing.");
   cout << "Lloyd smoothing required " << ll->num_its() << " iterations." << endl;
+  if (debug) write_and_save(fluid_elems[0], master, xnew, "smoothed.vtk");
 
-  rval = mb->write_file("smoothed.vtk", NULL, NULL, &master, 1); RR("");
+    // map new locations to slave
   
   delete ll;
   delete mb;
@@ -72,6 +82,13 @@ int main(int /*argc*/, char **/*argv*/) {
   return MB_SUCCESS;
 }
 
+ErrorCode write_and_save(Range &ents, EntithHanlde seth, Tag tagh, const char *filename) 
+{
+  rval = write_to_coords(ents, tagh); RR("");
+  rval = mb->write_file("deformed.vtk", NULL, NULL, &seth, 1); RR("");
+  return rval;
+}
+  
 ErrorCode write_to_coords(Range &elems, Tag tagh) 
 {
     // write the tag to coordinates
