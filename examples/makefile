@@ -47,6 +47,9 @@ HelloParMOAB: HelloParMOAB.o
 TestExodusII: TestExodusII.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+point_in_elem_search: point_in_elem_search.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
 clean:
 	rm -rf *.o ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES}
 

@@ -65,7 +65,7 @@ std::string TestDir(".");
 #define STRINGIFY(X) STRINGIFY_(X)
 
 using namespace moab;
-ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag & tagTracer, Tag & tagElem)
+ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag & tagTracer, Tag & tagElem, Tag & tagArea)
 {
   ErrorCode rval = MB_SUCCESS;
 
@@ -166,12 +166,17 @@ ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag 
 
 
   Range::iterator iter = polygons.begin();
+  double total_mass = 0.;
   while (iter != polygons.end())
   {
     rval = mb->tag_iterate(tagElem, iter, polygons.end(), count, data);
     CHECK_ERR(rval);
     double * ptr=(double*)data;
-    for (int i=0; i<count; i++, iter++, ptr++)
+
+    rval = mb->tag_iterate(tagArea, iter, polygons.end(), count, data);
+    CHECK_ERR(rval);
+    double * ptrArea=(double*)data;
+    for (int i=0; i<count; i++, iter++, ptr++, ptrArea++)
     {
       const moab::EntityHandle * conn = NULL;
       int num_nodes = 0;
@@ -187,14 +192,28 @@ ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag 
         average+=nodeVals[j];
       average/=num_nodes;
       *ptr = average;
+
+      // now get area
+      std::vector<double> coords;
+      coords.resize(3*num_nodes);
+      rval = mb->get_coords(conn, num_nodes, &coords[0]);
+      CHECK_ERR(rval);
+      *ptrArea =  area_spherical_polygon_lHuiller (&coords[0], num_nodes, radius);
+
+      // we should have used some
+      // total mass:
+      total_mass += *ptrArea * average;
     }
 
   }
 
   std::stringstream iniPos;
   iniPos<< "Tracer" << rank<<"_"<<0<<  ".vtk";// first time step
+
   rval = mb->write_file(iniPos.str().c_str(), 0, 0, &euler_set, 1);
   CHECK_ERR(rval);
+
+  std::cout << "initial total mass:" << total_mass << "\n";
 
   // now we can delete the tags? not yet
   return MB_SUCCESS;
@@ -434,8 +453,14 @@ int main(int argc, char **argv)
   std::string tag_name2("TracerAverage");
   rval = mb.tag_get_handle(tag_name2.c_str(), 1, MB_TYPE_DOUBLE, tagElem, MB_TAG_DENSE | MB_TAG_CREAT);
   CHECK_ERR(rval);
+
+  Tag tagArea = 0;
+  std::string tag_name4("Area");
+  rval = mb.tag_get_handle(tag_name4.c_str(), 1, MB_TYPE_DOUBLE, tagArea, MB_TAG_DENSE | MB_TAG_CREAT);
+  CHECK_ERR(rval);
+
   // add a field value, quasi smooth first
-  rval = add_field_value(&mb, euler_set, rank, tagTracer, tagElem);
+  rval = add_field_value(&mb, euler_set, rank, tagTracer, tagElem, tagArea);
   CHECK_ERR(rval);
 
 
