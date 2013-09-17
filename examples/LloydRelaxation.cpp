@@ -14,8 +14,10 @@
  * in the current directory (H5M format must be used since the file is written in parallel).
  */
 
-#include "moab/ParallelComm.hpp"
-#include "MBParallelConventions.h"
+#ifdef USE_MPI
+#  include "moab/ParallelComm.hpp"
+#  include "MBParallelConventions.h"
+#endif
 #include "moab/Core.hpp"
 #include "moab/Skinner.hpp"
 #include "moab/CN.hpp"
@@ -30,7 +32,7 @@ string test_file_name = string(MESH_DIR) + string("/surfrandomtris-4part.h5m");
 
 #define RC if (MB_SUCCESS != rval) return rval
 
-ErrorCode perform_lloyd_relaxation(ParallelComm *pc, Range &verts, Range &cells, Tag fixed, 
+ErrorCode perform_lloyd_relaxation(Interface *mb, Range &verts, Range &cells, Tag fixed, 
                                    int num_its, int report_its);
 
 int main(int argc, char **argv)
@@ -38,7 +40,9 @@ int main(int argc, char **argv)
   int num_its = 10;
   int report_its = 1;
 
+#ifdef USE_MPI
   MPI_Init(&argc, &argv);
+#endif
 
     // need option handling here for input filename
   if (argc > 1){
@@ -49,10 +53,13 @@ int main(int argc, char **argv)
   // get MOAB and ParallelComm instances
   Interface *mb = new Core;
   if (NULL == mb) return 1;
+  int nprocs = 1;
+  
+#ifdef USE_MPI
   // get the ParallelComm instance
-  ParallelComm* pcomm = new ParallelComm(mb, MPI_COMM_WORLD);
-  int nprocs = pcomm->size();
-
+  ParallelComm *pcomm = new ParallelComm(mb, MPI_COMM_WORLD);
+  nprocs = pcomm->size();
+#endif
   string options;
   if (nprocs > 1) // if reading in parallel, need to tell it how
     options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=2.0.1;DEBUG_IO=0;DEBUG_PIO=0";
@@ -76,34 +83,45 @@ int main(int argc, char **argv)
     // ok to mark non-owned skin vertices too, I won't move those anyway
     // use MOAB's skinner class to find the skin
   Skinner skinner(mb);
-  rval = skinner.find_skin(faces, true, skin_verts); RC; // 'true' param indicates we want vertices back, not faces
+  rval = skinner.find_skin(0, faces, true, skin_verts); RC; // 'true' param indicates we want vertices back, not faces
 
   std::vector<int> fix_tag(skin_verts.size(), 1); // initialized to 1 to indicate fixed
   rval = mb->tag_set_data(fixed, skin_verts, &fix_tag[0]); RC;
 
     // now perform the Lloyd relaxation
-  rval = perform_lloyd_relaxation(pcomm, verts, faces, fixed, num_its, report_its); RC;
+  rval = perform_lloyd_relaxation(mb, verts, faces, fixed, num_its, report_its); RC;
 
     // delete fixed tag, since we created it here
   rval = mb->tag_delete(fixed); RC;
   
     // output file, using parallel write
-  rval = mb->write_file("lloydfinal.h5m", NULL, "PARALLEL=WRITE_PART"); RC;
+
+#ifdef USE_MPI
+  options = "PARALLEL=WRITE_PART";
+#endif
+
+  rval = mb->write_file("lloydfinal.h5m", NULL, options.c_str()); RC;
 
     // delete MOAB instance
   delete mb;
   
+#ifdef USE_MPI
   MPI_Finalize();
+#endif
 
   return 0;
 }
 
-ErrorCode perform_lloyd_relaxation(ParallelComm *pcomm, Range &verts, Range &faces, Tag fixed, 
+ErrorCode perform_lloyd_relaxation(Interface *mb, Range &verts, Range &faces, Tag fixed, 
                                    int num_its, int report_its) 
 {
   ErrorCode rval;
-  Interface *mb = pcomm->get_moab();
-  int nprocs = pcomm->size();
+  int nprocs = 1;
+
+#ifdef USE_MPI
+  ParallelComm *pcomm = ParallelComm::get_pcomm(mb, 0);
+  nprocs = pcomm->size();
+#endif
   
     // perform Lloyd relaxation:
     // 1. setup: set vertex centroids from vertex coords; filter to owned verts; get fixed tags
@@ -120,8 +138,10 @@ ErrorCode perform_lloyd_relaxation(ParallelComm *pcomm, Range &verts, Range &fac
     // filter verts down to owned ones and get fixed tag for them
   Range owned_verts, shared_owned_verts;
   if (nprocs > 1) {
+#ifdef USE_MPI
     rval = pcomm->filter_pstatus(verts, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &owned_verts);
     if (rval != MB_SUCCESS) return rval;
+#endif
   }
   else
     owned_verts = verts;
@@ -133,11 +153,13 @@ ErrorCode perform_lloyd_relaxation(ParallelComm *pcomm, Range &verts, Range &fac
   vcentroids.resize(3*owned_verts.size());
   rval = mb->tag_get_data(centroid, owned_verts, &vcentroids[0]); RC;
 
+#ifdef USE_MPI
     // get shared owned verts, for exchanging tags
   rval = pcomm->get_shared_entities(-1, shared_owned_verts, 0, false, true); RC;
     // workaround: if no shared owned verts, put a non-shared one in the list, to prevent exchanging tags
     // for all shared entities
   if (shared_owned_verts.empty()) shared_owned_verts.insert(*verts.begin());
+#endif
   
     // some declarations for later iterations
   std::vector<double> fcentroids(3*faces.size()); // fcentroids for face centroids
@@ -195,16 +217,22 @@ ErrorCode perform_lloyd_relaxation(ParallelComm *pcomm, Range &verts, Range &fac
 
     // 2c. exchange tags on owned verts
     if (nprocs > 1) {
+#ifdef USE_MPI
       rval = pcomm->exchange_tags(centroid, shared_owned_verts); RC;
+#endif
     }
 
 
     if (!(nit%report_its)) {
         // global reduce for maximum delta, then report it
       double global_max = mxdelta;
+      int myrank = 0;
+#ifdef USE_MPI
       if (nprocs > 1)
         MPI_Reduce(&mxdelta, &global_max, 1, MPI_DOUBLE, MPI_MAX, 0, pcomm->comm());
-      if (1 == nprocs || !pcomm->rank()) 
+      myrank = pcomm->rank();
+#endif
+      if (1 == nprocs || !myrank) 
         cout << "Max delta = " << global_max << endl;
     }
   }
