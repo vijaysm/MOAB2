@@ -37,11 +37,12 @@ int main( int argc, char* argv[] )
         exit(2);
     }
 
-    const char *outfile = "mm_out.h5m";
-    rval = iface->write_mesh( outfile);
-    if (MB_SUCCESS != rval) {
-        std::cerr << "Error saving file: " << outfile << std::endl;
-        exit(2);
-    }
+    // Fixed for now
+//    const char *outfile = "mm_out.h5m";
+//    rval = iface->write_mesh( outfile);
+//    if (MB_SUCCESS != rval) {
+//        std::cerr << "Error saving file: " << outfile << std::endl;
+//        exit(2);
+//    }
     return 0;
 }
