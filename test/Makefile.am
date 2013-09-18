@@ -48,6 +48,7 @@ TESTS = range_test \
 	coords_connect_iterate \
 	elem_eval_test \
 	spatial_locator_test \
+        mergemesh_test \
 	test_boundbox
 
 if HDF5_FILE
@@ -123,6 +124,7 @@ var_len_test_no_template_CPPFLAGS = -UTEMPLATE_SPECIALIZATION $(AM_CPPFLAGS) $(C
 
 tag_test_SOURCES = TestUtil.hpp TagTest.cpp
 spatial_locator_test_SOURCES = TestUtil.hpp spatial_locator_test.cpp
+mergemesh_test_SOURCES = mergemesh_test.cpp
 
 mbcn_test_SOURCES = $(top_srcdir)/src/moab/CN.hpp \
                     $(top_srcdir)/src/CN.cpp \

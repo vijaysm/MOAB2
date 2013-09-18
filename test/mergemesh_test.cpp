@@ -16,7 +16,8 @@ int main( int argc, char* argv[] )
     Core moab_core;
     ErrorCode rval;
     Interface* iface = &moab_core;
-    std::cout << "loading mesh file " << (std::string) meshfile << std::endl;
+    // can be generalized to load user defined input/output file
+//    std::cout << "loading mesh file " << (std::string) meshfile << std::endl;
     rval = iface->load_mesh(meshfile);
     if (MB_SUCCESS != rval) {
         std::cerr << "Error reading file: " << meshfile << std::endl;
