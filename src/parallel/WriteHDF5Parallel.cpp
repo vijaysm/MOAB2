@@ -40,7 +40,7 @@
 #include "moab/Range.hpp"
 
 #include "IODebugTrack.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 
 namespace {
   template<bool Condition> struct STATIC_ASSERTION;

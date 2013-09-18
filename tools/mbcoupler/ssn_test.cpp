@@ -2,7 +2,7 @@
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
 #include "moab/Core.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 #include "ReadParallel.hpp"
 #include "Coupler.hpp"
 #include "iMesh_extensions.h"
@@ -13,14 +13,10 @@
 #include <sstream>
 #include <cstring>
 #include <cstdlib>
-
 extern "C" 
 {
-#include "types.h"
-#include "minmax.h"
-#include "errmem.h"
+#include "moab/FindPtFuncs.h"
 }
-
 #include "moab/TupleList.hpp"
 #include "moab/gs.hpp"
 #include "moab/Types.hpp"

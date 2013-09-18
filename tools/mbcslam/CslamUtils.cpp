@@ -806,6 +806,22 @@ double area_on_sphere_lHuiller(Interface * mb, EntityHandle set, double R)
   }
   return total_area;
 }
+
+double area_spherical_element(Interface * mb, EntityHandle elem, double R)
+{
+  const EntityHandle * verts;
+  int num_nodes;
+  ErrorCode rval = mb->get_connectivity(elem, verts, num_nodes);
+  if (MB_SUCCESS != rval)
+    return -1;
+  std::vector<double> coords(3 * num_nodes);
+  // get coordinates
+  rval = mb->get_coords(verts, num_nodes, &coords[0]);
+  if (MB_SUCCESS != rval)
+    return -1;
+  return area_spherical_polygon_lHuiller(&coords[0], num_nodes, R);
+
+}
 /*
  *
  */
@@ -860,6 +876,28 @@ void departure_point_case1(CartVect & arrival_point, double t, double delta_t, C
 
   departure_point = spherical_to_cart(sph_dep);
   return;
+}
+
+void velocity_case1(CartVect & arrival_point, double t, CartVect & velo)
+{
+  // always assume radius is 1 here?
+  SphereCoords sph = cart_to_spherical(arrival_point);
+  double T=5; // duration of integration (5 units)
+  double k = 2.4; //flow parameter
+  /*     radius needs to be within some range   */
+  double  sl2 = sin(sph.lon/2);
+  double pit = M_PI * t / T;
+  //double omega = M_PI/T;
+  double coslat = cos(sph.lat);
+  double sinlat = sin(sph.lat);
+  double sinlon = sin(sph.lon);
+  double coslon = cos(sph.lon);
+  double u = k * sl2*sl2 * sin(2*sph.lat) * cos(pit);
+  double v = k/2 * sinlon * coslat * cos(pit);
+  velo[0] = - u * sinlon - v * sinlat * coslon;
+  velo[1] = u * coslon - v * sinlat * sinlon;
+  velo[2] = v * coslat;
+
 }
 // break the nonconvex quads into triangles; remove the quad from the set? yes.
 // maybe radius is not needed;
@@ -1133,4 +1171,85 @@ ErrorCode create_span_quads(Interface * mb, EntityHandle euler_set, int rank)
   return MB_SUCCESS;
 
 }
+
+// distance along a great circle on a sphere of radius 1
+// page 4
+double distance_on_sphere(double la1, double te1, double la2, double te2)
+{
+  return acos(sin(te1)*sin(te2)+cos(te1)*cos(te2)*cos(la1-la2));
+}
+// page 4 Nair Lauritzen paper
+// param will be: (la1, te1), (la2, te2), b, c; hmax=1, r=1/2
+double quasi_smooth_field(double lam, double tet, double * params)
+{
+  double la1 = params[0];
+  double te1 = params[1];
+  double la2 = params[2];
+  double te2 = params[3];
+  double b = params[4];
+  double c = params[5];
+  double hmax = params[6]; // 1;
+  double r = params[7] ; // 0.5;
+  double r1 = distance_on_sphere(lam, tet, la1, te1);
+  double r2 = distance_on_sphere(lam, tet, la2, te2);
+  double value = b;
+  if (r1<r)
+  {
+    value += c*hmax/2*(1+cos(M_PI*r1/r));
+  }
+  if (r2<r)
+  {
+    value += c*hmax/2*(1+cos(M_PI*r2/r));
+  }
+  return value;
+}
+// page 4
+// params are now x1, y1, ..., y2, z2 (6 params)
+// plus h max and b0 (total of 8 params); radius is 1
+double smooth_field(double lam, double tet, double * params)
+{
+  SphereCoords sc;
+  sc.R = 1.;
+  sc.lat= tet;
+  sc.lon = lam;
+  double hmax = params[6];
+  double b0 = params[7];
+  CartVect xyz = spherical_to_cart(sc);
+  CartVect c1(params);
+  CartVect c2(params+3);
+  double expo1 = -b0 * (xyz-c1).length_squared();
+  double expo2 = -b0 * (xyz-c2).length_squared();
+  return hmax*( exp(expo1) + exp(expo2));
+}
+// page 5
+double slotted_cylinder_field(double lam, double tet, double * params)
+{
+  double la1 = params[0];
+  double te1 = params[1];
+  double la2 = params[2];
+  double te2 = params[3];
+  double b = params[4];
+  double c = params[5];
+  //double hmax = params[6]; // 1;
+  double r = params[6] ; // 0.5;
+  double r1 = distance_on_sphere(lam, tet, la1, te1);
+  double r2 = distance_on_sphere(lam, tet, la2, te2);
+  double value = b;
+  double d1=fabs(lam-la1);
+  double d2 = fabs(lam-la2);
+  double rp6 = r/6;
+  double rt5p12 = r*5/12;
+
+  if (r1<=r &&  d1>=rp6)
+      value=c;
+  if (r2<=r &&  d2>=rp6)
+      value =c;
+  if (r1<=r && d1<rp6 && tet-te1<-rt5p12)
+    value = c;
+  if (r2<=r && d2<rp6 && tet-te2 > rt5p12)
+    value =c;
+
+  return value;
+}
+
 } //namespace moab

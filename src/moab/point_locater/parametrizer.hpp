@@ -2,10 +2,7 @@
 #define MOAB_PARAMETRIZER_HPP
 #include "moab/Matrix3.hpp"
 #include "moab/CartVect.hpp"
-#include "moab/point_locater/element_maps/linear_hex_map.hpp"
-#include "moab/point_locater/element_maps/quadratic_hex_map.hpp"
-#include "moab/point_locater/element_maps/spectral_hex_map.hpp"
-#include "moab/point_locater/element_maps/linear_tet_map.hpp"
+#include "moab/ElemUtil.hpp"
 namespace moab { 
 
 namespace element_utility {

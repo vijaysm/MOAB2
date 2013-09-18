@@ -22,12 +22,12 @@ libmbcoupler_la_LIBADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/im
 LDADD = libmbcoupler.la $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la
 
 libmbcoupler_la_SOURCES = \
-   ElemUtil.cpp \
-   Coupler.cpp
+   Coupler.cpp \
+   ElemUtil.cpp
 
 libmbcoupler_la_include_HEADERS = \
-   ElemUtil.hpp \
-   Coupler.hpp
+   Coupler.hpp \
+   ElemUtil.hpp
 
 libmbcoupler_la_includedir = $(includedir)
 
@@ -37,9 +37,8 @@ libmbcoupler_la_includedir = $(includedir)
 # check that only libraries are going in $(libdir)
 cfgdir = $(libdir)
 
-TESTS = findpt_test elem_util_test element_test
+TESTS = elem_util_test element_test
 check_PROGRAMS = $(TESTS) 
-findpt_test_SOURCES = findpt_test.cpp
 elem_util_test_SOURCES = ElemUtilTest.cpp
 element_test_SOURCES = ElementTest.cpp
 addfield_SOURCES = addfield.cpp

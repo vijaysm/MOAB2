@@ -25,6 +25,12 @@
 
 namespace moab {
 
+#define ERRORR(rval, str) \
+    if (MB_SUCCESS != rval) {std::cout << str << "\n"; return rval;}
+
+#define ERRORV(rval, str) \
+    if (MB_SUCCESS != rval) {std::cout << str << "\n"; return ;}
+
 // forward declarations
 class ParallelComm;
 class AdaptiveKDTree;

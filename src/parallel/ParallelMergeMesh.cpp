@@ -1,7 +1,7 @@
 #include "moab/ParallelMergeMesh.hpp"
 #include "moab/Core.hpp"
 #include "moab/CartVect.hpp"
-#include "moab/AdaptiveKDTree.hpp"
+#include "moab/BoundBox.hpp"
 #include "moab/Skinner.hpp"
 #include "moab/MergeMesh.hpp"
 #include "moab/CN.hpp"
@@ -151,33 +151,18 @@ namespace moab{
     ErrorCode rval;
 
     /*Get Bounding Box*/
-    double box[6];
+    BoundBox box;
     if(mySkinEnts[0].size() != 0){
-      AdaptiveKDTree kd(myMB);
-      rval = kd.bounding_box(mySkinEnts[0],box, box+3);
-      if(rval != MB_SUCCESS){
-	return rval;
-      }
-    }
-    //If there are no entities...
-    else{
-      for(int i=0;i<6;i++){
-	if(i < 3){
-	  box[i] = DBL_MAX;
-	}
-	else{
-	  box[i] = -DBL_MAX;
-	}
-      }
+      rval = box.update(*myMB, mySkinEnts[0]);
+      if(rval != MB_SUCCESS)
+        return rval;
     }
 
     //Invert the max
-    for(int i=3; i<6;i++){
-      box[i] *= -1;
-    }
+    box.bMax *= -1;
 
     /*Communicate to all processors*/
-    MPI_Allreduce(box, gbox, 6, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+    MPI_Allreduce(&box, gbox, 6, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
 
     /*Assemble Global Bounding Box*/
     //Flip the max back

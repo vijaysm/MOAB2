@@ -3,14 +3,7 @@
 
 #include "moab/Matrix3.hpp"
 #include "moab/CartVect.hpp"
-extern "C"{
-   #include "moab/point_locater/lotte/types.h"
-   #include "moab/point_locater/lotte/poly.h"
-   #include "moab/point_locater/lotte/tensor.h"
-   #include "moab/point_locater/lotte/findpt.h"
-   #include "moab/point_locater/lotte/extrafindpt.h"
-   #include "moab/point_locater/lotte/errmem.h"
-}
+#include "moab/FindPtFuncs.h"
 #include <sstream>
 #include <iomanip>
 #include <iostream>

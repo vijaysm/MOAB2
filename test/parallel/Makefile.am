@@ -27,8 +27,8 @@ endif
 
 # Run parallel tests in parallel
 if USE_MPIEXEC
-  OLD_ENVIRONMENT := ${TESTS_ENVIRONMENT}
-  TESTS_ENVIRONMENT = ${MPIEXEC} ${MPIEXEC_NP} ${NP} ${OLD_ENVIRONMENT} 
+  LOG_COMPILER = ${MPIEXEC}
+  AM_LOG_FLAGS = ${MPIEXEC_NP} ${NP}
 endif
 
 TESTS = pcomm_unit \

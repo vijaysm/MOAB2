@@ -31,10 +31,6 @@ EXTRA_DIST = README.hexmodops \
              README.spheredecomp \
              mbzoltan/README
 
-if ENABLE_pointsearch
-  bin_PROGRAMS += pointsearch
-endif
-
 
 if ENABLE_mbconvert
   bin_PROGRAMS += mbconvert
@@ -145,7 +141,6 @@ SUBDIRS = . \
           $(dagmc_DIR) 
 
 mbconvert_SOURCES = convert.cpp
-pointsearch_SOURCES = point_search.cpp
 mbgsets_SOURCES = gsets.cc
 hexmodops_SOURCES = makeops.cpp
 mbsize_SOURCES = measure.cpp measure.hpp size.cpp

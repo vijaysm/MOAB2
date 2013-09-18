@@ -3,13 +3,14 @@ lib_LTLIBRARIES = libMOAB.la
 
 # Subdirectories to build
 SUBDIRS = 
-libMOAB_la_LIBADD = io/libmoabio.la
+libMOAB_la_LIBADD = 
 if PARALLEL
   SUBDIRS += parallel
   libMOAB_la_LIBADD += parallel/libMOABpar.la
   AM_CPPFLAGS += -I$(srcdir)/parallel
 endif
-SUBDIRS += io .
+SUBDIRS += io LocalDiscretization .
+libMOAB_la_LIBADD += io/libmoabio.la LocalDiscretization/libLocalDiscretization.la
 if OLD_HEADERS
   SUBDIRS += oldinc
 endif
@@ -22,7 +23,7 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I$(srcdir)/io \
                -I$(srcdir)/io/mhdf/include \
                -I$(srcdir)/parallel \
-	       -I$(srcdir)/moab/point_locater/lotte
+               -I$(srcdir)/LocalDiscretization
 
 # The directory in which to install headers
 libMOAB_la_includedir = $(includedir)
@@ -41,8 +42,10 @@ libMOAB_la_SOURCES = \
   BitPage.hpp \
   BitTag.cpp \
   BitTag.hpp \
+  BoundBox.cpp \
   BSPTree.cpp \
   BSPTreePoly.cpp \
+  BVHTree.cpp \
   CN.cpp \
   CartVect.cpp \
   Core.cpp \
@@ -57,7 +60,6 @@ libMOAB_la_SOURCES = \
   Factory.cpp \
   FBEngine.cpp \
   FileOptions.cpp \
-  FileOptions.hpp \
   GeomUtil.cpp \
   GeomTopoTool.cpp \
   HigherOrderFactory.cpp \
@@ -75,16 +77,10 @@ libMOAB_la_SOURCES = \
   OrientedBox.cpp \
   OrientedBox.hpp \
   OrientedBoxTreeTool.cpp \
-  moab/point_locater/lotte/minmax.h \
-  moab/point_locater/lotte/extrafindpt.h \
   lotte/poly.c \
-  moab/point_locater/lotte/poly.h \
   lotte/findpt.c \
-  moab/point_locater/lotte/findpt.h \
   lotte/errmem.c \
-  moab/point_locater/lotte/errmem.h \
   lotte/tensor.c \
-  moab/point_locater/lotte/tensor.h \
   PolyElementSeq.cpp \
   PolyElementSeq.hpp \
   ProgOptions.cpp \
@@ -112,6 +108,7 @@ libMOAB_la_SOURCES = \
   SmoothFace.hpp \
   SparseTag.cpp \
   SparseTag.hpp \
+  SpatialLocator.cpp \
   SpectralMeshTool.cpp \
   StructuredElementSeq.cpp \
   StructuredElementSeq.hpp \
@@ -126,6 +123,7 @@ libMOAB_la_SOURCES = \
   TagCompare.hpp \
   TagInfo.cpp \
   TagInfo.hpp \
+  Tree.cpp \
   Types.cpp \
   TypeSequenceManager.cpp \
   TypeSequenceManager.hpp \
@@ -146,24 +144,29 @@ libMOAB_la_SOURCES = \
 # The list of header files which are to be installed
 nobase_libMOAB_la_include_HEADERS = \
   moab/AdaptiveKDTree.hpp \
+  moab/BoundBox.hpp \
   moab/BSPTree.hpp \
   moab/BSPTreePoly.hpp \
+  moab/BVHTree.hpp \
   moab/CN.hpp \
   moab/CartVect.hpp \
   moab/Compiler.hpp \
   moab/Core.hpp \
+  moab/CpuTimer.hpp \
   moab/DualTool.hpp \
   moab/Error.hpp \
   moab/GeomTopoTool.hpp \
   moab/HigherOrderFactory.hpp \
   moab/HomXform.hpp \
+  moab/EigenDecomp.hpp \
   moab/EntityType.hpp \
   moab/EntityHandle.hpp \
   moab/FBEngine.hpp \
+  moab/FileOptions.hpp \
+  moab/FindPtFuncs.h \
   moab/Forward.hpp \
   moab/GeomUtil.hpp \
   moab/Interface.hpp \
-  moab/EigenDecomp.hpp \
   moab/point_locater/tree/common_tree.hpp \
   moab/point_locater/tree/element_tree.hpp \
   moab/point_locater/tree/bvh_tree.hpp \
@@ -172,10 +175,6 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/point_locater/element_maps/linear_tet_map.hpp  \
   moab/point_locater/element_maps/spectral_hex_map.hpp  \
   moab/point_locater/element_maps/quadratic_hex_map.hpp  \
-  moab/point_locater/lotte/types.h  \
-  moab/point_locater/lotte/errmem.h  \
-  moab/point_locater/lotte/findpt.h  \
-  moab/point_locater/lotte/poly.h  \
   moab/point_locater/point_locater.hpp \
   moab/point_locater/parametrizer.hpp \
   moab/Matrix3.hpp \
@@ -192,7 +191,10 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/ScdInterface.hpp \
   moab/SetIterator.hpp \
   moab/Skinner.hpp \
+  moab/SpatialLocator.hpp \
   moab/SpectralMeshTool.hpp \
+  moab/Tree.hpp \
+  moab/TreeStats.hpp \
   moab/Types.hpp \
   moab/UnknownInterface.hpp \
   moab/Util.hpp \

@@ -623,7 +623,6 @@ AC_HELP_STRING([--disable-tools],[Disable all tools by default])],
                          [ENABLE_TOOLS=$enableval],[ENABLE_TOOLS=] )
   # Individual tools
 MB_OPTIONAL_TOOL([mbconvert],    [yes])
-MB_OPTIONAL_TOOL([pointsearch],  [no])
 MB_OPTIONAL_TOOL([hexmodops],    [yes])
 MB_OPTIONAL_TOOL([qvdual],       [no] )
 MB_OPTIONAL_TOOL([vtkMOABReader],[${VTKMOAB_DEFAULT}] )
@@ -1184,6 +1183,7 @@ AC_CONFIG_FILES([Makefile
                  src/Makefile
                  src/io/Makefile
                  src/io/mhdf/Makefile
+		 src/LocalDiscretization/Makefile
                  src/parallel/Makefile
                  src/oldinc/Makefile
                  test/Makefile
@@ -1191,6 +1191,7 @@ AC_CONFIG_FILES([Makefile
                  test/dual/Makefile
                  test/obb/Makefile
                  test/perf/Makefile
+                 test/perf/point_location/Makefile
                  test/io/Makefile
                  test/parallel/Makefile
                  test/oldinc/Makefile

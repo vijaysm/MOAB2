@@ -414,4 +414,50 @@ bool Intx2MeshOnSphere::is_inside_element(double xyz[3], EntityHandle eh)
     return true;
   return false;
 }
+
+ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagElem)
+{
+  // get all polygons out of out_set; then see where are they coming from
+  Range polys;
+  ErrorCode rval = mb->get_entities_by_dimension(out_set, 2, polys);
+  ERRORR(rval, "can't get polygons out");
+
+  // rs2 is the red rage, arrival; rs1 is blue, departure;
+  // we start from rs2 existing, then we have to update something
+  std::vector<double>  currentVals(rs2.size());
+  rval = mb->tag_get_data(tagElem, rs2, &currentVals[0]);
+  ERRORR(rval, "can't get existing tag values");
+
+  // for each polygon, we have 2 indices: red and blue parents
+  // we need index blue to update index red?
+  std::vector<double> newValues(rs2.size(), 0.);// initialize with 0 all of them
+  // area of the polygon * conc on red (old) current quantity
+  // finaly, divide by the area of the red
+  for (Range::iterator it= polys.begin(); it!=polys.end(); it++)
+  {
+    EntityHandle poly=*it;
+    int blueIndex, redIndex;
+    rval =  mb->tag_get_data(blueParentTag, &poly, 1, &blueIndex);
+    ERRORR(rval, "can't get blue tag");
+    EntityHandle blue = rs1[blueIndex];
+    rval =  mb->tag_get_data(redParentTag, &poly, 1, &redIndex);
+    ERRORR(rval, "can't get red tag");
+    EntityHandle red=rs2[redIndex];
+    // big assumption here, red and blue are "parallel" ;we should have an index from
+    // blue to red (so a deformed blue corresponds to an arrival red)
+    double areap = area_spherical_element(mb, poly, R);
+    newValues[blueIndex] += currentVals[redIndex]*areap;
+  }
+  // now divide by red area (current)
+  int j=0;
+  for (Range::iterator it=rs2.begin(); it!=rs2.end(); it++, j++ )
+  {
+    EntityHandle red = *it;
+    double areaRed = area_spherical_element(mb, red, R);
+    newValues[j]/=areaRed;
+  }
+  rval = mb->tag_set_data(tagElem, rs2, &newValues[0]);
+  ERRORR(rval, "can't set new values tag");
+  return MB_SUCCESS;
+}
 } /* namespace moab */
