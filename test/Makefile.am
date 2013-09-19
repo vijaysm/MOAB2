@@ -48,13 +48,13 @@ TESTS = range_test \
 	coords_connect_iterate \
 	elem_eval_test \
 	spatial_locator_test \
-        mergemesh_test \
 	test_boundbox
 
 if HDF5_FILE
   TESTS += mbfacet_test \
         gttool_test \
         cropvol_test \
+        mergemesh_test \
         mbground_test
 endif
 
