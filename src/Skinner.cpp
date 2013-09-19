@@ -1015,12 +1015,11 @@ ErrorCode Skinner::find_skin(const EntityHandle this_set,
                              const Range &entities,
                                  int dim,
                                  Range &skin_entities,
-                                 bool create_vert_elem_adjs,
-                                 bool create_skin_elements)
+                                 bool create_vert_elem_adjs) 
 {
   Range tmp_skin;
   ErrorCode result = find_skin(this_set, entities, (dim==0), tmp_skin, 0,
-                                 create_vert_elem_adjs, create_skin_elements);
+                                 create_vert_elem_adjs, true);
   if (MB_SUCCESS != result || tmp_skin.empty()) return result;
   
   if (tmp_skin.all_of_dimension(dim)) {
@@ -1030,7 +1029,7 @@ ErrorCode Skinner::find_skin(const EntityHandle this_set,
       skin_entities.merge(tmp_skin);
   }
   else {
-    result = thisMB->get_adjacencies( tmp_skin, dim, create_skin_elements, skin_entities,
+    result = thisMB->get_adjacencies( tmp_skin, dim, true, skin_entities, 
                                       Interface::UNION );
   }
   

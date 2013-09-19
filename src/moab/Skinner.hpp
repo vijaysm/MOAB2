@@ -119,8 +119,7 @@ public:
                       const Range &entities,
                       int dim,
                       Range &skin_entities,
-                      bool create_vert_elem_adjs = false,
-                      bool create_skin_elements = true);
+                      bool create_vert_elem_adjs = false);
 
   ErrorCode classify_2d_boundary( const Range &boundary,
                                      const Range &bar_elements,
