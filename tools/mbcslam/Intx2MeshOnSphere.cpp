@@ -422,7 +422,11 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
   ErrorCode rval = mb->get_entities_by_dimension(out_set, 2, polys);
   ERRORR(rval, "can't get polygons out");
 
-  // rs2 is the red rage, arrival; rs1 is blue, departure;
+  // rs2 is the red range, arrival; rs1 is blue, departure;
+  // there is a connection between rs1 and rs2, through the corrTag
+  // corrTag is __correlation
+  // basically, mb->tag_get_data(corrTag, &(redPoly), 1, &bluePoly);
+  // also,  mb->tag_get_data(corrTag, &(bluePoly), 1, &redPoly);
   // we start from rs2 existing, then we have to update something
   std::vector<double>  currentVals(rs2.size());
   rval = mb->tag_get_data(tagElem, rs2, &currentVals[0]);

@@ -39,6 +39,7 @@ on the sphere; see CSLAM Utils case1
 
 #include "CslamUtils.hpp"
 
+char * corrTagName = "__correspondent";
 
 // non smooth scalar field
 // some input data
@@ -50,6 +51,8 @@ int numSteps = 50; // number of times with velocity displayed at points
 double T = 5;
 
 int case_number = 1; // 1, 2 (non-divergent) 3 divergent
+
+moab::Tag corrTag;
 
 int field_type = 1 ; // 1 quasi smooth, 2 - smooth, 3 non-smooth,
 #ifdef MESHDIR
@@ -267,16 +270,17 @@ ErrorCode compute_velocity_case1(Interface * mb, EntityHandle euler_set, Tag & t
 
   return MB_SUCCESS;
 }
-ErrorCode compute_tracer_case1(Interface * mb, EntityHandle euler_set,
-    EntityHandle lagr_set, EntityHandle out_set,
-    Tag & tagElem, int rank, int tStep)
+ErrorCode  create_lagr_mesh(Interface * mb, EntityHandle euler_set, EntityHandle lagr_set)
 {
-  ErrorCode rval = MB_SUCCESS;
+  // create the handle tag for the corresponding element / vertex
 
-  double t = tStep*T/numSteps; // numSteps is global; so is T
-  double delta_t = T/numSteps; // this is global too, actually
+  EntityHandle dum = 0;
+
+  ErrorCode result = mb->tag_get_handle(corrTagName,
+                                           1, MB_TYPE_HANDLE, corrTag,
+                                           MB_TAG_DENSE|MB_TAG_CREAT, &dum);
   Range polys;
-  rval = mb->get_entities_by_dimension(euler_set, 2, polys);
+  ErrorCode  rval = mb->get_entities_by_dimension(euler_set, 2, polys);
   CHECK_ERR(rval);
 
   Range connecVerts;
@@ -284,21 +288,22 @@ ErrorCode compute_tracer_case1(Interface * mb, EntityHandle euler_set,
   CHECK_ERR(rval);
 
   std::map<EntityHandle, EntityHandle> newNodes;
-  for (Range::iterator vit = connecVerts.begin(); vit != connecVerts.end();
-      vit++)
+  for (Range::iterator vit = connecVerts.begin(); vit != connecVerts.end(); vit++)
   {
     EntityHandle oldV = *vit;
     CartVect posi;
     rval = mb->get_coords(&oldV, 1, &(posi[0]));
     CHECK_ERR(rval);
-    // cslam utils, case 1
-    CartVect newPos;
-    departure_point_case1(posi, t, delta_t, newPos);
-    newPos = radius * newPos;
     EntityHandle new_vert;
-    rval = mb->create_vertex(&(newPos[0]), new_vert);
+    rval = mb->create_vertex(&(posi[0]), new_vert); // duplicate the position
     CHECK_ERR(rval);
     newNodes[oldV] = new_vert;
+    // set also the correspondent tag :)
+    rval = mb->tag_set_data(corrTag, &oldV, 1, &new_vert);
+    CHECK_ERR(rval);
+    // also the other side
+    rval = mb->tag_set_data(corrTag, &new_vert, 1, &oldV);
+    CHECK_ERR(rval);
   }
   for (Range::iterator it = polys.begin(); it != polys.end(); it++)
   {
@@ -317,14 +322,62 @@ ErrorCode compute_tracer_case1(Interface * mb, EntityHandle euler_set,
     EntityHandle newElement;
     rval = mb->create_element(typeElem, &new_conn[0], nnodes, newElement);
     CHECK_ERR(rval);
+    //set the corresponding tag
+    rval = mb->tag_set_data(corrTag, &q, 1, &newElement);
+    CHECK_ERR(rval);
+    rval = mb->tag_set_data(corrTag, &newElement, 1, &q);
+    CHECK_ERR(rval);
+
     rval = mb->add_entities(lagr_set, &newElement, 1);
     CHECK_ERR(rval);
   }
+
+  return MB_SUCCESS;
+}
+ErrorCode compute_tracer_case1(Interface * mb, EntityHandle euler_set,
+    EntityHandle lagr_set, EntityHandle out_set, Tag & tagElem, int rank,
+    int tStep)
+{
+  ErrorCode rval = MB_SUCCESS;
+
+  if (!corrTag)
+    return MB_FAILURE;
+  double t = tStep * T / numSteps; // numSteps is global; so is T
+  double delta_t = T / numSteps; // this is global too, actually
+  Range polys;
+  rval = mb->get_entities_by_dimension(euler_set, 2, polys);
+  CHECK_ERR(rval);
+
+  Range connecVerts;
+  rval = mb->get_connectivity(polys, connecVerts);
+  CHECK_ERR(rval);
+
+
+  // change coordinates of lagr mesh vertices
+  for (Range::iterator vit = connecVerts.begin(); vit != connecVerts.end();
+      vit++)
+  {
+    EntityHandle oldV = *vit;
+    CartVect posi;
+    rval = mb->get_coords(&oldV, 1, &(posi[0]));
+    CHECK_ERR(rval);
+    // cslam utils, case 1
+    CartVect newPos;
+    departure_point_case1(posi, t, delta_t, newPos);
+    newPos = radius * newPos; // do we need this? the radius should be 1
+    EntityHandle new_vert;
+    rval = mb->tag_get_data(corrTag, &oldV, 1, &new_vert);
+    CHECK_ERR(rval);
+    // set the new position for the new vertex
+    rval = mb->set_coords(&new_vert, 1, &(newPos[0]));
+    CHECK_ERR(rval);
+  }
+
   // so we have now the departure at the previous time
   // intersect the 2 meshes (what about some checking of convexity?) for sufficient
   // small dt, it is not an issue;
   Intx2MeshOnSphere worker(mb);
-  worker.SetRadius(1.);
+  worker.SetRadius(radius);
 
   worker.SetErrorTolerance(gtol);
   // std::cout << "error tolerance epsilon_1=" << gtol << "\n";
@@ -338,12 +391,12 @@ ErrorCode compute_tracer_case1(Interface * mb, EntityHandle euler_set,
   CHECK_ERR(rval);
 
   std::stringstream newTracer;
-  newTracer<<"Tracer" << rank<<"_"<<tStep<<  ".vtk";
+  newTracer << "Tracer" << rank << "_" << tStep << ".vtk";
   rval = mb->write_file(newTracer.str().c_str(), 0, 0, &euler_set, 1);
   CHECK_ERR(rval);
 
   std::stringstream newIntx;
-  newIntx<<"newIntx" << rank<<"_"<<tStep<<  ".vtk";
+  newIntx << "newIntx" << rank << "_" << tStep << ".vtk";
   rval = mb->write_file(newIntx.str().c_str(), 0, 0, &out_set, 1);
   CHECK_ERR(rval);
   // delete now the polygons and the lagr set ents
@@ -477,6 +530,11 @@ int main(int argc, char **argv)
   rval = mb.create_meshset(MESHSET_SET, out_set);
   CHECK_ERR(rval);
   rval = mb.create_meshset(MESHSET_SET, lagr_set);
+  CHECK_ERR(rval);
+  // copy the initial mesh in the lagrangian set
+  // initial vertices will be at the same position as euler;
+
+  rval = create_lagr_mesh(&mb, euler_set, lagr_set);
   CHECK_ERR(rval);
   for (int i=1; i<numSteps+1; i++)
   {
