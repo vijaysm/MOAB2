@@ -39,8 +39,6 @@ on the sphere; see CSLAM Utils case1
 
 #include "CslamUtils.hpp"
 
-char * corrTagName = "__correspondent";
-
 // non smooth scalar field
 // some input data
 double gtol = 1.e-9; // this is for geometry tolerance
@@ -276,11 +274,12 @@ ErrorCode  create_lagr_mesh(Interface * mb, EntityHandle euler_set, EntityHandle
 
   EntityHandle dum = 0;
 
-  ErrorCode result = mb->tag_get_handle(corrTagName,
+  ErrorCode rval = mb->tag_get_handle(CORRTAGNAME,
                                            1, MB_TYPE_HANDLE, corrTag,
                                            MB_TAG_DENSE|MB_TAG_CREAT, &dum);
+  CHECK_ERR(rval);
   Range polys;
-  ErrorCode  rval = mb->get_entities_by_dimension(euler_set, 2, polys);
+  rval = mb->get_entities_by_dimension(euler_set, 2, polys);
   CHECK_ERR(rval);
 
   Range connecVerts;
@@ -399,8 +398,8 @@ ErrorCode compute_tracer_case1(Interface * mb, EntityHandle euler_set,
   newIntx << "newIntx" << rank << "_" << tStep << ".vtk";
   rval = mb->write_file(newIntx.str().c_str(), 0, 0, &out_set, 1);
   CHECK_ERR(rval);
-  // delete now the polygons and the lagr set ents
-  // also, all verts that are not in euler set
+  // delete now the polygons and the elements of out_set
+  // also, all verts that are not in euler set or lagr_set
   Range allVerts;
   rval = mb->get_entities_by_dimension(0, 0, allVerts);
   CHECK_ERR(rval);
@@ -408,14 +407,18 @@ ErrorCode compute_tracer_case1(Interface * mb, EntityHandle euler_set,
   Range allElems;
   rval = mb->get_entities_by_dimension(0, 2, allElems);
   CHECK_ERR(rval);
+  // add to polys range the lagr polys
+  rval = mb->get_entities_by_dimension(lagr_set, 2, polys); // do not delete lagr set either, with its vertices
+  CHECK_ERR(rval);
+ // add to the connecVerts range all verts, from all initial polys
+  rval = mb->get_connectivity(polys, connecVerts);
+  CHECK_ERR(rval);
   Range todeleteVerts = subtract(allVerts, connecVerts);
 
   Range todeleteElem = subtract(allElems, polys);
 
+  // empty the out mesh set
   rval = mb->clear_meshset(&out_set, 1);
-  CHECK_ERR(rval);
-
-  rval = mb->clear_meshset(&lagr_set, 1);
   CHECK_ERR(rval);
 
   rval = mb->delete_entities(todeleteElem);

@@ -417,9 +417,17 @@ bool Intx2MeshOnSphere::is_inside_element(double xyz[3], EntityHandle eh)
 
 ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagElem)
 {
+  EntityHandle dum = 0;
+
+  Tag corrTag;
+  ErrorCode rval = mb->tag_get_handle(CORRTAGNAME,
+                                           1, MB_TYPE_HANDLE, corrTag,
+                                           MB_TAG_DENSE|MB_TAG_CREAT, &dum);
+  ERRORR(rval, "can't get correlation tag");
+
   // get all polygons out of out_set; then see where are they coming from
   Range polys;
-  ErrorCode rval = mb->get_entities_by_dimension(out_set, 2, polys);
+  rval = mb->get_entities_by_dimension(out_set, 2, polys);
   ERRORR(rval, "can't get polygons out");
 
   // rs2 is the red range, arrival; rs1 is blue, departure;
@@ -443,14 +451,23 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
     int blueIndex, redIndex;
     rval =  mb->tag_get_data(blueParentTag, &poly, 1, &blueIndex);
     ERRORR(rval, "can't get blue tag");
-    //EntityHandle blue = rs1[blueIndex];
+    EntityHandle blue = rs1[blueIndex];
     rval =  mb->tag_get_data(redParentTag, &poly, 1, &redIndex);
     ERRORR(rval, "can't get red tag");
     //EntityHandle red = rs2[redIndex];
     // big assumption here, red and blue are "parallel" ;we should have an index from
     // blue to red (so a deformed blue corresponds to an arrival red)
     double areap = area_spherical_element(mb, poly, R);
-    newValues[blueIndex] += currentVals[redIndex]*areap;
+    // so the departure cell at time t (blueIndex) covers a portion of a redCell
+    // that quantity will be transported to the redCell at time t+dt
+    // the blue corresponds to a red arrival
+    EntityHandle redArr;
+    rval = mb->tag_get_data(corrTag, &blue, 1, &redArr);
+    ERRORR(rval, "can't get arrival red for corresponding ");
+    int arrRedIndex = rs2.index(redArr);
+    if (-1 == arrRedIndex)
+      ERRORR(MB_FAILURE, "can't find the red arrival index");
+    newValues[arrRedIndex] += currentVals[redIndex]*areap;
   }
   // now divide by red area (current)
   int j=0;
