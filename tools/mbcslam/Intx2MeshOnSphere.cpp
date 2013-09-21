@@ -415,7 +415,7 @@ bool Intx2MeshOnSphere::is_inside_element(double xyz[3], EntityHandle eh)
   return false;
 }
 
-ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagElem)
+ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagElem, Tag & tagArea)
 {
   EntityHandle dum = 0;
 
@@ -471,14 +471,24 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
   }
   // now divide by red area (current)
   int j=0;
-  for (Range::iterator it=rs2.begin(); it!=rs2.end(); it++, j++ )
+  Range::iterator iter = rs2.begin();
+  void * data=NULL; //used for stored area
+  int count =0;
+  double total_mass_current=0.;
+  while (iter != rs2.end())
   {
-    EntityHandle red = *it;
-    double areaRed = area_spherical_element(mb, red, R);
-    newValues[j]/=areaRed;
+    rval = mb->tag_iterate(tagArea, iter, rs2.end(), count, data);
+    ERRORR(rval, "can't tag iterate");
+    double * ptrArea=(double*)data;
+    for (int i=0; i<count; i++, iter++, j++, ptrArea++)
+    {
+      total_mass_current+=newValues[j];
+      newValues[j]/= (*ptrArea);
+    }
   }
   rval = mb->tag_set_data(tagElem, rs2, &newValues[0]);
   ERRORR(rval, "can't set new values tag");
+  std::cout <<"total mass now:" << total_mass_current << "\n";
   return MB_SUCCESS;
 }
 } /* namespace moab */

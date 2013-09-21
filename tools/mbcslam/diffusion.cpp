@@ -51,7 +51,7 @@ double T = 5;
 int case_number = 1; // 1, 2 (non-divergent) 3 divergent
 
 moab::Tag corrTag;
-
+bool noWrite = false;
 int field_type = 1 ; // 1 quasi smooth, 2 - smooth, 3 non-smooth,
 #ifdef MESHDIR
 std::string TestDir( STRINGIFY(MESHDIR) );
@@ -334,7 +334,7 @@ ErrorCode  create_lagr_mesh(Interface * mb, EntityHandle euler_set, EntityHandle
   return MB_SUCCESS;
 }
 ErrorCode compute_tracer_case1(Interface * mb, EntityHandle euler_set,
-    EntityHandle lagr_set, EntityHandle out_set, Tag & tagElem, int rank,
+    EntityHandle lagr_set, EntityHandle out_set, Tag & tagElem, Tag & tagArea, int rank,
     int tStep)
 {
   ErrorCode rval = MB_SUCCESS;
@@ -386,18 +386,21 @@ ErrorCode compute_tracer_case1(Interface * mb, EntityHandle euler_set,
   // serially: lagr is the same order as euler;
   // we need to update now the tracer information on each element, based on
   // initial value and areas of each resulting polygons
-  rval = worker.update_tracer_data(out_set, tagElem);
+  rval = worker.update_tracer_data(out_set, tagElem, tagArea);
   CHECK_ERR(rval);
 
-  std::stringstream newTracer;
-  newTracer << "Tracer" << rank << "_" << tStep << ".vtk";
-  rval = mb->write_file(newTracer.str().c_str(), 0, 0, &euler_set, 1);
-  CHECK_ERR(rval);
+  if (!noWrite) // so if write
+  {
+    std::stringstream newTracer;
+    newTracer << "Tracer" << rank << "_" << tStep << ".vtk";
+    rval = mb->write_file(newTracer.str().c_str(), 0, 0, &euler_set, 1);
+    CHECK_ERR(rval);
 
-  std::stringstream newIntx;
-  newIntx << "newIntx" << rank << "_" << tStep << ".vtk";
-  rval = mb->write_file(newIntx.str().c_str(), 0, 0, &out_set, 1);
-  CHECK_ERR(rval);
+    std::stringstream newIntx;
+    newIntx << "newIntx" << rank << "_" << tStep << ".vtk";
+    rval = mb->write_file(newIntx.str().c_str(), 0, 0, &out_set, 1);
+    CHECK_ERR(rval);
+  }
   // delete now the polygons and the elements of out_set
   // also, all verts that are not in euler set or lagr_set
   Range allVerts;
@@ -425,6 +428,7 @@ ErrorCode compute_tracer_case1(Interface * mb, EntityHandle euler_set,
   CHECK_ERR(rval);
   rval = mb->delete_entities(todeleteVerts);
   CHECK_ERR(rval);
+  std::cout << " step: " << tStep << "\n";
   return rval;
 }
 int main(int argc, char **argv)
@@ -465,11 +469,16 @@ int main(int argc, char **argv)
         numSteps = atoi(argv[++index]);
       }
 
+      if (!strcmp(argv[index], "-nw"))
+      {
+        noWrite = true;
+      }
+
       if (!strcmp(argv[index], "-h"))
       {
         std::cout << "usage: -gtol <tol> -input <file> -O <extra_read_opts> \n   "
         <<    "-f <field_type> -h (this help) -ns <numSteps> \n";
-        std::cout << " filed type: 1: quasi-smooth; 2: smooth; 3: slotted cylinders (non-smooth)\n";
+        std::cout << " field type: 1: quasi-smooth; 2: smooth; 3: slotted cylinders (non-smooth)\n";
         return 0;
       }
       index++;
@@ -519,11 +528,12 @@ int main(int argc, char **argv)
   rval = add_field_value(&mb, euler_set, rank, tagTracer, tagElem, tagArea);
   CHECK_ERR(rval);
 
-
-  // do some velocity fields at some time steps; with animations
-  // first delete the
-
-
+  Range redEls;
+  rval = mb.get_entities_by_dimension(euler_set, 2, redEls);
+  CHECK_ERR(rval);
+  std::vector<double> iniVals(redEls.size());
+  rval = mb.tag_get_data(tagElem, redEls, &iniVals[0]);
+  CHECK_ERR(rval);
 
   Tag tagh = 0;
   std::string tag_name3("Case1");
@@ -548,8 +558,32 @@ int main(int argc, char **argv)
     // this is to actually compute concentrations, using the current concentrations
     //
     rval = compute_tracer_case1(&mb, euler_set, lagr_set, out_set,
-        tagElem, rank, i);
+        tagElem, tagArea, rank, i);
+    CHECK_ERR(rval);
 
   }
+
+  //final vals and 1-norm
+  Range::iterator iter = redEls.begin();
+  double norm1 = 0.;
+  int count =0;
+  void * data;
+  int j=0;// index in iniVals
+  while (iter != redEls.end())
+  {
+    rval = mb.tag_iterate(tagElem, iter, redEls.end(), count, data);
+    CHECK_ERR(rval);
+    double * ptrTracer=(double*)data;
+
+    rval = mb.tag_iterate(tagArea, iter, redEls.end(), count, data);
+    CHECK_ERR(rval);
+    double * ptrArea=(double*)data;
+    for (int i=0; i<count; i++, iter++, ptrTracer++, ptrArea++, j++)
+    {
+      //double area = *ptrArea;
+      norm1+=fabs(*ptrTracer - iniVals[j])* (*ptrArea);
+    }
+  }
+  std::cout << " numSteps:" << numSteps << " 1-norm:" << norm1 << "\n";
   return 0;
 }
