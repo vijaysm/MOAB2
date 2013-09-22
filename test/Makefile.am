@@ -54,6 +54,7 @@ if HDF5_FILE
   TESTS += mbfacet_test \
         gttool_test \
         cropvol_test \
+        mergemesh_test \
         mbground_test
 endif
 
@@ -75,6 +76,7 @@ MOSTLYCLEANFILES = mb_write.g \
                    tri_mid_edge_face_nodes.g \
                    mb_stress_out.g \
                    merge_test.g \
+                   mm_out.h5m \
                    tree.h5m 
 
 # Tests and such
@@ -123,6 +125,7 @@ var_len_test_no_template_CPPFLAGS = -UTEMPLATE_SPECIALIZATION $(AM_CPPFLAGS) $(C
 
 tag_test_SOURCES = TestUtil.hpp TagTest.cpp
 spatial_locator_test_SOURCES = TestUtil.hpp spatial_locator_test.cpp
+mergemesh_test_SOURCES = mergemesh_test.cpp
 
 mbcn_test_SOURCES = $(top_srcdir)/src/moab/CN.hpp \
                     $(top_srcdir)/src/CN.cpp \

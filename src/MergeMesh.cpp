@@ -61,7 +61,7 @@ moab::ErrorCode MergeMesh::merge_entities(moab::Range &elems,
   // get the skin of the entities
   moab::Skinner skinner(mbImpl);
   moab::Range skin_range;
-  moab::ErrorCode result = skinner.find_skin(0, elems, 0, skin_range);
+  moab::ErrorCode result = skinner.find_skin(0, elems, 0, skin_range, false, false);
   if (moab::MB_SUCCESS != result) return result;
 
   // create a tag to mark merged-to entity; reuse tree_root
@@ -232,16 +232,16 @@ moab::ErrorCode MergeMesh::merge_higher_dimensions(moab::Range &elems)
   for(int dim = 1; dim <3; dim++){
     skinEnts.clear();
     moreDeadEnts.clear();
-    result = skinner.find_skin(0, elems, dim, skinEnts);
+    result = skinner.find_skin(0, elems, dim, skinEnts, false, false);
     //Go through each skin entity and see if it shares adjacancies with another entity
     for(moab::Range::iterator skinIt = skinEnts.begin(); skinIt != skinEnts.end(); skinIt++){
       adj.clear();
       //Get the adjacencies 1 dimension lower
-      result = mbImpl->get_adjacencies(&(*skinIt), 1, dim-1, true, adj);
+      result = mbImpl->get_adjacencies(&(*skinIt), 1, dim-1, false, adj);
       if(result != moab::MB_SUCCESS) return result;
       //See what other entities share these adjacencies
       matches.clear();
-      result = mbImpl->get_adjacencies(adj, dim, true, matches, moab::Interface::INTERSECT);
+      result = mbImpl->get_adjacencies(adj, dim, false, matches, moab::Interface::INTERSECT);
       if(result != moab::MB_SUCCESS) return result;
       //If there is more than one entity, then we have some to merge and erase
       if(matches.size() > 1){
