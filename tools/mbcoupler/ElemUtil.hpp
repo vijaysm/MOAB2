@@ -168,7 +168,7 @@ namespace ElemUtil {
     /**\brief Shape function space for a linear tetrahedron, obtained by a pushforward of the canonical affine shape functions. */
     class LinearTet : public Map {
     public:
-      LinearTet(const std::vector<CartVect>& vertices) : Map(vertices){};
+      LinearTet(const std::vector<CartVect>& vertices) : Map(vertices){LinearTet::set_vertices(vertex);};
       LinearTet();
       /* Override the evaluation routines to take advantage of the properties of P1. */
       virtual CartVect evaluate(const CartVect& xi) const {return this->vertex[0] + this->T*xi;};

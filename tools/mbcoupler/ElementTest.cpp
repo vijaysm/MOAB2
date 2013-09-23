@@ -20,7 +20,20 @@ int main()
 }
 
 void test_tet() {
-  moab::Element::LinearTet tet;
+  // test constructor on one simple tet
+  std::vector<CartVect> verts;
+  verts.push_back(CartVect(0.,0.,0.2));
+  verts.push_back(CartVect(1.1,0.,0.));
+  verts.push_back(CartVect(0.,1.13,0.));
+  verts.push_back(CartVect(0.,0.,1.));
+  moab::Element::LinearTet tet(verts);
+  CartVect p(0.25, 0.25, 0.25);
+  CartVect res = tet.ievaluate(p);
+  CartVect p1 = tet.evaluate(res);
+  double d = (p1-p).length_squared();
+  CHECK_REAL_EQUAL(0., d, 1.e-10);
+
+  return;
 }// test_tet()
 
 void test_hex() {
