@@ -55,6 +55,8 @@ int main(int argc, char **argv) {
       cout << endl;
     }
   }
-  
+
+  delete mb;
+
   return 0;
 }

@@ -27,5 +27,8 @@ int main(int argc, char **argv) {
                 << mb->id_from_handle(ent) << "." << std::endl;
     }
   }
+
+  delete mb;
+
   return 0;
 }
