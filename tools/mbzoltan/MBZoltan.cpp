@@ -1159,6 +1159,9 @@ ErrorCode MBZoltan::partition_round_robin(const int n_part)
     } // for (j = 0; j < n_child; j++)
   } // for (i = 0; i < n_entity; i++)
 
+  delete[] loads;
+  delete[] ve_loads;
+
   return MB_SUCCESS;
 }
 
