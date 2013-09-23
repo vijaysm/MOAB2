@@ -144,6 +144,7 @@ int main( int argc, char* argv[] )
     }
   }
   printf("%0.2f seconds\n", (clock()-t)/(double)CLOCKS_PER_SEC); fflush( stdout );
+  delete[] values;
 
   return 0;
 }
