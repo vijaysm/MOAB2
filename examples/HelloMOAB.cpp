@@ -57,6 +57,8 @@ int main( int argc, char** argv )
   cout << "Number of edges is " << edges.size() <<  endl;
   cout << "Number of faces is " << faces.size() <<  endl;
   cout << "Number of elements is " << elems.size() <<  endl;
-  
+
+  delete iface;
+
   return 0;
 }

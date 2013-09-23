@@ -48,13 +48,13 @@ TESTS = range_test \
 	coords_connect_iterate \
 	elem_eval_test \
 	spatial_locator_test \
-        mergemesh_test \
 	test_boundbox
 
 if HDF5_FILE
   TESTS += mbfacet_test \
         gttool_test \
         cropvol_test \
+        mergemesh_test \
         mbground_test
 endif
 
@@ -76,6 +76,7 @@ MOSTLYCLEANFILES = mb_write.g \
                    tri_mid_edge_face_nodes.g \
                    mb_stress_out.g \
                    merge_test.g \
+                   mm_out.h5m \
                    tree.h5m 
 
 # Tests and such

@@ -439,10 +439,10 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
     int blueIndex, redIndex;
     rval =  mb->tag_get_data(blueParentTag, &poly, 1, &blueIndex);
     ERRORR(rval, "can't get blue tag");
-    EntityHandle blue = rs1[blueIndex];
+    //EntityHandle blue = rs1[blueIndex];
     rval =  mb->tag_get_data(redParentTag, &poly, 1, &redIndex);
     ERRORR(rval, "can't get red tag");
-    EntityHandle red=rs2[redIndex];
+    //EntityHandle red = rs2[redIndex];
     // big assumption here, red and blue are "parallel" ;we should have an index from
     // blue to red (so a deformed blue corresponds to an arrival red)
     double areap = area_spherical_element(mb, poly, R);
