@@ -65,34 +65,39 @@ static int *Parts=NULL;
 
 const bool debug = false;
 
-MBZoltan::MBZoltan( Interface *impl , 
-
+MBZoltan::MBZoltan( Interface *impl,
                     const bool use_coords,
-                    int argc, 
+                    int argc,
                     char **argv
 #ifdef CGM
                     , GeometryQueryTool *gqt
-#endif                   
-) 
-                   : mbImpl(impl), 
-
-                     myZZ(NULL), 
-                     newMoab(false), 
+#endif
+)
+                   : mbImpl(impl),
+                     myZZ(NULL),
+                     newMoab(false),
+                     newComm(false),
                      useCoords(use_coords),
-                     argcArg(argc), 
+                     argcArg(argc),
                      argvArg(argv)
 #ifdef CGM
                    , gti(gqt)
 #endif
 {
   mbpc = ParallelComm::get_pcomm(mbImpl, 0);
-  if (!mbpc)
-    mbpc = new ParallelComm( impl, MPI_COMM_WORLD, 0 );
+  if (!mbpc) {
+    mbpc = new ParallelComm(impl, MPI_COMM_WORLD, 0);
+    newComm = true;
+  }
 }
 
 MBZoltan::~MBZoltan() 
 {
-  if (NULL == myZZ) delete myZZ;
+  if (NULL != myZZ)
+    delete myZZ;
+
+  if (newComm)
+    delete mbpc;
 }
 
 ErrorCode MBZoltan::balance_mesh(const char *zmethod,
@@ -1068,7 +1073,8 @@ ErrorCode MBZoltan::partition_round_robin(const int n_part)
     DLIList<int> shared_procs;
     shared_procs.append(proc);
     TDParallel *td_par = (TDParallel *) entity->get_TD(&TDParallel::is_parallel);
-    if (td_par == NULL) td_par = new TDParallel(entity, NULL, &shared_procs);
+    if (td_par == NULL)
+      td_par = new TDParallel(entity, NULL, &shared_procs);
     loads[proc] += entity->measure();
 
     // assign to volumes, it should be removed in future
@@ -1079,7 +1085,8 @@ ErrorCode MBZoltan::partition_round_robin(const int n_part)
     for (j = 0; j < n_vol; j++) {
       RefEntity *vol = volumes.get_and_step();
       td_par = (TDParallel *) vol->get_TD(&TDParallel::is_parallel);
-      if (td_par == NULL) td_par = new TDParallel(vol, NULL, &shared_procs);
+      if (td_par == NULL)
+        td_par = new TDParallel(vol, NULL, &shared_procs);
     }
 
     // add local surface load
@@ -1117,6 +1124,8 @@ ErrorCode MBZoltan::partition_round_robin(const int n_part)
 
           if (parent_td == NULL) {
             PRINT_ERROR("parent Volume has to be partitioned.");
+            delete[] loads;
+            delete[] ve_loads;
             return MB_FAILURE;
           }
           child_shared_procs.append_unique(parent_td->get_charge_proc());
@@ -1129,6 +1138,8 @@ ErrorCode MBZoltan::partition_round_robin(const int n_part)
             if (entity->entity_type_info() == typeid(RefFace)) { // face
               if (child_shared_procs.size() != 2) {
                 PRINT_ERROR("Error: # of shared processors of interface surface should be 2.");
+                delete[] loads;
+                delete[] ve_loads;
                 return MB_FAILURE;
               }
 
