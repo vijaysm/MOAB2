@@ -614,6 +614,10 @@ namespace moab {
       
         result = pack_buffer(entities[i], adjacencies, tags, 
                              false, -1, &buff); 
+        if (MB_SUCCESS != result) {
+          delete[] sendCounts;
+          delete[] displacements;
+        }
         RRA("Failed to compute buffer size in scatter_entities.");
 
         buff_size = buff.buff_ptr - buff.mem_ptr - prev_size;
@@ -626,6 +630,8 @@ namespace moab {
     success = MPI_Bcast(sendCounts, nProcs, MPI_INT, from_proc, procConfig.proc_comm());
     if (MPI_SUCCESS != success) {
       result = MB_FAILURE;
+      delete[] sendCounts;
+      delete[] displacements;
       RRA("MPI_Bcast of buffer size failed.");
     }
   
@@ -643,6 +649,8 @@ namespace moab {
   
     if (MPI_SUCCESS != success) {
       result = MB_FAILURE;
+      delete[] sendCounts;
+      delete[] displacements;
       RRA("MPI_Scatterv of buffer failed.");
     }
 
@@ -655,9 +663,16 @@ namespace moab {
       rec_buff.reset_ptr(sizeof(int));
       result = unpack_buffer(rec_buff.buff_ptr, false, from_proc, -1, 
                              dum1a, dum1b, dum1p, dum2, dum2, dum3, dum4);
+      if (MB_SUCCESS != result) {
+        delete[] sendCounts;
+        delete[] displacements;
+      }
       RRA("Failed to unpack buffer in scatter_entities.");
       std::copy(dum4.begin(), dum4.end(), range_inserter(entities[my_proc]));
     }
+
+    delete[] sendCounts;
+    delete[] displacements;
 
     return MB_SUCCESS;
 #endif

@@ -42,7 +42,6 @@ const int REGION_SET_ID = 1103;
 const int EMPTY_SET_ID  = 1100;
 const int SET_SET_ID    = 1105;
 
-
 Interface* iface;
 
 void create();
@@ -83,7 +82,6 @@ int main(int argc, char* argv[])
     }
   }
   
-  
   iface = new Core();
   
   // create a dodecahedron and inscribed hex
@@ -98,6 +96,7 @@ int main(int argc, char* argv[])
     fprintf( stderr, "Failed to write \"%s\"\n", filename );
     if (MB_SUCCESS == iface->get_last_error( msg ))
       fprintf( stderr, "%s\n", msg.c_str() );
+    delete iface;
     return 1;
   }
   
@@ -109,6 +108,7 @@ int main(int argc, char* argv[])
     fprintf( stderr, "Failed to read \"%s\"\n", filename );
     if (MB_SUCCESS == iface->get_last_error( msg ))
       fprintf( stderr, "%s\n", msg.c_str() );
+    delete iface;
     return 1;
   }
   
@@ -117,6 +117,7 @@ int main(int argc, char* argv[])
   if (!compare())
   {
     fprintf(stderr, "Comparison failed.\n");
+    delete iface;
     return 1;
   }
   fprintf( stderr, "success!\n" );
@@ -129,6 +130,7 @@ int main(int argc, char* argv[])
     fprintf( stderr, "Failed to write \"%s\"\n", filename );
     if (MB_SUCCESS == iface->get_last_error( msg ))
       fprintf( stderr, "%s\n", msg.c_str() );
+    delete iface;
     return 1;
   }
  
@@ -146,6 +148,7 @@ int main(int argc, char* argv[])
     fprintf( stderr, "Failed to read \"%s\"\n", filename );
     if (MB_SUCCESS == iface->get_last_error( msg ))
       fprintf( stderr, "%s\n", msg.c_str() );
+    delete iface;
     return 1;
   }
 
@@ -154,6 +157,7 @@ int main(int argc, char* argv[])
   if (!compare())
   {
     fprintf(stderr, "Comparison failed.\n");
+    delete iface;
     return 1;
   }
   fprintf( stderr, "success!\n" );
@@ -167,6 +171,7 @@ int main(int argc, char* argv[])
   // Clean up the file.
   remove( filename );
   fprintf( stderr, "done.\n" );
+  delete iface;
   return 0;
 }
 
@@ -232,7 +237,6 @@ EntityHandle make_set( unsigned int options,
   
   return handle;
 }
-
 
 void create()
 {
@@ -427,8 +431,7 @@ bool compare_conn( std::vector<EntityHandle>& conn1,
       return false;
     }
   }
- 
-  
+
   std::vector<int> tags[2];
   tags[0].resize( conn1.size() ); tags[1].resize( conn2.size() );
   Tag tag;
@@ -486,9 +489,8 @@ bool compare_sets( int id, const char* tag_name = 0 )
   EntityHandle set1 = *range.begin();
   EntityHandle set2 = *++range.begin();
   
-  
     // Compare set descriptions
-  
+
   unsigned opt1, opt2;
   if (MB_SUCCESS != iface->get_meshset_options( set1, opt1 ) ||
       MB_SUCCESS != iface->get_meshset_options( set2, opt2 ))
@@ -508,7 +510,6 @@ bool compare_sets( int id, const char* tag_name = 0 )
                     opt2 & MESHSET_ORDERED     ? "yes" : "no" );
     return false;
   }
-
 
     // Compare set contents
     // First check if same number of entities.
@@ -599,10 +600,9 @@ bool compare_sets( int id, const char* tag_name = 0 )
     if (!ok)
       return false;
   }
-  
-    
+
     // Compare set parent/child links using global id
-  
+
   ok = true;
   const char* words[] = { "children", "parents" };
   std::vector<EntityHandle> adj1, adj2;
@@ -686,7 +686,6 @@ bool compare_tags( EntityHandle dod[] )
     return false;
   }
 
-
     // Get double tag handle and characterstics
   if (MB_SUCCESS != iface->tag_get_handle( dblname, 1, MB_TYPE_DOUBLE, tag, MB_TAG_DENSE|MB_TAG_STORE ))
     moab_error( "tag_get_handle(dblname)" );
@@ -708,7 +707,6 @@ bool compare_tags( EntityHandle dod[] )
     return false;
   }
  
-
     // Get handle tag handle and characterstics
   if (MB_SUCCESS != iface->tag_get_handle( handlename, 3, MB_TYPE_HANDLE, tag, MB_TAG_SPARSE|MB_TAG_STORE ))
     moab_error( "tag_get_handle(handlename)" );
@@ -760,8 +758,6 @@ bool compare_tags( EntityHandle dod[] )
   
   return true;
 }
- 
-  
 
 bool compare()
 {
@@ -861,6 +857,6 @@ void moab_error( const char* str )
   fprintf( stderr, "%s() failed.\n", str );
   if (MB_SUCCESS == iface->get_last_error( msg ))
     fprintf( stderr, "%s\n", msg.c_str() );
+  delete iface;
   exit( 1 );
 }
-  
