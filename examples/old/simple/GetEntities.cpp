@@ -11,8 +11,10 @@ int main(int argc, char **argv) {
   // Instantiate & load a mesh from a file
   moab::Core *mb = new moab::Core();
   moab::ErrorCode rval = mb->load_mesh(argv[1]);
-  if (moab::MB_SUCCESS != rval)
+  if (moab::MB_SUCCESS != rval) {
+    delete mb;
     return 1;
+  }
 
   moab::Range ents;
 
@@ -20,8 +22,10 @@ int main(int argc, char **argv) {
   for (int d = 0; d <= 3; d++) {
     ents.clear();
     rval = mb->get_entities_by_dimension(0, d, ents);
-    if (moab::MB_SUCCESS != rval)
+    if (moab::MB_SUCCESS != rval) {
+      delete mb;
       return 1;
+    }
     std::cout << "Found " << ents.size() << " " << d << "-dimensional entities:" << std::endl;
     for (moab::Range::iterator it = ents.begin(); it != ents.end(); it++) {
       moab::EntityHandle ent = *it;
