@@ -320,6 +320,7 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, int nsRed, EntityHandle blue,
       }
       std::cout << " a point pp is not on a red quad " << *pp << " " << pp[1]
           << " red quad " << mb->id_from_handle(red) << " \n";
+      delete[] foundIds;
       return 1;
     }
   }

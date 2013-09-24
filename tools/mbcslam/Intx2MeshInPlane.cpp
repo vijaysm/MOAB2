@@ -318,6 +318,7 @@ int Intx2MeshInPlane::findNodes(EntityHandle red, int nsRed, EntityHandle blue, 
       }
       std::cout << " a point pp is not on a red polygon " << *pp << " " << pp[1]
           << " red polygon " << mb->id_from_handle(red) << " \n";
+      delete[] foundIds;
       return 1;
     }
   }

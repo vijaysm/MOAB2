@@ -97,6 +97,8 @@ int main(int argc, char **argv)
     }
   }
 
+  delete mb;
+
   MPI_Finalize();
 
   return 0;

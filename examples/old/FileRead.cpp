@@ -160,5 +160,8 @@ int main(int argc, char **argv) {
      cout << "Writing output file " << outfile << endl;
      mb->write_file(outfile); 
    }
+
+   delete mb;
+
    return 0;
 }  

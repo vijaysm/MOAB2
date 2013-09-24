@@ -76,5 +76,7 @@ int main(int argc, char **argv) {
   }
   std::cout << " of ray length " << ray_length << std::endl;
 
+  delete mb;
+
   return 0;
 }
