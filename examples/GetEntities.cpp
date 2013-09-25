@@ -29,19 +29,28 @@ int main(int argc, char **argv) {
     // instantiate & load a mesh from a file
   Core *mb = new Core();
   ErrorCode rval = mb->load_mesh(test_file_name.c_str());
-  if (MB_SUCCESS != rval) return 1;
+  if (MB_SUCCESS != rval) {
+    delete mb;
+    return 1;
+  }
 
   Range ents;
 
     // get all entities in the database
   rval = mb->get_entities_by_handle(0, ents);
-  if (MB_SUCCESS != rval) return 1;
+  if (MB_SUCCESS != rval) {
+    delete mb;
+    return 1;
+  }
 
   for (Range::iterator it = ents.begin(); it != ents.end(); it++) {
     if (MBVERTEX == mb->type_from_handle(*it)) {
       Range adjs;
       rval = mb->get_adjacencies(&(*it), 1, 3, false, adjs);
-      if (MB_SUCCESS != rval) return 1;
+      if (MB_SUCCESS != rval) {
+        delete mb;
+        return 1;
+      }
       cout << "Vertex " << mb->id_from_handle(*it) << " adjacencies:" << endl;
       adjs.print();
     }
@@ -49,12 +58,18 @@ int main(int argc, char **argv) {
       const EntityHandle *connect;
       int num_connect;
       rval = mb->get_connectivity(*it, connect, num_connect);
-      if (MB_SUCCESS != rval) return 1;
+      if (MB_SUCCESS != rval) {
+        delete mb;
+        return 1;
+      }
       cout << CN::EntityTypeName(mb->type_from_handle(*it)) << " " << mb->id_from_handle(*it) << " vertex connectivity is: ";
-      for (int i = 0; i < num_connect; i++) cout << mb->id_from_handle(connect[i]) << " ";
+      for (int i = 0; i < num_connect; i++)
+        cout << mb->id_from_handle(connect[i]) << " ";
       cout << endl;
     }
   }
-  
+
+  delete mb;
+
   return 0;
 }
