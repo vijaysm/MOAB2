@@ -299,7 +299,6 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
     // appending results to tuple_list;
     // keep local points separately, in local_pts, which has pairs
     // of <local_index, mapped_index>, where mapped_index is the index
-    // of <local_index, mapped_index>, where mapped_index is the index
     // into the mappedPts tuple list
 
   unsigned int my_rank = (myPc ? myPc->proc_config().proc_rank() : 0);
@@ -333,19 +332,21 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
   int num_to_me = 0;
   for (unsigned int i = 0; i < target_pts.get_n(); i++)
     if (target_pts.vi_rd[2*i] == (int)my_rank) num_to_me++;
-
+#ifndef NDEBUG
   printf("rank: %d local points: %d, nb sent target pts: %d mappedPts: %d num to me: %d \n",
          my_rank, num_points, target_pts.get_n(), mappedPts->get_n(), num_to_me);
-    // perform scatter/gather, to gather points to source mesh procs
+#endif
+  // perform scatter/gather, to gather points to source mesh procs
   if (myPc) {
     (myPc->proc_config().crystal_router())->gs_transfer(1, target_pts, 0);
 
     num_to_me = 0;
     for (unsigned int i = 0; i < target_pts.get_n(); i++)
       if (target_pts.vi_rd[2*i] == (int)my_rank) num_to_me++;
-
+#ifndef NDEBUG
     printf("rank: %d after first gs nb received_pts: %d; num_from_me = %d\n",
            my_rank, target_pts.get_n(), num_to_me);
+#endif
       // after scatter/gather:
       // target_pts.set_n( # points local proc has to map );
       // target_pts.vi_wr[2*i] = proc sending point i
@@ -374,15 +375,19 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
 
       // no longer need target_pts
     target_pts.reset();
-
+#ifndef NDEBUG
     printf("rank: %d nb sent source pts: %d, mappedPts now: %d\n",
            my_rank, source_pts.get_n(),  mappedPts->get_n());
+#endif
       // send target points back to target procs
     (myPc->proc_config().crystal_router())->gs_transfer(1, source_pts, 0);
 
+#ifndef NDEBUG
     printf("rank: %d nb received source pts: %d\n",
            my_rank, source_pts.get_n());
+#endif
   }
+
   
     // store proc/index tuples in targetPts, and/or pass back to application;
     // the tuple this gets stored to looks like:
@@ -411,7 +416,7 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
   unsigned int local_pts = 0;
   for (unsigned int i = 0; i < source_pts.get_n(); i++) {
     if (-1 != source_pts.vi_rd[3*i+2]) { //why bother sending message saying "i don't have the point" if it gets discarded?
-      if (source_pts.vi_rd[3*i] == (int)my_rank) local_pts++;
+      //if (source_pts.vi_rd[3*i] == (int)my_rank) local_pts++;
       int tgt_index = 3*source_pts.vi_rd[3*i+1];
       tl_tmp->vi_wr[tgt_index]   = source_pts.vi_rd[3*i];
       tl_tmp->vi_wr[tgt_index+1] = source_pts.vi_rd[3*i+1];
@@ -422,11 +427,18 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
     // count missing points
   unsigned int missing_pts = 0;
   for (int i = 0; i < num_points; i++) 
-    if (tl_tmp->vi_rd[3*i+1] == -1) missing_pts++;
-  
+  {
+    if (tl_tmp->vi_rd[3*i+1] == -1)
+      missing_pts++;
+    else
+      if (tl_tmp->vi_rd[3*i]==(int)my_rank)
+        local_pts++;
+  }
+#ifndef NDEBUG
   printf("rank: %d point location: wanted %d got %u locally, %d remote, missing %d\n",
          my_rank, num_points, local_pts,  num_points-missing_pts-local_pts, missing_pts);
-  assert(0==missing_pts); //will litely break on curved geometries
+#endif
+  assert(0==missing_pts); //will likely break on curved geometries
   
     // no longer need source_pts
   source_pts.reset();

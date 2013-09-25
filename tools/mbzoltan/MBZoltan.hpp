@@ -171,6 +171,8 @@ using namespace moab;
     Range partSets;
   
     bool newMoab;
+
+    bool newComm;
   
     bool useCoords;
 
