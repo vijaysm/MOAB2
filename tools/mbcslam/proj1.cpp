@@ -73,7 +73,23 @@ int main(int argc, char **argv)
   rval = mb.get_entities_by_dimension(0, 1, edges);
   if (MB_SUCCESS != rval)
     return 1;
-  mb.delete_entities(edges);
+  rval = mb.delete_entities(edges);
+
+  // delete the parallel partition sets, if exisiting
+
+  Tag par_tag;
+  rval = mb.tag_get_handle("PARALLEL_PARTITION", par_tag);
+  if (MB_SUCCESS == rval)
+  {
+    Range par_sets;
+    rval =  mb.get_entities_by_type_and_tag(0, MBENTITYSET, &par_tag, NULL, 1, par_sets,
+       moab::Interface::UNION);
+    if (!par_sets.empty())
+        mb.delete_entities(par_sets);
+    mb.tag_delete(par_tag);
+  }
+
+
   mb.write_file(output);
 
   // remove all edges
