@@ -2565,10 +2565,13 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
     if ((new_numps > 2 && !(new_pstat&(PSTATUS_INTERFACE|PSTATUS_GHOST|PSTATUS_NOT_OWNED))) ||
         (new_pstat&PSTATUS_INTERFACE && !(new_pstat&PSTATUS_NOT_OWNED))
         ) {
+      idx = std::min_element(&new_ps[0], &new_ps[0] + new_numps) - &new_ps[0];
       std::swap(new_ps[0], new_ps[idx]);
       std::swap(new_hs[0], new_hs[idx]);
+      if (new_ps[0] != (int)rank())
+        new_pstat |= PSTATUS_NOT_OWNED;
     }
-      
+
 /*    
     plist("new_ps", new_ps, new_numps);
     plist("new_hs", new_hs, new_numps);
