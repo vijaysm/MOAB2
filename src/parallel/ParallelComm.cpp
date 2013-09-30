@@ -7781,9 +7781,10 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
   Tag ParallelComm::partition_tag()
   {  
     if (!partitionTag) {
+      int dum_id = -1;
       ErrorCode result = mbImpl->tag_get_handle(PARALLEL_PARTITION_TAG_NAME, 
                                                 1, MB_TYPE_INTEGER, partitionTag,
-                                                MB_TAG_SPARSE|MB_TAG_CREAT);
+                                                MB_TAG_SPARSE|MB_TAG_CREAT, &dum_id);
       if (MB_SUCCESS != result)
         return 0;
     }
