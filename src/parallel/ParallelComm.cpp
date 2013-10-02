@@ -5929,9 +5929,12 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
                                            int old_nump, int new_nump,
                                            int *ps, EntityHandle *hs) 
   {
-    // set sharing data to what's passed in; may have to clean up existing sharing tags
-    // if things changed too much
-    
+    // If new nump is less than 3, the entity is no longer mutishared
+     if (old_nump > 2 && (pstatus & PSTATUS_MULTISHARED) && new_nump < 3) {
+       // Unset multishared flag
+       pstatus ^= PSTATUS_MULTISHARED;
+     }
+
     // check for consistency in input data
     assert(new_nump > 1 &&
            ((new_nump == 2 && pstatus&PSTATUS_SHARED && !(pstatus&PSTATUS_MULTISHARED)) || // if <= 2 must not be multishared
