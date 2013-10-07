@@ -16,23 +16,23 @@ namespace moab
       */
     const double LinearQuad::gauss[1][2] = { {  2.0,           0.0          } };
 
-    ErrorCode LinearQuad::jacobianFcn(const double *params, const double *verts, const int /*nverts*/, const int ndim, 
+    ErrorCode LinearQuad::jacobianFcn(const double *params, const double *verts, const int /*nverts*/, const int /*ndim*/, 
                                       double *, double *result) 
     {
       Matrix3 *J = reinterpret_cast<Matrix3*>(result);
       *J = Matrix3(0.0);
       for (unsigned i = 0; i < 4; ++i) {
-        const double   params_p = 1 + params[0]*corner[i][0];
+        const double   xi_p = 1 + params[0]*corner[i][0];
         const double  eta_p = 1 + params[1]*corner[i][1];
-        const double dNi_dparams   = corner[i][0] * eta_p;
-        const double dNi_deta  = corner[i][1] *  params_p;
-        (*J)(0,0) += dNi_dparams   * verts[i*ndim+0];
-        (*J)(1,0) += dNi_dparams   * verts[i*ndim+1];
-        (*J)(0,1) += dNi_deta  * verts[i*ndim+0];
-        (*J)(1,1) += dNi_deta  * verts[i*ndim+1];
+        const double dNi_dxi   = corner[i][0] * eta_p;
+        const double dNi_deta  = corner[i][1] * xi_p;
+        (*J)(0,0) += dNi_dxi   * verts[i*3+0];
+        (*J)(1,0) += dNi_dxi   * verts[i*3+1];
+        (*J)(0,1) += dNi_deta  * verts[i*3+0];
+        (*J)(1,1) += dNi_deta  * verts[i*3+1];
       }
-      (*J)(2,2) = 1.0; /* to make sure the Jacobian determinant is non-zero */
       (*J) *= 0.25;
+      (*J)(2,2) = 1.0; /* to make sure the Jacobian determinant is non-zero */
       return MB_SUCCESS;
     }// LinearQuad::jacobian()
 
@@ -62,7 +62,7 @@ namespace moab
         for(unsigned int j2 = 0; j2 < LinearQuad::gauss_count; ++j2) {
           x[1] = LinearQuad::gauss[j2][1];
           double w2 = LinearQuad::gauss[j2][0];
-          rval = evalFcn(x.array(),field, ndim, num_tuples, NULL, tmp_result);
+          rval = evalFcn(x.array(), field, ndim, num_tuples, NULL, tmp_result);
           if (MB_SUCCESS != rval) return rval;
           rval = jacobianFcn(x.array(), verts, nverts, ndim, work, J[0]);
           if (MB_SUCCESS != rval) return rval;
