@@ -194,7 +194,7 @@ void test_read_onevar()
     // between the two face sequences.
     CHECK_EQUAL((size_t)4, cells.psize()); // Gather set cells included
 #else
-    CHECK_EQUAL((size_t)2, cells.psize()); // Gather set cells included
+    CHECK_EQUAL((size_t)1, cells.psize()); // Gather set cells included
 #endif
 
     // Get gather set
