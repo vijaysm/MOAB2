@@ -254,7 +254,8 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
                                         const int obj_weight,
                                         const int edge_weight,
                                         const bool part_surf,
-                                        const bool ghost) 
+                                        const bool ghost,
+                                        const bool print_time)
 {
     // should only be called in serial
   if (mbpc->proc_config().proc_size() != 1) {
@@ -262,7 +263,7 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
               << std::endl;
     return MB_FAILURE;
   }
-  
+  clock_t t = clock();
   if (NULL != zmethod && strcmp(zmethod, "RR") && strcmp(zmethod, "RCB") && strcmp(zmethod, "RIB") &&
       strcmp(zmethod, "HSFC") && strcmp(zmethod, "Hypergraph") &&
       strcmp(zmethod, "PHG") && strcmp(zmethod, "PARMETIS") &&
@@ -274,6 +275,10 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
     return MB_FAILURE;
   }
 
+  bool part_geom = false;
+  if ( 0==  strcmp(zmethod, "RR") || 0== strcmp(zmethod, "RCB") || 0== strcmp(zmethod, "RIB")
+      || 0==strcmp(zmethod, "HSFC") )
+    part_geom=true; // so no adjacency / edges needed
   std::vector<double> pts; // x[0], y[0], z[0], ... from MOAB
   std::vector<int> ids; // point ids from MOAB
   std::vector<int> adjs, length, parts;
@@ -321,7 +326,7 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
   
   if (part_geom_mesh_size < 0.) {
     //if (!part_geom) {
-    result = assemble_graph(part_dim, pts, ids, adjs, length, elems); RR;
+       result = assemble_graph(part_dim, pts, ids, adjs, length, elems, part_geom); RR;
   }
   else {
 #ifdef CGM
@@ -347,20 +352,29 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
     }
 #endif
   }
-  
+  if (print_time)
+  {
+    std::cout << " time to assemble graph: " << (clock() - t) / (double) CLOCKS_PER_SEC  << "s. \n";
+    t = clock();
+  }
   double* o_wgt = NULL;
   double* e_wgt = NULL;
   if (obj_weights.size() > 0) o_wgt = &obj_weights[0];
   if (edge_weights.size() > 0) e_wgt = &edge_weights[0];
     
   myNumPts = mbInitializePoints((int)ids.size(), &pts[0], &ids[0], &adjs[0],
-                                &length[0], o_wgt, e_wgt, &parts[0]);
+                                &length[0], o_wgt, e_wgt, &parts[0], part_geom);
   
 
   // Initialize Zoltan.  This is a C call.  The simple C++ code 
   // that creates Zoltan objects does not keep track of whether 
   // Zoltan_Initialize has been called.
 
+  if (print_time)
+  {
+    std::cout << " time to initialize points: " << (clock() - t) / (double) CLOCKS_PER_SEC  << "s. \n";
+    t = clock();
+  }
   float version;
 
   std::cout << "Initializing zoltan..." << std::endl;
@@ -458,6 +472,11 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
                               assign_procs, assign_parts);
   if (ZOLTAN_OK != retval) return MB_FAILURE;
   
+  if (print_time)
+  {
+    std::cout << " time to LB_partition " << (clock() - t) / (double) CLOCKS_PER_SEC  << "s. \n";
+    t = clock();
+  }
   // take results & write onto MOAB partition sets
   std::cout << "Saving partition information to MOAB..." << std::endl;
   
@@ -471,6 +490,12 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
     result = write_partition(nparts, entities, assign_parts,
                              obj_weights, part_surf, ghost);
 #endif
+  }
+
+  if (print_time)
+  {
+    std::cout << " time to write partition in memory " <<(clock() - t) / (double) CLOCKS_PER_SEC  << "s. \n";
+    t = clock();
   }
 
   if (MB_SUCCESS != result) return result;
@@ -550,7 +575,7 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
                                    std::vector<int> &moab_ids,
                                    std::vector<int> &adjacencies, 
                                    std::vector<int> &length,
-                                   Range &elems) 
+                                   Range &elems, bool  part_geom)
 {
     // assemble a graph with vertices equal to elements of specified dimension, edges
     // signified by list of other elements to which an element is connected
@@ -580,21 +605,24 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
   
   for (Range::iterator rit = elems.begin(); rit != elems.end(); rit++) {
 
+
+    if (!part_geom)
+    {
       // get bridge adjacencies
-    adjs.clear();
-    result = mtu.get_bridge_adjacencies(*rit, (dimension > 0 ? dimension-1 : 3), 
-                                        dimension, adjs); RR;
+      adjs.clear();
+      result = mtu.get_bridge_adjacencies(*rit, (dimension > 0 ? dimension-1 : 3),
+                                          dimension, adjs); RR;
 
-      // get the graph vertex ids of those
-    if (!adjs.empty()) {
-      assert(adjs.size() < 5*MAX_SUB_ENTITIES);
-      result = mbImpl->tag_get_data(gid, adjs, neighbors); RR;
+        // get the graph vertex ids of those
+      if (!adjs.empty()) {
+        assert(adjs.size() < 5*MAX_SUB_ENTITIES);
+        result = mbImpl->tag_get_data(gid, adjs, neighbors); RR;
+      }
+
+        // copy those into adjacencies vector
+      length.push_back((int)adjs.size());
+      std::copy(neighbors, neighbors+adjs.size(), std::back_inserter(adjacencies));
     }
-
-      // copy those into adjacencies vector
-    length.push_back((int)adjs.size());
-    std::copy(neighbors, neighbors+adjs.size(), std::back_inserter(adjacencies));
-
 
       // get average position of vertices
     result = mtu.get_average_position(*rit, avg_position); RR;
@@ -1305,7 +1333,7 @@ ErrorCode MBZoltan::write_partition(const int nparts,
                                     Range &elems, 
                                     const int *assignment,
                                     const bool write_as_sets,
-                                    const bool write_as_tags) 
+                                    const bool write_as_tags)
 {
   ErrorCode result;
 
@@ -1347,10 +1375,9 @@ ErrorCode MBZoltan::write_partition(const int nparts,
         result = mbImpl->delete_entities(&old_set, 1); RR;
       }
     }
-  
-      // assign partition sets to vector
+    // assign partition sets to vector
     partSets.swap(tagged_sets);
-  
+
       // write a tag to those sets denoting they're partition sets, with a value of the
       // proc number
     int *dum_ids = new int[nparts];
@@ -1358,14 +1385,26 @@ ErrorCode MBZoltan::write_partition(const int nparts,
   
     result = mbImpl->tag_set_data(part_set_tag, partSets, dum_ids); RR;
 
-      // assign entities to the relevant sets
+    // assign entities to the relevant sets
     std::vector<EntityHandle> tmp_part_sets;
+    //int N = (int)elems.size();
     std::copy(partSets.begin(), partSets.end(), std::back_inserter(tmp_part_sets));
+    /*Range::reverse_iterator riter;
+    for (i = N-1, riter = elems.rbegin(); riter != elems.rend(); riter++, i--) {
+      int assigned_part = assignment[i];
+      part_ranges[assigned_part].insert(*riter);
+      //result = mbImpl->add_entities(tmp_part_sets[assignment[i]], &(*rit), 1); RR;
+    }*/
+
     Range::iterator rit;
     for (i = 0, rit = elems.begin(); rit != elems.end(); rit++, i++) {
       result = mbImpl->add_entities(tmp_part_sets[assignment[i]], &(*rit), 1); RR;
     }
-
+    /*for (i=0; i<nparts; i++)
+    {
+      result = mbImpl->add_entities(tmp_part_sets[i], part_ranges[i]); RR;
+    }
+    delete [] part_ranges;*/
       // check for empty sets, warn if there are any
     Range empty_sets;
     for (rit = partSets.begin(); rit != partSets.end(); rit++) {
@@ -1474,17 +1513,17 @@ void MBZoltan::SetOCTPART_Parameters(const char *oct_method)
 int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids, 
                                  int *adjs, int *length,
                                  double *obj_weights, double *edge_weights,
-                                 int *parts)
+                                 int *parts, bool part_geom)
 {
   unsigned int i;
   int j;
-  int *numPts, *nborProcs;
+  int *numPts, *nborProcs = NULL;
   int sum, ptsPerProc, ptsAssigned, mySize;
   MPI_Status stat;
   double *sendPts;
   int *sendIds;
-  int *sendEdges;
-  int *sendNborId;
+  int *sendEdges = NULL;
+  int *sendNborId = NULL;
   int *sendProcs;
 
   if (mbpc->proc_config().proc_rank() == 0) {
@@ -1504,19 +1543,22 @@ int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids,
     mySize = numPts[mbpc->proc_config().proc_rank()];
     sendPts = pts + (3 * numPts[0]);
     sendIds = ids + numPts[0];
-    sendEdges = length + numPts[0];
-    sum = 0;
+    sum = 0; // possible no adjacency sent
+    if (!part_geom)
+    {
+      sendEdges = length + numPts[0];
 
-    for (j = 0; j < numPts[0]; j++)
-      sum += length[j];
 
-    sendNborId = adjs + sum;
+      for (j = 0; j < numPts[0]; j++)
+        sum += length[j];
 
-    for (j = numPts[0]; j < npts; j++)
-      sum += length[j];
+      sendNborId = adjs + sum;
 
-    nborProcs = (int *)malloc(sizeof(int) * sum);
+      for (j = numPts[0]; j < npts; j++)
+        sum += length[j];
 
+      nborProcs = (int *)malloc(sizeof(int) * sum);
+    }
     for (j = 0; j < sum; j++)
       if ((i = adjs[j] / ptsPerProc) < mbpc->proc_config().proc_size())
         nborProcs[j] = i;

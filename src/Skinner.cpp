@@ -424,6 +424,7 @@ ErrorCode Skinner::find_skin_noadj(const Range &source_entities,
   for(iter = source_entities.begin(); iter != end_iter; ++iter)
   {
     // get the connectivity of this entity
+    int actual_num_nodes_polygon=0;
     result = thisMB->get_connectivity(*iter, conn, num_nodes, false, &tmp_conn_vec);
     if (MB_SUCCESS != result)
       return result;
@@ -434,7 +435,13 @@ ErrorCode Skinner::find_skin_noadj(const Range &source_entities,
     // treat separately polygons (also, polyhedra will need special handling)
     if (MBPOLYGON == type)
     {
-      num_sides = num_nodes;
+      // treat padded polygons, if existing; count backwards, see how many of the last nodes are repeated
+      // assume connectivity is fine, otherwise we could be in trouble
+      actual_num_nodes_polygon = num_nodes;
+      while (actual_num_nodes_polygon >= 3 &&
+          conn[actual_num_nodes_polygon-1]==conn[actual_num_nodes_polygon-2])
+        actual_num_nodes_polygon--;
+      num_sides = actual_num_nodes_polygon;
       sub_type = MBEDGE;
       num_sub_nodes = 2;
     }
@@ -445,7 +452,9 @@ ErrorCode Skinner::find_skin_noadj(const Range &source_entities,
       if(MBPOLYGON==type)
       {
         sub_conn[0] = conn[i];
-        sub_conn[1] = conn[(i+1)%num_sides];
+        sub_conn[1] = conn[i+1];
+        if (i+1 == actual_num_nodes_polygon)
+          sub_conn[1]=conn[0];
       }
       else
       {
@@ -1431,8 +1440,17 @@ ErrorCode Skinner::create_side( EntityHandle elem,
     }
     if (len == i)
       return MB_FAILURE; // not found, big error
+    // now, what if the polygon is padded?
+    // the previous index is fine always. but the next one could be trouble :(
     int prevIndex = (i+len-1)%len;
     int nextIndex = (i+1)%len;
+    // if the next index actually point to the same node, as current, it means it is padded
+    if (conn[nextIndex]== conn[i])
+    {
+      // it really means we are at the end of proper nodes, the last nodes are repeated, so it should
+      // be the first node
+      nextIndex = 0; // this is the first node!
+    }
     EntityHandle conn2[2] = {side_conn[0], side_conn[1]};
     if (conn[prevIndex]==side_conn[1])
     {
@@ -1617,9 +1635,12 @@ ErrorCode Skinner::find_skin_vertices_2D( Tag tag,
         }
       }
 
-      const int prev_idx = (idx + len - 1)%len;
+      // so it must be a MBPOLYGON
+      const int prev_idx = (idx + len - 1)%len; // this should be fine, always, even for padded case
       prev = conn[prev_idx];
       next = conn[(idx+1)%len];
+      if (next == conn[idx]) // it must be the padded case, so roll to the beginning
+        next = conn[0];
       
         // Insert sides (edges) in our list of candidate skin sides
       adj_edges.insert( &prev, 1, *i, prev_idx );

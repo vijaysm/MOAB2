@@ -112,7 +112,8 @@ using namespace moab;
                                   const int obj_weight = 0,
                                   const int edge_weight = 0,
                                   const bool part_surf = false,
-                                  const bool ghost = false);
+                                  const bool ghost = false,
+                                  const bool print_time = false);
     
     int get_mesh(std::vector<double> &pts, std::vector<int> &ids,
                  std::vector<int> &adjs, std::vector<int> &length,
@@ -198,7 +199,7 @@ using namespace moab;
                              std::vector<int> &moab_ids,
                              std::vector<int> &adjacencies, 
                              std::vector<int> &length,
-                             Range &elems);
+                             Range &elems, bool part_geom = false);
     
 #ifdef CGM
     std::map<int, int> body_vertex_map, surf_vertex_map;
@@ -234,7 +235,7 @@ using namespace moab;
                            int *adjs, int *length,
                            double *obj_weights = NULL,
                            double *edge_weights = NULL,
-                           int *parts = NULL);
+                           int *parts = NULL, bool part_geom = false);
 
 #ifdef CGM
     GeometryQueryTool *gti;

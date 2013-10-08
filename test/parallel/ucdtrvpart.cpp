@@ -169,10 +169,9 @@ void test_multiple_loads_of_same_file()
     int my_num = verts.size();
     if (0 == rank)
       CHECK_EQUAL(1825, my_num);
-    else if (1 == rank)
+    else if (1 == rank) {
       CHECK_EQUAL(5283, my_num); // Gather set vertices included; Not owned vertices included
 
-    if (1 == rank) {
       // Get gather set
       EntityHandle gather_set;
       ReadUtilIface* readUtilIface;
@@ -188,13 +187,9 @@ void test_multiple_loads_of_same_file()
 
       // Remove gather set vertices in processor 1
       verts = subtract(verts, gather_ents);
-    }
-
-    my_num = verts.size();
-    if (0 == rank)
-      CHECK_EQUAL(1825, my_num);
-    else if (1 == rank)
+      my_num = verts.size();
       CHECK_EQUAL(1825, my_num); // Gather set vertices excluded; Not owned vertices included
+    }
 
     Tag Ttag0;
     rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0, MB_TAG_DENSE);

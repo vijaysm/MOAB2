@@ -85,14 +85,6 @@ void test_read_onevar()
   rval = mb.load_file(example, NULL, opts.c_str());
   CHECK_ERR(rval);
 
-  // Check for proper tags
-  Tag Ttag0, Ttag1;
-  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
-  CHECK_ERR(rval);
-
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
-  CHECK_ERR(rval);
-
   // Check values of tag T0 at some strategically chosen places below
   int procs = 1;
 #ifdef USE_MPI
@@ -102,6 +94,13 @@ void test_read_onevar()
 
   // Make check runs this test in one processor
   if (1 == procs) {
+    // Check for proper tags
+    Tag Ttag0, Ttag1;
+    rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+    CHECK_ERR(rval);
+    rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+    CHECK_ERR(rval);
+
     // Get vertices
     Range verts;
     rval = mb.get_entities_by_type(0, MBVERTEX, verts);
@@ -131,9 +130,10 @@ void test_read_onevar()
     CHECK_ERR(rval);
     CHECK_EQUAL((size_t)count, verts.size());
 
-    // Check first level values at some vertices
     const double eps = 0.0001;
     double* data = (double*) Tbuf;
+
+    // Check first level values at some vertices
     CHECK_REAL_EQUAL(233.1136, data[0 * 26], eps); // First vert
     CHECK_REAL_EQUAL(236.1505, data[1728 * 26], eps); // Median vert
     CHECK_REAL_EQUAL(235.7722, data[1729 * 26], eps); // Median vert
