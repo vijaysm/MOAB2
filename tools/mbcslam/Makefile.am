@@ -40,7 +40,7 @@ cfgdir = $(libdir)
 
 TESTS = intx_on_sphere_test  intx_in_plane_test  spec_visu_test spherical_area_test \
          case1_test  intx_mpas
-noinst_PROGRAMS =  cslam_par_test diffusion proj1
+noinst_PROGRAMS =  cslam_par_test diffusion proj1 smallPoly mpas_mesh load_partial
 
 check_PROGRAMS = $(TESTS) 
 intx_on_sphere_test_SOURCES = intx_on_sphere_test.cpp
@@ -52,6 +52,9 @@ case1_test_SOURCES = case1_test.cpp
 intx_mpas_SOURCES = intx_mpas.cpp
 cslam_par_test_SOURCES = cslam_par_test.cpp
 proj1_SOURCES = proj1.cpp
+smallPoly_SOURCES = smallPoly.cpp
+mpas_mesh_SOURCES = mpas_mesh.cpp
+load_partial_SOURCES = load_partial.cpp
 
 EXTRA_DIST  = lagrangeHomme.vtk  \
               eulerHomme.vtk \
