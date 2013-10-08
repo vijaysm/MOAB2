@@ -255,7 +255,8 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
                                         const int edge_weight,
                                         const bool part_surf,
                                         const bool ghost,
-                                        const bool print_time)
+                                        const bool print_time,
+                                        const bool spherical_coords)
 {
     // should only be called in serial
   if (mbpc->proc_config().proc_size() != 1) {
@@ -326,7 +327,8 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
   
   if (part_geom_mesh_size < 0.) {
     //if (!part_geom) {
-       result = assemble_graph(part_dim, pts, ids, adjs, length, elems, part_geom); RR;
+       result = assemble_graph(part_dim, pts, ids, adjs, length, elems, part_geom,
+           spherical_coords); RR;
   }
   else {
 #ifdef CGM
@@ -575,7 +577,7 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
                                    std::vector<int> &moab_ids,
                                    std::vector<int> &adjacencies, 
                                    std::vector<int> &length,
-                                   Range &elems, bool  part_geom)
+                                   Range &elems, bool  part_geom, bool spherical_coords)
 {
     // assemble a graph with vertices equal to elements of specified dimension, edges
     // signified by list of other elements to which an element is connected
@@ -632,6 +634,18 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
 
       // copy those into coords vector
     moab_ids.push_back(moab_id);
+    // transform coordinates to spherical coordinates, if requested
+    if (spherical_coords)
+    {
+      double R = avg_position[0]*avg_position[0]+avg_position[1]*avg_position[1]+avg_position[2]*avg_position[2];
+      R = sqrt(R);
+      double lat = asin(avg_position[2]/R);
+      double lon=atan2(avg_position[1], avg_position[0]);
+      avg_position[0]=lon;
+      avg_position[1]=lat;
+      avg_position[2]=R;
+    }
+
     std::copy(avg_position, avg_position+3, std::back_inserter(coords));
   }
 
