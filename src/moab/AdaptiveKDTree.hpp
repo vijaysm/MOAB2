@@ -68,7 +68,8 @@ namespace moab {
          * containing the point in that case.
          * \param point Point to be located in tree
          * \param leaf_out Leaf containing point
-         * \param tol Tolerance below which a point is "in"
+         * \param iter_tol Tolerance for convergence of point search
+         * \param inside_tol Tolerance for inside element calculation
          * \param multiple_leaves Some tree types can have multiple leaves containing a point;
          *          if non-NULL, this parameter is returned true if multiple leaves contain
          *          the input point
@@ -77,7 +78,8 @@ namespace moab {
          */
       virtual ErrorCode point_search(const double *point,
                                      EntityHandle& leaf_out,
-                                     double tol = 0.0,
+                                     const double iter_tol = 1.0e-10,
+                                     const double inside_tol = 1.0e-6,
                                      bool *multiple_leaves = NULL,
                                      EntityHandle *start_node = NULL,
                                      CartVect *params = NULL);
@@ -92,7 +94,8 @@ namespace moab {
          * containing the point in that case.
          * \param point Point to be located in tree
          * \param leaf_it Iterator to leaf containing point
-         * \param tol Tolerance below which a point is "in"
+         * \param iter_tol Tolerance for convergence of point search
+         * \param inside_tol Tolerance for inside element calculation
          * \param multiple_leaves Some tree types can have multiple leaves containing a point;
          *          if non-NULL, this parameter is returned true if multiple leaves contain
          *          the input point
@@ -101,7 +104,8 @@ namespace moab {
          */
       ErrorCode point_search(const double *point,
                              AdaptiveKDTreeIter& leaf_it,
-                             double tol = 0.0,
+                             const double iter_tol = 1.0e-10,
+                             const double inside_tol = 1.0e-6,
                              bool *multiple_leaves = NULL,
                              EntityHandle *start_node = NULL);
       
@@ -114,7 +118,8 @@ namespace moab {
          * \param point Point to be located in tree
          * \param distance Distance within which to query
          * \param leaves_out Leaves within distance or containing point
-         * \param tol Tolerance below which a point is "in"
+         * \param iter_tol Tolerance for convergence of point search
+         * \param inside_tol Tolerance for inside element calculation
          * \param dists_out If non-NULL, will contain distsances to leaves
          * \param params_out If non-NULL, will contain parameters of the point in the ents in leaves_out
          * \param start_node Start from this tree node (non-NULL) instead of tree root (NULL)
@@ -122,7 +127,8 @@ namespace moab {
       virtual ErrorCode distance_search(const double *point,
                                         const double distance,
                                         std::vector<EntityHandle>& leaves_out,
-                                        double tol = 0.0,
+                                        const double iter_tol = 1.0e-10,
+                                        const double inside_tol = 1.0e-6,
                                         std::vector<double> *dists_out = NULL,
                                         std::vector<CartVect> *params_out = NULL,
                                         EntityHandle *start_node = NULL);
