@@ -62,26 +62,44 @@ namespace moab {
         /* locate a set of vertices, Range variant */
       ErrorCode locate_points(Range &vertices,
                               EntityHandle *ents, double *params, bool *is_inside = NULL,
-                              double rel_tol = 0.0, double abs_tol = 0.0);
+                              const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
+                              const double inside_tol = 1.0e-6);
       
         /* locate a set of points */
       ErrorCode locate_points(const double *pos, int num_points,
                               EntityHandle *ents, double *params, bool *is_inside = NULL,
-                              double rel_tol = 0.0, double abs_tol = 0.0);
+                              const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
+                              const double inside_tol = 1.0e-6);
       
         /* locate a set of vertices or entity centroids, storing results on TupleList in this class
          * Locate a set of vertices or entity centroids, storing the detailed results in member 
          * variable (TupleList) locTable (see comments on locTable for structure of that tuple).
          */
       ErrorCode locate_points(Range &ents,
-                              double rel_tol = 0.0, double abs_tol = 0.0);
+                              const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
+                              const double inside_tol = 1.0e-6);
       
         /* locate a set of points, storing results on TupleList in this class
          * Locate a set of points, storing the detailed results in member variable (TupleList) locTable
          * (see comments on locTable for structure of that tuple).
          */
       ErrorCode locate_points(const double *pos, int num_points,
-                              double rel_tol = 0.0, double abs_tol = 0.0);
+                              const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
+                              const double inside_tol = 1.0e-6);
+
+        /* Count the number of located points in locTable
+         * Return the number of entries in locTable that have non-zero entity handles, which
+         * represents the number of points in targetEnts that were inside one element in sourceEnts
+         *
+         */
+      int local_num_located();
+
+        /* Count the number of located points in parLocTable
+         * Return the number of entries in parLocTable that have a non-negative index in on a remote
+         * proc in parLocTable, which gives the number of points located in at least one element in a
+         * remote proc's sourceEnts.
+         */
+      int remote_num_located();
 
 #ifdef USE_MPI      
         /* locate a set of vertices or entity centroids, storing results on TupleList in this class
@@ -90,7 +108,8 @@ namespace moab {
          * structure of those tuples).
          */
       ErrorCode par_locate_points(Range &vertices,
-                                  double rel_tol = 0.0, double abs_tol = 0.0);
+                              const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
+                              const double inside_tol = 1.0e-6);
       
         /* locate a set of points, storing results on TupleList in this class
          * Locate a set of points, storing the detailed results in member 
@@ -98,7 +117,8 @@ namespace moab {
          * structure of those tuples).
          */
       ErrorCode par_locate_points(const double *pos, int num_points,
-                                  double rel_tol = 0.0, double abs_tol = 0.0);
+                              const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
+                              const double inside_tol = 1.0e-6);
 #endif
 
         /* return the tree */
@@ -127,14 +147,15 @@ namespace moab {
       const ElemEvaluator *elem_eval() const {return elemEval;}
       
         /* set elemEval */
-      void elem_eval(ElemEvaluator *eval) {elemEval = eval;}
+      void elem_eval(ElemEvaluator *eval) {elemEval = eval; if (myTree) myTree->set_eval(eval);}
       
   private:
 
         /* locate a point */
       ErrorCode locate_point(const double *pos, 
                              EntityHandle &ent, double *params, bool *is_inside = NULL,
-                             double rel_tol = 0.0, double abs_tol = 0.0);
+                              const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
+                              const double inside_tol = 1.0e-6);
 
         /* MOAB instance */
       Interface* mbImpl;
@@ -185,9 +206,10 @@ namespace moab {
     
     inline ErrorCode SpatialLocator::locate_point(const double *pos, 
                                                   EntityHandle &ent, double *params, bool *is_inside, 
-                                                  double rel_tol, double abs_tol) 
+                                                  const double rel_iter_tol, const double abs_iter_tol,
+                                                  const double inside_tol)
     {
-      return locate_points(pos, 1, &ent, params, is_inside, rel_tol, abs_tol);
+      return locate_points(pos, 1, &ent, params, is_inside, rel_iter_tol, abs_iter_tol, inside_tol);
     }
 
     inline ErrorCode SpatialLocator::get_bounding_box(BoundBox &box) 

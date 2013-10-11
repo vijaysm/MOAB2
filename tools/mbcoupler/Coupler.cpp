@@ -614,7 +614,7 @@ ErrorCode Coupler::nat_param(double xyz[3],
   if (epsilon) {
     std::vector<double> dists;
     std::vector<EntityHandle> leaves;
-    result = myTree->distance_search(xyz, epsilon, leaves, 0.0, &dists, NULL, &localRoot);
+    result = myTree->distance_search(xyz, epsilon, leaves, 1.0e-10, 1.0e-6, &dists, NULL, &localRoot);
     if (leaves.empty()) 
       // not found returns success here, with empty list, just like case with no epsilon
       return MB_SUCCESS;
@@ -631,7 +631,7 @@ ErrorCode Coupler::nat_param(double xyz[3],
     }
   }
   else {
-    result = myTree->point_search(xyz, treeiter, 0.0, NULL, &localRoot);
+    result = myTree->point_search(xyz, treeiter, 1.0e-10, 1.0e-6, NULL, &localRoot);
     if(MB_ENTITY_NOT_FOUND==result) //point is outside of myTree's bounding box
       return MB_SUCCESS; 
     else if (MB_SUCCESS != result) {
