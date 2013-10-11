@@ -1,13 +1,13 @@
-#ifndef LINEAR_HEX_HPP
-#define LINEAR_HEX_HPP
-  /**\brief Shape function space for trilinear hexahedron, obtained by a pushforward of the canonical linear (affine) functions. */
+#ifndef LINEAR_TRI_HPP
+#define LINEAR_TRI_HPP
+  /**\brief Shape function space for trilinear tetrahedron, obtained by a pushforward of the canonical linear (affine) functions. */
 
 #include "moab/ElemEvaluator.hpp"
 
 namespace moab 
 {
     
-class LinearHex 
+class LinearTri 
 {
 public:
     /** \brief Forward-evaluation of field at parametric coordinates */
@@ -28,17 +28,25 @@ public:
   static ErrorCode integrateFcn(const double *field, const double *verts, const int nverts, const int ndim, const int num_tuples, 
                                 double *work, double *result);
 
+    /** \brief Initialize this EvalSet */
+  static ErrorCode initFcn(const double *verts, const int nverts, double *&work);
+      
         /** \brief Function that returns whether or not the parameters are inside the natural space of the element */
   static bool insideFcn(const double *params, const int ndim, const double tol);
   
+  static ErrorCode evaluate_reverse(EvalFcn eval, JacobianFcn jacob, InsideFcn inside_f,
+                                    const double *posn, const double *verts, const int nverts, 
+                                    const int ndim, const double iter_tol, const double inside_tol, double *work, 
+                                    double *params, bool *inside);
+
   static EvalSet eval_set() 
       {
-        return EvalSet(evalFcn, reverseEvalFcn, jacobianFcn, integrateFcn, (InitFcn)NULL, insideFcn);
+        return EvalSet(evalFcn, reverseEvalFcn, jacobianFcn, integrateFcn, initFcn, insideFcn);
       }
       
   static bool compatible(EntityType tp, int numv, EvalSet &eset) 
       {
-        if (tp == MBHEX && numv == 8) {
+        if (tp == MBTRI && numv >= 3) {
           eset = eval_set();
           return true;
         }
@@ -46,13 +54,9 @@ public:
       }
   
 protected:
-    /* Preimages of the vertices -- "canonical vertices" -- are known as "corners". */
-  static const double corner[8][3];
-  static const double gauss[1][2];
-  static const unsigned int corner_count = 8;
-  static const unsigned int gauss_count  = 1;
       
-};// class LinearHex
+  static const double corner[3][2];
+};// class LinearTri
 
 } // namespace moab
 

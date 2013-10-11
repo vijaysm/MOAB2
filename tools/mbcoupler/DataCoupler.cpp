@@ -40,7 +40,8 @@ DataCoupler::DataCoupler(Interface *impl,
       for (; pit != source_ents.pair_end(); pit++) {
         EntityType this_type = mbImpl->type_from_handle(pit->first);
         if (last_type == this_type) continue;
-        myLocator->elem_eval()->set_eval_set(pit->first);
+        ErrorCode rval = myLocator->elem_eval()->set_eval_set(pit->first);
+        if (MB_SUCCESS != rval) throw(rval);
         last_type = this_type;
       }
     }
@@ -61,19 +62,19 @@ DataCoupler::~DataCoupler()
 }
 
 ErrorCode DataCoupler::locate_points(Range &targ_ents,
-                                     double rel_eps, 
-                                     double abs_eps)
+                                     const double rel_iter_tol, const double abs_iter_tol,
+                                     const double inside_tol)
 {
   targetEnts = targ_ents;
   
-  return myLocator->locate_points(targ_ents, rel_eps, abs_eps);
+  return myLocator->locate_points(targ_ents, rel_iter_tol, abs_iter_tol, inside_tol);
 }
 
 ErrorCode DataCoupler::locate_points(double *xyz, int num_points,
-                                 double rel_eps, 
-                                 double abs_eps)
+                                     const double rel_iter_tol, const double abs_iter_tol,
+                                     const double inside_tol)
 {
-  return myLocator->locate_points(xyz, num_points, rel_eps, abs_eps);
+  return myLocator->locate_points(xyz, num_points, rel_iter_tol, abs_iter_tol, inside_tol);
 }
 
 ErrorCode DataCoupler::interpolate(/*DataCoupler::Method*/ int method,
