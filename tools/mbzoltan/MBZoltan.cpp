@@ -243,6 +243,130 @@ ErrorCode MBZoltan::balance_mesh(const char *zmethod,
   return MB_SUCCESS;
 }
 
+ErrorCode  MBZoltan::repartition(std::vector<double> & x,std::vector<double>&y, std::vector<double> &z, int StartID,
+    const char * zmethod, Range & localGIDs)
+{
+  //
+  std::vector<int> sendToProcs;
+  int nprocs=mbpc->proc_config().proc_size();
+  int rank = mbpc->proc_config().proc_rank();
+  clock_t t = clock();
+  // form pts and ids, as in assemble_graph
+  std::vector<double> pts; // x[0], y[0], z[0], ... from MOAB
+  pts.resize(x.size()*3);
+  std::vector<int> ids; // point ids from MOAB
+  ids.resize(x.size());
+  for (size_t i=0; i<x.size(); i++)
+  {
+    pts[3*i]=  x[i];
+    pts[3*i+1]=y[i];
+    pts[3*i+2]=z[i];
+    ids[i]=StartID+(int)i;
+  }
+  // do not get out until done!
+
+  Points= &pts[0];
+  GlobalIds=&ids[0];
+  NumPoints=(int)x.size();
+  NumEdges=NULL;
+  NborGlobalId=NULL;
+  NborProcs=NULL;
+  ObjWeights=NULL;
+  EdgeWeights=NULL;
+  Parts=NULL;
+
+  float version;
+  if (rank==0)
+    std::cout << "Initializing zoltan..." << std::endl;
+
+  Zoltan_Initialize(argcArg, argvArg, &version);
+
+  // Create Zoltan object.  This calls Zoltan_Create.
+  if (NULL == myZZ) myZZ = new Zoltan(MPI_COMM_WORLD);
+
+  if (NULL == zmethod || !strcmp(zmethod, "RCB"))
+    SetRCB_Parameters();
+  else if (!strcmp(zmethod, "RIB"))
+    SetRIB_Parameters();
+  else if (!strcmp(zmethod, "HSFC"))
+    SetHSFC_Parameters();
+
+  // set # requested partitions
+  char buff[10];
+  sprintf(buff, "%d", nprocs);
+  int retval = myZZ->Set_Param("NUM_GLOBAL_PARTITIONS", buff);
+  if (ZOLTAN_OK != retval) return MB_FAILURE;
+
+    // request only partition assignments
+  retval = myZZ->Set_Param("RETURN_LISTS", "PARTITION ASSIGNMENTS");
+  if (ZOLTAN_OK != retval) return MB_FAILURE;
+
+
+  myZZ->Set_Num_Obj_Fn(mbGetNumberOfAssignedObjects, NULL);
+  myZZ->Set_Obj_List_Fn(mbGetObjectList, NULL);
+  myZZ->Set_Num_Geom_Fn(mbGetObjectSize, NULL);
+  myZZ->Set_Geom_Multi_Fn(mbGetObject, NULL);
+  myZZ->Set_Num_Edges_Multi_Fn(mbGetNumberOfEdges, NULL);
+  myZZ->Set_Edge_List_Multi_Fn(mbGetEdgeList, NULL);
+
+  // Perform the load balancing partitioning
+
+  int changes;
+  int numGidEntries;
+  int numLidEntries;
+  int dumnum1;
+  ZOLTAN_ID_PTR dum_local, dum_global;
+  int *dum1, *dum2;
+  int num_assign;
+  ZOLTAN_ID_PTR assign_gid, assign_lid;
+  int *assign_procs, *assign_parts;
+
+  if (rank ==0)
+    std::cout << "Computing partition using " << (zmethod ? zmethod : "RCB") <<
+      " method for " << nprocs << " processors..." << std::endl;
+
+  retval = myZZ->LB_Partition(changes, numGidEntries, numLidEntries,
+                              dumnum1, dum_global, dum_local, dum1, dum2,
+                              num_assign, assign_gid, assign_lid,
+                              assign_procs, assign_parts);
+  if (ZOLTAN_OK != retval) return MB_FAILURE;
+
+  if (rank==0)
+  {
+    std::cout << " time to LB_partition " << (clock() - t) / (double) CLOCKS_PER_SEC  << "s. \n";
+    t = clock();
+  }
+
+  // free some memory?
+  delete myZZ;
+  for (size_t i=0; i<x.size(); i++)
+    sendToProcs.push_back(assign_procs[i]);
+  // free memory used by Zoltan
+  // form tuples for Gids!
+  TupleList gidProcs;
+
+    // allocate a TupleList of that size
+  gidProcs.initialize(1, 1, 0, 0, x.size()*2);// to account for some imbalances
+  gidProcs.enableWriteAccess();
+  for (size_t i = 0;i <sendToProcs.size(); i++)
+  {
+    gidProcs.vi_wr[i]=sendToProcs[i];
+    gidProcs.vl_wr[i]=StartID+i;
+    gidProcs.inc_n();
+  }
+
+  // now do a transfer
+  (mbpc->proc_config().crystal_router())->gs_transfer(1, gidProcs, 0);
+
+  // after this, every gidProc should contain the gids sent from other processes
+
+  int receivedGIDs=gidProcs.get_n();
+  for (int j=0;j<receivedGIDs; j++)
+    localGIDs.insert(gidProcs.vl_wr[j]);
+
+  return MB_SUCCESS;
+}
+
 ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
                                         const int nparts,
                                         const char *zmethod,

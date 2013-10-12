@@ -15,7 +15,9 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_srcdir)/itaps/imesh \
                -I$(top_builddir)/itaps \
                -I$(top_builddir)/itaps/imesh \
-               -I$(top_srcdir)/test
+               -I$(top_srcdir)/test \
+               -I$(top_srcdir)/tools/mbzoltan \
+               -I$(top_builddir)/tools/mbzoltan
 
 lib_LTLIBRARIES = libmbcslam.la
 libmbcslam_la_LIBADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la \
@@ -23,6 +25,16 @@ libmbcslam_la_LIBADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imes
          
 LDADD = $(top_builddir)/src/libMOAB.la libmbcslam.la $(top_builddir)/tools/mbcoupler/libmbcoupler.la
 
+if ENABLE_mbzoltan
+  libmbcslam_la_LIBADD+=$(top_builddir)/tools/mbzoltan/libmbzoltan.la
+  LDADD+=$(top_builddir)/tools/mbzoltan/libmbzoltan.la
+  AM_CPPFLAGS += $(ZOLTAN_INC_FLAGS) 
+endif
+
+if HAVE_CGM
+  AM_CPPFLAGS += @CGM_CPPFLAGS@ -DCGM @MOAB_CGM_DEFINES@
+endif
+  
 libmbcslam_la_SOURCES = \
    Intx2Mesh.cpp Intx2Mesh.hpp Intx2MeshOnSphere.cpp Intx2MeshOnSphere.hpp \
      CslamUtils.cpp CslamUtils.hpp Intx2MeshInPlane.cpp Intx2MeshInPlane.hpp 
@@ -41,6 +53,11 @@ cfgdir = $(libdir)
 TESTS = intx_on_sphere_test  intx_in_plane_test  spec_visu_test spherical_area_test \
          case1_test  intx_mpas
 noinst_PROGRAMS =  cslam_par_test diffusion proj1 smallPoly mpas_mesh load_partial
+
+if ENABLE_mbzoltan
+noinst_PROGRAMS+=MPASpartitioner
+MPASpartitioner_SOURCES = MPASpartitioner.cpp
+endif 
 
 check_PROGRAMS = $(TESTS) 
 intx_on_sphere_test_SOURCES = intx_on_sphere_test.cpp
