@@ -42,6 +42,7 @@ double gtol = 1.e-9; // this is for geometry tolerance
 double radius = 1.;// in m:  6371220.
 
 double t = 0.1, delta_t = 0.05; // check the script
+bool Verbose = false;
 
 ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
     EntityHandle euler_set)
@@ -153,6 +154,11 @@ int main(int argc, char **argv)
         flux_form= true;
         index++;
       }
+      if (!strcmp(argv[index], "-v"))
+      {
+        Verbose = true;
+        index++;
+      }
 
       index++;
     }
@@ -207,17 +213,22 @@ int main(int argc, char **argv)
   rval = worker.create_departure_mesh_2nd_alg(euler_set, covering_lagr_set);
   CHECK_ERR(rval);
 
-  std::stringstream lagrIni;
-  lagrIni<<"def0" << rank<<".h5m";
-  rval = mb.write_file(lagrIni.str().c_str(), 0, 0, &covering_lagr_set, 1);
+  if (Verbose)
+  {
+    std::stringstream lagrIni;
+    lagrIni<<"def0" << rank<<".h5m";
+    rval = mb.write_file(lagrIni.str().c_str(), 0, 0, &covering_lagr_set, 1);
+  }
 
   rval = enforce_convexity(&mb, covering_lagr_set, rank);
   if (MB_SUCCESS != rval)
     return 1;
-
-  std::stringstream ste;
-  ste<<"lagr0" << rank<<".h5m";
-  rval = mb.write_file(ste.str().c_str(), 0, 0, &euler_set, 1);
+  if (Verbose)
+  {
+    std::stringstream ste;
+    ste<<"lagr0" << rank<<".h5m";
+    rval = mb.write_file(ste.str().c_str(), 0, 0, &euler_set, 1);
+  }
 
   if (MB_SUCCESS != rval)
     std::cout << "can't write lagr set\n";
@@ -230,12 +241,15 @@ int main(int argc, char **argv)
   if (MB_SUCCESS != rval)
     return 1;
 
-  std::string opts_write("");
-  std::stringstream outf;
-  outf << "intersect0" << rank << ".h5m";
-  rval = mb.write_file(outf.str().c_str(), 0, 0, &outputSet, 1);
-  if (MB_SUCCESS != rval)
-    std::cout << "can't write output\n";
+  if (rank<=4)
+  {
+    std::string opts_write("");
+    std::stringstream outf;
+    outf << "intersect0" << rank << ".h5m";
+    rval = mb.write_file(outf.str().c_str(), 0, 0, &outputSet, 1);
+    if (MB_SUCCESS != rval)
+      std::cout << "can't write output\n";
+  }
   double intx_area = area_on_sphere_lHuiller(&mb, outputSet, radius);
   double arrival_area = area_on_sphere_lHuiller(&mb, euler_set, radius);
   std::cout << " Arrival area: " << arrival_area
