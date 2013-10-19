@@ -13,6 +13,8 @@ static const char example[] = STRINGIFY(MESHDIR) "/io/mpasx1.642.t.2.nc";
 
 void test_read_parallel_mpas_trivial();
 void test_read_parallel_mpas_trivial_no_mixed_elements();
+void test_read_parallel_mpas_rcbzoltan();
+void test_read_parallel_mpas_rcbzoltan_no_mixed_elements();
 void test_read_parallel(int num_verts, bool test_nb_nodes, int num_edges, bool test_nb_edges,
                         int num_cells, bool test_nb_cells, bool mixed_elements);
 void test_multiple_loads_of_same_file();
@@ -27,6 +29,8 @@ int main(int argc, char* argv[])
 
   result += RUN_TEST(test_read_parallel_mpas_trivial);
   result += RUN_TEST(test_read_parallel_mpas_trivial_no_mixed_elements);
+  result += RUN_TEST(test_read_parallel_mpas_rcbzoltan);
+  result += RUN_TEST(test_read_parallel_mpas_rcbzoltan_no_mixed_elements);
   result += RUN_TEST(test_multiple_loads_of_same_file);
   result += RUN_TEST(test_multiple_loads_of_same_file_no_mixed_elements);
 
@@ -44,6 +48,18 @@ void test_read_parallel_mpas_trivial_no_mixed_elements()
 {
   partition_method = std::string(";PARTITION_METHOD=TRIVIAL;PARALLEL_RESOLVE_SHARED_ENTS;NO_MIXED_ELEMENTS");
   test_read_parallel(1280, true, 1920, true, 642, true, false);
+}
+
+void test_read_parallel_mpas_rcbzoltan()
+{
+  partition_method = std::string(";PARTITION_METHOD=RCBZOLTAN;PARALLEL_RESOLVE_SHARED_ENTS");
+  test_read_parallel(1280, false, 1920, false, 642, false, true);
+}
+
+void test_read_parallel_mpas_rcbzoltan_no_mixed_elements()
+{
+  partition_method = std::string(";PARTITION_METHOD=RCBZOLTAN;PARALLEL_RESOLVE_SHARED_ENTS;NO_MIXED_ELEMENTS");
+  test_read_parallel(1280, false, 1920, false, 642, false, true);
 }
 
 void test_read_parallel(int num_verts, bool test_nb_nodes, int num_edges, bool test_nb_edges,
