@@ -25,16 +25,6 @@ libmbcslam_la_LIBADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imes
          
 LDADD = $(top_builddir)/src/libMOAB.la libmbcslam.la $(top_builddir)/tools/mbcoupler/libmbcoupler.la
 
-if ENABLE_mbzoltan
-  libmbcslam_la_LIBADD+=$(top_builddir)/tools/mbzoltan/libmbzoltan.la
-  LDADD+=$(top_builddir)/tools/mbzoltan/libmbzoltan.la
-  AM_CPPFLAGS += $(ZOLTAN_INC_FLAGS) 
-endif
-
-if HAVE_CGM
-  AM_CPPFLAGS += @CGM_CPPFLAGS@ -DCGM @MOAB_CGM_DEFINES@
-endif
-  
 libmbcslam_la_SOURCES = \
    Intx2Mesh.cpp Intx2Mesh.hpp Intx2MeshOnSphere.cpp Intx2MeshOnSphere.hpp \
      CslamUtils.cpp CslamUtils.hpp Intx2MeshInPlane.cpp Intx2MeshInPlane.hpp 
