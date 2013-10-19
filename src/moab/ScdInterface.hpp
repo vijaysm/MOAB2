@@ -112,7 +112,7 @@ public:
     //! Partition method enumeration; these strategies are described in comments for
     //! compute_partition_alljorkori, compute_partition_alljkbal, compute_partition_sqij,
     //! compute_partition_sqjk, and compute_partition_sqijk
-  enum PartitionMethod {ALLJORKORI = 0, ALLJKBAL, SQIJ, SQJK, SQIJK, TRIVIAL, NOPART};
+  enum PartitionMethod {ALLJORKORI = 0, ALLJKBAL, SQIJ, SQJK, SQIJK, TRIVIAL, RCBZOLTAN, NOPART};
 
     //! Partition method names
   static const char *PartitionMethodNames[NOPART + 1];

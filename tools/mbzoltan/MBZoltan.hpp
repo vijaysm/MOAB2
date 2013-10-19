@@ -113,7 +113,8 @@ using namespace moab;
                                   const int edge_weight = 0,
                                   const bool part_surf = false,
                                   const bool ghost = false,
-                                  const bool print_time = false);
+                                  const bool print_time = false,
+                                  const bool spherical_coords  = false);
     
     int get_mesh(std::vector<double> &pts, std::vector<int> &ids,
                  std::vector<int> &adjs, std::vector<int> &length,
@@ -125,6 +126,10 @@ using namespace moab;
                               const int *assignment,
                               const bool write_as_sets,
                               const bool write_as_tags);
+
+    // given x, y, z and a starting id, return where to send to each (x[i],y[i],z[i]) point
+    ErrorCode repartition(std::vector<double> & x,std::vector<double>&y, std::vector<double> &z, int StartID,
+        const char * zmethod, Range & localGIDs);
 
 #ifdef CGM
     ErrorCode write_partition(const int nparts,
@@ -199,7 +204,7 @@ using namespace moab;
                              std::vector<int> &moab_ids,
                              std::vector<int> &adjacencies, 
                              std::vector<int> &length,
-                             Range &elems, bool part_geom = false);
+                             Range &elems, bool part_geom = false, const bool spherical_coords=false);
     
 #ifdef CGM
     std::map<int, int> body_vertex_map, surf_vertex_map;
