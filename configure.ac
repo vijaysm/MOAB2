@@ -557,7 +557,7 @@ AC_ARG_WITH([parmetis],
 		 ;;
                esac] )
 
-
+EXPORT_LDFLAGS="$EXPORT_LDFLAGS $ZOLTAN_LIB_FLAGS"
 
 ################################################################################
 #                            Optional Libraries
