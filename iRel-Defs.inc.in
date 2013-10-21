@@ -12,7 +12,7 @@ IREL_CPPFLAGS = -I$(IREL_INCLUDEDIR)
 # This definition is deprecated; use IREL_CPPFLAGS instead
 IREL_INCLUDES = $(IREL_CPPFLAGS)
 
-IREL_LIBS = $(IREL_LDFLAGS) -L${IREL_LIBDIR} -liRel @LIBS@
+IREL_LIBS = $(IREL_LDFLAGS) -L${IREL_LIBDIR} -liRel @LIBS@ @FBIGEOM_EXTRA_LIB@
 
 IREL_INCLUDEDIR = @abs_srcdir@
 IREL_LIBDIR = @abs_builddir@/.libs

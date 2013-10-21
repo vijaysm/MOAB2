@@ -82,6 +82,7 @@ AM_CONDITIONAL([ENABLE_IGEOM], [test x$IGEOM_MISSING = xno])
 ################################################################################
 #                           FBiGeom
 ################################################################################
+FBIGEOM_EXTRA_LIB= 
 AC_ARG_WITH(fbigeom, 
 [AC_HELP_STRING([--with-fbigeom=DIR], [Specify directory containing FBiGeom libs/includes or dirs under which lib/ and include/ are located])],
 [FBIGEOM_DIR=$withval
@@ -101,7 +102,7 @@ case "x$FBIGEOM_DIR" in
     FBIGEOM_MISSING=no
     AC_CHECK_FILE([${FBIGEOM_DIR}/lib/FBiGeom-Defs.inc],
                   [FBIGEOM_CONFIG_OPTIONS="include ${FBIGEOM_DIR}/lib/FBiGeom-Defs.inc";
-                   DEFINES="$DEFINES -DFBIGEOM"],
+                   DEFINES="$DEFINES -DFBIGEOM"; FBIGEOM_EXTRA_LIB="$FBIGEOM_EXTRA_LIB -lFBiGeomMOAB"],
                   [AC_CHECK_FILE([${FBIGEOM_DIR}/FBiGeom-Defs.inc],
                                  [FBIGEOM_CONFIG_OPTIONS="include ${FBIGEOM_DIR}/FBiGeom-Defs.inc";
                    DEFINES="$DEFINES -DFBIGEOM"],
@@ -112,6 +113,7 @@ case "x$FBIGEOM_DIR" in
 esac
 AC_SUBST(FBIGEOM_DIR)
 AC_SUBST(FBIGEOM_CONFIG_OPTIONS)
+AC_SUBST(FBIGEOM_EXTRA_LIB) 
 AM_CONDITIONAL([ENABLE_FBIGEOM], [test x$FBIGEOM_MISSING = xno])
 
 ################################################################################
