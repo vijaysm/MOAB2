@@ -208,6 +208,12 @@ to the variable name. Multiple time step values can be specified, separated from
 
 Create a gather set (associated with tag GATHER_SET) on one processor with the specified rank, to duplicate entities on other processors. If the rank is not specified, it will be rank 0 by default. If an invalid rank is passed, no gather set will be created. Gather set is specially used by HOMME, MPAS, and any other unstructured grid.
 
+<H3>no_mixed_elements </H3>
+
+Indicates that no mixed elements (e.g. pentagons and hexagons) should be created by the MPAS reader. If this option is used, a common parameter maxEdgesPerCell will be computed to be used across all
+processors (instead of the one reported in the MPAS file header, which is usually 10), and each cell is created with maxEdgesPerCell edges. Any cell that has less actual edges will be padded by duplicating
+the last vertex in the connectivity array. As a result, all created cells will be in one contiguous chunk.
+
 \ref md-contents "Top"
 
   \section meta-references References

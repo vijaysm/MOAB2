@@ -2565,10 +2565,13 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
     if ((new_numps > 2 && !(new_pstat&(PSTATUS_INTERFACE|PSTATUS_GHOST|PSTATUS_NOT_OWNED))) ||
         (new_pstat&PSTATUS_INTERFACE && !(new_pstat&PSTATUS_NOT_OWNED))
         ) {
+      idx = std::min_element(&new_ps[0], &new_ps[0] + new_numps) - &new_ps[0];
       std::swap(new_ps[0], new_ps[idx]);
       std::swap(new_hs[0], new_hs[idx]);
+      if (new_ps[0] != (int)rank())
+        new_pstat |= PSTATUS_NOT_OWNED;
     }
-      
+
 /*    
     plist("new_ps", new_ps, new_numps);
     plist("new_hs", new_hs, new_numps);
@@ -5926,9 +5929,12 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
                                            int old_nump, int new_nump,
                                            int *ps, EntityHandle *hs) 
   {
-    // set sharing data to what's passed in; may have to clean up existing sharing tags
-    // if things changed too much
-    
+    // If new nump is less than 3, the entity is no longer mutishared
+     if (old_nump > 2 && (pstatus & PSTATUS_MULTISHARED) && new_nump < 3) {
+       // Unset multishared flag
+       pstatus ^= PSTATUS_MULTISHARED;
+     }
+
     // check for consistency in input data
     assert(new_nump > 1 &&
            ((new_nump == 2 && pstatus&PSTATUS_SHARED && !(pstatus&PSTATUS_MULTISHARED)) || // if <= 2 must not be multishared
@@ -7778,9 +7784,10 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
   Tag ParallelComm::partition_tag()
   {  
     if (!partitionTag) {
+      int dum_id = -1;
       ErrorCode result = mbImpl->tag_get_handle(PARALLEL_PARTITION_TAG_NAME, 
                                                 1, MB_TYPE_INTEGER, partitionTag,
-                                                MB_TAG_SPARSE|MB_TAG_CREAT);
+                                                MB_TAG_SPARSE|MB_TAG_CREAT, &dum_id);
       if (MB_SUCCESS != result)
         return 0;
     }

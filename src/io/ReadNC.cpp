@@ -19,12 +19,13 @@ ReaderIface* ReadNC::factory(Interface* iface)
 }
 
 ReadNC::ReadNC(Interface* impl) :
-        mbImpl(impl), fileId(-1), mGlobalIdTag(0), mpFileIdTag(NULL), dbgOut(stderr), isParallel(false), 
-        partMethod(ScdParData::ALLJORKORI), scdi(NULL),
+  mbImpl(impl), fileId(-1), mGlobalIdTag(0), mpFileIdTag(NULL), dbgOut(stderr), isParallel(false),
+  partMethod(ScdParData::ALLJORKORI), scdi(NULL),
 #ifdef USE_MPI
   myPcomm(NULL),
 #endif
-  noMesh(false), noVars(false), spectralMesh(false), gatherSetRank(-1), myHelper(NULL)
+  noMesh(false), noVars(false), spectralMesh(false), noMixedElements(false), noEdges(false),
+  gatherSetRank(-1), myHelper(NULL)
 {
   assert(impl != NULL);
   impl->query_interface(readMeshIface);
@@ -213,6 +214,14 @@ ErrorCode ReadNC::parse_options(const FileOptions& opts, std::vector<std::string
   rval = opts.get_null_option("SPECTRAL_MESH");
   if (MB_SUCCESS == rval)
     spectralMesh = true;
+
+  rval = opts.get_null_option("NO_MIXED_ELEMENTS");
+  if (MB_SUCCESS == rval)
+    noMixedElements = true;
+
+  rval = opts.get_null_option("NO_EDGES");
+  if (MB_SUCCESS == rval)
+    noEdges = true;
 
   if (2 <= dbgOut.get_verbosity()) {
     if (!var_names.empty()) {

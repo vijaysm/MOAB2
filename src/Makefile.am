@@ -205,6 +205,18 @@ nobase_libMOAB_la_include_HEADERS = \
   MOAB_FCDefs.h \
   MBCN_protos.h \
   MBTagConventions.hpp
+if ENABLE_mbzoltan
+  libMOAB_la_SOURCES += $(srcdir)/../tools/mbzoltan/MBZoltan.cpp
+  nobase_libMOAB_la_include_HEADERS += $(srcdir)/../tools/mbzoltan/MBZoltan.hpp
+  AM_CPPFLAGS +=  $(ZOLTAN_INC_FLAGS) -DHAVE_ZOLTAN
+  # not sure yet if this is needed; will see when linking io reader (MPAS so far)
+  # the tool mbpart needed it, and it just includes MBZoltan.hpp; so it needs ways to find 
+  # the libraries zoltan depends on
+  libMOAB_la_LIBADD += $(ZOLTAN_LIBS) $(ZOLTAN_LIB_FLAGS)
+endif
+if HAVE_CGM
+  AM_CPPFLAGS += @CGM_CPPFLAGS@ -DCGM @MOAB_CGM_DEFINES@
+endif
   
 MBCN_protos.h: MBCN.h $(top_srcdir)/itaps/mkprotos.sh
 	$(AM_V_GEN)$(top_srcdir)/itaps/mkprotos.sh MBCN MOAB $< $@ MOAB_FCDefs.h
