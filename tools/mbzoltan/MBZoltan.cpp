@@ -342,6 +342,7 @@ ErrorCode  MBZoltan::repartition(std::vector<double> & x,std::vector<double>&y, 
     sendToProcs.push_back(assign_procs[i]);
   // free some memory after we are done
   delete myZZ;
+  myZZ = NULL;
   // free memory used by Zoltan
   // form tuples for Gids!
   TupleList gidProcs;
