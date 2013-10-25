@@ -88,6 +88,17 @@ void test_read_eul_all()
 
   rval = mb.tag_get_handle("COORDS", 3, MB_TYPE_DOUBLE, coordTag);
   CHECK_ERR(rval);
+
+  // Check for some tags with double underscore in the tag name
+  Tag tempTag;
+  rval = mb.tag_get_handle("__lon_LOC_MINMAX", 2, MB_TYPE_INTEGER, tempTag);
+  CHECK_ERR(rval);
+
+  rval = mb.tag_get_handle("__lon_LOC_VALS", 0, MB_TYPE_DOUBLE, tempTag, MB_TAG_VARLEN);
+  CHECK_ERR(rval);
+
+  rval = mb.tag_get_handle("__lon_GLOBAL_MINMAX", 2, MB_TYPE_INTEGER, tempTag);
+  CHECK_ERR(rval);
 }
 
 void test_read_eul_onevar() 
@@ -386,6 +397,17 @@ void test_read_fv_onetimestep()
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
   rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  CHECK_ERR(rval);
+
+  // Check for some tags with double underscore in the tag name
+  Tag tempTag;
+  rval = mb.tag_get_handle("__lon_LOC_MINMAX", 2, MB_TYPE_INTEGER, tempTag);
+  CHECK_ERR(rval);
+
+  rval = mb.tag_get_handle("__lon_LOC_VALS", 0, MB_TYPE_DOUBLE, tempTag, MB_TAG_VARLEN);
+  CHECK_ERR(rval);
+
+  rval = mb.tag_get_handle("__lon_GLOBAL_MINMAX", 2, MB_TYPE_INTEGER, tempTag);
   CHECK_ERR(rval);
 }
 

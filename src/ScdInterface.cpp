@@ -22,7 +22,7 @@
 namespace moab 
 {
 
-const char *ScdParData::PartitionMethodNames[] = {"alljorkori", "alljkbal", "sqij", "sqjk", "sqijk", "trivial", "nopart"};
+const char *ScdParData::PartitionMethodNames[] = {"alljorkori", "alljkbal", "sqij", "sqjk", "sqijk", "trivial","rcbzoltan", "nopart"};
 
 ScdInterface::ScdInterface(Interface *imp, bool boxes) 
         : mbImpl(imp), 

@@ -128,9 +128,9 @@ namespace moab {
     }
 
     inline std::ostream &operator<<(std::ostream& out, const BoundBox &box) {
-      out << "Min: ";
+      out << (std::string) "Min: ";
       out << box.bMin;
-      out << ", Max: ";
+      out << (std::string) ", Max: ";
       out << box.bMax;
       return out;
     }
