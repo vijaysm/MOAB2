@@ -377,6 +377,18 @@ ErrorCode NCHelperMPAS::create_mesh(Range& faces)
   ERRORS(success, "Failed on wait_all.");
 #endif
 
+  // correct the connectivity array, replace the padded vertices with the last vertices in the
+  // corresponding elements; sometimes the padded vertices are 0, sometimes a big vertex id
+  // make sure they are consistent to our padded option
+  for (int i=0; i<nLocalCells; i++)
+  {
+    int nVertsInCell=num_edges_on_local_cells[i];
+    int indxInConn=i*maxEdgesPerCell;
+    for (int j=nVertsInCell; j<maxEdgesPerCell; j++)
+    {
+      vertices_on_local_cells[indxInConn+j]=vertices_on_local_cells[indxInConn+nVertsInCell-1];
+    }
+  }
   // Create local vertices
   EntityHandle start_vertex;
   ErrorCode rval = create_local_vertices(vertices_on_local_cells, start_vertex);
@@ -384,13 +396,13 @@ ErrorCode NCHelperMPAS::create_mesh(Range& faces)
 
   // Create local edges (unless NO_EDGES read option is set)
   if (!noEdges) {
-    rval = create_local_edges(start_vertex);
+    rval = create_local_edges(start_vertex, num_edges_on_local_cells);
     ERRORR(rval, "Failed to create local edges for MPAS mesh.");
   }
 
   // Create local cells, either unpadded or padded
   if (noMixedElements) {
-    rval = create_padded_local_cells(vertices_on_local_cells, num_edges_on_local_cells, start_vertex, faces);
+    rval = create_padded_local_cells(vertices_on_local_cells, start_vertex, faces);
     ERRORR(rval, "Failed to create padded local cells for MPAS mesh.");
   }
   else {
@@ -960,7 +972,7 @@ ErrorCode NCHelperMPAS::redistribute_local_cells(int start_cell_idx)
     int success = NCFUNC(inq_varid)(_fileId, "xCell", &xCellVarId);
     ERRORS(success, "Failed to get variable id of xCell.");
     std::vector<double> xCell(nLocalCells);
-    NCDF_SIZE read_start = 0;
+    NCDF_SIZE read_start = static_cast<NCDF_SIZE>(start_cell_idx-1);
     NCDF_SIZE read_count = static_cast<NCDF_SIZE>(nLocalCells);
     success = NCFUNCAG(_vara_double)(_fileId, xCellVarId, &read_start, &read_count, &xCell[0]);
     ERRORS(success, "Failed to read xCell data.");
@@ -1170,7 +1182,8 @@ ErrorCode NCHelperMPAS::create_local_vertices(const std::vector<int>& vertices_o
   return MB_SUCCESS;
 }
 
-ErrorCode NCHelperMPAS::create_local_edges(EntityHandle start_vertex)
+ErrorCode NCHelperMPAS::create_local_edges(EntityHandle start_vertex,
+    const std::vector<int>& num_edges_on_local_cells)
 {
   Interface*& mbImpl = _readNC->mbImpl;
   Tag& mGlobalIdTag = _readNC->mGlobalIdTag;
@@ -1219,6 +1232,16 @@ ErrorCode NCHelperMPAS::create_local_edges(EntityHandle start_vertex)
   ERRORS(success, "Failed on wait_all.");
 #endif
 
+  // correct local edges in the same way as padded polygons, pad list with last edges in connectivity
+  for (int i=0; i<nLocalCells; i++)
+  {
+    int nEdgesInCell=num_edges_on_local_cells[i];
+    int indxInConn=i*maxEdgesPerCell;
+    for (int j=nEdgesInCell; j<maxEdgesPerCell; j++)
+    {
+      edges_on_local_cells[indxInConn+j]=edges_on_local_cells[indxInConn+nEdgesInCell-1];
+    }
+  }
   // Collect local edges
   std::sort(edges_on_local_cells.begin(), edges_on_local_cells.end());
   std::copy(edges_on_local_cells.rbegin(), edges_on_local_cells.rend(), range_inserter(localGidEdges));
@@ -1374,7 +1397,6 @@ ErrorCode NCHelperMPAS::create_local_cells(const std::vector<int>& vertices_on_l
 }
 
 ErrorCode NCHelperMPAS::create_padded_local_cells(const std::vector<int>& vertices_on_local_cells,
-                                                  const std::vector<int>& num_edges_on_local_cells,
                                                   EntityHandle start_vertex, Range& faces)
 {
   Interface*& mbImpl = _readNC->mbImpl;
@@ -1407,20 +1429,14 @@ ErrorCode NCHelperMPAS::create_padded_local_cells(const std::vector<int>& vertic
   std::copy(localGidCells.begin(), localGidCells.end(), gid_data);
 
   // Set connectivity array with proper local vertices handles
+  // vertices_on_local_cells array was already corrected to have the last vertices padded
+  // no need for extra checks considering
   for (int cell_idx = 0; cell_idx < nLocalCells; cell_idx++) {
-    int num_edges = num_edges_on_local_cells[cell_idx];
-    for (int i = 0; i < num_edges; i++) {
+    for (int i = 0; i < maxEdgesPerCell; i++) {
       EntityHandle global_vert_id = vertices_on_local_cells[cell_idx * maxEdgesPerCell + i]; // 1 based
       int local_vert_idx = localGidVerts.index(global_vert_id); // 0 based
       assert(local_vert_idx != -1);
       conn_arr_local_cells[cell_idx * maxEdgesPerCell + i] = start_vertex + local_vert_idx;
-    }
-
-    // Padding: fill connectivity array with last vertex handle
-    if (num_edges < maxEdgesPerCell) {
-      EntityHandle last_vert_id = conn_arr_local_cells[cell_idx * maxEdgesPerCell + num_edges - 1];
-      for (int i = num_edges; i < maxEdgesPerCell; i++)
-        conn_arr_local_cells[cell_idx * maxEdgesPerCell + i] = last_vert_id;
     }
   }
 
