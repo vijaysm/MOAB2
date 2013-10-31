@@ -146,11 +146,11 @@ void test_read_all()
     // Check ke tag values on first pentagon and first hexagon
     EntityHandle cell_ents[] = {cells[0], cells[12]};
     rval = mb.tag_get_data(ke_tag0, &cell_ents[0], 2, val);
-    CHECK_REAL_EQUAL(1.5, val[0], eps);
-    CHECK_REAL_EQUAL(1.6, val[1], eps);
+    CHECK_REAL_EQUAL(15.001, val[0], eps);
+    CHECK_REAL_EQUAL(16.013, val[1], eps);
     rval = mb.tag_get_data(ke_tag1, &cell_ents[0], 2, val);
-    CHECK_REAL_EQUAL(2.5, val[0], eps);
-    CHECK_REAL_EQUAL(2.6, val[1], eps);
+    CHECK_REAL_EQUAL(25.001, val[0], eps);
+    CHECK_REAL_EQUAL(26.013, val[1], eps);
   }
 }
 
@@ -226,11 +226,11 @@ void test_read_onevar()
     double val[2];
     EntityHandle cell_ents[] = {cells[0], cells[12]};
     rval = mb.tag_get_data(ke_tag0, &cell_ents[0], 2, val);
-    CHECK_REAL_EQUAL(1.5, val[0], eps);
-    CHECK_REAL_EQUAL(1.6, val[1], eps);
+    CHECK_REAL_EQUAL(15.001, val[0], eps);
+    CHECK_REAL_EQUAL(16.013, val[1], eps);
     rval = mb.tag_get_data(ke_tag1, &cell_ents[0], 2, val);
-    CHECK_REAL_EQUAL(2.5, val[0], eps);
-    CHECK_REAL_EQUAL(2.6, val[1], eps);
+    CHECK_REAL_EQUAL(25.001, val[0], eps);
+    CHECK_REAL_EQUAL(26.013, val[1], eps);
   }
 }
 
@@ -377,11 +377,11 @@ void test_read_no_mixed_elements()
     // Check ke tag values on first pentagon and first hexagon
     EntityHandle cell_ents[] = {cells[0], cells[12]};
     rval = mb.tag_get_data(ke_tag0, &cell_ents[0], 2, val);
-    CHECK_REAL_EQUAL(1.5, val[0], eps);
-    CHECK_REAL_EQUAL(1.6, val[1], eps);
+    CHECK_REAL_EQUAL(15.001, val[0], eps);
+    CHECK_REAL_EQUAL(16.013, val[1], eps);
     rval = mb.tag_get_data(ke_tag1, &cell_ents[0], 2, val);
-    CHECK_REAL_EQUAL(2.5, val[0], eps);
-    CHECK_REAL_EQUAL(2.6, val[1], eps);
+    CHECK_REAL_EQUAL(25.001, val[0], eps);
+    CHECK_REAL_EQUAL(26.013, val[1], eps);
   }
 }
 
