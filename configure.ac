@@ -557,8 +557,6 @@ AC_ARG_WITH([parmetis],
 		 ;;
                esac] )
 
-
-
 ################################################################################
 #                            Optional Libraries
 ################################################################################
@@ -739,6 +737,8 @@ fi
 AC_SUBST(ZOLTAN_LIBS)
 AC_SUBST(ZOLTAN_LIB_FLAGS)
 AC_SUBST(ZOLTAN_INC_FLAGS)
+
+EXPORT_LDFLAGS="$ZOLTAN_LIB_FLAGS $EXPORT_LDFLAGS"
 
 ################################################################################
 #                    VTK for qvdual and/or vtkMOABReader

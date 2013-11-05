@@ -23,6 +23,7 @@
 #include <iostream>
 #include <assert.h>
 #include <sstream>
+#include <algorithm>
 
 #include "MBZoltan.hpp"
 #include "moab/Interface.hpp"
@@ -297,8 +298,8 @@ ErrorCode  MBZoltan::repartition(std::vector<double> & x,std::vector<double>&y, 
   int retval = myZZ->Set_Param("NUM_GLOBAL_PARTITIONS", buff);
   if (ZOLTAN_OK != retval) return MB_FAILURE;
 
-    // request only partition assignments
-  retval = myZZ->Set_Param("RETURN_LISTS", "PARTITION ASSIGNMENTS");
+    // request all, import and export
+  retval = myZZ->Set_Param("RETURN_LISTS", "ALL");
   if (ZOLTAN_OK != retval) return MB_FAILURE;
 
 
@@ -314,11 +315,12 @@ ErrorCode  MBZoltan::repartition(std::vector<double> & x,std::vector<double>&y, 
   int changes;
   int numGidEntries;
   int numLidEntries;
-  int dumnum1;
-  ZOLTAN_ID_PTR dum_local, dum_global;
-  int *dum1, *dum2;
-  int num_assign;
-  ZOLTAN_ID_PTR assign_gid, assign_lid;
+  int num_import;
+  ZOLTAN_ID_PTR import_global_ids, import_local_ids;
+  int * import_procs;
+  int * import_to_part;
+  int num_export;
+  ZOLTAN_ID_PTR export_global_ids, export_local_ids;
   int *assign_procs, *assign_parts;
 
   if (rank ==0)
@@ -326,8 +328,8 @@ ErrorCode  MBZoltan::repartition(std::vector<double> & x,std::vector<double>&y, 
       " method for " << nprocs << " processors..." << std::endl;
 
   retval = myZZ->LB_Partition(changes, numGidEntries, numLidEntries,
-                              dumnum1, dum_global, dum_local, dum1, dum2,
-                              num_assign, assign_gid, assign_lid,
+                              num_import, import_global_ids, import_local_ids, import_procs, import_to_part,
+                              num_export, export_global_ids, export_local_ids,
                               assign_procs, assign_parts);
   if (ZOLTAN_OK != retval) return MB_FAILURE;
 
@@ -337,33 +339,15 @@ ErrorCode  MBZoltan::repartition(std::vector<double> & x,std::vector<double>&y, 
     t = clock();
   }
 
+  std::sort(import_global_ids, import_global_ids+num_import, std::greater<int> ());
+  std::sort(export_global_ids, export_global_ids+num_export, std::greater<int> ());
 
-  for (size_t i=0; i<x.size(); i++)
-    sendToProcs.push_back(assign_procs[i]);
-  // free some memory after we are done
-  delete myZZ;
-  // free memory used by Zoltan
-  // form tuples for Gids!
-  TupleList gidProcs;
-
-    // allocate a TupleList of that size
-  gidProcs.initialize(1, 1, 0, 0, x.size()*2);// to account for some imbalances
-  gidProcs.enableWriteAccess();
-  for (size_t i = 0;i <sendToProcs.size(); i++)
-  {
-    gidProcs.vi_wr[i]=sendToProcs[i];
-    gidProcs.vl_wr[i]=StartID+i;
-    gidProcs.inc_n();
-  }
-
-  // now do a transfer
-  (mbpc->proc_config().crystal_router())->gs_transfer(1, gidProcs, 0);
-
-  // after this, every gidProc should contain the gids sent from other processes
-
-  int receivedGIDs=gidProcs.get_n();
-  for (int j=0;j<receivedGIDs; j++)
-    localGIDs.insert(gidProcs.vl_wr[j]);
+  Range iniGids((EntityHandle)StartID, (EntityHandle)StartID+x.size()-1);
+  Range imported, exported;
+  std::copy(import_global_ids, import_global_ids+num_import, range_inserter(imported));
+  std::copy(export_global_ids, export_global_ids+num_export, range_inserter(exported));
+  localGIDs=subtract(iniGids, exported);
+  localGIDs=unite(localGIDs, imported);
 
   return MB_SUCCESS;
 }

@@ -8735,24 +8735,24 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     ErrorCode rval = mbImpl->tag_get_bytes(tag_handle, bytes_per_tag);
     if (rval != MB_SUCCESS) return rval;
 
-    int sz_buffer = sizeof(int)+gather_ents.size()*(sizeof(int)+bytes_per_tag);
+    int sz_buffer = sizeof(int) + gather_ents.size()*(sizeof(int) + bytes_per_tag);
     void* senddata = malloc(sz_buffer);
     ((int*)senddata)[0] = (int) gather_ents.size();    
-    int * ptr_int = (int*)senddata+1;
+    int * ptr_int = (int*)senddata + 1;
     rval = mbImpl->tag_get_data(id_tag, gather_ents, (void*)ptr_int);
-    ptr_int = (int*)(senddata)+1+gather_ents.size();
-    rval = mbImpl->tag_get_data(tag_handle, gather_ents,(void*)ptr_int);
+    ptr_int = (int*)(senddata) + 1 + gather_ents.size();
+    rval = mbImpl->tag_get_data(tag_handle, gather_ents, (void*)ptr_int);
     std::vector<int> displs(proc_config().proc_size(), 0);
     MPI_Gather(&sz_buffer, 1, MPI_INT, &displs[0], 1, MPI_INT, 0, comm());
     std::vector<int> recvcnts(proc_config().proc_size(), 0);
     std::copy(displs.begin(), displs.end(), recvcnts.begin());
     std::partial_sum(displs.begin(), displs.end(), displs.begin());
-    std::vector<int>::iterator lastM1 = displs.end()-1;
+    std::vector<int>::iterator lastM1 = displs.end() - 1;
     std::copy_backward(displs.begin(), lastM1, displs.end());
     //std::copy_backward(displs.begin(), --displs.end(), displs.end());
     displs[0] = 0;
 
-    if (rank()!=0)
+    if (rank() != 0)
       MPI_Gatherv(senddata, sz_buffer, MPI_BYTE, NULL, NULL, NULL, MPI_BYTE, 0, comm());
     else {
       Range gents;
@@ -8761,19 +8761,51 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       void* recvbuf = malloc(recvbuffsz);
       MPI_Gatherv(senddata, sz_buffer, MPI_BYTE, recvbuf, &recvcnts[0], &displs[0], MPI_BYTE, 0, comm());
 
-      void *gvals;
-      int count;
-      rval = mbImpl->tag_iterate(tag_handle, gents.begin(), gents.end(), count, gvals);
+      void* gvals = NULL;
+      // If gents is contiguous, gathered values will be directly copied to its tag space
+      if (gents.psize() == 1) {
+        int count;
+        rval = mbImpl->tag_iterate(tag_handle, gents.begin(), gents.end(), count, gvals);
+        assert(NULL != gvals);
+        assert(count == (int)gents.size());
+      }
+      // If gents is not contiguous, gathered values will be copied to a temp buffer first
+      else if (gents.psize() > 1) {
+        gvals = new (std::nothrow) char[gents.size() * bytes_per_tag];
+        assert(NULL != gvals);
+      }
+
       for (int i = 0; i != (int)size(); ++i) {
-	int numents = *(int*)(((char*)recvbuf)+displs[i]);
-	int* id_ptr = (int*)(((char*)recvbuf)+displs[i]+sizeof(int));
-	char* val_ptr = (char*)(id_ptr+numents);
-	for (int j=0; j != numents; ++j) {
-	  int idx = id_ptr[j];
-	  memcpy((char*)gvals+(idx-1)*bytes_per_tag, val_ptr+j*bytes_per_tag, bytes_per_tag);
-	}
+        int numents = *(int*)(((char*)recvbuf) + displs[i]);
+        int* id_ptr = (int*)(((char*)recvbuf) + displs[i] + sizeof(int));
+        char* val_ptr = (char*)(id_ptr + numents);
+        for (int j = 0; j != numents; ++j) {
+          int idx = id_ptr[j];
+          memcpy((char*)gvals + (idx - 1)*bytes_per_tag, val_ptr + j*bytes_per_tag, bytes_per_tag);
+        }
+      }
+
+      // If gents is not contiguous, set tag data (stored in the temp buffer) on each sequence separately
+      if (gents.psize() > 1) {
+        Range::iterator iter = gents.begin();
+        size_t start_idx = 0;
+        while (iter != gents.end()) {
+          int count;
+          void* ptr;
+          rval = mbImpl->tag_iterate(tag_handle, iter, gents.end(), count, ptr);
+          for (int i = 0; i < count; i++)
+            ((char*)ptr)[i] = ((char*)gvals)[start_idx + i];
+
+          iter += count;
+          start_idx += count;
+        }
+        assert(start_idx == gents.size());
+
+        // Delete the temp buffer
+        delete (char*)gvals;
       }
     }
+
     return MB_SUCCESS;
   }
 
