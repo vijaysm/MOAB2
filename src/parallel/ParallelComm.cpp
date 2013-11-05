@@ -8738,7 +8738,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     int sz_buffer = sizeof(int) + gather_ents.size()*(sizeof(int) + bytes_per_tag);
     void* senddata = malloc(sz_buffer);
     ((int*)senddata)[0] = (int) gather_ents.size();    
-    int * ptr_int = (int*)senddata + 1;
+    int* ptr_int = (int*)senddata + 1;
     rval = mbImpl->tag_get_data(id_tag, gather_ents, (void*)ptr_int);
     ptr_int = (int*)(senddata) + 1 + gather_ents.size();
     rval = mbImpl->tag_get_data(tag_handle, gather_ents, (void*)ptr_int);
@@ -8792,7 +8792,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
         }
       }
 
-      // If gents has multiple sequences, set tag data (stored in the temp buffer) on each sequence separately
+      // If gents has multiple sequences, copy tag data (stored in the temp buffer) to each sequence separately
       if (multiple_sequences) {
         Range::iterator iter = gents.begin();
         size_t start_idx = 0;
@@ -8800,8 +8800,9 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
           int count;
           void* ptr;
           rval = mbImpl->tag_iterate(tag_handle, iter, gents.end(), count, ptr);
-          for (int i = 0; i < count; i++)
-            ((char*)ptr)[i] = ((char*)gvals)[start_idx + i];
+          assert(NULL != ptr);
+          assert(count > 0);
+          memcpy((char*)ptr, (char*)gvals + start_idx * bytes_per_tag, bytes_per_tag * count);
 
           iter += count;
           start_idx += count;
