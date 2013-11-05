@@ -8738,7 +8738,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     int sz_buffer = sizeof(int) + gather_ents.size()*(sizeof(int) + bytes_per_tag);
     void* senddata = malloc(sz_buffer);
     ((int*)senddata)[0] = (int) gather_ents.size();    
-    int * ptr_int = (int*)senddata + 1;
+    int* ptr_int = (int*)senddata + 1;
     rval = mbImpl->tag_get_data(id_tag, gather_ents, (void*)ptr_int);
     ptr_int = (int*)(senddata) + 1 + gather_ents.size();
     rval = mbImpl->tag_get_data(tag_handle, gather_ents, (void*)ptr_int);
@@ -8762,15 +8762,22 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       MPI_Gatherv(senddata, sz_buffer, MPI_BYTE, recvbuf, &recvcnts[0], &displs[0], MPI_BYTE, 0, comm());
 
       void* gvals = NULL;
-      // If gents is contiguous, gathered values will be directly copied to its tag space
-      if (gents.psize() == 1) {
+
+      // Test whether gents has multiple sequences
+      bool multiple_sequences = false;
+      if (gents.psize() > 1)
+        multiple_sequences = true;
+      else {
         int count;
         rval = mbImpl->tag_iterate(tag_handle, gents.begin(), gents.end(), count, gvals);
         assert(NULL != gvals);
-        assert(count == (int)gents.size());
+        assert(count > 0);
+        if ((size_t)count != gents.size())
+          multiple_sequences = true;
       }
-      // If gents is not contiguous, gathered values will be copied to a temp buffer first
-      else if (gents.psize() > 1) {
+
+      // If gents has multiple sequences, create a temp buffer for gathered values
+      if (multiple_sequences) {
         gvals = new (std::nothrow) char[gents.size() * bytes_per_tag];
         assert(NULL != gvals);
       }
@@ -8785,16 +8792,17 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
         }
       }
 
-      // If gents is not contiguous, set tag data (stored in the temp buffer) on each sequence separately
-      if (gents.psize() > 1) {
+      // If gents has multiple sequences, copy tag data (stored in the temp buffer) to each sequence separately
+      if (multiple_sequences) {
         Range::iterator iter = gents.begin();
         size_t start_idx = 0;
         while (iter != gents.end()) {
           int count;
           void* ptr;
           rval = mbImpl->tag_iterate(tag_handle, iter, gents.end(), count, ptr);
-          for (int i = 0; i < count; i++)
-            ((char*)ptr)[i] = ((char*)gvals)[start_idx + i];
+          assert(NULL != ptr);
+          assert(count > 0);
+          memcpy((char*)ptr, (char*)gvals + start_idx * bytes_per_tag, bytes_per_tag * count);
 
           iter += count;
           start_idx += count;
@@ -8802,7 +8810,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
         assert(start_idx == gents.size());
 
         // Delete the temp buffer
-        delete (char*)gvals;
+        delete[] (char*)gvals;
       }
     }
 
