@@ -1,6 +1,7 @@
 #include "TestUtil.hpp"
 #include "moab/Core.hpp"
 #include "moab/ReadUtilIface.hpp"
+#include "MBTagConventions.hpp"
 
 using namespace moab;
 
@@ -20,7 +21,9 @@ void test_read_onevar();
 void test_read_onetimestep();
 void test_read_nomesh();
 void test_read_novars();
-void test_read_no_mixed_elements();
+void test_read_no_mixed_elements(); // Test read option NO_MIXED_ELEMENTS
+void test_read_no_edges(); // Test read option NO_EDGES
+void test_gather_onevar(); // Test gather set with one variable
 
 ErrorCode get_options(std::string& opts);
 
@@ -41,8 +44,9 @@ int main(int argc, char* argv[])
   result += RUN_TEST(test_read_onetimestep);
   result += RUN_TEST(test_read_nomesh);
   result += RUN_TEST(test_read_novars);
-  // Test read option NO_MIXED_ELEMENTS
   result += RUN_TEST(test_read_no_mixed_elements);
+  result += RUN_TEST(test_read_no_edges);
+  result += RUN_TEST(test_gather_onevar);
 
 #ifdef USE_MPI
   fail = MPI_Finalize();
@@ -163,8 +167,6 @@ void test_read_onevar()
   CHECK_ERR(rval);
 
   opts += std::string(";VARIABLE=ke");
-  // Create gather set
-  opts += std::string(";GATHER_SET=");
   rval = mb.load_file(example, NULL, opts.c_str());
   CHECK_ERR(rval);
 
@@ -187,38 +189,15 @@ void test_read_onevar()
     Range cells;
     rval = mb.get_entities_by_type(0, MBPOLYGON, cells);
     assert(rval == MB_SUCCESS);
-    CHECK_EQUAL((size_t)1284, cells.size()); // Gather set cells included
+    CHECK_EQUAL((size_t)642, cells.size());
+
 #ifdef USE_MPI
     // If MOAB is compiled parallel, sequence size requested are increased
     // by a factor of 1.5, to allow for ghosts. This will introduce a gap
     // between the two face sequences.
-    CHECK_EQUAL((size_t)4, cells.psize()); // Gather set cells included
+    CHECK_EQUAL((size_t)2, cells.psize());
 #else
-    CHECK_EQUAL((size_t)1, cells.psize()); // Gather set cells included
-#endif
-
-    // Get gather set
-    EntityHandle gather_set;
-    ReadUtilIface* readUtilIface;
-    mb.query_interface(readUtilIface);
-    rval = readUtilIface->get_gather_set(gather_set);
-    CHECK_ERR(rval);
-
-    // Get gather set entities
-    Range gather_ents;
-    rval = mb.get_entities_by_handle(gather_set, gather_ents);
-    CHECK_ERR(rval);
-
-    // Remove gather set cells
-    cells = subtract(cells, gather_ents);
-    CHECK_EQUAL((size_t)642, cells.size()); // Gather set cells excluded
-#ifdef USE_MPI
-    // If MOAB is compiled parallel, sequence size requested are increased
-    // by a factor of 1.5, to allow for ghosts. This will introduce a gap
-    // between the two face sequences.
-    CHECK_EQUAL((size_t)2, cells.psize()); // Gather set cells excluded
-#else
-    CHECK_EQUAL((size_t)1, cells.psize()); // Gather set cells excluded
+    CHECK_EQUAL((size_t)1, cells.psize());
 #endif
 
     // Check ke tag values on first pentagon and first hexagon
@@ -368,7 +347,8 @@ void test_read_no_mixed_elements()
     rval = mb.get_entities_by_type(0, MBPOLYGON, cells);
     assert(rval == MB_SUCCESS);
     CHECK_EQUAL((size_t)642, cells.size());
-    // Only one group of cells (each cell is actually represented by a 10-vertex polygon)
+    // Only one group of cells (pentagons are padded to hexagons,
+    // e.g. connectivity [1 2 3 4 5] => [1 2 3 4 5 5])
     CHECK_EQUAL((size_t)1, cells.psize());
 
     const double eps = 1e-20;
@@ -385,7 +365,104 @@ void test_read_no_mixed_elements()
   }
 }
 
-ErrorCode get_options(std::string &opts) 
+void test_read_no_edges()
+{
+  Core moab;
+  Interface& mb = moab;
+  std::string opts;
+  ErrorCode rval = get_options(opts);
+  CHECK_ERR(rval);
+
+  opts += std::string(";NO_EDGES;VARIABLE=");
+  rval = mb.load_file(example, NULL, opts.c_str());
+  CHECK_ERR(rval);
+
+  int procs = 1;
+#ifdef USE_MPI
+  ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
+  procs = pcomm->proc_config().proc_size();
+#endif
+
+  // Make check runs this test in one processor
+  if (1 == procs) {
+    // Get edges
+    Range edges;
+    rval = mb.get_entities_by_type(0, MBEDGE, edges);
+    assert(rval == MB_SUCCESS);
+    CHECK_EQUAL((size_t)0, edges.size());
+  }
+}
+
+void test_gather_onevar()
+{
+  Core moab;
+  Interface& mb = moab;
+  std::string opts;
+  ErrorCode rval = get_options(opts);
+  CHECK_ERR(rval);
+
+  EntityHandle file_set;
+  rval = mb.create_meshset(MESHSET_SET, file_set);
+  CHECK_ERR(rval);
+
+  // Get cell variable ke
+  opts += std::string(";VARIABLE=ke;");
+  // Create gather set
+  opts += std::string(";GATHER_SET=0;");
+  rval = mb.load_file(example, &file_set, opts.c_str());
+  CHECK_ERR(rval);
+
+#ifdef USE_MPI
+  ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
+  int procs = pcomm->proc_config().proc_size();
+
+  // Make check runs this test in one processor
+  if (1 == procs) {
+    Range cells, cells_owned;
+    rval = mb.get_entities_by_type(file_set, MBPOLYGON, cells);
+    CHECK_ERR(rval);
+
+    // Get locally owned cells
+    rval = pcomm->filter_pstatus(cells, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &cells_owned);
+    CHECK_ERR(rval);
+    CHECK_EQUAL((size_t)642, cells_owned.size());
+    CHECK_EQUAL((size_t)2, cells_owned.psize());
+
+    // Get gather set
+    EntityHandle gather_set;
+    ReadUtilIface* readUtilIface;
+    mb.query_interface(readUtilIface);
+    rval = readUtilIface->get_gather_set(gather_set);
+    CHECK_ERR(rval);
+
+    Tag ke_tag0, gid_tag;
+    rval = mb.tag_get_handle("ke0", 1, MB_TYPE_DOUBLE, ke_tag0, MB_TAG_DENSE);
+    CHECK_ERR(rval);
+
+    rval = mb.tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid_tag, MB_TAG_DENSE);
+    CHECK_ERR(rval);
+
+    pcomm->gather_data(cells_owned, ke_tag0, gid_tag, gather_set);
+
+    // Get gather set cells
+    Range gather_set_cells;
+    rval = mb.get_entities_by_type(gather_set, MBPOLYGON, gather_set_cells);
+    CHECK_EQUAL((size_t)642, gather_set_cells.size());
+    CHECK_EQUAL((size_t)2, gather_set_cells.psize());
+
+    const double eps = 1e-20;
+    double val[2];
+
+    // Check ke0 tag values on first pentagon and first hexagon of the gather set cells
+    EntityHandle cell_ents[] = {gather_set_cells[0], gather_set_cells[12]};
+    rval = mb.tag_get_data(ke_tag0, &cell_ents[0], 2, val);
+    CHECK_REAL_EQUAL(15.001, val[0], eps);
+    CHECK_REAL_EQUAL(16.013, val[1], eps);
+  }
+#endif
+}
+
+ErrorCode get_options(std::string& opts)
 {
 #ifdef USE_MPI
   // Use parallel options
