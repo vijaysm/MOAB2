@@ -65,7 +65,7 @@ AEntityFactory::~AEntityFactory()
   EntityType ent_type;
 
   // iterate through each element type
-  for (ent_type = MBVERTEX; ent_type != MBENTITYSET; ent_type++) {
+  for (ent_type = MBVERTEX; ent_type <= MBENTITYSET; ent_type++) {
     TypeSequenceManager::iterator i;
     TypeSequenceManager& seqman = thisMB->sequence_manager()->entity_map( ent_type );
     for (i = seqman.begin(); i != seqman.end(); ++i) {
