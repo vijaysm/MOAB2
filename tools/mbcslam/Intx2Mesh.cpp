@@ -1051,41 +1051,20 @@ ErrorCode Intx2Mesh::create_departure_mesh(EntityHandle & covering_lagr_set)
 
   return MB_SUCCESS;
 }
-
-ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, EntityHandle & covering_lagr_set)
+ErrorCode Intx2Mesh::build_processor_euler_boxes(Range & local_verts)
 {
-  // compute the bounding box on each proc
   parcomm = ParallelComm::get_pcomm(mb, 0);
   if (NULL==parcomm)
     return MB_FAILURE;
-
-  localEnts.clear();
-  ErrorCode rval = mb->get_entities_by_dimension(euler_set, 2, localEnts);
-  ERRORR(rval, "can't get ents by dimension");
-
-  Tag dpTag = 0;
-  std::string tag_name("DP");
-  rval = mb->tag_get_handle(tag_name.c_str(), 3, MB_TYPE_DOUBLE, dpTag, MB_TAG_DENSE);
-  ERRORR(rval, "can't get DP tag");
-  // get all local verts
-  Range local_verts;
-  rval = mb->get_connectivity(localEnts, local_verts);
   int num_local_verts = (int) local_verts.size();
-  ERRORR(rval, "can't get local vertices");
-
-  Tag gid;
-  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid, MB_TAG_DENSE);
-  ERRORR(rval,"can't get global ID tag" );
-  std::vector<int> gids(num_local_verts);
-  rval = mb->tag_get_data(gid, local_verts, &gids[0]);
-  ERRORR(rval, "can't get local vertices gids");
 
   // get the position of local vertices, and decide local boxes (allBoxes...)
   double bmin[3]={DBL_MAX, DBL_MAX, DBL_MAX};
   double bmax[3] ={-DBL_MAX, -DBL_MAX, -DBL_MAX};
 
   std::vector<double> coords(3*num_local_verts);
-  rval = mb->get_coords(local_verts, &coords[0]);
+  ErrorCode rval = mb->get_coords(local_verts, &coords[0]);
+  ERRORR(rval, "can't get coords of vertices ");
 
   for (int i=0; i< num_local_verts; i++)
   {
@@ -1124,14 +1103,46 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
     }
   }
 
+  return MB_SUCCESS;
+}
+ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, EntityHandle & covering_lagr_set)
+{
+  // compute the bounding box on each proc
+  parcomm = ParallelComm::get_pcomm(mb, 0);
+  if (NULL==parcomm)
+    return MB_FAILURE;
+
+  localEnts.clear();
+  ErrorCode rval = mb->get_entities_by_dimension(euler_set, 2, localEnts);
+  ERRORR(rval, "can't get ents by dimension");
+
+  Tag dpTag = 0;
+  std::string tag_name("DP");
+  rval = mb->tag_get_handle(tag_name.c_str(), 3, MB_TYPE_DOUBLE, dpTag, MB_TAG_DENSE);
+  ERRORR(rval, "can't get DP tag");
+  // get all local verts
+  Range local_verts;
+  rval = mb->get_connectivity(localEnts, local_verts);
+  int num_local_verts = (int) local_verts.size();
+  ERRORR(rval, "can't get local vertices");
+
+  rval = build_processor_euler_boxes(local_verts);
+  ERRORR(rval, "can't build processor boxes");
+  Tag gid;
+  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid, MB_TAG_DENSE);
+  ERRORR(rval,"can't get global ID tag" );
+  std::vector<int> gids(num_local_verts);
+  rval = mb->tag_get_data(gid, local_verts, &gids[0]);
+  ERRORR(rval, "can't get local vertices gids");
 
   // now see the departure points; to what boxes should we send them?
   std::vector<double> dep_points(3*num_local_verts);
   rval = mb->tag_get_data(dpTag, local_verts, (void*)&dep_points[0]);
   ERRORR(rval, "can't get DP tag values");
   // ranges to send to each processor; will hold vertices and elements (quads?)
-  // will look if the box of the dep quad covers box of of euler mesh on proc (with tolerances)
+  // will look if the box of the dep quad covers box of euler mesh on proc (with tolerances)
   std::map<int, Range> Rto;
+  int numprocs=parcomm->proc_config().proc_size();
 
   for (Range::iterator eit = localEnts.begin(); eit!=localEnts.end(); eit++)
   {

@@ -91,6 +91,8 @@ public:
 
   ErrorCode create_departure_mesh_2nd_alg(EntityHandle & euler_set, EntityHandle & covering_lagr_set);
 
+  ErrorCode build_processor_euler_boxes(Range & local_verts);
+
   void correct_polygon(EntityHandle * foundIds, int & nP);
 
   ErrorCode correct_intersection_points_positions();
