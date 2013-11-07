@@ -11,18 +11,21 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I$(top_srcdir)/src \
                -I$(top_srcdir)/src/parallel \
                -I$(top_srcdir)/src/io/mhdf/include
-               
+
 if ENABLE_mbcoupler
   AM_CPPFLAGS += -I$(top_srcdir)/tools/mbcoupler \
                  -I$(top_srcdir)/itaps \
                  -I$(top_srcdir)/itaps/imesh \
                  -I$(top_builddir)/itaps/imesh \
-                 -I$(top_srcdir)/src/moab/point_locater/lotte 
-  
+                 -I$(top_srcdir)/src/moab/point_locater/lotte
 endif
 
 if ENABLE_mbcslam
   AM_CPPFLAGS += -I$(top_srcdir)/tools/mbcslam
+endif
+
+if ENABLE_mbzoltan
+  AM_CPPFLAGS += -DHAVE_ZOLTAN
 endif
 
 # Run parallel tests in parallel
