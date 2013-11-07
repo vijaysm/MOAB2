@@ -899,7 +899,7 @@ namespace moab {
     //! get the verbosity level of output from this pcomm
     int get_debug_verbosity();
 
-    /* \brief Gather tag value from entities down to root proc
+    /* \brief Gather tag value from entities down to a specified root proc
      * This function gathers data from a domain-decomposed mesh onto a global mesh
      * represented on the root processor.  On the root, this gather mesh is distinct from
      * the root's domain-decomposed subdomain.  Entities are matched by global id, or by
@@ -910,9 +910,10 @@ namespace moab {
      * \param tag_handle Tag whose values are being gathered
      * \param id_tag Tag to use for matching entities (global id used by default)
      * \param gather_set On root, set containing global mesh onto which to put data
+     * \param root_proc_rank Rank of the specified root processor (default rank is 0)
      */
     ErrorCode gather_data(Range &gather_ents, Tag &tag_handle, 
-			  Tag id_tag = 0, EntityHandle gather_set = 0);
+			  Tag id_tag = 0, EntityHandle gather_set = 0, int root_proc_rank = 0);
 
     /* \brief communicate extra points positions on boundary
      * This function is called after intersection of 2 meshes, to settle the
