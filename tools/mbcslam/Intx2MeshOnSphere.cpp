@@ -519,7 +519,7 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
   Range::iterator iter = rs2.begin();
   void * data=NULL; //used for stored area
   int count =0;
-  double total_mass_current=0.;
+  double total_mass_local=0.;
   while (iter != rs2.end())
   {
     rval = mb->tag_iterate(tagArea, iter, rs2.end(), count, data);
@@ -527,13 +527,18 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
     double * ptrArea=(double*)data;
     for (int i=0; i<count; i++, iter++, j++, ptrArea++)
     {
-      total_mass_current+=newValues[j];
+      total_mass_local+=newValues[j];
       newValues[j]/= (*ptrArea);
     }
   }
   rval = mb->tag_set_data(tagElem, rs2, &newValues[0]);
   ERRORR(rval, "can't set new values tag");
-  std::cout <<"total mass now:" << total_mass_current << "\n";
+
+  double total_mass=0.;
+  int mpi_err = MPI_Reduce(&total_mass_local, &total_mass, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
+  if (my_rank==0)
+    std::cout <<"total mass now:" << total_mass << "\n";
 
   if (remote_cells)
   {

@@ -52,6 +52,7 @@ int case_number = 1; // 1, 2 (non-divergent) 3 divergent
 
 moab::Tag corrTag;
 bool noWrite = false;
+bool parallelWrite = false;
 int field_type = 1 ; // 1 quasi smooth, 2 - smooth, 3 non-smooth,
 #ifdef MESHDIR
 std::string TestDir( STRINGIFY(MESHDIR) );
@@ -167,7 +168,7 @@ ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag 
 
 
   Range::iterator iter = polygons.begin();
-  double total_mass = 0.;
+  double local_mass = 0.; // this is total mass on one proc
   while (iter != polygons.end())
   {
     rval = mb->tag_iterate(tagElem, iter, polygons.end(), count, data);
@@ -203,18 +204,16 @@ ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag 
 
       // we should have used some
       // total mass:
-      total_mass += *ptrArea * average;
+      local_mass += *ptrArea * average;
     }
 
   }
+  double total_mass=0.;
+  int mpi_err = MPI_Reduce(&local_mass, &total_mass, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
 
-  std::stringstream iniPos;
-  iniPos<< "Tracer" << rank<<"_"<<0<<  ".vtk";// first time step
-
-  rval = mb->write_file(iniPos.str().c_str(), 0, 0, &euler_set, 1);
-  CHECK_ERR(rval);
-
-  std::cout << "initial total mass:" << total_mass << "\n";
+  if (rank==0)
+    std::cout << "initial total mass:" << total_mass << "\n";
 
   // now we can delete the tags? not yet
   return MB_SUCCESS;
@@ -261,10 +260,13 @@ ErrorCode compute_velocity_case1(Interface * mb, EntityHandle euler_set, Tag & t
     // increment to the next node
     ptr_velo+=3;// to next velocity
   }
-  std::stringstream velos;
-  velos<<"Tracer" << rank<<"_"<<tStep<<  ".vtk";
-  rval = mb->write_file(velos.str().c_str(), 0, 0, &euler_set, 1);
-  CHECK_ERR(rval);
+  if (!noWrite)
+  {
+    std::stringstream velos;
+    velos<<"Tracer" << rank<<"_"<<tStep<<  ".vtk";
+    rval = mb->write_file(velos.str().c_str(), 0, 0, &euler_set, 1, &tagh, 1);
+    CHECK_ERR(rval);
+  }
 
   return MB_SUCCESS;
 }
@@ -420,8 +422,21 @@ ErrorCode compute_tracer_case1(Interface * mb, Intx2MeshOnSphere & worker, Entit
   // serially: lagr is the same order as euler;
   // we need to update now the tracer information on each element, based on
   // initial value and areas of each resulting polygons
+  if (parallelWrite && tStep==1)
+  {
+    std::stringstream resTrace;
+    resTrace << "Tracer" << "_" << tStep-1 << ".h5m";
+    rval = mb->write_file(resTrace.str().c_str(), 0, "PARALLEL=WRITE_PART", &euler_set, 1, &tagElem, 1);
+  }
   rval = worker.update_tracer_data(out_set, tagElem, tagArea);
   CHECK_ERR(rval);
+
+  if (parallelWrite)
+  {
+    std::stringstream resTrace;
+    resTrace << "Tracer" << "_" << tStep << ".h5m";
+    rval = mb->write_file(resTrace.str().c_str(), 0, "PARALLEL=WRITE_PART", &euler_set, 1, &tagElem, 1);
+  }
 
   if (!noWrite) // so if write
   {
@@ -459,7 +474,8 @@ ErrorCode compute_tracer_case1(Interface * mb, Intx2MeshOnSphere & worker, Entit
   CHECK_ERR(rval);
   rval = mb->delete_entities(todeleteVerts);
   CHECK_ERR(rval);
-  std::cout << " step: " << tStep << "\n";
+  if (rank==0)
+    std::cout << " step: " << tStep << "\n";
   return rval;
 }
 int main(int argc, char **argv)
@@ -503,6 +519,11 @@ int main(int argc, char **argv)
       if (!strcmp(argv[index], "-nw"))
       {
         noWrite = true;
+      }
+
+      if (!strcmp(argv[index], "-pw"))
+      {
+        parallelWrite = true;
       }
 
       if (!strcmp(argv[index], "-h"))
@@ -630,7 +651,12 @@ int main(int argc, char **argv)
       norm1+=fabs(*ptrTracer - iniVals[j])* (*ptrArea);
     }
   }
-  std::cout << " numSteps:" << numSteps << " 1-norm:" << norm1 << "\n";
+
+  double total_norm1=0;
+  int mpi_err = MPI_Reduce(&norm1, &total_norm1, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  if (MPI_SUCCESS != mpi_err) return 1;
+  if (0==rank)
+    std::cout << " numSteps:" << numSteps << " 1-norm:" << norm1 << "\n";
   MPI_Finalize();
   return 0;
 }
