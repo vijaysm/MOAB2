@@ -8728,7 +8728,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
   }
 
   ErrorCode ParallelComm::gather_data(Range &gather_ents, Tag &tag_handle, 
-				      Tag id_tag, EntityHandle gather_set) 
+				      Tag id_tag, EntityHandle gather_set, int root_proc_rank)
   {
     int dim = mbImpl->dimension_from_handle(*gather_ents.begin());
     int bytes_per_tag = 0;
@@ -8743,7 +8743,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     ptr_int = (int*)(senddata) + 1 + gather_ents.size();
     rval = mbImpl->tag_get_data(tag_handle, gather_ents, (void*)ptr_int);
     std::vector<int> displs(proc_config().proc_size(), 0);
-    MPI_Gather(&sz_buffer, 1, MPI_INT, &displs[0], 1, MPI_INT, 0, comm());
+    MPI_Gather(&sz_buffer, 1, MPI_INT, &displs[0], 1, MPI_INT, root_proc_rank, comm());
     std::vector<int> recvcnts(proc_config().proc_size(), 0);
     std::copy(displs.begin(), displs.end(), recvcnts.begin());
     std::partial_sum(displs.begin(), displs.end(), displs.begin());
@@ -8752,14 +8752,14 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     //std::copy_backward(displs.begin(), --displs.end(), displs.end());
     displs[0] = 0;
 
-    if (rank() != 0)
-      MPI_Gatherv(senddata, sz_buffer, MPI_BYTE, NULL, NULL, NULL, MPI_BYTE, 0, comm());
+    if ((int)rank() != root_proc_rank)
+      MPI_Gatherv(senddata, sz_buffer, MPI_BYTE, NULL, NULL, NULL, MPI_BYTE, root_proc_rank, comm());
     else {
       Range gents;
       mbImpl->get_entities_by_dimension(gather_set, dim, gents);
       int recvbuffsz = gents.size() * (bytes_per_tag + sizeof(int)) + proc_config().proc_size() * sizeof(int);
       void* recvbuf = malloc(recvbuffsz);
-      MPI_Gatherv(senddata, sz_buffer, MPI_BYTE, recvbuf, &recvcnts[0], &displs[0], MPI_BYTE, 0, comm());
+      MPI_Gatherv(senddata, sz_buffer, MPI_BYTE, recvbuf, &recvcnts[0], &displs[0], MPI_BYTE, root_proc_rank, comm());
 
       void* gvals = NULL;
 
@@ -8772,13 +8772,15 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
         rval = mbImpl->tag_iterate(tag_handle, gents.begin(), gents.end(), count, gvals);
         assert(NULL != gvals);
         assert(count > 0);
-        if ((size_t)count != gents.size())
+        if ((size_t)count != gents.size()) {
           multiple_sequences = true;
+          gvals = NULL;
+        }
       }
 
       // If gents has multiple sequences, create a temp buffer for gathered values
       if (multiple_sequences) {
-        gvals = new (std::nothrow) char[gents.size() * bytes_per_tag];
+        gvals = malloc(gents.size() * bytes_per_tag);
         assert(NULL != gvals);
       }
 
@@ -8809,8 +8811,8 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
         }
         assert(start_idx == gents.size());
 
-        // Delete the temp buffer
-        delete[] (char*)gvals;
+        // Free the temp buffer
+        free(gvals);
       }
     }
 

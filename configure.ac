@@ -698,7 +698,7 @@ if test "xyes" = "x$WITH_ZOLTAN"; then
                   [#include <stdlib.h>])
   CPPFLAGS="$old_CPPFLAGS"
   AC_LANG_POP([C++])
-  
+
     # Build LDFLAGS for Zoltan
   found=no
   if test "x" != "x$ZOLTAN_DIR"; then
@@ -720,7 +720,7 @@ if test "xyes" = "x$WITH_ZOLTAN"; then
       ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR"
     fi
   fi
-  
+
     # Test for Zoltan library, possibly requiring parmetis
   old_LDFLAGS="$LDFLAGS"
   LDFLAGS="$LDFLAGS $ZOLTAN_LIB_FLAGS"
@@ -731,7 +731,9 @@ if test "xyes" = "x$WITH_ZOLTAN"; then
                   [AC_MSG_ERROR([zoltan library not found or not usable.  Perhaps you need to specify --with-parmetis=@<:@DIR@:>@?])],
                   [-lparmetis -lmetis])])
   LDFLAGS="$old_LDFLAGS"
-  
+
+    # Define macro HAVE_ZOLTAN
+  AM_CPPFLAGS="$AM_CPPFLAGS -DHAVE_ZOLTAN"  
 fi
 
 AC_SUBST(ZOLTAN_LIBS)
