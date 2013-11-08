@@ -24,10 +24,6 @@ if ENABLE_mbcslam
   AM_CPPFLAGS += -I$(top_srcdir)/tools/mbcslam
 endif
 
-if ENABLE_mbzoltan
-  AM_CPPFLAGS += -DHAVE_ZOLTAN
-endif
-
 # Run parallel tests in parallel
 if USE_MPIEXEC
   LOG_COMPILER = ${MPIEXEC}
