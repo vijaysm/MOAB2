@@ -16,14 +16,14 @@ static const char example[] = STRINGIFY(MESHDIR) "/io/mpasx1.642.t.2.nc";
 
 void test_read_onevar_trivial();
 void test_read_onevar_trivial_no_mixed_elements();
-#if defined(USE_MPI) && defined(PNETCDF_FILE) && defined(HAVE_ZOLTAN)
+#if defined(USE_MPI) && defined(HAVE_ZOLTAN)
 void test_read_onevar_rcbzoltan();
 void test_read_onevar_rcbzoltan_no_mixed_elements();
 #endif
 
 void test_read_mesh_parallel_trivial();
 void test_read_mesh_parallel_trivial_no_mixed_elements();
-#if defined(USE_MPI) && defined(PNETCDF_FILE) && defined(HAVE_ZOLTAN)
+#if defined(USE_MPI) && defined(HAVE_ZOLTAN)
 void test_read_mesh_parallel_rcbzoltan();
 void test_read_mesh_parallel_rcbzoltan_no_mixed_elements();
 #endif
@@ -50,14 +50,14 @@ int main(int argc, char* argv[])
 
   result += RUN_TEST(test_read_onevar_trivial);
   result += RUN_TEST(test_read_onevar_trivial_no_mixed_elements);
-#if defined(USE_MPI) && defined(PNETCDF_FILE) && defined(HAVE_ZOLTAN)
+#if defined(USE_MPI) && defined(HAVE_ZOLTAN)
   result += RUN_TEST(test_read_onevar_rcbzoltan);
   result += RUN_TEST(test_read_onevar_rcbzoltan_no_mixed_elements);
 #endif
 
   result += RUN_TEST(test_read_mesh_parallel_trivial);
   result += RUN_TEST(test_read_mesh_parallel_trivial_no_mixed_elements);
-#if defined(USE_MPI) && defined(PNETCDF_FILE) && defined(HAVE_ZOLTAN)
+#if defined(USE_MPI) && defined(HAVE_ZOLTAN)
   result += RUN_TEST(test_read_mesh_parallel_rcbzoltan);
   result += RUN_TEST(test_read_mesh_parallel_rcbzoltan_no_mixed_elements);
 #endif
