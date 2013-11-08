@@ -11,6 +11,7 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <map>
 #include <time.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -91,7 +92,16 @@ public:
 
   ErrorCode create_departure_mesh_2nd_alg(EntityHandle & euler_set, EntityHandle & covering_lagr_set);
 
-  ErrorCode build_processor_euler_boxes(Range & local_verts);
+  // in this method, used in parallel, each departure elements are already created, and at their positions
+  // the covering_set is output, will contain the departure cells that cover the euler set; some of these
+  // departure cells might come from different processors
+  // so the covering_set contains some elements from lagr_set and some elements that come from other procs
+  // we need to keep track of what processors "sent" the elements so we know were to
+  // send back the info about the tracers masses
+
+  ErrorCode create_departure_mesh_3rd_alg(EntityHandle & lagr_set, EntityHandle & covering_set);
+
+  ErrorCode build_processor_euler_boxes(EntityHandle euler_set, Range & local_verts);
 
   void correct_polygon(EntityHandle * foundIds, int & nP);
 
@@ -147,9 +157,14 @@ protected: // so it can be accessed in derived classes, InPlane and OnSphere
   double box_error;
   /* \brief Local root of the kdtree */
   EntityHandle localRoot;
-  Range localEnts;// this range is for local elements of interest
+  Range localEnts;// this range is for local elements of interest, euler cells
 
   unsigned int my_rank;
+
+  int max_edges; // maximum number of edges in the euler set
+
+  TupleList * remote_cells;
+  std::map<int, EntityHandle> globalID_to_eh;// needed for parallel, mostly
 
 };
 

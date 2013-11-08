@@ -278,6 +278,12 @@ ErrorCode  create_lagr_mesh(Interface * mb, EntityHandle euler_set, EntityHandle
                                            1, MB_TYPE_HANDLE, corrTag,
                                            MB_TAG_DENSE|MB_TAG_CREAT, &dum);
   CHECK_ERR(rval);
+
+  // give the same global id to new verts and cells created in the lagr(departure) mesh
+  Tag gid;
+  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid, MB_TAG_DENSE);
+  CHECK_ERR(rval);
+
   Range polys;
   rval = mb->get_entities_by_dimension(euler_set, 2, polys);
   CHECK_ERR(rval);
@@ -293,6 +299,9 @@ ErrorCode  create_lagr_mesh(Interface * mb, EntityHandle euler_set, EntityHandle
     CartVect posi;
     rval = mb->get_coords(&oldV, 1, &(posi[0]));
     CHECK_ERR(rval);
+    int global_id;
+    rval = mb->tag_get_data(gid, &oldV, 1, &global_id);
+    CHECK_ERR(rval);
     EntityHandle new_vert;
     rval = mb->create_vertex(&(posi[0]), new_vert); // duplicate the position
     CHECK_ERR(rval);
@@ -303,6 +312,10 @@ ErrorCode  create_lagr_mesh(Interface * mb, EntityHandle euler_set, EntityHandle
     // also the other side
     rval = mb->tag_set_data(corrTag, &new_vert, 1, &oldV);
     CHECK_ERR(rval);
+    // set the global id
+    rval = mb->tag_set_data(gid, &new_vert, 1, &global_id);
+    CHECK_ERR(rval);
+
   }
   for (Range::iterator it = polys.begin(); it != polys.end(); it++)
   {
@@ -310,6 +323,9 @@ ErrorCode  create_lagr_mesh(Interface * mb, EntityHandle euler_set, EntityHandle
     int nnodes;
     const EntityHandle * conn;
     rval = mb->get_connectivity(q, conn, nnodes);
+    CHECK_ERR(rval);
+    int global_id;
+    rval = mb->tag_get_data(gid, &q, 1, &global_id);
     CHECK_ERR(rval);
     EntityType typeElem = mb->type_from_handle(q);
     std::vector<EntityHandle> new_conn(nnodes);
@@ -326,6 +342,9 @@ ErrorCode  create_lagr_mesh(Interface * mb, EntityHandle euler_set, EntityHandle
     CHECK_ERR(rval);
     rval = mb->tag_set_data(corrTag, &newElement, 1, &q);
     CHECK_ERR(rval);
+    // set the global id
+    rval = mb->tag_set_data(gid, &newElement, 1, &global_id);
+    CHECK_ERR(rval);
 
     rval = mb->add_entities(lagr_set, &newElement, 1);
     CHECK_ERR(rval);
@@ -333,9 +352,9 @@ ErrorCode  create_lagr_mesh(Interface * mb, EntityHandle euler_set, EntityHandle
 
   return MB_SUCCESS;
 }
-ErrorCode compute_tracer_case1(Interface * mb, EntityHandle euler_set,
+ErrorCode compute_tracer_case1(Interface * mb, Intx2MeshOnSphere & worker, EntityHandle euler_set,
     EntityHandle lagr_set, EntityHandle out_set, Tag & tagElem, Tag & tagArea, int rank,
-    int tStep)
+    int tStep, Range & connecVerts)
 {
   ErrorCode rval = MB_SUCCESS;
 
@@ -346,11 +365,6 @@ ErrorCode compute_tracer_case1(Interface * mb, EntityHandle euler_set,
   Range polys;
   rval = mb->get_entities_by_dimension(euler_set, 2, polys);
   CHECK_ERR(rval);
-
-  Range connecVerts;
-  rval = mb->get_connectivity(polys, connecVerts);
-  CHECK_ERR(rval);
-
 
   // change coordinates of lagr mesh vertices
   for (Range::iterator vit = connecVerts.begin(); vit != connecVerts.end();
@@ -372,17 +386,37 @@ ErrorCode compute_tracer_case1(Interface * mb, EntityHandle euler_set,
     CHECK_ERR(rval);
   }
 
+  // if in parallel, we have to move some elements to another proc, and receive other cells
+  // from other procs
+  // lagr and euler are preserved
+  EntityHandle covering_set;
+  rval = worker.create_departure_mesh_3rd_alg(lagr_set, covering_set);
+  if (!noWrite) // so if write
+  {
+    std::stringstream newTracer;
+    newTracer << "Tracer" << rank << "_" << tStep << ".vtk";
+    rval = mb->write_file(newTracer.str().c_str(), 0, 0, &euler_set, 1);
+
+    std::stringstream lagr_cover;
+    lagr_cover << "Cover" << rank << "_" << tStep << ".vtk";
+    rval = mb->write_file(lagr_cover.str().c_str(), 0, 0, &covering_set, 1);
+
+  }
   // so we have now the departure at the previous time
   // intersect the 2 meshes (what about some checking of convexity?) for sufficient
   // small dt, it is not an issue;
-  Intx2MeshOnSphere worker(mb);
-  worker.SetRadius(radius);
 
-  worker.SetErrorTolerance(gtol);
   // std::cout << "error tolerance epsilon_1=" << gtol << "\n";
 
-  rval = worker.intersect_meshes(lagr_set, euler_set, out_set);
+  rval = worker.intersect_meshes(covering_set, euler_set, out_set);
   CHECK_ERR(rval);
+  if (!noWrite) // so if write
+  {
+    std::stringstream intx_mesh;
+    intx_mesh << "Intx" << rank << "_" << tStep << ".vtk";
+    rval = mb->write_file(intx_mesh.str().c_str(), 0, 0, &out_set, 1);
+  }
+
   // serially: lagr is the same order as euler;
   // we need to update now the tracer information on each element, based on
   // initial value and areas of each resulting polygons
@@ -391,11 +425,6 @@ ErrorCode compute_tracer_case1(Interface * mb, EntityHandle euler_set,
 
   if (!noWrite) // so if write
   {
-    std::stringstream newTracer;
-    newTracer << "Tracer" << rank << "_" << tStep << ".vtk";
-    rval = mb->write_file(newTracer.str().c_str(), 0, 0, &euler_set, 1);
-    CHECK_ERR(rval);
-
     std::stringstream newIntx;
     newIntx << "newIntx" << rank << "_" << tStep << ".vtk";
     rval = mb->write_file(newIntx.str().c_str(), 0, 0, &out_set, 1);
@@ -414,9 +443,11 @@ ErrorCode compute_tracer_case1(Interface * mb, EntityHandle euler_set,
   rval = mb->get_entities_by_dimension(lagr_set, 2, polys); // do not delete lagr set either, with its vertices
   CHECK_ERR(rval);
  // add to the connecVerts range all verts, from all initial polys
-  rval = mb->get_connectivity(polys, connecVerts);
+  Range vertsToStay;
+  rval = mb->get_connectivity(polys, vertsToStay);
   CHECK_ERR(rval);
-  Range todeleteVerts = subtract(allVerts, connecVerts);
+
+  Range todeleteVerts = subtract(allVerts, vertsToStay);
 
   Range todeleteElem = subtract(allElems, polys);
 
@@ -549,16 +580,31 @@ int main(int argc, char **argv)
 
   rval = create_lagr_mesh(&mb, euler_set, lagr_set);
   CHECK_ERR(rval);
+
+  Intx2MeshOnSphere worker(&mb);
+  worker.SetRadius(radius);
+
+  worker.SetErrorTolerance(gtol);
+
+  Range local_verts;
+  rval = worker.build_processor_euler_boxes(euler_set, local_verts);// output also the local_verts
+  // these stay fixed for one run
+  // other things from intersection might need to change, like input blue set (departure set)
+  // so we need also a method to clean memory
+  CHECK_ERR(rval);
+
   for (int i=1; i<numSteps+1; i++)
   {
     // time depends on i; t = i*T/numSteps: ( 0, T/numSteps, 2*T/numSteps, ..., T )
+    // this is really just to create some plots; it is not really needed to proceed
+    // the compute_tracer_case1 method actually computes the departure point position
     rval = compute_velocity_case1(&mb, euler_set, tagh, rank, i);
     CHECK_ERR(rval);
 
     // this is to actually compute concentrations, using the current concentrations
     //
-    rval = compute_tracer_case1(&mb, euler_set, lagr_set, out_set,
-        tagElem, tagArea, rank, i);
+    rval = compute_tracer_case1(&mb, worker, euler_set, lagr_set, out_set,
+        tagElem, tagArea, rank, i, local_verts);
     CHECK_ERR(rval);
 
   }
@@ -585,5 +631,6 @@ int main(int argc, char **argv)
     }
   }
   std::cout << " numSteps:" << numSteps << " 1-norm:" << norm1 << "\n";
+  MPI_Finalize();
   return 0;
 }
