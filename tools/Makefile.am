@@ -133,8 +133,8 @@ noinst_PROGRAMS = $(parread)
 SUBDIRS = . \
           $(refiner_DIR) \
           $(mbcoupler_DIR) \
-          $(mbzoltan_DIR) \
           $(mbcslam_DIR) \
+          $(mbzoltan_DIR) \
 	  $(mcnpmit_DIR) \
           $(qvdual_DIR) \
 	  $(vtkMOABReader_DIR) \

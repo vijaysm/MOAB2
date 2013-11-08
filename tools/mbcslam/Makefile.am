@@ -17,7 +17,7 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_builddir)/itaps/imesh \
                -I$(top_srcdir)/test 
 if ENABLE_mbzoltan
-  AM_CPPFLAGS +=  $(ZOLTAN_INC_FLAGS) -DHAVE_ZOLTAN \
+  AM_CPPFLAGS +=  $(ZOLTAN_INC_FLAGS) \
                -I$(top_srcdir)/tools/mbzoltan \
                -I$(top_builddir)/tools/mbzoltan
 if HAVE_CGM
