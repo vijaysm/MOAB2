@@ -15,6 +15,8 @@
 #define MAXEDGES 10
 #define MAXEDGES2 20 // used for coordinates in plane
 
+#define CORRTAGNAME "__correspondent"
+
 namespace moab
 {
 double dist2(double * a, double * b);

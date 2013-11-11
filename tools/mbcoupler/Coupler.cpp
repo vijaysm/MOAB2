@@ -416,11 +416,17 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
   unsigned int local_pts = 0;
   for (unsigned int i = 0; i < source_pts.get_n(); i++) {
     if (-1 != source_pts.vi_rd[3*i+2]) { //why bother sending message saying "i don't have the point" if it gets discarded?
-      //if (source_pts.vi_rd[3*i] == (int)my_rank) local_pts++;
       int tgt_index = 3*source_pts.vi_rd[3*i+1];
-      tl_tmp->vi_wr[tgt_index]   = source_pts.vi_rd[3*i];
-      tl_tmp->vi_wr[tgt_index+1] = source_pts.vi_rd[3*i+1];
-      tl_tmp->vi_wr[tgt_index+2] = source_pts.vi_rd[3*i+2];
+      // prefer always entities that are local, from the source_pts
+      // if a local entity was already found to contain the target point, skip
+      // tl_tmp->vi_wr[tgt_index] is -1 initially, but it could already be set with
+      // a remote processor
+      if (tl_tmp->vi_wr[tgt_index] != (int)my_rank)
+      {
+        tl_tmp->vi_wr[tgt_index]   = source_pts.vi_rd[3*i];
+        tl_tmp->vi_wr[tgt_index+1] = source_pts.vi_rd[3*i+1];
+        tl_tmp->vi_wr[tgt_index+2] = source_pts.vi_rd[3*i+2];
+      }
     }
   }
 

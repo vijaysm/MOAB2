@@ -112,6 +112,10 @@ int main(int argc, char* argv[])
   bool print_time = false;
   opts.addOpt<void>(",T", "Print CPU time for each phase.", &print_time);
 
+  bool spherical_coords = false;
+  opts.addOpt<void>("project_on_sphere,s",
+      "use spherical coordinates for partitioning ", &spherical_coords);
+
   opts.parseCommandLine(argc, argv);
 
   MBZoltan *tool = NULL;
@@ -263,7 +267,7 @@ int main(int argc, char* argv[])
         zoltan_method.c_str(),
         (!parm_method.empty() ? parm_method.c_str() : oct_method.c_str()),
         imbal_tol, !no_write_sets, write_tags, part_dim, obj_weight,
-        edge_weight, part_surf, ghost, print_time);
+        edge_weight, part_surf, ghost, print_time, spherical_coords);
     if (MB_SUCCESS != rval)
     {
       std::cerr << "Partitioner failed!" << std::endl;

@@ -6,6 +6,8 @@
 
 #include "Intx2MeshOnSphere.hpp"
 #include "moab/GeomUtil.hpp"
+#include "MBTagConventions.hpp"
+#include "moab/ParallelComm.hpp"
 #include <queue>
 
 namespace moab {
@@ -416,14 +418,30 @@ bool Intx2MeshOnSphere::is_inside_element(double xyz[3], EntityHandle eh)
   return false;
 }
 
-ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagElem)
+ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagElem, Tag & tagArea)
 {
+  EntityHandle dum = 0;
+
+  Tag corrTag;
+  ErrorCode rval = mb->tag_get_handle(CORRTAGNAME,
+                                           1, MB_TYPE_HANDLE, corrTag,
+                                           MB_TAG_DENSE, &dum); // it should have been created
+  ERRORR(rval, "can't get correlation tag");
+
+  Tag gid;
+  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid, MB_TAG_DENSE);
+  ERRORR(rval,"can't get global ID tag" );
+
   // get all polygons out of out_set; then see where are they coming from
   Range polys;
-  ErrorCode rval = mb->get_entities_by_dimension(out_set, 2, polys);
+  rval = mb->get_entities_by_dimension(out_set, 2, polys);
   ERRORR(rval, "can't get polygons out");
 
-  // rs2 is the red rage, arrival; rs1 is blue, departure;
+  // rs2 is the red range, arrival; rs1 is blue, departure;
+  // there is a connection between rs1 and rs2, through the corrTag
+  // corrTag is __correlation
+  // basically, mb->tag_get_data(corrTag, &(redPoly), 1, &bluePoly);
+  // also,  mb->tag_get_data(corrTag, &(bluePoly), 1, &redPoly);
   // we start from rs2 existing, then we have to update something
   std::vector<double>  currentVals(rs2.size());
   rval = mb->tag_get_data(tagElem, rs2, &currentVals[0]);
@@ -440,25 +458,93 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
     int blueIndex, redIndex;
     rval =  mb->tag_get_data(blueParentTag, &poly, 1, &blueIndex);
     ERRORR(rval, "can't get blue tag");
-    //EntityHandle blue = rs1[blueIndex];
+    EntityHandle blue = rs1[blueIndex];
     rval =  mb->tag_get_data(redParentTag, &poly, 1, &redIndex);
     ERRORR(rval, "can't get red tag");
     //EntityHandle red = rs2[redIndex];
     // big assumption here, red and blue are "parallel" ;we should have an index from
     // blue to red (so a deformed blue corresponds to an arrival red)
     double areap = area_spherical_element(mb, poly, R);
-    newValues[blueIndex] += currentVals[redIndex]*areap;
+    // so the departure cell at time t (blueIndex) covers a portion of a redCell
+    // that quantity will be transported to the redCell at time t+dt
+    // the blue corresponds to a red arrival
+    EntityHandle redArr;
+    rval = mb->tag_get_data(corrTag, &blue, 1, &redArr);
+    if (0==redArr || MB_TAG_NOT_FOUND==rval)
+    {
+      if (!remote_cells)
+        ERRORR( MB_FAILURE, "no remote cells, failure\n");
+      // maybe the element is remote, from another processor
+      int global_id_blue;
+      rval = mb->tag_get_data(gid, &blue, 1, &global_id_blue);
+      ERRORR(rval, "can't get arrival red for corresponding blue gid");
+      // find the
+      int index_in_remote = remote_cells->find(1, global_id_blue);
+      if (index_in_remote==-1)
+        ERRORR( MB_FAILURE, "can't find the global id element in remote cells\n");
+      remote_cells->vr_wr[index_in_remote] += currentVals[redIndex]*areap;
+    }
+    else if (MB_SUCCESS==rval)
+    {
+      int arrRedIndex = rs2.index(redArr);
+      if (-1 == arrRedIndex)
+        ERRORR(MB_FAILURE, "can't find the red arrival index");
+      newValues[arrRedIndex] += currentVals[redIndex]*areap;
+    }
+
+    else
+      ERRORR(rval, "can't get arrival red for corresponding ");
   }
+  // now, send back the remote_cells to the processors they came from, with the updated values for
+  // the tracer mass in a cell
+  if (remote_cells)
+  {
+    // so this means that some cells will be sent back with tracer info to the procs they were sent from
+    (parcomm->proc_config().crystal_router())->gs_transfer(1, *remote_cells, 0);
+    // now, look at the global id, find the proper "red" cell with that index and update its mass
+    //remote_cells->print("remote cells after routing");
+    int n = remote_cells->get_n();
+    for (int j=0; j<n; j++)
+    {
+      EntityHandle redCell = remote_cells->vul_rd[j];// entity handle sent back
+      int arrRedIndex = rs2.index(redCell);
+      if (-1 == arrRedIndex)
+        ERRORR(MB_FAILURE, "can't find the red arrival index");
+      newValues[arrRedIndex] += remote_cells->vr_rd[j];
+    }
+  }
+
   // now divide by red area (current)
   int j=0;
-  for (Range::iterator it=rs2.begin(); it!=rs2.end(); it++, j++ )
+  Range::iterator iter = rs2.begin();
+  void * data=NULL; //used for stored area
+  int count =0;
+  double total_mass_local=0.;
+  while (iter != rs2.end())
   {
-    EntityHandle red = *it;
-    double areaRed = area_spherical_element(mb, red, R);
-    newValues[j]/=areaRed;
+    rval = mb->tag_iterate(tagArea, iter, rs2.end(), count, data);
+    ERRORR(rval, "can't tag iterate");
+    double * ptrArea=(double*)data;
+    for (int i=0; i<count; i++, iter++, j++, ptrArea++)
+    {
+      total_mass_local+=newValues[j];
+      newValues[j]/= (*ptrArea);
+    }
   }
   rval = mb->tag_set_data(tagElem, rs2, &newValues[0]);
   ERRORR(rval, "can't set new values tag");
+
+  double total_mass=0.;
+  int mpi_err = MPI_Reduce(&total_mass_local, &total_mass, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
+  if (my_rank==0)
+    std::cout <<"total mass now:" << total_mass << "\n";
+
+  if (remote_cells)
+  {
+    delete remote_cells;
+    remote_cells=NULL;
+  }
   return MB_SUCCESS;
 }
 } /* namespace moab */

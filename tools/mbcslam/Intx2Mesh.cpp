@@ -18,11 +18,16 @@
 
 namespace moab {
 
-Intx2Mesh::Intx2Mesh(Interface * mbimpl):mb(mbimpl), parcomm(NULL), myTree(NULL)
+Intx2Mesh::Intx2Mesh(Interface * mbimpl):mb(mbimpl), parcomm(NULL), myTree(NULL), remote_cells(NULL)
 {
   dbg_1=0;
   box_error=0;
   my_rank=0;
+  BlueFlagTag=0;
+  RedFlagTag=0;
+  redParentTag =0;
+  blueParentTag = 0;
+  countTag = 0;
 }
 
 Intx2Mesh::~Intx2Mesh()
@@ -31,6 +36,15 @@ Intx2Mesh::~Intx2Mesh()
 }
 void Intx2Mesh::createTags()
 {
+  if (redParentTag)
+    mb->tag_delete(redParentTag);
+  if(blueParentTag)
+    mb->tag_delete(blueParentTag);
+  if (countTag)
+    mb->tag_delete(countTag);
+    /*RedEdges.clear();
+    localEnts.clear()*/
+
   unsigned char def_data_bit = 0; // unused by default
   ErrorCode rval = mb->tag_get_handle("blueFlag", 1, MB_TYPE_BIT, BlueFlagTag,
       MB_TAG_CREAT, &def_data_bit);
@@ -408,6 +422,12 @@ void Intx2Mesh::clean()
   // also, delete some bit tags, used to mark processed reds and blues
   mb->tag_delete(RedFlagTag);// to mark blue quads already considered
   mb->tag_delete(BlueFlagTag);
+
+  /*mb->tag_delete(redParentTag);
+  mb->tag_delete(blueParentTag);
+  mb->tag_delete(countTag);
+  RedEdges.clear();
+  localEnts.clear();*/
 
 }
 ErrorCode Intx2Mesh::initialize_local_kdtree(EntityHandle euler_set)
@@ -817,7 +837,7 @@ ErrorCode Intx2Mesh::create_departure_mesh(EntityHandle & covering_lagr_set)
   // the elements are already in localEnts; get all vertices, and DP and LOC tag
   // get the DP tag , and get the departure points
   std::map<int, EntityHandle> globalID_to_handle;
-  std::map<int, EntityHandle> globalID_to_eh;
+/*  std::map<int, EntityHandle> globalID_to_eh;*/
   std::map<int, Range> rs;
   std::set<int> ps; // processors working with my_rank
   Tag dpTag = 0;
@@ -1051,34 +1071,19 @@ ErrorCode Intx2Mesh::create_departure_mesh(EntityHandle & covering_lagr_set)
 
   return MB_SUCCESS;
 }
-
-ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, EntityHandle & covering_lagr_set)
+ErrorCode Intx2Mesh::build_processor_euler_boxes(EntityHandle euler_set, Range & local_verts)
 {
-  // compute the bounding box on each proc
-  parcomm = ParallelComm::get_pcomm(mb, 0);
-  if (NULL==parcomm)
-    return MB_FAILURE;
-
   localEnts.clear();
   ErrorCode rval = mb->get_entities_by_dimension(euler_set, 2, localEnts);
   ERRORR(rval, "can't get ents by dimension");
 
-  Tag dpTag = 0;
-  std::string tag_name("DP");
-  rval = mb->tag_get_handle(tag_name.c_str(), 3, MB_TYPE_DOUBLE, dpTag, MB_TAG_DENSE);
-  ERRORR(rval, "can't get DP tag");
-  // get all local verts
-  Range local_verts;
   rval = mb->get_connectivity(localEnts, local_verts);
   int num_local_verts = (int) local_verts.size();
   ERRORR(rval, "can't get local vertices");
 
-  Tag gid;
-  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid, MB_TAG_DENSE);
-  ERRORR(rval,"can't get global ID tag" );
-  std::vector<int> gids(num_local_verts);
-  rval = mb->tag_get_data(gid, local_verts, &gids[0]);
-  ERRORR(rval, "can't get local vertices gids");
+  parcomm = ParallelComm::get_pcomm(mb, 0);
+  if (NULL==parcomm)
+    return MB_FAILURE;
 
   // get the position of local vertices, and decide local boxes (allBoxes...)
   double bmin[3]={DBL_MAX, DBL_MAX, DBL_MAX};
@@ -1086,6 +1091,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
 
   std::vector<double> coords(3*num_local_verts);
   rval = mb->get_coords(local_verts, &coords[0]);
+  ERRORR(rval, "can't get coords of vertices ");
 
   for (int i=0; i< num_local_verts; i++)
   {
@@ -1115,8 +1121,25 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
                                parcomm->proc_config().proc_comm());
   if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
 
+  // also process the max number of vertices per cell (4 for quads, but could be more for polygons)
+  int local_max_edges = 3;
+  for (Range::iterator it = localEnts.begin(); it!=localEnts.end(); it++)
+  {
+    const EntityHandle * conn;
+    int num_nodes;
+    rval = mb->get_connectivity(*it, conn, num_nodes);
+    ERRORR(rval, "can't get connectivity");
+    if (num_nodes>local_max_edges)
+      local_max_edges = num_nodes;
+  }
+
+  // now reduce max_edges over all processors
+  mpi_err = MPI_Allreduce(&local_max_edges, &max_edges, 1, MPI_INTEGER, MPI_MAX, parcomm->proc_config().proc_comm());
+  if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
+
   if (my_rank==0)
   {
+    std::cout << " maximum number of vertices per cell is " << max_edges << "\n";
     for (int i=0; i<numprocs; i++)
     {
       std::cout<<"proc: " << i << " box min: " << allBoxes[6*i  ] << " " <<allBoxes[6*i+1] << " " << allBoxes[6*i+2]  << " \n";
@@ -1124,14 +1147,46 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
     }
   }
 
+  return MB_SUCCESS;
+}
+ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, EntityHandle & covering_lagr_set)
+{
+  // compute the bounding box on each proc
+  parcomm = ParallelComm::get_pcomm(mb, 0);
+  if (NULL==parcomm)
+    return MB_FAILURE;
+
+  localEnts.clear();
+  ErrorCode rval = mb->get_entities_by_dimension(euler_set, 2, localEnts);
+  ERRORR(rval, "can't get ents by dimension");
+
+  Tag dpTag = 0;
+  std::string tag_name("DP");
+  rval = mb->tag_get_handle(tag_name.c_str(), 3, MB_TYPE_DOUBLE, dpTag, MB_TAG_DENSE);
+  ERRORR(rval, "can't get DP tag");
+  // get all local verts
+  Range local_verts;
+  rval = mb->get_connectivity(localEnts, local_verts);
+  int num_local_verts = (int) local_verts.size();
+  ERRORR(rval, "can't get local vertices");
+
+  rval = build_processor_euler_boxes(euler_set, local_verts);
+  ERRORR(rval, "can't build processor boxes");
+  Tag gid;
+  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid, MB_TAG_DENSE);
+  ERRORR(rval,"can't get global ID tag" );
+  std::vector<int> gids(num_local_verts);
+  rval = mb->tag_get_data(gid, local_verts, &gids[0]);
+  ERRORR(rval, "can't get local vertices gids");
 
   // now see the departure points; to what boxes should we send them?
   std::vector<double> dep_points(3*num_local_verts);
   rval = mb->tag_get_data(dpTag, local_verts, (void*)&dep_points[0]);
   ERRORR(rval, "can't get DP tag values");
   // ranges to send to each processor; will hold vertices and elements (quads?)
-  // will look if the box of the dep quad covers box of of euler mesh on proc (with tolerances)
+  // will look if the box of the dep quad covers box of euler mesh on proc (with tolerances)
   std::map<int, Range> Rto;
+  int numprocs=parcomm->proc_config().proc_size();
 
   for (Range::iterator eit = localEnts.begin(); eit!=localEnts.end(); eit++)
   {
@@ -1189,8 +1244,8 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
   TLv.initialize(2, 0, 0, 3, numv); // to proc, GLOBAL ID, DP points
   TLv.enableWriteAccess();
 
-  int sizeTuple = 2+MAXEDGES; // max edges is now 10 :) for polygons
-  TLq.initialize(12, 0, 0, 0, numq); // to proc, elem GLOBAL ID, connectivity[10] (global ID v)
+  int sizeTuple = 2+max_edges; // determined earlier
+  TLq.initialize(2+max_edges, 0, 0, 0, numq); // to proc, elem GLOBAL ID, connectivity[10] (global ID v)
   TLq.enableWriteAccess();
   std::cout << "from proc " << my_rank << " send " << numv << " vertices and " << numq << " elements\n";
 
@@ -1226,8 +1281,8 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
       TLq.vi_wr[sizeTuple*n+1] = global_id; // global id of element, used to identify it ...
       const EntityHandle * conn4;
       int num_nodes;
-      rval = mb->get_connectivity(q, conn4, num_nodes);// could be up to 10;
-      ERRORR(rval, "can't get connectivity for quad");
+      rval = mb->get_connectivity(q, conn4, num_nodes);// could be up to MAXEDGES, but it is limited by max_edges
+      ERRORR(rval, "can't get connectivity for cell");
       if (num_nodes > MAXEDGES)
         ERRORR(MB_FAILURE, "too many nodes in a polygon");
       for (int i=0; i<num_nodes; i++)
@@ -1236,7 +1291,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
         unsigned int index = local_verts.find(v)-local_verts.begin();
         TLq.vi_wr[sizeTuple*n+2+i] = gids[index];
       }
-      for (int k=num_nodes; k<MAXEDGES; k++)
+      for (int k=num_nodes; k<max_edges; k++)
       {
         TLq.vi_wr[sizeTuple*n+2+k] = 0; // fill the rest of node ids with 0; we know that the node ids start from 1!
       }
@@ -1245,7 +1300,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
     }
 
   }
-  // now we can route them to each processor
+
   // now we are done populating the tuples; route them to the appropriate processors
   (parcomm->proc_config().crystal_router())->gs_transfer(1, TLv, 0);
   (parcomm->proc_config().crystal_router())->gs_transfer(1, TLq, 0);
@@ -1253,7 +1308,8 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
 
   // maps from global ids to new vertex and quad handles, that are added
   std::map<int, EntityHandle> globalID_to_handle;
-  std::map<int, EntityHandle> globalID_to_eh;
+  /*std::map<int, EntityHandle> globalID_to_eh;*/
+  globalID_to_eh.clear();// need for next iteration
   // now, look at every TLv, and see if we have to create a vertex there or not
   int n=TLv.get_n();// the size of the points received
   for (int i=0; i<n; i++)
@@ -1328,7 +1384,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
       // construct the conn quad
       EntityHandle new_conn[MAXEDGES];
       int nnodes;
-      for (int j=0; j<MAXEDGES; j++)
+      for (int j=0; j<max_edges; j++)
       {
         int vgid = TLq.vi_rd[sizeTuple*i+2+j];// vertex global ID
         if (vgid==0)
@@ -1355,6 +1411,298 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
     }
   }
   return MB_SUCCESS;
+}
+
+// this algorithm assumes lagr set is already created, and some elements will be coming from
+// other procs, and populate the covering_set
+// we need to keep in a tuple list the remote cells from other procs, because we need to send back
+// the intersection info (like area of the intx polygon, and the current concentration) maybe total
+// mass in that intx
+ErrorCode Intx2Mesh::create_departure_mesh_3rd_alg(EntityHandle & lagr_set,
+    EntityHandle & covering_set)
+{
+  EntityHandle dum = 0;
+
+  Tag corrTag;
+  ErrorCode rval = mb->tag_get_handle(CORRTAGNAME,
+                                           1, MB_TYPE_HANDLE, corrTag,
+                                           MB_TAG_DENSE, &dum);
+  //start copy from 2nd alg
+  // compute the bounding box on each proc
+  parcomm = ParallelComm::get_pcomm(mb, 0);
+  if (NULL == parcomm || ( 1==parcomm->proc_config().proc_size()))
+  {
+    covering_set = lagr_set; // nothing to communicate, it must be serial
+    return MB_SUCCESS;
+  }
+
+  // get all local verts
+  Range local_verts;
+  rval = mb->get_connectivity(localEnts, local_verts);
+  int num_local_verts = (int) local_verts.size();
+  ERRORR(rval, "can't get local vertices");
+
+  Tag gid;
+  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid,
+      MB_TAG_DENSE);
+  ERRORR(rval, "can't get global ID tag");
+  std::vector<int> gids(num_local_verts);
+  rval = mb->tag_get_data(gid, local_verts, &gids[0]);
+  ERRORR(rval, "can't get local vertices gids");
+
+  Range localDepCells;
+  rval = mb->get_entities_by_dimension(lagr_set, 2, localDepCells);
+  ERRORR(rval, "can't get ents by dimension from lagr set");
+
+  // get all lagr verts (departure vertices)
+  Range lagr_verts;
+  rval = mb->get_connectivity(localDepCells, lagr_verts);// they should be created in
+  // the same order as the euler vertices
+  int num_lagr_verts = (int) lagr_verts.size();
+  ERRORR(rval, "can't get local lagr vertices");
+
+  // now see the departure points position; to what boxes should we send them?
+  std::vector<double> dep_points(3 * num_lagr_verts);
+  rval = mb->get_coords(lagr_verts, &dep_points[0]);
+  ERRORR(rval, "can't get departure points position");
+  // ranges to send to each processor; will hold vertices and elements (quads?)
+  // will look if the box of the dep quad covers box of euler mesh on proc (with tolerances)
+  std::map<int, Range> Rto;
+  int numprocs = parcomm->proc_config().proc_size();
+
+  for (Range::iterator eit = localDepCells.begin(); eit != localDepCells.end(); eit++)
+  {
+    EntityHandle q = *eit;
+    const EntityHandle * conn4;
+    int num_nodes;
+    rval = mb->get_connectivity(q, conn4, num_nodes);
+    ERRORR(rval, "can't get DP tag values");
+    CartVect qbmin(DBL_MAX);
+    CartVect qbmax(-DBL_MAX);
+    for (int i = 0; i < num_nodes; i++)
+    {
+      EntityHandle v = conn4[i];
+      int index = lagr_verts.index(v);
+      assert(-1!=index);
+      CartVect dp(&dep_points[3 * index]); // will use constructor
+      for (int j = 0; j < 3; j++)
+      {
+        if (qbmin[j] > dp[j])
+          qbmin[j] = dp[j];
+        if (qbmax[j] < dp[j])
+          qbmax[j] = dp[j];
+      }
+    }
+    for (int p = 0; p < numprocs; p++)
+    {
+      CartVect bbmin(&allBoxes[6 * p]);
+      CartVect bbmax(&allBoxes[6 * p + 3]);
+      if (GeomUtil::boxes_overlap(bbmin, bbmax, qbmin, qbmax, box_error))
+      {
+        Rto[p].insert(q);
+      }
+    }
+  }
+
+  // now, build TLv and TLq, for each p
+  size_t numq = 0;
+  size_t numv = 0;
+  for (int p = 0; p < numprocs; p++)
+  {
+    if (p == (int) my_rank)
+      continue; // do not "send" it, because it is already here
+    Range & range_to_P = Rto[p];
+    // add the vertices to it
+    if (range_to_P.empty())
+      continue; // nothing to send to proc p
+    Range vertsToP;
+    rval = mb->get_connectivity(range_to_P, vertsToP);
+    ERRORR(rval, "can't get connectivity");
+    numq = numq + range_to_P.size();
+    numv = numv + vertsToP.size();
+    range_to_P.merge(vertsToP);
+  }
+  TupleList TLv;
+  TupleList TLq;
+  TLv.initialize(2, 0, 0, 3, numv); // to proc, GLOBAL ID, DP points
+  TLv.enableWriteAccess();
+
+  int sizeTuple = 2 + max_edges; // max edges could be up to MAXEDGES :) for polygons
+  TLq.initialize(2+max_edges, 0, 1, 0, numq); // to proc, elem GLOBAL ID, connectivity[max_edges] (global ID v)
+  // send also the corresponding red cell it will come to
+  TLq.enableWriteAccess();
+  std::cout << "from proc " << my_rank << " send " << numv << " vertices and "
+      << numq << " elements\n";
+
+  for (int to_proc = 0; to_proc < numprocs; to_proc++)
+  {
+    if (to_proc == (int) my_rank)
+      continue;
+    Range & range_to_P = Rto[to_proc];
+    Range V = range_to_P.subset_by_type(MBVERTEX);
+
+    for (Range::iterator it = V.begin(); it != V.end(); it++)
+    {
+      EntityHandle v = *it;
+      int index = lagr_verts.index(v);// will be the same index as the corresponding vertex in euler verts
+      assert(-1!=index);
+      int n = TLv.get_n();
+      TLv.vi_wr[2 * n] = to_proc; // send to processor
+      TLv.vi_wr[2 * n + 1] = gids[index]; // global id needs index in the local_verts range
+      TLv.vr_wr[3 * n] = dep_points[3 * index]; // departure position, of the node local_verts[i]
+      TLv.vr_wr[3 * n + 1] = dep_points[3 * index + 1];
+      TLv.vr_wr[3 * n + 2] = dep_points[3 * index + 2];
+      TLv.inc_n();
+    }
+    // also, prep the 2d cells for sending ...
+    Range Q = range_to_P.subset_by_dimension(2);
+    for (Range::iterator it = Q.begin(); it != Q.end(); it++)
+    {
+      EntityHandle q = *it; // this is a blue cell
+      int global_id;
+      rval = mb->tag_get_data(gid, &q, 1, &global_id);
+      ERRORR(rval, "can't get gid for polygon");
+      int n = TLq.get_n();
+      TLq.vi_wr[sizeTuple * n] = to_proc; //
+      TLq.vi_wr[sizeTuple * n + 1] = global_id; // global id of element, used to identify it ...
+      const EntityHandle * conn4;
+      int num_nodes;
+      rval = mb->get_connectivity(q, conn4, num_nodes); // could be up to 10;
+      ERRORR(rval, "can't get connectivity for quad");
+      if (num_nodes > MAXEDGES)
+        ERRORR(MB_FAILURE, "too many nodes in a polygon");
+      for (int i = 0; i < num_nodes; i++)
+      {
+        EntityHandle v = conn4[i];
+        int index = lagr_verts.index(v);
+        assert(-1!=index);
+        TLq.vi_wr[sizeTuple * n + 2 + i] = gids[index];
+      }
+      for (int k = num_nodes; k < max_edges; k++)
+      {
+        TLq.vi_wr[sizeTuple * n + 2 + k] = 0; // fill the rest of node ids with 0; we know that the node ids start from 1!
+      }
+      EntityHandle redCell;
+      rval = mb->tag_get_data(corrTag, &q, 1, &redCell);
+      ERRORR(rval, "can't get corresponding red cell for dep cell");
+      TLq.vul_wr[n]=redCell; // this will be sent to remote_cells, to be able to come back
+      TLq.inc_n();
+
+    }
+
+  }
+  // now we can route them to each processor
+  // now we are done populating the tuples; route them to the appropriate processors
+  (parcomm->proc_config().crystal_router())->gs_transfer(1, TLv, 0);
+  (parcomm->proc_config().crystal_router())->gs_transfer(1, TLq, 0);
+  // the elements are already in localEnts;
+
+  // maps from global ids to new vertex and quad handles, that are added
+  std::map<int, EntityHandle> globalID_to_handle;
+  // we already have vertices from lagr set; they are already in the processor, even before receiving other
+  // verts from neighbors
+  int k=0;
+  for (Range::iterator vit=lagr_verts.begin(); vit!=lagr_verts.end(); vit++, k++)
+  {
+    globalID_to_handle[gids[k]] = *vit; // a little bit of overkill
+    // we do know that the global ids between euler and lagr verts are parallel
+  }
+  /*std::map<int, EntityHandle> globalID_to_eh;*/ // do we need this one?
+  globalID_to_eh.clear();
+  // now, look at every TLv, and see if we have to create a vertex there or not
+  int n = TLv.get_n(); // the size of the points received
+  for (int i = 0; i < n; i++)
+  {
+    int globalId = TLv.vi_rd[2 * i + 1];
+    if (globalID_to_handle.find(globalId) == globalID_to_handle.end())
+    {
+      EntityHandle new_vert;
+      double dp_pos[3] = { TLv.vr_wr[3 * i], TLv.vr_wr[3 * i + 1], TLv.vr_wr[3
+          * i + 2] };
+      rval = mb->create_vertex(dp_pos, new_vert);
+      ERRORR(rval, "can't create new vertex ");
+      globalID_to_handle[globalId] = new_vert;
+    }
+  }
+
+  // now, all dep points should be at their place
+  // look in the local list of 2d cells for this proc, and create all those cells if needed
+  // it may be an overkill, but because it does not involve communication, we do it anyway
+  Range & local = Rto[my_rank];
+  Range local_q = local.subset_by_dimension(2);
+  // the local should have all the vertices in lagr_verts
+  for (Range::iterator it = local_q.begin(); it != local_q.end(); it++)
+  {
+    EntityHandle q = *it;// these are from lagr cells, local
+    int gid_el;
+    rval = mb->tag_get_data(gid, &q, 1, &gid_el);
+    ERRORR(rval, "can't get element global ID ");
+    globalID_to_eh[gid_el] = q; // do we need this? maybe to just mark the ones on this processor
+    // maybe a range of global cell ids is fine?
+  }
+  // now look at all elements received through; we do not want to duplicate them
+  n = TLq.get_n(); // number of elements received by this processor
+  // a cell should be received from one proc only; so why are we so worried about duplicated elements?
+  // a vertex can be received from multiple sources, that is fine
+
+  remote_cells = new TupleList();
+  remote_cells->initialize(2, 0, 1, 1, n);
+  remote_cells->enableWriteAccess();
+  for (int i = 0; i < n; i++)
+  {
+    int globalIdEl = TLq.vi_rd[sizeTuple * i + 1];
+    int from_proc=TLq.vi_rd[sizeTuple * i ];
+    // do we already have a quad with this global ID, represented?
+    if (globalID_to_eh.find(globalIdEl) == globalID_to_eh.end())
+    {
+      // construct the conn quad
+      EntityHandle new_conn[MAXEDGES];
+      int nnodes;
+      for (int j = 0; j < max_edges; j++)
+      {
+        int vgid = TLq.vi_rd[sizeTuple * i + 2 + j]; // vertex global ID
+        if (vgid == 0)
+          new_conn[j] = 0;
+        else
+        {
+          assert(globalID_to_handle.find(vgid)!=globalID_to_handle.end());
+          new_conn[j] = globalID_to_handle[vgid];
+          nnodes = j + 1; // nodes are at the beginning, and are variable number
+        }
+      }
+      EntityHandle new_element;
+      //
+      EntityType entType = MBQUAD;
+      if (nnodes > 4)
+        entType = MBPOLYGON;
+      if (nnodes < 4)
+        entType = MBTRI;
+      rval = mb->create_element(entType, new_conn, nnodes, new_element);
+      ERRORR(rval, "can't create new element ");
+      globalID_to_eh[globalIdEl] = new_element;
+      local_q.insert(new_element);
+      rval = mb->tag_set_data(gid, &new_element, 1, &globalIdEl);
+      ERRORR(rval, "can't set gid on new element ");
+    }
+    remote_cells->vi_wr[2*i]=from_proc;
+    remote_cells->vi_wr[2*i+1]=globalIdEl;
+    remote_cells->vr_wr[i] = 0.; // no contribution yet sent back
+    remote_cells->vul_wr[i]= TLq.vul_rd[i];// this is the corresponding red cell (arrival)
+    remote_cells->inc_n();
+  }
+  // now, create a new set, covering_set
+  rval = mb->create_meshset(MESHSET_SET, covering_set);
+  ERRORR(rval, "can't create new mesh set ");
+  rval = mb->add_entities(covering_set, local_q);
+  ERRORR(rval, "can't add entities to new mesh set ");
+  // order the remote cells tuple list, with the global id, because we will search in it
+  //remote_cells->print("remote_cells before sorting");
+  moab::TupleList::buffer sort_buffer;
+  sort_buffer.buffer_init(n);
+  remote_cells->sort(1, &sort_buffer);
+  sort_buffer.reset();
+  return MB_SUCCESS;
+  //end copy
 }
 // this method will reduce number of nodes, collapse edges that are of length 0
   // so a polygon like 428 431 431 will become a line 428 431

@@ -15,7 +15,7 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_srcdir)/itaps/imesh \
                -I$(top_builddir)/itaps \
                -I$(top_builddir)/itaps/imesh \
-               -I$(top_srcdir)/test
+               -I$(top_srcdir)/test 
 
 lib_LTLIBRARIES = libmbcslam.la
 libmbcslam_la_LIBADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la \
@@ -40,7 +40,7 @@ cfgdir = $(libdir)
 
 TESTS = intx_on_sphere_test  intx_in_plane_test  spec_visu_test spherical_area_test \
          case1_test  intx_mpas
-noinst_PROGRAMS =  cslam_par_test diffusion proj1
+noinst_PROGRAMS =  cslam_par_test diffusion proj1 
 
 check_PROGRAMS = $(TESTS) 
 intx_on_sphere_test_SOURCES = intx_on_sphere_test.cpp

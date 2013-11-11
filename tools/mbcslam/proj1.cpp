@@ -1,7 +1,8 @@
 /*
  * proj1.cpp
  *
- *  project on a sphere of radius R
+ *  project on a sphere of radius R, delete sets if needed, and delete edges between parts
+ *  (created by resolve shared ents)
  */
 
 #include "moab/Core.hpp"
@@ -18,8 +19,7 @@ double radius = 1.;// in m:  6371220.
 int main(int argc, char **argv)
 {
 
-  std::string extra_read_opts;
-  // read a file and project on a sphere
+  bool delete_partition_sets = false;
 
   if (argc < 3)
     return 1;
@@ -29,11 +29,20 @@ int main(int argc, char **argv)
   char * output = argv[2];
   while (index < argc)
   {
-    if (!strcmp(argv[index], "-R")) // this is for geometry tolerance
+    if (!strcmp(argv[index], "-R")) // this is for radius to project
     {
       radius = atof(argv[++index]);
     }
+    if (!strcmp(argv[index], "-DS")) // delete partition sets
+    {
+      delete_partition_sets = true;
+    }
 
+    if (!strcmp(argv[index], "-h"))
+    {
+      std::cout << " usage: proj1 <input> <output> -R <value>  -DS (delete partition sets)\n";
+      return 1;
+    }
     index++;
   }
 
@@ -73,10 +82,38 @@ int main(int argc, char **argv)
   rval = mb.get_entities_by_dimension(0, 1, edges);
   if (MB_SUCCESS != rval)
     return 1;
+  // write edges to a new set, and after that, write the set, delete the edges and the set
+  EntityHandle sf1;
+  rval = mb.create_meshset(MESHSET_SET, sf1);
+  if (MB_SUCCESS != rval)
+    return 1;
+  rval = mb.add_entities(sf1, edges);
+  if (MB_SUCCESS != rval)
+    return 1;
+  rval = mb.write_mesh("edgesOnly.h5m", &sf1, 1);
+  if (MB_SUCCESS != rval)
+    return 1;
+  rval = mb.delete_entities(&sf1, 1);
+  if (MB_SUCCESS != rval)
+    return 1;
   mb.delete_entities(edges);
   mb.write_file(output);
 
-  // remove all edges
+  if (delete_partition_sets)
+  {
+    Tag par_tag;
+    rval = mb.tag_get_handle("PARALLEL_PARTITION", par_tag);
+    if (MB_SUCCESS == rval)
+
+    {
+      Range par_sets;
+      rval =  mb.get_entities_by_type_and_tag(0, MBENTITYSET, &par_tag, NULL, 1, par_sets,
+         moab::Interface::UNION);
+      if (!par_sets.empty())
+        mb.delete_entities(par_sets);
+      mb.tag_delete(par_tag);
+    }
+  }
 
 
   return 0;
