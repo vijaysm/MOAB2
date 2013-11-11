@@ -53,6 +53,7 @@ int case_number = 1; // 1, 2 (non-divergent) 3 divergent
 moab::Tag corrTag;
 bool noWrite = false;
 bool parallelWrite = false;
+bool velocity = false;
 int field_type = 1 ; // 1 quasi smooth, 2 - smooth, 3 non-smooth,
 #ifdef MESHDIR
 std::string TestDir( STRINGIFY(MESHDIR) );
@@ -260,13 +261,12 @@ ErrorCode compute_velocity_case1(Interface * mb, EntityHandle euler_set, Tag & t
     // increment to the next node
     ptr_velo+=3;// to next velocity
   }
-  if (!noWrite)
-  {
-    std::stringstream velos;
-    velos<<"Tracer" << rank<<"_"<<tStep<<  ".vtk";
-    rval = mb->write_file(velos.str().c_str(), 0, 0, &euler_set, 1, &tagh, 1);
-    CHECK_ERR(rval);
-  }
+
+  std::stringstream velos;
+  velos<<"Tracer" << rank<<"_"<<tStep<<  ".vtk";
+  rval = mb->write_file(velos.str().c_str(), 0, 0, &euler_set, 1, &tagh, 1);
+  CHECK_ERR(rval);
+
 
   return MB_SUCCESS;
 }
@@ -312,9 +312,11 @@ ErrorCode  create_lagr_mesh(Interface * mb, EntityHandle euler_set, EntityHandle
     rval = mb->tag_set_data(corrTag, &oldV, 1, &new_vert);
     CHECK_ERR(rval);
     // also the other side
-    rval = mb->tag_set_data(corrTag, &new_vert, 1, &oldV);
-    CHECK_ERR(rval);
-    // set the global id
+    // need to check if we really need this; the new vertex will never need the old vertex
+    // we have the global id which is the same
+    /*rval = mb->tag_set_data(corrTag, &new_vert, 1, &oldV);
+    CHECK_ERR(rval);*/
+    // set the global id on the corresponding vertex the same as the initial vertex
     rval = mb->tag_set_data(gid, &new_vert, 1, &global_id);
     CHECK_ERR(rval);
 
@@ -339,9 +341,9 @@ ErrorCode  create_lagr_mesh(Interface * mb, EntityHandle euler_set, EntityHandle
     EntityHandle newElement;
     rval = mb->create_element(typeElem, &new_conn[0], nnodes, newElement);
     CHECK_ERR(rval);
-    //set the corresponding tag
-    rval = mb->tag_set_data(corrTag, &q, 1, &newElement);
-    CHECK_ERR(rval);
+    //set the corresponding tag; not sure we need this one, from old to new
+    /*rval = mb->tag_set_data(corrTag, &q, 1, &newElement);
+    CHECK_ERR(rval);*/
     rval = mb->tag_set_data(corrTag, &newElement, 1, &q);
     CHECK_ERR(rval);
     // set the global id
@@ -521,6 +523,11 @@ int main(int argc, char **argv)
         noWrite = true;
       }
 
+      if (!strcmp(argv[index], "-v"))
+      {
+        velocity = true;
+      }
+
       if (!strcmp(argv[index], "-pw"))
       {
         parallelWrite = true;
@@ -528,15 +535,16 @@ int main(int argc, char **argv)
 
       if (!strcmp(argv[index], "-h"))
       {
-        std::cout << "usage: -gtol <tol> -input <file> -O <extra_read_opts> \n   "
-        <<    "-f <field_type> -h (this help) -ns <numSteps> \n";
+        std::cout << "usage: -gtol <tol> -input <file> -O <extra_read_opts> -v (output velocities) \n   "
+        <<    "-f <field_type> -h (this help) -ns <numSteps> -pw (parallel write) -nw (no dbg write) \n";
         std::cout << " field type: 1: quasi-smooth; 2: smooth; 3: slotted cylinders (non-smooth)\n";
         return 0;
       }
       index++;
     }
   }
-  // start copy
+
+  // read in parallel, in the "euler_set", the initial mesh
   std::string opts = std::string("PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION")+
             std::string(";PARALLEL_RESOLVE_SHARED_ENTS")+extra_read_opts;
   Core moab;
@@ -553,24 +561,33 @@ int main(int argc, char **argv)
 
   rval = pcomm->check_all_shared_handles();
   CHECK_ERR(rval);
-  // end copy
+
   int rank = pcomm->proc_config().proc_rank();
 
   if (0==rank)
+  {
     std::cout << " case 1: use -gtol " << gtol <<
         " -R " << radius << " -input " << filename_mesh1 <<  " -f " << field_type <<
         " numSteps: " << numSteps << "\n";
+    std::cout<<" write debug results: " << (noWrite ? "no" : "yes") << "\n";
+    std::cout<< " write tracer in parallel: " << ( parallelWrite ? "yes" : "no") << "\n";
+    std::cout <<" output velocity: " << (velocity? "yes" : "no") << "\n";
+  }
 
+  // tagTracer is the value at nodes
   Tag tagTracer = 0;
   std::string tag_name("Tracer");
   rval = mb.tag_get_handle(tag_name.c_str(), 1, MB_TYPE_DOUBLE, tagTracer, MB_TAG_DENSE | MB_TAG_CREAT);
   CHECK_ERR(rval);
 
+  // tagElem is the average computed at each element, from nodal values
   Tag tagElem = 0;
   std::string tag_name2("TracerAverage");
   rval = mb.tag_get_handle(tag_name2.c_str(), 1, MB_TYPE_DOUBLE, tagElem, MB_TAG_DENSE | MB_TAG_CREAT);
   CHECK_ERR(rval);
 
+  // area of the euler element is fixed, store it; it is used to recompute the averages at each
+  // time step
   Tag tagArea = 0;
   std::string tag_name4("Area");
   rval = mb.tag_get_handle(tag_name4.c_str(), 1, MB_TYPE_DOUBLE, tagArea, MB_TAG_DENSE | MB_TAG_CREAT);
@@ -580,6 +597,7 @@ int main(int argc, char **argv)
   rval = add_field_value(&mb, euler_set, rank, tagTracer, tagElem, tagArea);
   CHECK_ERR(rval);
 
+  // iniVals are used for 1-norm error computation
   Range redEls;
   rval = mb.get_entities_by_dimension(euler_set, 2, redEls);
   CHECK_ERR(rval);
@@ -619,10 +637,14 @@ int main(int argc, char **argv)
     // time depends on i; t = i*T/numSteps: ( 0, T/numSteps, 2*T/numSteps, ..., T )
     // this is really just to create some plots; it is not really needed to proceed
     // the compute_tracer_case1 method actually computes the departure point position
-    rval = compute_velocity_case1(&mb, euler_set, tagh, rank, i);
-    CHECK_ERR(rval);
+    if (velocity)
+    {
+      rval = compute_velocity_case1(&mb, euler_set, tagh, rank, i);
+      CHECK_ERR(rval);
+    }
 
-    // this is to actually compute concentrations, using the current concentrations
+    // this is to actually compute concentrations at time step i, using the
+    //  current concentrations
     //
     rval = compute_tracer_case1(&mb, worker, euler_set, lagr_set, out_set,
         tagElem, tagArea, rank, i, local_verts);
@@ -656,7 +678,7 @@ int main(int argc, char **argv)
   int mpi_err = MPI_Reduce(&norm1, &total_norm1, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   if (MPI_SUCCESS != mpi_err) return 1;
   if (0==rank)
-    std::cout << " numSteps:" << numSteps << " 1-norm:" << norm1 << "\n";
+    std::cout << " numSteps:" << numSteps << " 1-norm:" << total_norm1 << "\n";
   MPI_Finalize();
   return 0;
 }
