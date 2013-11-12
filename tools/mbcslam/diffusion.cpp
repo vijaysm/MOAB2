@@ -39,6 +39,10 @@ on the sphere; see CSLAM Utils case1
 
 #include "CslamUtils.hpp"
 
+const char BRIEF_DESC[] =
+    "Simulate a transport problem in a semi-Lagrangian formulation\n";
+std::ostringstream LONG_DESC;
+
 // non smooth scalar field
 // some input data
 double gtol = 1.e-9; // this is for geometry tolerance
@@ -51,7 +55,7 @@ double T = 5;
 int case_number = 1; // 1, 2 (non-divergent) 3 divergent
 
 moab::Tag corrTag;
-bool noWrite = false;
+bool writeFiles = false;
 bool parallelWrite = false;
 bool velocity = false;
 int field_type = 1 ; // 1 quasi smooth, 2 - smooth, 3 non-smooth,
@@ -395,7 +399,7 @@ ErrorCode compute_tracer_case1(Interface * mb, Intx2MeshOnSphere & worker, Entit
   // lagr and euler are preserved
   EntityHandle covering_set;
   rval = worker.create_departure_mesh_3rd_alg(lagr_set, covering_set);
-  if (!noWrite) // so if write
+  if (writeFiles) // so if write
   {
     std::stringstream newTracer;
     newTracer << "Tracer" << rank << "_" << tStep << ".vtk";
@@ -414,7 +418,7 @@ ErrorCode compute_tracer_case1(Interface * mb, Intx2MeshOnSphere & worker, Entit
 
   rval = worker.intersect_meshes(covering_set, euler_set, out_set);
   CHECK_ERR(rval);
-  if (!noWrite) // so if write
+  if (writeFiles) // so if write
   {
     std::stringstream intx_mesh;
     intx_mesh << "Intx" << rank << "_" << tStep << ".vtk";
@@ -440,7 +444,7 @@ ErrorCode compute_tracer_case1(Interface * mb, Intx2MeshOnSphere & worker, Entit
     rval = mb->write_file(resTrace.str().c_str(), 0, "PARALLEL=WRITE_PART", &euler_set, 1, &tagElem, 1);
   }
 
-  if (!noWrite) // so if write
+  if (writeFiles) // so if write
   {
     std::stringstream newIntx;
     newIntx << "newIntx" << rank << "_" << tStep << ".vtk";
@@ -484,68 +488,49 @@ int main(int argc, char **argv)
 {
 
   MPI_Init(&argc, &argv);
+  LONG_DESC << "This program simulates a transport problem on a sphere"
+        " according to a benchmark from a Nair & Lauritzen paper.\n"
+        << "It starts with a partitioned mesh on a sphere, add a tracer, and steps through.\n" <<
+        "The flow reverses after half time, and it should return to original configuration, if the integration was exact. ";
+  ProgOptions opts(LONG_DESC.str(), BRIEF_DESC);
 
-  std::string extra_read_opts;
   // read a homme file, partitioned in 16 so far
   std::string fileN= TestDir + "/HN16.h5m";
   const char *filename_mesh1 = fileN.c_str();
-  if (argc > 1)
-  {
-    int index = 1;
-    while (index < argc)
-    {
-      if (!strcmp(argv[index], "-gtol")) // this is for geometry tolerance
-      {
-        gtol = atof(argv[++index]);
-      }
 
-      if (!strcmp(argv[index], "-input"))
-      {
-        filename_mesh1 = argv[++index];
-      }
+  opts.addOpt<double>("gtolerance,g",
+      "geometric absolute tolerance (used for point concidence on the sphere)", &gtol);
 
-      if (!strcmp(argv[index], "-O"))
-      {
-        extra_read_opts = std::string(argv[++index]);
-      }
+  std::string input_file;
+  opts.addOpt<std::string>("input_file,i", "input mesh file, partitioned",
+      &input_file);
+  std::string extra_read_opts;
+  opts.addOpt<std::string>("extra_read_options,O", "extra read options ",
+        &extra_read_opts);
+  //int field_type;
+  opts.addOpt<int>("field_type,f",
+        "field type--  1: quasi-smooth; 2: smooth; 3: slotted cylinders (non-smooth)", &field_type);
 
-      if (!strcmp(argv[index], "-f"))
-      {
-        field_type = atoi(argv[++index]);
-      }
-      if (!strcmp(argv[index], "-ns"))
-      {
-        numSteps = atoi(argv[++index]);
-      }
+  opts.addOpt<int>("num_steps,n",
+          "number of  steps ", &numSteps);
 
-      if (!strcmp(argv[index], "-nw"))
-      {
-        noWrite = true;
-      }
+  //bool reorder = false;
+  opts.addOpt<void>("write_debug_files,w", "write debugging files during simulation ",
+        &writeFiles);
 
-      if (!strcmp(argv[index], "-v"))
-      {
-        velocity = true;
-      }
+  opts.addOpt<void>("write_velocity_files,v", "Reorder mesh to group entities by partition",
+     &velocity);
 
-      if (!strcmp(argv[index], "-pw"))
-      {
-        parallelWrite = true;
-      }
+  opts.addOpt<void>("write_result_in_parallel,p", "write tracer result files",
+     &parallelWrite);
 
-      if (!strcmp(argv[index], "-h"))
-      {
-        std::cout << "usage: -gtol <tol> -input <file> -O <extra_read_opts> -v (output velocities) \n   "
-        <<    "-f <field_type> -h (this help) -ns <numSteps> -pw (parallel write) -nw (no dbg write) \n";
-        std::cout << " field type: 1: quasi-smooth; 2: smooth; 3: slotted cylinders (non-smooth)\n";
-        return 0;
-      }
-      index++;
-    }
-  }
+  opts.parseCommandLine(argc, argv);
+
+  if (!input_file.empty())
+    filename_mesh1=input_file.c_str();
 
   // read in parallel, in the "euler_set", the initial mesh
-  std::string opts = std::string("PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION")+
+  std::string optsRead = std::string("PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION")+
             std::string(";PARALLEL_RESOLVE_SHARED_ENTS")+extra_read_opts;
   Core moab;
   Interface & mb = moab;
@@ -554,7 +539,7 @@ int main(int argc, char **argv)
   rval = mb.create_meshset(MESHSET_SET, euler_set);
   CHECK_ERR(rval);
 
-  rval = mb.load_file(filename_mesh1, &euler_set, opts.c_str());
+  rval = mb.load_file(filename_mesh1, &euler_set, optsRead.c_str());
 
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
   CHECK_ERR(rval);
@@ -569,7 +554,7 @@ int main(int argc, char **argv)
     std::cout << " case 1: use -gtol " << gtol <<
         " -R " << radius << " -input " << filename_mesh1 <<  " -f " << field_type <<
         " numSteps: " << numSteps << "\n";
-    std::cout<<" write debug results: " << (noWrite ? "no" : "yes") << "\n";
+    std::cout<<" write debug results: " << (writeFiles ? "yes" : "no") << "\n";
     std::cout<< " write tracer in parallel: " << ( parallelWrite ? "yes" : "no") << "\n";
     std::cout <<" output velocity: " << (velocity? "yes" : "no") << "\n";
   }
