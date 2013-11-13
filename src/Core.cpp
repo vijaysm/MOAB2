@@ -2971,7 +2971,7 @@ ErrorCode Core::side_number(const EntityHandle parent,
     return (0 == temp_result ? MB_SUCCESS : MB_FAILURE);
   }
   else if (TYPE_FROM_HANDLE(parent) == MBPOLYGON) {
-      // find location of 1st vertex
+      // find location of 1st vertex; this works even for padded vertices
     const EntityHandle *first_v = std::find(parent_conn, parent_conn+num_parent_vertices,
                                               child_conn[0]);
     if (first_v == parent_conn+num_parent_vertices) return MB_ENTITY_NOT_FOUND;
@@ -2990,11 +2990,23 @@ ErrorCode Core::side_number(const EntityHandle parent,
       else return MB_ENTITY_NOT_FOUND;
     }
     else if (TYPE_FROM_HANDLE(child) == MBEDGE) {
+      // determine the actual number of vertices, for the padded case
+      // the padded case could be like ABCDEFFF; num_parent_vertices=8, actual_num_parent_vertices=6
+      int actual_num_parent_vertices = num_parent_vertices;
+      while(actual_num_parent_vertices>=3 &&
+          (parent_conn[actual_num_parent_vertices-2] ==parent_conn[actual_num_parent_vertices-1] ) )
+        actual_num_parent_vertices--;
+
       if (parent_conn[(sd_number+1)%num_parent_vertices] == child_conn[1])
         sense = 1;
       else if (parent_conn[(sd_number+num_parent_vertices-1)%num_parent_vertices] ==
-               child_conn[1])
+               child_conn[1]) // this will also cover edge AF for padded case, side will be 0, sense -1
         sense = -1;
+      // if edge FA in above example, we should return sd_number = 5, sense 1
+      else if ((sd_number==actual_num_parent_vertices-1) && (child_conn[1]==parent_conn[0]))
+        sense =1;
+      else
+        return MB_ENTITY_NOT_FOUND;
       return MB_SUCCESS;
     }
   }
