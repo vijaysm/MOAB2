@@ -1447,8 +1447,10 @@ template <typename T> ErrorCode check_shared_ents(ParallelComm &pcomm, Tag tagh,
     if (1 == np && shprocs[0] != (int) pcomm.proc_config().proc_rank()) np++;
     if      (mpi_op == MPI_SUM) {if (dum_vals[i] != fact*np) return MB_FAILURE;}
     else if (mpi_op == MPI_PROD) {if (dum_vals[i] != pow(fact, np)) return MB_FAILURE;}
-    else if (mpi_op == MPI_MAX) {if (dum_vals[i] != fact) return MB_FAILURE;}
-    else if (mpi_op == MPI_MIN) {if (dum_vals[i] != fact) return MB_FAILURE;}
+    else if (mpi_op == MPI_MAX) {if (pcomm.rank() && std::find(&shprocs[0],&shprocs[np], 0) != &shprocs[np] &&
+                                     dum_vals[i] != fact) return MB_FAILURE;}
+    else if (mpi_op == MPI_MIN) {if (pcomm.rank() && std::find(&shprocs[0],&shprocs[np], 0) != &shprocs[np] &&
+                                     dum_vals[i] != fact) return MB_FAILURE;}
     else return MB_FAILURE;
   }
   
