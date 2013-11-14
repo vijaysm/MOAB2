@@ -10,10 +10,10 @@
 #include "MBTagConventions.hpp"
 
 #define ERRORR(rval, str) \
-    if (MB_SUCCESS != rval) {_readNC->readMeshIface->report_error("%s", str); return rval;}
+  if (MB_SUCCESS != rval) {_readNC->readMeshIface->report_error("%s", str); return rval;}
 
 #define ERRORS(err, str) \
-    if (err) {_readNC->readMeshIface->report_error("%s", str); return MB_FAILURE;}
+  if (err) {_readNC->readMeshIface->report_error("%s", str); return MB_FAILURE;}
 
 namespace moab {
 
@@ -315,8 +315,10 @@ ErrorCode NCHelper::read_variable_setup(std::vector<std::string>& var_names, std
     for (mit = varInfo.begin(); mit != varInfo.end(); ++mit) {
       ReadNC::VarData vd = (*mit).second;
 
-      // This variable will not be read
-      if (ignoredVarNames.find(vd.varName) != ignoredVarNames.end())
+      // No need to read ignored variables. Upon creation of dummy variables,
+      // tag values have already been set
+      if (ignoredVarNames.find(vd.varName) != ignoredVarNames.end() ||
+          dummyVarNames.find(vd.varName) != dummyVarNames.end())
          continue;
 
       if (vd.entLoc == ReadNC::ENTLOCSET)
@@ -331,8 +333,10 @@ ErrorCode NCHelper::read_variable_setup(std::vector<std::string>& var_names, std
       if (mit != varInfo.end()) {
         ReadNC::VarData vd = (*mit).second;
 
-        // This variable will not be read
-        if (ignoredVarNames.find(vd.varName) != ignoredVarNames.end())
+        // No need to read ignored variables. Upon creation of dummy variables,
+        // tag values have already been set
+        if (ignoredVarNames.find(vd.varName) != ignoredVarNames.end() ||
+            dummyVarNames.find(vd.varName) != dummyVarNames.end())
            continue;
 
         if (vd.entLoc == ReadNC::ENTLOCSET)
@@ -382,7 +386,6 @@ ErrorCode NCHelper::read_variable_setup(std::vector<std::string>& var_names, std
 
 ErrorCode NCHelper::read_variable_to_set(std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums)
 {
-  std::set<std::string>& dummyVarNames = _readNC->dummyVarNames;
   Interface*& mbImpl = _readNC->mbImpl;
   DebugOutput& dbgOut = _readNC->dbgOut;
 
@@ -392,11 +395,6 @@ ErrorCode NCHelper::read_variable_to_set(std::vector<ReadNC::VarData>& vdatas, s
   // Finally, read into that space
   int success;
   for (unsigned int i = 0; i < vdatas.size(); i++) {
-    // This is a dummy variable for a dimension with no corresponding coordinate variable
-    // No need to set its tag data
-    if (dummyVarNames.find(vdatas[i].varName) != dummyVarNames.end())
-       continue;
-
     for (unsigned int t = 0; t < tstep_nums.size(); t++) {
       void* data = vdatas[i].varDatas[t];
 
@@ -719,56 +717,63 @@ ErrorCode NCHelper::create_attrib_string(const std::map<std::string, ReadNC::Att
   return MB_SUCCESS;
 }
 
-void NCHelper::init_dims_with_no_coord_vars_info()
+ErrorCode NCHelper::create_dummy_variables()
 {
+  Interface*& mbImpl = _readNC->mbImpl;
   std::vector<std::string>& dimNames = _readNC->dimNames;
-  std::set<std::string>& dummyVarNames = _readNC->dummyVarNames;
+  std::vector<int>& dimLens = _readNC->dimLens;
   std::map<std::string, ReadNC::VarData>& varInfo = _readNC->varInfo;
   DebugOutput& dbgOut = _readNC->dbgOut;
 
   // Hack: look at all dimensions, and see if we have one that does not appear in the list of varInfo names
-  // Right now, candidates are from unstructured meshes, such as ncol(HOMME) and nCells(MPAS)
-  // For them, create dummy tags
+  // Right now, candidates are from unstructured meshes, such as ncol (HOMME) and nCells (MPAS)
+  // For each of them, create a dummy variable with a sparse tag to store the dimension length
   for (unsigned int i = 0; i < dimNames.size(); i++) {
-    // If there is a variable with this dimension name, skip, we are fine; if not, create a dummy varInfo
+    // If there is a variable with this dimension name, skip
     if (varInfo.find(dimNames[i]) != varInfo.end())
       continue;
 
+    // Create a dummy variable
     int sizeTotalVar = varInfo.size();
     std::string var_name(dimNames[i]);
     ReadNC::VarData& data = varInfo[var_name];
     data.varName = std::string(var_name);
     data.varId = sizeTotalVar;
     data.varTags.resize(1, 0);
-    data.varDataType = NC_DOUBLE; // Could be int, actually, but we do not really need the type
+    data.varDataType = NC_INT;
     data.varDims.resize(1);
     data.varDims[0] = (int)i;
     data.numAtts = 0;
     data.entLoc = ReadNC::ENTLOCSET;
-    dbgOut.tprintf(2, "Dummy varInfo created for dimension %s\n", dimNames[i].c_str());
     dummyVarNames.insert(dimNames[i]);
+    dbgOut.tprintf(2, "Dummy variable created for dimension %s\n", dimNames[i].c_str());
+
+    // Create a sparse tag to store the dimension length
+    Tag tagh;
+    ErrorCode rval = mbImpl->tag_get_handle(dimNames[i].c_str(), 1, MB_TYPE_INTEGER, tagh,
+                                            MB_TAG_SPARSE | MB_TAG_CREAT | MB_TAG_EXCL);
+    // If the tag already exists, skip
+    if (MB_ALREADY_ALLOCATED == rval)
+      continue;
+    ERRORR(rval, "Failed to create dimension tag.");
+
+    rval = mbImpl->tag_set_data(tagh, &_fileSet, 1, &dimLens[i]);
+    ERRORR(rval, "Failed to set data for dimension tag.");
+
+    dbgOut.tprintf(2, "Sparse tag created for dimension %s\n", dimNames[i].c_str());
   }
+
+  return MB_SUCCESS;
 }
 
 ErrorCode NCHelper::read_variable_to_set_allocate(std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums)
 {
-  std::set<std::string>& dummyVarNames = _readNC->dummyVarNames;
   std::vector<int>& dimLens = _readNC->dimLens;
   DebugOutput& dbgOut = _readNC->dbgOut;
 
   ErrorCode rval = MB_SUCCESS;
 
   for (unsigned int i = 0; i < vdatas.size(); i++) {
-    // This is a dummy variable for a dimension with no corresponding coordinate variable
-    // No need to allocate memory to read it
-    if (dummyVarNames.find(vdatas[i].varName) != dummyVarNames.end()) {
-      if (!vdatas[i].varTags[0]) {
-        rval = get_tag_to_set(vdatas[i], 0, vdatas[i].varTags[0]);
-        ERRORR(rval, "Trouble getting dummy tag.");
-      }
-      continue;
-    }
-
     if ((std::find(vdatas[i].varDims.begin(), vdatas[i].varDims.end(), tDim) != vdatas[i].varDims.end()))
       vdatas[i].has_t = true;
 
@@ -893,7 +898,7 @@ ErrorCode ScdNCHelper::create_mesh(Range& faces)
   ScdParData& parData = _readNC->parData;
 
   Range tmp_range;
-  ScdBox *scd_box;
+  ScdBox* scd_box;
 
   ErrorCode rval = scdi->construct_box(HomCoord(lDims[0], lDims[1], lDims[2], 1), HomCoord(lDims[3], lDims[4], lDims[5], 1), 
                                        NULL, 0, scd_box, locallyPeriodic, &parData, true);
@@ -1050,8 +1055,6 @@ ErrorCode ScdNCHelper::read_scd_variable_to_nonset_allocate(std::vector<ReadNC::
 #endif
 
   for (unsigned int i = 0; i < vdatas.size(); i++) {
-    vdatas[i].numLev = nLevels;
-
     for (unsigned int t = 0; t < tstep_nums.size(); t++) {
       dbgOut.tprintf(2, "Reading variable %s, time step %d\n", vdatas[i].varName.c_str(), tstep_nums[t]);
 
@@ -1074,17 +1077,14 @@ ErrorCode ScdNCHelper::read_scd_variable_to_nonset_allocate(std::vector<ReadNC::
       vdatas[i].readStarts[t].push_back(tstep_nums[t]);
       vdatas[i].readCounts[t].push_back(1);
 
-      // Next: numLev
-      if (vdatas[i].numLev != 1) {
-        vdatas[i].readStarts[t].push_back(0);
-        vdatas[i].readCounts[t].push_back(vdatas[i].numLev);
-      }
+      // Next: numLev, even if it is 1
+      vdatas[i].readStarts[t].push_back(0);
+      vdatas[i].readCounts[t].push_back(vdatas[i].numLev);
 
       // Finally: y and x
       switch (vdatas[i].entLoc) {
         case ReadNC::ENTLOCVERT:
           // Vertices
-          // Only structured mesh has j parameter that multiplies i to get total # vertices
           vdatas[i].readStarts[t].push_back(lDims[1]);
           vdatas[i].readCounts[t].push_back(lDims[4] - lDims[1] + 1);
           vdatas[i].readStarts[t].push_back(lDims[0]);
@@ -1101,8 +1101,8 @@ ErrorCode ScdNCHelper::read_scd_variable_to_nonset_allocate(std::vector<ReadNC::
         case ReadNC::ENTLOCFACE:
           // Faces
           vdatas[i].readStarts[t].push_back(lCDims[1]);
-          vdatas[i].readStarts[t].push_back(lCDims[0]);
           vdatas[i].readCounts[t].push_back(lCDims[4] - lCDims[1] + 1);
+          vdatas[i].readStarts[t].push_back(lCDims[0]);
           vdatas[i].readCounts[t].push_back(lCDims[3] - lCDims[0] + 1);
           assert(vdatas[i].readStarts[t].size() == vdatas[i].varDims.size());
 #ifdef USE_MPI
@@ -1245,6 +1245,7 @@ ErrorCode ScdNCHelper::read_scd_variable_to_nonset(std::vector<ReadNC::VarData>&
         rval = tmp_rval;
     }
   }
+
   // Debug output, if requested
   if (1 == dbgOut.get_verbosity()) {
     dbgOut.printf(1, "Read variables: %s", vdatas.begin()->varName.c_str());
