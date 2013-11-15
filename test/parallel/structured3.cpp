@@ -14,6 +14,12 @@ using namespace moab;
  
   // Number of cells in each direction:
 int NC;
+
+/* This mesh creates a box that is NCxNCxNC in global dimension, partitioned among processors
+ * automatically using ScdInterface's SQIJK algorithm.  It checks to make sure there are enough
+ * procs to support this partition method.  After mesh creation, shared vertex resolution is done,
+ * then ghost exchange is done.
+ */
 const int ITERS = 50;
  
 void create_parallel_mesh();
@@ -60,7 +66,7 @@ void create_parallel_mesh()
   times[0] = MPI_Wtime();
   rval = scdi->construct_box(HomCoord(), HomCoord(), NULL, 0, // no vertex positions
                              new_box, NULL, // not locally periodic
-                             &par_data, true, false); // assign global ids & resolve shared verts
+                             &par_data, true, false); // assign global ids, don't resolve shared verts
   CHECK_ERR(rval);
 
     // get global id tag
