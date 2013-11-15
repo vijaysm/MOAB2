@@ -43,6 +43,7 @@ examples/itaps/TagIterateC
 examples/itaps/TagIterateF
 examples/KDTree
 examples/ObbTree
+examples/PushParMeshIntoMoabF90
 examples/ReduceExchangeTags
 examples/SetsNTags
 examples/SkinMesh
