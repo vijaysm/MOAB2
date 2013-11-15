@@ -151,17 +151,25 @@ ErrorCode NCHelperHOMME::init_mesh_vals()
       tVals.push_back((double)t);
   }
 
-  // Determine the entity location type of a variable
+  // For each variable, determine the entity location type and number of levels
   std::map<std::string, ReadNC::VarData>::iterator mit;
   for (mit = varInfo.begin(); mit != varInfo.end(); ++mit) {
     ReadNC::VarData& vd = (*mit).second;
-    if ((std::find(vd.varDims.begin(), vd.varDims.end(), vDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(),
-        vd.varDims.end(), levDim) != vd.varDims.end()))
-      vd.entLoc = ReadNC::ENTLOCVERT;
+
+    vd.entLoc = ReadNC::ENTLOCSET;
+    if (std::find(vd.varDims.begin(), vd.varDims.end(), tDim) != vd.varDims.end()) {
+      if (std::find(vd.varDims.begin(), vd.varDims.end(), vDim) != vd.varDims.end())
+        vd.entLoc = ReadNC::ENTLOCVERT;
+    }
+
+    vd.numLev = 1;
+    if (std::find(vd.varDims.begin(), vd.varDims.end(), levDim) != vd.varDims.end())
+      vd.numLev = nLevels;
   }
 
-  // Hack: create dummy tags for dimensions (like ncol) with no corresponding coordinate variables
-  init_dims_with_no_coord_vars_info();
+  // Hack: create dummy variables for dimensions (like ncol) with no corresponding coordinate variables
+  rval = create_dummy_variables();
+  ERRORR(rval, "Failed to create dummy variables.");
 
   return MB_SUCCESS;
 }
@@ -499,76 +507,6 @@ ErrorCode NCHelperHOMME::create_mesh(Range& faces)
   return MB_SUCCESS;
 }
 
-ErrorCode NCHelperHOMME::read_ucd_variable_setup(std::vector<std::string>& var_names, std::vector<int>& tstep_nums,
-                                                 std::vector<ReadNC::VarData>& vdatas, std::vector<ReadNC::VarData>& vsetdatas)
-{
-  std::map<std::string, ReadNC::VarData>& varInfo = _readNC->varInfo;
-  std::map<std::string, ReadNC::VarData>::iterator mit;
-
-  // If empty read them all
-  if (var_names.empty()) {
-    for (mit = varInfo.begin(); mit != varInfo.end(); ++mit) {
-      ReadNC::VarData vd = (*mit).second;
-      if ((std::find(vd.varDims.begin(), vd.varDims.end(), tDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(),
-          vd.varDims.end(), levDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(), vd.varDims.end(), vDim)
-          != vd.varDims.end()))
-        vdatas.push_back(vd); // 3D data (time, lev, ncol) read here
-      else
-        vsetdatas.push_back(vd);
-    }
-  }
-  else {
-    for (unsigned int i = 0; i < var_names.size(); i++) {
-      mit = varInfo.find(var_names[i]);
-      if (mit != varInfo.end()) {
-        ReadNC::VarData vd = (*mit).second;
-        if ((std::find(vd.varDims.begin(), vd.varDims.end(), tDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(),
-            vd.varDims.end(), levDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(), vd.varDims.end(), vDim)
-            != vd.varDims.end()))
-          vdatas.push_back(vd); // 3D data (time, lev, ncol) read here
-        else
-          vsetdatas.push_back(vd);
-      }
-      else {
-        ERRORR(MB_FAILURE, "Couldn't find variable.");
-      }
-    }
-  }
-
-  if (tstep_nums.empty() && nTimeSteps > 0) {
-    // No timesteps input, get them all
-    for (int i = 0; i < nTimeSteps; i++)
-      tstep_nums.push_back(i);
-  }
-
-  if (!tstep_nums.empty()) {
-    for (unsigned int i = 0; i < vdatas.size(); i++) {
-      vdatas[i].varTags.resize(tstep_nums.size(), 0);
-      vdatas[i].varDatas.resize(tstep_nums.size());
-      vdatas[i].readStarts.resize(tstep_nums.size());
-      vdatas[i].readCounts.resize(tstep_nums.size());
-    }
-
-    for (unsigned int i = 0; i < vsetdatas.size(); i++) {
-      if ((std::find(vsetdatas[i].varDims.begin(), vsetdatas[i].varDims.end(), tDim) != vsetdatas[i].varDims.end())
-          && (vsetdatas[i].varDims.size() != 1)) {
-        vsetdatas[i].varTags.resize(tstep_nums.size(), 0);
-        vsetdatas[i].varDatas.resize(tstep_nums.size());
-        vsetdatas[i].readStarts.resize(tstep_nums.size());
-        vsetdatas[i].readCounts.resize(tstep_nums.size());
-      }
-      else {
-        vsetdatas[i].varTags.resize(1, 0);
-        vsetdatas[i].varDatas.resize(1);
-        vsetdatas[i].readStarts.resize(1);
-        vsetdatas[i].readCounts.resize(1);
-      }
-    }
-  }
-
-  return MB_SUCCESS;
-}
-
 ErrorCode NCHelperHOMME::read_ucd_variable_to_nonset_allocate(std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums)
 {
   Interface*& mbImpl = _readNC->mbImpl;
@@ -610,11 +548,9 @@ ErrorCode NCHelperHOMME::read_ucd_variable_to_nonset_allocate(std::vector<ReadNC
       vdatas[i].readStarts[t].push_back(tstep_nums[t]);
       vdatas[i].readCounts[t].push_back(1);
 
-      // Next: numLev
-      if (vdatas[i].numLev != 1) {
-        vdatas[i].readStarts[t].push_back(0);
-        vdatas[i].readCounts[t].push_back(vdatas[i].numLev);
-      }
+      // Next: numLev, even if it is 1
+      vdatas[i].readStarts[t].push_back(0);
+      vdatas[i].readCounts[t].push_back(vdatas[i].numLev);
 
       // Finally: nVertices
       switch (vdatas[i].entLoc) {

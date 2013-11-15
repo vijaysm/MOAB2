@@ -39,6 +39,10 @@ on the sphere; see CSLAM Utils case1
 
 #include "CslamUtils.hpp"
 
+const char BRIEF_DESC[] =
+    "Simulate a transport problem in a semi-Lagrangian formulation\n";
+std::ostringstream LONG_DESC;
+
 // non smooth scalar field
 // some input data
 double gtol = 1.e-9; // this is for geometry tolerance
@@ -51,8 +55,9 @@ double T = 5;
 int case_number = 1; // 1, 2 (non-divergent) 3 divergent
 
 moab::Tag corrTag;
-bool noWrite = false;
+bool writeFiles = false;
 bool parallelWrite = false;
+bool velocity = false;
 int field_type = 1 ; // 1 quasi smooth, 2 - smooth, 3 non-smooth,
 #ifdef MESHDIR
 std::string TestDir( STRINGIFY(MESHDIR) );
@@ -260,13 +265,12 @@ ErrorCode compute_velocity_case1(Interface * mb, EntityHandle euler_set, Tag & t
     // increment to the next node
     ptr_velo+=3;// to next velocity
   }
-  if (!noWrite)
-  {
-    std::stringstream velos;
-    velos<<"Tracer" << rank<<"_"<<tStep<<  ".vtk";
-    rval = mb->write_file(velos.str().c_str(), 0, 0, &euler_set, 1, &tagh, 1);
-    CHECK_ERR(rval);
-  }
+
+  std::stringstream velos;
+  velos<<"Tracer" << rank<<"_"<<tStep<<  ".vtk";
+  rval = mb->write_file(velos.str().c_str(), 0, 0, &euler_set, 1, &tagh, 1);
+  CHECK_ERR(rval);
+
 
   return MB_SUCCESS;
 }
@@ -312,9 +316,11 @@ ErrorCode  create_lagr_mesh(Interface * mb, EntityHandle euler_set, EntityHandle
     rval = mb->tag_set_data(corrTag, &oldV, 1, &new_vert);
     CHECK_ERR(rval);
     // also the other side
-    rval = mb->tag_set_data(corrTag, &new_vert, 1, &oldV);
-    CHECK_ERR(rval);
-    // set the global id
+    // need to check if we really need this; the new vertex will never need the old vertex
+    // we have the global id which is the same
+    /*rval = mb->tag_set_data(corrTag, &new_vert, 1, &oldV);
+    CHECK_ERR(rval);*/
+    // set the global id on the corresponding vertex the same as the initial vertex
     rval = mb->tag_set_data(gid, &new_vert, 1, &global_id);
     CHECK_ERR(rval);
 
@@ -339,9 +345,9 @@ ErrorCode  create_lagr_mesh(Interface * mb, EntityHandle euler_set, EntityHandle
     EntityHandle newElement;
     rval = mb->create_element(typeElem, &new_conn[0], nnodes, newElement);
     CHECK_ERR(rval);
-    //set the corresponding tag
-    rval = mb->tag_set_data(corrTag, &q, 1, &newElement);
-    CHECK_ERR(rval);
+    //set the corresponding tag; not sure we need this one, from old to new
+    /*rval = mb->tag_set_data(corrTag, &q, 1, &newElement);
+    CHECK_ERR(rval);*/
     rval = mb->tag_set_data(corrTag, &newElement, 1, &q);
     CHECK_ERR(rval);
     // set the global id
@@ -393,7 +399,7 @@ ErrorCode compute_tracer_case1(Interface * mb, Intx2MeshOnSphere & worker, Entit
   // lagr and euler are preserved
   EntityHandle covering_set;
   rval = worker.create_departure_mesh_3rd_alg(lagr_set, covering_set);
-  if (!noWrite) // so if write
+  if (writeFiles) // so if write
   {
     std::stringstream newTracer;
     newTracer << "Tracer" << rank << "_" << tStep << ".vtk";
@@ -412,7 +418,7 @@ ErrorCode compute_tracer_case1(Interface * mb, Intx2MeshOnSphere & worker, Entit
 
   rval = worker.intersect_meshes(covering_set, euler_set, out_set);
   CHECK_ERR(rval);
-  if (!noWrite) // so if write
+  if (writeFiles) // so if write
   {
     std::stringstream intx_mesh;
     intx_mesh << "Intx" << rank << "_" << tStep << ".vtk";
@@ -438,7 +444,7 @@ ErrorCode compute_tracer_case1(Interface * mb, Intx2MeshOnSphere & worker, Entit
     rval = mb->write_file(resTrace.str().c_str(), 0, "PARALLEL=WRITE_PART", &euler_set, 1, &tagElem, 1);
   }
 
-  if (!noWrite) // so if write
+  if (writeFiles) // so if write
   {
     std::stringstream newIntx;
     newIntx << "newIntx" << rank << "_" << tStep << ".vtk";
@@ -482,62 +488,49 @@ int main(int argc, char **argv)
 {
 
   MPI_Init(&argc, &argv);
+  LONG_DESC << "This program simulates a transport problem on a sphere"
+        " according to a benchmark from a Nair & Lauritzen paper.\n"
+        << "It starts with a partitioned mesh on a sphere, add a tracer, and steps through.\n" <<
+        "The flow reverses after half time, and it should return to original configuration, if the integration was exact. ";
+  ProgOptions opts(LONG_DESC.str(), BRIEF_DESC);
 
-  std::string extra_read_opts;
   // read a homme file, partitioned in 16 so far
   std::string fileN= TestDir + "/HN16.h5m";
   const char *filename_mesh1 = fileN.c_str();
-  if (argc > 1)
-  {
-    int index = 1;
-    while (index < argc)
-    {
-      if (!strcmp(argv[index], "-gtol")) // this is for geometry tolerance
-      {
-        gtol = atof(argv[++index]);
-      }
 
-      if (!strcmp(argv[index], "-input"))
-      {
-        filename_mesh1 = argv[++index];
-      }
+  opts.addOpt<double>("gtolerance,g",
+      "geometric absolute tolerance (used for point concidence on the sphere)", &gtol);
 
-      if (!strcmp(argv[index], "-O"))
-      {
-        extra_read_opts = std::string(argv[++index]);
-      }
+  std::string input_file;
+  opts.addOpt<std::string>("input_file,i", "input mesh file, partitioned",
+      &input_file);
+  std::string extra_read_opts;
+  opts.addOpt<std::string>("extra_read_options,O", "extra read options ",
+        &extra_read_opts);
+  //int field_type;
+  opts.addOpt<int>("field_type,f",
+        "field type--  1: quasi-smooth; 2: smooth; 3: slotted cylinders (non-smooth)", &field_type);
 
-      if (!strcmp(argv[index], "-f"))
-      {
-        field_type = atoi(argv[++index]);
-      }
-      if (!strcmp(argv[index], "-ns"))
-      {
-        numSteps = atoi(argv[++index]);
-      }
+  opts.addOpt<int>("num_steps,n",
+          "number of  steps ", &numSteps);
 
-      if (!strcmp(argv[index], "-nw"))
-      {
-        noWrite = true;
-      }
+  //bool reorder = false;
+  opts.addOpt<void>("write_debug_files,w", "write debugging files during simulation ",
+        &writeFiles);
 
-      if (!strcmp(argv[index], "-pw"))
-      {
-        parallelWrite = true;
-      }
+  opts.addOpt<void>("write_velocity_files,v", "Reorder mesh to group entities by partition",
+     &velocity);
 
-      if (!strcmp(argv[index], "-h"))
-      {
-        std::cout << "usage: -gtol <tol> -input <file> -O <extra_read_opts> \n   "
-        <<    "-f <field_type> -h (this help) -ns <numSteps> \n";
-        std::cout << " field type: 1: quasi-smooth; 2: smooth; 3: slotted cylinders (non-smooth)\n";
-        return 0;
-      }
-      index++;
-    }
-  }
-  // start copy
-  std::string opts = std::string("PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION")+
+  opts.addOpt<void>("write_result_in_parallel,p", "write tracer result files",
+     &parallelWrite);
+
+  opts.parseCommandLine(argc, argv);
+
+  if (!input_file.empty())
+    filename_mesh1=input_file.c_str();
+
+  // read in parallel, in the "euler_set", the initial mesh
+  std::string optsRead = std::string("PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION")+
             std::string(";PARALLEL_RESOLVE_SHARED_ENTS")+extra_read_opts;
   Core moab;
   Interface & mb = moab;
@@ -546,31 +539,40 @@ int main(int argc, char **argv)
   rval = mb.create_meshset(MESHSET_SET, euler_set);
   CHECK_ERR(rval);
 
-  rval = mb.load_file(filename_mesh1, &euler_set, opts.c_str());
+  rval = mb.load_file(filename_mesh1, &euler_set, optsRead.c_str());
 
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
   CHECK_ERR(rval);
 
   rval = pcomm->check_all_shared_handles();
   CHECK_ERR(rval);
-  // end copy
+
   int rank = pcomm->proc_config().proc_rank();
 
   if (0==rank)
+  {
     std::cout << " case 1: use -gtol " << gtol <<
         " -R " << radius << " -input " << filename_mesh1 <<  " -f " << field_type <<
         " numSteps: " << numSteps << "\n";
+    std::cout<<" write debug results: " << (writeFiles ? "yes" : "no") << "\n";
+    std::cout<< " write tracer in parallel: " << ( parallelWrite ? "yes" : "no") << "\n";
+    std::cout <<" output velocity: " << (velocity? "yes" : "no") << "\n";
+  }
 
+  // tagTracer is the value at nodes
   Tag tagTracer = 0;
   std::string tag_name("Tracer");
   rval = mb.tag_get_handle(tag_name.c_str(), 1, MB_TYPE_DOUBLE, tagTracer, MB_TAG_DENSE | MB_TAG_CREAT);
   CHECK_ERR(rval);
 
+  // tagElem is the average computed at each element, from nodal values
   Tag tagElem = 0;
   std::string tag_name2("TracerAverage");
   rval = mb.tag_get_handle(tag_name2.c_str(), 1, MB_TYPE_DOUBLE, tagElem, MB_TAG_DENSE | MB_TAG_CREAT);
   CHECK_ERR(rval);
 
+  // area of the euler element is fixed, store it; it is used to recompute the averages at each
+  // time step
   Tag tagArea = 0;
   std::string tag_name4("Area");
   rval = mb.tag_get_handle(tag_name4.c_str(), 1, MB_TYPE_DOUBLE, tagArea, MB_TAG_DENSE | MB_TAG_CREAT);
@@ -580,6 +582,7 @@ int main(int argc, char **argv)
   rval = add_field_value(&mb, euler_set, rank, tagTracer, tagElem, tagArea);
   CHECK_ERR(rval);
 
+  // iniVals are used for 1-norm error computation
   Range redEls;
   rval = mb.get_entities_by_dimension(euler_set, 2, redEls);
   CHECK_ERR(rval);
@@ -619,10 +622,14 @@ int main(int argc, char **argv)
     // time depends on i; t = i*T/numSteps: ( 0, T/numSteps, 2*T/numSteps, ..., T )
     // this is really just to create some plots; it is not really needed to proceed
     // the compute_tracer_case1 method actually computes the departure point position
-    rval = compute_velocity_case1(&mb, euler_set, tagh, rank, i);
-    CHECK_ERR(rval);
+    if (velocity)
+    {
+      rval = compute_velocity_case1(&mb, euler_set, tagh, rank, i);
+      CHECK_ERR(rval);
+    }
 
-    // this is to actually compute concentrations, using the current concentrations
+    // this is to actually compute concentrations at time step i, using the
+    //  current concentrations
     //
     rval = compute_tracer_case1(&mb, worker, euler_set, lagr_set, out_set,
         tagElem, tagArea, rank, i, local_verts);
@@ -656,7 +663,7 @@ int main(int argc, char **argv)
   int mpi_err = MPI_Reduce(&norm1, &total_norm1, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   if (MPI_SUCCESS != mpi_err) return 1;
   if (0==rank)
-    std::cout << " numSteps:" << numSteps << " 1-norm:" << norm1 << "\n";
+    std::cout << " numSteps:" << numSteps << " 1-norm:" << total_norm1 << "\n";
   MPI_Finalize();
   return 0;
 }

@@ -452,6 +452,7 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
   std::vector<double> newValues(rs2.size(), 0.);// initialize with 0 all of them
   // area of the polygon * conc on red (old) current quantity
   // finaly, divide by the area of the red
+  double check_intx_area=0.;
   for (Range::iterator it= polys.begin(); it!=polys.end(); it++)
   {
     EntityHandle poly=*it;
@@ -465,6 +466,7 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
     // big assumption here, red and blue are "parallel" ;we should have an index from
     // blue to red (so a deformed blue corresponds to an arrival red)
     double areap = area_spherical_element(mb, poly, R);
+    check_intx_area+=areap;
     // so the departure cell at time t (blueIndex) covers a portion of a redCell
     // that quantity will be transported to the redCell at time t+dt
     // the blue corresponds to a red arrival
@@ -535,10 +537,17 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
   ERRORR(rval, "can't set new values tag");
 
   double total_mass=0.;
+  double total_intx_area =0;
   int mpi_err = MPI_Reduce(&total_mass_local, &total_mass, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
+  // now reduce total area
+  mpi_err = MPI_Reduce(&check_intx_area, &total_intx_area, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
   if (my_rank==0)
+  {
     std::cout <<"total mass now:" << total_mass << "\n";
+    std::cout <<"check: total intersection area: (4 * M_PI * R^2): " << total_intx_area << "\n";
+  }
 
   if (remote_cells)
   {

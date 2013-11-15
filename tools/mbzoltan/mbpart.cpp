@@ -90,7 +90,7 @@ int main(int argc, char* argv[])
 
   bool ghost = false;
   long num_parts;
-  opts.addOpt<void>("ghost,h", "Specify if partition ghost geometry body.");
+  opts.addOpt<void>("ghost,H", "Specify if partition ghost geometry body.");
 
   int obj_weight = 0;
   opts.addOpt<int>("vertex_w,v",

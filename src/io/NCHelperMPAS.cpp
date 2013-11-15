@@ -26,6 +26,22 @@ NCHelperMPAS::NCHelperMPAS(ReadNC* readNC, int fileId, const FileOptions& opts, 
 , numCellGroups(0)
 , createGatherSet(false)
 {
+  // Ignore variables containing topological information
+  ignoredVarNames.insert("nEdgesOnEdge");
+  ignoredVarNames.insert("nEdgesOnCell");
+  ignoredVarNames.insert("edgesOnVertex");
+  ignoredVarNames.insert("cellsOnVertex");
+  ignoredVarNames.insert("verticesOnEdge");
+  ignoredVarNames.insert("edgesOnEdge");
+  ignoredVarNames.insert("cellsOnEdge");
+  ignoredVarNames.insert("verticesOnCell");
+  ignoredVarNames.insert("edgesOnCell");
+  ignoredVarNames.insert("cellsOnCell");
+
+  // Ignore variables for index conversion
+  ignoredVarNames.insert("indexToVertexID");
+  ignoredVarNames.insert("indexToEdgeID");
+  ignoredVarNames.insert("indexToCellID");
 }
 
 bool NCHelperMPAS::can_read_file(ReadNC* readNC)
@@ -97,7 +113,7 @@ ErrorCode NCHelperMPAS::init_mesh_vals()
   vDim = idx;
   nVertices = dimLens[idx];
 
-  // Get number of levels
+  // Get number of vertex levels
   if ((vit = std::find(dimNames.begin(), dimNames.end(), "nVertLevels")) != dimNames.end())
     idx = vit - dimNames.begin();
   else {
@@ -105,6 +121,27 @@ ErrorCode NCHelperMPAS::init_mesh_vals()
   }
   levDim = idx;
   nLevels = dimLens[idx];
+
+  // Dimension numbers for other optional levels
+  std::vector<unsigned int> opt_lev_dims;
+
+  // Get number of vertex levels P1
+  if ((vit = std::find(dimNames.begin(), dimNames.end(), "nVertLevelsP1")) != dimNames.end()) {
+    idx = vit - dimNames.begin();
+    opt_lev_dims.push_back(idx);
+  }
+
+  // Get number of vertex levels P2
+  if ((vit = std::find(dimNames.begin(), dimNames.end(), "nVertLevelsP2")) != dimNames.end()) {
+    idx = vit - dimNames.begin();
+    opt_lev_dims.push_back(idx);
+  }
+
+  // Get number of soil levels
+  if ((vit = std::find(dimNames.begin(), dimNames.end(), "nSoilLevels")) != dimNames.end()) {
+    idx = vit - dimNames.begin();
+    opt_lev_dims.push_back(idx);
+  }
 
   std::map<std::string, ReadNC::VarData>::iterator vmit;
 
@@ -121,22 +158,41 @@ ErrorCode NCHelperMPAS::init_mesh_vals()
     }
   }
 
-  // Determine the entity location type of a variable
+  // For each variable, determine the entity location type and number of levels
   for (vmit = varInfo.begin(); vmit != varInfo.end(); ++vmit) {
     ReadNC::VarData& vd = (*vmit).second;
-    if ((std::find(vd.varDims.begin(), vd.varDims.end(), vDim) != vd.varDims.end()) &&
-      (std::find(vd.varDims.begin(), vd.varDims.end(), levDim) != vd.varDims.end()))
-      vd.entLoc = ReadNC::ENTLOCVERT;
-    else if ((std::find(vd.varDims.begin(), vd.varDims.end(), eDim) != vd.varDims.end()) &&
-      (std::find(vd.varDims.begin(), vd.varDims.end(), levDim) != vd.varDims.end()))
-      vd.entLoc = ReadNC::ENTLOCEDGE;
-    else if ((std::find(vd.varDims.begin(), vd.varDims.end(), cDim) != vd.varDims.end()) &&
-      (std::find(vd.varDims.begin(), vd.varDims.end(), levDim) != vd.varDims.end()))
-      vd.entLoc = ReadNC::ENTLOCFACE;
+
+    vd.entLoc = ReadNC::ENTLOCSET;
+    if (std::find(vd.varDims.begin(), vd.varDims.end(), tDim) != vd.varDims.end()) {
+      if (std::find(vd.varDims.begin(), vd.varDims.end(), vDim) != vd.varDims.end())
+        vd.entLoc = ReadNC::ENTLOCVERT;
+      else if (std::find(vd.varDims.begin(), vd.varDims.end(), eDim) != vd.varDims.end())
+        vd.entLoc = ReadNC::ENTLOCEDGE;
+      else if (std::find(vd.varDims.begin(), vd.varDims.end(), cDim) != vd.varDims.end())
+        vd.entLoc = ReadNC::ENTLOCFACE;
+    }
+
+    vd.numLev = 1;
+    if (std::find(vd.varDims.begin(), vd.varDims.end(), levDim) != vd.varDims.end())
+      vd.numLev = nLevels;
+    else {
+      // If nVertLevels dimension is not found, try other optional levels such as nVertLevelsP1
+      for (unsigned int i = 0; i < opt_lev_dims.size(); i++) {
+        if (std::find(vd.varDims.begin(), vd.varDims.end(), opt_lev_dims[i]) != vd.varDims.end()) {
+          vd.numLev = dimLens[opt_lev_dims[i]];
+          break;
+        }
+      }
+    }
+
+    // Hack: ignore variables with more than 3 dimensions, e.g. tracers(Time, nCells, nVertLevels, nTracers)
+    if (vd.varDims.size() > 3)
+      ignoredVarNames.insert(vd.varName);
   }
 
-  // Hack: create dummy tags for dimensions (like nCells) with no corresponding coordinate variables
-  init_dims_with_no_coord_vars_info();
+  // Hack: create dummy variables for dimensions (like nCells) with no corresponding coordinate variables
+  rval = create_dummy_variables();
+  ERRORR(rval, "Failed to create dummy variables.");
 
   return MB_SUCCESS;
 }
@@ -449,96 +505,6 @@ ErrorCode NCHelperMPAS::create_mesh(Range& faces)
   return MB_SUCCESS;
 }
 
-ErrorCode NCHelperMPAS::read_ucd_variable_setup(std::vector<std::string>& var_names, std::vector<int>& tstep_nums,
-                                                 std::vector<ReadNC::VarData>& vdatas, std::vector<ReadNC::VarData>& vsetdatas)
-{
-  std::map<std::string, ReadNC::VarData>& varInfo = _readNC->varInfo;
-  std::map<std::string, ReadNC::VarData>::iterator mit;
-
-  // If empty read them all
-  if (var_names.empty()) {
-    for (mit = varInfo.begin(); mit != varInfo.end(); ++mit) {
-      ReadNC::VarData vd = (*mit).second;
-      if (3 == vd.varDims.size()) {
-        if ((std::find(vd.varDims.begin(), vd.varDims.end(), tDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(),
-            vd.varDims.end(), cDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(), vd.varDims.end(), levDim)
-            != vd.varDims.end()))
-          vdatas.push_back(vd); // 3D data (Time, nCells, nVertLevels) read here
-        else if ((std::find(vd.varDims.begin(), vd.varDims.end(), tDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(),
-            vd.varDims.end(), eDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(), vd.varDims.end(), levDim)
-            != vd.varDims.end()))
-          vdatas.push_back(vd); // 3D data (Time, nEdges, nVertLevels) read here
-        else if ((std::find(vd.varDims.begin(), vd.varDims.end(), tDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(),
-            vd.varDims.end(), vDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(), vd.varDims.end(), levDim)
-            != vd.varDims.end()))
-          vdatas.push_back(vd); // 3D data (Time, nVertices, nVertLevels) read here
-      }
-      else if (1 == vd.varDims.size())
-        vsetdatas.push_back(vd);
-    }
-  }
-  else {
-    for (unsigned int i = 0; i < var_names.size(); i++) {
-      mit = varInfo.find(var_names[i]);
-      if (mit != varInfo.end()) {
-        ReadNC::VarData vd = (*mit).second;
-        if (3 == vd.varDims.size()) {
-          if ((std::find(vd.varDims.begin(), vd.varDims.end(), tDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(),
-              vd.varDims.end(), cDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(), vd.varDims.end(), levDim)
-              != vd.varDims.end()))
-            vdatas.push_back(vd); // 3D data (Time, nCells, nVertLevels) read here
-          else if ((std::find(vd.varDims.begin(), vd.varDims.end(), tDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(),
-              vd.varDims.end(), eDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(), vd.varDims.end(), levDim)
-              != vd.varDims.end()))
-            vdatas.push_back(vd); // 3D data (Time, nEdges, nVertLevels) read here
-          else if ((std::find(vd.varDims.begin(), vd.varDims.end(), tDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(),
-              vd.varDims.end(), vDim) != vd.varDims.end()) && (std::find(vd.varDims.begin(), vd.varDims.end(), levDim)
-              != vd.varDims.end()))
-            vdatas.push_back(vd); // 3D data (Time, nVertices, nVertLevels) read here
-        }
-        else if (1 == vd.varDims.size())
-          vsetdatas.push_back(vd);
-      }
-      else {
-        ERRORR(MB_FAILURE, "Couldn't find variable.");
-      }
-    }
-  }
-
-  if (tstep_nums.empty() && nTimeSteps > 0) {
-    // No timesteps input, get them all
-    for (int i = 0; i < nTimeSteps; i++)
-      tstep_nums.push_back(i);
-  }
-
-  if (!tstep_nums.empty()) {
-    for (unsigned int i = 0; i < vdatas.size(); i++) {
-      vdatas[i].varTags.resize(tstep_nums.size(), 0);
-      vdatas[i].varDatas.resize(tstep_nums.size());
-      vdatas[i].readStarts.resize(tstep_nums.size());
-      vdatas[i].readCounts.resize(tstep_nums.size());
-    }
-
-    for (unsigned int i = 0; i < vsetdatas.size(); i++) {
-      if ((std::find(vsetdatas[i].varDims.begin(), vsetdatas[i].varDims.end(), tDim) != vsetdatas[i].varDims.end())
-          && (vsetdatas[i].varDims.size() != 1)) {
-        vsetdatas[i].varTags.resize(tstep_nums.size(), 0);
-        vsetdatas[i].varDatas.resize(tstep_nums.size());
-        vsetdatas[i].readStarts.resize(tstep_nums.size());
-        vsetdatas[i].readCounts.resize(tstep_nums.size());
-      }
-      else {
-        vsetdatas[i].varTags.resize(1, 0);
-        vsetdatas[i].varDatas.resize(1);
-        vsetdatas[i].readStarts.resize(1);
-        vsetdatas[i].readCounts.resize(1);
-      }
-    }
-  }
-
-  return MB_SUCCESS;
-}
-
 ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_allocate(std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums)
 {
   Interface*& mbImpl = _readNC->mbImpl;
@@ -584,8 +550,6 @@ ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_allocate(std::vector<ReadNC:
   for (unsigned int i = 0; i < vdatas.size(); i++) {
     if (noEdges && vdatas[i].entLoc == ReadNC::ENTLOCEDGE)
       continue;
-
-    vdatas[i].numLev = nLevels;
 
     for (unsigned int t = 0; t < tstep_nums.size(); t++) {
       dbgOut.tprintf(2, "Reading variable %s, time step %d\n", vdatas[i].varName.c_str(), tstep_nums[t]);
@@ -636,7 +600,9 @@ ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_allocate(std::vector<ReadNC:
       // Last, numLev, even if it is 1
       vdatas[i].readStarts[t].push_back(0);
       vdatas[i].readCounts[t].push_back(vdatas[i].numLev);
-      assert(vdatas[i].readStarts[t].size() == vdatas[i].varDims.size());
+      // Some variables have no level dimension, e.g. surface_pressure(Time, nCells)
+      assert(vdatas[i].readStarts[t].size() == vdatas[i].varDims.size() ||
+             vdatas[i].readStarts[t].size() == vdatas[i].varDims.size() + 1);
 
       // Get ptr to tag space
       if (vdatas[i].entLoc == ReadNC::ENTLOCFACE && numCellGroups > 1) {

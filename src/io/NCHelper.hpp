@@ -36,7 +36,13 @@ public:
   ErrorCode create_conventional_tags(const std::vector<int>& tstep_nums);
 
 protected:
-  //! Read set variables, common to scd mesh and ucd mesh
+  //! Separate set and non-set variables (common to scd mesh and ucd mesh)
+  ErrorCode read_variable_setup(std::vector<std::string>& var_names,
+                                            std::vector<int>& tstep_nums,
+                                            std::vector<ReadNC::VarData>& vdatas,
+                                            std::vector<ReadNC::VarData>& vsetdatas);
+
+  //! Read set variables (common to scd mesh and ucd mesh)
   ErrorCode read_variable_to_set(std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums);
 
   //! Convert variables in place
@@ -49,18 +55,18 @@ protected:
 
   ErrorCode get_tag_to_nonset(ReadNC::VarData& var_data, int tstep_num, Tag& tagh, int num_lev);
 
-  //! Create a character string attString of attMap.  with '\0'
+  //! Create a character string attString of attMap. with '\0'
   //! terminating each attribute name, ';' separating the data type
   //! and value, and ';' separating one name/data type/value from
-  //! the next'.  attLen stores the end position for each name/data
+  //! the next'. attLen stores the end position for each name/data
   //! type/ value.
   ErrorCode create_attrib_string(const std::map<std::string, ReadNC::AttData>& attMap,
                                  std::string& attString,
                                  std::vector<int>& attLen);
 
-  //! Initialize information for dimensions that don't have corresponding
-  //! coordinate variables - this information is used for creating dummy tags
-  void init_dims_with_no_coord_vars_info();
+  //! For a dimension that does not have a corresponding coordinate variable (e.g. ncol for HOMME),
+  //! create a dummy variable with a sparse tag to store the dimension length
+  ErrorCode create_dummy_variables();
 
 private:
   //! Used by read_variable_to_set()
@@ -83,6 +89,12 @@ protected:
 
   //! Dimension numbers for time and level
   int tDim, levDim;
+
+  //! Ignored variables
+  std::set<std::string> ignoredVarNames;
+
+  //! Dummy variables
+  std::set<std::string> dummyVarNames;
 };
 
 //! Child helper class for scd mesh, e.g. CAM_EL or CAM_FV
@@ -112,12 +124,6 @@ private:
   virtual ErrorCode create_mesh(Range& faces);
   //! Implementation of NCHelper::read_variables()
   virtual ErrorCode read_variables(std::vector<std::string>& var_names, std::vector<int>& tstep_nums);
-
-  //! Separate set and non-set variables for scd mesh
-  ErrorCode read_scd_variable_setup(std::vector<std::string>& var_names,
-                                    std::vector<int>& tstep_nums,
-                                    std::vector<ReadNC::VarData>& vdatas,
-                                    std::vector<ReadNC::VarData>& vsetdatas);
 
   //! Read non-set variables for scd mesh
   ErrorCode read_scd_variable_to_nonset_allocate(std::vector<ReadNC::VarData>& vdatas,
@@ -186,12 +192,6 @@ private:
   //! Implementation of NCHelper::read_variables()
   virtual ErrorCode read_variables(std::vector<std::string>& var_names,
                                    std::vector<int> &tstep_nums);
-
-  //! Separate set and non-set variables for ucd mesh (implemented differently in child classes)
-  virtual ErrorCode read_ucd_variable_setup(std::vector<std::string>& var_names,
-                                            std::vector<int>& tstep_nums,
-                                            std::vector<ReadNC::VarData>& vdatas,
-                                            std::vector<ReadNC::VarData>& vsetdatas) = 0;
 
   //! Read non-set variables for ucd mesh (implemented differently in child classes)
   virtual ErrorCode read_ucd_variable_to_nonset_allocate(std::vector<ReadNC::VarData>& vdatas,

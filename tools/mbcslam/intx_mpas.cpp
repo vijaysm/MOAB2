@@ -121,7 +121,7 @@ int main(int argc, char **argv)
   MPI_Init(&argc, &argv);
 
   std::string extra_read_opts;
-  std::string fileN= TestDir + "/mpas_p8.h5m";
+  std::string fileN= TestDir + "/io/mpasx1.642.t.2.nc";
   const char *filename_mesh1 = fileN.c_str();
   bool flux_form = false;
   if (argc > 1)
@@ -164,8 +164,8 @@ int main(int argc, char **argv)
     }
   }
   // start copy
-  std::string opts = std::string("PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION")+
-            std::string(";PARALLEL_RESOLVE_SHARED_ENTS")+extra_read_opts;
+  std::string opts = std::string("PARALLEL=READ_PART;PARTITION_METHOD=RCBZOLTAN")+
+            std::string(";PARALLEL_RESOLVE_SHARED_ENTS;VARIABLE=;")+extra_read_opts;
   Core moab;
   Interface & mb = moab;
   EntityHandle euler_set;

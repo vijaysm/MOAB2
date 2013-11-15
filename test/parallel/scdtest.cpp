@@ -49,6 +49,7 @@ int main(int argc, char *argv[])
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   if (size != 4 && size != 2) {
     cerr << "Run this with 2 or 4 processes\n";
+    MPI_Finalize();
     exit(1);
   }
 
