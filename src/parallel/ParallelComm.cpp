@@ -2093,7 +2093,19 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
 
         if (new_h && store_remote_handles) {
           unsigned char new_pstat = 0x0;
-          if (is_iface) new_pstat = PSTATUS_INTERFACE;
+          if (is_iface) {
+            new_pstat = PSTATUS_INTERFACE;
+              // here, lowest rank proc should be first
+            int idx = std::min_element(&ps[0], &ps[0]+num_ps) - &ps[0];
+            if (idx) {
+              std::swap(ps[0], ps[idx]);
+              std::swap(hs[0], hs[idx]);
+            }
+              // set ownership based on lowest rank; can't be in update_remote_data, because
+              // there we don't know whether it resulted from ghosting or not
+            if ((num_ps > 1 && ps[0] != (int) rank()))
+              new_pstat |= PSTATUS_NOT_OWNED;
+          }
           else if (created_here) {
             if (created_iface) new_pstat = PSTATUS_NOT_OWNED;
             else new_pstat = PSTATUS_GHOST | PSTATUS_NOT_OWNED;
@@ -2542,34 +2554,19 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
     }
 
       // add myself, if it isn't there already
-    idx = 0;
-    if (new_ps[0] != (int)rank()) {
-      idx = std::find(&new_ps[0], &new_ps[0] + new_numps, rank()) - &new_ps[0];
-      if (idx == new_numps) {
-        new_ps[new_numps] = rank();
-        new_hs[new_numps] = new_h;
-        new_numps++;
-      }
-      else if (!new_hs[idx] && new_numps > 2)
-        new_hs[idx] = new_h;
+    idx = std::find(&new_ps[0], &new_ps[0] + new_numps, rank()) - &new_ps[0];
+    if (idx == new_numps) {
+      new_ps[new_numps] = rank();
+      new_hs[new_numps] = new_h;
+      new_numps++;
     }
+    else if (!new_hs[idx] && new_numps > 2)
+      new_hs[idx] = new_h;
 
       // proc list is complete; update for shared, multishared
     if (new_numps > 1) {
       if (new_numps > 2) new_pstat |= PSTATUS_MULTISHARED;
       new_pstat |= PSTATUS_SHARED;
-    }
-
-      // if multishared, not ghost or interface, and not not_owned, I'm owned, and should be the first proc
-    assert(new_ps[idx] == (int)rank());
-    if ((new_numps > 2 && !(new_pstat&(PSTATUS_INTERFACE|PSTATUS_GHOST|PSTATUS_NOT_OWNED))) ||
-        (new_pstat&PSTATUS_INTERFACE && !(new_pstat&PSTATUS_NOT_OWNED))
-        ) {
-      idx = std::min_element(&new_ps[0], &new_ps[0] + new_numps) - &new_ps[0];
-      std::swap(new_ps[0], new_ps[idx]);
-      std::swap(new_hs[0], new_hs[idx]);
-      if (new_ps[0] != (int)rank())
-        new_pstat |= PSTATUS_NOT_OWNED;
     }
 
 /*    
@@ -3723,15 +3720,21 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
         return result;
       }
     }
-  
-    // get the entities in the partition sets
-    for (Range::iterator rit = partitionSets.begin(); rit != partitionSets.end(); rit++) {
-      Range tmp_ents;
-      result = mbImpl->get_entities_by_handle(*rit, tmp_ents, true);
-      if (MB_SUCCESS != result) return result;
-      proc_ents.merge(tmp_ents);
-    }
 
+    if (0 == this_set) {
+        // get the entities in the partition sets
+      for (Range::iterator rit = partitionSets.begin(); rit != partitionSets.end(); rit++) {
+        Range tmp_ents;
+        result = mbImpl->get_entities_by_handle(*rit, tmp_ents, true);
+        if (MB_SUCCESS != result) return result;
+        proc_ents.merge(tmp_ents);
+      }
+    }
+    else {
+      result = mbImpl->get_entities_by_handle(this_set, proc_ents, true);
+      if (MB_SUCCESS != result) return result;
+    }
+      
     // resolve dim is maximal dim of entities in proc_ents
     if (-1 == resolve_dim) {
       if (proc_ents.empty()) 
@@ -8414,7 +8417,8 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
         continue;
       }
  
-      if (!shents.empty()) check_my_shared_handles(shents);
+      if (!shents.empty()) 
+        result = check_my_shared_handles(shents);
       done = true;
     }
   
@@ -8586,6 +8590,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
 
     Range bad_ents, local_shared;
     std::vector<SharedEntityData>::iterator vit;
+    unsigned char tmp_pstat;
     for (unsigned int i = 0; i < shents.size(); i++) {
       int other_proc = buffProcs[i];
       result = get_shared_entities(other_proc, local_shared);
@@ -8596,6 +8601,11 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
         result = get_remote_handles(true, &localh, &dumh, 1, other_proc, dum_vec);
         if (MB_SUCCESS != result || dumh != remoteh) 
           bad_ents.insert(localh);
+        result = get_pstatus(localh, tmp_pstat);
+        if (MB_SUCCESS != result ||
+            (!tmp_pstat&PSTATUS_NOT_OWNED && vit->owner != rank()) ||
+            (tmp_pstat&PSTATUS_NOT_OWNED && vit->owner == rank()))
+          bad_ents.insert(localh);
       }
 
       if (!local_shared.empty()) 
@@ -8603,10 +8613,9 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     }
   
     if (!bad_ents.empty()) {
-      if (prefix) {
+      if (prefix)
         std::cout << prefix << std::endl;
-        list_entities(bad_ents);
-      }
+      list_entities(bad_ents);
       return MB_FAILURE;
     }
 

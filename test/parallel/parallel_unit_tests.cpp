@@ -1445,10 +1445,11 @@ template <typename T> ErrorCode check_shared_ents(ParallelComm &pcomm, Tag tagh,
   for (rit = shared_ents.begin(); rit != shared_ents.end(); rit++, i++) {
     rval = pcomm.get_sharing_data(*rit, &shprocs[0], &shhandles[0], pstatus, np); CHKERR(rval);
     if (1 == np && shprocs[0] != (int) pcomm.proc_config().proc_rank()) np++;
+    bool with_root = std::find(&shprocs[0], &shprocs[np], 0)-&shprocs[0] != np;
     if      (mpi_op == MPI_SUM) {if (dum_vals[i] != fact*np) return MB_FAILURE;}
     else if (mpi_op == MPI_PROD) {if (dum_vals[i] != pow(fact, np)) return MB_FAILURE;}
-    else if (mpi_op == MPI_MAX) {if (dum_vals[i] != fact) return MB_FAILURE;}
-    else if (mpi_op == MPI_MIN) {if (dum_vals[i] != fact) return MB_FAILURE;}
+    else if (mpi_op == MPI_MAX) {if (with_root && dum_vals[i] != fact) return MB_FAILURE;}
+    else if (mpi_op == MPI_MIN) {if (with_root && dum_vals[i] != fact) return MB_FAILURE;}
     else return MB_FAILURE;
   }
   
