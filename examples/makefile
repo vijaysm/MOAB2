@@ -9,7 +9,7 @@ MESH_DIR="../MeshFiles/unittest"
 
 EXAMPLES = HelloMOAB GetEntities SetsNTags StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles 
 PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation
-F90EXAMPLES = DirectAccessNoHolesF90
+F90EXAMPLES = DirectAccessNoHolesF90 PushParMeshIntoMoabF90
 EXOIIEXAMPLES = TestExodusII
 
 default: ${EXAMPLES}
@@ -50,12 +50,15 @@ TestExodusII: TestExodusII.o
 point_in_elem_search: point_in_elem_search.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+PushParMeshIntoMoabF90: PushParMeshIntoMoabF90.o
+	${MOAB_CXX} -o $@ $< ${IMESH_LIBS} -lgfortran -L/usr/lib/openmpi/lib -lmpi_f90 -lmpi_f77 -lmpi -lopen-rte -lopen-pal -ldl 
+
 clean:
 	rm -rf *.o ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES}
 
 .cpp.o :
-	${MOAB_CXX} ${MOAB_CXXFLAGS} ${MOAB_INCLUDES} -DMESH_DIR=\"${MESH_DIR}\" -c $<
+	${MOAB_CXX} ${CXXFLAGS} ${MOAB_CXXFLAGS} ${MOAB_INCLUDES} -DMESH_DIR=\"${MESH_DIR}\" -c $<
 
 .F90.o :
-	${IMESH_FC} ${IMESH_FCFLAGS} ${IMESH_INCLUDES} ${IMESH_FCDEFS} -DMESH_DIR=\"${MESH_DIR}\" -c $<
+	${IMESH_FC} ${FCFLAGS} ${IMESH_FCFLAGS} ${IMESH_INCLUDES} ${IMESH_FCDEFS} -DMESH_DIR=\"${MESH_DIR}\" -c $<
 

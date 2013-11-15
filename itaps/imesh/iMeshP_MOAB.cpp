@@ -1606,11 +1606,8 @@ void iMeshP_syncMeshAll( iMesh_Instance instance,
                          const iMeshP_PartitionHandle partition_handle,
                          int *err )
 {
-  FIXME; // for now we only sync vertex coordinates
-         // need to update ParallelComm::update_shared_mesh to fix this
-
   ParallelComm* pcomm = PCOMM;
-  ErrorCode rval = pcomm->update_shared_mesh();
+  ErrorCode rval = pcomm->resolve_shared_ents(itaps_cast<EntityHandle>(partition_handle), -1, -1);
   CHKERR(rval,"update failed");
   RETURN (iBase_SUCCESS);
 }

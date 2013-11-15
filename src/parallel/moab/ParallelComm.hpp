@@ -697,10 +697,6 @@ namespace moab {
                                  int& num_part_ids_out,
                                  EntityHandle remote_handles[MAX_SHARING_PROCS] = 0);
   
-    // Propogate mesh modification amongst shared entities
-    // from the onwing processor to any procs with copies.
-    ErrorCode update_shared_mesh();
-
     /** Filter the entities by pstatus tag.  
      * op is one of PSTATUS_ AND, OR, NOT; an entity is output if:
      * AND: all bits set in pstatus_val are also set on entity
