@@ -1,6 +1,7 @@
 #include "TestUtil.hpp"
 #include "moab/Core.hpp"
 #include "moab/ReadUtilIface.hpp"
+#include "TagInfo.hpp"
 
 using namespace moab;
 
@@ -20,6 +21,7 @@ void test_read_onevar();
 void test_read_onetimestep();
 void test_read_nomesh();
 void test_read_novars();
+void test_read_dim_vars();
 
 ErrorCode get_options(std::string& opts);
 
@@ -40,6 +42,7 @@ int main(int argc, char* argv[])
   result += RUN_TEST(test_read_onetimestep);
   result += RUN_TEST(test_read_nomesh);
   result += RUN_TEST(test_read_novars);
+  result += RUN_TEST(test_read_dim_vars);
 
 #ifdef USE_MPI
   fail = MPI_Finalize();
@@ -75,6 +78,7 @@ void test_read_onevar()
 {
   Core moab;
   Interface& mb = moab;
+
   std::string opts;
   ErrorCode rval = get_options(opts);
   CHECK_ERR(rval);
@@ -145,6 +149,7 @@ void test_read_onetimestep()
 {
   Core moab;
   Interface& mb = moab;
+
   std::string opts;
   ErrorCode rval = get_options(opts);
   CHECK_ERR(rval);
@@ -243,6 +248,59 @@ void test_read_novars()
   // Check for proper tag
   rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
+}
+
+void test_read_dim_vars()
+{
+  Core moab;
+  Interface& mb = moab;
+
+  EntityHandle set;
+  ErrorCode rval = mb.create_meshset(MESHSET_SET, set);
+  CHECK_ERR(rval);
+
+  std::string orig, opts;
+  rval = get_options(orig);
+  CHECK_ERR(rval);
+
+  opts = orig + std::string(";NOMESH;VARIABLE=");
+  rval = mb.load_file(example, &set, opts.c_str());
+  CHECK_ERR(rval);
+
+  std::string tag_name;
+  int var_len;
+  Tag var_tag;
+  const void* var_data;
+
+  // Check tag for regular dimension variable lev
+  tag_name = "lev";
+  var_len = 0;
+  rval = mb.tag_get_handle(tag_name.c_str(), var_len, MB_TYPE_OPAQUE, var_tag, MB_TAG_SPARSE | MB_TAG_VARLEN);
+  CHECK_ERR(rval);
+  CHECK_EQUAL(true, var_tag->variable_length());
+  CHECK_EQUAL(MB_TYPE_DOUBLE, var_tag->get_data_type());
+
+  // Check lev tag size and values
+  rval = mb.tag_get_by_ptr(var_tag, &set, 1, &var_data, &var_len);
+  CHECK_EQUAL(26, var_len);
+  double* lev_val = (double*)var_data;
+  const double eps = 1e-10;
+  CHECK_REAL_EQUAL(3.54463800000002, lev_val[0], eps);
+  CHECK_REAL_EQUAL(992.556100000005, lev_val[25], eps);
+
+  // Check tag for dummy dimension variable ncol
+  tag_name = "ncol";
+  var_len = 0;
+  rval = mb.tag_get_handle(tag_name.c_str(), var_len, MB_TYPE_OPAQUE, var_tag, MB_TAG_SPARSE | MB_TAG_VARLEN);
+  CHECK_ERR(rval);
+  CHECK_EQUAL(true, var_tag->variable_length());
+  CHECK_EQUAL(MB_TYPE_INTEGER, var_tag->get_data_type());
+
+  // Check ncol tag size and values
+  rval = mb.tag_get_by_ptr(var_tag, &set, 1, &var_data, &var_len);
+  CHECK_EQUAL(1, var_len);
+  int* ncol_val = (int*)var_data;
+  CHECK_EQUAL(3458, ncol_val[0]);
 }
 
 ErrorCode get_options(std::string& opts)
