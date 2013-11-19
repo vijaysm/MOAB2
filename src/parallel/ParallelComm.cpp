@@ -2093,7 +2093,19 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
 
         if (new_h && store_remote_handles) {
           unsigned char new_pstat = 0x0;
-          if (is_iface) new_pstat = PSTATUS_INTERFACE;
+          if (is_iface) {
+            new_pstat = PSTATUS_INTERFACE;
+              // here, lowest rank proc should be first
+            int idx = std::min_element(&ps[0], &ps[0]+num_ps) - &ps[0];
+            if (idx) {
+              std::swap(ps[0], ps[idx]);
+              std::swap(hs[0], hs[idx]);
+            }
+              // set ownership based on lowest rank; can't be in update_remote_data, because
+              // there we don't know whether it resulted from ghosting or not
+            if ((num_ps > 1 && ps[0] != (int) rank()))
+              new_pstat |= PSTATUS_NOT_OWNED;
+          }
           else if (created_here) {
             if (created_iface) new_pstat = PSTATUS_NOT_OWNED;
             else new_pstat = PSTATUS_GHOST | PSTATUS_NOT_OWNED;
@@ -2542,34 +2554,19 @@ ErrorCode ParallelComm::recv_entities(std::set<unsigned int>& recv_procs,
     }
 
       // add myself, if it isn't there already
-    idx = 0;
-    if (new_ps[0] != (int)rank()) {
-      idx = std::find(&new_ps[0], &new_ps[0] + new_numps, rank()) - &new_ps[0];
-      if (idx == new_numps) {
-        new_ps[new_numps] = rank();
-        new_hs[new_numps] = new_h;
-        new_numps++;
-      }
-      else if (!new_hs[idx] && new_numps > 2)
-        new_hs[idx] = new_h;
+    idx = std::find(&new_ps[0], &new_ps[0] + new_numps, rank()) - &new_ps[0];
+    if (idx == new_numps) {
+      new_ps[new_numps] = rank();
+      new_hs[new_numps] = new_h;
+      new_numps++;
     }
+    else if (!new_hs[idx] && new_numps > 2)
+      new_hs[idx] = new_h;
 
       // proc list is complete; update for shared, multishared
     if (new_numps > 1) {
       if (new_numps > 2) new_pstat |= PSTATUS_MULTISHARED;
       new_pstat |= PSTATUS_SHARED;
-    }
-
-      // if multishared, not ghost or interface, and not not_owned, I'm owned, and should be the first proc
-    assert(new_ps[idx] == (int)rank());
-    if ((new_numps > 2 && !(new_pstat&(PSTATUS_INTERFACE|PSTATUS_GHOST|PSTATUS_NOT_OWNED))) ||
-        (new_pstat&PSTATUS_INTERFACE && !(new_pstat&PSTATUS_NOT_OWNED))
-        ) {
-      idx = std::min_element(&new_ps[0], &new_ps[0] + new_numps) - &new_ps[0];
-      std::swap(new_ps[0], new_ps[idx]);
-      std::swap(new_hs[0], new_hs[idx]);
-      if (new_ps[0] != (int)rank())
-        new_pstat |= PSTATUS_NOT_OWNED;
     }
 
 /*    
@@ -3723,15 +3720,21 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
         return result;
       }
     }
-  
-    // get the entities in the partition sets
-    for (Range::iterator rit = partitionSets.begin(); rit != partitionSets.end(); rit++) {
-      Range tmp_ents;
-      result = mbImpl->get_entities_by_handle(*rit, tmp_ents, true);
-      if (MB_SUCCESS != result) return result;
-      proc_ents.merge(tmp_ents);
-    }
 
+    if (0 == this_set) {
+        // get the entities in the partition sets
+      for (Range::iterator rit = partitionSets.begin(); rit != partitionSets.end(); rit++) {
+        Range tmp_ents;
+        result = mbImpl->get_entities_by_handle(*rit, tmp_ents, true);
+        if (MB_SUCCESS != result) return result;
+        proc_ents.merge(tmp_ents);
+      }
+    }
+    else {
+      result = mbImpl->get_entities_by_handle(this_set, proc_ents, true);
+      if (MB_SUCCESS != result) return result;
+    }
+      
     // resolve dim is maximal dim of entities in proc_ents
     if (-1 == resolve_dim) {
       if (proc_ents.empty()) 
@@ -7566,146 +7569,6 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     }
   */
 
-  ErrorCode ParallelComm::update_shared_mesh()
-  {
-    //  ErrorCode result;
-    //  int success;
-
-    // ,,,
-    /*
-
-    // get all procs interfacing to this proc
-    std::set<unsigned int> iface_procs;
-    result = get_interface_procs(iface_procs);
-    RRA("Failed to get iface sets, procs");
-
-    // post ghost irecv's for all interface procs
-    // index greqs the same as buffer/sharing procs indices
-    std::vector<MPI_Request> recv_reqs(2*MAX_SHARING_PROCS, MPI_REQUEST_NULL);
-    std::vector<MPI_Status> gstatus(MAX_SHARING_PROCS);
-    std::set<unsigned int>::iterator sit;
-    for (sit = iface_procs.begin(); sit != iface_procs.end(); sit++) {
-    int ind = get_buffers(*sit);
-    success = MPI_Irecv(&ghostRBuffs[ind][0], ghostRBuffs[ind].size(), 
-    MPI_UNSIGNED_CHAR, *sit,
-    MB_MESG_ANY, procConfig.proc_comm(), 
-    &recv_reqs[ind]);
-    if (success != MPI_SUCCESS) {
-    result = MB_FAILURE;
-    RRA("Failed to post irecv in ghost exchange.");
-    }
-    }
-  
-    // pack and send vertex coordinates from this proc to others
-    // make sendReqs vector to simplify initialization
-    std::fill(sendReqs, sendReqs+2*MAX_SHARING_PROCS, MPI_REQUEST_NULL);
-    Range recd_ents[MAX_SHARING_PROCS];
-  
-    for (sit = iface_procs.begin(); sit != iface_procs.end(); sit++) {
-    int ind = get_buffers(*sit);
-    
-    Range vertices;
-    for (Range::iterator rit = interfaceSets.begin(); rit != interfaceSets.end();
-    rit++) {
-    if (!is_iface_proc(*rit, *sit)) 
-    continue;
-      
-    result = mbImpl->get_entities_by_type( *rit, MBVERTEX, vertices );
-    RRA("Bad interface set.");
-    }
-    std::map<unsigned int,Range>::iterator ghosted = ghostedEnts.find(*sit);
-    if (ghosted != ghostedEnts.end()) {
-    Range::iterator e = ghosted->second.upper_bound(MBVERTEX);
-    vertices.merge( ghosted->second.begin(), e );
-    }
-
-    // pack-send; this also posts receives if store_remote_handles is true
-    Range sent;
-    result = pack_send_entities(*sit, vertices, false, false, 
-    false, true,
-    ownerSBuffs[ind], ownerRBuffs[MAX_SHARING_PROCS+ind], 
-    sendReqs[ind], recv_reqs[MAX_SHARING_PROCS+ind], 
-    sent);
-    RRA("Failed to pack-send in mesh update exchange.");
-    }
-  
-    // receive/unpack entities
-    // number of incoming messages depends on whether we're getting back
-    // remote handles
-    int num_incoming = iface_procs.size();
-  
-    while (num_incoming) {
-    int ind;
-    MPI_Status status;
-    success = MPI_Waitany(2*MAX_SHARING_PROCS, &recv_reqs[0], &ind, &status);
-    if (MPI_SUCCESS != success) {
-    result = MB_FAILURE;
-    RRA("Failed in waitany in ghost exchange.");
-    }
-    
-    // ok, received something; decrement incoming counter
-    num_incoming--;
-    
-    std::vector<EntityHandle> remote_handles_v, sent_ents_tmp;
-    Range remote_handles_r;
-    int new_size;
-    
-    // branch on message type
-    switch (status.MPI_TAG) {
-    case MB_MESG_SIZE:
-    // incoming message just has size; resize buffer and re-call recv,
-    // then re-increment incoming count
-    assert(ind < MAX_SHARING_PROCS);
-    new_size = *((int*)&ghostRBuffs[ind][0]);
-    assert(0 > new_size);
-    result = recv_size_buff(buffProcs[ind], ghostRBuffs[ind], recv_reqs[ind],
-    MB_MESG_ENTS);
-    RRA("Failed to resize recv buffer.");
-    num_incoming++;
-    break;
-    case MB_MESG_ENTS:
-    // incoming ghost entities; process
-    result = recv_unpack_entities(buffProcs[ind], true,
-    false, 
-    ghostRBuffs[ind], ghostSBuffs[ind], 
-    sendReqs[ind], recd_ents[ind]);
-    RRA("Failed to recv-unpack message.");
-    break;
-    }
-    }
-  
-    // ok, now wait if requested
-    MPI_Status status[2*MAX_SHARING_PROCS];
-    success = MPI_Waitall(2*MAX_SHARING_PROCS, &sendReqs[0], status);
-    if (MPI_SUCCESS != success) {
-    result = MB_FAILURE;
-    RRA("Failure in waitall in ghost exchange.");
-    }
-  
-    return MB_SUCCESS;
-    }
-    ErrorCode ParallelComm::update_iface_sets(Range &sent_ents,
-    std::vector<EntityHandle> &remote_handles, 
-    int from_proc) 
-    {
-    std::vector<EntityHandle>::iterator remote_it = remote_handles.begin();
-    Range::iterator sent_it = sent_ents.begin();
-    Range ents_to_remove;
-    for (; sent_it != sent_ents.end(); sent_it++, remote_it++) {
-    if (!*remote_it) ents_to_remove.insert(*sent_it);
-    }
-  
-    for (Range::iterator set_it = interfaceSets.begin(); set_it != interfaceSets.end(); set_it++) {
-    if (!is_iface_proc(*set_it, from_proc)) continue;
-    ErrorCode result = mbImpl->remove_entities(*set_it, ents_to_remove);
-    RRA("Couldn't remove entities from iface set in update_iface_sets.");
-    }
-
-    */
-  
-    return MB_SUCCESS;
-  }
-
   //! return sharedp tag
   Tag ParallelComm::sharedp_tag()
   {
@@ -8414,7 +8277,8 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
         continue;
       }
  
-      if (!shents.empty()) check_my_shared_handles(shents);
+      if (!shents.empty()) 
+        result = check_my_shared_handles(shents);
       done = true;
     }
   
@@ -8586,6 +8450,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
 
     Range bad_ents, local_shared;
     std::vector<SharedEntityData>::iterator vit;
+    unsigned char tmp_pstat;
     for (unsigned int i = 0; i < shents.size(); i++) {
       int other_proc = buffProcs[i];
       result = get_shared_entities(other_proc, local_shared);
@@ -8596,6 +8461,11 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
         result = get_remote_handles(true, &localh, &dumh, 1, other_proc, dum_vec);
         if (MB_SUCCESS != result || dumh != remoteh) 
           bad_ents.insert(localh);
+        result = get_pstatus(localh, tmp_pstat);
+        if (MB_SUCCESS != result ||
+            (!tmp_pstat&PSTATUS_NOT_OWNED && vit->owner != rank()) ||
+            (tmp_pstat&PSTATUS_NOT_OWNED && vit->owner == rank()))
+          bad_ents.insert(localh);
       }
 
       if (!local_shared.empty()) 
@@ -8603,10 +8473,9 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     }
   
     if (!bad_ents.empty()) {
-      if (prefix) {
+      if (prefix)
         std::cout << prefix << std::endl;
-        list_entities(bad_ents);
-      }
+      list_entities(bad_ents);
       return MB_FAILURE;
     }
 
