@@ -743,6 +743,7 @@ void test_types()
     { MBQUAD,    EXOII_SHELL9,     9, "SHELL9" },
     { MBTET,     EXOII_TETRA,      4, "TETRA" },
     { MBTET,     EXOII_TETRA4,     4, "TETRA4" },
+    { MBTET,     EXOII_TET4,       4, "TET4" },
     { MBTET,     EXOII_TETRA8,     8, "TETRA8" },
     { MBTET,     EXOII_TETRA10,   10, "TETRA10" },
     { MBTET,     EXOII_TETRA14,   14, "TETRA14" },
