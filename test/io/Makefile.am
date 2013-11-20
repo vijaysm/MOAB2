@@ -30,6 +30,12 @@ else
   CGM_TEST = 
 endif
 
+if CGNS_FILE
+  CGNS_TEST = cgns_test
+else
+  CGNS_TEST = 
+endif
+
 TESTS = readutil_test \
 	tqdcfr \
         vtk_test \
@@ -42,7 +48,8 @@ TESTS = readutil_test \
         stl_test \
         smf_test \
 	$(CCMIO_TEST) \
-	$(CGM_TEST)
+	$(CGM_TEST) \
+	$(CGNS_TEST)
 
 check_PROGRAMS = $(TESTS)
 
@@ -66,6 +73,7 @@ ccmio_test_SOURCES = $(srcdir)/../TestUtil.hpp ccmio_test.cpp
 read_cgm_test_SOURCES = $(srcdir)/../TestUtil.hpp read_cgm_test.cpp
 read_cgm_test_CXXFLAGS = $(CGM_CPPFLAGS)  $(CXXFLAGS)
 readutil_test_SOURCES = $(srcdir)/../TestUtil.hpp readutil_test.cpp
+cgns_test_SOURCES=$(srcdir)/../TestUtil.hpp cgns_test.cpp
 
 MOSTLYCLEANFILES = dumped_acis.sat  \
                    mb_write.g \

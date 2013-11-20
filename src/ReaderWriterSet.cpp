@@ -1,16 +1,16 @@
 /**
  * MOAB, a Mesh-Oriented datABase, is a software component for creating,
  * storing and accessing finite element mesh data.
- * 
+ *
  * Copyright 2004 Sandia Corporation.  Under the terms of Contract
  * DE-AC04-94AL85000 with Sandia Coroporation, the U.S. Government
  * retains certain rights in this software.
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  */
 
 #include "moab/Core.hpp"
@@ -54,9 +54,14 @@
 #endif
 
 // 2nd include of ReadNC in case we have pnetcdf and not netcdf
-#ifdef PNETCDF_FILE 
+#ifdef PNETCDF_FILE
 #  include "ReadNC.hpp"
 #  include "ReadGCRM.hpp"
+#endif
+
+#ifdef CGNS_FILE
+#  include "ReadCGNS.hpp"
+#  include "WriteCGNS.hpp"
 #endif
 
 #ifdef CCMIO_FILE
@@ -83,15 +88,15 @@
 namespace moab {
 
 ReaderWriterSet::ReaderWriterSet( Core* mdb, Error* handler )
-  : mbCore( mdb ), mbError( handler ) 
+  : mbCore( mdb ), mbError( handler )
 {
 #ifdef HDF5_FILE
   const char* hdf5_sufxs[] = { "h5m", "mhdf", NULL };
 #ifdef HDF5_PARALLEL
-  register_factory(  ReadHDF5::factory, WriteHDF5Parallel::factory, 
+  register_factory(  ReadHDF5::factory, WriteHDF5Parallel::factory,
                      "MOAB native (HDF5)", hdf5_sufxs, "MOAB" );
 #else
-  register_factory(  ReadHDF5::factory, WriteHDF5::factory, 
+  register_factory(  ReadHDF5::factory, WriteHDF5::factory,
                      "MOAB native (HDF5)", hdf5_sufxs, "MOAB" );
 #endif
 #endif
@@ -103,21 +108,26 @@ ReaderWriterSet::ReaderWriterSet( Core* mdb, Error* handler )
   register_factory( ReadNC::factory, NULL, "Climate NC", "nc", "NC" );
 #endif
 
+#ifdef CGNS_FILE
+  const char* cgns_sufxs[] = { "cgns", NULL };
+  register_factory( ReadCGNS::factory, WriteCGNS::factory, "CGNS", cgns_sufxs, "CGNS" );
+#endif
+
   register_factory( ReadIDEAS::factory, NULL, "IDEAS format", "unv", "UNV" );
-  
+
   register_factory( ReadMCNP5::factory, NULL, "MCNP5 format", "meshtal", "MESHTAL" );
-  
+
   const char* nastran_sufxs[] = { "nas", "bdf", NULL };
   register_factory( ReadNASTRAN::factory, NULL, "NASTRAN format", nastran_sufxs, "NAS" );
 
   register_factory( ReadABAQUS::factory, NULL, "ABAQUS INP mesh format", "abq", "Abaqus mesh" );
-  
+
   register_factory( ReadVtk::factory, WriteVtk::factory, "Kitware VTK", "vtk", "VTK" );
-  
+
   register_factory( ReadSms::factory, NULL, "RPI SMS", "sms", "SMS" );
-  
+
   register_factory( Tqdcfr::factory, NULL, "Cubit", "cub", "CUBIT" );
-  
+
   register_factory( ReadSmf::factory, WriteSmf::factory , "QSlim format", "smf", "SMF");
 
 #ifdef CGM
@@ -131,27 +141,27 @@ ReaderWriterSet::ReaderWriterSet( Core* mdb, Error* handler )
   register_factory( ReadCGM::factory, NULL, "IGES B-Rep exchange", iges_sufxs, "IGES");
 #endif
 
-#ifdef NETCDF_FILE  
+#ifdef NETCDF_FILE
   register_factory( NULL, WriteSLAC::factory, "SLAC", "slac", "SLAC" );
 #endif
 
-#ifdef CCMIO_FILE  
+#ifdef CCMIO_FILE
   const char* ccmio_sufxs[] = { "ccm", "ccmg", NULL };
   register_factory( ReadCCMIO::factory, WriteCCMIO::factory, "CCMIO files", ccmio_sufxs, "CCMIO");
 #endif
 
-#ifdef DAMSEL_FILE  
+#ifdef DAMSEL_FILE
   const char* damsel_sufxs[] = { "h5", NULL };
   register_factory( ReadDamsel::factory, WriteDamsel::factory, "Damsel files", damsel_sufxs, "DAMSEL");
 #endif
 
   register_factory( NULL, WriteGMV::factory, "GMV", "gmv", "GMV" );
-  
+
   register_factory( NULL, WriteAns::factory, "Ansys", "ans", "ANSYS" );
-  
+
   const char* gmsh_sufxs[] = { "msh", "gmsh", NULL };
   register_factory( ReadGmsh::factory, WriteGmsh::factory, "Gmsh mesh file", gmsh_sufxs, "GMSH" );
-  
+
   register_factory( ReadSTL::factory, WriteSTL::factory, "Stereo Lithography File (STL)", "stl", "STL" );
 
   const char* tetgen_sufxs[] = { "node", "ele", "face", "edge", NULL };
@@ -178,7 +188,7 @@ ErrorCode ReaderWriterSet::register_factory( reader_factory_t reader,
 {
   if (!reader && !writer)
     return MB_FAILURE;
-    
+
     // check for duplicate names
   iterator h = handler_by_name( name );
   if (h != end()) {
@@ -186,7 +196,7 @@ ErrorCode ReaderWriterSet::register_factory( reader_factory_t reader,
                              name );
     return MB_FAILURE;
   }
-  
+
     // count extensions and check for duplicates
   const char* const* iter;
   for (iter = extensions; *iter; ++iter)
@@ -206,7 +216,7 @@ ErrorCode ReaderWriterSet::register_factory( reader_factory_t reader,
   }
   handlerList.push_back( Handler(reader, writer, name, description, extensions, iter - extensions) );
   return MB_SUCCESS;
-}    
+}
 
 ErrorCode ReaderWriterSet::register_factory( reader_factory_t reader,
                                                  writer_factory_t writer,
@@ -218,8 +228,8 @@ ErrorCode ReaderWriterSet::register_factory( reader_factory_t reader,
   return register_factory( reader, writer, description, extensions, name );
 }
 
-  
-ReaderIface* ReaderWriterSet::get_file_extension_reader( 
+
+ReaderIface* ReaderWriterSet::get_file_extension_reader(
                                   const std::string& filename ) const
 {
   std::string ext = extension_from_filename( filename );
@@ -227,7 +237,7 @@ ReaderIface* ReaderWriterSet::get_file_extension_reader(
   return handler == end() ? NULL : handler->make_reader(mbCore);
 }
 
-WriterIface* ReaderWriterSet::get_file_extension_writer( 
+WriterIface* ReaderWriterSet::get_file_extension_writer(
                                   const std::string& filename ) const
 {
   std::string ext = extension_from_filename( filename );
@@ -235,7 +245,7 @@ WriterIface* ReaderWriterSet::get_file_extension_writer(
   return handler == end() ? NULL : handler->make_writer(mbCore);
 }
 
-std::string ReaderWriterSet::extension_from_filename( 
+std::string ReaderWriterSet::extension_from_filename(
                                  const std::string& filename )
 {
   std::string::size_type idx = filename.find_last_of( "." );
@@ -245,11 +255,11 @@ std::string ReaderWriterSet::extension_from_filename(
     return filename.substr( idx + 1 );
 }
 
-ReaderWriterSet::Handler::Handler( reader_factory_t read_f, 
+ReaderWriterSet::Handler::Handler( reader_factory_t read_f,
                                      writer_factory_t write_f,
                                      const char* nm,
-                                     const char* desc, 
-                                     const char* const* ext, 
+                                     const char* desc,
+                                     const char* const* ext,
                                      int num_ext )
  : mReader(read_f), mWriter(write_f), mName(nm), mDescription(desc), mExtensions(num_ext)
 {
@@ -261,45 +271,45 @@ ReaderWriterSet::Handler::Handler( reader_factory_t read_f,
 #define strcasecmp(A,B) _stricmp( A, B )
 #endif
 
-ReaderWriterSet::iterator 
+ReaderWriterSet::iterator
 ReaderWriterSet::handler_from_extension( const std::string& ext,
                                            bool with_reader,
                                            bool with_writer ) const
 {
   iterator iter;
   std::vector<std::string>::const_iterator siter;
-  
+
     // try case-sensitive compare
   for (iter = begin(); iter != end(); ++iter)
   {
     if ((with_reader && !iter->have_reader()) ||
         (with_writer && !iter->have_writer()))
       continue;
-      
+
     for (siter = iter->mExtensions.begin(); siter != iter->mExtensions.end(); ++siter)
       if (*siter == ext)
         return iter;
   }
-  
+
     // try case-insensitive compare
   for (iter = begin(); iter != end(); ++iter)
   {
     if ((with_reader && !iter->have_reader()) ||
         (with_writer && !iter->have_writer()))
       continue;
- 
+
     for (siter = iter->mExtensions.begin(); siter != iter->mExtensions.end(); ++siter)
       if (0 == strcasecmp( siter->c_str(), ext.c_str() ))
         return iter;
   }
-  
+
   return end();
 }
 
-bool ReaderWriterSet::Handler::reads_extension(const char *ext) const 
+bool ReaderWriterSet::Handler::reads_extension(const char *ext) const
 {
   if (!have_reader()) return false;
-  
+
   std::vector<std::string>::const_iterator siter;
   for (siter = mExtensions.begin(); siter != mExtensions.end(); ++siter)
     if (!(*siter).compare(ext)) return true;
@@ -308,10 +318,10 @@ bool ReaderWriterSet::Handler::reads_extension(const char *ext) const
   return false;
 }
 
-bool ReaderWriterSet::Handler::writes_extension(const char *ext) const 
+bool ReaderWriterSet::Handler::writes_extension(const char *ext) const
 {
   if (!have_writer()) return false;
-  
+
   std::vector<std::string>::const_iterator siter;
   for (siter = mExtensions.begin(); siter != mExtensions.end(); ++siter)
     if (!(*siter).compare(ext)) return true;
@@ -335,7 +345,7 @@ bool ReaderWriterSet::Handler::operator==( const char* nm ) const
       return false;
   return *nm == '\0';
 }
-  
+
 } // namespace moab
 
 
