@@ -29,7 +29,9 @@ void test_read_fv_onevar();
 void test_read_fv_onetimestep();
 void test_read_fv_nomesh();
 void test_read_fv_novars();
+#ifdef USE_MPI
 void test_read_fv_ghosting();
+#endif
 
 ErrorCode get_options(std::string& opts);
 
@@ -58,8 +60,10 @@ int main(int argc, char* argv[])
   result += RUN_TEST(test_read_fv_nomesh);
   result += RUN_TEST(test_read_fv_novars);
 
+#ifdef USE_MPI
   // Before ghosting issues with ownership were fixed, this test failed on 4 processors
   result += RUN_TEST(test_read_fv_ghosting);
+#endif
 
 #ifdef USE_MPI
   fail = MPI_Finalize();
@@ -498,6 +502,7 @@ void test_read_fv_novars()
   CHECK_ERR(rval);
 }
 
+#ifdef USE_MPI
 void test_read_fv_ghosting()
 {
   Core moab;
@@ -524,6 +529,7 @@ void test_read_fv_ghosting()
   rval = mb.load_file(example_fv, &set, opts.c_str());
   CHECK_ERR(rval);
 }
+#endif
 
 ErrorCode get_options(std::string& opts) 
 {
