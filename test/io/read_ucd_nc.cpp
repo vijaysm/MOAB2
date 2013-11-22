@@ -173,8 +173,8 @@ void test_read_nomesh()
   Interface& mb = moab;
 
   // Need a set for nomesh to work right
-  EntityHandle set;
-  ErrorCode rval = mb.create_meshset(MESHSET_SET, set);
+  EntityHandle file_set;
+  ErrorCode rval = mb.create_meshset(MESHSET_SET, file_set);
   CHECK_ERR(rval);
 
   std::string orig, opts;
@@ -182,7 +182,7 @@ void test_read_nomesh()
   CHECK_ERR(rval);
 
   opts = orig + std::string(";TIMESTEP=0");
-  rval = mb.load_file(example, &set, opts.c_str());
+  rval = mb.load_file(example, &file_set, opts.c_str());
   CHECK_ERR(rval);
 
   // Check for proper tag
@@ -195,7 +195,7 @@ void test_read_nomesh()
 
   // Now read 2nd timestep with nomesh option
   opts = orig + std::string(";TIMESTEP=1;NOMESH");
-  rval = mb.load_file(example, &set, opts.c_str());
+  rval = mb.load_file(example, &file_set, opts.c_str());
   CHECK_ERR(rval);
 
   // Check for proper tag
@@ -255,8 +255,8 @@ void test_read_dim_vars()
   Core moab;
   Interface& mb = moab;
 
-  EntityHandle set;
-  ErrorCode rval = mb.create_meshset(MESHSET_SET, set);
+  EntityHandle file_set;
+  ErrorCode rval = mb.create_meshset(MESHSET_SET, file_set);
   CHECK_ERR(rval);
 
   std::string orig, opts;
@@ -264,7 +264,7 @@ void test_read_dim_vars()
   CHECK_ERR(rval);
 
   opts = orig + std::string(";NOMESH;VARIABLE=");
-  rval = mb.load_file(example, &set, opts.c_str());
+  rval = mb.load_file(example, &file_set, opts.c_str());
   CHECK_ERR(rval);
 
   std::string tag_name;
@@ -280,8 +280,9 @@ void test_read_dim_vars()
   CHECK_EQUAL(true, var_tag->variable_length());
   CHECK_EQUAL(MB_TYPE_DOUBLE, var_tag->get_data_type());
 
-  // Check lev tag size and values
-  rval = mb.tag_get_by_ptr(var_tag, &set, 1, &var_data, &var_len);
+  // Check lev tag size and values on file_set
+  rval = mb.tag_get_by_ptr(var_tag, &file_set, 1, &var_data, &var_len);
+  CHECK_ERR(rval);
   CHECK_EQUAL(26, var_len);
   double* lev_val = (double*)var_data;
   const double eps = 1e-10;
@@ -296,10 +297,51 @@ void test_read_dim_vars()
   CHECK_EQUAL(true, var_tag->variable_length());
   CHECK_EQUAL(MB_TYPE_INTEGER, var_tag->get_data_type());
 
-  // Check ncol tag size and values
-  rval = mb.tag_get_by_ptr(var_tag, &set, 1, &var_data, &var_len);
+  // Check ncol tag size and values on file_set
+  rval = mb.tag_get_by_ptr(var_tag, &file_set, 1, &var_data, &var_len);
+  CHECK_ERR(rval);
   CHECK_EQUAL(1, var_len);
   int* ncol_val = (int*)var_data;
+  CHECK_EQUAL(3458, ncol_val[0]);
+
+  // Create another file set
+  EntityHandle file_set2;
+  rval = mb.create_meshset(MESHSET_SET, file_set2);
+  CHECK_ERR(rval);
+
+  // Read file again with file_set2
+  rval = mb.load_file(example, &file_set2, opts.c_str());
+  CHECK_ERR(rval);
+
+  // Check tag for regular dimension variable lev
+  tag_name = "lev";
+  var_len = 0;
+  rval = mb.tag_get_handle(tag_name.c_str(), var_len, MB_TYPE_OPAQUE, var_tag, MB_TAG_SPARSE | MB_TAG_VARLEN);
+  CHECK_ERR(rval);
+  CHECK_EQUAL(true, var_tag->variable_length());
+  CHECK_EQUAL(MB_TYPE_DOUBLE, var_tag->get_data_type());
+
+  // Check lev tag size and values on file_set2
+  rval = mb.tag_get_by_ptr(var_tag, &file_set2, 1, &var_data, &var_len);
+  CHECK_ERR(rval);
+  CHECK_EQUAL(26, var_len);
+  lev_val = (double*)var_data;
+  CHECK_REAL_EQUAL(3.54463800000002, lev_val[0], eps);
+  CHECK_REAL_EQUAL(992.556100000005, lev_val[25], eps);
+
+  // Check tag for dummy dimension variable ncol
+  tag_name = "ncol";
+  var_len = 0;
+  rval = mb.tag_get_handle(tag_name.c_str(), var_len, MB_TYPE_OPAQUE, var_tag, MB_TAG_SPARSE | MB_TAG_VARLEN);
+  CHECK_ERR(rval);
+  CHECK_EQUAL(true, var_tag->variable_length());
+  CHECK_EQUAL(MB_TYPE_INTEGER, var_tag->get_data_type());
+
+  // Check ncol tag size and values on file_set2
+  rval = mb.tag_get_by_ptr(var_tag, &file_set2, 1, &var_data, &var_len);
+  CHECK_ERR(rval);
+  CHECK_EQUAL(1, var_len);
+  ncol_val = (int*)var_data;
   CHECK_EQUAL(3458, ncol_val[0]);
 }
 
