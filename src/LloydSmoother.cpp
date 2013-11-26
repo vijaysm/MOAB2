@@ -78,7 +78,7 @@ ErrorCode LloydSmoother::perform_smooth()
   Range owned_verts, shared_owned_verts;
 #ifdef USE_MPI
     // filter verts down to owned ones and get fixed tag for them
-  if (myPcomm->size() > 1) {
+  if (myPcomm && myPcomm->size() > 1) {
     rval = myPcomm->filter_pstatus(verts, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &owned_verts);
     RR("Failed to filter on pstatus.");
       // get shared owned verts, for exchanging tags
@@ -161,7 +161,7 @@ ErrorCode LloydSmoother::perform_smooth()
 
 #ifdef USE_MPI
     // 2c. exchange tags on owned verts
-    if (myPcomm->size() > 1) {
+    if (myPcomm && myPcomm->size() > 1) {
       rval = myPcomm->exchange_tags(centroid, shared_owned_verts); RR("Failed to exchange tags.");
     }
 #endif
@@ -170,7 +170,7 @@ ErrorCode LloydSmoother::perform_smooth()
       double global_max = resid;
 #ifdef USE_MPI
         // global reduce for maximum delta, then report it
-      if (myPcomm->size() > 1)
+      if (myPcomm && myPcomm->size() > 1)
         MPI_Reduce(&resid, &global_max, 1, MPI_DOUBLE, MPI_MAX, 0, myPcomm->comm());
       if (!myPcomm || !myPcomm->rank()) 
 #endif
