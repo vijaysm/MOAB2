@@ -38,9 +38,6 @@ if PARALLEL
 
 #  check_PROGRAMS += partest iMeshP_unit_tests moabtest
   check_PROGRAMS += partest MOAB_iMeshP_unit_tests 
-if ENABLE_FORTRAN
-  check_PROGRAMS += PushParMeshIntoMoabF90
-endif
 #  moabtest_SOURCES = moabtest.F
 
 #  check_PROGRAMS += ftest
@@ -71,9 +68,6 @@ ScdMeshF77_DEPENDENCIES = $(TESTDEPS)
 
 FindAdjacencyF90_SOURCES = FindAdjacencyF90.F90
 FindAdjacencyF90_DEPENDENCIES = $(TESTDEPS)
-
-PushParMeshIntoMoabF90_SOURCES = PushParMeshIntoMoabF90.F90
-PushParMeshIntoMoabF90_DEPENDENCIES = $(TESTDEPS)
 
 lib_LTLIBRARIES = libiMesh.la
 
