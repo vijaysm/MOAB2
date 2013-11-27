@@ -19,8 +19,13 @@
 #include "MBTagConventions.hpp"
 #include "DataCoupler.hpp"
 
+#ifdef USE_MPI
+#  include "moab/ParallelComm.hpp"
+#endif
+
 #include <iostream>
 #include <set>
+#include <sstream>
 #include <assert.h>
 
 using namespace moab;
@@ -52,7 +57,10 @@ public:
   enum {MASTER=0, SLAVE, SOLID, FLUID};
   
     //! constructor
-  DeformMeshRemap(Interface *impl) : mbImpl(impl), masterSet(0), slaveSet(0), xNew(0), xNewName("xnew") {}
+    //! if master is NULL, the MOAB part is run in serial; 
+    //! if slave is NULL but the master isn't, the slave is copied from the master
+    //! Create communicators using moab::ParallelComm::get_pcomm
+  DeformMeshRemap(Interface *impl, ParallelComm *master = NULL, ParallelComm *slave = NULL);
   
     //! destructor
   ~DeformMeshRemap();
@@ -100,6 +108,11 @@ private:
 
     //! moab interface
   Interface *mbImpl;
+
+#ifdef USE_MPI
+    //! ParallelComm for master, slave meshes
+  ParallelComm *pcMaster, *pcSlave;
+#endif
   
     //! material set numbers for fluid materials
   std::set<int> fluidSetNos;
@@ -238,8 +251,18 @@ ErrorCode DeformMeshRemap::execute()
   rval = write_to_coords(tgt_verts, xNew); RR("Failed writing tag to slave verts.");
 
   if (debug) {
-    rval = mbImpl->write_file("smoothed_master.vtk", NULL, NULL, &masterSet, 1);
-    rval = mbImpl->write_file("slave_interp.vtk", NULL, NULL, &slaveSet, 1);
+    std::string str;
+#ifdef USE_MPI
+    if (pcMaster && pcMaster->size() > 1) 
+      str = "PARALLEL=WRITE_PART";
+#endif
+    rval = mbImpl->write_file("smoothed_master.vtk", NULL, str.c_str(), &masterSet, 1);
+#ifdef USE_MPI
+    str.clear();
+    if (pcSlave && pcSlave->size() > 1) 
+      str = "PARALLEL=WRITE_PART";
+#endif
+    rval = mbImpl->write_file("slave_interp.vtk", NULL, str.c_str(), &slaveSet, 1);
   }
 
   return MB_SUCCESS;
@@ -270,6 +293,13 @@ void DeformMeshRemap::set_file_name(int m_or_s, const std::string &name)
   }
 }
 
+DeformMeshRemap::DeformMeshRemap(Interface *impl, ParallelComm *master, ParallelComm *slave)  
+        : mbImpl(impl), pcMaster(master), pcSlave(slave), masterSet(0), slaveSet(0), xNew(0), xNewName("xnew") 
+{
+  if (!pcSlave && pcMaster)
+    pcSlave = pcMaster;
+}
+  
 DeformMeshRemap::~DeformMeshRemap() 
 {
     // delete the tag
@@ -293,13 +323,23 @@ int main(int argc, char **argv) {
 
   mb = new Core();
 
-  DeformMeshRemap dfr(mb);
-  dfr.set_file_name(DeformMeshRemap::MASTER, masterf);
-  dfr.set_file_name(DeformMeshRemap::SLAVE, slavef);
-  rval = dfr.add_set_no(DeformMeshRemap::SOLID, SOLID_SETNO); RR("Failed to add solid set no.");
-  rval = dfr.add_set_no(DeformMeshRemap::FLUID, FLUID_SETNO); RR("Failed to add fluid set no.");
+  DeformMeshRemap *dfr;
+#ifdef USE_MPI
+  ParallelComm *pc = new ParallelComm(mb, MPI_COMM_WORLD);
+  dfr = new DeformMeshRemap(mb, pc);
+#else  
+  dfr = new DeformMeshRemap(mb);
+#endif
+  dfr->set_file_name(DeformMeshRemap::MASTER, masterf);
+  dfr->set_file_name(DeformMeshRemap::SLAVE, slavef);
+  rval = dfr->add_set_no(DeformMeshRemap::SOLID, SOLID_SETNO); RR("Failed to add solid set no.");
+  rval = dfr->add_set_no(DeformMeshRemap::FLUID, FLUID_SETNO); RR("Failed to add fluid set no.");
   
-  rval = dfr.execute();
+  rval = dfr->execute();
+  
+  delete dfr;
+  delete mb;
+  
   return rval;
 }
 
@@ -389,7 +429,16 @@ ErrorCode DeformMeshRemap::read_file(int m_or_s, string &fname, EntityHandle &se
     // create meshset
   ErrorCode rval = mbImpl->create_meshset(0, seth);
   RR("Couldn't create master/slave set.");
-  rval = mbImpl->load_file(fname.c_str(), &seth);
+  ostringstream ostr;
+#ifdef USE_MPI
+  ParallelComm *pc = (m_or_s == MASTER ? pcMaster : pcSlave);
+  if (pc && pc->size() > 1) {
+    if (debug) ostr << "DEBUG_IO=1;CPUTIME;";
+    ostr << "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;"
+         << "PARALLEL_GHOSTS=2.0.1;PARALLEL_COMM=" << pc->get_id();
+  }
+#endif  
+  rval = mbImpl->load_file(fname.c_str(), &seth, ostr.str().c_str());
   RR("Couldn't load master/slave mesh.");
 
     // get material sets for solid/fluid
