@@ -731,6 +731,11 @@ The options used to specify loading method, the data used to identify parts, and
 <td><gd.bd.nl[.ad]></td>
 <td>Exchange ghost elements at shared inter-processor interfaces.  Ghost elements of dimension gd will be exchanged.  Ghost elements are chosen going through bd-dimensional interface entities.  Number of layers of ghost elements is specified in nl.  If ad is present, lower-dimensional entities bounding exchanged ghost entities will also be exchanged; allowed values for ad are 1 (exchange bounding edges), 2 (faces), or 3 (edges and faces).</td>
 </tr>
+<td>PARALLEL_COMM</td>
+<td><id></td>
+<td>Use the ParallelComm with index <id>.  Index for a ParallelComm object can be checked with ParallelComm::get_id(), and a ParallelComm with a given index can be retrieved using ParallelComm::get_pcomm(id).</td>
+</tr>
+<tr>
 <tr>
 <td>CPUTIME</td>
 <td>(none)</td>
