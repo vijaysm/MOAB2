@@ -9,7 +9,6 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_srcdir)/src \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src/parallel \
-               -I$(top_srcdir)/src/LocalDiscretization \
                -I$(top_srcdir)/src/moab/point_locater/lotte \
                -I$(top_srcdir)/test \
                -I$(top_srcdir)/itaps \
@@ -24,12 +23,10 @@ LDADD = libmbcoupler.la $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/ime
 
 libmbcoupler_la_SOURCES = \
    Coupler.cpp \
-   DataCoupler.cpp \
    ElemUtil.cpp
 
 libmbcoupler_la_include_HEADERS = \
    Coupler.hpp \
-   DataCoupler.hpp \
    ElemUtil.hpp
 
 libmbcoupler_la_includedir = $(includedir)

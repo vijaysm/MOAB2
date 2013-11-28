@@ -15,7 +15,6 @@
 #include "moab/LloydSmoother.hpp"
 #include "moab/ProgOptions.hpp"
 #include "MBTagConventions.hpp"
-#include "DataCoupler.hpp"
 
 #include <iostream>
 #include <set>
@@ -85,7 +84,7 @@ public:
 private:
     //! apply a known deformation to the solid elements, putting the results in the xNew tag; also
     //! write current coordinates to the xNew tag for fluid elements
-  ErrorCode deform_master(Range &fluid_elems, Range &solid_elems, const char *tag_name = NULL);
+  ErrorCode deform_master(Range &fluid_elems, Range &solid_elems);
 
     //! read a file and establish proper ranges
   ErrorCode read_file(int m_or_s, string &fname, EntityHandle &seth);
@@ -194,46 +193,20 @@ ErrorCode DeformMeshRemap::execute()
   if (MB_SUCCESS != rval) return rval;
 
     // deform the master's solid mesh, put results in a new tag
-  rval = deform_master(fluidElems[MASTER], solidElems[MASTER], "xnew"); RR("");
+  rval = deform_master(fluidElems[MASTER], solidElems[MASTER]); RR("");
   if (debug) write_and_save(solidElems[MASTER], masterSet, xNew, "deformed.vtk");
-
-  { // to isolate the lloyd smoother & delete when done
-
-      // smooth the master mesh
-    LloydSmoother ll(mbImpl, NULL, fluidElems[MASTER], xNew);
-    rval = ll.perform_smooth();
-    RR("Failed in lloyd smoothing.");
-    cout << "Lloyd smoothing required " << ll.num_its() << " iterations." << endl;
-  }
   
+    // smooth the master mesh
+  LloydSmoother *ll = new LloydSmoother(mbImpl, NULL, fluidElems[MASTER], xNew);
+  rval = ll->perform_smooth();
+  RR("Failed in lloyd smoothing.");
+
+  cout << "Lloyd smoothing required " << ll->num_its() << " iterations." << endl;
+  if (debug) write_and_save(fluidElems[MASTER], masterSet, xNew, "smoothed.vtk");
+
     // map new locations to slave
-    // locate slave vertices in master, orig coords; do this with a data coupler, so you can
-    // later interpolate
-  Range src_elems = solidElems[MASTER];
-  src_elems.merge(fluidElems[MASTER]);
-
-    // initialize data coupler on source elements
-  DataCoupler dc_master(mbImpl, NULL, src_elems, 0);
   
-  Range tgt_verts, tmp_range = solidElems[SLAVE];
-  tmp_range.merge(fluidElems[SLAVE]);
-  rval = mbImpl->get_adjacencies(tmp_range, 0, false, tgt_verts, Interface::UNION);
-  RR("Failed to get target verts.");
-
-    // locate slave vertices, caching results in dc
-  rval = dc_master.locate_points(tgt_verts, 0.0, 1e-10); RR("Point location of tgt verts failed.");
-  
-    // interpolate xNew to slave points
-  rval = dc_master.interpolate((int)DataCoupler::VOLUME, "xnew"); RR("Failed to interpolate target solution.");
-
-    // transfer xNew to coords, for master and slave
-  rval = write_to_coords(fluidElems[MASTER], xNew); RR("Failed writing tag to master fluid verts.");
-  rval = write_to_coords(tgt_verts, xNew); RR("Failed writing tag to slave verts.");
-
-  if (debug) {
-    rval = mbImpl->write_file("smoothed_master.vtk", NULL, NULL, &masterSet, 1);
-    rval = mbImpl->write_file("slave_interp.vtk", NULL, NULL, &slaveSet, 1);
-  }
+  delete ll;
 
   return MB_SUCCESS;
 }
@@ -329,12 +302,12 @@ void deform_func(double *xold, double *xnew)
   xnew[1] = xold[1] + yfrac * (1.0 + xfrac) * 0.05;
 }
   
-ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems, const char *tag_name) 
+ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems) 
 {
     // deform elements with an analytic function
 
     // create the tag
-  ErrorCode rval = mbImpl->tag_get_handle((tag_name ? tag_name : ""), 3, MB_TYPE_DOUBLE, xNew, MB_TAG_CREAT|MB_TAG_DENSE);
+  ErrorCode rval = mbImpl->tag_get_handle("", 3, MB_TYPE_DOUBLE, xNew, MB_TAG_CREAT|MB_TAG_DENSE);
   RR("Failed to create xnew tag.");
   
     // get all the vertices and coords in the fluid, set xnew to them
