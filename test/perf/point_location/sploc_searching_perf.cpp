@@ -160,7 +160,7 @@ ErrorCode test_locator(SpatialLocator &sl, int npoints, double rtol, double &cpu
   CpuTimer ct;
   
     // call spatial locator to locate points
-  rval = sl.locate_points(test_pts[0].array(), npoints, &ents[0], test_res[0].array(), &is_in[0], rtol, 0.0);
+  rval = sl.locate_points(test_pts[0].array(), npoints, &ents[0], test_res[0].array(), rtol, 0.0, &is_in[0]);
   if (MB_SUCCESS != rval) return rval;
 
   cpu_time = ct.time_elapsed();

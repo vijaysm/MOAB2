@@ -32,10 +32,9 @@ int main(int argc, char **argv)
 #endif
 
   int npoints = 100, dim = 3;
-  int dints = 1, dleafs = 1, ddeps = 1, csints = 0;
+  int dints = 1, dleafs = 1, ddeps = 1;
   
-  ProgOptions po;
-  po.addOpt<int>( "candidateplaneset,c", "Candidate plane set (0=SUBDIVISION,1=SUBDIV_SNAP,2=VERTEX_MEDIAN,3=VERTEX_SAMPLE", &csints);
+  ProgOptions po("tree_searching_perf options" );
   po.addOpt<int>( "ints,i", "Number of doublings of intervals on each side of scd mesh", &dints);
   po.addOpt<int>( "leaf,l", "Number of doublings of maximum number of elements per leaf", &dleafs);
   po.addOpt<int>( "max_depth,m", "Number of 5-intervals on maximum depth of tree", &ddeps);
@@ -79,7 +78,7 @@ int main(int argc, char **argv)
       for (std::vector<int>::iterator leafs_it = leafs.begin(); leafs_it != leafs.end(); leafs_it++) {
   
           // iteration: tree type
-        for (int tree_tp = 1; tree_tp < 2; tree_tp++) {
+        for (int tree_tp = 0; tree_tp < 2; tree_tp++) {
             // create tree
           Tree *tree;
           if (0 == tree_tp)
@@ -89,11 +88,6 @@ int main(int argc, char **argv)
 
           std::ostringstream opts;
           opts << "MAX_DEPTH=" << *dep_it << ";MAX_PER_LEAF=" << *leafs_it;
-          if (csints) {
-            if (opts.str().length() > 0) 
-              opts << ";";
-            opts << "PLANE_SET=" << csints;
-          }
           FileOptions fo(opts.str().c_str());
           rval = tree->parse_options(fo);
           SpatialLocator sl(&mb, elems, tree);
@@ -151,7 +145,7 @@ ErrorCode test_locator(SpatialLocator &sl, int npoints, double &cpu_time, double
   CpuTimer ct;
   
     // call spatial locator to locate points
-  rval = sl.locate_points(test_pts[0].array(), npoints, &ents[0], test_res[0].array(), &is_in[0]);
+  rval = sl.locate_points(test_pts[0].array(), npoints, &ents[0], test_res[0].array(), 0.0, 0.0, &is_in[0]);
   if (MB_SUCCESS != rval) return rval;
 
   cpu_time = ct.time_elapsed();

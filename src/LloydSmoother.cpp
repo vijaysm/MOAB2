@@ -7,7 +7,6 @@
 
 #ifdef USE_MPI
 #include "moab/ParallelComm.hpp"
-#include "MBParallelConventions.h"
 #endif
 
 #include <iostream>
@@ -162,7 +161,7 @@ ErrorCode LloydSmoother::perform_smooth()
 #ifdef USE_MPI
     // 2c. exchange tags on owned verts
     if (myPcomm->size() > 1) {
-      rval = myPcomm->exchange_tags(centroid, shared_owned_verts); RR("Failed to exchange tags.");
+      rval = pcomm->exchange_tags(centroid, shared_owned_verts); RR("Failed to exchange tags.");
     }
 #endif
 
@@ -172,7 +171,7 @@ ErrorCode LloydSmoother::perform_smooth()
         // global reduce for maximum delta, then report it
       if (myPcomm->size() > 1)
         MPI_Reduce(&resid, &global_max, 1, MPI_DOUBLE, MPI_MAX, 0, myPcomm->comm());
-      if (!myPcomm->rank()) 
+      if (!pcomm->rank()) 
 #endif
         std::cout << "Max residual = " << global_max << std::endl;
     }
