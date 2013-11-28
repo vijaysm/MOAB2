@@ -14,8 +14,6 @@
 #include "moab/Range.hpp"
 #include "moab/LloydSmoother.hpp"
 #include "moab/ProgOptions.hpp"
-#include "moab/BoundBox.hpp"
-#include "moab/SpatialLocator.hpp"
 #include "MBTagConventions.hpp"
 #include "DataCoupler.hpp"
 
@@ -37,7 +35,7 @@ using namespace std;
 
 ErrorCode read_file(string &fname, EntityHandle &seth, 
                     Range &solids, Range &solid_elems, Range &fluids, Range &fluid_elems);
-void deform_func(const BoundBox &bbox, double *xold, double *xnew);
+void deform_func(double *xold, double *xnew);
 ErrorCode deform_master(Range &fluid_elems, Range &solid_elems, Tag &xnew);
 ErrorCode smooth_master(int dim, Tag xnew, EntityHandle &master, Range &fluids);
 ErrorCode write_to_coords(Range &elems, Tag tagh);
@@ -208,30 +206,9 @@ ErrorCode DeformMeshRemap::execute()
   rval = read_file(SLAVE, slaveFileName, slaveSet);
   if (MB_SUCCESS != rval) return rval;
 
-  Range src_elems = solidElems[MASTER];
-  src_elems.merge(fluidElems[MASTER]);
-    // locate slave vertices in master, orig coords; do this with a data coupler, so you can
-    // later interpolate
-  Range tgt_verts, tmp_range = solidElems[SLAVE];
-  tmp_range.merge(fluidElems[SLAVE]);
-  rval = mbImpl->get_adjacencies(tmp_range, 0, false, tgt_verts, Interface::UNION);
-  RR("Failed to get target verts.");
-  
-
-    // initialize data coupler on source elements
-  DataCoupler dc_master(mbImpl, NULL, src_elems, 0);
-  
-    // locate slave vertices, caching results in dc
-  rval = dc_master.locate_points(tgt_verts); RR("Point location of tgt verts failed.");
-  int num_located = dc_master.spatial_locator()->local_num_located();
-  if (num_located != (int)tgt_verts.size()) {
-    rval = MB_FAILURE;
-    std::cout << "Only " << num_located << " out of " << tgt_verts.size() << " target points successfully located." << std::endl;
-    return rval;
-  }
-
     // deform the master's solid mesh, put results in a new tag
   rval = deform_master(fluidElems[MASTER], solidElems[MASTER], "xnew"); RR("");
+  if (debug) write_and_save(solidElems[MASTER], masterSet, xNew, "deformed.vtk");
 
   { // to isolate the lloyd smoother & delete when done
 
@@ -243,6 +220,22 @@ ErrorCode DeformMeshRemap::execute()
   }
   
     // map new locations to slave
+    // locate slave vertices in master, orig coords; do this with a data coupler, so you can
+    // later interpolate
+  Range src_elems = solidElems[MASTER];
+  src_elems.merge(fluidElems[MASTER]);
+
+    // initialize data coupler on source elements
+  DataCoupler dc_master(mbImpl, NULL, src_elems, 0);
+  
+  Range tgt_verts, tmp_range = solidElems[SLAVE];
+  tmp_range.merge(fluidElems[SLAVE]);
+  rval = mbImpl->get_adjacencies(tmp_range, 0, false, tgt_verts, Interface::UNION);
+  RR("Failed to get target verts.");
+
+    // locate slave vertices, caching results in dc
+  rval = dc_master.locate_points(tgt_verts, 0.0, 1e-10); RR("Point location of tgt verts failed.");
+  
     // interpolate xNew to slave points
   rval = dc_master.interpolate((int)DataCoupler::VOLUME, "xnew"); RR("Failed to interpolate target solution.");
 
@@ -364,10 +357,9 @@ ErrorCode DeformMeshRemap::write_to_coords(Range &elems, Tag tagh)
   return MB_SUCCESS;
 }
 
-void deform_func(const BoundBox &bbox, double *xold, double *xnew) 
+void deform_func(double *xold, double *xnew) 
 {
-/*  Deformation function based on max delx and dely at top of rod
-    const double RODWIDTH = 0.2, RODHEIGHT = 0.5;
+  const double RODWIDTH = 0.2, RODHEIGHT = 0.5;
     // function: origin is at middle base of rod, and is .5 high
     // top of rod is (0,.55) on left and (.2,.6) on right
   double delx = 0.5*RODWIDTH;
@@ -375,13 +367,6 @@ void deform_func(const BoundBox &bbox, double *xold, double *xnew)
   double xfrac = (xold[0] + .5*RODWIDTH)/RODWIDTH, yfrac = xold[1]/RODHEIGHT;
   xnew[0] = xold[0] + yfrac * delx;
   xnew[1] = xold[1] + yfrac * (1.0 + xfrac) * 0.05;
-*/
-
-/* Deformation function based on fraction of bounding box dimension in each direction */
-  double frac = 0.01; // taken from approximate relative deformation from LLNL Diablo of XX09 assys
-  CartVect *xo = reinterpret_cast<CartVect*>(xold), *xn = reinterpret_cast<CartVect*>(xnew);
-  CartVect disp = frac * (*xo - bbox.bMin);
-  *xn = *xo + disp;
 }
   
 ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems, const char *tag_name) 
@@ -401,10 +386,6 @@ ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems,
   RR("Failed to get vertex coords.");
   rval = mbImpl->tag_set_data(xNew, verts, &coords[0]);
   RR("Failed to set xnew tag on fluid verts.");
-
-    // get the bounding box of the solid mesh
-  BoundBox bbox;
-  bbox.update(*mbImpl, solid_elems);
   
     // get all the vertices and coords in the solid
   verts.clear();
@@ -415,7 +396,7 @@ ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems,
   RR("Failed to get vertex coords.");
   unsigned int num_verts = verts.size();
   for (unsigned int i = 0; i < num_verts; i++)
-    deform_func(bbox, &coords[3*i], &coords[3*i]);
+    deform_func(&coords[3*i], &coords[3*i]);
     
     // set the new tag to those coords
   rval = mbImpl->tag_set_data(xNew, verts, &coords[0]);

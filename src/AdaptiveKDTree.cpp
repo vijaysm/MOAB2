@@ -1303,8 +1303,7 @@ namespace moab {
 
     ErrorCode AdaptiveKDTree::point_search(const double *point,
                                            EntityHandle& leaf_out,
-                                           const double iter_tol,
-                                           const double inside_tol,
+                                           double tol,
                                            bool *multiple_leaves,
                                            EntityHandle *start_node,
                                            CartVect *params)
@@ -1323,7 +1322,7 @@ namespace moab {
       treeStats.nodesVisited++;
       ErrorCode rval = get_bounding_box(box, &node);
       if (MB_SUCCESS != rval) return rval;
-      if (!box.contains_point(point, iter_tol)) return MB_SUCCESS;
+      if (!box.contains_point(point, tol)) return MB_SUCCESS;
       
       rval = moab()->get_child_meshsets( node, children );
       if (MB_SUCCESS != rval)
@@ -1347,7 +1346,7 @@ namespace moab {
 
       treeStats.leavesVisited++;
       if (myEval && params) {
-        rval = myEval->find_containing_entity(node, point, iter_tol, inside_tol,
+        rval = myEval->find_containing_entity(node, point, tol,
                                               leaf_out, params->array(), &treeStats.leafObjectTests);
         if (MB_SUCCESS != rval) return rval;
       }
@@ -1359,8 +1358,7 @@ namespace moab {
 
     ErrorCode AdaptiveKDTree::point_search(const double *point,
                                            AdaptiveKDTreeIter& leaf_it,
-                                           const double iter_tol,
-                                           const double /*inside_tol*/,
+                                           double tol,
                                            bool *multiple_leaves,
                                            EntityHandle *start_node)
     {
@@ -1374,7 +1372,7 @@ namespace moab {
       leaf_it.mBox[1] = boundBox.bMax;
 
         // test that point is inside tree
-      if (!boundBox.contains_point(point, iter_tol)) {
+      if (!boundBox.contains_point(point, tol)) {
         treeStats.nodesVisited++;
         return MB_ENTITY_NOT_FOUND;
       }
@@ -1425,8 +1423,7 @@ namespace moab {
     ErrorCode AdaptiveKDTree::distance_search(const double from_point[3],
                                               const double distance,
                                               std::vector<EntityHandle>& result_list,
-                                              const double iter_tol,
-                                              const double inside_tol,
+                                              double tol,
                                               std::vector<double> *result_dists,
                                               std::vector<CartVect> *result_params,
                                               EntityHandle *tree_root)
@@ -1448,7 +1445,7 @@ namespace moab {
         // (zero if inside box)
       BoundBox box;
       rval = get_bounding_box(box);
-      if (MB_SUCCESS == rval && !box.contains_point(from_point, iter_tol)) {
+      if (MB_SUCCESS == rval && !box.contains_point(from_point, tol)) {
         treeStats.nodesVisited++;
         return MB_SUCCESS;
       }
@@ -1487,7 +1484,7 @@ namespace moab {
           if (myEval && result_params) {
             EntityHandle ent;
             CartVect params;
-            rval = myEval->find_containing_entity(node.handle, from_point, iter_tol, inside_tol,
+            rval = myEval->find_containing_entity(node.handle, from_point, tol,
                                                   ent, params.array(), &treeStats.leafObjectTests);
             if (MB_SUCCESS != rval) return rval;
             else if (ent) {
@@ -1805,7 +1802,7 @@ namespace moab {
         // the same distance from the input point as the current closest
         // point is.
       CartVect diff = closest_pt - from;
-      rval = distance_search(from_coords, sqrt(diff%diff), leaves, 1.0e-10, 1.0e-6, NULL, NULL, &tree_root);
+      rval = distance_search(from_coords, sqrt(diff%diff), leaves, 0.0, NULL, NULL, &tree_root);
       if (MB_SUCCESS != rval) return rval;
 
         // Check any close leaves to see if they contain triangles that
@@ -1837,7 +1834,7 @@ namespace moab {
 
         // get leaves of tree that intersect sphere
       assert(tree_root);
-      rval = distance_search(center, radius, leaves, 1.0e-10, 1.0e-6, NULL, NULL, &tree_root);
+      rval = distance_search(center, radius, leaves, 0.0, NULL, NULL, &tree_root);
       if (MB_SUCCESS != rval) return rval;
   
         // search each leaf for triangles intersecting sphere

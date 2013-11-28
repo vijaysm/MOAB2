@@ -25,8 +25,7 @@ namespace moab {
 
     typedef ErrorCode (*ReverseEvalFcn)(EvalFcn eval, JacobianFcn jacob, InsideFcn ins, 
                                         const double *posn, const double *verts, const int nverts, const int ndim,
-                                        const double iter_tol, const double inside_tol, 
-                                        double *work, double *params, bool *is_inside);
+                                        const double tol, double *work, double *params, bool *is_inside);
         
     class EvalSet
     {
@@ -77,8 +76,8 @@ namespace moab {
         /** \brief Common function to do reverse evaluation based on evaluation and jacobian functions */
       static ErrorCode evaluate_reverse(EvalFcn eval, JacobianFcn jacob, InsideFcn inside_f,
                                         const double *posn, const double *verts, const int nverts, 
-                                        const int ndim, const double iter_tol, const double inside_tol, 
-                                        double *work, double *params, bool *inside);
+                                        const int ndim, const double tol, double *work, double *params, 
+                                        bool *inside);
         /** \brief Common function that returns true if params is in [-1,1]^ndims */
       static bool inside_function(const double *params, const int ndims, const double tol);
     };
@@ -134,14 +133,12 @@ namespace moab {
         
         /** \brief Reverse-evaluate the cached entity at a given physical position
          * \param posn Position at which to evaluate parameters
-         * \param iter_tol Tolerance of reverse evaluation non-linear iteration, usually 10^-10 or so
-         * \param inside_tol Tolerance of is_inside evaluation, usually 10^-6 or so
+         * \param tol Tolerance of reverse evaluation, usually 10^-6 or so
          * \param params Result of evaluation
          * \param is_inside If non-NULL, returns true of resulting parameters place the point inside the element
          *                  (in most cases, within [-1]*(dim)
          */
-      ErrorCode reverse_eval(const double *posn, double iter_tol, double inside_tol, double *params, 
-                             bool *is_inside = NULL) const;
+      ErrorCode reverse_eval(const double *posn, double tol, double *params, bool *is_inside = NULL) const;
         
         /** \brief Evaluate the jacobian of the cached entity at a given parametric location
          * \param params Parameters at which to evaluate jacobian
@@ -169,16 +166,14 @@ namespace moab {
          * object is changed.
          * \param entities Entities tested
          * \param point Point tested, must have 3 dimensions, even for edge and face entities
-         * \param iter_tol Tolerance for non-linear reverse evaluation
-         * \param inside_tol Tolerance for is_inside test
+         * \param tol Tolerance for is_inside test
          * \param containing_ent Entity containing the point, returned 0 if no entity
          * \param params Parameters of point in containing entity, unchanged if no containing entity
          * \param num_evals If non-NULL, incremented each time reverse_eval is called
          * \return Returns non-success only if evaulation failed for some reason (point not in element is NOT a
          * reason for failure)
          */
-      ErrorCode find_containing_entity(Range &entities, const double *point, 
-                                       const double iter_tol, const double inside_tol, 
+      ErrorCode find_containing_entity(Range &entities, const double *point, double tol, 
                                        EntityHandle &containing_ent, double *params, 
                                        unsigned int *num_evals = NULL);
       
@@ -191,16 +186,14 @@ namespace moab {
          * object is changed.
          * \param ent_set Entity set containing the entities to be tested
          * \param point Point tested, must have 3 dimensions, even for edge and face entities
-         * \param iter_tol Tolerance for non-linear reverse evaluation
-         * \param inside_tol Tolerance for is_inside test
+         * \param tol Tolerance for is_inside test
          * \param containing_ent Entity containing the point, returned 0 if no entity
          * \param params Parameters of point in containing entity, unchanged if no containing entity
          * \param num_evals If non-NULL, incremented each time reverse_eval is called
          * \return Returns non-success only if evaulation failed for some reason (point not in element is NOT a
          * reason for failure)
          */
-      ErrorCode find_containing_entity(EntityHandle ent_set, const double *point, 
-                                       const double iter_tol, const double inside_tol,
+      ErrorCode find_containing_entity(EntityHandle ent_set, const double *point, double tol, 
                                        EntityHandle &containing_ent, double *params, 
                                        unsigned int *num_evals = NULL);
       
@@ -225,12 +218,8 @@ namespace moab {
       inline ErrorCode set_ent_handle(EntityHandle ent);
 
         /** \brief Get entity handle for this ElemEval */
-      inline EntityHandle get_ent_handle() const {return entHandle;}
+      inline EntityHandle get_ent_handle() const {return entHandle;};
 
-        /* \brief Get vertex positions cached on this EE
-         */
-      inline double *get_vert_pos() {return vertPos[0].array();}
-      
         /* \brief Get the vertex handles cached here */
       inline const EntityHandle *get_vert_handles() const {return vertHandles;}
 
@@ -262,11 +251,6 @@ namespace moab {
         /* \brief Set the dimension of entities having the tag */
       inline ErrorCode set_tagged_ent_dim(int dim);
 
-        /* \brief Get work space, sometimes this is useful for evaluating data you don't want to set as tags on entities
-         * Can't be const because most of the functions (evaluate, integrate, etc.) take non-const work space *'s
-         */
-      inline double *get_work_space() {return workSpace;}
-            
         /* \brief MOAB interface cached on this evaluator */
       inline Interface *get_moab() {return mbImpl;}
       
@@ -450,13 +434,12 @@ namespace moab {
                                           (-1 == num_tuples ? numTuples : num_tuples), workSpace, result);
     }
         
-    inline ErrorCode ElemEvaluator::reverse_eval(const double *posn, const double iter_tol, const double inside_tol,
-                                                 double *params, bool *ins) const
+    inline ErrorCode ElemEvaluator::reverse_eval(const double *posn, const double tol, double *params, bool *ins) const
     {
       assert(entHandle && MBMAXTYPE != entType);
       return (*evalSets[entType].reverseEvalFcn)(evalSets[entType].evalFcn, evalSets[entType].jacobianFcn, evalSets[entType].insideFcn,
                                                  posn, vertPos[0].array(), numVerts, 
-                                                 entDim, iter_tol, inside_tol, workSpace, params, ins);
+                                                 entDim, tol, workSpace, params, ins);
     }
         
       /** \brief Evaluate the jacobian of the cached entity at a given parametric location */
@@ -481,8 +464,7 @@ namespace moab {
                                                workSpace, result);
     }
 
-    inline ErrorCode ElemEvaluator::find_containing_entity(EntityHandle ent_set, const double *point, 
-                                                           const double iter_tol, const double inside_tol,
+    inline ErrorCode ElemEvaluator::find_containing_entity(EntityHandle ent_set, const double *point, double tol, 
                                                            EntityHandle &containing_ent, double *params, 
                                                            unsigned int *num_evals) 
     {
@@ -490,7 +472,7 @@ namespace moab {
       Range entities;
       ErrorCode rval = mbImpl->get_entities_by_handle(ent_set, entities);
       if (MB_SUCCESS != rval) return rval;
-      else return find_containing_entity(entities, point, iter_tol, inside_tol, containing_ent, params, num_evals);
+      else return find_containing_entity(entities, point, tol, containing_ent, params, num_evals);
     }
         
     inline bool ElemEvaluator::inside(const double *params, const double tol) const 

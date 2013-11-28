@@ -6,7 +6,6 @@
 
 // need to include eval set types here to support get_eval_set; alternative would be to have some
 // type of registration, but we'd still need static registration for the built-in types
-#include "moab/LinearTri.hpp"
 #include "moab/LinearQuad.hpp"
 #include "moab/LinearTet.hpp"
 #include "moab/LinearHex.hpp"
@@ -17,12 +16,12 @@
 namespace moab { 
     ErrorCode EvalSet::evaluate_reverse(EvalFcn eval, JacobianFcn jacob, InsideFcn inside_f,
                                         const double *posn, const double *verts, const int nverts, 
-                                        const int ndim, const double iter_tol, const double inside_tol, 
-                                        double *work, double *params, bool *inside) {
+                                        const int ndim, const double tol, double *work, 
+                                        double *params, bool *inside) {
         // TODO: should differentiate between epsilons used for
         // Newton Raphson iteration, and epsilons used for curved boundary geometry errors
         // right now, fix the tolerance used for NR
-      const double error_tol_sqr = iter_tol*iter_tol;
+      const double error_tol_sqr = tol*tol;
       CartVect *cvparams = reinterpret_cast<CartVect*>(params);
       const CartVect *cvposn = reinterpret_cast<const CartVect*>(posn);
 
@@ -39,26 +38,23 @@ namespace moab {
         // residual is diff between old and new pos; need to minimize that
       CartVect res = new_pos - *cvposn;
       Matrix3 J;
-      bool dum, *tmp_inside = (inside ? inside : &dum);
 
       int iters=0;
         // while |res| larger than tol
       while (res % res > error_tol_sqr) {
         if(++iters>10) {
-            // if we haven't converged but we're outside, that's defined as success
-          *tmp_inside = (*inside_f)(params, ndim, inside_tol);
-          if (!(*tmp_inside)) return MB_SUCCESS;
-          else return MB_FAILURE;
+          if (inside) {
+              // if we haven't converged but we're outside, that's defined as success
+            *inside = (*inside_f)(params, ndim, tol);
+            if (!(*inside)) return MB_SUCCESS;
+          }
+          return MB_FAILURE;
         }
 
           // get jacobian at current params
         rval = (*jacob)(cvparams->array(), verts, nverts, ndim, work, J[0]);
         double det = J.determinant();
-        if (det < std::numeric_limits<double>::epsilon()) {
-          *tmp_inside = (*inside_f)(params, ndim, inside_tol);
-          if (!(*tmp_inside)) return MB_SUCCESS;
-          else return MB_FAILURE;
-        }
+        assert(det > std::numeric_limits<double>::epsilon());
 
           // new params tries to eliminate residual
         *cvparams -= J.inverse(1.0/det) * res;
@@ -72,7 +68,7 @@ namespace moab {
       }
 
       if (inside)
-        *inside = (*inside_f)(params, ndim, inside_tol);
+        *inside = (*inside_f)(params, ndim, tol);
 
       return MB_SUCCESS;
     }// Map::evaluate_reverse()
@@ -93,7 +89,6 @@ namespace moab {
         case MBEDGE:
             break;
         case MBTRI:
-            if (LinearTri::compatible(tp, num_vertices, eval_set)) return MB_SUCCESS;
             break;
         case MBQUAD:
             if (LinearQuad::compatible(tp, num_vertices, eval_set)) return MB_SUCCESS;
@@ -114,9 +109,9 @@ namespace moab {
       return MB_NOT_IMPLEMENTED;
     }
       
-    ErrorCode ElemEvaluator::find_containing_entity(Range &entities, const double *point, const double iter_tol, 
-                                                    const double inside_tol, EntityHandle &containing_ent, 
-                                                    double *params, unsigned int *num_evals) 
+    ErrorCode ElemEvaluator::find_containing_entity(Range &entities, const double *point, double tol, 
+                                                    EntityHandle &containing_ent, double *params, 
+                                                    unsigned int *num_evals) 
     {
       bool is_inside;
       ErrorCode rval = MB_SUCCESS;
@@ -125,7 +120,7 @@ namespace moab {
       for(i = entities.begin(); i != entities.end(); i++) {
         nevals++;
         set_ent_handle(*i);
-        rval = reverse_eval(point, iter_tol, inside_tol, params, &is_inside);
+        rval = reverse_eval(point, tol, params, &is_inside);
         if (MB_SUCCESS != rval) return rval;
         if (is_inside) break;
       }
