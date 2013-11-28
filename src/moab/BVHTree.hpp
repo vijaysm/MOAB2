@@ -74,8 +74,7 @@ namespace moab {
          * containing the point in that case.
          * \param point Point to be located in tree
          * \param leaf_out Leaf containing point
-         * \param iter_tol Tolerance for convergence of point search
-         * \param inside_tol Tolerance for inside element calculation
+         * \param tol Tolerance below which a point is "in"
          * \param multiple_leaves Some tree types can have multiple leaves containing a point;
          *          if non-NULL, this parameter is returned true if multiple leaves contain
          *          the input point
@@ -84,8 +83,7 @@ namespace moab {
          */
       virtual ErrorCode point_search(const double *point,
                                      EntityHandle& leaf_out,
-                                     const double iter_tol = 1.0e-10,
-                                     const double inside_tol = 1.0e-6,
+                                     double tol = 0.0,
                                      bool *multiple_leaves = NULL,
                                      EntityHandle *start_node = NULL,
                                      CartVect *params = NULL);
@@ -99,8 +97,7 @@ namespace moab {
          * \param from_point Point to be located in tree
          * \param distance Distance within which to query
          * \param result_list Leaves within distance or containing point
-         * \param iter_tol Tolerance for convergence of point search
-         * \param inside_tol Tolerance for inside element calculation
+         * \param tol Tolerance below which a point is "in"
          * \param result_dists If non-NULL, will contain distsances to leaves
          * \param result_params If non-NULL, will contain parameters of the point in the ents in leaves_out
          * \param tree_root Start from this tree node (non-NULL) instead of tree root (NULL)
@@ -108,8 +105,7 @@ namespace moab {
       virtual ErrorCode distance_search(const double from_point[3],
                                         const double distance,
                                         std::vector<EntityHandle>& result_list,
-                                        const double iter_tol = 1.0e-10,
-                                        const double inside_tol = 1.0e-6,
+                                        double tol = 0.0,
                                         std::vector<double> *result_dists = NULL,
                                         std::vector<CartVect> *result_params = NULL,
                                         EntityHandle *tree_root = NULL);
@@ -246,13 +242,10 @@ namespace moab {
 
       ErrorCode find_point(const std::vector<double> &point, 
                            const unsigned int &index,
-                           const double iter_tol,
-                           const double inside_tol,
+                           const double tol,
                            std::pair<EntityHandle, CartVect> &result);
       
-      EntityHandle bruteforce_find(const double *point, 
-                                   const double iter_tol = 1.0e-10,
-                                   const double inside_tol = 1.0e-6);
+      EntityHandle bruteforce_find(const double *point, const double tol);
 
       int local_build_tree(std::vector<Node> &tree_nodes,
                            HandleDataVec::iterator begin, 

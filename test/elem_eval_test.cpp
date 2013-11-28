@@ -7,7 +7,6 @@
 #include "moab/Core.hpp"
 #include "moab/ReadUtilIface.hpp"
 #include "moab/ElemEvaluator.hpp"
-#include "moab/LinearTri.hpp"
 #include "moab/LinearQuad.hpp"
 #include "moab/LinearHex.hpp"
 #include "moab/LinearTet.hpp"
@@ -23,7 +22,6 @@ std::string TestDir(".");
 
 using namespace moab;
 
-void test_linear_tri();
 void test_linear_quad();
 void test_linear_hex();
 void test_linear_tet();
@@ -80,11 +78,11 @@ void test_eval(ElemEvaluator &ee, bool test_integrate)
 
   if (!test_integrate) return;
   
-    // tag equal to coordinates should integrate to avg position, test that
+    // tag equal to coordinates should integrate to avg position, since volume is 1
   Tag tag;
     // make a temporary tag and set it on vertices to the vertex positions
   rval = ee.get_moab()->tag_get_handle(NULL, 3, MB_TYPE_DOUBLE, tag, MB_TAG_DENSE | MB_TAG_CREAT); CHECK_ERR(rval);
-  rval = ee.get_moab()->tag_set_data(tag, ee.get_vert_handles(), ee.get_num_verts(), ee.get_vert_pos()); CHECK_ERR(rval);
+  rval = ee.get_moab()->tag_set_data(tag, ee.get_vert_handles(), ee.get_num_verts(), hex_verts[0].array()); CHECK_ERR(rval);
     // set that temporary tag on the evaluator so that's what gets integrated
   rval = ee.set_tag_handle(tag, 0); CHECK_ERR(rval);
 
@@ -97,8 +95,8 @@ void test_eval(ElemEvaluator &ee, bool test_integrate)
   EvalSet es;
   EntityHandle eh = ee.get_ent_handle();
   rval = EvalSet::get_eval_set(ee.get_moab(), eh, es); CHECK_ERR(rval);
-  rval = (*es.integrateFcn)(&one[0], ee.get_vert_pos(), ee.get_num_verts(), ee.get_moab()->dimension_from_handle(eh),
-                            1, ee.get_work_space(), &measure); CHECK_ERR(rval);
+  rval = (*es.integrateFcn)(&one[0], hex_verts[0].array(), ee.get_num_verts(), ee.get_moab()->dimension_from_handle(eh),
+                            1, NULL, &measure); CHECK_ERR(rval);
   if (measure) integral /= measure;
 
     // check against avg of entity's vertices' positions
@@ -138,35 +136,12 @@ int main()
 {
   int failures = 0;
   
-//  failures += RUN_TEST(test_linear_tri); currently failing linear tri, bad formulation, working on it...
   failures += RUN_TEST(test_linear_quad);
   failures += RUN_TEST(test_linear_hex);
   failures += RUN_TEST(test_quadratic_hex);
   failures += RUN_TEST(test_linear_tet);
 
   return failures;
-}
-
-void test_linear_tri() 
-{
-  Core mb;
-  Range verts;
-  double tri_verts[] = {-1.0, -1.0, -1.0,
-                         1.0, -1.0, -1.0,
-                        -1.0,  1.0, -1.0};
-  
-          
-  ErrorCode rval = mb.create_vertices(tri_verts, 3, verts); CHECK_ERR(rval);
-  EntityHandle tri;
-  std::vector<EntityHandle> connect;
-  std::copy(verts.begin(), verts.end(), std::back_inserter(connect));
-  rval = mb.create_element(MBTRI, &connect[0], 3, tri); CHECK_ERR(rval);
-  
-  ElemEvaluator ee(&mb, tri, 0);
-  ee.set_tag_handle(0, 0);
-  ee.set_eval_set(MBTRI, LinearTri::eval_set());
-
-  test_eval(ee, true);
 }
 
 void test_linear_quad() 

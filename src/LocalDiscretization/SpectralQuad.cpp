@@ -95,8 +95,7 @@ CartVect SpectralQuad::evalFcn(const double *params, const double *field, const 
 }
   // replicate the functionality of hex_findpt
 bool SpectralQuad::reverseEvalFcn(const double *posn, const double *verts, const int nverts, const int ndim,
-                                  const double iter_tol, const double inside_tol, double *work, 
-                                  double *params, bool *is_inside)
+                                  const double tol, double *work, double *params, bool *is_inside)
 {
   params = init;
 
@@ -115,7 +114,7 @@ bool SpectralQuad::reverseEvalFcn(const double *posn, const double *verts, const
     //copy parametric coords back
   params = r;
 
-  return insideFcn(params, 2, inside_tol);
+  return insideFcn(params, 2, tol);
 }
 
 

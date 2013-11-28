@@ -525,7 +525,7 @@ ErrorCode merge_duplicate_vertices( Interface& moab, const double epsilon )
     if (MB_SUCCESS != rval) return rval;
     
     leaves.clear();;
-    rval = tree.distance_search(coords, epsilon, leaves, epsilon, epsilon);
+    rval = tree.distance_search(coords, epsilon, leaves, epsilon);
     if (MB_SUCCESS != rval) return rval;
     
     Range near;

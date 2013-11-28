@@ -65,9 +65,8 @@ public:
      * This is a pass-through function to SpatialLocator::locate_points
      * \param xyz Point locations (interleaved) being located
      * \param num_points Number of points in xyz
-     * \param rel_iter_tol Relative tolerance for non-linear iteration
-     * \param abs_iter_tol Relative tolerance for non-linear iteration, usually 10^-10 or so
-     * \param inside_tol Tolerance of is_inside evaluation, usually 10^-6 or so
+     * \param rel_eps Relative tolerance for the non-linear iteration inside a given element
+     * \param abs_eps Absolute tolerance for the non-linear iteration inside a given element
      * \param loc_results Tuple list containing the results; two types of results are possible,
      *      controlled by value of store_local parameter:
      *      store_local = true: each tuple T[j] consists of (p, i), p = proc with src element containing
@@ -77,15 +76,13 @@ public:
      * \param store_local If true, stores the located points on SpatialLocator
      */
   ErrorCode locate_points(double *xyz, int num_points,
-                          const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
-                          const double inside_tol = 1.0e-6);
+                          double rel_eps = 0.0, double abs_eps = 0.0);
   
     /* \brief Locate points on the source mesh
      * This is a pass-through function to SpatialLocator::locate_points
      * \param ents Target entities being located
-     * \param rel_iter_tol Relative tolerance for non-linear iteration
-     * \param abs_iter_tol Relative tolerance for non-linear iteration, usually 10^-10 or so
-     * \param inside_tol Tolerance of is_inside evaluation, usually 10^-6 or so
+     * \param rel_eps Relative tolerance for the non-linear iteration inside a given element
+     * \param abs_eps Absolute tolerance for the non-linear iteration inside a given element
      * \param loc_results Tuple list containing the results; two types of results are possible,
      *      controlled by value of store_local parameter:
      *      store_local = true: each tuple T[j] consists of (p, i), p = proc with src element containing
@@ -95,8 +92,8 @@ public:
      * \param store_local If true, stores the located points on SpatialLocator
      */
   ErrorCode locate_points(Range &ents,
-                          const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
-                          const double inside_tol = 1.0e-6);
+                          double rel_eps = 0.0, 
+                          double abs_eps = 0.0);
   
     /* \brief Interpolate data from the source mesh onto points
      * All entities/points or, if tuple_list is input, only those points

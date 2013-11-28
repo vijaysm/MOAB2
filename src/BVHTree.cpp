@@ -435,8 +435,7 @@ namespace moab
 
     ErrorCode BVHTree::find_point(const std::vector<double> &point, 
                                   const unsigned int &index,
-                                  const double iter_tol,
-                                  const double inside_tol,
+                                  const double tol,
                                   std::pair<EntityHandle, CartVect> &result)
     {
       if (index == 0) treeStats.numTraversals++;
@@ -454,7 +453,7 @@ namespace moab
         for(Range::iterator i = entities.begin(); i != entities.end(); i++) {
           treeStats.leafObjectTests++;
           myEval->set_ent_handle(*i);
-          myEval->reverse_eval(&point[0], iter_tol, inside_tol, params.array(), &is_inside);
+          myEval->reverse_eval(&point[0], tol, params.array(), &is_inside);
           if (is_inside) {
             result.first = *i;
             result.second = params;
@@ -470,11 +469,11 @@ namespace moab
       rval = mbImpl->get_child_meshsets(startSetHandle+index, children);
       if (MB_SUCCESS != rval || children.size() != 2) return rval;
       
-      if((node.Lmax+iter_tol) < (node.Rmin-iter_tol)){
-        if(point[node.dim] <= (node.Lmax + iter_tol))
-          return find_point(point, children[0]-startSetHandle, iter_tol, inside_tol, result);
-        else if(point[ node.dim] >= (node.Rmin - iter_tol))
-          return find_point(point, children[1]-startSetHandle, iter_tol, inside_tol, result);
+      if((node.Lmax+tol) < (node.Rmin-tol)){
+        if(point[node.dim] <= (node.Lmax + tol))
+          return find_point(point, children[0]-startSetHandle, tol, result);
+        else if(point[ node.dim] >= (node.Rmin - tol))
+          return find_point(point, children[1]-startSetHandle, tol, result);
         result = std::make_pair(0, CartVect(&point[0])); //point lies in empty space.
         return MB_SUCCESS;
       }
@@ -483,11 +482,11 @@ namespace moab
         //left of Rmin, you must be on the left
         //we can't be sure about the boundaries since the boxes overlap
         //this was a typo in the paper which caused pain.
-      if(point[node.dim] < (node.Rmin - iter_tol))
-        return find_point(point, children[0]-startSetHandle, iter_tol, inside_tol, result);
+      if(point[node.dim] < (node.Rmin - tol))
+        return find_point(point, children[0]-startSetHandle, tol, result);
         //if you are on the right Lmax, you must be on the right
-      else if(point[ node.dim] > (node.Lmax+iter_tol))
-        return find_point(point, children[1]-startSetHandle, iter_tol, inside_tol, result);
+      else if(point[ node.dim] > (node.Lmax+tol))
+        return find_point(point, children[1]-startSetHandle, tol, result);
 
         /* pg5 of paper
          * However, instead of always traversing either subtree
@@ -502,22 +501,22 @@ namespace moab
         //branch predicted..
         //bool dir = (point[ node.dim] - node.Rmin) <= 
         //				(node.Lmax - point[ node.dim]);
-      find_point(point, children[0]-startSetHandle, iter_tol, inside_tol, result);
+      find_point(point, children[0]-startSetHandle, tol, result);
       if(result.first == 0){ 
-        return find_point(point, children[1]-startSetHandle, iter_tol, inside_tol, result);
+        return find_point(point, children[1]-startSetHandle, tol, result);
       }
       return MB_SUCCESS;
     }
 
-    EntityHandle BVHTree::bruteforce_find(const double *point, const double iter_tol, const double inside_tol) {
+    EntityHandle BVHTree::bruteforce_find(const double *point, const double tol) {
       treeStats.numTraversals++;
       CartVect params;
       for(unsigned int i = 0; i < myTree.size(); i++) {
-        if(myTree[i].dim != 3 || !myTree[i].box.contains_point(point, iter_tol)) continue;
+        if(myTree[i].dim != 3 || !myTree[i].box.contains_point(point, tol)) continue;
         if (myEval) {
           EntityHandle entity = 0;
           treeStats.leavesVisited++;
-          ErrorCode rval = myEval->find_containing_entity(startSetHandle+i, point, iter_tol, inside_tol,
+          ErrorCode rval = myEval->find_containing_entity(startSetHandle+i, point, tol,
                                                           entity, params.array(), &treeStats.leafObjectTests);
           if (entity) return entity;
           else if (MB_SUCCESS != rval) return 0;
@@ -543,8 +542,7 @@ namespace moab
 
     ErrorCode BVHTree::point_search(const double *point,
                                     EntityHandle& leaf_out,
-                                    const double iter_tol,
-                                    const double inside_tol,
+                                    double tol,
                                     bool *multiple_leaves,
                                     EntityHandle *start_node,
                                     CartVect *params) 
@@ -574,7 +572,7 @@ namespace moab
           // test box of this node
         ErrorCode rval = get_bounding_box(box, &this_set);
         if (MB_SUCCESS != rval) return rval;
-        if (!box.contains_point(point, iter_tol)) continue;
+        if (!box.contains_point(point, tol)) continue;
 
           // else if not a leaf, test children & put on list
         else if (myTree[ind].dim != 3) {
@@ -583,7 +581,7 @@ namespace moab
           continue;
         }
         else if (myTree[ind].dim == 3 && myEval && params) {
-          rval = myEval->find_containing_entity(startSetHandle+ind, point, iter_tol, inside_tol,
+          rval = myEval->find_containing_entity(startSetHandle+ind, point, tol,
                                                 leaf_out, params->array(), &treeStats.leafObjectTests);
           if (leaf_out || MB_SUCCESS != rval) return rval;
         }
@@ -601,8 +599,7 @@ namespace moab
     ErrorCode BVHTree::distance_search(const double from_point[3],
                                        const double distance,
                                        std::vector<EntityHandle>& result_list,
-                                       const double iter_tol,
-                                       const double inside_tol,
+                                       double params_tol,
                                        std::vector<double> *result_dists,
                                        std::vector<CartVect> *result_params,
                                        EntityHandle *tree_root)
@@ -656,7 +653,7 @@ namespace moab
         if (myEval && result_params) {
           EntityHandle ent;
           CartVect params;
-          rval = myEval->find_containing_entity(startSetHandle+ind, from_point, iter_tol, inside_tol,
+          rval = myEval->find_containing_entity(startSetHandle+ind, from_point, params_tol,
                                                 ent, params.array(), &treeStats.leafObjectTests);
           if (MB_SUCCESS != rval) return rval;
           else if (ent) {

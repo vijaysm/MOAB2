@@ -17,7 +17,6 @@ MOAB_LOCALDISCR_SRCS = \
 	LinearHex.cpp \
 	LinearQuad.cpp \
 	LinearTet.cpp \
-	LinearTri.cpp \
 	QuadraticHex.cpp
 
 MOAB_LOCALDISCR_HDRS = \
@@ -25,7 +24,6 @@ MOAB_LOCALDISCR_HDRS = \
 	moab/LinearHex.hpp \
 	moab/LinearQuad.hpp \
 	moab/LinearTet.hpp \
-	moab/LinearTri.hpp \
 	moab/QuadraticHex.hpp
 
 # The list of source files, and any header files that do not need to be installed
