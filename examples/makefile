@@ -14,37 +14,37 @@ EXOIIEXAMPLES = TestExodusII
 
 default: ${EXAMPLES}
 
-HelloMOAB : HelloMOAB.o ${MOAB_LIBDIR}/libMOAB.la
+HelloMOAB : HelloMOAB.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-GetEntities: GetEntities.o ${MOAB_LIBDIR}/libMOAB.la
+GetEntities: GetEntities.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-SetsNTags: SetsNTags.o ${MOAB_LIBDIR}/libMOAB.la
+SetsNTags: SetsNTags.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-LloydRelaxation: LloydRelaxation.o ${MOAB_LIBDIR}/libMOAB.la
+LloydRelaxation: LloydRelaxation.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-StructuredMeshSimple : StructuredMeshSimple.o ${MOAB_LIBDIR}/libMOAB.la
+StructuredMeshSimple : StructuredMeshSimple.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
 
-DirectAccessWithHoles: DirectAccessWithHoles.o ${MOAB_LIBDIR}/libMOAB.la
+DirectAccessWithHoles: DirectAccessWithHoles.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-DirectAccessNoHoles: DirectAccessNoHoles.o ${MOAB_LIBDIR}/libMOAB.la
+DirectAccessNoHoles: DirectAccessNoHoles.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-DirectAccessNoHolesF90: DirectAccessNoHolesF90.o ${MOAB_LIBDIR}/libMOAB.la
+DirectAccessNoHolesF90: DirectAccessNoHolesF90.o
 	${MOAB_CXX} -o $@ $< ${IMESH_LIBS}
 
-ReduceExchangeTags : ReduceExchangeTags.o ${MOAB_LIBDIR}/libMOAB.la
+ReduceExchangeTags : ReduceExchangeTags.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-HelloParMOAB: HelloParMOAB.o ${MOAB_LIBDIR}/libMOAB.la
+HelloParMOAB: HelloParMOAB.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
 
-TestExodusII: TestExodusII.o ${MOAB_LIBDIR}/libMOAB.la
+TestExodusII: TestExodusII.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 point_in_elem_search: point_in_elem_search.o ${MOAB_LIBDIR}/libMOAB.la
@@ -53,8 +53,8 @@ point_in_elem_search: point_in_elem_search.o ${MOAB_LIBDIR}/libMOAB.la
 PushParMeshIntoMoabF90: PushParMeshIntoMoabF90.o
 	${MOAB_CXX} -o $@ $< ${IMESH_LIBS} -lgfortran -L/usr/lib/openmpi/lib -lmpi_f90 -lmpi_f77 -lmpi -lopen-rte -lopen-pal -ldl 
 
-DeformMeshRemap: DeformMeshRemap.o ${MOAB_LIBDIR}/libMOAB.la
-	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} -lmbcoupler ${MOAB_LIBS_LINK} 
+DeformMeshRemap: DeformMeshRemap.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 clean:
 	rm -rf *.o ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES}

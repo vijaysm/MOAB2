@@ -119,9 +119,9 @@ namespace moab {
          * \param impl MOAB instance
          * \param ent Entity handle to cache on the evaluator
          * \param tag Tag to cache on the evaluator
-         * \param tagged_ent_dim Dimension of entities to be tagged to cache on the evaluator
+         * \param tag_dim Tag dimension to cache on the evaluator
          */
-      ElemEvaluator(Interface *impl, EntityHandle ent = 0, Tag tag = 0, int tagged_ent_dim = -1);
+      ElemEvaluator(Interface *impl, EntityHandle ent = 0, Tag tag = 0, int tag_dim = -1);
 
         /** \brief Evaluate cached tag at a given parametric location within the cached entity 
          * If evaluating coordinates, call set_tag(0, 0), which indicates coords instead of a tag.
@@ -233,23 +233,23 @@ namespace moab {
          * To designate that vertex coordinates are the desired tag, pass in a tag handle of 0
          * and a tag dimension of 0.
          * \param tag Tag handle to cache, or 0 to cache vertex positions
-         * \param tagged_ent_dim Dimension of entities tagged with this tag
+         * \param tag_dim Dimension of entities tagged with this tag
          */
-      inline ErrorCode set_tag_handle(Tag tag, int tagged_ent_dim = -1);
+      inline ErrorCode set_tag_handle(Tag tag, int tag_dim = -1);
 
         /* \brief Set the name of the tag to cache on this evaluator
          * To designate that vertex coordinates are the desired tag, pass in "COORDS" as the name
          * and a tag dimension of 0.
-         * \param tag_name Tag handle to cache, or 0 to cache vertex positions
-         * \param tagged_ent_dim Dimension of entities tagged with this tag
+         * \param tag Tag handle to cache, or 0 to cache vertex positions
+         * \param tag_dim Dimension of entities tagged with this tag
          */
-      inline ErrorCode set_tag(const char *tag_name, int tagged_ent_dim = -1);
+      inline ErrorCode set_tag(const char *tag_name, int ent_dim = -1);
       
         /* \brief Get the dimension of the entities on which tag is set */
-      inline int get_tagged_ent_dim() const {return taggedEntDim;};
+      inline int get_tag_dim() const {return tagDim;};
 
         /* \brief Set the dimension of entities having the tag */
-      inline ErrorCode set_tagged_ent_dim(int dim);
+      inline ErrorCode set_tag_dim(int dim);
 
         /* \brief MOAB interface cached on this evaluator */
       inline Interface *get_moab() {return mbImpl;}
@@ -287,7 +287,7 @@ namespace moab {
       int numTuples;
 
         /** \brief Dimension of entities from which to grab tag */
-      int taggedEntDim;
+      int tagDim;
 
         /** \brief Tag space */
       std::vector<unsigned char> tagSpace;
@@ -300,13 +300,13 @@ namespace moab {
 
     }; // class ElemEvaluator
 
-    inline ElemEvaluator::ElemEvaluator(Interface *impl, EntityHandle ent, Tag tag, int tagged_ent_dim) 
+    inline ElemEvaluator::ElemEvaluator(Interface *impl, EntityHandle ent, Tag tag, int tag_dim) 
             : mbImpl(impl), entHandle(0), entType(MBMAXTYPE), entDim(-1), numVerts(0), 
               vertHandles(NULL), tagHandle(0), tagCoords(false), numTuples(0), 
-              taggedEntDim(0), workSpace(NULL)
+              tagDim(0), workSpace(NULL)
     {
       if (ent) set_ent_handle(ent);
-      if (tag) set_tag_handle(tag, tagged_ent_dim);
+      if (tag) set_tag_handle(tag, tag_dim);
     }
     
     inline ErrorCode ElemEvaluator::set_ent_handle(EntityHandle ent) 
@@ -329,17 +329,18 @@ namespace moab {
         rval = set_tag_handle(tagHandle);
         if (MB_SUCCESS != rval) return rval;
       }
+
       if (evalSets[entType].initFcn) return (*evalSets[entType].initFcn)(vertPos[0].array(), numVerts, workSpace);
       return MB_SUCCESS;
     }
     
-    inline ErrorCode ElemEvaluator::set_tag_handle(Tag tag, int tagged_ent_dim) 
+    inline ErrorCode ElemEvaluator::set_tag_handle(Tag tag, int tag_dim) 
     {
       ErrorCode rval = MB_SUCCESS;
-      if (!tag && !tagged_ent_dim) {
+      if (!tag && !tag_dim) {
         tagCoords = true;
         numTuples = 3;
-        taggedEntDim = 0;
+        tagDim = 0;
         tagHandle = 0;
         return rval;
       }
@@ -354,14 +355,14 @@ namespace moab {
         tagCoords = false;
       }
 
-      taggedEntDim = (-1 == tagged_ent_dim ? 0 : tagged_ent_dim);
+      tagDim = (-1 == tag_dim ? 0 : tag_dim);
       
       if (entHandle) {
-        if (0 == taggedEntDim) {
+        if (0 == tagDim) {
           rval = mbImpl->tag_get_data(tagHandle, vertHandles, numVerts, &tagSpace[0]);
           if (MB_SUCCESS != rval) return rval;
         }
-        else if (taggedEntDim == entDim) {
+        else if (tagDim == entDim) {
           rval = mbImpl->tag_get_data(tagHandle, &entHandle, 1, &tagSpace[0]);
           if (MB_SUCCESS != rval) return rval;
         }
@@ -370,14 +371,14 @@ namespace moab {
       return rval;
     }
 
-    inline ErrorCode ElemEvaluator::set_tag(const char *tag_name, int tagged_ent_dim) 
+    inline ErrorCode ElemEvaluator::set_tag(const char *tag_name, int tag_dim) 
     {
       ErrorCode rval = MB_SUCCESS;
       if (!tag_name || strlen(tag_name) == 0) return MB_FAILURE;
       Tag tag;
       if (!strcmp(tag_name, "COORDS")) {
         tagCoords = true;
-        taggedEntDim = 0;
+        tagDim = 0;
         numTuples = 3;
         tagHandle = 0;
           // can return here, because vertex coords already cached when entity handle set
@@ -398,15 +399,15 @@ namespace moab {
           tagCoords = false;
         }
 
-        taggedEntDim = (-1 == tagged_ent_dim ? entDim : tagged_ent_dim);
+        tagDim = (-1 == tag_dim ? entDim : tag_dim);
       }
       
       if (entHandle) {
-        if (0 == taggedEntDim) {
+        if (0 == tagDim) {
           rval = mbImpl->tag_get_data(tagHandle, vertHandles, numVerts, &tagSpace[0]);
           if (MB_SUCCESS != rval) return rval;
         }
-        else if (taggedEntDim == entDim) {
+        else if (tagDim == entDim) {
           rval = mbImpl->tag_get_data(tagHandle, &entHandle, 1, &tagSpace[0]);
           if (MB_SUCCESS != rval) return rval;
         }
@@ -430,16 +431,16 @@ namespace moab {
       assert(entHandle && MBMAXTYPE != entType);
       return (*evalSets[entType].evalFcn)(params, 
                                           (tagCoords ? (const double*) vertPos[0].array(): (const double*)&tagSpace[0]), 
-                                          entDim, 
-                                          (-1 == num_tuples ? numTuples : num_tuples), workSpace, result);
+                                          entDim, (-1 == num_tuples ? numTuples : num_tuples), 
+                                          workSpace, result);
     }
         
     inline ErrorCode ElemEvaluator::reverse_eval(const double *posn, const double tol, double *params, bool *ins) const
     {
       assert(entHandle && MBMAXTYPE != entType);
       return (*evalSets[entType].reverseEvalFcn)(evalSets[entType].evalFcn, evalSets[entType].jacobianFcn, evalSets[entType].insideFcn,
-                                                 posn, vertPos[0].array(), numVerts, 
-                                                 entDim, tol, workSpace, params, ins);
+                                                 posn, vertPos[0].array(), numVerts, entDim, tol, workSpace, 
+                                                 params, ins);
     }
         
       /** \brief Evaluate the jacobian of the cached entity at a given parametric location */
@@ -455,7 +456,7 @@ namespace moab {
       assert(entHandle && MBMAXTYPE != entType && (tagCoords || tagHandle));
       ErrorCode rval = MB_SUCCESS;
       if (!tagCoords) {
-        if (0 == taggedEntDim) rval = mbImpl->tag_get_data(tagHandle, vertHandles, numVerts, (void*)&tagSpace[0]);
+        if (0 == tagDim) rval = mbImpl->tag_get_data(tagHandle, vertHandles, numVerts, (void*)&tagSpace[0]);
         else rval = mbImpl->tag_get_data(tagHandle, &entHandle, 1, (void*)&tagSpace[0]);
         if (MB_SUCCESS != rval) return rval;
       }

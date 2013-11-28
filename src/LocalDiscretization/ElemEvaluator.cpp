@@ -30,9 +30,7 @@ namespace moab {
   
       CartVect new_pos;
         // evaluate that first guess to get a new position
-      ErrorCode rval = (*eval)(cvparams->array(), verts, ndim, 
-                               3, // hardwire to num_tuples to 3 since the field is coords
-                               work, new_pos.array());
+      ErrorCode rval = (*eval)(cvparams->array(), verts, ndim, ndim, work, new_pos.array());
       if (MB_SUCCESS != rval) return rval;
       
         // residual is diff between old and new pos; need to minimize that
@@ -60,9 +58,7 @@ namespace moab {
         *cvparams -= J.inverse(1.0/det) * res;
 
           // get the new forward-evaluated position, and its difference from the target pt
-        rval = (*eval)(params, verts, ndim, 
-                       3, // hardwire to num_tuples to 3 since the field is coords
-                       work, new_pos.array());
+        rval = (*eval)(params, verts, ndim, ndim, work, new_pos.array());
         if (MB_SUCCESS != rval) return rval;
         res = new_pos - *cvposn;
       }

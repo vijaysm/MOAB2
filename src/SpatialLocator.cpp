@@ -31,62 +31,10 @@ namespace moab
       return MB_SUCCESS;
     }
     
-#ifdef USE_MPI
-    ErrorCode SpatialLocator::par_locate_points(Range &/*vertices*/,
-                                                double /*rel_tol*/, double /*abs_tol*/) 
-    {
-      return MB_UNSUPPORTED_OPERATION;
-    }
-
-    ErrorCode SpatialLocator::par_locate_points(const double */*pos*/, int /*num_points*/,
-                                                double /*rel_tol*/, double /*abs_tol*/) 
-    {
-      return MB_UNSUPPORTED_OPERATION;
-    }
-#endif
-      
-    ErrorCode SpatialLocator::locate_points(Range &verts,
-                                            double rel_eps, double abs_eps) 
-    {
-      assert(!verts.empty() && mbImpl->type_from_handle(*verts.rbegin()) == MBVERTEX);
-      std::vector<double> pos(3*verts.size());
-      ErrorCode rval = mbImpl->get_coords(verts, &pos[0]);
-      if (MB_SUCCESS != rval) return rval;
-      rval = locate_points(&pos[0], verts.size(), rel_eps, abs_eps);
-      if (MB_SUCCESS != rval) return rval;
-      
-      return MB_SUCCESS;
-    }
-    
     ErrorCode SpatialLocator::locate_points(const double *pos, int num_points,
-                                            double rel_eps, double abs_eps) 
-    {
-        // initialize to tuple structure (p_ui, hs_ul, r[3]_d) (see header comments for locTable)
-      locTable.initialize(1, 0, 1, 3, num_points);
-      locTable.enableWriteAccess();
-
-        // pass storage directly into locate_points, since we know those arrays are contiguous
-      ErrorCode rval = locate_points(pos, num_points, locTable.vul_wr, locTable.vr_wr, NULL, rel_eps, abs_eps);
-      std::fill(locTable.vi_wr, locTable.vi_wr+num_points, 0);
-      if (MB_SUCCESS != rval) return rval;
-      
-      return MB_SUCCESS;
-    }
-      
-    ErrorCode SpatialLocator::locate_points(Range &verts,
-                                            EntityHandle *ents, double *params, bool *is_inside,
-                                            double rel_eps, double abs_eps)
-    {
-      assert(!verts.empty() && mbImpl->type_from_handle(*verts.rbegin()) == MBVERTEX);
-      std::vector<double> pos(3*verts.size());
-      ErrorCode rval = mbImpl->get_coords(verts, &pos[0]);
-      if (MB_SUCCESS != rval) return rval;
-      return locate_points(&pos[0], verts.size(), ents, params, is_inside, rel_eps, abs_eps);
-    }
-
-    ErrorCode SpatialLocator::locate_points(const double *pos, int num_points,
-                                            EntityHandle *ents, double *params, bool *is_inside,
-                                            double rel_eps, double abs_eps)
+                                            EntityHandle *ents, double *params, 
+                                            double rel_eps, double abs_eps,
+                                            bool *is_inside)
     {
 
       if (rel_eps && !abs_eps) {
