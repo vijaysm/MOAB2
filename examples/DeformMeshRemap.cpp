@@ -284,6 +284,7 @@ DeformMeshRemap::~DeformMeshRemap()
 
 int main(int argc, char **argv) {
 
+  EntityHandle master, slave;
   ErrorCode rval;
 
   ProgOptions po("Deformed mesh options");
@@ -298,6 +299,11 @@ int main(int argc, char **argv) {
     slavef = string(MESH_DIR) + string("/rodtri.g");
 
   mb = new Core();
+  
+    // read master/slave files and get fluid/solid material sets
+  Range fluids[2], solids[2], solid_elems[2], fluid_elems[2];
+  rval = read_file(masterf, master, solids[0], solid_elems[0], fluids[0], fluid_elems[0]); RR("");
+  rval = read_file(slavef, slave, solids[1], solid_elems[1], fluids[1], fluid_elems[1]); RR("");
 
   DeformMeshRemap *dfr;
 #ifdef USE_MPI
@@ -319,23 +325,23 @@ int main(int argc, char **argv) {
   return rval;
 }
 
-ErrorCode DeformMeshRemap::write_and_save(Range &ents, EntityHandle seth, Tag tagh, const char *filename) 
+ErrorCode write_and_save(Range &ents, EntithHanlde seth, Tag tagh, const char *filename) 
 {
-  ErrorCode rval = write_to_coords(ents, tagh); RR("");
-  rval = mbImpl->write_file(filename, NULL, NULL, &seth, 1); RR("");
+  rval = write_to_coords(ents, tagh); RR("");
+  rval = mb->write_file("deformed.vtk", NULL, NULL, &seth, 1); RR("");
   return rval;
 }
   
-ErrorCode DeformMeshRemap::write_to_coords(Range &elems, Tag tagh) 
+ErrorCode write_to_coords(Range &elems, Tag tagh) 
 {
     // write the tag to coordinates
   Range verts;
-  ErrorCode rval = mbImpl->get_adjacencies(elems, 0, false, verts, Interface::UNION);
+  ErrorCode rval = mb->get_adjacencies(elems, 0, false, verts, Interface::UNION);
   RR("Failed to get adj vertices.");
   std::vector<double> coords(3*verts.size());
-  rval = mbImpl->tag_get_data(tagh, verts, &coords[0]);
+  rval = mb->tag_get_data(tagh, verts, &coords[0]);
   RR("Failed to get tag data.");
-  rval = mbImpl->set_coords(verts, &coords[0]);
+  rval = mb->set_coords(verts, &coords[0]);
   RR("Failed to set coordinates.");
   return MB_SUCCESS;
 }
@@ -352,46 +358,47 @@ void deform_func(double *xold, double *xnew)
   xnew[1] = xold[1] + yfrac * (1.0 + xfrac) * 0.05;
 }
   
-ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems) 
+ErrorCode deform_master(Range &fluid_elems, Range &solid_elems, Tag &xnew) 
 {
     // deform elements with an analytic function
 
     // create the tag
-  ErrorCode rval = mbImpl->tag_get_handle("", 3, MB_TYPE_DOUBLE, xNew, MB_TAG_CREAT|MB_TAG_DENSE);
+  ErrorCode rval = mb->tag_get_handle("", 3, MB_TYPE_DOUBLE, xnew, MB_TAG_CREAT|MB_TAG_DENSE);
   RR("Failed to create xnew tag.");
   
     // get all the vertices and coords in the fluid, set xnew to them
   Range verts;
-  rval = mbImpl->get_adjacencies(fluid_elems, 0, false, verts, Interface::UNION);
+  rval = mb->get_adjacencies(fluid_elems, 0, false, verts, Interface::UNION);
   RR("Failed to get vertices.");
   std::vector<double> coords(3*verts.size(), 0.0);
-  rval = mbImpl->get_coords(verts, &coords[0]);
+  rval = mb->get_coords(verts, &coords[0]);
   RR("Failed to get vertex coords.");
-  rval = mbImpl->tag_set_data(xNew, verts, &coords[0]);
+  rval = mb->tag_set_data(xnew, verts, &coords[0]);
   RR("Failed to set xnew tag on fluid verts.");
   
     // get all the vertices and coords in the solid
   verts.clear();
-  rval = mbImpl->get_adjacencies(solid_elems, 0, false, verts, Interface::UNION);
+  rval = mb->get_adjacencies(solid_elems, 0, false, verts, Interface::UNION);
   RR("Failed to get vertices.");
   coords.resize(3*verts.size(), 0.0);
-  rval = mbImpl->get_coords(verts, &coords[0]);
+  rval = mb->get_coords(verts, &coords[0]);
   RR("Failed to get vertex coords.");
   unsigned int num_verts = verts.size();
   for (unsigned int i = 0; i < num_verts; i++)
     deform_func(&coords[3*i], &coords[3*i]);
     
     // set the new tag to those coords
-  rval = mbImpl->tag_set_data(xNew, verts, &coords[0]);
+  rval = mb->tag_set_data(xnew, verts, &coords[0]);
   RR("Failed to set tag data.");
   
   return MB_SUCCESS;
 }
 
-ErrorCode DeformMeshRemap::read_file(int m_or_s, string &fname, EntityHandle &seth)
+ErrorCode read_file(string &fname, EntityHandle &seth, 
+                    Range &solids, Range &solid_elems, Range &fluids, Range &fluid_elems)
 {
     // create meshset
-  ErrorCode rval = mbImpl->create_meshset(0, seth);
+  ErrorCode rval = mb->create_meshset(0, seth);
   RR("Couldn't create master/slave set.");
   ostringstream ostr;
 #ifdef USE_MPI
@@ -407,46 +414,36 @@ ErrorCode DeformMeshRemap::read_file(int m_or_s, string &fname, EntityHandle &se
 
     // get material sets for solid/fluid
   Tag tagh;
-  rval = mbImpl->tag_get_handle(MATERIAL_SET_TAG_NAME, tagh); RR("Couldn't get material set tag name.");
-  for (std::set<int>::iterator sit = solidSetNos.begin(); sit != solidSetNos.end(); sit++) {
-    Range sets;
-    int set_no = *sit;
-    const void *setno_ptr = &set_no;
-    rval = mbImpl->get_entities_by_type_and_tag(seth, MBENTITYSET, &tagh, &setno_ptr, 1, sets);
-    if (sets.empty()) rval = MB_FAILURE;
-    RR("Couldn't get any solid sets.");
-    solidSets[m_or_s].merge(sets);
-  }
+  rval = mb->tag_get_handle(MATERIAL_SET_TAG_NAME, tagh); RR("Couldn't get material set tag name.");
+  const void *setno_ptr = &SOLID_SETNO;
+  rval = mb->get_entities_by_type_and_tag(seth, MBENTITYSET, &tagh, &setno_ptr, 1, solids);
+  if (solids.empty()) rval = MB_FAILURE;
+  RR("Couldn't get any solid sets.");
 
     // get solid entities, and dimension
   Range tmp_range;
-  for (Range::iterator rit = solidSets[m_or_s].begin(); rit != solidSets[m_or_s].end(); rit++) {
-    rval = mbImpl->get_entities_by_handle(*rit, tmp_range, true);
+  for (Range::iterator rit = solids.begin(); rit != solids.end(); rit++) {
+    rval = mb->get_entities_by_handle(*rit, tmp_range, true);
     RR("Failed to get entities in solid.");
   }
-  int dim = mbImpl->dimension_from_handle(*tmp_range.rbegin());
+  int dim = mb->dimension_from_handle(*tmp_range.rbegin());
   assert(dim > 0 && dim < 4);
   
-  solidElems[m_or_s] = tmp_range.subset_by_dimension(dim);
+  solid_elems = tmp_range.subset_by_dimension(dim);
 
-  for (std::set<int>::iterator sit = fluidSetNos.begin(); sit != fluidSetNos.end(); sit++) {
-    Range sets;
-    int set_no = *sit;
-    const void *setno_ptr = &set_no;
-    rval = mbImpl->get_entities_by_type_and_tag(seth, MBENTITYSET, &tagh, &setno_ptr, 1, sets);
-    if (sets.empty()) rval = MB_FAILURE;
-    RR("Couldn't get any fluid sets.");
-    fluidSets[m_or_s].merge(sets);
-  }
-
-    // get fluid entities, and dimension
-  tmp_range.clear();
-  for (Range::iterator rit = fluidSets[m_or_s].begin(); rit != fluidSets[m_or_s].end(); rit++) {
-    rval = mbImpl->get_entities_by_handle(*rit, tmp_range, true);
+  setno_ptr = &FLUID_SETNO;
+  rval = mb->get_entities_by_type_and_tag(seth, MBENTITYSET, &tagh, &setno_ptr, 1, fluids);
+  if (fluids.empty()) rval = MB_FAILURE;
+  RR("Couldn't get any fluid sets.");
+  
+  for (Range::iterator rit = fluids.begin(); rit != fluids.end(); rit++) {
+    rval = mb->get_entities_by_dimension(*rit, dim, fluid_elems, true);
     RR("Failed to get entities in fluid.");
   }
-  
-  fluidElems[m_or_s] = tmp_range.subset_by_dimension(dim);
+  if (mb->dimension_from_handle(*fluid_elems.begin()) != dim) {
+    rval = MB_FAILURE;
+    RR("Fluid and solid elements must be same dimension.");
+  }
   
   return MB_SUCCESS;
 }
