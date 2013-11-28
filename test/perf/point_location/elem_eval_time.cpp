@@ -158,7 +158,7 @@ ErrorCode time_reverse_eval(Interface *mbi, int method, Range &elems,
     bool ins;
     for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
       eeval.set_ent_handle(*rit);
-      rval = eeval.reverse_eval(coords[i].array(), 1.0e-10, 1.0e-6, params[i].array(), &ins);
+      rval = eeval.reverse_eval(coords[i].array(), 1.0e-6, params[i].array(), &ins);
       assert(ins);
 #ifndef NDEBUG
       if (MB_SUCCESS != rval) return rval;

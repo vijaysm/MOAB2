@@ -7,7 +7,6 @@
 
 #ifdef USE_MPI
 #include "moab/ParallelComm.hpp"
-#include "MBParallelConventions.h"
 #endif
 
 #include <iostream>

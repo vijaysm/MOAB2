@@ -290,7 +290,7 @@ void do_kdtree_test( Interface& mb, int tree_depth, int elem_per_leaf,
   int len;
   for (long i = 0; i < num_test; ++i) {
     const size_t idx = (size_t)i % points.size();
-    rval = tool.point_search( points[idx].array(), leaf, 1.0e-10, 1.0e-6, NULL, &root ); CHK(rval);
+    rval = tool.point_search( points[idx].array(), leaf, 0.0, NULL, &root ); CHK(rval);
     hexes.clear();
     rval = mb.get_entities_by_handle( leaf, hexes ); CHK(rval);
     for (j = hexes.begin(); j != hexes.end(); ++j) {
