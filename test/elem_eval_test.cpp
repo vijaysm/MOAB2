@@ -63,7 +63,7 @@ void test_eval(ElemEvaluator &ee, bool test_integrate)
         if (!ee.inside(params.array(), EPS1)) continue;
         
         rval = ee.eval(params.array(), posn.array()); CHECK_ERR(rval);
-        rval = ee.reverse_eval(posn.array(), EPS1, params2.array(), &is_inside); CHECK_ERR(rval);
+        rval = ee.reverse_eval(posn.array(), EPS1, EPS1, params2.array(), &is_inside); CHECK_ERR(rval);
         CHECK_REAL_EQUAL(0.0, params[0] - params2[0], 3*EPS1);
         if (ent_dim > 1)
           CHECK_REAL_EQUAL(0.0, params[1] - params2[1], 3*EPS1);
