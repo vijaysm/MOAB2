@@ -18,10 +18,9 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_srcdir)/test 
 
 lib_LTLIBRARIES = libmbcslam.la
-libmbcslam_la_LIBADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la \
-         $(top_builddir)/tools/mbcoupler/libmbcoupler.la
+libmbcslam_la_LIBADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la 
          
-LDADD = $(top_builddir)/src/libMOAB.la libmbcslam.la $(top_builddir)/tools/mbcoupler/libmbcoupler.la
+LDADD = $(top_builddir)/src/libMOAB.la libmbcslam.la 
 
 libmbcslam_la_SOURCES = \
    Intx2Mesh.cpp Intx2Mesh.hpp Intx2MeshOnSphere.cpp Intx2MeshOnSphere.hpp \
@@ -38,7 +37,7 @@ libmbcslam_la_includedir = $(includedir)
 # check that only libraries are going in $(libdir)
 cfgdir = $(libdir)
 
-TESTS = intx_on_sphere_test  intx_in_plane_test  spec_visu_test spherical_area_test \
+TESTS = intx_on_sphere_test  intx_in_plane_test spherical_area_test \
          case1_test  intx_mpas
 noinst_PROGRAMS =  cslam_par_test diffusion proj1 
 
@@ -46,7 +45,7 @@ check_PROGRAMS = $(TESTS)
 intx_on_sphere_test_SOURCES = intx_on_sphere_test.cpp
 diffusion_SOURCES = diffusion.cpp
 intx_in_plane_test_SOURCES = intx_in_plane_test.cpp
-spec_visu_test_SOURCES = spec_visu_test.cpp
+# spec_visu_test_SOURCES = spec_visu_test.cpp
 spherical_area_test_SOURCES = spherical_area_test.cpp
 case1_test_SOURCES = case1_test.cpp
 intx_mpas_SOURCES = intx_mpas.cpp
