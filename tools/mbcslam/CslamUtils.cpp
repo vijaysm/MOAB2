@@ -9,10 +9,10 @@
 #include <math.h>
 // this is from mbcoupler; maybe it should be moved somewhere in moab src
 // right now, add a dependency to mbcoupler
-#include "ElemUtil.hpp"
+// #include "ElemUtil.hpp"
 #include "moab/MergeMesh.hpp"
 #include "moab/ReadUtilIface.hpp"
-
+#include <iostream>
 // this is for sstream
 #include <sstream>
 
@@ -476,7 +476,8 @@ CartVect spherical_to_cart (SphereCoords & sc)
   res[2] = sc.R * sin(sc.lat);             // z
   return res;
 }
-
+// remove dependency to coupler now
+#if 0
 ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle & outputSet, double tolerance)
 {
   ErrorCode rval = MB_SUCCESS;
@@ -557,7 +558,8 @@ ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle &
 
   return rval;
 }
-
+// remove for the time being dependency on coupler
+#endif
 ErrorCode ProjectOnSphere(Interface * mb, EntityHandle set, double R)
 {
   Range ents;

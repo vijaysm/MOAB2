@@ -69,16 +69,20 @@
 #  ifdef HDF5_PARALLEL
 #    include "WriteHDF5Parallel.hpp"
      typedef moab::WriteHDF5Parallel DefaultWriter;
+#    define DefaultWriterName "WriteHDF5Parallel"
 #  else
 #    include "WriteHDF5.hpp"
      typedef moab::WriteHDF5 DefaultWriter;
+#    define DefaultWriterName "WriteHDF5"
 #  endif
 #elif defined(NETCDF_FILE)
 #  include "WriteNCDF.hpp"
    typedef moab::WriteNCDF DefaultWriter;
+#  define DefaultWriterName "WriteNCDF"
 #else
 #  include "WriteVtk.hpp"
    typedef moab::WriteVtk DefaultWriter;
+#  define DefaultWriterName "WriteVtk"
 #endif
 #include "MBTagConventions.hpp"
 #include "ExoIIUtil.hpp"
@@ -727,7 +731,10 @@ ErrorCode Core::write_file( const char* file_name,
       rval = writer->write_file(file_name, overwrite, opts, list_ptr, list.size(), qa_records,
                                 tag_list, num_tags );
       if (rval != MB_SUCCESS)
+      {
         mError->set_last_error( "Writer for file type \"%s\" was unsuccessful", file_type);
+        printf("Writer with name %s for file %s using extension %s was unsuccessful\n",i->name().c_str(), file_name, ext.c_str());
+      }
       delete writer;
     }
   }
@@ -737,6 +744,7 @@ ErrorCode Core::write_file( const char* file_name,
 
   else if (MB_SUCCESS != rval) {
     DefaultWriter writer(this);
+    printf("Using default writer %s for file %s \n", DefaultWriterName, file_name);
     rval = writer.write_file(file_name, overwrite, opts, list_ptr, list.size(), qa_records,
                              tag_list, num_tags );
   }

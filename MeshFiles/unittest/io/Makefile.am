@@ -7,6 +7,7 @@ EXTRA_DIST = HommeMapping.nc \
 	     cubtest12.cub \
 	     cubtest.jou \
 	     dum.sat \
+	     dum.stp \
 	     gmsh2.msh \
 	     hex_2x2x2_ss.exo \
              ho_test.g \
@@ -19,6 +20,7 @@ EXTRA_DIST = HommeMapping.nc \
              test.unv \
 	     sample.stl \
              three.smf \
-             mpasx1.642.t.2.nc
+             mpasx1.642.t.2.nc \
+             2d_naca0012.cgns
 
 

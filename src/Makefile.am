@@ -157,7 +157,6 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/GeomTopoTool.hpp \
   moab/HigherOrderFactory.hpp \
   moab/HomXform.hpp \
-  moab/EigenDecomp.hpp \
   moab/EntityType.hpp \
   moab/EntityHandle.hpp \
   moab/FBEngine.hpp \

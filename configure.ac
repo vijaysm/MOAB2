@@ -446,6 +446,22 @@ AM_CPPFLAGS="$PNETCDF_CPPFLAGS $AM_CPPFLAGS"
 EXPORT_LDFLAGS="$PNETCDF_LDFLAGS $EXPORT_LDFLAGS"
 AC_SUBST(PNETCDF_LIBS)
 
+################################################################################
+#                             CGNS OPTIONS
+################################################################################
+
+old_LDFLAGS="$LDFLAGS"
+LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
+FATHOM_CHECK_CGNS
+LDFLAGS="$old_LDFLAGS"
+if test "xno" != "x$HAVE_CGNS"; then
+  AM_CPPFLAGS="$AM_CPPFLAGS -DCGNS_FILE"
+fi
+AM_CONDITIONAL(CGNS_FILE, [test "xno" != "x$HAVE_CGNS"])
+AM_CPPFLAGS="$CGNS_CPPFLAGS $AM_CPPFLAGS"
+EXPORT_LDFLAGS="$CGNS_LDFLAGS $EXPORT_LDFLAGS"
+AC_SUBST(CGNS_LIBS)
+
 
 #################################################################################
 #                             Documentation

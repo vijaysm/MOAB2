@@ -29,6 +29,9 @@ void test_read_fv_onevar();
 void test_read_fv_onetimestep();
 void test_read_fv_nomesh();
 void test_read_fv_novars();
+#ifdef USE_MPI
+void test_read_fv_ghosting();
+#endif
 
 ErrorCode get_options(std::string& opts);
 
@@ -56,6 +59,11 @@ int main(int argc, char* argv[])
   result += RUN_TEST(test_read_fv_onetimestep);
   result += RUN_TEST(test_read_fv_nomesh);
   result += RUN_TEST(test_read_fv_novars);
+
+#ifdef USE_MPI
+  // Before ghosting issues with ownership were fixed, this test failed on 4 processors
+  result += RUN_TEST(test_read_fv_ghosting);
+#endif
 
 #ifdef USE_MPI
   fail = MPI_Finalize();
@@ -493,6 +501,35 @@ void test_read_fv_novars()
   rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 }
+
+#ifdef USE_MPI
+void test_read_fv_ghosting()
+{
+  Core moab;
+  Interface& mb = moab;
+
+  // Need a set for nomesh to work right
+  EntityHandle set;
+  ErrorCode rval = mb.create_meshset(MESHSET_SET, set);
+  CHECK_ERR(rval);
+
+  std::string orig, opts;
+  rval = get_options(orig);
+  CHECK_ERR(rval);
+
+  opts = std::string("PARALLEL=READ_PART;PARTITION;PARALLEL_GHOSTS=2.0.1;NOMESH;VARIABLE=;PARTITION_METHOD=SQIJ");
+  rval = mb.load_file(example_fv, &set, opts.c_str());
+  CHECK_ERR(rval);
+
+  opts = std::string("PARALLEL=READ_PART;PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=2.0.1;PARTITION_METHOD=SQIJ;VARIABLE=");
+  rval = mb.load_file(example_fv, &set, opts.c_str());
+  CHECK_ERR(rval);
+
+  opts = std::string("PARALLEL=READ_PART;PARTITION;PARTITION_METHOD=SQIJ;VARIABLE=TOT_CLD_VISTAU;NOMESH;TIMESTEP=0;");
+  rval = mb.load_file(example_fv, &set, opts.c_str());
+  CHECK_ERR(rval);
+}
+#endif
 
 ErrorCode get_options(std::string& opts) 
 {

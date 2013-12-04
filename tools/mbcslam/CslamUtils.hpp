@@ -89,7 +89,7 @@ CartVect spherical_to_cart (SphereCoords &) ;
  *   output: a set with refined elements; with proper input, it should be pretty
  *   similar to a Homme mesh read with ReadNC
  */
-ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle & outputSet, double tolerance);
+//ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle & outputSet, double tolerance);
 
 /*
  * given an entity set, get all nodes and project them on a sphere with given radius

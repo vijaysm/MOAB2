@@ -44,7 +44,7 @@ namespace moab {
          * a new root set and pass its handle back in *tree_root_set.  Options vary by tree type;
          * see Tree.hpp for common options; options specific to AdaptiveKDTree:
          * SPLITS_PER_DIR: number of candidate splits considered per direction; default = 3
-         * CANDIDATE_PLANE_SET: method used to decide split planes; see CandidatePlaneSet enum (below)
+         * PLANE_SET: method used to decide split planes; see CandidatePlaneSet enum (below)
          *          for possible values; default = 1 (SUBDIVISION_SNAP)
          * \param entities Entities with which to build the tree
          * \param tree_root Root set for tree (see function description)

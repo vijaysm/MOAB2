@@ -75,10 +75,12 @@ void create_parallel_mesh()
   CHECK_ERR(rval);
   
     // resolve shared verts
+  std::cout << "Resolving shared ents..." << std::endl;
   rval = pc.resolve_shared_ents(new_box->box_set(), -1, 0, &tag);
   CHECK_ERR(rval);
   times[1] = MPI_Wtime();
   
+  std::cout << "Exchanging ghost cells..." << std::endl;
   rval = pc.exchange_ghost_cells(-1, -1, 0, 0, true, true);
   CHECK_ERR(rval);
   times[2] = MPI_Wtime();
