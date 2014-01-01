@@ -1164,6 +1164,13 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
   std::string tag_name("DP");
   rval = mb->tag_get_handle(tag_name.c_str(), 3, MB_TYPE_DOUBLE, dpTag, MB_TAG_DENSE);
   ERRORR(rval, "can't get DP tag");
+
+  EntityHandle dum=0;
+  Tag corrTag;
+  rval = mb->tag_get_handle(CORRTAGNAME,
+                                           1, MB_TYPE_HANDLE, corrTag,
+                                           MB_TAG_DENSE|MB_TAG_CREAT, &dum);
+  ERRORR(rval, "can't get CORR tag");
   // get all local verts
   Range local_verts;
   rval = mb->get_connectivity(localEnts, local_verts);
@@ -1245,7 +1252,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
   TLv.enableWriteAccess();
 
   int sizeTuple = 2+max_edges; // determined earlier
-  TLq.initialize(2+max_edges, 0, 0, 0, numq); // to proc, elem GLOBAL ID, connectivity[10] (global ID v)
+  TLq.initialize(2+max_edges, 0, 1, 0, numq); // to proc, elem GLOBAL ID, connectivity[10] (global ID v), local eh
   TLq.enableWriteAccess();
   std::cout << "from proc " << my_rank << " send " << numv << " vertices and " << numq << " elements\n";
 
@@ -1295,6 +1302,8 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
       {
         TLq.vi_wr[sizeTuple*n+2+k] = 0; // fill the rest of node ids with 0; we know that the node ids start from 1!
       }
+      TLq.vul_wr[n]=q; // save here the entity handle, it will be communicated back
+      // mabe we should forget about global ID
       TLq.inc_n();
 
     }
@@ -1372,12 +1381,23 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
     rval=mb->tag_get_data(gid, &q, 1, &gid_el);
     ERRORR(rval, "can't get element global ID ");
     globalID_to_eh[gid_el]=new_element;
+    // is this redundant or not?
+    rval = mb->tag_set_data(corrTag, &new_element, 1, &q);
+    ERRORR(rval, "can't set corr tag on new el");
+    // set the global id on new elem
+    rval = mb->tag_set_data(gid, &new_element, 1, &gid_el);
+    ERRORR(rval, "can't set global id tag on new el");
   }
   // now look at all elements received through; we do not want to duplicate them
   n=TLq.get_n();// number of elements received by this processor
+  // form the remote cells, that will be used to send the tracer info back to the originating proc
+  remote_cells = new TupleList();
+  remote_cells->initialize(2, 0, 1, 1, n);
+  remote_cells->enableWriteAccess();
   for (int i=0; i<n; i++)
   {
     int globalIdEl = TLq.vi_rd[sizeTuple*i+1];
+    int from_proc =  TLq.vi_wr[sizeTuple*i];
     // do we already have a quad with this global ID, represented?
     if (globalID_to_eh.find(globalIdEl)==globalID_to_eh.end())
     {
@@ -1408,6 +1428,16 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
       globalID_to_eh[globalIdEl]=new_element;
       rval = mb->add_entities(covering_lagr_set, &new_element, 1);
       ERRORR(rval, "can't add new element to dep set");
+     /* rval = mb->tag_set_data(corrTag, &new_element, 1, &q);
+      ERRORR(rval, "can't set corr tag on new el");*/
+      remote_cells->vi_wr[2*i]=from_proc;
+      remote_cells->vi_wr[2*i+1]=globalIdEl;
+      remote_cells->vr_wr[i] = 0.; // no contribution yet sent back
+      remote_cells->vul_wr[i]= TLq.vul_rd[i];// this is the corresponding red cell (arrival)
+      remote_cells->inc_n();
+      // set the global id on new elem
+      rval = mb->tag_set_data(gid, &new_element, 1, &globalIdEl);
+      ERRORR(rval, "can't set global id tag on new el");
     }
   }
   return MB_SUCCESS;

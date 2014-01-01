@@ -17,7 +17,7 @@
 using namespace moab;
 double radius = 1.;
 double gtol = 1.e-9;
-bool debug = true;
+bool debug = false;
 
 #ifdef __cplusplus
 extern "C" {
