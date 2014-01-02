@@ -24,7 +24,7 @@ LDADD = $(top_builddir)/src/libMOAB.la libmbcslam.la
 
 libmbcslam_la_SOURCES = \
    Intx2Mesh.cpp Intx2Mesh.hpp Intx2MeshOnSphere.cpp Intx2MeshOnSphere.hpp \
-     CslamUtils.cpp CslamUtils.hpp Intx2MeshInPlane.cpp Intx2MeshInPlane.hpp 
+     CslamUtils.cpp CslamUtils.hpp Intx2MeshInPlane.cpp Intx2MeshInPlane.hpp wrap_intx.cpp 
 
 # these will be installed
 libmbcslam_la_include_HEADERS = 
@@ -39,7 +39,7 @@ cfgdir = $(libdir)
 
 TESTS = intx_on_sphere_test  intx_in_plane_test spherical_area_test \
          case1_test  intx_mpas
-noinst_PROGRAMS =  cslam_par_test diffusion proj1 
+noinst_PROGRAMS =  cslam_par_test diffusion proj1 intx_imesh create_dp advection
 
 check_PROGRAMS = $(TESTS) 
 intx_on_sphere_test_SOURCES = intx_on_sphere_test.cpp
@@ -51,6 +51,9 @@ case1_test_SOURCES = case1_test.cpp
 intx_mpas_SOURCES = intx_mpas.cpp
 cslam_par_test_SOURCES = cslam_par_test.cpp
 proj1_SOURCES = proj1.cpp
+intx_imesh_SOURCES = intx_imesh.cpp
+create_dp_SOURCES = create_dp.cpp
+advection_SOURCES = advection.F90
 
 EXTRA_DIST  = lagrangeHomme.vtk  \
               eulerHomme.vtk \

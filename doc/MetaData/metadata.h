@@ -210,9 +210,11 @@ Create a gather set (associated with tag GATHER_SET) on one processor with the s
 
 <H3>no_mixed_elements </H3>
 
-Indicates that no mixed elements (e.g. pentagons and hexagons) should be created by the MPAS reader. If this option is used, a common parameter maxEdgesPerCell will be computed to be used across all
-processors (instead of the one reported in the MPAS file header, which is usually 10), and each cell is created with maxEdgesPerCell edges. Any cell that has less actual edges will be padded by duplicating
-the last vertex in the connectivity array. As a result, all created cells will be in one contiguous chunk.
+Indicates that no mixed elements (e.g. pentagons and hexagons) should be created by the MPAS reader. If this option is used, a common parameter maxEdgesPerCell will be computed to be used across all processors (instead of the one reported in the MPAS file header, which is usually 10), and each cell is created with maxEdgesPerCell edges. Any cell that has less actual edges will be padded by duplicating the last vertex in the connectivity array. As a result, all created cells will be in one contiguous chunk.
+
+<H3>no_edges </H3>
+
+Indicates that no edges should be created and no edge variables will be read. This option can be used when there is no need to read variables on edges. For a huge MPAS file with 65M cells, it can save more than 3GB MOAB internal storage for edge connectivity.
 
 \ref md-contents "Top"
 

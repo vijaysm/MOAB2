@@ -17,7 +17,8 @@ static const char sample[] = STRINGIFY(MESHDIR) "/io/sample.stl";
 static const char sample[] = "sample.stl";
 #endif
 
-const char* tmp_file = "test.stl";
+// Use static keyword so that tmp_file can only be accessed within this file
+static const char* tmp_file = "test.stl";
 
 void test_read_ascii();
 void test_write_ascii();
