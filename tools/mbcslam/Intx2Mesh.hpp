@@ -75,20 +75,10 @@ public:
   // clean some memory allocated
   void clean();
 
-  ErrorCode initialize_local_kdtree(EntityHandle euler_set);
-
-  // this will work in parallel
-  ErrorCode locate_departure_points(EntityHandle euler_set); // get the points and elements from the local set
-  ErrorCode locate_departure_points(Range & local_verts);
-  ErrorCode test_local_box(double *xyz, int from_proc, int remote_index, TupleList *tl);
-  ErrorCode inside_entities(double xyz[3], std::vector<EntityHandle> &entities);
-
   // this will depend on the problem and element type; return true if on the border edge too
   virtual bool is_inside_element(double xyz[3], EntityHandle eh) = 0;
   void set_box_error(double berror)
    {box_error = berror;}
-
-  ErrorCode create_departure_mesh(EntityHandle & covering_lagr_set);
 
   ErrorCode create_departure_mesh_2nd_alg(EntityHandle & euler_set, EntityHandle & covering_lagr_set);
 
