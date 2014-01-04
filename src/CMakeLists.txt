@@ -9,15 +9,26 @@ if(MOAB_USE_MPI AND MPI_FOUND)
 endif()
 
 #create the FCDefs.h and src/MOAB_FCDefs.h files
-configure_file(FCDefs.h.in "${CMAKE_BINARY_DIR}/src/FCDefs.h" @ONLY)
+configure_file(FCDefs.h.in "${CMAKE_CURRENT_BINARY_DIR}/FCDefs.h" @ONLY)
 #sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h
 FILE(READ ${CMAKE_BINARY_DIR}/src/FCDefs.h infile)
 STRING( REGEX REPLACE "FC_FUNC" "MOAB_FC_FUNC" outstring "${infile}" )
-FILE(WRITE "${CMAKE_BINARY_DIR}/src/MOAB_FCDefs.h" "${outstring}")
+FILE(WRITE "${CMAKE_CURRENT_BINARY_DIR}/MOAB_FCDefs.h" "${outstring}")
 
 add_subdirectory(io)
 add_subdirectory(LocalDiscretization)
 add_subdirectory(oldinc)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/MBCN_protos.h
+  COMMAND ${CMAKE_COMMAND}
+          -DDEF:STRING=MOAB
+          -Dinput_file:STRING=${CMAKE_CURRENT_SOURCE_DIR}/MBCN.h
+          -Doutput_file:STRING=${CMAKE_CURRENT_BINARY_DIR}/MBCN_protos.h
+          -Dprefix:STRING=MBCN
+          -P ${CMAKE_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/MBCN.h )
+
 
 set(MOAB_LIB_SOURCES
         AdaptiveKDTree.cpp
@@ -156,8 +167,8 @@ set( MOAB_INSTALL_HEADERS
         moab/WriterIface.hpp
         MBEntityType.h
         MBCN.h
-        ${CMAKE_BINARY_DIR}/src/MOAB_FCDefs.h
-        MBCN_protos.h
+        ${CMAKE_CURRENT_BINARY_DIR}/MOAB_FCDefs.h
+        ${CMAKE_CURRENT_BINARY_DIR}/MBCN_protos.h
         MBTagConventions.hpp )
         
 if( CGM_FOUND )
