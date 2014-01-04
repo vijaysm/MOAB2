@@ -1,5 +1,4 @@
 # Find the common geometry module libraries
-
 if ( NOT CGM_SOURCE_DIR )
   find_path( CGM_SOURCE_DIR
     NAMES geom/CubitGeomConfigure.h.in

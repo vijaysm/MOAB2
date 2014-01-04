@@ -27,3 +27,10 @@ else ( EXISTS "${OUTFILE}" )
 endif ( EXISTS "${OUTFILE}" )
 
 endmacro( autoconf_header )
+
+macro( moab_install_headers )
+  foreach (header ${ARGV})
+    string(REGEX MATCH "(.*)/" DIR ${header})
+    install(FILES ${header} DESTINATION include/${DIR})
+  endforeach()
+endmacro(moab_install_headers)

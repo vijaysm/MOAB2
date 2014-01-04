@@ -4,58 +4,47 @@ find_package( CGM )
 include_directories(
   ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${MOAB_BINARY_DIR}/src
-  ${MOAB_SOURCE_DIR}/src
-)
-
-set( MOAB_DAGMC_LIB_SRCS
-  DagMC.cpp
-)
-
-set( MOAB_TEST_GEOM_SRCS
-  test_geom.cc
-)
+  ${CMAKE_SOURCE_DIR}/src )
 
 if ( CGM_FOUND )
-  set( MOAB_DAGMC_LIB_SRCS
-    ${MOAB_DAGMC_LIB_SRCS}
-  )
-  set( MOAB_DAGMC_SRCS
-    main.cc
-    cubfile.c
-  )
-  include_directories(
-    ${CGM_INCLUDE_DIRECTORIES}
-  )
-endif ( CGM_FOUND )
+  include_directories( ${CGM_INCLUDE_DIRECTORIES} )
+endif( )
 
-add_library( dagmc
-  ${MOAB_DAGMC_LIB_SRCS}
-)
-target_link_libraries( dagmc
-  MOAB
-)
+add_library( dagmc DagMC.hpp DagMC.cpp )
+target_link_libraries( dagmc  MOAB)
+install(TARGETS dagmc EXPORT MOABTargets
+                      RUNTIME DESTINATION bin
+                      LIBRARY DESTINATION lib
+                      ARCHIVE DESTINATION lib )
+set( MOAB_INSTALL_TARGETS ${MOAB_INSTALL_TARGETS} dagmc)
+install( FILES DagMC.hpp DESTINATION include )
 
-add_executable( test_geom
-  ${MOAB_TEST_GEOM_SRCS}
-)
-target_link_libraries( test_geom
-  dagmc
-  MOAB
-)
 
-if ( CGM_FOUND )
-  target_link_libraries( dagmc
-    ${CGM_LIBRARIES}
-  )
-  target_link_libraries( test_geom
-    ${CGM_LIBRARIES}
-  )
-  add_executable( cgm2moab
-    ${MOAB_DAGMC_SRCS}
-  )
-  target_link_libraries( cgm2moab
-    dagmc
-    ${CGM_LIBRARIES}
-  )
-endif ( CGM_FOUND )
+
+add_executable( dagmc_preproc dagmc_preproc.cpp 
+                              obb_analysis.cpp 
+                              dagmc_preproc.hpp )
+target_link_libraries( dagmc_preproc MOAB dagmc )
+install(TARGETS dagmc_preproc RUNTIME DESTINATION bin
+                              LIBRARY DESTINATION lib
+                              ARCHIVE DESTINATION lib )
+
+add_executable( test_geom test_geom.cc )
+target_link_libraries( test_geom dagmc MOAB)
+
+if ( MOAB_USE_CGM )
+  target_link_libraries( dagmc ${CGM_LIBRARIES} )
+  target_link_libraries( test_geom ${CGM_LIBRARIES} )
+  option ( MOAB_BUILD_CGM2MOAB    "Build cgm2moab?"  OFF )
+  if(MOAB_BUILD_CGM2MOAB)
+    add_executable( cgm2moab dagmc_preproc.cpp
+                             obb_analysis.cpp
+                             dagmc_preproc.hpp )
+    target_link_libraries( cgm2moab
+                           dagmc
+                           ${CGM_LIBRARIES} )
+    install(TARGETS cgm2moab RUNTIME DESTINATION bin
+                             LIBRARY DESTINATION lib
+                             ARCHIVE DESTINATION lib )
+  endif()
+endif( )

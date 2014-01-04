@@ -2,11 +2,22 @@ set( moab_PARALLEL_SRCS
   ParallelComm.cpp
   ProcConfig.cpp
   ParallelData.cpp
-  ReadParallel.cpp
+  ParallelMergeMesh.cpp
+  ReadParallel.hpp      ReadParallel.cpp
+  SharedSetData.hpp     SharedSetData.cpp
   gs.cpp
   TupleList.cpp
-  SharedSetData.cpp
 )
+
+set(moab_PARALLEL_INSTALL_HDRS moab/gs.hpp
+                               moab_mpi.h
+                               moab_mpi_config.h
+                               moab/ParallelComm.hpp
+                               moab/ParallelMergeMesh.hpp
+                               moab/ProcConfig.hpp
+                               moab/ParallelData.hpp
+                               MBParallelConventions.h
+                               moab/TupleList.hpp )
 
 include_directories(
     ${MOAB_SOURCE_DIR}/src
@@ -14,11 +25,12 @@ include_directories(
   )
 
 if ( MOAB_USE_HDF AND MOAB_HDF_HAVE_PARALLEL )
-  set( moab_PARALLEL_SRCS
-    ${moab_PARALLEL_SRCS}
-    WriteHDF5Parallel.cpp
-  )
-endif ( MOAB_USE_HDF AND MOAB_HDF_HAVE_PARALLEL )
+  set( moab_PARALLEL_SRCS ${moab_PARALLEL_SRCS}
+                          WriteHDF5Parallel.cpp )
+  
+  set( moab_PARALLEL_INSTALL_HDRS ${moab_PARALLEL_INSTALL_HDRS}
+                                  WriteHDF5Parallel.hpp )
+endif()
 
 if ( MOAB_USE_HDF )
   include_directories(
@@ -26,28 +38,16 @@ if ( MOAB_USE_HDF )
   )
 endif ( MOAB_USE_HDF )
 
-# On Mac OS X, shared libraries may not have circular
-# dependencies (e.g., MOAB depends on MOABpar depends on MOAB).
-# Force a static MOABpar library in this case.
-if ( APPLE AND BUILD_SHARED_LIBS )
-  set ( MOABpar_LIB_TYPE "STATIC" )
-else ( APPLE AND BUILD_SHARED_LIBS )
-  if ( BUILD_SHARED_LIBS )
-    set ( MOABpar_LIB_TYPE "SHARED" )
-  else ( BUILD_SHARED_LIBS )
-    set ( MOABpar_LIB_TYPE "STATIC" )
-  endif ( BUILD_SHARED_LIBS )
-endif ( APPLE AND BUILD_SHARED_LIBS )
-
 set_source_files_properties( ${moab_PARALLEL_SRCS}
   COMPILE_FLAGS "-DIS_BUILDING_MB -DSRCDIR=\"${MOAB_SOURCE_DIR}\" ${MOAB_DEFINES}"
 )
-add_library( MOABpar ${MOABpar_LIB_TYPE}
-  ${moab_PARALLEL_SRCS}
-)
+add_library( MOABpar STATIC ${moab_PARALLEL_INSTALL_HDRS} ${moab_PARALLEL_SRCS} )
 
 target_link_libraries( MOABpar
   ${MPI_LIBRARY}
   ${MPI_EXTRA_LIBRARY}
 )
+
+include(AutoconfHeader)
+moab_install_headers(${moab_PARALLEL_INSTALL_HDRS})
 
