@@ -3,6 +3,7 @@
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/iMesh_protos.h
   COMMAND ${CMAKE_COMMAND}
+          -DDEF:STRING=MOAB
           -Dinput_file:STRING=${CMAKE_CURRENT_SOURCE_DIR}/iMesh.h
           -Doutput_file:STRING=${CMAKE_CURRENT_BINARY_DIR}/iMesh_protos.h
           -Dprefix:STRING=iMesh
@@ -11,6 +12,7 @@ ADD_CUSTOM_COMMAND(
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/iMesh_extensions_protos.h
   COMMAND ${CMAKE_COMMAND}
+          -DDEF:STRING=MOAB
           -Dinput_file:STRING=${CMAKE_CURRENT_SOURCE_DIR}/iMesh_extensions.h
           -Doutput_file:STRING=${CMAKE_CURRENT_BINARY_DIR}/iMesh_extensions_protos.h
           -Dprefix:STRING=iMesh
@@ -32,6 +34,7 @@ if ( MOAB_USE_MPI AND MPI_FOUND )
   ADD_CUSTOM_COMMAND(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/iMeshP_protos.h
     COMMAND ${CMAKE_COMMAND}
+            -DDEF:STRING=MOAB
             -Dinput_file:STRING=${CMAKE_CURRENT_SOURCE_DIR}/iMeshP.h
             -Doutput_file:STRING=${CMAKE_CURRENT_BINARY_DIR}/iMeshP_protos.h
             -Dprefix:STRING=iMeshP

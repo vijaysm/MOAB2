@@ -8,6 +8,13 @@ if(MOAB_USE_MPI AND MPI_FOUND)
   set( MOAB_MPI MOABpar )
 endif()
 
+#create the FCDefs.h and src/MOAB_FCDefs.h files
+configure_file(FCDefs.h.in "${CMAKE_BINARY_DIR}/src/FCDefs.h" @ONLY)
+#sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h
+FILE(READ ${CMAKE_BINARY_DIR}/src/FCDefs.h infile)
+STRING( REGEX REPLACE "FC_FUNC" "MOAB_FC_FUNC" outstring "${infile}" )
+FILE(WRITE "${CMAKE_BINARY_DIR}/src/MOAB_FCDefs.h" "${outstring}")
+
 add_subdirectory(io)
 add_subdirectory(LocalDiscretization)
 add_subdirectory(oldinc)
@@ -149,7 +156,7 @@ set( MOAB_INSTALL_HEADERS
         moab/WriterIface.hpp
         MBEntityType.h
         MBCN.h
-        MOAB_FCDefs.h
+        ${CMAKE_BINARY_DIR}/src/MOAB_FCDefs.h
         MBCN_protos.h
         MBTagConventions.hpp )
         
@@ -166,7 +173,7 @@ endif()
 
 add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} )
 target_link_libraries( MOAB PRIVATE moabio moab_loc_discr )
-target_link_libraries( MOAB ${MOAB_MPI} ${MOAB_CGM_LIBS} )
+target_link_libraries( MOAB PUBLIC ${MOAB_MPI} ${MOAB_CGM_LIBS} )
 set_target_properties( MOAB PROPERTIES COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}")
 
 install(TARGETS MOAB EXPORT MOABTargets
