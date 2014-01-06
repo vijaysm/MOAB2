@@ -12,15 +12,19 @@ endif()
 #create the FCDefs.h and src/MOAB_FCDefs.h files
 configure_file(FCDefs.h.in "${CMAKE_CURRENT_BINARY_DIR}/FCDefs.h" @ONLY)
 #sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h
-FILE(READ ${CMAKE_CURRENT_BINARY_DIR}/FCDefs.h infile)
-STRING( REGEX REPLACE "FC_FUNC" "MOAB_FC_FUNC" outstring "${infile}" )
-FILE(WRITE "${CMAKE_CURRENT_BINARY_DIR}/MOAB_FCDefs.h" "${outstring}")
+file(READ ${CMAKE_CURRENT_BINARY_DIR}/FCDefs.h infile)
+string( REGEX REPLACE "FC_FUNC" "MOAB_FC_FUNC" outstring "${infile}" )
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/MOAB_FCDefs.h" "${outstring}")
 
 #Create the moab/EntityHandle.hpp file
-FILE(READ ${CMAKE_CURRENT_SOURCE_DIR}/moab/EntityHandle.hpp.in infile2)
-STRING( REGEX REPLACE "#undef" "#cmakedefine" outstring2 "${infile2}" )
-FILE(WRITE "${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp.in" "${outstring2}")
-CONFIGURE_FILE(${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp)
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/moab/EntityHandle.hpp.in infile2)
+string( REGEX REPLACE "#undef" "#cmakedefine" outstring2 "${infile2}" )
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp.in" "${outstring2}")
+configure_file(${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp)
+
+#generate the Version.h file
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/moab/Version.h.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/moab/Version.h" @ONLY)
+
 
 add_subdirectory(io)
 add_subdirectory(LocalDiscretization)
