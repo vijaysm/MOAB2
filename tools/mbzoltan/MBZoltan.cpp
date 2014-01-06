@@ -23,6 +23,7 @@
 #include <iostream>
 #include <assert.h>
 #include <sstream>
+#include <algorithm>
 
 #include "MBZoltan.hpp"
 #include "moab/Interface.hpp"
@@ -65,34 +66,39 @@ static int *Parts=NULL;
 
 const bool debug = false;
 
-MBZoltan::MBZoltan( Interface *impl , 
-
+MBZoltan::MBZoltan( Interface *impl,
                     const bool use_coords,
-                    int argc, 
+                    int argc,
                     char **argv
 #ifdef CGM
                     , GeometryQueryTool *gqt
-#endif                   
-) 
-                   : mbImpl(impl), 
-
-                     myZZ(NULL), 
-                     newMoab(false), 
+#endif
+)
+                   : mbImpl(impl),
+                     myZZ(NULL),
+                     newMoab(false),
+                     newComm(false),
                      useCoords(use_coords),
-                     argcArg(argc), 
+                     argcArg(argc),
                      argvArg(argv)
 #ifdef CGM
                    , gti(gqt)
 #endif
 {
   mbpc = ParallelComm::get_pcomm(mbImpl, 0);
-  if (!mbpc)
-    mbpc = new ParallelComm( impl, MPI_COMM_WORLD, 0 );
+  if (!mbpc) {
+    mbpc = new ParallelComm(impl, MPI_COMM_WORLD, 0);
+    newComm = true;
+  }
 }
 
 MBZoltan::~MBZoltan() 
 {
-  if (NULL == myZZ) delete myZZ;
+  if (NULL != myZZ)
+    delete myZZ;
+
+  if (newComm)
+    delete mbpc;
 }
 
 ErrorCode MBZoltan::balance_mesh(const char *zmethod,
@@ -211,7 +217,7 @@ ErrorCode MBZoltan::balance_mesh(const char *zmethod,
                    exportProcs, &assignment);
 
   if (mbpc->proc_config().proc_rank() == 0) {
-    ErrorCode result = write_partition(mbpc->proc_config().proc_size(), elems, assignment,
+    result = write_partition(mbpc->proc_config().proc_size(), elems, assignment,
                                        write_as_sets, write_as_tags);
 
     if (MB_SUCCESS != result) return result;
@@ -238,6 +244,114 @@ ErrorCode MBZoltan::balance_mesh(const char *zmethod,
   return MB_SUCCESS;
 }
 
+ErrorCode  MBZoltan::repartition(std::vector<double> & x,std::vector<double>&y, std::vector<double> &z, int StartID,
+    const char * zmethod, Range & localGIDs)
+{
+  //
+  std::vector<int> sendToProcs;
+  int nprocs=mbpc->proc_config().proc_size();
+  int rank = mbpc->proc_config().proc_rank();
+  clock_t t = clock();
+  // form pts and ids, as in assemble_graph
+  std::vector<double> pts; // x[0], y[0], z[0], ... from MOAB
+  pts.resize(x.size()*3);
+  std::vector<int> ids; // point ids from MOAB
+  ids.resize(x.size());
+  for (size_t i=0; i<x.size(); i++)
+  {
+    pts[3*i]=  x[i];
+    pts[3*i+1]=y[i];
+    pts[3*i+2]=z[i];
+    ids[i]=StartID+(int)i;
+  }
+  // do not get out until done!
+
+  Points= &pts[0];
+  GlobalIds=&ids[0];
+  NumPoints=(int)x.size();
+  NumEdges=NULL;
+  NborGlobalId=NULL;
+  NborProcs=NULL;
+  ObjWeights=NULL;
+  EdgeWeights=NULL;
+  Parts=NULL;
+
+  float version;
+  if (rank==0)
+    std::cout << "Initializing zoltan..." << std::endl;
+
+  Zoltan_Initialize(argcArg, argvArg, &version);
+
+  // Create Zoltan object.  This calls Zoltan_Create.
+  if (NULL == myZZ) myZZ = new Zoltan(MPI_COMM_WORLD);
+
+  if (NULL == zmethod || !strcmp(zmethod, "RCB"))
+    SetRCB_Parameters();
+  else if (!strcmp(zmethod, "RIB"))
+    SetRIB_Parameters();
+  else if (!strcmp(zmethod, "HSFC"))
+    SetHSFC_Parameters();
+
+  // set # requested partitions
+  char buff[10];
+  sprintf(buff, "%d", nprocs);
+  int retval = myZZ->Set_Param("NUM_GLOBAL_PARTITIONS", buff);
+  if (ZOLTAN_OK != retval) return MB_FAILURE;
+
+    // request all, import and export
+  retval = myZZ->Set_Param("RETURN_LISTS", "ALL");
+  if (ZOLTAN_OK != retval) return MB_FAILURE;
+
+
+  myZZ->Set_Num_Obj_Fn(mbGetNumberOfAssignedObjects, NULL);
+  myZZ->Set_Obj_List_Fn(mbGetObjectList, NULL);
+  myZZ->Set_Num_Geom_Fn(mbGetObjectSize, NULL);
+  myZZ->Set_Geom_Multi_Fn(mbGetObject, NULL);
+  myZZ->Set_Num_Edges_Multi_Fn(mbGetNumberOfEdges, NULL);
+  myZZ->Set_Edge_List_Multi_Fn(mbGetEdgeList, NULL);
+
+  // Perform the load balancing partitioning
+
+  int changes;
+  int numGidEntries;
+  int numLidEntries;
+  int num_import;
+  ZOLTAN_ID_PTR import_global_ids, import_local_ids;
+  int * import_procs;
+  int * import_to_part;
+  int num_export;
+  ZOLTAN_ID_PTR export_global_ids, export_local_ids;
+  int *assign_procs, *assign_parts;
+
+  if (rank ==0)
+    std::cout << "Computing partition using " << (zmethod ? zmethod : "RCB") <<
+      " method for " << nprocs << " processors..." << std::endl;
+
+  retval = myZZ->LB_Partition(changes, numGidEntries, numLidEntries,
+                              num_import, import_global_ids, import_local_ids, import_procs, import_to_part,
+                              num_export, export_global_ids, export_local_ids,
+                              assign_procs, assign_parts);
+  if (ZOLTAN_OK != retval) return MB_FAILURE;
+
+  if (rank==0)
+  {
+    std::cout << " time to LB_partition " << (clock() - t) / (double) CLOCKS_PER_SEC  << "s. \n";
+    t = clock();
+  }
+
+  std::sort(import_global_ids, import_global_ids+num_import, std::greater<int> ());
+  std::sort(export_global_ids, export_global_ids+num_export, std::greater<int> ());
+
+  Range iniGids((EntityHandle)StartID, (EntityHandle)StartID+x.size()-1);
+  Range imported, exported;
+  std::copy(import_global_ids, import_global_ids+num_import, range_inserter(imported));
+  std::copy(export_global_ids, export_global_ids+num_export, range_inserter(exported));
+  localGIDs=subtract(iniGids, exported);
+  localGIDs=unite(localGIDs, imported);
+
+  return MB_SUCCESS;
+}
+
 ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
                                         const int nparts,
                                         const char *zmethod,
@@ -249,7 +363,9 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
                                         const int obj_weight,
                                         const int edge_weight,
                                         const bool part_surf,
-                                        const bool ghost) 
+                                        const bool ghost,
+                                        const bool print_time,
+                                        const bool spherical_coords)
 {
     // should only be called in serial
   if (mbpc->proc_config().proc_size() != 1) {
@@ -257,7 +373,7 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
               << std::endl;
     return MB_FAILURE;
   }
-  
+  clock_t t = clock();
   if (NULL != zmethod && strcmp(zmethod, "RR") && strcmp(zmethod, "RCB") && strcmp(zmethod, "RIB") &&
       strcmp(zmethod, "HSFC") && strcmp(zmethod, "Hypergraph") &&
       strcmp(zmethod, "PHG") && strcmp(zmethod, "PARMETIS") &&
@@ -269,6 +385,10 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
     return MB_FAILURE;
   }
 
+  bool part_geom = false;
+  if ( 0==  strcmp(zmethod, "RR") || 0== strcmp(zmethod, "RCB") || 0== strcmp(zmethod, "RIB")
+      || 0==strcmp(zmethod, "HSFC") )
+    part_geom=true; // so no adjacency / edges needed
   std::vector<double> pts; // x[0], y[0], z[0], ... from MOAB
   std::vector<int> ids; // point ids from MOAB
   std::vector<int> adjs, length, parts;
@@ -316,7 +436,8 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
   
   if (part_geom_mesh_size < 0.) {
     //if (!part_geom) {
-    result = assemble_graph(part_dim, pts, ids, adjs, length, elems); RR;
+       result = assemble_graph(part_dim, pts, ids, adjs, length, elems, part_geom,
+           spherical_coords); RR;
   }
   else {
 #ifdef CGM
@@ -342,20 +463,29 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
     }
 #endif
   }
-  
+  if (print_time)
+  {
+    std::cout << " time to assemble graph: " << (clock() - t) / (double) CLOCKS_PER_SEC  << "s. \n";
+    t = clock();
+  }
   double* o_wgt = NULL;
   double* e_wgt = NULL;
   if (obj_weights.size() > 0) o_wgt = &obj_weights[0];
   if (edge_weights.size() > 0) e_wgt = &edge_weights[0];
     
   myNumPts = mbInitializePoints((int)ids.size(), &pts[0], &ids[0], &adjs[0],
-                                &length[0], o_wgt, e_wgt, &parts[0]);
+                                &length[0], o_wgt, e_wgt, &parts[0], part_geom);
   
 
   // Initialize Zoltan.  This is a C call.  The simple C++ code 
   // that creates Zoltan objects does not keep track of whether 
   // Zoltan_Initialize has been called.
 
+  if (print_time)
+  {
+    std::cout << " time to initialize points: " << (clock() - t) / (double) CLOCKS_PER_SEC  << "s. \n";
+    t = clock();
+  }
   float version;
 
   std::cout << "Initializing zoltan..." << std::endl;
@@ -453,6 +583,11 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
                               assign_procs, assign_parts);
   if (ZOLTAN_OK != retval) return MB_FAILURE;
   
+  if (print_time)
+  {
+    std::cout << " time to LB_partition " << (clock() - t) / (double) CLOCKS_PER_SEC  << "s. \n";
+    t = clock();
+  }
   // take results & write onto MOAB partition sets
   std::cout << "Saving partition information to MOAB..." << std::endl;
   
@@ -466,6 +601,12 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
     result = write_partition(nparts, entities, assign_parts,
                              obj_weights, part_surf, ghost);
 #endif
+  }
+
+  if (print_time)
+  {
+    std::cout << " time to write partition in memory " <<(clock() - t) / (double) CLOCKS_PER_SEC  << "s. \n";
+    t = clock();
   }
 
   if (MB_SUCCESS != result) return result;
@@ -545,7 +686,7 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
                                    std::vector<int> &moab_ids,
                                    std::vector<int> &adjacencies, 
                                    std::vector<int> &length,
-                                   Range &elems) 
+                                   Range &elems, bool  part_geom, bool spherical_coords)
 {
     // assemble a graph with vertices equal to elements of specified dimension, edges
     // signified by list of other elements to which an element is connected
@@ -575,22 +716,24 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
   
   for (Range::iterator rit = elems.begin(); rit != elems.end(); rit++) {
 
+
+    if (!part_geom)
+    {
       // get bridge adjacencies
-    adjs.clear();
-    result = mtu.get_bridge_adjacencies(*rit, (dimension > 0 ? dimension-1 : 3), 
-                                        dimension, adjs); RR;
-    
-    
-      // get the graph vertex ids of those
-    if (!adjs.empty()) {
-      assert(adjs.size() < 5*MAX_SUB_ENTITIES);
-      result = mbImpl->tag_get_data(gid, adjs, neighbors); RR;
+      adjs.clear();
+      result = mtu.get_bridge_adjacencies(*rit, (dimension > 0 ? dimension-1 : 3),
+                                          dimension, adjs); RR;
+
+        // get the graph vertex ids of those
+      if (!adjs.empty()) {
+        assert(adjs.size() < 5*MAX_SUB_ENTITIES);
+        result = mbImpl->tag_get_data(gid, adjs, neighbors); RR;
+      }
+
+        // copy those into adjacencies vector
+      length.push_back((int)adjs.size());
+      std::copy(neighbors, neighbors+adjs.size(), std::back_inserter(adjacencies));
     }
-
-      // copy those into adjacencies vector
-    length.push_back((int)adjs.size());
-    std::copy(neighbors, neighbors+adjs.size(), std::back_inserter(adjacencies));
-
 
       // get average position of vertices
     result = mtu.get_average_position(*rit, avg_position); RR;
@@ -600,6 +743,18 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
 
       // copy those into coords vector
     moab_ids.push_back(moab_id);
+    // transform coordinates to spherical coordinates, if requested
+    if (spherical_coords)
+    {
+      double R = avg_position[0]*avg_position[0]+avg_position[1]*avg_position[1]+avg_position[2]*avg_position[2];
+      R = sqrt(R);
+      double lat = asin(avg_position[2]/R);
+      double lon=atan2(avg_position[1], avg_position[0]);
+      avg_position[0]=lon;
+      avg_position[1]=lat;
+      avg_position[2]=R;
+    }
+
     std::copy(avg_position, avg_position+3, std::back_inserter(coords));
   }
 
@@ -622,8 +777,8 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
 }
 
 #ifdef CGM
-ErrorCode MBZoltan::assemble_graph(const int dimension,
-                                   std::vector<double> &coords,
+ErrorCode MBZoltan::assemble_graph(const int /* dimension */,
+                                   std::vector<double> & /* coords */,
                                    std::vector<int> &moab_ids,
                                    std::vector<int> &adjacencies, 
                                    std::vector<int> &length,
@@ -696,7 +851,6 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
     shared_surfs.reset();
     for (int k = 0; k < n_shared; k++) { // add adjacencies
       RefFace *face = shared_surfs.get_and_step();
-      int temp_index;
       std::map<int, int>::iterator iter = surf_vertex_map.find(face->id());
       if (iter != surf_vertex_map.end()) {
 	temp_index = (*iter).second;
@@ -760,8 +914,8 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
     }
   }
 
-  for (int i = 0; i < obj_weights.size(); i++) if (obj_weights[i] < 1.) obj_weights[i] = 1.;
-  for (int i = 0; i < edge_weights.size(); i++) if (edge_weights[i] < 1.) edge_weights[i] = 1.;
+  for (size_t i = 0; i < obj_weights.size(); i++) if (obj_weights[i] < 1.) obj_weights[i] = 1.;
+  for (size_t i = 0; i < edge_weights.size(); i++) if (edge_weights[i] < 1.) edge_weights[i] = 1.;
   
   return MB_SUCCESS;
 }
@@ -783,6 +937,8 @@ double MBZoltan::estimate_face_mesh_load(RefEntity* face, const double h)
 	   type == TORUS_SURFACE_TYPE) {
     return 2.352511671418708e-4*n_logn;
   }
+
+  return 0.0;
 }
 
 double MBZoltan::estimate_face_comm_load(RefEntity* face, const double h)
@@ -843,9 +999,9 @@ ErrorCode MBZoltan::write_partition(const int nparts,
       int n_vol = volumes.size();
       volumes.reset();
       for (int j = 0; j < n_vol; j++) {
-	RefEntity *vol = volumes.get_and_step();
-	td_par = (TDParallel *) vol->get_TD(&TDParallel::is_parallel);
-	if (td_par == NULL) td_par = new TDParallel(vol, NULL, &shared_procs);
+        RefEntity *vol = volumes.get_and_step();
+        td_par = (TDParallel *) vol->get_TD(&TDParallel::is_parallel);
+        if (td_par == NULL) td_par = new TDParallel(vol, NULL, &shared_procs);
       }
     }
   }
@@ -867,7 +1023,7 @@ ErrorCode MBZoltan::write_partition(const int nparts,
       }
       shared_procs.append(proc); // local proc
       parents.reset();
-      for (int i = 0 ; i < 2; i++) {
+      for (int j = 0 ; j < 2; j++) {
         RefEntity *parent = parents.get_and_step();
         TDParallel *parent_td = (TDParallel *) parent->get_TD(&TDParallel::is_parallel);
         
@@ -887,8 +1043,8 @@ ErrorCode MBZoltan::write_partition(const int nparts,
         
         if (debug) {
           std::cout << "surf" << entity->id() << "_is_partitioned_to_p";
-          for (int i = 0; i < shared_procs.size(); i++) {
-            std::cout << "," << shared_procs[i];
+          for (int j = 0; j < shared_procs.size(); j++) {
+            std::cout << "," << shared_procs[j];
           }
           std::cout << std::endl;
         }
@@ -1035,7 +1191,7 @@ ErrorCode MBZoltan::partition_surface(const int nparts,
 
 ErrorCode MBZoltan::partition_round_robin(const int n_part)
 {
-  int i, j;
+  int i, j, k;
   double* loads = new double[n_part]; // estimated loads for each processor
   double* ve_loads = new double[n_part]; // estimated loads for each processor
   for (i = 0; i < n_part; i++) {
@@ -1055,21 +1211,23 @@ ErrorCode MBZoltan::partition_round_robin(const int n_part)
   for (i = 0; i < n_entity; i++) {
     if (i == i_entity_proc) {
       proc++;
-      if (proc < n_part) i_entity_proc += n_entity_proc;
+      if (proc < n_part)
+        i_entity_proc += n_entity_proc;
       else {
         proc %= n_part;
         i_entity_proc++;
       }
     }
-    
+
     // assign to bodies
     entity = body_entity_list.get_and_step();
     DLIList<int> shared_procs;
     shared_procs.append(proc);
     TDParallel *td_par = (TDParallel *) entity->get_TD(&TDParallel::is_parallel);
-    if (td_par == NULL) td_par = new TDParallel(entity, NULL, &shared_procs);
+    if (td_par == NULL)
+      td_par = new TDParallel(entity, NULL, &shared_procs);
     loads[proc] += entity->measure();
-    
+
     // assign to volumes, it should be removed in future
     DLIList<RefVolume*> volumes;
     (dynamic_cast<TopologyEntity*> (entity))->ref_volumes(volumes);
@@ -1078,9 +1236,10 @@ ErrorCode MBZoltan::partition_round_robin(const int n_part)
     for (j = 0; j < n_vol; j++) {
       RefEntity *vol = volumes.get_and_step();
       td_par = (TDParallel *) vol->get_TD(&TDParallel::is_parallel);
-      if (td_par == NULL) td_par = new TDParallel(vol, NULL, &shared_procs);
+      if (td_par == NULL)
+        td_par = new TDParallel(vol, NULL, &shared_procs);
     }
-    
+
     // add local surface load
     DLIList<RefFace*> faces;
     (dynamic_cast<TopologyEntity*> (entity))->ref_faces(faces);
@@ -1089,78 +1248,81 @@ ErrorCode MBZoltan::partition_round_robin(const int n_part)
     for (j = 0; j < n_face; j++) {
       RefFace* face = faces.get_and_step();
       TopologyEntity *te = CAST_TO(face, TopologyEntity);
-      if (te->bridge_manager()->number_of_bridges() < 2) {
+      if (te->bridge_manager()->number_of_bridges() < 2)
         loads[proc] = loads[proc] + face->measure();
-      }
     }
 
     // Get all child entities
     DLIList<RefEntity*> child_list;
     RefEntity::get_all_child_ref_entities(body_entity_list, child_list);
     int n_child = child_list.size();
-    
+
     // assign processors to interface entities
     child_list.reset();
-    for (i = 0; i < n_child; i++) {
+    for (j = 0; j < n_child; j++) {
       entity = child_list.get_and_step();
       TopologyEntity *te = CAST_TO(entity, TopologyEntity);
       
       if (te->bridge_manager()->number_of_bridges() > 1) {
         DLIList<Body*> parent_bodies;
-	DLIList<int> shared_procs;
-	(dynamic_cast<TopologyEntity*> (entity))->bodies(parent_bodies);
-	int n_parent = parent_bodies.size();
+        DLIList<int> child_shared_procs; // Shared processors of each child entity
+        (dynamic_cast<TopologyEntity*> (entity))->bodies(parent_bodies);
+        int n_parent = parent_bodies.size();
 	
-	for (j = 0; j < n_parent; j++) {
-	  RefEntity *parent_vol = CAST_TO(parent_bodies.get_and_step(), RefEntity);
-	  TDParallel *parent_td = (TDParallel *) parent_vol->get_TD(&TDParallel::is_parallel);
-	  
-	  if (parent_td == NULL) {
-	    PRINT_ERROR("parent Volume has to be partitioned.");
-	    return MB_FAILURE;
-	  }
-	  shared_procs.append_unique(parent_td->get_charge_proc());
-	}
-        
-	if (shared_procs.size() > 1) { // if it is interface
-	  TDParallel *td_par = (TDParallel *) entity->get_TD(&TDParallel::is_parallel);
-	  if (td_par == NULL) {
-            int merge_id = TDUniqueId::get_unique_id(entity);
-	    if (entity->entity_type_info() == typeid(RefFace)) { // face
-	      if (shared_procs.size() != 2) {
-		PRINT_ERROR("Error: # of shared processors of interface surface should be 2.");
-		return MB_FAILURE;
-	      }
+        for (k = 0; k < n_parent; k++) {
+          RefEntity *parent_vol = CAST_TO(parent_bodies.get_and_step(), RefEntity);
+          TDParallel *parent_td = (TDParallel *) parent_vol->get_TD(&TDParallel::is_parallel);
 
-	      // balance interface surface loads
-              if (loads[shared_procs[0]] > loads[shared_procs[1]]) {
-                shared_procs.reverse();
-	      }
-              loads[shared_procs[0]] = loads[shared_procs[0]] + entity->measure();
-	      td_par = new TDParallel(entity, NULL, &shared_procs, NULL,
-                                      merge_id, 1);
-	    }
-	    else if (entity->entity_type_info() == typeid(RefEdge) ||
-		     entity->entity_type_info() == typeid(RefVertex)) {
+          if (parent_td == NULL) {
+            PRINT_ERROR("parent Volume has to be partitioned.");
+            delete[] loads;
+            delete[] ve_loads;
+            return MB_FAILURE;
+          }
+          child_shared_procs.append_unique(parent_td->get_charge_proc());
+        }
+
+        if (child_shared_procs.size() > 1) { // if it is interface
+          td_par = (TDParallel *) entity->get_TD(&TDParallel::is_parallel);
+          if (td_par == NULL) {
+            int merge_id = TDUniqueId::get_unique_id(entity);
+            if (entity->entity_type_info() == typeid(RefFace)) { // face
+              if (child_shared_procs.size() != 2) {
+                PRINT_ERROR("Error: # of shared processors of interface surface should be 2.");
+                delete[] loads;
+                delete[] ve_loads;
+                return MB_FAILURE;
+              }
+
               // balance interface surface loads
-              int min_p = shared_procs[0];
-              int n_shared_proc = shared_procs.size();
-              for (int i = 1; i < n_shared_proc; i++) {
-                if (ve_loads[shared_procs[i]] < ve_loads[min_p]) {
-                  min_p = shared_procs[i];
-                }
+              if (loads[child_shared_procs[0]] > loads[child_shared_procs[1]])
+                child_shared_procs.reverse();
+
+              loads[child_shared_procs[0]] = loads[child_shared_procs[0]] + entity->measure();
+              td_par = new TDParallel(entity, NULL, &child_shared_procs, NULL, merge_id, 1);
+            } // face
+            else if (entity->entity_type_info() == typeid(RefEdge) ||
+                entity->entity_type_info() == typeid(RefVertex)) { // edge or vertex
+              // balance interface surface loads
+              int min_p = child_shared_procs[0];
+              int n_shared_proc = child_shared_procs.size();
+              for (k = 1; k < n_shared_proc; k++) {
+                if (ve_loads[child_shared_procs[k]] < ve_loads[min_p])
+                  min_p = child_shared_procs[k];
               }
               ve_loads[min_p] = ve_loads[min_p] + entity->measure();
-              shared_procs.remove(min_p);
-              shared_procs.insert_first(min_p);
-	      td_par = new TDParallel(entity, NULL, &shared_procs, NULL,
-                                      merge_id, 1);
-	    }
-	  }
-	}
-      }
-    }
-  }
+              child_shared_procs.remove(min_p);
+              child_shared_procs.insert_first(min_p);
+              td_par = new TDParallel(entity, NULL, &child_shared_procs, NULL, merge_id, 1);
+            } // edge or vertex
+          } // if (td_par == NULL)
+        } // if it is interface
+      } // if (te->bridge_manager()->number_of_bridges() > 1)
+    } // for (j = 0; j < n_child; j++)
+  } // for (i = 0; i < n_entity; i++)
+
+  delete[] loads;
+  delete[] ve_loads;
 
   return MB_SUCCESS;
 }
@@ -1294,7 +1456,7 @@ ErrorCode MBZoltan::write_partition(const int nparts,
                                     Range &elems, 
                                     const int *assignment,
                                     const bool write_as_sets,
-                                    const bool write_as_tags) 
+                                    const bool write_as_tags)
 {
   ErrorCode result;
 
@@ -1336,10 +1498,9 @@ ErrorCode MBZoltan::write_partition(const int nparts,
         result = mbImpl->delete_entities(&old_set, 1); RR;
       }
     }
-  
-      // assign partition sets to vector
+    // assign partition sets to vector
     partSets.swap(tagged_sets);
-  
+
       // write a tag to those sets denoting they're partition sets, with a value of the
       // proc number
     int *dum_ids = new int[nparts];
@@ -1347,24 +1508,36 @@ ErrorCode MBZoltan::write_partition(const int nparts,
   
     result = mbImpl->tag_set_data(part_set_tag, partSets, dum_ids); RR;
 
-      // assign entities to the relevant sets
+    // assign entities to the relevant sets
     std::vector<EntityHandle> tmp_part_sets;
+    //int N = (int)elems.size();
     std::copy(partSets.begin(), partSets.end(), std::back_inserter(tmp_part_sets));
+    /*Range::reverse_iterator riter;
+    for (i = N-1, riter = elems.rbegin(); riter != elems.rend(); riter++, i--) {
+      int assigned_part = assignment[i];
+      part_ranges[assigned_part].insert(*riter);
+      //result = mbImpl->add_entities(tmp_part_sets[assignment[i]], &(*rit), 1); RR;
+    }*/
+
     Range::iterator rit;
     for (i = 0, rit = elems.begin(); rit != elems.end(); rit++, i++) {
       result = mbImpl->add_entities(tmp_part_sets[assignment[i]], &(*rit), 1); RR;
     }
-
+    /*for (i=0; i<nparts; i++)
+    {
+      result = mbImpl->add_entities(tmp_part_sets[i], part_ranges[i]); RR;
+    }
+    delete [] part_ranges;*/
       // check for empty sets, warn if there are any
     Range empty_sets;
-    for (Range::iterator rit = partSets.begin(); rit != partSets.end(); rit++) {
+    for (rit = partSets.begin(); rit != partSets.end(); rit++) {
       int num_ents = 0;
       result = mbImpl->get_number_entities_by_handle(*rit, num_ents);
       if (MB_SUCCESS != result || !num_ents) empty_sets.insert(*rit);
     }
     if (!empty_sets.empty()) {
       std::cout << "WARNING: " << empty_sets.size() << " empty sets in partition: ";
-      for (Range::iterator rit = empty_sets.begin(); rit != empty_sets.end(); rit++)
+      for (rit = empty_sets.begin(); rit != empty_sets.end(); rit++)
         std::cout << *rit << " ";
       std::cout << std::endl;
     }
@@ -1463,29 +1636,27 @@ void MBZoltan::SetOCTPART_Parameters(const char *oct_method)
 int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids, 
                                  int *adjs, int *length,
                                  double *obj_weights, double *edge_weights,
-                                 int *parts)
+                                 int *parts, bool part_geom)
 {
   unsigned int i;
   int j;
-  int *numPts, *nborProcs;
+  int *numPts, *nborProcs = NULL;
   int sum, ptsPerProc, ptsAssigned, mySize;
   MPI_Status stat;
   double *sendPts;
   int *sendIds;
-  int *sendEdges;
-  int *sendNborId;
+  int *sendEdges = NULL;
+  int *sendNborId = NULL;
   int *sendProcs;
 
-  if (mbpc->proc_config().proc_rank() == 0)
-  {
+  if (mbpc->proc_config().proc_rank() == 0) {
       /* divide pts to start */
 
     numPts = (int *)malloc(sizeof(int) * mbpc->proc_config().proc_size());
     ptsPerProc = npts / mbpc->proc_config().proc_size();
     ptsAssigned = 0;
 
-    for (i=0; i < mbpc->proc_config().proc_size()-1; i++)
-    {
+    for (i = 0; i < mbpc->proc_config().proc_size() - 1; i++) {
       numPts[i] = ptsPerProc;
       ptsAssigned += ptsPerProc;
     }
@@ -1495,40 +1666,42 @@ int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids,
     mySize = numPts[mbpc->proc_config().proc_rank()];
     sendPts = pts + (3 * numPts[0]);
     sendIds = ids + numPts[0];
-    sendEdges = length + numPts[0];
-    sum = 0;
+    sum = 0; // possible no adjacency sent
+    if (!part_geom)
+    {
+      sendEdges = length + numPts[0];
 
-    for (j=0; j<numPts[0]; j++)
-      sum += length[j];
 
-    sendNborId = adjs + sum;
+      for (j = 0; j < numPts[0]; j++)
+        sum += length[j];
 
-    for (j=numPts[0]; j<npts; j++)
-      sum += length[j];
+      sendNborId = adjs + sum;
 
-    nborProcs = (int *)malloc(sizeof(int) * sum);
+      for (j = numPts[0]; j < npts; j++)
+        sum += length[j];
 
-    for (j=0; j<sum; j++)
-      if ((i = adjs[j]/ptsPerProc) < mbpc->proc_config().proc_size())
+      nborProcs = (int *)malloc(sizeof(int) * sum);
+    }
+    for (j = 0; j < sum; j++)
+      if ((i = adjs[j] / ptsPerProc) < mbpc->proc_config().proc_size())
         nborProcs[j] = i;
       else
         nborProcs[j] = mbpc->proc_config().proc_size() - 1;
 
     sendProcs = nborProcs + (sendNborId - adjs);
 
-    for (i=1; i<mbpc->proc_config().proc_size(); i++)
-    {
-      MPI_Send(&numPts[i], 1, MPI_INT, i, 0x00,MPI_COMM_WORLD);
-      MPI_Send(sendPts, 3 * numPts[i], MPI_DOUBLE, i, 0x01,MPI_COMM_WORLD);
-      MPI_Send(sendIds, numPts[i], MPI_INT, i, 0x03,MPI_COMM_WORLD);
-      MPI_Send(sendEdges, numPts[i], MPI_INT, i, 0x06,MPI_COMM_WORLD);
+    for (i = 1; i < mbpc->proc_config().proc_size(); i++) {
+      MPI_Send(&numPts[i], 1, MPI_INT, i, 0x00, MPI_COMM_WORLD);
+      MPI_Send(sendPts, 3 * numPts[i], MPI_DOUBLE, i, 0x01, MPI_COMM_WORLD);
+      MPI_Send(sendIds, numPts[i], MPI_INT, i, 0x03, MPI_COMM_WORLD);
+      MPI_Send(sendEdges, numPts[i], MPI_INT, i, 0x06, MPI_COMM_WORLD);
       sum = 0;
 
-      for (j=0; j<numPts[i]; j++)
+      for (j = 0; j < numPts[i]; j++)
         sum += sendEdges[j];
 
-      MPI_Send(sendNborId, sum, MPI_INT, i, 0x07,MPI_COMM_WORLD);
-      MPI_Send(sendProcs, sum, MPI_INT, i, 0x08,MPI_COMM_WORLD);
+      MPI_Send(sendNborId, sum, MPI_INT, i, 0x07, MPI_COMM_WORLD);
+      MPI_Send(sendProcs, sum, MPI_INT, i, 0x08, MPI_COMM_WORLD);
       sendPts += (3 * numPts[i]);
       sendIds += numPts[i];
       sendEdges += numPts[i];
@@ -1538,8 +1711,7 @@ int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids,
 
     free(numPts);
   }
-  else
-  {
+  else {
     MPI_Recv(&mySize, 1, MPI_INT, 0, 0x00, MPI_COMM_WORLD, &stat);
     pts = (double *)malloc(sizeof(double) * 3 * mySize);
     ids = (int *)malloc(sizeof(int) * mySize);
@@ -1550,7 +1722,7 @@ int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids,
     MPI_Recv(length, mySize, MPI_INT, 0, 0x06, MPI_COMM_WORLD, &stat);
     sum = 0;
 
-    for (j=0; j<mySize; j++)
+    for (j = 0; j < mySize; j++)
       sum += length[j];
 
     adjs = (int *)malloc(sizeof(int) * sum);
@@ -1559,7 +1731,7 @@ int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids,
     MPI_Recv(adjs, sum, MPI_INT, 0, 0x07, MPI_COMM_WORLD, &stat);
     MPI_Recv(nborProcs, sum, MPI_INT, 0, 0x08, MPI_COMM_WORLD, &stat);
   }     
-          
+
   Points = pts;
   GlobalIds = ids;  
   NumPoints = mySize;
@@ -1569,7 +1741,7 @@ int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids,
   ObjWeights = obj_weights;
   EdgeWeights = edge_weights;
   Parts = parts;
-          
+
   return mySize;
 }     
 
@@ -1590,33 +1762,29 @@ void MBZoltan::mbFinalizePoints(int npts, int numExport,
   else
     MyAssignment = (int *)malloc(sizeof(int) * NumPoints);
 
-  for (i=0; i<NumPoints; i++)
+  for (i = 0; i < NumPoints; i++)
     MyAssignment[i] = mbpc->proc_config().proc_rank();
 
-  for (i=0; i<numExport; i++)
+  for (i = 0; i < numExport; i++)
     MyAssignment[exportLocalIDs[i]] = exportProcs[i];
 
-  if (mbpc->proc_config().proc_rank() == 0)
-    {
+  if (mbpc->proc_config().proc_rank() == 0) {
       /* collect pts */
-
       recvA = MyAssignment + NumPoints;
 
-      for (i=1; i< (int) mbpc->proc_config().proc_size(); i++)
-	{
-	  MPI_Recv(&numPts, 1, MPI_INT, i, 0x04, MPI_COMM_WORLD, &stat);
-	  MPI_Recv(recvA, numPts, MPI_INT, i, 0x05, MPI_COMM_WORLD, &stat);
-	  recvA += numPts;
-	}
-
-      *assignment = MyAssignment;
+    for (i = 1; i< (int) mbpc->proc_config().proc_size(); i++) {
+      MPI_Recv(&numPts, 1, MPI_INT, i, 0x04, MPI_COMM_WORLD, &stat);
+      MPI_Recv(recvA, numPts, MPI_INT, i, 0x05, MPI_COMM_WORLD, &stat);
+      recvA += numPts;
     }
-  else
-    {
-      MPI_Send(&NumPoints, 1, MPI_INT, 0, 0x04,MPI_COMM_WORLD);
-      MPI_Send(MyAssignment, NumPoints, MPI_INT, 0, 0x05,MPI_COMM_WORLD);
-      free(MyAssignment);
-    }     
+
+    *assignment = MyAssignment;
+  }
+  else {
+    MPI_Send(&NumPoints, 1, MPI_INT, 0, 0x04, MPI_COMM_WORLD);
+    MPI_Send(MyAssignment, NumPoints, MPI_INT, 0, 0x05, MPI_COMM_WORLD);
+    free(MyAssignment);
+  }
 }
 
 int MBZoltan::mbGlobalSuccess(int rc)
@@ -1627,8 +1795,8 @@ int MBZoltan::mbGlobalSuccess(int rc)
 
   MPI_Allgather(&rc, 1, MPI_INT, vals, 1, MPI_INT, MPI_COMM_WORLD);
 
-  for (i=0; i<mbpc->proc_config().proc_size(); i++){
-    if (vals[i] != ZOLTAN_OK){
+  for (i = 0; i<mbpc->proc_config().proc_size(); i++) {
+    if (vals[i] != ZOLTAN_OK) {
       if (0 == mbpc->proc_config().proc_rank()){
         mbShowError(vals[i], "Result on process ");
       }
@@ -1653,15 +1821,15 @@ void MBZoltan::mbPrintGlobalResult(const char *s,
   v1[2] = exp;
   v1[3] = change;
 
-  if (mbpc->proc_config().proc_rank() == 0){
+  if (mbpc->proc_config().proc_rank() == 0) {
     v2 = (int *)malloc(4 * mbpc->proc_config().proc_size() * sizeof(int));
   }
 
   MPI_Gather(v1, 4, MPI_INT, v2, 4, MPI_INT, 0, MPI_COMM_WORLD);
 
-  if (mbpc->proc_config().proc_rank() == 0){
-    fprintf(stdout,"======%s======\n",s);
-    for (i=0, v=v2; i<mbpc->proc_config().proc_size(); i++, v+=4){
+  if (mbpc->proc_config().proc_rank() == 0) {
+    fprintf(stdout, "======%s======\n", s);
+    for (i = 0, v = v2; i < mbpc->proc_config().proc_size(); i++, v += 4) {
       fprintf(stdout,"%d: originally had %d, import %d, exp %d, %s\n",
         i, v[0], v[1], v[2],
         v[3] ? "a change of partitioning" : "no change");
@@ -1678,11 +1846,9 @@ void MBZoltan::mbPrintGlobalResult(const char *s,
 void MBZoltan::mbShowError(int val, const char *s)
 {
   if (s)
-    {
-    printf("%s ",s);
-    }
-  switch (val)
-    {
+    printf("%s ", s);
+
+  switch (val) {
     case ZOLTAN_OK:
       printf("%d: SUCCESSFUL\n", mbpc->proc_config().proc_rank());
       break;
@@ -1699,134 +1865,119 @@ void MBZoltan::mbShowError(int val, const char *s)
       printf("%d: INVALID RETURN CODE\n", mbpc->proc_config().proc_rank());
       break;
     }
-  return;
 }
 
 /**********************
 ** call backs
 **********************/
 
-int mbGetNumberOfAssignedObjects(void *userDefinedData, int *err)
+int mbGetNumberOfAssignedObjects(void * /* userDefinedData */, int *err)
 {
   *err = 0;
   return NumPoints;
 }
 
-void mbGetObjectList(void *userDefinedData, int numGlobalIds, int numLids,
+void mbGetObjectList(void * /* userDefinedData */, int /* numGlobalIds */, int /* numLids */,
   ZOLTAN_ID_PTR gids, ZOLTAN_ID_PTR lids, int wgt_dim, float *obj_wgts,
   int *err)
 {
-  int i;
-    
-  for (i=0; i<NumPoints; i++)
-    {
+  for (int i = 0; i < NumPoints; i++) {
     gids[i] = GlobalIds[i];
     lids[i] = i;
-    if (wgt_dim>0) obj_wgts[i] = ObjWeights[i];
-    }
-    
-  
+    if (wgt_dim > 0)
+      obj_wgts[i] = ObjWeights[i];
+  }
 
   *err = 0;
-    
-  return;
 }
 
-int mbGetObjectSize(void *userDefinedData, int *err)
+int mbGetObjectSize(void * /* userDefinedData */, int *err)
 {
   *err = 0; 
   return 3;
-} 
+}
 
-void mbGetObject(void *userDefinedData, int numGlobalIds, int numLids, int numObjs,
-  ZOLTAN_ID_PTR gids, ZOLTAN_ID_PTR lids, int numDim, double *pts, int *err)
+void mbGetObject(void * /* userDefinedData */, int /* numGlobalIds */, int /* numLids */, int numObjs,
+  ZOLTAN_ID_PTR /* gids */, ZOLTAN_ID_PTR lids, int numDim, double *pts, int *err)
 { 
   int i, id, id3;
   int next = 0;
-  
-  if (numDim != 3)    
-    {
+
+  if (numDim != 3) {
     *err = 1;         
     return;
-    }
+  }
 
-  for (i=0; i<numObjs; i++)
-    {
+  for (i = 0; i < numObjs; i++) {
     id = lids[i];
-  
-    if ((id < 0) || (id >= NumPoints))
-      {
+
+    if ((id < 0) || (id >= NumPoints)) {
       *err = 1;
       return;
-      }
+    }
 
     id3 = lids[i] * 3;
 
     pts[next++] = Points[id3];
     pts[next++] = Points[id3 + 1];
     pts[next++] = Points[id3 + 2];
-    }
+  }
 } 
 
-void mbGetNumberOfEdges(void *userDefinedData, int numGlobalIds, int numLids,
+void mbGetNumberOfEdges(void * /* userDefinedData */, int /* numGlobalIds */, int /* numLids */,
 			int numObjs, 
-			ZOLTAN_ID_PTR gids, ZOLTAN_ID_PTR lids,	int *numEdges,
+			ZOLTAN_ID_PTR /* gids */, ZOLTAN_ID_PTR lids,	int *numEdges,
 			int *err)
 {
   int i, id;
   int next = 0;
 
-  for (i=0; i<numObjs; i++)
-    {
-      id = lids[i];
+  for (i = 0; i < numObjs; i++) {
+    id = lids[i];
 
-      if ((id < 0) || (id >= NumPoints))
-	{
-	  *err = 1;
-	  return;
-	}
-
-      numEdges[next++] = NumEdges[id];
+    if ((id < 0) || (id >= NumPoints)) {
+      *err = 1;
+      return;
     }
+
+    numEdges[next++] = NumEdges[id];
+  }
 }
 
-void mbGetEdgeList(void *userDefinedData, int numGlobalIds, int numLids,
+void mbGetEdgeList(void * /* userDefinedData */, int /* numGlobalIds */, int /* numLids */,
 		   int numObjs,
-		   ZOLTAN_ID_PTR gids, ZOLTAN_ID_PTR lids, int *numEdges,
+		   ZOLTAN_ID_PTR /* gids */, ZOLTAN_ID_PTR lids, int * /* numEdges */,
 		   ZOLTAN_ID_PTR nborGlobalIds, int *nborProcs, int wgt_dim,
 		   float *edge_wgts, int *err)
 {
   int i, id, idSum, j;
   int next = 0;
 
-  for (i=0; i<numObjs; i++)
-    {
-      id = lids[i];
+  for (i = 0; i < numObjs; i++) {
+    id = lids[i];
 
-      if ((id < 0) || (id >= NumPoints))
-	{
-	  *err = 1;
-	  return;
-	}
+    if ((id < 0) || (id >= NumPoints)) {
+	    *err = 1;
+      return;
+	  }
 
-      idSum = 0;
+    idSum = 0;
 
-      for (j=0; j<id; j++)
-	  idSum += NumEdges[j];
+    for (j = 0; j < id; j++)
+      idSum += NumEdges[j];
 
-      for (j=0; j<NumEdges[id]; j++)
-	{
-	  nborGlobalIds[next] = NborGlobalId[idSum];
-	  nborProcs[next] = NborProcs[idSum];
-          if (wgt_dim > 0) edge_wgts[next] = EdgeWeights[idSum];
-          next++;
-          idSum++;
-	}
+    for (j = 0; j < NumEdges[id]; j++) {
+      nborGlobalIds[next] = NborGlobalId[idSum];
+      nborProcs[next] = NborProcs[idSum];
+      if (wgt_dim > 0) edge_wgts[next] = EdgeWeights[idSum];
+        next++;
+        idSum++;
     }
+  }
 }
 
-void mbGetPart(void *userDefinedData, int numGlobalIds, int numLids,
-               int numObjs, ZOLTAN_ID_PTR gids, ZOLTAN_ID_PTR lids,
+void mbGetPart(void * /* userDefinedData */, int /* numGlobalIds */, int /* numLids */,
+               int numObjs, ZOLTAN_ID_PTR /* gids */, ZOLTAN_ID_PTR lids,
                int *part, int *err)
 {
   int i, id;
@@ -1834,12 +1985,12 @@ void mbGetPart(void *userDefinedData, int numGlobalIds, int numLids,
 
   for (i = 0; i < numObjs; i++) {
     id = lids[i];
-    
+
     if ((id < 0) || (id >= NumPoints)) {
       *err = 1;
       return;
     }
-    
+
     part[next++] = Parts[id];
   }
 }

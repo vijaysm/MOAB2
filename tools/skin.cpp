@@ -264,9 +264,9 @@ int main( int argc, char* argv[] )
   Range forward_lower, reverse_lower;
   Skinner tool( iface );
   if (use_scd) 
-    result = tool.find_skin( skin_ents, false, forward_lower, NULL, false, true, true);
+    result = tool.find_skin( 0, skin_ents, false, forward_lower, NULL, false, true, true);
   else
-    result = tool.find_skin( skin_ents, false, forward_lower, &reverse_lower );
+    result = tool.find_skin( 0, skin_ents, false, forward_lower, &reverse_lower );
   Range boundary;
   boundary.merge( forward_lower );
   boundary.merge( reverse_lower );
@@ -511,7 +511,7 @@ ErrorCode merge_duplicate_vertices( Interface& moab, const double epsilon )
   
   AdaptiveKDTree tree( &moab );
   EntityHandle root;
-  rval = tree.build_tree( verts, root );
+  rval = tree.build_tree( verts, &root );
   if (MB_SUCCESS != rval) {
     fprintf(stderr,"Failed to build kD-tree.\n");
     return rval;
@@ -525,7 +525,7 @@ ErrorCode merge_duplicate_vertices( Interface& moab, const double epsilon )
     if (MB_SUCCESS != rval) return rval;
     
     leaves.clear();;
-    rval = tree.leaves_within_distance( root, coords, epsilon, leaves );
+    rval = tree.distance_search(coords, epsilon, leaves, epsilon);
     if (MB_SUCCESS != rval) return rval;
     
     Range near;

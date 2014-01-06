@@ -1,6 +1,6 @@
 
   # MOAB Library
-  set ( MOAB_LIB_SRCS
+  set ( MOABCORE_LIB_SRCS
     AdaptiveKDTree.cpp
     AEntityFactory.cpp
     AffineXform.cpp
@@ -32,7 +32,6 @@
     Range.cpp
     RangeSeqIntersectIter.cpp
     ReadUtil.cpp
-    ReaderWriterSet.cpp
     ScdElementData.cpp
     ScdInterface.cpp
     ScdVertexData.cpp
@@ -56,28 +55,95 @@
     VertexSequence.cpp
     WriteUtil.cpp
   )
+
+  set ( MOABPTLOC_LIB_SRCS
+    lotte/findpt.c
+    lotte/errmem.c
+    lotte/poly.c
+    lotte/tensor.c
+  )
+
+  set ( MOABIO_LIB_SRCS
+    io/IODebugTrack.cpp
+    io/ExoIIUtil.cpp
+    io/FileTokenizer.cpp
+    io/GmshUtil.cpp
+    io/ReadABAQUS.cpp
+    io/ReadGmsh.cpp
+    io/ReadGCRM.cpp
+    io/ReadIDEAS.cpp
+    io/ReadMCNP5.cpp
+    io/ReadNASTRAN.cpp
+    io/ReadSmf.cpp
+    io/ReadSms.cpp
+    io/ReadSTL.cpp
+    io/ReadTemplate.cpp
+    io/ReadTetGen.cpp
+    io/ReadTxt.cpp
+    io/ReadVtk.cpp
+    io/SMF_State.cpp
+    io/Tqdcfr.cpp
+    io/VtkUtil.cpp
+    io/WriteAns.cpp
+    io/WriteGMV.cpp
+    io/WriteGmsh.cpp
+    io/WriteSTL.cpp
+    io/WriteSmf.cpp
+    io/WriteTemplate.cpp
+    io/WriteVtk.cpp
+    ReaderWriterSet.cpp
+  )
   include_directories(
+    ${MOAB_BINARY_DIR}
     ${MOAB_SOURCE_DIR}/src
     ${MOAB_BINARY_DIR}/src
     ${MOAB_SOURCE_DIR}/src/io
-    ${MOAB_BINARY_DIR}/src/io
+    ${MOAB_SOURCE_DIR}/src/parallel
+    ${MOAB_BINARY_DIR}/src/parallel
+    ${MOAB_SOURCE_DIR}/src/moab/point_locater/lotte
   )
 
-  if ( MOAB_USE_MPI )
-    find_package( MPI )
-    # CMake FindMPI script is sorely lacking:
-    if ( MPI_LIBRARY AND MPI_INCLUDE_PATH )
-      set( MPI_FOUND 1 )
-    endif ( MPI_LIBRARY AND MPI_INCLUDE_PATH )
+  if ( NetCDF_FOUND )
+    set ( MOAB_DEFINES "${MOAB_DEFINES} -DNETCDF_FILE" )
+    set ( MOABIO_LIB_SRCS
+      ${MOABIO_LIB_SRCS}
+      io/ReadNC.cpp
+      io/ReadNCDF.cpp
+      io/WriteNCDF.cpp
+      io/WriteSLAC.cpp
+      io/NCHelper.cpp
+      io/NCHelperEuler.cpp
+      io/NCHelperFV.cpp
+      io/NCHelperHOMME.cpp
+      io/NCHelperMPAS.cpp
+      SpectralMeshTool.cpp
+    )
+    include_directories(
+      ${NetCDF_INCLUDE_DIRECTORIES}
+    )
+  endif ( NetCDF_FOUND )
 
-    if ( MPI_FOUND )
-      set ( MOAB_DEFINES "${MOAB_DEFINES} -DUSE_MPI" )
-      include_directories(
-        ${MPI_INCLUDE_PATH}
-        ${MOAB_SOURCE_DIR}/parallel
-      )
-    endif ( MPI_FOUND )
-  endif ( MOAB_USE_MPI )
+  if ( HDF5_FOUND )
+    set ( MOAB_DEFINES "${MOAB_DEFINES} -DHDF5_FILE" )
+    check_function_exists( H5Pset_fapl_mpio MOAB_HDF_HAVE_PARALLEL )
+    set ( MOABIO_LIB_SRCS
+      ${MOABIO_LIB_SRCS}
+      io/HDF5Common.cpp
+      io/ReadHDF5.cpp
+      io/ReadHDF5Dataset.cpp
+      io/ReadHDF5VarLen.cpp
+      io/WriteHDF5.cpp
+    )
+
+    include_directories(
+      ${HDF5_INCLUDE_DIR}
+      io/mhdf/include
+    )
+    add_subdirectory( io/mhdf )
+  endif ( HDF5_FOUND )
+
+
+  SET(MOAB_LIB_SRCS ${MOABCORE_LIB_SRCS} ${MOABPTLOC_LIB_SRCS} ${MOABIO_LIB_SRCS})
 
   set_source_files_properties( ${MOAB_LIB_SRCS}
     COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}"
@@ -85,9 +151,14 @@
   add_library( MOAB
     ${MOAB_LIB_SRCS}
   )
-  
-  add_subdirectory( io )
-  target_link_libraries( MOAB moabio )
+
+  if ( MOAB_USE_NETCDF AND NetCDF_FOUND )
+    target_link_libraries( MOAB ${NetCDF_LIBRARIES} )
+  endif ( MOAB_USE_NETCDF AND NetCDF_FOUND )
+
+  if ( MOAB_USE_HDF AND HDF5_FOUND )
+    target_link_libraries( MOAB mhdf ${HDF5_LIBRARIES} )
+  endif ( MOAB_USE_HDF AND HDF5_FOUND )
 
   if ( MOAB_USE_MPI AND MPI_FOUND )
     add_subdirectory( parallel )
@@ -106,4 +177,6 @@
 
   autoconf_header( ${MOAB_SOURCE_DIR}/src/moab/Version.h.in ${MOAB_BINARY_DIR}/src/moab/Version.h )
   autoconf_header( ${MOAB_SOURCE_DIR}/src/moab/EntityHandle.hpp.in ${MOAB_BINARY_DIR}/src/moab/EntityHandle.hpp )
+  autoconf_header( ${MOAB_SOURCE_DIR}/src/parallel/moab_mpi_config.h.in ${MOAB_BINARY_DIR}/src/parallel/moab_mpi_config.h )
+  autoconf_header( ${MOAB_SOURCE_DIR}/src/FCDefs.h.in ${MOAB_BINARY_DIR}/MOAB_FCDefs.h )
   file( WRITE ${MOAB_BINARY_DIR}/src/MBCN_protos.h "" )

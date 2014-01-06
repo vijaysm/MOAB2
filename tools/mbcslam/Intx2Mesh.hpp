@@ -11,6 +11,7 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <map>
 #include <time.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -24,6 +25,12 @@
 #include "CslamUtils.hpp"
 
 namespace moab {
+
+#define ERRORR(rval, str) \
+    if (MB_SUCCESS != rval) {std::cout << str << "\n"; return rval;}
+
+#define ERRORV(rval, str) \
+    if (MB_SUCCESS != rval) {std::cout << str << "\n"; return ;}
 
 // forward declarations
 class ParallelComm;
@@ -39,53 +46,65 @@ public:
   ErrorCode intersect_meshes(EntityHandle mbs1, EntityHandle mbs2,
        EntityHandle & outputSet);
 
-  // mark could be 3 or 4, depending on type
-  // this is pure abstract, this need s to be implemented by
+  // mark could be (3 or 4, depending on type: ) no, it could go to 10
+  // no, it will be MAXEDGES = 10
+  // this is pure abstract, this needs to be implemented by
   // all derivations
+  // the max number of intersection points could be 2*MAXEDGES
+  // so P must be dimensioned to 4*MAXEDGES (2*2*MAXEDGES)
+  // so, if you intersect 2 convex polygons with MAXEDGES , you will get a convex polygon
+  // with 2*MAXEDGES, at most
+  // will also return the number of nodes of red and blue elements
   virtual int computeIntersectionBetweenRedAndBlue(EntityHandle red,
       EntityHandle blue, double * P, int & nP, double & area,
-      int markb[4], int markr[4], bool check_boxes_first=false)=0;
+      int markb[MAXEDGES], int markr[MAXEDGES], int & nsidesBlue,
+      int & nsidesRed, bool check_boxes_first=false)=0;
 
   // this is also abstract
-  virtual int findNodes(EntityHandle red, EntityHandle blue,
+  virtual int findNodes(EntityHandle red, int nsRed, EntityHandle blue, int nsBlue,
       double * iP, int nP)=0;
 
   virtual void createTags();
   ErrorCode GetOrderedNeighbors(EntityHandle set, EntityHandle quad,
-      EntityHandle neighbors[4]);
+      EntityHandle neighbors[MAXEDGES]);
 
   void SetErrorTolerance(double eps) { epsilon_1=eps;}
 
-  void SetEntityType (EntityType tp) { type=tp;}
+  //void SetEntityType (EntityType tp) { type=tp;}
 
   // clean some memory allocated
   void clean();
-
-  ErrorCode initialize_local_kdtree(EntityHandle euler_set);
-
-  // this will work in parallel
-  ErrorCode locate_departure_points(EntityHandle euler_set); // get the points and elements from the local set
-  ErrorCode locate_departure_points(Range & local_verts);
-  ErrorCode test_local_box(double *xyz, int from_proc, int remote_index, TupleList *tl);
-  ErrorCode inside_entities(double xyz[3], std::vector<EntityHandle> &entities);
 
   // this will depend on the problem and element type; return true if on the border edge too
   virtual bool is_inside_element(double xyz[3], EntityHandle eh) = 0;
   void set_box_error(double berror)
    {box_error = berror;}
 
-  ErrorCode create_departure_mesh(EntityHandle & covering_lagr_set);
-
   ErrorCode create_departure_mesh_2nd_alg(EntityHandle & euler_set, EntityHandle & covering_lagr_set);
+
+  // in this method, used in parallel, each departure elements are already created, and at their positions
+  // the covering_set is output, will contain the departure cells that cover the euler set; some of these
+  // departure cells might come from different processors
+  // so the covering_set contains some elements from lagr_set and some elements that come from other procs
+  // we need to keep track of what processors "sent" the elements so we know were to
+  // send back the info about the tracers masses
+
+  ErrorCode create_departure_mesh_3rd_alg(EntityHandle & lagr_set, EntityHandle & covering_set);
+
+  ErrorCode build_processor_euler_boxes(EntityHandle euler_set, Range & local_verts);
 
   void correct_polygon(EntityHandle * foundIds, int & nP);
 
   ErrorCode correct_intersection_points_positions();
+
+  void enable_debug() {dbg_1=1;};
 protected: // so it can be accessed in derived classes, InPlane and OnSphere
   Interface * mb;
 
   EntityHandle mbs1;
   EntityHandle mbs2;
+  Range rs1;// range set 1 (departure set, lagrange set, blue set, manufactured set)
+  Range rs2;// range set 2 (arrival set, euler set, red set, initial set)
 
   EntityHandle outSet; // will contain intersection
 
@@ -102,20 +121,21 @@ protected: // so it can be accessed in derived classes, InPlane and OnSphere
   Tag blueParentTag;
   Tag countTag;
 
-  EntityType type;
+  //EntityType type; // this will be tri, quad or MBPOLYGON...
 
   const EntityHandle * redConn;
   const EntityHandle * blueConn;
-  CartVect redCoords[4];
-  CartVect blueCoords[4];
-  double redQuad[8]; // these are in plane
-  double blueQuad[8]; // these are in plane
+  CartVect redCoords[MAXEDGES];
+  CartVect blueCoords[MAXEDGES];
+  double redCoords2D[MAXEDGES2]; // these are in plane
+  double blueCoords2D[MAXEDGES2]; // these are in plane
 
   std::ofstream mout_1[6]; // some debug files
   int dbg_1;
   // for each red edge, we keep a vector of extra nodes, coming from intersections
   // use the index in RedEdges range, instead of a map, as before
   // std::map<EntityHandle, std::vector<EntityHandle> *> extraNodesMap;
+  // so the extra nodes on each red edge are kept track of
   std::vector<std::vector<EntityHandle> *> extraNodesVec;
 
   double epsilon_1;
@@ -127,9 +147,14 @@ protected: // so it can be accessed in derived classes, InPlane and OnSphere
   double box_error;
   /* \brief Local root of the kdtree */
   EntityHandle localRoot;
-  Range localEnts;// this range is for local elements of interest
+  Range localEnts;// this range is for local elements of interest, euler cells
 
   unsigned int my_rank;
+
+  int max_edges; // maximum number of edges in the euler set
+
+  TupleList * remote_cells;
+  std::map<int, EntityHandle> globalID_to_eh;// needed for parallel, mostly
 
 };
 

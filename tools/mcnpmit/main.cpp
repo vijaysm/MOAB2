@@ -12,7 +12,8 @@
 #include "MBTagConventions.hpp"
 #include "moab/AdaptiveKDTree.hpp"
 #include "moab/GeomUtil.hpp"
-#include "tools/mbcoupler/ElemUtil.hpp"
+#include "moab/FileOptions.hpp"
+#include "../tools/mbcoupler/ElemUtil.hpp"
 
 #define MBI mb_instance()
 
@@ -61,8 +62,6 @@ int main(int argc, char **argv) {
   moab::ErrorCode                MBresult;
   moab::AdaptiveKDTree           kdtree(MBI);
   moab::EntityHandle             root;
-  moab::AdaptiveKDTree::Settings settings;
-  settings.candidatePlaneSet = moab::AdaptiveKDTree::SUBDIVISION;
 
   MBI->tag_get_handle("CoordTag", 1, moab::MB_TYPE_INTEGER, coord_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT);
   MBI->tag_get_handle("RotationTag", 16, moab::MB_TYPE_DOUBLE, rotation_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
@@ -89,8 +88,9 @@ int main(int argc, char **argv) {
     
   }
   else {
-    std::cout << "Building KD-Tree..." << std::endl;      
-    MBresult = kdtree.build_tree( MCNP -> elem_handles, root, &settings);
+    std::cout << "Building KD-Tree..." << std::endl;
+    moab::FileOptions opts("CANDIDATE_PLANE_SET=SUBDIVISION");
+    MBresult = kdtree.build_tree( MCNP -> elem_handles, &root, &opts);
     if (MBresult == moab::MB_SUCCESS) {
 
       MBI->tag_set_data(coord_tag, &root, 1, &(MCNP->coord_system));
@@ -178,9 +178,6 @@ int main(int argc, char **argv) {
 
   bool found = false;
 
-  moab::AdaptiveKDTreeIter    treeiter;
-  kdtree.get_tree_iterator( root, treeiter );
-
   // MBRange verts;
   std::vector<moab::EntityHandle> verts;
   moab::Range range;
@@ -197,8 +194,6 @@ int main(int argc, char **argv) {
 
 //  double davg = 0.0;
 //  unsigned int    nmax = 0, nmin = 1000000000 ;
-
-  int status_freq = int(num_pts/100);
 
   for (unsigned int i = 0; i < (unsigned int) num_pts; i++) {
 
@@ -228,7 +223,8 @@ int main(int argc, char **argv) {
     testvc[2] = transformed_pt[2];
 
     // Find the leaf containing the point
-    MBresult = kdtree.leaf_containing_point( root, transformed_pt, treeiter);
+    moab::EntityHandle tree_node;
+    MBresult = kdtree.point_search(transformed_pt, tree_node);
     if (moab::MB_SUCCESS != MBresult) {
       double x, y, z;
       if (CARTESIAN == coord_sys) {
@@ -250,7 +246,7 @@ int main(int argc, char **argv) {
     }
 
     range.clear();
-    MBresult = MBI -> get_entities_by_type( treeiter.handle(), moab::MBHEX, range );
+    MBresult = MBI -> get_entities_by_type(tree_node, moab::MBHEX, range );
     assert(MBresult == moab::MB_SUCCESS);
 
     // davg += (double) range.size();

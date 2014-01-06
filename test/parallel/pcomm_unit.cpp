@@ -4,7 +4,7 @@
 #include "moab/Core.hpp"
 #include "moab/MeshTopoUtil.hpp"
 #include "ReadParallel.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 #include "TestUtil.hpp"
 #include <algorithm>
 #include <vector>
@@ -326,7 +326,7 @@ ErrorCode create_shared_grid_2d(ParallelComm **pc, Range *verts, Range *quads)
     create_patch(pc[i]->get_moab(), verts[i], quads[i], 3, xyztmp, &gids[9*i]);
   }
 
-  ErrorCode rval = ParallelComm::resolve_shared_ents(pc, 4, 2);
+  ErrorCode rval = ParallelComm::resolve_shared_ents(pc, 4, 0, 2);
   CHECK_ERR(rval);
 
   return rval;
@@ -362,8 +362,8 @@ ErrorCode create_shared_grid_3d(ParallelComm **pc, Range *verts, Range *hexes)
                          (j-ijkmin[p][1])*nijk[p][0] + (i - ijkmin[p][0]))
 
   int p, i, j, k;
-  for (int p = 0; p < P; p++) {
-    for (int i = 0; i < 3; i++) {
+  for (p = 0; p < P; p++) {
+    for (i = 0; i < 3; i++) {
       nijk[p][i] =  ijkmax[p][i] - ijkmin[p][i] + 1;
       NIJK[i] = std::max(NIJK[i], nijk[p][i]);
     }
@@ -434,7 +434,7 @@ ErrorCode create_shared_grid_3d(ParallelComm **pc, Range *verts, Range *hexes)
     rval = pc[p]->get_moab()->write_file(fname.str().c_str());
     if (MB_SUCCESS != rval) return rval;
   }
-  rval = ParallelComm::resolve_shared_ents(pc, 4, 3);
+  rval = ParallelComm::resolve_shared_ents(pc, 4, 0, 3);
   CHECK_ERR(rval);
   return rval;
 }
@@ -1216,10 +1216,10 @@ void test_pack_set_parent_child()
     // look for a set with two child links (set3)
   set1 = set2 = set3 = 0;
   for (Range::iterator i = sets.begin(); i != sets.end(); ++i) {
-    int count;
-    rval = moab.num_child_meshsets( *i, &count );
+    int mcount;
+    rval = moab.num_child_meshsets( *i, &mcount );
     CHECK_ERR(rval);
-    if (count == 2) {
+    if (mcount == 2) {
       set3 = *i;
       break;
     }
@@ -1662,12 +1662,12 @@ void test_pack_variable_length_tag()
     rval = mb.get_coords( &*i, 1, coords );
     CHECK_ERR(rval);
     
-    int size;
+    int tsize;
     const void* valptr;
-    rval = mb.tag_get_by_ptr( tag, &*i, 1, &valptr, &size );
+    rval = mb.tag_get_by_ptr( tag, &*i, 1, &valptr, &tsize );
     CHECK_ERR(rval);
-    CHECK( size > 1 );
-    CHECK( size <= 4 );
+    CHECK( tsize > 1 );
+    CHECK( tsize <= 4 );
     
     const int* valarr = reinterpret_cast<const int*>(valptr);
     CHECK( valarr[0] >= 1 );
@@ -1889,14 +1889,14 @@ void test_filter_pstatus()
   rval = mb.get_entities_by_type( 0, MBVERTEX, dum_vertsr );
   CHECK_ERR(rval);
   vertsr.insert(dum_vertsr[0], dum_vertsr[8]);
-  for (unsigned int i = 0; i < 9; i++) verts.push_back(vertsr[i]);
+  for (int k = 0; k < 9; k++) verts.push_back(vertsr[k]);
 
   CHECK( !verts.empty() );
  
   ParallelComm *pcomm = new ParallelComm( &moab, MPI_COMM_WORLD );
 
   std::vector<int> procs(70, -1);
-  for (unsigned int i = 0; i < 6; i++) procs[i] = i;
+  for (int k = 0; k < 6; k++) procs[k] = k;
 
   std::vector<unsigned char> pvals(verts.size(), 0);
     // interface, owned

@@ -47,37 +47,38 @@ int main(int argc, char *argv[])
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
-  if(size != 4 && size != 2) {
+  if (size != 4 && size != 2) {
     cerr << "Run this with 2 or 4 processes\n";
+    MPI_Finalize();
     exit(1);
   }
-  
+
   mbint = new Core();
-  mbpc  = new ParallelComm(mbint, MPI_COMM_WORLD);
+  mbpc = new ParallelComm(mbint, MPI_COMM_WORLD);
 
   set_local_domain_bounds();
   create_hexes_and_verts();
   resolve_and_exchange();
 
+  delete mbpc; // ParallelComm instance should be deleted before MOAB instance is deleted
+  delete mbint;
+
   MPI_Finalize();
   return 0;
 }
-
 
 void set_local_domain_bounds() 
 {
   switch (size) {
     case 2:
-        switch(rank) {
+        switch (rank) {
           case 0:
-              is = 0; ie = NI/2;
+              is = 0; ie = NI / 2;
               js = 0; je = NJ;
               ks = 0; ke = NK;
               break;
-
-
           case 1:
-              is = NI/2; ie = NI;
+              is = NI / 2; ie = NI;
               js = 0; je = NJ;
               ks = 0; ke = NK;
               break;
@@ -85,25 +86,25 @@ void set_local_domain_bounds()
         break;
         
     case 4:
-        switch(rank) {
+        switch (rank) {
           case 0:
-              is = 0; ie = NI/2;
-              js = 0; je = NJ/2;
+              is = 0; ie = NI / 2;
+              js = 0; je = NJ / 2;
               ks = 0; ke = NK;
               break;
           case 1:
-              is = NI/2; ie = NI;
-              js = 0; je = NJ/2;
+              is = NI / 2; ie = NI;
+              js = 0; je = NJ / 2;
               ks = 0; ke = NK;
               break;
           case 2:
-              is = 0; ie = NI/2;
-              js = NJ/2; je = NJ;
+              is = 0; ie = NI / 2;
+              js = NJ / 2; je = NJ;
               ks = 0; ke = NK;
               break;
           case 3:
-              is = NI/2; ie = NI;
-              js = NJ/2; je = NJ;
+              is = NI / 2; ie = NI;
+              js = NJ / 2; je = NJ;
               ks = 0; ke = NK;
               break;
         }
@@ -115,12 +116,11 @@ void set_local_domain_bounds()
   }
 }
 
-
 void create_hexes_and_verts()
 {
   Core *mbcore = dynamic_cast<Core*>(mbint);
   HomCoord coord_min(0,0,0);
-  HomCoord coord_max(ie-is, je-js, ke-ks);
+  HomCoord coord_max(ie - is, je - js, ke - ks);
   EntitySequence* vertex_seq = NULL;
   EntitySequence* cell_seq = NULL;
   EntityHandle vs, cs;
@@ -139,31 +139,30 @@ void create_hexes_and_verts()
   Tag global_id_tag;
   error(mbint->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, global_id_tag));
   EntityHandle handle = vs;
-  int i,j,k;
+  int i, j, k;
 
   ErrorCode err;
 
-  for(k = ks; k < ke + 1; k++)
-    for(j = js; j < je + 1; j++)
-      for(i = is; i < ie + 1; i++) {
-        gid = 1 + i + j*(NI+1) + k*(NI+1)*(NJ+1);
+  for (k = ks; k < ke + 1; k++)
+    for (j = js; j < je + 1; j++)
+      for (i = is; i < ie + 1; i++) {
+        gid = 1 + i + j*(NI + 1) + k*(NI + 1)*(NJ + 1);
         err = mbint->tag_set_data(global_id_tag, &handle, 1, &gid);
-        if(err != MB_SUCCESS) {
+        if (err != MB_SUCCESS) {
           exit(1);
         }
         handle++;
       }
 
   handle = cs;
-  for(k = ks; k < ke; k++)
-    for(j = js; j < je; j++)
-      for(i = is; i < ie; i++) {
+  for (k = ks; k < ke; k++)
+    for (j = js; j < je; j++)
+      for (i = is; i < ie; i++) {
         gid = 1 + i + j*NI + k*NI*NJ;
         error(mbint->tag_set_data(global_id_tag, &handle, 1, &gid));
-	handle++;
+        handle++;
       }
 }
-
 
 void resolve_and_exchange()
 {
@@ -198,7 +197,7 @@ void resolve_and_exchange()
 
 void error(ErrorCode err)
 {
-  if(err != MB_SUCCESS) {
+  if (err != MB_SUCCESS) {
     cerr << "Error: MOAB function failed\n";
     assert(0);
   }

@@ -7,13 +7,13 @@
  * and vertex to quad adjacency lists.  This allows applications to access this data directly
  * without going through MOAB's API.  In cases where the mesh is not changing (or only mesh
  * vertices are moving), this can save significant execution time in applications.
- *
+ * \verbatim
  *  ----------------------
  *  |      |      |      |       
  *  |      |      |      | ...
  *  |      |      |      |
  *  ----------------------
- *
+ * \endverbatim
  *    -#  Initialize MOAB \n
  *    -#  Create a quad mesh, as depicted above
  *    -#  Create 2 dense tags (tag1, tag2) for avg position to assign to quads, and # verts per quad (tag3)

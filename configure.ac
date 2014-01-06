@@ -446,26 +446,45 @@ AM_CPPFLAGS="$PNETCDF_CPPFLAGS $AM_CPPFLAGS"
 EXPORT_LDFLAGS="$PNETCDF_LDFLAGS $EXPORT_LDFLAGS"
 AC_SUBST(PNETCDF_LIBS)
 
+################################################################################
+#                             CGNS OPTIONS
+################################################################################
+
+old_LDFLAGS="$LDFLAGS"
+LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
+FATHOM_CHECK_CGNS
+LDFLAGS="$old_LDFLAGS"
+if test "xno" != "x$HAVE_CGNS"; then
+  AM_CPPFLAGS="$AM_CPPFLAGS -DCGNS_FILE"
+fi
+AM_CONDITIONAL(CGNS_FILE, [test "xno" != "x$HAVE_CGNS"])
+AM_CPPFLAGS="$CGNS_CPPFLAGS $AM_CPPFLAGS"
+EXPORT_LDFLAGS="$CGNS_LDFLAGS $EXPORT_LDFLAGS"
+AC_SUBST(CGNS_LIBS)
+
 
 #################################################################################
 #                             Documentation
 #################################################################################
-AC_ARG_ENABLE([doxygen],
-[AC_HELP_STRING([[--enable-doxygen@<:@=DIR@:>@]],[Specify directory where Doxygen program is installed])
-AC_HELP_STRING([--disable-doxygen],[Do not generate API documentation (default)])],
-                        [ENABLE_DOXYGEN="$enableval"],[ENABLE_DOXYGEN=no] )
-if test "x$ENABLE_DOXYGEN" = "xyes"; then
-  AC_PATH_PROG( [DOXYGEN], [doxygen], [no] )
-elif test "x$ENABLE_DOXYGEN" != "xno"; then
-  AC_PATH_PROG( [DOXYGEN], [doxygen], [no], [$ENABLE_DOXYGEN] )
+AC_ARG_ENABLE([docs],
+[AC_HELP_STRING([--enable-docs],[indicate to check for doxygen installation])],
+                        [ENABLE_DOCS=yes],[ENABLE_DOCS=no] )
+AC_ARG_WITH([doxygen],
+[AC_HELP_STRING([--with-doxygen=DIR], [Specify directory where Doxygen program is installed. By default, it is /usr/bin])],
+[WITH_DOXYGEN="$withval"], [WITH_DOXYGEN=no])
+
+if test "x$WITH_DOXYGEN" != "xno"; then
+  AC_PATH_PROGS( [DOXYGEN], [doxygen], [no],[$WITH_DOXYGEN] )
+else
+  AC_PATH_PROGS( [DOXYGEN], [doxygen], [no],[$PATH])
 fi
-if test "x$ENABLE_DOXYGEN" != "xno"; then
+if test "x$ENABLE_DOCS" = "xyes"; then
   if test "x$DOXYGEN" = "xno"; then
     AC_MSG_ERROR("Doxygen executable not found.")
   fi
 fi
 AC_SUBST([DOXYGEN])
-AM_CONDITIONAL([ENABLE_DOXYGEN],[test "x$ENABLE_DOXYGEN" != "xno"])
+AM_CONDITIONAL([ENABLE_DOCS],[test "x$ENABLE_DOCS" != "xno"])
 
 
 ################################################################################
@@ -554,8 +573,6 @@ AC_ARG_WITH([parmetis],
 		 ;;
                esac] )
 
-
-
 ################################################################################
 #                            Optional Libraries
 ################################################################################
@@ -620,7 +637,6 @@ AC_HELP_STRING([--disable-tools],[Disable all tools by default])],
                          [ENABLE_TOOLS=$enableval],[ENABLE_TOOLS=] )
   # Individual tools
 MB_OPTIONAL_TOOL([mbconvert],    [yes])
-MB_OPTIONAL_TOOL([pointsearch],  [no])
 MB_OPTIONAL_TOOL([hexmodops],    [yes])
 MB_OPTIONAL_TOOL([qvdual],       [no] )
 MB_OPTIONAL_TOOL([vtkMOABReader],[${VTKMOAB_DEFAULT}] )
@@ -698,7 +714,7 @@ if test "xyes" = "x$WITH_ZOLTAN"; then
                   [#include <stdlib.h>])
   CPPFLAGS="$old_CPPFLAGS"
   AC_LANG_POP([C++])
-  
+
     # Build LDFLAGS for Zoltan
   found=no
   if test "x" != "x$ZOLTAN_DIR"; then
@@ -720,7 +736,7 @@ if test "xyes" = "x$WITH_ZOLTAN"; then
       ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR"
     fi
   fi
-  
+
     # Test for Zoltan library, possibly requiring parmetis
   old_LDFLAGS="$LDFLAGS"
   LDFLAGS="$LDFLAGS $ZOLTAN_LIB_FLAGS"
@@ -731,12 +747,16 @@ if test "xyes" = "x$WITH_ZOLTAN"; then
                   [AC_MSG_ERROR([zoltan library not found or not usable.  Perhaps you need to specify --with-parmetis=@<:@DIR@:>@?])],
                   [-lparmetis -lmetis])])
   LDFLAGS="$old_LDFLAGS"
-  
+
+    # Define macro HAVE_ZOLTAN
+  AM_CPPFLAGS="$AM_CPPFLAGS -DHAVE_ZOLTAN"  
 fi
 
 AC_SUBST(ZOLTAN_LIBS)
 AC_SUBST(ZOLTAN_LIB_FLAGS)
 AC_SUBST(ZOLTAN_INC_FLAGS)
+
+EXPORT_LDFLAGS="$ZOLTAN_LIB_FLAGS $EXPORT_LDFLAGS"
 
 ################################################################################
 #                    VTK for qvdual and/or vtkMOABReader
@@ -1143,6 +1163,7 @@ AC_SUBST(CGM_CPPFLAGS)
 AC_SUBST(CGM_LDFLAGS)
 AC_SUBST(CGM_LTFLAGS)
 AC_SUBST(CGM_LIBS)
+AC_SUBST(CGM_DIR)
 
 AM_CONDITIONAL( HAVE_CGM, [test "x$CGM_MISSING" = "xno"] )
 
@@ -1180,6 +1201,7 @@ AC_CONFIG_FILES([Makefile
                  src/Makefile
                  src/io/Makefile
                  src/io/mhdf/Makefile
+		 src/LocalDiscretization/Makefile
                  src/parallel/Makefile
                  src/oldinc/Makefile
                  test/Makefile
@@ -1187,6 +1209,7 @@ AC_CONFIG_FILES([Makefile
                  test/dual/Makefile
                  test/obb/Makefile
                  test/perf/Makefile
+                 test/perf/point_location/Makefile
                  test/io/Makefile
                  test/parallel/Makefile
                  test/oldinc/Makefile
@@ -1209,7 +1232,6 @@ AC_CONFIG_FILES([Makefile
 		 tools/vtkMOABReaderNew/CMakeLists.txt
                  doc/Makefile
                  doc/user.dox
-                 doc/dev.dox
                  doc/config.tex
                  MeshFiles/Makefile
                  MeshFiles/unittest/Makefile

@@ -4,7 +4,7 @@
 #include "moab/GeomTopoTool.hpp"
 #include "moab/OrientedBoxTreeTool.hpp"
 #include "moab/CartVect.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 #include "MBTagConventions.hpp"
 #include <stdlib.h>
 #include <cstring>

@@ -4,7 +4,7 @@
 #include "moab/CN.hpp"
 #include "moab/Core.hpp"
 #include "moab/CartVect.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 #include "moab/Skinner.hpp"
 #include "quads_to_tris.hpp"
 #include "DagMC.hpp"
@@ -1012,7 +1012,7 @@ ErrorCode add_dead_elems_to_impl_compl(Interface *MBI,
     // skin the volumes
     Skinner tool(MBI);
     Range skin_faces;
-    result = tool.find_skin(elems, 2, skin_faces, true);
+    result = tool.find_skin(0, elems, 2, skin_faces, true);
     assert(MB_SUCCESS == result);
     if (MB_SUCCESS != result)
       return result;

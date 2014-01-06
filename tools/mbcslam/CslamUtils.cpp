@@ -9,8 +9,14 @@
 #include <math.h>
 // this is from mbcoupler; maybe it should be moved somewhere in moab src
 // right now, add a dependency to mbcoupler
-#include "ElemUtil.hpp"
+// #include "ElemUtil.hpp"
 #include "moab/MergeMesh.hpp"
+#include "moab/ReadUtilIface.hpp"
+#include <iostream>
+// this is for sstream
+#include <sstream>
+
+#include <queue>
 
 namespace moab {
 // vec utilities that could be common between quads on a plane or sphere
@@ -24,24 +30,26 @@ double area2D(double *a, double *b, double *c)
   // (b-a)x(c-a) / 2
   return ((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2;
 }
-int borderPointsOfXinY2(double * X, double * Y, int nsides, double * P, int side[4])
+int borderPointsOfXinY2(double * X, int nX, double * Y, int nY, double * P, int side[MAXEDGES])
 {
   // 2 triangles, 3 corners, is the corner of X in Y?
   // Y must have a positive area
   /*
    */
   int extraPoint = 0;
-  for (int i = 0; i < nsides; i++)
+  for (int i = 0; i < nX; i++)
   {
-    // compute twice the area of all 4 triangles formed by a side of Y and a corner of X; if one is negative, stop
+    // compute twice the area of all nY triangles formed by a side of Y and a corner of X; if one is negative, stop
+    // (negative means it is outside; X and Y are all oriented such that they are positive oriented;
+    //  if one area is negative, it means it is outside the convex region, for sure)
     double * A = X + 2 * i;
 
     int inside = 1;
-    for (int j = 0; j < nsides; j++)
+    for (int j = 0; j < nY; j++)
     {
       double * B = Y + 2 * j;
 
-      int j1 = (j + 1) % nsides;
+      int j1 = (j + 1) % nY;
       double * C = Y + 2 * j1; // no copy of data
 
       double area2 = (B[0] - A[0]) * (C[1] - A[1])
@@ -54,7 +62,8 @@ int borderPointsOfXinY2(double * X, double * Y, int nsides, double * P, int side
     }
     if (inside)
     {
-      side[i] = 1;
+      side[i] = 1;// so vertex i of X is inside the convex region formed by Y
+      // so side has nX dimension (first array)
       P[extraPoint * 2] = A[0];
       P[extraPoint * 2 + 1] = A[1];
       extraPoint++;
@@ -84,7 +93,8 @@ int SortAndRemoveDoubles2(double * P, int & nP, double epsilon_1)
   }
   c[0] /= nP;
   c[1] /= nP;
-  double angle[24]; // could be at most 24 points; much less usually
+  // how many
+  std::vector<double> angle(nP); // could be at most nP points
   for (k = 0; k < nP; k++)
   {
     double x = P[2 * k] - c[0], y = P[2 * k + 1] - c[1];
@@ -108,7 +118,7 @@ int SortAndRemoveDoubles2(double * P, int & nP, double epsilon_1)
       if (angle[k] > angle[k + 1])
       {
         sorted = 0;
-        swap2(angle + k, angle + k + 1);
+        swap2(&angle[k], &angle[k+1]);
         swap2(P + (2 * k), P + (2 * k + 2));
         swap2(P + (2 * k + 1), P + (2 * k + 3));
       }
@@ -146,8 +156,8 @@ int SortAndRemoveDoubles2(double * P, int & nP, double epsilon_1)
 
 // the marks will show what edges of blue intersect the red
 
-int EdgeIntersections2(double * blue, double * red, int nsides, int markb[4], int markr[4],
-    double * points, int & nPoints)
+int EdgeIntersections2(double * blue, int nsBlue, double * red, int nsRed,
+    int markb[MAXEDGES], int markr[MAXEDGES], double * points, int & nPoints)
 {
   /* EDGEINTERSECTIONS computes edge intersections of two elements
    [P,n]=EdgeIntersections(X,Y) computes for the two given elements  * red
@@ -158,30 +168,20 @@ int EdgeIntersections2(double * blue, double * red, int nsides, int markb[4], in
    with blue are given.
    */
 
-  // points is an array with 48 slots   (24 * 2 doubles)
+  // points is an array with enough slots   (24 * 2 doubles)
   nPoints = 0;
-  markb[0] = markb[1] = markb[2] = markb[3] = 0; // no neighbors of red involved yet
-  markr[0] = markr[1] = markr[2] = markr[3] = 0;
-  /*for i=1:3                            % find all intersections of edges
-   for j=1:3
-   b=Y(:,j)-X(:,i);
-   A=[X(:,mod(i,3)+1)-X(:,i) -Y(:,mod(j,3)+1)+Y(:,j)];
-   if rank(A)==2                   % edges not parallel
-   r=A\b;
-   if r(1)>=0 & r(1)<=1 & r(2)>=0 & r(2)<=1,  % intersection found
-   k=k+1; P(:,k)=X(:,i)+r(1)*(X(:,mod(i,3)+1)-X(:,i)); n(i)=1;
-   end;
-   end;
-   end;
-   end;*/
-  for (int i = 0; i < nsides; i++)
+  for (int i=0; i<MAXEDGES; i++){
+    markb[i]=markr[i] = 0;
+  }
+
+  for (int i = 0; i < nsBlue; i++)
   {
-    for (int j = 0; j < nsides; j++)
+    for (int j = 0; j < nsRed; j++)
     {
       double b[2];
       double a[2][2]; // 2*2
-      int iPlus1 = (i + 1) % nsides;
-      int jPlus1 = (j + 1) % nsides;
+      int iPlus1 = (i + 1) % nsBlue;
+      int jPlus1 = (j + 1) % nsRed;
       for (int k = 0; k < 2; k++)
       {
         b[k] = red[2 * j + k] - blue[2 * i + k];
@@ -476,7 +476,8 @@ CartVect spherical_to_cart (SphereCoords & sc)
   res[2] = sc.R * sin(sc.lat);             // z
   return res;
 }
-
+// remove dependency to coupler now
+#if 0
 ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle & outputSet, double tolerance)
 {
   ErrorCode rval = MB_SUCCESS;
@@ -557,7 +558,8 @@ ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle &
 
   return rval;
 }
-
+// remove for the time being dependency on coupler
+#endif
 ErrorCode ProjectOnSphere(Interface * mb, EntityHandle set, double R)
 {
   Range ents;
@@ -636,7 +638,7 @@ double oriented_spherical_angle(double * A, double * B, double * C)
   CartVect a(A), b(B), c(C);
   CartVect normalOAB = a * b;
   CartVect normalOCB = c * b;
-  CartVect orient = (b-a)*(c-a);
+  CartVect orient = (c-b)*(a-b);
   double ang = angle(normalOAB, normalOCB); // this is between 0 and M_PI
   if (ang!=ang)
   {
@@ -644,8 +646,8 @@ double oriented_spherical_angle(double * A, double * B, double * C)
     std::cout << a << " " << b << " " << c <<"\n";
     std::cout << ang << "\n";
   }
-  if (orient%a < 0)
-    return (2*M_PI-ang);// the other angle
+  if (orient%b < 0)
+    return (2*M_PI-ang);// the other angle, supplement
 
   return ang;
 
@@ -806,6 +808,22 @@ double area_on_sphere_lHuiller(Interface * mb, EntityHandle set, double R)
   }
   return total_area;
 }
+
+double area_spherical_element(Interface * mb, EntityHandle elem, double R)
+{
+  const EntityHandle * verts;
+  int num_nodes;
+  ErrorCode rval = mb->get_connectivity(elem, verts, num_nodes);
+  if (MB_SUCCESS != rval)
+    return -1;
+  std::vector<double> coords(3 * num_nodes);
+  // get coordinates
+  rval = mb->get_coords(verts, num_nodes, &coords[0]);
+  if (MB_SUCCESS != rval)
+    return -1;
+  return area_spherical_polygon_lHuiller(&coords[0], num_nodes, R);
+
+}
 /*
  *
  */
@@ -861,4 +879,379 @@ void departure_point_case1(CartVect & arrival_point, double t, double delta_t, C
   departure_point = spherical_to_cart(sph_dep);
   return;
 }
+
+void velocity_case1(CartVect & arrival_point, double t, CartVect & velo)
+{
+  // always assume radius is 1 here?
+  SphereCoords sph = cart_to_spherical(arrival_point);
+  double T=5; // duration of integration (5 units)
+  double k = 2.4; //flow parameter
+  /*     radius needs to be within some range   */
+  double  sl2 = sin(sph.lon/2);
+  double pit = M_PI * t / T;
+  //double omega = M_PI/T;
+  double coslat = cos(sph.lat);
+  double sinlat = sin(sph.lat);
+  double sinlon = sin(sph.lon);
+  double coslon = cos(sph.lon);
+  double u = k * sl2*sl2 * sin(2*sph.lat) * cos(pit);
+  double v = k/2 * sinlon * coslat * cos(pit);
+  velo[0] = - u * sinlon - v * sinlat * coslon;
+  velo[1] = u * coslon - v * sinlat * sinlon;
+  velo[2] = v * coslat;
+
+}
+// break the nonconvex quads into triangles; remove the quad from the set? yes.
+// maybe radius is not needed;
+//
+ErrorCode enforce_convexity(Interface * mb, EntityHandle lset, int my_rank)
+{
+  // look at each quad; compute all 4 angles; if one is reflex, break along that diagonal
+  // replace it with 2 triangles, and remove from set;
+  // it should work for all polygons / tested first for case 1, with dt 0.5 (too much deformation)
+  // get all entities of dimension 2
+  // then get the connectivity, etc
+  Range inputRange;
+  ErrorCode rval = mb->get_entities_by_dimension(lset, 2, inputRange);
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  std::vector<double> coords;
+  coords.resize(3*MAXEDGES); // at most 10 vertices per polygon
+  // we should create a queue with new polygons that need processing for reflex angles
+  //  (obtuse)
+  std::queue<EntityHandle> newPolys;
+  int brokenPolys=0;
+  Range::iterator eit = inputRange.begin();
+  while (eit != inputRange.end() || !newPolys.empty())
+  {
+    EntityHandle eh;
+    if (eit != inputRange.end())
+    {
+      eh = *eit;
+      eit++;
+    }
+    else
+    {
+      eh = newPolys.front();
+      newPolys.pop();
+    }
+    // get the nodes, then the coordinates
+    const EntityHandle * verts;
+    int num_nodes;
+    rval = mb->get_connectivity(eh, verts, num_nodes);
+    if (MB_SUCCESS != rval)
+      return rval;
+    coords.resize(3 * num_nodes);
+    if (num_nodes < 4)
+      continue; // if already triangles, don't bother
+       // get coordinates
+    rval = mb->get_coords(verts, num_nodes, &coords[0]);
+    if (MB_SUCCESS != rval)
+     return rval;
+    // compute each angle
+    bool alreadyBroken = false;
+
+    for (int i=0; i<num_nodes; i++)
+    {
+      double * A = &coords[3*i];
+      double * B = &coords[3*((i+1)%num_nodes)];
+      double * C = &coords[3*((i+2)%num_nodes)];
+      double angle = oriented_spherical_angle(A, B, C);
+      if (angle-M_PI > 0.) // even almost reflex is bad; break it!
+      {
+        if (alreadyBroken)
+        {
+          mb->list_entities(&eh, 1);
+          mb->list_entities(verts, num_nodes);
+          double * D = &coords[3*((i+3)%num_nodes)];
+          std::cout<< "ABC: " << angle << " \n";
+          std::cout<< "BCD: " << oriented_spherical_angle( B, C, D) << " \n";
+          std::cout<< "CDA: " << oriented_spherical_angle( C, D, A) << " \n";
+          std::cout<< "DAB: " << oriented_spherical_angle( D, A, B)<< " \n";
+          std::cout << " this quad has at least 2 angles > 180, it has serious issues\n";
+
+          return MB_FAILURE;
+        }
+        // the bad angle is at i+1;
+        // create 1 triangle and one polygon; add the polygon to the input range, so
+        // it will be processed too
+        // also, add both to the set :) and remove the original polygon from the set
+        // break the next triangle, even though not optimal
+        // so create the triangle i+1, i+2, i+3; remove i+2 from original list
+        // even though not optimal in general, it is good enough.
+        EntityHandle conn3[3]={ verts[ (i+1)%num_nodes],
+            verts[ (i+2)%num_nodes],
+            verts[ (i+3)%num_nodes] };
+        // create a polygon with num_nodes-1 vertices, and connectivity
+        // verts[i+1], verts[i+3], (all except i+2)
+        std::vector<EntityHandle> conn(num_nodes-1);
+        for (int j=1; j<num_nodes; j++)
+        {
+          conn[j-1]=verts[(i+j+2)%num_nodes];
+        }
+        EntityHandle newElement;
+        rval = mb->create_element(MBTRI, conn3, 3, newElement);
+        if (MB_SUCCESS != rval)
+          return rval;
+
+        rval = mb->add_entities(lset, &newElement, 1);
+        if (MB_SUCCESS != rval)
+          return rval;
+        if (num_nodes == 4)
+        {
+          // create another triangle
+          rval = mb->create_element(MBTRI, &conn[0], 3, newElement);
+          if (MB_SUCCESS != rval)
+            return rval;
+        }
+        else
+        {
+          // create another polygon, and add it to the inputRange
+          rval = mb->create_element(MBPOLYGON, &conn[0], num_nodes-1, newElement);
+          if (MB_SUCCESS != rval)
+            return rval;
+          newPolys.push(newElement); // because it has less number of edges, the
+          // reverse should work to find it.
+        }
+        rval = mb->add_entities(lset, &newElement, 1);
+        if (MB_SUCCESS != rval)
+          return rval;
+        mb->remove_entities(lset, &eh, 1);
+        brokenPolys++;
+        /*std::cout<<"remove: " ;
+        mb->list_entities(&eh, 1);
+
+        std::stringstream fff;
+        fff << "file0" <<  brokenQuads<< ".vtk";
+        mb->write_file(fff.str().c_str(), 0, 0, &lset, 1);*/
+        alreadyBroken=true; // get out of the loop, element is broken
+      }
+    }
+  }
+  std::cout << "on rank " << my_rank << " " <<  brokenPolys << " concave polygons were decomposed in convex ones \n";
+  return MB_SUCCESS;
+}
+ErrorCode create_span_quads(Interface * mb, EntityHandle euler_set, int rank)
+{
+  // first get all edges adjacent to polygons
+  Tag dpTag = 0;
+  std::string tag_name("DP");
+  ErrorCode rval = mb->tag_get_handle(tag_name.c_str(), 3, MB_TYPE_DOUBLE, dpTag, MB_TAG_DENSE);
+  // if the tag does not exist, get out early
+  if (rval!=MB_SUCCESS)
+    return rval;
+  Range polygons;
+  rval = mb->get_entities_by_dimension(euler_set, 2, polygons);
+  if (MB_SUCCESS != rval)
+    return rval;
+  Range iniEdges;
+  rval = mb->get_adjacencies(polygons,
+      1,
+      false,
+      iniEdges,
+      Interface::UNION);
+  if (MB_SUCCESS != rval)
+      return rval;
+  // now create some if missing
+  Range allEdges;
+  rval = mb->get_adjacencies(polygons,
+        1,
+        true,
+        allEdges,
+        Interface::UNION);
+  // create the vertices at the DP points, and the quads after that
+  Range verts;
+  rval = mb->get_connectivity(polygons, verts);
+  if (MB_SUCCESS != rval)
+    return rval;
+  int num_verts = (int) verts.size();
+  // now see the departure points; to what boxes should we send them?
+  std::vector<double> dep_points(3*num_verts);
+  rval = mb->tag_get_data(dpTag, verts, (void*)&dep_points[0]);
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  // create vertices corresponding to dp locations
+  ReadUtilIface *read_iface;
+  rval = mb->query_interface(read_iface);
+  if (MB_SUCCESS != rval)
+    return rval;
+  std::vector<double *> coords;
+  EntityHandle start_vert, start_elem, *connect;
+    // create verts, num is 2(nquads+1) because they're in a 1d row; will initialize coords in loop over quads later
+  rval = read_iface->get_node_coords (3, num_verts, 0, start_vert, coords);
+  if (MB_SUCCESS != rval)
+    return rval;
+  // fill it up
+  for (int i=0; i<num_verts; i++)
+  {
+    // block from interleaved
+    coords[0][i]=dep_points[3*i];
+    coords[1][i]=dep_points[3*i+1];
+    coords[2][i]=dep_points[3*i+2];
+  }
+  // create quads; one quad for each edge
+  rval = read_iface->get_element_connect(allEdges.size(), 4, MBQUAD, 0, start_elem, connect);
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  const EntityHandle * edge_conn = NULL;
+  int quad_index=0;
+  EntityHandle firstVertHandle = verts[0];// assume vertices are contiguous...
+  for (Range::iterator eit=allEdges.begin(); eit!=allEdges.end(); eit++, quad_index++)
+  {
+    EntityHandle edge=*eit;
+    int num_nodes;
+    rval = mb->get_connectivity(edge, edge_conn, num_nodes);
+    if (MB_SUCCESS != rval)
+        return rval;
+    connect[quad_index*4] = edge_conn[0];
+    connect[quad_index*4+1] = edge_conn[1];
+
+    // maybe some indexing in range?
+    connect[quad_index*4+2] = start_vert + edge_conn[1]- firstVertHandle;
+    connect[quad_index*4+3] = start_vert + edge_conn[0]- firstVertHandle;
+  }
+
+
+  Range quads(start_elem, start_elem+allEdges.size()-1);
+  EntityHandle outSet;
+  rval = mb->create_meshset(MESHSET_SET, outSet);
+  if (MB_SUCCESS != rval)
+    return rval;
+  mb->add_entities(outSet, quads);
+
+  Tag colTag;
+  rval = mb->tag_get_handle("COLOR_ID", 1, MB_TYPE_INTEGER,
+      colTag, MB_TAG_DENSE|MB_TAG_CREAT);
+  if (MB_SUCCESS != rval)
+      return rval;
+  int j=1;
+  for (Range::iterator itq=quads.begin(); itq!=quads.end(); itq++, j++)
+  {
+    EntityHandle q=*itq;
+    rval = mb->tag_set_data(colTag, &q, 1, &j);
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  std::stringstream outf;
+  outf << "SpanQuads" << rank << ".h5m";
+  rval = mb->write_file(outf.str().c_str(), 0, 0, &outSet, 1);
+  if (MB_SUCCESS != rval)
+    return rval;
+  EntityHandle outSet2;
+  rval = mb->create_meshset(MESHSET_SET, outSet2);
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  Range quadEdges;
+  rval = mb->get_adjacencies(quads,
+          1,
+          true,
+          quadEdges,
+          Interface::UNION);
+  mb->add_entities(outSet2, quadEdges);
+
+  std::stringstream outf2;
+  outf2 << "SpanEdges" << rank << ".h5m";
+  rval = mb->write_file(outf2.str().c_str(), 0, 0, &outSet2, 1);
+  if (MB_SUCCESS != rval)
+    return rval;
+
+// maybe some clean up
+  mb->delete_entities(&outSet, 1);
+  mb->delete_entities(&outSet2, 1);
+  mb->delete_entities(quads);
+  Range new_edges=subtract(allEdges, iniEdges);
+  mb->delete_entities(new_edges);
+  new_edges=subtract(quadEdges, iniEdges);
+  mb->delete_entities(new_edges);
+  Range new_verts(start_vert, start_vert+num_verts);
+  mb->delete_entities(new_verts);
+
+  return MB_SUCCESS;
+
+}
+
+// distance along a great circle on a sphere of radius 1
+// page 4
+double distance_on_sphere(double la1, double te1, double la2, double te2)
+{
+  return acos(sin(te1)*sin(te2)+cos(te1)*cos(te2)*cos(la1-la2));
+}
+// page 4 Nair Lauritzen paper
+// param will be: (la1, te1), (la2, te2), b, c; hmax=1, r=1/2
+double quasi_smooth_field(double lam, double tet, double * params)
+{
+  double la1 = params[0];
+  double te1 = params[1];
+  double la2 = params[2];
+  double te2 = params[3];
+  double b = params[4];
+  double c = params[5];
+  double hmax = params[6]; // 1;
+  double r = params[7] ; // 0.5;
+  double r1 = distance_on_sphere(lam, tet, la1, te1);
+  double r2 = distance_on_sphere(lam, tet, la2, te2);
+  double value = b;
+  if (r1<r)
+  {
+    value += c*hmax/2*(1+cos(M_PI*r1/r));
+  }
+  if (r2<r)
+  {
+    value += c*hmax/2*(1+cos(M_PI*r2/r));
+  }
+  return value;
+}
+// page 4
+// params are now x1, y1, ..., y2, z2 (6 params)
+// plus h max and b0 (total of 8 params); radius is 1
+double smooth_field(double lam, double tet, double * params)
+{
+  SphereCoords sc;
+  sc.R = 1.;
+  sc.lat= tet;
+  sc.lon = lam;
+  double hmax = params[6];
+  double b0 = params[7];
+  CartVect xyz = spherical_to_cart(sc);
+  CartVect c1(params);
+  CartVect c2(params+3);
+  double expo1 = -b0 * (xyz-c1).length_squared();
+  double expo2 = -b0 * (xyz-c2).length_squared();
+  return hmax*( exp(expo1) + exp(expo2));
+}
+// page 5
+double slotted_cylinder_field(double lam, double tet, double * params)
+{
+  double la1 = params[0];
+  double te1 = params[1];
+  double la2 = params[2];
+  double te2 = params[3];
+  double b = params[4];
+  double c = params[5];
+  //double hmax = params[6]; // 1;
+  double r = params[6] ; // 0.5;
+  double r1 = distance_on_sphere(lam, tet, la1, te1);
+  double r2 = distance_on_sphere(lam, tet, la2, te2);
+  double value = b;
+  double d1=fabs(lam-la1);
+  double d2 = fabs(lam-la2);
+  double rp6 = r/6;
+  double rt5p12 = r*5/12;
+
+  if (r1<=r &&  d1>=rp6)
+      value=c;
+  if (r2<=r &&  d2>=rp6)
+      value =c;
+  if (r1<=r && d1<rp6 && tet-te1<-rt5p12)
+    value = c;
+  if (r2<=r && d2<rp6 && tet-te2 > rt5p12)
+    value =c;
+
+  return value;
+}
+
 } //namespace moab

@@ -18,7 +18,7 @@
  ******************************************************************************/
 #define IBASE_VERSION_MAJOR 1
 #define IBASE_VERSION_MINOR 4
-#define IBASE_VERSION_PATCH 0
+#define IBASE_VERSION_PATCH 1
 
 /***************************************************************************//**
  * \ingroup VersionNumbers
@@ -269,8 +269,6 @@ enum iBase_TagValueType {
  *
  * \subpage imeshp
  * 
- * \subpage igeom
- *
  * \subpage error
  *
  * \subpage trio

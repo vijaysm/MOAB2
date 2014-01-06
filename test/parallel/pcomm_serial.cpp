@@ -2,7 +2,7 @@
 #include "MBParallelConventions.h"
 #include "MBTagConventions.hpp"
 #include "moab/Core.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 #include "ReadParallel.hpp"
 #include "TestUtil.hpp"
 #include <vector>
@@ -81,7 +81,7 @@ int main( int argc, char* argv[] )
     CHECK_ERR(rval);
   }
   
-  rval = ParallelComm::resolve_shared_ents(&pc[0], nprocs, 3);
+  rval = ParallelComm::resolve_shared_ents(&pc[0], nprocs, 0, 3);
   CHECK_ERR(rval);
 
     // exchange interface cells

@@ -1,7 +1,7 @@
 #include "moab/ParallelMergeMesh.hpp"
 #include "moab/Core.hpp"
 #include "moab/CartVect.hpp"
-#include "moab/AdaptiveKDTree.hpp"
+#include "moab/BoundBox.hpp"
 #include "moab/Skinner.hpp"
 #include "moab/MergeMesh.hpp"
 #include "moab/CN.hpp"
@@ -45,7 +45,7 @@ namespace moab{
     }
     
     //Get the local skin elements
-    rval = PopulateMySkinEnts(dim);
+    rval = PopulateMySkinEnts(0,dim);
     //If there is only 1 proc, we can return now
     if(rval != MB_SUCCESS || myPcomm->size() == 1){
       return rval;
@@ -107,12 +107,12 @@ namespace moab{
   }
 
   //Sets mySkinEnts with all of the skin entities on the processor
-  ErrorCode ParallelMergeMesh::PopulateMySkinEnts(int dim)
+  ErrorCode ParallelMergeMesh::PopulateMySkinEnts(const EntityHandle meshset,int dim)
   {
     /*Merge Mesh Locally*/
     //Get all dim dimensional entities
     Range ents;
-    ErrorCode rval = myMB->get_entities_by_dimension(0,dim,ents);
+    ErrorCode rval = myMB->get_entities_by_dimension(meshset,dim,ents);
     if(rval != MB_SUCCESS){
       return rval;
     }
@@ -137,7 +137,7 @@ namespace moab{
       -skinEnts[i] is the skin entities of dimension i*/  
     Skinner skinner(myMB);
     for(int skin_dim = dim; skin_dim >= 0; skin_dim--){
-      rval = skinner.find_skin(ents,skin_dim,mySkinEnts[skin_dim]);
+      rval = skinner.find_skin(meshset,ents,skin_dim,mySkinEnts[skin_dim]);
       if(rval != MB_SUCCESS){
 	return rval;
       }
@@ -151,33 +151,18 @@ namespace moab{
     ErrorCode rval;
 
     /*Get Bounding Box*/
-    double box[6];
+    BoundBox box;
     if(mySkinEnts[0].size() != 0){
-      AdaptiveKDTree kd(myMB);
-      rval = kd.bounding_box(mySkinEnts[0],box, box+3);
-      if(rval != MB_SUCCESS){
-	return rval;
-      }
-    }
-    //If there are no entities...
-    else{
-      for(int i=0;i<6;i++){
-	if(i < 3){
-	  box[i] = DBL_MAX;
-	}
-	else{
-	  box[i] = -DBL_MAX;
-	}
-      }
+      rval = box.update(*myMB, mySkinEnts[0]);
+      if(rval != MB_SUCCESS)
+        return rval;
     }
 
     //Invert the max
-    for(int i=3; i<6;i++){
-      box[i] *= -1;
-    }
+    box.bMax *= -1;
 
     /*Communicate to all processors*/
-    MPI_Allreduce(box, gbox, 6, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+    MPI_Allreduce(&box, gbox, 6, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
 
     /*Assemble Global Bounding Box*/
     //Flip the max back
@@ -559,7 +544,7 @@ namespace moab{
     }
     
     // get entities shared by 1 or n procs
-    rval = myPcomm->tag_shared_ents(dim,dim-1, &mySkinEnts[0],proc_nranges);
+    rval = myPcomm->get_proc_nvecs(dim,dim-1, &mySkinEnts[0],proc_nranges);
     if(rval != MB_SUCCESS){
       return rval;
     }
@@ -567,7 +552,7 @@ namespace moab{
     // create the sets for each interface; store them as tags on
     // the interface instance
     Range iface_sets;
-    rval = myPcomm->create_interface_sets(proc_nranges, dim, dim-1);
+    rval = myPcomm->create_interface_sets(proc_nranges);
     if(rval != MB_SUCCESS){
       return rval;
     }

@@ -6,14 +6,11 @@
 #include "iMesh_extensions.h"
 #include "moab/gs.hpp"
 #include "moab/TupleList.hpp"
+#include "moab/Error.hpp"
 #include "iostream"
 #include <stdio.h>
 #include <algorithm>
-
-//extern "C" 
-//{
-  //#include "minmax.h"
-  //}
+#include <sstream>
 
 #include "assert.h"
 
@@ -49,6 +46,9 @@ Coupler::Coupler(Interface *impl,
   mappedPts = NULL;
   targetPts = NULL;
   _spectralSource = _spectralTarget = NULL;
+
+  ErrorCode rval = impl->query_interface(mError);
+  if (MB_SUCCESS != rval) throw(rval);
 }
 
   /* destructor
@@ -65,8 +65,6 @@ ErrorCode Coupler::initialize_tree()
 {
   
   Range local_ents;
-  AdaptiveKDTree::Settings settings;
-  settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION;
 
     //get entities on the local part
   ErrorCode result = MB_SUCCESS;
@@ -78,16 +76,21 @@ ErrorCode Coupler::initialize_tree()
   }
 
     // build the tree for local processor
+  int max_per_leaf = 6;
   for (int i = 0; i < numIts; i++) {
+    std::ostringstream str;
+    str << "PLANE_SET=0;"
+        << "MAX_PER_LEAF=" << max_per_leaf << ";";
+    FileOptions opts(str.str().c_str());
     myTree = new AdaptiveKDTree(mbImpl);
-    result = myTree->build_tree(local_ents, localRoot, &settings);
+    result = myTree->build_tree(local_ents, &localRoot, &opts);
     if (MB_SUCCESS != result) {
       std::cout << "Problems building tree";
       if (numIts != i) {
         delete myTree;
-        settings.maxEntPerLeaf *= 2;
+        max_per_leaf *= 2;
         std::cout << "; increasing elements/leaf to " 
-                  << settings.maxEntPerLeaf << std::endl;;
+                  << max_per_leaf << std::endl;;
       }
       else {
         std::cout << "; exiting" << std::endl;
@@ -103,8 +106,11 @@ ErrorCode Coupler::initialize_tree()
     allBoxes.resize(6*myPc->proc_config().proc_size());
   else allBoxes.resize(6);
   unsigned int my_rank = (myPc ? myPc->proc_config().proc_rank() : 0);
-  result = myTree->get_tree_box(localRoot, &allBoxes[6*my_rank], &allBoxes[6*my_rank+3]);
+  BoundBox box;
+  result = myTree->get_bounding_box(box, &localRoot);
   if (MB_SUCCESS != result) return result;
+  box.bMin.get(&allBoxes[6*my_rank]);
+  box.bMax.get(&allBoxes[6*my_rank+3]);
   
     // now communicate to get all boxes
     // use "in place" option
@@ -293,7 +299,6 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
     // appending results to tuple_list;
     // keep local points separately, in local_pts, which has pairs
     // of <local_index, mapped_index>, where mapped_index is the index
-    // of <local_index, mapped_index>, where mapped_index is the index
     // into the mappedPts tuple list
 
   unsigned int my_rank = (myPc ? myPc->proc_config().proc_rank() : 0);
@@ -327,19 +332,21 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
   int num_to_me = 0;
   for (unsigned int i = 0; i < target_pts.get_n(); i++)
     if (target_pts.vi_rd[2*i] == (int)my_rank) num_to_me++;
-
+#ifndef NDEBUG
   printf("rank: %d local points: %d, nb sent target pts: %d mappedPts: %d num to me: %d \n",
          my_rank, num_points, target_pts.get_n(), mappedPts->get_n(), num_to_me);
-    // perform scatter/gather, to gather points to source mesh procs
+#endif
+  // perform scatter/gather, to gather points to source mesh procs
   if (myPc) {
     (myPc->proc_config().crystal_router())->gs_transfer(1, target_pts, 0);
 
     num_to_me = 0;
     for (unsigned int i = 0; i < target_pts.get_n(); i++)
       if (target_pts.vi_rd[2*i] == (int)my_rank) num_to_me++;
-
+#ifndef NDEBUG
     printf("rank: %d after first gs nb received_pts: %d; num_from_me = %d\n",
            my_rank, target_pts.get_n(), num_to_me);
+#endif
       // after scatter/gather:
       // target_pts.set_n( # points local proc has to map );
       // target_pts.vi_wr[2*i] = proc sending point i
@@ -368,15 +375,19 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
 
       // no longer need target_pts
     target_pts.reset();
-
+#ifndef NDEBUG
     printf("rank: %d nb sent source pts: %d, mappedPts now: %d\n",
            my_rank, source_pts.get_n(),  mappedPts->get_n());
+#endif
       // send target points back to target procs
     (myPc->proc_config().crystal_router())->gs_transfer(1, source_pts, 0);
 
+#ifndef NDEBUG
     printf("rank: %d nb received source pts: %d\n",
            my_rank, source_pts.get_n());
+#endif
   }
+
   
     // store proc/index tuples in targetPts, and/or pass back to application;
     // the tuple this gets stored to looks like:
@@ -405,22 +416,35 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
   unsigned int local_pts = 0;
   for (unsigned int i = 0; i < source_pts.get_n(); i++) {
     if (-1 != source_pts.vi_rd[3*i+2]) { //why bother sending message saying "i don't have the point" if it gets discarded?
-      if (source_pts.vi_rd[3*i] == (int)my_rank) local_pts++;
       int tgt_index = 3*source_pts.vi_rd[3*i+1];
-      tl_tmp->vi_wr[tgt_index]   = source_pts.vi_rd[3*i];
-      tl_tmp->vi_wr[tgt_index+1] = source_pts.vi_rd[3*i+1];
-      tl_tmp->vi_wr[tgt_index+2] = source_pts.vi_rd[3*i+2];
+      // prefer always entities that are local, from the source_pts
+      // if a local entity was already found to contain the target point, skip
+      // tl_tmp->vi_wr[tgt_index] is -1 initially, but it could already be set with
+      // a remote processor
+      if (tl_tmp->vi_wr[tgt_index] != (int)my_rank)
+      {
+        tl_tmp->vi_wr[tgt_index]   = source_pts.vi_rd[3*i];
+        tl_tmp->vi_wr[tgt_index+1] = source_pts.vi_rd[3*i+1];
+        tl_tmp->vi_wr[tgt_index+2] = source_pts.vi_rd[3*i+2];
+      }
     }
   }
 
     // count missing points
   unsigned int missing_pts = 0;
   for (int i = 0; i < num_points; i++) 
-    if (tl_tmp->vi_rd[3*i+1] == -1) missing_pts++;
-  
+  {
+    if (tl_tmp->vi_rd[3*i+1] == -1)
+      missing_pts++;
+    else
+      if (tl_tmp->vi_rd[3*i]==(int)my_rank)
+        local_pts++;
+  }
+#ifndef NDEBUG
   printf("rank: %d point location: wanted %d got %u locally, %d remote, missing %d\n",
          my_rank, num_points, local_pts,  num_points-missing_pts-local_pts, missing_pts);
-  assert(0==missing_pts); //will litely break on curved geometries
+#endif
+  assert(0==missing_pts); //will likely break on curved geometries
   
     // no longer need source_pts
   source_pts.reset();
@@ -456,9 +480,9 @@ ErrorCode Coupler::test_local_box(double *xyz,
 
   if (rel_eps && !abs_eps) {
       // relative epsilon given, translate to absolute epsilon using box dimensions
-    CartVect minmax[2];
-    myTree->get_tree_box(localRoot, minmax[0].array(), minmax[1].array());
-    abs_eps = rel_eps * (minmax[1] - minmax[0]).length();
+    BoundBox box;
+    myTree->get_bounding_box(box, &localRoot);
+    abs_eps = rel_eps * box.diagonal_length();
   }
   
   ErrorCode result = nat_param(xyz, entities, nat_coords, abs_eps);
@@ -513,6 +537,27 @@ ErrorCode Coupler::test_local_box(double *xyz,
   return MB_SUCCESS;
 }
 
+ErrorCode Coupler::interpolate(Coupler::Method method,
+                                      const std::string &interp_tag,
+                                      double *interp_vals,
+                                      TupleList *tl,
+                                      bool normalize)
+{
+  Tag tag;
+  ErrorCode result ;
+  if (_spectralSource)
+    result = mbImpl->tag_get_handle(interp_tag.c_str(), _ntot, MB_TYPE_DOUBLE, tag);
+  else
+    result = mbImpl->tag_get_handle(interp_tag.c_str(), 1, MB_TYPE_DOUBLE, tag);
+  if (MB_SUCCESS != result) {
+    std::ostringstream str;
+    str << "Failed to get handle for interpolation tag \"" << interp_tag << "\"";
+    mError->set_last_error(str.str());
+    return result;
+  }
+  return interpolate(method, tag, interp_vals, tl, normalize);
+}
+
 ErrorCode Coupler::interpolate(Coupler::Method *methods,
                                Tag *tags,
                                int *points_per_method,
@@ -549,6 +594,7 @@ ErrorCode Coupler::interpolate(Coupler::Method *methods,
       tinterp.vi_wr[5*t+2] = tl_tmp->vi_rd[3*t+2];
       tinterp.vi_wr[5*t+3] = methods[i];
       tinterp.vi_wr[5*t+4] = i;
+      tinterp.vr_wr[t] = 0.0;
       tinterp.inc_n();
       t++;
     }
@@ -608,7 +654,7 @@ ErrorCode Coupler::nat_param(double xyz[3],
   if (epsilon) {
     std::vector<double> dists;
     std::vector<EntityHandle> leaves;
-    result = myTree->leaves_within_distance(localRoot, xyz, epsilon, leaves, &dists);
+    result = myTree->distance_search(xyz, epsilon, leaves, 0.0, &dists, NULL, &localRoot);
     if (leaves.empty()) 
       // not found returns success here, with empty list, just like case with no epsilon
       return MB_SUCCESS;
@@ -625,7 +671,7 @@ ErrorCode Coupler::nat_param(double xyz[3],
     }
   }
   else {
-    result = myTree->leaf_containing_point(localRoot, xyz, treeiter);
+    result = myTree->point_search(xyz, treeiter, 0.0, NULL, &localRoot);
     if(MB_ENTITY_NOT_FOUND==result) //point is outside of myTree's bounding box
       return MB_SUCCESS; 
     else if (MB_SUCCESS != result) {
@@ -675,18 +721,13 @@ ErrorCode Coupler::nat_param(double xyz[3],
       Element::SpectralHex * spcHex = ( Element::SpectralHex * ) _spectralSource;
 
       spcHex->set_gl_points((double*)xval, (double*)yval, (double*)zval);
-      try{
-        tmp_nat_coords =spcHex->ievaluate(CartVect(xyz));
-      }
-      catch (Element::Map::EvaluationError) {
+      tmp_nat_coords = spcHex->ievaluate(CartVect(xyz));
+      bool inside = spcHex->inside_nat_space(CartVect(xyz), epsilon);
+      if (!inside) {
         std::cout << "point "<< xyz[0] << " " << xyz[1] << " " << xyz[2] <<
             " is not converging inside hex " << mbImpl->id_from_handle(eh) << "\n";
         continue; // it is possible that the point is outside, so it will not converge
       }
-      // I am not sure this check is necessary, but still do it
-      if (!spcHex->inside_nat_space(tmp_nat_coords, epsilon))
-        continue;
-
     }
     else
     {
@@ -708,25 +749,17 @@ ErrorCode Coupler::nat_param(double xyz[3],
         if (8==num_connect)
         {
           Element::LinearHex hexmap(coords_vert);
-          try {
-            tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
-          }
-          catch (Element::Map::EvaluationError) {
-            continue;
-          }
-          if (!hexmap.inside_nat_space(tmp_nat_coords, epsilon))
+          tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
+          bool inside = hexmap.inside_nat_space(tmp_nat_coords, epsilon);
+          if (!inside)
             continue;
         }
         else if (27==num_connect)
         {
           Element::QuadraticHex hexmap(coords_vert);
-          try {
-            tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
-          }
-          catch (Element::Map::EvaluationError) {
-            continue;
-          }
-          if (!hexmap.inside_nat_space(tmp_nat_coords, epsilon))
+          tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
+          bool inside = hexmap.inside_nat_space(tmp_nat_coords, epsilon);
+          if (!inside)
             continue;
         }
         else // TODO this case not treated yet, no interpolation
@@ -734,19 +767,17 @@ ErrorCode Coupler::nat_param(double xyz[3],
       }
       else if (etype == MBTET){
         Element::LinearTet tetmap(coords_vert);
-        try {
-          tmp_nat_coords = tetmap.ievaluate(CartVect(xyz));
-        }
-        catch (Element::Map::EvaluationError) {
-          continue;
-        }
-        if (!tetmap.inside_nat_space(tmp_nat_coords, epsilon))
+        tmp_nat_coords = tetmap.ievaluate(CartVect(xyz));
+        bool inside = tetmap.inside_nat_space(tmp_nat_coords, epsilon);
+        if (!inside)
           continue;
       }
       else if (etype == MBQUAD){
         Element::LinearQuad quadmap(coords_vert);
         try {
           tmp_nat_coords = quadmap.ievaluate(CartVect(xyz), epsilon);
+          bool inside = quadmap.inside_nat_space(tmp_nat_coords, epsilon);
+          if (!inside) continue;
         }
         catch (Element::Map::EvaluationError) {
           continue;
@@ -1553,8 +1584,8 @@ int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> >
 
       // Put the vertices into a CartVect vector
       double *x = coords;
-      for (int ix = 0; ix < verts_size; ++ix, x+=3) {
-        vertices[ix] = CartVect(x);
+      for (int j = 0; j < verts_size; j++, x+=3) {
+        vertices[i] = CartVect(x);
       }
       free(verts);
       free(coords);

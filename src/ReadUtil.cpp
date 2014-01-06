@@ -46,7 +46,6 @@ ErrorCode ReadUtil::get_node_coords(
     std::vector<double*>& arrays,
     int sequence_size)
 {
-
   ErrorCode error;
   EntitySequence* seq = 0;
   
@@ -89,7 +88,6 @@ ErrorCode ReadUtil::get_element_connect(
     EntityHandle*& array,
     int sequence_size)
 {
-
   ErrorCode error;
   EntitySequence* seq;
   
@@ -122,7 +120,6 @@ ErrorCode ReadUtil::get_element_connect(
          * static_cast<ElementSequence*>(seq)->nodes_per_element();
 
   return error;
-  
 }
 
 ErrorCode ReadUtil::create_entity_sets( EntityID num_sets,
@@ -153,7 +150,6 @@ ErrorCode ReadUtil::create_entity_sets( EntityID num_sets,
   return MB_SUCCESS;
 }
 
-
 ErrorCode ReadUtil::update_adjacencies(
       const EntityHandle start_handle,
       const int number_elements,
@@ -178,8 +174,6 @@ ErrorCode ReadUtil::update_adjacencies(
   return MB_SUCCESS;
 }
 
-
-
 ErrorCode ReadUtil::report_error( const std::string& error )
 {
   if(mError)
@@ -187,7 +181,6 @@ ErrorCode ReadUtil::report_error( const std::string& error )
   else
     return MB_FAILURE;
 }
-
 
 ErrorCode ReadUtil::report_error( const char* error, ... )
 {
@@ -407,6 +400,47 @@ ErrorCode ReadUtil::assign_ids( Tag id_tag,
       return rval;
   }
   
+  return MB_SUCCESS;
+}
+
+ErrorCode ReadUtil::create_gather_set(EntityHandle& gather_set)
+{
+  ErrorCode rval = mMB->create_meshset(MESHSET_SET, gather_set);
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  Tag gather_set_tag;
+  rval = mMB->tag_get_handle("GATHER_SET", 1, MB_TYPE_INTEGER, gather_set_tag, MB_TAG_CREAT | MB_TAG_SPARSE);
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  int gather_val = 1;
+  rval = mMB->tag_set_data(gather_set_tag, &gather_set, 1, &gather_val);
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  return MB_SUCCESS;
+}
+
+ErrorCode ReadUtil::get_gather_set(EntityHandle& gather_set)
+{
+  Tag gather_set_tag;
+  ErrorCode rval = mMB->tag_get_handle("GATHER_SET", 1, MB_TYPE_INTEGER, gather_set_tag, MB_TAG_SPARSE);
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  int gather_val = 1;
+  void* vals[] = {&gather_val};
+  Range gather_sets;
+  rval = mMB->get_entities_by_type_and_tag(0, MBENTITYSET, &gather_set_tag, vals, 1, gather_sets);
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  if (gather_sets.empty())
+    return MB_ENTITY_NOT_FOUND;
+
+  gather_set = gather_sets[0];
+
   return MB_SUCCESS;
 }
 

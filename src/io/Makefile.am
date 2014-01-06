@@ -7,7 +7,7 @@ endif
 
 # Things to build
 noinst_LTLIBRARIES = libmoabio.la 
-libmoabio_la_LIBADD = $(NETCDF_LIBS) $(PNETCDF_LIBS) $(HDF5_LIBS) 
+libmoabio_la_LIBADD = $(NETCDF_LIBS) $(PNETCDF_LIBS) $(CGNS_LIBS) $(HDF5_LIBS) 
 
 AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I..  -I$(srcdir)/.. -I$(srcdir)/../parallel
@@ -21,6 +21,7 @@ if NETCDF_FILE
                      NCHelperEuler.cpp NCHelperEuler.hpp \
                      NCHelperFV.cpp NCHelperFV.hpp \
                      NCHelperHOMME.cpp NCHelperHOMME.hpp \
+                     NCHelperMPAS.cpp NCHelperMPAS.hpp \
                      ReadGCRM.cpp ReadGCRM.hpp
 else
   MOAB_NETCDF_SRCS =
@@ -33,8 +34,20 @@ if !NETCDF_FILE
                      NCHelperEuler.cpp NCHelperEuler.hpp \
                      NCHelperFV.cpp NCHelperFV.hpp \
                      NCHelperHOMME.cpp NCHelperHOMME.hpp \
+                     NCHelperMPAS.cpp NCHelperMPAS.hpp \
                      ReadGCRM.cpp ReadGCRM.hpp
 endif
+endif
+
+if ENABLE_mbzoltan
+  AM_CPPFLAGS += -I$(srcdir)/../../tools/mbzoltan $(ZOLTAN_INC_FLAGS) 
+endif
+
+if CGNS_FILE
+  MOAB_CGNS_SRCS = ReadCGNS.cpp  ReadCGNS.hpp \
+                   WriteCGNS.cpp  WriteCGNS.hpp
+else
+  MOAB_CGNS_SRCS =
 endif
 
 if HDF5_FILE
@@ -53,6 +66,7 @@ if HDF5_FILE
 else
   MOAB_HDF5_SRCS = 
 endif
+
 if CCMIO_FILE
   MOAB_CCMIO_SRCS = WriteCCMIO.cpp WriteCCMIO.hpp ReadCCMIO.cpp ReadCCMIO.hpp
   libmoabio_la_LIBADD += $(CCMIO_LIBS)
@@ -132,12 +146,11 @@ libmoabio_la_SOURCES = \
   WriteVtk.cpp \
   WriteVtk.hpp \
   $(MOAB_NETCDF_SRCS) \
+  $(MOAB_CGNS_SRCS) \
   $(MOAB_HDF5_SRCS) \
   $(MOAB_CCMIO_SRCS) \
   $(MOAB_DAMSEL_SRCS) \
   $(MOAB_CGM_SRCS)
 
-
 libmoabio_la_includedir = $(includedir)
 nobase_libmoabio_la_include_HEADERS = moab/ExoIIInterface.hpp
-

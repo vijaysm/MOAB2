@@ -17,7 +17,8 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -DSRCDIR=$(srcdir) \
 		-DMESHDIR=$(MESHDIR) \
                -I$(top_builddir)/src \
-               -I$(top_srcdir)/src 
+               -I$(top_srcdir)/src  \
+               -I$(top_srcdir)/src/LocalDiscretization
 
 if PARALLEL
   AM_CPPFLAGS += -I$(top_srcdir)/src/parallel
@@ -27,6 +28,7 @@ TESTS = range_test \
         moab_test \
         homxform_test \
         scdseq_test \
+        scd_test_partn \
         test_adj \
         seq_man_test \
         geom_util_test \
@@ -43,12 +45,16 @@ TESTS = range_test \
         bsp_tree_poly_test \
 	reorder_test \
 	test_prog_opt \
-	coords_connect_iterate 
+	coords_connect_iterate \
+	elem_eval_test \
+	spatial_locator_test \
+	test_boundbox
 
 if HDF5_FILE
   TESTS += mbfacet_test \
         gttool_test \
         cropvol_test \
+        mergemesh_test \
         mbground_test
 endif
 
@@ -70,6 +76,7 @@ MOSTLYCLEANFILES = mb_write.g \
                    tri_mid_edge_face_nodes.g \
                    mb_stress_out.g \
                    merge_test.g \
+                   mm_out.h5m \
                    tree.h5m 
 
 # Tests and such
@@ -87,6 +94,7 @@ homxform_test_SOURCES = $(top_srcdir)/src/HomXform.cpp
 homxform_test_CPPFLAGS = -DTEST $(AM_CPPFLAGS) $(CPPFLAGS)
 
 scdseq_test_SOURCES = scdseq_test.cpp
+scd_test_partn_SOURCES = scd_test_partn.cpp
 #scdseq_timing_SOURCES = scdseq_timing.cpp
 #merge_test_SOURCES = merge_test.cpp
 #test_exo_SOURCES = test_exo.cpp
@@ -105,6 +113,7 @@ kd_tree_time_SOURCES = kd_tree_time.cpp
 kd_tree_test_SOURCES = kd_tree_test.cpp
 bsp_tree_test_SOURCES = bsp_tree_test.cpp
 reorder_test_SOURCES = reorder_test.cpp
+elem_eval_test_SOURCES = elem_eval_test.cpp
 
 file_options_test_SOURCES = TestUtil.hpp $(top_srcdir)/src/FileOptions.cpp 
 file_options_test_CPPFLAGS = -DTEST $(AM_CPPFLAGS) $(CPPFLAGS)
@@ -115,6 +124,8 @@ var_len_test_no_template_SOURCES = $(var_len_test_SOURCES)
 var_len_test_no_template_CPPFLAGS = -UTEMPLATE_SPECIALIZATION $(AM_CPPFLAGS) $(CPPFLAGS)
 
 tag_test_SOURCES = TestUtil.hpp TagTest.cpp
+spatial_locator_test_SOURCES = TestUtil.hpp spatial_locator_test.cpp
+mergemesh_test_SOURCES = mergemesh_test.cpp
 
 mbcn_test_SOURCES = $(top_srcdir)/src/moab/CN.hpp \
                     $(top_srcdir)/src/CN.cpp \
@@ -134,6 +145,8 @@ kd_tree_test_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS)
 
 coords_connect_iterate_SOURCES = coords_connect_iterate.cpp
 coords_connect_iterate_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS)
+
+test_boundbox_SOURCES = test_boundbox.cpp
 
 if PARALLEL
 moab_test_CPPFLAGS += -I$(top_srcdir)/src/parallel

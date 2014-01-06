@@ -22,9 +22,16 @@
  * together to describe geometric topology, boundary condition, and inter-processor interface 
  * groupings in a mesh.
  *
- * MOAB's API is documented in the moab::Interface class.  The User's Guide is located in
- * <a href="pages.html">related pages</a>.  Questions and comments should be sent to moab-dev 
+ * MOAB's API is documented in the moab::Interface class.  Questions and comments should be sent to moab-dev
  * _at_ mcs.anl.gov.
+ *
+ * \ref userguide "User's Guide (MOAB 4.6)"
+ *
+ * \ref developerguide "Developer's Guide (MOAB 4.6)"
+ *
+ * \ref metadata "I/O and Meta-Data Storage Conventions in MOAB"
+ *
+ * <a href="pages.html">Full List of Documents</a>
  */
 
 #ifndef MOAB_INTERFACE_HPP
@@ -502,14 +509,14 @@ public:
   virtual ErrorCode  get_connectivity(const EntityHandle *entity_handles, 
                                         const int num_handles,
                                         Range &connectivity, 
-                                        bool topological_connectivity = false) const =0;
+                                        bool corners_only = false) const =0;
 
     //! Gets the connectivity for elements
     /** Same as vector-based version except range is returned (unordered!)
     */
   virtual ErrorCode get_connectivity( const Range& entity_handles, 
                                         Range &connectivity, 
-                                        bool topological_connectivity = false) const =0;
+                                        bool corners_only = false) const =0;
  
     //! Gets the connectivity for a vector of elements
     /** Corner vertices or all vertices (including higher-order nodes, if any) are returned.
@@ -520,14 +527,14 @@ public:
         \param entity_handles Vector of element handles to get connectivity of.
         \param num_handles Number of entity handles in <em>entity_handles</em>
         \param connectivity Vector in which connectivity of <em>entity_handles</em> is returned.  
-        \param topological_connectivity If true, higher order nodes are ignored. 
+        \param corners_only If true, returns only corner vertices, otherwise returns all of them (including any higher-order vertices)
         \param offsets If non-NULL, offsets->[i] stores the index of the start of entity i's connectivity,
                 with the last value in offsets one beyond the last entry
     */
   virtual ErrorCode  get_connectivity(const EntityHandle *entity_handles, 
                                       const int num_handles,
                                       std::vector<EntityHandle> &connectivity, 
-                                      bool topological_connectivity = false,
+                                      bool corners_only = false,
                                       std::vector<int> *offsets = NULL) const =0;
  
     //! Gets a pointer to constant connectivity data of <em>entity_handle</em> 
@@ -554,8 +561,7 @@ public:
         \param entity_handle EntityHandle to get connectivity of.
         \param connectivity Array in which connectivity of <em>entity_handle</em> is returned.
         \param num_nodes Number of MeshVertices in array <em>connectivity</em>. 
-        \param topological_connectivity If true, num_nodes will be set to number of corner vertices
-        for that element type.
+        \param corners_only If true, returns only corner vertices, otherwise returns all of them (including any higher-order vertices)
         \param storage Some elements (e.g. structured mesh) may not have an
                        explicit connectivity list.  This function will normally
                        return MB_NOT_IMPLEMENTED for such elements.  However,
@@ -567,7 +573,7 @@ public:
   virtual ErrorCode  get_connectivity(const EntityHandle entity_handle, 
                                         const EntityHandle *&connectivity, 
                                         int &num_nodes, 
-                                        bool topological_connectivity = false,
+                                        bool corners_only = false,
                                         std::vector<EntityHandle>* storage = 0
                                         ) const =0;
 

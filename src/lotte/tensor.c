@@ -1,4 +1,4 @@
-#include "types.h"
+#include "moab/FindPtFuncs.h"
 
 /*--------------------------------------------------------------------------
    Matrix-Matrix Multiplication

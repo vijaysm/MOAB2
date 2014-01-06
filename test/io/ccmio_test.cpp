@@ -2,7 +2,7 @@
 #include "moab/Core.hpp"
 #define IS_BUILDING_MB
 #include "moab/Range.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 
 using namespace moab;
 

@@ -7,20 +7,27 @@ include ${MOAB_DIR}/lib/iMesh-Defs.inc
 # MESH_DIR is the top-level MOAB source directory, used to locate mesh files that come with MOAB source
 MESH_DIR="../MeshFiles/unittest"
 
-StructuredMeshSimple : StructuredMeshSimple.o
-	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
+EXAMPLES = HelloMOAB GetEntities SetsNTags StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles 
+PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation
+F90EXAMPLES = DirectAccessNoHolesF90 PushParMeshIntoMoabF90
+EXOIIEXAMPLES = TestExodusII
+
+default: ${EXAMPLES}
 
 HelloMOAB : HelloMOAB.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-ReduceExchangeTags : ReduceExchangeTags.o
+GetEntities: GetEntities.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-HelloMoabPar: HelloMoabPar.o
+SetsNTags: SetsNTags.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+LloydRelaxation: LloydRelaxation.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+StructuredMeshSimple : StructuredMeshSimple.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
-
-TestExodusII: TestExodusII.o
-	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 DirectAccessWithHoles: DirectAccessWithHoles.o
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
@@ -31,9 +38,27 @@ DirectAccessNoHoles: DirectAccessNoHoles.o
 DirectAccessNoHolesF90: DirectAccessNoHolesF90.o
 	${MOAB_CXX} -o $@ $< ${IMESH_LIBS}
 
-.cpp.o :
-	${MOAB_CXX} ${MOAB_CXXFLAGS} ${MOAB_INCLUDES} -DMESH_DIR=\"${MESH_DIR}\" -c $<
+ReduceExchangeTags : ReduceExchangeTags.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-.F90.o :
-	${IMESH_FC} ${IMESH_FCFLAGS} ${IMESH_INCLUDES} ${IMESH_FCDEFS} -DMESH_DIR=\"${MESH_DIR}\" -c $<
+HelloParMOAB: HelloParMOAB.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
+
+TestExodusII: TestExodusII.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+point_in_elem_search: point_in_elem_search.o
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+PushParMeshIntoMoabF90: PushParMeshIntoMoabF90.o
+	${MOAB_CXX} -o $@ $< ${IMESH_LIBS} -lgfortran -L/usr/lib/openmpi/lib -lmpi_f90 -lmpi_f77 -lmpi -lopen-rte -lopen-pal -ldl 
+
+clean:
+	rm -rf *.o ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES}
+
+.cpp.o :
+	${MOAB_CXX} ${CXXFLAGS} ${MOAB_CXXFLAGS} ${MOAB_CPPFLAGS} ${MOAB_INCLUDES} -DMESH_DIR=\"${MESH_DIR}\" -c $<
+
+ .F90.o :
+	${IMESH_FC} ${FCFLAGS} ${IMESH_FCFLAGS} ${MOAB_CPPFLAGS} ${IMESH_INCLUDES} ${IMESH_FCDEFS} -DMESH_DIR=\"${MESH_DIR}\" -c $<
 

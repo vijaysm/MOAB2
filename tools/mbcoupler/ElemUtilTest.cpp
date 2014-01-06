@@ -23,14 +23,14 @@ const CartVect cube_corners[8] = { CartVect( 0, 0, 0 ),
                                      CartVect( 0, 1, 1 ) };
                                     
 
-const CartVect hex_corners[8] = { CartVect( 1.0, 0.0, 0.0 ),
-                                    CartVect( 1.0, 1.0, 0.3 ),
-                                    CartVect( 0.0, 2.0, 0.6 ),
-                                    CartVect( 0.2, 1.1, 0.4 ),
-                                    CartVect( 1.5, 0.3, 1.0 ),
-                                    CartVect( 1.5, 1.3, 1.0 ),
-                                    CartVect( 0.5, 2.3, 1.0 ),
-                                    CartVect( 0.7, 1.4, 1.0 ) };
+const CartVect hex_corners[8] = { CartVect( 1.0e0, 0.0e0, 0.0e0 ),
+                                    CartVect( 1.0e0, 1.0e0, 0.3e0 ),
+                                    CartVect( 0.0e0, 2.0e0, 0.6e0 ),
+                                    CartVect( 0.2e0, 1.1e0, 0.4e0 ),
+                                    CartVect( 1.5e0, 0.3e0, 1.0e0 ),
+                                    CartVect( 1.5e0, 1.3e0, 1.0e0 ),
+                                    CartVect( 0.5e0, 2.3e0, 1.0e0 ),
+                                    CartVect( 0.7e0, 1.4e0, 1.0e0 ) };
 
 /** shape function for trilinear hex */
 CartVect hex_map( const CartVect& xi, const CartVect* corners )
@@ -73,11 +73,16 @@ void test_hex_nat_coords()
   const double EPS1 = 1e-6;
   
     // first test with cube because it's easier to debug failures
+  std::vector<CartVect> cube_corners2;
+  std::copy(cube_corners, cube_corners+8, std::back_inserter(cube_corners2));
+  Element::LinearHex hex(cube_corners2);
   for (xi[0] = -1; xi[0] <= 1; xi[0] += 0.2) {
     for (xi[1] = -1; xi[1] <= 1; xi[1] += 0.2) {
       for (xi[2] = -1; xi[2] <= 1; xi[2] += 0.2) {
         const CartVect pt = hex_map(xi, cube_corners);
-        valid = ElemUtil::nat_coords_trilinear_hex( cube_corners, pt, result_xi, EPS/10 );
+        result_xi = hex.ievaluate(pt, EPS1/10);
+        double dum = EPS1/10;
+        valid = hex.inside_nat_space(result_xi, dum);
         CHECK(valid);
         CHECK_REAL_EQUAL( xi[0], result_xi[0], EPS1 );
         CHECK_REAL_EQUAL( xi[1], result_xi[1], EPS1 );
@@ -87,11 +92,19 @@ void test_hex_nat_coords()
   }
   
     // now test with distorted hex
+  std::vector<CartVect> hex_corners2;
+  std::copy(hex_corners, hex_corners+8, std::back_inserter(hex_corners2));
+  Element::LinearHex hex2(hex_corners2);
   for (xi[0] = -1; xi[0] <= 1; xi[0] += 0.2) {
     for (xi[1] = -1; xi[1] <= 1; xi[1] += 0.2) {
       for (xi[2] = -1; xi[2] <= 1; xi[2] += 0.2) {
         const CartVect pt = hex_map(xi, hex_corners);
-        valid = ElemUtil::nat_coords_trilinear_hex( hex_corners, pt, result_xi, EPS/10 );
+        result_xi = hex2.ievaluate(pt, EPS1/10);
+        double dum = EPS1/10;
+        valid = hex2.inside_nat_space(result_xi, dum);
+        if (!valid) {
+          double d1 = 0;
+        }
         CHECK(valid);
         CHECK_REAL_EQUAL( xi[0], result_xi[0], EPS1 );
         CHECK_REAL_EQUAL( xi[1], result_xi[1], EPS1 );
@@ -111,7 +124,10 @@ void test_hex_nat_coords()
                    && x[2] >= min[2] && x[2] <= max[2];
         if (in_box)
           continue;
-        valid = ElemUtil::nat_coords_trilinear_hex( cube_corners, x, result_xi, EPS/10 );
+        result_xi = hex.ievaluate(x, EPS1/10);
+        double dum = EPS1/10;
+        valid = hex.inside_nat_space(result_xi, dum);
+        
 //std::cout << (valid ? 'y' : 'n');
         CHECK(!valid || !in_range(result_xi));
       }
@@ -128,7 +144,12 @@ void test_hex_nat_coords()
                    && x[2] >= min[2] && x[2] <= max[2];
         if (in_box)
           continue;
-        valid = ElemUtil::nat_coords_trilinear_hex( hex_corners, x, result_xi, EPS1/10 );
+        try {
+          result_xi = hex2.ievaluate(x, EPS1/10);
+        }
+        catch (Element::Map::EvaluationError err) {
+          valid = false;
+        }
 //std::cout << (valid ? 'y' : 'n');
         CHECK(!valid || !in_range(result_xi));
       }

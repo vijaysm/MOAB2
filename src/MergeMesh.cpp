@@ -61,7 +61,7 @@ moab::ErrorCode MergeMesh::merge_entities(moab::Range &elems,
   // get the skin of the entities
   moab::Skinner skinner(mbImpl);
   moab::Range skin_range;
-  moab::ErrorCode result = skinner.find_skin(elems, 0, skin_range);
+  moab::ErrorCode result = skinner.find_skin(0, elems, 0, skin_range, false, false);
   if (moab::MB_SUCCESS != result) return result;
 
   // create a tag to mark merged-to entity; reuse tree_root
@@ -76,12 +76,12 @@ moab::ErrorCode MergeMesh::merge_entities(moab::Range &elems,
   else mbMergeTag = merge_tag;
   
   // build a kd tree with the vertices
-  moab::AdaptiveKDTree kd(mbImpl, true);
-  result = kd.build_tree(skin_range, tree_root);
+  moab::AdaptiveKDTree kd(mbImpl);
+  result = kd.build_tree(skin_range, &tree_root);
   if (moab::MB_SUCCESS != result) return result;
 
   // find matching vertices, mark them
-  result = find_merged_to(tree_root, mbMergeTag);
+  result = find_merged_to(tree_root, kd, mbMergeTag);
   if (moab::MB_SUCCESS != result) return result;
 
   // merge them if requested
@@ -125,10 +125,10 @@ moab::ErrorCode MergeMesh::perform_merge(moab::Tag merge_tag)
 }
 
 moab::ErrorCode MergeMesh::find_merged_to(moab::EntityHandle &tree_root, 
+                                          moab::AdaptiveKDTree &tree,
 					  moab::Tag merge_tag) 
 {
   moab::AdaptiveKDTreeIter iter;
-  moab::AdaptiveKDTree tree(mbImpl);
   
   // evaluate vertices in this leaf
   moab::Range leaf_range, leaf_range2;
@@ -170,8 +170,8 @@ moab::ErrorCode MergeMesh::find_merged_to(moab::EntityHandle &tree_root,
 
       // check close-by leaves too
       leaves_out.clear();
-      result = tree.leaves_within_distance(tree_root, from.array(), mergeTol,
-                                           leaves_out);
+      result = tree.distance_search(from.array(), mergeTol,
+                                    leaves_out, 0.0, NULL, NULL, &tree_root);
       leaf_range2.clear();
       for (std::vector<moab::EntityHandle>::iterator vit = leaves_out.begin();
            vit != leaves_out.end(); vit++) {
@@ -232,16 +232,16 @@ moab::ErrorCode MergeMesh::merge_higher_dimensions(moab::Range &elems)
   for(int dim = 1; dim <3; dim++){
     skinEnts.clear();
     moreDeadEnts.clear();
-    result = skinner.find_skin(elems, dim, skinEnts);
+    result = skinner.find_skin(0, elems, dim, skinEnts, false, false);
     //Go through each skin entity and see if it shares adjacancies with another entity
     for(moab::Range::iterator skinIt = skinEnts.begin(); skinIt != skinEnts.end(); skinIt++){
       adj.clear();
       //Get the adjacencies 1 dimension lower
-      result = mbImpl->get_adjacencies(&(*skinIt), 1, dim-1, true, adj);
+      result = mbImpl->get_adjacencies(&(*skinIt), 1, dim-1, false, adj);
       if(result != moab::MB_SUCCESS) return result;
       //See what other entities share these adjacencies
       matches.clear();
-      result = mbImpl->get_adjacencies(adj, dim, true, matches, moab::Interface::INTERSECT);
+      result = mbImpl->get_adjacencies(adj, dim, false, matches, moab::Interface::INTERSECT);
       if(result != moab::MB_SUCCESS) return result;
       //If there is more than one entity, then we have some to merge and erase
       if(matches.size() > 1){
