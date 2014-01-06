@@ -34,7 +34,6 @@ namespace moab {
 
 // forward declarations
 class ParallelComm;
-class AdaptiveKDTree;
 class TupleList;
 
 class Intx2Mesh
@@ -68,7 +67,7 @@ public:
   ErrorCode GetOrderedNeighbors(EntityHandle set, EntityHandle quad,
       EntityHandle neighbors[MAXEDGES]);
 
-  void SetErrorTolerance(double eps) { epsilon_1=eps;}
+  void SetErrorTolerance(double eps) { epsilon_1=eps; epsilon_area = eps*eps/2;}
 
   //void SetEntityType (EntityType tp) { type=tp;}
 
@@ -97,7 +96,8 @@ public:
 
   ErrorCode correct_intersection_points_positions();
 
-  void enable_debug() {dbg_1=1;};
+  void enable_debug()  {dbg_1 = 1;}
+  void disable_debug() {dbg_1 = 0;}
 protected: // so it can be accessed in derived classes, InPlane and OnSphere
   Interface * mb;
 
@@ -139,10 +139,10 @@ protected: // so it can be accessed in derived classes, InPlane and OnSphere
   std::vector<std::vector<EntityHandle> *> extraNodesVec;
 
   double epsilon_1;
+  double epsilon_area;
 
   ParallelComm * parcomm;
 
-  AdaptiveKDTree *myTree;
   std::vector<double> allBoxes;
   double box_error;
   /* \brief Local root of the kdtree */

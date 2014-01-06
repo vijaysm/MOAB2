@@ -124,7 +124,7 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
     return 1; // some unforeseen error
 
   int side[MAXEDGES] = { 0 };// this refers to what side? blue or red?
-  int extraPoints = borderPointsOfXinY2(blueCoords2D, nsBlue, redCoords2D, nsRed, &(P[2 * nP]), side);
+  int extraPoints = borderPointsOfXinY2(blueCoords2D, nsBlue, redCoords2D, nsRed, &(P[2 * nP]), side, epsilon_area);
   if (extraPoints >= 1)
   {
     for (int k = 0; k < nsBlue; k++)
@@ -144,7 +144,7 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
   }
   nP += extraPoints;
 
-  extraPoints = borderPointsOfXinY2(redCoords2D, nsRed, blueCoords2D, nsBlue, &(P[2 * nP]), side);
+  extraPoints = borderPointsOfXinY2(redCoords2D, nsRed, blueCoords2D, nsBlue, &(P[2 * nP]), side, epsilon_area);
   if (extraPoints >= 1)
   {
     for (int k = 0; k < nsRed; k++)
@@ -370,10 +370,11 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, int nsRed, EntityHandle blue,
 
       std::stringstream fff;
       fff << "file0" <<  count<< ".vtk";
-          mb->write_mesh(fff.str().c_str(), &outSet, 1);
+         mb->write_mesh(fff.str().c_str(), &outSet, 1);
     }
 
   }
+  disable_debug();
   delete[] foundIds;
   foundIds = NULL;
   return 0;

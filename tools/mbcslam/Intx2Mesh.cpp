@@ -18,7 +18,7 @@
 
 namespace moab {
 
-Intx2Mesh::Intx2Mesh(Interface * mbimpl):mb(mbimpl), parcomm(NULL), myTree(NULL), remote_cells(NULL)
+Intx2Mesh::Intx2Mesh(Interface * mbimpl): mb(mbimpl), parcomm(NULL), remote_cells(NULL)
 {
   dbg_1=0;
   box_error=0;

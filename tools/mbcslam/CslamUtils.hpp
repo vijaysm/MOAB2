@@ -21,7 +21,7 @@ namespace moab
 {
 double dist2(double * a, double * b);
 double area2D(double *a, double *b, double *c);
-int borderPointsOfXinY2(double * X, int nX, double * Y, int nY, double * P, int side[MAXEDGES]);
+int borderPointsOfXinY2(double * X, int nX, double * Y, int nY, double * P, int side[MAXEDGES], double epsilon_area);
 int SortAndRemoveDoubles2(double * P, int & nP, double epsilon);
 // the marks will show what edges of blue intersect the red
 
