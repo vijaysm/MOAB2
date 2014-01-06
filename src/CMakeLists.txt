@@ -11,9 +11,15 @@ endif()
 #create the FCDefs.h and src/MOAB_FCDefs.h files
 configure_file(FCDefs.h.in "${CMAKE_CURRENT_BINARY_DIR}/FCDefs.h" @ONLY)
 #sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h
-FILE(READ ${CMAKE_BINARY_DIR}/src/FCDefs.h infile)
+FILE(READ ${CMAKE_CURRENT_BINARY_DIR}/FCDefs.h infile)
 STRING( REGEX REPLACE "FC_FUNC" "MOAB_FC_FUNC" outstring "${infile}" )
 FILE(WRITE "${CMAKE_CURRENT_BINARY_DIR}/MOAB_FCDefs.h" "${outstring}")
+
+#Create the moab/EntityHandle.hpp file
+FILE(READ ${CMAKE_CURRENT_SOURCE_DIR}/moab/EntityHandle.hpp.in infile2)
+STRING( REGEX REPLACE "#undef" "#cmakedefine" outstring2 "${infile2}" )
+FILE(WRITE "${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp.in" "${outstring2}")
+CONFIGURE_FILE(${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp)
 
 add_subdirectory(io)
 add_subdirectory(LocalDiscretization)
@@ -125,7 +131,7 @@ set( MOAB_INSTALL_HEADERS
         moab/HomXform.hpp
         moab/EigenDecomp.hpp
         moab/EntityType.hpp
-        moab/EntityHandle.hpp
+        ${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp
         moab/FBEngine.hpp
         moab/FileOptions.hpp
         moab/FindPtFuncs.h
