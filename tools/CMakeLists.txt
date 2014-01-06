@@ -24,7 +24,7 @@ endif ( )
 
 include_directories(
   #${CMAKE_BINARY_DIR}
-  #${CMAKE_BINARY_DIR}/src
+  ${CMAKE_BINARY_DIR}/src
   #${CMAKE_BINARY_DIR}/src/parallel
   ${CMAKE_SOURCE_DIR}/src
   ${CMAKE_SOURCE_DIR}/src/parallel
