@@ -16,7 +16,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
- void update_tracer( iMesh_Instance instance,  iBase_EntitySetHandle * opEulerSet, int * ierr);
+ void update_tracer( iMesh_Instance instance,  iBase_EntitySetHandle eulerSet, int * ierr);
 
 #ifdef __cplusplus
 } // extern "C"
@@ -71,7 +71,23 @@ int main(int argc, char* argv[]){
   printf("There's %d entity sets here on process rank %d \n", num_sets, rank);
 
   iBase_EntitySetHandle euler_set;
-  update_tracer( imesh, &euler_set, &ierr);
+
+  iMesh_createEntSet(imesh, 0, &euler_set, &ierr);
+  IMESH_ASSERT(ierr);
+
+  iBase_EntityHandle *cells = NULL;
+  int ents_alloc = 0;
+  int ents_size = 0;
+
+  iMesh_getEntities(imesh, root, iBase_FACE, iMesh_ALL_TOPOLOGIES, &cells,
+      &ents_alloc, &ents_size, &ierr);
+  IMESH_ASSERT(ierr);
+
+  iMesh_addEntArrToSet(imesh, cells, ents_size, euler_set, &ierr);
+
+  IMESH_ASSERT(ierr);
+
+  update_tracer( imesh, euler_set, &ierr);
   IMESH_ASSERT(ierr);
 
   // write everything

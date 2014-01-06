@@ -23,25 +23,14 @@ bool debug = false;
 extern "C" {
 #endif
 
-void update_tracer( iMesh_Instance instance, iBase_EntitySetHandle * opEulerSet, int * ierr)
+void update_tracer( iMesh_Instance instance, iBase_EntitySetHandle imesh_euler_set, int * ierr)
 {
   Range ents;
   moab::Interface * mb =MOABI;
   *ierr =1;
-  ErrorCode rval = mb->get_entities_by_dimension(0, 2, ents);// root 0
 
-  ERRORV(rval,  "can't get all 2d entities from root");
 
-  EntityHandle euler_set;
-  //EntityHandle lagr_set;
-
-  rval = mb->create_meshset(MESHSET_SET, euler_set);
-  ERRORV(rval , "can't create arrival mesh set");
-
-  *opEulerSet = (iBase_EntitySetHandle)euler_set;
-
-  rval = mb->add_entities(euler_set, ents);
-  ERRORV(rval , "can't add ents to arrival set");
+  EntityHandle euler_set = (EntityHandle) imesh_euler_set;
 
   Intx2MeshOnSphere worker(mb);
   worker.SetRadius(radius);
@@ -49,7 +38,8 @@ void update_tracer( iMesh_Instance instance, iBase_EntitySetHandle * opEulerSet,
   worker.SetErrorTolerance(gtol);
 
   EntityHandle covering_lagr_set;
-  rval = mb->create_meshset(MESHSET_SET, covering_lagr_set);
+
+  ErrorCode rval = mb->create_meshset(MESHSET_SET, covering_lagr_set);
   ERRORV(rval , "can't create covering set ");
 
   // we need to update the correlation tag and remote tuples
