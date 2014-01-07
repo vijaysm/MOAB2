@@ -31,6 +31,7 @@ static const char input_cube[] = "cube.sat";
 #endif
 #endif
 
+
 void read_cube_test()
 {
   Core mb;
