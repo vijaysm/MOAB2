@@ -200,6 +200,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/Types.hpp \
   moab/UnknownInterface.hpp \
   moab/Util.hpp \
+  moab/Version.h \
   moab/WriteUtilIface.hpp \
   moab/WriterIface.hpp \
   MBEntityType.h \
