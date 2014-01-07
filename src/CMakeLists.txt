@@ -2,7 +2,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_CURRENT_BINARY_DIR}
                     parallel
                     LocalDiscretization
-                    io )
+                    io io/mhdf )
 
 if(MOAB_USE_MPI AND MPI_FOUND)
   add_subdirectory(parallel)
@@ -25,7 +25,7 @@ configure_file(${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp.in ${CMAKE_CURR
 #generate the Version.h file
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/moab/Version.h.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/moab/Version.h" @ONLY)
 
-
+set(moab_link_lib)
 add_subdirectory(io)
 add_subdirectory(LocalDiscretization)
 add_subdirectory(oldinc)
@@ -192,10 +192,10 @@ if (MBZOLTAN_ENABLE AND ZOLTAN_FOUND)
   set( MOAB_INSTALL_HEADERS ${MOAB_INSTALL_HEADERS}
           ${CMAKE_SOURCE_DIR}/tools/mbzoltan/MBZoltan.hpp )
 endif()
-
-add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} )
-target_link_libraries( MOAB PRIVATE moabio moab_loc_discr )
-target_link_libraries( MOAB PUBLIC ${MOAB_MPI} ${MOAB_CGM_LIBS} )
+add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} $<TARGET_OBJECTS:moabio> )
+target_link_libraries( MOAB PRIVATE moab_loc_discr )
+message("here: ${MOAB_LIBS}")
+target_link_libraries( MOAB PUBLIC ${MOAB_MPI} ${MOAB_LIBS} ${MOAB_CGM_LIBS} )
 set_target_properties( MOAB PROPERTIES COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}")
 
 install(TARGETS MOAB EXPORT MOABTargets

@@ -1,4 +1,4 @@
-cmake_minimum_required( VERSION 2.8.10 )
+cmake_minimum_required( VERSION 2.8.12 )
 cmake_policy( SET CMP0003 NEW )
 cmake_policy(SET CMP0020 NEW)
 project( MOAB )
@@ -55,6 +55,7 @@ include ( CheckTypeSize )
 
 # Compiler defines... this should really be in a config file.
 set( MOAB_DEFINES "" )
+set( MOAB_LIBS )
 set( MOAB_INSTALL_TARGETS )
 
 ################################################################################
@@ -63,6 +64,7 @@ set( MOAB_INSTALL_TARGETS )
 option ( BUILD_SHARED_LIBS   "Should shared or static libraries be created?"   ON  )
 option ( MOAB_USE_SZIP       "Should build with szip support?"                 OFF )
 option ( MOAB_USE_CGM        "Should build with CGM support?"                  OFF )
+option ( MOAB_USE_CGNS       "Should build with CGNS support?"                 OFF )
 option ( MOAB_USE_MPI        "Should MOAB be compiled with MPI support?"       OFF )
 option ( MOAB_USE_HDF        "Include HDF I/O in the build?"                   OFF )
 option ( MOAB_USE_NETCDF     "Include NetCDF support (ExodusII) in the build?" OFF )
@@ -139,10 +141,16 @@ endif ( MOAB_USE_MPI )
 
 if ( MOAB_USE_NETCDF )
   find_package( NetCDF REQUIRED )
+  set( MOAB_DEFINES "-DNETCDF_FILE ${MOAB_DEFINES}" )
+  include_directories( ${NetCDF_INCLUDE_DIRECTORIES} )
+  set( MOAB_LIBS ${MOAB_LIBS} ${NetCDF_LIBRARIES} )
 endif ( MOAB_USE_NETCDF )
 
 if ( MOAB_USE_HDF )
   find_package( HDF5 REQUIRED )
+  set( MOAB_DEFINES "-DHDF5_FILE ${MOAB_DEFINES}" )
+  set( MOAB_LIBS ${MOAB_LIBS} ${HDF5_LIBRARIES} mhdf )
+  include_directories( ${HDF5_INCLUDE_DIR} src/io/mhdf/include )
 endif ( MOAB_USE_HDF )
 
 if ( MOAB_USE_ZLIB )
@@ -151,8 +159,12 @@ endif ( )
 
 if ( MOAB_USE_CGM )
    find_package( CGM REQUIRED )
-   set( MOAB_DEFINES "-DCGM ${MOAB_DEFINES}" )
+   set( MOAB_DEFINES "${CGM_DEFINES} -DCGM ${MOAB_DEFINES}" )
 endif ()
+
+if (MOAB_USE_CGNS)
+  set( MOABIO_LIBS ${MOABIO_LIBS} ${CGNS_LIBRARIES} )
+endif()
 
 ################################################################################
 # Add Directories
