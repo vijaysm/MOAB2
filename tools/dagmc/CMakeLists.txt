@@ -29,8 +29,12 @@ install(TARGETS dagmc_preproc RUNTIME DESTINATION bin
                               LIBRARY DESTINATION lib
                               ARCHIVE DESTINATION lib )
 
-add_executable( test_geom test_geom.cc )
-target_link_libraries( test_geom dagmc MOAB)
+if ( MOAB_ENABLE_TESTING )
+  add_executable( test_geom test_geom.cc )
+  set_target_properties( test_geom PROPERTIES COMPILE_FLAGS "${MOAB_DEFINES} -DTEST" )
+  target_link_libraries( test_geom dagmc MOAB)
+  add_test( test_geom ${EXECUTABLE_OUTPUT_PATH}/test_geom )
+endif()
 
 if ( MOAB_USE_CGM )
   target_link_libraries( dagmc ${CGM_LIBRARIES} )

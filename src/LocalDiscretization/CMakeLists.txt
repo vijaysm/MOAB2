@@ -10,12 +10,8 @@ set( MOAB_LOCALDSRC_Install_Headers moab/ElemEvaluator.hpp
 	                                  moab/LinearTet.hpp
                                     moab/QuadraticHex.hpp )
 
-add_library( moab_loc_discr STATIC
-                ${MOAB_LOC_DSCR_SRCS}
-                ${MOAB_LOCALDSRC_Install_Headers} )
-
-target_link_libraries( moab_loc_discr )
-
+add_library( moab_loc_discr OBJECT ${MOAB_LOC_DSCR_SRCS}
+                                   ${MOAB_LOCALDSRC_Install_Headers} )
 set_target_properties( moab_loc_discr 
                        PROPERTIES COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}")
 

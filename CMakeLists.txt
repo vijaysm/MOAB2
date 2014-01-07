@@ -149,7 +149,7 @@ endif ( MOAB_USE_NETCDF )
 if ( MOAB_USE_HDF )
   find_package( HDF5 REQUIRED )
   set( MOAB_DEFINES "-DHDF5_FILE ${MOAB_DEFINES}" )
-  set( MOAB_LIBS ${MOAB_LIBS} ${HDF5_LIBRARIES} mhdf )
+  set( MOAB_LIBS ${MOAB_LIBS} ${HDF5_LIBRARIES} )
   include_directories( ${HDF5_INCLUDE_DIR} src/io/mhdf/include )
 endif ( MOAB_USE_HDF )
 

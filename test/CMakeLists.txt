@@ -1,10 +1,16 @@
-add_subdirectory(io)
-
 include_directories(
     ${CMAKE_BINARY_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/io
     ${CMAKE_SOURCE_DIR}/src/parallel )
+
+add_subdirectory(io)
+add_subdirectory(dual)
+add_subdirectory(h5file)
+add_subdirectory(obb)
+add_subdirectory(oldinc)
+add_subdirectory(perf)
 
 set(TEST_COMP_FLAGS "-DMESHDIR=${CMAKE_SOURCE_DIR}/MeshFiles/unittest")
 
@@ -27,7 +33,7 @@ set( TESTS range_test.cpp
            coords_connect_iterate.cpp
            test_boundbox.cpp )
            
-if(MOAB_USE_HDF5)
+if(MOAB_USE_HDF)
   set( TESTS ${TESTS}
              mergemesh_test.cpp
              mbfacet_test.cpp
@@ -97,6 +103,21 @@ set_source_files_properties( ${CMAKE_SOURCE_DIR}/src/AffineXform.cpp
                              COMPILE_FLAGS "-DTEST ${MOAB_DEFINES}" )
 target_link_libraries( xform_test MOAB )
 add_test( xform_test ${EXECUTABLE_OUTPUT_PATH}/xform_test )
+
+#add imesh tests
+set( TESTS MOAB_iMesh_unit_tests.cpp
+           MOAB_iMesh_extensions_tests.cpp )
+if(MOAB_USE_MPI)
+    set(TESTS ${TESTS} MOAB_iMeshP_unit_tests.cpp )
+endif()
+foreach( fname ${TESTS} )
+    string( REPLACE ".cpp" "" tmp ${fname} )
+    string( REPLACE ".cc" "" base ${tmp} )
+    add_executable( ${base} ${CMAKE_SOURCE_DIR}/test/TestUtil.hpp ${CMAKE_SOURCE_DIR}/itaps/imesh/${fname})
+    set_target_properties( ${base} PROPERTIES COMPILE_FLAGS "-DSRCDIR=${CMAKE_SOURCE_DIR}/itaps/imesh/ -DMESHDIR=${CMAKE_SOURCE_DIR}/MeshFiles/unittest ${MOAB_DEFINES} -DTEST" )
+    target_link_libraries( ${base} MOAB iMesh)
+    add_test( ${base} ${EXECUTABLE_OUTPUT_PATH}/${base} )
+endforeach()
 
 if ( MOAB_USE_MPI AND MPI_FOUND )
 

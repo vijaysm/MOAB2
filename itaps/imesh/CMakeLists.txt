@@ -30,7 +30,8 @@ set ( MOAB_IMESH_LIB_INCLUDES
           ${CMAKE_CURRENT_BINARY_DIR}/iMesh_protos.h
           MBiMesh.hpp )
 
-if ( MOAB_USE_MPI AND MPI_FOUND )
+if ( MOAB_USE_MPI )
+  include_directories( ${CMAKE_SOURCE_DIR}/src/parallel )
   ADD_CUSTOM_COMMAND(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/iMeshP_protos.h
     COMMAND ${CMAKE_COMMAND}
@@ -46,7 +47,6 @@ if ( MOAB_USE_MPI AND MPI_FOUND )
   set(MOAB_IMESH_LIB_INCLUDES
           ${MOAB_IMESH_LIB_INCLUDES}
           ${CMAKE_CURRENT_BINARY_DIR}/iMeshP_protos.h )
-  include_directories( ${CMAKE_SOURCE_DIR}/src/parallel )
 endif()
 
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}

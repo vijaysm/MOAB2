@@ -192,10 +192,11 @@ if (MBZOLTAN_ENABLE AND ZOLTAN_FOUND)
   set( MOAB_INSTALL_HEADERS ${MOAB_INSTALL_HEADERS}
           ${CMAKE_SOURCE_DIR}/tools/mbzoltan/MBZoltan.hpp )
 endif()
-add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} $<TARGET_OBJECTS:moabio> )
-target_link_libraries( MOAB PRIVATE moab_loc_discr )
-message("here: ${MOAB_LIBS}")
-target_link_libraries( MOAB PUBLIC ${MOAB_MPI} ${MOAB_LIBS} ${MOAB_CGM_LIBS} )
+add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS}
+                  $<TARGET_OBJECTS:moabio> 
+                  $<TARGET_OBJECTS:moab_loc_discr> 
+                  ${MDHF_OBJ} )
+target_link_libraries( MOAB ${MOAB_MPI} ${MOAB_LIBS} ${MOAB_CGM_LIBS} )
 set_target_properties( MOAB PROPERTIES COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}")
 
 install(TARGETS MOAB EXPORT MOABTargets
