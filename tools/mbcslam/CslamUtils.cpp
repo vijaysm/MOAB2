@@ -30,7 +30,7 @@ double area2D(double *a, double *b, double *c)
   // (b-a)x(c-a) / 2
   return ((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2;
 }
-int borderPointsOfXinY2(double * X, int nX, double * Y, int nY, double * P, int side[MAXEDGES])
+int borderPointsOfXinY2(double * X, int nX, double * Y, int nY, double * P, int side[MAXEDGES], double epsilon_area)
 {
   // 2 triangles, 3 corners, is the corner of X in Y?
   // Y must have a positive area
@@ -54,7 +54,7 @@ int borderPointsOfXinY2(double * X, int nX, double * Y, int nY, double * P, int 
 
       double area2 = (B[0] - A[0]) * (C[1] - A[1])
           - (C[0] - A[0]) * (B[1] - A[1]);
-      if (area2 < 0.)
+      if (area2 < -epsilon_area)
       {
         inside = 0;
         break;

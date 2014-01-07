@@ -106,7 +106,7 @@ int Intx2MeshInPlane::computeIntersectionBetweenRedAndBlue(EntityHandle red, Ent
   }
 
   int side[MAXEDGES] = { 0 };// this refers to what side? blue or red?
-  int extraPoints = borderPointsOfXinY2(blueCoords2D, nsBlue, redCoords2D, nsRed, &(P[2 * nP]), side);
+  int extraPoints = borderPointsOfXinY2(blueCoords2D, nsBlue, redCoords2D, nsRed, &(P[2 * nP]), side, epsilon_area);
   if (extraPoints >= 1)
   {
     for (int k = 0; k < nsBlue; k++)
@@ -133,7 +133,7 @@ int Intx2MeshInPlane::computeIntersectionBetweenRedAndBlue(EntityHandle red, Ent
   }
   nP += extraPoints;
 
-  extraPoints = borderPointsOfXinY2(redCoords2D, nsRed, blueCoords2D, nsBlue, &(P[2 * nP]), side);
+  extraPoints = borderPointsOfXinY2(redCoords2D, nsRed, blueCoords2D, nsBlue, &(P[2 * nP]), side, epsilon_area);
   if (extraPoints >= 1)
   {
     for (int k = 0; k < nsRed; k++)
