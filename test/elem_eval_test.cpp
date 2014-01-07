@@ -7,6 +7,8 @@
 #include "moab/Core.hpp"
 #include "moab/ReadUtilIface.hpp"
 #include "moab/ElemEvaluator.hpp"
+#include "moab/LinearTri.hpp"
+#include "moab/LinearQuad.hpp"
 #include "moab/LinearHex.hpp"
 #include "moab/LinearTet.hpp"
 #include "moab/QuadraticHex.hpp"
@@ -21,6 +23,8 @@ std::string TestDir(".");
 
 using namespace moab;
 
+void test_linear_tri();
+void test_linear_quad();
 void test_linear_hex();
 void test_linear_tet();
 void test_quadratic_hex();
@@ -49,6 +53,7 @@ void test_eval(ElemEvaluator &ee, bool test_integrate)
   bool is_inside;
   Matrix3 jacob;
   ErrorCode rval;
+  int ent_dim = ee.get_moab()->dimension_from_handle(ee.get_ent_handle());
   
   for (params[0] = -1; params[0] <= 1; params[0] += 0.2) {
     for (params[1] = -1; params[1] <= 1; params[1] += 0.2) {
@@ -58,10 +63,12 @@ void test_eval(ElemEvaluator &ee, bool test_integrate)
         if (!ee.inside(params.array(), EPS1)) continue;
         
         rval = ee.eval(params.array(), posn.array()); CHECK_ERR(rval);
-        rval = ee.reverse_eval(posn.array(), EPS1, params2.array(), &is_inside); CHECK_ERR(rval);
-        if ((params - params2).length() > 3*EPS1) 
-          std::cerr << params << std::endl;
-        CHECK_REAL_EQUAL(0.0, (params - params2).length(), 3*EPS1);
+        rval = ee.reverse_eval(posn.array(), EPS1, EPS1, params2.array(), &is_inside); CHECK_ERR(rval);
+        CHECK_REAL_EQUAL(0.0, params[0] - params2[0], 3*EPS1);
+        if (ent_dim > 1)
+          CHECK_REAL_EQUAL(0.0, params[1] - params2[1], 3*EPS1);
+        if (ent_dim > 2)
+          CHECK_REAL_EQUAL(0.0, params[2] - params2[2], 3*EPS1);
 
           // jacobian should be >= 0
         rval = ee.jacobian(params.array(), jacob.array()); CHECK_ERR(rval);
@@ -73,16 +80,29 @@ void test_eval(ElemEvaluator &ee, bool test_integrate)
 
   if (!test_integrate) return;
   
-    // tag equal to coordinates should integrate to avg position, since volume is 1
+    // tag equal to coordinates should integrate to avg position, test that
   Tag tag;
     // make a temporary tag and set it on vertices to the vertex positions
   rval = ee.get_moab()->tag_get_handle(NULL, 3, MB_TYPE_DOUBLE, tag, MB_TAG_DENSE | MB_TAG_CREAT); CHECK_ERR(rval);
-  rval = ee.get_moab()->tag_set_data(tag, ee.get_vert_handles(), ee.get_num_verts(), hex_verts[0].array()); CHECK_ERR(rval);
+  rval = ee.get_moab()->tag_set_data(tag, ee.get_vert_handles(), ee.get_num_verts(), ee.get_vert_pos()); CHECK_ERR(rval);
     // set that temporary tag on the evaluator so that's what gets integrated
   rval = ee.set_tag_handle(tag, 0); CHECK_ERR(rval);
 
-  CartVect integral, avg(0.0);
+  CartVect integral, avg;
   rval = ee.integrate(integral.array()); CHECK_ERR(rval);
+
+    // now integrate a const 1-valued function, using direct call to the integrate function
+  std::vector<double> one(ee.get_num_verts(), 1.0);
+  double measure;
+  EvalSet es;
+  EntityHandle eh = ee.get_ent_handle();
+  rval = EvalSet::get_eval_set(ee.get_moab(), eh, es); CHECK_ERR(rval);
+  rval = (*es.integrateFcn)(&one[0], ee.get_vert_pos(), ee.get_num_verts(), ee.get_moab()->dimension_from_handle(eh),
+                            1, ee.get_work_space(), &measure); CHECK_ERR(rval);
+  if (measure) integral /= measure;
+
+    // check against avg of entity's vertices' positions
+  rval = ee.get_moab()->get_coords(&eh, 1, avg.array()); CHECK_ERR(rval);
   CHECK_REAL_EQUAL(0.0, (avg - integral).length(), EPS1);
 
     // delete the temporary tag
@@ -118,11 +138,52 @@ int main()
 {
   int failures = 0;
   
+//  failures += RUN_TEST(test_linear_tri); currently failing linear tri, bad formulation, working on it...
+  failures += RUN_TEST(test_linear_quad);
   failures += RUN_TEST(test_linear_hex);
   failures += RUN_TEST(test_quadratic_hex);
   failures += RUN_TEST(test_linear_tet);
 
   return failures;
+}
+
+void test_linear_tri() 
+{
+  Core mb;
+  Range verts;
+  double tri_verts[] = {-1.0, -1.0, -1.0,
+                         1.0, -1.0, -1.0,
+                        -1.0,  1.0, -1.0};
+  
+          
+  ErrorCode rval = mb.create_vertices(tri_verts, 3, verts); CHECK_ERR(rval);
+  EntityHandle tri;
+  std::vector<EntityHandle> connect;
+  std::copy(verts.begin(), verts.end(), std::back_inserter(connect));
+  rval = mb.create_element(MBTRI, &connect[0], 3, tri); CHECK_ERR(rval);
+  
+  ElemEvaluator ee(&mb, tri, 0);
+  ee.set_tag_handle(0, 0);
+  ee.set_eval_set(MBTRI, LinearTri::eval_set());
+
+  test_eval(ee, true);
+}
+
+void test_linear_quad() 
+{
+  Core mb;
+  Range verts;
+  ErrorCode rval = mb.create_vertices((double*)hex_verts, 4, verts); CHECK_ERR(rval);
+  EntityHandle quad;
+  std::vector<EntityHandle> connect;
+  std::copy(verts.begin(), verts.end(), std::back_inserter(connect));
+  rval = mb.create_element(MBQUAD, &connect[0], 4, quad); CHECK_ERR(rval);
+  
+  ElemEvaluator ee(&mb, quad, 0);
+  ee.set_tag_handle(0, 0);
+  ee.set_eval_set(MBQUAD, LinearQuad::eval_set());
+
+  test_eval(ee, true);
 }
 
 void test_linear_hex() 
