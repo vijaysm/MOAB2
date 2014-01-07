@@ -43,7 +43,8 @@ void read_multiple_test()
   
 int main(int /* argc */, char** /* argv */)
 {
-  int result = RUN_TEST( read_multiple_test );
+  
+  int result = RUN_TEST( read_multiple_test ) ;
 
   return result;
 }
