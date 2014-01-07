@@ -17,7 +17,8 @@ public:
     /** \brief Reverse-evaluation of parametric coordinates at physical space position */
   static ErrorCode reverseEvalFcn(EvalFcn eval, JacobianFcn jacob, InsideFcn ins, 
                                   const double *posn, const double *verts, const int nverts, const int ndim,
-                                  const double tol, double *work, double *params, bool *is_inside);
+                                  const double iter_tol, const double inside_tol, double *work, 
+                                  double *params, bool *is_inside);
         
     /** \brief Evaluate the jacobian at a specified parametric position */
   static ErrorCode jacobianFcn(const double *params, const double *verts, const int nverts, const int ndim, 
@@ -35,7 +36,7 @@ public:
   
   static ErrorCode evaluate_reverse(EvalFcn eval, JacobianFcn jacob, InsideFcn inside_f,
                                     const double *posn, const double *verts, const int nverts, 
-                                    const int ndim, const double tol, double *work, 
+                                    const int ndim, const double iter_tol, const double inside_tol, double *work, 
                                     double *params, bool *inside);
 
   static EvalSet eval_set() 
@@ -45,7 +46,7 @@ public:
       
   static bool compatible(EntityType tp, int numv, EvalSet &eset) 
       {
-        if (tp == MBTET && numv == 4) {
+        if (tp == MBTET && numv >= 4) {
           eset = eval_set();
           return true;
         }

@@ -14,7 +14,10 @@
 #include "moab/Range.hpp"
 #include "moab/LloydSmoother.hpp"
 #include "moab/ProgOptions.hpp"
+#include "moab/BoundBox.hpp"
+#include "moab/SpatialLocator.hpp"
 #include "MBTagConventions.hpp"
+#include "DataCoupler.hpp"
 
 #ifdef USE_MPI
 #  include "moab/ParallelComm.hpp"
@@ -34,7 +37,7 @@ using namespace std;
 
 ErrorCode read_file(string &fname, EntityHandle &seth, 
                     Range &solids, Range &solid_elems, Range &fluids, Range &fluid_elems);
-void deform_func(double *xold, double *xnew);
+void deform_func(const BoundBox &bbox, double *xold, double *xnew);
 ErrorCode deform_master(Range &fluid_elems, Range &solid_elems, Tag &xnew);
 ErrorCode smooth_master(int dim, Tag xnew, EntityHandle &master, Range &fluids);
 ErrorCode write_to_coords(Range &elems, Tag tagh);
@@ -92,7 +95,7 @@ public:
 private:
     //! apply a known deformation to the solid elements, putting the results in the xNew tag; also
     //! write current coordinates to the xNew tag for fluid elements
-  ErrorCode deform_master(Range &fluid_elems, Range &solid_elems);
+  ErrorCode deform_master(Range &fluid_elems, Range &solid_elems, const char *tag_name = NULL);
 
     //! read a file and establish proper ranges
   ErrorCode read_file(int m_or_s, string &fname, EntityHandle &seth);
@@ -205,20 +208,41 @@ ErrorCode DeformMeshRemap::execute()
   rval = read_file(SLAVE, slaveFileName, slaveSet);
   if (MB_SUCCESS != rval) return rval;
 
+  Range src_elems = solidElems[MASTER];
+  src_elems.merge(fluidElems[MASTER]);
+    // locate slave vertices in master, orig coords; do this with a data coupler, so you can
+    // later interpolate
+  Range tgt_verts, tmp_range = solidElems[SLAVE];
+  tmp_range.merge(fluidElems[SLAVE]);
+  rval = mbImpl->get_adjacencies(tmp_range, 0, false, tgt_verts, Interface::UNION);
+  RR("Failed to get target verts.");
+  
+
+    // initialize data coupler on source elements
+  DataCoupler dc_master(mbImpl, NULL, src_elems, 0);
+  
+    // locate slave vertices, caching results in dc
+  rval = dc_master.locate_points(tgt_verts); RR("Point location of tgt verts failed.");
+  int num_located = dc_master.spatial_locator()->local_num_located();
+  if (num_located != (int)tgt_verts.size()) {
+    rval = MB_FAILURE;
+    std::cout << "Only " << num_located << " out of " << tgt_verts.size() << " target points successfully located." << std::endl;
+    return rval;
+  }
+
     // deform the master's solid mesh, put results in a new tag
-  rval = deform_master(fluidElems[MASTER], solidElems[MASTER]); RR("");
-  if (debug) write_and_save(solidElems[MASTER], masterSet, xNew, "deformed.vtk");
+  rval = deform_master(fluidElems[MASTER], solidElems[MASTER], "xnew"); RR("");
+
+  { // to isolate the lloyd smoother & delete when done
+
+      // smooth the master mesh
+    LloydSmoother ll(mbImpl, NULL, fluidElems[MASTER], xNew);
+    rval = ll.perform_smooth();
+    RR("Failed in lloyd smoothing.");
+    cout << "Lloyd smoothing required " << ll.num_its() << " iterations." << endl;
+  }
   
-    // smooth the master mesh
-  LloydSmoother *ll = new LloydSmoother(mbImpl, NULL, fluidElems[MASTER], xNew);
-  rval = ll->perform_smooth();
-  RR("Failed in lloyd smoothing.");
-
-  cout << "Lloyd smoothing required " << ll->num_its() << " iterations." << endl;
-  if (debug) write_and_save(fluidElems[MASTER], masterSet, xNew, "smoothed.vtk");
-
     // map new locations to slave
-  
     // interpolate xNew to slave points
   rval = dc_master.interpolate((int)DataCoupler::VOLUME, "xnew"); RR("Failed to interpolate target solution.");
 
@@ -284,7 +308,6 @@ DeformMeshRemap::~DeformMeshRemap()
 
 int main(int argc, char **argv) {
 
-  EntityHandle master, slave;
   ErrorCode rval;
 
   ProgOptions po("Deformed mesh options");
@@ -299,11 +322,6 @@ int main(int argc, char **argv) {
     slavef = string(MESH_DIR) + string("/rodtri.g");
 
   mb = new Core();
-  
-    // read master/slave files and get fluid/solid material sets
-  Range fluids[2], solids[2], solid_elems[2], fluid_elems[2];
-  rval = read_file(masterf, master, solids[0], solid_elems[0], fluids[0], fluid_elems[0]); RR("");
-  rval = read_file(slavef, slave, solids[1], solid_elems[1], fluids[1], fluid_elems[1]); RR("");
 
   DeformMeshRemap *dfr;
 #ifdef USE_MPI
@@ -325,30 +343,31 @@ int main(int argc, char **argv) {
   return rval;
 }
 
-ErrorCode write_and_save(Range &ents, EntithHanlde seth, Tag tagh, const char *filename) 
+ErrorCode DeformMeshRemap::write_and_save(Range &ents, EntityHandle seth, Tag tagh, const char *filename) 
 {
-  rval = write_to_coords(ents, tagh); RR("");
-  rval = mb->write_file("deformed.vtk", NULL, NULL, &seth, 1); RR("");
+  ErrorCode rval = write_to_coords(ents, tagh); RR("");
+  rval = mbImpl->write_file(filename, NULL, NULL, &seth, 1); RR("");
   return rval;
 }
   
-ErrorCode write_to_coords(Range &elems, Tag tagh) 
+ErrorCode DeformMeshRemap::write_to_coords(Range &elems, Tag tagh) 
 {
     // write the tag to coordinates
   Range verts;
-  ErrorCode rval = mb->get_adjacencies(elems, 0, false, verts, Interface::UNION);
+  ErrorCode rval = mbImpl->get_adjacencies(elems, 0, false, verts, Interface::UNION);
   RR("Failed to get adj vertices.");
   std::vector<double> coords(3*verts.size());
-  rval = mb->tag_get_data(tagh, verts, &coords[0]);
+  rval = mbImpl->tag_get_data(tagh, verts, &coords[0]);
   RR("Failed to get tag data.");
-  rval = mb->set_coords(verts, &coords[0]);
+  rval = mbImpl->set_coords(verts, &coords[0]);
   RR("Failed to set coordinates.");
   return MB_SUCCESS;
 }
 
-void deform_func(double *xold, double *xnew) 
+void deform_func(const BoundBox &bbox, double *xold, double *xnew) 
 {
-  const double RODWIDTH = 0.2, RODHEIGHT = 0.5;
+/*  Deformation function based on max delx and dely at top of rod
+    const double RODWIDTH = 0.2, RODHEIGHT = 0.5;
     // function: origin is at middle base of rod, and is .5 high
     // top of rod is (0,.55) on left and (.2,.6) on right
   double delx = 0.5*RODWIDTH;
@@ -356,49 +375,59 @@ void deform_func(double *xold, double *xnew)
   double xfrac = (xold[0] + .5*RODWIDTH)/RODWIDTH, yfrac = xold[1]/RODHEIGHT;
   xnew[0] = xold[0] + yfrac * delx;
   xnew[1] = xold[1] + yfrac * (1.0 + xfrac) * 0.05;
+*/
+
+/* Deformation function based on fraction of bounding box dimension in each direction */
+  double frac = 0.01; // taken from approximate relative deformation from LLNL Diablo of XX09 assys
+  CartVect *xo = reinterpret_cast<CartVect*>(xold), *xn = reinterpret_cast<CartVect*>(xnew);
+  CartVect disp = frac * (*xo - bbox.bMin);
+  *xn = *xo + disp;
 }
   
-ErrorCode deform_master(Range &fluid_elems, Range &solid_elems, Tag &xnew) 
+ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems, const char *tag_name) 
 {
     // deform elements with an analytic function
 
     // create the tag
-  ErrorCode rval = mb->tag_get_handle("", 3, MB_TYPE_DOUBLE, xnew, MB_TAG_CREAT|MB_TAG_DENSE);
+  ErrorCode rval = mbImpl->tag_get_handle((tag_name ? tag_name : ""), 3, MB_TYPE_DOUBLE, xNew, MB_TAG_CREAT|MB_TAG_DENSE);
   RR("Failed to create xnew tag.");
   
     // get all the vertices and coords in the fluid, set xnew to them
   Range verts;
-  rval = mb->get_adjacencies(fluid_elems, 0, false, verts, Interface::UNION);
+  rval = mbImpl->get_adjacencies(fluid_elems, 0, false, verts, Interface::UNION);
   RR("Failed to get vertices.");
   std::vector<double> coords(3*verts.size(), 0.0);
-  rval = mb->get_coords(verts, &coords[0]);
+  rval = mbImpl->get_coords(verts, &coords[0]);
   RR("Failed to get vertex coords.");
-  rval = mb->tag_set_data(xnew, verts, &coords[0]);
+  rval = mbImpl->tag_set_data(xNew, verts, &coords[0]);
   RR("Failed to set xnew tag on fluid verts.");
+
+    // get the bounding box of the solid mesh
+  BoundBox bbox;
+  bbox.update(*mbImpl, solid_elems);
   
     // get all the vertices and coords in the solid
   verts.clear();
-  rval = mb->get_adjacencies(solid_elems, 0, false, verts, Interface::UNION);
+  rval = mbImpl->get_adjacencies(solid_elems, 0, false, verts, Interface::UNION);
   RR("Failed to get vertices.");
   coords.resize(3*verts.size(), 0.0);
-  rval = mb->get_coords(verts, &coords[0]);
+  rval = mbImpl->get_coords(verts, &coords[0]);
   RR("Failed to get vertex coords.");
   unsigned int num_verts = verts.size();
   for (unsigned int i = 0; i < num_verts; i++)
-    deform_func(&coords[3*i], &coords[3*i]);
+    deform_func(bbox, &coords[3*i], &coords[3*i]);
     
     // set the new tag to those coords
-  rval = mb->tag_set_data(xnew, verts, &coords[0]);
+  rval = mbImpl->tag_set_data(xNew, verts, &coords[0]);
   RR("Failed to set tag data.");
   
   return MB_SUCCESS;
 }
 
-ErrorCode read_file(string &fname, EntityHandle &seth, 
-                    Range &solids, Range &solid_elems, Range &fluids, Range &fluid_elems)
+ErrorCode DeformMeshRemap::read_file(int m_or_s, string &fname, EntityHandle &seth)
 {
     // create meshset
-  ErrorCode rval = mb->create_meshset(0, seth);
+  ErrorCode rval = mbImpl->create_meshset(0, seth);
   RR("Couldn't create master/slave set.");
   ostringstream ostr;
 #ifdef USE_MPI
@@ -414,36 +443,46 @@ ErrorCode read_file(string &fname, EntityHandle &seth,
 
     // get material sets for solid/fluid
   Tag tagh;
-  rval = mb->tag_get_handle(MATERIAL_SET_TAG_NAME, tagh); RR("Couldn't get material set tag name.");
-  const void *setno_ptr = &SOLID_SETNO;
-  rval = mb->get_entities_by_type_and_tag(seth, MBENTITYSET, &tagh, &setno_ptr, 1, solids);
-  if (solids.empty()) rval = MB_FAILURE;
-  RR("Couldn't get any solid sets.");
+  rval = mbImpl->tag_get_handle(MATERIAL_SET_TAG_NAME, tagh); RR("Couldn't get material set tag name.");
+  for (std::set<int>::iterator sit = solidSetNos.begin(); sit != solidSetNos.end(); sit++) {
+    Range sets;
+    int set_no = *sit;
+    const void *setno_ptr = &set_no;
+    rval = mbImpl->get_entities_by_type_and_tag(seth, MBENTITYSET, &tagh, &setno_ptr, 1, sets);
+    if (sets.empty()) rval = MB_FAILURE;
+    RR("Couldn't get any solid sets.");
+    solidSets[m_or_s].merge(sets);
+  }
 
     // get solid entities, and dimension
   Range tmp_range;
-  for (Range::iterator rit = solids.begin(); rit != solids.end(); rit++) {
-    rval = mb->get_entities_by_handle(*rit, tmp_range, true);
+  for (Range::iterator rit = solidSets[m_or_s].begin(); rit != solidSets[m_or_s].end(); rit++) {
+    rval = mbImpl->get_entities_by_handle(*rit, tmp_range, true);
     RR("Failed to get entities in solid.");
   }
-  int dim = mb->dimension_from_handle(*tmp_range.rbegin());
+  int dim = mbImpl->dimension_from_handle(*tmp_range.rbegin());
   assert(dim > 0 && dim < 4);
   
-  solid_elems = tmp_range.subset_by_dimension(dim);
+  solidElems[m_or_s] = tmp_range.subset_by_dimension(dim);
 
-  setno_ptr = &FLUID_SETNO;
-  rval = mb->get_entities_by_type_and_tag(seth, MBENTITYSET, &tagh, &setno_ptr, 1, fluids);
-  if (fluids.empty()) rval = MB_FAILURE;
-  RR("Couldn't get any fluid sets.");
-  
-  for (Range::iterator rit = fluids.begin(); rit != fluids.end(); rit++) {
-    rval = mb->get_entities_by_dimension(*rit, dim, fluid_elems, true);
+  for (std::set<int>::iterator sit = fluidSetNos.begin(); sit != fluidSetNos.end(); sit++) {
+    Range sets;
+    int set_no = *sit;
+    const void *setno_ptr = &set_no;
+    rval = mbImpl->get_entities_by_type_and_tag(seth, MBENTITYSET, &tagh, &setno_ptr, 1, sets);
+    if (sets.empty()) rval = MB_FAILURE;
+    RR("Couldn't get any fluid sets.");
+    fluidSets[m_or_s].merge(sets);
+  }
+
+    // get fluid entities, and dimension
+  tmp_range.clear();
+  for (Range::iterator rit = fluidSets[m_or_s].begin(); rit != fluidSets[m_or_s].end(); rit++) {
+    rval = mbImpl->get_entities_by_handle(*rit, tmp_range, true);
     RR("Failed to get entities in fluid.");
   }
-  if (mb->dimension_from_handle(*fluid_elems.begin()) != dim) {
-    rval = MB_FAILURE;
-    RR("Fluid and solid elements must be same dimension.");
-  }
+  
+  fluidElems[m_or_s] = tmp_range.subset_by_dimension(dim);
   
   return MB_SUCCESS;
 }
