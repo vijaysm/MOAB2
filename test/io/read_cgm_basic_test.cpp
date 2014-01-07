@@ -55,8 +55,15 @@ void read_cube_test()
   std::cout << "Number of Triangles = " << number_of_tris << std::endl;
   CHECK_ERR(rval);
 
+  int number_of_vertices;
+  rval = mb.get_number_entities_by_type(0, MBVERTEX, number_of_vertices);
+  CHECK_ERR(rval);
+
+
   if( number_of_tris != 12) rval = MB_FAILURE; CHECK_ERR(rval);
    
+  if( number_of_vertices !=8) rval = MB_FAILURE; CHECK_ERR(rval);
+
 }
   
 int main(int /* argc */, char** /* argv */)
