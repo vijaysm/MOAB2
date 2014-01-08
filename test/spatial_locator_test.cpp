@@ -116,7 +116,7 @@ void test_locator(SpatialLocator *sl)
     test_pt = box.bMin + CartVect(rx*box_del[0], ry*box_del[1], rz*box_del[2]);
 
     // call spatial locator to locate points
-    rval = sl->locate_points(test_pt.array(), 1, &ent, test_res.array(), 0.0, 0.0, &is_in); CHECK_ERR(rval);
+    rval = sl->locate_points(test_pt.array(), 1, &ent, test_res.array(), &is_in); CHECK_ERR(rval);
 
     // verify that the point was found
     CHECK_EQUAL(is_in, true);

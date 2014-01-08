@@ -64,6 +64,7 @@ libMOAB_la_SOURCES = \
   HigherOrderFactory.cpp \
   HomXform.cpp \
   Internals.hpp \
+  LloydSmoother.cpp \
   MBCNArrays.hpp \
   MergeMesh.cpp \
   MeshSet.cpp \
@@ -123,6 +124,7 @@ libMOAB_la_SOURCES = \
   TagInfo.cpp \
   TagInfo.hpp \
   Tree.cpp \
+  TupleList.cpp \
   Types.cpp \
   TypeSequenceManager.cpp \
   TypeSequenceManager.hpp \
@@ -165,6 +167,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/Forward.hpp \
   moab/GeomUtil.hpp \
   moab/Interface.hpp \
+  moab/LloydSmoother.hpp \
   moab/point_locater/tree/common_tree.hpp \
   moab/point_locater/tree/element_tree.hpp \
   moab/point_locater/tree/bvh_tree.hpp \
@@ -193,9 +196,11 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/SpectralMeshTool.hpp \
   moab/Tree.hpp \
   moab/TreeStats.hpp \
+  moab/TupleList.hpp \
   moab/Types.hpp \
   moab/UnknownInterface.hpp \
   moab/Util.hpp \
+  moab/Version.h \
   moab/WriteUtilIface.hpp \
   moab/WriterIface.hpp \
   MBEntityType.h \

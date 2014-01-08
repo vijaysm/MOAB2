@@ -48,14 +48,16 @@ TESTS = range_test \
 	coords_connect_iterate \
 	elem_eval_test \
 	spatial_locator_test \
-	test_boundbox
+	test_boundbox 
+
 
 if HDF5_FILE
   TESTS += mbfacet_test \
         gttool_test \
         cropvol_test \
         mergemesh_test \
-        mbground_test
+        mbground_test \
+        lloyd_smoother_test
 endif
 
 #                 merge_test \         # input files no longer exist?
@@ -147,6 +149,7 @@ coords_connect_iterate_SOURCES = coords_connect_iterate.cpp
 coords_connect_iterate_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS)
 
 test_boundbox_SOURCES = test_boundbox.cpp
+lloyd_smoother_test_SOURCES = lloyd_smoother_test.cpp
 
 if PARALLEL
 moab_test_CPPFLAGS += -I$(top_srcdir)/src/parallel

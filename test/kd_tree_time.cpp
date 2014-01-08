@@ -135,7 +135,7 @@ int main(int argc, char* argv[])
     if (query_triangles)
       rval = tool.closest_triangle(root, coords, pt, leaf);
     else
-      rval = tool.point_search(coords, leaf, 0.0, NULL, &root);
+      rval = tool.point_search(coords, leaf, 0.0, 0.0, NULL, &root);
     if (MB_SUCCESS != rval) {
       fprintf(stderr, "Failure (ErrorCode == %d) for point %d (%f, %f, %f)\n",
         (int)rval, (int)(count % length), coords[0], coords[1], coords[2]);

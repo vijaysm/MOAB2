@@ -165,6 +165,7 @@ test/io/vtk_test
 test/kd_tree_test
 test/kd_tree_time
 test/kd_tree_tool
+test/lloyd_smoother_test
 test/mbcn_test
 test/mbfacet_test
 test/mbground_test
