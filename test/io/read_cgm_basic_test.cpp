@@ -16,19 +16,6 @@ using namespace moab;
             << __LINE__ << std::endl; \
   return A; } } while(false)
 
-#ifdef MESHDIR
-#ifdef HAVE_OCC_STEP
-static const char input_file[] = STRINGIFY(MESHDIR) "/io/dum.stp";
-#else
-static const char input_file[] = STRINGIFY(MESHDIR) "/io/dum.sat";
-#endif
-#else
-#ifdef HAVE_OCC_STEP
-static const char input_file[] = "dum.stp";
-#else
-static const char input_file[] = "dum.sat";
-#endif
-#endif
 
 #ifdef MESHDIR
 static const char input_cube[] = STRINGIFY(MESHDIR) "/io/cube.sat";
