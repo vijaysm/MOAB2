@@ -7,6 +7,7 @@
     AxisBox.cpp
     BitPage.cpp
     BitTag.cpp
+    BoundBox.cpp
     BSPTree.cpp
     BSPTreePoly.cpp
     CN.cpp
@@ -46,6 +47,8 @@
     SweptVertexData.cpp
     SysUtil.cpp
     TagInfo.cpp
+    Tree.cpp
+    TupleList.cpp
     Types.cpp
     TypeSequenceManager.cpp
     UnstructuredElemSeq.cpp
@@ -93,14 +96,27 @@
     io/WriteVtk.cpp
     ReaderWriterSet.cpp
   )
+
+  set ( MOABLD_LIB_SRCS
+    LocalDiscretization/ElemEvaluator.cpp
+    LocalDiscretization/LinearHex.cpp
+    LocalDiscretization/LinearQuad.cpp
+    LocalDiscretization/LinearTet.cpp
+    LocalDiscretization/LinearTri.cpp
+    LocalDiscretization/QuadraticHex.cpp
+#    LocalDiscretization/SpectralHex.cpp
+#    LocalDiscretization/SpectralQuad.cpp
+  ) 
+
   include_directories(
-    ${MOAB_BINARY_DIR}
     ${MOAB_SOURCE_DIR}/src
-    ${MOAB_BINARY_DIR}/src
     ${MOAB_SOURCE_DIR}/src/io
     ${MOAB_SOURCE_DIR}/src/parallel
-    ${MOAB_BINARY_DIR}/src/parallel
+    ${MOAB_SOURCE_DIR}/src/LocalDiscretization
     ${MOAB_SOURCE_DIR}/src/moab/point_locater/lotte
+    ${MOAB_BINARY_DIR}
+    ${MOAB_BINARY_DIR}/src
+    ${MOAB_BINARY_DIR}/src/parallel
   )
 
   if ( NetCDF_FOUND )
@@ -143,7 +159,7 @@
   endif ( HDF5_FOUND )
 
 
-  SET(MOAB_LIB_SRCS ${MOABCORE_LIB_SRCS} ${MOABPTLOC_LIB_SRCS} ${MOABIO_LIB_SRCS})
+  SET(MOAB_LIB_SRCS ${MOABCORE_LIB_SRCS} ${MOABPTLOC_LIB_SRCS} ${MOABIO_LIB_SRCS} ${MOABLD_LIB_SRCS})
 
   set_source_files_properties( ${MOAB_LIB_SRCS}
     COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}"
