@@ -46,7 +46,6 @@ void read_cube_test()
   ErrorCode rval;
   Core moab;
   Interface* mb = &moab;
-  mb->delete_mesh();
   read_file( mb, input_cube );
    
   int number_of_tris;
@@ -66,12 +65,57 @@ void read_cube_test()
 
 
 }
+
+void delete_mesh_test()
+{
+ Core moab;
+ Interface* mb = &moab;
+ read_file( mb, input_cube );
+
+ ErrorCode rval; 
+
+ Tag geom_tag; 
+
+ rval = mb->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1,
+				MB_TYPE_INTEGER, geom_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
+ CHECK_ERR(rval);
+
+ Range geom_sets[4];
+
+ for(unsigned dim=0; dim<4; dim++) 
+ {
+	void *val[] = {&dim};
+	rval = mb->get_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
+	  					    val, 1, geom_sets[dim] );
+        CHECK_ERR(rval); 
+
+        if( geom_sets[dim].size() == 0 ) std::cout << "Warning: No geom sets to begin with" << std::endl;
+
+ }
+
+ mb->delete_mesh();
+
+ Range geom_sets_after[4];
+ for(unsigned dim=0; dim<4; dim++) 
+ {
+	void *val_after[] = {&dim};
+	rval = mb->get_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
+	  					    val_after, 1, geom_sets_after[dim] );
+        CHECK_ERR(rval); 
+
+        if( 0 != geom_sets_after[dim].size() ) rval = MB_FAILURE;
+
+        CHECK_ERR(rval);
+ }
+
+}
   
 int main(int /* argc */, char** /* argv */)
 {
   int result = 0;
 
-  result += RUN_TEST( read_cube_test );
+  result += RUN_TEST( read_cube_test );  
+  result += RUN_TEST( delete_mesh_test );
   result += RUN_TEST( read_cube_test );
 
   return result;
