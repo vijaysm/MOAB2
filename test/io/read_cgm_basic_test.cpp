@@ -31,22 +31,32 @@ static const char input_cube[] = "cube.sat";
 #endif
 #endif
 
+void read_file( Interface* moab, const char* input_file );
+void read_cube_test();
+
+
+void read_file( Interface* moab, const char* input_file )
+{
+  ErrorCode rval = moab->load_file( input_file );
+  CHECK_ERR(rval);
+}
+
 void read_cube_test()
 {
-  Core mb;
- 
-  ErrorCode rval = mb.load_file(input_cube); CHECK_ERR(rval);
-
-  CHECK_ERR(rval);
+  ErrorCode rval;
+  Core moab;
+  Interface* mb = &moab;
+  mb->delete_mesh();
+  read_file( mb, input_cube );
    
   int number_of_tris;
 
-  rval = mb.get_number_entities_by_type(0, MBTRI , number_of_tris);
+  rval = mb->get_number_entities_by_type(0, MBTRI , number_of_tris);
   std::cout << "Number of Triangles = " << number_of_tris << std::endl;
   CHECK_ERR(rval);
 
   int number_of_vertices;
-  rval = mb.get_number_entities_by_type(0, MBVERTEX, number_of_vertices);
+  rval = mb->get_number_entities_by_type(0, MBVERTEX, number_of_vertices);
   CHECK_ERR(rval);
 
 
@@ -54,13 +64,14 @@ void read_cube_test()
    
   if( number_of_vertices !=8) rval = MB_FAILURE; CHECK_ERR(rval);
 
+
 }
   
 int main(int /* argc */, char** /* argv */)
 {
   int result = 0;
-  
+
   result += RUN_TEST( read_cube_test );
-      
+
   return result;
 }
