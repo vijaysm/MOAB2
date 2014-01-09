@@ -16,7 +16,7 @@ set( MBCOUPLER_SRCS
 )
 
 set_source_files_properties( ${MBCOUPLER_SRCS}
-  COMPILE_FLAGS "${MOAB_DEFINES}"
+  COMPILE_FLAGS "${MOAB_DEFINES} -DIS_BUILDING_MB"
 )
 
 add_library( mbcoupler
@@ -30,13 +30,6 @@ endif ( MOAB_USE_MPI )
 
 enable_testing()
 
-# A test for the coupler library
-add_executable( findpt_test findpt_test.cpp )
-target_link_libraries( findpt_test mbcoupler MOAB )
-if ( MOAB_USE_MPI )
-  target_link_libraries( findpt_test MOABpar )
-endif ( MOAB_USE_MPI )
-add_test( TestMBCouplerFindPt ${EXECUTABLE_OUTPUT_PATH}/findpt_test )
 
 if ( MOAB_USE_MPI )
   # Exercise the coupler and not just findpt:

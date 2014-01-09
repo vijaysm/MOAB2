@@ -105,11 +105,6 @@
     add_subdirectory( qvdual )
   endif ( MOAB_BUILD_QVDUAL )
 
-  # CGM
-  if ( MOAB_BUILD_DAGMC )
-    add_subdirectory( dagmc )
-  endif ( MOAB_BUILD_DAGMC )
-
   # MBCoupler
   if ( MOAB_USE_MPI AND MPI_FOUND AND MOAB_BUILD_MBCOUPLER )
 #  if ( MOAB_BUILD_MBCOUPLER )

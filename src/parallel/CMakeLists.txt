@@ -4,7 +4,6 @@ set( moab_PARALLEL_SRCS
   ParallelData.cpp
   ReadParallel.cpp
   gs.cpp
-  TupleList.cpp
   SharedSetData.cpp
 )
 
