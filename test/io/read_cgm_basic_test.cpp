@@ -37,10 +37,6 @@ void read_cube_test()
  
   ErrorCode rval = mb.load_file(input_cube); CHECK_ERR(rval);
 
-  Tag geom_tag;
-
-  rval = mb.tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER,
-                                  geom_tag, MB_TAG_SPARSE|MB_TAG_CREAT); 
   CHECK_ERR(rval);
    
   int number_of_tris;
