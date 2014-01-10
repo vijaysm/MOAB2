@@ -548,6 +548,8 @@ case "$cc_compiler:$host_cpu" in
       bgq)
         FATHOM_CC_32BIT=-q32
         FATHOM_CC_64BIT=-q64
+	FATHOM_CC_SPECIAL=-qarch=qp
+	FATHOM_CXX_SPECIAL="-qarch=qp -qpic=large -qmaxmem=-1"
         AR="ar"
         NM="nm -B"
         ;;
