@@ -926,6 +926,14 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset, int my_rank)
            MB_TAG_DENSE, &dumH);
   if(rval==MB_TAG_NOT_FOUND)
     corrTag = 0;
+
+  Tag gidTag;
+  rval = mb->tag_get_handle("GLOBAL_ID", 1, MB_TYPE_INTEGER,
+        gidTag, MB_TAG_DENSE);
+
+  if(rval!=MB_SUCCESS)
+    return rval;
+
   std::vector<double> coords;
   coords.resize(3*MAXEDGES); // at most 10 vertices per polygon
   // we should create a queue with new polygons that need processing for reflex angles
@@ -959,6 +967,10 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset, int my_rank)
       if (MB_SUCCESS != rval)
         return rval;
     }
+    int gid=0;
+    rval = mb->tag_get_data(gidTag, &eh, 1, &gid);
+    if (MB_SUCCESS != rval)
+      return rval;
     coords.resize(3 * num_nodes);
     if (num_nodes < 4)
       continue; // if already triangles, don't bother
@@ -1021,6 +1033,9 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset, int my_rank)
           if (MB_SUCCESS != rval)
             return rval;
         }
+        rval = mb->tag_set_data(gidTag, &newElement, 1, &gid);
+        if (MB_SUCCESS != rval)
+          return rval;
         if (num_nodes == 4)
         {
           // create another triangle
@@ -1046,6 +1061,9 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset, int my_rank)
           if (MB_SUCCESS != rval)
             return rval;
         }
+        rval = mb->tag_set_data(gidTag, &newElement, 1, &gid);
+         if (MB_SUCCESS != rval)
+           return rval;
         mb->remove_entities(lset, &eh, 1);
         brokenPolys++;
         /*std::cout<<"remove: " ;
