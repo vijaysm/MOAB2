@@ -746,24 +746,29 @@ ErrorCode Coupler::nat_param(double xyz[3],
       }
 
       if (etype == MBHEX) {
-        if (8==num_connect)
-        {
-          Element::LinearHex hexmap(coords_vert);
-          tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
-          bool inside = hexmap.inside_nat_space(tmp_nat_coords, epsilon);
-          if (!inside)
+        try {
+          if (8==num_connect)
+          {
+            Element::LinearHex hexmap(coords_vert);
+            tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
+            bool inside = hexmap.inside_nat_space(tmp_nat_coords, epsilon);
+            if (!inside)
+              continue;
+          }
+          else if (27==num_connect)
+          {
+            Element::QuadraticHex hexmap(coords_vert);
+            tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
+            bool inside = hexmap.inside_nat_space(tmp_nat_coords, epsilon);
+            if (!inside)
+              continue;
+          }
+          else // TODO this case not treated yet, no interpolation
             continue;
         }
-        else if (27==num_connect)
-        {
-          Element::QuadraticHex hexmap(coords_vert);
-          tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
-          bool inside = hexmap.inside_nat_space(tmp_nat_coords, epsilon);
-          if (!inside)
-            continue;
-        }
-        else // TODO this case not treated yet, no interpolation
+        catch (Element::Map::EvaluationError) {
           continue;
+        }
       }
       else if (etype == MBTET){
         Element::LinearTet tetmap(coords_vert);

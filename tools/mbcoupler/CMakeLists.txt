@@ -5,6 +5,7 @@ include_directories(
     ${MOAB_SOURCE_DIR}/src/moab/point_locater/lotte
     ${MOAB_SOURCE_DIR}/itaps
     ${MOAB_SOURCE_DIR}/itaps/imesh
+    ${MOAB_BINARY_DIR}/itaps/imesh
     ${MOAB_BINARY_DIR}
     ${MOAB_BINARY_DIR}/src
     ${MOAB_BINARY_DIR}/src/parallel
@@ -35,13 +36,13 @@ if ( MOAB_USE_MPI )
   # Exercise the coupler and not just findpt:
   add_executable( mbcoupler_test mbcoupler_test.cpp )
   set_source_files_properties( mbcoupler_test.cpp
-    COMPILE_FLAGS "${MOAB_DEFINES}" )
+    COMPILE_FLAGS "${MOAB_DEFINES} -DMESHDIR=${MOAB_SOURCE_DIR}/MeshFiles/unittest" )
   target_link_libraries( mbcoupler_test mbcoupler MOAB MOABpar )
   add_test( TestMBCoupler ${EXECUTABLE_OUTPUT_PATH}/mbcoupler_test )
 
   add_executable( ssn_test ssn_test.cpp )
   set_source_files_properties( ssn_test.cpp
-    COMPILE_FLAGS "${MOAB_DEFINES}" )
+    COMPILE_FLAGS "${MOAB_DEFINES} -DTEST -DMESHDIR=${MOAB_SOURCE_DIR}/MeshFiles/unittest" )
   target_link_libraries( ssn_test mbcoupler MOAB MOABpar )
-  add_test( TestMBCoupler ${EXECUTABLE_OUTPUT_PATH}/ssn_test )
+  add_test( TestSSN ${EXECUTABLE_OUTPUT_PATH}/ssn_test )
 endif ( MOAB_USE_MPI )
