@@ -906,16 +906,26 @@ void velocity_case1(CartVect & arrival_point, double t, CartVect & velo)
 //
 ErrorCode enforce_convexity(Interface * mb, EntityHandle lset, int my_rank)
 {
-  // look at each quad; compute all 4 angles; if one is reflex, break along that diagonal
+  // look at each polygon; compute all angles; if one is reflex, break that angle with
+  // the next triangle; put the 2 new polys in the set;
+  // still look at the next poly
   // replace it with 2 triangles, and remove from set;
   // it should work for all polygons / tested first for case 1, with dt 0.5 (too much deformation)
   // get all entities of dimension 2
   // then get the connectivity, etc
+
   Range inputRange;
   ErrorCode rval = mb->get_entities_by_dimension(lset, 2, inputRange);
   if (MB_SUCCESS != rval)
     return rval;
 
+  Tag corrTag=0;
+  EntityHandle dumH=0;
+  rval = mb->tag_get_handle(CORRTAGNAME,
+           1, MB_TYPE_HANDLE, corrTag,
+           MB_TAG_DENSE, &dumH);
+  if(rval==MB_TAG_NOT_FOUND)
+    corrTag = 0;
   std::vector<double> coords;
   coords.resize(3*MAXEDGES); // at most 10 vertices per polygon
   // we should create a queue with new polygons that need processing for reflex angles
@@ -942,6 +952,13 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset, int my_rank)
     rval = mb->get_connectivity(eh, verts, num_nodes);
     if (MB_SUCCESS != rval)
       return rval;
+    EntityHandle corrHandle=0;
+    if (corrTag)
+    {
+      rval = mb->tag_get_data(corrTag, &eh, 1, &corrHandle);
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
     coords.resize(3 * num_nodes);
     if (num_nodes < 4)
       continue; // if already triangles, don't bother
@@ -998,6 +1015,12 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset, int my_rank)
         rval = mb->add_entities(lset, &newElement, 1);
         if (MB_SUCCESS != rval)
           return rval;
+        if (corrTag)
+        {
+          rval = mb->tag_set_data(corrTag, &newElement, 1, &corrHandle);
+          if (MB_SUCCESS != rval)
+            return rval;
+        }
         if (num_nodes == 4)
         {
           // create another triangle
@@ -1017,6 +1040,12 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset, int my_rank)
         rval = mb->add_entities(lset, &newElement, 1);
         if (MB_SUCCESS != rval)
           return rval;
+        if (corrTag)
+        {
+          rval = mb->tag_set_data(corrTag, &newElement, 1, &corrHandle);
+          if (MB_SUCCESS != rval)
+            return rval;
+        }
         mb->remove_entities(lset, &eh, 1);
         brokenPolys++;
         /*std::cout<<"remove: " ;
@@ -1029,7 +1058,7 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset, int my_rank)
       }
     }
   }
-  std::cout << "on rank " << my_rank << " " <<  brokenPolys << " concave polygons were decomposed in convex ones \n";
+  std::cout << "on local process " << my_rank << " " <<  brokenPolys << " concave polygons were decomposed in convex ones \n";
   return MB_SUCCESS;
 }
 ErrorCode create_span_quads(Interface * mb, EntityHandle euler_set, int rank)
