@@ -21,12 +21,12 @@ namespace moab {
 
     typedef ErrorCode (*InitFcn)(const double *verts, const int nverts, double *&work);
 
-    typedef bool (*InsideFcn)(const double *verts, const int ndims, const double tol);
+    typedef int (*InsideFcn)(const double *verts, const int ndims, const double tol);
 
     typedef ErrorCode (*ReverseEvalFcn)(EvalFcn eval, JacobianFcn jacob, InsideFcn ins, 
                                         const double *posn, const double *verts, const int nverts, const int ndim,
                                         const double iter_tol, const double inside_tol, 
-                                        double *work, double *params, bool *is_inside);
+                                        double *work, double *params, int *is_inside);
         
     class EvalSet
     {
@@ -78,9 +78,9 @@ namespace moab {
       static ErrorCode evaluate_reverse(EvalFcn eval, JacobianFcn jacob, InsideFcn inside_f,
                                         const double *posn, const double *verts, const int nverts, 
                                         const int ndim, const double iter_tol, const double inside_tol, 
-                                        double *work, double *params, bool *inside);
+                                        double *work, double *params, int *inside);
         /** \brief Common function that returns true if params is in [-1,1]^ndims */
-      static bool inside_function(const double *params, const int ndims, const double tol);
+      static int inside_function(const double *params, const int ndims, const double tol);
     };
 
         /** \brief Given an entity handle, get an appropriate eval set, based on type & #vertices */
@@ -141,7 +141,7 @@ namespace moab {
          *                  (in most cases, within [-1]*(dim)
          */
       ErrorCode reverse_eval(const double *posn, double iter_tol, double inside_tol, double *params, 
-                             bool *is_inside = NULL) const;
+                             int *is_inside = NULL) const;
         
         /** \brief Evaluate the jacobian of the cached entity at a given parametric location
          * \param params Parameters at which to evaluate jacobian
@@ -158,7 +158,7 @@ namespace moab {
          * \param params Parameters at which to query the element
          * \param tol Tolerance, usually 10^-6 or so
          */
-      bool inside(const double *params, const double tol) const;
+      int inside(const double *params, const double tol) const;
 
         /** \brief Given a list of entities, return the entity the point is in, or none
          * This function reverse-evaluates the entities, returning the first entity containing the point.
@@ -451,7 +451,7 @@ namespace moab {
     }
         
     inline ErrorCode ElemEvaluator::reverse_eval(const double *posn, const double iter_tol, const double inside_tol,
-                                                 double *params, bool *ins) const
+                                                 double *params, int *ins) const
     {
       assert(entHandle && MBMAXTYPE != entType);
       return (*evalSets[entType].reverseEvalFcn)(evalSets[entType].evalFcn, evalSets[entType].jacobianFcn, evalSets[entType].insideFcn,
@@ -493,7 +493,7 @@ namespace moab {
       else return find_containing_entity(entities, point, iter_tol, inside_tol, containing_ent, params, num_evals);
     }
         
-    inline bool ElemEvaluator::inside(const double *params, const double tol) const 
+    inline int ElemEvaluator::inside(const double *params, const double tol) const 
     {
       return (*evalSets[entType].insideFcn)(params, entDim, tol);
     }

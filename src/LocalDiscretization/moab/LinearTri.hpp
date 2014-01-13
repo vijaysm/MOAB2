@@ -18,7 +18,7 @@ public:
   static ErrorCode reverseEvalFcn(EvalFcn eval, JacobianFcn jacob, InsideFcn ins, 
                                   const double *posn, const double *verts, const int nverts, const int ndim,
                                   const double iter_tol, const double inside_tol, double *work, 
-                                  double *params, bool *is_inside);
+                                  double *params, int *is_inside);
         
     /** \brief Evaluate the jacobian at a specified parametric position */
   static ErrorCode jacobianFcn(const double *params, const double *verts, const int nverts, const int ndim, 
@@ -32,12 +32,12 @@ public:
   static ErrorCode initFcn(const double *verts, const int nverts, double *&work);
       
         /** \brief Function that returns whether or not the parameters are inside the natural space of the element */
-  static bool insideFcn(const double *params, const int ndim, const double tol);
+  static int insideFcn(const double *params, const int ndim, const double tol);
   
   static ErrorCode evaluate_reverse(EvalFcn eval, JacobianFcn jacob, InsideFcn inside_f,
                                     const double *posn, const double *verts, const int nverts, 
                                     const int ndim, const double iter_tol, const double inside_tol, double *work, 
-                                    double *params, bool *inside);
+                                    double *params, int *inside);
 
   static EvalSet eval_set() 
       {

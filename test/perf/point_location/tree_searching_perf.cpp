@@ -139,7 +139,7 @@ ErrorCode test_locator(SpatialLocator &sl, int npoints, double &cpu_time, double
 
   std::vector<CartVect> test_pts(npoints), test_res(npoints);
   std::vector<EntityHandle> ents(npoints);
-  bool *is_in = new bool[npoints];
+  int *is_in = new int[npoints];
 
   double denom = 1.0 / (double)RAND_MAX;
   for (int i = 0; i < npoints; i++) {    

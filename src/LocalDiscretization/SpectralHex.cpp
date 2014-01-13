@@ -180,7 +180,7 @@ void SpectralHex::integrate_vector(const double *field_values, int num_tuples, d
     //std::cout << "volume: " << volume << "\n";
 }
 
-    bool SpectralHex::insideFcn(const double *params, const int ndim, const double tol) 
+    int SpectralHex::insideFcn(const double *params, const int ndim, const double tol) 
     {
       return EvalSet::inside(params, ndim, tol);
     }

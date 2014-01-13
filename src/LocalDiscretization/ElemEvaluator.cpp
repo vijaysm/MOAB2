@@ -18,7 +18,7 @@ namespace moab {
     ErrorCode EvalSet::evaluate_reverse(EvalFcn eval, JacobianFcn jacob, InsideFcn inside_f,
                                         const double *posn, const double *verts, const int nverts, 
                                         const int ndim, const double iter_tol, const double inside_tol, 
-                                        double *work, double *params, bool *inside) {
+                                        double *work, double *params, int *inside) {
         // TODO: should differentiate between epsilons used for
         // Newton Raphson iteration, and epsilons used for curved boundary geometry errors
         // right now, fix the tolerance used for NR
@@ -39,7 +39,7 @@ namespace moab {
         // residual is diff between old and new pos; need to minimize that
       CartVect res = new_pos - *cvposn;
       Matrix3 J;
-      bool dum, *tmp_inside = (inside ? inside : &dum);
+      int dum, *tmp_inside = (inside ? inside : &dum);
 
       int iters=0;
         // while |res| larger than tol
@@ -77,7 +77,7 @@ namespace moab {
       return MB_SUCCESS;
     }// Map::evaluate_reverse()
 
-    bool EvalSet::inside_function(const double *params, const int ndims, const double tol) 
+    int EvalSet::inside_function(const double *params, const int ndims, const double tol) 
     {
       if (params[0] >= -1-tol && params[0] <= 1+tol &&
           (ndims < 2 || (params[1] >= -1-tol && params[1] <= 1+tol)) &&
@@ -118,7 +118,7 @@ namespace moab {
                                                     const double inside_tol, EntityHandle &containing_ent, 
                                                     double *params, unsigned int *num_evals) 
     {
-      bool is_inside;
+      int is_inside;
       ErrorCode rval = MB_SUCCESS;
       unsigned int nevals = 0;
       Range::iterator i;

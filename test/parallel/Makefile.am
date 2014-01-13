@@ -35,6 +35,7 @@ TESTS = pcomm_unit \
         uber_parallel_test \
         scdtest \
         pcomm_serial \
+	par_spatial_locator_test \
         $(NETCDF_TESTS) \
         $(HDF5_TESTS) \
         $(COUPLER_TESTS) \
@@ -89,6 +90,7 @@ scdpart_SOURCES = scdpart.cpp
 read_nc_par_SOURCES = ../io/read_nc.cpp
 ucdtrvpart_SOURCES = ucdtrvpart.cpp
 mpastrvpart_SOURCES = mpastrvpart.cpp
+par_spatial_locator_test_SOURCES = par_spatial_locator_test.cpp
 
 if ENABLE_mbcoupler
   par_coupler_test_SOURCES = par_coupler_test.cpp
