@@ -94,7 +94,6 @@ if test "xno" != "x$NETCDF_ARG"; then
     AC_SUBST([NETCDF_CPPFLAGS])
     AC_SUBST([NETCDF_LDFLAGS])
     AC_SUBST([NETCDF_VERSION])
-    m4_if([$1], [], [:], [$1])
   else
     HAVE_NETCDF=no
     AC_MSG_WARN("NetCDF configuration utility not found")
