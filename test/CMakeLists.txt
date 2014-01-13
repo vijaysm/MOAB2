@@ -3,6 +3,12 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/src/io
+    ${CMAKE_SOURCE_DIR}/src/oldinc
+    ${CMAKE_SOURCE_DIR}/src/LocalDiscretization
+    ${CMAKE_SOURCE_DIR}/itaps
+    ${CMAKE_BINARY_DIR}/itaps
+    ${CMAKE_SOURCE_DIR}/itaps/imesh
+    ${CMAKE_BINARY_DIR}/itaps/imesh
     ${CMAKE_SOURCE_DIR}/src/parallel )
 
 add_subdirectory(io)
