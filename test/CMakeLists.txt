@@ -13,7 +13,9 @@ include_directories(
 
 add_subdirectory(io)
 add_subdirectory(dual)
-add_subdirectory(h5file)
+if( MOAB_USE_HDF )
+  add_subdirectory(h5file)
+endif()
 add_subdirectory(obb)
 add_subdirectory(oldinc)
 add_subdirectory(perf)
