@@ -150,11 +150,81 @@ void read_cube_vols_test()
 
 }
 
+void read_cube_vertex_pos_test()
+{
+  ErrorCode rval;
+  Core moab;
+  Interface* mb = &moab;
+  read_file( mb, input_cube );
+
+  //First check that the correct number of vertices are present
+  int number_of_verts;
+  rval = mb->get_number_entities_by_type( 0 , MBVERTEX , number_of_verts);
+  CHECK_ERR(rval);
+
+  CHECK_EQUAL(8, number_of_verts);
+
+  //Retrieve all vertex handles from the mesh
+  Range verts;
+  rval = mb->get_entities_by_type( 0, MBVERTEX, verts);
+  CHECK_ERR(rval);
+
+  //Get the vertex coordinates
+  double x[verts.size()];
+  double y[verts.size()];
+  double z[verts.size()];
+  rval = mb-> get_coords( verts, &x[0], &y[0], &z[0]);
+  CHECK_ERR(rval);
+
+  //Check against known locations of the vertices
+
+  // Vertex 1
+  CHECK_EQUAL( x[0], 5);
+  CHECK_EQUAL( y[0], -5);
+  CHECK_EQUAL( z[0], 5);
+
+  // Vertex 2
+  CHECK_EQUAL( x[1], 5);
+  CHECK_EQUAL( y[1], 5);
+  CHECK_EQUAL( z[1], 5);
+
+  // Vertex 3
+  CHECK_EQUAL( x[2], -5);
+  CHECK_EQUAL( y[2], 5);
+  CHECK_EQUAL( z[2], 5);
+
+  // Vertex 4
+  CHECK_EQUAL( x[3], -5);
+  CHECK_EQUAL( y[3], -5);
+  CHECK_EQUAL( z[3], 5);
+
+  // Vertex 5
+  CHECK_EQUAL( x[4], 5);
+  CHECK_EQUAL( y[4], 5);
+  CHECK_EQUAL( z[4], -5);
+
+  // Vertex 6
+  CHECK_EQUAL( x[5], 5);
+  CHECK_EQUAL( y[5], -5);
+  CHECK_EQUAL( z[5], -5);
+
+  // Vertex 7
+  CHECK_EQUAL( x[6], -5);
+  CHECK_EQUAL( y[6], -5);
+  CHECK_EQUAL( z[6], -5);
+
+  // Vertex 8
+  CHECK_EQUAL( x[7], -5);
+  CHECK_EQUAL( y[7], 5);
+  CHECK_EQUAL( z[7], -5);
+
+}
+
 int main(int /* argc */, char** /* argv */)
 {
   int result = 0;
 
-  result += RUN_TEST( read_cube_vols_test );  
+  result += RUN_TEST( read_cube_vertex_pos_test );  
 
   return result;
 }
