@@ -17,7 +17,7 @@
 using namespace moab;
 double radius = 1.;
 double gtol = 1.e-9;
-bool debug = false;
+bool debug = true;
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,6 +51,10 @@ void update_tracer( iMesh_Instance instance, iBase_EntitySetHandle imesh_euler_s
     rval = mb->write_file("lagr.h5m", 0, 0, &covering_lagr_set, 1  );
     ERRORV(rval , "can't write covering set ");
   }
+
+  //
+  rval = enforce_convexity(mb, covering_lagr_set);
+  ERRORV(rval , "can't write covering set ");
 
   EntityHandle outputSet;
   rval = mb->create_meshset(MESHSET_SET, outputSet);

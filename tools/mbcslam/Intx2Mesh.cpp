@@ -800,6 +800,12 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
       ERRORR(rval, "can't set global id tag on new el");
     }
   }
+  // order the remote cells tuple list, with the global id, because we will search in it
+  //remote_cells->print("remote_cells before sorting");
+  moab::TupleList::buffer sort_buffer;
+  sort_buffer.buffer_init(n);
+  remote_cells->sort(1, &sort_buffer);
+  sort_buffer.reset();
   return MB_SUCCESS;
 }
 

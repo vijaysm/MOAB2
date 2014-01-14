@@ -216,7 +216,7 @@ int main(int argc, char **argv)
   if (Verbose)
   {
     std::stringstream lagrIni;
-    lagrIni<<"def0" << rank<<".h5m";
+    lagrIni<<"lagr0" << rank<<".h5m";
     rval = mb.write_file(lagrIni.str().c_str(), 0, 0, &covering_lagr_set, 1);
   }
 
@@ -226,7 +226,7 @@ int main(int argc, char **argv)
   if (Verbose)
   {
     std::stringstream ste;
-    ste<<"lagr0" << rank<<".h5m";
+    ste<<"euler0" << rank<<".h5m";
     rval = mb.write_file(ste.str().c_str(), 0, 0, &euler_set, 1);
   }
 
