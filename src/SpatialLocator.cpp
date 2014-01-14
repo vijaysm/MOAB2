@@ -26,6 +26,9 @@ namespace moab
         myDim = mbImpl->dimension_from_handle(*elems.rbegin());
         ErrorCode rval = myTree->build_tree(myElems);
         if (MB_SUCCESS != rval) throw rval;
+
+        rval = myTree->get_bounding_box(localBox);
+        if (MB_SUCCESS != rval) throw rval;
       }
     }
 
@@ -41,45 +44,44 @@ namespace moab
     }
     
 #ifdef USE_MPI
-    ErrorCode SpatialLocator::initialize_global_box(ParallelComm *pc) 
+    ErrorCode SpatialLocator::initialize_intermediate_partition(ParallelComm *pc) 
     {
       if (!pc) return MB_FAILURE;
       
-      BoundBox box, gbox;
-      ErrorCode rval = myTree->get_bounding_box(box);
+      BoundBox gbox;
       
         //step 2
         // get the global bounding box
       double sendbuffer[6];
       double rcvbuffer[6];
 
-      box.get(sendbuffer); //fill sendbuffer with local box, max values in [0:2] min values in [3:5]
-      sendbuffer[3] *= -1;
-      sendbuffer[4] *= -1; //negate Xmin,Ymin,Zmin to get their minimum using MPI_MAX
-      sendbuffer[5] *= -1; //to avoid calling MPI_Allreduce again with MPI_MIN
+      localBox.get(sendbuffer); //fill sendbuffer with local box, max values in [0:2] min values in [3:5]
+      sendbuffer[0] *= -1;
+      sendbuffer[1] *= -1; //negate Xmin,Ymin,Zmin to get their minimum using MPI_MAX
+      sendbuffer[2] *= -1; //to avoid calling MPI_Allreduce again with MPI_MIN
 
       int mpi_err = MPI_Allreduce(sendbuffer, rcvbuffer, 6, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
       if (MPI_SUCCESS != mpi_err)	return MB_FAILURE;
 
-      rcvbuffer[3] *= -1;
-      rcvbuffer[4] *= -1;  //negate Xmin,Ymin,Zmin again to get original values
-      rcvbuffer[5] *= -1;
+      rcvbuffer[0] *= -1;
+      rcvbuffer[1] *= -1;  //negate Xmin,Ymin,Zmin again to get original values
+      rcvbuffer[2] *= -1;
 
-      globalBox.update_max(&rcvbuffer[0]); //saving values in globalBox
-      globalBox.update_min(&rcvbuffer[3]);
+      globalBox.update_max(&rcvbuffer[3]); //saving values in globalBox
+      globalBox.update_min(&rcvbuffer[0]);
 
         // compute the alternate decomposition; use ScdInterface::compute_partition_sqijk for this
       ScdParData spd;
       spd.partMethod = ScdParData::SQIJK;
       spd.gPeriodic[0] = spd.gPeriodic[1] = spd.gPeriodic[2] = 0;
-      double lg = log10((box.bMax - box.bMin).length());
+      double lg = log10((localBox.bMax - localBox.bMin).length());
       double mfactor = pow(10.0, 6 - lg);
       int ldims[3], lper[3];
       double dgijk[6];
-      box.get(dgijk);
+      localBox.get(dgijk);
       for (int i = 0; i < 6; i++) spd.gDims[i] = dgijk[i] * mfactor;
-      rval = ScdInterface::compute_partition(pc->size(), pc->rank(), spd,
-                                             ldims, lper, regNums);
+      ErrorCode rval = ScdInterface::compute_partition(pc->size(), pc->rank(), spd,
+                                                       ldims, lper, regNums);
       if (MB_SUCCESS != rval) return rval;
         // all we're really interested in is regNums[i], #procs in each direction
       
@@ -91,8 +93,16 @@ namespace moab
 
 //this function sets up the TupleList TLreg_o containing the registration messages
 // and sends it
-    ErrorCode SpatialLocator::register_with_forwarders(ParallelComm *pc, TupleList &TLreg_o)
+    ErrorCode SpatialLocator::register_src_with_intermediate_procs(ParallelComm *pc, double abs_iter_tol, TupleList &TLreg_o)
     {
+      int corner_ijk[6];
+
+        // step 3: compute ijks of local box corners in intermediate partition
+        // get corner ijk values for my box
+      ErrorCode rval = get_point_ijk(localBox.bMin-CartVect(abs_iter_tol), abs_iter_tol, corner_ijk);
+      if (MB_SUCCESS != rval) return rval;
+      rval = get_point_ijk(localBox.bMax+CartVect(abs_iter_tol), abs_iter_tol, corner_ijk+3);
+      if (MB_SUCCESS != rval) return rval;
 
         //step 4
         //set up TLreg_o
@@ -102,17 +112,12 @@ namespace moab
       int dest;
       double boxtosend[6];
 
-      BoundBox box;
-      ErrorCode result = myTree->get_bounding_box(box);
-      if (result != MB_SUCCESS)
-        return result;
-
-      box.get(boxtosend);
+      localBox.get(boxtosend);
 
         //iterate over all regions overlapping with my bounding box using the computerd corner IDs
-      for (int k = cornerIJK[2]; k <= cornerIJK[5]; k++) {
-        for (int j = cornerIJK[1]; j <= cornerIJK[4]; j++) {
-          for (int i = cornerIJK[0]; i <= cornerIJK[3]; i++) {
+      for (int k = corner_ijk[2]; k <= corner_ijk[5]; k++) {
+        for (int j = corner_ijk[1]; j <= corner_ijk[4]; j++) {
+          for (int i = corner_ijk[0]; i <= corner_ijk[3]; i++) {
             dest = k * regNums[0]*regNums[1] + j * regNums[0] + i;
             TLreg_o.push_back(&dest, NULL, NULL, boxtosend);
           }
@@ -144,7 +149,7 @@ namespace moab
       return MB_UNSUPPORTED_OPERATION;
     }
 
-    bool is_initialized(int i) {return (i == -1);}
+    bool is_neg(int i) {return (i == -1);}
       
     ErrorCode SpatialLocator::par_locate_points(ParallelComm *pc,
                                                 const double *pos, int num_points,
@@ -160,14 +165,10 @@ namespace moab
 
       
         // steps 1-2 - initialize the alternative decomposition box from global box
-      rval = initialize_global_box(pc);
+      rval = initialize_intermediate_partition(pc);
       
-        //step 3 - compute the IDs of the regions which contain each corner of local box
-      rval = compute_corner_ijks();
-      if (rval != MB_SUCCESS) return rval;
-
-        //steps 4-6 - set up TLreg_o, gs_transfer, gather registrations
-      rval = register_with_forwarders(pc, TLreg_o);
+        //steps 3-6 - set up TLreg_o, gs_transfer, gather registrations
+      rval = register_src_with_intermediate_procs(pc, abs_iter_tol, TLreg_o);
       if (rval != MB_SUCCESS) return rval;
 
         // actual parallel point location using intermediate partition
@@ -190,7 +191,7 @@ namespace moab
 
       for (int pnt=0; pnt < 3*num_points; pnt+=3)
       {
-        int forw_id = proc_from_point(pos+pnt); //get ID of proc resonsible of the region the proc is in
+        int forw_id = proc_from_point(pos+pnt, abs_iter_tol); //get ID of proc resonsible of the region the proc is in
 
         iargs[0] = forw_id; 	//toProc
         iargs[1] = my_rank; 	//originalSourceProc
@@ -240,7 +241,7 @@ namespace moab
 
         //TLsearch_results_o
         //TL: (OriginalSourceProc, targetIndex, sourceIndex, U,V,W);
-      TLsearch_results_o.initialize(3,0,0,3,0);
+      TLsearch_results_o.initialize(3,0,0,0,0);
 
         //step 13 is done in test_local_box
 
@@ -254,6 +255,8 @@ namespace moab
       if (MB_SUCCESS != rval)
         return rval;
       
+      locTable.initialize(1, 0, 1, 3, 0);
+      locTable.enableWriteAccess();
       for (int i = 0; i < NN; i++) {
         if (is_inside[i]) {
           iargs[0] = TLforward_o.vi_rd[3*i+1];
@@ -263,6 +266,7 @@ namespace moab
           locTable.push_back(const_cast<int*>(&TLforward_o.vi_rd[3*i+1]), NULL, &ents[i], &params[3*i]);
         }
       }
+      locTable.disableWriteAccess();
 
         //step 14: send TLsearch_results_o and receive TLloc_i
       if (pc)
@@ -282,8 +286,9 @@ namespace moab
 
       if (debug) {
         int num_found = num_points - 0.5 * 
-            std::count_if(parLocTable.vi_wr, parLocTable.vi_wr + 2*num_points, is_initialized);
-        std::cout << "Points found = " << num_found << " out of " << num_points << "." << std::endl;
+            std::count_if(parLocTable.vi_wr, parLocTable.vi_wr + 2*num_points, is_neg);
+        std::cout << "Points found = " << num_found << "/" << num_points 
+                  << " (" << 100.0*((double)num_found/num_points) << "%)" << std::endl;
       }
       
       return MB_SUCCESS;
@@ -343,9 +348,7 @@ namespace moab
       double tmp_abs_iter_tol = abs_iter_tol;
       if (rel_iter_tol && !tmp_abs_iter_tol) {
           // relative epsilon given, translate to absolute epsilon using box dimensions
-        BoundBox box;
-        myTree->get_bounding_box(box);
-        tmp_abs_iter_tol = rel_iter_tol * box.diagonal_length();
+        tmp_abs_iter_tol = rel_iter_tol * localBox.diagonal_length();
       }
   
       EntityHandle closest_leaf;

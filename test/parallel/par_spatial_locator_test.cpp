@@ -28,6 +28,7 @@ ErrorCode load_file(Interface &mb, std::string &fn, Range &elems);
 int max_depth = 30;
 int npoints = 1000;
 int leaf = 6;
+int tree = -1;
 bool print_tree = false;
 int ints = 10;
 std::string fname;
@@ -44,9 +45,12 @@ int main(int argc, char **argv)
   po.addOpt<int>( "max_depth,m", "Maximum depth of tree", &max_depth);
   po.addOpt<int>( "npoints,n", "Number of query points", &npoints);
   po.addOpt<void>( "print,p", "Print tree details", &print_tree);
+  po.addOpt<int>( "tree,t", "Tree type (-1=all (default), 0=AdaptiveKD, 1=BVH", &tree);
   po.parseCommandLine(argc, argv);
 
-  RUN_TEST(test_kd_tree);
+  if (-1 == tree || 0 == tree)
+    RUN_TEST(test_kd_tree);
+  if (-1 == tree || 1 == tree)
   RUN_TEST(test_bvh_tree);
   
   fail = MPI_Finalize();
@@ -113,8 +117,7 @@ bool is_neg(int is_neg)
 void test_locator(SpatialLocator *sl) 
 {
   CartVect box_del;
-  BoundBox box;
-  ErrorCode rval = sl->get_bounding_box(box); CHECK_ERR(rval);
+  BoundBox box = sl->local_box();
   box_del = box.bMax - box.bMin;
 
   double denom = 1.0 / (double)RAND_MAX;
@@ -130,12 +133,13 @@ void test_locator(SpatialLocator *sl)
   ParallelComm *pc = ParallelComm::get_pcomm(sl->moab(), 0);
   CHECK(pc != NULL);
   
-  rval = sl->par_locate_points(pc, test_pts[0].array(), npoints); CHECK_ERR(rval);
+  ErrorCode rval = sl->par_locate_points(pc, test_pts[0].array(), npoints); CHECK_ERR(rval);
   if (pc->rank() == 0) {
     int num_out = std::count_if(sl->par_loc_table().vi_rd, sl->par_loc_table().vi_rd+2*npoints, is_neg);
     num_out /= 2;
   
-    std::cout << "Number of points inside an element = " << npoints-num_out << " out of " << npoints << std::endl;
+    std::cout << "Number of points inside an element = " << npoints-num_out << "/" << npoints 
+              << " (" << 100.0*((double)npoints-num_out)/npoints << "%)" << std::endl;
     std::cout << "Traversal stats:" << std::endl;
     sl->get_tree()->tree_stats().output();
 
@@ -152,10 +156,11 @@ ErrorCode create_hex_mesh(Interface &mb, Range &elems, int n, int dim)
   ScdInterface *scdi;
   ErrorCode rval = mb.query_interface(scdi); CHECK_ERR(rval);
   ScdParData spd;
-  spd.gDims[0] = n-1;
+  spd.gDims[0] = spd.gDims[1] = spd.gDims[2] = 0;
+  spd.gDims[3] = n;
   spd.partMethod = ScdParData::SQIJK;
-  if (dim > 1) spd.gDims[1] = n-1;
-  if (dim > 2) spd.gDims[2] = n-1;
+  if (dim > 1) spd.gDims[4] = n;
+  if (dim > 2) spd.gDims[5] = n;
   ScdBox *new_box;
   rval = scdi->construct_box(HomCoord(0, 0, 0), HomCoord(0, 0, 0), 
                              NULL, 0, new_box, NULL, &spd, false, 0); CHECK_ERR(rval);

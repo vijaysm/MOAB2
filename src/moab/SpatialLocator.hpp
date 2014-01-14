@@ -60,7 +60,10 @@ namespace moab {
       ErrorCode add_elems(Range &elems);
       
         /* get bounding box of this locator */
-      ErrorCode get_bounding_box(BoundBox &box);
+      BoundBox &local_box() {return localBox;}
+      
+        /* get bounding box of this locator */
+      const BoundBox &local_box() const {return localBox;}
       
         /* locate a set of vertices, Range variant */
       ErrorCode locate_points(Range &vertices,
@@ -169,28 +172,25 @@ namespace moab {
 #ifdef USE_MPI
         /* MPI_ReduceAll source mesh bounding boxes to get global source mesh bounding box
          */
-      ErrorCode initialize_global_box(ParallelComm *pc);
+      ErrorCode initialize_intermediate_partition(ParallelComm *pc);
       
-        /* compute the ijk location of this proc's target mesh bounding box based on intermediate decomp
-         * extents/divisions
+        /* for a given point in space, compute its ijk location in the intermediate decomposition; tolerance is
+         * used only to test proximity to global box extent, not for local box test
          */
-      inline ErrorCode compute_corner_ijks();
-      
-        /* for a given point in space, compute its ijk location in the intermediate decomposition
-         */
-      inline ErrorCode get_point_ijk(const CartVect &point, int *ijk) const;
+      inline ErrorCode get_point_ijk(const CartVect &point, const double abs_iter_tol, int *ijk) const;
 
         /* given an ijk location in the intermediate partition, return the proc rank for that location 
          */
       inline int proc_from_ijk(const int *ijk) const;
 
-        /* given a point in space, return the proc responsible for that point from the intermediate decomp
+        /* given a point in space, return the proc responsible for that point from the intermediate decomp; no tolerances
+         * applied here, so first proc in lexicographic ijk ordering is returned
          */
-      inline int proc_from_point(const double *pos) const;
+      inline int proc_from_point(const double *pos, const double abs_iter_tol) const;
       
         /* register my source mesh with intermediate decomposition procs
          */
-      ErrorCode register_with_forwarders(ParallelComm *pc, TupleList &TLreg_o);
+      ErrorCode register_src_with_intermediate_procs(ParallelComm *pc, double abs_iter_tol, TupleList &TLreg_o);
       
 #endif
       
@@ -235,6 +235,10 @@ namespace moab {
          */
       TupleList parLocTable;
 
+        /* \brief Local bounding box, duplicated from tree
+         */
+      BoundBox localBox;
+
         /* \brief Global bounding box, used in parallel spatial location
          */
       BoundBox globalBox;
@@ -246,10 +250,6 @@ namespace moab {
         /* \brief Number of regions in each of 3 directions
          */
       int regNums[3];
-
-        /* \brief Region numbers for my box's min/max corners, used in parallel spatial location
-         */
-      int cornerIJK[6];
 
         /* \brief Map from source processor to bounding box of that proc's source mesh
          *
@@ -271,29 +271,19 @@ namespace moab {
       return locate_points(pos, 1, &ent, params, is_inside, rel_iter_tol, abs_iter_tol, inside_tol);
     }
 
-    inline ErrorCode SpatialLocator::get_bounding_box(BoundBox &box) 
+    inline ErrorCode SpatialLocator::get_point_ijk(const CartVect &point, const double abs_iter_tol, int *ijk) const
     {
-      return myTree->get_bounding_box(box);
-    }
-
-    inline ErrorCode SpatialLocator::compute_corner_ijks() {
-
-      BoundBox box;
-      ErrorCode rval = myTree->get_bounding_box(box);
-      if (rval != MB_SUCCESS) return rval;
-
-      rval = get_point_ijk(box.bMin, cornerIJK);
-      if (MB_SUCCESS != rval) return rval;
-      rval = get_point_ijk(box.bMax, cornerIJK+3);
-      return rval;
-    }
-
-    inline ErrorCode SpatialLocator::get_point_ijk(const CartVect &point, int *ijk) const
-    {
-      for (int i = 0; i < 3; i++)
-        ijk[i] = (regNums[i] > 1 ? (point[i] - globalBox.bMin[i]) / regDeltaXYZ[i] : 0);
+      for (int i = 0; i < 3; i++) {
+        if (point[i] < globalBox.bMin[i]-abs_iter_tol || point[i] > globalBox.bMax[i]+abs_iter_tol)
+          ijk[i] = -1;
+        else {
+          ijk[i] = point[i] - globalBox.bMin[i] / regDeltaXYZ[i];
+          if (ijk[i] >= regNums[i] && point[i] <= globalBox.bMax[i]+abs_iter_tol)
+            ijk[i] = regNums[i]-1;
+        }
+      }
       
-      return MB_SUCCESS;
+      return (ijk[0] >= 0 && ijk[1] >= 0 && ijk[2] >= 0 ? MB_SUCCESS : MB_FAILURE);;
     }
 
     inline int SpatialLocator::proc_from_ijk(const int *ijk) const
@@ -301,10 +291,10 @@ namespace moab {
       return ijk[2] * regNums[0]*regNums[1] + ijk[1] * regNums[0] + ijk[0];
     }
     
-    inline int SpatialLocator::proc_from_point(const double *pos) const
+    inline int SpatialLocator::proc_from_point(const double *pos, const double abs_iter_tol) const
     {
       int ijk[3];
-      ErrorCode rval = get_point_ijk(CartVect(pos), ijk);
+      ErrorCode rval = get_point_ijk(CartVect(pos), abs_iter_tol, ijk);
       if (MB_SUCCESS != rval) return -1;
       
       return ijk[2] * regNums[0]*regNums[1] + ijk[1] * regNums[0] + ijk[0];
