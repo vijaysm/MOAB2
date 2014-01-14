@@ -43,6 +43,7 @@ void read_file( Interface* moab, const char* input_file )
 void read_cube_verts_test()
 {
   ErrorCode rval;
+  //Open the test file
   Core moab;
   Interface* mb = &moab;
   read_file( mb, input_cube );
@@ -58,6 +59,7 @@ void read_cube_verts_test()
 void read_cube_tris_test()
 {
   ErrorCode rval;
+  //Open the test file
   Core moab;
   Interface* mb = &moab;
   read_file( mb, input_cube );
@@ -75,6 +77,7 @@ void read_cube_tris_test()
 void read_cube_curves_test()
 {
   ErrorCode rval;
+  //Open the test file
   Core moab;
   Interface* mb = &moab;
   read_file( mb, input_cube );
@@ -92,7 +95,6 @@ void read_cube_curves_test()
   rval = mb->get_number_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
 	  					    val, 1, number_of_curves );
   CHECK_ERR(rval);
-  
 
   CHECK_EQUAL( 12, number_of_curves);  
 
@@ -101,6 +103,7 @@ void read_cube_curves_test()
 void read_cube_surfs_test()
 {
   ErrorCode rval;
+  //Open the test file
   Core moab;
   Interface* mb = &moab;
   read_file( mb, input_cube );
@@ -127,12 +130,12 @@ void read_cube_surfs_test()
 void read_cube_vols_test()
 {
   ErrorCode rval;
+  //Open the test file
   Core moab;
   Interface* mb = &moab;
   read_file( mb, input_cube );
    
   Tag geom_tag;
-
   rval = mb->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1,
 				MB_TYPE_INTEGER, geom_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
   CHECK_ERR(rval);
@@ -152,7 +155,9 @@ void read_cube_vols_test()
 
 void read_cube_vertex_pos_test()
 {
+  
   ErrorCode rval;
+  //Open the test file
   Core moab;
   Interface* mb = &moab;
   read_file( mb, input_cube );
