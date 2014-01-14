@@ -1,3 +1,4 @@
+include_directories(  ${CMAKE_SOURCE_DIR}/src/io/mhdf/include )
 set( TESTS h5file_test.cpp
            h5legacy.cpp
            h5varlen.cpp
