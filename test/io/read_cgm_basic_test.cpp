@@ -31,7 +31,28 @@ static const char input_cube[] = "cube.sat";
 #endif
 #endif
 
+// Function used to load the test file
 void read_file( Interface* moab, const char* input_file );
+
+// List of tests in this file
+void read_cube_verts_test();
+void read_cube_curves_test();
+void read_cube_surfs_test();
+void read_cube_vols_test();
+void read_cube_vertes_pos_test();
+void read_cube_curve_senses_test();
+void delete_mesh_test();
+
+
+int main(int /* argc */, char** /* argv */)
+{
+  int result = 0;
+
+  result += RUN_TEST( read_cube_curve_senses_test );  
+
+  return result;
+}
+
 
 
 void read_file( Interface* moab, const char* input_file )
@@ -224,16 +245,6 @@ void read_cube_vertex_pos_test()
   CHECK_EQUAL( z[7], -5);
 
 }
-
-int main(int /* argc */, char** /* argv */)
-{
-  int result = 0;
-
-  result += RUN_TEST( read_cube_vertex_pos_test );  
-
-  return result;
-}
-
 
 void delete_mesh_test()
 {
