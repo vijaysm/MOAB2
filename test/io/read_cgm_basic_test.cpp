@@ -32,7 +32,6 @@ static const char input_cube[] = "cube.sat";
 #endif
 
 void read_file( Interface* moab, const char* input_file );
-void read_cube_test();
 
 
 void read_file( Interface* moab, const char* input_file )
@@ -72,12 +71,90 @@ void read_cube_tris_test()
   CHECK_EQUAL( 12, number_of_tris);  
 
 }
- 
+
+void read_cube_curves_test()
+{
+  ErrorCode rval;
+  Core moab;
+  Interface* mb = &moab;
+  read_file( mb, input_cube );
+   
+  Tag geom_tag;
+
+  rval = mb->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1,
+				MB_TYPE_INTEGER, geom_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
+  CHECK_ERR(rval);
+  
+  Range curves;
+  int dim = 1;
+  void *val[] = {&dim};
+  int number_of_curves;
+  rval = mb->get_number_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
+	  					    val, 1, number_of_curves );
+  CHECK_ERR(rval);
+  
+
+  CHECK_EQUAL( 12, number_of_curves);  
+
+} 
+
+void read_cube_surfs_test()
+{
+  ErrorCode rval;
+  Core moab;
+  Interface* mb = &moab;
+  read_file( mb, input_cube );
+   
+  Tag geom_tag;
+
+  rval = mb->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1,
+				MB_TYPE_INTEGER, geom_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
+  CHECK_ERR(rval);
+  
+  Range curves;
+  int dim = 2;
+  void *val[] = {&dim};
+  int number_of_surfs;
+  rval = mb->get_number_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
+	  					    val, 1, number_of_surfs );
+  CHECK_ERR(rval);
+  
+
+  CHECK_EQUAL( 6, number_of_surfs);  
+
+}
+
+void read_cube_vols_test()
+{
+  ErrorCode rval;
+  Core moab;
+  Interface* mb = &moab;
+  read_file( mb, input_cube );
+   
+  Tag geom_tag;
+
+  rval = mb->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1,
+				MB_TYPE_INTEGER, geom_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
+  CHECK_ERR(rval);
+  
+  Range curves;
+  int dim = 3;
+  void *val[] = {&dim};
+  int number_of_vols;
+  rval = mb->get_number_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
+	  					    val, 1, number_of_vols );
+  CHECK_ERR(rval);
+  
+
+  CHECK_EQUAL( 1, number_of_vols);  
+
+}
+
 int main(int /* argc */, char** /* argv */)
 {
   int result = 0;
 
-  result += RUN_TEST( read_cube_tris_test );  
+  result += RUN_TEST( read_cube_vols_test );  
 
   return result;
 }
