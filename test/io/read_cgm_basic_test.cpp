@@ -41,7 +41,22 @@ void read_file( Interface* moab, const char* input_file )
   CHECK_ERR(rval);
 }
 
-void read_cube_test()
+void read_cube_verts_test()
+{
+  ErrorCode rval;
+  Core moab;
+  Interface* mb = &moab;
+  read_file( mb, input_cube );
+   
+  int number_of_vertices;
+  rval = mb->get_number_entities_by_type(0, MBVERTEX, number_of_vertices);
+  CHECK_ERR(rval);
+ 
+  CHECK_EQUAL( 8, number_of_vertices);
+}
+
+
+void read_cube_tris_test()
 {
   ErrorCode rval;
   Core moab;
@@ -54,17 +69,19 @@ void read_cube_test()
   std::cout << "Number of Triangles = " << number_of_tris << std::endl;
   CHECK_ERR(rval);
 
-  int number_of_vertices;
-  rval = mb->get_number_entities_by_type(0, MBVERTEX, number_of_vertices);
-  CHECK_ERR(rval);
-
-
-  if( number_of_tris != 12) rval = MB_FAILURE; CHECK_ERR(rval);
-   
-  if( number_of_vertices !=8) rval = MB_FAILURE; CHECK_ERR(rval);
-
+  CHECK_EQUAL( 12, number_of_tris);  
 
 }
+ 
+int main(int /* argc */, char** /* argv */)
+{
+  int result = 0;
+
+  result += RUN_TEST( read_cube_tris_test );  
+
+  return result;
+}
+
 
 void delete_mesh_test()
 {
@@ -109,14 +126,4 @@ void delete_mesh_test()
  }
 
 }
-  
-int main(int /* argc */, char** /* argv */)
-{
-  int result = 0;
-
-  result += RUN_TEST( read_cube_test );  
-  result += RUN_TEST( delete_mesh_test );
-  result += RUN_TEST( read_cube_test );
-
-  return result;
-}
+ 
