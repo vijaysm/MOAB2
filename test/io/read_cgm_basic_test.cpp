@@ -40,7 +40,6 @@ void read_cube_curves_test();
 void read_cube_surfs_test();
 void read_cube_vols_test();
 void read_cube_vertes_pos_test();
-void read_cube_curve_senses_test();
 void delete_mesh_test();
 
 
@@ -48,7 +47,7 @@ int main(int /* argc */, char** /* argv */)
 {
   int result = 0;
 
-  result += RUN_TEST( read_cube_curve_senses_test );  
+  result += RUN_TEST( read_cube_verts_test );  
 
   return result;
 }
