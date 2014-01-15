@@ -127,11 +127,11 @@ void read_cube_surfs_test()
   Core moab;
   Interface* mb = &moab;
   read_file( mb, input_cube );
-   
+  
+  //Get geometry tag for pulling curve data from the mesh 
   Tag geom_tag;
-
-  rval = mb->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1,
-				MB_TYPE_INTEGER, geom_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
+  rval = mb->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, 
+                             geom_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
   CHECK_ERR(rval);
   
   Range curves;
@@ -140,10 +140,10 @@ void read_cube_surfs_test()
   int number_of_surfs;
   rval = mb->get_number_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
 	  					    val, 1, number_of_surfs );
-  CHECK_ERR(rval);
+  CHECK_ERR( rval );
   
 
-  CHECK_EQUAL( 6, number_of_surfs);  
+  CHECK_EQUAL( 6, number_of_surfs );  
 
 }
 
@@ -154,11 +154,12 @@ void read_cube_vols_test()
   Core moab;
   Interface* mb = &moab;
   read_file( mb, input_cube );
-   
+  
+  //Get geometry tag for pulling curve data from the mesh 
   Tag geom_tag;
-  rval = mb->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1,
-				MB_TYPE_INTEGER, geom_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
-  CHECK_ERR(rval);
+  rval = mb->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, 
+                             geom_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
+  CHECK_ERR( rval );
   
   Range curves;
   int dim = 3;
@@ -166,10 +167,10 @@ void read_cube_vols_test()
   int number_of_vols;
   rval = mb->get_number_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
 	  					    val, 1, number_of_vols );
-  CHECK_ERR(rval);
+  CHECK_ERR( rval );
   
 
-  CHECK_EQUAL( 1, number_of_vols);  
+  CHECK_EQUAL( 1, number_of_vols );
 
 }
 
@@ -184,64 +185,64 @@ void read_cube_vertex_pos_test()
 
   //First check that the correct number of vertices are present
   int number_of_verts;
-  rval = mb->get_number_entities_by_type( 0 , MBVERTEX , number_of_verts);
-  CHECK_ERR(rval);
+  rval = mb->get_number_entities_by_type( 0, MBVERTEX, number_of_verts );
+  CHECK_ERR( rval );
 
-  CHECK_EQUAL(8, number_of_verts);
+  CHECK_EQUAL( 8, number_of_verts );
 
   //Retrieve all vertex handles from the mesh
   Range verts;
-  rval = mb->get_entities_by_type( 0, MBVERTEX, verts);
-  CHECK_ERR(rval);
+  rval = mb->get_entities_by_type( 0, MBVERTEX, verts );
+  CHECK_ERR( rval );
 
   //Get the vertex coordinates
   double x[verts.size()];
   double y[verts.size()];
   double z[verts.size()];
-  rval = mb-> get_coords( verts, &x[0], &y[0], &z[0]);
-  CHECK_ERR(rval);
+  rval = mb-> get_coords( verts, &x[0], &y[0], &z[0] );
+  CHECK_ERR( rval );
 
   //Check against known locations of the vertices
 
   // Vertex 1
-  CHECK_EQUAL( x[0], 5);
-  CHECK_EQUAL( y[0], -5);
-  CHECK_EQUAL( z[0], 5);
+  CHECK_EQUAL( x[0], 5  );
+  CHECK_EQUAL( y[0], -5 );
+  CHECK_EQUAL( z[0], 5  );
 
   // Vertex 2
-  CHECK_EQUAL( x[1], 5);
-  CHECK_EQUAL( y[1], 5);
-  CHECK_EQUAL( z[1], 5);
+  CHECK_EQUAL( x[1], 5  );
+  CHECK_EQUAL( y[1], 5  );
+  CHECK_EQUAL( z[1], 5  );
 
   // Vertex 3
-  CHECK_EQUAL( x[2], -5);
-  CHECK_EQUAL( y[2], 5);
-  CHECK_EQUAL( z[2], 5);
+  CHECK_EQUAL( x[2], -5 );
+  CHECK_EQUAL( y[2], 5  );
+  CHECK_EQUAL( z[2], 5  );
 
   // Vertex 4
-  CHECK_EQUAL( x[3], -5);
-  CHECK_EQUAL( y[3], -5);
-  CHECK_EQUAL( z[3], 5);
+  CHECK_EQUAL( x[3], -5 );
+  CHECK_EQUAL( y[3], -5 );
+  CHECK_EQUAL( z[3], 5  );
 
   // Vertex 5
-  CHECK_EQUAL( x[4], 5);
-  CHECK_EQUAL( y[4], 5);
-  CHECK_EQUAL( z[4], -5);
+  CHECK_EQUAL( x[4], 5  );
+  CHECK_EQUAL( y[4], 5  );
+  CHECK_EQUAL( z[4], -5 );
 
   // Vertex 6
-  CHECK_EQUAL( x[5], 5);
-  CHECK_EQUAL( y[5], -5);
-  CHECK_EQUAL( z[5], -5);
+  CHECK_EQUAL( x[5], 5  );
+  CHECK_EQUAL( y[5], -5 );
+  CHECK_EQUAL( z[5], -5 );
 
   // Vertex 7
-  CHECK_EQUAL( x[6], -5);
-  CHECK_EQUAL( y[6], -5);
-  CHECK_EQUAL( z[6], -5);
+  CHECK_EQUAL( x[6], -5 );
+  CHECK_EQUAL( y[6], -5 );
+  CHECK_EQUAL( z[6], -5 );
 
   // Vertex 8
-  CHECK_EQUAL( x[7], -5);
-  CHECK_EQUAL( y[7], 5);
-  CHECK_EQUAL( z[7], -5);
+  CHECK_EQUAL( x[7], -5 );
+  CHECK_EQUAL( y[7], 5  );
+  CHECK_EQUAL( z[7], -5 );
 
 }
 
@@ -253,10 +254,10 @@ void delete_mesh_test()
 
  ErrorCode rval; 
 
+ //Get geometry tag for pulling curve data from the mesh
  Tag geom_tag; 
-
- rval = mb->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1,
-				MB_TYPE_INTEGER, geom_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
+ rval = mb->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, 
+                            geom_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
  CHECK_ERR(rval);
 
  Range geom_sets[4];
@@ -266,7 +267,7 @@ void delete_mesh_test()
 	void *val[] = {&dim};
 	rval = mb->get_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
 	  					    val, 1, geom_sets[dim] );
-        CHECK_ERR(rval); 
+        CHECK_ERR( rval ); 
 
         if( geom_sets[dim].size() == 0 ) std::cout << "Warning: No geom sets to begin with" << std::endl;
 
@@ -280,11 +281,11 @@ void delete_mesh_test()
 	void *val_after[] = {&dim};
 	rval = mb->get_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
 	  					    val_after, 1, geom_sets_after[dim] );
-        CHECK_ERR(rval); 
+        CHECK_ERR( rval ); 
 
         if( 0 != geom_sets_after[dim].size() ) rval = MB_FAILURE;
 
-        CHECK_ERR(rval);
+        CHECK_ERR( rval );
  }
 
 }
