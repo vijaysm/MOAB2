@@ -91,6 +91,10 @@ public:
   
     //! get/set the file name
   void set_file_name(int m_or_s, const std::string &name);
+
+    //! get/set the x displacement tag names
+  std::string xdisp_name(int idx = 0);
+  void xdisp_name(const std::string &nm, int idx = 0);
   
 private:
     //! apply a known deformation to the solid elements, putting the results in the xNew tag; also
@@ -132,8 +136,14 @@ private:
     //! filenames for master/slave meshes
   std::string masterFileName, slaveFileName;
 
+    //! tag from file, might be 3
+  Tag xDisp[3];
+
     //! tag used for new positions
   Tag xNew;
+  
+    //! tag name used to read disps from file
+  std::string xDispNames[3];
   
     //! tag name used for new positions
   std::string xNewName;
@@ -197,6 +207,16 @@ inline ErrorCode DeformMeshRemap::get_set_nos(int f_or_s, std::set<int> &set_nos
   set_nos = *this_set;
   
   return MB_SUCCESS;
+}
+
+inline std::string DeformMeshRemap::xdisp_name(int idx) 
+{
+  return xDispNames[idx];
+}
+
+void DeformMeshRemap::xdisp_name(const std::string &nm, int idx) 
+{
+  xDispNames[idx] = nm;
 }
 
 ErrorCode DeformMeshRemap::execute() 
@@ -296,14 +316,14 @@ void DeformMeshRemap::set_file_name(int m_or_s, const std::string &name)
 DeformMeshRemap::DeformMeshRemap(Interface *impl, ParallelComm *master, ParallelComm *slave)  
         : mbImpl(impl), pcMaster(master), pcSlave(slave), masterSet(0), slaveSet(0), xNew(0), xNewName("xnew") 
 {
+  xDisp[0] = xDisp[1] = xDisp[2] = 0;
+
   if (!pcSlave && pcMaster)
     pcSlave = pcMaster;
 }
   
 DeformMeshRemap::~DeformMeshRemap() 
 {
-    // delete the tag
-  mbImpl->tag_delete(xNew);
 }
 
 int main(int argc, char **argv) {
@@ -312,14 +332,14 @@ int main(int argc, char **argv) {
 
   ProgOptions po("Deformed mesh options");
   po.addOpt<std::string> ("master,m", "Specify the master meshfile name" );
-  po.addOpt<std::string> ("slave,s", "Specify the slave meshfile name" );
+  po.addOpt<std::string> ("worker,w", "Specify the slave/worker meshfile name" );
+  po.addOpt<std::string> ("d1,", "Tag name for displacement x or xyz" );
+  po.addOpt<std::string> ("d2,", "Tag name for displacement y" );
+  po.addOpt<std::string> ("d3,", "Tag name for displacement z" );
+  po.addOpt<int> ("fluid,f", "Specify fluid material set number(s).");
+  po.addOpt<int> ("solid,s", "Specify fluid material set number(s).");
+  
   po.parseCommandLine(argc, argv);
-  std::string foo;
-  string masterf, slavef;
-  if(!po.getOpt("master", &masterf))
-    masterf = string(MESH_DIR) + string("/rodquad.g");
-  if(!po.getOpt("slave", &slavef))
-    slavef = string(MESH_DIR) + string("/rodtri.g");
 
   mb = new Core();
 
@@ -330,10 +350,43 @@ int main(int argc, char **argv) {
 #else  
   dfr = new DeformMeshRemap(mb);
 #endif
+
+
+  std::string masterf, slavef;
+  if(!po.getOpt("master", &masterf))
+    masterf = string(MESH_DIR) + string("/rodquad.g");
   dfr->set_file_name(DeformMeshRemap::MASTER, masterf);
+
+  if(!po.getOpt("worker", &slavef))
+    slavef = string(MESH_DIR) + string("/rodtri.g");
   dfr->set_file_name(DeformMeshRemap::SLAVE, slavef);
-  rval = dfr->add_set_no(DeformMeshRemap::SOLID, SOLID_SETNO); RR("Failed to add solid set no.");
-  rval = dfr->add_set_no(DeformMeshRemap::FLUID, FLUID_SETNO); RR("Failed to add fluid set no.");
+
+  std::vector<int> set_nos;
+  po.getOptAllArgs("fluid", set_nos);
+  if (set_nos.empty()) {
+    rval = dfr->add_set_no(DeformMeshRemap::FLUID, FLUID_SETNO); RR("Failed to add solid set no.");
+  }
+  else {
+    for (std::vector<int>::iterator vit = set_nos.begin(); vit != set_nos.end(); vit++) 
+      dfr->add_set_no(DeformMeshRemap::FLUID, *vit);
+  }
+  set_nos.clear();
+  
+  po.getOptAllArgs("solid", set_nos);
+  if (set_nos.empty()) {
+    rval = dfr->add_set_no(DeformMeshRemap::SOLID, SOLID_SETNO); RR("Failed to add solid set no.");
+  }
+  else {
+    for (std::vector<int>::iterator vit = set_nos.begin(); vit != set_nos.end(); vit++) 
+      dfr->add_set_no(DeformMeshRemap::SOLID, *vit);
+  }
+
+  std::string tnames[3];
+  po.getOpt("d1", &tnames[0]);
+  po.getOpt("d2", &tnames[1]);
+  po.getOpt("d3", &tnames[2]);
+  for (int i = 0; i < 3; i++) 
+    if (!tnames[i].empty()) dfr->xdisp_name(tnames[i], i);
   
   rval = dfr->execute();
   
@@ -387,40 +440,71 @@ void deform_func(const BoundBox &bbox, double *xold, double *xnew)
 ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems, const char *tag_name) 
 {
     // deform elements with an analytic function
+  ErrorCode rval;
 
-    // create the tag
-  ErrorCode rval = mbImpl->tag_get_handle((tag_name ? tag_name : ""), 3, MB_TYPE_DOUBLE, xNew, MB_TAG_CREAT|MB_TAG_DENSE);
-  RR("Failed to create xnew tag.");
-  
-    // get all the vertices and coords in the fluid, set xnew to them
-  Range verts;
-  rval = mbImpl->get_adjacencies(fluid_elems, 0, false, verts, Interface::UNION);
-  RR("Failed to get vertices.");
-  std::vector<double> coords(3*verts.size(), 0.0);
-  rval = mbImpl->get_coords(verts, &coords[0]);
-  RR("Failed to get vertex coords.");
-  rval = mbImpl->tag_set_data(xNew, verts, &coords[0]);
-  RR("Failed to set xnew tag on fluid verts.");
-
-    // get the bounding box of the solid mesh
-  BoundBox bbox;
-  bbox.update(*mbImpl, solid_elems);
-  
     // get all the vertices and coords in the solid
-  verts.clear();
+  Range verts;
   rval = mbImpl->get_adjacencies(solid_elems, 0, false, verts, Interface::UNION);
   RR("Failed to get vertices.");
-  coords.resize(3*verts.size(), 0.0);
+  std::vector<double> coords(3*verts.size());
   rval = mbImpl->get_coords(verts, &coords[0]);
   RR("Failed to get vertex coords.");
   unsigned int num_verts = verts.size();
-  for (unsigned int i = 0; i < num_verts; i++)
-    deform_func(bbox, &coords[3*i], &coords[3*i]);
+
+    // get or create the tag
+
+  if (!xDispNames[0].empty() && !xDispNames[1].empty() && !xDispNames[2].empty()) {
+      // 3 tags, specifying xyz individual data, integrate into one tag
+    rval = mbImpl->tag_get_handle((tag_name ? tag_name : ""), 3, MB_TYPE_DOUBLE, xNew, MB_TAG_CREAT|MB_TAG_DENSE);
+    RR("Failed to create xnew tag.");
+    std::vector<double> disps(num_verts);
+    for (int i = 0; i < 3; i++) {
+      rval = mbImpl->tag_get_handle(xDispNames[0].c_str(), 1, MB_TYPE_DOUBLE, xDisp[i]);
+      RR("Failed to get xDisp tag.");
+      rval = mbImpl->tag_get_data(xDisp[i], verts, &disps[0]);
+      RR("Failed to get xDisp tag values.");
+      for (unsigned int j = 0; j < num_verts; j++)
+        coords[3*j+i] = disps[j];
+    }
+  }
+  else if (!xDispNames[0].empty()) {
+    rval = mbImpl->tag_get_handle(xDispNames[0].c_str(), 3, MB_TYPE_DOUBLE, xDisp[0]);
+    RR("Failed to get first xDisp tag.");
+    xNew = xDisp[0];
+    std::vector<double> disps(3*num_verts);
+    rval = mbImpl->tag_get_data(xDisp[0], verts, &disps[0]);
+    for (unsigned int j = 0; j < 3*num_verts; j++)
+      coords[j] += disps[j];
+  }
+  else {
+      // get the bounding box of the solid mesh
+    BoundBox bbox;
+    bbox.update(*mbImpl, solid_elems);
+  
+    for (unsigned int j = 0; j < num_verts; j++)
+      deform_func(bbox, &coords[3*j], &coords[3*j]);
+  }
+
+  if (!xNew) {
+    rval = mbImpl->tag_get_handle((tag_name ? tag_name : ""), 3, MB_TYPE_DOUBLE, 
+                                  xDisp[0], MB_TAG_CREAT|MB_TAG_DENSE);
+    RR("Failed to get xNew tag.");
+  }
     
     // set the new tag to those coords
   rval = mbImpl->tag_set_data(xNew, verts, &coords[0]);
   RR("Failed to set tag data.");
   
+    // get all the vertices and coords in the fluid, set xnew to them
+  verts.clear();
+  rval = mbImpl->get_adjacencies(fluid_elems, 0, false, verts, Interface::UNION);
+  RR("Failed to get vertices.");
+  coords.resize(3*verts.size());
+  rval = mbImpl->get_coords(verts, &coords[0]);
+  RR("Failed to get vertex coords.");
+  rval = mbImpl->tag_set_data(xNew, verts, &coords[0]);
+  RR("Failed to set xnew tag on fluid verts.");
+    
   return MB_SUCCESS;
 }
 
