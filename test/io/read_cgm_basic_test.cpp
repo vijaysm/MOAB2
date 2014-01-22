@@ -59,6 +59,7 @@ int main(int /* argc */, char** /* argv */)
 void read_file( Interface* moab, const char* input_file )
 {
   InitCGMA::initialize_cgma();
+  GeometryQueryTool::instance()->delete_geometry();
 
   ErrorCode rval = moab->load_file( input_file );
   CHECK_ERR(rval);
