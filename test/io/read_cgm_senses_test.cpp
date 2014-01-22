@@ -51,6 +51,7 @@ int main(int /* argc */, char** /* argv */)
 {
   int result = 0;
 
+  result += RUN_TEST( read_cube_curve_senses_test );  
   result += RUN_TEST( read_cube_surf_senses_test );  
  
   return result;
@@ -61,7 +62,6 @@ void read_file( Interface* moab, const char* input_file )
 {
   InitCGMA::initialize_cgma();
   GeometryQueryTool::instance()->delete_geometry();
-
 
   ErrorCode rval = moab->load_file( input_file );
   CHECK_ERR( rval );
