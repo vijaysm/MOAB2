@@ -9,6 +9,9 @@
 #include "moab/Core.hpp"
 #include "MBTagConventions.hpp"
 #include "moab/GeomTopoTool.hpp"
+#include "InitCGMA.hpp"
+#include "GeometryQueryTool.hpp"
+
 using namespace moab;
 
 #define CHKERR(A) do { if (MB_SUCCESS != (A)) { \
@@ -49,13 +52,17 @@ int main(int /* argc */, char** /* argv */)
   int result = 0;
 
   result += RUN_TEST( read_cube_surf_senses_test );  
-
+ 
   return result;
 }
 
 
 void read_file( Interface* moab, const char* input_file )
 {
+  InitCGMA::initialize_cgma();
+  GeometryQueryTool::instance()->delete_geometry();
+
+
   ErrorCode rval = moab->load_file( input_file );
   CHECK_ERR( rval );
 }
