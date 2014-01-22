@@ -50,12 +50,12 @@ int main(int /* argc */, char** /* argv */)
 {
   int result = 0;
  
-  result += RUN_TEST( read_cube_vertex_pos_test );  
   result += RUN_TEST( read_cube_verts_test );  
   result += RUN_TEST( read_cube_curves_test );  
   result += RUN_TEST( read_cube_tris_test );  
   result += RUN_TEST( read_cube_surfs_test );  
   result += RUN_TEST( read_cube_vols_test );  
+  result += RUN_TEST( read_cube_vertex_pos_test );  
  
   return result;
 }
@@ -215,45 +215,71 @@ void read_cube_vertex_pos_test()
 
   //Check against known locations of the vertices
 
+  std::vector<double> x_ref;
+  std::vector<double> y_ref;
+  std::vector<double> z_ref;
+
   // Vertex 1
-  CHECK_EQUAL( x[0], 5  );
-  CHECK_EQUAL( y[0], -5 );
-  CHECK_EQUAL( z[0], 5  );
+
+  x_ref.push_back( 5 );
+  y_ref.push_back( -5 );
+  z_ref.push_back( 5 );
 
   // Vertex 2
-  CHECK_EQUAL( x[1], 5  );
-  CHECK_EQUAL( y[1], 5  );
-  CHECK_EQUAL( z[1], 5  );
+  x_ref.push_back( 5 );
+  y_ref.push_back( 5 );
+  z_ref.push_back( 5 );
 
   // Vertex 3
-  CHECK_EQUAL( x[2], -5 );
-  CHECK_EQUAL( y[2], 5  );
-  CHECK_EQUAL( z[2], 5  );
+  x_ref.push_back( -5 );
+  y_ref.push_back( 5 );
+  z_ref.push_back( 5 );
 
   // Vertex 4
-  CHECK_EQUAL( x[3], -5 );
-  CHECK_EQUAL( y[3], -5 );
-  CHECK_EQUAL( z[3], 5  );
+  x_ref.push_back( -5 );
+  y_ref.push_back( -5 );
+  z_ref.push_back( 5 );
 
   // Vertex 5
-  CHECK_EQUAL( x[4], 5  );
-  CHECK_EQUAL( y[4], 5  );
-  CHECK_EQUAL( z[4], -5 );
+  x_ref.push_back( 5 );
+  y_ref.push_back( 5 );
+  z_ref.push_back( -5 );
 
   // Vertex 6
-  CHECK_EQUAL( x[5], 5  );
-  CHECK_EQUAL( y[5], -5 );
-  CHECK_EQUAL( z[5], -5 );
+  x_ref.push_back( 5 );
+  y_ref.push_back( -5 );
+  z_ref.push_back( -5 );
 
   // Vertex 7
-  CHECK_EQUAL( x[6], -5 );
-  CHECK_EQUAL( y[6], -5 );
-  CHECK_EQUAL( z[6], -5 );
-
+  x_ref.push_back( -5 );
+  y_ref.push_back( -5 );
+  z_ref.push_back( -5 );
+ 
   // Vertex 8
-  CHECK_EQUAL( x[7], -5 );
-  CHECK_EQUAL( y[7], 5  );
-  CHECK_EQUAL( z[7], -5 );
+  x_ref.push_back( -5 );
+  y_ref.push_back( 5 );
+  z_ref.push_back( -5 );
+ 
+
+  std::cout << verts.size() << std::endl;
+  std::cout << x_ref.size() << std::endl;
+  
+  for (unsigned int i=0; i<verts.size(); i++)
+    {
+      for (unsigned int j=0; j<x_ref.size(); j++)
+	{
+	  if( x[i]==x_ref[j] && y[i]==y_ref[j] && z[i]==z_ref[j])
+            {
+              x_ref.erase( x_ref.begin()+j );
+              y_ref.erase( y_ref.begin()+j );
+              z_ref.erase( z_ref.begin()+j );
+              
+            }
+	}
+    }
+  
+  int leftovers = x_ref.size();
+  CHECK_EQUAL(0, leftovers );
 
 }
 
