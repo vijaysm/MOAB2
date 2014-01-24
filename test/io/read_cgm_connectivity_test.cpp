@@ -37,12 +37,7 @@ int main(int /* argc */, char** /* argv */)
 {
   int result = 0;
  
-  result += RUN_TEST( read_cube_verts_test );  
-  result += RUN_TEST( read_cube_curves_test );  
-  result += RUN_TEST( read_cube_tris_test );  
-  result += RUN_TEST( read_cube_surfs_test );  
-  result += RUN_TEST( read_cube_vols_test );  
-  result += RUN_TEST( read_cube_vertex_pos_test );  
+
  
   return result;
 }
