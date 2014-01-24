@@ -238,36 +238,42 @@ ErrorCode DeformMeshRemap::execute()
   if (*solidSetNos[MASTER].begin() == -1 || *fluidSetNos[MASTER].begin() == -1) {
     rval = find_other_sets(MASTER, masterSet); RR("Failed to find other sets in master mesh.");
   }
-  
-  rval = read_file(SLAVE, slaveFileName, slaveSet);
-  if (MB_SUCCESS != rval) return rval;
 
-  if (*solidSetNos[SLAVE].begin() == -1 || *fluidSetNos[SLAVE].begin() == -1) {
-    rval = find_other_sets(SLAVE, slaveSet); RR("Failed to find other sets in slave mesh.");
+  bool have_slave = !(slaveFileName == "none");
+  if (have_slave) {
+    rval = read_file(SLAVE, slaveFileName, slaveSet);
+    if (MB_SUCCESS != rval) return rval;
+
+    if (*solidSetNos[SLAVE].begin() == -1 || *fluidSetNos[SLAVE].begin() == -1) {
+      rval = find_other_sets(SLAVE, slaveSet); RR("Failed to find other sets in slave mesh.");
+    }
   }
   
   Range src_elems = solidElems[MASTER];
   src_elems.merge(fluidElems[MASTER]);
-    // locate slave vertices in master, orig coords; do this with a data coupler, so you can
-    // later interpolate
-  Range tgt_verts, tmp_range = solidElems[SLAVE];
-  tmp_range.merge(fluidElems[SLAVE]);
-  rval = mbImpl->get_adjacencies(tmp_range, 0, false, tgt_verts, Interface::UNION);
-  RR("Failed to get target verts.");
-  
 
     // initialize data coupler on source elements
   DataCoupler dc_master(mbImpl, NULL, src_elems, 0);
-  
-    // locate slave vertices, caching results in dc
-  rval = dc_master.locate_points(tgt_verts); RR("Point location of tgt verts failed.");
-  int num_located = dc_master.spatial_locator()->local_num_located();
-  if (num_located != (int)tgt_verts.size()) {
-    rval = MB_FAILURE;
-    std::cout << "Only " << num_located << " out of " << tgt_verts.size() << " target points successfully located." << std::endl;
-    return rval;
-  }
 
+  Range tgt_verts;
+  if (have_slave) {
+      // locate slave vertices in master, orig coords; do this with a data coupler, so you can
+      // later interpolate
+    Range tmp_range = solidElems[SLAVE];
+    tmp_range.merge(fluidElems[SLAVE]);
+    rval = mbImpl->get_adjacencies(tmp_range, 0, false, tgt_verts, Interface::UNION);
+    RR("Failed to get target verts.");
+
+      // locate slave vertices, caching results in dc
+    rval = dc_master.locate_points(tgt_verts); RR("Point location of tgt verts failed.");
+    int num_located = dc_master.spatial_locator()->local_num_located();
+    if (num_located != (int)tgt_verts.size()) {
+      rval = MB_FAILURE;
+      std::cout << "Only " << num_located << " out of " << tgt_verts.size() << " target points successfully located." << std::endl;
+      return rval;
+    }
+  }
+  
     // deform the master's solid mesh, put results in a new tag
   rval = deform_master(fluidElems[MASTER], solidElems[MASTER], "xnew"); RR("");
 
@@ -279,14 +285,17 @@ ErrorCode DeformMeshRemap::execute()
     RR("Failed in lloyd smoothing.");
     cout << "Lloyd smoothing required " << ll.num_its() << " iterations." << endl;
   }
-  
-    // map new locations to slave
-    // interpolate xNew to slave points
-  rval = dc_master.interpolate((int)DataCoupler::VOLUME, "xnew"); RR("Failed to interpolate target solution.");
 
-    // transfer xNew to coords, for master and slave
+    // transfer xNew to coords, for master
   rval = write_to_coords(fluidElems[MASTER], xNew); RR("Failed writing tag to master fluid verts.");
-  rval = write_to_coords(tgt_verts, xNew); RR("Failed writing tag to slave verts.");
+
+  if (have_slave) {
+      // map new locations to slave
+      // interpolate xNew to slave points
+    rval = dc_master.interpolate((int)DataCoupler::VOLUME, "xnew"); RR("Failed to interpolate target solution.");
+      // transfer xNew to coords, for slave
+    rval = write_to_coords(tgt_verts, xNew); RR("Failed writing tag to slave verts.");
+  }
 
   if (debug) {
     std::string str;
@@ -295,13 +304,16 @@ ErrorCode DeformMeshRemap::execute()
       str = "PARALLEL=WRITE_PART";
 #endif
     rval = mbImpl->write_file("smoothed_master.vtk", NULL, str.c_str(), &masterSet, 1);
+
+    if (have_slave) {
 #ifdef USE_MPI
-    str.clear();
-    if (pcSlave && pcSlave->size() > 1) 
-      str = "PARALLEL=WRITE_PART";
+      str.clear();
+      if (pcSlave && pcSlave->size() > 1) 
+        str = "PARALLEL=WRITE_PART";
 #endif
-    rval = mbImpl->write_file("slave_interp.vtk", NULL, str.c_str(), &slaveSet, 1);
-  }
+      rval = mbImpl->write_file("slave_interp.vtk", NULL, str.c_str(), &slaveSet, 1);
+    } // if have_slave
+  } // if debug
 
   return MB_SUCCESS;
 }
@@ -394,7 +406,7 @@ int main(int argc, char **argv) {
 
   ProgOptions po("Deformed mesh options");
   po.addOpt<std::string> ("master,m", "Specify the master meshfile name" );
-  po.addOpt<std::string> ("worker,w", "Specify the slave/worker meshfile name" );
+  po.addOpt<std::string> ("worker,w", "Specify the slave/worker meshfile name, or 'none' (no quotes) if master only" );
   po.addOpt<std::string> ("d1,", "Tag name for displacement x or xyz" );
   po.addOpt<std::string> ("d2,", "Tag name for displacement y" );
   po.addOpt<std::string> ("d3,", "Tag name for displacement z" );
